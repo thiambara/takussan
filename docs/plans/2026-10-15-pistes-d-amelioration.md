@@ -19364,7 +19364,7 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
 
 ### Le calendrier de la demande de visite propose tout jour à venir, et l'API refuse au-delà de 60 jours : « Les créneaux n'ont pas pu être chargés »
 - Réf : P212.01
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/app/[locale]/(public)/properties/[slug]/components/PropertyVisitDialog.tsx:81-85,202-208`, `takussan-web/src/lib/visites/useCreneaux.ts:29-37`, `takussan-api/app/Http/Requests/Public/VisitSlotsPublicPropertyRequest.php:17`, `takussan-web/src/messages/fr.json:10352`
 - Constat :
@@ -19374,10 +19374,11 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
   - Second écart, pour un navigateur hors Dakar seulement : `today` est minuit LOCAL (lu, l. 81-85) et la requête juge `after_or_equal:today` en UTC (lu, l. 17). Le soir à New York (01:00 Z), la veille UTC reste cliquable et rend la même erreur (déduit de la mesure `node` de P212.03, à vérifier sur le dialogue).
   - Établi comment : lu des deux côtés, et mesuré sur le validateur ; le dialogue n'a pas été rendu.
 - Piste : borner le calendrier par la même fenêtre (`after:` aujourd'hui UTC, J+60), idéalement servie par l'API ou portée par une constante partagée, et distinguer dans `useCreneaux` un 422 (jour hors fenêtre) d'une panne. Garde : un test du dialogue à horloge figée où J+61 est grisé.
+- Mesure (2026-10-24, ccb5c7995, mesureur) : relu `PropertyVisitDialog.tsx:81-85,206` (`disabled={{ before: today }}`, `today` à minuit local, aucune borne haute), `useCreneaux.ts:29-37` (tout rejet → état `erreur`), `VisitSlotsPublicPropertyRequest.php:17` et `fr.json:10352` (`slotsError`) ; `php artisan tinker` sur ces règles (`Validator::make`, lecture seule) → J+0 et J+60 passent, J+61 et J+90 rendent « before or equal to +60 days » ; `node` sous `TZ=America/New_York` à 2026-10-25T01:00Z → jour local 2026-10-24 pour un jour UTC 2026-10-25 → le constat tient, borne haute et borne basse ; le dialogue n'a pas été rendu ; aucun ticket ouvert ni commit ne le traite (`git log` des deux fichiers, `grep` des tickets). Classement : A1, la fenêtre [aujourd'hui UTC, J+60] est écrite par la règle de l'API, et le correctif borne le calendrier sur elle, comme TCK-1491 l'a fait pour d'autres champs ; distinguer un 422 d'une panne demande un texte neuf (V7) et reste hors du correctif autonome.
 
 ### Le bouton « Annuler » d'une réservation confirmée suit le jour du navigateur, l'API celui d'UTC
 - Réf : P212.02
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/bookings/BookingDetail.tsx:192-199`, `takussan-web/src/lib/calendar-date.ts:118-123`, `takussan-api/app/Services/Model/BookingService.php:284-290`
 - Constat :
@@ -19386,10 +19387,11 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
   - Mesuré, `node` sur la même lecture locale : à 2026-10-24T22:30Z, `Europe/Paris` rend 2026-10-25 contre 2026-10-24 en UTC ; à 2026-10-25T01:00Z, `America/New_York` rend 2026-10-24 contre 2026-10-25. Pour un séjour qui commence le 25 : à Paris, le bouton disparaît une heure ou deux avant que l'API ne ferme l'annulation ; à New York, il reste offert pendant que l'API répond `booking.cannot_cancel` (déduit de la mesure et des deux lectures, à vérifier sur l'écran).
   - Établi comment : lu, et mesuré sur la fonction seule.
 - Piste : juger « commencé » sur la date du jour UTC en `Y-m-d` (comme `property-availability.ts:36`), ou faire servir par l'API un `can_cancel`. Garde : un test de `BookingDetail` sous horloge figée, aux deux instants ci-dessus.
+- Mesure (2026-10-24, ccb5c7995, mesureur) : relu `BookingDetail.tsx:192-195` (`stayStarted` compare `start_date` à `formatISODate(new Date())`), `calendar-date.ts:118-123` (`getFullYear`/`getMonth`/`getDate`, composantes locales) et `BookingService.php:284-290` (`start_date->toDateString() <= now()->toDateString()`, fuseau `UTC`, `config/app.php:70`) ; `node` sur la même lecture locale → à 2026-10-24T22:30Z, `Europe/Paris` rend 2026-10-25 pour 2026-10-24 en UTC ; à 2026-10-25T01:00Z, `America/New_York` rend 2026-10-24 pour 2026-10-25 → le constat tient ; l'écran n'a pas été rendu. Classement : A1, la règle d'annulation est écrite par l'API (TCK-1301) et le correctif juge « commencé » sur le jour UTC, comme `property-availability.ts:36`, sans changer ce que l'API accepte.
 
 ### La demande de droits créée à la console porte par défaut la date du jour du navigateur, que l'API peut refuser en 422
 - Réf : P212.03
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/admin/super/PrivacyRequestChamps.tsx:11-17`, `takussan-web/src/components/admin/super/CreatePrivacyRequestForm.tsx:62,158`, `takussan-api/app/Http/Requests/Api/Admin/StorePrivacyRequestRequest.php:28`
 - Constat :
@@ -19397,10 +19399,11 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
   - Mesuré, `node` : à 2026-10-24T22:30Z, sous `Europe/Paris`, `aujourdhui()` vaut 2026-10-25 pour un `today` UTC du 2026-10-24. Entre minuit local et minuit UTC, à l'est d'UTC, la valeur par défaut est donc refusée (déduit de la règle, à vérifier par un envoi).
   - Établi comment : lu, et mesuré sur la fonction seule.
 - Piste : pré-remplir et borner par le jour UTC, comme `PayoutCloseDialog.tsx:30` et `CreateInvoiceDialog.tsx:52` le font déjà. Garde : un test du formulaire sous horloge figée à 22:30Z et `TZ=Europe/Paris`, ou un test de la fonction.
+- Mesure (2026-10-24, ccb5c7995, mesureur) : relu `PrivacyRequestChamps.tsx:11-17` (`aujourdhui()` en composantes locales), `CreatePrivacyRequestForm.tsx:62,158` (défaut et `max`) et `StorePrivacyRequestRequest.php:28` (`before_or_equal:today`) ; `node` sous `TZ=Europe/Paris` à 2026-10-24T22:30Z → jour local 2026-10-25 pour 2026-10-24 en UTC ; `tinker` (`Validator::make`, lecture seule) → le lendemain UTC sous `before_or_equal:today` est refusé → le constat tient ; aucun envoi réel. Classement : A1, la borne est écrite par la règle de l'API et le correctif pré-remplit et borne par le jour UTC, comme `PayoutCloseDialog.tsx:30` ; il ne change ni ce qui est conservé ni ce qui est exposé.
 
 ### L'échéance d'une pièce KYC propose dès « demain » local un jour que l'API refuse le soir à l'ouest d'UTC
 - Réf : P212.04
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/lib/kyc-echeance.ts:67-73`, `takussan-web/src/components/kyc/kyc-components.tsx:159-163`, `takussan-api/app/Http/Requests/Kyc/UploadKycDocumentRequest.php:22`
 - Constat :
@@ -19409,10 +19412,11 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
   - `etatEcheance` (l. 41-53) juge aussi « aujourd'hui » en local face à `kyc:expire-dossiers` qui tourne en UTC : même écart d'affichage, de quelques heures (lu, à vérifier sur la commande).
   - Établi comment : lu, et mesuré sur la fonction seule.
 - Piste : dériver « aujourd'hui » et « demain » du jour UTC, celui que les règles `today` de l'API lisent. Garde : les tests existants de `kyc-echeance` étendus d'un instant à 01:00Z sous `TZ=America/New_York`.
+- Mesure (2026-10-24, ccb5c7995, mesureur) : relu `kyc-echeance.ts:67-73` (`demainIso` en composantes locales), `kyc-components.tsx:161` (`min={demainIso()}`) et `UploadKycDocumentRequest.php:22` (`after:today`) ; `node` → sous `America/New_York` à 2026-10-25T01:00Z, `demainIso` rend 2026-10-25, le jour UTC ; sous `Europe/Paris` à 22:30Z, 2026-10-26 pour 2026-10-25 recevable ; `tinker` → `after:today` refuse le jour UTC → le constat tient pour `demainIso` ; `etatEcheance` (l. 41-53) lit aussi le jour local, mais son écart face à `kyc:expire-dossiers` reste déduit. Classement : A1, la première date recevable est écrite par la règle de l'API et le correctif dérive `demainIso` du jour UTC ; aligner `etatEcheance` reste à vérifier, et hors du correctif autonome.
 
 ### Le renouvellement d'un bail pré-remplit, aux jours de changement d'heure, un début égal à la fin du parent et une fin trop courte d'un jour
 - Réf : P212.05
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/leases/LeaseRenewalDialog.tsx:42-54`, `takussan-api/app/Services/Lease/LeaseRenewalService.php:87-89,249-258`
 - Constat :
@@ -19421,10 +19425,11 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
   - L'API ne ramène la fin du parent qu'en cas de chevauchement strict (`$startDate->lt($parentEnd)`, lu, l. 252) : un enfant qui commence le jour même de la fin du parent garde ce jour en double (déduit, à vérifier sur les échéances, `overlappingRentDues` l. 261).
   - Établi comment : lu, et mesuré sur les fonctions seules ; le dialogue n'a pas été rendu.
 - Piste : calculer les deux défauts sur des jours UTC (`Date.UTC` puis `toISOString().slice(0, 10)`), ou les faire servir par l'API, qui sait déjà dériver le début (`parentEnd + 1`, l. 89). Garde : un test des deux défauts sous `TZ=Europe/Paris` sur la fin du 2026-03-29.
+- Mesure (2026-10-24, ccb5c7995, mesureur) : relu `LeaseRenewalDialog.tsx:42-54` (`new Date(end_date)` puis `setDate`/`setFullYear` locaux, relu par `toISOString()`) et `LeaseRenewalService.php:87-89` (début par défaut `parentEnd->addDay()`) ; `node` sur les deux fonctions recopiées → fin du parent 2026-03-29 : début proposé 2026-03-29 sous `Europe/Paris`, 2026-03-30 sous Dakar, UTC et New York ; début 2026-10-26 : fin 2027-10-25 sous Paris, 2027-10-26 ailleurs → le constat tient sur les défauts ; le jour en double côté échéances (`handOver`, `lt($parentEnd)` l. 252) reste déduit. Classement : A1, le début attendu est écrit par l'API (`parentEnd + 1`) et le correctif calcule les deux défauts sur des jours UTC, sans toucher au service ni aux montants.
 
 ### Petites améliorations
 - Réf : P212.06
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/components/leases/EarlyTerminationDialog.tsx:34-38`, `takussan-web/src/components/maintenance/QuoteSubmitForm.tsx:248`, `takussan-api/app/Http/Requests/Maintenance/SubmitQuoteRequest.php:38`, `takussan-web/src/lib/calendar-date.ts:118`, `takussan-web/src/components/admin/super/PrivacyRequestChamps.tsx:12`, `takussan-web/src/lib/kyc-echeance.ts:68`, `takussan-web/src/components/reporting/window.ts:96`, `takussan-web/src/lib/property-availability.ts:36`
 - Constat :
@@ -19433,3 +19438,4 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
   - Le front a au moins six façons d'écrire « aujourd'hui » en `Y-m-d` : `toISOString()` coupé au jour (UTC, 24 lignes hors tests, mesuré par `grep`), `formatISODate`, `aujourdhui()`, `demainIso`, `enDate` et `jourChoisi` (locales, lu aux lignes citées), `property-availability.ts:36` (UTC, documenté). Aucune n'est nommée comme « le jour de l'API » : P212.02 à P212.05 viennent toutes d'un choix local là où l'API juge en UTC.
   - Établi comment : lu, et mesuré pour le premier point.
 - Piste : une fonction partagée (« jour de l'API », UTC) pour tout `min`, `max` ou défaut jugé par une règle `today`, et un `min` sur l'échéance du devis. Garde : une règle de lint ou une garde qui refuse `getDate()`/`setDate()` sur une valeur passée ensuite à `toISOString()`.
+- Mesure (2026-10-24, ccb5c7995, mesureur) : relu `EarlyTerminationDialog.tsx:34-38` (`todayPlusDays` : `setDate` local, relu par `toISOString()`), `EarlyTerminationService.php:72-82` (`notice_too_short` sous `now()->startOfDay()->addDays($notice)`), `QuoteSubmitForm.tsx:248` (`DatePicker` sans `min`) et `SubmitQuoteRequest.php:38` (`after_or_equal:today`) ; `node` → `todayPlusDays(30)` depuis 2026-02-28T00:00Z rend 2026-03-29 sous `Europe/Paris` et `America/New_York`, 2026-03-30 sous Dakar et UTC ; `tinker` → la veille est refusée par `after_or_equal:today` → les deux premiers points tiennent ; le compte des six écritures d'« aujourd'hui » n'a pas été recompté. Classement : A1 et A5, les bornes sont écrites par l'API ; le correctif fait calculer `todayPlusDays` sur le jour UTC, pose `min` = jour UTC sur l'échéance du devis, et peut ajouter une garde, sans texte neuf.
