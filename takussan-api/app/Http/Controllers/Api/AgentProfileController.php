@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Resources\AgentProfileResource;
 use App\Models\Profiles\AgentProfile;
 use App\Services\Invitation\AgentInvitationService;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -37,10 +38,8 @@ class AgentProfileController extends Controller
         $profile = $this->service->suspend($agentProfile, $user, $active);
 
         // TCK-1500 (P94.04) — `hire_date` et `active_until` sont castés `date` : `Y-m-d` (ADR-0018).
-        return $this->json(['data' => array_merge($profile->toArray(), [
-            'hire_date' => $profile->hire_date?->toDateString(),
-            'active_until' => $profile->active_until?->toDateString(),
-        ])]);
+        // TCK-2045 (P61.04) — par la ressource : `toArray()` rendait `metadata` entier, KYC compris.
+        return $this->json(['data' => (new AgentProfileResource($profile))->resolve($request)]);
     }
 
     public function destroy(Request $request, AgentProfile $agentProfile): JsonResponse
