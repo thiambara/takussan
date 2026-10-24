@@ -115,6 +115,9 @@ class MaintenanceRequestResource extends BaseResource
      * TCK-592 (P7) — les pièces de la demande, en URL d'API signées (`PrivateMediaAccess`, seule
      * sortie d'un fichier privé). `quotes` au prestataire assigné et aux donneurs d'ordre seulement.
      *
+     * TCK-2088 (P180.02) — `thumbnail_url` sert la vignette des photos à la galerie, `url`
+     * l'original au clic ; l'original tant que la file ne l'a pas produite, et toujours pour un devis.
+     *
      * @return array<string, list<array<string, mixed>>>
      */
     private function mediaBlock(User $user): array
@@ -133,7 +136,8 @@ class MaintenanceRequestResource extends BaseResource
                     'name' => $media->file_name,
                     'mime_type' => $media->mime_type,
                     'size' => $media->size,
-                    'url' => $access->signedUrl($media),
+                    'url' => $url = $access->signedUrl($media),
+                    'thumbnail_url' => $access->signedConversionUrl($media, 'thumbnail') ?? $url,
                     'created_at' => $this->iso($media->created_at),
                 ])
                 ->values()

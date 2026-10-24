@@ -107,7 +107,10 @@ class InventoryResource extends BaseResource
      * signée (collection privée, ADR-0029). Une photo dont la pièce a disparu de `rooms` reste
      * visible, dans un groupe à part, plutôt que de devenir invisible et indélébile.
      *
-     * @return list<array{room_name: string, photos: list<array{id: int, url: string, room_name: string}>}>
+     * TCK-2088 (P180.02) — `preview_url` sert la `preview` (600 px) à la grille, `url` l'original au
+     * clic ; tant que la file n'a pas produit la `preview`, `preview_url` est l'original.
+     *
+     * @return list<array{room_name: string, photos: list<array{id: int, url: string, preview_url: string, room_name: string}>}>
      */
     private function roomPhotos(): array
     {
@@ -121,9 +124,11 @@ class InventoryResource extends BaseResource
 
         foreach ($this->media->where('collection_name', 'room_photos')->sortBy('id') as $media) {
             $name = (string) $media->getCustomProperty('room_name');
+            $url = $access->signedUrl($media);
             $groups[$name][] = [
                 'id' => (int) $media->id,
-                'url' => $access->signedUrl($media),
+                'url' => $url,
+                'preview_url' => $access->signedConversionUrl($media, 'preview') ?? $url,
                 'room_name' => $name,
             ];
         }

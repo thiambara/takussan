@@ -21,14 +21,19 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Http\Request;
 use Laravel\Scout\Searchable;
+use Spatie\Image\Enums\Fit;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use Spatie\QueryBuilder\AllowedSort;
 use Spatie\QueryBuilder\QueryBuilder;
 
 class MaintenanceRequest extends AbstractModel implements HasAuditAgency, HasMedia
 {
     use HasFactory, InteractsWithMedia, Searchable, SoftDeletes;
+
+    /** TCK-2088 — grand côté de la vignette des photos (tuiles de la galerie, 3 à 5 colonnes). */
+    public const THUMBNAIL_WIDTH = 400;
 
     /**
      * ⚠ TCK-474 — `resolution_report` A ÉTÉ RETIRÉ d'ici, et ne doit pas y revenir sans
@@ -177,6 +182,21 @@ class MaintenanceRequest extends AbstractModel implements HasAuditAgency, HasMed
         $this->addMediaCollection('quotes');
         // TCK-592 (P7) — l'état constaté par le prestataire AVANT d'intervenir.
         $this->addMediaCollection('before_photos');
+    }
+
+    /**
+     * TCK-2088 (P180.02, ADR-0029, amendement du 2026-10-23) — la vignette que la galerie affiche
+     * au lieu de l'original, en file `media`, sur le même disque privé. Servie par la route signée
+     * (`PrivateMediaAccess::SERVABLE_CONVERSIONS`). Les devis (`quotes`, souvent des PDF) n'en ont pas.
+     */
+    public function registerMediaConversions(?Media $media = null): void
+    {
+        $this->addMediaConversion('thumbnail')
+            ->fit(Fit::Max, self::THUMBNAIL_WIDTH, self::THUMBNAIL_WIDTH)
+            ->format('jpg')
+            ->quality(70)
+            ->performOnCollections('photos', 'before_photos', 'completion_photos')
+            ->queued();
     }
 
     /**
