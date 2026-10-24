@@ -114,6 +114,34 @@ class AgencyDetailTest extends TestCase
             ->assertJsonStructure(['data' => ['last_platform_payment_at']]);
     }
 
+    /**
+     * P223.01 (TCK-2171) — « Plaintes ouvertes » comptait le signalement d'un bien supprimé, que la
+     * file de modération écarte (`whereNull('p.deleted_at')`) et que personne ne peut donc clore.
+     */
+    public function test_open_complaints_skip_reports_of_a_deleted_property(): void
+    {
+        $this->actingAsRole('super_admin');
+        $agency = Agency::factory()->create();
+        $live = Property::factory()->create(['agency_id' => $agency->id]);
+        $deleted = Property::factory()->create(['agency_id' => $agency->id]);
+        foreach ([$live, $deleted] as $property) {
+            PropertyReport::query()->create([
+                'property_id' => $property->id,
+                'reason' => 'fraud',
+                'details' => 'Annonce douteuse',
+            ]);
+        }
+
+        $deleted->delete();
+
+        $this->getJson("/api/admin/agencies/{$agency->id}/health")
+            ->assertOk()
+            ->assertJsonPath('data.open_complaints', 1);
+        $this->getJson('/api/admin/moderation?filter[agency_id]='.$agency->id)
+            ->assertOk()
+            ->assertJsonPath('meta.counts.property', 1);
+    }
+
     public function test_team_and_properties_are_paginated(): void
     {
         $this->actingAsRole('super_admin');

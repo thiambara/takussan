@@ -7,7 +7,7 @@
  * filtrés côté serveur.
  */
 import { render, screen, within } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { withIntl } from '@/test/intl';
 import fr from '@/messages/fr.json';
@@ -170,5 +170,45 @@ describe('CustomerPayments (TCK-593 Partie 2)', () => {
   it('aucun vocabulaire d’agence : ni reversement ni facturation', () => {
     const { container } = rendre();
     expect(container.textContent).not.toMatch(/reversement|factur/i);
+  });
+});
+
+/**
+ * P199.05 (TCK-2169) — les dus étaient tirés de 50 lignes triées par date, sans borne : un bail de
+ * cinq ans en émet 60, et « Autres paiements à régler » s'arrêtait à 49 sans le dire. La lecture
+ * est bornée à six mois (`date_to`), sans borne basse (les retards restent), et le titre dit
+ * l'horizon, avec un lien vers l'historique.
+ */
+describe('CustomerPayments — horizon des échéances (P199.05)', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-24T10:00:00Z'));
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('borne la lecture des dus à six mois, sans borne basse', () => {
+    rendre();
+    const dus = usePaymentsHistory.mock.calls
+      .map(([params]) => params as { status?: string; date_to?: string; date_from?: string })
+      .find((params) => params.status);
+    expect(dus?.date_to).toBe('2027-04-24');
+    expect(dus?.date_from).toBeUndefined();
+  });
+
+  it('titre les autres échéances par leur horizon, avec un lien vers l’historique', () => {
+    const SUIVANTE = ligne({ ...DUE, id: 13, status: 'pending', period_start: '2026-10-01', period_end: '2026-10-31' });
+    usePaymentsHistory.mockImplementation((params: { status?: string }) =>
+      params.status ? reponse([DUE, SUIVANTE]) : reponse(HISTORIQUE),
+    );
+    rendre();
+
+    expect(screen.getByRole('heading', { name: 'Échéances des 6 prochains mois' })).toBeInTheDocument();
+    expect(screen.queryByText('Autres paiements à régler')).toBeNull();
+    expect(screen.getByRole('link', { name: 'Voir l’historique' })).toHaveAttribute(
+      'href',
+      '#historique-paiements',
+    );
   });
 });

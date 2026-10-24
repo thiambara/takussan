@@ -36,6 +36,19 @@ const STATUTS_DUS = 'pending,partially_paid,late,failed';
 const PAR_PAGE = 20;
 
 /**
+ * P199.05 (TCK-2169) — l'horizon des dus lus. L'échéancier d'un bail est émis en entier à
+ * l'activation (60 lignes pour cinq ans) : la lecture de 50 lignes s'arrêtait en silence. Elle est
+ * bornée par `date_to` (le début de période, côté API) ; sans borne basse, les retards restent.
+ */
+const HORIZON_MOIS = 6;
+
+function horizonDesDus(): string {
+  const borne = new Date();
+  borne.setUTCMonth(borne.getUTCMonth() + HORIZON_MOIS);
+  return borne.toISOString().slice(0, 10);
+}
+
+/**
  * Le sélecteur de fournisseurs reçoit `undefined` : la liste des intégrations de l'agence n'est pas
  * lisible par le client (`GET /api/integrations` → 403), et l'API refuse à l'initiation un
  * fournisseur que l'agence n'a pas.
@@ -62,7 +75,12 @@ export function CustomerPayments() {
   const locale = useLocale() as Locale;
   const [page, setPage] = useState(1);
 
-  const dus = usePaymentsHistory({ status: STATUTS_DUS, sort: 'date', per_page: 50 });
+  const dus = usePaymentsHistory({
+    status: STATUTS_DUS,
+    sort: 'date',
+    per_page: 50,
+    date_to: horizonDesDus(),
+  });
   const historique = usePaymentsHistory({ sort: '-date', page, per_page: PAR_PAGE });
 
   const aPayer = (dus.data?.data ?? []).filter(
@@ -158,7 +176,17 @@ export function CustomerPayments() {
         )}
         {suivants.length > 0 && (
           <div className="mt-4 border-t border-border pt-4">
-            <h3 className="text-sm font-medium text-foreground">{t('otherDues')}</h3>
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <h3 className="text-sm font-medium text-foreground">
+                {t('otherDuesHorizon', { months: HORIZON_MOIS })}
+              </h3>
+              <a
+                href="#historique-paiements"
+                className="text-sm text-primary underline-offset-4 hover:underline"
+              >
+                {t('historyLink')}
+              </a>
+            </div>
             <ul className="mt-2 divide-y divide-border">
               {suivants.map((row) => (
                 <li key={row.id} className="flex flex-wrap items-center justify-between gap-2 py-2">

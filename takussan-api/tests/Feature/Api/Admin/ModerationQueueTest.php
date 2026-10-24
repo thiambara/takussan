@@ -56,6 +56,37 @@ class ModerationQueueTest extends TestCase
         $this->assertSame(['approve', 'hide', 'remove'], $decisions['review']);
     }
 
+    /**
+     * P223.03 (TCK-2173) — l'avis en attente d'un bien supprimé restait dans la file, à approuver
+     * pour un bien que plus personne ne voit, quand les trois branches de biens l'écartent. L'avis
+     * d'une agence, sans bien joint, y reste.
+     */
+    public function test_reviews_of_a_deleted_property_leave_the_queue_agency_reviews_stay(): void
+    {
+        $agency = Agency::factory()->create();
+        $property = Property::factory()->create(['agency_id' => $agency->id]);
+        $ofProperty = Review::factory()->create([
+            'reviewable_type' => Property::class,
+            'reviewable_id' => $property->id,
+            'status' => ReviewStatus::Pending,
+        ]);
+        $ofAgency = Review::factory()->create([
+            'reviewable_type' => Agency::class,
+            'reviewable_id' => $agency->id,
+            'status' => ReviewStatus::Pending,
+        ]);
+
+        $this->actingAsRole('super_admin');
+        $before = collect($this->getJson('/api/admin/moderation?filter[type]=review')->assertOk()->json('data'))->pluck('id');
+        $this->assertEqualsCanonicalizing(["review:{$ofProperty->id}", "review:{$ofAgency->id}"], $before->all());
+
+        $property->delete();
+
+        $after = $this->getJson('/api/admin/moderation?filter[type]=review')->assertOk();
+        $this->assertSame(["review:{$ofAgency->id}"], collect($after->json('data'))->pluck('id')->all());
+        $this->assertSame(1, $after->json('meta.counts.review'));
+    }
+
     public function test_agency_admin_is_forbidden(): void
     {
         $this->actingAsRole('agency_admin');

@@ -452,6 +452,12 @@ export type ModerationBatchResult = {
   code?: string;
 };
 
+/** P199.02 (TCK-2165) — les comptes par type de toute la file filtrée, calculés par l'API. */
+export type ModerationCounts = {
+  property: number;
+  review: number;
+};
+
 export type AdminModerationResponse = {
   data: AdminModerationItem[];
   meta: {
@@ -459,6 +465,7 @@ export type AdminModerationResponse = {
     current_page: number;
     last_page: number;
     per_page: number;
+    counts?: ModerationCounts;
   };
 };
 
