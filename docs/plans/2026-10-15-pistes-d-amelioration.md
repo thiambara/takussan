@@ -7210,7 +7210,7 @@ base de développement. Les écrans n'ont pas été joués.*
 
 ### La liste des invitations rend à l'émetteur suspendu ou retiré les invitations qu'il a émises, adresse de l'invité comprise, que `view` lui refuse depuis TCK-2194
 - Réf : P233.02
-- Statut : retenu · autonome
+- Statut : fait · TCK-2243
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/InvitationController.php:115-127`, `takussan-api/app/Policies/InvitationPolicy.php:59-75`, `takussan-api/app/Http/Resources/InvitationResource.php:23-24`
 - Constat :
@@ -7221,6 +7221,7 @@ base de développement. Les écrans n'ont pas été joués.*
   - Établi comment : lu, puis mesuré.
 - Piste : `visibleScope` : `invited_by` et (agence nulle, ou comprise dans `memberAgencyIds()`), la forme SQL de la branche de `view`. Test : émetteur suspendu puis retiré → absent de `GET /api/invitations` ; émetteur actif et invitation sans agence → listée ; ablation → rouge.
 - Mesure (2026-10-24, 7772c59d8, mesureur) : relu `InvitationController::visibleScope` (`where('invited_by', $user->id)` seul pour qui ne passe pas `viewAny`) et `InvitationPolicy::view` (branche émetteur bornée par `isMemberAt` depuis TCK-2194), inchangés ; (sonde temporaire `tests/Feature/TmpMesureur/Sonde233Test.php`, retirée, charge `{ 2.21 2.54 2.46 }` sur 8 cœurs, profil d'agent (ou d'admin) passé à `suspended` puis supprimé) invitation de l'agence émise par un agent : actif → `GET /api/invitations/{id}` 200 et listée ; suspendu, puis retiré → `GET /api/invitations/{id}` 403, mais `GET /api/invitations` 200 rend la ligne avec l'`email` de l'invité : le constat tient. Classement : A1, ADR-0031 (amendement du 2026-10-24, B.1, B.2 et B.4) nomme `invited_by`, borne les listes par la forme SQL de la règle et garde « your pending invites » à l'émetteur actif : la liste n'a qu'à suivre la branche de `view`.
+- Mesure (2026-10-24, 74be78a0f, implementeur) : avant correctif, `ListeParLEmetteurEncoreMembreTest` (invitation de l'agence émise par un agent sans `team.invite` ; profil d'agent passé à `suspended`, puis supprimé) → 2 rouges, `view` refuse mais l'invitation reste listée dans `GET /api/invitations` → correctif : la branche `invited_by` de `InvitationController::visibleScope` exige agence nulle ou `memberAgencyIds()`, forme SQL de la branche émetteur de `view` ; 4 verts (émetteur actif, invitation sans agence) ; ablation → 2 rouges, remise → 4 verts.
 
 ### Le membre suspendu ou retiré qui a ouvert une intervention la lit, la liste, et confirme ou conteste la réparation
 - Réf : P233.03
