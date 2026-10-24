@@ -99,7 +99,7 @@ function bail(overrides: Partial<LeaseWithRelations> = {}): LeaseWithRelations {
     created_at: '2026-01-01T00:00:00Z',
     updated_at: '2026-01-01T00:00:00Z',
     tenant: { id: 300, user_id: LOCATAIRE_USER_ID },
-    property: { id: 10, title: 'Villa Almadies', slug: 'villa-almadies' },
+    property: { id: 10, title: 'Villa Almadies', slug: 'villa-almadies', main_photo_url: null },
     abilities: PREAVIS_REFUSE,
     ...overrides,
   };
