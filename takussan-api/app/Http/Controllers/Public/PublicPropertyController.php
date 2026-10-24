@@ -788,6 +788,9 @@ class PublicPropertyController extends Controller
                 )
                 ->exists();
 
+            // P201.04 (TCK-2039) — voulu, pas un oubli : le second signalement (même autre motif,
+            // autres détails) n'est ni écrit ni fusionné, et la réponse reste la même — dédoublonnage
+            // par compte, sinon par empreinte (ADR-0043 § 6, TCK-597).
             if ($already) {
                 return;
             }

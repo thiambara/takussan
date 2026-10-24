@@ -9192,6 +9192,7 @@
       "opportunitySentTitle": "Review sent",
       "opportunitySentBody": "Thank you! Your review will be published once approved.",
       "opportunityError": "Your review could not be sent.",
+      "opportunityPartiallySent": "Already saved: {targets}.",
       "anonymous": "Anonymous"
     },
     "contact": {
