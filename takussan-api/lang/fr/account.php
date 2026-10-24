@@ -32,6 +32,9 @@ return [
             'payment_pending' => 'Paiement en attente :reference.',
             'invoice_pending' => 'Facture en attente :reference.',
             'booking_open' => 'Réservation en cours :reference.',
+            // TCK-2015 (P175.03)
+            'payout_upcoming' => 'Reversement en cours :reference.',
+            'payout_due' => 'Reversement dû par :agency.',
         ],
     ],
 

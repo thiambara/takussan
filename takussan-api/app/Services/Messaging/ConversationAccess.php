@@ -6,10 +6,14 @@ use App\Models\Conversation;
 use App\Models\ConversationParticipant;
 use App\Models\Enums\ConversationType;
 use App\Models\MaintenanceRequest;
+use App\Models\Profiles\AgencyAdminProfile;
+use App\Models\Profiles\AgentProfile;
+use App\Models\Profiles\OwnerProfile;
 use App\Models\Property;
 use App\Models\User;
 use App\Services\Property\PrimaryPropertyContact;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\DB;
 
 /**
  * TCK-592 (verif-592, B2) — LA garde d'accès à une conversation : lecture, écriture, liste.
@@ -31,6 +35,12 @@ use Illuminate\Database\Eloquent\Builder;
  * participant ne l'a que s'il est le contact principal ACTUEL du bien
  * ({@see PrimaryPropertyContact::for()}). Un agent retiré du bien, bloqué ou sorti de l'agence
  * perdait la collaboration mais gardait le fil, numéro du prospect compris.
+ *
+ * P191.01 (TCK-2019, version étroite décidée par le porteur) — quatrième branche, le **contexte** :
+ * un fil rattaché à un bail (`lease_id`) ou à un bien (`property_id`) est refusé au participant qui
+ * ne tient plus, dans l'agence de ce bail ou de ce bien, qu'un profil non actif (agent,
+ * administrateur ou bailleur suspendu), et qui n'est partie ni au bail (bailleur, locataire) ni au
+ * bien (propriétaire). Il n'en est pas retiré (`left_at` reste nul) : réactivé, il retrouve le fil.
  */
 class ConversationAccess
 {
@@ -56,7 +66,54 @@ class ConversationAccess
     public function branchesAllow(User $user, Conversation $conversation): bool
     {
         return $this->maintenanceAllows($user, $conversation)
-            && $this->prospectAllows($user, $conversation);
+            && $this->prospectAllows($user, $conversation)
+            && $this->contextAllows($user, $conversation);
+    }
+
+    /** La branche « contexte » seule (P191.01) : vrai pour tout fil sans bail ni bien. */
+    public function contextAllows(User $user, Conversation $conversation): bool
+    {
+        if ($conversation->lease_id === null && $conversation->property_id === null) {
+            return true;
+        }
+
+        $lease = $conversation->lease_id !== null
+            ? DB::table('leases')->where('id', $conversation->lease_id)->first(['agency_id', 'landlord_id', 'tenant_id'])
+            : null;
+        $property = $conversation->property_id !== null
+            ? DB::table('properties')->where('id', $conversation->property_id)->first(['agency_id', 'user_id'])
+            : null;
+
+        $agencyIds = array_values(array_filter([$lease?->agency_id, $property?->agency_id], fn ($id) => $id !== null));
+        if (array_intersect($agencyIds, $this->inactiveOnlyAgencyIds($user)) === []) {
+            return true;
+        }
+
+        $isTenant = $lease?->tenant_id !== null
+            && DB::table('customers')->where('id', $lease->tenant_id)->where('user_id', $user->id)->exists();
+
+        return (int) ($lease?->landlord_id ?? 0) === (int) $user->id
+            || (int) ($property?->user_id ?? 0) === (int) $user->id
+            || $isTenant;
+    }
+
+    /**
+     * Les agences où `$user` tient un profil d'agent, d'administrateur ou de bailleur, mais aucun
+     * d'actif : un membre suspendu (`TeamMemberSuspensionService`), pas un membre actif qui garde
+     * par ailleurs un profil ancien.
+     *
+     * @return list<int>
+     */
+    private function inactiveOnlyAgencyIds(User $user): array
+    {
+        $held = [];
+        $active = [];
+        foreach ([AgentProfile::class, AgencyAdminProfile::class, OwnerProfile::class] as $class) {
+            $held = [...$held, ...$class::query()->where('user_id', $user->id)->pluck('agency_id')->all()];
+            $active = [...$active, ...$class::query()->where('user_id', $user->id)->active()->pluck('agency_id')->all()];
+        }
+
+        return array_values(array_map('intval', array_diff(array_unique($held), $active)));
     }
 
     /** La branche « fil de prospect » seule : vrai pour tout fil qui n'en est pas un. */
@@ -112,11 +169,44 @@ class ConversationAccess
         // remet la liste des biens qu'il sert encore dans la requête.
         $answered = $this->answeredPropertyIds($user);
 
-        return $query->where(fn (Builder $q) => $q
+        $query->where(fn (Builder $q) => $q
             ->where('conversations.type', '!=', ConversationType::Direct->value)
             ->orWhereNull('conversations.property_id')
             ->orWhere('conversations.created_by', $user->id)
             ->orWhereIn('conversations.property_id', $answered));
+
+        return $this->constrainContext($query, $user);
+    }
+
+    /**
+     * P191.01 — la branche « contexte » pour une liste : hors des fils dont le bail ou le bien relève
+     * d'une agence où `$user` n'a plus de profil actif, sauf s'il est partie au bail ou au bien. Sans
+     * telle agence (le cas courant), la requête n'est pas touchée.
+     *
+     * @param  Builder<Conversation>  $query
+     * @return Builder<Conversation>
+     */
+    private function constrainContext(Builder $query, User $user): Builder
+    {
+        $agencies = $this->inactiveOnlyAgencyIds($user);
+        if ($agencies === []) {
+            return $query;
+        }
+
+        $leasesInAgencies = DB::table('leases')->whereIn('agency_id', $agencies)->select('id');
+        $propertiesInAgencies = DB::table('properties')->whereIn('agency_id', $agencies)->select('id');
+        $leasesOfParty = DB::table('leases')->where(fn ($q) => $q
+            ->where('landlord_id', $user->id)
+            ->orWhereIn('tenant_id', DB::table('customers')->where('user_id', $user->id)->select('id')))
+            ->select('id');
+        $propertiesOfParty = DB::table('properties')->where('user_id', $user->id)->select('id');
+
+        return $query->whereNot(fn (Builder $q) => $q
+            ->where(fn (Builder $c) => $c
+                ->where(fn (Builder $l) => $l->whereNotNull('conversations.lease_id')->whereIn('conversations.lease_id', $leasesInAgencies))
+                ->orWhere(fn (Builder $p) => $p->whereNotNull('conversations.property_id')->whereIn('conversations.property_id', $propertiesInAgencies)))
+            ->where(fn (Builder $l) => $l->whereNull('conversations.lease_id')->orWhereNotIn('conversations.lease_id', $leasesOfParty))
+            ->where(fn (Builder $p) => $p->whereNull('conversations.property_id')->orWhereNotIn('conversations.property_id', $propertiesOfParty)));
     }
 
     /**

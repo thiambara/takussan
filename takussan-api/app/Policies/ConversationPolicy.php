@@ -19,9 +19,15 @@ use App\Services\Messaging\ConversationAccess;
  */
 class ConversationPolicy
 {
+    /**
+     * P191.03 (TCK-2023) — l'acteur doit d'abord avoir accès au fil ({@see ConversationAccess::allows}) :
+     * un agent suspendu, resté administrateur d'un groupe de bail, y ajoutait un tiers qui lisait
+     * alors tout l'historique.
+     */
     public function addParticipant(User $user, Conversation $conversation): bool
     {
-        return $this->isActiveAdmin($user, $conversation);
+        return app(ConversationAccess::class)->allows($user, $conversation)
+            && $this->isActiveAdmin($user, $conversation);
     }
 
     public function removeParticipant(User $user, Conversation $conversation, User $target): bool

@@ -48,13 +48,18 @@ class FeatureFlagEvaluator
             return false;
         }
 
+        // TCK-2006 (P176.05 ; ADR-0005, amendement du 2026-10-23, point 2) — les profils ACTIFS
+        // seulement : un drapeau ciblé par rôle n'atteint plus un profil suspendu.
         $roles = $segments['roles'] ?? [];
-        if (is_array($roles) && $roles !== [] && collect($roles)->intersect($user->profileTypes())->isNotEmpty()) {
+        if (is_array($roles) && $roles !== [] && collect($roles)->intersect($user->activeProfileTypes())->isNotEmpty()) {
             return true;
         }
 
+        // TCK-2006 — toutes les agences où le compte a un profil actif, et non `$user->agency_id`, qui
+        // ne suit que l'agence active et vaut `null` pour un compte de deux agences sans profil résolu.
         $agencyIds = $segments['agency_ids'] ?? [];
-        if (is_array($agencyIds) && $user->agency_id && in_array($user->agency_id, array_map('intval', $agencyIds), true)) {
+        if (is_array($agencyIds) && $agencyIds !== []
+            && array_intersect($user->activeAgencyIds(), array_map('intval', $agencyIds)) !== []) {
             return true;
         }
 

@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { Fraunces, Inter, Manrope } from 'next/font/google';
+import localFont from 'next/font/local';
 import { notFound } from 'next/navigation';
 
 import { PlaygroundClient } from './PlaygroundClient';
@@ -45,9 +45,34 @@ export const metadata: Metadata = {
  * racine l'étaient par les 139 routes. Bricolage et DM Sans restent posées par la racine.
  * `display: contents` : l'enveloppe ne porte que les variables, sans boîte.
  */
-const manrope = Manrope({ subsets: ['latin'], variable: '--font-manrope' });
-const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
-const fraunces = Fraunces({ subsets: ['latin'], variable: '--font-fraunces', weight: ['400', '500', '600'], style: ['normal', 'italic'] });
+//
+// ADR-0074 — fichiers versionnés sous `src/app/fonts/` (cf. son README), `latin` seul : la page ne
+// sert qu'en développement (404 en production, ci-dessous). Graisses : la plage entière de l'axe
+// pour Manrope et Inter (Google servait leur fichier variable), 400 à 600 pour Fraunces (les trois
+// graisses demandées à Google, sur le même fichier).
+const manrope = localFont({
+  src: '../../../fonts/manrope-latin-wght-normal.woff2',
+  variable: '--font-manrope',
+  weight: '200 800',
+  display: 'swap',
+  adjustFontFallback: 'Arial',
+});
+const inter = localFont({
+  src: '../../../fonts/inter-latin-wght-normal.woff2',
+  variable: '--font-inter',
+  weight: '100 900',
+  display: 'swap',
+  adjustFontFallback: 'Arial',
+});
+const fraunces = localFont({
+  src: [
+    { path: '../../../fonts/fraunces-latin-wght-normal.woff2', weight: '400 600', style: 'normal' },
+    { path: '../../../fonts/fraunces-latin-wght-italic.woff2', weight: '400 600', style: 'italic' },
+  ],
+  variable: '--font-fraunces',
+  display: 'swap',
+  adjustFontFallback: 'Times New Roman',
+});
 
 /**
  * TCK-794 (P18.06, décision du porteur) — **retiré des environnements déployés** : le playground
