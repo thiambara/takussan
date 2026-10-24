@@ -17620,7 +17620,7 @@ Le PDF de l'état des lieux est P143.01.*
 
 ### L'agent suspendu lit encore le bien qu'il a saisi et le garde dans sa liste
 - Réf : P190.07
-- Statut : validé — validation du porteur (2026-10-23) : la piste telle qu'écrite : ADR-0031 § 3, aucun périmètre pour un profil non actif (revient sur la voie étroite de TCK-1705)
+- Statut : fait · TCK-2031
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Policies/PropertyPolicy.php:48-63,196-207`, `takussan-api/app/Http/Controllers/Api/PropertyController.php:60-75`
 - Constat :
@@ -17630,6 +17630,7 @@ Le PDF de l'état des lieux est P143.01.*
   - Établi comment : lu, puis mesuré.
 - Piste : remplacer `isMemberOf` par `BailleurDuBien::est` (bailleur de tout statut) ou personnel actif de l'agence (`isStaffOf`) dans `view`, `update` et la clause de la liste. Test : agent créateur suspendu → 403 et absent de la liste ; bailleur auteur bloqué → lecture 200.
 - Mesure (2026-10-23, 0c707fc77, mesureur) : relu `PropertyPolicy::view`/`update` (`isMemberOf`, de tout statut) et `PropertyController::index` (clause bornée aux agences où l'auteur a un profil, sans statut), inchangés ; test temporaire `tests/Feature/TmpMesureur/Sonde190Test.php` (retiré, charge 3,94 / 3,77 / 3,46 sur 8 cœurs) sur `BuildsBookingStakeholders`, bien de l'agence passé au `user_id` de l'agent (`forceFill`), agent suspendu par `TeamMemberSuspensionService::suspend` puis retiré par `AgencyMemberRemovalService::remove(…, leaveUnassigned: true)` (`staffAgencyId()` → null dans les deux cas) ; `git log 61dba15e4..0c707fc77` sur `app/Policies`, les contrôleurs cités, `app/Support` et `app/Services/Agency` → seul TCK-1853, sans rapport ; aucun ticket ne cite P190 → suspendu : `can` view/update = vrai/faux, `GET /api/properties/{id}` → 200, bien présent dans `GET /api/properties` ; retiré : `can('view')` faux, `GET` → 403, absent de la liste, comme TCK-1705 le garde → le constat tient pour le seul suspendu. Classement : V2, la ligne `Mesure` de l'implémenteur de P153.01 garde délibérément au suspendu ce qu'il a, et revenir sur ce choix contre ADR-0031 § 3 revient au porteur.
+- Mesure (2026-10-24, 26195d12e, implementeur) : relu `PropertyPolicy::view`/`update` (`isMemberOf`, de tout statut) et `PropertyController::index` (clause « mes biens » bornée aux agences où l'appelant a un profil, sans statut), inchangés ; reproduit avant correctif par `AgentCreateurSuspenduBienSaisiTest` (agent créateur suspendu : `can('view')` vrai) → `view` et `update` jugent l'auteur par `BailleurDuBien::est` ou par un profil de personnel au statut actif dans l'agence du bien, la liste borne la clause aux agences où l'appelant est propriétaire ou a un profil actif (le profil actif de la requête, `isStaffOf`, retirait à l'agent de deux agences le bien saisi dans l'autre : `AgencySuspendedWriteLockTest` rouge) : suspendu → `GET` et `PUT` 403, absent de la liste ; bailleur auteur bloqué → lecture 200 et listé ; agent actif → lecture et liste ; `MembreRetireBiensSaisisTest` (retiré, TCK-1705) reste vert. Ablation : policy et liste remises → 1 rouge, liste seule remise → 1 rouge, vert remis.
 
 ## Angle 191 — Fils rattachés à un bail ou à un bien face à la policy de leur contexte
 
