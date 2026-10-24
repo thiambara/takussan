@@ -20457,7 +20457,7 @@ sans `delete`).*
 
 ### Une demande d'intervention sur un bien accepte le bail d'un autre bien
 - Réf : P226.02
-- Statut : retenu · autonome
+- Statut : fait · TCK-2204 — reste : relire en `SELECT` les demandes existantes dont `lease_id` vise un autre bien, avant de décider s'il faut les corriger (V4)
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/MaintenanceRequestController.php:114-119`, `takussan-api/app/Listeners/Maintenance/SyncMaintenanceConversation.php:76-89`, `takussan-api/app/Services/Maintenance/MaintenanceQuoteWorkflow.php:264-275`, à comparer à `takussan-api/app/Http/Requests/Conversation/Concerns/GuardsConversationScope.php` (`guardLeaseMatchesProperty`)
 - Constat :
@@ -20469,6 +20469,7 @@ sans `delete`).*
   - Établi comment : lu, mesuré par test temporaire.
 - Piste : refuser un `lease_id` dont le bien n'est pas le `property_id` de la demande, avec le refus d'un bail invisible (TCK-1070). Garde : un test sur le bail d'un autre bien, et une lecture des lignes existantes en `SELECT` avant de décider s'il faut les corriger.
 - Mesure (2026-10-24, 7ced6a130, mesureur) : relu `MaintenanceRequestController::store` (l. 114-119 : `lease_id` jugé par `can('view')` seul) ; sonde temporaire `SondeMesureurAngle226Test` (retirée), charge 4,2 sur 8 cœurs : admin d'agence, `POST /api/maintenance-requests {property_id: P1, lease_id: <bail de P2>}` → 201, ligne `property_id` = P1, `lease_id` = bail de P2 ; locataire d'un bail en cours sur P1 et sur P2, même appel → 201 avec le bail de P2 (la partie déduite tient) ; le groupe de conversation (`SyncMaintenanceConversation`) n'a pas été rejoué ; front : `MaintenanceNewLauncher.tsx:58-59` envoie toujours le bail avec son propre bien. Classement : A1, la règle « un bail et un bien rattachés ensemble vont ensemble » est écrite par TCK-576 (`guardLeaseMatchesProperty`) et le refus par TCK-1070, et aucun appelant légitime n'envoie une paire incohérente ; corriger les lignes existantes reste hors du correctif (V4).
+- Mesure (2026-10-24, 8cc72d66e, implementeur) : reproduit avant correctif par `BailDuMemeBienTest` (bailleur de P1 et P2 sans agence, `POST /api/maintenance-requests {property_id: P1, lease_id: <bail de P2>}` → 201) → `MaintenanceRequestController::store` exige `lease.property_id` = `property_id`, sous le 403 du bail invisible (TCK-1070) ; après : 403, réponse identique à celle d'un bail absent, aucune ligne ; témoin bail du bien → 201 ; ablation (comparaison retirée) → 1 rouge, rétablie → 2 verts ; le groupe de `SyncMaintenanceConversation` ne reçoit plus de paire incohérente à la source, non rejoué.
 
 ### Petites améliorations
 - Réf : P226.03
