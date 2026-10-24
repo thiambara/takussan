@@ -17617,7 +17617,7 @@ Le PDF de l'état des lieux est P143.01.*
 
 ### Le créateur suspendu ou retiré resoumet à la modération un bien d'agence rejeté
 - Réf : P190.06
-- Statut : fait · TCK-2018
+- Statut : validé — validation du porteur (2026-10-23) : la piste telle qu'écrite
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Policies/PropertyModerationPolicy.php:29-41`, `takussan-api/app/Http/Controllers/Api/Admin/PropertyModerationController.php:101-109`
 - Constat :
@@ -17626,7 +17626,6 @@ Le PDF de l'état des lieux est P143.01.*
   - Établi comment : lu, puis mesuré.
 - Piste : ne tenir `user_id` pour titre que sur un bien sans agence ou pour un bailleur non bloqué de l'agence (`bailleurEcrit`) ; le personnel actif garde sa branche. Test : agent créateur suspendu, puis retiré → 403 et statut `rejected` inchangé.
 - Mesure (2026-10-23, 0c707fc77, mesureur) : relu `PropertyModerationPolicy::resubmit` (`user.id === property.user_id` avant tout jugement d'agence) et `PropertyModerationService::resubmit` (statut `pending_review`, motif et rejet effacés), inchangés ; test temporaire `tests/Feature/TmpMesureur/Sonde190Test.php` (retiré, charge 3,94 / 3,77 / 3,46 sur 8 cœurs) sur `BuildsBookingStakeholders`, bien de l'agence passé au `user_id` de l'agent (`forceFill`), agent suspendu par `TeamMemberSuspensionService::suspend` puis retiré par `AgencyMemberRemovalService::remove(…, leaveUnassigned: true)` (`staffAgencyId()` → null dans les deux cas) ; `git log 61dba15e4..0c707fc77` sur `app/Policies`, les contrôleurs cités, `app/Support` et `app/Services/Agency` → seul TCK-1853, sans rapport ; aucun ticket ne cite P190 ; bien passé `rejected` → suspendu comme retiré : `POST /api/properties/{id}/resubmit` → 200, statut `pending_review` → le constat tient en entier. Classement : V2, le correctif restreint qui resoumet un bien, sur une branche qu'emploie le bailleur actif.
-- Mesure (2026-10-24, 820c142e0, implementeur) : test neuf `AgentCreateurResoumissionTest` avant correctif → 3 rouges sur 6 (agent créateur suspendu, retiré, et bailleur bloqué : `POST /api/properties/{id}/resubmit` → 200 au lieu de 403) ; correctif : `PropertyModerationPolicy::resubmit` ne tient `user_id` pour titre que par `BailleurDuBien::est` et un profil propriétaire non bloqué (ou un bien sans agence), le personnel actif gardant sa branche → 6 verts (403 et statut `rejected` inchangé pour les trois ; bailleur actif, particulier sans agence et agent créateur actif → 200, `pending_review`) ; ablation (policy de `pre-dev`) → 3 rouges, remise → 6 verts ; `PropertyModerationTest`, `PropertyStatutsDeModerationTest`, `PropertyModerationGateTest` verts.
 
 ### L'agent suspendu lit encore le bien qu'il a saisi et le garde dans sa liste
 - Réf : P190.07
