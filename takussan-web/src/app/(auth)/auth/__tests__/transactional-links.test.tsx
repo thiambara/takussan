@@ -8,6 +8,7 @@ import LoginPage from '../login/page';
 // vérification, qui est un composant serveur : `getTranslations` y résout la locale via
 // `next/headers`, absent sous jsdom. Les assertions sont inchangées.
 import { withIntl } from '@/test/intl';
+import { ApiError } from '@/lib/api';
 
 const apiRequestMock = vi.fn();
 const getTokenMock = vi.fn();
@@ -126,6 +127,31 @@ describe('transactional auth links', () => {
       }),
     );
     expect(pushMock).toHaveBeenCalledWith('/auth/login?reset=1');
+  });
+
+  // TCK-2026 (P192.01) — l'API rend un code stable pour un lien faux ou expiré : l'écran le
+  // traduit, et ne montre le `message` de l'API qu'en repli, pour un code qu'il ne connaît pas.
+  it.each([
+    [
+      'password_reset.invalid_link',
+      'This password reset token is invalid.',
+      'Ce lien de réinitialisation est invalide ou a expiré. Demandez-en un nouveau.',
+    ],
+    ['un.code_inconnu', 'Message rendu par l’API.', 'Message rendu par l’API.'],
+  ])('translates the reset refusal code %s, with the API message as fallback', async (code, message, attendu) => {
+    const user = userEvent.setup();
+    searchParams = new URLSearchParams('token=reset-token&email=astou%40example.com');
+    resetPasswordMock.mockRejectedValue(new ApiError(422, { code, message }));
+
+    render(withIntl(<ResetPasswordPage />));
+
+    await user.type(screen.getByLabelText('Nouveau mot de passe'), 'newpassword123');
+    await user.type(screen.getByLabelText('Confirmer le mot de passe'), 'newpassword123');
+    await user.click(screen.getByRole('button', { name: 'Définir le nouveau mot de passe' }));
+
+    expect(await screen.findByText(attendu)).toBeInTheDocument();
+    if (attendu !== message) expect(screen.queryByText(message)).not.toBeInTheDocument();
+    expect(pushMock).not.toHaveBeenCalled();
   });
 
   // TCK-781 (P15.07, P13.09) — le lien d'activation du gérant provisionné porte `activation=1` :
