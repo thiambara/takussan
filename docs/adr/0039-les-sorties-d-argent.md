@@ -1,6 +1,6 @@
 # ADR-0039 — Les sorties d'argent : brut calculé, bénéficiaire explicite, quatre yeux, décaissement manuel tracé, factures numérotées à l'émission
 
-- **Statut** : Accepté, **amendé le 2026-10-23** (cf. § *Amendement du 2026-10-23 — le remboursement déjà sorti devient un `Payout` constaté*)
+- **Statut** : Accepté, **amendé le 2026-10-23** (cf. § *Amendement du 2026-10-23 — le remboursement déjà sorti devient un `Payout` constaté*) et **le 2026-10-24** (cf. § *Amendement du 2026-10-24 — la reprise au bailleur, le relevé lu par la copie, la pénalité de retard reversée*)
 - **Date** : 2026-10-07
 - **Tickets** : [TCK-594](../backlog/tickets/TCK-594-sorties-d-argent-calculees-et-validees.md)
 - **Précise** : le principe non négociable n° 3 (« le montant est décimal en base, entier ×100 à la
@@ -510,3 +510,372 @@ même, et ils sont écrits plus haut :
   - le constaté d'un acompte porte en `landlord_id` le bailleur du bien.
 
   Chaque garde se vérifie par ablation.
+
+## Amendement du 2026-10-24 — la reprise au bailleur, le relevé lu par la copie, la pénalité de retard reversée
+
+Décisions du porteur du 2026-10-24, sur six pistes du fichier de pistes
+(`docs/plans/2026-10-15-pistes-d-amelioration.md`) : P177.01 (option a), P205.01 (option b), P205.02,
+P205.03, P206.01 (option a) et P206.04 (option a). Elles complètent le § 3 et l'amendement du
+2026-10-23. Le premier jet laissait cinq points ouverts ; le porteur les a tranchés le jour même
+(cf. *Points tranchés le 2026-10-24*). Relu sur 54f0f14b4.
+
+### Constat
+
+- **Un reversement versé ne voit rien de ce qui arrive ensuite à ses pièces.**
+  - Une pièce rattachée à un pivot n'est plus jamais éligible, et seules les pièces `paid` entrent au
+    calcul (`PayoutCalculator.php:67`, `:74-77`, `:91`, `:98-101`).
+  - Les deux chemins de remboursement ne lisent pas les pivots : le geste déclaré
+    (`BookingPaymentService::refund`, l. 133-185) et le webhook (`PaymentGatewayService::applyRefund`,
+    l. 1354-1367).
+  - La relecture des pièces (`assertItemsStillPaid`, `refundedSincePreparation`,
+    `PayoutService.php:607-633`) ne joue qu'à l'approbation et au paiement, jamais après `completed`.
+  - **Mesuré** (P205.01, test temporaire) : loyer de 150 000 et avance de 50 000, bail à 10 %,
+    reversement de 180 000 `completed`, puis les deux pièces remboursées. Le reversement suivant,
+    sur un loyer neuf de 100 000, verse 90 000. Les 180 000 ne sont repris nulle part.
+- **Le relevé de gérance relit les pièces du jour, pas ce que le reversement a pris.** Il ne garde
+  que les pièces `paid` de la période (`OwnerStatementService.php:53-54`), à `montant −
+  refund_amount` (`PayoutCalculator::kept`, l. 251-254), et retrouve les reversements par ces seules
+  pièces (`payoutsCarrying`, l. 106-119). TCK-2017 copie dans le pivot `amount`, `commission_rate` et
+  `commission_amount` (migration `2026_10_24_010000_add_line_copy_to_payout_pivots.php`), mais le
+  relevé n'en relit que le taux (`retainedRates`, l. 147-160). **Mesuré** (P177.01) : loyer de
+  200 000 et charges de 20 000 à 10 %, reversement de 198 000. Loyer remboursé de 50 000 : le relevé
+  imprime un net de 153 000 à côté d'un versé de 198 000. Les deux pièces remboursées en entier : le
+  versement de 198 000 n'apparaît plus sur aucun relevé.
+- **Aucune date de remboursement n'existe sur les pièces** : ni `lease_payments` ni
+  `booking_payments` n'en portent. Le `Payout` constaté de l'amendement du 2026-10-23 est daté
+  (`processed_at`), mais il n'existe pas pour une pièce soldée par la plateforme
+  (`ObservedRefundPayout.php:40`, point 9).
+- **L'accueil du bailleur garde le versé d'un mois remboursé.** `netPaidOutByMonth`
+  (`PortfolioMetrics.php:290-303`) somme `net_amount` des reversements `completed`. **Mesuré**
+  (P205.03, sur le service) : après le scénario de P205.01, le versé reste à 180 000 et l'encaissé de
+  ces pièces tombe à 0.
+- **Le geste déclaré ne dit pas qu'un acompte est déjà reversé.** `BookingPaymentResource` ne rend
+  aucun champ de reversement, et la tâche « remboursement à traiter » liste tous les acomptes `paid`
+  (`BookingRefundTaskService.php:68`). Aucun avis ne part à l'agence (mesuré : 0 avant, 0 après).
+- **La pénalité de retard réglée n'est jamais reversée.**
+  - Elle n'est pas une pièce : elle vit sur la ligne du loyer (`late_fee_amount`,
+    `late_fee_paid_at`).
+  - Le type `penalty` du § 3 est l'indemnité de résiliation anticipée, son seul écrivain
+    (`LeaseService.php:341`).
+  - `PayoutCalculator` ne lit aucune colonne `late_fee_*`.
+  - **Mesuré** (P206.01) : un loyer de 150 000 réglé avec 7 500 de pénalité donne un brut de 150 000,
+    à la préparation comme au relevé.
+  - La clôture plateforme, elle, met au brut de l'agence la pénalité réglée par son checkout
+    (`PlatformPayoutService.php:345-355`). L'agence la reçoit et ne la reverse pas, alors que TCK-594
+    la donne au bailleur (« elles reviennent au bailleur, entrent dans le brut et portent
+    commission »).
+- **Un remboursement ne sait pas rendre la pénalité.**
+  - Il est plafonné au montant du loyer (`PaymentGatewayService.php:1382`), et le modèle refuse
+    `refund_amount > amount` (`HasPaymentAttributes.php:108-115`).
+  - **Mesuré** (P206.04) : un checkout de 157 500, pénalité de 7 500 comprise, remboursé en entier
+    par webhook, donne `refund_amount 150000`. `late_fee_paid_at` reste posé. Les 7 500 rendus ne
+    sont tracés nulle part.
+
+### Décision
+
+**Un remboursement d'une part déjà reversée au bailleur crée une reprise. C'est sa seule trace
+négative, au relevé comme à l'accueil. Le relevé lit un reversement versé par la copie de ses
+lignes. La pénalité de retard réglée est une ligne du reversement, et un remboursement s'impute
+d'abord à elle.**
+
+#### 1. Le relevé lit un reversement versé par sa copie (P177.01)
+
+Une pièce portée par un reversement au bailleur `completed` se lit **par son pivot**, quel que soit
+son statut du jour. Ses montants sont ceux de la copie : `amount`, `commission_rate`,
+`commission_amount`. Elle reste au mois de son `paid_at`. Les autres pièces se lisent comme
+aujourd'hui (`paid`, `montant − refund_amount`). Une ligne de pivot sans copie, antérieure à
+TCK-2017, se lit aussi comme aujourd'hui (la règle de sa migration). La pénalité de retard prise par
+un reversement `completed` se lit de même, par sa copie sur la ligne du loyer (point 6).
+
+Conséquence : le mois d'un reversement versé ne change plus quand ses pièces sont remboursées. Le
+remboursement apparaît au mois où il a lieu, sous la forme de la reprise (point 2).
+
+#### 2. La reprise (P205.01)
+
+1. **Quand.** Une pièce, ou la part de pénalité d'une ligne (points 6 et 7), portée par un reversement au
+   bailleur `completed` est remboursée en tout ou en partie, par le geste déclaré ou par webhook,
+   quel que soit le montant. Le reversement porteur se relit **sous verrou**, dans la transaction du
+   remboursement et après la ligne de la pièce. `markProcessed` relit déjà les pièces sous le verrou
+   du reversement. Si un remboursement est concurrent du paiement, il aboutit donc à l'un de deux
+   états : un reversement qui refuse de passer `completed` (`payout.items_changed`, TCK-1158), ou une
+   reprise. Jamais aux deux, jamais à aucun.
+2. **Quel que soit l'encaisseur.** Une pièce soldée par la plateforme et reversée au bailleur (après
+   le paiement de son `PlatformPayout`, TCK-2064) donne une reprise comme les autres. C'est le
+   bailleur qui doit, pas le compte qui a rendu l'argent.
+3. **Combien.** Une reprise par remboursement et par part reversée, au montant **net de
+   commission** : `R − arrondi(R × taux / 100)`. `R` est la part neuve de ce remboursement, comme
+   pour le constaté (point 4 du 2026-10-23). Le taux est celui de la copie, et l'arrondi est celui
+   de `PayoutCalculator::round`. L'agence renonce à sa commission sur la part rendue. Le bailleur
+   rend ce qu'il en a reçu.
+4. **Datée** par l'instant du remboursement : celui du geste, ou celui de l'événement du
+   prestataire. C'est la date que P177.01 n'avait pas.
+5. **Imputée au reversement suivant du même bailleur dans la même agence**, à sa création
+   (`createLocked`), sous verrou. Les reprises en cours sont prises de la plus ancienne à la plus
+   récente, après les pièces et avant la ligne agence, qui reste la dernière (VERIF-594 M-1).
+   L'imputation va jusqu'au net avant reprise. `net_amount` vaut `brut − commission − frais −
+   reprise imputée`, et c'est l'argent qui part.
+6. **Report, et non plus blocage.** Le refus `payout.net_negative` (`PayoutService.php:458`) ne
+   juge plus que le net **avant** reprise. Une reprise plus grande que ce net y est imputée à
+   hauteur de ce net. Le reliquat reste dû et passe au reversement suivant.
+
+   **Un reversement dont la reprise absorbe tout le net naît à `net_amount = 0`.** Il prend ses
+   pièces et son imputation comme tout reversement, et passe par les gestes du § 4, mais **sans
+   décaissement** :
+   - le paiement (`mark-processed`) n'exige ni moyen de paiement, ni référence, ni destination
+     (`MarkProcessedPayoutRequest`, aujourd'hui `payment_method` et `transaction_id` requis) ;
+   - il n'appelle pas `DisbursementDriverContract::disburse` (`PayoutService.php:319`) ;
+   - l'approbation ne fige aucune destination ;
+   - aucun débit bancaire ne lui correspond, et le rapprochement ne le propose jamais : il cherche un
+     `net_amount` égal à un débit.
+
+   Sans lui, les pièces du mois attendraient un mois plus riche, et le reste dû de la reprise ne
+   baisserait pas.
+7. **Un reversement `cancelled` ou `failed` rend ses reprises**, comme ses pièces (§ 3) : son
+   imputation se détache, et le reliquat revient. Un reversement `completed` ne rend rien (§ 4).
+8. **L'agence et le bailleur reçoivent chacun un avis**, par un code neuf, à chaque reprise, quel
+   que soit le chemin du remboursement. Le webhook ne se refuse pas (P205.01 : aucune route ne
+   rembourse un loyer), et l'avis est le seul signal sur ce chemin. Celui du bailleur lui dit que
+   son prochain reversement baissera, et de combien.
+9. **Une reprise qu'aucun reversement n'impute reste due par le bailleur**, par exemple après la fin
+   du mandat. L'agence la voit : la préparation des reversements de ce bailleur et la liste des
+   reprises en cours de l'agence la rendent, avec son reste dû. **L'agence la solde à la main.**
+   - **Le geste.** Il est réservé à qui prépare les reversements (`payouts.create`), sous la 2FA de
+     l'agence, sans step-up, comme la préparation (§ 4). Une note est obligatoire : la référence du
+     règlement reçu hors reversement, ou son motif.
+   - **Ce qu'il écrit.** Sous le verrou de la reprise, il fige son reste dû dans `settled_amount`
+     et pose `settled_at`, `settled_by_id` et `settlement_note`. Le geste est journalisé.
+   - **Le reste dû** vaut `amount − imputations des reversements qui gardent leurs pièces −
+     settled_amount`. Une reprise soldée n'est plus imputée.
+   - **Refus.** Le geste est refusé (422) tant qu'un reversement pas encore `completed` porte une
+     imputation de la reprise. Son annulation rouvrirait sinon une reprise déjà soldée.
+   - **Pas de ligne neuve.** Le relevé ne porte rien de plus : la reprise y figure déjà, à sa date
+     (point 4).
+
+Pas de reprise pour une pièce jamais reversée. Le bailleur n'en a rien reçu : la préparation la
+compte déjà à `montant − refund_amount` (TCK-1214), ou l'écarte une fois `refunded`. Pas de reprise
+non plus pour une pièce d'un reversement pas encore `completed` : TCK-1158 le bloque jusqu'à son
+annulation.
+
+**Pas de reprise sans copie** (confirmé par le porteur). Il faut une base et un taux figés. Une
+pièce d'un pivot sans copie reste lue au jour au point 1. Une reprise s'y ajouterait au retrait de la pièce, et compterait le
+remboursement deux fois. Ces pivots datent d'avant le 2026-10-24, et l'API n'a jamais servi en
+production.
+
+#### 3. Une seule ligne négative par remboursement : la reprise, et non le constaté
+
+**La forme retenue.** La reprise est l'unique ligne négative d'un remboursement, au relevé comme à
+l'accueil. Le `Payout` constaté reste écarté du relevé (n° 5 du tableau du 2026-10-23, inchangé).
+Le reversement qui impute une reprise compte au versé **avant** reprise.
+
+Le constaté ne peut pas porter cette ligne, pour quatre raisons :
+
+- il est au montant rendu au locataire, **brut**, alors que le bailleur n'a reçu que le net ;
+- il naît aussi pour une pièce jamais reversée, dont le bailleur ne doit rien ;
+- il ne naît pas pour une pièce soldée par la plateforme (point 9 du 2026-10-23) ;
+- lu à côté de la reprise, il ferait **deux** lignes pour un remboursement : le constaté au mois du
+  remboursement, puis le reversement suivant diminué de la reprise.
+
+Le constaté trace la sortie vers le locataire, que le relevé bancaire rapproche. La reprise trace la
+dette du bailleur. Ce sont deux objets.
+
+La reprise n'est pas un `Payout` : un `Payout` au net négatif entrerait chez les 22 lecteurs de
+l'amendement du 2026-10-23 (rapprochement bancaire, seuil des quatre yeux, export, recherche). Aucun
+débit bancaire ne lui correspond.
+
+**La lacune « pièce soldée par la plateforme, sans constaté » de P177.01 est fermée** pour ce qui
+regarde le bailleur. La reprise naît sans le constaté (point 2.2), et sa date est la sienne. Reste
+hors de cet amendement l'autre côté de la même pièce : la plateforme a rendu l'argent après l'avoir
+reversé à l'agence (le reste de P76.01, qui suit P39.07).
+
+#### 4. Le versé, au relevé et à l'accueil (P205.03)
+
+Depuis P177.03 (TCK-2041), le relevé et l'accueil lisent le versé par une seule règle. Elle devient :
+
+> **versé d'un mois** = Σ (`net_amount` + reprise imputée) des reversements au bailleur `completed`
+> dont `processed_at` tombe dans le mois − Σ des reprises datées du mois.
+
+La reprise est ainsi un **versé négatif daté de son mois**, comme l'a décidé le porteur. Le
+reversement qui l'impute compte avant reprise. Sinon, la reprise sortirait deux fois du versé : une
+fois à sa date, une fois dans le net diminué. Sur l'ensemble des mois, le versé vaut l'argent parti
+moins les reprises qu'aucun reversement n'a imputées. Ce sont celles encore dues, et celles soldées
+à la main (point 2.9), que le bailleur a rendues hors reversement.
+
+Au relevé, la reprise est **une ligne** de la période. Elle porte le remboursement `R`, la commission
+rendue et le net repris. Elle diminue d'autant le net dû (`totals.net`) et le versé
+(`totals.paid_out`). La liste des reversements rend `net_amount`, l'argent parti, et la reprise
+imputée à côté, comme une mention et non comme une ligne.
+
+`net_amount` ne change pas de sens. Le rapprochement bancaire, `PayoutApprovalRule` et l'export le
+lisent tel quel.
+
+**Exemple** (le scénario mesuré de P177.01). Septembre : loyer de 200 000 et charges de 20 000 à
+10 %, reversement de 198 000 versé en septembre. Octobre : le loyer est remboursé de 50 000, d'où
+une reprise de 45 000 (50 000 − 5 000). Novembre : un loyer neuf de 200 000 donne un net de 180 000
+avant reprise, la reprise de 45 000 est imputée, et 135 000 partent.
+
+| Mois | Net dû du relevé | Versé (relevé et accueil) |
+|---|---|---|
+| septembre | 198 000, inchangé après le remboursement | 198 000, inchangé |
+| octobre | − 45 000 (la reprise) | − 45 000 |
+| novembre | 180 000 | 180 000 (135 000 partis + 45 000 imputés) |
+| **total** | **333 000** | **333 000** = 198 000 + 135 000 partis |
+
+L'*Encaissé* de l'accueil (ADR-0057 § 2) ne change pas. Il retire toujours le remboursement au mois
+du `paid_at` de la pièce. La ligne de reprise explique l'écart entre ce mois et celui du
+remboursement.
+
+#### 5. Le geste déclaré (P205.02)
+
+- L'acompte porté par un reversement `completed` rend ce reversement : sa référence et sa date
+  (`processed_at`). Ces champs figurent dans `BookingPaymentResource`, dans la tâche
+  « remboursement à traiter » et dans le dialogue de remboursement.
+- Le dialogue **avertit sans refuser** : l'acompte a déjà été reversé, et le remboursement créera
+  une reprise sur le prochain reversement du bailleur.
+- L'API ne refuse pas. La reprise et l'avis suivent (point 2).
+
+#### 6. La pénalité de retard réglée est une ligne du reversement (P206.01, rappel de TCK-594)
+
+Le § 3 est complété. La pénalité de retard réglée n'est pas un type de pièce : elle vit sur la ligne
+du loyer.
+
+- **Ligne propre du calcul.** La pénalité dont `late_fee_paid_at` tombe dans la période devient une
+  ligne du `PayoutCalculator`, quel que soit le statut du loyer, sauf `cancelled`. Son montant vaut
+  `late_fee_amount − late_fee_refund_amount` (point 7). Elle entre au brut et porte la commission
+  **du bail**, à défaut celle de l'agence, ligne par ligne.
+- **Éligibilité propre.** Une colonne nullable, `lease_payments.late_fee_payout_id`, désigne le
+  reversement qui l'a prise. Une pénalité réglée après le reversement de son loyer reste donc
+  reversable. La création verrouille la ligne comme une pièce (§ 3).
+- **Copie figée.** Trois colonnes, à côté de `late_fee_payout_id`, figent ce que le reversement a pris
+  de la pénalité : `late_fee_payout_amount`, `late_fee_payout_commission_rate` et
+  `late_fee_payout_commission_amount`. Elles sont posées avec lui, à la création. C'est la copie du
+  pivot (TCK-2017) pour une ligne qui n'a pas de pivot. Le relevé la relit (point 1), et la reprise
+  d'une pénalité y prend sa base et son taux (point 2.3).
+- **Détachement.** Un reversement `cancelled` ou `failed` remet les quatre colonnes à nul.
+- **Encaisseur.** Une pénalité réglée dans un checkout de la plateforme (la règle de
+  `PlatformPayoutService::lateFeeSettledWith`) suit TCK-2064 : elle n'est reversable qu'une fois
+  son `PlatformPayout` `paid`. Réglée chez l'agence (`LateFeeSettlement`), elle est reversable
+  aussitôt.
+- **Lecteurs.** La préparation, la création et le relevé la lisent, puisqu'ils partagent le
+  calculateur.
+
+#### 7. Un remboursement s'impute d'abord à la pénalité (P206.04)
+
+- **Ordre.** Un remboursement d'un checkout qui portait la pénalité s'impute d'abord à la pénalité,
+  puis au loyer.
+- **Plafond.** Il passe de `amount` à `amount` + la pénalité de ce checkout
+  (`reportedRefundAmount`, l. 1369-1383).
+- **Trace.** La part de pénalité rendue s'écrit dans une colonne neuve,
+  `lease_payments.late_fee_refund_amount`, et non dans `refund_amount`, qui reste plafonné au loyer
+  (`HasPaymentAttributes.php:108-115`, inchangé). Une colonne et non `metadata` : le calculateur,
+  l'*Encaissé* (ADR-0057) et la clôture plateforme l'agrègent en SQL.
+- **Clôture plateforme.** `lateFeeSettledWith` et `refundedSinceClosing` en retranchent la part
+  rendue.
+- **Une pénalité rendue en entier est remise : ni acquittée, ni due.**
+  - `late_fee_paid_at` garde sa valeur, et la part rendue se lit dans `late_fee_refund_amount`.
+  - `LeasePayment::lateFeeOutstanding` (l. 75-86) reste donc à 0 : ni relance, ni pénalité à
+    recouvrer (ADR-0057).
+  - Le reversement, l'*Encaissé* et la clôture la comptent pour `late_fee_amount −
+    late_fee_refund_amount`, soit 0.
+  - `LeasePaymentResource` rend `late_fee_refund_amount`, pour que l'échéancier et la quittance la
+    disent remise, et non acquittée.
+  - Remettre `late_fee_paid_at` à nul l'aurait rendue **de nouveau due** : c'est écarté.
+- **Reprise.** Une pénalité reversée puis remboursée suit le point 2. La part de pénalité et la part
+  de loyer d'un même remboursement sont deux montants distincts, repris chacun une fois.
+- **Constaté.** Le `Payout` constaté porte toujours le remboursement entier : c'est le débit du
+  relevé bancaire.
+
+### Schéma, en ajout seul
+
+| Objet | Colonnes | Pourquoi |
+|---|---|---|
+| table `payout_clawbacks` | `agency_id`, `landlord_id`, `nullableMorphs('refunded_payment')` (le modèle de l'amendement du 2026-10-23), `part` (`payment` \| `late_fee`, chaîne, ADR-0007), `source_payout_id` (le reversement `completed` porteur), `refund_amount`, `commission_rate`, `commission_amount`, `amount` (le net repris), `currency`, `refunded_at` | la reprise, sa base, son taux, sa date (points 2 et 3) |
+| table `payout_clawback_imputations` | `payout_id`, `payout_clawback_id`, `amount` | une reprise se reporte sur plusieurs reversements (point 2.6). Ce qui reste dû vaut `amount` moins les imputations des reversements qui gardent leurs pièces (`PayoutStatus::holdingItems`) |
+| `payout_clawbacks` (suite) | `settled_amount`, `settled_at`, `settled_by_id`, `settlement_note`, nullables | le solde à la main (point 2.9) |
+| `payouts.clawback_amount` | decimal nullable | la reprise imputée, à côté de `fees_amount` |
+| `lease_payments.late_fee_payout_id` | nullable, vers `payouts` | éligibilité de la pénalité (point 6) |
+| `lease_payments.late_fee_payout_amount`, `late_fee_payout_commission_rate`, `late_fee_payout_commission_amount` | decimal nullables | la copie de la pénalité reversée (point 6) |
+| `lease_payments.late_fee_refund_amount` | decimal nullable | la part de pénalité rendue (point 7) |
+
+Aucune reprise de données : tout est nul ou vide pour l'existant.
+
+### Ce qui change chez les lecteurs de `Payout` et du calculateur
+
+Ce relevé repart du tableau du 2026-10-23 et des appelants de `PayoutCalculator`.
+
+| # | Fichier — lecture | Changement |
+|---|---|---|
+| 1 | `Services/Payout/PayoutCalculator.php` — `leasePayments`, `compute`, `exceptAwaitingPlatform` | la ligne de pénalité (point 6) ; les reprises imputées au total (`clawback`, net après reprise) ; la règle de TCK-2064 pour la pénalité réglée par la plateforme |
+| 2 | `Services/Payout/PayoutPreparationService.php` | montre les reprises en cours, leur imputation et le reliquat, et les lignes de pénalité |
+| 3 | `Services/Model/PayoutService.php` — `createLocked` (l. 406-497) | verrouille et impute les reprises ; `net_negative` sur le net avant reprise ; pose `late_fee_payout_id` et sa copie |
+| 4 | `Services/Model/PayoutService.php` — `detachItems` (l. 906-911) | détache aussi les imputations, `late_fee_payout_id` et sa copie |
+| 5 | `Services/Model/PayoutService.php` — `assertItemsStillPaid`, `refundedSincePreparation` (l. 607-633) | lisent aussi la part de pénalité rendue depuis la préparation |
+| 6 | `Services/Payout/OwnerStatementService.php` — `statement`, `payoutsCarrying`, `payoutsPaidIn`, `retainedRates` | la copie (point 1), la ligne de reprise et le versé (point 4), la ligne de pénalité |
+| 7 | `Services/Dashboard/PortfolioMetrics.php` — `netPaidOutByMonth` (l. 290-303) | la règle du point 4. Ses lecteurs suivent : `DashboardOwnerService` (l. 63, 139), `DashboardAgencyService` (l. 81) |
+| 8 | `Http/Resources/PayoutResource.php` | rend `clawback_amount` et les reprises imputées |
+| 9 | `Services/Export/ExportDataService.php` — `payouts` | colonne `clawback_amount` |
+| 10 | `Services/Model/BookingPaymentService.php` — `refund` (l. 133-185) ; `BookingPaymentResource` ; `BookingRefundTaskService` | la reprise et l'avis ; le reversement porteur rendu (point 5) |
+| 11 | `Services/Payments/PaymentGatewayService.php` — `applyRefund`, `reportedRefundAmount`, `applyPendingRefund` | l'imputation pénalité d'abord et le plafond (point 7) ; la reprise et l'avis (point 2) |
+| 12 | `Services/Billing/PlatformPayoutService.php` — `lateFeeSettledWith` (l. 499-508), `refundedSinceClosing` (l. 195-205) | la part de pénalité rendue est retranchée |
+| 13 | `Services/Model/PayoutService.php` — `approve`, `markProcessed` (l. 319) ; `Http/Requests/Api/MarkProcessedPayoutRequest.php` | le reversement à `net_amount = 0` : ni destination, ni moyen, ni référence, ni décaissement (point 2.6). Au tableau du 2026-10-23, `MarkProcessedPayoutRequest` (n° 21) était inchangé : il change ici |
+| 14 | un service et une route neufs des reprises | la liste des reprises en cours de l'agence, et le solde à la main (point 2.9) |
+| 15 | `Http/Resources/LeasePaymentResource.php` | rend `late_fee_refund_amount` : la pénalité remise (point 7) |
+
+**Inchangés**, parce que la reprise n'est pas un `Payout` et que `net_amount` reste l'argent parti :
+`PayoutApprovalRule`, `ReconciliationMatcher`, `PaymentSearchService`, `ReconciliationManager`,
+`BankStatementLineController` et sa ressource, `AdminGlobalSearchService`, `RemindDuePayouts`, la
+garde de `completed` du modèle, `PayoutPolicy`. `ObservedRefundPayout` ne change pas : le constaté
+naît comme avant, et reste hors du relevé.
+
+### Points tranchés le 2026-10-24
+
+Le premier jet de cet amendement laissait cinq points ouverts. Le porteur les a tranchés le jour
+même, selon les recommandations, et ils sont écrits plus haut :
+
+- la pénalité reversée est figée par trois colonnes de copie à côté de `late_fee_payout_id`
+  (point 6) ;
+- un reversement dont la reprise absorbe tout le net naît à `net_amount = 0` et passe par les
+  gestes du § 4, sans décaissement (point 2.6) ;
+- une reprise qu'aucun reversement n'impute reste due par le bailleur, est montrée à l'agence, et
+  l'agence la solde à la main (point 2.9) ;
+- une pénalité rendue en entier est remise, ni acquittée ni due (point 7) ;
+- le bailleur reçoit lui aussi un avis à chaque reprise, par un code neuf (point 2.8).
+
+Le porteur a aussi confirmé trois choix du premier jet :
+
+- la reprise est la seule ligne négative d'un remboursement (point 3) ;
+- pas de reprise pour un pivot sans copie (point 2) ;
+- `net_negative` ne juge que le net avant reprise (point 2.6).
+
+### Application
+
+- Une migration en ajout seul (le schéma ci-dessus), le modèle `PayoutClawback` et ses relations,
+  et les quinze lecteurs du tableau.
+- **Gardes**, chacune vérifiée par ablation :
+  - le scénario de P177.01. Le relevé de septembre garde `gross 220000, net 198000, paid_out
+    198000` après le remboursement. Celui d'octobre porte une seule ligne de − 45 000, et rien du
+    constaté. Celui de novembre porte `paid_out` 180 000 pour 135 000 partis ;
+  - le même scénario, deux pièces remboursées en entier : le reversement de 198 000 figure toujours
+    au relevé de septembre ;
+  - le scénario de P205.01 : le reversement suivant porte la reprise. Une reprise plus grande que
+    le net y est imputée à hauteur du net, et le reliquat passe au suivant ;
+  - la même pièce soldée par la plateforme et remboursée par webhook : une reprise, aucun constaté ;
+  - un remboursement concurrent de `markProcessed` donne une reprise ou un refus
+    `payout.items_changed`, jamais les deux, jamais aucun ;
+  - un reversement annulé rend sa reprise ;
+  - `netPaidOutByMonth` rend la reprise au mois du remboursement, et le reversement qui l'impute
+    avant reprise ;
+  - le cas de P206.01. La préparation, la création et le relevé portent 157 500 de brut. Une
+    pénalité réglée le mois suivant le reversement de son loyer est reversée au reversement suivant ;
+  - le cas de P206.04. Un remboursement total de 157 500 donne `refund_amount 150000` et
+    `late_fee_refund_amount 7500`, et la clôture plateforme ne compte plus la pénalité. Un
+    remboursement partiel de 7 500 laisse le loyer `paid` et entier ;
+  - un acompte reversé rend la référence et la date de son reversement. Son remboursement déclaré
+    passe, avec un avis à l'agence et un avis au bailleur ;
+  - une reprise qui absorbe tout le net : le reversement naît à `net_amount = 0`, se marque payé
+    sans moyen ni référence, et n'appelle pas le pilote de décaissement ;
+  - une reprise sans reversement suivant reste due, et se solde à la main. Le geste est refusé tant
+    qu'un reversement pas encore `completed` porte une imputation. Une fois soldée, elle n'est plus
+    imputée ;
+  - une pénalité reversée garde sa copie quand le taux du bail change, au relevé comme dans sa
+    reprise ;
+  - une pénalité rendue en entier n'est ni relancée, ni comptée à recouvrer, ni reversée.

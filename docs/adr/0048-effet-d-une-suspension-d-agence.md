@@ -1,6 +1,7 @@
 # ADR-0048 — Une agence suspendue disparaît du site et ne s'écrit plus ; ses locataires paient encore
 
-- **Statut** : Accepté
+- **Statut** : Accepté, **amendé le 2026-10-22 et le 2026-10-24** (cf. § *Amendement du 2026-10-24 —
+  l'effacement du dernier administrateur*)
 - **Date** : 2026-10-08
 - **Tickets** : [TCK-600](../backlog/tickets/TCK-600-console-plateforme-gouvernance-et-exploitation.md)
 
@@ -220,3 +221,84 @@ la contournait :
   verrou, second chemin, ce qui continue, levée.
 - **Les suppressions de membres, de rôles et de délégations** sous `api/agencies/{agency}/…` ne
   sont pas touchées.
+
+## Amendement du 2026-10-24 — l'effacement du dernier administrateur
+
+Décision du porteur du 2026-10-24 sur P204.02, option b (angle 204 du fichier de pistes,
+`docs/plans/2026-10-15-pistes-d-amelioration.md`), précisée le même jour sur quatre points
+(points 1 à 4 ci-dessous). Relevé sur `54f0f14b4`.
+
+**Constat.**
+
+- **Un administrateur efface son compte sans que son agence soit regardée.** Les obligations qui
+  retiennent une demande d'effacement (`AccountDeletionService::collectOpenObligations`, l. 462 et
+  suivantes) sont des baux, des loyers, des factures, des réservations et des reversements, jamais
+  une administration d'agence. Elles ne sont jugées qu'à la demande (`requestDeletion`,
+  l. 103-108). L'exécution, 30 jours plus tard (`executeDeletion`, l. 196 et suivantes), ne les
+  rejuge pas.
+- **Le retrait, lui, refuse les deux cas** : l'administrateur principal
+  (`AgencyMemberRemovalService.php:59`) et le dernier administrateur, compté sous verrou
+  (l. 67-80).
+- **Tout hôte individuel est seul administrateur et administrateur principal de son espace**
+  (`HostIndividualOnboardingService`, `kind = individual`). Une obligation pour tout administrateur
+  principal empêcherait donc tout hôte d'effacer son compte, alors que c'est un droit (V3).
+- **Aucun geste ne transmet le titre.** `primary_admin_id` ne s'écrit qu'à la création
+  (`AgencyController.php:61`, `HostIndividualOnboardingService.php:260`) et au provisionnement par
+  la console (`AgencyProvisioningService.php:81`). `UserRoleController::assertRoleChangeable`
+  (l. 111-116) refuse de rétrograder l'administrateur principal.
+
+**Décision.** Le traitement porte sur chaque agence dont le compte est l'administrateur principal
+(`primary_admin_id`) ou le seul administrateur actif.
+
+1. **L'agence passe `inactive` à l'exécution de l'effacement**, dans la transaction de
+   `executeDeletion`, dans trois cas :
+   - c'est un espace `individual` ;
+   - elle n'a plus d'autre membre actif. « Membre actif » s'entend au sens d'ADR-0031
+     (`isMemberAt`) : personnel actif ou bailleur à profil actif ;
+   - il n'y reste, hors le compte, que des **bailleurs** actifs, sans aucun autre personnel actif.
+     Promouvoir un bailleur administrateur lui donnerait l'agence entière, et ce geste ne s'impose
+     pas au compte qui part.
+
+   Seul le statut change : `is_verified` et `verified_at` restent tels quels, à la différence
+   d'`unverify`. **La transition ne part que d'`active`** : une agence `suspended` le reste, car
+   passer `inactive` lèverait le verrou d'écriture posé par la plateforme. Une agence déjà
+   `inactive` ne change pas.
+2. **Si l'agence a un autre administrateur actif, `primary_admin_id` lui passe à l'exécution.**
+   S'il y en a plusieurs, c'est **le plus ancien profil d'administrateur actif** qui le reçoit
+   (`agency_admin_profiles.id` croissant). La règle est déterministe et ne demande aucun écran.
+   C'est la seule écriture de `primary_admin_id` après la création et le provisionnement.
+   L'agence ne change pas de statut.
+3. **Si l'agence a du personnel actif mais aucun autre administrateur actif, c'est une obligation**
+   de `collectOpenObligations` : la demande d'effacement est refusée en 422 et l'inventaire la
+   nomme. Le compte la lève lui-même en promouvant un membre au rôle d'administrateur, par le geste
+   qui existe déjà (`UserRoleController`, `setAgencyAdmin`). Le titre passe ensuite à l'exécution,
+   selon le point 2.
+4. **L'exécution rejuge la situation, et ne retarde jamais l'effacement.** L'obligation du point 3
+   n'est jugée qu'à la demande. Si l'autre administrateur part pendant les 30 jours de grâce,
+   l'exécution trouve du personnel sans autre administrateur. Elle passe alors l'agence
+   `inactive`, selon le point 1 et depuis `active` seulement, plutôt que de retarder l'effacement,
+   qui est un droit (V3). L'agence se relève par la console, comme toute agence `inactive`.
+
+**Ce qui change par rapport au point 3 de l'amendement du 2026-10-22.**
+
+- **Le point 3 disait** :
+  - « aucun geste neuf n'est créé ici » ;
+  - les transitions vers `inactive` et `suspended` sont celles de la console seule (`unverify`,
+    `suspend`) ;
+  - une agence qui veut cesser son activité le demande à la plateforme ;
+  - un geste de clôture ouvert à l'admin de l'agence « demanderait son propre amendement ».
+- **Ce qui change** : la console n'est plus le seul écrivain de `inactive`. L'exécution d'un
+  effacement de compte (`AccountDeletionService::executeDeletion`) en est un second, dans les seuls
+  cas des points 1 et 4, et depuis `active` seulement. C'est l'amendement que le point 3
+  demandait pour toute transition neuve du cycle de vie.
+- **Ce qui ne change pas** :
+  - **aucun geste de clôture n'est ouvert à l'administrateur** : il ne ferme pas son agence, il
+    efface son compte, et l'agence ne passe `inactive` que dans les cas des points 1 et 4 ;
+  - une agence qui a encore des membres et veut cesser son activité le demande toujours à la
+    plateforme ;
+  - `suspended` reste posé par la console seule ;
+  - les effets de `inactive` sont ceux de cet ADR, sans exception : biens masqués du site et de
+    l'index (`AgencyObserver::syncSearchIndexOnStatusChange`, l. 75-89), back-office ouvert, essai
+    non converti (amendement du 2026-10-22), loyers qui courent (§ 5) ;
+  - **le retour à `active`** passe par la console, comme pour toute agence `inactive`
+    (`verify`, qui exige un dossier KYC vérifié).
