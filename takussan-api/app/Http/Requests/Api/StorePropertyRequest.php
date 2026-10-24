@@ -40,7 +40,23 @@ class StorePropertyRequest extends BaseFormRequest
      */
     public function authorize(): bool
     {
-        return $this->user()?->can('create', Property::class) === true;
+        $user = $this->user();
+
+        if ($user?->can('create', Property::class) !== true) {
+            return false;
+        }
+
+        // P209.01 (TCK-2175) — la règle du `PATCH` (TCK-1427) : créer un bien d'emblée publié ou
+        // public, c'est publier, et cela demande `properties.publish` dans l'agence visée. Une
+        // proposition n'est pas jugée : `PropertyController::store` la force en brouillon privé.
+        if (! UpdateStatusPropertyRequest::publie($this->input('status'), $this->input('visibility'))
+            || $user->can('createsProposal', Property::class)) {
+            return true;
+        }
+
+        $agence = $user->isSuperAdmin() ? $this->input('agency_id') : $user->agency_id;
+
+        return $user->can('publishAt', [Property::class, $agence]);
     }
 
     /** @return array<string, mixed> */
