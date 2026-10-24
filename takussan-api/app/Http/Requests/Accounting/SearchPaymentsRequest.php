@@ -26,6 +26,8 @@ class SearchPaymentsRequest extends BaseFormRequest
         return [
             'q' => ['nullable', 'string'],
             'direction' => ['nullable', 'string'],
+            // P157.01 (TCK-1917) — la devise de la ligne à rapprocher ; un code inconnu ne rend rien.
+            'currency' => ['nullable', 'string', 'size:3'],
         ];
     }
 }

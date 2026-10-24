@@ -6642,6 +6642,7 @@
         "match": "Rapprochement",
         "actions": "Actions",
         "paymentRef": "{type} n° {id}",
+        "duplicate": "Déjà importée dans un autre relevé",
         "confidence": "Confiance : {value}",
         "validate": "Valider",
         "search": "Chercher",

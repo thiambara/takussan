@@ -28,7 +28,7 @@ describe('requêtes du rapprochement — préfixe /api', () => {
       rq.useBankStatement(1);
       rq.useBankStatementLines(1, 'suggested', 1);
       rq.useCsvMapping(3);
-      rq.usePaymentSearch(3, 'x', 10, 'credit', true);
+      rq.usePaymentSearch(3, 'x', 10, 'credit', 'EUR', true);
     });
     const chemins = useApiQuery.mock.calls.map((c) => c[1]);
     expect(chemins).toEqual([
@@ -38,7 +38,9 @@ describe('requêtes du rapprochement — préfixe /api', () => {
       '/api/agencies/3/bank-statements/payment-search',
     ]);
     expect(useApiQuery.mock.calls[1][2].params.filter).toEqual({ match_status: 'suggested' });
-    expect(useApiQuery.mock.calls[3][2].params.extra).toEqual({ q: 'x', amount: 10, direction: 'credit' });
+    // P157.01 (TCK-1917) — la devise de la ligne : seuls les paiements que la confirmation accepte.
+    expect(useApiQuery.mock.calls[3][2].params.extra).toEqual({ q: 'x', amount: 10, direction: 'credit', currency: 'EUR' });
+    expect(useApiQuery.mock.calls[3][0]).toEqual(['reconciliation', 'search', 3, 'x', 10, 'credit', 'EUR']);
   });
 
   it('les écritures', () => {
