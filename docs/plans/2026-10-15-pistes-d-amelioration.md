@@ -19091,7 +19091,7 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
 
 ### Un admin d'agence rattache l'invité au profil d'une autre agence : `invitable_id` n'est jugé ni en existence ni en agence
 - Réf : P208.01
-- Statut : validé — validation du porteur (2026-10-24) : la création (`store`) est retirée de la route générique `POST /api/invitations` ; `index`, `show`, `revoke`, `resend` et `accept` restent ; les appels de test passent aux routes par rôle ou au service ; ferme aussi P208.03 (liste blanche), P208.04, P208.05, le premier point de P208.06 et P181.05
+- Statut : fait · TCK-2190
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Requests/Invitation/CreateInvitationRequest.php:71`, `takussan-api/app/Http/Controllers/Api/InvitationController.php:66-79`, `takussan-api/app/Services/Invitation/InvitationService.php:157-221`, `:733-753`
 - Constat :
@@ -19102,6 +19102,7 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
   - Établi comment : lu, mesuré par test temporaire.
 - Piste : ne plus accepter `invitable_id` du client sur ce chemin, ou juger que le profil existe, est du type attendu, appartient à l'agence de l'invitation et est encore `draft` sans compte. Comme aucun écran n'appelle la route, la fermer (super-admin seul, ou retrait de `store`) est une option à trancher. Garde : un test qui vise le brouillon d'une autre agence et constate le refus et l'absence d'appartenance après acceptation.
 - Mesure (2026-10-24, 955bdeac4, mesureur) : `git log e5b64edf6..HEAD` sur `CreateInvitationRequest`, `InvitationController`, `InvitationService`, `InvitationPolicy` → aucun commit ; relu `invitable_id` (`nullable|integer|required_with:invitable_type`, l. 71), `store()` (l. 66-77, seule l'`agency_id` de l'invitation est jugée) et `finalizeAccept()` (l. 735-753) ; rejoué (un test temporaire `tests/Feature/TmpMesureP208Test.php`, retiré, `XDEBUG_MODE=off php artisan test <fichier>`, PostgreSQL de test, charge 3,1 à 5,8 sur 8 cœurs) : admin de A, brouillon d'agent de B → `POST /api/invitations` 201 (`agency_id` = A), acceptation par un compte neuf 200, `isAgentAt(B)` = `true`, profil de B `active` et rattaché au compte → le constat tient, lignes inchangées. Classement : V2, le correctif resserre l'autorisation d'une route d'API, et la Piste propose deux voies (juger le profil, ou fermer la route au seul super-admin ou la retirer) qui demandent un choix du porteur.
+- Mesure (2026-10-24, 973736af4, implementeur) : reproduit par `CreationGeneriqueRetireeTest` : admin de A, `POST /api/invitations` vers le brouillon d'agent de B → 201 avant correctif → route `invitations.store`, `InvitationController::store`, `CreateInvitationRequest` et `InvitationPolicy::create` retirés : 405, aucune invitation, brouillon de B `draft` sans compte ; `index`, `show`, `revoke`, `resend`, `accept` restent ; ablation (les quatre fichiers remis) → 5 rouges sur 6, remise → 6 verts ; les tests qui passaient par la route vont au service (`InvitationSendTest`, `InvitationAttachmentTest`). P181.05, d'un angle impair, n'est pas touchée par cette instance.
 
 ### L'acceptation remet `active` le profil suspendu d'un autre compte, dans une autre agence
 - Réf : P208.02
@@ -19117,7 +19118,7 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
 
 ### Un admin d'agence émet une cooptation `super_admin`, et le compte qui l'accepte perd sa 2FA et reste bloqué sur l'enrôlement
 - Réf : P208.03
-- Statut : validé — validation du porteur (2026-10-24) : `super_admin` sort de la liste blanche de `CreateInvitationRequest` (avec P208.01) ; en défense, `finalizeAccept` ne pose le drapeau d'enrôlement 2FA que pour une cooptation sans agence, et `enroll` ne coupe pas une 2FA active tant qu'aucune cooptation acceptée n'existe
+- Statut : fait · TCK-2190
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Requests/Invitation/CreateInvitationRequest.php:37-44`, `takussan-api/app/Policies/InvitationPolicy.php:69-76`, `takussan-api/app/Services/Invitation/InvitationService.php:700-713`, `takussan-api/app/Http/Controllers/Api/Auth/SuperAdminTwoFactorController.php:56-72,170-205`, `takussan-web/src/lib/double-facteur.ts:46-47`, `takussan-web/src/app/(dashboard)/layout.tsx:61-64`
 - Constat :
@@ -19129,10 +19130,11 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
   - Établi comment : lu, mesuré par test temporaire ; la redirection du front est lue, pas jouée.
 - Piste : retirer `super_admin` du générique (la cooptation a sa route, `POST /api/admin/super-admins/invite`), ou le réserver au super-admin avec `agency_id` nul ; ne poser le drapeau à l'acceptation que pour une cooptation sans agence. Garde : un test qui émet `super_admin` en admin d'agence et constate le refus.
 - Mesure (2026-10-24, 955bdeac4, mesureur) : relu la liste blanche (`super_admin`, l. 43), `InvitationPolicy::create()` (l. 69-76, `team.invite` seul), `finalizeAccept()` (l. 700-713), `SuperAdminTwoFactorController::enroll()` et `assertCooptedSuperAdmin()` (drapeau seul, l. 213-221) ; rejoué (un test temporaire `tests/Feature/TmpMesureP208Test.php`, retiré, `XDEBUG_MODE=off php artisan test <fichier>`, PostgreSQL de test, charge 3,1 à 5,8 sur 8 cœurs) : admin de A, `POST /api/invitations` `{email: <compte existant à 2FA active>, role: super_admin}` → 201, `agency_id` = A ; acceptation par ce compte connecté → 200, `force_2fa_at_first_login` = `true` ; `enroll` → 200, `two_factor_enabled` = `false`, secret changé ; `confirm` au code valide → 403 `super_admin.not_pending`, drapeau `true`, 2FA coupée, `isSuperAdmin` = `false` → le constat tient en entier. Classement : V2, le défaut porte sur la 2FA et l'émission d'une cooptation super-admin, et la Piste laisse le choix entre retirer le rôle du générique et le réserver au super-admin.
+- Mesure (2026-10-24, 973736af4, implementeur) : reproduit par `CreationGeneriqueRetireeTest` (cooptation `super_admin` par un admin d'agence → 201 avant correctif, 405 après) et `CooptationHorsAgenceSeuleTest` : invitation `super_admin` rattachée à une agence acceptée par un compte à 2FA → drapeau `true` avant correctif, `false` après ; `enroll` sur 2FA active sans cooptation acceptée → 200 et 2FA coupée avant, 403 `super_admin.not_pending` et secret inchangé après ; l'opérateur amorcé (profil plateforme actif, sans cooptation) garde l'enrôlement, hypothèse écrite au ticket ; ablation de chaque garde → 1 rouge chacune, remise → 6 verts ; `SuperAdminCooptationTest` 10 verts.
 
 ### La cooptation émise par le générique saute le refus d'un opérateur existant, le verrou, l'avis aux autres super-admins et le journal
 - Réf : P208.04
-- Statut : validé — validation du porteur (2026-10-24) : une seule porte de cooptation, `SuperAdminCooptationService` ; le générique est fermé par P208.01 et P208.03, même ticket
+- Statut : fait · TCK-2190
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Auth/SuperAdminCooptationService.php:51-100`, `takussan-api/app/Http/Controllers/Api/InvitationController.php:53-84`
 - Constat :
@@ -19142,10 +19144,11 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
   - Établi comment : lu, mesuré par test temporaire.
 - Piste : faire passer toute cooptation par `SuperAdminCooptationService`, en refusant `super_admin` sur le générique (va avec P208.03). Garde : un test qui constate le refus du rôle sur le générique.
 - Mesure (2026-10-24, 955bdeac4, mesureur) : relu `SuperAdminCooptationService::invite()` (l. 51-100 : refus d'un opérateur existant, verrou, avis, journal) ; rejoué (un test temporaire `tests/Feature/TmpMesureP208Test.php`, retiré, `XDEBUG_MODE=off php artisan test <fichier>`, PostgreSQL de test, charge 3,1 à 5,8 sur 8 cœurs), en super-admin : `POST /api/invitations` `{role: super_admin}` vers un super-admin existant → 201, quand `POST /api/admin/super-admins/invite` rend 409 ; vers une adresse neuve → 201, 0 `SuperAdminInvitedBroadcast` au super-admin existant, activités de l'invitation `created` et `invitation_sent` seulement → le constat tient. Classement : V2, le correctif ferme une voie d'émission de cooptation super-admin qu'un super-admin peut emprunter aujourd'hui, et sa forme dépend du choix de P208.03.
+- Mesure (2026-10-24, 973736af4, implementeur) : `CreationGeneriqueRetireeTest` : super-admin, `POST /api/invitations` `{role: super_admin}` → 201 avant correctif, 405 après ; la cooptation ne passe plus que par `POST /api/admin/super-admins/invite` (`SuperAdminCooptationService`) ; ablation commune à P208.01 → rouge.
 
 ### Le générique laisse une agence individuelle inviter bailleurs et agents, que les services par rôle lui refusent
 - Réf : P208.05
-- Statut : validé — validation du porteur (2026-10-24) : fermée par le retrait de la création générique (P208.01) ; le témoin qui épingle l'écart est retiré, ou réécrit en test des routes par rôle, qui refusent déjà
+- Statut : fait · TCK-2190
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/InvitationController.php:53-84`, `takussan-api/app/Services/Invitation/AgentInvitationService.php:67,212-215`, `takussan-api/app/Services/Invitation/OwnerInvitationService.php:61,132-145`, `takussan-api/app/Support/AgencyKindGuard.php:72-93`, `takussan-api/tests/Feature/Invitation/InvitationAttachmentTest.php:165`
 - Constat :
@@ -19155,10 +19158,11 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
   - Établi comment : lu, mesuré par test temporaire.
 - Piste : rejouer `AgencyKindGuard` sur le générique selon le rôle, et réécrire le témoin ; ou fermer le générique (P208.01). Garde : un test par rôle sur une agence `individual`.
 - Mesure (2026-10-24, 955bdeac4, mesureur) : relu `docs/features.md:400` (agence `individual` : « pas d'invitation de collaborateurs internes », ni « invitation d'autres bailleurs ») et `test_temoin_l_endpoint_generique_reste_ouvert_a_une_agence_individuelle` (`InvitationAttachmentTest.php`, renvoie à TCK-454 pour la restriction) ; rejoué (un test temporaire `tests/Feature/TmpMesureP208Test.php`, retiré, `XDEBUG_MODE=off php artisan test <fichier>`, PostgreSQL de test, charge 3,1 à 5,8 sur 8 cœurs) : admin d'une agence `individual`, `POST /api/invitations` vers un brouillon de bailleur → 201, vers un brouillon d'agent → 201 ; `POST /api/agencies/{id}/owners/invite` (charge complète, `owner_type` compris) → 403 → le constat tient. Classement : V2, la règle est écrite dans la spec, mais le correctif resserre une autorisation, réécrit un témoin posé délibérément par TCK-455, et la Piste laisse le choix entre rejouer `AgencyKindGuard` et fermer le générique (P208.01).
+- Mesure (2026-10-24, 973736af4, implementeur) : `CreationGeneriqueRetireeTest` : admin d'une agence `individual`, `POST /api/invitations` vers un brouillon de bailleur → 201 avant correctif, 405 après ; le témoin `test_temoin_l_endpoint_generique_reste_ouvert_a_une_agence_individuelle` est retiré, `InviteAgentTest::test_individual_agency_admin_gets_403` gardant déjà le refus de la route par rôle (15 verts).
 
 ### Petites améliorations
 - Réf : P208.06
-- Statut : validé — validation du porteur (2026-10-24) : dans le ticket de P208.01 : les deux premiers points tombent avec la création générique, et les docblocks se corrigent
+- Statut : fait · TCK-2190
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Requests/Invitation/CreateInvitationRequest.php:37-44,71`, `takussan-api/app/Policies/InvitationPolicy.php:21-23`, `takussan-api/app/Services/Invitation/InvitationService.php:140-142`
 - Constat :
@@ -19168,6 +19172,7 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
   - Établi comment : lu, et mesuré pour le premier point.
 - Piste : refuser un `invitable_id` sans ligne (avec P208.01), retirer `agency_admin` de la liste blanche, corriger les deux docblocks.
 - Mesure (2026-10-24, 955bdeac4, mesureur) : rejoué (un test temporaire `tests/Feature/TmpMesureP208Test.php`, retiré, `XDEBUG_MODE=off php artisan test <fichier>`, PostgreSQL de test, charge 3,1 à 5,8 sur 8 cœurs) : `{role: owner, invitable_type: OwnerProfile, invitable_id: 999999}` → 201, acceptation → 200, compte créé, `isOwnerAt` = `false`, invitation `accepted` → la partie « à vérifier » tient : le compte n'est membre de rien (le cas de TCK-455) ; `{role: agency_admin}` → 422, mais sur `invitable_type` (`requiredIf` de la requête, l. 61-66), avant `assertInvitationAttachesToSomething()` : le constat est inexact sur le lieu du refus, juste sur la valeur jamais recevable ; relu les deux docblocks (`InvitationPolicy.php:21-23`, `InvitationService.php:137`, et non l. 140-142) → ils tiennent. Classement : V2, le premier point est une autorisation qui suit le choix de P208.01 ; les docblocks (A6) et le retrait d'`agency_admin` de la liste blanche (A1) seraient autonomes seuls.
+- Mesure (2026-10-24, 973736af4, implementeur) : les deux premiers points tombent avec `CreateInvitationRequest` (retirée) ; docblocks d'`InvitationPolicy` (plus de `create`, les routes par rôle jugent leur geste) et d'`InvitationService::send()` (plus de permission `invite_<role>`) corrigés ; `RoleDInvitationRenduTest` lit désormais les rôles d'`InvitationService` (1 vert).
 
 ## Angle 209 — Requêtes de modification qui ne rejouent pas les règles de la création
 
