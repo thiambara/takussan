@@ -237,6 +237,8 @@ class BookingService
                 'cancelled_at' => now(),
                 'cancellation_reason' => $reason,
             ]);
+            // TCK-2152 (P200.01) — un checkout encore ouvert ne soldera plus une réservation close.
+            $locked->cancelPendingPayments();
 
             return $locked->refresh();
         });
@@ -306,6 +308,8 @@ class BookingService
                 'cancellation_by' => $by,
                 'cancellation_reason' => $reason,
             ]);
+            // TCK-2152 (P200.01) — un checkout encore ouvert ne soldera plus une réservation close.
+            $locked->cancelPendingPayments();
 
             return $locked->refresh();
         });
