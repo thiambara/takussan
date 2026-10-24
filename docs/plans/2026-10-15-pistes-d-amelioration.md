@@ -19192,7 +19192,7 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
 
 ### Le bouton de paiement du client sur une réservation échoue sans rien dire
 - Réf : P210.02
-- Statut : retenu · autonome
+- Statut : fait · TCK-2082
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/bookings/BookingDetail.tsx:549,573-575,585`, `takussan-api/app/Http/Controllers/Api/BookingPaymentController.php:45-51`, `takussan-api/app/Services/Model/BookingPaymentService.php:62-66`
 - Constat :
@@ -19202,6 +19202,7 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
   - Établi comment : lu ; le rendu n'a pas été mesuré.
 - Piste : rattraper l'erreur et l'afficher sous le bouton par `useMessageErreurApi()`. Garde : un test vitest de `CustomerPayCta` qui rejette la mutation en 422 et attend le message.
 - Mesure (2026-10-24, 0507e0a2f, mesureur) : relu `BookingDetail.tsx:573-575` (`handleClick` `async`, `await createPayment.mutateAsync({ status: 'pending' })` sans `catch`) et `:585` (`onClick={handleClick}`), `grep -n createPayment` → l. 549, 574, 586, `useCreateBookingPayment` (`lib/queries/bookings.ts:154-166`, ni `onError` ni toast), `useApiMutation` sans gestion globale ; côté API `BookingPaymentController.php:54` (`dueFromCustomer`) et `BookingPaymentService.php:116` (`abort_code_if($remaining <= 0, 422, 'booking_payment.nothing_due')`, la ligne a bougé depuis le constat) ; test vitest temporaire (retiré) sur les mocks de `BookingDetail.montant-derive.tck-1309.test.tsx`, client payeur, réservation `confirmed` avec acompte, `mutateAsync` rejeté en `ApiError(422)`, charge 1,74 / 2,63 / 2,82 sur 8 cœurs → un appel, 0 `role=alert`, 0 `role=status`, message absent, bouton de nouveau actif, une « Unhandled Rejection: API error 422 » → le constat tient, rendu compris. Classement : A1, ADR-0019 fixe l'affichage par `useMessageErreurApi()` avec un repli existant ; aucun montant ni écriture de paiement n'est touché (le correctif ne fait qu'afficher le refus), donc pas V1.
+- Mesure (2026-10-24, 72976c063, implementeur) : test vitest `BookingDetail.paiement-refuse.p210-02.test.tsx` (mocks de `BookingDetail.montant-derive.tck-1309.test.tsx`, client payeur, réservation `confirmed` avec acompte, `mutateAsync` rejeté en `ApiError(422)`), charge 1,89 / 2,06 / 2,38 sur 8 cœurs, sur `BookingDetail.tsx` de `pre-dev` → 2/2 rouges (« Unable to find role="alert" », deux « Unhandled Rejection: API error 422 ») ; correctif (`catch`, message par `useMessageErreurApi()` dans un `role="alert"` sous le bouton, effacé au nouvel essai) → 2/2 verts, bouton de nouveau actif ; ablation (fichier rendu à `pre-dev`) → rouge, remis → vert ; les 15 fichiers de `bookings/__tests__` verts (51 tests).
 
 ### Une recherche sauvegardée dont la suppression échoue reste à l'écran sans message
 - Réf : P210.03
