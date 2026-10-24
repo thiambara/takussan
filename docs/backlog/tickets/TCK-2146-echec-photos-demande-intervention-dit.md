@@ -32,7 +32,7 @@ pas au demandeur.
 
 ## Décision du porteur (déléguée)
 
-> ne plus taire l'échec : remplacer le `catch {}` vide de `MaintenanceForm` par un avertissement sur la fiche où le demandeur arrive (la demande reste créée, on ne reste pas sur le formulaire, qu'un second envoi dupliquerait), qui dit que les photos n'ont pas été envoyées, clé neuve en `fr` et `en`, le `wo` portant le texte français, et retirer le commentaire qui promet une reprise « Ajouter des photos » qui n'existe pas ; test Vitest : `uploadPhotos` rejette → l'avertissement s'affiche
+> ne plus taire l'échec : remplacer le `catch {}` vide de `MaintenanceForm` par un avertissement sur la fiche où le demandeur arrive (la demande reste créée, on ne reste pas sur le formulaire, qu'un second envoi dupliquerait), qui dit que les photos n'ont pas été envoyées, clé neuve en `fr` et `en`, le `wo` portant le texte français, et retirer le commentaire qui promet une reprise « Ajouter des photos » qui n'existe pas ; test Vitest : `uploadPhotos` rejette → l'avertissement s'affiche ; reste : l'envoi de la collection `photos` par le demandeur sur la fiche (parcours neuf, au porteur)
 
 ## Reste à faire
 
