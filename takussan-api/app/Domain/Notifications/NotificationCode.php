@@ -186,6 +186,8 @@ enum NotificationCode: string
     /** Aux admins de l'agence (ADR-0048). */
     case AgencySuspended = 'agency.suspended';
     case AgencyReinstated = 'agency.reinstated';
+    /** TCK-2164 (P204.01) — aux admins de l'agence : un membre du personnel a demandé l'effacement de son compte. */
+    case AgencyMemberDeletionRequested = 'agency.member_deletion_requested';
     /** Au compte bloqué ou réactivé depuis la console. */
     case AccountBlocked = 'account.blocked';
     case AccountReactivated = 'account.reactivated';
@@ -264,7 +266,7 @@ enum NotificationCode: string
             self::AccountPhoneChanged => NotificationType::System,
             self::ImpersonationEnded, self::AgencySuspended, self::AgencyReinstated,
             self::AccountBlocked, self::AccountReactivated, self::PropertyUnpublishedContactErased,
-            self::PlatformOperatorRevoked => NotificationType::System,
+            self::PlatformOperatorRevoked, self::AgencyMemberDeletionRequested => NotificationType::System,
             self::ProspectMatchDigest => NotificationType::System,
             self::PropertyCalendarConflict, self::PropertyCalendarFeedFailing => NotificationType::System,
             self::LeaseSignatureRequested, self::LeaseSignedByParty,
@@ -332,6 +334,8 @@ enum NotificationCode: string
             self::ImpersonationEnded, self::AgencySuspended, self::AgencyReinstated,
             self::AccountBlocked, self::AccountReactivated, self::PropertyUnpublishedContactErased,
             self::PlatformOperatorRevoked => null,
+            // TCK-2164 — un portefeuille à passer avant l'effacement : non désactivable.
+            self::AgencyMemberDeletionRequested => null,
         };
     }
 
@@ -428,6 +432,12 @@ enum NotificationCode: string
             self::AgencySuspended, self::AgencyReinstated => ['agency' => self::PARAM_TEXT, 'reason' => self::PARAM_TEXT],
             self::AccountBlocked, self::AccountReactivated => ['reason' => self::PARAM_TEXT],
             self::PropertyUnpublishedContactErased => ['property' => self::PARAM_TEXT, 'reference' => self::PARAM_TEXT, 'url' => self::PARAM_URL],
+            self::AgencyMemberDeletionRequested => [
+                'member' => self::PARAM_TEXT, 'scheduled_for' => self::PARAM_DATE,
+                'tasks' => self::PARAM_COUNT, 'visits' => self::PARAM_COUNT, 'maintenance' => self::PARAM_COUNT,
+                'responsible_properties' => self::PARAM_COUNT, 'held_properties' => self::PARAM_COUNT,
+                'collaborations' => self::PARAM_COUNT, 'customers' => self::PARAM_COUNT, 'url' => self::PARAM_URL,
+            ],
             self::PlatformOperatorRevoked => ['operator' => self::PARAM_TEXT, 'reason' => self::PARAM_TEXT],
         };
     }

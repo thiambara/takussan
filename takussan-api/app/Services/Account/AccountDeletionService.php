@@ -143,6 +143,10 @@ class AccountDeletionService
 
             $user->notify(new AccountDeletionRequestedNotification($request));
 
+            // TCK-2164 (P204.01) — les admins de chaque agence où le compte laisse un portefeuille
+            // en reçoivent l'inventaire, pour le passer pendant le délai de grâce.
+            DB::afterCommit(fn () => app(ErasedMemberPortfolio::class)->notifyAgencies($user, $scheduledFor));
+
             return $request->fresh();
         });
     }
