@@ -12,7 +12,7 @@ depends_on: []
 blocks: []
 spec_refs:
   adr:
-    - "docs/adr/0061-mise-en-avant-payante-des-biens.md"
+    - "docs/adr/0061-credits-d-espace-et-boost-des-annonces.md"
   pistes:
     - "docs/plans/2026-10-15-pistes-d-amelioration.md#angle-122--écritures-qui-changent-un-document-indexé-sans-passer-par-lobservateur-scout"
 tags: [api, recherche, boost, pistes]
