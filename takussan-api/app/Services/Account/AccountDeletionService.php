@@ -424,6 +424,9 @@ class AccountDeletionService
         // les rend inactifs.
         app(ErasedAgencyAdmin::class)->settle($user);
 
+        // TCK-2168 (P204.03) — tâches et interventions qui restent au compte : libérées.
+        app(ErasedMemberPortfolio::class)->release($user);
+
         $this->endProfiles($user);
 
         // TCK-1025 (P57.05) — le contact WhatsApp et les alertes sans compte du contact vérifié
