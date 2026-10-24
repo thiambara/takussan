@@ -19904,7 +19904,7 @@ les envoie.*
 
 ### Le panneau de signature d'un bail écrit « Signé par  le … », et efface le « pour le compte de » quand le bailleur n'a pas de nom
 - Réf : P220.02
-- Statut : retenu · autonome
+- Statut : fait · TCK-2134
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/leases/LeaseSignaturePanel.tsx:109-121`, `takussan-api/app/Http/Resources/LeaseResource.php:106-107`, `takussan-web/src/messages/fr.json:4005`
 - Constat :
@@ -19914,6 +19914,7 @@ les envoie.*
   - Établi comment : lu, et mesuré par rendu.
 - Piste : côté API, `nameWithoutContact()` pour les deux noms (jamais `''`) ; côté front, choisir le texte du mandat sur la présence de la signature pour le compte d'un tiers (`on_behalf_of_name !== null`, ou un booléen rendu par l'API), non sur la vérité du nom. Test : signature pour le compte d'un bailleur sans nom → le texte « pour le compte de » reste.
 - Mesure (2026-10-24, 6d8095e26, mesureur) : relu `LeaseResource.php:106-107` (`getFullNameAttribute()`, `null` seulement sans relation), `LeaseSignaturePanel.tsx:111-119` (texte du mandat choisi sur la vérité de `on_behalf_of_name`, `?? '—'`), inchangés ; test Vitest temporaire (retiré, même charge), signatures `tenant` à `signer_name: ''` et `landlord` à `on_behalf_of_name: ''` → `LocataireSignéSigné par  le 8 oct. 2026 | BailleurSignéSigné par Awa Sarr le 8 oct. 2026` → le constat tient. Classement : A1, le texte du mandat et le repli `—` existent déjà (ADR-0042) : choisir `signedOnBehalf` sur `on_behalf_of_name != null` et replier les deux noms par `|| '—'`, sans texte neuf.
+- Mesure (2026-10-24, 3e8efc3c5, implementeur) : avant correctif, un agent sans nom signant pour un bailleur sans nom recevait `signer_name = ''` (test PHP rouge), et le panneau avec `on_behalf_of_name: ''` perdait le « pour le compte de » (test Vitest rouge) ; `LeaseResource` passe par `nameWithoutContact()`, le panneau choisit le mandat sur `!= null` et replie par `|| '—'` ; `LeaseSignatureTest` (53 verts) et `LeaseSignaturePanel.test.tsx` (9 verts) ; ablation : la condition du mandat remise sur la vérité du nom → le cas neuf rougit.
 
 ### Une fiche client créée depuis un compte sans nom garde prénom et nom vides : le repli `'Client'` / `'#id'` ne joue jamais
 - Réf : P220.03
