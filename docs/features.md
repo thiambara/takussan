@@ -187,7 +187,7 @@ Gestion complète d'un contrat de bail et de son cycle de vie.
 | P1 | 🧑‍💼 | Ajouter un ou plusieurs garants avec documents joints |
 | P1 | 🏢🧑‍💼 | Générer l'échéancier de loyers mensuels |
 | P1 | 🏠🏢 | Enregistrer un paiement mensuel |
-| P1 | 🏠🧑‍💼 | Relances de loyer automatiques (J-3, J+1, J+7) au locataire, y compris sans compte (téléphone du client), sur WhatsApp puis SMS en secours, dans sa langue ; un retard est relancé que le bail porte une pénalité ou non, et la relance annonce le solde restant dû (TCK-588) |
+| P1 | 🏠🧑‍💼 | Relances de loyer automatiques (J-3, J+1, J+7) au locataire, y compris sans compte (téléphone du client), sur WhatsApp puis SMS en secours, dans sa langue ; un retard est relancé que le bail porte une pénalité ou non, et la relance annonce le solde restant dû (TCK-588) ; chaque relance part au plus une fois : celle que tous les fournisseurs SMS refusent n'est pas renvoyée et laisse une activité d'exploitation rattachée à l'échéance, sans le numéro (P207.01) ; pour un locataire sans compte, le SMS ne prend le relais que d'un échec immédiat de WhatsApp, pas d'un échec que Meta rapporte plus tard (P207.02) |
 | P1 | 🏢🧑‍💼 | Alerte d'impayé au bailleur (J+1, J+7) et récapitulatif quotidien unique des impayés à l'agent (TCK-588) |
 | P1 | 🧑‍💼🏢 | Appliquer automatiquement des pénalités de retard sur les paiements en retard |
 | P1 | 🧑‍💼🏢 | Choisir, par agence, si les pénalités de retard s'encaissent avec le paiement en ligne du loyer — désactivé par défaut (TCK-593) |
@@ -559,7 +559,8 @@ Canal de notification **WhatsApp sortant** qui remplace certains SMS pour les fa
 
 - **Sélection mutuellement exclusive** : pour une notification supportant les deux, un seul canal mobile part — `whatsapp` s'il est éligible, sinon `sms`. Jamais les deux (pas de double-envoi).
 - **Consentement** : `phone_verified_at` + préférence par événement ; le flag d'opt-out est honoré ; jamais d'envoi à un contact `opted_out`.
-- **Contact sans compte** (client saisi par l'agence, visiteur anonyme — TCK-588) : messages transactionnels seulement ; WhatsApp si le numéro est `opted_in` dans `whatsapp_contacts`, sinon SMS ; heures calmes ARTP ; limite de débit par numéro.
+- **Contact sans compte** (client saisi par l'agence, visiteur anonyme — TCK-588) : messages transactionnels seulement ; WhatsApp si le numéro est `opted_in` dans `whatsapp_contacts`, sinon SMS ; heures calmes ARTP ; limite de débit par numéro ; le SMS de secours ne suit qu'un échec immédiat de WhatsApp, la tentative WhatsApp étant journalisée comme pour un compte (P207.02).
+- **Émetteur** : un SMS ou un WhatsApp lié à un objet d'agence (bail, visite, réservation, fiche client) part par l'intégration de **cette agence** si elle en a une active, sinon par celle de la plateforme — que le destinataire ait un compte ou non, et quel que soit le nombre de ses profils (P203.01, P203.02).
 - **Conformité Meta** : en fenêtre de service 24h (un message entrant récent du contact) → texte libre autorisé ; hors fenêtre → **template approuvé obligatoire**. Catégories `authentication` (OTP) / `utility` (transactionnel, rappels, relances) uniquement — **jamais `marketing`**.
 - **Garantie de livraison** : si WhatsApp est inéligible (contact opted-out, hors fenêtre sans template approuvé) ou échoue durement, bascule **automatique vers SMS** (le SMS reste le filet de sécurité).
 - **Statuts** : les accusés Meta (delivered/read/failed) mettent à jour le suivi de livraison.
