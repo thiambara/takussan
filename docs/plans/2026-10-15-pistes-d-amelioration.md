@@ -20421,7 +20421,7 @@ sans `delete`).*
 
 ### Un bail ou une réservation de l'agence B prend pour client la fiche de l'agence A, puis la montre au personnel de B
 - Réf : P226.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : resserre l'autorisation du client et du garant d'un bail ou d'une réservation, et choisit la règle d'un bien sans agence
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Model/LeaseService.php:52-61`, `takussan-api/app/Services/Model/BookingService.php:89-97`, `takussan-api/app/Policies/CustomerPolicy.php:32-48,108-112`, `takussan-api/app/Policies/GuarantorPolicy.php:25-34`, à comparer à `takussan-api/app/Rules/ClientDeLAgence.php`
 - Constat :
@@ -20432,10 +20432,11 @@ sans `delete`).*
   - `GuarantorPolicy::view` admet l'auteur du garant sans aucune condition d'agence (lu, l. 31-33) : le même passage vaut pour `guarantor_id` du bail et d'`attachGuarantor` (`LeaseController.php:179-183`) (déduit ; à vérifier, non joué).
   - Établi comment : lu, mesuré par test temporaire.
 - Piste : juger le client et le garant contre l'agence du bien, comme `ClientDeLAgence` (une fiche de l'agence du bien ; pour un bien sans agence, une fiche sans agence ajoutée par le bailleur), dans `LeaseService::create`, `BookingService` et `attachGuarantor`, en gardant le même refus pour l'absent et le tiers (P62). Garde : un test par geste avec le compte de deux agences, qui constate le refus et l'absence de ligne.
+- Mesure (2026-10-24, 7ced6a130, mesureur) : relu `LeaseService::create` (l. 52-61, `can('view')` sur le locataire et le garant), `BookingService` (l. 89-97), `CustomerPolicy::view` (l. 32-48) et `GuarantorPolicy::view` (l. 25-34) : inchangés ; aucun ticket ni commit ne cite P226 ; sonde temporaire `SondeMesureurAngle226Test` (retirée), `XDEBUG_MODE=off php artisan test <fichier>`, charge 4,2 sur 8 cœurs : agent de A et de B, client et caution de A qu'il a ajoutés, bien de B, indice `agent:B` → `POST /api/leases` 201 (`agency_id` = B, `tenant_id` = le client de A), `POST /api/bookings` 201 (`agency_id` = B, même client), `POST /api/leases/{id}/guarantors` avec une caution de A → 201 ; un collègue agent de B seulement : `GET /api/leases/{id}?include=tenant` → 200 avec le courriel et le téléphone de la fiche de A, `GET /api/customers/{id}` → 403, `GET /api/guarantors/{id}` → 403. Le constat tient, la partie « caution » (déduite) comprise. Classement : V2, le correctif retire un passage que l'agent de deux agences emprunte aujourd'hui, et la `Piste` fixe en plus la règle d'un bien sans agence (fiche ajoutée par le bailleur), qui n'est écrite que pour les visites (TCK-590) ; les fiches de clients exposées touchent aussi V3.
 
 ### Une demande d'intervention sur un bien accepte le bail d'un autre bien
 - Réf : P226.02
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/MaintenanceRequestController.php:114-119`, `takussan-api/app/Listeners/Maintenance/SyncMaintenanceConversation.php:76-89`, `takussan-api/app/Services/Maintenance/MaintenanceQuoteWorkflow.php:264-275`, à comparer à `takussan-api/app/Http/Requests/Conversation/Concerns/GuardsConversationScope.php` (`guardLeaseMatchesProperty`)
 - Constat :
@@ -20446,10 +20447,11 @@ sans `delete`).*
   - Le locataire n'est contraint que d'avoir un bail en cours sur P1 (lu, l. 107-112) : un locataire de deux biens peut rattacher le bail de l'autre (déduit ; à vérifier).
   - Établi comment : lu, mesuré par test temporaire.
 - Piste : refuser un `lease_id` dont le bien n'est pas le `property_id` de la demande, avec le refus d'un bail invisible (TCK-1070). Garde : un test sur le bail d'un autre bien, et une lecture des lignes existantes en `SELECT` avant de décider s'il faut les corriger.
+- Mesure (2026-10-24, 7ced6a130, mesureur) : relu `MaintenanceRequestController::store` (l. 114-119 : `lease_id` jugé par `can('view')` seul) ; sonde temporaire `SondeMesureurAngle226Test` (retirée), charge 4,2 sur 8 cœurs : admin d'agence, `POST /api/maintenance-requests {property_id: P1, lease_id: <bail de P2>}` → 201, ligne `property_id` = P1, `lease_id` = bail de P2 ; locataire d'un bail en cours sur P1 et sur P2, même appel → 201 avec le bail de P2 (la partie déduite tient) ; le groupe de conversation (`SyncMaintenanceConversation`) n'a pas été rejoué ; front : `MaintenanceNewLauncher.tsx:58-59` envoie toujours le bail avec son propre bien. Classement : A1, la règle « un bail et un bien rattachés ensemble vont ensemble » est écrite par TCK-576 (`guardLeaseMatchesProperty`) et le refus par TCK-1070, et aucun appelant légitime n'envoie une paire incohérente ; corriger les lignes existantes reste hors du correctif (V4).
 
 ### Petites améliorations
 - Réf : P226.03
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Controllers/Api/MediaController.php:28-38`, `takussan-api/app/Http/Requests/MediaUploadRequest.php:25-28,57-63`, `takussan-api/app/Http/Requests/Api/StoreSettingRequest.php:51-56`
 - Constat :
@@ -20457,3 +20459,4 @@ sans `delete`).*
   - `StoreSettingRequest::authorize()` compare `$user->agency_id === $targetAgencyId` en strict, `scope_id` venant brut de `input()` (lu, l. 51-55) : un `scope_id` envoyé en chaîne (formulaire, `"12"`) refuse l'admin de sa propre agence en 403 (déduit ; à vérifier, le front envoie peut-être un nombre).
   - Établi comment : lu.
 - Piste : résoudre la cible des médias après l'autorisation, ou rendre au manquant le refus du tiers ; comparer `(int)` dans `StoreSettingRequest`. Garde : un test d'égalité des réponses absent / tiers pour `POST /api/media`.
+- Mesure (2026-10-24, 7ced6a130, mesureur) : relu `MediaController::store` (l. 28-38, `findOrFail` avant `authorizeAttach`) et `StoreSettingRequest::authorize()` (l. 51-56, comparaison stricte) ; sonde temporaire `SondeMesureurAngle226Test` (retirée) : compte sans lien, `POST /api/media` `model_type` = `App\Models\Property`, bien d'un tiers → 403, identifiant absent → 404 ; admin d'agence, `POST /api/settings` `scope: agency`, `scope_id` entier → 201, le même en chaîne → 403 `setting.other_agency_forbidden` ; le front n'appelle pas `POST /api/settings` (`grep` dans `takussan-web/src`). Les deux parties déduites tiennent. Classement : A1, « un absent reçoit le refus du tiers » est la règle écrite par l'angle 62 (TCK-1066 à TCK-1072), et l'admin de sa propre agence est déjà admis quand l'identifiant est un entier.
