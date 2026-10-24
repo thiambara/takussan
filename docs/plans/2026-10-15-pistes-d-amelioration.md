@@ -18274,10 +18274,11 @@ repris ; les CSV à point-virgule, en latin-1, à BOM ou à tabulation passent l
 
 ### « En retard » de la supervision des paiements compte les restitutions de caution que la fiche dit à l'heure, et les baux supprimés
 - Réf : P198.05
-- Statut : validé — validation du porteur (2026-10-23) : exclure les restitutions de caution de « en retard », et dans le même ticket un motif propre « restitution échue » ; ne joindre que les baux non supprimés
+- Statut : fait · TCK-2034
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Admin/PaymentSupervisionService.php:124-128,138-144`, `takussan-api/app/Models/Concerns/HasPaymentAttributes.php:190-213`, `takussan-api/app/Models/LeasePayment.php:88-105`, `takussan-api/app/Services/Lease/DepositRefundService.php:90-100`
 - Constat :
+- Mesure (2026-10-24, 96d942893, implementeur) : reproduit avant correctif par `PaymentSupervisionTest::test_p198_05_une_restitution_echue_a_son_motif_et_un_bail_supprime_ne_compte_pas` (un loyer `pending` échu, une restitution `pending` échue et une à venir, un loyer et une restitution échus d'un bail supprimé) → `late` comptait 4 lignes au lieu de 1 ; correctif : `lateLeasePayments` écarte les restitutions (`exceptDepositRefunds()`, sans toucher `scopeOverdue`), un motif `refund_due` (« Restitution échue ») lit les restitutions échues par la même règle d'échéance, `leaseBase` ne joint que les baux non supprimés, filtre et libellé côté console → verts ; ablation API (service et requête remis → `4 is identical to 1` ; jointure seule retirée → `2 is identical to 1`) et front (`payments.tsx` remis → bouton absent), rétabli → verts ; `PaymentSupervisionTest` (4) et `PaymentsConsole.test.tsx` (5) verts.
   - La supervision range sous « en retard » toute échéance que `LeasePayment::overdue()` retient (lu, `PaymentSupervisionService.php:124-128`) ; `scopeOverdue` n'écarte pas les restitutions de caution (lu, `HasPaymentAttributes.php:196-213`).
   - `LeasePayment::isOverdue()`, servi en `is_overdue` par `LeasePaymentResource`, dit « jamais » pour une restitution : c'est l'agence qui la doit (lu, `LeasePayment.php:88-100`), comme `CollectedPayments::leaseOwed()` et `PortfolioMetrics::overdue`.
   - Une restitution naît `pending` avec `due_date` à J+30 (lu, `DepositRefundService.php:90-99`) : non réglée au 31ᵉ jour, elle entre dans la liste « en retard » de la console alors que sa fiche dit `is_overdue = false` (à vérifier par un test : sans fournisseur, elle sort de `summary`, `whereNotNull('p.provider')`, mais pas de `list`).
