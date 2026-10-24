@@ -8,6 +8,7 @@ use App\Models\Booking;
 use App\Models\Enums\BookingStatus;
 use App\Models\User;
 use App\Notifications\BookingExpiredNotification;
+use App\Services\Membership\AdminsDeLAgence;
 use App\Support\Logging\SafeExceptionContext;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
@@ -277,7 +278,7 @@ class BookingExpirationService
         $team = app(BookingStakeholders::class)->for($booking)
             ->reject(fn (User $user) => $customerId !== null && (int) $user->id === (int) $customerId);
         if ($team->isEmpty()) {
-            $team = collect([$this->resolveFallbackAgent($booking)])->filter();
+            $team = $this->resolveFallbackAgents($booking);
         }
 
         foreach ($team as $member) {
@@ -289,8 +290,13 @@ class BookingExpirationService
      * Les replis de l'avis `agent` quand l'équipe de la réservation est vide (TCK-1316 AC3) :
      * l'auteur s'il est agent de l'agence, puis l'admin principal. Le créateur du bien, qui venait
      * en tête, est désormais dans l'équipe ({@see BookingStakeholders::for()}).
+     *
+     * TCK-2187 (P225.02) — l'admin principal s'il est joignable, sinon les admins joignables de
+     * l'agence ({@see AdminsDeLAgence::principalSinonDestinataires()}).
+     *
+     * @return Collection<int, User>
      */
-    private function resolveFallbackAgent(Booking $booking): ?User
+    private function resolveFallbackAgents(Booking $booking): Collection
     {
         // Fall back to the booking creator if they have an active agent
         // profile in the booking's agency (TCK-278 — rôle = profil).
@@ -299,14 +305,9 @@ class BookingExpirationService
         if ($booking->createdBy
             && $bookingAgencyId !== null
             && $booking->createdBy->isAgentAt((int) $bookingAgencyId)) {
-            return $booking->createdBy;
+            return collect([$booking->createdBy]);
         }
 
-        // Finally, try the agency's primary admin
-        if ($booking->agency && $booking->agency->primaryAdmin) {
-            return $booking->agency->primaryAdmin;
-        }
-
-        return null;
+        return AdminsDeLAgence::principalSinonDestinataires($booking->agency);
     }
 }
