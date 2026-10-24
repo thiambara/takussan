@@ -28,7 +28,7 @@ par un ajout.
 
 Réf : **P191.04** du fichier de pistes, `validé`.
 
-Décision du porteur : participants d'un groupe rattaché à un bail limités à qui passe `LeasePolicy::view`, contrôlé à la création et à l'ajout, avec l'exception du prestataire assigné à une intervention de ce bail (TCK-592, `SyncMaintenanceConversation`) ; la règle est écrite à `docs/features.md:278`
+Décision du porteur : validation du porteur (2026-10-24) : participants d'un groupe rattaché à un bail limités à qui passe `LeasePolicy::view`, contrôlé à la création et à l'ajout, avec l'exception du prestataire assigné à une intervention de ce bail (TCK-592, `SyncMaintenanceConversation`) ; la règle est écrite à `docs/features.md:278` ; reste : relever en préproduction les fils qui comptent déjà un tiers
 
 Avant (lu, puis mesuré par `GroupeDeBailParticipantsTest`) : `GuardsConversationScope::guardContext`
 ne juge face au bail que l'acteur ; les autres participants ne sont jugés que par leur joignabilité
