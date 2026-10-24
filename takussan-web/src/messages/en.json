@@ -3753,7 +3753,9 @@
         "attachments_label": "Supporting documents (photos, invoices)",
         "cancel": "Cancel",
         "submit": "Confirm refund",
-        "submitting": "Submitting…"
+        "submitting": "Submitting…",
+        "file_too_large": "File too large ({max} MB max): {files}",
+        "max_files": "Maximum {max} files."
       },
       "error_generic": "Refund failed, please retry."
     },

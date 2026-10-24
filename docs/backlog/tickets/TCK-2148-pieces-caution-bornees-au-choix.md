@@ -1,7 +1,7 @@
 ---
 id: TCK-2148
 title: "Les pièces d'une restitution de caution sont jugées au choix : 10 Mo chacune, 10 au plus"
-status: todo
+status: done
 phase: P2
 family: bug
 estimate: S
@@ -52,18 +52,18 @@ Réf : **P222.04** du fichier de pistes, `validé (délégué)`. `RefundDepositR
 
 ## Delta à produire
 
-- [ ] `DepositRefundModal.handleFiles` : pièces de plus de 10 Mo écartées et nommées ; plus de 10
+- [x] `DepositRefundModal.handleFiles` : pièces de plus de 10 Mo écartées et nommées ; plus de 10
   pièces refusées et dites.
-- [ ] Clés `lease.deposit.modal.file_too_large` et `max_files` en `fr`, `en`, `wo`.
-- [ ] Test Vitest `DepositRefundModal.pieces-bornees.tck-2148.test.tsx`.
+- [x] Clés `lease.deposit.modal.file_too_large` et `max_files` en `fr`, `en`, `wo`.
+- [x] Test Vitest `DepositRefundModal.pieces-bornees.tck-2148.test.tsx`.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Une pièce de 11 Mo est écartée, nommée avec « 10 Mo », et n'entre pas dans l'envoi :
+- [x] AC1 — Une pièce de 11 Mo est écartée, nommée avec « 10 Mo », et n'entre pas dans l'envoi :
   la requête ne porte que la petite pièce choisie avec elle.
-- [ ] AC2 — Onze pièces admises sont refusées et dites ; aucune ne part.
-- [ ] AC3 — Une pièce de 10 Mo exactement est gardée, sans alerte.
-- [ ] AC4 — `reduire-photo.branchement.test.ts` reste vert : la caution ne réduit rien.
+- [x] AC2 — Onze pièces admises sont refusées et dites ; aucune ne part.
+- [x] AC3 — Une pièce de 10 Mo exactement est gardée, sans alerte.
+- [x] AC4 — `reduire-photo.branchement.test.ts` reste vert : la caution ne réduit rien.
 
 ## Hors périmètre
 
@@ -72,4 +72,5 @@ Réf : **P222.04** du fichier de pistes, `validé (délégué)`. `RefundDepositR
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Ablation : filtre de taille et borne de nombre retirés de `handleFiles` → AC1 et AC2 rouges (aucune alerte, la pièce de 11 Mo part) ; remis → vert.
+- Une `File` de jsdom tire sa taille de son contenu : le test la fixe par `Object.defineProperty(…, 'size')` plutôt que d'allouer 11 Mo.

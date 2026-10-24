@@ -3724,7 +3724,9 @@
         "attachments_label": "Justificatifs (photos, factures)",
         "cancel": "Annuler",
         "submit": "Confirmer le remboursement",
-        "submitting": "Envoi en cours…"
+        "submitting": "Envoi en cours…",
+        "file_too_large": "Fichier trop lourd ({max} Mo au plus) : {files}",
+        "max_files": "Maximum {max} fichiers."
       },
       "error_generic": "Le remboursement a échoué, réessayez."
     },

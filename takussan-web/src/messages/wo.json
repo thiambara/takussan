@@ -1995,7 +1995,9 @@
         "attachments_label": "Firnde yi (foto, fakture)",
         "cancel": "Bayyi",
         "submit": "Dëggal delloo",
-        "submitting": "Yónnee…"
+        "submitting": "Yónnee…",
+        "file_too_large": "Fichier trop lourd ({max} Mo au plus) : {files}",
+        "max_files": "Maximum {max} fichiers."
       },
       "error_generic": "Delloo gi am na njuumte, jeemal ndax."
     },
