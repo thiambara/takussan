@@ -99,7 +99,8 @@ class AudioMessageTest extends TestCase
      */
     public static function conteneurs(): array
     {
-        return ['ogg' => ['ogg'], 'm4a' => ['m4a']];
+        // TCK-2058 (P194.02) — un MP4 audio de marque générique `isom`, que `finfo` lit `video/mp4`.
+        return ['ogg' => ['ogg'], 'm4a' => ['m4a'], 'mp4 isom' => ['mp4Isom']];
     }
 
     #[DataProvider('conteneurs')]
