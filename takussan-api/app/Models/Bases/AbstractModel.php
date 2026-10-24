@@ -3,6 +3,7 @@
 namespace App\Models\Bases;
 
 use App\Models\Concerns\HasQueryBuilder;
+use App\Models\Concerns\RefusesImpossibleRouteKeys;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -37,4 +38,7 @@ use Illuminate\Database\Eloquent\Model;
 abstract class AbstractModel extends Model
 {
     use HasQueryBuilder;
+
+    // TCK-2115 (P215.01) — un identifiant de route impossible rend 404, pas une erreur SQL.
+    use RefusesImpossibleRouteKeys;
 }

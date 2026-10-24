@@ -6,6 +6,7 @@ use App\Http\Includes\AgencyScopedRelationship;
 use App\Models\Concerns\HasMediaConversions;
 use App\Models\Concerns\HasProfiles;
 use App\Models\Concerns\HasQueryBuilder;
+use App\Models\Concerns\RefusesImpossibleRouteKeys;
 use App\Models\Enums\AgencyRoleBaseType;
 use App\Models\Enums\EmailFrequency;
 use App\Models\Enums\PlatformProfileLevel;
@@ -52,7 +53,7 @@ use Spatie\QueryBuilder\QueryBuilder;
 class User extends Authenticatable implements HasLocalePreference, HasMedia, MustVerifyEmail
 {
     /** @use HasFactory<UserFactory> */
-    use HasApiTokens, HasFactory, HasProfiles, HasQueryBuilder, InteractsWithMedia, LogsActivity, Notifiable, Searchable, SoftDeletes;
+    use HasApiTokens, HasFactory, HasProfiles, HasQueryBuilder, InteractsWithMedia, LogsActivity, Notifiable, RefusesImpossibleRouteKeys, Searchable, SoftDeletes;
 
     use HasMediaConversions {
         HasMediaConversions::registerMediaConversions insteadof InteractsWithMedia;
