@@ -43,8 +43,29 @@ class ExecuteScheduledAccountDeletions extends Command
                 continue;
             }
             if (! $dryRun) {
-                $user->notify(new AccountDeletionReminderNotification($request));
-                $request->forceFill(['reminder_sent_at' => now()])->save();
+                // P229.04 (TCK-2227) — la demande est réclamée avant l'envoi, par une mise à jour
+                // conditionnelle : une demande annulée (supprimée) ou déjà rappelée pendant le
+                // passage ne prend aucune ligne, et rien ne part.
+                $now = now();
+                $pris = AccountDeletionRequest::query()
+                    ->whereKey($request->getKey())
+                    ->whereNull('executed_at')
+                    ->whereNull('reminder_sent_at')
+                    ->where('scheduled_for', '>', $now)
+                    ->update(['reminder_sent_at' => $now, 'updated_at' => $now]);
+                if ($pris === 0) {
+                    continue;
+                }
+                $request->refresh();
+
+                try {
+                    $user->notify(new AccountDeletionReminderNotification($request));
+                } catch (Throwable $e) {
+                    // Comme avant la réclamation : un envoi qui lève ne compte pas pour posé.
+                    $request->forceFill(['reminder_sent_at' => null])->save();
+
+                    throw $e;
+                }
             }
             $remindersSent++;
         }

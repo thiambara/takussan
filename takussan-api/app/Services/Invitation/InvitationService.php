@@ -346,20 +346,38 @@ class InvitationService
             ])->status(422);
         }
 
-        DB::transaction(function () use ($invitation, $actor): void {
-            $invitation->forceFill([
+        return DB::transaction(function () use ($invitation, $actor): Invitation {
+            // P229.02 (TCK-2223) — relire SOUS le verrou et rejuger : le modèle lié est d'avant
+            // la transaction, et une acceptation ou une révocation a pu passer entre-temps.
+            /** @var Invitation $fraiche */
+            $fraiche = Invitation::query()
+                ->whereKey($invitation->getKey())
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if ($fraiche->status === InvitationStatus::Revoked) {
+                return $fraiche;
+            }
+
+            if ($fraiche->status === InvitationStatus::Accepted) {
+                throw ValidationException::withMessages([
+                    'status' => [__('invitations.errors.already_accepted')],
+                ])->status(422);
+            }
+
+            $fraiche->forceFill([
                 'status' => InvitationStatus::Revoked->value,
                 'revoked_at' => now(),
             ])->save();
 
             activity('Invitation')
-                ->performedOn($invitation)
+                ->performedOn($fraiche)
                 ->causedBy($actor)
                 ->event('invitation_revoked')
                 ->log('invitation_revoked');
-        });
 
-        return $invitation->fresh();
+            return $fraiche->fresh();
+        });
     }
 
     /**
@@ -436,9 +454,10 @@ class InvitationService
 
         $fraiche = DB::transaction(function () use ($invitation, $actor): Invitation {
             // Relire SOUS le verrou : le modèle vient du route-model binding,
-            // donc d'avant la transaction. `lockForUpdate()` sur la ligne
-            // elle-même ferme la course avec les écrivains qui ne passent pas
-            // par ici (le cron `invitations:expire`, la révocation).
+            // donc d'avant la transaction. Le verrou ne ferme la course qu'avec
+            // les écrivains qui le prennent aussi : le cron `invitations:expire`
+            // et la révocation relisent la ligne sous verrou et rejugent son
+            // état (P229.01, P229.02, TCK-2223).
             /** @var Invitation $fraiche */
             $fraiche = Invitation::query()
                 ->whereKey($invitation->getKey())
@@ -513,6 +532,11 @@ class InvitationService
      * in the past to `expired`, notify the inviter, and write an activity
      * row. Idempotent — already-expired rows are skipped by the scope.
      *
+     * P229.01, P229.02 (TCK-2223) — chaque ligne est relue sous verrou et la
+     * sélection rejugée (`sent`, échue) : une relance, une révocation ou une
+     * acceptation jouée pendant le passage n'est pas écrasée, et ni journal
+     * ni avis ne partent pour elle. Rend les seules invitations expirées.
+     *
      * @return Collection<int,Invitation>
      */
     public function expire(?Carbon $now = null): Collection
@@ -524,17 +548,39 @@ class InvitationService
             ->where('expires_at', '<=', $now)
             ->get();
 
-        foreach ($stale as $invitation) {
-            DB::transaction(function () use ($invitation): void {
-                $invitation->forceFill([
+        $expired = new Collection;
+
+        foreach ($stale as $candidate) {
+            $invitation = DB::transaction(function () use ($candidate, $now): ?Invitation {
+                /** @var Invitation|null $fraiche */
+                $fraiche = Invitation::query()
+                    ->whereKey($candidate->getKey())
+                    ->where('status', InvitationStatus::Sent->value)
+                    ->where('expires_at', '<=', $now)
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($fraiche === null) {
+                    return null;
+                }
+
+                $fraiche->forceFill([
                     'status' => InvitationStatus::Expired->value,
                 ])->save();
 
                 activity('Invitation')
-                    ->performedOn($invitation)
+                    ->performedOn($fraiche)
                     ->event('invitation_expired')
                     ->log('invitation_expired');
+
+                return $fraiche;
             });
+
+            if ($invitation === null) {
+                continue;
+            }
+
+            $expired->push($invitation);
 
             // P123.04 (TCK-1251) — l'échec d'un avis est rapporté par invitation, la boucle
             // continue : il arrêtait la tâche, qui n'expirait plus qu'une invitation par passage.
@@ -548,7 +594,7 @@ class InvitationService
             }
         }
 
-        return $stale;
+        return $expired;
     }
 
     /**

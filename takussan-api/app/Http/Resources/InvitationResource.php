@@ -35,7 +35,9 @@ class InvitationResource extends BaseResource
             'last_reminded_at' => $this->iso($this->last_reminded_at),
             'created_at' => $this->iso($this->created_at),
             'is_expired' => $this->isExpired(),
-            'metadata' => $this->metadata,
+            // P181.05 (TCK-2221) — `metadata` n'est pas rendu : il porte des clés internes que
+            // l'API relit (`level`, `from_maintenance_request_id`, `deep_link_consumed_at`,
+            // `locale`) et qu'aucun écran ne lit, y compris à l'invité qui accepte par le jeton.
         ];
     }
 
