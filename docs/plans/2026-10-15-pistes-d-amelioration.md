@@ -20830,7 +20830,7 @@ base de développement. Les écrans n'ont pas été joués.*
 
 ### Un bail renouvelé naît sans ses garants, et son contrat se fige sans eux
 - Réf : P231.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : reporter l'engagement du garant sur le bail renouvelé est un choix de produit et de droit
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Lease/LeaseRenewalService.php:102-134,186-197`, `takussan-api/app/Services/Lease/LeaseSignatureService.php:262-271,283-286`, `takussan-api/app/Models/Lease.php:196-198,346`, `takussan-api/resources/views/pdf/leases/contract.blade.php:155-170`
 - Constat :
@@ -20840,10 +20840,11 @@ base de développement. Les écrans n'ont pas été joués.*
   - mesuré (test temporaire) : bail actif figé, un garant attaché au pivot (`role` `principal`), `POST /api/leases/{id}/renew` par le bailleur → 201, enfant `active`, `guarantors()` du parent = 1, `guarantors()` de l'enfant = 0, `guarantor_id` de l'enfant `NULL`, `contract_sha256` posé.
   - Établi comment : lecture, puis le test. Je n'ai pas cherché si un garant ajouté après coup re-fige le contrat de l'enfant.
 - Piste : recopier les lignes de `lease_guarantor` du parent vers l'enfant (avec `role`) dans `renew`, avant `freezeRenewal` et avant toute demande de signature. Test : bail à un garant renouvelé → l'enfant a le même garant, et le contrat figé l'imprime.
+- Mesure (2026-10-24, 498535ca1, mesureur) : relu `LeaseRenewalService::renew` (l. 102-134 : `guarantor_id` recopié, aucune écriture de `lease_guarantor` ; `grep -rn "guarantors()" app` : écritures dans `LeaseController` seul, l. 234 et 260) et l. 186-197 (`freezeRenewal` d'un enfant né `active`) ; aucun commit depuis af738adb4 sur ces fichiers ; test temporaire (retiré), charge `{ 2.48 3.26 3.92 }` sur 8 cœurs : parent figé, un garant au pivot (`role` `principal`), `POST /api/leases/{id}/renew` par le bailleur → 201, enfant `active`, garants du parent 1, de l'enfant 0, `guarantor_id` `NULL`, `contract_sha256` posé → le constat tient en entier. Classement : V7, ADR-0042 §1 fait hériter les termes d'exécution, pas les garants, et qu'une caution signée pour un bail engage d'office le bail suivant, imprimé au contrat figé, demande la décision du porteur.
 
 ### Une nouvelle version d'un document ne remplace pas le fichier que servent le lien de partage, la page publique et le bouton « Ouvrir »
 - Réf : P231.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : la Piste laisse à choisir la collection qui fait foi
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Document/DocumentVersionService.php:35-73`, `takussan-api/app/Http/Controllers/Api/DocumentShareLinkController.php:77,91`, `takussan-api/app/Http/Controllers/Public/PublicPropertyDocumentController.php:40`, `takussan-api/app/Http/Resources/DocumentResource.php:45`, `takussan-api/app/Http/Resources/PropertyResource.php:466`, `takussan-api/app/Http/Controllers/Api/Admin/AgencyUpgradeRequestController.php:109`, `takussan-web/src/components/documents/DocumentsLibrary.tsx:472-479`, `takussan-web/src/components/documents/DocumentDetailClient.tsx:125-131`
 - Constat :
@@ -20853,10 +20854,11 @@ base de développement. Les écrans n'ont pas été joués.*
   - mesuré (test temporaire) : document de bien, fichier `CONTENU-V1` dans `file`, lien de partage ; `POST /api/documents/{id}/versions` avec `CONTENU-V2` par le téléverseur → 201. `GET /api/documents/{id}` rend `active_version.file_name` = `v2.pdf`, mais `file_url` pointe toujours le média 1. `GET /api/share/{token}/download` → 200, contenu `CONTENU-V1`.
   - Établi comment : lecture, puis le test. La bibliothèque n'a pas été rendue.
 - Piste : décider quelle collection fait foi (la version active, ou `file` remplacée à chaque version) et y ramener tous les lecteurs. Un seul accesseur `Document::currentFile()` lu partout empêcherait le retour. Test : nouvelle version → le lien de partage, la page publique et `file_url` servent la nouvelle.
+- Mesure (2026-10-24, 498535ca1, mesureur) : relu `DocumentVersionService::uploadVersion` (l. 35-73 : média rangé dans `versions`, `file` intact) ; aucun commit depuis af738adb4 ; test temporaire (retiré) : document de bien, `CONTENU-V1` dans `file`, lien de partage, `POST /api/documents/{id}/versions` avec `CONTENU-V2` → 201, `GET /api/documents/{id}` rend `active_version.file_name` = `v2.pdf` et `file_url` vers le média 1 (`file`), `GET /api/share/{token}/download` → 200, contenu `CONTENU-V1` → le constat tient ; la page publique, `PropertyResource` et la revue des demandes d'agence n'ont pas été rejouées, seulement relues par l'explorateur. Classement : V7, la Piste propose deux options (la version active fait foi, ou `file` remplacée à chaque version) qui changent ce que servent le lien de partage et la page publique, et aucune spec ne tranche.
 
 ### Une nouvelle version d'un document vérifié reste « vérifiée » et garde l'échéance de l'ancien fichier
 - Réf : P231.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : ce que devient la vérification et l'échéance d'une pièce remplacée est un choix de produit
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Document/DocumentVersionService.php:35-73`, `takussan-api/app/Http/Controllers/Api/DocumentController.php:126-140`, `takussan-api/app/Policies/DocumentPolicy.php:71-79,129`, `takussan-api/app/Models/Profiles/ServiceProviderProfile.php:84-90`
 - Constat :
@@ -20867,10 +20869,11 @@ base de développement. Les écrans n'ont pas été joués.*
   - mesuré (test temporaire) : document vérifié par un super-admin, `expiry_date` dans un mois ; nouvelle version par le téléverseur → `GET /api/documents/{id}` rend `is_verified: true`, `verified_at` d'avant, `expiry_date` d'avant.
   - Établi comment : lecture, puis le test.
 - Piste : une nouvelle version d'un document vérifié repasse à non vérifié (`verified_by` et `verified_at` vidés, la vérification remplacée journalisée, comme TCK-1063) ; la requête de version accepte une `expiry_date` neuve, ou la remet à nulle. Test : document vérifié, nouvelle version → `is_verified` faux.
+- Mesure (2026-10-24, 498535ca1, mesureur) : relu `uploadVersion` (l. 35-73 : ni `is_verified`, ni `verified_*`, ni `expiry_date` écrits) et `DocumentController::verify` (super-admin seul) ; `liveInsuranceDocuments` (`ServiceProviderProfile.php:84-90`) lit `expiry_date` et la seule collection `file` ; test temporaire (retiré) : document vérifié la veille, `expiry_date` à un mois, nouvelle version par le téléverseur → 201, `GET /api/documents/{id}` rend `is_verified: true`, `verified_at` de la veille, `expiry_date` d'avant → le constat tient ; le badge « Assuré » n'a pas été rejoué. Classement : V7, TCK-1063 ne vaut que pour le renvoi des pièces de profil par les assistants, et la Piste ajoute un champ d'échéance à la requête de version ou la remet à nulle : comportement visible neuf à décider.
 
 ### L'avoir d'une facture saisie par lignes s'imprime sur une seule ligne « Prestation », sans ses lignes ni ses notes
 - Réf : P231.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : contenu imprimé d'un avoir
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Model/InvoiceService.php:179-198,217-238`, `takussan-api/app/Models/Invoice.php:136-153`, `takussan-api/app/Http/Controllers/Api/DocumentPdfController.php:137`, `takussan-api/resources/views/pdf/invoices/default.blade.php:15-16`
 - Constat :
@@ -20879,10 +20882,11 @@ base de développement. Les écrans n'ont pas été joués.*
   - mesuré (test temporaire, par les services) : facture de deux lignes (25 000 et 2 × 10 000) avec une note, envoyée puis annulée → avoir de 45 000, `lines()` `null`, `notes` `null`, `metadata.issued.designation` `null`. Le libellé imprimé est donc « Prestation » (lecture du gabarit ; le PDF n'a pas été rendu).
   - Établi comment : lecture, puis le test. Aucune spec ne dit ce que l'avoir doit imprimer.
 - Piste : recopier `metadata.lines` et `metadata.designation` de l'originale dans `creditNoteFor`, puis laisser la numérotation figer `issued.designation` comme pour une facture. Test : facture à deux lignes annulée → l'avoir porte les deux lignes, et son PDF les imprime.
+- Mesure (2026-10-24, 498535ca1, mesureur) : relu `InvoiceService::creditNoteFor` (l. 217-238 : ni `metadata` ni `notes` recopiés) et `pdf/invoices/default.blade.php:15-16` (repli `issued.designation` → `designation()` → « Prestation ») ; test temporaire par les services (retiré) : facture de deux lignes (25 000 et 2 × 10 000) avec une note, émise puis annulée → avoir de 45 000.00, `lines()` `null`, `notes` `null`, `metadata.issued.designation` `null`, `designation()` `null` → le constat tient ; le PDF n'a pas été rendu. Classement : V1, la pièce touchée est un avoir (facture), et ADR-0039 §7 ne fixe que son montant, pas ce qu'il imprime.
 
 ### Petites améliorations : numérotation des versions de document
 - Réf : P231.05
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Document/DocumentVersionService.php:42-43,167-196`
 - Constat :
@@ -20890,3 +20894,4 @@ base de développement. Les écrans n'ont pas été joués.*
   - Le fichier d'origine, rangé dans `file`, n'est pas une version. Le premier envoi d'une nouvelle version reçoit donc le numéro 1, alors que c'est le deuxième fichier du document (lu).
   - Établi comment : lecture seule.
 - Piste : numéroter depuis le plus grand numéro existant (`max + 1`), sous le verrou du document. Test : 22 envois → numéros 1 à 22 distincts, les deux plus anciens purgés.
+- Mesure (2026-10-24, 498535ca1, mesureur) : relu `uploadVersion` (l. 42-43 : `count() + 1`) et `enforceCap` (purge au-delà de 20) ; test temporaire (retiré), 22 envois par `DocumentVersionService::uploadVersion` → numéros `1,…,20,21,21` : le premier point tient, mesuré. Le second (premier envoi numéroté 1, le fichier de `file` n'étant pas une version) n'est pas retenu : `DocumentVersionTest:63` l'épingle (`version_number` 1 au premier envoi), c'est le contrat de TCK-097. Classement : A1, TCK-097 décrit des versions « ordonnées par numéro de version » et une purge de « la plus ancienne » (AC6), que des numéros répétés ne tiennent plus ; le correctif numérote par `max + 1` des versions existantes, sous le verrou de la ligne `Document`, sans toucher au premier numéro.
