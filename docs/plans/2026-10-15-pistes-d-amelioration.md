@@ -19755,7 +19755,7 @@ les envoie.*
 
 ### L'agent suspendu qui tient une délégation de rôle active reste personnel de l'agence et garde les capacités déléguées : il invite, se reconnecte et garde son flux d'agenda
 - Réf : P218.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : la Piste offre deux voies (révoquer à la suspension, ou ne plus compter la délégation d'un suspendu à la lecture), à trancher
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Membership/MembershipCapabilityResolver.php:73-83,330-338,469-492`, `takussan-api/app/Services/Membership/TeamMemberSuspensionService.php:73-118`, `takussan-api/app/Services/Agency/AgencyMemberRemovalService.php:93-98`
 - Constat :
@@ -19766,10 +19766,11 @@ les envoie.*
   - Tout lecteur de `isStaffAt` hérite du défaut : flux d'agenda, remplaçant d'absence (`AgentAvailability`), destinataire du digest (`SendProspectMatchDigest::recipientFor`), branche « contexte » de `ConversationAccess` faite par TCK-2019 (lu pour les trois premiers ; les fils, à vérifier).
   - Établi comment : lu, puis mesuré.
 - Piste : deux voies, à trancher. Soit la suspension révoque (ou met en attente) les délégations où le suspendu est délégué, comme le retrait. Soit la lecture exige, pour qu'une délégation compte, que le délégué n'ait dans l'agence aucun profil `suspended` ou `blocked` (dans `loadActiveDelegations` et dans la branche délégation de `isStaffAt`) : la réactivation rend alors la délégation sans geste de plus. Test : agent délégué `agency_admin`, suspendu → `POST …/agents/invite` 403, `isStaffAt` faux, flux d'agenda 404 ; réactivé → 201.
+- Mesure (2026-10-24, 1614726d0, mesureur) : relu `MembershipCapabilityResolver.php:73-83` (`allows` → `delegationAllows`), `:330-338` (`loadActiveDelegations` sans statut du délégué) et `:469-492` (branche délégation de `isStaffAt` sans statut), `TeamMemberSuspensionService::apply` (statuts et jetons seuls) et `AgencyMemberRemovalService.php:93-98` (révocation des délégations au retrait), inchangés ; aucun ticket ni commit (`grep -rn P218 docs/backlog/tickets` vide ; seul TCK-2111, les transitions sous verrou, a touché `RoleDelegationService` depuis l'exploration) ; (sonde temporaire `tests/Feature/TmpMesureur/Sonde218Test.php`, retirée ; jeu de `BuildsBookingStakeholders` et admin d'agence par `agencyAdmin`, charge `{ 1.42 1.62 1.63 }` sur 8 cœurs), délégation `agency_admin` active posée par l'admin, flux d'agenda émis avant → agent **suspendu** : délégation toujours `active`, `allows(team.invite)` vrai, `isStaffAt` vrai, `CalendarFeedService::resolve` sert le flux, `POST /api/auth/login` 200, `POST /api/agencies/{id}/agents/invite` 201 avec `invited_by` = l'agent ; témoin actif : identique → le constat tient en entier (les fils de `ConversationAccess` n'ont pas été re-mesurés). Classement : V2, le correctif change ce qu'accorde une délégation et la Piste laisse deux voies au choix du porteur.
 
 ### Une délégation de rôle se crée vers un agent déjà suspendu, et elle le refait personnel de l'agence
 - Réf : P218.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : dépend de la voie retenue pour P218.01, et refuser en 422 change qui peut recevoir une délégation
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Permissions/RoleDelegationService.php:67-77`, `takussan-api/app/Services/Membership/MembershipCapabilityResolver.php:486-491`
 - Constat :
@@ -19778,10 +19779,11 @@ les envoie.*
   - Par la route `POST /api/agencies/{id}/role-delegations`, non mesuré : elle exige la 2FA de l'admin (403 `two_factor_required` dans la sonde). À vérifier.
   - Le commentaire dit que l'absence de filtre est voulue, mais il ne dit pas pourquoi. Le cas du bailleur bloqué délégué `agent` n'a pas été relu (à vérifier).
 - Piste : si P218.01 retient la voie de lecture, ce cas se ferme avec elle. Sinon, refuser en 422 la délégation vers un membre dont un profil de l'agence est `suspended` ou `blocked`, ou écrire dans le service pourquoi elle reste permise. Test : délégation vers un agent suspendu → 422, ou `isStaffAt` faux.
+- Mesure (2026-10-24, 1614726d0, mesureur) : relu `RoleDelegationService.php:67-77` (appartenance « sans filtre de statut », TCK-587) et `MembershipCapabilityResolver::isStaffAt` (branche délégation), inchangés ; (sonde temporaire `tests/Feature/TmpMesureur/Sonde218Test.php`, retirée ; jeu de `BuildsBookingStakeholders` et admin d'agence par `agencyAdmin`, charge `{ 1.42 1.62 1.63 }` sur 8 cœurs) → agent suspendu : `isStaffAt` faux ; `RoleDelegationService::create(…, rôle agent, effet immédiat)` → `active`, `isStaffAt` vrai ; le cas « à vérifier » du bailleur **bloqué** délégué `agent` mesuré : `create` → `active`, `isStaffAt` vrai ; la route HTTP (2FA de l'admin) n'a pas été jouée → le constat tient, cas du bailleur bloqué compris. Classement : V2, la Piste se ferme avec la voie de lecture de P218.01 ou demande un refus neuf, choix du porteur.
 
 ### L'agent suspendu ou retiré lit et liste encore les factures, reversements et réservations qu'il a émis ou créés
 - Réf : P218.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : resserre la branche d'auteur de trois policies et de trois listes, avec un choix pour la ligne hors agence, comme l'angle 190
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Policies/InvoicePolicy.php:32-42`, `takussan-api/app/Policies/PayoutPolicy.php:33-43`, `takussan-api/app/Policies/BookingPolicy.php:28-41`, `takussan-api/app/Http/Controllers/Api/InvoiceController.php:26`, `takussan-api/app/Http/Controllers/Api/PayoutController.php:32`, `takussan-api/app/Http/Controllers/Api/BookingController.php:30`
 - Constat :
@@ -19791,10 +19793,11 @@ les envoie.*
   - Même famille qu'à l'angle 190 (P190.01 à P190.07, faits), mais sur les colonnes d'auteur et non sur `properties.user_id` : TCK-1928 à TCK-2031 ne les touchent pas (lu).
   - Établi comment : lu, puis mesuré.
 - Piste : faire juger la branche d'auteur, comme `TaskPolicy` (`isMemberOfParent`) ou `CustomerPolicy` (`isAuthorStillMember`) : auteur **et** personnel actif de l'agence de la ligne (`isStaffAt`), une ligne hors agence restant à son auteur. Aligner la clause des trois listes. Test par modèle : auteur suspendu puis retiré → 403 et absent de la liste ; réactivé → 200.
+- Mesure (2026-10-24, 1614726d0, mesureur) : relu `InvoicePolicy::view` (`issued_by_id`), `PayoutPolicy::view` (`issued_by_id`), `BookingPolicy::view` (`created_by_id`) et les clauses de liste `InvoiceController.php:26`, `PayoutController.php:32`, `BookingController.php:30`, inchangés ; (sonde temporaire `tests/Feature/TmpMesureur/Sonde218Test.php`, retirée ; jeu de `BuildsBookingStakeholders` et admin d'agence par `agencyAdmin`, charge `{ 1.42 1.62 1.63 }` sur 8 cœurs), agent auteur d'une facture, d'un reversement et d'une réservation de l'agence → **suspendu**, puis **retiré** (`leaveUnassigned: true`) : `can('view')` vrai, `GET /api/invoices/{id}`, `/api/payouts/{id}`, `/api/bookings/{id}` 200, et chaque ligne figure dans sa liste ; `can('update')` vrai pour la facture, faux pour le reversement et la réservation ; témoin actif : 200 et listé → le constat tient. Classement : V2 (et V3 : client et montants dus au bailleur), le correctif retire une lecture à une colonne d'auteur et la Piste garde un choix (« une ligne hors agence restant à son auteur »), comme P190.01 à P190.07, tranchés par le porteur.
 
 ### L'agent suspendu ou retiré qui a conduit un état des lieux le lit, le liste et le modifie encore
 - Réf : P218.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : resserre la branche du conducteur en lecture, écriture et liste, comme P190.01
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Policies/InventoryPolicy.php:21-55`, `takussan-api/app/Policies/BasePolicy.php:132-141`, `takussan-api/app/Http/Controllers/Api/InventoryController.php:47`
 - Constat :
@@ -19804,13 +19807,15 @@ les envoie.*
   - TCK-1928 (P190.01) a fermé la branche du créateur du bien, pas celle du conducteur (lu, commentaire l. 33-34).
   - Établi comment : lu, puis mesuré pour la policy et la lecture.
 - Piste : pour une colonne d'auteur qui désigne du personnel, juger `isStaffAt` sur l'agence du bien au lieu de `landlordWrites`. `landlordWrites` reste pour un bailleur auteur. Test : conducteur suspendu puis retiré → `GET` 403, absent de la liste, `POST …/submit` 403 ; réactivé → 200.
+- Mesure (2026-10-24, 1614726d0, mesureur) : relu `InventoryPolicy.php` (`view` : `conducted_by` seul ; `update` : `landlordWrites(user, conducted_by, …)`), `BasePolicy.php:132-141` (ne refuse que le bailleur bloqué) et `InventoryController.php:47` (`where('conducted_by', …)`), inchangés ; TCK-1928 n'a fermé que la branche du créateur du bien (lu, commentaire de `view`) ; (sonde temporaire `tests/Feature/TmpMesureur/Sonde218Test.php`, retirée ; jeu de `BuildsBookingStakeholders` et admin d'agence par `agencyAdmin`, charge `{ 1.42 1.62 1.63 }` sur 8 cœurs), état des lieux du bien de l'agence conduit par l'agent → **suspendu**, puis **retiré** : `can('view')` vrai, `can('update')` vrai, `GET /api/inventories/{id}` 200, ligne présente dans `GET /api/inventories` ; témoin actif : identique ; la soumission et le dépôt de photos n'ont pas été joués (même ability `update`, lu) → le constat tient. Classement : V2, le correctif retire lecture et écriture à une colonne d'auteur qu'emploie aujourd'hui le conducteur actif, comme P190.01 (TCK-1928), tranché par le porteur.
 
 ### Petites améliorations
 - Réf : P218.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : aligner `view` sur `revoke` retire la lecture de ses invitations à l'émetteur actif sans `team.invite` ; la seconde partie dépend de P218.01
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Policies/InvitationPolicy.php:55-66`, `takussan-api/app/Jobs/Permissions/ProcessRoleDelegationsJob.php`
 - Constat :
   - `InvitationPolicy::view` rend l'invitation à son émetteur (`invited_by === user.id`) quand il n'invite pas dans son agence, sans juger qu'il en est encore membre (lu, l. 64-65). TCK-429 a fermé cette branche pour `revoke` et `resend`, pas pour `view` (lu, docblock l. 83-90). L'émetteur suspendu ou retiré lirait donc l'adresse et le téléphone de l'invité (déduit, à vérifier).
   - Une délégation `scheduled` vers un agent suspendu entre la création et le début : la passer à `active` ne juge pas le statut du délégué (déduit de P218.01 et de `RoleDelegationService::create`, `ProcessRoleDelegationsJob` non relu, à vérifier).
 - Piste : appliquer à `view` la règle de `revoke` (l'émetteur seul pour une invitation sans agence) ; la seconde se ferme avec P218.01 si la voie de lecture est retenue.
+- Mesure (2026-10-24, 1614726d0, mesureur) : relu `InvitationPolicy::view` (l. 55-66 : `invited_by` sans agence ni appartenance pour qui n'a pas `team.invite`) et `revoke` (l. 108-117 : `invited_by` pour une invitation sans agence, `invitesAt` sinon), inchangés ; `ProcessRoleDelegationsJob` relu (`readyToActivate` → `activate`, sans statut du délégué) ; (sonde temporaire `tests/Feature/TmpMesureur/Sonde218Test.php`, retirée ; jeu de `BuildsBookingStakeholders` et admin d'agence par `agencyAdmin`, charge `{ 1.42 1.62 1.63 }` sur 8 cœurs) → invitation de l'agence émise par l'agent, **suspendu** puis **retiré** : `can('view')` vrai, `GET /api/invitations/{id}` 200 avec l'`email` de l'invité (le téléphone, nul dans le jeu, n'est pas mesuré) ; délégation `scheduled` créée vers l'agent suspendu, job passé après `starts_at` → `active`, `isStaffAt` vrai → les deux points « à vérifier » tiennent ; le front n'appelle pas `GET /api/invitations/{id}` (`grep -rn api/invitations/ takussan-web/src` : `accept`, `resend`, `revoke` seuls). Classement : V2 (et V3 : coordonnées de l'invité), la règle de `revoke` appliquée telle quelle à `view` retirerait aussi la lecture à l'émetteur actif d'une invitation de son agence, ce que le docblock dit voulu (« your pending invites ») : le périmètre est à trancher.
