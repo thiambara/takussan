@@ -20801,7 +20801,7 @@ sans `delete`).*
 
 ### Petites améliorations
 - Réf : P230.05
-- Statut : retenu · autonome
+- Statut : fait · TCK-2236
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/components/boost/admin/AdminBoostStats.tsx:51,55`, `takussan-api/app/Http/Requests/Api/Admin/BoostStatsRequest.php:21,27-30`, `takussan-web/src/components/visits/PlanifierUneVisite.tsx:274`, `takussan-web/src/components/visits/VisitDetail.tsx:358,565-575`, `takussan-web/src/app/[locale]/(public)/properties/[slug]/components/PropertyReservationDialog.tsx:319-323`, `takussan-web/src/components/admin/roles/CreateDelegationDialog.tsx:155-159`
 - Constat :
@@ -20811,6 +20811,7 @@ sans `delete`).*
   - Établi comment : lu ; mesuré par `node` pour le troisième point ; les écrans n'ont pas été rendus.
 - Piste : poser ces bornes depuis `src/lib/jour-de-l-api.ts` (`decalerJour(jourDeLApi(), 1)`, `decalerJour(jourDeLApi(), 366)`), et des `min` au jour ou à l'instant présent sur les deux champs de visite.
 - Mesure (2026-10-24, 09c83726d, mesureur) : relu `AdminBoostStats.tsx:51,55` (ni `min` ni `max`) face à `BoostStatsRequest.php:21,27-30` (`to` ≤ demain, fenêtre ≤ 92 jours) ; `PlanifierUneVisite.tsx:274` (jour sans `min`) face à `StorePropertyVisitRequest.php:115-116` (`after:now`) ; `VisitDetail.tsx:358,566-577` (`datetime-local` sans `min`, pré-rempli du créneau actuel) face à `UpdatePropertyVisitRequest.php:47` (`after:now`) ; `PropertyReservationDialog.tsx:319-323` (`minExpiry` par `setDate` puis `toISOString()`) face à `BookingRequestPublicPropertyRequest.php:24` (`after:today`) ; `CreateDelegationDialog.tsx:35,155-159` (`dateMax` par `setDate` local) face à `Permissions/StoreRoleDelegationRequest.php:21,28` (le chemin cité `Api/` n'existe pas) ; `node` sur `minExpiry` recopié, chaque heure de 2026 → jour ≤ jour UTC 1 heure sous `Europe/Paris` et 1 sous `America/New_York`, 0 sous Dakar et UTC ; le compte de 5 heures de `dateMax` n'a pas été rejoué → les quatre points tiennent, le dernier lu seulement. Classement : A1, chaque borne est écrite par une règle de l'API ; le correctif pose des `min`/`max` depuis `src/lib/jour-de-l-api.ts` et l'instant présent, sans texte neuf.
+- Mesure (2026-10-24, c5ee97e97, implementeur) : reproduit par cinq tests `…p230-05.test.tsx` à horloge figée : boost sans `min`/`max` ; « Planifier une visite » et replanification sans `min` ; `minExpiry` = 2026-03-29 (jour UTC) à Paris le 2026-03-29T00:00Z ; `dateMax` = 2027-03-10 à New York le 2026-03-08T23:00Z → correctif : bornes tirées de `jourDeLApi()`/`decalerJour()` (boost : « Au » ≤ demain et ≤ « Du » + 92, « Du » ≥ « Au » − 92), `min` de la replanification à l'instant présent à Dakar ; ablation (cinq fichiers rendus à `pre-dev`) → 5/5 rouges, remis → 5/5 verts, avec 76 tests existants des mêmes écrans.
 
 ## Angle 231 — Gestes qui clôturent une ligne et en ouvrent une neuve, face aux champs qu'ils ne reportent pas
 
