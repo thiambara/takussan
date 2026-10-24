@@ -27,10 +27,6 @@ const emptyPage = {
   links: { first: null, last: null, prev: null, next: null },
 };
 
-function page(data: unknown[], meta: Partial<typeof emptyPage.meta> = {}) {
-  return { ...emptyPage, data, meta: { ...emptyPage.meta, total: data.length, ...meta } };
-}
-
 function renderList(roles: UserRole[] = ['customer']) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
