@@ -875,6 +875,7 @@ return [
         'subject_escalation' => 'ESCALADE URGENTE : :title',
         'greeting' => 'Bonjour,',
         'intro' => 'Une demande de maintenance URGENTE a été soumise pour le bien.',
+        'intro_became_urgent' => 'Une demande de maintenance est passée en URGENTE pour le bien.',
         'job' => 'Intervention : :title',
         'intro_escalation' => 'La demande de maintenance #:id (:title) est URGENTE et n\'a pas été traitée depuis plus de 30 minutes.',
         'cta' => 'Veuillez prendre en charge cette demande immédiatement.',

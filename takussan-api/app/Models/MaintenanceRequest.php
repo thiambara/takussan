@@ -31,6 +31,16 @@ class MaintenanceRequest extends AbstractModel implements HasAuditAgency, HasMed
     use HasFactory, InteractsWithMedia, Searchable, SoftDeletes;
 
     /**
+     * TCK-1991 (P169.03) — `metadata.urgent_since` date le passage en urgent (création ou `PATCH`) :
+     * l'escalade compte ses 30 minutes depuis elle, `created_at` en repli pour les demandes plus
+     * anciennes que la marque. `metadata.escalated_at` marque l'escalade faite. Les deux tombent
+     * quand la priorité quitte `urgent`.
+     */
+    public const URGENT_SINCE = 'urgent_since';
+
+    public const ESCALATED_AT = 'escalated_at';
+
+    /**
      * ⚠ TCK-474 — `resolution_report` A ÉTÉ RETIRÉ d'ici, et ne doit pas y revenir sans
      * migration. Il y avait été ajouté par une passe de scaffolding (74c507bb) qui, dans
      * le MÊME commit, écrivait dans `docs/backend-gap-report.md` que le champ n'existait

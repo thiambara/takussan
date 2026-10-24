@@ -872,6 +872,7 @@ return [
         'subject_escalation' => 'GAAW LOOL : :title',
         'greeting' => 'Salaam aleekum,',
         'intro' => 'Ñu yónne na laaj defar bu GAAW ngir kër gi.',
+        'intro_became_urgent' => 'Une demande de maintenance est passée en URGENTE pour le bien.',
         'job' => 'Liggéey : :title',
         'intro_escalation' => 'Laaj defar #:id (:title) dafa GAAW te kenn jàppagul ko ci lu ëpp 30 simili.',
         'cta' => 'Jàppal laaj bii léegi.',
