@@ -157,6 +157,24 @@ describe('LeaseSignaturePanel (TCK-596 §4B)', () => {
     expect(screen.getByTestId('lease-signature-tenant')).toHaveTextContent('En attente');
   });
 
+  // P220.02 (TCK-2134) — un nom vide (compte créé par téléphone) ne fait ni « Signé par  le … »
+  // ni disparaître le mandat : le texte se choisit sur la présence du mandat, pas sur son nom.
+  it('garde le « pour le compte de » et replie les noms vides sur « — »', () => {
+    rendre(
+      bail({
+        signatures: [
+          preuve({ id: 1, role: 'tenant', signer_name: '' }),
+          preuve({ id: 2, role: 'landlord', signer_name: 'Awa Agent', on_behalf_of_name: '' }),
+        ],
+      }),
+    );
+
+    expect(screen.getByTestId('lease-signature-tenant')).toHaveTextContent(/Signé par — le/);
+    expect(screen.getByTestId('lease-signature-landlord')).toHaveTextContent(
+      /Signé par Awa Agent pour le compte de — le/,
+    );
+  });
+
   it("une signature posée sur un contrat défigé n'est pas affichée comme valable", () => {
     rendre(
       bail({

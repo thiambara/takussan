@@ -763,6 +763,23 @@ class LeaseSignatureTest extends TestCase
         $this->assertSame(1, AppNotification::query()->where('code', 'lease.signed_by_party')->where('user_id', $this->owner->id)->count());
     }
 
+    /**
+     * P220.02 (TCK-2134) — un bailleur ou un signataire sans nom (compte créé par téléphone) est
+     * nommé par `nameWithoutContact()` : jamais `''`, qui effaçait au panneau le « pour le compte
+     * de » et laissait « Signé par  le … ».
+     */
+    public function test_les_noms_d_une_signature_pour_le_compte_d_un_bailleur_sans_nom_ne_sont_jamais_vides(): void
+    {
+        $agent = $this->agencyAgent($this->agency);
+        $agent->forceFill(['first_name' => '', 'last_name' => '', 'username' => null])->save();
+        $this->owner->forceFill(['first_name' => '', 'last_name' => '', 'username' => null])->save();
+        $this->requestSignature()->assertOk();
+
+        $this->signWithCode($agent, 'landlord')->assertOk()
+            ->assertJsonPath('data.signatures.0.signer_name', '—')
+            ->assertJsonPath('data.signatures.0.on_behalf_of_name', '—');
+    }
+
     /** Un agent d'une AUTRE agence, titulaire de `leases.sign` chez lui, ne signe pas ce bail. */
     public function test_an_agent_of_another_agency_cannot_sign_for_the_landlord(): void
     {

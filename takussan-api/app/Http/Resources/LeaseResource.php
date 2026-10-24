@@ -103,8 +103,10 @@ class LeaseResource extends BaseResource
                     'signed_at' => $this->iso($s->signed_at),
                     'document_sha256' => $s->document_sha256,
                     'current' => $this->contract_sha256 !== null && $s->document_sha256 === $this->contract_sha256,
-                    'signer_name' => $s->relationLoaded('signer') ? $s->signer?->getFullNameAttribute() : null,
-                    'on_behalf_of_name' => $s->relationLoaded('onBehalfOf') ? $s->onBehalfOf?->getFullNameAttribute() : null,
+                    // TCK-2134 (P220.02) — `nameWithoutContact()` : jamais `''` pour un compte créé
+                    // par téléphone. `null` reste réservé à une signature sans mandat.
+                    'signer_name' => $s->relationLoaded('signer') ? $s->signer?->nameWithoutContact() : null,
+                    'on_behalf_of_name' => $s->relationLoaded('onBehalfOf') ? $s->onBehalfOf?->nameWithoutContact() : null,
                     'otp_channel' => $s->otp_channel,
                 ])
                 ->all()),
