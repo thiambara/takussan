@@ -18437,7 +18437,7 @@ repris ; les CSV à point-virgule, en latin-1, à BOM ou à tabulation passent l
 
 ### Pour le prestataire, « Urgences prioritaires » ne regroupe que les urgences de la page courante, triée par date d'intervention
 - Réf : P199.04
-- Statut : validé — validation du porteur (2026-10-24) : la section « Urgences prioritaires » du prestataire n'est rendue que lorsque la liste tient sur une page (`last_page = 1`) ; sinon les urgentes restent à leur place avec leur badge, et le filtre de priorité reste disponible
+- Statut : fait · TCK-2167
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/maintenance/MaintenanceList.tsx:74-79,165-166,217-262`, `takussan-api/app/Http/Controllers/Api/MaintenanceRequestController.php:56`
 - Constat :
@@ -18447,6 +18447,7 @@ repris ; les CSV à point-virgule, en latin-1, à BOM ou à tabulation passent l
 - Piste : pour le prestataire aussi, trier `-priority,scheduled_at` côté serveur, ou ne rendre la section « urgences » que quand la liste tient sur une page. Test : prestataire à 20 demandes, l'urgente planifiée la dernière apparaît en page 1 sous le titre.
 - Mesure (2026-10-23, 34c97e42f, mesureur) : relu `MaintenanceList.tsx:74-79` (`sort: 'scheduled_at'` pour le prestataire), l. 165-166 et 217-226 (urgences séparées dans la seule page reçue, titre `urgent_heading`), `MaintenanceRequestController.php:56,82` (`defaultSortsWithRelevance('-priority', '-created_at')`, que le tri explicite du prestataire remplace) → le constat tient ; non joué sur un jeu de prestataire. Classement : V7, les deux options changent ce que voit le prestataire (ordre de sa liste ou section retirée).
 - Mesure (2026-10-23, 4a12ba515, delegue) : relu l'entrée, `MaintenanceList.tsx:74-79,165-166,217-230` (`sort: 'scheduled_at'` du prestataire, urgences séparées dans la page reçue) et TCK-592 (l. 222 et AC l. 415 : « Mes interventions » triée par créneau ; l. 547 et 898 : `sort=scheduled_at` pour le prestataire) ; `grep -n "porteur ("` de l'angle 199 → aucune décision. Recommandation : la seconde option, garder l'ordre par créneau que TCK-592 écrit et ne rendre la section « Urgences prioritaires » que quand la liste tient sur une page (`last_page = 1`), les urgences restant à leur place dans la liste sinon ; la première option contredit l'ordre écrit par TCK-592 ; non validé par délégation : l'une comme l'autre change ce que voit le prestataire (V7, une section retirée dans le cas à plusieurs pages) ; manque : l'accord du porteur sur ce retrait, ou un filtre « urgentes » à la place.
+- Mesure (2026-10-24, 4ac84c0e7, implementeur) : cas neuf de `MaintenanceList.test.tsx` (prestataire, page de deux demandes dont une urgente, `last_page = 2`) rouge avant correctif : « Urgences prioritaires » rendue sur les seules urgences de la page → la section ne se rend pour le prestataire que si `last_page <= 1`, l'urgence restant à sa place avec son badge « Urgente » ; ablation (séparation sans condition) → rouge, correctif remis → 5 verts, et `MaintenanceList.statuts-url.tck-1727.test.tsx` vert.
 
 ### « Prochain paiement » et « Autres échéances » du locataire sont tirés de 50 lignes triées par date, puis filtrées au navigateur sur la source « bail »
 - Réf : P199.05
