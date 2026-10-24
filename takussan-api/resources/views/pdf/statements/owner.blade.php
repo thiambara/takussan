@@ -79,6 +79,9 @@
         </table>
     @endif
 
+    {{-- P177.03 (TCK-2041) — le versé est celui des reversements versés dans la période (`processed_at`). --}}
+    <p><strong>{{ __($statement['annual'] ? 'money_out.statement.paid_this_year' : 'money_out.statement.paid_this_month') }}</strong> : @currency($statement['totals']['paid_out'], $currency)</p>
+
     @if (($statement['unpaid']['count'] ?? 0) > 0)
         {{-- P177.06 (TCK-1785) — les impayés sont jugés au jour du rendu : le relevé le dit. --}}
         <p>{{ __('money_out.statement.unpaid') }}@if (! empty($statement['unpaid']['as_of'])) {{ __('money_out.statement.unpaid_as_of', ['date' => \Illuminate\Support\Carbon::parse($statement['unpaid']['as_of'])->format('d/m/Y')]) }}@endif : {{ $statement['unpaid']['count'] }} — @currency($statement['unpaid']['amount'], $currency)</p>
