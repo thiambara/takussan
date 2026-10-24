@@ -57,7 +57,7 @@ final class OwnerStatementService
             ->orderBy('id')
             ->get();
 
-        $computation = $this->calculator->compute($agency, $leasePayments, $bookingPayments, $bills);
+        $computation = $this->calculator->compute($agency, $leasePayments, $bookingPayments, $bills, $this->retainedRates($payouts));
 
         return [
             'agency' => ['id' => $agency->id, 'name' => $agency->name],
@@ -105,6 +105,29 @@ final class OwnerStatementService
             })
             ->orderBy('id')
             ->get();
+    }
+
+    /**
+     * P177.02 (TCK-2017) — le taux que chaque reversement a appliqué à ses pièces, copié dans le pivot à
+     * sa création : la commission d'un mois reversé ne se recalcule pas au taux d'agence du jour. Une
+     * ligne de pivot sans copie (antérieure à la copie) n'y figure pas, et suit le taux du jour.
+     *
+     * @param  Collection<int, Payout>  $payouts
+     * @return array{lease_payments: array<int, float>, booking_payments: array<int, float>}
+     */
+    private function retainedRates(Collection $payouts): array
+    {
+        $rates = [];
+        foreach (['lease_payments' => ['payout_lease_payment', 'lease_payment_id'], 'booking_payments' => ['payout_booking_payment', 'booking_payment_id']] as $set => [$pivot, $column]) {
+            $rates[$set] = DB::table($pivot)
+                ->whereIn('payout_id', $payouts->pluck('id')->all() ?: [0])
+                ->whereNotNull('commission_rate')
+                ->pluck('commission_rate', $column)
+                ->map(fn ($rate): float => (float) $rate)
+                ->all();
+        }
+
+        return $rates;
     }
 
     /**

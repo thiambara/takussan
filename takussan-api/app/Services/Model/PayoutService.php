@@ -483,17 +483,37 @@ class PayoutService
             'notes' => $data['notes'] ?? null,
         ]);
 
+        // P177.01 et P177.02 (TCK-2017) — chaque pièce garde ce que le reversement en a pris :
+        // montant retenu, taux et commission. Le relevé de gérance relit ce taux, pas celui du jour.
         if ($leaseIds !== []) {
-            $payout->leasePayments()->attach($leaseIds);
+            $payout->leasePayments()->attach($this->lineCopies($computation['lines']['lease_payments']));
         }
         if ($bookingIds !== []) {
-            $payout->bookingPayments()->attach($bookingIds);
+            $payout->bookingPayments()->attach($this->lineCopies($computation['lines']['booking_payments']));
         }
         if ($billIds !== []) {
             ServiceProviderBill::query()->whereIn('id', $billIds)->update(['imputed_payout_id' => $payout->id]);
         }
 
         return $payout;
+    }
+
+    /**
+     * @param  list<array<string,mixed>>  $lines  les lignes de {@see PayoutCalculator::compute()}
+     * @return array<int, array{amount: float, commission_rate: float, commission_amount: float}>
+     */
+    private function lineCopies(array $lines): array
+    {
+        $copies = [];
+        foreach ($lines as $line) {
+            $copies[(int) $line['id']] = [
+                'amount' => $line['amount'],
+                'commission_rate' => $line['commission_rate'],
+                'commission_amount' => $line['commission'],
+            ];
+        }
+
+        return $copies;
     }
 
     /**
