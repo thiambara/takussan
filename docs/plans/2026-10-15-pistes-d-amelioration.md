@@ -18573,7 +18573,7 @@ est conforme à `docs/models-spec.md` § 14 tel que le cite TCK-1151.*
 
 ### Accepter une invitation en étant connecté laisse au navigateur les rôles d'avant
 - Réf : P202.04
-- Statut : retenu · autonome
+- Statut : fait · TCK-2042
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/app/invitations/accept/AccepterInvitation.tsx:44-54`, `takussan-api/app/Models/Concerns/HasProfiles.php:244-274`, `takussan-web/src/components/home/Navbar.tsx:551,801-804`, `takussan-web/src/components/payments/PaymentsTabs.tsx:62-63`, `takussan-web/src/components/visits/VisitsList.tsx:35-36`, `takussan-web/src/components/maintenance/MaintenanceList.tsx:55-56`
 - Constat :
@@ -18582,6 +18582,7 @@ est conforme à `docs/models-spec.md` § 14 tel que le cite TCK-1151.*
   - Lecteurs touchés, tous sur `useAuth().user.roles` : la `Navbar` publique, qui n'offre ni « Mes biens » ni le portefeuille (lu, l. 551, 801-804) ; l'onglet du bailleur de `PaymentsTabs` (lu, l. 63) ; la vue du personnel de `VisitsList` (lu, l. 36) ; la vue prestataire de `MaintenanceList` (lu, l. 56). La coque de `/app`, rendue par le serveur, montre bien le nouveau rôle : les deux disent des choses différentes sur le même écran (déduit, à vérifier au navigateur).
 - Piste : `await refreshUser()` et invalider `profilesKeys.all` avant la navigation, comme le font les assistants d'intégration ; P202.01 traiterait la cause. Garde : un test d'`AccepterInvitation` connecté, invitation acceptée, qui exige une relecture de `/api/auth/me` avant `router.push`.
 - Mesure (2026-10-23, d954c56a0, mesureur) : relu `AccepterInvitation.tsx:51-54` (connecté : `router.push(destination)` seul, ni `refreshUser` ni invalidation des profils), `HasProfiles::profileTypes` (l. 244-276, un type par relation de profil, servi en `roles` par `UserResource.php:92`), et les lecteurs `useAuth().user.roles` : `Navbar.tsx:136,551,801-804`, `PaymentsTabs.tsx:63`, `VisitsList.tsx:36`, `MaintenanceList.tsx:56` ; avec la mesure de P202.01, le constat lu tient ; l'écart entre la coque de `/app` et ces lecteurs n'a pas été vu au navigateur. Classement : A1, les assistants qui créent un profil font déjà `await refreshUser()` (`AgentOnboardingWizard.tsx:147`, `ServiceProviderOnboardingWizard.tsx:175`, `HostIndividualWizard.tsx:218`) ; le correctif relit sans rien décider de ce que l'API autorise.
+- Mesure (2026-10-24, d5a49a150, implementeur) : reproduit avant correctif par `AccepterInvitation.relecture.tck-2042.test.tsx` (connecté, invitation d'agent acceptée, cache amorcé de `['me','profiles']`) → ordre relevé `['push /onboarding/agent?agent=12']`, sans `refreshUser` ; correctif : `await refreshUser()` puis invalidation de `profilesKeys.all` avant `router.push` → vert, `['me','profiles']` invalidée ; ablation (`AccepterInvitation.tsx` à `HEAD`) → rouge, remis → vert ; `AccepterInvitation.test.tsx` vert (9 tests, `QueryClientProvider` ajouté) ; la `Navbar` n'a pas été rendue.
 
 ### L'espace créé sans question par « Publier » n'apparaît pas dans les rôles que le navigateur connaît
 - Réf : P202.05
