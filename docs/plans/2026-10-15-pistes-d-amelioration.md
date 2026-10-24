@@ -16381,7 +16381,7 @@ règle de l'agent parti (`CommissionLedgerService`, `isStaffAt`) : non relevée.
 
 ### Le bailleur qui efface son compte n'a plus ni relevé de gérance ni préparation de reversement, et rien ne l'empêche d'effacer
 - Réf : P175.03
-- Statut : validé — validation du porteur (2026-10-23) : une obligation bloquante tant qu'une pièce est reversable ou qu'un reversement est en cours, et le relevé lisible pour un compte effacé (`withTrashed()` sur la seule lecture) ; la préparation reste fermée
+- Statut : fait · TCK-2015
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/Api/OwnerStatementRequest.php:17-24,36-39`, `takussan-api/app/Http/Controllers/Api/PayoutPreparationController.php:27`, `takussan-api/app/Http/Controllers/Api/PayoutController.php:53`, `takussan-api/app/Services/Account/AccountDeletionService.php:448-546`
 - Constat :
@@ -16392,6 +16392,7 @@ règle de l'agent parti (`CommissionLedgerService`, `isStaffAt`) : non relevée.
   - L'agence perd donc le relevé d'une période passée de ce bailleur, et ne peut plus lui préparer ce qu'elle lui doit.
 - Piste : décider (V1, V3) entre refuser l'effacement tant qu'un montant reste dû au bailleur (une obligation `payout_due`) et garder le relevé et le reversement lisibles pour un compte effacé (`withTrashed()` dans ces trois lectures). Garde : le test ci-dessus, avec un loyer encaissé et non reversé.
 - Mesure (2026-10-23, 2a689d48a, mesureur) : relu `OwnerStatementRequest.php:17-24,36-39` et `collectOpenObligations()` (aucun reversement lu), inchangés depuis a92368d50 ; test temporaire (retiré), charge 3,52 / 3,13 / 3,10 sur 8 cœurs : bailleur à bail `terminated` avec les loyers de septembre encaissés et non reversés (préparation avant effacement 200, `totals.gross` 220000), obligations `[]` ; après `anonymize()`, admin `GET /api/owner-statements?period=2026-09&landlord_id=…` 403, `GET /api/payouts/preparation` 404 → le constat tient, et un montant dû n'empêche pas l'effacement. Classement : V1, un reversement dû au bailleur, avec un choix sur la conservation des données d'un compte effacé (V3).
+- Mesure (2026-10-24, e261b5ef2, implementeur) : `EffacementBailleurReversementTest` avant correctif, bailleur à bail `terminated` aux loyers de septembre encaissés : obligations `[]` sans reversement comme avec un reversement `pending` ; après `executeDeletion()`, agent `payouts.create` de l'agence `GET /api/owner-statements` 403 → obligations `payout_due` (pièce que `PayoutCalculator` rendrait, par agence) et `payout` (reversement `PayoutStatus::upcoming()`), relevé lu par `User::withTrashed()` et policy qui reconnaît le profil de bailleur supprimé d'un compte effacé ; ablation des obligations → 3 rouges, du `withTrashed()` → 403, de la branche de policy → 403, rétabli → 5 verts ; préparation toujours 404 ; `OwnerStatementTest`, `AccountDeletion*Test`, `AdminUserLifecycleTest`, `LangGroupParityTest` verts.
 
 ### Le fil de discussion n'affiche jamais le nom de l'auteur d'un message : l'API n'émet pas `sender`
 - Réf : P175.04
