@@ -20293,7 +20293,7 @@ sans `delete`).*
 
 ### L'escalade d'une intervention urgente ne vise que l'administrateur principal : effacé, elle ne part à personne et se marque faite ; bloqué, elle part au compte fermé
 - Réf : P225.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : qui reçoit l'escalade d'urgence, et si elle se marque faite sans destinataire, est un choix de produit
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Jobs/EscalateUrgentMaintenanceJob.php:20,35-44`, `takussan-api/app/Http/Controllers/Api/MaintenanceRequestController.php:267-277`
 - Constat :
@@ -20308,10 +20308,11 @@ sans `delete`).*
   - Le courriel part donc à un compte qui ne peut plus ouvrir de session. Ce point est déduit de `Notification::fake` et reste à vérifier sur un envoi réel.
   - Établi comment : lu, et mesuré par le test temporaire.
 - Piste : adresser l'escalade et l'alerte d'urgence aux administrateurs actifs et joignables de l'agence (`AdminsDeLAgence::destinataires`), l'administrateur principal n'étant qu'un repli. Ne poser `escalated_at` que si un avis est parti, ou sinon le dire au journal. Garde : un test « administrateur principal effacé, co-administrateur actif » qui exige l'avis au co-administrateur.
+- Mesure (2026-10-24, f249b97f5, mesureur) : relu `EscalateUrgentMaintenanceJob.php:20,35-44` (seul `property.agency.primaryAdmin`, `escalated_at` posé dans tous les cas) et `MaintenanceRequestController::sendUrgentAlert` (l. 270-277, assigné et administrateur principal), inchangés depuis TCK-1991 (`git log`) ; sonde temporaire `tests/Feature/TmpMesureur/SondeAngle225Test.php` (retirée, charge 3,78 / 4,39 / 4,07 sur 8 cœurs), agence à deux administrateurs actifs, intervention urgente ouverte depuis 2 h, l'effacement passant cette fois par `AccountDeletionService::anonymize()` → administrateur principal effacé : 0 avis à lui, 0 au co-administrateur, `escalated_at` posé, alors qu'`AdminsDeLAgence::destinataires` rend le co-administrateur ; administrateur principal bloqué : 1 avis au compte bloqué, 0 au co-administrateur. Le constat tient en entier. Classement : V7, élargir les destinataires de l'alerte et de l'escalade et décider du sort d'`escalated_at` sans destinataire change qui est prévenu, ce qu'aucune spec n'écrit.
 
 ### Le rappel de l'état des lieux, le repli de l'expiration de réservation et celui du verdict KYC visent l'administrateur principal sans juger qu'il est joignable
 - Réf : P225.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : élargir les destinataires de trois avis est un choix de produit
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Console/Commands/RemindTenantOnboarding.php:39,56-67`, `takussan-api/app/Services/Booking/BookingExpirationService.php:275-283,303-306`, `takussan-api/app/Services/Kyc/KycWorkflowService.php:262-267`
 - Constat :
@@ -20321,10 +20322,11 @@ sans `delete`).*
   - Les trois sites n'ont pas été rejoués. Le comportement de `Notification::send()` vers un compte bloqué est mesuré en P225.01.
   - Établi comment : lu.
 - Piste : faire passer ces trois replis par une même lecture : les administrateurs joignables de l'agence, puis l'administrateur principal s'il est joignable. L'angle 239 relève les autres envois directs. Garde : un test par site, avec l'administrateur principal bloqué et un co-administrateur actif.
+- Mesure (2026-10-24, f249b97f5, mesureur) : relu `RemindTenantOnboarding.php:39,56-67` (rappel « agent » au seul `lease.agency.primaryAdmin` par `Notification::send()`), `BookingExpirationService::resolveFallbackAgent` (l. 290-307, administrateur principal sans lecture du statut, puis `->notify()`) et `KycWorkflowService::notifyReviewed` (l. 262-267, repli sur `primaryAdmin` sans jugement) ; sonde temporaire `tests/Feature/TmpMesureur/SondeKyc225Test.php` (retirée, même charge) : administrateur principal bloqué, co-administrateur actif sans `agency.update_kyc`, verdict rendu → 0 `AppNotification` `kyc_verified` au principal, 0 au co-administrateur, 0 en tout, ce qui vérifie le « à vérifier » du constat ; l'envoi par `Notification::send()` à un compte bloqué est mesuré en P225.01, les deux autres sites n'ont pas été rejoués. Classement : V7, faire passer ces replis aux administrateurs joignables change qui reçoit trois avis, et pour le KYC un administrateur sans la capacité qui mène à la page.
 
 ### La carte de mise en service compte l'administrateur principal effacé : « 2FA des administrateurs » repasse à faux pour toujours
 - Réf : P225.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : TCK-589 écrit que la carte compte `primary_admin_id`, l'en retirer revient sur ce choix
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Agency/AgencySetupStatus.php:81,90-99,102-121`
 - Constat :
@@ -20337,10 +20339,11 @@ sans `delete`).*
   - `first_member` compte lui aussi l'administrateur principal par `adminIds()` (lu, l. 90-99), quel que soit son statut.
   - Établi comment : lu, et mesuré.
 - Piste : lire les administrateurs de la carte par les seuls profils actifs de comptes joignables. Ne pas y ajouter `primary_admin_id` à part, ou seulement s'il est joignable. Voir P204.02 : son correctif fera passer le titre à l'exécution pour les effacements à venir, mais ne reprendra pas les agences déjà dans cet état. Garde : le test ci-dessus.
+- Mesure (2026-10-24, f249b97f5, mesureur) : relu `AgencySetupStatus.php:81,90-121` (`adminIds()` ajoute `primary_admin_id` aux profils actifs, `adminsHaveTwoFactor()` compare un `User::query()` qui ne relit pas un compte supprimé en douceur) ; sonde temporaire `SondeAngle225Test` (retirée), deux administrateurs avec la 2FA, `GET /api/agencies/{id}/setup-status` par le co-administrateur → avant : `admin_two_factor` `done: true` ; administrateur principal effacé par `AccountDeletionService::anonymize()` (son profil y est bien clos : 1 profil actif restant) → `done: false` ; bloqué → reste `true`. Le constat tient. TCK-589 (l. 967-968) écrit `admin_two_factor` = « tous les admins actifs (et `primary_admin_id`) ont la 2FA ». Classement : V7, ne plus compter le titulaire du titre, ou ne le compter que joignable, modifie une règle écrite dans un ticket, donc un choix de produit et non un défaut au comportement attendu déjà écrit.
 
 ### Régénérer les filigranes n'est permis qu'à l'administrateur principal : bloqué ou effacé, plus personne dans l'agence ne le peut
 - Réf : P225.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : ouvrir le geste à une capacité change une règle d'autorisation que le docblock de la carte assume
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/Agency/RegenerateWatermarksController.php:17-20`, `takussan-web/src/components/admin-agency/RegenerateWatermarksCard.tsx:31-34`, `takussan-web/src/app/(dashboard)/app/agency/page.tsx:66`
 - Constat :
@@ -20350,10 +20353,11 @@ sans `delete`).*
   - La carte est affichée à tout administrateur de la page `/app/agency` (lu, `page.tsx:66`, `pages-admin.ts:86-89`). Son docblock assume le 403 du co-administrateur (lu, l. 31-34). Ce choix d'écran tient tant qu'un administrateur principal joignable existe ; sans lui, le geste n'a plus de titulaire dans l'agence.
   - Établi comment : lu, et mesuré.
 - Piste : juger le geste par `AgencyPolicy::configure` (capacité `agency.update`, administrateur principal en court-circuit), comme le logo. Garde : un test « co-administrateur qui tient `agency.update` → 202 ».
+- Mesure (2026-10-24, f249b97f5, mesureur) : relu `RegenerateWatermarksController.php:17-20` (`primary_admin_id === user->id || isSuperAdmin()`, aucune capacité) ; sonde temporaire `SondeAngle225Test` (retirée) : co-administrateur actif avec la 2FA, administrateur principal effacé (par `anonymize()`) puis bloqué → `POST /api/agencies/{id}/regenerate-watermarks` rend 403 dans les deux cas. Le constat tient. Classement : V2, élargir l'autorisation de ce geste à `AgencyPolicy::configure` est une décision d'autorisation, et le docblock de `RegenerateWatermarksCard.tsx` (l. 31-34) assume aujourd'hui le 403 du co-administrateur, ce qui en fait un choix et non un oubli écrit.
 
 ### Le titre d'administrateur principal ne se transmet par aucune route, et le blocage d'un compte par la plateforme ne le lit pas
 - Réf : P225.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : la piste demande elle-même deux décisions, la transmission du titre et le blocage de son titulaire
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/Admin/UserLifecycleController.php:39-56,97-101`, `takussan-api/app/Http/Controllers/Api/AgencyController.php:47-69`, `takussan-api/app/Services/Admin/AgencyProvisioningService.php:81`, `takussan-api/app/Services/Onboarding/HostIndividualOnboardingService.php:260`
 - Constat :
@@ -20372,10 +20376,11 @@ sans `delete`).*
   - Si `block()` avertit, ou refuse, quand le compte est l'administrateur principal d'une agence active.
 
   Garde : un test de transmission, et un test de blocage de l'administrateur principal.
+- Mesure (2026-10-24, f249b97f5, mesureur) : `grep -rn primary_admin_id takussan-api/app` → écrit seulement par `AgencyController::store` (l. 61), `AgencyProvisioningService` (l. 81) et `HostIndividualOnboardingService` ; aucune requête de `app/Http/Requests` ne l'accepte (seul `StoreRoleDelegationRequest.php:80` le lit) ; relu `UserLifecycleController::block` (l. 39-56) et `refuserSoiEtOperateur` (l. 97-101) : aucune lecture du titre ; `AccountDeletionService::collectOpenObligations` ne lit pas non plus le titre (le correctif validé de P204.02 n'est pas implémenté). Le constat tient ; le blocage du seul administrateur n'a pas été rejoué. Classement : V7, un geste neuf de transmission et le comportement de `block()` sur un titulaire sont deux choix de produit, et le blocage touche aussi V2.
 
 ### `POST /api/agencies` fait de son auteur l'administrateur principal sans lui créer de profil d'administrateur
 - Réf : P225.06
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : la piste propose deux voies, créer le profil ou retirer la route
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/AgencyController.php:47-69`, `takussan-api/app/Services/Admin/AgencyProvisioningService.php:141`, `takussan-api/app/Services/Onboarding/HostIndividualOnboardingService.php:272`
 - Constat :
@@ -20392,3 +20397,4 @@ sans `delete`).*
 - Piste : deux voies.
   - Créer l'`AgencyAdminProfile` dans `store`, comme les deux autres voies, avec le rôle système (comme `AgencyProvisioningService::assignAgencyAdminRole`). Garde : un test « création → profil d'administrateur actif et capacités non vides ».
   - Ou retirer la route, qui n'a pas d'appelant (A3, si le retrait se confirme des deux côtés). Garde : le test du 404.
+- Mesure (2026-10-24, f249b97f5, mesureur) : relu `AgencyController::store` (l. 47-69, `primary_admin_id` = l'auteur, aucun profil créé) ; sonde temporaire `SondeAngle225Test` (retirée) : compte sans agence, `POST /api/agencies {name}` → 201, 0 `AgencyAdminProfile`, `GET /api/me/capabilities` → `{agency_id: null, capabilities: []}`, `PATCH /api/agencies/{id}` → 200, `GET …/bank-statements` → 403 ; `grep` dans `takussan-web/src` : aucun appel de `POST /api/agencies`. Le constat tient. Classement : V7, la `Piste` offre deux options (créer le profil d'administrateur, ou retirer la route sans appelant), et le choix entre elles revient au porteur.
