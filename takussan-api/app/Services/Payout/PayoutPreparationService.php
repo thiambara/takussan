@@ -68,6 +68,19 @@ final class PayoutPreparationService
             'requires_approval' => $this->approvalRule->requiresApproval($agency, (float) $computation['totals']['net'], PayeeRole::Landlord, (int) $landlord->id),
             'approval_threshold' => $threshold !== null ? (float) $threshold : null,
             'approval_window_days' => PayoutApprovalRule::WINDOW_DAYS,
+            // TCK-2154 (P200.02) — les acomptes d'une réservation close dont le remboursement est à
+            // traiter : écartés du calcul, et dits ici pour que l'agence sache pourquoi.
+            'held_for_refund' => $this->calculator->bookingPaymentsHeldForRefund((int) $agency->id, (int) $landlord->id, $start, $end)
+                ->get()
+                ->map(fn (BookingPayment $p) => [
+                    'id' => (int) $p->id,
+                    'booking_id' => (int) $p->booking_id,
+                    'booking_reference' => $p->booking?->reference_number,
+                    'amount' => (float) $p->amount,
+                    'paid_at' => $p->paid_at?->toIso8601String(),
+                ])
+                ->values()
+                ->all(),
             // La forme masquée seule : l'agence ne lit jamais le numéro en clair (ADR-0039 §6).
             'payout_methods' => PayoutMethod::query()
                 ->with('verifications')

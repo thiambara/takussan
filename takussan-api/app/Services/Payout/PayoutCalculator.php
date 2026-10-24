@@ -3,8 +3,10 @@
 namespace App\Services\Payout;
 
 use App\Models\Agency;
+use App\Models\Booking;
 use App\Models\BookingPayment;
 use App\Models\Enums\BookingPaymentType;
+use App\Models\Enums\BookingStatus;
 use App\Models\Enums\Currency;
 use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\PayeeRole;
@@ -12,8 +14,10 @@ use App\Models\Enums\PaymentStatus;
 use App\Models\Enums\PayoutStatus;
 use App\Models\Enums\PlatformPayoutStatus;
 use App\Models\Enums\ServiceProviderBillStatus;
+use App\Models\Enums\TaskStatus;
 use App\Models\LeasePayment;
 use App\Models\ServiceProviderBill;
+use App\Services\Booking\BookingRefundTaskService;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
@@ -81,8 +85,84 @@ final class PayoutCalculator
         return $query->orderBy('lease_payments.paid_at')->orderBy('lease_payments.id');
     }
 
-    /** @return Builder<BookingPayment> */
+    /**
+     * TCK-2154 (P200.02, décision du porteur du 2026-10-24) — sans les pièces retenues pour
+     * remboursement ({@see self::whereHeldForRefund()}).
+     *
+     * @return Builder<BookingPayment>
+     */
     public function bookingPayments(int $agencyId, int $landlordId, ?CarbonInterface $from = null, ?CarbonInterface $to = null, bool $onlyUnpaidOut = true, bool $orPaidOut = false): Builder
+    {
+        return $this->bookingPaymentsIncludingHeld($agencyId, $landlordId, $from, $to, $onlyUnpaidOut, $orPaidOut)
+            ->whereNot(fn (Builder $q) => $this->whereHeldForRefund($q));
+    }
+
+    /**
+     * TCK-2154 (P200.02) — les pièces de la période que la préparation retient, pour qu'elle les
+     * signale (`held_for_refund`).
+     *
+     * @return Builder<BookingPayment>
+     */
+    public function bookingPaymentsHeldForRefund(int $agencyId, int $landlordId, ?CarbonInterface $from = null, ?CarbonInterface $to = null): Builder
+    {
+        return $this->bookingPaymentsIncludingHeld($agencyId, $landlordId, $from, $to)
+            ->where(fn (Builder $q) => $this->whereHeldForRefund($q));
+    }
+
+    /**
+     * TCK-2154 (P200.02) — parmi les acomptes cités, ceux qui sont retenus : la création d'un
+     * reversement les refuse comme la préparation les écarte.
+     *
+     * @param  list<int>  $ids
+     * @return list<int>
+     */
+    public function heldForRefundAmong(array $ids): array
+    {
+        if ($ids === []) {
+            return [];
+        }
+
+        return BookingPayment::query()
+            ->join('bookings', 'bookings.id', '=', 'booking_payments.booking_id')
+            ->whereIn('booking_payments.id', $ids)
+            ->where(fn (Builder $q) => $this->whereHeldForRefund($q))
+            ->pluck('booking_payments.id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+    }
+
+    /**
+     * TCK-2154 (P200.02, décision du porteur du 2026-10-24) — une pièce est retenue quand sa
+     * réservation est close (`cancelled`, `rejected`, `expired`) et que la tâche `booking_refund`
+     * de cette réservation est ouverte, tant qu'aucun geste « remboursé » ne l'a touchée : un
+     * remboursement partiel la libère (le reste gardé, `montant − refund_amount`, redevient
+     * reversable), un total la passe `refunded`, la clôture de la tâche libère toutes ses pièces.
+     * Une pièce déjà reversée n'est pas retenue : le relevé la garde.
+     *
+     * Exige la jointure `bookings`.
+     *
+     * @param  Builder<BookingPayment>  $query
+     */
+    private function whereHeldForRefund(Builder $query): void
+    {
+        $query->whereIn('bookings.status', [
+            BookingStatus::Cancelled->value,
+            BookingStatus::Rejected->value,
+            BookingStatus::Expired->value,
+        ])
+            ->where(fn (Builder $r) => $r->whereNull('booking_payments.refund_amount')->orWhere('booking_payments.refund_amount', 0))
+            ->whereExists(fn ($task) => $task->selectRaw('1')->from('tasks')
+                ->where('tasks.taskable_type', (new Booking)->getMorphClass())
+                ->whereColumn('tasks.taskable_id', 'bookings.id')
+                ->where('tasks.metadata->kind', BookingRefundTaskService::KIND)
+                ->whereNotIn('tasks.status', [TaskStatus::Done->value, TaskStatus::Cancelled->value])
+                ->whereNull('tasks.deleted_at'))
+            ->whereNotExists(fn ($out) => $out->selectRaw('1')->from('payout_booking_payment')
+                ->whereColumn('payout_booking_payment.booking_payment_id', 'booking_payments.id'));
+    }
+
+    /** @return Builder<BookingPayment> */
+    private function bookingPaymentsIncludingHeld(int $agencyId, int $landlordId, ?CarbonInterface $from = null, ?CarbonInterface $to = null, bool $onlyUnpaidOut = true, bool $orPaidOut = false): Builder
     {
         $query = BookingPayment::query()
             ->select('booking_payments.*')
