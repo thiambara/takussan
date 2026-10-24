@@ -24,7 +24,8 @@ class InvoiceTargetScopeTest extends TestCase
     {
         [$agency, $admin, $customer] = $this->invoicingAgency();
         $foreign = Lease::factory()->create(['agency_id' => Agency::factory()->create()->id]);
-        $own = Lease::factory()->create(['agency_id' => $agency->id]);
+        // TCK-2156 (P200.03, P200.04) — un bail signé, dont le client facturé est le locataire.
+        $own = Lease::factory()->active()->create(['agency_id' => $agency->id, 'tenant_id' => $customer->id]);
         Sanctum::actingAs($admin);
         $body = ['customer_id' => $customer->id, 'issue_date' => '2026-10-07', 'subtotal' => 100_000, 'invoiceable_type' => 'lease'];
 

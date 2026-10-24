@@ -7,6 +7,7 @@ use App\Models\Bases\Auditable;
 use App\Models\Enums\BookingStatus;
 use App\Models\Enums\CancellationBy;
 use App\Models\Enums\Currency;
+use App\Models\Enums\PaymentStatus;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -127,6 +128,26 @@ class Booking extends AbstractModel
     public function payments(): HasMany
     {
         return $this->hasMany(BookingPayment::class);
+    }
+
+    /**
+     * TCK-2152 (P200.01, décision du porteur du 2026-10-24) — à la fermeture (annulation, refus,
+     * expiration), les lignes `pending` de la réservation passent `cancelled`. Un checkout ouvert
+     * avant la fermeture et confirmé après prend alors le chemin du doublon du webhook
+     * (`gateway_duplicate_payment`, avis `payment.duplicate` aux admins d'agence) au lieu d'être
+     * écrit `paid` sans tâche de remboursement, et n'entre jamais au reversement du bailleur.
+     *
+     * À appeler sous le verrou de la réservation, dans la transaction qui la ferme. Ligne à ligne,
+     * pour que la matrice de transitions et le journal d'audit s'appliquent.
+     */
+    public function cancelPendingPayments(): void
+    {
+        $this->payments()
+            ->where('status', PaymentStatus::Pending->value)
+            ->orderBy('id')
+            ->lockForUpdate()
+            ->get()
+            ->each(static fn (BookingPayment $payment) => $payment->update(['status' => PaymentStatus::Cancelled]));
     }
 
     public function lease(): HasOne

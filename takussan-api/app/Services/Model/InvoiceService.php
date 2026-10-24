@@ -5,9 +5,11 @@ namespace App\Services\Model;
 use App\Models\Agency;
 use App\Models\Booking;
 use App\Models\Customer;
+use App\Models\Enums\BookingStatus;
 use App\Models\Enums\Currency;
 use App\Models\Enums\InvoiceKind;
 use App\Models\Enums\InvoiceStatus;
+use App\Models\Enums\LeaseStatus;
 use App\Models\Invoice;
 use App\Models\Lease;
 use App\Models\User;
@@ -19,6 +21,11 @@ use Illuminate\Support\Facades\DB;
 class InvoiceService
 {
     public function __construct(private readonly InvoiceNumberAllocator $numbers) {}
+
+    /** TCK-2156 (P200.03) — les statuts d'objet sur lesquels une facture ne se crée pas. */
+    private const UNBILLABLE_BOOKING_STATUSES = [BookingStatus::Cancelled, BookingStatus::Rejected, BookingStatus::Expired];
+
+    private const UNBILLABLE_LEASE_STATUSES = [LeaseStatus::Draft, LeaseStatus::PendingSignature];
 
     /**
      * Allow-list of invoiceable types accepted by the API.
@@ -55,6 +62,7 @@ class InvoiceService
             $data['invoiceable_type'] ?? null,
             $data['invoiceable_id'] ?? null,
             $agencyId,
+            (int) $customer->id,
         );
 
         // TCK-594 (ADR-0039 §7) — sans taux, celui de l'agence, à défaut 0. Un taux explicite —
@@ -231,7 +239,7 @@ class InvoiceService
     /**
      * @return array{0:?string,1:?int}
      */
-    protected function resolveInvoiceableTarget(?string $typeAlias, ?int $id, ?int $agencyId = null): array
+    protected function resolveInvoiceableTarget(?string $typeAlias, ?int $id, ?int $agencyId = null, ?int $customerId = null): array
     {
         if (empty($typeAlias)) {
             return [null, null];
@@ -240,7 +248,7 @@ class InvoiceService
         $fqcn = $this->resolveInvoiceableType($typeAlias);
         abort_code_if($fqcn === null, 422, 'invoice.unsupported_target');
 
-        $target = $fqcn::query()->whereKey($id)->first(['id', 'agency_id']);
+        $target = $fqcn::query()->whereKey($id)->first(['id', 'agency_id', 'status', $fqcn === Lease::class ? 'tenant_id' : 'customer_id']);
         abort_code_if($target === null, 404, 'invoice.target_not_found');
 
         // TCK-594 (AC22) — un bail ou une réservation d'une AUTRE agence ne se facture pas au nom de
@@ -249,6 +257,24 @@ class InvoiceService
             $target->agency_id !== null && (int) $target->agency_id === (int) $agencyId,
             422,
             'invoice.foreign_target'
+        );
+
+        // TCK-2156 (P200.03, décision du porteur du 2026-10-24) — une réservation close ou un bail
+        // pas encore signé ne se facturent pas. Un bail actif, terminé ou résilié et une
+        // réservation `pending`, `confirmed` ou `completed` restent facturables.
+        abort_code_if(
+            in_array($target->status, $fqcn === Lease::class ? self::UNBILLABLE_LEASE_STATUSES : self::UNBILLABLE_BOOKING_STATUSES, true),
+            422,
+            'invoice.target_not_billable'
+        );
+
+        // TCK-2156 (P200.04, décision du porteur du 2026-10-24) — le destinataire est le client de la
+        // réservation ou le locataire du bail.
+        $recipientId = $fqcn === Lease::class ? $target->tenant_id : $target->customer_id;
+        abort_code_unless(
+            $customerId !== null && $recipientId !== null && (int) $recipientId === $customerId,
+            422,
+            'invoice.recipient_mismatch'
         );
 
         return [$fqcn, $id];
