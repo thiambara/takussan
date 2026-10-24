@@ -3,6 +3,7 @@
 namespace Tests\Support;
 
 use App\Http\Resources\Accounting\MatchCandidateResource;
+use App\Http\Resources\AgentProfileResource;
 use App\Http\Resources\Api\Admin\AgencyDetailResource;
 use App\Http\Resources\Api\Admin\AgencyProvisioningResource;
 use App\Http\Resources\Api\Admin\ModerationItemResource;
@@ -19,6 +20,7 @@ use App\Http\Resources\Messaging\MessagingContactResource;
 use App\Http\Resources\OwnerProfileResource;
 use App\Http\Resources\PropertyMapGeoJsonResource;
 use App\Http\Resources\PropertySitemapResource;
+use App\Http\Resources\PropertyTagResource;
 use App\Http\Resources\ServiceProviderAgencyCollaborationResource;
 use App\Http\Resources\ServiceProviderDirectoryResource;
 use App\Models\Agency;
@@ -29,6 +31,7 @@ use App\Models\Profiles\OwnerProfile;
 use App\Models\Profiles\ServiceProviderAgencyCollaboration;
 use App\Models\Profiles\ServiceProviderProfile;
 use App\Models\Property;
+use App\Models\Tag;
 use App\Models\User;
 use ReflectionClass;
 use SplFileInfo;
@@ -127,6 +130,15 @@ final class ResourceInventory
             'modeles' => [ServiceProviderAgencyCollaboration::class],
             'raison' => 'Une collaboration du prestataire, l\'agence incluse par `AgencyResource` (TCK-1049, P61.02) — '
                 .'le modèle vit sous `Profiles\\`, la convention ne le trouve pas.',
+        ],
+        AgentProfileResource::class => [
+            'modeles' => [AgentProfile::class],
+            'raison' => 'Le profil d\'agent rendu par `PATCH /api/profiles/{agent_profile}/suspend`, sans `metadata` (TCK-2045, P61.04) — '
+                .'le modèle vit sous `Profiles\\`, la convention ne le trouve pas.',
+        ],
+        PropertyTagResource::class => [
+            'modeles' => [Tag::class],
+            'raison' => 'Une étiquette rattachée à un bien, sans son `pivot` (TCK-2045, P61.04) — le préfixe `Property` dit la vue, pas le modèle.',
         ],
         OwnerProfileResource::class => [
             'modeles' => [OwnerProfile::class],

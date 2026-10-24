@@ -35,6 +35,13 @@ class ThresholdAlertResource extends BaseResource
             }
         }
 
+        // `include=agency` est accepté (`$requestLoadable`) : le modèle brut l'émettait. Il sort ici
+        // réduit à son identité, et jamais en ligne `agencies` entière.
+        $attributes['agency'] = $this->whenLoaded('agency', fn () => $model->agency === null ? null : [
+            'id' => $model->agency->id,
+            'name' => $model->agency->name,
+        ]);
+
         return $attributes;
     }
 }

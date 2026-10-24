@@ -111,4 +111,27 @@ class ReponsesSansModeleBrutTest extends ApiTestCase
         $this->assertIsNotString($reponse->json('data.0.last_value'));
         $this->assertMatchesRegularExpression(self::INSTANT_ADR_0018, (string) $reponse->json('data.0.created_at'));
     }
+
+    /** `include=agency` est accepté par les deux listes : la ressource l'émet, réduit à son identité. */
+    public function test_les_listes_de_kpi_et_d_alertes_emettent_l_agence_incluse(): void
+    {
+        $agency = Agency::factory()->create(['name' => 'Agence Lin']);
+        $this->apiActingAsRole('agency_admin', ['agency' => $agency]);
+        KpiConfig::query()->create([
+            'agency_id' => $agency->id, 'metric' => 'leases_active', 'label' => 'Baux', 'sort_order' => 1,
+        ]);
+        ThresholdAlert::query()->create([
+            'agency_id' => $agency->id, 'metric' => 'overdue_count', 'operator' => '>=',
+            'threshold' => 1, 'severity' => 'warning',
+        ]);
+
+        foreach (['/api/kpi-configs', '/api/threshold-alerts'] as $chemin) {
+            $this->assertArrayNotHasKey('agency', $this->apiGet($chemin)->assertOk()->json('data.0'), $chemin);
+            $this->assertSame(
+                ['id' => $agency->id, 'name' => 'Agence Lin'],
+                $this->apiGet($chemin.'?include=agency')->assertOk()->json('data.0.agency'),
+                $chemin,
+            );
+        }
+    }
 }
