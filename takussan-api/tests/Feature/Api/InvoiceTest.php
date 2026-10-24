@@ -267,7 +267,8 @@ class InvoiceTest extends TestCase
         $agent = User::factory()->withAgentProfile($agency)->create();
         $customer = Customer::factory()->create(['added_by_id' => $agent->id]);
         // TCK-594 (AC22) — la réservation relève de l'agence de la facture.
-        $booking = Booking::factory()->create(['agency_id' => $agency->id]);
+        // TCK-2156 (P200.04) — le destinataire est le client de la réservation.
+        $booking = Booking::factory()->create(['agency_id' => $agency->id, 'customer_id' => $customer->id]);
 
         Sanctum::actingAs($agent);
 
