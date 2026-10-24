@@ -27,7 +27,15 @@ class AddAgentAgencyRequest extends BaseFormRequest
      */
     public function authorize(): bool
     {
-        return $this->user()?->can('update', $this->route('agency')) === true;
+        $agency = $this->route('agency');
+        if ($this->user()?->can('update', $agency) !== true) {
+            return false;
+        }
+
+        // TCK-2205 (P227.03) — rattacher comme `agency_admin` confère le rôle que le changement de
+        // rôle juge par `team.assign_role` (TCK-1498) : même délégation, à `changeMemberRole`.
+        return $this->input('role') !== 'agency_admin'
+            || $this->user()->can('changeMemberRole', $agency) === true;
     }
 
     /** @return array<string, mixed> */
