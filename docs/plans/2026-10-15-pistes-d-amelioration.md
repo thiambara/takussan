@@ -19848,7 +19848,7 @@ les envoie.*
 
 ### L'agent suspendu ou retiré qui a conduit un état des lieux le lit, le liste et le modifie encore
 - Réf : P218.04
-- Statut : validé — validation du porteur (2026-10-24) : `landlordWrites` gardé, l'appartenance ajoutée : `update` exige en plus une agence nulle ou `isMemberAt` ; `view` et la liste : auteur et (agence nulle, `isMemberAt` ou profil propriétaire de tout statut) ; même règle d'auteur que P218.03
+- Statut : fait · TCK-2198
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Policies/InventoryPolicy.php:21-55`, `takussan-api/app/Policies/BasePolicy.php:132-141`, `takussan-api/app/Http/Controllers/Api/InventoryController.php:47`
 - Constat :
@@ -19859,6 +19859,7 @@ les envoie.*
   - Établi comment : lu, puis mesuré pour la policy et la lecture.
 - Piste : pour une colonne d'auteur qui désigne du personnel, juger `isStaffAt` sur l'agence du bien au lieu de `landlordWrites`. `landlordWrites` reste pour un bailleur auteur. Test : conducteur suspendu puis retiré → `GET` 403, absent de la liste, `POST …/submit` 403 ; réactivé → 200.
 - Mesure (2026-10-24, 1614726d0, mesureur) : relu `InventoryPolicy.php` (`view` : `conducted_by` seul ; `update` : `landlordWrites(user, conducted_by, …)`), `BasePolicy.php:132-141` (ne refuse que le bailleur bloqué) et `InventoryController.php:47` (`where('conducted_by', …)`), inchangés ; TCK-1928 n'a fermé que la branche du créateur du bien (lu, commentaire de `view`) ; (sonde temporaire `tests/Feature/TmpMesureur/Sonde218Test.php`, retirée ; jeu de `BuildsBookingStakeholders` et admin d'agence par `agencyAdmin`, charge `{ 1.42 1.62 1.63 }` sur 8 cœurs), état des lieux du bien de l'agence conduit par l'agent → **suspendu**, puis **retiré** : `can('view')` vrai, `can('update')` vrai, `GET /api/inventories/{id}` 200, ligne présente dans `GET /api/inventories` ; témoin actif : identique ; la soumission et le dépôt de photos n'ont pas été joués (même ability `update`, lu) → le constat tient. Classement : V2, le correctif retire lecture et écriture à une colonne d'auteur qu'emploie aujourd'hui le conducteur actif, comme P190.01 (TCK-1928), tranché par le porteur.
+- Mesure (2026-10-24, 973736af4, implementeur) : reproduit par `ConducteurEncoreMembreTest`, état des lieux d'un bien de l'agence conduit par l'agent, agent suspendu puis retiré → `GET` 200, ligne listée et `update` vrai avant correctif → `view` : conducteur et (agence nulle, `isMemberAt` ou profil de bailleur non supprimé de tout statut) ; `update` : `landlordWrites` et `auteurEncoreMembre` (TCK-2196) ; liste alignée : 403, absent, `update` faux ; témoins (conducteur actif, bailleur bloqué qui lit sans modifier, bien sans agence) verts ; ablation (policy et liste remises) → 2 rouges, remise → 5 verts ; `MigratedAuthorizationRulesTest` (conducteur sans profil dans l'agence, devenu bailleur actif), `InventoryTest`, `InventoryListTest`, `InventoryEditTest`, `InventoryAbilitiesTest`, `InventorySignatureTest`, `InventoryRoomPhotosTest` et quatre autres classes d'états des lieux verts.
 
 ### Petites améliorations
 - Réf : P218.05
