@@ -1734,6 +1734,12 @@ class PaymentGatewayService
             return false;
         }
 
+        // TCK-1914 (P170.01, décision du porteur) — l'acompte ou le solde d'une réservation hors
+        // `pending`/`confirmed` ne se paie plus en ligne : la ligne seule ne le disait pas.
+        if ($payment instanceof BookingPayment && ! ($payment->booking?->isPayableByCustomer() ?? false)) {
+            return false;
+        }
+
         $status = $this->currentPaymentStatus($payment);
 
         // VERIF-596 passe 5 (M-E) — une échéance annulée par un renouvellement n'est plus due.

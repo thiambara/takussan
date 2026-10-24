@@ -116,9 +116,10 @@ class LeaseTest extends TestCase
 
         Sanctum::actingAs($landlord);
 
+        // TCK-1920 (P170.04) — un loyer naît de l'échéancier : la création à la main garde les charges.
         $response = $this->postJson("/api/leases/{$lease->id}/payments", [
-            'amount' => 400000,
-            'payment_type' => 'rent',
+            'amount' => 40000,
+            'payment_type' => 'charges',
             'period_start' => '2026-01-01',
             'period_end' => '2026-01-31',
             'due_date' => '2026-01-05',

@@ -325,7 +325,8 @@ class OwnerIsolationWithinAgencyTest extends ApiTestCase
             'loyers d\'un bail — lister' => ['GET', '/api/leases/{lease}/payments', []],
             'loyers d\'un bail — encaisser' => ['POST', '/api/leases/{activeLease}/payments', [
                 'amount' => 400000,
-                'payment_type' => 'rent',
+                // TCK-1920 : loyer et caution naissent de l'échéancier, la route ne garde que les charges.
+                'payment_type' => 'charges',
                 'period_start' => '2026-01-01',
                 'period_end' => '2026-01-31',
                 'due_date' => '2026-01-05',

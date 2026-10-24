@@ -63,7 +63,11 @@ class InvoiceService
         // P133.02 (TCK-1377) — avec des lignes, le sous-total se recompte depuis elles, et elles
         // s'impriment (`metadata.lines`, lues par `Invoice::lines()`).
         $lines = isset($data['items']) ? $this->priceLines($data['items'], $currency) : null;
-        $subtotal = $lines !== null ? (float) $lines['subtotal'] : (float) $data['subtotal'];
+        // TCK-1922 (P170.05, décision du porteur) — sans lignes, le sous-total saisi s'arrondit à
+        // l'unité de la devise, comme chaque ligne.
+        $subtotal = $lines !== null
+            ? (float) $lines['subtotal']
+            : Currency::roundAmount((float) $data['subtotal'], $currency);
         $taxRate = isset($data['tax_rate'])
             ? (float) $data['tax_rate']
             : (float) ($agencyId !== null ? Agency::query()->whereKey($agencyId)->value('default_tax_rate') ?? 0 : 0);

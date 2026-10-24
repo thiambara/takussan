@@ -8,6 +8,7 @@ use App\Models\Agency;
 use App\Models\Booking;
 use App\Models\Customer;
 use App\Models\Enums\Capability;
+use App\Models\Enums\Currency;
 use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\LeaseType;
@@ -86,8 +87,11 @@ class LeaseService
             && self::maySetCommissionTerms($user, $property->agency_id)
             && ($data['type'] ?? null) === LeaseType::Sale->value
             && isset($data['sale_price'], $data['commission_rate'])) {
-            $data['commission_amount'] = round((float) $data['sale_price'] * (float) $data['commission_rate'] / 100, 2);
+            $data['commission_amount'] = (float) $data['sale_price'] * (float) $data['commission_rate'] / 100;
         }
+        // TCK-1924 (P170.06, décision du porteur) — dérivée ou saisie, la commission s'arrondit à
+        // l'unité de la devise du bail : `round(…, 2)` laissait 30 864,18 XOF (ADR-0009).
+        $data['commission_amount'] = self::roundCommission($data['commission_amount'] ?? null, $data['currency'] ?? 'XOF');
 
         return Lease::create(array_merge($data, [
             'reference_number' => ReferenceNumberGenerator::lease(),
@@ -97,6 +101,12 @@ class LeaseService
             'currency' => $data['currency'] ?? 'XOF',
             'payment_frequency' => $data['payment_frequency'] ?? 'monthly',
         ]));
+    }
+
+    /** TCK-1924 (P170.06) — la commission d'un bail, arrondie à l'unité de sa devise ; nulle reste nulle. */
+    public static function roundCommission(mixed $amount, Currency|string|null $currency): ?float
+    {
+        return $amount === null ? null : Currency::roundAmount((float) $amount, $currency);
     }
 
     /** Les champs du mandat d'agence (ADR-0049 §1-§2) que seul son personnel écrit. */

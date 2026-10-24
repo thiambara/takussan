@@ -283,6 +283,46 @@ class CommissionLedgerTest extends ApiTestCase
         $this->assertSame('1500000.00', $lease->commission_amount);
     }
 
+    /**
+     * TCK-1924 (P170.06) — prix × taux s'arrondissait à 2 décimales (`round(…, 2)`) : 1 234 567 XOF à
+     * 2,5 % donnait 30 864,18 XOF, une sous-unité que la devise n'a pas (ADR-0009).
+     */
+    public function test_a_derived_sale_commission_is_rounded_to_the_lease_currency(): void
+    {
+        $lease = $this->createLease([
+            'type' => 'sale',
+            'monthly_rent' => null,
+            'sale_price' => 1_234_567,
+            'commission_rate' => 2.5,
+        ]);
+
+        $this->assertSame('30864.00', $lease->commission_amount);
+    }
+
+    /** TCK-1924 (P170.06, décision du porteur) — un montant saisi s'arrondit aussi, à la création et à la modification. */
+    public function test_an_entered_commission_amount_is_rounded_to_the_lease_currency(): void
+    {
+        $lease = $this->createLease([
+            'type' => 'sale',
+            'monthly_rent' => null,
+            'sale_price' => 1_000_000,
+            'commission_amount' => 1000.4,
+        ]);
+        $this->assertSame('1000.00', $lease->commission_amount);
+
+        $this->patchJson("/api/leases/{$lease->id}", ['commission_amount' => 999.6])->assertOk();
+        $this->assertSame('1000.00', $lease->fresh()->commission_amount);
+
+        $eur = $this->createLease([
+            'type' => 'sale',
+            'monthly_rent' => null,
+            'sale_price' => 1_000_000,
+            'currency' => 'EUR',
+            'commission_amount' => 1000.45,
+        ]);
+        $this->assertSame('1000.45', $eur->commission_amount);
+    }
+
     public function test_a_rental_rate_is_never_turned_into_a_commission_amount(): void
     {
         $lease = $this->createLease(['commission_rate' => 8]);

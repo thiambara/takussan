@@ -9,6 +9,7 @@ use App\Models\Enums\PaymentStatus;
 use App\Models\LeasePayment;
 use App\Models\Property;
 use App\Services\Payments\PaymentGatewayService;
+use App\Services\Property\BailleurDuBien;
 use App\Support\DayRange;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -49,7 +50,8 @@ class PaymentController extends Controller
                 $q->whereHas('booking', function ($bq) use ($user): void {
                     $bq->where(function ($inner) use ($user): void {
                         $inner->where('created_by_id', $user->id)
-                            ->orWhereHas('property', fn ($p) => $p->where('user_id', $user->id));
+                            // TCK-1932 (P190.03) — le bailleur du bien, comme `BookingPaymentPolicy`.
+                            ->orWhereHas('property', fn ($p) => BailleurDuBien::restreindre($p, $user));
                         // TCK-587 — le personnel de l'agence, plus tout membre (ADR-0031).
                         if (($staffAgencyId = $user->staffAgencyId()) !== null) {
                             $inner->orWhere('agency_id', $staffAgencyId);
