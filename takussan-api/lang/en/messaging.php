@@ -13,6 +13,8 @@ return [
         'participants_unavailable' => 'One of the selected people is no longer available. Choose the participants again from the list.',
         'participants_out_of_reach' => 'Some of the selected people cannot be added: you can only invite people you are already in touch with.',
         'participants_duplicate' => 'The same person was selected twice.',
+        // TCK-2191 (P191.04) — un groupe rattaché à un bail ne compte que qui lit ce bail.
+        'participants_cannot_read_lease' => 'Some of the selected people cannot join this group: it is linked to a lease, and only people who have access to that lease can take part. To talk with them, create a group without a linked lease.',
         'group_context_forbidden' => 'You cannot link this group to this item.',
         // TCK-565, réparation 2 — la conversation directe applique le périmètre du groupe.
         'direct_single_participant' => 'A direct conversation is with exactly one other person. To bring several people together, create a group.',

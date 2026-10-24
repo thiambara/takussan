@@ -94,6 +94,16 @@ class CreateGroupConversationRequest extends BaseFormRequest
 
             $this->checkParticipants($v, $actor);
             $this->checkContext($v, $actor);
+            // TCK-2191 (P191.04) — après le contexte : un bail que l'acteur ne voit pas est déjà refusé.
+            if (! $v->errors()->has('lease_id') && ! $v->errors()->has('maintenance_request_id')) {
+                $this->guardLeaseReaders(
+                    $v,
+                    $this->input('lease_id'),
+                    (array) $this->input('participants', []),
+                    'participants',
+                    $this->input('maintenance_request_id'),
+                );
+            }
         });
     }
 
