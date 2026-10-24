@@ -19393,7 +19393,7 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
 
 ### La demande de droits créée à la console porte par défaut la date du jour du navigateur, que l'API peut refuser en 422
 - Réf : P212.03
-- Statut : retenu · autonome
+- Statut : fait · TCK-2098
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/admin/super/PrivacyRequestChamps.tsx:11-17`, `takussan-web/src/components/admin/super/CreatePrivacyRequestForm.tsx:62,158`, `takussan-api/app/Http/Requests/Api/Admin/StorePrivacyRequestRequest.php:28`
 - Constat :
@@ -19402,6 +19402,7 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
   - Établi comment : lu, et mesuré sur la fonction seule.
 - Piste : pré-remplir et borner par le jour UTC, comme `PayoutCloseDialog.tsx:30` et `CreateInvoiceDialog.tsx:52` le font déjà. Garde : un test du formulaire sous horloge figée à 22:30Z et `TZ=Europe/Paris`, ou un test de la fonction.
 - Mesure (2026-10-24, ccb5c7995, mesureur) : relu `PrivacyRequestChamps.tsx:11-17` (`aujourdhui()` en composantes locales), `CreatePrivacyRequestForm.tsx:62,158` (défaut et `max`) et `StorePrivacyRequestRequest.php:28` (`before_or_equal:today`) ; `node` sous `TZ=Europe/Paris` à 2026-10-24T22:30Z → jour local 2026-10-25 pour 2026-10-24 en UTC ; `tinker` (`Validator::make`, lecture seule) → le lendemain UTC sous `before_or_equal:today` est refusé → le constat tient ; aucun envoi réel. Classement : A1, la borne est écrite par la règle de l'API et le correctif pré-remplit et borne par le jour UTC, comme `PayoutCloseDialog.tsx:30` ; il ne change ni ce qui est conservé ni ce qui est exposé.
+- Mesure (2026-10-24, f8516986a, implementeur) : `PrivacyRequestChamps.aujourdhui.p212-03.test.ts` sous `TZ=Europe/Paris` à 2026-10-24T22:30Z, avant correctif → `aujourdhui()` rend 2026-10-25, rouge → `aujourdhui()` rend `jourDeLApi()` → vert, `PrivacyRequestsConsole.test.tsx` (7) vert ; ablation → rouge. Aucun envoi réel.
 
 ### L'échéance d'une pièce KYC propose dès « demain » local un jour que l'API refuse le soir à l'ouest d'UTC
 - Réf : P212.04
