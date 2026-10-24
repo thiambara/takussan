@@ -18586,7 +18586,7 @@ est conforme à `docs/models-spec.md` § 14 tel que le cite TCK-1151.*
 
 ### L'espace créé sans question par « Publier » n'apparaît pas dans les rôles que le navigateur connaît
 - Réf : P202.05
-- Statut : retenu · autonome
+- Statut : fait · TCK-2044
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/app/publish/page.tsx:43-50`, `takussan-web/src/app/actions/auto-onboard.ts:25-41`, `takussan-api/app/Services/Onboarding/HostIndividualOnboardingService.php:128-163`, `takussan-web/src/components/home/Navbar.tsx:551,801-804`
 - Constat :
@@ -18595,6 +18595,7 @@ est conforme à `docs/models-spec.md` § 14 tel que le cite TCK-1151.*
   - Effet lu : de retour sur le site public, la `Navbar` n'offre ni « Mes biens » ni le portefeuille au compte qui vient de créer son espace (lu, l. 551, 801-804) ; les lecteurs de `roles` de P202.04 sont touchés de même.
 - Piste : `await refreshUser()` après l'action réussie, avant la navigation ; ou P202.01. Garde : un test de `/publish`, création réussie, qui exige la relecture de l'utilisateur.
 - Mesure (2026-10-23, d954c56a0, mesureur) : relu `publish/page.tsx:44-49` (succès : invalidation de `profilesKeys.all` puis `router.replace`, sans `refreshUser()`), `auto-onboard.ts:25-43` (cookie du profil actif posé, rien d'autre) et `grep -rn "refreshUser()" src/components/onboarding` → `HostIndividualWizard.tsx:218,479` le fait après le même geste : le constat tient ; la `Navbar` après retour n'a pas été rendue. Classement : A1, le contrat est écrit par l'assistant hôte voisin ; correctif sans choix de produit.
+- Mesure (2026-10-24, d5a49a150, implementeur) : reproduit avant correctif par `page.relecture.tck-2044.test.tsx` (`autoOnboardAction` simulée en succès) → ordre relevé `['replace /app/properties/new']`, sans `refreshUser` ; correctif : `await refreshUser()` avant l'invalidation des profils et la navigation → vert, et aucune relecture sur un refus (`disabled`) ; ablation (`page.tsx` à `HEAD`) → rouge, remis → vert ; `page.auto-space.test.tsx` et `layout.toast.test.tsx` verts ; la `Navbar` n'a pas été rendue.
 
 ### Changer son nom ou sa photo dans l'en-tête du profil laisse l'ancien nom et l'ancienne photo à la barre du site public
 - Réf : P202.06
