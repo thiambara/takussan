@@ -20583,7 +20583,7 @@ sans `delete`).*
 
 ### Retirer un favori depuis le menu des favoris ne revient pas en arrière quand l'API refuse, contrairement au cœur
 - Réf : P228.03
-- Statut : retenu · autonome
+- Statut : fait · TCK-2214
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/favorites/FavoritesPopover.tsx:149-163`, `takussan-web/src/components/favorites/FavoriteButton.tsx:94-111`
 - Constat :
@@ -20593,6 +20593,7 @@ sans `delete`).*
   - Établi comment : lu.
 - Piste : rattraper l'échec comme `FavoriteButton` (remettre `storeAdd(id)` dans un `onError` de l'appel), ou passer les deux sites par un même crochet de bascule. Garde : un test du menu qui rejette la suppression et exige le bien toujours présent.
 - Mesure (2026-10-24, d44d3bc59, mesureur) : relu `FavoritesPopover.tsx:153-163` (`removeOne` : `storeRemove(id)` puis `removeMutation.mutate({ property_id: id })` sans `onError`), `useRemoveFavoriteMutation` (`lib/queries/favorites.ts`, `invalidate` seul) et `FavoriteButton.tsx:94-111` (`mutateAsync` dans un `try`, `catch` qui remet le store, « Rollback on API failure ») ; aucun commit sur ces fichiers depuis 157e11cb4, aucun ticket ne cite P228 → le constat tient, lu ; le moment où le store se resynchronise (partie « à vérifier ») n'a pas été mesuré et ne change pas le correctif. Classement : A1, le contrat de bascule optimiste avec retour en arrière est déjà écrit par `FavoriteButton` : remettre `storeAdd(id)` dans un `onError` de l'appel du menu n'ajoute ni texte ni choix.
+- Mesure (2026-10-24, 68ab70c5b, implementeur) : relu `FavoritesPopover.tsx` à `pre-dev` (`storeRemove(id)` puis `removeMutation.mutate({ property_id: id })` sans `onError`) et `FavoriteButton.tsx:101-111` (retour en arrière dans le `catch`) → le constat tient ; `FavoritesPopover.retrait-refuse.p228-03.test.tsx` (refus : le bien revient au store ; succès : il reste retiré) ; ablation : composant de `pre-dev` → le cas du refus rouge, correctif remis → 2/2 verts, `FavoritesPopover.panneau` vert.
 
 ### Six gestes de la console plateforme échouent sans message
 - Réf : P228.04
