@@ -187,8 +187,11 @@ class AgencyDetailController extends Controller
         // TCK-600 (ADR-0047) — `include=owner` ou `collaborators` servirait des personnes à un
         // `viewer` : ces relations ne se chargent qu'avec la lecture des utilisateurs.
         if (! self::readsPeople($request)) {
+            // P216.03 (TCK-2124) — une liste est remplacée par un `include` vide, et n'atteint
+            // jamais spatie : elle lui aurait chargé `owner` (TCK-1407, TCK-1866).
+            $include = $request->query('include', '');
             $includes = array_filter(
-                explode(',', (string) $request->query('include', '')),
+                is_string($include) ? explode(',', $include) : [],
                 fn (string $include): bool => ! in_array(strtok(trim($include), '.'), ['owner', 'collaborators'], true),
             );
             $request->query->set('include', implode(',', $includes));

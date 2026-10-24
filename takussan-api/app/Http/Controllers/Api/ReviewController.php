@@ -110,7 +110,9 @@ class ReviewController extends Controller
         }
 
         // Sorting — default surfaces the queue (most reported first, then fresh).
-        $sort = (string) ($request->query('sort') ?? '-reported_count,-created_at');
+        // P216.04 (TCK-2126) — `sort[]=…` vaut l'ordre par défaut (TCK-1407), et n'est plus casté.
+        $sort = $request->query('sort');
+        $sort = is_string($sort) ? $sort : '-reported_count,-created_at';
         foreach (explode(',', $sort) as $spec) {
             $spec = trim($spec);
             if ($spec === '') {

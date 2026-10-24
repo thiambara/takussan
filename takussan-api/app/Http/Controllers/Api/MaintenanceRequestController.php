@@ -60,7 +60,9 @@ class MaintenanceRequestController extends Controller
 
         // TCK-592 (P17) — « Mes interventions » montre le quartier et l'agence : comme `show()`, le
         // bien inclus vient avec son adresse, et ici avec l'agence (le front demande `agency_id`).
-        if (in_array('property', explode(',', (string) $request->query('include')), true)) {
+        // P216.03 (TCK-2124) — `include[]=…` vaut un `include` absent (TCK-1407, TCK-1866), et n'est plus casté.
+        $include = $request->query('include');
+        if (is_string($include) && in_array('property', explode(',', $include), true)) {
             $paginator->getCollection()->loadMissing(['property.address', 'property.agency:id,name']);
         }
 
@@ -162,7 +164,9 @@ class MaintenanceRequestController extends Controller
     {
         $this->authorize('view', $maintenanceRequest);
 
-        $includes = collect(explode(',', (string) $request->query('include')))
+        // P216.03 (TCK-2124) — `include[]=…` vaut un `include` absent (TCK-1407, TCK-1866), et n'est plus casté.
+        $include = $request->query('include');
+        $includes = collect(is_string($include) ? explode(',', $include) : [])
             ->map(fn (string $include) => trim($include))
             ->filter()
             ->intersect(['property', 'requester', 'assignee', 'quoteDecisionBy'])

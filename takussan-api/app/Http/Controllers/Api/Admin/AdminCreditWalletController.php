@@ -24,7 +24,8 @@ class AdminCreditWalletController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $search = trim((string) $request->input('search', ''));
+        // P216.01 (TCK-2120) — `search[]=…` vaut une recherche absente (TCK-1407), et n'est plus casté.
+        $search = is_string($brut = $request->input('search')) ? trim($brut) : '';
         $paginator = Agency::query()
             ->whereIn('id', CreditLot::query()->select('agency_id'))
             ->when($search !== '', fn ($q) => $q->whereRaw(CaseInsensitive::sql('name').' LIKE ?', ['%'.CaseInsensitive::fold($search).'%']))
