@@ -23,6 +23,7 @@ use App\Services\Media\AgencyWatermarkContext;
 use App\Services\Media\PhotoConversionFormat;
 use App\Services\Media\WatermarkRequirement;
 use App\Support\DayRange;
+use App\Support\Http\ParametreUnique;
 use App\Support\Search\CleDeQuartier;
 use App\Support\Search\PropertyLabels;
 use Illuminate\Database\Eloquent\Builder;
@@ -708,7 +709,8 @@ class Property extends AbstractModel implements HasMedia
         });
 
         $filters[] = AllowedFilter::callback('city', function (Builder $q, mixed $value): void {
-            $city = trim((string) $value);
+            // P216.05 (TCK-2244, ADR-0075) — `filter[city][]=…` vaut une ville absente.
+            $city = trim(ParametreUnique::valeur($value) ?? '');
             if ($city === '') {
                 return;
             }
