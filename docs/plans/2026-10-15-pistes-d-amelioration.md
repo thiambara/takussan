@@ -19086,7 +19086,7 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
 
 ### `POST /api/properties` publie un bien sans `properties.publish`, que le `PATCH` et les gestes dédiés exigent
 - Réf : P209.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : la création publie aujourd'hui sans `properties.publish` pour un rôle personnalisé ; la lui retirer est une autorisation qu'un appelant utilise
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Requests/Api/StorePropertyRequest.php:41-60`, `takussan-api/app/Http/Controllers/Api/PropertyController.php:130-149`, `takussan-api/app/Http/Requests/UpdatePropertyRequest.php:40-50`, `takussan-api/app/Http/Requests/Api/UpdateStatusPropertyRequest.php:23,46-47`, `takussan-api/tests/Feature/Api/PropertyAuthorizationTest.php:227-238`
 - Constat :
@@ -19098,10 +19098,11 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
   - Le formulaire de création du front force `draft`/`private` (lu par P147.01, `property-form/payload.ts:150-154`) : la voie est celle de l'API seule.
   - Établi comment : lu, mesuré par test temporaire.
 - Piste : juger à la création la même règle que le `PATCH` (un `status` de `STATUTS_QUI_PUBLIENT` ou `visibility=public` demande `can('publish')`), écrite une fois et appelée par les deux `authorize()`. Garde : ajouter le `POST` aux cas de `cheminsDePublication`.
+- Mesure (2026-10-24, cdf91988a, mesureur) : relu `StorePropertyRequest::authorize()` (`can('create')` seul) et `rules()` (`status`, `visibility` sur tout l'enum), `PropertyController::store` (proposition forcée en `draft`/`private`, `PublishReadiness::ensure` seul pour le public), `UpdatePropertyRequest::authorize()` (`can('publish')` pour `STATUTS_QUI_PUBLIENT` ou `public`) ; rejoué par test temporaire `tests/Feature/TmpMesureP209Test.php` (retiré), `XDEBUG_MODE=off php artisan test <fichier>`, PostgreSQL de test, charge 7,96 / 4,57 / 3,45 sur 8 cœurs : agent d'une agence sans modération, rôle personnalisé `properties.create` + `properties.update_own` sans `properties.publish`, rendu publiable → `POST /api/properties` `{status: available, visibility: private}` → 201, statut `available` ; `{visibility: public, accept_terms: true}` → 201, visibilité `public` ; même compte, bien remis en `draft` : `PATCH {status: available}` → 403, `PUT …/visibility` `public` → 403 → le constat tient entier, lignes citées inchangées ; aucun commit ni ticket ne le traite (`grep -rn P209 docs/backlog/tickets` vide). Classement : V2, le correctif est attendu par TCK-1427 et ADR-0031 § 2 (A1), mais il retire à un rôle personnalisé existant un geste qu'il réussit aujourd'hui ; le doute classe à valider.
 
 ### `POST /api/properties` pose à la main `pending_review`, `rejected` et `published`, que TCK-1341 a retirés du `PATCH`
 - Réf : P209.02
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Requests/Api/StorePropertyRequest.php:59`, `takussan-api/app/Http/Requests/UpdatePropertyRequest.php:66`, `takussan-api/app/Models/Enums/PropertyStatus.php:19-24`, `takussan-api/app/Observers/PropertyObserver.php:43-61,221-229`, `takussan-api/app/Http/Controllers/Api/PropertyController.php:146-149`
 - Constat :
@@ -19111,10 +19112,11 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
   - Conséquence lue : la file de modération trie par `submitted_at` (P147.05) ; un bien né `rejected` n'a ni motif ni auteur du refus.
   - Établi comment : lu, mesuré par test temporaire.
 - Piste : appliquer à `StorePropertyRequest` le même `->except(PropertyStatus::NOT_SETTABLE_BY_HAND)` que les deux requêtes de modification. Garde : étendre `PropertyStatutsDeModerationTest` au `POST`.
+- Mesure (2026-10-24, cdf91988a, mesureur) : relu `StorePropertyRequest.php` (`'status' => ['nullable', Rule::enum(PropertyStatus::class)]`, sans `->except`), `UpdatePropertyRequest` et `UpdateStatusPropertyRequest` (`->except(PropertyStatus::NOT_SETTABLE_BY_HAND)`), le docblock de `NOT_SETTABLE_BY_HAND` (« `published` ne s'écrit par aucun geste ») ; rejoué par test temporaire `tests/Feature/TmpMesureP209Test.php` (retiré), `XDEBUG_MODE=off php artisan test <fichier>`, PostgreSQL de test, charge 7,96 / 4,57 / 3,45 sur 8 cœurs : admin d'une agence sans modération → `POST /api/properties` `{status: pending_review}` → 201, `submitted_at` nul ; `{status: rejected}` → 201, `rejected_at` nul ; `{status: published}` → 201 → le constat tient ; aucun appelant légitime ne s'en sert : le formulaire du front envoie toujours `draft`/`private` (lu, `property-form/payload.ts:147-154`) et aucun test de `tests/` ne poste un de ces trois statuts à la création (`grep`). Classement : A1, le comportement attendu est écrit par TCK-1341 et le docblock de l'enum, et le correctif (le même `->except(...)` dans `StorePropertyRequest`) ne demande aucun choix ; aucun critère V : ni capacité, ni montant, ni schéma.
 
 ### `PATCH /api/customers/{id}` enregistre un budget maximal sous le budget minimal, que la création refuse
 - Réf : P209.03
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Requests/Concerns/ValidatesCustomerContactAndCriteria.php:49-55`, `takussan-api/app/Services/Crm/ProspectMatcher.php:99-100,168`
 - Constat :
@@ -19124,10 +19126,11 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
   - Le formulaire du front n'a pas été lu : il envoie peut-être les deux bornes ensemble (à vérifier).
   - Établi comment : lu, mesuré par test temporaire.
 - Piste : à la modification, comparer à la valeur enregistrée quand l'une des deux bornes manque (le plancher de la ligne pour `budget_max`, le plafond de la ligne pour `budget_min`). Garde : un test qui envoie chaque borne seule de part et d'autre de la valeur enregistrée et attend 422, ligne inchangée.
+- Mesure (2026-10-24, cdf91988a, mesureur) : relu `ValidatesCustomerContactAndCriteria.php:49-55` (`gte:budget_min` sous `Rule::when(is_numeric(input('budget_min')))`, la ligne enregistrée jamais lue) ; rejoué par test temporaire `tests/Feature/TmpMesureP209Test.php` (retiré), `XDEBUG_MODE=off php artisan test <fichier>`, PostgreSQL de test, charge 7,96 / 4,57 / 3,45 sur 8 cœurs : client à 500 000 / 800 000 → `PATCH {budget_max: 100}` → 200, ligne 500 000 / 100 ; le cas symétrique « à vérifier » tient aussi : `PATCH {budget_min: 900000}` → 200, ligne 900 000 / 800 000 ; la création refuse le couple inversé par la même règle quand les deux bornes sont données (lu ; mon `POST` a rendu 403 faute d'agence pour l'auteur, il ne mesure pas ce point) ; le « à vérifier » sur le front est levé : `CustomerForm` envoie les deux bornes ensemble et les compare déjà (lu, `lib/schemas/customer.ts:110-116,229-230`), la voie est celle de l'API seule. Classement : A1, la création et le formulaire écrivent déjà la règle min ≤ max, et la porter sur la valeur finale à la modification ne demande aucun choix ; un budget de recherche n'est ni facture ni paiement (pas V1), et aucune donnée existante n'est réécrite (pas V4).
 
 ### `PATCH /api/admin/announcements/{id}` enregistre une fin avant le début, que la création refuse
 - Réf : P209.04
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Requests/Api/Admin/UpdateAnnouncementRequest.php:27-28`, `takussan-api/app/Http/Requests/Api/Admin/StoreAnnouncementRequest.php:33-34`, `takussan-api/app/Http/Controllers/Api/Admin/AnnouncementController.php:40-42`, `takussan-api/app/Models/Announcement.php:71-77`
 - Constat :
@@ -19136,10 +19139,11 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
   - `scopeCurrentlyVisible` exige `starts_at <= now` et `ends_at > now` (lu, l. 71-77) : l'annonce ne s'affiche jamais, sans que la console le dise.
   - Établi comment : lu, mesuré par test temporaire.
 - Piste : juger l'ordre des deux dates sur la valeur finale (celle de la requête, sinon celle de la ligne), dans un `after()` de `UpdateAnnouncementRequest`. Garde : un test qui envoie `ends_at` seul avant le début enregistré, puis `starts_at` seul après la fin enregistrée, et attend 422.
+- Mesure (2026-10-24, cdf91988a, mesureur) : relu `UpdateAnnouncementRequest` (`starts_at` en `sometimes`, `ends_at` en `after:starts_at`), `StoreAnnouncementRequest` (`starts_at` requis, même `after:`), `AnnouncementController::update` (`$announcement->update($request->validated())`) ; rejoué par test temporaire `tests/Feature/TmpMesureP209Test.php` (retiré), `XDEBUG_MODE=off php artisan test <fichier>`, PostgreSQL de test, charge 7,96 / 4,57 / 3,45 sur 8 cœurs, super-admin, annonce du 2026-12-01 au 2026-12-31 → `PATCH {ends_at: 2026-11-01}` → 200, ligne 2026-12-01 / 2026-11-01 ; remise au 2026-12-31, `PATCH {starts_at: 2027-06-01}` → 200, ligne 2027-06-01 / 2026-12-31 → le constat tient entier. Classement : A1, la création écrit déjà la règle « fin après début », et la juger sur la valeur finale dans un `after()` de `UpdateAnnouncementRequest` ne demande aucun choix ; console super-admin derrière le middleware `super-admin`, aucune autorisation changée.
 
 ### Petites améliorations
 - Réf : P209.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : `decimal:0,2` sur `estimated_cost` change ce que la modification d'un devis accepte ; la borne du renouvellement seule serait autonome
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Requests/RenewLeaseRequest.php:45-46`, `takussan-api/app/Http/Requests/Api/StoreLeaseRequest.php:61-64`, `takussan-api/app/Http/Requests/Api/UpdateMaintenanceRequestRequest.php:117-119`
 - Constat :
@@ -19147,3 +19151,4 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
   - À la modification d'une intervention, `actual_cost` porte `decimal:0,2` et `estimated_cost` non (lu, `UpdateMaintenanceRequestRequest.php:117,119`) : un devis à trois décimales est arrondi par la colonne sans refus (à vérifier).
   - Établi comment : lu.
 - Piste : borner `special_conditions` au renouvellement comme à la création (la même constante) ; donner à `estimated_cost` la règle `decimal:0,2` d'`actual_cost`.
+- Mesure (2026-10-24, cdf91988a, mesureur) : relu `RenewLeaseRequest.php:46` (`special_conditions` sans `max`), `StoreLeaseRequest.php:64` (`max:5000`, TCK-1240), `UpdateMaintenanceRequestRequest.php:117,119` (`decimal:0,2` sur `actual_cost` seul) ; rejoué par test temporaire `tests/Feature/TmpMesureP209Test.php` (retiré), `XDEBUG_MODE=off php artisan test <fichier>`, PostgreSQL de test, charge 7,96 / 4,57 / 3,45 sur 8 cœurs : `POST /api/leases/{id}/renew` avec 6 000 caractères de `special_conditions` → 201, 6 000 caractères enregistrés ; agent de l'agence, `PATCH /api/maintenance-requests/{id}` `{estimated_cost: 1234.567}` → 200, ligne `1234.57` (le « à vérifier » tient : arrondi par la colonne sans refus) ; `{estimated_cost: "5e5"}` → 200, ligne `500000.00` (le 500 de bcmath que cite le commentaire d'`actual_cost` ne se produit pas sur ce champ). Classement : V1, borner la saisie d'un devis est une écriture de montant ; la borne de `special_conditions` au renouvellement relève seule de A1 (la constante de la création, TCK-1240).
