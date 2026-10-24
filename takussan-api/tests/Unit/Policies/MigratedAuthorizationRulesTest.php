@@ -14,6 +14,7 @@ use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Models\MaintenanceRequest;
 use App\Models\Payout;
+use App\Models\Profiles\OwnerProfile;
 use App\Models\Property;
 use App\Models\PropertyVisit;
 use App\Models\Task;
@@ -497,7 +498,11 @@ class MigratedAuthorizationRulesTest extends TestCase
 
         // Les modèles porteurs sont rattachés à `autreAgence` : `membre` (agence A) est donc le
         // tiers, et `etranger` (agence B) serait légitimement admis par la clause d'agence.
+        // TCK-2016 (P190.05) — `user_id` et `landlord_id` ne désignent le bailleur que s'il est
+        // propriétaire dans l'agence : sans ce profil (l'agent créateur suspendu ou retiré), refus.
         $property = Property::factory()->create(['user_id' => $moi->id, 'agency_id' => $this->autreAgence->id]);
+        $this->assertFalse($policy->attachTo($moi, $property), 'Property → user_id sans profil propriétaire');
+        OwnerProfile::query()->create(['user_id' => $moi->id, 'agency_id' => $this->autreAgence->id]);
         $this->assertTrue($policy->attachTo($moi, $property), 'Property → user_id');
         $this->assertTrue($policy->attachTo($this->etranger, $property), 'Property → agency_id');
         $this->assertFalse($policy->attachTo($this->membre, $property), 'agence tierce');
