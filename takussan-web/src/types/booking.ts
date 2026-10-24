@@ -44,6 +44,11 @@ export type BookingPayment = {
   notes: string | null;
   created_at: string;
   updated_at: string;
+  /**
+   * TCK-2153 (P205.02) — le reversement au bailleur `completed` qui a porté cet acompte, rendu à qui
+   * peut lire ce reversement. Le rembourser crée une reprise sur le reversement suivant (TCK-2151).
+   */
+  paid_out?: { payout_id: number; reference_number: string; processed_at: string | null } | null;
 };
 
 export type Booking = {

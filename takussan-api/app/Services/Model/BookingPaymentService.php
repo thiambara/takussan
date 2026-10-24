@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Services\Billing\PlatformPayoutService;
 use App\Services\Booking\BookingRefundTaskService;
 use App\Services\Payout\ObservedRefundPayout;
+use App\Services\Payout\PayoutClawbacks;
 use Illuminate\Support\Facades\DB;
 
 class BookingPaymentService
@@ -19,6 +20,7 @@ class BookingPaymentService
         private readonly BookingRefundTaskService $refundTasks,
         private readonly PlatformPayoutService $platformPayouts,
         private readonly ObservedRefundPayout $observedRefunds,
+        private readonly PayoutClawbacks $clawbacks,
     ) {}
 
     /**
@@ -179,6 +181,10 @@ class BookingPaymentService
             // TCK-2052 (ADR-0039, amendement du 2026-10-23) — l'argent est sorti du compte de
             // l'agence : un `Payout` constaté, de CE remboursement, que le débit du relevé rapproche.
             $this->observedRefunds->record($payment, (float) $data['refund_amount'], now(), auth()->id() !== null ? (int) auth()->id() : null);
+
+            // TCK-2151 (ADR-0039, amendement du 2026-10-24, point 2) — l'acompte déjà reversé au
+            // bailleur : une reprise au net de commission, imputée à son reversement suivant.
+            $this->clawbacks->recordRefund($payment, (float) $data['refund_amount'], now());
 
             return $payment->refresh();
         });

@@ -6954,6 +6954,8 @@
         "action": "Refund",
         "dialogTitle": "Record a refund",
         "dialogDescription": "Amount collected: {amount}.",
+        "paidOut": "Paid out to the landlord on {date} ({reference})",
+        "paidOutWarning": "This deposit was already paid out to the landlord on {date} ({reference}). Refunding it will create a clawback on their next payout.",
         "fields": {
           "amount": "Amount refunded",
           "reason": "Reason"
