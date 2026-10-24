@@ -26,6 +26,7 @@ use App\Policies\MaintenanceRequestPolicy;
 use App\Services\Maintenance\CurrencyUnit;
 use App\Services\Maintenance\MaintenanceStateMachine;
 use App\Services\Maintenance\OwnerApprovalThreshold;
+use App\Services\Membership\AdminsDeLAgence;
 use App\Services\Model\MaintenanceRequestService;
 use App\Services\Model\NotificationService;
 use App\Services\Property\PrimaryPropertyContact;
@@ -265,11 +266,14 @@ class MaintenanceRequestController extends Controller
     }
 
     /**
-     * L'alerte d'urgence : l'assigné et l'admin principal de l'agence du bien.
+     * L'alerte d'urgence : l'assigné et l'admin principal de l'agence du bien. TCK-2185 (P225.01) —
+     * l'admin principal s'il est joignable, sinon les admins joignables de l'agence.
      */
     private function sendUrgentAlert(MaintenanceRequest $mr, ?Property $property, bool $becameUrgent = false): void
     {
-        $notifiables = collect([$mr->assignee, $property?->agency?->primaryAdmin])->filter()->unique('id');
+        $notifiables = collect([$mr->assignee])
+            ->merge(AdminsDeLAgence::principalSinonDestinataires($property?->agency))
+            ->filter()->unique('id');
 
         if ($notifiables->isNotEmpty()) {
             Notification::send($notifiables, new UrgentMaintenanceCreatedNotification($mr, becameUrgent: $becameUrgent));
