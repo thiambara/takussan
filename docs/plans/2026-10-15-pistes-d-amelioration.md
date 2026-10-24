@@ -20158,7 +20158,7 @@ l'import de relevé bancaire n'envoie qu'un CSV ou un OFX.*
 
 ### « Plaintes ouvertes » de la santé d'agence compte les signalements d'un bien supprimé, que la file de modération ne montre plus et que personne ne peut clore
 - Réf : P223.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : clore les signalements à la suppression du bien est un comportement neuf de la modération
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/Admin/AgencyDetailController.php:101-105,120`, `takussan-api/app/Services/Admin/UnifiedModerationService.php:321-336`, `takussan-api/app/Http/Controllers/Api/PropertyController.php:283-308`, `takussan-api/app/Observers/PropertyObserver.php:234-246`, `takussan-web/src/components/admin/super/agency-detail.tsx:492`
 - Constat :
@@ -20168,10 +20168,11 @@ l'import de relevé bancaire n'envoie qu'un CSV ou un OFX.*
   - Mesuré (test temporaire, retiré) : bien d'agence portant un signalement ouvert et un avis `pending` ; avant suppression, `GET /api/admin/agencies/{id}/health` → `open_complaints` 1, `GET /api/admin/moderation` → `["review:review","property_report:property"]` ; après `$property->delete()` → `open_complaints` **1**, file → `["review:review"]`. Le compteur affiché sous « Plaintes ouvertes » (lu, `agency-detail.tsx:492`) ne redescend jamais.
   - Établi comment : lu et mesuré.
 - Piste : poser `p.deleted_at IS NULL` dans `open_complaints` (la règle de la file), et clore les signalements ouverts d'un bien à sa suppression par l'agence (`PropertyObserver::deleted`, décision tracée, comme le fait `remove`) pour qu'aucun ne reste ouvert hors de la file. Test : un bien signalé puis supprimé ne compte plus dans `open_complaints`, et son signalement est résolu ou absent de la file des deux côtés.
+- Mesure (2026-10-24, cc50671c9, mesureur) : relu `AgencyDetailController.php:101-105` (`open_complaints` sans `p.deleted_at IS NULL`, quand `bookingPaymentsOf` l. 135-143 le pose), `UnifiedModerationService.php:321-336` (`whereNull('p.deleted_at')` sur les signalements), `PropertyObserver::deleted` (l. 234-246 : compteur, Vedette, recherche, interventions, aucun signalement), `grep -rn "PropertyReport::\|property_reports" app` → écrivains : la création publique et `PropertyModerationService` seulement ; `git log -S` et `docs/backlog/tickets` → rien sur l'angle 223 ; test temporaire (retiré, charge `{ 2.36 2.63 2.64 }` sur 8 cœurs) : bien d'agence signalé et un avis `pending`, avant suppression `open_complaints` 1 et file `[review, property_report]`, après `$property->delete()` `open_complaints` **1**, file `[review]`, 1 signalement toujours ouvert → le constat tient en entier. Classement : V7, le filtre de `open_complaints` relève de A1 (règle de la file et de TCK-2032), mais la `Piste` y joint la clôture automatique des signalements à la suppression par l'agence, décision de modération neuve que le porteur doit accorder.
 
 ### Une fiche client supprimée garde ouvert le lien CRM de la messagerie : l'agent et le client se joignent encore
 - Réf : P223.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : retire un destinataire que la messagerie accepte aujourd'hui
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Messaging/MessagingReach.php:131-158`, `takussan-api/app/Http/Controllers/Api/CustomerController.php:189-206`
 - Constat :
@@ -20182,10 +20183,11 @@ l'import de relevé bancaire n'envoie qu'un CSV ou un OFX.*
   - Le docblock de `MessagingReach` (l. 44-48) ne dit pas si une fiche supprimée relie encore deux comptes : le comportement attendu n'est écrit nulle part, d'où le 🟠.
   - Établi comment : lu et mesuré.
 - Piste : poser `deleted_at IS NULL` sur `customers` dans les trois branches de la règle 2, et l'écrire dans son docblock. Test : après suppression de la fiche, ni l'agent ni le client ne se joignent par elle, et `POST /api/conversations` → 422.
+- Mesure (2026-10-24, cc50671c9, mesureur) : relu `MessagingReach.php:129-158` (trois branches de la règle 2 jointes à `customers` sans `deleted_at`), `liveAttachment` l. 179-193 (profils seuls), docblock l. 44-48 (muet sur la fiche supprimée), `CustomerController::destroy` l. 189-206 (`$customer->delete()`, rattachements laissés) ; test temporaire (retiré, même charge) : agent rattaché `agent_client` à une fiche d'agence dont le client a un compte, après `$fiche->delete()` → rattachement 1 ligne, l'agent joint le client et le client l'agent, `POST /api/conversations` en agent → **201** → le constat tient. Classement : V2, la `Piste` resserre une règle d'autorisation de la messagerie dont le comportement attendu n'est écrit nulle part, et un agent l'utilise aujourd'hui.
 
 ### Petites améliorations : avis d'un bien supprimé dans la file, jointure de `bookingBase`
 - Réf : P223.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : la piste laisse le choix entre écarter et clore les avis d'un bien supprimé
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Admin/UnifiedModerationService.php:356-378`, `takussan-api/app/Services/Admin/PaymentSupervisionService.php:158-172`
 - Constat :
@@ -20193,3 +20195,4 @@ l'import de relevé bancaire n'envoie qu'un CSV ou un OFX.*
   - `bookingBase` joint `bookings as b` sans `b.deleted_at IS NULL`, quand `leaseBase` le pose sur `leases` depuis TCK-2034 (lu, l. 158-172). Aucun chemin ne supprime une réservation (lu, `route:list --method=DELETE`), si bien que l'écart n'a aujourd'hui aucun effet : c'est une asymétrie à refermer, pas un défaut.
   - Établi comment : lu, et mesuré pour le premier point.
 - Piste : écarter de la file les avis d'un bien supprimé (ou les clore à la suppression du bien), et poser `b.deleted_at IS NULL` dans `bookingBase` pour aligner les deux bases. Test : l'avis en attente d'un bien supprimé n'est plus dans la file.
+- Mesure (2026-10-24, cc50671c9, mesureur) : relu `UnifiedModerationService.php:356-378` (branche « avis » en `leftJoin` sur `properties as rp`, aucun `rp.deleted_at IS NULL`, seul `r.deleted_at` écarté) et `PaymentSupervisionService.php:158-172` (`leaseBase` pose `l.deleted_at IS NULL`, `bookingBase` ne joint `bookings as b` que sur `bp.deleted_at`) ; même test temporaire que P223.01 → après suppression du bien, l'avis `pending` reste dans `GET /api/admin/moderation` → les deux points tiennent, le second sans effet tant qu'aucune réservation ne se supprime (non re-mesuré). Classement : V7, la `Piste` propose deux options (écarter de la file, ou clore l'avis à la suppression du bien) qui ne laissent pas la même trace de modération ; l'alignement de `bookingBase` seul relèverait de A1.
