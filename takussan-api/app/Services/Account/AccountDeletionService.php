@@ -419,6 +419,11 @@ class AccountDeletionService
         // mais le nom de fichier choisi par la personne, sur la pièce et sur ses médias, cède la
         // place au type. Les profils déjà terminés (agent retiré de l'agence) comptent aussi.
         // Décision du porteur, 2026-10-20.
+        // TCK-2166 (P204.02) — l'agence dont le compte était le seul administrateur, ou
+        // l'administrateur principal : inactive, ou titre transmis. Avant la fin des profils, qui
+        // les rend inactifs.
+        app(ErasedAgencyAdmin::class)->settle($user);
+
         $this->endProfiles($user);
 
         // TCK-1025 (P57.05) — le contact WhatsApp et les alertes sans compte du contact vérifié
@@ -579,6 +584,17 @@ class AccountDeletionService
                 'id' => $agency->id,
                 'reference' => null,
                 'label' => __('account.deletion.obligations.payout_due', ['agency' => $agency->name]),
+            ];
+        }
+
+        // TCK-2166 (P204.02) — une agence qui garde du personnel sans autre administrateur : le
+        // compte nomme d'abord un autre administrateur (décision du porteur, 2026-10-24).
+        foreach (app(ErasedAgencyAdmin::class)->successionsDue($user) as $agency) {
+            $obligations[] = [
+                'type' => 'agency_admin_succession',
+                'id' => $agency->id,
+                'reference' => null,
+                'label' => __('account.deletion.obligations.agency_admin_succession', ['agency' => $agency->name]),
             ];
         }
 
