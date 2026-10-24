@@ -559,6 +559,7 @@ function AnnouncementAction({
   isEditing: boolean;
 }) {
   const t = useTranslations('superAdmin.announcements');
+  const messageErreur = useMessageErreurApi();
   const queryClient = useQueryClient();
   const mutation = useMutation({
     mutationFn: () => deactivateAdminAnnouncement(announcement.id),
@@ -588,6 +589,12 @@ function AnnouncementAction({
       ) : (
         <Badge variant="outline">{t('inactive')}</Badge>
       )}
+      {/* P228.04 (TCK-2216) — une désactivation refusée ne disait rien. */}
+      {mutation.isError ? (
+        <p role="alert" className="basis-full text-end text-xs text-destructive">
+          {messageErreur(mutation.error)}
+        </p>
+      ) : null}
     </div>
   );
 }

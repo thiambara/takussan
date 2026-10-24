@@ -20563,7 +20563,7 @@ sans `delete`).*
 
 ### Le bouton « Générer l'échéancier » est refusé par l'API dans le cas courant, et l'écran ne le dit pas
 - Réf : P228.01
-- Statut : validé (délégué) — afficher le refus de « Générer l'échéancier » par un `onError` qui passe par `useMessageErreurApi` (repli générique, aucune clé neuve), dans une ligne `role="alert"` sous les gestes comme la révision de loyer (P210.01), et ne monter le bouton que sous `abilities.record_payment` et pour un bail `active` ; le cas de `LeaseDetail.capacites.test.tsx:106-107` réécrit sur `record_payment` ; reste : le drapeau d'API « échéancier absent » qui cacherait aussi le bouton quand l'échéancier existe déjà
+- Statut : fait · TCK-2210 — reste : le drapeau d'API « échéancier absent » qui cacherait aussi le bouton quand l'échéancier existe déjà
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/leases/LeaseDetail.tsx:81-86,185-201`, `takussan-web/src/lib/queries/leases.ts:490-502`, `takussan-api/app/Services/Model/LeaseService.php:178,229-230`, `takussan-api/app/Http/Controllers/Api/LeaseController.php:160-168`, `takussan-web/src/components/leases/__tests__/LeaseDetail.capacites.test.tsx:90-107`
 - Constat :
@@ -20575,10 +20575,11 @@ sans `delete`).*
 - Piste : afficher le refus (un `onError` qui passe par `useMessageErreurApi`, ou une ligne `role="alert"` qui lit `generateSchedule.error`), et ne monter le bouton que lorsque le geste peut aboutir : `abilities.record_payment` et un bail `active` (l'API pourrait rendre un drapeau « échéancier absent » si l'on veut le cacher aussi quand il existe déjà). Garde : un test de `LeaseDetail` qui rejette la mutation en 422 et exige un message, et le cas de `LeaseDetail.capacites.test.tsx:106-107` réécrit sur `record_payment`.
 - Mesure (2026-10-24, d44d3bc59, mesureur) : relu `LeaseDetail.tsx:66,196-197` (`generateSchedule.mutate({})` sans second argument, bouton monté par `isAgentSurface` l. 81-86 pour tout bail non `draft`), `useGenerateSchedule` (`lib/queries/leases.ts:490-501`, `invalidate` seul, ni `onError` ni `relireSurErreur`), `useApiMutation` (`hooks/useApiQuery.ts:224-231`, `onError` ne fait que relayer) ; côté API `LeaseService.php:178` (`GenerateLeasePaymentSchedule::dispatch` à l'activation) et `:229-230` (422 `lease.not_active_schedule`, puis `lease.schedule_exists`), `LeaseController.php:160-168` (`authorize('recordPayment')`) ; `grep -rn "schedule_exists\|not_active_schedule" takussan-web/src` → 0 ; `LeaseDetail.capacites.test.tsx:106-107` exige toujours le bouton quand `record_payment` est faux ; aucun commit sur ces fichiers depuis 157e11cb4, aucun ticket ne cite P228 → le constat tient, lu des deux côtés (aucun rendu lancé). Classement : V7, afficher le refus relèverait de A1 (ADR-0019, comme P210.01), mais la piste ne monte plus le bouton hors `record_payment` et hors bail `active`, ce qui retire un geste visible que le test cité fige, et propose en option un drapeau d'API.
 - Mesure (2026-10-24, 8cc72d66e, delegue) : relu l'entrée et la `Mesure` du mesureur, `LeaseDetail.tsx:75-86,185-200` (bouton sous `isAgentSurface`, désactivé pour le seul `draft`, `mutate({})` sans `onError`), `LeaseController::generateSchedule` (`authorize('recordPayment')`, P46.05, TCK-958), `LeaseService.php:229-230` (422 hors bail `active`, puis 422 si une échéance existe), `LeaseResource.php:123` (`record_payment` = `can('recordPayment')`), P152.02 (TCK-1424) et P189.03 (TCK-1871), qui ont passé les gestes de la fiche de `isAgentSurface` à `abilities` sur la règle de `LeasePolicy`, et P210.01 (TCK-2080, refus de la révision dit sous les gestes) ; `git log` sur `LeaseDetail.tsx` et `LeaseService.php` → rien depuis la mesure qui touche ce geste → le constat tient. Délégation : V7, ne plus montrer un bouton que l'API refuse toujours hors `record_payment` et hors bail `active` suit deux règles écrites (P46.05 côté autorisation, `scheduleUnderLock` côté statut) et le motif déjà décidé de P152.02 ; le geste reste partout où il peut aboutir, le dire en cas d'échec suit ADR-0019 sans texte neuf, et tout se défait en un commit, front seul ; le drapeau d'API, champ neuf de `LeaseResource`, reste au porteur.
+- Mesure (2026-10-24, 68ab70c5b, implementeur) : relu `LeaseDetail.tsx` à `pre-dev` (bouton sous `isAgentSurface`, désactivé pour le seul `draft`, `generateSchedule.mutate({})` sans `onError`, aucune lecture de son erreur) → le constat tient ; `LeaseDetail.echeancier.p228-01.test.tsx` (6 cas : refus 422 dit en `role="alert"`, effacé par un succès suivant ; bouton absent sans `record_payment` et sur un bail `pending_signature`, `terminated`, `expired`) et le cas réécrit de `LeaseDetail.capacites.test.tsx` ; ablation : `LeaseDetail.tsx` de `pre-dev` → 7 rouges sur 13, correctif remis → 13/13 verts, 7 fichiers `LeaseDetail.*` verts (31 tests).
 
 ### Une note de fiche client refusée par l'API est effacée du champ sans message
 - Réf : P228.02
-- Statut : retenu · autonome
+- Statut : fait · TCK-2212
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/pipeline/CustomerDetailSheet.tsx:58-68,136,185-210`, `takussan-api/app/Http/Requests/` (`StoreCustomerNoteRequest`, `rules()`)
 - Constat :
@@ -20587,10 +20588,11 @@ sans `delete`).*
   - Établi comment : lu, front et API.
 - Piste : ne vider le champ que dans `onSuccess` (passer un rappel à `onAdd`, ou lire `isSuccess`), afficher l'erreur de la mutation sous le champ, et poser `maxLength={5000}` sur le `Textarea`. Garde : un test de `CustomerDetailSheet` qui rejette la mutation et exige que le texte reste dans le champ avec un message.
 - Mesure (2026-10-24, d44d3bc59, mesureur) : relu `CustomerDetailSheet.tsx:58-68` (`noteMutation`, `onSuccess` seul), `:136` (`onAdd={(body) => noteMutation.mutate(body)}`), `:194-199` (`Textarea` sans `maxLength`), `:205-206` (`onAdd(body.trim()); setBody('')` dans le même gestionnaire, avant la réponse), aucune lecture de `noteMutation.error` ni `isError` (`grep`) ; `StoreCustomerNoteRequest.php:29` (`can('view', customer)`) et `:36` (`'body' => ['required', 'string', 'max:5000']`) ; aucun commit sur ces fichiers depuis 157e11cb4, aucun ticket ne cite P228 → le constat tient, lu des deux côtés (aucun rendu lancé). Classement : A1, ADR-0019 fixe le rendu d'une erreur d'API par `useMessageErreurApi()` et la borne de 5 000 est écrite dans la requête de l'API : garder le texte jusqu'au succès, dire le refus et poser `maxLength={5000}` ne demandent ni texte neuf ni choix.
+- Mesure (2026-10-24, 68ab70c5b, implementeur) : relu `CustomerDetailSheet.tsx` à `pre-dev` (`onAdd(body.trim()); setBody('')` dans le même gestionnaire, `noteMutation` à `onSuccess` seul, `Textarea` sans `maxLength`) et `StoreCustomerNoteRequest.php:36` (`max:5000`) → le constat tient ; `CustomerDetailSheet.note-refusee.p228-02.test.tsx` (refus 422 : texte gardé et message en `role="alert"` ; succès : champ vidé ; `maxLength=5000`) ; ablation : composant de `pre-dev` → 2 rouges sur 3, correctif remis → 3/3 verts, `activite-relue-apres-les-gestes.tck-2093` vert.
 
 ### Retirer un favori depuis le menu des favoris ne revient pas en arrière quand l'API refuse, contrairement au cœur
 - Réf : P228.03
-- Statut : retenu · autonome
+- Statut : fait · TCK-2214
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/favorites/FavoritesPopover.tsx:149-163`, `takussan-web/src/components/favorites/FavoriteButton.tsx:94-111`
 - Constat :
@@ -20600,10 +20602,11 @@ sans `delete`).*
   - Établi comment : lu.
 - Piste : rattraper l'échec comme `FavoriteButton` (remettre `storeAdd(id)` dans un `onError` de l'appel), ou passer les deux sites par un même crochet de bascule. Garde : un test du menu qui rejette la suppression et exige le bien toujours présent.
 - Mesure (2026-10-24, d44d3bc59, mesureur) : relu `FavoritesPopover.tsx:153-163` (`removeOne` : `storeRemove(id)` puis `removeMutation.mutate({ property_id: id })` sans `onError`), `useRemoveFavoriteMutation` (`lib/queries/favorites.ts`, `invalidate` seul) et `FavoriteButton.tsx:94-111` (`mutateAsync` dans un `try`, `catch` qui remet le store, « Rollback on API failure ») ; aucun commit sur ces fichiers depuis 157e11cb4, aucun ticket ne cite P228 → le constat tient, lu ; le moment où le store se resynchronise (partie « à vérifier ») n'a pas été mesuré et ne change pas le correctif. Classement : A1, le contrat de bascule optimiste avec retour en arrière est déjà écrit par `FavoriteButton` : remettre `storeAdd(id)` dans un `onError` de l'appel du menu n'ajoute ni texte ni choix.
+- Mesure (2026-10-24, 68ab70c5b, implementeur) : relu `FavoritesPopover.tsx` à `pre-dev` (`storeRemove(id)` puis `removeMutation.mutate({ property_id: id })` sans `onError`) et `FavoriteButton.tsx:101-111` (retour en arrière dans le `catch`) → le constat tient ; `FavoritesPopover.retrait-refuse.p228-03.test.tsx` (refus : le bien revient au store ; succès : il reste retiré) ; ablation : composant de `pre-dev` → le cas du refus rouge, correctif remis → 2/2 verts, `FavoritesPopover.panneau` vert.
 
 ### Six gestes de la console plateforme échouent sans message
 - Réf : P228.04
-- Statut : retenu · autonome
+- Statut : fait · TCK-2216
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/admin/super/alerts.tsx:59-65,128,252-262`, `takussan-web/src/components/admin/super/announcements.tsx:563-584`, `takussan-web/src/components/admin/super/feature-flags.tsx:174-188`, `takussan-web/src/components/admin/super/integrations.tsx:99-116`, `takussan-web/src/components/admin/super/maintenance.tsx:41,59-65,89,140`, `takussan-api/app/Support/Security/ProtectedActions.php:206-212`
 - Constat :
@@ -20613,10 +20616,11 @@ sans `delete`).*
   - Établi comment : lu.
 - Piste : un `onError` qui pose le message (`setError(messageErreur(err))`, déjà en place dans les dialogues voisins des mêmes fichiers) pour chacun, ou un affichage commun des erreurs de mutation de la console. Garde : un test par composant qui rejette la mutation et exige un `role="alert"`.
 - Mesure (2026-10-24, d44d3bc59, mesureur) : relu, sous `components/admin/super/` : `alerts.tsx:59-65,128` (`remove`, `onSuccess` seul) et `:255-261` (`AlertTestButton`, `onSuccess` seul), `announcements.tsx:563-584` (désactivation, `onSuccess` seul), `feature-flags.tsx:178-188` (`SessionOverrideToggle` sous `avecGardeDoubleFacteur`, `onSuccess` seul), `integrations.tsx:104-116` (`IntegrationTestButton` sous `avecGardeDoubleFacteur`, `onSuccess` seul), `maintenance.tsx:59-65,89` (`cancel`, `onSuccess` seul) alors que `error` (l. 41, `role="alert"` l. 140) n'est nourri que par `schedule` (l. 57) ; les dialogues voisins des mêmes fichiers posent `onError: (err) => setError(messageErreur(err))` (`alerts.tsx:176`, `announcements.tsx:340`, `feature-flags.tsx:131`, `integrations.tsx:160`, `maintenance.tsx:57`), step-up compris ; aucun commit sur ces fichiers depuis 157e11cb4, aucun ticket ne cite P228 → les six sites tiennent, lus (aucun rendu lancé). Classement : A1, ADR-0019 et le motif déjà en place dans chaque fichier fixent la forme : un `onError` par geste vers `messageErreur(err)` dans un `role="alert"`, sans texte neuf.
+- Mesure (2026-10-24, 68ab70c5b, implementeur) : relu à `pre-dev` les six `useMutation` (`alerts.tsx` `remove` et `AlertTestButton`, `announcements.tsx` `AnnouncementAction`, `feature-flags.tsx` `SessionOverrideToggle`, `integrations.tsx` `IntegrationTestButton`, `maintenance.tsx` `cancel`), chacun à `onSuccess` seul, sans lecture de son erreur → le constat tient ; `gestes-refuses.p228-04.test.tsx` (un cas par geste, rejet 422 → message en `role="alert"`) ; ablation : les cinq composants de `pre-dev` → 6/6 rouges, correctif remis → 6/6 verts, huit fichiers voisins verts (42 tests).
 
 ### Petites améliorations : gestes d'écran dont l'échec est muet, refusés surtout sur un écran périmé
 - Réf : P228.05
-- Statut : retenu · autonome
+- Statut : fait · TCK-2218
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/components/inventory/InventoryDetail.tsx:313-342`, `takussan-web/src/components/crm/AgentAbsencesSection.tsx:90-93,132,186-188`, `takussan-web/src/components/messages/ConversationInfoSheet.tsx:106-117,173-178,219`, `takussan-web/src/components/tenant/TenantOnboardingChecklistWidget.tsx:150-153`, `takussan-web/src/components/announcements/GlobalAnnouncementBanner.tsx:42-45,73`
 - Constat :
@@ -20628,10 +20632,11 @@ sans `delete`).*
   - Établi comment : lu.
 - Piste : brancher chaque geste sur la zone d'erreur que l'écran possède déjà, ou à défaut sur un toast `messageErreur`. Pas de texte neuf : les libellés génériques d'échec existent (`useMessageErreurApi`).
 - Mesure (2026-10-24, d44d3bc59, mesureur) : relu `InventoryDetail.tsx:314,339` (`submit.mutate()` sans `onError`, alors que `remove`, `upload` et `dispute` affichent `isError`, l. 265, 299, 378), `AgentAbsencesSection.tsx:90-91,132` (`revoke` sans `onError`, sous `avecGardeDoubleFacteur`) et `:186-188` (`declare.error` affiché), `ConversationInfoSheet.tsx:112-118` (départ, `onSuccess` seul), `:173,176,178` (retrait et rôles) et `:219` (`toggleMute`) sans `onError`, alors que `setError`/`AlerteErreurs` servent au renommage et à l'ajout (l. 66, 82, 100, 210), `TenantOnboardingChecklistWidget.tsx:75,152` et `GlobalAnnouncementBanner.tsx:42-45,73` sans `onError` ; aucun crochet de `lib/queries/` ne porte d'`onError` pour ces gestes (`grep`) ; aucun commit sur ces fichiers depuis 157e11cb4, aucun ticket ne cite P228 → les cinq composants tiennent, lus (aucun rendu lancé). Classement : A1, ADR-0019 fixe le rendu par `useMessageErreurApi()` : chaque geste se branche sur la zone d'erreur que l'écran a déjà, ou sur une ligne `role="alert"` qui la porte, sans texte neuf.
+- Mesure (2026-10-24, 68ab70c5b, implementeur) : relu à `pre-dev` `InventoryDetail` (`submit.mutate()` sans `onError`), `AgentAbsencesSection` (`revoke` à `onSuccess` seul), `ConversationInfoSheet` (départ, retrait, rôles, sourdine sans `onError`), `TenantOnboardingChecklistWidget` et `GlobalAnnouncementBanner` (`mutation.mutate` sans `onError`, erreur non lue) → les cinq tiennent ; cinq tests `*.p228-05.test.tsx` (9 cas, rejet de l'API → message en `role="alert"`) ; ablation : composants de `pre-dev` → 9/9 rouges, correctif remis → 9/9 verts, huit fichiers voisins verts (33 tests).
 
 ### Rien ne garde contre une mutation lancée par `mutate()` sans chemin d'erreur
 - Réf : P228.06
-- Statut : retenu · autonome
+- Statut : fait · TCK-2220
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/lib/query-client.ts`, `takussan-web/src/lib/__tests__/` (gardes de famille, sur le modèle de `relais-bff.tck-968.test.ts`)
 - Constat :
@@ -20640,6 +20645,7 @@ sans `delete`).*
   - Établi comment : lu, mesuré par `grep`.
 - Piste : une garde vitest de relevé statique, rouge sur tout appel neuf sans chemin d'erreur, une fois P228.01 à P228.05 traités (sinon, une liste d'exceptions datée). Un `onError` global sur `MutationCache` serait l'autre voie, mais il afficherait un message pour des gestes qui rattrapent déjà l'erreur eux-mêmes : c'est un choix d'écran.
 - Mesure (2026-10-24, d44d3bc59, mesureur) : relu `lib/query-client.ts:19-38` (ni `MutationCache` ni `onError` par défaut ; `mutations` : `retry: false`, `networkMode: 'always'`) ; `grep -rn MutationCache takussan-web/src` → 1, un test (`PaymentProviderPicker.hors-ligne.test.tsx:57`, lecture de `getMutationCache()`), aucune garde ; `ls src/lib/__tests__` → `relais-bff.tck-968.test.ts` et `api-relais-impersonation.test.ts`, aucune garde des `mutate(` ; `eslint.config` ne nomme pas `mutate` → le constat tient. Classement : A5, une garde vitest de relevé statique ajoutée, sans seuil existant resserré ; les sites de P228.01 restés ouverts (à valider) entrent dans sa liste d'exceptions datée.
+- Mesure (2026-10-24, 68ab70c5b, implementeur) : `grep -rn MutationCache takussan-web/src` → le seul test `PaymentProviderPicker.hors-ligne`, aucune garde des `mutate(` → le constat tient ; garde `mutations-chemin-d-erreur.p228-06.test.ts` (relevé statique, cas synthétiques, 133 appels relevés, deux exceptions motivées) ; ablation : les 13 composants de l'angle rendus à `pre-dev` → rouge sur 16 variables (les 18 appels de l'angle), arbre remis → vert.
 
 ## Angle 229 — Tâches planifiées qui transitent une ligne chargée en lot, face au geste joué pendant leur passage
 

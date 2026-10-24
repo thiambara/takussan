@@ -91,6 +91,10 @@ export function MaintenanceScheduler({ status }: { status: MaintenanceStatus }) 
             {t('cancelWindow')}
           </Button>
         ) : null}
+        {/* P228.04 (TCK-2216) — une annulation refusée se dit sous son bouton ; `error` reste à la programmation. */}
+        {cancel.isError ? (
+          <p role="alert" className="mt-3 text-sm text-destructive">{messageErreur(cancel.error)}</p>
+        ) : null}
       </section>
 
       <section className="rounded-xl bg-card p-5 ring-1 ring-border">

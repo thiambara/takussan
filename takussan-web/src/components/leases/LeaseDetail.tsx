@@ -70,10 +70,12 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
   // P210.01 (TCK-2080) — le refus de la révision par l'API (motif trop court, plafond dépassé,
   // bail non révisable) se dit sous les gestes (ADR-0019) : sans lui, rien ne se passait.
   const [erreurRevision, setErreurRevision] = useState<string | null>(null);
+  // P228.01 (TCK-2210) — de même pour « Générer l'échéancier », dont le refus était muet.
+  const [erreurEcheancier, setErreurEcheancier] = useState<string | null>(null);
 
-  // TCK-173 — les gestes de gestion qu'aucune capacité ne juge (document, échéancier) ne se
-  // montrent pas au locataire : tout rôle de gestion les voit. Garants et préavis suivent
-  // `abilities` depuis P189.03.
+  // TCK-173 — le geste de gestion qu'aucune capacité ne juge (document) ne se montre pas au
+  // locataire : tout rôle de gestion le voit. Garants et préavis suivent `abilities` depuis
+  // P189.03, l'échéancier depuis P228.01.
   //
   // P152.02 — renouveler, réviser le loyer, encaisser et restituer le dépôt NE suivent PLUS ce
   // rôle : `LeasePolicy` les juge par capacité (`leases.renew`, `leases.rent_review`,
@@ -183,22 +185,30 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
         </div>
         <div className="flex flex-wrap gap-2">
           {isAgentSurface && (
-            <>
-              <AddDocumentButton
-                documentableType="lease"
-                documentableId={leaseId}
-                size="default"
-                displayLabel={lease.reference_number || tLease('fallbackReference', { id: String(lease.id) })}
-              />
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => generateSchedule.mutate({})}
-                disabled={generateSchedule.isPending || lease.status === 'draft'}
-              >
-                {generateSchedule.isPending ? t('generating') : t('generateSchedule')}
-              </Button>
-            </>
+            <AddDocumentButton
+              documentableType="lease"
+              documentableId={leaseId}
+              size="default"
+              displayLabel={lease.reference_number || tLease('fallbackReference', { id: String(lease.id) })}
+            />
+          )}
+          {/* P228.01 (TCK-2210) — la route juge `recordPayment` (P46.05) et `scheduleUnderLock`
+              refuse tout bail qui n'est pas `active` : le bouton ne se monte que là. */}
+          {canRecordPayment && lease.status === 'active' && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setErreurEcheancier(null);
+                generateSchedule.mutate(
+                  {},
+                  { onError: (erreur) => setErreurEcheancier(messageErreur(erreur)) },
+                );
+              }}
+              disabled={generateSchedule.isPending}
+            >
+              {generateSchedule.isPending ? t('generating') : t('generateSchedule')}
+            </Button>
           )}
           {canReviewRent && lease.status === 'active' && lease.type !== 'sale' && (
             <Button
@@ -249,6 +259,11 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
       {erreurRevision ? (
         <p role="alert" className="text-sm text-destructive">
           {erreurRevision}
+        </p>
+      ) : null}
+      {erreurEcheancier ? (
+        <p role="alert" className="text-sm text-destructive">
+          {erreurEcheancier}
         </p>
       ) : null}
 

@@ -118,13 +118,19 @@ export function AlertRuleTable({ rules, catalogue }: { rules: AlertRule[]; catal
       />
       <ConfirmActionDialog
         open={deleting !== null}
-        onOpenChange={(open) => !open && setDeleting(null)}
+        onOpenChange={(open) => {
+          if (open) return;
+          setDeleting(null);
+          remove.reset();
+        }}
         title={t('deleteTitle')}
         description={deleting ? `${libelle(deleting.event)} — ${t('deleteDescription')}` : t('deleteDescription')}
         confirmPhrase="SUPPRIMER"
         confirmLabel={tCommon('actions.delete')}
         destructive
         pending={remove.isPending}
+        // P228.04 (TCK-2216) — le refus de la suppression se dit dans la modale, qui restait ouverte sans un mot.
+        error={remove.error}
         onConfirm={() => deleting && remove.mutate(deleting.id)}
       />
       <AlertRuleDialog key={editing?.id ?? 'none'} rule={editing} catalogue={catalogue} open={editing !== null} onOpenChange={(open) => !open && setEditing(null)} />
@@ -251,6 +257,7 @@ export function AlertRuleDialog({
 
 export function AlertTestButton({ ruleId }: { ruleId: number }) {
   const t = useTranslations('superAdmin.alerts');
+  const messageErreur = useMessageErreurApi();
   const [queued, setQueued] = useState(false);
   const mutation = useMutation({
     mutationFn: () => testAlertRule(ruleId),
@@ -258,9 +265,15 @@ export function AlertTestButton({ ruleId }: { ruleId: number }) {
   });
 
   return (
-    <Button type="button" variant={queued ? 'default' : 'ghost'} onClick={() => mutation.mutate()} disabled={mutation.isPending}>
-      <Send className="size-4" aria-hidden="true" />
-      {queued ? t('testSent') : t('test')}
-    </Button>
+    <span className="inline-flex flex-col items-end gap-1">
+      <Button type="button" variant={queued ? 'default' : 'ghost'} onClick={() => mutation.mutate()} disabled={mutation.isPending}>
+        <Send className="size-4" aria-hidden="true" />
+        {queued ? t('testSent') : t('test')}
+      </Button>
+      {/* P228.04 (TCK-2216) — un test refusé ne disait rien. */}
+      {mutation.isError ? (
+        <span role="alert" className="text-xs text-destructive">{messageErreur(mutation.error)}</span>
+      ) : null}
+    </span>
   );
 }
