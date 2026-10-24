@@ -34,6 +34,8 @@ class RequestLoadableEmittedTest extends TestCase
      */
     private const EXEMPTIONS = [
         'Agency' => ['primaryAdmin', 'addresses'],
+        // TCK-2045 — la ressource ne sert qu'à `PATCH …/suspend`, qui ne lit pas `include=`.
+        'AgentProfile' => ['user', 'agency', 'invitations', 'agencyRole'],
         'AgencyUpgradeRequest' => ['agency', 'submitter', 'reviewer', 'documents'],
         'Customer' => ['user', 'agency', 'addresses', 'tasks'],
         'Document' => ['uploader', 'verifier'],
