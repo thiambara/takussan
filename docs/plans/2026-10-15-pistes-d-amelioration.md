@@ -18846,7 +18846,7 @@ est conforme à `docs/models-spec.md` § 14 tel que le cite TCK-1151.*
 
 ### Petites améliorations
 - Réf : P204.05
-- Statut : validé — validation du porteur (2026-10-24) : une méthode commune ôte les marques d'agent principal et les délégations, appelée par le retrait et par l'effacement ; le référent client reste un sujet à part
+- Statut : fait · TCK-2172
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Agency/AgencyMemberRemovalService.php:92-100,151`, `takussan-api/app/Services/Account/AccountDeletionService.php:418`, `takussan-api/app/Jobs/Crm/SendProspectMatchDigest.php:122-136`
 - Constat :
@@ -18860,6 +18860,7 @@ est conforme à `docs/models-spec.md` § 14 tel que le cite TCK-1151.*
 ## Angle 205 — Pièces déjà reversées au bailleur puis remboursées : aucune reprise
 
 *Exploré le 2026-10-24 sur `pre-dev` d0e881f2e, par l'explorateur, sans sous-agent. Relu par l'explorateur lui-même : `PayoutCalculator` (l. 1-140), `PayoutService` (`markProcessed`, `assertItemsStillPaid`, `refundedSincePreparation`, garde `payout.net_negative` l. 457), `BookingPaymentService::refund`, `PaymentGatewayService::applyRefund`, `BookingRefundTaskService`, `BookingPaymentController::refund`, `PortfolioMetrics::netPaidOutByMonth`, `BookingRefundPanel.tsx`, ADR-0039 (amendement du 2026-10-23, points 7 à 9 et tableau des lecteurs), et les entrées voisines P39.07, P76.01 à P76.04 et P177.01. Mesure : un test temporaire `tests/Feature/TmpExplorateur/SondeAngle205Test.php` (base de test PostgreSQL, charge 5,43 / 5,41 / 5,16 sur 8 cœurs), retiré avant la fin. Le remboursement du loyer y est écrit comme `applyRefund` l'écrit (`refund_amount`, puis `status = refunded`), par `forceFill`, non par un vrai webhook. Hors constat : le versement d'un reversement encore ouvert est déjà refusé (P76.03, `payout.items_changed`), et le relevé de gérance est P177.01.*
+- Mesure (2026-10-24, 99922b3c6, implementeur) : avant correctif, `EffacementMarquesEtDelegationsTest` → marque `is_primary` restée vraie et délégations (remplacé, délégué) restées actives après `executeDeletion()` (2 rouges ; le référent client, hors décision, vert). Correctif : `AgencyMemberRemovalService::dropDelegationsAndMarks()`, appelée par le retrait pour une agence et par l'effacement pour toutes, juste avant la suppression du compte (après, l'avis de révocation lève sur un délégué nul) ; 3 verts, aucun avis codé au compte effacé ; `AgencyMemberRemovalTest`, `AgentRemovalJournalTest`, `AgentAbsenceTest`, `AgentHandoverTest`, `AccountDeletionExecuteTest` verts. Ablation : l'appel retiré de l'effacement → 2 rouges ; remis → vert.
 
 ### Une pièce d'un reversement `completed` se rembourse sans que rien ne soit repris au bailleur, ni au reversement suivant ni ailleurs
 - Réf : P205.01
