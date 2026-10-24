@@ -18657,7 +18657,7 @@ est conforme à `docs/models-spec.md` § 14 tel que le cite TCK-1151.*
 
 ### Le SMS de repli après un échec tardif de WhatsApp recalcule l'agence au moment du repli, et ne reprend pas celle du message WhatsApp
 - Réf : P203.03
-- Statut : validé (délégué) — corriger seulement le commentaire de `SendSmsAfterLateWhatsappFailureJob` : l'agence est recalculée au moment du repli, et peut différer de celle de l'envoi WhatsApp si les profils du compte ont changé entre-temps ; reste : relire l'agence rangée avec la notification, si P203.01 la range
+- Statut : fait · TCK-2047 — reste : relire l'agence rangée avec la notification, si P203.01 la range
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Jobs/SendSmsAfterLateWhatsappFailureJob.php:92-108`, `takussan-api/app/Jobs/UpdateWhatsappDeliveryStatusJob.php:61-62`
 - Constat :
@@ -18667,6 +18667,7 @@ est conforme à `docs/models-spec.md` § 14 tel que le cite TCK-1151.*
 - Piste : relire l'agence rangée avec la notification si P203.01 la range, au lieu de la recalculer ; sinon, corriger le commentaire.
 - Mesure (2026-10-24, 26195d12e, mesureur) : relu `SendSmsAfterLateWhatsappFailureJob.php:92-107` (`'agency_id' => $user->agency_id`, recalculé au repli, avec le commentaire « Même agence que `WhatsappChannel::resolveAgencyId()` » l. 104) ; ni la tentative ni la notification ne rangent l'agence (relu `CodedNotification.php:61-72`) ; (test temporaire `tests/Feature/TmpMesureur/AgenceHorsRequeteTest.php`, base créée par le test, charge 6,72 / 4,50 / 3,81 sur 8 cœurs, retiré ensuite) rend A pour un compte d'une agence et `null` pour deux, donc le repli reprend P203.01 ; l'écart sur un profil changé entre l'envoi et l'accusé reste déduit. Classement : V7, la `Piste` a deux voies selon que P203.01 range l'agence ou non, et ce choix n'est pas fait.
 - Mesure (2026-10-24, ba3372875, delegue) : relu le constat, la `Piste`, la mesure du mesureur et `SendSmsAfterLateWhatsappFailureJob.php:101-107` (« Même agence que `WhatsappChannel::resolveAgencyId()` » au-dessus de `'agency_id' => $user->agency_id`, recalculé au repli) → le commentaire affirme une égalité que rien ne garde ; la seconde voie de la `Piste` (corriger le commentaire) ne décide rien et se défait en un commit, la première dépend de P203.01, qui reste au porteur. Délégation : V7, une option de la `Piste` elle-même, sans comportement neuf ni texte visible ; le reste suit le choix de P203.01, non tranché.
+- Mesure (2026-10-24, 17795102a, implementeur) : relu `SendSmsAfterLateWhatsappFailureJob.php:104-105` (« Même agence que `WhatsappChannel::resolveAgencyId()` » au-dessus de `'agency_id' => $user->agency_id`, recalculé au repli) → le constat tient ; commentaire réécrit : l'agence est recalculée au repli et peut différer de celle de l'envoi WhatsApp si les profils du compte ont changé ; commentaire seul, aucun comportement changé, donc ni test ni ablation.
 
 ### La Gate des capacités juge un compte à l'agence du profil actif de la requête, même quand ce profil appartient à un autre compte
 - Réf : P203.04
