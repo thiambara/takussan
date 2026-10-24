@@ -4,12 +4,14 @@ namespace App\Services\Reporting;
 
 use App\Models\Agency;
 use App\Models\Enums\AgencyStatus;
+use App\Models\Enums\Currency;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Enums\UserStatus;
 use App\Models\Lease;
 use App\Models\PlatformMetricDaily;
 use App\Models\Property;
 use App\Models\User;
+use App\Services\Billing\PlatformPayoutService;
 use App\Services\Dashboard\CollectedPayments;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
@@ -57,9 +59,27 @@ class PlatformMetricsSnapshotter
                 ."COALESCE(SUM(({$net}) * COALESCE(booking_payments.platform_fee_pct_at_payment, 0) / 100), 0) AS fees")
             ->first();
 
+        // P206.02 (ADR-0057, amendement du 2026-10-24, points 1 et 2) — la pénalité réglée, second
+        // agrégat daté par `late_fee_paid_at` ; ses frais ne portent que sur la part réglée par le
+        // checkout de la plateforme, relue ligne à ligne par la méthode de la clôture.
+        $lateFees = CollectedPayments::lateFeeIncome()
+            ->when($from !== null, fn ($q) => $q->where('lease_payments.late_fee_paid_at', '>=', $from))
+            ->where('lease_payments.late_fee_paid_at', '<=', $to)
+            ->get();
+        $settledByPlatform = app(PlatformPayoutService::class)->platformSettledLateFees($lateFees);
+        $lateFeeGmv = 0.0;
+        $lateFeeFees = 0.0;
+        foreach ($lateFees as $payment) {
+            $lateFeeGmv += max(0.0, (float) $payment->late_fee_amount - (float) ($payment->late_fee_refund_amount ?? 0));
+            $byPlatform = $settledByPlatform[(int) $payment->id] ?? 0.0;
+            if ($byPlatform > 0) {
+                $lateFeeFees += Currency::roundAmount($byPlatform * (float) ($payment->platform_fee_pct_at_payment ?? 0) / 100, $payment->currency);
+            }
+        }
+
         return [
-            'gmv' => round((float) $lease->gmv + (float) $booking->gmv, 2),
-            'fees' => round((float) $lease->fees + (float) $booking->fees, 2),
+            'gmv' => round((float) $lease->gmv + (float) $booking->gmv + $lateFeeGmv, 2),
+            'fees' => round((float) $lease->fees + (float) $booking->fees + $lateFeeFees, 2),
         ];
     }
 

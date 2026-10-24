@@ -6,6 +6,7 @@ use App\Models\Agency;
 use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\PayeeRole;
 use App\Models\Enums\PayoutStatus;
+use App\Models\LeasePayment;
 use App\Models\Payout;
 use App\Models\ServiceProviderBill;
 use App\Models\User;
@@ -53,7 +54,10 @@ final class OwnerStatementService
         $leasePayments = $this->calculator->leasePayments((int) $agency->id, (int) $landlord->id, $start, $end, false)->get();
         $bookingPayments = $this->calculator->bookingPayments((int) $agency->id, (int) $landlord->id, $start, $end, false)->get();
 
-        $carrying = $this->payoutsCarrying($agency, $landlord, $leasePayments->pluck('id')->all(), $bookingPayments->pluck('id')->all());
+        // P206.01 — la pénalité réglée dans la période, reversée ou non, comme les pièces.
+        $lateFees = $this->calculator->lateFees((int) $agency->id, (int) $landlord->id, $start, $end, false)->get();
+
+        $carrying = $this->payoutsCarrying($agency, $landlord, $leasePayments->pluck('id')->all(), $bookingPayments->pluck('id')->all(), $lateFees);
         // P177.03 (TCK-2041) — le versé et les frais vont au mois de `processed_at`, comme le « net
         // reversé » du tableau de bord ({@see PortfolioMetrics::netPaidOutByMonth()}) : un reversement
         // qui porte des pièces de plusieurs mois n'est compté, frais compris, que dans le mois où il
@@ -65,7 +69,7 @@ final class OwnerStatementService
             ->orderBy('id')
             ->get();
 
-        $computation = $this->calculator->compute($agency, $leasePayments, $bookingPayments, $bills, $this->retainedRates($carrying));
+        $computation = $this->calculator->compute($agency, $leasePayments, $bookingPayments, $bills, $this->retainedRates($carrying, $lateFees), $lateFees);
         $paidIds = $paid->pluck('id')->all();
         $payouts = $carrying->concat($paid)->unique('id')->sortBy('id')->values();
 
@@ -92,6 +96,7 @@ final class OwnerStatementService
                 'paid_in_period' => in_array($p->id, $paidIds, true),
             ])->values()->all(),
             'unpaid' => $this->unpaid($agency, $landlord, $start, $end),
+            'late_fees_outstanding' => $this->lateFeesOutstanding($agency, $landlord, $start, $end),
         ];
     }
 
@@ -101,18 +106,22 @@ final class OwnerStatementService
      *
      * @param  list<int>  $leaseIds
      * @param  list<int>  $bookingIds
+     * @param  Collection<int, LeasePayment>  $lateFees  P206.01 — une pénalité reversée porte son reversement
      * @return Collection<int, Payout>
      */
-    private function payoutsCarrying(Agency $agency, User $landlord, array $leaseIds, array $bookingIds)
+    private function payoutsCarrying(Agency $agency, User $landlord, array $leaseIds, array $bookingIds, Collection $lateFees)
     {
+        $lateFeePayoutIds = $lateFees->pluck('late_fee_payout_id')->filter()->unique()->values()->all();
+
         return Payout::query()
             ->where('agency_id', $agency->id)
             ->where('landlord_id', $landlord->id)
             ->where('payee_role', PayeeRole::Landlord->value)
             ->whereIn('status', array_map(fn (PayoutStatus $s) => $s->value, PayoutStatus::holdingItems()))
-            ->where(function ($q) use ($leaseIds, $bookingIds): void {
+            ->where(function ($q) use ($leaseIds, $bookingIds, $lateFeePayoutIds): void {
                 $q->whereIn('id', DB::table('payout_lease_payment')->whereIn('lease_payment_id', $leaseIds ?: [0])->select('payout_id'))
-                    ->orWhereIn('id', DB::table('payout_booking_payment')->whereIn('booking_payment_id', $bookingIds ?: [0])->select('payout_id'));
+                    ->orWhereIn('id', DB::table('payout_booking_payment')->whereIn('booking_payment_id', $bookingIds ?: [0])->select('payout_id'))
+                    ->orWhereIn('id', $lateFeePayoutIds ?: [0]);
             })
             ->orderBy('id')
             ->get();
@@ -141,10 +150,14 @@ final class OwnerStatementService
      * sa création : la commission d'un mois reversé ne se recalcule pas au taux d'agence du jour. Une
      * ligne de pivot sans copie (antérieure à la copie) n'y figure pas, et suit le taux du jour.
      *
+     * P206.01 — la pénalité reversée garde de même le taux copié sur sa ligne
+     * (`late_fee_payout_commission_rate`).
+     *
      * @param  Collection<int, Payout>  $payouts
-     * @return array{lease_payments: array<int, float>, booking_payments: array<int, float>}
+     * @param  Collection<int, LeasePayment>  $lateFees
+     * @return array{lease_payments: array<int, float>, booking_payments: array<int, float>, late_fees: array<int, float>}
      */
-    private function retainedRates(Collection $payouts): array
+    private function retainedRates(Collection $payouts, Collection $lateFees): array
     {
         $rates = [];
         foreach (['lease_payments' => ['payout_lease_payment', 'lease_payment_id'], 'booking_payments' => ['payout_booking_payment', 'booking_payment_id']] as $set => [$pivot, $column]) {
@@ -156,6 +169,11 @@ final class OwnerStatementService
                 ->all();
         }
 
+        $rates['late_fees'] = $lateFees
+            ->filter(fn (LeasePayment $fee): bool => $fee->late_fee_payout_id !== null && $fee->late_fee_payout_commission_rate !== null)
+            ->mapWithKeys(fn (LeasePayment $fee): array => [(int) $fee->id => (float) $fee->late_fee_payout_commission_rate])
+            ->all();
+
         return $rates;
     }
 
@@ -166,7 +184,7 @@ final class OwnerStatementService
     private function byProperty(array $lines): array
     {
         $rows = [];
-        foreach (['lease_payments', 'booking_payments'] as $set) {
+        foreach (['lease_payments', 'booking_payments', 'late_fees'] as $set) {
             foreach ($lines[$set] as $line) {
                 $id = $line['property_id'];
                 $rows[$id] ??= ['property_id' => $id, 'collected' => 0.0, 'commission' => 0.0, 'fees' => 0.0];
@@ -183,6 +201,29 @@ final class OwnerStatementService
         return array_values(array_map(fn (array $r): array => $r + [
             'net' => $r['collected'] - $r['commission'] - $r['fees'],
         ], $rows));
+    }
+
+    /**
+     * P206.03 (ADR-0057, amendement du 2026-10-24, point 3) — les pénalités à recouvrer des échéances
+     * de la période, à part de l'impayé, qui ne les compte pas. Mêmes baux et mêmes types que
+     * {@see self::unpaid()}.
+     *
+     * @return array{count: int, amount: float}
+     */
+    private function lateFeesOutstanding(Agency $agency, User $landlord, CarbonImmutable $start, CarbonImmutable $end): array
+    {
+        $row = CollectedPayments::lateFeesOutstanding()
+            ->join('leases', 'leases.id', '=', 'lease_payments.lease_id')
+            ->whereNull('leases.deleted_at')
+            ->where('leases.agency_id', $agency->id)
+            ->where('leases.landlord_id', $landlord->id)
+            ->whereIn('lease_payments.payment_type', array_map(fn (LeasePaymentType $t) => $t->value, PayoutCalculator::LEASE_TYPES))
+            ->whereBetween('lease_payments.due_date', [$start->toDateString(), $end->toDateString()])
+            ->toBase()
+            ->selectRaw('COUNT(*) AS n, COALESCE(SUM('.CollectedPayments::LATE_FEE_OUTSTANDING_SQL.'), 0) AS total')
+            ->first();
+
+        return ['count' => (int) ($row->n ?? 0), 'amount' => round((float) ($row->total ?? 0), 2)];
     }
 
     /**

@@ -175,6 +175,8 @@ export type LeasePayment = {
   late_fee_amount: number | null;
   late_fee_applied_at: string | null;
   late_fee_paid_at: string | null;
+  /** P206.04 (ADR-0039, amendement du 2026-10-24, point 7) — la part de pénalité rendue par un remboursement. */
+  late_fee_refund_amount?: number | null;
   /** Pénalité restant due (0 si aucune, ou réglée). Ne se lit jamais dans `status`. */
   late_fee_outstanding: number;
   /** La pénalité restant due est INCLUSE dans `amount_due`. */

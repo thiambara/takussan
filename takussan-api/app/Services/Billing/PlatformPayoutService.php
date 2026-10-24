@@ -195,13 +195,18 @@ class PlatformPayoutService
     private function refundedSinceClosing(PlatformPayout $payout): bool
     {
         $refunded = fn (string $model): bool => $model::query()->where('platform_payout_id', $payout->id)->where('refund_amount', '>', 0)->exists();
-        if (! $refunded(BookingPayment::class) && ! $refunded(LeasePayment::class)) {
+        // P206.04 — la part de pénalité rendue depuis la clôture se voit aussi.
+        $lateFeeRefunded = LeasePayment::query()->where('platform_payout_id', $payout->id)->where('late_fee_refund_amount', '>', 0)->exists();
+        if (! $refunded(BookingPayment::class) && ! $refunded(LeasePayment::class) && ! $lateFeeRefunded) {
             return false;
         }
 
+        $lateFees = $lateFeeRefunded
+            ? array_sum($this->platformSettledLateFees(LeasePayment::query()->where('platform_payout_id', $payout->id)->get()))
+            : (float) (($payout->metadata ?? [])['late_fees_gross'] ?? 0);
         $gross = (float) BookingPayment::query()->where('platform_payout_id', $payout->id)->sum(DB::raw(self::NET_SQL))
             + (float) LeasePayment::query()->where('platform_payout_id', $payout->id)->sum(DB::raw(self::NET_SQL))
-            + (float) (($payout->metadata ?? [])['late_fees_gross'] ?? 0);
+            + $lateFees;
 
         return Currency::roundAmount($gross, $payout->currency) < (float) $payout->gross_amount;
     }
@@ -309,7 +314,7 @@ class PlatformPayoutService
             ->where('paid_at', '<=', $periodEnd)
             ->whereNull('platform_payout_id')
             ->lockForUpdate()
-            ->get(['id', 'amount', 'refund_amount', 'platform_fee_pct_at_payment', 'paid_at', 'currency', 'transaction_id', 'metadata', 'late_fee_amount']);
+            ->get(['id', 'amount', 'refund_amount', 'platform_fee_pct_at_payment', 'paid_at', 'currency', 'transaction_id', 'metadata', 'late_fee_amount', 'late_fee_refund_amount']);
 
         // TCK-733 (P04.05) — la plateforme ne reverse que ce qu'elle a encaissé : un paiement soldé
         // par une intégration GLOBALE. Espèces, virement, intégration propre à l'agence : l'argent
@@ -408,6 +413,44 @@ class PlatformPayoutService
     }
 
     /**
+     * P206.01 (ADR-0039, amendement du 2026-10-24, point 6, « Encaisseur ») — la pénalité de cette
+     * ligne a-t-elle été réglée dans le checkout de la plateforme qui a soldé le loyer ? La lecture
+     * même de la clôture ({@see self::lateFeeSettledWith()}) : c'est elle qui la met au brut de
+     * l'agence, et le reversement au bailleur l'attend.
+     */
+    public function lateFeeSettledByPlatform(LeasePayment $payment): bool
+    {
+        return $this->platformSettledLateFee($payment) > 0;
+    }
+
+    /**
+     * P206.02 (ADR-0057, amendement du 2026-10-24, point 2) — la part de pénalité de cette ligne
+     * réglée par le checkout de la plateforme, la méthode même de la clôture : les frais des
+     * métriques et ceux de la clôture tombent égaux sur un même jeu. 0 hors de la plateforme.
+     */
+    public function platformSettledLateFee(LeasePayment $payment): float
+    {
+        return $this->platformSettledLateFees([$payment])[(int) $payment->id] ?? 0.0;
+    }
+
+    /**
+     * {@see self::platformSettledLateFee()} pour un lot, les intégrations globales lues une fois.
+     *
+     * @param  iterable<LeasePayment>  $payments
+     * @return array<int, float> par id de ligne
+     */
+    public function platformSettledLateFees(iterable $payments): array
+    {
+        $globalIntegrations = $this->globalIntegrationIds($payments);
+        $fees = [];
+        foreach ($payments as $payment) {
+            $fees[(int) $payment->id] = $this->lateFeeSettledWith($payment, $this->settledBy($payment, $globalIntegrations));
+        }
+
+        return $fees;
+    }
+
+    /**
      * Les intégrations GLOBALES (`agency_id` nul, supprimées comprises) parmi celles qui ont initié
      * le règlement de ces paiements. Une requête pour toute la clôture.
      *
@@ -502,9 +545,12 @@ class PlatformPayoutService
             return 0.0;
         }
 
-        return is_numeric($entry['late_fee_amount'] ?? null)
+        $fee = is_numeric($entry['late_fee_amount'] ?? null)
             ? (float) $entry['late_fee_amount']
             : (float) ($payment->late_fee_amount ?? 0);
+
+        // P206.04 (ADR-0039, amendement du 2026-10-24, point 7) — la part rendue par un remboursement.
+        return max(0.0, $fee - (float) ($payment->late_fee_refund_amount ?? 0));
     }
 
     /**

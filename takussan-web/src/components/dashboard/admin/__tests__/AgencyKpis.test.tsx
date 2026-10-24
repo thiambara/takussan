@@ -46,6 +46,17 @@ describe('<AgencyKpis>', () => {
     expect(screen.getByText("Taux d'impayés")).toBeInTheDocument();
   });
 
+  // P206.03 (ADR-0057, amendement du 2026-10-24) — les pénalités à recouvrer, à part de l'impayé.
+  it('montre les pénalités à recouvrer sous les impayés, et rien sans pénalité due', () => {
+    const { unmount } = render(withIntl(<AgencyKpis summary={buildSummary()} />));
+    expect(screen.queryByText(/Pénalités à recouvrer/)).toBeNull();
+    unmount();
+
+    const summary = buildSummary();
+    render(withIntl(<AgencyKpis summary={{ ...summary, finance: { ...summary.finance, late_fees_outstanding_count: 1, late_fees_outstanding_amount: 5_000 } }} />));
+    expect(screen.getByText(/^Pénalités à recouvrer : 5\s?000\s*F\s?CFA$/)).toBeInTheDocument();
+  });
+
   // TCK-647 — un chiffre n'apparaît qu'une fois sur le tableau de bord d'agence.
   it('ne répète ni le total des biens ni le nombre d’échéances impayées ; montre la commission', () => {
     render(withIntl(<AgencyKpis summary={buildSummary()} />));

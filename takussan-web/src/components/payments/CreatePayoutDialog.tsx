@@ -102,8 +102,10 @@ export function CreatePayoutDialog({ open, onOpenChange, onCreated }: CreatePayo
   const prep = preparation.data?.data;
   const currency = prep?.currency ?? 'XOF';
   const money = (amount: number) => formatCurrency(amount, locale, { currency });
+  // P206.01 — la pénalité de retard réglée est une ligne du reversement.
+  const lateFees = prep?.lines.late_fees ?? [];
   const lineCount = prep
-    ? prep.lines.lease_payments.length + prep.lines.booking_payments.length + prep.lines.service_provider_bills.length
+    ? prep.lines.lease_payments.length + prep.lines.booking_payments.length + prep.lines.service_provider_bills.length + lateFees.length
     : 0;
   // TCK-2074 (P178.03, décision du porteur du 2026-10-23) — l'agence porte la commission de la
   // plateforme sur ce que celle-ci a encaissé : la préparation la montre, et avertit sans bloquer
@@ -163,6 +165,7 @@ export function CreatePayoutDialog({ open, onOpenChange, onCreated }: CreatePayo
         lease_payment_ids: prep.lines.lease_payments.map((l) => l.id),
         booking_payment_ids: prep.lines.booking_payments.map((l) => l.id),
         service_provider_bill_ids: prep.lines.service_provider_bills.map((l) => l.id),
+        late_fee_lease_payment_ids: lateFees.map((l) => l.id),
         period_start: prep.period_start,
         period_end: prep.period_end,
         payout_method_id: payoutMethodId ? Number(payoutMethodId) : undefined,
@@ -298,6 +301,23 @@ export function CreatePayoutDialog({ open, onOpenChange, onCreated }: CreatePayo
                               })}
                             </span>
                             {platformFeeNote(l)}
+                          </td>
+                        </tr>
+                      ))}
+                      {lateFees.map((l) => (
+                        <tr key={`lf-${l.id}`} className="border-t border-border">
+                          <td className="px-3 py-2">
+                            {t('lateFeeLine', { reference: l.lease_reference ?? `#${l.lease_id}` })}
+                          </td>
+                          <td className="px-3 py-2">{l.paid_at ? formatDate(l.paid_at, locale) : '—'}</td>
+                          <td className="px-3 py-2 text-right">{money(l.amount)}</td>
+                          <td className="px-3 py-2 text-right">
+                            {money(l.commission)}{' '}
+                            <span className="text-xs text-muted-foreground">
+                              {t(l.commission_rate_source === 'lease' ? 'rateFromLease' : 'rateFromAgency', {
+                                rate: l.commission_rate,
+                              })}
+                            </span>
                           </td>
                         </tr>
                       ))}

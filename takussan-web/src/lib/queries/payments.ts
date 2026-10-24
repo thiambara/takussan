@@ -286,6 +286,8 @@ export type CreatePayoutPayload = {
   lease_payment_ids?: number[];
   booking_payment_ids?: number[];
   service_provider_bill_ids?: number[];
+  /** P206.01 — les lignes de loyer dont la pénalité de retard réglée est reversée. */
+  late_fee_lease_payment_ids?: number[];
   period_start?: string;
   period_end?: string;
   payout_method_id?: number;

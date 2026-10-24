@@ -192,6 +192,18 @@ export type PayoutPreparation = {
       commission: number;
     } & PlatformFeeFields>;
     service_provider_bills: Array<PreparationLine & { maintenance_request_id: number | null }>;
+    /**
+     * P206.01 (ADR-0039, amendement du 2026-10-24, point 6) — la pénalité de retard réglée, ligne
+     * propre : `id` est la ligne de loyer qui la porte, `paid_at` la date de son règlement.
+     */
+    late_fees?: Array<PreparationLine & {
+      lease_id: number;
+      lease_reference: string | null;
+      paid_at: string | null;
+      commission_rate: number;
+      commission_rate_source: 'lease' | 'agency';
+      commission: number;
+    }>;
   };
   /** `platform_fee` (TCK-2074) : la commission de la plateforme sur les pièces qu'elle a encaissées. */
   totals: { gross: number; commission: number; fees: number; net: number; platform_fee: number };
@@ -215,6 +227,8 @@ export type OwnerStatement = {
   period_end: string;
   currency: string;
   totals: { gross: number; commission: number; fees: number; net: number; paid_out: number };
+  /** P206.03 (ADR-0057, amendement du 2026-10-24) — pénalités des échéances de la période non réglées. */
+  late_fees_outstanding?: { count: number; amount: number };
   payouts: Array<{
     id: number;
     reference_number: string | null;

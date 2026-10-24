@@ -50,11 +50,19 @@ final class PayoutPreparationService
         $leasePayments = $this->calculator->exceptAwaitingPlatform($this->calculator->leasePayments((int) $agency->id, (int) $landlord->id, $start, $end), $agency)->get();
         $bookingPayments = $this->calculator->exceptAwaitingPlatform($this->calculator->bookingPayments((int) $agency->id, (int) $landlord->id, $start, $end), $agency)->get();
 
+        // P206.01 — la pénalité réglée dans la période, ligne propre, avec la même attente de la plateforme.
+        $lateFees = $this->calculator->exceptLateFeesAwaitingPlatform(
+            $this->calculator->lateFees((int) $agency->id, (int) $landlord->id, $start, $end)->get(),
+            $agency,
+        );
+
         $computation = $this->withPlatformFee($this->calculator->compute(
             $agency,
             $leasePayments,
             $bookingPayments,
             $this->calculator->rechargeableBills((int) $agency->id, (int) $landlord->id)->get(),
+            [],
+            $lateFees,
         ), $leasePayments, $bookingPayments);
 
         $threshold = $agency->payout_approval_threshold;
