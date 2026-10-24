@@ -90,4 +90,5 @@ return [
     'email_verified' => 'Adrees e-mail bi dëggal nañu ko.',
     'verification_email_resent' => 'E-mail dëggal bi yónniwaat nañu ko.',
     'password_reset_link_sent' => 'Su am compte bu am adrees bii, yónni nañu lënk ngir soppi baatu jàll bi.',
+    'password_reset_done' => 'Votre mot de passe a été réinitialisé.',
 ];
