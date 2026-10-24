@@ -29,6 +29,7 @@ use App\Models\User;
 use App\Models\WhatsappContact;
 use App\Notifications\AccountDeletionExecutedNotification;
 use App\Notifications\AccountDeletionRequestedNotification;
+use App\Services\Agency\AgencyMemberRemovalService;
 use App\Services\Notifications\Sms\PhoneNumber;
 use App\Services\Payout\PayoutCalculator;
 use App\Support\CaseInsensitive;
@@ -335,6 +336,12 @@ class AccountDeletionService
         $user->clearMediaCollection('avatar');
         $user->clearMediaCollection('avatars');
         $user->clearMediaCollection('photos');
+
+        // TCK-2172 (P204.05) — les extinctions du retrait, par sa méthode : délégations révoquées,
+        // marques d'agent principal ôtées, dans toutes les agences. AVANT la suppression : l'avis
+        // de révocation lit encore le délégué (`$delegation->user`), déjà anonymisé et `deleted`,
+        // que les avis écartent.
+        app(AgencyMemberRemovalService::class)->dropDelegationsAndMarks($user, null, $user);
 
         // Soft-delete the row. Auth queries use the default scope so the
         // user can no longer log in.
