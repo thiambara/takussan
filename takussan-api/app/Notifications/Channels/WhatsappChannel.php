@@ -3,6 +3,7 @@
 namespace App\Notifications\Channels;
 
 use App\Exceptions\WhatsappUndelivered;
+use App\Jobs\SendSmsAfterLateWhatsappFailureJob;
 use App\Models\AppNotification;
 use App\Models\NotificationDeliveryAttempt;
 use App\Models\User;
@@ -19,6 +20,7 @@ use App\Services\Notifications\Whatsapp\WhatsappDriverInterface;
 use App\Services\Notifications\Whatsapp\WhatsappMessage;
 use App\Services\Notifications\Whatsapp\WhatsappResult;
 use App\Services\Notifications\Whatsapp\WhatsappTemplateRef;
+use App\Support\Logging\SafeExceptionContext;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Notifications\Notification;
@@ -325,28 +327,56 @@ class WhatsappChannel
         return true;
     }
 
+    /**
+     * P207.02 (TCK-2159) — un envoi sans notification (un contact sans compte) écrit sa tentative
+     * aussi, sans rattachement, comme le SMS depuis TCK-799 : l'accusé de Meta la retrouve par
+     * `(provider, provider_message_id)` et l'indicateur de santé la compte. Le repli SMS tardif
+     * l'ignore ({@see SendSmsAfterLateWhatsappFailureJob}) : le secours d'un contact ne vaut que pour
+     * l'échec immédiat.
+     */
     private function logAttempt(?int $notificationId, int $attempt, WhatsappResult $result): void
     {
         if (! $notificationId) {
+            try {
+                // Dans sa propre transaction, comme le SMS : un échec (identifiant en double)
+                // n'abandonne pas celle de l'appelant (PostgreSQL, 25P02).
+                DB::transaction(fn () => NotificationDeliveryAttempt::query()->create(
+                    ['app_notification_id' => null] + $this->attemptRow($attempt, $result),
+                ));
+            } catch (\Throwable $e) {
+                Log::error('[whatsapp-channel] tentative non enregistrée', [
+                    'attempt' => $attempt,
+                    'provider' => $result->provider,
+                    'status' => $result->status,
+                ] + SafeExceptionContext::of($e));
+            }
+
             return;
         }
         try {
             DB::transaction(function () use ($notificationId, $attempt, $result): void {
                 $notification = AppNotification::query()->lockForUpdate()->findOrFail($notificationId);
-                NotificationDeliveryAttempt::query()->create([
-                    'app_notification_id' => $notification->id,
-                    'attempt' => $attempt,
-                    'provider' => $result->provider,
-                    'provider_message_id' => $result->providerMessageId,
-                    'to' => $result->to,
-                    'status' => $result->status,
-                    'failure_reason' => $result->failureReason,
-                    'sent_at' => $result->sentAt,
-                    'delivered_at' => $result->deliveredAt,
-                ]);
+                NotificationDeliveryAttempt::query()->create(
+                    ['app_notification_id' => $notification->id] + $this->attemptRow($attempt, $result),
+                );
             });
         } catch (ModelNotFoundException) {
             // Notification row vanished mid-flight — nothing to attach to.
         }
+    }
+
+    /** @return array<string, mixed> */
+    private function attemptRow(int $attempt, WhatsappResult $result): array
+    {
+        return [
+            'attempt' => $attempt,
+            'provider' => $result->provider,
+            'provider_message_id' => $result->providerMessageId,
+            'to' => $result->to,
+            'status' => $result->status,
+            'failure_reason' => $result->failureReason,
+            'sent_at' => $result->sentAt,
+            'delivered_at' => $result->deliveredAt,
+        ];
     }
 }
