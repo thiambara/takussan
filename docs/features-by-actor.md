@@ -170,7 +170,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | Prio | Domaine | Fonctionnalité |
 |------|---------|----------------|
 | P1 | §1.4 | Enregistrer un paiement mensuel |
-| P1 | §1.4 | Relances de loyer automatiques (J-3, J+1, J+7) au locataire, y compris sans compte (téléphone du client), sur WhatsApp puis SMS en secours, dans sa langue ; un retard est relancé que le bail porte une pénalité ou non, et la relance annonce le solde restant dû (TCK-588) |
+| P1 | §1.4 | Relances de loyer automatiques (J-3, J+1, J+7) au locataire, y compris sans compte (téléphone du client), sur WhatsApp puis SMS en secours, dans sa langue ; un retard est relancé que le bail porte une pénalité ou non, et la relance annonce le solde restant dû (TCK-588) ; chaque relance part au plus une fois : celle que tous les fournisseurs SMS refusent n'est pas renvoyée et laisse une activité d'exploitation rattachée à l'échéance, sans le numéro (P207.01) ; pour un locataire sans compte, le SMS ne prend le relais que d'un échec immédiat de WhatsApp, pas d'un échec que Meta rapporte plus tard (P207.02) |
 | P1 | §1.4 | Payer en ligne une échéance de loyer (Wave / Orange Money) pour le montant réellement dû : le restant du loyer, plus la pénalité de retard appliquée **si l'agence l'a choisi** (réglage d'agence, désactivé par défaut — sinon la pénalité reste due et s'affiche à part, « à régler auprès de l'agence ») ; le montant est figé à l'ouverture du paiement ; une échéance payée ou remboursée ne peut pas être repayée (TCK-593) |
 | P1 | §1.4 | Télécharger le contrat de bail en PDF depuis le détail du bail (TCK-593) |
 | P2 | §1.4 | Révision annuelle du loyer (indice ou accord amiable) journalisée via le journal d'activité |
@@ -483,7 +483,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P1 | §1.4 | Créer un bail (locataire, bailleur, durée, loyer, caution) |
 | P1 | §1.4 | Ajouter un ou plusieurs garants avec documents joints |
 | P1 | §1.4 | Générer l'échéancier de loyers mensuels |
-| P1 | §1.4 | Relances de loyer automatiques (J-3, J+1, J+7) au locataire, y compris sans compte (téléphone du client), sur WhatsApp puis SMS en secours, dans sa langue ; un retard est relancé que le bail porte une pénalité ou non, et la relance annonce le solde restant dû (TCK-588) |
+| P1 | §1.4 | Relances de loyer automatiques (J-3, J+1, J+7) au locataire, y compris sans compte (téléphone du client), sur WhatsApp puis SMS en secours, dans sa langue ; un retard est relancé que le bail porte une pénalité ou non, et la relance annonce le solde restant dû (TCK-588) ; chaque relance part au plus une fois : celle que tous les fournisseurs SMS refusent n'est pas renvoyée et laisse une activité d'exploitation rattachée à l'échéance, sans le numéro (P207.01) ; pour un locataire sans compte, le SMS ne prend le relais que d'un échec immédiat de WhatsApp, pas d'un échec que Meta rapporte plus tard (P207.02) |
 | P1 | §1.4 | Alerte d'impayé au bailleur (J+1, J+7) et récapitulatif quotidien unique des impayés à l'agent (TCK-588) |
 | P1 | §1.4 | Appliquer automatiquement des pénalités de retard sur les paiements en retard |
 | P1 | §1.4 | Choisir, par agence, si les pénalités de retard s'encaissent avec le paiement en ligne du loyer — désactivé par défaut (TCK-593) |

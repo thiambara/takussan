@@ -1,6 +1,7 @@
 # ADR-0031 — Le personnel de l'agence et le cloisonnement des bailleurs ; capacités sans lecteur
 
-- **Statut** : Accepté
+- **Statut** : Accepté, **amendé le 2026-10-24** (cf. § *Amendement du 2026-10-24 — délégations,
+  colonnes d'auteur, colonnes de bailleur*)
 - **Date** : 2026-10-07
 - **Tickets** : [TCK-587](../backlog/tickets/TCK-587-cloisonnement-bailleurs-capacites-jamais-lues.md)
 - **Précise** : le principe non négociable n° 2 (« l'agence est la frontière d'isolation »),
@@ -44,12 +45,14 @@ Est **personnel** de l'agence *A* l'utilisateur qui, *A* étant l'agence de son 
 (contrat de TCK-146 : `User::$agency_id`, profil actif puis auto-bascule), y détient :
 
 - un `AgentProfile` ou un `AgencyAdminProfile` **actif** (`scopeActive`) ; **ou**
-- une `RoleDelegation` **active** (`RoleDelegation::scopeActive`) de rôle `agent` ou `agency_admin`
-  dans *A*.
+- une `RoleDelegation` **en vigueur** (`RoleDelegation::scopeEnVigueur`) de rôle `agent` ou
+  `agency_admin` dans *A*.
 
 La délégation compte : sans elle, une délégation `agent` conférerait des capacités (TCK-395) que
 le périmètre rendrait inutilisables. Ce n'est pas un élargissement : une délégation n'a d'effet que
-dans l'agence d'un profil que le délégué y possède déjà.
+dans l'agence d'un profil **actif** que le délégué y possède déjà. *Amendé le 2026-10-24 : la
+version d'origine disait « une délégation active (`scopeActive`) » et « un profil que le délégué y
+possède », sans condition de statut ; voir l'amendement, § A.*
 
 Le prédicat s'écrit **une fois** : `MembershipCapabilityResolver::staffAgencyId(User): ?int`, qui
 rend l'agence du profil actif si l'utilisateur y est personnel, sinon `null` ; `User::staffAgencyId()`
@@ -176,3 +179,190 @@ leur réserve.
   toutes deux auto-éprouvées à chaque invocation.
 - Tests : `OwnerIsolationWithinAgencyTest`, `InactiveProfileGrantsNothingTest`,
   `BranchedCapabilitiesTest`, `StaffAgencyIdTest`.
+
+## Amendement du 2026-10-24 — délégations, colonnes d'auteur, colonnes de bailleur
+
+Décisions du porteur du 2026-10-24 sur les angles 217 et 218 du fichier de pistes
+(`docs/plans/2026-10-15-pistes-d-amelioration.md`). Relevé sur `54f0f14b4`.
+
+Les trois parties ont une même cause. Un membre suspendu (`TeamMemberSuspensionService`) ou retiré
+(`AgencyMemberRemovalService`) n'est plus personnel au sens du § 1. Pourtant, il garde ce qu'une
+autre voie lui ouvre : sa délégation, la colonne qui le nomme auteur d'une ligne, ou la colonne de
+bailleur que la saisie d'un bien lui a donnée.
+
+### A. Une délégation ne confère rien à un délégué sans profil actif (P218.01, P218.02, P218.05 b)
+
+**Constat.**
+
+- Le § 3 dit qu'un profil non actif ne confère rien, mais aucun lecteur des délégations ne regarde
+  les profils du délégué.
+- La suspension ne touche que les profils, et ses délégations restent `active`. Le retrait, lui,
+  les révoque (`AgencyMemberRemovalService.php:93-98`).
+- Les lecteurs qui confèrent un droit à partir d'une délégation sont les suivants. Les deux derniers
+  points vont hors du résolveur :
+  - **le résolveur** `MembershipCapabilityResolver` :
+    - `loadActiveDelegations` (l. 330-338), qui alimente les capacités (`delegationAllows`,
+      l. 251) ;
+    - la branche délégation d'`isStaffAt` (l. 486-491), donc aussi `staffAgencyId()`,
+      `isMemberAt()` et `memberAgencyIds()` ;
+    - l'amorce `primed` (l. 525-527) ;
+    - `staffAgencyIds` (l. 588-592) ;
+  - **`ContactLeadService::delegues`** (l. 117-131). Il range les délégués parmi les destinataires
+    d'une demande de contact, filtrés par `joignable` seul : **un agent suspendu reçoit les
+    demandes** ;
+  - **`PayoutApprovers::holders`** (l. 36-39). Les délégués y sont des candidats, filtrés ensuite
+    par le résolveur : **un agent suspendu délégué approuve un reversement** ;
+  - **`AgentAvailability`** (l. 31, 49, 68). Il lit les absences, puis juge le remplaçant par
+    `isStaffAt`.
+- `RoleDelegationService::create` (l. 72-77) accepte un délégué par `hasProfileAt`, sans filtre de
+  statut. `ProcessRoleDelegationsJob` (l. 20-21) active une délégation planifiée sans juger le
+  délégué.
+
+**Décision (voie « lecture », option a de P218.01).**
+
+1. **Une délégation est en vigueur** si elle est `active()` et si, dans l'agence de la délégation,
+   son délégué détient un profil d'agence **actif** : `AgentProfile`, `AgencyAdminProfile` ou
+   `OwnerProfile`, selon le `scopeActive` de chacun. La règle s'écrit **une fois** :
+   `RoleDelegation::scopeEnVigueur()`.
+2. **Tout site qui confère un droit à partir d'une délégation lit `enVigueur()`** :
+   - les quatre sites du résolveur ;
+   - `ContactLeadService::delegues` ;
+   - `PayoutApprovers::holders`. Le résolveur le couvrirait déjà, mais la règle n'a qu'une
+     écriture ;
+   - les trois lectures d'`AgentAvailability`.
+
+   Les sites qui ne font que rassembler des agences candidates et laissent `isStaffAt` trancher
+   n'ont rien à changer : `ProviderEligibility::staffAgencyIds` (l. 83) et
+   `TwoFactorRequirement::requiredAtAgency` (l. 43).
+3. **`active()` reste la règle du cycle de vie** : liste et état des délégations
+   (`RoleDelegationController`), activation et expiration (`ProcessRoleDelegationsJob`), révocation
+   au retrait, chevauchement des absences (`AgentAbsenceService`, l. 63), et
+   `HasProfiles::hasActiveAgencyDelegation`. Ce dernier n'a aucun appelant de production : il sert
+   aux tests qui distinguent « la ligne est active » de « le privilège est ouvert ».
+4. **La réactivation rend la délégation sans geste de plus.** La suspension ne touche pas la
+   délégation, et sa fenêtre court toujours. Si elle échoit pendant la suspension, le job l'expire
+   comme les autres.
+5. **Créer une délégation vers un délégué sans profil actif reste permis** (option a de P218.02).
+   La délégation est inerte jusqu'au retour du délégué, selon le § 3. Une délégation planifiée
+   pendant une suspension peut donc préparer un retour. `RoleDelegationService::create` garde
+   `hasProfileAt`, un test d'**appartenance** au sens du § 3, et son commentaire le dit en citant ce
+   paragraphe. **P218.05 b** (le job active une délégation planifiée vers un délégué suspendu) n'a
+   rien de propre : la délégation activée reste inerte.
+
+Le § 1 est amendé en conséquence (« en vigueur », « un profil **actif** que le délégué y possède »).
+
+### B. L'auteur d'une ligne n'en garde que ce que son appartenance lui laisse (P218.03, P218.04, P218.05 a, garants de P217.05)
+
+**Constat.** Plusieurs policies ont une branche « auteur » sans condition d'appartenance. Un agent
+suspendu ou retiré lit et modifie donc ce qu'il a saisi :
+
+- `InvoicePolicy` : `view` (l. 39) et `update` (l. 56), sur `issued_by_id` ;
+- `PayoutPolicy::view` (l. 41), sur `issued_by_id` ;
+- `BookingPolicy::view` (l. 37), sur `created_by_id` ;
+- `InventoryPolicy` : `view` (l. 32), sur `conducted_by`, et `update` (l. 56), où
+  `landlordWrites(conducted_by)` laisse passer l'agent pur ;
+- `InvitationPolicy::view` (l. 66), sur `invited_by` ;
+- `GuarantorPolicy::view` (l. 32), sur `added_by_id`. `update` et `delete` s'en remettent à `view` :
+  l'agent qui a saisi des garants lit, modifie et supprime leurs nom, téléphone et courriel.
+
+Les listes reprennent les mêmes branches : `InvoiceController.php:26`, `PayoutController.php:32`,
+`BookingController.php:30`, `InventoryController.php:47` et `GuarantorController.php:25`.
+
+`CustomerPolicy` a déjà la règle depuis TCK-591 : `isAuthorStillMember` (l. 43-48).
+
+**Décision : une règle d'auteur.**
+
+1. **La branche « auteur d'une ligne » d'une policy ne vaut que si la ligne est sans agence, ou si
+   l'auteur est encore membre de l'agence de la ligne.** Une colonne d'auteur nomme qui a créé,
+   émis, conduit, ajouté ou invité : `issued_by_id`, `created_by_id`, `conducted_by`,
+   `added_by_id`, `invited_by`. Est membre celui que `MembershipCapabilityResolver::isMemberAt`
+   reconnaît : personnel actif au sens du § 1, ou bailleur à profil actif.
+2. **La règle s'écrit une fois**, dans `BasePolicy`, à l'image de `BailleurDuBien::est`.
+   `CustomerPolicy::isAuthorStillMember` s'y rebranche. **Sa forme SQL borne les listes** : la
+   colonne d'auteur, et l'agence de la ligne nulle ou comprise dans `memberAgencyIds()`.
+3. **Exception : l'état des lieux** (`conducted_by`), selon la décision P190.05 :
+   - en **écriture**, il garde `landlordWrites` et y **ajoute** l'appartenance :
+     `landlordWrites(conducted_by, …)` et (agence nulle ou `isMemberAt`) ;
+   - en **lecture** et dans la **liste**, l'auteur garde la ligne si l'agence est nulle, s'il est
+     membre (`isMemberAt`), ou s'il détient dans l'agence un profil propriétaire **de tout
+     statut**. Le bailleur bloqué garde ainsi la lecture (§ 2).
+4. **Ce que la règle ne retire pas** :
+   - le bailleur **actif** garde la facture qu'il a émise (`DepositRefundService.php:111`) : il est
+     membre ;
+   - le client du tunnel public, `created_by_id` de sa réservation (`BookingService.php:126`), la
+     garde par la branche client de `BookingPolicy::view` (l. 40). Les documents de sa
+     réservation ne changent pas (point 7) ;
+   - l'émetteur actif d'une invitation garde « your pending invites ».
+5. **Limite actée** : un bailleur **bloqué** perd la lecture d'une facture qu'il a émise. Le cas est
+   rare (remboursement de dépôt), et `InvoicePolicy` n'a pas de branche bailleur qui la lui
+   rendrait.
+6. **Ordre** : la partie B suppose la partie A. Aujourd'hui, `isMemberAt` compte la délégation d'un
+   suspendu. Les deux se livrent ensemble, ou A d'abord.
+
+7. **`DocumentPolicy` sort de la règle pour l'instant** (décision du porteur du 2026-10-24, qui
+   retire ces branches à l'option a de P218.03). Rien n'y change :
+   - ni `uploaded_by` (`view` l. 48, `update` l. 78, `share` l. 100) ;
+   - ni les branches d'auteur de `reaches` : `created_by_id` d'une réservation (l. 192),
+     `added_by_id` d'une fiche client (l. 198), `conducted_by` d'un état des lieux (l. 213).
+
+   La raison : appliquer le point 1 tel quel retirerait des lectures légitimes que personne n'a
+   mesurées.
+   - Le client du tunnel public n'entre dans les documents de sa réservation que par
+     `created_by_id`, car `reaches` n'a pas de branche client pour une réservation (l. 189-195),
+     à la différence de `BookingPolicy::view` (l. 40).
+   - `uploaded_by` nomme aussi un locataire, un client ou un bailleur bloqué qui a joint une pièce.
+
+   Une piste à mesurer de l'angle 218 les reprend. La règle de cet amendement ne s'y appliquera
+   qu'après sa mesure et sa validation.
+
+### C. Les colonnes de bailleur suivent `BailleurDuBien` (P217.01 à P217.04)
+
+Le § 2 range parmi les colonnes qui désignent le bailleur `landlord_id` et `property.user_id`. Ces
+deux colonnes nomment aussi l'agent qui a saisi le bien (`PropertyController::store`), et
+`LeaseService::create` le recopie en `landlord_id`. L'angle 190 a tranché (porteur, 2026-10-23,
+P190.01 à P190.07, TCK-1718 et TCK-1926 à TCK-1932). Cet ADR ne l'écrivait pas encore :
+
+- **Une colonne de bailleur ne désigne son bailleur que selon `BailleurDuBien::est`** : la ligne est
+  sans agence, ou il détient un profil propriétaire dans l'agence, de tout statut. La règle vaut en
+  lecture. En écriture, c'est **`bailleurEcrit`**, qui refuse en plus le bailleur bloqué. Dans une
+  liste, c'est **`BailleurDuBien::restreindre`**.
+- L'agent qui a saisi le bien agit au titre du **personnel**, sous ses capacités, et seulement s'il
+  est actif. Suspendu ou retiré, il n'est plus rien pour ces lignes.
+- Une colonne d'**auteur** (partie B) n'est pas une colonne de bailleur. `landlordWrites` reste la
+  règle d'écriture des colonnes d'auteur (P190.05), complétée par l'appartenance.
+
+Les lecteurs que l'angle 190 n'avait pas relus suivent la même règle :
+
+- **P217.01** : `MaintenanceRequest::scopeVisibleTo`, clause du bien (l. 175),
+  `BailleurDuBien::restreindre`. Le scope sert `MaintenanceRequestController` (l. 51, 81) et
+  `ConversationAccess::constrainListing` (l. 164).
+- **P217.02** : la liste des conversations se ferme par P217.01, dans le même ticket. Aucune règle
+  propre.
+- **P217.03** : `PaymentController::history`, branche des loyers (l. 69),
+  `BailleurDuBien::restreindre(…, 'landlord_id')`, la forme de `LeaseController.php:39`.
+- **P217.04** : `LeasePaymentPolicy::update` (l. 35), `bailleurEcrit` à la place de
+  `landlordWrites`. Cette ability garde aussi `initiate`, `verify` et `providers`
+  (`PaymentGatewayController.php:33, 55, 80`). L'agent créateur seul perd la main ; le bailleur
+  bloqué reste refusé.
+
+### Conséquences de l'amendement
+
+- Un membre suspendu ne garde plus rien par sa délégation : ni capacité, ni périmètre, ni
+  approbation de reversement, ni demande de contact. Sa réactivation lui rend tout, sans geste.
+- Un membre suspendu ou retiré perd les lignes qu'il a saisies dans l'agence. Il garde celles qui
+  sont sans agence, et le personnel actif les reprend. Le bailleur actif, le locataire et le client
+  ne perdent rien. Le bailleur bloqué ne perd que la facture qu'il a émise.
+- Une branche « auteur » neuve passe par la règle de la partie B, et une colonne de bailleur neuve
+  par `BailleurDuBien`.
+
+### Application de l'amendement
+
+- A : `RoleDelegation::scopeEnVigueur()` ; les sites du point A.2 ; le commentaire de
+  `RoleDelegationService::create`.
+- B : la règle d'auteur de `BasePolicy` et sa forme SQL ; les policies et les listes du constat B ;
+  `CustomerPolicy` rebranchée. `DocumentPolicy` reste telle quelle (point B.7).
+- C : `MaintenanceRequest::scopeVisibleTo`, `PaymentController::history` et
+  `LeasePaymentPolicy::update`.
+- Tests : un agent **suspendu** (`TeamMemberSuspensionService::suspend`), un agent **retiré**
+  (`AgencyMemberRemovalService::remove`), et pour témoins un agent actif, un bailleur actif et un
+  bailleur bloqué. Le délégué suspendu est réactivé et retrouve sa délégation.

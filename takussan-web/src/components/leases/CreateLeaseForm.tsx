@@ -32,6 +32,7 @@ import {
 import { createLeaseSchema, type CreateLeaseFormValues } from '@/lib/schemas/lease';
 import { useAuth } from '@/context/AuthContext';
 import { formatCurrency } from '@/lib/format';
+import { nomAffichable } from '@/lib/identite';
 import type { CustomerListItem } from '@/types/customer';
 import type { PropertyListItem } from '@/types/property';
 
@@ -211,7 +212,7 @@ export function CreateLeaseForm() {
             value={selectedCustomer ? customerLabel(selectedCustomer) : t('noTenantSelected')}
             detail={
               user
-                ? t('activeLandlord', { name: user.full_name })
+                ? t('activeLandlord', { name: nomAffichable(user) })
                 : t('loadingLandlord')
             }
           />

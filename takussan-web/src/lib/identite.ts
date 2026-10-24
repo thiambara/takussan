@@ -63,3 +63,25 @@ export function initialesDe(user: IdentiteAffichable | null | undefined): string
   const parEmail = premiereLettre(nettoyer(user?.email));
   return parEmail !== '' ? parEmail.toUpperCase() : null;
 }
+
+/** Une personne désignée par son identifiant, dont l'écran a chargé tout ou partie des coordonnées. */
+export interface IdentiteAvecId extends IdentiteAffichable {
+  readonly id: number | string;
+}
+
+/**
+ * P220.04 (TCK-2138) — LE nom affichable d'une personne, pour tout écran qui la désigne : prénom et
+ * nom, sinon e-mail, sinon numéro, sinon `#<id>` — jamais une chaîne vide. Un compte créé par
+ * téléphone naît à noms `''`, et chaque écran qui composait `first_name` + `last_name` à sa façon
+ * rendait alors une ligne, une option ou un titre vides.
+ *
+ * L'appelant ne passe que les champs qu'il charge déjà : un e-mail ou un numéro absents sont sautés,
+ * ils ne se demandent pas à l'API pour l'occasion. `repli` remplace `#<id>` quand l'écran a déjà
+ * son propre libellé traduit (« Membre #12 ») ; une chaîne vide n'en est pas un.
+ *
+ * P220.08 (TCK-2142) — `scripts/check-nom-affichable.mjs` refuse toute composition `first_name` +
+ * `last_name` hors de ce module, sauf les sites qu'il excuse un par un, avec leur motif.
+ */
+export function nomAffichable(user: IdentiteAvecId, repli?: string | null): string {
+  return libelleDe(user) ?? nettoyer(repli) ?? `#${user.id}`;
+}

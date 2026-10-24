@@ -14,6 +14,7 @@ import {
   useUpdateVisit,
   useVisit,
 } from '@/lib/queries/visits';
+import { nomAffichable } from '@/lib/identite';
 import { instantADakar } from '@/lib/visites/heure-de-dakar';
 import { smsRetenu } from '@/lib/visites/sort-du-sms';
 import { useCreneaux } from '@/lib/visites/useCreneaux';
@@ -276,7 +277,7 @@ export function VisitDetail({ id }: { id: number }) {
             <div>
               <dt className="text-muted-foreground">{t('support')}</dt>
               <dd className="font-medium text-foreground">
-                {formatUserName(visit.agent) || t('assignedAgent')}
+                {nomAffichable(visit.agent, t('assignedAgent'))}
               </dd>
             </div>
           ) : null}
@@ -600,14 +601,6 @@ function VisitActionForm({
   );
 }
 
-function formatUserName(user: {
-  first_name?: string | null;
-  last_name?: string | null;
-  email?: string | null;
-}): string {
-  return [user.first_name, user.last_name].filter(Boolean).join(' ').trim() || user.email || '';
-}
-
 function RequesterSummary({ visit }: { visit: PropertyVisit }) {
   const t = useTranslations('visits.detail');
   const requester = resolveRequester(visit, t);
@@ -658,7 +651,7 @@ function resolveRequester(visit: PropertyVisit, t: ReturnType<typeof useTranslat
 } {
   if (visit.customer) {
     return {
-      name: formatUserName(visit.customer) || t('requester.crmFallbackName', { id: String(visit.customer.id) }),
+      name: nomAffichable(visit.customer, t('requester.crmFallbackName', { id: String(visit.customer.id) })),
       email: visit.customer.email ?? null,
       phone: visit.customer.phone ?? null,
       customerId: visit.customer.id,
@@ -668,7 +661,7 @@ function resolveRequester(visit: PropertyVisit, t: ReturnType<typeof useTranslat
 
   if (visit.visitor) {
     return {
-      name: formatUserName(visit.visitor) || t('requester.userFallbackName'),
+      name: nomAffichable(visit.visitor, t('requester.userFallbackName')),
       email: visit.visitor.email ?? null,
       phone: visit.visitor.phone ?? null,
       customerId: null,

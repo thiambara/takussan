@@ -18,6 +18,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/context/AuthContext';
 import { ApiError } from '@/lib/api';
+import { nomAffichable } from '@/lib/identite';
 import { useCreateRoleDelegation, useDelegationCandidates } from '@/lib/queries/role-delegations';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import { DELEGABLE_ROLES, type DelegableRole } from '@/types/role-delegation';
@@ -199,7 +200,7 @@ export function CreateDelegationDialog({
               <option value="">{t('create.member_placeholder')}</option>
               {candidats.map((membre) => (
                 <option key={membre.id} value={String(membre.id)}>
-                  {`${membre.first_name} ${membre.last_name}`.trim()}
+                  {nomAffichable(membre)}
                 </option>
               ))}
             </select>

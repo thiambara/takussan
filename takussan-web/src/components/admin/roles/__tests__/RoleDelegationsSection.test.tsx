@@ -340,4 +340,18 @@ describe('<RoleDelegationsSection> — TCK-369', () => {
     expect(screen.getByText('Aucune délégation')).toBeInTheDocument();
     expect(document.querySelector('table')).toBeNull();
   });
+
+  it('nomme un délégué sans nom par son e-mail, jusque dans la révocation (P220.04, TCK-2138)', async () => {
+    const user = userEvent.setup();
+    monte({
+      delegations: [
+        delegation(4, 'active', { user: { id: 104, first_name: '', last_name: '', email: 'awa@x.sn' } }),
+      ],
+    });
+
+    await user.click(screen.getByRole('button', { name: 'Révoquer la délégation de awa@x.sn' }));
+
+    const dialogue = await screen.findByRole('dialog');
+    expect(within(dialogue).getByText(/awa@x\.sn/)).toBeInTheDocument();
+  });
 });
