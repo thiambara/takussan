@@ -8,6 +8,7 @@ use App\Models\BookingPayment;
 use App\Models\Enums\PaymentStatus;
 use App\Models\LeasePayment;
 use App\Models\Property;
+use App\Services\Membership\MembershipCapabilityResolver;
 use App\Services\Payments\PaymentGatewayService;
 use App\Services\Property\BailleurDuBien;
 use App\Support\DayRange;
@@ -47,9 +48,13 @@ class PaymentController extends Controller
         $bookingQuery = BookingPayment::query()
             ->with('booking.property')
             ->when(! $user->isSuperAdmin(), function ($q) use ($user): void {
-                $q->whereHas('booking', function ($bq) use ($user): void {
-                    $bq->where(function ($inner) use ($user): void {
-                        $inner->where('created_by_id', $user->id)
+                // P233.01 (TCK-2241) — l'auteur encore membre de l'agence de la réservation, comme
+                // `BookingController::index` et `BookingPolicy::view` depuis TCK-2196 (ADR-0031, B.2).
+                $memberAgencyIds = app(MembershipCapabilityResolver::class)->memberAgencyIds($user);
+                $q->whereHas('booking', function ($bq) use ($user, $memberAgencyIds): void {
+                    $bq->where(function ($inner) use ($user, $memberAgencyIds): void {
+                        $inner->where(fn ($a) => $a->where('created_by_id', $user->id)
+                            ->where(fn ($m) => $m->whereNull('agency_id')->orWhereIn('agency_id', $memberAgencyIds)))
                             // TCK-1932 (P190.03) — le bailleur du bien, comme `BookingPaymentPolicy`.
                             ->orWhereHas('property', fn ($p) => BailleurDuBien::restreindre($p, $user));
                         // TCK-587 — le personnel de l'agence, plus tout membre (ADR-0031).

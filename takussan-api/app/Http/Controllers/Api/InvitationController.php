@@ -8,6 +8,7 @@ use App\Http\Resources\InvitationResource;
 use App\Models\Invitation;
 use App\Models\User;
 use App\Services\Invitation\InvitationService;
+use App\Services\Membership\MembershipCapabilityResolver;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -123,6 +124,11 @@ class InvitationController extends Controller
             return Invitation::query()->where('agency_id', $user->staffAgencyId());
         }
 
-        return Invitation::query()->where('invited_by', $user->id);
+        // P233.02 (TCK-2243) — l'émetteur encore membre de l'agence de l'invitation : la forme SQL de
+        // la branche émetteur d'`InvitationPolicy::view` depuis TCK-2194 (ADR-0031, B.2).
+        $memberAgencyIds = app(MembershipCapabilityResolver::class)->memberAgencyIds($user);
+
+        return Invitation::query()->where('invited_by', $user->id)
+            ->where(fn (Builder $m) => $m->whereNull('agency_id')->orWhereIn('agency_id', $memberAgencyIds));
     }
 }
