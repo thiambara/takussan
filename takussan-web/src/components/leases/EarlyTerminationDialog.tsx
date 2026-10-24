@@ -18,6 +18,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useRequestEarlyTermination } from '@/lib/queries/leases';
 import type { Lease } from '@/types/lease';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
+import { decalerJour, jourDeLApi } from '@/lib/jour-de-l-api';
 
 interface EarlyTerminationDialogProps {
   readonly open: boolean;
@@ -31,10 +32,11 @@ const DEFAULT_NOTICE_DAYS = 30;
 // de mois que la résiliation exécutera (figé sur le bail, sinon le réglage de l'agence ou global).
 const DEFAULT_PENALTY_MONTHS = 2;
 
+// P212.06 — le préavis se compte en jours calendaires depuis le jour de l'API (UTC), comme
+// `EarlyTerminationService` (`now()->startOfDay()->addDays($notice)`). Ajoutés en heure locale
+// puis relus en UTC, ils perdaient un jour quand un changement d'heure tombait dans l'intervalle.
 function todayPlusDays(days: number): string {
-  const d = new Date();
-  d.setDate(d.getDate() + days);
-  return d.toISOString().slice(0, 10);
+  return decalerJour(jourDeLApi(), days);
 }
 
 function diffInDays(startISO: string, endISO: string): number {
