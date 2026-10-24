@@ -13,6 +13,10 @@ use Illuminate\Notifications\Notification;
  * TCK-080 — final confirmation once anonymization has run. Sent **before**
  * the user row is scrambled (the service dispatches the notification then
  * mutates the row), so Laravel routes the message to the original email.
+ *
+ * TCK-2051 (P193.04) — hors préférences (`MobileClassEventsTest::HORS_PREFERENCES`) : le SMS n'est
+ * qu'un repli pour un compte sans e-mail, critique (`isCriticalSms()`), que `SmsChannel` envoie sans
+ * lire la matrice. Lui ouvrir une case ouvrirait une case qui ne commande rien.
  */
 class AccountDeletionExecutedNotification extends Notification implements SupportsSms
 {

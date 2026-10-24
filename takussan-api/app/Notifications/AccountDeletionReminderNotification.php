@@ -26,6 +26,10 @@ use Throwable;
  * TCK-1750 (P166.01) — `#[DeleteWhenMissingModels]` : `cancelDeletion` supprime la demande pour de
  * bon ; annulée avant le passage du worker, l'avis n'a plus d'objet et sort de la file sans échec
  * (il levait `ModelNotFoundException` et laissait une ligne `failed_jobs`).
+ *
+ * TCK-2051 (P193.04) — hors préférences (`MobileClassEventsTest::HORS_PREFERENCES`) : le SMS n'est
+ * qu'un repli pour un compte sans e-mail, critique (`isCriticalSms()`), que `SmsChannel` envoie sans
+ * lire la matrice. Lui ouvrir une case ouvrirait une case qui ne commande rien.
  */
 #[DeleteWhenMissingModels]
 class AccountDeletionReminderNotification extends Notification implements ShouldQueue, SupportsSms
