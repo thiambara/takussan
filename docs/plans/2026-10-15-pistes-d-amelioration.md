@@ -18951,7 +18951,7 @@ Non mesuré : les écrans du front, et le remboursement par webhook (lu seulemen
 
 ### Une pénalité encore due sur un loyer payé n'est comptée dans aucun impayé
 - Réf : P206.03
-- Statut : validé — validation du porteur (2026-10-24) : un total à part « pénalités à recouvrer » (somme des pénalités dues non réglées) sur l'accueil de l'agence, le relevé du bailleur et l'accueil du locataire ; la définition de l'Impayé ne change pas
+- Statut : fait · TCK-2178
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Dashboard/CollectedPayments.php:44-50,92-100`, `takussan-api/app/Services/Payout/OwnerStatementService.php:166-185`, `takussan-api/app/Services/Reporting/AgingBalanceService.php:54-60`, `takussan-api/app/Services/Dashboard/DashboardTenantService.php:37,84`
 - Constat :
@@ -18961,6 +18961,7 @@ Non mesuré : les écrans du front, et le remboursement par webhook (lu seulemen
   - `docs/features.md:598` définit l'impayé comme « échéance échue non payée, qu'une pénalité s'applique ou non » : la pénalité seule due n'y est ni incluse ni exclue (lu).
 - Piste : décider (V1, V7) si la pénalité due entre dans l'*Impayé* (tuiles, balance âgée, relevé) ou se montre à part (« pénalités à recouvrer »). Garde : le cas du test.
 - Mesure (2026-10-24, ab585ab0d, mesureur) : relu `CollectedPayments.php:44-50` (`OWED_STATUSES` = `pending | partially_paid | late`, reste dû = `amount − paid_amount`) et `OwnerStatementService::unpaid` (l. 166-185, même règle). Même sonde : loyer de 100 000 `paid`, pénalité de 5 000 appliquée non réglée (`lateFeeOutstanding()` → 5000) → `CollectedPayments::leaseOwed()->count()` → `0`, relevé du mois → `unpaid {"count":0,"amount":0}` → le constat tient ; l'accueil du locataire n'a pas été mesuré. Classement : V1 et V7, `docs/features.md:598` ne tranche pas, et inclure la pénalité ou la montrer à part change un montant affiché.
+- Mesure (2026-10-24, 5e00c117b, implementeur) : `PenalitesARecouvrerTest` avant correctif : 3 rouges (aucune clé de pénalités à recouvrer sur `dashboard/agency`, `dashboard/tenant` ni `owner-statements`). Après : total à part `CollectedPayments::lateFeesOutstanding()` (pénalité appliquée non réglée, ni annulée ni sur une caution rendue) → 1 / 5 000 sur les trois lecteurs pour le jeu de la mesure, l'impayé restant 0 ; ligne au PDF du relevé ; front : indice de la tuile Impayés de l'agence, carte du locataire, ligne du relevé. Le total de l'agence passe dans la requête de l'impayé (`UNION ALL`) : `DashboardQueryBudgetTest` tient à 29. Ablation : total vidé → 3 rouges, indice et ligne du front retirés → 2 rouges ; remis → verts.
 
 ### Le remboursement d'un paiement qui incluait la pénalité laisse celle-ci « acquittée »
 - Réf : P206.04
