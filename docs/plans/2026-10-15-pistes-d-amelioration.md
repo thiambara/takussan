@@ -19132,7 +19132,7 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
 
 ### `PATCH /api/admin/announcements/{id}` enregistre une fin avant le début, que la création refuse
 - Réf : P209.04
-- Statut : retenu · autonome
+- Statut : fait · TCK-2069
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Requests/Api/Admin/UpdateAnnouncementRequest.php:27-28`, `takussan-api/app/Http/Requests/Api/Admin/StoreAnnouncementRequest.php:33-34`, `takussan-api/app/Http/Controllers/Api/Admin/AnnouncementController.php:40-42`, `takussan-api/app/Models/Announcement.php:71-77`
 - Constat :
@@ -19142,6 +19142,7 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
   - Établi comment : lu, mesuré par test temporaire.
 - Piste : juger l'ordre des deux dates sur la valeur finale (celle de la requête, sinon celle de la ligne), dans un `after()` de `UpdateAnnouncementRequest`. Garde : un test qui envoie `ends_at` seul avant le début enregistré, puis `starts_at` seul après la fin enregistrée, et attend 422.
 - Mesure (2026-10-24, cdf91988a, mesureur) : relu `UpdateAnnouncementRequest` (`starts_at` en `sometimes`, `ends_at` en `after:starts_at`), `StoreAnnouncementRequest` (`starts_at` requis, même `after:`), `AnnouncementController::update` (`$announcement->update($request->validated())`) ; rejoué par test temporaire `tests/Feature/TmpMesureP209Test.php` (retiré), `XDEBUG_MODE=off php artisan test <fichier>`, PostgreSQL de test, charge 7,96 / 4,57 / 3,45 sur 8 cœurs, super-admin, annonce du 2026-12-01 au 2026-12-31 → `PATCH {ends_at: 2026-11-01}` → 200, ligne 2026-12-01 / 2026-11-01 ; remise au 2026-12-31, `PATCH {starts_at: 2027-06-01}` → 200, ligne 2027-06-01 / 2026-12-31 → le constat tient entier. Classement : A1, la création écrit déjà la règle « fin après début », et la juger sur la valeur finale dans un `after()` de `UpdateAnnouncementRequest` ne demande aucun choix ; console super-admin derrière le middleware `super-admin`, aucune autorisation changée.
+- Mesure (2026-10-24, 2ca6ec743, implementeur) : reproduit par `AnnouncementTest`, super-admin, annonce du 2026-12-01 au 2026-12-31 : `PATCH {ends_at: 2026-11-01}` → 200 avant correctif → `UpdateAnnouncementRequest::after()` juge la date envoyée seule contre l'autre date enregistrée : `{ends_at: 2026-11-01}` → 422 sur `ends_at`, `{starts_at: 2027-06-01}` → 422 sur `starts_at`, ligne inchangée ; une date seule du bon côté reste 200, et `ends_at: null` libère le début ; ablation (`after()` vide) → 1 rouge, remis → 12 verts.
 
 ### Petites améliorations
 - Réf : P209.05
