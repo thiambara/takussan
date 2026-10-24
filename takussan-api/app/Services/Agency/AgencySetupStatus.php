@@ -13,6 +13,7 @@ use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Property;
 use App\Models\User;
+use App\Services\Property\PrimaryPropertyContact;
 use Illuminate\Support\Collection;
 
 /**
@@ -106,7 +107,9 @@ class AgencySetupStatus
             ->where('agency_id', $agency->id)
             ->where('status', AgencyAdminProfileStatus::Active)
             ->pluck('user_id')
-            ->when($agency->primary_admin_id !== null, fn ($ids) => $ids->push($agency->primary_admin_id))
+            // TCK-2189 (P225.03) — le titulaire du titre, seulement s'il est joignable : effacé, il
+            // fermait l'étape `admin_two_factor` pour toujours ; bloqué, il comptait encore.
+            ->when(PrimaryPropertyContact::joignable($agency->primaryAdmin), fn ($ids) => $ids->push($agency->primary_admin_id))
             ->unique()
             ->values();
     }
