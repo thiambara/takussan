@@ -18769,7 +18769,7 @@ est conforme à `docs/models-spec.md` § 14 tel que le cite TCK-1151.*
 
 ### Une pièce d'un reversement `completed` se rembourse sans que rien ne soit repris au bailleur, ni au reversement suivant ni ailleurs
 - Réf : P205.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : reprendre ou refuser un remboursement d'une pièce déjà reversée touche un montant versé au bailleur
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Payout/PayoutCalculator.php:55-101`, `takussan-api/app/Services/Model/BookingPaymentService.php:81-127`, `takussan-api/app/Services/Payments/PaymentGatewayService.php:1341-1354`, `takussan-api/app/Services/Model/PayoutService.php:457`, `:601-626`
 - Constat :
@@ -18780,10 +18780,11 @@ est conforme à `docs/models-spec.md` § 14 tel que le cite TCK-1151.*
   - L'amendement d'ADR-0039 du 2026-10-23 (`Payout` constaté) ne couvre pas ce cas : le constaté est `tenant`, sans pivot, et il est écarté par construction de la préparation, du relevé et de `netPaidOutByMonth` (lu, point 7 et lecteurs n° 3 à 6). Il trace la sortie d'argent vers le locataire, pas la dette du bailleur.
   - Établi comment : lu, puis mesuré par les routes `/api/payouts*` et `/api/booking-payments/{id}/refund`.
 - Piste : décider de la suite d'un remboursement d'une pièce déjà reversée, ce que P39.07 laisse ouvert (« interdire, signaler ou compenser ») : refuser le remboursement d'une pièce d'un reversement `completed` sans décision explicite, ou inscrire une reprise (ligne négative au reversement suivant du même bailleur, garde `net_negative` revue, ou solde dû par le bailleur). Garde : le scénario ci-dessus en test, avec un reversement suivant qui porte la reprise ou un remboursement refusé. Voir P39.07 et P177.01.
+- Mesure (2026-10-24, 60de08ba4, mesureur) : relu `PayoutCalculator.php:62-97` (pièces `paid` seules, `whereNotExists` sur les pivots), `BookingPaymentService::refund` (l. 81-127, aucune lecture des pivots), `PaymentGatewayService::applyRefund` (l. 1341-1354), `PayoutService.php:209,282,457,601-626`, aucun changement de ces fichiers depuis d0e881f2e (`git diff --stat`) ; TCK-1158 laisse ce cas hors périmètre (l. 65). Sonde temporaire `tests/Feature/TmpMesureur/SondeAngle205Test.php` (base créée par le test, charge 2,72 / 3,41 / 4,21 sur 8 cœurs, retirée ensuite) : loyer 150 000 et avance 50 000, bail à 10 %, `POST /api/payouts` → 201 net 180 000, `mark-processed` → 200 `completed`, `POST /api/booking-payments/{id}/refund` de 50 000 → 200 `refunded`, loyer passé `refunded` par `forceFill` ; reversement relu `completed`, brut 200 000, net 180 000 ; loyer neuf de 100 000 : `GET /api/payouts/preparation` → net 90 000, `POST /api/payouts` → 201 net 90 000 → le constat tient en entier. Classement : V1, la suite est un choix (refuser, signaler ou compenser, P39.07 encore « à valider ») sur un montant dû par le bailleur.
 
 ### Le geste de remboursement d'un acompte ne dit pas qu'il a déjà été reversé au bailleur, et l'agence n'en est pas avertie
 - Réf : P205.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : avertir ou refuser le remboursement d'un acompte reversé suit la décision d'argent de P205.01
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Model/BookingPaymentService.php:81-127`, `takussan-api/app/Http/Controllers/Api/BookingPaymentController.php:86-98`, `takussan-api/app/Services/Booking/BookingRefundTaskService.php:39-70`, `takussan-web/src/components/bookings/BookingRefundPanel.tsx:36-160`
 - Constat :
@@ -18793,10 +18794,11 @@ est conforme à `docs/models-spec.md` § 14 tel que le cite TCK-1151.*
   - mesuré (test temporaire, `Notification::fake`) : aucune `CodedNotification` à l'admin d'agence entre le reversement versé et après le remboursement (0 / 0). Qu'aucun autre avis ne parte est lu (pas d'événement sur la transition vers `refunded`, P39.07), et pas mesuré pour les autres canaux.
   - Établi comment : lu, et mesuré pour l'avis.
 - Piste : au moins rendre l'état « reversé au bailleur » (référence et date du reversement) sur l'acompte, dans la tâche et dans le dialogue, avant le geste. Le choix entre avertir et refuser suit P205.01. Garde : un test qui lit ce champ sur un acompte reversé.
+- Mesure (2026-10-24, 60de08ba4, mesureur) : relu `BookingPaymentService::refund` (aucun contrôle d'appartenance à un reversement), `BookingRefundTaskService.php:44-68` (`booking_payment_ids` = tous les acomptes `paid`), `grep payout` dans `BookingPaymentResource.php` et `BookingRefundPanel.tsx` → rien. Sonde temporaire `tests/Feature/TmpMesureur/SondeAngle205Test.php` (base créée par le test, charge 2,72 / 3,41 / 4,21 sur 8 cœurs, retirée ensuite) : réponse du remboursement d'une avance reversée → 200, clés `id … refund_reason, paid_amount, remaining_amount, paid_at, transaction_id, notes, created_at`, aucune clé de reversement ; `CodedNotification` à l'admin d'agence avant / après le remboursement → 0 / 0 → le constat tient. Classement : V1, le choix entre avertir et refuser porte sur le remboursement d'un montant ; rendre le seul champ « reversé » serait A1 sans texte neuf, mais la piste demande aussi un texte dans le dialogue et la tâche (V7).
 
 ### L'accueil du bailleur garde le net versé d'un mois dont les pièces ont été remboursées, à côté d'un encaissé qui les a retirées
 - Réf : P205.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : ce que l'accueil montre d'un versé repris dépend de la décision d'argent de P205.01
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Dashboard/PortfolioMetrics.php:285-303`, `takussan-api/app/Services/Dashboard/CollectedPayments.php`
 - Constat :
@@ -18805,3 +18807,4 @@ est conforme à `docs/models-spec.md` § 14 tel que le cite TCK-1151.*
   - C'est le pendant, sur l'accueil, de ce que P177.01 relève sur le relevé de gérance.
   - Établi comment : lu.
 - Piste : faire suivre l'accueil de la décision de P205.01. Une reprise inscrite apparaîtrait comme un versé négatif daté. À défaut, un signal « pièces remboursées depuis le versement » sur le mois. Garde : le scénario de P205.01, puis `netPaidOutByMonth` et l'encaissé relus.
+- Mesure (2026-10-24, 60de08ba4, mesureur) : relu `PortfolioMetrics.php:247-303` (`netPaidOutByMonth` somme `net_amount` des `completed`, les revenus comptent `montant − refund_amount` des pièces `paid`). Sonde temporaire `tests/Feature/TmpMesureur/SondeAngle205Test.php` (base créée par le test, charge 2,72 / 3,41 / 4,21 sur 8 cœurs, retirée ensuite), après le scénario de P205.01 : `netPaidOutByMonth` → `{"2026-10": 180000}` (mois de `processed_at`), `leaseIncomeByMonth` → `{"2026-09": 100000}` (le seul loyer neuf), `bookingIncomeByMonth` → rien ; le versé reste à 180 000 quand les pièces versées ne comptent plus à l'encaissé. Le constat tient, mesuré sur le service et non par les routes du tableau de bord. Classement : V1, la forme d'une reprise sur l'accueil (versé négatif ou signal) suit le choix de P205.01.
