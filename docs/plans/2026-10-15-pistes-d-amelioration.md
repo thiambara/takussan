@@ -20907,7 +20907,7 @@ base de développement. Les écrans n'ont pas été joués.*
 
 ### L'agent créateur suspendu ou retiré reçoit le tableau de bord du bailleur, avec les baux et loyers attendus du bien qu'il a saisi
 - Réf : P232.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : vue de tableau de bord qu'un bailleur particulier sans agence utilise aujourd'hui, et vue à rendre (client ou vide) à choisir
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Dashboard/DashboardRoleResolver.php:64-67`, `takussan-api/app/Services/Dashboard/DashboardOwnerService.php:34-50`, `takussan-api/app/Services/Dashboard/PortfolioScope.php:22-25`
 - Constat :
@@ -20916,10 +20916,11 @@ base de développement. Les écrans n'ont pas été joués.*
   - mesuré (test temporaire) : suspendu comme retiré, `GET /api/dashboard/me` → 200, `role: owner`, `portfolio_total: 1`, `leases_active: 1`, `expected_monthly: 150000` ; agent actif → `role: agent`. `GET /api/dashboard/owner` → 403 dans les trois cas (garde `isOwnerAt` du contrôleur).
   - Établi comment : lu, puis mesuré.
 - Piste : juger la branche « possède des biens » du résolveur par `BailleurDuBien::restreindre` (biens sans agence, ou d'une agence où il tient un profil propriétaire), et borner `PortfolioScope::landlord` de même pour que `summary` et `monthlyTimeseries` ne comptent que les biens et baux dont il est le bailleur. Test : agent créateur suspendu, puis retiré → `role` client (ou vue vide), aucun bail compté ; bailleur bloqué et bailleur particulier → inchangés.
+- Mesure (2026-10-24, 027642063, mesureur) : relu `DashboardRoleResolver.php:64-67` (branche `Property::where('user_id', …)->exists()` inchangée, posée par TCK-032, 676c0d279) et `PortfolioScope::landlord` (`user_id`/`landlord_id` sans agence) ; test temporaire `tests/Feature/TmpMesureur/SondeP232Test.php` (retiré ; charge 3,30 / 3,65 / 4,12 sur 8 cœurs) : bien d'agence passé au `user_id` de l'agent, bail `active` à 150 000 au `landlord_id` de l'agent, fils `lease` et `property` dont l'agent et un admin sont participants ; suspendu par `TeamMemberSuspensionService::suspend`, retiré par `AgencyMemberRemovalService::remove(…, leaveUnassigned: true)` (`staffAgencyId()` null, `can('view')` du bail et du bien faux dans les deux cas) → suspendu comme retiré, `GET /api/dashboard/me` 200 `role: owner`, `portfolio_total: 1`, `leases_active: 1`, `expected_monthly: 150000` ; actif → `role: agent` ; `GET /api/dashboard/owner` 403 dans les trois cas : le constat tient. Classement : V2, le correctif change la vue qu'obtient tout créateur de bien par cette branche (dont le particulier, à préserver), et la Piste laisse ouvert ce que voit l'agent écarté (« client, ou vue vide »), V7.
 
 ### L'archive RGPD d'un agent contient les baux des biens qu'il a saisis, locataire et loyer compris
 - Réf : P232.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V3 : contenu de l'archive RGPD
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Privacy/DataExportBuilder.php:119-123`
 - Constat :
@@ -20928,10 +20929,11 @@ base de développement. Les écrans n'ont pas été joués.*
   - La même forme vaut pour `lease_payments` par `collector_id` et `bookings.json` par `created_by_id` (lu, l. 115-117 et 127) : colonnes d’auteur, à vérifier sous l’angle 247 proposé par ce passage.
   - Établi comment : lu, puis mesuré.
 - Piste : borner la clause `landlord_id` de `leases.json` par `BailleurDuBien::restreindre($q, $user, 'landlord_id')`, comme `LeaseController::index`. Test : agent créateur (actif, suspendu, retiré) → bail absent de l'archive ; bailleur du bien → présent ; locataire → présent.
+- Mesure (2026-10-24, 027642063, mesureur) : relu `DataExportBuilder.php:119-123` (`leases.json` par `landlord_id` puis `toArray()`, inchangé) ; test temporaire `tests/Feature/TmpMesureur/SondeP232Test.php` (retiré ; charge 3,30 / 3,65 / 4,12 sur 8 cœurs) : bien d'agence passé au `user_id` de l'agent, bail `active` à 150 000 au `landlord_id` de l'agent, fils `lease` et `property` dont l'agent et un admin sont participants ; suspendu par `TeamMemberSuspensionService::suspend`, retiré par `AgencyMemberRemovalService::remove(…, leaveUnassigned: true)` (`staffAgencyId()` null, `can('view')` du bail et du bien faux dans les deux cas), plus le témoin actif → `payloads()['leases.json']` contient le bail (`tenant_id` du client, `monthly_rent` « 150000.00 ») pour l'agent actif, suspendu et retiré : le constat tient. Classement : V3, le correctif retire des données de l'archive personnelle d'un compte, choix de ce qui est exposé au titre du RGPD.
 
 ### L'agent créateur suspendu garde les fils de bail et de bien : la règle de TCK-2019 le tient pour « partie »
 - Réf : P232.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : accès à des fils de messagerie
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Messaging/ConversationAccess.php:89-97`, `:197-212`, `takussan-api/app/Jobs/NotifyNewMessageJob.php:50`
 - Constat :
@@ -20941,10 +20943,11 @@ base de développement. Les écrans n'ont pas été joués.*
   - Voir P191.01 (TCK-2019), dont c'est l'exception « partie au bail ou au bien ».
   - Établi comment : lu, puis mesuré.
 - Piste : juger « partie au bail ou au bien » par `BailleurDuBien::est` dans `contextAllows`, et par `BailleurDuBien::restreindre` dans `constrainContext`. Test : agent créateur suspendu → fils refusés et absents de la liste ; bailleur du bien suspendu → les garde ; locataire → les garde.
+- Mesure (2026-10-24, 027642063, mesureur) : relu `ConversationAccess.php:89-97` et `:190-212` (partie = `landlord_id` / `property.user_id` bruts, inchangés) ; test temporaire `tests/Feature/TmpMesureur/SondeP232Test.php` (retiré ; charge 3,30 / 3,65 / 4,12 sur 8 cœurs) : bien d'agence passé au `user_id` de l'agent, bail `active` à 150 000 au `landlord_id` de l'agent, fils `lease` et `property` dont l'agent et un admin sont participants ; suspendu par `TeamMemberSuspensionService::suspend`, retiré par `AgencyMemberRemovalService::remove(…, leaveUnassigned: true)` (`staffAgencyId()` null, `can('view')` du bail et du bien faux dans les deux cas) → suspendu : `allows` vrai pour les deux fils, `GET /api/conversations/{id}` du fil de bail 200, les deux fils dans `GET /api/conversations` : le constat tient pour le suspendu. Retiré, sur ce jeu où les participants sont attachés directement : fil du bail refusé (403), mais fil du bien encore `allows` vrai et listé — l'écart avec le constat (« retiré : faux, liste vide ») n'est pas élucidé, à vérifier par l'implémenteur. L'avis de `NotifyNewMessageJob` n'a pas été mesuré. Classement : V2, le correctif retire un accès à des conversations que la règle de TCK-2019 accorde aujourd'hui, en resserrant l'exception « partie ».
 
 ### Les listes de contexte des conversations proposent à l'agent suspendu ou retiré le bail et le bien qu'il a saisis
 - Réf : P232.04
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/ConversationContextController.php:96-107`, `:139-153`
 - Constat :
@@ -20952,10 +20955,11 @@ base de développement. Les écrans n'ont pas été joués.*
   - mesuré (test temporaire) : suspendu comme retiré, `GET /api/conversations/context/leases` et `…/properties` rendent le bail et le bien (référence et titre) alors que `can('view')` est faux pour les deux.
   - Établi comment : lu, puis mesuré.
 - Piste : borner les deux clauses par `BailleurDuBien::restreindre` (`'landlord_id'` pour les baux). `ConversationContextTest` vérifie déjà que tout ce qui est listé passe la policy : y ajouter l'agent créateur suspendu et retiré, ce qui empêche le retour.
+- Mesure (2026-10-24, 027642063, mesureur) : relu `ConversationContextController.php:94-108` et `:138-153` (clauses `leases.landlord_id` et `properties.user_id` sans `BailleurDuBien`) et son en-tête (l. 46-53 : la liste est « la traduction ligne à ligne » de `PropertyPolicy::view` / `LeasePolicy::view`, incluse dans ce que `CreateGroupConversationRequest` accepte) ; test temporaire `tests/Feature/TmpMesureur/SondeP232Test.php` (retiré ; charge 3,30 / 3,65 / 4,12 sur 8 cœurs) : bien d'agence passé au `user_id` de l'agent, bail `active` à 150 000 au `landlord_id` de l'agent, fils `lease` et `property` dont l'agent et un admin sont participants ; suspendu par `TeamMemberSuspensionService::suspend`, retiré par `AgencyMemberRemovalService::remove(…, leaveUnassigned: true)` (`staffAgencyId()` null, `can('view')` du bail et du bien faux dans les deux cas) → suspendu comme retiré, `GET /api/conversations/context/leases` et `…/properties` rendent le bail et le bien alors que `can('view')` est faux pour les deux : le constat tient. Classement : A1, le contrat (liste ⊆ policy) est écrit dans le contrôleur et tenu par `ConversationContextTest`, et `BailleurDuBien::restreindre` est la règle que les policies appliquent déjà : aucun appelant que la policy admet ne perd une ligne.
 
 ### L'agent créateur ne peut pas effacer son compte : les baux qu'il a saisis comptent comme ses obligations de bailleur
 - Réf : P232.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V3 : effacement de compte
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Account/AccountDeletionService.php:485-498`, `:617-635`, `takussan-api/app/Http/Requests/Auth/RequestAccountDeletionRequest.php:172-180`
 - Constat :
@@ -20964,10 +20968,11 @@ base de développement. Les écrans n'ont pas été joués.*
   - mesuré (test temporaire, `collectOpenObligations`) : agent actif, suspendu et **retiré** → une obligation `lease` (le bail du bien qu'il a saisi) dans les trois cas. Le 422 sur `POST /api/auth/me/deletion-request` est déduit de la lecture (le parcours exige un step-up), à vérifier.
   - Établi comment : lu, puis mesuré.
 - Piste : juger les baux « en tant que bailleur » par `BailleurDuBien::restreindre($q, $user, 'landlord_id')`, et `agenciesOwingPayout` de même pour sa clause sur les baux et les biens, en gardant le cas du compte effacé (TCK-2015). Test : agent retiré, créateur d'un bien loué → aucune obligation `lease`, effacement accepté ; bailleur du bien → obligation.
+- Mesure (2026-10-24, 027642063, mesureur) : relu `AccountDeletionService::collectOpenObligations` (l. 486-489, baux par `landlord_id`) et `agenciesOwingPayout` (l. 623-628, `leases.landlord_id` et `properties.user_id`), inchangés ; test temporaire `tests/Feature/TmpMesureur/SondeP232Test.php` (retiré ; charge 3,30 / 3,65 / 4,12 sur 8 cœurs) : bien d'agence passé au `user_id` de l'agent, bail `active` à 150 000 au `landlord_id` de l'agent, fils `lease` et `property` dont l'agent et un admin sont participants ; suspendu par `TeamMemberSuspensionService::suspend`, retiré par `AgencyMemberRemovalService::remove(…, leaveUnassigned: true)` (`staffAgencyId()` null, `can('view')` du bail et du bien faux dans les deux cas), plus le témoin actif → `collectOpenObligations` rend une obligation `lease` pour l'agent actif, suspendu et retiré : le constat tient ; le 422 de `POST /api/auth/me/deletion-request` n'a pas été rejoué (step-up). Classement : V3, le correctif change quels comptes peuvent être effacés, et touche `agenciesOwingPayout` qui juge un reversement dû (V1).
 
 ### Bailleur dans une agence, agent suspendu dans une autre : `/dashboard/owner` et `/export/leases` comptent et exportent les baux saisis dans la seconde
 - Réf : P232.06
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : accès au tableau de bord bailleur et aux exports, V3 : nom du locataire exporté
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Export/ExportDataService.php:466-477`, `takussan-api/app/Http/Controllers/Api/ExportController.php:74-77`, `takussan-api/app/Http/Controllers/Api/DashboardOwnerController.php:21-26`, `takussan-api/app/Services/Dashboard/DashboardOwnerService.php:34-50`
 - Constat :
@@ -20975,10 +20980,11 @@ base de développement. Les écrans n'ont pas été joués.*
   - mesuré (test temporaire) : agent de l'agence A, créateur du bien et du bail, qui tient aussi un profil propriétaire dans une agence B ; suspendu dans A → `agency_id` = B ; `GET /api/dashboard/owner` → 200, `portfolio.total: 1`, `leases.active: 1`, `expected_monthly: 150000` (le bien et le bail de A) ; `ExportDataService::collect('leases')` → la ligne du bail de A (référence, titre du bien, **nom du locataire**, loyer) ; `GET /api/export/leases?format=csv` → 200 ; `collect('properties')` → 1 ligne.
   - Établi comment : lu, puis mesuré.
 - Piste : borner les trois clauses du bailleur de `scopeToActor` par `BailleurDuBien::restreindre` (`'landlord_id'` pour les baux, et par le bail pour les loyers), et le périmètre du tableau de bord comme en P232.01 : un même correctif de `PortfolioScope::landlord` sert les deux tableaux de bord. Test : le cas des deux agences ci-dessus → aucun bien ni bail de A ; bailleur de A → les siens.
+- Mesure (2026-10-24, 027642063, mesureur) : relu `ExportDataService.php:466-477` (branche `isOwnerAt` bornée par `user_id` / `landlord_id` sans agence) et `DashboardOwnerController.php:21-26`, inchangés ; test temporaire du même jeu (retiré), l'agent tenant en plus un profil propriétaire dans une agence B puis suspendu dans A → `agency_id` = B, `GET /api/dashboard/owner` 200 `portfolio.total: 1`, `leases.active: 1` (le bien et le bail de A), `ExportDataService::leases` rend la ligne du bail de A (locataire nommé, loyer 150 000), `properties` la ligne du bien, `GET /api/export/leases?format=csv` 200 : le constat tient. Classement : V2 et V3, le correctif resserre ce qu'un bailleur légitime voit et exporte, et ce qui sort concerne les données d'un locataire.
 
 ### Un agent, de tout statut, est admis comme bénéficiaire d'un reversement des loyers des baux qui le désignent
 - Réf : P232.07
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : bénéficiaire d'un reversement, à trancher avec TCK-997
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Payout/PayoutPreparationService.php:41-47`, `takussan-api/app/Services/Model/PayoutService.php:91-99`, `takussan-api/app/Services/Payout/PayoutCalculator.php:71-80`
 - Constat :
@@ -20987,3 +20993,4 @@ base de développement. Les écrans n'ont pas été joués.*
   - TCK-997 (porteur, Q1 a) écrit que « l'agence peut garder un bien en propre », le relevé et l'avis suivant « la règle du reversement » : l'admission du personnel est peut-être voulue pour ce cas, et le bénéficiaire serait alors l'agence, non l'agent qui a saisi (à vérifier, TCK-997 est `todo`).
   - Établi comment : lu ; non mesuré.
 - Piste : à trancher avec TCK-997 : soit écrire que le bien gardé en propre se reverse au personnel qui l'a saisi (et à quel statut), soit refuser comme bénéficiaire un compte que `BailleurDuBien` ne tient pas pour bailleur du bail. Test : agent créateur suspendu → `POST /api/payouts/prepare` refusé, ou le comportement écrit.
+- Mesure (2026-10-24, 027642063, mesureur) : relu `PayoutPreparationService.php:41-47` et `PayoutService.php:91-99` (Owner, Agent ou AgencyAdmin par `hasProfileAt`, sans statut), inchangés ; test temporaire du même jeu (retiré), un loyer payé de 150 000 sur le bail : agent suspendu → `PayoutPreparationService::prepare(admin, agent, …)` accepte et rend la ligne du loyer (commission calculée) ; agent retiré → refus `payout.landlord_not_in_agency` : le constat, non mesuré par l'explorateur, tient tel qu'il le déduisait. TCK-997 est toujours `todo`. Classement : V1, le reversement est de l'argent, et la Piste propose deux options dont le choix revient au porteur (V7).
