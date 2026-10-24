@@ -48,14 +48,19 @@ les déclare désormais comme `HealthcheckStatus`.
   et `en`, le `wo` au texte français (wolof en pause).
 - [x] `PlatformHealth` : `whatsapp`, `scheduler` (avec `last_run_at`), `proxies`,
   `lemon_squeezy_webhook` comme `HealthcheckStatus`.
-- [x] Test PHP `HealthcheckTuilesConcordanceTest` : clés de sonde de `HealthcheckService` (hors
-  `status`, `generated_at`) = clés de `CHECKS` lues dans `system-health.tsx`.
+- [x] Fixture partagée `takussan-api/tests/fixtures/healthcheck-sondes.json` (les quatorze sondes),
+  sur le patron de `booking-quote.json` (TCK-530).
+- [x] Test PHP `HealthcheckTuilesConcordanceTest` : clés de sonde de `HealthcheckService::snapshot()`
+  (hors `status`, `generated_at`) = sondes de la fixture.
+- [x] Test vitest `system-health.concordance.test.ts` : clés de `CHECKS` lues dans `system-health.tsx`
+  = sondes de la fixture.
 - [x] Test vitest `system-health.sondes.test.tsx` : `scheduler` seul en `failed` → « Planificateur »
   à l'écran, et deux « En panne ».
 
 ## Critères d'acceptation
 
-- [x] AC1 — Une sonde ajoutée à `probe()` sans tuile, ou une tuile sans sonde, rougit le test PHP.
+- [x] AC1 — Une sonde ajoutée à `probe()` sans tuile, ou une tuile sans sonde, rougit le test PHP ou le
+  test vitest de concordance.
 - [x] AC2 — Le planificateur seul en panne est nommé à l'écran, sous `fr`.
 - [x] AC3 — Les quatorze tuiles se rendent, chacune datée.
 
@@ -71,10 +76,16 @@ les déclare désormais comme `HealthcheckStatus`.
 ## Notes d'implémentation
 
 - Le test PHP appelle `snapshot()` : sous `CACHE_STORE=array`, le cache est neuf à chaque test, et l'instantané est donc celui de `probe()`.
-- Ablation : retirer les quatre entrées de `CHECKS` fait rougir le test PHP (10 clés contre 14) et
-  les deux cas vitest (« Unable to find … Planificateur », « … WhatsApp »).
+- **Écart de forme avec la décision, imposé par une garde** : la décision veut un test PHP qui lit
+  `CHECKS` dans `system-health.tsx`. Écrit ainsi (premier commit de test), il rougit
+  `scripts/check-ci-attestation.mjs` : un test de l'API qui lit un fichier hors de
+  `PERIMETRES.api` laisserait passer une attestation périmée (ADR-0063), et l'y ajouter modifie une
+  garde existante (V9, fermé). La concordance passe donc par une fixture lue par les deux suites,
+  exactement le patron de `BookingQuoteConcordanceTest` que cite la décision ; `CHECKS` reste lue
+  dans `system-health.tsx`, par le test vitest.
+- Ablation : retirer les quatre entrées de `CHECKS` fait rougir les deux cas de
+  `system-health.sondes` (« Unable to find … Planificateur », « … WhatsApp ») ; retirer `scheduler`
+  de `CHECKS` rougit `system-health.concordance`, et le retirer de la fixture rougit le test PHP.
 - Les deux fixtures existantes (`system-health.etats`, `system-health.i18n`) passent `scheduler`
   à `{ status: 'ok', last_run_at }` : le type exige un statut ; sans `checked_at`, leurs comptes de
   « Sondé à » ne bougent pas.
-- Le test PHP lit un fichier du front : un changement du seul front ne déclenche pas forcément
-  API CI (à vérifier : les chemins d'`api-ci.yml` sont hors de lecture de l'implémenteur).
