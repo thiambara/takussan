@@ -289,7 +289,7 @@ voie d'écriture (angle 13, puis 47).
 | 212 | Dates calendaires `Y-m-d` de l'API lues par `new Date(…)` au navigateur puis comparées à l'instant ou ramenées à minuit local (`setHours(0, 0, 0, 0)`, `getDate()` : `EarlyTerminationBanner.daysFromTodayTo`, `LeaseRenewalDialog.tsx:44`, `refine` de `lib/schemas/lease.ts:81` et `booking.ts:42`, et leurs pareilles sous `src/components`) au lieu de la comparaison littérale de jours qu'ADR-0018 pose : jour décalé pour un navigateur hors UTC, ou dès minuit UTC du jour même — né de P183.01 et P183.04 | fait |
 | 213 | Contrôleurs et services qui écrivent (`fill()->save()`, `update()`, `recordOwnerCost`) puis appellent une garde ou un service qui peut encore lever un 4xx, hors `DB::transaction` (`MaintenanceRequestController::update` l. 211-219 et ses pareils sous `app/Http/Controllers/Api` et `app/Services`) : réponse d'erreur sur une écriture déjà faite, que l'écran présente comme un échec — né de P184.02 | fait |
 | 214 | Formulaires d'édition qui renvoient en entier une colonne JSON qu'ils ne montrent qu'en partie (`saved_searches.criteria` de `SearchPreferencesForm`, `announcements.segment`, `integrations.metadata`, `available_slots`, `limits` des plans), face à un `fill()` qui remplace la colonne : clés posées par un autre écran ou une autre version effacées par un simple enregistrement — né de P185.01 | fait |
-| 215 | Identifiants numériques de route hors de `bigint` sur les routes connectées : liaisons implicites `{model}` et paramètres `whereNumber()` (30 sous `routes/`) ou actions typées `int $id`, face à vingt chiffres dans l'URL — 500 `22003` ou `TypeError` au lieu d'un 404 — le relevé de P187.05 hors des routes publiques | à faire |
+| 215 | Identifiants numériques de route hors de `bigint` sur les routes connectées : liaisons implicites `{model}` et paramètres `whereNumber()` (30 sous `routes/`) ou actions typées `int $id`, face à vingt chiffres dans l'URL — 500 `22003` ou `TypeError` au lieu d'un 404 — le relevé de P187.05 hors des routes publiques | fait |
 | 216 | Paramètres hors `filter[…]` castés `(string)` ou passés à un argument typé `string` dans les listes et lectures écrites à la main (`(string) $request->input('include')` des trois tableaux de bord, `(string) $request->query('sort')` de `ReviewController` et `UserDetailController`, `$request->query('q')` de `PaymentSearchController`, et leurs pareils sous `app/Http/Controllers`) : une liste `x[]=` rend 500 « Array to string conversion » ou `TypeError` au lieu d'un 422 ou d'un défaut — né de P188.06 et P188.07 | à faire |
 | 217 | Clauses de périmètre des listes `index` écrites à la main (`BookingController`, `LeaseController`, `InventoryController`, `PaymentController::history`, `InvoiceController`, `PropertyVisitController`, `MaintenanceRequestController`) face à la policy `view` de leur modèle, resserrée seule par TCK-587, TCK-1705, TCK-1707 et TCK-1718 à TCK-1722 : ligne refusée en lecture qui reste listée avec ses relations chargées (fiche client, bien) — hors du créateur du bien relevé à l'angle 190 | à faire |
 | 218 | Effets que le retrait d'un membre applique (`AgencyMemberRemovalService` : fils de bail quittés, marque d'agent principal retirée, passation) et que la suspension n'applique pas (`TeamMemberSuspensionService::apply` : statut des profils et jetons seulement), face aux lectures qui jugent la participation, la marque ou l'assignation sans le statut du profil : agent suspendu qui garde ce que le retiré perd, alors qu'il se reconnecte — né de P191.01 | à faire |
@@ -19282,7 +19282,7 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
 
 ### Le verdict KYC se juge sur le dossier lié à la route : un rejet après une vérification laisse le dossier `rejected` et l'agence vérifiée
 - Réf : P211.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-2105
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Kyc/KycWorkflowService.php:96-176,185-190`
 - Constat :
@@ -19292,10 +19292,11 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
   - Établi comment : lu et mesuré.
 - Piste : relire le dossier sous `lockForUpdate` dans une transaction qui porte aussi l'écriture de l'agence, y juger `assertTransitionable` / `assertNotVerified`, et prévenir après le commit, comme `InventorySignatureService::sign`. Garde : un test qui vérifie puis rejette sur une copie périmée et attend 422 `CODE_NOT_TRANSITIONABLE`, l'agence intacte.
 - Mesure (2026-10-24, 0c24562d3, mesureur) : relu `KycWorkflowService.php` : `submit` (`assertNotVerified` sur le modèle reçu, l. 96-116), `verify` et `reject` (`assertTransitionable` sur le modèle reçu, `update` du dossier puis de l'agence hors transaction ni verrou, `notifyReviewed`, l. 118-176), lignes inchangées ; `git log` sur `app/Services/Kyc` et `grep` des tickets → rien ne l'a traité ; test temporaire `tests/Feature/TmpMesureur/TmpMesure211Test.php` (retiré), `XDEBUG_MODE=off php artisan test <fichier>`, PostgreSQL de test, charge 1,66 / 1,78 / 1,95 sur 8 cœurs : dossier `submitted` complet chargé deux fois, `verify` sur l'un puis `reject` sur l'autre → rejet accepté, dossier `rejected`, agence `active` et `is_verified = true` → le constat tient ; le double `submit` n'a pas été joué. Classement : A1, la garde `CODE_NOT_TRANSITIONABLE` écrit déjà le contrat (un dossier tranché ne se tranche plus) ; le correctif la juge sur la ligne relue sous verrou dans une transaction qui porte aussi l'écriture de l'agence, avis après le commit, comme TCK-1820 et TCK-1822.
+- Mesure (2026-10-24, b9243f4b6, implementeur) : dossier `submitted` complet chargé deux fois, `verify` sur l'un puis `reject` sur l'autre → rejet accepté (reproduit par `tests/Feature/Kyc/KycVerdictSousVerrouTest.php`, 3 rouges sur 4 avant correctif : rejet après vérification, vérification après rejet, soumission d'un dossier vérifié) → `submit`, `verify` et `reject` relisent le dossier sous `lockForUpdate` dans une transaction qui porte l'écriture de l'agence, avis après le commit ; 4 verts, ablation (service remis à `HEAD`) → 3 rouges, correctif remis → 4 verts.
 
 ### La demande de passage en agence se juge `pending` hors verrou : un rejet après une approbation laisse la demande `rejected` et l'agence passée en `standard`
 - Réf : P211.02
-- Statut : retenu · autonome
+- Statut : fait · TCK-2107
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Agency/AgencyUpgradeReviewService.php:44-107,109-150,156-165`
 - Constat :
@@ -19304,6 +19305,7 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
   - Établi comment : lu et mesuré.
 - Piste : verrouiller et relire la demande dans la transaction, y juger `assertPending`, avis après le commit. Garde : approbation puis rejet sur une copie périmée → 422 `not_pending`, demande `approved`.
 - Mesure (2026-10-24, 0c24562d3, mesureur) : relu `AgencyUpgradeReviewService.php` : `approve` et `reject` jugent `assertPending` sur le modèle lié (l. 49, 114) avant la transaction (l. 69, 126), la bascule `AgencyKindFlipService::flip` dans celle d'`approve`, `notifySubmitter` après ; test temporaire `tests/Feature/TmpMesureur/TmpMesure211Test.php` (retiré), `XDEBUG_MODE=off php artisan test <fichier>`, PostgreSQL de test, charge 1,66 / 1,78 / 1,95 sur 8 cœurs : demande `pending` chargée deux fois, KYC vérifié, `approve` sur l'une puis `reject` sur l'autre → rejet accepté, demande `rejected`, agence `kind = standard` → le constat tient ; les avis n'ont pas été comptés. Classement : A1, la garde `not_pending` écrit déjà le contrat ; le correctif relit la demande sous verrou dans la transaction et y juge `assertPending`, sans rien changer de la bascule ni de l'avis.
+- Mesure (2026-10-24, b9243f4b6, implementeur) : demande `pending` chargée deux fois, KYC vérifié, `approve` sur l'une puis `reject` sur l'autre → rejet accepté (reproduit par `tests/Feature/Admin/AgencyUpgradeReviewSousVerrouTest.php`, 2 rouges sur 3 avant correctif, dans les deux ordres) → `approve` et `reject` relisent la demande sous `lockForUpdate` dans leur transaction et y jugent `assertPending` ; 3 verts, `AgencyUpgradeRequestReviewTest` 17 verts ; ablation (service remis à `HEAD`) → 2 rouges, correctif remis → 3 verts.
 
 ### Les transitions d'une intervention se jugent sur le modèle lié : la clôture automatique écrase une contestation faite pendant son passage
 - Réf : P211.03
@@ -19334,7 +19336,7 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
 
 ### Un état des lieux se modifie sur le modèle lié pendant qu'une partie le signe : le contenu change après la première signature
 - Réf : P211.05
-- Statut : retenu · autonome
+- Statut : fait · TCK-2109
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/InventoryController.php:117-153,295-346`, `takussan-api/app/Services/Model/InventoryService.php:39-83`, `takussan-api/app/Services/Inventory/InventorySignatureService.php:39-94`
 - Constat :
@@ -19344,10 +19346,11 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
   - Établi comment : lu et mesuré.
 - Piste : juger `draft` sur la ligne relue sous `lockForUpdate` dans une transaction pour `update`, l'ajout et le retrait de photo, `submit` et `dispute`, comme `sign`. Garde : signature posée derrière un modèle resté `draft` → `update` 422 `inventory.not_draft`, pièces intactes.
 - Mesure (2026-10-24, 0c24562d3, mesureur) : relu `InventoryService.php` (`update` l. 39-50, `submit`, `dispute` : garde jugée sur le modèle reçu, écriture sans verrou), `InventoryController.php` (`update` l. 117-153, `uploadRoomPhotos`, `destroyRoomPhoto`, `assertDraft` l. 339-346) et `InventorySignatureService::sign` (verrou et relecture) ; test temporaire `tests/Feature/TmpMesureur/TmpMesure211Test.php` (retiré), `XDEBUG_MODE=off php artisan test <fichier>`, PostgreSQL de test, charge 1,66 / 1,78 / 1,95 sur 8 cœurs : état des lieux `draft` chargé, ligne passée en base à `pending_signature` et `tenant_signed = true`, `InventoryService::update` sur le modèle resté `draft` avec de nouvelles `rooms` → accepté, ligne `pending_signature`, signature du locataire gardée, pièces remplacées → le constat tient ; la photo pendant la signature n'a pas été jouée. Classement : A1, les gardes `inventory.not_draft`, `signed_locked`, `not_draft_submit` et `cannot_dispute` écrivent le contrat ; le correctif les juge sur la ligne relue sous `lockForUpdate`, patron de `sign`.
+- Mesure (2026-10-24, b9243f4b6, implementeur) : état des lieux `draft` chargé, ligne passée en base à `pending_signature` et `tenant_signed = true`, `InventoryService::update` sur le modèle resté `draft` → accepté, pièces remplacées (reproduit par `tests/Feature/Api/InventoryGestesSousVerrouTest.php` : 6 rouges sur 7 avant verrou — `update` en `pending_signature` et en `signed`, `submit` d'un état signé, seconde contestation, ajout et retrait de photo ; les deux gestes photo d'abord déplacés du contrôleur au service à comportement égal) → les cinq gestes relisent la ligne sous `lockForUpdate` dans une transaction et y jugent leur garde ; 7 verts, les 11 classes d'état des lieux vertes ; ablation (service sans verrou) → 6 rouges, correctif remis → 7 verts.
 
 ### Une délégation révoquée pendant le passage de la tâche planifiée est réactivée
 - Réf : P211.06
-- Statut : retenu · autonome
+- Statut : fait · TCK-2111
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Permissions/RoleDelegationService.php:131-189`, `takussan-api/app/Models/RoleDelegation.php:159-182`, `takussan-api/app/Jobs/Permissions/ProcessRoleDelegationsJob.php:17-28`, `takussan-api/routes/console.php:111`
 - Constat :
@@ -19356,6 +19359,7 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
   - Établi comment : lu et mesuré.
 - Piste : écrire les transitions par une mise à jour conditionnelle (`where('status', scheduled)->update(…)`, réclamation comme `BoostLifecycle::closeWithRefund`) ou sous verrou relu, et n'émettre l'événement que si la ligne a été prise. Garde : révocation puis activation sur le modèle chargé par le job → `revoked`, aucun événement.
 - Mesure (2026-10-24, 0c24562d3, mesureur) : relu `RoleDelegationService.php` : `revoke`, `activate` et `expire` jugent `status` sur le modèle reçu puis écrivent par `markRevoked` / `markActive` / `markExpired` (`RoleDelegation.php:159-182`, `update()` sans condition sur le statut en base) ; `ProcessRoleDelegationsJob` charge par `cursor()` et appelle sur chaque modèle chargé ; test temporaire `tests/Feature/TmpMesureur/TmpMesure211Test.php` (retiré), `XDEBUG_MODE=off php artisan test <fichier>`, PostgreSQL de test, charge 1,66 / 1,78 / 1,95 sur 8 cœurs : délégation `scheduled` échue chargée par `readyToActivate()`, `revoke` sur une copie fraîche, puis `activate` sur le modèle chargé → `status = active`, `revoked_at` conservé → le constat tient ; le nombre de `RoleDelegationActivated` n'a pas été relevé (événement après commit, non vu sous `RefreshDatabase`). Classement : A1, la révocation écrit le contrat (une délégation `revoked` ne s'active plus, garde `status !== Scheduled` d'`activate`) ; le correctif la rend effective sur la ligne en base par une mise à jour conditionnelle ou un verrou, sans toucher à ce qu'une délégation légitime accorde.
+- Mesure (2026-10-24, b9243f4b6, implementeur) : délégation `scheduled` échue chargée par `readyToActivate()`, `revoke` sur une copie fraîche puis `activate` sur le modèle chargé → `active` (reproduit par `tests/Feature/Api/Permissions/RoleDelegationSousVerrouTest.php` : 3 rouges sur 4 avant correctif — activation et expiration après révocation, seconde révocation périmée) → `revoke`, `activate` et `expire` relisent la ligne sous `lockForUpdate` et n'écrivent ni n'émettent que si elle a été prise ; 4 verts, `ProcessRoleDelegationsJobTest`, `RoleDelegationTest`, `AgentAbsenceTest` verts ; ablation (service remis à `HEAD`) → 3 rouges, correctif remis → 4 verts.
 
 ### Petites améliorations
 - Réf : P211.07
@@ -19542,3 +19546,56 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
 - Mesure (2026-10-24, 6149e5d75, mesureur) : relu `NotificationTemplateService.php:66-93` (`is_active` absent lu `true` et écrit sur chaque langue), `PlanController.php:37-39` (`update($request->validated())`), `UpdatePlanRequest.php:26-29` et `QuotaResolver.php:50-56` (`array_replace` des bornes du plan et des dérogations) ; aucun commit sur ces fichiers depuis 97f136cdd ; test temporaire (retiré), charge `{ 2.00 1.78 1.83 }` sur 8 cœurs → gabarit `payment_received/sms` coupé puis `PATCH` avec les seuls `templates` : 200, `is_active` true ; plan à `{max_agents: 3, max_active_listings: 10, max_branches: 2}` puis `PATCH limits: {max_agents: 5}` : `limits` = `{max_agents: 5}`, et `limits: null` : `limits` null → les deux parties tiennent, latentes tant que la console renvoie tout. Classement : V7, aucune spec ni ticket n'écrit qu'un `PATCH` de plan fusionne ses bornes ni ce que vaut `limits: null` (aujourd'hui : tout illimité) ; c'est un choix du contrat de l'API, sur des quotas d'abonnement.
 - Mesure (2026-10-24, b4cd0774f, delegue) : relu l'entrée et la `Mesure` du mesureur, `NotificationTemplateService.php:40,55-93` (la lecture rend l'état `first()?->is_active ?? true`, l'écriture lit l'absent `true`), `UpdatePlanRequest.php:26-29`, `PlanController.php:37-39`, `QuotaResolver.php:50-56`, `AgencyController.php:107-116` (TCK-593 : `settings` fusionné par `array_replace`, une clé à `null` retirée par `array_filter`), `docs/models-spec.md:2565,2598` (`limits_override` : « merge sur `Plan.limits` »), `AdminPlansClient.tsx:27,66-68` (la console n'édite aucune borne et renvoie `plan.limits` tel que lu, `null` compris) ; `grep -n "porteur ("` → aucune décision sur ces deux `PATCH` → la console n'en voit aucun changement, et la fusion suit le précédent écrit. Délégation : V7, choix mineur et réversible du contrat de deux routes du super-admin : `is_active` absent fige l'état déjà rendu à la lecture, la fusion des bornes reprend la règle de TCK-593 et le vocabulaire « merge » de la spec, `limits: null` garde le défaut en vigueur (un plan sans bornes, ce que la console renvoie pour un tel plan), sans texte ni écran neuf, sans migration, sans ADR, défait en un commit ; aucun montant touché (prix et commission hors de `limits`), aucune autorisation changée ; aucun autre critère relevé.
 - Mesure (2026-10-24, b273901b9, implementeur) : reproduit avant correctif par les deux tests neufs → gabarit `payment_received/sms` coupé puis `PATCH` des seuls `templates` : `is_active` true ; plan à trois bornes puis `limits: {max_agents: 5}` : `limits` = `{max_agents: 5}` → `is_active` absent pris des lignes en base (`true` sans ligne), `limits` fusionné par `array_replace` et les `null` retirés, `limits: null` inchangé ; tests `NotificationTemplateTest` (10) et `BillingPlansTest` (14) verts, ablation : les deux rouges sans le correctif, verts avec.
+
+## Angle 215 — Identifiants numériques de route hors de `bigint` sur les routes connectées
+
+*Exploré le 2026-10-24 sur `pre-dev` e89d8cd91, par l'explorateur. Tout relu par l'explorateur
+lui-même, sans sous-agent. Mesure par un test temporaire (`tests/Feature/Tmp/SondeExplorateur215Test.php`,
+retiré) qui parcourt `Route::getRoutes()`, garde les routes `api/*` à paramètre, remplace chaque
+paramètre par une même valeur (`{paymentType}` mis à `invoices`), joue la requête une fois, sans
+corps, chacune dans sa propre transaction annulée (point de sauvegarde, pour qu'un `22003`
+n'abandonne pas les suivantes), limiteurs retirés ; deux acteurs : admin d'agence à second facteur
+et step-up, et opérateur `super_admin` (`agirEnOperateur`). Charge `{ 1.50 1.50 1.68 }` sur
+8 cœurs. Base de test PostgreSQL de la suite, pas la base de développement. Le parcours ne prouve
+pas qu'une route soit atteignable par le front avec ces valeurs : il prouve ce que l'API rend à qui
+les envoie.*
+
+### Un identifiant de route hors de `bigint`, ou non numérique, rend 500 sur environ 380 routes connectées
+- Réf : P215.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Models/Bases/AbstractModel.php:38-41` (aucune `resolveRouteBinding`), `takussan-api/bootstrap/app.php:132-133` et `:179-181` (la `QueryException` n'est pas interceptée, elle est rapportée en `error`), `routes/api/*.php` (liaisons implicites `{model}` sans contrainte, et les 26 routes `whereNumber()` relevées plus bas)
+  - `whereNumber()` : `routes/api/contact-leads.php:9-12`, `routes/api/me.php:96-161` (`sp_profile`, `owner_profile`, `agent_profile`, `collaboration`), `routes/api/property-calendar.php:16-28`, `routes/api/customers.php:16`, `routes/api/guarantors.php:13`, `routes/api/owners.php:16`, `routes/api/inventories.php:18`, `routes/api/agencies.php:115`
+- Constat :
+  - Aucun motif global (`Route::pattern`) ni liaison écrite à la main (`Route::bind`, `resolveRouteBinding`) sous `app/`, `routes/` ou `bootstrap/` (lu, `grep -rn "Route::pattern\|Route::bind\|resolveRouteBinding"` → rien). La liaison implicite passe donc la valeur du chemin telle quelle à `where id = ?`, et PostgreSQL la refuse (lu).
+  - mesuré, super-admin, chaque paramètre à `99999999999999999999` : 433 routes atteintes, **383 → 500**, dont 377 `QueryException` `SQLSTATE[22003] … out of range for type bigint` ; admin d'agence : **380 → 500**, la liaison passant avant toute policy (même compte à 3 près).
+  - mesuré, super-admin, chaque paramètre à `abc` : **357 → 500**, dont 351 `SQLSTATE[22P02] invalid input syntax for type bigint` ; les 26 routes `whereNumber()` rendent là 404 (le chemin ne correspond plus), mais **toutes les 26 rendent 500 sur vingt chiffres**, comme `GET /api/contact-leads/{lead}`, `GET /api/customers/{customer}/sensitive`, `DELETE /api/property-calendar-feeds/{feed}`.
+  - témoins, mesurés : `999999` → 412 routes en 404, aucune en 500 ; `9223372036854775807` (borne de `bigint`) → 410 en 404, aucune en 500 ; `9223372036854775808` → 383 en 500. Le défaut commence exactement au-delà de `bigint`, et pour toute valeur non numérique.
+  - Chaque cas écrit une ligne `query_exception` au niveau `error` (lu, `bootstrap/app.php:179-181`) : une URL tapée de travers ou un robot qui balaie produit des erreurs de serveur dans le journal.
+  - Les routes publiques en `{slug}` et les routes à jeton rendent 404 ou 422 (mesuré) ; le seul pendant public, P187.05, a été corrigé route par route par `[0-9]{1,18}` (lu, `routes/api/geo.php:18-20`, `routes/api/public.php:121`).
+  - Établi comment : lecture des fichiers cités, et le parcours décrit en tête de section.
+- Piste : rendre introuvable, à la liaison, toute valeur qui ne peut pas être une clé : une `resolveRouteBinding()` dans `AbstractModel` (et dans `User`, qui étend `Authenticatable`, et `ConversationParticipant`) qui rend `null` — donc `ModelNotFoundException`, donc 404 `http.404` — quand le champ lié est la clé entière et que la valeur ne correspond pas à `^[0-9]{1,18}$` ; les `whereNumber()` restants passent à `[0-9]{1,18}` comme P187.05, ou s'en remettent à cette liaison. Garde : un test qui parcourt `Route::getRoutes()` comme la sonde ci-dessus, avec `abc` et vingt chiffres, et n'accepte aucun 500.
+
+### Une action typée `int $id` rend 500 « must be of type int, string given » sur vingt chiffres ou une valeur non numérique
+- Réf : P215.02
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Http/Controllers/Api/ServiceProviderBillController.php:37`, `Me/PlatformPayoutController.php:37`, `Auth/SessionController.php:34`, `AuditLogController.php:25`, `PaymentGatewayController.php:51,76`, `Admin/FailedJobController.php:25,30,56` ; routes `routes/api/service-provider-bills.php:11`, `routes/api/me.php:50`, `routes/api/payments.php:20-30` (`paymentId => '\d+'`)
+- Constat :
+  - Vingt chiffres passent `whereNumber()` et `\d+` (lu), puis PHP refuse de convertir la chaîne en `int` hors de `PHP_INT_MAX` et lève `TypeError` à l'appel de l'action (mesuré).
+  - mesuré, vingt chiffres : `GET /api/service-provider-bills/{bill}`, `GET /api/me/payouts/{payout}`, `DELETE /api/auth/sessions/{tokenId}`, `GET /api/audit-log/{entity}/{id}` et `GET /api/activity-log/{entity}/{id}`, `GET`, `POST …/retry` et `DELETE` de `/api/admin/jobs/failed/{id}`, `GET /api/invoices/{paymentId}/verify` et `/providers` → **500 `TypeError`**. `POST /api/invoices/{paymentId}/initiate` rend 422 (la requête de formulaire juge le corps avant l'appel).
+  - mesuré, `abc` (routes sans contrainte de chiffres) : `GET`, `POST …/retry` et `DELETE` de `/api/admin/jobs/failed/{id}`, `DELETE /api/auth/sessions/{tokenId}`, les deux routes d'`AuditLogController::indexByEntity` → **500 `TypeError`**.
+  - `DELETE /api/inventories/{inventory}/room-photos/{media}` et `DELETE /api/properties/{property}/media/{mediaId}` passent par la liaison du modèle parent d'abord, et tombent sous P215.01 (mesuré : 500 `22003`, et `22P02` sur `abc`, levés par la liaison).
+  - Établi comment : lecture des signatures (`grep -rnE "public function \w+\([^)]*\bint \\\$"`), et le parcours décrit en tête de section.
+- Piste : une contrainte de route `[0-9]{1,18}` sur chacun de ces paramètres (et sur `{id}` de `admin/jobs/failed`, `{tokenId}`, `{id}` des journaux d'audit, qui n'en ont aucune), ce qui rend 404 avant l'appel ; garde : la même sonde que P215.01, qui couvre aussi ces routes.
+
+### Le front accepte un identifiant de page au-delà des entiers exacts, et lit alors une autre ligne ou l'API hors de `bigint`
+- Réf : P215.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/lib/detail/ressource-de-detail.ts:99-102` (`idDeDetail`), `takussan-web/src/app/(dashboard)/app/properties/[id]/page.tsx:63` (`Number(id)`)
+- Constat :
+  - `idDeDetail` accepte tout `Number(brut)` entier et positif (lu). mesuré (`node -e`) : `Number("99999999999999999999")` → `1e20`, accepté, et réécrit `100000000000000000000` dans l'URL de l'API, qui rend 500 (P215.01) ; `Number("12345678901234567")` → `12345678901234568` : au-delà de `Number.MAX_SAFE_INTEGER`, le front demande une **autre** ligne que celle du chemin.
+  - Le 500 de l'API est lu `indecidable` par `sonderExistence` (lu, `ressource-de-detail.ts:126-145`) : la page se rend au lieu du 404. Ce que la page affiche alors (frontière d'erreur ou panneau) est à vérifier page par page.
+  - Les identifiants réels de la base sont loin de ces bornes : le risque est une URL tapée ou forgée, pas une ligne réelle (déduit, à vérifier).
+- Piste : `idDeDetail` n'accepte que `^[1-9][0-9]{0,15}$` (ou `Number.isSafeInteger`), ce qui rend `notFound()` aux autres ; test unitaire de `idDeDetail` sur vingt chiffres et sur `12345678901234567`.

@@ -298,11 +298,7 @@ class InventoryController extends Controller
         // recomposé au téléchargement, une photo ajoutée après signature changerait le document signé.
         $this->assertDraft($inventory);
 
-        foreach ($request->file('photos') as $photo) {
-            $inventory->addMedia($photo)
-                ->withCustomProperties(['room_name' => $request->input('room_name')])
-                ->toMediaCollection('room_photos');
-        }
+        $inventory = $this->inventories->addRoomPhotos($inventory, $request->file('photos'), $request->input('room_name'));
 
         return $this->json([
             'data' => $inventory->getMedia('room_photos')->map(fn ($m) => [
@@ -330,7 +326,7 @@ class InventoryController extends Controller
 
         $this->assertDraft($inventory);
 
-        $photo->delete();
+        $this->inventories->removeRoomPhoto($inventory, $photo);
 
         return response()->noContent();
     }
