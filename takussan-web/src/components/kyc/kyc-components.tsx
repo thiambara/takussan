@@ -20,7 +20,7 @@ import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import { demainIso } from '@/lib/kyc-echeance';
 import { lienPieceKyc } from '@/lib/lien-piece-kyc';
 import { KycEcheance } from './KycEcheance';
-import { KYC_MIME_ACCEPT } from './KycUploader';
+import { KYC_MIME_ACCEPT } from './kyc-mime-accept';
 import { SharedIdentifiersNotice } from './SharedIdentifiersNotice';
 
 type DocumentType = 'rccm' | 'ninea' | 'director_id';
