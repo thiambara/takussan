@@ -33,7 +33,7 @@ rattachée à l'échéance (seule une ligne `notification_delivery_attempts` san
 
 ## Décision du porteur
 
-> validation du porteur (2026-10-24) : la décision du délégué : « au plus une fois », comme TCK-740 ; quand le SMS d'une relance de loyer vers un locataire sans compte n'est accepté par aucun fournisseur (`failed`), l'activité alertable `ops_critical_job_failed` est écrite côté canal, rattachée à l'échéance, sans les paramètres ni le numéro ; un résultat ambigu n'écrit rien et ne renvoie jamais ; le contrat est écrit à `docs/features.md:190`
+> validation du porteur (2026-10-24) : la décision du délégué : « au plus une fois », comme TCK-740 ; quand le SMS d'une relance de loyer vers un locataire sans compte n'est accepté par aucun fournisseur (`failed`), l'activité alertable `ops_critical_job_failed` est écrite côté canal, rattachée à l'échéance, sans les paramètres ni le numéro ; un résultat ambigu n'écrit rien et ne renvoie jamais ; le contrat est écrit à `docs/features.md:190` ; reste : la reprise de la relance perdue, et la trace du rappel de visite d'un visiteur sans compte
 
 ## Reste à faire
 
