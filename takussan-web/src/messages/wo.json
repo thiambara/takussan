@@ -10870,7 +10870,7 @@
         },
         "member_deletion_requested": {
           "title": "Effacement de compte demandé : {member}",
-          "body": "{member} a demandé l'effacement de son compte, effectif le {scheduled_for}. Son portefeuille dans l'agence : {tasks} tâche(s), {visits} visite(s), {maintenance} intervention(s), {responsible_properties} bien(s) dont il est l'agent principal, {held_properties} bien(s) saisi(s), {collaborations} collaboration(s), {customers} client(s) suivi(s), {contact_leads} demande(s) de contact non traitée(s). Passez-le à un collègue avant cette date depuis l'équipe : {url}"
+          "body": "{member} a demandé l'effacement de son compte, effectif le {scheduled_for}. Son portefeuille dans l'agence : {tasks, plural, one {# tâche} other {# tâches}}, {visits, plural, one {# visite} other {# visites}}, {maintenance, plural, one {# intervention} other {# interventions}}, {responsible_properties, plural, one {# bien dont il est l'agent principal} other {# biens dont il est l'agent principal}}, {held_properties, plural, one {# bien saisi} other {# biens saisis}}, {collaborations, plural, one {# collaboration} other {# collaborations}}, {customers, plural, one {# client suivi} other {# clients suivis}}, {contact_leads, plural, one {# demande de contact non traitée} other {# demandes de contact non traitées}}. Passez-le à un collègue avant cette date depuis l'équipe : {url}"
         }
       },
       "platform_operator": {

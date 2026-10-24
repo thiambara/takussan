@@ -10870,7 +10870,7 @@
         },
         "member_deletion_requested": {
           "title": "Account deletion requested: {member}",
-          "body": "{member} has requested the deletion of their account, effective {scheduled_for}. Their portfolio in the agency: {tasks} task(s), {visits} visit(s), {maintenance} maintenance request(s), {responsible_properties} propert(y/ies) as lead agent, {held_properties} propert(y/ies) entered, {collaborations} collaboration(s), {customers} client(s) followed, {contact_leads} unhandled contact request(s). Hand it over to a colleague before that date from the team page: {url}"
+          "body": "{member} has requested the deletion of their account, effective {scheduled_for}. Their portfolio in the agency: {tasks, plural, one {# task} other {# tasks}}, {visits, plural, one {# visit} other {# visits}}, {maintenance, plural, one {# maintenance request} other {# maintenance requests}}, {responsible_properties, plural, one {# property as lead agent} other {# properties as lead agent}}, {held_properties, plural, one {# property entered} other {# properties entered}}, {collaborations, plural, one {# collaboration} other {# collaborations}}, {customers, plural, one {# client followed} other {# clients followed}}, {contact_leads, plural, one {# unhandled contact request} other {# unhandled contact requests}}. Hand it over to a colleague before that date from the team page: {url}"
         }
       },
       "platform_operator": {
