@@ -18685,7 +18685,7 @@ est conforme à `docs/models-spec.md` § 14 tel que le cite TCK-1151.*
 
 ### Un agent encore membre d'une agence efface son compte avec un portefeuille ouvert, et l'agence ne peut plus ni l'inventorier ni le passer
 - Réf : P204.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : choisir entre ouvrir la passation d'un compte effacé et traiter le portefeuille à l'effacement
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Account/AccountDeletionService.php:252-441,462-581`, `takussan-api/routes/api/agent-handover.php:8-9`, `takussan-api/app/Http/Controllers/Api/Agency/AgentHandoverController.php:70-79`, `takussan-api/app/Services/Agency/AgencyMemberRemovalService.php:60-64`, `takussan-web/src/components/admin/TeamConsole.tsx:395-406`
 - Constat :
@@ -18695,10 +18695,11 @@ est conforme à `docs/models-spec.md` § 14 tel que le cite TCK-1151.*
   - Mesuré : après l'effacement, l'admin de l'agence reçoit `GET /api/agencies/{a}/members/{agent}/portfolio` → **404** `http.not_found`, et `POST …/handover` → **404**. Les deux routes lient `{user}` sous la portée `SoftDeletes` (lu, `agent-handover.php:8-9`). Pourtant `refuseNonStaff()` accepte déjà un profil supprimé (`withTrashed()`, TCK-1715, lu, l. 70-79) : seule la liaison de route ferme la porte.
   - Mesuré : `GET /api/users` par l'admin ne rend plus l'agent effacé (seul l'admin est listé). L'assistant de passation ne s'ouvre que depuis une ligne de cette liste (lu, `TeamConsole.tsx:395-406`). L'écran n'offre donc aucun chemin vers ce portefeuille.
 - Piste : choisir (V7) entre deux voies. (a) Ouvrir la passation d'un compte effacé : `->withTrashed()` sur les deux routes, et un chemin d'écran vers les anciens membres effacés qui portent encore un portefeuille. (b) Traiter à l'effacement ce que la passation sait traiter, comme TCK-2011 l'a fait pour les visites. Refuser l'effacement tant que le portefeuille n'est pas vide est la troisième voie, déjà écartée pour les visites (la passation est un geste d'admin, que l'agent ne peut pas faire). Garde : un test d'effacement qui exige soit un portefeuille vide, soit un `GET …/portfolio` à 200 pour l'admin.
+- Mesure (2026-10-24, bd2c10741, mesureur) : `git diff 39749955d HEAD` ne touche ni `AccountDeletionService.php` ni `AgentHandoverController.php` ni `routes/api/agent-handover.php` (seul `AgencyMemberRemovalService.php` a bougé, TCK-2021 : le 422 `portfolio_not_empty` est l. 62) ; Sonde temporaire `tests/Feature/TmpMesureur/SondeAngle204Test.php` (base créée par le test, charge 3,48 / 3,63 / 4,05 puis 3,02 / 3,50 / 3,98 sur 8 cœurs, retirée ensuite) : agent avec tâche ouverte, intervention `assigned`, collaboration d'agent principale et client référent → `collectOpenObligations()` = `[]`, `AgentPortfolio::inventory()` = `{"tasks":1,"maintenance":1,"responsible_properties":1,"collaborations":1,"customers":1,…}` avant et après `executeDeletion()` ; l'admin reçoit `GET …/members/{agent}/portfolio` → 404 et `POST …/handover` → 404 ; `GET /api/users` ne rend plus l'agent ; `refuseNonStaff()` lit bien `withTrashed()` (`AgentHandoverController.php:73-74`). Le constat tient en entier. Classement : V7, la `Piste` propose deux voies (passation d'un compte effacé avec un chemin d'écran neuf, ou extinction à l'effacement) qui sont un choix de produit.
 
 ### Le seul administrateur, ou l'administrateur principal, d'une agence peut effacer son compte : l'agence reste sans administrateur
 - Réf : P204.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V3 : refuser l'effacement d'un compte retarde un droit RGPD, et V7 : obligation neuve visible
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Account/AccountDeletionService.php:462-581`, `takussan-api/app/Http/Requests/Auth/RequestAccountDeletionRequest.php:116-180`, `takussan-api/app/Services/Agency/AgencyMemberRemovalService.php:58,66-79`
 - Constat :
@@ -18706,10 +18707,11 @@ est conforme à `docs/models-spec.md` § 14 tel que le cite TCK-1151.*
   - Mesuré (test temporaire) : agence à un seul administrateur, qui est aussi `primary_admin_id`, plus un agent. `collectOpenObligations(admin)` → `[]`, puis `requestDeletion()` et `executeDeletion()` passent. Ensuite, `AgencyAdminProfile` actifs de l'agence → **0**, `primary_admin_id` = l'identifiant du compte effacé, et l'agence reste `active`.
   - Les règles qui donnent la main au `primary_admin_id` (`AgencyPolicy.php:52,106,124,140`, `RoleDelegationPolicy.php:62`, `BankStatementPolicy.php:17`, lu) visent désormais un compte qui ne se connecte plus. Personne dans l'agence ne tient plus les gestes réservés à l'administrateur. Le super-admin les tient encore (déduit du `Gate::before`, à vérifier).
 - Piste : ajouter à `collectOpenObligations()` une obligation par agence dont le compte est l'administrateur principal ou le dernier administrateur actif, que le compte peut lever lui-même (nommer un autre administrateur, transmettre le titre). C'est la même règle que le retrait. Garde : un test d'effacement du seul administrateur qui exige un 422 avec cette obligation, et son pendant avec un second administrateur qui exige 202.
+- Mesure (2026-10-24, bd2c10741, mesureur) : relu `AgencyMemberRemovalService.php:59` (`cannot_remove_primary_admin`) et `:80` (`cannot_remove_last_admin`, les lignes ont bougé avec TCK-2021) ; `collectOpenObligations()` (`AccountDeletionService.php:462`) ne lit aucune administration d'agence ; Sonde temporaire `tests/Feature/TmpMesureur/SondeAngle204Test.php` (base créée par le test, charge 3,48 / 3,63 / 4,05 puis 3,02 / 3,50 / 3,98 sur 8 cœurs, retirée ensuite) : agence à un seul administrateur, aussi `primary_admin_id`, plus un agent → `collectOpenObligations(admin)` = `[]`, puis `executeDeletion()` passe ; ensuite `AgencyAdminProfile` actifs de l'agence = 0, `primary_admin_id` = le compte effacé, agence `active`. Le super-admin garde la main par `Gate::before` (lu, `AppServiceProvider.php:789`), le point « à vérifier » du constat est donc établi par lecture. Classement : V3, la `Piste` ajoute une condition qui retient l'effacement d'un compte, et V7, une obligation et son libellé neufs visibles de l'utilisateur.
 
 ### Tâches et interventions de l'agent effacé : affichées « non assignées » sans l'être, sans rappel, et hors de toute file
 - Réf : P204.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : la Piste demande de décider si l'effacement désassigne tâches et interventions
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Account/AccountDeletionService.php:277-286`, `takussan-api/app/Jobs/SendTaskDueReminders.php:61,90-96`, `takussan-web/src/components/maintenance/MaintenanceDetail.tsx:97`, `takussan-web/src/components/maintenance/MaintenanceAssignmentBlock.tsx:172-176`
 - Constat :
@@ -18718,10 +18720,11 @@ est conforme à `docs/models-spec.md` § 14 tel que le cite TCK-1151.*
   - Le détail d'une intervention affiche « non assignée » dès que `assignee` est nul (lu, `MaintenanceDetail.tsx:97`). Le bloc d'assignation garde l'identifiant comme valeur et l'affiche brut en libellé (`String(request.assigned_to)`, lu, l. 175). L'intervention reste pourtant en `assigned`, au nom d'un compte qui ne l'acceptera jamais.
   - Le même code vaut pour une intervention assignée à un **prestataire** qui efface son compte : `anonymize()` ne lit pas `maintenance_requests` (lu), et un prestataire n'est pas du personnel, donc aucune passation ne le reprend (lu, `refuseNonStaff`). Ce cas n'a pas été rejoué.
 - Piste : décider (V7) si l'effacement remet à `null` l'assignation des tâches ouvertes et des interventions non closes (`AgentPortfolio::query('tasks'|'maintenance')`), comme TCK-2011 pour les visites. Pour une intervention, le chemin serait `MaintenanceRequestService::assign($mr, null, …)`, pour que l'acceptation tombe et que le fil suive. Garde : un test d'effacement qui exige la tâche et l'intervention sans assigné.
+- Mesure (2026-10-24, bd2c10741, mesureur) : Sonde temporaire `tests/Feature/TmpMesureur/SondeAngle204Test.php` (base créée par le test, charge 3,48 / 3,63 / 4,05 puis 3,02 / 3,50 / 3,98 sur 8 cœurs, retirée ensuite), après l'effacement de l'agent : `GET /api/tasks/{id}?include=assignee` par l'admin créateur de la tâche → 200, `assignee: null`, `tasks.assigned_to_id` = l'agent en base (le même appel par un admin qui n'en est pas le créateur rend 403) ; `GET /api/maintenance-requests/{id}?include=assignee` → 200, `assigned_to` = l'agent, `assignee: null`, `status: "assigned"` ; relu `SendTaskDueReminders.php:61` (comptes `deleted` écartés), `MaintenanceDetail.tsx:97`, `MaintenanceAssignmentBlock.tsx:175`. Le cas du prestataire n'est toujours pas rejoué. Classement : V7, la `Piste` elle-même pose le choix (désassigner ou non), qu'aucune spec n'écrit pour les tâches et les interventions.
 
 ### Les demandes de contact adressées à un agent ne suivent ni son retrait ni son effacement
 - Réf : P204.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : une catégorie neuve du portefeuille, visible dans la passation
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Agency/AgentPortfolio.php` (`TRANSFERABLE`), `takussan-api/app/Policies/PropertyContactLeadPolicy.php:32-81`, `takussan-api/app/Services/Lead/ContactLeadService.php:219-221`
 - Constat :
@@ -18730,10 +18733,11 @@ est conforme à `docs/models-spec.md` § 14 tel que le cite TCK-1151.*
   - La policy ne l'ouvre plus qu'au personnel qui détient `crm.view_all` (lu, l. 32-39). Un agent sans cette capacité ne la voit pas. Le filtre `mine` ne la rend à personne (lu, `PropertyContactLead.php:79-85`). Seul un geste d'attribution (`assign`, lu, `ContactLeadService.php:219-221`) la ramène à quelqu'un.
   - À vérifier : la boîte du front signale-t-elle ces demandes à un destinataire parti, et le tableau de bord les compte-t-il comme « à traiter » de quelqu'un ?
 - Piste : ajouter une catégorie `contact_leads` (demandes `form` non traitées dont le compte est destinataire) à `AgentPortfolio`, pour qu'elles soient comptées, passées, et retombent sans destinataire à l'effacement. Garde : un test de passation et un test d'effacement sur une demande non traitée.
+- Mesure (2026-10-24, bd2c10741, mesureur) : relu `AgentPortfolio.php:44` (`TRANSFERABLE` sans demande de contact) et aucune occurrence de `PropertyContactLead` ni de `recipient_user_id` dans `AccountDeletionService.php` (`grep`) ; Sonde temporaire `tests/Feature/TmpMesureur/SondeAngle204Test.php` (base créée par le test, charge 3,48 / 3,63 / 4,05 puis 3,02 / 3,50 / 3,98 sur 8 cœurs, retirée ensuite) : demande `form` non traitée adressée à l'agent ; après son effacement, `GET /api/contact-leads` par l'admin la rend, `recipient_user_id` = le compte effacé. Les deux points « à vérifier » du front (boîte, tableau de bord) ne sont pas mesurés. Classement : V7, ajouter une catégorie au portefeuille change ce que l'assistant de passation compte et propose, et la retombée sans destinataire à l'effacement est un choix de produit.
 
 ### Petites améliorations
 - Réf : P204.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : étendre à l'effacement les extinctions du retrait est un choix de comportement
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Agency/AgencyMemberRemovalService.php:92-100,151`, `takussan-api/app/Services/Account/AccountDeletionService.php:418`, `takussan-api/app/Jobs/Crm/SendProspectMatchDigest.php:122-136`
 - Constat :
@@ -18741,3 +18745,4 @@ est conforme à `docs/models-spec.md` § 14 tel que le cite TCK-1151.*
   - Les délégations de rôle où figure le compte (`user_id` ou `replaces_user_id`) sont révoquées par le retrait (lu, l. 92-97), jamais par l'effacement (lu). Un remplaçant garde donc jusqu'à sa date de fin la délégation d'un compte effacé (déduit, à vérifier).
   - Le référent effacé d'un client reste `is_primary`. Le digest des biens assortis retombe sur `added_by_id` puis sur personne (lu, l. 122-136), sans que l'agence voie que le client n'a plus de référent.
 - Piste : faire faire à l'effacement les extinctions du retrait (marques, délégations), par une méthode commune plutôt qu'une copie. Garde : un test d'effacement qui exige `is_primary = false` et la délégation révoquée.
+- Mesure (2026-10-24, bd2c10741, mesureur) : Sonde temporaire `tests/Feature/TmpMesureur/SondeAngle204Test.php` (base créée par le test, charge 3,48 / 3,63 / 4,05 puis 3,02 / 3,50 / 3,98 sur 8 cœurs, retirée ensuite), après `executeDeletion()` : collaboration d'agent `is_primary` = `true`, délégation de rôle où le compte est `replaces_user_id` encore `active` (le point « à vérifier » tient), relation client-référent `is_primary` = `true` ; relu `AgencyMemberRemovalService.php:93-101` (le retrait révoque les délégations et appelle `dropPrimaryMarks`, l. 167), lignes décalées par TCK-2021. La source que rend `GET …/collaborators` n'est pas relue. Classement : V7, aucune spec n'écrit que l'effacement doit faire ce que fait le retrait, et révoquer la délégation d'un remplaçant change ce qu'il peut faire.
