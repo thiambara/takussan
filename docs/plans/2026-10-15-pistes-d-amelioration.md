@@ -19950,7 +19950,7 @@ les envoie.*
 
 ### Les sélecteurs de membre proposent des options sans libellé pour un membre sans nom
 - Réf : P220.05
-- Statut : validé (délégué) — le même assembleur que P220.04 (un seul assembleur de nom affichable sous `src/lib` : prénom et nom, sinon e-mail, sinon numéro, sinon `#<id>`, avec les seuls champs que chaque écran charge déjà (aucun champ de contact neuf demandé à l'API)) dans `fetchAgencyAgents`, `CreateDelegationDialog`, `ContactLeadsInbox` (`nomComplet`, option et ligne destinataire) et le filtre d'agent de la liste des biens ; `fetchAgencyAgents` garde `fields[users]=id,first_name,last_name`, et retombe donc sur `#<id>`
+- Statut : fait · TCK-2140
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/lib/queries/agent-crm.ts:114-125`, `takussan-web/src/components/admin/roles/CreateDelegationDialog.tsx:200-204`, `takussan-web/src/components/leads/ContactLeadsInbox.tsx:147-149`, `:245`, `:371-375`, `takussan-web/src/app/(dashboard)/app/properties/(liste)/page.tsx:263`
 - Constat :
@@ -19962,6 +19962,7 @@ les envoie.*
 - Piste : le même assembleur que P220.04 dans ces quatre lecteurs. Test de `fetchAgencyAgents` sur un membre sans nom → `name` non vide.
 - Mesure (2026-10-24, 6d8095e26, mesureur) : relu `agent-crm.ts:124` (`[first_name, last_name].filter(Boolean).join(' ')`), `CreateDelegationDialog.tsx:202`, `ContactLeadsInbox.tsx:147-148`, `properties/(liste)/page.tsx:263`, inchangés ; `property-collaborators.ts:77` et `VisitDetail.tsx:608` retombent déjà, chacun autrement → le constat tient. Classement : V7, la `Piste` est l'assembleur de P220.04, dont l'ordre de repli reste à choisir.
 - Mesure (2026-10-24, 3e8efc3c5, delegue) : relu l'entrée et la `Mesure` du mesureur, `agent-crm.ts:114-125` (`fields[users]` = `id`, `first_name`, `last_name` seuls), `CreateDelegationDialog.tsx:200-204`, `ContactLeadsInbox.tsx:147-149`, et les replis déjà en place `MaintenanceAssignmentBlock.tsx:167-168` (`name || String(member.id)`) et `AuditTrail.tsx:113-115` (nom, e-mail, `#id`) → avec la règle « seuls les champs déjà chargés », ces sélecteurs retombent sur `#<id>` comme `MaintenanceAssignmentBlock`, sans coordonnée ajoutée aux requêtes. Délégation : V7, même règle que P220.04, sans texte neuf ni champ neuf, réversible en un commit.
+- Mesure (2026-10-24, 60bd7e880, implementeur) : avant correctif, `fetchAgencyAgents` rendait `name: ''` pour un agent sans nom, le bénéficiaire d'une délégation, le destinataire et le collègue d'une demande de contact et l'utilisateur courant du filtre d'agent des biens étaient sans libellé (quatre tests rouges) ; les quatre sites passent par `nomAffichable()` (TCK-2138), `fetchAgencyAgents` garde ses trois champs et rend `#<id>` ; les quatre cas verts, voisins verts (23) ; ablation : les quatre fichiers remis → les quatre cas rougissent.
 
 ### Les listes de bailleurs et de prestataires ignorent le nom saisi à l'invitation dès qu'un compte est lié
 - Réf : P220.06
