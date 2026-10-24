@@ -20570,7 +20570,7 @@ sans `delete`).*
 
 ### Une note de fiche client refusée par l'API est effacée du champ sans message
 - Réf : P228.02
-- Statut : retenu · autonome
+- Statut : fait · TCK-2212
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/pipeline/CustomerDetailSheet.tsx:58-68,136,185-210`, `takussan-api/app/Http/Requests/` (`StoreCustomerNoteRequest`, `rules()`)
 - Constat :
@@ -20579,6 +20579,7 @@ sans `delete`).*
   - Établi comment : lu, front et API.
 - Piste : ne vider le champ que dans `onSuccess` (passer un rappel à `onAdd`, ou lire `isSuccess`), afficher l'erreur de la mutation sous le champ, et poser `maxLength={5000}` sur le `Textarea`. Garde : un test de `CustomerDetailSheet` qui rejette la mutation et exige que le texte reste dans le champ avec un message.
 - Mesure (2026-10-24, d44d3bc59, mesureur) : relu `CustomerDetailSheet.tsx:58-68` (`noteMutation`, `onSuccess` seul), `:136` (`onAdd={(body) => noteMutation.mutate(body)}`), `:194-199` (`Textarea` sans `maxLength`), `:205-206` (`onAdd(body.trim()); setBody('')` dans le même gestionnaire, avant la réponse), aucune lecture de `noteMutation.error` ni `isError` (`grep`) ; `StoreCustomerNoteRequest.php:29` (`can('view', customer)`) et `:36` (`'body' => ['required', 'string', 'max:5000']`) ; aucun commit sur ces fichiers depuis 157e11cb4, aucun ticket ne cite P228 → le constat tient, lu des deux côtés (aucun rendu lancé). Classement : A1, ADR-0019 fixe le rendu d'une erreur d'API par `useMessageErreurApi()` et la borne de 5 000 est écrite dans la requête de l'API : garder le texte jusqu'au succès, dire le refus et poser `maxLength={5000}` ne demandent ni texte neuf ni choix.
+- Mesure (2026-10-24, 68ab70c5b, implementeur) : relu `CustomerDetailSheet.tsx` à `pre-dev` (`onAdd(body.trim()); setBody('')` dans le même gestionnaire, `noteMutation` à `onSuccess` seul, `Textarea` sans `maxLength`) et `StoreCustomerNoteRequest.php:36` (`max:5000`) → le constat tient ; `CustomerDetailSheet.note-refusee.p228-02.test.tsx` (refus 422 : texte gardé et message en `role="alert"` ; succès : champ vidé ; `maxLength=5000`) ; ablation : composant de `pre-dev` → 2 rouges sur 3, correctif remis → 3/3 verts, `activite-relue-apres-les-gestes.tck-2093` vert.
 
 ### Retirer un favori depuis le menu des favoris ne revient pas en arrière quand l'API refuse, contrairement au cœur
 - Réf : P228.03
