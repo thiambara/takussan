@@ -16161,7 +16161,7 @@ caution du contrat et non par l'encaissée est P04.10, et n'est pas reprise.*
 
 ### Un `refreshUser()` qui tombe sur une API en panne, lente ou limitée déconnecte l'utilisateur pour de bon
 - Réf : P172.01
-- Statut : validé — validation du porteur (2026-10-23) : la piste telle qu'écrite ; `refreshUser` garde l'utilisateur sur toute erreur autre que 401 ; même ticket que P172.03 ; la lecture morte d'`AuthProvider` part avec
+- Statut : fait · TCK-1992
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/app/api/auth/me/route.ts:34-40`, `takussan-web/src/context/AuthContext.tsx:191-208`, `takussan-web/src/hooks/useProfiles.ts:109-117`, `takussan-web/src/components/auth/GardeDoubleFacteur.tsx:80-82`, `takussan-web/src/app/api/auth/logout/route.ts:40-50`
 - Constat :
@@ -16172,6 +16172,7 @@ caution du contrat et non par l'encaissée est P04.10, et n'est pas reprise.*
   - Établi comment : code relu et deux mesures vitest ; le cas d'un 403 de second facteur sur `/auth/me` n'a pas été mesuré (à vérifier).
 - Piste : faire rendre au relais le statut de l'API pour une `ApiError` (401 seulement sur un 401 amont), et 502 ou 503 sur une panne ; faire que `refreshUser` ne déconnecte que sur un 401, et garde l'utilisateur en place sur toute autre erreur. Garde : un test du relais (`getMe` en 503 → pas de 401) et un test d'`AuthProvider` (`refreshUser` sur un 503 → aucun `POST /api/auth/logout`, utilisateur conservé).
 - Mesure (2026-10-23, 4436bf690, mesureur) : relu `app/api/auth/me/route.ts:34-40` (`catch` nu → 401), `AuthContext.tsx:191-208` (`refreshUser` : 401 → `setUser(null)` puis `POST /api/auth/logout`), `useProfiles.ts:109-117` (`refreshUser` dans `onSettled`, succès ou échec), `grep -rn "refreshUser()"` hors tests (12 appels, plus un commentaire), et lancé deux tests vitest temporaires, retirés (charge 3,31 / 4,74 / 4,68 sur 8 cœurs) : relais, `getMe` en `ApiError(503)`, `ApiError(500)` et `TypeError('fetch failed')` → 401 les trois fois ; `AuthProvider`, relais en 401 → `GET /api/auth/me` puis `POST /api/auth/logout`, utilisateur `null` → le défaut tient pour la panne, le 5xx et le délai ; le 429 du constat est improbable : `routes/api/auth.php:55-57` ne pose aucun limiteur sur `GET /auth/me`, et il n'y a pas de `throttle:api` global (`AppServiceProvider.php:483`) ; la maintenance n'y rend plus 503 depuis TCK-1174. Classement : V2, le correctif change quand une session se ferme et ce que rend le relais d'authentification, que tout le front lit.
+- Mesure (2026-10-23, 49aa336db, implementeur) : tests neufs rouges sur l'arbre d'origine : relais, `getMe` en `ApiError` 503, 500, 403 et `TypeError('fetch failed')` → 401 les quatre fois ; `AuthProvider`, relais en 503, 502, 500, 403, 429 ou injoignable → utilisateur nul (et `POST /api/auth/logout` sur le 401) → le relais garde le statut de l'API (503 sans réponse) et `refreshUser` ne ferme la session que sur un 401 ; lecture initiale morte d'`AuthProvider` retirée (les huit monteurs, tests compris, passent `initialUser`) ; ablation (`route.ts` et `AuthContext.tsx` à `HEAD`) → 12 rouges sur 15, correctif remis → 15/15, et les tests voisins d'`AuthContext`, `ReinitialiserSessionClient`, `Navbar` et du layout racine verts.
 
 ### Après l'envoi d'un avis sur un bien, le formulaire vidé se réaffiche, sans confirmation, et un second envoi rend 422
 - Réf : P172.02
@@ -16190,7 +16191,7 @@ caution du contrat et non par l'encaissée est P04.10, et n'est pas reprise.*
 
 ### `refreshUser` applique la dernière réponse arrivée, pas la dernière demandée
 - Réf : P172.03
-- Statut : validé — validation du porteur (2026-10-23) : la piste telle qu'écrite, avec P172.01
+- Statut : fait · TCK-1992
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/context/AuthContext.tsx:191-208`, `takussan-web/src/hooks/useProfiles.ts:109-117`
 - Constat :
@@ -16199,6 +16200,7 @@ caution du contrat et non par l'encaissée est P04.10, et n'est pas reprise.*
   - Chaque changement de profil appelle `refreshUser` à sa fin (lu, `useProfiles.ts:116`) : deux changements rapprochés peuvent laisser à l'écran l'agence et les rôles du profil quitté, alors que le cookie porte le dernier. Que le sélecteur de profil permette deux changements avant la fin du premier n'a pas été vérifié (à vérifier). Une `refreshUser` encore en vol au moment d'une déconnexion peut de même remettre un utilisateur après `setUser(null)` (déduit, à vérifier).
 - Piste : ne garder que la réponse de la dernière demande (compteur de rang ou `AbortController` qui annule la précédente), et ignorer toute réponse arrivée après `logout`. Garde : un test d'`AuthProvider` aux réponses inversées.
 - Mesure (2026-10-23, 4436bf690, mesureur) : relu `AuthContext.tsx:191-208` (`refreshUser` sans annulation ni rang, quand la lecture initiale l. 136-187 a `cancelled` et un `AbortController`) et `useProfiles.ts:116`, et lancé un test vitest temporaire d'`AuthProvider`, retiré : deux `refreshUser()` lancés ensemble, la seconde réponse (`agency_id = 2`) rendue avant la première (`agency_id = 1`) → état final `agency_id = 1` ; le défaut tient ; la double bascule de profil par l'interface et la réponse tardive après `logout` restent non mesurées. Classement : V2, le correctif décide quel utilisateur le contexte d'authentification garde, et doit trancher le cas d'une réponse arrivée après une déconnexion.
+- Mesure (2026-10-23, 49aa336db, implementeur) : test neuf d'`AuthProvider` rouge sur l'arbre d'origine : deux `refreshUser()`, la seconde réponse (`agency_id = 2`) rendue avant la première (`agency_id = 1`) → état final `agency_id = 1` ; une réponse arrivée après `logout()` → utilisateur remis → `refreshUser` porte un rang de demande, que `logout` avance ; ablation commune avec P172.01 (12 rouges sur 15), correctif remis → verts.
 
 ### Chaque `refreshUser()` relit tous les favoris et la liste des accueils vus, parce que deux effets dépendent de l'objet `user`
 - Réf : P172.04
@@ -16215,7 +16217,7 @@ caution du contrat et non par l'encaissée est P04.10, et n'est pas reprise.*
 
 ### La section « Supprimer mon compte » rend une lecture en échec comme l'absence de demande, et relit ce que la mise en page vient de lire
 - Réf : P172.05
-- Statut : validé — validation du porteur (2026-10-23) : en cas d'échec de lecture, afficher le `result.message` existant, sans bouton ; aucun texte neuf
+- Statut : fait · TCK-1994 — reste : passer à la section la demande que la mise en page `(dashboard)` a déjà lue, pour ne plus la lire deux fois par affichage de `/app/profile`
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/profile/security/AccountDeletionSection.tsx:42-52`, `takussan-web/src/app/(dashboard)/layout.tsx:66-67`, `takussan-web/src/app/actions/account-deletion.ts:71-81`
 - Constat :
@@ -16224,10 +16226,11 @@ caution du contrat et non par l'encaissée est P04.10, et n'est pas reprise.*
   - La mise en page `(dashboard)` lit la même demande, côté serveur, au même chargement (lu, `layout.tsx:66-67`) et ne la passe pas à la page : deux lectures par affichage de `/app/profile`.
 - Piste : rendre l'échec comme un échec (message, et ni bouton de demande ni bouton d'annulation), et passer à la section la demande que la mise en page a déjà lue. Garde : un test vitest de la section, server action en échec → aucun bouton de suppression.
 - Mesure (2026-10-23, 4436bf690, mesureur) : relu `AccountDeletionSection.tsx:42-52` (`setRequest(result.ok ? result.data : null)`) et l. 79-80 (`null` → bouton « Supprimer mon compte »), `account-deletion.ts:71-81` (`failure(err, 'loadFailed')`), `(dashboard)/layout.tsx:66-67` (même lecture côté serveur, non transmise ; la section est montée par `ProfileSecuritySection`), et lancé un test vitest temporaire de la section, retiré, server action en `{ ok: false }` → le bouton « Supprimer mon compte » s'affiche ; le point « à vérifier » est lu et le constat est inexact sur ce point : `AccountDeletionService::requestDeletion` (`updateOrCreate` sur `user_id`) ne rend pas d'erreur face à une demande en cours, il la reprogramme (`scheduled_for` repoussé de tout le délai de grâce) et révoque tous les jetons. Classement : V7, rendre l'échec demande un état et un message visibles neufs sur une fonction RGPD, et la double lecture se corrige en changeant ce que la mise en page passe à la page.
+- Mesure (2026-10-23, 49aa336db, implementeur) : test neuf `AccountDeletionSection.lecture-en-echec.tck-1994.test.tsx` rouge sur l'arbre d'origine : action en `{ ok: false, message }` → aucun message, bouton « Supprimer mon compte » proposé → un échec de lecture affiche le `result.message` de l'action (`role="alert"`), sans bouton de demande ni d'annulation, aucun texte neuf ; ablation (`AccountDeletionSection.tsx` à `HEAD`) → 1 rouge sur 2, correctif remis → 2/2, et les 9 tests d'`AccountDeletionSection.test.tsx` verts ; la double lecture (mise en page puis section) n'est pas faite.
 
 ### Petites améliorations
 - Réf : P172.06
-- Statut : validé — validation du porteur (2026-10-23) : corriger le commentaire d'`initialDrafts` ; le retrait de la lecture d'`AuthProvider` part avec P172.01
+- Statut : fait · TCK-1992
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/components/wizard/WizardDraftsBanner.tsx:20-53`, `takussan-web/src/app/(dashboard)/app/(accueil)/page.tsx:68`, `takussan-web/src/context/AuthContext.tsx:136-187`, `takussan-web/src/app/layout.tsx:74-110`
 - Constat :
@@ -16236,6 +16239,7 @@ caution du contrat et non par l'encaissée est P04.10, et n'est pas reprise.*
 - Piste : lire les brouillons côté serveur dans la page d'accueil et les passer en `initialDrafts`, ou retirer la propriété ; retirer la lecture initiale morte d'`AuthProvider` si aucun monteur ne passe `undefined`.
 - Mesure (2026-10-23, 4436bf690, mesureur) : relu `WizardDraftsBanner.tsx:20-53` (`initialDrafts` prévu, lecture dans un effet sinon), `grep -rn WizardDraftsBanner src` (seul appelant `(accueil)/page.tsx:68`, sans propriété), `app/layout.tsx:74-87` et l. 110 (`initialUser` vaut `null` ou un utilisateur, jamais `undefined`), `grep -rn "<AuthProvider" src` (le seul monteur hors tests est `layout.tsx:110` ; les six tests qui montent `AuthProvider` passent tous `initialUser`) → les deux constats de code tiennent, la lecture initiale d'`AuthProvider` (l. 136-187) n'a aucun chemin d'exécution, même en test ; le décalage du bandeau à l'écran n'a pas été vu. Classement : V7, la `Piste` laisse deux options pour le bandeau, dont l'une change le rendu de l'accueil ; le retrait de la lecture morte d'`AuthProvider` relèverait seul de A3.
 - Mesure (2026-10-23, c4a947f97, delegue) : relu l'entrée et la `Mesure` du mesureur, `WizardDraftsBanner.tsx:11-29` (docblock de TCK-250 : la liste est lue côté navigateur « without forcing an SSR refetch on every navigation »), `(accueil)/page.tsx:68`, `grep -rn initialDrafts takussan-web/src` (en plus du composant, `__tests__/WizardDraftsBanner.test.tsx:31-34`, où le test de TCK-566 s'en sert pour injecter les brouillons) et `AuthContext.tsx:71-82` et l. 136-187 (`isLoading` initial dérivé d'`initialUser === undefined`, la lecture morte appelle `/api/auth/logout` au second 401) ; `grep -n "porteur ("` de l'angle 172 → aucune décision → la propriété `initialDrafts` a un lecteur, le test, et la lecture morte d'`AuthProvider` est le même chemin de déconnexion que P172.01, classée V2. Recommandation : ne pas lire les brouillons côté serveur, parce que TCK-250 a choisi la lecture côté navigateur et que le décalage n'a pas été vu à l'écran ; garder `initialDrafts`, qui sert au test, et ne corriger que son commentaire (« pour les tests ; l'accueil ne la passe pas ») ; retirer la lecture initiale d'`AuthProvider` (l. 136-187, `isLoading` à `false` au départ) dans le même ticket que P172.01. Ce qui manque pour trancher : le retrait touche le code de session (V2, réservé au porteur), et rien d'écrit ne choisit entre les deux options du bandeau.
+- Mesure (2026-10-23, 49aa336db, implementeur) : commentaire d'`initialDrafts` de `WizardDraftsBanner` corrigé (sert aux tests, l'accueil ne la passe pas) ; la lecture initiale morte d'`AuthProvider` est retirée dans TCK-1992 avec P172.01, gardée par les tests de P172.01 et les huit monteurs qui passent tous `initialUser` (`grep -rln "<AuthProvider" src`).
 
 ## Angle 173 — Écrans qui chargent les composants client de la console par les autres fichiers `index.ts` réexportateurs
 
@@ -16305,7 +16309,7 @@ caution du contrat et non par l'encaissée est P04.10, et n'est pas reprise.*
 
 ### Les pages et les mises en page serveur de `/app` lisent l'API sans l'indice de profil : liste vide, fiche « interdite » et indicateurs refusés pour un compte de deux agences
 - Réf : P174.02
-- Statut : validé — validation du porteur (2026-10-23) : la piste telle qu'écrite : repli serveur de l'indice dans `apiRequest` ; même ticket que P174.03 ; à faire avant P174.01
+- Statut : fait · TCK-1996
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/lib/queries/properties-server.ts:135-141`, `takussan-web/src/lib/queries/customers.ts:88`, `takussan-web/src/app/(dashboard)/app/properties/[id]/page.tsx:60-80`, `takussan-web/src/app/(dashboard)/app/customers/[id]/page.tsx:93-100`, `takussan-web/src/lib/detail/ressource-de-detail.ts:127-145`, `takussan-web/src/lib/queries/kpis.ts:31,37`, `takussan-web/src/lib/queries/alerts.ts:33`, `takussan-web/src/lib/queries/dashboard-me.ts:41`, `takussan-web/src/lib/queries/dashboard.ts:159-161`, `takussan-web/src/lib/session.ts:28-32`
 - Constat :
@@ -16317,10 +16321,11 @@ caution du contrat et non par l'encaissée est P04.10, et n'est pas reprise.*
   - Établi comment : appels lus, effets API mesurés par le test temporaire. Aucune page n'a été rendue. Les autres lectures des 56 fichiers qui appellent `getToken()` sans nommer `getActiveProfileId`, `utilisateurDuRendu` ni `activeProfileId` (mesuré, `grep -L`) ne sont pas relues une à une (à vérifier).
 - Piste : poser l'indice par défaut dans `apiRequest` côté serveur, comme la langue, par `getActiveProfileId()`, qui l'omet déjà pendant une impersonation. Un appelant qui passe son propre `activeProfileId` ou `X-Profile-Id` l'emporte. Garde : un test d'`apiRequest` sous `next/headers` simulé (cookie présent → en-tête ; cookie d'impersonation → aucun), et un test de rendu d'une liste de `/app` qui vérifie l'en-tête.
 - Mesure (2026-10-23, 5932bac2b, mesureur) : relu `properties-server.ts:134-141` et `customers.ts:84-90` (`{ token }` seul), `kpis.ts:31,37`, `alerts.ts:33`, `dashboard-me.ts:41`, `ressource-de-detail.ts:127-145` (403 classé `indecidable`), `properties/[id]/page.tsx:60-80` (panneau « refusé » sur 401 ou 403), `session.ts:28-32` (`getActiveProfileId` rend `undefined` sous impersonation), `api.ts:770-812` (aucun repli serveur pour le profil, à côté de ceux de la langue, de l'IP et de l'agent) ; `grep -rln getActiveProfileId src` hors tests → les sept fichiers du constat ; le test temporaire de P174.01 rend les mêmes effets API (liste des biens et des clients 0 puis 1, fiches 403 puis 200, indicateurs et alertes 403 puis 200 ; `GET /api/dashboard/me` 200 dans les deux cas, contenu non comparé). Classement : V2, le contrat existe (TCK-143 l. 49, docblock de `ResolveActiveProfile`), mais un indice posé par défaut sur tout appel serveur peut changer, pour un compte d'une seule agence à plusieurs profils, le profil que l'auto-bascule choisit aujourd'hui (`profiles->first()`), et lire `cookies()` dans `apiRequest` rend dynamique toute page qui l'appelle, ce qui n'a pas été mesuré.
+- Mesure (2026-10-23, 49aa336db, implementeur) : test neuf `api.profil-actif-serveur.tck-1996.test.ts` (`next/headers` simulé) rouge sur l'arbre d'origine : cookie `active_profile_id=agent:5`, `apiRequest('/api/properties', { token })` côté serveur → aucun `X-Active-Profile-Hint` → `apiRequest` pose par défaut, côté serveur et pour un appel authentifié qui ne nomme aucun profil, l'indice de `getActiveProfileId()` (rien pendant une impersonation ; le profil de l'appelant, un indice ou un `X-Profile-Id` l'emportent) ; ablation (`api.ts` à `HEAD`) → 2 rouges sur 7, correctif remis → 7/7, et les 26 fichiers de test voisins (`src/lib/__tests__/api*`, actions et relais qui nomment le profil, graphes client) verts ; aucune page rendue.
 
 ### Les écritures des actions serveur partent sans profil actif : la création d'un bien par un agent de deux agences est refusée
 - Réf : P174.03
-- Statut : validé — validation du porteur (2026-10-23) : le même correctif que P174.02, dans le même ticket ; garde : un test API qui crée le bien avec l'indice et vérifie son agence
+- Statut : fait · TCK-1996
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/lib/queries/properties-server.ts:174-183`, `takussan-web/src/app/actions/dashboard-properties.ts:89`, `takussan-api/app/Http/Controllers/Api/PropertyController.php:106-116`
 - Constat :
@@ -16331,6 +16336,7 @@ caution du contrat et non par l'encaissée est P04.10, et n'est pas reprise.*
   - Établi comment : appel lu, effet API mesuré. Le formulaire n'a pas été rendu.
 - Piste : la même que P174.02 (indice posé par défaut côté serveur), qui couvre lectures et écritures. Garde : un test d'action qui vérifie l'en-tête sur `createProperty`, et un test API d'un agent de deux agences qui crée avec et sans indice.
 - Mesure (2026-10-23, 5932bac2b, mesureur) : relu `properties-server.ts:174-183` (`createProperty` poste avec `{ token }` seul), `dashboard-properties.ts:83-95` (`createPropertyAction` passe le seul jeton de `requireToken`), `PropertyController.php:106-116` (`agency_id` pris à `$request->user()->agency_id`, inchangé) ; le test temporaire de P174.01 → `POST /api/properties` à corps vide : 403 `http.forbidden` sans indice, 422 de validation avec, donc l'autorisation passe avec l'indice ; la création complète (201, bien rangé dans A) n'a pas été rejouée, ni l'effet des 22 autres modules d'actions. Classement : V2, même correctif que P174.02, qui change le profil sous lequel les écritures sont autorisées et l'agence où elles se rangent.
+- Mesure (2026-10-23, 49aa336db, implementeur) : même correctif que P174.02 (TCK-1996) ; `createProperty('jeton', …)` côté serveur, cookie de profil présent → sans indice à l'origine, avec l'indice après (rouge à l'ablation) ; test API neuf `CreationParUnAgentDeDeuxAgencesTest`, agent de deux agences : `POST /api/properties` sans indice → 403, aucun bien ; avec `X-Active-Profile-Hint: agent:<A>` → 201 et `agency_id` = A ; les 22 autres modules d'actions héritent du repli sans être relus un à un.
 
 ## Angle 175 — Relations vers un compte supprimé en douceur par la suppression de compte
 

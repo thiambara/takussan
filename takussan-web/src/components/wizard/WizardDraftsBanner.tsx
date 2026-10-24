@@ -19,7 +19,10 @@ import { estDemarcheAReprendre, projectDraftForBanner } from '@/lib/wizard-draft
  */
 type Props = {
   className?: string;
-  /** Initial drafts already loaded server-side (avoid CLS). Optional. */
+  /**
+   * Brouillons déjà connus : la lecture côté navigateur est alors sautée. Sert aux tests ;
+   * l'accueil ne la passe pas, et le bandeau s'y lit après l'hydratation (TCK-1992, P172.06).
+   */
   initialDrafts?: WizardDraftListResponse['data'];
 };
 
