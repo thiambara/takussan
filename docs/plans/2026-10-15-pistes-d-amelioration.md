@@ -18873,7 +18873,7 @@ est conforme à `docs/models-spec.md` § 14 tel que le cite TCK-1151.*
 
 ### Le geste de remboursement d'un acompte ne dit pas qu'il a déjà été reversé au bailleur, et l'agence n'en est pas avertie
 - Réf : P205.02
-- Statut : validé — validation du porteur (2026-10-24) : la ressource, la tâche et le dialogue de remboursement d'un acompte exposent le reversement qui l'a porté (référence, date `processed_at`) ; le dialogue avertit sans refuser, la reprise suivant ADR-0039 (amendement du 2026-10-24)
+- Statut : fait · TCK-2153
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Model/BookingPaymentService.php:81-127`, `takussan-api/app/Http/Controllers/Api/BookingPaymentController.php:86-98`, `takussan-api/app/Services/Booking/BookingRefundTaskService.php:39-70`, `takussan-web/src/components/bookings/BookingRefundPanel.tsx:36-160`
 - Constat :
@@ -18884,6 +18884,7 @@ est conforme à `docs/models-spec.md` § 14 tel que le cite TCK-1151.*
   - Établi comment : lu, et mesuré pour l'avis.
 - Piste : au moins rendre l'état « reversé au bailleur » (référence et date du reversement) sur l'acompte, dans la tâche et dans le dialogue, avant le geste. Le choix entre avertir et refuser suit P205.01. Garde : un test qui lit ce champ sur un acompte reversé.
 - Mesure (2026-10-24, 60de08ba4, mesureur) : relu `BookingPaymentService::refund` (aucun contrôle d'appartenance à un reversement), `BookingRefundTaskService.php:44-68` (`booking_payment_ids` = tous les acomptes `paid`), `grep payout` dans `BookingPaymentResource.php` et `BookingRefundPanel.tsx` → rien. Sonde temporaire `tests/Feature/TmpMesureur/SondeAngle205Test.php` (base créée par le test, charge 2,72 / 3,41 / 4,21 sur 8 cœurs, retirée ensuite) : réponse du remboursement d'une avance reversée → 200, clés `id … refund_reason, paid_amount, remaining_amount, paid_at, transaction_id, notes, created_at`, aucune clé de reversement ; `CodedNotification` à l'admin d'agence avant / après le remboursement → 0 / 0 → le constat tient. Classement : V1, le choix entre avertir et refuser porte sur le remboursement d'un montant ; rendre le seul champ « reversé » serait A1 sans texte neuf, mais la piste demande aussi un texte dans le dialogue et la tâche (V7).
+- Mesure (2026-10-24, 2ab56e48f, implementeur) : reproduit avant correctif par `BookingPaymentPaidOutTest` (clé `paid_out` absente de la réponse de `GET /api/bookings/{id}/payments` pour un acompte d'un reversement `completed`) et par `BookingDetail.remboursement.test.tsx` (ni mention ni avertissement) ; `BookingPaymentResource.paid_out` rend la référence et `processed_at` du reversement à qui passe `PayoutPolicy::view` (`null` pour un tiers), la tâche « remboursement à traiter » les porte dans `metadata.paid_out`, la ligne du panneau et le dialogue les disent, le remboursement reste accepté (200) ; ablations (lecture du reversement coupée → rouge API ; mention et avertissement masqués → rouge Vitest), rétablies → vert ; `BookingRefundTaskTest` 13/13, `BookingPaymentTest` 11/11, `BookingPaymentRefundAuthorizationTest` 21/21 verts.
 
 ### L'accueil du bailleur garde le net versé d'un mois dont les pièces ont été remboursées, à côté d'un encaissé qui les a retirées
 - Réf : P205.03
