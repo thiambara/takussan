@@ -28,7 +28,7 @@ refusé qu'à l'envoi.
 
 ## Décision du porteur (déléguée)
 
-poser `min` sur les deux `DateTimePicker` de `maintenance.tsx` : l'instant présent (forme locale `YYYY-MM-DDTHH:mm` de la primitive) sur le début, le début choisi (à défaut l'instant présent) sur la fin ; l'API reste inchangée (`after_or_equal:now`, écrit par TCK-218) et aucun texte neuf ; garde : un test du formulaire à horloge figée où la veille est grisée dans les deux champs
+poser `min` sur les deux `DateTimePicker` de `maintenance.tsx` : l'instant présent (forme locale `YYYY-MM-DDTHH:mm` de la primitive) sur le début, le début choisi (à défaut l'instant présent) sur la fin ; l'API reste inchangée (`after_or_equal:now`, écrit par TCK-218) et aucun texte neuf ; garde : un test du formulaire à horloge figée où la veille est grisée dans les deux champs ; reste : dire « maintenant » (API qui tolère la minute courante, heure bornée dans la primitive, ou bouton « maintenant »)
 
 ## Reste à faire
 
