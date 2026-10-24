@@ -17649,7 +17649,7 @@ Le PDF de l'état des lieux est P143.01.*
 
 ### Le membre retiré garde le groupe rattaché à un bien de l'agence : TCK-1711 ne quitte que les fils de bail
 - Réf : P191.02
-- Statut : validé — validation du porteur (2026-10-23) : étendre `leaveUnreadableLeaseThreads` aux groupes rattachés à un `property_id`, jugés par `PropertyPolicy::view`
+- Statut : fait · TCK-2021
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Agency/AgencyMemberRemovalService.php:119-143`, `takussan-api/app/Services/Messaging/ConversationAccess.php:56-60`
 - Constat :
@@ -17659,6 +17659,7 @@ Le PDF de l'état des lieux est P143.01.*
   - Établi comment : lu, puis mesuré.
 - Piste : la branche « contexte » de P191.01 couvre ce cas ; à défaut, étendre `leaveUnreadableLeaseThreads` aux groupes à `property_id` d'un bien de l'agence, jugés par `PropertyPolicy::view`. Test : retrait en `leave_unassigned` → `GET …/messages` du groupe de bien en 403, le locataire le garde.
 - Mesure (2026-10-23, b4891d8a9, mesureur) : relu `AgencyMemberRemovalService::leaveUnreadableLeaseThreads` (ne prend que les fils dont `lease_id` est un bail de l'agence), inchangé ; `git log 60fd5f865..b4891d8a9` sur `app/Services/Messaging`, `app/Services/Agency`, `app/Services/Membership`, `ConversationPolicy`, les requêtes et contrôleurs de conversation → aucun commit ; aucun ticket ne cite P191 ; test temporaire `tests/Feature/TmpMesureur/Sonde191Test.php` (retiré, charge 2,73 / 2,35 / 2,13 sur 8 cœurs) sur `MaintenanceActors` (`maintenanceScenario`, bail passé à l'agence, agent de l'agence, un groupe à `lease_id` + `property_id` et un groupe à `property_id` seul, agent administrateur, locataire membre), agent retiré par `AgencyMemberRemovalService::remove(…, leaveUnassigned: true)` → fil à `lease_id` quitté (`left_at` posé, `allows` faux, `GET`, `GET …/messages` et `POST …/messages` en 403, absent de la liste), mais groupe à `property_id` seul gardé : `can('view', $property)` faux, `allows` vrai, `GET …/messages` 200, `POST …/messages` 201, listé, `left_at` nul → le constat tient en entier. Classement : V2, l'implémenteur de P153.04 a écarté les fils à `property_id` en choisissant la voie la plus étroite, et la piste propose deux voies (branche « contexte » ou extension du retrait).
+- Mesure (2026-10-24, c7f6c4101, implementeur) : reproduit avant correctif par `MembreRetireFilsDeBailTest::test_p191_02_le_retrait_quitte_aussi_les_groupes_des_biens_que_le_retire_ne_lit_plus` (jeu `maintenanceScenario`, groupe à `property_id` seul, agent administrateur, locataire membre ; agent retiré par `AgencyMemberRemovalService::remove(…, leaveUnassigned: true)`) → `allows` vrai (« true is false ») ; `leaveUnreadableLeaseThreads` quitte aussi les groupes sans bail rattachés à un bien de l'agence que le retiré ne voit plus (`PropertyPolicy::view`) → `left_at` posé, `allows` faux, `GET`/`POST …/messages` 403, le locataire garde le groupe ; ablation (bloc neuf retiré) → rouge, rétabli → vert ; `MembreRetireFilsDeBailTest` 2/2, `AgencyMemberRemovalTest` 10/10, `AgentHandoverTest` 13/13, `MembreRetireBiensSaisisTest` 3/3, `AgentRemovalJournalTest` 1/1, `MembreRetireInterventionsTest` 2/2 verts.
 
 ### L'agent suspendu, administrateur d'un groupe de bail, y ajoute un tiers qui lit alors tout le fil
 - Réf : P191.03
