@@ -9,6 +9,7 @@ use App\Http\Requests\Api\StoreCustomerRequest;
 use App\Http\Requests\Api\UpdateCustomerRequest;
 use App\Http\Requests\Api\UpdatePipelineStageCustomerRequest;
 use App\Http\Resources\CustomerResource;
+use App\Http\Resources\UserCustomerRelationshipResource;
 use App\Models\Customer;
 use App\Models\CustomerNote;
 use App\Models\Enums\CustomerNoteKind;
@@ -225,12 +226,9 @@ class CustomerController extends Controller
 
         $relationship->update(['is_primary' => true]);
 
-        // TCK-1500 (P94.04) — `started_at` et `ended_at` sont castés `date` : ils sortent en
-        // `Y-m-d` (ADR-0018), et non en instant de minuit comme le rendait le modèle brut.
-        return $this->json(['data' => array_merge($relationship->toArray(), [
-            'started_at' => $relationship->started_at?->toDateString(),
-            'ended_at' => $relationship->ended_at?->toDateString(),
-        ])]);
+        // TCK-1500 (P94.04) — `started_at` et `ended_at` sont castés `date` : `Y-m-d` (ADR-0018).
+        // TCK-2045 (P61.04) — par la ressource, et non plus le modèle brut.
+        return $this->json(['data' => (new UserCustomerRelationshipResource($relationship))->resolve($request)]);
     }
 
     public function relationships(Request $request, Customer $customer): JsonResponse

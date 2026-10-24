@@ -11,6 +11,7 @@ use App\Models\Booking;
 use App\Models\Property;
 use App\Services\Booking\BookingMoneyAccess;
 use App\Services\Model\BookingService;
+use App\Services\Property\BailleurDuBien;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -27,7 +28,9 @@ class BookingController extends Controller
         if (! $user->isSuperAdmin()) {
             $base->where(function ($q) use ($user) {
                 $q->where('created_by_id', $user->id)
-                    ->orWhereHas('property', fn ($p) => $p->where('user_id', $user->id))
+                    // TCK-1930 (P190.02, décision du porteur) — le bailleur du bien, comme
+                    // `BookingPolicy::view` : plus l'agent créateur suspendu ou retiré.
+                    ->orWhereHas('property', fn ($p) => BailleurDuBien::restreindre($p, $user))
                     ->orWhereHas('customer', fn ($c) => $c->where('user_id', $user->id));
                 // TCK-587 — le périmètre d'agence est celui du PERSONNEL (ADR-0031) : un bailleur de l'agence
                 // listait les ressources de tous les autres.

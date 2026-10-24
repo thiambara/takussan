@@ -42,7 +42,10 @@ class StoreInvoiceRequest extends BaseFormRequest
             // P133.02 (TCK-1377) — les lignes saisies font le sous-total, que l'API recompte
             // (`InvoiceService::priceLines`) : un `subtotal` fourni avec elles est ignoré. Sans
             // lignes, le sous-total reste requis. Bornes reprises de `SubmitQuoteRequest`.
-            'subtotal' => ['required_without:items', 'nullable', 'numeric', 'min:0'],
+            // TCK-1922 (P170.05) — sans lignes, les bornes d'une ligne (`decimal:0,2`, `max:`), puis
+            // l'arrondi à la devise (`InvoiceService::create`) : 10,5 XOF était émis, et un grand
+            // nombre rendait une 500 (`numeric field overflow`).
+            'subtotal' => ['required_without:items', 'nullable', 'numeric', 'min:0', 'max:1000000000', 'decimal:0,2'],
             'items' => ['sometimes', 'array', 'min:1', 'max:50'],
             'items.*.description' => ['required', 'string', 'max:500'],
             'items.*.quantity' => ['required', 'numeric', 'gt:0', 'max:100000', 'decimal:0,2'],

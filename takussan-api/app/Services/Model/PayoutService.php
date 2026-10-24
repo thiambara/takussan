@@ -32,6 +32,7 @@ use App\Services\Payout\PayoutApprovalRule;
 use App\Services\Payout\PayoutApprovers;
 use App\Services\Payout\PayoutCalculator;
 use App\Support\SegregationOfDuties;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -573,6 +574,11 @@ class PayoutService
             }
         }
 
+        // TCK-2064 (P178.01) — une pièce encaissée par la plateforme ne se reverse qu'une fois son
+        // `PlatformPayout` payé (hors agence `individual`) : la préparation ne la propose pas.
+        $this->assertNotAwaitingPlatform($agency, LeasePayment::query(), $leaseIds, 'lease_payment_ids');
+        $this->assertNotAwaitingPlatform($agency, BookingPayment::query(), $bookingIds, 'booking_payment_ids');
+
         $bills = ServiceProviderBill::query()->with('property:id,user_id')->whereIn('id', $billIds)->get()->keyBy('id');
         foreach ($billIds as $id) {
             $bill = $bills->get($id);
@@ -623,6 +629,26 @@ class PayoutService
         $gross = $items->sum(fn ($item): float => max(0.0, (float) $item->amount - (float) ($item->refund_amount ?? 0)));
 
         return Currency::roundAmount($gross, $payout->currency) < (float) $payout->gross_amount;
+    }
+
+    /**
+     * @param  Builder<LeasePayment>|Builder<BookingPayment>  $query
+     * @param  list<int>  $ids
+     */
+    private function assertNotAwaitingPlatform(Agency $agency, Builder $query, array $ids, string $field): void
+    {
+        if ($ids === []) {
+            return;
+        }
+
+        $table = $query->getModel()->getTable();
+        $eligible = $this->calculator->exceptAwaitingPlatform($query->whereIn("{$table}.id", $ids), $agency)
+            ->pluck("{$table}.id")->map(fn ($id) => (int) $id)->all();
+        foreach ($ids as $id) {
+            if (! in_array($id, $eligible, true)) {
+                $this->ineligibleItem($field, $id);
+            }
+        }
     }
 
     private function ineligibleItem(string $field, int $id): never

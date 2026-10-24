@@ -233,6 +233,22 @@ export const SEARCH_FILTER_KEYS = {
     libelle: (v: string) => v,
   },
   /**
+   * P185.02 (TCK-2061) — les villes du profil (`criteria.cities`, TCK-136), en OU côté serveur
+   * comme l'alerte les lit (TCK-599). Liste à virgules dans l'URL, comme `type` ; une puce par
+   * ville, retirable seule. Aucun contrôle du panneau ne l'écrit : seul le profil la pose.
+   */
+  cities: {
+    role: 'filtre',
+    params: ['cities'],
+    lire: (sp: URLSearchParams) => {
+      const villes = (litTexte(sp, 'cities') ?? '').split(',').map((v) => v.trim()).filter(Boolean);
+      return villes.length > 0 ? villes : undefined;
+    },
+    ecrire: (v: string[]) => v.join(','),
+    libelle: (v: string[]) => v.join(', '),
+    eclater: (v: string[]) => v.map((x) => ({ sousCle: x, valeur: [x] })),
+  },
+  /**
    * TCK-635 (ADR-0062 §8) — la région d'une ville HOMONYME : Dinguiraye est à Diourbel et à Kolda,
    * Missirah à Diourbel et à Tambacounda, Vélingara à Matam et à Kolda. Le sélecteur de ville ne
    * l'écrit que pour ces villes-là ; partout ailleurs l'URL reste `city=Thiès`.

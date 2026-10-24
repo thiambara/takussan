@@ -75,7 +75,8 @@ class BranchedCapabilitiesTest extends ApiTestCase
             'payments.record — facture' => [Capability::PaymentsRecord, 'agent', 'POST', '/api/invoices/{invoice}/mark-paid', [], 'sentInvoice'],
             'payments.record — loyer' => [Capability::PaymentsRecord, 'agent', 'POST', '/api/leases/{lease}/payments', [
                 'amount' => 400000,
-                'payment_type' => 'rent',
+                // TCK-1920 : loyer et caution naissent de l'échéancier, la route ne garde que les charges.
+                'payment_type' => 'charges',
                 'period_start' => '2026-01-01',
                 'period_end' => '2026-01-31',
                 'due_date' => '2026-01-05',

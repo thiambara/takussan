@@ -78,6 +78,8 @@ class MapFiltersParityTest extends ApiTestCase
             'location' => ['location', ['location' => 'Almadies'], [], ['neighborhood' => 'Médina'], [], [], 'A'],
             'city' => ['city', ['city' => 'Dakar'], [], ['city' => 'Thiès'], [], [], 'A'],
             // TCK-635 (ADR-0062 §8) — même nom de ville, autre région : seule la région les sépare.
+            // P185.02 (TCK-2061) — `cities` en OU : A porte la SECONDE ville demandée.
+            'cities' => ['cities', ['cities' => 'Saint-Louis,Dakar'], [], ['city' => 'Thiès'], [], [], 'A'],
             'region' => ['region', ['city' => 'Dakar', 'region' => 'Dakar'], [], ['region' => 'Thiès'], [], [], 'A'],
             'price_min' => ['price_min', ['price_min' => '150000'], ['price' => 100_000], [], [], [], 'A'],
             'price_max' => ['price_max', ['price_max' => '300000'], ['price' => 400_000], [], [], [], 'A'],

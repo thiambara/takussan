@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Api\StoreKpiConfigRequest;
 use App\Http\Requests\Api\UpdateKpiConfigRequest;
+use App\Http\Resources\KpiConfigResource;
 use App\Models\KpiConfig;
 use App\Policies\AgencyIndicatorPolicy;
 use Illuminate\Http\JsonResponse;
@@ -35,7 +36,8 @@ class KpiConfigController extends Controller
             ->defaultSort('sort_order')
             ->paginate();
 
-        return $this->paginated($paginator, $paginator->items());
+        // TCK-2045 (P61.04) — par la ressource, et non plus le modèle brut.
+        return $this->paginated($paginator, KpiConfigResource::collection($paginator)->toArray($request));
     }
 
     public function store(StoreKpiConfigRequest $request): JsonResponse

@@ -7,6 +7,7 @@ use App\Http\Requests\Api\MarkLateFeePaidRequest;
 use App\Http\Requests\Api\MarkPaidLeasePaymentRequest;
 use App\Http\Requests\Api\StoreLeasePaymentRequest;
 use App\Http\Resources\LeasePaymentResource;
+use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\LeaseStatus;
 use App\Models\Lease;
 use App\Models\LeasePayment;
@@ -62,6 +63,15 @@ class LeasePaymentController extends Controller
         );
 
         $data = $request->validated();
+
+        // TCK-1920 (P170.04, décision du porteur) — la route garde les charges, régularisations et
+        // pénalités. Loyer et caution naissent de l'échéancier (`generate-schedule`) : posés ici,
+        // ils prenaient tout montant et un second loyer sur une période déjà échue.
+        abort_code_if(
+            in_array($data['payment_type'], [LeasePaymentType::Rent->value, LeasePaymentType::Deposit->value], true),
+            422,
+            'lease_payment.type_from_schedule',
+        );
 
         $payment = $this->payments->create($lease, $request->user(), $data);
 

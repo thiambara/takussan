@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Api\SyncPropertyTagRequest;
+use App\Http\Resources\PropertyTagResource;
 use App\Models\Enums\TagType;
 use App\Models\Property;
 use App\Models\Tag;
@@ -59,7 +60,8 @@ class PropertyTagController extends Controller
             $property->reindexer();
         }
 
-        return $this->json(['data' => $property->tags()->get()]);
+        // TCK-2045 (P61.04) — par la ressource : le modèle brut rendait son `pivot`, nom de classe compris.
+        return $this->json(['data' => PropertyTagResource::collection($property->tags()->get())->resolve($request)]);
     }
 
     public function destroy(Request $request, Property $property, Tag $tag): JsonResponse

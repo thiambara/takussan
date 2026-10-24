@@ -297,7 +297,7 @@ class ReviewController extends Controller
         $data = $request->validated();
 
         // verif-597 M4 — le contrôle et l'écriture sous le verrou de la ligne PARENT : l'index
-        // `reviews_author_context_uniq` ne couvre pas cette voie (pas de `context_id`), et quatre
+        // `reviews_author_subject_context_uniq` ne couvre pas cette voie (pas de `context_id`), et quatre
         // envois simultanés posaient quatre avis.
         $review = DB::transaction(function () use ($property, $user, $data, $request) {
             Property::query()->whereKey($property->getKey())->lockForUpdate()->first();
@@ -453,7 +453,7 @@ class ReviewController extends Controller
 
     /**
      * TCK-597 (ADR-0043 §3, AC9) — `POST /api/service-providers/{serviceProviderProfile}/reviews`.
-     * Une fois par auteur et par INTERVENTION (l'index `reviews_author_context_uniq` le garde en
+     * Une fois par auteur et par INTERVENTION (l'index `reviews_author_subject_context_uniq` le garde en
      * base). Modéré par la plateforme seule.
      */
     public function storeForServiceProvider(StoreForServiceProviderReviewRequest $request, ServiceProviderProfile $serviceProviderProfile): JsonResponse

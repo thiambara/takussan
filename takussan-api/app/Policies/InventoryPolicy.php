@@ -4,6 +4,7 @@ namespace App\Policies;
 
 use App\Models\Inventory;
 use App\Models\User;
+use App\Services\Property\BailleurDuBien;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -29,7 +30,9 @@ class InventoryPolicy extends BasePolicy
 
         return $user->isSuperAdmin()
             || $model->conducted_by === $user->id
-            || ($property && $property->user_id === $user->id)
+            // TCK-1928 (P190.01, décision du porteur) — le bailleur du bien, de tout statut ; plus
+            // l'agent qui l'a saisi (`properties.user_id`), jugé au titre du personnel.
+            || ($property && BailleurDuBien::est($user, $property->user_id, $property->agency_id))
             || ($tenant && $tenant->user_id === $user->id)
             || ($property && $this->isStaffOf($user, $property->agency_id));
     }
@@ -51,7 +54,8 @@ class InventoryPolicy extends BasePolicy
 
         return $user->isSuperAdmin()
             || $this->landlordWrites($user, $model->conducted_by, $property?->agency_id)
-            || ($property && $this->landlordWrites($user, $property->user_id, $property->agency_id))
+            // TCK-1928 (P190.01) — `bailleurEcrit` : le bailleur non bloqué, jamais l'agent créateur.
+            || ($property && $this->bailleurEcrit($user, $property->user_id, $property->agency_id))
             || ($property && $this->isStaffOf($user, $property->agency_id));
     }
 }

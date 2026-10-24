@@ -91,6 +91,8 @@ return [
         'property_unavailable' => 'Ce bien n\'est pas disponible à la réservation.',
     ],
     'booking_payment' => [
+        'booking_not_payable' => 'Cette réservation n\'est plus en attente ni confirmée : elle ne se paie plus.',
+        'exceeds_remaining' => 'Ce montant dépasse le reste dû de la réservation (:remaining).',
         'nothing_due' => 'Cette réservation est soldée : il ne reste rien à payer.',
         'receipt_unpaid' => 'La quittance est disponible uniquement pour un paiement acquitté.',
         'refund_exceeds_paid' => 'Le remboursement ne peut pas dépasser le montant payé.',
@@ -313,6 +315,7 @@ return [
         'lease_not_active' => 'Seul un bail actif ou en préavis reçoit une ligne de paiement.',
         'receipt_not_a_payment' => 'Une caution rendue n\'est pas un paiement du locataire : elle n\'a pas de quittance.',
         'receipt_unpaid' => 'La quittance n\'est délivrée que pour un loyer acquitté.',
+        'type_from_schedule' => 'Un loyer ou une caution naît de l\'échéancier du bail : cette saisie ne prend que les charges, régularisations et pénalités.',
     ],
     'mail' => [
         'invitation_not_sent' => 'L\'e-mail d\'invitation n\'a pas pu être envoyé.',

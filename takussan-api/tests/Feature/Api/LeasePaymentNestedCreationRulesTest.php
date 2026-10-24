@@ -74,16 +74,51 @@ class LeasePaymentNestedCreationRulesTest extends TestCase
         $this->assertSame(0, $lease->payments()->count());
     }
 
-    public function test_the_other_line_types_are_still_accepted(): void
+    /**
+     * TCK-1920 (P170.04, décision du porteur) — la route ne garde que les charges, régularisations
+     * et pénalités : un loyer de 1 et un second loyer sur une période déjà échue, ou une caution de 5,
+     * passaient sans rapport au bail. Loyer et caution naissent de l'échéancier (`generate-schedule`).
+     */
+    public function test_charges_regularization_and_penalty_are_still_accepted(): void
     {
         $landlord = User::factory()->create();
         $lease = $this->activeLease(landlord: $landlord);
         Sanctum::actingAs($landlord);
 
-        foreach (['rent', 'charges', 'deposit', 'regularization', 'penalty'] as $type) {
+        foreach (['charges', 'regularization', 'penalty'] as $type) {
             $this->postJson("/api/leases/{$lease->id}/payments", $this->line(['payment_type' => $type]))
                 ->assertCreated();
         }
+    }
+
+    public function test_rent_and_deposit_are_refused_with_a_code(): void
+    {
+        $landlord = User::factory()->create();
+        $lease = $this->activeLease(landlord: $landlord);
+        Sanctum::actingAs($landlord);
+
+        foreach (['rent' => 1, 'deposit' => 5] as $type => $amount) {
+            $this->postJson("/api/leases/{$lease->id}/payments", $this->line(['payment_type' => $type, 'amount' => $amount]))
+                ->assertUnprocessable()
+                ->assertJsonPath('code', 'lease_payment.type_from_schedule');
+        }
+
+        $this->assertSame(0, $lease->payments()->count());
+    }
+
+    /** TCK-1920 — `decimal(14,2)` : au-delà, PostgreSQL rendait `numeric field overflow`, une 500. */
+    public function test_an_amount_above_the_column_maximum_is_refused(): void
+    {
+        $landlord = User::factory()->create();
+        $lease = $this->activeLease(landlord: $landlord);
+        Sanctum::actingAs($landlord);
+
+        $this->postJson("/api/leases/{$lease->id}/payments", $this->line(['amount' => 999_999_999_999_999]))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('amount');
+
+        $this->postJson("/api/leases/{$lease->id}/payments", $this->line(['amount' => 999_999_999_999.99]))
+            ->assertCreated();
     }
 
     /** Écrire l'échéancier, c'est écrire des échéances de loyer : `payments.record`, comme la création. */
