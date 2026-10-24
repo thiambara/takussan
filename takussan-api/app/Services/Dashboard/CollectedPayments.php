@@ -23,6 +23,10 @@ use Illuminate\Database\Eloquent\Builder;
  *   soit le statut `late` ou non : un bail sans pénalité ne passe jamais `late` (`LateFeeCalculator`).
  *   Il se compte au RESTE DÛ ({@see self::OWED_REMAINING_SQL}), pas au montant facial.
  *
+ * - *Encaissé*, second agrégat (P206.02, ADR-0057, amendement du 2026-10-24, point 1) : la
+ *   pénalité de retard réglée, datée par `late_fee_paid_at` et non par `paid_at`
+ *   ({@see self::lateFeeIncome()}, {@see self::LATE_FEE_NET_SQL}).
+ *
  * Chaque lecteur recopiait son filtre ; trois d'entre eux comptaient le dépôt comme revenu et la
  * caution rendue comme une dette du locataire.
  */
@@ -52,6 +56,12 @@ final class CollectedPayments
     /** Montant encaissé d'une échéance : ce qui a été payé, moins ce qui a été rendu (TCK-1214). */
     public const LEASE_NET_SQL = 'lease_payments.amount - COALESCE(lease_payments.refund_amount, 0)';
 
+    /**
+     * P206.02 — la pénalité de retard réglée d'une échéance, second agrégat de l'*Encaissé*, à dater
+     * par `lease_payments.late_fee_paid_at`.
+     */
+    public const LATE_FEE_NET_SQL = 'COALESCE(lease_payments.late_fee_amount, 0)';
+
     /** Montant encaissé d'une ligne de réservation : ce qui a été payé, moins ce qui a été rendu. */
     public const BOOKING_NET_SQL = 'booking_payments.amount - COALESCE(booking_payments.refund_amount, 0)';
 
@@ -75,6 +85,23 @@ final class CollectedPayments
         return $query
             ->where('lease_payments.status', PaymentStatus::Paid->value)
             ->whereIn('lease_payments.payment_type', self::leaseIncomeTypeValues());
+    }
+
+    /**
+     * P206.02 (ADR-0057, amendement du 2026-10-24, point 1) — les pénalités de retard réglées : une
+     * ligne d'un type de revenu dont `late_fee_paid_at` est posé, quel que soit le statut du loyer
+     * (une pénalité se règle sur un loyer encore `late`), sauf `cancelled`. À sommer par
+     * {@see self::LATE_FEE_NET_SQL}, à dater par `late_fee_paid_at`.
+     */
+    public static function lateFeeIncome(?Builder $query = null): Builder
+    {
+        $query ??= LeasePayment::query();
+
+        return $query
+            ->where('lease_payments.status', '!=', PaymentStatus::Cancelled->value)
+            ->whereIn('lease_payments.payment_type', self::leaseIncomeTypeValues())
+            ->whereNotNull('lease_payments.late_fee_paid_at')
+            ->where('lease_payments.late_fee_amount', '>', 0);
     }
 
     /** Paiements de réservation encaissés. À sommer par {@see self::BOOKING_NET_SQL}. */

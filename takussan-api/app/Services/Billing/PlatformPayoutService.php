@@ -415,7 +415,34 @@ class PlatformPayoutService
      */
     public function lateFeeSettledByPlatform(LeasePayment $payment): bool
     {
-        return $this->lateFeeSettledWith($payment, $this->settledBy($payment, $this->globalIntegrationIds([$payment]))) > 0;
+        return $this->platformSettledLateFee($payment) > 0;
+    }
+
+    /**
+     * P206.02 (ADR-0057, amendement du 2026-10-24, point 2) — la part de pénalité de cette ligne
+     * réglée par le checkout de la plateforme, la méthode même de la clôture : les frais des
+     * métriques et ceux de la clôture tombent égaux sur un même jeu. 0 hors de la plateforme.
+     */
+    public function platformSettledLateFee(LeasePayment $payment): float
+    {
+        return $this->platformSettledLateFees([$payment])[(int) $payment->id] ?? 0.0;
+    }
+
+    /**
+     * {@see self::platformSettledLateFee()} pour un lot, les intégrations globales lues une fois.
+     *
+     * @param  iterable<LeasePayment>  $payments
+     * @return array<int, float> par id de ligne
+     */
+    public function platformSettledLateFees(iterable $payments): array
+    {
+        $globalIntegrations = $this->globalIntegrationIds($payments);
+        $fees = [];
+        foreach ($payments as $payment) {
+            $fees[(int) $payment->id] = $this->lateFeeSettledWith($payment, $this->settledBy($payment, $globalIntegrations));
+        }
+
+        return $fees;
     }
 
     /**

@@ -83,6 +83,11 @@ class AgencyDetailController extends Controller
             ->selectRaw("COUNT(*) AS n, COALESCE(SUM({$leaseNet}), 0) AS total")
             ->first();
 
+        // P206.02 (ADR-0057, amendement du 2026-10-24) — la pénalité réglée, datée par son règlement.
+        $lateFees = (float) CollectedPayments::lateFeeIncome($this->leasePaymentsOf($agencyId))
+            ->where('lease_payments.late_fee_paid_at', '>=', $since)
+            ->sum(DB::raw(CollectedPayments::LATE_FEE_NET_SQL));
+
         $bookingNet = CollectedPayments::BOOKING_NET_SQL;
         $bookings = CollectedPayments::bookingIncome($this->bookingPaymentsOf($agencyId))
             ->where('booking_payments.paid_at', '>=', $since)
@@ -113,7 +118,7 @@ class AgencyDetailController extends Controller
                     ->where('status', PropertyStatus::PendingReview->value)
                     ->count(),
                 'transactions_30d' => (int) ($leases->n ?? 0) + (int) ($bookings->n ?? 0),
-                'revenue_30d' => round((float) ($leases->total ?? 0) + (float) ($bookings->total ?? 0), 2),
+                'revenue_30d' => round((float) ($leases->total ?? 0) + (float) ($bookings->total ?? 0) + $lateFees, 2),
                 // TCK-1116 (P94.01) — `MAX(paid_at)` sort de PostgreSQL sans fuseau (`2026-10-18 21:54:01`),
                 // que le front lirait dans le fuseau du navigateur : un instant ADR-0018.
                 'last_platform_payment_at' => $lastPaidAt?->utc()->format(DATE_ATOM),
