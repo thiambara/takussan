@@ -20773,7 +20773,7 @@ sans `delete`).*
 
 ### La fin d'une absence d'agent se choisit sans borne, alors que l'API refuse un jour passé et tout jour au-delà de 366 jours, ce dernier compris
 - Réf : P230.03
-- Statut : retenu · autonome
+- Statut : fait · TCK-2232
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/crm/AgentAbsencesSection.tsx:77,180`, `takussan-api/app/Http/Requests/Agency/StoreAgentAbsenceRequest.php:27,33`
 - Constat :
@@ -20783,6 +20783,7 @@ sans `delete`).*
   - Établi comment : lu, et mesuré sur le validateur ; le refus est affiché par `proseServeur` (lu, l. 186-190), l'écran n'a pas été rendu.
 - Piste : `min` au jour de l'API, `max` à J+365 (la fin de journée envoyée devant tenir sous l'instant J+366), ou faire juger la borne haute sur le jour plutôt que l'instant. Garde : un test du formulaire à horloge figée sur les deux bornes.
 - Mesure (2026-10-24, 09c83726d, mesureur) : relu `AgentAbsencesSection.tsx:77` (envoie `${endsOn} 23:59:59`) et `:180` (`<Input type="date">` sans `min` ni `max`), `StoreAgentAbsenceRequest.php:27,33` (`after:now`, `before_or_equal:` l'instant `now()->addDays(366)`) ; `php artisan tinker` (`Validator::make`, lecture seule) à 2026-10-24T18:10Z, charge 2,91 / 2,96 / 2,78 sur 8 cœurs → la veille à 23:59:59 refusée, J+365 à 23:59:59 acceptée, J+366 à 23:59:59 refusée → le constat tient ; l'écran n'a pas été rendu. Classement : A1, la borne est écrite par la règle de l'API ; le correctif autonome est la seule option du front (`min` = `jourDeLApi()`, `max` = `decalerJour(jourDeLApi(), 365)`), sans texte neuf ; faire juger la borne haute de l'API sur le jour changerait ce que l'API accepte et n'en fait pas partie.
+- Mesure (2026-10-24, c5ee97e97, implementeur) : reproduit par `AgentAbsencesSection.bornes.p230-03.test.tsx` (navigateur à New York, 01:00 Z le 25 octobre) : « Jusqu'au » sans `min` ni `max` → correctif : `min` = `jourDeLApi()`, `max` = J+365 (miroir de 366 jours, le soir de J+366 dépassant l'instant J+366) ; ablation → rouge, remis → vert ; deux tests existants saisissaient le 20 octobre 2026 sous l'horloge réelle et rougissaient sous le `min` (jsdom l'applique à la soumission) : leur horloge est figée au 15 octobre (8 tests verts).
 
 ### La fenêtre de maintenance se programme sans `min`, et la minute en cours, seule façon de dire « maintenant », est refusée
 - Réf : P230.04
