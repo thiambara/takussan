@@ -34,7 +34,7 @@ de ton arbre.
 | 4 | Erreurs | le `passage.log` et le `claude.err` du dernier passage en erreur | une cause qui se répète |
 | 5 | Garde | `tail -30 "$PISTES_BASE/journaux/garde.tsv"` | un refus répété qui bloque un rôle (faux positif ?) |
 | 6 | `pre-dev` | `gh run list --branch pre-dev --limit 10 --json name,conclusion,status,databaseId,headSha,createdAt` | un workflow rouge sur le dernier push |
-| 7 | PR d'agents | `gh pr list --base pre-dev --state open --json number,title,labels,headRefName,mergeable,updatedAt`, puis `gh pr checks <n>` | rouge depuis plus de 2 h sans réparation, `CONFLICTING`, verte non fusionnée depuis plus de 30 min, abandonnée après `REPARATIONS_MAX` |
+| 7 | PR d'agents | `gh pr list --base pre-dev --state open --json number,title,labels,headRefName,mergeable,updatedAt`, puis `gh pr checks <n>` ; pour le rouge, la liste « PR rouges depuis plus de 2 h » de ton message | rouge depuis plus de 2 h (cas 4 ci-dessous), `CONFLICTING`, verte non fusionnée depuis plus de 30 min, abandonnée après `REPARATIONS_MAX` |
 | 8 | Verrous | `ls "$PISTES_BASE"/verrous/`, `cat …/pid`, `ps -p <pid>` | un verrou dont le pid est mort (le prochain passage le lève seul : constate, n'agis pas) |
 | 9 | Processus | `ps -axo pid,ppid,etime,%cpu,rss,command`, et pour un suspect `lsof -a -d cwd -p <pid>` | un processus sous `arbres/` ou `sorties/` d'un rôle **sans passage en cours** |
 | 10 | Disque | `du -sh "$PISTES_BASE"/*`, `df -h ~` | dossier des agents au-delà de 15 Go, ou disque à moins de 10 % libre |
@@ -105,8 +105,8 @@ modèle :
 - une première tentative rouge : relancée une fois ;
 - un rouge confirmé : ses tests rejoignent le registre.
 
-Il te laisse trois cas, que ton message de passage liste. Quand l'un d'eux arrive, il te fait partir
-hors de ta cadence. **Ils passent avant tout le reste.**
+Il te laisse quatre cas, que ton message de passage liste. Quand l'un d'eux arrive, il te fait
+partir hors de ta cadence. **Ils passent avant tout le reste.**
 
 1. **`pre-dev` rouge** (`$PISTES_BASE/etat/pre-dev-rouge`, ses tests dans `etat/rouges/pre-dev`).
    - Le fusionneur suspend toutes les fusions, sauf les tiennes et la synchronisation de `dev`.
@@ -134,6 +134,34 @@ hors de ta cadence. **Ils passent avant tout le reste.**
    - Si tu ne trouves pas la cause dans ton passage, ne marque rien. Écris dans le rapport ce que tu
      as établi et exclu, puis `notifier`. Le passage suivant reprend.
    - Tu n'écris pas de piste : le fichier de pistes t'est fermé.
+4. **Une PR rouge depuis plus de 2 h** (amendement d'ADR-0066 du 2026-10-24). L'âge court depuis le
+   **premier run rouge conclu** de sa branche, toutes têtes confondues. Une CI « en cours » après un
+   rafraîchissement ne le remet pas à zéro, un vert si. Ton message liste chaque PR : depuis quand,
+   le dernier run rouge conclu et ses tests. **Ne lis pas une CI en cours comme « sans rouge »** :
+   le 2026-10-24 à 14:55, #1469 était rouge depuis 20 min, et le rapport disait « 3 PR mergeables
+   sans rouge ».
+   - **Répare-la toi-même**, avec la même règle et le même périmètre que pour `pre-dev` rouge : en
+     TDD, sur la seule cause, tests nommés. Mais tu travailles **sur la branche de la PR** :
+     ```bash
+     git fetch origin && git reset --hard origin/<branche de la PR>   # ta branche part de sa tête
+     # … test, correctif, commit(s) par-dessus — jamais de `git merge`
+     echo <n°> > "$PISTES_SORTIE/pr-reparee.txt"
+     ```
+     Puis écris `pr-corps.md` : la cause établie, la preuve, l'ablation. `pistes.sh` vérifie
+     alors ta réparation depuis la tête de la PR, la pousse sur sa branche en avance rapide et la
+     commente. Il la refuse dans cinq cas :
+     - la PR n'est pas dans la liste de ce passage ;
+     - ta branche ne descend pas de la tête de la PR ;
+     - elle porte un commit de fusion ;
+     - elle touche le fichier de pistes ou les outils des agents ;
+     - la branche a bougé entre-temps.
+
+     Le rafraîchissement et les conflits restent au tri et à l'implémenteur. Un passage publie
+     une chose : la réparation d'une seule PR, ou ta propre PR. Un `pre-dev` rouge (cas 1) passe
+     d'abord. La PR attend alors ton passage suivant : écris-le dans le rapport, et `notifier`.
+   - **Si tu ne peux pas** (cause introuvable dans ton passage, cause hors de ton périmètre ou dans
+     les outils, PR en conflit), ouvre ton rapport par une alerte au porteur, dès sa première ligne :
+     `ALERTE : #<n> rouge depuis <HH:MM> — <test> — <ce que tu as établi>`. Puis `notifier`.
 
 ## Ce que tu ne fais jamais
 
@@ -172,5 +200,7 @@ Par rapport à `commun.md` :
 2. **Un correctif de code** : commits comme dans `commun.md`, puis `pr-titre.txt`
    (`[superviseur] <objet>`) et `pr-corps.md` — la cause établie, la preuve, l'ablation, ce que la
    PR ne fait pas. Pas de ligne `Réfs`.
-3. **Rien à corriger dans le code** : ne commite rien. Le rapport suffit ; `rien.txt` n'est pas
+3. **La réparation d'une PR rouge depuis plus de 2 h** (cas 4) : commits par-dessus sa tête,
+   `pr-reparee.txt` (son numéro) et `pr-corps.md`. Pas de `pr-titre.txt` : aucune PR ne s'ouvre.
+4. **Rien à corriger dans le code** : ne commite rien. Le rapport suffit ; `rien.txt` n'est pas
    demandé.
