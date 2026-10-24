@@ -786,6 +786,145 @@ La garde continue de refuser `gh pr close` en direct, et indique le verbe au sup
 se restaure depuis la PR. Le verbe ne touche ni le code de `pre-dev` ni le travail d'un autre rôle.
 Le porteur reste prévenu par une notification.
 
+## Amendement du 2026-10-24 — un rouge se lit sur les runs conclus, et ne reste pas sans maître
+
+**Constat**, le 2026-10-24, sur #1469. Elle est restée rouge de 14:34 à 16:30 sur un seul test,
+`DashboardQueryBudgetTest` (plafond du bailleur : 27 requêtes pour 26), sans que rien ne le vise :
+- **14:47 — rafraîchie pour rien.** L'étape 1 du tri (« base périmée ») a fusionné `pre-dev` dans
+  la branche, parce que le run rouge précédait une fusion dans `pre-dev`. Mais le rouge ne venait
+  pas de `pre-dev`, et la CI est repartie pour 30 min.
+- **15:14 — une réparation morte, comptée quand même.** La réparation 1/3 est morte sur « API
+  Error: Can't reach the API server (ENOTFOUND) » : claude sorti en 1, `is_error: true`,
+  `terminal_reason: "api_error"`, après 11 tours et 0,44 USD. Elle a pourtant été comptée dans
+  `etat/reparations-<rôle>-<n°>`. Le même message apparaît dans deux autres sorties de la chaîne,
+  le 2026-10-23 et le 2026-10-24.
+- **15:21 — une réparation sans rouge à réparer.** Pour la réparation 2/3, la PR était en conflit,
+  et le run rouge avait fini 14 s plus tôt. `gh pr checks` ne le rendait pas encore : le message
+  portait « Checks rouges : » vide. L'agent a résolu le conflit et écrit « aucun check rouge à
+  corriger ».
+- **14:55 — le superviseur ne voit rien.** Il ne lit que les checks de la tête courante. À 14:55,
+  la CI relancée par la fusion de 14:47 était « en cours », et son rapport disait « 3 PR
+  mergeables sans rouge ». Un rouge propre à une PR n'était de toute façon pas de son ressort
+  avant l'abandon, soit trois réparations.
+- **Le test n'a jamais été joué avant la CI.** L'implémenteur n'a lancé que ses classes. Pourtant,
+  la carte d'impact relie `app/Services/Dashboard/PortfolioMetrics.php` à `DashboardQueryBudgetTest`.
+  Mais `impacted-tests --base=origin/pre-dev` rend « SUITE ENTIÈRE — fichier absent de la carte »
+  dès qu'un fichier neuf est dans le diff, et un agent ne lance jamais la suite entière.
+
+**Décision du porteur** :
+
+1. **Une réparation porte le dernier run rouge conclu de sa branche.** Le message garde les checks
+   rouges de la tête courante, et y ajoute le dernier run **conclu** rouge de chaque workflow de la
+   branche, toutes têtes confondues, avec ses tests (`rouge_conclu`, `tests_rouges`). Il le dit en
+   toutes lettres : « Dernier run rouge conclu de ta branche… », puis le run, sa tête et ses tests.
+   - Quand la tête n'a aucun check rouge, le message dit pourquoi : CI en cours, ou PR en conflit.
+     `commun.md` impose de lancer ces tests après le conflit, et interdit d'écrire « aucun rouge »
+     sans les avoir lancés.
+   - Si `gh` ne répond pas, le message le dit, et retombe sur le registre du tri
+     (`etat/rouges/<n°>`).
+2. **Une réparation morte sur une panne d'API ou de réseau ne compte pas** (`panne_d_api`). La
+   détection est étroite. Il faut `is_error: true` dans `claude.json`, et l'un de ces deux cas :
+   - un résultat qui commence par « API Error » ou qui nomme une panne de réseau (`ENOTFOUND`,
+     `EAI_AGAIN`, `ECONNREFUSED`, `ECONNRESET`, `ETIMEDOUT`, « Could not resolve host », « Can't
+     reach the API server ») ;
+   - aucun tour de travail (`num_turns` à 0).
+
+   Le compteur est alors rendu, `REPARATIONS_MAX` fois au plus par PR
+   (`etat/reparations-rendues-<rôle>-<n°>`) : une détection trop large ne fera jamais tourner une PR
+   sans fin. Tout le reste compte : budget dépassé, durée atteinte, `claude.json` illisible ou
+   absent, échec de l'agent.
+3. **La base n'est rafraîchie qu'une fois par PR.** Ceci remplace « une fois par tête de branche »
+   (amendement du 2026-10-22, § 1.1). La présence de `etat/rafraichi-<n°>` suffit, quel que soit
+   le sha qu'il porte. La fois suivante, le rouge passe aux étapes 2 et 3. Une PR gelée se
+   rafraîchit toujours à chaque fusion, comme avant : la cause de son rouge est ailleurs.
+4. **Une PR rouge depuis plus de 2 h revient au superviseur.**
+   - **L'âge** se compte depuis le premier run rouge conclu de la branche, toutes têtes confondues
+     (`rouges_anciens`). Pour chaque workflow, la série de runs rouges qui se suivent sans vert
+     entre eux donne son début. Une CI relancée par une fusion ne remet pas l'âge à zéro ; un
+     verdict vert, si.
+   - **Une PR en réparation n'est pas comptée** (`en_reparation`) : sa tête porte, après celle du
+     dernier run rouge conclu, au moins un commit qui n'est pas une fusion (lu sur la première
+     ligne parentale), et la CI de cette tête n'a pas conclu. Un rafraîchissement seul ne la
+     protège pas.
+   - **Le message du superviseur** porte la liste « PR rouges depuis plus de 2 h » : chaque PR,
+     depuis quand, le dernier run rouge conclu et ses tests.
+   - **Le fusionneur**, toutes les 10 min, le fait partir hors de sa cadence quand une PR franchit
+     le seuil (`signaler_rouges_anciens`). L'appel passe par `appeler_superviseur`, une fois par
+     clé `rouge-ancien-<n°>-<début>`, donc une fois par PR et par série rouge.
+   - **Le superviseur répare la PR lui-même**, avec le même périmètre que ses réparations de
+     `pre-dev`, mais **sur la branche de la PR**. Il part de sa tête, commite par-dessus et écrit
+     son numéro dans `pr-reparee.txt`. `pistes.sh` (`reparation_du_superviseur`) vérifie alors cinq
+     bornes avant de pousser en avance rapide, jamais forcée, puis commente la PR :
+     - la PR figure dans la liste de ce passage ;
+     - elle est ouverte, vise `pre-dev` et sa tête est une branche d'agent ;
+     - la branche du superviseur descend de cette tête ;
+     - elle ne porte aucun commit de fusion ;
+     - son diff ne touche ni le fichier de pistes ni les outils des agents.
+
+     Les gardes, l'index et Pint se jouent depuis la tête de la PR.
+   - **S'il ne peut pas**, son rapport s'ouvre sur `ALERTE : #<n> rouge depuis <HH:MM> — …`, et il
+     prévient le porteur.
+5. **L'implémenteur lance aussi ce que la carte d'impact relie à ses fichiers connus.**
+   `bin/impacted-tests.php` prend une option, `--connus`. Chaque fichier modifié y est jugé seul.
+   Celui qui ferait escalader est écarté et nommé : fichier neuf absent de la carte, migration,
+   config, harnais, chemin non reconnu. La sélection des autres est rendue. Le comportement par
+   défaut de l'outil ne change pas.
+   - `implementeur.md` l'impose une fois par lot, avant de publier, et avant de rendre une
+     réparation. L'agent lance la commande affichée, sans `--run` (la garde le refuse toujours)
+     et sans `--parallel`.
+   - Ceci **complète** le § 1 de l'amendement quater du 2026-10-21 : aux tests des pistes s'ajoutent
+     ceux que la carte relie aux fichiers du lot. Ce sont des fichiers de test nommés, que la garde
+     accepte.
+
+**Éprouvé** sur les données du jour, en lecture seule :
+- **Le rouge conclu** de la branche de #1469 rend son API CI rouge : run 40106943842, tête
+  `f38288b5`, rouge depuis 14:34, test `DashboardQueryBudgetTest::test_ac6_…@bailleur`. Pourtant,
+  la CI de sa tête `450e334c` était en cours.
+- **Le message de réparation**, rendu dans ce même état (tête en cours, conflit), nomme ce test.
+  Le 2026-10-24 à 15:21, il portait une liste vide.
+- **La liste des rouges anciens** rend #1469 (depuis 14:34) et #1478 (depuis 15:21) avec un seuil
+  d'1 h, et rien avec celui de 2 h à 16:32. À 16:38, #1469 en sort : `450e334cb`, un commit qui
+  n'est pas une fusion, suit la tête rouge `f38288b5`, et sa CI tourne. Entre `62e0d10a5` et
+  `f38288b5`, deux rafraîchissements seuls, la première ligne parentale ne porte aucun commit
+  hors fusion : ils n'auraient pas protégé la PR.
+- **`panne_d_api`** reconnaît les trois sorties « ENOTFOUND » de la chaîne, et ce sont les seules
+  sorties en erreur. Sur huit cas fabriqués, elle compte le budget dépassé, l'échec de l'agent, un
+  `is_error` faux et un `claude.json` vide ou `null`. Elle rend `EAI_AGAIN`, « API Error: 529 » et
+  le passage sans un seul tour.
+- **`reparation_du_superviseur`**, sur un dépôt jetable : une réparation par-dessus la tête passe.
+  Sont refusés : le fichier de pistes, les outils des agents, un commit de fusion, une branche qui
+  ne descend pas de la tête, une PR hors liste et une PR fermée.
+- **`impacted-tests --connus`**, sur un diff qui ajoute un fichier neuf dans `app/` et modifie
+  `PortfolioMetrics.php` : trois fichiers écartés et nommés, 20 classes, dont
+  `DashboardQueryBudgetTest`. Sans l'option, le même diff rend « SUITE ENTIÈRE ».
+
+**État** sous `~/.takussan-agents/etat/`, en plus de celui du 2026-10-22 :
+
+| Fichier | Contenu |
+|---|---|
+| `rafraichi-<n°>` | présent : la PR a eu son rafraîchissement (une fois par PR) |
+| `reparations-rendues-<rôle>-<n°>` | les réparations rendues après une panne d'API ou de réseau |
+| `appel-superviseur-rouge-ancien-<n°>-<début>` | l'appel hors cadence d'une série rouge, une fois |
+
+**Ce qui ne change pas** :
+- le tri du 2026-10-22, dans son ordre : base périmée, relance unique, rouge confirmé et rouge
+  commun ;
+- `REPARATIONS_MAX` et l'abandon qui suit ;
+- les réparations de `pre-dev` et des rouges communs, qui passent avant celle d'une PR ;
+- la garde : `impacted-tests --run`, la suite entière et `--parallel` restent refusés ;
+- le superviseur ne fusionne rien, et ne touche ni au fichier de pistes ni, sur la branche d'une
+  autre PR, aux outils des agents.
+
+**Ce qui n'est pas gardé** :
+- `rouge_conclu` lit les 50 derniers runs de la branche. Une série rouge plus longue sous-estime
+  l'âge.
+- Un workflow que la dernière tête ne déclenche plus (filtre de chemins) garde son dernier verdict
+  rouge.
+- Une réparation morte sur une panne qui ne dit pas son nom (un claude tué sans `claude.json`)
+  compte toujours.
+- `--connus` sélectionne beaucoup de classes pour une classe très partagée (un modèle) : la
+  sélection est jouée telle quelle, sans plafond.
+
 ## Conséquences
 
 - **Ce que ça rend possible** :
