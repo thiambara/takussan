@@ -17594,7 +17594,7 @@ Le PDF de l'état des lieux est P143.01.*
 
 ### Le créateur suspendu ou retiré lit les documents du bien et en joint de nouveaux
 - Réf : P190.05
-- Statut : validé — validation du porteur (2026-10-23) : la piste telle qu'écrite (`BailleurDuBien` pour les colonnes de bailleur, `landlordWrites` gardé pour les colonnes d'auteur)
+- Statut : fait · TCK-2027
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Policies/DocumentPolicy.php:152-213`
 - Constat :
@@ -17603,6 +17603,7 @@ Le PDF de l'état des lieux est P143.01.*
   - Établi comment : lu, puis mesuré.
 - Piste : passer `$bailleur` de `reaches` par `BailleurDuBien::est` pour les colonnes de bailleur (`properties.user_id`, `leases.landlord_id`), et par `bailleurEcrit` en écriture, en gardant `landlordWrites` pour les colonnes d'auteur. Test : agent créateur suspendu, puis retiré → `GET` 403 et `POST` refusé (404 `document.owner_not_found`, TCK-732) ; bailleur bloqué → lecture 200, rattachement refusé.
 - Mesure (2026-10-23, 0c707fc77, mesureur) : relu `DocumentPolicy::reaches` (branche bailleur par identité en lecture, `landlordWrites` en écriture), inchangé ; test temporaire `tests/Feature/TmpMesureur/Sonde190Test.php` (retiré, charge 3,94 / 3,77 / 3,46 sur 8 cœurs) sur `BuildsBookingStakeholders`, bien de l'agence passé au `user_id` de l'agent (`forceFill`), agent suspendu par `TeamMemberSuspensionService::suspend` puis retiré par `AgencyMemberRemovalService::remove(…, leaveUnassigned: true)` (`staffAgencyId()` → null dans les deux cas) ; `git log 61dba15e4..0c707fc77` sur `app/Policies`, les contrôleurs cités, `app/Support` et `app/Services/Agency` → seul TCK-1853, sans rapport ; aucun ticket ne cite P190 ; document du bien déposé par un tiers → suspendu comme retiré : `can('view', $document)` vrai, `GET /api/documents/{id}` → 200, `POST /api/documents` (PDF de 10 Ko, `documentable_type=property`) → 201, document rattaché au bien → le constat tient en entier. Classement : V2, le correctif touche la lecture et le rattachement des documents pour tout bailleur de bien et de bail, appelants d'aujourd'hui.
+- Mesure (2026-10-24, 26195d12e, implementeur) : relu `DocumentPolicy::reaches` inchangé (bailleur par identité en lecture, `landlordWrites` en écriture) ; reproduit avant correctif par `AgentCreateurDocumentsDuBienTest` (agent créateur suspendu, puis retiré : `GET /api/documents/{id}` d'un document du bien → 200) → `$bailleur` passe par `BailleurDuBien::est` en lecture et `bailleurEcrit` en écriture : suspendu comme retiré, `GET` du document du bien et du bail en 403, `POST /api/documents` en 404 `document.owner_not_found` ; bailleur bloqué lit sans joindre, bailleur et agent actifs lisent et joignent. Ablation : 2 rouges, vert remis.
 
 ### Le créateur suspendu ou retiré resoumet à la modération un bien d'agence rejeté
 - Réf : P190.06
