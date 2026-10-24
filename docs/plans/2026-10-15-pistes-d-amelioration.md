@@ -20475,7 +20475,7 @@ sans `delete`).*
 
 ### Le bailleur fixe à la création et au renouvellement le taux de gestion que l'agence retient sur ses reversements, et peut le mettre à zéro
 - Réf : P227.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : taux de gestion retenu sur les reversements
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Requests/Api/StoreLeaseRequest.php:51`, `takussan-api/app/Http/Requests/RenewLeaseRequest.php:38`, `takussan-api/app/Services/Model/LeaseService.php:36-50,76,113-140`, `takussan-api/app/Services/Lease/LeaseRenewalService.php:121`, `takussan-api/app/Policies/LeasePolicy.php:162-174`, `takussan-api/app/Services/Payout/PayoutCalculator.php:254-259`, `takussan-api/app/Models/Lease.php:354-355`
 - Constat :
@@ -20486,10 +20486,11 @@ sans `delete`).*
   - Le test `CommissionLedgerTest::test_b1_a_sale_created_by_the_landlord_derives_no_commission` (lu, l. 429-442) montre déjà le bailleur créer une vente avec `commission_rate: 3` en 201 : il n'en garde que l'absence de dérivation.
   - Établi comment : lu, puis mesuré.
 - Piste : ajouter `commission_rate` aux termes que seul le personnel de l'agence écrit (création et renouvellement), le bailleur recevant 403 `lease.commission_forbidden` comme pour `commission_amount` ; décider qui peut le corriger ensuite. Garde : le test B1 étendu au taux, à la création et au renouvellement.
+- Mesure (2026-10-24, 973736af4, mesureur) : aucun commit sur `takussan-api` depuis 47223cd19 (`git log`), aucun ticket ne cite P227 ; relu `StoreLeaseRequest.php:51` (`commission_rate` 0-100), `LeaseService::COMMISSION_TERMS` (l. 113, sans `commission_rate`), `LeasePolicy::renew` (bailleur admis sans capacité), `LeaseRenewalService.php:121` (taux recopié), `PayoutCalculator::compute` (l. 257-258, taux du bail avant celui de l'agence) ; test temporaire `TmpMesureurP227Test` (retiré), charge 2,59 sur 8 cœurs : agence à 10 %, bailleur du bien, `POST /api/leases` `{type: residential_rent, monthly_rent: 300000, commission_rate: 0}` → 201, `commission_rate` `0.00` en base ; bail passé `active` à 10, `POST /api/leases/{id}/renew` `{commission_rate: 0}` par le bailleur → 201, enfant à `0.00`. Le calcul du reversement n'a pas été rejoué (lu seulement). Classement : V1, le correctif change qui fixe le taux retenu sur un reversement, et la piste laisse ouvert « qui peut le corriger ensuite ».
 
 ### Créer une intervention l'assigne sans `maintenance.assign`, que la modification exige
 - Réf : P227.02
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/MaintenanceRequestController.php:92-140`, `takussan-api/app/Http/Requests/Api/StoreMaintenanceRequestRequest.php:51`, `takussan-api/app/Http/Requests/Api/UpdateMaintenanceRequestRequest.php:40,57-83`, `takussan-api/app/Policies/MaintenanceRequestPolicy.php:171-183,298-320`
 - Constat :
@@ -20498,10 +20499,11 @@ sans `delete`).*
   - mesuré (test temporaire) : admin d'agence dont le rôle retire `maintenance.assign`, `POST /api/maintenance-requests` avec `assigned_to` = un agent de l'agence → 201, `assigned_to` posé en base ; le même compte, `PATCH /api/maintenance-requests/{id}` `{assigned_to: …}` sur une autre intervention ouverte du bien → 403.
   - Établi comment : lu, puis mesuré.
 - Piste : à la création, ne retenir `assigned_to` que si l'appelant tient ce que `actAsPrincipal` exige (une variante qui juge le bien, l'intervention n'existant pas encore), sinon 403 ou champ refusé. Garde : le couple création / modification sans la capacité dans un même test.
+- Mesure (2026-10-24, 973736af4, mesureur) : aucun commit sur `takussan-api` depuis 47223cd19, aucun ticket ne cite P227 ; relu `MaintenanceRequestController::store` (l. 104 et 121 : `assigned_to` retenu sur `isPrincipalFor` seul) et `MaintenanceRequestPolicy::actAsPrincipal` (l. 171-183 : la branche équipe exige `maintenance.assign`, TCK-592) ; `SystemRoleCapabilities` donne `maintenance.assign` aux rôles système agent et admin (lu, l. 49-55 et 84) ; test temporaire `TmpMesureurP227Test` (retiré), charge 2,59 sur 8 cœurs : admin d'agence sans `maintenance.assign` (`adminWithout`), `POST /api/maintenance-requests` avec `assigned_to` = un agent de l'agence → 201, `assigned_to` posé ; même compte, `PATCH` `{assigned_to}` sur une autre intervention du bien → 403. Classement : A1, la règle « un rôle personnalisé qui retire `maintenance.assign` retire le geste » est écrite par TCK-592 dans `actAsPrincipal`, et les rôles système gardent la capacité : seul un rôle qui l'a retirée perd l'assignation à la création.
 
 ### `POST /api/agencies/{id}/members` fait un administrateur d'agence sans `team.assign_role`, que le changement de rôle exige depuis TCK-1498
 - Réf : P227.03
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Requests/Api/AddAgentAgencyRequest.php:28-40`, `takussan-api/app/Http/Controllers/Api/AgencyController.php:230-290`, `takussan-api/app/Policies/AgencyPolicy.php:46-58,149-157`, `takussan-web/src/components/admin/InviteMemberDialog.tsx:31,41,79`
 - Constat :
@@ -20512,10 +20514,11 @@ sans `delete`).*
   - Le rattachement crée le profil actif sans invitation ni accord du compte visé (lu, l. 262-293) ; que ce soit voulu n'a pas été vérifié (à vérifier).
   - Établi comment : lu, puis mesuré.
 - Piste : juger `role: agency_admin` du rattachement par `changeMemberRole` (ou refuser le rôle sans `team.assign_role`), et ne proposer ce rôle au dialogue que sous `useCan('team.assign_role')`. Garde : le test de TCK-1498 (`MemberRoleChangeCapabilityTest`) étendu au rattachement.
+- Mesure (2026-10-24, 973736af4, mesureur) : aucun commit sur `takussan-api` depuis 47223cd19, aucun ticket ne cite P227 ; relu `AgencyController::addAgent` (`AgencyAdminProfile` matérialisé si `role = agency_admin`, sous la seule `AgencyPolicy::update`, l. 46-58) et `AgencyPolicy::changeMemberRole` (l. 149-157, `team.assign_role` ou administrateur principal, TCK-1498) ; `InviteMemberDialog.tsx:31,41` propose `agency_admin` sans condition ; test temporaire `TmpMesureurP227Test` (retiré), charge 2,59 sur 8 cœurs : admin sans `team.assign_role`, `POST /api/agencies/{id}/members` `{user_id: <compte sans profil>, role: agency_admin}` → 200, `AgencyAdminProfile` en base ; même admin, `PUT /api/agencies/{id}/members/{agent}/role` `{role: agency_admin}` → 403. Le rattachement sans accord du compte visé (partie « à vérifier ») n'a pas été tranché et reste hors du correctif. Classement : A1, conférer `agency_admin` est le geste que TCK-1498 juge par `team.assign_role`, que le rôle système admin porte (`Capability::agencyAssignable()`).
 
 ### Petites améliorations
 - Réf : P227.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : écriture d'un paiement de réservation
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Model/BookingPaymentService.php:78-97`, `takussan-api/app/Http/Requests/Api/StoreBookingPaymentRequest.php:78-79`, `takussan-api/app/Http/Requests/Api/StoreLeasePaymentRequest.php:54-57`
 - Constat :
@@ -20523,3 +20526,4 @@ sans `delete`).*
   - mesuré (test temporaire) : agent, `POST /api/bookings/{id}/payments` `{amount: 5000, payment_type: advance, status: pending, paid_at: 2026-01-01}` → 201, ligne `pending`, `paid_at` 2026-01-01, `receipt_number` `RCP-…`. Les lecteurs d'argent relus filtrent aussi `status = paid` (lu, `PayoutCalculator.php:171-173`, `PlatformPayoutService.php:294-296`) : l'effet est une ligne en attente datée d'un encaissement et numérotée d'un reçu ; qu'un écran l'affiche comme reçue n'a pas été vérifié (à vérifier).
   - Établi comment : lu, puis mesuré.
 - Piste : ne garder `paid_at` que pour une ligne `paid` (ou refuser le couple `pending` + `paid_at` en 422), et ne numéroter le reçu qu'au paiement. Garde : un cas `pending` + `paid_at` dans `BookingPaymentManualStatusTest`.
+- Mesure (2026-10-24, 973736af4, mesureur) : aucun commit sur `takussan-api` depuis 47223cd19, aucun ticket ne cite P227 ; relu `BookingPaymentService::write` (l. 82-83 commentaire « leave it null », l. 91 `receipt_number` toujours posé, l. 97 `$data['paid_at'] ?? null` pour une ligne non payée) ; test temporaire `TmpMesureurP227Test` (retiré), charge 2,59 sur 8 cœurs : agent, `POST /api/bookings/{id}/payments` `{amount: 5000, payment_type: advance, status: pending, paid_at: 2026-01-01}` → 201, ligne `pending`, `paid_at` 2026-01-01, `receipt_number` `RCP-…`. L'affichage à l'écran n'a pas été vérifié. Classement : V1, le correctif change l'écriture d'un paiement (date d'encaissement, numéro de reçu), et la piste laisse le choix entre ignorer et refuser en 422.
