@@ -9,6 +9,7 @@ import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { addAgencyMember, type AgencyMemberRole } from '@/lib/queries/agency-members';
 import { useApiForm } from '@/hooks/useApiForm';
+import { useCan } from '@/hooks/useCan';
 import { avecGardeDoubleFacteur } from '@/lib/double-facteur';
 import { useGardeDoubleFacteur } from '@/components/auth/garde-double-facteur-contexte';
 import { Button } from '@/components/ui/button';
@@ -63,7 +64,12 @@ export function InviteMemberDialog({
   // ne connaît pas la garde, l'appel lui est donc confié ici.
   const garde = useGardeDoubleFacteur();
   const schema = buildSchema(t('emailInvalid'));
-  const roleOptions = ROLE_KEYS.map((k) => ({ value: k, label: t(`roles.${k}`) }));
+  // TCK-2205 (P227.03) — rattacher comme administrateur exige `team.assign_role` côté API, comme
+  // changer le rôle d'un membre (TCK-1498) : le rôle n'est proposé qu'à qui la porte.
+  const { can: canAssignRole } = useCan('team.assign_role', agencyId, open);
+  const roleOptions = ROLE_KEYS
+    .filter((k) => k !== 'agency_admin' || canAssignRole)
+    .map((k) => ({ value: k, label: t(`roles.${k}`) }));
 
   const { form, handleSubmit, isSubmitting, globalError } = useApiForm<
     FormValues,
