@@ -19463,7 +19463,7 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
 
 ### Rattacher un nouveau garant à un bail qui en a déjà trois crée la fiche du garant, puis répond 422
 - Réf : P213.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-2113
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/LeaseController.php:184-199,212-227`
 - Constat :
@@ -19472,6 +19472,7 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
   - Établi comment : lu.
 - Piste : juger le plafond (et l'existence) dans la même transaction que la création, en déplaçant `Guarantor::create` dans la closure, après les deux `abort_code_if`. Garde : un test qui poste un garant neuf sur un bail à trois garants et attend 422 **et** un compte de `guarantors` inchangé.
 - Mesure (2026-10-24, 7f465356a, mesureur) : relu `LeaseController.php:174-233` (`Guarantor::create` l. 184-199 hors de la `DB::transaction` l. 212, où se juge `lease.max_guarantors` l. 223-227 ; lignes inchangées) ; test temporaire (bail à trois garants rattachés par la route, charge `{ 2.29 2.52 2.19 }` sur 8 cœurs, retiré) → POST d'un garant neuf : 422 `lease.max_guarantors`, `guarantors` passe de 3 à 4, la fiche « G4 » reste en base sans bail → le constat tient. Classement : A1, le refus 422 du plafond est le contrat écrit (docblock « max 3 guarantors per lease », code `lease.max_guarantors`) et le correctif, sans choix de produit, crée la fiche dans la closure après les deux `abort_code_if`, gardé par un test 422 + compte de `guarantors` inchangé (A5).
+- Mesure (2026-10-24, 97f136cdd, implementeur) : `PlafondDesGarantsSansFicheOrphelineTest`, avant correctif → bail à trois garants posés par la route, POST d'un garant neuf « G4 » : 422 `lease.max_guarantors` et `guarantors` passe de 3 à 4 (« Failed asserting that 4 is identical to 3 ») → `Guarantor::create` déplacé dans la `DB::transaction`, après `lease.guarantor_already_attached` et `lease.max_guarantors` → 3/3 verts (plafond, garant neuf sous le plafond, garant déjà rattaché), `LeaseGuarantorListTest`, `GuarantorTest`, `LeaseSignatureTest`, `LeaseContractTermsTest`, `CautionApresEffacementDeLAuteurTest`, `ExistsLigneSupprimeeTest` verts ; ablation → le cas du plafond rouge, les deux autres verts.
 
 ### Renvoyer le code avec un numéro neuf l'enregistre (et défait la vérification de l'ancien), puis répond 429 sur le délai de renvoi ou le quota
 - Réf : P213.02
