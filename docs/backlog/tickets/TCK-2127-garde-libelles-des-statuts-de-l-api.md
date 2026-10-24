@@ -1,7 +1,7 @@
 ---
 id: TCK-2127
 title: "Une garde exige au dictionnaire une clé par cas pour chaque statut de l'API qu'un écran traduit, et pour les réglages et décisions de modération"
-status: doing
+status: done
 phase: P2
 family: technique
 estimate: S
@@ -41,23 +41,23 @@ Aucun changement d'API ni d'écran.
 
 ## Delta à produire
 
-- [ ] `scripts/check-status-labels.mjs` : une table `LIBELLES` (enum `*Status` de l'API → chemins
+- [x] `scripts/check-status-labels.mjs` : une table `LIBELLES` (enum `*Status` de l'API → chemins
   du dictionnaire qu'un écran lit, avec le fichier qui les lit) et une table `SANS_LIBELLE`
   (enum → raison), bilatérales : chaque enum `*Status` est dans l'une des deux, toute entrée
   désigne un enum existant, chaque chemin porte une clé `fr` par cas, et le fichier lecteur lit
   encore ce chemin.
-- [ ] La même règle pour les clés d'`EditablePlatformSettings::all()`
+- [x] La même règle pour les clés d'`EditablePlatformSettings::all()`
   (`superAdmin.platformSettings.keys.<clé>.label` et `.description`) et pour
   `UnifiedModerationService::DECISIONS`
   (`superAdmin.moderation.decisionsByType.<type>.<décision>`).
-- [ ] Cas d'épreuve joués à chaque invocation, comme `check-status-unions.mjs`.
+- [x] Cas d'épreuve joués à chaque invocation, comme `check-status-unions.mjs`.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — `node scripts/check-status-labels.mjs` est vert sur l'arbre.
-- [ ] AC2 — Retirer `commissions.status.due` des trois dictionnaires le fait rougir, alors que
+- [x] AC1 — `node scripts/check-status-labels.mjs` est vert sur l'arbre.
+- [x] AC2 — Retirer `commissions.status.due` des trois dictionnaires le fait rougir, alors que
   `check-status-unions` et `check:i18n` restent verts.
-- [ ] AC3 — Retirer une clé de réglage ou une décision de modération du dictionnaire le fait rougir.
+- [x] AC3 — Retirer une clé de réglage ou une décision de modération du dictionnaire le fait rougir.
 
 ## Reste à faire
 
@@ -74,3 +74,14 @@ Aucun changement d'API ni d'écran.
   libellé est un texte neuf.
 
 ## Notes d'implémentation
+
+- Avant la garde : retirer `commissions.status.due` des trois dictionnaires laissait
+  `check-status-unions` et `check-i18n` verts (sortie 0 tous deux).
+- Ablation : la même suppression fait rougir la garde (« le cas « due » de l'API n'a pas de
+  libellé fr ») ; de même `superAdmin.platformSettings.keys.boost.reserved_top_results.description`
+  et `superAdmin.moderation.decisionsByType.suspected_duplicate.hide`. Retirer le contrôle des cas
+  absents dans `juger()` fait échouer deux cas d'épreuve.
+- Les clés de réglage contiennent des points (`currency.default`) : next-intl les lit en
+  profondeur, la garde aussi (`auChemin`).
+- `UserStatus`, `TaskStatus`, `AgencyAdminProfileStatus` sont dans `SANS_LIBELLE` : aucun espace
+  lu ne porte tous leurs cas aujourd'hui, et les compléter serait un texte neuf.
