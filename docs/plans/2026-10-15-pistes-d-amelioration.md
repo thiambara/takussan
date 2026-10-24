@@ -19420,7 +19420,7 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
 
 ### Le renouvellement d'un bail pré-remplit, aux jours de changement d'heure, un début égal à la fin du parent et une fin trop courte d'un jour
 - Réf : P212.05
-- Statut : retenu · autonome
+- Statut : fait · TCK-2102
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/leases/LeaseRenewalDialog.tsx:42-54`, `takussan-api/app/Services/Lease/LeaseRenewalService.php:87-89,249-258`
 - Constat :
@@ -19430,6 +19430,7 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
   - Établi comment : lu, et mesuré sur les fonctions seules ; le dialogue n'a pas été rendu.
 - Piste : calculer les deux défauts sur des jours UTC (`Date.UTC` puis `toISOString().slice(0, 10)`), ou les faire servir par l'API, qui sait déjà dériver le début (`parentEnd + 1`, l. 89). Garde : un test des deux défauts sous `TZ=Europe/Paris` sur la fin du 2026-03-29.
 - Mesure (2026-10-24, ccb5c7995, mesureur) : relu `LeaseRenewalDialog.tsx:42-54` (`new Date(end_date)` puis `setDate`/`setFullYear` locaux, relu par `toISOString()`) et `LeaseRenewalService.php:87-89` (début par défaut `parentEnd->addDay()`) ; `node` sur les deux fonctions recopiées → fin du parent 2026-03-29 : début proposé 2026-03-29 sous `Europe/Paris`, 2026-03-30 sous Dakar, UTC et New York ; début 2026-10-26 : fin 2027-10-25 sous Paris, 2027-10-26 ailleurs → le constat tient sur les défauts ; le jour en double côté échéances (`handOver`, `lt($parentEnd)` l. 252) reste déduit. Classement : A1, le début attendu est écrit par l'API (`parentEnd + 1`) et le correctif calcule les deux défauts sur des jours UTC, sans toucher au service ni aux montants.
+- Mesure (2026-10-24, f8516986a, implementeur) : `LeaseRenewalDialog.jours-calendaires.p212-05.test.tsx` sous `TZ=Europe/Paris`, avant correctif → fin du parent 2026-03-29 : début proposé 2026-03-29 ; début 2026-10-26 : fin 2027-10-25, 2/2 rouges → défauts par `decalerJour` / `decalerAnnees` → 2/2 verts, `LeaseRenewalDialog.test.tsx` (7) vert ; ablation → 2/2 rouges. Le jour en double côté échéances n'a pas été mesuré.
 
 ### Petites améliorations
 - Réf : P212.06
