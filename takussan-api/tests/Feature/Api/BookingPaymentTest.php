@@ -26,6 +26,9 @@ class BookingPaymentTest extends TestCase
         $booking = Booking::factory()->create([
             'property_id' => $property->id,
             'customer_id' => $customer->id,
+            // Le reste dû borne la saisie du personnel (TCK-1916) : un total tiré par la factory
+            // sous 100 000 (≈ 2,6 % des tirages) rendait 422.
+            'total_amount' => 1_000_000,
         ]);
 
         Sanctum::actingAs($owner);
