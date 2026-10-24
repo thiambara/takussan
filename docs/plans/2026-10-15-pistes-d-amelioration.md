@@ -18618,7 +18618,7 @@ est conforme à `docs/models-spec.md` § 14 tel que le cite TCK-1151.*
 
 ### Le contexte d'authentification ignore tout nouvel utilisateur que lui passe la mise en page racine
 - Réf : P202.01
-- Statut : validé — validation du porteur (2026-10-24) : `AuthProvider` suit `initialUser` quand il est non nul et ne vide le compte que si `initialToken` passe aussi à `null` ; un `null` avec un jeton présent (échec ou délai de `/me`) garde le compte, comme TCK-1992
+- Statut : fait · TCK-2158
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/context/AuthContext.tsx:81-83,146-147`, `takussan-web/src/app/layout.tsx:74-110`
 - Constat :
@@ -18628,6 +18628,7 @@ est conforme à `docs/models-spec.md` § 14 tel que le cite TCK-1151.*
   - Tout geste qui change ce que rend `/api/auth/me` sans `setUser` ni `refreshUser` laisse donc l'ancien compte aux lecteurs de `useAuth()` jusqu'au prochain chargement complet du document. P202.02 à P202.06 relèvent ceux qui sont touchés aujourd'hui.
 - Piste : faire suivre l'état à la propriété quand elle change (comparer l'`initialUser` reçu à celui du rendu précédent et poser le nouveau, sur le patron « état dérivé d'une propriété » ; de même pour `initialToken`), pour que `router.refresh()` suffise après tout geste ; ou bien exiger `refreshUser()` après chaque geste, ce que P202.02 à P202.06 montrent fragile. Garde : un test d'`AuthProvider` re-rendu avec un autre `initialUser`, qui exige le nouveau compte.
 - Mesure (2026-10-23, d954c56a0, mesureur) : relu `AuthContext.tsx:81-83` (`useState(initialUser ?? null)`, `useState(initialToken ?? null)`) et l. 147 (le seul effet sur `initialUser` sort quand il est fourni), `layout.tsx:74-87,110` (toujours fourni, `null` compris) ; test vitest temporaire (retiré, charge 4,69 / 4,18 / 3,78 sur 8 cœurs) : `AuthProvider` re-rendu avec `Awa|customer|false`, puis `Aissatou|owner,customer|true`, puis `null` → `useAuth().user` rend `Awa|customer|false` les trois fois : le constat tient ; la PR ouverte #1365 retire l'effet de la l. 147 sans faire suivre la propriété, le défaut y survit. Classement : V2, faire suivre `initialUser` et `initialToken` change l'état de session côté navigateur (un `null` du serveur viderait le compte), et la `Piste` laisse le choix entre cette voie et un `refreshUser()` exigé après chaque geste.
+- Mesure (2026-10-24, a03cd3caf, implementeur) : reproduit avant correctif par `AuthContext.suit-la-mise-en-page.tck-2158.test.tsx` (`AuthProvider` re-rendu sous d'autres propriétés) → `Awa|customer|false#jeton-1` rendu après un nouvel utilisateur, après `null`/`null` et après un jeton neuf (3 rouges sur 5) ; correctif : état dérivé d'`initialUser` et `initialToken` (patron du profil actif de TCK-2050), un utilisateur non nul se pose, un jeton neuf se pose, le compte ne se vide que sans jeton → 5 verts, un `null` sous jeton garde le compte et un `setUser` du client survit à un re-rendu aux mêmes propriétés ; ablation (`AuthContext.tsx` à `HEAD`) → 3 rouges, remis → vert ; les tests du dossier `src/context/__tests__` et les cinq qui montent un vrai `AuthProvider` ailleurs restent verts.
 
 ### Activer ou couper le second facteur au profil laisse l'ancien état au contexte, et la demande de suppression du compte part sans le code exigé
 - Réf : P202.02
