@@ -30,9 +30,9 @@ type sur toute sa liste — et non celui des lignes de la page affichée.
 Réfs : **P199.02** et **P199.03** du fichier de pistes, `validé`. Même cause (un compte pris sur la
 page chargée) et même correctif (comptes par type calculés par l'API dans `meta`).
 
-Décision du porteur (P199.02) : comptes par type calculés par l'API dans `meta` (même filtre que la file), lus par les tuiles « Biens » et « Avis », comme `meta.unread_total` de TCK-1387 ; « Total page » devient « Total » ; même forme de champ que P199.03
+Décision du porteur (P199.02) : validation du porteur (2026-10-24) : comptes par type calculés par l'API dans `meta` (même filtre que la file), lus par les tuiles « Biens » et « Avis », comme `meta.unread_total` de TCK-1387 ; « Total page » devient « Total » ; même forme de champ que P199.03
 
-Décision du porteur (P199.03) : comptes par type dans `meta`, lus par le badge de chaque groupe ; tri par date inchangé ; même forme de champ que P199.02
+Décision du porteur (P199.03) : validation du porteur (2026-10-24) : comptes par type dans `meta`, lus par le badge de chaque groupe ; tri par date inchangé ; même forme de champ que P199.02
 
 Avant (lu) : `ModerationStats` comptait `items.filter(…).length` sur la page de 20 sous un total
 de toute la file titré « Total page » ; `DocumentsLibrary` rendait au badge `docs.length` des 30
