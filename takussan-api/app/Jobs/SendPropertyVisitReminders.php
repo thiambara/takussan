@@ -143,6 +143,8 @@ class SendPropertyVisitReminders implements ShouldQueue
                     NotificationCode::VisitReminder,
                     $params,
                     $recipient instanceof User ? NotificationTarget::of('visit', $fresh->id) : null,
+                    // P203.01 (TCK-2161) — l'intégration de l'agence du bien.
+                    agencyId: $fresh->property?->agency_id !== null ? (int) $fresh->property->agency_id : null,
                 );
             }
 

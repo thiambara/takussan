@@ -60,6 +60,8 @@ class Invitation extends AbstractModel
         'accepted_at' => 'datetime',
         'revoked_at' => 'datetime',
         'last_reminded_at' => 'datetime',
+        // P179.01 (TCK-2155) — essais du rappel automatique ({@see \App\Services\Invitation\InvitationService::remindPending()}).
+        'reminder_attempts' => 'integer',
         'metadata' => 'array',
     ];
 
