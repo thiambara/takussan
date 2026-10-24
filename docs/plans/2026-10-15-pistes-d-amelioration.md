@@ -18528,7 +18528,7 @@ est conforme à `docs/models-spec.md` § 14 tel que le cite TCK-1151.*
 
 ### Une facture se crée et s'émet sur une réservation annulée, refusée ou expirée, ou sur un bail en brouillon
 - Réf : P200.03
-- Statut : validé — validation du porteur (2026-10-24) : refus 422 codé `invoice.target_not_billable` pour une réservation `cancelled`, `rejected` ou `expired` et pour un bail `draft` ou `pending_signature` ; un bail actif, terminé ou résilié et une réservation `pending`, `confirmed` ou `completed` restent facturables ; même ticket que P200.04
+- Statut : fait · TCK-2156
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Model/InvoiceService.php:230-251`, `takussan-api/app/Http/Requests/Api/StoreInvoiceRequest.php:36-38`
 - Constat :
@@ -18537,10 +18537,11 @@ est conforme à `docs/models-spec.md` § 14 tel que le cite TCK-1151.*
   - Facturer un bail terminé (remise en état, solde) peut être voulu : quels statuts d'objet une facture admet n'est écrit nulle part (à vérifier, `docs/features.md:215-216`).
 - Piste : refuser par un 422 codé une facture dont l'objet est une réservation `cancelled`, `rejected` ou `expired`, ou un bail `draft`/`pending_signature`, après avoir écrit quels statuts restent facturables. Garde : un test par statut refusé, et un témoin `201` sur un bail actif.
 - Mesure (2026-10-23, 5159db054, mesureur) : relu `InvoiceService::resolveInvoiceableTarget:230-251` (seuls `id, agency_id` lus, seule l'agence jugée), `StoreInvoiceRequest` (aucune règle de statut), inchangés depuis 2a944b073 ; test temporaire, admin de l'agence, client de l'agence, charge 3,00 sur 8 cœurs, retiré ensuite → `POST /api/invoices` sur une réservation `cancelled`, `rejected`, `expired` → 201 trois fois ; sur un bail `draft` → 201, puis `POST /api/invoices/{id}/send` → 200, statut `sent` (numéro non relu par la sonde) : le constat tient. Classement : V1, la piste refuse l'écriture d'une facture, et quels statuts restent facturables (bail terminé, bail en signature) est un choix que `docs/features.md:215-216` n'écrit pas.
+- Mesure (2026-10-24, 52824256a, implementeur) : avant correctif, `tests/Feature/Api/InvoiceTargetStatusAndRecipientTest.php` (admin de l'agence, client de l'agence) rougit : `POST /api/invoices` sur une réservation `cancelled`, `rejected`, `expired` et sur un bail `draft`, `pending_signature` → 201 → `InvoiceService::resolveInvoiceableTarget` lit le statut de l'objet : 422 `invoice.target_not_billable`, rien d'écrit ; réservations `pending`, `confirmed`, `completed` et baux `active`, `terminated`, `expired` → 201 ; ablation (garde neutralisée → 2 rouges, remise → 6 verts) ; libellés `fr`, `en`, et `wo` au texte français ; `InvoiceTest`, `InvoiceTargetScopeTest` (témoin aligné : bail signé du locataire), `InvoiceStoreAuthorizationTest`, `FactureRejoueeTest`, `LangGroupParityTest`, `ApiErrorCodeTest` et `ProseLitteraleInterditeTest` verts.
 
 ### L'objet facturé et le destinataire d'une facture ne sont pas liés : une facture adossée à la réservation d'un client se dresse à un autre
 - Réf : P200.04
-- Statut : validé — validation du porteur (2026-10-24) : le destinataire d'une facture est le `customer_id` de la réservation ou le `tenant_id` du bail, sinon 422 codé `invoice.recipient_mismatch` ; même ticket que P200.03
+- Statut : fait · TCK-2156
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Model/InvoiceService.php:34-91,230-251`
 - Constat :
@@ -18550,6 +18551,7 @@ est conforme à `docs/models-spec.md` § 14 tel que le cite TCK-1151.*
   - Qu'une facture de bail puisse viser le bailleur et non le locataire est plausible ; la règle n'est écrite nulle part (à vérifier).
 - Piste : pour une réservation, exiger que `customer_id` soit son client (422 codé sinon) ; pour un bail, écrire qui peut être facturé (locataire seul, ou locataire et bailleur) puis le garder de même. Garde : un test API « autre client → 422 » et un témoin sur le client de la réservation.
 - Mesure (2026-10-23, 5159db054, mesureur) : relu `InvoiceService::create:36-91` (le client et l'objet jugés chacun pour soi, rien ne compare `bookings.customer_id` au client facturé), inchangé depuis 2a944b073 ; test temporaire, admin de l'agence, charge 3,00 sur 8 cœurs, retiré ensuite → réservation `confirmed` du client n° 11, facture au client n° 13 de la même agence → 201 : le constat tient pour la réservation ; le bail n'est pas rejoué. Classement : V1, la piste change à qui une facture peut s'écrire, et pour un bail (locataire seul, ou aussi bailleur) la règle reste à décider.
+- Mesure (2026-10-24, 52824256a, implementeur) : avant correctif, le même test rougit : facture à un autre client de l'agence que celui d'une réservation `confirmed`, ou que le locataire d'un bail `active` → 201 → le destinataire est comparé au `customer_id` de la réservation ou au `tenant_id` du bail : 422 `invoice.recipient_mismatch`, rien d'écrit ; ablation (garde neutralisée → 2 rouges, remise → 6 verts) ; le témoin `InvoiceTest::test_can_issue_invoice_for_booking`, qui facturait un client quelconque, est aligné sur la décision.
 
 ## Angle 201 — Gestes à usage unique jugés par une lecture d'éligibilité faite au montage
 
