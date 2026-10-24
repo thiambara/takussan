@@ -19292,7 +19292,7 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
 
 ### La demande de passage en agence se juge `pending` hors verrou : un rejet après une approbation laisse la demande `rejected` et l'agence passée en `standard`
 - Réf : P211.02
-- Statut : retenu · autonome
+- Statut : fait · TCK-2107
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Agency/AgencyUpgradeReviewService.php:44-107,109-150,156-165`
 - Constat :
@@ -19301,6 +19301,7 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
   - Établi comment : lu et mesuré.
 - Piste : verrouiller et relire la demande dans la transaction, y juger `assertPending`, avis après le commit. Garde : approbation puis rejet sur une copie périmée → 422 `not_pending`, demande `approved`.
 - Mesure (2026-10-24, 0c24562d3, mesureur) : relu `AgencyUpgradeReviewService.php` : `approve` et `reject` jugent `assertPending` sur le modèle lié (l. 49, 114) avant la transaction (l. 69, 126), la bascule `AgencyKindFlipService::flip` dans celle d'`approve`, `notifySubmitter` après ; test temporaire `tests/Feature/TmpMesureur/TmpMesure211Test.php` (retiré), `XDEBUG_MODE=off php artisan test <fichier>`, PostgreSQL de test, charge 1,66 / 1,78 / 1,95 sur 8 cœurs : demande `pending` chargée deux fois, KYC vérifié, `approve` sur l'une puis `reject` sur l'autre → rejet accepté, demande `rejected`, agence `kind = standard` → le constat tient ; les avis n'ont pas été comptés. Classement : A1, la garde `not_pending` écrit déjà le contrat ; le correctif relit la demande sous verrou dans la transaction et y juge `assertPending`, sans rien changer de la bascule ni de l'avis.
+- Mesure (2026-10-24, b9243f4b6, implementeur) : demande `pending` chargée deux fois, KYC vérifié, `approve` sur l'une puis `reject` sur l'autre → rejet accepté (reproduit par `tests/Feature/Admin/AgencyUpgradeReviewSousVerrouTest.php`, 2 rouges sur 3 avant correctif, dans les deux ordres) → `approve` et `reject` relisent la demande sous `lockForUpdate` dans leur transaction et y jugent `assertPending` ; 3 verts, `AgencyUpgradeRequestReviewTest` 17 verts ; ablation (service remis à `HEAD`) → 2 rouges, correctif remis → 3 verts.
 
 ### Les transitions d'une intervention se jugent sur le modèle lié : la clôture automatique écrase une contestation faite pendant son passage
 - Réf : P211.03
