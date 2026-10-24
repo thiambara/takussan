@@ -719,7 +719,7 @@ export async function fetchIntegrationWebhooks(id: number): Promise<IntegrationW
 // ─── TCK-602 — console « Paiements » et journal des webhooks ───────────────────────────────
 
 export type PaymentSupervisionFilters = {
-  status?: 'failed' | 'late';
+  status?: 'failed' | 'late' | 'refund_due';
   provider?: string;
   page?: number;
   perPage?: number;

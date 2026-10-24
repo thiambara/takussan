@@ -97,6 +97,27 @@ describe('<PaymentsConsole> (TCK-602)', () => {
     await waitFor(() => expect(fetchPaymentSupervision).toHaveBeenLastCalledWith(expect.objectContaining({ provider: 'wave' })));
   });
 
+  it('filtre les restitutions échues sous leur propre motif, datées de leur échéance (P198.05)', async () => {
+    const user = userEvent.setup();
+    vi.mocked(fetchPaymentSupervision).mockResolvedValue({
+      data: [{
+        type: 'lease_payment', reason: 'refund_due', id: 9, reference_number: 'LP-9', status: 'pending', provider: null,
+        amount: 300000, currency: 'XOF', agency_id: 3, event_at: '2026-10-07T09:00:00Z', due_date: '2026-10-05',
+      }],
+      meta,
+    });
+    renderConsole();
+    await screen.findByTestId('payment-row-lease_payment-9');
+
+    await user.click(within(screen.getByRole('group', { name: 'Motif' })).getByRole('button', { name: 'Restitution échue' }));
+    await waitFor(() => expect(fetchPaymentSupervision).toHaveBeenLastCalledWith(expect.objectContaining({ status: 'refund_due' })));
+
+    const row = screen.getByTestId('payment-row-lease_payment-9');
+    expect(within(row).getByText('Restitution échue')).toBeInTheDocument();
+    expect(row.textContent).toContain('5 oct. 2026');
+    expect(row.textContent).not.toContain('7 oct.');
+  });
+
   it("ne propose « Rejouer » que sur une ligne rejouable, et rejoue après la phrase de confirmation", async () => {
     vi.mocked(replayWebhookLog).mockResolvedValue({ data: log({ id: 11, status: 'processed', matched_count: 1 }) });
     const user = userEvent.setup();

@@ -82,6 +82,8 @@ export interface DashboardPropertyFilters {
   readonly type?: string;
   readonly contract_type?: string;
   readonly visibility?: string;
+  /** TCK-2036 (P198.03) — `'1'` : les seuls biens publiés au sens du catalogue (`Property::public()`). */
+  readonly public?: string;
   readonly search?: string;
   readonly city?: string;
   readonly user_id?: string;
@@ -110,6 +112,7 @@ function buildListParams({
   if (filters?.type) filter.type = filters.type;
   if (filters?.contract_type) filter.contract_type = filters.contract_type;
   if (filters?.visibility) filter.visibility = filters.visibility;
+  if (filters?.public) filter.public = filters.public;
   if (filters?.search) filter.search = filters.search;
   if (filters?.city) filter.city = filters.city;
   if (filters?.user_id) filter.user_id = filters.user_id;

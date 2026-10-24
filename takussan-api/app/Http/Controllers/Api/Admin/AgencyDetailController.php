@@ -6,12 +6,16 @@ use App\Http\Controllers\Base\Controller;
 use App\Http\Resources\Api\Admin\AgencyDetailResource;
 use App\Http\Resources\PropertyResource;
 use App\Models\Agency;
+use App\Models\BookingPayment;
 use App\Models\Enums\AgencyStatus;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Enums\PlatformAbility;
 use App\Models\Enums\PropertyStatus;
+use App\Models\LeasePayment;
 use App\Models\Property;
 use App\Models\User;
+use App\Services\Dashboard\CollectedPayments;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -58,105 +62,84 @@ class AgencyDetailController extends Controller
         ];
     }
 
+    /**
+     * P198.02 (TCK-2032) — le revenu et les transactions des 30 derniers jours sont l'*Encaissé*
+     * d'ADR-0057 § 2, lu par {@see CollectedPayments} : ni dépôt de garantie ni restitution, les
+     * réservations nettes de remboursement. Ils étaient un `DB::selectOne` brut qui sommait toute
+     * ligne payée, restitution comprise et en positif. Les lectures passent par Eloquent, et
+     * écartent donc les lignes supprimées en douceur ; les jointures le posent elles-mêmes.
+     */
     public function health(Agency $agency): JsonResponse
     {
-        $since = now()->subDays(30)->toDateTimeString();
-        $bindings = [
-            $agency->id,
-            PropertyStatus::Available->value,
-            PropertyStatus::Published->value,
-            $agency->id,
-            PropertyStatus::PendingReview->value,
-            $agency->id,
-            PaymentStatus::Paid->value,
-            $since,
-            $agency->id,
-            PaymentStatus::Paid->value,
-            $since,
-            $agency->id,
-            PaymentStatus::Paid->value,
-            $since,
-            $agency->id,
-            PaymentStatus::Paid->value,
-            $since,
-            $agency->id,
-            PaymentStatus::Paid->value,
-            $agency->id,
-            PaymentStatus::Paid->value,
-            $agency->id,
-        ];
+        $since = now()->subDays(30);
+        $agencyId = (int) $agency->id;
 
-        $row = DB::selectOne(
-            <<<'SQL'
-            SELECT
-                (SELECT COUNT(*) FROM properties WHERE agency_id = ? AND status IN (?, ?)) AS active_properties,
-                (SELECT COUNT(*) FROM properties WHERE agency_id = ? AND status = ?) AS properties_in_moderation,
-                (
-                    SELECT COUNT(*) FROM (
-                        SELECT bp.id
-                        FROM booking_payments bp
-                        INNER JOIN bookings b ON b.id = bp.booking_id
-                        INNER JOIN properties p ON p.id = b.property_id
-                        WHERE p.agency_id = ? AND bp.status = ? AND bp.paid_at >= ?
-                        UNION ALL
-                        SELECT lp.id
-                        FROM lease_payments lp
-                        INNER JOIN leases l ON l.id = lp.lease_id
-                        WHERE l.agency_id = ? AND lp.status = ? AND lp.paid_at >= ?
-                    ) recent_transactions
-                ) AS transactions_30d,
-                (
-                    SELECT COALESCE(SUM(amount), 0) FROM (
-                        SELECT bp.amount
-                        FROM booking_payments bp
-                        INNER JOIN bookings b ON b.id = bp.booking_id
-                        INNER JOIN properties p ON p.id = b.property_id
-                        WHERE p.agency_id = ? AND bp.status = ? AND bp.paid_at >= ?
-                        UNION ALL
-                        SELECT lp.amount
-                        FROM lease_payments lp
-                        INNER JOIN leases l ON l.id = lp.lease_id
-                        WHERE l.agency_id = ? AND lp.status = ? AND lp.paid_at >= ?
-                    ) recent_revenue
-                ) AS revenue_30d,
-                (
-                    SELECT MAX(paid_at) FROM (
-                        SELECT bp.paid_at
-                        FROM booking_payments bp
-                        INNER JOIN bookings b ON b.id = bp.booking_id
-                        INNER JOIN properties p ON p.id = b.property_id
-                        WHERE p.agency_id = ? AND bp.status = ?
-                        UNION ALL
-                        SELECT lp.paid_at
-                        FROM lease_payments lp
-                        INNER JOIN leases l ON l.id = lp.lease_id
-                        WHERE l.agency_id = ? AND lp.status = ?
-                    ) platform_payments
-                ) AS last_platform_payment_at,
-                (
-                    SELECT COUNT(*)
-                    FROM property_reports pr
-                    INNER JOIN properties p ON p.id = pr.property_id
-                    WHERE p.agency_id = ? AND pr.resolved_at IS NULL
-                ) AS open_complaints
-            SQL,
-            $bindings,
-        );
+        $properties = Property::query()->where('agency_id', $agencyId);
+
+        $leaseNet = CollectedPayments::LEASE_NET_SQL;
+        $leases = CollectedPayments::leaseIncome($this->leasePaymentsOf($agencyId))
+            ->where('lease_payments.paid_at', '>=', $since)
+            ->toBase()
+            ->selectRaw("COUNT(*) AS n, COALESCE(SUM({$leaseNet}), 0) AS total")
+            ->first();
+
+        $bookingNet = CollectedPayments::BOOKING_NET_SQL;
+        $bookings = CollectedPayments::bookingIncome($this->bookingPaymentsOf($agencyId))
+            ->where('booking_payments.paid_at', '>=', $since)
+            ->toBase()
+            ->selectRaw("COUNT(*) AS n, COALESCE(SUM({$bookingNet}), 0) AS total")
+            ->first();
+
+        // Le dernier paiement reste « tout paiement reçu », quel qu'en soit le type.
+        $lastPaidAt = collect([
+            $this->leasePaymentsOf($agencyId)->where('lease_payments.status', PaymentStatus::Paid->value)
+                ->max('lease_payments.paid_at'),
+            $this->bookingPaymentsOf($agencyId)->where('booking_payments.status', PaymentStatus::Paid->value)
+                ->max('booking_payments.paid_at'),
+        ])->filter()->map(fn ($instant) => Carbon::parse($instant))->max();
+
+        $openComplaints = DB::table('property_reports as pr')
+            ->join('properties as p', 'p.id', '=', 'pr.property_id')
+            ->where('p.agency_id', $agencyId)
+            ->whereNull('pr.resolved_at')
+            ->count();
 
         return $this->json([
             'data' => [
-                'active_properties' => (int) ($row->active_properties ?? 0),
-                'properties_in_moderation' => (int) ($row->properties_in_moderation ?? 0),
-                'transactions_30d' => (int) ($row->transactions_30d ?? 0),
-                'revenue_30d' => (float) ($row->revenue_30d ?? 0),
+                'active_properties' => (clone $properties)
+                    ->whereIn('status', [PropertyStatus::Available->value, PropertyStatus::Published->value])
+                    ->count(),
+                'properties_in_moderation' => (clone $properties)
+                    ->where('status', PropertyStatus::PendingReview->value)
+                    ->count(),
+                'transactions_30d' => (int) ($leases->n ?? 0) + (int) ($bookings->n ?? 0),
+                'revenue_30d' => round((float) ($leases->total ?? 0) + (float) ($bookings->total ?? 0), 2),
                 // TCK-1116 (P94.01) — `MAX(paid_at)` sort de PostgreSQL sans fuseau (`2026-10-18 21:54:01`),
                 // que le front lirait dans le fuseau du navigateur : un instant ADR-0018.
-                'last_platform_payment_at' => $row->last_platform_payment_at === null
-                    ? null
-                    : Carbon::parse($row->last_platform_payment_at)->utc()->format(DATE_ATOM),
-                'open_complaints' => (int) ($row->open_complaints ?? 0),
+                'last_platform_payment_at' => $lastPaidAt?->utc()->format(DATE_ATOM),
+                'open_complaints' => $openComplaints,
             ],
         ]);
+    }
+
+    /** Les échéances des baux non supprimés de l'agence (les échéances supprimées sont écartées par Eloquent). */
+    private function leasePaymentsOf(int $agencyId): Builder
+    {
+        return LeasePayment::query()
+            ->join('leases', 'leases.id', '=', 'lease_payments.lease_id')
+            ->where('leases.agency_id', $agencyId)
+            ->whereNull('leases.deleted_at');
+    }
+
+    /** Les paiements des réservations non supprimées des biens non supprimés de l'agence. */
+    private function bookingPaymentsOf(int $agencyId): Builder
+    {
+        return BookingPayment::query()
+            ->join('bookings', 'bookings.id', '=', 'booking_payments.booking_id')
+            ->join('properties', 'properties.id', '=', 'bookings.property_id')
+            ->where('properties.agency_id', $agencyId)
+            ->whereNull('bookings.deleted_at')
+            ->whereNull('properties.deleted_at');
     }
 
     public function team(Request $request, Agency $agency): JsonResponse

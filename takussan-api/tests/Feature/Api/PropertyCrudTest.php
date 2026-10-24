@@ -4,6 +4,7 @@ namespace Tests\Feature\Api;
 
 use App\Models\Agency;
 use App\Models\Enums\PropertyStatus;
+use App\Models\Enums\PropertyVisibility;
 use App\Models\Property;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -70,6 +71,38 @@ class PropertyCrudTest extends TestCase
             ->assertOk()
             ->assertJsonPath('meta.total', 1)
             ->assertJsonPath('data.0.id', $match->id);
+    }
+
+    /**
+     * P198.03 (TCK-2036) — `filter[public]=1` compte la règle du catalogue, `Property::public()`
+     * (TCK-1115), celle des « publiés » de l'accueil d'agence : un bien loué resté public n'est
+     * pas publié, ni un bien privé.
+     */
+    public function test_p198_03_filter_public_suit_la_regle_du_catalogue(): void
+    {
+        $agency = Agency::factory()->create();
+        $agent = User::factory()->withAgentProfile($agency)->create();
+        $bien = fn (array $attrs) => Property::factory()->create($attrs + [
+            'user_id' => $agent->id,
+            'agency_id' => $agency->id,
+            'status' => PropertyStatus::Available,
+            'visibility' => PropertyVisibility::Public,
+            'is_test' => false,
+            'published_at' => now()->subDay(),
+        ]);
+        $publie = $bien([]);
+        $bien(['status' => PropertyStatus::Rented]);
+        $bien(['visibility' => PropertyVisibility::Private]);
+        $bien(['published_at' => null]);
+
+        Sanctum::actingAs($agent);
+
+        $this->getJson('/api/properties?filter[public]=1&fields[properties]=id')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('data.0.id', $publie->id);
+        $this->assertSame(1, Property::query()->where('agency_id', $agency->id)->public()->count());
+        $this->getJson('/api/properties?fields[properties]=id')->assertOk()->assertJsonPath('meta.total', 4);
     }
 
     public function test_property_portfolio_excludes_archived_by_default_and_can_include_them(): void
