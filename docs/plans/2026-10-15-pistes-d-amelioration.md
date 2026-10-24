@@ -18559,7 +18559,7 @@ est conforme à `docs/models-spec.md` § 14 tel que le cite TCK-1151.*
 
 ### Le téléphone vérifié dans « Sécurité » reste non vérifié pour le reste de l'application
 - Réf : P202.03
-- Statut : retenu · autonome
+- Statut : fait · TCK-2040
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/profile/security/PhoneVerificationSection.tsx:34,63-68`, `takussan-web/src/components/profile/ProfileSecuritySection.tsx:61-64`, `takussan-web/src/components/profile/security/SecondaryPhoneSection.tsx:29,38`, `takussan-web/src/components/profile/ProfileContactSection.tsx:57-58,193-208`, `takussan-web/src/components/contact/CoordonneesPublication.tsx:22-27,99-114`
 - Constat :
@@ -18569,6 +18569,7 @@ est conforme à `docs/models-spec.md` § 14 tel que le cite TCK-1151.*
   - Dans l'autre sens : un numéro changé dans « Coordonnées » remet `phone_verified_at` à `null` dans le contexte (lu, l. 125-142), mais `PhoneVerificationSection` garde son `useState(initialVerified)` et continue d'afficher « vérifié » (lu, l. 34).
 - Piste : poser `phone_verified_at` dans le contexte à la vérification de « Sécurité » comme le fait « Coordonnées », et faire lire l'état aux deux sections depuis le contexte plutôt que depuis un état local pris au montage ; ou ne garder qu'une des deux vérifications. Garde : un test de la page du profil sous un vrai `AuthProvider`, vérification par « Sécurité », qui exige l'ajout du second numéro.
 - Mesure (2026-10-23, d954c56a0, mesureur) : relu `PhoneVerificationSection.tsx:34,68` (état local `useState(initialVerified)`, `setVerified(true)` seul), `ProfileSecuritySection.tsx:61-64` (`phoneVerified` pris du contexte au montage), `SecondaryPhoneSection.tsx:29,38` (masquée tant que le contexte n'a pas `phone_verified_at`), `ProfileContactSection.tsx:57-58,127,142,208` (badge local pris de la propriété, et `setUser({ ...base, phone_verified_at })` à sa propre vérification), `CoordonneesPublication.tsx:22-27,90-102` (`manquesLocaux` lit le contexte, relecture seulement quand le serveur dit « manque » et le contexte non) : le constat tient ; l'effet sur la publication (blocage ou code redemandé) n'a pas été rendu. Classement : A1, la voisine `ProfileContactSection` écrit déjà le contrat (poser `phone_verified_at` au contexte à la vérification) ; seule cette option est autonome, « ne garder qu'une des deux vérifications » serait V7.
+- Mesure (2026-10-24, d5a49a150, implementeur) : reproduit avant correctif par `PhoneVerificationSection.contexte.tck-2040.test.tsx` (« Coordonnées » et « Sécurité » montées sous un vrai `AuthProvider`) → numéro vérifié par « Sécurité » : badge de « Coordonnées » resté « Non vérifié » ; numéro vérifié remplacé dans « Coordonnées » : « Sécurité » restée « Vérifié » ; correctif : « Sécurité » pose `phone_verified_at` au contexte et lit son état dans la propriété (copie locale bornée au numéro qu'elle a vérifié), « Coordonnées » lit aussi le contexte pour le numéro enregistré → 2 verts, second numéro affiché ; ablation (deux fichiers à `HEAD`) → 2 rouges, `ProfileContactSection` seul à `HEAD` → 1 rouge, remis → vert ; 8 fichiers de test voisins verts (31 tests) ; l'effet sur la publication n'a pas été rendu.
 
 ### Accepter une invitation en étant connecté laisse au navigateur les rôles d'avant
 - Réf : P202.04
