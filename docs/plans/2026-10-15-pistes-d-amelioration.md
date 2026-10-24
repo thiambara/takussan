@@ -19186,7 +19186,7 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
 
 ### Une révision de loyer refusée par l'API ne s'affiche pas : après les deux saisies, rien ne se passe
 - Réf : P210.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-2080 — reste : un dialogue à la place des deux `window.prompt`, qui montre les bornes du motif et de la variation avant l'envoi, et un message pour une saisie écartée par le front (montant non numérique ou nul, motif vide), qui demande un texte neuf
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/leases/LeaseDetail.tsx:132-146,196`, `takussan-api/app/Services/Lease/RentReviewService.php:45,61-100`
 - Constat :
@@ -19197,10 +19197,11 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
   - Établi comment : lu et mesuré.
 - Piste : rattraper l'erreur et l'afficher par `useMessageErreurApi()` (ADR-0019), comme `InvoiceDetailDialog.handleAction` ; la question d'un vrai dialogue à la place des `window.prompt` (bornes du motif et de la variation montrées avant l'envoi) est un choix d'écran à part. Garde : un test vitest qui rejette la mutation en 422 et attend le message.
 - Mesure (2026-10-24, 0507e0a2f, mesureur) : relu `LeaseDetail.tsx:132-146` (`handleRentReview` `async`, `await reviewRent.mutateAsync(...)` puis toast, sans `try`/`catch`) et `:196` (`onClick={handleRentReview}`), `grep -n reviewRent` → l. 66, 139, 197, 199 (aucune lecture de `.error`), `useReviewLeaseRent` (`lib/queries/leases.ts:395-405`, aucun `onError`) et `useApiMutation` (`hooks/useApiQuery.ts:224-231`, `onError` ne fait que relayer ; aucun `MutationCache` dans `src`) ; côté API `RentReviewService.php:45,61-88` (`REASON_MIN = 5`, refus en 422) ; test vitest temporaire (retiré) sur les mocks de `LeaseDetail.capacites.test.tsx`, `review_rent` vrai, `window.prompt` → `400000` puis `Indexation annuelle`, `mutateAsync` rejeté en `ApiError(422)`, charge 2,58 / 2,76 / 2,85 sur 8 cœurs → `mutateAsync` appelé avec `{new_rent: 400000, reason: 'Indexation annuelle'}`, 0 `role=alert`, 0 `role=status`, toast jamais appelé, message absent, une « Unhandled Rejection: API error 422 » → le constat tient ; les sorties muettes d'une saisie écartée par le front (l. 134-138) tiennent aussi, mais les dire demande un texte neuf et restent hors du classement. Classement : A1, ADR-0019 (accepté) fixe le rendu d'une erreur d'API par `useMessageErreurApi()`, dont le repli `errors.api.unknown` existe (comme P182.01) : rattraper le rejet et l'afficher ne demande ni texte neuf ni choix ; le remplacement des `window.prompt` par un dialogue n'est pas couvert.
+- Mesure (2026-10-24, 72976c063, implementeur) : test vitest `LeaseDetail.revision-refusee.p210-01.test.tsx` (mocks de `LeaseDetail.capacites.test.tsx`, `window.prompt` → `400000` puis `Indexation annuelle`, `mutateAsync` rejeté en `ApiError(422)`), charge 1,58 / 1,96 / 2,41 sur 8 cœurs, sur `LeaseDetail.tsx` de `pre-dev` → 2/2 rouges (« Unable to find role="alert" », deux « Unhandled Rejection: API error 422 ») ; correctif (`catch`, message par `useMessageErreurApi()` dans un `role="alert"` sous les gestes, effacé au nouvel essai) → 2/2 verts ; ablation (fichier rendu à `pre-dev`) → rouge, remis → vert ; les 6 fichiers `LeaseDetail.*.test.tsx` verts (25 tests).
 
 ### Le bouton de paiement du client sur une réservation échoue sans rien dire
 - Réf : P210.02
-- Statut : retenu · autonome
+- Statut : fait · TCK-2082
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/bookings/BookingDetail.tsx:549,573-575,585`, `takussan-api/app/Http/Controllers/Api/BookingPaymentController.php:45-51`, `takussan-api/app/Services/Model/BookingPaymentService.php:62-66`
 - Constat :
@@ -19210,10 +19211,11 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
   - Établi comment : lu ; le rendu n'a pas été mesuré.
 - Piste : rattraper l'erreur et l'afficher sous le bouton par `useMessageErreurApi()`. Garde : un test vitest de `CustomerPayCta` qui rejette la mutation en 422 et attend le message.
 - Mesure (2026-10-24, 0507e0a2f, mesureur) : relu `BookingDetail.tsx:573-575` (`handleClick` `async`, `await createPayment.mutateAsync({ status: 'pending' })` sans `catch`) et `:585` (`onClick={handleClick}`), `grep -n createPayment` → l. 549, 574, 586, `useCreateBookingPayment` (`lib/queries/bookings.ts:154-166`, ni `onError` ni toast), `useApiMutation` sans gestion globale ; côté API `BookingPaymentController.php:54` (`dueFromCustomer`) et `BookingPaymentService.php:116` (`abort_code_if($remaining <= 0, 422, 'booking_payment.nothing_due')`, la ligne a bougé depuis le constat) ; test vitest temporaire (retiré) sur les mocks de `BookingDetail.montant-derive.tck-1309.test.tsx`, client payeur, réservation `confirmed` avec acompte, `mutateAsync` rejeté en `ApiError(422)`, charge 1,74 / 2,63 / 2,82 sur 8 cœurs → un appel, 0 `role=alert`, 0 `role=status`, message absent, bouton de nouveau actif, une « Unhandled Rejection: API error 422 » → le constat tient, rendu compris. Classement : A1, ADR-0019 fixe l'affichage par `useMessageErreurApi()` avec un repli existant ; aucun montant ni écriture de paiement n'est touché (le correctif ne fait qu'afficher le refus), donc pas V1.
+- Mesure (2026-10-24, 72976c063, implementeur) : test vitest `BookingDetail.paiement-refuse.p210-02.test.tsx` (mocks de `BookingDetail.montant-derive.tck-1309.test.tsx`, client payeur, réservation `confirmed` avec acompte, `mutateAsync` rejeté en `ApiError(422)`), charge 1,89 / 2,06 / 2,38 sur 8 cœurs, sur `BookingDetail.tsx` de `pre-dev` → 2/2 rouges (« Unable to find role="alert" », deux « Unhandled Rejection: API error 422 ») ; correctif (`catch`, message par `useMessageErreurApi()` dans un `role="alert"` sous le bouton, effacé au nouvel essai) → 2/2 verts, bouton de nouveau actif ; ablation (fichier rendu à `pre-dev`) → rouge, remis → vert ; les 15 fichiers de `bookings/__tests__` verts (51 tests).
 
 ### Une recherche sauvegardée dont la suppression échoue reste à l'écran sans message
 - Réf : P210.03
-- Statut : retenu · autonome
+- Statut : fait · TCK-2084
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/favorites/SavedSearchesList.tsx:141,185,205,244-251,259`
 - Constat :
@@ -19222,10 +19224,11 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
   - Établi comment : lu et mesuré. Les codes que l'API peut rendre sur ce `DELETE` n'ont pas été relevés (à vérifier).
 - Piste : ajouter le `catch` et afficher l'erreur sur la ligne par `useMessageErreurApi()`. Garde : le test ci-dessus, qui attend le message.
 - Mesure (2026-10-24, 0507e0a2f, mesureur) : relu `SavedSearchesList.tsx:243-251` (`handleDelete` en `try … finally` sans `catch`), `:141` (`onDelete: (id: number) => void`), `:185` (`onClick={() => onDelete(search.id)}`), seul `role="alert"` à la l. 127 (réglage d'alerte) ; côté API `SavedSearchController::destroy` (`SavedSearchController.php:110-116`) rend 403 hors propriétaire, 204 sinon — le reste est une panne (500, réseau) ou 404 ; test vitest temporaire (retiré), montage et `fetch` de `SavedSearchesList.alerte.test.tsx`, `DELETE` simulé en 500, clic sur « Supprimer Dakar », charge 2,6 sur 8 cœurs → `DELETE` parti, 0 `role=alert`, 0 `role=status`, les deux lignes toujours affichées, une « Unhandled Rejection: API error 500 » → le constat tient. Classement : A1, ADR-0019 fixe l'affichage par `useMessageErreurApi()` avec repli existant : ajouter le `catch` et montrer le message sur la ligne ne demande aucun choix.
+- Mesure (2026-10-24, 72976c063, implementeur) : test vitest `SavedSearchesList.suppression-refusee.p210-03.test.tsx` (montage et `fetch` de `SavedSearchesList.alerte.test.tsx`, `DELETE` simulé en 500), charge 4,19 / 3,30 / 2,85 sur 8 cœurs, sur `SavedSearchesList.tsx` de `pre-dev` → 2/2 rouges (« Unable to find role="alert" », deux « Unhandled Rejection: API error 500 ») ; correctif (`catch`, message par `useMessageErreurApi()` gardé avec l'`id` et affiché sur la seule ligne visée, effacé au nouvel essai) → 2/2 verts, ligne toujours affichée ; ablation (fichier rendu à `pre-dev`) → rouge, remis → vert ; les trois autres fichiers `SavedSearchesList.*.test.tsx` verts.
 
 ### Rejets non rattrapés là où l'écran affiche pourtant l'erreur par `mutation.error`
 - Réf : P210.04
-- Statut : retenu · autonome
+- Statut : fait · TCK-2086
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/admin/roles/AgencyRoleEditor.tsx:109-121,131-134,216`, `takussan-web/src/components/admin/roles/CreateRoleDialog.tsx:112-121,195-197,210`, `takussan-web/src/components/documents/DocumentVersionsList.tsx:99-108,118-121,230-234,252-254,263`
 - Constat :
@@ -19235,6 +19238,7 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
   - Établi comment : lu.
 - Piste : ajouter `.catch(() => undefined)` aux quatre appels (aucun changement visible). Garde : un test par composant qui rejette la mutation et passe sans erreur non rattrapée.
 - Mesure (2026-10-24, 0507e0a2f, mesureur) : relu `AgencyRoleEditor.tsx:112,118` (`mutateAsync` sans `catch`), `:132-133` (erreur lue sur les mutations), `:216` (`onClick={() => void save()}`) ; `CreateRoleDialog.tsx:112-113,195-197,210` ; `DocumentVersionsList.tsx:99-105,118-121` (`onSubmit={(e) => void handleSubmit(e)}`, `upload.error` affiché) et `:230-232,252-254,263` (`restore.error` affiché, `void handleConfirm()`) ; `grep catch` dans les trois fichiers → aucun sur ces quatre appels ; la forme `void f().catch(() => undefined)` relue à `MaintenanceAssignmentBlock.tsx` et `QuoteSubmitForm.tsx` ; non lancé ici, mais les trois sondes de ce passage (P210.01-03) montrent qu'un `mutateAsync` rejeté sans `catch` sort en « Unhandled Rejection » sous Vitest (« Errors 1 error ») → le constat tient ; l'incrustation d'erreur de Next en développement n'a pas été observée. Classement : A1, la forme du dépôt (`.catch(() => undefined)`, l'erreur lue sur la mutation) est déjà écrite dans le code voisin, et le correctif ne change rien de visible.
+- Mesure (2026-10-24, 72976c063, implementeur) : trois tests vitest neufs (`AgencyRoleEditor`, `CreateRoleDialog`, `DocumentVersionsList` : ajout et restauration), `mutateAsync` rejeté en `ApiError(422)`, un écouteur `process.on('unhandledRejection')` le temps du test, charge 1,85 / 2,72 / 2,69 sur 8 cœurs, sur les trois composants de `pre-dev` → 4/4 rouges (un rejet non rattrapé chacun) ; correctif (`.catch(() => undefined)` aux quatre appels `void f()`) → 4/4 verts, dialogues restés ouverts, synchronisation des capacités non partie ; ablation (fichiers rendus à `pre-dev`) → rouge, remis → vert ; `AgencyRoleEditor.test.tsx`, `CreateRoleDialog.test.tsx` et `DocumentDetailClient.abilities.test.tsx` verts (18 tests). L'incrustation d'erreur de Next en développement n'a pas été observée.
 
 ### Aucune garde ne refuse une promesse passée à `onClick` ou laissée flottante
 - Réf : P210.05

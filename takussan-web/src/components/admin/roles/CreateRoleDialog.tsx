@@ -207,7 +207,7 @@ export function CreateRoleDialog({
           >
             {tCommon('cancel')}
           </Button>
-          <Button disabled={create.isPending || name.trim() === ''} onClick={() => void submit()}>
+          <Button disabled={create.isPending || name.trim() === ''} onClick={() => void submit().catch(() => undefined)}>
             {create.isPending ? (
               <Loader2 className="mr-1 size-4 animate-spin" aria-hidden="true" />
             ) : null}
