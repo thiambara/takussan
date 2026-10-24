@@ -20627,7 +20627,7 @@ sans `delete`).*
 
 ### Rien ne garde contre une mutation lancée par `mutate()` sans chemin d'erreur
 - Réf : P228.06
-- Statut : retenu · autonome
+- Statut : fait · TCK-2220
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/lib/query-client.ts`, `takussan-web/src/lib/__tests__/` (gardes de famille, sur le modèle de `relais-bff.tck-968.test.ts`)
 - Constat :
@@ -20636,3 +20636,4 @@ sans `delete`).*
   - Établi comment : lu, mesuré par `grep`.
 - Piste : une garde vitest de relevé statique, rouge sur tout appel neuf sans chemin d'erreur, une fois P228.01 à P228.05 traités (sinon, une liste d'exceptions datée). Un `onError` global sur `MutationCache` serait l'autre voie, mais il afficherait un message pour des gestes qui rattrapent déjà l'erreur eux-mêmes : c'est un choix d'écran.
 - Mesure (2026-10-24, d44d3bc59, mesureur) : relu `lib/query-client.ts:19-38` (ni `MutationCache` ni `onError` par défaut ; `mutations` : `retry: false`, `networkMode: 'always'`) ; `grep -rn MutationCache takussan-web/src` → 1, un test (`PaymentProviderPicker.hors-ligne.test.tsx:57`, lecture de `getMutationCache()`), aucune garde ; `ls src/lib/__tests__` → `relais-bff.tck-968.test.ts` et `api-relais-impersonation.test.ts`, aucune garde des `mutate(` ; `eslint.config` ne nomme pas `mutate` → le constat tient. Classement : A5, une garde vitest de relevé statique ajoutée, sans seuil existant resserré ; les sites de P228.01 restés ouverts (à valider) entrent dans sa liste d'exceptions datée.
+- Mesure (2026-10-24, 68ab70c5b, implementeur) : `grep -rn MutationCache takussan-web/src` → le seul test `PaymentProviderPicker.hors-ligne`, aucune garde des `mutate(` → le constat tient ; garde `mutations-chemin-d-erreur.p228-06.test.ts` (relevé statique, cas synthétiques, 133 appels relevés, deux exceptions motivées) ; ablation : les 13 composants de l'angle rendus à `pre-dev` → rouge sur 16 variables (les 18 appels de l'angle), arbre remis → vert.
