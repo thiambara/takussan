@@ -296,7 +296,7 @@ voie d'écriture (angle 13, puis 47).
 | 219 | Clés next-intl bâties sur une valeur venue de l'API (``t(`status.${row.status}`)`` et leurs pareilles, environ 250 sous `takussan-web/src` ; `CommissionsLedger.tsx:126`, `DataExportsPanel.tsx:157`, `agency-upgrade-requests/page.tsx:185`) sans `t.has()` ni liste de valeurs connues, face aux cas que l'enum de l'API peut rendre : `MISSING_MESSAGE` qui lève au rendu hors production et peint le chemin de la clé en production (`src/i18n/erreurs.ts`) — né de l'angle 192 | fait |
 | 220 | Noms de comptes rendus par le front en `${first_name} ${last_name}` ou `full_name` sans repli (listes d'équipe, locataires et bailleurs de bail, interlocuteurs de la messagerie, sélecteurs de membre, cartes de client, sous `takussan-web/src/components`) face aux comptes créés par téléphone, dont les deux noms sont vides (`PhoneLoginService::createAccount`) : ligne, option ou titre sans nom ni autre désignation — né de P193.05 | fait |
 | 221 | Arguments typés `string` de méthodes privées et de constructeurs nourris par une colonne `nullable` ou un repli `?:`/`??` qui peut rendre `null` (`AdminGlobalSearchService::hit`, et leurs pareils sous `app/Services` et `app/Http/Controllers`) : `TypeError` rendu en 500 pour une ligne réelle qu'aucune fabrique de test ne produit — né de P193.01 | fait |
-| 222 | Photos et pièces téléversées hors de `MediaManager` et `MediaDropzone` (avatar de `ProfileHeader`, pièces de devis, photos de contestation et de création d'une intervention, `KycUploader`, pièce du surclassement, document client) face au patron « réduire puis juger sous le plafond » de TCK-542 et TCK-596 : photo de téléphone refusée au front, ou envoyée entière et refusée en 422 après la saisie — né de P195.03 et P195.07 | à faire |
+| 222 | Photos et pièces téléversées hors de `MediaManager` et `MediaDropzone` (avatar de `ProfileHeader`, pièces de devis, photos de contestation et de création d'une intervention, `KycUploader`, pièce du surclassement, document client) face au patron « réduire puis juger sous le plafond » de TCK-542 et TCK-596 : photo de téléphone refusée au front, ou envoyée entière et refusée en 422 après la saisie — né de P195.03 et P195.07 | fait |
 | 223 | Agrégats en SQL brut (`DB::selectOne`, `DB::table(…)->join(…)`, `fromSub`) sur des tables à `SoftDeletes` qui ne posent pas `deleted_at IS NULL` là où la portée Eloquent l'aurait posé (`AgencyDetailController::health`, `PaymentSupervisionService::leaseBase`, et leurs pareils sous `app/Services` et `app/Http/Controllers`) : bien, bail ou paiement supprimé encore compté par un compteur ou listé — né de P198.02 et P198.05 | à faire |
 | 224 | Factures de prestataire et devis d'une intervention annulée, rejetée ou close (`ServiceProviderBillController`, `ServiceProviderBill` soumise ou validée, payable par mobile money et imputée par `PayoutCalculator::rechargeableBills` sans lire `maintenance_requests.status`) : frais d'un travail abandonné encore payés au prestataire ou déduits du bailleur — le pendant de l'angle 200 côté interventions | à faire |
 | 224 | Lectures TanStack dont le cache est augmenté à la main par `setQueryData` (pages ajoutées par un « Charger plus » fait main, lignes insérées après un geste) alors que leur `queryFn` ne relit qu'une partie de ce cache : relecture par défaut (focus, remontage, `refetchInterval`, `invalidateQueries`) qui efface ce que l'écran montrait — né de P199.01 |
@@ -312,6 +312,8 @@ voie d'écriture (angle 13, puis 47).
 | 233 | Colonnes d'auteur qui désignent du personnel (`issued_by_id`, `created_by_id`, `conducted_by`, `uploaded_by`, `requester_id`, `submitted_by`, `reviewed_by`, `invited_by`, et leurs pareilles) admises seules par une branche de policy ou une clause de liste sous `app/Policies` et `app/Http/Controllers/Api`, hors des factures, reversements, réservations et états des lieux de l'angle 218 : membre suspendu ou retiré qui garde ce qu'il a saisi — né de P218.03 et P218.04 | à faire |
 | 234 | Ce que l'invitation porte dans `metadata` du profil brouillon (prénom, nom, téléphone, raison sociale, type de bailleur, métiers) face à l'acceptation par un compte déjà existant (`InvitationService::acceptForUser` → `finalizeAccept`, sans recopie) et aux lecteurs qui préfèrent le compte dès qu'il est lié (`nomDe` d'`OwnersList` et `ServiceProvidersList`) : valeur saisie par l'agence perdue à l'acceptation — né de P220.06 et P220.07 | à faire |
 | 235 | Replis `??` de l'API sur des colonnes texte non nulles que des écrivains remplissent de `''` (`CustomerService::rattacherOuCreer` `?? 'Client'`, et leurs pareils sous `app/Services` et `app/Http/Resources` sur `first_name`, `last_name`, `username`, `title`, `name`) : repli écrit qui ne joue jamais, chaîne vide rangée ou rendue — né de P220.03 | à faire |
+| 236 | Réponses d'erreur sans corps JSON (413 de la borne de 25 Mio de `docker/Caddyfile`, 502 et 504 du proxy, page d'erreur de PHP) lues par `apiRequest`, `jsonOrThrow` de `lib/queries/kyc.ts` et les relais BFF, puis rendues par `useMessageErreurApi` et `messageErreur` : envoi refusé pour sa taille ou coupé par le proxy affiché comme une erreur générique ou de réseau, sans dire quoi changer — né de P222.02 et P222.04 | à faire |
+| 237 | Gestes en deux requêtes, création puis complément (photos, pièces, invitations, lignes), dont le second échec est avalé par un `catch {}` ou un `.catch(() => undefined)` sous `takussan-web/src/components` et `src/app/actions` (`MaintenanceForm.tsx:89-92` et ses pareils) : ligne créée sans son complément, et rien ne le dit — né de P222.01 | à faire |
 
 
 ---
@@ -20018,3 +20020,94 @@ les envoie.*
   - Aucun écrivain connu ne produit donc la ligne incohérente : le défaut est latent, et ne se lève que pour une ligne posée hors de ces chemins (SQL manuel, fabrique, migration de données). Établi comment : lu ; aucun test lancé, et la fabrique (`UserFactory.php:119`, rapportée par le sous-agent) n'a pas été relue.
 - Piste : traiter `enabled` sans secret comme « 2FA non configurée » aux deux appels, comme le fait déjà `TwoFactorController.php:95` (refus 422 `two_factor.not_enabled` à la désactivation, code refusé à la connexion), ou faire porter le contrôle par `verifyCodeForUser` en typant le secret `?string` et en rendant `false`. Test : utilisateur `two_factor_enabled = true`, `two_factor_secret = null`, `POST` de désactivation avec un code, puis connexion avec `two_factor_code` → pas de 500.
 - Mesure (2026-10-24, cb411bbe7, mesureur) : relu `TwoFactorService.php:106` (`string $secret`, aucun `strict_types`), `TwoFactorController.php:128,141-145` et `AuthController.php:99,114-118` (secret passé tel quel), `:95` (seul contrôle `!== null`), `UserFactory.php:119-120` (la fabrique pose un secret non nul), inchangés ; `git log -S` et `grep` des tickets → rien ne l'a traité ; test PHPUnit temporaire (retiré, charge 2,48 / 2,01 / 1,96 sur 8 cœurs), utilisateur `two_factor_enabled = true`, `two_factor_secret = null` → `POST /api/auth/two-factor/disable` avec `code` et `POST /api/auth/login` avec `two_factor_code` rendent tous deux 500, `TypeError` « Argument #2 ($secret) must be of type string, null given » (l. 141) → le constat tient, latent puisqu'aucun écrivain connu ne produit la ligne. Classement : V2, le correctif fixe ce que la connexion et la désactivation de la 2FA répondent à ce compte (refus du code, repli sur le code de secours, 422), et la piste propose deux options.
+
+## Angle 222 — Photos et pièces téléversées hors de `MediaManager` et `MediaDropzone`
+
+*Exploré le 2026-10-24 sur `pre-dev` 1335a630c, par l'explorateur, sans sous-agent. Relus par
+l'explorateur : chaque `<input type="file">` de `takussan-web/src` hors de `MediaManager`
+(`MaintenanceForm`, `MaintenanceGallery`, `MaintenanceCompleteForm`, `MaintenanceResolutionResponse`,
+`QuoteSubmitForm`, `AgencyConfigForm`, `ProfileHeader`, `KycUploader`, `kyc-components`,
+`UpgradeRequestForm`, `DocumentUploadDialog`, `DocumentVersionsList`, `DepositRefundModal`,
+`LeaseSignaturePanel`, `PrivacyRequestsConsole`, `ImportStatementForm`, et l'envoi des photos de
+pièce d'`InventoryDetail`), `lib/reduire-photo.ts`, `lib/__tests__/reduire-photo.branchement.test.ts`,
+les FormRequests qui reçoivent un fichier (`grep "'file'\|'image'\|AcceptedUploads"` sous
+`app/Http/Requests`), `docker/Caddyfile`, `docker/php.ini`, TCK-542 (« Hors périmètre » et l. 114-119)
+et TCK-673. Rien n'a été envoyé à l'API ni au navigateur : les bornes de 25 Mio et de 20 fichiers
+sont celles de la configuration de l'image (`Caddyfile`, `php.ini`), non mesurées sur un conteneur,
+et le poids d'une photo réduite est la mesure de TCK-542 (1 446 048 o), non refaite.
+**Écartés, sans entrée** : l'avatar réduit déjà sous son plafond avant de juger (TCK-1887) ; le
+devis, le KYC des profils, les documents et la pièce du surclassement refusent avant l'envoi au
+plafond de l'API, et TCK-542 exclut les pièces justificatives de la réduction (la garde
+`PIECES_JUSTIFICATIVES` le tient) ; la contestation est bornée à cinq photos réduites (TCK-1889) ;
+l'import de relevé bancaire n'envoie qu'un CSV ou un OFX.*
+
+### L'échec de l'envoi des photos d'une demande d'intervention neuve est avalé, et la reprise promise n'existe pas
+- Réf : P222.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/components/maintenance/MaintenanceForm.tsx:78-96`, `takussan-web/src/components/maintenance/MaintenanceGallery.tsx:23,62,91-99`, `takussan-api/app/Http/Resources/MaintenanceRequestResource.php:220`
+- Constat :
+  - `onSubmit` crée la demande, puis envoie les photos dans une seconde requête entourée d'un `catch {}` vide ; `onSuccess` navigue vers la fiche (lu, l. 78-96). Un refus de cet envoi (422 sur `photos.N`, 413 du proxy, coupure réseau) ne laisse ni message ni trace : le demandeur arrive sur une fiche sans photo.
+  - Le commentaire du `catch` dit que « la page de détail offre une reprise (« Ajouter des photos ») » (lu, l. 90-91). Aucune ne vise la collection `photos` : `collection: 'photos'` n'est écrit que par ce formulaire (`git grep "collection: '"` → `MaintenanceForm.tsx:87` et `MaintenanceGallery.tsx:98`, celui-ci en `before_photos`), et le seul envoi de la fiche, `BeforePhotosUpload`, ne se montre que si `can_upload_before_photos`, vrai pour le seul prestataire après acceptation (lu, `MaintenanceRequestResource.php:220`, `MaintenanceGallery.tsx:23,62`).
+  - L'API permet pourtant au demandeur de compléter ses photos (`UploadPhotosMaintenanceRequestRequest`, `can('view')`, décision de TCK-445, lu l. 29-39) : la voie existe, l'écran non.
+  - Établi comment : lu.
+- Piste : ne pas taire l'échec — rester sur le formulaire ou arriver sur la fiche avec un avertissement nommant les photos non envoyées — et donner au demandeur l'envoi de la collection `photos` sur la fiche, que l'API lui ouvre déjà. Garde : un test Vitest où `uploadPhotos` rejette et un message s'affiche.
+
+### Photos d'intervention et d'état des lieux envoyées en un seul lot sans borne de nombre, face aux 20 fichiers et aux 25 Mio de l'image
+- Réf : P222.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Requests/Api/UploadPhotosMaintenanceRequestRequest.php:50`, `takussan-api/app/Http/Requests/Api/CompleteMaintenanceRequestRequest.php:58`, `takussan-api/app/Http/Requests/Api/UploadRoomPhotosInventoryRequest.php:39`, `takussan-web/src/lib/queries/maintenance.ts:199-204,336-337`, `takussan-web/src/lib/queries/inventory.ts:168`, `takussan-web/src/components/maintenance/MaintenanceForm.tsx:158-166`, `takussan-web/src/components/maintenance/MaintenanceCompleteForm.tsx:107-116`, `takussan-web/src/components/maintenance/MaintenanceGallery.tsx:104-113`, `takussan-web/src/components/inventory/InventoryDetail.tsx:273-290`, `takussan-api/docker/php.ini:5-9`, `takussan-api/docker/Caddyfile:21-31`
+- Constat :
+  - `photos` n'a pas de `max:` dans les trois requêtes (lu : `['required', 'array', 'min:1']`, `['nullable', 'array']`, `['required', 'array', 'min:1']`). Seules la contestation (`max:5`), le devis (`max:5`), la caution (`max:10`) et les photos de bien (`max:20`, TCK-673) en ont une.
+  - Les trois formulaires d'intervention prennent tout ce que le sélecteur `multiple` rend, sans compte (lu), et les mettent dans un seul `FormData` (lu, `maintenance.ts:204,337`). L'état des lieux cumule les sélections de `MediaDropzone` (`[...prev, ...next]`) et les envoie en un seul lot (lu, `InventoryDetail.tsx:276,290`, `inventory.ts:168`) ; que `MediaDropzone` borne le cumul à 20 est à vérifier.
+  - L'image fixe `max_file_uploads = 20`, au-delà duquel PHP ignore un fichier sans erreur — c'est le défaut que TCK-673 a mesuré et fermé pour les photos de bien (lu, `php.ini:9`, TCK-673 l. 32-33, `PropertyMediaTest.php:131-134`) — et refuse en 413 tout corps de plus de 26 214 400 octets (lu, `Caddyfile:21-31`, `post_max_size = 26M`).
+  - Avec 1 446 048 o par photo réduite (TCK-542), 19 photos dépassent 25 Mio : un 413 sans corps JSON ; 21 photos et plus seraient d'abord tronquées par PHP (déduit de la configuration, à vérifier sur l'image). Pour la demande neuve, ce refus tombe dans le `catch {}` de P222.01.
+  - Établi comment : lu ; les effets sur l'image sont à vérifier.
+- Piste : la décision de TCK-673 (« photos max:20 », une requête par photo) appliquée aux trois routes d'intervention et à celle de l'état des lieux — `max:N` à l'API, la même borne annoncée au front, et l'envoi par photo ou par paquets sous 25 Mio. Garde : un test Feature par route, N+1 photos → 422 sans média écrit, comme `PropertyMediaTest`.
+
+### Le logo d'agence est refusé au-delà de 2 Mo avant d'être réduit, comme l'avatar l'était avant TCK-1887
+- Réf : P222.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/components/admin-agency/AgencyConfigForm.tsx:195-211`, `takussan-web/src/lib/schemas/agency.ts:205,226`, `takussan-web/src/app/actions/admin-agency.ts:135`, `takussan-api/app/Http/Requests/MediaUploadRequest.php:17,50`, `takussan-web/src/components/profile/ProfileHeader.tsx:96-103`
+- Constat :
+  - Au choix du fichier, `validateAgencyLogoFile(file)` refuse au-delà de `AGENCY_LOGO_MAX_BYTES` = 2 Mo (lu, `AgencyConfigForm.tsx:197-204`, `agency.ts:205,226`) ; la réduction ne vient qu'après, par `reduirePhoto(file)` sans plafond (lu, l. 211). Elle ne sert donc qu'aux fichiers déjà sous 2 Mo. L'action serveur rejuge le fichier réduit à 2 Mo (lu, `admin-agency.ts:135`), et l'API aussi depuis TCK-1893 (`MAX_LOGO_KB`, lu, `MediaUploadRequest.php:17,50`).
+  - L'avatar avait le même ordre ; P195.03 l'a relevé et TCK-1887 l'a inversé par `reduirePhotoSousPlafond(file, 2 Mo)` avant le contrôle (lu, `ProfileHeader.tsx:96-103`). TCK-542 range le logo parmi les écrans de photos et écrit qu'« une photo de 12 Mo qui tombe sous le plafond une fois réduite n'a pas à être refusée » (lu, l. 114-119).
+  - Qu'une photo de logo réelle de 3 à 8 Mo passe sous 2 Mo une fois réduite n'est pas mesuré sur un fichier.
+  - Établi comment : lu.
+- Piste : réduire par `reduirePhotoSousPlafond(file, AGENCY_LOGO_MAX_BYTES)` avant `validateAgencyLogoFile`, et envoyer le fichier réduit, comme l'avatar. Garde : un test Vitest à outils d'image simulés où un logo de 5 Mo réductible n'affiche pas `logoTooLarge` et part réduit.
+
+### Restitution de caution : pièces envoyées sans contrôle de taille ni de nombre, dix pièces de 10 Mo admises par la règle et refusées par le proxy
+- Réf : P222.04
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/components/leases/DepositRefundModal.tsx:92-104,146-149,236-244`, `takussan-api/app/Http/Requests/RefundDepositRequest.php:38-39`, `takussan-api/docker/Caddyfile:21-31`
+- Constat :
+  - `handleFiles` garde tout ce que le sélecteur rend (lu, l. 146-149) ; aucun contrôle de taille, de nombre ou de type avant l'envoi, alors que l'API refuse au-delà de 10 pièces et de 10 Mo par pièce (lu, `RefundDepositRequest.php:38-39`). Les autres pièces justificatives refusent avant l'envoi (`KycUploader`, `DocumentUploadDialog`, `QuoteSubmitForm`, `UpgradeRequestForm`, lu).
+  - TCK-542 range cette modale parmi les pièces justificatives, qui partent sans réduction (lu, `reduire-photo.branchement.test.ts`, `PIECES_JUSTIFICATIVES`). Trois photos de téléphone de 9 Mo, chacune admise par `max:10240`, font un corps de plus de 26 214 400 octets : le proxy de l'image rend 413 sans corps JSON (déduit de `Caddyfile:21-31`, à vérifier sur l'image). La règle annonce donc 100 Mo pour une requête bornée à 25 Mio.
+  - Un 422 sur `uploads.N` est rendu dans l'erreur globale, sans dire quel fichier (lu, l. 119-136) ; le 413 passe par `messageErreur(err)`, dont le texte pour une réponse sans corps est à vérifier.
+  - Établi comment : lu ; l'effet du proxy est à vérifier.
+- Piste : juger au choix chaque fichier à 10 Mo et le nombre à 10, et la somme sous la borne du corps, avec les messages existants des autres pièces ; aligner `uploads` de l'API sur ce qu'une requête peut porter. Garde : un test Vitest où un fichier de 11 Mo est refusé sans appel à l'API.
+
+### Devis : cinq pièces de 5 Mo admises une à une font un corps égal à la borne du proxy
+- Réf : P222.05
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-web/src/components/maintenance/QuoteSubmitForm.tsx:27-30,98-102`, `takussan-api/app/Http/Requests/Maintenance/SubmitQuoteRequest.php:40,45`, `takussan-api/docker/Caddyfile:21-31`
+- Constat :
+  - Le front admet cinq pièces de 5 Mo au plus chacune, comme l'API (lu, `QuoteSubmitForm.tsx:27-30,98-102`, `SubmitQuoteRequest.php:40,45`). 5 × 5 × 1 048 576 = 26 214 400 octets, exactement la borne au-delà de laquelle le proxy rend 413 (lu, `Caddyfile:30-31`) : cinq pièces proches du plafond, plus les lignes du devis, la franchissent (déduit, à vérifier sur l'image).
+  - Établi comment : lu, calcul.
+- Piste : juger aussi la somme au front avant l'envoi, ou abaisser le plafond par pièce pour que la règle de l'API tienne dans une requête. Garde : une assertion qui compare `max` × `max:` des règles de fichiers en lot à la borne du `Caddyfile`.
+
+### Petites améliorations : envois d'un seul fichier non bornés au front, et photos d'intervention réduites sans plafond
+- Réf : P222.06
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-web/src/components/leases/LeaseSignaturePanel.tsx:265-270`, `takussan-api/app/Http/Requests/ActivateLeaseRequest.php:33`, `takussan-web/src/components/kyc/kyc-components.tsx:185-188`, `takussan-api/app/Http/Requests/Kyc/UploadKycDocumentRequest.php:20`, `takussan-web/src/components/admin/super/PrivacyRequestsConsole.tsx:78,463-464`, `takussan-api/app/Http/Requests/Api/Admin/UpdatePrivacyRequestRequest.php:16,29`, `takussan-web/src/components/maintenance/MaintenanceForm.tsx:86`, `takussan-web/src/lib/reduire-photo.ts:103-148`
+- Constat :
+  - Le contrat signé sur papier (`max:10240`), la pièce KYC d'agence (`AcceptedUploads::kyc(10240)`) et la preuve d'une demande RGPD (`PROOF_MAX_KB = 10240`) partent sans contrôle de taille au front (lu) ; un fichier trop lourd revient en 422 après l'envoi, affiché par l'erreur ou le toast de l'écran (lu). Un seul fichier chacun : seul le temps d'envoi est perdu.
+  - La pièce KYC d'agence annonce `accept=".pdf,.jpg,.jpeg,.png,.webp"` (lu, `kyc-components.tsx:185`) alors que l'API admet aussi `heic` et `heif` (lu, `AcceptedUploads::KYC_EXTENSIONS`), et que `KycUploader` les annonce (`KYC_MIME_ACCEPT`, lu) : la photo d'iPhone est grisée dans le sélecteur de l'agence seulement.
+  - Les quatre écrans de photos d'intervention passent par `reduirePhotos`, qui ne touche pas une image déjà sous 2 560 px (lu, `reduire-photo.ts:103-148`) : un PNG de moins de 2 560 px et de plus de 10 Mo part tel quel vers `max:10240` (déduit, cas rare, à vérifier).
+  - Établi comment : lu.
+- Piste : le contrôle de taille avant l'envoi que portent déjà `KycUploader` et `DocumentUploadDialog`, sur ces trois écrans ; `KYC_MIME_ACCEPT` dans `kyc-components.tsx` ; `reduirePhotosSousPlafond(…, 10 Mo)` sur les écrans d'intervention si la mesure le justifie.
