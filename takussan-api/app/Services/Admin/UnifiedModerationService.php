@@ -410,7 +410,10 @@ class UnifiedModerationService
             ->selectRaw('r.created_at as created_at')
             ->selectRaw('('.self::SUSPICIOUS_REVIEW_SQL.') as suspicious')
             ->whereIn('r.status', [ReviewStatus::Pending->value, ReviewStatus::Reported->value])
-            ->whereNull('r.deleted_at');
+            ->whereNull('r.deleted_at')
+            // P223.03 (TCK-2173) — l'avis d'un bien supprimé quitte la file, comme les trois branches
+            // de biens ; l'avis d'une agence n'a pas de bien joint (`rp` nul) et reste.
+            ->whereNull('rp.deleted_at');
 
         return $properties->unionAll($propertyReports)->unionAll($duplicates)->unionAll($reviews);
     }
