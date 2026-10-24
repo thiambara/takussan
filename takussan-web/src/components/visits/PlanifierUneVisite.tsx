@@ -8,6 +8,7 @@ import { useMyProfiles } from '@/hooks/useProfiles';
 import { usePlanVisit } from '@/lib/queries/visits';
 import { smsRetenu } from '@/lib/visites/sort-du-sms';
 import { instantADakar } from '@/lib/visites/heure-de-dakar';
+import { jourDeLApi } from '@/lib/jour-de-l-api';
 import { ApiError } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import {
@@ -128,6 +129,8 @@ function PlanifierDialog({
   const [phone, setPhone] = useState('');
   const [jour, setJour] = useState('');
   const [heure, setHeure] = useState('10:00');
+  // P230.05 — `scheduled_at` `after:now`, l'heure à Dakar (UTC+0) : pas de jour avant celui de l'API.
+  const [premierJour] = useState(() => jourDeLApi());
   const [erreur, setErreur] = useState<string | null>(null);
 
   const biens = useRecherche<{ id: number; title: string }>(
@@ -271,7 +274,7 @@ function PlanifierDialog({
               <label htmlFor="plan-date" className="block text-sm font-medium text-foreground">
                 {t('date')}
               </label>
-              <Input id="plan-date" type="date" value={jour} onChange={(e) => setJour(e.target.value)} />
+              <Input id="plan-date" type="date" min={premierJour} value={jour} onChange={(e) => setJour(e.target.value)} />
             </div>
             <div className="space-y-1.5">
               <label htmlFor="plan-time" className="block text-sm font-medium text-foreground">

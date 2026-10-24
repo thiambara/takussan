@@ -21,7 +21,7 @@ import { MentionDeConfidentialite } from '@/components/public/MentionDeConfident
 import { arrivee } from '@/lib/attribution';
 import { lireCoordonnees, retenirCoordonnees } from '@/lib/coordonnees-retenues';
 import { instantADakar, jourChoisi } from '@/lib/visites/heure-de-dakar';
-import { useCreneaux } from '@/lib/visites/useCreneaux';
+import { JOURS_DE_VISITE_OUVERTS, useCreneaux } from '@/lib/visites/useCreneaux';
 import { decalerJour, jourDeLApi, jourEnDateLocale } from '@/lib/jour-de-l-api';
 import type { VisitType } from '@/types/visit';
 import { cn } from '@/lib/utils';
@@ -41,9 +41,6 @@ const VISIT_TYPES: Array<{ value: VisitType; Icon: typeof MapPinIcon }> = [
 ];
 
 const TELEPHONE_RE = /^\+\d{8,15}$/;
-
-/** `before_or_equal:+60 days` de `VisitSlotsPublicPropertyRequest`. */
-const JOURS_DE_VISITE_OUVERTS = 60;
 
 function formatDateLabel(date: Date | undefined, locale: string, repli: string): string {
   if (!date) return repli;

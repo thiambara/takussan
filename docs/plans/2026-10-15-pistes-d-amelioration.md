@@ -6936,7 +6936,7 @@ sans `delete`).*
 
 ### Le visiteur qui propose un autre créneau choisit un jour sans borne, et un jour passé ou au-delà de 60 jours rend « L'action n'a pas abouti »
 - Réf : P230.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-2228
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/visits/VisitDetail.tsx:378-447`, `takussan-web/src/lib/visites/useCreneaux.ts:29-37`, `takussan-api/app/Http/Requests/Public/VisitSlotsPublicPropertyRequest.php:17`
 - Constat :
@@ -6946,10 +6946,11 @@ sans `delete`).*
   - Établi comment : lu des deux côtés, et mesuré sur le validateur ; le dialogue n'a pas été rendu.
 - Piste : borner le champ par la même fenêtre que TCK-2094 (`jourDeLApi()` à `decalerJour(jourDeLApi(), 60)`, `src/lib/jour-de-l-api.ts`), idéalement par une constante partagée avec `PropertyVisitDialog`. Garde : un test du dialogue à horloge figée où `min` et `max` portent ces deux jours.
 - Mesure (2026-10-24, 09c83726d, mesureur) : relu `VisitDetail.tsx:412-420` (`<Input type="date">` de `ProposerUnCreneau`, ni `min` ni `max`), `useCreneaux.ts:29-37` (tout rejet → `erreur`), `VisitDetail.tsx:443-446` (`actionError`), `VisitSlotsPublicPropertyRequest.php:17` ; `PropertyVisitDialog.tsx:45-46,85-91` borne déjà par `jourDeLApi()` et `JOURS_DE_VISITE_OUVERTS = 60` ; `php artisan tinker` (`Validator::make`, lecture seule) à 2026-10-24T18:10Z, charge 2,91 / 2,96 / 2,78 sur 8 cœurs → J-1 refusé, J0 et J+60 acceptés, J+61 refusé ; aucun commit ni ticket ne cite P230 hors l'exploration (`git log -S 'P230'`, `grep` des tickets) → le constat tient ; le dialogue n'a pas été rendu. Classement : A1, la fenêtre [jour UTC, J+60] est écrite par la règle de l'API et déjà appliquée par l'autre appelant (TCK-2094) ; le correctif pose `min`/`max` depuis `src/lib/jour-de-l-api.ts`, sans texte neuf.
+- Mesure (2026-10-24, c5ee97e97, implementeur) : reproduit par `VisitDetail.proposer-fenetre.p230-01.test.tsx` (navigateur à New York, 01:00 Z le 25 octobre) : le champ du jour de `ProposerUnCreneau` rendait `min` absent (`null`) → correctif : `min` = `jourDeLApi()`, `max` = J+60 par `JOURS_DE_VISITE_OUVERTS`, désormais exporté de `useCreneaux.ts` et partagé avec `PropertyVisitDialog` ; ablation (bornes retirées) → rouge, remises → vert, avec `VisitDetail.tck-590` et les deux tests de `PropertyVisitDialog` (18 tests).
 
 ### « Bloquer des dates » propose comme « Jour de reprise » la première nuit elle-même, que l'API refuse, et aucune borne haute face aux 24 mois de l'API
 - Réf : P230.02
-- Statut : retenu · autonome
+- Statut : fait · TCK-2230
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/property-dashboard/PropertyCalendarPanel.tsx:150-176`, `takussan-api/app/Http/Requests/Api/StorePropertyUnavailabilityRequest.php:23-24`
 - Constat :
@@ -6959,10 +6960,11 @@ sans `delete`).*
   - Établi comment : lu, et mesuré sur le validateur ; l'écran n'a pas été rendu.
 - Piste : `min` du jour de reprise au lendemain de la première nuit (`decalerJour(startsOn, 1)`), `max` des deux champs à aujourd'hui + 24 mois, servi par l'API ou porté par une constante. Garde : un test du panneau où le jour de la première nuit est grisé dans le second champ.
 - Mesure (2026-10-24, 09c83726d, mesureur) : relu `PropertyCalendarPanel.tsx:172,176` (`min={today}`, `min={startsOn || today}`, aucun `max` ; `today` est le jour LOCAL, `format(new Date(), 'yyyy-MM-dd')`, l. 32, 51), `date-picker.tsx:105` (grise seulement `< min`), `StorePropertyUnavailabilityRequest.php:23-24` (`ends_on` `after:starts_on`, `before_or_equal:` aujourd'hui + 24 mois ; `starts_on` sans borne relative au jour) ; `php artisan tinker` (`Validator::make`, lecture seule) à 2026-10-24T18:10Z, charge 2,91 / 2,96 / 2,78 sur 8 cœurs → reprise le jour même de la première nuit refusée, J+24 mois acceptée, J+24 mois + 1 jour refusée → le constat tient ; l'écran n'a pas été rendu. Classement : A1, les deux bornes sont écrites par la règle de l'API ; le correctif pose `min` = `decalerJour(startsOn, 1)` sur la reprise et `max` = `decalerAnnees(jourDeLApi(), 2)` sur les deux champs, sans texte neuf.
+- Mesure (2026-10-24, c5ee97e97, implementeur) : reproduit par `PropertyCalendarPanel.bornes.p230-02.test.tsx` (`DatePicker` simulé qui porte `min`/`max`, navigateur à New York, 01:00 Z le 25 octobre) : première nuit le 27 → reprise `min` le 27, et aucun `max` → correctif : reprise `min` = `decalerJour(startsOn || today, 1)`, `max` = `decalerAnnees(jourDeLApi(), 2)` ; première nuit `max` = la veille de cette borne (une première nuit le jour de la borne ne laisse aucune reprise) ; ablation → 2/2 rouges, remis → verts, avec les deux tests existants du panneau (10 tests).
 
 ### La fin d'une absence d'agent se choisit sans borne, alors que l'API refuse un jour passé et tout jour au-delà de 366 jours, ce dernier compris
 - Réf : P230.03
-- Statut : retenu · autonome
+- Statut : fait · TCK-2232
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/crm/AgentAbsencesSection.tsx:77,180`, `takussan-api/app/Http/Requests/Agency/StoreAgentAbsenceRequest.php:27,33`
 - Constat :
@@ -6972,10 +6974,11 @@ sans `delete`).*
   - Établi comment : lu, et mesuré sur le validateur ; le refus est affiché par `proseServeur` (lu, l. 186-190), l'écran n'a pas été rendu.
 - Piste : `min` au jour de l'API, `max` à J+365 (la fin de journée envoyée devant tenir sous l'instant J+366), ou faire juger la borne haute sur le jour plutôt que l'instant. Garde : un test du formulaire à horloge figée sur les deux bornes.
 - Mesure (2026-10-24, 09c83726d, mesureur) : relu `AgentAbsencesSection.tsx:77` (envoie `${endsOn} 23:59:59`) et `:180` (`<Input type="date">` sans `min` ni `max`), `StoreAgentAbsenceRequest.php:27,33` (`after:now`, `before_or_equal:` l'instant `now()->addDays(366)`) ; `php artisan tinker` (`Validator::make`, lecture seule) à 2026-10-24T18:10Z, charge 2,91 / 2,96 / 2,78 sur 8 cœurs → la veille à 23:59:59 refusée, J+365 à 23:59:59 acceptée, J+366 à 23:59:59 refusée → le constat tient ; l'écran n'a pas été rendu. Classement : A1, la borne est écrite par la règle de l'API ; le correctif autonome est la seule option du front (`min` = `jourDeLApi()`, `max` = `decalerJour(jourDeLApi(), 365)`), sans texte neuf ; faire juger la borne haute de l'API sur le jour changerait ce que l'API accepte et n'en fait pas partie.
+- Mesure (2026-10-24, c5ee97e97, implementeur) : reproduit par `AgentAbsencesSection.bornes.p230-03.test.tsx` (navigateur à New York, 01:00 Z le 25 octobre) : « Jusqu'au » sans `min` ni `max` → correctif : `min` = `jourDeLApi()`, `max` = J+365 (miroir de 366 jours, le soir de J+366 dépassant l'instant J+366) ; ablation → rouge, remis → vert ; deux tests existants saisissaient le 20 octobre 2026 sous l'horloge réelle et rougissaient sous le `min` (jsdom l'applique à la soumission) : leur horloge est figée au 15 octobre (8 tests verts).
 
 ### La fenêtre de maintenance se programme sans `min`, et la minute en cours, seule façon de dire « maintenant », est refusée
 - Réf : P230.04
-- Statut : validé (délégué) — poser `min` sur les deux `DateTimePicker` de `maintenance.tsx` : l'instant présent (forme locale `YYYY-MM-DDTHH:mm` de la primitive) sur le début, le début choisi (à défaut l'instant présent) sur la fin ; l'API reste inchangée (`after_or_equal:now`, écrit par TCK-218) et aucun texte neuf ; garde : un test du formulaire à horloge figée où la veille est grisée dans les deux champs ; reste : dire « maintenant » (API qui tolère la minute courante, heure bornée dans la primitive, ou bouton « maintenant »)
+- Statut : fait · TCK-2234 — reste : dire « maintenant » (API qui tolère la minute courante, heure bornée dans la primitive, ou bouton « maintenant »)
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/components/admin/super/maintenance.tsx:44-46,101,105`, `takussan-api/app/Http/Requests/Api/Admin/StoreMaintenanceRequest.php:32`
 - Constat :
@@ -6985,10 +6988,11 @@ sans `delete`).*
 - Piste : `min` à la minute suivante sur le début, et `min` au début choisi sur la fin ; ou faire tolérer par l'API un début à la minute courante. Le second choix change ce que l'API accepte et revient au mesureur.
 - Mesure (2026-10-24, 09c83726d, mesureur) : relu `maintenance.tsx:44-46` (`new Date(startsAt).toISOString()`) et `:101,105` (deux `DateTimePicker` sans `min` ni `max`), `date-time-picker.tsx:117-141` (le `min` de la primitive ne grise que des JOURS : l'heure saisie n'est pas bornée), `StoreMaintenanceRequest.php:32` (`after_or_equal:now`) ; `php artisan tinker` (`Validator::make`, lecture seule) à 2026-10-24T18:10Z, charge 2,91 / 2,96 / 2,78 sur 8 cœurs → `now()->startOfMinute()` refusé, la minute suivante acceptée → le constat tient ; l'écran n'a pas été rendu. Classement : V7, un `min` posé sur la primitive ne grise que les jours passés et laisse la minute courante choisissable : rendre « maintenant » possible demande soit que l'API tolère la minute courante (ce qu'elle accepte change), soit un geste neuf (heure bornée ou bouton « maintenant »), deux choix de produit que la piste laisse ouverts.
 - Mesure (2026-10-24, d6bad1977, delegue) : relu `maintenance.tsx:29-30,44-46,101,105` (deux `DateTimePicker` sans `min`), `date-time-picker.tsx:32-33,117-141` (`min` accepté, ne grise que les jours avant celui de `min`), `StoreMaintenanceRequest.php:32` (`after_or_equal:now`), `TCK-218-super-admin-maintenance-mode.md:52,74` (« `starts_at >= now()` à la création », « une fenêtre avec `starts_at < now()` est refusée 422 ») ; `grep` des tickets et des décisions `porteur (` → aucune décision sur « maintenant » ni sur ce formulaire → le constat tient ; seule la moitié « bornes » est sûre. Délégation : V7, la borne posée est celle que TCK-218 et la règle de l'API écrivent déjà (relève de A1), sans texte ni geste neufs, et se défait en un commit ; le choix de produit que le mesureur a relevé — rendre « maintenant » possible — n'est pas tranché et part en reste, au porteur.
+- Mesure (2026-10-24, c5ee97e97, implementeur) : reproduit par `MaintenanceScheduler.bornes.p230-04.test.tsx` (primitive réelle, horloge figée au 2026-10-25T10:00Z, Dakar) : le 24 octobre offert dans le début et dans la fin → correctif : `min` = l'instant présent (forme locale `YYYY-MM-DDTHH:mm`) sur le début, `startsAt || maintenant` sur la fin ; ablation → 2/2 rouges, remis → verts, avec `MaintenanceScheduler.test.tsx` (4 tests). La minute courante reste choisissable : c'est le reste.
 
 ### Petites améliorations
 - Réf : P230.05
-- Statut : retenu · autonome
+- Statut : fait · TCK-2236
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/components/boost/admin/AdminBoostStats.tsx:51,55`, `takussan-api/app/Http/Requests/Api/Admin/BoostStatsRequest.php:21,27-30`, `takussan-web/src/components/visits/PlanifierUneVisite.tsx:274`, `takussan-web/src/components/visits/VisitDetail.tsx:358,565-575`, `takussan-web/src/app/[locale]/(public)/properties/[slug]/components/PropertyReservationDialog.tsx:319-323`, `takussan-web/src/components/admin/roles/CreateDelegationDialog.tsx:155-159`
 - Constat :
@@ -6998,6 +7002,7 @@ sans `delete`).*
   - Établi comment : lu ; mesuré par `node` pour le troisième point ; les écrans n'ont pas été rendus.
 - Piste : poser ces bornes depuis `src/lib/jour-de-l-api.ts` (`decalerJour(jourDeLApi(), 1)`, `decalerJour(jourDeLApi(), 366)`), et des `min` au jour ou à l'instant présent sur les deux champs de visite.
 - Mesure (2026-10-24, 09c83726d, mesureur) : relu `AdminBoostStats.tsx:51,55` (ni `min` ni `max`) face à `BoostStatsRequest.php:21,27-30` (`to` ≤ demain, fenêtre ≤ 92 jours) ; `PlanifierUneVisite.tsx:274` (jour sans `min`) face à `StorePropertyVisitRequest.php:115-116` (`after:now`) ; `VisitDetail.tsx:358,566-577` (`datetime-local` sans `min`, pré-rempli du créneau actuel) face à `UpdatePropertyVisitRequest.php:47` (`after:now`) ; `PropertyReservationDialog.tsx:319-323` (`minExpiry` par `setDate` puis `toISOString()`) face à `BookingRequestPublicPropertyRequest.php:24` (`after:today`) ; `CreateDelegationDialog.tsx:35,155-159` (`dateMax` par `setDate` local) face à `Permissions/StoreRoleDelegationRequest.php:21,28` (le chemin cité `Api/` n'existe pas) ; `node` sur `minExpiry` recopié, chaque heure de 2026 → jour ≤ jour UTC 1 heure sous `Europe/Paris` et 1 sous `America/New_York`, 0 sous Dakar et UTC ; le compte de 5 heures de `dateMax` n'a pas été rejoué → les quatre points tiennent, le dernier lu seulement. Classement : A1, chaque borne est écrite par une règle de l'API ; le correctif pose des `min`/`max` depuis `src/lib/jour-de-l-api.ts` et l'instant présent, sans texte neuf.
+- Mesure (2026-10-24, c5ee97e97, implementeur) : reproduit par cinq tests `…p230-05.test.tsx` à horloge figée : boost sans `min`/`max` ; « Planifier une visite » et replanification sans `min` ; `minExpiry` = 2026-03-29 (jour UTC) à Paris le 2026-03-29T00:00Z ; `dateMax` = 2027-03-10 à New York le 2026-03-08T23:00Z → correctif : bornes tirées de `jourDeLApi()`/`decalerJour()` (boost : « Au » ≤ demain et ≤ « Du » + 92, « Du » ≥ « Au » − 92), `min` de la replanification à l'instant présent à Dakar ; ablation (cinq fichiers rendus à `pre-dev`) → 5/5 rouges, remis → 5/5 verts, avec 76 tests existants des mêmes écrans.
 
 ## Angle 231 — Gestes qui clôturent une ligne et en ouvrent une neuve, face aux champs qu'ils ne reportent pas
 
