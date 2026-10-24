@@ -101,7 +101,9 @@ class SendSmsAfterLateWhatsappFailureJob implements ShouldBeEncrypted, ShouldQue
         $smsRouter->send($attempt->to, $body, [
             'is_critical' => false,
             'event_type' => $notification->smsEventType(),
-            // Même agence que `WhatsappChannel::resolveAgencyId()` : l'intégration SMS se choisit par elle.
+            // L'intégration SMS se choisit par l'agence. Elle est RECALCULÉE ici, au moment du repli
+            // (TCK-2047, P203.03) : ni la tentative ni la notification ne gardent celle de l'envoi
+            // WhatsApp, et elle peut en différer si les profils du compte ont changé entre-temps.
             'agency_id' => $user->agency_id,
             'notification_id' => $row->id,
         ]);
