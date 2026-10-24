@@ -76,6 +76,9 @@ const ANY = '__any__';
 const PER_PAGE = 25;
 /** Les formats que l'API accepte pour la preuve (mêmes `mimes` que les pièces, ADR-0044). */
 const PROOF_ACCEPT = '.pdf,.jpg,.jpeg,.png,.webp,.heic,application/pdf,image/jpeg,image/png,image/webp,image/heic';
+/** TCK-2150 (P222.06) — `UpdatePrivacyRequestRequest::PROOF_MAX_KB` (10240 Ko). La preuve part telle quelle. */
+const PROOF_MAX_MB = 10;
+const PROOF_MAX_BYTES = PROOF_MAX_MB * 1024 * 1024;
 
 const STATUS_TONE: Record<PrivacyRequestStatus, StatusTone> = {
   received: 'info',
@@ -393,6 +396,7 @@ function UpdatePrivacyRequestForm({
   const [status, setStatus] = useState<PrivacyRequestStatus>(request.status);
   const [summary, setSummary] = useState(request.response_summary ?? '');
   const [proof, setProof] = useState<File | null>(null);
+  const [proofTooLarge, setProofTooLarge] = useState<string | null>(null);
 
   const mutation = useMutation<PrivacyRequest, ApiError>({
     mutationFn: () => avecGardeDoubleFacteur(() => updatePrivacyRequest(request.id, {
@@ -407,6 +411,9 @@ function UpdatePrivacyRequestForm({
     },
   });
   const erreur = mutation.error;
+  const erreurPreuve = proofTooLarge
+    ? t('fields.proofTooLarge', { max: PROOF_MAX_MB, files: proofTooLarge })
+    : erreurDe(erreur, 'proof');
   const inchange = status === request.status && summary === (request.response_summary ?? '') && proof === null;
 
   const statusOptions = PRIVACY_REQUEST_STATUSES.map((s) => ({ value: s, label: t(`status.${s}`) }));
@@ -455,15 +462,26 @@ function UpdatePrivacyRequestForm({
           id="pr-proof"
           label={t('fields.proof')}
           hint={request.proof ? t('fields.proofReplace', { name: request.proof.file_name }) : t('fields.proofHint')}
-          error={erreurDe(erreur, 'proof')}
+          error={erreurPreuve}
         >
           <Input
             id="pr-proof"
             type="file"
             accept={PROOF_ACCEPT}
-            onChange={(e) => setProof(e.target.files?.[0] ?? null)}
-            aria-invalid={!!erreurDe(erreur, 'proof')}
-            aria-describedby={decritPar('pr-proof', true, erreurDe(erreur, 'proof'))}
+            onChange={(e) => {
+              const chosen = e.target.files?.[0] ?? null;
+              // Refusée au choix plutôt qu'en 422 après l'envoi (TCK-2150).
+              if (chosen && chosen.size > PROOF_MAX_BYTES) {
+                setProofTooLarge(chosen.name);
+                setProof(null);
+                e.target.value = '';
+                return;
+              }
+              setProofTooLarge(null);
+              setProof(chosen);
+            }}
+            aria-invalid={!!erreurPreuve}
+            aria-describedby={decritPar('pr-proof', true, erreurPreuve)}
           />
         </Champ>
 

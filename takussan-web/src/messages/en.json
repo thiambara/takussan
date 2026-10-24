@@ -3753,7 +3753,9 @@
         "attachments_label": "Supporting documents (photos, invoices)",
         "cancel": "Cancel",
         "submit": "Confirm refund",
-        "submitting": "Submitting…"
+        "submitting": "Submitting…",
+        "file_too_large": "File too large ({max} MB max): {files}",
+        "max_files": "Maximum {max} files."
       },
       "error_generic": "Refund failed, please retry."
     },
@@ -4047,7 +4049,8 @@
       "activatedToast": "Lease signed and activated.",
       "paperLabel": "Contract signed on paper (PDF, JPG or PNG, 10 MB)",
       "paperSubmit": "Activate on paper contract",
-      "genericError": "The operation failed. Try again."
+      "genericError": "The operation failed. Try again.",
+      "paperTooLarge": "File too large ({max} MB max): {files}"
     }
   },
   "maintenance": {
@@ -4146,7 +4149,9 @@
       "photos_label": "Photos (optional)",
       "photos_selected": "{count, plural, =1 {# photo selected.} other {# photos selected.}}",
       "submitting": "Sending…",
-      "submit": "Report the problem"
+      "submit": "Report the problem",
+      "photos_failed_title": "Photos not sent",
+      "photos_failed_body": "The request was created, but its photos could not be sent."
     },
     "complete": {
       "title": "Close the intervention",
@@ -8810,7 +8815,8 @@
         "responseSummary": "Response summary",
         "proof": "Proof of response",
         "proofHint": "PDF or image (JPG, PNG, WebP, HEIC).",
-        "proofReplace": "A proof is already on file ({name}): a new file replaces it."
+        "proofReplace": "A proof is already on file ({name}): a new file replaces it.",
+        "proofTooLarge": "File too large ({max} MB max): {files}"
       }
     },
     "payments": {
@@ -10097,7 +10103,8 @@
       "choose": "Choose a file",
       "replace": "Replace the file",
       "accepted": "PDF, JPG, PNG or WEBP",
-      "chooseAria": "Choose the file: {document}"
+      "chooseAria": "Choose the file: {document}",
+      "fileTooLarge": "File too large ({max} MB max): {files}"
     },
     "review": {
       "title": "Super-admin review",

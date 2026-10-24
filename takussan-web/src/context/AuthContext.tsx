@@ -92,6 +92,24 @@ export function AuthProvider({
 }) {
   const [user, setUser] = useState<User | null>(initialUser ?? null);
   const [token, setToken] = useState<string | null>(initialToken ?? null);
+  // TCK-2158 (P202.01) — le layout racine relit `/api/auth/me` à chaque rendu serveur
+  // (`router.refresh()`, action serveur) : ce qu'il rend de NEUF fait foi, comme pour le profil
+  // actif ci-dessous. Un utilisateur non nul se pose ; un jeton neuf se pose ; le compte ne se vide
+  // que si le jeton disparaît aussi. Un `null` sous un jeton présent (échec ou délai de `/me`, cf.
+  // `DELAI_ME_RACINE_MS`) garde le compte, comme TCK-1992. Tant que les propriétés ne changent
+  // pas, ce que le client a posé (`setUser`, `openSession`, `logout`) reste.
+  const [compteDuLayout, setCompteDuLayout] = useState({
+    user: initialUser ?? null,
+    token: initialToken ?? null,
+  });
+  if ((initialUser ?? null) !== compteDuLayout.user || (initialToken ?? null) !== compteDuLayout.token) {
+    const nouvelUtilisateur = initialUser ?? null;
+    const nouveauJeton = initialToken ?? null;
+    setCompteDuLayout({ user: nouvelUtilisateur, token: nouveauJeton });
+    if (nouveauJeton !== compteDuLayout.token) setToken(nouveauJeton);
+    if (nouvelUtilisateur !== null) setUser(nouvelUtilisateur);
+    else if (nouveauJeton === null) setUser(null);
+  }
   // TCK-2050 (P174.01) — écrit dans le module que lit `apiRequest` dès le premier rendu, avant que
   // les requêtes des enfants partent (elles partent à l'abonnement, après le rendu).
   const [activeProfileId, setActiveProfileIdState] = useState<string | null>(() => {
