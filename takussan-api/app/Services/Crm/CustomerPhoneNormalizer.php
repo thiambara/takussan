@@ -3,6 +3,7 @@
 namespace App\Services\Crm;
 
 use App\Services\Notifications\Sms\PhoneNumber;
+use App\Support\TelephoneSaisi;
 
 /**
  * TCK-591 — le numéro d'un client, ramené en E.164 à l'écriture (`+221` par défaut pour un numéro
@@ -19,9 +20,11 @@ class CustomerPhoneNormalizer
 {
     public const DEFAULT_COUNTRY_CODE = '221';
 
-    /** Un numéro national sénégalais : 9 chiffres, mobile (7x) ou fixe (33). */
-    private const SENEGAL_NATIONAL = '/^(7[05678]|3[03])\d{7}$/';
-
+    /**
+     * P125.05 (TCK-2025) — la forme vient de {@see TelephoneSaisi::normaliser()}, le normaliseur de
+     * saisie commun ; ce qui reste propre à la fiche client : `null` pour une saisie vide, et la
+     * saisie rendue telle quelle (bords retirés) quand elle n'aboutit pas à un E.164.
+     */
     public static function normalize(?string $raw): ?string
     {
         if ($raw === null) {
@@ -33,17 +36,7 @@ class CustomerPhoneNormalizer
             return null;
         }
 
-        $compact = preg_replace('/[\s.\-()\/]/u', '', $trimmed) ?? $trimmed;
-
-        if (str_starts_with($compact, '00')) {
-            $compact = '+'.substr($compact, 2);
-        }
-
-        if (preg_match(self::SENEGAL_NATIONAL, $compact) === 1) {
-            $compact = '+'.self::DEFAULT_COUNTRY_CODE.$compact;
-        } elseif (preg_match('/^'.self::DEFAULT_COUNTRY_CODE.'\d{9}$/', $compact) === 1) {
-            $compact = '+'.$compact;
-        }
+        $compact = (string) TelephoneSaisi::normaliser($trimmed);
 
         return PhoneNumber::isValid($compact) ? $compact : $trimmed;
     }
