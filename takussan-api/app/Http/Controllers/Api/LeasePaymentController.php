@@ -37,7 +37,9 @@ class LeasePaymentController extends Controller
         // en dur par `period_start` décroissant, un bail de plus de 100 échéances perdait ses plus
         // anciennes, celles qui tombent en retard les premières. Un `sort` hors de cette liste garde
         // l'ordre d'avant ; l'`id` départage deux échéances de même date.
-        [$colonne, $sens] = self::TRIS[(string) $request->query('sort')] ?? ['period_start', 'desc'];
+        // P216.04 (TCK-2126) — `sort[]=…` vaut l'ordre par défaut (TCK-1407), et n'est plus casté.
+        $tri = $request->query('sort');
+        [$colonne, $sens] = (is_string($tri) ? self::TRIS[$tri] ?? null : null) ?? ['period_start', 'desc'];
 
         $payments = $lease->payments()
             ->orderBy($colonne, $sens)
