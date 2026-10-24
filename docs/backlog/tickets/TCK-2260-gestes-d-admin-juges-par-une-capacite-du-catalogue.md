@@ -74,6 +74,10 @@ le tableau de bord du bailleur n'avaient pas cette passe, et ne l'ont pas
 - [x] Front : libellé `admin.roles.capabilities.payments.reconcile` (fr, en ; wo = texte français).
       `PAGES_ADMIN` : le rapprochement exige `payments.reconcile`, le journal `reports.view_agency`.
       Le lien « Rapprochement » de `/app/agency/finances` suit la table.
+- [x] Vue bailleur : `vueBailleurOuverte` (`lib/access/tableau-du-bailleur.ts`), lue par le layout
+      de `/app/overview/owner` et par l'aiguillage de `/app/overview`. Elle s'ouvre au bailleur et à
+      l'admin qui détient `reports.view_agency`. Sinon, l'admin va à la première page qu'il peut
+      ouvrir ; si ses capacités sont illisibles, le layout renvoie à `/verification-indisponible`.
 - [x] `scripts/check-notification-target-audience.mjs` : `EXIGENCES.audit` suit la page, destinataires relus.
 - [x] Specs : `features.md` (§ 1.5, 2.5, 2.6) et le catalogue de `models-spec.md`.
       ADR-0003 amendé.
@@ -98,9 +102,6 @@ le tableau de bord du bailleur n'avaient pas cette passe, et ne l'ont pas
 
 ## Hors périmètre
 
-- Le layout de `/app/overview/owner` ouvre la page à tout admin. Un admin sans
-  `reports.view_agency` qui n'est pas bailleur y lit l'état d'erreur de chargement de la page. Il
-  n'y a aucune redirection, et ce layout ne lit aucune capacité.
 - Les alertes de gouvernance (`GovernanceAlertService`, cible `audit`) partent toujours à tous les
   admins actifs : une alerte de sécurité ne se retire pas par l'éditeur de rôles. L'admin dont le
   rôle retire `reports.view_agency` reçoit l'avis, et son lien le renvoie à la première page qu'il
@@ -119,7 +120,8 @@ le tableau de bord du bailleur n'avaient pas cette passe, et ne l'ont pas
   - sans le filtre `is_system` → `down()` rouge ;
   - sans le filtre `base_profile_type` → les deux rouges ;
   - `pages-admin.ts` → 3 rouges ;
-  - page des finances, avant correctif → 2 rouges.
+  - page des finances, avant correctif → 2 rouges ;
+  - layout de la vue bailleur → 3 rouges, aiguillage de `/app/overview` → 1 rouge.
 
   Tout est vert une fois remis.
 - `MembershipCapabilityResolverTest` épingle la largeur d'`agency_admin`, qui passe de 45/47 à

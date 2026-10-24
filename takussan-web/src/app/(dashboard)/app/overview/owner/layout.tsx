@@ -1,6 +1,8 @@
 import { redirect } from 'next/navigation';
 
 import { getMeAction } from '@/app/actions/auth';
+import { ROUTE_VERIF_INDISPONIBLE } from '@/lib/access/server-guards';
+import { repliDeLaVueBailleur, vueBailleurOuverte } from '@/lib/access/tableau-du-bailleur';
 import { isAdmin, isOwner } from '@/lib/roles';
 
 /**
@@ -39,5 +41,10 @@ import { isAdmin, isOwner } from '@/lib/roles';
 export default async function Layout({ children }: { children: React.ReactNode }) {
   const user = await getMeAction();
   if (!isOwner(user.roles) && !isAdmin(user.roles)) redirect('/app/overview');
+  // TCK-2260 (P116.07) — l'admin n'y entre que par `reports.view_agency`, comme l'API : sans elle, il
+  // va à la première page qu'il peut ouvrir, au lieu de l'état d'erreur de la vue.
+  const ouverte = await vueBailleurOuverte(user);
+  if (ouverte === null) redirect(ROUTE_VERIF_INDISPONIBLE);
+  if (!ouverte) redirect(await repliDeLaVueBailleur(user));
   return <>{children}</>;
 }
