@@ -20643,7 +20643,7 @@ sans `delete`).*
 
 ### `invitations:expire` repasse en `expired` une invitation relancée pendant son passage : le lien neuf rend 410, l'invitant est prévenu d'une expiration
 - Réf : P229.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-2223
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Invitation/InvitationService.php:519-552,426-480`, `takussan-api/app/Console/Commands/ExpireInvitations.php`, `takussan-api/routes/console.php:121`
 - Constat :
@@ -20654,10 +20654,11 @@ sans `delete`).*
   - Établi comment : lu et mesuré.
 - Piste : écrire l'expiration par une réclamation conditionnelle (`where('status', sent)->where('expires_at', '<=', $now)->whereKey($id)->update(…)`), ou relire la ligne sous verrou et rejuger statut et échéance ; n'écrire le journal et n'envoyer l'avis que si la ligne a été prise. Corriger le commentaire de `resend`. Garde : relance jouée après la lecture de la tâche → invitation `sent`, échéance neuve, aucun avis d'expiration.
 - Mesure (2026-10-24, c2629a2af, mesureur) : relu `InvitationService.php:519-552` (`expire()` : `get()` puis `forceFill(['status' => expired])->save()` sur le modèle chargé, avis à l'invitant, aucune relecture) et `:439-442` (le commentaire de `resend` dit que son verrou ferme la course avec le cron, qui n'en prend aucun) ; aucun commit sur ce fichier depuis 94407183e, aucun ticket ni PR ouverte ne cite P229 ; Test temporaire `tests/Feature/TmpMesureur/TmpSonde229Test.php` (retiré), `XDEBUG_MODE=off php artisan test <fichier>`, PostgreSQL de test, charge 2,85 / 2,61 / 2,67 sur 8 cœurs, geste concurrent joué une fois dans un écouteur `retrieved` : `resend()` réel pendant `expire()` → `status = expired`, `expires_at` à J+7, 1 `InvitationExpiredNotification`. Le constat tient. Classement : A1, le contrat est déjà écrit (le commentaire de `resend`, le docblock « already-expired rows are skipped ») : expiration par réclamation conditionnelle (`whereKey()->where('status', sent)->where('expires_at', '<=', $now)->update(…)`), journal et avis seulement si la ligne est prise, commentaire de `resend` corrigé, sans choix de produit.
+- Mesure (2026-10-24, fc8c717f8, implementeur) : test `tests/Feature/Invitation/ExpirationFaceAuGesteConcurrentTest.php`, `resend()` réel joué dans l'écouteur `retrieved` après la lecture d'`expire()` → avant correctif `status = expired` et un avis d'expiration (rouge) ; `expire()` relit chaque ligne sous verrou en rejouant la sélection, journal et avis pour la seule ligne prise, commentaire de `resend` corrigé → `sent`, échéance future, aucun avis ni journal, rien de rendu (vert) ; ablation (service remis) → rouge.
 
 ### La même expiration écrase une révocation ou une acceptation faite pendant son passage
 - Réf : P229.02
-- Statut : retenu · autonome
+- Statut : fait · TCK-2223
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Invitation/InvitationService.php:338-363,519-552,786-800`
 - Constat :
@@ -20667,6 +20668,7 @@ sans `delete`).*
   - Établi comment : lu et mesuré.
 - Piste : la réclamation conditionnelle de P229.01 couvre les deux premiers cas ; `revoke` relit sous verrou et rejuge `accepted` / `revoked`, comme `resend`. Garde : révocation puis expiration sur la copie de la tâche → `revoked`, aucun avis.
 - Mesure (2026-10-24, c2629a2af, mesureur) : relu `InvitationService.php:338-363` (`revoke()` juge `accepted`/`revoked` sur le modèle lié, écrit sans verrou) ; Test temporaire `tests/Feature/TmpMesureur/TmpSonde229Test.php` (retiré), `XDEBUG_MODE=off php artisan test <fichier>`, PostgreSQL de test, charge 2,85 / 2,61 / 2,67 sur 8 cœurs, geste concurrent joué une fois dans un écouteur `retrieved` : `revoke()` réel pendant `expire()` → `status = expired`, `revoked_at` posé, 1 avis d'expiration ; acceptation écrite en base pendant `expire()` → `status = expired`, `accepted_at` posé ; et le cas « à vérifier » joué : `revoke()` sur un modèle resté `sent` après une acceptation en base → aucune exception, `status = revoked`, `accepted_at` posé. Les trois cas tiennent ; les avis doubles de l'acceptation et l'état du profil n'ont pas été joués. Classement : A1, `revoke` refuse déjà une invitation acceptée par 422 `invitations.errors.already_accepted` : relire sous verrou et rejuger ce même refus, comme `resend` ; les deux premiers cas tombent avec la réclamation de P229.01.
+- Mesure (2026-10-24, fc8c717f8, implementeur) : même test, `revoke()` réel puis acceptation en base joués après la lecture d'`expire()` → avant correctif `expired` dans les deux cas (2 rouges) ; `revoke()` sur un modèle resté `sent` après une acceptation en base → `revoked` (rouge) ; `revoke()` relit sous verrou et rejuge `revoked`/`accepted` → `revoked`, `accepted`, 422 sans journal (3 verts) ; ablation (service remis) → 3 rouges, le témoin sans geste concurrent restant vert.
 
 ### L'escalade d'une intervention urgente part pour une demande déjà annulée ou remise en priorité normale, et réécrit ses `metadata` d'avant
 - Réf : P229.03
