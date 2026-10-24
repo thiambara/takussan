@@ -96,6 +96,7 @@ final class OwnerStatementService
                 'paid_in_period' => in_array($p->id, $paidIds, true),
             ])->values()->all(),
             'unpaid' => $this->unpaid($agency, $landlord, $start, $end),
+            'late_fees_outstanding' => $this->lateFeesOutstanding($agency, $landlord, $start, $end),
         ];
     }
 
@@ -200,6 +201,29 @@ final class OwnerStatementService
         return array_values(array_map(fn (array $r): array => $r + [
             'net' => $r['collected'] - $r['commission'] - $r['fees'],
         ], $rows));
+    }
+
+    /**
+     * P206.03 (ADR-0057, amendement du 2026-10-24, point 3) — les pénalités à recouvrer des échéances
+     * de la période, à part de l'impayé, qui ne les compte pas. Mêmes baux et mêmes types que
+     * {@see self::unpaid()}.
+     *
+     * @return array{count: int, amount: float}
+     */
+    private function lateFeesOutstanding(Agency $agency, User $landlord, CarbonImmutable $start, CarbonImmutable $end): array
+    {
+        $row = CollectedPayments::lateFeesOutstanding()
+            ->join('leases', 'leases.id', '=', 'lease_payments.lease_id')
+            ->whereNull('leases.deleted_at')
+            ->where('leases.agency_id', $agency->id)
+            ->where('leases.landlord_id', $landlord->id)
+            ->whereIn('lease_payments.payment_type', array_map(fn (LeasePaymentType $t) => $t->value, PayoutCalculator::LEASE_TYPES))
+            ->whereBetween('lease_payments.due_date', [$start->toDateString(), $end->toDateString()])
+            ->toBase()
+            ->selectRaw('COUNT(*) AS n, COALESCE(SUM('.CollectedPayments::LATE_FEE_OUTSTANDING_SQL.'), 0) AS total')
+            ->first();
+
+        return ['count' => (int) ($row->n ?? 0), 'amount' => round((float) ($row->total ?? 0), 2)];
     }
 
     /**

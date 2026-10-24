@@ -25,6 +25,7 @@ return [
         'paid_out' => 'Li ñu delloo',
         'unpaid' => 'Li ñu feyul ci période bi',
         'unpaid_as_of' => 'au :date',
+        'late_fees_outstanding' => 'Pénalités de retard à recouvrer',
         'payouts' => 'Reversements',
         // P177.03 (TCK-2041) — le versé du relevé se lit au mois (ou à l'année) de son versement.
         'paid_this_month' => 'Versé ce mois',

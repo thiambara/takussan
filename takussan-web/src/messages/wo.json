@@ -1938,6 +1938,7 @@
       "fees": "Liggéey yi",
       "net": "Net",
       "paidOut": "Li ñu fey ba noppi",
+      "lateFeesOutstanding": "Pénalités à recouvrer",
       "downloadPdf": "Yebbi PDF bi",
       "downloadCsv": "Yebbi CSV bi",
       "downloadFailed": "Yebbi relevé bi antuwul.",
@@ -8914,6 +8915,7 @@
       "activeLeases": "Kontaraa yuy dox",
       "nextRent": "Luwaas bi ci topp",
       "overdue": "Yu ñu feyul",
+      "lateFeesOutstanding": "Pénalités de retard à recouvrer",
       "pendingBookings": "Réservasioŋ yuy xaar",
       "upcoming30d": "Bes yi ci 30 fan yu ñëw",
       "noUpcoming": "Amul bes bu ñu tëral.",
@@ -9409,6 +9411,7 @@
       "occupancyRate": "Peggu dalal",
       "revenueMonth": "Njariñu weer wi",
       "overdue": "Yu ñu feyul",
+      "lateFeesHint": "Pénalités à recouvrer : {amount}",
       "unpaidRate": "Peggu pey yu ñu feyul",
       "rentedHint": "{count} kër la ñu luwaa",
       "commissionHint": "Komisioŋ : {amount}"

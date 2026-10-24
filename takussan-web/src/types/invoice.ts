@@ -227,6 +227,8 @@ export type OwnerStatement = {
   period_end: string;
   currency: string;
   totals: { gross: number; commission: number; fees: number; net: number; paid_out: number };
+  /** P206.03 (ADR-0057, amendement du 2026-10-24) — pénalités des échéances de la période non réglées. */
+  late_fees_outstanding?: { count: number; amount: number };
   payouts: Array<{
     id: number;
     reference_number: string | null;
