@@ -182,6 +182,20 @@ final class PayoutClawbacks
         }
     }
 
+    /**
+     * TCK-2153 (P205.02) — le reversement au bailleur `completed` qui porte un acompte, s'il en est
+     * un : son remboursement créera une reprise. Lu par `BookingPaymentResource` et la tâche
+     * « remboursement à traiter ».
+     */
+    public function paidOutPayout(int $bookingPaymentId): ?Payout
+    {
+        return Payout::query()
+            ->whereIn('id', fn ($q) => $q->select('payout_id')->from('payout_booking_payment')->where('booking_payment_id', $bookingPaymentId))
+            ->where('status', PayoutStatus::Completed->value)
+            ->where('payee_role', PayeeRole::Landlord->value)
+            ->first();
+    }
+
     /** Un reversement `cancelled` ou `failed` rend ses reprises (point 2.7). */
     public function release(Payout $payout): void
     {
