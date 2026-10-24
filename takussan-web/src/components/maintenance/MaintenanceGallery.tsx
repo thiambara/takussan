@@ -75,8 +75,9 @@ function MediaThumb({ item }: { readonly item: MaintenanceMediaItem }) {
       className="block aspect-square overflow-hidden rounded-lg border border-border bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       {isImage ? (
+        // TCK-2088 — la vignette signée dans la tuile, l'original au clic (le lien).
         // eslint-disable-next-line @next/next/no-img-element -- URL d'API signée et éphémère : rien à optimiser.
-        <img src={item.url} alt={item.name} className="size-full object-cover" loading="lazy" />
+        <img src={item.thumbnail_url ?? item.url} alt={item.name} className="size-full object-cover" loading="lazy" />
       ) : (
         <span className="flex size-full flex-col items-center justify-center gap-1 p-2 text-center text-xs text-muted-foreground">
           <FileText className="size-5" aria-hidden="true" />

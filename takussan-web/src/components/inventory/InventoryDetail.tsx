@@ -218,14 +218,22 @@ function RoomCard({
         <ul className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-6" aria-label={t('roomPhotos', { room: room.name })}>
           {sent.map((photo, i) => (
             <li key={photo.id} className="relative overflow-hidden rounded-lg bg-muted outline outline-1 -outline-offset-1 outline-border">
-              {/* URL d'API signée, servie par Laravel : ni `next/image` ni son optimiseur n'y ont accès. */}
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={photo.url}
-                alt={t('roomPhotoAlt', { index: i + 1, room: room.name })}
-                className="aspect-square w-full object-cover"
-                loading="lazy"
-              />
+              {/* TCK-2088 — la `preview` signée dans la tuile, l'original au clic. */}
+              <a
+                href={photo.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                {/* URL d'API signée, servie par Laravel : ni `next/image` ni son optimiseur n'y ont accès. */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={photo.preview_url ?? photo.url}
+                  alt={t('roomPhotoAlt', { index: i + 1, room: room.name })}
+                  className="aspect-square w-full object-cover"
+                  loading="lazy"
+                />
+              </a>
               {canUpload ? (
                 <button
                   type="button"

@@ -71,6 +71,11 @@ export interface InventoryLeaseLite {
 export interface InventoryRoomPhoto {
   readonly id: number;
   readonly url: string;
+  /**
+   * TCK-2088 — URL signée de la `preview` (600 px) que la grille affiche ; l'original tant que la
+   * file ne l'a pas produite. Absente d'une réponse antérieure : la grille retombe sur `url`.
+   */
+  readonly preview_url?: string;
   readonly room_name: string;
 }
 

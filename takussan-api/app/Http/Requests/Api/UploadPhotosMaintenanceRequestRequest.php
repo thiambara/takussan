@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Api;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Rules\PixelsAuPlus;
 use Illuminate\Validation\Rule;
 
 /**
@@ -47,7 +48,9 @@ class UploadPhotosMaintenanceRequestRequest extends BaseFormRequest
     {
         return [
             'photos' => ['required', 'array', 'min:1'],
-            'photos.*' => ['required', 'file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:10240'],
+            // TCK-2088 (P180.02) — la vignette fait décoder la photo par GD : la borne de 20 Mpx
+            // des autres collections décodées (ADR-0029, amendement du 2026-10-23).
+            'photos.*' => ['required', 'file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:10240', new PixelsAuPlus],
             'collection' => ['nullable', 'string', Rule::in(['photos', 'completion_photos', 'before_photos'])],
         ];
     }
