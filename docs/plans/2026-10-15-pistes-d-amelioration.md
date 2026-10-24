@@ -287,7 +287,7 @@ voie d'écriture (angle 13, puis 47).
 | 210 | Gestionnaires `async` du front qui attendent `mutateAsync()` sans `try`/`catch` et sont passés tels quels à `onClick` ou par `void handleSubmit()` (`BookingDecisionDialog`, `VisitDetail` et leurs pareils sous `src/components/**`, hors gestes de transition) : erreur de l'API rendue en promesse rejetée non rattrapée, sans message à l'écran ni fermeture du dialogue — le relevé de P182.01 sur le reste des écrans | fait |
 | 211 | Gestes d'écriture qui jugent le statut sur le modèle lié à la route, hors transaction ou sans verrou, alors que leurs voisins verrouillent et relisent la ligne (`PlatformPayoutService::cancel`, `PropertyVisitController::cancel`, `MaintenanceRequestService::accept`, et leurs pareils sous `app/Services` et `app/Http/Controllers/Api`) : transition concurrente écrasée, effet ou avis émis deux fois — né de P182.05 et P182.06 | fait |
 | 212 | Dates calendaires `Y-m-d` de l'API lues par `new Date(…)` au navigateur puis comparées à l'instant ou ramenées à minuit local (`setHours(0, 0, 0, 0)`, `getDate()` : `EarlyTerminationBanner.daysFromTodayTo`, `LeaseRenewalDialog.tsx:44`, `refine` de `lib/schemas/lease.ts:81` et `booking.ts:42`, et leurs pareilles sous `src/components`) au lieu de la comparaison littérale de jours qu'ADR-0018 pose : jour décalé pour un navigateur hors UTC, ou dès minuit UTC du jour même — né de P183.01 et P183.04 | fait |
-| 213 | Contrôleurs et services qui écrivent (`fill()->save()`, `update()`, `recordOwnerCost`) puis appellent une garde ou un service qui peut encore lever un 4xx, hors `DB::transaction` (`MaintenanceRequestController::update` l. 211-219 et ses pareils sous `app/Http/Controllers/Api` et `app/Services`) : réponse d'erreur sur une écriture déjà faite, que l'écran présente comme un échec — né de P184.02 | à faire |
+| 213 | Contrôleurs et services qui écrivent (`fill()->save()`, `update()`, `recordOwnerCost`) puis appellent une garde ou un service qui peut encore lever un 4xx, hors `DB::transaction` (`MaintenanceRequestController::update` l. 211-219 et ses pareils sous `app/Http/Controllers/Api` et `app/Services`) : réponse d'erreur sur une écriture déjà faite, que l'écran présente comme un échec — né de P184.02 | fait |
 | 214 | Formulaires d'édition qui renvoient en entier une colonne JSON qu'ils ne montrent qu'en partie (`saved_searches.criteria` de `SearchPreferencesForm`, `announcements.segment`, `integrations.metadata`, `available_slots`, `limits` des plans), face à un `fill()` qui remplace la colonne : clés posées par un autre écran ou une autre version effacées par un simple enregistrement — né de P185.01 | à faire |
 | 215 | Identifiants numériques de route hors de `bigint` sur les routes connectées : liaisons implicites `{model}` et paramètres `whereNumber()` (30 sous `routes/`) ou actions typées `int $id`, face à vingt chiffres dans l'URL — 500 `22003` ou `TypeError` au lieu d'un 404 — le relevé de P187.05 hors des routes publiques | à faire |
 | 216 | Paramètres hors `filter[…]` castés `(string)` ou passés à un argument typé `string` dans les listes et lectures écrites à la main (`(string) $request->input('include')` des trois tableaux de bord, `(string) $request->query('sort')` de `ReviewController` et `UserDetailController`, `$request->query('q')` de `PaymentSearchController`, et leurs pareils sous `app/Http/Controllers`) : une liste `x[]=` rend 500 « Array to string conversion » ou `TypeError` au lieu d'un 422 ou d'un défaut — né de P188.06 et P188.07 | à faire |
@@ -19440,3 +19440,51 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
   - Établi comment : lu, et mesuré pour le premier point.
 - Piste : une fonction partagée (« jour de l'API », UTC) pour tout `min`, `max` ou défaut jugé par une règle `today`, et un `min` sur l'échéance du devis. Garde : une règle de lint ou une garde qui refuse `getDate()`/`setDate()` sur une valeur passée ensuite à `toISOString()`.
 - Mesure (2026-10-24, ccb5c7995, mesureur) : relu `EarlyTerminationDialog.tsx:34-38` (`todayPlusDays` : `setDate` local, relu par `toISOString()`), `EarlyTerminationService.php:72-82` (`notice_too_short` sous `now()->startOfDay()->addDays($notice)`), `QuoteSubmitForm.tsx:248` (`DatePicker` sans `min`) et `SubmitQuoteRequest.php:38` (`after_or_equal:today`) ; `node` → `todayPlusDays(30)` depuis 2026-02-28T00:00Z rend 2026-03-29 sous `Europe/Paris` et `America/New_York`, 2026-03-30 sous Dakar et UTC ; `tinker` → la veille est refusée par `after_or_equal:today` → les deux premiers points tiennent ; le compte des six écritures d'« aujourd'hui » n'a pas été recompté. Classement : A1 et A5, les bornes sont écrites par l'API ; le correctif fait calculer `todayPlusDays` sur le jour UTC, pose `min` = jour UTC sur l'échéance du devis, et peut ajouter une garde, sans texte neuf.
+
+## Angle 213 — Écritures faites avant un refus 4xx, hors de la transaction qui porte le refus
+
+*Exploré le 2026-10-24 sur `pre-dev` a87b21700, par l'explorateur. L'exemple de l'intitulé (`MaintenanceRequestController::update`) est fait (P184.02 → TCK-2010). Relu par l'explorateur lui-même : trois balayages heuristiques de `app/` (méthode sans `DB::transaction` qui écrit puis appelle `abort_code*`, `ApiError`, `ValidationException` ou une méthode qui en lève), puis `MaintenanceRequestController::store`, `MaintenanceQuoteWorkflow::approveQuote`, `AgencyMemberRoleController::set*`, `AgencyRoleService::assign`, `AgencyController::update`, `PayoutApprovalThreshold::confirm`, `BookingPaymentController::store`, les `update` de `Guarantor`, `Task`, `PropertyVisit`, `Customer` et `Integration` (tous écartés : refus jugés avant l'écriture, écriture sous transaction, ou ordre voulu et commenté), et les trois premiers cas ci-dessous. Un sous-agent en lecture seule a balayé `app/Services` et `app/Http/Controllers/Api` ; ses cas 4 et 5 (OAuth) ne sont pas relus ici et restent « à vérifier ». Rien n'a été exécuté : aucun test temporaire, faute de budget du passage ; chaque constat est lu, jamais mesuré.*
+
+### Rattacher un nouveau garant à un bail qui en a déjà trois crée la fiche du garant, puis répond 422
+- Réf : P213.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Http/Controllers/Api/LeaseController.php:184-199,212-227`
+- Constat :
+  - Sans `guarantor_id`, `attachGuarantor` crée la fiche par `Guarantor::create([...])` (l. 184-199), **avant** et **hors** de la `DB::transaction` (l. 212) dans laquelle se juge le plafond `abort_code_if($pivotRows->count() >= 3, 422, 'lease.max_guarantors')` (l. 223-227) (lu). Le rollback de la transaction n'annule pas la création.
+  - Sur un bail à trois garants, la réponse est 422 et une fiche `guarantors` (nom, téléphone, pièce d'identité, revenus, `agency_id` du bail) reste en base, rattachée à aucun bail : la création est validée avant l’ouverture de la transaction, rien ne la défait (lu ; non exécuté). Chaque nouvel essai en ajoute une.
+  - Établi comment : lu.
+- Piste : juger le plafond (et l'existence) dans la même transaction que la création, en déplaçant `Guarantor::create` dans la closure, après les deux `abort_code_if`. Garde : un test qui poste un garant neuf sur un bail à trois garants et attend 422 **et** un compte de `guarantors` inchangé.
+
+### Renvoyer le code avec un numéro neuf l'enregistre (et défait la vérification de l'ancien), puis répond 429 sur le délai de renvoi ou le quota
+- Réf : P213.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Controllers/Api/Auth/PhoneVerificationController.php:55-98`
+- Constat :
+  - `resend` écrit `phone` = le nouveau numéro et `phone_verified_at = null` (l. 74-77), puis prévient du remplacement d'un numéro vérifié (`notifyReplaced`, l. 78-80), **avant** `refuseWhileCoolingDown` (l. 93) et `quota->ensureAvailable` (l. 98), qui refusent en 429 (lu). Le commentaire l. 50-54 assume d'écrire le numéro avant l'envoi, pas avant un refus.
+  - Un compte dont le dernier code date de moins de 60 s, ou dont le nouveau numéro a épuisé son quota, perd donc son numéro vérifié et reçoit l'avis « numéro changé » sur une réponse d'échec, sans code envoyé (le délai compté par compte, `PhoneVerificationService.php:456-459`, vient du sous-agent : à vérifier).
+  - Établi comment : lu pour l'ordre ; non exécuté.
+- Piste : juger le délai de renvoi et le quota sur le numéro entrant avant toute écriture (ou envelopper l'écriture et les gardes dans une transaction, avis après le commit). Garde : renvoi avec un numéro neuf dans la fenêtre de 60 s → 429 et `phone`, `phone_verified_at` inchangés, aucun avis.
+
+### Une réservation refusée en 422 (période, dates, chevauchement) laisse la fiche client créée ou rattachée pour le demandeur
+- Réf : P213.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Model/BookingService.php:98-124`, `takussan-api/app/Http/Controllers/Public/PublicPropertyController.php:972,1010`
+- Constat :
+  - Hors personnel et sans `customer_id`, `create` appelle `findOrCreateFromUser($user)` (l. 102), qui écrit la fiche client, avant `pricedAmounts` (l. 114, refus de `BookingQuote`) et `assertAvailable` (l. 122, `booking.dates_overlap` / `booking.dates_unavailable`), seul ce dernier étant dans la transaction (lu). Une demande refusée laisse donc une fiche `customers` neuve (ou un rattachement d'une fiche existante) dans l'agence du bien.
+  - Le tunnel public a la même forme pour le chevauchement (l. 972 puis l. 1010 ; numéros du sous-agent, non relus : à vérifier).
+  - Lien : l'angle 158 traite les fiches créées hors de `CustomerController::store` face aux doublons ; ce constat y ajoute la fiche créée pour une demande refusée.
+  - Établi comment : lu pour `BookingService` ; non exécuté.
+- Piste : résoudre le client après les gardes, dans la transaction de création (`findOrCreateFromUser` après `pricedAmounts` et dans la closure, après `assertAvailable`). Garde : un client sans fiche qui demande des nuits déjà confirmées → 422 et aucune fiche `customers` créée.
+
+### Petites améliorations — l'ouverture d'une session OAuth écrit avant ses derniers refus
+- Réf : P213.04
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Services/Auth/OAuthSessionOpener.php:40-41,80-96`, `takussan-api/app/Http/Controllers/Api/Auth/AbstractOAuthController.php:103-134`, `takussan-api/app/Services/Auth/TwoFactorService.php:153-156`
+- Constat (rapport du sous-agent, non relu par l'explorateur : à vérifier en entier) :
+  - `complete` consomme un code de secours (`verifyRecoveryCode`, écriture en base) avant de refuser en 422 `oauth_challenge_invalid` (défi déjà tiré du cache, double soumission) ou en 403 `account_blocked` : le code est brûlé sur une session refusée.
+  - `callback` écrit le nom venu du fournisseur (`maybeUpdateName`) avant `open()`, qui refuse en 403 un compte bloqué.
+- Piste : juger le défi et le blocage avant de consommer le code ou d'écrire le nom. Garde : défi rejoué avec un code de secours → refus et code toujours valable.
