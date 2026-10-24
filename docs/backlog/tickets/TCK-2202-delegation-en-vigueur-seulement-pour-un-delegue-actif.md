@@ -1,7 +1,7 @@
 ---
 id: TCK-2202
 title: "Une délégation ne confère rien à un délégué sans profil actif dans l'agence"
-status: doing
+status: done
 phase: P2
 family: bug
 estimate: M
