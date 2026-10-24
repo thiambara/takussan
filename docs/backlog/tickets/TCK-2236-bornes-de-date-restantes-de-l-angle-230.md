@@ -36,7 +36,8 @@ règle de l'API — `BoostStatsRequest`, `StorePropertyVisitRequest`, `UpdatePro
 - [x] Offre d'achat : `minExpiry` = `decalerJour(jourDeLApi(), 1)` au lieu de `setDate()` local
       relu par `toISOString()`.
 - [x] Délégations : `dateMax` = `decalerJour(jourDeLApi(), 366)`, même correction.
-- [x] Tests : un fichier `…p230-05.test.tsx` par écran (cinq).
+- [x] Tests : un fichier `…p230-05.test.tsx` par écran (cinq), et `heureMuraleADakar` dans
+      `heure-de-dakar.test.ts`.
 
 ## Critères d'acceptation
 
@@ -58,6 +59,9 @@ règle de l'API — `BoostStatsRequest`, `StorePropertyVisitRequest`, `UpdatePro
 - Le formulaire de replanification et celui de « Planifier une visite » sont en `noValidate` :
   leur `min` guide le sélecteur, sans bloquer l'envoi ; les tests existants qui saisissent des
   dates passées (`VisitDetail.test.tsx`, 2026-06-01) restent verts.
+- L'heure de Dakar de la replanification passe par `heureMuraleADakar` (`heure-de-dakar.ts`,
+  qui réutilise le décalage lu par `Intl`) : un `Intl.DateTimeFormat` de plus dans l'écran faisait
+  monter le cliquet de `check-locale-figee.mjs`.
 - `jourIso` de `CreateDelegationDialog` n'avait plus d'appelant : retiré.
 - Ablation : les cinq fichiers de production rendus à `pre-dev` → 5/5 tests neufs rouges (dont
   `max="2027-03-10"` et `min="2026-03-29"`, les deux décalages mesurés par l'explorateur) ; remis →

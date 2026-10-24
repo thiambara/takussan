@@ -15,7 +15,7 @@ import {
   useVisit,
 } from '@/lib/queries/visits';
 import { nomAffichable } from '@/lib/identite';
-import { FUSEAU_DES_VISITES, instantADakar } from '@/lib/visites/heure-de-dakar';
+import { heureMuraleADakar, instantADakar } from '@/lib/visites/heure-de-dakar';
 import { smsRetenu } from '@/lib/visites/sort-du-sms';
 import { JOURS_DE_VISITE_OUVERTS, useCreneaux } from '@/lib/visites/useCreneaux';
 import { decalerJour, jourDeLApi } from '@/lib/jour-de-l-api';
@@ -522,19 +522,7 @@ function VisitActionForm({
   const [value, setValue] = useState(kind === 'reschedule' ? defaultSlot : '');
   // P230.05 — `scheduled_at` `after:now` : le champ se lit à Dakar, son `min` est donc l'instant
   // présent à Dakar (`AAAA-MM-JJTHH:MM`), et non dans le fuseau du navigateur.
-  const [maintenantADakar] = useState(() =>
-    new Intl.DateTimeFormat('sv-SE', {
-      timeZone: FUSEAU_DES_VISITES,
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      hourCycle: 'h23',
-    })
-      .format(new Date())
-      .replace(' ', 'T'),
-  );
+  const [maintenantADakar] = useState(() => heureMuraleADakar());
   const [touched, setTouched] = useState(false);
   // P182.01 — l'erreur de l'API se dit dans le dialogue, qui reste ouvert (ADR-0019).
   const [erreurApi, setErreurApi] = useState<string | null>(null);
