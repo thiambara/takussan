@@ -207,7 +207,8 @@ export function DocumentsLibrary() {
                   <h2 className="font-display text-sm font-semibold text-foreground">
                     {tTypes(category)}
                   </h2>
-                  <Badge variant="secondary">{docs.length}</Badge>
+                  {/* P199.03 (TCK-2165) — le compte du type sur toute la liste, pas sur la page. */}
+                  <Badge variant="secondary">{data?.meta.counts?.[category] ?? docs.length}</Badge>
                 </header>
                 <ul className="space-y-2">
                   {docs.map((doc) => (

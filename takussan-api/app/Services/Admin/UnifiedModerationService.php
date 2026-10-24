@@ -17,6 +17,7 @@ use App\Services\Review\ReviewModerationService;
 use Illuminate\Database\DeadlockException;
 use Illuminate\Database\DetectsConcurrencyErrors;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -55,19 +56,7 @@ class UnifiedModerationService
      */
     public function paginate(array $filters = [], string $sort = '-reported_at', int $perPage = 20): LengthAwarePaginator
     {
-        $query = DB::query()->fromSub($this->unionQuery(), 'moderation_items');
-
-        if ($type = $filters['type'] ?? null) {
-            $query->where('type', $type);
-        }
-
-        if ($status = $filters['status'] ?? null) {
-            $query->where('status', $status);
-        }
-
-        if ($agencyId = $filters['agency_id'] ?? null) {
-            $query->where('agency_id', (int) $agencyId);
-        }
+        $query = $this->filteredQuery($filters);
 
         $direction = str_starts_with($sort, '-') ? 'desc' : 'asc';
         $column = ltrim($sort, '-');
@@ -85,6 +74,52 @@ class UnifiedModerationService
         $paginator->setCollection($this->hydrateItems($paginator->getCollection()));
 
         return $paginator;
+    }
+
+    /**
+     * P199.02 (TCK-2165) — le compte par type de TOUTE la file, sous le même filtre que la liste :
+     * les tuiles « Biens » et « Avis » comptaient les lignes de la page. Chaque type est présent,
+     * à zéro s'il n'a aucun élément.
+     *
+     * @param  array<string,mixed>  $filters
+     * @return array{property:int,review:int}
+     */
+    public function countsByType(array $filters = []): array
+    {
+        $counts = $this->filteredQuery($filters)
+            ->select('type')
+            ->selectRaw('COUNT(*) as aggregate')
+            ->groupBy('type')
+            ->pluck('aggregate', 'type');
+
+        return [
+            'property' => (int) ($counts['property'] ?? 0),
+            'review' => (int) ($counts['review'] ?? 0),
+        ];
+    }
+
+    /**
+     * La file unifiée, filtrée par type, statut et agence : la liste et ses comptes la lisent.
+     *
+     * @param  array<string,mixed>  $filters
+     */
+    private function filteredQuery(array $filters): Builder
+    {
+        $query = DB::query()->fromSub($this->unionQuery(), 'moderation_items');
+
+        if ($type = $filters['type'] ?? null) {
+            $query->where('type', $type);
+        }
+
+        if ($status = $filters['status'] ?? null) {
+            $query->where('status', $status);
+        }
+
+        if ($agencyId = $filters['agency_id'] ?? null) {
+            $query->where('agency_id', (int) $agencyId);
+        }
+
+        return $query;
     }
 
     /**
@@ -375,7 +410,10 @@ class UnifiedModerationService
             ->selectRaw('r.created_at as created_at')
             ->selectRaw('('.self::SUSPICIOUS_REVIEW_SQL.') as suspicious')
             ->whereIn('r.status', [ReviewStatus::Pending->value, ReviewStatus::Reported->value])
-            ->whereNull('r.deleted_at');
+            ->whereNull('r.deleted_at')
+            // P223.03 (TCK-2173) — l'avis d'un bien supprimé quitte la file, comme les trois branches
+            // de biens ; l'avis d'une agence n'a pas de bien joint (`rp` nul) et reste.
+            ->whereNull('rp.deleted_at');
 
         return $properties->unionAll($propertyReports)->unionAll($duplicates)->unionAll($reviews);
     }

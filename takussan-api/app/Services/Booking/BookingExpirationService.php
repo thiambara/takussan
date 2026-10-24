@@ -199,6 +199,8 @@ class BookingExpirationService
                 'expired_at' => now(),
                 'expiry_reason' => $reason,
             ]);
+            // TCK-2152 (P200.01) — un checkout encore ouvert ne soldera plus une réservation close.
+            $booking->cancelPendingPayments();
 
             $this->logExpiration($booking, $reason, $userId);
             $this->sendNotifications($booking);

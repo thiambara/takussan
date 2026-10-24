@@ -890,7 +890,8 @@ class AppServiceProvider extends ServiceProvider
         // appels historiques `$user->can('leases.terminate')` (etc.) résolvent
         // via `MembershipCapabilityResolver`. L'agence cible est dérivée :
         //   1. du second argument de `can()` s'il a un `agency_id`/`agency`,
-        //   2. sinon de `request()->activeProfile()->agency_id`,
+        //   2. sinon de `$user->activeProfile()->agency_id` (P203.04 : jamais le profil
+        //      de la requête quand il est celui d'un autre compte),
         //   3. sinon de `$user->agency_id` (rétrocompat).
         $resolver = app(MembershipCapabilityResolver::class);
         foreach (Capability::cases() as $capability) {
@@ -901,8 +902,11 @@ class AppServiceProvider extends ServiceProvider
                 } elseif (is_object($context) && isset($context->agency_id) && $context->agency_id) {
                     $agency = Agency::query()->find($context->agency_id);
                 }
-                if ($agency === null && app()->bound('request')) {
-                    $profile = request()->activeProfile();
+                if ($agency === null) {
+                    // P203.04 (TCK-2163) — le profil actif de `$user`, pas celui de la requête :
+                    // `activeProfile()` rend `null` quand la requête porte le profil d'un autre
+                    // compte, qui n'est donc jamais jugé dans l'agence de l'appelant.
+                    $profile = $user->activeProfile();
                     if ($profile && isset($profile->agency_id)) {
                         $agency = Agency::query()->find($profile->agency_id);
                     }

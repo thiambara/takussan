@@ -239,6 +239,29 @@ class PaymentSupervisionTest extends TestCase
         );
     }
 
+    /**
+     * P223.03 (TCK-2173) — `bookingBase` écarte une réservation supprimée, comme `leaseBase` un bail
+     * supprimé depuis TCK-2034 : l'échec de paiement d'une réservation supprimée ne paraît pas.
+     */
+    public function test_p223_03_un_echec_d_une_reservation_supprimee_ne_parait_pas(): void
+    {
+        $echec = fn (Booking $booking) => BookingPayment::factory()->create([
+            'booking_id' => $booking->id,
+            'status' => PaymentStatus::Failed,
+            'updated_at' => now()->subDay(),
+        ]);
+        $vivante = Booking::factory()->create();
+        $supprimee = Booking::factory()->create();
+        $garde = $echec($vivante);
+        $echec($supprimee);
+        $supprimee->delete();
+
+        $this->actingAsRole('super_admin');
+        $echecs = $this->getJson('/api/admin/payments?filter[status]=failed')->assertOk()->json('data');
+
+        $this->assertSame([$garde->id], collect($echecs)->pluck('id')->all());
+    }
+
     /** AC10 — un agent ou un admin d'agence : 403 sur les quatre routes. */
     public function test_agency_staff_is_forbidden_on_the_console_routes(): void
     {

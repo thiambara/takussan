@@ -162,8 +162,13 @@ export function MaintenanceList() {
             );
           }
 
-          const urgentRequests = data.data.filter((r) => r.priority === 'urgent');
-          const otherRequests = data.data.filter((r) => r.priority !== 'urgent');
+          // P199.04 (TCK-2167) — le prestataire lit sa liste triée par créneau : une urgence planifiée
+          // tard est sur une autre page. La section des urgences ne se rend que quand la liste tient
+          // sur une page ; sinon chaque urgence reste à sa place, avec son badge. Les autres rôles
+          // reçoivent la liste triée par priorité (`-priority`, côté serveur) : inchangé.
+          const separerUrgences = !isProvider || data.meta.last_page <= 1;
+          const urgentRequests = separerUrgences ? data.data.filter((r) => r.priority === 'urgent') : [];
+          const otherRequests = separerUrgences ? data.data.filter((r) => r.priority !== 'urgent') : data.data;
 
           const renderList = (requests: typeof data.data) => (
             <ul className="space-y-2">

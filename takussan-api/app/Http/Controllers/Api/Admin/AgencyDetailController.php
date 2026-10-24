@@ -101,6 +101,9 @@ class AgencyDetailController extends Controller
         $openComplaints = DB::table('property_reports as pr')
             ->join('properties as p', 'p.id', '=', 'pr.property_id')
             ->where('p.agency_id', $agencyId)
+            // P223.01 (TCK-2171) — la règle de la file de modération, seule voie pour clore un
+            // signalement : celui d'un bien supprimé n'y est pas, il ne compte pas ici non plus.
+            ->whereNull('p.deleted_at')
             ->whereNull('pr.resolved_at')
             ->count();
 
