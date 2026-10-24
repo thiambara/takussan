@@ -7,6 +7,7 @@ use App\Models\AgencyRole;
 use App\Models\Enums\AgentProfileStatus;
 use App\Models\Integration;
 use App\Models\Profiles\AgentProfile;
+use App\Models\Profiles\OwnerProfile;
 use App\Models\RoleDelegation;
 use App\Models\User;
 use App\Support\Security\TwoFactorRequirement;
@@ -87,7 +88,10 @@ class AgencyStaffTwoFactorTest extends TestCase
     {
         $this->agency->forceFill(['settings' => ['require_team_two_factor' => true]])->save();
 
+        // TCK-2202 (ADR-0031, amendement du 2026-10-24, § A) — une délégation n'est en vigueur que si
+        // le délégué garde un profil actif dans l'agence : un bailleur, qui n'y est pas personnel seul.
         $delegue = User::factory()->create();
+        OwnerProfile::query()->create(['user_id' => $delegue->id, 'agency_id' => $this->agency->id]);
         RoleDelegation::factory()->create(['user_id' => $delegue->id, 'agency_id' => $this->agency->id, 'role' => 'agent']);
         $this->assertTrue(TwoFactorRequirement::requiredAtAgency($delegue, $this->agency->id));
 

@@ -130,6 +130,10 @@ class MaintenanceStaffPredicateTest extends TestCase
         ['mr' => $mr, 'agency' => $agency] = $this->maintenanceScenario();
         // Son profil actif est un bailleur d'une AUTRE agence : seule la branche « assigné » le voit.
         $delegate = $this->landlordOf(Agency::factory()->create());
+        // TCK-2202 (ADR-0031, amendement du 2026-10-24, § A) — une délégation n'est en vigueur que si
+        // le délégué garde un profil actif dans l'agence de la délégation, comme l'exige sa création
+        // (`RoleDelegationService::create`, `hasProfileAt`) : un bailleur, qui n'y est pas personnel seul.
+        OwnerProfile::query()->create(['user_id' => $delegate->id, 'agency_id' => $agency->id]);
         RoleDelegation::factory()->forRole('agent')->create([
             'user_id' => $delegate->id,
             'delegator_id' => $this->agentOf($agency)->id,

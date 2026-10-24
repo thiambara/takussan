@@ -36,7 +36,7 @@ final class PayoutApprovers
         $ids = $ids->merge(RoleDelegation::query()
             ->where('agency_id', $agency->id)
             ->whereIn('role', [AgencyRoleBaseType::Agent->value, AgencyRoleBaseType::AgencyAdmin->value])
-            ->active()
+            ->enVigueur()
             ->pluck('user_id'));
 
         return User::query()

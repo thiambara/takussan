@@ -6,6 +6,9 @@ use App\Models\Bases\AbstractModel;
 use App\Models\Bases\Auditable;
 use App\Models\Concerns\HasProfiles;
 use App\Models\Enums\RoleDelegationStatus;
+use App\Models\Profiles\AgencyAdminProfile;
+use App\Models\Profiles\AgentProfile;
+use App\Models\Profiles\OwnerProfile;
 use App\Services\Membership\MembershipCapabilityResolver;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -129,6 +132,30 @@ class RoleDelegation extends AbstractModel
                 $q->whereNull('ends_at')
                     ->orWhere('ends_at', '>', now());
             });
+    }
+
+    /**
+     * TCK-2202 (P218.01 ; ADR-0031, amendement du 2026-10-24, § A) — une délégation EN VIGUEUR :
+     * active ({@see self::scopeActive()}) **et** dont le délégué détient, dans l'agence de la
+     * délégation, un profil d'agence actif (`AgentProfile`, `AgencyAdminProfile` ou `OwnerProfile`,
+     * selon le `scopeActive` de chacun). Un délégué suspendu ou bloqué n'en tire rien ; réactivé,
+     * il la retrouve sans geste de plus.
+     *
+     * La règle s'écrit ICI, une fois : tout site qui confère un droit à partir d'une délégation la
+     * lit. `active()` reste la règle du cycle de vie (liste, activation, expiration, révocation).
+     */
+    public function scopeEnVigueur(Builder $query): Builder
+    {
+        $table = $this->getTable();
+
+        return $query->active()->where(function (Builder $q) use ($table) {
+            foreach ([AgentProfile::class, AgencyAdminProfile::class, OwnerProfile::class] as $classe) {
+                $profils = $classe::query()->active()
+                    ->whereColumn((new $classe)->qualifyColumn('user_id'), "{$table}.user_id")
+                    ->whereColumn((new $classe)->qualifyColumn('agency_id'), "{$table}.agency_id");
+                $q->orWhereExists($profils);
+            }
+        });
     }
 
     public function scopeScheduled(Builder $query): Builder
