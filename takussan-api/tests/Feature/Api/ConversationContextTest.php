@@ -7,9 +7,15 @@ use App\Models\Customer;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Enums\PropertyVisibility;
 use App\Models\Lease;
+use App\Models\Profiles\AgencyAdminProfile;
+use App\Models\Profiles\AgentProfile;
+use App\Models\Profiles\OwnerProfile;
 use App\Models\Property;
 use App\Models\User;
+use App\Services\Agency\AgencyMemberRemovalService;
+use App\Services\Membership\TeamMemberSuspensionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\ApiTestCase;
 
 /**
@@ -337,5 +343,79 @@ class ConversationContextTest extends ApiTestCase
         $this->assertSame(['id', 'reference_number', 'property_id', 'property'], array_keys($ligne));
         $this->assertSame('Espace de bureau à Mbour', $ligne['property']['title']);
         $this->assertSame(['id', 'title', 'reference_number'], array_keys($ligne['property']));
+    }
+
+    // ── L'agent créateur écarté (TCK-2240, P232.04) ───────────────────────────────────────────────
+
+    /**
+     * Un bien d'agence saisi par l'agent (`properties.user_id`, ce que pose `PropertyController::store`)
+     * et son bail (`leases.landlord_id`, ce que recopie `LeaseService::create`), plus un bien et un
+     * bail d'agence dont le bailleur tient un profil propriétaire dans l'agence.
+     *
+     * @return array{agency: Agency, admin: User, agent: User, bien: Property, bail: Lease, proprietaire: User, bienDuProprietaire: Property, bailDuProprietaire: Lease}
+     */
+    private function mondeDuCreateur(): array
+    {
+        $agency = Agency::factory()->create();
+        $admin = User::factory()->create();
+        AgencyAdminProfile::query()->create(['user_id' => $admin->id, 'agency_id' => $agency->id]);
+        $agent = User::factory()->create();
+        AgentProfile::query()->create(['user_id' => $agent->id, 'agency_id' => $agency->id]);
+
+        $bien = $this->bien(['user_id' => $agent->id, 'agency_id' => $agency->id, 'title' => 'Saisi par l agent']);
+        $bail = Lease::factory()->create(['property_id' => $bien->id, 'agency_id' => $agency->id, 'landlord_id' => $agent->id]);
+
+        $proprietaire = User::factory()->create();
+        OwnerProfile::query()->create(['user_id' => $proprietaire->id, 'agency_id' => $agency->id]);
+        $bienDuProprietaire = $this->bien(['user_id' => $proprietaire->id, 'agency_id' => $agency->id, 'title' => 'Au propriétaire']);
+        $bailDuProprietaire = Lease::factory()->create(['property_id' => $bienDuProprietaire->id, 'agency_id' => $agency->id, 'landlord_id' => $proprietaire->id]);
+
+        return compact('agency', 'admin', 'agent', 'bien', 'bail', 'proprietaire', 'bienDuProprietaire', 'bailDuProprietaire');
+    }
+
+    /** @return array<string, array{string}> */
+    public static function ecartements(): array
+    {
+        return ['suspendu' => ['suspendu'], 'retiré' => ['retiré']];
+    }
+
+    #[DataProvider('ecartements')]
+    public function test_l_agent_createur_ecarte_ne_se_voit_plus_proposer_le_bien_ni_le_bail_qu_il_a_saisis(string $ecartement): void
+    {
+        $monde = $this->mondeDuCreateur();
+        $ecartement === 'suspendu'
+            ? app(TeamMemberSuspensionService::class)->suspend($monde['agency'], $monde['agent']->fresh(), $monde['admin'])
+            : app(AgencyMemberRemovalService::class)->remove($monde['agency'], $monde['agent']->fresh(), $monde['admin'], leaveUnassigned: true);
+
+        $agent = $monde['agent']->fresh();
+        $this->assertFalse($agent->can('view', $monde['bien']->fresh()), 'prémisse : la policy refuse le bien');
+        $this->assertFalse($agent->can('view', $monde['bail']->fresh()), 'prémisse : la policy refuse le bail');
+        $this->actingAsApi($agent);
+
+        $this->assertNotContains($monde['bien']->id, $this->ids('/api/conversations/context/properties?per_page=100'), "agent {$ecartement} : bien saisi proposé");
+        $this->assertNotContains($monde['bail']->id, $this->ids('/api/conversations/context/leases?per_page=100'), "agent {$ecartement} : bail saisi proposé");
+    }
+
+    /** Témoins : l'agent actif et le propriétaire de l'agence gardent ce que la policy leur accorde. */
+    public function test_l_agent_actif_et_le_proprietaire_de_l_agence_gardent_leurs_biens_et_baux(): void
+    {
+        $monde = $this->mondeDuCreateur();
+
+        $this->actingAsApi($monde['agent']);
+        $this->assertContains($monde['bien']->id, $this->ids('/api/conversations/context/properties?per_page=100'));
+        $this->assertContains($monde['bail']->id, $this->ids('/api/conversations/context/leases?per_page=100'));
+
+        $proprietaire = $monde['proprietaire'];
+        $this->actingAsApi($proprietaire);
+        $biens = $this->ids('/api/conversations/context/properties?per_page=100');
+        $baux = $this->ids('/api/conversations/context/leases?per_page=100');
+        $this->assertContains($monde['bienDuProprietaire']->id, $biens);
+        $this->assertContains($monde['bailDuProprietaire']->id, $baux);
+        foreach (Property::query()->whereKey($biens)->get() as $bien) {
+            $this->assertTrue($proprietaire->can('view', $bien), "bien {$bien->id} listé mais refusé par la policy");
+        }
+        foreach (Lease::query()->whereKey($baux)->get() as $bail) {
+            $this->assertTrue($proprietaire->can('view', $bail), "bail {$bail->id} listé mais refusé par la policy");
+        }
     }
 }
