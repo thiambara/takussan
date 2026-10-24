@@ -141,6 +141,51 @@ class AnnouncementTest extends TestCase
     }
 
     /**
+     * P209.04 (TCK-2069) — une date envoyée SEULE à la modification se juge contre l'autre date
+     * enregistrée : `after:starts_at` ne comparait à rien quand `starts_at` manquait, et une
+     * annonce prenait une fin avant son début — elle ne s'affichait plus jamais, sans que la
+     * console le dise.
+     */
+    public function test_a_lone_date_is_ordered_against_the_stored_one(): void
+    {
+        $this->actingAsRole('super_admin');
+        $announcement = $this->announcement([
+            'starts_at' => '2026-12-01 00:00:00',
+            'ends_at' => '2026-12-31 00:00:00',
+        ]);
+
+        $this->patchJson("/api/admin/announcements/{$announcement->id}", ['ends_at' => '2026-11-01'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('ends_at');
+        $this->patchJson("/api/admin/announcements/{$announcement->id}", ['starts_at' => '2027-06-01'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('starts_at');
+
+        $announcement->refresh();
+        $this->assertSame('2026-12-01', $announcement->starts_at->toDateString());
+        $this->assertSame('2026-12-31', $announcement->ends_at->toDateString());
+    }
+
+    public function test_a_lone_date_on_the_right_side_is_accepted(): void
+    {
+        $this->actingAsRole('super_admin');
+        $announcement = $this->announcement([
+            'starts_at' => '2026-12-01 00:00:00',
+            'ends_at' => '2026-12-31 00:00:00',
+        ]);
+
+        $this->patchJson("/api/admin/announcements/{$announcement->id}", ['ends_at' => '2027-01-15'])->assertOk();
+        $this->patchJson("/api/admin/announcements/{$announcement->id}", ['starts_at' => '2027-01-10'])->assertOk();
+        // Sans fin, le début est libre.
+        $this->patchJson("/api/admin/announcements/{$announcement->id}", ['ends_at' => null])->assertOk();
+        $this->patchJson("/api/admin/announcements/{$announcement->id}", ['starts_at' => '2027-06-01'])->assertOk();
+
+        $announcement->refresh();
+        $this->assertSame('2027-06-01', $announcement->starts_at->toDateString());
+        $this->assertNull($announcement->ends_at);
+    }
+
+    /**
      * TCK-366 — `rollout_percentage` à 0 n'est pas une restriction, c'est l'absence de rollout.
      *
      * C'est la lecture que fait déjà l'écran (`describeSegment` n'affiche le pourcentage que s'il
