@@ -19219,7 +19219,7 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
 
 ### Rejets non rattrapés là où l'écran affiche pourtant l'erreur par `mutation.error`
 - Réf : P210.04
-- Statut : retenu · autonome
+- Statut : fait · TCK-2086
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/admin/roles/AgencyRoleEditor.tsx:109-121,131-134,216`, `takussan-web/src/components/admin/roles/CreateRoleDialog.tsx:112-121,195-197,210`, `takussan-web/src/components/documents/DocumentVersionsList.tsx:99-108,118-121,230-234,252-254,263`
 - Constat :
@@ -19229,6 +19229,7 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
   - Établi comment : lu.
 - Piste : ajouter `.catch(() => undefined)` aux quatre appels (aucun changement visible). Garde : un test par composant qui rejette la mutation et passe sans erreur non rattrapée.
 - Mesure (2026-10-24, 0507e0a2f, mesureur) : relu `AgencyRoleEditor.tsx:112,118` (`mutateAsync` sans `catch`), `:132-133` (erreur lue sur les mutations), `:216` (`onClick={() => void save()}`) ; `CreateRoleDialog.tsx:112-113,195-197,210` ; `DocumentVersionsList.tsx:99-105,118-121` (`onSubmit={(e) => void handleSubmit(e)}`, `upload.error` affiché) et `:230-232,252-254,263` (`restore.error` affiché, `void handleConfirm()`) ; `grep catch` dans les trois fichiers → aucun sur ces quatre appels ; la forme `void f().catch(() => undefined)` relue à `MaintenanceAssignmentBlock.tsx` et `QuoteSubmitForm.tsx` ; non lancé ici, mais les trois sondes de ce passage (P210.01-03) montrent qu'un `mutateAsync` rejeté sans `catch` sort en « Unhandled Rejection » sous Vitest (« Errors 1 error ») → le constat tient ; l'incrustation d'erreur de Next en développement n'a pas été observée. Classement : A1, la forme du dépôt (`.catch(() => undefined)`, l'erreur lue sur la mutation) est déjà écrite dans le code voisin, et le correctif ne change rien de visible.
+- Mesure (2026-10-24, 72976c063, implementeur) : trois tests vitest neufs (`AgencyRoleEditor`, `CreateRoleDialog`, `DocumentVersionsList` : ajout et restauration), `mutateAsync` rejeté en `ApiError(422)`, un écouteur `process.on('unhandledRejection')` le temps du test, charge 1,85 / 2,72 / 2,69 sur 8 cœurs, sur les trois composants de `pre-dev` → 4/4 rouges (un rejet non rattrapé chacun) ; correctif (`.catch(() => undefined)` aux quatre appels `void f()`) → 4/4 verts, dialogues restés ouverts, synchronisation des capacités non partie ; ablation (fichiers rendus à `pre-dev`) → rouge, remis → vert ; `AgencyRoleEditor.test.tsx`, `CreateRoleDialog.test.tsx` et `DocumentDetailClient.abilities.test.tsx` verts (18 tests). L'incrustation d'erreur de Next en développement n'a pas été observée.
 
 ### Aucune garde ne refuse une promesse passée à `onClick` ou laissée flottante
 - Réf : P210.05
