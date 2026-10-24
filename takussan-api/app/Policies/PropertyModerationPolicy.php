@@ -4,6 +4,7 @@ namespace App\Policies;
 
 use App\Models\Property;
 use App\Models\User;
+use App\Services\Property\BailleurDuBien;
 
 /**
  * TCK-098 — Only agency_admin or super_admin within the property's agency
@@ -31,7 +32,13 @@ class PropertyModerationPolicy
         // The property owner or any member of the actor's *currently active*
         // agency context can resubmit. Strict active-profile match — see
         // canModerate() rationale below.
-        if ($user->id === $property->user_id) {
+        //
+        // TCK-2018 (P190.06, décision du porteur) — `user_id` est le CRÉATEUR, sur un bien d'agence
+        // aussi l'agent qui l'a saisi : il ne vaut titre que sur un bien sans agence ou pour un
+        // bailleur NON BLOQUÉ de l'agence (`BasePolicy::bailleurEcrit`). L'agent créateur suspendu
+        // ou retiré ne resoumet plus ; actif, il passe par la branche du personnel ci-dessous.
+        if (BailleurDuBien::est($user, $property->user_id, $property->agency_id)
+            && ($property->agency_id === null || ! $user->isBlockedOwnerAt((int) $property->agency_id))) {
             return true;
         }
 
