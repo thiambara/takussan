@@ -281,7 +281,7 @@ voie d'écriture (angle 13, puis 47).
 | 204 | Comptes d'agent ou de prestataire effacés par `AccountDeletionService` sans passer par le retrait d'agence : tâches (`assigned_to_id`), interventions (`assigned_to`), demandes de contact (`handled_by_id`, `recipient_user_id`), baux (`agent_id`) et collaborations de bien laissés au compte effacé, que `AgentHandoverService::move` sait déplacer mais dont la passation rend 404 (liaison de route sous `SoftDeletes`) : travail à son nom que personne ne reprend — né de P175.02 | fait |
 | 205 | Pièces déjà reversées au bailleur (reversement `completed`, `payout_lease_payment`, `payout_booking_payment`) puis remboursées par `BookingPaymentService::refund` ou par webhook (`PaymentGatewayService::applyRefund`) : aucune reprise sur le bailleur — ni ligne négative au reversement suivant, ni dette, ni avis à l'agence —, si bien que l'agence rend au locataire un argent déjà versé — né de P177.01 | fait |
 | 206 | Pénalités de retard réglées sur la ligne du loyer (`late_fee_amount`, `late_fee_paid_at`, en ligne ou par `LateFeeSettlement`) face aux lecteurs de l'argent qui ne lisent que `amount − refund_amount` (`CollectedPayments::LEASE_NET_SQL`, `PayoutCalculator::kept`, relevé de gérance, exports, métriques) alors que la clôture plateforme les reverse à l'agence (`lateFeeSettledWith`) : pénalité encaissée absente de l'« Encaissé », du relevé et de tout reversement au bailleur, sans texte qui dise à qui elle revient — né de P178.03 | fait |
-| 207 | Rappels et relances planifiés passés par `NotificationService::send()` (file `CodedNotification`) dont la marque se pose à la mise en file (`SendLeasePaymentReminders`, `SendPropertyVisitReminders`, relances de documents et d'échéances) : e-mail épuisé après `failed()`, ou SMS et WhatsApp refusés par tous les fournisseurs sans exception (`SmsRouterDriver`, `WhatsappChannel`), rappel perdu sans reprise ni trace lisible — le pendant de P142.02 pour les notifications codées, né de P179.01 | à faire |
+| 207 | Rappels et relances planifiés passés par `NotificationService::send()` (file `CodedNotification`) dont la marque se pose à la mise en file (`SendLeasePaymentReminders`, `SendPropertyVisitReminders`, relances de documents et d'échéances) : e-mail épuisé après `failed()`, ou SMS et WhatsApp refusés par tous les fournisseurs sans exception (`SmsRouterDriver`, `WhatsappChannel`), rappel perdu sans reprise ni trace lisible — le pendant de P142.02 pour les notifications codées, né de P179.01 | fait |
 | 208 | Invitations émises par l'endpoint générique `POST /api/invitations` (`CreateInvitationRequest`, `InvitationController::store`) face aux services par rôle qui gardent le même geste (`SuperAdminCooptationService::invite` et ses verrou, avis aux autres super-admins et journal ; `InviteServiceProviderRequest` et sa règle de `metadata.from_maintenance_request_id` ; `AgentInvitationService`, `OwnerInvitationController`) : garde, contrôle de `metadata` ou effet du geste dédié sautés par le chemin générique — né de P181.05 | à faire |
 | 209 | Requêtes de modification qui ne rejouent pas les règles de valeur de leur création (`UpdateSettingRequest` face au catalogue de `StoreSettingRequest::after()`, et leurs pareilles : un `after()`, une règle de catalogue, un `Rule::unique` ou une sous-règle `x.*` présents dans `Store*Request` et absents de `Update*Request` du même modèle) : valeur refusée en 422 à la création et enregistrée en 200 à la modification — né de P181.01 | à faire |
 | 210 | Gestionnaires `async` du front qui attendent `mutateAsync()` sans `try`/`catch` et sont passés tels quels à `onClick` ou par `void handleSubmit()` (`BookingDecisionDialog`, `VisitDetail` et leurs pareils sous `src/components/**`, hors gestes de transition) : erreur de l'API rendue en promesse rejetée non rattrapée, sans message à l'écran ni fermeture du dialogue — le relevé de P182.01 sur le reste des écrans | à faire |
@@ -18902,3 +18902,78 @@ Non mesuré : les écrans du front, et le remboursement par webhook (lu seulemen
 - Piste : ajouter `late_fee_paid_at` à l'export (colonne neuve, V7 mineur) ; écrire dans `features.md` et ADR-0039 où va la pénalité de retard, une fois P206.01 tranchée (A6).
 - Mesure (2026-10-24, ab585ab0d, mesureur) : relu `ExportDataService.php:57,77,84` (colonnes `… late_fee_amount, refund_amount`, ni `late_fee_paid_at` ni moyen de règlement de la pénalité), `docs/features.md:218` (« loyer, charges, pénalités, régularisations ») et ADR-0039 l. 84-85 (type `penalty`) → le constat tient. Classement : V7, la colonne d'export est un comportement visible neuf ; la partie A6 ne peut pas s'écrire avant P206.01, car le document dit ce que TCK-594 veut et non ce que fait le code.
 - Mesure (2026-10-24, 7fe84103b, delegue) : relu `ExportDataService::payments()` (l. 55-86 : `select` et colonnes sans `late_fee_paid_at`, `refund_amount` en dernière colonne « la valeur en base, sans calcul », TCK-1135), `docs/models-spec.md:1471` (`lease_payments.late_fee_paid_at` existe, TCK-593) et le précédent P76.06 (même geste, colonne `refund_amount` à l'export, délégué V7 le 2026-10-20 puis `fait · TCK-1135`) ; `grep -rn "late_fee_payment_method" app` → seulement `LateFeeSettlement.php:50`, en `metadata` → la colonne tient, le moyen de règlement n'a pas de colonne. Délégation : V7, colonne d'export en lecture seule d'une colonne déjà écrite, sans calcul de montant, qui se retire en un commit, sur le modèle exact de P76.06 ; le moyen de règlement (lecture d'un `metadata`) et la partie A6, liée à la décision de P206.01 sur le reversement, restent au porteur.
+
+## Angle 207 — Rappels planifiés par code marqués à la mise en file, face à un envoi perdu
+
+*Exploré le 2026-10-24 sur `pre-dev` 4b0b7a4b8, par l'explorateur, sans sous-agent. Relu par
+l'explorateur lui-même : `NotificationService` (en entier), `CodedNotification` (en entier),
+`SendLeasePaymentReminders` (en entier) et son test, `SendPropertyVisitReminders`,
+`VisitNotifier::reminderToContact`, `RemindDuePayouts`, `KycExpiryService`, `SmsChannel::send` et
+`withinRateLimit`, `SmsRouterDriver` (l. 190-240, 344-400), `WhatsappChannel::send`,
+`fallbackToSms` et `logAttempt`, `SendSmsAfterLateWhatsappFailureJob`,
+`DeliveryAttemptUpdater::lateFailure`, `HealthcheckService` (l. 240-290),
+`AlertsWhenMarkedDeliveryFails`, `ContactSansCompte::fromVisit`, `docs/features.md:190,558`.
+Une mesure par un test temporaire `TmpExplorateurP207Test` (retiré), base de test PostgreSQL,
+file `sync` de `phpunit.xml`, charge 2,07 / 2,83 / 3,84 sur 8 cœurs, routeur SMS remplacé par
+un `FakeSmsRouter` qui rend `SmsResult::failed` comme le routeur réel le fait d'une exception de
+fournisseur (l. 204-207). Le worker réel n'est pas joué. Ce que l'angle ne retient pas :
+`RemindDuePayouts` écrit lui-même qu'un avis perdu est accepté (« c'est un rappel, pas
+l'argent », l. 44-45) et ne vise que des comptes ; la réservation d'une échéance dont l'envoi lève
+en synchrone est un contrat épinglé par
+`test_tck740_un_envoi_qui_leve_ne_prive_pas_les_echeances_suivantes` (« n'est pas relancée deux
+fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise en file
+(`NotificationService.php:84-95`), et le rappel n'est donc pas perdu, seul son canal sortant.*
+
+### La relance de loyer d'un locataire sans compte, refusée par tous les fournisseurs SMS, est marquée envoyée et ne repart jamais : ni exception, ni `failed()`, ni trace rattachée à l'échéance
+- Réf : P207.01
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Jobs/SendLeasePaymentReminders.php:128-166,200-213`, `takussan-api/app/Services/Model/NotificationService.php:112-138`, `takussan-api/app/Services/Notifications/Sms/SmsRouterDriver.php:202-213,358-366`, `takussan-api/app/Notifications/Channels/SmsChannel.php:96`, `takussan-api/app/Services/Notifications/Sms/DeliveryAttemptUpdater.php:123-133`, `takussan-api/app/Jobs/SendPropertyVisitReminders.php:134-150`
+- Constat :
+  - `claim()` pose `reminder_<jalon>_sent_at` sous verrou avant de rendre l'échéance, et ne rend que celles qui ne le portent pas (lu, l. 146-160). Le locataire sans compte passe par `NotificationService::send()` vers un `ContactSansCompte` (lu, l. 200-211) : aucune ligne `app_notifications`, `CodedNotification` routée sur son numéro (lu, `NotificationService.php:131-137`).
+  - Au canal SMS, le routeur change toute exception d'un fournisseur en `SmsResult::failed` (lu, l. 204-207) et `SmsChannel::send()` rend le tableau des résultats (lu, l. 96) : rien ne lève, le job réussit, `CodedNotification::failed()` n'est jamais appelé. La seule trace est une ligne `notification_delivery_attempts` sans `app_notification_id`, portant le numéro et le statut (lu, l. 358-366) : rien ne la rattache à l'échéance ni au bail.
+  - Mesuré (test temporaire, retiré) : locataire sans compte au téléphone `+221 77 123 45 67`, échéance en retard de 1 jour, routeur qui rend `failed` → 1 appel au routeur, `metadata` = `{"reminder_overdue_1_sent_at":"2026-09-30T08:00:00+00:00"}`, 0 ligne `failed_jobs`, 0 activité `ops_critical_job_failed` ; le lendemain, dans la fenêtre de rattrapage de TCK-739, nouveau passage → aucun appel de plus.
+  - Un SMS accepté par le fournisseur puis dit `failed` par son accusé ne déclenche que `Log::warning` et la mémoire des codes à usage unique (lu, `DeliveryAttemptUpdater.php:123-133`) : même perte, plus tard.
+  - `features.md:190` promet les relances « au locataire, y compris sans compte (téléphone du client) » ; aucun texte ne dit si une relance perdue se retente (lu). Le rattrapage de `CATCH_UP_DAYS` ne vise que le job qui n'a pas tourné (lu, l. 59-63).
+  - Même mécanisme pour le rappel de visite d'un visiteur sans compte (`reminderToContact`, marque l. 149-150) ; là, la fenêtre de ±5 min rend toute reprise sans objet, et seul le manque de trace compte (lu).
+  - Le seul signal est l'agrégat de `HealthcheckService::sms()` (taux d'échec sur une heure, à partir de 5 tentatives, lu l. 249-258) : il dit qu'il y a des échecs, pas quelles relances sont perdues.
+  - Établi comment : lu, et mesuré pour la marque posée et l'absence de reprise sous la file `sync`.
+- Piste : choisir le contrat et l'écrire dans `features.md` — « au plus une fois » assumé, ou reprise. Pour une reprise : faire relire au job le sort du canal mobile d'un contact sans compte (résultat `failed` non ambigu sur tous les fournisseurs → marque retirée, ou une activité alertable rattachée à l'échéance, sur le patron d'`AlertsWhenMarkedDeliveryFails`). Garde : `SendLeasePaymentReminders` avec un locataire sans compte et un routeur qui rend `failed`, qui exige le contrat choisi ; un échec ambigu ne doit pas faire renvoyer (double SMS).
+
+### Les tentatives WhatsApp d'un contact sans compte ne sont pas journalisées : le repli SMS d'un accusé `failed` tardif (TCK-1092) ne peut jamais les viser, et l'indicateur de santé WhatsApp ne les compte pas
+- Réf : P207.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Notifications/Channels/WhatsappChannel.php:122-124,328-332`, `takussan-api/app/Jobs/SendSmsAfterLateWhatsappFailureJob.php:27-33,55-62`, `takussan-api/app/Services/Notifications/Sms/DeliveryAttemptUpdater.php:66-71`, `takussan-api/app/Services/Admin/HealthcheckService.php:274-289`, `docs/features.md:190,558`
+- Constat :
+  - `logAttempt()` sort sans rien écrire quand `notificationId` est nul (lu, l. 330-332) ; pour un contact sans compte, `CodedNotification::appNotificationIdFor()` rend `null` (aucune ligne, `NotificationService.php:131-137`) : son envoi WhatsApp ne laisse aucune ligne `notification_delivery_attempts` (lu). Le SMS, lui, en écrit une sans notification depuis P11.05 (TCK-799), par `SmsRouterDriver::writeAttempt()` (lu, l. 358-366) : l'asymétrie est entre les deux canaux.
+  - L'accusé de Meta se rattache par `(provider, provider_message_id)` (lu, `DeliveryAttemptUpdater.php:66-71`) : sans ligne, un `failed` tardif ne trouve rien, et `SendSmsAfterLateWhatsappFailureJob` n'est pas mis en file. Le job lui-même exclut toute tentative sans `app_notification_id` (lu, l. 58-60, docblock l. 28-29) : même journalisée, la tentative d'un contact ne serait pas reprise.
+  - `features.md:190` promet au locataire sans compte la relance « sur WhatsApp puis SMS en secours » ; `WhatsappChannel::send()` ne se replie que sur un échec rendu par l'appel, et rend `['whatsapp' => $result]` sur un ambigu (lu, l. 125-135). Un contact opté WhatsApp dont Meta accepte puis refuse le message ne reçoit donc ni WhatsApp ni SMS (déduit de ce qui précède ; à vérifier par un accusé `failed` rejoué sur un envoi à un contact sans compte).
+  - `HealthcheckService::whatsapp()` calcule son taux d'échec sur `notification_delivery_attempts` (lu, l. 276-280) : les envois aux contacts sans compte n'y entrent pas.
+  - Prolonge P72.01 (TCK-1092), qui n'a traité que les notifications à ligne.
+  - Établi comment : lu.
+- Piste : journaliser la tentative WhatsApp sans notification comme le fait déjà le SMS (colonne `app_notification_id` nullable depuis TCK-799), et étendre `SendSmsAfterLateWhatsappFailureJob` aux tentatives sans ligne en lui donnant de quoi rendre le texte (paramètres chiffrés ou rendu retenu à l'envoi) ; ou écrire dans `features.md` que le secours SMS d'un contact sans compte ne vaut que pour l'échec immédiat. Garde : envoi WhatsApp à un contact sans compte → une tentative écrite ; accusé `failed` tardif → un SMS, un seul au rejeu.
+
+### `CodedNotification::failed()` ne fait que journaliser : un e-mail abandonné d'un rappel marqué n'écrit pas l'activité alertable que TCK-1794 a posée pour les mêmes rappels hors code
+- Réf : P207.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Notifications/CodedNotification.php:104-116`, `takussan-api/app/Notifications/Concerns/AlertsWhenMarkedDeliveryFails.php:9-50`, `takussan-api/app/Jobs/SendLeasePaymentReminders.php:130,155`, `takussan-api/app/Jobs/SendPropertyVisitReminders.php:149-150`, `takussan-api/app/Services/Kyc/KycExpiryService.php:64`
+- Constat :
+  - `CodedNotification::failed()` écrit `Log::error('[notifications] envoi abandonné', …)` avec le code, le canal et l'identifiant de la ligne de cloche, et rien d'autre (lu, l. 104-116).
+  - Pour cinq notifications hors code dont l'appelant pose une marque avant l'envoi, TCK-1794 (P142.02) a ajouté `AlertsWhenMarkedDeliveryFails`, dont `failed()` écrit en plus l'activité `ops_critical_job_failed` rattachée à l'objet de l'envoi (lu, l. 30-50) ; `CodedNotification` ne le porte pas (lu, `grep -rn AlertsWhenMarkedDeliveryFails app` → les cinq seules).
+  - Les rappels par code marqués avant l'envoi sont au moins trois : relances de loyer (`reminder_*_sent_at`, l. 130 et 155), rappels de visite (l. 149-150), rappels d'expiration KYC (`expiry_reminders`, l. 64) (lu).
+  - Pour un compte, la cloche reste ; pour un contact sans compte qui n'a laissé qu'un e-mail, l'abandon de la copie `mail` ne laisse que la ligne de journal, sans objet ni marque corrigée (déduit ; aucun rappel planifié ne vise aujourd'hui un contact sans téléphone : `SendPropertyVisitReminders` l. 113 exige `hasPhone()`, `SendLeasePaymentReminders` l. 201 de même — à vérifier sur les autres appelants).
+  - Établi comment : lu.
+- Piste : décider si un abandon de `CodedNotification` sur une copie `mail`, `sms` ou `whatsapp` vers un contact sans compte écrit `ops_critical_job_failed` (sans les paramètres, ADR-0044 § 2) ; sinon l'écrire dans le docblock de `failed()`. Garde : `failed()` d'une copie sérialisée vers un `AnonymousNotifiable` → activité écrite ou absence assumée par un test.
+
+### Petites améliorations
+- Réf : P207.04
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Services/Kyc/KycExpiryService.php:52-77`, `takussan-api/app/Notifications/Channels/SmsChannel.php:155-175`, `takussan-api/app/Jobs/SendLeasePaymentReminders.php:65-116`
+- Constat :
+  - `KycExpiryService::remind()` pose le jalon dans `expiry_reminders` puis boucle sur `AdminsDeLAgence::destinataires()` ; une agence sans administrateur actif et joignable voit son jalon consommé, sans avis, et `run()` compte quand même un rappel (`reminded`) (lu, l. 61-77 et 44-46). Le rappel J-7 suivant part si un administrateur revient entre-temps ; J-30 est perdu.
+  - Le seau de `SmsChannel::withinRateLimit()` est de 5 SMS par heure et par numéro pour un contact sans compte (lu, l. 160-170, `config/sms.php:117`). `SendLeasePaymentReminders` envoie tous les jalons à 08:00 dans un seul passage (lu, l. 65-116) : un même numéro de locataire sans compte au-delà de cinq relances le même matin (plusieurs échéances ou plusieurs baux, jalons rattrapés) voit les suivantes sautées avec un `Log::info`, et leurs marques posées (déduit ; à vérifier, fréquence réelle inconnue).
+  - Établi comment : lu, le second point déduit.
+- Piste : ne poser le jalon KYC qu'après au moins un destinataire, et ne compter que les rappels partis ; pour le seau, mesurer d'abord la fréquence (`SELECT phone, count(*)` des échéances ouvertes d'un même client) avant de rien changer.
