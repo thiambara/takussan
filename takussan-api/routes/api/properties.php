@@ -51,7 +51,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Media
     Route::get('properties/{property}/media', [PropertyMediaController::class, 'index'])->name('properties.media.index');
     Route::post('properties/{property}/media', [PropertyMediaController::class, 'store'])->name('properties.media.store');
-    Route::delete('properties/{property}/media/{mediaId}', [PropertyMediaController::class, 'destroy'])->name('properties.media.destroy');
+    Route::delete('properties/{property}/media/{mediaId}', [PropertyMediaController::class, 'destroy'])->where('mediaId', '[0-9]{1,18}')->name('properties.media.destroy');
     Route::put('properties/{property}/media/reorder', [PropertyMediaController::class, 'reorder'])->name('properties.media.reorder');
 
     // Collaborators

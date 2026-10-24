@@ -17,17 +17,17 @@ Route::middleware('auth:sanctum')->group(function () {
     // table (`booking-payments` | `lease-payments` | `invoices`) so the
     // service can resolve the right model + agency scope.
     Route::post('{paymentType}/{paymentId}/initiate', [PaymentGatewayController::class, 'initiate'])
-        ->where(['paymentType' => 'booking-payments|lease-payments|invoices', 'paymentId' => '\d+'])
+        ->where(['paymentType' => 'booking-payments|lease-payments|invoices', 'paymentId' => '[0-9]{1,18}'])
         ->name('payments.gateway.initiate');
 
     Route::get('{paymentType}/{paymentId}/verify', [PaymentGatewayController::class, 'verify'])
-        ->where(['paymentType' => 'booking-payments|lease-payments|invoices', 'paymentId' => '\d+'])
+        ->where(['paymentType' => 'booking-payments|lease-payments|invoices', 'paymentId' => '[0-9]{1,18}'])
         ->name('payments.gateway.verify');
 
     // TCK-602 (ADR-0051 §3) — les fournisseurs proposés au payeur, sous l'autorisation de
     // l'initiation : le front ne lit plus `GET /api/integrations`, qui refuse le locataire.
     Route::get('{paymentType}/{paymentId}/providers', [PaymentGatewayController::class, 'providers'])
-        ->where(['paymentType' => 'booking-payments|lease-payments|invoices', 'paymentId' => '\d+'])
+        ->where(['paymentType' => 'booking-payments|lease-payments|invoices', 'paymentId' => '[0-9]{1,18}'])
         ->name('payments.gateway.providers');
 });
 

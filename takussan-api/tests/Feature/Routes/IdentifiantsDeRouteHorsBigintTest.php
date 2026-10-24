@@ -12,6 +12,7 @@ use Illuminate\Routing\Route;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route as Routes;
 use PHPUnit\Framework\Attributes\DataProvider;
+use ReflectionNamedType;
 use Tests\Support\OperateursPlateforme;
 use Tests\TestCase;
 
@@ -35,17 +36,6 @@ class IdentifiantsDeRouteHorsBigintTest extends TestCase
     /** Paramètres dont la valeur choisit une branche du code, et non une ligne. */
     private const VALEURS_IMPOSEES = [
         'paymentType' => 'invoices',
-    ];
-
-    /**
-     * Les actions qui typent leur paramètre `int` : PHP lève `TypeError` avant tout SQL. P215.02
-     * les traite, et retire cette liste.
-     */
-    private const ACTIONS_A_ENTIER = [
-        'GET api/admin/jobs/failed/{id}', 'POST api/admin/jobs/failed/{id}/retry', 'DELETE api/admin/jobs/failed/{id}',
-        'GET api/audit-log/{entity}/{id}', 'GET api/activity-log/{entity}/{id}', 'DELETE api/auth/sessions/{tokenId}',
-        'GET api/me/payouts/{payout}', 'GET api/service-provider-bills/{bill}',
-        'GET api/{paymentType}/{paymentId}/verify', 'GET api/{paymentType}/{paymentId}/providers',
     ];
 
     protected function setUp(): void
@@ -82,7 +72,7 @@ class IdentifiantsDeRouteHorsBigintTest extends TestCase
             }
             $jouees++;
 
-            if ($statut >= 500 && ! in_array("{$methode} {$route->uri()}", self::ACTIONS_A_ENTIER, true)) {
+            if ($statut >= 500) {
                 $en500[] = "{$methode} {$route->uri()} → {$statut}";
             }
         }
@@ -115,6 +105,32 @@ class IdentifiantsDeRouteHorsBigintTest extends TestCase
         $this->assertNull((new ConversationParticipant)->resolveRouteBinding('abc'));
         // Une liaison par un autre champ que la clé n'est pas jugée par le motif.
         $this->assertNull((new Property)->resolveRouteBinding('abc', 'title'));
+    }
+
+    /**
+     * TCK-2117 (P215.02) — une action qui type un paramètre de route `int` lève `TypeError` avant
+     * tout SQL sur vingt chiffres ou `abc` : la route le contraint à `[0-9]{1,18}` (TCK-1851), qui
+     * rend 404 avant l'appel. Le balayage ci-dessus joue la même valeur partout, et une liaison
+     * parente refusée masque l'enfant (`{property}/media/{mediaId}`) : cette garde-ci les voit tous.
+     */
+    public function test_chaque_parametre_de_route_type_int_est_contraint_a_dix_huit_chiffres(): void
+    {
+        $nonContraints = [];
+        foreach (Routes::getRoutes()->getRoutes() as $route) {
+            foreach ($route->signatureParameters() as $parametre) {
+                $type = $parametre->getType();
+                if (! $type instanceof ReflectionNamedType || $type->getName() !== 'int'
+                    || ! in_array($parametre->getName(), $route->parameterNames(), true)) {
+                    continue;
+                }
+                if (($route->wheres[$parametre->getName()] ?? null) !== '[0-9]{1,18}') {
+                    $nonContraints[] = $route->uri().' {'.$parametre->getName().'}';
+                }
+            }
+        }
+
+        $this->assertSame([], $nonContraints, "Ces paramètres typés `int` ne sont pas contraints à `[0-9]{1,18}` :\n"
+            .implode("\n", $nonContraints));
     }
 
     /** @return list<Route> */
