@@ -285,7 +285,7 @@ voie d'écriture (angle 13, puis 47).
 | 208 | Invitations émises par l'endpoint générique `POST /api/invitations` (`CreateInvitationRequest`, `InvitationController::store`) face aux services par rôle qui gardent le même geste (`SuperAdminCooptationService::invite` et ses verrou, avis aux autres super-admins et journal ; `InviteServiceProviderRequest` et sa règle de `metadata.from_maintenance_request_id` ; `AgentInvitationService`, `OwnerInvitationController`) : garde, contrôle de `metadata` ou effet du geste dédié sautés par le chemin générique — né de P181.05 | fait |
 | 209 | Requêtes de modification qui ne rejouent pas les règles de valeur de leur création (`UpdateSettingRequest` face au catalogue de `StoreSettingRequest::after()`, et leurs pareilles : un `after()`, une règle de catalogue, un `Rule::unique` ou une sous-règle `x.*` présents dans `Store*Request` et absents de `Update*Request` du même modèle) : valeur refusée en 422 à la création et enregistrée en 200 à la modification — né de P181.01 | fait |
 | 210 | Gestionnaires `async` du front qui attendent `mutateAsync()` sans `try`/`catch` et sont passés tels quels à `onClick` ou par `void handleSubmit()` (`BookingDecisionDialog`, `VisitDetail` et leurs pareils sous `src/components/**`, hors gestes de transition) : erreur de l'API rendue en promesse rejetée non rattrapée, sans message à l'écran ni fermeture du dialogue — le relevé de P182.01 sur le reste des écrans | fait |
-| 211 | Gestes d'écriture qui jugent le statut sur le modèle lié à la route, hors transaction ou sans verrou, alors que leurs voisins verrouillent et relisent la ligne (`PlatformPayoutService::cancel`, `PropertyVisitController::cancel`, `MaintenanceRequestService::accept`, et leurs pareils sous `app/Services` et `app/Http/Controllers/Api`) : transition concurrente écrasée, effet ou avis émis deux fois — né de P182.05 et P182.06 | à faire |
+| 211 | Gestes d'écriture qui jugent le statut sur le modèle lié à la route, hors transaction ou sans verrou, alors que leurs voisins verrouillent et relisent la ligne (`PlatformPayoutService::cancel`, `PropertyVisitController::cancel`, `MaintenanceRequestService::accept`, et leurs pareils sous `app/Services` et `app/Http/Controllers/Api`) : transition concurrente écrasée, effet ou avis émis deux fois — né de P182.05 et P182.06 | fait |
 | 212 | Dates calendaires `Y-m-d` de l'API lues par `new Date(…)` au navigateur puis comparées à l'instant ou ramenées à minuit local (`setHours(0, 0, 0, 0)`, `getDate()` : `EarlyTerminationBanner.daysFromTodayTo`, `LeaseRenewalDialog.tsx:44`, `refine` de `lib/schemas/lease.ts:81` et `booking.ts:42`, et leurs pareilles sous `src/components`) au lieu de la comparaison littérale de jours qu'ADR-0018 pose : jour décalé pour un navigateur hors UTC, ou dès minuit UTC du jour même — né de P183.01 et P183.04 | à faire |
 | 213 | Contrôleurs et services qui écrivent (`fill()->save()`, `update()`, `recordOwnerCost`) puis appellent une garde ou un service qui peut encore lever un 4xx, hors `DB::transaction` (`MaintenanceRequestController::update` l. 211-219 et ses pareils sous `app/Http/Controllers/Api` et `app/Services`) : réponse d'erreur sur une écriture déjà faite, que l'écran présente comme un échec — né de P184.02 | à faire |
 | 214 | Formulaires d'édition qui renvoient en entier une colonne JSON qu'ils ne montrent qu'en partie (`saved_searches.criteria` de `SearchPreferencesForm`, `announcements.segment`, `integrations.metadata`, `available_slots`, `limits` des plans), face à un `fill()` qui remplace la colonne : clés posées par un autre écran ou une autre version effacées par un simple enregistrement — né de P185.01 | à faire |
@@ -305,6 +305,7 @@ voie d'écriture (angle 13, puis 47).
 | 226 | Paires polymorphes `*_type` / `*_id` et identifiants de ligne cible reçus du client sur les routes d'écriture (`invitable_*` hors du générique, `documentable_*`, `taskable_*`, `attachable_*`, `subject_*`, et leurs pareils dans `app/Http/Requests`), validés par `integer` ou `Rule::in` sans juger que la ligne visée existe et relève de l'agence de l'appelant : écriture ou effet posé sur la ligne d'une autre agence — né de P208.01 | à faire |
 | 227 | Requêtes de création (`Store*Request` et leur contrôleur) restées plus larges que les gestes dédiés et les requêtes de modification resserrés depuis (statut, visibilité, assignation, contact principal, commission : `StorePropertyRequest` face à TCK-1341 et TCK-1427, `StoreLeaseRequest`, `StorePropertyCollaboratorRequest`, et leurs pareilles sous `app/Http/Requests`) : ce qu'un `PATCH` ou un geste refuse s'obtient en créant la ligne — né de P209.01 et P209.02 | à faire |
 | 228 | Mutations lancées par `mutate()` sans `onError` et dont l'écran ne lit ni `error` ni `isError` (`generateSchedule` de `LeaseDetail.tsx:185`, `revoke` d'`AgentAbsencesSection.tsx:132`, `submit` d'`InventoryDetail.tsx:331`, et leurs pareilles sous `takussan-web/src/components`) : geste refusé par l'API sans rejet ni message, le bouton se réactive et rien ne dit l'échec — le pendant de l'angle 210 pour `mutate()` | à faire |
+| 229 | Commandes et jobs planifiés qui chargent un lot de lignes puis appliquent une transition à chacune sur le modèle chargé, sans réclamation conditionnelle ni relecture sous verrou (`AutoCloseMaintenanceRequests`, `ProcessRoleDelegationsJob`, `KycExpiryService::run`, `ExpireInvitations`, `ExpireBookings`, `ExpireEndedLeasesJob`, `BoostLifecycle::endExpired`, et leurs pareils sous `app/Console` et `app/Jobs`) face au geste de l'utilisateur joué pendant le passage : geste écrasé, avis envoyé pour une ligne déjà sortie de l'état — né de P211.03 et P211.06 | à faire |
 
 
 ---
@@ -19241,3 +19242,89 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
 - Piste : activer `no-misused-promises` (`checksVoidReturn` sur les attributs JSX) en lint typé, après relevé du nombre de violations ; à défaut, une garde de dépôt qui refuse `onClick={<nom>}` quand `<nom>` est une fonction `async` déclarée dans le même fichier.
 - Mesure (2026-10-24, 0507e0a2f, mesureur) : `grep -n 'promise\|Promise\|projectService\|parserOptions' takussan-web/eslint.config.mjs` → rien (68 lignes, dernier changement f21ccd171) ; `@typescript-eslint/eslint-plugin`, `parser` et `project-service` présents dans `node_modules` par `eslint-config-next` (aucune dépendance à ajouter) ; le lint typé sur tout `src` n'a pas été lancé (passage limité aux tests ciblés), donc ni son coût ni le compte de violations ne sont mesurés → le constat tient (aucune garde) ; les trois sondes de P210.01-03 confirment le motif que la règle viserait. Classement : V6, activer le lint typé est une décision sur la chaîne d'outillage du front dont le coût en CI reste à mesurer, et la piste propose deux options (règle typée ou garde de dépôt) qu'il revient au porteur de départager.
 - Mesure (2026-10-24, 72976c063, delegue) : relu l'entrée et la `Mesure` du mesureur, `takussan-web/eslint.config.mjs` (68 lignes : `nextVitals`, `nextTs`, une règle `no-unused-vars` en `warn`, aucun `parserOptions` ni `projectService`), `.github/workflows/web-ci.yml:151` (`npm run lint` à chaque PR du front), et la décision voisine de P07.12 (`porteur (2026-10-15) : traité hors agents, règles a11y en error sous cliquet`, classée V9 parce qu'une règle de lint passée en erreur sur des violations existantes demande un cliquet) ; `grep -rn "lint typé\|no-misused-promises\|projectService" docs` → aucune autre décision ; le lint typé sur `src` n'a pas été lancé (hors des tests ciblés permis) → la `Piste` laisse deux options, et ni le coût du lint typé en CI ni le compte de violations ne sont mesurés. Recommandation : mesurer d'abord en session (`npx eslint src` avec `parserOptions.projectService` et la seule règle `@typescript-eslint/no-misused-promises` limitée à `checksVoidReturn: { attributes: true }` : temps et compte de violations), puis activer cette règle si le surcoût de `web-ci` reste de l'ordre de la minute et les violations corrigeables en un ticket, parce qu'elle voit aussi les gestionnaires importés et les props transmises, que la garde maison limitée au même fichier manque ; sinon la garde de dépôt (`scripts/check-*.mjs`, A5, sans seuil) ; ce qui manque pour trancher : ces deux mesures, et le choix entre erreur immédiate et cliquet, qui touche V9 comme pour P07.12 et reste au porteur.
+
+## Angle 211 — Gestes d'écriture qui jugent le statut sur le modèle lié, hors verrou
+
+*Exploré le 2026-10-24 sur `pre-dev` 8a765515d, par l'explorateur, sans sous-agent. Les trois exemples de l'intitulé sont faits (P182.05 → TCK-2056, P182.06 → TCK-1820, P182.07 → TCK-1822) ; le passage relève « leurs pareils ». Relu par l'explorateur lui-même : la différence entre les fichiers de `app/Services` et `app/Http/Controllers` qui écrivent un statut et ceux qui posent un `lockForUpdate` (31 fichiers sans verrou), puis `KycWorkflowService`, `KycExpiryService`, `AgencyUpgradeReviewService`, `MaintenanceRequestService` (`transition`, `complete`, `confirmResolution`, `contestResolution`), `MaintenanceQuoteWorkflow`, `MaintenanceStateMachine::TRANSITIONS`, `AutoCloseMaintenanceRequests`, `InventoryService`, `InventoryController` (`update`, `uploadRoomPhotos`, `destroyRoomPhoto`), `InventorySignatureService::sign`, `RoleDelegationService`, `RoleDelegation::mark*`, `ProcessRoleDelegationsJob`, `routes/console.php`, `BoostLifecycle::cancel` (réclamation conditionnelle `whereIn('status', live)` : sain, écarté), `AgencyModerationController`, `UserLifecycleController`. Mesuré par un test temporaire `tests/Feature/TmpExplorateur/TmpSonde211Test.php` (retiré), `XDEBUG_MODE=off php artisan test <fichier>`, PostgreSQL de test, charge 1,50 / 1,80 / 2,14 sur 8 cœurs : chaque cas charge deux fois la même ligne, joue le premier geste sur l'une, puis le second sur la copie périmée — ce qu'une seconde requête ou une tâche planifiée voit pendant la première. Aucune course réelle n'a été jouée (deux processus) : la copie périmée en tient lieu.*
+
+### Le verdict KYC se juge sur le dossier lié à la route : un rejet après une vérification laisse le dossier `rejected` et l'agence vérifiée
+- Réf : P211.01
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Kyc/KycWorkflowService.php:96-176,185-190`
+- Constat :
+  - `verify` et `reject` appellent `assertTransitionable` (`status === submitted`) sur le modèle reçu, sans transaction ni verrou, puis écrivent le dossier ; `verify` écrit ensuite l'agence (`status = active`, `is_verified = true`) par un second `update` hors transaction ; chacun prévient les admins de l'agence (`notifyReviewed`) (lu, `:118-176`). `submit` juge de même `assertNotVerified` sur le modèle reçu (lu, `:96-116`).
+  - mesuré : dossier `submitted` complet, chargé deux fois ; `verify` sur l'un puis `reject` sur l'autre → les deux acceptés ; dossier `rejected`, agence `active` et `is_verified = true`. Deux super-admins qui tranchent ensemble laissent donc une agence vérifiée sur un dossier rejeté, et ses admins reçoivent les deux verdicts (deux appels de `notifyReviewed`, lu).
+  - Deux `submit` (double clic) passent tous deux et préviennent deux fois chaque super-admin (`notifySubmitted`, lu ; course non jouée : à vérifier).
+  - Établi comment : lu et mesuré.
+- Piste : relire le dossier sous `lockForUpdate` dans une transaction qui porte aussi l'écriture de l'agence, y juger `assertTransitionable` / `assertNotVerified`, et prévenir après le commit, comme `InventorySignatureService::sign`. Garde : un test qui vérifie puis rejette sur une copie périmée et attend 422 `CODE_NOT_TRANSITIONABLE`, l'agence intacte.
+
+### La demande de passage en agence se juge `pending` hors verrou : un rejet après une approbation laisse la demande `rejected` et l'agence passée en `standard`
+- Réf : P211.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Agency/AgencyUpgradeReviewService.php:44-107,109-150,156-165`
+- Constat :
+  - `approve` et `reject` appellent `assertPending` sur le modèle lié, hors de la transaction qu'ils ouvrent ensuite (lu, `:49,114` puis `:69,126`) ; `approve` fait basculer l'agence (`AgencyKindFlipService::flip`) dans la transaction et émet `AgencyUpgradeApproved` (lu, `:69-100`).
+  - mesuré : demande `pending` chargée deux fois, KYC vérifié ; `approve` sur l'une puis `reject` sur l'autre → les deux acceptés ; demande `rejected`, agence `kind = standard`. L'agence est passée sur une demande que la console montre rejetée, et le demandeur reçoit l'avis d'approbation puis celui de rejet (deux `notifySubmitter`, lu ; avis non comptés : à vérifier).
+  - Établi comment : lu et mesuré.
+- Piste : verrouiller et relire la demande dans la transaction, y juger `assertPending`, avis après le commit. Garde : approbation puis rejet sur une copie périmée → 422 `not_pending`, demande `approved`.
+
+### Les transitions d'une intervention se jugent sur le modèle lié : la clôture automatique écrase une contestation faite pendant son passage
+- Réf : P211.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Model/MaintenanceRequestService.php:48-86,313-367,369-420`, `takussan-api/app/Console/Commands/AutoCloseMaintenanceRequests.php:35-43`, `takussan-api/routes/console.php:120`
+- Constat :
+  - `transition`, `complete` et `contestResolution` lisent `$mr->status` sur le modèle reçu, jugent la table de `MaintenanceStateMachine`, puis `save()` sans verrou ni relecture, et émettent `MaintenanceStatusChanged` (lu). Seul `accept` verrouille et relit depuis TCK-1822 (lu, `:202-230`).
+  - `maintenance:auto-close` charge les demandes `completed` depuis plus de 7 jours par `each()` (lots de 1 000) et appelle `confirmResolution` sur chaque modèle chargé (lu, `:35-43`).
+  - mesuré : demande `completed` chargée deux fois ; `contestResolution` sur l'une (→ `in_progress`) puis `confirmResolution(…, CAUSE_AUTO_CLOSED)` sur l'autre → accepté ; statut final `closed`, deux événements. La contestation du demandeur est perdue, la demande close, et `completed_at` reste nul (remis par la contestation, lu `:392`).
+  - Par le même code, une annulation (`updateStatus`) sur un modèle `in_progress` resté en mémoire peut écraser un `completed` dont le coût vient d'être inscrit par `recordOwnerCost` (lu, `:332-352` ; non joué : à vérifier).
+  - Établi comment : lu et mesuré.
+- Piste : faire de `transition` (et de `complete`, `contestResolution`) le chemin qui relit la ligne sous verrou dans une transaction et y juge la table, l'événement après le commit — le patron d'`accept`. Garde : contestation puis clôture automatique sur une copie périmée → la clôture refusée (ou sautée par la commande), statut `in_progress`, un seul événement.
+
+### Le devis d'une intervention se décide sur le modèle lié : une approbation après un rejet repasse la demande en `approved`
+- Réf : P211.04
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Maintenance/MaintenanceQuoteWorkflow.php:35-46,48-110,160-201,225-244`
+- Constat :
+  - `requestQuote`, `submitQuote`, `approveQuote` et `rejectQuote` jugent `assertTransition` sur `$mr->status` du modèle reçu, puis `save()` sans transaction ni verrou, et émettent `MaintenanceStatusChanged` (lu).
+  - `quote_submitted → approved` et `quote_submitted → rejected` sont tous deux permis, `rejected → approved` ne l'est pas (lu, `MaintenanceStateMachine.php:48,51`).
+  - mesuré : demande `quote_submitted` (1 000) chargée deux fois ; `rejectQuote` sur l'une puis `approveQuote` sur l'autre → accepté ; statut `approved`, `quote_rejection_reason = 'trop cher'` conservé, deux événements. Le gestionnaire et le bailleur (ou deux membres) qui tranchent ensemble laissent un devis approuvé portant le motif d'un rejet, et le prestataire reçoit les deux décisions.
+  - Établi comment : lu et mesuré.
+- Piste : relire la ligne sous verrou dans une transaction dans `assertTransition`, et y juger aussi le seuil du bailleur (`needsOwner`), l'événement après le commit. Garde : rejet puis approbation sur une copie périmée → 422 `maintenance.status_transition_invalid`.
+
+### Un état des lieux se modifie sur le modèle lié pendant qu'une partie le signe : le contenu change après la première signature
+- Réf : P211.05
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Controllers/Api/InventoryController.php:117-153,295-346`, `takussan-api/app/Services/Model/InventoryService.php:39-83`, `takussan-api/app/Services/Inventory/InventorySignatureService.php:39-94`
+- Constat :
+  - `sign` verrouille et relit la ligne (lu, `InventorySignatureService.php:47`) ; une première signature fait passer un brouillon à `pending_signature` (lu, `:85-89`), et la seconde fige `traceability_hash` sur le contenu (lu, `:70-73`).
+  - `update`, `uploadRoomPhotos` et `destroyRoomPhoto` jugent `draft` sur le modèle lié (`assertDraft`, lu `:339-346` ; `InventoryService::update` `:41-45`) puis écrivent sans verrou ; `submit` et `dispute` de même (lu, `:56-83`).
+  - mesuré : état des lieux `draft` chargé ; la ligne passée en base à `pending_signature`, `tenant_signed = true` ; `InventoryService::update` sur le modèle resté `draft` avec de nouvelles `rooms` → accepté ; ligne `pending_signature`, signature du locataire conservée, pièces remplacées. Le locataire a signé un contenu que la seconde signature ne figera pas. Une photo envoyée pendant la signature (requête longue) suit le même chemin (lu, non joué).
+  - Établi comment : lu et mesuré.
+- Piste : juger `draft` sur la ligne relue sous `lockForUpdate` dans une transaction pour `update`, l'ajout et le retrait de photo, `submit` et `dispute`, comme `sign`. Garde : signature posée derrière un modèle resté `draft` → `update` 422 `inventory.not_draft`, pièces intactes.
+
+### Une délégation révoquée pendant le passage de la tâche planifiée est réactivée
+- Réf : P211.06
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Permissions/RoleDelegationService.php:131-189`, `takussan-api/app/Models/RoleDelegation.php:159-182`, `takussan-api/app/Jobs/Permissions/ProcessRoleDelegationsJob.php:17-28`, `takussan-api/routes/console.php:111`
+- Constat :
+  - `ProcessRoleDelegationsJob` (toutes les 5 min) charge `readyToActivate()` puis `readyToExpire()` et appelle `activate` / `expire` sur chaque modèle chargé (lu). `activate`, `expire` et `revoke` jugent `status` sur le modèle reçu puis écrivent par `markActive` / `markExpired` / `markRevoked`, `update()` sans condition sur le statut en base (lu) ; `activate` émet `RoleDelegationActivated`, que `NotifyDelegationActivated` écoute (lu).
+  - mesuré : délégation `scheduled` échue chargée par `readyToActivate()` ; `revoke` sur une copie fraîche (→ `revoked`), puis `activate` sur le modèle chargé → `status = active`, `revoked_at` conservé. Une délégation qu'un admin vient de révoquer donne de nouveau le rôle délégué jusqu'à son `ends_at`, et le délégataire est prévenu de son activation.
+  - Établi comment : lu et mesuré.
+- Piste : écrire les transitions par une mise à jour conditionnelle (`where('status', scheduled)->update(…)`, réclamation comme `BoostLifecycle::closeWithRefund`) ou sous verrou relu, et n'émettre l'événement que si la ligne a été prise. Garde : révocation puis activation sur le modèle chargé par le job → `revoked`, aucun événement.
+
+### Petites améliorations
+- Réf : P211.07
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Http/Controllers/Api/Admin/UserLifecycleController.php:58-68`, `takussan-api/app/Http/Controllers/Api/Admin/AgencyModerationController.php:213-222`, `takussan-api/app/Services/Kyc/KycExpiryService.php:36-49,81-90`
+- Constat :
+  - `reactivate` d'un compte juge `blocked` sur le modèle lié, écrit hors transaction, journalise et prévient (lu) ; `reinstate` d'une agence juge `suspended` sur le modèle lié puis prévient les admins (lu). Deux appels ensemble (double clic, deux opérateurs) envoient deux avis et deux lignes de journal (course non jouée : à vérifier).
+  - `kyc:expire-dossiers` (06:00) charge les dossiers `verified` puis repasse chacun à `pending` et l'agence à `is_verified = false` sur le modèle chargé (lu) : une vérification neuve faite pendant son passage serait écrasée, mais l'échéance relue est celle d'avant (à vérifier, fenêtre étroite).
+  - Établi comment : lu.
+- Piste : même patron que les entrées précédentes (relecture sous verrou, ou mise à jour conditionnelle sur le statut attendu) ; l'avis après le commit et seulement si la ligne a changé.
