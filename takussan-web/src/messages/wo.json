@@ -6298,6 +6298,8 @@
         "action": "Delloo",
         "dialogTitle": "Bind benn delloo",
         "dialogDescription": "Xaalis bi ñu jot : {amount}.",
+        "paidOut": "Reversé au bailleur le {date} ({reference})",
+        "paidOutWarning": "Cet acompte a déjà été reversé au bailleur le {date} ({reference}). Le rembourser créera une reprise sur son prochain reversement.",
         "fields": {
           "amount": "Limu xaalis bi ñu delloo",
           "reason": "Lu tax"

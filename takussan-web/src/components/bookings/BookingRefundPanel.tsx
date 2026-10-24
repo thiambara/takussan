@@ -14,7 +14,7 @@ import { FormGlobalError, FormInput, FormTextarea } from '@/components/forms';
 import { useApiForm } from '@/hooks/useApiForm';
 import { useRefundBookingPayment } from '@/lib/queries/bookings';
 import { bookingRefundSchema, type BookingRefundFormValues } from '@/lib/schemas/booking';
-import { formatCurrency } from '@/lib/format';
+import { formatCurrency, formatDate } from '@/lib/format';
 import type { Locale } from '@/i18n/config';
 import type { Booking, BookingPayment } from '@/types/booking';
 
@@ -62,8 +62,18 @@ export function BookingRefundPanel({ booking, locale, isCustomer }: BookingRefun
         <ul className="mt-3 divide-y divide-border text-sm">
           {paid.map((p) => (
             <li key={p.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
-              <span className="font-medium tabular-nums text-foreground">
-                {formatCurrency(p.amount, locale)}
+              <span className="flex flex-col">
+                <span className="font-medium tabular-nums text-foreground">
+                  {formatCurrency(p.amount, locale)}
+                </span>
+                {p.paid_out != null && (
+                  <span className="text-xs text-muted-foreground">
+                    {t('paidOut', {
+                      date: formatDate(p.paid_out.processed_at, locale),
+                      reference: p.paid_out.reference_number,
+                    })}
+                  </span>
+                )}
               </span>
               <Button
                 type="button"
@@ -135,6 +145,18 @@ function BookingRefundDialog({
           }}
           className="space-y-4"
         >
+          {/* TCK-2153 (P205.02) — avertir sans refuser : la reprise suit (ADR-0039, 2026-10-24). */}
+          {payment.paid_out != null && (
+            <p
+              role="alert"
+              className="rounded-md border border-border bg-muted px-3 py-2 text-sm text-foreground"
+            >
+              {t('paidOutWarning', {
+                date: formatDate(payment.paid_out.processed_at, locale),
+                reference: payment.paid_out.reference_number,
+              })}
+            </p>
+          )}
           <FormGlobalError>{globalError}</FormGlobalError>
           <FormInput<BookingRefundFormValues>
             control={form.control}

@@ -6949,6 +6949,8 @@
         "action": "Rembourser",
         "dialogTitle": "Enregistrer un remboursement",
         "dialogDescription": "Montant encaissé : {amount}.",
+        "paidOut": "Reversé au bailleur le {date} ({reference})",
+        "paidOutWarning": "Cet acompte a déjà été reversé au bailleur le {date} ({reference}). Le rembourser créera une reprise sur son prochain reversement.",
         "fields": {
           "amount": "Montant remboursé",
           "reason": "Motif"
