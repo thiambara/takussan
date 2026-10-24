@@ -20640,7 +20640,7 @@ sans `delete`).*
 
 ### `invitations:expire` repasse en `expired` une invitation relancée pendant son passage : le lien neuf rend 410, l'invitant est prévenu d'une expiration
 - Réf : P229.01
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Invitation/InvitationService.php:519-552,426-480`, `takussan-api/app/Console/Commands/ExpireInvitations.php`, `takussan-api/routes/console.php:121`
 - Constat :
@@ -20650,10 +20650,11 @@ sans `delete`).*
   - La relance est justement le geste attendu sur une invitation échue (`resend` accepte `sent` et `expired`, l. 428) ; la boucle envoie un courriel synchrone par invitation, ce qui élargit la fenêtre avec le nombre de lignes (lu ; durée non mesurée).
   - Établi comment : lu et mesuré.
 - Piste : écrire l'expiration par une réclamation conditionnelle (`where('status', sent)->where('expires_at', '<=', $now)->whereKey($id)->update(…)`), ou relire la ligne sous verrou et rejuger statut et échéance ; n'écrire le journal et n'envoyer l'avis que si la ligne a été prise. Corriger le commentaire de `resend`. Garde : relance jouée après la lecture de la tâche → invitation `sent`, échéance neuve, aucun avis d'expiration.
+- Mesure (2026-10-24, c2629a2af, mesureur) : relu `InvitationService.php:519-552` (`expire()` : `get()` puis `forceFill(['status' => expired])->save()` sur le modèle chargé, avis à l'invitant, aucune relecture) et `:439-442` (le commentaire de `resend` dit que son verrou ferme la course avec le cron, qui n'en prend aucun) ; aucun commit sur ce fichier depuis 94407183e, aucun ticket ni PR ouverte ne cite P229 ; Test temporaire `tests/Feature/TmpMesureur/TmpSonde229Test.php` (retiré), `XDEBUG_MODE=off php artisan test <fichier>`, PostgreSQL de test, charge 2,85 / 2,61 / 2,67 sur 8 cœurs, geste concurrent joué une fois dans un écouteur `retrieved` : `resend()` réel pendant `expire()` → `status = expired`, `expires_at` à J+7, 1 `InvitationExpiredNotification`. Le constat tient. Classement : A1, le contrat est déjà écrit (le commentaire de `resend`, le docblock « already-expired rows are skipped ») : expiration par réclamation conditionnelle (`whereKey()->where('status', sent)->where('expires_at', '<=', $now)->update(…)`), journal et avis seulement si la ligne est prise, commentaire de `resend` corrigé, sans choix de produit.
 
 ### La même expiration écrase une révocation ou une acceptation faite pendant son passage
 - Réf : P229.02
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Invitation/InvitationService.php:338-363,519-552,786-800`
 - Constat :
@@ -20662,10 +20663,11 @@ sans `delete`).*
   - `revoke()` lui-même juge le statut sur le modèle lié et écrit sans verrou (lu, l. 338-361) : une révocation sur un modèle resté `sent` repasse en `revoked` une invitation acceptée entre-temps (non joué, à vérifier).
   - Établi comment : lu et mesuré.
 - Piste : la réclamation conditionnelle de P229.01 couvre les deux premiers cas ; `revoke` relit sous verrou et rejuge `accepted` / `revoked`, comme `resend`. Garde : révocation puis expiration sur la copie de la tâche → `revoked`, aucun avis.
+- Mesure (2026-10-24, c2629a2af, mesureur) : relu `InvitationService.php:338-363` (`revoke()` juge `accepted`/`revoked` sur le modèle lié, écrit sans verrou) ; Test temporaire `tests/Feature/TmpMesureur/TmpSonde229Test.php` (retiré), `XDEBUG_MODE=off php artisan test <fichier>`, PostgreSQL de test, charge 2,85 / 2,61 / 2,67 sur 8 cœurs, geste concurrent joué une fois dans un écouteur `retrieved` : `revoke()` réel pendant `expire()` → `status = expired`, `revoked_at` posé, 1 avis d'expiration ; acceptation écrite en base pendant `expire()` → `status = expired`, `accepted_at` posé ; et le cas « à vérifier » joué : `revoke()` sur un modèle resté `sent` après une acceptation en base → aucune exception, `status = revoked`, `accepted_at` posé. Les trois cas tiennent ; les avis doubles de l'acceptation et l'état du profil n'ont pas été joués. Classement : A1, `revoke` refuse déjà une invitation acceptée par 422 `invitations.errors.already_accepted` : relire sous verrou et rejuger ce même refus, comme `resend` ; les deux premiers cas tombent avec la réclamation de P229.01.
 
 ### L'escalade d'une intervention urgente part pour une demande déjà annulée ou remise en priorité normale, et réécrit ses `metadata` d'avant
 - Réf : P229.03
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Jobs/EscalateUrgentMaintenanceJob.php:19-55`, `takussan-api/app/Http/Controllers/Api/MaintenanceRequestController.php:222-236`, `takussan-api/routes/console.php:108`
 - Constat :
@@ -20674,10 +20676,11 @@ sans `delete`).*
   - mesuré : demande urgente `open` depuis 35 min, `metadata = {urgent_since, autre: x}`, chargée par le job ; ligne passée en base à `priority = normal`, `status = cancelled`, `metadata = {autre: y}` → l'avis d'escalade part à l'administrateur principal, et la ligne finit `normal`, `cancelled`, `metadata = {autre: x, urgent_since, escalated_at}` : la valeur écrite entre-temps est écrasée, et une demande normale porte une date d'urgence.
   - Établi comment : lu et mesuré.
 - Piste : par demande, relire sous verrou (ou rejouer la sélection sur l'identifiant) avant d'envoyer, et écrire `escalated_at` seul (`jsonb_set`, ou relecture puis fusion sous verrou) ; l'avis après le commit. Garde : priorité baissée et demande annulée après la lecture du job → aucun avis, `metadata` intacte.
+- Mesure (2026-10-24, c2629a2af, mesureur) : relu `EscalateUrgentMaintenanceJob.php:21-54` (sélection `urgent` + `open`/`acknowledged` par `get()`, avis, puis `metadata` recomposée du modèle chargé et `saveQuietly()`, sans relecture ; seul changement depuis l'exploration : les destinataires de TCK-2185) ; Test temporaire `tests/Feature/TmpMesureur/TmpSonde229Test.php` (retiré), `XDEBUG_MODE=off php artisan test <fichier>`, PostgreSQL de test, charge 2,85 / 2,61 / 2,67 sur 8 cœurs, geste concurrent joué une fois dans un écouteur `retrieved` : demande passée en base à `normal`, `cancelled`, `metadata = {autre: y}` après la lecture du job → 1 avis d'escalade, ligne finale `normal`, `cancelled`, `metadata = {autre: x, escalated_at, urgent_since}`. Le constat tient. Classement : A1, la sélection du job et l'effacement d'`urgent_since`/`escalated_at` quand l'urgence est quittée (`MaintenanceRequestController`) fixent le contrat : par demande, relire sous verrou et rejouer la sélection, n'envoyer que si elle tient, écrire `escalated_at` sur la `metadata` relue.
 
 ### Le rappel d'effacement de compte part après que l'utilisateur a annulé sa demande
 - Réf : P229.04
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Console/Commands/ExecuteScheduledAccountDeletions.php:37-49`, `takussan-api/app/Services/Account/AccountDeletionService.php:155-185,614-626`, `takussan-api/routes/console.php:96`
 - Constat :
@@ -20686,10 +20689,11 @@ sans `delete`).*
   - mesuré : demande à J+5 chargée par la commande, `cancelDeletion()` réel joué → la ligne est supprimée, `deletion_requested_at` nul, et le rappel part quand même. L'utilisateur qui vient d'annuler lit que son compte sera effacé à une date qui n'existe plus. L'écriture de `reminder_sent_at` sur la ligne supprimée ne touche rien (déduit, sans erreur au test).
   - Établi comment : lu et mesuré.
 - Piste : relire la demande (sous verrou, ou `whereKey()->whereNull('executed_at')->whereNull('reminder_sent_at')->update(…)` comme réclamation) avant d'envoyer, et n'envoyer que si elle a été prise. Garde : annulation après la lecture de la commande → aucun rappel.
+- Mesure (2026-10-24, c2629a2af, mesureur) : relu `ExecuteScheduledAccountDeletions.php:37-49` (rappel et `reminder_sent_at` sur chaque modèle de `dueForReminder()->get()`, sans relecture) et `AccountDeletionService.php:160-185` (`cancelDeletion` permise avant `scheduled_for`, supprime la ligne) ; Test temporaire `tests/Feature/TmpMesureur/TmpSonde229Test.php` (retiré), `XDEBUG_MODE=off php artisan test <fichier>`, PostgreSQL de test, charge 2,85 / 2,61 / 2,67 sur 8 cœurs, geste concurrent joué une fois dans un écouteur `retrieved` : `cancelDeletion()` réel joué pendant la commande, demande à J+5 → ligne supprimée, `deletion_requested_at` nul, 1 `AccountDeletionReminderNotification`. Le constat tient. Classement : A1, une demande annulée n'existe plus, et `dueForReminder` ne vise que des demandes existantes non rappelées : réclamer la demande (`whereKey()->whereNull('executed_at')->whereNull('reminder_sent_at')->update(['reminder_sent_at' => now()])`) avant d'envoyer, et n'envoyer que si une ligne est prise ; ni ce qui est effacé ni ce qui est conservé ne change (pas V3).
 
 ### La pénalité de retard se calcule sur l'échéance lue par le lot, puis s'écrit sous verrou sans être recalculée
 - Réf : P229.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : montant de la pénalité de retard
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Lease/LateFeeCalculator.php:127-170,180-185`, `takussan-api/app/Jobs/Lease/ApplyLateFeesJob.php:50-62`
 - Constat :
@@ -20697,10 +20701,11 @@ sans `delete`).*
   - mesuré : loyer `pending` de 100 000 échu de 7 jours, bail à 5 %, chargé par `ApplyLateFeesJob` ; ligne passée en base à `partially_paid` avec `paid_amount = 80 000` → la pénalité écrite est 5 000.00 (5 % de 100 000), restant 20 000 : la pénalité de la ligne relue serait 1 000. Le journal `late_fee_applied` et l'événement `LeasePaymentLateFeeApplied` portent la base d'avant (lu, l. 146-157).
   - Établi comment : lu et mesuré.
 - Piste : calculer montant et base depuis la ligne verrouillée (`compute($locked)`), dans la transaction. Garde : paiement partiel posé après la lecture du lot → pénalité sur le restant relu.
+- Mesure (2026-10-24, c2629a2af, mesureur) : relu `LateFeeCalculator.php:127-170` (`compute($payment)` et `base($payment)` sur le modèle du lot, hors transaction ; sous verrou, seuls `late_fee_applied_at` et le statut sont rejugés) ; Test temporaire `tests/Feature/TmpMesureur/TmpSonde229Test.php` (retiré), `XDEBUG_MODE=off php artisan test <fichier>`, PostgreSQL de test, charge 2,85 / 2,61 / 2,67 sur 8 cœurs, geste concurrent joué une fois dans un écouteur `retrieved` sans écouteur : modèle lu, puis ligne passée en base à `partially_paid` avec `paid_amount = 80000`, puis `apply()` → pénalité écrite 5000.00, restant 20000, `compute` sur la ligne relue → 1000. Le constat tient. Classement : V1, le correctif change le montant d'une pénalité écrite.
 
 ### Petites améliorations
 - Réf : P229.06
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : passage d'un essai à l'abonnement facturé
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Billing/AgencySubscriptionService.php:136-162`, `takussan-api/app/Services/Admin/ImpersonationService.php:161-172`
 - Constat :
@@ -20708,3 +20713,4 @@ sans `delete`).*
   - `closeExpired` rend le nombre de sessions chargées, non le nombre de sessions fermées par `stop()` (qui saute une session déjà fermée) : la sortie de `impersonation:close-expired` compte aussi celles qu'un `stop` concurrent a fermées (lu).
   - Établi comment : lu.
 - Piste : `processTrialExpirations` sur le modèle de `renewPeriods` ; `stop()` rend un booléen que `closeExpired` additionne.
+- Mesure (2026-10-24, c2629a2af, mesureur) : relu `AgencySubscriptionService.php:136-162` (`find()` hors verrou, seul `status = trialing` rejugé, puis `update`) et `ImpersonationService.php:161-172` (`closeExpired` rend le compte chargé, `stop()` ne rend rien et saute une session déjà fermée, l. 92) ; Test temporaire `tests/Feature/TmpMesureur/TmpSonde229Test.php` (retiré), `XDEBUG_MODE=off php artisan test <fichier>`, PostgreSQL de test, charge 2,85 / 2,61 / 2,67 sur 8 cœurs, geste concurrent joué une fois dans un écouteur `retrieved` : `cancel()` réel joué au `retrieved` de `find()` (l'écouteur saute le `retrieved` de `pluck('id')`, l. 151 : c'est pourquoi le test de l'explorateur n'a rien mesuré) → 1 converti, `status = active`, `ended_at` posé. Les deux parties tiennent, la première est mesurée, la seconde lue. Classement : V1, un essai converti en abonnement actif ouvre la facturation : rejuger tous les critères sous verrou (le modèle de `renewPeriods`) change qui est facturé.
