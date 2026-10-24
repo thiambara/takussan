@@ -9,6 +9,7 @@ use App\Models\Enums\ConversationStatus;
 use App\Models\Enums\PayoutStatus;
 use App\Models\Enums\RelationshipStatus;
 use App\Models\Enums\ServiceProviderBillStatus;
+use App\Models\Enums\ServiceProviderProfileStatus;
 use PHPUnit\Framework\TestCase;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
@@ -36,6 +37,9 @@ class CasDEnumReservesTest extends TestCase
             RelationshipStatus::Suspended,
             // TCK-1898 (P196.03) : `BookingService::cancel` ne pose que `customer`, `owner` ou `agent`.
             CancellationBy::System,
+            // TCK-2043 (P115.04) : un profil prestataire ne naît que `draft` et ne devient que `active`.
+            ServiceProviderProfileStatus::Inactive,
+            ServiceProviderProfileStatus::Suspended,
         ];
     }
 
