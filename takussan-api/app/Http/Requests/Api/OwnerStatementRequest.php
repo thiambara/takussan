@@ -35,7 +35,9 @@ class OwnerStatementRequest extends BaseFormRequest
 
     public function landlord(): ?User
     {
-        return $this->filled('landlord_id') ? User::query()->find($this->integer('landlord_id')) : $this->user();
+        // TCK-2015 (P175.03) — le relevé d'un bailleur qui a effacé son compte reste lisible : la
+        // policy ne l'ouvre qu'au personnel de l'agence où il était bailleur.
+        return $this->filled('landlord_id') ? User::withTrashed()->find($this->integer('landlord_id')) : $this->user();
     }
 
     public function agency(): ?Agency

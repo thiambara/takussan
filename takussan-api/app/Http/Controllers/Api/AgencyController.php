@@ -193,7 +193,10 @@ class AgencyController extends Controller
         ]);
 
         return $this->json([
-            'data' => UserResource::collection($paginator)->toArray($request),
+            // TCK-2004 (P176.04) — `roles` rapporté à l'agence de la route, pas à toutes celles du membre.
+            'data' => $paginator->getCollection()
+                ->map(fn (User $user): array => UserResource::dansLAgence($user, (int) $agency->id)->resolve($request))
+                ->all(),
             'meta' => $this->paginationMeta($paginator),
         ]);
     }
@@ -294,7 +297,7 @@ class AgencyController extends Controller
                 'user_id' => $target->id,
                 'agency_id' => $agency->id,
                 'role' => $role,
-                'user' => UserResource::make($target->refresh())->resolve($request),
+                'user' => UserResource::dansLAgence($target->refresh(), (int) $agency->id)->resolve($request),
             ],
         ]);
     }

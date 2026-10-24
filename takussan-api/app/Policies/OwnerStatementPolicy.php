@@ -20,7 +20,7 @@ class OwnerStatementPolicy
 {
     public function view(User $user, User $landlord, Agency $agency): bool
     {
-        if (! $landlord->hasProfileAt((int) $agency->id, OwnerProfile::class)) {
+        if (! $this->isLandlordAt($landlord, $agency)) {
             return false;
         }
 
@@ -30,5 +30,21 @@ class OwnerStatementPolicy
 
         return $user->staffAgencyId() === (int) $agency->id
             && $user->canActAt(Capability::PayoutsCreate, $agency);
+    }
+
+    /**
+     * TCK-2015 (P175.03) — un compte effacé a perdu ses profils (`endProfiles()`, en douceur) : il
+     * reste le bailleur de l'agence dont il garde un profil, même supprimé, pour son seul relevé.
+     */
+    private function isLandlordAt(User $landlord, Agency $agency): bool
+    {
+        if (! $landlord->trashed()) {
+            return $landlord->hasProfileAt((int) $agency->id, OwnerProfile::class);
+        }
+
+        return OwnerProfile::withTrashed()
+            ->where('user_id', $landlord->id)
+            ->where('agency_id', $agency->id)
+            ->exists();
     }
 }
