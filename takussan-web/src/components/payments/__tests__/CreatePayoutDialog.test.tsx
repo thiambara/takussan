@@ -100,6 +100,20 @@ describe('CreatePayoutDialog — le calcul se lit, il ne se saisit pas (TCK-594)
     PREPARATION.current = { data: undefined, isError: false, isFetching: false, error: null };
   });
 
+  // P220.06 (TCK-2136) — un bailleur lié à un compte sans nom garde le nom de son invitation.
+  it("nomme un bailleur au compte sans nom par le nom saisi à l'invitation", () => {
+    const avant = OWNERS.data.data;
+    OWNERS.data.data = [
+      { id: 6, user_id: 43, agency_id: 3, status: 'active', metadata: { first_name: 'Moussa', last_name: 'Ndiaye' } as never, created_at: null, user: { id: 43, first_name: '', last_name: '', email: null as never } },
+    ];
+    try {
+      monter();
+      expect(screen.getByRole('option', { name: 'Moussa Ndiaye' })).toBeInTheDocument();
+    } finally {
+      OWNERS.data.data = avant;
+    }
+  });
+
   it('propose les bailleurs actifs et inactifs, à qui des loyers peuvent rester dus (P120.04)', () => {
     monter();
 

@@ -108,14 +108,16 @@ export function LeaseSignaturePanel({ lease }: LeaseSignaturePanelProps) {
                 </div>
                 {signature && (
                   <p className="mt-2 text-xs text-muted-foreground">
-                    {signature.on_behalf_of_name
+                    {/* TCK-2134 (P220.02) — le mandat se lit à sa présence, non à la vérité du
+                        nom : `''` (compte sans nom) effaçait le « pour le compte de ». */}
+                    {signature.on_behalf_of_name != null
                       ? t('signedOnBehalf', {
-                          signer: signature.signer_name ?? '—',
-                          landlord: signature.on_behalf_of_name,
+                          signer: signature.signer_name || '—',
+                          landlord: signature.on_behalf_of_name || '—',
                           date: signature.signed_at ? formatDate(signature.signed_at, locale) : '—',
                         })
                       : t('signedBy', {
-                          signer: signature.signer_name ?? '—',
+                          signer: signature.signer_name || '—',
                           date: signature.signed_at ? formatDate(signature.signed_at, locale) : '—',
                         })}
                   </p>

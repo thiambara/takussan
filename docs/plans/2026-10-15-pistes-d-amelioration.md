@@ -19891,7 +19891,7 @@ les envoie.*
 
 ### Un participant de conversation sans nom s'affiche sans nom ni initiales : la ligne ne porte que son rôle
 - Réf : P220.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-2132
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/messages/ParticipantRow.tsx:34-40`, `:51`, `takussan-api/app/Http/Resources/ConversationResource.php:74-77`, `takussan-api/app/Models/User.php:357-360`, `:362-378`
 - Constat :
@@ -19902,10 +19902,11 @@ les envoie.*
   - Établi comment : lu, et mesuré par rendu.
 - Piste : rendre `full_name` des participants par `nameWithoutContact()` côté API (comme `MessageResource` et `MessagingContactResource`, TCK-815 et TCK-971), et remplacer les `??` du composant par un repli sur chaîne vide. Test : ressource d'une conversation dont un participant n'a pas de nom → `full_name = "—"` ; rendu du composant avec `full_name: ''` → `#<id>` ou « — ».
 - Mesure (2026-10-24, 6d8095e26, mesureur) : relu `ConversationResource.php:76` (`'full_name' => $user->full_name`), `User.php:357-378` (`getFullNameAttribute` = `trim("{first} {last}")` ; docblock de `nameWithoutContact()` qui vise `ConversationResource`), `MessageResource.php:23` (`nameWithoutContact()`), `PhoneLoginService.php:172-173` (`''`), `ParticipantRow.tsx:34,51` (`?? '?'`, `?? \`#${user_id}\``), inchangés ; `git log -S` et `grep` des tickets → rien ne l'a traité ; test Vitest temporaire (retiré, charge 1,57 / 2,05 / 2,34 sur 8 cœurs), `ParticipantRow` avec `full_name: ''` → `textContent` = `"Membre"` → le constat tient. Classement : A1, la règle est écrite (docblock de `nameWithoutContact()`, TCK-815) et les replis du composant existent : rendre `full_name` par `nameWithoutContact()` et remplacer les deux `??` par `||` ne demande aucun choix.
+- Mesure (2026-10-24, 3e8efc3c5, implementeur) : avant correctif, `GET /api/conversations/{id}` rendait `full_name = ''` pour un participant à noms vides, et `ParticipantRow` avec `full_name: ''` n'affichait ni `#<id>` ni initiales ; `ConversationResource` passe par `nameWithoutContact()` et `ParticipantRow` replie par `||` ; `SenderNameWithoutContactTest` (participant sans nom → `—`, sans e-mail) et `ParticipantRow.test.tsx` (`#42`, `?`) verts ; ablation : `$user->full_name` remis → le test PHP rougit, `??` remis sur le nom → le cas vide rougit.
 
 ### Le panneau de signature d'un bail écrit « Signé par  le … », et efface le « pour le compte de » quand le bailleur n'a pas de nom
 - Réf : P220.02
-- Statut : retenu · autonome
+- Statut : fait · TCK-2134
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/leases/LeaseSignaturePanel.tsx:109-121`, `takussan-api/app/Http/Resources/LeaseResource.php:106-107`, `takussan-web/src/messages/fr.json:4005`
 - Constat :
@@ -19915,6 +19916,7 @@ les envoie.*
   - Établi comment : lu, et mesuré par rendu.
 - Piste : côté API, `nameWithoutContact()` pour les deux noms (jamais `''`) ; côté front, choisir le texte du mandat sur la présence de la signature pour le compte d'un tiers (`on_behalf_of_name !== null`, ou un booléen rendu par l'API), non sur la vérité du nom. Test : signature pour le compte d'un bailleur sans nom → le texte « pour le compte de » reste.
 - Mesure (2026-10-24, 6d8095e26, mesureur) : relu `LeaseResource.php:106-107` (`getFullNameAttribute()`, `null` seulement sans relation), `LeaseSignaturePanel.tsx:111-119` (texte du mandat choisi sur la vérité de `on_behalf_of_name`, `?? '—'`), inchangés ; test Vitest temporaire (retiré, même charge), signatures `tenant` à `signer_name: ''` et `landlord` à `on_behalf_of_name: ''` → `LocataireSignéSigné par  le 8 oct. 2026 | BailleurSignéSigné par Awa Sarr le 8 oct. 2026` → le constat tient. Classement : A1, le texte du mandat et le repli `—` existent déjà (ADR-0042) : choisir `signedOnBehalf` sur `on_behalf_of_name != null` et replier les deux noms par `|| '—'`, sans texte neuf.
+- Mesure (2026-10-24, 3e8efc3c5, implementeur) : avant correctif, un agent sans nom signant pour un bailleur sans nom recevait `signer_name = ''` (test PHP rouge), et le panneau avec `on_behalf_of_name: ''` perdait le « pour le compte de » (test Vitest rouge) ; `LeaseResource` passe par `nameWithoutContact()`, le panneau choisit le mandat sur `!= null` et replie par `|| '—'` ; `LeaseSignatureTest` (53 verts) et `LeaseSignaturePanel.test.tsx` (9 verts) ; ablation : la condition du mandat remise sur la vérité du nom → le cas neuf rougit.
 
 ### Une fiche client créée depuis un compte sans nom garde prénom et nom vides : le repli `'Client'` / `'#id'` ne joue jamais
 - Réf : P220.03
@@ -19962,7 +19964,7 @@ les envoie.*
 
 ### Les listes de bailleurs et de prestataires ignorent le nom saisi à l'invitation dès qu'un compte est lié
 - Réf : P220.06
-- Statut : retenu · autonome
+- Statut : fait · TCK-2136
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/owners/OwnersList.tsx:176`, `:189`, `:385-390`, `takussan-web/src/components/service-providers/ServiceProvidersList.tsx:132`, `:256-261`, `takussan-web/src/components/payments/CreatePayoutDialog.tsx:41-45`, `takussan-web/src/components/maintenance/MaintenanceAssignmentBlock.tsx:182-187`
 - Constat :
@@ -19972,6 +19974,7 @@ les envoie.*
   - Établi comment : lu.
 - Piste : retomber sur `metadata` champ par champ quand le nom du compte est vide (ou corriger à la source, P220.07). Test de rendu d'un bailleur lié à un compte sans nom, `metadata` nommée → le nom de l'invitation.
 - Mesure (2026-10-24, 6d8095e26, mesureur) : relu `OwnersList.tsx:385-390` et `ServiceProvidersList.tsx:256-261` (`nomDe` : noms du compte dès que `user` existe, `metadata` sinon), `CreatePayoutDialog.tsx:41-45` (`user?.first_name ?? metadata?.first_name`), inchangés → un compte lié à noms `''` bloque le repli vers `metadata` ; le constat tient. Classement : A1, `nomDe` et `ownerName` lisent déjà `metadata` comme source du nom : retomber sur `metadata` quand le nom composé du compte est vide (`||` au lieu de `??`, et test de vacuité dans `nomDe`) n'ajoute ni texte ni donnée.
+- Mesure (2026-10-24, 3e8efc3c5, implementeur) : avant correctif, un bailleur et un prestataire liés à un compte à noms `''` avec `metadata` nommée ne montraient pas le nom de l'invitation (quatre tests rouges : `OwnersList`, `ServiceProvidersList`, `CreatePayoutDialog`, `MaintenanceAssignmentBlock`) ; `nomDe`, `ownerName` et `providerName` retombent sur le nom composé de `metadata` quand celui du compte est vide ; les quatre cas verts, voisins des deux listes verts (14) ; ablation : les quatre fichiers remis à leur version d'avant → les quatre cas rougissent.
 
 ### Un compte existant qui accepte une invitation ne reçoit pas le nom que l'agence a saisi
 - Réf : P220.07

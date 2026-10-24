@@ -56,6 +56,17 @@ describe('<MaintenanceAssignmentBlock> — TCK-1325 (P117.06), badge « Assuré 
   });
 });
 
+describe('<MaintenanceAssignmentBlock> — P220.06 (TCK-2136), le nom saisi à l’invitation', () => {
+  it('un prestataire au compte sans nom est proposé sous le nom de son invitation', () => {
+    monter(prestataire({
+      metadata: { first_name: 'Ibrahima', last_name: 'Fall' },
+      user: { id: 103, first_name: '', last_name: '', email: 'f@example.test' },
+    }));
+    // La demande est assignée à ce prestataire : le déclencheur du sélecteur porte son libellé.
+    expect(screen.getByText('Ibrahima Fall')).toBeInTheDocument();
+  });
+});
+
 describe('<MaintenanceAssignmentBlock> — TCK-1327 (P117.07), la plage horaire', () => {
   const lundiMatin = { availability: [{ day: 'monday', from: '08:00', to: '12:00' }] } as never;
   const avertissement = /ne déclare pas travailler ce jour-là/;

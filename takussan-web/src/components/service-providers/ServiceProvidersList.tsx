@@ -255,9 +255,10 @@ export function ServiceProvidersList({ agencyId, canInvite, initialData }: Props
 /** Le nom composé, seule logique propre à l'ancienne `ProviderRow` qui survivait à la conversion. */
 function nomDe(provider: ServiceProviderProfileSummary): string {
   const meta = provider.metadata ?? null;
-  return provider.user
-    ? `${provider.user.first_name ?? ''} ${provider.user.last_name ?? ''}`.trim()
-    : `${meta?.first_name ?? ''} ${meta?.last_name ?? ''}`.trim();
+  // TCK-2136 (P220.06) — un compte lié sans nom (créé par téléphone) laisse place au nom saisi
+  // par l'agence à l'invitation, rangé dans `metadata`.
+  const compte = `${provider.user?.first_name ?? ''} ${provider.user?.last_name ?? ''}`.trim();
+  return compte || `${meta?.first_name ?? ''} ${meta?.last_name ?? ''}`.trim();
 }
 
 /**

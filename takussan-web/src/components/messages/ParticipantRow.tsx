@@ -31,7 +31,8 @@ export function ParticipantRow({
   busy,
 }: ParticipantRowProps) {
   const t = useTranslations('messaging.group.info');
-  const initials = (participant.user?.full_name ?? '?')
+  // TCK-2132 (P220.01) — `||` et non `??` : un compte créé par téléphone a `full_name: ''`.
+  const initials = (participant.user?.full_name || '?')
     .split(' ')
     .filter(Boolean)
     .slice(0, 2)
@@ -48,7 +49,7 @@ export function ParticipantRow({
       </div>
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm text-foreground">
-          {participant.user?.full_name ?? `#${participant.user_id}`}
+          {participant.user?.full_name || `#${participant.user_id}`}
           {isSelf && <span className="ml-1 text-xs text-muted-foreground">({t('you')})</span>}
         </p>
         {participant.user?.email && (
