@@ -7197,7 +7197,7 @@ base de développement. Les écrans n'ont pas été joués.*
 
 ### L'historique des paiements rend à l'agent suspendu ou retiré les acomptes des réservations qu'il a créées, que `BookingPolicy::view` lui refuse
 - Réf : P233.01
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/PaymentController.php:47-60`
 - Constat :
@@ -7205,10 +7205,11 @@ base de développement. Les écrans n'ont pas été joués.*
   - mesuré (test temporaire) : agent auteur d'une réservation de l'agence, avec un acompte. Actif : `GET /api/bookings/{id}` 200, l'acompte figure dans `GET /api/payments/history`. Suspendu, puis retiré : `GET /api/bookings/{id}` **403**, mais `GET /api/payments/history` → 200 et rend la ligne `source: booking` (montant, statut, `booking_id`, `property_id`, `customer_id`).
   - Établi comment : lu, puis mesuré.
 - Piste : borner la clause comme `BookingController::index` depuis TCK-2196 : `created_by_id` et (agence de la réservation nulle, ou comprise dans `memberAgencyIds()`). Test : auteur suspendu puis retiré → l'acompte absent de l'historique ; auteur actif, client et bailleur du bien le gardent ; ablation (clause remise) → rouge.
+- Mesure (2026-10-24, 7772c59d8, mesureur) : relu `PaymentController::history` : la branche des acomptes garde `where('created_by_id', $user->id)` sans appartenance, à côté des branches bailleur, personnel et client (`customer.user_id`), inchangée ; (sonde temporaire `tests/Feature/TmpMesureur/Sonde233Test.php`, retirée, charge `{ 2.21 2.54 2.46 }` sur 8 cœurs, profil d'agent (ou d'admin) passé à `suspended` puis supprimé) agent auteur d'une réservation de l'agence avec un acompte : actif → `GET /api/bookings/{id}` 200 et acompte listé dans `GET /api/payments/history` ; suspendu, puis retiré → `GET /api/bookings/{id}` 403, mais l'historique 200 rend toujours la ligne `source: booking` : le constat tient. Classement : A1, ADR-0031 (amendement du 2026-10-24, B.1 et B.2) écrit la règle pour `created_by_id` et sa forme SQL pour les listes, et le client garde l'acompte par la branche `customer` (B.4), si bien que le correctif ne demande aucun choix.
 
 ### La liste des invitations rend à l'émetteur suspendu ou retiré les invitations qu'il a émises, adresse de l'invité comprise, que `view` lui refuse depuis TCK-2194
 - Réf : P233.02
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/InvitationController.php:115-127`, `takussan-api/app/Policies/InvitationPolicy.php:59-75`, `takussan-api/app/Http/Resources/InvitationResource.php:23-24`
 - Constat :
@@ -7218,10 +7219,11 @@ base de développement. Les écrans n'ont pas été joués.*
   - ADR-0031, amendement du 2026-10-24, partie B, point 2 : la forme SQL de la règle d'auteur « borne les listes » (lu).
   - Établi comment : lu, puis mesuré.
 - Piste : `visibleScope` : `invited_by` et (agence nulle, ou comprise dans `memberAgencyIds()`), la forme SQL de la branche de `view`. Test : émetteur suspendu puis retiré → absent de `GET /api/invitations` ; émetteur actif et invitation sans agence → listée ; ablation → rouge.
+- Mesure (2026-10-24, 7772c59d8, mesureur) : relu `InvitationController::visibleScope` (`where('invited_by', $user->id)` seul pour qui ne passe pas `viewAny`) et `InvitationPolicy::view` (branche émetteur bornée par `isMemberAt` depuis TCK-2194), inchangés ; (sonde temporaire `tests/Feature/TmpMesureur/Sonde233Test.php`, retirée, charge `{ 2.21 2.54 2.46 }` sur 8 cœurs, profil d'agent (ou d'admin) passé à `suspended` puis supprimé) invitation de l'agence émise par un agent : actif → `GET /api/invitations/{id}` 200 et listée ; suspendu, puis retiré → `GET /api/invitations/{id}` 403, mais `GET /api/invitations` 200 rend la ligne avec l'`email` de l'invité : le constat tient. Classement : A1, ADR-0031 (amendement du 2026-10-24, B.1, B.2 et B.4) nomme `invited_by`, borne les listes par la forme SQL de la règle et garde « your pending invites » à l'émetteur actif : la liste n'a qu'à suivre la branche de `view`.
 
 ### Le membre suspendu ou retiré qui a ouvert une intervention la lit, la liste, et confirme ou conteste la réparation
 - Réf : P233.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : retirer le demandeur parti sans retirer le locataire demande de trancher le partage personnel / locataire
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Policies/MaintenanceRequestPolicy.php:33-42,110-120,229-244`, `takussan-api/app/Models/MaintenanceRequest.php:164-186`, `takussan-api/app/Http/Controllers/Api/MaintenanceRequestController.php:106-138`
 - Constat :
@@ -7232,10 +7234,11 @@ base de développement. Les écrans n'ont pas été joués.*
   - La règle d'auteur d'ADR-0031 ne se pose pas telle quelle : un locataire demandeur n'est pas membre au sens d'`isMemberAt` (déduit, à vérifier), et la perdrait.
   - Établi comment : lu, puis mesuré pour la lecture, la liste et la confirmation.
 - Piste : la branche du demandeur vaut si le bien est sans agence, si le demandeur est membre de l'agence du bien (`isMemberAt`), ou s'il n'y a aucun profil de personnel (le locataire et le client, que l'angle 248 reprend), dans `view`, `actorsOf` et `scopeVisibleTo`. Le partage entre « personnel parti » et « locataire » est à trancher. Test : agent demandeur suspendu puis retiré → `GET` 403, absent de la liste, `confirm-resolution` et `contest-resolution` 403 ; locataire demandeur et agent actif gardent l'accès ; ablation → rouge.
+- Mesure (2026-10-24, 7772c59d8, mesureur) : relu `MaintenanceRequestPolicy::view` (`requester_id === user.id`), `respondToResolution`, `actorsOf` et `MaintenanceRequest::scopeVisibleTo` (`where('requester_id', …)`), inchangés ; (sonde temporaire `tests/Feature/TmpMesureur/Sonde233Test.php`, retirée, charge `{ 2.21 2.54 2.46 }` sur 8 cœurs, profil d'agent (ou d'admin) passé à `suspended` puis supprimé) intervention `completed` d'un bien de l'agence ouverte par un agent : actif, suspendu, puis retiré, à l'identique → `GET /api/maintenance-requests/{id}` 200, listée, `POST …/confirm-resolution` 200 et la demande passe à `closed` : le constat tient pour la lecture, la liste et la confirmation ; `contest-resolution` et le fil de conversation non joués. Classement : V2 (et V7), `requester_id` n'est pas une colonne d'auteur nommée par ADR-0031 B.1, elle désigne aussi le locataire, et la Piste laisse elle-même « le partage entre personnel parti et locataire » à trancher.
 
 ### L'administrateur d'agence suspendu ou retiré révoque encore la demande de passage en agence professionnelle qu'il a déposée
 - Réf : P233.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : `submitted_by` hors des colonnes d'auteur d'ADR-0031, geste d'administrateur
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Policies/AgencyUpgradeRequestPolicy.php:77-95`, `takussan-api/app/Http/Controllers/Api/Agency/AgencyUpgradeRequestController.php:84-104`
 - Constat :
@@ -7244,3 +7247,4 @@ base de développement. Les écrans n'ont pas été joués.*
   - Le geste est un retrait irrévocable de ce que l'agence a demandé à la plateforme (le statut `revoked` est final, à vérifier dans `AgencyUpgradeRequestService::revoke`).
   - Établi comment : lu, puis mesuré.
 - Piste : la branche du déposant passe par `auteurEncoreMembre($user, submitted_by, agency_id)`. Test : déposant suspendu puis retiré → 403, la demande reste `pending` ; déposant actif et administrateur de l'agence → 200 ; ablation → rouge.
+- Mesure (2026-10-24, 7772c59d8, mesureur) : relu `AgencyUpgradeRequestPolicy::revoke` (vrai dès `submitted_by === user.id`, avant tout jugement d'agence) et `AgencyUpgradeRequestController::destroy` (seul contrôle : la demande est de l'agence de la route), inchangés ; (sonde temporaire `tests/Feature/TmpMesureur/Sonde233Test.php`, retirée, charge `{ 2.21 2.54 2.46 }` sur 8 cœurs, profil d'agent (ou d'admin) passé à `suspended` puis supprimé) agence `individual`, demande `pending` déposée par un second administrateur : actif, suspendu, puis retiré, à l'identique → `DELETE /api/agencies/{id}/upgrade-requests/{req}` 200, statut `revoked` : le constat tient ; la finalité du statut `revoked` n'a pas été relue. Classement : V2, ADR-0031 B.1 énumère ses colonnes d'auteur sans `submitted_by`, et son application ne cite pas cette policy : étendre la règle à un geste d'administrateur sur la plateforme revient au porteur.
