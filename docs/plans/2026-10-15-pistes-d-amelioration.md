@@ -17663,7 +17663,7 @@ Le PDF de l'état des lieux est P143.01.*
 
 ### L'agent suspendu, administrateur d'un groupe de bail, y ajoute un tiers qui lit alors tout le fil
 - Réf : P191.03
-- Statut : validé — validation du porteur (2026-10-23) : `addParticipant` exige d'abord `ConversationAccess::allows` pour l'acteur, et hérite de P191.01
+- Statut : fait · TCK-2023
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Policies/ConversationPolicy.php:22-25`, `takussan-api/app/Http/Controllers/Api/ConversationParticipantController.php:37`, `takussan-api/app/Services/Messaging/MessagingReach.php:100-175`
 - Constat :
@@ -17672,6 +17672,7 @@ Le PDF de l'état des lieux est P143.01.*
   - Établi comment : lu, puis mesuré.
 - Piste : la branche « contexte » de P191.01 retire au suspendu ses gestes d'administrateur (`isActiveAdmin` passe par `ConversationAccess`, à vérifier) ; pour le tiers ajouté, voir P191.04. Test : agent suspendu → ajout en 403.
 - Mesure (2026-10-23, b4891d8a9, mesureur) : relu `ConversationPolicy::addParticipant` (administrateur actif du groupe, rien d'autre) et `MessagingReach` règle 1 (tout correspondant), inchangés ; `git log 60fd5f865..b4891d8a9` sur `app/Services/Messaging`, `app/Services/Agency`, `app/Services/Membership`, `ConversationPolicy`, les requêtes et contrôleurs de conversation → aucun commit ; aucun ticket ne cite P191 ; test temporaire `tests/Feature/TmpMesureur/Sonde191Test.php` (retiré, charge 2,73 / 2,35 / 2,13 sur 8 cœurs) sur `MaintenanceActors` (`maintenanceScenario`, bail passé à l'agence, agent de l'agence, un groupe à `lease_id` + `property_id` et un groupe à `property_id` seul, agent administrateur, locataire membre), Y correspondant de l'agent par une directe antérieure, agent suspendu → `POST /api/conversations/{id}/participants` `{user_ids:[Y]}` → 201 ; Y : `can('view', $lease)` faux, `allows` vrai, `GET …/messages` 200, `POST …/messages` 201, fil listé → le constat tient en entier. Classement : V2, le correctif change qui peut ajouter un participant à un groupe, et dépend de la règle des participants d'un fil de bail que P191.04 laisse à écrire.
+- Mesure (2026-10-24, c7f6c4101, implementeur) : reproduit avant correctif par `MembreSuspenduFilsDeContexteTest::test_p191_03_l_agent_suspendu_administrateur_n_ajoute_plus_personne` (agent suspendu, administrateur du groupe à `lease_id`, un correspondant par une directe antérieure) → `can('addParticipant')` vrai (« true is false ») ; `ConversationPolicy::addParticipant` exige `ConversationAccess::allows` puis l'administration active → `can` faux, `POST /api/conversations/{id}/participants` 403, tiers non ajouté ; ablation (`allows` retiré de la policy) → rouge, rétabli → vert ; `MembreSuspenduFilsDeContexteTest` 3/3, `ParticipantManagementTest` 20/20, `GroupConversationCreationTest` 26/26 verts.
 
 ### Un groupe rattaché à un bail accepte des participants qui ne lisent pas le bail, et leur ouvre le fil du locataire
 - Réf : P191.04
