@@ -8835,7 +8835,8 @@
         "colAt": "Date",
         "reasons": {
           "failed": "Failed",
-          "late": "Late"
+          "late": "Late",
+          "refund_due": "Deposit refund overdue"
         },
         "types": {
           "lease_payment": "Rent instalment",

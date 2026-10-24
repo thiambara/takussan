@@ -8184,7 +8184,8 @@
         "colAt": "Bés",
         "reasons": {
           "failed": "Ñàkk",
-          "late": "Yéex"
+          "late": "Yéex",
+          "refund_due": "Restitution échue"
         },
         "types": {
           "lease_payment": "Fey kër",
