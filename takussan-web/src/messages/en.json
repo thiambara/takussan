@@ -3093,7 +3093,8 @@
         "collaborations": "Property collaborations",
         "customers": "Customers they are the lead contact for",
         "responsible_properties": "Properties they are the responsible agent for",
-        "held_properties": "Properties registered in their name"
+        "held_properties": "Properties registered in their name",
+        "contact_leads": "Unhandled contact requests"
       },
       "notTransferable": "not transferable yet",
       "successor": "Successor",
@@ -10865,6 +10866,10 @@
         "reinstated": {
           "title": "Suspension lifted: {agency}",
           "body": "The suspension of the agency {agency} has been lifted. Reason: {reason}. Its public listings are visible again."
+        },
+        "member_deletion_requested": {
+          "title": "Account deletion requested: {member}",
+          "body": "{member} has requested the deletion of their account, effective {scheduled_for}. Their portfolio in the agency: {tasks} task(s), {visits} visit(s), {maintenance} maintenance request(s), {responsible_properties} propert(y/ies) as lead agent, {held_properties} propert(y/ies) entered, {collaborations} collaboration(s), {customers} client(s) followed, {contact_leads} unhandled contact request(s). Hand it over to a colleague before that date from the team page: {url}"
         }
       },
       "platform_operator": {

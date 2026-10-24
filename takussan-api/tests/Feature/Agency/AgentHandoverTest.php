@@ -137,7 +137,7 @@ class AgentHandoverTest extends ApiTestCase
             ->assertOk()
             ->assertJsonPath('data.portfolio', [
                 'tasks' => 3, 'visits' => 2, 'maintenance' => 1, 'responsible_properties' => 0, 'held_properties' => 0,
-                'collaborations' => 2, 'customers' => 2,
+                'collaborations' => 2, 'customers' => 2, 'contact_leads' => 0,
             ]);
 
         $this->actingAsApi($this->leaver)->apiGet($this->url('portfolio'))->assertForbidden();

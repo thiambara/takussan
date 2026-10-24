@@ -32,6 +32,7 @@ vi.mock('@/lib/queries/agent-crm', async (original) => ({
 
 const VIDE = {
   tasks: 0, visits: 0, maintenance: 0, responsible_properties: 0, held_properties: 0, collaborations: 0, customers: 0,
+  contact_leads: 0,
 };
 const refus = () => new ApiError(403, { code: 'two_factor_step_up_required', message: 'Preuve récente requise.' });
 
