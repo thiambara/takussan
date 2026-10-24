@@ -245,6 +245,26 @@ export async function assignAdminAgencySubscription(
   return jsonOrThrow<AgencySubscriptionResponse>(res);
 }
 
+/**
+ * TCK-2222 (P214.01) — les dérogations de l'abonnement ouvert, modifiées sur place : ni le plan,
+ * ni l'essai, ni la période ne changent. Une valeur `null` retire la dérogation.
+ */
+export async function updateAdminAgencySubscriptionOverrides(
+  agencyId: number,
+  payload: {
+    platform_fee_pct: number | null;
+    limits: { max_active_listings: number | null; max_agents: number | null; max_branches: number | null };
+  },
+): Promise<AgencySubscriptionResponse> {
+  const res = await fetch(cheminApi`/api/super-admin/agencies/${agencyId}/subscription/overrides`, {
+    method: 'PATCH',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  return jsonOrThrow<AgencySubscriptionResponse>(res);
+}
+
 export async function cancelAdminAgencySubscription(agencyId: number): Promise<AgencySubscriptionResponse> {
   const res = await fetch(cheminApi`/api/super-admin/agencies/${agencyId}/subscription/cancel`, {
     method: 'POST',

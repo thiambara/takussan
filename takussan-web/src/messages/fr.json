@@ -9571,7 +9571,13 @@
         "suspended": "Suspendu",
         "ended": "Terminé"
       },
-      "noneDescription": "Les limites et la commission de votre offre s'afficheront ici dès qu'un abonnement sera actif."
+      "noneDescription": "Les limites et la commission de votre offre s'afficheront ici dès qu'un abonnement sera actif.",
+      "overrides": {
+        "title": "Dérogations actives",
+        "none": "Aucune dérogation : les valeurs du plan s’appliquent.",
+        "item": "{label} : {value}"
+      },
+      "branches": "Succursales"
     },
     "agencySubscription": {
       "changePlan": "Changer de plan",
@@ -9584,7 +9590,19 @@
         "assigned": "Abonnement mis à jour",
         "assignFailed": "Assignation impossible",
         "closed": "Abonnement clôturé",
-        "closeFailed": "Clôture impossible"
+        "closeFailed": "Clôture impossible",
+        "overridesSaved": "Dérogations enregistrées",
+        "overridesFailed": "Enregistrement des dérogations impossible"
+      },
+      "overrides": {
+        "title": "Modifier les dérogations",
+        "hint": "Modifie l’abonnement en cours, sans changer de plan ni toucher à l’essai ou à la période. Un champ vide rend la valeur du plan.",
+        "fee": "Commission dérogée (%)",
+        "listings": "Quota de biens actifs dérogé",
+        "agents": "Quota d’agents dérogé",
+        "branches": "Quota de succursales dérogé",
+        "planValue": "Valeur du plan",
+        "save": "Enregistrer les dérogations"
       }
     },
     "plans": {
