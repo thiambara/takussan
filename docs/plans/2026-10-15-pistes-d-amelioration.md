@@ -17034,7 +17034,7 @@ Le PDF de l'état des lieux est P143.01.*
 
 ### L'annulation d'un reversement plateforme juge le statut hors verrou : une annulation concurrente d'un paiement peut écraser `paid` et rendre les lignes éligibles à une nouvelle clôture
 - Réf : P182.05
-- Statut : validé — validation du porteur (2026-10-23) : la piste telle qu'écrite (verrou et transaction, patron d'`approve` et `markPaid`)
+- Statut : fait · TCK-2056
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Billing/PlatformPayoutService.php:209-227,112-116,148-152,534-548`
 - Constat :
@@ -17044,6 +17044,7 @@ Le PDF de l'état des lieux est P143.01.*
   - Établi comment : lu.
 - Piste : verrouiller la ligne dans la transaction et juger la transition sur la ligne verrouillée, comme `approve` et `markPaid`. Garde : un test qui pose un reversement `paid` derrière un modèle resté `approved` en mémoire et attend 422 de `cancel`, sans détachement.
 - Mesure (2026-10-23, 2b80de9, mesureur) : relu `PlatformPayoutService.php:209-227` (`assertTransition` sur le modèle lié, hors transaction, puis détachement des `BookingPayment` et `LeasePayment` et écriture de `cancelled` sans relire), `:112-116,148-152` (`approve` et `markPaid` verrouillent et jugent sur la ligne verrouillée), `TRANSITIONS` l. 34-39 ; test temporaire `tests/Feature/Tmp/TmpMesure182Test.php` (retiré), `XDEBUG_MODE=off php artisan test <fichier>`, PostgreSQL de test, charge 2,2 sur 8 cœurs : reversement `approved` chargé, ligne passée `paid` en base derrière lui, puis `cancel` sur le modèle périmé → accepté, statut en base `cancelled`. Le « à vérifier » est levé : un `paid` est écrasé. Classement : V1, le correctif touche l'écriture du statut d'un reversement et le détachement des paiements qu'une clôture reprend.
+- Mesure (2026-10-24, cc7721188, implementeur) : relu `PlatformPayoutService::cancel` (`assertTransition` sur le modèle lié, hors transaction, inchangé) → `PlatformPayoutCancelLockTest` avant correctif : reversement `approved` en mémoire, ligne passée `paid` en base, `cancel` accepté (rouge). Après : ligne verrouillée dans la transaction, transition jugée et écriture faites sur elle ; 422 `platform_payout.status_transition_invalid`, statut `paid` gardé, lignes toujours attachées ; témoin `approved` → `cancelled` avec détachement. Ablation : service remis à `HEAD` → 1 rouge, remis → 2 verts ; `PlatformPayoutTest`, `…FreezeTest`, `…RefundedItemsTest`, `…ScopeTest`, `…SegregationTest` verts.
 
 ### L'annulation d'une visite juge le statut sur le modèle non verrouillé : deux annulations simultanées préviennent deux fois le visiteur
 - Réf : P182.06
