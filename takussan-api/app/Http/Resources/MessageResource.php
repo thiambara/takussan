@@ -15,6 +15,13 @@ class MessageResource extends BaseResource
             'id' => $this->id,
             'conversation_id' => $this->conversation_id,
             'sender_id' => $this->sender_id,
+            // TCK-2013 (P175.04) — l'auteur, que `ChatView` écrit au-dessus d'un message reçu :
+            // son nom montré à un autre compte (`nameWithoutContact()`, jamais une coordonnée).
+            // Nul pour un compte effacé, que la portée `SoftDeletes` ne charge pas.
+            'sender' => $this->whenLoaded('sender', fn () => $this->resource->sender === null ? null : [
+                'id' => $this->resource->sender->id,
+                'full_name' => $this->resource->sender->nameWithoutContact(),
+            ]),
             'type' => $this->type?->value,
             'content' => $this->content,
             // TCK-592 — `metadata` (événement d'un avis système, durée d'une note vocale) et

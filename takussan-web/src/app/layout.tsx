@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { Bricolage_Grotesque, DM_Sans } from 'next/font/google';
+import localFont from 'next/font/local';
 import { cookies } from 'next/headers';
 import { getLocale, getTranslations } from 'next-intl/server';
 import { DELAI_ME_RACINE_MS } from '@/lib/auth';
@@ -26,8 +26,56 @@ import './globals.css';
 // PRÉCHARGÉE par toutes les routes : Manrope, Inter et Fraunces, que seul `/playground` lit, sont
 // déclarées par sa page ; Geist, lue nulle part, est retirée. Garde :
 // `src/app/__tests__/polices-du-layout-racine.test.ts`.
-const bricolage = Bricolage_Grotesque({ subsets: ['latin'], variable: '--font-bricolage', weight: ['400', '500', '600', '700'] });
-const dmSans = DM_Sans({ subsets: ['latin'], variable: '--font-dm-sans', weight: ['400', '500', '600', '700'] });
+//
+// ADR-0074 — les fichiers sont VERSIONNÉS (`src/app/fonts/`, provenance et mise à jour dans son
+// README) et chargés par `next/font/local` : le build ne télécharge plus rien chez Google Fonts,
+// dont les pannes intermittentes le cassaient. Ce qui reproduit ce que servait `next/font/google` :
+//
+// · un fichier VARIABLE à axe `wght` seul, celui que Google servait (même cmap, même axe) ;
+// · `weight: '400 700'` : Google déclarait les quatre graisses demandées (400 à 700) sur ce même
+//   fichier — une plage plus large ferait rendre un `font-light` en 300 au lieu de 400 ;
+// · deux appels par famille, comme les deux @font-face de Google : `latin`, PRÉCHARGÉ, et
+//   `latin-ext`, chargé à la demande par son `unicode-range` — c'est lui qui porte le « ŋ » du
+//   wolof (295 occurrences dans `wo.json`). `next/font/local` applique `declarations` à toutes
+//   les faces d'un appel : un `unicode-range` par fichier exige un appel par fichier. La variable
+//   `-ext` se place AVANT l'autre dans `globals.css` (§ @theme) : sa face ne couvre pas U+0020,
+//   elle ne fixe donc pas les métriques de la ligne, et le texte latin la traverse sans la charger.
+//
+// ⚠ Les valeurs sont des LITTÉRAUX : le compilateur de `next/font` refuse toute constante.
+const bricolage = localFont({
+  src: './fonts/bricolage-grotesque-latin-wght-normal.woff2',
+  variable: '--font-bricolage',
+  weight: '400 700',
+  display: 'swap',
+  adjustFontFallback: 'Arial',
+  declarations: [{ prop: 'unicode-range', value: 'U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD' }],
+});
+const bricolageExt = localFont({
+  src: './fonts/bricolage-grotesque-latin-ext-wght-normal.woff2',
+  variable: '--font-bricolage-ext',
+  weight: '400 700',
+  display: 'swap',
+  preload: false,
+  adjustFontFallback: false,
+  declarations: [{ prop: 'unicode-range', value: 'U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF' }],
+});
+const dmSans = localFont({
+  src: './fonts/dm-sans-latin-wght-normal.woff2',
+  variable: '--font-dm-sans',
+  weight: '400 700',
+  display: 'swap',
+  adjustFontFallback: 'Arial',
+  declarations: [{ prop: 'unicode-range', value: 'U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD' }],
+});
+const dmSansExt = localFont({
+  src: './fonts/dm-sans-latin-ext-wght-normal.woff2',
+  variable: '--font-dm-sans-ext',
+  weight: '400 700',
+  display: 'swap',
+  preload: false,
+  adjustFontFallback: false,
+  declarations: [{ prop: 'unicode-range', value: 'U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF' }],
+});
 
 /**
  * `metadataBase` est posé ICI, et une seule fois — TCK-433.
@@ -96,7 +144,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const messages = await messagesPour('.');
 
   return (
-    <html lang={locale} className={`${bricolage.variable} ${dmSans.variable}`}>
+    <html lang={locale} className={`${bricolage.variable} ${bricolageExt.variable} ${dmSans.variable} ${dmSansExt.variable}`}>
       <head>
         {/* ADR-0069 § 3 — l'origine de l'API et celle des médias, lues à l'exécution par le
             serveur et transmises au navigateur AVANT tout bundle : un script en ligne s'exécute
