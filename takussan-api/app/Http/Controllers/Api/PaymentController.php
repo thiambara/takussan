@@ -76,7 +76,10 @@ class PaymentController extends Controller
             });
 
         // Entity-scoped filtering
-        $entityType = isset($filters['entity_type']) ? strtolower((string) $filters['entity_type']) : null;
+        // P216.02 (TCK-2122) — un type en liste vaut un type absent (TCK-1407), et n'est plus casté.
+        $entityType = isset($filters['entity_type']) && ! is_array($filters['entity_type'])
+            ? strtolower((string) $filters['entity_type'])
+            : null;
         $entityId = $filters['entity_id'] ?? null;
 
         if ($entityType && $entityId) {
@@ -86,6 +89,10 @@ class PaymentController extends Controller
         // Status filter — TCK-593 : une liste séparée par des virgules (`pending,late,failed`), pour
         // que le locataire obtienne « ce que je dois » sans filtrer côté client.
         if (! empty($filters['status'])) {
+            // P216.02 (TCK-2122) — un statut en liste se lit comme un statut inconnu, et n'est plus casté.
+            if (is_array($filters['status'])) {
+                abort_code(422, 'payment.filter_status_invalid');
+            }
             $statuses = array_map(
                 fn (string $value) => PaymentStatus::tryFrom(trim($value)),
                 explode(',', (string) $filters['status']),
@@ -122,7 +129,9 @@ class PaymentController extends Controller
         // Pagination
         $perPage = min(max((int) $request->input('per_page', 20), 1), 100);
         $page = max((int) $request->input('page', 1), 1);
-        $sort = (string) $request->input('sort', '-date');
+        // P216.02 (TCK-2122) — un tri en liste vaut le tri par défaut, et n'est plus casté.
+        $sort = $request->input('sort', '-date');
+        $sort = is_array($sort) ? '-date' : (string) $sort;
 
         // Hard cap to keep the merge-in-PHP strategy bounded. Beyond this the
         // caller must narrow the filter (entity, date range, status). The
