@@ -19579,7 +19579,7 @@ les envoie.*
 
 ### Une action typée `int $id` rend 500 « must be of type int, string given » sur vingt chiffres ou une valeur non numérique
 - Réf : P215.02
-- Statut : retenu · autonome
+- Statut : fait · TCK-2117
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/ServiceProviderBillController.php:37`, `Me/PlatformPayoutController.php:37`, `Auth/SessionController.php:34`, `AuditLogController.php:25`, `PaymentGatewayController.php:51,76`, `Admin/FailedJobController.php:25,30,56` ; routes `routes/api/service-provider-bills.php:11`, `routes/api/me.php:50`, `routes/api/payments.php:20-30` (`paymentId => '\d+'`)
 - Constat :
@@ -19590,6 +19590,7 @@ les envoie.*
   - Établi comment : lecture des signatures (`grep -rnE "public function \w+\([^)]*\bint \\\$"`), et le parcours décrit en tête de section.
 - Piste : une contrainte de route `[0-9]{1,18}` sur chacun de ces paramètres (et sur `{id}` de `admin/jobs/failed`, `{tokenId}`, `{id}` des journaux d'audit, qui n'en ont aucune), ce qui rend 404 avant l'appel ; garde : la même sonde que P215.01, qui couvre aussi ces routes.
 - Mesure (2026-10-24, 3aa990fc9, mesureur) : relu les signatures `int` (`ServiceProviderBillController.php:37`, `Me/PlatformPayoutController.php:37`, `Auth/SessionController.php:34`, `AuditLogController.php:25`, `PaymentGatewayController.php:27,51,76`, `Admin/FailedJobController.php:25,30,56`) et les routes (`whereNumber` sur `bill` et `payout`, `paymentId => '\d+'`, aucune contrainte sur `{tokenId}`, `{id}` d'`audit-log` et d'`admin/jobs/failed`) ; même test temporaire que P215.01 (retiré) → vingt chiffres : `GET /api/service-provider-bills/…`, `GET /api/me/payouts/…`, `DELETE /api/auth/sessions/…`, `GET /api/audit-log/property/…`, `GET /api/admin/jobs/failed/…`, `GET /api/invoices/…/verify` et `/providers` en 500 `TypeError` ; `abc` : `DELETE /api/auth/sessions/abc`, `GET /api/audit-log/property/abc`, `GET` et `DELETE /api/admin/jobs/failed/abc` en 500 `TypeError` ; `POST /api/invoices/…/initiate` en 422 → le constat tient. Classement : A1, même attendu écrit et même correctif que TCK-1851 (contrainte `[0-9]{1,18}` avant l'appel, rendant 404) ; aucune autorisation, aucun montant changés pour un identifiant réel.
+- Mesure (2026-10-24, 9216f4643, implementeur) : sur l'arbre de TCK-2115, le balayage `IdentifiantsDeRouteHorsBigintTest` sans exemption, charge `{ 1.60 1.83 1.90 }` sur 8 cœurs → dix routes en 500 sur vingt chiffres, six sur `abc` (celles du constat) ; une garde neuve qui lit la signature de chaque action en relève dix-huit, dont sept hors du constat, de même cause (`admin/users/{user}/sessions/{tokenId}`, `report-exports/{reportExport}/download`, `profiles/{profile}/agency-role`, `documents/{document}/versions/{versionId}` ×2, `room-photos/{media}`, `properties/{property}/media/{mediaId}`) → `[0-9]{1,18}` sur les dix-huit → balayage et garde verts ; ablation (`routes/` de TCK-2115) → 4 rouges, remis → 6/6 ; quatorze classes voisines vertes (`ServiceProviderBillTest`, `SessionTest`, `AuditLogTest`, `HealthcheckJobsTest`, `PaymentProvidersEndpointTest`, `DocumentVersionTest`, `PropertyMediaTest`, …).
 
 ### Le front accepte un identifiant de page au-delà des entiers exacts, et lit alors une autre ligne ou l'API hors de `bigint`
 - Réf : P215.03
