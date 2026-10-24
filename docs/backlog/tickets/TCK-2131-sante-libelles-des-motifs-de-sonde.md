@@ -44,14 +44,19 @@ Aucun changement d'API.
 - [x] `superAdmin.systemHealth.hint.reason.{wildcard_trusts_nobody,signing_secret_missing}` en `fr` et
   `en`, le `wo` au texte français (wolof en pause).
 - [x] `indice()` : `t.has()` faux → `hint.value` avec le code brut.
-- [x] Test PHP `HealthcheckMotifsConcordanceTest` : `'reason' =>` de `HealthcheckService` = union
-  `HealthReason` lue dans `super-admin.ts`.
+- [x] Fixture partagée `takussan-api/tests/fixtures/healthcheck-sondes.json` (TCK-2129) : liste
+  `motifs`.
+- [x] Test PHP `HealthcheckMotifsConcordanceTest` : `'reason' =>` de `HealthcheckService` = motifs de
+  la fixture.
+- [x] Test vitest `system-health.concordance.test.ts` : union `HealthReason` lue dans `super-admin.ts`
+  = motifs de la fixture.
 - [x] Test vitest `system-health.motifs.test.tsx` : les deux libellés rendus ; un motif inconnu rend
   « Valeur : <code> ».
 
 ## Critères d'acceptation
 
-- [x] AC1 — Un motif émis par l'API absent de `HealthReason` (ou l'inverse) rougit le test PHP.
+- [x] AC1 — Un motif émis par l'API absent de `HealthReason` (ou l'inverse) rougit le test PHP ou le
+  test vitest de concordance.
 - [x] AC2 — Les deux motifs s'affichent en français sous `fr`, sans clé brute.
 - [x] AC3 — Un motif sans clé au dictionnaire s'affiche « Valeur : <code> ».
 
@@ -62,6 +67,10 @@ Aucun changement d'API.
 
 ## Notes d'implémentation
 
+- **Écart de forme avec la décision, imposé par une garde** (même cause que TCK-2129) : un test PHP
+  qui lit `super-admin.ts` rougit `scripts/check-ci-attestation.mjs`, garde existante (V9). Les deux
+  suites lisent donc la fixture partagée ; l'union reste lue dans `super-admin.ts`, par le test vitest.
 - Ablation : remettre `return t(cle)` sans `t.has()` rougit le cas « motif inconnu »
-  (`MISSING_MESSAGE` levé par le harnais) ; retirer les deux cas de `HealthReason` rougit le test PHP.
+  (`MISSING_MESSAGE` levé par le harnais) ; retirer `wildcard_trusts_nobody` de `HealthReason`
+  rougit `system-health.concordance`, et le retirer de la fixture rougit le test PHP.
 - Le type du traducteur passé à `indice()` déclare `has`, que porte le `t` de next-intl.
