@@ -206,11 +206,16 @@ function HealthTile({
  */
 function indice(
   status: HealthcheckStatus | undefined,
-  t: (cle: string, valeurs?: Record<string, string>) => string,
+  t: { (cle: string, valeurs?: Record<string, string>): string; has: (cle: string) => boolean },
   nombre: (value: number | null | undefined) => string,
 ): string {
   if (status?.error) return t('hint.error', { message: status.error });
-  if (status?.reason) return t(`hint.reason.${status.reason}`);
+  // TCK-2131 — un motif que l'API émet avant que le dictionnaire le connaisse s'affiche en code
+  // encadré, comme `value`, au lieu de la clé brute (ou de `MISSING_MESSAGE` hors production).
+  if (status?.reason) {
+    const cle = `hint.reason.${status.reason}`;
+    return t.has(cle) ? t(cle) : t('hint.value', { value: status.reason });
+  }
   if (status?.driver) return t('hint.driver', { driver: status.driver });
   if (status?.value) return t('hint.value', { value: status.value });
   return t('hint.latency', { ms: nombre(status?.latency_ms ?? 0) });

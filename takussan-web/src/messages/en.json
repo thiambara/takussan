@@ -7713,7 +7713,9 @@
         "reason": {
           "no_delivery": "Nothing actually sent (test driver)",
           "unreachable": "Server unreachable",
-          "not_meilisearch": "Search not on Meilisearch"
+          "not_meilisearch": "Search not on Meilisearch",
+          "wildcard_trusts_nobody": "“*” trusts no proxy",
+          "signing_secret_missing": "Signing secret missing from configuration"
         }
       },
       "status": {

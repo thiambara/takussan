@@ -7713,7 +7713,9 @@
         "reason": {
           "no_delivery": "Aucun envoi réel (pilote de test)",
           "unreachable": "Serveur injoignable",
-          "not_meilisearch": "Recherche hors Meilisearch"
+          "not_meilisearch": "Recherche hors Meilisearch",
+          "wildcard_trusts_nobody": "« * » ne fait confiance à aucun mandataire",
+          "signing_secret_missing": "Secret de signature absent de la configuration"
         }
       },
       "status": {

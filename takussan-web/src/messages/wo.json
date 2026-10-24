@@ -7062,7 +7062,9 @@
         "reason": {
           "no_delivery": "Dara yónniwul (pilote bu test)",
           "unreachable": "Serwëer bi jotul",
-          "not_meilisearch": "Seet bi nekkul ci Meilisearch"
+          "not_meilisearch": "Seet bi nekkul ci Meilisearch",
+          "wildcard_trusts_nobody": "« * » ne fait confiance à aucun mandataire",
+          "signing_secret_missing": "Secret de signature absent de la configuration"
         }
       },
       "status": {

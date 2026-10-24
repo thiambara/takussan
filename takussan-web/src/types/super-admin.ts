@@ -736,8 +736,16 @@ export type DataExportsResponse = {
 /** TCK-600 — `degraded` distingue « marche mal » de « en panne » ; chaque sonde est datée. */
 export type HealthLevel = 'ok' | 'degraded' | 'failed';
 
-/** Les raisons qu'une sonde émet par code (`HealthcheckService`) : le front les traduit. */
-export type HealthReason = 'no_delivery' | 'unreachable' | 'not_meilisearch';
+/**
+ * Les raisons qu'une sonde émet par code (`HealthcheckService`) : le front les traduit.
+ * TCK-2131 — `HealthcheckMotifsConcordanceTest` (API) compare cette union aux `'reason' =>` émis.
+ */
+export type HealthReason =
+  | 'no_delivery'
+  | 'unreachable'
+  | 'not_meilisearch'
+  | 'wildcard_trusts_nobody'
+  | 'signing_secret_missing';
 
 export type HealthcheckStatus = {
   status: HealthLevel;
