@@ -63,7 +63,7 @@ export function useMyProfiles() {
 
 export function useSwitchActiveProfile() {
   const queryClient = useQueryClient();
-  const { refreshUser } = useAuth();
+  const { refreshUser, setActiveProfileId } = useAuth();
   const router = useRouter();
   const toast = useToast();
   const t = useTranslations('profile.switcher');
@@ -85,7 +85,10 @@ export function useSwitchActiveProfile() {
       }
       return { previousProfiles };
     },
-    onSuccess: (_data, profileId) => {
+    onSuccess: (data, profileId) => {
+      // TCK-2050 (P174.01) — le relais vient de poser le cookie, que le navigateur ne transmet pas
+      // à l'API : les appels qui suivent (relectures ci-dessous comprises) portent le profil choisi.
+      setActiveProfileId(data.data.id);
       const profiles = queryClient.getQueryData<MyProfilesResponse>(profilesKeys.all);
       const switched = profiles?.data.find((p) => p.id === profileId);
       toast.add({

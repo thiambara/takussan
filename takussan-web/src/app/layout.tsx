@@ -7,7 +7,7 @@ import { origineSite } from '@/lib/alternates';
 import { scriptDeConfigPublique } from '@/lib/config-publique';
 import { AUTH_COOKIE_NAME } from '@/lib/constants';
 import { utilisateurDuRendu } from '@/lib/utilisateur-du-rendu';
-import { IMPERSONATION_COOKIE } from '@/lib/impersonation';
+import { IMPERSONATION_COOKIE, profilActifEspaceApplicatif } from '@/lib/impersonation';
 import { AuthProvider } from '@/context/AuthContext';
 import { QueryProvider } from '@/components/providers/QueryProvider';
 import { FeatureFlagProvider } from '@/components/providers/FeatureFlagProvider';
@@ -118,6 +118,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // cible, et `AuthContext` ne reçoit AUCUN jeton : les appels du navigateur passent par le relais.
   const impersonation = cookieStore.get(IMPERSONATION_COOKIE)?.value;
   const token = impersonation ? undefined : cookieStore.get(AUTH_COOKIE_NAME)?.value;
+  // TCK-2050 (P174.01) — le profil actif, que le navigateur pose en indice sur ses appels à l'API
+  // (le cookie `httpOnly` ne la rejoint pas). Rien pendant une impersonation (invariant 11).
+  const activeProfileId = token ? profilActifEspaceApplicatif(cookieStore) : undefined;
 
   let initialUser = null;
   if (impersonation ?? token) {
@@ -155,7 +158,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <body className="font-sans antialiased">
         <IntlProviderRacine locale={locale} messages={messages}>
           <QueryProvider>
-            <AuthProvider initialUser={initialUser} initialToken={token ?? null}>
+            <AuthProvider initialUser={initialUser} initialToken={token ?? null} initialActiveProfileId={activeProfileId ?? null}>
               <FeatureFlagProvider>
                 <UserLocationProvider>
                   <FloatingDockProvider>

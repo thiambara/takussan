@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import { createContext, useContext, useState, useEffect, useLayoutEffect, useCallback, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   login as apiLogin,
@@ -13,6 +13,7 @@ import {
 } from '@/lib/auth';
 import { DELAI_DECONNEXION_MS } from '@/lib/delais-deconnexion';
 import { apiRequest } from '@/lib/api';
+import { poserProfilActifNavigateur } from '@/lib/profil-actif-navigateur';
 import {
   getIds as getLocalFavoriteIds,
   clear as clearLocalFavorites,
@@ -30,6 +31,15 @@ type AuthContextValue = {
    * cookie server-side — but direct cross-origin calls need this token.
    */
   token: string | null;
+  /**
+   * TCK-2050 (P174.01) — le profil actif, que `apiRequest` pose en `X-Active-Profile-Hint` sur
+   * tout appel authentifié du navigateur : le cookie `active_profile_id` du front n'atteint pas
+   * l'API, qui est sur une autre origine. Reçu du layout racine, mis à jour par
+   * `useSwitchActiveProfile` ; oublié à l'ouverture et à la fermeture d'une session, comme le
+   * cookie (`set-token`, `logout`).
+   */
+  activeProfileId: string | null;
+  setActiveProfileId: (id: string | null) => void;
   isLoading: boolean;
   setUser: (user: User | null) => void;
   refreshUser: () => Promise<void>;
@@ -73,13 +83,35 @@ export function AuthProvider({
   children,
   initialUser,
   initialToken,
+  initialActiveProfileId,
 }: {
   children: React.ReactNode;
   initialUser?: User | null;
   initialToken?: string | null;
+  initialActiveProfileId?: string | null;
 }) {
   const [user, setUser] = useState<User | null>(initialUser ?? null);
   const [token, setToken] = useState<string | null>(initialToken ?? null);
+  // TCK-2050 (P174.01) — écrit dans le module que lit `apiRequest` dès le premier rendu, avant que
+  // les requêtes des enfants partent (elles partent à l'abonnement, après le rendu).
+  const [activeProfileId, setActiveProfileIdState] = useState<string | null>(() => {
+    poserProfilActifNavigateur(initialActiveProfileId);
+    return initialActiveProfileId ?? null;
+  });
+  // Le layout racine se rend de nouveau sur `router.refresh()` et après une action serveur qui
+  // pose le cookie (les parcours d'accueil) : la valeur qu'il lit fait alors foi.
+  const [profilDuLayout, setProfilDuLayout] = useState<string | null>(initialActiveProfileId ?? null);
+  if ((initialActiveProfileId ?? null) !== profilDuLayout) {
+    setProfilDuLayout(initialActiveProfileId ?? null);
+    setActiveProfileIdState(initialActiveProfileId ?? null);
+  }
+  useLayoutEffect(() => {
+    poserProfilActifNavigateur(activeProfileId);
+  }, [activeProfileId]);
+  const setActiveProfileId = useCallback((id: string | null) => {
+    poserProfilActifNavigateur(id);
+    setActiveProfileIdState(id);
+  }, []);
   // TCK-1992 (P172.06) — plus de lecture initiale de `/api/auth/me` par le navigateur : le seul
   // monteur, la mise en page racine, passe toujours `initialUser` (`null` ou un utilisateur), et
   // cette lecture morte portait la même déconnexion sur 401 que `refreshUser`.
@@ -192,10 +224,12 @@ export function AuthProvider({
       // (5 min de `staleTime`) serait rendue telle quelle. Vidé AVANT de poser le jeton : les
       // composants montés reconstruisent leurs requêtes au rendu qui suit, sous le nouveau jeton.
       queryClient.clear();
+      // `set-token` vient d'effacer le cookie de profil actif : la nouvelle session n'en a aucun.
+      setActiveProfileId(null);
       setToken(next);
       setUser(nextUser);
     },
-    [persistToken, syncLocalFavorites, queryClient],
+    [persistToken, syncLocalFavorites, queryClient, setActiveProfileId],
   );
 
   const login = useCallback(
@@ -240,16 +274,19 @@ export function AuthProvider({
     // mise en cache sous celui-ci. Les favoris locaux, eux, sont vidés par l'effet d'amorçage
     // ci-dessus dès que `user` repasse à `null` — c'est apprendre la déconnexion qui manquait.
     queryClient.clear();
+    setActiveProfileId(null);
     setToken(null);
     setUser(null);
     setIsLoading(false);
-  }, [queryClient]);
+  }, [queryClient, setActiveProfileId]);
 
   return (
     <AuthContext.Provider
       value={{
         user,
         token,
+        activeProfileId,
+        setActiveProfileId,
         isLoading,
         setUser: handleSetUser,
         refreshUser,
@@ -276,6 +313,8 @@ export function useAuth(): AuthContextValue {
     ctx ?? {
       user: null,
       token: null,
+      activeProfileId: null,
+      setActiveProfileId: noop,
       isLoading: false,
       setUser: noop,
       refreshUser: noopAsync,
