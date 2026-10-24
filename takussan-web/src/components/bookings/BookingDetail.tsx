@@ -547,6 +547,10 @@ function CustomerPayCta({
 }) {
   const t = useTranslations('bookings.detail');
   const createPayment = useCreateBookingPayment(bookingId);
+  const messageErreur = useMessageErreurApi();
+  // P210.02 (TCK-2082) — le refus de l'API (422 `booking_payment.nothing_due` quand le paiement a
+  // été acquitté pendant que la fiche montrait encore le bouton) se dit sous le bouton (ADR-0019).
+  const [erreur, setErreur] = useState<string | null>(null);
   const payments = booking.booking_payments ?? [];
   const hasPending = payments.some((p) => p.status === 'pending');
 
@@ -571,7 +575,12 @@ function CustomerPayCta({
   // TCK-1309 (P133.05) — le montant et sa nature sont dérivés par l'API (acompte, puis reste
   // dû) : le calcul ci-dessus ne sert plus qu'au libellé.
   async function handleClick() {
-    await createPayment.mutateAsync({ status: 'pending' });
+    setErreur(null);
+    try {
+      await createPayment.mutateAsync({ status: 'pending' });
+    } catch (e) {
+      setErreur(messageErreur(e));
+    }
   }
 
   return (
@@ -582,13 +591,18 @@ function CustomerPayCta({
           <p className="mt-1 text-xs text-muted-foreground">{t('payCta.notice')}</p>
         </div>
         <Button
-          onClick={handleClick}
+          onClick={() => void handleClick()}
           disabled={createPayment.isPending}
           className="h-10 w-full sm:h-8 sm:w-auto"
         >
           {label}
         </Button>
       </div>
+      {erreur ? (
+        <p role="alert" className="mt-3 text-sm text-destructive">
+          {erreur}
+        </p>
+      ) : null}
     </section>
   );
 }
