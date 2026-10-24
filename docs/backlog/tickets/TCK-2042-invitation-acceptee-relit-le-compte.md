@@ -60,3 +60,6 @@ qui créent un profil (`AgentOnboardingWizard`, `ServiceProviderOnboardingWizard
 - Ablation : `AccepterInvitation.tsx` à `HEAD` → rouge ; remis → vert.
 - `AccepterInvitation.test.tsx` monte désormais un `QueryClientProvider` (le composant lit
   `useQueryClient`), comme la mise en page racine le fournit.
+- Piège : importer `profilesKeys` depuis `useProfiles` tirait les espaces `profile` et `ui` dans la
+  frontière i18n `invitations` (`check:i18n-namespaces` rouge) ; la clé est redéclarée dans le
+  composant, comme `credits-solde.ts` le fait pour la même raison.

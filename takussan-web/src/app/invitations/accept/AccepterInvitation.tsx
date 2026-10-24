@@ -11,11 +11,16 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/context/AuthContext';
-import { profilesKeys } from '@/hooks/useProfiles';
 import { useCurrentLocale } from '@/i18n/hooks';
 import { isTwoFactorChallenge, login } from '@/lib/auth';
 import { destinationDInvitation } from '@/lib/invitation-destination';
 import { avecRedirection } from '@/lib/redirection-interne';
+
+/**
+ * `profilesKeys.all` de `useProfiles`, redéclarée comme dans `credits-solde.ts` : importer le hook
+ * tirerait ses espaces de libellés (`profile`, `ui`) dans la frontière de cette page.
+ */
+const CLE_PROFILS = ['me', 'profiles'] as const;
 
 /**
  * TCK-626 — accepter une invitation, connecté ou non.
@@ -56,7 +61,7 @@ export function AccepterInvitation({ jeton, connecte }: { readonly jeton: string
         // TCK-2042 (P202.04) — l'invitation ajoute un profil au compte : comme les assistants qui en
         // créent un, on relit l'utilisateur (ses `roles`) et la liste des profils avant de partir.
         await refreshUser();
-        await queryClient.invalidateQueries({ queryKey: profilesKeys.all });
+        await queryClient.invalidateQueries({ queryKey: CLE_PROFILS });
         router.push(destination);
         return;
       }
