@@ -384,9 +384,10 @@ function raisonSocialeDe(owner: OwnerProfileSummary): string | null {
 /** Le nom composé, seule logique propre à l'ancienne `OwnerRow` qui survivait à la conversion. */
 function nomDe(owner: OwnerProfileSummary): string {
   const meta = owner.metadata ?? null;
-  return owner.user
-    ? `${owner.user.first_name ?? ''} ${owner.user.last_name ?? ''}`.trim()
-    : `${meta?.first_name ?? ''} ${meta?.last_name ?? ''}`.trim();
+  // TCK-2136 (P220.06) — un compte lié sans nom (créé par téléphone) laisse place au nom saisi
+  // par l'agence à l'invitation, rangé dans `metadata`.
+  const compte = `${owner.user?.first_name ?? ''} ${owner.user?.last_name ?? ''}`.trim();
+  return compte || `${meta?.first_name ?? ''} ${meta?.last_name ?? ''}`.trim();
 }
 
 /**

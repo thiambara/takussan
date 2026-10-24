@@ -39,9 +39,11 @@ const SELECT_CLASS =
   'h-9 w-full rounded-md border border-border bg-transparent px-3 text-sm text-foreground';
 
 function ownerName(owner: OwnerProfileSummary): string {
-  const first = owner.user?.first_name ?? owner.metadata?.first_name ?? '';
-  const last = owner.user?.last_name ?? owner.metadata?.last_name ?? '';
-  return `${first} ${last}`.trim() || owner.user?.email || owner.metadata?.email || `#${owner.user_id}`;
+  // TCK-2136 (P220.06) — le nom du compte, puis celui de l'invitation : `''` (compte créé par
+  // téléphone) ne bloque plus le repli, comme le faisait `??`.
+  const compte = `${owner.user?.first_name ?? ''} ${owner.user?.last_name ?? ''}`.trim();
+  const invitation = `${owner.metadata?.first_name ?? ''} ${owner.metadata?.last_name ?? ''}`.trim();
+  return compte || invitation || owner.user?.email || owner.metadata?.email || `#${owner.user_id}`;
 }
 
 /**
