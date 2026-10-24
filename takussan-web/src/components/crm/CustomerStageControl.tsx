@@ -2,13 +2,14 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 
 import { ReasonDialog } from '@/components/pipeline/ReasonDialog';
 import { PIPELINE_STAGES, TERMINAL_STAGES } from '@/components/pipeline/constants';
 import { useAuth } from '@/context/AuthContext';
 import { ApiError } from '@/lib/api';
+import { AGENT_CRM_QUERY_KEY } from '@/lib/queries/agent-crm';
 import { patchCustomerPipelineStage } from '@/lib/queries/pipeline';
 import type { CustomerPipelineStage } from '@/types/customer';
 
@@ -28,11 +29,16 @@ export function CustomerStageControl({ customerId, name, stage }: CustomerStageC
   const tCrm = useTranslations('agentCrm.pipeline');
   const router = useRouter();
   const { token } = useAuth();
+  const queryClient = useQueryClient();
   const [pending, setPending] = useState<{ customerId: number; from: CustomerPipelineStage; to: CustomerPipelineStage } | null>(null);
 
   const mutation = useMutation<unknown, ApiError, { to: CustomerPipelineStage; reason?: string }>({
     mutationFn: ({ to, reason }) => patchCustomerPipelineStage(token ?? '', customerId, to, reason),
-    onSuccess: () => router.refresh(),
+    onSuccess: () => {
+      router.refresh();
+      // TCK-2093 — le changement d'étape est journalisé : l'onglet « Activité » le montre.
+      void queryClient.invalidateQueries({ queryKey: AGENT_CRM_QUERY_KEY.activity(customerId) });
+    },
   });
 
   const change = (to: CustomerPipelineStage) => {
