@@ -247,6 +247,7 @@ return [
     'invitation' => [
         'sms_daily_cap_reached' => 'The agency\'s daily limit of SMS invitations has been reached. Try again tomorrow, or invite by email.',
         'phone_mismatch' => 'This number is not the one the invitation was sent to.',
+        'profile_unavailable' => 'The profile this invitation targets is no longer available (suspended or inactive). Ask the agency for a new invitation.',
         'email_mismatch' => 'The logged-in account email does not match this invitation.',
         'requires_login' => 'This email maps to an existing account. Please log in to accept the invitation.',
         'token_accepted' => 'This invitation has already been accepted.',

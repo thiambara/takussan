@@ -713,6 +713,21 @@ class InvitationService
      */
     protected function finalizeAccept(Invitation $invitation, User $user): Invitation
     {
+        // P208.02 (TCK-2192) — the targeted profile is judged BEFORE any write:
+        // only a `draft` is activated, an `active` one is left as is, anything
+        // else (suspended, inactive, blocked) refuses the acceptance and leaves
+        // the invitation `sent`. The flip below used to lift the suspension of
+        // another account's profile, in another agency, without a trace.
+        $invitable = $invitation->invitable;
+        $invitableStatus = $invitable !== null && array_key_exists('status', $invitable->getAttributes())
+            ? ($invitable->status instanceof \BackedEnum ? (string) $invitable->status->value : (string) $invitable->status)
+            : null;
+        abort_code_if(
+            $invitableStatus !== null && ! in_array($invitableStatus, ['draft', 'active'], true),
+            409,
+            'invitation.profile_unavailable',
+        );
+
         // TCK-264 — super_admin cooptation: the spatie role is NOT
         // attached at acceptance time. The user must first enroll a
         // TOTP factor through the dedicated onboarding flow; only the
@@ -749,8 +764,8 @@ class InvitationService
             // user opérationnel ; plus de double-écriture spatie.
         }
 
-        // Flip the polymorphic profile to `active` if it exists and
-        // exposes a `status` attribute.
+        // Flip the polymorphic profile from `draft` to `active` if it exists
+        // and exposes a `status` attribute (P208.02: only a draft).
         //
         // TCK-261 — for a draft ServiceProviderProfile (created sans User
         // by ServiceProviderInvitationService), we additionally attach
@@ -758,14 +773,13 @@ class InvitationService
         // to /api/me/profiles/{sp_profile}/* with a clean ownership check.
         // TCK-257 — same treatment for OwnerProfile drafts created by
         // OwnerInvitationService (user_id null until acceptance).
-        $invitable = $invitation->invitable;
         if ($invitable !== null) {
             $patch = [];
-            if (array_key_exists('status', $invitable->getAttributes())) {
+            if ($invitableStatus === 'draft') {
                 // Use a string literal rather than ProfileStatus::Active->value
                 // so this stays decoupled from any specific profile enum —
-                // every profile-status enum we ship uses the same `active`
-                // string for the active state.
+                // every profile-status enum we ship uses the same `draft` and
+                // `active` strings.
                 $patch['status'] = 'active';
             }
             // TCK-259 — agent drafts (created sans User by
