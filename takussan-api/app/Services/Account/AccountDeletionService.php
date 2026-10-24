@@ -4,6 +4,7 @@ namespace App\Services\Account;
 
 use App\Models\AccountDeletionRequest;
 use App\Models\Activity;
+use App\Models\Agency;
 use App\Models\AlertSubscriber;
 use App\Models\Booking;
 use App\Models\Customer;
@@ -14,6 +15,7 @@ use App\Models\Enums\DataExportStatus;
 use App\Models\Enums\InvitationStatus;
 use App\Models\Enums\InvoiceStatus;
 use App\Models\Enums\PaymentStatus;
+use App\Models\Enums\PayoutStatus;
 use App\Models\Enums\UserStatus;
 use App\Models\Enums\VisitStatus;
 use App\Models\Invitation;
@@ -21,12 +23,14 @@ use App\Models\Invoice;
 use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Models\NotificationDeliveryAttempt;
+use App\Models\Payout;
 use App\Models\PropertyVisit;
 use App\Models\User;
 use App\Models\WhatsappContact;
 use App\Notifications\AccountDeletionExecutedNotification;
 use App\Notifications\AccountDeletionRequestedNotification;
 use App\Services\Notifications\Sms\PhoneNumber;
+use App\Services\Payout\PayoutCalculator;
 use App\Support\CaseInsensitive;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Carbon;
@@ -547,7 +551,58 @@ class AccountDeletionService
             ];
         }
 
+        // TCK-2015 (P175.03) — ce que l'agence doit encore au compte : un reversement en cours, et
+        // les pièces encaissées qu'aucun reversement ne retient (décision du porteur, 2026-10-23).
+        // Effacé, le bailleur ne pourrait plus recevoir sa préparation.
+        $upcomingPayouts = Payout::query()
+            ->where('landlord_id', $user->id)
+            ->whereIn('status', array_map(fn (PayoutStatus $s) => $s->value, PayoutStatus::upcoming()))
+            ->get(['id', 'reference_number']);
+        foreach ($upcomingPayouts as $payout) {
+            $obligations[] = [
+                'type' => 'payout',
+                'id' => $payout->id,
+                'reference' => $payout->reference_number,
+                'label' => __('account.deletion.obligations.payout_upcoming', [
+                    'reference' => $payout->reference_number ?? '#'.$payout->id,
+                ]),
+            ];
+        }
+
+        foreach ($this->agenciesOwingPayout($user) as $agency) {
+            $obligations[] = [
+                'type' => 'payout_due',
+                'id' => $agency->id,
+                'reference' => null,
+                'label' => __('account.deletion.obligations.payout_due', ['agency' => $agency->name]),
+            ];
+        }
+
         return $obligations;
+    }
+
+    /**
+     * TCK-2015 (P175.03) — les agences qui détiennent pour le bailleur une pièce reversable : celles
+     * que {@see PayoutCalculator} rendrait à la préparation d'un reversement, sans période.
+     *
+     * @return Collection<int, Agency>
+     */
+    private function agenciesOwingPayout(User $user): Collection
+    {
+        $calculator = app(PayoutCalculator::class);
+        $agencyIds = Lease::query()->where('landlord_id', $user->id)->whereNotNull('agency_id')->distinct()->pluck('agency_id')
+            ->merge(Booking::query()
+                ->join('properties', 'properties.id', '=', 'bookings.property_id')
+                ->where('properties.user_id', $user->id)
+                ->whereNotNull('bookings.agency_id')
+                ->distinct()
+                ->pluck('bookings.agency_id'))
+            ->unique()
+            ->filter(fn ($agencyId) => $calculator->leasePayments((int) $agencyId, (int) $user->id)->exists()
+                || $calculator->bookingPayments((int) $agencyId, (int) $user->id)->exists())
+            ->values();
+
+        return Agency::query()->whereIn('id', $agencyIds)->orderBy('id')->get(['id', 'name']);
     }
 
     /**
