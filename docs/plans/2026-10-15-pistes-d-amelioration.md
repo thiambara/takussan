@@ -19462,7 +19462,7 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
 
 ### Rattacher un nouveau garant à un bail qui en a déjà trois crée la fiche du garant, puis répond 422
 - Réf : P213.01
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/LeaseController.php:184-199,212-227`
 - Constat :
@@ -19470,10 +19470,11 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
   - Sur un bail à trois garants, la réponse est 422 et une fiche `guarantors` (nom, téléphone, pièce d'identité, revenus, `agency_id` du bail) reste en base, rattachée à aucun bail : la création est validée avant l’ouverture de la transaction, rien ne la défait (lu ; non exécuté). Chaque nouvel essai en ajoute une.
   - Établi comment : lu.
 - Piste : juger le plafond (et l'existence) dans la même transaction que la création, en déplaçant `Guarantor::create` dans la closure, après les deux `abort_code_if`. Garde : un test qui poste un garant neuf sur un bail à trois garants et attend 422 **et** un compte de `guarantors` inchangé.
+- Mesure (2026-10-24, 7f465356a, mesureur) : relu `LeaseController.php:174-233` (`Guarantor::create` l. 184-199 hors de la `DB::transaction` l. 212, où se juge `lease.max_guarantors` l. 223-227 ; lignes inchangées) ; test temporaire (bail à trois garants rattachés par la route, charge `{ 2.29 2.52 2.19 }` sur 8 cœurs, retiré) → POST d'un garant neuf : 422 `lease.max_guarantors`, `guarantors` passe de 3 à 4, la fiche « G4 » reste en base sans bail → le constat tient. Classement : A1, le refus 422 du plafond est le contrat écrit (docblock « max 3 guarantors per lease », code `lease.max_guarantors`) et le correctif, sans choix de produit, crée la fiche dans la closure après les deux `abort_code_if`, gardé par un test 422 + compte de `guarantors` inchangé (A5).
 
 ### Renvoyer le code avec un numéro neuf l'enregistre (et défait la vérification de l'ancien), puis répond 429 sur le délai de renvoi ou le quota
 - Réf : P213.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : vérification et remplacement du numéro de téléphone, preuve de changement
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/Auth/PhoneVerificationController.php:55-98`
 - Constat :
@@ -19481,10 +19482,11 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
   - Un compte dont le dernier code date de moins de 60 s, ou dont le nouveau numéro a épuisé son quota, perd donc son numéro vérifié et reçoit l'avis « numéro changé » sur une réponse d'échec, sans code envoyé (le délai compté par compte, `PhoneVerificationService.php:456-459`, vient du sous-agent : à vérifier).
   - Établi comment : lu pour l'ordre ; non exécuté.
 - Piste : juger le délai de renvoi et le quota sur le numéro entrant avant toute écriture (ou envelopper l'écriture et les gardes dans une transaction, avis après le commit). Garde : renvoi avec un numéro neuf dans la fenêtre de 60 s → 429 et `phone`, `phone_verified_at` inchangés, aucun avis.
+- Mesure (2026-10-24, 7f465356a, mesureur) : relu `PhoneVerificationController.php:45-110` (écriture `phone`/`phone_verified_at = null` l. 74-77 et `notifyReplaced` l. 78-80 avant `refuseWhileCoolingDown` l. 93 et `quota->ensureAvailable` l. 98 ; `resendAvailableIn` juge le compte, `PhoneVerificationService.php:68-71`) ; test temporaire (retiré) → compte non vérifié, second `send-otp` avec un autre numéro à moins de 60 s : 429 `phone.resend_too_soon`, `phone` = le nouveau numéro, aucun SMS ; compte vérifié avec mot de passe, quota du nouveau numéro épuisé : 429 `phone.send_limit_day`, `phone` remplacé, `phone_verified_at` NULL, un SMS d'avis à l'ancien numéro → le constat tient dans les deux cas. Classement : V2, le correctif réordonne le chemin de vérification et de remplacement d'un numéro vérifié (preuve TCK-589, avis) et la `Piste` propose deux options.
 
 ### Une réservation refusée en 422 (période, dates, chevauchement) laisse la fiche client créée ou rattachée pour le demandeur
 - Réf : P213.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V3 : conserver ou non la fiche client d'une demande refusée
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Model/BookingService.php:98-124`, `takussan-api/app/Http/Controllers/Public/PublicPropertyController.php:972,1010`
 - Constat :
@@ -19493,13 +19495,15 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
   - Lien : l'angle 158 traite les fiches créées hors de `CustomerController::store` face aux doublons ; ce constat y ajoute la fiche créée pour une demande refusée.
   - Établi comment : lu pour `BookingService` ; non exécuté.
 - Piste : résoudre le client après les gardes, dans la transaction de création (`findOrCreateFromUser` après `pricedAmounts` et dans la closure, après `assertAvailable`). Garde : un client sans fiche qui demande des nuits déjà confirmées → 422 et aucune fiche `customers` créée.
+- Mesure (2026-10-24, 7f465356a, mesureur) : relu `BookingService.php:98-133` (`findOrCreateFromUser` l. 102 avant `pricedAmounts` l. 114 et la transaction de `assertAvailable` l. 121) et `PublicPropertyController.php:961-1010` (le devis est calculé avant, l. 961-969 ; `findOrCreateFromUser` l. 972 avant `assertAvailable` l. 1010) ; test temporaire (retiré) → utilisateur sans fiche, nuits confirmées : 422 `booking.dates_overlap` et une fiche `customers` créée, par `POST /api/bookings` comme par le tunnel public → le constat tient, mais il est inexact sur l'agence : la fiche prend l'agence de l'utilisateur (`CustomerService.php:54`, `agency_id` NULL pour un client sans profil, mesuré), pas celle du bien, et elle est unique par utilisateur, reprise par la demande suivante ; dans le tunnel public, le refus de `BookingQuote` précède déjà la fiche. Classement : V3, garder ou non une fiche client (données personnelles) créée pour une demande refusée, et réutilisée ensuite, est un choix sur ce qui est conservé.
 
 ### Petites améliorations — l'ouverture d'une session OAuth écrit avant ses derniers refus
 - Réf : P213.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : défi 2FA d'une session OAuth et codes de secours
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Auth/OAuthSessionOpener.php:40-41,80-96`, `takussan-api/app/Http/Controllers/Api/Auth/AbstractOAuthController.php:103-134`, `takussan-api/app/Services/Auth/TwoFactorService.php:153-156`
 - Constat (rapport du sous-agent, non relu par l'explorateur : à vérifier en entier) :
   - `complete` consomme un code de secours (`verifyRecoveryCode`, écriture en base) avant de refuser en 422 `oauth_challenge_invalid` (défi déjà tiré du cache, double soumission) ou en 403 `account_blocked` : le code est brûlé sur une session refusée.
   - `callback` écrit le nom venu du fournisseur (`maybeUpdateName`) avant `open()`, qui refuse en 403 un compte bloqué.
 - Piste : juger le défi et le blocage avant de consommer le code ou d'écrire le nom. Garde : défi rejoué avec un code de secours → refus et code toujours valable.
+- Mesure (2026-10-24, 7f465356a, mesureur) : relu `OAuthSessionOpener.php:66-100,122-130` (`secondFactorHolds` → `verifyRecoveryCode`, qui retire le code et sauve, `TwoFactorService.php:143-159`, avant `cache->pull` l. 87-89 et `canOpenSession` l. 92-94) et `AbstractOAuthController.php:103-110` (`maybeUpdateName` avant `open()`, qui refuse un compte bloqué, `OAuthSessionOpener.php:39-41`) ; test temporaire sur le service (retiré) → défi ouvert, compte bloqué, puis `complete` avec un code de secours : 403 `account_blocked`, le code est retiré (un sur deux restant) → la partie « code brûlé » tient ; l'écriture du nom avant le refus est lue, non exécutée (elle ne remplit qu'un nom vide). Classement : V2, le correctif réordonne le défi 2FA d'ouverture de session.
