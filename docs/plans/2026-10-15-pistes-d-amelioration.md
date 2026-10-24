@@ -294,7 +294,7 @@ voie d'écriture (angle 13, puis 47).
 | 217 | Clauses de périmètre des listes `index` écrites à la main (`BookingController`, `LeaseController`, `InventoryController`, `PaymentController::history`, `InvoiceController`, `PropertyVisitController`, `MaintenanceRequestController`) face à la policy `view` de leur modèle, resserrée seule par TCK-587, TCK-1705, TCK-1707 et TCK-1718 à TCK-1722 : ligne refusée en lecture qui reste listée avec ses relations chargées (fiche client, bien) — hors du créateur du bien relevé à l'angle 190 | fait |
 | 218 | Effets que le retrait d'un membre applique (`AgencyMemberRemovalService` : fils de bail quittés, marque d'agent principal retirée, passation) et que la suspension n'applique pas (`TeamMemberSuspensionService::apply` : statut des profils et jetons seulement), face aux lectures qui jugent la participation, la marque ou l'assignation sans le statut du profil : agent suspendu qui garde ce que le retiré perd, alors qu'il se reconnecte — né de P191.01 | fait |
 | 219 | Clés next-intl bâties sur une valeur venue de l'API (``t(`status.${row.status}`)`` et leurs pareilles, environ 250 sous `takussan-web/src` ; `CommissionsLedger.tsx:126`, `DataExportsPanel.tsx:157`, `agency-upgrade-requests/page.tsx:185`) sans `t.has()` ni liste de valeurs connues, face aux cas que l'enum de l'API peut rendre : `MISSING_MESSAGE` qui lève au rendu hors production et peint le chemin de la clé en production (`src/i18n/erreurs.ts`) — né de l'angle 192 | fait |
-| 220 | Noms de comptes rendus par le front en `${first_name} ${last_name}` ou `full_name` sans repli (listes d'équipe, locataires et bailleurs de bail, interlocuteurs de la messagerie, sélecteurs de membre, cartes de client, sous `takussan-web/src/components`) face aux comptes créés par téléphone, dont les deux noms sont vides (`PhoneLoginService::createAccount`) : ligne, option ou titre sans nom ni autre désignation — né de P193.05 | à faire |
+| 220 | Noms de comptes rendus par le front en `${first_name} ${last_name}` ou `full_name` sans repli (listes d'équipe, locataires et bailleurs de bail, interlocuteurs de la messagerie, sélecteurs de membre, cartes de client, sous `takussan-web/src/components`) face aux comptes créés par téléphone, dont les deux noms sont vides (`PhoneLoginService::createAccount`) : ligne, option ou titre sans nom ni autre désignation — né de P193.05 | fait |
 | 221 | Arguments typés `string` de méthodes privées et de constructeurs nourris par une colonne `nullable` ou un repli `?:`/`??` qui peut rendre `null` (`AdminGlobalSearchService::hit`, et leurs pareils sous `app/Services` et `app/Http/Controllers`) : `TypeError` rendu en 500 pour une ligne réelle qu'aucune fabrique de test ne produit — né de P193.01 | à faire |
 | 222 | Photos et pièces téléversées hors de `MediaManager` et `MediaDropzone` (avatar de `ProfileHeader`, pièces de devis, photos de contestation et de création d'une intervention, `KycUploader`, pièce du surclassement, document client) face au patron « réduire puis juger sous le plafond » de TCK-542 et TCK-596 : photo de téléphone refusée au front, ou envoyée entière et refusée en 422 après la saisie — né de P195.03 et P195.07 | à faire |
 | 223 | Agrégats en SQL brut (`DB::selectOne`, `DB::table(…)->join(…)`, `fromSub`) sur des tables à `SoftDeletes` qui ne posent pas `deleted_at IS NULL` là où la portée Eloquent l'aurait posé (`AgencyDetailController::health`, `PaymentSupervisionService::leaseBase`, et leurs pareils sous `app/Services` et `app/Http/Controllers`) : bien, bail ou paiement supprimé encore compté par un compteur ou listé — né de P198.02 et P198.05 | à faire |
@@ -310,6 +310,8 @@ voie d'écriture (angle 13, puis 47).
 | 231 | Gestes qui « modifient » en clôturant une ligne et en ouvrant une neuve (`AgencySubscriptionService::assign`, et leurs pareils sous `app/Services` : renouvellement, reconduction, passation, re-téléversement) face aux champs de l'ancienne ligne que le geste ne reçoit pas (dérogations, essai, période, notes) : valeur négociée ou état en cours perdu sans que l'écran l'ait montré — né de P214.01 | à faire |
 | 232 | Lecteurs hors policy et hors liste qui tiennent `leases.landlord_id` ou `properties.user_id` pour le bailleur sans `BailleurDuBien` (`DashboardOwnerService:49`, `ExportDataService::scopeToActor`, `DataExportBuilder:121`, `OwnerStatementService:110,131`, `PayoutApprovalRule:66`, `ConversationAccess::constrainContext:199`) : agent créateur suspendu ou retiré qui compte, exporte ou lit encore les baux et loyers d'un bien qu'il a saisi — né de P217.03 | à faire |
 | 233 | Colonnes d'auteur qui désignent du personnel (`issued_by_id`, `created_by_id`, `conducted_by`, `uploaded_by`, `requester_id`, `submitted_by`, `reviewed_by`, `invited_by`, et leurs pareilles) admises seules par une branche de policy ou une clause de liste sous `app/Policies` et `app/Http/Controllers/Api`, hors des factures, reversements, réservations et états des lieux de l'angle 218 : membre suspendu ou retiré qui garde ce qu'il a saisi — né de P218.03 et P218.04 | à faire |
+| 234 | Ce que l'invitation porte dans `metadata` du profil brouillon (prénom, nom, téléphone, raison sociale, type de bailleur, métiers) face à l'acceptation par un compte déjà existant (`InvitationService::acceptForUser` → `finalizeAccept`, sans recopie) et aux lecteurs qui préfèrent le compte dès qu'il est lié (`nomDe` d'`OwnersList` et `ServiceProvidersList`) : valeur saisie par l'agence perdue à l'acceptation — né de P220.06 et P220.07 | à faire |
+| 235 | Replis `??` de l'API sur des colonnes texte non nulles que des écrivains remplissent de `''` (`CustomerService::rattacherOuCreer` `?? 'Client'`, et leurs pareils sous `app/Services` et `app/Http/Resources` sur `first_name`, `last_name`, `username`, `title`, `name`) : repli écrit qui ne joue jamais, chaîne vide rangée ou rendue — né de P220.03 | à faire |
 
 
 ---
@@ -19880,3 +19882,105 @@ les envoie.*
 - Piste : prolonger `check-status-unions.mjs`, ou une garde voisine, pour qu'elle exige, pour chaque union déclarée, une clé par cas sous l'espace de noms que l'écran lit. Une table `union → chemins du dictionnaire`, bilatérale comme `CORRESPONDANCES`, et la même règle pour les deux listes PHP ci-dessus. L'autre voie est de typer les messages par `AppConfig` : `tsc` attraperait alors toute clé bâtie sur une union, mais c'est un changement de contrat sur les quelque 670 fichiers qui traduisent.
 - Mesure (2026-10-24, 880203cdc, mesureur) : relu l'en-tête de `scripts/check-status-unions.mjs` (« Ce qu'elle NE prouve PAS : … les libellés ») ; `grep -rn "AppConfig\|interface Messages" takussan-web/src` → seule `MessagesPageProps`, sans rapport ; `takussan-web/scripts/check-i18n.mjs` compare la parité des clés entre langues et ne compte pas les gabarits interpolés (lu, l. 28-29, 58) ; `CommissionsLedger.tsx:31,126`, `DataExportsPanel.tsx:157` et `agency-upgrade-requests/page.tsx:185` rendent `t(\`status.${…}\`)` sans repli (lu) ; `node -e` → `commissions.status` = `due`, `paid`, `cancelled`, égal à l'enum → le constat tient : rien aujourd'hui ne casse si un cas d'enum gagne une union et une entrée de ton mais pas sa clé. Classement : A5, une garde ajoutée sans seuil à resserrer : pour chaque union de `CORRESPONDANCES` lue par un écran, une table `union → chemin du dictionnaire` bilatérale qui exige une clé `fr` par cas, et la même règle pour `EditablePlatformSettings` et `UnifiedModerationService::DECISIONS` ; le typage par `AppConfig` est exclu (V6, contrat des ~670 fichiers qui traduisent).
 - Mesure (2026-10-24, f59c78ccb, implementeur) : avant correctif, `commissions.status.due` retiré des trois dictionnaires → `check-status-unions` et `check-i18n` sortent en 0 ; `scripts/check-status-labels.mjs` ajouté (28 enums `*Status` gardés sur 35 chemins `fr`, 8 classés sans libellé avec leur raison, plus les 14 clés d'`EditablePlatformSettings::all()` et les décisions d'`UnifiedModerationService::DECISIONS`), vert sur l'arbre ; ablation : la même suppression le fait rougir, comme celle d'une `description` de réglage ou d'une décision de modération, et retirer son contrôle des cas absents fait échouer deux de ses 14 cas d'épreuve.
+
+## Angle 220 — Noms de comptes rendus par le front sans repli face aux comptes créés par téléphone
+
+*Exploré le 2026-10-24 sur `pre-dev` 54f0f14b4, par l'explorateur, sans sous-agent. Relu par l'explorateur lui-même : les 36 compositions `first_name` + `last_name` et les 27 lectures de `.full_name` de `takussan-web/src` hors tests (relevées par `grep`), les ressources de l'API qui les nourrissent (`ConversationResource`, `LeaseResource`, `User::getFullNameAttribute`, `nameWithoutContact`), `CustomerService::findOrCreateFromUser` et l'acceptation d'une invitation par un compte existant. Mesuré par deux tests temporaires retirés (un fichier Vitest, une classe PHPUnit sur la base de test ; charge 2,79 / 2,60 / 2,55 puis 3,60 / 2,96 / 2,70 sur 8 cœurs). Non mesuré : qu'une fiche client sans `agency_id` apparaisse au CRM d'une agence, et le parcours complet d'acceptation d'une invitation d'agent par un compte créé par téléphone. Les écrans publics (`agents/[slug]`, `TeamStrip`) et la console super-admin n'ont pas été relevés : un opérateur a toujours un e-mail (voir P193.06).*
+
+### Un participant de conversation sans nom s'affiche sans nom ni initiales : la ligne ne porte que son rôle
+- Réf : P220.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/components/messages/ParticipantRow.tsx:34-40`, `:51`, `takussan-api/app/Http/Resources/ConversationResource.php:74-77`, `takussan-api/app/Models/User.php:357-360`, `:362-378`
+- Constat :
+  - `ConversationResource` rend `participants[].user.full_name` par `$user->full_name` (lu, l. 76), soit `trim("{$first_name} {$last_name}")` (lu, `User.php:357-360`) : `''` pour un compte créé par `PhoneLoginService::createAccount` (`first_name = ''`, `last_name = ''`, lu, l. 171-174).
+  - Le front retombe par `??` sur `#<user_id>` pour le nom et `'?'` pour les initiales (lu, l. 34 et 51) : `''` n'est pas nul, aucun repli ne joue.
+  - Le docblock de `nameWithoutContact()` dit que la règle « vaut pour ces chemins », `ConversationResource` compris (lu, `User.php:362-367`) ; `MessageResource` l'emploie (lu, l. 23), `ConversationResource` non.
+  - mesuré (test temporaire, `ParticipantRow` rendu avec `user: { full_name: '' }`) : `textContent` = `"Membre"` — ni nom, ni initiales, ni e-mail (le compte n'en a pas).
+  - Établi comment : lu, et mesuré par rendu.
+- Piste : rendre `full_name` des participants par `nameWithoutContact()` côté API (comme `MessageResource` et `MessagingContactResource`, TCK-815 et TCK-971), et remplacer les `??` du composant par un repli sur chaîne vide. Test : ressource d'une conversation dont un participant n'a pas de nom → `full_name = "—"` ; rendu du composant avec `full_name: ''` → `#<id>` ou « — ».
+
+### Le panneau de signature d'un bail écrit « Signé par  le … », et efface le « pour le compte de » quand le bailleur n'a pas de nom
+- Réf : P220.02
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/components/leases/LeaseSignaturePanel.tsx:109-121`, `takussan-api/app/Http/Resources/LeaseResource.php:106-107`, `takussan-web/src/messages/fr.json:4005`
+- Constat :
+  - `signer_name` et `on_behalf_of_name` sont rendus par `getFullNameAttribute()` (lu, `LeaseResource.php:106-107`), donc `''` pour un compte sans nom.
+  - Le panneau retombe sur `—` par `??` (lu, l. 113 et 118) : `''` passe tel quel. Il choisit le texte « pour le compte de » sur `signature.on_behalf_of_name` vrai (lu, l. 111) : `''` le fait tomber dans « Signé par {signer} ».
+  - mesuré (test temporaire, signatures `tenant` à `signer_name: ''` et `landlord` à `signer_name: 'Awa Sarr'`, `on_behalf_of_name: ''`) : `… LocataireSignéSigné par  le 20 oct. 2026 BailleurSignéSigné par Awa Sarr le 21 oct. 2026`. La signature d'un gestionnaire au nom d'un bailleur sans nom se lit comme celle du bailleur lui-même, sans trace du mandat (ADR-0042 en fait une preuve de consentement).
+  - Établi comment : lu, et mesuré par rendu.
+- Piste : côté API, `nameWithoutContact()` pour les deux noms (jamais `''`) ; côté front, choisir le texte du mandat sur la présence de la signature pour le compte d'un tiers (`on_behalf_of_name !== null`, ou un booléen rendu par l'API), non sur la vérité du nom. Test : signature pour le compte d'un bailleur sans nom → le texte « pour le compte de » reste.
+
+### Une fiche client créée depuis un compte sans nom garde prénom et nom vides : le repli `'Client'` / `'#id'` ne joue jamais
+- Réf : P220.03
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Model/CustomerService.php:72-80`, `takussan-api/app/Http/Controllers/Public/PublicPropertyController.php:972`, `takussan-api/app/Services/Model/BookingService.php:102`, `takussan-web/src/components/pipeline/PipelineCard.tsx:102`, `:133`, `:144`, `takussan-web/src/components/customer-dashboard/CustomerList.tsx:59`, `:128`, `takussan-web/src/app/(dashboard)/app/customers/[id]/page.tsx:124-164`, `takussan-web/src/components/pipeline/CustomerDetailSheet.tsx:82`, `takussan-web/src/components/visits/PlanifierUneVisite.tsx:244`, `takussan-web/src/lib/queries/agent-crm.ts:342`
+- Constat :
+  - `rattacherOuCreer` écrit `'first_name' => $user->first_name ?? 'Client'` et `'last_name' => $user->last_name ?? '#'.$user->id` (lu, l. 76-77) : `??` ne remplace que `null`, et le compte créé par téléphone porte `''`.
+  - mesuré (test temporaire, compte `first_name = ''`, `last_name = ''`, `email = null`, `findOrCreateFromUser`) → fiche `["", "", agency_id null]`.
+  - Ce chemin sert la candidature et l'offre publiques (lu, `PublicPropertyController.php:972`) et la réservation par le client lui-même (lu, `BookingService.php:102`). `StoreCustomerRequest` exige pourtant les deux noms à la saisie (lu, l. 42-43) : c'est le seul écrivain de fiches à noms vides relevé.
+  - Le front compose ces noms sans repli partout où une fiche s'affiche : titre de la fiche et libellés passés aux enfants (`customers/[id]/page.tsx:124-164`), carte du tableau (`PipelineCard.tsx:102`, et l'`aria-label` du sélecteur d'étape l. 133), liste (`CustomerList.tsx:59`, `:128`), tiroir (`CustomerDetailSheet.tsx:82`), option du sélecteur de visite (`PlanifierUneVisite.tsx:244`) et de la recherche CRM (`agent-crm.ts:342`) (lu). Que la fiche, sans `agency_id`, apparaisse dans ces écrans d'une agence n'est pas mesuré (à vérifier).
+  - Établi comment : lu, et mesuré par test.
+- Piste : remplacer `??` par un test de chaîne vide (`filled()`), pour que le repli écrit s'applique ; décider s'il reste `Client` / `#id` (texte en français écrit en base, contraire au principe 5) ou s'il devient un repli d'affichage côté front. Côté front, un seul assembleur de nom de fiche. Test : `findOrCreateFromUser` pour un compte sans nom → fiche jamais à deux noms vides.
+
+### Le tableau d'équipe et ses dialogues montrent une ligne vide pour un membre sans nom ni e-mail
+- Réf : P220.04
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/components/admin/users/AdminUsersTable.tsx:59-61`, `:157-159`, `:172-177`, `:281-283`, `takussan-web/src/components/admin/users/UserDetailDrawer.tsx:116-118`, `takussan-web/src/components/admin/ConfirmSuspendDialog.tsx:42`, `takussan-web/src/components/crm/HandoverWizard.tsx:73`, `takussan-web/src/components/admin/roles/RevokeDelegationDialog.tsx:77`, `takussan-web/src/components/admin/roles/RoleDelegationsSection.tsx:225-228`, `takussan-web/src/lib/queries/admin-users.ts:35-44`
+- Constat :
+  - La cellule de nom est `{row.first_name} {row.last_name}` (lu, l. 157-159), les initiales retombent sur `·` (lu, l. 59-61), et la colonne e-mail rend `<a href={`mailto:${row.email}`}>{row.email}</a>` sans test de nullité (lu, l. 172-177) : un membre sans nom ni e-mail est une ligne dont seule la pastille `·` se voit, avec un lien `mailto:null`. Le numéro est demandé (`ADMIN_USERS_FIELDS`, lu, `admin-users.ts:40`) mais le tableau ne l'affiche pas (lu, `grep -n phone` → aucune occurrence dans `AdminUsersTable.tsx`).
+  - Le tiroir du membre (`UserDetailDrawer.tsx:117`), la confirmation de suspension (`ConfirmSuspendDialog.tsx:42`), l'assistant de passation (`HandoverWizard.tsx:73`), la révocation et la liste des délégations (`RevokeDelegationDialog.tsx:77`, `RoleDelegationsSection.tsx:227`) composent le même nom sans repli (lu) : titre et `aria-label` (`table.actionsAria`, l. 282) à trou.
+  - Comment un tel compte entre dans l'équipe : voir P220.07 (acceptation d'une invitation par un compte créé par téléphone, sans recopie des noms saisis) ; le parcours entier n'est pas mesuré (à vérifier).
+  - Établi comment : lu.
+- Piste : un assembleur de nom commun au front (nom, sinon e-mail, sinon numéro pour le personnel de l'agence, sinon `#id`), employé par ces écrans ; colonne e-mail à `—` quand elle est nulle. Test de rendu d'une ligne sans nom ni e-mail.
+
+### Les sélecteurs de membre proposent des options sans libellé pour un membre sans nom
+- Réf : P220.05
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/lib/queries/agent-crm.ts:114-125`, `takussan-web/src/components/admin/roles/CreateDelegationDialog.tsx:200-204`, `takussan-web/src/components/leads/ContactLeadsInbox.tsx:147-149`, `:245`, `:371-375`, `takussan-web/src/app/(dashboard)/app/properties/(liste)/page.tsx:263`
+- Constat :
+  - `fetchAgencyAgents` rend `name: [first_name, last_name].filter(Boolean).join(' ')` (lu, l. 124), soit `''`, lu par l'assistant de passation, les absences d'agent et le référent d'une fiche (lu, `HandoverWizard.tsx:83`, `AgentAbsencesSection.tsx:62`, `CustomerReferent.tsx:13`).
+  - L'option du membre délégué (`CreateDelegationDialog.tsx:202`) et celle de l'assignation d'une demande de contact (`ContactLeadsInbox.tsx:373`, `nomComplet` l. 147-149) sont vides pour ce membre ; la ligne « destinataire » de la demande s'écrit avec `{name}` vide (lu, l. 245).
+  - Le filtre d'agent de la liste des biens nomme l'utilisateur courant par `full_name || \`${first_name} ${last_name}\`.trim()` (lu, l. 263) : option vide pour un propriétaire particulier sans nom.
+  - Contraste : `MaintenanceAssignmentBlock.tsx:167-168` (`name || String(member.id)`) et `AuditTrail.tsx:113-115` (nom, e-mail, `#id`) retombent déjà (lu).
+  - Établi comment : lu.
+- Piste : le même assembleur que P220.04 dans ces quatre lecteurs. Test de `fetchAgencyAgents` sur un membre sans nom → `name` non vide.
+
+### Les listes de bailleurs et de prestataires ignorent le nom saisi à l'invitation dès qu'un compte est lié
+- Réf : P220.06
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/components/owners/OwnersList.tsx:176`, `:189`, `:385-390`, `takussan-web/src/components/service-providers/ServiceProvidersList.tsx:132`, `:256-261`, `takussan-web/src/components/payments/CreatePayoutDialog.tsx:41-45`, `takussan-web/src/components/maintenance/MaintenanceAssignmentBlock.tsx:182-187`
+- Constat :
+  - `nomDe` prend les noms du compte quand `owner.user` existe, sinon ceux de `metadata` (lu, `OwnersList.tsx:387-389`, même forme `ServiceProvidersList.tsx:258-260`) : pour un compte lié sans nom, `''`, et la cellule rend `—` (lu, l. 176 et 132), alors que `metadata.first_name` et `last_name`, saisis par l'agence à l'invitation (lu, `OwnerInvitationService.php:86`, `ServiceProviderInvitationService.php:115`), portent le nom.
+  - La colonne e-mail rend `owner.user?.email ?? owner.metadata?.email ?? '—'` (lu, l. 189) : `—` pour une invitation par numéro. La ligne entière est faite de tirets.
+  - `CreatePayoutDialog::ownerName` et `providerName` lisent `user?.first_name ?? metadata?.first_name` (lu) : `''` du compte bloque le repli vers `metadata` ; ils retombent ensuite sur l'e-mail ou `#id`, sans le nom connu.
+  - Établi comment : lu.
+- Piste : retomber sur `metadata` champ par champ quand le nom du compte est vide (ou corriger à la source, P220.07). Test de rendu d'un bailleur lié à un compte sans nom, `metadata` nommée → le nom de l'invitation.
+
+### Un compte existant qui accepte une invitation ne reçoit pas le nom que l'agence a saisi
+- Réf : P220.07
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Invitation/InvitationService.php:631-679`, `takussan-api/app/Http/Requests/Invitation/AcceptInvitationRequest.php:31-32`, `takussan-api/app/Services/Invitation/AgentInvitationService.php:85-97`
+- Constat :
+  - L'agence saisit prénom et nom à l'invitation, rangés dans `metadata` du profil brouillon (lu, `AgentInvitationService.php:92-93` ; même chose pour bailleurs et prestataires).
+  - `acceptAsNewUser` crée le compte avec `payload['first_name'] ?? ''` (lu, l. 635) ; `AcceptInvitationRequest` les déclare `nullable` (lu, l. 31-32). Le front de l'acceptation les exige (lu, `AccepterInvitation.tsx:90`), l'API non.
+  - `acceptForUser`, la branche d'un compte déjà connecté, appelle `finalizeAccept` sans écrire de nom (lu, l. 674-679) ; `grep -n first_name InvitationService.php` → l. 278 (docblock) et 635 seulement : aucun chemin ne recopie le nom de l'invitation sur un compte à noms vides. Un compte créé par téléphone qui accepte reste sans nom dans l'équipe (déduit, à vérifier par un test d'acceptation).
+  - Établi comment : lu, et `grep`.
+- Piste : à l'acceptation, compléter `first_name` et `last_name` vides du compte par ceux de l'invitation (sans écraser un nom déjà posé). Test : compte créé par téléphone qui accepte une invitation d'agent nommée → le membre porte le nom saisi.
+
+### Petites améliorations
+- Réf : P220.08
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-web/src/components/leases/CreateLeaseForm.tsx:212-216`, `takussan-web/src/lib/queries/property-collaborators.ts:77`, `takussan-web/src/components/visits/VisitDetail.tsx:608`
+- Constat :
+  - Le récapitulatif de création d'un bail écrit « Bailleur actif : {name} » avec `user.full_name` du compte courant (lu, l. 214, `fr.json:3918`) : « Bailleur actif :  » pour un particulier sans nom.
+  - Le front n'a pas d'assembleur de nom partagé : chaque écran a le sien, et les replis divergent (`#id` dans `property-collaborators.ts:77`, e-mail dans `VisitDetail.tsx:608`, `—` dans `ServiceProvidersList`, aucun dans la plupart des sites relevés ci-dessus) (lu).
+  - Établi comment : lu.
+- Piste : un `nomAffichable()` sous `src/lib`, et une garde légère (`grep` dans `scripts/check-*.mjs`) contre la composition `${first_name} ${last_name}` hors de lui.
