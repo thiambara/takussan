@@ -12,14 +12,19 @@ use Tests\TestCase;
  *
  * Le `status` global est le pire de TOUTES les sondes : une sonde sans tuile en `failed` faisait
  * dire « En panne » à la page sans qu'aucune tuile ne le montre (`scheduler`, `whatsapp`,
- * `proxies`, `lemon_squeezy_webhook`). La liste `CHECKS` est lue dans le fichier du front, comme
- * `BookingQuoteConcordanceTest` lit sa fixture partagée : une sonde ajoutée d'un seul côté rougit.
+ * `proxies`, `lemon_squeezy_webhook`).
+ *
+ * Comme `BookingQuoteConcordanceTest`, les deux suites lisent une fixture partagée,
+ * `tests/fixtures/healthcheck-sondes.json` : ce test la compare aux sondes émises, et
+ * `system-health.concordance.test.ts` (front) à la liste `CHECKS` de `system-health.tsx`. Une
+ * sonde ajoutée d'un seul côté rougit l'un des deux. Ce test ne lit pas le front lui-même :
+ * `check-ci-attestation` refuse qu'un test de l'API lise un fichier hors de la clé de l'API.
  */
 class HealthcheckTuilesConcordanceTest extends TestCase
 {
     use RefreshDatabase;
 
-    private const FRONT = __DIR__.'/../../../../../takussan-web/src/components/admin/super/system-health.tsx';
+    private const FIXTURE = __DIR__.'/../../../fixtures/healthcheck-sondes.json';
 
     public function test_chaque_sonde_de_l_api_a_sa_tuile_et_reciproquement(): void
     {
@@ -33,15 +38,17 @@ class HealthcheckTuilesConcordanceTest extends TestCase
         $this->assertSame($this->trier($sondes), $this->trier($this->tuiles()));
     }
 
+    public function test_la_fixture_porte_les_sondes(): void
+    {
+        $this->assertGreaterThanOrEqual(14, count($this->tuiles()));
+    }
+
     /** @return list<string> */
     private function tuiles(): array
     {
-        $source = (string) file_get_contents(self::FRONT);
-        $this->assertSame(1, preg_match('/const CHECKS\b[^=]*=\s*\[(.*?)\n\];/s', $source, $bloc), 'CHECKS introuvable dans system-health.tsx');
-        preg_match_all("/key:\s*'([a-z_]+)'/", $bloc[1], $cles);
-        $this->assertNotEmpty($cles[1], 'CHECKS ne porte aucune clé');
+        $json = json_decode((string) file_get_contents(self::FIXTURE), true, flags: JSON_THROW_ON_ERROR);
 
-        return $cles[1];
+        return $json['sondes'];
     }
 
     /**

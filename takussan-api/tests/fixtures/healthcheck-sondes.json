@@ -1,0 +1,19 @@
+{
+  "_doc": "TCK-2129 — les sondes de HealthcheckService::snapshot() (hors status et generated_at), une tuile chacune sur la page de santé. Lu par HealthcheckTuilesConcordanceTest (API) et system-health.concordance.test.ts (front).",
+  "sondes": [
+    "db",
+    "cache",
+    "storage",
+    "media_storage",
+    "mail",
+    "sms",
+    "whatsapp",
+    "search",
+    "queue",
+    "workers",
+    "cdn",
+    "scheduler",
+    "proxies",
+    "lemon_squeezy_webhook"
+  ]
+}
