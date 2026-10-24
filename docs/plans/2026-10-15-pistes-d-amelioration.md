@@ -20759,7 +20759,7 @@ sans `delete`).*
 
 ### « Bloquer des dates » propose comme « Jour de reprise » la première nuit elle-même, que l'API refuse, et aucune borne haute face aux 24 mois de l'API
 - Réf : P230.02
-- Statut : retenu · autonome
+- Statut : fait · TCK-2230
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/property-dashboard/PropertyCalendarPanel.tsx:150-176`, `takussan-api/app/Http/Requests/Api/StorePropertyUnavailabilityRequest.php:23-24`
 - Constat :
@@ -20769,6 +20769,7 @@ sans `delete`).*
   - Établi comment : lu, et mesuré sur le validateur ; l'écran n'a pas été rendu.
 - Piste : `min` du jour de reprise au lendemain de la première nuit (`decalerJour(startsOn, 1)`), `max` des deux champs à aujourd'hui + 24 mois, servi par l'API ou porté par une constante. Garde : un test du panneau où le jour de la première nuit est grisé dans le second champ.
 - Mesure (2026-10-24, 09c83726d, mesureur) : relu `PropertyCalendarPanel.tsx:172,176` (`min={today}`, `min={startsOn || today}`, aucun `max` ; `today` est le jour LOCAL, `format(new Date(), 'yyyy-MM-dd')`, l. 32, 51), `date-picker.tsx:105` (grise seulement `< min`), `StorePropertyUnavailabilityRequest.php:23-24` (`ends_on` `after:starts_on`, `before_or_equal:` aujourd'hui + 24 mois ; `starts_on` sans borne relative au jour) ; `php artisan tinker` (`Validator::make`, lecture seule) à 2026-10-24T18:10Z, charge 2,91 / 2,96 / 2,78 sur 8 cœurs → reprise le jour même de la première nuit refusée, J+24 mois acceptée, J+24 mois + 1 jour refusée → le constat tient ; l'écran n'a pas été rendu. Classement : A1, les deux bornes sont écrites par la règle de l'API ; le correctif pose `min` = `decalerJour(startsOn, 1)` sur la reprise et `max` = `decalerAnnees(jourDeLApi(), 2)` sur les deux champs, sans texte neuf.
+- Mesure (2026-10-24, c5ee97e97, implementeur) : reproduit par `PropertyCalendarPanel.bornes.p230-02.test.tsx` (`DatePicker` simulé qui porte `min`/`max`, navigateur à New York, 01:00 Z le 25 octobre) : première nuit le 27 → reprise `min` le 27, et aucun `max` → correctif : reprise `min` = `decalerJour(startsOn || today, 1)`, `max` = `decalerAnnees(jourDeLApi(), 2)` ; première nuit `max` = la veille de cette borne (une première nuit le jour de la borne ne laisse aucune reprise) ; ablation → 2/2 rouges, remis → verts, avec les deux tests existants du panneau (10 tests).
 
 ### La fin d'une absence d'agent se choisit sans borne, alors que l'API refuse un jour passé et tout jour au-delà de 366 jours, ce dernier compris
 - Réf : P230.03
