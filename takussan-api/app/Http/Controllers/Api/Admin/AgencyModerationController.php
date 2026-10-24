@@ -15,6 +15,7 @@ use App\Services\Lead\ContactLeadService;
 use App\Services\Model\NotificationService;
 use App\Sorts\CollatedNameSort;
 use App\Support\CaseInsensitive;
+use App\Support\Http\ParametreUnique;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -300,6 +301,7 @@ class AgencyModerationController extends Controller
     {
         $valeur = $request->input($cle, $defaut);
 
-        return is_array($valeur) ? $defaut : trim((string) $valeur);
+        // ADR-0075 — une liste vaut le défaut ; une chaîne vide (devenue `null`) reste vide.
+        return $valeur === null ? '' : trim(ParametreUnique::valeur($valeur) ?? $defaut);
     }
 }

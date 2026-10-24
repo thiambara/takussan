@@ -15,6 +15,7 @@ use App\Models\LeasePayment;
 use App\Models\Property;
 use App\Models\User;
 use App\Services\Dashboard\CollectedPayments;
+use App\Support\Http\ParametreUnique;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -197,9 +198,9 @@ class AgencyDetailController extends Controller
         if (! self::readsPeople($request)) {
             // P216.03 (TCK-2124) — une liste est remplacée par un `include` vide, et n'atteint
             // jamais spatie : elle lui aurait chargé `owner` (TCK-1407, TCK-1866).
-            $include = $request->query('include', '');
+            $include = ParametreUnique::chaine($request, 'include');
             $includes = array_filter(
-                is_string($include) ? explode(',', $include) : [],
+                $include !== null ? explode(',', $include) : [],
                 fn (string $include): bool => ! in_array(strtok(trim($include), '.'), ['owner', 'collaborators'], true),
             );
             $request->query->set('include', implode(',', $includes));

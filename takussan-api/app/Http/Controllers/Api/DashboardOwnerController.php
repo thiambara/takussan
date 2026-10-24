@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
 use App\Services\Dashboard\DashboardOwnerService;
+use App\Support\Http\ParametreUnique;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -35,9 +36,9 @@ class DashboardOwnerController extends Controller
             $data = array_intersect_key($data, array_flip($keep));
         }
 
-        // TCK-1866 — `include[]=…` est ignoré comme une valeur absente (TCK-1407), et non casté.
-        $include = $request->input('include', '');
-        $includes = is_string($include) ? array_filter(array_map('trim', explode(',', $include))) : [];
+        // TCK-1866 — `include[]=…` est ignoré comme une valeur absente (ADR-0075), et non casté.
+        $include = ParametreUnique::chaine($request, 'include') ?? '';
+        $includes = array_filter(array_map('trim', explode(',', $include)));
 
         $payload = ['data' => $data];
 

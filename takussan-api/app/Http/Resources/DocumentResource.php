@@ -8,6 +8,7 @@ use App\Models\Document;
 use App\Services\Document\DocumentVersionService;
 use App\Services\Media\PrivateMediaAccess;
 use App\Services\Membership\MembershipCapabilityResolver;
+use App\Support\Http\ParametreUnique;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\Request;
 
@@ -52,8 +53,8 @@ class DocumentResource extends BaseResource
             : $this->activeVersion();
 
         // P216.03 (TCK-2124) — `include[]=…` vaut un `include` absent (TCK-1407, TCK-1866), et n'est plus casté.
-        $include = $request->query('include', '');
-        $includes = is_string($include) ? array_filter(array_map('trim', explode(',', $include))) : [];
+        $include = ParametreUnique::chaine($request, 'include') ?? '';
+        $includes = array_filter(array_map('trim', explode(',', $include)));
         $includeVersions = in_array('versions', $includes, true);
 
         return [

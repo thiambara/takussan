@@ -13,6 +13,7 @@ use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Services\Lease\LateFeeSettlement;
 use App\Services\Model\LeasePaymentService;
+use App\Support\Http\ParametreUnique;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -38,8 +39,8 @@ class LeasePaymentController extends Controller
         // anciennes, celles qui tombent en retard les premières. Un `sort` hors de cette liste garde
         // l'ordre d'avant ; l'`id` départage deux échéances de même date.
         // P216.04 (TCK-2126) — `sort[]=…` vaut l'ordre par défaut (TCK-1407), et n'est plus casté.
-        $tri = $request->query('sort');
-        [$colonne, $sens] = (is_string($tri) ? self::TRIS[$tri] ?? null : null) ?? ['period_start', 'desc'];
+        $tri = ParametreUnique::chaine($request, 'sort');
+        [$colonne, $sens] = ($tri !== null ? self::TRIS[$tri] ?? null : null) ?? ['period_start', 'desc'];
 
         $payments = $lease->payments()
             ->orderBy($colonne, $sens)

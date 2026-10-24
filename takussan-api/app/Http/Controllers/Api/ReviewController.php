@@ -25,6 +25,7 @@ use App\Services\Review\ReviewModerationScope;
 use App\Services\Review\ReviewModerationService;
 use App\Services\Review\ReviewNotifier;
 use App\Services\Review\ReviewReportService;
+use App\Support\Http\ParametreUnique;
 use App\Support\VisitorFingerprint;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
@@ -92,7 +93,8 @@ class ReviewController extends Controller
                 'rejected' => ReviewStatus::Rejected,
             ];
             // TCK-1407 (P151.06) — une liste (`filter[moderation_status][]=`) est ignorée, comme un statut inconnu.
-            if (is_string($status) && isset($statusMap[$status])) {
+            $status = ParametreUnique::valeur($status);
+            if ($status !== null && isset($statusMap[$status])) {
                 $query->where('status', $statusMap[$status]->value);
             }
         }
@@ -111,8 +113,7 @@ class ReviewController extends Controller
 
         // Sorting — default surfaces the queue (most reported first, then fresh).
         // P216.04 (TCK-2126) — `sort[]=…` vaut l'ordre par défaut (TCK-1407), et n'est plus casté.
-        $sort = $request->query('sort');
-        $sort = is_string($sort) ? $sort : '-reported_count,-created_at';
+        $sort = ParametreUnique::chaine($request, 'sort') ?? '-reported_count,-created_at';
         foreach (explode(',', $sort) as $spec) {
             $spec = trim($spec);
             if ($spec === '') {

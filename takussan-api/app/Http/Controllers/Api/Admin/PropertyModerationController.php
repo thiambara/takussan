@@ -11,6 +11,7 @@ use App\Policies\PropertyModerationPolicy;
 use App\Services\Property\PropertyModerationService;
 use App\Support\AgencyKindGuard;
 use App\Support\CaseInsensitive;
+use App\Support\Http\ParametreUnique;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -49,7 +50,7 @@ class PropertyModerationController extends Controller
         }
 
         // P216.01 (TCK-2120) — une valeur en liste vaut une valeur absente (TCK-1407), et n'est plus castée.
-        if ($search = is_string($brut = $request->input('filter.search')) ? trim($brut) : '') {
+        if ($search = trim(ParametreUnique::chaine($request, 'filter.search') ?? '')) {
             // TCK-1840 (P186.02) — `like` nu : sensible à la casse sous PostgreSQL, et `%` y valait
             // un joker. Même forme que TCK-600 (piège n° 9 du CLAUDE.md de l'API).
             $motif = '%'.addcslashes(CaseInsensitive::fold($search), '\\%_').'%';

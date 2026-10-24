@@ -13,6 +13,7 @@ use App\Services\Privacy\PersonalDataAccessLogger;
 use App\Sorts\CollatedNameSort;
 use App\Support\Audit\PropertyRedactor;
 use App\Support\CaseInsensitive;
+use App\Support\Http\ParametreUnique;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -247,7 +248,8 @@ class UserDetailController extends Controller
     {
         $valeur = $request->input($cle, $defaut);
 
-        return is_array($valeur) ? $defaut : trim((string) $valeur);
+        // ADR-0075 — une liste vaut le défaut ; une chaîne vide (devenue `null`) reste vide.
+        return $valeur === null ? '' : trim(ParametreUnique::valeur($valeur) ?? $defaut);
     }
 
     private function booleanFilter(mixed $value): bool
