@@ -10,7 +10,6 @@ use App\Models\Inventory;
 use App\Models\Lease;
 use App\Models\Property;
 use App\Models\User;
-use App\Services\Property\BailleurDuBien;
 use App\Support\ImpersonationContext;
 use Illuminate\Database\Eloquent\Model;
 
@@ -165,14 +164,9 @@ class DocumentPolicy extends BasePolicy
             return true;
         }
 
-        // TCK-2016 (P190.05, décision du porteur) — `properties.user_id` et `leases.landlord_id`
-        // désignent aussi l'agent qui a saisi le bien : il n'en est le bailleur que s'il y est
-        // propriétaire (`BailleurDuBien`). Suspendu ou retiré, il ne lit ni ne joint plus rien par
-        // cette branche ; actif, il passe par celle du personnel. Les colonnes d'AUTEUR
-        // (`created_by_id`, `conducted_by`) restent jugées par l'identité.
-        $bailleur = fn (mixed $landlordId, mixed $agencyId): bool => $writing
-            ? $this->bailleurEcrit($user, $landlordId, $agencyId)
-            : BailleurDuBien::est($user, $landlordId, $agencyId);
+        $bailleur = fn (mixed $authorId, mixed $agencyId): bool => $writing
+            ? $this->landlordWrites($user, $authorId, $agencyId)
+            : $authorId !== null && (int) $authorId === $user->id;
 
         if ($documentable instanceof Property) {
             return $bailleur($documentable->user_id, $documentable->agency_id)
