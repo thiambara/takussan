@@ -3,6 +3,8 @@
 namespace App\Http\Requests\Api;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Models\Agency;
+use App\Policies\AgencyPolicy;
 use Illuminate\Validation\Rule;
 
 /**
@@ -16,25 +18,18 @@ use Illuminate\Validation\Rule;
 class UpdateAgencyMemberRoleRequest extends BaseFormRequest
 {
     /**
-     * TCK-305 — l'autorisation court ICI, avant la validation.
+     * TCK-305 — l'autorisation court ICI, avant la validation : un appel non autorisé ET mal formé
+     * rend 403, pas 422.
      *
-     * Le contrôleur autorisait avant de valider ; un FormRequest valide avant le corps du
-     * contrôleur, ce qui rendait 422 là où l'API rendait 403 pour un appel à la fois non
-     * autorisé et mal formé. `authorize()` rétablit l'ordre d'origine.
-     *
-     * ⚠ **REPRISE, pas délégation** : cette règle n'est pas encore dans une policy — elle fait
-     * partie des 19 helpers relevés hors périmètre de TCK-306. L'expression est reproduite à
-     * l'identique ; son domicile définitif est une policy, et le ticket de suite doit la
-     * convertir en délégation comme les 35 autres.
+     * TCK-1498 (P116.01) — DÉLÉGATION à {@see AgencyPolicy::changeMemberRole()} : `team.assign_role`
+     * dans l'agence de la route, l'administrateur principal et le super-admin compris. La reprise
+     * « être admin de l'agence active » est retirée.
      */
     public function authorize(): bool
     {
-        $actor = $this->user();
         $agency = $this->route('agency');
 
-        return $actor !== null && ($actor->isSuperAdmin()
-            || $agency->primary_admin_id === $actor->id
-            || ($this->activeProfile()?->agency_id === $agency->id && $actor->isAgencyAdminAt((int) $agency->id)));
+        return $agency instanceof Agency && $this->user()?->can('changeMemberRole', $agency) === true;
     }
 
     /**

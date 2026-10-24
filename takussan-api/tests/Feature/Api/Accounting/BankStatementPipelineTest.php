@@ -375,6 +375,56 @@ class BankStatementPipelineTest extends ApiTestCase
             ])->assertStatus(422);
     }
 
+    public function test_une_devise_ecrite_fcfa_entre_en_xof_et_une_devise_illisible_est_sautee(): void
+    {
+        // TCK-1704 (P124.01) — `FCFA` allait tel quel dans `bank_statement_lines.currency`, un
+        // `char(3)` : 22001, et le relevé ENTIER passait `failed`, sans ligne. Les écritures connues
+        // du franc CFA deviennent `XOF` ; une cellule qui n'est pas un code de trois lettres fait
+        // sauter sa seule ligne, comptée.
+        $this->mapping(['currency_column' => 'Devise']);
+
+        $statement = $this->uploadQueued(
+            "date,amount,label,Devise\n"
+            ."01/04/2026,1000,A,FCFA\n"
+            ."02/04/2026,2000,B,F CFA\n"
+            ."03/04/2026,3000,C,cfa\n"
+            ."04/04/2026,4000,D,XOF\n"
+            ."05/04/2026,5000,E,Francs CFA BCEAO\n"
+        );
+
+        app()->call([new ParseBankStatementJob($statement->id), 'handle']);
+
+        $statement->refresh();
+        $this->assertSame(BankStatementStatus::ReadyForReview, $statement->status);
+        $this->assertSame(4, $statement->lines_count);
+        $this->assertSame(1, $statement->skipped_lines_count);
+        $this->assertSame(['XOF'], $statement->lines()->distinct()->pluck('currency')->all());
+    }
+
+    public function test_une_reference_et_une_contrepartie_trop_longues_sont_tronquees_a_255(): void
+    {
+        // TCK-1704 (P124.01) — une `reference` de 300 caractères sur la première de deux lignes
+        // faisait lever l'insertion (22001 sur `varchar(255)`) : relevé `failed`, la seconde ligne
+        // perdue aussi. Caractères multioctets : la borne compte des caractères, pas des octets.
+        $long = str_repeat('é', 300);
+
+        $statement = $this->uploadQueued(
+            "date,amount,label,reference,counterparty\n"
+            ."01/04/2026,1000,A,{$long},{$long}\n"
+            ."02/04/2026,2000,B,REF-2,Awa\n"
+        );
+
+        app()->call([new ParseBankStatementJob($statement->id), 'handle']);
+
+        $statement->refresh();
+        $this->assertSame(BankStatementStatus::ReadyForReview, $statement->status);
+        $this->assertSame(2, $statement->lines()->count());
+
+        $first = $statement->lines()->orderBy('posted_at')->first();
+        $this->assertSame(str_repeat('é', 255), $first->reference);
+        $this->assertSame(str_repeat('é', 255), $first->counterparty);
+    }
+
     public function test_le_journal_ne_porte_aucune_valeur_du_releve(): void
     {
         // AC19 — tout ce que l'analyse journalise, message ET contexte, sérialisé.
@@ -404,18 +454,19 @@ class BankStatementPipelineTest extends ApiTestCase
             $this->assertStringNotContainsString($witness, $journal, "Le journal recopie « {$witness} ».");
         }
 
-        // 2. L'insertion lève SQLSTATE[22001] : une contrepartie de 300 caractères.
+        // 2. L'insertion lève SQLSTATE[22003] : un montant qui dépasse `decimal(12,2)`. TCK-1704 :
+        // c'était une contrepartie de 300 caractères (22001), désormais tronquée par le pilote.
         $logged = [];
-        $counterparty = str_pad('CONTREPARTIE-TEMOIN-', 300, 'X');
+        $counterparty = 'CONTREPARTIE-TEMOIN-'.str_repeat('X', 20);
         $second = $this->uploadQueued("date,amount,label,reference,counterparty\n"
-            ."03/04/2026,5000,LIBELLE-TEMOIN-8823,,{$counterparty}\n");
+            ."03/04/2026,10000000000000,LIBELLE-TEMOIN-8823,,{$counterparty}\n");
 
         $this->runParseJobExpectingFailure($second);
 
         $this->assertSame(BankStatementStatus::Failed, $second->refresh()->status);
         $failures = array_values(array_filter($logged, fn ($l) => $l['message'] === 'bank_statement_parse_failed'));
         $this->assertCount(1, $failures);
-        $this->assertSame('22001', $failures[0]['context']['sqlstate']);
+        $this->assertSame('22003', $failures[0]['context']['sqlstate']);
         $this->assertSame($second->id, $failures[0]['context']['statement_id']);
 
         $journal = json_encode($logged, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
@@ -429,9 +480,11 @@ class BankStatementPipelineTest extends ApiTestCase
         // Vérification adverse R8 — le worker passe l'exception relancée à `report()` et en écrit
         // le texte dans `failed_jobs.exception` : relancer la `QueryException` y recopiait le SQL
         // et ses valeurs liées. L'exception relancée est assainie, sans `previous`.
-        $counterparty = str_pad('CONTREPARTIE-TEMOIN-', 300, 'X');
+        // TCK-1704 — l'insertion lève par un montant hors de `decimal(12,2)` (22003) : la
+        // contrepartie de 300 caractères qui la faisait lever est désormais tronquée.
+        $counterparty = 'CONTREPARTIE-TEMOIN-'.str_repeat('X', 20);
         $statement = $this->uploadQueued("date,amount,label,reference,counterparty\n"
-            ."03/04/2026,5000,LIBELLE-TEMOIN-8823,,{$counterparty}\n");
+            ."03/04/2026,10000000000000,LIBELLE-TEMOIN-8823,,{$counterparty}\n");
 
         $logged = [];
         Event::listen(MessageLogged::class, function (MessageLogged $e) use (&$logged): void {
@@ -451,7 +504,7 @@ class BankStatementPipelineTest extends ApiTestCase
 
         $this->assertNotNull($thrown);
         $this->assertNull($thrown->getPrevious());
-        $this->assertStringContainsString('22001', $thrown->getMessage());
+        $this->assertStringContainsString('22003', $thrown->getMessage());
 
         // `failed_jobs.exception` stocke `(string) $e` : message ET trace.
         $persisted = (string) $thrown;
@@ -515,7 +568,83 @@ class BankStatementPipelineTest extends ApiTestCase
         ];
     }
 
+    // ─── P157.06 (TCK-1919) — relevés qui se chevauchent ────────────
+
+    /**
+     * Décision du porteur : marquer, ne pas sauter. La ligne d'un second relevé dont la référence,
+     * la date, le montant et le sens égalent ceux d'une ligne déjà importée POUR L'AGENCE porte
+     * `duplicate_of_line_id` ; elle reste dans le relevé. Une ligne d'une autre agence ne compte pas.
+     */
+    public function test_une_ligne_deja_importee_par_un_autre_releve_est_marquee_et_gardee(): void
+    {
+        $ailleurs = BankStatementLine::factory()->create([
+            'bank_statement_id' => BankStatement::factory()->create()->id,
+            'posted_at' => '2026-04-01', 'amount' => 150000, 'reference' => 'F1',
+        ]);
+
+        $premier = $this->upload("date,amount,label,reference\n01/04/2026,150000,Loyer,F1\n");
+        $second = $this->upload("date,amount,label,reference\n01/04/2026,150000,Loyer,F1\n05/04/2026,1000,Autre,F2\n02/04/2026,-150000,Sortie,F1\n");
+
+        $original = $premier->lines()->sole();
+        $this->assertNull($original->duplicate_of_line_id);
+        $this->assertSame(3, $second->lines_count);
+        $lignes = $second->lines()->orderBy('posted_at')->get()->keyBy('label');
+        $this->assertSame($original->id, $lignes['Loyer']->duplicate_of_line_id);
+        $this->assertNotSame($ailleurs->id, $lignes['Loyer']->duplicate_of_line_id);
+        $this->assertNull($lignes['Autre']->duplicate_of_line_id);
+        $this->assertNull($lignes['Sortie']->duplicate_of_line_id, 'autre date et autre sens : pas un doublon');
+
+        $this->actingAs($this->admin)->getJson("/api/bank-statements/{$second->id}/lines?fields[bank_statement_lines]=id,label,duplicate_of_line_id")
+            ->assertOk()
+            ->assertJsonFragment(['label' => 'Loyer', 'duplicate_of_line_id' => $original->id]);
+    }
+
+    /**
+     * À la confirmation d'une ligne, les autres lignes suggérées sur le même paiement repassent
+     * `unmatched` : la seconde restait « suggérée » sur un paiement rapproché ailleurs, et sa
+     * confirmation rendait 422.
+     */
+    public function test_confirmer_une_ligne_retire_la_suggestion_des_autres_lignes_du_meme_paiement(): void
+    {
+        $payment = $this->leasePayment($this->agency, ['reference_number' => 'F1', 'amount' => 150000, 'paid_at' => '2026-04-01']);
+
+        $premier = $this->upload("date,amount,label,reference\n01/04/2026,150000,Loyer,F1\n");
+        $second = $this->upload("date,amount,label,reference\n01/04/2026,150000,Loyer,F1\n05/04/2026,1000,Autre,F2\n");
+        $a = $premier->lines()->sole();
+        $b = $second->lines()->where('reference', 'F1')->sole();
+        $this->assertSame(BankStatementLineMatchStatus::Suggested, $a->match_status);
+        $this->assertSame(BankStatementLineMatchStatus::Suggested, $b->match_status);
+
+        $this->actingAs($this->admin)->postJson("/api/bank-statement-lines/{$a->id}/match", [
+            'payment_type' => 'lease_payment',
+            'payment_id' => $payment->id,
+        ])->assertOk();
+
+        $b->refresh();
+        $this->assertSame(BankStatementLineMatchStatus::Unmatched, $b->match_status);
+        $this->assertNull($b->matched_payment_type);
+        $this->assertNull($b->matched_payment_id);
+        $this->assertNull($b->match_confidence);
+        $this->assertSame(BankStatementLineMatchStatus::Confirmed, $a->refresh()->match_status);
+    }
+
     // ─── Helpers ─────────────────────────────────────────────────
+
+    /** @param  array<string, mixed>  $overrides */
+    private function mapping(array $overrides): void
+    {
+        $this->actingAs($this->admin)
+            ->putJson("/api/agencies/{$this->agency->id}/bank-statements/csv-mapping", $overrides + [
+                'delimiter' => ',',
+                'has_header' => true,
+                'date_column' => 'date',
+                'date_format' => 'd/m/Y',
+                'amount_column' => 'amount',
+                'label_column' => 'label',
+                'sign_convention' => 'amount_signed',
+                'decimal_separator' => ',',
+            ])->assertOk();
+    }
 
     private function fixture(): string
     {

@@ -14,6 +14,9 @@ return [
         'agency_admin' => 'jiitalkat agence',
         'service_provider' => 'jaaykat liggéey',
         'super_admin' => 'super-administrateur',
+        // P155.01 (TCK-1437) — rôles d'`AgentInvitationService::ALLOWED_ROLES`.
+        'agent_senior' => 'agent senior',
+        'agent_manager' => 'agent manager',
     ],
     'errors' => [
         // TCK-455 — invitation bu xamul lu mu takk sa sàq day sos ab sàq bu

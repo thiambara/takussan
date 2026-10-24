@@ -2,12 +2,15 @@
 
 namespace App\Services\Notifications;
 
+use App\Domain\Notifications\NotificationCode;
 use App\Models\Customer;
 use App\Models\Invitation;
 use App\Models\PropertyContactLead;
 use App\Models\PropertyVisit;
+use App\Models\User;
 use App\Services\Model\NotificationService;
 use App\Services\Notifications\Sms\PhoneNumber;
+use App\Services\Property\PrimaryPropertyContact;
 
 /**
  * TCK-588 (ADR-0032 §3) — un destinataire SANS COMPTE : un locataire saisi par l'agence, un
@@ -95,6 +98,26 @@ final class ContactSansCompte
     public static function fromLead(PropertyContactLead $lead): self
     {
         return new self(null, $lead->name ?: null, $lead->locale ?: self::DEFAULT_LOCALE, null, self::email($lead->email));
+    }
+
+    /**
+     * TCK-1493 (P107.01, porteur 2026-10-22) — « sans téléphone vérifié sur le compte, le canal
+     * mobile part au contact de la fiche ». Les canaux mobiles d'un compte s'arrêtent sans
+     * `phone_verified_at` (`SmsChannel`, `WhatsappChannel`) : avoir un compte faisait perdre au
+     * locataire ou au visiteur le SMS que son numéro de fiche recevait sans compte.
+     *
+     * Rend la fiche RÉDUITE À SON NUMÉRO (l'e-mail, le compte le reçoit déjà), ou `null` : compte
+     * absent, non joignable, au téléphone vérifié, ou fiche sans numéro. L'appelant n'y envoie
+     * que les codes de {@see NotificationCode::reachesContacts()}, et les paramètres du COMPTE :
+     * jamais de lien porteur (VERIF-602 M2), le compte lit sa quittance dans son espace.
+     */
+    public static function relaisMobileDuCompte(?User $user, self $fiche): ?self
+    {
+        if ($user === null || $user->phone_verified_at !== null || ! PrimaryPropertyContact::joignable($user) || ! $fiche->hasPhone()) {
+            return null;
+        }
+
+        return new self($fiche->phone, $fiche->name, $fiche->locale, $fiche->customerId);
     }
 
     public function hasPhone(): bool

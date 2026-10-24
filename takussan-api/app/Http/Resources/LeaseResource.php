@@ -120,6 +120,11 @@ class LeaseResource extends BaseResource
                 'review_rent' => $this->viewer->can('reviewRent', $this->resource),
                 'record_payment' => $this->viewer->can('recordPayment', $this->resource),
                 'refund_deposit' => $this->viewer->can('refundDeposit', $this->resource),
+                // P189.03 (TCK-1871) — le préavis (et son annulation, même règle), l'ajout de garant
+                // et le lien de paiement, que la fiche ouvrait par le rôle : le bailleur suspendu le
+                // garde, et l'agent sans `leases.terminate` voyait le préavis.
+                'request_early_termination' => $this->viewer->can('requestEarlyTermination', $this->resource),
+                'update' => $this->viewer->can('update', $this->resource),
             ]),
             'created_at' => $this->iso($this->created_at),
         ];

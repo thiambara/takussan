@@ -16,6 +16,7 @@ import type {
   PortfolioCategory,
 } from '@/types/agent-crm';
 import { cheminApi, requete } from '@/lib/chemin-api';
+import { lireToutesLesPages, PAR_PAGE_MAX } from '@/lib/queries/toutes-les-pages';
 
 /**
  * TCK-591 — requêtes du CRM de l'agent. Module sans directive : appelable depuis un composant
@@ -28,7 +29,7 @@ export const AGENT_CRM_QUERY_KEY = {
   activity: (customerId: number) => ['agent-crm', 'customer', customerId, 'activity'] as const,
   matchingProperties: (customerId: number) => ['agent-crm', 'customer', customerId, 'matching-properties'] as const,
   matchingCustomers: (propertyId: number) => ['agent-crm', 'property', propertyId, 'matching-customers'] as const,
-  tasks: (due: string) => ['agent-crm', 'tasks', due] as const,
+  tasks: (due: string, assignedToMe = false) => ['agent-crm', 'tasks', due, assignedToMe ? 'mine' : 'all'] as const,
   taskables: (type: string, search: string) => ['agent-crm', 'taskables', type, search] as const,
   calendarFeed: () => ['agent-crm', 'calendar-feed'] as const,
   portfolio: (agencyId: number, userId: number) => ['agent-crm', 'agency', agencyId, 'portfolio', userId] as const,
@@ -81,14 +82,20 @@ export async function fetchCustomerLinked(
       sort: '-start_date',
     },
   }[kind];
-  const qs = buildQueryString({
-    filter: spec.filter,
-    include: ['property'],
-    fields: { [spec.table]: spec.cols, properties: ['id', 'title'] },
-    sort: spec.sort,
-    per_page: 20,
-  });
-  const res = await apiRequest<PaginatedResponse<LinkedRow>>(`${spec.path}?${qs}`, { token });
+  // TCK-1747 (P171.05) — toutes les pages : une page de 20 taisait la 21ᵉ visite, réservation ou bail.
+  const res = await lireToutesLesPages((page) =>
+    apiRequest<PaginatedResponse<LinkedRow>>(
+      `${spec.path}?${buildQueryString({
+        filter: spec.filter,
+        include: ['property'],
+        fields: { [spec.table]: spec.cols, properties: ['id', 'title'] },
+        sort: spec.sort,
+        page,
+        per_page: PAR_PAGE_MAX,
+      })}`,
+      { token },
+    ),
+  );
   return res.data.map((row) => ({
     id: row.id,
     status: row.status ?? null,
@@ -269,14 +276,18 @@ export const TASK_DUE_FILTERS: readonly TaskDue[] = ['overdue', 'today', 'upcomi
 /**
  * TCK-591 §3 — « Mes tâches » : les tâches que je porte ou que j'ai créées (plus celles d'un
  * collègue que je remplace), filtrées par échéance CÔTÉ SERVEUR (`filter[due]`, fuseau de Dakar).
+ * TCK-1733 (P167.04) — `assignedToMe` borne aux tâches qui me sont assignées dans l'agence active
+ * (`filter[assigned_to]=me`), la portée que compte la tuile « Tâches du jour ».
  */
 export async function fetchMyTasks(
   token: string,
   due: TaskDue | null,
   page = 1,
+  assignedToMe = false,
 ): Promise<PaginatedResponse<AgentTask>> {
+  const filter = { ...(due ? { due } : {}), ...(assignedToMe ? { assigned_to: 'me' } : {}) };
   const qs = buildQueryString({
-    ...(due ? { filter: { due } } : {}),
+    ...(Object.keys(filter).length > 0 ? { filter } : {}),
     sort: due === 'overdue' || due === 'today' || due === 'upcoming' ? 'due_at' : '-created_at',
     page,
     per_page: 30,

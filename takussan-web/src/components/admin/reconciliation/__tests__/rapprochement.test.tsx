@@ -164,6 +164,7 @@ function ligne(surcharge: Partial<BankStatementLine>): BankStatementLine {
     match_status: 'suggested',
     matched_payment_type: 'lease_payment',
     matched_payment_id: 12,
+    matched_payment_status: 'pending',
     match_confidence: 0.92,
     ...surcharge,
   };
@@ -192,6 +193,22 @@ describe('StatementDetail — rapprocher ligne à ligne', () => {
     );
   });
 
+  // TCK-1919 (P157.06, décision du porteur : marquer, ne pas sauter) — une ligne déjà importée par
+  // un autre relevé de l'agence porte un badge ; les autres non.
+  it('signale la ligne déjà importée par un autre relevé', () => {
+    q.useBankStatementLines.mockReturnValue(
+      ok({
+        data: [ligne({ duplicate_of_line_id: 55 }), ligne({ id: 101, duplicate_of_line_id: null })],
+        meta: { current_page: 1, last_page: 1, per_page: 50, total: 2 },
+      }),
+    );
+    render(withIntl(<StatementDetail agencyId={3} statementId={1} />));
+    expect(within(screen.getByTestId('ligne-100')).getByTestId('doublon-100')).toHaveTextContent(
+      fr.admin.reconciliation.detail.duplicate,
+    );
+    expect(within(screen.getByTestId('ligne-101')).queryByTestId('doublon-101')).toBeNull();
+  });
+
   it('montre le sens, la suggestion et sa confiance', () => {
     render(withIntl(<StatementDetail agencyId={3} statementId={1} />));
     const suggeree = screen.getByTestId('ligne-100');
@@ -199,6 +216,24 @@ describe('StatementDetail — rapprocher ligne à ligne', () => {
     expect(within(suggeree).getByText('Loyer n° 12')).toBeInTheDocument();
     expect(texte(within(suggeree).getByText(/Confiance/).textContent)).toBe('Confiance : 92 %');
     expect(within(screen.getByTestId('ligne-101')).getByText(fr.admin.reconciliation.directions.debit)).toBeInTheDocument();
+  });
+
+  // TCK-1522 (P110.02) — un encaissement rapproché puis remboursé garde sa ligne : la ligne le dit.
+  it('montre le statut du payable rapproché, remboursé compris', () => {
+    q.useBankStatementLines.mockReturnValue(
+      ok({
+        data: [
+          ligne({ id: 102, match_status: 'confirmed', match_confidence: null, matched_payment_type: 'booking_payment', matched_payment_status: 'refunded' }),
+          ligne({ id: 103, match_status: 'confirmed', match_confidence: null, matched_payment_type: 'invoice', matched_payment_status: 'paid' }),
+          ligne({ id: 104, match_status: 'unmatched', matched_payment_type: null, matched_payment_id: null, matched_payment_status: null }),
+        ],
+        meta: { current_page: 1, last_page: 1, per_page: 50, total: 3 },
+      }),
+    );
+    render(withIntl(<StatementDetail agencyId={3} statementId={1} />));
+    expect(within(screen.getByTestId('ligne-102')).getByTestId('statut-payable-102')).toHaveTextContent(fr.payments.status.refunded);
+    expect(within(screen.getByTestId('ligne-103')).getByTestId('statut-payable-103')).toHaveTextContent(fr.payments.invoiceStatus.paid);
+    expect(within(screen.getByTestId('ligne-104')).queryByTestId('statut-payable-104')).toBeNull();
   });
 
   it('valide la suggestion d’un geste', async () => {
@@ -227,7 +262,7 @@ describe('StatementDetail — rapprocher ligne à ligne', () => {
 
   it('la recherche manuelle porte le sens de la ligne, et rapproche le candidat choisi', async () => {
     q.match.mockResolvedValue({});
-    q.usePaymentSearch.mockImplementation((_a: number, _q: string, _m: number | null, _d: string, enabled: boolean) =>
+    q.usePaymentSearch.mockImplementation((_a: number, _q: string, _m: number | null, _d: string, _c: string | null, enabled: boolean) =>
       enabled
         ? ok({ data: [{ id: 5, type: 'payout', label: null, amount: '50000.00', currency: 'XOF', reference: 'PO-5', paid_at: null, payer_name: null }] })
         : { data: undefined, isLoading: false, isError: false },
@@ -238,11 +273,38 @@ describe('StatementDetail — rapprocher ligne à ligne', () => {
     const dialogue = await screen.findByRole('dialog');
     fireEvent.click(within(dialogue).getByRole('button', { name: fr.admin.reconciliation.search.submit }));
 
-    const appels = q.usePaymentSearch.mock.calls.filter((c) => c[4] === true);
-    expect(appels.at(-1)?.slice(0, 4)).toEqual([3, 'LP-2026-0012', 50000, 'debit']);
+    const appels = q.usePaymentSearch.mock.calls.filter((c) => c[5] === true);
+    // P157.01 (TCK-1917) — la devise de la ligne part avec la recherche.
+    expect(appels.at(-1)?.slice(0, 5)).toEqual([3, 'LP-2026-0012', 50000, 'debit', 'XOF']);
 
     fireEvent.click(await within(dialogue).findByRole('button', { name: fr.admin.reconciliation.search.choose }));
     await waitFor(() => expect(q.match).toHaveBeenCalledWith({ lineId: 101, payment_type: 'payout', payment_id: 5 }));
+  });
+
+  // TCK-1526 (P110.04) — un acompte remboursé reste candidat, et le dit ; il reste choisissable.
+  it('la recherche manuelle montre le statut de chaque candidat, sans l’écarter', async () => {
+    q.match.mockResolvedValue({});
+    q.usePaymentSearch.mockImplementation((_a: number, _q: string, _m: number | null, _d: string, _c: string | null, enabled: boolean) =>
+      enabled
+        ? ok({
+            data: [
+              { id: 7, type: 'booking_payment', label: null, amount: '70000.00', currency: 'XOF', reference: 'BP-7', paid_at: null, payer_name: null, status: 'refunded' },
+              { id: 8, type: 'invoice', label: null, amount: '70000.00', currency: 'XOF', reference: 'FA-8', paid_at: null, payer_name: null, status: 'sent' },
+            ],
+          })
+        : { data: undefined, isLoading: false, isError: false },
+    );
+    render(withIntl(<StatementDetail agencyId={3} statementId={1} />));
+
+    fireEvent.click(within(screen.getByTestId('ligne-100')).getByRole('button', { name: fr.admin.reconciliation.detail.search }));
+    const dialogue = await screen.findByRole('dialog');
+    fireEvent.click(within(dialogue).getByRole('button', { name: fr.admin.reconciliation.search.submit }));
+
+    expect(await within(dialogue).findByTestId('statut-candidat-booking_payment-7')).toHaveTextContent(fr.payments.status.refunded);
+    expect(within(dialogue).getByTestId('statut-candidat-invoice-8')).toHaveTextContent(fr.payments.invoiceStatus.sent);
+
+    fireEvent.click(within(dialogue).getAllByRole('button', { name: fr.admin.reconciliation.search.choose })[0]);
+    await waitFor(() => expect(q.match).toHaveBeenCalledWith({ lineId: 100, payment_type: 'booking_payment', payment_id: 7 }));
   });
 
   // Ajouté après vérification adverse (AC18b) : seule la LISTE était éprouvée — forcer le compte

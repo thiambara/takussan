@@ -19,6 +19,8 @@ return [
     'activity_log' => [
         'export_too_large' => 'Trop de lignes pour un export : resserrez les filtres.',
         'export_link_invalid' => 'Lien expiré ou invalide.',
+        'date_range_inverted' => 'La date de début doit précéder la date de fin, ou lui être égale.',
+        'date_range_too_long' => 'La période exportée ne doit pas dépasser un an.',
     ],
     'agency' => [
         'active_profile_missing' => 'Aucun profil d\'agence actif.',
@@ -450,6 +452,7 @@ return [
     ],
     'privacy' => [
         'request_closed' => 'Cette demande est close : enregistrez-en une nouvelle.',
+        'request_linked_pending' => 'Cette demande suit son cours dans l\'application, qui la répondra : elle ne se clôt pas à la main.',
     ],
     'profile' => [
         'not_accessible' => 'Ce profil ne vous est pas accessible.',
@@ -459,6 +462,8 @@ return [
         'cannot_unpublish' => 'Seuls les biens disponibles peuvent être dépubliés.',
         'collaborator_exists' => 'Ce collaborateur est déjà ajouté à ce bien.',
         'collaborator_not_found' => 'Ce collaborateur ne fait pas partie de ce bien.',
+        'has_confirmed_booking' => 'Ce bien porte une réservation confirmée : annulez-la avant de supprimer le bien.',
+        'has_upcoming_visit' => 'Ce bien porte une visite à venir : annulez-la avant de supprimer le bien.',
         'not_found' => 'Bien introuvable.',
         'not_pending_moderation' => 'Le bien n\'est pas en attente de modération.',
         'primary_not_eligible' => 'Seul un agent actif de l\'agence du bien peut en être l\'agent principal.',

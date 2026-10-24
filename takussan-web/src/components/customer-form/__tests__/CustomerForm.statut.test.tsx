@@ -74,4 +74,30 @@ describe('CustomerForm — statut du client', () => {
     await waitFor(() => expect(updateCustomerAction).toHaveBeenCalledTimes(1));
     expect(updateCustomerAction.mock.calls[0][1]).toMatchObject({ status: 'inactive' });
   });
+
+  // TCK-1753 (P147.06) — l'API ne laisse plus poser `blocked` ni `deleted` par l'édition : le
+  // sélecteur ne les offre plus, sauf le statut que la fiche porte déjà, renvoyé inchangé.
+  it('n’offre que Actif et Inactif à une fiche active', async () => {
+    const user = userEvent.setup();
+    render(withIntl(<CustomerForm mode="edit" customer={{ ...fiche, status: 'active' }} onSuccess={vi.fn()} />));
+
+    await user.click(screen.getByRole('combobox', { name: 'Statut' }));
+    const options = (await screen.findAllByRole('option')).map((o) => o.textContent);
+    expect(options).toEqual(['Actif', 'Inactif']);
+  });
+
+  it('garde le statut retiré que la fiche porte déjà, et le renvoie inchangé', async () => {
+    updateCustomerAction.mockResolvedValueOnce({ ok: true, data: fiche });
+    const user = userEvent.setup();
+    render(withIntl(<CustomerForm mode="edit" customer={{ ...fiche, status: 'blocked' }} onSuccess={vi.fn()} />));
+
+    await user.click(screen.getByRole('combobox', { name: 'Statut' }));
+    const options = (await screen.findAllByRole('option')).map((o) => o.textContent);
+    expect(options).toEqual(['Actif', 'Inactif', 'Bloqué']);
+    await user.keyboard('{Escape}');
+
+    await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
+    await waitFor(() => expect(updateCustomerAction).toHaveBeenCalledTimes(1));
+    expect(updateCustomerAction.mock.calls[0][1]).toMatchObject({ status: 'blocked' });
+  });
 });

@@ -201,11 +201,23 @@ class MaintenanceRequestService
 
     public function accept(MaintenanceRequest $mr, User $provider): MaintenanceRequest
     {
-        abort_code_if($this->machine->isTerminal($mr->status), 422, 'maintenance.terminal_request');
-        abort_code_if($mr->accepted_at !== null, 422, 'maintenance.already_accepted');
+        // P182.07 (TCK-1822) — la ligne est relue sous verrou, et les gardes se jugent sur elle :
+        // jugées sur le modèle reçu, deux acceptations simultanées passaient toutes deux et
+        // émettaient deux événements. L'événement part après la transaction.
+        $mr = DB::transaction(function () use ($mr): MaintenanceRequest {
+            $fresh = MaintenanceRequest::query()
+                ->whereKey($mr->id)
+                ->lockForUpdate()
+                ->firstOrFail();
 
-        $mr->accepted_at = now();
-        $mr->save();
+            abort_code_if($this->machine->isTerminal($fresh->status), 422, 'maintenance.terminal_request');
+            abort_code_if($fresh->accepted_at !== null, 422, 'maintenance.already_accepted');
+
+            $fresh->accepted_at = now();
+            $fresh->save();
+
+            return $fresh;
+        });
 
         $status = $mr->status ?? MaintenanceStatus::Open;
         MaintenanceStatusChanged::dispatch($mr, $status, $status, $provider, MaintenanceStatusChanged::CAUSE_ACCEPTED);

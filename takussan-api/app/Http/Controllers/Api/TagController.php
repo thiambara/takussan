@@ -172,7 +172,7 @@ class TagController extends Controller
             'description' => $tag->description,
             'properties_count' => (int) ($tag->properties_count ?? $tag->properties()->count()),
             'usage_count' => $usageCount,
-            'created_at' => $tag->created_at?->toISOString(),
+            'created_at' => $this->instant($tag->created_at),
         ];
     }
 }

@@ -10,6 +10,9 @@ import type { Inventory } from '@/types/inventory';
 
 const etatDeLaListe = vi.hoisted(() => ({ lignes: [] as unknown[] }));
 
+// TCK-1734 — type, statut et page se lisent et s'écrivent dans l'URL.
+vi.mock('next/navigation', async () => (await import('@/test/navigation-url')).moduleNavigation);
+
 vi.mock('@/lib/queries/inventory', () => ({
   useInventories: () => ({
     isLoading: false,

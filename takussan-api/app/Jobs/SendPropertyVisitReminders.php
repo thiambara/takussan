@@ -28,7 +28,8 @@ use Illuminate\Support\Facades\DB;
  *
  * Only `confirmed` visits are targeted — requested/scheduled visits
  * haven't been acknowledged yet. Each reminder is marked on the visit's
- * `metadata` JSON so re-runs never double-send.
+ * `metadata` JSON so re-runs never double-send. TCK-1527 (P169.01) — the marks are cleared by
+ * {@see PropertyVisit} whenever `scheduled_at` changes: a moved visit is reminded for its new slot.
  *
  * TCK-588 (ADR-0032) — le rappel est le code `visit.reminder`, rendu dans la langue de chaque
  * destinataire, et il atteint enfin le visiteur SANS COMPTE : `visitor`, sinon le compte du
@@ -41,8 +42,8 @@ class SendPropertyVisitReminders implements ShouldQueue
 
     /** @var list<array{window:string,meta_key:string,minutes:int,tolerance:int}> */
     private const WINDOWS = [
-        ['window' => '24h', 'meta_key' => 'reminder_24h_sent_at', 'minutes' => 60 * 24, 'tolerance' => 5],
-        ['window' => '1h', 'meta_key' => 'reminder_1h_sent_at', 'minutes' => 60, 'tolerance' => 5],
+        ['window' => '24h', 'meta_key' => PropertyVisit::REMINDER_MARKERS[0], 'minutes' => 60 * 24, 'tolerance' => 5],
+        ['window' => '1h', 'meta_key' => PropertyVisit::REMINDER_MARKERS[1], 'minutes' => 60, 'tolerance' => 5],
     ];
 
     private NotificationService $notifications;
@@ -110,6 +111,9 @@ class SendPropertyVisitReminders implements ShouldQueue
             $contact = $visitor === null ? ContactSansCompte::fromVisit($fresh) : null;
             $recipients = array_values(array_filter([
                 $visitor ?? ($contact?->hasPhone() ? $contact : null),
+                // TCK-1493 (P107.01) — un compte sans téléphone vérifié : le canal mobile part au
+                // numéro de la visite ou de la fiche, sous la borne des SMS de visite.
+                $visitor !== null ? ContactSansCompte::relaisMobileDuCompte($visitor, ContactSansCompte::fromVisit($fresh)) : null,
             ]));
             foreach ($this->agencySide($fresh) as $member) {
                 if ($member->id !== $visitor?->id) {

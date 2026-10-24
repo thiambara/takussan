@@ -31,18 +31,23 @@ class ExportActivityLogRequest extends BaseFormRequest
     public function withValidator(Validator $validator): void
     {
         $validator->after(function ($v) {
-            $from = $this->input('filter.date_from');
-            $to = $this->input('filter.date_to');
+            // TCK-1854 — une borne que la règle `date` a refusée ne se relit pas : `Carbon::parse()`
+            // lèverait sur `abc` ou sur une liste, et le 422 deviendrait un 500.
+            if ($v->errors()->hasAny(['filter', 'filter.date_from', 'filter.date_to'])) {
+                return;
+            }
 
-            if ($from && $to) {
-                $parsedFrom = Carbon::parse($from);
-                $parsedTo = Carbon::parse($to);
+            // TCK-1856 — l'ordre et la borne d'un an se jugent sur la plage EXPORTÉE, défauts
+            // compris : avec une seule borne, l'autre prend sa valeur de `resolvedFilters()`.
+            $filtres = $this->resolvedFilters();
+            $parsedFrom = Carbon::parse((string) $filtres['date_from']);
+            $parsedTo = Carbon::parse((string) $filtres['date_to']);
+            $champ = $this->filled('filter.date_from') ? 'filter.date_from' : 'filter.date_to';
 
-                if ($parsedFrom->gt($parsedTo)) {
-                    $v->errors()->add('filter.date_from', 'date_from must be before or equal to date_to.');
-                } elseif ($parsedFrom->diffInDays($parsedTo) > 365) {
-                    $v->errors()->add('filter.date_from', 'Date range must not exceed 1 year.');
-                }
+            if ($parsedFrom->gt($parsedTo)) {
+                $v->errors()->add($champ, __('errors.activity_log.date_range_inverted'));
+            } elseif ($parsedFrom->diffInDays($parsedTo) > 365) {
+                $v->errors()->add($champ, __('errors.activity_log.date_range_too_long'));
             }
         });
     }

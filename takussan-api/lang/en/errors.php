@@ -19,6 +19,8 @@ return [
     'activity_log' => [
         'export_too_large' => 'Too many rows to export: narrow the filters.',
         'export_link_invalid' => 'Expired or invalid link.',
+        'date_range_inverted' => 'date_from must be before or equal to date_to.',
+        'date_range_too_long' => 'Date range must not exceed 1 year.',
     ],
     'agency' => [
         'active_profile_missing' => 'No active agency profile.',
@@ -450,6 +452,7 @@ return [
     ],
     'privacy' => [
         'request_closed' => 'This request is closed: record a new one.',
+        'request_linked_pending' => 'This request is still being processed by the application, which will answer it: it cannot be closed by hand.',
     ],
     'profile' => [
         'not_accessible' => 'This profile is not accessible to you.',
@@ -459,6 +462,8 @@ return [
         'cannot_unpublish' => 'Only available properties can be unpublished.',
         'collaborator_exists' => 'This collaborator is already added to this property.',
         'collaborator_not_found' => 'This collaborator is not part of this property.',
+        'has_confirmed_booking' => 'This property has a confirmed booking: cancel it before deleting the property.',
+        'has_upcoming_visit' => 'This property has an upcoming visit: cancel it before deleting the property.',
         'not_found' => 'Property not found.',
         'not_pending_moderation' => 'The property is not awaiting moderation.',
         'primary_not_eligible' => 'Only an active agent of the property\'s agency can be its primary agent.',

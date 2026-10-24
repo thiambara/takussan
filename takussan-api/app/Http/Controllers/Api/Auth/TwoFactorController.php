@@ -200,7 +200,7 @@ class TwoFactorController extends Controller
         $this->cache->forget($failures);
         $validUntil = SessionTokenIssuer::markStepUp($token);
 
-        return $this->json(['data' => ['valid_until' => $validUntil->toIso8601String()]]);
+        return $this->json(['data' => ['valid_until' => $this->instant($validUntil)]]);
     }
 
     public function recoveryCodes(Request $request): JsonResponse

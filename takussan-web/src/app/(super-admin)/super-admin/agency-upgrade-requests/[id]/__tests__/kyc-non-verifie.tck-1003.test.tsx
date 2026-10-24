@@ -9,7 +9,8 @@ import {
 import { withIntl } from '@/test/intl';
 import AgencyUpgradeRequestDetailPage from '../page';
 
-vi.mock('next/navigation', () => ({ useParams: () => ({ id: '7' }) }));
+// TCK-1744 — le lien de retour lit `?liste=`.
+vi.mock('next/navigation', () => ({ useParams: () => ({ id: '7' }), useSearchParams: () => new URLSearchParams() }));
 
 vi.mock('@/lib/queries/super-admin', () => ({ fetchAdminAgencyUpgradeRequest: vi.fn() }));
 

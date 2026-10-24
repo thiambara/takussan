@@ -46,6 +46,9 @@ class LeasePaymentResource extends BaseResource
             'amount_due' => (float) ($gateway->amountDue($this->resource) ?? 0),
             // TCK-594 (P5-3) — une caution rendue n'a pas de quittance de loyer.
             'receipt_available' => $this->status === PaymentStatus::Paid && $this->payment_type !== LeasePaymentType::DepositRefund,
+            // TCK-1831 (P183.01) — le retard, jugé UNE fois ici à la règle de `scopeOverdue` : le front
+            // l'affiche et ne compare plus `due_date` à l'horloge du navigateur.
+            'is_overdue' => $this->resource->isOverdue(),
             'notes' => $this->notes,
             'created_at' => $this->iso($this->created_at),
         ];

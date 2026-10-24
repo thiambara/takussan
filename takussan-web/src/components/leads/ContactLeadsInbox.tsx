@@ -20,9 +20,9 @@ import { ApiError } from '@/lib/api';
 import type { CustomerDuplicateMatch } from '@/app/actions/dashboard-customers';
 import { useAuth } from '@/context/AuthContext';
 import { formatDateTime } from '@/lib/format';
-import { isAdmin } from '@/lib/roles';
 import { EmptyState, ErrorState } from '@/components/feedback';
-import { Pagination, StatusBadge } from '@/components/console';
+import { StatusBadge } from '@/components/console';
+import { Pagination } from '@/components/console/Pagination';
 import { Button, buttonVariants } from '@/components/ui/button';
 import {
   Dialog,
@@ -136,6 +136,14 @@ function doublonsDe(e: unknown): CustomerDuplicateMatch[] | null {
   return data.existing as CustomerDuplicateMatch[];
 }
 
+/** P182.03 (TCK-1824) — la fiche d'un 409 `lead.already_converted`, sinon `null`. */
+function ficheDejaCreeeDe(e: unknown): number | null {
+  if (!(e instanceof ApiError) || e.status !== 409) return null;
+  const data = e.data as { code?: unknown; customer?: { id?: unknown } | null } | null;
+  if (!data || data.code !== 'lead.already_converted' || typeof data.customer?.id !== 'number') return null;
+  return data.customer.id;
+}
+
 function nomComplet(u: { first_name?: string | null; last_name?: string | null } | null | undefined): string {
   return [u?.first_name, u?.last_name].filter(Boolean).join(' ').trim();
 }
@@ -148,7 +156,10 @@ function DemandeDeContact({ lead, designee = false }: { readonly lead: ContactLe
   const { user } = useAuth();
   const handle = useHandleLead();
   const convert = useConvertLead();
-  const [customerId, setCustomerId] = useState<number | null>(lead.customer_id);
+  const [fichePosee, setFichePosee] = useState<number | null>(null);
+  // P182.03 (TCK-1824) — la carte n'est pas remontée quand `lead` est relu (`key={lead.id}`) :
+  // la fiche relue compte autant que celle que la conversion vient de poser.
+  const customerId = fichePosee ?? lead.customer_id;
   const [attribuer, setAttribuer] = useState(false);
   // TCK-1343 — un doublon n'est pas une erreur mais une aide, comme dans `CustomerForm` : on
   // montre la fiche existante, et « Convertir quand même » renvoie avec `allow_duplicate`.
@@ -159,13 +170,11 @@ function DemandeDeContact({ lead, designee = false }: { readonly lead: ContactLe
   const reponse = lead.property
     ? t('whatsappReplyProperty', { name: nom, title: lead.property.title })
     : t('whatsappReply', { name: nom });
-  // La liste des collègues (`GET /agencies/{id}/members`) est réservée à l'administrateur de
-  // l'agence : un agent détient `crm.assign`, mais le menu qu'on lui ouvrirait serait vide.
-  // P152.05 — et `PropertyContactLeadPolicy::assign` exige `crm.assign` dans l'agence de la
+  // P152.05 — `PropertyContactLeadPolicy::assign` exige `crm.assign` dans l'agence de la
   // demande, sans branche d'admin : un admin dont le rôle ne la porte pas recevait 403.
-  const estAdmin = user ? isAdmin(user.roles) : false;
-  const { can: tientCrmAssign } = useCan('crm.assign', lead.agency_id ?? undefined, estAdmin);
-  const peutAttribuer = estAdmin && tientCrmAssign;
+  // P120.05 (TCK-1530) — et la capacité suffit : l'agent qui la détient lit les cibles par
+  // `GET /agencies/{id}/members`, que l'API lui borne au personnel joignable, nom seul.
+  const { can: peutAttribuer } = useCan('crm.assign', lead.agency_id ?? undefined, user !== null);
 
   async function marquerTraitee() {
     try {
@@ -180,9 +189,17 @@ function DemandeDeContact({ lead, designee = false }: { readonly lead: ContactLe
     try {
       const res = await convert.mutateAsync(forcer ? { id: lead.id, allow_duplicate: true } : { id: lead.id });
       setDoublons(null);
-      setCustomerId(res.customer.id);
+      setFichePosee(res.customer.id);
       toast.add({ title: t('toasts.converted'), type: 'success' });
     } catch (e) {
+      // P182.03 (TCK-1824) — déjà convertie (réponse perdue, autre onglet, autre membre) : la
+      // fiche existe, on la montre au lieu d'une erreur.
+      const dejaCreee = ficheDejaCreeeDe(e);
+      if (dejaCreee !== null) {
+        setDoublons(null);
+        setFichePosee(dejaCreee);
+        return;
+      }
       const trouves = doublonsDe(e);
       if (trouves) {
         setDoublons(trouves);
@@ -317,7 +334,7 @@ function AttribuerDialog({ leadId, agencyId, onClose }: { leadId: number; agency
   const membres = useApiQuery<PaginatedResponse<User>>(
     ['agency-members', agencyId, 'assign'],
     `/api/agencies/${agencyId}/members`,
-    { params: { fields: { users: ['id', 'first_name', 'last_name'] }, filter: { assignable: 1 }, per_page: 100 } },
+    { params: { fields: { users: ['id', 'first_name', 'last_name'] }, filter: { assignable: 1 }, sort: 'first_name', per_page: 100 } },
   );
 
   async function valider(e: React.FormEvent) {

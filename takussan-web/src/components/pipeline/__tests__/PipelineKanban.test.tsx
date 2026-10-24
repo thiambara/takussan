@@ -38,6 +38,7 @@ vi.mock('@/lib/queries/pipeline', async () => {
   ] as const;
   return {
     PIPELINE_STAGES: stages,
+    PIPELINE_COLUMN_PAGE_SIZE: 50,
     fetchPipelineColumn: vi.fn(({ stage }: { stage: string }) =>
       Promise.resolve(pipelineMockState.columns[stage] ?? []),
     ),

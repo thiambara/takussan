@@ -39,6 +39,8 @@ return [
         'draft' => 'Brouillon',
         'published' => 'Publié',
         'archived' => 'Archivé',
+        'pending_review' => 'Ñu ngi ko seet',
+        'rejected' => 'Bañ nañu ko',
     ],
     'title_type' => [
         'bail' => 'Contrat',

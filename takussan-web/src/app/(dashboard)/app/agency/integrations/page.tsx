@@ -1,4 +1,5 @@
 import { garderPageAdmin } from '@/lib/access/pages-admin-server';
+import { getActiveProfileId } from '@/lib/session';
 import {
   fetchIntegrationWebhookEndpointAction,
   fetchIntegrationsAction,
@@ -36,7 +37,11 @@ export default async function Page() {
   await garderPageAdmin('/app/agency/integrations');
   const t = await getTranslations('admin.pages.integrations');
 
-  const [result, schemas] = await Promise.all([fetchIntegrationsAction(), fetchPaymentProviderSchemasAction()]);
+  const [result, schemas, profilActif] = await Promise.all([
+    fetchIntegrationsAction(),
+    fetchPaymentProviderSchemasAction(),
+    getActiveProfileId(),
+  ]);
   // TCK-602 — sans les schémas, le formulaire retombe sur ses champs génériques ; l'API refuse en
   // 422, champ par champ, une intégration de paiement incomplète.
   const paymentProviders = schemas.ok && schemas.data ? schemas.data : [];
@@ -62,7 +67,11 @@ export default async function Page() {
         /* Pas d'`onRetry` : server component, aucun gestionnaire d'événement possible ici. */
         <ErrorState message={t('loadError', { message: result.message })} />
       ) : (
+        // TCK-1903 (P197.03) — `IntegrationsManager` (et `IntegrationWebhookEndpoint`) copient la
+        // liste dans leur état local, et `router.refresh()` ne démonte pas la page au changement
+        // de profil : la clé, le profil sous lequel `fetchIntegrationsAction` a lu, les remonte.
         <IntegrationsManager
+          key={profilActif ?? 'sans-profil'}
           initialIntegrations={integrations}
           initialWebhookUrls={webhookUrls}
           paymentProviders={paymentProviders}

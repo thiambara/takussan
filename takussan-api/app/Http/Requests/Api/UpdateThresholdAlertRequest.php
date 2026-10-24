@@ -4,6 +4,7 @@ namespace App\Http\Requests\Api;
 
 use App\Http\Requests\BaseFormRequest;
 use App\Models\ThresholdAlert;
+use App\Policies\AgencyIndicatorPolicy;
 use Illuminate\Validation\Rule;
 
 /**
@@ -23,18 +24,13 @@ class UpdateThresholdAlertRequest extends BaseFormRequest
      * contrôleur, ce qui rendait 422 là où l'API rendait 403 pour un appel à la fois non
      * autorisé et mal formé. `authorize()` rétablit l'ordre d'origine.
      *
-     * ⚠ **REPRISE, pas délégation** : cette règle n'est pas encore dans une policy — elle fait
-     * partie des 19 helpers relevés hors périmètre de TCK-306. L'expression est reproduite à
-     * l'identique ; son domicile définitif est une policy, et le ticket de suite doit la
-     * convertir en délégation comme les 35 autres.
+     * TCK-1701 (P82.04) — DÉLÉGATION à {@see AgencyIndicatorPolicy} : `agency.update` sous le
+     * profil actif de l'agence, plus `isAgencyAdminAt` (un admin sans la capacité passait, un
+     * agent qui la tenait était refusé).
      */
     public function authorize(): bool
     {
-        $user = $this->user();
-        $alert = $this->route('threshold_alert');
-
-        return $user !== null && ($user->isSuperAdmin()
-            || ($user->agency_id !== null && $user->agency_id === $alert->agency_id && $user->isAgencyAdminAt((int) $alert->agency_id)));
+        return $this->user()?->can('update', $this->route('threshold_alert')) ?? false;
     }
 
     /** @return array<string, mixed> */
@@ -47,7 +43,6 @@ class UpdateThresholdAlertRequest extends BaseFormRequest
             'severity' => ['sometimes', Rule::in(ThresholdAlert::allowedSeverities())],
             'is_enabled' => ['sometimes', 'boolean'],
             'cooldown_hours' => ['sometimes', 'integer', 'min:1', 'max:720'],
-            'settings' => ['sometimes', 'array'],
         ];
     }
 }

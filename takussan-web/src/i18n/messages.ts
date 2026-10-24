@@ -29,6 +29,18 @@ import table from './namespaces.json';
  * Chaque entrée porte l'ensemble **CUMULÉ** (la frontière plus tous ses parents). C'est délibéré :
  * les providers next-intl imbriqués REMPLACENT le dictionnaire du parent au lieu de le compléter
  * (cf. `IntlProvider.tsx`), et une union à écrire au point d'appel est une union à oublier.
+ *
+ * ────────────────────────────────────────────────────────────────────────────────────────────────
+ * CE QUI EMPÊCHE CE CUMUL DE DOUBLER LE DOCUMENT : L'IDENTITÉ DES OBJETS (TCK-1489, P105.03)
+ * ────────────────────────────────────────────────────────────────────────────────────────────────
+ *
+ * Deux frontières imbriquées portent chacune les mêmes espaces, et le document servi n'en porte
+ * pourtant qu'UNE copie : Flight remplace un objet déjà émis par une référence
+ * (`$2:props:…:messages:<espace>`, mesuré sur `/app/overview/tenant` et `/app/agency`). Il ne le
+ * reconnaît qu'à son identité. `messagesPour` recopie donc la RÉFÉRENCE de chaque espace depuis
+ * `getMessages()`, jamais une copie : un clonage, une fusion profonde ou un repli de locale fait
+ * par frontière rendrait des objets neufs, et les doublons reviendraient sans erreur.
+ * `decoupage-du-dictionnaire.test.tsx` le garde par `toBe`.
  */
 export type Frontiere = keyof typeof table.frontieres;
 

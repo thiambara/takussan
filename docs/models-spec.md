@@ -1298,7 +1298,7 @@ les lignes sans code. Un contact sans compte (`ContactSansCompte`) ne crée **au
 | `action` | `event` (created, updated, deleted, ou un nom d'acte) |
 | `description` | `description` |
 | `changes` | **`attribute_changes`** (jsonb : `old`, `attributes`) — le détail d'un événement de modèle. Depuis la v5, `properties` ne le porte plus |
-| `ip_address`, `user_agent` | `properties` — le contexte libre écrit par `withProperties()` |
+| `ip_address`, `user_agent` | **aucune** : aucun chemin n'écrit l'IP ni l'agent utilisateur au journal, et l'export ne les annonce plus (TCK-1703). Le contexte libre d'un acte hors modèle va dans `properties`, écrit par `withProperties()` |
 
 `properties` ne porte que ce qu'écrit `withProperties()` : pour un événement `created` ou `updated`
 d'un modèle, il est vide.
@@ -2343,7 +2343,7 @@ JSON libre (`{"value": …}`), sans journal, `updated_by_id` pour seule trace. U
 |---------|------|----------|--------|-------------|
 | id | bigint PK | | auto | Identifiant unique |
 | user_id | FK users | oui | null | Identité du prestataire (`restrictOnDelete`). **Nul pendant le brouillon** : le profil naît `draft` à l'envoi d'une invitation, avant que le compte cible n'existe, et `user_id` se renseigne à l'acceptation (TCK-260, `2026_05_10_170000`). **N'est plus unique** (voir Contraintes) |
-| status | ServiceProviderProfileStatus | | 'active' | Cycle de vie du profil, indépendant des rattachements : `draft` (pré-créé à l'invitation), `active` (rattaché à au moins une agence active), `inactive` (toutes ses collaborations `paused`/`ended`), `suspended` (bloqué par un admin). Indexé (TCK-260, TCK-262, `2026_05_10_170000`) |
+| status | ServiceProviderProfileStatus | | 'active' | Cycle de vie du profil, indépendant des rattachements : `draft` (pré-créé à l'invitation), `active` (rattaché à au moins une agence active), `inactive` (toutes ses collaborations `paused`/`ended`), `suspended` (bloqué par un admin). **`inactive` et `suspended` sont réservés** : ils existent dans l'enum `ServiceProviderProfileStatus`, mais aucun chemin ne les pose — seuls `draft` (invitation) et `active` (fin d'onboarding) s'écrivent (décision du porteur du 2026-10-23, P115.04, comme les cas réservés de TCK-1307, P115.07). Indexé (TCK-260, TCK-262, `2026_05_10_170000`) |
 | specialties | jsonb | oui | null | Liste de `MaintenanceCategory` (plumbing, electrical, etc.) |
 | service_areas | jsonb | oui | null | Zones desservies (codes postaux, communes) |
 | insurance_policy_id | string | oui | null | Référence police d'assurance |
@@ -4204,7 +4204,7 @@ de `GET /api/admin/system/metrics` se lit dans la ligne de J-30, et nulle part a
 | active_subscriptions | integer | oui | null | Abonnements actifs — stock ; jamais rattrapé |
 | agencies_total, agencies_active, agencies_verified, agencies_suspended | integer | oui | null | Agences par statut courant — stocks ; jamais rattrapés |
 | users_total, users_active | integer | oui | null | Utilisateurs — stocks ; jamais rattrapés |
-| properties_published, properties_pending_review | integer | oui | null | Biens publiés / en attente de modération — stocks ; jamais rattrapés |
+| properties_published, properties_pending_review | integer | oui | null | Biens publiés / en attente de modération — stocks ; jamais rattrapés. **« Publiés » se compte par `Property::public()`**, le prédicat du catalogue de TCK-1115 (décision du porteur du 2026-10-23, P167.07) : la série **rompt à cette date**, les lignes antérieures comptant `status = published` seul. ⚠ Au 2026-10-23, `PlatformMetricsSnapshotter` compte encore `status = published` |
 | leases_active | integer | oui | null | Baux actifs — stock ; jamais rattrapé |
 | stocks_captured_at | timestamp | oui | null | Instant de mesure des stocks, `null` sur une ligne rattrapée |
 | created_at / updated_at | timestamp | | auto | |

@@ -36,6 +36,12 @@ final class NotificationTarget
     public const PATHS = [
         'lease' => '/app/leases/{id}',
         'payments' => '/app/payments',
+        // TCK-1467 (P161.01) — l'onglet des reversements, où leur émetteur non admin les a programmés :
+        // `finances` est fermée à qui n'est pas admin de l'agence.
+        'payouts' => '/app/payments?tab=payouts',
+        // TCK-1469 (P161.02) — la file « À approuver », où le geste se fait (TCK-594, ADR-0039 § 4),
+        // pour tout détenteur de `payouts.approve`, admins compris.
+        'payout_approvals' => '/app/payments?tab=approvals',
         'booking' => '/app/bookings/{id}',
         'visit' => '/app/visits/{id}',
         'maintenance' => '/app/maintenance/{id}',
@@ -47,6 +53,9 @@ final class NotificationTarget
         'kyc_review' => '/super-admin/kyc',
         'finances' => '/app/agency/finances',
         'team' => '/app/agency/team',
+        // TCK-1471 (P161.03) — les délégations de rôle vivent sous les rôles (`RoleDelegationsSection`,
+        // TCK-369) : c'est là que le délégant retrouve celle dont l'avis parle.
+        'role_delegations' => '/app/agency/roles',
         'agency_settings' => '/app/agency',
         // TCK-601 — une alerte de gouvernance ouvre le journal d'audit de l'agence.
         'audit' => '/app/agency/audit',
@@ -65,9 +74,15 @@ final class NotificationTarget
         'credits' => '/app/credits',
     ];
 
+    /**
+     * TCK-1761 (P161.04) — `agencyId` : l'agence pour laquelle l'avis est émis, posée par
+     * {@see forAgency()} sur les seuls avis de la section d'agence, dont la page lit l'agence du
+     * profil actif. La cloche bascule sur le profil de cette agence avant de suivre le lien.
+     */
     private function __construct(
         public readonly string $kind,
         public readonly ?int $id,
+        public readonly ?int $agencyId = null,
     ) {}
 
     public static function of(string $kind, ?int $id = null): self
@@ -82,15 +97,30 @@ final class NotificationTarget
         return new self($kind, $id);
     }
 
+    /** La même cible, rattachée à l'agence pour laquelle l'avis est émis (TCK-1761). */
+    public function forAgency(int|string|null $agencyId): self
+    {
+        return new self($this->kind, $this->id, is_numeric($agencyId) ? (int) $agencyId : null);
+    }
+
     public function path(): string
     {
         return str_replace('{id}', (string) $this->id, self::PATHS[$this->kind]);
     }
 
-    /** @return array{kind: string, id: ?int, path: string} */
+    /**
+     * Une cible sans agence garde sa forme d'avant : la clé `agency_id` n'apparaît qu'avec une agence.
+     *
+     * @return array{kind: string, id: ?int, path: string, agency_id?: int}
+     */
     public function toArray(): array
     {
-        return ['kind' => $this->kind, 'id' => $this->id, 'path' => $this->path()];
+        $out = ['kind' => $this->kind, 'id' => $this->id, 'path' => $this->path()];
+        if ($this->agencyId !== null) {
+            $out['agency_id'] = $this->agencyId;
+        }
+
+        return $out;
     }
 
     /** @param  array<string, mixed>|null  $stored */
@@ -104,8 +134,9 @@ final class NotificationTarget
         if (str_contains(self::PATHS[$kind], '{id}') && $id === null) {
             return null;
         }
+        $agencyId = isset($stored['agency_id']) && is_numeric($stored['agency_id']) ? (int) $stored['agency_id'] : null;
 
-        return new self($kind, $id);
+        return new self($kind, $id, $agencyId);
     }
 
     /**

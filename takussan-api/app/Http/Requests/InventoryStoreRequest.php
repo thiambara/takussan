@@ -25,6 +25,21 @@ use Illuminate\Validation\Rule;
  */
 class InventoryStoreRequest extends FormRequest
 {
+    /**
+     * P143.01 (TCK-1915) — décision du porteur (2026-10-23) : le PDF de l'état des lieux est recomposé
+     * par dompdf à chaque téléchargement, et 40 × 40 éléments y épuisaient les 256M de `memory_limit`.
+     * Au plafond (20 × 20, notes d'élément à 200, de pièce et générales à 1 000, libellés à 255) :
+     * 25,4 s et 188 Mo mesurés. `InventoryUpdateRequest` et `takussan-web/src/lib/schemas/inventory.ts`
+     * relisent ces bornes ; `InventorySizeLimitsTest` rend le PDF au plafond.
+     */
+    public const MAX_ROOMS = 20;
+
+    public const MAX_ELEMENTS_PER_ROOM = 20;
+
+    public const MAX_ELEMENT_NOTES = 200;
+
+    public const MAX_NOTES = 1000;
+
     public function authorize(): bool
     {
         return $this->user() !== null;
@@ -39,15 +54,15 @@ class InventoryStoreRequest extends FormRequest
             'type' => ['required', Rule::enum(InventoryType::class)],
             'conducted_at' => ['nullable', 'date'],
             'general_condition' => ['required', Rule::enum(InventoryCondition::class)],
-            'rooms' => ['required', 'array', 'min:1'],
+            'rooms' => ['required', 'array', 'min:1', 'max:'.self::MAX_ROOMS],
             'rooms.*.name' => ['required', 'string', 'max:255'],
             'rooms.*.condition' => ['required', Rule::enum(InventoryCondition::class)],
-            'rooms.*.notes' => ['nullable', 'string'],
-            'rooms.*.elements' => ['nullable', 'array'],
+            'rooms.*.notes' => ['nullable', 'string', 'max:'.self::MAX_NOTES],
+            'rooms.*.elements' => ['nullable', 'array', 'max:'.self::MAX_ELEMENTS_PER_ROOM],
             'rooms.*.elements.*.label' => ['required_with:rooms.*.elements', 'string', 'max:255'],
             'rooms.*.elements.*.state' => ['required_with:rooms.*.elements', Rule::enum(InventoryElementState::class)],
-            'rooms.*.elements.*.notes' => ['nullable', 'string'],
-            'notes' => ['nullable', 'string'],
+            'rooms.*.elements.*.notes' => ['nullable', 'string', 'max:'.self::MAX_ELEMENT_NOTES],
+            'notes' => ['nullable', 'string', 'max:'.self::MAX_NOTES],
         ];
     }
 }

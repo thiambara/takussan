@@ -123,7 +123,7 @@ class AgencyRoleAssignmentTest extends ApiTestCase
         $this->apiPatch("/api/profiles/{$victim->id}/agency-role", [
             'profile_type' => AgencyRoleBaseType::Agent->value,
             'agency_role_id' => $target->id,
-        ])->assertForbidden();
+        ])->assertNotFound(); // TCK-1772 (P62.07) — le refus d'`assign` rend 404, comme un profil absent.
     }
 
     public function test_a_service_provider_profile_type_is_refused_by_validation(): void

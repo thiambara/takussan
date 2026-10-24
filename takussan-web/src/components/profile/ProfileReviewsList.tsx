@@ -1,11 +1,12 @@
 'use client';
 
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { useId, useState } from 'react';
 import { MessageSquareQuote, Star } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { EmptyState, ErrorState } from '@/components/feedback';
-import { Pagination } from '@/components/console';
+import { Pagination } from '@/components/console/Pagination';
 import {
   type ReceivedStatus,
   type ReceivedSubjectType,
@@ -352,12 +353,23 @@ const ALL = 'all';
  * serveur ; rien n'est filtré sur une liste déjà rapatriée. Un avis en attente est visible et
  * marqué comme tel. La réponse se rédige dans la page.
  */
+const REPLY_VALUES: ReadonlyArray<string> = ['unreplied', 'replied'];
+
+/** La valeur de l'URL si elle est une option du filtre, sinon « tous ». */
+function filtreDeLUrl(value: string | null, options: ReadonlyArray<string>): string {
+  return value !== null && options.includes(value) ? value : ALL;
+}
+
 function ReceivedReviewsInbox({ withPropertyFilter }: { readonly withPropertyFilter: boolean }) {
   const t = useTranslations('profile.reviews');
+  // TCK-1515 (P167.02) — `?reply=` et `?subject=` initialisent les filtres « Réponse » et « Sujet »
+  // à l'ouverture, bornés à leurs options : « Avis sans réponse » de l'aperçu du bailleur mène à
+  // `?reply=unreplied&subject=property`.
+  const searchParams = useSearchParams();
   const [propertyFilter, setPropertyFilter] = useState(ALL);
-  const [replyFilter, setReplyFilter] = useState(ALL);
+  const [replyFilter, setReplyFilter] = useState(() => filtreDeLUrl(searchParams.get('reply'), REPLY_VALUES));
   const [statusFilter, setStatusFilter] = useState(ALL);
-  const [subjectFilter, setSubjectFilter] = useState(ALL);
+  const [subjectFilter, setSubjectFilter] = useState(() => filtreDeLUrl(searchParams.get('subject'), SUBJECT_TYPES));
   const [page, setPage] = useState(1);
   const propertiesQuery = useOwnerReviewProperties();
   const properties = withPropertyFilter ? (propertiesQuery.data?.data ?? []) : [];
@@ -498,7 +510,7 @@ function ReceivedReviewCard({ review }: { readonly review: Review }) {
         <div className="min-w-0 flex-1 basis-48">
           <p className="truncate text-sm font-semibold text-foreground">{review.target?.title ?? t('targetFallback')}</p>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            {review.author.name} · {review.created_at ? formatDate(review.created_at, locale) : t('unknownDate')}
+            {review.author.name || t('anonymous')} · {review.created_at ? formatDate(review.created_at, locale) : t('unknownDate')}
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">

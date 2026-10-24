@@ -98,7 +98,7 @@ class AgentProfileController extends Controller
                 'type' => $type->value,
                 'media_id' => $media->id,
                 'file_name' => $document->name,
-                'uploaded_at' => $document->created_at?->toIso8601String(),
+                'uploaded_at' => $this->instant($document->created_at),
             ],
         ], 201);
     }
@@ -120,7 +120,7 @@ class AgentProfileController extends Controller
         $docs = $this->kycDocs($agent_profile);
 
         unset($kyc['status']);
-        $kyc['submitted_at'] = $kyc['submitted_at'] ?? now()->toIso8601String();
+        $kyc['submitted_at'] = $kyc['submitted_at'] ?? $this->instant(now());
         $metadata['kyc'] = $kyc;
         $agent_profile->forceFill(['metadata' => $metadata])->save();
 
@@ -167,8 +167,12 @@ class AgentProfileController extends Controller
             'specialty' => (string) $validated['specialization'],
             'metadata' => $metadata,
         ];
-        if (array_key_exists('license_number', $validated) && $validated['license_number'] !== null) {
-            $patch['license_number'] = trim((string) $validated['license_number']);
+        // TCK-1779 (P149.05) — clé absente, on garde ; `null`, on efface (comme `hourly_rate`,
+        // TCK-1315). Un `null` gardait la carte, qu'aucun chemin ne retirait plus.
+        if (array_key_exists('license_number', $validated)) {
+            $patch['license_number'] = $validated['license_number'] !== null
+                ? trim((string) $validated['license_number'])
+                : null;
         }
         $agent_profile->forceFill($patch)->save();
 

@@ -2486,6 +2486,7 @@
         "comment_label": "Lan moo baaxul ?",
         "comment_placeholder": "Wax li des",
         "photos_label": "Nataal (bu la neexee)",
+        "max_files": "Maximum {max} fichiers.",
         "send_contest": "Yónne",
         "back": "Dellu",
         "failed": "Sa tontu deñu ko denc. Jéemaatal."
@@ -2523,7 +2524,9 @@
         "duration_label": "Diir bi (fan)",
         "attachments_label": "Kayit yu ñu takk (PDF walla nataal)",
         "remove_file": "Far",
+        "max_files": "Maximum {max} fichiers.",
         "file_type_refused": "Xeetu kayit bii nanguñu ko (PDF, JPG, PNG walla WEBP rekk) : {files}",
+        "file_too_large": "Fichier trop lourd ({max} Mo au plus) : {files}",
         "incomplete": "Bépp rëdd war na am tur, lim ak njëg, te devi bi war na am bés bu muy jeex.",
         "failed": "Devi bi yónneesu ko.",
         "submitting": "Mungiy yónne…",
@@ -4626,6 +4629,7 @@
         "phone": "Telefon",
         "website": "Site internet",
         "commission": "Komisiyon bu ñu jagleel (%)",
+        "emptyRateIsZero": "Laissé vide, ce taux vaut 0 %.",
         "websitePlaceholder": "https://sa-ajance.sn"
       },
       "moderation": {
@@ -4877,6 +4881,7 @@
         "match": "Méngale",
         "actions": "Jëf yi",
         "paymentRef": "{type} n° {id}",
+        "duplicate": "Déjà importée dans un autre relevé",
         "confidence": "Wóolu : {value}",
         "validate": "Dëggal",
         "search": "Seet",
@@ -6204,7 +6209,8 @@
         "rejected": "Yu ñu bañ",
         "cancelled": "Yu ñu neenal",
         "expired": "Yu jeex"
-      }
+      },
+      "onlyMine": "Mes biens"
     },
     "detail": {
       "error": "Gisuñu réservasioŋ bi.",
@@ -7906,6 +7912,8 @@
       "crossTenant": "Jëfandikukat bu jaar ci ajaans yépp",
       "roleTeam": "· ajaans {id}",
       "mfaActive": "MFA mu ngi dox",
+      "lockedUntil": "Verrouillé jusqu’à {time}",
+      "force2faReconfigure": "Double facteur à reconfigurer",
       "toastActionDone": "Jëfu ndimbal bi def na",
       "toastExportRequested": "Ñu ñaan na génneb RGPD",
       "toastSessionRevoked": "Sesioŋ bi ñu ko dindi",
@@ -8363,6 +8371,7 @@
       "namePlaceholder": "misaal : Pisin",
       "type": "Xeet",
       "icon": "Ikon (turu Lucide)",
+      "iconNone": "Aucune (celle du slug)",
       "color": "Melo (hex)"
     }
   },
@@ -8531,7 +8540,8 @@
       "opportunitySubmit": "Yónnee samay avis",
       "opportunitySentTitle": "Avis bi dem na",
       "opportunitySentBody": "Jërëjëf ! Sa avis dina feeñ su ñu ko nanguwee.",
-      "opportunityError": "Sa avis mënul a dem."
+      "opportunityError": "Sa avis mënul a dem.",
+      "anonymous": "Anonyme"
     },
     "contact": {
       "title": "Jokkoo yi",
@@ -8838,6 +8848,13 @@
       "saving": "Mungiy denc…",
       "saved": "Denc nañu ko.",
       "failed": "Ndigal bii deñu ko denc."
+    },
+    "timezone": {
+      "title": "Fuseau horaire",
+      "subtitle": "L'heure de vos e-mails, SMS et notifications suit ce fuseau.",
+      "label": "Fuseau horaire",
+      "saved": "Fuseau horaire enregistré.",
+      "error": "Le fuseau horaire n'a pas pu être enregistré."
     }
   },
   "contact": {
@@ -9723,10 +9740,6 @@
     "superAdminCooptation": {
       "enrollFailed": "Mënunu tambali 2FA bu super-njiit bi.",
       "invalidTotp": "Kodd TOTP bi baaxul."
-    },
-    "customerDocuments": {
-      "tooLarge": "Fiise bi ëpp na 10 Mo.",
-      "unsupportedType": "Xeetu fiise bi nangu-wul (nataal walla PDF rekk)."
     }
   },
   "validation": {
@@ -9809,6 +9822,9 @@
       "roomNameRequired": "Turu néeg bi fàww la.",
       "leaseRequired": "Tànnal benn kontaraa.",
       "roomsMin": "Yokkal lu mu néew benn néeg.",
+      "roomsMax": "{max} pièces au maximum.",
+      "elementsMax": "{max} éléments par pièce au maximum.",
+      "notesTooLong": "Notes trop longues ({max} caractères max).",
       "disputeReasonRequired": "Sababu werante bi fàww la."
     },
     "lease": {
@@ -10591,7 +10607,8 @@
       "governance": {
         "role_capabilities_changed": {
           "title": "Sañ-sañu ab warugar soppiku na",
-          "body": "Sañ-sañu warugar {role} soppiku na, {actor} moo ko def."
+          "body": "Sañ-sañu warugar {role} soppiku na, {actor} moo ko def.",
+          "body_unnamed": "Les droits d'un rôle ont été modifiés par {actor}."
         },
         "admin_added": {
           "title": "Saytukat bu bees",
@@ -10657,7 +10674,8 @@
       "bank_statement": {
         "imported": {
           "title": "Relevé bi dugg na",
-          "body": "Sa relevé {bank} ({lines} rëdd) pare na ngir rapprochement."
+          "body": "Sa relevé {bank} ({lines} rëdd) pare na ngir rapprochement.",
+          "body_unnamed": "{lines, plural, one {Votre relevé (# ligne) est prêt à être rapproché.} other {Votre relevé (# lignes) est prêt à être rapproché.}}"
         },
         "finalized": {
           "title": "Relevé bi tëj nañu ko",

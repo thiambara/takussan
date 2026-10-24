@@ -153,6 +153,8 @@ describe('<AgencyRoleEditor>', () => {
     expect(screen.getByLabelText('Nom du rôle')).toBeDisabled();
     expect(box('properties.create')).toBeDisabled();
     expect(screen.queryByRole('button', { name: 'Enregistrer' })).toBeNull();
+    // P164.04 (TCK-1808) — le nom affiché du rôle système, pas son défaut français rangé.
+    expect(screen.getByLabelText('Nom du rôle')).toHaveValue('Agent immobilier');
   });
 
   it('reste en lecture seule sans roles.edit_custom, même sur un rôle personnalisé', () => {

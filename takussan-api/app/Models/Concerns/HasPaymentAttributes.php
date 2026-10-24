@@ -6,6 +6,7 @@ use App\Models\Enums\Currency;
 use App\Models\Enums\PaymentMethod;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Integration;
+use App\Services\Pdf\PrintedIdentity;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 
@@ -124,6 +125,21 @@ trait HasPaymentAttributes
                     }
                 }
             }
+        });
+
+        // P140.02 (TCK-1792) — à l'acquittement, quel que soit le chemin (service, passerelle,
+        // création déjà payée), les identités que la quittance imprimera sont figées dans
+        // `metadata` ; une seule fois : un second passage à `paid` (remboursement partiel) garde
+        // celles du premier.
+        static::saving(function ($payment): void {
+            if (! $payment->isDirty('status') || $payment->status !== PaymentStatus::Paid) {
+                return;
+            }
+            $metadata = is_array($payment->metadata) ? $payment->metadata : [];
+            if (array_key_exists(PrintedIdentity::KEY, $metadata)) {
+                return;
+            }
+            $payment->metadata = $metadata + [PrintedIdentity::KEY => PrintedIdentity::capture($payment->printedIdentityRoles())];
         });
 
         static::updating(function ($payment): void {

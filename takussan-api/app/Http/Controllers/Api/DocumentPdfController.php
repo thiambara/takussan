@@ -11,6 +11,7 @@ use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Services\Membership\MembershipCapabilityResolver;
 use App\Services\Pdf\DocumentPdfService;
+use App\Services\Pdf\PrintedIdentity;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -66,6 +67,10 @@ class DocumentPdfController extends Controller
             'agency',
         ]);
         $wording = self::receiptWording($payment->payment_type);
+        // P140.02 (TCK-1792) — les identités du jour du règlement, quand l'échéance les a figées.
+        ['tenant' => $tenant, 'property' => $property, 'agency' => $agency] = PrintedIdentity::restore($payment->metadata, [
+            'tenant' => $lease->tenant, 'property' => $lease->property, 'agency' => $lease->agency,
+        ]);
 
         return $pdf->stream('pdf.receipts.rent', [
             'title' => $wording['title'],
@@ -73,9 +78,9 @@ class DocumentPdfController extends Controller
             'wording' => $wording,
             'lease' => $lease,
             'payment' => $payment,
-            'tenant' => $lease->tenant,
-            'property' => $lease->property,
-            'agency' => $lease->agency,
+            'tenant' => $tenant,
+            'property' => $property,
+            'agency' => $agency,
             'filename' => sprintf('quittance-%s.pdf', $payment->reference_number ?? $payment->id),
         ]);
     }

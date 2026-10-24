@@ -13,8 +13,10 @@ use App\Http\Requests\PropertyBulkVisibilityRequest;
 use App\Http\Requests\PropertyDuplicateRequest;
 use App\Http\Requests\UpdatePropertyRequest;
 use App\Http\Resources\PropertyResource;
+use App\Models\Enums\BookingStatus;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Enums\PropertyVisibility;
+use App\Models\Enums\VisitStatus;
 use App\Models\Property;
 use App\Models\User;
 use App\Notifications\PropertyProposedNotification;
@@ -56,8 +58,15 @@ class PropertyController extends Controller
         ]);
 
         if (! $user->isSuperAdmin()) {
-            $base->where(function ($q) use ($user) {
-                $q->where('user_id', $user->id);
+            // TCK-1705 (P153.01) — ses biens sans agence, et ceux des agences où il a encore un
+            // profil : l'agent retiré ne liste plus les biens d'agence qu'il avait saisis.
+            $memberAgencyIds = $user->ownerProfiles()->pluck('agency_id')
+                ->merge($user->agentProfiles()->pluck('agency_id'))
+                ->merge($user->agencyAdminProfiles()->pluck('agency_id'))
+                ->unique()->values()->all();
+            $base->where(function ($q) use ($user, $memberAgencyIds) {
+                $q->where(fn ($own) => $own->where('user_id', $user->id)
+                    ->where(fn ($a) => $a->whereNull('agency_id')->orWhereIn('agency_id', $memberAgencyIds)));
                 // TCK-587 — « Mes biens » d'un bailleur sont les siens (`user_id`) ; le parc de
                 // l'agence est celui de son PERSONNEL (ADR-0031).
                 if (($staffAgencyId = $user->staffAgencyId()) !== null) {
@@ -205,8 +214,18 @@ class PropertyController extends Controller
         // déjà public ne change rien à sa mise en ligne (seul `publish()` pose `published_at`). Ce
         // qui la rouvre sur un bien retiré par son statut, c'est le statut — la branche suivante.
         // (Le formulaire d'édition n'envoie pas `visibility` : `PropertyUpdatePayload` n'en a pas.)
-        $rendPublic = ($visibiliteDemandee === PropertyVisibility::Public && $property->visibility !== PropertyVisibility::Public)
-            || (isset($data['status']) && $readiness->statusPutsOnline($property, PropertyStatus::from($data['status']), $visibiliteDemandee));
+        // P147.03 (TCK-1429) — ce passage est une PUBLICATION : `publish()` le fait, comme pour
+        // `PUT …/visibility` (refus d'un bien vendu ou loué, quota, `published_at`). Le `PATCH`
+        // écrivait `visibility=public` seul : un bien `sold` public, ou « public » hors catalogue.
+        // P147.02 (TCK-1431) — archiver l'emporte : le bien archivé est privé.
+        $archive = ($data['status'] ?? null) === PropertyStatus::Archived->value;
+        $passeAPublic = ! $archive
+            && $visibiliteDemandee === PropertyVisibility::Public && $property->visibility !== PropertyVisibility::Public;
+        if ($passeAPublic) {
+            unset($data['visibility']);
+        }
+        $rendPublic = ! $passeAPublic
+            && isset($data['status']) && $readiness->statusPutsOnline($property, PropertyStatus::from($data['status']), $visibiliteDemandee);
         if ($rendPublic) {
             $readiness->ensureForProperty($property, $request->user(), $request->boolean('accept_terms'));
         }
@@ -220,7 +239,12 @@ class PropertyController extends Controller
             );
         }
 
-        DB::transaction(function () use ($data, $property) {
+        // P147.02 (TCK-1431) — un statut écrit à la main écrit ce qu'écrit `PUT …/status`.
+        if (isset($data['status'])) {
+            $data = array_merge($data, app(PropertyPublication::class)->statusAttributes($property, PropertyStatus::from($data['status'])));
+        }
+
+        DB::transaction(function () use ($data, $property, $passeAPublic, $request) {
             $addressData = $data['address'] ?? null;
             unset($data['address']);
 
@@ -230,6 +254,11 @@ class PropertyController extends Controller
                 $property->address
                     ? $property->address->update($addressData)
                     : $property->address()->create($addressData);
+            }
+
+            // Dans la transaction : un refus de `publish()` annule le PATCH entier.
+            if ($passeAPublic) {
+                $this->publish($request, $property);
             }
         });
 
@@ -252,6 +281,25 @@ class PropertyController extends Controller
     public function destroy(Request $request, Property $property): JsonResponse
     {
         $this->authorize('delete', $property);
+
+        // P130.04 (TCK-1708) — même forme que le client et le garant sous bail ouvert : un bien qui
+        // porte une réservation confirmée ou une visite à venir ne se supprime pas. Supprimé, il
+        // laissait la réservation `confirmed` et la visite `scheduled` sur un bien que plus
+        // personne ne voyait, sans que le client ni le visiteur en soient prévenus.
+        abort_code_if(
+            $property->bookings()->where('status', BookingStatus::Confirmed->value)->exists(),
+            422,
+            'property.has_confirmed_booking',
+        );
+        abort_code_if(
+            $property->visits()
+                ->whereIn('status', [VisitStatus::Scheduled->value, VisitStatus::Confirmed->value])
+                ->where('scheduled_at', '>=', now())
+                ->exists(),
+            422,
+            'property.has_upcoming_visit',
+        );
+
         $property->delete();
 
         return $this->json(['message' => 'deleted'], 204);
@@ -311,7 +359,6 @@ class PropertyController extends Controller
         $data = $request->validated();
 
         $status = PropertyStatus::from($data['status']);
-        $updates = ['status' => $status];
 
         // TCK-633 (lot C, vérification adverse S2) — rendre un statut affichable à un bien publié
         // puis retiré par son statut le remet en ligne : c'est une publication, gardée comme
@@ -323,16 +370,9 @@ class PropertyController extends Controller
             $readiness->ensureForProperty($property, $request->user(), $accepte);
         }
 
-        if ($status === PropertyStatus::Archived) {
-            // TCK-591 (verif-591 M3) — l'écriture partagée avec `bulk-archive`.
-            $updates = app(PropertyPublication::class)->archivedAttributes();
-        }
-
-        if ($property->status === PropertyStatus::Archived && $status !== PropertyStatus::Archived) {
-            $updates['archived_at'] = null;
-        }
-
-        $property->update($updates);
+        // TCK-591 (verif-591 M3) — l'écriture d'archivage partagée avec `bulk-archive` ; P147.02
+        // (TCK-1431) — et avec le `PATCH` du bien.
+        $property->update(app(PropertyPublication::class)->statusAttributes($property, $status));
         if ($remetEnLigne) {
             $readiness->recordTerms($request->user(), $accepte);
         }

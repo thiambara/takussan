@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { navigationDeTest } from '@/test/navigation-url';
 import { cleanup, render } from '@testing-library/react';
 import { withIntl } from '@/test/intl';
 import { VisitsList } from '../VisitsList';
@@ -9,6 +10,9 @@ import { VisitsList } from '../VisitsList';
  * montage de la liste produisait cinq clés neuves, et le cache n'était jamais réutilisé.
  */
 const appels = vi.hoisted(() => ({ params: [] as Array<Record<string, unknown>> }));
+// TCK-1736 — l'onglet se lit et s'écrit dans `?tab=`.
+vi.mock('next/navigation', async () => (await import('@/test/navigation-url')).moduleNavigation);
+beforeEach(() => navigationDeTest.reinitialiser());
 vi.mock('@/lib/queries/visits', () => ({
   useVisits: (params: Record<string, unknown>) => {
     appels.params.push(params);

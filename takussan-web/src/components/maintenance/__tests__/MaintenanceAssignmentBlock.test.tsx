@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 
 import { withIntl } from '@/test/intl';
 import type { ServiceProviderProfileSummary } from '@/lib/queries/service-providers';
@@ -7,9 +8,11 @@ import type { MaintenanceRequest } from '@/types/maintenance';
 import { MaintenanceAssignmentBlock } from '../MaintenanceAssignmentBlock';
 
 let carnet: ServiceProviderProfileSummary[] = [];
+let personnel: { id: number; first_name: string | null; last_name: string | null }[] = [];
 
 vi.mock('@/lib/queries/maintenance', () => ({
   useAssignableProviders: () => ({ data: { data: carnet }, isError: false }),
+  useAssignableStaff: () => ({ data: { data: personnel }, isError: false }),
   useUpdateMaintenanceRequest: () => ({ mutateAsync: vi.fn(), isPending: false, isError: false, error: null }),
 }));
 vi.mock('@/context/AuthContext', () => ({ useAuth: () => ({ user: { agency_id: 7 }, token: 'jeton' }) }));
@@ -78,5 +81,20 @@ describe('<MaintenanceAssignmentBlock> — le jour, contrôle', () => {
   it('mardi chez un prestataire du seul lundi → avertissement (le motif cherché est bien le texte rendu)', () => {
     monter(prestataire({ metadata: { availability: [{ day: 'monday', from: '08:00', to: '12:00' }] } as never }), '2026-10-20T10:00:00');
     expect(screen.getByText(/ne déclare pas travailler ce jour-là/)).toBeInTheDocument();
+  });
+});
+
+describe('<MaintenanceAssignmentBlock> — P120.03, le personnel de l\'agence', () => {
+  it('propose le personnel joignable à la suite du carnet, sans doubler un prestataire', async () => {
+    personnel = [
+      { id: 201, first_name: 'Awa', last_name: 'Diop' },
+      { id: 103, first_name: 'Fatou', last_name: 'Sarr' },
+    ];
+    monter(prestataire());
+    await userEvent.click(screen.getByRole('combobox'));
+
+    expect(await screen.findByRole('option', { name: 'Awa Diop' })).toBeInTheDocument();
+    expect(screen.getAllByRole('option', { name: 'Fatou Sarr' })).toHaveLength(1);
+    personnel = [];
   });
 });

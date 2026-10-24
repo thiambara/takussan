@@ -60,9 +60,19 @@ export interface BankStatementLine {
   label: string | null;
   reference: string | null;
   counterparty: string | null;
+  /**
+   * TCK-1919 (P157.06) — la ligne d'un autre relevé de l'agence qui porte déjà cette transaction
+   * (référence, date, montant, sens) ; nulle sinon. La ligne reste dans le relevé, signalée.
+   */
+  duplicate_of_line_id?: number | null;
   match_status: BankLineMatchStatus | null;
   matched_payment_type: MatchedPaymentType | null;
   matched_payment_id: number | null;
+  /**
+   * TCK-1522 (P110.02) — le statut du payable rapproché ou proposé, relu à chaque lecture (un
+   * encaissement remboursé après rapprochement le dit). Valeur de l'enum de statut de son type.
+   */
+  matched_payment_status?: string | null;
   /** 0–1 (ou 0–100 selon l'API) — normalisé à l'affichage. */
   match_confidence: number | string | null;
 }
@@ -76,6 +86,8 @@ export interface MatchCandidate {
   reference: string | null;
   paid_at: string | null;
   payer_name: string | null;
+  /** TCK-1526 (P110.04) — le statut du payable, valeur de l'enum de son type (un remboursé le dit). */
+  status?: string | null;
 }
 
 export type SignConvention = 'amount_signed' | 'direction_column';

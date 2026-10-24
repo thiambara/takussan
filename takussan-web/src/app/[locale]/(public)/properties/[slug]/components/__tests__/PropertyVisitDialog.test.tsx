@@ -175,3 +175,12 @@ describe('<PropertyVisitDialog> — TCK-590', () => {
     });
   });
 });
+
+/** TCK-1491 (P145.03) — le nom du visiteur porte la borne de l'API (120). */
+describe('<PropertyVisitDialog> — bornes de l’API (TCK-1491)', () => {
+  it('nom du visiteur : maxLength 120', () => {
+    authUser = null;
+    render(withIntl(<PropertyVisitDialog slug="villa-almadies" open onOpenChange={() => {}} />));
+    expect((screen.getByLabelText('Votre nom') as HTMLInputElement).maxLength).toBe(120);
+  });
+});

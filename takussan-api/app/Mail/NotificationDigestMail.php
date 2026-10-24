@@ -39,6 +39,20 @@ class NotificationDigestMail extends Mailable implements ShouldQueue
         $this->locale($locale);
     }
 
+    /**
+     * P111.04 (TCK-1505) — attendre avant de réessayer, comme `CodedNotification` (TCK-800) : le
+     * courriel part dans `SendQueuedMailable`, et sans délai le worker (`--tries=3`) épuisait ses
+     * trois essais en quelques secondes sur une panne brève du fournisseur. `BuildUserDigestJob`
+     * pose `digested_at` dès la mise en file : un résumé dont les trois essais échouent reste
+     * perdu (le déplacement de `digested_at` est laissé au porteur).
+     *
+     * @return list<int>
+     */
+    public function backoff(): array
+    {
+        return [60, 300, 900];
+    }
+
     public function envelope(): Envelope
     {
         $count = $this->grouped->flatten(1)->count();

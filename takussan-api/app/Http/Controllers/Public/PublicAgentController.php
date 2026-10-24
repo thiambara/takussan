@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Public;
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Public\ContactLeadPublicRequest;
 use App\Http\Requests\Public\IndexPublicProfilesRequest;
+use App\Http\Requests\Public\PublicPortfolioRequest;
 use App\Http\Resources\PropertyResource;
 use App\Http\Resources\ReviewResource;
 use App\Models\Enums\AgencyStatus;
@@ -134,7 +135,9 @@ class PublicAgentController extends Controller
                             $inner->orWhereRaw(CaseInsensitive::sql($colonne).' LIKE ?', [$motif]);
                         }
                     });
-                }),
+                    // `delimiter('')` : spatie découperait sinon la saisie à la virgule, et le
+                    // tableau qui en sort faisait ignorer la recherche (P187.01, TCK-1843).
+                })->delimiter(''),
                 // Appliqué sur `$base` (relation morphe d'une relation) — déclaré ici pour que
                 // spatie ne lève pas `InvalidFilterQuery` sur un paramètre pourtant honoré.
                 AllowedFilter::callback('city', fn () => null),
@@ -365,7 +368,7 @@ class PublicAgentController extends Controller
     /**
      * TCK-276 — paginated portfolio for the public agent page (load-more).
      */
-    public function properties(Request $request, string $slug)
+    public function properties(PublicPortfolioRequest $request, string $slug)
     {
         $agent = self::sansAgenceHorsLigne(User::query())
             ->where('username', $slug)
@@ -375,10 +378,12 @@ class PublicAgentController extends Controller
         abort_if($agent === null, 404);
 
         $perPage = min(max((int) $request->input('per_page', 24), 1), 48);
+        $contrat = $request->contractType();
 
         $properties = Property::query()
             ->where('user_id', $agent->id)
             ->publicPortfolio()
+            ->when($contrat !== null, fn (Builder $q) => $q->where('contract_type', $contrat))
             ->with('address', 'media')
             ->orderByDesc('published_at')
             ->orderByDesc('created_at')

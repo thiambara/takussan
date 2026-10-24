@@ -49,6 +49,8 @@ describe('fetchAllLeasePayments', () => {
     expect(urls.map((u) => u.searchParams.get('page'))).toEqual(['1', '2']);
     expect(urls.every((u) => u.pathname === '/api/leases/7/payments')).toBe(true);
     expect(urls.every((u) => u.searchParams.get('sort') === 'due_date')).toBe(true);
+    // TCK-1842 (P186.03) — le bail vient de la route : `filter[lease_id]` était inerte.
+    expect(urls.some((u) => u.searchParams.has('filter[lease_id]'))).toBe(false);
     expect(LEASE_PAYMENTS_PER_PAGE).toBe(100);
   });
 });

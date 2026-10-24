@@ -50,7 +50,9 @@ beforeEach(() => {
 });
 
 describe('vue bailleur — prochains versements (AC4 bis)', () => {
-  it('ne demande que les versements au bailleur, en attente, planifiés ou en cours', async () => {
+  // TCK-1804 (P162.07) : « à venir » se lit à l'API (`PayoutStatus::upcoming()`), attente
+  // d'approbation comprise, et non plus par une liste de statuts recopiée ici.
+  it('ne demande que les versements au bailleur encore à venir, selon l’API', async () => {
     render(await OwnerDashboardPage());
 
     const url = appels.urls.find((u) => u.startsWith('/api/payouts'));
@@ -58,7 +60,8 @@ describe('vue bailleur — prochains versements (AC4 bis)', () => {
     const params = new URLSearchParams(url!.split('?')[1]);
     expect(params.get('filter[landlord_id]')).toBe('7');
     expect(params.get('filter[payee_role]')).toBe('landlord');
-    expect(params.get('filter[status]')).toBe('pending,scheduled,processing');
+    expect(params.get('filter[upcoming]')).toBe('1');
+    expect(params.get('filter[status]')).toBeNull();
   });
 });
 
@@ -66,9 +69,17 @@ describe('vue bailleur — cartes actionnables (AC8)', () => {
   it('chaque carte mène à son module et porte son nombre', async () => {
     render(await OwnerDashboardPage());
 
-    expect(screen.getByRole('link', { name: /Devis à valider\s*2/ })).toHaveAttribute('href', '/app/maintenance');
+    // TCK-1727 (P167.01) : la liste s'ouvre sur les deux statuts que le nombre additionne.
+    expect(screen.getByRole('link', { name: /Devis à valider\s*2/ })).toHaveAttribute(
+      'href',
+      '/app/maintenance?status=quote_submitted,awaiting_owner',
+    );
     expect(screen.getByRole('link', { name: /Visites à confirmer\s*1/ })).toHaveAttribute('href', '/app/visits');
-    expect(screen.getByRole('link', { name: /Avis sans réponse\s*3/ })).toHaveAttribute('href', '/app/profile/reviews');
+    expect(screen.getByRole('link', { name: /Avis sans réponse\s*3/ })).toHaveAttribute(
+      'href',
+      // TCK-1515 (P167.02) : la boîte s'ouvre sur ce que le nombre compte.
+      '/app/profile/reviews?reply=unreplied&subject=property',
+    );
     expect(screen.queryByText('Voir le module')).toBeNull();
   });
 });

@@ -224,6 +224,8 @@ class ContactLeadService
             $this->notifyReceived($lead, $assignee);
         } catch (\Throwable $e) {
             // Un échec d'envoi ne défait pas l'attribution (TCK-771 : il se journalise).
+            // P179.04 (TCK-1799) — « envoi » avant la file seulement : le rendu, la cloche, la mise
+            // en file. L'échec du transport se journalise au worker ({@see \App\Notifications\CodedNotification::failed()}).
             $this->logFailure('lead notification failed', $lead, $e);
         }
 
@@ -232,7 +234,8 @@ class ContactLeadService
 
     /**
      * La demande devient une fiche client de l'agence de la demande, à l'étape `lead`, et la
-     * demande est marquée traitée. Une seconde conversion est refusée (409) : la fiche existe.
+     * demande est marquée traitée. Une seconde conversion est refusée (409) : la fiche existe, et
+     * le 409 la nomme (`customer.id`, P182.03).
      *
      * TCK-591 possède le dédoublonnage des fiches ; la création passe par `CustomerService`.
      * TCK-1343 (P125.02) — la conversion consulte `CustomerDuplicateDetector` comme la création à
@@ -246,8 +249,10 @@ class ContactLeadService
         return DB::transaction(function () use ($lead, $actor, $allowDuplicate) {
             $fresh = PropertyContactLead::query()->whereKey($lead->id)->lockForUpdate()->firstOrFail();
 
+            // P182.03 (TCK-1824) — le 409 garde son code et porte la fiche, sous la forme du 201 :
+            // l'écran dont la première réponse s'est perdue la montre au lieu d'une erreur.
             if ($fresh->customer_id !== null) {
-                abort_code(409, 'lead.already_converted');
+                throw (new ApiError(409, 'lead.already_converted'))->with(['customer' => ['id' => $fresh->customer_id]]);
             }
 
             // Vérification adverse (m2) — sans agence, `CustomerService::create` retombait sur
@@ -347,7 +352,8 @@ class ContactLeadService
             try {
                 $this->notifyReceived($lead, $recipient);
             } catch (\Throwable $e) {
-                // Non bloquant — même règle que les notifications de visite.
+                // Non bloquant — même règle que les notifications de visite : ce `catch` ne voit
+                // que l'avant-file ({@see \App\Notifications\CodedNotification::failed()} pour le transport).
                 $this->logFailure('lead notification failed', $lead, $e);
             }
         }

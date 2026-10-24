@@ -110,6 +110,9 @@ class PropertyAuthorizationTest extends ApiTestCase
         $this->postJson("/api/properties/{$id}/publish")->assertForbidden();
         $this->putJson("/api/properties/{$id}/visibility", ['visibility' => 'public'])->assertForbidden();
         $this->putJson("/api/properties/{$id}/status", ['status' => 'available'])->assertForbidden();
+        // P147.01 (TCK-1427) — ni par le `PATCH` du bien.
+        $this->patchJson("/api/properties/{$id}", ['status' => 'available'])->assertForbidden();
+        $this->patchJson("/api/properties/{$id}", ['visibility' => 'public', 'accept_terms' => true])->assertForbidden();
 
         $property = Property::query()->findOrFail($id);
         $this->assertSame(PropertyStatus::Draft, $property->status);
@@ -227,6 +230,9 @@ class PropertyAuthorizationTest extends ApiTestCase
             'publish' => ['POST', 'publish', []],
             'visibilité → public' => ['PUT', 'visibility', ['visibility' => 'public']],
             'statut → available' => ['PUT', 'status', ['status' => 'available']],
+            // P147.01 (TCK-1427) — le `PATCH` du bien était le cinquième chemin, ouvert sans `publish`.
+            'PATCH statut → available' => ['PATCH', '', ['status' => 'available']],
+            'PATCH visibilité → public' => ['PATCH', '', ['visibility' => 'public']],
             // P147.05 (TCK-1341) — `published` ne se pose plus à la main : PropertyStatutsDeModerationTest.
         ];
     }
@@ -244,8 +250,10 @@ class PropertyAuthorizationTest extends ApiTestCase
         ]);
 
         $this->actingAsApi($agent)
-            ->json($method, "/api/properties/{$property->id}/{$path}", $body)
+            ->json($method, rtrim("/api/properties/{$property->id}/{$path}", '/'), $body)
             ->assertForbidden();
+        $this->assertSame(PropertyStatus::Draft, $property->fresh()->status);
+        $this->assertSame(PropertyVisibility::Private, $property->fresh()->visibility);
 
         // Le rôle système, lui, publie par chacun des chemins.
         $systeme = $this->agencyAgent($this->agency);
@@ -257,7 +265,7 @@ class PropertyAuthorizationTest extends ApiTestCase
             'visibility' => PropertyVisibility::Private,
         ]);
         $this->actingAsApi($systeme)
-            ->json($method, "/api/properties/{$sien->id}/{$path}", $body)
+            ->json($method, rtrim("/api/properties/{$sien->id}/{$path}", '/'), $body)
             ->assertOk();
     }
 

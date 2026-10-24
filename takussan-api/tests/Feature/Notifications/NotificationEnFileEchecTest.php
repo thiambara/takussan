@@ -3,7 +3,7 @@
 namespace Tests\Feature\Notifications;
 
 use App\Notifications\AccountDeletionStepUpCodeNotification;
-use App\Notifications\TaskDueReminderNotification;
+use App\Notifications\BookingExpiredNotification;
 use Illuminate\Notifications\SendQueuedNotifications;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
@@ -18,16 +18,18 @@ use Tests\TestCase;
  */
 class NotificationEnFileEchecTest extends TestCase
 {
+    // TCK-1794 — une notification au seul `RetriesWithBackoff` : celles dont la marque est posée à la
+    // mise en file écrivent en plus une activité (`EnvoisMarquesEnEchecTest`), hors de toute transaction ici.
     public function test_l_echec_final_nomme_la_classe_et_le_canal_sans_le_message(): void
     {
-        $notification = (new ReflectionClass(TaskDueReminderNotification::class))->newInstanceWithoutConstructor();
+        $notification = (new ReflectionClass(BookingExpiredNotification::class))->newInstanceWithoutConstructor();
         $notification->middleware(new \stdClass, 'mail');
         Log::spy();
 
         $notification->failed(new RuntimeException('adresse secrete@example.com'));
 
         Log::shouldHaveReceived('error')->once()->withArgs(fn (string $message, array $context) => $message === '[notifications] envoi abandonné'
-            && $context['notification'] === TaskDueReminderNotification::class
+            && $context['notification'] === BookingExpiredNotification::class
             && $context['channel'] === 'mail'
             && ! str_contains((string) json_encode($context), 'secrete'));
     }

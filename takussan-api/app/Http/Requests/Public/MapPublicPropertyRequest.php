@@ -39,7 +39,10 @@ class MapPublicPropertyRequest extends SearchPublicPropertyRequest
     public function rules(): array
     {
         return [
+            // `bail` : sans lui, la fermeture s'exécute même quand `string` a échoué, et
+            // `bounds[]=1` rendait 500 « Array to string conversion » (P187.04, TCK-1849).
             'bounds' => [
+                'bail',
                 'required',
                 'string',
                 function (string $attribute, mixed $value, \Closure $fail) {

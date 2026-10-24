@@ -4,7 +4,8 @@ export interface PropertyReview {
   rating: number;
   title: string | null;
   content: string | null;
-  author: { id: number; name: string; avatar_url: string | null };
+  // TCK-1781 — `name` est nul pour un auteur effacé ou sans nom : le front écrit le repli.
+  author: { id: number; name: string | null; avatar_url: string | null };
   reply_content: string | null;
   replied_at: string | null;
   replied_by_id?: number | null;

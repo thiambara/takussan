@@ -26,7 +26,8 @@ export type Review = {
   author_id: number;
   author: {
     id: number | null;
-    name: string;
+    /** TCK-1781 — nul pour un auteur effacé ou sans nom : le front écrit le repli. */
+    name: string | null;
     avatar_url: string | null;
   };
   rating: number;

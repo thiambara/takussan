@@ -6,7 +6,10 @@ import { ChartColumn, ShieldCheck, UserPlus } from 'lucide-react';
 
 import { WelcomeIllustration } from '@/components/welcome/WelcomeIllustration';
 import { WelcomeModal } from '@/components/welcome/WelcomeModal';
-import { useAgencyStandardWelcomeOnce } from '@/hooks/useAgencyStandardWelcomeOnce';
+import {
+  useAgencyStandardWelcomeOnce,
+  type MarqueurAccueilAgence,
+} from '@/hooks/useAgencyStandardWelcomeOnce';
 
 /**
  * TCK-269 — Agency-admin welcome wizard fired once per admin after the
@@ -17,9 +20,14 @@ import { useAgencyStandardWelcomeOnce } from '@/hooks/useAgencyStandardWelcomeOn
  * `useAgencyStandardWelcomeOnce` — mounted by `<AppShell>` behind an
  * `isAgencyAdmin` gate so we never paint it for other roles.
  */
-export function AgencyStandardWelcomeWizard() {
+interface AgencyStandardWelcomeWizardProps {
+  /** TCK-1766 — le marqueur d'accueil lu par le layout `/app`. */
+  readonly marqueur?: MarqueurAccueilAgence | null;
+}
+
+export function AgencyStandardWelcomeWizard({ marqueur }: AgencyStandardWelcomeWizardProps = {}) {
   const t = useTranslations('agency.standardWelcome');
-  const welcome = useAgencyStandardWelcomeOnce();
+  const welcome = useAgencyStandardWelcomeOnce(marqueur);
 
   const slides = useMemo(
     () => [

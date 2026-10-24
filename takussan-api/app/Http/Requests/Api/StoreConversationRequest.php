@@ -40,8 +40,14 @@ class StoreConversationRequest extends BaseFormRequest
     public function rules(): array
     {
         return [
-            'subject' => ['nullable', 'string'],
-            'type' => ['nullable', Rule::enum(ConversationType::class)],
+            // TCK-1885 (P195.01) — la colonne est `varchar(255)`, comme au renommage et au groupe :
+            // sans borne, un sujet trop long rendait 500 au lieu de 422.
+            'subject' => ['nullable', 'string', 'max:255'],
+            // TCK-1875 (P191.05) — les deux seuls types que l'application écrit : `group` part
+            // vers `storeGroup()`, tout le reste est une directe. `lease`, `booking`, `property`
+            // et `support` passaient ici et s'enregistraient tels quels, sans écrivain ni règle
+            // d'accès qui les juge. L'enum garde ses six cas : seule cette entrée se resserre.
+            'type' => ['nullable', Rule::enum(ConversationType::class)->only([ConversationType::Direct, ConversationType::Group])],
             // TCK-565 — l'existence n'est PAS vérifiée ici, règle par règle : `exists` produisait
             // une erreur PAR POSITION (« The selected participants.0 is invalid. (and 1 more
             // error) », capture du retour testeur du 2026-09-23). Elle l'est une fois, pour tout
@@ -53,7 +59,7 @@ class StoreConversationRequest extends BaseFormRequest
             // les deux. `integer` reste : un identifiant non entier partirait en SQL.
             'property_id' => ['nullable', 'integer'],
             'lease_id' => ['nullable', 'integer'],
-            'initial_message' => ['nullable', 'string'],
+            'initial_message' => ['nullable', 'string', 'max:5000'],
         ];
     }
 

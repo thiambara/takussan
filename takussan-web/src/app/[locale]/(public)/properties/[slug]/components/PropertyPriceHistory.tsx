@@ -1,6 +1,7 @@
 import { useLocale, useTranslations } from 'next-intl';
 import { TrendingDown, TrendingUp, Minus } from 'lucide-react';
 import { DEFAULT_LOCALE, isLocale } from '@/i18n/config';
+import { isNamedPriceChangeReason } from '@/lib/enums/property';
 import { formatDate } from '@/lib/format';
 import { formatMontant } from '@/lib/format/currency';
 import type { PropertyPriceHistoryItem } from '@/types/property';
@@ -31,6 +32,8 @@ const DATE_DU_CHANGEMENT = {
 
 export function PropertyPriceHistory({ history }: PropertyPriceHistoryProps) {
   const t = useTranslations('property.detail');
+  // TCK-1908 (P196.02) — l'API émet le code du motif ; le texte vient d'ici, code brut en repli.
+  const tReason = useTranslations('property.priceChangeReasons');
   const localeBrute = useLocale();
   const locale = isLocale(localeBrute) ? localeBrute : DEFAULT_LOCALE;
 
@@ -62,7 +65,11 @@ export function PropertyPriceHistory({ history }: PropertyPriceHistoryProps) {
                 </span>{' '}
                 → <span className="font-semibold">{formatPrice(item.new_price, item.currency)}</span>
               </p>
-              {item.reason && <p className="text-xs text-muted-foreground mt-0.5">{item.reason}</p>}
+              {item.reason && (
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {isNamedPriceChangeReason(item.reason) ? tReason(item.reason) : item.reason}
+                </p>
+              )}
             </li>
           );
         })}

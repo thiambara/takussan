@@ -19,25 +19,6 @@ export const sendMessageSchema = z.object({
 
 export type SendMessageFormValues = z.infer<typeof sendMessageSchema>;
 
-export const createConversationSchema = z.object({
-  property_id: z.number().int().positive().optional(),
-  lease_id: z.number().int().positive().optional(),
-  subject: z
-    .string()
-    .trim()
-    .max(255)
-    .optional()
-    .or(z.literal('').transform(() => undefined)),
-  recipient_id: z.number().int().positive().optional(),
-  initial_message: z
-    .string()
-    .trim()
-    .min(1, msgValidation('message.initialRequired'))
-    .max(MAX_BODY),
-});
-
-export type CreateConversationFormValues = z.infer<typeof createConversationSchema>;
-
 /**
  * Allowed upload types — mirrors the TCK-045 constraint
  * (images, PDF, doc/docx, 10 MB max).

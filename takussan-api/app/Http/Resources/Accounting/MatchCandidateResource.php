@@ -18,6 +18,7 @@ class MatchCandidateResource extends BaseResource
             'reference' => $this->reference,
             'paid_at' => $this->paidAt,
             'payer_name' => $this->payerName,
+            'status' => $this->status,
         ];
     }
 }

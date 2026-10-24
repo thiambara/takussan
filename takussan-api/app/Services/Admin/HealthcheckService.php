@@ -2,6 +2,7 @@
 
 namespace App\Services\Admin;
 
+use App\Http\Resources\Bases\BaseResource;
 use App\Jobs\RecordQueueHeartbeat;
 use App\Models\Enums\PaymentProvider;
 use App\Models\Integration;
@@ -151,7 +152,7 @@ class HealthcheckService
         $snapshot = [
             ...$probes,
             'status' => self::worst(array_column($probes, 'status')),
-            'generated_at' => now()->toISOString(),
+            'generated_at' => BaseResource::instantOnWire(now()),
         ];
 
         Cache::put(self::STATUS_KEY, ['status' => $snapshot['status'], 'checked_at' => $snapshot['generated_at']], 600);
@@ -468,7 +469,7 @@ class HealthcheckService
      */
     private function check(callable $callback, ?string $publicError = null): array
     {
-        $checkedAt = now()->toISOString();
+        $checkedAt = BaseResource::instantOnWire(now());
         try {
             return ['status' => 'ok', ...$callback(), 'checked_at' => $checkedAt];
         } catch (\Throwable $e) {

@@ -39,8 +39,8 @@ class CalendarFeedController extends Controller
 
         return $this->json(['data' => [
             'active' => $feed !== null,
-            'created_at' => $feed?->created_at?->toIso8601String(),
-            'last_accessed_at' => $feed?->last_accessed_at?->toIso8601String(),
+            'created_at' => $this->instant($feed?->created_at),
+            'last_accessed_at' => $this->instant($feed?->last_accessed_at),
         ]]);
     }
 
@@ -53,7 +53,7 @@ class CalendarFeedController extends Controller
         return $this->json(['data' => [
             'active' => true,
             'url' => url('/api/calendar-feed/'.$issued['token'].'.ics'),
-            'created_at' => $issued['feed']->created_at?->toIso8601String(),
+            'created_at' => $this->instant($issued['feed']->created_at),
             'last_accessed_at' => null,
         ]], 201);
     }

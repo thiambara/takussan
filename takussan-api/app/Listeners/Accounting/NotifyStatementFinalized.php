@@ -29,7 +29,7 @@ class NotifyStatementFinalized implements ShouldQueue
             'confirmed' => $ratio['confirmed'],
             'total' => $ratio['total'],
         ];
-        $target = NotificationTarget::of('finances');
+        $target = NotificationTarget::of('finances')->forAgency($statement->agency_id);
 
         $this->notificationService->send($finalizer, NotificationCode::BankStatementFinalized, $params, $target);
 

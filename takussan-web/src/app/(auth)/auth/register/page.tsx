@@ -15,7 +15,7 @@ import {
   FormCheckbox,
   FormGlobalError,
 } from '@/components/forms';
-import { registerSchema, type RegisterFormValues } from '@/lib/schemas';
+import { registerSchema, type RegisterFormValues } from '@/lib/schemas/auth';
 import { useApiForm } from '@/hooks/useApiForm';
 import { register } from '@/lib/auth';
 import { useAuth } from '@/context/AuthContext';

@@ -97,7 +97,7 @@ final class PayoutApprovalThreshold
                     $holder,
                     NotificationCode::PayoutThresholdRelaxRequested,
                     ['agency' => $agency->name],
-                    NotificationTarget::of('agency_settings'),
+                    NotificationTarget::of('agency_settings')->forAgency($agency->id),
                 );
             }
         }

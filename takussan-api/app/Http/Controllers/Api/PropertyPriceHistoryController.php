@@ -25,7 +25,7 @@ class PropertyPriceHistoryController extends Controller
                 'currency' => $h->currency?->value,
                 'reason' => $h->reason?->value,
                 'notes' => $h->notes,
-                'changed_at' => $h->changed_at?->toISOString(),
+                'changed_at' => $this->instant($h->changed_at),
                 'changed_by_id' => $h->changed_by_id,
             ])->values(),
             'meta' => $this->paginationMeta($paginator),

@@ -38,6 +38,51 @@ class DataExportTest extends TestCase
         $this->assertTrue(Activity::query()->where('event', 'user_data_export_requested')->exists());
     }
 
+    /**
+     * P111.02 (TCK-1503) — la limite de 24 h ne compte que les demandes `queued`, `processing`
+     * et `ready` : une demande en échec (ou déjà expirée) n'a rien rendu et ne bloque pas la
+     * suivante.
+     */
+    /**
+     * TCK-1519 (P73.03) — l'export prêt ne rend plus `download_url` : le front ne le lisait pas,
+     * il télécharge par son relais `data-exports/[id]/download`, et le champ portait l'hôte de l'API.
+     */
+    public function test_l_export_pret_ne_rend_pas_de_download_url(): void
+    {
+        Storage::fake('local');
+        $this->actingAsRole('customer');
+
+        $this->postJson('/api/me/data-exports')
+            ->assertAccepted()
+            ->assertJsonPath('data.status', 'ready')
+            ->assertJsonMissingPath('data.download_url');
+    }
+
+    public function test_seules_les_demandes_en_cours_ou_pretes_comptent_dans_la_limite_de_24_h(): void
+    {
+        Storage::fake('local');
+        $user = $this->actingAsRole('customer');
+
+        foreach ([
+            'failed' => true,
+            'expired' => true,
+            'queued' => false,
+            'processing' => false,
+            'ready' => false,
+        ] as $statut => $accepte) {
+            DataExport::query()->where('user_id', $user->id)->delete();
+            DataExport::query()->create([
+                'user_id' => $user->id,
+                'requested_by' => $user->id,
+                'status' => DataExportStatus::from($statut),
+                'requested_at' => now()->subHour(),
+            ]);
+
+            $this->postJson('/api/me/data-exports')
+                ->assertStatus($accepte ? 202 : 429);
+        }
+    }
+
     public function test_super_admin_reason_is_required(): void
     {
         $target = User::factory()->create();

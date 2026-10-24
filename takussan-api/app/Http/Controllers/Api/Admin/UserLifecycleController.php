@@ -81,7 +81,7 @@ class UserLifecycleController extends Controller
         $demande = DB::transaction(function () use ($operateur, $user, $reason) {
             $demande = $this->deletion->requestDeletion($user, $reason, null, 'operator', $operateur);
             $this->journaliser($operateur, $user, 'super_admin_user_erasure_requested', $reason, [
-                'scheduled_for' => $demande->scheduled_for?->toIso8601String(),
+                'scheduled_for' => $this->instant($demande->scheduled_for),
             ]);
 
             return $demande;
@@ -90,7 +90,7 @@ class UserLifecycleController extends Controller
         return $this->json(['data' => [
             'id' => $demande->id,
             'user_id' => $user->id,
-            'scheduled_for' => $demande->scheduled_for?->toIso8601String(),
+            'scheduled_for' => $this->instant($demande->scheduled_for),
         ]], 202);
     }
 

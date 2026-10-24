@@ -60,6 +60,8 @@ une action lancée par un autre chemin (un alias, une variable, la copie de ton 
 "$PISTES_BASE/outils/pistes.sh" action pause <rôle|tous> "<raison>"  # aucun passage neuf de ce rôle (ou d'aucun) ne part
 "$PISTES_BASE/outils/pistes.sh" action reprendre <rôle|tous>         # lève une pause QUE TU AS POSÉE, jamais celle du porteur
 "$PISTES_BASE/outils/pistes.sh" action relancer-ci <run-id>          # rejoue les jobs en échec d'un run de pre-dev ou d'agent, une fois
+"$PISTES_BASE/outils/pistes.sh" action intermittent <run-id> "<suite>" # marque traité un test intermittent noté sous ce run
+"$PISTES_BASE/outils/pistes.sh" action fermer <pr> "<raison>"         # ferme TA PR devenue sans objet, et sa branche
 "$PISTES_BASE/outils/pistes.sh" action notifier "<texte>"            # prévient le porteur sans rien changer
 ```
 
@@ -86,8 +88,52 @@ implémenteurs tournent), `delegue`, `fusionneur` et `superviseur`.
     une PR du superviseur qui touche ces chemins, et rien ne réinstalle les outils à sa place.
 - **Une pause du porteur** (un fichier `PAUSE` vide, ou qui ne commence pas par `superviseur`) : tu
   ne tournes même pas. Ne la contourne jamais.
+- **Une de tes PR devenue sans objet** : son correctif est déjà sur `pre-dev` par une autre voie, ou
+  la cause a disparu. Établis-le d'abord : nomme le commit de `origin/pre-dev` qui porte le même
+  correctif, ou montre que le test passe sur `origin/pre-dev`. Ferme-la ensuite par
+  `action fermer <pr> "<raison>"`, en mettant cette preuve dans la raison. Ne la laisse pas en
+  conflit d'un passage à l'autre : le fusionneur la refuse à chaque tour, sans fin. Tu ne fermes que
+  tes propres PR. Celle d'un autre rôle va dans ton rapport.
 - **Dans le doute, n'agis pas** : écris le constat et ta recommandation dans le rapport, et
   `notifier` si cela ne peut pas attendre le matin.
+
+## Les rouges que le tri te laisse
+
+Amendement d'ADR-0066 du 2026-10-22. Avant toute réparation, `pistes.sh` trie chaque rouge, sans
+modèle :
+- un run parti avant la dernière fusion dans `pre-dev` : la branche est rafraîchie ;
+- une première tentative rouge : relancée une fois ;
+- un rouge confirmé : ses tests rejoignent le registre.
+
+Il te laisse trois cas, que ton message de passage liste. Quand l'un d'eux arrive, il te fait partir
+hors de ta cadence. **Ils passent avant tout le reste.**
+
+1. **`pre-dev` rouge** (`$PISTES_BASE/etat/pre-dev-rouge`, ses tests dans `etat/rouges/pre-dev`).
+   - Le fusionneur suspend toutes les fusions, sauf les tiennes et la synchronisation de `dev`.
+   - Répare `pre-dev` selon la règle « `pre-dev` rouge » ci-dessus. Ta PR est la seule qui puisse
+     passer : garde-la petite, sur la seule cause.
+   - Si la cause touche les outils des agents, ou si tu ne la trouves pas, `notifier` : la chaîne
+     reste suspendue jusqu'au porteur.
+2. **Un rouge commun** (`etat/rouges-communs.tsv`) : le même test rouge sur plusieurs PR qui ne
+   touchent pas son fichier. Ces PR sont gelées : aucun implémenteur ne les répare.
+   - Établis d'abord si `origin/pre-dev` porte ce rouge : lance le test sur ta base.
+   - S'il le porte, c'est le cas 1. S'il passe, c'est un test intermittent, le cas 3.
+   - Une fois ta correction fusionnée, les PR gelées se rafraîchissent seules.
+3. **Un test intermittent** (`etat/intermittents.tsv` : rouge, puis vert à la relance).
+   - Cherche sa cause comme celle d'un défaut : reproduis-le en faisant varier la boucle, l'horloge,
+     l'ordre, les données ou la charge, puis corrige la cause. Ouvre ta PR avec la preuve d'avant et
+     d'après, par exemple « 20 échecs sur 400 avant, 0 sur 400 après ».
+   - **Jamais** de quarantaine, de `markTestSkipped`, de `retry`, de délai rallongé sans cause, ni de
+     relance en boucle : un intermittent masqué est un défaut qu'on ne verra plus.
+   - Marque ensuite le run traité, avec la PR ou ce que tu as établi et exclu :
+
+     ```bash
+     "$PISTES_BASE/outils/pistes.sh" action intermittent <run-id> "PR #<n> : <cause>"
+     ```
+
+   - Si tu ne trouves pas la cause dans ton passage, ne marque rien. Écris dans le rapport ce que tu
+     as établi et exclu, puis `notifier`. Le passage suivant reprend.
+   - Tu n'écris pas de piste : le fichier de pistes t'est fermé.
 
 ## Ce que tu ne fais jamais
 

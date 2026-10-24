@@ -58,6 +58,12 @@ class UserDetailController extends Controller
                 'agent' => $query->whereHas('agentProfiles'),
                 'owner' => $query->whereHas('ownerProfiles'),
                 'service_provider' => $query->whereHas('serviceProviderProfile'),
+                // TCK-1852 (P186.01) — le rôle dérivé `tenant`, par la règle de
+                // `hasActiveTenantLease()` (TCK-492) : un bail en cours, préavis compris.
+                // `leases.status` qualifié : `customers` porte aussi un `status` (piège n° 7).
+                // `customer` n'est pas servi : chaque compte en est un, le filtre vaudrait « Tous ».
+                'tenant' => $query->whereHas('tenantLeases', fn (Builder $q) => $q
+                    ->whereIn('leases.status', User::ACTIVE_TENANT_LEASE_STATUSES)),
                 default => $query->whereRaw('1 = 0'),
             };
         }
@@ -138,11 +144,11 @@ class UserDetailController extends Controller
             'data' => $tokens->getCollection()->map(fn (PersonalAccessToken $token) => [
                 'id' => $token->id,
                 'name' => $token->name,
-                'last_used_at' => $token->last_used_at?->toIso8601String(),
+                'last_used_at' => $this->instant($token->last_used_at),
                 'ip' => null,
                 'user_agent' => null,
-                'created_at' => $token->created_at?->toIso8601String(),
-                'expires_at' => $token->expires_at?->toIso8601String(),
+                'created_at' => $this->instant($token->created_at),
+                'expires_at' => $this->instant($token->expires_at),
             ])->values()->all(),
             'meta' => $this->paginationMeta($tokens),
         ]);
@@ -195,7 +201,7 @@ class UserDetailController extends Controller
                     'id' => (int) $log->impersonator_id,
                     'name' => $operateurs->get($log->impersonator_id)?->full_name,
                 ],
-                'created_at' => $log->created_at?->toIso8601String(),
+                'created_at' => $this->instant($log->created_at),
             ])->values()->all(),
             'meta' => $this->paginationMeta($activity),
         ]);

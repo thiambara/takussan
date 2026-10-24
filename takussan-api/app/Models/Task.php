@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Jobs\SendTaskDueReminders;
 use App\Models\Bases\AbstractModel;
 use App\Models\Bases\Auditable;
 use App\Models\Enums\TaskPriority;
@@ -14,6 +15,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Illuminate\Support\Carbon;
 use Spatie\Activitylog\Support\LogOptions;
 use Spatie\QueryBuilder\AllowedFilter;
@@ -30,6 +32,27 @@ class Task extends AbstractModel
 
     /** Les états d'une tâche qui reste à faire : une tâche close n'est jamais « en retard ». */
     public const OPEN_STATUSES = [TaskStatus::Open, TaskStatus::InProgress];
+
+    /**
+     * TCK-1529 (P169.02) — la marque de {@see SendTaskDueReminders} vaut pour l'échéance
+     * et l'assigné qu'elle a rappelés : quand `due_at` ou `assigned_to_id` change, elle tombe, et la
+     * tâche est rappelée de nouveau, 24 h avant son échéance, à qui la tient alors (TCK-083).
+     */
+    public const REMINDER_MARKER = 'reminder_24h_sent_at';
+
+    protected static function booted(): void
+    {
+        static::updating(function (Task $task) {
+            if (! $task->isDirty(['due_at', 'assigned_to_id'])) {
+                return;
+            }
+            $metadata = $task->metadata ?? [];
+            if (array_key_exists(self::REMINDER_MARKER, $metadata)) {
+                unset($metadata[self::REMINDER_MARKER]);
+                $task->metadata = $metadata;
+            }
+        });
+    }
 
     /**
      * TCK-591 — la tâche entre au journal pour que la fiche client dise « tâche créée », mais
@@ -102,13 +125,24 @@ class Task extends AbstractModel
 
                 // TCK-1407 (P151.06) — une liste (`filter[due][]=`) est une valeur inconnue : rien.
                 match (is_string($value) ? $value : null) {
-                    'overdue' => $query->where('due_at', '<', $startOfDay)
-                        ->whereIn('status', array_map(fn (TaskStatus $s) => $s->value, self::OPEN_STATUSES)),
+                    'overdue' => $query->overdue(),
                     'today' => $query->whereBetween('due_at', [$startOfDay, $endOfDay]),
                     'upcoming' => $query->where('due_at', '>', $endOfDay),
                     'none' => $query->whereNull('due_at'),
                     default => $query->whereRaw('1 = 0'),
                 };
+            }),
+            // TCK-1733 (P167.04) — `filter[assigned_to]=me` : les tâches qui me sont assignées dans
+            // l'agence active, la portée que compte « Tâches du jour » (`DashboardAgentService`). Les
+            // tâches closes restent, comme sous `filter[due]=today` (TCK-591). Toute autre valeur : rien.
+            AllowedFilter::callback('assigned_to', function (Builder $query, mixed $value): void {
+                $user = request()->user();
+                if ($value !== 'me' || $user === null) {
+                    $query->whereRaw('1 = 0');
+
+                    return;
+                }
+                $query->where('assigned_to_id', $user->id)->parentInAgency($user->staffAgencyId());
             }),
         ];
     }
@@ -157,6 +191,37 @@ class Task extends AbstractModel
         }
 
         return $query->find($this->taskable_id);
+    }
+
+    /**
+     * TCK-591 (AC7), P198.01 (TCK-1910) — « en retard » : une tâche encore ouverte, échue avant le
+     * début du jour dans le fuseau de l'agence. Une tâche due ce matin est « du jour », pas en
+     * retard. Seule définition du mot : la liste (`filter[due]=overdue`), le tableau de bord de
+     * l'agent et la performance d'équipe la lisent toutes trois.
+     *
+     * @param  Builder<Task>  $query
+     * @return Builder<Task>
+     */
+    public function scopeOverdue(Builder $query): Builder
+    {
+        return $query->where('due_at', '<', Carbon::now(self::DUE_TIMEZONE)->startOfDay()->utc())
+            ->whereIn('status', array_map(fn (TaskStatus $s) => $s->value, self::OPEN_STATUSES));
+    }
+
+    /**
+     * P127.05 (TCK-1361), TCK-1733 (P167.04) — les tâches dont le parent (client, bien, ou réservation
+     * pour une tâche de remboursement) est dans l'agence donnée, parent supprimé en douceur compris ;
+     * sans agence, aucune borne. C'est la borne des tâches du tableau de bord de l'agent, et celle du
+     * filtre `assigned_to=me` qui ouvre sa tuile « Tâches du jour » : les deux ne peuvent pas diverger.
+     *
+     * @param  Builder<Task>  $query
+     * @return Builder<Task>
+     */
+    public function scopeParentInAgency(Builder $query, ?int $agencyId): Builder
+    {
+        return $agencyId === null ? $query
+            : $query->whereHasMorph('taskable', [Customer::class, Property::class, Booking::class], fn (Builder $parent) => $parent
+                ->withoutGlobalScope(SoftDeletingScope::class)->where('agency_id', $agencyId));
     }
 
     /**

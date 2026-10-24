@@ -7,12 +7,8 @@ import { MoreHorizontal } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-  DataTable,
-  StatusBadge,
-  type DataTableColumn,
-  type StatusTone,
-} from '@/components/console';
+import { StatusBadge, type StatusTone } from '@/components/console';
+import { DataTable, type DataTableColumn } from '@/components/console/DataTable';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -25,6 +21,7 @@ import type { Locale } from '@/i18n/config';
 import type { TeamSuspensionAction } from '@/lib/queries/team-suspension';
 import type { AdminAgencyUserRow } from '@/types/admin-users';
 import type { AgencyRoleAssignment } from '@/types/agency-role';
+import type { UserStatus } from '@/types/user';
 import { isAgencyStaffRow } from './isAgencyStaffRow';
 
 /**
@@ -36,14 +33,16 @@ import { isAgencyStaffRow } from './isAgencyStaffRow';
  * TCK-373 — c'était une table de CLASSES (fonds émeraude, pierre et rouge de la palette
  * Tailwind brute, à 10 %), l'une des quatre recettes de « succès » de la console. Le ton dit
  * désormais ce que le statut veut dire ; la couleur se décide dans `StatusBadge`.
- * Cette table garde son second rôle, qui n'est pas décoratif : une clé absente
- * signale un statut que le dictionnaire ne connaît pas, et le libellé retombe alors
- * sur la valeur brute.
+ *
+ * TCK-1834 (P146.04) — la table est typée par l'union `UserStatus` : `tsc` refuse qu'un cas y
+ * manque. Elle ne décide donc plus du libellé : c'est le dictionnaire (`t.has`) qui dit s'il
+ * connaît le statut, et un statut qu'il ne nomme pas (`deleted`) reste brut, comme avant.
  */
-const STATUS_TONES: Record<string, StatusTone> = {
+const STATUS_TONES: Record<UserStatus, StatusTone> = {
   active: 'success',
   inactive: 'neutral',
   blocked: 'danger',
+  deleted: 'neutral',
 };
 
 const ROLE_KEYS = new Set([
@@ -224,7 +223,7 @@ export function AdminUsersTable({
         <span className="flex flex-wrap gap-1">
           <StatusBadge
             tone={STATUS_TONES[row.status] ?? 'neutral'}
-            label={STATUS_TONES[row.status] !== undefined ? t(`status.${row.status}`) : row.status}
+            label={t.has(`status.${row.status}`) ? t(`status.${row.status}`) : row.status}
           />
           {suspensionFor?.(row) === 'reactivate' ? (
             <StatusBadge tone="attention" label={tSuspension('suspendedBadge')} />

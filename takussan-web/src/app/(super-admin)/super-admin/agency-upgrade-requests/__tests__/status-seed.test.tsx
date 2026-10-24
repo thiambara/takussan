@@ -8,7 +8,8 @@ import AgencyUpgradeRequestsListPage from '../page';
 
 const params = new URLSearchParams();
 
-vi.mock('next/navigation', () => ({ useSearchParams: () => params }));
+// TCK-1742/1744 — l'URL est la source du filtre : la page lit et écrit sa requête.
+vi.mock('next/navigation', () => ({ useSearchParams: () => params, useRouter: () => ({ replace: vi.fn(), push: vi.fn() }) }));
 
 vi.mock('@/lib/queries/super-admin', () => ({ fetchAdminAgencyUpgradeRequests: vi.fn() }));
 

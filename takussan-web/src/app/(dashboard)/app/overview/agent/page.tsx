@@ -99,21 +99,25 @@ export default async function AgentDashboardPage({ searchParams }: Props = {}) {
 
       <section className="grid gap-4 lg:grid-cols-3">
         <OperationalWidget title={t('pipelinePriorities')}>
+          {/* TCK-1735 (P167.05) — sous « Mes chiffres », le nombre compte les réservations des biens
+              de l'agent : le lien porte cette portée. Sous « Agence », la liste est celle de l'agence. */}
           <MetricLink
-            href="/app/bookings"
+            href={agence ? '/app/bookings' : '/app/bookings?only_mine=1'}
             label={t('pendingRequests')}
             value={data.pipeline_ops?.pending_bookings ?? data.bookings?.pending ?? 0}
             locale={locale}
           />
+          {/* TCK-1513 (P167.03) — la liste ouverte sur le statut que le nombre compte. */}
           <MetricLink
-            href="/app/leases"
+            href="/app/leases?status=pending_signature"
             label={t('leasesToSign')}
             value={data.pipeline_ops?.leases_to_sign ?? 0}
             locale={locale}
           />
-          {/* TCK-591 — menait à cette page elle-même. */}
+          {/* TCK-591 — menait à cette page elle-même. TCK-1733 (P167.04) — le nombre compte les
+              tâches assignées à l'agent dans l'agence active : le lien porte cette portée. */}
           <MetricLink
-            href="/app/tasks?filter[due]=today"
+            href="/app/tasks?filter[due]=today&filter[assigned_to]=me"
             label={t('tasksToday')}
             value={data.pipeline_ops?.tasks_today ?? data.tasks?.today ?? 0}
             locale={locale}

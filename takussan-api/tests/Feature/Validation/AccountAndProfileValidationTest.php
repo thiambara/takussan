@@ -69,15 +69,10 @@ class AccountAndProfileValidationTest extends ApiTestCase
 
         $this->apiPatch('/api/me/notification-preferences', [
             'notifications_email_enabled' => 'peut-être',
-            'notifications_push_enabled' => 'peut-être',
-            'notifications_sms_enabled' => 'peut-être',
         ])
             ->assertStatus(422)
-            ->assertJsonValidationErrors([
-                'notifications_email_enabled',
-                'notifications_push_enabled',
-                'notifications_sms_enabled',
-            ]);
+            // TCK-1495 (P107.02) — le seul drapeau plat qui reste au contrat.
+            ->assertJsonValidationErrors(['notifications_email_enabled']);
     }
 
     public function test_service_provider_trades_bound_their_lengths_and_rates(): void

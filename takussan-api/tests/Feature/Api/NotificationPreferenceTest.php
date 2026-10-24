@@ -19,11 +19,32 @@ class NotificationPreferenceTest extends TestCase
 
         $this->getJson('/api/me/notification-preferences')
             ->assertOk()
-            ->assertJsonStructure(['data' => [
-                'notifications_email_enabled',
-                'notifications_push_enabled',
-                'notifications_sms_enabled',
-            ]]);
+            ->assertJsonStructure(['data' => ['notifications_email_enabled']])
+            // TCK-1495 (P107.02) — aucun envoi ne lit ces deux drapeaux : ils quittent le contrat.
+            ->assertJsonMissingPath('data.notifications_push_enabled')
+            ->assertJsonMissingPath('data.notifications_sms_enabled');
+    }
+
+    /**
+     * TCK-1495 (P107.02, porteur 2026-10-22) — `notifications_sms_enabled` et
+     * `notifications_push_enabled` ne s'écrivent plus : un client qui les envoie croyait couper un
+     * canal que la matrice seule commande. Les colonnes restent.
+     */
+    public function test_les_drapeaux_sms_et_push_ne_s_ecrivent_plus(): void
+    {
+        $user = User::factory()->create(['notifications_sms_enabled' => true, 'notifications_push_enabled' => true]);
+        Sanctum::actingAs($user);
+
+        $this->patchJson('/api/me/notification-preferences', [
+            'notifications_sms_enabled' => false,
+            'notifications_push_enabled' => false,
+        ])->assertOk()
+            ->assertJsonMissingPath('data.notifications_sms_enabled')
+            ->assertJsonMissingPath('data.notifications_push_enabled');
+
+        $user->refresh();
+        $this->assertTrue($user->notifications_sms_enabled);
+        $this->assertTrue($user->notifications_push_enabled);
     }
 
     public function test_user_can_update_notification_preferences(): void
@@ -33,10 +54,8 @@ class NotificationPreferenceTest extends TestCase
 
         $this->putJson('/api/me/notification-preferences', [
             'notifications_email_enabled' => false,
-            'notifications_push_enabled' => true,
         ])->assertOk()
-            ->assertJsonPath('data.notifications_email_enabled', false)
-            ->assertJsonPath('data.notifications_push_enabled', true);
+            ->assertJsonPath('data.notifications_email_enabled', false);
     }
 
     public function test_matrix_update_returns_complete_payload(): void

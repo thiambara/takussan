@@ -174,6 +174,31 @@ class AgentOnboardingTest extends TestCase
         $this->assertSame(['Almadies', 'Plateau'], (array) data_get($agent->metadata, 'intervention_zones'));
     }
 
+    /**
+     * TCK-1779 (P149.05) — `license_number: null` efface la carte ; une clé absente la garde.
+     * Un `null` la gardait, et une carte saisie par erreur ne se retirait par aucun chemin.
+     */
+    public function test_specialization_null_license_number_clears_it_and_absent_key_keeps_it(): void
+    {
+        $user = User::factory()->create();
+        $agent = AgentProfile::factory()->create([
+            'user_id' => $user->id,
+            'license_number' => 'AGT-2026-001',
+        ]);
+        Sanctum::actingAs($user);
+
+        $this->patchJson("/api/me/agent-profiles/{$agent->id}/specialization", [
+            'specialization' => 'luxury',
+        ])->assertOk()->assertJsonPath('data.license_number', 'AGT-2026-001');
+        $this->assertSame('AGT-2026-001', $agent->refresh()->license_number);
+
+        $this->patchJson("/api/me/agent-profiles/{$agent->id}/specialization", [
+            'specialization' => 'luxury',
+            'license_number' => null,
+        ])->assertOk()->assertJsonPath('data.license_number', null);
+        $this->assertNull($agent->refresh()->license_number);
+    }
+
     public function test_specialization_rejects_unknown_value(): void
     {
         $user = User::factory()->create();

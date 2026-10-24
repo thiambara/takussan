@@ -42,6 +42,12 @@ class SendRentReceiptAfterOnlinePayment
         if ($tenant?->user) {
             // VERIF-602 M2 — un compte lit sa quittance dans son espace : jamais le lien porteur.
             $this->notifications->send($tenant->user, NotificationCode::LeasePaymentSettledOnline, $params, $target);
+            // TCK-1493 (P107.01) — sans téléphone vérifié, le canal mobile part au numéro de la
+            // fiche, sans lien porteur.
+            $relais = ContactSansCompte::relaisMobileDuCompte($tenant->user, ContactSansCompte::fromCustomer($tenant));
+            if ($relais !== null) {
+                $this->notifications->send($relais, NotificationCode::LeasePaymentSettledOnline, $params, $target);
+            }
         } elseif ($tenant !== null && ($contact = ContactSansCompte::fromCustomer($tenant))->hasPhone()) {
             $url = $this->links->urlFor($payment, locale: $contact->locale);
             // TCK-1346 (P132.04) — reporté à la nuit, le SMS relit son lien avant de partir.

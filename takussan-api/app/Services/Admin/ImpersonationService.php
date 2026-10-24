@@ -3,6 +3,7 @@
 namespace App\Services\Admin;
 
 use App\Domain\Notifications\NotificationCode;
+use App\Http\Resources\Bases\BaseResource;
 use App\Models\Enums\ImpersonationEndReason;
 use App\Models\Enums\PlatformProfileLevel;
 use App\Models\Enums\UserStatus;
@@ -69,7 +70,7 @@ class ImpersonationService
                 ->withProperties([
                     'session_id' => $session->id,
                     'reason' => $reason,
-                    'expires_at' => $expiresAt->toIso8601String(),
+                    'expires_at' => BaseResource::instantOnWire($expiresAt),
                 ])
                 ->event('super_admin_impersonation_started')
                 ->log('super_admin_impersonation_started');
@@ -181,8 +182,8 @@ class ImpersonationService
         $this->notifications->send($cible, NotificationCode::ImpersonationEnded, [
             'operator' => $operateur instanceof User ? (trim($operateur->first_name.' '.$operateur->last_name) ?: (string) $operateur->email) : '',
             'reason' => $session->reason,
-            'started_at' => $session->started_at->toIso8601String(),
-            'ended_at' => $session->ended_at->toIso8601String(),
+            'started_at' => BaseResource::instantOnWire($session->started_at),
+            'ended_at' => BaseResource::instantOnWire($session->ended_at),
         ]);
     }
 }

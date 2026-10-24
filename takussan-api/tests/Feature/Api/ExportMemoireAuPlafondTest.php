@@ -69,6 +69,25 @@ class ExportMemoireAuPlafondTest extends ApiTestCase
         );
     }
 
+    /**
+     * TCK-1746 (piste P112.02) — le XLSX bâtit la feuille entière en mémoire (`FromArray`). Mesuré :
+     * 10 005 reversements aux 15 colonnes remplies coûtaient 174 Mo, et mouraient sous 256M dans
+     * `zipstream-php`. Le plafond XLSX est ramené à `MAX_ROWS_XLSX`, sur l'entité la plus large.
+     */
+    public function test_le_xlsx_des_reversements_au_plafond_tient_sous_la_borne_de_memoire(): void
+    {
+        $plafond = ExportDataService::maxRows('xlsx');
+        $this->insererReversements($plafond + 5);
+
+        $surcroit = $this->surcroitDeMemoire("/api/export/payouts?format=xlsx&limit={$plafond}");
+
+        $this->assertLessThan(
+            self::BORNE_OCTETS,
+            $surcroit,
+            sprintf('le XLSX de %d reversements coûte %.1f Mo', $plafond, $surcroit / 1048576),
+        );
+    }
+
     private function surcroitDeMemoire(string $url): int
     {
         $admin = $this->agencyAdmin($this->agency);
@@ -91,6 +110,32 @@ class ExportMemoireAuPlafondTest extends ApiTestCase
         $reponse->assertOk();
 
         return $surcroit;
+    }
+
+    private function insererReversements(int $n): void
+    {
+        $now = now();
+        foreach (array_chunk(range(1, $n), 1000) as $chunk) {
+            DB::table('payouts')->insert(array_map(fn (int $i) => [
+                'agency_id' => $this->agency->id,
+                'lease_id' => $this->lease->id,
+                'landlord_id' => $this->landlord->id,
+                'payee_role' => 'landlord',
+                'reference_number' => sprintf('PO-%06d', $i),
+                'status' => 'completed',
+                'period_start' => $now->copy()->subMonths($i % 120)->startOfMonth()->toDateString(),
+                'period_end' => $now->copy()->subMonths($i % 120)->endOfMonth()->toDateString(),
+                'gross_amount' => 150000,
+                'commission_amount' => 15000,
+                'fees_amount' => 500,
+                'net_amount' => 134500,
+                'currency' => 'XOF',
+                'approved_at' => $now,
+                'processed_at' => $now,
+                'created_at' => $now->copy()->subMinutes($i),
+                'updated_at' => $now,
+            ], $chunk));
+        }
     }
 
     private function insererPaiements(int $n): void

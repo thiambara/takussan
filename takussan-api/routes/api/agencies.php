@@ -27,7 +27,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('agencies/{agency}', [AgencyController::class, 'show'])->name('agencies.show');
     Route::put('agencies/{agency}', [AgencyController::class, 'update'])->name('agencies.update');
     Route::patch('agencies/{agency}', [AgencyController::class, 'update']);
-    Route::delete('agencies/{agency}', [AgencyController::class, 'destroy'])->name('agencies.destroy');
+    // TCK-1499 (P129.06, ADR-0048 amendé le 2026-10-22) — une agence ne se supprime pas : elle sort
+    // du cycle de vie par son statut (`inactive`, `suspended`), depuis la console.
     // TCK-594 (VERIF-594 M-2) — le second geste d'un relâchement du seuil des quatre yeux.
     // TCK-589 — 2FA exigée (`ProtectedActions::AGENCY_TWO_FACTOR`), pas de step-up : l'écran
     // confirme par une server action, qui ne sait pas rejouer après la saisie d'un TOTP.

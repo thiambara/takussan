@@ -4,6 +4,7 @@ namespace App\Http\Requests\Invitation;
 
 use App\Http\Requests\BaseFormRequest;
 use App\Policies\InvitationPolicy;
+use App\Rules\AgenceNommeeParLeSuperAdmin;
 use App\Services\Invitation\InvitationService;
 use Illuminate\Validation\Rule;
 
@@ -68,7 +69,9 @@ class CreateInvitationRequest extends BaseFormRequest
                 Rule::in(array_values(array_unique(InvitationService::INVITABLE_TYPE_BY_ROLE))),
             ],
             'invitable_id' => ['nullable', 'integer', 'required_with:invitable_type'],
-            'agency_id' => ['nullable', 'integer', Rule::exists('agencies', 'id')->withoutTrashed()],
+            // TCK-1772 (P62.07) — l'existence ne se juge que pour le super-admin : tout autre compte
+            // reçoit le refus `cross_agency` du contrôleur, l'agence absente comme la tierce.
+            'agency_id' => ['nullable', 'integer', new AgenceNommeeParLeSuperAdmin($this->user())],
             // Free-form per-flow payload (e.g. service zones, first lead
             // pre-assignment). Validation of the inner shape is delegated
             // to the per-role caller — this endpoint is generic.

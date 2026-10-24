@@ -9,7 +9,8 @@ import SuperAdminAgenciesPage from '../page';
 
 const params = new URLSearchParams();
 
-vi.mock('next/navigation', () => ({ useSearchParams: () => params }));
+// TCK-1742/1744 — l'URL est la source du filtre : la page lit et écrit sa requête.
+vi.mock('next/navigation', () => ({ useSearchParams: () => params, useRouter: () => ({ replace: vi.fn(), push: vi.fn() }) }));
 
 // Mock PARTIEL : cette page monte `AgencyOnboardingDialog` et `AgencyModerationCard`, qui
 // importent `postAgencyOnboarding` et `postAgencyAction` du même module. Un mock total les

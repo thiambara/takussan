@@ -181,7 +181,9 @@ export async function fetchCustomerNotes(
   customerId: number,
 ): Promise<CustomerNote[]> {
   const res = await lireToutesLesPages((page) => {
-    const qs = buildQueryString({ sort: '-created_at', page, per_page: PAR_PAGE_MAX });
+    // TCK-1842 (P186.03) — pas de `sort` : `CustomerNoteController::index` n'en lit aucun et sert les
+    // épinglées d'abord, puis les plus récentes, départagées par l'`id`.
+    const qs = buildQueryString({ page, per_page: PAR_PAGE_MAX });
     return apiRequest<PaginatedResponse<CustomerNote>>(
       cheminApi`/api/customers/${customerId}/notes${requete(qs)}`,
       { token },
@@ -227,41 +229,20 @@ export async function detachCustomerTag(
 export async function fetchCrmTags(
   token: string,
 ): Promise<Pick<Tag, 'id' | 'name' | 'slug' | 'color'>[]> {
-  const qs = buildQueryString({
-    filter: { type: 'crm' },
-    fields: { tags: TAG_FIELDS },
-    sort: '-usage_count',
-    per_page: 50,
-  });
-  const res = await apiRequest<{ data: Pick<Tag, 'id' | 'name' | 'slug' | 'color'>[] }>(
-    cheminApi`/api/tags${requete(qs)}`,
-    { token },
+  // TCK-1749 (P171.06) — toutes les pages : une page de 50 taisait les étiquettes les moins employées.
+  const res = await lireToutesLesPages((page) =>
+    apiRequest<PaginatedResponse<Pick<Tag, 'id' | 'name' | 'slug' | 'color'>>>(
+      cheminApi`/api/tags${requete(
+        buildQueryString({
+          filter: { type: 'crm' },
+          fields: { tags: TAG_FIELDS },
+          sort: '-usage_count',
+          page,
+          per_page: PAR_PAGE_MAX,
+        }),
+      )}`,
+      { token },
+    ),
   );
   return res.data;
-}
-
-/** Client-side upload guard per TCK-042 (10MB, images + PDF). */
-export const CUSTOMER_DOCUMENT_MAX_BYTES = 10 * 1024 * 1024;
-
-/**
- * Motif de refus d'un document client — un JETON, pas un libellé (TCK-292).
- *
- * Ce module est importé par une *server action* (`app/actions/dashboard-customers.ts`) comme par
- * du code client : `useTranslations` n'y est pas appelable, et `getTranslations` ferait de tout
- * appelant une fonction asynchrone. La donnée porte donc la clé, et le rendu la résout — même
- * patron que `property-form/options.ts` et `lib/property-cta.ts`.
- */
-export type CustomerDocumentRejection = 'tooLarge' | 'unsupportedType';
-
-/** Espace de noms où vivent les deux libellés de refus. */
-export const CUSTOMER_DOCUMENT_REJECTION_NAMESPACE = 'serverActions.customerDocuments' as const;
-
-export function validateCustomerDocumentFile(file: File): CustomerDocumentRejection | null {
-  if (file.size > CUSTOMER_DOCUMENT_MAX_BYTES) {
-    return 'tooLarge';
-  }
-  if (!/^(image\/(jpe?g|png|webp|gif)|application\/pdf)$/.test(file.type)) {
-    return 'unsupportedType';
-  }
-  return null;
 }

@@ -472,6 +472,8 @@ return [
                 'title' => 'Sañ-sañu ab warugar soppiku na',
                 'body' => 'Sañ-sañu warugar :role soppiku na, :actor moo ko def.',
                 'sms' => 'Takussan : sañ-sañu :role soppiku na (:actor).',
+                'body_unnamed' => 'Les droits d\'un rôle ont été modifiés par :actor.',
+                'sms_unnamed' => 'Takussan : droits d\'un rôle modifiés par :actor.',
             ],
             'admin_added' => [
                 'title' => 'Saytukat bu bees',
@@ -553,6 +555,8 @@ return [
                 'title' => 'Relevé bi dugg na',
                 'body' => 'Sa relevé :bank (:lines rëdd) pare na ngir rapprochement.',
                 'sms' => 'Takussan : relevé :bank dugg na.',
+                'body_unnamed' => '{1} Votre relevé (:lines ligne) est prêt à être rapproché.|[0,*] Votre relevé (:lines lignes) est prêt à être rapproché.',
+                'sms_unnamed' => 'Takussan : relevé importé.',
             ],
             'finalized' => [
                 'title' => 'Relevé bi tëj nañu ko',
@@ -841,6 +845,21 @@ return [
         'below' => ':metric : :value wàcc na ci suufu :threshold (sévérité : :severity).',
         'action' => 'Xool tableau de bord bi',
         'cooldown' => 'Alerte bii duñu ko yónneewaat ci biir :hours waxtu.',
+        // P155.04 (TCK-1439) — libellés des écrans d'origine (`dashboard.kpis.metrics`,
+        // `dashboard.alerts.severities`), au lieu des codes.
+        'metrics' => [
+            'unpaid_rate_percent' => 'Taux d\'impayés',
+            'occupancy_rate_percent' => 'Taux d\'occupation',
+            'overdue_count' => 'Impayés (nombre)',
+            'overdue_amount' => 'Impayés (montant)',
+            'bookings_pending' => 'Réservations en attente',
+            'maintenance_open' => 'Maintenance ouverte',
+        ],
+        'severities' => [
+            'info' => 'Info',
+            'warning' => 'Attention',
+            'critical' => 'Critique',
+        ],
     ],
     'urgent_maintenance' => [
         'subject' => 'GAAW : :title',
@@ -866,6 +885,13 @@ return [
         'intro' => 'Export rapport « :report » pare na, mën nga koo yeb.',
         'action' => 'Yeb',
         'expires' => 'Lien bii dina jeex ci 7 fan.',
+        // P155.04 (TCK-1439) — libellés de `reporting.tabs`, au lieu des codes.
+        'reports' => [
+            'growth' => 'Croissance',
+            'revenue' => 'Revenu',
+            'cohorts' => 'Cohortes',
+            'funnel' => 'Funnel',
+        ],
     ],
 
     // TCK-587 — un bailleur rattaché propose un bien à son agence (brouillon privé à relire).

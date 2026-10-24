@@ -1,13 +1,12 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react';
 
 import { MinimalProfileTriggerContext } from '@/hooks/useTriggerMinimalProfileOnce';
 import { useDejaOuvert } from '@/hooks/useDejaOuvert';
 import type { MinimalProfilePayload } from './CustomerMinimalProfileSheet';
-import { useAuth } from '@/context/AuthContext';
-import type { WelcomeSeenListResponse } from '@/types/welcome-view';
+import { useAccueilsVus } from '@/hooks/useAccueilsVus';
 import { isCustomerOnly } from '@/lib/roles';
 
 /**
@@ -15,7 +14,8 @@ import { isCustomerOnly } from '@/lib/roles';
  * and exposes `triggerIfNeeded()` to descendants.
  *
  * Behaviour:
- * - On mount (Customer role only), pre-fetches `/api/me/welcome-seen` so
+ * - On mount (Customer role only), pre-fetches `/api/me/welcome-seen` (shared
+ *   with the shell's welcome wizards, `useAccueilsVus`, TCK-1766) so
  *   the in-memory `seen` flag is ready before the user fires any sensitive
  *   action. We never block on this — `triggerIfNeeded()` simply does
  *   nothing if the fetch is in flight.
@@ -48,7 +48,6 @@ export function MinimalProfileTriggerProvider({
   children,
   roles,
 }: MinimalProfileTriggerProviderProps) {
-  const { user } = useAuth();
   // Use the SSR-resolved roles here rather than the client `user` object —
   // the latter rehydrates asynchronously and would let the very first
   // sensitive click slip through unchecked.
@@ -56,53 +55,18 @@ export function MinimalProfileTriggerProvider({
   // l'acheteur qui vient de s'inscrire, pas l'agent qui a un compte.
   const enabled = isCustomerOnly(roles as never);
 
-  const [seen, setSeen] = useState<boolean | null>(null);
   const [open, setOpen] = useState(false);
   // Remember whether we've already opened the sheet in this session so we
   // never re-open it after the user dismissed it (the server write is
   // fire-and-forget; we don't want to wait for it before short-circuiting).
   const consumedRef = useRef(false);
 
-  useEffect(() => {
-    if (!enabled || !user) return;
-    let cancelled = false;
-    void (async () => {
-      try {
-        const res = await fetch('/api/me/welcome-seen', {
-          method: 'GET',
-          headers: { Accept: 'application/json' },
-          credentials: 'same-origin',
-        });
-        if (cancelled) return;
-        if (!res.ok) {
-          // 401 / 5xx — be conservative: assume seen so we never spam a
-          // user we can't track.
-          setSeen(true);
-          return;
-        }
-        const body = (await res.json()) as WelcomeSeenListResponse;
-        const list = Array.isArray(body?.data) ? body.data : [];
-        setSeen(list.includes(WELCOME_KEY));
-      } catch {
-        setSeen(true);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [enabled, user]);
-
-  const markSeenRemote = useCallback(() => {
-    void fetch('/api/me/welcome-seen', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      credentials: 'same-origin',
-      body: JSON.stringify({ key: WELCOME_KEY }),
-    }).catch(() => {
-      // Idempotent on the server — silent retry on next session if needed.
-    });
-  }, []);
+  // TCK-1766 (P136.03) — la lecture des clés vues est partagée avec les assistants de la coque
+  // (une seule par chargement) et suit le compte, pas l'objet `user` (TCK-1764). Une lecture en
+  // échec vaut « vue » : on ne harcèle pas un compte qu'on ne sait pas suivre.
+  const { vus, echec, marquerVu } = useAccueilsVus(enabled);
+  const [vueIci, setVueIci] = useState(false);
+  const seen: boolean | null = vueIci || echec ? true : vus === null ? null : vus.includes(WELCOME_KEY);
 
   const triggerIfNeeded = useCallback(() => {
     if (!enabled) return;
@@ -115,11 +79,11 @@ export function MinimalProfileTriggerProvider({
     setOpen(true);
   }, [enabled, seen]);
 
-  const handleClose = useCallback(() => {
+  const handleClose = () => {
     setOpen(false);
-    markSeenRemote();
-    setSeen(true);
-  }, [markSeenRemote]);
+    marquerVu(WELCOME_KEY);
+    setVueIci(true);
+  };
 
   const handleSave = useCallback(async (payload: MinimalProfilePayload) => {
     const res = await fetch('/api/me', {

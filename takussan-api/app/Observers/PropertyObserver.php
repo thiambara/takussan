@@ -11,6 +11,7 @@ use App\Models\MaintenanceRequest;
 use App\Models\Property;
 use App\Models\PropertyPriceHistory;
 use App\Models\User;
+use App\Services\Billing\QuotaResolver;
 use App\Services\Boost\BoostLifecycle;
 use App\Services\Maintenance\MaintenanceStateMachine;
 use App\Services\Model\MaintenanceRequestService;
@@ -81,12 +82,32 @@ class PropertyObserver
      */
     public function updating(Property $property): void
     {
+        $this->guardListingQuota($property);
+
         if (Property::moderationGateBypassed()) {
             return;
         }
 
         $this->guardPlatformHold($property);
         $this->routeActivationThroughModeration($property);
+    }
+
+    /**
+     * P147.04 (TCK-1433) — une annonce qui ENTRE dans le quota (un statut hors de
+     * `QuotaResolver::ACTIVE_LISTING_STATUSES` vers l'un d'eux) se juge ici, au seul point commun :
+     * `store` et `publish` la jugeaient seuls (TCK-627), et `PATCH` comme `PUT …/status` passaient
+     * outre. Passer d'un statut actif à un autre ne la compte pas deux fois.
+     */
+    private function guardListingQuota(Property $property): void
+    {
+        if (! $property->agency_id
+            || ! $property->isDirty('status')
+            || ! in_array($property->status, QuotaResolver::ACTIVE_LISTING_STATUSES, true)
+            || in_array($property->getOriginal('status'), QuotaResolver::ACTIVE_LISTING_STATUSES, true)) {
+            return;
+        }
+
+        app(QuotaResolver::class)->assertCanCreateActiveListing($property->agency_id);
     }
 
     private function guardPlatformHold(Property $property): void

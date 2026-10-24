@@ -7,8 +7,8 @@ import {
   FormGlobalError,
   FormSelect,
   FormTextarea,
-  FormDateTimePicker,
 } from '@/components/forms';
+import { FormDateTimePicker } from '@/components/forms/FormDateTimePicker';
 import { Button } from '@/components/ui/button';
 import { useApiForm } from '@/hooks/useApiForm';
 import { useCreateInventory } from '@/lib/queries/inventory';

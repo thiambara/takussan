@@ -142,3 +142,35 @@ describe('fiche utilisateur — gestes de support filtrés par niveau (TCK-600)'
     expect(boutons().length).toBeGreaterThan(1);
   });
 });
+
+describe('fiche utilisateur — état du verrou (P83.04, TCK-1775)', () => {
+  const base = {
+    id: 5,
+    full_name: 'Fatou Diop',
+    email: 'fatou@example.test',
+    status: 'active',
+    roles: [],
+    mfa_enabled: false,
+    locked_until: null,
+    force_2fa_reconfigure: false,
+  } as unknown as AdminUserDetail;
+
+  it('un compte non verrouillé : « Débloquer » n’est pas offert, aucun badge de verrou', () => {
+    rendre(<UserDetailHeader user={base} />, SUPPORT);
+    expect(screen.getByRole('button', { name: 'Forcer reset password' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Débloquer le compte' })).toBeNull();
+    expect(screen.queryByText(/Verrouillé jusqu’à/)).toBeNull();
+    expect(screen.queryByText('Double facteur à reconfigurer')).toBeNull();
+  });
+
+  it('un compte verrouillé : le badge dit jusqu’à quand, et « Débloquer » est offert', () => {
+    rendre(<UserDetailHeader user={{ ...base, locked_until: '2026-10-23T10:15:00+00:00' }} />, SUPPORT);
+    expect(screen.getByRole('button', { name: 'Débloquer le compte' })).toBeInTheDocument();
+    expect(screen.getByText(/Verrouillé jusqu’à/)).toBeInTheDocument();
+  });
+
+  it('une 2FA réinitialisée : le badge le dit', () => {
+    rendre(<UserDetailHeader user={{ ...base, force_2fa_reconfigure: true }} />, SUPPORT);
+    expect(screen.getByText('Double facteur à reconfigurer')).toBeInTheDocument();
+  });
+});

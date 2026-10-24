@@ -12,6 +12,15 @@ import { cheminApi } from '@/lib/chemin-api';
  */
 export const FRAICHEUR_FICHE_SECONDES = 300;
 
+/**
+ * TCK-1483 (P103.07) — la durée de vie des biens similaires d'une fiche dans le cache de Next. Une
+ * fraîcheur PROPRE, sans l'étiquette de la fiche : la liste dépend d'AUTRES biens, que
+ * l'invalidation signée de `property:{slug}` ne suit pas. Trois fois celle de la fiche : un bien
+ * similaire retiré entre-temps mène à sa page de bien retiré (200 `noindex`, TCK-598), jamais à
+ * une erreur.
+ */
+export const FRAICHEUR_SIMILAIRES_SECONDES = 900;
+
 /** L'étiquette de cache d'une fiche, que `api/revalidation/fiche` expire sur appel signé de l'API. */
 export function etiquetteDeFiche(slug: string): string {
   return `property:${slug}`;
@@ -133,6 +142,33 @@ export const getEtatDuBien = cache(
       if (!(err instanceof ApiError && err.status === 404)) {
         console.error(`[fiche publique] état de ${slug} : `, err);
       }
+      return null;
+    }
+  },
+);
+
+/**
+ * TCK-1483 (P103.07) — les biens similaires d'une fiche, lus par le SERVEUR avec elle et passés au
+ * carrousel en données initiales : le HTML servi porte leurs liens, que le navigateur ne
+ * demandait qu'après l'hydratation.
+ *
+ * Lecture PARTAGÉE (`partage`) : la réponse de `public/properties/{slug}/similar` ne dépend pas du
+ * visiteur. `null` sur toute panne : la fiche se rend quand même, et le carrousel retombe sur sa
+ * lecture du navigateur.
+ */
+export const getBiensSimilaires = cache(
+  async (slug: string, locale: string): Promise<PropertyListItem[] | null> => {
+    const segment = segmentDeSlug(slug);
+    if (segment === null) return null;
+    try {
+      const res = await apiFetch<{ data: PropertyListItem[] }>(
+        cheminApi`/public/properties/${segment}/similar`,
+        { next: { revalidate: FRAICHEUR_SIMILAIRES_SECONDES } } as RequestInit,
+        { locale, partage: true },
+      );
+      return Array.isArray(res.data) ? res.data : null;
+    } catch (err: unknown) {
+      console.error(`[fiche publique] similaires de ${slug} : `, err);
       return null;
     }
   },

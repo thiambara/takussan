@@ -60,6 +60,22 @@ class ActivityLogExporterTest extends ApiTestCase
         }
     }
 
+    /**
+     * TCK-1703 (P108.02) — aucun chemin n'écrit l'IP au journal : la colonne `ip_address` sortait
+     * vide dans tout export. Elle n'est plus annoncée.
+     */
+    public function test_l_export_n_annonce_pas_de_colonne_que_rien_n_ecrit(): void
+    {
+        $agency = Agency::factory()->create();
+        $admin = $this->apiActingAsRole('agency_admin', ['agency' => $agency]);
+        $this->makeLog($admin);
+
+        $entete = strtok($this->apiGet('/api/activity-logs/export?format=csv')->streamedContent(), "\n");
+
+        $this->assertStringContainsString('properties_diff', $entete);
+        $this->assertStringNotContainsString('ip_address', $entete);
+    }
+
     // ─── AC2 — XLSX valide ─────────────────────────────────────────────────────
 
     public function test_agency_admin_gets_xlsx_file(): void
@@ -136,6 +152,46 @@ class ActivityLogExporterTest extends ApiTestCase
 
         $this->apiGet('/api/activity-logs/export?format=csv&filter[date_from]=2025-01-01&filter[date_to]=2026-06-01')
             ->assertUnprocessable();
+    }
+
+    /**
+     * P188.01 (TCK-1854) — une borne illisible avec l'autre borne remplie rend 422 sur la borne,
+     * et non 500 : le rappel `after()` ne relit pas une valeur que la règle `date` a déjà refusée.
+     */
+    public function test_une_borne_illisible_avec_l_autre_borne_rend_422(): void
+    {
+        $this->apiActingAsRole('agency_admin');
+
+        $this->apiGet('/api/activity-logs/export?format=csv&filter[date_from]=abc&filter[date_to]=2026-01-01')
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['filter.date_from']);
+        $this->apiGet('/api/activity-logs/export?format=csv&filter[date_from][]=x&filter[date_to]=2026-01-01')
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['filter.date_from']);
+        $this->apiGet('/api/activity-logs/export?format=csv&filter[date_from]=2026-01-01&filter[date_to]=abc')
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['filter.date_to']);
+    }
+
+    /**
+     * P188.02 (TCK-1856) — la borne d'un an se juge sur la plage EXPORTÉE : une borne absente
+     * prend son défaut (`date_to` aujourd'hui, `date_from` trente jours plus tôt), et la plage
+     * résolue est jugée comme si les deux avaient été données.
+     */
+    public function test_la_borne_d_un_an_vaut_aussi_avec_une_seule_borne(): void
+    {
+        $this->apiActingAsRole('agency_admin');
+
+        $this->apiGet('/api/activity-logs/export?format=csv&filter[date_from]=2000-01-01')
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['filter.date_from']);
+        $this->apiGet('/api/activity-logs/export?format=csv&filter[date_to]=2099-01-01')
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['filter.date_to']);
+
+        // Témoin : une seule borne, dans l'année → l'export est servi.
+        $this->apiGet('/api/activity-logs/export?format=csv&filter[date_from]='.now()->subDays(200)->toDateString())
+            ->assertOk();
     }
 
     // ─── AC6 — async for > 5000 rows ──────────────────────────────────────────

@@ -4,6 +4,7 @@ namespace App\Services\Admin;
 
 use App\Domain\Integrations\Providers\IntegrationProviderRegistry;
 use App\Events\IntegrationConfigChanged;
+use App\Http\Resources\Bases\BaseResource;
 use App\Models\Integration;
 use App\Models\IntegrationWebhookLog;
 use App\Models\User;
@@ -151,8 +152,8 @@ class IntegrationService
             'agency_id' => $integration->agency_id,
             'is_active' => $integration->is_active,
             'status' => $integration->is_active ? $integration->health_status : 'disabled',
-            'last_used_at' => $integration->last_used_at?->toISOString(),
-            'last_health_check_at' => $integration->last_health_check_at?->toISOString(),
+            'last_used_at' => BaseResource::instantOnWire($integration->last_used_at),
+            'last_health_check_at' => BaseResource::instantOnWire($integration->last_health_check_at),
             'metadata' => $integration->metadata ?? [],
             'masked_credentials' => $this->maskedCredentials($integration),
         ];

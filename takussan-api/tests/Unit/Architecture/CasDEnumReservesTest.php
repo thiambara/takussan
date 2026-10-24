@@ -4,6 +4,7 @@ namespace Tests\Unit\Architecture;
 
 use App\Models\BankStatement;
 use App\Models\Enums\BankStatementStatus;
+use App\Models\Enums\CancellationBy;
 use App\Models\Enums\ConversationStatus;
 use App\Models\Enums\PayoutStatus;
 use App\Models\Enums\RelationshipStatus;
@@ -33,6 +34,8 @@ class CasDEnumReservesTest extends TestCase
             ServiceProviderBillStatus::Cancelled,
             RelationshipStatus::Ended,
             RelationshipStatus::Suspended,
+            // TCK-1898 (P196.03) : `BookingService::cancel` ne pose que `customer`, `owner` ou `agent`.
+            CancellationBy::System,
         ];
     }
 

@@ -2,6 +2,7 @@
 
 namespace App\Services\Admin;
 
+use App\Http\Resources\Bases\BaseResource;
 use App\Models\MaintenanceWindow;
 use App\Models\User;
 use Illuminate\Support\Facades\Cache;
@@ -44,7 +45,7 @@ class MaintenanceService
         activity('Admin')
             ->causedBy($actor)
             ->performedOn($window)
-            ->withProperties(['window_id' => $window->id, 'mode' => $window->mode, 'starts_at' => $window->starts_at?->toISOString(), 'ends_at' => $window->ends_at?->toISOString()])
+            ->withProperties(['window_id' => $window->id, 'mode' => $window->mode, 'starts_at' => BaseResource::instantOnWire($window->starts_at), 'ends_at' => BaseResource::instantOnWire($window->ends_at)])
             ->event('super_admin_maintenance_scheduled')
             ->log('Fenêtre de maintenance programmée');
 
@@ -109,7 +110,7 @@ class MaintenanceService
     {
         $window = $this->activeOrScheduledWindow();
         if (! $window) {
-            return ['active' => false, 'show_banner' => false, 'window' => null, 'generated_at' => now()->toISOString()];
+            return ['active' => false, 'show_banner' => false, 'window' => null, 'generated_at' => BaseResource::instantOnWire(now())];
         }
 
         $now = now();
@@ -120,7 +121,7 @@ class MaintenanceService
             'active' => $active,
             'show_banner' => $showBanner,
             'window' => $this->payload($window),
-            'generated_at' => $now->toISOString(),
+            'generated_at' => BaseResource::instantOnWire($now),
         ];
     }
 
@@ -152,8 +153,8 @@ class MaintenanceService
     {
         return [
             'id' => $window->id,
-            'starts_at' => $window->starts_at?->toISOString(),
-            'ends_at' => $window->ends_at?->toISOString(),
+            'starts_at' => BaseResource::instantOnWire($window->starts_at),
+            'ends_at' => BaseResource::instantOnWire($window->ends_at),
             'mode' => $window->mode,
             'severity' => $window->severity,
             'messages' => $window->messages,

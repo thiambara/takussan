@@ -90,7 +90,7 @@ class SystemMetricsController extends Controller
                     'currency' => 'XOF',
                 ],
                 'trend' => $this->trend(),
-                'generated_at' => now()->toIso8601String(),
+                'generated_at' => $this->instant(now()),
             ],
         ]);
     }
@@ -116,7 +116,7 @@ class SystemMetricsController extends Controller
 
         return [
             'period_days' => self::TREND_PERIOD_DAYS,
-            'since' => $cutoff->toIso8601String(),
+            'since' => $this->instant($cutoff),
             'previous' => $previous,
         ];
     }

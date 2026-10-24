@@ -6,11 +6,8 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { MoreHorizontal } from 'lucide-react';
-import {
-  DataTable,
-  StatusBadge,
-  type DataTableColumn,
-} from '@/components/console';
+import { StatusBadge } from '@/components/console';
+import { DataTable, type DataTableColumn } from '@/components/console/DataTable';
 import { ErrorState } from '@/components/feedback';
 import {
   DropdownMenu,
@@ -34,6 +31,7 @@ import type { ApiError } from '@/lib/api';
 // peint en rouge. Une copie ne diverge pas seulement en contredisant — elle diverge en
 // OMETTANT, ce qui est plus discret encore. La table canonique est la seule source.
 import { PROPERTY_STATUS_TONE } from '@/components/property-dashboard/PropertyStatusBadge';
+import { lireTable } from '@/lib/table-de-statut';
 import { DATE_COURTE, useFormatteurs } from '@/lib/format/useFormatteurs';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
@@ -225,7 +223,7 @@ export function SuperAdminPropertiesTable({ rows, total, onChange }: SuperAdminP
       cell: (row) =>
         row.status ? (
           <StatusBadge
-            tone={PROPERTY_STATUS_TONE[row.status] ?? 'neutral'}
+            tone={lireTable(PROPERTY_STATUS_TONE, row.status) ?? 'neutral'}
             label={tStatuts.has(row.status) ? tStatuts(row.status) : (row.status_label ?? row.status)}
           />
         ) : (

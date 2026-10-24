@@ -31,7 +31,7 @@ import { useCanAll } from '@/hooks/useCan';
 import { isAgent, isAdmin, isOwner } from '@/lib/roles';
 import { formatISODate } from '@/lib/calendar-date';
 import type { Locale } from '@/i18n/config';
-import type { Booking, BookingPayment } from '@/types/booking';
+import type { Booking, BookingPayment, BookingPaymentStatus } from '@/types/booking';
 import {
   BOOKING_PAYMENT_STATUS_TONE,
   BOOKING_STATUS_LABEL_KEY,
@@ -42,6 +42,7 @@ import { BookingRefundPanel } from './BookingRefundPanel';
 import { PayOnlineButton } from '@/components/payments/PayOnlineButton';
 import { BoutonTelechargement } from '@/components/documents/BoutonTelechargement';
 import { usePaymentProviders } from '@/hooks/usePaymentProviders';
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import { LeaveReviewCta } from '@/components/reviews/LeaveReviewCta';
 import { canBookingLeaveReview } from '@/components/reviews/reviewEligibility';
 import type { GatewayProvider } from '@/hooks/useInitiatePayment';
@@ -65,7 +66,7 @@ const PAYMENT_TYPE_LABEL_KEY: Record<string, string> = {
   fee: 'paymentType.fee',
 };
 
-const PAYMENT_STATUS_LABEL_KEY: Record<string, string> = {
+const PAYMENT_STATUS_LABEL_KEY: Record<BookingPaymentStatus, string> = {
   pending: 'paymentStatus.pending',
   paid: 'paymentStatus.paid',
   late: 'paymentStatus.late',
@@ -464,19 +465,34 @@ function BookingDecisionDialog({
 }) {
   const t = useTranslations('bookings.detail');
   const tCommon = useTranslations('common');
+  const messageErreur = useMessageErreurApi();
   const [reason, setReason] = useState('');
+  // P182.01 — l'erreur de l'API se dit dans le dialogue, qui reste ouvert (ADR-0019) : sans ce
+  // `catch`, la promesse rejetée n'était rattrapée par rien et le clic ne produisait aucun message.
+  const [erreur, setErreur] = useState<string | null>(null);
   const open = action !== null;
   const isReasonRequired = action === 'reject' || action === 'cancel';
   const copyKey = action ? ACTION_COPY_KEY[action] : null;
 
   async function handleSubmit() {
     if (isReasonRequired && reason.trim().length === 0) return;
-    await onSubmit(reason.trim() || undefined);
+    setErreur(null);
+    try {
+      await onSubmit(reason.trim() || undefined);
+    } catch (e) {
+      setErreur(messageErreur(e));
+      return;
+    }
     setReason('');
   }
 
+  function handleOpenChange(next: boolean) {
+    if (!next) setErreur(null);
+    onOpenChange(next);
+  }
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{copyKey ? t(`${copyKey}.title`) : null}</DialogTitle>
@@ -498,8 +514,13 @@ function BookingDecisionDialog({
             <p className="text-xs text-muted-foreground">{t('decision.reasonRequired')}</p>
           ) : null}
         </div>
+        {erreur ? (
+          <p role="alert" className="text-sm text-destructive">
+            {erreur}
+          </p>
+        ) : null}
         <DialogFooter>
-          <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
+          <Button type="button" variant="ghost" onClick={() => handleOpenChange(false)}>
             {tCommon('actions.cancel')}
           </Button>
           <Button

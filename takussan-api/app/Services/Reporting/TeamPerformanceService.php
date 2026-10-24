@@ -9,7 +9,7 @@ use App\Models\Enums\CollaboratorRole;
 use App\Models\Enums\CommissionEntryStatus;
 use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\LeaseType;
-use App\Models\Enums\TaskStatus;
+use App\Models\Enums\PropertyStatus;
 use App\Models\Enums\VisitStatus;
 use App\Models\Lease;
 use App\Models\Profiles\AgentProfile;
@@ -81,16 +81,20 @@ class TeamPerformanceService
             ->pluck('total', 'beneficiary_id');
 
         // Propriétaire OU collaborateur `agent|manager` : l'UNION dédoublonne le bien que l'agent
-        // possède et sur lequel il collabore aussi.
+        // possède et sur lequel il collabore aussi. P198.04 (TCK-1912) — hors des biens sortis du
+        // portefeuille, comme les « Biens gérés » de l'accueil de l'agent (TCK-1359).
+        $outOfPortfolio = array_map(static fn (PropertyStatus $s): string => $s->value, Property::OUT_OF_PORTFOLIO_STATUSES);
         $owned = Property::query()
             ->where('agency_id', $agencyId)
             ->whereIn('user_id', $ids)
+            ->whereNotIn('status', $outOfPortfolio)
             ->toBase()
             ->select(['id as property_id', 'user_id']);
         $collaborated = PropertyCollaborator::query()
             ->join('properties', 'properties.id', '=', 'property_collaborators.property_id')
             ->whereNull('properties.deleted_at')
             ->where('properties.agency_id', $agencyId)
+            ->whereNotIn('properties.status', $outOfPortfolio)
             ->whereIn('property_collaborators.user_id', $ids)
             ->whereIn('property_collaborators.role', [CollaboratorRole::Agent->value, CollaboratorRole::Manager->value])
             ->toBase()
@@ -107,9 +111,8 @@ class TeamPerformanceService
         $overdue = $this->countBy(Task::query()
             ->whereHasMorph('taskable', [Customer::class, Property::class], fn ($parent) => $parent->where('agency_id', $agency->id))
             ->whereIn('assigned_to_id', $ids)
-            ->whereIn('status', [TaskStatus::Open->value, TaskStatus::InProgress->value])
-            ->whereNotNull('due_at')
-            ->where('due_at', '<', now()), 'assigned_to_id');
+            // P198.01 (TCK-1910) — la règle de la liste : échue avant aujourd'hui.
+            ->overdue(), 'assigned_to_id');
 
         return [
             'period' => $from->format('Y-m'),

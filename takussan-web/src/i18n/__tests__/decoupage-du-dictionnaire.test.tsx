@@ -139,6 +139,21 @@ describe('messagesPour', () => {
     expect(servis.homepage).toEqual((fr as Arbre).homepage);
   });
 
+  /**
+   * TCK-1489 (P105.03) — deux frontières imbriquées portent chacune l'ensemble CUMULÉ, et le document
+   * n'en sert pourtant qu'une copie : Flight remplace un objet déjà émis par une référence. Il ne
+   * le reconnaît qu'à son IDENTITÉ. `toEqual` passerait sur une copie ; `toBe` rougit si un
+   * clonage ou une fusion par frontière ramène les doublons.
+   */
+  it('deux frontières imbriquées partagent le MÊME objet pour chaque espace commun', async () => {
+    const app = await messagesPour('(dashboard)/app');
+    const agence = await messagesPour('(dashboard)/app/agency');
+    const communs = Object.keys(app).filter((nom) => nom in agence);
+
+    expect(communs.length).toBeGreaterThan(0);
+    for (const nom of communs) expect(agence[nom], nom).toBe(app[nom]);
+  });
+
   it('laisse dehors le back-office : c’est tout l’objet du ticket', async () => {
     const servis = await messagesPour('[locale]/(public)');
     expect(servis).not.toHaveProperty('superAdmin');

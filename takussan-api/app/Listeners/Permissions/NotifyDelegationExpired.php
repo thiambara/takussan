@@ -29,7 +29,9 @@ class NotifyDelegationExpired
         $user = $delegation->user;
         $delegator = $delegation->delegator;
         $role = $delegation->role;
-        $target = NotificationTarget::of('team');
+        // TCK-1471 (P161.03) — le délégant est mené aux délégations ; la cible du bénéficiaire
+        // n'est pas tranchée (au porteur) et reste celle d'avant.
+        $target = NotificationTarget::of('team')->forAgency($delegation->agency_id);
 
         // Notify beneficiary
         $this->notificationService->send($user, NotificationCode::RoleDelegationExpired, ['role' => $role], $target);
@@ -39,7 +41,7 @@ class NotifyDelegationExpired
             $this->notificationService->send($delegator, NotificationCode::RoleDelegationExpiredDelegator, [
                 'role' => $role,
                 'beneficiary' => trim(($user->first_name ?? '').' '.($user->last_name ?? '')),
-            ], $target);
+            ], NotificationTarget::of('role_delegations')->forAgency($delegation->agency_id));
         }
     }
 }

@@ -11,8 +11,15 @@ use SplFileInfo;
  *
  * La miniature des photos de bien et des avatars est synchrone (`nonQueued`), et GD décode l'image
  * entière avant de la réduire : un PNG uni de 20 000 × 20 000 pèse quelques Ko, passe `max:10240`,
- * puis demande plusieurs Go. GD alloue hors du gestionnaire de mémoire de PHP, si bien que
- * `memory_limit` ne l'arrête pas : c'est la mémoire du conteneur qui cède (mesure de P10.02).
+ * puis demande plusieurs Go. Où il cède dépend de la GD (TCK-1812, P180.04) :
+ *   · dans l'image de l'API, la GD est EMBARQUÉE (`install-php-extensions gd`, `Dockerfile` ;
+ *     `gd.so` porte `GD_BUNDLED` et importe `_emalloc`) : elle alloue par le gestionnaire de PHP, et
+ *     le décodage meurt sur `memory_limit` (256M, `docker/php.ini`), en `Allowed memory size
+ *     exhausted` — déduit de la lecture du binaire, non exécuté dans le conteneur ;
+ *   · sur un poste dont PHP lie une GD EXTERNE (Homebrew, `GD Version` 2.3.x), elle alloue hors du
+ *     gestionnaire, `memory_limit` ne l'arrête pas, et c'est la mémoire de la machine qui cède
+ *     (mesure de P10.02, prise sur un tel poste).
+ * Dans les deux cas, la requête ou le job meurent : la borne vaut pour l'un comme pour l'autre.
  *
  * `getimagesize()` ne lit que l'en-tête. La borne porte sur le PRODUIT largeur × hauteur, qui
  * gouverne la mémoire du décodage, et non sur chaque côté. Une image dont l'en-tête est illisible

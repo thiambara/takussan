@@ -27,13 +27,16 @@ class PdfImageEmbedder
     /** Conversions préférées à l'original, dans l'ordre. */
     public const CONVERSIONS = ['preview', 'thumbnail'];
 
+    /** Largeur de réduction par défaut, que reprend la conversion `preview` d'`Inventory` (TCK-1425). */
+    public const MAX_WIDTH = 600;
+
     /** Seuls formats embarqués : dompdf les lit, et rien d'autre (SVG compris) n'entre. */
     public const MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 
     /**
      * @param  'jpg'|'png'  $format  format de réencodage de l'original réduit
      */
-    public function dataUri(Media $media, int $maxWidth = 600, string $format = 'jpg'): ?string
+    public function dataUri(Media $media, int $maxWidth = self::MAX_WIDTH, string $format = 'jpg'): ?string
     {
         try {
             foreach (self::CONVERSIONS as $conversion) {
@@ -56,7 +59,8 @@ class PdfImageEmbedder
 
     /**
      * Les octets d'une conversion produite, ou `null`. Un modèle qui ne DÉCLARE pas la
-     * conversion (`Inventory`, `MaintenanceRequest` n'en ont aucune) fait lever
+     * conversion (`MaintenanceRequest` n'en a aucune ; `Inventory` et `Agency` la déclarent sur
+     * `room_photos` et `logo` seuls depuis TCK-1425) fait lever
      * `getPathRelativeToRoot()` : c'est un « pas de conversion », pas une erreur.
      */
     private function conversionBytes(Media $media, string $conversion): ?string
@@ -76,8 +80,11 @@ class PdfImageEmbedder
         return is_string($bytes) && $bytes !== '' ? $bytes : null;
     }
 
-    /** L'original, lu par flux dans un fichier temporaire — la bibliothèque d'images exige un chemin. */
-    private function reducedOriginal(Media $media, int $maxWidth, string $format): string
+    /**
+     * L'original, lu par flux dans un fichier temporaire — la bibliothèque d'images exige un chemin.
+     * Protégée pour que la garde de TCK-1425 compte ses appels (`PdfImageConversionsTest`).
+     */
+    protected function reducedOriginal(Media $media, int $maxWidth, string $format): string
     {
         $in = Storage::disk($media->disk)->readStream($media->getPathRelativeToRoot());
 

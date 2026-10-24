@@ -5,6 +5,7 @@ namespace App\Http\Resources\Api\Admin;
 use App\Http\Resources\Bases\BaseResource;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
+use App\Services\Auth\LoginLock;
 use Illuminate\Http\Request;
 
 class UserDetailResource extends BaseResource
@@ -26,6 +27,9 @@ class UserDetailResource extends BaseResource
             'phone_verified_at' => $this->iso($this->phone_verified_at),
             'last_login_at' => $this->iso($this->last_login_at),
             'two_factor_enabled' => (bool) $this->two_factor_enabled,
+            // P83.04 (TCK-1775) — un état dérivé, jamais la clé brute : un `locked_at` échu rend `null`.
+            'locked_until' => $this->iso(app(LoginLock::class)->lockedUntil($this->resource)),
+            'force_2fa_reconfigure' => (bool) ($this->metadata['force_2fa_reconfigure'] ?? false),
             'created_at' => $this->iso($this->created_at),
             // TCK-278 — `roles` est désormais dérivé des profils polymorphes.
             // `admin_role_rows` (legacy) peut encore alimenter ce champ pour

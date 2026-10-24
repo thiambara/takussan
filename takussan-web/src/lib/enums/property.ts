@@ -54,6 +54,9 @@ export const propertyStatusFilterValues = [
   'rejected',
 ] as const;
 
+/** TCK-1834 (P146.04) — un des onze statuts de bien ; type des tables qui les nomment tous. */
+export type PropertyStatusFilterValue = (typeof propertyStatusFilterValues)[number];
+
 export const propertyVisibilityValues = ['public', 'private'] as const;
 
 export const currencyValues = ['XOF', 'XAF', 'EUR', 'USD'] as const;
@@ -76,3 +79,23 @@ export const conditionValues = ['off_plan', 'new', 'renovated', 'good', 'to_reno
 
 /** Les deux états qui sont un argument de vente, et les seuls à porter un badge public. */
 export const newBuildConditionValues = ['off_plan', 'new'] as const satisfies readonly (typeof conditionValues)[number][];
+
+/**
+ * `PriceChangeReason` côté backend : les seuls motifs d'un changement de prix qui ont un libellé
+ * (`property.priceChangeReasons.*`). Un code hors de cette liste s'affiche tel quel, en repli.
+ * Partagé par la liste de l'équipe et la fiche publique (TCK-1908, P196.02).
+ */
+export const priceChangeReasonValues = [
+  'market_adjustment',
+  'negotiation',
+  'renovation',
+  'urgent_sale',
+  'seasonal',
+  'correction',
+] as const;
+
+export type PriceChangeReasonValue = (typeof priceChangeReasonValues)[number];
+
+export function isNamedPriceChangeReason(reason: string): reason is PriceChangeReasonValue {
+  return (priceChangeReasonValues as readonly string[]).includes(reason);
+}

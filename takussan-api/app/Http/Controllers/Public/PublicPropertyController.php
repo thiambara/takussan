@@ -60,6 +60,7 @@ use App\Services\Visit\VisitNotifier;
 use App\Services\Visit\VisitSchedulingService;
 use App\Support\CaseInsensitive;
 use App\Support\DistanceHaversine;
+use App\Support\FinInclusive;
 use App\Support\VisitorFingerprint;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
@@ -1000,7 +1001,10 @@ class PublicPropertyController extends Controller
                 'total_amount' => (float) $data['offer_amount'],
                 'currency' => $property->currency,
                 'status' => BookingStatus::Pending->value,
-                'expires_at' => $data['offer_expires_at'],
+                // TCK-1731 (P163.01) — « valable jusqu'au 21 » : le 21 est le dernier jour de l'offre,
+                // qui tombe à la fin de ce jour, heure de Dakar. Rangée telle quelle, la date seule
+                // valait le 21 à 00:00. La date choisie reste telle quelle dans `metadata`.
+                'expires_at' => FinInclusive::de($data['offer_expires_at']),
                 'notes' => $data['message'] ?? null,
                 'metadata' => [
                     'kind' => 'offer',

@@ -195,6 +195,10 @@ class SavedSearchCriteriaVocabularyTest extends TestCase
             'rayon nul' => [['radius_km' => 0, 'lat' => 14.7, 'lng' => -17.45]],
             'contrat hors énumération' => [['contract_type' => 'louer']],
             'titre hors énumération' => [['title_type' => 'acte']],
+            // TCK-1853 (P187.06) — les règles de valeur de `/properties` pour `type` et `rent_period`.
+            'type inconnu' => [['type' => ['villa', 'nope']]],
+            'type inconnu en chaîne' => [['type' => 'villa,nope']],
+            'période hors énumération' => [['rent_period' => 'nope']],
         ];
     }
 
@@ -234,7 +238,7 @@ class SavedSearchCriteriaVocabularyTest extends TestCase
             'criteria' => [
                 'q' => 'piscine', 'location' => 'Almadies', 'city' => 'Dakar', 'cities' => ['Dakar'],
                 'radius_km' => 3, 'lat' => 14.7, 'lng' => -17.45, 'contract_type' => 'rent',
-                'type' => ['type', 'villa'], 'rent_period' => 'monthly', 'price_min' => 1, 'price_max' => 2,
+                'type' => ['house', 'villa'], 'rent_period' => 'monthly', 'price_min' => 1, 'price_max' => 2,
                 'bedrooms' => 3, 'bathrooms' => 2, 'area_min' => 1, 'area_max' => 2, 'furnished' => true,
                 'featured' => true, 'floor_number' => 2, 'available_from' => '2026-11-01',
                 'title_type' => 'titre_foncier', 'condition' => ['new'], 'tags' => 'Piscine',

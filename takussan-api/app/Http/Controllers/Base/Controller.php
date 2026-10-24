@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers\Base;
 
+use App\Http\Resources\Bases\BaseResource;
 use App\Http\Responses\PaginationMeta;
 use App\Models\Bases\AbstractModel;
 use App\Models\Concerns\HasQueryBuilder;
+use DateTimeInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
@@ -30,6 +32,24 @@ abstract class Controller extends BaseController
     protected function json(mixed $data, int $status = 200, array $headers = []): JsonResponse
     {
         return response()->json($data, $status, $headers);
+    }
+
+    /**
+     * TCK-1504 (P94.03) — un INSTANT dans une réponse composée à la main : la forme
+     * d'ADR-0018, `2026-08-17T12:34:56+00:00`, celle de `BaseResource::iso()`. Avant lui, les
+     * contrôleurs émettaient deux formes voisines (`toISOString()` → `….000000Z`,
+     * `toIso8601String()` → `…+00:00`), parfois dans une même réponse.
+     * `tests/Unit/Architecture/ControllerInstantFormTest.php` refuse leur retour.
+     */
+    protected function instant(?DateTimeInterface $date): ?string
+    {
+        return BaseResource::instantOnWire($date);
+    }
+
+    /** TCK-1504 — une DATE CALENDAIRE dans une réponse composée à la main : `2026-08-17`. */
+    protected function calendarDate(?DateTimeInterface $date): ?string
+    {
+        return BaseResource::calendarDateOnWire($date);
     }
 
     /**

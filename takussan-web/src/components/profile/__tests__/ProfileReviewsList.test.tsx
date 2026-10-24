@@ -7,6 +7,8 @@ import { withIntl } from '@/test/intl';
 import { ToastProvider } from '@/components/ui/toast';
 import type { UserRole } from '@/types/user';
 
+// TCK-1515 — la boîte des avis reçus lit `?reply=` et `?subject=` ; ici, aucune URL.
+vi.mock('next/navigation', () => ({ useSearchParams: () => new URLSearchParams() }));
 vi.mock('@/context/AuthContext', () => ({
   useAuth: () => ({ token: 'test-token', user: { id: 1 } }),
 }));
@@ -228,6 +230,14 @@ describe('<ProfileReviewsList> — boîte des avis reçus', () => {
     title: 'Bon accueil',
     can_reply: true,
     ...overrides,
+  });
+
+  // TCK-1781 (P175.05) — l'API rend `author.name` nul pour un auteur effacé ou sans nom.
+  it('un avis reçu d’un auteur sans nom affiche « Anonyme »', async () => {
+    mockFetch({ received: page([recu({ author: { id: null, name: null, avatar_url: null } })]) });
+    renderList(['agent', 'customer']);
+
+    expect(await screen.findByTestId('received-review-90')).toHaveTextContent('Anonyme ·');
   });
 
   it('un client sans profil professionnel n’a pas de boîte', async () => {

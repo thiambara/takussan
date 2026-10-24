@@ -46,7 +46,9 @@ class UpdatePropertyVisitRequest extends BaseFormRequest
         return [
             'scheduled_at' => ['sometimes', 'date', 'after:now'],
             'agent_id' => ['sometimes', 'nullable', 'integer', new PersonnelDeLAgence($agencyId)],
-            'duration_minutes' => ['sometimes', 'nullable', 'integer', 'min:5'],
+            // TCK-1836 (P184.03) — le plafond de la création : sans lui, le `PATCH` rouvrait le
+            // blocage du bien par une visite confirmée de 100 000 minutes.
+            'duration_minutes' => ['sometimes', 'nullable', 'integer', 'min:5', 'max:'.StorePropertyVisitRequest::MAX_DURATION_MINUTES],
             'notes' => ['sometimes', 'nullable', 'string'],
             'type' => ['sometimes', Rule::enum(VisitType::class)],
         ];

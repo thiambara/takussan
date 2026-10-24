@@ -21,6 +21,8 @@ import { ASSIGNABLE_BASE_TYPES } from '@/types/agency-role';
 import type { AgencyRole, AgencyRoleBaseType } from '@/types/agency-role';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
+import { useNomDuRole } from './nomDuRole';
+
 interface CreateRoleDialogProps {
   readonly agencyId: number;
   readonly open: boolean;
@@ -60,6 +62,7 @@ export function CreateRoleDialog({
 }: CreateRoleDialogProps) {
   const t = useTranslations('admin.roles');
   const tCommon = useTranslations('common.actions');
+  const nomDuRole = useNomDuRole();
   const messageErreur = useMessageErreurApi();
   const create = useCreateAgencyRole(agencyId);
 
@@ -94,7 +97,7 @@ export function CreateRoleDialog({
       // Le suffixe passe par next-intl : un gabarit interpolé est
       // précisément ce que `scripts/check-i18n.mjs` ne sait PAS voir (limite
       // documentée dans son en-tête), donc rien ne l'aurait signalé.
-      setName(cloneFrom ? t('create.clone_name', { name: cloneFrom.name }) : '');
+      setName(cloneFrom ? t('create.clone_name', { name: nomDuRole(cloneFrom) }) : '');
       setDescription('');
       setBaseType(cloneFrom?.base_profile_type ?? 'agent');
       setCloneId(cloneFrom?.id ?? null);
@@ -172,7 +175,7 @@ export function CreateRoleDialog({
               <option value="">{t('create.clone_from_none')}</option>
               {clonableSources.map((r) => (
                 <option key={r.id} value={r.id}>
-                  {r.name}
+                  {nomDuRole(r)}
                 </option>
               ))}
             </select>

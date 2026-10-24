@@ -64,7 +64,7 @@ class SendMessageConversationRequest extends BaseFormRequest
     public function rules(): array
     {
         return [
-            'content' => ['required_unless:type,audio', 'nullable', 'string'],
+            'content' => ['required_unless:type,audio', 'nullable', 'string', 'max:5000'],
             'type' => ['nullable', Rule::in(array_map(static fn (MessageType $t): string => $t->value, self::PARTICIPANT_TYPES))],
             'audio' => [
                 'required_if:type,audio', 'prohibited_unless:type,audio',

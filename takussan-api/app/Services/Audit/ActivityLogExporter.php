@@ -13,7 +13,10 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 class ActivityLogExporter
 {
-    /** Columns emitted in every export. */
+    /**
+     * Columns emitted in every export. TCK-1703 (P108.02) — plus d'`ip_address` : aucun chemin
+     * n'écrit l'IP au journal, la colonne sortait vide dans tout fichier.
+     */
     private const COLUMNS = [
         'id',
         'logged_at',
@@ -24,7 +27,6 @@ class ActivityLogExporter
         'subject_id',
         'description',
         'properties_diff',
-        'ip_address',
     ];
 
     /**
@@ -162,14 +164,36 @@ class ActivityLogExporter
             'id' => $log->id,
             'logged_at' => $log->created_at?->toIso8601String(),
             'causer_email' => $causer?->email ?? $absentCauser,
-            'causer_role' => $causer?->profileTypes()->first() ?? ($deletedCauser ? 'deleted' : 'system'),
+            'causer_role' => ($causer instanceof User ? self::roleDansLAgence($causer, $log->agency_id) : $causer?->profileTypes()->first())
+                ?? ($deletedCauser ? 'deleted' : 'system'),
             'event' => $log->event,
             'subject_type' => $log->subject_type ? class_basename($log->subject_type) : null,
             'subject_id' => $log->subject_id,
             'description' => $log->description,
             'properties_diff' => $changes,
-            'ip_address' => $props->get('ip'),
         ];
+    }
+
+    /**
+     * TCK-1717 (P139.02) — le rôle du causeur se juge dans l'agence de la LIGNE, pas sur tous ses
+     * profils : `profileTypes()` empile ceux de toutes ses agences, et l'agent de A qui administre
+     * B sortait `agency_admin` dans l'export de A — un rôle faux, et tenu chez un autre. Les trois
+     * profils d'agence ne comptent que dans l'agence de la ligne (aucun sur une ligne sans agence) ;
+     * les autres types (plateforme, prestataire, rôles dérivés) restent dans l'ordre de
+     * `profileTypes()`. Les relations lues sont celles qu'`auteurEtSonRole()` précharge.
+     */
+    private static function roleDansLAgence(User $causer, ?int $agencyId): ?string
+    {
+        $profilsDAgence = [
+            'agency_admin' => 'agencyAdminProfiles',
+            'agent' => 'agentProfiles',
+            'owner' => 'ownerProfiles',
+        ];
+
+        return $causer->profileTypes()->first(
+            fn (string $type) => ! isset($profilsDAgence[$type])
+                || ($agencyId !== null && $causer->{$profilsDAgence[$type]}->contains('agency_id', $agencyId)),
+        );
     }
 
     /**

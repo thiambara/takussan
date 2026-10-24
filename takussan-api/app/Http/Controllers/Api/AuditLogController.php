@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Services\Audit\AuditScope;
 use App\Support\AgencyKindGuard;
 use App\Support\Audit\PropertyRedactor;
+use App\Support\CaseInsensitive;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
@@ -68,7 +69,7 @@ class AuditLogController extends Controller
                 'subject_type' => $log->subject_type,
                 'subject_id' => $log->subject_id,
                 'properties' => PropertyRedactor::redact($log->properties, $log->subject_type),
-                'created_at' => $log->created_at,
+                'created_at' => $this->instant($log->created_at),
             ])->all(),
             'meta' => $this->paginationMeta($paginator),
         ]);
@@ -149,7 +150,8 @@ class AuditLogController extends Controller
                 AllowedFilter::custom('date_from', new DateBoundaryFilter('created_at', false)),
                 AllowedFilter::custom('date_to', new DateBoundaryFilter('created_at', true)),
                 AllowedFilter::callback('search', function (Builder $q, string $value): void {
-                    $q->where('description', 'like', '%'.$value.'%');
+                    // TCK-1840 (P186.02) — insensible à la casse, `%` et `_` littéraux (forme de TCK-600).
+                    $q->whereRaw(CaseInsensitive::sql('description').' like ?', ['%'.addcslashes(CaseInsensitive::fold($value), '\\%_').'%']);
                     // TCK-1401 (P151.01) — texte libre : sans délimiteur, spatie découpe « Diop, Awa » en tableau.
                 })->delimiter(''),
             );
@@ -176,7 +178,7 @@ class AuditLogController extends Controller
                 'subject_type' => $log->subject_type,
                 'subject_id' => $log->subject_id,
                 'properties' => PropertyRedactor::redact($log->properties, $log->subject_type),
-                'created_at' => $log->created_at,
+                'created_at' => $this->instant($log->created_at),
             ];
         })->all();
 

@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { fetchTagsAction } from '@/app/actions/admin-tags';
 import { fetchListingQuotaAction } from '@/app/actions/dashboard-properties';
 import { buttonVariants } from '@/components/ui/button';
-import { PropertyWizard } from '@/components/property-form';
+import { PropertyWizard } from '@/components/property-form/PropertyWizard';
 import { EnTetePublication } from '@/components/property-form/wizard/EnTetePublication';
 import { getTranslations } from 'next-intl/server';
 import { PageHeader } from '@/components/console';
@@ -75,7 +75,7 @@ export default async function Page() {
   // TCK-426 — la garde de rôle est REMONTÉE dans le `layout.tsx` de ce segment : ici, sous le
   // `loading.tsx`, son `redirect()` rendait 200 + le squelette de la route interdite.
 
-  const tagsResult = await fetchTagsAction({ filters: { type: 'amenity' }, perPage: 200 });
+  const tagsResult = await fetchTagsAction({ filters: { type: 'amenity' } });
   const tags = tagsResult.ok ? (tagsResult.data?.data ?? []) : [];
   // TCK-587 — même vocabulaire que la barre latérale : le bailleur propose. P152.03 — jugé comme
   // l'API (`properties.create`, sinon `createsProposal`), plus par le rôle : le layout du segment a

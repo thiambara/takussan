@@ -39,6 +39,8 @@ return [
         'draft' => 'Draft',
         'published' => 'Published',
         'archived' => 'Archived',
+        'pending_review' => 'In review',
+        'rejected' => 'Rejected',
     ],
     'title_type' => [
         'bail' => 'Lease',

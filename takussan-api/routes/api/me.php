@@ -59,16 +59,17 @@ Route::middleware('auth:sanctum')->prefix('me')->group(function () {
     // TCK-250 — Resumable wizard drafts. `{key}` is a logical identifier owned
     // by the consumer wizard (e.g. `host-individual-wizard`,
     // `owner-onboarding-{invitation_id}`). Strictly user-scoped via the unique
-    // `(user_id, key)` index on `wizard_drafts`.
+    // `(user_id, key)` index on `wizard_drafts`. TCK-1809 — la clé est bornée à
+    // 255 caractères, la taille de la colonne : au-delà, 404 au lieu d'une 500.
     Route::get('wizard-drafts', [WizardDraftController::class, 'index'])->name('me.wizard-drafts.index');
     Route::get('wizard-drafts/{key}', [WizardDraftController::class, 'show'])
-        ->where('key', '[A-Za-z0-9._:-]+')
+        ->where('key', '[A-Za-z0-9._:-]{1,255}')
         ->name('me.wizard-drafts.show');
     Route::put('wizard-drafts/{key}', [WizardDraftController::class, 'upsert'])
-        ->where('key', '[A-Za-z0-9._:-]+')
+        ->where('key', '[A-Za-z0-9._:-]{1,255}')
         ->name('me.wizard-drafts.upsert');
     Route::delete('wizard-drafts/{key}', [WizardDraftController::class, 'destroy'])
-        ->where('key', '[A-Za-z0-9._:-]+')
+        ->where('key', '[A-Za-z0-9._:-]{1,255}')
         ->name('me.wizard-drafts.destroy');
 
     // TCK-251 — One-shot welcome modale tracking. `key` is owned by each

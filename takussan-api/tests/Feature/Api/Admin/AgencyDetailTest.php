@@ -132,4 +132,26 @@ class AgencyDetailTest extends TestCase
             ->assertJsonPath('data.0.title', 'Villa Almadies')
             ->assertJsonStructure(['meta' => ['total', 'current_page', 'last_page', 'per_page']]);
     }
+
+    /**
+     * P192.02 (TCK-1876) — l'onglet « Biens » de la fiche d'agence liste aussi les biens en revue
+     * et refusés, et affiche `status_label ?? status` : sans clé `properties.status.<cas>`,
+     * `enumLabel()` rendait `null` et l'écran montrait `pending_review` en clair.
+     */
+    public function test_un_bien_en_revue_ou_refuse_a_un_libelle_de_statut(): void
+    {
+        $this->actingAsRole('super_admin');
+        $agency = Agency::factory()->create();
+        Property::factory()->create(['agency_id' => $agency->id, 'status' => PropertyStatus::PendingReview]);
+        Property::factory()->create(['agency_id' => $agency->id, 'status' => PropertyStatus::Rejected]);
+
+        foreach (['fr' => ['En revue', 'Refusé'], 'en' => ['In review', 'Rejected']] as $locale => $attendus) {
+            $libelles = $this->withHeader('Accept-Language', $locale)
+                ->getJson("/api/admin/agencies/{$agency->id}/properties?fields[properties]=id,status&per_page=10")
+                ->assertOk()
+                ->json('data.*.status_label', []);
+
+            $this->assertEqualsCanonicalizing($attendus, $libelles, "Accept-Language: {$locale}");
+        }
+    }
 }

@@ -7,6 +7,7 @@ import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import type { AppNotification } from '@/lib/notifications';
 import { cn } from '@/lib/utils';
 
+import { LienDansLAgence } from './LienDansLAgence';
 import { useTexteNotification } from './texteNotification';
 
 type NotificationRowProps = {
@@ -39,6 +40,10 @@ export function NotificationRow({
   const fmt = useFormatteurs();
   const unread = !notification.read_at;
   const path = notification.target?.path;
+  const agencyId = notification.target?.agency_id;
+  const classeLien =
+    'min-h-11 min-w-0 flex-1 px-4 py-3 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring';
+  const classeSansLien = 'min-w-0 flex-1 px-4 py-3';
 
   const contenu = (
     <>
@@ -61,16 +66,22 @@ export function NotificationRow({
 
   return (
     <li className={cn('flex items-stretch gap-1', unread ? 'bg-muted/60' : 'bg-card')}>
-      {path ? (
-        <Link
-          href={path}
-          onClick={() => onOpen(notification)}
-          className="min-h-11 min-w-0 flex-1 px-4 py-3 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+      {path && agencyId !== undefined ? (
+        <LienDansLAgence
+          path={path}
+          agencyId={agencyId}
+          onOpen={() => onOpen(notification)}
+          className={classeLien}
+          classeSansLien={classeSansLien}
         >
+          {contenu}
+        </LienDansLAgence>
+      ) : path ? (
+        <Link href={path} onClick={() => onOpen(notification)} className={classeLien}>
           {contenu}
         </Link>
       ) : (
-        <div className="min-w-0 flex-1 px-4 py-3">{contenu}</div>
+        <div className={classeSansLien}>{contenu}</div>
       )}
       <button
         type="button"

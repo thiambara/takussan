@@ -59,6 +59,30 @@ class ConversationTest extends TestCase
             ->assertJsonPath('meta.has_more', false);
     }
 
+    /**
+     * TCK-1885 (P195.01) — `subject` part vers `varchar(255)` : sans `max:255`, 256 caractères
+     * rendaient 500 (`SQLSTATE[22001]`) au lieu d'une erreur de validation.
+     */
+    public function test_le_sujet_d_une_directe_est_borne_a_255_caracteres(): void
+    {
+        $me = User::factory()->create();
+        $other = User::factory()->create();
+        $this->mettreEnContact($me, $other);
+
+        Sanctum::actingAs($me);
+
+        $this->postJson('/api/conversations', [
+            'subject' => str_repeat('a', 256),
+            'participants' => [$other->id],
+        ])->assertUnprocessable()->assertJsonValidationErrors('subject');
+        $this->assertSame(0, Conversation::query()->count());
+
+        $this->postJson('/api/conversations', [
+            'subject' => str_repeat('a', 255),
+            'participants' => [$other->id],
+        ])->assertCreated();
+    }
+
     public function test_non_participant_cannot_send_message(): void
     {
         $me = User::factory()->create();
@@ -217,12 +241,49 @@ class ConversationTest extends TestCase
         $contacts = $this->getJson('/api/conversations/contacts')->assertOk()->json('data');
         $this->assertSame([$collegue->id], collect($contacts)->pluck('id')->map(fn ($id) => (int) $id)->all());
 
-        // Témoin : le même type, vers le contact joignable et sans rattachement étranger, passe —
-        // les 422 ci-dessus viennent donc de la garde, pas d'un type refusé en bloc.
-        foreach ($types as $type) {
-            $this->postJson('/api/conversations', ['type' => $type, 'participants' => [$collegue->id]])
-                ->assertCreated()->assertJsonPath('data.type', $type);
+        // Témoin : `direct`, vers le contact joignable et sans rattachement étranger, passe — les
+        // 422 ci-dessus viennent donc de la garde. Les autres types sont refusés en bloc depuis
+        // TCK-1875 (P191.05) : cf. le test suivant.
+        $this->postJson('/api/conversations', ['type' => 'direct', 'participants' => [$collegue->id]])
+            ->assertCreated()->assertJsonPath('data.type', 'direct');
+    }
+
+    /**
+     * TCK-1875 (P191.05) — `type` ne prend que `direct` et `group`, les deux seuls types que
+     * l'application écrit. Avant, `lease`, `booking`, `property` ou `support` passaient sur le
+     * chemin de la directe et étaient enregistrés tels quels (201) : un fil que le front rend en
+     * directe et que `ConversationAccess` ne juge pas (`isProspectThread` exige `direct`).
+     */
+    public function test_un_type_autre_que_directe_ou_groupe_est_refuse(): void
+    {
+        $me = User::factory()->create();
+        $collegue = User::factory()->create();
+        $this->mettreEnContact($me, $collegue);
+        $bail = Lease::factory()->create(['landlord_id' => $me->id]);
+
+        Sanctum::actingAs($me);
+
+        $refuses = collect(ConversationType::cases())
+            ->reject(fn (ConversationType $t) => in_array($t, [ConversationType::Direct, ConversationType::Group], true))
+            ->map(fn (ConversationType $t) => $t->value)
+            ->values();
+        $this->assertSame(['booking', 'lease', 'property', 'support'], $refuses->sort()->values()->all());
+
+        foreach ($refuses as $type) {
+            $this->postJson('/api/conversations', [
+                'type' => $type,
+                'participants' => [$collegue->id],
+                'lease_id' => $bail->id,
+            ])->assertUnprocessable()->assertJsonValidationErrors(['type']);
         }
+        $this->assertSame(0, Conversation::query()->count(), 'aucun fil écrit avec un type hors usage');
+
+        // Témoin : la même requête en `direct` passe, le refus vient donc du seul `type`.
+        $this->postJson('/api/conversations', [
+            'type' => 'direct',
+            'participants' => [$collegue->id],
+            'lease_id' => $bail->id,
+        ])->assertCreated()->assertJsonPath('data.type', 'direct');
     }
 
     /** Une directe relie DEUX personnes : au-delà, c'est un groupe, et il a son propre chemin. */

@@ -8,6 +8,7 @@ use App\Models\Lease;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class GuarantorTest extends TestCase
@@ -46,6 +47,40 @@ class GuarantorTest extends TestCase
 
         $response = $this->getJson('/api/guarantors')->assertOk();
         $this->assertEquals(1, $response->json('meta.total'));
+    }
+
+    /**
+     * P188.05 (TCK-1862) — un `lease_id` qui n'est pas un identifiant rend 400
+     * `filter.identifier_invalid` (le précédent de TCK-1273), et non 500 : PostgreSQL ne le voit
+     * plus. Un cas par exécution : la requête fautive abandonnait la transaction du test.
+     */
+    #[DataProvider('leaseIdMalFormes')]
+    public function test_un_lease_id_mal_forme_rend_400_et_non_500(string $requete): void
+    {
+        Sanctum::actingAs(User::factory()->create());
+
+        $this->getJson('/api/guarantors?'.$requete)
+            ->assertStatus(400)
+            ->assertJsonPath('code', 'filter.identifier_invalid');
+    }
+
+    /** @return array<string, array{string}> */
+    public static function leaseIdMalFormes(): array
+    {
+        return [
+            'lettres' => ['lease_id=abc'],
+            'hors bigint' => ['lease_id=99999999999999999999'],
+            'liste' => ['lease_id[]=abc'],
+        ];
+    }
+
+    public function test_un_lease_id_entier_filtre_toujours_les_garants(): void
+    {
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+        Guarantor::factory()->create(['added_by_id' => $user->id]);
+
+        $this->getJson('/api/guarantors?lease_id=5')->assertOk()->assertJsonPath('meta.total', 0);
     }
 
     public function test_user_can_show_own_guarantor(): void
@@ -105,7 +140,8 @@ class GuarantorTest extends TestCase
         $user = User::factory()->create();
         Sanctum::actingAs($user);
 
-        foreach ([LeaseStatus::PendingSignature, LeaseStatus::Active] as $status) {
+        // P162.03 (TCK-1716) — le bail en préavis (`terminating`) reste ouvert : son loyer est dû.
+        foreach ([LeaseStatus::PendingSignature, LeaseStatus::Active, LeaseStatus::Terminating] as $status) {
             foreach (['pivot', 'colonne'] as $link) {
                 $guarantor = Guarantor::factory()->create(['added_by_id' => $user->id]);
                 $lease = Lease::factory()->create(['status' => $status]);
@@ -136,6 +172,24 @@ class GuarantorTest extends TestCase
         $this->postJson('/api/guarantors', [])
             ->assertStatus(422)
             ->assertJsonValidationErrors(['first_name', 'last_name']);
+    }
+
+    /**
+     * TCK-1815 (P181.07) — `metadata` n'a ni lecteur ni émetteur : la création ne l'écrit plus, comme
+     * la modification qui ne l'acceptait déjà pas. La colonne reste.
+     */
+    public function test_create_does_not_write_metadata(): void
+    {
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+
+        $id = $this->postJson('/api/guarantors', [
+            'first_name' => 'Jean',
+            'last_name' => 'Dupont',
+            'metadata' => ['cle' => str_repeat('x', 1000)],
+        ])->assertStatus(201)->json('data.id');
+
+        $this->assertNull(Guarantor::query()->findOrFail($id)->metadata);
     }
 
     public function test_endpoints_require_auth(): void

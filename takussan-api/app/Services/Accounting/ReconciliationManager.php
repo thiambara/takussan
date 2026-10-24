@@ -10,6 +10,7 @@ use App\Models\BookingPayment;
 use App\Models\Enums\BankStatementLineDirection;
 use App\Models\Enums\BankStatementLineMatchStatus;
 use App\Models\Enums\BankStatementStatus;
+use App\Models\Enums\InvoiceStatus;
 use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\PayoutStatus;
 use App\Models\Enums\PlatformPayoutStatus;
@@ -19,6 +20,7 @@ use App\Models\Payout;
 use App\Models\PlatformPayout;
 use App\Models\User;
 use App\Services\Billing\PlatformPayoutService;
+use App\Services\Model\InvoiceService;
 use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
@@ -129,7 +131,8 @@ class ReconciliationManager
             abort_code(422, 'payment.type_unknown');
         }
 
-        $line = DB::transaction(function () use ($line, $payment, $caller) {
+        $statusAtMatch = null;
+        $line = DB::transaction(function () use ($line, $payment, $caller, &$statusAtMatch) {
             // Lock the line to prevent concurrent updates. Use findOrFail: the
             // row may have been deleted between the initial fetch and the lock,
             // and the unguarded `find()` would then fatal on `$locked->...`.
@@ -161,10 +164,36 @@ class ReconciliationManager
                 'confirmed_by' => $caller->id,
             ]);
 
+            // TCK-828 — le journal lit le statut tel qu'il était à la confirmation, avant le règlement.
+            $statusAtMatch = $payment->status instanceof \BackedEnum ? $payment->status->value : $payment->status;
+
             $payment->update([
                 'bank_reconciled_at' => $locked->posted_at,
                 'bank_statement_line_id' => $locked->id,
             ]);
+
+            // TCK-1919 (P157.06, décision du porteur) — les autres lignes suggérées sur ce paiement
+            // repassent `unmatched` : la ligne d'un relevé qui en chevauche un autre restait
+            // « suggérée » sur un paiement rapproché ailleurs, et sa confirmation rendait 422.
+            BankStatementLine::query()
+                ->whereKeyNot($locked->id)
+                ->where('match_status', BankStatementLineMatchStatus::Suggested)
+                ->where('matched_payment_type', get_class($payment))
+                ->where('matched_payment_id', $payment->id)
+                ->update([
+                    'match_status' => BankStatementLineMatchStatus::Unmatched,
+                    'matched_payment_type' => null,
+                    'matched_payment_id' => null,
+                    'match_confidence' => null,
+                ]);
+
+            // TCK-1524 (P110.03, décision du porteur) — un crédit confirmé sur une facture envoyée
+            // ou en retard vaut règlement : elle restait `sent`, relancée au jalon suivant, puis
+            // annulable par avoir avec sa ligne toujours rapprochée.
+            if ($payment instanceof Invoice
+                && in_array($payment->status, [InvoiceStatus::Sent, InvoiceStatus::Overdue], true)) {
+                app(InvoiceService::class)->markPaid($payment);
+            }
 
             return $locked;
         });
@@ -179,7 +208,7 @@ class ReconciliationManager
                 'match_confidence' => $line->match_confidence,
                 // TCK-828 (P25.07) — ce que la confirmation ne refuse pas, elle le laisse lire :
                 // le statut de l'encaissement et l'écart entre la ligne et le montant attendu.
-                'payment_status' => $payment->status instanceof \BackedEnum ? $payment->status->value : $payment->status,
+                'payment_status' => $statusAtMatch,
                 'expected_amount' => $expected,
                 'amount_gap' => round((float) $line->amount - $expected, 2),
             ])

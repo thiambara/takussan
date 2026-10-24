@@ -16,7 +16,7 @@ export function PropertyAmenities({ tags }: { tags: PropertyTag[] }) {
       <h2 className="text-xl font-semibold text-foreground">{t('amenities')}</h2>
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
         {amenities.map((tag) => {
-          const Icon = getAmenityIcon(tag.icon ?? tag.slug);
+          const Icon = getAmenityIcon(tag.icon, tag.slug);
           return (
             <div
               key={tag.id}

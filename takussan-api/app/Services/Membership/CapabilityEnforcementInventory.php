@@ -30,7 +30,6 @@ final class CapabilityEnforcementInventory
     public const AWAITING = [
         'properties.moderate' => 'réservée plateforme',
         'reports.view_global' => 'réservée plateforme',
-        'agency.update' => 'D-69',
         'agency.upgrade_request' => 'D-69',
         'payments.refund' => 'D-69',
         'messaging.broadcast' => 'D-69',

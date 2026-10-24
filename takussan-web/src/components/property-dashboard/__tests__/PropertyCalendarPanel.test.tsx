@@ -45,7 +45,7 @@ vi.mock('@/components/ui/date-picker', () => ({
   ),
 }));
 vi.mock('next/navigation', () => ({ useSearchParams: () => new URLSearchParams('') }));
-vi.mock('@/components/property-form', () => ({ PropertyForm: () => null }));
+vi.mock('@/components/property-form/PropertyForm', () => ({ PropertyForm: () => null }));
 vi.mock('@/components/property-dashboard/PropertyMediaPanel', () => ({ PropertyMediaPanel: () => null }));
 vi.mock('@/components/property-dashboard/PropertyOverviewPanel', () => ({ PropertyOverviewPanel: () => null }));
 vi.mock('@/components/property-dashboard/PropertyCollaboratorsPanel', () => ({ PropertyCollaboratorsPanel: () => null }));

@@ -47,19 +47,14 @@ class InvoiceController extends Controller
         $customer = Customer::findOrFail($data['customer_id']);
         $invoice = $this->invoices->create($request->user(), $customer, $data);
 
-        return $this->json([
-            'data' => InvoiceResource::make($invoice)->resolve($request),
-        ], 201);
+        return $this->json(['data' => $this->presenter($request, $invoice)], 201);
     }
 
     public function show(Request $request, Invoice $invoice): JsonResponse
     {
         $this->authorize('view', $invoice);
 
-        return $this->json([
-            // TCK-594 (ADR-0039 §7) — l'avoir se lit sur la facture qu'il annule.
-            'data' => InvoiceResource::make($invoice->load(['creditNotes']))->resolve($request),
-        ]);
+        return $this->json(['data' => $this->presenter($request, $invoice)]);
     }
 
     public function send(Request $request, Invoice $invoice): JsonResponse
@@ -68,9 +63,7 @@ class InvoiceController extends Controller
         $this->authorize('send', $invoice);
         $invoice = $this->invoices->send($invoice);
 
-        return $this->json([
-            'data' => InvoiceResource::make($invoice)->resolve($request),
-        ]);
+        return $this->json(['data' => $this->presenter($request, $invoice)]);
     }
 
     public function markPaid(Request $request, Invoice $invoice): JsonResponse
@@ -79,9 +72,7 @@ class InvoiceController extends Controller
         $this->authorize('markPaid', $invoice);
         $invoice = $this->invoices->markPaid($invoice);
 
-        return $this->json([
-            'data' => InvoiceResource::make($invoice)->resolve($request),
-        ]);
+        return $this->json(['data' => $this->presenter($request, $invoice)]);
     }
 
     public function cancel(Request $request, Invoice $invoice): JsonResponse
@@ -90,8 +81,20 @@ class InvoiceController extends Controller
         $this->authorize('cancel', $invoice);
         $invoice = $this->invoices->cancel($invoice, $request->user());
 
-        return $this->json([
-            'data' => InvoiceResource::make($invoice)->resolve($request),
-        ]);
+        return $this->json(['data' => $this->presenter($request, $invoice)]);
+    }
+
+    /**
+     * ADR-0071 (TCK-1511, P95.03) — le seul chemin de présentation d'une facture : le `show` et
+     * les écritures (`store`, `send`, `markPaid`, `cancel`) rendent la même forme. Chaque auteur
+     * d'une écriture est lecteur du `show` (`InvoicePolicy` : émetteur, personnel de l'agence,
+     * super-admin). Aucun montant n'est calculé ici : l'avoir est lu tel que `cancel` l'a écrit.
+     *
+     * @return array<string, mixed>
+     */
+    private function presenter(Request $request, Invoice $invoice): array
+    {
+        // TCK-594 (ADR-0039 §7) — l'avoir se lit sur la facture qu'il annule.
+        return InvoiceResource::make($invoice->load(['creditNotes']))->resolve($request);
     }
 }

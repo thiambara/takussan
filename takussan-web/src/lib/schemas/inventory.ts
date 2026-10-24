@@ -25,30 +25,53 @@ const elementStateEnum = z.enum(
   INVENTORY_ELEMENT_STATES as unknown as [InventoryElementState, ...InventoryElementState[]],
 );
 
-const optionalString = z
-  .string()
-  .trim()
-  .transform((v) => (v.length === 0 ? undefined : v))
-  .optional();
+/**
+ * TCK-1915 (P143.01) — les plafonds d'`InventoryStoreRequest` (décision du porteur, 2026-10-23) :
+ * au-delà, le PDF signé, recomposé par dompdf à chaque téléchargement, épuisait sa mémoire.
+ */
+export const INVENTORY_MAX_ROOMS = 20;
+export const INVENTORY_MAX_ELEMENTS_PER_ROOM = 20;
+export const INVENTORY_MAX_ELEMENT_NOTES = 200;
+export const INVENTORY_MAX_NOTES = 1000;
 
-const optionalNullableString = z
-  .string()
-  .trim()
-  .transform((v) => (v.length === 0 ? null : v))
-  .nullable()
-  .optional();
+const notesTooLong = (max: number) => msgValidation('inventory.notesTooLong', { max: String(max) });
+const roomsMax = msgValidation('inventory.roomsMax', { max: String(INVENTORY_MAX_ROOMS) });
+
+const optionalString = (max: number) =>
+  z
+    .string()
+    .trim()
+    .max(max, notesTooLong(max))
+    .transform((v) => (v.length === 0 ? undefined : v))
+    .optional();
+
+const optionalNullableString = (max: number) =>
+  z
+    .string()
+    .trim()
+    .max(max, notesTooLong(max))
+    .transform((v) => (v.length === 0 ? null : v))
+    .nullable()
+    .optional();
 
 export const inventoryElementSchema = z.object({
   label: requiredStringSchema(msgValidation('inventory.elementLabelRequired')).max(255),
   state: elementStateEnum,
-  notes: optionalNullableString,
+  notes: optionalNullableString(INVENTORY_MAX_ELEMENT_NOTES),
 });
 
 export const inventoryRoomSchema = z.object({
   name: requiredStringSchema(msgValidation('inventory.roomNameRequired')).max(255),
   condition: conditionEnum,
-  notes: optionalNullableString,
-  elements: z.array(inventoryElementSchema).optional().default([]),
+  notes: optionalNullableString(INVENTORY_MAX_NOTES),
+  elements: z
+    .array(inventoryElementSchema)
+    .max(
+      INVENTORY_MAX_ELEMENTS_PER_ROOM,
+      msgValidation('inventory.elementsMax', { max: String(INVENTORY_MAX_ELEMENTS_PER_ROOM) }),
+    )
+    .optional()
+    .default([]),
 });
 
 /**
@@ -67,10 +90,11 @@ export const inventoryCreateSchema = z.object({
     .trim()
     .transform((v) => (v.length === 0 ? undefined : v))
     .optional(),
-  notes: optionalString,
+  notes: optionalString(INVENTORY_MAX_NOTES),
   rooms: z
     .array(inventoryRoomSchema)
-    .min(1, msgValidation('inventory.roomsMin')),
+    .min(1, msgValidation('inventory.roomsMin'))
+    .max(INVENTORY_MAX_ROOMS, roomsMax),
 });
 
 export type InventoryCreateInput = z.infer<typeof inventoryCreateSchema>;
@@ -87,8 +111,12 @@ export const inventoryUpdateSchema = z.object({
     .trim()
     .transform((v) => (v.length === 0 ? undefined : v))
     .optional(),
-  notes: optionalString,
-  rooms: z.array(inventoryRoomSchema).min(1, msgValidation('inventory.roomsMin')).optional(),
+  notes: optionalString(INVENTORY_MAX_NOTES),
+  rooms: z
+    .array(inventoryRoomSchema)
+    .min(1, msgValidation('inventory.roomsMin'))
+    .max(INVENTORY_MAX_ROOMS, roomsMax)
+    .optional(),
 });
 
 export type InventoryUpdateInput = z.infer<typeof inventoryUpdateSchema>;

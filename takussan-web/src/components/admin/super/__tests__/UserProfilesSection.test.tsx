@@ -28,6 +28,8 @@ function prestataire(): AdminUserDetail {
     last_login_at: null,
     two_factor_enabled: false,
     mfa_enabled: false,
+    locked_until: null,
+    force_2fa_reconfigure: false,
     created_at: null,
     roles: [{ name: 'service_provider', team_id: null }],
     profiles: { agent: [], owner: [], service_provider: { id: 3, status: 'active' } },

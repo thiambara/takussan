@@ -4,6 +4,8 @@ namespace App\Support;
 
 use App\Http\Requests\Public\SearchPublicPropertyRequest;
 use App\Models\Enums\PropertyCondition;
+use App\Models\Enums\PropertyType;
+use App\Models\Enums\RentPeriod;
 use App\Models\Enums\TitleType;
 use Closure;
 use Illuminate\Validation\Rule;
@@ -61,10 +63,11 @@ final class SavedSearchCriteria
             $attribute.'.lat' => ['nullable', 'numeric', 'between:-90,90', 'required_with:'.$attribute.'.lng,'.$attribute.'.radius_km'],
             $attribute.'.lng' => ['nullable', 'numeric', 'between:-180,180', 'required_with:'.$attribute.'.lat,'.$attribute.'.radius_km'],
             $attribute.'.contract_type' => ['sometimes', 'nullable', 'in:sale,rent'],
-            $attribute.'.type' => ['sometimes', 'nullable', self::listeDeChaines(500)],
+            // TCK-1853 (P187.06) — `type` et `rent_period` jugés contre leur enum, comme sur `/properties`.
+            $attribute.'.type' => ['sometimes', 'nullable', self::listeDeChaines(500, fn (string $v) => $v === '' || PropertyType::tryFrom($v) !== null)],
             $attribute.'.tags' => ['sometimes', 'nullable', self::listeDeChaines(500)],
             $attribute.'.condition' => ['sometimes', 'nullable', self::listeDeChaines(100, fn (string $v) => PropertyCondition::tryFrom($v) !== null)],
-            $attribute.'.rent_period' => ['sometimes', 'nullable', 'string', 'max:40'],
+            $attribute.'.rent_period' => ['sometimes', 'nullable', Rule::enum(RentPeriod::class)],
             $attribute.'.price_min' => ['sometimes', 'nullable', 'numeric', 'min:0'],
             $attribute.'.price_max' => ['sometimes', 'nullable', 'numeric', 'min:0'],
             $attribute.'.bedrooms' => ['sometimes', 'nullable', 'integer', 'min:0'],
