@@ -19222,7 +19222,7 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
 
 ### Petites améliorations
 - Réf : P209.05
-- Statut : validé — validation du porteur (2026-10-24) : `max:5000` au renouvellement, avec la constante de la création, et `decimal:0,2` sur `estimated_cost`
+- Statut : fait · TCK-2177
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Requests/RenewLeaseRequest.php:45-46`, `takussan-api/app/Http/Requests/Api/StoreLeaseRequest.php:61-64`, `takussan-api/app/Http/Requests/Api/UpdateMaintenanceRequestRequest.php:117-119`
 - Constat :
@@ -19231,6 +19231,7 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
   - Établi comment : lu.
 - Piste : borner `special_conditions` au renouvellement comme à la création (la même constante) ; donner à `estimated_cost` la règle `decimal:0,2` d'`actual_cost`.
 - Mesure (2026-10-24, cdf91988a, mesureur) : relu `RenewLeaseRequest.php:46` (`special_conditions` sans `max`), `StoreLeaseRequest.php:64` (`max:5000`, TCK-1240), `UpdateMaintenanceRequestRequest.php:117,119` (`decimal:0,2` sur `actual_cost` seul) ; rejoué par test temporaire `tests/Feature/TmpMesureP209Test.php` (retiré), `XDEBUG_MODE=off php artisan test <fichier>`, PostgreSQL de test, charge 7,96 / 4,57 / 3,45 sur 8 cœurs : `POST /api/leases/{id}/renew` avec 6 000 caractères de `special_conditions` → 201, 6 000 caractères enregistrés ; agent de l'agence, `PATCH /api/maintenance-requests/{id}` `{estimated_cost: 1234.567}` → 200, ligne `1234.57` (le « à vérifier » tient : arrondi par la colonne sans refus) ; `{estimated_cost: "5e5"}` → 200, ligne `500000.00` (le 500 de bcmath que cite le commentaire d'`actual_cost` ne se produit pas sur ce champ). Classement : V1, borner la saisie d'un devis est une écriture de montant ; la borne de `special_conditions` au renouvellement relève seule de A1 (la constante de la création, TCK-1240).
+- Mesure (2026-10-24, 5e00c117b, implementeur) : reproduit par `LeaseRenewalEndpointTest` (5 001 caractères de `special_conditions` au renouvellement → 201) et `MaintenanceActualCostTest` (`PATCH {estimated_cost: 1234.567}` → 200) avant correctif → la borne devient `StoreLeaseRequest::SPECIAL_CONDITIONS_MAX`, relue par `RenewLeaseRequest`, et `estimated_cost` prend `decimal:0,2` : 5 001 caractères → 422, 5 000 → 201 ; `1234.567` et `5e5` → 422, `1234.5` → 200 ; ablation, chaque règle retirée seule → 1 rouge chacune, remises → 6 et 13 verts ; `MaintenanceRequestTest` 11, `LeaseTest` 13 verts.
 
 ## Angle 210 — Gestionnaires `async` du front qui attendent `mutateAsync()` sans rattraper l'erreur
 
