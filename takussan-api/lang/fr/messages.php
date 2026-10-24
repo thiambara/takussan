@@ -83,4 +83,5 @@ return [
     'email_verified' => 'Adresse e-mail vérifiée.',
     'verification_email_resent' => 'E-mail de vérification renvoyé.',
     'password_reset_link_sent' => 'Si un compte existe avec cette adresse, un lien de réinitialisation a été envoyé.',
+    'password_reset_done' => 'Votre mot de passe a été réinitialisé.',
 ];

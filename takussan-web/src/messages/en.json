@@ -892,7 +892,7 @@
       "countSuffix": "{count, plural, one {# review} other {# reviews}}",
       "loading": "Loading reviews…",
       "empty": "No reviews yet.",
-      "notEligible": "You will be able to leave a review after a completed visit or a signed lease on this property.",
+      "notEligible": "You can leave a review after a completed booking or a lease on this property.",
       "alreadyReviewed": "Thank you, you have already reviewed this property.",
       "agentReply": "Agent reply",
       "edit": "Edit",
@@ -9192,6 +9192,7 @@
       "opportunitySentTitle": "Review sent",
       "opportunitySentBody": "Thank you! Your review will be published once approved.",
       "opportunityError": "Your review could not be sent.",
+      "opportunityPartiallySent": "Already saved: {targets}.",
       "anonymous": "Anonymous"
     },
     "contact": {
@@ -10758,6 +10759,10 @@
         "step_in_progress_scheduled": {
           "title": "Your request \"{request}\": in progress",
           "body": "Your maintenance request is now: in progress. Visit planned on {scheduled_at}."
+        },
+        "schedule_changed": {
+          "title": "Visit planned: \"{request}\"",
+          "body": "The visit for the maintenance request \"{request}\" is planned on {scheduled_at}."
         }
       },
       "maintenance_quote": {

@@ -159,6 +159,7 @@ export function useConfirmVisit(id: number) {
   return useApiMutation<VisitActionResponse, void>(
     { path: cheminApi`/api/property-visits/${id}/confirm`, method: 'POST' },
     {
+      relireSurErreur: true,
       invalidate: [
         ['visits', 'list'],
         ['visits', 'detail', id],
@@ -174,6 +175,7 @@ export function useCompleteVisit(id: number) {
   >(
     { path: cheminApi`/api/property-visits/${id}/complete`, method: 'POST' },
     {
+      relireSurErreur: true,
       invalidate: [
         ['visits', 'list'],
         ['visits', 'detail', id],
@@ -190,6 +192,7 @@ export function useMarkVisitNoShow(id: number) {
   return useApiMutation<ApiResponse<PropertyVisit>, void>(
     { path: cheminApi`/api/property-visits/${id}/no-show`, method: 'POST' },
     {
+      relireSurErreur: true,
       invalidate: [
         ['visits', 'list'],
         ['visits', 'detail', id],
@@ -202,6 +205,7 @@ export function useCancelVisit(id: number) {
   return useApiMutation<VisitActionResponse, { reason?: string }>(
     { path: cheminApi`/api/property-visits/${id}/cancel`, method: 'POST' },
     {
+      relireSurErreur: true,
       invalidate: [
         ['visits', 'list'],
         ['visits', 'detail', id],

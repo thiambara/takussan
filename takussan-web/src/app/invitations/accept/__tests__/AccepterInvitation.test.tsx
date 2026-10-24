@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import frMessages from '@/messages/fr.json';
 import { destinationDInvitation } from '@/lib/invitation-destination';
@@ -15,7 +16,7 @@ vi.mock('next/link', () => ({
 }));
 
 const openSession = vi.fn();
-vi.mock('@/context/AuthContext', () => ({ useAuth: () => ({ openSession }) }));
+vi.mock('@/context/AuthContext', () => ({ useAuth: () => ({ openSession, refreshUser: vi.fn() }) }));
 vi.mock('@/i18n/hooks', () => ({ useCurrentLocale: () => 'fr' }));
 
 const login = vi.fn();
@@ -35,9 +36,11 @@ const T = frMessages.invitationAccept;
 
 function monter(connecte: boolean) {
   return render(
-    <NextIntlClientProvider locale="fr" messages={frMessages}>
-      <AccepterInvitation jeton="jeton-abc" connecte={connecte} />
-    </NextIntlClientProvider>,
+    <QueryClientProvider client={new QueryClient()}>
+      <NextIntlClientProvider locale="fr" messages={frMessages}>
+        <AccepterInvitation jeton="jeton-abc" connecte={connecte} />
+      </NextIntlClientProvider>
+    </QueryClientProvider>,
   );
 }
 

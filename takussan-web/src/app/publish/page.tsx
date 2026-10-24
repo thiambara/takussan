@@ -18,6 +18,7 @@ import { useTranslations } from 'next-intl';
 import { BarreDeMarque } from '@/components/brand/BarreDeMarque';
 import { Button } from '@/components/ui/button';
 import { autoOnboardAction } from '@/app/actions/auto-onboard';
+import { useAuth } from '@/context/AuthContext';
 import { profilesKeys, useSwitchActiveProfile } from '@/hooks/useProfiles';
 import { PUBLISH_TARGETS, usePublishIntent, type EspaceDePublication } from '@/hooks/usePublishIntent';
 
@@ -27,6 +28,7 @@ export default function PublishPage() {
   const router = useRouter();
   const decision = usePublishIntent();
   const basculer = useSwitchActiveProfile();
+  const { refreshUser } = useAuth();
   const [echec, setEchec] = useState(false);
   const [choisi, setChoisi] = useState<string | null>(null);
   const parti = useRef(false);
@@ -44,6 +46,9 @@ export default function PublishPage() {
     // Un rappel de promesse, pas un corps `async` : l'état ne change qu'à la réponse du serveur.
     return autoOnboardAction().then(async (r) => {
       if (r.ok) {
+        // TCK-2044 (P202.05) — l'espace ajoute deux profils au compte : comme l'assistant hôte, on
+        // relit l'utilisateur (`roles`, `agency_id`) avant de partir.
+        await refreshUser();
         await queryClient.invalidateQueries({ queryKey: profilesKeys.all });
         router.replace(PUBLISH_TARGETS.newProperty);
         return;

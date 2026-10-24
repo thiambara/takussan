@@ -72,13 +72,13 @@ export function useCommissionEntries(params: UseCommissionEntriesParams) {
 export function useMarkCommissionPaid() {
   return useApiMutation<ApiResponse<CommissionEntry>, { id: number }>(
     { path: ({ id }) => cheminApi`/api/commissions/${id}/mark-paid`, method: 'POST', body: () => ({}) },
-    { invalidate: [commissionKeys.all] },
+    { relireSurErreur: true, invalidate: [commissionKeys.all] },
   );
 }
 
 export function useCancelCommission() {
   return useApiMutation<ApiResponse<CommissionEntry>, { id: number }>(
     { path: ({ id }) => cheminApi`/api/commissions/${id}/cancel`, method: 'POST', body: () => ({}) },
-    { invalidate: [commissionKeys.all] },
+    { relireSurErreur: true, invalidate: [commissionKeys.all] },
   );
 }
