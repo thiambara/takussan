@@ -175,13 +175,46 @@ class LeaseController extends Controller
     {
         $data = $request->validated();
 
+        $guarantor = null;
         if (! empty($data['guarantor_id'])) {
             $guarantor = Guarantor::findOrFail($data['guarantor_id']);
             // TCK-587 (vérification adverse, B2) — un garant hors du périmètre de l'émetteur ne se
             // rattache pas : sa fiche se lirait ensuite par `GET /api/leases/{id}/guarantors`.
             $this->authorize('view', $guarantor);
-        } else {
-            $guarantor = Guarantor::create([
+        }
+
+        // Atomic cap check + attach: without the transaction+lock, two
+        // concurrent requests can both observe count()==2 and both insert,
+        // yielding 4 rows. The unique (lease_id, guarantor_id) index only
+        // prevents duplicates, not the cap. lockForUpdate serializes racers
+        // on the pivot rows for this lease so only one wins the cap check.
+        //
+        // VERIF-596 passe 4 (m-c) — la ligne `leases` d'abord, puis le pivot : l'ordre de verrous de
+        // toutes les voies du bail (signature, PATCH, résiliation). Le défigement se juge sur la ligne
+        // verrouillée : sur l'instance liée, une activation validée entre-temps voyait son empreinte
+        // remise à NULL.
+        //
+        // TCK-2113 (P213.01) — la fiche d'un garant neuf se crée ICI, après les deux refus : créée
+        // avant la transaction, un 422 `lease.max_guarantors` la laissait en base, rattachée à aucun
+        // bail.
+        $guarantor = DB::transaction(function () use ($lease, $guarantor, $data, $request) {
+            /** @var Lease $locked */
+            $locked = Lease::query()->whereKey($lease->getKey())->lockForUpdate()->firstOrFail();
+            $pivotRows = $locked->guarantors()->lockForUpdate()->get(['guarantors.id']);
+
+            abort_code_if(
+                $guarantor !== null && $pivotRows->contains('id', $guarantor->id),
+                422,
+                'lease.guarantor_already_attached'
+            );
+
+            abort_code_if(
+                $pivotRows->count() >= 3,
+                422,
+                'lease.max_guarantors'
+            );
+
+            $guarantor ??= Guarantor::create([
                 'first_name' => $data['first_name'],
                 'last_name' => $data['last_name'],
                 'phone' => $data['phone'] ?? null,
@@ -197,40 +230,14 @@ class LeaseController extends Controller
                 // TCK-1993 (P175.01) — l'agence du bail qui la porte.
                 'agency_id' => $lease->agency_id,
             ]);
-        }
-
-        // Atomic cap check + attach: without the transaction+lock, two
-        // concurrent requests can both observe count()==2 and both insert,
-        // yielding 4 rows. The unique (lease_id, guarantor_id) index only
-        // prevents duplicates, not the cap. lockForUpdate serializes racers
-        // on the pivot rows for this lease so only one wins the cap check.
-        //
-        // VERIF-596 passe 4 (m-c) — la ligne `leases` d'abord, puis le pivot : l'ordre de verrous de
-        // toutes les voies du bail (signature, PATCH, résiliation). Le défigement se juge sur la ligne
-        // verrouillée : sur l'instance liée, une activation validée entre-temps voyait son empreinte
-        // remise à NULL.
-        DB::transaction(function () use ($lease, $guarantor, $data) {
-            /** @var Lease $locked */
-            $locked = Lease::query()->whereKey($lease->getKey())->lockForUpdate()->firstOrFail();
-            $pivotRows = $locked->guarantors()->lockForUpdate()->get(['guarantors.id']);
-
-            abort_code_if(
-                $pivotRows->contains('id', $guarantor->id),
-                422,
-                'lease.guarantor_already_attached'
-            );
-
-            abort_code_if(
-                $pivotRows->count() >= 3,
-                422,
-                'lease.max_guarantors'
-            );
 
             $locked->guarantors()->attach($guarantor->id, [
                 'role' => $data['role'] ?? null,
             ]);
             // TCK-596 §4B (ADR-0042 §1) — le garant est dans le contrat : un contrat figé est défigé.
             $locked->unfreezeContract();
+
+            return $guarantor;
         });
 
         return $this->json([
