@@ -19,6 +19,7 @@ import { ApiError } from '@/lib/api';
 import { useRenewLease, type RenewLeasePayload } from '@/lib/queries/leases';
 import type { Lease } from '@/types/lease';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
+import { decalerAnnees, decalerJour, jourDeLApi } from '@/lib/jour-de-l-api';
 
 interface LeaseRenewalDialogProps {
   readonly open: boolean;
@@ -39,18 +40,17 @@ type FormState = {
   terms: string;
 };
 
+// P212.05 — en jours calendaires : début = fin du parent + 1, comme `LeaseRenewalService`, et fin
+// = début + 1 an. Calculés en heure locale puis relus par `toISOString()`, les deux défauts
+// perdaient un jour aux changements d'heure hors de Dakar.
 function defaultStartDate(parent: Lease): string {
-  if (!parent.end_date) return new Date().toISOString().slice(0, 10);
-  const next = new Date(parent.end_date);
-  next.setDate(next.getDate() + 1);
-  return next.toISOString().slice(0, 10);
+  if (!parent.end_date) return jourDeLApi();
+  return decalerJour(parent.end_date.slice(0, 10), 1);
 }
 
 function defaultEndDate(start: string): string {
   if (!start) return '';
-  const end = new Date(start);
-  end.setFullYear(end.getFullYear() + 1);
-  return end.toISOString().slice(0, 10);
+  return decalerAnnees(start.slice(0, 10), 1);
 }
 
 /** P133.04 (TCK-1381) — une valeur du parent en texte de champ, vide si elle manque. */
