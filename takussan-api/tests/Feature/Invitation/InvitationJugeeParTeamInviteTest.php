@@ -22,6 +22,9 @@ use Tests\Concerns\CreatesAgencyMembers;
  * Avant : la liste, la lecture et la création jugeaient le type de profil admin, la révocation la
  * capacité. Un admin dont le rôle retire `team.invite` listait, créait et révoquait ; un agent qui
  * la tient révoquait une invitation qu'il ne pouvait pas lister (`GET /api/invitations` → `[]`).
+ *
+ * P208.01 (TCK-2190) — la création générique et sa règle `create` sont retirées : les routes par
+ * rôle jugent leur propre geste. Restent la liste, la lecture, la révocation et la relance.
  */
 class InvitationJugeeParTeamInviteTest extends ApiTestCase
 {
@@ -64,17 +67,15 @@ class InvitationJugeeParTeamInviteTest extends ApiTestCase
 
         $this->assertSame([$this->invitation->id], $this->idsListes($agent));
         $this->actingAsApi($agent)->getJson("/api/invitations/{$this->invitation->id}")->assertOk();
-        $this->assertTrue($agent->can('create', Invitation::class));
         $this->actingAsApi($agent)->postJson("/api/invitations/{$this->invitation->id}/resend")->assertOk();
     }
 
-    public function test_un_admin_sans_team_invite_ne_liste_ni_ne_cree_ni_ne_revoque(): void
+    public function test_un_admin_sans_team_invite_ne_liste_ni_ne_revoque(): void
     {
         $admin = $this->adminWithout($this->agency, Capability::TeamInvite);
 
         $this->assertSame([], $this->idsListes($admin));
         $this->actingAsApi($admin)->getJson("/api/invitations/{$this->invitation->id}")->assertForbidden();
-        $this->assertFalse($admin->can('create', Invitation::class));
         $this->actingAsApi($admin)->postJson("/api/invitations/{$this->invitation->id}/revoke")->assertForbidden();
         $this->actingAsApi($admin)->postJson("/api/invitations/{$this->invitation->id}/resend")->assertForbidden();
 
@@ -86,7 +87,6 @@ class InvitationJugeeParTeamInviteTest extends ApiTestCase
         $agent = $this->agencyAgent($this->agency);
 
         $this->assertSame([], $this->idsListes($agent));
-        $this->assertFalse($agent->can('create', Invitation::class));
         $this->actingAsApi($agent)->postJson("/api/invitations/{$this->invitation->id}/revoke")->assertForbidden();
     }
 
@@ -98,7 +98,6 @@ class InvitationJugeeParTeamInviteTest extends ApiTestCase
         $this->agency->forceFill(['primary_admin_id' => $principal->id])->save();
 
         $this->assertSame([$this->invitation->id], $this->idsListes($principal));
-        $this->assertTrue($principal->can('create', Invitation::class));
         $this->actingAsApi($principal)->postJson("/api/invitations/{$this->invitation->id}/revoke")->assertOk();
     }
 

@@ -141,10 +141,12 @@ class InvitationService
      * Send a new invitation.
      *
      * Pre-conditions:
-     *  - email is RFC-valid (handled by the FormRequest)
-     *  - inviter has the `invite_<role>` permission OR is super_admin
-     *    (the controller / policy enforces this — the service trusts the
-     *    caller for permission, but still guards data integrity below)
+     *  - email is RFC-valid (handled by the caller's FormRequest)
+     *  - the caller has authorised the gesture: the per-role routes by
+     *    their profile policy's `invite` (TCK-256/258/260), the cooptation
+     *    by {@see SuperAdminCooptationService} — the service trusts the
+     *    caller for permission, but still guards data integrity below.
+     *    There is no generic creation route any more (P208.01, TCK-2190).
      *
      * Behaviour:
      *  - Generates a 64-char URL-safe token, retries on the (extremely
@@ -182,12 +184,9 @@ class InvitationService
         $metadata = [...($payload['metadata'] ?? []), 'locale' => ContactSansCompte::DEFAULT_LOCALE];
 
         // TCK-455 — refus À L'ÉMISSION d'une invitation qui ne rattache à
-        // rien. Le garde vit ICI et non seulement dans
-        // `CreateInvitationRequest` : `send()` est le seul point que
-        // traversent AUSSI les quatre services par rôle, et une règle posée
-        // dans la seule FormRequest laisserait ouvert tout appelant interne.
-        // La FormRequest la rejoue pour rendre une erreur de CHAMP au client,
-        // en lisant les mêmes constantes — deux couches, une définition.
+        // rien. Le garde vit ICI : `send()` est le seul point que traversent
+        // les services par rôle et la cooptation. (La FormRequest de la
+        // création générique qui le rejouait est partie avec elle, P208.01.)
         self::assertInvitationAttachesToSomething($role, $invitableType);
 
         // Dedup guard: a pending `sent` invitation for the same
@@ -722,7 +721,13 @@ class InvitationService
         // column) so the dashboard / router can detect the pending state
         // and gate every super-admin surface until the factor is
         // confirmed.
-        if ($invitation->role === 'super_admin') {
+        //
+        // P208.03 (TCK-2190) — only a cooptation WITHOUT agency: that is the
+        // one `confirm` honours ({@see SuperAdminTwoFactorController}). A
+        // `super_admin` row tied to an agency (the retired generic route
+        // emitted some) set the flag, sent the account to an enrolment that
+        // cut its 2FA and could never be confirmed.
+        if ($invitation->role === 'super_admin' && $invitation->agency_id === null) {
             $user->forceFill([
                 'force_2fa_at_first_login' => true,
                 'email_verified_at' => $user->email_verified_at ?? now(),

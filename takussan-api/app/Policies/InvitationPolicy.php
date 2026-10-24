@@ -16,13 +16,15 @@ use App\Models\User;
  * For everyone else, capability is derived from the role of the actor's
  * active profile:
  *  - holders of `team.invite` in the agency, admin included, and the
- *    agency's primary admin: can invite + revoke + list within their own
- *    agency (TCK-1748).
- *  - owner / agent: cannot create invitations themselves (owners may invite
- *    in TCK-256 but only via the per-role wizard which calls the service
- *    directly, not via this generic endpoint).
+ *    agency's primary admin: can list, read, resend and revoke within their
+ *    own agency (TCK-1748).
  *  - everyone else: read-only on invitations they themselves emitted, no
- *    create / revoke / list scope.
+ *    revoke / list scope.
+ *
+ * There is no `create` here (P208.01, TCK-2190): the generic creation route is
+ * gone, and each per-role route judges its own gesture
+ * ({@see OwnerProfilePolicy}, {@see AgentProfilePolicy},
+ * {@see Profiles\ServiceProviderProfilePolicy}), as does the super-admin cooptation.
  */
 class InvitationPolicy
 {
@@ -64,15 +66,6 @@ class InvitationPolicy
         // Non-admin actors can only see invitations they emitted (so the
         // per-role wizard can show "your pending invites" in the UI).
         return $invitation->invited_by === $user->id;
-    }
-
-    public function create(User $user): bool
-    {
-        // Generic endpoint: `team.invite` in the active agency (TCK-1748).
-        // Per-role wizards (TCK-256/258/260) bypass this policy by
-        // talking to InvitationService directly with their own,
-        // role-aware authorisation.
-        return $this->invitesAt($user, $user->staffAgencyId());
     }
 
     /**
