@@ -9569,7 +9569,13 @@
         "suspended": "Taxawal nañu ko",
         "ended": "Jeex na"
       },
-      "noneDescription": "Dig yi ak komisiyonu sa abonaman dinañu feeñ fii bu abonaman dox."
+      "noneDescription": "Dig yi ak komisiyonu sa abonaman dinañu feeñ fii bu abonaman dox.",
+      "overrides": {
+        "title": "Dérogations actives",
+        "none": "Aucune dérogation : les valeurs du plan s’appliquent.",
+        "item": "{label} : {value}"
+      },
+      "branches": "Succursales"
     },
     "agencySubscription": {
       "changePlan": "Soppi plaan",
@@ -9582,7 +9588,19 @@
         "assigned": "Abonaman bi soppi nañu ko",
         "assignFailed": "Mënunu ko jox",
         "closed": "Abonaman bi tëj nañu ko",
-        "closeFailed": "Mënunu ko tëj"
+        "closeFailed": "Mënunu ko tëj",
+        "overridesSaved": "Dérogations enregistrées",
+        "overridesFailed": "Enregistrement des dérogations impossible"
+      },
+      "overrides": {
+        "title": "Modifier les dérogations",
+        "hint": "Modifie l’abonnement en cours, sans changer de plan ni toucher à l’essai ou à la période. Un champ vide rend la valeur du plan.",
+        "fee": "Commission dérogée (%)",
+        "listings": "Quota de biens actifs dérogé",
+        "agents": "Quota d’agents dérogé",
+        "branches": "Quota de succursales dérogé",
+        "planValue": "Valeur du plan",
+        "save": "Enregistrer les dérogations"
       }
     },
     "plans": {
