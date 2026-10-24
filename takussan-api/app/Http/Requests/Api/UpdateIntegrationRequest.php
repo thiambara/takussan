@@ -42,7 +42,7 @@ class UpdateIntegrationRequest extends BaseFormRequest
     {
         return $user !== null && ($user->isSuperAdmin()
             // TCK-2024 (P116.02) — `AgencyPolicy::configure` : l'admin ET `agency.update`.
-            || ($user->agency_id !== null && $user->agency_id === $integration->agency_id && $user->can('configure', $integration->agency)));
+            || ($user->agency_id !== null && $user->agency_id === $integration->agency_id && $user->isAgencyAdminAt((int) $integration->agency_id) && $user->can('configure', $integration->agency)));
     }
 
     /** @return array<string, mixed> */

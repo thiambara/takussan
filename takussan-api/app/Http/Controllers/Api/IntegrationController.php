@@ -206,7 +206,7 @@ class IntegrationController extends Controller
         $user = $request->user();
 
         abort_unless(
-            $user->isSuperAdmin() || ($user->agency_id !== null && $user->agency_id === $integration->agency_id && $user->can('configure', $integration->agency)),
+            $user->isSuperAdmin() || ($user->agency_id !== null && $user->agency_id === $integration->agency_id && $user->isAgencyAdminAt((int) $integration->agency_id) && $user->can('configure', $integration->agency)),
             403
         );
 
@@ -228,7 +228,7 @@ class IntegrationController extends Controller
         $user = $request->user();
 
         abort_unless(
-            $user->isSuperAdmin() || ($user->agency_id !== null && $user->agency_id === $integration->agency_id && $user->can('configure', $integration->agency)),
+            $user->isSuperAdmin() || ($user->agency_id !== null && $user->agency_id === $integration->agency_id && $user->isAgencyAdminAt((int) $integration->agency_id) && $user->can('configure', $integration->agency)),
             403
         );
 
