@@ -119,6 +119,9 @@ class MaintenanceRequestController extends Controller
         }
 
         $assigneeId = $isStaff ? ($data['assigned_to'] ?? null) : null;
+        // TCK-2203 (P227.02) — assigner à la création est le geste que la modification juge par
+        // `actAsPrincipal` : le personnel sans `maintenance.assign` reçoit le même 403.
+        abort_if($assigneeId !== null && ! MaintenanceRequestPolicy::teamMayAssignOn($user, $property), 403);
         unset($data['assigned_to']);
 
         $mr = MaintenanceRequest::create(array_merge($data, [

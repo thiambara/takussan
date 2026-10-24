@@ -175,9 +175,19 @@ class MaintenanceRequestPolicy extends BasePolicy
             return false;
         }
 
-        // TCK-592 — la branche ÉQUIPE exige `maintenance.assign` : un rôle personnalisé qui la retire
-        // retire le geste. Le bailleur du bien commande sur SON bien sans capacité d'agence ; l'agent qui
-        // l'a saisi n'en est pas le bailleur (TCK-1720).
+        return self::teamMayAssignOn($user, $property);
+    }
+
+    /**
+     * TCK-592 — la branche ÉQUIPE exige `maintenance.assign` : un rôle personnalisé qui la retire
+     * retire le geste. Le bailleur du bien commande sur SON bien sans capacité d'agence ; l'agent qui
+     * l'a saisi n'en est pas le bailleur (TCK-1720).
+     *
+     * TCK-2203 (P227.02) — jugée sur le BIEN, pour que la création, où l'intervention n'existe pas
+     * encore, lise la même règle que `actAsPrincipal` : elle assignait sur le seul `isPrincipalFor`.
+     */
+    public static function teamMayAssignOn(User $user, Property $property): bool
+    {
         return ! self::isTeamPrincipalFor($user, $property)
             || $user->canActAt(Capability::MaintenanceAssign, $property->agency);
     }
