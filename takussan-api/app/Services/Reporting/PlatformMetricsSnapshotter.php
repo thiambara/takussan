@@ -99,7 +99,10 @@ class PlatformMetricsSnapshotter
             'agencies_suspended' => Agency::query()->where('status', AgencyStatus::Suspended)->count(),
             'users_total' => User::query()->count(),
             'users_active' => User::query()->where('status', UserStatus::Active)->count(),
-            'properties_published' => Property::query()->where('status', PropertyStatus::Published)->count(),
+            // P167.07 (TCK-2087) — « publiés » au sens du catalogue (`Property::public()`, TCK-1115),
+            // le filtre `filter[public]=1` de la liste que la tuile ouvre. La série change à compter
+            // de ce ticket : les lignes antérieures comptent `status = published` seul.
+            'properties_published' => Property::query()->public()->count(),
             'properties_pending_review' => Property::query()->where('status', PropertyStatus::PendingReview)->count(),
             // P162.02 (TCK-1714) — préavis compris : la série change à compter de ce ticket.
             'leases_active' => Lease::query()->whereIn('status', Lease::ONGOING_STATUSES)->count(),
