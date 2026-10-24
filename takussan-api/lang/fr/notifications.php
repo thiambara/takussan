@@ -288,7 +288,7 @@ return [
             ],
             'member_deletion_requested' => [
                 'title' => 'Effacement de compte demandé : :member',
-                'body' => ':member a demandé l\'effacement de son compte, effectif le :scheduled_for. Son portefeuille dans l\'agence : :tasks tâche(s), :visits visite(s), :maintenance intervention(s), :responsible_properties bien(s) dont il est l\'agent principal, :held_properties bien(s) saisi(s), :collaborations collaboration(s), :customers client(s) suivi(s). Passez-le à un collègue avant cette date depuis l\'équipe : :url',
+                'body' => ':member a demandé l\'effacement de son compte, effectif le :scheduled_for. Son portefeuille dans l\'agence : :tasks tâche(s), :visits visite(s), :maintenance intervention(s), :responsible_properties bien(s) dont il est l\'agent principal, :held_properties bien(s) saisi(s), :collaborations collaboration(s), :customers client(s) suivi(s), :contact_leads demande(s) de contact non traitée(s). Passez-le à un collègue avant cette date depuis l\'équipe : :url',
                 'sms' => 'Takussan : :member efface son compte le :scheduled_for. Passez son portefeuille depuis l\'équipe.',
             ],
         ],

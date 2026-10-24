@@ -46,7 +46,9 @@ export type PortfolioCategory =
   | 'responsible_properties'
   | 'held_properties'
   | 'collaborations'
-  | 'customers';
+  | 'customers'
+  // TCK-2170 (P204.04) — les demandes de contact non traitées dont il est le destinataire.
+  | 'contact_leads';
 
 export interface MemberPortfolio {
   user_id: number;

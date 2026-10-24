@@ -436,7 +436,9 @@ enum NotificationCode: string
                 'member' => self::PARAM_TEXT, 'scheduled_for' => self::PARAM_DATE,
                 'tasks' => self::PARAM_COUNT, 'visits' => self::PARAM_COUNT, 'maintenance' => self::PARAM_COUNT,
                 'responsible_properties' => self::PARAM_COUNT, 'held_properties' => self::PARAM_COUNT,
-                'collaborations' => self::PARAM_COUNT, 'customers' => self::PARAM_COUNT, 'url' => self::PARAM_URL,
+                'collaborations' => self::PARAM_COUNT, 'customers' => self::PARAM_COUNT,
+                // TCK-2170 (P204.04)
+                'contact_leads' => self::PARAM_COUNT, 'url' => self::PARAM_URL,
             ],
             self::PlatformOperatorRevoked => ['operator' => self::PARAM_TEXT, 'reason' => self::PARAM_TEXT],
         };

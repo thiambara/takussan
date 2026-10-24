@@ -85,6 +85,7 @@ class AgentHandoverPropertiesTest extends ApiTestCase
             ->assertJsonPath('data.pending', [])
             ->assertJsonPath('data.transferable', [
                 'tasks', 'visits', 'maintenance', 'responsible_properties', 'held_properties', 'collaborations', 'customers',
+                'contact_leads',
             ]);
     }
 

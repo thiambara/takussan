@@ -283,7 +283,7 @@ return [
             ],
             'member_deletion_requested' => [
                 'title' => 'Account deletion requested: :member',
-                'body' => ':member has requested the deletion of their account, effective :scheduled_for. Their portfolio in the agency: :tasks task(s), :visits visit(s), :maintenance maintenance request(s), :responsible_properties propert(y/ies) as lead agent, :held_properties propert(y/ies) entered, :collaborations collaboration(s), :customers client(s) followed. Hand it over to a colleague before that date from the team page: :url',
+                'body' => ':member has requested the deletion of their account, effective :scheduled_for. Their portfolio in the agency: :tasks task(s), :visits visit(s), :maintenance maintenance request(s), :responsible_properties propert(y/ies) as lead agent, :held_properties propert(y/ies) entered, :collaborations collaboration(s), :customers client(s) followed, :contact_leads unhandled contact request(s). Hand it over to a colleague before that date from the team page: :url',
                 'sms' => 'Takussan: :member deletes their account on :scheduled_for. Hand over their portfolio from the team page.',
             ],
         ],

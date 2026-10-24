@@ -5,15 +5,18 @@ namespace App\Services\Account;
 use App\Domain\Notifications\NotificationCode;
 use App\Domain\Notifications\NotificationTarget;
 use App\Models\Agency;
+use App\Models\Enums\ContactLeadChannel;
 use App\Models\MaintenanceRequest;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
+use App\Models\PropertyContactLead;
 use App\Models\Task;
 use App\Models\User;
 use App\Services\Agency\AgentPortfolio;
 use App\Services\Membership\AdminsDeLAgence;
 use App\Services\Model\MaintenanceRequestService;
 use App\Services\Model\NotificationService;
+use App\Services\Property\PrimaryPropertyContact;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
@@ -85,6 +88,11 @@ class ErasedMemberPortfolio
      *  - une intervention dont il est le prestataire passe par `unassignProviderFromAgency()`,
      *    le chemin de la fin d'une collaboration : elle revient au donneur d'ordre.
      * Une intervention `completed` garde son assigné : le travail est rendu.
+     *
+     * TCK-2170 (P204.04, décision du porteur) — les demandes de contact non traitées dont il est le
+     * destinataire : recalculé par {@see PrimaryPropertyContact::for()} pour une demande sur un bien
+     * (le compte supprimé n'y est plus éligible) ; remis à `null` pour une demande d'agence sans bien,
+     * qui retombe chez qui lit toutes les demandes de l'agence ; laissé tel quel sans bien ni agence.
      */
     public function release(User $member): void
     {
@@ -113,5 +121,16 @@ class ErasedMemberPortfolio
         foreach (array_keys($providerAgencyIds) as $agencyId) {
             $this->maintenance->unassignProviderFromAgency($member, $agencyId, null);
         }
+
+        PropertyContactLead::query()
+            ->where('recipient_user_id', $member->id)
+            ->where('channel', ContactLeadChannel::Form)
+            ->whereNull('handled_at')
+            ->where(fn ($q) => $q->whereNotNull('property_id')->orWhereNotNull('agency_id'))
+            ->with(['property' => fn ($q) => $q->withTrashed()->with(PrimaryPropertyContact::eagerLoads())])
+            ->get()
+            ->each(fn (PropertyContactLead $lead) => $lead->forceFill([
+                'recipient_user_id' => $lead->property !== null ? PrimaryPropertyContact::for($lead->property)?->id : null,
+            ])->save());
     }
 }
