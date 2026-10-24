@@ -6,6 +6,7 @@ use App\Models\Agency;
 use App\Models\Enums\Capability;
 use App\Models\Invitation;
 use App\Models\User;
+use App\Services\Membership\MembershipCapabilityResolver;
 
 /**
  * TCK-249 — authorisation rules for the invitation surface.
@@ -65,7 +66,13 @@ class InvitationPolicy
 
         // Non-admin actors can only see invitations they emitted (so the
         // per-role wizard can show "your pending invites" in the UI).
-        return $invitation->invited_by === $user->id;
+        //
+        // P218.05 (TCK-2194) — and only while still a member of the
+        // invitation's agency, as `revoke` and `resend` since TCK-429: the
+        // suspended or removed emitter read the invitee's address.
+        return $invitation->invited_by === $user->id
+            && ($invitation->agency_id === null
+                || app(MembershipCapabilityResolver::class)->isMemberAt($user, (int) $invitation->agency_id));
     }
 
     /**
