@@ -19889,7 +19889,7 @@ les envoie.*
 
 ### Un participant de conversation sans nom s'affiche sans nom ni initiales : la ligne ne porte que son rôle
 - Réf : P220.01
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/messages/ParticipantRow.tsx:34-40`, `:51`, `takussan-api/app/Http/Resources/ConversationResource.php:74-77`, `takussan-api/app/Models/User.php:357-360`, `:362-378`
 - Constat :
@@ -19899,10 +19899,11 @@ les envoie.*
   - mesuré (test temporaire, `ParticipantRow` rendu avec `user: { full_name: '' }`) : `textContent` = `"Membre"` — ni nom, ni initiales, ni e-mail (le compte n'en a pas).
   - Établi comment : lu, et mesuré par rendu.
 - Piste : rendre `full_name` des participants par `nameWithoutContact()` côté API (comme `MessageResource` et `MessagingContactResource`, TCK-815 et TCK-971), et remplacer les `??` du composant par un repli sur chaîne vide. Test : ressource d'une conversation dont un participant n'a pas de nom → `full_name = "—"` ; rendu du composant avec `full_name: ''` → `#<id>` ou « — ».
+- Mesure (2026-10-24, 6d8095e26, mesureur) : relu `ConversationResource.php:76` (`'full_name' => $user->full_name`), `User.php:357-378` (`getFullNameAttribute` = `trim("{first} {last}")` ; docblock de `nameWithoutContact()` qui vise `ConversationResource`), `MessageResource.php:23` (`nameWithoutContact()`), `PhoneLoginService.php:172-173` (`''`), `ParticipantRow.tsx:34,51` (`?? '?'`, `?? \`#${user_id}\``), inchangés ; `git log -S` et `grep` des tickets → rien ne l'a traité ; test Vitest temporaire (retiré, charge 1,57 / 2,05 / 2,34 sur 8 cœurs), `ParticipantRow` avec `full_name: ''` → `textContent` = `"Membre"` → le constat tient. Classement : A1, la règle est écrite (docblock de `nameWithoutContact()`, TCK-815) et les replis du composant existent : rendre `full_name` par `nameWithoutContact()` et remplacer les deux `??` par `||` ne demande aucun choix.
 
 ### Le panneau de signature d'un bail écrit « Signé par  le … », et efface le « pour le compte de » quand le bailleur n'a pas de nom
 - Réf : P220.02
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/leases/LeaseSignaturePanel.tsx:109-121`, `takussan-api/app/Http/Resources/LeaseResource.php:106-107`, `takussan-web/src/messages/fr.json:4005`
 - Constat :
@@ -19911,10 +19912,11 @@ les envoie.*
   - mesuré (test temporaire, signatures `tenant` à `signer_name: ''` et `landlord` à `signer_name: 'Awa Sarr'`, `on_behalf_of_name: ''`) : `… LocataireSignéSigné par  le 20 oct. 2026 BailleurSignéSigné par Awa Sarr le 21 oct. 2026`. La signature d'un gestionnaire au nom d'un bailleur sans nom se lit comme celle du bailleur lui-même, sans trace du mandat (ADR-0042 en fait une preuve de consentement).
   - Établi comment : lu, et mesuré par rendu.
 - Piste : côté API, `nameWithoutContact()` pour les deux noms (jamais `''`) ; côté front, choisir le texte du mandat sur la présence de la signature pour le compte d'un tiers (`on_behalf_of_name !== null`, ou un booléen rendu par l'API), non sur la vérité du nom. Test : signature pour le compte d'un bailleur sans nom → le texte « pour le compte de » reste.
+- Mesure (2026-10-24, 6d8095e26, mesureur) : relu `LeaseResource.php:106-107` (`getFullNameAttribute()`, `null` seulement sans relation), `LeaseSignaturePanel.tsx:111-119` (texte du mandat choisi sur la vérité de `on_behalf_of_name`, `?? '—'`), inchangés ; test Vitest temporaire (retiré, même charge), signatures `tenant` à `signer_name: ''` et `landlord` à `on_behalf_of_name: ''` → `LocataireSignéSigné par  le 8 oct. 2026 | BailleurSignéSigné par Awa Sarr le 8 oct. 2026` → le constat tient. Classement : A1, le texte du mandat et le repli `—` existent déjà (ADR-0042) : choisir `signedOnBehalf` sur `on_behalf_of_name != null` et replier les deux noms par `|| '—'`, sans texte neuf.
 
 ### Une fiche client créée depuis un compte sans nom garde prénom et nom vides : le repli `'Client'` / `'#id'` ne joue jamais
 - Réf : P220.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : repli écrit en base ou affiché par le front, la piste laisse le choix ouvert
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Model/CustomerService.php:72-80`, `takussan-api/app/Http/Controllers/Public/PublicPropertyController.php:972`, `takussan-api/app/Services/Model/BookingService.php:102`, `takussan-web/src/components/pipeline/PipelineCard.tsx:102`, `:133`, `:144`, `takussan-web/src/components/customer-dashboard/CustomerList.tsx:59`, `:128`, `takussan-web/src/app/(dashboard)/app/customers/[id]/page.tsx:124-164`, `takussan-web/src/components/pipeline/CustomerDetailSheet.tsx:82`, `takussan-web/src/components/visits/PlanifierUneVisite.tsx:244`, `takussan-web/src/lib/queries/agent-crm.ts:342`
 - Constat :
@@ -19924,10 +19926,11 @@ les envoie.*
   - Le front compose ces noms sans repli partout où une fiche s'affiche : titre de la fiche et libellés passés aux enfants (`customers/[id]/page.tsx:124-164`), carte du tableau (`PipelineCard.tsx:102`, et l'`aria-label` du sélecteur d'étape l. 133), liste (`CustomerList.tsx:59`, `:128`), tiroir (`CustomerDetailSheet.tsx:82`), option du sélecteur de visite (`PlanifierUneVisite.tsx:244`) et de la recherche CRM (`agent-crm.ts:342`) (lu). Que la fiche, sans `agency_id`, apparaisse dans ces écrans d'une agence n'est pas mesuré (à vérifier).
   - Établi comment : lu, et mesuré par test.
 - Piste : remplacer `??` par un test de chaîne vide (`filled()`), pour que le repli écrit s'applique ; décider s'il reste `Client` / `#id` (texte en français écrit en base, contraire au principe 5) ou s'il devient un repli d'affichage côté front. Côté front, un seul assembleur de nom de fiche. Test : `findOrCreateFromUser` pour un compte sans nom → fiche jamais à deux noms vides.
+- Mesure (2026-10-24, 6d8095e26, mesureur) : relu `CustomerService.php:75-76` (`$user->first_name ?? 'Client'`, `$user->last_name ?? '#'.$user->id`), inchangé ; test PHPUnit temporaire (retiré), compte `first_name = ''`, `last_name = ''`, `email = null` → `findOrCreateFromUser` rend `["", "", null]` → le constat tient ; l'apparition de la fiche dans les écrans d'une agence reste non mesurée. Classement : V7, la `Piste` demande de décider si `Client` / `#id` reste écrit en base (en français, contre le principe 5) ou devient un repli d'affichage.
 
 ### Le tableau d'équipe et ses dialogues montrent une ligne vide pour un membre sans nom ni e-mail
 - Réf : P220.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : ordre du repli du nom et affichage du numéro au tableau d'équipe
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/admin/users/AdminUsersTable.tsx:59-61`, `:157-159`, `:172-177`, `:281-283`, `takussan-web/src/components/admin/users/UserDetailDrawer.tsx:116-118`, `takussan-web/src/components/admin/ConfirmSuspendDialog.tsx:42`, `takussan-web/src/components/crm/HandoverWizard.tsx:73`, `takussan-web/src/components/admin/roles/RevokeDelegationDialog.tsx:77`, `takussan-web/src/components/admin/roles/RoleDelegationsSection.tsx:225-228`, `takussan-web/src/lib/queries/admin-users.ts:35-44`
 - Constat :
@@ -19936,10 +19939,11 @@ les envoie.*
   - Comment un tel compte entre dans l'équipe : voir P220.07 (acceptation d'une invitation par un compte créé par téléphone, sans recopie des noms saisis) ; le parcours entier n'est pas mesuré (à vérifier).
   - Établi comment : lu.
 - Piste : un assembleur de nom commun au front (nom, sinon e-mail, sinon numéro pour le personnel de l'agence, sinon `#id`), employé par ces écrans ; colonne e-mail à `—` quand elle est nulle. Test de rendu d'une ligne sans nom ni e-mail.
+- Mesure (2026-10-24, 6d8095e26, mesureur) : relu `AdminUsersTable.tsx:59-61,157-159,172-177` (nom composé sans repli, `mailto:${row.email}` sans test de nullité, `grep phone` → aucune occurrence), `UserDetailDrawer.tsx:117`, `ConfirmSuspendDialog.tsx:42`, `HandoverWizard.tsx:73`, `RevokeDelegationDialog.tsx:77`, `RoleDelegationsSection.tsx:227`, inchangés → le constat tient ; l'entrée d'un tel compte dans l'équipe est mesurée sous P220.07. Classement : V7, l'assembleur commun fixe un ordre (nom, e-mail, numéro, `#id`) et montre un numéro que le tableau n'affiche pas aujourd'hui ; seul le `mailto:null` serait A1.
 
 ### Les sélecteurs de membre proposent des options sans libellé pour un membre sans nom
 - Réf : P220.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : même assembleur que P220.04
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/lib/queries/agent-crm.ts:114-125`, `takussan-web/src/components/admin/roles/CreateDelegationDialog.tsx:200-204`, `takussan-web/src/components/leads/ContactLeadsInbox.tsx:147-149`, `:245`, `:371-375`, `takussan-web/src/app/(dashboard)/app/properties/(liste)/page.tsx:263`
 - Constat :
@@ -19949,10 +19953,11 @@ les envoie.*
   - Contraste : `MaintenanceAssignmentBlock.tsx:167-168` (`name || String(member.id)`) et `AuditTrail.tsx:113-115` (nom, e-mail, `#id`) retombent déjà (lu).
   - Établi comment : lu.
 - Piste : le même assembleur que P220.04 dans ces quatre lecteurs. Test de `fetchAgencyAgents` sur un membre sans nom → `name` non vide.
+- Mesure (2026-10-24, 6d8095e26, mesureur) : relu `agent-crm.ts:124` (`[first_name, last_name].filter(Boolean).join(' ')`), `CreateDelegationDialog.tsx:202`, `ContactLeadsInbox.tsx:147-148`, `properties/(liste)/page.tsx:263`, inchangés ; `property-collaborators.ts:77` et `VisitDetail.tsx:608` retombent déjà, chacun autrement → le constat tient. Classement : V7, la `Piste` est l'assembleur de P220.04, dont l'ordre de repli reste à choisir.
 
 ### Les listes de bailleurs et de prestataires ignorent le nom saisi à l'invitation dès qu'un compte est lié
 - Réf : P220.06
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/owners/OwnersList.tsx:176`, `:189`, `:385-390`, `takussan-web/src/components/service-providers/ServiceProvidersList.tsx:132`, `:256-261`, `takussan-web/src/components/payments/CreatePayoutDialog.tsx:41-45`, `takussan-web/src/components/maintenance/MaintenanceAssignmentBlock.tsx:182-187`
 - Constat :
@@ -19961,10 +19966,11 @@ les envoie.*
   - `CreatePayoutDialog::ownerName` et `providerName` lisent `user?.first_name ?? metadata?.first_name` (lu) : `''` du compte bloque le repli vers `metadata` ; ils retombent ensuite sur l'e-mail ou `#id`, sans le nom connu.
   - Établi comment : lu.
 - Piste : retomber sur `metadata` champ par champ quand le nom du compte est vide (ou corriger à la source, P220.07). Test de rendu d'un bailleur lié à un compte sans nom, `metadata` nommée → le nom de l'invitation.
+- Mesure (2026-10-24, 6d8095e26, mesureur) : relu `OwnersList.tsx:385-390` et `ServiceProvidersList.tsx:256-261` (`nomDe` : noms du compte dès que `user` existe, `metadata` sinon), `CreatePayoutDialog.tsx:41-45` (`user?.first_name ?? metadata?.first_name`), inchangés → un compte lié à noms `''` bloque le repli vers `metadata` ; le constat tient. Classement : A1, `nomDe` et `ownerName` lisent déjà `metadata` comme source du nom : retomber sur `metadata` quand le nom composé du compte est vide (`||` au lieu de `??`, et test de vacuité dans `nomDe`) n'ajoute ni texte ni donnée.
 
 ### Un compte existant qui accepte une invitation ne reçoit pas le nom que l'agence a saisi
 - Réf : P220.07
-- Statut : à mesurer
+- Statut : retenu · à valider — V3 : écrire sur un compte le nom qu'un tiers a saisi
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Invitation/InvitationService.php:631-679`, `takussan-api/app/Http/Requests/Invitation/AcceptInvitationRequest.php:31-32`, `takussan-api/app/Services/Invitation/AgentInvitationService.php:85-97`
 - Constat :
@@ -19973,10 +19979,11 @@ les envoie.*
   - `acceptForUser`, la branche d'un compte déjà connecté, appelle `finalizeAccept` sans écrire de nom (lu, l. 674-679) ; `grep -n first_name InvitationService.php` → l. 278 (docblock) et 635 seulement : aucun chemin ne recopie le nom de l'invitation sur un compte à noms vides. Un compte créé par téléphone qui accepte reste sans nom dans l'équipe (déduit, à vérifier par un test d'acceptation).
   - Établi comment : lu, et `grep`.
 - Piste : à l'acceptation, compléter `first_name` et `last_name` vides du compte par ceux de l'invitation (sans écraser un nom déjà posé). Test : compte créé par téléphone qui accepte une invitation d'agent nommée → le membre porte le nom saisi.
+- Mesure (2026-10-24, 6d8095e26, mesureur) : relu `InvitationService.php:631-636` (seul écrivain de `first_name`), `:674-679` (`acceptForUser` → `finalizeAccept`, aucun nom écrit), `AcceptInvitationRequest.php:31-32` (`nullable`), inchangés ; test PHPUnit temporaire (retiré, charge 1,57 / 2,05 / 2,34 sur 8 cœurs), compte existant à noms `''` qui accepte une invitation d'agent dont le profil brouillon porte `metadata` `Awa Sarr` → 200, profil `active` lié au compte, compte toujours `["", ""]` → le constat tient (mesuré par e-mail ; la branche par numéro passe par le même `acceptForUser`). Classement : V3, compléter le nom d'un compte par ce qu'une agence a saisi change ce qui est conservé sur la personne, et touche aussi V7.
 
 ### Petites améliorations
 - Réf : P220.08
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : repli du « Bailleur actif » et assembleur partagé
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/components/leases/CreateLeaseForm.tsx:212-216`, `takussan-web/src/lib/queries/property-collaborators.ts:77`, `takussan-web/src/components/visits/VisitDetail.tsx:608`
 - Constat :
@@ -19984,3 +19991,4 @@ les envoie.*
   - Le front n'a pas d'assembleur de nom partagé : chaque écran a le sien, et les replis divergent (`#id` dans `property-collaborators.ts:77`, e-mail dans `VisitDetail.tsx:608`, `—` dans `ServiceProvidersList`, aucun dans la plupart des sites relevés ci-dessus) (lu).
   - Établi comment : lu.
 - Piste : un `nomAffichable()` sous `src/lib`, et une garde légère (`grep` dans `scripts/check-*.mjs`) contre la composition `${first_name} ${last_name}` hors de lui.
+- Mesure (2026-10-24, 6d8095e26, mesureur) : relu `CreateLeaseForm.tsx:214` (`t('activeLandlord', { name: user.full_name })`), `fr.json:3918` (« Bailleur actif : {name} »), `property-collaborators.ts:77` (`#id`), `VisitDetail.tsx:608` (e-mail), `grep nomAffichable src/lib` → rien, inchangés → le constat tient. Classement : V7, le repli à afficher et l'assembleur dépendent du choix de P220.04 ; la garde seule serait A5.
