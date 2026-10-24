@@ -141,10 +141,12 @@ class InvitationService
      * Send a new invitation.
      *
      * Pre-conditions:
-     *  - email is RFC-valid (handled by the FormRequest)
-     *  - inviter has the `invite_<role>` permission OR is super_admin
-     *    (the controller / policy enforces this — the service trusts the
-     *    caller for permission, but still guards data integrity below)
+     *  - email is RFC-valid (handled by the caller's FormRequest)
+     *  - the caller has authorised the gesture: the per-role routes by
+     *    their profile policy's `invite` (TCK-256/258/260), the cooptation
+     *    by {@see SuperAdminCooptationService} — the service trusts the
+     *    caller for permission, but still guards data integrity below.
+     *    There is no generic creation route any more (P208.01, TCK-2190).
      *
      * Behaviour:
      *  - Generates a 64-char URL-safe token, retries on the (extremely
@@ -182,12 +184,9 @@ class InvitationService
         $metadata = [...($payload['metadata'] ?? []), 'locale' => ContactSansCompte::DEFAULT_LOCALE];
 
         // TCK-455 — refus À L'ÉMISSION d'une invitation qui ne rattache à
-        // rien. Le garde vit ICI et non seulement dans
-        // `CreateInvitationRequest` : `send()` est le seul point que
-        // traversent AUSSI les quatre services par rôle, et une règle posée
-        // dans la seule FormRequest laisserait ouvert tout appelant interne.
-        // La FormRequest la rejoue pour rendre une erreur de CHAMP au client,
-        // en lisant les mêmes constantes — deux couches, une définition.
+        // rien. Le garde vit ICI : `send()` est le seul point que traversent
+        // les services par rôle et la cooptation. (La FormRequest de la
+        // création générique qui le rejouait est partie avec elle, P208.01.)
         self::assertInvitationAttachesToSomething($role, $invitableType);
 
         // Dedup guard: a pending `sent` invitation for the same
@@ -714,6 +713,21 @@ class InvitationService
      */
     protected function finalizeAccept(Invitation $invitation, User $user): Invitation
     {
+        // P208.02 (TCK-2192) — the targeted profile is judged BEFORE any write:
+        // only a `draft` is activated, an `active` one is left as is, anything
+        // else (suspended, inactive, blocked) refuses the acceptance and leaves
+        // the invitation `sent`. The flip below used to lift the suspension of
+        // another account's profile, in another agency, without a trace.
+        $invitable = $invitation->invitable;
+        $invitableStatus = $invitable !== null && array_key_exists('status', $invitable->getAttributes())
+            ? ($invitable->status instanceof \BackedEnum ? (string) $invitable->status->value : (string) $invitable->status)
+            : null;
+        abort_code_if(
+            $invitableStatus !== null && ! in_array($invitableStatus, ['draft', 'active'], true),
+            409,
+            'invitation.profile_unavailable',
+        );
+
         // TCK-264 — super_admin cooptation: the spatie role is NOT
         // attached at acceptance time. The user must first enroll a
         // TOTP factor through the dedicated onboarding flow; only the
@@ -722,7 +736,13 @@ class InvitationService
         // column) so the dashboard / router can detect the pending state
         // and gate every super-admin surface until the factor is
         // confirmed.
-        if ($invitation->role === 'super_admin') {
+        //
+        // P208.03 (TCK-2190) — only a cooptation WITHOUT agency: that is the
+        // one `confirm` honours ({@see SuperAdminTwoFactorController}). A
+        // `super_admin` row tied to an agency (the retired generic route
+        // emitted some) set the flag, sent the account to an enrolment that
+        // cut its 2FA and could never be confirmed.
+        if ($invitation->role === 'super_admin' && $invitation->agency_id === null) {
             $user->forceFill([
                 'force_2fa_at_first_login' => true,
                 'email_verified_at' => $user->email_verified_at ?? now(),
@@ -744,8 +764,8 @@ class InvitationService
             // user opérationnel ; plus de double-écriture spatie.
         }
 
-        // Flip the polymorphic profile to `active` if it exists and
-        // exposes a `status` attribute.
+        // Flip the polymorphic profile from `draft` to `active` if it exists
+        // and exposes a `status` attribute (P208.02: only a draft).
         //
         // TCK-261 — for a draft ServiceProviderProfile (created sans User
         // by ServiceProviderInvitationService), we additionally attach
@@ -753,14 +773,13 @@ class InvitationService
         // to /api/me/profiles/{sp_profile}/* with a clean ownership check.
         // TCK-257 — same treatment for OwnerProfile drafts created by
         // OwnerInvitationService (user_id null until acceptance).
-        $invitable = $invitation->invitable;
         if ($invitable !== null) {
             $patch = [];
-            if (array_key_exists('status', $invitable->getAttributes())) {
+            if ($invitableStatus === 'draft') {
                 // Use a string literal rather than ProfileStatus::Active->value
                 // so this stays decoupled from any specific profile enum —
-                // every profile-status enum we ship uses the same `active`
-                // string for the active state.
+                // every profile-status enum we ship uses the same `draft` and
+                // `active` strings.
                 $patch['status'] = 'active';
             }
             // TCK-259 — agent drafts (created sans User by

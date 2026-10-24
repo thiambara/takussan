@@ -8,8 +8,10 @@ use App\Models\Enums\AgentProfileStatus;
 use App\Models\Invitation;
 use App\Models\Profiles\AgentProfile;
 use App\Models\User;
+use App\Services\Invitation\InvitationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
 /**
@@ -43,6 +45,14 @@ use Tests\TestCase;
  * tout le monde) **et** la cooptation `super_admin` (elle n'a aucun profil à
  * cibler, et une garde qui l'attraperait transformerait ce ticket en
  * régression sur un parcours qui marche).
+ *
+ * ## P208.01 et P208.05 (TCK-2190)
+ *
+ * La route générique `POST /api/invitations` est retirée : ces tests éprouvent la garde là où
+ * elle vit, `InvitationService::send()`, que traversent les routes par rôle et la cooptation.
+ * Le témoin « le générique reste ouvert à une agence individuelle » est retiré avec la route :
+ * les routes par rôle refusent déjà l'agence `individual` (`InviteAgentTest`,
+ * `test_individual_agency_admin_gets_403`), ce que `docs/features.md` § 1.12 écrit.
  */
 class InvitationAttachmentTest extends TestCase
 {
@@ -59,6 +69,23 @@ class InvitationAttachmentTest extends TestCase
         return [$agency, $admin];
     }
 
+    /** @param  array<string,mixed>  $payload */
+    private function envoyer(array $payload, User $inviter): Invitation
+    {
+        return app(InvitationService::class)->send($payload, $inviter);
+    }
+
+    /** @param  array<string,mixed>  $payload */
+    private function assertRefuse(array $payload, User $inviter): void
+    {
+        try {
+            $this->envoyer($payload, $inviter);
+            $this->fail('L\'émission devait être refusée en 422.');
+        } catch (ValidationException $e) {
+            $this->assertSame(422, $e->status);
+        }
+    }
+
     /**
      * AC2 — le défaut, sur les QUATRE rôles, et sur les DEUX types d'agence.
      *
@@ -72,16 +99,16 @@ class InvitationAttachmentTest extends TestCase
         Mail::fake();
 
         foreach ([AgencyKind::Standard, AgencyKind::Individual] as $kind) {
-            [$agency] = $this->agenceAvecAdmin($kind);
+            [$agency, $admin] = $this->agenceAvecAdmin($kind);
 
             foreach (['owner', 'agent', 'agency_admin', 'service_provider'] as $role) {
                 $email = "sans-attache-{$kind->value}-{$role}@example.com";
 
-                $this->postJson('/api/invitations', [
+                $this->assertRefuse([
                     'email' => $email,
                     'role' => $role,
                     'agency_id' => $agency->id,
-                ])->assertStatus(422);
+                ], $admin);
 
                 // Un 422 qui écrit quand même n'est pas un refus.
                 $this->assertDatabaseMissing('invitations', ['email' => $email]);
@@ -97,12 +124,12 @@ class InvitationAttachmentTest extends TestCase
     public function test_temoin_la_cooptation_super_admin_reste_ouverte_sans_invitable(): void
     {
         Mail::fake();
-        $this->actingAsRole('super_admin');
+        $operateur = $this->actingAsRole('super_admin');
 
-        $this->postJson('/api/invitations', [
+        $this->envoyer([
             'email' => 'coopte@example.com',
             'role' => 'super_admin',
-        ])->assertStatus(201);
+        ], $operateur);
 
         $invitation = Invitation::query()->where('email', 'coopte@example.com')->firstOrFail();
         $this->assertNull($invitation->invitable_type);
@@ -118,7 +145,7 @@ class InvitationAttachmentTest extends TestCase
     public function test_temoin_une_invitation_qui_rattache_produit_un_membre_sur_agence_standard(): void
     {
         Mail::fake();
-        [$agency] = $this->agenceAvecAdmin(AgencyKind::Standard);
+        [$agency, $admin] = $this->agenceAvecAdmin(AgencyKind::Standard);
 
         $profil = AgentProfile::factory()->create([
             'agency_id' => $agency->id,
@@ -126,13 +153,13 @@ class InvitationAttachmentTest extends TestCase
             'status' => AgentProfileStatus::Draft->value,
         ]);
 
-        $this->postJson('/api/invitations', [
+        $this->envoyer([
             'email' => 'rattache@example.com',
             'role' => 'agent',
             'agency_id' => $agency->id,
             'invitable_type' => AgentProfile::class,
             'invitable_id' => $profil->id,
-        ])->assertStatus(201);
+        ], $admin);
 
         $invitation = Invitation::query()->where('email', 'rattache@example.com')->firstOrFail();
         $this->assertSame(AgentProfile::class, $invitation->invitable_type);
@@ -154,46 +181,6 @@ class InvitationAttachmentTest extends TestCase
     }
 
     /**
-     * TÉMOIN 3 — la même chaîne sur une agence `individual`.
-     *
-     * ⚠ `POST /api/invitations` n'est PAS fermé aux agences individuelles, et
-     * ce test l'épingle. La mesure a montré que le type d'agence n'était pas le
-     * sujet ; la restriction qui, elle, en dépend est traitée par TCK-454.
-     * Sans ce témoin, un correctif qui aurait fermé la porte au mauvais critère
-     * cocherait quand même les autres critères.
-     */
-    public function test_temoin_l_endpoint_generique_reste_ouvert_a_une_agence_individuelle(): void
-    {
-        Mail::fake();
-        [$agency] = $this->agenceAvecAdmin(AgencyKind::Individual);
-
-        $profil = AgentProfile::factory()->create([
-            'agency_id' => $agency->id,
-            'user_id' => null,
-            'status' => AgentProfileStatus::Draft->value,
-        ]);
-
-        $this->postJson('/api/invitations', [
-            'email' => 'individuelle@example.com',
-            'role' => 'agent',
-            'agency_id' => $agency->id,
-            'invitable_type' => AgentProfile::class,
-            'invitable_id' => $profil->id,
-        ])->assertStatus(201);
-
-        $invitation = Invitation::query()->where('email', 'individuelle@example.com')->firstOrFail();
-
-        $this->postJson("/api/invitations/{$invitation->token}/accept", [
-            'first_name' => 'Modou',
-            'last_name' => 'Fall',
-            'password' => 'sup3r-secret',
-        ])->assertStatus(200);
-
-        $compte = User::query()->where('email', 'individuelle@example.com')->firstOrFail();
-        $this->assertTrue($compte->fresh()->isAgentAt((int) $agency->id));
-    }
-
-    /**
      * Le couple (rôle, profil visé) doit être COHÉRENT, et pas seulement
      * présent.
      *
@@ -206,7 +193,7 @@ class InvitationAttachmentTest extends TestCase
     public function test_un_profil_qui_ne_correspond_pas_au_role_est_refuse(): void
     {
         Mail::fake();
-        [$agency] = $this->agenceAvecAdmin(AgencyKind::Standard);
+        [$agency, $admin] = $this->agenceAvecAdmin(AgencyKind::Standard);
 
         $profil = AgentProfile::factory()->create([
             'agency_id' => $agency->id,
@@ -214,13 +201,13 @@ class InvitationAttachmentTest extends TestCase
             'status' => AgentProfileStatus::Draft->value,
         ]);
 
-        $this->postJson('/api/invitations', [
+        $this->assertRefuse([
             'email' => 'incoherent@example.com',
             'role' => 'owner',
             'agency_id' => $agency->id,
             'invitable_type' => AgentProfile::class,
             'invitable_id' => $profil->id,
-        ])->assertStatus(422);
+        ], $admin);
 
         $this->assertDatabaseMissing('invitations', ['email' => 'incoherent@example.com']);
     }

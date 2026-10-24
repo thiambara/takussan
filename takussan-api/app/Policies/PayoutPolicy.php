@@ -38,7 +38,8 @@ class PayoutPolicy extends BasePolicy
 
         return $user->isSuperAdmin()
             || $model->landlord_id === $user->id
-            || $model->issued_by_id === $user->id
+            // P218.03 (TCK-2196) — l'émetteur encore membre de l'agence (ADR-0031, amendement du 2026-10-24).
+            || $this->auteurEncoreMembre($user, $model->issued_by_id, $model->agency_id)
             || ($this->isStaffOf($user, $model->agency_id) && $user->can(Capability::PayoutsCreate->value, $model));
     }
 

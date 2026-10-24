@@ -4,6 +4,7 @@ namespace App\Policies;
 
 use App\Models\Enums\Capability;
 use App\Models\User;
+use App\Services\Membership\MembershipCapabilityResolver;
 use App\Services\Property\BailleurDuBien;
 use Illuminate\Database\Eloquent\Model;
 
@@ -138,6 +139,24 @@ abstract class BasePolicy
         return $agencyId === null
             || ! $user->isBlockedOwnerAt((int) $agencyId)
             || $this->isStaffOf($user, $agencyId);
+    }
+
+    /**
+     * P218.03 (TCK-2196) — ADR-0031, amendement du 2026-10-24 : la branche d'AUTEUR d'une ligne
+     * (`issued_by_id`, `created_by_id`, `conducted_by`…) ne vaut que si la ligne est sans agence,
+     * ou si l'auteur est encore membre de son agence (`isMemberAt` : personnel actif ou bailleur
+     * actif). Précédent : `CustomerPolicy::isAuthorStillMember`. L'agent suspendu ou retiré, et le
+     * bailleur bloqué, n'y entrent plus par leur seule signature. Forme SQL des listes :
+     * `MembershipCapabilityResolver::memberAgencyIds`.
+     */
+    protected function auteurEncoreMembre(User $user, mixed $authorId, mixed $agencyId): bool
+    {
+        if ($authorId === null || (int) $authorId !== $user->id) {
+            return false;
+        }
+
+        return $agencyId === null
+            || app(MembershipCapabilityResolver::class)->isMemberAt($user, (int) $agencyId);
     }
 
     /**

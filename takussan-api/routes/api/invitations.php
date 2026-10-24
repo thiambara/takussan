@@ -15,9 +15,8 @@ Route::post('invitations/{token}/accept', InvitationAcceptController::class)
 
 Route::middleware('auth:sanctum')->group(function (): void {
     Route::get('invitations', [InvitationController::class, 'index'])->name('invitations.index');
-    // TCK-589, vérification adverse m1 — par invitant, par numéro, une relance par 10 min.
-    Route::post('invitations', [InvitationController::class, 'store'])
-        ->middleware('throttle:invitations-send')->name('invitations.store');
+    // P208.01 (TCK-2190) — plus de création générique : les routes par rôle
+    // (`routes/api/agencies.php`) et la cooptation (`routes/api/admin.php`) émettent.
     Route::get('invitations/{invitation}', [InvitationController::class, 'show'])->name('invitations.show');
     Route::post('invitations/{invitation}/revoke', [InvitationController::class, 'revoke'])->name('invitations.revoke');
     Route::post('invitations/{invitation}/resend', [InvitationController::class, 'resend'])

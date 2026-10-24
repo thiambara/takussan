@@ -58,6 +58,18 @@ class SuperAdminTwoFactorController extends Controller
         $user = $request->user();
         $this->assertCooptedSuperAdmin($user);
 
+        // P208.03 (TCK-2190) — une 2FA active ne se coupe que pour un enrôlement qui pourra se
+        // confirmer : une cooptation acceptée, ou l'opérateur amorcé (profil plateforme actif,
+        // {@see SuperAdminBootstrapService}). Sans cela, `confirm` rend `super_admin.not_pending`
+        // et le compte reste sans second facteur.
+        abort_code_if(
+            (bool) $user->two_factor_enabled
+                && ! $user->hasActivePlatformProfile()
+                && $this->acceptedCooptation($user) === null,
+            403,
+            'super_admin.not_pending',
+        );
+
         $secret = $this->twoFactor->generateSecret();
         $recoveryCodesPlain = $this->twoFactor->generateRecoveryCodes();
         $recoveryCodesHashed = array_map(

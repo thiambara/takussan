@@ -20,6 +20,8 @@ use Tests\ApiTestCase;
  *
  * Décision du porteur (2026-10-20) : même traitement que P62.01, et 404 quand `assign` refuse.
  * Le super-admin, seul à pouvoir nommer une autre agence, garde son 422 (AgenceSupprimeeNonCibleeTest).
+ *
+ * Les deux cas de l'invitation sont partis avec la création générique (P208.01, TCK-2190).
  */
 class AgencyAndRoleExistenceOracleTest extends ApiTestCase
 {
@@ -78,40 +80,6 @@ class AgencyAndRoleExistenceOracleTest extends ApiTestCase
         $tierce = $envoyer($this->tierce->id);
         $this->assertSame(422, $tierce[0]);
         $this->assertArrayNotHasKey('agency_id', $tierce[1]['errors']);
-        $this->assertSame($tierce, $envoyer(self::ABSENT));
-    }
-
-    public function test_l_invitation_rend_la_meme_reponse_pour_une_agence_absente(): void
-    {
-        $this->actingAsApi(User::factory()->create());
-
-        $envoyer = fn (int $agencyId) => $this->verdict($this->postJson('/api/invitations', [
-            'email' => 'pas-une-adresse',
-            'agency_id' => $agencyId,
-        ]));
-
-        $tierce = $envoyer($this->tierce->id);
-        $this->assertSame(422, $tierce[0]);
-        $this->assertArrayNotHasKey('agency_id', $tierce[1]['errors']);
-        $this->assertSame($tierce, $envoyer(self::ABSENT));
-    }
-
-    public function test_l_admin_d_une_autre_agence_ne_distingue_pas_l_agence_absente_de_l_invitation(): void
-    {
-        $admin = User::factory()->withTwoFactor()->create();
-        AgencyAdminProfile::factory()->create(['user_id' => $admin->id, 'agency_id' => Agency::factory()->create()->id]);
-        $this->actingAsApi($admin);
-
-        $envoyer = fn (int $agencyId) => $this->verdict($this->postJson('/api/invitations', [
-            'email' => 'invite@example.test',
-            'role' => 'agent',
-            'invitable_type' => AgentProfile::class,
-            'invitable_id' => 1,
-            'agency_id' => $agencyId,
-        ]));
-
-        $tierce = $envoyer($this->tierce->id);
-        $this->assertSame(403, $tierce[0]);
         $this->assertSame($tierce, $envoyer(self::ABSENT));
     }
 

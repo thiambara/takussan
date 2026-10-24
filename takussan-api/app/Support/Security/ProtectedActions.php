@@ -174,7 +174,6 @@ final class ProtectedActions
         OwnerInvitationController::class.'@__invoke',
         AgentInvitationController::class.'@__invoke',
         ServiceProviderInvitationController::class.'@__invoke',
-        InvitationController::class.'@store',
         InvitationController::class.'@revoke',
         InvitationController::class.'@resend',
 
