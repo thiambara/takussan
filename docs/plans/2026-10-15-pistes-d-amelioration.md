@@ -18483,7 +18483,7 @@ est conforme à `docs/models-spec.md` § 14 tel que le cite TCK-1151.*
 
 ### La fiche d'un bail montre « Partagez votre expérience » à l'agent, au bailleur et à l'administrateur d'agence
 - Réf : P201.02
-- Statut : retenu · autonome
+- Statut : fait · TCK-2035
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/leases/LeaseDetail.tsx:76-80,344-354`, `takussan-web/src/components/bookings/BookingDetail.tsx:122,322`
 - Constat :
@@ -18492,6 +18492,7 @@ est conforme à `docs/models-spec.md` § 14 tel que le cite TCK-1151.*
   - Le dépôt n'accepte que le locataire du bail (lu, `ReviewEligibility.php:176-183`, `tenant.user_id`) : le gestionnaire qui suit le lien arrive sur la fiche publique avec « Vous pourrez laisser un avis… » (déduit de P201.01, non vu).
 - Piste : ne monter l'appel que pour le locataire du bail (ou hors `isAgentSurface`, comme la fiche de réservation). Garde : un test de `LeaseDetail` en rôle `agent` qui exige l'absence de l'appel.
 - Mesure (2026-10-23, e75677bf8, mesureur) : relu `LeaseDetail.tsx:344` (l'appel monté sur `canLeaseLeaveReview(lease) && lease.property?.slug`, sans rôle) et `BookingDetail.tsx:322` (`!isDashboardAgent`), aucun commit depuis 49aa336db ; test vitest temporaire de `LeaseDetail` (bail avec bien, `LeaveReviewCta` remplacé par un repère), charge 4,06 sur 8 cœurs, retiré ensuite → rôles `agent`, `owner`, `agency_admin` sur un bail `active` ou `renewed` : appel affiché, comme pour `customer` : le constat tient. Le type `Lease` du front n'expose pas le `user_id` du locataire (lu, `types/lease.ts:56`, `tenant_id` seul) : le correctif sans changement d'API est la condition `!isAgentSurface`, que la fiche emploie déjà (l. 232). Classement : A1, le dépôt n'accepte que le locataire (`ReviewEligibility::leasesOf`, `tenant.user_id`) et la fiche de réservation applique déjà la même exclusion : aucun choix de produit.
+- Mesure (2026-10-24, 96d942893, implementeur) : reproduit avant correctif par `LeaseDetail.appel-avis.test.tsx` (bail `active` avec un bien, `LeaveReviewCta` remplacé par un repère) → rôles `agent`, `owner`, `agency_admin`, `super_admin` : appel affiché (4 rouges) ; l'appel se monte sous `!isAgentSurface`, comme la fiche de réservation sous `!isDashboardAgent` → absent pour la gestion, présent pour le locataire (5/5) ; ablation (condition retirée) → 4 rouges, rétablie → vert ; `components/leases/__tests__/` 120/120 verts.
 
 ### Les prédicats `canLeaseLeaveReview` et `canBookingLeaveReview` recopient une règle de l'API devenue autre, et ignorent un avis déjà déposé
 - Réf : P201.03
