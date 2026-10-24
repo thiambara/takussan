@@ -19278,7 +19278,7 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
 
 ### Le verdict KYC se juge sur le dossier lié à la route : un rejet après une vérification laisse le dossier `rejected` et l'agence vérifiée
 - Réf : P211.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-2105
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Kyc/KycWorkflowService.php:96-176,185-190`
 - Constat :
@@ -19288,6 +19288,7 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
   - Établi comment : lu et mesuré.
 - Piste : relire le dossier sous `lockForUpdate` dans une transaction qui porte aussi l'écriture de l'agence, y juger `assertTransitionable` / `assertNotVerified`, et prévenir après le commit, comme `InventorySignatureService::sign`. Garde : un test qui vérifie puis rejette sur une copie périmée et attend 422 `CODE_NOT_TRANSITIONABLE`, l'agence intacte.
 - Mesure (2026-10-24, 0c24562d3, mesureur) : relu `KycWorkflowService.php` : `submit` (`assertNotVerified` sur le modèle reçu, l. 96-116), `verify` et `reject` (`assertTransitionable` sur le modèle reçu, `update` du dossier puis de l'agence hors transaction ni verrou, `notifyReviewed`, l. 118-176), lignes inchangées ; `git log` sur `app/Services/Kyc` et `grep` des tickets → rien ne l'a traité ; test temporaire `tests/Feature/TmpMesureur/TmpMesure211Test.php` (retiré), `XDEBUG_MODE=off php artisan test <fichier>`, PostgreSQL de test, charge 1,66 / 1,78 / 1,95 sur 8 cœurs : dossier `submitted` complet chargé deux fois, `verify` sur l'un puis `reject` sur l'autre → rejet accepté, dossier `rejected`, agence `active` et `is_verified = true` → le constat tient ; le double `submit` n'a pas été joué. Classement : A1, la garde `CODE_NOT_TRANSITIONABLE` écrit déjà le contrat (un dossier tranché ne se tranche plus) ; le correctif la juge sur la ligne relue sous verrou dans une transaction qui porte aussi l'écriture de l'agence, avis après le commit, comme TCK-1820 et TCK-1822.
+- Mesure (2026-10-24, b9243f4b6, implementeur) : dossier `submitted` complet chargé deux fois, `verify` sur l'un puis `reject` sur l'autre → rejet accepté (reproduit par `tests/Feature/Kyc/KycVerdictSousVerrouTest.php`, 3 rouges sur 4 avant correctif : rejet après vérification, vérification après rejet, soumission d'un dossier vérifié) → `submit`, `verify` et `reject` relisent le dossier sous `lockForUpdate` dans une transaction qui porte l'écriture de l'agence, avis après le commit ; 4 verts, ablation (service remis à `HEAD`) → 3 rouges, correctif remis → 4 verts.
 
 ### La demande de passage en agence se juge `pending` hors verrou : un rejet après une approbation laisse la demande `rejected` et l'agence passée en `standard`
 - Réf : P211.02
