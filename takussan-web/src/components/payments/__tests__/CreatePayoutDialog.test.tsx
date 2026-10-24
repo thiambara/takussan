@@ -287,3 +287,38 @@ describe('CreatePayoutDialog — la commission de la plateforme, portée par l\'
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
 });
+
+describe("CreatePayoutDialog — « encaissé par la plateforme » sur la ligne (TCK-2076, P178.04)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('marque la pièce encaissée par la plateforme, et elle seule', () => {
+    const base = CALCUL.data.lines.lease_payments[0];
+    const sansPlateforme = { settled_by_platform: false, platform_fee_rate: null, platform_fee: null, agency_received: null, commission_below_platform_fee: false };
+    PREPARATION.current = {
+      data: {
+        data: {
+          ...CALCUL.data,
+          requires_approval: false,
+          lines: {
+            lease_payments: [
+              { ...base, id: 201, lease_reference: 'BAIL-EN-LIGNE', ...sansPlateforme, settled_by_platform: true, platform_fee_rate: 5, platform_fee: 10000, agency_received: 190000 },
+              { ...base, id: 202, lease_reference: 'BAIL-ESPECES', ...sansPlateforme },
+            ],
+            booking_payments: [],
+            service_provider_bills: [],
+          },
+          totals: { ...CALCUL.data.totals, platform_fee: 10000 },
+        },
+      },
+      isError: false,
+      isFetching: false,
+      error: null,
+    };
+    monter();
+
+    expect(screen.getByText('Loyer — bail BAIL-EN-LIGNE').closest('td')).toHaveTextContent('Encaissé par la plateforme');
+    expect(screen.getByText('Loyer — bail BAIL-ESPECES').closest('td')).not.toHaveTextContent('Encaissé par la plateforme');
+  });
+});

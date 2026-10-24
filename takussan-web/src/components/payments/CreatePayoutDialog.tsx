@@ -119,6 +119,12 @@ export function CreatePayoutDialog({ open, onOpenChange, onCreated }: CreatePayo
         })}
       </span>
     ) : null;
+  // TCK-2076 (P178.04, décision du porteur du 2026-10-23) — un seul libellé, « encaissé par la
+  // plateforme », pour la pièce que la plateforme a encaissée puis reversée à l'agence.
+  const settledByPlatformLabel = (l: PlatformFeeLine) =>
+    l.settled_by_platform ? (
+      <span className="ml-2 rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">{t('settledByPlatform')}</span>
+    ) : null;
   // TCK-594 (ADR-0039 §6) — l'agence vérifie la destination qu'elle va payer : le titulaire la
   // déclare, quelqu'un d'autre la confirme (le serveur refuse au titulaire de se vérifier lui-même).
   const defaultVerified = prep?.payout_methods.find((m) => m.is_default && m.verified);
@@ -277,7 +283,8 @@ export function CreatePayoutDialog({ open, onOpenChange, onCreated }: CreatePayo
                       {prep.lines.lease_payments.map((l) => (
                         <tr key={`lp-${l.id}`} className="border-t border-border">
                           <td className="px-3 py-2">
-                            {t('leaseLine', { reference: l.lease_reference ?? `#${l.lease_id}` })}
+                            <span>{t('leaseLine', { reference: l.lease_reference ?? `#${l.lease_id}` })}</span>
+                            {settledByPlatformLabel(l)}
                           </td>
                           <td className="px-3 py-2">{l.paid_at ? formatDate(l.paid_at, locale) : '—'}</td>
                           <td className="px-3 py-2 text-right">{money(l.amount)}</td>
@@ -295,7 +302,8 @@ export function CreatePayoutDialog({ open, onOpenChange, onCreated }: CreatePayo
                       {prep.lines.booking_payments.map((l) => (
                         <tr key={`bp-${l.id}`} className="border-t border-border">
                           <td className="px-3 py-2">
-                            {t('bookingLine', { reference: l.booking_reference ?? `#${l.booking_id}` })}
+                            <span>{t('bookingLine', { reference: l.booking_reference ?? `#${l.booking_id}` })}</span>
+                            {settledByPlatformLabel(l)}
                           </td>
                           <td className="px-3 py-2">{l.paid_at ? formatDate(l.paid_at, locale) : '—'}</td>
                           <td className="px-3 py-2 text-right">{money(l.amount)}</td>
