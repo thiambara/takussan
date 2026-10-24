@@ -19434,7 +19434,7 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
 
 ### Petites améliorations
 - Réf : P212.06
-- Statut : retenu · autonome
+- Statut : fait · TCK-2104 — reste : la garde (lint ou script) qui refuse `getDate()`/`setDate()` relus par `toISOString()`, et le passage des autres écritures d'« aujourd'hui » du front sur `src/lib/jour-de-l-api.ts`
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/components/leases/EarlyTerminationDialog.tsx:34-38`, `takussan-web/src/components/maintenance/QuoteSubmitForm.tsx:248`, `takussan-api/app/Http/Requests/Maintenance/SubmitQuoteRequest.php:38`, `takussan-web/src/lib/calendar-date.ts:118`, `takussan-web/src/components/admin/super/PrivacyRequestChamps.tsx:12`, `takussan-web/src/lib/kyc-echeance.ts:68`, `takussan-web/src/components/reporting/window.ts:96`, `takussan-web/src/lib/property-availability.ts:36`
 - Constat :
@@ -19444,3 +19444,4 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
   - Établi comment : lu, et mesuré pour le premier point.
 - Piste : une fonction partagée (« jour de l'API », UTC) pour tout `min`, `max` ou défaut jugé par une règle `today`, et un `min` sur l'échéance du devis. Garde : une règle de lint ou une garde qui refuse `getDate()`/`setDate()` sur une valeur passée ensuite à `toISOString()`.
 - Mesure (2026-10-24, ccb5c7995, mesureur) : relu `EarlyTerminationDialog.tsx:34-38` (`todayPlusDays` : `setDate` local, relu par `toISOString()`), `EarlyTerminationService.php:72-82` (`notice_too_short` sous `now()->startOfDay()->addDays($notice)`), `QuoteSubmitForm.tsx:248` (`DatePicker` sans `min`) et `SubmitQuoteRequest.php:38` (`after_or_equal:today`) ; `node` → `todayPlusDays(30)` depuis 2026-02-28T00:00Z rend 2026-03-29 sous `Europe/Paris` et `America/New_York`, 2026-03-30 sous Dakar et UTC ; `tinker` → la veille est refusée par `after_or_equal:today` → les deux premiers points tiennent ; le compte des six écritures d'« aujourd'hui » n'a pas été recompté. Classement : A1 et A5, les bornes sont écrites par l'API ; le correctif fait calculer `todayPlusDays` sur le jour UTC, pose `min` = jour UTC sur l'échéance du devis, et peut ajouter une garde, sans texte neuf.
+- Mesure (2026-10-24, f8516986a, implementeur) : `bornes-au-jour-de-l-api.p212-06.test.tsx` sous `TZ=Europe/Paris`, avant correctif → préavis de 30 jours depuis 2026-02-28T00:00Z : min 2026-03-29 ; échéance du devis sans `min`, 2/2 rouges → `todayPlusDays` par `decalerJour(jourDeLApi(), n)`, `min={jourDeLApi()}` sur le devis → 2/2 verts, `EarlyTerminationDialog.test.tsx` et `QuoteSubmitForm*.test.tsx` verts ; ablation fichier par fichier → chaque test rouge. La fonction partagée est `src/lib/jour-de-l-api.ts` (TCK-2094).
