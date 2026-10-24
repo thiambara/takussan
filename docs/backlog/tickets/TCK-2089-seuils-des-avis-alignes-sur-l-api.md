@@ -48,11 +48,14 @@ Avant (lu) : la fiche exige 5 caractères et en permet 1000 pour une réponse
 
 - Les seuils vivent dans un module sans directive (`src/lib/review-limits.ts`), lu par les deux
   écrans et comparé à l'API par `seuils-de-saisie.parity.test.ts` (TCK-1897).
-- Aucun texte neuf : le champ d'avis de la fiche reprend le libellé déjà écrit
+- Aucun texte neuf : le champ d'avis de la fiche reprend le texte déjà écrit de
   `profile.reviews.opportunityCommentLabel` (« Votre commentaire (facultatif) »), et une réponse
-  vide le message `profile.reviews.replyRequired` (« Écrivez une réponse avant de publier. »).
-  Les clés devenues sans lecteur (`property.reviews.form.contentPlaceholder`, `contentTooShort`,
-  `charsLeft`, `property.reviews.replyForm.contentTooShort`) sont retirées des trois langues.
+  vide celui de `profile.reviews.replyRequired` (« Écrivez une réponse avant de publier. »),
+  recopiés sous `property.reviews.form.contentOptionalPlaceholder` et
+  `property.reviews.replyForm.contentRequired` (`wo` = le français, wolof en pause) : la fiche est
+  sous la frontière publique, qui ne charge pas l'espace `profile`. Les clés devenues sans lecteur
+  (`property.reviews.form.contentPlaceholder`, `contentTooShort`, `charsLeft`,
+  `property.reviews.replyForm.contentTooShort`) sont retirées des trois langues.
 - Un avis sans commentaire part sans `content` (comme le titre), plutôt qu'avec une chaîne vide.
 
 ## Delta à produire
@@ -86,5 +89,6 @@ Avant (lu) : la fiche exige 5 caractères et en permet 1000 pour une réponse
   (réponse d'un caractère refusée, `maxLength` 1000, avis sans commentaire refusé, paire
   « réponse à un avis » 1000 ≠ 2000) ; correctif remis → 25 verts.
 - **Piège** : le libellé du champ d'avis portait le minimum (« min. 10 caractères ») : il ne
-  pouvait pas rester. Plutôt qu'un texte neuf (et un `wo` à recopier), le champ reprend celui de
-  « Mes avis », déjà traduit — ce qui aligne aussi ce que lit l'auteur d'un écran à l'autre.
+  pouvait pas rester. Le champ reprend le texte de « Mes avis ». Lire directement l'espace
+  `profile` depuis la fiche faisait rougir `check:i18n-namespaces` (frontière publique : la clé se
+  serait affichée brute) ; le texte est donc recopié sous `property.reviews`.

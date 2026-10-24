@@ -5171,7 +5171,8 @@
         "ratingAria": "Nota ci 5",
         "titlePlaceholder": "Bopp (soo ko bëggee)",
         "thanks": "Jërëjëf ci sa xalaat.",
-        "starsAria": "{count, plural, other {# biddiw}}"
+        "starsAria": "{count, plural, other {# biddiw}}",
+        "contentOptionalPlaceholder": "Votre commentaire (facultatif)"
       },
       "replyForm": {
         "editTitle": "Soppi sama tontu",
@@ -5183,7 +5184,8 @@
         "cancel": "Neenal",
         "publish": "Génne tontu bi",
         "sending": "Mu ngi yónnee…",
-        "save": "Denc"
+        "save": "Denc",
+        "contentRequired": "Écrivez une réponse avant de publier."
       },
       "loadError": "Mënunu yeb xalaat yi."
     },

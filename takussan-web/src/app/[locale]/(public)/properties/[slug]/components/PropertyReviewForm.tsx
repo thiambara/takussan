@@ -15,8 +15,6 @@ interface PropertyReviewFormProps {
 
 export function PropertyReviewForm({ onSubmit, submitting }: PropertyReviewFormProps) {
   const t = useTranslations('property.reviews.form');
-  // TCK-2089 : le commentaire est facultatif, comme à l'API et dans « Mes avis » ; même libellé.
-  const tProfile = useTranslations('profile.reviews');
   const messageErreur = useMessageErreurApi();
   const [rating, setRating] = useState(0);
   const [hover, setHover] = useState(0);
@@ -97,8 +95,8 @@ export function PropertyReviewForm({ onSubmit, submitting }: PropertyReviewFormP
       />
       <div className="space-y-1">
         <Textarea
-          placeholder={tProfile('opportunityCommentLabel')}
-          aria-label={tProfile('opportunityCommentLabel')}
+          placeholder={t('contentOptionalPlaceholder')}
+          aria-label={t('contentOptionalPlaceholder')}
           value={content}
           onChange={(e) => setContent(e.target.value)}
           rows={3}

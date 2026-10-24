@@ -29,7 +29,6 @@ export function PropertyReviewReplyForm({
 }: PropertyReviewReplyFormProps) {
   const t = useTranslations('property.reviews.replyForm');
   const tForm = useTranslations('property.reviews.form');
-  const tProfile = useTranslations('profile.reviews');
   const messageErreur = useMessageErreurApi();
   const [content, setContent] = useState(initialContent ?? '');
   const [error, setError] = useState<string | null>(null);
@@ -41,7 +40,7 @@ export function PropertyReviewReplyForm({
   async function handleSubmit(e: React.FormEvent): Promise<void> {
     e.preventDefault();
     if (empty) {
-      setError(tProfile('replyRequired'));
+      setError(t('contentRequired'));
       return;
     }
     setError(null);
