@@ -19861,7 +19861,7 @@ les envoie.*
 
 ### Petites améliorations
 - Réf : P218.05
-- Statut : validé — validation du porteur (2026-10-24) : `InvitationPolicy::view` : émetteur et (agence nulle ou `isMemberAt`) ; le volet de la délégation planifiée se ferme avec P218.01
+- Statut : fait · TCK-2194 — reste : la délégation `scheduled` vers un délégué suspendu, que la décision ferme avec P218.01
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Policies/InvitationPolicy.php:55-66`, `takussan-api/app/Jobs/Permissions/ProcessRoleDelegationsJob.php`
 - Constat :
@@ -19869,6 +19869,7 @@ les envoie.*
   - Une délégation `scheduled` vers un agent suspendu entre la création et le début : la passer à `active` ne juge pas le statut du délégué (déduit de P218.01 et de `RoleDelegationService::create`, `ProcessRoleDelegationsJob` non relu, à vérifier).
 - Piste : appliquer à `view` la règle de `revoke` (l'émetteur seul pour une invitation sans agence) ; la seconde se ferme avec P218.01 si la voie de lecture est retenue.
 - Mesure (2026-10-24, 1614726d0, mesureur) : relu `InvitationPolicy::view` (l. 55-66 : `invited_by` sans agence ni appartenance pour qui n'a pas `team.invite`) et `revoke` (l. 108-117 : `invited_by` pour une invitation sans agence, `invitesAt` sinon), inchangés ; `ProcessRoleDelegationsJob` relu (`readyToActivate` → `activate`, sans statut du délégué) ; (sonde temporaire `tests/Feature/TmpMesureur/Sonde218Test.php`, retirée ; jeu de `BuildsBookingStakeholders` et admin d'agence par `agencyAdmin`, charge `{ 1.42 1.62 1.63 }` sur 8 cœurs) → invitation de l'agence émise par l'agent, **suspendu** puis **retiré** : `can('view')` vrai, `GET /api/invitations/{id}` 200 avec l'`email` de l'invité (le téléphone, nul dans le jeu, n'est pas mesuré) ; délégation `scheduled` créée vers l'agent suspendu, job passé après `starts_at` → `active`, `isStaffAt` vrai → les deux points « à vérifier » tiennent ; le front n'appelle pas `GET /api/invitations/{id}` (`grep -rn api/invitations/ takussan-web/src` : `accept`, `resend`, `revoke` seuls). Classement : V2 (et V3 : coordonnées de l'invité), la règle de `revoke` appliquée telle quelle à `view` retirerait aussi la lecture à l'émetteur actif d'une invitation de son agence, ce que le docblock dit voulu (« your pending invites ») : le périmètre est à trancher.
+- Mesure (2026-10-24, 973736af4, implementeur) : reproduit par `LectureParLEmetteurEncoreMembreTest`, invitation de l'agence émise par l'agent, agent suspendu puis retiré → `GET /api/invitations/{id}` 200 avant correctif → la branche émetteur de `InvitationPolicy::view` exige une agence nulle ou `isMemberAt` : 403 pour les deux ; témoins (agent actif, invitation sans agence) 200 ; ablation → 2 rouges, remise → 4 verts ; `InvitationJugeeParTeamInviteTest`, `InvitationLifecycleTest`, `AgencyTeamInvitationListingTest` verts. Le volet de la délégation planifiée reste à P218.01.
 
 ### La règle d'auteur d'ADR-0031 (amendement du 2026-10-24) ne touche pas `DocumentPolicy` : téléverseur et auteurs de `reaches` gardent leurs documents sans condition d'appartenance
 - Réf : P218.06
