@@ -343,6 +343,7 @@ export function useActivateLease(id: number) {
       },
     },
     {
+      relireSurErreur: true,
       invalidate: [
         ['leases', 'list'],
         ['leases', 'detail', id],

@@ -215,7 +215,7 @@ export function useCompleteMaintenanceRequest(id: number) {
 export function useAcceptMaintenance(id: number) {
   return useApiMutation<ApiResponse<MaintenanceRequest>, void>(
     { path: cheminApi`/api/maintenance-requests/${id}/accept`, method: 'POST' },
-    { invalidate: [maintenanceKeys.all, maintenanceKeys.detail(id)] },
+    { relireSurErreur: true, invalidate: [maintenanceKeys.all, maintenanceKeys.detail(id)] },
   );
 }
 
@@ -223,7 +223,7 @@ export function useAcceptMaintenance(id: number) {
 export function useDeclineMaintenance(id: number) {
   return useApiMutation<ApiResponse<MaintenanceRequest>, { reason: string }>(
     { path: cheminApi`/api/maintenance-requests/${id}/decline`, method: 'POST' },
-    { invalidate: [maintenanceKeys.all, maintenanceKeys.detail(id)] },
+    { relireSurErreur: true, invalidate: [maintenanceKeys.all, maintenanceKeys.detail(id)] },
   );
 }
 

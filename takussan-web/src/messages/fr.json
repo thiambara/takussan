@@ -863,7 +863,7 @@
       "countSuffix": "{count} avis",
       "loading": "Chargement des avis…",
       "empty": "Aucun avis pour l'instant.",
-      "notEligible": "Vous pourrez laisser un avis après une visite finalisée ou la signature d'un bail sur ce bien.",
+      "notEligible": "Vous pourrez laisser un avis après une réservation honorée ou un bail sur ce bien.",
       "alreadyReviewed": "Merci, vous avez déjà laissé un avis sur ce bien.",
       "agentReply": "Réponse de l'agent",
       "edit": "Modifier",
@@ -9192,6 +9192,7 @@
       "opportunitySentTitle": "Avis envoyé",
       "opportunitySentBody": "Merci ! Votre avis sera publié après validation.",
       "opportunityError": "Votre avis n'a pas pu être envoyé.",
+      "opportunityPartiallySent": "Déjà enregistré : {targets}.",
       "anonymous": "Anonyme"
     },
     "contact": {

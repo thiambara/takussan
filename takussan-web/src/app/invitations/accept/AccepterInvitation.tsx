@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useState, useTransition } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 
@@ -16,6 +17,12 @@ import { destinationDInvitation } from '@/lib/invitation-destination';
 import { avecRedirection } from '@/lib/redirection-interne';
 
 /**
+ * `profilesKeys.all` de `useProfiles`, redéclarée comme dans `credits-solde.ts` : importer le hook
+ * tirerait ses espaces de libellés (`profile`, `ui`) dans la frontière de cette page.
+ */
+const CLE_PROFILS = ['me', 'profiles'] as const;
+
+/**
  * TCK-626 — accepter une invitation, connecté ou non.
  *
  * - **Connecté** : un bouton. Le compte courant est rattaché à l'invitation.
@@ -28,7 +35,8 @@ export function AccepterInvitation({ jeton, connecte }: { readonly jeton: string
   const t = useTranslations('invitationAccept');
   const router = useRouter();
   const locale = useCurrentLocale();
-  const { openSession } = useAuth();
+  const { openSession, refreshUser } = useAuth();
+  const queryClient = useQueryClient();
   const [prenom, setPrenom] = useState('');
   const [nom, setNom] = useState('');
   const [motDePasse, setMotDePasse] = useState('');
@@ -50,6 +58,10 @@ export function AccepterInvitation({ jeton, connecte }: { readonly jeton: string
       }
       const destination = destinationDInvitation(resultat.invitation.role, resultat.invitation.invitable_id);
       if (connecte) {
+        // TCK-2042 (P202.04) — l'invitation ajoute un profil au compte : comme les assistants qui en
+        // créent un, on relit l'utilisateur (ses `roles`) et la liste des profils avant de partir.
+        await refreshUser();
+        await queryClient.invalidateQueries({ queryKey: CLE_PROFILS });
         router.push(destination);
         return;
       }
