@@ -1,6 +1,7 @@
 # ADR-0053 — L'agent principal d'un bien est une marque posée sur sa ligne de collaboration, unique par bien et garantie par le schéma ; une seule écriture la déplace
 
-- **Statut** : Accepté
+- **Statut** : Accepté, **amendé le 2026-10-24** (cf. § *Amendement du 2026-10-24 — la marque tombe au
+  retrait et à l'effacement*)
 - **Date** : 2026-10-08
 - **Tickets** : [TCK-504](../backlog/tickets/TCK-504-agent-principal-choisi-plutot-que-deduit.md) ; consommé par
   [TCK-603](../backlog/tickets/TCK-603-agent-responsable-bulk-assign-et-biens-a-la-passation.md)
@@ -63,10 +64,11 @@ ALTER TABLE property_collaborators ADD CONSTRAINT property_collaborators_primary
    anciennement invité ;
 3. sinon, le propriétaire s'il est joignable et bailleur actif (`estProprietaire`) ou éligible.
 
-Une marque posée sur un agent devenu inéligible (bloqué, suspendu, retiré de l'agence) **reste en
-place mais ne vaut rien** tant qu'il l'est : le contact retombe sur le repli, et revient à l'agent
-désigné s'il est réactivé. Effacer la marque à la suspension ferait perdre le choix de l'agence pour
-une absence passagère.
+Une marque posée sur un agent devenu inéligible (bloqué, suspendu) **reste en place mais ne vaut
+rien** tant qu'il l'est : le contact retombe sur le repli, et revient à l'agent désigné s'il est
+réactivé. Effacer la marque à la suspension ferait perdre le choix de l'agence pour une absence
+passagère. *Amendé le 2026-10-24 : la version d'origine comptait aussi l'agent « retiré de
+l'agence » ; au retrait et à l'effacement du compte, la marque tombe (voir l'amendement).*
 
 La méthode publique `collaborateurPrincipal(Property): ?PropertyCollaborator` rend la ligne qui répond
 (marquée ou déduite), `null` si c'est le propriétaire ou personne. `for()` s'écrit à partir d'elle :
@@ -183,8 +185,9 @@ reprend : c'est le comportement d'avant, pas un état incohérent.
 - **(D) Unicité tenue par le seul service** (verrou, sans index). Écartée : la contrainte 1 exige la
   base ; un chemin qui oublie le service (une commande, une réparation à la main) laisserait deux
   principaux sans erreur.
-- **Effacer la marque d'un agent suspendu ou retiré.** Écartée (§2) : le choix de l'agence survit à
-  une absence ; la marque ne vaut que tant que son titulaire est éligible.
+- **Effacer la marque d'un agent suspendu ou bloqué.** Écartée (§2) : le choix de l'agence survit à
+  une absence ; la marque ne vaut que tant que son titulaire est éligible. *Amendé le 2026-10-24 :
+  l'option visait aussi l'agent retiré ; le retrait et l'effacement ôtent désormais la marque.*
 
 ## Conséquences
 
@@ -218,3 +221,47 @@ reprend : c'est le comportement d'avant, pas un état incohérent.
   journal, autorisation), `tests/Feature/Property/PrimaryAgentSchemaTest.php` (index et `CHECK`),
   `tests/Feature/Property/PrimaryAgentBackfillTest.php` (AC5) ; la course à deux processus (AC2) se
   rejoue hors PHPUnit sur une base jetable, résultats dans les notes du ticket.
+
+## Amendement du 2026-10-24 — la marque tombe au retrait et à l'effacement
+
+Décision du porteur du 2026-10-24 sur P204.05 (angle 204 du fichier de pistes,
+`docs/plans/2026-10-15-pistes-d-amelioration.md`). Elle écrit aussi dans cet ADR une décision
+antérieure, TCK-1333 (P121.04, porteur, 2026-10-22), qui l'avait déjà contredit sans l'amender.
+Relevé sur `54f0f14b4`.
+
+**Constat.**
+
+- Le § 2 et l'option écartée « effacer la marque d'un agent suspendu ou retiré » gardent la marque
+  d'un agent **retiré** de l'agence.
+- Depuis TCK-1333, le retrait l'ôte : `AgencyMemberRemovalService::dropPrimaryMarks`
+  (l. 167-183), appelé par `remove()` (l. 101), retire `is_primary` des lignes du partant sur les
+  biens de l'agence. La ligne de collaboration reste. Les biens sont verrouillés d'abord, dans
+  l'ordre d'ADR-0059 § 3.
+- L'effacement d'un compte n'ôte rien : `AccountDeletionService::anonymize` ne lit ni
+  `property_collaborators` ni `role_delegations`. La marque d'un compte effacé reste donc posée.
+  Elle ne vaut rien, puisque le compte n'est plus éligible, mais elle ne retombe jamais sur le
+  choix d'un autre agent.
+
+**Décision.**
+
+1. **La marque tombe quand son titulaire quitte l'agence pour de bon** : au **retrait** (TCK-1333,
+   déjà en place) et à l'**effacement** du compte (P204.05, option a).
+2. **Elle reste pour la suspension d'un profil et le blocage d'un compte**, qui sont réversibles. Le
+   § 2 vaut pour eux tel qu'il est écrit.
+3. **Une méthode commune ôte les marques et les délégations.** Elle est extraite du retrait :
+   - `dropPrimaryMarks` ;
+   - la révocation des délégations `scheduled` et `active` où le membre est délégué ou absent
+     remplacé (l. 93-98).
+
+   Le retrait l'appelle pour une agence. L'exécution de l'effacement l'appelle pour chaque agence
+   du compte, dans sa transaction. La ligne de collaboration reste, comme au retrait. Le référent
+   client (`is_primary` des fiches) n'entre pas dans cette méthode : c'est un sujet à part.
+
+**Conséquences.**
+
+- La marque tombe par le modèle (`forceFill(['is_primary' => false])->save()`, l. 180-182), donc
+  `PropertyPublicCacheObserver::collaborationModifiee()` invalide la fiche publique (§ 5).
+  L'effacement hérite de cette invalidation. Le paragraphe « ce que l'invalidation ne couvre pas »
+  ne vaut plus que pour la suspension et le blocage.
+- Après l'effacement, `PrimaryPropertyContact::for()` retombe sur le repli du § 2. C'est ce que
+  P204.04 relit pour donner un nouveau destinataire aux demandes de contact du compte effacé.

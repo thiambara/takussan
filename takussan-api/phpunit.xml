@@ -61,7 +61,11 @@
              s'exécute dans le test qui le met en file, sans worker. Depuis TCK-1802 (P156.01),
              `sync` porte `after_commit` (config/queue.php) : le job attend le commit, comme sous
              le worker. Ce que `sync` ne reproduit pas : les tentatives, les délais, et l'échec
-             d'un job remonte dans la requête qui l'a mis en file. -->
+             d'un job remonte dans la requête qui l'a mis en file. Ni l'absence de requête : un
+             job `sync` lit encore le profil actif de la requête qui l'a mis en file, quand le
+             worker n'en a aucun ; un test où l'appelant est aussi le destinataire d'une
+             notification voit donc l'agence de ce profil, pas celle que le worker résoudrait
+             (P203.05). -->
         <env name="QUEUE_CONNECTION" value="sync"/>
         <!-- `array`, quand le développement et la préproduction déclarent `redis` : aucune
              session ne survit au test, ni ne se partage entre processus. -->
