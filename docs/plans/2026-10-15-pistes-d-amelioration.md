@@ -20504,7 +20504,7 @@ sans `delete`).*
 
 ### `POST /api/agencies/{id}/members` fait un administrateur d'agence sans `team.assign_role`, que le changement de rôle exige depuis TCK-1498
 - Réf : P227.03
-- Statut : retenu · autonome
+- Statut : fait · TCK-2205
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Requests/Api/AddAgentAgencyRequest.php:28-40`, `takussan-api/app/Http/Controllers/Api/AgencyController.php:230-290`, `takussan-api/app/Policies/AgencyPolicy.php:46-58,149-157`, `takussan-web/src/components/admin/InviteMemberDialog.tsx:31,41,79`
 - Constat :
@@ -20516,6 +20516,7 @@ sans `delete`).*
   - Établi comment : lu, puis mesuré.
 - Piste : juger `role: agency_admin` du rattachement par `changeMemberRole` (ou refuser le rôle sans `team.assign_role`), et ne proposer ce rôle au dialogue que sous `useCan('team.assign_role')`. Garde : le test de TCK-1498 (`MemberRoleChangeCapabilityTest`) étendu au rattachement.
 - Mesure (2026-10-24, 973736af4, mesureur) : aucun commit sur `takussan-api` depuis 47223cd19, aucun ticket ne cite P227 ; relu `AgencyController::addAgent` (`AgencyAdminProfile` matérialisé si `role = agency_admin`, sous la seule `AgencyPolicy::update`, l. 46-58) et `AgencyPolicy::changeMemberRole` (l. 149-157, `team.assign_role` ou administrateur principal, TCK-1498) ; `InviteMemberDialog.tsx:31,41` propose `agency_admin` sans condition ; test temporaire `TmpMesureurP227Test` (retiré), charge 2,59 sur 8 cœurs : admin sans `team.assign_role`, `POST /api/agencies/{id}/members` `{user_id: <compte sans profil>, role: agency_admin}` → 200, `AgencyAdminProfile` en base ; même admin, `PUT /api/agencies/{id}/members/{agent}/role` `{role: agency_admin}` → 403. Le rattachement sans accord du compte visé (partie « à vérifier ») n'a pas été tranché et reste hors du correctif. Classement : A1, conférer `agency_admin` est le geste que TCK-1498 juge par `team.assign_role`, que le rôle système admin porte (`Capability::agencyAssignable()`).
+- Mesure (2026-10-24, 157e11cb4, implementeur) : reproduit avant correctif par `MemberRoleChangeCapabilityTest::test_un_admin_sans_team_assign_role_ne_rattache_pas_un_compte_comme_admin` (admin sans `team.assign_role`, `POST /api/agencies/{id}/members` `{user_id, role: agency_admin}` → 200 au lieu de 403) → `AddAgentAgencyRequest::authorize()` délègue en plus à `changeMemberRole` pour `agency_admin` : 403, aucun profil ; le rattachement `agent` reste 200, l'admin du rôle système et l'administrateur principal sans la capacité rattachent en 200 ; ablation : 1 rouge sur 9, remis : 9 verts. Front : `InviteMemberDialog` ne propose « Administrateur » que sous `useCan('team.assign_role')` (`InviteMemberDialog.role-admin.test.tsx`, ablation du filtre : 1 rouge sur 2). Le rattachement sans accord du compte visé reste hors du correctif, comme l'a écarté le mesureur.
 
 ### Petites améliorations
 - Réf : P227.04
