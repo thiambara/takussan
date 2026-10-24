@@ -29,7 +29,7 @@ import { useToast } from '@/components/ui/toast';
 import { useAuth } from '@/context/AuthContext';
 import { useCanAll } from '@/hooks/useCan';
 import { isAgent, isAdmin, isOwner } from '@/lib/roles';
-import { formatISODate } from '@/lib/calendar-date';
+import { jourDeLApi } from '@/lib/jour-de-l-api';
 import type { Locale } from '@/i18n/config';
 import type { Booking, BookingPayment, BookingPaymentStatus } from '@/types/booking';
 import {
@@ -188,11 +188,12 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
     isDashboardAgent && (capabilitiesLoading ? true : granted);
 
   // TCK-1301 (P115.01) — un séjour confirmé dont le premier jour est arrivé ne
-  // s'annule plus : l'API le refuse (`booking.cannot_cancel`).
+  // s'annule plus : l'API le refuse (`booking.cannot_cancel`). Le premier jour se juge sur le
+  // jour de l'API, en UTC, pas sur celui du navigateur (P212.02).
   const stayStarted =
     booking.status === 'confirmed' &&
     !!booking.start_date &&
-    booking.start_date.slice(0, 10) <= formatISODate(new Date());
+    booking.start_date.slice(0, 10) <= jourDeLApi();
   const canCancel =
     (isCustomer || staffMay(canCancelBookings)) &&
     (booking.status === 'pending' || booking.status === 'confirmed') &&
