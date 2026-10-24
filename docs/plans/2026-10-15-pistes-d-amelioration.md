@@ -283,7 +283,7 @@ voie d'écriture (angle 13, puis 47).
 | 206 | Pénalités de retard réglées sur la ligne du loyer (`late_fee_amount`, `late_fee_paid_at`, en ligne ou par `LateFeeSettlement`) face aux lecteurs de l'argent qui ne lisent que `amount − refund_amount` (`CollectedPayments::LEASE_NET_SQL`, `PayoutCalculator::kept`, relevé de gérance, exports, métriques) alors que la clôture plateforme les reverse à l'agence (`lateFeeSettledWith`) : pénalité encaissée absente de l'« Encaissé », du relevé et de tout reversement au bailleur, sans texte qui dise à qui elle revient — né de P178.03 | fait |
 | 207 | Rappels et relances planifiés passés par `NotificationService::send()` (file `CodedNotification`) dont la marque se pose à la mise en file (`SendLeasePaymentReminders`, `SendPropertyVisitReminders`, relances de documents et d'échéances) : e-mail épuisé après `failed()`, ou SMS et WhatsApp refusés par tous les fournisseurs sans exception (`SmsRouterDriver`, `WhatsappChannel`), rappel perdu sans reprise ni trace lisible — le pendant de P142.02 pour les notifications codées, né de P179.01 | fait |
 | 208 | Invitations émises par l'endpoint générique `POST /api/invitations` (`CreateInvitationRequest`, `InvitationController::store`) face aux services par rôle qui gardent le même geste (`SuperAdminCooptationService::invite` et ses verrou, avis aux autres super-admins et journal ; `InviteServiceProviderRequest` et sa règle de `metadata.from_maintenance_request_id` ; `AgentInvitationService`, `OwnerInvitationController`) : garde, contrôle de `metadata` ou effet du geste dédié sautés par le chemin générique — né de P181.05 | fait |
-| 209 | Requêtes de modification qui ne rejouent pas les règles de valeur de leur création (`UpdateSettingRequest` face au catalogue de `StoreSettingRequest::after()`, et leurs pareilles : un `after()`, une règle de catalogue, un `Rule::unique` ou une sous-règle `x.*` présents dans `Store*Request` et absents de `Update*Request` du même modèle) : valeur refusée en 422 à la création et enregistrée en 200 à la modification — né de P181.01 | à faire |
+| 209 | Requêtes de modification qui ne rejouent pas les règles de valeur de leur création (`UpdateSettingRequest` face au catalogue de `StoreSettingRequest::after()`, et leurs pareilles : un `after()`, une règle de catalogue, un `Rule::unique` ou une sous-règle `x.*` présents dans `Store*Request` et absents de `Update*Request` du même modèle) : valeur refusée en 422 à la création et enregistrée en 200 à la modification — né de P181.01 | fait |
 | 210 | Gestionnaires `async` du front qui attendent `mutateAsync()` sans `try`/`catch` et sont passés tels quels à `onClick` ou par `void handleSubmit()` (`BookingDecisionDialog`, `VisitDetail` et leurs pareils sous `src/components/**`, hors gestes de transition) : erreur de l'API rendue en promesse rejetée non rattrapée, sans message à l'écran ni fermeture du dialogue — le relevé de P182.01 sur le reste des écrans | à faire |
 | 211 | Gestes d'écriture qui jugent le statut sur le modèle lié à la route, hors transaction ou sans verrou, alors que leurs voisins verrouillent et relisent la ligne (`PlatformPayoutService::cancel`, `PropertyVisitController::cancel`, `MaintenanceRequestService::accept`, et leurs pareils sous `app/Services` et `app/Http/Controllers/Api`) : transition concurrente écrasée, effet ou avis émis deux fois — né de P182.05 et P182.06 | à faire |
 | 212 | Dates calendaires `Y-m-d` de l'API lues par `new Date(…)` au navigateur puis comparées à l'instant ou ramenées à minuit local (`setHours(0, 0, 0, 0)`, `getDate()` : `EarlyTerminationBanner.daysFromTodayTo`, `LeaseRenewalDialog.tsx:44`, `refine` de `lib/schemas/lease.ts:81` et `booking.ts:42`, et leurs pareilles sous `src/components`) au lieu de la comparaison littérale de jours qu'ADR-0018 pose : jour décalé pour un navigateur hors UTC, ou dès minuit UTC du jour même — né de P183.01 et P183.04 | à faire |
@@ -303,6 +303,7 @@ voie d'écriture (angle 13, puis 47).
 | 225 | Ce qu'une agence attache à son administrateur principal (`agencies.primary_admin_id` : passe-droits d'`AgencyPolicy`, `RoleDelegationPolicy`, `BankStatementPolicy`, `AgencyIndicatorPolicy`, `MediaPolicy`, destinataire nommé des avis comme `KycWorkflowService`) quand ce compte est effacé, bloqué, suspendu ou n'a plus de profil d'administrateur : titre jamais transmis, gestes réservés que personne ne tient, avis envoyés à un compte qui ne les lira pas — né de P204.02 | à faire |
 | 225 | Tuiles, bandeaux et badges de compte posés au-dessus d'une liste paginée (`ModerationStats`, titres de groupe, onglets, résumés « n en retard ») qui comptent `items.filter(…).length` sur la page reçue, à côté d'un `meta.total` de toute la liste : chiffres de deux portées côte à côte, sans libellé qui le dise — né de P199.02 et P199.03 |
 | 226 | Paires polymorphes `*_type` / `*_id` et identifiants de ligne cible reçus du client sur les routes d'écriture (`invitable_*` hors du générique, `documentable_*`, `taskable_*`, `attachable_*`, `subject_*`, et leurs pareils dans `app/Http/Requests`), validés par `integer` ou `Rule::in` sans juger que la ligne visée existe et relève de l'agence de l'appelant : écriture ou effet posé sur la ligne d'une autre agence — né de P208.01 | à faire |
+| 227 | Requêtes de création (`Store*Request` et leur contrôleur) restées plus larges que les gestes dédiés et les requêtes de modification resserrés depuis (statut, visibilité, assignation, contact principal, commission : `StorePropertyRequest` face à TCK-1341 et TCK-1427, `StoreLeaseRequest`, `StorePropertyCollaboratorRequest`, et leurs pareilles sous `app/Http/Requests`) : ce qu'un `PATCH` ou un geste refuse s'obtient en créant la ligne — né de P209.01 et P209.02 | à faire |
 
 
 ---
@@ -19078,3 +19079,71 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
   - Établi comment : lu, et mesuré pour le premier point.
 - Piste : refuser un `invitable_id` sans ligne (avec P208.01), retirer `agency_admin` de la liste blanche, corriger les deux docblocks.
 - Mesure (2026-10-24, 955bdeac4, mesureur) : rejoué (un test temporaire `tests/Feature/TmpMesureP208Test.php`, retiré, `XDEBUG_MODE=off php artisan test <fichier>`, PostgreSQL de test, charge 3,1 à 5,8 sur 8 cœurs) : `{role: owner, invitable_type: OwnerProfile, invitable_id: 999999}` → 201, acceptation → 200, compte créé, `isOwnerAt` = `false`, invitation `accepted` → la partie « à vérifier » tient : le compte n'est membre de rien (le cas de TCK-455) ; `{role: agency_admin}` → 422, mais sur `invitable_type` (`requiredIf` de la requête, l. 61-66), avant `assertInvitationAttachesToSomething()` : le constat est inexact sur le lieu du refus, juste sur la valeur jamais recevable ; relu les deux docblocks (`InvitationPolicy.php:21-23`, `InvitationService.php:137`, et non l. 140-142) → ils tiennent. Classement : V2, le premier point est une autorisation qui suit le choix de P208.01 ; les docblocks (A6) et le retrait d'`agency_admin` de la liste blanche (A1) seraient autonomes seuls.
+
+## Angle 209 — Requêtes de modification qui ne rejouent pas les règles de la création
+
+*Exploré le 2026-10-24 sur `pre-dev` 2e22065b6, par l'explorateur. Relu par l'explorateur lui-même, sans sous-agent : les 23 paires `Store*Request` / `Update*Request` de `app/Http/Requests` (relevées par `find`), `StoreAgencyRequest` et `AgencyUpdateRequest`, `InventoryStoreRequest` et `InventoryUpdateRequest`, `RenewLeaseRequest`, l'inventaire des routes `PUT` et `PATCH` (`php artisan route:list --method=…`), et les contrôleurs des cas retenus. Les règles croisées (`after:`, `gte:`, `different:`) ont été cherchées par `grep` dans tout `app/Http/Requests`. Mesures par un test temporaire `tests/Feature/TmpMesureAngle209Test.php` (retiré), `XDEBUG_MODE=off php artisan test <fichier>`, PostgreSQL de test, charge 2,1 à 2,9 sur 8 cœurs. La paire des réglages d'agence est déjà P181.01 et n'est pas reprise. Paires relues et trouvées symétriques : tâche, garant, client (hors budget), alerte de seuil, configuration d'indicateur, étiquette, recherche enregistrée, intégration, favori, intervention, forfait, moyen de versement, rôle d'agence, collaborateur, visite, conversation, produit de mise en avant, demande RGPD, règle d'alerte, état des lieux, agence. Le relevé a trouvé surtout le sens inverse : la création d'un bien accepte ce que les gestes de modification refusent depuis TCK-1341 et TCK-1427.*
+
+### `POST /api/properties` publie un bien sans `properties.publish`, que le `PATCH` et les gestes dédiés exigent
+- Réf : P209.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Http/Requests/Api/StorePropertyRequest.php:41-60`, `takussan-api/app/Http/Controllers/Api/PropertyController.php:130-149`, `takussan-api/app/Http/Requests/UpdatePropertyRequest.php:40-50`, `takussan-api/app/Http/Requests/Api/UpdateStatusPropertyRequest.php:23,46-47`, `takussan-api/tests/Feature/Api/PropertyAuthorizationTest.php:227-238`
+- Constat :
+  - `UpdatePropertyRequest::authorize()` exige `can('publish')` pour un `status` de `STATUTS_QUI_PUBLIENT` (`available`, `published`) ou `visibility=public` (lu, l. 46-50, TCK-1427). `UpdateStatusPropertyRequest` fait de même (lu, l. 46-47).
+  - `StorePropertyRequest::authorize()` ne juge que `can('create')`, et ses règles acceptent `status` et `visibility` sur tout l'enum (lu, l. 41-60). Le contrôleur ne force `draft`/`private` que pour une proposition, soit un compte sans `properties.create` (lu, l. 130-135), et ne juge pour une création publique que `PublishReadiness::ensure` (contact et conditions), aucune capacité (lu, l. 139-142).
+  - Mesuré : agent d'une agence sans modération, rôle personnalisé portant `properties.create` et `properties.update_own` sans `properties.publish` (`AgencyRoleService::replaceCapabilities`) → `POST /api/properties` `{status: available, visibility: private}` → 201, statut `available` ; rendu publiable, `POST` `{visibility: public, accept_terms: true}` → 201, visibilité `public`. Le même compte, sur un brouillon : `PATCH {status: available}` → 403, `PUT …/status` `available` → 403, `PUT …/visibility` `public` → 403.
+  - Les rôles système qui portent `properties.create` portent aussi `properties.publish` (lu, `SystemRoleCapabilities.php:62-66`) : la voie s'ouvre aux rôles personnalisés.
+  - `cheminsDePublication` éprouve `publish`, `PUT …/visibility`, `PUT …/status` et le `PATCH` ; la création n'y figure pas (lu, l. 227-238).
+  - Le formulaire de création du front force `draft`/`private` (lu par P147.01, `property-form/payload.ts:150-154`) : la voie est celle de l'API seule.
+  - Établi comment : lu, mesuré par test temporaire.
+- Piste : juger à la création la même règle que le `PATCH` (un `status` de `STATUTS_QUI_PUBLIENT` ou `visibility=public` demande `can('publish')`), écrite une fois et appelée par les deux `authorize()`. Garde : ajouter le `POST` aux cas de `cheminsDePublication`.
+
+### `POST /api/properties` pose à la main `pending_review`, `rejected` et `published`, que TCK-1341 a retirés du `PATCH`
+- Réf : P209.02
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Http/Requests/Api/StorePropertyRequest.php:59`, `takussan-api/app/Http/Requests/UpdatePropertyRequest.php:66`, `takussan-api/app/Models/Enums/PropertyStatus.php:19-24`, `takussan-api/app/Observers/PropertyObserver.php:43-61,221-229`, `takussan-api/app/Http/Controllers/Api/PropertyController.php:146-149`
+- Constat :
+  - `PropertyStatus::NOT_SETTABLE_BY_HAND` dit que `pending_review`, `rejected` et `published` ne se posent par « aucune requête d'édition » (lu, l. 19-24). `UpdatePropertyRequest` et `UpdateStatusPropertyRequest` les excluent (lu, l. 66 et l. 55). `StorePropertyRequest` prend `Rule::enum(PropertyStatus::class)` entier (lu, l. 59), et le contrôleur écrit `$data['status']` tel quel (lu, l. 148).
+  - L'observateur ne réécrit le statut à la création que pour une agence sous modération, et seulement depuis un statut affichable (lu, l. 49-60) ; il avertit la file pour tout bien né `pending_review` (lu, l. 227-229).
+  - Mesuré : admin d'une agence sans modération → `POST /api/properties` `{status: pending_review}` → 201, `submitted_at` nul ; `{status: rejected}` → 201, `rejected_at` nul ; `{status: published}` → 201. Pour chacun, `PATCH` du même statut → 422.
+  - Conséquence lue : la file de modération trie par `submitted_at` (P147.05) ; un bien né `rejected` n'a ni motif ni auteur du refus.
+  - Établi comment : lu, mesuré par test temporaire.
+- Piste : appliquer à `StorePropertyRequest` le même `->except(PropertyStatus::NOT_SETTABLE_BY_HAND)` que les deux requêtes de modification. Garde : étendre `PropertyStatutsDeModerationTest` au `POST`.
+
+### `PATCH /api/customers/{id}` enregistre un budget maximal sous le budget minimal, que la création refuse
+- Réf : P209.03
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Http/Requests/Concerns/ValidatesCustomerContactAndCriteria.php:49-55`, `takussan-api/app/Services/Crm/ProspectMatcher.php:99-100,168`
+- Constat :
+  - `budget_max` ne porte `gte:budget_min` que si `budget_min` est dans la requête (lu, l. 52-55, `Rule::when(fn () => is_numeric($this->input('budget_min')))`). La règle est partagée par la création et la modification ; à la modification, le plancher enregistré n'est jamais lu.
+  - Mesuré : admin d'agence, client à `budget_min` 500 000 et `budget_max` 800 000 → `PATCH {budget_max: 100}` → 200, ligne à 500 000 / 100. `POST /api/customers` `{budget_min: 500000, budget_max: 100}` → 422. Le cas symétrique (`budget_min` seul au-dessus du plafond enregistré) n'a pas été rejoué (à vérifier).
+  - `ProspectMatcher` filtre `properties.price <= budget_max` (lu, l. 99-100) : un tel client ne reçoit plus aucun bien proposé.
+  - Le formulaire du front n'a pas été lu : il envoie peut-être les deux bornes ensemble (à vérifier).
+  - Établi comment : lu, mesuré par test temporaire.
+- Piste : à la modification, comparer à la valeur enregistrée quand l'une des deux bornes manque (le plancher de la ligne pour `budget_max`, le plafond de la ligne pour `budget_min`). Garde : un test qui envoie chaque borne seule de part et d'autre de la valeur enregistrée et attend 422, ligne inchangée.
+
+### `PATCH /api/admin/announcements/{id}` enregistre une fin avant le début, que la création refuse
+- Réf : P209.04
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Http/Requests/Api/Admin/UpdateAnnouncementRequest.php:27-28`, `takussan-api/app/Http/Requests/Api/Admin/StoreAnnouncementRequest.php:33-34`, `takussan-api/app/Http/Controllers/Api/Admin/AnnouncementController.php:40-42`, `takussan-api/app/Models/Announcement.php:71-77`
+- Constat :
+  - La modification garde `'ends_at' => ['nullable', 'date', 'after:starts_at']` avec `starts_at` en `sometimes` (lu, l. 27-28). Quand `starts_at` n'est pas dans la requête, `after:starts_at` ne compare à rien et passe ; le contrôleur écrit `validated()` tel quel (lu, l. 42).
+  - Mesuré : super-admin → `POST` `{starts_at: 2026-12-01, ends_at: 2026-11-01}` → 422 ; annonce créée du 2026-12-01 au 2026-12-31, puis `PATCH {ends_at: 2026-11-01}` → 200, ligne 2026-12-01 / 2026-11-01 ; puis `PATCH {starts_at: 2027-06-01}` → 200, début après la fin.
+  - `scopeCurrentlyVisible` exige `starts_at <= now` et `ends_at > now` (lu, l. 71-77) : l'annonce ne s'affiche jamais, sans que la console le dise.
+  - Établi comment : lu, mesuré par test temporaire.
+- Piste : juger l'ordre des deux dates sur la valeur finale (celle de la requête, sinon celle de la ligne), dans un `after()` de `UpdateAnnouncementRequest`. Garde : un test qui envoie `ends_at` seul avant le début enregistré, puis `starts_at` seul après la fin enregistrée, et attend 422.
+
+### Petites améliorations
+- Réf : P209.05
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Http/Requests/RenewLeaseRequest.php:45-46`, `takussan-api/app/Http/Requests/Api/StoreLeaseRequest.php:61-64`, `takussan-api/app/Http/Requests/Api/UpdateMaintenanceRequestRequest.php:117-119`
+- Constat :
+  - Le renouvellement d'un bail, qui crée une ligne `leases`, prend `special_conditions` sans borne (lu, `RenewLeaseRequest.php:46`), quand la création la borne à 5 000 caractères (lu, `StoreLeaseRequest.php:64`, règle posée par TCK-1240, voir P114.01).
+  - À la modification d'une intervention, `actual_cost` porte `decimal:0,2` et `estimated_cost` non (lu, `UpdateMaintenanceRequestRequest.php:117,119`) : un devis à trois décimales est arrondi par la colonne sans refus (à vérifier).
+  - Établi comment : lu.
+- Piste : borner `special_conditions` au renouvellement comme à la création (la même constante) ; donner à `estimated_cost` la règle `decimal:0,2` d'`actual_cost`.
