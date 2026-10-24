@@ -923,9 +923,33 @@ en_reparation() {
     --jq 'any(.[]; .status != "completed")' 2> /dev/null)" = true ]
 }
 
+# Le passage vivant, autre que celui-ci, qui répare la PR <n°> : son nom sur la sortie, et 0 ; 1 si
+# aucun. Chaque passage écrit dans `verrous/<nom>/reparation` les PR qu'il peut réparer : celle de
+# son mode réparation, ou, pour le superviseur, la liste de ses rouges anciens. Le fichier part avec
+# le verrou. Relevé le 2026-10-24 sur #1491 : l'implémenteur la réparait depuis 19:29, sans rien
+# avoir poussé, quand le fusionneur a appelé le superviseur à 19:35 ; le superviseur a poussé sa
+# réparation à 19:38, et le commit de l'implémenteur, le même correctif, est resté sans objet.
+# `en_reparation` ne voit qu'une réparation POUSSÉE ; celle-ci voit une réparation en cours.
+reparation_vivante() {
+  local f nom pid
+  for f in "$BASE"/verrous/*/reparation; do
+    [ -f "$f" ] || continue
+    nom="$(basename "$(dirname "$f")")"
+    [ "$nom" != "${NOM:-}" ] || continue
+    pid="$(cat "$BASE/verrous/$nom/pid" 2> /dev/null || true)"
+    { [ -n "$pid" ] && kill -0 "$pid" 2> /dev/null; } || continue
+    if grep -qxF "$1" "$f"; then
+      printf '%s' "$nom"
+      return 0
+    fi
+  done
+  return 1
+}
+
 # Les PR d'agents vers pre-dev rouges depuis ROUGE_ANCIEN_S au moins, l'âge compté depuis le premier
 # run rouge conclu de la branche, hors PR en réparation (en_reparation, jugée sur la tête du dernier
-# run rouge conclu) : une ligne « <n°>|<branche>|<début> » chacune.
+# run rouge conclu) et hors PR qu'un autre passage répare en ce moment (reparation_vivante) : une
+# ligne « <n°>|<branche>|<début> » chacune.
 rouges_anciens() {
   local maintenant lignes num tete conclus debut dernier
   maintenant="$(date +%s)"
@@ -934,6 +958,7 @@ rouges_anciens() {
   avec_verrou_git git -C "$CLONE" fetch origin --prune --quiet || true
   while IFS='|' read -r num tete; do
     [ -n "$num" ] || continue
+    if reparation_vivante "$num" > /dev/null; then continue; fi
     conclus="$(rouge_conclu "$tete")" || continue
     [ -n "$conclus" ] || continue
     debut="$(printf '%s\n' "$conclus" | cut -d '|' -f 1 | sort -n | sed -n 1p)"
@@ -1001,7 +1026,7 @@ panne_d_api() {
 # Le passage devient alors une réparation de cette PR : vérifiée depuis sa tête, poussée en avance
 # rapide, jamais forcée. Une réparation de l'implémenteur poussée entre-temps la fait refuser.
 reparation_du_superviseur() {
-  local num lu tete fichiers
+  local num lu tete fichiers qui
   num="$(head -n 1 "$sortie/pr-reparee.txt" | tr -dc '0-9')"
   [ -n "$num" ] || fin refuse "pr-reparee.txt sans numéro de PR"
   grep -qxF "$num" "$sortie/rouges-anciens.txt" 2> /dev/null \
@@ -1012,6 +1037,8 @@ reparation_du_superviseur() {
     "OPEN|pre-dev|agents/"*) tete="${lu##*|}" ;;
     *) fin refuse "#$num : seule une PR ouverte d'agent vers pre-dev se répare ainsi ($lu)" ;;
   esac
+  # Le passage du superviseur dure ; une réparation de l'implémenteur a pu partir entre-temps.
+  if qui="$(reparation_vivante "$num")"; then fin refuse "#$num : $qui la répare en ce moment"; fi
   avec_verrou_git git -C "$CLONE" fetch origin --prune --quiet
   git -C "$arbre" merge-base --is-ancestor "origin/$tete" HEAD \
     || fin refuse "#$num : HEAD ne descend pas de la tête de la PR ($tete)"
@@ -1396,7 +1423,7 @@ en_conflit() {
 }
 
 etat_des_pr() {
-  local pr_max lignes num tete etat_fusion ci_pr conflit_pr essai ouvertes=0 fusionnees=0 abandons=""
+  local pr_max lignes num tete etat_fusion ci_pr conflit_pr essai qui ouvertes=0 fusionnees=0 abandons=""
   pr_max="$(par_role PR_MAX "$ROLE")"
   if [ -z "$pr_max" ]; then
     if [ "$ROLE" = implementeur ]; then pr_max=3; else pr_max=1; fi
@@ -1410,6 +1437,13 @@ etat_des_pr() {
     # instance qui la fusionne, la réconcilie ou la répare : deux réparations de la même PR à la
     # fois écriraient chacune sur la branche de l'autre.
     if [ "$(instance_de_branche "$tete")" != "$INSTANCE" ]; then
+      ouvertes=$((ouvertes + 1))
+      continue
+    fi
+    # Le superviseur peut la réparer en ce moment (une PR rouge depuis plus de 2 h) : ni tri, ni
+    # seconde réparation, qui écriraient sous la sienne.
+    if qui="$(reparation_vivante "$num")"; then
+      info "#$num : $qui la répare en ce moment, rien ici"
       ouvertes=$((ouvertes + 1))
       continue
     fi
@@ -1687,6 +1721,8 @@ lancer() {
     depart="$BASE_REF"
   else
     etat_des_pr
+    # Ce que ce passage répare, pour les autres (reparation_vivante).
+    if [ "$MODE" = reparation ]; then printf '%s\n' "$PR" > "$verrou/reparation"; fi
     if [ "$MODE" = nouveau ]; then
       branche="agents/$ROLE/$horo"
       # Le suffixe de l'instance, que lit instance_de_branche : sans lui, une PR de l'instance 2 est
@@ -1727,6 +1763,10 @@ $(awk -F '\t' -v d="$(date -v-1d '+%Y-%m-%d %H:%M')" '$1 >= d { print "  · " $0
 $(intermittents_a_traiter | sed 's/^/  · /')
 - PR rouges depuis plus de $((ROUGE_ANCIEN_S / 3600)) h (l'âge court depuis le premier run rouge conclu de la branche, toutes têtes confondues) :
 $(rouges_anciens_du_passage "$sortie")"
+  fi
+  # Les rouges anciens que ce passage peut réparer, pour les autres (reparation_vivante).
+  if [ "$ROLE" = superviseur ] && [ -s "$sortie/rouges-anciens.txt" ]; then
+    cp "$sortie/rouges-anciens.txt" "$verrou/reparation"
   fi
   # La part d'une instance ne vaut que pour l'implémenteur : reçue par le délégué, elle lui a fait
   # écarter les angles impairs (2026-10-21, P103.*, P111.02, P111.04).

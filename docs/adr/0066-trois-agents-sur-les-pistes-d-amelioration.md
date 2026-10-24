@@ -1087,6 +1087,35 @@ référence des 24 h `aae5f2a23` :
 La réinstallation crée l'étiquette `agent:archiveur`, sans laquelle `gh pr create` échoue, et pose
 le `pistes.sh` qui passe l'archive à la garde et lance l'archivage. Avant elle, rien n'archive.
 
+## Amendement du 2026-10-24 (ter) — une PR ne se répare qu'une fois à la fois
+
+**Constat**, le 2026-10-24, sur #1491 :
+- 19:29 — l'implémenteur part réparer #1491 ;
+- 19:35 — le fusionneur appelle le superviseur, la PR étant rouge depuis plus de 2 h ;
+- 19:38 — le superviseur pousse sa réparation, et la CI passe au vert ;
+- l'implémenteur, lui, tourne encore à 20:49 avec un commit non poussé qui portait le même
+  correctif. Son passage a été arrêté à la main, la PR étant fusionnée.
+
+`en_reparation` (amendement précédent) ne protège qu'une réparation **poussée**. Une réparation en
+cours ne se voyait pas.
+
+**Décision** : chaque passage écrit dans son verrou, `verrous/<nom>/reparation`, les PR qu'il peut
+réparer :
+- l'implémenteur, la PR de son mode réparation ;
+- le superviseur, la liste de ses rouges anciens.
+
+Le fichier part avec le verrou. `reparation_vivante <n°>` le lit chez les autres passages dont le
+pid vit encore. Une PR qu'un autre passage répare :
+- ne compte pas parmi les rouges anciens : le fusionneur n'appelle pas le superviseur pour elle,
+  et elle n'entre pas dans sa liste ;
+- n'est ni triée ni réparée par l'implémenteur : elle compte parmi ses PR ouvertes ;
+- est refusée à la réparation du superviseur si l'implémenteur l'a prise pendant son passage.
+
+**Ce qui n'est pas gardé** :
+- Deux passages qui choisissent la même PR à la même seconde.
+- Pendant tout son passage (une heure au plus), le superviseur retient chacun de ses rouges
+  anciens, y compris ceux qu'il finit par ne pas réparer.
+
 ## Conséquences
 
 - **Ce que ça rend possible** :
