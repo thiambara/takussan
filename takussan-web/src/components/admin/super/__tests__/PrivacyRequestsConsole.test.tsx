@@ -213,6 +213,32 @@ describe('<PrivacyRequestsConsole> (TCK-601 · G)', () => {
     expect((form.get('proof') as File).name).toBe('reponse.pdf');
   });
 
+  // TCK-2150 (P222.06) — `UpdatePrivacyRequestRequest::PROOF_MAX_KB` (10 Mo) : refusée au choix,
+  // la preuve trop lourde ne part pas avec la mise à jour.
+  it('une preuve de 11 Mo est refusée au choix, nommée, et ne part pas', async () => {
+    const user = userEvent.setup();
+    monter();
+    const ligne = await screen.findByTestId('privacy-request-3');
+    await user.click(within(ligne).getByRole('button', { name: 'Mettre à jour la demande de Aïssatou Ba' }));
+    const dialogue = await screen.findByRole('dialog');
+
+    const lourde = new File(['%PDF-1.4'], 'preuve-lourde.pdf', { type: 'application/pdf' });
+    Object.defineProperty(lourde, 'size', { value: 11 * 1024 * 1024 });
+    await user.upload(within(dialogue).getByLabelText('Preuve de réponse'), lourde);
+
+    expect(within(dialogue).getByText('Fichier trop lourd (10 Mo au plus) : preuve-lourde.pdf')).toBeInTheDocument();
+    expect(within(dialogue).getByRole('button', { name: 'Enregistrer' })).toBeDisabled();
+
+    await user.click(within(dialogue).getByRole('combobox', { name: 'Statut' }));
+    await user.click(await screen.findByRole('option', { name: 'En cours' }));
+    await user.click(within(dialogue).getByRole('button', { name: 'Enregistrer' }));
+
+    await waitFor(() => expect(appelsEcriture()).toHaveLength(1));
+    const [, init] = appelsEcriture()[0];
+    expect(init.method).toBe('PATCH');
+    expect(JSON.parse(String(init.body))).toEqual({ status: 'in_progress' });
+  });
+
   it('sans fichier, la mise à jour part en PATCH JSON', async () => {
     const user = userEvent.setup();
     monter();

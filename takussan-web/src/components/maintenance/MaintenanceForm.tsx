@@ -26,6 +26,7 @@ import {
   FormTextarea,
 } from '@/components/forms';
 import { Button } from '@/components/ui/button';
+import { useToast } from '@/components/ui/toast';
 import { useApiForm } from '@/hooks/useApiForm';
 import {
   maintenanceCreateSchema,
@@ -59,6 +60,7 @@ export function MaintenanceForm({
   const router = useRouter();
   const create = useCreateMaintenanceRequest();
   const uploadPhotos = useUploadMaintenancePhotos();
+  const toast = useToast();
   const [photos, setPhotos] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -87,8 +89,15 @@ export function MaintenanceForm({
             collection: 'photos',
           });
         } catch {
-          // Photo upload failures should not roll back the created request.
-          // The detail page offers a retry path ("Ajouter des photos").
+          // La demande reste créée : on mène quand même à sa fiche, puisqu'un second envoi du
+          // formulaire la dupliquerait. L'avertissement est persistant (`timeout: 0`) : le
+          // `Toaster` du layout survit à la navigation, il se lit donc sur la fiche (TCK-2146).
+          toast.add({
+            title: t('photos_failed_title'),
+            description: t('photos_failed_body'),
+            type: 'warning',
+            timeout: 0,
+          });
         }
       }
       return res;

@@ -1995,7 +1995,9 @@
         "attachments_label": "Firnde yi (foto, fakture)",
         "cancel": "Bayyi",
         "submit": "Dëggal delloo",
-        "submitting": "Yónnee…"
+        "submitting": "Yónnee…",
+        "file_too_large": "Fichier trop lourd ({max} Mo au plus) : {files}",
+        "max_files": "Maximum {max} fichiers."
       },
       "error_generic": "Delloo gi am na njuumte, jeemal ndax."
     },
@@ -2289,7 +2291,8 @@
       "activatedToast": "Bayle bi xaatimu na te dox na.",
       "paperLabel": "Kontraa bu ñu xaatim ci kayit (PDF, JPG walla PNG, 10 Mo)",
       "paperSubmit": "Taal ci kontraa kayit",
-      "genericError": "Jëf ji antuwul. Jéemaatal."
+      "genericError": "Jëf ji antuwul. Jéemaatal.",
+      "paperTooLarge": "Fichier trop lourd ({max} Mo au plus) : {files}"
     }
   },
   "maintenance": {
@@ -2388,7 +2391,9 @@
       "photos_label": "Nataal yi (bu ñu soxlawul)",
       "photos_selected": "{count, plural, other {# nataal la ñu tànn.}}",
       "submitting": "Yónnee…",
-      "submit": "Yégle jafe-jafe bi"
+      "submit": "Yégle jafe-jafe bi",
+      "photos_failed_title": "Photos non envoyées",
+      "photos_failed_body": "La demande est créée, mais ses photos n'ont pas pu être envoyées."
     },
     "complete": {
       "title": "Tëj liggéey bi",
@@ -8157,7 +8162,8 @@
         "responseSummary": "Tënk tontu bi",
         "proof": "Firndeg tontu",
         "proofHint": "PDF walla nataal (JPG, PNG, WebP, HEIC).",
-        "proofReplace": "Am na firnde bu ñu fi denc ba noppi ({name}) : fichier bu bees dina ko wuutu."
+        "proofReplace": "Am na firnde bu ñu fi denc ba noppi ({name}) : fichier bu bees dina ko wuutu.",
+        "proofTooLarge": "Fichier trop lourd ({max} Mo au plus) : {files}"
       }
     },
     "payments": {
@@ -10095,7 +10101,8 @@
       "choose": "Tànn ab fichier",
       "replace": "Soppi fichier bi",
       "accepted": "PDF, JPG, PNG walla WEBP",
-      "chooseAria": "Tànn fichier bi : {document}"
+      "chooseAria": "Tànn fichier bi : {document}",
+      "fileTooLarge": "Fichier trop lourd ({max} Mo au plus) : {files}"
     },
     "review": {
       "title": "Toppatoo super-admin",
