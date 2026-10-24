@@ -18227,10 +18227,11 @@ repris ; les CSV à point-virgule, en latin-1, à BOM ou à tabulation passent l
 
 ### « Revenu 30 jours » de la santé d'agence compte dépôts de garantie, restitutions et lignes supprimées, hors de la règle de l'*Encaissé*
 - Réf : P198.02
-- Statut : validé — validation du porteur (2026-10-23) : la piste telle qu'écrite (ADR-0057 § 2) ; `transactions_30d` suit le même périmètre que le revenu
+- Statut : fait · TCK-2032
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/Admin/AgencyDetailController.php:62-160`, `takussan-api/app/Services/Dashboard/CollectedPayments.php:70-90`, `docs/adr/0057-instantanes-quotidiens-des-metriques-plateforme.md:46-51`, `takussan-web/src/components/admin/super/agency-detail.tsx:477-480,573-574`
 - Constat :
+- Mesure (2026-10-24, 96d942893, implementeur) : reproduit avant correctif par `AgencyDetailTest::test_p198_02_revenu_30_jours_suit_la_regle_de_l_encaisse` (loyer 75 000, dépôt 150 000, restitution 150 000, échéance supprimée, échéance d'un bail supprimé, réservation 125 000 remboursée de 25 000, paiement de réservation supprimé, bien supprimé) → `active_properties` 2 au lieu de 1, `revenue_30d` 630 000 au lieu de 175 000 ; correctif : `health` lit `CollectedPayments::leaseIncome()`/`bookingIncome()` sommés par `LEASE_NET_SQL`/`BOOKING_NET_SQL`, `transactions_30d` sur les mêmes lignes, comptes de biens et dernier paiement par Eloquent, jointures hors baux, réservations et biens supprimés → vert ; ablation (contrôleur remis) → rouge, rétabli → vert ; `AgencyDetailTest` (6) et `ConsoleInstantFormatTest` (5) verts.
   - `revenue_30d` somme `lp.amount` de toute échéance `paid` de l'agence, sans condition de `payment_type` (lu, `AgencyDetailController.php:115-120`) : un dépôt de garantie et une restitution de caution payés s'ajoutent au revenu, la restitution en positif. `transactions_30d` les compte de même (lu, l. 95-107).
   - Les réservations y comptent `bp.amount` sans `refund_amount` (lu, l. 109-114), alors que `BOOKING_NET_SQL` le retire.
   - ADR-0057 § 2 pose « les mêmes partout » : l'*Encaissé* est `rent | charges | regularization | penalty` plus les réservations nettes de remboursement, « jamais `deposit` ni `deposit_refund` », portée par `CollectedPayments` (lu, l. 46-51) ; la tuile « Volume d'affaires (30 j) » de la même console la lit (`flowsBetween`, lu, `PlatformMetricsSnapshotter.php:40-63`).
