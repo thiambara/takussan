@@ -7197,7 +7197,7 @@ base de développement. Les écrans n'ont pas été joués.*
 
 ### L'historique des paiements rend à l'agent suspendu ou retiré les acomptes des réservations qu'il a créées, que `BookingPolicy::view` lui refuse
 - Réf : P233.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-2241
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/PaymentController.php:47-60`
 - Constat :
@@ -7206,6 +7206,7 @@ base de développement. Les écrans n'ont pas été joués.*
   - Établi comment : lu, puis mesuré.
 - Piste : borner la clause comme `BookingController::index` depuis TCK-2196 : `created_by_id` et (agence de la réservation nulle, ou comprise dans `memberAgencyIds()`). Test : auteur suspendu puis retiré → l'acompte absent de l'historique ; auteur actif, client et bailleur du bien le gardent ; ablation (clause remise) → rouge.
 - Mesure (2026-10-24, 7772c59d8, mesureur) : relu `PaymentController::history` : la branche des acomptes garde `where('created_by_id', $user->id)` sans appartenance, à côté des branches bailleur, personnel et client (`customer.user_id`), inchangée ; (sonde temporaire `tests/Feature/TmpMesureur/Sonde233Test.php`, retirée, charge `{ 2.21 2.54 2.46 }` sur 8 cœurs, profil d'agent (ou d'admin) passé à `suspended` puis supprimé) agent auteur d'une réservation de l'agence avec un acompte : actif → `GET /api/bookings/{id}` 200 et acompte listé dans `GET /api/payments/history` ; suspendu, puis retiré → `GET /api/bookings/{id}` 403, mais l'historique 200 rend toujours la ligne `source: booking` : le constat tient. Classement : A1, ADR-0031 (amendement du 2026-10-24, B.1 et B.2) écrit la règle pour `created_by_id` et sa forme SQL pour les listes, et le client garde l'acompte par la branche `customer` (B.4), si bien que le correctif ne demande aucun choix.
+- Mesure (2026-10-24, 74be78a0f, implementeur) : avant correctif, `AuteurDeLaReservationHistoriqueDesAcomptesTest` (réservation de l'agence créée par l'agent, acompte payé ; agent suspendu par `TeamMemberSuspensionService::suspend`, puis retiré par `AgencyMemberRemovalService::remove`) → 2 rouges, `BookingPolicy::view` refuse mais l'acompte reste listé dans `GET /api/payments/history` → correctif : la branche `created_by_id` de `PaymentController::history` exige agence nulle ou `memberAgencyIds()`, comme `BookingController::index` ; 5 verts (auteur actif, réservation sans agence, client et bailleur gardent l'acompte) ; ablation → 2 rouges, remise → 5 verts.
 
 ### La liste des invitations rend à l'émetteur suspendu ou retiré les invitations qu'il a émises, adresse de l'invité comprise, que `view` lui refuse depuis TCK-2194
 - Réf : P233.02
