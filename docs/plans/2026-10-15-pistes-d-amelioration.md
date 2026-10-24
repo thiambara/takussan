@@ -19332,7 +19332,7 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
 
 ### Un état des lieux se modifie sur le modèle lié pendant qu'une partie le signe : le contenu change après la première signature
 - Réf : P211.05
-- Statut : retenu · autonome
+- Statut : fait · TCK-2109
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/InventoryController.php:117-153,295-346`, `takussan-api/app/Services/Model/InventoryService.php:39-83`, `takussan-api/app/Services/Inventory/InventorySignatureService.php:39-94`
 - Constat :
@@ -19342,6 +19342,7 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
   - Établi comment : lu et mesuré.
 - Piste : juger `draft` sur la ligne relue sous `lockForUpdate` dans une transaction pour `update`, l'ajout et le retrait de photo, `submit` et `dispute`, comme `sign`. Garde : signature posée derrière un modèle resté `draft` → `update` 422 `inventory.not_draft`, pièces intactes.
 - Mesure (2026-10-24, 0c24562d3, mesureur) : relu `InventoryService.php` (`update` l. 39-50, `submit`, `dispute` : garde jugée sur le modèle reçu, écriture sans verrou), `InventoryController.php` (`update` l. 117-153, `uploadRoomPhotos`, `destroyRoomPhoto`, `assertDraft` l. 339-346) et `InventorySignatureService::sign` (verrou et relecture) ; test temporaire `tests/Feature/TmpMesureur/TmpMesure211Test.php` (retiré), `XDEBUG_MODE=off php artisan test <fichier>`, PostgreSQL de test, charge 1,66 / 1,78 / 1,95 sur 8 cœurs : état des lieux `draft` chargé, ligne passée en base à `pending_signature` et `tenant_signed = true`, `InventoryService::update` sur le modèle resté `draft` avec de nouvelles `rooms` → accepté, ligne `pending_signature`, signature du locataire gardée, pièces remplacées → le constat tient ; la photo pendant la signature n'a pas été jouée. Classement : A1, les gardes `inventory.not_draft`, `signed_locked`, `not_draft_submit` et `cannot_dispute` écrivent le contrat ; le correctif les juge sur la ligne relue sous `lockForUpdate`, patron de `sign`.
+- Mesure (2026-10-24, b9243f4b6, implementeur) : état des lieux `draft` chargé, ligne passée en base à `pending_signature` et `tenant_signed = true`, `InventoryService::update` sur le modèle resté `draft` → accepté, pièces remplacées (reproduit par `tests/Feature/Api/InventoryGestesSousVerrouTest.php` : 6 rouges sur 7 avant verrou — `update` en `pending_signature` et en `signed`, `submit` d'un état signé, seconde contestation, ajout et retrait de photo ; les deux gestes photo d'abord déplacés du contrôleur au service à comportement égal) → les cinq gestes relisent la ligne sous `lockForUpdate` dans une transaction et y jugent leur garde ; 7 verts, les 11 classes d'état des lieux vertes ; ablation (service sans verrou) → 6 rouges, correctif remis → 7 verts.
 
 ### Une délégation révoquée pendant le passage de la tâche planifiée est réactivée
 - Réf : P211.06
