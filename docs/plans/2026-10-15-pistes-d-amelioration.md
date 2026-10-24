@@ -19259,7 +19259,7 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
 
 ### Le verdict KYC se juge sur le dossier lié à la route : un rejet après une vérification laisse le dossier `rejected` et l'agence vérifiée
 - Réf : P211.01
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Kyc/KycWorkflowService.php:96-176,185-190`
 - Constat :
@@ -19268,10 +19268,11 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
   - Deux `submit` (double clic) passent tous deux et préviennent deux fois chaque super-admin (`notifySubmitted`, lu ; course non jouée : à vérifier).
   - Établi comment : lu et mesuré.
 - Piste : relire le dossier sous `lockForUpdate` dans une transaction qui porte aussi l'écriture de l'agence, y juger `assertTransitionable` / `assertNotVerified`, et prévenir après le commit, comme `InventorySignatureService::sign`. Garde : un test qui vérifie puis rejette sur une copie périmée et attend 422 `CODE_NOT_TRANSITIONABLE`, l'agence intacte.
+- Mesure (2026-10-24, 0c24562d3, mesureur) : relu `KycWorkflowService.php` : `submit` (`assertNotVerified` sur le modèle reçu, l. 96-116), `verify` et `reject` (`assertTransitionable` sur le modèle reçu, `update` du dossier puis de l'agence hors transaction ni verrou, `notifyReviewed`, l. 118-176), lignes inchangées ; `git log` sur `app/Services/Kyc` et `grep` des tickets → rien ne l'a traité ; test temporaire `tests/Feature/TmpMesureur/TmpMesure211Test.php` (retiré), `XDEBUG_MODE=off php artisan test <fichier>`, PostgreSQL de test, charge 1,66 / 1,78 / 1,95 sur 8 cœurs : dossier `submitted` complet chargé deux fois, `verify` sur l'un puis `reject` sur l'autre → rejet accepté, dossier `rejected`, agence `active` et `is_verified = true` → le constat tient ; le double `submit` n'a pas été joué. Classement : A1, la garde `CODE_NOT_TRANSITIONABLE` écrit déjà le contrat (un dossier tranché ne se tranche plus) ; le correctif la juge sur la ligne relue sous verrou dans une transaction qui porte aussi l'écriture de l'agence, avis après le commit, comme TCK-1820 et TCK-1822.
 
 ### La demande de passage en agence se juge `pending` hors verrou : un rejet après une approbation laisse la demande `rejected` et l'agence passée en `standard`
 - Réf : P211.02
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Agency/AgencyUpgradeReviewService.php:44-107,109-150,156-165`
 - Constat :
@@ -19279,10 +19280,11 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
   - mesuré : demande `pending` chargée deux fois, KYC vérifié ; `approve` sur l'une puis `reject` sur l'autre → les deux acceptés ; demande `rejected`, agence `kind = standard`. L'agence est passée sur une demande que la console montre rejetée, et le demandeur reçoit l'avis d'approbation puis celui de rejet (deux `notifySubmitter`, lu ; avis non comptés : à vérifier).
   - Établi comment : lu et mesuré.
 - Piste : verrouiller et relire la demande dans la transaction, y juger `assertPending`, avis après le commit. Garde : approbation puis rejet sur une copie périmée → 422 `not_pending`, demande `approved`.
+- Mesure (2026-10-24, 0c24562d3, mesureur) : relu `AgencyUpgradeReviewService.php` : `approve` et `reject` jugent `assertPending` sur le modèle lié (l. 49, 114) avant la transaction (l. 69, 126), la bascule `AgencyKindFlipService::flip` dans celle d'`approve`, `notifySubmitter` après ; test temporaire `tests/Feature/TmpMesureur/TmpMesure211Test.php` (retiré), `XDEBUG_MODE=off php artisan test <fichier>`, PostgreSQL de test, charge 1,66 / 1,78 / 1,95 sur 8 cœurs : demande `pending` chargée deux fois, KYC vérifié, `approve` sur l'une puis `reject` sur l'autre → rejet accepté, demande `rejected`, agence `kind = standard` → le constat tient ; les avis n'ont pas été comptés. Classement : A1, la garde `not_pending` écrit déjà le contrat ; le correctif relit la demande sous verrou dans la transaction et y juge `assertPending`, sans rien changer de la bascule ni de l'avis.
 
 ### Les transitions d'une intervention se jugent sur le modèle lié : la clôture automatique écrase une contestation faite pendant son passage
 - Réf : P211.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : le correctif passe par `complete`, qui inscrit le coût (`actual_cost`, `recordOwnerCost`), et la réaction de `maintenance:auto-close` à un refus (sauter ou échouer) reste à choisir
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Model/MaintenanceRequestService.php:48-86,313-367,369-420`, `takussan-api/app/Console/Commands/AutoCloseMaintenanceRequests.php:35-43`, `takussan-api/routes/console.php:120`
 - Constat :
@@ -19292,10 +19294,11 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
   - Par le même code, une annulation (`updateStatus`) sur un modèle `in_progress` resté en mémoire peut écraser un `completed` dont le coût vient d'être inscrit par `recordOwnerCost` (lu, `:332-352` ; non joué : à vérifier).
   - Établi comment : lu et mesuré.
 - Piste : faire de `transition` (et de `complete`, `contestResolution`) le chemin qui relit la ligne sous verrou dans une transaction et y juge la table, l'événement après le commit — le patron d'`accept`. Garde : contestation puis clôture automatique sur une copie périmée → la clôture refusée (ou sautée par la commande), statut `in_progress`, un seul événement.
+- Mesure (2026-10-24, 0c24562d3, mesureur) : relu `MaintenanceRequestService.php` : `transition` (l. 48-86), `complete` (l. 313-367, `actual_cost` et `recordOwnerCost` dans la transaction) et `contestResolution` jugent `$mr->status` du modèle reçu, sans relecture sous verrou ; `AutoCloseMaintenanceRequests.php:35-43` appelle `confirmResolution` sur chaque modèle chargé par `each()` ; test temporaire `tests/Feature/TmpMesureur/TmpMesure211Test.php` (retiré), `XDEBUG_MODE=off php artisan test <fichier>`, PostgreSQL de test, charge 1,66 / 1,78 / 1,95 sur 8 cœurs : demande `completed` depuis 8 jours chargée deux fois, `contestResolution` sur l'une puis `confirmResolution(…, CAUSE_AUTO_CLOSED)` sur l'autre → accepté, statut `closed`, `completed_at` nul, 2 `MaintenanceStatusChanged` → le constat tient ; l'annulation qui écraserait un `completed` chiffré n'a pas été jouée. Classement : V1, la `Piste` met `complete` sous le même verrou, chemin qui écrit le coût de l'intervention et l'accord du bailleur, et la commande planifiée, qui lève aujourd'hui sur le premier refus, devra sauter ou s'arrêter : choix à faire.
 
 ### Le devis d'une intervention se décide sur le modèle lié : une approbation après un rejet repasse la demande en `approved`
 - Réf : P211.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : la Piste rejuge sous verrou le seuil du bailleur (`needsOwner`, ADR-0037) qui décide si un devis chiffré est approuvé ou soumis au bailleur
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Maintenance/MaintenanceQuoteWorkflow.php:35-46,48-110,160-201,225-244`
 - Constat :
@@ -19304,10 +19307,11 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
   - mesuré : demande `quote_submitted` (1 000) chargée deux fois ; `rejectQuote` sur l'une puis `approveQuote` sur l'autre → accepté ; statut `approved`, `quote_rejection_reason = 'trop cher'` conservé, deux événements. Le gestionnaire et le bailleur (ou deux membres) qui tranchent ensemble laissent un devis approuvé portant le motif d'un rejet, et le prestataire reçoit les deux décisions.
   - Établi comment : lu et mesuré.
 - Piste : relire la ligne sous verrou dans une transaction dans `assertTransition`, et y juger aussi le seuil du bailleur (`needsOwner`), l'événement après le commit. Garde : rejet puis approbation sur une copie périmée → 422 `maintenance.status_transition_invalid`.
+- Mesure (2026-10-24, 0c24562d3, mesureur) : relu `MaintenanceQuoteWorkflow.php` : `assertTransition` lit `$mr->status` du modèle reçu (l. 35-46), `requestQuote`, `submitQuote` (écrit `quote_amount`), `approveQuote` (`needsOwner` puis `approved` ou `awaiting_owner`, l. 160-201) et `rejectQuote` (l. 225-244) écrivent par `save()` sans transaction ni verrou ; test temporaire `tests/Feature/TmpMesureur/TmpMesure211Test.php` (retiré), `XDEBUG_MODE=off php artisan test <fichier>`, PostgreSQL de test, charge 1,66 / 1,78 / 1,95 sur 8 cœurs : demande `quote_submitted` (1 000) chargée deux fois, `rejectQuote` sur l'une puis `approveQuote` sur l'autre → accepté, statut `approved`, `quote_rejection_reason = 'trop cher'` conservé, 2 événements → le constat tient. Classement : V1, la décision d'un devis engage le montant de l'intervention, et le correctif proposé rejuge aussi le seuil d'accord du bailleur sous le verrou : dans le doute, au porteur.
 
 ### Un état des lieux se modifie sur le modèle lié pendant qu'une partie le signe : le contenu change après la première signature
 - Réf : P211.05
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/InventoryController.php:117-153,295-346`, `takussan-api/app/Services/Model/InventoryService.php:39-83`, `takussan-api/app/Services/Inventory/InventorySignatureService.php:39-94`
 - Constat :
@@ -19316,10 +19320,11 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
   - mesuré : état des lieux `draft` chargé ; la ligne passée en base à `pending_signature`, `tenant_signed = true` ; `InventoryService::update` sur le modèle resté `draft` avec de nouvelles `rooms` → accepté ; ligne `pending_signature`, signature du locataire conservée, pièces remplacées. Le locataire a signé un contenu que la seconde signature ne figera pas. Une photo envoyée pendant la signature (requête longue) suit le même chemin (lu, non joué).
   - Établi comment : lu et mesuré.
 - Piste : juger `draft` sur la ligne relue sous `lockForUpdate` dans une transaction pour `update`, l'ajout et le retrait de photo, `submit` et `dispute`, comme `sign`. Garde : signature posée derrière un modèle resté `draft` → `update` 422 `inventory.not_draft`, pièces intactes.
+- Mesure (2026-10-24, 0c24562d3, mesureur) : relu `InventoryService.php` (`update` l. 39-50, `submit`, `dispute` : garde jugée sur le modèle reçu, écriture sans verrou), `InventoryController.php` (`update` l. 117-153, `uploadRoomPhotos`, `destroyRoomPhoto`, `assertDraft` l. 339-346) et `InventorySignatureService::sign` (verrou et relecture) ; test temporaire `tests/Feature/TmpMesureur/TmpMesure211Test.php` (retiré), `XDEBUG_MODE=off php artisan test <fichier>`, PostgreSQL de test, charge 1,66 / 1,78 / 1,95 sur 8 cœurs : état des lieux `draft` chargé, ligne passée en base à `pending_signature` et `tenant_signed = true`, `InventoryService::update` sur le modèle resté `draft` avec de nouvelles `rooms` → accepté, ligne `pending_signature`, signature du locataire gardée, pièces remplacées → le constat tient ; la photo pendant la signature n'a pas été jouée. Classement : A1, les gardes `inventory.not_draft`, `signed_locked`, `not_draft_submit` et `cannot_dispute` écrivent le contrat ; le correctif les juge sur la ligne relue sous `lockForUpdate`, patron de `sign`.
 
 ### Une délégation révoquée pendant le passage de la tâche planifiée est réactivée
 - Réf : P211.06
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Permissions/RoleDelegationService.php:131-189`, `takussan-api/app/Models/RoleDelegation.php:159-182`, `takussan-api/app/Jobs/Permissions/ProcessRoleDelegationsJob.php:17-28`, `takussan-api/routes/console.php:111`
 - Constat :
@@ -19327,10 +19332,11 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
   - mesuré : délégation `scheduled` échue chargée par `readyToActivate()` ; `revoke` sur une copie fraîche (→ `revoked`), puis `activate` sur le modèle chargé → `status = active`, `revoked_at` conservé. Une délégation qu'un admin vient de révoquer donne de nouveau le rôle délégué jusqu'à son `ends_at`, et le délégataire est prévenu de son activation.
   - Établi comment : lu et mesuré.
 - Piste : écrire les transitions par une mise à jour conditionnelle (`where('status', scheduled)->update(…)`, réclamation comme `BoostLifecycle::closeWithRefund`) ou sous verrou relu, et n'émettre l'événement que si la ligne a été prise. Garde : révocation puis activation sur le modèle chargé par le job → `revoked`, aucun événement.
+- Mesure (2026-10-24, 0c24562d3, mesureur) : relu `RoleDelegationService.php` : `revoke`, `activate` et `expire` jugent `status` sur le modèle reçu puis écrivent par `markRevoked` / `markActive` / `markExpired` (`RoleDelegation.php:159-182`, `update()` sans condition sur le statut en base) ; `ProcessRoleDelegationsJob` charge par `cursor()` et appelle sur chaque modèle chargé ; test temporaire `tests/Feature/TmpMesureur/TmpMesure211Test.php` (retiré), `XDEBUG_MODE=off php artisan test <fichier>`, PostgreSQL de test, charge 1,66 / 1,78 / 1,95 sur 8 cœurs : délégation `scheduled` échue chargée par `readyToActivate()`, `revoke` sur une copie fraîche, puis `activate` sur le modèle chargé → `status = active`, `revoked_at` conservé → le constat tient ; le nombre de `RoleDelegationActivated` n'a pas été relevé (événement après commit, non vu sous `RefreshDatabase`). Classement : A1, la révocation écrit le contrat (une délégation `revoked` ne s'active plus, garde `status !== Scheduled` d'`activate`) ; le correctif la rend effective sur la ligne en base par une mise à jour conditionnelle ou un verrou, sans toucher à ce qu'une délégation légitime accorde.
 
 ### Petites améliorations
 - Réf : P211.07
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : la réactivation d'un compte bloqué rend l'accès au compte ; et les doubles avis restent non mesurés
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Controllers/Api/Admin/UserLifecycleController.php:58-68`, `takussan-api/app/Http/Controllers/Api/Admin/AgencyModerationController.php:213-222`, `takussan-api/app/Services/Kyc/KycExpiryService.php:36-49,81-90`
 - Constat :
@@ -19338,3 +19344,4 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
   - `kyc:expire-dossiers` (06:00) charge les dossiers `verified` puis repasse chacun à `pending` et l'agence à `is_verified = false` sur le modèle chargé (lu) : une vérification neuve faite pendant son passage serait écrasée, mais l'échéance relue est celle d'avant (à vérifier, fenêtre étroite).
   - Établi comment : lu.
 - Piste : même patron que les entrées précédentes (relecture sous verrou, ou mise à jour conditionnelle sur le statut attendu) ; l'avis après le commit et seulement si la ligne a changé.
+- Mesure (2026-10-24, 0c24562d3, mesureur) : relu `UserLifecycleController::reactivate` (`user.not_blocked` jugé sur le modèle lié, `forceFill()->save()` hors transaction, journal et avis), `AgencyModerationController::reinstate` (`agency.not_suspended` sur le modèle lié puis `transition` et `notifyAdmins`) et `KycExpiryService::run` / `expire` (chargement `verified` par `each()`, `update` du dossier et de l'agence sur le modèle chargé, sans relecture de `status` ni d'`expires_at`) → le motif décrit est dans le code ; aucune des trois courses n'a été jouée (doubles avis et journal, vérification neuve écrasée : toujours à vérifier). Classement : V2, `reactivate` rend l'accès d'un compte et `reinstate` celui d'une agence, et les trois parties restent déduites : au porteur.
