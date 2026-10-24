@@ -736,8 +736,16 @@ export type DataExportsResponse = {
 /** TCK-600 — `degraded` distingue « marche mal » de « en panne » ; chaque sonde est datée. */
 export type HealthLevel = 'ok' | 'degraded' | 'failed';
 
-/** Les raisons qu'une sonde émet par code (`HealthcheckService`) : le front les traduit. */
-export type HealthReason = 'no_delivery' | 'unreachable' | 'not_meilisearch';
+/**
+ * Les raisons qu'une sonde émet par code (`HealthcheckService`) : le front les traduit.
+ * TCK-2131 — `HealthcheckMotifsConcordanceTest` (API) compare cette union aux `'reason' =>` émis.
+ */
+export type HealthReason =
+  | 'no_delivery'
+  | 'unreachable'
+  | 'not_meilisearch'
+  | 'wildcard_trusts_nobody'
+  | 'signing_secret_missing';
 
 export type HealthcheckStatus = {
   status: HealthLevel;
@@ -756,6 +764,7 @@ export type PlatformHealth = {
   media_storage?: HealthcheckStatus & { disks?: string[]; disk?: string };
   mail: HealthcheckStatus;
   sms: HealthcheckStatus & { attempts_1h?: number; failure_rate_1h?: number };
+  whatsapp?: HealthcheckStatus & { attempts_1h?: number; failure_rate_1h?: number };
   search?: HealthcheckStatus & { documents?: number; expected?: number; gap?: number };
   queue: Partial<HealthcheckStatus> & {
     pending: number;
@@ -767,7 +776,10 @@ export type PlatformHealth = {
     queues?: Record<string, { status: HealthLevel; last_heartbeat_seconds: number | null }>;
   };
   cdn?: HealthcheckStatus;
-  scheduler: { last_run_at: string | null };
+  /** TCK-2129 — `failed` quand aucune tâche n'a tourné depuis le seuil (`HealthcheckService::scheduler()`). */
+  scheduler?: HealthcheckStatus & { last_run_at?: string | null };
+  proxies?: HealthcheckStatus;
+  lemon_squeezy_webhook?: HealthcheckStatus;
   status?: HealthLevel;
   generated_at: string;
 };
