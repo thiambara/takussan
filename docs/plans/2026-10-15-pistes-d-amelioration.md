@@ -20490,7 +20490,7 @@ sans `delete`).*
 
 ### Créer une intervention l'assigne sans `maintenance.assign`, que la modification exige
 - Réf : P227.02
-- Statut : retenu · autonome
+- Statut : fait · TCK-2203
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/MaintenanceRequestController.php:92-140`, `takussan-api/app/Http/Requests/Api/StoreMaintenanceRequestRequest.php:51`, `takussan-api/app/Http/Requests/Api/UpdateMaintenanceRequestRequest.php:40,57-83`, `takussan-api/app/Policies/MaintenanceRequestPolicy.php:171-183,298-320`
 - Constat :
@@ -20500,6 +20500,7 @@ sans `delete`).*
   - Établi comment : lu, puis mesuré.
 - Piste : à la création, ne retenir `assigned_to` que si l'appelant tient ce que `actAsPrincipal` exige (une variante qui juge le bien, l'intervention n'existant pas encore), sinon 403 ou champ refusé. Garde : le couple création / modification sans la capacité dans un même test.
 - Mesure (2026-10-24, 973736af4, mesureur) : aucun commit sur `takussan-api` depuis 47223cd19, aucun ticket ne cite P227 ; relu `MaintenanceRequestController::store` (l. 104 et 121 : `assigned_to` retenu sur `isPrincipalFor` seul) et `MaintenanceRequestPolicy::actAsPrincipal` (l. 171-183 : la branche équipe exige `maintenance.assign`, TCK-592) ; `SystemRoleCapabilities` donne `maintenance.assign` aux rôles système agent et admin (lu, l. 49-55 et 84) ; test temporaire `TmpMesureurP227Test` (retiré), charge 2,59 sur 8 cœurs : admin d'agence sans `maintenance.assign` (`adminWithout`), `POST /api/maintenance-requests` avec `assigned_to` = un agent de l'agence → 201, `assigned_to` posé ; même compte, `PATCH` `{assigned_to}` sur une autre intervention du bien → 403. Classement : A1, la règle « un rôle personnalisé qui retire `maintenance.assign` retire le geste » est écrite par TCK-592 dans `actAsPrincipal`, et les rôles système gardent la capacité : seul un rôle qui l'a retirée perd l'assignation à la création.
+- Mesure (2026-10-24, 157e11cb4, implementeur) : reproduit avant correctif par `MaintenanceCapabilitiesTest::test_agent_without_assign_cannot_assign_at_creation` (agent au rôle sans `maintenance.assign`, `POST /api/maintenance-requests` avec `assigned_to` → 201 au lieu de 403) → `MaintenanceRequestPolicy::teamMayAssignOn`, lue par `actAsPrincipal` et par `store`, rend 403 ; le témoin avec la capacité assigne en 201, la création sans `assigned_to` reste 201 ; ablation de la garde de `store` : 1 rouge sur 7, remise : 7 verts.
 
 ### `POST /api/agencies/{id}/members` fait un administrateur d'agence sans `team.assign_role`, que le changement de rôle exige depuis TCK-1498
 - Réf : P227.03
