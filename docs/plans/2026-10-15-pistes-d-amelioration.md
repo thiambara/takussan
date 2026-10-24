@@ -307,7 +307,7 @@ voie d'écriture (angle 13, puis 47).
 | 228 | Mutations lancées par `mutate()` sans `onError` et dont l'écran ne lit ni `error` ni `isError` (`generateSchedule` de `LeaseDetail.tsx:185`, `revoke` d'`AgentAbsencesSection.tsx:132`, `submit` d'`InventoryDetail.tsx:331`, et leurs pareilles sous `takussan-web/src/components`) : geste refusé par l'API sans rejet ni message, le bouton se réactive et rien ne dit l'échec — le pendant de l'angle 210 pour `mutate()` | fait |
 | 229 | Commandes et jobs planifiés qui chargent un lot de lignes puis appliquent une transition à chacune sur le modèle chargé, sans réclamation conditionnelle ni relecture sous verrou (`AutoCloseMaintenanceRequests`, `ProcessRoleDelegationsJob`, `KycExpiryService::run`, `ExpireInvitations`, `ExpireBookings`, `ExpireEndedLeasesJob`, `BoostLifecycle::endExpired`, et leurs pareils sous `app/Console` et `app/Jobs`) face au geste de l'utilisateur joué pendant le passage : geste écrasé, avis envoyé pour une ligne déjà sortie de l'état — né de P211.03 et P211.06 | fait |
 | 230 | Règles de date relatives au jour des requêtes de l'API (`after:today`, `after_or_equal:today`, `before_or_equal:today`, `before_or_equal:+60 days`, une trentaine de lignes sous `app/Http/Requests`) face au `min`, au `max` et à la valeur pré-remplie du champ du front qui les nourrit (`DatePicker`, `<input type="date">`, défauts calculés) : jour proposé ou pré-rempli que l'API refuse en 422, ou borne de l'API absente du champ — le relevé systématique dont l'angle 212 n'a vu que quatre sites (P212.01, P212.03, P212.04, P212.06) | fait |
-| 231 | Gestes qui « modifient » en clôturant une ligne et en ouvrant une neuve (`AgencySubscriptionService::assign`, et leurs pareils sous `app/Services` : renouvellement, reconduction, passation, re-téléversement) face aux champs de l'ancienne ligne que le geste ne reçoit pas (dérogations, essai, période, notes) : valeur négociée ou état en cours perdu sans que l'écran l'ait montré — né de P214.01 | à faire |
+| 231 | Gestes qui « modifient » en clôturant une ligne et en ouvrant une neuve (`AgencySubscriptionService::assign`, et leurs pareils sous `app/Services` : renouvellement, reconduction, passation, re-téléversement) face aux champs de l'ancienne ligne que le geste ne reçoit pas (dérogations, essai, période, notes) : valeur négociée ou état en cours perdu sans que l'écran l'ait montré — né de P214.01 | fait |
 | 232 | Lecteurs hors policy et hors liste qui tiennent `leases.landlord_id` ou `properties.user_id` pour le bailleur sans `BailleurDuBien` (`DashboardOwnerService:49`, `ExportDataService::scopeToActor`, `DataExportBuilder:121`, `OwnerStatementService:110,131`, `PayoutApprovalRule:66`, `ConversationAccess::constrainContext:199`) : agent créateur suspendu ou retiré qui compte, exporte ou lit encore les baux et loyers d'un bien qu'il a saisi — né de P217.03 | à faire |
 | 233 | Colonnes d'auteur qui désignent du personnel (`issued_by_id`, `created_by_id`, `conducted_by`, `uploaded_by`, `requester_id`, `submitted_by`, `reviewed_by`, `invited_by`, et leurs pareilles) admises seules par une branche de policy ou une clause de liste sous `app/Policies` et `app/Http/Controllers/Api`, hors des factures, reversements, réservations et états des lieux de l'angle 218 : membre suspendu ou retiré qui garde ce qu'il a saisi — né de P218.03 et P218.04 | à faire |
 | 234 | Ce que l'invitation porte dans `metadata` du profil brouillon (prénom, nom, téléphone, raison sociale, type de bailleur, métiers) face à l'acceptation par un compte déjà existant (`InvitationService::acceptForUser` → `finalizeAccept`, sans recopie) et aux lecteurs qui préfèrent le compte dès qu'il est lié (`nomDe` d'`OwnersList` et `ServiceProvidersList`) : valeur saisie par l'agence perdue à l'acceptation — né de P220.06 et P220.07 | à faire |
@@ -20803,3 +20803,86 @@ sans `delete`).*
   - Établi comment : lu ; mesuré par `node` pour le troisième point ; les écrans n'ont pas été rendus.
 - Piste : poser ces bornes depuis `src/lib/jour-de-l-api.ts` (`decalerJour(jourDeLApi(), 1)`, `decalerJour(jourDeLApi(), 366)`), et des `min` au jour ou à l'instant présent sur les deux champs de visite.
 - Mesure (2026-10-24, 09c83726d, mesureur) : relu `AdminBoostStats.tsx:51,55` (ni `min` ni `max`) face à `BoostStatsRequest.php:21,27-30` (`to` ≤ demain, fenêtre ≤ 92 jours) ; `PlanifierUneVisite.tsx:274` (jour sans `min`) face à `StorePropertyVisitRequest.php:115-116` (`after:now`) ; `VisitDetail.tsx:358,566-577` (`datetime-local` sans `min`, pré-rempli du créneau actuel) face à `UpdatePropertyVisitRequest.php:47` (`after:now`) ; `PropertyReservationDialog.tsx:319-323` (`minExpiry` par `setDate` puis `toISOString()`) face à `BookingRequestPublicPropertyRequest.php:24` (`after:today`) ; `CreateDelegationDialog.tsx:35,155-159` (`dateMax` par `setDate` local) face à `Permissions/StoreRoleDelegationRequest.php:21,28` (le chemin cité `Api/` n'existe pas) ; `node` sur `minExpiry` recopié, chaque heure de 2026 → jour ≤ jour UTC 1 heure sous `Europe/Paris` et 1 sous `America/New_York`, 0 sous Dakar et UTC ; le compte de 5 heures de `dateMax` n'a pas été rejoué → les quatre points tiennent, le dernier lu seulement. Classement : A1, chaque borne est écrite par une règle de l'API ; le correctif pose des `min`/`max` depuis `src/lib/jour-de-l-api.ts` et l'instant présent, sans texte neuf.
+
+## Angle 231 — Gestes qui clôturent une ligne et en ouvrent une neuve, face aux champs qu'ils ne reportent pas
+
+*Exploré le 2026-10-24 sur `pre-dev` af738adb4, par l'explorateur. Relu par l'explorateur lui-même :
+`LeaseRenewalService::renew` et `handOver`, `LeaseSignatureService::freezeRenewal`, le gabarit
+`pdf/leases/contract.blade.php`, `DocumentVersionService`, `DocumentVersionController`,
+`DocumentController::store` et `verify`, `DocumentShareLinkController`,
+`PublicPropertyDocumentController`, `DocumentResource`, `InvoiceService::cancel` et `creditNoteFor`,
+`Invoice::lines` et `designation`, le gabarit `pdf/invoices/default.blade.php`. Un sous-agent en
+lecture seule a recensé les autres gestes de la forme. Ses cas retenus ont été relus ici : la nouvelle
+version de document, l'avoir, la passation des clients. Ses autres cas sont écartés : le changement de
+profil d'un membre est déjà traité par l'angle des profils restaurés (`MemberProfileRestoreTest`) ; la
+langue du lien de paiement régénéré n'est pas perdue, puisque le contrôleur n'en passe jamais ; la
+duplication de bien est annoncée partielle par son docblock ; l'échéance KYC est exigée pour la seule
+pièce qui en porte une. La passation des clients (`AgentHandoverService.php:322-333`) perd `notes`,
+`started_at` et `metadata` de la ligne fusionnée, mais aucune écriture de l'API ne remplit ces trois
+colonnes : elle n'est pas retenue. `AgencySubscriptionService::assign` relève de P214.01, et
+`renewPeriods` reconduit sur place. Mesures par trois tests PHPUnit temporaires, retirés depuis.
+Charge `{ 6.32 5.77 4.72 }` puis `{ 3.88 5.23 4.68 }` sur 8 cœurs. Base de test de la suite, pas la
+base de développement. Les écrans n'ont pas été joués.*
+
+### Un bail renouvelé naît sans ses garants, et son contrat se fige sans eux
+- Réf : P231.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Lease/LeaseRenewalService.php:102-134,186-197`, `takussan-api/app/Services/Lease/LeaseSignatureService.php:262-271,283-286`, `takussan-api/app/Models/Lease.php:196-198,346`, `takussan-api/resources/views/pdf/leases/contract.blade.php:155-170`
+- Constat :
+  - L'enfant est construit colonne par colonne depuis le parent. Il reçoit `guarantor_id`, mais rien ne recopie le pivot `lease_guarantor` (lu, l. 102-134 ; `grep -rn "guarantors()" app` : aucune écriture hors de `LeaseController`).
+  - Le modèle dit lui-même que `guarantor_id` est une « ancienne colonne » et que « les garants imprimés sont ceux du pivot » (lu, `Lease.php:346`). Le gabarit du contrat imprime la section des garants depuis `$guarantors`, c'est-à-dire `$lease->guarantors` (lu, `contract.blade.php:155-170`, `LeaseSignatureService.php:285`).
+  - Un enfant né `active` fige son contrat dans la même transaction (`freezeRenewal`, lu, l. 262-271), donc sans garants. L'empreinte `contract_sha256` est posée sur ce rendu.
+  - mesuré (test temporaire) : bail actif figé, un garant attaché au pivot (`role` `principal`), `POST /api/leases/{id}/renew` par le bailleur → 201, enfant `active`, `guarantors()` du parent = 1, `guarantors()` de l'enfant = 0, `guarantor_id` de l'enfant `NULL`, `contract_sha256` posé.
+  - Établi comment : lecture, puis le test. Je n'ai pas cherché si un garant ajouté après coup re-fige le contrat de l'enfant.
+- Piste : recopier les lignes de `lease_guarantor` du parent vers l'enfant (avec `role`) dans `renew`, avant `freezeRenewal` et avant toute demande de signature. Test : bail à un garant renouvelé → l'enfant a le même garant, et le contrat figé l'imprime.
+
+### Une nouvelle version d'un document ne remplace pas le fichier que servent le lien de partage, la page publique et le bouton « Ouvrir »
+- Réf : P231.02
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Document/DocumentVersionService.php:35-73`, `takussan-api/app/Http/Controllers/Api/DocumentShareLinkController.php:77,91`, `takussan-api/app/Http/Controllers/Public/PublicPropertyDocumentController.php:40`, `takussan-api/app/Http/Resources/DocumentResource.php:45`, `takussan-api/app/Http/Resources/PropertyResource.php:466`, `takussan-api/app/Http/Controllers/Api/Admin/AgencyUpgradeRequestController.php:109`, `takussan-web/src/components/documents/DocumentsLibrary.tsx:472-479`, `takussan-web/src/components/documents/DocumentDetailClient.tsx:125-131`
+- Constat :
+  - `DocumentController::store` range le fichier dans la collection `file` (lu, l. 109). `uploadVersion` range chaque nouvelle version dans la collection `versions` et ne touche pas `file` (lu, `DocumentVersionService.php:44-53`).
+  - Le lien de partage (téléchargement et taille), la page publique d'un document de bien, `file_url` de `DocumentResource`, `PropertyResource` et la revue des demandes de passage en agence lisent tous `getFirstMedia('file')` (lu, aux lignes citées).
+  - La fiche du document affiche « Version active vN — <nom> » depuis `active_version` (lu, `DocumentDetailClient.tsx:125-131`), et la bibliothèque ouvre `doc.file_url` (lu, `DocumentsLibrary.tsx:472-479`).
+  - mesuré (test temporaire) : document de bien, fichier `CONTENU-V1` dans `file`, lien de partage ; `POST /api/documents/{id}/versions` avec `CONTENU-V2` par le téléverseur → 201. `GET /api/documents/{id}` rend `active_version.file_name` = `v2.pdf`, mais `file_url` pointe toujours le média 1. `GET /api/share/{token}/download` → 200, contenu `CONTENU-V1`.
+  - Établi comment : lecture, puis le test. La bibliothèque n'a pas été rendue.
+- Piste : décider quelle collection fait foi (la version active, ou `file` remplacée à chaque version) et y ramener tous les lecteurs. Un seul accesseur `Document::currentFile()` lu partout empêcherait le retour. Test : nouvelle version → le lien de partage, la page publique et `file_url` servent la nouvelle.
+
+### Une nouvelle version d'un document vérifié reste « vérifiée » et garde l'échéance de l'ancien fichier
+- Réf : P231.03
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Document/DocumentVersionService.php:35-73`, `takussan-api/app/Http/Controllers/Api/DocumentController.php:126-140`, `takussan-api/app/Policies/DocumentPolicy.php:71-79,129`, `takussan-api/app/Models/Profiles/ServiceProviderProfile.php:84-90`
+- Constat :
+  - `uploadVersion` n'écrit que le média et le journal. `is_verified`, `verified_by`, `verified_at` et `expiry_date` du `Document` restent ceux du fichier d'avant (lu, l. 35-73).
+  - La vérification est un geste du seul super-admin (lu, `DocumentController.php:126-140`), et la nouvelle version est permise au téléverseur (lu, `DocumentPolicy::update`, l. 71-79). Le téléverseur remplace donc un fichier vérifié sans que personne revoie le nouveau.
+  - `is_verified` décide aussi qui supprime une pièce de profil (lu, `DocumentPolicy.php:129`). `expiry_date` décide du badge « Assuré » d'un prestataire (lu, `ServiceProviderProfile.php:84-90`). Une assurance renouvelée par une version garde l'échéance de l'ancienne, à vérifier sur le carnet.
+  - Le renvoi d'une pièce de profil par les assistants remet déjà la vérification à zéro (TCK-1063, P64.04, lu, `OwnerProfileController.php:61-62`) : la voie des versions ne le fait pas.
+  - mesuré (test temporaire) : document vérifié par un super-admin, `expiry_date` dans un mois ; nouvelle version par le téléverseur → `GET /api/documents/{id}` rend `is_verified: true`, `verified_at` d'avant, `expiry_date` d'avant.
+  - Établi comment : lecture, puis le test.
+- Piste : une nouvelle version d'un document vérifié repasse à non vérifié (`verified_by` et `verified_at` vidés, la vérification remplacée journalisée, comme TCK-1063) ; la requête de version accepte une `expiry_date` neuve, ou la remet à nulle. Test : document vérifié, nouvelle version → `is_verified` faux.
+
+### L'avoir d'une facture saisie par lignes s'imprime sur une seule ligne « Prestation », sans ses lignes ni ses notes
+- Réf : P231.04
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Model/InvoiceService.php:179-198,217-238`, `takussan-api/app/Models/Invoice.php:136-153`, `takussan-api/app/Http/Controllers/Api/DocumentPdfController.php:137`, `takussan-api/resources/views/pdf/invoices/default.blade.php:15-16`
+- Constat :
+  - `cancel` d'une facture émise crée un avoir par `creditNoteFor`, qui recopie les montants, le client et la cible, mais ni `metadata` ni `notes` (lu, l. 217-238). Les lignes saisies vivent dans `metadata.lines` (lu, `InvoiceService.php:102` ; `Invoice::lines()`, l. 148-153).
+  - Le PDF passe `$invoice->lines()` au gabarit. Sans lignes, le gabarit imprime une ligne unique libellée `issued.designation`, puis `designation()`, puis « Prestation » (lu, `default.blade.php:15-16`). Pour une facture sans bail ni réservation, `designation()` ne lit que `metadata.designation` (lu, l. 136-138).
+  - mesuré (test temporaire, par les services) : facture de deux lignes (25 000 et 2 × 10 000) avec une note, envoyée puis annulée → avoir de 45 000, `lines()` `null`, `notes` `null`, `metadata.issued.designation` `null`. Le libellé imprimé est donc « Prestation » (lecture du gabarit ; le PDF n'a pas été rendu).
+  - Établi comment : lecture, puis le test. Aucune spec ne dit ce que l'avoir doit imprimer.
+- Piste : recopier `metadata.lines` et `metadata.designation` de l'originale dans `creditNoteFor`, puis laisser la numérotation figer `issued.designation` comme pour une facture. Test : facture à deux lignes annulée → l'avoir porte les deux lignes, et son PDF les imprime.
+
+### Petites améliorations : numérotation des versions de document
+- Réf : P231.05
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Services/Document/DocumentVersionService.php:42-43,167-196`
+- Constat :
+  - Le numéro d'une version vaut `count() + 1` des versions en base (lu, l. 42-43). Le plafond retire la plus ancienne au-delà de 20 (lu, `enforceCap`, l. 167-196). Une fois le plafond atteint, chaque envoi compte 20 versions et reçoit donc le numéro 21. Les numéros se répètent alors que `listVersions` trie sur eux et que l'écran les affiche (déduit du calcul, à vérifier).
+  - Le fichier d'origine, rangé dans `file`, n'est pas une version. Le premier envoi d'une nouvelle version reçoit donc le numéro 1, alors que c'est le deuxième fichier du document (lu).
+  - Établi comment : lecture seule.
+- Piste : numéroter depuis le plus grand numéro existant (`max + 1`), sous le verrou du document. Test : 22 envois → numéros 1 à 22 distincts, les deux plus anciens purgés.
