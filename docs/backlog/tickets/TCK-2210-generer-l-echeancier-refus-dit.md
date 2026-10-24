@@ -32,7 +32,7 @@ pas l'erreur : le clic refusé remettait le bouton au repos, sans rien dire.
 
 ## Décision du porteur (déléguée)
 
-> afficher le refus de « Générer l'échéancier » par un `onError` qui passe par `useMessageErreurApi` (repli générique, aucune clé neuve), dans une ligne `role="alert"` sous les gestes comme la révision de loyer (P210.01), et ne monter le bouton que sous `abilities.record_payment` et pour un bail `active` ; le cas de `LeaseDetail.capacites.test.tsx:106-107` réécrit sur `record_payment`
+> afficher le refus de « Générer l'échéancier » par un `onError` qui passe par `useMessageErreurApi` (repli générique, aucune clé neuve), dans une ligne `role="alert"` sous les gestes comme la révision de loyer (P210.01), et ne monter le bouton que sous `abilities.record_payment` et pour un bail `active` ; le cas de `LeaseDetail.capacites.test.tsx:106-107` réécrit sur `record_payment` ; reste : le drapeau d'API « échéancier absent » qui cacherait aussi le bouton quand l'échéancier existe déjà
 
 ## Reste à faire
 
