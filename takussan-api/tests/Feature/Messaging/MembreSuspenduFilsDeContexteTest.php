@@ -18,9 +18,9 @@ use Tests\Support\MaintenanceActors;
 use Tests\TestCase;
 
 /**
- * P191.01 (TCK-2019) — le participant qui ne tient plus qu'un profil non actif
+ * P191.01 (TCK-2019) et P191.03 (TCK-2023) — le participant qui ne tient plus qu'un profil non actif
  * dans l'agence d'un fil de bail ou de bien, et qui n'est partie ni au bail ni au bien, n'y a plus
- * accès : ni lecture, ni écriture, ni liste, ni avis. Il n'en est pas
+ * accès : ni lecture, ni écriture, ni liste, ni avis, ni geste d'administrateur. Il n'en est pas
  * retiré (`left_at` reste nul) : réactivé, il retrouve le fil.
  */
 class MembreSuspenduFilsDeContexteTest extends TestCase
@@ -104,5 +104,27 @@ class MembreSuspenduFilsDeContexteTest extends TestCase
         $this->assertTrue($access->allows($suspendu, $bail->fresh()));
         $this->assertTrue($access->allows($suspendu, $bien->fresh()));
         $this->assertSame(2, $access->participatingQuery($suspendu)->count());
+    }
+
+    public function test_p191_03_l_agent_suspendu_administrateur_n_ajoute_plus_personne(): void
+    {
+        ['agency' => $agency, 'agent' => $agent, 'admin' => $admin, 'bail' => $bail] = $this->scene();
+        $tiers = User::factory()->create();
+        // Un correspondant de l'agent : une directe antérieure.
+        $directe = Conversation::create([
+            'type' => ConversationType::Direct->value,
+            'status' => ConversationStatus::Active->value,
+            'created_by' => $agent->id,
+        ]);
+        $directe->participants()->attach([$agent->id => ['role' => ParticipantRole::Member->value, 'joined_at' => now()], $tiers->id => ['role' => ParticipantRole::Member->value, 'joined_at' => now()]]);
+        $this->assertTrue($agent->can('addParticipant', $bail), 'avant la suspension');
+
+        app(TeamMemberSuspensionService::class)->suspend($agency, $agent, $admin);
+        $suspendu = $agent->fresh();
+
+        $this->assertFalse($suspendu->can('addParticipant', $bail->fresh()));
+        Sanctum::actingAs($suspendu);
+        $this->postJson("/api/conversations/{$bail->id}/participants", ['user_ids' => [$tiers->id]])->assertForbidden();
+        $this->assertNull($bail->participants()->where('users.id', $tiers->id)->first());
     }
 }
