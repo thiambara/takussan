@@ -18,8 +18,8 @@ import {
   FormInput,
   FormSelect,
   FormTextarea,
-  FormDatePicker,
 } from '@/components/forms';
+import { FormDatePicker } from '@/components/forms/FormDatePicker';
 import { useApiForm } from '@/hooks/useApiForm';
 import { useCreateInvoice } from '@/lib/queries/payments';
 import {

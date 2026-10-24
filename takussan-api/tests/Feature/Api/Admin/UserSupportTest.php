@@ -55,6 +55,50 @@ class UserSupportTest extends TestCase
         ])->assertStatus(409);
     }
 
+    /** P83.04 (TCK-1775) — un verrou échu n'est plus un verrou : rien à débloquer, rien à journaliser. */
+    public function test_unlock_refuses_an_expired_lock(): void
+    {
+        $actor = $this->actingAsRole('super_admin');
+        $target = User::factory()->create([
+            'metadata' => [
+                'locked_at' => now()->subMinutes(20)->toIso8601String(),
+                'failed_login_attempts' => 10,
+            ],
+        ]);
+
+        $this->postJson("/api/admin/users/{$target->id}/unlock", [
+            'reason' => 'Identité vérifiée',
+        ])->assertStatus(409)->assertJsonPath('code', 'support.account_not_locked');
+
+        $this->assertSame(0, Activity::query()
+            ->where('event', 'super_admin_account_unlocked')
+            ->where('subject_id', $target->id)
+            ->count());
+    }
+
+    /** P83.04 (TCK-1775) — la fiche dit si le compte est verrouillé, jusqu'à quand, et si la 2FA est à reconfigurer. */
+    public function test_detail_renders_the_derived_lock_state(): void
+    {
+        $this->actingAsRole('super_admin');
+        $lockedAt = now()->subMinutes(5)->startOfSecond();
+        $locked = User::factory()->create([
+            'metadata' => ['locked_at' => $lockedAt->toIso8601String(), 'force_2fa_reconfigure' => true],
+        ]);
+        $expired = User::factory()->create([
+            'metadata' => ['locked_at' => now()->subMinutes(20)->toIso8601String()],
+        ]);
+
+        $this->getJson("/api/admin/users/{$locked->id}")
+            ->assertOk()
+            ->assertJsonPath('data.locked_until', $lockedAt->copy()->addMinutes(15)->toIso8601String())
+            ->assertJsonPath('data.force_2fa_reconfigure', true);
+
+        $this->getJson("/api/admin/users/{$expired->id}")
+            ->assertOk()
+            ->assertJsonPath('data.locked_until', null)
+            ->assertJsonPath('data.force_2fa_reconfigure', false);
+    }
+
     public function test_reset_2fa_clears_secret_and_forces_reconfiguration(): void
     {
         $actor = $this->actingAsRole('super_admin');

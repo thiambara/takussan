@@ -7,7 +7,8 @@ import { useTranslations } from 'next-intl';
 import { UserPlus, Users } from 'lucide-react';
 
 import { EmptyState, ErrorState } from '@/components/feedback';
-import { DataState, Pagination } from '@/components/console';
+import { DataState } from '@/components/console';
+import { Pagination } from '@/components/console/Pagination';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AdminUsersFilters } from '@/components/admin/users/AdminUsersFilters';
@@ -22,7 +23,6 @@ import { PendingInvitationsSection } from '@/components/admin/PendingInvitations
 import { TeamPerformanceTable } from '@/components/admin/team/TeamPerformanceTable';
 import { fetchAdminUsers } from '@/lib/queries/admin-users';
 import { postTeamSuspension, type TeamSuspensionAction } from '@/lib/queries/team-suspension';
-import { useAgencyRoleAssignments } from '@/lib/queries/agency-roles';
 import { agencyInvitationKeys } from '@/lib/queries/agency-invitations';
 import { useCan } from '@/hooks/useCan';
 import { useAuth } from '@/context/AuthContext';
@@ -162,34 +162,34 @@ export function TeamConsole({
     [router, searchParams],
   );
 
+  // TCK-1901 (P197.02) — le relais `/api/admin-users` répond pour l'agence du profil actif :
+  // l'agence entre dans la clé, sans quoi un changement de profil (`router.refresh()`, la console
+  // reste montée) servirait encore les membres de l'agence quittée. Les invalidations par le
+  // préfixe `['admin-users', 'list']` restent valables.
   const usersQuery = useQuery<AdminAgencyUsersResponse, ApiError>({
-    queryKey: ['admin-users', 'list', params],
+    queryKey: ['admin-users', 'list', agencyId, params],
     queryFn: () => fetchAdminUsers(params),
     staleTime: 15_000,
     enabled: !performance,
   });
 
-  // TCK-279 (AC11) — le rôle d'agence de chaque ligne affichée.
-  //
-  // Une requête SÉPARÉE, et bornée aux ids de la page : `UserResource`
+  // TCK-279 (AC11) — le rôle d'agence de chaque ligne affichée. `UserResource`
   // n'expose ni l'id du profil ni son rôle, et ne peut pas le faire sans
   // choisir pour tout le produit lequel des N profils d'un utilisateur est
   // « le » profil. La question n'a de réponse que rapportée à une agence.
-  const visibleUserIds = useMemo(
-    () => (usersQuery.data?.data ?? []).map((u) => u.id),
-    [usersQuery.data],
-  );
-  const assignmentsQuery = useAgencyRoleAssignments(agencyId, visibleUserIds);
-
+  //
+  // TCK-1770 (P136.04) — les affectations viennent avec la liste des membres
+  // (`meta.role_assignments`, bornées à la page, rapportées à l'agence active) :
+  // la colonne n'attend plus un second aller-retour, parti après le premier.
   const assignmentsByUser = useMemo(() => {
     const map = new Map<number, AgencyRoleAssignment[]>();
-    for (const row of assignmentsQuery.data?.data ?? []) {
+    for (const row of usersQuery.data?.meta.role_assignments ?? []) {
       const list = map.get(row.user_id);
       if (list) list.push(row);
       else map.set(row.user_id, [row]);
     }
     return map;
-  }, [assignmentsQuery.data]);
+  }, [usersQuery.data]);
 
   // AC12 — le sélecteur de rôle est gardé par la CAPACITÉ, pas par le type
   // de profil : deux `agency_admin` de la même agence peuvent porter des

@@ -11,6 +11,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Laravel\Sanctum\Sanctum;
 use PHPUnit\Framework\Attributes\DataProvider;
+use Tests\Support\FichiersReels;
 use Tests\TestCase;
 
 /**
@@ -80,6 +81,39 @@ class KycUploadMimeTest extends TestCase
             UploadedFile::fake()->create('piece.pdf', 300, 'application/pdf'),
         ] as $file) {
             $this->postJson($uri, $fields + [$field => $file])->assertCreated();
+        }
+    }
+
+    /**
+     * P194.01 — une photo RÉELLE de moins de 1 Kio (PNG 2×2 de GD) passe sur les quatre routes :
+     * `min:1` jugeait en kilo-octets et la refusait, alors que la règle ne visait que le vide.
+     */
+    #[DataProvider('routes')]
+    public function test_une_petite_photo_reelle_passe(string $route): void
+    {
+        [$uri, $fields, $field] = $this->route($route);
+
+        $image = imagecreatetruecolor(2, 2);
+        $chemin = tempnam(sys_get_temp_dir(), 'p19401');
+        imagepng($image, $chemin);
+        $this->assertLessThan(1024, (int) filesize($chemin));
+
+        $this->postJson($uri, $fields + [$field => new UploadedFile($chemin, 'piece.png', null, null, true)])
+            ->assertCreated();
+    }
+
+    /**
+     * P194.03 — chaque format qu'accepte `AcceptedUploads::KYC_EXTENSIONS`, en fichier RÉEL, sur
+     * les quatre routes : `finfo` juge le contenu, et non le nom.
+     */
+    #[DataProvider('routes')]
+    public function test_chaque_format_kyc_passe_en_fichier_reel(string $route): void
+    {
+        [$uri, $fields, $field] = $this->route($route);
+
+        foreach (['pdf', 'png', 'jpeg', 'webp', 'heic'] as $format) {
+            $this->postJson($uri, $fields + [$field => FichiersReels::$format()])
+                ->assertCreated();
         }
     }
 }

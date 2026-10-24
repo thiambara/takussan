@@ -127,4 +127,30 @@ class CustomerNoteTest extends TestCase
 
         $this->assertFalse((bool) CustomerNote::query()->sole()->pinned);
     }
+
+    /**
+     * TCK-1842 (P186.03) — l'ordre servi (épinglées d'abord, puis les plus récentes) se départage par
+     * l'`id` : le front lit toutes les pages, et deux notes de la même seconde changeaient de page.
+     */
+    public function test_les_notes_se_departagent_par_l_id(): void
+    {
+        $user = User::factory()->create();
+        $customer = Customer::factory()->create(['added_by_id' => $user->id]);
+        $meme = now()->startOfSecond();
+        $epinglee = CustomerNote::factory()->create([
+            'customer_id' => $customer->id, 'author_id' => $user->id, 'pinned' => true, 'created_at' => $meme->copy()->subDays(3),
+        ]);
+        $notes = collect(range(1, 4))->map(fn () => CustomerNote::factory()->create([
+            'customer_id' => $customer->id, 'author_id' => $user->id, 'pinned' => false, 'created_at' => $meme,
+        ]));
+        // La vie normale d'une note : une mise à jour déplace sa position physique.
+        $notes->last()->update(['body' => 'relue']);
+        $notes->get(1)->update(['body' => 'relue aussi']);
+
+        Sanctum::actingAs($user);
+
+        $ids = collect($this->getJson("/api/customers/{$customer->id}/notes")->assertOk()->json('data'))->pluck('id')->all();
+
+        $this->assertSame([$epinglee->id, ...$notes->pluck('id')->sortDesc()->values()->all()], $ids);
+    }
 }

@@ -9,7 +9,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { FormInput, FormSelect, FormGlobalError, FormDatePicker } from '@/components/forms';
+import { FormInput, FormSelect, FormGlobalError } from '@/components/forms';
+import { FormDatePicker } from '@/components/forms/FormDatePicker';
 import { useApiForm } from '@/hooks/useApiForm';
 import { useLeasePayments, useMarkLeasePaymentPaid } from '@/lib/queries/leases';
 import { leasePaymentSchema, type LeasePaymentFormValues } from '@/lib/schemas/lease';
@@ -44,6 +45,9 @@ export function LeasePaymentDialog({ leaseId, open, onOpenChange }: LeasePayment
   const methodOptions = PAYMENT_METHODS.map((value) => ({ value, label: tMethods(value) }));
   const installmentOptions = (paymentsData?.data ?? [])
     .filter((p) => p.status === 'pending' || p.status === 'late')
+    // TCK-1825 (P183.03) — une restitution de caution se règle par son reversement : `mark-paid`
+    // la refuse toujours (`lease_payment.deposit_refund_paid_by_payout`, TCK-594).
+    .filter((p) => p.payment_type !== 'deposit_refund')
     .map((p) => ({
       value: String(p.id),
       label: `${formatDate(p.period_start, locale)} → ${formatDate(p.period_end, locale)} · ${formatCurrency(p.amount, locale, { currency: p.currency })}`,

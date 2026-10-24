@@ -205,6 +205,27 @@ class InventoryRoomPhotosTest extends TestCase
         $this->assertCount(0, $inventory->refresh()->getMedia('room_photos'));
     }
 
+    /**
+     * TCK-1423 (P143.02) — une photo de plus de 20 Mpx est refusée sur son en-tête : sans
+     * conversion, chaque PDF de l'état des lieux la décodait entière dans GD, hors de
+     * `memory_limit` (+418 Mo de RSS mesurés pour un JPEG de 10 000 × 10 000).
+     */
+    public function test_a_photo_beyond_twenty_megapixels_is_refused(): void
+    {
+        [$owner, $inventory] = $this->scaffold();
+
+        Sanctum::actingAs($owner);
+        $this->post("/api/inventories/{$inventory->id}/room-photos", [
+            'room_name' => 'Kitchen',
+            'photos' => [UploadedFile::fake()->image('ok.jpg', 10, 10), ImageEnTete::jpeg(10_000, 10_000, 'bombe.jpg')],
+        ], ['Accept' => 'application/json'])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['photos.1' => __('validation.dimensions', ['attribute' => 'photos.1'])])
+            ->assertJsonMissingValidationErrors(['photos.0']);
+
+        $this->assertCount(0, $inventory->refresh()->getMedia('room_photos'));
+    }
+
     private function scaffold(array $attributes = [], ?User $owner = null): array
     {
         $owner ??= User::factory()->create();

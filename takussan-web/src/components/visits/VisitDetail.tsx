@@ -35,6 +35,7 @@ import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/toast';
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import { isAdmin, isAgent as hasAgentRole, isOwner } from '@/lib/roles';
 import { VisitFeedbackForm } from './VisitFeedbackForm';
 import type { PropertyVisit } from '@/types/visit';
@@ -65,6 +66,10 @@ export function VisitDetail({ id }: { id: number }) {
   const tPlanning = useTranslations('visitPlanning');
   const [proposer, setProposer] = useState(false);
   const toast = useToast();
+  const messageErreur = useMessageErreurApi();
+  // P182.01 — l'erreur d'un geste sans dialogue (confirmer, terminer, absent) se dit sous les
+  // actions (ADR-0019) : sans `catch`, la promesse rejetée n'était rattrapée par rien.
+  const [erreurGeste, setErreurGeste] = useState<string | null>(null);
 
   if (isLoading) {
     return <Skeleton className="h-48 rounded-xl" />;
@@ -143,6 +148,15 @@ export function VisitDetail({ id }: { id: number }) {
         description: tPlanning('smsWithheld.description'),
         type: 'warning',
       });
+    }
+  }
+
+  async function geste(fn: () => Promise<void>) {
+    setErreurGeste(null);
+    try {
+      await fn();
+    } catch (e) {
+      setErreurGeste(messageErreur(e));
     }
   }
 
@@ -268,6 +282,12 @@ export function VisitDetail({ id }: { id: number }) {
           ) : null}
         </dl>
 
+        {erreurGeste ? (
+          <p role="alert" className="text-sm text-destructive">
+            {erreurGeste}
+          </p>
+        ) : null}
+
         {/* Sous `sm`, les actions s'empilent en pleine largeur : cibles de 40 px, aucune coupée. */}
         <div className="flex flex-col gap-2 border-t border-border pt-4 sm:flex-row sm:flex-wrap">
           {canClaim && (
@@ -281,17 +301,17 @@ export function VisitDetail({ id }: { id: number }) {
             </Button>
           )}
           {canConfirm && (
-            <Button onClick={handleConfirm} disabled={confirm.isPending} className="h-10 sm:h-8">
+            <Button onClick={() => void geste(handleConfirm)} disabled={confirm.isPending} className="h-10 sm:h-8">
               {t('actions.confirm')}
             </Button>
           )}
           {canComplete && (
-            <Button onClick={handleComplete} disabled={complete.isPending} variant="outline" className="h-10 sm:h-8">
+            <Button onClick={() => void geste(handleComplete)} disabled={complete.isPending} variant="outline" className="h-10 sm:h-8">
               {t('actions.complete')}
             </Button>
           )}
           {canMarkNoShow && (
-            <Button onClick={handleNoShow} disabled={markNoShow.isPending} variant="outline" className="h-10 sm:h-8">
+            <Button onClick={() => void geste(handleNoShow)} disabled={markNoShow.isPending} variant="outline" className="h-10 sm:h-8">
               {t('actions.noShow')}
             </Button>
           )}
@@ -491,8 +511,11 @@ function VisitActionForm({
   onReschedule: (slot: string) => Promise<void>;
 }) {
   const t = useTranslations('visits.detail');
+  const messageErreur = useMessageErreurApi();
   const [value, setValue] = useState(kind === 'reschedule' ? defaultSlot : '');
   const [touched, setTouched] = useState(false);
+  // P182.01 — l'erreur de l'API se dit dans le dialogue, qui reste ouvert (ADR-0019).
+  const [erreurApi, setErreurApi] = useState<string | null>(null);
   const fieldId = `visit-${kind}-field`;
   const errorId = `${fieldId}-error`;
   const trimmed = value.trim();
@@ -506,8 +529,13 @@ function VisitActionForm({
     event.preventDefault();
     setTouched(true);
     if (!valid) return;
-    if (kind === 'cancel') await onCancel(trimmed);
-    else await onReschedule(trimmed);
+    setErreurApi(null);
+    try {
+      if (kind === 'cancel') await onCancel(trimmed);
+      else await onReschedule(trimmed);
+    } catch (e) {
+      setErreurApi(messageErreur(e));
+    }
   }
 
   return (
@@ -551,6 +579,11 @@ function VisitActionForm({
           </p>
         ) : null}
       </div>
+      {erreurApi ? (
+        <p role="alert" className="text-sm text-destructive">
+          {erreurApi}
+        </p>
+      ) : null}
       <DialogFooter>
         <Button type="button" variant="ghost" onClick={onDismiss}>
           {t('dialogs.dismiss')}

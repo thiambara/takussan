@@ -13,6 +13,12 @@ vi.mock('../RevenueChart', () => ({ RevenueChart: () => <div data-testid="pannea
 vi.mock('../CohortHeatmap', () => ({ CohortHeatmap: () => <div data-testid="panneau-cohorts" /> }));
 vi.mock('../FunnelChart', () => ({ FunnelChart: () => <div data-testid="panneau-funnel" /> }));
 
+const navigation = vi.hoisted(() => ({ replace: vi.fn(), query: '' }));
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ replace: navigation.replace, push: vi.fn(), prefetch: vi.fn() }),
+  useSearchParams: () => new URLSearchParams(navigation.query),
+}));
+
 function rendre(initialTab?: string) {
   return render(
     withIntl(
@@ -76,5 +82,23 @@ describe('<ReportingShell>', () => {
 
     rendre('inconnu');
     expect(screen.getByTestId('panneau-growth')).toBeInTheDocument();
+  });
+
+  /**
+   * P168.05 — le changement d'onglet s'écrit dans `?tab=` : arrivé par la tuile MRR, passer aux
+   * cohortes puis recharger ne ramène plus aux revenus. Le défaut (`growth`) sort de l'URL.
+   */
+  it('écrit l’onglet choisi dans `?tab=` par `router.replace`, sans toucher au reste', async () => {
+    navigation.replace.mockClear();
+    navigation.query = 'tab=revenue&x=1';
+    const user = userEvent.setup();
+    rendre('revenue');
+
+    await user.click(screen.getAllByRole('tab')[2]);
+    expect(navigation.replace).toHaveBeenLastCalledWith('?tab=cohorts&x=1');
+
+    await user.click(screen.getAllByRole('tab')[0]);
+    expect(navigation.replace).toHaveBeenLastCalledWith('?x=1');
+    navigation.query = '';
   });
 });

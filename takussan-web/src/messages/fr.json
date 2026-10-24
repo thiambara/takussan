@@ -406,7 +406,7 @@
       "email": "Adresse email",
       "emailPlaceholder": "vous@exemple.com",
       "password": "Mot de passe",
-      "passwordPlaceholder": "Au moins 8 caractères",
+      "passwordPlaceholder": "8 caractères minimum, avec une lettre et un chiffre.",
       "passwordConfirmationPlaceholder": "Répétez le mot de passe",
       "showPassword": "Afficher le mot de passe",
       "hidePassword": "Masquer le mot de passe",
@@ -548,7 +548,7 @@
       "invalidBody": "Ce lien de réinitialisation est invalide ou a expiré. Demandez-en un nouveau.",
       "requestNewLink": "Demander un nouveau lien",
       "passwordLabel": "Nouveau mot de passe",
-      "passwordPlaceholder": "Au moins 8 caractères",
+      "passwordPlaceholder": "8 caractères minimum, avec une lettre et un chiffre.",
       "confirmationLabel": "Confirmer le mot de passe",
       "confirmationPlaceholder": "Répétez le mot de passe",
       "showPassword": "Afficher le mot de passe",
@@ -1424,7 +1424,7 @@
           "agent": "Agent",
           "manager": "Gestionnaire",
           "co_owner": "Copropriétaire",
-          "viewer": "Lecture seule"
+          "viewer": "Lecteur (sans accès)"
         },
         "designate": "Désigner comme principal",
         "designateFor": "Désigner {name} comme agent principal",
@@ -4217,6 +4217,7 @@
         "comment_label": "Qu'est-ce qui ne va pas ?",
         "comment_placeholder": "Décrivez ce qui persiste",
         "photos_label": "Photos (facultatif)",
+        "max_files": "Maximum {max} fichiers.",
         "send_contest": "Envoyer",
         "back": "Retour",
         "failed": "Votre réponse n'a pas été enregistrée. Réessayez."
@@ -4254,7 +4255,9 @@
         "duration_label": "Durée estimée (jours)",
         "attachments_label": "Pièces jointes (PDF ou images)",
         "remove_file": "Retirer",
+        "max_files": "Maximum {max} fichiers.",
         "file_type_refused": "Type de fichier refusé (PDF, JPG, PNG ou WEBP seulement) : {files}",
+        "file_too_large": "Fichier trop lourd ({max} Mo au plus) : {files}",
         "incomplete": "Chaque ligne doit avoir une désignation, une quantité et un prix, et le devis une date de validité.",
         "failed": "Le devis n'a pas été envoyé.",
         "submitting": "Envoi…",
@@ -6386,6 +6389,7 @@
         "phone": "Téléphone",
         "website": "Site internet",
         "commission": "Commission par défaut (%)",
+        "emptyRateIsZero": "Laissé vide, ce taux vaut 0 %.",
         "websitePlaceholder": "https://votre-agence.sn"
       },
       "moderation": {
@@ -6637,6 +6641,7 @@
         "match": "Rapprochement",
         "actions": "Actions",
         "paymentRef": "{type} n° {id}",
+        "duplicate": "Déjà importée dans un autre relevé",
         "confidence": "Confiance : {value}",
         "validate": "Valider",
         "search": "Chercher",
@@ -6855,7 +6860,8 @@
         "rejected": "Refusées",
         "cancelled": "Annulées",
         "expired": "Expirées"
-      }
+      },
+      "onlyMine": "Mes biens"
     },
     "detail": {
       "error": "Réservation introuvable.",
@@ -8557,6 +8563,8 @@
       "crossTenant": "Utilisateur cross-tenant",
       "roleTeam": "· agence {id}",
       "mfaActive": "MFA active",
+      "lockedUntil": "Verrouillé jusqu’à {time}",
+      "force2faReconfigure": "Double facteur à reconfigurer",
       "toastActionDone": "Action support exécutée",
       "toastExportRequested": "Export RGPD demandé",
       "toastSessionRevoked": "Session révoquée",
@@ -8698,7 +8706,7 @@
       "title": "Recherche globale",
       "description": "E-mail, téléphone, référence, transaction, NINEA ou nom. Flèches pour choisir, Entrée pour ouvrir.",
       "placeholder": "Rechercher dans toute la plateforme",
-      "hint": "Au moins 2 caractères.",
+      "hint": "Au moins 3 caractères.",
       "empty": "Aucun résultat pour « {q} ».",
       "types": {
         "user": "Utilisateurs",
@@ -9013,7 +9021,8 @@
       "name": "Libellé",
       "namePlaceholder": "ex : Piscine",
       "type": "Type",
-      "icon": "Icône (nom Lucide)",
+      "icon": "Icône",
+      "iconNone": "Aucune (celle du slug)",
       "color": "Couleur (hex)"
     }
   },
@@ -9182,7 +9191,8 @@
       "opportunitySubmit": "Publier mes avis",
       "opportunitySentTitle": "Avis envoyé",
       "opportunitySentBody": "Merci ! Votre avis sera publié après validation.",
-      "opportunityError": "Votre avis n'a pas pu être envoyé."
+      "opportunityError": "Votre avis n'a pas pu être envoyé.",
+      "anonymous": "Anonyme"
     },
     "contact": {
       "title": "Coordonnées",
@@ -9489,6 +9499,13 @@
       "saving": "Enregistrement…",
       "saved": "Enregistré.",
       "failed": "Ce réglage n'a pas été enregistré."
+    },
+    "timezone": {
+      "title": "Fuseau horaire",
+      "subtitle": "L'heure de vos e-mails, SMS et notifications suit ce fuseau.",
+      "label": "Fuseau horaire",
+      "saved": "Fuseau horaire enregistré.",
+      "error": "Le fuseau horaire n'a pas pu être enregistré."
     }
   },
   "contact": {
@@ -9723,10 +9740,6 @@
     "profiles": {
       "loadFailed": "Impossible de charger vos profils.",
       "switchFailed": "Impossible de changer de profil."
-    },
-    "customerDocuments": {
-      "tooLarge": "Le fichier dépasse 10 Mo.",
-      "unsupportedType": "Type de fichier non autorisé (images ou PDF uniquement)."
     }
   },
   "validation": {
@@ -9809,6 +9822,9 @@
       "roomNameRequired": "Le nom de la pièce est requis.",
       "leaseRequired": "Sélectionnez un bail.",
       "roomsMin": "Ajoutez au moins une pièce.",
+      "roomsMax": "{max} pièces au maximum.",
+      "elementsMax": "{max} éléments par pièce au maximum.",
+      "notesTooLong": "Notes trop longues ({max} caractères max).",
       "disputeReasonRequired": "Motif du litige requis."
     },
     "lease": {
@@ -10591,7 +10607,8 @@
       "governance": {
         "role_capabilities_changed": {
           "title": "Droits d'un rôle modifiés",
-          "body": "Les droits du rôle {role} ont été modifiés par {actor}."
+          "body": "Les droits du rôle {role} ont été modifiés par {actor}.",
+          "body_unnamed": "Les droits d'un rôle ont été modifiés par {actor}."
         },
         "admin_added": {
           "title": "Nouvel administrateur",
@@ -10657,7 +10674,8 @@
       "bank_statement": {
         "imported": {
           "title": "Relevé importé",
-          "body": "{lines, plural, one {Votre relevé {bank} (# ligne) est prêt à être rapproché.} other {Votre relevé {bank} (# lignes) est prêt à être rapproché.}}"
+          "body": "{lines, plural, one {Votre relevé {bank} (# ligne) est prêt à être rapproché.} other {Votre relevé {bank} (# lignes) est prêt à être rapproché.}}",
+          "body_unnamed": "{lines, plural, one {Votre relevé (# ligne) est prêt à être rapproché.} other {Votre relevé (# lignes) est prêt à être rapproché.}}"
         },
         "finalized": {
           "title": "Relevé clôturé",

@@ -43,7 +43,7 @@ class LeasePaymentLinkController extends Controller
 
         return $this->json(['data' => [
             'url' => $url,
-            'expires_at' => $link?->expires_at?->toIso8601String(),
+            'expires_at' => $this->instant($link?->expires_at),
         ]]);
     }
 

@@ -80,7 +80,9 @@ describe('PropertyCollaboratorsPanel', () => {
     expect(within(moussa).queryByRole('button')).toBeNull();
     expect(within(screen.getByTestId('collaborator-1')).getByRole('button', { name: 'Désigner Awa Diop comme agent principal' })).toBeInTheDocument();
     expect(within(screen.getByTestId('collaborator-3')).queryByRole('button')).toBeNull();
-    expect(within(screen.getByTestId('collaborator-3')).getByText('Lecture seule')).toBeInTheDocument();
+    // TCK-1476 (P86.02, D-66) — l'API n'ouvre aucune lecture au `viewer` : son libellé ne la promet pas.
+    expect(within(screen.getByTestId('collaborator-3')).getByText('Lecteur (sans accès)')).toBeInTheDocument();
+    expect(screen.queryByText('Lecture seule')).toBeNull();
     expect(screen.getByTestId('primary-contact-source')).toHaveTextContent("Choisi par l'agence.");
   });
 

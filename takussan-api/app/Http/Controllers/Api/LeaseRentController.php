@@ -70,7 +70,7 @@ class LeaseRentController extends Controller
                 'forced' => (bool) ($log->properties['forced'] ?? false),
                 'causer_id' => $log->causer_id,
                 'causer_type' => $log->causer_type,
-                'created_at' => $log->created_at?->toISOString(),
+                'created_at' => $this->instant($log->created_at),
             ])->all(),
             'meta' => $this->paginationMeta($paginator),
         ]);

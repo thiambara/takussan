@@ -138,6 +138,54 @@ class PaymentSearchTest extends ApiTestCase
         $this->assertSame(collect($kept)->sort()->values()->all(), $found);
     }
 
+    /**
+     * P188.06 (TCK-1864) — `q` ou `direction` en liste rendent 422 sur le paramètre, et non 500
+     * (`TypeError` sur `string $query`, « Array to string conversion » sur `direction`). Un
+     * montant illisible et une direction inconnue restent servis comme avant.
+     */
+    public function test_q_ou_direction_en_liste_rendent_422_et_non_500(): void
+    {
+        $base = "/api/agencies/{$this->agency->id}/bank-statements/payment-search";
+        $this->actingAs($this->admin);
+
+        $this->getJson($base.'?q[]=abc')->assertStatus(422)->assertJsonValidationErrors(['q']);
+        $this->getJson($base.'?q=abc&direction[]=credit')->assertStatus(422)->assertJsonValidationErrors(['direction']);
+
+        $this->getJson($base.'?q=abc&amount=abc')->assertOk();
+        $this->getJson($base.'?q=abc&direction=nope')->assertOk();
+        // `q` vide devient `null` (ConvertEmptyStringsToNull) : la règle `nullable` le laisse passer.
+        $this->getJson($base.'?q=&amount=1000')->assertOk();
+    }
+
+    /**
+     * P157.01 (TCK-1917) — la recherche manuelle ne propose que les paiements de la devise de la
+     * ligne (`currency`), celle que juge `ReconciliationManager::confirmMatch()` : une échéance en
+     * XOF proposée à une ligne en EUR rendait 422 à la confirmation. Sans `currency`, toutes.
+     */
+    public function test_la_recherche_ne_propose_que_la_devise_de_la_ligne(): void
+    {
+        $xof = $this->leasePayment($this->agency, 'DEV-XOF', 15000);
+        $eur = $this->leasePayment($this->agency, 'DEV-EUR', 15000, ['currency' => Currency::EUR]);
+        $base = "/api/agencies/{$this->agency->id}/bank-statements/payment-search?q=DEV-";
+        $this->actingAs($this->admin);
+
+        $this->assertSame([$eur->id], array_column($this->getJson($base.'&currency=EUR')->assertOk()->json('data'), 'id'));
+        $this->assertSame([$xof->id], array_column($this->getJson($base.'&currency=XOF')->assertOk()->json('data'), 'id'));
+        $this->assertSame([], $this->getJson($base.'&currency=ABC')->assertOk()->json('data'));
+        $this->assertEqualsCanonicalizing([$xof->id, $eur->id], array_column($this->getJson($base)->assertOk()->json('data'), 'id'));
+        $this->getJson($base.'&currency[]=EUR')->assertStatus(422)->assertJsonValidationErrors(['currency']);
+    }
+
+    public function test_hors_de_l_agence_le_refus_precede_la_validation(): void
+    {
+        $intrus = User::factory()->create(['agency_id' => $this->other->id]);
+        $this->other->update(['primary_admin_id' => $intrus->id]);
+
+        $this->actingAs($intrus)
+            ->getJson("/api/agencies/{$this->agency->id}/bank-statements/payment-search?q[]=abc")
+            ->assertForbidden();
+    }
+
     private function search(string $query, ?int $amount = null): array
     {
         $url = "/api/agencies/{$this->agency->id}/bank-statements/payment-search?q=".urlencode($query);

@@ -9,6 +9,7 @@ use App\Models\Contracts\HasAuditAgency;
 use App\Models\Enums\BookingPaymentType;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -53,6 +54,24 @@ class BookingPayment extends AbstractModel implements HasAuditAgency
         'bank_reconciled_at' => 'datetime',
         'platform_fee_pct_at_payment' => 'decimal:2',
     ];
+
+    /**
+     * P140.02 (TCK-1792) — les identités que le reçu imprime (`PaymentReceiptPdf`), lues aux
+     * mêmes sources, suppressions douces comprises.
+     *
+     * @return array<string, Model|null>
+     */
+    public function printedIdentityRoles(): array
+    {
+        $booking = Booking::withTrashed()->with([
+            'property' => fn ($q) => $q->withTrashed(),
+            'property.address',
+            'customer' => fn ($q) => $q->withTrashed(),
+            'agency',
+        ])->find($this->booking_id);
+
+        return ['customer' => $booking?->customer, 'property' => $booking?->property, 'agency' => $booking?->agency];
+    }
 
     public function booking(): BelongsTo
     {

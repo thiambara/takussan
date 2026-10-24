@@ -4,6 +4,7 @@ namespace Tests\Feature\Api;
 
 use App\Models\Agency;
 use App\Models\Enums\AgentProfileStatus;
+use App\Models\Enums\Capability;
 use App\Models\Enums\UserStatus;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
@@ -151,6 +152,51 @@ class AgencyMembersListTest extends TestCase
         $this->assertContains($promu->id, $this->getJson("/api/admin/agencies/{$agency->id}/team?per_page=100")
             ->assertOk()
             ->json('data.*.id'), "L'équipe de la console montre l'admin promu.");
+    }
+
+    /**
+     * P120.05 — l'agent qui détient `crm.assign` attribue une demande de contact : il lit les cibles
+     * de son agence (décision du porteur, 2026-10-22), bornées au personnel joignable, sans autre
+     * colonne que le nom, quoi qu'il demande. Le reste de `/members` lui reste fermé.
+     */
+    public function test_un_agent_crm_assign_lit_les_seules_cibles_du_personnel(): void
+    {
+        [, $agency] = $this->createAdminWithAgency();
+
+        $collegue = User::factory()->create(['first_name' => 'Zeyna']);
+        AgentProfile::factory()->create(['user_id' => $collegue->id, 'agency_id' => $agency->id]);
+        $bloque = User::factory()->create();
+        AgentProfile::factory()->create(['user_id' => $bloque->id, 'agency_id' => $agency->id]);
+        $bloque->forceFill(['status' => UserStatus::Blocked])->save();
+        $bailleur = User::factory()->create();
+        OwnerProfile::factory()->create(['user_id' => $bailleur->id, 'agency_id' => $agency->id]);
+
+        $agent = $this->actingAsRole('agent', ['agency' => $agency, 'first_name' => 'Awa'], 'sanctum');
+        $this->assertTrue($agent->canActAt(Capability::CrmAssign, $agency));
+
+        $lignes = $this->getJson("/api/agencies/{$agency->id}/members?sort=first_name&per_page=100&fields[users]=id,first_name,email,phone&include=ownerProfiles")
+            ->assertOk()
+            ->json('data');
+        $ids = collect($lignes)->pluck('id');
+
+        $this->assertTrue($ids->contains($collegue->id), 'Le collègue joignable est une cible.');
+        $this->assertTrue($ids->contains($agent->id), "L'agent peut se l'attribuer, comme l'API l'accepte.");
+        $this->assertFalse($ids->contains($bloque->id), 'Un compte bloqué n\'est pas une cible.');
+        $this->assertFalse($ids->contains($bailleur->id), 'Un bailleur n\'est pas une cible.');
+        $this->assertSame(['Awa', 'Zeyna'], collect($lignes)->pluck('first_name')->intersect(['Awa', 'Zeyna'])->values()->all(), 'Le tri demandé est appliqué.');
+        foreach ($lignes as $ligne) {
+            $this->assertSame(['id', 'first_name', 'last_name'], array_keys($ligne), 'Le nom seul, quoi que la requête demande.');
+        }
+
+        $this->getJson('/api/agencies/'.Agency::factory()->create()->id.'/members')->assertForbidden();
+    }
+
+    public function test_un_bailleur_ne_lit_pas_les_membres(): void
+    {
+        [, $agency] = $this->createAdminWithAgency();
+        $this->actingAsRole('owner', ['agency' => $agency], 'sanctum');
+
+        $this->getJson("/api/agencies/{$agency->id}/members")->assertForbidden();
     }
 
     public function test_non_admin_cannot_list_members(): void

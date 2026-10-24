@@ -14,23 +14,16 @@ import { DOCUMENT_TYPE_ORDER } from './constants';
 
 import { DocumentVersionsList } from '@/components/documents/DocumentVersionsList';
 import { useDocumentWithVersions } from '@/lib/queries/documents';
-import type { UserRole } from '@/types/user';
 
 interface DocumentDetailClientProps {
   readonly documentId: number;
-  readonly currentUserId: number | null;
-  readonly currentUserRoles: readonly UserRole[];
 }
 
 /**
  * Client component for the document detail page.
  * Shows document metadata and the version history accordion.
  */
-export function DocumentDetailClient({
-  documentId,
-  currentUserId,
-  currentUserRoles,
-}: DocumentDetailClientProps) {
+export function DocumentDetailClient({ documentId }: DocumentDetailClientProps) {
   const t = useTranslations('documents.detail');
   const tTypes = useTranslations('documents.types');
   const tCommon = useTranslations('common');
@@ -40,9 +33,9 @@ export function DocumentDetailClient({
   const { data, isLoading, isError } = documentQuery;
   const document = data?.data;
 
-  const isAdmin = currentUserRoles.includes('super_admin');
-  const canManage =
-    isAdmin || (currentUserId !== null && document?.uploaded_by === currentUserId);
+  // TCK-1867 (P189.01) — le verdict de `DocumentPolicy::update`, que l'API sert : la seule identité
+  // du téléverseur ouvrait « Nouvelle version » et « Restaurer » au bailleur suspendu, refusé en 403.
+  const canManage = document?.abilities?.update === true;
 
   if (isLoading) {
     return (

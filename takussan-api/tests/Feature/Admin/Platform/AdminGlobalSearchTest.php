@@ -63,6 +63,22 @@ class AdminGlobalSearchTest extends TestCase
     }
 
     /**
+     * TCK-1879 (P193.01) — un compte créé par téléphone (`PhoneLoginService::createAccount`) n'a
+     * ni nom ni e-mail : la recherche par son numéro le rendait en 500 (`hit()` typé `string`
+     * recevait `null`). Le libellé retombe sur le numéro, celui que l'opérateur vient de saisir.
+     */
+    public function test_un_compte_cree_par_telephone_se_trouve_par_son_numero_avec_un_libelle(): void
+    {
+        $compte = User::factory()->create(['first_name' => '', 'last_name' => '', 'email' => null, 'phone' => '+221771234567']);
+        $this->agirEnOperateur(PlatformProfileLevel::Support);
+
+        $resultats = collect($this->chercher('+221771234567'))->where('type', 'user')->values();
+
+        $this->assertSame([$compte->id], $resultats->pluck('id')->all());
+        $this->assertSame('+221771234567', $resultats[0]['label']);
+    }
+
+    /**
      * TCK-1257 (P125.01) — `agencies.phone` s'écrit tel que saisi : la recherche compare la forme
      * canonique des deux côtés (`CanonicalPhone`), comme l'entrée par téléphone.
      */
@@ -153,6 +169,19 @@ class AdminGlobalSearchTest extends TestCase
         $this->agirEnOperateur(PlatformProfileLevel::Support);
         $this->getJson('/api/admin/search?q=d')->assertUnprocessable();
         $this->getJson('/api/admin/search?q='.str_repeat('a', 101))->assertUnprocessable();
+    }
+
+    /**
+     * TCK-1447 (P159.01) — deux caractères n'atteignent aucune voie : le texte libre commence à
+     * `FREE_TEXT_MIN`, les voies exactes plus loin encore. La requête refuse donc sous ce seuil, au
+     * lieu de rendre une liste vide que l'opérateur lit « personne de ce nom ».
+     */
+    public function test_q_sous_le_seuil_du_texte_libre_est_refuse(): void
+    {
+        $this->agirEnOperateur(PlatformProfileLevel::Support);
+
+        $this->getJson('/api/admin/search?q=Ba')->assertUnprocessable();
+        $this->getJson('/api/admin/search?q='.urlencode('Ba Sy'))->assertOk();
     }
 
     /**

@@ -59,8 +59,8 @@ class AgentAbsenceController extends Controller
             'id' => $absence->id,
             'absent' => $person($absence->replaces),
             'substitute' => $person($absence->user),
-            'starts_at' => $absence->starts_at?->toIso8601String(),
-            'ends_at' => $absence->ends_at?->toIso8601String(),
+            'starts_at' => $this->instant($absence->starts_at),
+            'ends_at' => $this->instant($absence->ends_at),
             'status' => $absence->status,
             // verif-591 m3 — qui couvre qui est une information de travail (ADR-0035) ; le POURQUOI
             // peut être une donnée de santé. Le motif ne va qu'à l'absent, à l'auteur et au

@@ -1,7 +1,6 @@
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 
-import { getMeAction } from '@/app/actions/auth';
 import { DocumentDetailClient } from '@/components/documents/DocumentDetailClient';
 
 /**
@@ -21,7 +20,6 @@ export default async function DocumentDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const me = await getMeAction();
   const documentId = Number.parseInt(id, 10);
 
   // TCK-442 — la validité de l'identifiant ET l'existence de la ressource sont tranchées par
@@ -32,11 +30,7 @@ export default async function DocumentDetailPage({
 
   return (
     <div className="space-y-6">
-      <DocumentDetailClient
-        documentId={documentId}
-        currentUserId={me?.id ?? null}
-        currentUserRoles={me?.roles ?? []}
-      />
+      <DocumentDetailClient documentId={documentId} />
     </div>
   );
 }

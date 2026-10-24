@@ -66,8 +66,9 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
   const reviewRent = useReviewLeaseRent(leaseId);
   const toast = useToast();
 
-  // TCK-173 — les gestes de gestion qu'aucune capacité ne juge (document, échéancier, garants,
-  // préavis) ne se montrent pas au locataire : tout rôle de gestion les voit.
+  // TCK-173 — les gestes de gestion qu'aucune capacité ne juge (document, échéancier) ne se
+  // montrent pas au locataire : tout rôle de gestion les voit. Garants et préavis suivent
+  // `abilities` depuis P189.03.
   //
   // P152.02 — renouveler, réviser le loyer, encaisser et restituer le dépôt NE suivent PLUS ce
   // rôle : `LeasePolicy` les juge par capacité (`leases.renew`, `leases.rent_review`,
@@ -80,17 +81,10 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
   }, [user]);
 
 
-  const latePaymentsCount = useMemo(() => {
-    const list = paymentsData?.data ?? [];
-    return list.filter((p) => {
-      if (p.status === 'late') return true;
-      if (p.status === 'pending' && p.due_date) {
-        const due = new Date(p.due_date);
-        return !Number.isNaN(due.getTime()) && due < new Date();
-      }
-      return false;
-    }).length;
-  }, [paymentsData]);
+  // TCK-1833 (P183.02) — les échéances que l'API dit échues (`is_overdue`, TCK-1831 : règle de
+  // `scopeOverdue`) : ni restitution de caution, ni échéance du jour, `partially_paid` échue
+  // comprise. Aucune date n'est comparée à l'horloge du navigateur.
+  const latePaymentsCount = (paymentsData?.data ?? []).filter((p) => p.is_overdue).length;
 
   // TCK-1189 (P101.02) — le seul titre de la page est celui du bail : les écrans de chargement
   // et d'erreur gardent un h1, comme `BookingDetail`.
@@ -123,9 +117,12 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
   // TCK-596 — le préavis s'ouvre au gestionnaire (TCK-090) ET au locataire de CE bail
   // (`LeasePolicy::requestEarlyTermination`), jamais à « tout client ». Le statut éligible
   // est vérifié juste avant le rendu du bouton.
-  const isLeaseTenant =
-    user != null && lease.tenant?.user_id != null && lease.tenant.user_id === user.id;
-  const canRequestTermination = isAgentSurface || isLeaseTenant;
+  // P189.03 (TCK-1871) — le préavis (et son annulation, même règle) suit le verdict de
+  // `LeasePolicy::requestEarlyTermination` ; l'ajout de garant et le lien de paiement celui de
+  // `LeasePolicy::update`. Le rôle les ouvrait au bailleur suspendu, et le préavis à l'agent sans
+  // `leases.terminate`. Le libellé du préavis garde sa règle (gestionnaire ou locataire).
+  const canRequestTermination = lease.abilities?.request_early_termination === true;
+  const canManageLease = lease.abilities?.update === true;
   const canRenew = lease.abilities?.renew === true;
   const canReviewRent = lease.abilities?.review_rent === true;
   const canRecordPayment = lease.abilities?.record_payment === true;
@@ -291,7 +288,7 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
           leaseId={leaseId}
           agencyId={lease.agency_id ?? null}
           landlordId={lease.landlord_id}
-          canManage={isAgentSurface}
+          canManage={canManageLease}
           canRecordPayment={canRecordPayment}
         />
       </section>
@@ -315,7 +312,7 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
 
       <GuarantorSection
         leaseId={leaseId}
-        canManage={isAgentSurface}
+        canManage={canManageLease}
       />
 
       {(lease.terms || lease.special_conditions) && (

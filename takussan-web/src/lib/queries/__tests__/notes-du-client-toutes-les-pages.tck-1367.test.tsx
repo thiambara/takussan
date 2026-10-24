@@ -52,6 +52,8 @@ describe('fetchCustomerNotes — toutes les pages (TCK-1367)', () => {
     expect(lues).toHaveLength(TOTAL);
     expect(lues.map((n) => n.id)).toEqual(notes.map((n) => n.id));
     expect(urls.every((u) => u.pathname === '/api/customers/9/notes')).toBe(true);
+    // TCK-1842 (P186.03) — `sort` était inerte : l'API sert les épinglées d'abord, puis les plus récentes.
+    expect(urls.some((u) => u.searchParams.has('sort'))).toBe(false);
   });
 
   it('l’onglet de la fiche compte « Notes (25) »', async () => {

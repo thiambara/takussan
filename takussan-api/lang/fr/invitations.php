@@ -7,6 +7,9 @@ return [
         'agency_admin' => 'administrateur d\'agence',
         'service_provider' => 'prestataire de services',
         'super_admin' => 'super administrateur',
+        // P155.01 (TCK-1437) — rôles d'`AgentInvitationService::ALLOWED_ROLES`.
+        'agent_senior' => 'agent senior',
+        'agent_manager' => 'agent manager',
     ],
     'errors' => [
         // TCK-455 — une invitation qui ne sait pas à quoi elle rattache le

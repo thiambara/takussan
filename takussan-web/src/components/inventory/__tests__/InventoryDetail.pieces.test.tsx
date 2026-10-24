@@ -69,6 +69,8 @@ function etatDesLieux(overrides: Partial<Inventory> = {}): Inventory {
     ],
     can_sign_as: [],
     sign_on_behalf_of: null,
+    // TCK-1869 — les pièces se garnissent sous le verdict d'`InventoryPolicy::update`.
+    abilities: { update: true },
     ...overrides,
   };
 }
@@ -246,5 +248,38 @@ describe('InventoryDetail — pièces (TCK-596 §5)', () => {
     render(withIntl(<InventoryDetail id={7} />));
     expect(screen.getByTestId('signature-card-landlord')).not.toHaveTextContent('À signer');
     expect(screen.getByTestId('signature-card-tenant')).not.toHaveTextContent('À signer');
+  });
+});
+
+/**
+ * TCK-1869 (P189.02) — « Soumettre » et le dépôt de photos d'un brouillon suivent le verdict que
+ * l'API sert (`abilities.update`, `InventoryPolicy::update`) : le locataire et le bailleur suspendu
+ * lisent le brouillon, l'API leur refuse ces gestes.
+ */
+describe('<InventoryDetail> — un brouillon que l’API ne laisse pas modifier', () => {
+  it('ni « Soumettre » ni dépôt de photos sans `abilities.update`', () => {
+    etat.inventory = etatDesLieux({ abilities: { update: false } });
+    render(withIntl(<InventoryDetail id={7} />));
+
+    expect(piece('Salon')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Soumettre pour signature' })).not.toBeInTheDocument();
+    expect(piece('Salon').querySelector('label')).toBeNull();
+    expect(within(piece('Salon')).queryByRole('button', { name: 'Envoyer les photos' })).not.toBeInTheDocument();
+  });
+
+  it('sans `abilities`, aucun des deux', () => {
+    etat.inventory = etatDesLieux({ abilities: undefined });
+    render(withIntl(<InventoryDetail id={7} />));
+
+    expect(screen.queryByRole('button', { name: 'Soumettre pour signature' })).not.toBeInTheDocument();
+    expect(piece('Cuisine').querySelector('label')).toBeNull();
+  });
+
+  it('les deux s’ouvrent quand l’API l’accorde', () => {
+    etat.inventory = etatDesLieux();
+    render(withIntl(<InventoryDetail id={7} />));
+
+    expect(screen.getByRole('button', { name: 'Soumettre pour signature' })).toBeInTheDocument();
+    expect(piece('Salon').querySelector('label')).not.toBeNull();
   });
 });

@@ -67,10 +67,15 @@ class RentReceiptAfterOnlinePaymentTest extends TestCase
         $this->assertStringContainsString('application/pdf', (string) $pdf->headers->get('Content-Type'));
     }
 
-    /** Un locataire AVEC compte : la quittance part à son compte, une fois. */
+    /**
+     * Un locataire AVEC compte : la quittance part à son compte, une fois. Son téléphone est
+     * vérifié : sans cela, le canal mobile part aussi au numéro de sa fiche (TCK-1493,
+     * `RelaisMobileDuCompteTest`).
+     */
     public function test_a_tenant_with_account_receives_it_on_the_account(): void
     {
         $ctx = $this->leaseDue();
+        $ctx['tenant']->forceFill(['phone_verified_at' => now()])->save();
         $this->spyDriver();
         $this->actingAs($ctx['tenant'], 'sanctum');
         $this->postJson('/api/lease-payments/'.$ctx['payment']->id.'/initiate', ['provider' => 'wave'])->assertOk();

@@ -43,6 +43,21 @@ function renderList(props: Partial<Parameters<typeof AgencyRolesList>[0]> = {}) 
 }
 
 describe('<AgencyRolesList>', () => {
+  // P164.04 (TCK-1808) — un rôle système est rangé avec un nom français par défaut : la console
+  // le nomme par son type, dans la langue de l'écran ; un rôle créé garde le nom saisi.
+  it.each([
+    ['fr', 'Admin agence', 'Agent immobilier'],
+    ['en', 'Agency admin', 'Real estate agent'],
+  ] as const)('nomme un rôle système dans la langue de l’écran (%s)', (locale, admin, agent) => {
+    const handlers = { onSelect: vi.fn(), onClone: vi.fn(), onDelete: vi.fn() };
+    render(withIntl(<AgencyRolesList roles={ROLES} selectedId={null} canCreate canDelete {...handlers} />, locale));
+
+    expect(screen.getByText(admin)).toBeInTheDocument();
+    expect(screen.getByText(agent)).toBeInTheDocument();
+    expect(screen.getByText('Agent senior')).toBeInTheDocument();
+    expect(screen.queryByText('Administrateur')).toBeNull();
+  });
+
   it('groupe par type de profil, administrateurs en tête', () => {
     renderList();
 
@@ -56,7 +71,7 @@ describe('<AgencyRolesList>', () => {
   it("n'offre pas « Supprimer » sur un rôle système", () => {
     renderList();
 
-    const systemCard = screen.getByRole('button', { name: 'Sélectionner le rôle Agent' })
+    const systemCard = screen.getByRole('button', { name: 'Sélectionner le rôle Agent immobilier' })
       .parentElement!;
     // La policy sort sur `is_system` AVANT de regarder la capacité : le
     // bouton n'aurait aucun utilisateur pour qui il aboutirait.
@@ -82,7 +97,7 @@ describe('<AgencyRolesList>', () => {
   it('affiche le badge système et les deux compteurs', () => {
     renderList();
 
-    const systemCard = screen.getByRole('button', { name: 'Sélectionner le rôle Agent' });
+    const systemCard = screen.getByRole('button', { name: 'Sélectionner le rôle Agent immobilier' });
     expect(within(systemCard).getByText('Système')).toBeInTheDocument();
     expect(systemCard).toHaveTextContent('1 capacité');
     expect(systemCard).toHaveTextContent('3 membres');
@@ -111,7 +126,7 @@ describe('<AgencyRolesList>', () => {
       screen.getByRole('button', { name: 'Sélectionner le rôle Agent senior' }),
     ).toHaveAttribute('aria-current', 'true');
     expect(
-      screen.getByRole('button', { name: 'Sélectionner le rôle Agent' }),
+      screen.getByRole('button', { name: 'Sélectionner le rôle Agent immobilier' }),
     ).not.toHaveAttribute('aria-current');
   });
 });

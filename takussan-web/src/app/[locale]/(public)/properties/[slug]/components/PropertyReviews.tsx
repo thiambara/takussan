@@ -1,10 +1,11 @@
 'use client';
 import Image from 'next/image';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { Star, MessageSquareReply, Pencil } from 'lucide-react';
 import { usePropertyReviews } from '@/hooks/usePropertyReviews';
+import { useIntersectionObserver } from '@/hooks/useIntersectionObserver';
 import { useAuth } from '@/context/AuthContext';
 import { getReviewEligibility } from '@/app/actions/property';
 import { PropertyReviewForm } from './PropertyReviewForm';
@@ -48,6 +49,8 @@ function ReviewItem({ review, canReply, onReply }: ReviewItemProps) {
   const fmt = useFormatteurs();
   const [editing, setEditing] = useState(false);
   const hasReply = Boolean(review.reply_content);
+  // TCK-1781 — l'API rend `name` nul pour un auteur effacé ou sans nom.
+  const nomAuteur = review.author.name || tNote('anonymous');
 
   return (
     <li className="border-b border-border pb-4 last:border-b-0">
@@ -56,20 +59,20 @@ function ReviewItem({ review, canReply, onReply }: ReviewItemProps) {
           {review.author.avatar_url ? (
             <Image
               src={review.author.avatar_url}
-              alt={review.author.name}
+              alt={nomAuteur}
               fill
               sizes="40px"
               className="object-cover"
             />
           ) : (
             <div className="flex h-full items-center justify-center text-sm font-semibold text-muted-foreground">
-              {review.author.name.charAt(0).toUpperCase()}
+              {nomAuteur.charAt(0).toUpperCase()}
             </div>
           )}
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-baseline justify-between gap-2 flex-wrap">
-            <p className="font-medium text-foreground">{review.author.name}</p>
+            <p className="font-medium text-foreground">{nomAuteur}</p>
             <time className="text-xs text-muted-foreground">{fmt.date(review.created_at, DATE_D_AVIS)}</time>
           </div>
           <div
@@ -216,7 +219,18 @@ export function PropertyReviews({
 }: PropertyReviewsProps) {
   const t = useTranslations('property.reviews');
   const { user } = useAuth();
-  const { data, loading, error, submit, reply } = usePropertyReviews(slug, propertyId);
+  // TCK-1483 (P103.07) — les avis ne sont demandés qu'à l'approche de leur section (400 px), et
+  // une fois approchée elle le reste. Sans `IntersectionObserver`, la lecture part au montage.
+  const sectionRef = useRef<HTMLElement>(null);
+  const [sansObservateur] = useState(() => typeof IntersectionObserver === 'undefined');
+  const enApproche = useIntersectionObserver(sectionRef, { rootMargin: '400px' });
+  const [approchee, setApprochee] = useState(false);
+  if (enApproche && !approchee) setApprochee(true);
+  const { data, loading, error, submit, reply } = usePropertyReviews(
+    slug,
+    propertyId,
+    approchee || sansObservateur,
+  );
 
   // TCK-180 — gate the review form on history. The endpoint requires
   // auth, so anonymous users skip the call and simply never see the form.
@@ -226,17 +240,19 @@ export function PropertyReviews({
     result: { eligible: boolean; alreadyReviewed: boolean };
   } | null>(null);
 
+  // TCK-1764 (P172.04) — le compte, pas l'objet `user` que chaque `refreshUser()` remplace.
+  const userId = user?.id ?? null;
   useEffect(() => {
     let cancelled = false;
-    if (!user) return;
+    if (userId === null) return;
     (async () => {
       const result = await getReviewEligibility(slug);
-      if (!cancelled) setEligibility({ slug, userId: user.id, result });
+      if (!cancelled) setEligibility({ slug, userId, result });
     })();
     return () => {
       cancelled = true;
     };
-  }, [slug, user]);
+  }, [slug, userId]);
 
   const canReply = canReplyToReview({
     userId: user?.id,
@@ -251,6 +267,15 @@ export function PropertyReviews({
       ? eligibility.result
       : null;
 
+  // TCK-1762 (P172.02) — l'avis créé attend la modération : la liste publique relue ne le montre
+  // pas. C'est la réponse de l'envoi qui établit « déjà laissé », sans attendre une relecture.
+  async function envoyerAvis(payload: { rating: number; title?: string; content?: string }) {
+    await submit(payload);
+    if (user) {
+      setEligibility({ slug, userId: user.id, result: { eligible: true, alreadyReviewed: true } });
+    }
+  }
+
   const showReviewForm =
     !!user &&
     !!activeEligibility &&
@@ -258,7 +283,7 @@ export function PropertyReviews({
     !activeEligibility.alreadyReviewed;
 
   return (
-    <section id="avis" className="space-y-4 scroll-mt-24">
+    <section ref={sectionRef} id="avis" className="space-y-4 scroll-mt-24">
       <div className="flex items-baseline justify-between gap-2 flex-wrap">
         <h2 className="text-xl font-semibold text-foreground">
           {t('title')} {reviewsCount > 0 && <span className="text-muted-foreground text-base">({reviewsCount})</span>}
@@ -296,7 +321,7 @@ export function PropertyReviews({
         <p className="text-sm text-muted-foreground">{t('empty')}</p>
       )}
 
-      {showReviewForm && <PropertyReviewForm onSubmit={submit} />}
+      {showReviewForm && <PropertyReviewForm onSubmit={envoyerAvis} />}
       {user && activeEligibility && !activeEligibility.eligible && !activeEligibility.alreadyReviewed && (
         <p className="rounded-xl bg-card p-4 text-sm text-muted-foreground">
           {t('notEligible')}

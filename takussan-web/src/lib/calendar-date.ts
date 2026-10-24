@@ -122,7 +122,12 @@ export function formatISODate(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
-/** Parse `YYYY-MM-DD[ HH:mm:ss]` → Date locale (évite `new Date('YYYY-MM-DD')` = UTC). */
+/**
+ * Parse `YYYY-MM-DD HH:mm:ss` → Date locale. C'est le contrat de `GET /api/calendar` : heure
+ * murale UTC sans fuseau, lue à l'heure écrite quel que soit le fuseau du navigateur (TCK-1502,
+ * épinglé des deux côtés — `calendar-date.heure-murale.test.ts` et `CalendarWallClockFormTest`).
+ * Une chaîne qui porte déjà `T` et un fuseau serait, elle, décalée par `new Date`.
+ */
 export function parseServerDate(value: string | null | undefined): Date | null {
   if (!value) return null;
   const iso = value.includes('T') ? value : value.replace(' ', 'T');

@@ -2,6 +2,7 @@
 
 namespace App\Services\Notifications;
 
+use App\Domain\Integrations\Providers\IntegrationProviderRegistry;
 use App\Domain\Notifications\NotificationCode;
 use App\Models\Enums\Currency;
 use App\Services\Admin\NotificationTemplateService;
@@ -15,7 +16,8 @@ use NumberFormatter;
  * Surfaces : `title`, `body`, `mail_subject`, `mail_body`, `sms`. Clés :
  * `lang/{fr,en,wo}/notifications.php` → `codes.<code>.<surface>` ; `mail_subject` retombe sur
  * `title` et `mail_body` sur `body` quand le code n'en déclare pas. Un paramètre facultatif
- * présent (le lien de paiement) choisit la variante `<surface>_link`.
+ * présent (le lien de paiement) choisit la variante `<surface>_link` ; un nom attendu absent
+ * ({@see NotificationCode::unnamedParams()}) la variante `<surface>_unnamed` (P164.06).
  *
  * Un gabarit ACTIF de l'éditeur du super-admin, pour {@see NotificationCode::templateEvent()},
  * le canal et la langue, l'emporte sur `lang/` pour l'e-mail et le SMS.
@@ -92,6 +94,8 @@ class NotificationRenderer
                 NotificationCode::PARAM_URL => is_string($value) && $value !== '' ? $value : '—',
                 NotificationCode::PARAM_REASON_CODE => $this->reasonCode($value, $params['reason'] ?? null, $locale, $textMax),
                 NotificationCode::PARAM_ROLE => $this->role($value, $locale, $textMax),
+                NotificationCode::PARAM_PROVIDER => $this->provider($value, $textMax),
+                NotificationCode::PARAM_MONTH => $this->month($value, $locale, $textMax),
                 default => is_scalar($value) && (string) $value !== '' ? $this->text((string) $value, $textMax) : '—',
             };
         }
@@ -122,6 +126,10 @@ class NotificationRenderer
         };
 
         $candidates = [];
+        if ($this->lacksName($code, $params)) {
+            $candidates[] = $base.$surface.'_unnamed';
+            $candidates[] = $base.$fallback.'_unnamed';
+        }
         if ($this->hasOptional($code, $params)) {
             $candidates[] = $base.$surface.'_link';
             $candidates[] = $base.$fallback.'_link';
@@ -136,6 +144,19 @@ class NotificationRenderer
         }
 
         return $base.$fallback;
+    }
+
+    /** P164.06 (TCK-1472) — un nom attendu manque : la variante `_unnamed` s'applique. */
+    private function lacksName(NotificationCode $code, array $params): bool
+    {
+        foreach ($code->unnamedParams() as $name) {
+            $value = $params[$name] ?? null;
+            if (! is_scalar($value) || trim((string) $value) === '') {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function hasOptional(NotificationCode $code, array $params): bool
@@ -171,6 +192,30 @@ class NotificationRenderer
         $key = 'invitations.roles.'.$code;
 
         return $this->text(trans()->has($key, $locale) ? __($key, [], $locale) : $code, $max);
+    }
+
+    /** P164.01 (TCK-1468) — le libellé du fournisseur d'intégration, jamais son code. */
+    private function provider(mixed $code, ?int $max): string
+    {
+        if (! is_string($code) || $code === '') {
+            return '—';
+        }
+
+        return $this->text(app(IntegrationProviderRegistry::class)->get($code)->label(), $max);
+    }
+
+    /** P164.02 (TCK-1470) — un mois `Y-m` écrit dans la langue du destinataire. */
+    private function month(mixed $value, string $locale, ?int $max): string
+    {
+        if (! is_scalar($value) || (string) $value === '') {
+            return '—';
+        }
+        $value = (string) $value;
+        if (preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $value) !== 1) {
+            return $this->text($value, $max);
+        }
+
+        return Carbon::createFromFormat('!Y-m', $value)->locale($locale)->isoFormat('MMMM YYYY');
     }
 
     private function text(string $value, ?int $max): string

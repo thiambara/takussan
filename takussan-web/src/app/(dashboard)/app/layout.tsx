@@ -32,6 +32,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   let agencyIsStandard: boolean | undefined;
   let hasPendingUpgrade: boolean | undefined;
   let agencySuspended = false;
+  // TCK-1766 (P136.03) — le marqueur d'accueil de l'agence, pris sur la lecture déjà faite.
+  let agencyStandardWelcome: { agencyId: number; unlockedAt: string | null } | undefined;
 
   if (user.roles.includes('agency_admin') && typeof user.agency_id === 'number') {
     const token = await getToken();
@@ -55,6 +57,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       hasPendingUpgrade =
         listing?.data.some((request) => request.status === 'pending') ?? false;
       agencySuspended = agency?.status === 'suspended';
+      agencyStandardWelcome = agency
+        ? {
+            agencyId: user.agency_id,
+            unlockedAt:
+              agency.kind === 'standard' ? (agency.metadata?.welcome?.standard_unlocked_at ?? null) : null,
+          }
+        : undefined;
     }
   } else if (isAgent(user.roles) && typeof user.agency_id === 'number') {
     // TCK-600 (ADR-0048) — l'agent d'une agence suspendue voit le même bandeau que son admin.
@@ -84,6 +93,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             agencyIsStandard={agencyIsStandard}
             hasPendingUpgrade={hasPendingUpgrade}
             agencySuspended={agencySuspended}
+            agencyStandardWelcome={agencyStandardWelcome}
           >
             {children}
           </AppShell>

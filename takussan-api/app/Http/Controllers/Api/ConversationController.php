@@ -383,7 +383,7 @@ class ConversationController extends Controller
         return $this->json([
             'data' => [
                 'conversation_id' => $conversation->id,
-                'last_read_at' => now()->toISOString(),
+                'last_read_at' => $this->instant(now()),
             ],
         ]);
     }
@@ -400,7 +400,7 @@ class ConversationController extends Controller
         return $this->json([
             'data' => [
                 'conversation_id' => $conversation->id,
-                'archived_at' => now()->toISOString(),
+                'archived_at' => $this->instant(now()),
             ],
         ]);
     }

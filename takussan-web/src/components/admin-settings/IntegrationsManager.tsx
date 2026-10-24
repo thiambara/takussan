@@ -18,9 +18,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { FormError, FormGlobalError } from '@/components/forms';
+import { FormError, FormGlobalError } from '@/components/forms/FormError';
 import { traduireChampsErreurs } from '@/lib/schemas/messages';
-import { useTraducteurValidation } from '@/hooks/useApiForm';
+import { useTraducteurValidation } from '@/hooks/useTraducteurValidation';
 import {
   hasWebhookEndpoint,
   integrationFormSchema,

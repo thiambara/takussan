@@ -44,13 +44,9 @@ class SetLocaleMiddleware
             app()->setLocale($locale);
         }
 
-        // Set timezone if user has one configured.
-        // ⚠ Délibérément PAS `$user` (TCK-536) : par jeton Bearer, `$request->user()` est `null` ici,
-        // et cette ligne n'a donc jamais tourné en production. L'activer déplacerait tout `now()`
-        // écrit en base hors d'UTC (`app.timezone`) — c'est une décision à part, pas un correctif.
-        if ($request->user() && $request->user()->timezone) {
-            date_default_timezone_set($request->user()->timezone);
-        }
+        // TCK-1497 (P107.03) — le fuseau du compte ne s'applique PAS au processus : le bloc qui le
+        // posait ici ne tournait jamais sous jeton (TCK-536), et l'activer aurait déplacé tout
+        // `now()` écrit en base hors d'UTC. Les rendus lisent `users.timezone` eux-mêmes.
 
         return $next($request);
     }

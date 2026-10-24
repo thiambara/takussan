@@ -265,6 +265,8 @@ export function PropertyVisitDialog({ slug, open, onOpenChange, onSuccess }: Pro
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   autoComplete="name"
+                  // TCK-1491 — la borne de l'API (`VisitRequestPublicPropertyRequest`, max:120).
+                  maxLength={120}
                   aria-invalid={erreurs.name ? true : undefined}
                   aria-describedby={erreurs.name ? 'visit-name-error' : undefined}
                 />

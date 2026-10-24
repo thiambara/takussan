@@ -110,6 +110,11 @@ export interface Inventory {
   readonly room_photos?: readonly InventoryRoomPhotoGroup[];
   /** Les rôles que l'utilisateur courant peut signer, jugés par l'API (même prédicat que la signature). */
   readonly can_sign_as?: readonly InventorySignatureRole[];
+  /**
+   * TCK-1869 (P189.02) — le verdict d'`InventoryPolicy::update` pour l'utilisateur courant, qui garde
+   * la soumission et les photos. Absent, aucun de ces gestes ne s'ouvre.
+   */
+  readonly abilities?: { readonly update: boolean };
   /** Le bailleur pour le compte duquel l'utilisateur courant signerait, ou `null` s'il est le bailleur. */
   readonly sign_on_behalf_of?: { readonly id: number; readonly full_name: string } | null;
 }

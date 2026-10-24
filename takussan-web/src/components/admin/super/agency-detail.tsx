@@ -1,7 +1,9 @@
 'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
 import { useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useMutation, useQueries, useQueryClient } from '@tanstack/react-query';
 import {
@@ -22,6 +24,7 @@ import {
   Users,
 } from 'lucide-react';
 import { StatCard, StatusBadge, type StatusTone } from '@/components/console';
+import type { AgencyStatus } from '@/types/agency';
 import { ErrorState } from '@/components/feedback';
 import { Badge } from '@/components/ui/badge';
 import { Button, buttonVariants } from '@/components/ui/button';
@@ -50,10 +53,21 @@ import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { ConfirmActionDialog } from './ConfirmActionDialog';
 import { AVEC_MOTIF, GESTE_DE_TRANSITION, transitionsDeModeration } from './agency-moderation';
 import { usePlatformAbilities } from './PlatformAbilitiesProvider';
+import { FILTRES_LISTE_AGENCES, retourALaListe } from './retour-de-liste';
 import { DUREE_URL_SIGNEE_KYC_MS, rafraichirAvantExpiration } from '@/lib/url-signee';
 
 type Action = AgencyModerationAction;
 type Tab = 'kyc' | 'subscription' | 'team' | 'properties' | 'transactions';
+
+/**
+ * P168.05 — les valeurs acceptées par `?tab=` ; le défaut `kyc` reste hors de l'URL. Exportée :
+ * le lien « agence » du profil utilisateur mène à `?tab=team`, et se vérifie contre CETTE table.
+ */
+export const AGENCY_DETAIL_TABS = ['kyc', 'subscription', 'team', 'properties', 'transactions'] as const;
+
+function isAgencyTab(value: string | null | undefined): value is Tab {
+  return !!value && (AGENCY_DETAIL_TABS as readonly string[]).includes(value);
+}
 
 /** La donnée porte la CLÉ, le rendu la résout (`superAdmin.agencyDetail.tabs.*`). */
 const TABS: { id: Tab; icon: typeof Users }[] = [
@@ -111,13 +125,13 @@ const BOUTONS: Record<Action, { icon: typeof Ban; variant: 'default' | 'destruct
 };
 
 /** TCK-292 — la donnée porte la CLÉ, le rendu la résout (`superAdmin.agencyStatus.*`). */
-const STATUS_KEY: Record<string, string> = {
+const STATUS_KEY: Record<AgencyStatus, string> = {
   active: 'active',
   inactive: 'inactive',
   suspended: 'suspended',
 };
 
-const STATUS_TONES: Record<string, StatusTone> = {
+const STATUS_TONES: Record<AgencyStatus, StatusTone> = {
   active: 'success',
   inactive: 'neutral',
   suspended: 'danger',
@@ -125,7 +139,20 @@ const STATUS_TONES: Record<string, StatusTone> = {
 
 export function AgencyDetailPage({ agencyId }: { agencyId: number }) {
   const t = useTranslations('superAdmin.agencyDetail');
-  const [activeTab, setActiveTab] = useState<Tab>('kyc');
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const demande = searchParams.get('tab');
+  const activeTab: Tab = isAgencyTab(demande) ? demande : 'kyc';
+  const setActiveTab = (next: Tab) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (next === 'kyc') {
+      params.delete('tab');
+    } else {
+      params.set('tab', next);
+    }
+    const qs = params.toString();
+    router.replace(qs ? `?${qs}` : '?');
+  };
   const [detailQuery, healthQuery, teamQuery, propertiesQuery, kycQuery] = useQueries({
     queries: [
       {
@@ -185,7 +212,9 @@ export function AgencyDetailPage({ agencyId }: { agencyId: number }) {
       <AgencyModerationActionsMenu agency={agency} />
       <AgencyHealthStrip health={health} loading={healthQuery.isLoading} />
 
-      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as Tab)} className="gap-6">
+      <Tabs value={activeTab} onValueChange={(value) => {
+        if (isAgencyTab(value as string)) setActiveTab(value as Tab);
+      }} className="gap-6">
         {/*
           Ruban défilant plutôt que retour à la ligne : à 390, « Transactions » partait seul sur une
           deuxième rangée. `flex-none` sur les onglets (le primitif les met en `flex-1`, qui les
@@ -242,9 +271,13 @@ export function AgencyDetailPage({ agencyId }: { agencyId: number }) {
 /** Seul écran de profondeur 2 de la console sans chemin de retour (critique du 2026-08-26). */
 function BackToAgencies() {
   const t = useTranslations('superAdmin.agencyDetail');
+  // TCK-1742 (P168.04) — le retour rend la liste quittée : sa requête arrive dans `?liste=`,
+  // réduite aux filtres connus de la liste.
+  const searchParams = useSearchParams();
+  const href = retourALaListe('/super-admin/agencies', searchParams.get('liste'), FILTRES_LISTE_AGENCES);
   return (
     <Link
-      href="/super-admin/agencies"
+      href={href}
       className="-my-2 inline-flex min-h-10 items-center gap-1 rounded-md text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       <ArrowLeft className="size-4" aria-hidden="true" />
@@ -287,8 +320,15 @@ export function AgencyDetailHeader({ agency }: { agency: AdminAgencyDetail }) {
         <div className="flex min-w-0 items-start gap-4">
           <div className="flex size-16 shrink-0 items-center justify-center rounded-xl bg-muted text-muted-foreground">
             {agency.logo_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={agency.logo_url} alt="" className="size-16 rounded-xl object-cover" />
+              // TCK-1814 (P180.03) — par le loader (ADR-0029 §4) : `logo_url` est l'original.
+              <Image
+                src={agency.logo_url}
+                alt=""
+                width={64}
+                height={64}
+                sizes="64px"
+                className="size-16 rounded-xl object-cover"
+              />
             ) : (
               <Building2 className="size-7" aria-hidden="true" />
             )}

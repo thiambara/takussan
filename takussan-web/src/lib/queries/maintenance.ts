@@ -61,7 +61,8 @@ const LIST_FIELDS = [
 const LIST_PROPERTY_FIELDS = ['id', 'title', 'slug', 'agency_id'] as const;
 
 export interface MaintenanceListParams {
-  readonly status?: MaintenanceStatus;
+  /** TCK-1727 — un statut, ou plusieurs (`filter[status]=a,b`, filtre exact de l'API). */
+  readonly status?: MaintenanceStatus | readonly MaintenanceStatus[];
   readonly priority?: MaintenancePriority;
   readonly category?: MaintenanceCategory;
   readonly property_id?: number;
@@ -76,7 +77,8 @@ function toSpatieParams(
   fields: readonly string[],
 ): SpatieQueryParams {
   const filter: SpatieQueryParams['filter'] = {};
-  if (params?.status) filter.status = params.status;
+  if (typeof params?.status === 'string') filter.status = params.status;
+  else if (params?.status?.length) filter.status = params.status.join(',');
   if (params?.priority) filter.priority = params.priority;
   if (params?.category) filter.category = params.category;
   if (params?.property_id) filter.property_id = params.property_id;
@@ -274,6 +276,35 @@ export function useAssignableProviders(agencyId: number | null, specialty?: stri
         },
         sort: '-created_at',
         per_page: 50,
+      },
+      enabled: agencyId !== null && agencyId > 0,
+    },
+  );
+}
+
+/** P120.03 — un membre du personnel tel que `GET /api/agencies/{id}/members` le rend, nom seul. */
+export interface AssignableStaffMember {
+  readonly id: number;
+  readonly first_name: string | null;
+  readonly last_name: string | null;
+}
+
+/**
+ * P120.03 — le personnel de l'agence, que l'API accepte aussi en `assigned_to` (TCK-592,
+ * `ProviderEligibility`). `filter[assignable]=1` ne garde que le personnel joignable : la règle de
+ * `PersonnelDeLAgence::estPersonnel()`, celle qui juge la cible. Un appelant sans accès à la liste
+ * (403) garde le seul carnet des prestataires.
+ */
+export function useAssignableStaff(agencyId: number | null) {
+  return useApiQuery<PaginatedResponse<AssignableStaffMember>>(
+    ['maintenance', 'assignable-staff', agencyId ?? 0],
+    cheminApi`/api/agencies/${agencyId}/members`,
+    {
+      params: {
+        fields: { users: ['id', 'first_name', 'last_name'] },
+        filter: { assignable: 1 },
+        sort: 'first_name',
+        per_page: 100,
       },
       enabled: agencyId !== null && agencyId > 0,
     },

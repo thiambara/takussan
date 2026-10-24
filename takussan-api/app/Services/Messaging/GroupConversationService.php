@@ -118,6 +118,11 @@ class GroupConversationService
         $added = [];
 
         DB::transaction(function () use ($conversation, $actor, $userIds, &$added) {
+            // TCK-1492 (P92.07) — la conversation verrouillée d'abord : deux ajouts simultanés du
+            // même membre lisaient tous deux « absent », et le second heurtait l'index
+            // `(conversation_id, user_id)` en 500. Sérialisés, le second le voit présent et le saute.
+            Conversation::query()->whereKey($conversation->getKey())->lockForUpdate()->firstOrFail();
+
             $existingActive = $conversation->participants()
                 ->wherePivotNull('left_at')
                 ->pluck('users.id')
@@ -196,6 +201,8 @@ class GroupConversationService
                 } catch (\Throwable $e) {
                     // notification subsystem may be unconfigured in dev; never fail the API call.
                     // TCK-771 — logged in the safe form of ADR-0044, never the message.
+                    // P179.04 (TCK-1799) — before the queue only (rendering, bell row, enqueue):
+                    // a transport failure is logged by the worker, {@see \App\Notifications\CodedNotification::failed()}.
                     Log::warning('[GroupConversationService] invite notification failed', [
                         'conversation_id' => $conversation->id,
                     ] + SafeExceptionContext::of($e));

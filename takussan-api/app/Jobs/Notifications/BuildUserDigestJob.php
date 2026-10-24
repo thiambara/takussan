@@ -29,6 +29,12 @@ class BuildUserDigestJob implements ShouldQueue
 
     public function handle(DigestBuilderService $builder): void
     {
+        // TCK-1752 (P166.02) — un compte effacé entre la mise en file et le worker est relu sans
+        // portée, son adresse anonymisée : rien ne lui part.
+        if ($this->user->trashed()) {
+            return;
+        }
+
         $frequency = $this->user->email_frequency;
 
         // Guard: only process digest-eligible users. Re-checked here because

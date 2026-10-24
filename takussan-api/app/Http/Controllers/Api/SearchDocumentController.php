@@ -21,6 +21,6 @@ class SearchDocumentController extends Controller
             $request->validated(),
         );
 
-        return $this->paginated($paginator, DocumentResource::collection($paginator)->toArray($request));
+        return $this->paginated($paginator, DocumentResource::page($paginator, $request));
     }
 }

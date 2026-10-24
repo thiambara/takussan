@@ -43,7 +43,7 @@ class ReviewNotifier
             $this->agencyAdmins($review->agency_id),
             $review,
             NotificationCode::ReviewToModerate,
-            NotificationTarget::of('review_moderation'),
+            NotificationTarget::of('review_moderation')->forAgency($review->agency_id),
         );
     }
 

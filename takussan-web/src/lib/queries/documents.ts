@@ -162,15 +162,18 @@ export function useRevokeShareLink() {
 }
 
 /**
- * MIME types accepted by `DocumentController::store`. Must stay aligned with
- * the server-side validation rule `['required', 'file', 'max:10240']`, plus
- * the product intent documented in `docs/features.md#110-documents--contrats`.
+ * MIME types offered by the document file pickers (upload and new version).
+ * Mirrors `AcceptedUploads::DOCUMENT_MIMETYPES` (takussan-api), minus
+ * `application/csv`, which `finfo` may read but no browser announces.
+ * Kept in sync by `accept-des-televersements.parity.tck-1888.test.tsx`.
  */
 export const DOCUMENT_MIME_ACCEPT = [
   'application/pdf',
   'image/png',
   'image/jpeg',
   'image/webp',
+  'image/heic',
+  'image/heif',
   'application/msword',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   'application/vnd.ms-excel',

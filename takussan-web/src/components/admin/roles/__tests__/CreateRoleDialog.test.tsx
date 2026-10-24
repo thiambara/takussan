@@ -84,7 +84,7 @@ describe('<CreateRoleDialog>', () => {
 
     // Le suffixe est un gabarit interpolé : `check-i18n.mjs` ne sait pas
     // les voir (limite documentée), donc c'est ce test qui tient la règle.
-    expect(screen.getByLabelText('Nom du rôle')).toHaveValue('Agent (copie)');
+    expect(screen.getByLabelText('Nom du rôle')).toHaveValue('Agent immobilier (copie)');
   });
 
   it('verrouille le type quand on arrive par « Cloner »', () => {
@@ -106,7 +106,8 @@ describe('<CreateRoleDialog>', () => {
 
     // « Administrateur » est d'un autre type ; « Agent verrouillé » porte
     // `is_clonable: false`.
-    expect(options).toEqual(['Aucune capacité (partir de zéro)', 'Agent']);
+    // P164.04 (TCK-1808) — le rôle système se lit par son type.
+    expect(options).toEqual(['Aucune capacité (partir de zéro)', 'Agent immobilier']);
   });
 
   it('envoie clone_from: null quand on part de zéro', async () => {

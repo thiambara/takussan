@@ -15,8 +15,12 @@
     $type = $inventory->type?->value ?? 'move_in';
     $typeLabel = $type === 'move_out' ? 'État des lieux de sortie' : 'État des lieux d\'entrée';
     $conductedAt = $inventory->conducted_at?->translatedFormat('d/m/Y H:i') ?? '—';
-    $status = $inventory->status?->value ?? 'draft';
-    $generalCondition = $inventory->general_condition?->value ?? '—';
+    // P192.04 — libellé de l'enum par sa clé, repli sur le code si la clé manque.
+    $libelle = fn (string $groupe, ?string $code): string => $code === null
+        ? '—'
+        : (\Illuminate\Support\Facades\Lang::has("inventories.pdf.{$groupe}.{$code}") ? __("inventories.pdf.{$groupe}.{$code}") : $code);
+    $status = $libelle('statuses', $inventory->status?->value ?? 'draft');
+    $generalCondition = $libelle('conditions', $inventory->general_condition?->value);
     $rooms = is_array($inventory->rooms) ? $inventory->rooms : [];
     $roomPhotos = $room_photos ?? [];
     $tenantSignature = $tenant_signature ?? null;
@@ -109,7 +113,7 @@
     @foreach ($rooms as $room)
         @php
             $roomName = $room['name'] ?? 'Pièce';
-            $roomCondition = $room['condition'] ?? '—';
+            $roomCondition = $libelle('conditions', isset($room['condition']) ? (string) $room['condition'] : null);
             $roomNotes = $room['notes'] ?? null;
             $elements = $room['elements'] ?? [];
             $photos = $roomPhotos[$roomName] ?? [];

@@ -16,6 +16,10 @@ export type ActiveLeaseSummary = Pick<Lease, 'id' | 'reference_number'>;
  * d'entrée du locataire. Par l'API Laravel : un `fetch` relatif vers `/api/leases` visait le serveur
  * Next, qui n'a pas ce relais, et les deux ne s'affichaient jamais. Une seule clé pour les deux
  * lecteurs de l'accueil, donc une seule requête.
+ *
+ * TCK-1804 (P162.07) — `active` seul, et c'est voulu : un bail en préavis (`terminating`) est encore
+ * en cours, mais la bienvenue et la check-list d'ENTRÉE n'ont pas de sens pour un locataire qui
+ * s'apprête à partir. Ne pas le remplacer par la liste des baux en cours.
  */
 export function useActiveLeaseSummaries(enabled = true) {
   return useApiQuery<PaginatedResponse<ActiveLeaseSummary>>(

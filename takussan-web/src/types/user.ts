@@ -121,5 +121,7 @@ export type User = {
   secondary_phone_whatsapp?: boolean;
   /** La date d'acceptation des CGU, posée par la première publication. */
   terms_accepted_at?: string | null;
+  /** TCK-1497 — le fuseau du compte (IANA), réglé au profil ; pour SOI seulement. */
+  timezone?: string | null;
   created_at: string;
 };

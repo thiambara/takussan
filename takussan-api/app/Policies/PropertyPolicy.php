@@ -48,7 +48,10 @@ class PropertyPolicy extends BasePolicy
             return false;
         }
 
-        if ($user->id === $model->user_id) {
+        // TCK-1705 (P153.01) — sur un bien d'agence, `user_id` (le CRÉATEUR, souvent l'agent qui l'a
+        // saisi) ne vaut titre que pour qui a encore un profil dans l'agence : l'agent retiré ne lit
+        // plus le bien. Même règle que `PropertyVisitPolicy` pour l'agent parti.
+        if ($user->id === $model->user_id && ($model->agency_id === null || $this->isMemberOf($user, $model->agency_id))) {
             return true;
         }
 
@@ -126,8 +129,9 @@ class PropertyPolicy extends BasePolicy
      * le faisait pas : auteur OU même agence, sans capacité.
      *
      *  - son propre bien (`user_id`) : `properties.update_own` dans l'agence du bien, pour qui en
-     *    est membre ; un auteur sans aucun profil dans l'agence du bien (ou un bien sans agence)
-     *    garde son bien, il n'a pas de rôle qui pourrait porter la capacité ;
+     *    est membre ; l'auteur d'un bien sans agence garde son bien, il n'a pas de rôle qui
+     *    pourrait porter la capacité. TCK-1705 (P153.01) : l'auteur sans aucun profil dans l'agence
+     *    du bien — l'agent retiré qui l'avait saisi — ne le garde plus ;
      *  - le bien d'un autre : personnel de l'agence du bien tenant `properties.update_any`.
      */
     public function update(User $user, Model $model): bool
@@ -141,8 +145,9 @@ class PropertyPolicy extends BasePolicy
         }
 
         if ($user->id === $model->user_id) {
-            return ! $this->isMemberOf($user, $model->agency_id)
-                || $user->can(Capability::PropertiesUpdateOwn->value, $model);
+            return $model->agency_id === null
+                || ($this->isMemberOf($user, $model->agency_id)
+                    && $user->can(Capability::PropertiesUpdateOwn->value, $model));
         }
 
         return $this->isStaffOf($user, $model->agency_id)

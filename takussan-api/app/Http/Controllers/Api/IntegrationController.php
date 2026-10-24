@@ -8,9 +8,11 @@ use App\Http\Requests\Api\IntegrationWebhookEndpointRequest;
 use App\Http\Requests\Api\StoreIntegrationRequest;
 use App\Http\Requests\Api\UpdateIntegrationRequest;
 use App\Http\Resources\IntegrationResource;
+use App\Models\Agency;
 use App\Models\Integration;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class IntegrationController extends Controller
@@ -84,24 +86,37 @@ class IntegrationController extends Controller
         // (`agency_id` nul) comprise : l'index `integrations_provider_agency_live_unique` le garantit, ce
         // contrôle le rend en 422 lisible plutôt qu'en 500. Il court APRÈS l'autorisation, pour ne pas
         // apprendre à un tiers qu'une agence a configuré tel fournisseur.
-        if (Integration::query()
-            ->where('provider', $data['provider'])
-            ->when($agencyId === null, fn ($q) => $q->whereNull('agency_id'), fn ($q) => $q->where('agency_id', $agencyId))
-            ->exists()) {
-            throw ValidationException::withMessages([
-                'provider' => __('validation.unique', ['attribute' => 'provider']),
-            ]);
-        }
+        //
+        // TCK-1492 (P92.07) — le contrôle et la création courent sous un verrou, sinon deux envois
+        // simultanés passaient tous deux le contrôle et le second heurtait l'index en 500. Le verrou
+        // porte sur la ligne de l'agence ; une intégration de plateforme n'a pas de ligne mère, d'où
+        // un verrou consultatif par fournisseur (`pg_advisory_xact_lock`, la voie de la cooptation plateforme).
+        $integration = DB::transaction(function () use ($data, $agencyId): Integration {
+            if ($agencyId === null) {
+                DB::selectOne('select pg_advisory_xact_lock(?)', [crc32('integration_platform:'.$data['provider'])]);
+            } else {
+                Agency::query()->whereKey($agencyId)->lockForUpdate()->first();
+            }
 
-        // TCK-078: the Integration model casts `credentials` as
-        // `encrypted:array`, so Eloquent already serialises + encrypts on
-        // the way in. Calling json_encode here would double-encode and
-        // store a JSON-encoded string instead of the structured payload.
+            if (Integration::query()
+                ->where('provider', $data['provider'])
+                ->when($agencyId === null, fn ($q) => $q->whereNull('agency_id'), fn ($q) => $q->where('agency_id', $agencyId))
+                ->exists()) {
+                throw ValidationException::withMessages([
+                    'provider' => __('validation.unique', ['attribute' => 'provider']),
+                ]);
+            }
 
-        $integration = Integration::create(array_merge($data, [
-            'agency_id' => $agencyId,
-            'is_active' => $data['is_active'] ?? true,
-        ]));
+            // TCK-078: the Integration model casts `credentials` as
+            // `encrypted:array`, so Eloquent already serialises + encrypts on
+            // the way in. Calling json_encode here would double-encode and
+            // store a JSON-encoded string instead of the structured payload.
+
+            return Integration::create(array_merge($data, [
+                'agency_id' => $agencyId,
+                'is_active' => $data['is_active'] ?? true,
+            ]));
+        });
 
         return $this->json(['data' => IntegrationResource::make($integration)->resolve($request)], 201);
     }
@@ -247,7 +262,7 @@ class IntegrationController extends Controller
             'data' => [
                 'ok' => true,
                 'message' => __('messages.integration_test_ok', ['provider' => $integration->provider]),
-                'last_used_at' => $integration->last_used_at?->toIso8601String(),
+                'last_used_at' => $this->instant($integration->last_used_at),
             ],
         ]);
     }

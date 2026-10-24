@@ -9,6 +9,7 @@ use App\Models\Property;
 use App\Models\User;
 use App\Services\Media\AgencyWatermarkContext;
 use App\Services\Media\WatermarkService;
+use App\Services\Media\WatermarkTrace;
 use Illuminate\Filesystem\Filesystem;
 use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -230,14 +231,93 @@ class ApplyWatermarkJobTest extends TestCase
         $media = $agency->addMedia($logo)->toMediaCollection('logo');
 
         $this->assertSame('r2-media', $media->disk, 'Précondition : le logo vit sur le disque public.');
-        $this->assertSame($bytes, AgencyWatermarkContext::fromAgency($agency->fresh())->logo);
+        $this->assertSame($bytes, AgencyWatermarkContext::fromAgency($agency->fresh())->logoFor(24));
     }
 
     public function test_agency_without_logo_has_no_logo_in_context(): void
     {
         [, $agency] = $this->createAgencyWithProperty();
 
-        $this->assertNull(AgencyWatermarkContext::fromAgency($agency)->logo);
+        $this->assertNull(AgencyWatermarkContext::fromAgency($agency)->logoFor(60));
+    }
+
+    /**
+     * TCK-1810 (P180.01) — la `preview` du logo (PNG, 320 px au plus) suffit à toute largeur
+     * que pose le filigrane : 20 % d'une conversion de 1600 px au plus. L'original, jusqu'à
+     * 20 Mpx, n'est plus lu ni décodé : il est ici RETIRÉ du disque, et le logo se lit quand même.
+     */
+    public function test_le_logo_se_lit_sur_sa_preview_quand_elle_couvre_la_largeur_visee(): void
+    {
+        [, $agency] = $this->createAgencyWithProperty();
+        $logo = $this->addLogo($agency, 1200, 400);
+        $preview = $this->producePreview($logo, 320, 107);
+        $this->disk->delete($logo->getPathRelativeToRoot());
+
+        $context = AgencyWatermarkContext::fromAgency($agency->fresh());
+
+        $this->assertSame($preview, $context->logoFor(60));
+        $this->assertSame($preview, $context->logoFor(320));
+    }
+
+    /**
+     * TCK-1810 — sans `preview` produite, ou plus étroite que la largeur visée (un logo plus
+     * haut que large, borné par sa hauteur), l'original, comme avant : le filigrane ne change pas.
+     */
+    public function test_le_logo_retombe_sur_l_original_sans_preview_assez_large(): void
+    {
+        [, $agency] = $this->createAgencyWithProperty();
+        $logo = $this->addLogo($agency, 300, 900);
+        $original = $this->disk->get($logo->getPathRelativeToRoot());
+
+        $this->assertSame($original, AgencyWatermarkContext::fromAgency($agency->fresh())->logoFor(60));
+
+        $this->producePreview($logo, 107, 320);
+
+        $context = AgencyWatermarkContext::fromAgency($agency->fresh());
+        $this->assertSame($original, $context->logoFor(160));
+        $this->assertNotSame($original, $context->logoFor(100));
+    }
+
+    /**
+     * TCK-1810 — une conversion déjà filigranée ne fait plus lire le logo : son disque est
+     * ici en panne, et le job sort sans lever. Avant, le contexte était lu avant le verrou et
+     * le test « déjà fait ».
+     */
+    public function test_une_conversion_deja_filigranee_ne_lit_pas_le_logo(): void
+    {
+        [, $agency, $property] = $this->createAgencyWithProperty();
+        $logo = $this->addLogo($agency, 120, 40);
+        $logo->disk = 'disque-en-panne';
+        $logo->saveQuietly();
+
+        $media = $this->uploadPhoto($property);
+        $media->setCustomProperty(WatermarkTrace::KEY, ['thumbnail']);
+        $media->saveQuietly();
+        $before = $this->disk->get($media->getPathRelativeToRoot('thumbnail'));
+
+        (new ApplyWatermarkJob($media->id, 'thumbnail'))->handle(new WatermarkService);
+
+        $this->assertSame($before, $this->disk->get($media->getPathRelativeToRoot('thumbnail')));
+    }
+
+    private function addLogo(Agency $agency, int $width, int $height): Media
+    {
+        return $agency->addMedia(UploadedFile::fake()->image('logo.png', $width, $height))
+            ->toMediaCollection('logo');
+    }
+
+    /**
+     * Écrit une `preview` du logo comme la file `media` l'aurait produite, et rend ses octets.
+     */
+    private function producePreview(Media $logo, int $width, int $height): string
+    {
+        $file = UploadedFile::fake()->image('preview.png', $width, $height);
+        $bytes = file_get_contents($file->getRealPath());
+
+        $this->disk->put($logo->getPathRelativeToRoot('preview'), $bytes);
+        $logo->markAsConversionGenerated('preview');
+
+        return $bytes;
     }
 
     private function uploadPhoto(Property $property): Media

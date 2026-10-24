@@ -201,10 +201,10 @@ class BookingRefundTaskTest extends TestCase
         $second = $this->paidDeposit($booking, 4_000);
         Sanctum::actingAs($this->client);
         $this->postJson("/api/bookings/{$booking->id}/cancel")->assertOk();
-        $this->getJson("/api/bookings/{$booking->id}")->assertOk()
-            ->assertJsonPath('data.refund_status', 'pending')
-            ->assertJsonPath('data.booking_payments.0.id', $first->id)
-            ->assertJsonPath('data.booking_payments.0.status', 'paid');
+        $detail = $this->getJson("/api/bookings/{$booking->id}")->assertOk()
+            ->assertJsonPath('data.refund_status', 'pending');
+        // La relation `payments` n'a pas d'ordre : on cherche l'acompte par son id, jamais par son rang.
+        $this->assertSame('paid', collect($detail->json('data.booking_payments'))->firstWhere('id', $first->id)['status'] ?? null);
 
         Sanctum::actingAs($this->landlord);
         $this->postJson("/api/booking-payments/{$first->id}/refund", ['refund_amount' => 6_000])->assertOk();

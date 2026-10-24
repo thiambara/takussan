@@ -477,6 +477,8 @@ return [
                 'title' => 'Droits d\'un rôle modifiés',
                 'body' => 'Les droits du rôle :role ont été modifiés par :actor.',
                 'sms' => 'Takussan : droits du rôle :role modifiés par :actor.',
+                'body_unnamed' => 'Les droits d\'un rôle ont été modifiés par :actor.',
+                'sms_unnamed' => 'Takussan : droits d\'un rôle modifiés par :actor.',
             ],
             'admin_added' => [
                 'title' => 'Nouvel administrateur',
@@ -558,6 +560,8 @@ return [
                 'title' => 'Relevé importé',
                 'body' => '{1} Votre relevé :bank (:lines ligne) est prêt à être rapproché.|[0,*] Votre relevé :bank (:lines lignes) est prêt à être rapproché.',
                 'sms' => 'Takussan : relevé :bank importé.',
+                'body_unnamed' => '{1} Votre relevé (:lines ligne) est prêt à être rapproché.|[0,*] Votre relevé (:lines lignes) est prêt à être rapproché.',
+                'sms_unnamed' => 'Takussan : relevé importé.',
             ],
             'finalized' => [
                 'title' => 'Relevé clôturé',
@@ -844,6 +848,21 @@ return [
         'below' => ':metric : :value est inférieur à :threshold (sévérité : :severity).',
         'action' => 'Voir le tableau de bord',
         'cooldown' => '{1} Cette alerte ne sera pas renvoyée pendant :hours heure.|[0,*] Cette alerte ne sera pas renvoyée pendant :hours heures.',
+        // P155.04 (TCK-1439) — libellés des écrans d'origine (`dashboard.kpis.metrics`,
+        // `dashboard.alerts.severities`), au lieu des codes.
+        'metrics' => [
+            'unpaid_rate_percent' => 'Taux d\'impayés',
+            'occupancy_rate_percent' => 'Taux d\'occupation',
+            'overdue_count' => 'Impayés (nombre)',
+            'overdue_amount' => 'Impayés (montant)',
+            'bookings_pending' => 'Réservations en attente',
+            'maintenance_open' => 'Maintenance ouverte',
+        ],
+        'severities' => [
+            'info' => 'Info',
+            'warning' => 'Attention',
+            'critical' => 'Critique',
+        ],
     ],
     'urgent_maintenance' => [
         'subject' => 'URGENT : :title',
@@ -869,6 +888,13 @@ return [
         'intro' => 'L\'export du rapport « :report » est prêt au téléchargement.',
         'action' => 'Télécharger',
         'expires' => 'Ce lien expire dans 7 jours.',
+        // P155.04 (TCK-1439) — libellés de `reporting.tabs`, au lieu des codes.
+        'reports' => [
+            'growth' => 'Croissance',
+            'revenue' => 'Revenu',
+            'cohorts' => 'Cohortes',
+            'funnel' => 'Funnel',
+        ],
     ],
 
     // TCK-587 — un bailleur rattaché propose un bien à son agence (brouillon privé à relire).

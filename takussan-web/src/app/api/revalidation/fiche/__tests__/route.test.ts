@@ -54,6 +54,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllEnvs();
+  vi.restoreAllMocks();
 });
 
 describe('POST /api/revalidation/fiche', () => {
@@ -89,6 +90,10 @@ describe('POST /api/revalidation/fiche', () => {
   });
 
   it('rejeu : une signature de plus de 300 s est refusée, dans les deux sens', async () => {
+    // Horloge figée : sans elle, une seconde qui tourne entre `signe()` et le handler ramène
+    // l'écart de 301 à 300 s, et le cas « futur » passe en 200 (rouge intermittent, PR #1168).
+    const fige = Date.now();
+    vi.spyOn(Date, 'now').mockReturnValue(fige);
     for (const t of [maintenant() - 301, maintenant() + 301]) {
       expect((await POST(appel(CORPS, signe(CORPS, t)))).status).toBe(401);
     }

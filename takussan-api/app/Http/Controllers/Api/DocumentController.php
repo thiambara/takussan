@@ -60,7 +60,7 @@ class DocumentController extends Controller
             ->with('media')
             ->paginate();
 
-        return $this->paginated($paginator, DocumentResource::collection($paginator)->toArray($request));
+        return $this->paginated($paginator, DocumentResource::page($paginator, $request));
     }
 
     public function store(StoreDocumentRequest $request): JsonResponse

@@ -19,6 +19,7 @@ use App\Services\Media\PdfImageEmbedder;
 use App\Services\Media\PrivateMediaAccess;
 use App\Services\Model\InventoryService;
 use App\Services\Pdf\DocumentPdfService;
+use App\Services\Pdf\PrintedIdentity;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -205,9 +206,14 @@ class InventoryController extends Controller
         // JSON resource.
         $inventory->makeVisible(['tenant_signature_data', 'owner_signature_data']);
 
-        $property = $inventory->property;
-        $landlord = $property?->user;
-        $agency = $property?->agency;
+        // P140.02 (TCK-1792) — les identités du jour de la seconde signature, quand l'état des lieux
+        // les a figées.
+        ['tenant' => $tenant, 'landlord' => $landlord, 'property' => $property, 'agency' => $agency] = PrintedIdentity::restore($inventory->metadata, [
+            'tenant' => $inventory->tenant,
+            'landlord' => $inventory->property?->user,
+            'property' => $inventory->property,
+            'agency' => $inventory->property?->agency,
+        ]);
 
         $roomPhotos = $this->groupRoomPhotos($inventory);
 
@@ -219,7 +225,7 @@ class InventoryController extends Controller
             'inventory' => $inventory,
             'lease' => $inventory->lease,
             'property' => $property,
-            'tenant' => $inventory->tenant,
+            'tenant' => $tenant,
             'landlord' => $landlord,
             'agency' => $agency,
             'room_photos' => $roomPhotos,

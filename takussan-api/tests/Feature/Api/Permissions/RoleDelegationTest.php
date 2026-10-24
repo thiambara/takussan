@@ -239,6 +239,23 @@ class RoleDelegationTest extends TestCase
             ->assertJsonValidationErrors(['user_id']);
     }
 
+    /**
+     * P188.03 (TCK-1858) — un `user_id` que la règle `integer` refuse rend 422 sur `user_id`, et
+     * non 500 : le rappel `after()` ne le passe plus à `User::find()`.
+     */
+    public function test_un_user_id_non_entier_rend_422_et_non_500(): void
+    {
+        $this->actingAs($this->primaryAdmin);
+
+        foreach (['abc', '99999999999999999999'] as $userId) {
+            $this->postJson("/api/agencies/{$this->agency->id}/role-delegations", [
+                'user_id' => $userId,
+                'role' => 'agency_admin',
+                'ends_at' => now()->addWeek()->toIso8601String(),
+            ])->assertStatus(422)->assertJsonValidationErrors(['user_id']);
+        }
+    }
+
     /** @test */
     public function test_cannot_delegate_more_than_one_year_returns_422(): void
     {

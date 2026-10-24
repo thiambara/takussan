@@ -190,11 +190,11 @@ class TaskController extends Controller
             'taskable' => $this->taskable($task, $viewer),
             'status' => $task->status?->value,
             'priority' => $task->priority?->value,
-            'due_at' => $task->due_at?->toISOString(),
-            'completed_at' => $task->completed_at?->toISOString(),
+            'due_at' => $this->instant($task->due_at),
+            'completed_at' => $this->instant($task->completed_at),
             'assignee' => $this->whenLoaded($task, 'assignee', fn ($u) => ['id' => $u->id, 'name' => $u->getFullNameAttribute()]),
             'creator' => $this->whenLoaded($task, 'creator', fn ($u) => ['id' => $u->id, 'name' => $u->getFullNameAttribute()]),
-            'created_at' => $task->created_at?->toISOString(),
+            'created_at' => $this->instant($task->created_at),
         ];
     }
 

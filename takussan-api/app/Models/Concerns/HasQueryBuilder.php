@@ -6,6 +6,7 @@ use App\Http\Filters\ExactIdentifierFilter;
 use App\Http\Filters\RangeFilter;
 use App\Http\Filters\TypedExactFilter;
 use App\Sorts\SearchRelevanceSort;
+use App\Support\CaseInsensitive;
 use App\Support\Query\DepartageQueryBuilder;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -265,9 +266,12 @@ trait HasQueryBuilder
                     return;
                 }
 
-                $q->where(function (Builder $inner) use ($fields, $value) {
+                // TCK-1840 (P186.02) — le repli SQL replie la casse et prend `%` et `_` au pied de la
+                // lettre, comme les recherches de TCK-600 (piège n° 9 du CLAUDE.md de l'API).
+                $motif = '%'.addcslashes(CaseInsensitive::fold($value), '\\%_').'%';
+                $q->where(function (Builder $inner) use ($fields, $motif) {
                     foreach ($fields as $field) {
-                        $inner->orWhere($field, 'like', '%'.$value.'%');
+                        $inner->orWhereRaw(CaseInsensitive::sql($field).' like ?', [$motif]);
                     }
                 });
                 // TCK-1401 (P151.01) — texte libre : sans délimiteur, spatie découpe « Diop, Awa » en tableau.

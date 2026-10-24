@@ -4,14 +4,11 @@ import { useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { Download, Loader2, ScrollText, ShieldAlert } from 'lucide-react';
-import {
-  DataState,
-  DataTable,
-  DebouncedSearchInput,
-  FilterBar,
-  Pagination,
-  type DataTableColumn,
-} from '@/components/console';
+import { DataState } from '@/components/console';
+import { DataTable, type DataTableColumn } from '@/components/console/DataTable';
+import { DebouncedSearchInput } from '@/components/console/DebouncedSearchInput';
+import { FilterBar } from '@/components/console/FilterBar';
+import { Pagination } from '@/components/console/Pagination';
 import { EmptyState } from '@/components/feedback';
 import { Button } from '@/components/ui/button';
 import { DatePicker } from '@/components/ui/date-picker';

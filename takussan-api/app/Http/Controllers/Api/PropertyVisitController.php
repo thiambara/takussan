@@ -229,6 +229,18 @@ class PropertyVisitController extends Controller
         // which silently breaks the feedback-window lockout.
         $data = $request->validated();
 
+        // TCK-1838 (P184.04) — déplacer l'heure suit la règle du report (`rescheduleOrFail`) :
+        // hors statut actif (`no_show`…), plus rien ne confirme ni ne reporte la visite, et le
+        // visiteur recevait l'annonce d'un rendez-vous mort. Notes, type et agent restent ouverts.
+        if (array_key_exists('scheduled_at', $data)
+            && ! Carbon::parse($data['scheduled_at'])->equalTo($visit->scheduled_at)) {
+            abort_code_unless(
+                in_array($visit->status, VisitSchedulingService::ACTIVE_STATUSES, true),
+                422,
+                'visit.reschedule_inactive',
+            );
+        }
+
         // TCK-590 (contrainte 2) — changer l'agent d'une visite DÉJÀ attribuée à un autre est un
         // geste d'attribution : il exige `crm.assign` dans l'agence du bien.
         if (array_key_exists('agent_id', $data)
@@ -376,19 +388,9 @@ class PropertyVisitController extends Controller
             || ($visit->customer !== null && $visit->customer->user_id === $user->id);
         abort_code_unless($byVisitor || $this->agitPourLeBien($user, $visit), 403, 'visit.staff_only');
 
-        abort_code_if(
-            in_array($visit->status, [VisitStatus::Completed, VisitStatus::Cancelled], true),
-            422,
-            'visit.cannot_cancel'
-        );
-
-        $data = $request->validated();
-
-        $visit->update([
-            'status' => VisitStatus::Cancelled,
-            'cancelled_at' => now(),
-            'cancellation_reason' => $data['reason'] ?? null,
-        ]);
+        // P182.06 (TCK-1820) — le statut se juge sur la ligne relue sous verrou, pas sur le modèle
+        // lié à la route ; l'avis part après la transaction.
+        $visit = $this->scheduling->cancelOrFail($visit, $request->validated('reason'));
 
         $fresh = $visit->fresh(['property', 'visitor', 'agent']);
         $sms = null;
@@ -466,7 +468,7 @@ class PropertyVisitController extends Controller
             'user_id' => $user->id,
             'rating' => isset($data['rating']) ? (float) $data['rating'] : null,
             'comment' => $data['comment'] ?? null,
-            'submitted_at' => now()->toIso8601String(),
+            'submitted_at' => $this->instant(now()),
         ];
 
         // Surface the customer's feedback/rating on the visit's top-level
@@ -490,7 +492,9 @@ class PropertyVisitController extends Controller
     /**
      * Passe 3 (R1) — le sort du SMS au visiteur, dit à l'appelant : `sms_sent` quand un SMS était
      * prévu ; s'il a été retenu par une borne, un code et son libellé. Le front affiche le sien
-     * pour le code (`visits.smsWithheld`).
+     * pour le code (`visits.smsWithheld`). ⚠ `sms_sent: true` veut dire « non retenu, mis en
+     * file », pas « parti » (P179.04, TCK-1799) : le transport se joue au worker. Le front ne lit
+     * que `false`.
      *
      * @param  array<string,mixed>  $payload
      * @return array<string,mixed>

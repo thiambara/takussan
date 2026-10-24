@@ -5,16 +5,10 @@ import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { Users } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import {
-  DataState,
-  DataTable,
-  DebouncedSearchInput,
-  FilterBar,
-  PageHeader,
-  StatusBadge,
-  type DataTableColumn,
-  type StatusTone,
-} from '@/components/console';
+import { DataState, PageHeader, StatusBadge, type StatusTone } from '@/components/console';
+import { DataTable, type DataTableColumn } from '@/components/console/DataTable';
+import { DebouncedSearchInput } from '@/components/console/DebouncedSearchInput';
+import { FilterBar } from '@/components/console/FilterBar';
 import { AgencyCombobox } from '@/components/admin/super/AgencyCombobox';
 import { EmptyState } from '@/components/feedback';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -28,11 +22,12 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { ImpersonationStartDialog } from '@/components/admin/super/ImpersonationStartDialog';
-import { Pagination } from '@/components/console';
+import { Pagination } from '@/components/console/Pagination';
 import { useDemarrerImpersonation } from '@/hooks/useImpersonation';
 import { usePlatformAbilities } from '@/components/admin/super/PlatformAbilitiesProvider';
 import { ApiError } from '@/lib/api';
-import type { User, UserRole } from '@/types/user';
+import type { User, UserRole, UserStatus } from '@/types/user';
+import { lireTable } from '@/lib/table-de-statut';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import { DATE_COURTE, useFormatteurs } from '@/lib/format/useFormatteurs';
@@ -64,10 +59,11 @@ const ALL = '__all__';
 const PARAMS_DE_FILTRE = ['search', 'role', 'agency', 'status', 'email', 'twoFactor'] as const;
 
 /** Le statut du compte → le ton du DS. */
-const USER_STATUS_TONES: Record<string, StatusTone> = {
+const USER_STATUS_TONES: Record<UserStatus, StatusTone> = {
   active: 'success',
   inactive: 'neutral',
   blocked: 'danger',
+  deleted: 'neutral',
 };
 
 /**
@@ -80,7 +76,8 @@ const ROLE_OPTIONS: { value: string; labelKey: string }[] = [
   { value: 'agency_admin', labelKey: 'roles.agency_admin' },
   { value: 'agent', labelKey: 'roles.agent' },
   { value: 'owner', labelKey: 'roles.owner' },
-  { value: 'customer', labelKey: 'roles.customer' },
+  // TCK-1852 (P186.01) — pas d'option `customer` : chaque compte en est un (TCK-492), le filtre
+  // vaudrait « Tous ». La clé `roles.customer` reste, la colonne des rôles l'affiche.
   { value: 'tenant', labelKey: 'roles.tenant' },
   { value: 'service_provider', labelKey: 'roles.service_provider' },
 ];
@@ -151,7 +148,8 @@ async function fetchUsers(params: UsersParams): Promise<UsersResponse> {
     'fields[users]',
     'id,first_name,last_name,email,phone,status,email_verified_at,two_factor_enabled,last_login_at,created_at',
   );
-  qs.set('include', 'roles,agentProfiles,ownerProfiles');
+  // TCK-1842 (P186.03) — pas d'`include` : `Admin\UserDetailController::index` charge en dur les profils
+  // (agent, propriétaire, admin d'agence, prestataire, plateforme) et les rôles qu'il rend.
   qs.set('sort', '-created_at');
   const res = await fetch(`/api/super-admin-users?${qs.toString()}`, { credentials: 'include' });
   if (!res.ok) {
@@ -322,7 +320,7 @@ export default function SuperAdminUsersPage() {
       cell: (u) =>
         u.status ? (
           <StatusBadge
-            tone={USER_STATUS_TONES[u.status] ?? 'neutral'}
+            tone={lireTable(USER_STATUS_TONES, u.status) ?? 'neutral'}
             // Repli sur le jeton brut pour un statut que l'écran ne connaît pas encore : l'avouer
             // vaut mieux que l'effacer.
             label={tPage.has(`statuses.${u.status}`) ? tPage(`statuses.${u.status}`) : u.status}

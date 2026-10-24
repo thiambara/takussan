@@ -123,6 +123,10 @@ export interface LeaseAbilities {
   readonly review_rent: boolean;
   readonly record_payment: boolean;
   readonly refund_deposit: boolean;
+  /** P189.03 — `LeasePolicy::requestEarlyTermination` : le préavis et son annulation. */
+  readonly request_early_termination: boolean;
+  /** P189.03 — `LeasePolicy::update` : l'ajout de garant et le lien de paiement d'une échéance. */
+  readonly update: boolean;
 }
 
 /**
@@ -178,6 +182,12 @@ export type LeasePayment = {
   /** Ce que le paiement en ligne demandera ; 0 si l'échéance n'est pas payable. */
   amount_due: number;
   receipt_available: boolean;
+  /**
+   * TCK-1831 (P183.01) — en retard, jugé par l'API à la règle de `scopeOverdue` : `late`, ou
+   * `pending`/`partially_paid` dû AVANT aujourd'hui ; jamais pour une restitution de caution. Le
+   * front ne compare pas `due_date` à l'horloge du navigateur.
+   */
+  is_overdue: boolean;
   notes: string | null;
   created_at: string;
 };

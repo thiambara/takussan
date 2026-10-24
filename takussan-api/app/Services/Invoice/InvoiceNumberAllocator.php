@@ -38,7 +38,7 @@ final class InvoiceNumberAllocator
 
             // Relue sous le verrou : une émission concurrente de la MÊME facture l'a peut-être déjà
             // numérotée.
-            $fresh = Invoice::query()->whereKey($invoice->id)->first(['id', 'sequence_number']);
+            $fresh = Invoice::query()->whereKey($invoice->id)->first(['id', 'sequence_number', 'metadata']);
             if ($fresh?->sequence_number !== null) {
                 return;
             }
@@ -55,9 +55,46 @@ final class InvoiceNumberAllocator
                 'sequence_year' => $year,
                 'sequence_number' => $next,
                 'reference_number' => sprintf('%s-%d-%05d', $kind->prefix(), $year, $next),
+                'metadata' => json_encode(
+                    array_merge(is_array($fresh?->metadata) ? $fresh->metadata : [], ['issued' => $this->issuedMentions($invoice)]),
+                    JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE,
+                ),
             ]);
         });
 
         return $invoice->refresh();
+    }
+
+    /**
+     * P140.03 (TCK-1790) — ce que le PDF d'une facture émise imprime et qui ne vit pas sur elle :
+     * les mentions légales de l'agence, l'identité du destinataire et la désignation, figées à
+     * l'émission dans `metadata.issued`. Une facture remise au client se reproduit ainsi à
+     * l'identique, quoi que deviennent ensuite l'agence, le client ou le bien. Les clés suivent
+     * celles que lit `pdf.invoices.default`.
+     *
+     * @return array{agency: array<string, ?string>, customer: array<string, ?string>, designation: ?string}
+     */
+    private function issuedMentions(Invoice $invoice): array
+    {
+        $agency = Agency::query()->find($invoice->agency_id);
+        $customer = $invoice->customer()->withTrashed()->first();
+        $name = $customer !== null
+            ? (trim(($customer->first_name ?? '').' '.($customer->last_name ?? '')) ?: ($customer->name ?? null))
+            : null;
+
+        return [
+            'agency' => [
+                'legal_name' => $agency?->legal_name,
+                'ninea' => $agency?->ninea,
+                'rccm' => $agency?->rccm,
+                'legal_address' => $agency?->legal_address,
+            ],
+            'customer' => [
+                'name' => $name,
+                'email' => $customer?->email,
+                'phone' => $customer?->phone,
+            ],
+            'designation' => $invoice->designation(),
+        ];
     }
 }

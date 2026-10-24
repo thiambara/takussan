@@ -24,6 +24,7 @@ use App\Models\Guarantor;
 use App\Models\Inventory;
 use App\Models\Invitation;
 use App\Models\Invoice;
+use App\Models\KpiConfig;
 use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Models\MaintenanceRequest;
@@ -40,6 +41,7 @@ use App\Models\PropertyVisit;
 use App\Models\Review;
 use App\Models\RoleDelegation;
 use App\Models\Task;
+use App\Models\ThresholdAlert;
 use App\Models\User;
 use App\Notifications\Channels\AppDatabaseChannel;
 use App\Notifications\Channels\SmsChannel;
@@ -61,6 +63,7 @@ use App\Observers\PropertyVisitObserver;
 use App\Observers\ReviewObserver;
 use App\Observers\UserObserver;
 use App\Policies\ActivityLogPolicy;
+use App\Policies\AgencyIndicatorPolicy;
 use App\Policies\AgencyPolicy;
 use App\Policies\AgencyRolePolicy;
 use App\Policies\AgencyUpgradeRequestPolicy;
@@ -868,6 +871,12 @@ class AppServiceProvider extends ServiceProvider
         // TCK-597 (ADR-0043 §1) — modérer, lire les signalements, répondre : la règle était
         // recopiée dans six méthodes, et aucune copie ne comparait l'agence de l'avis.
         Gate::policy(Review::class, ReviewPolicy::class);
+
+        // TCK-1701 (P82.04) — indicateurs du tableau de bord et alertes de seuil : une seule règle
+        // (`agency.update` sous le profil actif) pour les deux modèles, que l'auto-discovery ne
+        // trouverait pas (aucun `KpiConfigPolicy` ni `ThresholdAlertPolicy`).
+        Gate::policy(KpiConfig::class, AgencyIndicatorPolicy::class);
+        Gate::policy(ThresholdAlert::class, AgencyIndicatorPolicy::class);
 
         // TCK-098 — property moderation gates (approve, reject, resubmit).
         // Named gates avoid collision with the existing PropertyPolicy.

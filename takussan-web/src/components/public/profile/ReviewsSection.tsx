@@ -9,7 +9,7 @@ export interface PublicReview {
   readonly rating: number;
   readonly title: string | null;
   readonly content: string | null;
-  readonly author: { readonly name: string } | null;
+  readonly author: { readonly name: string | null } | null;
   readonly created_at: string | null;
 }
 
@@ -99,7 +99,7 @@ export function ReviewsSection({ average, count, reviews }: ReviewsSectionProps)
               </p>
             )}
             <p className="mt-4 text-xs text-muted-foreground">
-              {r.author ? anonymize(r.author.name, t('anonymous')) : t('anonymous')}
+              {r.author?.name ? anonymize(r.author.name, t('anonymous')) : t('anonymous')}
               {r.created_at && ` · ${moisDeLAvis(r.created_at, locale)}`}
             </p>
             <div className="mt-2">

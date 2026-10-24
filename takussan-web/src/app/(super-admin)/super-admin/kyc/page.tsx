@@ -6,7 +6,8 @@ import { useQuery } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { ShieldCheck } from 'lucide-react';
 
-import { DataState, PageHeader, Pagination, StatCard } from '@/components/console';
+import { DataState, PageHeader, StatCard } from '@/components/console';
+import { Pagination } from '@/components/console/Pagination';
 import { EmptyState } from '@/components/feedback';
 import { KycDecisionPanel, KycQueueTable } from '@/components/admin/super/kyc-queue';
 import {

@@ -5,13 +5,16 @@ import Link from 'next/link';
 import { useLocale, useTranslations } from 'next-intl';
 import { HandCoins } from 'lucide-react';
 
-import { DataTable, Pagination, StatCard, StatusBadge, type DataTableColumn, type StatusTone } from '@/components/console';
+import { StatCard, StatusBadge, type StatusTone } from '@/components/console';
+import { DataTable, type DataTableColumn } from '@/components/console/DataTable';
+import { Pagination } from '@/components/console/Pagination';
 import { EmptyState } from '@/components/feedback';
 import { QueryBoundary } from '@/components/shared/QueryBoundary';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/context/AuthContext';
 import { useCan } from '@/hooks/useCan';
+import { pageDeLUrl, useVueDansLUrl, valeurBornee } from '@/hooks/useVueDansLUrl';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import { formatCurrency, formatDate, formatPercent } from '@/lib/format';
 import {
@@ -46,8 +49,11 @@ export function CommissionsLedger() {
   const { user } = useAuth();
   const { can: peutSolder } = useCan('payouts.approve');
 
-  const [statut, setStatut] = useState<CommissionEntryStatus | null>(null);
-  const [page, setPage] = useState(1);
+  // TCK-1732 (P168.03) — statut et page dans l'URL : la vue survit au retour du bail ouvert d'un
+  // clic, au rechargement et au lien copié.
+  const { params, remplacer } = useVueDansLUrl();
+  const statut = valeurBornee(params, 'status', STATUTS);
+  const page = pageDeLUrl(params);
   const [erreur, setErreur] = useState<string | null>(null);
 
   const query = useCommissionEntries({ status: statut ?? undefined, page });
@@ -162,10 +168,7 @@ export function CommissionsLedger() {
             size="sm"
             variant={statut === s ? 'default' : 'outline'}
             aria-pressed={statut === s}
-            onClick={() => {
-              setStatut(s);
-              setPage(1);
-            }}
+            onClick={() => remplacer({ status: s, page: null })}
           >
             {s ? t(`status.${s}`) : t('filterAll')}
           </Button>
@@ -220,7 +223,7 @@ export function CommissionsLedger() {
                 </div>
               )}
               {data.meta.last_page > 1 ? (
-                <Pagination page={data.meta.current_page} lastPage={data.meta.last_page} onChange={setPage} />
+                <Pagination page={data.meta.current_page} lastPage={data.meta.last_page} onChange={(p) => remplacer({ page: p })} />
               ) : null}
             </div>
           );

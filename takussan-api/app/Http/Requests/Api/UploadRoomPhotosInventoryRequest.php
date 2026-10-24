@@ -4,6 +4,7 @@ namespace App\Http\Requests\Api;
 
 use App\Http\Requests\BaseFormRequest;
 use App\Models\Inventory;
+use App\Rules\PixelsAuPlus;
 use Illuminate\Validation\Rule;
 
 /**
@@ -36,7 +37,9 @@ class UploadRoomPhotosInventoryRequest extends BaseFormRequest
     {
         return [
             'photos' => ['required', 'array', 'min:1'],
-            'photos.*' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+            // TCK-1423 (P143.02) — 20 Mpx au plus : chaque PDF décode la photo dans GD, qui cède sur
+            // `memory_limit` dans l'image de l'API (GD embarquée, TCK-1812 ; voir `PixelsAuPlus`).
+            'photos.*' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120', new PixelsAuPlus],
             // TCK-596 — une photo appartient à une PIÈCE de cet état des lieux, pas à une chaîne libre.
             'room_name' => ['required', 'string', Rule::in($this->roomNames())],
         ];

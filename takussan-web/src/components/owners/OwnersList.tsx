@@ -17,13 +17,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Plus, Mail, Ban, UserRound, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
-import {
-  DataTable,
-  PageHeader,
-  StatusBadge,
-  type DataTableColumn,
-  type StatusTone,
-} from '@/components/console';
+import { PageHeader, StatusBadge, type StatusTone } from '@/components/console';
+import { DataTable, type DataTableColumn } from '@/components/console/DataTable';
 import { EmptyState } from '@/components/feedback';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/toast';

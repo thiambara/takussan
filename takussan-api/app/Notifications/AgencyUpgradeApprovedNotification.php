@@ -38,9 +38,12 @@ class AgencyUpgradeApprovedNotification extends Notification implements ShouldQu
         $appUrl = $this->dashboardUrl();
 
         return (new MailMessage)
+            // P155.05 (TCK-1441) — les formules du dépôt, plus celles du gabarit de Laravel.
+            ->greeting(__('notifications.greeting'))
             ->subject(__('agency_upgrade.notifications.approved.subject'))
             ->line(__('agency_upgrade.notifications.approved.body'))
-            ->action(__('agency_upgrade.notifications.approved.action'), $appUrl);
+            ->action(__('agency_upgrade.notifications.approved.action'), $appUrl)
+            ->salutation(__('notifications.salutation'));
     }
 
     /**

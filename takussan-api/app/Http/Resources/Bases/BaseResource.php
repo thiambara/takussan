@@ -26,6 +26,16 @@ abstract class BaseResource extends JsonResource
      */
     protected function iso(?DateTimeInterface $date): ?string
     {
+        return static::instantOnWire($date);
+    }
+
+    /**
+     * La forme d'`iso()`, offerte hors d'une ressource (TCK-1504, P94.03) : un contrôleur qui
+     * compose sa réponse à la main l'emploie par `Base\Controller::instant()`, un service de la
+     * console (`app/Services/Admin`) directement. Une seule écriture de la forme, ici.
+     */
+    public static function instantOnWire(?DateTimeInterface $date): ?string
+    {
         return $date === null
             ? null
             : Carbon::instance($date)->utc()->format(DateTimeInterface::ATOM);
@@ -49,6 +59,12 @@ abstract class BaseResource extends JsonResource
      * faire changer de JOUR, ce qui est précisément l'erreur que cette séparation évite.
      */
     protected function calendarDate(?DateTimeInterface $date): ?string
+    {
+        return static::calendarDateOnWire($date);
+    }
+
+    /** La forme de `calendarDate()`, offerte hors d'une ressource (TCK-1504, P94.03). */
+    public static function calendarDateOnWire(?DateTimeInterface $date): ?string
     {
         return $date?->format('Y-m-d');
     }

@@ -10,6 +10,7 @@ use App\Support\LienFront;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
+use Illuminate\Support\Facades\Lang;
 use Illuminate\Support\Number;
 
 /**
@@ -53,19 +54,31 @@ class ThresholdAlertTriggered extends Notification
         // la commande planifiée hors requête, `APP_URL` : l'hôte de l'API, qui n'en sert aucune.
         $frontend = LienFront::base();
 
+        // P155.04 (TCK-1439) — la métrique et la sévérité nommées, plus leurs codes.
+        $metric = self::libelle('notifications.threshold_alert_mail.metrics', (string) $this->alert->metric);
+
         return (new MailMessage)
-            ->subject(__('notifications.threshold_alert_mail.subject', ['metric' => $this->alert->metric]))
+            // P155.05 (TCK-1441) — les formules du dépôt, plus celles du gabarit de Laravel.
+            ->greeting(__('notifications.greeting'))
+            ->subject(__('notifications.threshold_alert_mail.subject', ['metric' => $metric]))
             ->line(__('notifications.threshold_alert_mail.intro'))
             ->line(__('notifications.threshold_alert_mail.'.$direction, [
-                'metric' => $this->alert->metric,
+                'metric' => $metric,
                 'value' => Number::format($this->value, precision: 2, locale: $locale),
                 'threshold' => Number::format((float) $this->alert->threshold, precision: 2, locale: $locale),
-                'severity' => $this->alert->severity,
+                'severity' => self::libelle('notifications.threshold_alert_mail.severities', (string) $this->alert->severity),
             ]))
             ->action(__('notifications.threshold_alert_mail.action'), $frontend.'/app/overview')
             ->line(trans_choice('notifications.threshold_alert_mail.cooldown', (int) $this->alert->cooldown_hours, [
                 'hours' => (int) $this->alert->cooldown_hours,
-            ]));
+            ]))
+            ->salutation(__('notifications.salutation'));
+    }
+
+    /** Le libellé d'un code, ou le code lui-même s'il n'en a pas (une valeur d'avant la liste). */
+    private static function libelle(string $groupe, string $code): string
+    {
+        return Lang::has($groupe.'.'.$code) ? (string) __($groupe.'.'.$code) : $code;
     }
 
     /**
@@ -79,7 +92,11 @@ class ThresholdAlertTriggered extends Notification
     {
         return [
             'type' => NotificationType::System,
-            'title' => __('notifications.threshold_alert.title', ['metric' => $this->alert->metric]),
+            // P164.03 (TCK-1466) — le titre est rangé tel quel et la cloche le lit tel quel :
+            // la métrique y est nommée par le libellé du courriel (P155.04), plus par son code.
+            'title' => __('notifications.threshold_alert.title', [
+                'metric' => self::libelle('notifications.threshold_alert_mail.metrics', (string) $this->alert->metric),
+            ]),
             'data' => $this->toArray($notifiable),
         ];
     }

@@ -3,6 +3,7 @@
 namespace App\Services\Admin;
 
 use App\Domain\Settings\EditablePlatformSettings;
+use App\Http\Resources\Bases\BaseResource;
 use App\Models\Enums\SettingScope;
 use App\Models\Setting;
 use App\Models\User;
@@ -94,7 +95,7 @@ class PlatformSettingService
                 ->mapWithKeys(fn (Setting $setting) => [
                     $setting->key => [
                         'value' => self::unwrap($setting->value),
-                        'updated_at' => $setting->updated_at?->toISOString(),
+                        'updated_at' => BaseResource::instantOnWire($setting->updated_at),
                         'updated_by' => $setting->updatedBy ? [
                             'id' => $setting->updatedBy->id,
                             'name' => $setting->updatedBy->full_name,

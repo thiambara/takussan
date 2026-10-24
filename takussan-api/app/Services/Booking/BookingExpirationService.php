@@ -8,7 +8,6 @@ use App\Models\Booking;
 use App\Models\Enums\BookingStatus;
 use App\Models\User;
 use App\Notifications\BookingExpiredNotification;
-use App\Services\Property\PrimaryPropertyContact;
 use App\Support\Logging\SafeExceptionContext;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
@@ -269,25 +268,28 @@ class BookingExpirationService
             $booking->customer->user->notify(new BookingExpiredNotification($booking, 'tenant'));
         }
 
-        // Notify agent - in-app only
-        $agent = $this->resolveAgent($booking);
-        if ($agent) {
-            $agent->notify(new BookingExpiredNotification($booking, 'agent'));
+        // TCK-1724 (P160.04, délégué 2026-10-22) — l'avis `agent` part à l'équipe que la demande et
+        // l'annulation préviennent (`BookingStakeholders::for`), moins le client, qui a le sien. Le
+        // bailleur y est, et garde donc l'avis qu'il recevait. Les replis ne servent qu'à défaut.
+        $customerId = $booking->customer?->user_id;
+        $team = app(BookingStakeholders::class)->for($booking)
+            ->reject(fn (User $user) => $customerId !== null && (int) $user->id === (int) $customerId);
+        if ($team->isEmpty()) {
+            $team = collect([$this->resolveFallbackAgent($booking)])->filter();
+        }
+
+        foreach ($team as $member) {
+            $member->notify(new BookingExpiredNotification($booking, 'agent'));
         }
     }
 
     /**
-     * Resolve the agent to notify for this booking.
+     * Les replis de l'avis `agent` quand l'équipe de la réservation est vide (TCK-1316 AC3) :
+     * l'auteur s'il est agent de l'agence, puis l'admin principal. Le créateur du bien, qui venait
+     * en tête, est désormais dans l'équipe ({@see BookingStakeholders::for()}).
      */
-    private function resolveAgent(Booking $booking): ?User
+    private function resolveFallbackAgent(Booking $booking): ?User
     {
-        // First try the property's owner — TCK-1316 : s'il compte encore (bailleur ou personnel
-        // actif de l'agence du bien) ; sinon, les replis qui suivent.
-        $createur = $booking->property !== null ? PrimaryPropertyContact::createurDestinataire($booking->property) : null;
-        if ($createur !== null) {
-            return $createur;
-        }
-
         // Fall back to the booking creator if they have an active agent
         // profile in the booking's agency (TCK-278 — rôle = profil).
         $bookingAgencyId = $booking->agency_id

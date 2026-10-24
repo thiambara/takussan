@@ -6,7 +6,7 @@ import { useTranslations } from 'next-intl';
 import { useFavorite } from '@/hooks/useFavorite';
 import { recentlyViewedStorage } from '@/lib/recently-viewed';
 import { formatAddressShort } from '@/lib/format/address';
-import type { PropertyDetail } from '@/types/property';
+import type { PropertyDetail, PropertyListItem } from '@/types/property';
 
 import { PropertyBreadcrumb } from './components/PropertyBreadcrumb';
 import { PropertyHeader } from './components/PropertyHeader';
@@ -77,8 +77,11 @@ export function PropertyDetailContent({
   property,
   hrefQuartier,
   hrefVille,
+  similairesInitiaux = null,
 }: {
   readonly property: PropertyDetail;
+  /** TCK-1483 (P103.07) — les biens similaires lus par le serveur ; `null` : le carrousel les lit. */
+  readonly similairesInitiaux?: PropertyListItem[] | null;
   /** TCK-839 — cf. `PropertyBreadcrumb`. */
   readonly hrefQuartier?: string;
   /** P35.05 — cf. `PropertyBreadcrumb`. */
@@ -261,7 +264,7 @@ export function PropertyDetailContent({
         </div>
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-12 space-y-12">
-          <PropertySimilar slug={property.slug} />
+          <PropertySimilar slug={property.slug} donneesInitiales={similairesInitiaux} />
           <PropertyRecentlyViewed excludeId={property.id} />
         </div>
       </div>

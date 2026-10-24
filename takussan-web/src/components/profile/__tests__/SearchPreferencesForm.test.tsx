@@ -127,4 +127,83 @@ describe('<SearchPreferencesForm>', () => {
     const body = JSON.parse(((call[1] as RequestInit).body as string) ?? '{}');
     expect(body.notification_frequency).toBe('off');
   });
+
+  // TCK-1839 (P185.01) — le profil édite une alerte que la recherche a pu enregistrer avec toutes
+  // ses clés : il ne remplace que `type`, `cities` et `price_max`, et garde les autres.
+  describe('édition d\'une alerte enregistrée depuis la recherche', () => {
+    const ALERTE: SavedSearch = {
+      ...SAMPLE,
+      id: 7,
+      criteria: {
+        contract_type: 'rent',
+        city: 'Dakar',
+        region: 'Dakar',
+        bedrooms: 3,
+        price_min: 100_000,
+        price_max: 300_000,
+        type: ['apartment'],
+        furnished: true,
+      },
+    };
+
+    async function enregistrer(initial: SavedSearch, saisir?: (user: ReturnType<typeof userEvent.setup>) => Promise<void>) {
+      const user = userEvent.setup();
+      const fetchSpy = mockFetch({ payload: { data: initial } });
+      renderForm({ initial, emailVerified: true });
+      if (saisir) await saisir(user);
+      await user.click(screen.getByTestId('pref-save'));
+      await waitFor(() =>
+        expect(screen.getByTestId('pref-feedback')).toHaveTextContent(/préférences enregistrées/i),
+      );
+      const call = fetchSpy.mock.calls[0];
+      expect((call[1] as RequestInit).method).toBe('PATCH');
+      return JSON.parse(((call[1] as RequestInit).body as string) ?? '{}');
+    }
+
+    it('enregistrer sans rien changer laisse les critères inchangés', async () => {
+      const body = await enregistrer(ALERTE);
+      expect(body.criteria).toEqual(ALERTE.criteria);
+    });
+
+    it('changer les villes écrit `cities`, retire `city` et garde les autres critères', async () => {
+      const body = await enregistrer(ALERTE, async (user) => {
+        await user.clear(screen.getByTestId('pref-cities'));
+        await user.type(screen.getByTestId('pref-cities'), 'Thiès, Mbour');
+      });
+      expect(body.criteria).toEqual({
+        contract_type: 'rent',
+        region: 'Dakar',
+        bedrooms: 3,
+        price_min: 100_000,
+        price_max: 300_000,
+        type: ['apartment'],
+        furnished: true,
+        cities: ['Thiès', 'Mbour'],
+      });
+    });
+
+    it('un champ vidé retire sa clé, sans toucher aux autres', async () => {
+      const body = await enregistrer(ALERTE, async (user) => {
+        await user.clear(screen.getByTestId('pref-budget'));
+        await user.click(screen.getByTestId('pref-type-apartment'));
+      });
+      expect(body.criteria).toEqual({
+        contract_type: 'rent',
+        city: 'Dakar',
+        region: 'Dakar',
+        bedrooms: 3,
+        price_min: 100_000,
+        furnished: true,
+      });
+    });
+
+    it('vider les villes retire `city` et n\'écrit pas `cities`', async () => {
+      const body = await enregistrer(ALERTE, async (user) => {
+        await user.clear(screen.getByTestId('pref-cities'));
+      });
+      expect(body.criteria).not.toHaveProperty('city');
+      expect(body.criteria).not.toHaveProperty('cities');
+      expect(body.criteria.contract_type).toBe('rent');
+    });
+  });
 });

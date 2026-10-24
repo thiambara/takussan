@@ -7,11 +7,14 @@ use App\Models\Bases\AbstractModel;
 use App\Models\Enums\InventoryCondition;
 use App\Models\Enums\InventoryStatus;
 use App\Models\Enums\InventoryType;
+use App\Services\Media\PdfImageEmbedder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Spatie\Image\Enums\Fit;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class Inventory extends AbstractModel implements HasMedia
 {
@@ -76,6 +79,21 @@ class Inventory extends AbstractModel implements HasMedia
         // état des lieux contractuel. Aucun écran public ne les affiche.
         $this->addMediaCollection('photos');
         $this->addMediaCollection('room_photos');
+    }
+
+    /**
+     * TCK-1425 (P143.03) — la réduction que `PdfImageEmbedder` faisait de l'original à CHAQUE
+     * téléchargement du PDF (≈ 0,45 s par photo), produite une fois, en file `media`, et prise
+     * avant l'original. Mêmes largeur et qualité qu'au rendu : le PDF ne change pas.
+     */
+    public function registerMediaConversions(?Media $media = null): void
+    {
+        $this->addMediaConversion('preview')
+            ->fit(Fit::Max, PdfImageEmbedder::MAX_WIDTH, PdfImageEmbedder::MAX_WIDTH)
+            ->format('jpg')
+            ->quality(70)
+            ->performOnCollections('room_photos')
+            ->queued();
     }
 
     public function lease(): BelongsTo

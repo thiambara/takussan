@@ -69,6 +69,10 @@ class MeController extends Controller
             $user->preferred_language = $request->validated('preferred_language');
         }
 
+        if ($request->has('timezone')) {
+            $user->timezone = $request->validated('timezone');
+        }
+
         $user->save();
         if ($remplace !== null) {
             $phoneChange->notifyReplaced($user, $remplace);

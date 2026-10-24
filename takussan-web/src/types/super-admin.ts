@@ -257,6 +257,9 @@ export type AdminUserDetail = {
   last_login_at: string | null;
   two_factor_enabled: boolean;
   mfa_enabled: boolean;
+  /** P83.04 (TCK-1775) — échéance du verrou de connexion qui court, `null` sans verrou (un verrou échu rend `null`). */
+  locked_until: string | null;
+  force_2fa_reconfigure: boolean;
   created_at: string | null;
   roles: Array<{ name: string; team_id: number | null }>;
   profiles: {
@@ -534,6 +537,12 @@ export type PlatformSetting = {
 export type PlatformSettingsGrouped = Partial<Record<PlatformSettingCategory, PlatformSetting[]>>;
 export type PlatformSettingsResponse = { data: PlatformSettingsGrouped };
 
+/**
+ * TCK-1834 (P146.04) — les états de santé qu'`IntegrationService` pose sur une intégration. Ce ne
+ * sont pas les cas d'un enum de l'API : `check-status-unions` ne les garde pas.
+ */
+export type IntegrationStatus = 'unknown' | 'healthy' | 'failed' | 'disabled';
+
 export type AdminIntegration = {
   id: number;
   provider: string;
@@ -542,7 +551,7 @@ export type AdminIntegration = {
   critical: boolean;
   agency_id: number | null;
   is_active: boolean;
-  status: 'unknown' | 'healthy' | 'failed' | 'disabled' | string;
+  status: IntegrationStatus | string;
   last_used_at: string | null;
   last_health_check_at: string | null;
   metadata: Record<string, unknown>;
@@ -711,7 +720,6 @@ export type DataExport = {
   ready_at: string | null;
   expires_at: string | null;
   last_downloaded_at: string | null;
-  download_url: string | null;
 };
 
 export type DataExportsResponse = {

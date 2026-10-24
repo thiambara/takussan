@@ -29,8 +29,13 @@ export const reconciliationKeys = {
   lines: (id: number, matchStatus: BankLineMatchStatus | null, page: number) =>
     ['reconciliation', 'lines', id, matchStatus, page] as const,
   mapping: (agencyId: number) => ['reconciliation', 'csv-mapping', agencyId] as const,
-  search: (agencyId: number, q: string, amount: number | null, direction: BankLineDirection | null) =>
-    ['reconciliation', 'search', agencyId, q, amount, direction] as const,
+  search: (
+    agencyId: number,
+    q: string,
+    amount: number | null,
+    direction: BankLineDirection | null,
+    currency: string | null,
+  ) => ['reconciliation', 'search', agencyId, q, amount, direction, currency] as const,
 };
 
 /**
@@ -72,6 +77,8 @@ export const BANK_LINE_FIELDS = [
   'label',
   'reference',
   'counterparty',
+  // TCK-1919 (P157.06) — la marque d'une ligne déjà importée par un autre relevé.
+  'duplicate_of_line_id',
   'match_status',
   'matched_payment_type',
   'matched_payment_id',
@@ -124,12 +131,15 @@ export function usePaymentSearch(
   q: string,
   amount: number | null,
   direction: BankLineDirection | null,
+  // P157.01 (TCK-1917) — la devise de la ligne : l'API ne propose que les paiements que la
+  // confirmation accepte.
+  currency: string | null,
   enabled: boolean,
 ) {
   return useApiQuery<{ data: MatchCandidate[] }>(
-    reconciliationKeys.search(agencyId, q, amount, direction),
+    reconciliationKeys.search(agencyId, q, amount, direction, currency),
     cheminApi`/api/agencies/${agencyId}/bank-statements/payment-search`,
-    { params: { extra: { q, amount, direction } }, enabled },
+    { params: { extra: { q, amount, direction, currency } }, enabled },
   );
 }
 

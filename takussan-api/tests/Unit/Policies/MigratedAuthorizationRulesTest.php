@@ -99,7 +99,11 @@ class MigratedAuthorizationRulesTest extends TestCase
 
     public function test_property_view_admits_owner_agency_and_super_admin_only(): void
     {
+        // TCK-1705 (P153.01) — sur un bien d'agence, `user_id` ne vaut titre que pour qui a un
+        // profil dans l'agence : le propriétaire y est bailleur (l'auteur sans profil, l'agent
+        // retiré, est refusé par `MembreRetireBiensSaisisTest`).
         $proprietaire = $this->quidam();
+        $this->materializeRoleProfile($proprietaire, 'owner', $this->agency);
         $property = Property::factory()->create([
             'user_id' => $proprietaire->id,
             'agency_id' => $this->agency->id,
@@ -121,6 +125,9 @@ class MigratedAuthorizationRulesTest extends TestCase
     public function test_lease_view_admits_the_tenant_but_update_does_not(): void
     {
         $bailleur = $this->quidam();
+        // TCK-1722 (P160.03) — le bailleur d'un bail d'agence y a un profil de bailleur : sans lui,
+        // `landlord_id` ne lui donne pas les gestes du bailleur.
+        $this->materializeRoleProfile($bailleur, 'owner', $this->agency);
         $locataireUser = $this->quidam();
         $customer = Customer::factory()->create([
             'user_id' => $locataireUser->id,
@@ -155,6 +162,8 @@ class MigratedAuthorizationRulesTest extends TestCase
         $createur = $this->quidam();
         $clientUser = $this->quidam();
         $proprietaire = $this->quidam();
+        // TCK-1707 (P153.02) — le propriétaire d'un bien d'agence y a un profil de bailleur.
+        $this->materializeRoleProfile($proprietaire, 'owner', $this->agency);
         $customer = Customer::factory()->create([
             'user_id' => $clientUser->id,
             'agency_id' => $this->agency->id,
@@ -324,6 +333,8 @@ class MigratedAuthorizationRulesTest extends TestCase
         // TCK-592 — un prestataire réel : profil actif, collaboration active avec l'agence du bien.
         $prestataire = $this->providerFor($this->agency);
         $proprietaire = $this->quidam();
+        // TCK-1709 (P153.03) — le propriétaire d'un bien d'agence y a un profil de bailleur.
+        $this->materializeRoleProfile($proprietaire, 'owner', $this->agency);
         $property = Property::factory()->create([
             'user_id' => $proprietaire->id,
             'agency_id' => $this->agency->id,
@@ -428,7 +439,9 @@ class MigratedAuthorizationRulesTest extends TestCase
         $policy = new TaskPolicy;
 
         // Property porte la propriété par `user_id`
+        // TCK-1705 (P153.01) — le propriétaire d'un bien d'agence y a un profil de bailleur.
         $proprietaire = $this->quidam();
+        $this->materializeRoleProfile($proprietaire, 'owner', $this->autreAgence);
         $property = Property::factory()->create([
             'user_id' => $proprietaire->id,
             'agency_id' => $this->autreAgence->id,

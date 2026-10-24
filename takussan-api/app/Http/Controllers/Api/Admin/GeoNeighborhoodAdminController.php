@@ -110,7 +110,7 @@ class GeoNeighborhoodAdminController extends Controller
             'region' => ['id' => $q->city->region->id, 'name' => $q->city->region->name],
             'created_by' => $q->createdBy !== null ? ['id' => $q->createdBy->id, 'name' => trim($q->createdBy->first_name.' '.$q->createdBy->last_name)] : null,
             'addresses_count' => (int) ($q->addresses_count ?? $q->addresses()->count()),
-            'created_at' => $q->created_at?->toIso8601String(),
+            'created_at' => $this->instant($q->created_at),
         ];
     }
 }

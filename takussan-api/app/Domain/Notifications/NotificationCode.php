@@ -2,6 +2,7 @@
 
 namespace App\Domain\Notifications;
 
+use App\Domain\Integrations\Providers\IntegrationProvider;
 use App\Models\Enums\NotificationType;
 use App\Services\Model\NotificationService;
 use App\Services\Notifications\NotificationRenderer;
@@ -217,6 +218,18 @@ enum NotificationCode: string
      */
     public const PARAM_ROLE = 'role';
 
+    /**
+     * P164.01 (TCK-1468) — un fournisseur d'intégration CODÉ (`orange_money`, `wave`…), rendu par
+     * son libellé ({@see IntegrationProvider::label()}) ; le code reste rangé tel quel.
+     */
+    public const PARAM_PROVIDER = 'provider';
+
+    /**
+     * P164.02 (TCK-1470) — un mois rangé `Y-m` (`2026-09`), rendu en mois écrit dans la langue du
+     * destinataire (« septembre 2026 ») ; une valeur d'une autre forme est rendue telle quelle.
+     */
+    public const PARAM_MONTH = 'month';
+
     public function type(): NotificationType
     {
         return match ($this) {
@@ -358,10 +371,12 @@ enum NotificationCode: string
             self::KycVerified => [],
             self::KycRejected => ['reason' => self::PARAM_TEXT],
             self::KycExpiringSoon => ['expires_at' => self::PARAM_DATE],
-            self::GovernanceRoleCapabilitiesChanged => ['role' => self::PARAM_TEXT, 'actor' => self::PARAM_TEXT],
+            // P164.04 (TCK-1808) — le code du rôle système (`agency_admin`), ou le nom d'un rôle créé,
+            // que le repli de `role()` rend tel quel.
+            self::GovernanceRoleCapabilitiesChanged => ['role' => self::PARAM_ROLE, 'actor' => self::PARAM_TEXT],
             self::GovernanceAdminAdded => ['member' => self::PARAM_TEXT, 'actor' => self::PARAM_TEXT],
             self::GovernanceDataExported, self::GovernanceApprovalThresholdChanged => ['actor' => self::PARAM_TEXT],
-            self::GovernanceIntegrationChanged => ['provider' => self::PARAM_TEXT, 'actor' => self::PARAM_TEXT],
+            self::GovernanceIntegrationChanged => ['provider' => self::PARAM_PROVIDER, 'actor' => self::PARAM_TEXT],
             self::RoleDelegationActivated => ['role' => self::PARAM_ROLE, 'ends_at' => self::PARAM_DATE],
             self::RoleDelegationExpired, self::RoleDelegationRevoked => ['role' => self::PARAM_ROLE],
             self::RoleDelegationActivatedDelegator, self::RoleDelegationExpiredDelegator,
@@ -396,7 +411,7 @@ enum NotificationCode: string
             self::PayoutFailed => ['reference' => self::PARAM_TEXT, 'amount' => self::PARAM_MONEY, 'reason' => self::PARAM_TEXT],
             self::PayoutMethodAdded, self::PayoutMethodUpdated, self::PayoutMethodRemoved => ['destination' => self::PARAM_TEXT],
             self::PayoutThresholdRelaxRequested => ['agency' => self::PARAM_TEXT],
-            self::OwnerStatementAvailable => ['period' => self::PARAM_TEXT],
+            self::OwnerStatementAvailable => ['period' => self::PARAM_MONTH],
             self::ReviewToModerate, self::ReviewReceived => ['subject' => self::PARAM_TEXT, 'rating' => self::PARAM_COUNT],
             self::ModerationPropertyHidden, self::ModerationPropertyRemoved => ['property' => self::PARAM_TEXT, 'reason_code' => self::PARAM_REASON_CODE, 'reason' => self::PARAM_TEXT],
             self::ModerationReportUpheld, self::ModerationReportDismissed => ['property' => self::PARAM_TEXT],
@@ -428,6 +443,21 @@ enum NotificationCode: string
             self::LeasePaymentSettledOnline => ['receipt_url' => self::PARAM_URL],
             // TCK-1002 — la quittance d'un paiement enregistré par l'agence, même lien.
             self::LeasePaymentRecorded => ['receipt_url' => self::PARAM_URL],
+            default => [],
+        };
+    }
+
+    /**
+     * P164.06 (TCK-1472) — les paramètres dont l'absence (nul ou vide) fait choisir la variante
+     * `<surface>_unnamed` : la phrase existante privée du nom, au lieu de « — ».
+     *
+     * @return list<string>
+     */
+    public function unnamedParams(): array
+    {
+        return match ($this) {
+            self::BankStatementImported => ['bank'],
+            self::GovernanceRoleCapabilitiesChanged => ['role'],
             default => [],
         };
     }

@@ -8,6 +8,7 @@ use App\Models\GeoRegion;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 /**
@@ -60,6 +61,26 @@ class GeoPublicEndpointsTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.region_id', $this->dakar->id)
             ->assertJsonPath('data.slug', 'dakar');
+    }
+
+    /**
+     * P187.05 (TCK-1851) — `whereNumber('city')` laissait passer toute suite de chiffres, et la
+     * liaison implicite la passait à PostgreSQL : 500 `22003 … out of range for type bigint`.
+     *
+     * @return array<string, array{string}>
+     */
+    public static function identifiantsHorsDeBigint(): array
+    {
+        return [
+            '20 chiffres' => ['99999999999999999999'],
+            '19 chiffres' => ['9999999999999999999'],
+        ];
+    }
+
+    #[DataProvider('identifiantsHorsDeBigint')]
+    public function test_une_ville_d_identifiant_hors_de_bigint_est_introuvable(string $identifiant): void
+    {
+        $this->getJson("/api/public/geo/cities/{$identifiant}")->assertNotFound();
     }
 
     public function test_les_quartiers_exigent_leur_ville(): void

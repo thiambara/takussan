@@ -24,6 +24,7 @@ import {
   visibleRange,
 } from '@/lib/calendar-date';
 import { useCalendar } from '@/lib/queries/calendar';
+import { useVueDansLUrl, valeurBornee } from '@/hooks/useVueDansLUrl';
 import type { CalendarEvent, CalendarEventType, CalendarView } from '@/types/calendar';
 import { paletteEnAttente, paletteFor, paletteForType, typeLegendPaths } from './event-colors';
 import { MonthView } from './MonthView';
@@ -39,6 +40,14 @@ import { EventDetailSheet } from './EventDetailSheet';
  * `calendar`.
  */
 const VIEWS: readonly CalendarView[] = ['month', 'week', 'day', 'list'];
+
+/** `AAAA-MM-JJ` → la date locale de ce jour, ou `null` si elle n'existe pas (TCK-1740). */
+function dateDeLUrl(valeur: string | null): Date | null {
+  const m = valeur ? /^(\d{4})-(\d{2})-(\d{2})$/.exec(valeur) : null;
+  if (!m) return null;
+  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  return d.getMonth() === Number(m[2]) - 1 && d.getDate() === Number(m[3]) ? d : null;
+}
 
 /**
  * TCK-591 — qui regarde l'agenda décide de ce qu'il peut y demander. Le prestataire n'a aucun bien :
@@ -79,12 +88,35 @@ export function CalendarPage({ initialFocus, audience = 'staff', defaultMine = f
   const tCrm = useTranslations('agentCrm.calendar');
   const tCommon = useTranslations('common');
   const TYPE_OPTIONS = TYPES_BY_AUDIENCE[audience].map((value) => ({ value, labelPath: typeLegendPaths(value).label }));
-  const [mine, setMine] = useState(defaultMine);
-  const [view, setView] = useState<CalendarView>('month');
-  const [focus, setFocus] = useState<Date>(() => startOfDay(initialFocus ?? new Date()));
-  const [selectedTypes, setSelectedTypes] = useState<readonly CalendarEventType[]>(TYPES_BY_AUDIENCE[audience]);
-  const [propertyId, setPropertyId] = useState<number | null>(null);
-  const [selectedDay, setSelectedDay] = useState<Date>(() => startOfDay(initialFocus ?? new Date()));
+  // TCK-1740 (P168.03) — vue, date, types, bien et « Mes rendez-vous » dans l'URL : la vue survit
+  // au retour de l'objet ouvert depuis un événement, au rechargement et au lien copié. Chaque
+  // valeur est bornée ; absente ou inconnue, elle rend le défaut, qui ne s'écrit pas.
+  const { params: requete, remplacer } = useVueDansLUrl();
+  const audienceTypes = TYPES_BY_AUDIENCE[audience];
+  const view: CalendarView = valeurBornee(requete, 'view', VIEWS) ?? 'month';
+  const focusDeLUrl = dateDeLUrl(requete.get('date'));
+  const focusParDefaut = formatISODate(startOfDay(initialFocus ?? new Date()));
+  const focusIso = focusDeLUrl ? formatISODate(focusDeLUrl) : focusParDefaut;
+  const focus = useMemo(() => dateDeLUrl(focusIso) as Date, [focusIso]);
+  const typesDeLUrl = (requete.get('types') ?? '')
+    .split(',')
+    .filter((v): v is CalendarEventType => (audienceTypes as readonly string[]).includes(v));
+  const selectedTypes: readonly CalendarEventType[] = typesDeLUrl.length > 0
+    ? audienceTypes.filter((v) => typesDeLUrl.includes(v))
+    : audienceTypes;
+  const bien = requete.get('property');
+  const propertyId = bien !== null && /^[1-9]\d*$/.test(bien) ? Number(bien) : null;
+  const mineDeLUrl = requete.get('mine');
+  const mine = mineDeLUrl === '1' ? true : mineDeLUrl === '0' ? false : defaultMine;
+  const [selectedDay, setSelectedDay] = useState<Date>(() => startOfDay(focus));
+
+  const setView = (next: CalendarView) => remplacer({ view: next === 'month' ? null : next });
+  const setFocus = (next: Date) => {
+    const iso = formatISODate(next);
+    remplacer({ date: iso === focusParDefaut ? null : iso });
+  };
+  const setPropertyId = (next: number | null) => remplacer({ property: next === null ? null : String(next) });
+  const setMine = (next: boolean) => remplacer({ mine: next === defaultMine ? null : next ? '1' : '0' });
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
 
   const range = useMemo(() => visibleRange(view, focus), [view, focus]);
@@ -125,11 +157,10 @@ export function CalendarPage({ initialFocus, audience = 'staff', defaultMine = f
   );
 
   const toggleType = (type: CalendarEventType) => {
-    setSelectedTypes((prev) => {
-      const has = prev.includes(type);
-      if (has && prev.length === 1) return prev; // ne pas tout désactiver
-      return has ? prev.filter((t) => t !== type) : ([...prev, type] as CalendarEventType[]);
-    });
+    const has = selectedTypes.includes(type);
+    if (has && selectedTypes.length === 1) return; // ne pas tout désactiver
+    const next = audienceTypes.filter((v) => (v === type ? !has : selectedTypes.includes(v)));
+    remplacer({ types: next.length === audienceTypes.length ? null : next.join(',') });
   };
 
   const navigate = (direction: -1 | 0 | 1) => {
@@ -139,18 +170,16 @@ export function CalendarPage({ initialFocus, audience = 'staff', defaultMine = f
       setSelectedDay(today);
       return;
     }
-    setFocus((prev) => {
-      const next =
-        view === 'month'
-          ? addMonths(prev, direction)
-          : view === 'week'
-            ? addDays(prev, direction * 7)
-            : view === 'day'
-              ? addDays(prev, direction)
-              : addDays(prev, direction * 30);
-      setSelectedDay(next);
-      return next;
-    });
+    const next =
+      view === 'month'
+        ? addMonths(focus, direction)
+        : view === 'week'
+          ? addDays(focus, direction * 7)
+          : view === 'day'
+            ? addDays(focus, direction)
+            : addDays(focus, direction * 30);
+    setFocus(next);
+    setSelectedDay(next);
   };
 
   const dates = useDatesCalendrier();
@@ -239,7 +268,7 @@ export function CalendarPage({ initialFocus, audience = 'staff', defaultMine = f
               type="button"
               aria-pressed={mine}
               data-testid="calendar-mine-toggle"
-              onClick={() => setMine((v) => !v)}
+              onClick={() => setMine(!mine)}
               className={cn(
                 'min-h-10 rounded-lg border border-border px-3 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:min-h-8',
                 mine ? 'bg-foreground text-background' : 'bg-card text-muted-foreground hover:bg-muted/50',
@@ -359,8 +388,8 @@ export function CalendarPage({ initialFocus, audience = 'staff', defaultMine = f
                 events={selectedDayEvents}
                 onSelect={setSelectedEvent}
                 onOpenDay={() => {
-                  setFocus(selectedDay);
-                  setView('day');
+                  const iso = formatISODate(selectedDay);
+                  remplacer({ date: iso === focusParDefaut ? null : iso, view: 'day' });
                 }}
               />
             </div>

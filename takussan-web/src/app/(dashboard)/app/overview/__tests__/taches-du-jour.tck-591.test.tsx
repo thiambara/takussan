@@ -1,6 +1,7 @@
 /**
  * TCK-591, AC26 — « Tâches du jour » du tableau de bord agent mène à la page des tâches filtrée sur
  * aujourd'hui. Elle pointait sur `/app/overview/agent` : la page elle-même.
+ * TCK-1733 — et sur les seules tâches assignées à l'agent, ce que la tuile compte.
  */
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
@@ -29,10 +30,10 @@ vi.mock('@/lib/access/pages-admin-server', () => ({ capacitesDuProfilActif: vi.f
 import AgentDashboardPage from '../agent/page';
 
 describe('tableau de bord agent — Tâches du jour (AC26)', () => {
-  it('pointe sur /app/tasks?filter[due]=today', async () => {
+  it('pointe sur /app/tasks?filter[due]=today&filter[assigned_to]=me', async () => {
     render(await AgentDashboardPage());
 
     const lien = screen.getByRole('link', { name: /Tâches du jour/ });
-    expect(lien).toHaveAttribute('href', '/app/tasks?filter[due]=today');
+    expect(lien).toHaveAttribute('href', '/app/tasks?filter[due]=today&filter[assigned_to]=me');
   });
 });

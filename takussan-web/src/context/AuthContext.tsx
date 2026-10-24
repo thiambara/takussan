@@ -11,11 +11,13 @@ import {
   type RegisterPayload,
   type User,
 } from '@/lib/auth';
+import { DELAI_DECONNEXION_MS } from '@/lib/delais-deconnexion';
 import { apiRequest } from '@/lib/api';
 import {
   getIds as getLocalFavoriteIds,
   clear as clearLocalFavorites,
   replace as replaceLocalFavorites,
+  chargerAuPremierAbonne,
 } from '@/lib/favoritesStore';
 import { favoritesQueryKeys, fetchAllFavoritePropertyIds } from '@/lib/queries/favorites';
 
@@ -102,12 +104,17 @@ export function AuthProvider({
   }, []);
 
   // Single source of truth for the favorites store: when the user changes,
-  // (a) on auth → fetch /api/favorites and replace the store, (b) on logout
+  // (a) on auth → fetch /api/favorites (at the store's first subscriber) and replace the store, (b) on logout
   // → clear the store. The store stays the canonical reactive cache that
   // the navbar popover, every <FavoriteButton>, and the detail page heart
   // all subscribe to.
+  // TCK-1764 (P172.04) — l'effet dépend du compte et de son agence, pas de l'objet `user`, que
+  // chaque `refreshUser()` remplace : la liste ne dépend que d'eux (`FavoriteController::index`,
+  // `staffAgencyId()`), et relire tous les favoris pour le même compte ne rendait rien de neuf.
+  const userId = user?.id ?? null;
+  const userAgencyId = user?.agency_id ?? null;
   useEffect(() => {
-    if (!user || !token) {
+    if (userId === null || !token) {
       if (wasAuthedRef.current) {
         clearLocalFavorites();
         wasAuthedRef.current = false;
@@ -116,21 +123,25 @@ export function AuthProvider({
     }
     wasAuthedRef.current = true;
 
+    // TCK-1826 (P136.05) — lus au premier abonné du magasin (cœur, compteur), pas au montage.
     let cancelled = false;
-    (async () => {
-      try {
-        const ids = await fetchAllFavoritePropertyIds(token);
-        if (cancelled) return;
-        replaceLocalFavorites(ids);
-        void queryClient.invalidateQueries({ queryKey: favoritesQueryKeys.all });
-      } catch {
-        // Best-effort — leave the store as-is on failure.
-      }
-    })();
+    const retirer = chargerAuPremierAbonne(() => {
+      void (async () => {
+        try {
+          const ids = await fetchAllFavoritePropertyIds(token);
+          if (cancelled) return;
+          replaceLocalFavorites(ids);
+          void queryClient.invalidateQueries({ queryKey: favoritesQueryKeys.all });
+        } catch {
+          // Best-effort — leave the store as-is on failure.
+        }
+      })();
+    });
     return () => {
       cancelled = true;
+      retirer();
     };
-  }, [user, token, queryClient]);
+  }, [userId, userAgencyId, token, queryClient]);
 
   useEffect(() => {
     if (initialUser !== undefined) return;
@@ -255,10 +266,17 @@ export function AuthProvider({
   );
 
   const logout = useCallback(async () => {
+    // TCK-1481 (P113.05) — l'attente du relais est bornée : sur une API figée, « Se déconnecter »
+    // ne produisait rien de visible et la session restait ouverte dans l'onglet. Passé
+    // `DELAI_DECONNEXION_MS`, l'état local se vide quand même (décision du porteur, 2026-10-22).
+    const echeance = new AbortController();
+    const minuteur = setTimeout(() => echeance.abort(), DELAI_DECONNEXION_MS);
     try {
-      await fetch('/api/auth/logout', { method: 'POST' });
+      await fetch('/api/auth/logout', { method: 'POST', signal: echeance.signal });
     } catch {
       // Even if the network call fails, drop the in-memory session.
+    } finally {
+      clearTimeout(minuteur);
     }
     // La règle d'`openSession`, dans l'autre sens : le compte suivant n'hérite d'aucune réponse
     // mise en cache sous celui-ci. Les favoris locaux, eux, sont vidés par l'effet d'amorçage

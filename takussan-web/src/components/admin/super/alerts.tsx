@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Check, Send, Settings2, Trash2 } from 'lucide-react';
 import { ConfirmActionDialog } from './ConfirmActionDialog';
-import { DataTable, type DataTableColumn } from '@/components/console';
+import { DataTable, type DataTableColumn } from '@/components/console/DataTable';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';

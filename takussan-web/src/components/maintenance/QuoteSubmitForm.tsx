@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import { ApiError } from '@/lib/api';
 import { formatCurrency } from '@/lib/format';
+import { CURRENCY_METADATA, type CurrencyCode } from '@/lib/format/currency';
 import type { Locale } from '@/i18n/config';
 import { useSubmitMaintenanceQuote } from '@/lib/queries/maintenance';
 import type { MaintenanceQuoteLineKind, MaintenanceRequest } from '@/types/maintenance';
@@ -23,10 +24,35 @@ export const QUOTE_ATTACHMENT_ACCEPT = 'application/pdf,image/jpeg,image/png,ima
 const ACCEPTED_TYPES = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
 const ACCEPTED_EXTENSIONS = ['pdf', 'jpg', 'jpeg', 'png', 'webp'];
 const MAX_ATTACHMENTS = 5;
+/** TCK-1907 (P195.07) — `max:5120` (Ko) de `SubmitQuoteRequest`. La pièce part telle quelle (TCK-542). */
+const MAX_ATTACHMENT_MB = 5;
+const MAX_ATTACHMENT_BYTES = MAX_ATTACHMENT_MB * 1024 * 1024;
 
 type LineDraft = { label: string; kind: MaintenanceQuoteLineKind; quantity: string; unit_price: string };
 
 const emptyLine = (): LineDraft => ({ label: '', kind: 'labour', quantity: '1', unit_price: '' });
+
+/**
+ * TCK-1729 (P133.06) — l'aperçu du total compte comme `MaintenanceQuoteWorkflow::priceLines` :
+ * chaque ligne arrondie à l'unité de la devise (au demi supérieur, `CurrencyUnit::round`), puis la
+ * somme. En entiers (`BigInt`, facteurs à 2 décimales) : un flottant rendrait 1,5 × 333,33 = 499,99499…
+ */
+export function quotePreviewTotal(
+  lines: readonly Pick<LineDraft, 'quantity' | 'unit_price'>[],
+  currency: string,
+): number {
+  const scale = CURRENCY_METADATA[currency as CurrencyCode]?.decimalPlaces ?? 2;
+  const unit = BigInt(10 ** (4 - scale));
+  const centiemes = (v: string) => BigInt(Math.round((Number(v) || 0) * 100));
+  const zero = BigInt(0);
+  const demi = unit / BigInt(2);
+  const total = lines.reduce((sum, l) => {
+    const produit = centiemes(l.quantity) * centiemes(l.unit_price);
+    const arrondi = produit < zero ? (produit - demi) / unit : (produit + demi) / unit;
+    return sum + arrondi;
+  }, zero);
+  return Number(total) / 10 ** scale;
+}
 
 function isAccepted(file: File): boolean {
   const extension = file.name.split('.').pop()?.toLowerCase() ?? '';
@@ -51,17 +77,33 @@ export function QuoteSubmitForm({ request }: { readonly request: MaintenanceRequ
   const [duration, setDuration] = useState('');
   const [attachments, setAttachments] = useState<File[]>([]);
   const [rejectedFiles, setRejectedFiles] = useState<string[]>([]);
+  const [tooLargeFiles, setTooLargeFiles] = useState<string[]>([]);
+  const [tooManyFiles, setTooManyFiles] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
 
-  const total = lines.reduce((sum, l) => sum + (Number(l.quantity) || 0) * (Number(l.unit_price) || 0), 0);
+  // TCK-1729 — la devise du devis (celle qu'un premier devis a fixée), sinon le XOF : l'API la tire
+  // du bail ou de l'agence, que la demande n'expose pas.
+  const currency = request.quote_currency ?? 'XOF';
+  const total = quotePreviewTotal(lines, currency);
 
   const updateLine = (index: number, patch: Partial<LineDraft>) =>
     setLines((prev) => prev.map((line, i) => (i === index ? { ...line, ...patch } : line)));
 
   const pickFiles = (picked: File[]) => {
-    const accepted = picked.filter(isAccepted);
+    const typed = picked.filter(isAccepted);
     setRejectedFiles(picked.filter((f) => !isAccepted(f)).map((f) => f.name));
-    setAttachments((prev) => [...prev, ...accepted].slice(0, MAX_ATTACHMENTS));
+    // TCK-1907 (P195.07) — une pièce au-delà du plafond de l'API est écartée et nommée au choix,
+    // comme `KycUploader` et `DocumentUploadDialog`, au lieu d'un 422 après la saisie des lignes.
+    const accepted = typed.filter((f) => f.size <= MAX_ATTACHMENT_BYTES);
+    setTooLargeFiles(typed.filter((f) => f.size > MAX_ATTACHMENT_BYTES).map((f) => f.name));
+    // TCK-1889 (P195.02) — une sélection qui porterait le total au-delà de la borne de l'API est
+    // refusée entière et dite, comme `MediaDropzone`, au lieu de perdre la sixième pièce en silence.
+    if (attachments.length + accepted.length > MAX_ATTACHMENTS) {
+      setTooManyFiles(true);
+      return;
+    }
+    setTooManyFiles(false);
+    setAttachments((prev) => [...prev, ...accepted]);
   };
 
   const submit = async () => {
@@ -194,7 +236,7 @@ export function QuoteSubmitForm({ request }: { readonly request: MaintenanceRequ
             {t('add_line')}
           </Button>
           <p className="text-sm font-medium tabular-nums text-foreground">
-            {t('total_preview', { amount: formatCurrency(total, locale) })}
+            {t('total_preview', { amount: formatCurrency(total, locale, { currency }) })}
           </p>
         </div>
 
@@ -245,7 +287,10 @@ export function QuoteSubmitForm({ request }: { readonly request: MaintenanceRequ
                     type="button"
                     variant="ghost"
                     size="sm"
-                    onClick={() => setAttachments((prev) => prev.filter((_, i) => i !== index))}
+                    onClick={() => {
+                      setAttachments((prev) => prev.filter((_, i) => i !== index));
+                      setTooManyFiles(false);
+                    }}
                   >
                     {t('remove_file')}
                   </Button>
@@ -256,6 +301,16 @@ export function QuoteSubmitForm({ request }: { readonly request: MaintenanceRequ
           {rejectedFiles.length > 0 ? (
             <p role="alert" className="mt-1 text-xs text-destructive">
               {t('file_type_refused', { files: rejectedFiles.join(', ') })}
+            </p>
+          ) : null}
+          {tooLargeFiles.length > 0 ? (
+            <p role="alert" className="mt-1 text-xs text-destructive">
+              {t('file_too_large', { max: MAX_ATTACHMENT_MB, files: tooLargeFiles.join(', ') })}
+            </p>
+          ) : null}
+          {tooManyFiles ? (
+            <p role="alert" className="mt-1 text-xs text-destructive">
+              {t('max_files', { max: MAX_ATTACHMENTS })}
             </p>
           ) : null}
           {attachmentErrors.map(([field, messages]) => (

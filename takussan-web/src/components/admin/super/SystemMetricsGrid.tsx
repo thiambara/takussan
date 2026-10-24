@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { DataState, StatCard } from '@/components/console';
 import { useFormatteurs, type Formatteurs } from '@/lib/format/useFormatteurs';
 import { fetchSystemMetrics } from '@/lib/queries/super-admin';
+import { CLE_METRIQUES_SYSTEME } from '@/lib/queries/accueil-console-cles';
 import type { SystemMetrics, SystemMetricsResponse } from '@/types/super-admin';
 import type { ApiError } from '@/lib/api';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
@@ -69,7 +70,7 @@ export function SystemMetricsGrid() {
   const fmt = useFormatteurs();
   const messageErreur = useMessageErreurApi();
   const { data, isPending, isError, error } = useQuery<SystemMetricsResponse, ApiError>({
-    queryKey: ['super-admin', 'system-metrics'],
+    queryKey: CLE_METRIQUES_SYSTEME,
     queryFn: fetchSystemMetrics,
     staleTime: 30_000,
   });

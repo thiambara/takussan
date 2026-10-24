@@ -12,6 +12,8 @@ use App\Models\Integration;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\User;
 use App\Services\Membership\AgencyRoleService;
+use App\Services\Membership\AgencySystemRoleSeeder;
+use App\Services\Notifications\NotificationRenderer;
 use App\Services\Payout\PayoutApprovalThreshold;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
@@ -87,6 +89,41 @@ class GovernanceAlertTest extends ApiTestCase
         $this->assertStringContainsString('Awa', $notification->body);
     }
 
+    /**
+     * P164.04 (TCK-1808) — un rôle système est rangé par son code (`base_profile_type`) et rendu
+     * dans la langue du destinataire, jamais par son nom français rangé ; un rôle créé garde son nom.
+     */
+    public function test_un_role_systeme_est_nomme_dans_la_langue_du_destinataire(): void
+    {
+        $role = app(AgencySystemRoleSeeder::class)->systemRoleFor((int) $this->agency->id, AgencyRoleBaseType::AgencyAdmin);
+        AppNotification::query()->delete();
+
+        app(AgencyRoleService::class)->replaceCapabilities($role, [Capability::CrmExport]);
+
+        $notification = AppNotification::query()->where('user_id', $this->collegue->id)
+            ->where('code', NotificationCode::GovernanceRoleCapabilitiesChanged->value)->sole();
+        $this->assertSame('agency_admin', $notification->params['role']);
+        $this->assertStringNotContainsString('Administrateur', $notification->body);
+        $this->assertStringContainsString('agency administrator', $notification->body);
+        $this->assertStringContainsString(
+            "administrateur d'agence",
+            app(NotificationRenderer::class)->render(NotificationCode::GovernanceRoleCapabilitiesChanged, $notification->params, 'fr'),
+        );
+    }
+
+    public function test_un_role_cree_garde_son_nom_dans_l_avis(): void
+    {
+        $role = app(AgencyRoleService::class)->create($this->agency, ['name' => 'Comptable', 'base_profile_type' => AgencyRoleBaseType::AgencyAdmin->value]);
+        AppNotification::query()->delete();
+
+        app(AgencyRoleService::class)->replaceCapabilities($role, [Capability::CrmExport]);
+
+        $notification = AppNotification::query()->where('user_id', $this->collegue->id)
+            ->where('code', NotificationCode::GovernanceRoleCapabilitiesChanged->value)->sole();
+        $this->assertSame('Comptable', $notification->params['role']);
+        $this->assertStringContainsString('the role Comptable', $notification->body);
+    }
+
     /** TCK-1318 (P126.05) — un admin actif au compte bloqué n'est pas averti. */
     public function test_un_admin_au_compte_bloque_n_est_pas_averti(): void
     {
@@ -134,7 +171,9 @@ class GovernanceAlertTest extends ApiTestCase
         $this->assertSame(0, $this->recus(NotificationCode::GovernanceIntegrationChanged)[$this->auteur->id]);
         $this->assertSame(0, $this->recus(NotificationCode::GovernanceIntegrationChanged)[$this->ailleurs->id]);
         foreach (AppNotification::query()->where('user_id', $this->collegue->id)->get() as $notification) {
-            $this->assertStringContainsString('wave', $notification->body);
+            // P164.01 (TCK-1468) — le code est rangé, le libellé est rendu.
+            $this->assertSame('wave', $notification->params['provider']);
+            $this->assertStringContainsString('Wave', $notification->body);
         }
     }
 
@@ -148,7 +187,7 @@ class GovernanceAlertTest extends ApiTestCase
         $this->postJson("/api/integrations/{$integration->id}/webhook-endpoint")->assertOk();
 
         $this->seulLeCollegue(NotificationCode::GovernanceIntegrationChanged);
-        $this->assertStringContainsString('wave', AppNotification::query()->where('user_id', $this->collegue->id)->sole()->body);
+        $this->assertStringContainsString('Wave', AppNotification::query()->where('user_id', $this->collegue->id)->sole()->body);
     }
 
     /** Une écriture sans auteur (seeder, commande) n'est pas un acte de membre : aucune alerte. */
@@ -169,5 +208,22 @@ class GovernanceAlertTest extends ApiTestCase
         );
 
         $this->seulLeCollegue(NotificationCode::GovernanceApprovalThresholdChanged);
+    }
+
+    /**
+     * TCK-1763 (P161.05) — une alerte de gouvernance ouvre `/app/agency/audit`, page réservée aux
+     * agences `standard` : un espace `individual` n'en reçoit aucune, comme `ReviewNotifier::toModerate`.
+     */
+    public function test_une_agence_individuelle_n_avertit_personne(): void
+    {
+        $espace = Agency::factory()->individual()->create();
+        $second = User::factory()->create();
+        AgencyAdminProfile::factory()->create(['user_id' => $second->id, 'agency_id' => $espace->id]);
+        AppNotification::query()->delete();
+
+        activity('export')->causedBy($this->auteur)->event('data_exported')
+            ->withProperties(['entity' => 'customers', 'agency_id' => $espace->id])->log('data_exported');
+
+        $this->assertSame(0, AppNotification::query()->where('user_id', $second->id)->count());
     }
 }

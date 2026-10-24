@@ -184,6 +184,14 @@ class LeaseRenewalService
             // à son activation par signature. Pas de `LeaseActivated` ici (coordination TCK-595).
             if ($childStatus === LeaseStatus::Active) {
                 GenerateLeasePaymentSchedule::dispatch($child->fresh())->afterCommit();
+                // P140.01 (TCK-1788) — sans signature à recueillir, le contrat se fige ici, comme
+                // la voie papier : en dernier, pour qu'aucune étape ne puisse encore refuser après
+                // l'écriture du fichier (M-F). Seulement quand l'enfant a ses termes d'exécution
+                // (hérités d'un parent figé, ou renégociés) : celui d'un parent antérieur reste nul
+                // et suit le réglage (ADR-0042 §1), son contrat reste rendu à la volée.
+                if ($child->early_termination_penalty_months !== null && $child->rent_review_max_pct !== null) {
+                    app(LeaseSignatureService::class)->freezeRenewal($child);
+                }
             }
 
             return $child->fresh();
@@ -414,15 +422,17 @@ class LeaseRenewalService
         }
     }
 
+    /**
+     * TCK-1804 (P162.07) — un renouvellement encore ouvert arrête le suivant : les baux « en cours »
+     * de `Lease::OPEN_STATUSES` (préavis compris, le loyer y reste dû), plus le brouillon. Sans
+     * `terminating`, un second renouvellement d'un parent `expired` passait pendant le préavis du
+     * premier, et deux baux couraient sur le même bien.
+     */
     protected function guardNoActiveChild(Lease $parent): void
     {
         $activeChild = Lease::query()
             ->where('renewed_from_lease_id', $parent->id)
-            ->whereIn('status', [
-                LeaseStatus::Active->value,
-                LeaseStatus::PendingSignature->value,
-                LeaseStatus::Draft->value,
-            ])
+            ->whereIn('status', [...Lease::OPEN_STATUSES, LeaseStatus::Draft->value])
             ->exists();
 
         if ($activeChild) {

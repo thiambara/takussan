@@ -61,12 +61,17 @@ class AgentHandoverController extends Controller
      * ou admin d'agence dans l'agence, de tout statut (un agent suspendu se passe aussi). Même test
      * que le retrait (`AgencyMemberRemovalService`). La passation d'un bailleur transmettait sa
      * co-propriété à un agent.
+     *
+     * TCK-1715 (P153.07) — un profil supprimé en douceur compte (`withTrashed()`) : l'ANCIEN membre
+     * de l'équipe, retiré en `leave_unassigned`, s'inventorie et se passe encore, pour que l'agence
+     * reprenne ce qu'elle a assumé. Le bailleur reste refusé : seuls les profils agent et admin
+     * comptent.
      */
     private function refuseNonStaff(Agency $agency, User $user): void
     {
         $agencyId = (int) $agency->id;
-        if ($user->agentProfiles()->where('agency_id', $agencyId)->exists()
-            || $user->agencyAdminProfiles()->where('agency_id', $agencyId)->exists()) {
+        if ($user->agentProfiles()->withTrashed()->where('agency_id', $agencyId)->exists()
+            || $user->agencyAdminProfiles()->withTrashed()->where('agency_id', $agencyId)->exists()) {
             return;
         }
 

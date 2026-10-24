@@ -2,7 +2,9 @@
 
 namespace Tests\Feature\Api;
 
+use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\PaymentStatus;
+use App\Models\LeasePayment;
 use App\Services\Export\ExportDataService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
@@ -28,7 +30,7 @@ class LeasePaymentResourceContractTest extends TestCase
         'paid_amount', 'remaining_amount', 'refund_amount',
         'late_fee_amount', 'late_fee_applied_at', 'late_fee_paid_at',
         'late_fee_outstanding', 'late_fee_payable_online', 'amount_due', 'receipt_available',
-        'notes', 'created_at',
+        'is_overdue', 'notes', 'created_at',
     ];
 
     public function test_les_cles_de_la_ressource_sont_exactement_celles_du_contrat(): void
@@ -144,5 +146,48 @@ class LeasePaymentResourceContractTest extends TestCase
 
         $this->getJson("/api/leases/{$ctx['lease']->id}/payments")->assertOk()
             ->assertJsonPath('data.0.amount_due', 150000);
+    }
+
+    /**
+     * TCK-1831 (P183.01) — `is_overdue` suit la règle de `scopeOverdue` : `late`, ou
+     * `pending`/`partially_paid` dû AVANT aujourd'hui. L'échéance du jour n'est pas en retard (la
+     * première relance part à J+1), et une restitution de caution ne l'est jamais : c'est l'agence
+     * qui la doit (features.md, TCK-595).
+     */
+    public function test_is_overdue_suit_la_regle_de_scope_overdue(): void
+    {
+        $this->travelTo('2026-10-23 09:00:00');
+        $ctx = $this->leaseDue(null, ['status' => PaymentStatus::Late, 'due_date' => '2026-10-10']);
+        Sanctum::actingAs($ctx['tenant']);
+
+        $ligne = fn (array $attrs) => LeasePayment::factory()->create(array_merge([
+            'lease_id' => $ctx['lease']->id,
+            'payer_id' => $ctx['payment']->payer_id,
+            'amount' => 150_000,
+            'payment_type' => LeasePaymentType::Rent,
+            'late_fee_amount' => null,
+            'late_fee_applied_at' => null,
+            'paid_at' => null,
+        ], $attrs))->id;
+
+        $attendu = [
+            $ctx['payment']->id => true,
+            $ligne(['status' => PaymentStatus::Pending, 'due_date' => '2026-10-23']) => false,
+            $ligne(['status' => PaymentStatus::Pending, 'due_date' => '2026-10-22']) => true,
+            $ligne(['status' => PaymentStatus::Pending, 'due_date' => '2026-10-24']) => false,
+            $ligne(['status' => PaymentStatus::PartiallyPaid, 'due_date' => '2026-10-22']) => true,
+            $ligne(['status' => PaymentStatus::Paid, 'due_date' => '2026-10-22', 'paid_at' => '2026-10-21 10:00:00']) => false,
+            $ligne(['status' => PaymentStatus::Cancelled, 'due_date' => '2026-10-01']) => false,
+            $ligne(['status' => PaymentStatus::Pending, 'due_date' => '2026-10-01', 'payment_type' => LeasePaymentType::DepositRefund]) => false,
+            $ligne(['status' => PaymentStatus::Late, 'due_date' => '2026-10-01', 'payment_type' => LeasePaymentType::DepositRefund]) => false,
+        ];
+
+        $rendu = collect($this->getJson("/api/leases/{$ctx['lease']->id}/payments")->assertOk()->json('data'))
+            ->mapWithKeys(fn (array $row) => [$row['id'] => $row['is_overdue']])
+            ->all();
+
+        foreach ($attendu as $id => $enRetard) {
+            $this->assertSame($enRetard, $rendu[$id] ?? 'absente', "échéance {$id}");
+        }
     }
 }

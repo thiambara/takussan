@@ -38,9 +38,12 @@ class AgencyUpgradeRejectedNotification extends Notification implements ShouldQu
         $comment = $this->upgradeRequest->review_comment ?? '';
 
         return (new MailMessage)
+            // P155.05 (TCK-1441) — les formules du dépôt, plus celles du gabarit de Laravel.
+            ->greeting(__('notifications.greeting'))
             ->subject(__('agency_upgrade.notifications.rejected.subject'))
             ->line(__('agency_upgrade.notifications.rejected.body', ['comment' => $comment]))
-            ->action(__('agency_upgrade.notifications.rejected.action'), $resubmitUrl);
+            ->action(__('agency_upgrade.notifications.rejected.action'), $resubmitUrl)
+            ->salutation(__('notifications.salutation'));
     }
 
     /**

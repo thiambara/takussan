@@ -105,3 +105,16 @@ describe('i18n public namespaces (TCK-159)', () => {
     expect(haystack).not.toContain(forbidden);
   });
 });
+
+/** TCK-1451 (P159.04) — l'unité française « Mo » n'a rien à faire dans la traduction anglaise. */
+describe('en : unités de taille', () => {
+  function feuilles(tree: unknown, chemin = ''): Array<[string, string]> {
+    if (typeof tree === 'string') return [[chemin, tree]];
+    if (!tree || typeof tree !== 'object') return [];
+    return Object.entries(tree).flatMap(([k, v]) => feuilles(v, chemin ? `${chemin}.${k}` : k));
+  }
+
+  it('aucun texte anglais n\'écrit une taille en « Mo »', () => {
+    expect(feuilles(en).filter(([, texte]) => /(\d|\})\s*Mo\b/.test(texte)).map(([cle]) => cle)).toEqual([]);
+  });
+});

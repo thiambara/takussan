@@ -221,6 +221,8 @@ export function AnonymousLeadDialog({
               onChange={(e) => setMessage(e.target.value)}
               placeholder={t('messagePlaceholder')}
               required
+              // TCK-1491 — la borne de l'API (`ContactLeadPublicRequest`, max:2000).
+              maxLength={2000}
             />
             {errors.message && <p className="mt-1 text-xs text-destructive">{errors.message}</p>}
           </div>

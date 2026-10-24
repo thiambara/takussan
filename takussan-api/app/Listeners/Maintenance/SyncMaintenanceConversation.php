@@ -34,7 +34,10 @@ class SyncMaintenanceConversation
 
     public function handle(MaintenanceStatusChanged $event): void
     {
-        $mr = $event->maintenanceRequest->loadMissing(['property', 'assignee', 'requester']);
+        // TCK-1756 (P154.01) — `assignee` RELUE, jamais `loadMissing` : l'instance de l'événement a
+        // pu charger la relation avant que `assigned_to` change, et le fil gardait alors l'ancien
+        // prestataire (et remettait celui qui refuse).
+        $mr = $event->maintenanceRequest->loadMissing(['property', 'requester'])->load('assignee');
         $conversation = self::conversationFor($mr);
 
         if ($conversation === null) {

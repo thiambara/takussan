@@ -145,7 +145,8 @@ describe('agency-queues — les comptes de file (TCK-375)', () => {
     await expect(fetchPendingInvitationsCount('jeton')).resolves.toBe(3);
 
     const params = urlAppelee();
-    expect(params.get('filter[status]')).toBe('sent');
+    // TCK-1517 — la règle de la section des invitations de l'équipe, expirées comprises.
+    expect(params.get('filter[status]')).toBe('sent,expired');
     expect(params.get('fields[invitations]')).toBe('id');
     expect(params.get('per_page')).toBe('1');
     // La portée vient du profil actif côté serveur — c'est la frontière d'isolation.

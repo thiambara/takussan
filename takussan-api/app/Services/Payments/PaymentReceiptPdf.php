@@ -4,6 +4,7 @@ namespace App\Services\Payments;
 
 use App\Models\BookingPayment;
 use App\Services\Pdf\DocumentPdfService;
+use App\Services\Pdf\PrintedIdentity;
 
 /**
  * TCK-172 — quittance PDF d'un paiement de réservation acquitté.
@@ -44,6 +45,12 @@ class PaymentReceiptPdf
     public function forBookingPayment(BookingPayment $payment): string
     {
         $payment->loadMissing(['booking.property.address', 'booking.customer', 'booking.agency']);
+        // P140.02 (TCK-1792) — les identités du jour du règlement, quand le paiement les a figées.
+        ['customer' => $customer, 'property' => $property, 'agency' => $agency] = PrintedIdentity::restore($payment->metadata, [
+            'customer' => $payment->booking?->customer,
+            'property' => $payment->booking?->property,
+            'agency' => $payment->booking?->agency,
+        ]);
 
         return $this->documents->render('pdf.receipts.booking', [
             'reference' => $payment->receipt_number ?? $payment->reference_number,
@@ -52,9 +59,9 @@ class PaymentReceiptPdf
             'paid_at' => $payment->paid_at,
             'method' => $payment->payment_method?->value,
             'type' => $payment->payment_type?->value,
-            'property' => $payment->booking?->property,
-            'customer' => $payment->booking?->customer,
-            'agency' => $payment->booking?->agency,
+            'property' => $property,
+            'customer' => $customer,
+            'agency' => $agency,
             'context_label' => 'Réservation #'.($payment->booking?->reference_number ?? $payment->booking_id),
             'title' => 'Quittance de paiement',
             'document_label' => 'Quittance',

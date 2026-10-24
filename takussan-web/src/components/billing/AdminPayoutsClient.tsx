@@ -12,6 +12,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { AgencyCombobox } from '@/components/admin/super/AgencyCombobox';
+import { Pagination } from '@/components/console/Pagination';
 import { fetchAdminPlatformPayouts } from '@/lib/queries/super-admin';
 import type { PlatformPayoutStatus } from '@/types/super-admin';
 import { PayoutCloseDialog } from './PayoutCloseDialog';
@@ -37,13 +38,16 @@ export function AdminPayoutsClient() {
   const [agencyFilter, setAgencyFilter] = useState('');
   const [status, setStatus] = useState<PlatformPayoutStatus | ''>('');
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  // TCK-1751 (P171.07) — 30 par page, et une page suivante : la 31ᵉ ligne ne s'atteignait pas.
+  const [page, setPage] = useState(1);
 
   const query = useQuery({
-    queryKey: ['super-admin', 'payouts', { agency: agencyFilter, status }],
+    queryKey: ['super-admin', 'payouts', { agency: agencyFilter, status, page }],
     queryFn: () =>
       fetchAdminPlatformPayouts({
         agencyId: agencyFilter ? Number(agencyFilter) : null,
         status: status || undefined,
+        page,
         perPage: 30,
       }),
   });
@@ -65,12 +69,18 @@ export function AdminPayoutsClient() {
         <CardContent className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-[260px_200px_1fr]">
           <AgencyCombobox
             value={agencyFilter}
-            onChange={setAgencyFilter}
+            onChange={(value) => {
+              setAgencyFilter(value);
+              setPage(1);
+            }}
             label={tFilters('agencyAria')}
           />
           <Select
             value={status || ALL_STATUS}
-            onValueChange={(value) => setStatus(value === ALL_STATUS ? '' : ((value ?? '') as PlatformPayoutStatus | ''))}
+            onValueChange={(value) => {
+              setStatus(value === ALL_STATUS ? '' : ((value ?? '') as PlatformPayoutStatus | ''));
+              setPage(1);
+            }}
             items={statuses}
           >
             <SelectTrigger className="w-full h-10" aria-label={tFilters('statusAria')}>
@@ -95,6 +105,8 @@ export function AdminPayoutsClient() {
         isLoading={query.isLoading}
         onSelect={(payout) => setSelectedId(payout.id)}
       />
+
+      <Pagination page={page} lastPage={query.data?.meta?.last_page ?? 1} onChange={setPage} />
 
       {selectedId !== null ? (
         <PayoutDetailPanel payoutId={selectedId} onClose={() => setSelectedId(null)} />

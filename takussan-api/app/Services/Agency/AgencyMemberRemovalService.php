@@ -4,7 +4,10 @@ namespace App\Services\Agency;
 
 use App\Exceptions\ApiError;
 use App\Models\Agency;
+use App\Models\Conversation;
+use App\Models\ConversationParticipant;
 use App\Models\Enums\RoleDelegationStatus;
+use App\Models\Lease;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Property;
 use App\Models\PropertyCollaborator;
@@ -95,6 +98,7 @@ class AgencyMemberRemovalService
 
             $this->feeds->revoke($member, $agencyId);
             $this->dropPrimaryMarks($member, $agencyId);
+            $this->leaveUnreadableLeaseThreads($member, $agencyId);
 
             activity('Membership')
                 ->causedBy($actor)
@@ -110,6 +114,32 @@ class AgencyMemberRemovalService
 
             return $removed;
         });
+    }
+
+    /**
+     * TCK-1711 (P153.04) — `ConversationAccess` n'a pas de branche « bail » : la participation y
+     * suffit. Le retrait fait donc quitter (`left_at`) au retiré les fils rattachés à un bail de
+     * l'agence dont il ne lit plus le bail (`LeasePolicy::view`, jugé APRÈS la suppression de ses
+     * profils). Le retiré qui reste partie au bail (bailleur, locataire) garde son fil ; les autres
+     * participants ne sont pas touchés.
+     */
+    private function leaveUnreadableLeaseThreads(User $member, int $agencyId): void
+    {
+        $retire = $member->fresh();
+        if ($retire === null) {
+            return;
+        }
+
+        ConversationParticipant::query()
+            ->where('user_id', $member->id)
+            ->whereNull('left_at')
+            ->whereIn('conversation_id', Conversation::query()
+                ->whereIn('lease_id', Lease::query()->where('agency_id', $agencyId)->select('id'))
+                ->select('id'))
+            ->with('conversation.lease')
+            ->get()
+            ->reject(fn (ConversationParticipant $p) => $p->conversation?->lease !== null && $retire->can('view', $p->conversation->lease))
+            ->each(fn (ConversationParticipant $p) => $p->forceFill(['left_at' => now()])->save());
     }
 
     /**

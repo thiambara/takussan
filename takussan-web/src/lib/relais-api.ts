@@ -70,7 +70,11 @@ export async function fetchVersApi(
   }
 }
 
-const EN_TETES_DE_REPONSE = ['content-type', 'content-disposition', 'cache-control'] as const;
+/**
+ * TCK-1816 (P108.04) — `location` : une redirection de l'API est rendue au navigateur, pas suivie
+ * (`redirect: 'manual'` ci-dessous).
+ */
+const EN_TETES_DE_REPONSE = ['content-type', 'content-disposition', 'cache-control', 'location'] as const;
 
 /**
  * TCK-894 (P41.02) — les en-têtes que tout relais propre à un visiteur envoie à l'API : ceux du
@@ -97,7 +101,10 @@ export async function enTetesDuRelais(request: Request): Promise<Record<string, 
  * - un délai, l’abandon d’une lecture et une réponse 502/504 JSON sur une API sans réponse
  *   (`fetchVersApi`, TCK-1219) ;
  * - un corps `null` sur 204/205/304 (TCK-848), et `content-type`, `content-disposition`,
- *   `cache-control` de la réponse.
+ *   `cache-control` et `location` de la réponse ;
+ * - TCK-1816 (P108.04) : une redirection de l'API n'est pas suivie (`redirect: 'manual'`) mais
+ *   rendue telle quelle, pour qu'une URL présignée soit suivie par le navigateur et que ses octets
+ *   ne traversent pas le serveur Next ; le corps de la réponse est relayé en flux, jamais tamponné.
  *
  * `cheminAmont` est le chemin de l'API SANS le préfixe `/api`, requête comprise (`/users/7?page=2`).
  */
@@ -115,7 +122,7 @@ export async function relayerVersApi(
   const contentType = request.headers.get('content-type');
   if (contentType) enTetes['Content-Type'] = contentType;
 
-  const init: RequestInit = { ...options.init, method: request.method, headers: enTetes };
+  const init: RequestInit = { ...options.init, method: request.method, headers: enTetes, redirect: 'manual' };
   if (!['GET', 'HEAD'].includes(request.method)) {
     init.body = await request.arrayBuffer();
   }
@@ -127,7 +134,7 @@ export async function relayerVersApi(
     if (valeur) enTetesReponse[nom] = valeur;
   }
 
-  return new NextResponse(statutSansCorps(amont.status) ? null : await amont.arrayBuffer(), {
+  return new NextResponse(statutSansCorps(amont.status) ? null : amont.body, {
     status: amont.status,
     headers: enTetesReponse,
   });

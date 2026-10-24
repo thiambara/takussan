@@ -7,7 +7,9 @@ import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import { CircleCheckBig, FileSearch, Play, RotateCcw, Trash2 } from 'lucide-react';
 
-import { DataState, DataTable, Pagination, StatCard, type DataTableColumn } from '@/components/console';
+import { DataState, StatCard } from '@/components/console';
+import { DataTable, type DataTableColumn } from '@/components/console/DataTable';
+import { Pagination } from '@/components/console/Pagination';
 import { EmptyState, ErrorState } from '@/components/feedback';
 import { Button } from '@/components/ui/button';
 import {

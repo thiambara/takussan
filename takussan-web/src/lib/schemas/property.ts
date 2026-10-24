@@ -181,12 +181,15 @@ export const propertyFormSchema = z.object({
     .max(180, msgValidation('property.longitudeInvalid'))
     .nullable()
     .optional(),
-  area: z.coerce
-    .number()
-    .int(msgValidation('property.areaInteger'))
-    .positive(msgValidation('property.areaPositive'))
-    .max(1_000_000, msgValidation('property.areaUnrealistic'))
-    .optional(),
+  // TCK-1485 (P149.04) — `nombreFacultatif` : un champ vidé rend `''`, que `z.coerce` lisait
+  // comme 0 → « la surface doit être positive », et une surface saisie ne se retirait plus.
+  area: nombreFacultatif(
+    z
+      .number()
+      .int(msgValidation('property.areaInteger'))
+      .positive(msgValidation('property.areaPositive'))
+      .max(1_000_000, msgValidation('property.areaUnrealistic')),
+  ),
   bedrooms: z.coerce
     .number()
     .int(msgValidation('property.integerExpected'))
@@ -204,7 +207,9 @@ export const propertyFormSchema = z.object({
     .number()
     .int(msgValidation('property.integerExpected'))
     .min(1800, msgValidation('property.yearInvalid'))
-    .max(2100, msgValidation('property.yearInvalid'))
+    // TCK-1491 (P145.03) — la borne de l'API (`StorePropertyRequest`, `UpdatePropertyRequest`) :
+    // l'année en cours + 3. 2100 laissait passer au formulaire ce que l'API refuse en 422.
+    .max(new Date().getFullYear() + 3, msgValidation('property.yearInvalid'))
     .optional(),
   parking_spaces: z.coerce
     .number()

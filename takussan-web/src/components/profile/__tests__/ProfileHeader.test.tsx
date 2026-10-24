@@ -17,6 +17,7 @@ vi.mock('@/app/actions/auth', () => ({
 const reduction = vi.hoisted(() => ({
   reduirePhoto: vi.fn(async (f: File) => f),
   reduirePhotos: vi.fn(async (fs: readonly File[]) => [...fs]),
+  reduirePhotoSousPlafond: vi.fn(async (f: File, _plafond: number) => f),
 }));
 vi.mock('@/lib/reduire-photo', () => reduction);
 
@@ -103,7 +104,7 @@ describe('<ProfileHeader>', () => {
   });
 
   it('TCK-542 — sends the avatar REDUCED in the browser, not as picked', async () => {
-    reduction.reduirePhoto.mockImplementationOnce(async (f) => reduite(f));
+    reduction.reduirePhotoSousPlafond.mockImplementationOnce(async (f) => reduite(f));
     const browserUser = userEvent.setup();
     const file = new File(['avatar'], 'avatar.png', { type: 'image/png' });
     updateProfileMock.mockResolvedValue({ ok: true, user });
@@ -116,6 +117,43 @@ describe('<ProfileHeader>', () => {
     await waitFor(() => expect(updateProfileMock).toHaveBeenCalled());
     const formData = updateProfileMock.mock.calls[0][0] as FormData;
     expect((formData.get('avatar') as File).name).toBe('reduite-avatar.png');
+  });
+
+  // TCK-1887 (P195.03) — la taille se juge APRÈS la réduction, comme `MediaDropzone` (TCK-596) :
+  // une photo de téléphone de 5 Mo qui tombe sous les 2 Mo de l'API une fois réduite n'est pas
+  // refusée, et c'est la version réduite qui part.
+  it('TCK-1887 — reduces a 5 MB photo under 2 MB before judging its size, and sends it reduced', async () => {
+    const lourde = new File([new Uint8Array(5 * 1024 * 1024)], 'telephone.jpg', { type: 'image/jpeg' });
+    const legere = new File([new Uint8Array(1024 * 1024)], 'telephone.jpg', { type: 'image/jpeg' });
+    reduction.reduirePhotoSousPlafond.mockImplementationOnce(async () => legere);
+    const browserUser = userEvent.setup();
+    updateProfileMock.mockResolvedValue({ ok: true, user });
+
+    renderHeader();
+    await browserUser.click(screen.getByRole('button', { name: 'Modifier le profil' }));
+    await browserUser.upload(screen.getByLabelText('Avatar'), lourde);
+
+    await waitFor(() => expect(screen.getByText('telephone.jpg')).toBeInTheDocument());
+    expect(reduction.reduirePhotoSousPlafond).toHaveBeenCalledWith(lourde, 2 * 1024 * 1024);
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+
+    await browserUser.click(screen.getByRole('button', { name: 'Enregistrer' }));
+    await waitFor(() => expect(updateProfileMock).toHaveBeenCalled());
+    const formData = updateProfileMock.mock.calls[0][0] as FormData;
+    expect(formData.get('avatar')).toBe(legere);
+  });
+
+  it('TCK-1887 — still refuses a photo that stays above 2 MB once reduced', async () => {
+    const lourde = new File([new Uint8Array(5 * 1024 * 1024)], 'panorama.jpg', { type: 'image/jpeg' });
+    reduction.reduirePhotoSousPlafond.mockImplementationOnce(async (f) => f);
+    const browserUser = userEvent.setup();
+
+    renderHeader();
+    await browserUser.click(screen.getByRole('button', { name: 'Modifier le profil' }));
+    await browserUser.upload(screen.getByLabelText('Avatar'), lourde);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/2 Mo/);
+    expect(screen.queryByText('panorama.jpg')).not.toBeInTheDocument();
   });
 
   it('rejects an invalid avatar file before submit', async () => {

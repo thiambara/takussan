@@ -18,7 +18,7 @@ class BankStatementLine extends AbstractModel implements HasAuditAgency
 
     protected $fillable = [
         'bank_statement_id', 'posted_at', 'amount', 'direction', 'currency',
-        'label', 'reference', 'counterparty', 'raw_payload',
+        'label', 'reference', 'counterparty', 'raw_payload', 'duplicate_of_line_id',
         'match_status', 'matched_payment_type', 'matched_payment_id',
         'match_confidence', 'confirmed_at', 'confirmed_by',
     ];
@@ -44,7 +44,7 @@ class BankStatementLine extends AbstractModel implements HasAuditAgency
 
     protected static array $queryFields = [
         'id', 'bank_statement_id', 'posted_at', 'amount', 'direction', 'currency',
-        'label', 'reference', 'counterparty', 'match_status',
+        'label', 'reference', 'counterparty', 'duplicate_of_line_id', 'match_status',
         'matched_payment_type', 'matched_payment_id', 'match_confidence',
         'confirmed_at', 'confirmed_by', 'created_at',
     ];
@@ -56,7 +56,9 @@ class BankStatementLine extends AbstractModel implements HasAuditAgency
 
     public function matchedPayment(): MorphTo
     {
-        return $this->morphTo('matched_payment');
+        // TCK-1522 (P110.02) — nommée comme sa méthode : `morphTo('matched_payment')` rangeait la
+        // relation chargée d'avance sous `matched_payment`, et `load('matchedPayment')` la laissait nulle.
+        return $this->morphTo(__FUNCTION__, 'matched_payment_type', 'matched_payment_id');
     }
 
     public function confirmedBy(): BelongsTo

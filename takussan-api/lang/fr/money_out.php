@@ -25,6 +25,7 @@ return [
         'net' => 'Net',
         'paid_out' => 'Reversé',
         'unpaid' => 'Impayés de la période',
+        'unpaid_as_of' => 'au :date',
         'payouts' => 'Reversements',
         'reference' => 'Référence',
         'date' => 'Date',

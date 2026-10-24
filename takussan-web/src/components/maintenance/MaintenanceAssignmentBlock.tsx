@@ -20,7 +20,9 @@ import { useAuth } from '@/context/AuthContext';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import {
   useAssignableProviders,
+  useAssignableStaff,
   useUpdateMaintenanceRequest,
+  type AssignableStaffMember,
 } from '@/lib/queries/maintenance';
 import type { ServiceProviderProfileSummary } from '@/lib/queries/service-providers';
 import type { MaintenanceRequest } from '@/types/maintenance';
@@ -44,6 +46,8 @@ export function MaintenanceAssignmentBlock({ request }: { readonly request: Main
   const messageErreur = useMessageErreurApi();
   const agencyId = request.property?.agency?.id ?? user?.agency_id ?? null;
   const providers = useAssignableProviders(agencyId, request.category);
+  // P120.03 — l'API accepte aussi le personnel joignable de l'agence : il est proposé à la suite.
+  const staff = useAssignableStaff(agencyId);
   const update = useUpdateMaintenanceRequest(request.id);
 
   const [assignee, setAssignee] = useState<string>(
@@ -53,7 +57,7 @@ export function MaintenanceAssignmentBlock({ request }: { readonly request: Main
   const [inviteOpen, setInviteOpen] = useState(false);
   const [saved, setSaved] = useState(false);
 
-  const options = providerOptions(providers.data?.data ?? [], request);
+  const options = providerOptions(providers.data?.data ?? [], staff.data?.data ?? [], request);
   const chosen = providers.data?.data.find((p) => String(p.user_id) === assignee);
   const unavailable = chosen && scheduledAt ? !worksOn(chosen, scheduledAt) : false;
 
@@ -150,11 +154,19 @@ export function MaintenanceAssignmentBlock({ request }: { readonly request: Main
 
 function providerOptions(
   profiles: readonly ServiceProviderProfileSummary[],
+  staff: readonly AssignableStaffMember[],
   request: MaintenanceRequest,
 ): { value: string; label: string; insured?: boolean }[] {
   const options: { value: string; label: string; insured?: boolean }[] = profiles
     .filter((p) => p.user_id !== null)
     .map((p) => ({ value: String(p.user_id), label: providerName(p), insured: p.insured === true }));
+
+  // P120.03 — le personnel, après le carnet ; un membre déjà présent comme prestataire n'est pas doublé.
+  for (const member of staff) {
+    if (options.some((o) => o.value === String(member.id))) continue;
+    const name = `${member.first_name ?? ''} ${member.last_name ?? ''}`.trim();
+    options.push({ value: String(member.id), label: name || String(member.id) });
+  }
 
   // L'assigné actuel reste sélectionnable même s'il n'est pas dans la page du carnet.
   if (request.assigned_to !== null && !options.some((o) => o.value === String(request.assigned_to))) {

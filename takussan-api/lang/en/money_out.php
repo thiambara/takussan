@@ -24,6 +24,7 @@ return [
         'net' => 'Net',
         'paid_out' => 'Paid out',
         'unpaid' => 'Unpaid for the period',
+        'unpaid_as_of' => 'as of :date',
         'payouts' => 'Payouts',
         'reference' => 'Reference',
         'date' => 'Date',

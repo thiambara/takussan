@@ -33,12 +33,12 @@ class AccountDeletionController extends Controller
         return $this->json([
             'data' => [
                 'id' => $deletionRequest->id,
-                'requested_at' => $deletionRequest->requested_at?->toIso8601String(),
-                'scheduled_for' => $deletionRequest->scheduled_for?->toIso8601String(),
+                'requested_at' => $this->instant($deletionRequest->requested_at),
+                'scheduled_for' => $this->instant($deletionRequest->scheduled_for),
                 'reason' => $deletionRequest->reason,
                 'reason_code' => $deletionRequest->reason_code,
                 'days_remaining' => $deletionRequest->daysRemaining(),
-                'executed_at' => $deletionRequest->executed_at?->toIso8601String(),
+                'executed_at' => $this->instant($deletionRequest->executed_at),
             ],
         ]);
     }
@@ -61,8 +61,8 @@ class AccountDeletionController extends Controller
         return $this->json([
             'data' => [
                 'id' => $deletionRequest->id,
-                'requested_at' => $deletionRequest->requested_at?->toIso8601String(),
-                'scheduled_for' => $deletionRequest->scheduled_for?->toIso8601String(),
+                'requested_at' => $this->instant($deletionRequest->requested_at),
+                'scheduled_for' => $this->instant($deletionRequest->scheduled_for),
                 'days_remaining' => $deletionRequest->daysRemaining(),
             ],
         ], 202);

@@ -177,6 +177,16 @@ class SavedSearchMatchesNotification extends Notification implements SupportsWha
         return false;
     }
 
+    /**
+     * P179.02 (TCK-1795) — un abonné sans compte n'a que WhatsApp (pas de cloche) : un échec sûr y
+     * lève, pour que `SendSavedSearchAlerts` rende la réservation. Un compte, non : sa cloche part
+     * quoi qu'il arrive, et lever rejouerait son e-mail au passage suivant.
+     */
+    public function throwsWhenWhatsappFails(object $notifiable): bool
+    {
+        return $notifiable instanceof AlertSubscriber;
+    }
+
     private function name(): string
     {
         $name = trim((string) $this->search->name);

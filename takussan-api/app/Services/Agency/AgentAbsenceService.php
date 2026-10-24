@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Rules\PersonnelDeLAgence;
 use App\Services\Membership\MembershipCapabilityResolver;
 use App\Services\Permissions\RoleDelegationService;
+use App\Support\FinInclusive;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -49,7 +50,8 @@ class AgentAbsenceService
         }
 
         $startsAt = isset($data['starts_at']) ? Carbon::parse($data['starts_at']) : null;
-        $endsAt = Carbon::parse($data['ends_at']);
+        // Une date seule vaut la fin du jour choisi, heure de Dakar, comme pour la délégation (TCK-1455).
+        $endsAt = Carbon::parse(FinInclusive::de($data['ends_at']));
         $isImmediate = $startsAt === null || now()->gte($startsAt);
 
         return DB::transaction(function () use ($agency, $actor, $absent, $substitute, $startsAt, $endsAt, $isImmediate, $data) {

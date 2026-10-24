@@ -467,7 +467,8 @@ function SpecializationStep({
       const res = await agentUpdateSpecializationAction(agentProfileId, {
         specialization: data.specialization.value as Specialization,
         intervention_zones: data.specialization.zones,
-        license_number: data.kyc.license_number || undefined,
+        // TCK-1779 (P149.05) — vidé, le numéro part en `null`, que l'API lit comme « effacer ».
+        license_number: data.kyc.license_number || null,
       });
       if (!res.ok) {
         toast.add({

@@ -3,13 +3,42 @@
 namespace App\Http\Resources;
 
 use App\Http\Resources\Bases\BaseResource;
+use App\Models\Agency;
 use App\Models\Document;
 use App\Services\Document\DocumentVersionService;
 use App\Services\Media\PrivateMediaAccess;
+use App\Services\Membership\MembershipCapabilityResolver;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\Request;
 
 class DocumentResource extends BaseResource
 {
+    /**
+     * P189.01 (TCK-1867) — une page de documents, avec ses `abilities` : le porteur est chargé une
+     * fois pour la page, et les profils de l'appelant dans les agences des porteurs jugés une fois
+     * ({@see MembershipCapabilityResolver::primed()}), sans quoi `DocumentPolicy` relirait le porteur
+     * et le statut du bailleur à chaque ligne.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public static function page(LengthAwarePaginator $paginator, Request $request): array
+    {
+        $documents = $paginator->getCollection();
+        if ($request->user() === null || $documents->isEmpty()) {
+            return self::collection($paginator)->toArray($request);
+        }
+
+        $documents->loadMissing('documentable');
+
+        return MembershipCapabilityResolver::primed(
+            [$request->user()->id],
+            $documents->map(fn (Document $document) => $document->documentable instanceof Agency
+                ? $document->documentable->id
+                : ($document->documentable?->agency_id ?? null)),
+            fn () => self::collection($paginator)->toArray($request),
+        );
+    }
+
     public function toArray(Request $request): array
     {
         /** @var Document $this */
@@ -55,6 +84,14 @@ class DocumentResource extends BaseResource
                 )->toArray($request)
                 : null,
             'created_at' => $this->iso($this->created_at),
+            // P189.01 (TCK-1867) — les gestes que `DocumentPolicy` accorde à l'appelant : la fiche et
+            // la bibliothèque n'ouvrent plus « Nouvelle version », « Restaurer », « Partager » et
+            // « Supprimer » par la seule identité du téléverseur (le bailleur suspendu les perd, TCK-587).
+            'abilities' => $this->when($request->user() !== null, fn (): array => [
+                'update' => $request->user()->can('update', $this->resource),
+                'share' => $request->user()->can('share', $this->resource),
+                'delete' => $request->user()->can('delete', $this->resource),
+            ]),
         ];
     }
 }

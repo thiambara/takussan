@@ -22,7 +22,9 @@ use Illuminate\Support\Facades\Notification;
  * row lock on the matched task, re-checks the marker inside the
  * transaction, and only dispatches if `metadata.reminder_24h_sent_at` is
  * still empty. This makes the job safe under parallel scheduler ticks
- * without relying on DB-specific JSON_SET semantics.
+ * without relying on DB-specific JSON_SET semantics. TCK-1529 (P169.02) — {@see Task} clears the
+ * marker whenever `due_at` or `assigned_to_id` changes: a postponed or reassigned task is reminded
+ * again, to whoever holds it.
  *
  * Window: tasks whose `due_at` falls in (now+23h, now+25h). We tolerate
  * a 2 h cone (instead of the 5-min cone used by visit reminders) because
@@ -39,7 +41,7 @@ class SendTaskDueReminders implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public const META_MARKER = 'reminder_24h_sent_at';
+    public const META_MARKER = Task::REMINDER_MARKER;
 
     private const WINDOW_FROM_HOURS = 23;
 

@@ -9,12 +9,13 @@ import { ArrowRight, ScrollText } from 'lucide-react';
 import { DataState } from '@/components/console';
 import { EmptyState } from '@/components/feedback';
 import { fetchAuditLog } from '@/lib/queries/super-admin';
+import { ACTIVITE_RECENTE_ENTREES, CLE_ACTIVITE_RECENTE } from '@/lib/queries/accueil-console-cles';
 import type { AuditLogEntry, AuditLogResponse } from '@/types/super-admin';
 import type { ApiError } from '@/lib/api';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
-/** Le bas de l'accueil : ce qui vient de se passer, pas ce qu'on peut y chercher. */
-const RECENT_ENTRIES = 5;
+// TCK-1828 — le nombre et la clé sont partagés avec la lecture serveur de l'accueil.
+const RECENT_ENTRIES = ACTIVITE_RECENTE_ENTREES;
 
 /**
  * TCK-360 — les cinq dernières entrées d'audit, en bas de l'accueil de la console.
@@ -33,7 +34,7 @@ export function ConsoleRecentActivity() {
   const messageErreur = useMessageErreurApi();
 
   const { data, isPending, isError, error } = useQuery<AuditLogResponse, ApiError>({
-    queryKey: ['super-admin', 'audit', 'recent', RECENT_ENTRIES],
+    queryKey: CLE_ACTIVITE_RECENTE,
     queryFn: () => fetchAuditLog({ perPage: RECENT_ENTRIES }),
     staleTime: 30_000,
   });

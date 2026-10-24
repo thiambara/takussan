@@ -71,7 +71,19 @@ export type KycUploaderProps = {
   i18nNamespace?: string;
 };
 
-const ACCEPT = 'image/*,application/pdf';
+/**
+ * Types offered by the KYC file picker: exactly `AcceptedUploads::KYC_MIMETYPES`
+ * (takussan-api). `image/*` let a GIF or an AVIF through, refused in 422.
+ * Kept in sync by `accept-des-televersements.parity.tck-1888.test.tsx`.
+ */
+export const KYC_MIME_ACCEPT = [
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/heic',
+  'image/heif',
+  'application/pdf',
+].join(',');
 const MAX_BYTES = 8 * 1024 * 1024; // mirrors the backend max:8192 (KB)
 
 export function KycUploader({
@@ -198,7 +210,7 @@ export function KycUploader({
       <input
         ref={inputRef}
         type="file"
-        accept={ACCEPT}
+        accept={KYC_MIME_ACCEPT}
         className="sr-only"
         onChange={handleChange}
       />

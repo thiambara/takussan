@@ -11,6 +11,7 @@ use App\Models\Enums\PaymentStatus;
 use App\Services\Payments\PaymentGatewayService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -82,6 +83,47 @@ class LeasePayment extends AbstractModel implements HasAuditAgency
         $fee = (float) ($this->late_fee_amount ?? 0);
 
         return $fee > 0 && $this->late_fee_paid_at === null ? round($fee, 2) : 0.0;
+    }
+
+    /**
+     * TCK-1831 (P183.01) — l'échéance est-elle en retard, à la règle de `scopeOverdue` : `late`, ou
+     * `pending`/`partially_paid` dont la date d'échéance est AVANT aujourd'hui. L'échéance du jour
+     * n'est pas en retard (la première relance part à J+1, `SendLeasePaymentReminders`). Une
+     * restitution de caution ne l'est jamais : c'est l'agence qui la doit, pas le locataire
+     * (features.md, TCK-595). Servie par `LeasePaymentResource`, pour que le front ne refasse pas
+     * la comparaison à l'horloge du navigateur.
+     */
+    public function isOverdue(): bool
+    {
+        if ($this->payment_type === LeasePaymentType::DepositRefund) {
+            return false;
+        }
+
+        if ($this->status === PaymentStatus::Late) {
+            return true;
+        }
+
+        return in_array($this->status, [PaymentStatus::Pending, PaymentStatus::PartiallyPaid], true)
+            && $this->due_date !== null
+            && $this->due_date->toDateString() < now()->toDateString();
+    }
+
+    /**
+     * P140.02 (TCK-1792) — les identités que la quittance imprime (`DocumentPdfController::
+     * streamRentReceipt`), lues aux mêmes sources, suppressions douces comprises.
+     *
+     * @return array<string, Model|null>
+     */
+    public function printedIdentityRoles(): array
+    {
+        $lease = Lease::withTrashed()->with([
+            'property' => fn ($q) => $q->withTrashed(),
+            'property.address',
+            'tenant' => fn ($q) => $q->withTrashed(),
+            'agency',
+        ])->find($this->lease_id);
+
+        return ['tenant' => $lease?->tenant, 'property' => $lease?->property, 'agency' => $lease?->agency];
     }
 
     public function lease(): BelongsTo

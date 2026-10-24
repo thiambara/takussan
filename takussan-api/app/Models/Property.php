@@ -9,6 +9,7 @@ use App\Models\Bases\AbstractModel;
 use App\Models\Bases\Auditable;
 use App\Models\Enums\AgencyStatus;
 use App\Models\Enums\BoostBadge;
+use App\Models\Enums\CollaboratorRole;
 use App\Models\Enums\ContractType;
 use App\Models\Enums\Currency;
 use App\Models\Enums\PropertyCondition;
@@ -32,6 +33,7 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Relations\MorphOne;
 use Illuminate\Database\Eloquent\Relations\MorphToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Laravel\Scout\ModelObserver;
 use Laravel\Scout\Searchable;
@@ -538,13 +540,19 @@ class Property extends AbstractModel implements HasMedia
      * TCK-1101 (P90.06) — elle suit la synchronisation des modèles, comme `GeoReindexation` et
      * `BoostLifecycle::writeProperty` : coupée (suite hors recherche, seed sous moteur coupé), elle
      * ne fait rien.
+     *
+     * TCK-1452 (P90.02) — l'écriture attend le commit de la transaction ouverte, s'il y en a une
+     * (`DB::afterCommit()` exécute sur-le-champ hors transaction) : sous `SCOUT_QUEUE=false`, un
+     * appel explicite écrivait dans Meilisearch aussitôt, et une transaction annulée ensuite
+     * laissait l'index dire ce que la base ne disait pas. `SCOUT_AFTER_COMMIT` ne règle que
+     * l'observateur de Scout, jamais ces appels.
      */
     public function reindexer(): void
     {
         if (ModelObserver::syncingDisabledFor(self::class)) {
             return;
         }
-        $this->shouldBeSearchable() ? $this->searchable() : $this->unsearchable();
+        DB::afterCommit(fn () => $this->shouldBeSearchable() ? $this->searchable() : $this->unsearchable());
     }
 
     /**
@@ -555,6 +563,26 @@ class Property extends AbstractModel implements HasMedia
     public function agencyIsPublic(): bool
     {
         return $this->agency_id === null || $this->agency?->status === AgencyStatus::Active;
+    }
+
+    /**
+     * TCK-595 (ADR-0049), TCK-1735 (P167.05) — les biens de l'agent, sous « Mes chiffres » : ceux
+     * qu'il a saisis (`user_id`) ou qu'il suit en collaborateur `agent|manager`, dans son agence
+     * active quand il en a une. Le tableau de bord de l'agent les compte, et le filtre
+     * `managed_by=me` des réservations les lit : les deux ne peuvent pas diverger.
+     *
+     * @param  Builder<Property>  $query
+     * @return Builder<Property>
+     */
+    public function scopeManagedBy(Builder $query, User $agent, ?int $agencyId): Builder
+    {
+        return $query
+            ->when($agencyId !== null, fn ($q) => $q->where($q->qualifyColumn('agency_id'), $agencyId))
+            ->where(fn ($q) => $q->where($q->qualifyColumn('user_id'), $agent->id)
+                ->orWhereIn($q->qualifyColumn('id'), PropertyCollaborator::query()
+                    ->select('property_id')
+                    ->where('user_id', $agent->id)
+                    ->whereIn('role', [CollaboratorRole::Agent->value, CollaboratorRole::Manager->value])));
     }
 
     /** TCK-600 (ADR-0048) — {@see agencyIsPublic()}, en requête. */

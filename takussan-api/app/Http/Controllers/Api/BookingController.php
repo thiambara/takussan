@@ -53,20 +53,14 @@ class BookingController extends Controller
         abort_code_if($property === null, 403, 'booking.property_unavailable');
         $booking = $this->bookings->create($property, $request->user(), $data);
 
-        return $this->json([
-            'data' => BookingResource::make($booking->load(['property', 'customer', 'agency']))->resolve($request),
-        ], 201);
+        return $this->json(['data' => $this->presenter($request, $booking)], 201);
     }
 
     public function show(Request $request, Booking $booking): JsonResponse
     {
         $this->authorize('view', $booking);
 
-        $data = BookingResource::make($booking->load(['property.address', 'customer', 'payments']))->resolve($request);
-        // TCK-596 — le geste de remboursement ne s'affiche qu'à qui peut le faire aboutir.
-        $data['can_refund'] = BookingMoneyAccess::canRefund($request->user(), $booking);
-
-        return $this->json(['data' => $data]);
+        return $this->json(['data' => $this->presenter($request, $booking)]);
     }
 
     public function confirm(Request $request, Booking $booking): JsonResponse
@@ -75,9 +69,7 @@ class BookingController extends Controller
         $this->authorize('validate', $booking);
         $booking = $this->bookings->confirm($booking);
 
-        return $this->json([
-            'data' => BookingResource::make($booking)->resolve($request),
-        ]);
+        return $this->json(['data' => $this->presenter($request, $booking)]);
     }
 
     public function cancel(CancelBookingRequest $request, Booking $booking): JsonResponse
@@ -87,9 +79,7 @@ class BookingController extends Controller
 
         $booking = $this->bookings->cancel($booking, $request->user(), $data['reason'] ?? null);
 
-        return $this->json([
-            'data' => BookingResource::make($booking)->resolve($request),
-        ]);
+        return $this->json(['data' => $this->presenter($request, $booking)]);
     }
 
     public function reject(RejectBookingRequest $request, Booking $booking): JsonResponse
@@ -99,8 +89,23 @@ class BookingController extends Controller
 
         $booking = $this->bookings->reject($booking, $data['reason'] ?? null, $request->user());
 
-        return $this->json([
-            'data' => BookingResource::make($booking)->resolve($request),
-        ]);
+        return $this->json(['data' => $this->presenter($request, $booking)]);
+    }
+
+    /**
+     * ADR-0071 (TCK-1509, P95.03) — le seul chemin de présentation d'une réservation : le `show`
+     * et les écritures (`store`, `confirm`, `cancel`, `reject`) rendent la même forme. Chaque
+     * auteur d'une écriture est lecteur du `show` (`BookingPolicy` : créateur, bailleur, personnel
+     * de l'agence, client), donc rien n'est montré à qui ne le lisait pas déjà.
+     *
+     * @return array<string, mixed>
+     */
+    private function presenter(Request $request, Booking $booking): array
+    {
+        $data = BookingResource::make($booking->load(['property.address', 'customer', 'payments']))->resolve($request);
+        // TCK-596 — le geste de remboursement ne s'affiche qu'à qui peut le faire aboutir.
+        $data['can_refund'] = BookingMoneyAccess::canRefund($request->user(), $booking);
+
+        return $data;
     }
 }

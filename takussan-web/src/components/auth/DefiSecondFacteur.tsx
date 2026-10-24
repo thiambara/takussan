@@ -6,7 +6,7 @@ import { useTranslations } from 'next-intl';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { FormGlobalError } from '@/components/forms';
+import { FormGlobalError } from '@/components/forms/FormError';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
 export type PreuveSecondFacteur = { two_factor_code: string } | { recovery_code: string };

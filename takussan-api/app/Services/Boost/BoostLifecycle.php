@@ -16,7 +16,6 @@ use App\Services\Credits\RefundPlan;
 use App\Services\Lead\ContactLeadService;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
-use Laravel\Scout\ModelObserver;
 
 /**
  * TCK-633 lot F (ADR-0061 §5, §8, §9) — le SEUL écrivain des projections d'un bien (`featured`,
@@ -227,10 +226,17 @@ final class BoostLifecycle
         $keys = array_keys($attributes);
         $property->forceFill($fresh->only($keys))->syncOriginalAttributes($keys);
 
-        if (! $changed || ModelObserver::syncingDisabledFor(Property::class)) {
-            return;
+        // TCK-1452 (P90.02) — `reindexer()` écrit l'index après le commit : l'achat, l'offre,
+        // l'annulation et la réconciliation d'un bien se jouent dans une transaction, et une
+        // annulation laissait l'index en avance sur la base.
+        //
+        // TCK-1454 (P90.04) — et son échec est rapporté, pas levé : la dépense, l'offre ou le
+        // remboursement sont validés, et un moteur injoignable ne doit ni les annuler ni les
+        // faire répondre 500. Le document reste périmé jusqu'à la prochaine écriture du bien.
+        // Le `rescue()` est DANS le rappel d'après commit : c'est là que l'écriture a lieu.
+        if ($changed) {
+            DB::afterCommit(fn () => rescue(fn () => $fresh->reindexer(), report: true));
         }
-        $fresh->shouldBeSearchable() ? $fresh->searchable() : $fresh->unsearchable();
     }
 
     /**

@@ -23,8 +23,8 @@ class SessionController extends Controller
             ->map(fn ($token) => [
                 'id' => $token->id,
                 'name' => $token->name,
-                'last_used_at' => $token->last_used_at?->toISOString(),
-                'created_at' => $token->created_at?->toISOString(),
+                'last_used_at' => $this->instant($token->last_used_at),
+                'created_at' => $this->instant($token->created_at),
                 'current' => $token->id === $currentId,
             ]);
 

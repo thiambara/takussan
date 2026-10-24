@@ -1,5 +1,6 @@
 import type { StatusTone } from '@/components/console';
 import type { FormSelectOption } from '@/components/forms/FormSelect';
+import type { CustomerStatus } from '@/types/customer';
 import {
   customerStatusValues,
   idTypeValues,
@@ -143,7 +144,7 @@ export const PIPELINE_STAGE_TONE: Readonly<Record<string, StatusTone>> = {
   lost: 'danger',
 };
 
-export const CUSTOMER_STATUS_TONE: Readonly<Record<string, StatusTone>> = {
+export const CUSTOMER_STATUS_TONE: Readonly<Record<CustomerStatus, StatusTone>> = {
   active: 'success',
   inactive: 'neutral',
   blocked: 'danger',

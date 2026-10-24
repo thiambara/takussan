@@ -21,7 +21,7 @@ use App\Models\Profiles\AgentProfile;
 use App\Models\User;
 use App\Services\Agency\AgencyMemberRemovalService;
 use App\Services\Billing\QuotaResolver;
-use App\Services\Invitation\InvitationService;
+use App\Services\Membership\ProfileMaterializer;
 use App\Services\Payout\PayoutApprovalThreshold;
 use App\Support\AgencyKindGuard;
 use Illuminate\Database\Eloquent\Builder;
@@ -121,7 +121,7 @@ class AgencyController extends Controller
             if ($data['slug'] === $agency->slug) {
                 unset($data['slug']);
             } else {
-                $agency->metadata = array_replace($agency->metadata ?? [], [Agency::SLUG_CHANGED_AT => now()->toIso8601String()]);
+                $agency->metadata = array_replace($agency->metadata ?? [], [Agency::SLUG_CHANGED_AT => $this->instant(now())]);
             }
         }
 
@@ -145,24 +145,6 @@ class AgencyController extends Controller
         return $this->json(['data' => AgencyResource::make($agency->refresh())->resolve($request)]);
     }
 
-    public function destroy(Request $request, Agency $agency): JsonResponse
-    {
-        $user = $request->user();
-        abort_unless(
-            $user->isSuperAdmin() || $agency->primary_admin_id === $user->id,
-            403
-        );
-        // destroy is intentionally restricted to super_admin and primary_admin_id — agency_admin can edit but not delete.
-
-        // P129.03 (TCK-1339) — ses invitations ouvertes tombent avec elle.
-        DB::transaction(function () use ($agency, $user): void {
-            app(InvitationService::class)->revokeOpenForAgency($agency, $user);
-            $agency->delete();
-        });
-
-        return $this->json(null, 204);
-    }
-
     /**
      * List members of an agency. Supports spatie/laravel-query-builder
      * filters (role, assignable, search) and sparse fieldsets.
@@ -174,7 +156,9 @@ class AgencyController extends Controller
      */
     public function listMembers(Request $request, Agency $agency): JsonResponse
     {
-        $this->authorizeAdmin($request, $agency);
+        if (! $request->user()->can('update', $agency)) {
+            return $this->listAssignableStaff($request, $agency);
+        }
 
         // TCK-142 — "members" of an agency are users with any agency-scoped
         // profile at that agency, replacing the old direct foreign-key filter
@@ -211,6 +195,32 @@ class AgencyController extends Controller
             'data' => UserResource::collection($paginator)->toArray($request),
             'meta' => $this->paginationMeta($paginator),
         ]);
+    }
+
+    /**
+     * P120.05 (TCK-1530) — `/members` pour qui n'administre pas l'agence mais y détient
+     * `crm.assign` (`AgencyPolicy::listAssignableStaff`) : les seules cibles qu'une attribution
+     * accepte (`filter[assignable]=1`, la règle de `PersonnelDeLAgence`), nom seul. Le filtre, les
+     * colonnes et l'absence d'`include` sont IMPOSÉS : la requête ne choisit que le tri et la page.
+     */
+    private function listAssignableStaff(Request $request, Agency $agency): JsonResponse
+    {
+        $this->authorize('listAssignableStaff', $agency);
+
+        $request->query->set('filter', ['assignable' => '1']);
+        $request->query->set('fields', ['users' => 'id,first_name,last_name']);
+        $request->query->remove('include');
+
+        $query = User::buildAgencyMembersQuery(User::query()->membreDe((int) $agency->id), $request, (int) $agency->id);
+        $query->defaultSort('first_name');
+
+        $paginator = $query->paginate($this->tailleDePage($request, 20));
+
+        return $this->paginated($paginator, $paginator->getCollection()->map(fn (User $user): array => [
+            'id' => $user->id,
+            'first_name' => $user->first_name,
+            'last_name' => $user->last_name,
+        ])->all());
     }
 
     public function addAgent(AddAgentAgencyRequest $request, Agency $agency): JsonResponse
@@ -263,14 +273,16 @@ class AgencyController extends Controller
         // un AgentProfile (le rôle de base d'un membre d'équipe) ; si le rôle
         // demandé est `agency_admin`, on matérialise aussi un AgencyAdminProfile
         // sur la même agence.
-        AgentProfile::query()->firstOrCreate(
+        ProfileMaterializer::materializeOrRestore(
+            AgentProfile::class,
             ['user_id' => $target->id, 'agency_id' => $agency->id],
             ['status' => AgentProfileStatus::Active->value],
         );
 
         $role = $data['role'] ?? 'agent';
         if ($role === 'agency_admin') {
-            AgencyAdminProfile::query()->firstOrCreate(
+            ProfileMaterializer::materializeOrRestore(
+                AgencyAdminProfile::class,
                 ['user_id' => $target->id, 'agency_id' => $agency->id],
                 ['status' => AgencyAdminProfileStatus::Active->value],
             );

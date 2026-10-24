@@ -6,6 +6,8 @@ import { useLocale, useTranslations } from 'next-intl';
 import { StatusBadge, type StatusTone } from '@/components/console';
 import { cn } from '@/lib/utils';
 import type { ModerationReview } from '@/lib/queries/reviews-moderation';
+import type { ReviewStatus } from '@/lib/queries/reviews';
+import { lireTable } from '@/lib/table-de-statut';
 
 interface ModerationQueueListProps {
   readonly reviews: ModerationReview[];
@@ -20,7 +22,7 @@ const STATUTS_CONNUS = new Set(['pending', 'reported', 'approved', 'rejected']);
  * un fond émeraude très clair de la palette brute, l'une des quatre recettes de « succès » de la console ; aucune n'était le
  * sage de la charte. La couleur se décide dans `StatusBadge`, une fois.
  */
-const STATUS_TONES: Record<string, StatusTone> = {
+const STATUS_TONES: Record<ReviewStatus, StatusTone> = {
   pending: 'attention',
   reported: 'danger',
   approved: 'success',
@@ -55,7 +57,7 @@ export function ModerationQueueList({
             >
               <div className="flex items-center gap-2">
                 <StatusBadge
-                  tone={STATUS_TONES[status] ?? 'neutral'}
+                  tone={lireTable(STATUS_TONES, status) ?? 'neutral'}
                   className="text-[10px] font-semibold uppercase tracking-wide"
                   label={STATUTS_CONNUS.has(status) ? t(`status.${status}`) : status}
                 />

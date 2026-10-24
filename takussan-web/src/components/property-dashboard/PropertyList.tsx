@@ -15,7 +15,7 @@ import {
   X,
 } from 'lucide-react';
 
-import { DataTable, type DataTableColumn } from '@/components/console';
+import { DataTable, type DataTableColumn } from '@/components/console/DataTable';
 import { useFloatingDockSlot } from '@/components/floating-dock';
 import { EmptyState } from '@/components/feedback';
 import { PropertyStatusBadge } from '@/components/property-dashboard/PropertyStatusBadge';

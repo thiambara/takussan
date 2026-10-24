@@ -10,6 +10,9 @@ import fr from '@/messages/fr.json';
 const useLeases = vi.fn();
 const useLeasePropertyOptions = vi.fn();
 
+// TCK-1513 — la liste lit `?status=` ; ici, aucune URL : le sélecteur ouvre sur « Tous ».
+vi.mock('next/navigation', () => ({ useSearchParams: () => new URLSearchParams() }));
+
 vi.mock('@/lib/queries/leases', () => ({
   useLeases: (...args: unknown[]) => useLeases(...args),
   useLeasePropertyOptions: (...args: unknown[]) => useLeasePropertyOptions(...args),

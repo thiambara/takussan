@@ -65,7 +65,7 @@ describe('fiche utilisateur — second facteur', () => {
       .mockRejectedValueOnce(refus())
       .mockResolvedValueOnce({ success: true, action_id: 1 });
     const garde = vi.fn().mockResolvedValue(true);
-    monter(<UserSupportActionsMenu userId={5} />, garde);
+    monter(<UserSupportActionsMenu userId={5} locked />, garde);
 
     await confirmerAvecMotif('Débloquer le compte');
 
@@ -78,7 +78,7 @@ describe('fiche utilisateur — second facteur', () => {
   it('un geste de support, garde abandonnée : pas de rejeu, et le refus s’affiche', async () => {
     vi.mocked(postUserSupportAction).mockRejectedValue(refus());
     const garde = vi.fn().mockResolvedValue(false);
-    monter(<UserSupportActionsMenu userId={5} />, garde);
+    monter(<UserSupportActionsMenu userId={5} locked />, garde);
 
     await confirmerAvecMotif('Débloquer le compte');
 

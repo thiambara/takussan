@@ -9,11 +9,17 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
+use Illuminate\Queue\Attributes\DeleteWhenMissingModels;
 
 /**
  * TCK-080 — confirms a user's deletion request, gives the effective date,
  * and points at the cancellation route ("changed your mind?").
+ *
+ * TCK-1750 (P166.01) — `#[DeleteWhenMissingModels]` : `cancelDeletion` supprime la demande pour de
+ * bon ; annulée avant le passage du worker, l'avis n'a plus d'objet et sort de la file sans échec
+ * (il levait `ModelNotFoundException` et laissait une ligne `failed_jobs`).
  */
+#[DeleteWhenMissingModels]
 class AccountDeletionRequestedNotification extends Notification implements ShouldQueue
 {
     use Queueable;

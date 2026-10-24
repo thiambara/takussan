@@ -240,6 +240,7 @@ const LEASE_PAYMENT_FIELDS: string[] = [
   'late_fee_payable_online',
   'amount_due',
   'receipt_available',
+  'is_overdue',
   'reference_number',
   'notes',
 ];
@@ -269,7 +270,7 @@ export async function fetchAllLeasePayments(
       // P100.05 (TCK-1186) — `fields` inerte : `LeasePaymentController::index` lit `sort` et `per_page` à la main
       // (TCK-1178), sans `buildQuery` (`LeasePayment::$queryFields` vide).
       fields: { lease_payments: LEASE_PAYMENT_FIELDS },
-      filter: { lease_id: leaseId },
+      // TCK-1842 (P186.03) — pas de `filter[lease_id]` : le bail vient de la route.
       sort: ['due_date'],
       page,
       per_page: LEASE_PAYMENTS_PER_PAGE,

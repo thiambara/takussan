@@ -80,7 +80,8 @@
     @endif
 
     @if (($statement['unpaid']['count'] ?? 0) > 0)
-        <p>{{ __('money_out.statement.unpaid') }} : {{ $statement['unpaid']['count'] }} — @currency($statement['unpaid']['amount'], $currency)</p>
+        {{-- P177.06 (TCK-1785) — les impayés sont jugés au jour du rendu : le relevé le dit. --}}
+        <p>{{ __('money_out.statement.unpaid') }}@if (! empty($statement['unpaid']['as_of'])) {{ __('money_out.statement.unpaid_as_of', ['date' => \Illuminate\Support\Carbon::parse($statement['unpaid']['as_of'])->format('d/m/Y')]) }}@endif : {{ $statement['unpaid']['count'] }} — @currency($statement['unpaid']['amount'], $currency)</p>
     @endif
 
     @if ($legal !== [])

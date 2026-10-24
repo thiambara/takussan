@@ -4,6 +4,7 @@
 - **Date** : 2026-09-21
 - **Tickets** : TCK-538, TCK-539, TCK-540, TCK-541
 - **Amendement du 2026-10-04 (TCK-585)** : les **photos de biens** ne passent plus par Transformations. Leurs conversions sont produites en WebP et servies telles quelles ; le §4 ne vaut plus que pour les autres images du seau public (avatars, logos, plans). Voir [§ Amendement du 2026-10-04](#amendement-du-2026-10-04--les-photos-de-biens-ne-passent-plus-par-transformations-tck-585).
+- **Amendement du 2026-10-23 (P180.02)** : la route signée `media.private.show` sert aussi une **conversion nommée** dans l'URL signée et propre à la collection (d'abord la `preview` des `room_photos` de l'état des lieux, puis les photos de maintenance), pour que les vignettes privées ne chargent plus l'original. Voir le § *Amendement du 2026-10-23 — la route signée sert aussi une conversion nommée*.
 - **Complète** : [ADR-0028](0028-auto-hebergement-conteneurise-sur-le-vps.md) §6-7 (le volume de médias et sa sauvegarde) ; **rend caduc** le choix de Bunny comme CDN par défaut de [`docs/infra/cdn.md`](../infra/cdn.md) (TCK-105), jamais activé (`CDN_ENABLED=false` partout).
 
 ## Contexte
@@ -207,3 +208,95 @@ L'écart accepté plus haut se confirme : la galerie est au poids de l'AVIF (35 
 une carte mobile paie +36 % (35 Ko contre 26). Le compte de transformations sur 30 jours ne se
 lit qu'au tableau de bord, et il ne baisse qu'en fenêtre glissante : il reste à relever, au plus
 tôt le 2026-11-04 (TCK-585, AC7). Détail de la bascule et des relevés : le ticket.
+
+## Amendement du 2026-10-23 — la route signée sert aussi une conversion nommée (P180.02)
+
+Décision du porteur du 2026-10-23, sur la piste P180.02 (angle 180 du fichier de pistes,
+`docs/plans/2026-10-15-pistes-d-amelioration.md`). Il précise le point 2 de la décision : comment
+un fichier privé sort par l'API. Relu sur `pre-dev` 4a12ba515.
+
+### Pourquoi
+
+Un fichier privé ne sort que par une URL d'API signée. `PrivateMediaAccess::signedUrl()` l'émet
+vers `media.private.show` (`GET /api/media/{media}/file`, `routes/api/media.php:22-24`), et
+`PrivateMediaController` y répond par `PrivateMediaAccess::redirect($media)`. Cette réponse est une
+URL présignée de 5 minutes vers **l'original**.
+
+**La route ne sait servir que l'original.** `MediaResource::conversionUrl()` le dit : « la route
+signée ne sert que l'original : une conversion privée n'a pas d'URL à exposer » (TCK-545).
+
+Conséquence relevée le 2026-10-23 :
+
+- **État des lieux.** `InventoryResource::roomPhotos()` sert l'original signé de chaque photo de
+  pièce (l. 126). `InventoryDetail.tsx` l'affiche dans une grille de 3 à 6 colonnes. La collection
+  a pourtant une conversion `preview` à 600 px (`Inventory::registerMediaConversions`,
+  `PdfImageEmbedder::MAX_WIDTH`, en file depuis TCK-1425). Seul le PDF la lit.
+- **Maintenance.** `MaintenanceRequestResource` sert de même l'original signé (l. 136).
+  `MaintenanceGallery.tsx` le pose en `<img src>` dans des tuiles carrées. Les trois requêtes de
+  photos acceptent jusqu'à 10 Mo par fichier (`max:10240`). `MaintenanceRequest` ne déclare aucune
+  conversion.
+
+Le téléphone d'un locataire ou d'un prestataire télécharge donc chaque photo entière, puis la
+décode en pleine résolution pour une tuile d'une centaine de pixels. C'est déduit du code, pas
+mesuré au navigateur.
+
+### Décision
+
+1. **`media.private.show` sert aussi une conversion nommée.** Le nom de la conversion fait partie
+   de l'URL signée : un paramètre couvert par la signature, qui ne se modifie donc pas sans la
+   casser. Sans ce paramètre, la route sert l'original, comme aujourd'hui.
+2. **La conversion servie est propre à la collection.** Une liste, tenue en code, nomme pour chaque
+   collection privée les conversions que la route peut servir. Une conversion absente de la liste,
+   ou pas encore produite, n'est pas servie.
+3. **La même décision d'autorisation couvre la conversion et l'original.** La signature est émise
+   par une réponse déjà autorisée pour ce média (règle de TCK-539) : la ressource qui a le droit de
+   rendre l'original a le droit de rendre sa vignette. Rien ne s'ouvre au-delà de ce que la réponse
+   montrait déjà.
+4. **La conversion vit sur le même disque privé que l'original.** Elle sort par la même porte,
+   `PrivateMediaAccess` : présignature courte sur R2, flux sur un disque qui ne présigne pas. Elle
+   n'est jamais publiée sur le seau public.
+5. **Ordre d'application.**
+   - **D'abord la `preview` des `room_photos`** de l'état des lieux : la conversion existe déjà.
+     `InventoryResource` rend l'URL signée de la `preview` quand elle est produite, et garde
+     l'original au clic.
+   - **Puis les photos de maintenance** (`photos`, `before_photos`, `completion_photos`). Elles
+     n'ont encore aucune conversion : leur ticket en déclare une, en file, puis la sert de même.
+
+### Ce que ça change, et ce que ça ne change pas
+
+- **Les vignettes privées ne chargent plus l'original.** Une `preview` fait 600 px de large au plus,
+  en JPEG à 70 % (son poids n'est pas mesuré ici). L'original d'une photo de maintenance va jusqu'à 10 Mo, celui d'une
+  photo d'état des lieux jusqu'à 5 Mo.
+- **`MediaResource::conversionUrl()` change de règle.** Une conversion privée a désormais une URL :
+  l'URL signée qui la nomme. Son commentaire (TCK-545) suit.
+- **Une conversion privée qui n'est pas encore produite** (elle est en file) laisse la ressource
+  rendre l'original. Rien ne casse pendant que la file tourne.
+- **Le seau public et Transformations ne sont pas concernés.** Le point 5 et l'amendement du
+  2026-10-04 valent pour les images publiques. Celui-ci ne vise que le disque privé.
+- **La borne de 20 Mpx s'applique aussi aux photos de maintenance** (décision du porteur du
+  2026-10-23). Produire leur conversion fait décoder ces images par le serveur (GD). Les trois
+  requêtes de maintenance (`UploadPhotosMaintenanceRequestRequest`,
+  `CompleteMaintenanceRequestRequest`, `ContestMaintenanceResolutionRequest`) gagnent donc
+  `PixelsAuPlus`, la règle que portent déjà les photos de pièce
+  (`UploadRoomPhotosInventoryRequest.php:42`). En pratique, aucune photo envoyée par l'application
+  n'est refusée : le front réduit déjà chaque photo de maintenance à 2 560 px de grand côté avant
+  l'envoi (`reduire-photo.ts`, TCK-542), soit moins de 7 Mpx. La borne ne refuse qu'un envoi direct
+  à l'API, ou un envoi dont la réduction a échoué.
+
+### Application
+
+- `PrivateMediaAccess::signedUrl()` accepte une conversion. `PrivateMediaController` la lit,
+  vérifie qu'elle figure dans la liste de la collection et qu'elle est produite, puis la sert par
+  `redirect()`.
+- `InventoryResource::roomPhotos()` rend l'URL de la `preview` à côté de celle de l'original.
+  `InventoryDetail.tsx` affiche la vignette et ouvre l'original au clic.
+- Les trois requêtes de photos de maintenance gagnent `PixelsAuPlus`, avec la conversion.
+- **Gardes** :
+  - un test de ressource qui attend une URL de vignette distincte de l'original ;
+  - un test qui refuse en 422 un en-tête d'image de 10 000 × 10 000 sur les trois routes de photos
+    de maintenance ;
+  - un test de la route qui refuse une conversion hors de la liste, et une URL dont on a changé le
+    nom de conversion (signature invalide) ;
+  - un test qui affirme que la conversion servie est bien celle demandée.
+
+  Chaque garde se vérifie par ablation.

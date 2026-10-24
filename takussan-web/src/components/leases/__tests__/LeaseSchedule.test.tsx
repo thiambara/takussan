@@ -13,7 +13,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { withIntl } from '@/test/intl';
 import fr from '@/messages/fr.json';
@@ -103,6 +103,7 @@ const PAYEE: LeasePayment = {
   late_fee_payable_online: false,
   amount_due: 0,
   receipt_available: true,
+  is_overdue: false,
   notes: null,
   created_at: '2026-07-01T00:00:00+00:00',
 };
@@ -127,6 +128,7 @@ function enRetard(surcharge: Partial<LeasePayment> = {}): LeasePayment {
     late_fee_payable_online: false,
     amount_due: 150000,
     receipt_available: false,
+    is_overdue: true,
     ...surcharge,
   };
 }
@@ -474,5 +476,38 @@ describe('LeaseSchedule — un libellé par statut de PaymentStatus (TCK-1264, P
     expect(within(restitution).queryByText(fr.lease.schedule.status.late)).toBeNull();
     expect(within(restitution).getByText(fr.lease.schedule.status.pending)).toBeTruthy();
     expect(restitution.className).not.toContain('bg-destructive');
+  });
+});
+
+/**
+ * TCK-1831 (P183.01) — le retard affiché est celui que sert l'API (`is_overdue`, règle de
+ * `scopeOverdue`) : l'échéance du jour reste « En attente », quelle que soit l'heure UTC où le
+ * navigateur la lit. Avant, `new Date(due_date) < new Date()` la passait « En retard » dès minuit UTC.
+ */
+describe('LeaseSchedule — le retard est celui de l’API (TCK-1831, P183.01)', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-23T09:00:00Z'));
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('une échéance `pending` due le jour même s’affiche « En attente »', () => {
+    avecEcheances([{ ...PAYEE, status: 'pending', due_date: '2026-10-23', paid_at: null, is_overdue: false }]);
+    rendre();
+
+    const echeance = ligne(/LP-2026-0011|250 000/);
+    expect(within(echeance).getByText(fr.lease.schedule.status.pending)).toBeTruthy();
+    expect(within(echeance).queryByText(fr.lease.schedule.status.late)).toBeNull();
+    expect(echeance.className).not.toContain('bg-destructive');
+  });
+
+  it('une échéance `pending` que l’API dit échue s’affiche « En retard »', () => {
+    avecEcheances([{ ...PAYEE, status: 'pending', due_date: '2026-10-22', paid_at: null, is_overdue: true }]);
+    rendre();
+
+    const echeance = ligne(/LP-2026-0011|250 000/);
+    expect(within(echeance).getByText(fr.lease.schedule.status.late)).toBeTruthy();
   });
 });

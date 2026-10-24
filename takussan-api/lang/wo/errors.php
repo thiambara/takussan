@@ -19,6 +19,8 @@ return [
     'activity_log' => [
         'export_too_large' => 'Bari na lool ngir génne ko : wàññil seetu yi.',
         'export_link_invalid' => 'Lënk bi jeex na walla baaxul.',
+        'date_range_inverted' => 'La date de début doit précéder la date de fin, ou lui être égale.',
+        'date_range_too_long' => 'La période exportée ne doit pas dépasser un an.',
     ],
     'agency' => [
         'active_profile_missing' => 'Amul benn profil agence bu dox.',
@@ -450,6 +452,7 @@ return [
     ],
     'privacy' => [
         'request_closed' => 'Laaj bii tëju na : bindal beneen.',
+        'request_linked_pending' => 'Cette demande suit son cours dans l\'application, qui la répondra : elle ne se clôt pas à la main.',
     ],
     'profile' => [
         'not_accessible' => 'Profil bii, sañuloo ko jëfandikoo.',
@@ -459,6 +462,8 @@ return [
         'cannot_unpublish' => 'Mbaar yi ñu mën a jël rekk la ñu mën a xëccu.',
         'collaborator_exists' => 'Jàngalekat bi ci mbaar mi nekk na.',
         'collaborator_not_found' => 'Jàngalekat bii bokkul ci kër gii.',
+        'has_confirmed_booking' => 'Ce bien porte une réservation confirmée : annulez-la avant de supprimer le bien.',
+        'has_upcoming_visit' => 'Ce bien porte une visite à venir : annulez-la avant de supprimer le bien.',
         'not_found' => 'Kër gi gisuñu ko.',
         'not_pending_moderation' => 'Kër gi nekkul ci xaar modération.',
         'primary_not_eligible' => 'Ajaa bu dox ci ajaasu kër gi rekk moo mën a nekk ajaa bu njëkk bi.',

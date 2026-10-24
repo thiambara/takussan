@@ -4,7 +4,6 @@ namespace App\Services\Dashboard;
 
 use App\Models\Booking;
 use App\Models\Enums\BookingStatus;
-use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Enums\VisitStatus;
 use App\Models\Lease;
@@ -48,7 +47,8 @@ class DashboardOwnerService
 
         $leases = Lease::query()
             ->where('landlord_id', $owner->id)
-            ->where('status', LeaseStatus::Active->value)
+            // P162.02 (TCK-1714) — le bail en préavis reste en cours, son loyer est dû.
+            ->whereIn('status', Lease::ONGOING_STATUSES)
             ->toBase()
             ->selectRaw('COUNT(*) AS active, COALESCE(SUM(monthly_rent), 0) AS expected')
             ->first();

@@ -67,8 +67,8 @@ class ModerationQueueController extends Controller
         return $this->json(['data' => [
             'id' => $id,
             'by' => ['id' => $claim->claimed_by_id, 'name' => $claim->claimedBy?->full_name ?: $claim->claimedBy?->email],
-            'claimed_at' => $claim->claimed_at->toIso8601String(),
-            'expires_at' => $claim->expires_at->toIso8601String(),
+            'claimed_at' => $this->instant($claim->claimed_at),
+            'expires_at' => $this->instant($claim->expires_at),
         ]]);
     }
 

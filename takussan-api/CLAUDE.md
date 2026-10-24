@@ -439,6 +439,18 @@ l'appelant classée au-delà de ce rang global disparaît sans message ni compte
 chemins** : elles écrivent leur propre `LIKE` SQL. Elles restent strictes, par choix (TCK-281,
 « Hors périmètre ») — pas par oubli.
 
+⚠️ **Une migration qui réécrit une colonne indexée réimporte son modèle** — ou au moins les lignes
+qu'elle touche (P122.04, décision du porteur du 2026-10-23). Une colonne est indexée dès que
+`toSearchableArray()` la lit. Une écriture par `DB::table()->update()` ne passe pas par
+l'observateur de Scout, et `docker/release.sh` ne réimporte que sur un écart de l'empreinte
+`.search-shape` (la *forme* des index, jamais leurs *données*) ou sur un index vide : sans
+réimportation, l'index garde l'ancienne valeur, sans erreur. Cas qui l'a montré :
+`LegacyFeaturedConversion`, appelée par la migration `2026_10_12_500400`, passe `featured` à `false`
+par `DB::table('properties')->update()` pour un bien sans agence ; l'index garde `featured = true`,
+et le vivier des vedettes (`PropertySearchService::featuredPool()`, qui filtre `featured = true`
+dans l'index) sert ce bien en emplacement sponsorisé sans boost (mesuré le 2026-10-22). Il n'y a pas
+de gabarit de migration (`stubs/`) qui le rappelle : c'est cette ligne qui le dit.
+
 ## Tâches planifiées
 
 Le scheduler est **entièrement** dans `routes/console.php` (77 lignes) : 13 `Schedule::job()` et 6

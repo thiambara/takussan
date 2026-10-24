@@ -13,7 +13,7 @@ use Illuminate\Http\Request;
 /**
  * TCK-101 — Admin endpoints for booking management.
  *
- * Routes require `agency_admin` or `super_admin`.
+ * Routes require `bookings.cancel` at the booking's agency, or `super_admin` (TCK-1494).
  */
 class BookingController extends Controller
 {
@@ -23,16 +23,17 @@ class BookingController extends Controller
      * POST /api/admin/bookings/{booking}/expire-now
      *
      * Manually expire a pending booking immediately.
-     * Requires agency_admin or super_admin role.
+     * Requires `bookings.cancel` at the booking's agency (`BookingPolicy::expire`) or super_admin.
      */
     public function expireNow(Request $request, Booking $booking): JsonResponse
     {
         $user = $request->user();
 
-        // Check minimum role requirement: agency_admin or super_admin
-        abort_code_unless($user->isSuperAdmin() || ($user->agency_id !== null && $user->isAgencyAdminAt((int) $user->agency_id)), 403, 'auth.insufficient_privileges');
+        // TCK-1494 (P116.04) — `bookings.cancel` à l'agence de la réservation (`BookingPolicy::expire`),
+        // et non plus le type de profil admin.
+        abort_code_unless($user->can('expire', $booking), 403, 'auth.insufficient_privileges');
 
-        // Agency admins can only expire bookings from the agency they are
+        // Staff can only expire bookings from the agency they are
         // *currently* acting under. A multi-agency admin must explicitly
         // switch profile to expire bookings from a different tenant.
         if (! $user->isSuperAdmin()) {
@@ -48,7 +49,7 @@ class BookingController extends Controller
         if (! $this->expirationService->canBeExpired($booking)) {
             throw (new ApiError(422, 'booking.cannot_expire'))->with([
                 'current_status' => $booking->status->value,
-                'expired_at' => $booking->expired_at?->toIso8601String(),
+                'expired_at' => $this->instant($booking->expired_at),
             ]);
         }
 
