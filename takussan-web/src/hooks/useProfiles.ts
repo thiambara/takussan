@@ -61,6 +61,10 @@ export function useMyProfiles() {
   });
 }
 
+function estClePrefixee(cle: readonly unknown[], prefixe: readonly unknown[]): boolean {
+  return prefixe.every((segment, i) => cle[i] === segment);
+}
+
 export function useSwitchActiveProfile() {
   const queryClient = useQueryClient();
   const { refreshUser, setActiveProfileId } = useAuth();
@@ -98,14 +102,16 @@ export function useSwitchActiveProfile() {
       // Re-render server components with the new cookie context so dashboard
       // pages refetch under the right team_id.
       router.refresh();
-      // TCK-1899 (P197.01) — ces deux lectures passent par les relais `/api/me/subscription`
-      // et `/api/me/payouts`, qui posent l'indice du profil actif : leur clé ne porte pas
-      // l'agence, et les composants restent montés par `router.refresh()`. Sans cette
-      // invalidation, l'agence quittée resterait affichée jusqu'au `staleTime` (5 min).
-      return Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['me', 'subscription'] }),
-        queryClient.invalidateQueries({ queryKey: ['me', 'payouts'] }),
-      ]);
+      // TCK-2091 (P197.05) — le SEUL point où le cache suit le changement d'espace. Depuis TCK-2050,
+      // toute lecture du navigateur porte le profil actif, posé juste au-dessus ; une clé qui ne le
+      // porte pas (la plupart) garderait l'agence quittée jusqu'à son `staleTime`. Tout est donc
+      // OUBLIÉ et relu, hors les profils (le menu garde sa coche ; `onSettled` les relit) : `reset`
+      // et non `invalidate`, pour ne jamais montrer l'ancien espace pendant la relecture. Ici et non
+      // dans un effet sur `meta.active_profile_id`, que `onMutate` réécrit AVANT le `PATCH`.
+      // Une liste de préfixes « portés par l'agence » serait l'oubli que ce point corrige.
+      return queryClient.resetQueries({
+        predicate: (query) => !estClePrefixee(query.queryKey, profilesKeys.all),
+      });
     },
     onError: (err, _profileId, context) => {
       if (context?.previousProfiles) {

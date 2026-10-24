@@ -408,8 +408,9 @@ export type AdminModerationItem = {
   } | null;
   reporter: {
     id: number;
-    name: string;
-    email: string;
+    /** P193.05 (TCK-2053) — `full_name ?: email ?: phone` : nul pour un compte sans aucun des trois. */
+    name: string | null;
+    email: string | null;
   } | null;
   agency: {
     id: number;

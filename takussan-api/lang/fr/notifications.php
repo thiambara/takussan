@@ -111,6 +111,8 @@ return [
         'consequences' => 'Vos données personnelles seront anonymisées de manière irréversible. Les enregistrements comptables et légaux (paiements, baux, factures) seront conservés sous forme anonyme conformément à la loi.',
         'action' => 'Annuler la suppression',
         'ignore' => 'Si vous n\'êtes pas à l\'origine de cette demande, annulez-la immédiatement et changez votre mot de passe.',
+        // P193.04 (TCK-2051) — un compte sans e-mail : SMS au numéro vérifié.
+        'sms' => 'Takussan : votre demande de suppression de compte est enregistrée. Elle sera exécutée le :date. Pour l\'annuler, connectez-vous avant cette date.',
     ],
 
     // TCK-272 — code de step-up pour les comptes sans mot de passe
@@ -139,6 +141,8 @@ return [
         'intro' => 'Votre compte sera supprimé dans :days jours, le :date. Si vous changez d\'avis, vous pouvez encore annuler la suppression.',
         'action' => 'Annuler la suppression',
         'ignore' => 'Si vous confirmez la suppression, aucune action n\'est requise.',
+        // P193.04 (TCK-2051) — un compte sans e-mail : SMS au numéro vérifié.
+        'sms' => 'Takussan : votre compte sera supprimé dans :days jours, le :date. Pour annuler, connectez-vous avant cette date.',
     ],
 
     'account_deletion_executed' => [
@@ -147,6 +151,8 @@ return [
         'intro' => 'Votre compte Takussan a été supprimé et vos données personnelles ont été anonymisées de manière irréversible.',
         'retention' => 'Conformément à nos obligations légales, certains enregistrements comptables (paiements, factures) sont conservés sous forme anonyme pendant 10 ans.',
         'contact' => 'Pour toute question, contactez notre service client.',
+        // P193.04 (TCK-2051) — un compte sans e-mail : SMS au numéro vérifié.
+        'sms' => 'Takussan : votre compte a été supprimé et vos données personnelles ont été anonymisées.',
     ],
 
     'lease_deposit_refunded' => [

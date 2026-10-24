@@ -22,6 +22,7 @@ import {
   fetchDashboardCustomer,
 } from '@/lib/queries/customers';
 import { PIPELINE_QUERY_KEY } from '@/hooks/pipelineKeys';
+import { AGENT_CRM_QUERY_KEY } from '@/lib/queries/agent-crm';
 import type { Locale } from '@/i18n/config';
 import { formatDateTime } from '@/lib/format';
 
@@ -61,6 +62,8 @@ export function CustomerDetailSheet({ customerId, onOpenChange }: CustomerDetail
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: PIPELINE_QUERY_KEY.customerNotes(customerId) });
+      // TCK-2093 — la note est journalisée : l'onglet « Activité » la montre sans attendre.
+      void queryClient.invalidateQueries({ queryKey: AGENT_CRM_QUERY_KEY.activity(customerId) });
     },
   });
 

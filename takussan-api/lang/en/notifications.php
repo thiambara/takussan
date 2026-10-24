@@ -110,6 +110,8 @@ return [
         'consequences' => 'Your personal data will be irreversibly anonymized. Accounting and legal records (payments, leases, invoices) will be retained anonymously in accordance with applicable law.',
         'action' => 'Cancel deletion',
         'ignore' => 'If you did not initiate this request, cancel it immediately and change your password.',
+        // P193.04 (TCK-2051) — un compte sans e-mail : SMS au numéro vérifié.
+        'sms' => 'Takussan: your account deletion request is recorded. It will be carried out on :date. To cancel it, sign in before that date.',
     ],
 
     // TCK-272 — step-up code for accounts without a usable password
@@ -138,6 +140,8 @@ return [
         'intro' => 'Your account will be deleted in :days days, on :date. If you change your mind, you can still cancel the deletion.',
         'action' => 'Cancel deletion',
         'ignore' => 'If you confirm the deletion, no further action is required.',
+        // P193.04 (TCK-2051) — un compte sans e-mail : SMS au numéro vérifié.
+        'sms' => 'Takussan: your account will be deleted in :days days, on :date. To cancel, sign in before that date.',
     ],
 
     'account_deletion_executed' => [
@@ -146,6 +150,8 @@ return [
         'intro' => 'Your Takussan account has been deleted and your personal data has been irreversibly anonymized.',
         'retention' => 'In accordance with legal obligations, certain accounting records (payments, invoices) are kept anonymously for 10 years.',
         'contact' => 'For any questions, please contact our support team.',
+        // P193.04 (TCK-2051) — un compte sans e-mail : SMS au numéro vérifié.
+        'sms' => 'Takussan: your account has been deleted and your personal data anonymised.',
     ],
 
     'lease_deposit_refunded' => [

@@ -42,7 +42,8 @@ class AgencyUpgradeRequestSubmittedNotification extends Notification implements 
         $agency = $this->upgradeRequest->agency;
         $submitterName = trim(($this->submitter->first_name ?? '').' '.($this->submitter->last_name ?? ''));
         if ($submitterName === '') {
-            $submitterName = (string) $this->submitter->email;
+            // P193.05 (TCK-2053) — un compte créé par téléphone n'a ni nom ni e-mail.
+            $submitterName = (string) ($this->submitter->email ?: $this->submitter->phone);
         }
 
         $reviewUrl = $this->reviewUrl();

@@ -13,6 +13,7 @@ import { formatCurrency } from '@/lib/format';
 import { CURRENCY_METADATA, type CurrencyCode } from '@/lib/format/currency';
 import type { Locale } from '@/i18n/config';
 import { useSubmitMaintenanceQuote } from '@/lib/queries/maintenance';
+import { jourDeLApi } from '@/lib/jour-de-l-api';
 import type { MaintenanceQuoteLineKind, MaintenanceRequest } from '@/types/maintenance';
 
 /**
@@ -245,7 +246,13 @@ export function QuoteSubmitForm({ request }: { readonly request: MaintenanceRequ
             <label htmlFor="quote-valid-until" className="mb-1.5 block text-sm font-medium">
               {t('valid_until_label')}
             </label>
-            <DatePicker id="quote-valid-until" value={validUntil} onValueChange={setValidUntil} />
+            {/* P212.06 — `after_or_equal:today` de `SubmitQuoteRequest`, jugé au jour UTC. */}
+            <DatePicker
+              id="quote-valid-until"
+              value={validUntil}
+              onValueChange={setValidUntil}
+              min={jourDeLApi()}
+            />
           </div>
           <div>
             <label htmlFor="quote-duration" className="mb-1.5 block text-sm font-medium">

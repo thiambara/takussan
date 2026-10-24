@@ -36,8 +36,14 @@ class ExecuteScheduledAccountDeletions extends Command
         $remindersSent = 0;
         foreach ($this->service->dueForReminder() as $request) {
             /** @var AccountDeletionRequest $request */
+            // P193.04 (TCK-2051) — sans e-mail ni numéro vérifié, aucun canal : le rappel n'est ni
+            // envoyé ni marqué, il n'était compté envoyé que parce que `MailChannel` se taisait.
+            $user = $request->user;
+            if ($user === null || AccountDeletionReminderNotification::canauxPour($user) === []) {
+                continue;
+            }
             if (! $dryRun) {
-                $request->user?->notify(new AccountDeletionReminderNotification($request));
+                $user->notify(new AccountDeletionReminderNotification($request));
                 $request->forceFill(['reminder_sent_at' => now()])->save();
             }
             $remindersSent++;

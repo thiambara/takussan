@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 
 import type { ApiError } from '@/lib/api';
+import { jourDeLApi } from '@/lib/jour-de-l-api';
 
 /**
  * Les pièces communes aux deux formulaires des demandes de droits (TCK-601 G) — sorties de
@@ -8,12 +9,13 @@ import type { ApiError } from '@/lib/api';
  * dans son propre fichier, chargé à l'ouverture de son dialogue.
  */
 
-/** La date du jour, au format `AAAA-MM-JJ` du navigateur. */
+/**
+ * La date du jour, `AAAA-MM-JJ`, au jour de l'API (UTC) : celle que `before_or_equal:today` de
+ * `StorePrivacyRequestRequest` accepte. Le jour du navigateur la devançait à l'est d'UTC entre
+ * minuit local et minuit UTC, et la valeur par défaut était refusée (P212.03).
+ */
 export function aujourdhui(): string {
-  const d = new Date();
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  const jj = String(d.getDate()).padStart(2, '0');
-  return `${d.getFullYear()}-${mm}-${jj}`;
+  return jourDeLApi();
 }
 
 /**

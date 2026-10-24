@@ -3,6 +3,9 @@
 namespace Tests\Unit\Notifications;
 
 use App\Domain\Notifications\NotificationCode;
+use App\Notifications\AccountDeletionExecutedNotification;
+use App\Notifications\AccountDeletionReminderNotification;
+use App\Notifications\AccountDeletionRequestedNotification;
 use App\Notifications\CodedNotification;
 use App\Notifications\Concerns\SupportsSms;
 use App\Notifications\Concerns\SupportsWhatsapp;
@@ -34,6 +37,11 @@ class MobileClassEventsTest extends TestCase
      */
     private const HORS_PREFERENCES = [
         LeaseSignatureCodeNotification::class,
+        // TCK-2051 (P193.04) — les avis de suppression de compte (RGPD), repliés sur SMS pour un
+        // compte sans e-mail : critiques, ni préférence ni heures calmes (`RepliSmsSansEmail`).
+        AccountDeletionRequestedNotification::class,
+        AccountDeletionReminderNotification::class,
+        AccountDeletionExecutedNotification::class,
     ];
 
     /** @return array<class-string, string> classe → EVENT_TYPE */
@@ -117,6 +125,16 @@ class MobileClassEventsTest extends TestCase
     public function test_les_classes_hors_preferences_sont_critiques(): void
     {
         $this->assertTrue((new LeaseSignatureCodeNotification('000000', 'LS-1', 10, LeaseSignatureCodeNotification::CHANNEL_SMS))->isCriticalSms());
-        $this->assertSame([LeaseSignatureCodeNotification::class], self::HORS_PREFERENCES);
+        // TCK-2051 — les avis de suppression : `isCriticalSms()` vient de `RepliSmsSansEmail`, sans
+        // dépendre de l'état ; le constructeur (une demande en base) n'a pas à tourner.
+        foreach (array_slice(self::HORS_PREFERENCES, 1) as $class) {
+            $this->assertTrue((new ReflectionClass($class))->newInstanceWithoutConstructor()->isCriticalSms(), $class);
+        }
+        $this->assertSame([
+            LeaseSignatureCodeNotification::class,
+            AccountDeletionRequestedNotification::class,
+            AccountDeletionReminderNotification::class,
+            AccountDeletionExecutedNotification::class,
+        ], self::HORS_PREFERENCES);
     }
 }

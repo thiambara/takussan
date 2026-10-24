@@ -28,6 +28,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { isAgencyAdmin, isAgent, isOwner, isServiceProvider } from '@/lib/roles';
 import { formatDate } from '@/lib/format';
+import { REVIEW_CONTENT_MAX, REVIEW_REPLY_MAX } from '@/lib/review-limits';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import type { UserRole } from '@/types/user';
 import type { Locale } from '@/i18n/config';
@@ -256,7 +257,7 @@ function OpportunityForm({ group }: { readonly group: OpportunityGroup }) {
                 value={contents[key] ?? ''}
                 onChange={(e) => setContents((c) => ({ ...c, [key]: e.target.value }))}
                 rows={2}
-                maxLength={2000}
+                maxLength={REVIEW_CONTENT_MAX}
               />
             </label>
           </fieldset>
@@ -554,7 +555,7 @@ function ReceivedReviewCard({ review }: { readonly review: Review }) {
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             rows={3}
-            maxLength={2000}
+            maxLength={REVIEW_REPLY_MAX}
             aria-invalid={error ? true : undefined}
             aria-describedby={error ? `${fieldId}-error` : undefined}
             autoFocus

@@ -905,10 +905,8 @@
         "ratingAria": "Rating out of 5",
         "titlePlaceholder": "Title (optional)",
         "thanks": "Thank you for your feedback.",
-        "contentTooShort": "Your comment must be at least {min} characters.",
-        "contentPlaceholder": "Your review (min. {min} characters)",
-        "charsLeft": "{count, plural, =1 {# more character needed.} other {# more characters needed.}}",
-        "starsAria": "{count, plural, one {# star} other {# stars}}"
+        "starsAria": "{count, plural, one {# star} other {# stars}}",
+        "contentOptionalPlaceholder": "Your comment (optional)"
       },
       "replyForm": {
         "editTitle": "Edit my reply",
@@ -921,7 +919,7 @@
         "publish": "Publish reply",
         "sending": "Sending…",
         "save": "Save",
-        "contentTooShort": "Your reply must be at least {min} characters."
+        "contentRequired": "Write a reply before publishing."
       },
       "loadError": "Reviews could not be loaded."
     },

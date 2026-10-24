@@ -121,9 +121,10 @@ class MediaResource extends BaseResource
 
     protected function conversionUrl(Media $media, string $name): ?string
     {
-        // TCK-545 — la route signée ne sert que l'original : une conversion privée n'a pas
-        // d'URL à exposer. Les collections privées actuelles n'en déclarent d'ailleurs aucune,
-        // sauf `User.photos` / `User.documents` (HasMediaConversions), qu'aucun écran n'affiche.
+        // TCK-545 — cette ressource générique n'expose aucune conversion privée. Depuis TCK-2088
+        // (ADR-0029, amendement du 2026-10-23), la route signée sait en servir une, mais seulement
+        // celles de `PrivateMediaAccess::SERVABLE_CONVERSIONS`, et ce sont les ressources de leurs
+        // modèles qui les émettent (`InventoryResource`, `MaintenanceRequestResource`).
         if ($this->isPrivate($media) || ! $media->hasGeneratedConversion($name)) {
             return null;
         }
