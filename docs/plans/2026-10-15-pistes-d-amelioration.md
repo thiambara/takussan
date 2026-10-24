@@ -282,7 +282,7 @@ voie d'écriture (angle 13, puis 47).
 | 205 | Pièces déjà reversées au bailleur (reversement `completed`, `payout_lease_payment`, `payout_booking_payment`) puis remboursées par `BookingPaymentService::refund` ou par webhook (`PaymentGatewayService::applyRefund`) : aucune reprise sur le bailleur — ni ligne négative au reversement suivant, ni dette, ni avis à l'agence —, si bien que l'agence rend au locataire un argent déjà versé — né de P177.01 | fait |
 | 206 | Pénalités de retard réglées sur la ligne du loyer (`late_fee_amount`, `late_fee_paid_at`, en ligne ou par `LateFeeSettlement`) face aux lecteurs de l'argent qui ne lisent que `amount − refund_amount` (`CollectedPayments::LEASE_NET_SQL`, `PayoutCalculator::kept`, relevé de gérance, exports, métriques) alors que la clôture plateforme les reverse à l'agence (`lateFeeSettledWith`) : pénalité encaissée absente de l'« Encaissé », du relevé et de tout reversement au bailleur, sans texte qui dise à qui elle revient — né de P178.03 | fait |
 | 207 | Rappels et relances planifiés passés par `NotificationService::send()` (file `CodedNotification`) dont la marque se pose à la mise en file (`SendLeasePaymentReminders`, `SendPropertyVisitReminders`, relances de documents et d'échéances) : e-mail épuisé après `failed()`, ou SMS et WhatsApp refusés par tous les fournisseurs sans exception (`SmsRouterDriver`, `WhatsappChannel`), rappel perdu sans reprise ni trace lisible — le pendant de P142.02 pour les notifications codées, né de P179.01 | fait |
-| 208 | Invitations émises par l'endpoint générique `POST /api/invitations` (`CreateInvitationRequest`, `InvitationController::store`) face aux services par rôle qui gardent le même geste (`SuperAdminCooptationService::invite` et ses verrou, avis aux autres super-admins et journal ; `InviteServiceProviderRequest` et sa règle de `metadata.from_maintenance_request_id` ; `AgentInvitationService`, `OwnerInvitationController`) : garde, contrôle de `metadata` ou effet du geste dédié sautés par le chemin générique — né de P181.05 | à faire |
+| 208 | Invitations émises par l'endpoint générique `POST /api/invitations` (`CreateInvitationRequest`, `InvitationController::store`) face aux services par rôle qui gardent le même geste (`SuperAdminCooptationService::invite` et ses verrou, avis aux autres super-admins et journal ; `InviteServiceProviderRequest` et sa règle de `metadata.from_maintenance_request_id` ; `AgentInvitationService`, `OwnerInvitationController`) : garde, contrôle de `metadata` ou effet du geste dédié sautés par le chemin générique — né de P181.05 | fait |
 | 209 | Requêtes de modification qui ne rejouent pas les règles de valeur de leur création (`UpdateSettingRequest` face au catalogue de `StoreSettingRequest::after()`, et leurs pareilles : un `after()`, une règle de catalogue, un `Rule::unique` ou une sous-règle `x.*` présents dans `Store*Request` et absents de `Update*Request` du même modèle) : valeur refusée en 422 à la création et enregistrée en 200 à la modification — né de P181.01 | à faire |
 | 210 | Gestionnaires `async` du front qui attendent `mutateAsync()` sans `try`/`catch` et sont passés tels quels à `onClick` ou par `void handleSubmit()` (`BookingDecisionDialog`, `VisitDetail` et leurs pareils sous `src/components/**`, hors gestes de transition) : erreur de l'API rendue en promesse rejetée non rattrapée, sans message à l'écran ni fermeture du dialogue — le relevé de P182.01 sur le reste des écrans | à faire |
 | 211 | Gestes d'écriture qui jugent le statut sur le modèle lié à la route, hors transaction ou sans verrou, alors que leurs voisins verrouillent et relisent la ligne (`PlatformPayoutService::cancel`, `PropertyVisitController::cancel`, `MaintenanceRequestService::accept`, et leurs pareils sous `app/Services` et `app/Http/Controllers/Api`) : transition concurrente écrasée, effet ou avis émis deux fois — né de P182.05 et P182.06 | à faire |
@@ -302,6 +302,7 @@ voie d'écriture (angle 13, puis 47).
 | 224 | Lectures TanStack dont le cache est augmenté à la main par `setQueryData` (pages ajoutées par un « Charger plus » fait main, lignes insérées après un geste) alors que leur `queryFn` ne relit qu'une partie de ce cache : relecture par défaut (focus, remontage, `refetchInterval`, `invalidateQueries`) qui efface ce que l'écran montrait — né de P199.01 |
 | 225 | Ce qu'une agence attache à son administrateur principal (`agencies.primary_admin_id` : passe-droits d'`AgencyPolicy`, `RoleDelegationPolicy`, `BankStatementPolicy`, `AgencyIndicatorPolicy`, `MediaPolicy`, destinataire nommé des avis comme `KycWorkflowService`) quand ce compte est effacé, bloqué, suspendu ou n'a plus de profil d'administrateur : titre jamais transmis, gestes réservés que personne ne tient, avis envoyés à un compte qui ne les lira pas — né de P204.02 | à faire |
 | 225 | Tuiles, bandeaux et badges de compte posés au-dessus d'une liste paginée (`ModerationStats`, titres de groupe, onglets, résumés « n en retard ») qui comptent `items.filter(…).length` sur la page reçue, à côté d'un `meta.total` de toute la liste : chiffres de deux portées côte à côte, sans libellé qui le dise — né de P199.02 et P199.03 |
+| 226 | Paires polymorphes `*_type` / `*_id` et identifiants de ligne cible reçus du client sur les routes d'écriture (`invitable_*` hors du générique, `documentable_*`, `taskable_*`, `attachable_*`, `subject_*`, et leurs pareils dans `app/Http/Requests`), validés par `integer` ou `Rule::in` sans juger que la ligne visée existe et relève de l'agence de l'appelant : écriture ou effet posé sur la ligne d'une autre agence — né de P208.01 | à faire |
 
 
 ---
@@ -18985,3 +18986,81 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
 - Piste : ne poser le jalon KYC qu'après au moins un destinataire, et ne compter que les rappels partis ; pour le seau, mesurer d'abord la fréquence (`SELECT phone, count(*)` des échéances ouvertes d'un même client) avant de rien changer.
 - Mesure (2026-10-24, 5134dd7f9, mesureur) : relu `KycExpiryService::remind()` (jalon écrit dans `expiry_reminders` avant la boucle sur `AdminsDeLAgence::destinataires()`, l. 61-77, `return true` sans condition) et `run()` (l. 30-50) ; test temporaire retiré (même passage) : agence active, dossier vérifié expirant 25 jours plus tard, aucun administrateur → `run()` = `{"reminded":1,"expired":0}`, `metadata` = `{"expiry_reminders":[30]}`, 0 `app_notifications` → le premier point tient. Second point : `SmsChannel::withinRateLimit()` (l. 155-175, seau `sms-channel:phone:<numéro>`, borne `sms.rate_limit.per_user_per_hour` = 5, `config/sms.php:117`) lu, mécanisme confirmé ; la fréquence d'un même numéro au-delà de cinq relances un matin n'est pas mesurée (aucune base de production, la base de développement ne la dirait pas). Classement : V7, ne plus consommer J-30 sans destinataire fait partir plus tard un rappel aujourd'hui perdu (comportement visible neuf), et le compte `reminded` est la sortie de `kyc:expire-dossiers` ; le seau reste à mesurer avant tout changement.
 - Mesure (2026-10-24, 112221992, delegue) : relu l'entrée et la `Mesure` du mesureur, `KycExpiryService::run()` et `remind()` (l. 25-75 : jalon écrit avant la boucle sur les administrateurs, `return true` sans condition), `docs/features.md:441` (« relances J-30 / J-7 » aux administrateurs, TCK-601) et `docs/models-spec.md:2526` (`expiry_reminders` : « jalons de relance déjà envoyés ») → la piste tient : le code marque « envoyé » un jalon que personne n'a reçu, contre ce que la spec écrit. Délégation : V7, l'option de la `Piste` est unique pour le jalon et suit `models-spec.md:2526`, ne change rien quand un administrateur existe, et se défait en un commit ; le seau SMS, que la `Piste` dit de mesurer d'abord, reste hors décision.
+
+## Angle 208 — L'endpoint générique `POST /api/invitations` face aux services d'invitation par rôle
+
+*Exploré le 2026-10-24 sur `pre-dev` e5b64edf6, par l'explorateur. Tout relu par l'explorateur lui-même, sans sous-agent : `CreateInvitationRequest`, `InvitationController`, `InvitationPolicy`, `InvitationService::send()` et `finalizeAccept()`, `SuperAdminCooptationService::invite()`, `SuperAdminTwoFactorController`, les trois services par rôle, et côté front `lib/double-facteur.ts` et le layout `(dashboard)`. Mesuré par un test temporaire `tests/Feature/TmpMesureAngle208Test.php` (retiré), `XDEBUG_MODE=off php artisan test <fichier>`, PostgreSQL de test, charge 2,8 à 3,7 sur 8 cœurs. Aucun écran du front n'appelle `POST /api/invitations` (grep de `takussan-web/src`, ce que la mesure de P181.05 avait déjà relevé) : la route ne sert aujourd'hui qu'un client de l'API. Les parcours du front n'ont pas été joués dans un navigateur.*
+
+### Un admin d'agence rattache l'invité au profil d'une autre agence : `invitable_id` n'est jugé ni en existence ni en agence
+- Réf : P208.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Http/Requests/Invitation/CreateInvitationRequest.php:71`, `takussan-api/app/Http/Controllers/Api/InvitationController.php:66-79`, `takussan-api/app/Services/Invitation/InvitationService.php:157-221`, `:733-753`
+- Constat :
+  - `invitable_id` n'a que `nullable|integer|required_with:invitable_type` (lu, l. 71). Le contrôleur force ou compare l'`agency_id` de l'invitation à l'agence active, jamais celle du profil visé (lu, l. 66-77). `send()` écrit le couple tel quel (lu, l. 219-221).
+  - À l'acceptation, `finalizeAccept()` lit `$invitation->invitable`, passe son `status` à `active` et pose `user_id` sur un profil qui n'en a pas, sans comparer l'agence du profil à celle de l'invitation (lu, l. 733-753).
+  - Mesuré : admin de l'agence A, `POST /api/invitations` `{role: agent, invitable_type: AgentProfile, invitable_id: <brouillon de l'agence B>}` → 201, invitation à l'agence A ; acceptation par un compte neuf → 200, `isAgentAt(B)` = `true`, profil de B rattaché au compte et `active`. Le même chemin vaut pour `owner` et `OwnerProfile` (lu, même code, non joué).
+  - Les services par rôle créent eux-mêmes le brouillon dans l'agence (`AgentInvitationService.php:86-89`, lu) : le client n'y choisit jamais l'identifiant.
+  - Établi comment : lu, mesuré par test temporaire.
+- Piste : ne plus accepter `invitable_id` du client sur ce chemin, ou juger que le profil existe, est du type attendu, appartient à l'agence de l'invitation et est encore `draft` sans compte. Comme aucun écran n'appelle la route, la fermer (super-admin seul, ou retrait de `store`) est une option à trancher. Garde : un test qui vise le brouillon d'une autre agence et constate le refus et l'absence d'appartenance après acceptation.
+
+### L'acceptation remet `active` le profil suspendu d'un autre compte, dans une autre agence
+- Réf : P208.02
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Invitation/InvitationService.php:733-753`, `takussan-api/app/Http/Requests/Invitation/CreateInvitationRequest.php:71`
+- Constat :
+  - `finalizeAccept()` pose `status = active` sur tout profil visé qui a une colonne `status`, quel que soit son statut ou son titulaire ; seul `user_id` est réservé aux profils sans compte (lu, l. 735-753).
+  - Mesuré : agent de l'agence B, profil `suspended`, titulaire un autre compte ; admin de l'agence A, `POST /api/invitations` qui vise ce profil → 201 ; acceptation par un compte neuf → 200 ; le profil de B repasse `active`, titulaire inchangé. La suspension de B est levée par un tiers, sans `TeamMemberSuspensionService` ni journal de réactivation.
+  - Établi comment : lu, mesuré par test temporaire.
+- Piste : n'activer que le profil `draft` sans compte que l'invitation a créé, et refuser l'acceptation sinon ; va avec P208.01. Garde : un test qui vise un profil suspendu et constate qu'il le reste.
+
+### Un admin d'agence émet une cooptation `super_admin`, et le compte qui l'accepte perd sa 2FA et reste bloqué sur l'enrôlement
+- Réf : P208.03
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Http/Requests/Invitation/CreateInvitationRequest.php:37-44`, `takussan-api/app/Policies/InvitationPolicy.php:69-76`, `takussan-api/app/Services/Invitation/InvitationService.php:700-713`, `takussan-api/app/Http/Controllers/Api/Auth/SuperAdminTwoFactorController.php:56-72,170-205`, `takussan-web/src/lib/double-facteur.ts:46-47`, `takussan-web/src/app/(dashboard)/layout.tsx:61-64`
+- Constat :
+  - `role: super_admin` est dans la liste blanche de la requête (lu, l. 43), et `create` ne juge que `team.invite` dans l'agence active (lu, policy l. 69-76). Rien ne réserve ce rôle au super-admin : `SuperAdminCooptationService::invite()` le fait (`assertInviterIsSuperAdmin`, lu), mais le générique ne passe pas par lui.
+  - À l'acceptation, `finalizeAccept()` pose `force_2fa_at_first_login = true` pour tout `role = super_admin` (lu, l. 700-713). Le front envoie alors tout compte qui porte ce drapeau sur `/onboarding/super-admin`, depuis chaque page du tableau de bord (lu, `double-facteur.ts:47`, `layout.tsx:61-64`).
+  - `enroll` remplace le secret TOTP et pose `two_factor_enabled = false` (lu, l. 66-72). `confirm` cherche une cooptation acceptée **sans agence** (lu, l. 196-205) et rend 403 `super_admin.not_pending` : la transaction est annulée, le drapeau reste.
+  - Mesuré : admin de l'agence A, `POST /api/invitations` `{email: <compte existant à 2FA active>, role: super_admin}` → 201, invitation à l'agence A ; acceptation par ce compte connecté → 200, `force_2fa_at_first_login = true` ; `POST /api/auth/super-admin/2fa/enroll` → 200, `two_factor_enabled = false`, secret changé ; `confirm` avec un code valide → 403 `super_admin.not_pending`, drapeau toujours `true`, 2FA toujours coupée. Aucun droit de super-admin n'est accordé (`isSuperAdmin` = `false`).
+  - La sortie de cet état n'existe pas côté compte (aucun autre écrivain du drapeau à `false` que `confirm`, `grep -rn force_2fa_at_first_login app`, lu) ; il faut que l'invité accepte un lien, ce qui demande son geste.
+  - Établi comment : lu, mesuré par test temporaire ; la redirection du front est lue, pas jouée.
+- Piste : retirer `super_admin` du générique (la cooptation a sa route, `POST /api/admin/super-admins/invite`), ou le réserver au super-admin avec `agency_id` nul ; ne poser le drapeau à l'acceptation que pour une cooptation sans agence. Garde : un test qui émet `super_admin` en admin d'agence et constate le refus.
+
+### La cooptation émise par le générique saute le refus d'un opérateur existant, le verrou, l'avis aux autres super-admins et le journal
+- Réf : P208.04
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Auth/SuperAdminCooptationService.php:51-100`, `takussan-api/app/Http/Controllers/Api/InvitationController.php:53-84`
+- Constat :
+  - Le service dédié refuse un destinataire déjà opérateur (`assertTargetIsNotAlreadySuperAdmin`, l. 56), sérialise sur un verrou consultatif (`lockCooptationSlot`, l. 65), écrit `metadata.level`, journalise `super_admin_invited` et avertit les autres super-admins (`broadcastInvitedToOtherSuperAdmins`) (lu).
+  - Mesuré, en super-admin : `POST /api/invitations` `{role: super_admin}` vers un super-admin existant → 201, quand `POST /api/admin/super-admins/invite` rend 409 ; vers une adresse neuve → 201, 0 `SuperAdminInvitedBroadcast` à un autre super-admin, journal de l'invitation réduit à `invitation_sent`.
+  - Le niveau accordé à la confirmation se lit dans `metadata.level`, que le générique laisse au client (lu, `SuperAdminTwoFactorController.php:183-184` ; voir P181.05).
+  - Établi comment : lu, mesuré par test temporaire.
+- Piste : faire passer toute cooptation par `SuperAdminCooptationService`, en refusant `super_admin` sur le générique (va avec P208.03). Garde : un test qui constate le refus du rôle sur le générique.
+
+### Le générique laisse une agence individuelle inviter bailleurs et agents, que les services par rôle lui refusent
+- Réf : P208.05
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Controllers/Api/InvitationController.php:53-84`, `takussan-api/app/Services/Invitation/AgentInvitationService.php:67,212-215`, `takussan-api/app/Services/Invitation/OwnerInvitationService.php:61,132-145`, `takussan-api/app/Support/AgencyKindGuard.php:72-93`, `takussan-api/tests/Feature/Invitation/InvitationAttachmentTest.php:165`
+- Constat :
+  - Les services d'agent et de bailleur appellent `AgencyKindGuard::ensureCanFormTeam()` (agence `standard` seule) ; le générique n'appelle aucun garde de type d'agence (lu).
+  - Mesuré : admin d'une agence `individual`, `POST /api/invitations` `{role: owner}` vers un brouillon de bailleur de l'agence → 201 ; `POST /api/agencies/{id}/owners/invite` → 403.
+  - Pour l'agent, l'écart est épinglé par un test : `test_temoin_l_endpoint_generique_reste_ouvert_a_une_agence_individuelle` exige 201 puis l'appartenance (lu, l. 165), au motif que TCK-455 ne portait pas sur le type d'agence. Le test garde donc l'écart à la règle d'`AgencyKindGuard`, et non une règle écrite.
+  - Établi comment : lu, mesuré par test temporaire.
+- Piste : rejouer `AgencyKindGuard` sur le générique selon le rôle, et réécrire le témoin ; ou fermer le générique (P208.01). Garde : un test par rôle sur une agence `individual`.
+
+### Petites améliorations
+- Réf : P208.06
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Http/Requests/Invitation/CreateInvitationRequest.php:37-44,71`, `takussan-api/app/Policies/InvitationPolicy.php:21-23`, `takussan-api/app/Services/Invitation/InvitationService.php:140-142`
+- Constat :
+  - `invitable_id` inexistant : `POST /api/invitations` `{role: owner, invitable_type: OwnerProfile, invitable_id: 999999}` → 201 (mesuré). Ce que rend l'acceptation (compte membre de rien, le cas de TCK-455) est à vérifier.
+  - `agency_admin` figure dans la liste blanche (lu, l. 41) mais `assertInvitationAttachesToSomething()` le refuse toujours en 422, `INVITABLE_TYPE_BY_ROLE` ne le connaissant pas (lu, `InvitationService.php:98-104`) : une valeur acceptée par la requête et jamais par le service.
+  - Le docblock d'`InvitationPolicy` dit que bailleur et agent ne créent pas d'invitation, alors que `create` ne juge que `team.invite`, qu'un agent peut tenir (lu, l. 21-23 et 69-76). Celui de `send()` parle d'une permission `invite_<role>` qui n'existe plus (lu, l. 140-142).
+  - Établi comment : lu, et mesuré pour le premier point.
+- Piste : refuser un `invitable_id` sans ligne (avec P208.01), retirer `agency_admin` de la liste blanche, corriger les deux docblocks.
