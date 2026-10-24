@@ -225,6 +225,36 @@ class DocumentVersionTest extends TestCase
         $this->assertEquals(1, $purgeLog->properties['version_number'], 'Version 1 must be the purged one.');
     }
 
+    /**
+     * P231.05 (TCK-2239) — au-delà du plafond, le numéro suit le plus grand existant : il valait
+     * `count() + 1`, soit 21 à chaque envoi une fois les 20 versions atteintes.
+     */
+    public function test_les_numeros_restent_distincts_et_croissants_au_dela_du_plafond(): void
+    {
+        $user = User::factory()->create();
+        $document = $this->makeDocument($user);
+
+        $numeros = [];
+        for ($i = 1; $i <= DocumentVersionService::VERSION_CAP + 2; $i++) {
+            $numeros[] = $this->service->uploadVersion(
+                $document,
+                UploadedFile::fake()->create("v{$i}.pdf", 10, 'application/pdf'),
+                $user,
+            )->getCustomProperty('version_number');
+        }
+
+        $this->assertSame(range(1, DocumentVersionService::VERSION_CAP + 2), $numeros);
+
+        $restants = $this->service->listVersions($document)
+            ->map(fn ($m) => $m->getCustomProperty('version_number'))
+            ->sort()->values()->all();
+        $this->assertSame(range(3, DocumentVersionService::VERSION_CAP + 2), $restants);
+
+        $purges = Activity::where('event', 'document.version.purged')
+            ->orderBy('id')->get()->map(fn ($a) => $a->properties['version_number'])->all();
+        $this->assertSame([1, 2], $purges);
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     // AC8 — 403 for users without upload rights
     // ─────────────────────────────────────────────────────────────────────────

@@ -36,11 +36,16 @@ class DocumentVersionService
     public function uploadVersion(Document $document, UploadedFile $file, User $actor, ?string $comment = null): Media
     {
         return DB::transaction(function () use ($document, $file, $actor, $comment): Media {
+            // P231.05 (TCK-2239) — deux envois simultanés se sérialisent sur la ligne du document.
+            Document::query()->whereKey($document->getKey())->lockForUpdate()->first();
+
             // Deactivate previous active version.
             $this->deactivateAll($document);
 
-            // Determine next version number from the DB (not the cached collection).
-            $nextVersion = $this->freshVersions($document)->count() + 1;
+            // Next version number from the DB (not the cached collection): the highest existing
+            // one plus one. `count() + 1` repeated 21 once the soft-cap purged the oldest.
+            $nextVersion = (int) $this->freshVersions($document)
+                ->max(fn (Media $m) => (int) $m->getCustomProperty('version_number', 0)) + 1;
 
             /** @var Media $media */
             $media = $document
