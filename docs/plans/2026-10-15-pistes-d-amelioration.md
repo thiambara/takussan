@@ -18599,7 +18599,7 @@ est conforme à `docs/models-spec.md` § 14 tel que le cite TCK-1151.*
 
 ### Changer son nom ou sa photo dans l'en-tête du profil laisse l'ancien nom et l'ancienne photo à la barre du site public
 - Réf : P202.06
-- Statut : retenu · autonome
+- Statut : fait · TCK-2046
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/profile/ProfileHeader.tsx:47,119-130`, `takussan-web/src/components/home/Navbar.tsx:324,780`, `takussan-web/src/components/onboarding/EtapePrenom.tsx:44-50`
 - Constat :
@@ -18608,6 +18608,7 @@ est conforme à `docs/models-spec.md` § 14 tel que le cite TCK-1151.*
   - `EtapePrenom`, qui fait le même enregistrement, pose bien le contexte (`setUser({ ...user, ...resultat.user })`, lu, l. 49) : le patron existe à côté.
 - Piste : poser l'utilisateur rendu dans le contexte, comme `EtapePrenom` ; ou P202.01. Garde : un test de `ProfileHeader` sous un vrai `AuthProvider`, qui exige le nouveau prénom dans `useAuth().user`.
 - Mesure (2026-10-23, d954c56a0, mesureur) : relu `ProfileHeader.tsx:47,125,130` (`setCurrentUser(result.user)` puis `router.refresh()`, ni `setUser` ni `refreshUser`), `Navbar.tsx:136,324,780` (libellé et photo lus dans `useAuth().user`) et `EtapePrenom.tsx:27,49` (`setUser({ ...user, ...resultat.user })` après le même enregistrement) ; avec la mesure de P202.01 (`router.refresh()` ne change pas le contexte), le constat tient ; l'ancien nom n'a pas été vu au navigateur. Classement : A1, `EtapePrenom` écrit le contrat ; poser l'utilisateur rendu dans le contexte ne décide rien de neuf.
+- Mesure (2026-10-24, d5a49a150, implementeur) : reproduit avant correctif par `ProfileHeader.contexte.tck-2046.test.tsx` (en-tête sous un vrai `AuthProvider`, prénom changé et photo rendue par l'action) → `useAuth().user.first_name` resté `Astou` ; correctif : `setUser({ ...contextUser, ...result.user })` après l'enregistrement, comme `EtapePrenom` → vert (prénom, nom complet et photo au contexte, `phone_verified_at` gardé) ; ablation (`ProfileHeader.tsx` à `HEAD`) → rouge, remis → vert ; `ProfileHeader.test.tsx` vert ; la `Navbar` n'a pas été rendue.
 
 ### La vérification d'e-mail par le lien peut laisser l'adresse « non vérifiée » au contexte de la session qui l'a faite
 - Réf : P202.07
