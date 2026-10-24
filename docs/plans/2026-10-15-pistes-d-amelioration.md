@@ -20473,7 +20473,7 @@ sans `delete`).*
 
 ### Petites améliorations
 - Réf : P226.03
-- Statut : retenu · autonome
+- Statut : fait · TCK-2206
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Controllers/Api/MediaController.php:28-38`, `takussan-api/app/Http/Requests/MediaUploadRequest.php:25-28,57-63`, `takussan-api/app/Http/Requests/Api/StoreSettingRequest.php:51-56`
 - Constat :
@@ -20482,6 +20482,7 @@ sans `delete`).*
   - Établi comment : lu.
 - Piste : résoudre la cible des médias après l'autorisation, ou rendre au manquant le refus du tiers ; comparer `(int)` dans `StoreSettingRequest`. Garde : un test d'égalité des réponses absent / tiers pour `POST /api/media`.
 - Mesure (2026-10-24, 7ced6a130, mesureur) : relu `MediaController::store` (l. 28-38, `findOrFail` avant `authorizeAttach`) et `StoreSettingRequest::authorize()` (l. 51-56, comparaison stricte) ; sonde temporaire `SondeMesureurAngle226Test` (retirée) : compte sans lien, `POST /api/media` `model_type` = `App\Models\Property`, bien d'un tiers → 403, identifiant absent → 404 ; admin d'agence, `POST /api/settings` `scope: agency`, `scope_id` entier → 201, le même en chaîne → 403 `setting.other_agency_forbidden` ; le front n'appelle pas `POST /api/settings` (`grep` dans `takussan-web/src`). Les deux parties déduites tiennent. Classement : A1, « un absent reçoit le refus du tiers » est la règle écrite par l'angle 62 (TCK-1066 à TCK-1072), et l'admin de sa propre agence est déjà admis quand l'identifiant est un entier.
+- Mesure (2026-10-24, 8cc72d66e, implementeur) : reproduit avant correctif par `IdentifiantsCiblesDuClientTest` (compte sans lien, `POST /api/media` `model_type` = `App\Models\Property` : bien tiers → 403, identifiant absent → 404 ; admin d'agence, `POST /api/settings` `scope: agency`, `scope_id` = son agence en chaîne → 403) → `MediaController::store` rend 403 pour une cible absente avant l'autorisation, `StoreSettingRequest::authorize()` compare `(int)` ; après : même statut et même corps absent / tiers, réglage en chaîne → 201, autre agence (entier ou chaîne) → 403 ; ablation (les deux correctifs retirés) → 2 rouges, rétablis → 3 verts.
 
 ## Angle 227 — Requêtes de création plus larges que les gestes et les modifications resserrés
 
