@@ -19346,7 +19346,7 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
 
 ### Une délégation révoquée pendant le passage de la tâche planifiée est réactivée
 - Réf : P211.06
-- Statut : retenu · autonome
+- Statut : fait · TCK-2111
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Permissions/RoleDelegationService.php:131-189`, `takussan-api/app/Models/RoleDelegation.php:159-182`, `takussan-api/app/Jobs/Permissions/ProcessRoleDelegationsJob.php:17-28`, `takussan-api/routes/console.php:111`
 - Constat :
@@ -19355,6 +19355,7 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
   - Établi comment : lu et mesuré.
 - Piste : écrire les transitions par une mise à jour conditionnelle (`where('status', scheduled)->update(…)`, réclamation comme `BoostLifecycle::closeWithRefund`) ou sous verrou relu, et n'émettre l'événement que si la ligne a été prise. Garde : révocation puis activation sur le modèle chargé par le job → `revoked`, aucun événement.
 - Mesure (2026-10-24, 0c24562d3, mesureur) : relu `RoleDelegationService.php` : `revoke`, `activate` et `expire` jugent `status` sur le modèle reçu puis écrivent par `markRevoked` / `markActive` / `markExpired` (`RoleDelegation.php:159-182`, `update()` sans condition sur le statut en base) ; `ProcessRoleDelegationsJob` charge par `cursor()` et appelle sur chaque modèle chargé ; test temporaire `tests/Feature/TmpMesureur/TmpMesure211Test.php` (retiré), `XDEBUG_MODE=off php artisan test <fichier>`, PostgreSQL de test, charge 1,66 / 1,78 / 1,95 sur 8 cœurs : délégation `scheduled` échue chargée par `readyToActivate()`, `revoke` sur une copie fraîche, puis `activate` sur le modèle chargé → `status = active`, `revoked_at` conservé → le constat tient ; le nombre de `RoleDelegationActivated` n'a pas été relevé (événement après commit, non vu sous `RefreshDatabase`). Classement : A1, la révocation écrit le contrat (une délégation `revoked` ne s'active plus, garde `status !== Scheduled` d'`activate`) ; le correctif la rend effective sur la ligne en base par une mise à jour conditionnelle ou un verrou, sans toucher à ce qu'une délégation légitime accorde.
+- Mesure (2026-10-24, b9243f4b6, implementeur) : délégation `scheduled` échue chargée par `readyToActivate()`, `revoke` sur une copie fraîche puis `activate` sur le modèle chargé → `active` (reproduit par `tests/Feature/Api/Permissions/RoleDelegationSousVerrouTest.php` : 3 rouges sur 4 avant correctif — activation et expiration après révocation, seconde révocation périmée) → `revoke`, `activate` et `expire` relisent la ligne sous `lockForUpdate` et n'écrivent ni n'émettent que si elle a été prise ; 4 verts, `ProcessRoleDelegationsJobTest`, `RoleDelegationTest`, `AgentAbsenceTest` verts ; ablation (service remis à `HEAD`) → 3 rouges, correctif remis → 4 verts.
 
 ### Petites améliorations
 - Réf : P211.07
