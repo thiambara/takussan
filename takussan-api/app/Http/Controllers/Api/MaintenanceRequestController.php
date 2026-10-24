@@ -127,7 +127,7 @@ class MaintenanceRequestController extends Controller
 
         // TCK-1991 (P169.03) — l'escalade compte ses 30 minutes depuis le passage en urgent.
         if ($mr->priority === MaintenancePriority::Urgent) {
-            $mr->metadata = [...($mr->metadata ?? []), MaintenanceRequest::URGENT_SINCE => now()->toIso8601String()];
+            $mr->metadata = [...($mr->metadata ?? []), MaintenanceRequest::URGENT_SINCE => $this->instant(now())];
             $mr->saveQuietly();
         }
 
@@ -225,7 +225,7 @@ class MaintenanceRequestController extends Controller
                 $metadata = $maintenanceRequest->metadata ?? [];
                 unset($metadata[MaintenanceRequest::URGENT_SINCE], $metadata[MaintenanceRequest::ESCALATED_AT]);
                 if ($becameUrgent) {
-                    $metadata[MaintenanceRequest::URGENT_SINCE] = now()->toIso8601String();
+                    $metadata[MaintenanceRequest::URGENT_SINCE] = $this->instant(now());
                 }
                 $maintenanceRequest->metadata = $metadata;
             }

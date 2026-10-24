@@ -13,7 +13,7 @@ class UserSupportService
     {
         $this->guardTarget($actor, $target);
         // TCK-1995 (P193.02) — un compte sans e-mail (créé par téléphone) n'a pas de lien à recevoir :
-        // refusé avant le broker, qui écrivait une ligne `password_reset_tokens` à e-mail nul (500).
+        // refusé avant `sendResetLink()`, qui écrivait une ligne `password_reset_tokens` à e-mail nul (500).
         abort_code_if(blank($target->email), 409, 'support.no_email');
 
         $status = Password::broker()->sendResetLink(['email' => $target->email]);
