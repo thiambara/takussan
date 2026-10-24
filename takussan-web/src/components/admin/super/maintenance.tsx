@@ -2,6 +2,7 @@
 
 import { useId, useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { format } from 'date-fns';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { CalendarClock, RotateCcw, Save } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -29,6 +30,9 @@ export function MaintenanceScheduler({ status }: { status: MaintenanceStatus }) 
   const queryClient = useQueryClient();
   const [startsAt, setStartsAt] = useState('');
   const [endsAt, setEndsAt] = useState('');
+  // P230.04 — `starts_at` `after_or_equal:now` (TCK-218) : le début part de l'instant présent, la
+  // fin du début choisi. Forme locale `YYYY-MM-DDTHH:mm` de la primitive, qui ne grise que les jours.
+  const [maintenant] = useState(() => format(new Date(), "yyyy-MM-dd'T'HH:mm"));
   const [mode, setMode] = useState<MaintenanceMode>('banner');
   const [severity, setSeverity] = useState<MaintenanceSeverity>('scheduled');
   // TCK-292 — contenu par DÉFAUT du bandeau ENVOYÉ À L'API, et non du texte d'interface : chaque
@@ -102,11 +106,11 @@ export function MaintenanceScheduler({ status }: { status: MaintenanceStatus }) 
         <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-2">
           <label className="space-y-1.5">
             <Label htmlFor="maintenance-start">{t('start')}</Label>
-            <DateTimePicker id="maintenance-start" value={startsAt} onValueChange={setStartsAt} />
+            <DateTimePicker id="maintenance-start" min={maintenant} value={startsAt} onValueChange={setStartsAt} />
           </label>
           <label className="space-y-1.5">
             <Label htmlFor="maintenance-end">{t('end')}</Label>
-            <DateTimePicker id="maintenance-end" value={endsAt} onValueChange={setEndsAt} />
+            <DateTimePicker id="maintenance-end" min={startsAt || maintenant} value={endsAt} onValueChange={setEndsAt} />
           </label>
         </div>
         <Segmented
