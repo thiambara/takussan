@@ -7,6 +7,7 @@ use App\Http\Requests\RejectPropertyRequest;
 use App\Http\Resources\PropertyResource;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Property;
+use App\Policies\PropertyModerationPolicy;
 use App\Services\Property\PropertyModerationService;
 use App\Support\AgencyKindGuard;
 use App\Support\CaseInsensitive;
@@ -31,7 +32,8 @@ class PropertyModerationController extends Controller
     public function index(Request $request): JsonResponse
     {
         $user = $request->user();
-        abort_unless($user->isSuperAdmin() || ($user->agency_id !== null && $user->isAgencyAdminAt((int) $user->agency_id)), 403);
+        // TCK-2022 (P116.05) — l'admin de l'agence ET `properties.publish`, la règle de l'approbation.
+        abort_unless($user->isSuperAdmin() || ($user->agency_id !== null && app(PropertyModerationPolicy::class)->moderatesAt($user, (int) $user->agency_id)), 403);
 
         $query = Property::query()
             ->with(['owner', 'agency', 'address'])
