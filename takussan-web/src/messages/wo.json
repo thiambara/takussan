@@ -4354,7 +4354,8 @@
         "payments": {
           "record": "Bind peymaan",
           "refund": "Delloo peymaan",
-          "export": "Génne peymaan yi"
+          "export": "Génne peymaan yi",
+          "reconcile": "Rapprocher les relevés bancaires"
         },
         "invoices": {
           "create": "Sos faktiir",

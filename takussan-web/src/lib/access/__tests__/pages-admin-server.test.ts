@@ -56,8 +56,9 @@ beforeEach(() => {
   getToken.mockResolvedValue('jeton');
   getActiveProfileId.mockResolvedValue('agency_admin:12');
   resolveAgency.mockResolvedValue({ id: 7, kind: 'standard' });
-  // TCK-1274 — un admin au rôle système : les capacités de lecture des rôles et du KYC comprises.
-  capacites(['agency.update_billing', 'agency.update_kyc', 'team.assign_role']);
+  // TCK-1274 — un admin au rôle système : les capacités de lecture des rôles et du KYC comprises,
+  // et celles du rapprochement et du journal (TCK-2260).
+  capacites(['agency.update_billing', 'agency.update_kyc', 'team.assign_role', 'payments.reconcile', 'reports.view_agency']);
 });
 
 describe('garderPageAdmin — une page refusée renvoie à la première accessible', () => {

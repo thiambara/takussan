@@ -6114,7 +6114,8 @@
         "payments": {
           "record": "Record a payment",
           "refund": "Refund a payment",
-          "export": "Export payments"
+          "export": "Export payments",
+          "reconcile": "Reconcile bank statements"
         },
         "invoices": {
           "create": "Create an invoice",

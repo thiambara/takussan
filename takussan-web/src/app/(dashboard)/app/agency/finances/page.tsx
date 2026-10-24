@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { getMeAction } from '@/app/actions/auth';
 import { NoAgencyState } from '@/components/shared/NoAgencyState';
-import { garderPageAdmin } from '@/lib/access/pages-admin-server';
+import { accesAdmin, garderPageAdmin } from '@/lib/access/pages-admin-server';
 import { isSuperAdmin } from '@/lib/roles';
 import { AdminFinancesClient } from './AdminFinancesClient';
 import { PageHeader } from '@/components/console';
@@ -50,6 +50,10 @@ export default async function Page() {
     return <NoAgencyState title={t('noAgency')} />;
   }
 
+  // TCK-2260 (P116.07) — le rapprochement exige `payments.reconcile` : le lien suit `PAGES_ADMIN`
+  // (`accesAdmin`, mémoïsé par rendu, déjà lu par la coque de `/app`).
+  const rapprochement = (await accesAdmin(user)).chemins.includes('/app/agency/finances/reconciliation');
+
   // TCK-594 (ADR-0039 §1) — le taux de commission ne pré-remplit plus aucun champ : la commission
   // se calcule côté serveur, ligne par ligne, depuis le taux du bail ou, à défaut, de l'agence
   // (TCK-370 transmettait ce taux au dialogue de reversement, qui n'a plus de champ à remplir).
@@ -60,12 +64,14 @@ export default async function Page() {
         description={t('subtitle')}
         actions={
           // TCK-593 — le rapprochement bancaire vit sous les finances de l'agence.
-          <Link
-            href="/app/agency/finances/reconciliation"
-            className={buttonVariants({ variant: 'outline' })}
-          >
-            {t('reconciliationLink')}
-          </Link>
+          rapprochement ? (
+            <Link
+              href="/app/agency/finances/reconciliation"
+              className={buttonVariants({ variant: 'outline' })}
+            >
+              {t('reconciliationLink')}
+            </Link>
+          ) : undefined
         }
       />
       <AdminFinancesClient canViewFinances canEmitFinances />
