@@ -20043,7 +20043,7 @@ l'import de relevé bancaire n'envoie qu'un CSV ou un OFX.*
 
 ### L'échec de l'envoi des photos d'une demande d'intervention neuve est avalé, et la reprise promise n'existe pas
 - Réf : P222.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : avertissement neuf et envoi de photos neuf sur la fiche du demandeur
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/maintenance/MaintenanceForm.tsx:78-96`, `takussan-web/src/components/maintenance/MaintenanceGallery.tsx:23,62,91-99`, `takussan-api/app/Http/Resources/MaintenanceRequestResource.php:220`
 - Constat :
@@ -20052,10 +20052,11 @@ l'import de relevé bancaire n'envoie qu'un CSV ou un OFX.*
   - L'API permet pourtant au demandeur de compléter ses photos (`UploadPhotosMaintenanceRequestRequest`, `can('view')`, décision de TCK-445, lu l. 29-39) : la voie existe, l'écran non.
   - Établi comment : lu.
 - Piste : ne pas taire l'échec — rester sur le formulaire ou arriver sur la fiche avec un avertissement nommant les photos non envoyées — et donner au demandeur l'envoi de la collection `photos` sur la fiche, que l'API lui ouvre déjà. Garde : un test Vitest où `uploadPhotos` rejette et un message s'affiche.
+- Mesure (2026-10-24, 03a8930d8, mesureur) : relu `MaintenanceForm.tsx:78-96` (le `catch {}` vide après `uploadPhotos`, puis `router.push` vers la fiche), `git grep "collection: '"` dans `takussan-web/src` → `MaintenanceForm.tsx:87` (`photos`) et `MaintenanceGallery.tsx:98` (`before_photos`) seulement, `MaintenanceGallery.tsx:23,62` (`BeforePhotosUpload` sous `can_upload_before_photos`), `MaintenanceRequestResource.php:220` (`! $terminal && $isProvider && $mr->accepted_at !== null`), `UploadPhotosMaintenanceRequestRequest::authorize()` (`can('view')`, décision TCK-445) ; `git log` des fichiers et `grep` des tickets → rien ne l'a traitée → le constat tient en entier, lignes inchangées. Classement : V7, la piste ajoute un message d'échec et un envoi de la collection `photos` visibles du demandeur, texte et écran neufs.
 
 ### Photos d'intervention et d'état des lieux envoyées en un seul lot sans borne de nombre, face aux 20 fichiers et aux 25 Mio de l'image
 - Réf : P222.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : choix de la borne N et refus neuf de lots aujourd'hui admis
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/Api/UploadPhotosMaintenanceRequestRequest.php:50`, `takussan-api/app/Http/Requests/Api/CompleteMaintenanceRequestRequest.php:58`, `takussan-api/app/Http/Requests/Api/UploadRoomPhotosInventoryRequest.php:39`, `takussan-web/src/lib/queries/maintenance.ts:199-204,336-337`, `takussan-web/src/lib/queries/inventory.ts:168`, `takussan-web/src/components/maintenance/MaintenanceForm.tsx:158-166`, `takussan-web/src/components/maintenance/MaintenanceCompleteForm.tsx:107-116`, `takussan-web/src/components/maintenance/MaintenanceGallery.tsx:104-113`, `takussan-web/src/components/inventory/InventoryDetail.tsx:273-290`, `takussan-api/docker/php.ini:5-9`, `takussan-api/docker/Caddyfile:21-31`
 - Constat :
@@ -20065,10 +20066,11 @@ l'import de relevé bancaire n'envoie qu'un CSV ou un OFX.*
   - Avec 1 446 048 o par photo réduite (TCK-542), 19 photos dépassent 25 Mio : un 413 sans corps JSON ; 21 photos et plus seraient d'abord tronquées par PHP (déduit de la configuration, à vérifier sur l'image). Pour la demande neuve, ce refus tombe dans le `catch {}` de P222.01.
   - Établi comment : lu ; les effets sur l'image sont à vérifier.
 - Piste : la décision de TCK-673 (« photos max:20 », une requête par photo) appliquée aux trois routes d'intervention et à celle de l'état des lieux — `max:N` à l'API, la même borne annoncée au front, et l'envoi par photo ou par paquets sous 25 Mio. Garde : un test Feature par route, N+1 photos → 422 sans média écrit, comme `PropertyMediaTest`.
+- Mesure (2026-10-24, 03a8930d8, mesureur) : relu les règles `photos` de `UploadPhotosMaintenanceRequestRequest.php:50` (`required, array, min:1`), `CompleteMaintenanceRequestRequest.php:58` (`nullable, array`) et `UploadRoomPhotosInventoryRequest.php:39` (`required, array, min:1`), sans `max:` ; `maintenance.ts:204,337` et `inventory.ts:168` mettent tout le lot dans un `FormData` ; `docker/php.ini:5-9` (`post_max_size = 26M`, `max_file_uploads = 20`), `Caddyfile:21-31` (413 au-delà de 26 214 400 o). Le « à vérifier » sur `MediaDropzone` est tranché : `MediaManager.tsx` refuse la sélection quand `list.length + files.length > maxFiles` (20 par défaut, `DEFAULT_MAX_FILES`), donc l'état des lieux ne dépasse pas 20 fichiers et seule la borne de 25 Mio le touche (19 photos à 1 446 048 o = 27 474 912 o) ; les trois écrans d'intervention n'ont aucune borne de nombre. Les effets sur l'image (413, troncature PHP) ne sont pas mesurés sur un conteneur → le constat tient, précisé pour l'état des lieux. Classement : V7, choisir N et refuser en 422 des lots que l'API accepte aujourd'hui change ce que voit le demandeur et le prestataire.
 
 ### Le logo d'agence est refusé au-delà de 2 Mo avant d'être réduit, comme l'avatar l'était avant TCK-1887
 - Réf : P222.03
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/admin-agency/AgencyConfigForm.tsx:195-211`, `takussan-web/src/lib/schemas/agency.ts:205,226`, `takussan-web/src/app/actions/admin-agency.ts:135`, `takussan-api/app/Http/Requests/MediaUploadRequest.php:17,50`, `takussan-web/src/components/profile/ProfileHeader.tsx:96-103`
 - Constat :
@@ -20077,10 +20079,11 @@ l'import de relevé bancaire n'envoie qu'un CSV ou un OFX.*
   - Qu'une photo de logo réelle de 3 à 8 Mo passe sous 2 Mo une fois réduite n'est pas mesuré sur un fichier.
   - Établi comment : lu.
 - Piste : réduire par `reduirePhotoSousPlafond(file, AGENCY_LOGO_MAX_BYTES)` avant `validateAgencyLogoFile`, et envoyer le fichier réduit, comme l'avatar. Garde : un test Vitest à outils d'image simulés où un logo de 5 Mo réductible n'affiche pas `logoTooLarge` et part réduit.
+- Mesure (2026-10-24, 03a8930d8, mesureur) : relu `AgencyConfigForm.tsx:193-211` (`validateAgencyLogoFile(file)` avant, `reduirePhoto(file)` après), `agency.ts:205,226` (`AGENCY_LOGO_MAX_BYTES` = 2 Mo), `ProfileHeader.tsx:96-103` (l'avatar réduit par `reduirePhotoSousPlafond` avant de juger, TCK-1887), `reduire-photo.ts:163` (`reduirePhotoSousPlafond`, format inchangé, rend l'original sur échec), TCK-542 l. 114-119 (le logo est parmi les écrans de photos ; « une photo de 12 Mo qui tombe sous le plafond une fois réduite n'a pas à être refusée ») → le constat tient, lignes inchangées ; le gain sur un vrai fichier de logo n'est pas mesuré. Classement : A1, le comportement attendu est écrit dans TCK-542 et déjà appliqué à l'avatar par TCK-1887, sans texte neuf (`logoTooLarge` existe) ni critère V.
 
 ### Restitution de caution : pièces envoyées sans contrôle de taille ni de nombre, dix pièces de 10 Mo admises par la règle et refusées par le proxy
 - Réf : P222.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : borne de la somme et alignement de `uploads` de l'API à choisir
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/leases/DepositRefundModal.tsx:92-104,146-149,236-244`, `takussan-api/app/Http/Requests/RefundDepositRequest.php:38-39`, `takussan-api/docker/Caddyfile:21-31`
 - Constat :
@@ -20089,20 +20092,22 @@ l'import de relevé bancaire n'envoie qu'un CSV ou un OFX.*
   - Un 422 sur `uploads.N` est rendu dans l'erreur globale, sans dire quel fichier (lu, l. 119-136) ; le 413 passe par `messageErreur(err)`, dont le texte pour une réponse sans corps est à vérifier.
   - Établi comment : lu ; l'effet du proxy est à vérifier.
 - Piste : juger au choix chaque fichier à 10 Mo et le nombre à 10, et la somme sous la borne du corps, avec les messages existants des autres pièces ; aligner `uploads` de l'API sur ce qu'une requête peut porter. Garde : un test Vitest où un fichier de 11 Mo est refusé sans appel à l'API.
+- Mesure (2026-10-24, 03a8930d8, mesureur) : relu `DepositRefundModal.tsx:92-149` (`handleFiles` garde `Array.from(event.target.files)` sans contrôle ; `uploads[]` envoyé tel quel ; un 422 hors `amount`/`reason` va dans l'erreur globale), `RefundDepositRequest.php:38-39` (`uploads` `max:10`, `uploads.*` `max:10240`, `mimes:jpg,jpeg,png,webp,pdf`), `Caddyfile:21-31` → le constat tient ; le 413 du proxy et le texte de `messageErreur` sur une réponse sans corps ne sont pas mesurés. Classement : V7, le contrôle par pièce et par nombre suit le contrat de l'API (A1), mais la piste demande aussi une borne de somme et de réaligner `uploads` de l'API, deux choix de produit, sur un écran de sortie d'argent.
 
 ### Devis : cinq pièces de 5 Mo admises une à une font un corps égal à la borne du proxy
 - Réf : P222.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : la piste propose deux options (juger la somme, ou abaisser le plafond par pièce)
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/components/maintenance/QuoteSubmitForm.tsx:27-30,98-102`, `takussan-api/app/Http/Requests/Maintenance/SubmitQuoteRequest.php:40,45`, `takussan-api/docker/Caddyfile:21-31`
 - Constat :
   - Le front admet cinq pièces de 5 Mo au plus chacune, comme l'API (lu, `QuoteSubmitForm.tsx:27-30,98-102`, `SubmitQuoteRequest.php:40,45`). 5 × 5 × 1 048 576 = 26 214 400 octets, exactement la borne au-delà de laquelle le proxy rend 413 (lu, `Caddyfile:30-31`) : cinq pièces proches du plafond, plus les lignes du devis, la franchissent (déduit, à vérifier sur l'image).
   - Établi comment : lu, calcul.
 - Piste : juger aussi la somme au front avant l'envoi, ou abaisser le plafond par pièce pour que la règle de l'API tienne dans une requête. Garde : une assertion qui compare `max` × `max:` des règles de fichiers en lot à la borne du `Caddyfile`.
+- Mesure (2026-10-24, 03a8930d8, mesureur) : relu `QuoteSubmitForm.tsx:27-30,95-104` (`MAX_ATTACHMENTS = 5`, `MAX_ATTACHMENT_MB = 5`, pièce trop lourde écartée et nommée, TCK-1907), `SubmitQuoteRequest.php:40,45` (`max:5`, `max:5120`), `Caddyfile:30-31` (413 au-delà de 26 214 400 o) → le calcul tient (5 × 5 Mio = 26 214 400 o, plus les champs du devis) ; l'effet sur l'image n'est pas mesuré. Classement : V7, la `Piste` offre deux options qui changent ce que le prestataire peut joindre, le choix revient au porteur.
 
 ### Petites améliorations : envois d'un seul fichier non bornés au front, et photos d'intervention réduites sans plafond
 - Réf : P222.06
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : messages par écran à choisir, et troisième point conditionnel
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/components/leases/LeaseSignaturePanel.tsx:265-270`, `takussan-api/app/Http/Requests/ActivateLeaseRequest.php:33`, `takussan-web/src/components/kyc/kyc-components.tsx:185-188`, `takussan-api/app/Http/Requests/Kyc/UploadKycDocumentRequest.php:20`, `takussan-web/src/components/admin/super/PrivacyRequestsConsole.tsx:78,463-464`, `takussan-api/app/Http/Requests/Api/Admin/UpdatePrivacyRequestRequest.php:16,29`, `takussan-web/src/components/maintenance/MaintenanceForm.tsx:86`, `takussan-web/src/lib/reduire-photo.ts:103-148`
 - Constat :
@@ -20111,3 +20116,4 @@ l'import de relevé bancaire n'envoie qu'un CSV ou un OFX.*
   - Les quatre écrans de photos d'intervention passent par `reduirePhotos`, qui ne touche pas une image déjà sous 2 560 px (lu, `reduire-photo.ts:103-148`) : un PNG de moins de 2 560 px et de plus de 10 Mo part tel quel vers `max:10240` (déduit, cas rare, à vérifier).
   - Établi comment : lu.
 - Piste : le contrôle de taille avant l'envoi que portent déjà `KycUploader` et `DocumentUploadDialog`, sur ces trois écrans ; `KYC_MIME_ACCEPT` dans `kyc-components.tsx` ; `reduirePhotosSousPlafond(…, 10 Mo)` sur les écrans d'intervention si la mesure le justifie.
+- Mesure (2026-10-24, 03a8930d8, mesureur) : relu `LeaseSignaturePanel.tsx:265-270` (`accept` sans contrôle de taille) face à `ActivateLeaseRequest.php:33` (`max:10240`), `kyc-components.tsx:180-190` (`accept=".pdf,.jpg,.jpeg,.png,.webp"`, aucun contrôle de taille) face à `UploadKycDocumentRequest.php:20` (`AcceptedUploads::kyc(10240)`) et `AcceptedUploads::KYC_EXTENSIONS` (`heic`, `heif` compris), `KycUploader.tsx:79` (`KYC_MIME_ACCEPT`), `PrivacyRequestsConsole.tsx:78,460-464` (`PROOF_ACCEPT`, aucun contrôle de taille) face à `PROOF_MAX_KB = 10240`, `reduire-photo.ts:103-130` (`reduirePhoto` rend l'original quand `dimensionsPlafonnees` ne rend rien) → les trois points tiennent ; le PNG de plus de 10 Mo sous 2 560 px reste non mesuré. Classement : V7, l'alignement d'`accept` relève de A1 mais les messages des trois écrans sont à choisir et le dernier point dépend d'une mesure que la piste laisse ouverte.
