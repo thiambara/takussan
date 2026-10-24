@@ -19594,7 +19594,7 @@ les envoie.*
 
 ### Le front accepte un identifiant de page au-delà des entiers exacts, et lit alors une autre ligne ou l'API hors de `bigint`
 - Réf : P215.03
-- Statut : retenu · autonome
+- Statut : fait · TCK-2119
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/lib/detail/ressource-de-detail.ts:99-102` (`idDeDetail`), `takussan-web/src/app/(dashboard)/app/properties/[id]/page.tsx:63` (`Number(id)`)
 - Constat :
@@ -19603,3 +19603,4 @@ les envoie.*
   - Les identifiants réels de la base sont loin de ces bornes : le risque est une URL tapée ou forgée, pas une ligne réelle (déduit, à vérifier).
 - Piste : `idDeDetail` n'accepte que `^[1-9][0-9]{0,15}$` (ou `Number.isSafeInteger`), ce qui rend `notFound()` aux autres ; test unitaire de `idDeDetail` sur vingt chiffres et sur `12345678901234567`.
 - Mesure (2026-10-24, 3aa990fc9, mesureur) : relu `ressource-de-detail.ts:93-102` (`idDeDetail` : `Number(brut)`, entier et positif ; son docblock veut qu'un chemin qui ne désigne aucune ligne soit refusé), `:126-145` (un statut autre que 404 rend `indecidable`), `chemin-api.ts:66-95` (`String(valeur)`) et `properties/[id]/page.tsx:63` (`Number(id)`) ; test vitest temporaire (retiré) sur la vraie fonction → `99999999999999999999` → `100000000000000000000`, `12345678901234567` → `12345678901234568`, et aussi `1e3` → 1000, `0x10` → 16 (non relevé au constat) ; `1.5` et `abc` → `null` → la partie `idDeDetail` tient ; ce que chaque page affiche alors n'a pas été joué. Classement : A1, le docblock d'`idDeDetail` écrit l'attendu (refuser un chemin qui ne désigne aucune ligne) et le correctif est technique (`^[1-9][0-9]{0,15}$`), sans choix de produit.
+- Mesure (2026-10-24, 9216f4643, implementeur) : six cas neufs du test vitest `ressource-de-detail.test.ts` rouges sur la vraie fonction (`99999999999999999999`, `12345678901234567`, `9007199254740992`, `1e3`, `0x10`, `042` acceptés) → `idDeDetail` par `^[1-9][0-9]{0,15}$` puis `Number.isSafeInteger` → 21/21 ; ablation (fichier de `pre-dev`) → 6 rouges, remis → vert ; `etats-de-route`, `show-sans-fields.garde` et `ressource-de-detail.partage.tck-1384` verts.
