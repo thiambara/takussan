@@ -150,6 +150,8 @@ export interface MaintenanceMediaItem {
   readonly size: number | null;
   /** URL d'API signée : elle se télécharge sans jeton, et expire. */
   readonly url: string;
+  /** TCK-2088 — URL signée de la vignette, l'original pour un devis ou tant que la file ne l'a pas produite. */
+  readonly thumbnail_url?: string;
   readonly created_at: string | null;
 }
 
