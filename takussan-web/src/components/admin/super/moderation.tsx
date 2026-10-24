@@ -257,7 +257,11 @@ export function ModerationQueueTable({
       header: t('colReporter'),
       cell: (item) => (
         <>
-          <span className="block">{item.reporter?.name ?? t('anonymous')}</span>
+          {/* P193.05 (TCK-2053) — « Anonyme » seulement sans compte : un compte connu sans nom
+              est désigné par son identifiant. */}
+          <span className="block">
+            {item.reporter ? (item.reporter.name ?? `#${item.reporter.id}`) : t('anonymous')}
+          </span>
           {item.reporter?.email ? (
             <span className="text-xs text-muted-foreground">{item.reporter.email}</span>
           ) : null}

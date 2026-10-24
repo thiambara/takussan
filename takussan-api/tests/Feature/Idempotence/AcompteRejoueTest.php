@@ -26,6 +26,8 @@ class AcompteRejoueTest extends TestCase
         $booking = Booking::factory()->create([
             'property_id' => $property->id,
             'customer_id' => Customer::factory()->create()->id,
+            // Le reste dû borne l'acompte (TCK-1916) : un total tiré sous 100 000 rendait 422.
+            'total_amount' => 1_000_000,
         ]);
         Sanctum::actingAs($owner);
         $corps = ['amount' => 100000, 'payment_type' => 'deposit', 'payment_method' => 'cash'];

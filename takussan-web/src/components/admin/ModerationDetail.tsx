@@ -209,7 +209,10 @@ export function ModerationDetail({ review, onModerated, platform = false }: Mode
                 className="rounded-lg border border-muted bg-muted/20 p-3 text-sm"
               >
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span>{report.user?.name ?? t('reporterFallback')}</span>
+                  {/* P193.05 (TCK-2053) — « Anonyme » seulement sans `user_id`. */}
+                  <span>
+                    {report.user_id === null ? t('anonymous') : (report.user?.name ?? t('reporterFallback'))}
+                  </span>
                   {/* TCK-292 — la locale ACTIVE, plus celle du navigateur : un
                       utilisateur `fr` sur un navigateur `en-US` lisait une date
                       anglaise (et l'inverse). `ModerationQueueList`, à côté,

@@ -111,6 +111,8 @@ return [
         'consequences' => 'Sa donné personnel ya, dañ leen di anonimiser sax-sax. Donné yu jaadu ag téé yi (paye, bail, fakture) dañ leen di kàllaaxoo waaye sànni leen sa tur.',
         'action' => 'Aju ndogal li',
         'ignore' => 'Bu yaa ko sàppal-li, aju ko leegi te soppi sa baatu jubaale.',
+        // P193.04 (TCK-2051) — un compte sans e-mail : SMS au numéro vérifié.
+        'sms' => 'Takussan : votre demande de suppression de compte est enregistrée. Elle sera exécutée le :date. Pour l\'annuler, connectez-vous avant cette date.',
     ],
 
     // TCK-272 — kod bu step-up ngir kont yu amul baatu jubaale bu baax.
@@ -137,6 +139,8 @@ return [
         'intro' => 'Sa kont di nañu ko suufeel ci :days fan, ci :date. Soo soppee xel, manga ko aju ba leegi.',
         'action' => 'Aju ndogal li',
         'ignore' => 'Soo dëggee suufeel bi, ñakkul wax dara.',
+        // P193.04 (TCK-2051) — un compte sans e-mail : SMS au numéro vérifié.
+        'sms' => 'Takussan : votre compte sera supprimé dans :days jours, le :date. Pour annuler, connectez-vous avant cette date.',
     ],
 
     'account_deletion_executed' => [
@@ -145,6 +149,8 @@ return [
         'intro' => 'Sa kont Takussan suufeel nañ ko, te sa donné personnel anonimiser nañ leen sax-sax.',
         'retention' => 'Naka noonu mu nekke ci yoonu réew, doxal yi nu mëniw (paye, fakture) lañ kàllaaxoo waaye anonim ci 10 at.',
         'contact' => 'Yoonu sa laaj, jokkok ekipu jëfundikuwaay ya.',
+        // P193.04 (TCK-2051) — un compte sans e-mail : SMS au numéro vérifié.
+        'sms' => 'Takussan : votre compte a été supprimé et vos données personnelles ont été anonymisées.',
     ],
 
     'lease_deposit_refunded' => [

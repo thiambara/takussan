@@ -169,6 +169,25 @@ class LeaseSignatureTest extends TestCase
         Bus::assertDispatchedTimes(GenerateLeasePaymentSchedule::class, 1);
     }
 
+    /**
+     * P193.06 (TCK-2055) — ni numéro vérifié ni e-mail : le code n'est pas émis, la réponse ne
+     * l'annonce pas envoyé (`202 {"channel":"mail","destination":"•••@"}` avant), et la fenêtre
+     * de renvoi n'est pas consommée.
+     */
+    public function test_p193_06_un_signataire_sans_destination_est_refuse_avant_tout_code(): void
+    {
+        $this->requestSignature()->assertOk();
+        $this->tenantUser->forceFill(['email' => null, 'email_verified_at' => null, 'phone_verified_at' => null])->save();
+
+        $this->sendCode($this->tenantUser, 'tenant')
+            ->assertStatus(422)
+            ->assertJsonPath('code', 'lease_signature.no_destination');
+        Notification::assertNotSentTo($this->tenantUser, LeaseSignatureCodeNotification::class);
+
+        $this->tenantUser->forceFill(['email' => 'locataire@example.test'])->save();
+        $this->sendCode($this->tenantUser, 'tenant')->assertStatus(202);
+    }
+
     public function test_the_landlord_may_sign_first(): void
     {
         $this->requestSignature()->assertOk();

@@ -18,6 +18,7 @@ return [
     ],
     'activity_log' => [
         'export_too_large' => 'Bari na lool ngir génne ko : wàññil seetu yi.',
+        'export_needs_email' => 'Cet export dépasse 5 000 lignes : il est préparé puis envoyé par e-mail. Ajoutez une adresse e-mail à votre compte, ou resserrez les filtres.',
         'export_link_invalid' => 'Lënk bi jeex na walla baaxul.',
         'date_range_inverted' => 'La date de début doit précéder la date de fin, ou lui être égale.',
         'date_range_too_long' => 'La période exportée ne doit pas dépasser un an.',
@@ -303,6 +304,7 @@ return [
         'resend_too_soon' => 'Yónne nañu kood leegi : xaaral benn simili balaa ngay laaj beneen.',
         'terms_changed' => 'Bayle bi soppiku na bi ñuy waajal kontra bi : dara fëjjul. Laajaatal xaatim bi.',
         'sms_not_sent' => 'Le code n\'a pas pu partir par SMS : réessayez dans une minute, ou contactez le support.',
+        'no_destination' => 'Aucun moyen de vous envoyer le code : vérifiez votre numéro de téléphone depuis votre profil, puis réessayez.',
         'tenant_without_account' => 'Kiy luye bayle bii amul kont : xaatimal ci kayit te boole ci kontraa bi ñu scanné.',
     ],
     'lease_payment' => [

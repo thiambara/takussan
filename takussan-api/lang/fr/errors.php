@@ -18,6 +18,7 @@ return [
     ],
     'activity_log' => [
         'export_too_large' => 'Trop de lignes pour un export : resserrez les filtres.',
+        'export_needs_email' => 'Cet export dépasse 5 000 lignes : il est préparé puis envoyé par e-mail. Ajoutez une adresse e-mail à votre compte, ou resserrez les filtres.',
         'export_link_invalid' => 'Lien expiré ou invalide.',
         'date_range_inverted' => 'La date de début doit précéder la date de fin, ou lui être égale.',
         'date_range_too_long' => 'La période exportée ne doit pas dépasser un an.',
@@ -303,6 +304,7 @@ return [
         'resend_too_soon' => 'Un code vient d\'être envoyé : patientez une minute avant d\'en demander un autre.',
         'terms_changed' => 'Le bail a été modifié pendant la préparation du contrat : rien n\'a été figé. Relancez la demande de signature.',
         'sms_not_sent' => 'Le code n\'a pas pu partir par SMS : réessayez dans une minute, ou contactez le support.',
+        'no_destination' => 'Aucun moyen de vous envoyer le code : vérifiez votre numéro de téléphone depuis votre profil, puis réessayez.',
         'tenant_without_account' => 'Le locataire de ce bail n\'a pas de compte : signez sur papier et joignez le contrat numérisé.',
     ],
     'lease_payment' => [
