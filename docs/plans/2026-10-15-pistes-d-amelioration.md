@@ -19609,7 +19609,7 @@ les envoie.*
 
 ### Les consoles super-admin des comptes, des agences, des biens et des portefeuilles rendent 500 sur un filtre ou un tri en liste
 - Réf : P216.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-2120
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/Admin/UserDetailController.php:30,46,50,71,89`, `takussan-api/app/Http/Controllers/Api/Admin/AgencyModerationController.php:64,70,90,98,103,108`, `takussan-api/app/Http/Controllers/Api/Admin/PropertyModerationController.php:51`, `takussan-api/app/Http/Controllers/Api/Admin/AdminCreditWalletController.php:27`
 - Constat :
@@ -19621,6 +19621,7 @@ les envoie.*
   - Établi comment : lu, test temporaire.
 - Piste : ne lire la valeur que si `is_string()`, une liste valant une valeur absente (le précédent de TCK-1407 et TCK-1866). Garde : un test par console qui envoie chaque paramètre en liste et attend 200.
 - Mesure (2026-10-24, 38e9e45bf, mesureur) : relu `UserDetailController.php:30,46,50,71,89`, `AgencyModerationController.php:64,70,90,98,103,108`, `PropertyModerationController.php:51`, `AdminCreditWalletController.php:27` (inchangés) ; aucun ticket ni commit (grep `docs/backlog/tickets`, `git log`) ; test temporaire `tests/Feature/Tmp/MesureurTmp216Test.php` (retiré), une requête par paramètre, gestionnaire d'exceptions actif, charge `{ 3.18 2.91 2.63 }` sur 8 cœurs → super-admin : `/api/admin/users` en liste sur `filter[search|status|role|agency_id]` → 500 « Array to string conversion » `Stringable.php:33`, `sort[]` → 500 l. 89, témoin `sort=-created_at` 200 ; `/api/admin/agencies` sur `filter[status|search|is_verified|created_from]` et aussi `filter[created_to]` (l. 103, non relevé au constat) → 500 `Stringable.php:33`, `sort[]` → 500 l. 108 ; `/api/properties/moderation?filter[search][]=x` → 500 ; `/api/admin/credit-wallets?search[]=x` → 500 l. 27, témoin `search=x` 200 → le constat tient. Classement : A1, chaque lecture a déjà sa réponse à une valeur inconnue et TCK-1866 a écrit l'attendu sur la console voisine des boosts (une liste vaut une valeur absente), sans choix de produit ni autorisation changée.
+- Mesure (2026-10-24, 9d78f2609, implementeur) : reproduit par `tests/Feature/Admin/ValeursEnListeConsolesAdminTest.php` (4 rouges « Array to string conversion » avant correctif, sur les quatre consoles et chaque paramètre en liste, `filter[created_to]` compris) → `is_string()`/`is_array()` avant le cast dans les quatre contrôleurs, une liste valant une valeur absente ; ablation (contrôleurs remis à `pre-dev`) → 4 rouges, correctif remis → 4 verts ; 7 classes voisines vertes (34 tests).
 
 ### L'historique unifié des paiements rend 500 sur `filter[status]`, `filter[entity_type]` ou `sort` en liste
 - Réf : P216.02
