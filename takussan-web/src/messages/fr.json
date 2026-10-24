@@ -7390,7 +7390,7 @@
       "decisionTitle": "Décision",
       "decisionReason": "Raison de décision",
       "decisionReasonPlaceholder": "Motif visible dans l'audit",
-      "statTotalPage": "Total page",
+      "statTotal": "Total",
       "statProperties": "Biens",
       "statReviews": "Avis",
       "staleWarning": "{count, plural, one {# item} other {# items}} de cette page attendent depuis plus de 7 jours.",

@@ -7390,7 +7390,7 @@
       "decisionTitle": "Decision",
       "decisionReason": "Decision reason",
       "decisionReasonPlaceholder": "Reason visible in the audit log",
-      "statTotalPage": "Page total",
+      "statTotal": "Total",
       "statProperties": "Properties",
       "statReviews": "Reviews",
       "staleWarning": "{count, plural, one {# item} other {# items}} on this page have been waiting for more than 7 days.",

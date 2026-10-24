@@ -6739,7 +6739,7 @@
       "decisionTitle": "Dogal",
       "decisionReason": "Lu tax dogal bi",
       "decisionReasonPlaceholder": "Lu tax lu ñu man a gis ci téereb teraanga bi",
-      "statTotalPage": "Lëmboo xët bi",
+      "statTotal": "Total",
       "statProperties": "Kër yi",
       "statReviews": "Ndaje yi",
       "staleWarning": "{count, plural, one {# mbir} other {# mbir}} ci xët bii ñu ngi xaar lu ëpp 7 fan.",
