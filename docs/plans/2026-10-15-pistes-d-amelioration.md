@@ -19759,7 +19759,7 @@ les envoie.*
 
 ### L'agent créateur suspendu ou retiré ouvre les moyens de paiement et vérifie les loyers du bail qui le désigne
 - Réf : P217.04
-- Statut : validé — validation du porteur (2026-10-24) : `LeasePaymentPolicy::update` passe de `landlordWrites` à `bailleurEcrit` ; le bailleur bloqué reste refusé
+- Statut : fait · TCK-2183
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Policies/LeasePaymentPolicy.php:16-37`, `takussan-api/app/Http/Controllers/Api/PaymentGatewayController.php:29-33,53-55,78-80`
 - Constat :
@@ -19769,6 +19769,7 @@ les envoie.*
   - Établi comment : lu, puis mesuré.
 - Piste : remplacer `landlordWrites` par `bailleurEcrit` dans `LeasePaymentPolicy::update`. Test : agent créateur suspendu, puis retiré → `providers` et `verify` en 403 ; bailleur du bien et locataire acceptés ; agent actif accepté au titre du personnel.
 - Mesure (2026-10-24, a9ec5dd1a, mesureur) : relu `LeasePaymentPolicy.php:35` (`landlordWrites`) et `BasePolicy.php:132-141` (ne refuse que le bailleur bloqué), inchangés ; aucun ticket ni commit ; test temporaire `tests/Feature/TmpMesureur/Sonde217Test.php` (retiré), jeu de `BuildsBookingStakeholders`, bien passé au `user_id` de l'agent, trois cas (suspendu par `TeamMemberSuspensionService::suspend`, retiré par `AgencyMemberRemovalService::remove(…, leaveUnassigned: true)`, témoin actif), charge `{ 1.73 1.72 1.77 }` sur 8 cœurs → suspendu comme retiré : `can('update', $echeance)` vrai, `GET /api/lease-payments/{id}/providers` 200, `GET /api/lease-payments/{id}/verify` 200 ; témoin actif : vrai, 200, 200 → le constat tient ; `initiate` n'a pas été lancé (même ability, lu). Classement : V1 et V2, le correctif change qui initie et vérifie un paiement sur une branche qu'emploie le bailleur actif, comme P190.03 (TCK-1932), classé V2 et V1.
+- Mesure (2026-10-24, 5e00c117b, implementeur) : reproduit par `AgentCreateurPaiementDesLoyersTest` : suspendu comme retiré, `can('update', $echeance)` vrai avant correctif → `LeasePaymentPolicy::update` passe à `bailleurEcrit` : faux, `GET /api/lease-payments/{id}/providers` et `…/verify` → 403 ; agent actif, bailleur du bien et locataire acceptés, bailleur bloqué refusé ; ablation (`landlordWrites` remis) → 2 rouges, remis → 4 verts ; `MigratedAuthorizationRulesTest` admettait un « bailleur » sans profil dans l'agence, il reçoit un profil propriétaire et le cas sans profil est épinglé refusé (16 verts) ; `PaymentGatewayInitiateTest` 13, `PaymentProvidersEndpointTest` 3, `LeasePaymentLinkTest` 5 verts.
 
 ### Petites améliorations
 - Réf : P217.05
