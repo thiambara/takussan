@@ -19746,7 +19746,7 @@ les envoie.*
 
 ### L'historique des paiements garde à l'agent créateur suspendu ou retiré les loyers du bail qui le désigne, que `LeasePolicy::view` lui refuse
 - Réf : P217.03
-- Statut : validé — validation du porteur (2026-10-24) : la branche des loyers de l'historique passe par `BailleurDuBien::restreindre($b, $user, 'landlord_id')`, comme `LeaseController::index`
+- Statut : fait · TCK-2181
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/PaymentController.php:64-75`
 - Constat :
@@ -19755,6 +19755,7 @@ les envoie.*
   - Établi comment : lu, puis mesuré.
 - Piste : borner la branche des loyers par `BailleurDuBien::restreindre($lq, $user, 'landlord_id')`, comme `LeaseController::index`. Test : agent créateur suspendu, puis retiré → aucune ligne `lease` ; bailleur du bien, bloqué → ses loyers ; locataire → ses loyers.
 - Mesure (2026-10-24, a9ec5dd1a, mesureur) : relu `PaymentController.php:64-75` (branche des loyers sur `where('landlord_id', $user->id)` seule, la branche des acomptes bornée par `BailleurDuBien::restreindre` l. 54), inchangé ; aucun ticket ni commit ; test temporaire `tests/Feature/TmpMesureur/Sonde217Test.php` (retiré), jeu de `BuildsBookingStakeholders`, bien passé au `user_id` de l'agent, trois cas (suspendu par `TeamMemberSuspensionService::suspend`, retiré par `AgencyMemberRemovalService::remove(…, leaveUnassigned: true)`, témoin actif), charge `{ 1.73 1.72 1.77 }` sur 8 cœurs, bail `active` au `landlord_id` de l'agent et une échéance `pending` → suspendu comme retiré : `can('view', $lease)` faux, mais l'échéance figure dans `GET /api/payments/history` en `source: lease` ; témoin actif : listée → le constat tient. Classement : V2 (et V3 : montant et `customer_id` du locataire), le correctif change ce que liste le bailleur d'un bail, appelant d'aujourd'hui, comme P190.03 et P190.04, classés V2.
+- Mesure (2026-10-24, 5e00c117b, implementeur) : reproduit par `AgentCreateurHistoriqueDesLoyersTest` (bail `active` au `landlord_id` de l'agent, une échéance `pending`) : suspendu comme retiré, l'échéance est dans `GET /api/payments/history` en `source: lease` avant correctif → la branche des loyers passe par `BailleurDuBien::restreindre($l, $user, 'landlord_id')` : absente dans les deux cas, présente pour l'agent actif, le bailleur du bien bloqué et le locataire ; ablation → 2 rouges, remise → 3 verts ; `PaymentHistoryTest` 11, `AgentCreateurPaiementDesAcomptesTest` 4, `AgingBalanceTest` 7 verts.
 
 ### L'agent créateur suspendu ou retiré ouvre les moyens de paiement et vérifie les loyers du bail qui le désigne
 - Réf : P217.04
