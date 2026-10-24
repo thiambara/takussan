@@ -48,7 +48,8 @@ class PropertyModerationController extends Controller
             $query->where('agency_id', $activeAgencyId);
         }
 
-        if ($search = $request->string('filter.search')->trim()->value()) {
+        // P216.01 (TCK-2120) — une valeur en liste vaut une valeur absente (TCK-1407), et n'est plus castée.
+        if ($search = is_string($brut = $request->input('filter.search')) ? trim($brut) : '') {
             // TCK-1840 (P186.02) — `like` nu : sensible à la casse sous PostgreSQL, et `%` y valait
             // un joker. Même forme que TCK-600 (piège n° 9 du CLAUDE.md de l'API).
             $motif = '%'.addcslashes(CaseInsensitive::fold($search), '\\%_').'%';
