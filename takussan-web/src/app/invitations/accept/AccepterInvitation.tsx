@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useState, useTransition } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 
@@ -10,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/context/AuthContext';
+import { profilesKeys } from '@/hooks/useProfiles';
 import { useCurrentLocale } from '@/i18n/hooks';
 import { isTwoFactorChallenge, login } from '@/lib/auth';
 import { destinationDInvitation } from '@/lib/invitation-destination';
@@ -28,7 +30,8 @@ export function AccepterInvitation({ jeton, connecte }: { readonly jeton: string
   const t = useTranslations('invitationAccept');
   const router = useRouter();
   const locale = useCurrentLocale();
-  const { openSession } = useAuth();
+  const { openSession, refreshUser } = useAuth();
+  const queryClient = useQueryClient();
   const [prenom, setPrenom] = useState('');
   const [nom, setNom] = useState('');
   const [motDePasse, setMotDePasse] = useState('');
@@ -50,6 +53,10 @@ export function AccepterInvitation({ jeton, connecte }: { readonly jeton: string
       }
       const destination = destinationDInvitation(resultat.invitation.role, resultat.invitation.invitable_id);
       if (connecte) {
+        // TCK-2042 (P202.04) — l'invitation ajoute un profil au compte : comme les assistants qui en
+        // créent un, on relit l'utilisateur (ses `roles`) et la liste des profils avant de partir.
+        await refreshUser();
+        await queryClient.invalidateQueries({ queryKey: profilesKeys.all });
         router.push(destination);
         return;
       }
