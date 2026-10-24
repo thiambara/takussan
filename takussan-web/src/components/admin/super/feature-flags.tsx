@@ -172,6 +172,7 @@ export function FeatureFlagSegmentDialog({
 
 export function SessionOverrideToggle({ flag }: { flag: AdminFeatureFlag }) {
   const t = useTranslations('superAdmin.featureFlags');
+  const messageErreur = useMessageErreurApi();
   const garde = useGardeDoubleFacteur();
   // P98.10 (TCK-1176) — part de l'état évalué pour l'opérateur, bascule de session comprise.
   const [enabled, setEnabled] = useState(flag.enabled_for_me ?? false);
@@ -181,15 +182,21 @@ export function SessionOverrideToggle({ flag }: { flag: AdminFeatureFlag }) {
   });
 
   return (
-    <Button
-      type="button"
-      variant={enabled ? 'default' : 'ghost'}
-      aria-pressed={enabled}
-      onClick={() => mutation.mutate()}
-      disabled={mutation.isPending}
-    >
-      <FlaskConical className="size-4" aria-hidden="true" />
-      {enabled ? t('testing') : t('test')}
-    </Button>
+    <span className="inline-flex flex-col items-end gap-1">
+      <Button
+        type="button"
+        variant={enabled ? 'default' : 'ghost'}
+        aria-pressed={enabled}
+        onClick={() => mutation.mutate()}
+        disabled={mutation.isPending}
+      >
+        <FlaskConical className="size-4" aria-hidden="true" />
+        {enabled ? t('testing') : t('test')}
+      </Button>
+      {/* P228.04 (TCK-2216) — une bascule refusée (step-up fermé compris) ne disait rien. */}
+      {mutation.isError ? (
+        <span role="alert" className="text-xs text-destructive">{messageErreur(mutation.error)}</span>
+      ) : null}
+    </span>
   );
 }
