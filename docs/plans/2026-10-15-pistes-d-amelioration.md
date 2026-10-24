@@ -19551,7 +19551,7 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
 
 ### Petites améliorations — l'ouverture d'une session OAuth écrit avant ses derniers refus
 - Réf : P213.04
-- Statut : validé — validation du porteur (2026-10-24) : `complete` juge `canOpenSession` avant `secondFactorHolds` et tire le défi (`pull`) avant de vérifier le facteur, remis avec `attempts + 1` sur un échec ; `maybeUpdateName` inchangé
+- Statut : fait · TCK-2201
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Auth/OAuthSessionOpener.php:40-41,80-96`, `takussan-api/app/Http/Controllers/Api/Auth/AbstractOAuthController.php:103-134`, `takussan-api/app/Services/Auth/TwoFactorService.php:153-156`
 - Constat (rapport du sous-agent, non relu par l'explorateur : à vérifier en entier) :
@@ -19559,6 +19559,7 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
   - `callback` écrit le nom venu du fournisseur (`maybeUpdateName`) avant `open()`, qui refuse en 403 un compte bloqué.
 - Piste : juger le défi et le blocage avant de consommer le code ou d'écrire le nom. Garde : défi rejoué avec un code de secours → refus et code toujours valable.
 - Mesure (2026-10-24, 7f465356a, mesureur) : relu `OAuthSessionOpener.php:66-100,122-130` (`secondFactorHolds` → `verifyRecoveryCode`, qui retire le code et sauve, `TwoFactorService.php:143-159`, avant `cache->pull` l. 87-89 et `canOpenSession` l. 92-94) et `AbstractOAuthController.php:103-110` (`maybeUpdateName` avant `open()`, qui refuse un compte bloqué, `OAuthSessionOpener.php:39-41`) ; test temporaire sur le service (retiré) → défi ouvert, compte bloqué, puis `complete` avec un code de secours : 403 `account_blocked`, le code est retiré (un sur deux restant) → la partie « code brûlé » tient ; l'écriture du nom avant le refus est lue, non exécutée (elle ne remplit qu'un nom vide). Classement : V2, le correctif réordonne le défi 2FA d'ouverture de session.
+- Mesure (2026-10-24, 47223cd19, implementeur) : reproduit avant correctif par `OAuthDefiAvantFacteurTest` (service sur un cache `ArrayStore`, défi déposé comme par `open()`, compte à 2FA et deux codes de secours) : compte bloqué puis `complete` avec un code de secours → 403 et code retiré ; défi tiré par une soumission concurrente entre la lecture et le `pull` (cache dont `pull` retire et rend `null`) → 422 et code retiré → `complete` juge `canOpenSession`, puis tire le défi, puis vérifie le facteur ; facteur faux : défi remis sous son échéance, `attempts + 1`, oublié à la cinquième → 403 et 422 sans code brûlé ; ablation (service remis à `HEAD`) → 2 rouges sur 4, remis → 4 verts ; `OAuthSecondFactorTest` 9, `OAuthCallbackTest` 8, `BlockedAccountAuthenticationTest` 13, `ContactPreferencesTest` 11 verts (charge 2,94 / 2,67 / 2,85 sur 8 cœurs). `maybeUpdateName` inchangé, comme la décision le dit.
 
 ## Angle 214 — Formulaires d'édition qui renvoient en entier une colonne JSON qu'ils ne montrent qu'en partie
 
