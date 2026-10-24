@@ -11,6 +11,7 @@ import { EmptyState, ErrorState } from '@/components/feedback';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { buttonVariants } from '@/components/ui/button';
+import { Pagination } from '@/components/console/Pagination';
 import {
   Select,
   SelectContent,
@@ -80,11 +81,15 @@ export function LeasesList() {
     isLeaseStatus(statutDemande) ? statutDemande : 'all',
   );
   const [propertyId, setPropertyId] = useState<string>('all');
+  // TCK-2005 (P171.03) — la page dans l'état de la liste, comme `MaintenanceList` : une page de 30
+  // sans page suivante taisait le 31ᵉ bail. Un changement de filtre ramène en page 1.
+  const [page, setPage] = useState(1);
   const propertiesQuery = useLeasePropertyOptions();
   const { data, isLoading, isError, refetch } = useLeases({
     status: status === 'all' ? undefined : status,
     property_id: propertyId === 'all' ? undefined : Number(propertyId),
     per_page: 30,
+    page,
   });
   const propertyOptions = useMemo(() => propertiesQuery.data?.data ?? [], [propertiesQuery.data]);
 
@@ -117,7 +122,13 @@ export function LeasesList() {
   return (
     <div className="space-y-4">
       <div className="grid gap-3 rounded-xl border border-border bg-card p-3 sm:grid-cols-2">
-        <Select value={status} onValueChange={(value) => setStatus(value ?? 'all')}>
+        <Select
+          value={status}
+          onValueChange={(value) => {
+            setStatus(value ?? 'all');
+            setPage(1);
+          }}
+        >
           <SelectTrigger aria-label={t('filterByStatus')} className="w-full">
             <SelectValue>{statusFilterLabel(status, tStatus, t('allStatuses'))}</SelectValue>
           </SelectTrigger>
@@ -130,7 +141,13 @@ export function LeasesList() {
             ))}
           </SelectContent>
         </Select>
-        <Select value={propertyId} onValueChange={(value) => setPropertyId(value ?? 'all')}>
+        <Select
+          value={propertyId}
+          onValueChange={(value) => {
+            setPropertyId(value ?? 'all');
+            setPage(1);
+          }}
+        >
           <SelectTrigger aria-label={t('filterByProperty')} className="w-full min-w-0">
             <SelectValue>
               {propertyId === 'all'
@@ -176,6 +193,10 @@ export function LeasesList() {
           ))}
         </ul>
       )}
+
+      {data?.meta ? (
+        <Pagination page={data.meta.current_page} lastPage={data.meta.last_page} onChange={setPage} />
+      ) : null}
     </div>
   );
 }

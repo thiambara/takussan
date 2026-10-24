@@ -54,9 +54,16 @@ export function ProfileContactSection({ user }: ProfileContactSectionProps) {
   const [bio, setBio] = useState(user.bio ?? '');
   const [phone, setPhone] = useState(user.phone ?? '');
   const [savedPhone, setSavedPhone] = useState(user.phone ?? '');
-  const [phoneVerified, setPhoneVerified] = useState(
+  const [phoneVerifiedHere, setPhoneVerified] = useState(
     Boolean(user.phone_verified_at),
   );
+  // TCK-2040 (P202.03) — le même numéro se vérifie aussi dans « Sécurité », qui le pose au
+  // contexte : le badge le suit tant que le contexte parle du numéro enregistré ici.
+  const phoneVerified =
+    phoneVerifiedHere ||
+    (savedPhone.length > 0 &&
+      contextUser?.phone === savedPhone &&
+      Boolean(contextUser?.phone_verified_at));
   const [email, setEmail] = useState(user.email ?? '');
   const [savedEmail, setSavedEmail] = useState(user.email ?? '');
   const [emailVerified, setEmailVerified] = useState(Boolean(user.email_verified_at));

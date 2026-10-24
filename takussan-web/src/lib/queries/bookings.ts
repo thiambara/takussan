@@ -116,6 +116,7 @@ export function useCancelBooking(bookingId: number) {
   return useApiMutation<ApiResponse<Booking>, { reason?: string }>(
     { path: cheminApi`/api/bookings/${bookingId}/cancel`, method: 'POST' },
     {
+      relireSurErreur: true,
       invalidate: [
         ['bookings', 'detail', bookingId],
         ['bookings', 'list'],
@@ -128,6 +129,7 @@ export function useConfirmBooking(bookingId: number) {
   return useApiMutation<ApiResponse<Booking>, void>(
     { path: cheminApi`/api/bookings/${bookingId}/confirm`, method: 'POST' },
     {
+      relireSurErreur: true,
       invalidate: [
         ['bookings', 'detail', bookingId],
         ['bookings', 'list'],
@@ -140,6 +142,7 @@ export function useRejectBooking(bookingId: number) {
   return useApiMutation<ApiResponse<Booking>, { reason?: string }>(
     { path: cheminApi`/api/bookings/${bookingId}/reject`, method: 'POST' },
     {
+      relireSurErreur: true,
       invalidate: [
         ['bookings', 'detail', bookingId],
         ['bookings', 'list'],

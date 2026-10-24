@@ -863,7 +863,7 @@
       "countSuffix": "{count} avis",
       "loading": "Chargement des avis…",
       "empty": "Aucun avis pour l'instant.",
-      "notEligible": "Vous pourrez laisser un avis après une visite finalisée ou la signature d'un bail sur ce bien.",
+      "notEligible": "Vous pourrez laisser un avis après une réservation honorée ou un bail sur ce bien.",
       "alreadyReviewed": "Merci, vous avez déjà laissé un avis sur ce bien.",
       "agentReply": "Réponse de l'agent",
       "edit": "Modifier",
@@ -4051,6 +4051,7 @@
       "property_fallback": "Bien #{id}"
     },
     "history": {
+      "title": "Interventions sur ce bien",
       "empty_title": "Aucune intervention enregistrée",
       "empty_description": "Les demandes de maintenance sur ce bien apparaîtront ici.",
       "completed_at": "Terminée le {date}"
@@ -7821,6 +7822,7 @@
     },
     "agencyDetail": {
       "loadError": "Impossible de charger cette agence.",
+      "seeAll": "Voir tout",
       "kycLoadError": "Impossible de charger le dossier KYC.",
       "crossTenant": "Agence cross-tenant",
       "verified": "Vérifiée",
@@ -9192,6 +9194,7 @@
       "opportunitySentTitle": "Avis envoyé",
       "opportunitySentBody": "Merci ! Votre avis sera publié après validation.",
       "opportunityError": "Votre avis n'a pas pu être envoyé.",
+      "opportunityPartiallySent": "Déjà enregistré : {targets}.",
       "anonymous": "Anonyme"
     },
     "contact": {

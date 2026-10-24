@@ -250,12 +250,22 @@ export function AgencyDetailPage({ agencyId }: { agencyId: number }) {
         </TabsContent>
         <TabsContent value="team">
           {activeTab === 'team' ? (
-            <AgencyTeamTab members={teamQuery.data?.data ?? []} loading={teamQuery.isLoading} />
+            <AgencyTeamTab
+              members={teamQuery.data?.data ?? []}
+              total={teamQuery.data?.meta?.total}
+              agencyId={agencyId}
+              loading={teamQuery.isLoading}
+            />
           ) : null}
         </TabsContent>
         <TabsContent value="properties">
           {activeTab === 'properties' ? (
-            <AgencyPropertiesTab properties={propertiesQuery.data?.data ?? []} loading={propertiesQuery.isLoading} />
+            <AgencyPropertiesTab
+              properties={propertiesQuery.data?.data ?? []}
+              total={propertiesQuery.data?.meta?.total}
+              agencyId={agencyId}
+              loading={propertiesQuery.isLoading}
+            />
           ) : null}
         </TabsContent>
         <TabsContent value="transactions">
@@ -502,13 +512,47 @@ export function AgencyHealthStrip({ health, loading }: { health?: AdminAgencyHea
   );
 }
 
-export function AgencyTeamTab({ members, loading }: { members: AdminAgencyTeamMember[]; loading: boolean }) {
+/**
+ * TCK-2007 (P171.04) — l'en-tête d'un aperçu de la fiche : le titre, le total que l'API rend
+ * (`meta.total`) et un lien vers la liste entière de la console, filtrée sur l'agence. L'aperçu
+ * reste court (10 membres, 8 biens) : sans total ni lien, 8 biens se lisaient comme le portefeuille.
+ */
+function EnTeteDApercu({ titre, total, href }: { readonly titre: string; readonly total?: number; readonly href: string }) {
+  const t = useTranslations('superAdmin.agencyDetail');
+  return (
+    <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
+      <CardTitle>
+        {titre}
+        {typeof total === 'number' ? (
+          <span className="ml-2 text-sm font-normal tabular-nums text-muted-foreground">{total}</span>
+        ) : null}
+      </CardTitle>
+      <Link href={href} className={buttonVariants({ variant: 'outline', size: 'sm' })}>
+        {t('seeAll')}
+      </Link>
+    </CardHeader>
+  );
+}
+
+export function AgencyTeamTab({
+  members,
+  total,
+  agencyId,
+  loading,
+}: {
+  members: AdminAgencyTeamMember[];
+  total?: number;
+  agencyId: number;
+  loading: boolean;
+}) {
   const t = useTranslations('superAdmin.agencyDetail.team');
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>{t('title')}</CardTitle>
-      </CardHeader>
+      <EnTeteDApercu
+        titre={t('title')}
+        total={total}
+        href={`/super-admin/users?${new URLSearchParams({ agency: String(agencyId) }).toString()}`}
+      />
       <CardContent className="space-y-3">
         {loading ? <Skeleton className="h-24" /> : null}
         {!loading && members.length === 0 ? <p className="text-sm text-muted-foreground">{t('empty')}</p> : null}
@@ -530,14 +574,26 @@ export function AgencyTeamTab({ members, loading }: { members: AdminAgencyTeamMe
   );
 }
 
-export function AgencyPropertiesTab({ properties, loading }: { properties: AdminPropertyRow[]; loading: boolean }) {
+export function AgencyPropertiesTab({
+  properties,
+  total,
+  agencyId,
+  loading,
+}: {
+  properties: AdminPropertyRow[];
+  total?: number;
+  agencyId: number;
+  loading: boolean;
+}) {
   const t = useTranslations('superAdmin.agencyDetail.properties');
   const fmt = useFormatteurs();
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>{t('title')}</CardTitle>
-      </CardHeader>
+      <EnTeteDApercu
+        titre={t('title')}
+        total={total}
+        href={`/super-admin/properties?${new URLSearchParams({ 'filter[agency_id]': String(agencyId) }).toString()}`}
+      />
       <CardContent className="space-y-3">
         {loading ? <Skeleton className="h-24" /> : null}
         {!loading && properties.length === 0 ? <p className="text-sm text-muted-foreground">{t('empty')}</p> : null}

@@ -45,6 +45,9 @@ class ReviewReportService
                 ? (int) ($r['user_id'] ?? 0) === $user->id
                 : ($r['user_id'] ?? null) === null && $fingerprint !== null && ($r['fingerprint'] ?? null) === $fingerprint);
 
+            // P201.04 (TCK-2039) — voulu, pas un oubli : un second signalement du même visiteur
+            // (compte, sinon empreinte ; sans fenêtre de temps) n'est ni écrit ni fusionné, son motif
+            // compris (ADR-0043 § 6, TCK-597).
             if ($already) {
                 return false;
             }

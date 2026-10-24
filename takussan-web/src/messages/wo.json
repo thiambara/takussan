@@ -2320,6 +2320,7 @@
       "property_fallback": "Kër #{id}"
     },
     "history": {
+      "title": "Interventions sur ce bien",
       "empty_title": "Amul liggéey bu ñu bind",
       "empty_description": "Ñaan yu wattu ci kër gii dinañu feeñ fii.",
       "completed_at": "Mu mat ci {date}"
@@ -7170,6 +7171,7 @@
     },
     "agencyDetail": {
       "loadError": "Mënuñu yeb ajaans bii.",
+      "seeAll": "Voir tout",
       "kycLoadError": "Mënuñu yeb dosiyeb KYC bi.",
       "crossTenant": "Ajaans bu jaar ci ajaans yépp",
       "verified": "Ñu seetlu ko",
@@ -8541,6 +8543,7 @@
       "opportunitySentTitle": "Avis bi dem na",
       "opportunitySentBody": "Jërëjëf ! Sa avis dina feeñ su ñu ko nanguwee.",
       "opportunityError": "Sa avis mënul a dem.",
+      "opportunityPartiallySent": "Déjà enregistré : {targets}.",
       "anonymous": "Anonyme"
     },
     "contact": {

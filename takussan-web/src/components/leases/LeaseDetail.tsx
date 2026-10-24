@@ -341,7 +341,9 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
         </section>
       )}
 
-      {canLeaseLeaveReview(lease) && lease.property?.slug && (
+      {/* P201.02 (TCK-2035) — le dépôt n'accepte que le locataire du bail : la gestion ne voit pas
+          l'appel, comme sur la fiche de réservation (`!isDashboardAgent`). */}
+      {!isAgentSurface && canLeaseLeaveReview(lease) && lease.property?.slug && (
         <LeaveReviewCta
           slug={lease.property.slug}
           context={
