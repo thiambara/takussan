@@ -8,6 +8,7 @@ import { useAuth } from '@/context/AuthContext';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import type { Announcement, AnnouncementsResponse } from '@/types/super-admin';
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
 // Pas `StatusBadge` : le bandeau est un message plein qui remplit sa surface, et `StatusBadge` ne
 // rend que des fonds teintés. Table déclarée dans `scripts/check-status-badge-unique.mjs`.
@@ -29,6 +30,7 @@ export function GlobalAnnouncementBanner() {
   const t = useTranslations('announcements');
   const locale = useLocale();
   const queryClient = useQueryClient();
+  const messageErreur = useMessageErreurApi();
   // `/api/announcements/active` is auth-only (auth:sanctum). Don't fetch for
   // anonymous visitors — the banner simply stays hidden until they log in.
   const { user } = useAuth();
@@ -58,6 +60,11 @@ export function GlobalAnnouncementBanner() {
         <div className="min-w-0 flex-1">
           <p className="font-display text-sm font-semibold">{copy.title}</p>
           <p className="mt-0.5 text-sm opacity-90">{copy.body}</p>
+          {/* P228.05 (TCK-2218) — une fermeture refusée laissait le bandeau en place sans un mot. La couleur
+              est celle du bandeau : un rouge sur ces fonds pleins ne se lirait pas. */}
+          {mutation.isError ? (
+            <p role="alert" className="mt-1 text-xs font-medium">{messageErreur(mutation.error)}</p>
+          ) : null}
         </div>
         {/* TCK-572 — 44 px touchables au moins : 32 px visibles (40 sous `sm`, plancher du
             `Button`), plus `after:-inset-2`. Le `::after` part de la boîte de PADDING :

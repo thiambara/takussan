@@ -14,6 +14,7 @@ import { ApiError } from '@/lib/api';
 import { avecGardeDoubleFacteur } from '@/lib/double-facteur';
 import { useGardeDoubleFacteur } from '@/components/auth/garde-double-facteur-contexte';
 import { formatDate } from '@/lib/format';
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import {
   AGENT_CRM_QUERY_KEY,
   declareAbsence,
@@ -87,6 +88,7 @@ export function AgentAbsencesSection({ agencyId, currentUserId }: AgentAbsencesS
       void refresh();
     },
   });
+  const messageErreur = useMessageErreurApi();
   const revoke = useMutation<void, ApiError, number>({
     mutationFn: (id) => avecGardeDoubleFacteur(() => revokeAbsence(token ?? '', agencyId, id), garde),
     onSuccess: () => void refresh(),
@@ -137,6 +139,10 @@ export function AgentAbsencesSection({ agencyId, currentUserId }: AgentAbsencesS
           ))}
         </ul>
       )}
+      {/* P228.05 (TCK-2218) — une levée refusée (403, step-up fermé, réseau) ne disait rien. */}
+      {revoke.isError ? (
+        <p role="alert" className="mt-2 text-sm text-destructive">{messageErreur(revoke.error)}</p>
+      ) : null}
 
       {open ? (
         <form
