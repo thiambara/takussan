@@ -89,7 +89,9 @@ jamais deux pistes à moitié.
      (étape 2), avec pour raison `choix non tranché : <les options>`.
 2. **Re-mesurer la prémisse**, avant toute ligne de code. Entre la mesure et toi, un autre ticket
    a pu fermer le défaut. Reproduis-le sur ton arbre, idéalement par le test qui deviendra le test
-   de garde.
+   de garde. Une Réf que cite l'entrée, et le précédent d'une piste voisine déjà faite, se
+   cherchent dans le fichier ET dans son archive (`grep -rn …
+   docs/plans/2026-10-15-pistes-d-amelioration.md docs/plans/pistes-archive/`, voir `commun.md`).
    - **Le défaut n'existe plus** : passe l'entrée à `caduc — <raison>`, ajoute ta ligne `Mesure`,
      et passe à la piste suivante du lot.
    - **Un critère V de l'ADR apparaît**, ou le correctif dépasse M, ou la spec est muette ou

@@ -12,9 +12,9 @@
  * Ce qu'elle vérifie : dans les runbooks (`deploy/**`, `docs/infra/**`, `docs/plans/*.md`), toute
  * ligne qui nomme `APP_KEY` et contient `openssl rand -base64 32` porte aussi `base64:`.
  *
- * Ce qu'elle ne lit PAS : le fichier de pistes et le journal des corrections, qui CITENT la ligne
- * fautive pour raconter le défaut. Une garde qui confond le récit et la prescription interdit
- * d'écrire pourquoi on a corrigé (même règle que `check-prod-drivers.mjs`).
+ * Ce qu'elle ne lit PAS : le fichier de pistes, son archive et le journal des corrections, qui
+ * CITENT la ligne fautive pour raconter le défaut. Une garde qui confond le récit et la
+ * prescription interdit d'écrire pourquoi on a corrigé (même règle que `check-prod-drivers.mjs`).
  *
  * Usage :  node scripts/check-app-key-base64.mjs [--report]
  */
@@ -25,7 +25,9 @@ import { fileURLToPath } from 'node:url';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const REPORT = process.argv.includes('--report');
 const RACINES = ['deploy', 'docs/infra', 'docs/plans'];
-const RECITS = new Set(['docs/plans/2026-10-15-pistes-d-amelioration.md']);
+// Le fichier de pistes, et son archive (amendement d'ADR-0066 du 2026-10-24), un dossier entier.
+const RECITS = ['docs/plans/2026-10-15-pistes-d-amelioration.md', 'docs/plans/pistes-archive/'];
+const estRecit = (f) => RECITS.some((r) => (r.endsWith('/') ? f.startsWith(r) : f === r));
 const GENERATION = 'openssl rand -base64 32';
 
 function fichiersSous(dir) {
@@ -38,7 +40,7 @@ function fichiersSous(dir) {
   return out.sort();
 }
 
-const fichiers = RACINES.flatMap(fichiersSous).filter((f) => !RECITS.has(f));
+const fichiers = RACINES.flatMap(fichiersSous).filter((f) => !estRecit(f));
 const erreurs = [];
 let generations = 0;
 for (const rel of fichiers) {

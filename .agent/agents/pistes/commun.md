@@ -29,6 +29,22 @@
   ```
 
   Puis lis les seules lignes utiles (`sed -n '120,140p' …`).
+- **Les entrées closes sont archivées** (amendement d'ADR-0066 du 2026-10-24). Une entrée `fait`,
+  `caduc` ou `refusé` depuis 24 h quitte le fichier, telle quelle, pour
+  `docs/plans/pistes-archive/angles-NNN-NNN.md`, sous le titre de son angle. Les sections d'angle
+  restent dans le fichier vivant, même vides. Les commandes ci-dessus lisent les deux ; `--liste`
+  nomme le fichier d'archive devant le numéro de ligne d'une entrée archivée.
+  - **Chercher**, c'est chercher dans les deux : un doublon, une Réf citée (« voir P02.04 »), un
+    précédent, une décision du porteur :
+
+    ```bash
+    grep -rn '<mot>' docs/plans/2026-10-15-pistes-d-amelioration.md docs/plans/pistes-archive/
+    ```
+  - **Écrire**, c'est écrire dans le seul fichier vivant. L'archive n'est écrite que par
+    l'archiveur, un script sans modèle que `pistes.sh` lance une fois par jour ; la vérification
+    refuse le push d'un rôle qui la touche.
+  - **Rouvrir une piste close**, c'est écrire une entrée neuve dans le fichier vivant, qui cite
+    l'ancienne Réf. On ne rouvre jamais l'entrée archivée.
 
 ## Ce que tu ne fais jamais
 

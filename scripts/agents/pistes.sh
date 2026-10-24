@@ -21,6 +21,8 @@
 #       # un passage complet SANS RIEN PUBLIER (ni push, ni PR, ni fusion) ; avec
 #       # PISTES_BASE_REF=<ref> il part d'une autre base que origin/pre-dev
 #   ~/.takussan-agents/outils/pistes.sh fusionner   # fusionne les PR vertes (launchd, toutes les 10 min)
+#   ~/.takussan-agents/outils/pistes.sh archiver [--a-blanc]   # archive les entrées closes depuis 24 h,
+#       # sans modèle, par une PR vers pre-dev ; le superviseur le fait une fois par jour (2026-10-24)
 #   ~/.takussan-agents/outils/pistes.sh etat
 #   ~/.takussan-agents/outils/pistes.sh releve [jours]   # ce que le délégué a tranché (7 jours par défaut)
 #   ~/.takussan-agents/outils/pistes.sh pause | reprendre
@@ -37,6 +39,8 @@ export LC_NUMERIC=C
 BASE="${PISTES_BASE:-$HOME/.takussan-agents}"
 ROLES="explorateur mesureur implementeur delegue"
 LAUNCHD=com.takussan.agents
+# L'archive des entrées closes du fichier de pistes (amendement d'ADR-0066 du 2026-10-24).
+ARCHIVE_PISTES=docs/plans/pistes-archive
 
 die() {
   DETAIL="$*"
@@ -206,6 +210,7 @@ CONFIG
     gh label create agent:implementeur --color b60205 --description "PR de l'agent implémenteur (ADR-0066)" --force > /dev/null
     gh label create agent:delegue --color fbca04 --description "PR du délégué du porteur (ADR-0066, amendement du 2026-10-18)" --force > /dev/null
     gh label create agent:superviseur --color 0e8a16 --description "PR du superviseur des agents (ADR-0066, amendement du 2026-10-21)" --force > /dev/null
+    gh label create agent:archiveur --color 006b75 --description "Archivage des pistes closes, sans modèle (ADR-0066, amendement du 2026-10-24)" --force > /dev/null
     gh label create agents:synchro --color c5def5 --description "Synchronisation dev → pre-dev (ADR-0066)" --force > /dev/null
   ); fi
 
@@ -515,6 +520,14 @@ relancer_suivant() {
   done
 }
 
+# Le fichier de pistes sur une référence : le fichier vivant, et son archive quand elle y existe.
+# La garde lit les deux : sans l'archive, une Réf citée qui y est rangée manquerait, et la garde
+# sortirait en 1, ce que `travail_disponible` prend pour un doute qui lance le modèle.
+chemins_des_pistes() {
+  printf '%s\n' docs/plans/2026-10-15-pistes-d-amelioration.md
+  if git -C "$CLONE" cat-file -e "$1:$ARCHIVE_PISTES" 2> /dev/null; then printf '%s\n' "$ARCHIVE_PISTES"; fi
+}
+
 # Le relevé du porteur : ce que le délégué a tranché ou recommandé, lu sur origin/pre-dev. Une
 # validation déléguée se reprend d'une ligne (« - Statut : » rendu au porteur) ; un désaveu
 # (« - Mesure (…, humain) : désaveu de la délégation V7 — … ») lui retire toute la catégorie.
@@ -525,13 +538,129 @@ releve() {
   depuis="$(date -v-"${jours}"d '+%Y-%m-%d')"
   racine="$(mktemp -d)"
   git -C "$CLONE" fetch --quiet origin pre-dev
-  git -C "$CLONE" archive origin/pre-dev scripts/check-pistes.mjs docs/plans/2026-10-15-pistes-d-amelioration.md \
+  # shellcheck disable=SC2046 # des chemins sans espace, un par ligne
+  git -C "$CLONE" archive origin/pre-dev scripts/check-pistes.mjs $(chemins_des_pistes origin/pre-dev) \
     docs/backlog/tickets | tar -x -C "$racine"
   racine="$(cd "$racine" && pwd -P)"
   echo "Délégations depuis le $depuis (origin/pre-dev) :"
   CHECK_PISTES_RACINE="$racine" node "$racine/scripts/check-pistes.mjs" --delegations \
     | awk -F '\t' -v d="$depuis" 'NF == 1 || $1 >= d'
   rm -rf "$racine"
+}
+
+# ─── archiveur (amendement d'ADR-0066 du 2026-10-24, « l'archive des pistes closes ») ─────────
+# Mesuré le 2026-10-24 : le fichier de pistes pesait 4,9 Mo, dont 4,4 Mo d'entrées closes, et
+# 2 205 commits l'avaient touché en 7 jours ; chaque essai de fusion, conflit ou réparation
+# portait sur le fichier entier. L'archiveur en sort chaque jour les entrées closes depuis 24 h,
+# sans modèle : `scripts/agents/archiver-pistes.mjs` les déplace, `check-pistes --role archiveur`
+# (version de BASE_REF) rejoue le déplacement depuis la base et le compare, puis une PR
+# `agents/archiveur/*` (étiquette `agent:archiveur`) part vers pre-dev, que le fusionneur prend
+# comme les autres. Rend 0 quand l'archivage du jour est fait (publié, rien à archiver, ou une PR
+# d'archivage encore ouverte), 1 sur un échec, 2 quand il n'a pas eu lieu (pause, déjà en cours).
+# Appelée derrière `||`, elle tourne sans `set -e` : chaque étape se vérifie.
+
+archiver_pistes() {
+  local verrou="$BASE/verrous/archiveur" pid statut=0
+  if ! mkdir "$verrou" 2> /dev/null; then
+    pid="$(cat "$verrou/pid" 2> /dev/null || true)"
+    if [ -n "$pid" ] && kill -0 "$pid" 2> /dev/null; then
+      info "archiveur : un archivage tourne déjà (pid $pid)"
+      return 2
+    fi
+    rm -rf "$verrou"
+    mkdir "$verrou" || return 1
+  fi
+  printf '%s' "$$" > "$verrou/pid"
+  archiver_sous_verrou || statut=$?
+  rm -rf "$verrou"
+  return "$statut"
+}
+
+archiver_sous_verrou() {
+  # `ROLE` local : `preparer_arbre` ne nettoie que les branches locales `agents/$ROLE/`.
+  local ROLE=archiveur arbre="$BASE/arbres/archiveur" horo dossier branche lignes num tete etat_fusion resume fige corps
+  if [ -e "$BASE/PAUSE" ] || [ -e "$BASE/PAUSE-archiveur" ]; then
+    info "archiveur : en pause"
+    return 2
+  fi
+  avec_verrou_git git -C "$CLONE" fetch origin --prune --quiet || return 1
+  # Une PR d'archivage à la fois : la suivante déplacerait les mêmes lignes. Une PR en conflit ou
+  # rouge se ferme et se regénère depuis la base du jour : le déplacement est déterministe, il n'y a
+  # rien à réparer à la main.
+  lignes="$(GH_REPO="$GH_REPO" gh pr list --base pre-dev --state open --label agent:archiveur \
+    --json number,headRefName,mergeable --jq '.[] | "\(.number)\t\(.headRefName)\t\(.mergeable)"')" || return 1
+  if [ -n "$lignes" ]; then
+    IFS=$'\t' read -r num tete etat_fusion <<< "$(printf '%s\n' "$lignes" | head -n 1)"
+    if [ "$etat_fusion" != CONFLICTING ] && ! en_conflit "$tete" && [ "$(etat_ci "$num")" != rouge ]; then
+      info "archiveur : #$num encore ouverte, rien de plus aujourd'hui"
+      return 0
+    fi
+    GH_REPO="$GH_REPO" gh pr close "$num" --delete-branch --comment \
+      "Fermée par \`pistes.sh archiver\` : en conflit ou rouge sur \`$BASE_REF\`. L'archivage, déterministe, est regénéré depuis la base du jour." \
+      > /dev/null || return 1
+    info "archiveur : #$num fermée (conflit ou rouge), regénérée depuis $BASE_REF"
+  fi
+
+  horo="$(date +%Y%m%d-%H%M%S)"
+  dossier="$BASE/sorties/archiveur/$horo"
+  branche="agents/archiveur/$horo"
+  mkdir -p "$dossier" || return 1
+  avec_verrou_git preparer_arbre "$arbre" "$branche" "$BASE_REF" "$dossier" || return 1
+  if [ "$(git -C "$arbre" rev-parse HEAD)" != "$(git -C "$CLONE" rev-parse "$BASE_REF")" ]; then
+    info "✗ archiveur : l'arbre $arbre n'est pas sur $BASE_REF"
+    return 1
+  fi
+  if ! (cd "$arbre" && node scripts/agents/archiver-pistes.mjs) > "$dossier/archivage.txt" 2>&1; then
+    info "✗ archiveur : $(tail -n 1 "$dossier/archivage.txt")"
+    return 1
+  fi
+  resume="$(head -n 1 "$dossier/archivage.txt")"
+  if [ -z "$(git -C "$arbre" status --porcelain)" ]; then
+    info "archiveur : $resume"
+    return 0
+  fi
+  git -C "$arbre" add -A -- docs/plans/2026-10-15-pistes-d-amelioration.md "$ARCHIVE_PISTES" || return 1
+  git -C "$arbre" commit --quiet -m "chore(pistes): archiver les entrées closes depuis 24 h" -m "$resume" \
+    -m "Déplacement pur, sans modèle, par scripts/agents/archiver-pistes.mjs (ADR-0066, amendement du 2026-10-24)." || return 1
+  # Comme pour un rôle : la garde jouée est celle de BASE_REF, et elle refuse tout ce qui n'est pas
+  # le déplacement, rejoué depuis la base, des entrées closes parties du fichier vivant.
+  fige="$dossier/check-pistes.mjs"
+  git -C "$CLONE" show "$BASE_REF:scripts/check-pistes.mjs" > "$fige" || return 1
+  if ! (cd "$arbre" && CHECK_PISTES_RACINE="$arbre" node "$fige" --role archiveur --base "$BASE_REF") > "$dossier/verif-pistes.txt" 2>&1; then
+    info "✗ archiveur : check-pistes --role archiveur ($dossier/verif-pistes.txt)"
+    return 1
+  fi
+  if [ "$A_BLANC" -eq 1 ]; then
+    info "archiveur : à blanc, aurait poussé $branche — $resume"
+    return 0
+  fi
+  corps="$dossier/pr-corps.md"
+  {
+    printf '%s\n\n' "Archivage quotidien du fichier de pistes, sans modèle (ADR-0066, amendement du 2026-10-24, « l'archive des pistes closes »)."
+    printf '```\n%s\n```\n\n' "$(cat "$dossier/archivage.txt")"
+    printf '%s\n' "Les entrées closes sur \`$BASE_REF\` depuis 24 h au moins, et que rien n'a touchées depuis, passent telles quelles dans \`$ARCHIVE_PISTES/\`. Vérifié avant push par \`scripts/agents/pistes.sh\` (outils $OUTILS_SHA) : \`check-pistes --role archiveur --base $BASE_REF\` vert, le déplacement rejoué depuis la base est identique au caractère près."
+    printf '\n%s\n' '🤖 Generated with [Claude Code](https://claude.com/claude-code)'
+  } > "$corps"
+  git -C "$arbre" push --quiet -u origin "HEAD:refs/heads/$branche" || return 1
+  num="$(GH_REPO="$GH_REPO" gh pr create --base pre-dev --head "$branche" --label agent:archiveur \
+    --title "[archiveur] $resume" --body-file "$corps" | sed 's#.*/##')" || return 1
+  info "archiveur : PR #$num ouverte — $resume"
+  printf '%s\tarchiveur\t-\tpublie\t%s\t-\t-\t-\t%s\n' "$(date '+%Y-%m-%d %H:%M')" "$num" "$resume" >> "$BASE/journal.tsv"
+}
+
+# Une fois par jour, au premier passage du superviseur de la journée : il passe toutes les 2 h, et
+# l'archivage n'a pas d'heure. Le marqueur `etat/archive-AAAA-MM-JJ` ne se pose que sur un archivage
+# fait ; un échec ou une pause se retentent au passage suivant.
+archiver_du_jour() {
+  local marque statut=0
+  marque="$BASE/etat/archive-$(date +%Y-%m-%d)"
+  [ ! -e "$marque" ] || return 0
+  archiver_pistes || statut=$?
+  if [ "$statut" -eq 0 ]; then
+    touch "$marque"
+    find "$BASE/etat" -maxdepth 1 -name 'archive-*' -mtime +7 -delete 2> /dev/null || true
+  fi
+  [ "$statut" -ne 1 ]
 }
 
 # ─── état ─────────────────────────────────────────────────────────────────────────────────────
@@ -570,6 +699,8 @@ etat() {
   planification superviseur
   if [ -d "$BASE/verrous/superviseur" ]; then echo "  passage en cours (pid $(cat "$BASE/verrous/superviseur/pid" 2> /dev/null || echo '?'))"; fi
   if [ -f "$BASE/journal.tsv" ]; then awk -F '\t' '$2 == "superviseur"' "$BASE/journal.tsv" | tail -3 | sed 's/^/  /'; fi
+  printf '\n%s\n' "── archiveur (une fois par jour, au premier passage du superviseur)"
+  if [ -f "$BASE/journal.tsv" ]; then awk -F '\t' '$2 == "archiveur"' "$BASE/journal.tsv" | tail -3 | sed 's/^/  /'; fi
   printf '\n%s\n' "── PR ouvertes vers pre-dev"
   GH_REPO="$GH_REPO" gh pr list --base pre-dev --state open --json number,title,labels \
     --jq '.[] | "  #\(.number)  \(.title)"'
@@ -887,7 +1018,7 @@ reparation_du_superviseur() {
   [ -z "$(git -C "$arbre" rev-list --merges "origin/$tete..HEAD")" ] \
     || fin refuse "#$num : commit de fusion sur la tête de la PR (le rafraîchissement et les conflits sont au tri et à l'implémenteur)"
   fichiers="$(git -C "$arbre" diff --name-only "origin/$tete" HEAD)" || fin refuse "#$num : diff illisible"
-  if printf '%s\n' "$fichiers" | grep -qE "$OUTILS_DES_AGENTS|^docs/plans/2026-10-15-pistes-d-amelioration\\.md\$"; then
+  if printf '%s\n' "$fichiers" | grep -qE "$OUTILS_DES_AGENTS|^docs/plans/2026-10-15-pistes-d-amelioration\\.md\$|^$ARCHIVE_PISTES/"; then
     fin refuse "#$num : le correctif touche le fichier de pistes ou les outils des agents (ta propre PR, qui attend le porteur)"
   fi
   MODE=reparation
@@ -1194,8 +1325,9 @@ verifier() {
     return 1
   fi
   if [ "$ROLE" = superviseur ]; then
-    # Le superviseur n'a pas de pistes : il ne touche pas leur fichier, qui est aux autres rôles.
-    if git -C "$arbre" diff --name-only "$depart" HEAD | grep -qxF docs/plans/2026-10-15-pistes-d-amelioration.md; then
+    # Le superviseur n'a pas de pistes : il ne touche ni leur fichier, qui est aux autres rôles, ni
+    # leur archive, qui est à l'archiveur.
+    if git -C "$arbre" diff --name-only "$depart" HEAD | grep -qE "^(docs/plans/2026-10-15-pistes-d-amelioration\\.md|$ARCHIVE_PISTES/)"; then
       info "✗ le superviseur a touché le fichier de pistes"
       echecs=$((echecs + 1))
     fi
@@ -1411,7 +1543,8 @@ travail_disponible() {
   # preuve, par `--report`, qu'elle a lu le fichier.
   mkdir -p "$sortie/base"
   racine="$(cd "$sortie/base" && pwd -P)"
-  git -C "$CLONE" archive "$BASE_REF" scripts/check-pistes.mjs docs/plans/2026-10-15-pistes-d-amelioration.md \
+  # shellcheck disable=SC2046 # des chemins sans espace, un par ligne
+  git -C "$CLONE" archive "$BASE_REF" scripts/check-pistes.mjs $(chemins_des_pistes "$BASE_REF") \
     docs/backlog/tickets | tar -x -C "$racine" || return 0
   CHECK_PISTES_RACINE="$racine" node "$racine/scripts/check-pistes.mjs" --report | grep -q ' entrées, ' || return 0
   case "$ROLE" in
@@ -1538,6 +1671,12 @@ lancer() {
   if [ "$ROLE" != superviseur ] && awk -v c="$charge" -v m="$max" 'BEGIN { exit !(c > m) }'; then fin charge "charge $charge > $max"; fi
 
   avec_verrou_git recuperer
+
+  # L'archivage quotidien du fichier de pistes, sans modèle (amendement d'ADR-0066 du 2026-10-24) :
+  # au premier passage du superviseur de la journée, avant son modèle.
+  if [ "$ROLE" = superviseur ] && [ "$A_BLANC" -eq 0 ]; then
+    archiver_du_jour || info "archiveur : en échec, retenté au prochain passage du superviseur"
+  fi
 
   # 2. Les PR du rôle (etat_des_pr).
   local branche depart ci="" conflit="" communs="" reparations=0
@@ -1960,8 +2099,20 @@ case "${1:-}" in
   etat) etat ;;
   releve) releve "${2:-}" ;;
   fusionner) fusionner ;;
+  archiver)
+    charger_config
+    for a in "${@:2}"; do
+      case "$a" in
+        --a-blanc) A_BLANC=1 ;;
+        *) die "usage : archiver [--a-blanc]" ;;
+      esac
+    done
+    statut=0
+    archiver_pistes || statut=$?
+    [ "$statut" -ne 1 ] || die "archivage en échec (journal ci-dessus, et $BASE/sorties/archiveur/)"
+    ;;
   pause) mkdir -p "$BASE" && touch "$BASE/PAUSE" && info "pause : aucun passage ne démarre (« reprendre » pour lever)" ;;
   reprendre) rm -f "$BASE/PAUSE" && info "reprise" ;;
   action) shift; action "$@" ;;
-  *) sed -n '2,28p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
+  *) sed -n '2,31p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
 esac

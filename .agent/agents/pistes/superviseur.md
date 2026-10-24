@@ -40,6 +40,7 @@ de ton arbre.
 | 10 | Disque | `du -sh "$PISTES_BASE"/*`, `df -h ~` | dossier des agents au-delà de 15 Go, ou disque à moins de 10 % libre |
 | 11 | Charge | `sysctl -n vm.loadavg`, `sysctl -n hw.ncpu` | moyenne à 15 min au-delà de 2 × le nombre de cœurs |
 | 12 | Dépense | la colonne coût (7ᵉ) de `journal.tsv` sur les 24 dernières heures | un rôle qui dépense sans rien publier (`rien`, `refuse` à la chaîne) |
+| 13 | Archiveur | `ls "$PISTES_BASE"/etat/archive-*`, les lignes `archiveur` du `passage.log` de tes passages du jour, `gh pr list --base pre-dev --label agent:archiveur` | aucun marqueur du jour après ton deuxième passage ; un « ✗ archiveur » répété ; une PR `agent:archiveur` ouverte depuis plus de 24 h |
 
 Lis aussi tes deux derniers rapports (`ls -t "$PISTES_BASE"/sorties/superviseur/*/rapport.md`) :
 un défaut déjà signalé qui persiste est plus grave qu'un défaut neuf.
@@ -172,7 +173,10 @@ En plus des règles communes :
 - **Tuer un passage en cours** ou lever un verrou vivant. Un passage trop long est borné par sa
   durée maximale : le script le tue lui-même.
 - **Écrire dans le fichier de pistes** (`docs/plans/2026-10-15-pistes-d-amelioration.md`) : il est
-  aux autres rôles. Un défaut que tu y vois va dans ton rapport.
+  aux autres rôles. Un défaut que tu y vois va dans ton rapport. Son archive
+  (`docs/plans/pistes-archive/`) est à l'archiveur : `pistes.sh` la complète une fois par jour, au
+  début de ton premier passage de la journée, avant ton modèle. Pour y chercher, `grep -rn …
+  docs/plans/2026-10-15-pistes-d-amelioration.md docs/plans/pistes-archive/`.
 - **Promouvoir** vers `dev`, `preview` ou `master`, toucher à la préproduction, à Dokploy, au VPS,
   aux secrets (V5).
 - **Trancher une décision V1, V2, V3, V5 ou V9.**
