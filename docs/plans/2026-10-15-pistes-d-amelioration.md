@@ -18283,7 +18283,7 @@ repris ; les CSV à point-virgule, en latin-1, à BOM ou à tabulation passent l
 
 ### Un profil actif changé par la mise en page (après un parcours d'accueil) garde le cache de l'ancien profil
 - Réf : P197.06
-- Statut : à mesurer
+- Statut : retenu · à valider — V6 : où la remise à zéro du cache vit (un point ou deux) fixe la règle de tout le cache
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/context/AuthContext.tsx:101-107`, `takussan-web/src/hooks/useProfiles.ts:105-114`, `takussan-web/src/app/actions/onboarding.ts:41`
 - Constat :
@@ -18291,6 +18291,7 @@ repris ; les CSV à point-virgule, en latin-1, à BOM ou à tabulation passent l
   - `AuthProvider` change aussi le profil actif quand la mise en page rend un autre `initialActiveProfileId`, par exemple après une action serveur d'accueil qui pose le cookie (lu, `AuthContext.tsx:101-107`, `onboarding.ts:41`) ; ce chemin ne passe pas par `useProfiles` et ne remet pas le cache à zéro (lu, non joué).
   - Établi comment : lu par le porteur en tranchant P197.04 (2026-10-24) ; aucun parcours rendu.
 - Piste : remettre le cache à zéro dans ce chemin aussi, ou porter la remise à zéro par `AuthProvider` à tout changement d'`activeProfileId`, une seule fois. Garde : un test qui change `initialActiveProfileId` et exige qu'une clé d'agence soit relue.
+- Mesure (2026-10-24, 52824256a, mesureur) : relu `AuthContext.tsx:94-107` (le rendu qui voit un autre `initialActiveProfileId` pose `activeProfileId` par `setActiveProfileIdState`, sans toucher au `QueryClient`), `useProfiles.ts:93-114` (`resetQueries` hors profils dans le seul `onSuccess` de `useSwitchActiveProfile`), `grep -rn ACTIVE_PROFILE_COOKIE takussan-web/src` → cinq actions d'accueil posent le cookie (`onboarding.ts:41`, `auto-onboard.ts:36`, `agent-onboarding.ts:118`, `owner-onboarding.ts:86`, `service-provider-onboarding.ts:105`), puis `HostIndividualWizard.tsx:225,229` navigue par `router.push` ; sonde vitest temporaire (retirée, charge `{ 2.46 2.64 2.63 }` sur 8 cœurs) : `AuthProvider` rendu sous `owner:1` avec `['credits','solde']` en cache, re-rendu sous `agency_admin:2` → le profil exposé passe à `agency_admin:2`, la clé garde `{ agence: 'A' }` → le constat tient ; aucun ticket ni commit ne le traite (`grep -rln P197.06 docs/backlog/tickets` vide). Classement : V6, la `Piste` propose deux formes (remise à zéro dans ce seul chemin, ou portée par `AuthProvider` à tout changement, ce qui retire à `useProfiles` le rôle de « SEUL point » que TCK-2091 lui donne), et `router.refresh()` après un changement par le menu repasse aussi par ce rendu : le choix décide si le cache est oublié une ou deux fois.
 
 ## Angle 198 — Un même mot compté par des règles différentes d'un écran à l'autre
 
@@ -19841,7 +19842,7 @@ les envoie.*
 
 ### La règle d'auteur d'ADR-0031 (amendement du 2026-10-24) ne touche pas `DocumentPolicy` : téléverseur et auteurs de `reaches` gardent leurs documents sans condition d'appartenance
 - Réf : P218.06
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : retirer à l'auteur l'accès à ses documents touche des lecteurs légitimes (client, locataire, bailleur bloqué)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Policies/DocumentPolicy.php:48`, `takussan-api/app/Policies/DocumentPolicy.php:78`, `takussan-api/app/Policies/DocumentPolicy.php:100`, `takussan-api/app/Policies/DocumentPolicy.php:189-216`, `takussan-api/app/Http/Controllers/Api/DocumentController.php:44`
 - Constat :
@@ -19852,6 +19853,7 @@ les envoie.*
   - Déduit, à vérifier : un agent suspendu ou retiré lit, modifie et partage les documents qu'il a téléversés sur un objet de l'agence, et ceux d'une réservation, d'une fiche ou d'un état des lieux qu'il a saisis.
   - Établi comment : lu ; l'effet sur l'agent partant est déduit.
 - Piste : d'abord mesurer qui téléverse aujourd'hui sur un objet d'agence sans en être membre (locataire, client, bailleur, prestataire) et ce que chacun perdrait. Puis appliquer la règle d'auteur d'ADR-0031 (partie B) à `uploaded_by` et aux trois branches de `reaches`, avec l'exception de l'état des lieux (P190.05 : `landlordWrites` gardé et complété par l'appartenance en écriture ; en lecture, auteur et agence nulle, `isMemberAt` ou profil propriétaire de tout statut) pour `uploaded_by` et `conducted_by`, et en ajoutant à la branche réservation de `reaches` la branche client de `BookingPolicy::view` (`customer.user_id`) ; borner de même la liste de `DocumentController::index`. Garde : un test par colonne, agent auteur suspendu (`TeamMemberSuspensionService::suspend`) puis retiré (`AgencyMemberRemovalService::remove`) → `GET /api/documents/{id}` 403, `PUT` et lien de partage refusés, absent de `GET /api/documents` ; témoins qui gardent leur accès : agent actif, bailleur actif, bailleur bloqué (lecture seule), locataire du bail, client du tunnel public sur un document de sa réservation ; vérification par ablation (policy remise → rouge).
+- Mesure (2026-10-24, 52824256a, mesureur) : relu `DocumentPolicy.php` (l. 48 `uploaded_by === user.id` dans `view` ; l. 78 et 100 `landlordWrites` sur `uploaded_by` ; l. 192, 198, 213 `created_by_id`, `added_by_id`, `conducted_by` dans `reaches`), `BasePolicy::landlordWrites` (l. 132-141 : ne refuse que le bailleur bloqué) et `DocumentController.php:44,87`, inchangés ; sonde temporaire `tests/Feature/TmpMesureur/Sonde21806Test.php` (retirée ; jeu de `BuildsBookingStakeholders`, charge `{ 2.23 2.55 2.59 }` sur 8 cœurs) : document d'un bien de l'agence téléversé par l'agent, et document téléversé par l'admin sur une fiche client saisie par l'agent → agent actif, puis **suspendu** (`TeamMemberSuspensionService::suspend`), puis **retiré** (`AgencyMemberRemovalService::remove`) : `GET /api/documents/{id}` 200 sur les deux, `can('update')` et `can('share')` vrais, document présent dans `GET /api/documents`, dans les trois états → le point « déduit, à vérifier » tient pour `uploaded_by` et `added_by_id` (`created_by_id` et `conducted_by` non joués, même forme lue). Classement : V2, le porteur a sorti `DocumentPolicy` de la règle d'auteur faute de mesurer qui téléverse sans être membre, et la `Piste` commence par cette mesure : le périmètre de ce que perdent client, locataire et bailleur bloqué est à trancher (V3 aussi : pièces de tiers).
 
 ## Angle 219 — Clés next-intl bâties sur une valeur venue de l'API
 
