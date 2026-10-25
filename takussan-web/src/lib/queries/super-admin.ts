@@ -311,6 +311,11 @@ export type AgencyOnboardingPayload = {
     first_name: string;
     last_name: string;
     email: string;
+    /**
+     * P251.02 (TCK-2365) — facultatif : cherché parmi les numéros vérifiés, il fait refuser la
+     * création en 409 (`agency.admin_phone_taken`) quand un compte le porte déjà.
+     */
+    phone?: string;
     language?: 'fr' | 'en' | 'wo';
   };
 };

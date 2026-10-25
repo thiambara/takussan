@@ -149,19 +149,21 @@ export async function fetchPendingAgencyInvitations(
  * `kind=individual`, son profil `draft`, son mail et ses tests — et
  * `grep -rn "agents/invite" src` ne rendait **aucun résultat** : il n'avait pas
  * un seul appelant. Le bouton « Inviter » de `/app/agency/team` appelait
- * `POST /api/agencies/{id}/members`, qui exige un `User` DÉJÀ INSCRIT et n'écrit
+ * `POST /api/agencies/{id}/members`, qui exigeait un `User` DÉJÀ INSCRIT et n'écrivait
  * aucune ligne `invitations`. *Un endpoint sans appelant et un bouton qui ment
  * sur ce qu'il fait sont le même défaut vu des deux bouts.*
  *
- * ⚠ `role` n'accepte que `AgentInvitationService::ALLOWED_ROLES` — `agency_admin`
- * en est délibérément absent (TCK-209). Le second administrateur d'agence passe
- * par {@link addAgencyMember}, qui exige un compte existant : c'est aujourd'hui
- * le seul chemin, et l'écran le dit (`admin.inviteAgent.adminNote`).
+ * TCK-2365 (P242.01) — cette route est retirée : l'invitation est le seul chemin d'entrée dans
+ * l'équipe, au rôle `agent` ou `agency_admin` (`AgentInvitationService::ALLOWED_ROLES`). Inviter un
+ * administrateur exige `team.assign_role` côté API.
  */
 export interface InviteAgencyAgentPayload {
   readonly email: string;
-  /** P234.01 (TCK-2280) — `agent` seul : les deux autres rôles n'étaient jamais appliqués. */
-  readonly role: 'agent';
+  /**
+   * P234.01 (TCK-2280) — ni `agent_senior` ni `agent_manager`, jamais appliqués. TCK-2365 —
+   * `agency_admin` : l'acceptation crée aussi le profil d'administrateur.
+   */
+  readonly role: 'agent' | 'agency_admin';
   readonly first_name: string;
   readonly last_name: string;
   readonly phone?: string | null;

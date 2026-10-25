@@ -3,6 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { withIntl } from '@/test/intl';
+import { useCan } from '@/hooks/useCan';
 import { inviteAgencyAgent } from '@/lib/queries/agency-invitations';
 import { InviteAgentDialog } from '../InviteAgentDialog';
 
@@ -23,6 +24,8 @@ vi.mock('@/context/AuthContext', () => ({
   useAuth: () => ({ token: 'jeton-de-test' }),
 }));
 
+vi.mock('@/hooks/useCan', () => ({ useCan: vi.fn() }));
+
 function monter(onSuccess = vi.fn()) {
   render(
     withIntl(
@@ -36,6 +39,7 @@ describe('<InviteAgentDialog>', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(inviteAgencyAgent).mockResolvedValue({ data: {} } as never);
+    vi.mocked(useCan).mockReturnValue({ can: false, isLoading: false });
   });
 
   it('envoie l’invitation sur `agents/invite` avec l’identité saisie', async () => {
@@ -66,27 +70,47 @@ describe('<InviteAgentDialog>', () => {
   });
 
   /**
-   * `AgentInvitationService::ALLOWED_ROLES` exclut `agency_admin` (TCK-209) et
-   * le générique `POST /api/invitations` l'accepterait sans créer aucun profil.
-   * L'écran ne doit donc pas l'offrir — et il doit dire où ça se fait.
-   */
-  /**
    * P234.01 (TCK-2280) — « Agent senior » et « Responsable d'équipe » n'étaient jamais appliqués :
-   * le membre entrait comme simple agent. Le dialogue n'offre plus de choix de rôle.
+   * le membre entrait comme simple agent. Le dialogue ne les offre plus.
    */
   it('n’offre plus de rôle sans effet : ni agent senior, ni responsable d’équipe', async () => {
     monter();
+    await userEvent.setup().click(screen.getByLabelText('Rôle'));
 
+    expect(await screen.findByRole('option', { name: 'Agent' })).toBeInTheDocument();
     expect(screen.queryByText(/Agent senior/)).toBeNull();
     expect(screen.queryByText(/Responsable d'équipe/)).toBeNull();
-    expect(screen.queryByRole('combobox')).toBeNull();
   });
 
-  it('n’offre pas `agency_admin` et renvoie vers le chemin qui existe', async () => {
+  /**
+   * TCK-2365 (P242.01) — l'invitation est le seul chemin d'entrée dans l'équipe, au rôle agent ou
+   * administrateur ; le renvoi vers « Ajouter un compte existant » est parti avec ce geste.
+   * « Administrateur » suit `team.assign_role`, que l'API juge (TCK-2205).
+   */
+  it('sans team.assign_role, seul « Agent » est proposé', async () => {
+    monter();
+    await userEvent.setup().click(screen.getByLabelText('Rôle'));
+
+    expect(await screen.findByRole('option', { name: 'Agent' })).toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: 'Administrateur' })).toBeNull();
+    expect(screen.queryByText(/Ajouter un compte existant/)).toBeNull();
+    expect(useCan).toHaveBeenCalledWith('team.assign_role', 7, true);
+  });
+
+  it('avec team.assign_role, l’invitation part au rôle administrateur choisi', async () => {
+    vi.mocked(useCan).mockReturnValue({ can: true, isLoading: false });
+    const user = userEvent.setup();
     monter();
 
-    expect(screen.queryByText(/Administrateur/)).toBeNull();
-    expect(screen.getByText(/Ajouter un compte existant/)).toBeInTheDocument();
+    await user.type(screen.getByLabelText(/Prénom/i), 'Awa');
+    await user.type(screen.getByLabelText(/^Nom$/i), 'Ndiaye');
+    await user.type(screen.getByLabelText(/^Email$/i), 'awa@exemple.sn');
+    await user.click(screen.getByLabelText('Rôle'));
+    await user.click(await screen.findByRole('option', { name: 'Administrateur' }));
+    await user.click(screen.getByRole('button', { name: /^Envoyer/i }));
+
+    await waitFor(() => expect(inviteAgencyAgent).toHaveBeenCalledTimes(1));
+    expect(vi.mocked(inviteAgencyAgent).mock.calls[0][1]).toMatchObject({ role: 'agency_admin' });
   });
 
   /**
@@ -95,8 +119,8 @@ describe('<InviteAgentDialog>', () => {
    * Mesuré en implémentant TCK-392 : un e-mail invalide bloque bien la soumission
    * (`inviteAgencyAgent` non appelé) mais n'affiche AUCUN message —
    * `document.querySelectorAll('[role="alert"]').length === 0`. Le défaut n'est pas
-   * dans ce composant : `InviteMemberDialog`, livré par TCK-292 et non touché ici,
-   * se comporte à l'identique dans le même harnais, alors que le même schéma passé
+   * dans ce composant : `InviteMemberDialog` (TCK-292, retiré depuis par TCK-2365)
+   * se comportait à l'identique dans le même harnais, alors que le même schéma passé
    * à `useApiForm` HORS dialogue rend bien « Email invalide. ». Le schéma lui-même
    * est juste (`safeParse` rend une issue unique sur `email`).
    *

@@ -6360,8 +6360,7 @@
           "performance": "Performance"
         },
         "invite": "Invite",
-        "inviteAgent": "Invite",
-        "addExisting": "Add an existing account"
+        "inviteAgent": "Invite"
       },
       "invitations": {
         "title": "Pending invitations",
@@ -6510,19 +6509,6 @@
         "thresholdPendingSaved": "Saved. Relaxing the threshold requires a second approver's confirmation: they have been notified."
       }
     },
-    "inviteMember": {
-      "title": "Add an existing account",
-      "description": "Enter the email of a user who already has an account. They will be added to your agency with the role you choose.",
-      "email": "Email",
-      "emailPlaceholder": "jane@example.sn",
-      "emailInvalid": "Invalid email.",
-      "role": "Role",
-      "roles": {
-        "agent": "Agent",
-        "agency_admin": "Administrator"
-      },
-      "submit": "Add"
-    },
     "users": {
       "status": {
         "active": "Active",
@@ -6593,8 +6579,12 @@
       "emailPlaceholder": "jane@example.sn",
       "emailInvalid": "Invalid email.",
       "phone": "Phone (optional)",
+      "role": "Role",
+      "roles": {
+        "agent": "Agent",
+        "agency_admin": "Administrator"
+      },
       "required": "This field is required.",
-      "adminNote": "An agency administrator cannot be invited by email: add them from “Add an existing account”, which requires an existing Takussan account.",
       "submit": "Send the invitation"
     },
     "reconciliation": {
@@ -8606,6 +8596,7 @@
       "toastCreatedTitle": "Agency created",
       "toastCreatedDescription": "Invitation sent to {email}.",
       "errorEmailConflict": "An account already exists with this admin email.",
+      "errorPhoneConflict": "An account already exists with this verified number.",
       "errorGeneric": "Creation failed.",
       "newAgency": "New agency",
       "dialogTitle": "Create an agency",
@@ -8634,6 +8625,7 @@
         "firstName": "First name",
         "lastName": "Last name",
         "adminEmail": "Admin email",
+        "adminPhone": "Manager phone (optional)",
         "language": "Language"
       },
       "currencies": {
