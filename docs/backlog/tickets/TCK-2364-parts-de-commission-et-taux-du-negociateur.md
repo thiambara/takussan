@@ -45,9 +45,9 @@ Réfs : **P241.01**, **P241.02** et **P241.03** du fichier de pistes, `validé`.
 
 ## Décision du porteur
 
-- P241.01 : seul le personnel de l'agence du bien qui tient `leases.create` (`maySetCommissionTerms`) écrit une part de commission non nulle, à l'ajout comme à la modification ; le bailleur reçoit 403 et ne lit plus les parts
-- P241.02 : le taux de commission d'un agent s'écrit sur sa fiche de membre, sous `team.assign_role` ; la règle 2 d'ADR-0049 reste
-- P241.03 : la copie et les deux lectures suivent la règle de P241.01
+- P241.01 : validé — validation du porteur (2026-10-25) : seul le personnel de l'agence du bien qui tient `leases.create` (`maySetCommissionTerms`) écrit une part de commission non nulle, à l'ajout comme à la modification ; le bailleur reçoit 403 et ne lit plus les parts
+- P241.02 : validé — validation du porteur (2026-10-25) : le taux de commission d'un agent s'écrit sur sa fiche de membre, sous `team.assign_role` ; la règle 2 d'ADR-0049 reste
+- P241.03 : validé — validation du porteur (2026-10-25) : la copie et les deux lectures suivent la règle de P241.01
 
 ## Delta à produire
 
@@ -120,3 +120,7 @@ Réfs : **P241.01**, **P241.02** et **P241.03** du fichier de pistes, `validé`.
   projection la posent désormais en admin d'agence, et ceux qui ne portaient pas sur la part
   l'ont perdue. `UserAdminRoleAssignmentsTest` épingle la forme d'une affectation : la clé
   `commission_rate` y entre.
+- `PropertyIndexQueryBudgetTest` borne le surcoût de `agency_id` sur la liste des biens : la règle de
+  lecture des parts, que `agency_id` fait juger, ajoute six requêtes (mesuré : 6 avant, 12 après, sur
+  20 biens), une fois par agence et par requête grâce à la mémoire de la requête. Le plafond passe de
+  8 à 14 ; le test « 2 biens = 20 biens » reste vert.
