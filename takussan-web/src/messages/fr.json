@@ -3232,7 +3232,8 @@
       "loadingMore": "Chargement…",
       "attachAria": "Joindre un fichier",
       "placeholder": "Écrivez un message…",
-      "sendAria": "Envoyer"
+      "sendAria": "Envoyer",
+      "readOnly": "Ce fil est en lecture seule : votre bail pour ce logement a pris fin."
     },
     "group": {
       "create": {

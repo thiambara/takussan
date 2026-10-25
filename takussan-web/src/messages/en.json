@@ -3261,7 +3261,8 @@
       "loadingMore": "Loading…",
       "attachAria": "Attach a file",
       "placeholder": "Write a message…",
-      "sendAria": "Send"
+      "sendAria": "Send",
+      "readOnly": "This thread is read-only: your lease for this home has ended."
     },
     "group": {
       "create": {
