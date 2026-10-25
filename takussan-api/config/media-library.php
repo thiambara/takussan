@@ -163,12 +163,26 @@ return [
      * The media library will try to optimize all converted images by removing
      * metadata and applying a little bit of compression. These are
      * the optimizers that will be used by default.
+     *
+     * TCK-2355 (P10.10) — ce qui tourne VRAIMENT, mesuré le 2026-10-25 dans l'image :
+     *
+     * · seul `jpegoptim` est installé (takussan-api/Dockerfile). Les six autres binaires sont
+     *   absents, et Spatie saute un optimiseur absent sans rien dire : leur bloc ne fait rien ;
+     * · la chaîne ne s'applique qu'aux CONVERSIONS (`Conversion`), jamais à l'original. Celui d'une
+     *   photo de bien garde donc son EXIF, position GPS comprise : il vit sur le disque PRIVÉ et
+     *   ne sort que par URL signée, au détenteur de `viewRaw` (TCK-539) ;
+     * · une conversion est réencodée par GD, qui n'écrit aucun EXIF : elle n'en porte déjà aucun.
+     *   `--strip-all` y retire en plus le commentaire de GD, sur les conversions JPEG seules — une
+     *   conversion WebP (TCK-585) n'est pas un JPEG, et `cwebp` n'est pas installé.
+     *
+     * `deploy/takussan/smoke-api.sh image` passe un JPEG à EXIF dans cette chaîne, et vérifie
+     * qu'il en ressort sans.
      */
     'image_optimizers' => [
         Jpegoptim::class => [
             '-m85', // set maximum quality to 85%
             '--force', // ensure that progressive generation is always done also if a little bigger
-            '--strip-all', // this strips out all text information such as comments and EXIF data
+            '--strip-all', // retire commentaires et EXIF (TCK-2355 : des conversions, pas de l'original)
             '--all-progressive', // this will make sure the resulting image is a progressive one
         ],
         Pngquant::class => [

@@ -63,6 +63,81 @@ verifier_image() {
 
   dans test -w /config/psysh || echec "/config/psysh n'est pas inscriptible : artisan tinker meurt sous www-data"
   ok "artisan tinker utilisable"
+
+  verifier_delai_d_execution
+  verifier_exif_retire
+}
+
+# TCK-2355 (P65.01) — `max_execution_time = 60` (docker/php.ini) est la seule borne de durée d'une
+# requête, et ce qu'elle borne dépend de la façon dont PHP est compilé : sous Linux, une version NTS
+# ne compte que le temps PROCESSEUR, et une requête qui attend un fournisseur n'y consomme rien. Une
+# version ZTS — FrankenPHP l'impose — a les minuteurs de Zend, qui comptent le temps d'HORLOGE.
+# Mesuré le 2026-10-25 dans l'image (FrankenPHP 1.13.2, PHP 8.4.27 ZTS) : `sleep(3)` sous une borne
+# d'1 s meurt en CLI ; derrière `php_server`, la requête lit 60 s dans php.ini, et `sleep(5)` sous
+# une borne de 2 s rend 500 à 2,0 s. La borne est ramenée à 2 s par `set_time_limit()` pour ne pas
+# attendre une minute ; la valeur de php.ini est lue à part. Ablation : `set_time_limit(0)` dans la
+# sonde → rouge sur « la requête lente n'est pas coupée ».
+verifier_delai_d_execution() {
+  local sortie nom="takussan-smoke-delai-$$" reponse
+  [ "$(dans php -r 'echo PHP_ZTS;')" = 1 ] || echec "PHP n'est plus ZTS : max_execution_time ne borne plus le temps d'horloge"
+  sortie=$(dans php -d max_execution_time=1 -r 'sleep(3); echo "survit";' 2>&1 || true)
+  grep -q 'Maximum execution time of 1 second exceeded' <<<"$sortie" \
+    || echec "en CLI, sleep(3) n'est pas coupé par max_execution_time=1 : $sortie"
+  ok "max_execution_time borne le temps d'horloge (CLI)"
+
+  # Le serveur de l'image, sous www-data, sans l'entrypoint (il exigerait APP_KEY et la base) ;
+  # la sonde est écrite par root dans public/, qui n'appartient pas à www-data.
+  docker run -d --rm --name "$nom" --entrypoint frankenphp "$IMAGE:$TAG" run --config /etc/frankenphp/Caddyfile >/dev/null
+  # shellcheck disable=SC2064 # $nom est fixé ici, et doit l'être au moment du piège.
+  trap "docker rm -f '$nom' >/dev/null 2>&1 || true" EXIT
+  docker exec -i -u root "$nom" sh -c 'cat > /app/public/sonde-delai.php' <<'PHP'
+<?php
+$ini = ini_get('max_execution_time');
+if (isset($_GET['s'])) {
+    set_time_limit(2);
+    sleep((int) $_GET['s']);
+}
+echo "fini $ini";
+PHP
+  for _ in $(seq 30); do
+    reponse=$(docker exec "$nom" curl -sS -w ' %{http_code}' http://127.0.0.1:8080/sonde-delai.php 2>/dev/null || true)
+    [ "$reponse" = "fini 60 200" ] && break; sleep 1
+  done
+  [ "$reponse" = "fini 60 200" ] || echec "derrière php_server, max_execution_time ne vaut pas 60 (php.ini) : « $reponse »"
+  reponse=$(docker exec "$nom" curl -sS -w ' %{http_code}' 'http://127.0.0.1:8080/sonde-delai.php?s=1')
+  [ "$reponse" = "fini 60 200" ] || echec "derrière php_server, une requête d'1 s sous une borne de 2 s ne finit pas : « $reponse »"
+  reponse=$(docker exec "$nom" curl -sS -o /dev/null -w '%{http_code} %{time_total}' 'http://127.0.0.1:8080/sonde-delai.php?s=5')
+  awk '$1 == 500 && $2 < 4' <<<"$reponse" | grep -q . \
+    || echec "derrière php_server, la requête lente n'est pas coupée à la borne (attendu 500 avant 4 s) : « $reponse »"
+  ok "derrière php_server, max_execution_time = 60 et coupe une requête qui attend (500 à ${reponse#* } s sous une borne de 2 s)"
+  docker rm -f "$nom" >/dev/null
+}
+
+# TCK-2355 (P10.10) — jpegoptim est installé (Dockerfile), et la chaîne d'optimiseurs que la
+# médiathèque construit depuis config/media-library.php (`OptimizerChainFactory::create`, comme
+# `Conversion`) retire l'EXIF d'un JPEG. Sans le binaire, Spatie le saute sans rien dire et l'EXIF
+# reste : mesuré le 2026-10-25 sur l'image précédente, la sonde sort en 1.
+verifier_exif_retire() {
+  dans which jpegoptim >/dev/null || echec "jpegoptim absent de l'image : Spatie saute l'optimiseur sans rien dire"
+  docker run --rm -i --entrypoint php "$IMAGE:$TAG" <<'PHP' || echec "un JPEG à EXIF ressort de la chaîne d'optimiseurs avec son EXIF"
+<?php
+require '/app/vendor/autoload.php';
+$config = require '/app/config/media-library.php';
+$chemin = sys_get_temp_dir().'/sonde-exif.jpg';
+ob_start();
+imagejpeg(imagecreatetruecolor(64, 64), null, 90);
+$jpeg = (string) ob_get_clean();
+// Un segment APP1 « Exif » minimal, inséré après SOI : une seule entrée, Orientation = 6.
+$exif = "Exif\0\0II*\0".pack('V', 8).pack('v', 1).pack('vvVV', 0x0112, 3, 1, 6).pack('V', 0);
+file_put_contents($chemin, substr($jpeg, 0, 2)."\xFF\xE1".pack('n', strlen($exif) + 2).$exif.substr($jpeg, 2));
+if ((@exif_read_data($chemin)['Orientation'] ?? null) !== 6) {
+    fwrite(STDERR, "✗ le JPEG témoin ne porte pas son EXIF : la sonde ne prouverait rien\n");
+    exit(2);
+}
+Spatie\ImageOptimizer\OptimizerChainFactory::create($config['image_optimizers'])->optimize($chemin);
+exit(isset((@exif_read_data($chemin) ?: [])['Orientation']) ? 1 : 0);
+PHP
+  ok "jpegoptim présent, et un JPEG à EXIF ressort sans EXIF de la chaîne de config/media-library.php"
 }
 
 PROJET=takussan-smoke

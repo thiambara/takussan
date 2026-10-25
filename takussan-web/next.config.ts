@@ -11,6 +11,9 @@ const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
  */
 const LOADER_MEDIA = process.env.NODE_ENV === 'production';
 
+/** TCK-2355 (P10.10) — l'optimiseur de `next dev`, seul à lire les options `dangerously*`. */
+const OPTIMISEUR_DE_DEV = process.env.NODE_ENV !== 'production';
+
 const nextConfig: NextConfig = {
   // ── `output: 'standalone'` — ADR-0028 §3 ─────────────────────────────────────────────────────
   //
@@ -112,12 +115,13 @@ const nextConfig: NextConfig = {
 
     // ── Largeurs candidates — plafonnées à 1920 ────────────────────────────────
     //
-    // Le défaut de Next ajoute `2048` et `3840`. Or la plus grande image que cette
-    // API sert est la conversion `preview`, LARGE DE 800 px (`Property::
-    // registerMediaConversions`) : au-dessus de 828, l'optimiseur ne peut plus que
-    // ré-encoder la source sans y ajouter un pixel. Une entrée `3840w` dans le
-    // `srcset` n'est donc pas une option de qualité, c'est une invitation faite au
-    // navigateur à télécharger un ré-encodage plus lourd de la MÊME image.
+    // Le défaut de Next ajoute `2048` et `3840`. Or la plus grande image publique que
+    // cette API sert est la conversion `full`, LARGE DE 1600 px AU PLUS (`Fit::Max`,
+    // `Property::registerMediaConversions`, TCK-356 ; `preview` en fait 800) : au-dessus,
+    // l'optimiseur comme le loader ne peuvent plus que ré-encoder la source sans y ajouter un
+    // pixel. Une entrée `3840w` dans le `srcset` n'est donc pas une option de qualité,
+    // c'est une invitation faite au navigateur à télécharger un ré-encodage plus lourd de
+    // la MÊME image.
     //
     // Mesuré sur la fiche d'un bien, viewport 1920 : la grande tuile de la mosaïque
     // demandait `w=1920` pour 604 px occupés. Les `sizes` ont été corrigés (cf.
@@ -127,7 +131,7 @@ const nextConfig: NextConfig = {
     // 1920 et non 1080 : la visionneuse plein écran (`PropertyLightbox`, `100vw`)
     // est la seule surface qui consomme légitimement une grande largeur, et elle
     // sert `photo.original` — qui, pour un porteur du droit `viewRaw`, N'EST PAS
-    // plafonné à 800 px.
+    // plafonné à 1600 px.
     deviceSizes: [640, 750, 828, 1080, 1200, 1920],
 
     // ⚠ La durée de cache VUE PAR LE NAVIGATEUR ne se règle PAS ici.
@@ -144,8 +148,13 @@ const nextConfig: NextConfig = {
     // `max-age=1209600` et ressort quand même en `max-age=0`. Les 304 qu'on voit
     // sur `/_next/image` en rechargeant une liste sont ce comportement-là, pas un
     // défaut de configuration : ils n'existent pas en production.
-    dangerouslyAllowSVG: true,
-    dangerouslyAllowLocalIP: true,
+    // TCK-2355 (P10.10) — les deux options `dangerously*` ne valent que pour `next dev`, dont
+    // l'optimiseur sert les images de l'API locale (`127.0.0.1:8002`, plus bas). Aucun build ne
+    // les déclare : sans `contentSecurityPolicy`, un SVG distant servi par l'optimiseur
+    // exécuterait ses scripts sur l'origine du site. (Le loader de Cloudflare coupe déjà
+    // l'optimiseur dans tout build ; la condition tient le jour où il ne le ferait plus.)
+    dangerouslyAllowSVG: OPTIMISEUR_DE_DEV,
+    dangerouslyAllowLocalIP: OPTIMISEUR_DE_DEV,
     remotePatterns: [
       { protocol: 'https', hostname: 'picsum.photos' },
       { protocol: 'https', hostname: 'placehold.co' },

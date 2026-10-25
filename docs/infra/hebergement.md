@@ -565,7 +565,7 @@ workflow planifié après 60 jours sans activité sur le dépôt (un `workflow_d
 | `gzip on; gzip_min_length 1024` (JSON compris) | `encode zstd gzip { minimum_length 1024 }` |
 | `location /storage/ { … max-age=604800, stale-while-revalidate=86400 }` | `@storage` + `header` — **sans** `immutable` |
 | `location ~ /\.(?!well-known) { deny all; }` | `@cache_hidden` → `respond 404` |
-| `fastcgi_read_timeout 60` | `max_execution_time = 60` (`docker/php.ini`) |
+| `fastcgi_read_timeout 60` | `max_execution_time = 60` (`docker/php.ini`). **Même borne d'horloge, mesurée le 2026-10-25** (TCK-2355, FrankenPHP 1.13.2, PHP 8.4.27 ZTS, image locale arm64) : PHP ZTS a les minuteurs de Zend, qui comptent le temps d'horloge, attente réseau comprise — une version NTS sous Linux n'aurait compté que le temps processeur. Derrière `php_server`, une requête lit `60` dans `php.ini`, et `sleep(5)` sous une borne de 2 s rend `500` à 2,0 s. Ce qui diffère : nginx rendait `504` en abandonnant la réponse, ici PHP est arrêté et rend `500`. Sans effet en CLI, où la valeur est `0` : `worker`, `worker-media`, `scheduler` et `release` ne sont bornés que par leur `--timeout`. `deploy/takussan/smoke-api.sh image` le revérifie. ⚠ Les délais de Traefik et de Cloudflare, devant, ne sont pas relevés. |
 
 ## Ce qui n'est pas mesurable depuis le dépôt
 
