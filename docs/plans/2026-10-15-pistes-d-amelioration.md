@@ -686,7 +686,7 @@ Les deux 🔴 ont été relus par la session dans le code :
 
 ### Les journaux de l'API disparaissent à chaque déploiement
 - Réf : P14.08
-- Statut : validé — validation du porteur (2026-10-25) : `LOG_CHANNEL` et `LOG_LEVEL` entrent dans `docs/infra/prod-drivers.json`, lus dans Dokploy par script sans secret ; les erreurs sont gardées par P14.07, sans collecteur de journaux
+- Statut : fait · TCK-2357
 - Gravité : 🟠 risque ou dette
 - Où : `deploy/server/bootstrap.sh:99-102`, `deploy/takussan/compose.api.yml:14-16`, `docs/infra/prod-drivers.json`
 - Constat :
@@ -697,6 +697,7 @@ Les deux 🔴 ont été relus par la session dans le code :
 - Piste : ajouter les clés `LOG_*` au catalogue des drivers ; exporter les journaux (Loki, Vector, ou le rapporteur du constat précédent).
 - Mesure (2026-10-15, 28167fee, mesureur) : lu `deploy/server/bootstrap.sh:101-102` → `json-file`, `10m` × 3 ; `deploy/takussan/compose.api.yml:16-17` → seul `storage/app` est un volume, `storage/logs` part avec le conteneur ; `grep -c LOG_ docs/infra/prod-drivers.json` → 0 ; `LOG_CHANNEL=stderr` est écrit dans `deploy/takussan/.env.smoke.example:12` et `LOG_CHANNEL` est listée parmi les clés fixées par le plan (`docs/infra/hebergement.md:128`), sans valeur. La valeur réelle en préproduction n'est pas mesurable d'ici (Dokploy hors du poste). Classement : V5, le correctif touche `deploy/`, Dokploy et le catalogue des environnements.
 - Mesure (2026-10-25, ece5a91ea, humain) : validation du porteur en bloc (2026-10-25) sur la re-vérification de la session à c35c20d16 ; statut précédent : « retenu · à valider — V5 : configuration de déploiement et catalogue des drivers ; porteur (2026-10-15) : traité hors agents, avec P14.07 ».
+- Mesure (2026-10-25, b4d905cd3, humain) : `python3 -I deploy/takussan/relever-cles-dokploy.py JbPrtvdkuq0aLTDrOx2Ss LOG_CHANNEL LOG_LEVEL` → http 200, `LOG_CHANNEL = stderr`, `LOG_LEVEL = info` en préproduction ; les deux clés entrent dans `docs/infra/prod-drivers.json` (mesurées en préproduction, prescrites en production) et dans la table de F3 ; le script refuse un nom de secret (`APP_KEY` → sortie 1) (TCK-2357).
 
 ## Angle 13 — Code mort et doublons
 
