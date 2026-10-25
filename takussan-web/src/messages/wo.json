@@ -3776,21 +3776,8 @@
             "spaceName": "Turu espas bi",
             "primaryCity": "Dëkk bu njëkk",
             "currency": "Xaalis",
-            "primaryPropertyType": "Xeetu biir bu njëkk",
             "phone": "Nimerou telefoŋ",
             "otpCode": "Kódu SMS bi"
-          },
-          "propertyTypes": {
-            "apartment": "Apartama",
-            "house": "Néeg",
-            "villa": "Wiila",
-            "studio": "Studio",
-            "room": "Néeg bu rëy",
-            "land": "Suuf",
-            "office": "Biro",
-            "shop": "Boutik",
-            "warehouse": "Magasin",
-            "other": "Yu sax"
           },
           "otp": {
             "heading": "Véerifikaasioŋ telefoŋ",
