@@ -506,6 +506,7 @@ Cartographie complète des parcours d'entrée dans le système (référence : `d
 | Prio | Acteurs | Fonctionnalité |
 |------|---------|----------------|
 | P0 | Tous | Pattern d'invitation unifié — création par un inviteur autorisé, invitation par e-mail OU par SMS (lien court) quand l'invité n'a qu'un numéro (TCK-589), avec token signé (expiry 7j, rappel automatique J+2, renvoi self-service par l'inviteur, révocation possible avant acceptation) ; à l'acceptation, le profil cible passe en `active` et devient le profil actif |
+| P0 | 🛡️ | Un compte existant entre dans l'équipe d'une agence par l'invitation seule, au rôle agent ou administrateur (l'administrateur exige `team.assign_role`) ; aucun rattachement direct (`POST /api/agencies/{id}/members` retirée). Un membre retiré puis réinvité revient au rôle système, jamais à son ancien rôle personnalisé ; l'invitation ne dit pas à l'invitant si l'adresse a un compte (P242, TCK-2365, [ADR-0031](adr/0031-personnel-de-l-agence-et-cloisonnement-des-bailleurs.md)) |
 | P0 | 🛡️ | Bootstrap super-admin via commande artisan `takussan:create-super-admin` (1ère installation par environnement) — exige 2FA TOTP au premier login |
 | P0 | 👤🏠 | Onboarding wizard Customer post-signup — welcome modale (3 slides skippables) + complétion différée du profil minimal (téléphone, ville, type de recherche) au moment de la première action sensible (favoris / réservation / contact) |
 | P1 | 🛡️ | Cooptation super-admin (super-admin → super-admin) — invitation pair-à-pair via console super-admin avec 2FA TOTP **obligatoire** avant `active` (bloquant), audit log automatique, notification broadcast aux autres super-admins |
@@ -671,7 +672,7 @@ cookie, ADR-0026 §5), y compris depuis ses appels serveur.
 | P1 | 🛡️ | Référentiel géographique : validation, renommage et fusion des quartiers proposés (TCK-633, [ADR-0062](adr/0062-referentiel-geographique-region-ville-quartier.md)) |
 | P1 | 🛡️ | Crédits et boost : réglages (offre de bienvenue, validité, délai entre remontées, emplacements par page, places réservées en tête de la première page), catalogue des boosts, portefeuilles des espaces (octroi ou retrait motivé, sous 2FA récente, journalisé), boosts actifs (annulation avec ou sans remboursement, mise en avant offerte), statistiques (TCK-633, [ADR-0061](adr/0061-credits-d-espace-et-boost-des-annonces.md)) |
 | P0 | 🛡️ | Gestion des utilisateurs (activation, blocage) |
-| P0 | 🛡️ | Onboarding d'une agence par un super-admin (création + admin initial invité, hors auto-inscription) |
+| P0 | 🛡️ | Onboarding d'une agence par un super-admin (création + admin initial invité, hors auto-inscription) ; le numéro du gérant, facultatif, est cherché parmi les numéros vérifiés : s'il appartient à un compte, la création est refusée comme pour l'e-mail (409, P251.02, TCK-2365) |
 | P1 | 🛡️ | Gestion des enums métier (types de biens, statuts) |
 | P1 | 🛡️ | Configuration email (templates, expéditeur) |
 | P1 | 🛡️ | Suspension d'une agence par un super-admin, motif obligatoire : ses biens quittent la surface publique et l'index de recherche, son back-office passe en lecture seule (export permis), ses administrateurs sont prévenus ; la levée de la suspension restaure l'état (TCK-600) |

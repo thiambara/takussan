@@ -42,7 +42,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 3. [🏢 Bailleur / Propriétaire (owner)](#bailleur-propriétaire-owner) — 84 fonctionnalités
 4. [🧑‍💼 Agent immobilier](#agent-immobilier) — 120 fonctionnalités
 5. [🔧 Prestataire de service (service provider)](#prestataire-de-service-service-provider) — 17 fonctionnalités
-6. [🛡️ Admin d'agence / Super-admin](#admin-dagence-super-admin) — 123 fonctionnalités
+6. [🛡️ Admin d'agence / Super-admin](#admin-dagence-super-admin) — 124 fonctionnalités
 7. [👥 Tous les utilisateurs authentifiés](#tous-les-utilisateurs-authentifiés) — 68 fonctionnalités
 
 ---
@@ -768,6 +768,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P0 | §2.1 | Toute capacité est résolue dans le scope du profil actif — pour un couple *(utilisateur, agence)*, jamais globalement ([ADR-0003](adr/0003-capacites-enum-code-defined.md)) |
 | P1 | §2.1 | Création/désactivation d'un profil par un agency_admin (ex. nouvel agent recruté) |
 | P2 | §2.1 | Audit log dédié : changements de profil actif, créations/suspensions de profils |
+| P0 | §2.1 | Un compte existant entre dans l'équipe d'une agence par l'invitation seule, au rôle agent ou administrateur (l'administrateur exige `team.assign_role`) ; aucun rattachement direct (`POST /api/agencies/{id}/members` retirée). Un membre retiré puis réinvité revient au rôle système, jamais à son ancien rôle personnalisé ; l'invitation ne dit pas à l'invitant si l'adresse a un compte (P242, TCK-2365, [ADR-0031](adr/0031-personnel-de-l-agence-et-cloisonnement-des-bailleurs.md)) |
 | P0 | §2.1 | Bootstrap super-admin via commande artisan `takussan:create-super-admin` (1ère installation par environnement) — exige 2FA TOTP au premier login |
 | P1 | §2.1 | Cooptation super-admin (super-admin → super-admin) — invitation pair-à-pair via console super-admin avec 2FA TOTP **obligatoire** avant `active` (bloquant), audit log automatique, notification broadcast aux autres super-admins |
 
@@ -838,7 +839,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P1 | §2.9 | Référentiel géographique : validation, renommage et fusion des quartiers proposés (TCK-633, [ADR-0062](adr/0062-referentiel-geographique-region-ville-quartier.md)) |
 | P1 | §2.9 | Crédits et boost : réglages (offre de bienvenue, validité, délai entre remontées, emplacements par page, places réservées en tête de la première page), catalogue des boosts, portefeuilles des espaces (octroi ou retrait motivé, sous 2FA récente, journalisé), boosts actifs (annulation avec ou sans remboursement, mise en avant offerte), statistiques (TCK-633, [ADR-0061](adr/0061-credits-d-espace-et-boost-des-annonces.md)) |
 | P0 | §2.9 | Gestion des utilisateurs (activation, blocage) |
-| P0 | §2.9 | Onboarding d'une agence par un super-admin (création + admin initial invité, hors auto-inscription) |
+| P0 | §2.9 | Onboarding d'une agence par un super-admin (création + admin initial invité, hors auto-inscription) ; le numéro du gérant, facultatif, est cherché parmi les numéros vérifiés : s'il appartient à un compte, la création est refusée comme pour l'e-mail (409, P251.02, TCK-2365) |
 | P1 | §2.9 | Gestion des enums métier (types de biens, statuts) |
 | P1 | §2.9 | Configuration email (templates, expéditeur) |
 | P1 | §2.9 | Suspension d'une agence par un super-admin, motif obligatoire : ses biens quittent la surface publique et l'index de recherche, son back-office passe en lecture seule (export permis), ses administrateurs sont prévenus ; la levée de la suspension restaure l'état (TCK-600) |
@@ -963,8 +964,8 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 
 ## Provenance
 
-- Source : [`features.md`](./features.md) — **389** lignes de fonctionnalité lues,
-  réparties en **529** placements (une ligne multi-acteurs compte une fois par acteur).
+- Source : [`features.md`](./features.md) — **390** lignes de fonctionnalité lues,
+  réparties en **530** placements (une ligne multi-acteurs compte une fois par acteur).
 - Générateur : `docs/gen-features-by-actor.mjs`.
 - Fraîcheur vérifiée en CI par `node docs/gen-features-by-actor.mjs --check`, qui échoue si
   cette sortie ne correspond plus à sa source.

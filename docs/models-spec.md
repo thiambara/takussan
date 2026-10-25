@@ -2775,6 +2775,11 @@ invitation sans e-mail existe : le retour en arrière ne supprime pas d'invitati
   (cf. [Règle 5](#règle-5--profil--rôle)), et `InvitationService::finalizeAccept()` le dit dans son
   propre code. Une version antérieure de cette ligne annonçait « attache le rôle spatie scopé sur
   `agency_id` » — un mécanisme supprimé, sur lequel une garde CI casse.
+- Rôle `agency_admin` (P242.01, TCK-2365) : la cible est un `AgentProfile` brouillon, comme pour
+  l'agent ; l'acceptation l'active et crée l'`AgencyAdminProfile`. Un compte dont le profil d'agent
+  de cette agence a été retiré : l'acceptation reprend la ligne retirée, au rôle système (P242.02),
+  et l'invitation la pointe ; le brouillon est retiré. `invited_user_id` n'est rendu par l'API
+  qu'une fois l'invitation acceptée (P242.03).
 - Exception `super_admin` (TCK-264) : l'acceptation n'active rien. Elle pose
   `force_2fa_at_first_login = true` ; seul `/api/auth/super-admin/2fa/confirm`, après enrôlement
   d'un facteur TOTP, ouvre les surfaces super-admin.

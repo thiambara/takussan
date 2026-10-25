@@ -637,3 +637,64 @@ aucun accès à l'agence.
 **Ce qui n'est pas gardé (second volet).** Relancer ou révoquer l'invitation passe par les routes
 génériques, qui exigent `team.invite` : l'agent qui l'a émise sans tenir cette capacité ne la relance
 pas. Une fiche liée à un compte n'a pas de geste inverse.
+
+## Amendement du 2026-10-25 (P242, P251) — on entre dans le personnel par l'invitation, et l'on y revient au rôle système
+
+Décision du porteur du 2026-10-25 sur P242.01, P242.02, P242.03, P251.01 et P251.02 (TCK-2365).
+Relevé sur `db3e25230` par le mesureur, et sur `0553e6c38` à l'implémentation.
+
+**Constat.**
+
+- `POST /api/agencies/{id}/members`, et son alias historique `POST …/agents`
+  (`AgencyController::addAgent`), faisaient d'un compte quelconque, désigné par son identifiant ou
+  son e-mail, un agent **actif** de l'agence. Il n'y avait ni invitation, ni accord, ni avis au
+  compte. Le seul refus portait sur un profil d'agent dans une autre agence, et la réponse rendait
+  les coordonnées du compte. Le compte entrait ainsi dans le personnel de l'agence (§ 1), sans
+  l'avoir demandé.
+- La route disait aussi à tout admin d'agence si une adresse avait un compte (422
+  `user_not_found_by_email`). Elle ne trouvait ni une adresse en casse mixte, ni un compte créé par
+  numéro (P251.01).
+- `ProfileMaterializer::materializeOrRestore` restaurait la ligne d'un membre retiré **avec son
+  `agency_role_id`**, ce que TCK-1450 avait accordé. Un rôle personnalisé (`team.assign_role`,
+  `payouts.approve`…) revenait ainsi par un geste qui ne juge pas `team.assign_role` (P242.02).
+- Réinviter un agent retiré rendait 201, puis l'acceptation rendait **500** : la ligne retirée tient
+  encore `unique(user_id, agency_id)`.
+- La console super-admin ne refusait que l'e-mail déjà pris. Le gérant qui avait un compte créé par
+  numéro en recevait un second (P251.02).
+
+**Décision.**
+
+1. **On n'entre dans le personnel que par l'invitation** : profil d'agent brouillon, lien, puis
+   acceptation par le compte, au rôle `agent` ou `agency_admin`. Les deux routes de rattachement
+   direct sont retirées. Inviter au rôle `agency_admin` se juge en plus par
+   `AgencyPolicy::changeMemberRole` (`team.assign_role`, ou l'administrateur principal), comme le
+   changement de rôle. L'acceptation active le profil d'agent et crée l'`AgencyAdminProfile`.
+   Aucun profil n'est actif avant l'acceptation.
+2. **Un membre retiré puis rattaché reçoit le rôle système demandé**, jamais son ancien rôle
+   personnalisé. Toute ligne restaurée par `ProfileMaterializer` prend le rôle système de son type
+   dans son agence : c'est vrai à l'acceptation d'une invitation comme au changement de rôle. La
+   ligne retirée d'un agent réinvité est reprise, avec son historique. Le brouillon, qui ne portait
+   que l'invitation, est retiré, et l'invitation pointe désormais la ligne reprise. Cette décision
+   revient sur ce que TCK-1450 avait accordé.
+3. **Une invitation ne dit rien de l'existence du compte** : `invited_user_id` n'est rendu qu'une
+   fois l'invitation acceptée. L'invitation cherche le compte par l'adresse repliée ou par le numéro
+   vérifié (`InvitationService::recipientAccount`).
+4. **La console demande, facultatif, le numéro du gérant.** Elle le cherche parmi les numéros
+   vérifiés. S'il appartient à un compte, la création est refusée en 409
+   (`agency.admin_phone_taken`), comme pour l'e-mail. Le numéro n'est pas écrit sur le compte neuf :
+   saisi par un tiers, il n'est pas celui du compte tant que celui-ci ne l'a pas vérifié (P234.04).
+
+**Ce qui reste.** Un second administrateur passe désormais par deux chemins, tous deux jugés par
+`team.assign_role` :
+
+- l'invitation au rôle `agency_admin` ;
+- la promotion d'un membre, `PUT /api/agencies/{id}/members/{u}/role` (et `PUT /api/users/{u}/role`).
+
+**Ce qui n'est pas gardé.**
+
+- Le bailleur retiré puis réinvité heurte le même `unique(user_id, agency_id)` à l'acceptation. La
+  reprise ne vaut ici que pour le profil d'agent, et ce point reste à mesurer.
+- L'acceptation ne rejuge pas le droit de l'invitant : un administrateur invité par un membre qui a
+  perdu `team.assign_role` depuis l'envoi entre quand même. L'invitation se révoque.
+- Le refus à l'acceptation dit encore au porteur du jeton que le compte existe (`requires_login`).
+  C'est le destinataire, et non l'invitant.
