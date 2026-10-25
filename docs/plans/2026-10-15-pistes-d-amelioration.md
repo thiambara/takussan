@@ -379,6 +379,7 @@ contre le code par la session.*
 - les reversements verrouillent leurs pièces (`PayoutService.php:414-473`) ;
 - un webhook rejoué n'est pas recompté.
 - Mesure (2026-10-25, ece5a91ea, humain) : validation du porteur en bloc (2026-10-25) sur la re-vérification de la session à c35c20d16 ; statut précédent : « retenu · à valider — V1 : montant d'une restitution de caution ; porteur (2026-10-15) : plus tard, après P13.01 ».
+- Mesure (2026-10-25, b4d905cd3, humain) : implémentée puis retirée avant fusion par la session, car la décision est inapplicable telle quelle. Aucun chemin n'écrit d'échéance `deposit` : `generateSchedule` (`LeaseService`) n'écrit que des loyers, et `POST /leases/{id}/payments` refuse `deposit` depuis TCK-1920 (`lease_payment.type_from_schedule`). La « caution encaissée » des rapports vaut donc 0 pour tout bail créé dans l'application. Bornée à elle, la restitution refusait toute caution en 422. Reste au porteur : (a) l'échéancier écrit l'échéance de caution à l'activation, et la borne s'applique ensuite ; (b) la borne ne vaut que pour un bail qui porte une échéance `deposit`, avec repli sur `deposit_amount` ; (c) garder la restitution actuelle. Recommandation de la session : a.
 
 ## Angle 5 — Jobs planifiés et files
 
@@ -399,7 +400,7 @@ défaut avéré : ce sont des risques, dont trois coûtent cher le jour où ils 
 
 ### `scheduled_task_runs` ne mesure que la mise en file des `Schedule::job`
 - Réf : P05.07
-- Statut : validé — validation du porteur (2026-10-25) : `takussan-api/CLAUDE.md` § Tâches planifiées corrigé (compte des `Schedule::job` et portée de `withoutOverlapping`, qui ne couvre que la mise en file) ; verrou d'exécution des balayages non retenu tant que chaque job planifié est idempotent
+- Statut : fait · TCK-2341
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Admin/ScheduledRunRecorder.php`, et `Schedule.php:217-226` du framework
 - Constat :
@@ -408,6 +409,7 @@ défaut avéré : ce sont des risques, dont trois coûtent cher le jour où ils 
 - Piste : l'écrire dans `takussan-api/CLAUDE.md` § Tâches planifiées, et le middleware `WithoutOverlapping` sur les balayages.
 - Mesure (2026-10-15, e9f9289c, mesureur) : `routes/console.php` compte 19 `Schedule::job`, tous `ShouldQueue` (lu) ; `Schedule.php:218-226` du framework ne fait que `dispatchToQueue` dans la fermeture (lu) ; `SELECT task, status, count(*), max(duration_ms) FROM scheduled_task_runs` par tinker → toutes les lignes `App\Jobs\…` sont `finished`, de 0 à 600 ms, une seule à 17 650 ms (`SendPropertyVisitReminders`, dispatch sous charge) ; `grep ShouldBeUnique app` → rien, mais `WithoutOverlapping` existe désormais sur 2 jobs sur 19 (`SendSavedSearchAlerts:90`, `SendFavoriteChangeAlerts:68`, TCK-599) : le constat « aucun » est inexact pour ces deux-là ; `takussan-api/CLAUDE.md` § Tâches planifiées dit encore « presque tous `->withoutOverlapping()` » sans dire que ce verrou ne couvre que le dispatch → tient. Classement : V1, la partie documentaire relève d'A6 mais le middleware sur les balayages touche `ApplyLateFeesJob` (pénalités) et demande de choisir quels jobs borner.
 - Mesure (2026-10-25, ece5a91ea, humain) : validation du porteur en bloc (2026-10-25) sur la re-vérification de la session à c35c20d16 ; statut précédent : « retenu · à valider — V1 : le verrou d'exécution toucherait ApplyLateFeesJob, et le choix des jobs à borner ; porteur (2026-10-15) : plus tard, repris par P14.04 ».
+- Mesure (2026-10-25, 1ec8fae29, implementeur) : relu `takussan-api/CLAUDE.md` § Tâches planifiées (« 77 lignes : 13 `Schedule::job()` et 6 `Schedule::command()`, presque tous `->withoutOverlapping()` ») contre `routes/console.php` (218 lignes ; `grep -cE '^\s*Schedule::job\('` → 24, `Schedule::command\(` → 26 ; `schedule:list` → 27 événements de job) et `Schedule.php:217-226` du framework (mise en file seule) → le § donne désormais ces commandes au lieu d'un compte, dit que `withoutOverlapping()` d'un `Schedule::job` ne couvre que la mise en file (et celui d'un `Schedule::command` l'exécution), que `scheduled_task_runs` mesure cette mise en file, et que le verrou d'exécution des balayages n'est pas retenu tant que chaque job planifié est idempotent. Pas de test : delta de texte, chaque commande lancée sur l'arbre ; gardes du dépôt vertes.
 
 ### `onOneServer` et le fuseau horaire : pas de défaut aujourd'hui, un piège pour la production
 - Réf : P05.09
@@ -829,7 +831,7 @@ ajoutent que des faits neufs.*
 
 ### La purge que TCK-537 doit planifier n'épargnerait pas la plupart des journaux de preuve
 - Réf : P19.04
-- Statut : validé — validation du porteur (2026-10-25) : durées par famille de journaux, écrites dans TCK-537 et dans `privacy.ts` § 6 : 12 mois par défaut ; 5 ans pour `PersonalDataAccess`, `Privacy`, `Security`, `UserSupport`, `KYC`, `KycDossier`, `Account`, `Membership`, `AgencyRole`, `Integration` et `export` ; 10 ans pour les pièces comptables (`LeasePayment`, `BookingPayment`, `Invoice`, `Payout`, `PlatformPayout`, `CommissionEntry`, `Billing`) ; un test par famille
+- Statut : fait · TCK-2342
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/vendor/spatie/laravel-activitylog/src/Commands/CleanActivitylogCommand.php:13-40`, `takussan-api/config/activitylog.php:71-74`, `takussan-api/app/Http/Controllers/Api/Admin/CrossTenantAuditController.php:40-52`, `docs/backlog/tickets/TCK-537-ecarts-entre-la-politique-de-confidentialite-et-le-code.md` (contrainte 5, AC3b)
 - Constat :
@@ -839,6 +841,7 @@ ajoutent que des faits neufs.*
 - Piste : écrire dans TCK-537 la liste des journaux exemptés à partir de ceux qui existent (`grep -rhoE "activity\('[A-Za-z_]+'\)" app` et `useLogName`), et une durée par journal plutôt qu'une exemption. Un test par journal exempté, en plus de l'AC3b.
 - Mesure (2026-10-15, d62e3290, mesureur) : relu `CleanActivitylogCommand.php:13-40` (argument `{log?}` unique, pas d'exclusion), `config/activitylog.php:71-74` (`clean_log` surchargeable), `CrossTenantAuditController::SENSITIVE_LOG_NAMES` (onze journaux), TCK-537 contrainte 5 et AC3b (exempte seulement `PersonalDataAccess` et `Privacy`, ticket `todo`, dernière modification `e8882992`) ; `grep activitylog:clean routes/console.php` → rien, purge toujours non planifiée ; `grep -rhoE "activity\('…'\)|LOG_NAME|useLogName"` → 30 noms de journaux, dont `Account` (3, `AccountDeletionService.php:115,154,193`) que rien n'exempte. Inexact dans le constat : `PrivacyRequest::LOG_NAME` vaut `'Privacy'` (`PrivacyRequest.php:34`), donc le registre des droits écrit sous `Privacy`, déjà exempté par TCK-537, et aucun code n'écrit sous `'PrivacyRequest'` (seule mention : `CrossTenantAuditController.php:43`). Le reste du constat tient. Classement : V3, fixer la durée de conservation de chaque journal (et celle des journaux de pièces comptables) est une décision RGPD que la piste renvoie elle-même au porteur.
 - Mesure (2026-10-25, ece5a91ea, humain) : validation du porteur en bloc (2026-10-25) sur la re-vérification de la session à c35c20d16 ; statut précédent : « retenu · à valider — V3 : durée de conservation de journaux qui portent des données personnelles ; porteur (2026-10-15) : traité hors agents, durées à écrire dans TCK-537 ».
+- Mesure (2026-10-25, c3afca7e5, implementeur) : re-mesuré sur l'arbre : `routes/console.php` ne planifiait aucune purge d'`activity_log`, TCK-537 `todo` n'exemptait que `PersonalDataAccess` et `Privacy` → `audit:prune-activity-log` (`PruneActivityLog`), par famille de `log_name` (12 mois par défaut et pour un nom nul, 5 ans pour les onze journaux de preuve, 10 ans pour les sept de pièces comptables), par lots, idempotente, planifiée chaque jour à 04:10 (Dakar) ; `privacy.ts` § 6 (`fr`, `en`) donne les trois durées, `VERSION_DOCUMENTS` au 25 octobre 2026 ; TCK-537 reçoit les durées (contrainte 5, AC3b) et reste `todo` ; ADR-0044 amendé (2026-10-25). `PruneActivityLogCommandTest` (24 tests, un cas par journal de chaque famille) rouge en entier avant, vert après ; ablations : un nom retiré d'une liste → son cas rouge, 5 ans portés à 10 → 11 rouges, `whereNull` retiré → 1, lot unique → 1, planification retirée → 1 ; `textes.test.ts` rouge puis vert.
 
 ## Angle 20 — Nombre réel de requêtes SQL par écran
 

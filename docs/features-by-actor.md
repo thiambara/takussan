@@ -42,7 +42,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 3. [🏢 Bailleur / Propriétaire (owner)](#bailleur-propriétaire-owner) — 83 fonctionnalités
 4. [🧑‍💼 Agent immobilier](#agent-immobilier) — 117 fonctionnalités
 5. [🔧 Prestataire de service (service provider)](#prestataire-de-service-service-provider) — 17 fonctionnalités
-6. [🛡️ Admin d'agence / Super-admin](#admin-dagence-super-admin) — 122 fonctionnalités
+6. [🛡️ Admin d'agence / Super-admin](#admin-dagence-super-admin) — 123 fonctionnalités
 7. [👥 Tous les utilisateurs authentifiés](#tous-les-utilisateurs-authentifiés) — 68 fonctionnalités
 
 ---
@@ -821,6 +821,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P1 | §2.6 | Filtrage par utilisateur, date, action |
 | P1 | §2.6 | Le journal d'une agence couvre tout ce qui touche ses objets (actes des admins, du système et des webhooks compris) et rien de ce qui touche une autre agence (TCK-601) |
 | P1 | §2.6 | Journal des consultations de données personnelles depuis la console (fiche utilisateur, sessions, dossier et pièces KYC, valeurs bancaires) et des valeurs claires lues dans l'application (pièce, revenu) (TCK-601, TCK-955) |
+| P1 | §2.6 | Le journal d'activité se purge par famille : 12 mois par défaut, 5 ans pour les journaux de sécurité et de preuve (consultations de données personnelles, droits, sécurité, support, KYC, compte, rôles et adhésions, intégrations, exports), 10 ans pour les pièces comptables ; durées écrites dans la politique de confidentialité (TCK-2342) |
 | P2 | §2.6 | Export de l'audit trail |
 | P3 | §2.6 | Alertes sur actions sensibles |
 | P3 | §2.6 | Alertes d'exploitation à seuil (pic d'échecs de jobs, file bloquée, santé dégradée), en plus des gestes sensibles (TCK-600) |
@@ -958,8 +959,8 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 
 ## Provenance
 
-- Source : [`features.md`](./features.md) — **385** lignes de fonctionnalité lues,
-  réparties en **524** placements (une ligne multi-acteurs compte une fois par acteur).
+- Source : [`features.md`](./features.md) — **386** lignes de fonctionnalité lues,
+  réparties en **525** placements (une ligne multi-acteurs compte une fois par acteur).
 - Générateur : `docs/gen-features-by-actor.mjs`.
 - Fraîcheur vérifiée en CI par `node docs/gen-features-by-actor.mjs --check`, qui échoue si
   cette sortie ne correspond plus à sa source.
