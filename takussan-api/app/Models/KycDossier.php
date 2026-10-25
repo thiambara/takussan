@@ -6,6 +6,7 @@ use App\Models\Bases\AbstractModel;
 use App\Models\Bases\Auditable;
 use App\Models\Contracts\HasAuditAgency;
 use App\Models\Enums\KycDossierStatus;
+use App\Support\Http\ParametreUnique;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
@@ -61,7 +62,12 @@ class KycDossier extends AbstractModel implements HasAuditAgency, HasMedia
     protected static function customQueryFilters(): array
     {
         return [
-            AllowedFilter::callback('subject_type', function (Builder $query, string $value): void {
+            AllowedFilter::callback('subject_type', function (Builder $query, mixed $value): void {
+                // P216.05 (TCK-2244, ADR-0075) — `filter[subject_type][]=…` vaut un type absent.
+                $value = ParametreUnique::valeur($value);
+                if ($value === null) {
+                    return;
+                }
                 $query->where('subject_type', match ($value) {
                     'Agency' => Agency::class,
                     default => $value,

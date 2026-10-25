@@ -30,6 +30,7 @@ use App\Services\Membership\AdminsDeLAgence;
 use App\Services\Model\MaintenanceRequestService;
 use App\Services\Model\NotificationService;
 use App\Services\Property\PrimaryPropertyContact;
+use App\Support\Http\ParametreUnique;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
@@ -62,8 +63,8 @@ class MaintenanceRequestController extends Controller
         // TCK-592 (P17) — « Mes interventions » montre le quartier et l'agence : comme `show()`, le
         // bien inclus vient avec son adresse, et ici avec l'agence (le front demande `agency_id`).
         // P216.03 (TCK-2124) — `include[]=…` vaut un `include` absent (TCK-1407, TCK-1866), et n'est plus casté.
-        $include = $request->query('include');
-        if (is_string($include) && in_array('property', explode(',', $include), true)) {
+        $include = ParametreUnique::chaine($request, 'include');
+        if ($include !== null && in_array('property', explode(',', $include), true)) {
             $paginator->getCollection()->loadMissing(['property.address', 'property.agency:id,name']);
         }
 
@@ -176,8 +177,8 @@ class MaintenanceRequestController extends Controller
         $this->authorize('view', $maintenanceRequest);
 
         // P216.03 (TCK-2124) — `include[]=…` vaut un `include` absent (TCK-1407, TCK-1866), et n'est plus casté.
-        $include = $request->query('include');
-        $includes = collect(is_string($include) ? explode(',', $include) : [])
+        $include = ParametreUnique::chaine($request, 'include');
+        $includes = collect($include !== null ? explode(',', $include) : [])
             ->map(fn (string $include) => trim($include))
             ->filter()
             ->intersect(['property', 'requester', 'assignee', 'quoteDecisionBy'])

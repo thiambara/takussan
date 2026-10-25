@@ -12,6 +12,7 @@ use App\Services\Membership\MembershipCapabilityResolver;
 use App\Services\Payments\PaymentGatewayService;
 use App\Services\Property\BailleurDuBien;
 use App\Support\DayRange;
+use App\Support\Http\ParametreUnique;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -84,9 +85,8 @@ class PaymentController extends Controller
 
         // Entity-scoped filtering
         // P216.02 (TCK-2122) — un type en liste vaut un type absent (TCK-1407), et n'est plus casté.
-        $entityType = isset($filters['entity_type']) && ! is_array($filters['entity_type'])
-            ? strtolower((string) $filters['entity_type'])
-            : null;
+        $entityType = ParametreUnique::valeur($filters['entity_type'] ?? null);
+        $entityType = $entityType !== null ? strtolower($entityType) : null;
         $entityId = $filters['entity_id'] ?? null;
 
         if ($entityType && $entityId) {
@@ -138,7 +138,7 @@ class PaymentController extends Controller
         $page = max((int) $request->input('page', 1), 1);
         // P216.02 (TCK-2122) — un tri en liste vaut le tri par défaut, et n'est plus casté.
         $sort = $request->input('sort', '-date');
-        $sort = is_array($sort) ? '-date' : (string) $sort;
+        $sort = $sort === null ? '' : ParametreUnique::valeur($sort) ?? '-date';
 
         // Hard cap to keep the merge-in-PHP strategy bounded. Beyond this the
         // caller must narrow the filter (entity, date range, status). The
