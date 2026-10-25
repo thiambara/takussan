@@ -5049,6 +5049,7 @@ Tout User ayant un rôle de locataire actif doit avoir un `Customer` associé (`
 
 - Un User peut exister sans Customer (propriétaire, agent, admin, service_provider).
 - Dès qu'un User devient locataire (signature d'un Lease en tant que `tenant`), un Customer doit être créé ou associé.
+- **Agence de la fiche d'un candidat** (P15.01, TCK-2350, 2026-10-25) : la candidature, l'offre d'achat ou la réservation d'un compte sur un bien d'agence lui donne une fiche de **l'agence du bien** (`CustomerService::findOrCreateFromUser`) — reprise si le compte en a déjà une dans cette agence, rattachée si l'agence a une fiche sans compte au téléphone ou à l'e-mail **vérifié** du compte, créée sinon. La fiche du compte dans une autre agence n'est ni reprise ni déplacée. Un compte porte donc une fiche par agence. Un bien sans agence garde l'agence du compte.
 - **Implémentation :** `UserObserver` ou logique dans `LeaseService` lors de la création d'un bail.
 - **Conséquence :** `MaintenanceRequest.requester_id` pointe vers User ; le Customer du demandeur se lit depuis l'utilisateur (`User::customer()`, hasOne) — aucune relation `requesterCustomer()` sur le modèle (relevé 2026-10-14).
 
