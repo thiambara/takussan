@@ -113,7 +113,12 @@ class GroupeDeBailParticipantsTest extends TestCase
         ])->assertCreated();
     }
 
-    public function test_la_creation_admet_le_prestataire_assigne_a_l_intervention_rattachee(): void
+    /**
+     * TCK-2372 (P250.03) — l'exception du prestataire assigné ne vaut plus à la création manuelle :
+     * un groupe créé à la main ne porte plus d'intervention, le fil naît de l'assignation
+     * (`SyncMaintenanceConversation`, par le service). Elle vaut toujours à l'ajout, dans ce fil.
+     */
+    public function test_la_creation_manuelle_ne_rattache_pas_l_intervention_et_refuse_le_prestataire_qui_ne_lit_pas_le_bail(): void
     {
         ['lease' => $lease, 'agent' => $agent, 'tenant' => $tenant, 'provider' => $provider, 'mr' => $mr] = $this->scene();
         $this->assertFalse($provider->can('view', $lease));
@@ -125,9 +130,8 @@ class GroupeDeBailParticipantsTest extends TestCase
             'lease_id' => $lease->id,
             'maintenance_request_id' => $mr->id,
             'participants' => [$tenant->id, $provider->id],
-        ])->assertCreated();
+        ])->assertUnprocessable()->assertJsonValidationErrors(['maintenance_request_id']);
 
-        // Sans l'intervention rattachée, l'exception ne vaut pas.
         $this->postJson('/api/conversations', [
             'type' => 'group',
             'subject' => 'Bail',

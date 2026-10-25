@@ -187,7 +187,6 @@ class ConversationController extends Controller
             array_map('intval', $data['participants']),
             $data['property_id'] ?? null,
             $data['lease_id'] ?? null,
-            $data['maintenance_request_id'] ?? null,
         );
 
         if (! empty($data['initial_message'])) {

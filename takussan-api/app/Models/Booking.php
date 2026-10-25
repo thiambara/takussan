@@ -12,7 +12,6 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\QueryBuilder\AllowedFilter;
 
@@ -148,11 +147,6 @@ class Booking extends AbstractModel
             ->lockForUpdate()
             ->get()
             ->each(static fn (BookingPayment $payment) => $payment->update(['status' => PaymentStatus::Cancelled]));
-    }
-
-    public function lease(): HasOne
-    {
-        return $this->hasOne(Lease::class);
     }
 
     /** TCK-1916 (P170.02) — le personnel peut-il encore y enregistrer un paiement ? */

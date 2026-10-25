@@ -394,7 +394,8 @@ export type CreateGroupConversationPayload = {
   participants: number[];
   property_id?: number;
   lease_id?: number;
-  maintenance_request_id?: number;
+  // TCK-2372 (P250.03) — pas de `maintenance_request_id` : l'API le refuse (422) à un groupe créé à
+  // la main. Le fil d'une intervention naît de son assignation.
 };
 
 export function useCreateGroupConversation() {

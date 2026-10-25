@@ -136,8 +136,11 @@ class LeaseContextExistenceOracleTest extends TestCase
         $this->assertSame(__('messaging.errors.group_context_forbidden'), $leaseTiers[1]['errors']['lease_id'][0] ?? null);
         $this->assertSame($leaseTiers, $group(['lease_id' => self::ABSENT]));
 
+        // TCK-2372 (P250.03) — `maintenance_request_id` est refusé à tout groupe créé à la main : la
+        // même réponse pour une intervention d'un tiers et pour une absente, sans rien en dire.
         $mrTiers = $group(['maintenance_request_id' => $maintenanceTiers->id]);
-        $this->assertSame(__('messaging.errors.group_context_forbidden'), $mrTiers[1]['errors']['maintenance_request_id'][0] ?? null);
+        $this->assertSame(422, $mrTiers[0]);
+        $this->assertArrayHasKey('maintenance_request_id', $mrTiers[1]['errors'] ?? []);
         $this->assertSame($mrTiers, $group(['maintenance_request_id' => self::ABSENT]));
 
         $propertyTiers = $group(['property_id' => $this->leaseTiers->property_id]);

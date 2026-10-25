@@ -3,7 +3,6 @@
 namespace App\Http\Resources;
 
 use App\Http\Resources\Bases\BaseResource;
-use App\Listeners\Maintenance\SyncMaintenanceConversation;
 use App\Models\Enums\MaintenanceStatus;
 use App\Models\MaintenanceRequest;
 use App\Models\User;
@@ -229,7 +228,8 @@ class MaintenanceRequestResource extends BaseResource
      */
     private function conversationIdFor(User $user): ?int
     {
-        $conversation = SyncMaintenanceConversation::conversationFor($this->resource);
+        // TCK-2372 (P250.03) — le fil se lit par la relation seule.
+        $conversation = $this->resource->conversation()->first();
         if ($conversation === null) {
             return null;
         }
