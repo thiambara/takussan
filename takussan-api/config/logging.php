@@ -110,7 +110,8 @@ return [
         // soit `LOG_CHANNEL` : une ligne JSON sur la sortie standard du conteneur, que `docker logs`
         // garde et qu'un collecteur lira sans analyser de texte. La forme est celle de
         // `SafeExceptionContext` (ADR-0044 §2), jamais le message. `LOG_EXCEPTIONS_STREAM` n'existe
-        // que pour `phpunit.xml`, qui la détourne : aucun environnement ne la pose.
+        // que pour `phpunit.xml`, qui la détourne : aucun environnement ne la pose. Pourquoi un canal
+        // à part et non `LOG_CHANNEL` (`stderr` en préproduction) : TCK-2356, « Hypothèses ».
         'exceptions' => [
             'driver' => 'monolog',
             'level' => 'error',

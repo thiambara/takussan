@@ -84,6 +84,22 @@ son message.
   contexte partagé de TCK-774 (`request_id`, agence, profil) s'y ajoute de lui-même.
 - **Le rapport par défaut continue** (pas de `stop()`) : retirer l'écriture sur `LOG_CHANNEL`
   aurait retiré quelque chose à un lecteur existant.
+- **Un canal à part, et non `LOG_CHANNEL`.** La session a relevé dans Dokploy, en préproduction,
+  `LOG_CHANNEL=stderr` et `LOG_LEVEL=info` (P14.08). La ligne JSON ne passe pas par ce canal, pour
+  trois raisons :
+  - le canal `stderr` écrit en TEXTE (`LineFormatter`, `LOG_STDERR_FORMATTER` n'est pas posée), et
+    sur le flux où FrankenPHP écrit déjà ses propres lignes JSON (mesuré : 15 lignes de Caddy sur
+    stderr pour une requête de sonde). Sur stdout, un collecteur lit un seul format, sans tri ;
+  - la décision dit « sur stdout » ;
+  - `LOG_CHANNEL` est un réglage de Dokploy, que l'image ne connaît pas : un `LOG_CHANNEL=null` ou
+    `single` posé là éteindrait la ligne sans rien dire. Le canal `exceptions` ne dépend d'aucune
+    variable posée en déploiement.
+
+  `LOG_LEVEL=info` ne change rien : le canal est au niveau `error`, et ne journalise que des
+  erreurs. Conséquence en préproduction : une exception y produit DEUX lignes, la ligne JSON sûre
+  sur stdout et la ligne texte du rapport par défaut sur stderr. Celle-ci porte le message, comme
+  avant ce ticket. L'éteindre (`stop()`) ou la passer en JSON (`LOG_STDERR_FORMATTER`) est un choix
+  qui reste au porteur.
 - **`global-error.tsx` journalise dans la console du NAVIGATEUR** : un composant client n'a pas de
   sortie standard. La ligne serveur de la même erreur est celle d'`onRequestError`.
 - **Son texte vient du dictionnaire**, chargé par `import()` dynamique, un morceau par langue,
