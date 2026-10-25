@@ -3626,6 +3626,8 @@ supprime l'ambiguïté de sous-chaîne qu'avait la recherche `LIKE` sur le JSON.
 |---------|------|----------|--------|-------------|
 | id | bigint PK | | auto | |
 | app_notification_id | FK app_notifications | oui | null | Notification acheminée (`cascadeOnDelete`). **Nulle** pour un SMS envoyé hors notification — contact sans compte, code de signature de bail (TCK-799, `2026_10_17_160000` ; son `down()` supprime d'abord ces tentatives) |
+| agency_id | FK agencies | oui | null | Agence de l'envoi, celle dont le canal a cherché l'intégration (`$context['agency_id']`, P203.01) ; `nullOnDelete`. Nulle pour un envoi de la plateforme, et sur les lignes d'avant `2026_10_25_120500`, qui ne se reconstituent pas (TCK-2326) |
+| integration_id | FK integrations | oui | null | Intégration que le fournisseur a prise, de l'agence ou de la plateforme (`agency_id` nul) ; `nullOnDelete`. Nulle quand aucun fournisseur n'a été appelé (report de nuit, plafond Orange, contact inéligible à WhatsApp, chaîne épuisée), pour le pilote SMS `log`, et sur les lignes d'avant (TCK-2326) |
 | attempt | unsignedSmallInteger | | | Rang de la tentative |
 | provider | string | | | Identifiant du driver, tel que rendu par sa méthode `id()` : `orange`, `mtarget`, `lafricamobile`, `log` (SMS) ou `whatsapp_cloud` |
 | provider_message_id | string | oui | null | Identifiant de message côté fournisseur |
@@ -3649,6 +3651,8 @@ supprime l'ambiguïté de sous-chaîne qu'avait la recherche `LIKE` sur le JSON.
 
 **Relations :**
 - `appNotification()` → belongsTo AppNotification
+- `agency()` → belongsTo Agency (TCK-2326)
+- `integration()` → belongsTo Integration (TCK-2326)
 
 > ⚠️ La colonne `app_notifications.delivery_attempts` **existe toujours** en base et reste
 > `$fillable` + castée `array` sur le modèle `AppNotification`. Elle n'est **plus écrite** :

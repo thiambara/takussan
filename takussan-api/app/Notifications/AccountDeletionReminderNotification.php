@@ -7,6 +7,7 @@ use App\Notifications\Channels\SmsChannel;
 use App\Notifications\Concerns\RepliSmsSansEmail;
 use App\Notifications\Concerns\RetriesWithBackoff;
 use App\Notifications\Concerns\SupportsSms;
+use App\Services\Notifications\NotificationRenderer;
 use App\Support\LienFront;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -67,7 +68,7 @@ class AccountDeletionReminderNotification extends Notification implements Should
 
     public function toMail(object $notifiable): MailMessage
     {
-        $scheduledFor = $this->request->scheduled_for?->format('d/m/Y') ?? '';
+        $scheduledFor = $this->dateDeSuppression($notifiable);
         $daysRemaining = (string) max(0, $this->request->daysRemaining());
         $cancelUrl = LienFront::vers('/app/profile');
 
@@ -88,7 +89,17 @@ class AccountDeletionReminderNotification extends Notification implements Should
     {
         return __('notifications.account_deletion_reminder.sms', [
             'days' => (string) max(0, $this->request->daysRemaining()),
-            'date' => $this->request->scheduled_for?->format('d/m/Y') ?? '',
+            'date' => $this->dateDeSuppression($notifiable),
         ]);
+    }
+
+    /** TCK-2325 (P128.03) — la date de suppression en `LL`, celle du fuseau du destinataire. */
+    private function dateDeSuppression(object $notifiable): string
+    {
+        return app(NotificationRenderer::class)->formatDate(
+            $this->request->scheduled_for,
+            app()->getLocale(),
+            NotificationRenderer::timezoneOf($notifiable),
+        );
     }
 }
