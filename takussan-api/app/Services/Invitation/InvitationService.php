@@ -6,9 +6,12 @@ use App\Domain\Notifications\NotificationCode;
 use App\Mail\InvitationMailable;
 use App\Models\Agency;
 use App\Models\Customer;
+use App\Models\Enums\AgencyAdminProfileStatus;
+use App\Models\Enums\AgentProfileStatus;
 use App\Models\Enums\CollaborationStatus;
 use App\Models\Enums\InvitationStatus;
 use App\Models\Invitation;
+use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\Profiles\ServiceProviderAgencyCollaboration;
@@ -18,6 +21,7 @@ use App\Notifications\InvitationAcceptedNotification;
 use App\Notifications\InvitationExpiredNotification;
 use App\Services\Auth\PhoneVerificationService;
 use App\Services\Auth\SuperAdminCooptationService;
+use App\Services\Membership\ProfileMaterializer;
 use App\Services\Model\CustomerService;
 use App\Services\Model\NotificationService;
 use App\Services\Notifications\ContactSansCompte;
@@ -92,11 +96,12 @@ class InvitationService
      * `finalizeAccept()` : les deux disent la même chose et doivent bouger
      * ensemble.
      *
-     * `agency_admin` n'y figure pas, et c'est le constat de TCK-392 :
-     * l'acceptation ne matérialise aucun `AgencyAdminProfile`, « l'invité
-     * obtiendrait un compte accepté et aucun accès — pire que le refus
-     * actuel ». Le second administrateur d'agence passe donc, comme
-     * aujourd'hui, par `POST /agencies/{id}/members`.
+     * `agency_admin` (P242.01, TCK-2365, ADR-0031 amendé le 2026-10-25) cible,
+     * comme l'agent, un `AgentProfile` brouillon : l'acceptation l'active et
+     * matérialise en plus l'`AgencyAdminProfile` ({@see self::finalizeAccept()}).
+     * Il en était absent (TCK-392) parce que l'acceptation ne matérialisait
+     * aucun profil d'administrateur ; le second administrateur passait par
+     * `POST /agencies/{id}/members`, retirée, qui l'activait sans accord.
      *
      * @var array<string,class-string>
      */
@@ -105,6 +110,7 @@ class InvitationService
         'agent' => AgentProfile::class,
         'agent_senior' => AgentProfile::class,
         'agent_manager' => AgentProfile::class,
+        'agency_admin' => AgentProfile::class,
         'service_provider' => ServiceProviderProfile::class,
         // P15.01 (TCK-2351) — inviter le locataire à créer son compte : la cible est la fiche
         // client, qui reçoit le compte à l'acceptation ({@see self::lierLaFiche()}).
@@ -848,6 +854,7 @@ class InvitationService
             'invitation.profile_unavailable',
         );
         $this->assertDraftDoesNotDuplicateAProfile($invitation, $invitable, $user);
+        $invitable = $this->reprendreLeProfilRetire($invitation, $invitable, $user);
 
         // TCK-264 — super_admin cooptation: the spatie role is NOT
         // attached at acceptance time. The user must first enroll a
@@ -908,13 +915,23 @@ class InvitationService
             // here so the post-acceptance wizard can write to
             // /api/me/profiles/{agent_profile}/* with a clean ownership
             // check (mirror Owner / SP).
-            if (in_array($invitation->role, ['service_provider', 'owner', 'agent', 'agent_senior', 'agent_manager'], true)
+            if (in_array($invitation->role, ['service_provider', 'owner', 'agent', 'agent_senior', 'agent_manager', 'agency_admin'], true)
                 && array_key_exists('user_id', $invitable->getAttributes())
                 && $invitable->user_id === null) {
                 $patch['user_id'] = $user->id;
             }
             if ($patch !== []) {
                 $invitable->forceFill($patch)->save();
+            }
+
+            // P242.01 (TCK-2365) — l'administrateur invité est aussi agent (comme le gérant que la
+            // console crée) : son profil d'administrateur naît ici, à l'acceptation, jamais avant.
+            if ($invitation->role === 'agency_admin' && $invitable instanceof AgentProfile && (int) $invitable->user_id === (int) $user->id) {
+                ProfileMaterializer::materializeOrRestore(
+                    AgencyAdminProfile::class,
+                    ['user_id' => $user->id, 'agency_id' => $invitable->agency_id],
+                    ['status' => AgencyAdminProfileStatus::Active->value],
+                );
             }
 
             // TCK-1000 (P15.06, Q2 ; ADR-0036, amendement du 2026-10-19, voie 2) — les biens saisis
@@ -1021,6 +1038,36 @@ class InvitationService
                 'invitation.service_provider_profile_exists',
             );
         }
+    }
+
+    /**
+     * P242.02 (TCK-2365, décision du porteur du 2026-10-25) — un agent retiré de l'agence puis
+     * réinvité : sa ligne retirée tient encore `unique(user_id, agency_id)`, et lier le brouillon
+     * à son compte rendait 500. La ligne retirée est reprise (historique, portefeuille d'avant),
+     * au rôle SYSTÈME de l'agent ({@see ProfileMaterializer}), jamais à son ancien rôle
+     * personnalisé ; le brouillon, qui n'a servi qu'à porter l'invitation, est retiré, et
+     * l'invitation pointe la ligne reprise.
+     */
+    protected function reprendreLeProfilRetire(Invitation $invitation, mixed $invitable, User $user): mixed
+    {
+        if (! $invitable instanceof AgentProfile || $invitable->user_id !== null) {
+            return $invitable;
+        }
+
+        $match = ['user_id' => $user->id, 'agency_id' => $invitable->agency_id];
+        if (! AgentProfile::onlyTrashed()->where($match)->exists()) {
+            return $invitable;
+        }
+
+        $repris = ProfileMaterializer::materializeOrRestore(
+            AgentProfile::class,
+            $match,
+            ['status' => AgentProfileStatus::Active->value],
+        );
+        $invitable->delete();
+        $invitation->forceFill(['invitable_id' => $repris->getKey()])->save();
+
+        return $repris;
     }
 
     /**

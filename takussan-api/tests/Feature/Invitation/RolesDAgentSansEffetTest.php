@@ -25,9 +25,13 @@ class RolesDAgentSansEffetTest extends TestCase
 {
     use RefreshDatabase;
 
+    /**
+     * TCK-2365 (P242.01) — `agency_admin` y entre : un compte existant rejoint l'équipe par
+     * l'invitation, au rôle agent ou administrateur. Les deux rôles sans effet n'y reviennent pas.
+     */
     public function test_l_invitation_d_un_agent_n_offre_que_le_role_agent(): void
     {
-        $this->assertSame(['agent'], AgentInvitationService::ALLOWED_ROLES);
+        $this->assertSame(['agent', 'agency_admin'], AgentInvitationService::ALLOWED_ROLES);
     }
 
     /** @return array<string, array{string}> */

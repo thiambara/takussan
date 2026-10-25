@@ -15,6 +15,9 @@ export function destinationDInvitation(role: string, invitableId: number | null)
     case 'agent':
     case 'agent_senior':
     case 'agent_manager':
+    // TCK-2365 (P242.01) — l'administrateur invité est aussi agent : l'invitation cible son profil
+    // d'agent, que l'assistant d'agent complète.
+    case 'agency_admin':
       return avec('/onboarding/agent', 'agent');
     case 'service_provider':
       return avec('/onboarding/service-provider', 'sp');

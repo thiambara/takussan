@@ -3,11 +3,10 @@
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
-import { UserCheck, UserPlus } from 'lucide-react';
+import { UserPlus } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { InviteAgentDialog } from '@/components/admin/InviteAgentDialog';
-import { InviteMemberDialog } from '@/components/admin/InviteMemberDialog';
 import { agencyInvitationKeys } from '@/lib/queries/agency-invitations';
 import { useCan } from '@/hooks/useCan';
 
@@ -27,30 +26,20 @@ import { useCan } from '@/hooks/useCan';
  * même chemin : la zone des invitations en attente vit sous ce bouton sans le
  * connaître, et doit se remettre à jour sans rechargement de page.
  *
- * TCK-392 — il y a désormais DEUX gestes, et ils ne se remplacent pas :
+ * TCK-392 — un seul bouton portait le libellé « Inviter » et rattachait un compte existant par
+ * `POST /agencies/{id}/members`, sans ligne `invitations`. TCK-2365 (P242.01) a retiré ce
+ * rattachement direct : « Inviter » (`POST /agencies/{id}/agents/invite`) est le seul geste, pour
+ * un compte neuf comme pour un compte existant, au rôle agent ou administrateur.
  *
- * | Geste | Endpoint | Ce qu'il exige de la personne |
- * |---|---|---|
- * | « Inviter » | `POST /agencies/{id}/agents/invite` | rien — elle crée son compte en acceptant |
- * | « Ajouter un compte existant » | `POST /agencies/{id}/members` | un compte Takussan déjà inscrit |
- *
- * Un seul bouton portait le libellé « Inviter » et exécutait le SECOND : aucune
- * ligne `invitations` n'était écrite depuis cet écran, et la zone livrée par
- * TCK-368 ne pouvait être alimentée que par les assistants Propriétaire et
- * Prestataire. *Les deux chemins sont désormais distincts à l'écran parce qu'ils
- * l'ont toujours été dans l'API.*
- *
- * Les deux invalident les mêmes clés : `['admin-users']` parce qu'une acceptation
- * y fera apparaître une ligne, `['agency-invitations']` parce que l'invitation s'y
- * affiche immédiatement.
+ * Le succès invalide `['admin-users']`, parce qu'une acceptation y fera apparaître une ligne, et
+ * `['agency-invitations']`, parce que l'invitation s'y affiche immédiatement.
  */
 interface InviteMemberButtonProps {
   readonly agencyId: number;
   /**
    * TCK-1412 (P148.02) — le compte a-t-il un rôle d'administration ? Sans lui, la page Équipe ne
    * s'ouvre que par capacité : « Inviter » exige alors `team.invite` (l'API le juge ainsi,
-   * `AgentProfilePolicy::invite`), et « Ajouter un compte existant » disparaît — il passe par
-   * `AgencyPolicy::update`, qui juge le profil d'admin. L'admin garde les deux, comme avant.
+   * `AgentProfilePolicy::invite`).
    */
   readonly estAdmin?: boolean;
 }
@@ -61,7 +50,6 @@ export function InviteMemberButton({ agencyId, estAdmin = true }: InviteMemberBu
   const montreInviter = estAdmin || canInvite;
   const queryClient = useQueryClient();
   const [inviteOpen, setInviteOpen] = useState(false);
-  const [addExistingOpen, setAddExistingOpen] = useState(false);
 
   const rafraichir = () => {
     void queryClient.invalidateQueries({ queryKey: ['admin-users'] });
@@ -72,32 +60,16 @@ export function InviteMemberButton({ agencyId, estAdmin = true }: InviteMemberBu
 
   return (
     <>
-      {/* `lg:flex-nowrap` : à côté du titre (coque `lg:flex-row`), les deux boutons passaient
-          l'un SOUS l'autre, « Inviter » décroché au-dessus de son voisin. */}
       <div className="flex flex-wrap items-center gap-2 lg:flex-nowrap">
-        {montreInviter ? (
-          <Button size="sm" onClick={() => setInviteOpen(true)}>
-            <UserPlus className="size-4" aria-hidden="true" />
-            {t('inviteAgent')}
-          </Button>
-        ) : null}
-        {estAdmin ? (
-          <Button size="sm" variant="outline" onClick={() => setAddExistingOpen(true)}>
-            <UserCheck className="size-4" aria-hidden="true" />
-            {t('addExisting')}
-          </Button>
-        ) : null}
+        <Button size="sm" onClick={() => setInviteOpen(true)}>
+          <UserPlus className="size-4" aria-hidden="true" />
+          {t('inviteAgent')}
+        </Button>
       </div>
       <InviteAgentDialog
         agencyId={agencyId}
         open={inviteOpen}
         onOpenChange={setInviteOpen}
-        onSuccess={rafraichir}
-      />
-      <InviteMemberDialog
-        agencyId={agencyId}
-        open={addExistingOpen}
-        onOpenChange={setAddExistingOpen}
         onSuccess={rafraichir}
       />
     </>

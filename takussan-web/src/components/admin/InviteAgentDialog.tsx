@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import { Controller } from 'react-hook-form';
 import { z } from 'zod';
 import { useTranslations } from 'next-intl';
 import { Loader2 } from 'lucide-react';
@@ -10,6 +11,7 @@ import { inviteAgencyAgent } from '@/lib/queries/agency-invitations';
 import { avecGardeDoubleFacteur } from '@/lib/double-facteur';
 import { useGardeDoubleFacteur } from '@/components/auth/garde-double-facteur-contexte';
 import { useApiForm } from '@/hooks/useApiForm';
+import { useCan } from '@/hooks/useCan';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -19,36 +21,42 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 /**
- * TCK-392 — inviter par e-mail quelqu'un qui **n'a pas de compte Takussan**.
+ * TCK-392 — inviter par e-mail quelqu'un, avec ou sans compte Takussan.
  *
- * Ce chemin manquait entièrement à l'écran. L'équipe n'exposait que
- * {@link InviteMemberDialog}, qui appelle `POST /api/agencies/{id}/members` et
- * **exige un `User` déjà inscrit** (`abort_if($target === null, 422,
- * 'user_not_found_by_email')`) : aucune ligne `invitations` n'était jamais
- * écrite depuis cet écran, alors que le bouton disait « Inviter ». Un admin
- * d'agence ne pouvait donc pas faire entrer dans son équipe quelqu'un qui
- * n'était pas déjà sur la plateforme.
+ * L'endpoint `agents/invite` existait depuis TCK-258 et n'avait **aucun appelant** : l'équipe
+ * n'exposait qu'un rattachement direct, sans ligne `invitations`.
  *
- * L'endpoint, lui, existait depuis TCK-258 et n'avait **aucun appelant**.
+ * TCK-2365 (P242.01, décision du porteur du 2026-10-25) — c'est désormais le SEUL chemin d'entrée
+ * dans l'équipe : `POST /api/agencies/{id}/members`, qui faisait d'un compte existant un agent actif
+ * sans accord, est retirée, et le dialogue « Ajouter un compte existant » avec elle. Un compte
+ * existant reçoit l'invitation à son adresse et l'accepte après s'être connecté.
  *
- * ## Aucun rôle à choisir ici
+ * ## Deux rôles
  *
- * `AgentInvitationService::ALLOWED_ROLES` vaut `agent` seul. P234.01 (TCK-2280) : « Agent senior »
- * et « Responsable d'équipe » étaient offerts et jamais appliqués — le membre entrait comme simple
- * agent ; son rôle se réaffecte après l'acceptation (`/app/agency/roles`). `agency_admin` en est
- * délibérément absent (TCK-209) : son acceptation ne crée **aucun profil**
- * (`InvitationService::finalizeAccept()` ne bascule que l'`invitable`), si bien que l'invité
- * obtiendrait un compte accepté et aucun accès. L'écran le dit au lieu de le taire, et renvoie vers
- * le seul chemin qui existe (`admin.inviteAgent.adminNote`).
+ * `AgentInvitationService::ALLOWED_ROLES` vaut `agent` et `agency_admin`. P234.01 (TCK-2280) :
+ * « Agent senior » et « Responsable d'équipe » étaient offerts et jamais appliqués ; le rôle se
+ * réaffecte après l'acceptation (`/app/agency/roles`). « Administrateur » n'est proposé qu'à qui
+ * porte `team.assign_role` : l'API juge l'invitation d'un administrateur comme le changement de
+ * rôle (TCK-1498, TCK-2205).
  */
+const ROLE_KEYS = ['agent', 'agency_admin'] as const;
+
 const buildSchema = (emailMessage: string, requiredMessage: string) =>
   z.object({
     first_name: z.string().trim().min(1, requiredMessage).max(80),
     last_name: z.string().trim().min(1, requiredMessage).max(80),
     email: z.string().email(emailMessage),
     phone: z.string().trim().max(30).optional(),
+    role: z.enum(ROLE_KEYS),
   });
 
 type FormValues = z.infer<ReturnType<typeof buildSchema>>;
@@ -73,10 +81,14 @@ export function InviteAgentDialog({
   // `useApiForm` ne connaît pas la garde, l'appel lui est donc confié ici.
   const garde = useGardeDoubleFacteur();
   const schema = buildSchema(t('emailInvalid'), t('required'));
+  const { can: canAssignRole } = useCan('team.assign_role', agencyId, open);
+  const roleOptions = ROLE_KEYS
+    .filter((k) => k !== 'agency_admin' || canAssignRole)
+    .map((k) => ({ value: k, label: t(`roles.${k}`) }));
 
   const { form, handleSubmit, isSubmitting, globalError } = useApiForm<FormValues, unknown>({
     schema,
-    defaultValues: { first_name: '', last_name: '', email: '', phone: '' },
+    defaultValues: { first_name: '', last_name: '', email: '', phone: '', role: 'agent' },
     onSubmit: async (values) =>
       avecGardeDoubleFacteur(
         () =>
@@ -84,7 +96,7 @@ export function InviteAgentDialog({
             agencyId,
             {
               email: values.email,
-              role: 'agent',
+              role: values.role,
               first_name: values.first_name,
               last_name: values.last_name,
               // Une chaîne vide n'est pas « pas de téléphone » : la règle backend est
@@ -108,6 +120,7 @@ export function InviteAgentDialog({
 
   const {
     register,
+    control,
     formState: { errors },
   } = form;
 
@@ -202,7 +215,31 @@ export function InviteAgentDialog({
             ) : null}
           </div>
 
-          <p className="text-xs text-muted-foreground">{t('adminNote')}</p>
+          <div>
+            <label htmlFor="invite-agent-role" className="text-xs font-semibold text-foreground">
+              {t('role')}
+            </label>
+            <Controller
+              control={control}
+              name="role"
+              render={({ field }) => (
+                <Select
+                  value={field.value}
+                  onValueChange={(value) => field.onChange(value ?? 'agent')}
+                  items={roleOptions}
+                >
+                  <SelectTrigger id="invite-agent-role" className="mt-1 w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {roleOptions.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
+          </div>
 
           {globalError ? (
             <p className="text-sm text-destructive" role="alert">

@@ -67,6 +67,7 @@ export function AgencyOnboardingDialog() {
     first_name: '',
     last_name: '',
     email: '',
+    phone: '',
     language: 'fr' as 'fr' | 'en' | 'wo',
   });
   const [createdAgencyId, setCreatedAgencyId] = useState<number | null>(null);
@@ -95,6 +96,8 @@ export function AgencyOnboardingDialog() {
       first_name: admin.first_name,
       last_name: admin.last_name,
       email: admin.email,
+      // P251.02 (TCK-2365) — facultatif : un champ vide ne part pas.
+      ...(admin.phone.trim() ? { phone: admin.phone.trim() } : {}),
       language: admin.language,
     },
   };
@@ -112,7 +115,9 @@ export function AgencyOnboardingDialog() {
     },
     onError: (e) => {
       if (e instanceof ApiError && e.status === 409) {
-        setError(t('errorEmailConflict'));
+        // P251.02 (TCK-2365) — deux conflits distincts : l'e-mail, ou le numéro vérifié du gérant.
+        const code = e.data && typeof e.data === 'object' ? (e.data as { code?: unknown }).code : undefined;
+        setError(t(code === 'agency.admin_phone_taken' ? 'errorPhoneConflict' : 'errorEmailConflict'));
         return;
       }
       setError(messageErreur(e, t('errorGeneric')));
@@ -127,7 +132,7 @@ export function AgencyOnboardingDialog() {
   function reset() {
     setStep(0);
     setAgency({ name: '', slug: '', currency: 'XOF', email: '', phone: '', address: '' });
-    setAdmin({ first_name: '', last_name: '', email: '', language: 'fr' });
+    setAdmin({ first_name: '', last_name: '', email: '', phone: '', language: 'fr' });
     setCreatedAgencyId(null);
     setError(null);
   }
@@ -214,6 +219,9 @@ export function AgencyOnboardingDialog() {
               </Field>
               <Field label={t('fields.adminEmail')}>
                 <Input type="email" value={admin.email} onChange={(e) => setAdmin({ ...admin, email: e.target.value })} />
+              </Field>
+              <Field label={t('fields.adminPhone')}>
+                <Input type="tel" autoComplete="tel" value={admin.phone} onChange={(e) => setAdmin({ ...admin, phone: e.target.value })} />
               </Field>
               <div className="space-y-2">
                 <Label>{t('fields.language')}</Label>

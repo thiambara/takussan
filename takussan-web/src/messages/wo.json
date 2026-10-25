@@ -4577,8 +4577,7 @@
           "performance": "Njariñ"
         },
         "invite": "Woo",
-        "inviteAgent": "Woo",
-        "addExisting": "Yokk kont bu am"
+        "inviteAgent": "Woo"
       },
       "invitations": {
         "title": "Woote yiy xaar",
@@ -4727,19 +4726,6 @@
         "thresholdPendingSaved": "Denc nañu ko. Woyofal seuil bi dafa laaj benn approbateur bu ñaareel dëggal ko : xamal nañu ko."
       }
     },
-    "inviteMember": {
-      "title": "Yokk kont bu am",
-      "description": "Bindal email bu benn jëfandikukat bu am kont. Dañu koy yokk ci sa ajance ak rol bi nga tànn.",
-      "email": "Email",
-      "emailPlaceholder": "jane@exemple.sn",
-      "emailInvalid": "Email bi baaxul.",
-      "role": "Rol",
-      "roles": {
-        "agent": "Ajaŋ",
-        "agency_admin": "Njiit"
-      },
-      "submit": "Yokk"
-    },
     "users": {
       "status": {
         "active": "Mu ngi dox",
@@ -4810,8 +4796,12 @@
       "emailPlaceholder": "jane@exemple.sn",
       "emailInvalid": "Email bi baaxul.",
       "phone": "Telefon (du wareef)",
+      "role": "Rôle",
+      "roles": {
+        "agent": "Agent",
+        "agency_admin": "Administrateur"
+      },
       "required": "Barab bii war na am.",
-      "adminNote": "Njiitu ajance du ñu ko woo ci email: dañu koy yokk ci « Yokk kont bu am », bu laaj kont Takussan bu am ba tey.",
       "submit": "Yónnee woote bi"
     },
     "reconciliation": {
@@ -7959,6 +7949,7 @@
       "toastCreatedTitle": "Ajaans bi sos na",
       "toastCreatedDescription": "Woote bi dem na ci {email}.",
       "errorEmailConflict": "Am na ab kont bu am email admin bii.",
+      "errorPhoneConflict": "Un compte existe déjà avec ce numéro vérifié.",
       "errorGeneric": "Mënuñu ko sos.",
       "newAgency": "Ajaans bu bees",
       "dialogTitle": "Sos ab ajaans",
@@ -7987,6 +7978,7 @@
         "firstName": "Tur",
         "lastName": "Sant",
         "adminEmail": "Emailu admin",
+        "adminPhone": "Téléphone du gérant (facultatif)",
         "language": "Làkk"
       },
       "currencies": {

@@ -15,6 +15,8 @@ import { InviteAgentDialog } from '../InviteAgentDialog';
  */
 vi.mock('@/lib/queries/agency-invitations', () => ({ inviteAgencyAgent: vi.fn() }));
 vi.mock('@/context/AuthContext', () => ({ useAuth: () => ({ token: 'jeton-de-test' }) }));
+// Le choix du rôle (TCK-2365) lit `team.assign_role` par `useCan` : sans lui, le dialogue garde le seul rôle agent.
+vi.mock('@/hooks/useCan', () => ({ useCan: () => ({ can: false, isLoading: false }) }));
 
 const refus = () => new ApiError(403, { code: 'two_factor_required', message: 'Second facteur requis.' });
 

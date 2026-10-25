@@ -4,6 +4,7 @@ namespace Tests\Feature\Agency;
 
 use App\Models\Agency;
 use App\Models\Enums\AgencyKind;
+use App\Models\Invitation;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
@@ -82,8 +83,13 @@ class MemberProfileRestoreTest extends TestCase
             ->assertSuccessful();
         $this->assertSame(0, AgentProfile::query()->where('user_id', $membre->id)->count());
 
-        $this->postJson("/api/agencies/{$this->agency->id}/members", ['email' => $membre->email, 'role' => 'agent'])
-            ->assertOk();
+        // TCK-2365 (P242.01) — le retour passe par l'invitation, acceptée par le compte.
+        $this->postJson("/api/agencies/{$this->agency->id}/agents/invite", [
+            'email' => $membre->email, 'role' => 'agent', 'first_name' => 'Awa', 'last_name' => 'Diop',
+        ])->assertCreated();
+        $token = Invitation::query()->latest('id')->value('token');
+        $this->actingAs($membre, 'sanctum');
+        $this->postJson("/api/invitations/{$token}/accept")->assertOk();
 
         $profil = AgentProfile::query()->where('user_id', $membre->id)->sole();
         $this->assertSame('active', $profil->getRawOriginal('status'));

@@ -22,14 +22,14 @@ import { TeamConsole } from '../TeamConsole';
  * ## Le chemin emprunté
  *
  * L'état vide de la console porte le bouton « inviter », qui ouvre
- * `InviteMemberDialog` — dont le succès appelle `invalidateList`. C'est le
+ * `InviteAgentDialog` (TCK-2365 : l'invitation, seul chemin d'entrée) — dont le succès appelle `invalidateList`. C'est le
  * chemin le plus court jusqu'au rappel, et c'est le chemin RÉEL d'AC1 : une
  * agence dont l'équipe est vide est exactement celle qui invite.
  */
 const dialogProps = vi.fn();
 
-vi.mock('@/components/admin/InviteMemberDialog', () => ({
-  InviteMemberDialog: (props: { open: boolean; onSuccess?: () => void }) => {
+vi.mock('@/components/admin/InviteAgentDialog', () => ({
+  InviteAgentDialog: (props: { open: boolean; onSuccess?: () => void }) => {
     dialogProps(props);
     return props.open ? (
       <button type="button" onClick={() => props.onSuccess?.()}>

@@ -7684,7 +7684,7 @@ Le seul passage restant est `CustomerService::findOrCreateFromUser`, dans la ré
 ### Un admin d'agence fait d'un compte quelconque, désigné par son e-mail, un agent actif de son agence, sans accord ni avis, et reçoit ses coordonnées
 
 - Réf : P242.01
-- Statut : validé — validation du porteur (2026-10-25) : le rattachement d'un compte existant passe par l'invitation (profil brouillon, lien, acceptation par le compte), au rôle agent ou administrateur ; la route `POST /api/agencies/{id}/members` qui crée un profil actif est retirée et le dialogue passe par l'invitation
+- Statut : fait · TCK-2365
 - Gravité : 🔴 défaut avéré
 - Où :
   - `takussan-api/app/Http/Controllers/Api/AgencyController.php:230-303`
@@ -7710,11 +7710,12 @@ Le seul passage restant est `CustomerService::findOrCreateFromUser`, dans la ré
   - Garde : un test « compte existant → aucun profil actif avant acceptation, invitation créée », avec ablation.
 - Mesure (2026-10-25, db3e25230, mesureur) : relu `AgencyController::addAgent` (l. 229-303 : compte trouvé par `user_id` ou par e-mail, seul refus l'`AgentProfile` d'une autre agence, `AgentProfile` matérialisé `active`, aucun envoi) et `AddAgentAgencyRequest` (garde `agency_admin` de TCK-2205 seule), `docs/features.md:501,505,510` (l'agent naît `draft` à l'invitation, `active` à l'acceptation) ; aucun commit depuis e243019a1 sur ces fichiers ; #1530 touche `AgencyController` pour retirer `store()` seulement, sans toucher `addAgent` (ses lignes reculeront d'environ 25) ; test temporaire (retiré, même charge) → admin de A, compte X bailleur de l'agence C, `POST /api/agencies/{A}/members` `{email}` → 200, X agent `active` de A, `Notification::assertNothingSentTo(X)` et `Mail::assertNothingOutgoing()` verts, réponse qui porte `email`, `phone`, `email_verified_at`, `phone_verified_at`, `two_factor_enabled`, `has_usable_password`, `roles: ["agent","customer"]`. Le constat tient ; l'entrée dans `PersonnelDeLAgence` et `MessagingReach` reste déduite, non jouée. Classement : V2 et V3, une règle d'accès que l'admin d'agence utilise aujourd'hui, et des coordonnées rendues, avec deux voies (invitation ou ADR).
 - Mesure (2026-10-25, b9c58e007, humain) : validation du porteur en bloc (2026-10-25), second tour, sur les recommandations (a) de la session ; statut précédent : « retenu · à valider — V2 : faire passer le rattachement d'un compte existant par une invitation, ou le garder et le régler en ADR (V6) ».
+- Mesure (2026-10-25, 00868678d, implementeur) : reproduit avant correctif par `RattachementParInvitationTest` (neuf) : `POST …/members` 200 au lieu de 405, l'invitation au rôle `agency_admin` 422 (`ALLOWED_ROLES` = `agent`), routes `POST api/agencies/{agency}/members` et `…/agents` enregistrées → routes, `addAgent`, `AddAgentAgencyRequest` et l'entrée de `ProtectedActions` retirées ; `AgentInvitationService` admet `agency_admin`, jugé en plus par `AgencyPolicy::changeMemberRole` ; `InvitationService` cible un `AgentProfile` brouillon et crée l'`AgencyAdminProfile` à l'acceptation, aucun profil actif avant. Le front passe par l'invitation (« Inviter » propose le rôle, « Ajouter un compte existant » et `InviteMemberDialog` retirés). 8 verts ; ablations : garde `changeMemberRole` retirée → « exige team.assign_role » rouge, création de l'`AgencyAdminProfile` retirée → « n'active rien avant l'acceptation » rouge ; front : rôle envoyé figé à `agent` et filtre de capacité retiré → 2 rouges, ancien bouton remis → 1 rouge. Un second administrateur reste possible par deux chemins : l'invitation au rôle `agency_admin` et `PUT …/members/{u}/role` (`MemberRoleChangeCapabilityTest`, vert).
 
 ### Rattacher de nouveau un membre retiré lui rend son ancien rôle personnalisé, capacités comprises, sans `team.assign_role`
 
 - Réf : P242.02
-- Statut : validé — validation du porteur (2026-10-25) : un membre retiré puis rattaché reçoit le rôle système demandé, jamais son ancien rôle personnalisé
+- Statut : fait · TCK-2365
 - Gravité : 🔴 défaut avéré
 - Où :
   - `takussan-api/app/Http/Controllers/Api/AgencyController.php:280-293`
@@ -7738,11 +7739,12 @@ Le seul passage restant est `CustomerService::findOrCreateFromUser`, dans la ré
   - Garde : le cas mesuré dans `MemberRoleChangeCapabilityTest`, avec ablation.
 - Mesure (2026-10-25, db3e25230, mesureur) : relu `ProfileMaterializer::materializeOrRestore` (ligne supprimée restaurée avec son `agency_role_id`, seul le statut réécrit), `AddAgentAgencyRequest::authorize` (`changeMemberRole` pour `agency_admin` seulement), `AgencyMemberRoleController::setAgent` (même chemin), et TCK-1450, dont le contexte dit « critère V2 accordé : le profil restauré reprend son `agency_role_id` d'avant, donc ses capacités » ; aucun commit depuis e243019a1 ; test temporaire (retiré, même charge) → agent X au rôle « agent + `team.assign_role` + `payouts.approve` », retiré par `AgencyMemberRemovalService::remove(…, leaveUnassigned: true)`, puis un admin sans `team.assign_role` : `POST …/members` `{user_id: X, role: agent}` → 200, profil `active` au même `agency_role_id`, `canActAt(team.assign_role)` et `canActAt(payouts.approve)` vrais ; le même admin, `PUT …/members/{X}/role` → 403 ; la partie « à vérifier » est établie : l'admin du rôle système, `PUT …/role` owner puis agent → 200/200, profil restauré au rôle personnalisé d'avant (`payouts.approve` vrai) et non au rôle système demandé. Classement : V2, une autorisation, et revenir sur ce que le porteur a accordé avec TCK-1450 lui revient.
 - Mesure (2026-10-25, b9c58e007, humain) : validation du porteur en bloc (2026-10-25), second tour, sur les recommandations (a) de la session ; statut précédent : « retenu · à valider — V2 : le profil restauré garde son rôle personnalisé, accordé en bloc par le porteur avec P92.02 (TCK-1450) ».
+- Mesure (2026-10-25, 00868678d, implementeur) : chemin réel du retour mesuré par sonde (retirée) : réinviter un agent retiré par `agents/invite` → 201, puis acceptation **500** (`unique(user_id, agency_id)` heurtée par le brouillon) ; `PUT …/role` owner puis agent → rôle personnalisé d'avant restauré. `ProfileMaterializer` rend désormais le rôle système à toute ligne restaurée, et `InvitationService::reprendreLeProfilRetire` reprend la ligne retirée à l'acceptation (brouillon retiré, invitation repointée). `RattachementParInvitationTest` : réinvité → 200, même ligne, rôle système, ni `team.assign_role` ni `payouts.approve` ; changement de rôle → rôle système. Ablations : remise du rôle retirée → 2 rouges ; reprise retirée → 500, 1 rouge.
 
 ### Petites améliorations
 
 - Réf : P242.03
-- Statut : validé — validation du porteur (2026-10-25) : fermée par P242.01 : une invitation ne dit rien de l'existence du compte
+- Statut : fait · TCK-2365
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Controllers/Api/AgencyController.php:262-266`
 - Constat :
@@ -7754,6 +7756,7 @@ Le seul passage restant est `CustomerService::findOrCreateFromUser`, dans la ré
   - si la route reste, replier l'e-mail par `CaseInsensitive` et rendre la même réponse au compte absent.
 - Mesure (2026-10-25, db3e25230, mesureur) : relu `AgencyController::addAgent` (`User::where('email', $data['email'])`, sans repli de casse) ; test temporaire (retiré, même charge) → `{email: inconnu@example.test}` → 422 `agency_member.user_not_found_by_email` ; compte `autre@example.test` désigné par `AUTRE@example.test` → 422 `user_not_found_by_email`, aucun rattachement ; un e-mail connu → 200 (P242.01). Le constat tient. Classement : V3, ce que la route révèle de l'existence d'un compte est un choix sur les données personnelles, et la piste attend la décision de P242.01.
 - Mesure (2026-10-25, b9c58e007, humain) : validation du porteur en bloc (2026-10-25), second tour, sur les recommandations (a) de la session ; statut précédent : « retenu · à valider — V3 : la route dit si un e-mail a un compte, et sa suite dépend de P242.01 ».
+- Mesure (2026-10-25, 00868678d, implementeur) : fermée par P242.01 (route retirée). L'invitation rendait pourtant `invited_user_id` (id du compte, `null` sinon) dès l'envoi : mesuré par `test_l_invitation_ne_dit_rien_de_l_existence_du_compte` (rouge : 2 au lieu de `null`) → `InvitationResource` ne le rend qu'une fois l'invitation acceptée ; adresse connue en casse mixte et adresse inconnue rendent la même réponse. Ablation : masque retiré → rouge.
 
 ## Angle 243 — Écritures optimistes du front posées avant la réponse, sans retour arrière ni relecture sur l'échec
 
@@ -8156,7 +8159,7 @@ de l'angle 238 (retiré), charge 1,69 / 1,71 / 2,01 sur 8 cœurs.*
 
 ### `POST /api/agencies/{id}/members`, seul chemin vers un second administrateur, cherche le compte par l'e-mail exact : une majuscule rend 422, et un compte créé par numéro est inatteignable
 - Réf : P251.01
-- Statut : validé — validation du porteur (2026-10-25) : fermée par P242.01 : la route est retirée, et l'invitation cherche déjà le compte par adresse repliée ou numéro vérifié
+- Statut : fait · TCK-2365
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/AgencyController.php:262-266`, `takussan-api/app/Http/Requests/Api/AddAgentAgencyRequest.php:45-47`, `takussan-api/app/Models/User.php:96-101`, `takussan-web/src/components/admin/InviteMemberDialog.tsx:39-41,83-85`, `takussan-web/src/lib/queries/agency-invitations.ts:156-159`
 - Constat :
@@ -8168,10 +8171,11 @@ de l'angle 238 (retiré), charge 1,69 / 1,71 / 2,01 sur 8 cœurs.*
 - Piste : replier l'adresse comme `LoginRequest` (`prepareForValidation`, ou `CaseInsensitive::sql('email')`). Accepter un numéro, cherché sur le seul numéro vérifié, comme `InvitationService::recipientAccount`. Test : adresse en casse mixte → 200 ; compte à numéro vérifié désigné par son numéro → 200 ; numéro non vérifié → 422.
 - Mesure (2026-10-25, db3e25230, mesureur) : relu `AgencyController.php:262-266` (`User::where('email', $data['email'])->first()`, sans repli), `AddAgentAgencyRequest.php:45-47` (`user_id` ou `email`, aucun numéro), `User::setEmailAttribute` (l. 96-101, `CaseInsensitive::fold(trim(…))`) ; test temporaire (retiré), admin d'agence standard, compte `awa.diop@example.test` → `Awa.Diop@Example.test` 422 `agency_member.user_not_found_by_email`, ` awa.diop@example.test` (espace en tête) 200, minuscules 200 ; compte à `email` nul et `+221771112233` vérifié désigné par `phone` → 422 sur `user_id` et `email` → la casse et le numéro tiennent, l'espace non (déjà retiré en amont). Classement : V7 (et voisin de V2 : qui peut être rattaché administrateur), accepter un numéro change le contrat du geste ; replier l'adresse seule a son comportement écrit (`setEmailAttribute`, « all lookups are case-insensitive by construction »), mais l'entrée ne se scinde pas ici.
 - Mesure (2026-10-25, b9c58e007, humain) : validation du porteur en bloc (2026-10-25), second tour, sur les recommandations (a) de la session ; statut précédent : « retenu · à valider — V7 : désigner un compte par son numéro sur `POST /members` est un geste neuf ; le seul repli de casse relèverait d'A1 ».
+- Mesure (2026-10-25, 00868678d, implementeur) : fermée par P242.01 : `POST …/members` retirée (405, `…/agents` 404, `RattachementParInvitationTest`) ; l'invitation trouve le compte par adresse repliée (`Awa.Diop@Example.test` → `invited_user_id` en base, même test) ou numéro vérifié (`InvitationService::recipientAccount`). Le second administrateur passe par l'invitation au rôle `agency_admin` ou par `PUT …/members/{u}/role`.
 
 ### Petites améliorations
 - Réf : P251.02
-- Statut : validé — validation du porteur (2026-10-25) : la console demande, facultatif, le numéro du gérant, cherché parmi les numéros vérifiés : s'il appartient à un compte, rattacher ce compte ou refuser en 409, comme pour l'e-mail
+- Statut : fait · TCK-2365
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Admin/AgencyProvisioningService.php:26-73`, `takussan-api/app/Http/Requests/Api/Admin/StoreAgencyOnboardingRequest.php:33`
 - Constat :
@@ -8180,3 +8184,4 @@ de l'angle 238 (retiré), charge 1,69 / 1,71 / 2,01 sur 8 cœurs.*
 - Piste : demander le numéro du gérant et le chercher parmi les numéros vérifiés. S'il appartient à un compte, rattacher ce compte ou refuser en 409, comme pour l'e-mail. Test : numéro vérifié d'un compte existant → pas de second compte.
 - Mesure (2026-10-25, db3e25230, mesureur) : relu `AgencyProvisioningService::provision` (l. 26-73 : refus 409 sur l'e-mail seul, puis `User::create` sans numéro) et `StoreAgencyOnboardingRequest` (`admin.*` : prénom, nom, `email` requis, langue ; aucun numéro du gérant) ; test temporaire (retiré), compte existant à `email` nul et `+221771112233` vérifié, puis `POST /api/admin/agencies` en super-admin avec `admin.phone` = ce numéro → 201, un compte de plus, `phone` du nouvel administrateur nul : le numéro est ignoré et le second compte naît sans que rien ne le voie → constat confirmé par la mesure (il n'était que lu). Classement : V7, le correctif ajoute un champ au formulaire et choisit entre rattacher et refuser en 409.
 - Mesure (2026-10-25, b9c58e007, humain) : validation du porteur en bloc (2026-10-25), second tour, sur les recommandations (a) de la session ; statut précédent : « retenu · à valider — V7 : demander le numéro du gérant est un champ neuf du formulaire de la console ».
+- Mesure (2026-10-25, 00868678d, implementeur) : `NumeroDuGerantALaCreationTest` (neuf), rouge avant correctif (201 au lieu de 409, 201 au lieu de 422) → `StoreAgencyOnboardingRequest` accepte `admin.phone` (normalisé, `TelephoneJoignable`), `AgencyProvisioningService` refuse en 409 `agency.admin_phone_taken` le numéro vérifié d'un compte existant (comme l'e-mail ; le numéro n'est pas écrit sur le compte neuf) ; numéro non vérifié ou absent → 201. Console : champ facultatif et message du conflit de numéro (`AgencyOnboardingDialog.numero-du-gerant.test.tsx`). Ablations : garde du service retirée → 1 rouge, règle retirée → 2 rouges ; front : numéro non envoyé → 1 rouge, message du conflit retiré → 1 rouge.

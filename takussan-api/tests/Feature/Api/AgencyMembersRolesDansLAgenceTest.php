@@ -8,12 +8,12 @@ use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Laravel\Sanctum\Sanctum;
 use Tests\ApiTestCase;
 
 /**
  * TCK-2004 (P176.04 ; ADR-0005, amendement du 2026-10-23, point 4) — dans la liste des membres
- * d'une agence, dans la réponse de `POST members` et dans celle de `PUT /users/{user}/role`, `roles`
+ * d'une agence et dans la réponse de `PUT /users/{user}/role` (`POST members`, qui en rendait une
+ * aussi, est retirée : TCK-2365), `roles`
  * se rapporte à l'agence de la route (ou à celle où le rôle est posé) : l'admin de A n'y apprend pas
  * ce qu'un membre tient dans B. Un membre suspendu y garde son type, et son statut sort à côté
  * (`role_statuses`).
@@ -51,23 +51,6 @@ class AgencyMembersRolesDansLAgenceTest extends ApiTestCase
 
         $this->assertSame(['agent', 'customer'], $ligne['roles']);
         $this->assertSame(['agent' => 'suspended'], $ligne['role_statuses']);
-    }
-
-    public function test_la_reponse_du_rattachement_ne_dit_pas_le_role_tenu_ailleurs(): void
-    {
-        $a = Agency::factory()->create();
-        $b = Agency::factory()->create();
-        $admin = User::factory()->withTwoFactor()->create();
-        $this->materializeRoleProfile($admin, 'super_admin');
-        $cible = User::factory()->create();
-        OwnerProfile::factory()->create(['user_id' => $cible->id, 'agency_id' => $b->id]);
-
-        Sanctum::actingAs($admin);
-        $reponse = $this->postJson("/api/agencies/{$a->id}/members", ['user_id' => $cible->id, 'role' => 'agent'])
-            ->assertOk();
-
-        $this->assertSame(['agent', 'customer'], $reponse->json('data.user.roles'));
-        $this->assertSame(['agent' => 'active'], $reponse->json('data.user.role_statuses'));
     }
 
     public function test_la_reponse_du_changement_de_role_se_rapporte_a_l_agence_du_role(): void

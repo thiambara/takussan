@@ -63,11 +63,11 @@ class AgencyKindGuard
     /**
      * TCK-449 (AC5) — LA définition de « qui peut constituer une équipe ».
      *
-     * Partagée par les DEUX gestes qui en constituent une : l'invitation
-     * (`agents/invite`, `owners/invite`) et le rattachement direct
-     * (`POST /agencies/{id}/members` et son alias `…/agents`, plus le
-     * changement de rôle d'un membre). Une agence `individual` est un hôte
-     * seul (TCK-248).
+     * Partagée par les gestes qui en constituent une : l'invitation
+     * (`agents/invite`, `owners/invite`) et le changement de rôle d'un membre.
+     * Le rattachement direct (`POST /agencies/{id}/members` et son alias
+     * `…/agents`) est retiré depuis TCK-2365 (P242.01). Une agence
+     * `individual` est un hôte seul (TCK-248).
      */
     public static function canFormTeam(Agency $agency): bool
     {

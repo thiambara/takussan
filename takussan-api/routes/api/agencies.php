@@ -38,10 +38,12 @@ Route::middleware('auth:sanctum')->group(function () {
         ->name('agencies.payout-threshold.confirm');
 
     // Agent management (legacy aliases kept — /members is the TCK-015 canonical path).
-    Route::post('agencies/{agency}/agents', [AgencyController::class, 'addAgent'])->name('agencies.agents.store');
+    // TCK-2365 (P242.01, décision du porteur ; ADR-0031) — `POST agencies/{agency}/members` et son
+    // alias `POST …/agents` sont retirées : elles faisaient d'un compte quelconque un agent ACTIF,
+    // sans accord. Un compte existant entre dans l'équipe par l'invitation (`agents/invite`, au
+    // rôle agent ou administrateur).
     Route::delete('agencies/{agency}/agents/{user}', [AgencyController::class, 'removeAgent'])->name('agencies.agents.destroy');
     Route::get('agencies/{agency}/members', [AgencyController::class, 'listMembers'])->name('agencies.members.index');
-    Route::post('agencies/{agency}/members', [AgencyController::class, 'addAgent'])->name('agencies.members.store');
     Route::delete('agencies/{agency}/members/{user}', [AgencyController::class, 'removeAgent'])->name('agencies.members.destroy');
     // PATCH alias for member role assignment — mirrors the PUT canonical route.
     Route::patch('agencies/{agency}/members/{user}', [AgencyMemberRoleController::class, 'update'])->name('agencies.members.update');

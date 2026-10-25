@@ -28,7 +28,10 @@ class InvitationResource extends BaseResource
             'invitable_type' => $this->invitable_type,
             'invitable_id' => $this->invitable_id,
             'invited_by' => $this->invited_by,
-            'invited_user_id' => $this->invited_user_id,
+            // P242.03 (TCK-2365, décision du porteur du 2026-10-25) — une invitation ne dit rien de
+            // l'existence du compte : avant l'acceptation, ce champ disait à l'invitant si l'adresse
+            // ou le numéro vérifié avait un compte sur la plateforme. Aucun écran ne le lisait.
+            'invited_user_id' => $this->status === InvitationStatus::Accepted ? $this->invited_user_id : null,
             'expires_at' => $this->iso($this->expires_at),
             'accepted_at' => $this->iso($this->accepted_at),
             'revoked_at' => $this->iso($this->revoked_at),

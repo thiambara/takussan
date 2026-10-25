@@ -26,6 +26,7 @@ return [
     'agency' => [
         'active_profile_missing' => 'No active agency profile.',
         'admin_email_taken' => 'An account already exists with this administrator email.',
+        'admin_phone_taken' => 'An account already exists with this verified manager phone number.',
         'context_missing' => 'No active agency.',
         'id_required' => 'The agency must be specified.',
         'individual_no_custom_roles' => 'Individual agencies don\'t have custom roles.',

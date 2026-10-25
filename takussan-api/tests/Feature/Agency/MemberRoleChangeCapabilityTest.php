@@ -97,51 +97,9 @@ class MemberRoleChangeCapabilityTest extends ApiTestCase
         $this->changeByMemberRoute($principal)->assertOk();
     }
 
-    /**
-     * TCK-2205 (P227.03) — rattacher un compte comme `agency_admin` (`POST /api/agencies/{a}/members`)
-     * confère le rôle que le changement de rôle juge par `team.assign_role` : même règle.
-     */
-    private function attachAsAdmin(User $actor, User $target, string $role = 'agency_admin'): TestResponse
-    {
-        return $this->actingAsApi($actor)
-            ->postJson("/api/agencies/{$this->agency->id}/members", ['user_id' => $target->id, 'role' => $role]);
-    }
-
-    public function test_un_admin_sans_team_assign_role_ne_rattache_pas_un_compte_comme_admin(): void
-    {
-        $admin = $this->adminWithout($this->agency, Capability::TeamAssignRole);
-        $target = User::factory()->create();
-
-        $this->attachAsAdmin($admin, $target)->assertForbidden();
-
-        $this->assertFalse($target->fresh()->isAgencyAdminAt((int) $this->agency->id));
-        $this->assertFalse($target->fresh()->isAgentAt((int) $this->agency->id));
-
-        // Le rattachement comme agent ne confère aucun rôle d'administration : il reste ouvert.
-        $this->attachAsAdmin($admin, $target, 'agent')->assertOk();
-        $this->assertTrue($target->fresh()->isAgentAt((int) $this->agency->id));
-        $this->assertFalse($target->fresh()->isAgencyAdminAt((int) $this->agency->id));
-    }
-
-    public function test_l_admin_du_role_systeme_rattache_un_compte_comme_admin(): void
-    {
-        $target = User::factory()->create();
-
-        $this->attachAsAdmin($this->agencyAdmin($this->agency), $target)->assertOk();
-
-        $this->assertTrue($target->fresh()->isAgencyAdminAt((int) $this->agency->id));
-    }
-
-    public function test_l_admin_principal_rattache_un_compte_comme_admin_meme_sans_la_capacite(): void
-    {
-        $principal = $this->adminWithout($this->agency, Capability::TeamAssignRole);
-        $this->agency->update(['primary_admin_id' => $principal->id]);
-        $target = User::factory()->create();
-
-        $this->attachAsAdmin($principal, $target)->assertOk();
-
-        $this->assertTrue($target->fresh()->isAgencyAdminAt((int) $this->agency->id));
-    }
+    // TCK-2205 (P227.03) — rattacher un compte comme `agency_admin` se jugeait ici par la même règle.
+    // La route est retirée (TCK-2365, P242.01) : inviter un administrateur la garde désormais,
+    // éprouvée par `RattachementParInvitationTest`.
 
     public function test_le_personnel_d_une_autre_agence_est_refuse(): void
     {

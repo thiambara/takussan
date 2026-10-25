@@ -105,6 +105,8 @@ describe('destinationDInvitation', () => {
   it.each([
     ['owner', 3, '/onboarding/owner?owner=3'],
     ['agent_manager', 4, '/onboarding/agent?agent=4'],
+    // TCK-2365 (P242.01) — l'administrateur invité complète son profil d'agent.
+    ['agency_admin', 6, '/onboarding/agent?agent=6'],
     ['service_provider', 5, '/onboarding/service-provider?sp=5'],
     ['super_admin', null, '/onboarding/super-admin'],
     ['inconnu', 1, '/app'],
