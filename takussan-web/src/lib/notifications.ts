@@ -36,7 +36,9 @@ export type NatureParam =
   | 'reason_code'
   | 'role'
   | 'provider'
-  | 'month';
+  | 'month'
+  // P235.03 (TCK-2369) — le nom d'une personne ; vide, il se lit par un libellé traduit.
+  | 'person';
 
 export type AppNotification = {
   id: number;

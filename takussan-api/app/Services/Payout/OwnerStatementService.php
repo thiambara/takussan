@@ -99,7 +99,8 @@ final class OwnerStatementService
             // P234.06 (TCK-2315) — la raison sociale d'un bailleur société, `null` pour un particulier.
             'landlord' => [
                 'id' => $landlord->id,
-                'name' => trim(($landlord->first_name ?? '').' '.($landlord->last_name ?? '')) ?: $landlord->username,
+                // P235.02 (TCK-2369) — nom, puis `username`, puis « — » : jamais `''` ni `null` pour un compte sans nom.
+                'name' => $landlord->nameWithoutContact(),
                 'company_name' => OwnerProfile::companyNameOf((int) $landlord->id, (int) $agency->id),
             ],
             'period' => $period,

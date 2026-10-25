@@ -25,7 +25,8 @@ class PayoutResource extends BaseResource
             'processed_by_id' => $this->processed_by_id,
             'issuer' => $this->whenLoaded('issuer', fn () => $this->issuer ? [
                 'id' => $this->issuer->id,
-                'name' => trim($this->issuer->first_name.' '.$this->issuer->last_name) ?: $this->issuer->username,
+                // P235.02 (TCK-2369) — nom, puis `username`, puis « — » : jamais `''` ni `null` pour un compte sans nom.
+                'name' => $this->issuer->nameWithoutContact(),
             ] : null),
             'status' => $this->status?->value,
             'period_start' => $this->calendarDate($this->period_start),

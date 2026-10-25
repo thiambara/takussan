@@ -229,8 +229,8 @@ class PropertyResource extends BaseResource
                     'user' => $collaborator->relationLoaded('user') && $collaborator->user
                         ? [
                             'id' => $collaborator->user->id,
-                            'name' => trim($collaborator->user->first_name.' '.$collaborator->user->last_name)
-                                ?: $collaborator->user->username,
+                            // P235.02 (TCK-2369) — nom, puis `username`, puis « — » : jamais `''` ni `null` pour un compte sans nom.
+                            'name' => $collaborator->user->nameWithoutContact(),
                             // Collaborator email is private team data — only surface it to
                             // authenticated viewers (agent dashboard), never on the public
                             // property page which eager-loads `collaborators.user`.
@@ -434,7 +434,8 @@ class PropertyResource extends BaseResource
     {
         return [
             'id' => $user->id,
-            'name' => trim($user->first_name.' '.$user->last_name) ?: $user->username,
+            // P235.02 (TCK-2369) — nom, puis `username`, puis « — » : jamais `''` ni `null` pour un compte sans nom.
+            'name' => $user->nameWithoutContact(),
             // TCK-177 — used to link the contact card to /agents/[slug].
             'slug' => $user->username,
             'avatar_url' => $user->avatarUrl(),

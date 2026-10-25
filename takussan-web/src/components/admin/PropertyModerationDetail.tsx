@@ -97,7 +97,7 @@ export function PropertyModerationDetail({
       <dl className="mb-6 grid grid-cols-2 gap-4 text-sm">
         <div>
           <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{t('agent')}</dt>
-          <dd className="mt-1 text-foreground">{property.owner?.name ?? '—'}</dd>
+          <dd className="mt-1 text-foreground">{property.owner?.name || '—'}</dd>
         </div>
         <div>
           <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{t('price')}</dt>
