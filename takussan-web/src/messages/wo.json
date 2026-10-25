@@ -9656,7 +9656,8 @@
         "status": "Nekkin",
         "paidOn": "Fey ci",
         "emptyForAgency": "Amul benn peymaan platform bu ñu jot ba tey.",
-        "caption": "Reversements de la plateforme"
+        "caption": "Reversements de la plateforme",
+        "refundedSincePaid": "Remboursé depuis"
       },
       "close": {
         "title": "Tëj benn jamono",
@@ -9707,7 +9708,8 @@
         "paymentReferenceLabel": "Référence virement bi",
         "paymentReferencePlaceholder": "Référence virement bi (war na)",
         "approveSelfRefused": "Yaa tëj diir bii : keneen moo war a nangu reversement bi.",
-        "paySelfRefused": "Yaa nangu reversement bii : keneen moo war a ko màndargaal ni fey nañu ko."
+        "paySelfRefused": "Yaa nangu reversement bii : keneen moo war a ko màndargaal ni fey nañu ko.",
+        "refundedSincePaid": "{count, plural, one {Une ligne a été remboursée depuis le versement : {references}.} other {# lignes ont été remboursées depuis le versement : {references}.}} Aucun montant n'est retenu automatiquement."
       }
     }
   },
@@ -10542,6 +10544,14 @@
         "settled_online": {
           "title": "Fey bi agsi na : {property}",
           "body": "Sa fey bu {amount} ngir {property} agsi na. Sa kitaas mi ngi ci sa bérab."
+        },
+        "refunded": {
+          "title": "Remboursement : {property}",
+          "body": "Un remboursement de {amount} a été fait sur votre paiement de loyer pour {property}. Votre quittance ne couvre plus la somme remboursée."
+        },
+        "refunded_landlord": {
+          "title": "Loyer remboursé : {property}",
+          "body": "{amount} du loyer payé par {tenant} pour {property} ont été remboursés par le moyen de paiement en ligne."
         }
       },
       "payment": {
@@ -10552,6 +10562,12 @@
         "duplicate_late_fee": {
           "title": "Pénalité bi ñu ko jot ñaari yoon",
           "body": "Pénalité bu {amount} ngir {reference}, bu ñu fey ba noppi ci agence bi, ñu jot na ko itam ci internet. Delloo ko ki fey walla jox ko beneen."
+        }
+      },
+      "platform_payout": {
+        "refunded_since_paid": {
+          "title": "Paiement remboursé après reversement",
+          "body": "Le paiement {reference}, compris dans le reversement de la plateforme de {period} déjà versé à votre agence, a été remboursé depuis par le moyen de paiement en ligne. Aucune retenue n'est appliquée automatiquement."
         }
       },
       "booking": {

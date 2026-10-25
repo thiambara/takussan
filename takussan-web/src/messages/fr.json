@@ -9656,7 +9656,8 @@
         "status": "Statut",
         "paidOn": "Versé le",
         "emptyForAgency": "Aucun reversement plateforme reçu pour le moment.",
-        "caption": "Reversements de la plateforme"
+        "caption": "Reversements de la plateforme",
+        "refundedSincePaid": "Remboursé depuis"
       },
       "close": {
         "title": "Clôturer une période",
@@ -9707,7 +9708,8 @@
         "paymentReferenceLabel": "Référence du virement",
         "paymentReferencePlaceholder": "Référence du virement (obligatoire)",
         "approveSelfRefused": "Vous avez clôturé cette période : une autre personne doit approuver le reversement.",
-        "paySelfRefused": "Vous avez approuvé ce reversement : une autre personne doit le marquer payé."
+        "paySelfRefused": "Vous avez approuvé ce reversement : une autre personne doit le marquer payé.",
+        "refundedSincePaid": "{count, plural, one {Une ligne a été remboursée depuis le versement : {references}.} other {# lignes ont été remboursées depuis le versement : {references}.}} Aucun montant n'est retenu automatiquement."
       }
     }
   },
@@ -10542,6 +10544,14 @@
         "settled_online": {
           "title": "Paiement reçu : {property}",
           "body": "Votre paiement de {amount} pour {property} a bien été reçu. Votre quittance est disponible dans votre espace."
+        },
+        "refunded": {
+          "title": "Remboursement : {property}",
+          "body": "Un remboursement de {amount} a été fait sur votre paiement de loyer pour {property}. Votre quittance ne couvre plus la somme remboursée."
+        },
+        "refunded_landlord": {
+          "title": "Loyer remboursé : {property}",
+          "body": "{amount} du loyer payé par {tenant} pour {property} ont été remboursés par le moyen de paiement en ligne."
         }
       },
       "payment": {
@@ -10552,6 +10562,12 @@
         "duplicate_late_fee": {
           "title": "Pénalité encaissée deux fois",
           "body": "La pénalité de retard de {amount} pour {reference}, déjà réglée à l'agence, a aussi été encaissée en ligne. Remboursez le payeur ou affectez la somme."
+        }
+      },
+      "platform_payout": {
+        "refunded_since_paid": {
+          "title": "Paiement remboursé après reversement",
+          "body": "Le paiement {reference}, compris dans le reversement de la plateforme de {period} déjà versé à votre agence, a été remboursé depuis par le moyen de paiement en ligne. Aucune retenue n'est appliquée automatiquement."
         }
       },
       "booking": {
