@@ -3789,6 +3789,7 @@
       "diff_modified": "Changed",
       "diff_unchanged": "Unchanged",
       "tenant_immutable": "Tenant and property cannot be changed in an amendment.",
+      "guarantors_not_carried_over": "{count, plural, one {The current lease’s guarantor is not carried over to the new lease: attach them to the new lease if they renew their commitment.} other {The current lease’s # guarantors are not carried over to the new lease: attach to the new lease those who renew their commitment.}}",
       "timeline_title": "Lease chain",
       "timeline_root": "Root lease",
       "timeline_amendment": "Amendment {n}",

@@ -9,6 +9,7 @@ use App\Models\Enums\PaymentStatus;
 use App\Models\Invoice;
 use App\Models\Lease;
 use App\Models\LeasePayment;
+use App\Models\Profiles\OwnerProfile;
 use App\Services\Membership\MembershipCapabilityResolver;
 use App\Services\Pdf\DocumentPdfService;
 use App\Services\Pdf\PrintedIdentity;
@@ -177,6 +178,7 @@ class DocumentPdfController extends Controller
             'lease' => $lease,
             'tenant' => $lease->tenant,
             'landlord' => $lease->landlord,
+            'landlord_company' => OwnerProfile::companyNameOf($lease->landlord_id, $lease->agency_id),
             'property' => $lease->property,
             'agency' => $lease->agency,
             'guarantors' => $lease->guarantors,

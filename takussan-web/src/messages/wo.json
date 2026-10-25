@@ -2029,6 +2029,7 @@
       "diff_modified": "Soppi",
       "diff_unchanged": "Du soppi",
       "tenant_immutable": "Locataire ak mbaar mën nañu ko soppi ci avenant.",
+      "guarantors_not_carried_over": "{count, plural, one {Le garant du bail actuel n’est pas reporté sur le nouveau bail : rattachez-le au nouveau bail s’il renouvelle son engagement.} other {Les # garants du bail actuel ne sont pas reportés sur le nouveau bail : rattachez au nouveau bail ceux qui renouvellent leur engagement.}}",
       "timeline_title": "Chaîne luwé",
       "timeline_root": "Luwé bu njëkk",
       "timeline_amendment": "Avenant {n}",

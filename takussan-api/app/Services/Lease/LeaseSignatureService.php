@@ -7,6 +7,7 @@ use App\Domain\Notifications\NotificationTarget;
 use App\Models\Enums\LeaseStatus;
 use App\Models\Lease;
 use App\Models\LeaseSignature;
+use App\Models\Profiles\OwnerProfile;
 use App\Models\User;
 use App\Notifications\LeaseSignatureCodeNotification;
 use App\Services\Auth\OtpPreview;
@@ -280,6 +281,8 @@ class LeaseSignatureService
             'lease' => $printed,
             'tenant' => $lease->tenant,
             'landlord' => $lease->landlord,
+            // P234.06 (TCK-2315) — la raison sociale du jour du gel, figée avec les octets.
+            'landlord_company' => OwnerProfile::companyNameOf($lease->landlord_id, $lease->agency_id),
             'property' => $lease->property,
             'agency' => $lease->agency,
             'guarantors' => $lease->guarantors,
