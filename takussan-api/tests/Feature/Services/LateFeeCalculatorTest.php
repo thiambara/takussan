@@ -2,12 +2,15 @@
 
 namespace Tests\Feature\Services;
 
+use App\Events\Lease\LeasePaymentLateFeeApplied;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Models\Setting;
 use App\Services\Lease\LateFeeCalculator;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Event;
+use Spatie\Activitylog\Models\Activity;
 use Tests\TestCase;
 
 class LateFeeCalculatorTest extends TestCase
@@ -145,5 +148,51 @@ class LateFeeCalculatorTest extends TestCase
 
         $this->assertSame(0.0, $applied);
         $this->assertSame('9999.00', (string) $payment->fresh()->late_fee_amount);
+    }
+
+    /**
+     * TCK-2310 (P229.05) — un paiement partiel posé entre la lecture du lot et le verrou : la
+     * pénalité, le journal et l'événement portent le restant de la ligne relue, non celui du lot
+     * (`docs/models-spec.md` : `late_fee_percent` s'applique au restant dû).
+     */
+    public function test_apply_calcule_montant_et_base_sur_la_ligne_relue_sous_verrou(): void
+    {
+        Event::fake([LeasePaymentLateFeeApplied::class]);
+
+        $lease = Lease::factory()->create([
+            'late_fee_percent' => 5,
+            'late_fee_grace_days' => 0,
+        ]);
+        $payment = LeasePayment::factory()->create([
+            'lease_id' => $lease->id,
+            'amount' => 100_000,
+            'due_date' => now()->subDays(7)->toDateString(),
+            'status' => PaymentStatus::Pending,
+            'metadata' => null,
+            'late_fee_amount' => null,
+            'late_fee_applied_at' => null,
+        ]);
+
+        // Le modèle tel que le lot l'a lu, puis le paiement partiel écrit en base après lui.
+        $stale = $payment->fresh();
+        LeasePayment::query()->whereKey($payment->id)->update([
+            'status' => PaymentStatus::PartiallyPaid->value,
+            'metadata' => json_encode(['paid_amount' => 80_000]),
+        ]);
+
+        $applied = app(LateFeeCalculator::class)->apply($stale);
+
+        // 5 % × (100 000 − 80 000) = 1 000, et non 5 % × 100 000.
+        $this->assertSame(1000.0, $applied);
+        $this->assertSame('1000.00', (string) $payment->fresh()->late_fee_amount);
+
+        $log = Activity::query()->where('event', 'late_fee_applied')->sole();
+        $this->assertEquals(20000.0, $log->properties['base']);
+        $this->assertEquals(1000.0, $log->properties['amount']);
+
+        Event::assertDispatched(
+            LeasePaymentLateFeeApplied::class,
+            fn (LeasePaymentLateFeeApplied $e) => $e->amount === 1000.0 && $e->base === 20000.0,
+        );
     }
 }

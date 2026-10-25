@@ -8,7 +8,9 @@ use App\Models\Enums\AgencyStatus;
 use App\Models\Enums\AgencySubscriptionStatus;
 use App\Models\Plan;
 use App\Services\Billing\AgencySubscriptionService;
+use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
@@ -75,5 +77,41 @@ class FinDEssaiParStatutDAgenceTest extends TestCase
 
         $this->assertSame(1, $service->processTrialExpirations());
         $this->assertSame(AgencySubscriptionStatus::Active, $subscription->refresh()->status);
+    }
+
+    /** @return array<string, array{\Closure(AgencySubscription): void}> */
+    public static function changementsApresLaSelection(): array
+    {
+        return [
+            'agence suspendue' => [fn (AgencySubscription $s) => Agency::query()->whereKey($s->agency_id)
+                ->update(['status' => AgencyStatus::Suspended->value])],
+            'essai prolongé' => [fn (AgencySubscription $s) => AgencySubscription::query()->whereKey($s->id)
+                ->update(['trial_ends_at' => now()->addDays(7)])],
+            'fin posée' => [fn (AgencySubscription $s) => AgencySubscription::query()->whereKey($s->id)
+                ->update(['ended_at' => now()])],
+        ];
+    }
+
+    /**
+     * TCK-2310 (P229.06) — sur le patron de `renewPeriods` : chaque essai se relit sous verrou et
+     * tous les critères de la sélection s'y rejugent, statut de l'agence compris. Le changement est
+     * écrit juste après la requête qui fige les identifiants, comme l'écrirait un geste concurrent.
+     */
+    #[DataProvider('changementsApresLaSelection')]
+    public function test_un_critere_change_apres_la_selection_ne_convertit_pas_l_essai(\Closure $changement): void
+    {
+        $subscription = $this->essaiEchu(AgencyStatus::Active);
+
+        $joue = false;
+        DB::listen(function (QueryExecuted $query) use (&$joue, $changement, $subscription): void {
+            if (! $joue && str_starts_with($query->sql, 'select "id" from "agency_subscriptions"')) {
+                $joue = true;
+                $changement($subscription);
+            }
+        });
+
+        $this->assertSame(0, app(AgencySubscriptionService::class)->processTrialExpirations());
+        $this->assertTrue($joue, 'la requête de sélection n\'a pas été vue');
+        $this->assertSame(AgencySubscriptionStatus::Trialing, $subscription->refresh()->status);
     }
 }

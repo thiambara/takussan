@@ -10,7 +10,9 @@ use App\Models\ImpersonationSession;
 use App\Models\Profiles\PlatformProfile;
 use App\Notifications\CodedNotification;
 use App\Services\Admin\ImpersonationService;
+use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Laravel\Sanctum\PersonalAccessToken;
 use Spatie\Activitylog\Models\Activity;
@@ -99,6 +101,42 @@ class ImpersonationLifecycleTest extends TestCase
         $this->assertSame(ImpersonationEndReason::Expired, $session->end_reason);
         $this->assertSame(1, self::nombreDEnvois($cible, NotificationCode::ImpersonationEnded));
         $this->assertSame(1, Activity::query()->where('event', 'super_admin_impersonation_stopped')->count());
+    }
+
+    /**
+     * TCK-2310 (P229.06) — `stop()` dit s'il a fermé la session, et `closeExpired` compte les
+     * sessions qu'il a fermées : une session qu'un `stop` concurrent ferme entre la sélection et le
+     * verrou n'entre pas dans le compte.
+     */
+    public function test_close_expired_ne_compte_pas_une_session_fermee_entre_la_selection_et_le_verrou(): void
+    {
+        ['session_id' => $id] = $this->ouvrirUneSession();
+        ['session_id' => $autre] = $this->ouvrirUneSession();
+        $this->travel(ImpersonationSession::TTL_MINUTES)->minutes();
+        $this->travel(1)->seconds();
+
+        $joue = false;
+        DB::listen(function (QueryExecuted $query) use (&$joue, $id): void {
+            if (! $joue && str_contains($query->sql, 'from "impersonation_sessions" where "ended_at" is null and "expires_at" <=')) {
+                $joue = true;
+                ImpersonationSession::query()->whereKey($id)->update(['ended_at' => now(), 'end_reason' => ImpersonationEndReason::Stopped->value]);
+            }
+        });
+
+        $this->assertSame(1, app(ImpersonationService::class)->closeExpired());
+        $this->assertTrue($joue, 'la requête de sélection n\'a pas été vue');
+        $this->assertSame(ImpersonationEndReason::Stopped, ImpersonationSession::query()->findOrFail($id)->end_reason);
+        $this->assertSame(ImpersonationEndReason::Expired, ImpersonationSession::query()->findOrFail($autre)->end_reason);
+    }
+
+    public function test_stop_rend_vrai_a_la_fermeture_et_faux_sur_une_session_deja_fermee(): void
+    {
+        ['session_id' => $id] = $this->ouvrirUneSession();
+        $session = ImpersonationSession::query()->findOrFail($id);
+        $service = app(ImpersonationService::class);
+
+        $this->assertTrue($service->stop($session, ImpersonationEndReason::Stopped));
+        $this->assertFalse($service->stop($session, ImpersonationEndReason::Expired));
     }
 
     public function test_la_commande_ne_ferme_pas_une_session_en_cours(): void
