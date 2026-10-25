@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\Schema;
  * d'un envoi passé ne se reconstituent sans deviner (décision du porteur). `nullOnDelete` : une
  * tentative survit à la suppression de son agence ou de son intégration, comme la trace qu'elle est.
  *
- * Le `down()` retire les deux clés étrangères puis les deux colonnes ; ce qu'elles portaient se perd.
+ * Le `down()` retire l'index, les deux clés étrangères puis les deux colonnes ; ce qu'elles portaient se perd.
  */
 return new class extends Migration
 {
@@ -25,12 +25,16 @@ return new class extends Migration
                 ->constrained('agencies')->nullOnDelete();
             $table->foreignId('integration_id')->nullable()
                 ->constrained('integrations')->nullOnDelete();
+            // PostgreSQL n'indexe pas une clé étrangère : l'agence est la frontière d'isolation, et
+            // les tentatives se listent par date (AgencyIdIsIndexedTest).
+            $table->index(['agency_id', 'created_at']);
         });
     }
 
     public function down(): void
     {
         Schema::table('notification_delivery_attempts', function (Blueprint $table) {
+            $table->dropIndex(['agency_id', 'created_at']);
             $table->dropConstrainedForeignId('integration_id');
             $table->dropConstrainedForeignId('agency_id');
         });
