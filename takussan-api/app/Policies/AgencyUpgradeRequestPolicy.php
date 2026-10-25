@@ -79,10 +79,15 @@ class AgencyUpgradeRequestPolicy
      * agency may revoke a pending request. The not-pending check is
      * enforced inside the service so the 422 surfaces with a clear
      * message rather than a generic 403.
+     *
+     * P233.04 (TCK-2290) — ADR-0031, amendement du 2026-10-25 (D2) : le déposant (`submitted_by`)
+     * ne révoque que s'il est encore membre de l'agence, par la règle d'auteur
+     * ({@see BasePolicy::auteurEncoreMembre()}). L'administrateur suspendu ou retiré révoquait
+     * encore la demande qu'il avait déposée, et la révocation est finale.
      */
     public function revoke(User $user, AgencyUpgradeRequest $request): bool
     {
-        if ((int) $request->submitted_by === (int) $user->id) {
+        if (BasePolicy::auteurEncoreMembre($user, $request->submitted_by, $request->agency_id)) {
             return true;
         }
 

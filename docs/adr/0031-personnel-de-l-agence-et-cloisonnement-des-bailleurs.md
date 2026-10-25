@@ -524,4 +524,13 @@ Un autre lot implémente D4 et cite cet amendement.
   `ColonneDeBailleurAgentCreateurTest` : agent créateur actif, suspendu et retiré, avec pour
   témoins le particulier, l'hôte `individual`, le bailleur bloqué, le bailleur de B agent suspendu
   de A, et le locataire.
-- D2, D3 et D4 : les lots qui les implémentent citent cet amendement.
+- D2 : [TCK-2290](../backlog/tickets/TCK-2290-demandeur-et-deposant-encore-membres.md). Le
+  demandeur est jugé par `MaintenanceRequestPolicy::isRequester` (lu par `view`,
+  `respondToResolution` et `actorsOf`) et par `MaintenanceRequest::scopeVisibleTo`, sur
+  `MembershipCapabilityResolver::agencesDuPersonnelParti` : les agences où il a tenu un profil
+  d'agent ou d'administrateur, de tout statut et supprimé compris, sans y être encore membre. Un
+  profil d'agent en `draft` (invitation non acceptée) n'a pas été tenu, et une délégation n'est pas
+  un profil. `BasePolicy::auteurEncoreMembre` est publique et statique, pour
+  `AgencyUpgradeRequestPolicy::revoke`, qui n'hérite pas de `BasePolicy`. Les tests sont
+  `DemandeurEncoreMembreTest` et `DeposantEncoreMembreTest`.
+- D3 et D4 : les lots qui les implémentent citent cet amendement.
