@@ -5,7 +5,6 @@ namespace App\Services\Reporting;
 use App\Models\Agency;
 use App\Models\Customer;
 use App\Models\Enums\LeasePaymentType;
-use App\Models\Enums\PaymentStatus;
 use App\Models\LeasePayment;
 use App\Models\User;
 use App\Services\Dashboard\CollectedPayments;
@@ -106,8 +105,7 @@ class AgingBalanceService
             ->join('leases', 'leases.id', '=', 'lease_payments.lease_id')
             ->whereNull('leases.deleted_at')
             ->where('leases.agency_id', $agency->id)
-            ->where('lease_payments.status', PaymentStatus::Paid->value)
-            ->whereIn('lease_payments.payment_type', [LeasePaymentType::Deposit->value, LeasePaymentType::DepositRefund->value])
+            ->paidDepositMovements()
             ->toBase()
             ->selectRaw('leases.landlord_id AS landlord_id, SUM(CASE WHEN lease_payments.payment_type = ? THEN lease_payments.amount ELSE -lease_payments.amount END) AS held', [LeasePaymentType::Deposit->value])
             ->groupBy('leases.landlord_id')

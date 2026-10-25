@@ -1,8 +1,8 @@
 # ADR-0039 — Les sorties d'argent : brut calculé, bénéficiaire explicite, quatre yeux, décaissement manuel tracé, factures numérotées à l'émission
 
-- **Statut** : Accepté, **amendé le 2026-10-23** (cf. § *Amendement du 2026-10-23 — le remboursement déjà sorti devient un `Payout` constaté*), **le 2026-10-24** (cf. § *Amendement du 2026-10-24 — la reprise au bailleur, le relevé lu par la copie, la pénalité de retard reversée*) et **le 2026-10-25** (cf. § *Amendement du 2026-10-25 — la facture d'une intervention contestée ou annulée*)
+- **Statut** : Accepté, **amendé le 2026-10-23** (cf. § *Amendement du 2026-10-23 — le remboursement déjà sorti devient un `Payout` constaté*), **le 2026-10-24** (cf. § *Amendement du 2026-10-24 — la reprise au bailleur, le relevé lu par la copie, la pénalité de retard reversée*) **le 2026-10-25** (cf. § *Amendement du 2026-10-25 — la facture d'une intervention contestée ou annulée*) et **le 2026-10-25 (bis)** (cf. § *Amendement du 2026-10-25 (bis) — la restitution de caution bornée à la caution encaissée*)
 - **Date** : 2026-10-07
-- **Tickets** : [TCK-594](../backlog/tickets/TCK-594-sorties-d-argent-calculees-et-validees.md), [TCK-2270](../backlog/tickets/TCK-2270-facture-d-intervention-contestee-ou-annulee.md) (amendement du 2026-10-25)
+- **Tickets** : [TCK-594](../backlog/tickets/TCK-594-sorties-d-argent-calculees-et-validees.md), [TCK-2270](../backlog/tickets/TCK-2270-facture-d-intervention-contestee-ou-annulee.md) (amendement du 2026-10-25), [TCK-2340](../backlog/tickets/TCK-2340-restitution-de-caution-bornee-a-l-encaisse.md) (amendement du 2026-10-25, bis)
 - **Précise** : le principe non négociable n° 3 (« le montant est décimal en base, entier ×100 à la
   frontière du driver »), [ADR-0007](0007-pas-d-enum-sql.md) (pas d'`enum()` SQL) et
   [ADR-0031](0031-personnel-de-l-agence-et-cloisonnement-des-bailleurs.md) (le bénéficiaire ne gère
@@ -972,3 +972,63 @@ avis à l'agence, sinon.**
     et celle de A `cancelled` ;
   - P224.03 : seconde fin à 80 000 → facture ouverte de 80 000, `exceeds_quote`, la première
     `cancelled`.
+
+## Amendement du 2026-10-25 (bis) — la restitution de caution bornée à la caution encaissée
+
+Décision du porteur du 2026-10-25, sur la piste P04.10 (angle 4 du fichier de pistes,
+`docs/plans/2026-10-15-pistes-d-amelioration.md`). Elle précise le § 4, qui définit le restituable
+(`deposit_remaining`). Relu sur `pre-dev` f10a94ff3. Ticket :
+[TCK-2340](../backlog/tickets/TCK-2340-restitution-de-caution-bornee-a-l-encaisse.md).
+
+### Constat
+
+- Le restituable valait `deposit_amount − deposit_refunded_amount −` la retenue vivante : il partait
+  du montant écrit au bail, et aucune ligne ne lisait une échéance `deposit` payée
+  (`DepositRefundService::refund`, `Lease::getDepositRemainingAttribute`). **Mesuré** : bail terminé,
+  caution de 600 000 au bail, aucune échéance payée → restitution de 600 000 acceptée ; caution
+  encaissée à 300 000 → restitution partielle de 200 000 avec une retenue facturée de 400 000.
+- Les rapports définissaient déjà la caution détenue autrement : `Σ deposit payés − Σ deposit_refund
+  payés` (`PortfolioMetrics::depositsHeld`, `AgingBalanceService::depositsHeld`). La restitution était
+  la seule à suivre une autre règle.
+
+### Décision
+
+**La restitution d'une caution est bornée à la caution réellement encaissée : Σ des échéances
+`deposit` payées − déjà rendu − retenue vivante, la définition qu'emploient déjà les rapports.**
+
+1. **L'encaissé** est `Lease::collectedDeposit()` : la somme des échéances `deposit` payées du bail,
+   lue par le scope `LeasePayment::paidDepositMovements()` (lignes `deposit` et `deposit_refund`
+   payées), que les deux rapports lisent aussi. La définition vit en un endroit.
+2. **Le restituable** devient `min(deposit_amount, encaissé) − deposit_refunded_amount −` la retenue
+   vivante, borné à 0. « Déjà rendu » reste `deposit_refunded_amount` : il compte une restitution en
+   cours et la retire quand elle est refusée ou échoue (`PayoutService::releaseDeposit`) ; le compter
+   par les seules lignes `deposit_refund` payées laisserait rendre deux fois une caution dont le
+   premier reversement attend son approbation. Le montant du bail reste un plafond : une échéance
+   payée au-delà ne se rend pas au-delà.
+3. **La retenue** d'une restitution partielle suit : elle vaut le restituable moins le rendu, donc
+   jamais plus que ce qui est entré.
+4. **Rien d'encaissé** : `refund` refuse avec `deposit_refund.not_collected` (422), et non plus
+   `already_refunded`. L'écran suit `deposit_remaining`, comme avant : le bouton disparaît.
+5. **Une caution reçue hors plateforme** entre dans l'encaissé par le `mark-paid` de son échéance
+   (TCK-681) ; l'échéance naît de l'échéancier, jamais à la main (TCK-1920).
+
+### Ce qui n'est pas gardé
+
+- **Une restitution déjà faite au-delà de la borne n'est ni réécrite ni annulée** : sa ligne
+  `deposit_refund`, son reversement et `deposit_refunded_amount` restent tels quels, le restituable
+  vaut 0 et une nouvelle restitution est refusée. Aucune migration ne relit l'existant.
+- **Un bail sans échéance de caution** (bail importé, caution remise avant l'échéancier) ne se
+  restitue plus par la plateforme tant que son échéance n'est pas posée et réglée. Aucune dérogation
+  « caution remise hors plateforme » n'est ouverte.
+- Le titre du bandeau de l'écran ne distingue pas « non encaissée » de « à rembourser ».
+
+### Application
+
+- `LeasePayment::scopePaidDepositMovements()` ; `Lease::collectedDeposit()` ;
+  `Lease::getDepositRemainingAttribute()` ; le refus de `DepositRefundService::refund` ; le code
+  `deposit_refund.not_collected` (`lang/{fr,en,wo}/errors.php`, `wo` = `fr`).
+- La fabrique `LeaseFactory::withCollectedDeposit()` pose l'échéance payée des tests qui restituent.
+- **Gardes**, vérifiées par ablation (`tests/Feature/Lease/DepositRefundBoundedToCollectedTest.php`) :
+  rien d'encaissé → refus et rien de créé ; encaissé en partie → restitution et retenue bornées ;
+  seules les échéances `deposit` payées du bail comptent ; le montant du bail plafonne l'encaissé ;
+  une restitution passée au-delà de la borne reste intacte.

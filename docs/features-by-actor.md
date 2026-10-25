@@ -488,7 +488,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P1 | §1.4 | Appliquer automatiquement des pénalités de retard sur les paiements en retard |
 | P1 | §1.4 | Choisir, par agence, si les pénalités de retard s'encaissent avec le paiement en ligne du loyer — désactivé par défaut (TCK-593) |
 | P1 | §1.4 | Enregistrer une pénalité de retard réglée à l'agence ; la quittance la dit acquittée ou restant due (TCK-593) |
-| P1 | §1.4 | Remboursement de la caution en fin de bail |
+| P1 | §1.4 | Remboursement de la caution en fin de bail, borné à la caution encaissée (échéances `deposit` payées, moins le rendu et la retenue) ; une caution jamais encaissée ne se rembourse pas (TCK-2340) |
 | P1 | §1.4 | Consultation de l'historique complet d'un bail |
 | P2 | §1.4 | Renouveler un bail ou créer un avenant (loyer, durée, conditions) avec traçabilité du bail parent ; le bail renouvelé reçoit son échéancier sans geste manuel (TCK-596) |
 | P2 | §1.4 | Résiliation anticipée avec calcul des pénalités |

@@ -23,7 +23,7 @@ class LeaseRefundTest extends TestCase
     {
 
         $landlord = $this->actingAsRole('agency_admin');
-        $lease = Lease::factory()->create([
+        $lease = Lease::factory()->withCollectedDeposit()->create([
             'landlord_id' => $landlord->id,
             'agency_id' => $landlord->agency_id,
             'status' => LeaseStatus::Terminated,
@@ -45,7 +45,7 @@ class LeaseRefundTest extends TestCase
     {
 
         $landlord = $this->actingAsRole('agency_admin');
-        $lease = Lease::factory()->active()->create([
+        $lease = Lease::factory()->active()->withCollectedDeposit()->create([
             'landlord_id' => $landlord->id,
             'agency_id' => $landlord->agency_id,
             'deposit_amount' => 500000,
@@ -61,7 +61,7 @@ class LeaseRefundTest extends TestCase
     {
 
         $landlord = $this->actingAsRole('agency_admin');
-        $lease = Lease::factory()->create([
+        $lease = Lease::factory()->withCollectedDeposit()->create([
             'landlord_id' => $landlord->id,
             'agency_id' => $landlord->agency_id,
             'status' => LeaseStatus::Terminated,
@@ -80,7 +80,7 @@ class LeaseRefundTest extends TestCase
     public function test_early_termination_creates_penalty_payment(): void
     {
         $landlord = User::factory()->create();
-        $lease = Lease::factory()->active()->create([
+        $lease = Lease::factory()->active()->withCollectedDeposit()->create([
             'landlord_id' => $landlord->id,
             'end_date' => now()->addMonths(6)->toDateString(),
             'monthly_rent' => 300000,

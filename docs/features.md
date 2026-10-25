@@ -194,7 +194,7 @@ Gestion complète d'un contrat de bail et de son cycle de vie.
 | P1 | 🧑‍💼🏢 | Enregistrer une pénalité de retard réglée à l'agence ; la quittance la dit acquittée ou restant due (TCK-593) |
 | P1 | 🏠 | Payer en ligne une échéance de loyer (Wave / Orange Money) pour le montant réellement dû : le restant du loyer, plus la pénalité de retard appliquée **si l'agence l'a choisi** (réglage d'agence, désactivé par défaut — sinon la pénalité reste due et s'affiche à part, « à régler auprès de l'agence ») ; le montant est figé à l'ouverture du paiement ; une échéance payée ou remboursée ne peut pas être repayée (TCK-593) |
 | P1 | 🏠🏢 | Télécharger le contrat de bail en PDF depuis le détail du bail (TCK-593) |
-| P1 | 🧑‍💼 | Remboursement de la caution en fin de bail |
+| P1 | 🧑‍💼 | Remboursement de la caution en fin de bail, borné à la caution encaissée (échéances `deposit` payées, moins le rendu et la retenue) ; une caution jamais encaissée ne se rembourse pas (TCK-2340) |
 | P1 | 🏢🧑‍💼 | Consultation de l'historique complet d'un bail |
 | P2 | 🏢🧑‍💼 | Renouveler un bail ou créer un avenant (loyer, durée, conditions) avec traçabilité du bail parent ; le bail renouvelé reçoit son échéancier sans geste manuel (TCK-596) |
 | P2 | 🏢🧑‍💼 | Résiliation anticipée avec calcul des pénalités |

@@ -16,6 +16,7 @@ use App\Models\Enums\BankStatementStatus;
 use App\Models\Enums\Capability;
 use App\Models\Enums\InvoiceKind;
 use App\Models\Enums\InvoiceStatus;
+use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Enums\PayoutStatus;
@@ -219,6 +220,7 @@ class PayoutBypassTest extends TestCase
         $landlord = $this->landlordOf($agency);
         $lease = $this->leaseOf($agency, $landlord);
         $lease->forceFill(['status' => LeaseStatus::Terminated, 'deposit_amount' => 1_500_000])->save();
+        $this->leasePayment($lease, (float) $lease->deposit_amount, LeasePaymentType::Deposit);
         $admin = $this->agencyAdmin($agency);
         $approver = $this->agencyAdmin($agency);
         $this->actingWithStepUp($admin);
@@ -596,6 +598,7 @@ class PayoutBypassTest extends TestCase
         $agency->forceFill(['payout_approval_threshold' => 0])->save();
         $lease = $this->leaseOf($agency, $this->landlordOf($agency));
         $lease->forceFill(['status' => LeaseStatus::Terminated, 'deposit_amount' => 400_000])->save();
+        $this->leasePayment($lease, (float) $lease->deposit_amount, LeasePaymentType::Deposit);
         $this->actingWithStepUp($this->agencyAdmin($agency));
 
         $id = $this->postJson("/api/leases/{$lease->id}/deposit-refund", ['amount' => 400_000])->assertCreated()->json('data.payout_id');
@@ -603,7 +606,7 @@ class PayoutBypassTest extends TestCase
 
         $this->assertEquals(0, (float) $lease->fresh()->deposit_refunded_amount);
         $this->assertNull($lease->fresh()->deposit_refunded_at);
-        $this->assertSame(PaymentStatus::Failed, LeasePayment::query()->where('lease_id', $lease->id)->sole()->status);
+        $this->assertSame(PaymentStatus::Failed, LeasePayment::query()->where('lease_id', $lease->id)->where('payment_type', LeasePaymentType::DepositRefund)->sole()->status);
         $this->assertSame(1, DB::table('activity_log')->where('event', 'deposit_refund_reversed')->where('subject_id', $lease->id)->count());
 
         $this->postJson("/api/leases/{$lease->id}/deposit-refund", ['amount' => 400_000])->assertCreated();
@@ -622,6 +625,7 @@ class PayoutBypassTest extends TestCase
         $agency = $this->moneyAgency();
         $lease = $this->leaseOf($agency, $this->landlordOf($agency));
         $lease->forceFill(['status' => LeaseStatus::Terminated, 'deposit_amount' => 400_000])->save();
+        $this->leasePayment($lease, (float) $lease->deposit_amount, LeasePaymentType::Deposit);
         $this->actingWithStepUp($this->agencyAdmin($agency));
 
         $partial = $this->postJson("/api/leases/{$lease->id}/deposit-refund", ['amount' => 100_000, 'reason' => 'peinture'])->assertCreated();
@@ -778,6 +782,7 @@ class PayoutBypassTest extends TestCase
         $agency = $this->moneyAgency();
         $lease = $this->leaseOf($agency, $this->landlordOf($agency));
         $lease->forceFill(['status' => LeaseStatus::Terminated, 'deposit_amount' => $deposit])->save();
+        $this->leasePayment($lease, (float) $lease->deposit_amount, LeasePaymentType::Deposit);
 
         return [$lease, $this->agencyAdmin($agency)];
     }

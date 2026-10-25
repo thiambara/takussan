@@ -152,6 +152,7 @@ return [
         'exceeds_remaining' => 'Amount exceeds the remaining deposit balance.',
         'lease_not_ended' => 'The lease must be terminated or expired to refund the deposit.',
         'no_deposit' => 'No deposit amount to refund.',
+        'not_collected' => 'No deposit has been collected for this lease: there is nothing to refund.',
         'reason_required' => 'A reason is required for a partial refund.',
     ],
     'document' => [

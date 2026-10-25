@@ -152,6 +152,7 @@ return [
         'exceeds_remaining' => 'Le montant dépasse la caution restante à rembourser.',
         'lease_not_ended' => 'Le bail doit être terminé ou expiré pour rembourser la caution.',
         'no_deposit' => 'Aucun montant de caution à rembourser.',
+        'not_collected' => 'Aucune caution n\'a été encaissée pour ce bail : rien n\'est à rembourser.',
         'reason_required' => 'Un motif est obligatoire pour un remboursement partiel.',
     ],
     'document' => [

@@ -4,10 +4,12 @@ namespace Database\Factories;
 
 use App\Models\Customer;
 use App\Models\Enums\Currency;
+use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\LeaseType;
 use App\Models\Enums\PaymentFrequency;
 use App\Models\Lease;
+use App\Models\LeasePayment;
 use App\Models\Property;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -44,5 +46,26 @@ class LeaseFactory extends Factory
             'status' => LeaseStatus::Active,
             'signed_at' => now(),
         ]);
+    }
+
+    /**
+     * TCK-2340 (P04.10) — la caution du bail est encaissée : une échéance `deposit` payée de
+     * `deposit_amount`. Sans elle, la caution ne se restitue pas (`Lease::collectedDeposit`).
+     */
+    public function withCollectedDeposit(): static
+    {
+        return $this->afterCreating(function (Lease $lease): void {
+            if ((float) ($lease->deposit_amount ?? 0) <= 0) {
+                return;
+            }
+
+            LeasePayment::factory()->paid()->create([
+                'lease_id' => $lease->id,
+                'payer_id' => $lease->tenant_id ?? Customer::factory(),
+                'payment_type' => LeasePaymentType::Deposit,
+                'amount' => $lease->deposit_amount,
+                'currency' => $lease->currency,
+            ]);
+        });
     }
 }
