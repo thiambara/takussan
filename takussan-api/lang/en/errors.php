@@ -157,6 +157,7 @@ return [
     'document' => [
         'file_missing' => 'No file is attached to this document.',
         'owner_not_found' => 'The item to attach the document to was not found.',
+        'profile_piece_not_versioned' => 'A profile document cannot be versioned: upload it again from your profile.',
         'pdf_template_missing' => 'The document template was not found.',
         'pdf_uploader_missing' => 'The document cannot be generated without an author.',
         'unsupported_type' => 'This kind of item cannot hold documents.',
