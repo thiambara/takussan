@@ -1099,7 +1099,13 @@ retenue vivante), la définition qu'emploient déjà les rapports.**
 2. **Son règlement** passe par les chemins existants, sans code neuf : le paiement en ligne
    (Wave / Orange Money, lien de paiement compris) et `mark-paid` (TCK-681). Elle reste hors du
    reversement au bailleur, des encaissements et des pénalités de retard, qui ne lisent que leurs
-   types (`PayoutCalculator`, `CollectedPayments`, `ApplyLateFeesJob`).
+   types (`PayoutCalculator`, `CollectedPayments`, `ApplyLateFeesJob`). **Elle n'est pas relancée**
+   (`SendLeasePaymentReminders` l'écarte) : aucun texte de relance de caution n'existe, et ceux du
+   loyer lui annonceraient « Votre loyer de… ». **La sortie du locataire l'annule** quand elle est
+   encore due (`pending`, `late`, `failed`) : `LeaseExitScheduleService::cancelAfterExit`
+   (résiliation immédiate, confirmation d'une résiliation anticipée), tracée sous
+   `cancelled_deposits`. Réglée, en partie réglée ou sous un checkout ouvert, elle reste telle
+   quelle, sans refuser la sortie.
 3. **L'encaissé** est `Lease::collectedDeposit()` : la somme des échéances `deposit` payées du bail
    **et des baux qu'il renouvelle**, lue par le scope `LeasePayment::paidDepositMovements()` que les
    deux rapports lisent aussi.
@@ -1120,9 +1126,10 @@ retenue vivante), la définition qu'emploient déjà les rapports.**
 - **Un renouvellement qui relève la caution** (`deposit_amount` plus haut que le parent) n'écrit
   pas d'échéance du complément : l'encaissé de la chaîne borne la restitution.
 - **Une restitution déjà faite au-delà de la borne n'est ni réécrite ni annulée.**
-- **L'échéance de caution est relancée comme une échéance de loyer** (`SendLeasePaymentReminders`
-  ne lit pas le type) : les textes de relance disent « loyer ».
-- **Un bail résilié avant le règlement de sa caution** garde son échéance `deposit` en attente.
+- **Aucun texte de relance de caution** : l'échéance n'est pas relancée tant qu'il n'est pas
+  décidé.
+- **Un bail échu** (`expired`) sans avoir réglé sa caution garde son échéance en attente, non
+  relancée : l'échéance ne s'annule qu'à une sortie anticipée.
 
 ### Application
 
@@ -1136,4 +1143,6 @@ retenue vivante), la définition qu'emploient déjà les rapports.**
   douze loyers d'un bail sans fin ; réglée par `mark-paid` puis restituée ; payée en ligne et
   comptée par la balance âgée) et `tests/Feature/Lease/DepositRefundBoundedToCollectedTest.php`
   (rien d'encaissé → refus ; encaissé en partie → restitution et retenue bornées ; le montant du
-  bail plafonne ; la chaîne de renouvellements, encaissé et rendu).
+  bail plafonne ; la chaîne de renouvellements, encaissé et rendu) ;
+  `SendLeasePaymentRemindersTest` (aucune relance de caution) et `LeaseExitScheduleTest`
+  (annulation à la sortie, caution engagée gardée).

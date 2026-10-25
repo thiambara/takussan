@@ -71,6 +71,8 @@ Réf : **P04.10** du fichier de pistes, `validé`.
 - [x] `DepositRefundService::refund` : refus `deposit_refund.not_collected` ; textes `fr`, `en`,
       `wo` = `fr`.
 - [x] ADR-0039 amendé (2026-10-25), `docs/adr/README.md`, `docs/features.md` § 1.4.
+- [x] Compléments de la session : `SendLeasePaymentReminders` ne relance pas l'échéance de caution ;
+      `LeaseExitScheduleService::cancelAfterExit` annule celle encore due à la sortie.
 
 ## Critères d'acceptation
 
@@ -89,12 +91,19 @@ Réf : **P04.10** du fichier de pistes, `validé`.
       restitution passée au-delà n'est pas réécrite.
 - [x] AC8 — Le dernier bail d'une chaîne de renouvellements restitue la caution encaissée sur le
       bail d'origine ; une caution déjà rendue sur un bail antérieur ne se rend pas une seconde fois.
+- [x] AC9 — L'échéance de caution n'est relancée ni à J-3 ni en retard, et le bailleur n'en est pas
+      avisé ; un loyer du même jour l'est toujours.
+- [x] AC10 — La résiliation immédiate et la confirmation d'une résiliation anticipée annulent
+      l'échéance de caution `pending`, `late` ou `failed` (journal `cancelled_deposits`) ; réglée,
+      en partie réglée ou sous un checkout ouvert, elle reste telle quelle et la sortie passe.
 
 ## Hors périmètre
 
 - La reprise des baux activés avant ce changement (aucune échéance de caution).
 - L'échéance du complément quand un renouvellement relève la caution.
-- Le texte des relances, qui dit « loyer » pour toute échéance, caution comprise.
+- **Un texte de relance de l'échéance de caution, à décider** : d'ici là, elle n'est pas relancée
+  (les textes de loyer lui annonceraient « Votre loyer de… »).
+- Un bail échu (`expired`) sans avoir réglé sa caution garde son échéance en attente, non relancée.
 
 ## Notes d'implémentation
 
@@ -110,5 +119,8 @@ Réf : **P04.10** du fichier de pistes, `validé`.
   - compteur unique (caution dans le plafond de douze) → 1 rouge ;
   - borne retirée → 6 rouges ;
   - refus `not_collected` retiré → 3 rouges.
+- **Compléments** (`SendLeasePaymentRemindersTest`, `LeaseExitScheduleTest`, 3 rouges avant
+  correctif) ; ablations : filtre de la relance retiré → 1 rouge ; annulation à la sortie retirée →
+  2 rouges ; garde « engagée » retirée → 1 rouge (checkout ouvert annulé).
 - `GenerateLeasePaymentScheduleTest` : les tests de périodes lisent les seuls loyers, et le témoin
   P46.04 compte une ligne de plus (sa caution).
