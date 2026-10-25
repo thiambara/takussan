@@ -125,13 +125,13 @@ Lot A — désignation, bail, copie et lot :
 
 Lot B — le relevé suit le reversement (Q1) :
 
-- [ ] Un prédicat unique du bénéficiaire, appelé par `PayoutService::create`,
+- [x] Un prédicat unique du bénéficiaire, appelé par `PayoutService::create`,
   `OwnerStatementPolicy::view` et `SendOwnerStatements`.
-- [ ] Test `OwnerStatementBeneficiaryTest` : pour un même bien, le bénéficiaire du reversement est
+- [x] Test `OwnerStatementBeneficiaryTest` : pour un même bien, le bénéficiaire du reversement est
   le lecteur du relevé et le destinataire de l'avis (AC5, AC8).
-- [ ] P232.07 (porteur, 2026-10-25) : « dans le prédicat unique de bénéficiaire de TCK-997, la branche du personnel exige un profil actif ; la branche du bailleur garde l'appartenance ».
-- [ ] Le reste de P232.05 (porteur, 2026-10-25) : « `agenciesOwingPayout` aligné sur le prédicat de bénéficiaire de P232.07 (TCK-997) ». Dans `AccountDeletionService` ; `collectOpenObligations` n'est pas touchée ici (lot D1).
-- [ ] Contrainte de P15.06 (porteur, 2026-10-25) : « les biens déjà saisis ne changent pas de titulaire en silence au déploiement ». Aucune migration de données ne réécrit `user_id`.
+- [x] P232.07 (porteur, 2026-10-25) : « dans le prédicat unique de bénéficiaire de TCK-997, la branche du personnel exige un profil actif ; la branche du bailleur garde l'appartenance ».
+- [x] Le reste de P232.05 (porteur, 2026-10-25) : « `agenciesOwingPayout` aligné sur le prédicat de bénéficiaire de P232.07 (TCK-997) ». Dans `AccountDeletionService` ; `collectOpenObligations` n'est pas touchée ici (lot D1).
+- [x] Contrainte de P15.06 (porteur, 2026-10-25) : « les biens déjà saisis ne changent pas de titulaire en silence au déploiement ». Aucune migration de données ne réécrit `user_id`.
 
 Lot C — écrans :
 

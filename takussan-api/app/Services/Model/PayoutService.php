@@ -23,11 +23,10 @@ use App\Models\LeasePayment;
 use App\Models\Payout;
 use App\Models\PayoutMethod;
 use App\Models\Profiles\AgencyAdminProfile;
-use App\Models\Profiles\AgentProfile;
-use App\Models\Profiles\OwnerProfile;
 use App\Models\ServiceProviderBill;
 use App\Models\User;
 use App\Services\Notifications\NotificationRenderer;
+use App\Services\Payout\BeneficiaireDuReversement;
 use App\Services\Payout\PayoutApprovalRule;
 use App\Services\Payout\PayoutApprovers;
 use App\Services\Payout\PayoutCalculator;
@@ -90,10 +89,9 @@ class PayoutService
 
         // TCK-528 — le bailleur doit tenir un profil DANS l'agence de l'émetteur.
         abort_code_unless(
-            // TCK-587 — APPARTENANCE du bénéficiaire, sans filtre de statut.
-            $landlord->hasProfileAt((int) $agency->id, OwnerProfile::class)
-            || $landlord->hasProfileAt((int) $agency->id, AgentProfile::class)
-            || $landlord->hasProfileAt((int) $agency->id, AgencyAdminProfile::class),
+            // TCK-997 (P232.07) — la règle unique du bénéficiaire : le bailleur par APPARTENANCE
+            // (TCK-587), le personnel par un profil ACTIF.
+            BeneficiaireDuReversement::est($landlord, (int) $agency->id),
             403,
             'payout.landlord_not_in_agency',
         );
