@@ -1,7 +1,7 @@
 ---
 id: TCK-2367
 title: "Le compteur d'échecs de connexion s'écrit en base, le remboursement d'une Vedette et le montant d'une demande de séjour se calculent sur la ligne relue sous verrou"
-status: todo
+status: done
 phase: P2
 family: bug
 estimate: S
@@ -70,32 +70,49 @@ de 497. (P246.02) prix passé de 50 000 à 80 000 après la liaison de la route 
 
 ## Delta à produire
 
-- [ ] `LoginLock::recordFailure` : un `UPDATE users … RETURNING metadata` qui joue la règle en SQL ;
-  `clear` et `UserSupportService::unlock` : retrait atomique des trois clés.
-- [ ] `UserSupportService::resetTwoFactor`, `TwoFactorController::enable`,
+- [x] `LoginLock::recordFailure` : un `UPDATE users … RETURNING metadata` qui joue la règle en SQL ;
+  `clear` et `UserSupportService::unlock` : retrait atomique des trois clés. L'écriture passe par
+  `App\Services\Auth\MetadataDuCompte` (`ecrire`, `poser`, `retirer`).
+- [x] `UserSupportService::resetTwoFactor`, `TwoFactorController::enable`,
   `SuperAdminTwoFactorController` : `force_2fa_reconfigure` écrit ou retiré par `jsonb_set` / `-`.
-- [ ] `BoostLifecycle::closeWithRefund` : boost relu sous verrou dans la transaction, remboursement
+- [x] `BoostLifecycle::closeWithRefund` : boost relu sous verrou dans la transaction, remboursement
   calculé sur lui.
-- [ ] `PublicPropertyController::bookingRequest` : montants et devise calculés sur le bien relu sous
+- [x] `PublicPropertyController::bookingRequest` : montants et devise calculés sur le bien relu sous
   verrou.
-- [ ] Tests : `tests/Feature/Auth/Session/EchecsDeConnexionCroisesTest.php`,
+- [x] Tests : `tests/Feature/Auth/Session/EchecsDeConnexionCroisesTest.php`,
   `tests/Feature/Boost/AnnulationRembourseeFaceAProlongationTest.php`,
   `tests/Feature/Public/DemandeDeSejourAuPrixReluTest.php`.
 
 ## Critères d'acceptation
 
-- [ ] AC1 (P245.02) — Un échec écrit en base après la lecture du compte par `login()`, puis le
+- [x] AC1 (P245.02) — Un échec écrit en base après la lecture du compte par `login()`, puis le
   mauvais mot de passe → `failed_login_attempts = 2`.
-- [ ] AC2 (P245.02) — La réinitialisation de la 2FA écrite après la lecture du compte, puis un
+- [x] AC2 (P245.02) — La réinitialisation de la 2FA écrite après la lecture du compte, puis un
   échec → `force_2fa_reconfigure` présent, compteur à 1.
-- [ ] AC3 (P245.02) — Un échec écrit après la lecture du compte par `resetTwoFactor` → compteur
+- [x] AC3 (P245.02) — Un échec écrit après la lecture du compte par `resetTwoFactor` → compteur
   conservé, drapeau posé.
-- [ ] AC4 (P245.02) — La règle du compteur ne change pas : `PasswordLoginLockTest`,
+- [x] AC4 (P245.02) — La règle du compteur ne change pas : `PasswordLoginLockTest`,
   `LoginFailureWindowTest`, `ThirdPartyLockTest`, `UserSupportTest`, `ForceTwoFactorReconfigureTest`
   verts.
-- [ ] AC5 (P246.01) — Vedette prolongée après la lecture de l'annulation remboursée → remboursement
+- [x] AC5 (P246.01) — Vedette prolongée après la lecture de l'annulation remboursée → remboursement
   calculé sur la ligne relue (37), solde 497.
-- [ ] AC6 (P246.02) — Prix changé après la liaison de la route → la demande de séjour porte le total
+- [x] AC6 (P246.02) — Prix changé après la liaison de la route → la demande de séjour porte le total
   et l'acompte du prix relu.
 
 ## Notes d'implémentation
+
+- **Ablation** (fichiers de code remis à leur version d'avant, puis le correctif remis) : P245.02 →
+  6 rouges sur 6 (`EchecsDeConnexionCroisesTest`), puis 6 verts ; P246.01 → le test de la
+  prolongation rouge (17 au lieu de 37), celui sans prolongation vert, puis 2 verts ; P246.02 → rouge
+  sur l'égalité du total de la demande et du devis du prix relu (`240000.00`), puis vert.
+- **Concurrence réelle** (P245.02), jouée hors suite sur une base jetable du conteneur : une session
+  tient la ligne avec un premier échec et le drapeau, l'`UPDATE` de `recordFailure` attend son verrou,
+  puis rend `failed_login_attempts = 2` et garde le drapeau. PostgreSQL rejoue bien l'expression, sous
+  requêtes `LATERAL` comprises, sur la version commitée. L'écouteur `retrieved` des tests ne joue que
+  le cas « écrit avant l'`UPDATE` ».
+- `?|` n'est pas utilisable derrière PDO (le `?` y devient un paramètre) : la condition de `retirer`
+  passe par `jsonb_exists_any()`.
+- `now()` entre en paramètre ISO 8601 (`::timestamptz`), jamais `now()` de PostgreSQL : le temps des
+  tests (`travelTo`) reste celui de la règle, et la liaison d'un `Carbon` perdrait son fuseau.
+- Pas d'amendement d'ADR : les trois décisions disent où le calcul se fait, pas ce qu'il rend. Les
+  règles d'ADR-0033 § 6 (verrou) et d'ADR-0061 § 8 (remboursement) sont inchangées.
