@@ -101,7 +101,9 @@ describe('<InviteMemberButton>', () => {
   it("l'admin n'a plus que « Inviter » : le rattachement direct est retiré", () => {
     monter(true);
     expect(screen.getByRole('button', { name: /^Inviter$/ })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /compte existant/i })).toBeNull();
+    // Compté, et non cherché par son libellé : la clé partie avec le geste, le bouton
+    // ressuscité s'afficherait sous sa clé brute, que « compte existant » ne trouve pas.
+    expect(screen.getAllByRole('button')).toHaveLength(1);
   });
 
   it('« Inviter » ouvre le dialogue d’invitation', async () => {
