@@ -1,14 +1,9 @@
 'use client';
 
-// TCK-256 — TODO: when this form gains an "owner" select, add an
-// "Inviter un nouveau propriétaire" option that mounts the shared
-// `<InviteOwnerSheet>` (see `src/components/owners/InviteOwnerSheet.tsx`).
-// On success, auto-select the freshly invited owner via the sheet's
-// `onInvited` callback. The sheet handles its own visibility gate
-// (`agency.kind === 'standard'` + `invite_owner` permission), so the
-// option only needs to surface when the property form is rendered for
-// a standard-kind agency. Out of scope for TCK-256: adding the owner
-// select itself.
+// TCK-256 — « Inviter un nouveau propriétaire » vit dans le choix du bailleur de l'assistant de
+// création (`ChoixDuBailleur`, TCK-1000), qui monte le `<InviteOwnerSheet>` partagé et lie le bien
+// au profil invité par le second argument d'`onInvited`. Ce formulaire est celui de l'ÉDITION : il
+// ne change jamais le titulaire (ADR-0036, amendement du 2026-10-19), et n'a pas de choix du bailleur.
 
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';

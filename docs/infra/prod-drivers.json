@@ -3,7 +3,7 @@
   "_pourquoi_ce_fichier": "`docs/configuration.md` se contredisait lui-même : sa ligne 422 affirmait « la production tourne en CACHE_STORE=database » quand sa checklist §5.7 prescrivait `CACHE_STORE=redis`, et les deux `.env` livrés déclarent `redis`. Trois réponses, un seul sujet. Le défaut n'est pas qu'une des trois soit fausse — c'est qu'il y en ait trois : une valeur recopiée dans trois documents diverge au premier changement, et rien ne le signale.",
   "_ce_que_ce_fichier_ne_dit_pas": "Que ces drivers FONCTIONNENT dans le conteneur. La préproduction le prouve autrement : `smoke-api.sh pile` en local (files consommées, cache, session) et le relevé d'hebergement.md sur le serveur (Redis joint, jobs consommés, `MAIL_MAILER=log` relu dans `api` et `worker`). Ce fichier ne dit rien non plus des VALEURS secrètes : elles ne sont relevées nulle part, par décision (ADR-0028, « Ce que ça coûte »).",
   "_mesure": {
-    "commande": "source ~/Sauvegardes/migration-secrets.env ; curl -sS -A curl/8 -H \"x-api-key: $DOKPLOY_API_KEY\" 'https://deploy.takussan.com/api/compose.one?composeId=<id>' | jq -r .env | grep -E '^(DB_CONNECTION|CACHE_STORE|SESSION_DRIVER|QUEUE_CONNECTION|MAIL_MAILER|SESSION_SECURE_COOKIE|SESSION_SAME_SITE)='",
+    "commande": "source ~/Sauvegardes/migration-secrets.env ; curl -sS -A curl/8 -H \"x-api-key: $DOKPLOY_API_KEY\" 'https://deploy.takussan.com/api/compose.one?composeId=<id>' | jq -r .env | grep -E '^(DB_CONNECTION|CACHE_STORE|SESSION_DRIVER|QUEUE_CONNECTION|MAIL_MAILER|SESSION_SECURE_COOKIE|SESSION_SAME_SITE|LOG_CHANNEL|LOG_LEVEL)='",
     "identifiants": "Takussan préproduction : composeId `JbPrtvdkuq0aLTDrOx2Ss` (`project.all`). La production n'existe pas encore (plan, F3).",
     "pourquoi_pas_en_ci": "L'environnement vit dans Dokploy, derrière une clé d'API : la CI ne le lit pas. `check-prod-drivers.mjs` signale les deux environnements comme hors dépôt et ne compare que la checklist §5.7 de docs/configuration.md au catalogue.",
     "apres_mesure": "Reporter les valeurs, dater, relancer `node scripts/check-prod-drivers.mjs --report`. Les CLÉS (sans valeur) de chaque environnement sont relevées dans docs/infra/hebergement.md, § « Les variables d'environnement, par service »."
@@ -74,6 +74,20 @@
           "date": "2026-10-22",
           "commande": "compose.one → env (Dokploy)",
           "note": "L'écriture dans l'index attend le commit (P123.03). `phpunit.xml` pose `false`."
+        },
+        "LOG_CHANNEL": {
+          "valeur": "stderr",
+          "etat": "mesure",
+          "date": "2026-10-25",
+          "commande": "python3 -I deploy/takussan/relever-cles-dokploy.py JbPrtvdkuq0aLTDrOx2Ss LOG_CHANNEL LOG_LEVEL",
+          "note": "P14.08 (2026-10-25) : les journaux partent sur la sortie du conteneur, que Docker garde jusqu'au remplacement du conteneur ; un déploiement les efface. Aucun collecteur de journaux, par décision : les erreurs sont gardées par P14.07 (JSON sur stdout). Relevé par `deploy/takussan/relever-cles-dokploy.py`, qui n'imprime que les clés demandées et refuse un nom de secret."
+        },
+        "LOG_LEVEL": {
+          "valeur": "info",
+          "etat": "mesure",
+          "date": "2026-10-25",
+          "commande": "python3 -I deploy/takussan/relever-cles-dokploy.py JbPrtvdkuq0aLTDrOx2Ss LOG_CHANNEL LOG_LEVEL",
+          "note": "P14.08 (2026-10-25). `LOG_STACK=single` est aussi déclarée, sans effet tant que `LOG_CHANNEL` n'est pas `stack`."
         }
       }
     },
@@ -124,6 +138,18 @@
           "etat": "prescrit",
           "date": "2026-09-14",
           "source": "plan d'ADR-0028, tâche F3, étape 1 : l'environnement de D1 (la préproduction ci-dessus) à ces différences près — MAIL_MAILER=resend, REDIS_DB/REDIS_CACHE_DB 2/3, SCOUT_PREFIX prod_"
+        },
+        "LOG_CHANNEL": {
+          "valeur": "stderr",
+          "etat": "prescrit",
+          "date": "2026-10-25",
+          "source": "plan d'ADR-0028, tâche F3, étape 1 : l'environnement de D1 (la préproduction ci-dessus), qui n'a pas de différence sur ces clés (P14.08, 2026-10-25)"
+        },
+        "LOG_LEVEL": {
+          "valeur": "info",
+          "etat": "prescrit",
+          "date": "2026-10-25",
+          "source": "plan d'ADR-0028, tâche F3, étape 1 : l'environnement de D1 (la préproduction ci-dessus), qui n'a pas de différence sur ces clés (P14.08, 2026-10-25)"
         }
       }
     }

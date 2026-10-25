@@ -159,7 +159,10 @@ function PopoverBody({ count, items, isLoading, onItemClick }: PopoverBodyProps)
       if (user) {
         // P228.03 (TCK-2214) — même contrat que `FavoriteButton` : un refus de l'API remet le
         // bien dans le store, sans quoi il disparaissait de la session en restant en base.
-        removeMutation.mutate({ property_id: id }, { onError: () => storeAdd(id) });
+        // P243.01 (TCK-2361) — par la promesse de `mutateAsync`, comme `useFavorite` : l'`onError`
+        // passé à `mutate()` ne part que pour le dernier appel, et jamais si le menu est fermé
+        // (donc ce corps démonté) avant la réponse. La promesse, elle, se rejette toujours.
+        removeMutation.mutateAsync({ property_id: id }).catch(() => storeAdd(id));
       }
     },
     [user, removeMutation],

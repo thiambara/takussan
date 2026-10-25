@@ -28,10 +28,11 @@ import { regenerateAgencyWatermarksAction } from '@/app/actions/admin-agency';
  *     l'écran dit que la demande est partie, il ne prétend pas que c'est fini. Le suivi de
  *     progression est hors périmètre (cf. le ticket).
  *
- * ⚠ Le bouton n'autorise rien. La garde serveur est `primary_admin_id === user->id` ou
- * super-admin — plus étroite que l'`isAdmin` qui donne accès à cette page. Un `agency_admin`
- * secondaire verra donc le refus de l'API, affiché tel quel plutôt que masqué : *un bouton
- * caché par prudence enlève le message d'erreur en même temps que le bouton.*
+ * ⚠ Le bouton n'autorise rien. La garde serveur est `AgencyPolicy::configure`, celle du logo
+ * (TCK-2311, P225.04) : l'admin de l'agence qui tient `agency.update`, l'admin principal et le
+ * super-admin. Un admin dont le rôle personnalisé retire `agency.update` ouvre pourtant cette
+ * page : il verra le refus de l'API, affiché tel quel plutôt que masqué. *Un bouton caché par
+ * prudence enlève le message d'erreur en même temps que le bouton.*
  */
 export function RegenerateWatermarksCard({ agencyId }: { readonly agencyId: number }) {
   const t = useTranslations('admin.agencyConfig.watermarks');

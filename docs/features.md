@@ -184,6 +184,7 @@ Gestion complète d'un contrat de bail et de son cycle de vie.
 | Prio | Acteurs | Fonctionnalité |
 |------|---------|----------------|
 | P1 | 🏢🧑‍💼 | Créer un bail (locataire, bailleur, durée, loyer, caution) |
+| P1 | 🏢🧑‍💼 | Créer le bail depuis une candidature acceptée (« Créer le bail » sur la réservation confirmée d'un bien à louer) : bien, locataire, dates et loyer préremplis ; le locataire est le client de la réservation, et la réservation passe à « terminée », ce qui libère ses dates (P48.03, TCK-2352) |
 | P1 | 🧑‍💼 | Ajouter un ou plusieurs garants avec documents joints |
 | P1 | 🏢🧑‍💼 | Générer l'échéancier de loyers mensuels |
 | P1 | 🏠🏢 | Enregistrer un paiement mensuel |
@@ -196,7 +197,7 @@ Gestion complète d'un contrat de bail et de son cycle de vie.
 | P1 | 🏠🏢 | Télécharger le contrat de bail en PDF depuis le détail du bail (TCK-593) |
 | P1 | 🧑‍💼 | Remboursement de la caution en fin de bail |
 | P1 | 🏢🧑‍💼 | Consultation de l'historique complet d'un bail |
-| P2 | 🏢🧑‍💼 | Renouveler un bail ou créer un avenant (loyer, durée, conditions) avec traçabilité du bail parent ; le bail renouvelé reçoit son échéancier sans geste manuel (TCK-596) |
+| P2 | 🏢🧑‍💼 | Renouveler un bail ou créer un avenant (loyer, durée, conditions) avec traçabilité du bail parent ; le bail renouvelé reçoit son échéancier sans geste manuel (TCK-596) ; il naît sans garant, et la réponse et le récapitulatif le disent (TCK-2316) |
 | P2 | 🏢🧑‍💼 | Résiliation anticipée avec calcul des pénalités |
 | P2 | 🏠🏢 | Révision annuelle du loyer (indice ou accord amiable) journalisée via le journal d'activité |
 | P2 | 🏠🏢 | Télécharger la quittance d'une échéance de loyer payée — jamais pour une échéance non acquittée (TCK-593) |
@@ -213,11 +214,11 @@ Encaissements, factures et reversements.
 |------|---------|----------------|
 | P0 | 🛡️ | Enregistrer un paiement (réservation ou bail) |
 | P1 | 🛡️🏢 | Générer une facture à un Customer destinataire |
-| P1 | 🛡️🏢 | Facture opposable : numérotation chronologique continue par agence et par an, attribuée à l'émission ; mentions légales de l'agence (raison sociale, NINEA, RCCM, adresse) ; TVA par défaut de l'agence ; une facture émise ne s'annule que par un avoir (TCK-594) |
+| P1 | 🛡️🏢 | Facture opposable : numérotation chronologique continue par agence et par an, attribuée à l'émission ; mentions légales de l'agence (raison sociale, NINEA, RCCM, adresse) ; TVA par défaut de l'agence ; une facture émise ne s'annule que par un avoir (TCK-594), qui reprend ses lignes et sa désignation (TCK-2316) |
 | P1 | 🏢 | Reversement au bailleur après commission (Payout) |
 | P1 | 🏢🏠 | Reversement au bailleur calculé depuis les loyers et réservations encaissés de la période (loyer, charges, pénalités, régularisations ; jamais la caution), commission du bail sinon de l'agence, frais de travaux refacturés déduits ; le brut n'est pas saisi et un paiement n'est reversé qu'une fois (TCK-594) |
 | P1 | 🏢🏠 | Un reversement ne cite que des paiements de l'agence et du bailleur concernés ; un remboursement de caution est un versement au locataire, jamais compté comme reversé au bailleur (TCK-594) |
-| P1 | 🏢🏠 | Relevé de gérance mensuel (PDF / CSV) par bien et consolidé, et attestation annuelle de revenus locatifs, envoyés au bailleur en début de mois (TCK-594) |
+| P1 | 🏢🏠 | Relevé de gérance mensuel (PDF / CSV) par bien et consolidé, et attestation annuelle de revenus locatifs, envoyés au bailleur en début de mois (TCK-594) ; le relevé mensuel envoyé est conservé tel qu'il a été envoyé, et ce qui a été écrit depuis se montre en rectificatif (TCK-2321) |
 | P1 | 🏢🛡️ | Double validation des sorties d'argent : la même personne ne tient jamais deux gestes consécutifs (préparer, approuver, marquer payé) ni n'approuve un versement dont elle est bénéficiaire. Reversements plateforme : toujours. Reversements d'agence : désactivée par défaut ; l'agence l'active par un seuil, possible seulement avec deux approbateurs (TCK-594) |
 | P1 | 🛡️ | Historique des paiements par entité (bien, bail, client) |
 | P1 | 🛡️ | Suivi des statuts (en attente, payé, remboursé, annulé) |
@@ -247,6 +248,8 @@ Gestion des contacts (Customer) liés ou non à un compte utilisateur.
 | P0 | 🧑‍💼 | Liste et recherche de clients |
 | P0 | 🧑‍💼 | Le CRM de l'agence n'est lu et alimenté que par son personnel ; un bailleur ne voit que les fiches qu'il a lui-même ajoutées (TCK-591) |
 | P1 | 🧑‍💼 | Lier un Customer à un User existant |
+| P1 | 🧑‍💼 | Inviter le client d'une fiche sans compte à créer son compte : un lien à usage unique part à l'e-mail de la fiche (ou à son numéro, si le lien par SMS est ouvert), et le compte qui l'accepte est relié à la fiche ; geste du personnel de l'agence de la fiche (TCK-2351) |
+| P1 | 🧑‍💼 | La fiche née d'une candidature, d'une offre ou d'une réservation est une fiche de l'agence du bien, reprise ou rattachée (coordonnée vérifiée) dans cette agence seule (TCK-2350) |
 | P1 | 🧑‍💼 | Définir la relation agent ↔ client (type, période) |
 | P1 | 🧑‍💼 | Joindre pièces d'identité et documents |
 | P1 | 🧑‍💼 | Historique d'interactions (via journal d'activité) |
@@ -369,7 +372,7 @@ Centralisation de tous les fichiers liés à une entité.
 | P1 | 🏢🏠 | Lien de partage d'un document : jeton stocké haché, accès public limité en débit, mot de passe envoyé dans le corps de la requête et protégé contre les essais répétés (TCK-602, TCK-587) |
 | P1 | 🧑‍💼 | Recherche dans la bibliothèque de documents |
 | P2 | 🧑‍💼 | Génération PDF (quittance, facture, bail) depuis templates |
-| P2 | 🧑‍💼 | Historique des versions d'un document (via medialibrary + journal d'activité) |
+| P2 | 🧑‍💼 | Historique des versions d'un document (via medialibrary + journal d'activité) ; la version active est le fichier servi partout, lien de partage et page publique d'un bien compris, et une nouvelle version repasse le document à « non vérifié », sans échéance sauf une neuve ; une pièce de profil ne se versionne pas (TCK-2300) |
 | P3 | 🧑‍💼 | Signature électronique intégrée des documents autres que le bail et l'état des lieux — le bail se signe par code à usage unique (§1.4, [ADR-0042](adr/0042-preuve-de-consentement-a-la-signature-du-bail.md)), l'état des lieux par le tracé de chaque partie (§1.9) (TCK-596) |
 | P3 | 🧑‍💼 | OCR et extraction automatique de données |
 
@@ -424,7 +427,7 @@ Une agence porte un **`kind`** :
 
 | Prio | Acteurs | Fonctionnalité |
 |------|---------|----------------|
-| P0 | 🛡️ | Créer et configurer une agence (nom, licence, contact, logo) |
+| P0 | 🛡️ | Configurer son agence (nom, licence, contact, logo). Une agence se crée par la console (super-admin) ou par l'espace hôte, jamais par `POST /api/agencies`, retirée (TCK-2311) |
 | P0 | 🛡️ | Ajouter et retirer des agents |
 | P0 | 🛡️ | Attribution de rôles aux membres |
 | P0 | 🛡️ | Suspendre / réactiver l'adhésion d'un membre (agent, bailleur, co-admin) à l'agence, sans toucher au compte ; le blocage d'un compte reste un geste super-admin ; l'administrateur principal ne peut être suspendu ; acte journalisé (TCK-587) |
@@ -624,6 +627,7 @@ hors spec*. Ouvrir un ticket avant d'en construire un.
 | P1 | 🛡️ | Filtrage par utilisateur, date, action |
 | P1 | 🛡️ | Le journal d'une agence couvre tout ce qui touche ses objets (actes des admins, du système et des webhooks compris) et rien de ce qui touche une autre agence (TCK-601) |
 | P1 | 🛡️ | Journal des consultations de données personnelles depuis la console (fiche utilisateur, sessions, dossier et pièces KYC, valeurs bancaires) et des valeurs claires lues dans l'application (pièce, revenu) (TCK-601, TCK-955) |
+| P1 | 🛡️ | Le journal d'activité se purge par famille : 12 mois par défaut, 5 ans pour les journaux de sécurité et de preuve (consultations de données personnelles, droits, sécurité, support, KYC, compte, rôles et adhésions, intégrations, exports), 10 ans pour les pièces comptables ; durées écrites dans la politique de confidentialité (TCK-2342) |
 | P2 | 🛡️ | Export de l'audit trail |
 | P3 | 🛡️ | Alertes sur actions sensibles |
 | P3 | 🛡️ | Alertes d'exploitation à seuil (pic d'échecs de jobs, file bloquée, santé dégradée), en plus des gestes sensibles (TCK-600) |

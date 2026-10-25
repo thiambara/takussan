@@ -88,9 +88,9 @@ class PrintedIdentityFrozenTest extends TestCase
 
         $html = (string) $this->get("/api/inventories/{$inventory->id}/pdf")->assertOk()->getContent();
 
-        // Le bailleur n'y est pas : `InventoryController` le lit par `$property->user`, relation que
-        // `Property` n'a pas (hors périmètre, signalé dans le rapport du lot).
-        $this->assertPrintsTheOldIdentities($html, landlord: false);
+        // P234.06 (TCK-2315) — le bailleur y est, lu par `$property->owner` : avant, par
+        // `$property->user`, relation que `Property` n'a pas, il n'était jamais imprimé.
+        $this->assertPrintsTheOldIdentities($html, landlord: true);
     }
 
     public function test_un_acte_sans_instantane_imprime_les_valeurs_courantes(): void

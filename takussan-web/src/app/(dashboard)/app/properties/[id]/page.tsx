@@ -15,6 +15,7 @@ import { PropertyDetailTabs } from '@/components/property-dashboard/PropertyDeta
 import { PropertyHeaderActions } from '@/components/property-dashboard/PropertyHeaderActions';
 import { PARAMETRE_BOOSTER } from '@/components/boost/parametre-booster';
 import { ProprietaireEtResponsable } from '@/components/property-dashboard/ProprietaireEtResponsable';
+import { ChangerLeTitulaire } from '@/components/property-dashboard/ChangerLeTitulaire';
 import { PlanifierUneVisite } from '@/components/visits/PlanifierUneVisite';
 import { agenceDuBien } from '@/lib/visites/agence-du-bien';
 import { PropertyStatusBadge } from '@/components/property-dashboard/PropertyStatusBadge';
@@ -128,6 +129,12 @@ export default async function Page({ params, searchParams }: { params: Params; s
               as="span"
               className="block whitespace-normal"
             />
+            {/* TCK-1000 — le bien saisi pour un bailleur invité lui passe à l'acceptation. */}
+            {property.pending_owner ? (
+              <span className="block text-xs text-muted-foreground" data-testid="bailleur-en-attente">
+                {t('pendingOwner', { name: property.pending_owner.name })}
+              </span>
+            ) : null}
           </>
         }
         actions={
@@ -136,6 +143,10 @@ export default async function Page({ params, searchParams }: { params: Params; s
               property={{ id: property.id, libelle: property.title }}
               agencyId={agenceDuBien(property)}
             />
+            {/* TCK-999 — l'API dit à qui le geste est offert (l'admin, bien tenu par le personnel). */}
+            {property.abilities?.transfer_owner && property.agency ? (
+              <ChangerLeTitulaire propertyId={property.id} agencyId={property.agency.id} />
+            ) : null}
             <PropertyHeaderActions property={property} ouvrirBoost={ouvrirBoost} />
           </div>
         }

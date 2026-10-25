@@ -28,9 +28,9 @@ use Tests\Concerns\CreatesAgencyMembers;
  * (`CustomerPolicy::view`, `GuarantorPolicy::view`) : il la rattachait à un bail ou à une
  * réservation du bien de B, et le personnel de B la lisait ensuite par le bail.
  *
- * Témoins : la fiche de B passe, et un bien sans agence ne change pas. La fiche sans agence d'un
- * client du tunnel (`CustomerService::findOrCreateFromUser`) n'est pas davantage refusée
- * qu'avant : le personnel de B ne la lisait déjà pas, et le client réserve toujours pour lui.
+ * Témoins : la fiche de B passe, et un bien sans agence ne change pas. La fiche d'un client du
+ * tunnel (`CustomerService::findOrCreateFromUser`) naît dans l'agence du bien depuis P15.01
+ * (TCK-2350) : le client réserve toujours pour lui, et le personnel de B la prend désormais.
  */
 class ContactDeLAgenceDuBienTest extends ApiTestCase
 {
@@ -181,17 +181,18 @@ class ContactDeLAgenceDuBienTest extends ApiTestCase
     }
 
     /**
-     * La fiche sans agence d'un client du tunnel : refusée au personnel de B avant comme après (il
-     * ne la lisait pas), et le client réserve toujours pour lui, qu'il la nomme ou non.
+     * La fiche d'un client du tunnel : le client réserve toujours pour lui, qu'il la nomme ou non.
+     * P15.01 (TCK-2350) — elle naît dans l'agence du bien, et le personnel de B la prend pour
+     * locataire et pour client ; elle naissait sans agence, et il recevait 403.
      */
-    public function test_temoin_la_fiche_du_tunnel_n_est_pas_davantage_refusee(): void
+    public function test_la_fiche_du_tunnel_nait_dans_l_agence_du_bien_et_le_personnel_la_prend(): void
     {
         $client = User::factory()->create();
         $this->actingAsApi($client)
             ->postJson('/api/bookings', $this->reservation($this->bienB))
             ->assertCreated();
         $fiche = Customer::query()->where('user_id', $client->id)->firstOrFail();
-        $this->assertNull($fiche->agency_id);
+        $this->assertSame($this->b->id, $fiche->agency_id);
         $this->assertSame($client->id, $fiche->added_by_id);
 
         $this->postJson('/api/bookings', $this->reservation($this->bienB, [
@@ -203,11 +204,11 @@ class ContactDeLAgenceDuBienTest extends ApiTestCase
         $personnelB = $this->agencyAgent($this->b);
         $this->actingAsApi($personnelB)
             ->postJson('/api/leases', $this->bail($this->bienB, $fiche))
-            ->assertForbidden();
+            ->assertCreated();
         $this->postJson('/api/bookings', $this->reservation($this->bienB, [
             'customer_id' => $fiche->id,
             'start_date' => now()->addDays(20)->toDateString(),
             'end_date' => now()->addDays(22)->toDateString(),
-        ]))->assertForbidden();
+        ]))->assertCreated();
     }
 }

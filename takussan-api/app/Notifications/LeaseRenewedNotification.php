@@ -4,6 +4,7 @@ namespace App\Notifications;
 
 use App\Models\Lease;
 use App\Notifications\Concerns\RetriesWithBackoff;
+use App\Services\Notifications\NotificationRenderer;
 use App\Services\Notifications\PreferenceResolver;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -62,8 +63,9 @@ class LeaseRenewedNotification extends Notification implements ShouldQueue
             ->greeting(__('notifications.lease_renewed.greeting'))
             ->line(__('notifications.lease_renewed.intro', ['reference' => $reference]))
             ->line(__('notifications.lease_renewed.period', [
-                'start' => optional($this->child->start_date)->toDateString() ?? '—',
-                'end' => optional($this->child->end_date)->toDateString() ?? '—',
+                // TCK-2325 (P128.03) — les dates par le formateur du rendu par code (`LL`).
+                'start' => app(NotificationRenderer::class)->formatDate($this->child->start_date, app()->getLocale()),
+                'end' => app(NotificationRenderer::class)->formatDate($this->child->end_date, app()->getLocale()),
             ]))
             ->salutation(__('notifications.salutation'));
     }

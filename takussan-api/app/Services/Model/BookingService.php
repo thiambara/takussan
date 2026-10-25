@@ -132,7 +132,7 @@ class BookingService
 
             // Verrous dans l'ordre `properties` puis `users` (`findOrCreateFromUser`), comme le tunnel public.
             if ($resoudreLeClient) {
-                $data['customer_id'] = $this->customers->findOrCreateFromUser($user)->id;
+                $data['customer_id'] = $this->customers->findOrCreateFromUser($user, $property)->id;
             }
 
             return Booking::create(array_merge($data, [

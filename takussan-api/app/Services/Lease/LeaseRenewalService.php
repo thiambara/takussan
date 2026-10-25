@@ -108,7 +108,12 @@ class LeaseRenewalService
                 // TCK-595 (ADR-0049 §1) — le négociateur suit le bail. Aucune ligne de commission ne
                 // naît d'un renouvellement, même signé plus tard (`CommissionLedgerService`).
                 'agent_id' => $parent->agent_id,
-                'guarantor_id' => $parent->guarantor_id,
+                // P231.01 (TCK-2316) — le bail renouvelé naît sans garant : une caution signée pour
+                // le bail précédent n'engage pas d'office le suivant (le cautionnement ne se présume
+                // pas). Ni le pivot ni l'ancienne colonne ne passent ; la réponse dit combien de
+                // garants restent au parent ({@see self::guarantorsNotCarriedOver()}), et les
+                // rattacher ensuite défige le contrat (ADR-0042 §1).
+                'guarantor_id' => null,
                 'renewed_from_lease_id' => $parent->id,
                 'reference_number' => ReferenceNumberGenerator::lease(),
                 'type' => $parent->type,
@@ -196,6 +201,19 @@ class LeaseRenewalService
 
             return $child->fresh();
         });
+    }
+
+    /**
+     * P231.01 (TCK-2316) — les garants du bail précédent que le renouvellement ne reporte pas : ceux
+     * du pivot, plus l'ancienne colonne quand elle en désigne un autre.
+     */
+    public function guarantorsNotCarriedOver(Lease $parent): int
+    {
+        return $parent->guarantors()->pluck('guarantors.id')
+            ->push($parent->guarantor_id)
+            ->filter()
+            ->unique()
+            ->count();
     }
 
     /**

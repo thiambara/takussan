@@ -6,6 +6,7 @@ use App\Models\Enums\Currency;
 use App\Models\Lease;
 use App\Notifications\Concerns\RetriesWithBackoff;
 use App\Services\Formatting\CurrencyFormatter;
+use App\Services\Notifications\NotificationRenderer;
 use App\Services\Notifications\PreferenceResolver;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -68,7 +69,8 @@ class LeaseRentReviewedNotification extends Notification implements ShouldQueue
                 'new' => app(CurrencyFormatter::class)->format((float) $this->newRent, $this->lease->currency ?? Currency::XOF, app()->getLocale()),
             ]))
             ->line(__('notifications.lease_rent_reviewed.effective', [
-                'date' => $this->effectiveDate,
+                // TCK-2325 (P128.03) — `Y-m-d` (RentReviewService), par le formateur du rendu par code.
+                'date' => app(NotificationRenderer::class)->formatDate($this->effectiveDate, app()->getLocale()),
             ]))
             ->line(__('notifications.lease_rent_reviewed.reason', [
                 'reason' => $this->reason,

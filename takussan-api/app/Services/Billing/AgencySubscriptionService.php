@@ -211,13 +211,28 @@ class AgencySubscriptionService
             ->whereHas('agency', fn ($q) => $q->where('status', AgencyStatus::Active))
             ->pluck('id');
 
+        // TCK-2310 (P229.06) — sur le patron de `renewPeriods` : chaque essai se relit sous verrou, et
+        // tous les critères de la sélection s'y rejugent, statut de l'agence compris. Une annulation,
+        // une prolongation ou une suspension écrite depuis la sélection ne convertit plus l'essai.
         $count = 0;
         foreach ($ids as $id) {
-            $subscription = AgencySubscription::find($id);
-            if ($subscription && $subscription->status === AgencySubscriptionStatus::Trialing) {
+            $converted = DB::transaction(function () use ($id): bool {
+                $subscription = AgencySubscription::query()->whereKey($id)->lockForUpdate()->first();
+                if (! $subscription
+                    || $subscription->status !== AgencySubscriptionStatus::Trialing
+                    || $subscription->ended_at !== null
+                    || $subscription->trial_ends_at === null
+                    || $subscription->trial_ends_at->isFuture()
+                    || Agency::query()->whereKey($subscription->agency_id)->value('status') !== AgencyStatus::Active) {
+                    return false;
+                }
+
                 $subscription->update(['status' => AgencySubscriptionStatus::Active]);
-                $count++;
-            }
+
+                return true;
+            });
+
+            $count += $converted ? 1 : 0;
         }
 
         return $count;

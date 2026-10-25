@@ -46,12 +46,13 @@ node docs/backlog/check-backlog.mjs --report   # compte par statut + la liste de
 d'`uptime` et `sysctl -n hw.ncpu` à côté de tout chiffre, sans se fier à la moyenne à 1 minute
 ([les quatre références successives, qui ne se soustraient pas](docs/journal-des-corrections.md#j-09)).
 
-**La couverture est gardée par un cliquet à 86 %** sur les lignes de `app/`, évalué par
-`bin/coverage-gate.php` sur le clover (TCK-331 ; 86,9 % le 2026-08-22 — [historique](docs/journal-des-corrections.md#j-02)).
+**La couverture est gardée par un cliquet à 92 %** sur les lignes de `app/`, évalué par
+`bin/coverage-gate.php` sur le clover (TCK-331 ; resserré de 86 à 92 % le 2026-10-25 sur 95,6 % en
+CI, P12.05, TCK-2360 — [historique](docs/journal-des-corrections.md#j-02)).
 
 - ⚠️ **Ne pas resserrer le seuil sur une mesure locale** : Xdebug (local) et PCOV (CI) ne comptent
   pas les mêmes lignes exécutables. Le resserrement se décide sur un chiffre de CI.
-- ⚠️ **`php artisan test --coverage --min=86` n'est PAS la forme de la CI et ne juge pas du
+- ⚠️ **`php artisan test --coverage --min=92` n'est PAS la forme de la CI et ne juge pas du
   cliquet** : *une commande de couverture qui sort en 0 sans imprimer de ligne `Total:` n'a pas
   mesuré la couverture* ([J-10](docs/journal-des-corrections.md#j-10)).
 
@@ -96,7 +97,7 @@ php bin/impacted-tests.php --run    # ← LA commande du quotidien : ne lance qu
                                     #   jouent la suite entière, toujours.
 XDEBUG_MODE=coverage php vendor/phpunit/phpunit/phpunit \
   --coverage-clover=storage/coverage/clover.xml
-php bin/coverage-gate.php storage/coverage/clover.xml --min=86
+php bin/coverage-gate.php storage/coverage/clover.xml --min=92
                                     # le CLIQUET de la CI, dans sa forme EXACTE (TCK-302, TCK-331).
                                     #   Exige un pilote de couverture : PCOV en CI, Xdebug en local.
                                     #   ⚠ La VARIABLE D'ENVIRONNEMENT, pas `-d xdebug.mode=…`.
@@ -104,7 +105,7 @@ php bin/coverage-gate.php storage/coverage/clover.xml --min=86
                                     #   absent, tronqué, ou qui n'a mesuré aucune ligne : `0/0`
                                     #   n'est pas 100 %, c'est une mesure absente.
                                     #   ⚠⚠ NE PAS juger du cliquet avec `artisan test --coverage
-                                    #   --min=86` : cf. § État courant et J-10.
+                                    #   --min=92` : cf. § État courant et J-10.
 ./vendor/bin/pint                   # ← AVANT CHAQUE COMMIT. Rien ne l'impose : c'est une
                                     #   violation d'un seul fichier qui a cassé la CI six semaines.
 php artisan migrate

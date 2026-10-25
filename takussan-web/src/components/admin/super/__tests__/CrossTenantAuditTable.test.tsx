@@ -120,3 +120,22 @@ describe('<CrossTenantAuditTable> — gestes sensibles et export (TCK-601 · F)'
     ));
   });
 });
+
+describe('<CrossTenantAuditTable> — la colonne de l’événement (P06.09, TCK-2336)', () => {
+  it('un événement connu se lit traduit, un inconnu par sa description brute', async () => {
+    const liste = {
+      ...LISTE,
+      data: [
+        LISTE.data[0],
+        { ...LISTE.data[0], id: 2, event: 'super_admin_plan_updated', description: 'Plan « Pro » modifié' },
+      ],
+    };
+    fetchMock.mockImplementation(async () => new Response(JSON.stringify(liste), { status: 200 }));
+    monter();
+
+    expect(await screen.findByText('Données personnelles consultées')).toBeInTheDocument();
+    expect(screen.getByText('Plan « Pro » modifié')).toBeInTheDocument();
+    expect(screen.queryByText('personal_data_viewed')).not.toBeInTheDocument();
+    expect(screen.queryByText('super_admin_plan_updated')).not.toBeInTheDocument();
+  });
+});

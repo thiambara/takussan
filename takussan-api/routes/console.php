@@ -212,6 +212,11 @@ Schedule::command('queue:prune-batches')->dailyAt('03:57')->timezone('Africa/Dak
 // disparaît avec ses tentatives d'envoi. Idempotente : une suppression par date.
 Schedule::command('notifications:prune-read')->dailyAt('04:05')->timezone('Africa/Dakar')->withoutOverlapping();
 
+// TCK-2342 (P19.04, ADR-0044 amendement du 2026-10-25) — le journal d'activité par famille : 12 mois
+// par défaut, 5 ans pour les journaux de preuve, 10 ans pour les pièces comptables
+// (`PruneActivityLog`). Idempotente : une suppression par date, par lots.
+Schedule::command('audit:prune-activity-log')->dailyAt('04:10')->timezone('Africa/Dakar')->withoutOverlapping();
+
 // TCK-633 lot F (ADR-0061 §9) — fin des boosts échus, réconciliation (filet des écritures de masse),
 // expiration et préavis des lots de crédits. Idempotent : chaque transition est réclamée par un
 // `UPDATE … WHERE status IN (…)`, un lot expiré est soldé à zéro, un préavis est marqué.

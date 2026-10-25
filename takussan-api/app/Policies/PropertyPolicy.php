@@ -286,6 +286,18 @@ class PropertyPolicy extends BasePolicy
     }
 
     /**
+     * TCK-999 (P15.06, Q5 ; ADR-0036, amendement du 2026-10-19, voie 3) — « changer le titulaire » :
+     * l'admin ACTIF de l'agence du bien, seul (le super-admin par `Gate::before`). Le geste décide à
+     * qui vont des loyers : ni l'agent titulaire, ni `properties.update_any`, ni le bailleur. Ce que le
+     * bien peut devenir (jamais depuis un bailleur, vers un bailleur actif) se juge à part, en 422,
+     * par `PropertyOwnerTransfer::refus()`.
+     */
+    public function transferOwner(User $user, Property $property): bool
+    {
+        return $property->agency_id !== null && $user->isAgencyAdminAt((int) $property->agency_id);
+    }
+
+    /**
      * TCK-086 — re-parenting requires update rights on the child AND on the
      * candidate parent (when one is provided). Detaching to root only needs
      * update rights on the child.

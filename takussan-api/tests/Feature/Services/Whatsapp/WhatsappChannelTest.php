@@ -152,6 +152,43 @@ class WhatsappChannelTest extends TestCase
         $this->assertContains('lafricamobile', $providers);
     }
 
+    /**
+     * TCK-2326 (P203.05) — la tentative WhatsApp et celle du repli SMS gardent l'agence de l'envoi
+     * et l'intégration que chaque fournisseur a prise ; une tentative sans appel (contact hors
+     * fenêtre et sans gabarit) garde l'agence seule.
+     */
+    public function test_les_tentatives_gardent_l_agence_et_l_integration(): void
+    {
+        $this->fakeHttp(graphStatus: 400, graphBody: ['error' => ['code' => 131026]]);
+        $this->contact(now()->subHour());
+        $appNotification = AppNotification::factory()->create(['user_id' => $this->user->id]);
+        $integrations = Integration::query()->where('agency_id', $this->agency->id)->pluck('id', 'provider');
+
+        $this->app->make(WhatsappChannel::class)
+            ->send($this->user, $this->makeNotification('hi', appNotificationId: $appNotification->id));
+
+        $tentatives = NotificationDeliveryAttempt::query()
+            ->where('app_notification_id', $appNotification->id)
+            ->get()->keyBy('provider');
+        $this->assertSame($this->agency->id, $tentatives['whatsapp_cloud']->agency_id);
+        $this->assertSame($integrations['whatsapp_cloud'], $tentatives['whatsapp_cloud']->integration_id);
+        $this->assertSame($this->agency->id, $tentatives['lafricamobile']->agency_id);
+        $this->assertSame($integrations['sms_lafricamobile'], $tentatives['lafricamobile']->integration_id);
+
+        WhatsappContact::query()->update(['last_inbound_at' => now()->subDays(2)]);
+        $horsFenetre = AppNotification::factory()->create(['user_id' => $this->user->id]);
+        RateLimiter::clear("whatsapp-channel:user:{$this->user->id}");
+        $this->app->make(WhatsappChannel::class)
+            ->send($this->user, $this->makeNotification('hi', appNotificationId: $horsFenetre->id));
+
+        $differee = NotificationDeliveryAttempt::query()
+            ->where('app_notification_id', $horsFenetre->id)
+            ->where('provider', 'whatsapp_cloud')
+            ->sole();
+        $this->assertSame($this->agency->id, $differee->agency_id);
+        $this->assertNull($differee->integration_id);
+    }
+
     /** TCK-766 (P27.02) — Meta a pu accepter le message : pas de second envoi par SMS. */
     public function test_ambiguous_failure_does_not_fall_back_to_sms(): void
     {

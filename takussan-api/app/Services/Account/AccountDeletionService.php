@@ -24,6 +24,7 @@ use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Models\NotificationDeliveryAttempt;
 use App\Models\Payout;
+use App\Models\Profiles\OwnerProfile;
 use App\Models\PropertyVisit;
 use App\Models\User;
 use App\Models\WhatsappContact;
@@ -31,8 +32,10 @@ use App\Notifications\AccountDeletionExecutedNotification;
 use App\Notifications\AccountDeletionRequestedNotification;
 use App\Services\Agency\AgencyMemberRemovalService;
 use App\Services\Notifications\Sms\PhoneNumber;
+use App\Services\Payout\BeneficiaireDuReversement;
 use App\Services\Payout\PayoutCalculator;
 use App\Services\Property\BailleurDuBien;
+use App\Services\Property\TitulaireALaSaisie;
 use App\Support\CaseInsensitive;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Carbon;
@@ -392,11 +395,14 @@ class AccountDeletionService
         // en a un, part, l'adresse masquée suffisant à la contrainte. Décision du
         // porteur, 2026-10-20. Par requête : aucun champ journalisé de l'invitation ne porte
         // l'adresse.
-        Invitation::query()
+        $ouvertes = Invitation::query()
             ->where('status', InvitationStatus::Sent->value)
             ->where(fn ($query) => $query
                 ->where('invited_user_id', $user->id)
-                ->orWhere('email', CaseInsensitive::fold(trim((string) $originalEmail))))
+                ->orWhere('email', CaseInsensitive::fold(trim((string) $originalEmail))));
+        // TCK-1000 (Q2) — révoquée, l'invitation d'un bailleur laisse à l'agence les biens saisis pour lui.
+        TitulaireALaSaisie::delier((clone $ouvertes)->where('invitable_type', OwnerProfile::class)->pluck('invitable_id'));
+        $ouvertes
             ->update([
                 'status' => InvitationStatus::Revoked->value,
                 'revoked_at' => now(),
@@ -616,6 +622,10 @@ class AccountDeletionService
      * TCK-2015 (P175.03) — les agences qui détiennent pour le bailleur une pièce reversable : celles
      * que {@see PayoutCalculator} rendrait à la préparation d'un reversement, sans période.
      *
+     * TCK-997 (P232.05, P232.07) — et où le compte est bénéficiaire d'un reversement
+     * ({@see BeneficiaireDuReversement}) : l'agent suspendu ou retiré qui a saisi un bien loué n'est
+     * plus un créancier de l'agence, le bailleur de tout statut le reste.
+     *
      * @return Collection<int, Agency>
      */
     private function agenciesOwingPayout(User $user): Collection
@@ -629,8 +639,9 @@ class AccountDeletionService
                 ->distinct()
                 ->pluck('bookings.agency_id'))
             ->unique()
-            ->filter(fn ($agencyId) => $calculator->leasePayments((int) $agencyId, (int) $user->id)->exists()
-                || $calculator->bookingPayments((int) $agencyId, (int) $user->id)->exists())
+            ->filter(fn ($agencyId) => BeneficiaireDuReversement::est($user, (int) $agencyId)
+                && ($calculator->leasePayments((int) $agencyId, (int) $user->id)->exists()
+                    || $calculator->bookingPayments((int) $agencyId, (int) $user->id)->exists()))
             ->values();
 
         return Agency::query()->whereIn('id', $agencyIds)->orderBy('id')->get(['id', 'name']);

@@ -54,6 +54,8 @@ final class NotificationTarget
         'agency_kyc' => '/app/agency/kyc',
         'kyc_review' => '/super-admin/kyc',
         'finances' => '/app/agency/finances',
+        // TCK-2320 (P39.07) — les reversements de la plateforme à l'agence (`agency.update_billing`).
+        'agency_billing' => '/app/agency/billing',
         'team' => '/app/agency/team',
         // TCK-1471 (P161.03) — les délégations de rôle vivent sous les rôles (`RoleDelegationsSection`,
         // TCK-369) : c'est là que le délégant retrouve celle dont l'avis parle.

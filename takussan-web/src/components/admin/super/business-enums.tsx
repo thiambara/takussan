@@ -13,6 +13,21 @@ import { cn } from '@/lib/utils';
  * la console écrivait n'était lu ni par l'écriture d'un bien ni par aucun rendu. Ajout (TCK-1055),
  * désactivation (TCK-1056) et édition des libellés (TCK-1057) ont été retirés.
  */
+/**
+ * P06.12 (TCK-2336) — le nom et la description d'une entrée se lisent au dictionnaire
+ * (`admin.businessEnums.<key>.name/description`, principe n° 5), par l'identifiant stable `key`
+ * que l'API émet. Le `name` et la `description` de l'API, écrits en français, restent le repli
+ * d'une entrée que le dictionnaire ne connaît pas encore : l'écran n'affiche jamais une clé.
+ */
+function useLibellesEnum() {
+  const t = useTranslations('admin.businessEnums');
+  return {
+    nom: (item: BusinessEnum) => (t.has(`${item.key}.name`) ? t(`${item.key}.name`) : item.name),
+    description: (item: BusinessEnum) =>
+      t.has(`${item.key}.description`) ? t(`${item.key}.description`) : item.description,
+  };
+}
+
 export function EnumList({
   enums,
   selectedKey,
@@ -23,6 +38,7 @@ export function EnumList({
   onSelect: (key: string) => void;
 }) {
   const t = useTranslations('superAdmin.enums');
+  const libelles = useLibellesEnum();
   return (
     <nav className="rounded-xl bg-card p-2 ring-1 ring-border" aria-label={t('navLabel')}>
       {enums.map((item) => (
@@ -34,7 +50,7 @@ export function EnumList({
           onClick={() => onSelect(item.key)}
         >
           <span>
-            <span className="block">{item.name}</span>
+            <span className="block">{libelles.nom(item)}</span>
             <span className="block text-xs">{t('valuesCount', { count: item.values.length })}</span>
           </span>
         </Button>
@@ -45,6 +61,7 @@ export function EnumList({
 
 export function EnumValueTable({ item }: { item: BusinessEnum }) {
   const t = useTranslations('superAdmin.enums');
+  const libelles = useLibellesEnum();
 
   const columns: DataTableColumn<BusinessEnumValue>[] = [
     { id: 'value', header: t('value'), className: 'font-mono text-xs', cell: (value) => value.value },
@@ -63,15 +80,15 @@ export function EnumValueTable({ item }: { item: BusinessEnum }) {
   return (
     <section className="overflow-hidden rounded-xl bg-card ring-1 ring-border">
       <div className="border-b border-border p-4">
-        <h2 className="font-display text-xl font-semibold text-foreground">{item.name}</h2>
-        <p className="mt-1 text-pretty text-sm text-muted-foreground">{item.description}</p>
+        <h2 className="font-display text-xl font-semibold text-foreground">{libelles.nom(item)}</h2>
+        <p className="mt-1 text-pretty text-sm text-muted-foreground">{libelles.description(item)}</p>
       </div>
       <DataTable
         // La table de valeurs est la plus dense de la console (cinq colonnes, dont trois locales) :
         // c'est le seul écran qui réclame la variante compacte, et c'est pour ça qu'elle existe.
         density="compact"
         className="rounded-none ring-0"
-        caption={t('tableCaption', { name: item.name })}
+        caption={t('tableCaption', { name: libelles.nom(item) })}
         columns={columns}
         rows={item.values}
         rowKey={(value) => value.value}

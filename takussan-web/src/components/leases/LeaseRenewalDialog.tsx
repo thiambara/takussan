@@ -15,8 +15,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { DatePicker } from '@/components/ui/date-picker';
 import { Textarea } from '@/components/ui/textarea';
+import { WarningBanner } from '@/components/ui/warning-banner';
 import { ApiError } from '@/lib/api';
-import { useRenewLease, type RenewLeasePayload } from '@/lib/queries/leases';
+import {
+  useLeaseGuarantors,
+  useRenewLease,
+  type RenewLeasePayload,
+} from '@/lib/queries/leases';
 import type { Lease } from '@/types/lease';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import { decalerAnnees, decalerJour, jourDeLApi } from '@/lib/jour-de-l-api';
@@ -82,6 +87,9 @@ export function LeaseRenewalDialog({
   const fmt = useFormatteurs();
   const messageErreur = useMessageErreurApi();
   const renew = useRenewLease(parent.id);
+  // P231.01 (TCK-2316) — le bail renouvelé naît sans garant (l'API le dit aussi, dans
+  // `meta.guarantors_not_carried_over`) : le récapitulatif l'annonce avant la confirmation.
+  const garantsDuParent = useLeaseGuarantors(parent.id).data?.data.length ?? 0;
   const [step, setStep] = useState<Step>(1);
   const [error, setError] = useState<string | null>(null);
   const initialStart = useMemo(() => defaultStartDate(parent), [parent]);
@@ -308,6 +316,11 @@ export function LeaseRenewalDialog({
 
         {step === 3 && (
           <div className="space-y-3">
+            {garantsDuParent > 0 && (
+              <WarningBanner>
+                {t('guarantors_not_carried_over', { count: garantsDuParent })}
+              </WarningBanner>
+            )}
             <RenewalDiffRow
               label={t('field_start_date')}
               from={parent.start_date}

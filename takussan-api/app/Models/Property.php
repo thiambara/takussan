@@ -18,6 +18,7 @@ use App\Models\Enums\PropertyType;
 use App\Models\Enums\PropertyVisibility;
 use App\Models\Enums\RentPeriod;
 use App\Models\Enums\TitleType;
+use App\Models\Profiles\OwnerProfile;
 use App\Observers\PropertyObserver;
 use App\Services\Media\AgencyWatermarkContext;
 use App\Services\Media\PhotoConversionFormat;
@@ -71,6 +72,8 @@ class Property extends AbstractModel implements HasMedia
         // TCK-598 — coût d'entrée d'une location mensuelle, et visite virtuelle (lien seulement).
         'deposit_months', 'advance_months', 'agency_fee_months', 'monthly_charges',
         'virtual_tour_url',
+        // TCK-1000 — le bailleur invité pour qui le bien a été saisi, jusqu'à l'acceptation.
+        'pending_owner_profile_id',
     ];
 
     protected $casts = [
@@ -889,6 +892,15 @@ class Property extends AbstractModel implements HasMedia
     public function owner(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    /**
+     * TCK-1000 (ADR-0036, amendement du 2026-10-19, voie 2) — le profil `draft` du bailleur invité
+     * pour qui le bien a été saisi. Effacé à l'acceptation, à la révocation et à l'expiration.
+     */
+    public function pendingOwnerProfile(): BelongsTo
+    {
+        return $this->belongsTo(OwnerProfile::class, 'pending_owner_profile_id');
     }
 
     /**

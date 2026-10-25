@@ -5,8 +5,10 @@ namespace App\Services\Notifications;
 use App\Domain\Integrations\Providers\IntegrationProviderRegistry;
 use App\Domain\Notifications\NotificationCode;
 use App\Models\Enums\Currency;
+use App\Models\User;
 use App\Services\Admin\NotificationTemplateService;
 use App\Services\Formatting\CurrencyFormatter;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
 use NumberFormatter;
 
@@ -233,6 +235,35 @@ class NotificationRenderer
         $currency = Currency::tryFrom((string) ($value['currency'] ?? '')) ?? Currency::XOF;
 
         return $this->currency->format((float) $value['amount'], $currency, $locale);
+    }
+
+    /**
+     * TCK-2325 (P128.03) — le formateur des paramètres `date`, ouvert aux classes historiques (sans
+     * code) : `LL` dans la langue du destinataire. La date d'un instant se lit dans `$timezone`.
+     */
+    public function formatDate(CarbonInterface|string|null $value, string $locale, ?string $timezone = null): string
+    {
+        if ($value instanceof CarbonInterface) {
+            $value = ($timezone !== null ? $value->copy()->setTimezone($timezone) : $value)->toDateString();
+        }
+
+        return $this->date($value, $locale, null);
+    }
+
+    /** TCK-2325 (P128.03) — le formateur des paramètres `datetime` : `LLL` dans le fuseau du destinataire. */
+    public function formatDateTime(CarbonInterface|string|null $value, string $locale, ?string $timezone): string
+    {
+        if ($value instanceof CarbonInterface) {
+            $value = $value->toIso8601String();
+        }
+
+        return $this->date($value, $locale, $timezone ?: self::DEFAULT_TIMEZONE);
+    }
+
+    /** Le fuseau d'un destinataire, celui que le rendu par code lit (`users.timezone`). */
+    public static function timezoneOf(object $notifiable): string
+    {
+        return $notifiable instanceof User && $notifiable->timezone ? $notifiable->timezone : self::DEFAULT_TIMEZONE;
     }
 
     private function date(mixed $value, string $locale, ?string $timezone): string

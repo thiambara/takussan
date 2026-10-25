@@ -594,3 +594,46 @@ courant n'en fait naître qu'au super-admin hors agence et au tunnel.
 
 **Ce qui n'est pas gardé.** Le renouvellement recopie le locataire et le garant du parent sans les
 rejuger. Un bail antérieur dont la fiche est d'une autre agence garde son contact.
+
+## Amendement du 2026-10-25 (P15.01) — la fiche d'un candidat naît dans l'agence du bien
+
+Décision du porteur du 2026-10-25 sur P15.01 (TCK-2350). Relevé sur `0282d41e7`.
+
+**Constat.** `CustomerService::findOrCreateFromUser()`, seul écrivain de `customers.user_id` à la
+candidature, à l'offre d'achat et à la réservation par `POST /api/bookings`, créait la fiche dans
+l'agence **du visiteur** : `null` pour un candidat sans profil d'agence. Le personnel de l'agence du
+bien ne la lisait pas (`CustomerPolicy::view`, `scopeVisibleTo`), et le bail tiré de la candidature
+rendait 403 (`LeaseService::create`, puis `ContactDeLAgenceDuBien` de l'amendement précédent). La
+fiche reprise était la première du compte, quelle que soit son agence.
+
+**Décision.** Sur un bien d'agence, la fiche du candidat est une fiche de **l'agence du bien** :
+relue dans cette agence seule, rattachée dans cette agence seulement sur un téléphone ou un e-mail
+**vérifié** du compte (règle de TCK-1710), créée dans cette agence sinon. `added_by_id` reste le
+candidat : le personnel la lit par `crm.view_all`. Un compte porte ainsi une fiche par agence, ce
+que `User::tenantLeases()` et `DashboardTenantService` supposaient déjà.
+
+Ce point modifie le § « Ce qui ne change pas » de l'amendement précédent : la fiche du tunnel n'est
+plus « sans agence », et le personnel de l'agence du bien la prend pour locataire et pour client.
+
+**Ce qui ne change pas.** Un bien sans agence garde la règle d'avant (agence du compte, première
+fiche du compte). Aucune fiche existante ne change d'agence et aucun `user_id` n'est posé sur une
+fiche existante hors de l'appariement vérifié : une fiche née sans agence avant cet amendement reste
+telle quelle, et la candidature suivante en fait naître une dans l'agence du bien.
+
+**Ce qui n'est pas gardé.** Une fiche née sans agence avant l'amendement reste invisible au
+personnel ; rien ne la rapproche de la fiche neuve du même compte.
+
+**Second volet (TCK-2351) — inviter le locataire à créer son compte.** Une fiche saisie par l'agence
+n'a de compte que par l'invitation de son client. `POST /api/customers/{id}/invite`, geste du
+personnel de l'agence de la fiche qui la lit (`CustomerPolicy::invite`), émet une invitation de rôle
+`tenant` dont la cible est la fiche (`InvitationService`, jeton à usage unique, expiration, rappel,
+relance et révocation inchangés). Le destinataire est la coordonnée **de la fiche** : son e-mail, à
+défaut son numéro si le lien par SMS est ouvert. L'acceptation pose `customers.user_id`
+(`CustomerService::linkUser`) sous verrou de la fiche ; une fiche liée entre-temps à un autre compte
+refuse l'acceptation (409), une fiche supprimée la rend révoquée (410). Ce n'est pas une action
+protégée par le second facteur : elle ne donne au compte que l'espace du locataire de cette fiche,
+aucun accès à l'agence.
+
+**Ce qui n'est pas gardé (second volet).** Relancer ou révoquer l'invitation passe par les routes
+génériques, qui exigent `team.invite` : l'agent qui l'a émise sans tenir cette capacité ne la relance
+pas. Une fiche liée à un compte n'a pas de geste inverse.

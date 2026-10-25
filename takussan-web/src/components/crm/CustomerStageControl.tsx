@@ -41,9 +41,13 @@ export function CustomerStageControl({ customerId, name, stage }: CustomerStageC
     },
   });
 
+  const erreur = mutation.error ? (mutation.error.proseServeur ?? tCrm('stageFailed')) : null;
+
   const change = (to: CustomerPipelineStage) => {
     if (to === stage) return;
     if (TERMINAL_STAGES.includes(to)) {
+      // P244.01 (TCK-2361) — un dialogue neuf ne reprend pas le refus d'un envoi précédent.
+      mutation.reset();
       setPending({ customerId, from: stage, to });
       return;
     }
@@ -63,17 +67,21 @@ export function CustomerStageControl({ customerId, name, stage }: CustomerStageC
           <option key={s} value={s}>{t(`stage.${s}`)}</option>
         ))}
       </select>
-      {mutation.error ? (
-        <p role="alert" className="text-sm text-destructive">{mutation.error.proseServeur ?? tCrm('stageFailed')}</p>
+      {/* P244.01 (TCK-2361) — dialogue ouvert, le refus se dit dans le dialogue, à côté du motif. */}
+      {mutation.error && pending === null ? (
+        <p role="alert" className="text-sm text-destructive">{erreur}</p>
       ) : null}
       <ReasonDialog
         pending={pending}
         onCancel={() => setPending(null)}
         onSubmit={(reason) => {
           if (!pending) return;
-          mutation.mutate({ to: pending.to, reason });
-          setPending(null);
+          // P244.01 (TCK-2361) — fermé sur le succès seulement (patron de TCK-2212) : un refus garde
+          // le motif saisi, au lieu de démonter le champ avant la réponse.
+          mutation.mutate({ to: pending.to, reason }, { onSuccess: () => setPending(null) });
         }}
+        erreur={erreur}
+        enCours={mutation.isPending}
       />
     </div>
   );
