@@ -71,6 +71,8 @@ la ligne remboursée y gardait son `platform_payout_id` et son montant, sans tra
 - [x] Événements après validation : `PlatformPayoutLineRefunded` (avis à l'agence),
       `LeasePaymentRefunded` (avis au locataire et au bailleur).
 - [x] Console : pastille « Remboursé depuis » dans la liste, et références dans le détail.
+- [x] Cible neuve `agency_billing` (`/app/agency/billing`), déclarée dans
+      `scripts/check-notification-target-audience.mjs` (la page exige `agency.update_billing`).
 
 ## Tests
 
