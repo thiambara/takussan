@@ -11,6 +11,7 @@ use App\Models\Property;
 use App\Models\User;
 use App\Services\Maintenance\MaintenanceStateMachine;
 use App\Services\Maintenance\ProviderEligibility;
+use App\Services\Membership\MembershipCapabilityResolver;
 use App\Services\Property\BailleurDuBien;
 use Illuminate\Database\Eloquent\Model;
 
@@ -37,7 +38,7 @@ class MaintenanceRequestPolicy extends BasePolicy
         }
 
         return $user->isSuperAdmin()
-            || $model->requester_id === $user->id
+            || $this->isRequester($user, $model)
             || $this->isAssignedProvider($user, $model)
             || self::isPrincipalFor($user, $model->property);
     }
@@ -113,9 +114,7 @@ class MaintenanceRequestPolicy extends BasePolicy
             return false;
         }
 
-        $isRequester = $request->requester_id !== null && $request->requester_id === $user->id;
-
-        return ($isRequester || $this->principalWrites($user, $request->property))
+        return ($this->isRequester($user, $request) || $this->principalWrites($user, $request->property))
             && $this->transitionTo($user, $request, $target);
     }
 
@@ -236,11 +235,32 @@ class MaintenanceRequestPolicy extends BasePolicy
         if ($this->principalWrites($user, $request->property)) {
             $actors[] = MaintenanceStateMachine::ACTOR_PRINCIPAL;
         }
-        if ($request->requester_id === $user->id) {
+        if ($this->isRequester($user, $request)) {
             $actors[] = MaintenanceStateMachine::ACTOR_REQUESTER;
         }
 
         return $actors;
+    }
+
+    /**
+     * P233.03 (TCK-2290) — ADR-0031, amendement du 2026-10-25 (D2) : la branche du DEMANDEUR vaut si
+     * le bien est sans agence, si le demandeur est membre de l'agence du bien (`isMemberAt`), ou s'il
+     * n'y a jamais tenu de profil de personnel, profils supprimés compris
+     * ({@see MembershipCapabilityResolver::agencesDuPersonnelParti()}). La règle d'auteur ne vise que
+     * le personnel : le locataire et le client demandeurs gardent tout, l'agent actif sans capacité
+     * garde sa demande ; l'agent suspendu ou retiré ne la lit, ne la liste ni ne la tranche plus.
+     * Forme SQL : {@see MaintenanceRequest::scopeVisibleTo()}.
+     */
+    private function isRequester(User $user, MaintenanceRequest $request): bool
+    {
+        if ($request->requester_id === null || (int) $request->requester_id !== $user->id) {
+            return false;
+        }
+
+        $agencyId = $request->property?->agency_id;
+
+        return $agencyId === null
+            || ! in_array((int) $agencyId, app(MembershipCapabilityResolver::class)->agencesDuPersonnelParti($user), true);
     }
 
     /**

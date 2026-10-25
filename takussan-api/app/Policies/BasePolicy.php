@@ -148,8 +148,11 @@ abstract class BasePolicy
      * actif). Précédent : `CustomerPolicy::isAuthorStillMember`. L'agent suspendu ou retiré, et le
      * bailleur bloqué, n'y entrent plus par leur seule signature. Forme SQL des listes :
      * `MembershipCapabilityResolver::memberAgencyIds`.
+     *
+     * P233.04 (TCK-2290) — publique et statique : une policy qui n'hérite pas de cette classe
+     * (`AgencyUpgradeRequestPolicy`, dont les abilities prennent une agence) lit la même règle.
      */
-    protected function auteurEncoreMembre(User $user, mixed $authorId, mixed $agencyId): bool
+    public static function auteurEncoreMembre(User $user, mixed $authorId, mixed $agencyId): bool
     {
         if ($authorId === null || (int) $authorId !== $user->id) {
             return false;
