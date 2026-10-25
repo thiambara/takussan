@@ -603,8 +603,11 @@ class MembershipCapabilityResolver
      */
     public function isMemberAt(User $user, int $agencyId): bool
     {
+        // P218.06 (TCK-2295) — l'amorce `owner` d'une page ({@see self::primed()}), même portée
+        // (`active()`) : la liste des documents juge la règle d'auteur à chaque ligne.
         return $this->isStaffAt($user, $agencyId)
-            || OwnerProfile::query()->where('user_id', $user->id)->where('agency_id', $agencyId)->active()->exists();
+            || (self::amorce('owner', (int) $user->id, $agencyId)
+                ?? OwnerProfile::query()->where('user_id', $user->id)->where('agency_id', $agencyId)->active()->exists());
     }
 
     /**

@@ -14,6 +14,7 @@ use App\Models\Inventory;
 use App\Models\Lease;
 use App\Models\Property;
 use App\Models\User;
+use App\Policies\DocumentPolicy;
 use App\Services\Privacy\PersonalDataAccessLogger;
 use App\Support\ImpersonationContext;
 use Illuminate\Http\JsonResponse;
@@ -42,7 +43,10 @@ class DocumentController extends Controller
         // TCK-820 (P23.04) — ses propres téléversements, pour tous, super-admin compris : aucun écran
         // de la console ne lit cette liste, et elle lui rendait les pièces de toute la plateforme.
         // Le super-admin ouvre toujours un document par son identifiant (`show`), journalisé.
-        $base = Document::query()->where('uploaded_by', $user->id);
+        //
+        // P218.06 (TCK-2295) — sous la règle d'auteur de `DocumentPolicy::view` (ADR-0031, amendement du
+        // 2026-10-25, D3) : l'agent suspendu ou retiré ne liste plus ce qu'il a téléversé dans l'agence.
+        $base = DocumentPolicy::restreindreAuTeleverseur(Document::query(), $user);
 
         // TCK-697 (P23.01) — la règle de `DocumentPolicy::view()` : sous impersonation, les pièces
         // rattachées à un profil ne se listent pas.
