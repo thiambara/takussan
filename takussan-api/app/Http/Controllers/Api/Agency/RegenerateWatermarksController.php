@@ -12,12 +12,11 @@ class RegenerateWatermarksController extends Controller
 {
     public function __invoke(Request $request, Agency $agency): JsonResponse
     {
-        $user = $request->user();
-
-        abort_unless(
-            $agency->primary_admin_id === $user->id || $user->isSuperAdmin(),
-            403,
-        );
+        // TCK-2311 (P225.04, décision du porteur) — jugé par `AgencyPolicy::configure`, comme le
+        // logo : l'admin de l'agence qui tient `agency.update` (TCK-106 : « admin agence »),
+        // l'administrateur principal et le super-admin. Le seul titre ne suffisait plus : sans
+        // titulaire joignable, plus personne de l'agence ne tenait ce geste.
+        abort_unless($request->user()->can('configure', $agency), 403);
 
         RegenerateAgencyWatermarksJob::dispatch($agency->id);
 

@@ -17,7 +17,7 @@ use Illuminate\Validation\Rule;
  * l'API : le front les traduit par clé (`superAdmin.settings.keys.<clé>`).
  *
  * Lecteurs : `currency.default` → `PaymentGatewayService` ; `currency.supported` →
- * `StoreAgencyRequest`, `AgencyUpdateRequest` ; `platform.session_max_minutes` →
+ * `AgencyUpdateRequest` ; `platform.session_max_minutes` →
  * `SessionTokenIssuer` ; `credits.*` et `boost.*` (TCK-633) → `App\Services\Boost\BoostSettings`.
  *
  * TCK-651 (ADR-0065) — catégorie `rentals` : les cinq réglages métier à repli par agence

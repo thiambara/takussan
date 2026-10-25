@@ -6,7 +6,6 @@ use App\Http\Requests\AgencyUpdateRequest;
 use App\Http\Requests\Api\Admin\StoreAgencyOnboardingRequest;
 use App\Http\Requests\Api\AttachGuarantorLeaseRequest;
 use App\Http\Requests\Api\MarkPaidLeasePaymentRequest;
-use App\Http\Requests\Api\StoreAgencyRequest;
 use App\Http\Requests\Api\StoreBookingPaymentRequest;
 use App\Http\Requests\Api\StoreCustomerRequest;
 use App\Http\Requests\Api\StoreForAgencyReviewRequest;
@@ -56,12 +55,12 @@ class BornesMaxFaceAuSchemaTest extends TestCase
     {
         $couples = [
             // TCK-1106 (P91.01)
-            'agence, création, nom' => [StoreAgencyRequest::class, 'name', 'agencies', 'name'],
-            'agence, création, téléphone' => [StoreAgencyRequest::class, 'phone', 'agencies', 'phone'],
-            'agence, création, agrément' => [StoreAgencyRequest::class, 'license_number', 'agencies', 'license_number'],
+            // TCK-2311 (P225.06) — `POST /api/agencies` et `StoreAgencyRequest` sont retirées : la
+            // création passe par la console, dont le nom et l'e-mail sont bornés ici.
             'agence, modification, nom' => [AgencyUpdateRequest::class, 'name', 'agencies', 'name'],
             'agence, modification, téléphone' => [AgencyUpdateRequest::class, 'phone', 'agencies', 'phone'],
             'agence, modification, agrément' => [AgencyUpdateRequest::class, 'license_number', 'agencies', 'license_number'],
+            'agence, console, nom' => [StoreAgencyOnboardingRequest::class, 'agency.name', 'agencies', 'name'],
             'agence, console, téléphone' => [StoreAgencyOnboardingRequest::class, 'agency.phone', 'agencies', 'phone'],
             // TCK-1107 (P91.02)
             'étiquette, création, couleur' => [StoreTagRequest::class, 'color', 'tags', 'color'],
@@ -79,7 +78,7 @@ class BornesMaxFaceAuSchemaTest extends TestCase
             'inscription, e-mail' => [RegisterRequest::class, 'email', 'users', 'email'],
             'client, création, e-mail' => [StoreCustomerRequest::class, 'email', 'customers', 'email'],
             'client, modification, e-mail' => [UpdateCustomerRequest::class, 'email', 'customers', 'email'],
-            'agence, création, e-mail' => [StoreAgencyRequest::class, 'email', 'agencies', 'email'],
+            'agence, console, e-mail' => [StoreAgencyOnboardingRequest::class, 'agency.email', 'agencies', 'email'],
             'agence, modification, e-mail' => [AgencyUpdateRequest::class, 'email', 'agencies', 'email'],
             'visite publique, e-mail' => [VisitRequestPublicPropertyRequest::class, 'visitor_email', 'property_visits', 'visitor_email'],
             // TCK-1112 (P91.08)
