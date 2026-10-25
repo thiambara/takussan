@@ -12,7 +12,7 @@ use Tests\Support\ImpactMap;
  *
  * ⚠ CE SCRIPT NE VIT PAS SOUS `app/`, ET C'EST DÉLIBÉRÉ. `phpunit.xml` déclare
  * `<source><include><directory>app</directory></include></source>` : une commande
- * artisan placée là entrerait au dénominateur du cliquet `--min=86`, dont la marge
+ * artisan placée là entrerait au dénominateur du cliquet `--min=92`, dont la marge
  * mesurée n'est que de 0,3 point (~74 lignes). Un outil de développement n'a pas à
  * dépenser la marge de couverture de l'application — ni à être livré en production.
  *

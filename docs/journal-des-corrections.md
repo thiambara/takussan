@@ -72,6 +72,13 @@ un rouge de CI qui n'apprend rien.* Le resserrement se décide sur un chiffre de
 Le seuil garde contre l'**érosion** ; il ne dit pas que 86 % suffit, et une méthode traversée sans
 assertion y compte pour couverte.
 
+**Resserré à 92 % le 2026-10-25** (P12.05, TCK-2360), sur un chiffre **de CI**, comme la règle
+le veut. L'artefact `couverture-api-clover` du run nocturne de `dev` 40074381064 (`69979ae96`, PCOV)
+rend « Total: 95.6 % (43037 / 45015 lignes exécutables) ». La condition posée par le porteur était
+d'au moins 92,5 %. Le second chiffre de CI, relevé par le mesureur le 2026-10-15, était 93,1 %.
+La marge de 3,6 points absorbe l'écart entre une PR et la nuit, sans redevenir une tolérance de sept
+points.
+
 ### <a id="j-03"></a>J-03 — Pourquoi les gardes se listent au lieu de s'énumérer
 
 Ce bloc a cité **deux** gardes sur douze pendant que le dépôt en accumulait dix autres, et il n'y
