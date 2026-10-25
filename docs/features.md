@@ -607,6 +607,7 @@ Canal de notification **WhatsApp sortant** qui remplace certains SMS pour les fa
 | P2 | 🛡️ | Graphiques temporels (revenus, occupation) |
 | P2 | 🛡️ | Reporting plateforme cross-tenant (croissance agences/users/listings, MRR/ARR, cohortes de rétention, funnel) — strictement super_admin |
 | P3 | 🛡️ | KPI personnalisables par agence — **disponibles aussi en agence `individual`** (arbitrage TCK-284, écrit en [§1.12](#112-agence--équipe)) |
+| P3 | 🛡️ | Les tuiles du dashboard agence lisent les KPI personnalisés : les seuls activés, par rang, avec leur libellé et leur format, valeurs calculées par l'API (`data.kpis` de `GET /api/dashboard/agency`) ; sans configuration, les six tuiles par défaut restent (TCK-2373) |
 | P3 | 🛡️ | Alertes sur seuils (taux d'impayés, vacance) — **disponibles aussi en agence `individual`** (arbitrage TCK-284, écrit en [§1.12](#112-agence--équipe)) |
 
 **Pas de tableau de bord prestataire (🔧), et c'est une décision, pas un oubli** (TCK-379, écrit

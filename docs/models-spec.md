@@ -3371,6 +3371,11 @@ d'affichage.
 | created_at | datetime | | auto | |
 | updated_at | datetime | | auto | |
 
+**Lecture** (TCK-2373) : `GET /api/dashboard/agency` sert sous `data.kpis` les lignes `is_enabled`
+de l'agence, par `sort_order` puis `id`, chacune `{metric, label, format, value}` — `value` lue dans
+le résumé par `KpiResolver::configuredTiles()`, `null` sans dénominateur ; un format `percent` porte
+des points (0..100). Liste vide sans configuration : le tableau de bord garde ses tuiles par défaut.
+
 **Contraintes d'unicité :**
 - `(agency_id, metric)` — un KPI au plus une fois par agence
 
