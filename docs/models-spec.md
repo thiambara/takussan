@@ -625,7 +625,7 @@ pause, le réactiver les reprend (ADR-0061 §8).
 |---------|------|----------|--------|-------------|------------|
 | id | bigint PK | | auto | Identifiant unique | |
 | parent_id | FK properties | oui | null | Bien parent (ex: immeuble contenant des appartements) | |
-| user_id | FK users | | | Titulaire du bien (`restrictOnDelete`) — son propriétaire pour un particulier ; sur un bien d'agence, **le bailleur désigné à la saisie** (un bailleur actif de l'agence), ou **l'auteur** quand l'agence garde le bien en propre ou en attendant qu'un bailleur invité accepte ; un lot prend à sa création le titulaire bailleur de son parent, et la copie celui de sa source. **Ce n'est pas l'agent responsable** (le collaborateur principal, [§8](#8-propertycollaborator)) : hors création, seules trois voies le réécrivent, jamais depuis un bailleur — la passation d'un bien saisi par un partant (TCK-603), l'acceptation de l'invitation du bailleur en attente, et « changer le titulaire » par l'admin d'agence ([ADR-0036](adr/0036-l-agent-responsable-est-le-collaborateur-principal.md), amendé le 2026-10-19 ; TCK-997, TCK-999, TCK-1000). **À venir** (les trois tickets sont `todo` au 2026-10-19) : la désignation du bailleur à la saisie, le titulaire bailleur d'un lot, l'invitation en attente et « changer le titulaire ». **Aujourd'hui**, le titulaire est l'auteur de la saisie — celui d'une copie aussi (`PropertyDuplicationService`, l'auteur de la copie) —, et seule la passation (TCK-603) le réécrit | ✏️ |
+| user_id | FK users | | | Titulaire du bien (`restrictOnDelete`) — son propriétaire pour un particulier ; sur un bien d'agence, **le bailleur désigné à la saisie** (un bailleur actif de l'agence), ou **l'auteur** quand l'agence garde le bien en propre ou en attendant qu'un bailleur invité accepte ; un lot prend à sa création le titulaire bailleur de son parent, et la copie celui de sa source. **Ce n'est pas l'agent responsable** (le collaborateur principal, [§8](#8-propertycollaborator)) : hors création, seules trois voies le réécrivent, jamais depuis un bailleur — la passation d'un bien saisi par un partant (TCK-603), l'acceptation de l'invitation du bailleur en attente, et « changer le titulaire » par l'admin d'agence ([ADR-0036](adr/0036-l-agent-responsable-est-le-collaborateur-principal.md), amendé le 2026-10-19 ; TCK-997, TCK-999, TCK-1000). La désignation du bailleur à la saisie, le titulaire bailleur d'un lot et la copie sont faits (TCK-997, 2026-10-25). **À venir** : l'invitation en attente (TCK-1000) et « changer le titulaire » (TCK-999). **Aujourd'hui**, hors création, seule la passation (TCK-603) le réécrit. Un bien saisi avant TCK-997 garde son titulaire, l'auteur de la saisie | ✏️ |
 | pending_owner_profile_id | FK owner_profiles | oui | null | **À venir — TCK-1000, non migrée au 2026-10-19.** Bailleur invité pour qui le bien a été saisi (`nullOnDelete`) : le bien lui passe quand il accepte l'invitation, et le lien s'efface à l'acceptation, à la révocation ou à l'expiration | ➕ (à venir) |
 | agency_id | FK agencies | oui | null | Agence gestionnaire (`nullOnDelete`) | |
 | title | string | | | Titre de l'annonce | |
@@ -3883,6 +3883,14 @@ agence.
 maintenance passe `completed` avec un prestataire assigné. Validée par l'agence, payée par un
 `Payout` `payee_role = service_provider` ; refacturable au bailleur, elle s'impute sur son
 reversement (`imputed_payout_id`).
+
+Elle ne se valide, ne se paie et ne s'impute que pour une demande `completed` ou `closed`
+(`ServiceProviderBill::BILLABLE_REQUEST_STATUSES`). Quand la demande quitte cet état (contestation)
+ou est annulée, `ReopenedRequestBills` passe sa facture `pending_validation`, ou `validated` sans
+reversement vivant et non imputée, à **`cancelled`** — seul écrivain de ce statut ; une facture payée,
+imputée ou en cours de paiement reste, avec l'avis `service_provider_bill.kept_on_reopen` aux
+détenteurs de `payouts.create` (TCK-2270, ADR-0039 § 8, amendement du 2026-10-25). La fin des
+travaux suivante fait naître une facture neuve.
 
 | Colonne | Type | Nullable | Défaut | Description |
 |---------|------|----------|--------|-------------|

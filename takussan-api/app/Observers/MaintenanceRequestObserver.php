@@ -7,6 +7,7 @@ use App\Models\Enums\MaintenanceStatus;
 use App\Models\Enums\ServiceProviderBillStatus;
 use App\Models\MaintenanceRequest;
 use App\Models\ServiceProviderBill;
+use App\Services\Maintenance\ReopenedRequestBills;
 use Illuminate\Contracts\Events\ShouldHandleEventsAfterCommit;
 use Illuminate\Support\Str;
 
@@ -18,16 +19,39 @@ use Illuminate\Support\Str;
  * `pending_validation`. Sans exception attendue (piège PostgreSQL n° 1) : `insertOrIgnore` contre
  * l'index unique partiel `sp_bills_one_open_per_request`, si bien qu'un second passage par
  * `completed` n'en crée pas de seconde. Après le commit : une transaction annulée ne facture rien.
+ *
+ * TCK-2270 (P224.01 à P224.03, ADR-0039 § 8, amendement du 2026-10-25) — la facture suit le
+ * travail rendu : quand la demande QUITTE `completed`/`closed` (contestation) ou ENTRE en
+ * `cancelled`, sa facture ouverte est annulée ou, déjà engagée, gardée avec un avis à l'agence
+ * ({@see ReopenedRequestBills}). Le second passage par `completed` ne trouve donc plus de facture
+ * ouverte non engagée : il en fait naître une neuve, au coût et au prestataire du moment.
  */
 class MaintenanceRequestObserver implements ShouldHandleEventsAfterCommit
 {
     public function updated(MaintenanceRequest $request): void
     {
-        if (! $request->wasChanged('status') || $request->status !== MaintenanceStatus::Completed) {
+        if (! $request->wasChanged('status')) {
             return;
         }
 
-        $this->bill($request);
+        if ($request->status === MaintenanceStatus::Completed) {
+            $this->bill($request);
+
+            return;
+        }
+
+        if ($this->leftTheRenderedWork($request) || $request->status === MaintenanceStatus::Cancelled) {
+            app(ReopenedRequestBills::class)->settle($request);
+        }
+    }
+
+    private function leftTheRenderedWork(MaintenanceRequest $request): bool
+    {
+        $previous = $request->getPrevious()['status'] ?? null;
+        $previous = $previous instanceof MaintenanceStatus ? $previous : MaintenanceStatus::tryFrom((string) $previous);
+
+        return in_array($previous, ServiceProviderBill::BILLABLE_REQUEST_STATUSES, true)
+            && ! in_array($request->status, ServiceProviderBill::BILLABLE_REQUEST_STATUSES, true);
     }
 
     public function created(MaintenanceRequest $request): void

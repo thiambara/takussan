@@ -5,7 +5,9 @@ namespace App\Models;
 use App\Http\Filters\TypedExactFilter;
 use App\Models\Bases\AbstractModel;
 use App\Models\Enums\Currency;
+use App\Models\Enums\MaintenanceStatus;
 use App\Models\Enums\ServiceProviderBillStatus;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -18,10 +20,17 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * l'agence, et se paie par un `Payout` `payee_role = service_provider` — la même chaîne de quatre
  * yeux que les reversements au bailleur. Refacturable, elle entre dans les FRAIS du reversement au
  * bailleur du bien (`imputed_payout_id`).
+ *
+ * TCK-2270 (P224.01, ADR-0039 § 8, amendement du 2026-10-25) : elle ne se valide, ne se paie et ne
+ * s'impute que pour un travail rendu ({@see self::BILLABLE_REQUEST_STATUSES}) ; la contestation et
+ * l'annulation de l'intervention l'annulent, ou la gardent si elle est déjà engagée.
  */
 class ServiceProviderBill extends AbstractModel
 {
     use HasFactory;
+
+    /** Les états d'une intervention dont le travail est rendu : seuls ils valident, paient et imputent sa facture. */
+    public const BILLABLE_REQUEST_STATUSES = [MaintenanceStatus::Completed, MaintenanceStatus::Closed];
 
     protected $fillable = [
         'maintenance_request_id', 'agency_id', 'property_id', 'provider_id',
@@ -54,6 +63,25 @@ class ServiceProviderBill extends AbstractModel
         'validated_by_id', 'validated_at', 'rejection_reason', 'rechargeable_to_landlord',
         'imputed_payout_id', 'created_at', 'updated_at',
     ];
+
+    /** L'intervention de la facture est-elle, À CET INSTANT, dans un état de travail rendu ? Relue en base. */
+    public function requestIsBillable(): bool
+    {
+        return self::query()->whereKey($this->getKey())->whereRequestBillable()->exists();
+    }
+
+    /**
+     * @param  Builder<ServiceProviderBill>  $query
+     * @return Builder<ServiceProviderBill>
+     */
+    public function scopeWhereRequestBillable(Builder $query): Builder
+    {
+        $table = $this->getTable();
+
+        return $query->whereExists(fn ($q) => $q->selectRaw('1')->from('maintenance_requests')
+            ->whereColumn('maintenance_requests.id', "{$table}.maintenance_request_id")
+            ->whereIn('maintenance_requests.status', array_map(fn (MaintenanceStatus $s) => $s->value, self::BILLABLE_REQUEST_STATUSES)));
+    }
 
     public function maintenanceRequest(): BelongsTo
     {

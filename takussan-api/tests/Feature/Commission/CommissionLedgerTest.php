@@ -425,20 +425,77 @@ class CommissionLedgerTest extends ApiTestCase
         $this->assertSame($a->id, $lease->fresh()->agent_id);
     }
 
-    /** verif-595 B1 — une vente créée par le bailleur ne dérive pas de commission de son taux. */
+    /**
+     * verif-595 B1 — une vente créée par le bailleur ne dérive pas de commission de son taux.
+     *
+     * TCK-2286 (P227.01) — il n'envoie plus de taux du tout : `commission_rate` est un terme de
+     * commission (403). Sans taux, la vente naît sans commission.
+     */
     public function test_b1_a_sale_created_by_the_landlord_derives_no_commission(): void
     {
-        $this->actingAsApi($this->landlord());
-        $id = $this->postJson('/api/leases', [
+        $sale = [
             'property_id' => $this->property->id,
             'tenant_id' => $this->landlordsTenant()->id,
             'type' => 'sale',
             'start_date' => '2026-08-01',
             'sale_price' => 50_000_000,
-            'commission_rate' => 3,
-        ])->assertCreated()->json('data.id');
+        ];
 
+        $this->actingAsApi($this->landlord());
+        $this->postJson('/api/leases', $sale + ['commission_rate' => 3])
+            ->assertForbidden()->assertJsonPath('code', 'lease.commission_forbidden');
+        $this->assertSame(0, Lease::query()->count());
+
+        $id = $this->postJson('/api/leases', $sale)->assertCreated()->json('data.id');
         $this->assertNull(Lease::query()->findOrFail($id)->commission_amount);
+    }
+
+    /**
+     * TCK-2286 (P227.01, ADR-0049 § 1) — le taux de gestion d'une location est celui que le
+     * reversement retient (`PayoutCalculator`) : le bailleur, qui le paie, ne le fixe ni à la
+     * création ni au renouvellement. Il le mettait à 0 (201), et le reversement ne retenait rien.
+     */
+    public function test_b1_the_landlord_cannot_set_the_rental_rate_at_creation(): void
+    {
+        $this->actingAsApi($this->landlord());
+        $this->postJson('/api/leases', [
+            'property_id' => $this->property->id,
+            'tenant_id' => $this->landlordsTenant()->id,
+            'type' => 'residential_rent',
+            'start_date' => '2026-08-01',
+            'monthly_rent' => 300000,
+            'commission_rate' => 0,
+        ])->assertForbidden()->assertJsonPath('code', 'lease.commission_forbidden');
+
+        $this->assertSame(0, Lease::query()->count());
+    }
+
+    public function test_b1_the_landlord_cannot_set_the_rental_rate_at_renewal(): void
+    {
+        $parent = $this->createLease(['commission_rate' => 10]);
+        $this->activate($parent);
+
+        $this->actingAsApi($this->landlord());
+        $this->postJson("/api/leases/{$parent->id}/renew", ['commission_rate' => 0])
+            ->assertForbidden()->assertJsonPath('code', 'lease.commission_forbidden');
+        $this->assertSame(0, Lease::query()->where('renewed_from_lease_id', $parent->id)->count());
+
+        // Sans taux, il renouvelle toujours, et l'enfant garde le taux du parent.
+        $childId = $this->postJson("/api/leases/{$parent->id}/renew", [])->assertCreated()->json('data.id');
+        $this->assertSame('10.00', Lease::query()->findOrFail($childId)->commission_rate);
+    }
+
+    /** Témoin : le personnel qui tient `leases.create` fixe le taux, à la création comme au renouvellement. */
+    public function test_staff_sets_the_rental_rate_at_creation_and_renewal(): void
+    {
+        $parent = $this->createLease(['commission_rate' => 10]);
+        $this->assertSame('10.00', $parent->commission_rate);
+        $this->activate($parent);
+
+        $this->actingAsApi($this->admin);
+        $childId = $this->postJson("/api/leases/{$parent->id}/renew", ['commission_rate' => 7])
+            ->assertCreated()->json('data.id');
+        $this->assertSame('7.00', Lease::query()->findOrFail($childId)->commission_rate);
     }
 
     /** verif-595 B1 — le personnel sans `leases.create` ne fixe pas la commission non plus. */

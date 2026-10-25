@@ -248,4 +248,4 @@ voisins verts (570 tests), `tsc --noEmit`, `npm run lint`, `check:i18n`, `check:
 `check:classes-emises` propres. Gardes du dépôt vertes. La suite entière n'a pas été lancée
 (consignes : c'est la session qui la lance).
 
-- À la fusion : retirer de `docs/models-spec.md` §3 la marque « à venir » de la désignation du bailleur à la saisie et du titulaire bailleur d'un lot (ligne `user_id`), et mettre à jour la phrase « Aujourd'hui » (passe `/sync-specs` 015, MD7).
+- *Fait le 2026-10-25, à la fusion de pre-dev dans la branche.* À la fusion : retirer de `docs/models-spec.md` §3 la marque « à venir » de la désignation du bailleur à la saisie et du titulaire bailleur d'un lot (ligne `user_id`), et mettre à jour la phrase « Aujourd'hui » (passe `/sync-specs` 015, MD7).

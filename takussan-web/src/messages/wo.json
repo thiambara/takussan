@@ -10947,6 +10947,12 @@
           "body": "Destination de paiement {destination} dañu ko far ci sa compte. Su dul yaa ko def, jokkool ak sa agence léegi."
         }
       },
+      "service_provider_bill": {
+        "kept_on_reopen": {
+          "title": "Facture d'intervention maintenue : {reference}",
+          "body": "L'intervention « {request} » a été contestée ou annulée, mais sa facture {reference} de {amount} est déjà payée, refacturée au bailleur ou en cours de paiement : elle n'est pas annulée. Vérifiez-la et régularisez-la à la main."
+        }
+      },
       "owner_statement": {
         "available": {
           "title": "Sa relevé de gérance {period} am na",

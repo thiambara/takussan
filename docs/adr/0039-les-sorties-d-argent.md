@@ -1,8 +1,8 @@
 # ADR-0039 — Les sorties d'argent : brut calculé, bénéficiaire explicite, quatre yeux, décaissement manuel tracé, factures numérotées à l'émission
 
-- **Statut** : Accepté, **amendé le 2026-10-23** (cf. § *Amendement du 2026-10-23 — le remboursement déjà sorti devient un `Payout` constaté*) et **le 2026-10-24** (cf. § *Amendement du 2026-10-24 — la reprise au bailleur, le relevé lu par la copie, la pénalité de retard reversée*)
+- **Statut** : Accepté, **amendé le 2026-10-23** (cf. § *Amendement du 2026-10-23 — le remboursement déjà sorti devient un `Payout` constaté*), **le 2026-10-24** (cf. § *Amendement du 2026-10-24 — la reprise au bailleur, le relevé lu par la copie, la pénalité de retard reversée*) et **le 2026-10-25** (cf. § *Amendement du 2026-10-25 — la facture d'une intervention contestée ou annulée*)
 - **Date** : 2026-10-07
-- **Tickets** : [TCK-594](../backlog/tickets/TCK-594-sorties-d-argent-calculees-et-validees.md)
+- **Tickets** : [TCK-594](../backlog/tickets/TCK-594-sorties-d-argent-calculees-et-validees.md), [TCK-2270](../backlog/tickets/TCK-2270-facture-d-intervention-contestee-ou-annulee.md) (amendement du 2026-10-25)
 - **Précise** : le principe non négociable n° 3 (« le montant est décimal en base, entier ×100 à la
   frontière du driver »), [ADR-0007](0007-pas-d-enum-sql.md) (pas d'`enum()` SQL) et
   [ADR-0031](0031-personnel-de-l-agence-et-cloisonnement-des-bailleurs.md) (le bénéficiaire ne gère
@@ -879,3 +879,96 @@ Le porteur a aussi confirmé trois choix du premier jet :
   - une pénalité reversée garde sa copie quand le taux du bail change, au relevé comme dans sa
     reprise ;
   - une pénalité rendue en entier n'est ni relancée, ni comptée à recouvrer, ni reversée.
+
+## Amendement du 2026-10-25 — la facture d'une intervention contestée ou annulée
+
+Décision du porteur du 2026-10-25, sur les pistes P224.01 à P224.04 (angle 224 du fichier de pistes,
+`docs/plans/2026-10-15-pistes-d-amelioration.md`). Elle complète le § 8 : elle dit qui pose
+`cancelled` sur une facture de prestataire, et ce que devient une facture validée, payée ou imputée
+quand le travail qu'elle paie n'est plus rendu. Relu sur `pre-dev` b4d905cd3. Ticket :
+[TCK-2270](../backlog/tickets/TCK-2270-facture-d-intervention-contestee-ou-annulee.md).
+
+### Constat
+
+- La facture naît au passage à `completed` (`MaintenanceRequestObserver`), et la table d'états permet
+  ensuite `completed → in_progress` (la contestation du demandeur) puis `in_progress → cancelled`.
+  Aucun chemin ne touchait la facture : `ServiceProviderBillStatus::Cancelled` n'avait aucun
+  écrivain (réservé par TCK-1307).
+- `validate` ne jugeait que `pending_validation`, `createForBill` que `validated`, et
+  `PayoutCalculator::rechargeableBills` que le statut de la facture et son imputation. Aucun ne
+  lisait l'état de l'intervention. **Mesuré** (P224.01) : intervention contestée puis annulée,
+  facture de 50 000 toujours `pending_validation`, `validate` → 200, `pay` → 201, refacturable au
+  bailleur.
+- L'index partiel `sp_bills_one_open_per_request` et l'`insertOrIgnore` de l'observateur ignoraient
+  la seconde fin des travaux : une réassignation après contestation ne facturait jamais le second
+  prestataire (P224.02), et une seconde fin à un autre coût réel laissait l'ancien montant
+  (P224.03).
+
+### Décision
+
+**Une facture de prestataire ne se valide, ne se paie et ne s'impute que pour un travail rendu :
+une intervention `completed` ou `closed`. Quand l'intervention quitte cet état (contestation) ou
+est annulée, sa facture ouverte est annulée si aucun geste d'argent ne la tient, et gardée, avec un
+avis à l'agence, sinon.**
+
+1. **Le déclencheur** : l'intervention quitte `completed`/`closed`, ou entre en `cancelled`. Le geste
+   vit dans l'observateur qui fait naître la facture (`MaintenanceRequestObserver`, après le commit),
+   par `App\Services\Maintenance\ReopenedRequestBills`, sous le verrou de la demande puis de ses
+   factures ouvertes. Une demande revenue au travail rendu entre-temps n'est pas touchée.
+2. **Passe à `cancelled`** : une facture `pending_validation` ; une facture `validated` sans
+   reversement vivant au prestataire (`PayoutStatus::holdingItems()`) et non imputée
+   (`imputed_payout_id` nul). La fin des travaux suivante en fait naître une neuve, au coût réel et
+   au prestataire du moment : c'est ce qui ferme P224.02 et P224.03 sans code propre.
+3. **Reste** : une facture `paid`, une facture imputée à un reversement au bailleur, et une facture
+   `validated` dont un reversement au prestataire est vivant. Elle n'est pas défaite : un geste
+   d'argent ne se défait pas en silence. Les membres actifs de l'agence qui détiennent
+   `payouts.create` reçoivent l'avis `service_provider_bill.kept_on_reopen` (référence, montant,
+   intervention ; cible `/app/payments?tab=bills`), non désactivable comme les autres avis de sortie
+   d'argent, à la contestation et de nouveau à l'annulation. La reprise passe par la main de
+   l'agence.
+4. **La garde**, qui relit l'état de l'intervention, ferme la fenêtre entre le commit de la
+   contestation et l'observateur :
+   - `POST …/validate` → 422 `service_provider_bill.request_not_completed` ;
+   - `POST …/pay` (`createForBill`, sous le verrou de la facture) → même refus ;
+   - `rechargeableBills` ne propose pas la facture, et `POST /api/payouts` la refuse comme une pièce
+     inéligible (`service_provider_bill_ids`), avant le verrou puis sous lui. Cela vaut aussi pour
+     une facture payée restée : elle ne se refacture au bailleur qu'une fois le travail de nouveau
+     rendu.
+   - Le rejet n'est pas gardé : rejeter ferme une facture, quel que soit l'état de l'intervention.
+
+### Ce qui n'est pas gardé
+
+- **La reprise d'une facture payée ou imputée** n'a aucun geste : l'avis la signale, l'agence la
+  traite à la main (reversement annulé, reprise, ou nouvelle facture convenue avec le prestataire).
+  Tant qu'elle reste ouverte, l'index partiel empêche la naissance d'une facture neuve pour la même
+  intervention.
+- **Une facture `validated` dont le reversement vivant est ensuite annulé** reste `validated` sur
+  une intervention qui n'est plus rendue : la garde refuse de la payer, rien ne l'annule.
+- **La relecture sous verrou dans `createLocked`** n'a pas de test propre : la course qu'elle ferme
+  (une annulation entre `assertItemsInScope` et le verrou) n'est pas reproduite ; l'ablation de la
+  garde d'imputation la retire avec le contrôle d'avant le verrou.
+- L'écran des factures (P224.04) ne change pas : une facture `pending_validation` n'existe plus que
+  pour une intervention `completed` ou `closed`.
+
+### Application
+
+- `ServiceProviderBill::BILLABLE_REQUEST_STATUSES`, `requestIsBillable()`,
+  `scopeWhereRequestBillable()` ; `ReopenedRequestBills` ; les gardes de
+  `ServiceProviderBillController::validateBill`, `PayoutService::createForBill`,
+  `assertItemsInScope`, `createLocked` et `PayoutCalculator::rechargeableBills`.
+- `ServiceProviderBillStatus::Cancelled` n'est plus réservé (`CasDEnumReservesTest`).
+- La fabrique `ServiceProviderBillFactory` fait naître sa demande `completed`.
+- **Gardes**, chacune vérifiée par ablation (`tests/Feature/Maintenance/FactureDInterventionRouverteTest.php`) :
+  - contestation puis annulation : facture `cancelled`, `validate` et `pay` en 422, absente de
+    `rechargeableBills` ;
+  - facture validée sans reversement ni imputation : `cancelled` ;
+  - facture payée : reste, avis aux détenteurs de `payouts.create` (ni au prestataire ni au
+    bailleur), un second à l'annulation, et pas refacturable ;
+  - facture imputée, facture en cours de paiement : restent, avec l'avis ;
+  - la garde seule, intervention repartie `in_progress` hors d'Eloquent : `validate`, `pay`,
+    `rechargeableBills` et `POST /api/payouts` refusent ; revenue `completed` ou `closed`, ils
+    acceptent ;
+  - P224.02 : contestation, réassignation, fin des travaux de B → une facture ouverte, celle de B,
+    et celle de A `cancelled` ;
+  - P224.03 : seconde fin à 80 000 → facture ouverte de 80 000, `exceeds_quote`, la première
+    `cancelled`.

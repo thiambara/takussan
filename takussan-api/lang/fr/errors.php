@@ -535,6 +535,7 @@ return [
         'already_in_payout' => 'Cette facture d\'intervention est déjà dans un reversement en cours.',
         'not_payable' => 'Seule une facture d\'intervention validée se paie.',
         'not_pending' => 'Cette facture d\'intervention n\'attend plus de validation.',
+        'request_not_completed' => 'Le travail de cette intervention n\'est pas rendu (contestée, reprise ou annulée) : sa facture ne se valide, ne se paie ni ne se refacture.',
     ],
     'session' => [
         'cannot_revoke_current' => 'Impossible de révoquer la session en cours : déconnectez-vous.',
