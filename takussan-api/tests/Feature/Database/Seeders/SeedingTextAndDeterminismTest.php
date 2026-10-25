@@ -10,6 +10,7 @@ use Database\Seeders\Support\SeedFaker;
 use Database\Seeders\Support\SeedingConfig;
 use Database\Seeders\Support\SeedTexts;
 use Database\Seeders\YearOfActivitySeeder;
+use Faker\Factory;
 use Faker\Provider\Lorem;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -114,7 +115,7 @@ class SeedingTextAndDeterminismTest extends TestCase
     {
         // Un Faker ORPHELIN, comme en laisse un test voisin : son `__destruct()` ré-initialise
         // `mt_srand()` le jour où le ramasse-miettes le libère — en plein seed si rien ne l'en empêche.
-        $orphelin = \Faker\Factory::create();
+        $orphelin = Factory::create();
         unset($orphelin);
 
         DB::beginTransaction();
