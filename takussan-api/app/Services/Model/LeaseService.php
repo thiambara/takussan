@@ -114,11 +114,17 @@ class LeaseService
         return $amount === null ? null : Currency::roundAmount((float) $amount, $currency);
     }
 
-    /** Les champs du mandat d'agence (ADR-0049 §1-§2) que seul son personnel écrit. */
-    public const COMMISSION_TERMS = ['commission_amount', 'agent_id'];
+    /**
+     * Les champs du mandat d'agence (ADR-0049 §1-§2) que seul son personnel écrit.
+     *
+     * TCK-2286 (P227.01, amendement d'ADR-0049 du 2026-10-25) — `commission_rate` aussi : pour une
+     * location, c'est le taux de gestion que le reversement retient (`PayoutCalculator`), et le
+     * bailleur le mettait à 0 à la création comme au renouvellement.
+     */
+    public const COMMISSION_TERMS = ['commission_amount', 'agent_id', 'commission_rate'];
 
     /**
-     * TCK-595 (verif-595 B1) — `commission_amount` et `agent_id` ne s'écrivent que par le personnel
+     * TCK-595 (verif-595 B1) — les termes de commission ne s'écrivent que par le personnel
      * de l'agence du bail qui tient `leases.create` (la capacité qui ouvre le bail). Le bailleur et
      * le locataire ne les écrivent jamais. À la création, une valeur nulle vaut absence ; à la
      * modification (`$nullIsWrite`), effacer le négociateur est une écriture.
