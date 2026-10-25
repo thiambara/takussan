@@ -3887,6 +3887,14 @@ maintenance passe `completed` avec un prestataire assigné. Validée par l'agenc
 `Payout` `payee_role = service_provider` ; refacturable au bailleur, elle s'impute sur son
 reversement (`imputed_payout_id`).
 
+Elle ne se valide, ne se paie et ne s'impute que pour une demande `completed` ou `closed`
+(`ServiceProviderBill::BILLABLE_REQUEST_STATUSES`). Quand la demande quitte cet état (contestation)
+ou est annulée, `ReopenedRequestBills` passe sa facture `pending_validation`, ou `validated` sans
+reversement vivant et non imputée, à **`cancelled`** — seul écrivain de ce statut ; une facture payée,
+imputée ou en cours de paiement reste, avec l'avis `service_provider_bill.kept_on_reopen` aux
+détenteurs de `payouts.create` (TCK-2270, ADR-0039 § 8, amendement du 2026-10-25). La fin des
+travaux suivante fait naître une facture neuve.
+
 | Colonne | Type | Nullable | Défaut | Description |
 |---------|------|----------|--------|-------------|
 | id | bigint PK | | auto | |

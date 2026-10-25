@@ -532,6 +532,7 @@ return [
         'already_in_payout' => 'Bii facture d\'intervention mi ngi ci reversement bu ñu nekk di def.',
         'not_payable' => 'Facture d\'intervention bu ñu valider rekk lañuy fey.',
         'not_pending' => 'Bii facture d\'intervention du xaar validation.',
+        'request_not_completed' => 'Le travail de cette intervention n\'est pas rendu (contestée, reprise ou annulée) : sa facture ne se valide, ne se paie ni ne se refacture.',
     ],
     'session' => [
         'cannot_revoke_current' => 'Mënuñu dindi session bi ngay jëfandikoo: génnal ci sa compte.',

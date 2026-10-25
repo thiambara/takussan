@@ -3,6 +3,7 @@
 namespace Database\Factories;
 
 use App\Models\Enums\Currency;
+use App\Models\Enums\MaintenanceStatus;
 use App\Models\Enums\ServiceProviderBillStatus;
 use App\Models\MaintenanceRequest;
 use App\Models\ServiceProviderBill;
@@ -20,7 +21,8 @@ class ServiceProviderBillFactory extends Factory
     public function definition(): array
     {
         return [
-            'maintenance_request_id' => MaintenanceRequest::factory(),
+            // TCK-2270 (P224.01) — une facture n'existe que pour un travail rendu.
+            'maintenance_request_id' => MaintenanceRequest::factory()->state(['status' => MaintenanceStatus::Completed]),
             'provider_id' => User::factory(),
             'reference_number' => 'SPB-'.strtoupper(Str::random(8)),
             'amount' => fake()->numberBetween(10_000, 300_000),

@@ -62,10 +62,17 @@ class ServiceProviderBillTest extends TestCase
         $request = $this->request($agency, $this->provider($agency));
 
         $request->update(['status' => MaintenanceStatus::Completed]);
+        $request->update(['status' => MaintenanceStatus::Completed]);
+        $this->assertSame(1, ServiceProviderBill::query()->where('maintenance_request_id', $request->id)->count());
+
+        // TCK-2270 (P224.01) — la contestation annule la facture en attente, et la fin des travaux
+        // suivante en fait naître une neuve : une seule reste ouverte.
         $request->update(['status' => MaintenanceStatus::InProgress]);
         $request->update(['status' => MaintenanceStatus::Completed]);
 
-        $bill = ServiceProviderBill::query()->where('maintenance_request_id', $request->id)->sole();
+        $bill = ServiceProviderBill::query()->where('maintenance_request_id', $request->id)
+            ->where('status', '!=', 'cancelled')->sole();
+        $this->assertSame(1, ServiceProviderBill::query()->where('maintenance_request_id', $request->id)->where('status', 'cancelled')->count());
         $this->assertEquals(50000, (float) $bill->amount);
         $this->assertSame('pending_validation', $bill->status->value);
         $this->assertFalse($bill->exceeds_quote);

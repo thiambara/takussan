@@ -170,6 +170,12 @@ enum NotificationCode: string
     case PayoutMethodUpdated = 'payout_method.updated';
     case PayoutMethodRemoved = 'payout_method.removed';
     case PayoutThresholdRelaxRequested = 'payout_threshold.relax_requested';
+    /**
+     * TCK-2270 (P224.01, ADR-0039 § 8, amendement du 2026-10-25) — à qui gère les factures de
+     * l'agence (`payouts.create`) : l'intervention est contestée ou annulée, et sa facture, déjà
+     * payée, imputée ou en cours de paiement, n'est pas annulée.
+     */
+    case ServiceProviderBillKeptOnReopen = 'service_provider_bill.kept_on_reopen';
     case OwnerStatementAvailable = 'owner_statement.available';
 
     // ─── Avis et signalements (TCK-597, ADR-0043) ───────────────────────────────────────
@@ -281,7 +287,8 @@ enum NotificationCode: string
             self::LeaseSignatureCompleted => NotificationType::Lease,
             self::PayoutAwaitingApproval, self::PayoutDue, self::PayoutProcessed, self::PayoutFailed,
             self::PayoutMethodAdded, self::PayoutMethodUpdated, self::PayoutMethodRemoved,
-            self::PayoutThresholdRelaxRequested, self::OwnerStatementAvailable => NotificationType::Payment,
+            self::PayoutThresholdRelaxRequested, self::OwnerStatementAvailable,
+            self::ServiceProviderBillKeptOnReopen => NotificationType::Payment,
         };
     }
 
@@ -336,7 +343,8 @@ enum NotificationCode: string
             // d'un détournement (ADR-0039 §6).
             self::PayoutAwaitingApproval, self::PayoutDue, self::PayoutProcessed, self::PayoutFailed,
             self::PayoutMethodAdded, self::PayoutMethodUpdated, self::PayoutMethodRemoved,
-            self::PayoutThresholdRelaxRequested, self::OwnerStatementAvailable => null,
+            self::PayoutThresholdRelaxRequested, self::OwnerStatementAvailable,
+            self::ServiceProviderBillKeptOnReopen => null,
             self::InvitationReceived, self::InvitationReminder => null,
             // Un avis de sécurité : on ne s'en désabonne pas.
             self::AccountPhoneChanged => null,
@@ -432,6 +440,7 @@ enum NotificationCode: string
             self::PayoutMethodAdded, self::PayoutMethodUpdated, self::PayoutMethodRemoved => ['destination' => self::PARAM_TEXT],
             self::PayoutThresholdRelaxRequested => ['agency' => self::PARAM_TEXT],
             self::OwnerStatementAvailable => ['period' => self::PARAM_MONTH],
+            self::ServiceProviderBillKeptOnReopen => ['reference' => self::PARAM_TEXT, 'amount' => self::PARAM_MONEY, 'request' => self::PARAM_TEXT],
             self::ReviewToModerate, self::ReviewReceived => ['subject' => self::PARAM_TEXT, 'rating' => self::PARAM_COUNT],
             self::ModerationPropertyHidden, self::ModerationPropertyRemoved => ['property' => self::PARAM_TEXT, 'reason_code' => self::PARAM_REASON_CODE, 'reason' => self::PARAM_TEXT],
             self::ModerationReportUpheld, self::ModerationReportDismissed => ['property' => self::PARAM_TEXT],

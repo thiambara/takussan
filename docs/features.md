@@ -306,7 +306,7 @@ Signalement et suivi des problèmes techniques sur un bien loué.
 | P2 | 🔧 | Kit d'accès au logement (adresse, itinéraire, téléphone du locataire, consignes) pendant l'intervention acceptée (TCK-592) |
 | P2 | 🧑‍💼 | Priorisation des demandes (urgent, normal, bas) |
 | P2 | 🏢🧑‍💼🏠 | Noter le prestataire après une intervention terminée (1 à 5 + commentaire) ; note agrégée visible des agences dans le carnet (TCK-597) |
-| P3 | 🔧🏢 | Facturation directe prestataire → agence : à la fin d'une intervention, facture du prestataire générée (devis approuvé ou coût réel), validée par l'agence, payée par mobile money et imputable au reversement du bailleur (TCK-594) |
+| P3 | 🔧🏢 | Facturation directe prestataire → agence : à la fin d'une intervention, facture du prestataire générée (devis approuvé ou coût réel), validée par l'agence, payée par mobile money et imputable au reversement du bailleur (TCK-594) ; la contestation ou l'annulation de l'intervention annule la facture encore ouverte et non engagée, une facture déjà payée ou refacturée reste avec un avis à l'agence, et seule une intervention terminée ou close voit sa facture validée, payée ou refacturée (TCK-2270) |
 | P3 | 🧑‍💼 | Contrats de maintenance récurrents |
 | P3 | 👤🏢 | Annuaire public des prestataires, sur consentement du prestataire, contact via la plateforme |
 

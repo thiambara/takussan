@@ -532,6 +532,7 @@ return [
         'already_in_payout' => 'This maintenance bill is already in an ongoing payout.',
         'not_payable' => 'Only a validated maintenance bill can be paid.',
         'not_pending' => 'This maintenance bill is no longer awaiting validation.',
+        'request_not_completed' => 'The work on this maintenance request is not delivered (contested, resumed or cancelled): its bill cannot be validated, paid or recharged.',
     ],
     'session' => [
         'cannot_revoke_current' => 'The current session cannot be revoked: sign out instead.',
