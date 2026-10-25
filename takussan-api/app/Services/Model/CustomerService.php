@@ -73,8 +73,10 @@ class CustomerService
             'user_id' => $user->id,
             'added_by_id' => $user->id,
             'agency_id' => $user->agency_id,
-            'first_name' => $user->first_name ?? 'Client',
-            'last_name' => $user->last_name ?? '#'.$user->id,
+            // P220.03 (TCK-2281) — un compte sans nom donne une fiche sans nom : c'est le front qui
+            // la nomme (`nomAffichable`). Les colonnes de `users` sont `NOT NULL`.
+            'first_name' => $user->first_name,
+            'last_name' => $user->last_name,
             'email' => $user->email,
             'phone' => $user->phone,
         ]);

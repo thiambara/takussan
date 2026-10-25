@@ -160,7 +160,8 @@ export async function fetchPendingAgencyInvitations(
  */
 export interface InviteAgencyAgentPayload {
   readonly email: string;
-  readonly role: 'agent' | 'agent_senior' | 'agent_manager';
+  /** P234.01 (TCK-2280) — `agent` seul : les deux autres rôles n'étaient jamais appliqués. */
+  readonly role: 'agent';
   readonly first_name: string;
   readonly last_name: string;
   readonly phone?: string | null;

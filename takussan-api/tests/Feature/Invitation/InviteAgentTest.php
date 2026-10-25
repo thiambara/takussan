@@ -80,7 +80,12 @@ class InviteAgentTest extends TestCase
         );
     }
 
-    public function test_invite_agent_senior_and_manager_roles_are_accepted(): void
+    /**
+     * P234.01 (TCK-2280) — `agent_senior` et `agent_manager` n'accordaient rien de plus que `agent`
+     * (le rôle choisi n'était jamais appliqué) : l'invitation ne les offre plus. Celles déjà émises
+     * s'acceptent toujours ({@see RolesDAgentSansEffetTest}).
+     */
+    public function test_invite_agent_senior_and_manager_roles_are_rejected(): void
     {
         Mail::fake();
         [$agency] = $this->standardAgencyWithAdmin();
@@ -91,8 +96,9 @@ class InviteAgentTest extends TestCase
                 'role' => $role,
                 'first_name' => 'X',
                 'last_name' => 'Y',
-            ])->assertStatus(201)->assertJsonPath('data.role', $role);
+            ])->assertStatus(422)->assertJsonValidationErrors(['role']);
         }
+        $this->assertSame(0, Invitation::query()->count());
     }
 
     public function test_invite_rejects_disallowed_roles(): void
@@ -361,7 +367,7 @@ class InviteAgentTest extends TestCase
 
         $this->postJson("/api/agencies/{$agency->id}/agents/invite", [
             'email' => 'log@example.com',
-            'role' => 'agent_senior',
+            'role' => 'agent',
             'first_name' => 'A',
             'last_name' => 'B',
         ])->assertStatus(201);
@@ -371,7 +377,7 @@ class InviteAgentTest extends TestCase
         $this->assertSame($admin->id, $log->causer_id);
         $this->assertSame('log@example.com', data_get($log->properties, 'target_email'));
         $this->assertSame($agency->id, data_get($log->properties, 'agency_id'));
-        $this->assertSame('agent_senior', data_get($log->properties, 'role'));
+        $this->assertSame('agent', data_get($log->properties, 'role'));
     }
 
     public function test_super_admin_bypass_works(): void

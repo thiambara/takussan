@@ -304,7 +304,7 @@ class InvitationService
                 ]);
             }
 
-            return $this->acceptForUser($invitation, $existingUser);
+            return $this->acceptForUser($invitation, $existingUser, $payload);
         }
 
         // Branch A — create the User as part of the accept transaction.
@@ -755,12 +755,56 @@ class InvitationService
 
     /**
      * Branch B: shared finalize when the User already exists.
+     *
+     * P220.07 (TCK-2281, décision du porteur du 2026-10-25) — un compte SANS NOM (créé par
+     * téléphone, noms `''`) reçoit le prénom et le nom qu'il a confirmés à l'acceptation, que
+     * l'écran lui a préremplis avec ceux de l'invitation ({@see self::prefillFor()}). Un compte
+     * qui porte un nom le garde, quoi qu'on envoie. Dans la transaction : un refus de
+     * `finalizeAccept` n'écrit rien.
+     *
+     * @param  array<string,mixed>  $payload
      */
-    protected function acceptForUser(Invitation $invitation, User $user): Invitation
+    protected function acceptForUser(Invitation $invitation, User $user, array $payload = []): Invitation
     {
-        return DB::transaction(function () use ($invitation, $user): Invitation {
+        return DB::transaction(function () use ($invitation, $user, $payload): Invitation {
+            $first = trim((string) ($payload['first_name'] ?? ''));
+            $last = trim((string) ($payload['last_name'] ?? ''));
+            if (self::isNameless($user) && ($first !== '' || $last !== '')) {
+                $user->forceFill(['first_name' => $first, 'last_name' => $last])->save();
+            }
+
             return $this->finalizeAccept($invitation, $user);
         });
+    }
+
+    /**
+     * P220.07 (TCK-2281) — le prénom et le nom que l'agence a saisis à l'invitation, à préremplir
+     * sur l'écran d'acceptation d'un compte connecté SANS NOM. `null` pour tout autre compte : un
+     * compte qui porte un nom, ou qui n'est pas le destinataire (le même que l'acceptation exige,
+     * {@see self::accept()}) — l'écran garde alors son seul bouton, et rien de l'invitation ne
+     * sort. 404 et 410 comme l'acceptation.
+     *
+     * @return array{first_name: string, last_name: string}|null
+     */
+    public function prefillFor(string $token, User $user): ?array
+    {
+        $invitation = $this->lookupActiveInvitation($token);
+        $recipient = $this->recipientAccount($invitation->email, $this->smsRecipient($invitation));
+
+        if ($recipient === null || $recipient->id !== $user->id || ! self::isNameless($user)) {
+            return null;
+        }
+
+        return [
+            'first_name' => trim((string) data_get($invitation->metadata, 'first_name', '')),
+            'last_name' => trim((string) data_get($invitation->metadata, 'last_name', '')),
+        ];
+    }
+
+    /** P220.07 (TCK-2281) — « sans nom » : prénom ET nom vides. */
+    protected static function isNameless(User $user): bool
+    {
+        return trim((string) $user->first_name) === '' && trim((string) $user->last_name) === '';
     }
 
     /**
@@ -788,6 +832,7 @@ class InvitationService
             409,
             'invitation.profile_unavailable',
         );
+        $this->assertDraftDoesNotDuplicateAProfile($invitation, $invitable, $user);
 
         // TCK-264 — super_admin cooptation: the spatie role is NOT
         // attached at acceptance time. The user must first enroll a
@@ -903,6 +948,44 @@ class InvitationService
         }
 
         return $invitation->fresh();
+    }
+
+    /**
+     * P234.02 et P234.03 (TCK-2280) — un brouillon ne se lie pas à un compte qui porte déjà ce qu'il
+     * créerait. Jugé avant toute écriture, l'invitation reste `sent` :
+     *
+     *  - un brouillon de bailleur ou d'agent, accepté par un compte déjà membre de l'agence sous ce
+     *    profil, heurtait `unique(user_id, agency_id)` en 500 (`invitation.already_member`) ;
+     *  - un brouillon de prestataire, accepté par un compte qui a déjà son profil de prestataire, lui
+     *    en créait un second, que ses propres écrans ne voient pas (`HasProfiles::serviceProviderProfile`
+     *    est un `HasOne`) : un seul profil par compte, N agences par ses collaborations (ADR-0016,
+     *    amendement du 2026-10-25), que plus aucune contrainte ne tient depuis
+     *    `2026_05_10_170000` (`invitation.service_provider_profile_exists`).
+     *
+     * ⚠ Le profil retiré (`SoftDeletes`) n'est pas compté : il n'est plus membre, mais
+     * `unique(user_id, agency_id)` le compte encore.
+     */
+    protected function assertDraftDoesNotDuplicateAProfile(Invitation $invitation, mixed $invitable, User $user): void
+    {
+        if (! is_object($invitable) || ! array_key_exists('user_id', $invitable->getAttributes()) || $invitable->user_id !== null) {
+            return;
+        }
+
+        if ($invitable instanceof OwnerProfile || $invitable instanceof AgentProfile) {
+            abort_code_if(
+                $invitable::query()->where('agency_id', $invitable->agency_id)->where('user_id', $user->id)->exists(),
+                409,
+                'invitation.already_member',
+            );
+        }
+
+        if ($invitable instanceof ServiceProviderProfile) {
+            abort_code_if(
+                ServiceProviderProfile::query()->where('user_id', $user->id)->whereKeyNot($invitable->getKey())->exists(),
+                409,
+                'invitation.service_provider_profile_exists',
+            );
+        }
     }
 
     /**
@@ -1089,8 +1172,11 @@ class InvitationService
      * TCK-589 — le compte déjà titulaire du destinataire : par e-mail, ou pour une
      * invitation par SMS, le compte qui a VÉRIFIÉ ce numéro — un numéro seulement
      * saisi ne prouve rien (ADR-0033, contrainte 2).
+     *
+     * P234.02 et P234.03 (TCK-2280) — public : les services par rôle jugent « déjà membre » et
+     * « profil existant » sur ce même compte, avant d'émettre.
      */
-    protected function recipientAccount(?string $email, ?string $phone): ?User
+    public function recipientAccount(?string $email, ?string $phone): ?User
     {
         if ($email !== null) {
             return User::query()->where('email', $email)->first();

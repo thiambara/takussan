@@ -70,6 +70,18 @@ export type OwnerProfileSummary = {
   } | null;
 };
 
+/**
+ * TCK-1323 (P117.05) — la raison sociale d'un bailleur société (`metadata.company_name`, exigée à
+ * l'invitation), `null` pour un particulier. P234.06 (TCK-2315) : lue par le carnet et par le
+ * dialogue de reversement.
+ */
+export function raisonSocialeDe(owner: OwnerProfileSummary): string | null {
+  const meta = owner.metadata ?? null;
+  if (meta?.owner_type !== 'company') return null;
+  const raison = meta.company_name?.trim();
+  return raison ? raison : null;
+}
+
 export type InviteOwnerPayload = {
   readonly email: string;
   readonly first_name: string;

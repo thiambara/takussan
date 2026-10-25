@@ -157,6 +157,7 @@ return [
     'document' => [
         'file_missing' => 'Aucun fichier n\'est joint à ce document.',
         'owner_not_found' => 'L\'objet auquel rattacher le document est introuvable.',
+        'profile_piece_not_versioned' => 'Une pièce de profil ne se versionne pas : renvoyez-la depuis votre profil.',
         'pdf_template_missing' => 'Le modèle de document est introuvable.',
         'pdf_uploader_missing' => 'Le document ne peut pas être généré sans auteur.',
         'unsupported_type' => 'Ce type d\'objet ne peut pas porter de document.',
@@ -245,9 +246,11 @@ return [
         'tenant_not_found' => 'Le locataire du bail est introuvable.',
     ],
     'invitation' => [
+        'already_member' => 'Ce compte est déjà membre de l\'agence sous ce profil : l\'invitation n\'a rien à ajouter.',
         'sms_daily_cap_reached' => 'Le plafond journalier d\'invitations par SMS de l\'agence est atteint. Réessayez demain, ou invitez par e-mail.',
         'phone_mismatch' => 'Ce numéro n\'est pas celui qui a reçu l\'invitation.',
         'profile_unavailable' => 'Le profil visé par cette invitation n\'est plus disponible (suspendu ou inactif). Demandez une nouvelle invitation à l\'agence.',
+        'service_provider_profile_exists' => 'Ce compte a déjà un profil de prestataire. Demandez à l\'agence de vous inviter à l\'adresse ou au numéro de ce compte : l\'invitation rejoindra alors ce profil.',
         'email_mismatch' => 'L\'email du compte connecté ne correspond pas à celui de l\'invitation.',
         'requires_login' => 'Cet email correspond à un compte existant. Veuillez vous connecter pour accepter l\'invitation.',
         'token_accepted' => 'Cette invitation a déjà été acceptée.',

@@ -213,9 +213,18 @@ class InvoiceService
     /**
      * L'avoir reprend les montants de l'originale. Son statut est `void` : il n'appelle aucun
      * paiement (ni relance, ni encours), et il ne compte pas comme encaissé.
+     *
+     * P231.04 (TCK-2316) — il reprend aussi ses lignes et sa désignation, que la numérotation fige
+     * ensuite dans `issued.designation` comme pour une facture : sans elles, il s'imprimait sur une
+     * ligne unique « Prestation ». Les notes de l'originale ne le suivent pas.
      */
     private function creditNoteFor(Invoice $invoice, ?User $actor): Invoice
     {
+        $metadata = array_intersect_key(
+            is_array($invoice->metadata) ? $invoice->metadata : [],
+            array_flip(['lines', 'designation'])
+        );
+
         return Invoice::query()->create([
             'kind' => InvoiceKind::CreditNote->value,
             'credited_invoice_id' => $invoice->id,
@@ -233,6 +242,7 @@ class InvoiceService
             'tax_amount' => $invoice->tax_amount,
             'total_amount' => $invoice->total_amount,
             'currency' => $invoice->currency,
+            'metadata' => $metadata !== [] ? $metadata : null,
         ]);
     }
 

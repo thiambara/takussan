@@ -31,13 +31,30 @@ class DocumentVersionService
     /**
      * Upload a new version, deactivate the previous active one, log the event.
      *
+     * TCK-2300 (P231.03) — la version devient le fichier servi (`Document::currentFile()`) : la
+     * vérification et l'échéance de l'ancien fichier se vident, par la voie de TCK-1063, sauf
+     * l'échéance neuve qu'apporte la requête. Une pièce de profil ne se versionne pas : vidée de sa
+     * vérification, son titulaire pourrait la supprimer (TCK-1062). Elle se renvoie par les assistants.
+     *
      * @return Media The newly created media item (active version).
      */
-    public function uploadVersion(Document $document, UploadedFile $file, User $actor, ?string $comment = null): Media
+    public function uploadVersion(Document $document, UploadedFile $file, User $actor, ?string $comment = null, ?string $expiryDate = null): Media
     {
-        return DB::transaction(function () use ($document, $file, $actor, $comment): Media {
+        abort_code_if($document->isProfilePiece(), 422, 'document.profile_piece_not_versioned');
+
+        return DB::transaction(function () use ($document, $file, $actor, $comment, $expiryDate): Media {
             // P231.05 (TCK-2239) — deux envois simultanés se sérialisent sur la ligne du document.
-            Document::query()->whereKey($document->getKey())->lockForUpdate()->first();
+            $locked = Document::query()->whereKey($document->getKey())->lockForUpdate()->first() ?? $document;
+
+            // TCK-2300 (P231.03) — lue sous le verrou : la vérification qu'on efface est la dernière écrite.
+            $locked->logVerificationReset($actor);
+            $locked->forceFill([
+                'is_verified' => false,
+                'verified_by' => null,
+                'verified_at' => null,
+                'expiry_date' => $expiryDate,
+            ])->save();
+            $document->setRawAttributes($locked->getAttributes(), true);
 
             // Deactivate previous active version.
             $this->deactivateAll($document);

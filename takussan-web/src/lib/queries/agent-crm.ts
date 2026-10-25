@@ -341,7 +341,7 @@ export async function searchTaskables(
       cheminApi`/api/customers?${qs}`,
       { token },
     );
-    return res.data.map((c) => ({ id: c.id, label: `${c.first_name} ${c.last_name}` }));
+    return res.data.map((c) => ({ id: c.id, label: nomAffichable(c) }));
   }
   const qs = buildQueryString({ filter: { search }, fields: { properties: ['id', 'title'] }, per_page: 8 });
   const res = await apiRequest<PaginatedResponse<{ id: number; title: string }>>(cheminApi`/api/properties?${qs}`, { token });

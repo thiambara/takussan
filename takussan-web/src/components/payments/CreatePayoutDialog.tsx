@@ -18,7 +18,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useApiQuery } from '@/hooks/useApiQuery';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import { formatCurrency, formatDate } from '@/lib/format';
-import { OWNER_PROFILE_FIELDS, type OwnerProfileSummary } from '@/lib/queries/owners';
+import { OWNER_PROFILE_FIELDS, raisonSocialeDe, type OwnerProfileSummary } from '@/lib/queries/owners';
 import { useCreatePayout, usePayoutPreparation, useVerifyPayoutMethod } from '@/lib/queries/payments';
 import type { PaginatedResponse } from '@/types/api';
 import type { PayoutPreparation } from '@/types/invoice';
@@ -43,7 +43,11 @@ function ownerName(owner: OwnerProfileSummary): string {
   // téléphone) ne bloque plus le repli, comme le faisait `??`.
   const compte = `${owner.user?.first_name ?? ''} ${owner.user?.last_name ?? ''}`.trim();
   const invitation = `${owner.metadata?.first_name ?? ''} ${owner.metadata?.last_name ?? ''}`.trim();
-  return compte || invitation || owner.user?.email || owner.metadata?.email || `#${owner.user_id}`;
+  const personne = compte || invitation || owner.user?.email || owner.metadata?.email || `#${owner.user_id}`;
+  // P234.06 (TCK-2315) — une société en tête, la personne ensuite (TCK-1323), sur une ligne : une
+  // option de liste n'en a qu'une.
+  const raison = raisonSocialeDe(owner);
+  return raison ? `${raison} — ${personne}` : personne;
 }
 
 /**

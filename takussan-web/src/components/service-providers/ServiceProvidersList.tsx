@@ -24,6 +24,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/toast';
 import { useAuth } from '@/context/AuthContext';
 import { apiRequest, ApiError, buildQueryString } from '@/lib/api';
+import { formaterTelephone } from '@/lib/phone';
 import { avecGardeDoubleFacteur } from '@/lib/double-facteur';
 import { useGardeDoubleFacteur } from '@/components/auth/garde-double-facteur-contexte';
 import {
@@ -120,7 +121,8 @@ export function ServiceProvidersList({ agencyId, canInvite, initialData }: Props
 
   /**
    * Les colonnes, dans l'ORDRE EXACT de la table faite main qu'elles remplacent
-   * (nom · métiers · zones · statut · actions), éprouvé par test.
+   * (nom · métiers · zones · statut · actions), éprouvé par test, plus le téléphone saisi à
+   * l'invitation (P234.04), ajout délibéré après le nom.
    */
   const colonnes: readonly DataTableColumn<ServiceProviderProfileSummary>[] = [
     {
@@ -134,6 +136,14 @@ export function ServiceProvidersList({ agencyId, canInvite, initialData }: Props
           {sp.insured ? <Badge variant="outline">{tList('insured')}</Badge> : null}
         </span>
       ),
+    },
+    {
+      // P234.04 (TCK-2280) — le numéro saisi par l'agence à l'invitation (`metadata.phone`),
+      // jamais posé sur le compte. Ajout délibéré, après le nom.
+      id: 'phone',
+      header: tList('columns.phone'),
+      className: 'whitespace-nowrap text-muted-foreground tabular-nums',
+      cell: (sp) => (sp.metadata?.phone ? formaterTelephone(sp.metadata.phone) : '—'),
     },
     {
       id: 'trades',

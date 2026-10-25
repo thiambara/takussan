@@ -220,7 +220,8 @@ export type PayoutPreparation = {
  */
 export type OwnerStatement = {
   agency: { id: number; name: string };
-  landlord: { id: number; name: string };
+  /** P234.06 (TCK-2315) — `company_name` : la raison sociale d'un bailleur société, `null` sinon. */
+  landlord: { id: number; name: string; company_name: string | null };
   period: string;
   annual: boolean;
   period_start: string;

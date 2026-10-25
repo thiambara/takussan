@@ -54,6 +54,7 @@ class DocumentVersionController extends Controller
             $request->file('file'),
             $request->user(),
             $request->string('comment')->value() ?: null,
+            $request->validated('expiry_date'),
         );
 
         return $this->json([

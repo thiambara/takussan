@@ -253,7 +253,7 @@ class PortfolioMetrics
         $ofScope = fn (Builder $q): Builder => $q
             ->join('leases', 'leases.id', '=', 'lease_payments.lease_id')
             ->whereNull('leases.deleted_at')
-            ->where('leases.'.$scope->leaseColumn, $scope->id);
+            ->where(fn (Builder $q) => $scope->leases($q));
 
         $rents = $ofScope(CollectedPayments::leaseIncome())
             ->whereBetween('lease_payments.paid_at', [$start->startOfDay(), $end->endOfDay()])
@@ -289,7 +289,7 @@ class PortfolioMetrics
             ->join('bookings', 'bookings.id', '=', 'booking_payments.booking_id')
             ->join('properties', 'properties.id', '=', 'bookings.property_id')
             ->whereNull('bookings.deleted_at')
-            ->where('properties.'.$scope->propertyColumn, $scope->id)
+            ->where(fn (Builder $q) => $scope->properties($q))
             ->whereBetween('booking_payments.paid_at', [$start->startOfDay(), $end->endOfDay()])
             ->selectRaw("to_char(date_trunc('month', booking_payments.paid_at), 'YYYY-MM') AS m, SUM(".CollectedPayments::BOOKING_NET_SQL.') AS total')
             ->groupBy('m')
@@ -338,7 +338,7 @@ class PortfolioMetrics
         $value = LeasePayment::query()
             ->join('leases', 'leases.id', '=', 'lease_payments.lease_id')
             ->whereNull('leases.deleted_at')
-            ->where('leases.'.$scope->leaseColumn, $scope->id)
+            ->where(fn (Builder $q) => $scope->leases($q))
             ->where('lease_payments.status', PaymentStatus::Paid->value)
             ->whereIn('lease_payments.payment_type', [LeasePaymentType::Deposit->value, LeasePaymentType::DepositRefund->value])
             ->selectRaw('COALESCE(SUM(CASE WHEN lease_payments.payment_type = ? THEN lease_payments.amount ELSE -lease_payments.amount END), 0) AS held', [LeasePaymentType::Deposit->value])
@@ -358,7 +358,7 @@ class PortfolioMetrics
         $ofScope = fn (Builder $q): Builder => $q
             ->join('leases', 'leases.id', '=', 'lease_payments.lease_id')
             ->whereNull('leases.deleted_at')
-            ->where('leases.'.$scope->leaseColumn, $scope->id);
+            ->where(fn (Builder $q) => $scope->leases($q));
 
         $owed = $ofScope(CollectedPayments::leaseOwed())
             ->whereDate('lease_payments.due_date', '<', now()->toDateString())
@@ -401,7 +401,7 @@ class PortfolioMetrics
             ->exceptDepositRefunds()
             ->join('leases', 'leases.id', '=', 'lease_payments.lease_id')
             ->whereNull('leases.deleted_at')
-            ->where('leases.'.$scope->leaseColumn, $scope->id)
+            ->where(fn (Builder $q) => $scope->leases($q))
             ->whereNotIn('lease_payments.status', [PaymentStatus::Cancelled->value, PaymentStatus::Failed->value])
             ->whereDate('lease_payments.due_date', '>=', now()->subMonthsNoOverflow(12)->toDateString())
             ->whereDate('lease_payments.due_date', '<', $today)
@@ -430,14 +430,14 @@ class PortfolioMetrics
     {
         $statusPlaceholders = implode(', ', array_fill(0, count(self::EXCLUDED_PROPERTY_STATUSES), '?'));
         $periodPlaceholders = implode(', ', array_fill(0, count($periods), '?'));
-        $column = $scope->propertyColumn;
+        [$scopeSql, $scopeBindings] = $scope->propertiesSql('p');
 
         $sql = <<<SQL
             SELECT p.id, p.created_at,
                 (p.contract_type = ? AND p.status NOT IN ({$statusPlaceholders})) AS is_current
             FROM properties p
             WHERE p.deleted_at IS NULL
-              AND p.{$column} = ?
+              AND {$scopeSql}
               AND p.rent_period IN ({$periodPlaceholders})
               AND NOT EXISTS (
                   SELECT 1 FROM properties c WHERE c.parent_id = p.id AND c.deleted_at IS NULL
@@ -447,7 +447,7 @@ class PortfolioMetrics
         return [$sql, array_merge(
             [ContractType::Rent->value],
             array_map(static fn (PropertyStatus $s): string => $s->value, self::EXCLUDED_PROPERTY_STATUSES),
-            [$scope->id],
+            $scopeBindings,
             array_map(static fn (RentPeriod $p): string => $p->value, $periods),
         )];
     }

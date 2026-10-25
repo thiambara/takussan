@@ -3819,6 +3819,7 @@
       "diff_modified": "Changed",
       "diff_unchanged": "Unchanged",
       "tenant_immutable": "Tenant and property cannot be changed in an amendment.",
+      "guarantors_not_carried_over": "{count, plural, one {The current lease’s guarantor is not carried over to the new lease: attach them to the new lease if they renew their commitment.} other {The current lease’s # guarantors are not carried over to the new lease: attach to the new lease those who renew their commitment.}}",
       "timeline_title": "Lease chain",
       "timeline_root": "Root lease",
       "timeline_amendment": "Amendment {n}",
@@ -4813,6 +4814,7 @@
       "columns": {
         "name": "Name",
         "email": "Email",
+        "phone": "Phone",
         "status": "Status",
         "actions": "Actions",
         "identifiers": "Identifiers"
@@ -5252,6 +5254,7 @@
       "empty_description": "Invite your first provider to start building your book.",
       "columns": {
         "name": "Name",
+        "phone": "Phone",
         "trades": "Trades",
         "zones": "Zones",
         "status": "Status",
@@ -5301,7 +5304,8 @@
         "error_title": "Could not send invitation",
         "resend_success": "Invitation resent",
         "revoke_success": "Invitation revoked",
-        "existing_other_agency": "This provider is already attached to another agency — they can opt-in to multi-attachment when accepting."
+        "existing_other_agency": "This provider is already attached to another agency — they can opt-in to multi-attachment when accepting.",
+        "existing_other_agency_trades": "This service provider is already linked to another agency: they will appear under their profile's trades ({trades}), not the ones ticked here."
       },
       "errors": {
         "already_member": "This provider is already active in your agency.",
@@ -6558,12 +6562,6 @@
       "emailInvalid": "Invalid email.",
       "phone": "Phone (optional)",
       "required": "This field is required.",
-      "role": "Role",
-      "roles": {
-        "agent": "Agent",
-        "agent_senior": "Senior agent",
-        "agent_manager": "Team manager"
-      },
       "adminNote": "An agency administrator cannot be invited by email: add them from “Add an existing account”, which requires an existing Takussan account.",
       "submit": "Send the invitation"
     },
@@ -11233,6 +11231,7 @@
     "password": "Password",
     "passwordHint": "At least 8 characters, with a letter and a digit.",
     "create": "Create my account and accept",
+    "confirmName": "Your account has no name yet. Confirm or correct the one the inviting space entered for you.",
     "haveAccount": "I already have an account",
     "signIn": "Sign in",
     "required": "Enter your first name and a password.",

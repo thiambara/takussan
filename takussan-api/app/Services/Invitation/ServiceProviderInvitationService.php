@@ -86,7 +86,15 @@ class ServiceProviderInvitationService
         // nouvelle agence sera créée à l'acceptation. Ça évite les
         // doublons SP profile et préserve KYC/métiers/zones/tarifs déjà
         // renseignés sur le profil maître.
-        $existingProfile = $email !== null ? $this->lookupExistingServiceProviderForEmail($email) : null;
+        //
+        // P234.02 (TCK-2280) — le compte est celui que l'acceptation exigera
+        // ({@see InvitationService::recipientAccount()}) : par e-mail, ou par
+        // le numéro qu'il a vérifié. Une invitation par numéro créait toujours
+        // un second profil.
+        $existingProfile = $this->lookupExistingServiceProvider($email, $this->cleanString($data['phone'] ?? null));
+        if ($existingProfile !== null) {
+            $this->assertProfileNotActiveInAgency($agency, $existingProfile);
+        }
         $existingOtherAgency = $existingProfile !== null;
 
         $trades = $this->normaliseStringList($data['trades'] ?? []);
@@ -241,21 +249,47 @@ class ServiceProviderInvitationService
     }
 
     /**
-     * TCK-262 — returns the ServiceProviderProfile already attached to a
-     * User with this email, if any. We re-use this row for multi-agency
-     * onboarding instead of creating a fresh draft (preserves KYC,
-     * trades, zones, rates and avoids duplicate `(user_id)` rows).
+     * P234.02 (TCK-2280) — le refus « déjà rattaché » d'{@see self::assertNoActiveServiceProviderInAgency()},
+     * jugé sur le profil du compte destinataire : il vaut aussi pour une invitation par numéro.
+     */
+    protected function assertProfileNotActiveInAgency(Agency $agency, ServiceProviderProfile $profile): void
+    {
+        $active = $profile->agencyCollaborations()
+            ->where('agency_id', $agency->id)
+            ->where('status', CollaborationStatus::Active->value)
+            ->exists();
+
+        if ($active) {
+            throw new HttpException(
+                409,
+                __('service_providers.invite.errors.already_member', ['profile_id' => $profile->id]),
+            );
+        }
+    }
+
+    /**
+     * TCK-262 — returns the ServiceProviderProfile already attached to the
+     * account this invitation designates, if any. We re-use this row for
+     * multi-agency onboarding instead of creating a fresh draft (preserves
+     * KYC, trades, zones, rates and avoids duplicate `(user_id)` rows).
      *
-     * Returns null when the email maps to no User, or when the User has
+     * P234.02 (TCK-2280) — the account is {@see InvitationService::recipientAccount()}:
+     * by email, or the account that VERIFIED the number (it was by email only).
+     *
+     * Returns null when the recipient maps to no User, or when the User has
      * no SP profile yet — in which case the caller falls back to the
      * original "draft profile + invitation" flow (TCK-260).
      */
-    protected function lookupExistingServiceProviderForEmail(string $email): ?ServiceProviderProfile
+    protected function lookupExistingServiceProvider(?string $email, ?string $phone): ?ServiceProviderProfile
     {
-        return ServiceProviderProfile::query()
-            ->whereHas('user', function ($query) use ($email): void {
-                $query->whereRaw(CaseInsensitive::sql('email').' = ?', [CaseInsensitive::fold($email)]);
-            })
+        if ($email === null && $phone === null) {
+            return null;
+        }
+        $account = $this->invitations->recipientAccount($email, $phone);
+
+        return $account === null ? null : ServiceProviderProfile::query()
+            ->where('user_id', $account->id)
+            ->oldest('id')
             ->first();
     }
 

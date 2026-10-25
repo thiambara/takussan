@@ -14,6 +14,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useCurrentLocale } from '@/i18n/hooks';
 import { isTwoFactorChallenge, login } from '@/lib/auth';
 import { destinationDInvitation } from '@/lib/invitation-destination';
+import type { NomsPreremplis } from '@/lib/invitation-prerempli';
 import { avecRedirection } from '@/lib/redirection-interne';
 
 /**
@@ -25,20 +26,30 @@ const CLE_PROFILS = ['me', 'profiles'] as const;
 /**
  * TCK-626 — accepter une invitation, connecté ou non.
  *
- * - **Connecté** : un bouton. Le compte courant est rattaché à l'invitation.
+ * - **Connecté** : un bouton. Le compte courant est rattaché à l'invitation. P220.07 (TCK-2281) —
+ *   un compte SANS NOM (créé par téléphone) voit en plus le prénom et le nom de l'invitation
+ *   (`prerempli`), qu'il confirme ou corrige ; l'API ne les écrit que sur un compte sans nom.
  * - **Déconnecté** : prénom, nom, mot de passe — le compte naît de l'invitation, puis la session
  *   s'ouvre avec ce mot de passe. « J'ai déjà un compte » passe par la connexion, qui ramène ici.
  *
  * Dans les deux cas, on finit dans l'assistant du profil que l'invitation active.
  */
-export function AccepterInvitation({ jeton, connecte }: { readonly jeton: string; readonly connecte: boolean }) {
+export function AccepterInvitation({
+  jeton,
+  connecte,
+  prerempli = null,
+}: {
+  readonly jeton: string;
+  readonly connecte: boolean;
+  readonly prerempli?: NomsPreremplis | null;
+}) {
   const t = useTranslations('invitationAccept');
   const router = useRouter();
   const locale = useCurrentLocale();
   const { openSession, refreshUser } = useAuth();
   const queryClient = useQueryClient();
-  const [prenom, setPrenom] = useState('');
-  const [nom, setNom] = useState('');
+  const [prenom, setPrenom] = useState(prerempli?.prenom ?? '');
+  const [nom, setNom] = useState(prerempli?.nom ?? '');
   const [motDePasse, setMotDePasse] = useState('');
   const [erreur, setErreur] = useState<string | null>(null);
   const [aConnecter, setAConnecter] = useState(false);
@@ -47,7 +58,7 @@ export function AccepterInvitation({ jeton, connecte }: { readonly jeton: string
   const ici = `/invitations/accept?token=${encodeURIComponent(jeton)}`;
   const lienConnexion = avecRedirection('/auth/login', ici);
 
-  function accepter(champs?: { first_name: string; last_name: string; password: string }) {
+  function accepter(champs?: { first_name: string; last_name: string; password?: string }) {
     setErreur(null);
     demarrer(async () => {
       const resultat = await accepterInvitationAction(jeton, champs);
@@ -68,7 +79,7 @@ export function AccepterInvitation({ jeton, connecte }: { readonly jeton: string
       // Le compte vient de naître avec ce mot de passe : on ouvre la session. Une invitation par
       // SMS ne porte pas d'e-mail — la connexion par téléphone prend le relais.
       const email = resultat.invitation.email;
-      if (email && champs) {
+      if (email && champs?.password) {
         try {
           const session = await login({ email, password: champs.password }, locale);
           if (!isTwoFactorChallenge(session)) {
@@ -104,6 +115,42 @@ export function AccepterInvitation({ jeton, connecte }: { readonly jeton: string
     </div>
   ) : null;
 
+  const champsDuNom = (
+    <div className="grid gap-5 sm:grid-cols-2">
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="invitation-prenom">{t('firstName')}</Label>
+        <Input id="invitation-prenom" autoComplete="given-name" maxLength={100} value={prenom}
+          onChange={(e) => setPrenom(e.target.value)} disabled={enCours} className="h-11" />
+      </div>
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="invitation-nom">{t('lastName')}</Label>
+        <Input id="invitation-nom" autoComplete="family-name" maxLength={100} value={nom}
+          onChange={(e) => setNom(e.target.value)} disabled={enCours} className="h-11" />
+      </div>
+    </div>
+  );
+
+  if (connecte && prerempli) {
+    // Un prénom effacé n'empêche pas d'accepter : le compte reste alors sans nom, comme avant.
+    return (
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          accepter({ first_name: prenom.trim(), last_name: nom.trim() });
+        }}
+        noValidate
+        className="flex flex-col gap-5"
+      >
+        <p className="text-sm text-muted-foreground">{t('confirmName')}</p>
+        {champsDuNom}
+        {alerte}
+        <Button type="submit" size="lg" className="h-11 px-6 sm:self-start" disabled={enCours}>
+          {enCours ? t('accepting') : t('accept')}
+        </Button>
+      </form>
+    );
+  }
+
   if (connecte) {
     return (
       <div className="flex flex-col gap-4">
@@ -117,18 +164,7 @@ export function AccepterInvitation({ jeton, connecte }: { readonly jeton: string
 
   return (
     <form onSubmit={envoyer} noValidate className="flex flex-col gap-5">
-      <div className="grid gap-5 sm:grid-cols-2">
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="invitation-prenom">{t('firstName')}</Label>
-          <Input id="invitation-prenom" autoComplete="given-name" maxLength={100} value={prenom}
-            onChange={(e) => setPrenom(e.target.value)} disabled={enCours} className="h-11" />
-        </div>
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="invitation-nom">{t('lastName')}</Label>
-          <Input id="invitation-nom" autoComplete="family-name" maxLength={100} value={nom}
-            onChange={(e) => setNom(e.target.value)} disabled={enCours} className="h-11" />
-        </div>
-      </div>
+      {champsDuNom}
       <div className="flex flex-col gap-2">
         <Label htmlFor="invitation-mot-de-passe">{t('password')}</Label>
         <Input id="invitation-mot-de-passe" type="password" autoComplete="new-password" maxLength={72}

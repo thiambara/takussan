@@ -492,7 +492,9 @@ class PropertyResource extends BaseResource
             ->filter(fn (Document $doc) => (bool) data_get($doc->metadata, 'public', false))
             ->values()
             ->map(function (Document $doc) {
-                $media = $doc->getFirstMedia('file');
+                // TCK-2300 (P231.02) — la version active : une nouvelle version d'un document public
+                // devient publique aussitôt.
+                $media = $doc->currentFile();
 
                 return [
                     'id' => $doc->id,

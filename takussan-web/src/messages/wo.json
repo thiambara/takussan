@@ -2029,6 +2029,7 @@
       "diff_modified": "Soppi",
       "diff_unchanged": "Du soppi",
       "tenant_immutable": "Locataire ak mbaar mën nañu ko soppi ci avenant.",
+      "guarantors_not_carried_over": "{count, plural, one {Le garant du bail actuel n’est pas reporté sur le nouveau bail : rattachez-le au nouveau bail s’il renouvelle son engagement.} other {Les # garants du bail actuel ne sont pas reportés sur le nouveau bail : rattachez au nouveau bail ceux qui renouvellent leur engagement.}}",
       "timeline_title": "Chaîne luwé",
       "timeline_root": "Luwé bu njëkk",
       "timeline_amendment": "Avenant {n}",
@@ -3023,6 +3024,7 @@
       "columns": {
         "name": "Tur",
         "email": "Email",
+        "phone": "Téléphone",
         "status": "Aada",
         "actions": "Jëf",
         "identifiers": "Xibaar yu sutura"
@@ -3462,6 +3464,7 @@
       "empty_description": "Wow sa prestataire bu njëkk ngir yokk ko ci sa téere.",
       "columns": {
         "name": "Tur",
+        "phone": "Téléphone",
         "trades": "Liggéey",
         "zones": "Bérébi liggéey",
         "status": "Tëralin",
@@ -3511,7 +3514,8 @@
         "error_title": "Mënumaa yónnee waaru bi",
         "resend_success": "Waaru bi yónnee nañu fi",
         "revoke_success": "Waaru bi far nañu ko",
-        "existing_other_agency": "Prestataire bii am na ba pare ci beneen agence — dina mën a nangu multi-rattachement bu nu ko nangoo."
+        "existing_other_agency": "Prestataire bii am na ba pare ci beneen agence — dina mën a nangu multi-rattachement bu nu ko nangoo.",
+        "existing_other_agency_trades": "Ce prestataire est déjà rattaché à une autre agence : il apparaîtra sous les métiers de son profil ({trades}), pas sous ceux cochés ici."
       },
       "errors": {
         "already_member": "Prestataire bii am na ba pare ci sa agence.",
@@ -4768,12 +4772,6 @@
       "emailInvalid": "Email bi baaxul.",
       "phone": "Telefon (du wareef)",
       "required": "Barab bii war na am.",
-      "role": "Rol",
-      "roles": {
-        "agent": "Ajaŋ",
-        "agent_senior": "Ajaŋ bu mag",
-        "agent_manager": "Kilifa ekip"
-      },
       "adminNote": "Njiitu ajance du ñu ko woo ci email: dañu koy yokk ci « Yokk kont bu am », bu laaj kont Takussan bu am ba tey.",
       "submit": "Yónnee woote bi"
     },
@@ -11233,6 +11231,7 @@
     "password": "Baatu jàll",
     "passwordHint": "8 araf lu néew, ak benn araf ak benn limu.",
     "create": "Sos sama kont te nangu",
+    "confirmName": "Votre compte n’a pas encore de nom. Confirmez ou corrigez celui que l’espace a saisi pour vous.",
     "haveAccount": "Am naa kont ba pare",
     "signIn": "Dugg",
     "required": "Bindal sa tur ak benn baatu jàll.",

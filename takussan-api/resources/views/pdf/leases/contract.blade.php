@@ -40,7 +40,13 @@
         <tr>
             <th>Bailleur</th>
             <td>
-                {{ trim(($landlord->first_name ?? '').' '.($landlord->last_name ?? $landlord->name ?? '')) ?: $landlord->email ?? '—' }}
+                {{-- P234.06 (TCK-2315) — une société en tête, la personne en dessous (TCK-1323). --}}
+                @if ($landlord_company ?? null)
+                    {{ $landlord_company }}
+                    <div class="muted">{{ trim(($landlord->first_name ?? '').' '.($landlord->last_name ?? $landlord->name ?? '')) ?: $landlord->email ?? '—' }}</div>
+                @else
+                    {{ trim(($landlord->first_name ?? '').' '.($landlord->last_name ?? $landlord->name ?? '')) ?: $landlord->email ?? '—' }}
+                @endif
                 @if ($landlord->email ?? false)
                     <div class="muted">{{ $landlord->email }}</div>
                 @endif

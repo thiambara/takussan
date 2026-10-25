@@ -436,10 +436,10 @@ function formatCustomerLabel(
   customer: CustomerListItem,
   fallback: (id: number) => string,
 ): string {
+  // P220.03 (TCK-2281) — le nom seul : le contact suit déjà, il ne se répète pas en repli.
   const name =
     customer.full_name ||
-    [customer.first_name, customer.last_name].filter(Boolean).join(' ').trim() ||
-    fallback(customer.id);
+    nomAffichable({ id: customer.id, first_name: customer.first_name, last_name: customer.last_name }, fallback(customer.id));
   const contact = [customer.email, customer.phone].filter(Boolean).join(' · ');
   return contact ? `${name} · ${contact}` : name;
 }

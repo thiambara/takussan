@@ -70,8 +70,8 @@ function monter(ui: ReactElement, garde: GardeDoubleFacteurFn | null = null) {
 
 function celluleIdentifiants() {
   const lignes = screen.getAllByRole('row');
-  // Nom · Email · Identifiants · Statut · Actions
-  return within(lignes[1]).getAllByRole('cell')[2];
+  // Nom · Email · Téléphone · Identifiants · Statut · Actions
+  return within(lignes[1]).getAllByRole('cell')[3];
 }
 
 const sensible = {
