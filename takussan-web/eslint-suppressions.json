@@ -357,7 +357,7 @@
   },
   "src/components/inventory/InventoryDetail.tsx": {
     "@typescript-eslint/no-misused-promises": {
-      "count": 3
+      "count": 2
     }
   },
   "src/components/inventory/InventoryForm.tsx": {
