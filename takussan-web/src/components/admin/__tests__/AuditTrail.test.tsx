@@ -121,7 +121,7 @@ function requetesDeRecherche() {
  */
 async function celluleObjet() {
   const lignes = await screen.findAllByRole('row');
-  // `row[0]` est l'en-tête ; les colonnes sont Date, Utilisateur, Action, Objet, Description.
+  // `row[0]` est l'en-tête ; les colonnes sont Date, Utilisateur, Action, Objet.
   return within(lignes[1]).getAllByRole('cell')[3];
 }
 
@@ -425,22 +425,39 @@ describe('<AuditTrail> — membre et acteur système (TCK-601 · AC18b)', () => 
     ));
 
     const lignes = await screen.findAllByRole('row');
-    // Colonnes : Date, Utilisateur, Action, Objet, Description.
+    // Colonnes : Date, Utilisateur, Action, Objet.
     const acteur = within(lignes[1]).getAllByRole('cell')[1];
     expect(acteur).toHaveTextContent(attendu);
     expect(acteur.textContent).not.toBe('system');
   });
 
-  it('un événement métier porte son libellé, un événement inconnu reste lisible', async () => {
+  // P06.09 (TCK-2336) — l'inconnu se lit par sa DESCRIPTION brute, plus par son code ; sans
+  // description, par son code : le journal n'en cache toujours aucun.
+  it('un événement métier porte son libellé, un événement inconnu se lit par sa description', async () => {
     mockFetchLogs.mockResolvedValue(reponse([
-      makeLog({ id: 1, event: 'agent_suspended' }),
-      makeLog({ id: 2, event: 'evenement_de_demain' }),
+      makeLog({ id: 1, event: 'agent_suspended', description: 'agent_suspended' }),
+      makeLog({ id: 2, event: 'evenement_de_demain', description: 'Agent invité' }),
+      { ...makeLog({ id: 3, event: 'evenement_sans_description' }), description: null },
     ]));
     apiRequestMock.mockResolvedValue(MEMBRES);
     render(wrap(<AuditTrail />));
 
     const lignes = await screen.findAllByRole('row');
-    expect(within(lignes[1]).getAllByRole('cell')[2]).toHaveTextContent('Agent suspendu');
-    expect(within(lignes[2]).getAllByRole('cell')[2]).toHaveTextContent('evenement_de_demain');
+    expect(within(lignes[1]).getAllByRole('cell')[2]).toHaveTextContent(/^Agent suspendu$/);
+    expect(within(lignes[2]).getAllByRole('cell')[2]).toHaveTextContent(/^Agent invité$/);
+    expect(within(lignes[3]).getAllByRole('cell')[2]).toHaveTextContent(/^evenement_sans_description$/);
+  });
+
+  it('P06.09 — la description brute quitte l’écran : plus de colonne « Description »', async () => {
+    mockFetchLogs.mockResolvedValue(reponse([
+      makeLog({ id: 1, event: 'exported', description: 'Exported audit trail' }),
+    ]));
+    apiRequestMock.mockResolvedValue(MEMBRES);
+    render(wrap(<AuditTrail />));
+
+    const lignes = await screen.findAllByRole('row');
+    expect(within(lignes[1]).getAllByRole('cell')[2]).toHaveTextContent(/^Export$/);
+    expect(screen.queryByRole('columnheader', { name: 'Description' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Exported audit trail')).not.toBeInTheDocument();
   });
 });

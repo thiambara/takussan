@@ -5944,8 +5944,7 @@
         "date": "Date",
         "user": "User",
         "action": "Action",
-        "subject": "Object",
-        "description": "Description"
+        "subject": "Object"
       },
       "tableCaption": "Agency audit trail",
       "entries": "{count, plural, =1 {{total} entry} other {{total} entries}}",
@@ -5965,6 +5964,24 @@
         "personal_data_viewed": "Personal data viewed",
         "kyc_expired": "KYC document expired",
         "data_exported": "Data exported"
+      }
+    },
+    "businessEnums": {
+      "property_type": {
+        "name": "Property types",
+        "description": "Categories shown in property forms and filters."
+      },
+      "contract_type": {
+        "name": "Transaction types",
+        "description": "Sale, rental and future marketing modes."
+      },
+      "title_type": {
+        "name": "Land titles",
+        "description": "Business labels of the land titles attached to properties."
+      },
+      "rent_period": {
+        "name": "Rent periods",
+        "description": "Billing cadences shown on rental properties."
       }
     },
     "roles": {

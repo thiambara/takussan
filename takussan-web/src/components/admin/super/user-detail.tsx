@@ -33,6 +33,7 @@ import {
 
 import type { AdminUserDetail, AdminUserSession, AuditLogEntry } from '@/types/super-admin';
 import { avecGardeDoubleFacteur } from '@/lib/double-facteur';
+import { libelleEvenementAudit } from '@/lib/audit-events';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import { StatusBadge, type StatusTone } from '@/components/console';
 import { lireTable } from '@/lib/table-de-statut';
@@ -475,6 +476,7 @@ export function UserActivityTimeline({
   userId: number;
 }) {
   const t = useTranslations('superAdmin.userDetail.activity');
+  const tEvents = useTranslations('admin.audit.events');
   const fmt = useFormatteurs();
   return (
     <Card>
@@ -496,11 +498,11 @@ export function UserActivityTimeline({
               <Activity className="size-4 text-muted-foreground" aria-hidden="true" />
             </div>
             <div>
-              <p className="font-medium text-foreground">{entry.event ?? entry.description ?? t('fallbackLabel')}</p>
-              {/* Le journal répète souvent l'événement dans la description (« created / created ») : une seule fois suffit. */}
-              {entry.description && entry.description !== entry.event ? (
-                <p className="text-sm text-pretty text-muted-foreground">{entry.description}</p>
-              ) : null}
+              {/* P06.09 (TCK-2336) — l'événement traduit, ou la description brute pour un événement
+                  sans clé ; ni le code brut ni la description en seconde ligne, qui reste dans l'export. */}
+              <p className="font-medium text-foreground">
+                {libelleEvenementAudit(entry, (event) => tEvents(event)) ?? t('fallbackLabel')}
+              </p>
               {entry.impersonator ? (
                 <p className="text-xs font-medium text-foreground" data-testid="activity-impersonator">
                   {t('viaImpersonation', { name: entry.impersonator.name || `#${entry.impersonator.id}` })}
