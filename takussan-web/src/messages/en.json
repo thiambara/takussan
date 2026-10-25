@@ -2408,6 +2408,8 @@
       "tooManyRequests": "Too many attempts. Please try again in a few minutes.",
       "tooManyRequestsIn": "Too many attempts. Try again in {minutes} min.",
       "network": "The connection to the server failed. Check your internet connection and try again.",
+      "serverUnreachable": "The server cannot be reached right now. Try again in a moment.",
+      "payloadTooLarge": "The upload exceeds 25 MB: send fewer files at a time, or lighter files.",
       "submitFailed": "Submission failed. Please try again.",
       "unknown": "Something went wrong. Please try again."
     },

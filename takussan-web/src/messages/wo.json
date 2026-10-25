@@ -618,6 +618,8 @@
       "tooManyRequests": "Jéem nga lu bare. Jéemaatal ci ay simili.",
       "tooManyRequestsIn": "Jéem nga lu bare. Jéemaatal ci {minutes} simili.",
       "network": "Jokkoo bi ak serwëer bi antuwul. Seetal sa jokkoo internet te jéemaat.",
+      "serverUnreachable": "Le serveur est injoignable pour le moment. Réessayez dans un instant.",
+      "payloadTooLarge": "L'envoi dépasse 25 Mo : envoyez moins de fichiers à la fois, ou des fichiers plus légers.",
       "submitFailed": "Yónnee bi antuwul. Jéemaatal.",
       "unknown": "Am na jafe-jafe. Jéemat."
     },

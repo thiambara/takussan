@@ -2379,6 +2379,8 @@
       "tooManyRequests": "Trop de tentatives. Réessayez dans quelques minutes.",
       "tooManyRequestsIn": "Trop de tentatives. Réessayez dans {minutes} min.",
       "network": "La connexion au serveur a échoué. Vérifiez votre connexion internet et réessayez.",
+      "serverUnreachable": "Le serveur est injoignable pour le moment. Réessayez dans un instant.",
+      "payloadTooLarge": "L'envoi dépasse 25 Mo : envoyez moins de fichiers à la fois, ou des fichiers plus légers.",
       "submitFailed": "La soumission a échoué. Réessayez.",
       "unknown": "Une erreur est survenue. Veuillez réessayer."
     },
