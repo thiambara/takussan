@@ -1,7 +1,7 @@
 ---
 id: TCK-2280
 title: "Une invitation acceptée par un compte existant : rôle annoncé, compte désigné par son numéro, téléphone et métiers dits à l'agence"
-status: doing
+status: done
 phase: P1
 family: bug
 estimate: M
@@ -69,37 +69,37 @@ P234.03 et P234.07 sont `retenu · autonome` (A1) : elles suivent leur `Piste`.
 
 ## Delta à produire
 
-- [ ] P234.01 — API : `AgentInvitationService::ALLOWED_ROLES` = `['agent']`. Les autres restent
+- [x] P234.01 — API : `AgentInvitationService::ALLOWED_ROLES` = `['agent']`. Les autres restent
       dans `INVITABLE_TYPE_BY_ROLE` et la liste de `finalizeAccept`, pour les invitations déjà
       émises. Front : le dialogue n'offre plus le choix du rôle.
-- [ ] P234.02 — `ServiceProviderInvitationService` cherche le profil par
+- [x] P234.02 — `ServiceProviderInvitationService` cherche le profil par
       `InvitationService::recipientAccount()`, devenu public. `finalizeAccept` refuse en 409
       `invitation.service_provider_profile_exists` le lien d'un brouillon à un compte qui a déjà
       un profil de prestataire. Amendement d'ADR-0016.
-- [ ] P234.03 — les services de bailleur et d'agent jugent « déjà membre » sur le compte qui a
+- [x] P234.03 — les services de bailleur et d'agent jugent « déjà membre » sur le compte qui a
       vérifié le numéro. `finalizeAccept` refuse en 409 `invitation.already_member`.
-- [ ] P234.04 — le carnet des bailleurs et celui des prestataires rendent le numéro saisi
+- [x] P234.04 — le carnet des bailleurs et celui des prestataires rendent le numéro saisi
       (`metadata.phone`). Le carnet des prestataires laisse passer cette sous-clé. Les docblocks
       des services d'agent et de bailleur sont corrigés.
-- [ ] P234.05 — la réponse de l'invitation de prestataire porte `meta.retained_trades`, les métiers
+- [x] P234.05 — la réponse de l'invitation de prestataire porte `meta.retained_trades`, les métiers
       du profil. Le toast d'un prestataire déjà inscrit les nomme.
-- [ ] P234.07 — les trois `display_name` retombent sur `metadata` quand le nom du compte est vide.
+- [x] P234.07 — les trois `display_name` retombent sur `metadata` quand le nom du compte est vide.
       `DeleteRoleDialog` teste la vacuité.
 
 ## Critères d'acceptation
 
-- [ ] Une invitation `agent_manager` ou `agent_senior` rend 422. Une invitation `agent_manager`
+- [x] Une invitation `agent_manager` ou `agent_senior` rend 422. Une invitation `agent_manager`
       déjà émise s'accepte toujours (200).
-- [ ] Un bailleur ou un agent de l'agence, invité par son numéro, rend 409 à l'invitation. Un
+- [x] Un bailleur ou un agent de l'agence, invité par son numéro, rend 409 à l'invitation. Un
       brouillon accepté par un compte devenu membre entre-temps rend 409
       `invitation.already_member`, jamais 500, et l'invitation reste `sent`.
-- [ ] Un prestataire invité par son numéro par une seconde agence garde un seul profil. La
+- [x] Un prestataire invité par son numéro par une seconde agence garde un seul profil. La
       collaboration de cette agence est sur ce profil, et visible dans
       `me/service-provider/collaborations`. Un brouillon accepté par un compte qui a déjà un profil
       rend 409 `invitation.service_provider_profile_exists`.
-- [ ] Le carnet des bailleurs et celui des prestataires montrent le numéro saisi à l'invitation.
-- [ ] La réponse de l'invitation d'un prestataire déjà inscrit nomme ses métiers, et le toast les dit.
-- [ ] Un profil lié à un compte sans nom rend le nom de `metadata`. Le dialogue de suppression d'un
+- [x] Le carnet des bailleurs et celui des prestataires montrent le numéro saisi à l'invitation.
+- [x] La réponse de l'invitation d'un prestataire déjà inscrit nomme ses métiers, et le toast les dit.
+- [x] Un profil lié à un compte sans nom rend le nom de `metadata`. Le dialogue de suppression d'un
       rôle retombe sur son libellé quand le nom est vide.
 
 ## Hors périmètre
@@ -108,3 +108,30 @@ P234.03 et P234.07 sont `retenu · autonome` (A1) : elles suivent leur `Piste`.
 - Le membre retiré (profil `SoftDeletes`) puis ré-invité : `unique(user_id, agency_id)` compte la
   ligne retirée, et l'acceptation rend encore 500. Mesuré le 2026-10-25 par un test temporaire
   (retiré) : agent retiré, ré-invité par e-mail → 201, acceptation → 500.
+
+## Vérification
+
+Tests d'abord, rouges, puis le correctif ; chaque test neuf passé par ablation (correctif retiré,
+rouge constaté, correctif remis). PostgreSQL de test, `XDEBUG_MODE=off php artisan test <fichiers>`.
+
+- **P234.01** (`f2ac4a9af`) — `RolesDAgentSansEffetTest` (3) et `InviteAgentTest` : `ALLOWED_ROLES`
+  remis à trois rôles → 2 rouges ; `agent_senior`/`agent_manager` retirés de `finalizeAccept` →
+  2 rouges (le test « invitation déjà émise » garde la conservation). Front :
+  `InviteAgentDialog.test.tsx` (aucun choix de rôle).
+- **P234.02 / P234.03** (`3b5fe913c`) — `CompteExistantInviteParNumeroTest` (7) : refus « déjà
+  membre » à l'invitation retiré → 2 rouges ; garde de l'acceptation retirée → 3 rouges ; recherche
+  du prestataire par e-mail seul → 2 rouges.
+- **P234.04** (`bd5abad8d`) — `TelephoneSaisiALInvitationTest` (épingle : vert sans correctif, le
+  compte n'était déjà pas touché), `ServiceProviderDirectoryProjectionTest` (`phone` retiré de
+  `METADATA_KEYS` → 1 rouge) ; front `OwnersList` et `ServiceProvidersList` (colonnes retirées →
+  2 rouges).
+- **P234.05** (`0565f09c5`) — `MetiersRetenusALInvitationTest` (2) : `meta.retained_trades` retiré →
+  2 rouges ; `InviteServiceProviderSheet.metiers-retenus.test.tsx` : toast d'avant → 1 rouge.
+- **P234.07** (`9b192130e`) — `NomAffichableDesProfilsTest` (6) : repli sur `metadata` retiré →
+  3 rouges ; `DeleteRoleDialog.test.tsx` rouge avec `??`.
+- Hors de ces classes : dix classes d'invitation voisines (`InvitationAcceptTest`,
+  `InviteServiceProviderTest`, `InviteOwnerTest`, `ServiceProviderMultiAgencyTest`,
+  `InvitationBySmsTest`, `InvitationLifecycleTest`, `AcceptationNActiveQueLeBrouillonTest`,
+  `RoleDInvitationRenduTest`, `InvitationSendTest`, `InviteAgentTest`) → 90 verts. `tsc`, ESLint,
+  `check:*`, gardes `scripts/check-*.mjs` : verts. La suite entière n'a pas été lancée (règle des
+  agents délégués).

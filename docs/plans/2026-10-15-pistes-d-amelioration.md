@@ -6030,7 +6030,7 @@ les envoie.*
 
 ### Une fiche client créée depuis un compte sans nom garde prénom et nom vides : le repli `'Client'` / `'#id'` ne joue jamais
 - Réf : P220.03
-- Statut : validé — validation du porteur (2026-10-25) : `nomAffichable` sur les huit sites du front, exceptions retirées de `check-nom-affichable` ; le repli mort `?? 'Client'` retiré de l'API, rien n'est écrit en base
+- Statut : fait · TCK-2281
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Model/CustomerService.php:72-80`, `takussan-api/app/Http/Controllers/Public/PublicPropertyController.php:972`, `takussan-api/app/Services/Model/BookingService.php:102`, `takussan-web/src/components/pipeline/PipelineCard.tsx:102`, `:133`, `:144`, `takussan-web/src/components/customer-dashboard/CustomerList.tsx:59`, `:128`, `takussan-web/src/app/(dashboard)/app/customers/[id]/page.tsx:124-164`, `takussan-web/src/components/pipeline/CustomerDetailSheet.tsx:82`, `takussan-web/src/components/visits/PlanifierUneVisite.tsx:244`, `takussan-web/src/lib/queries/agent-crm.ts:342`
 - Constat :
@@ -6043,6 +6043,7 @@ les envoie.*
 - Mesure (2026-10-24, 6d8095e26, mesureur) : relu `CustomerService.php:75-76` (`$user->first_name ?? 'Client'`, `$user->last_name ?? '#'.$user->id`), inchangé ; test PHPUnit temporaire (retiré), compte `first_name = ''`, `last_name = ''`, `email = null` → `findOrCreateFromUser` rend `["", "", null]` → le constat tient ; l'apparition de la fiche dans les écrans d'une agence reste non mesurée. Classement : V7, la `Piste` demande de décider si `Client` / `#id` reste écrit en base (en français, contre le principe 5) ou devient un repli d'affichage.
 - Mesure (2026-10-24, 3e8efc3c5, delegue) : relu l'entrée et la `Mesure` du mesureur, `CustomerService.php:75-76`, la migration `2026_04_15_210400_add_fields_to_users_table.php:17-18` (`first_name` et `last_name` non nuls : le `?? 'Client'` ne joue jamais, ni pour `''` ni pour `null`), le principe 5 de `CLAUDE.md` (le front possède le texte affiché), TCK-2053 (porteur, 2026-10-23 : `full_name ?: email ?: phone` en console), `grep -rln customer->first_name app` → `InvoiceNumberAllocator.php:82` et `ContactSansCompte.php:48` lisent le nom de la fiche. Recommandation : repli d'affichage côté front, jamais écrit en base — les écrans relevés (fiche, carte et `aria-label` du tableau, liste, tiroir, sélecteur de visite, recherche CRM) nomment la fiche par un seul assembleur de nom affichable sous `src/lib` : prénom et nom, sinon e-mail, sinon numéro, sinon `#<id>`, avec les seuls champs que chaque écran charge déjà (aucun champ de contact neuf demandé à l'API), l'API ne changeant pas ; écrire `Client` / `#id` en base (`filled()`) mettrait du français en base contre le principe 5 et changerait le nom que porte une facture ; critère trouvé en relisant : V1, parce que le nom de la fiche est lu par `InvoiceNumberAllocator` ; ce qui manque pour trancher : que le porteur dise si le nom vide d'une fiche sur une facture se traite ici ou à part, et confirme l'ordre de repli de TCK-2053 pour le CRM.
 - Mesure (2026-10-25, ece5a91ea, humain) : validation du porteur en bloc (2026-10-25) sur la re-vérification de la session à c35c20d16 ; statut précédent : « retenu · à valider — V7 : repli écrit en base ou affiché par le front, la piste laisse le choix ouvert ».
+- Mesure (2026-10-25, 55e28cd9d, implementeur) : `nomAffichable()` sur les huit sites (fiche, carte du tableau, annonces du glisser, tiroir, liste, sélecteur de visite, client du bail, recherche CRM), avec les seuls champs chargés ; les huit exceptions retirées de `check-nom-affichable` (verte) ; le repli `?? 'Client'` / `?? '#id'` retiré de `CustomerService`, épinglé par `FicheDUnCompteSansNomTest`. Six tests vitest neufs ; ablation fichier par fichier : chaque test rouge, et la garde rouge pour les huit fichiers.
 
 ### Le tableau d'équipe et ses dialogues montrent une ligne vide pour un membre sans nom ni e-mail
 - Réf : P220.04
@@ -6091,7 +6092,7 @@ les envoie.*
 
 ### Un compte existant qui accepte une invitation ne reçoit pas le nom que l'agence a saisi
 - Réf : P220.07
-- Statut : validé — validation du porteur (2026-10-25) : un compte connecté sans nom voit à l'acceptation le prénom et le nom de l'invitation préremplis, qu'il confirme ou corrige ; l'API ne les écrit que si les noms du compte sont vides
+- Statut : fait · TCK-2281
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Invitation/InvitationService.php:631-679`, `takussan-api/app/Http/Requests/Invitation/AcceptInvitationRequest.php:31-32`, `takussan-api/app/Services/Invitation/AgentInvitationService.php:85-97`
 - Constat :
@@ -6102,6 +6103,7 @@ les envoie.*
 - Piste : à l'acceptation, compléter `first_name` et `last_name` vides du compte par ceux de l'invitation (sans écraser un nom déjà posé). Test : compte créé par téléphone qui accepte une invitation d'agent nommée → le membre porte le nom saisi.
 - Mesure (2026-10-24, 6d8095e26, mesureur) : relu `InvitationService.php:631-636` (seul écrivain de `first_name`), `:674-679` (`acceptForUser` → `finalizeAccept`, aucun nom écrit), `AcceptInvitationRequest.php:31-32` (`nullable`), inchangés ; test PHPUnit temporaire (retiré, charge 1,57 / 2,05 / 2,34 sur 8 cœurs), compte existant à noms `''` qui accepte une invitation d'agent dont le profil brouillon porte `metadata` `Awa Sarr` → 200, profil `active` lié au compte, compte toujours `["", ""]` → le constat tient (mesuré par e-mail ; la branche par numéro passe par le même `acceptForUser`). Classement : V3, compléter le nom d'un compte par ce qu'une agence a saisi change ce qui est conservé sur la personne, et touche aussi V7.
 - Mesure (2026-10-25, ece5a91ea, humain) : validation du porteur en bloc (2026-10-25) sur la re-vérification de la session à c35c20d16 ; statut précédent : « retenu · à valider — V3 : écrire sur un compte le nom qu'un tiers a saisi ».
+- Mesure (2026-10-25, f946f3d9c, implementeur) : `acceptForUser` écrit le prénom et le nom envoyés sur un compte dont les deux noms sont vides, jamais sur un compte nommé ; `GET /api/invitations/{token}/prefill` (authentifiée) rend le nom de l'invitation au seul destinataire sans nom, `data: null` sinon, 404/410 comme l'acceptation ; l'écran connecté préremplit les deux champs. `NomsConfirmesALAcceptationTest` (5) et deux fichiers vitest verts ; ablation : écriture retirée → 1 rouge, garde « sans nom » → 1 rouge, garde du prérempli → 1 rouge, branche préremplie du front → 2 rouges, lecture neutralisée → 1 rouge.
 
 ### Petites améliorations
 - Réf : P220.08
@@ -7123,7 +7125,7 @@ base de développement. Les écrans n'ont pas été joués.*
 
 ### Le rôle choisi à l'invitation d'un agent (`agent_senior`, `agent_manager`) n'est jamais appliqué : le membre entre comme simple agent
 - Réf : P234.01
-- Statut : validé — validation du porteur (2026-10-25) : `agent_senior` et `agent_manager` retirés du dialogue et d'`ALLOWED_ROLES`, les invitations déjà émises restant acceptées
+- Statut : fait · TCK-2280
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Invitation/AgentInvitationService.php:51,75-97`, `takussan-api/app/Services/Invitation/InvitationService.php:760-843`, `takussan-api/app/Models/Concerns/HasAgencyRole.php:45-56`, `takussan-web/src/components/admin/InviteAgentDialog.tsx:54,62,87`
 - Constat :
@@ -7136,10 +7138,11 @@ base de développement. Les écrans n'ont pas été joués.*
 - Piste : soit ne proposer à l'invitation que ce qui a un effet (retirer `agent_senior` et `agent_manager` d'`ALLOWED_ROLES` et des deux dialogues), soit traduire le choix en un `agency_role_id` de l'agence à la création du brouillon (ce qui demande des rôles d'agence qui portent ces noms). Test : invitation `agent_manager` acceptée → le membre porte le rôle annoncé, ou la requête est refusée en 422.
 - Mesure (2026-10-24, 28bbd67c8, mesureur) : relu `AgentInvitationService::ALLOWED_ROLES` (trois rôles) et l'écriture de `metadata.invited_role`, `finalizeAccept` (ne pose que `status` et `user_id`) ; `grep -rn "invited_role\|agent_senior\|agent_manager" takussan-api/app` → l'écrivain, la table des invitables et la liste qui pose `user_id`, aucun lecteur ; (sonde temporaire `tests/Feature/TmpMesureur/Sonde234Test.php`, retirée, `XDEBUG_MODE=off php artisan test <fichier>`, charge `{ 3.70 2.86 2.68 }` sur 8 cœurs, drapeau `auth.phone_login.enabled` allumé) trois invitations `agent`, `agent_manager`, `agent_senior` par e-mail, acceptées par trois comptes neufs → 200 chacune, profils `active`, même `agency_role_id` (1), `filterAllowed` sur `Capability::cases()` → 19 capacités, listes identiques (même empreinte) : le constat tient ; TCK-258 (« junior / senior / manager ») et TCK-1437 (libellés des courriels) nomment les rôles sans dire ce qu'ils accordent. Classement : V7 et V2, la Piste hésite entre retirer deux options visibles et donner à ces rôles des capacités que rien n'écrit.
 - Mesure (2026-10-25, ece5a91ea, humain) : validation du porteur en bloc (2026-10-25) sur la re-vérification de la session à c35c20d16 ; statut précédent : « retenu · à valider — V7 : retirer deux rôles visibles ou créer des rôles d'agence qui les portent ; V2 : capacités accordées ».
+- Mesure (2026-10-25, f2ac4a9af, implementeur) : `AgentInvitationService::ALLOWED_ROLES` = `['agent']` (`agent_senior`/`agent_manager` → 422), les deux rôles gardés dans `INVITABLE_TYPE_BY_ROLE` et `finalizeAccept` pour les invitations déjà émises ; `InviteAgentDialog` n'offre plus de choix et envoie `agent`, clés `admin.inviteAgent.role(s)` retirées. `RolesDAgentSansEffetTest` (3) et `InviteAgentTest` verts ; ablation : trois rôles remis → 2 rouges, rôles retirés de `finalizeAccept` → 2 rouges ; `InviteAgentDialog.test.tsx` vert.
 
 ### Une invitation de prestataire par numéro, acceptée par un compte qui a déjà un profil de prestataire, lui crée un second profil que ses propres écrans ne voient pas
 - Réf : P234.02
-- Statut : validé — validation du porteur (2026-10-25) : le profil existant est cherché par `recipientAccount` (e-mail ou numéro vérifié), et l'acceptation d'un second profil de prestataire est refusée par un 409 nommé
+- Statut : fait · TCK-2280
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Invitation/ServiceProviderInvitationService.php:79-89,253-260`, `takussan-api/app/Services/Invitation/InvitationService.php:836-857`, `takussan-api/app/Models/Concerns/HasProfiles.php:69-72,103-105`, `takussan-api/app/Http/Controllers/Api/Me/ServiceProviderAgenciesController.php:37-39`
 - Constat :
@@ -7151,10 +7154,11 @@ base de développement. Les écrans n'ont pas été joués.*
 - Piste : chercher le profil existant aussi par le compte qui a vérifié le numéro (`recipientAccount($email, $phone)`, déjà écrit dans `InvitationService`), pour qu'une invitation par numéro suive le même chemin de réutilisation que par e-mail ; à défaut, refuser à l'acceptation de lier un brouillon de prestataire à un compte qui en a déjà un. Test : compte prestataire invité par numéro par une seconde agence → un seul profil, collaboration de B sur ce profil, visible dans `me/service-provider/collaborations`.
 - Mesure (2026-10-24, 28bbd67c8, mesureur) : relu `ServiceProviderInvitationService::invite` (réutilisation par la seule `lookupExistingServiceProviderForEmail`, l. 89) et `InvitationService::recipientAccount` ; (sonde temporaire `tests/Feature/TmpMesureur/Sonde234Test.php`, retirée, `XDEBUG_MODE=off php artisan test <fichier>`, charge `{ 3.70 2.86 2.68 }` sur 8 cœurs, drapeau `auth.phone_login.enabled` allumé) compte à numéro vérifié, profil de prestataire actif `plumbing` collaborant avec A ; B l'invite par numéro seul (`electricity`) → 201, `existing_sp_other_agency` absent (null), brouillon neuf ; acceptation par ce compte connecté → 200 ; deux profils `active` (#1 `plumbing`, #2 `electricity`), collaboration de B sur #2 ; `GET /api/me/profiles` → le seul `service_provider:1` ; `GET /api/me/service-provider/collaborations` → la seule agence A : le constat tient. Classement : V2, retrouver un profil existant par le numéro vérifié change qui l'invitation désigne, et la Piste propose deux remèdes (réutiliser, ou refuser à l'acceptation).
 - Mesure (2026-10-25, ece5a91ea, humain) : validation du porteur en bloc (2026-10-25) sur la re-vérification de la session à c35c20d16 ; statut précédent : « retenu · à valider — V2 : rattacher l'invitation au compte par son numéro vérifié ; deux options ».
+- Mesure (2026-10-25, 3b5fe913c, implementeur) : `InvitationService::recipientAccount` devenu public ; `ServiceProviderInvitationService` y cherche le profil (e-mail ou numéro vérifié) et refuse en 409 une collaboration déjà active ; `finalizeAccept` refuse en 409 `invitation.service_provider_profile_exists` le lien d'un brouillon à un compte qui a déjà un profil de prestataire ; amendement d'ADR-0016 du 2026-10-25. `CompteExistantInviteParNumeroTest` (7) vert ; ablation : garde de l'acceptation retirée → 3 rouges, recherche par e-mail seul → 2 rouges.
 
 ### Un bailleur ou un agent déjà membre, invité de nouveau par son numéro, reçoit l'invitation puis tombe en 500 à l'acceptation
 - Réf : P234.03
-- Statut : retenu · autonome
+- Statut : fait · TCK-2280
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Invitation/OwnerInvitationService.php:75-77,163-178`, `takussan-api/app/Services/Invitation/AgentInvitationService.php:81-83`, `takussan-api/app/Services/Invitation/InvitationService.php:836-843,1001-1024`
 - Constat :
@@ -7164,10 +7168,11 @@ base de développement. Les écrans n'ont pas été joués.*
   - Établi comment : lu, puis mesuré.
 - Piste : juger « déjà membre » sur le compte destinataire, par e-mail ou par numéro vérifié (`recipientAccount`), à l'invitation ; et à l'acceptation, refuser par un code nommé (409) plutôt que heurter la contrainte. Test : membre invité par numéro → 409 à l'invitation ; brouillon déjà émis puis accepté par un compte devenu membre entre-temps → 409, pas 500.
 - Mesure (2026-10-24, 28bbd67c8, mesureur) : relu `OwnerInvitationService::invite` et `AgentInvitationService::invite` (le 409 `already_member` n'est joué que `if ($email !== null)`) et `finalizeAccept` (pose `user_id` sans regarder les profils du compte dans l'agence) ; (sonde temporaire `tests/Feature/TmpMesureur/Sonde234Test.php`, retirée, `XDEBUG_MODE=off php artisan test <fichier>`, charge `{ 3.70 2.86 2.68 }` sur 8 cœurs, drapeau `auth.phone_login.enabled` allumé) compte à numéro vérifié, bailleur et agent actifs de l'agence, invité par numéro seul comme bailleur puis comme agent → 201 et 201 ; acceptation connecté → 500 et 500, l'invitation reste `sent` ; journal du serveur PostgreSQL (`docker logs takussan-postgres-1`) → `duplicate key value violates unique constraint "owner_profiles_user_id_agency_id_unique"` puis `agent_profiles_user_id_agency_id_unique` : le constat tient. Classement : A1, le refus « déjà membre » en 409 est déjà le contrat écrit pour l'e-mail (`assertNoActiveOwnerInAgency`, `assertNoActiveAgentInAgency`), et un 500 sur une contrainte n'est le comportement attendu de personne.
+- Mesure (2026-10-25, 3b5fe913c, implementeur) : les services de bailleur et d'agent jugent « déjà membre » sur le compte qui a vérifié le numéro (409 à l'invitation) ; `finalizeAccept` refuse en 409 `invitation.already_member` un brouillon accepté par un compte devenu membre (plus de 500), l'invitation reste `sent`. `CompteExistantInviteParNumeroTest` vert ; ablation : refus à l'invitation retiré → 2 rouges. Hors périmètre, mesuré : un membre retiré (`SoftDeletes`) puis ré-invité par e-mail → 201, acceptation → 500 (`unique(user_id, agency_id)`).
 
 ### Le téléphone saisi par l'agence à l'invitation n'atteint jamais le compte
 - Réf : P234.04
-- Statut : validé — validation du porteur (2026-10-25) : le numéro saisi devient une donnée de la fiche d'agence, rendue dans les carnets ; docblock corrigé
+- Statut : fait · TCK-2280
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Invitation/InvitationService.php:701-720,744-749`, `takussan-api/app/Services/Invitation/AgentInvitationService.php:35-36,90-97`, `takussan-api/app/Services/Invitation/OwnerInvitationService.php:84-94`, `takussan-api/app/Services/Invitation/ServiceProviderInvitationService.php:113-121`
 - Constat :
@@ -7179,10 +7184,11 @@ base de développement. Les écrans n'ont pas été joués.*
 - Piste : décider si le numéro saisi par un tiers peut être posé sur le compte (non vérifié, sans `phone_verified_at`, et seulement si le compte n'en a pas), ou s'il doit rester une donnée de la fiche d'agence, rendue alors dans les listes. Dans le second cas, corriger le docblock. Test : acceptation d'une invitation par e-mail avec numéro → le numéro est sur le compte (non vérifié), ou rendu par `GET /api/owners`.
 - Mesure (2026-10-24, 28bbd67c8, mesureur) : relu `acceptAsNewUser` (`phone` écrit seulement si `$invitation->email === null`) et `acceptForUser` (n'écrit rien sur le compte), docblock d'`AgentInvitationService` l. 35 ; (sonde temporaire `tests/Feature/TmpMesureur/Sonde234Test.php`, retirée, `XDEBUG_MODE=off php artisan test <fichier>`, charge `{ 3.70 2.86 2.68 }` sur 8 cœurs, drapeau `auth.phone_login.enabled` allumé) bailleur invité avec e-mail et `+221771234567`, accepté par un compte neuf → 200, `users.phone` = `null`, `invitations.phone` et `metadata.phone` portent le numéro : le constat tient ; les lecteurs SMS de `users.phone` non relus un à un. Classement : V3, la Piste laisse à décider si une donnée personnelle saisie par l'agence va sur le compte ou dans les listes de l'agence.
 - Mesure (2026-10-25, ece5a91ea, humain) : validation du porteur en bloc (2026-10-25) sur la re-vérification de la session à c35c20d16 ; statut précédent : « retenu · à valider — V3 : poser sur le compte un numéro saisi par un tiers, ou le rendre dans les listes ».
+- Mesure (2026-10-25, bd5abad8d, implementeur) : le carnet des bailleurs et celui des prestataires montrent `metadata.phone` (colonne Téléphone), `ServiceProviderDirectoryResource::METADATA_KEYS` laisse passer `phone`, docblocks d'`AgentInvitationService` et d'`OwnerInvitationService` corrigés ; le compte n'est pas touché. `TelephoneSaisiALInvitationTest` (épingle, vert sans correctif) ; ablation : `phone` retiré de `METADATA_KEYS` → 1 rouge, colonnes du front retirées → 2 rouges. Non couvert : pour un prestataire déjà inscrit (profil réutilisé), le numéro saisi par la seconde agence n'est rangé que sur l'invitation.
 
 ### Un prestataire déjà inscrit, invité par une seconde agence, garde ses métiers et zones : ceux que l'agence a saisis sont jetés sans le lui dire
 - Réf : P234.05
-- Statut : validé — validation du porteur (2026-10-25) : la réponse et le toast nomment les métiers retenus, ceux du profil
+- Statut : fait · TCK-2280
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Invitation/ServiceProviderInvitationService.php:82-107,137-145`, `takussan-web/src/components/service-providers/InviteServiceProviderSheet.tsx:131-138`
 - Constat :
@@ -7193,6 +7199,7 @@ base de développement. Les écrans n'ont pas été joués.*
 - Piste : le dire à l'écran (le toast nomme les métiers retenus, ceux du profil), ou ranger les métiers propres à l'agence sur la collaboration. Le premier est un texte neuf, le second un schéma. Test : seconde agence qui invite avec un métier absent du profil → la réponse dit les métiers retenus.
 - Mesure (2026-10-24, 28bbd67c8, mesureur) : relu la branche de réutilisation de `ServiceProviderInvitationService::invite` (`$profile = $existingProfile`, ni `specialties` ni `service_areas` écrits) et son docblock (choix de préserver le profil maître) ; (sonde temporaire `tests/Feature/TmpMesureur/Sonde234Test.php`, retirée, `XDEBUG_MODE=off php artisan test <fichier>`, charge `{ 3.70 2.86 2.68 }` sur 8 cœurs, drapeau `auth.phone_login.enabled` allumé) profil existant `plumbing` / `Dakar` collaborant avec A, invitation par e-mail de B avec `electricity` / `Thies` → 201, acceptée → 200 ; profil inchangé (`plumbing`, `Dakar`), un seul profil : le constat tient ; le toast de l'écran non relu dans un navigateur. Classement : V7 (ou V4), la Piste propose un texte neuf ou un schéma, et le docblock fait de la préservation un choix.
 - Mesure (2026-10-25, ece5a91ea, humain) : validation du porteur en bloc (2026-10-25) sur la re-vérification de la session à c35c20d16 ; statut précédent : « retenu · à valider — V7 : texte neuf à l'écran, ou V4 : métiers rangés sur la collaboration ».
+- Mesure (2026-10-25, 0565f09c5, implementeur) : la réponse de l'invitation d'un prestataire porte `meta.retained_trades` (les métiers du profil), et le toast d'un prestataire déjà inscrit les nomme, traduits. `MetiersRetenusALInvitationTest` (2) et `InviteServiceProviderSheet.metiers-retenus.test.tsx` verts ; ablation : clé retirée → 2 rouges, toast d'avant → 1 rouge.
 
 ### La raison sociale d'un bailleur société n'atteint ni le bail, ni le relevé, ni l'état des lieux, ni le reversement
 - Réf : P234.06
@@ -7210,7 +7217,7 @@ base de développement. Les écrans n'ont pas été joués.*
 
 ### Petites améliorations
 - Réf : P234.07
-- Statut : retenu · autonome
+- Statut : fait · TCK-2280
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Models/Profiles/AgentProfile.php:109-120`, `takussan-api/app/Models/Profiles/OwnerProfile.php:141-152`, `takussan-api/app/Models/Profiles/ServiceProviderProfile.php:173-184`, `takussan-api/app/Services/Membership/AgencyRoleService.php:224`, `takussan-web/src/components/admin/roles/DeleteRoleDialog.tsx:112`
 - Constat :
@@ -7218,3 +7225,4 @@ base de développement. Les écrans n'ont pas été joués.*
   - Établi comment : lu.
 - Piste : dans les trois accesseurs, retomber sur `metadata` quand le nom composé du compte est vide, et dans `DeleteRoleDialog` tester la vacuité (`||`). Test unitaire de l'accesseur pour un compte à noms `''`.
 - Mesure (2026-10-24, 28bbd67c8, mesureur) : relu les trois accesseurs `getDisplayNameAttribute` (`AgentProfile.php:109-119`, `OwnerProfile.php:141-152`, `ServiceProviderProfile.php:173-184` : nom du compte dès qu'il est lié, `metadata` seulement sans compte), `AgencyRoleService.php:224` (`$holder->display_name ?? null`) et `DeleteRoleDialog.tsx:112` (`?? t('remove.conflict_unnamed')`) ; `grep -rn display_name takussan-api/app takussan-api/resources` → ce seul lecteur des accesseurs, `grep -rl display_name takussan-web/src` → le dialogue, son test et `types/agency-role.ts` : le constat tient à la lecture, non joué. Classement : A1, le repli sur `metadata` est le contrat écrit par TCK-2136 au front et le repli « #id » est déjà la clé `remove.conflict_unnamed` du dialogue ; aucun texte neuf.
+- Mesure (2026-10-25, 9b192130e, implementeur) : `display_name` des profils d'agent, de bailleur et de prestataire retombe sur le nom de `metadata` quand le nom composé du compte est vide ; `DeleteRoleDialog` teste la vacuité (`||`). `NomAffichableDesProfilsTest` (6) vert ; ablation : repli retiré → 3 rouges ; `DeleteRoleDialog.test.tsx` rouge avec `??`.
