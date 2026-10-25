@@ -1,7 +1,7 @@
 ---
 id: TCK-2365
 title: "Un compte existant entre dans l'équipe par l'invitation, au rôle agent ou administrateur ; `POST /agencies/{id}/members` est retirée, et un membre retiré revient au rôle système"
-status: doing
+status: done
 phase: P2
 family: full
 estimate: M
@@ -73,6 +73,8 @@ fichier de pistes, toutes `validé` (second tour, 2026-10-25).
   ligne retirée est restaurée (au rôle système), le brouillon est retiré, l'invitation pointe la
   ligne restaurée.
 - [x] `ProfileMaterializer` : une ligne restaurée reçoit le rôle système de son type dans son agence.
+- [x] `InvitationResource` : `invited_user_id` n'est rendu qu'une fois l'invitation acceptée
+  (P242.03 : avant, il disait à l'invitant si l'adresse avait un compte).
 - [x] `AgencyProvisioningService` et `StoreAgencyOnboardingRequest` : `admin.phone` facultatif ;
   numéro vérifié d'un compte existant → 409 `agency.admin_phone_taken`.
 - [x] Front : le dialogue « Inviter » propose le rôle (administrateur à qui porte
@@ -96,6 +98,8 @@ fichier de pistes, toutes `validé` (second tour, 2026-10-25).
   système « agent » ; il ne porte plus ni `team.assign_role` ni `payouts.approve`.
 - [x] AC5 — `PUT …/members/{u}/role` agent → owner → agent : le profil restauré porte le rôle
   système, pas le rôle personnalisé d'avant.
+- [x] AC7 — une adresse connue (en casse mixte) et une adresse inconnue rendent la même réponse
+  d'invitation, `invited_user_id` nul ; le compte est pourtant trouvé (en base).
 - [x] AC6 — console : `admin.phone` = numéro vérifié d'un compte existant → 409
   `agency.admin_phone_taken`, ni agence ni compte créés ; numéro non vérifié ou sans compte → 201.
 
@@ -119,4 +123,24 @@ fichier de pistes, toutes `validé` (second tour, 2026-10-25).
 
 ## Notes d'implémentation
 
-- (à compléter : ablations)
+- Avant correctif : 9 rouges sur 11 (API) — route enregistrée, `POST …/members` 200, invitation
+  `agency_admin` 422, acceptation d'un agent retiré **500**, rôle personnalisé restauré, numéro
+  ignoré (201). Puis le test d'existence : `invited_user_id` = 2 au lieu de `null`.
+- Ablations API (chaque correctif retiré, puis remis) : remise du rôle système dans
+  `ProfileMaterializer` → 2 rouges ; reprise de la ligne retirée → 1 rouge (500) ; garde
+  `changeMemberRole` → 1 rouge ; création de l'`AgencyAdminProfile` → 1 rouge ; masque
+  d'`invited_user_id` → 1 rouge ; garde du numéro dans le service → 1 rouge ; règle `admin.phone`
+  → 2 rouges.
+- Ablations front : rôle envoyé figé à `agent` → 1 rouge ; filtre `team.assign_role` → 1 rouge ;
+  numéro non envoyé → 1 rouge ; message du conflit de numéro → 1 rouge ; `agency_admin` retiré de
+  `destinationDInvitation` → 1 rouge ; ancien `InviteMemberButton` remis → 1 rouge.
+- Piège : la première version du test du bouton cherchait « compte existant » par son libellé. La
+  clé de traduction partie avec le geste, l'ancien bouton remis s'affichait sous sa clé brute, et le
+  test restait vert. Le test compte désormais les boutons.
+- `InviteMemberDialog.double-facteur` et `.role-admin` sont supprimés avec leur composant : la garde
+  du second facteur est déjà éprouvée par `InviteAgentDialog.double-facteur.test.tsx`, et le cas du
+  rôle d'administrateur est repris dans `InviteAgentDialog.test.tsx`.
+- Tests retirés avec la route : les quatre cas `POST …/members` d'`AgencyMembersListTest`, les trois
+  cas de rattachement de `MemberRoleChangeCapabilityTest` (TCK-2205), les deux d'`InviteAgentTest`,
+  celui d'`AgencyMembersRolesDansLAgenceTest` et le cas `membre` d'`ExistsLigneSupprimeeTest`.
+  `TeamFormationBoundaryTest` porte la frontière sur les deux rôles de l'invitation.
