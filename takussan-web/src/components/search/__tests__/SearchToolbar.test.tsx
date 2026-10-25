@@ -32,6 +32,8 @@ const TOUS_LES_FILTRES: SearchFilters = {
   q: 'villa vue mer',
   location: 'Almadies',
   city: 'Dakar',
+  // P185.02 (TCK-2061) — les villes du profil, une puce par ville.
+  cities: ['Thiès', 'Rufisque'],
   // TCK-635 — la région précise la ville homonyme : agrégée à `city`, pas de puce propre.
   region: 'Kolda',
   // TCK-346 — le rayon PORTE la puce, `lat`/`lng` y sont agrégées : trois clés, une puce.
@@ -105,6 +107,8 @@ describe('<PucesDeFiltres> — les puces de filtre actif', () => {
       'villa vue mer',
       'Quartier : Almadies',
       'Dakar',
+      'Thiès',
+      'Rufisque',
       'Dans un rayon de 5 km',
       // TCK-552 — le mot de la pastille des cartes.
       'En location',

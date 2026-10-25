@@ -2,6 +2,7 @@
 
 namespace App\Services\Admin;
 
+use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\PaymentProvider;
 use App\Models\IntegrationWebhookLog;
 use App\Models\LeasePayment;
@@ -26,12 +27,19 @@ use Illuminate\Support\Facades\DB;
  * écrivain de `late` est la pénalité : un bail sans pénalité n'aurait sinon jamais rien compté.
  * Un paiement de réservation n'est jamais « en retard » ici : il n'a pas d'échéance, et rien ne
  * lui écrit `late`. Définir son retard demanderait une colonne d'échéance.
+ *
+ * P198.05 (TCK-2034) — une restitution de caution n'est jamais « en retard » : c'est l'agence qui la
+ * doit au locataire, pas une échéance à payer (`LeasePayment::isOverdue()`, `features.md`). Échue et
+ * non versée, elle paraît sous son propre motif, `refund_due` (« restitution échue »), lu par la même
+ * règle d'échéance que `LeasePayment::overdue()`. Aucun motif ne lit une échéance d'un bail supprimé.
  */
 class PaymentSupervisionService
 {
     public const STATUS_FAILED = 'failed';
 
     public const STATUS_LATE = 'late';
+
+    public const STATUS_REFUND_DUE = 'refund_due';
 
     /** Les fenêtres des compteurs, en jours. */
     public const SUMMARY_WINDOWS = [7, 30];
@@ -49,6 +57,9 @@ class PaymentSupervisionService
         }
         if ($status === null || $status === self::STATUS_LATE) {
             $parts[] = $this->lateLeasePayments($from, $to);
+        }
+        if ($status === null || $status === self::STATUS_REFUND_DUE) {
+            $parts[] = $this->dueDepositRefunds($from, $to);
         }
 
         $union = array_shift($parts);
@@ -124,7 +135,16 @@ class PaymentSupervisionService
     private function lateLeasePayments(CarbonInterface $from, CarbonInterface $to): Builder
     {
         return $this->leaseBase(self::STATUS_LATE, 'lp.due_date::timestamptz')
-            ->whereIn('lp.id', LeasePayment::query()->overdue()->select('lease_payments.id'))
+            ->whereIn('lp.id', LeasePayment::query()->overdue()->exceptDepositRefunds()->select('lease_payments.id'))
+            ->whereBetween('lp.due_date', [$from->toDateString(), $to->toDateString()]);
+    }
+
+    private function dueDepositRefunds(CarbonInterface $from, CarbonInterface $to): Builder
+    {
+        return $this->leaseBase(self::STATUS_REFUND_DUE, 'lp.due_date::timestamptz')
+            ->whereIn('lp.id', LeasePayment::query()->overdue()
+                ->where('lease_payments.payment_type', LeasePaymentType::DepositRefund->value)
+                ->select('lease_payments.id'))
             ->whereBetween('lp.due_date', [$from->toDateString(), $to->toDateString()]);
     }
 
@@ -140,6 +160,7 @@ class PaymentSupervisionService
         return DB::table('lease_payments as lp')
             ->join('leases as l', 'l.id', '=', 'lp.lease_id')
             ->whereNull('lp.deleted_at')
+            ->whereNull('l.deleted_at')
             ->selectRaw("'lease_payment' AS type, ? AS reason, lp.id, lp.reference_number, lp.status, {$this->provider('lp')} AS provider, lp.amount, lp.currency, l.agency_id, {$eventAt} AS event_at, lp.due_date", [$kind]);
     }
 
@@ -148,6 +169,8 @@ class PaymentSupervisionService
         return DB::table('booking_payments as bp')
             ->join('bookings as b', 'b.id', '=', 'bp.booking_id')
             ->whereNull('bp.deleted_at')
+            // P223.03 (TCK-2173) — une réservation supprimée, comme un bail supprimé (`leaseBase`).
+            ->whereNull('b.deleted_at')
             ->selectRaw("'booking_payment' AS type, ? AS reason, bp.id, bp.reference_number, bp.status, {$this->provider('bp')} AS provider, bp.amount, bp.currency, b.agency_id, bp.updated_at::timestamptz AS event_at, NULL::date AS due_date", [$kind]);
     }
 

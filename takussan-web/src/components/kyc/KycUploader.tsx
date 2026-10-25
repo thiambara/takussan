@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/toast';
 import { messageCorpsErreurBff } from '@/lib/api';
 import { cn } from '@/lib/utils';
+import { KYC_MIME_ACCEPT } from './kyc-mime-accept';
 
 /**
  * TCK-261 — minimal KYC uploader.
@@ -71,19 +72,7 @@ export type KycUploaderProps = {
   i18nNamespace?: string;
 };
 
-/**
- * Types offered by the KYC file picker: exactly `AcceptedUploads::KYC_MIMETYPES`
- * (takussan-api). `image/*` let a GIF or an AVIF through, refused in 422.
- * Kept in sync by `accept-des-televersements.parity.tck-1888.test.tsx`.
- */
-export const KYC_MIME_ACCEPT = [
-  'image/jpeg',
-  'image/png',
-  'image/webp',
-  'image/heic',
-  'image/heif',
-  'application/pdf',
-].join(',');
+export { KYC_MIME_ACCEPT };
 const MAX_BYTES = 8 * 1024 * 1024; // mirrors the backend max:8192 (KB)
 
 export function KycUploader({

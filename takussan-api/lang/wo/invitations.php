@@ -17,6 +17,8 @@ return [
         // P155.01 (TCK-1437) — rôles d'`AgentInvitationService::ALLOWED_ROLES`.
         'agent_senior' => 'agent senior',
         'agent_manager' => 'agent manager',
+        // P15.01 (TCK-2351) — inviter le locataire à créer son compte.
+        'tenant' => 'locataire',
     ],
     'errors' => [
         // TCK-455 — invitation bu xamul lu mu takk sa sàq day sos ab sàq bu

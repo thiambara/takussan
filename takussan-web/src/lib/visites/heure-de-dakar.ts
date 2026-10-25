@@ -49,3 +49,12 @@ export function instantADakar(jour: string, heure: string, fuseau = FUSEAU_DES_V
   const instant = murale - decalage(murale, fuseau);
   return new Date(instant).toISOString().replace(/\.\d{3}Z$/, 'Z');
 }
+
+/**
+ * L'heure murale à Dakar de l'instant `maintenant`, `AAAA-MM-JJTHH:MM` : la forme d'un champ
+ * `datetime-local` qui se lit à Dakar (P230.05, le `min` de la replanification).
+ */
+export function heureMuraleADakar(maintenant: Date = new Date(), fuseau = FUSEAU_DES_VISITES): string {
+  const instant = maintenant.getTime();
+  return new Date(instant + decalage(instant, fuseau)).toISOString().slice(0, 16);
+}

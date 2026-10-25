@@ -32,6 +32,16 @@ import type { WizardDraft, WizardDraftResponse } from '@/types/wizard-draft';
  * {@link dernierEchecRef} : si la dernière sauvegarde débouncée a échoué et
  * qu'aucune réussite ne l'a remplacée depuis, un `flush()` sans rien à écrire
  * rend cet échec-là plutôt qu'un vert qu'il n'a pas mesuré.
+ *
+ * ────────────────────────────────────────────────────────────────────────────
+ * TCK-2331 (P08.05) — l'enregistrement automatique reprend au retour du réseau
+ * ────────────────────────────────────────────────────────────────────────────
+ *
+ * Une sauvegarde débouncée qui échouait pendant une coupure restait perdue tant
+ * que la personne ne retapait rien. Le hook garde la dernière écriture échouée
+ * ({@link aRejouerRef}) et la rejoue sur l'évènement `online` — sauf si une
+ * écriture plus récente est en attente ou en vol, qui la remplace. Rien n'est
+ * copié hors ligne : les valeurs vivent en mémoire, les photos aussi.
  */
 export type UseWizardDraftOptions = {
   /** Debounce window for autosave in ms. Default 800ms (per TCK-250 spec). */
@@ -77,8 +87,12 @@ export type UseWizardDraftResult<TData> = {
    * quitter la page doit pouvoir ne PAS la quitter.
    */
   flush: () => Promise<ResultatEcritureBrouillon>;
-  /** Delete the draft on the server and reset local state. */
-  clear: () => Promise<void>;
+  /**
+   * Delete the draft on the server and reset local state. Ne lève pas : rend `false` si le DELETE a
+   * échoué (le brouillon vit toujours côté serveur, et le bandeau le reproposera), `true` sinon —
+   * P237.04 (TCK-2371). L'échec reste aussi dans `error`.
+   */
+  clear: () => Promise<boolean>;
 };
 
 type FetchResponse<T> = { ok: boolean; status: number; json: () => Promise<T> };
@@ -118,6 +132,10 @@ export function useWizardDraft<TData = Record<string, unknown>>(
    * rendre un échec au lieu d'un vert qu'il n'a pas mesuré.
    */
   const dernierEchecRef = useRef<Error | null>(null);
+  /** TCK-2331 — la charge de la dernière écriture échouée, à rejouer au retour du réseau. */
+  const aRejouerRef = useRef<{ step: number; data: TData } | null>(null);
+  /** Les écritures en vol : une plus récente que l'échec le remplacera, on ne rejoue pas par-dessus. */
+  const enVolRef = useRef(0);
 
   // TCK-316 — la remise à zéro « nouvelle clé, on recharge » se fait pendant le
   // RENDU, pas au début de l'effet. `setIsLoading(true)` y était de toute façon
@@ -168,6 +186,7 @@ export function useWizardDraft<TData = Record<string, unknown>>(
     async (payload: { step: number; data: TData }): Promise<ResultatEcritureBrouillon> => {
       setIsSaving(true);
       setError(null);
+      enVolRef.current += 1;
       try {
         const res = await safeFetch<WizardDraftResponse<TData>>(
           `/api/me/wizard-drafts/${encodeURIComponent(key)}`,
@@ -177,6 +196,7 @@ export function useWizardDraft<TData = Record<string, unknown>>(
         const body = await res.json();
         setDraft(body.data);
         dernierEchecRef.current = null;
+        aRejouerRef.current = null;
         return { ok: true, ecrit: true };
       } catch (err) {
         const erreur = err instanceof Error ? err : new Error(String(err));
@@ -185,8 +205,10 @@ export function useWizardDraft<TData = Record<string, unknown>>(
         // que l'échec d'une sauvegarde débouncée, avant que React n'ait re-rendu.
         // Lire `error` là serait lire la valeur d'avant.
         dernierEchecRef.current = erreur;
+        aRejouerRef.current = payload;
         return { ok: false, ecrit: true, error: erreur };
       } finally {
+        enVolRef.current -= 1;
         setIsSaving(false);
       }
     },
@@ -231,7 +253,7 @@ export function useWizardDraft<TData = Record<string, unknown>>(
     [debounceMs, performSave],
   );
 
-  const clear = useCallback(async (): Promise<void> => {
+  const clear = useCallback(async (): Promise<boolean> => {
     if (timerRef.current) {
       clearTimeout(timerRef.current);
       timerRef.current = null;
@@ -241,6 +263,7 @@ export function useWizardDraft<TData = Record<string, unknown>>(
     // n'a plus rien à signaler. Le laisser ferait rendre `ok: false` au
     // `flush()` d'un parcours suivant, sur une donnée qui n'existe plus.
     dernierEchecRef.current = null;
+    aRejouerRef.current = null;
     setIsSaving(true);
     setError(null);
     try {
@@ -252,12 +275,26 @@ export function useWizardDraft<TData = Record<string, unknown>>(
         throw new Error(`DELETE wizard-drafts failed (${res.status})`);
       }
       setDraft(null);
+      return true;
     } catch (err) {
       setError(err instanceof Error ? err : new Error(String(err)));
+      return false;
     } finally {
       setIsSaving(false);
     }
   }, [key]);
+
+  // TCK-2331 — au retour du réseau, la dernière écriture échouée repart, si rien de plus récent
+  // n'est en attente ni en vol.
+  useEffect(() => {
+    const reprendre = () => {
+      const payload = aRejouerRef.current;
+      if (!payload || pendingRef.current || enVolRef.current > 0) return;
+      void performSave(payload);
+    };
+    window.addEventListener('online', reprendre);
+    return () => window.removeEventListener('online', reprendre);
+  }, [performSave]);
 
   // Cleanup on unmount: cancel any pending debounce. We intentionally do NOT
   // auto-flush here — flushing should be an explicit consumer choice

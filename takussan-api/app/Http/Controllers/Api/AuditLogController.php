@@ -12,6 +12,7 @@ use App\Services\Audit\AuditScope;
 use App\Support\AgencyKindGuard;
 use App\Support\Audit\PropertyRedactor;
 use App\Support\CaseInsensitive;
+use App\Support\Http\ParametreUnique;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
@@ -25,10 +26,8 @@ class AuditLogController extends Controller
     public function indexByEntity(Request $request, string $entity, int $id): JsonResponse
     {
         $user = $request->user();
-        abort_unless(
-            $user->isSuperAdmin() || ($user->agency_id !== null && $user->isAgencyAdminAt((int) $user->agency_id)),
-            403
-        );
+        // TCK-2260 (P116.07) — `ActivityLogPolicy::viewAny` : l'admin ET `reports.view_agency`.
+        abort_unless($user->can('viewAny', Activity::class), 403);
         AgencyKindGuard::ensureStandardForNonGlobal(
             $user,
             $request->activeProfile()?->agency_id ?? $user->agency_id,
@@ -149,7 +148,12 @@ class AuditLogController extends Controller
                 AllowedFilter::custom('subject_id', new ExactIdentifierFilter),
                 AllowedFilter::custom('date_from', new DateBoundaryFilter('created_at', false)),
                 AllowedFilter::custom('date_to', new DateBoundaryFilter('created_at', true)),
-                AllowedFilter::callback('search', function (Builder $q, string $value): void {
+                AllowedFilter::callback('search', function (Builder $q, mixed $value): void {
+                    // P216.05 (TCK-2244, ADR-0075) — `filter[search][]=…` vaut une recherche absente.
+                    $value = ParametreUnique::valeur($value);
+                    if ($value === null) {
+                        return;
+                    }
                     // TCK-1840 (P186.02) — insensible à la casse, `%` et `_` littéraux (forme de TCK-600).
                     $q->whereRaw(CaseInsensitive::sql('description').' like ?', ['%'.addcslashes(CaseInsensitive::fold($value), '\\%_').'%']);
                     // TCK-1401 (P151.01) — texte libre : sans délimiteur, spatie découpe « Diop, Awa » en tableau.

@@ -4,7 +4,10 @@ namespace Tests\Feature\Api\Agency;
 
 use App\Models\Agency;
 use App\Models\User;
+use App\Services\Admin\AgencyProvisioningService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -68,6 +71,37 @@ class AgencySettingsMergeTest extends TestCase
         $this->assertFalse($agency->collectsLateFeesOnline());
     }
 
+    /**
+     * P245.04 (TCK-2362) — la fusion se fait sur la ligne RELUE sous verrou : faite sur l'agence
+     * liée à la route, elle effaçait le réglage qu'un autre administrateur venait d'enregistrer.
+     * Son enregistrement est joué une fois, dans l'écouteur `retrieved`, à la liaison de la route.
+     */
+    public function test_un_reglage_enregistre_pendant_la_requete_n_est_pas_efface(): void
+    {
+        [$admin, $agency] = $this->agencyWithSettings(['timezone' => 'Africa/Dakar']);
+        Sanctum::actingAs($admin);
+
+        $joue = false;
+        Agency::retrieved(function () use (&$joue, $agency): void {
+            if ($joue) {
+                return;
+            }
+            $joue = true;
+            DB::table('agencies')->where('id', $agency->id)->update([
+                'settings' => json_encode(['timezone' => 'Africa/Dakar', 'watermark_enabled' => false]),
+            ]);
+        });
+
+        $this->patchJson("/api/agencies/{$agency->id}", [
+            'settings' => ['late_fee_online_collection' => true],
+        ])->assertOk();
+
+        $settings = $agency->refresh()->settings;
+        $this->assertFalse($settings['watermark_enabled'] ?? null);
+        $this->assertSame('Africa/Dakar', $settings['timezone']);
+        $this->assertTrue($settings['late_fee_online_collection']);
+    }
+
     public function test_settings_null_est_refuse(): void
     {
         [$admin, $agency] = $this->agencyWithSettings(['watermark_enabled' => false]);
@@ -90,15 +124,15 @@ class AgencySettingsMergeTest extends TestCase
         ])->assertStatus(422)->assertJsonValidationErrors('settings.late_fee_online_collection');
     }
 
+    /** TCK-2311 (P225.06) — `POST /api/agencies` est retirée : l'agence neuve vient de la console. */
     public function test_agence_neuve_n_a_pas_la_cle_et_n_encaisse_pas_en_ligne(): void
     {
-        $user = User::factory()->create();
-        Sanctum::actingAs($user);
+        Notification::fake();
+        $agency = app(AgencyProvisioningService::class)->provision([
+            'agency' => ['name' => 'Agence Neuve '.uniqid()],
+            'admin' => ['first_name' => 'Awa', 'last_name' => 'Ndiaye', 'email' => uniqid('admin').'@agence.test'],
+        ], User::factory()->create())['agency'];
 
-        $response = $this->postJson('/api/agencies', ['name' => 'Agence Neuve '.uniqid()]);
-        $response->assertCreated();
-
-        $agency = Agency::query()->findOrFail($response->json('data.id'));
         $this->assertArrayNotHasKey('late_fee_online_collection', $agency->settings ?? []);
         $this->assertFalse($agency->collectsLateFeesOnline());
     }

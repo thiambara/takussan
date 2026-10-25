@@ -11,6 +11,7 @@ use App\Models\Enums\CustomerStatus;
 use App\Models\Enums\IdType;
 use Illuminate\Support\Arr;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 /**
  * TCK-305 — extrait de CustomerController::update(), où les règles étaient écrites en ligne.
@@ -99,5 +100,36 @@ class UpdateCustomerRequest extends BaseFormRequest
             'reason' => ['sometimes', 'nullable', 'string', 'max:5000'],
             ...$this->contactAndCriteriaRules('sometimes'),
         ];
+    }
+
+    /**
+     * P209.03 (TCK-2067) — une borne de budget envoyée SEULE se compare à l'autre borne
+     * enregistrée : `gte:budget_min` ne voit que la requête, et un `PATCH {budget_max: 100}`
+     * passait sous un plancher de 500 000 (le client ne recevait plus aucun bien de
+     * `ProspectMatcher`). Les deux bornes envoyées ensemble restent jugées par la règle partagée
+     * avec la création ; une borne envoyée à `null` efface la contrainte.
+     *
+     * @return list<callable(Validator): void>
+     */
+    public function after(): array
+    {
+        return [function (Validator $validator): void {
+            $customer = $this->route('customer');
+            $avecMin = $this->has('budget_min');
+            $avecMax = $this->has('budget_max');
+            if (! $customer instanceof Customer || $avecMin === $avecMax || $validator->errors()->hasAny(['budget_min', 'budget_max'])) {
+                return;
+            }
+
+            $min = $avecMin ? $this->input('budget_min') : $customer->budget_min;
+            $max = $avecMax ? $this->input('budget_max') : $customer->budget_max;
+            if (! is_numeric($min) || ! is_numeric($max) || (float) $max >= (float) $min) {
+                return;
+            }
+
+            $avecMax
+                ? $validator->errors()->add('budget_max', __('validation.gte.numeric', ['attribute' => 'budget max', 'value' => $min]))
+                : $validator->errors()->add('budget_min', __('validation.lte.numeric', ['attribute' => 'budget min', 'value' => $max]));
+        }];
     }
 }

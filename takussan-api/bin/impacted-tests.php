@@ -10,6 +10,19 @@
  *   php bin/impacted-tests.php --run        # exécute au lieu d'afficher la commande
  *   php bin/impacted-tests.php --run --parallel[=4]
  *                                           # la sélection en 4 processus (paratest)
+ *   php bin/impacted-tests.php --base=origin/pre-dev --connus
+ *                                           # les agents des pistes : la sélection des
+ *                                           # seuls fichiers que la carte sait situer
+ *
+ * `--connus` (amendement d'ADR-0066 du 2026-10-24) : chaque fichier modifié est jugé
+ * SEUL, et celui qui ferait escalader (fichier neuf absent de la carte, migration,
+ * config, harnais, chemin non reconnu) est écarté et NOMMÉ, au lieu de rendre « SUITE
+ * ENTIÈRE ». Un agent ne lance jamais la suite entière : sans cette option, un seul
+ * fichier neuf dans le diff lui faisait perdre toute la sélection, et les tests que la
+ * carte reliait à ses fichiers connus n'étaient pas joués. Relevé le 2026-10-24 sur
+ * #1469 : `PortfolioMetrics.php` → `DashboardQueryBudgetTest`, rouge 2 h en CI. Cette
+ * option ESCALADE MOINS que le défaut, à dessein : ce qu'elle écarte reste à couvrir
+ * par les tests que l'agent nomme, et la CI joue la suite entière.
  *
  * ⚠ UN VERT DE CETTE COMMANDE NE DIT RIEN DE LA SUITE. C'est une boucle de retour
  * rapide pendant le développement, pas une garde. La CI et le rituel de fin de
@@ -34,12 +47,15 @@ $mapPath = $api.'/tests/impact-map.json';
 
 $base = null;
 $run = false;
+$knownOnly = false;
 $processes = null;
 foreach (array_slice($argv, 1) as $arg) {
     if ($arg === '--run') {
         $run = true;
     } elseif ($arg === '--parallel' || preg_match('/^--parallel=([1-9][0-9]*)$/', $arg, $m)) {
         $processes = (int) ($m[1] ?? 4);
+    } elseif ($arg === '--connus') {
+        $knownOnly = true;
     } elseif (str_starts_with($arg, '--base=')) {
         $base = substr($arg, strlen('--base='));
     } else {
@@ -166,8 +182,33 @@ if (! $statusKnown) {
     // diff touche (cf. `ImpactSelector::testsSinceMapCommit()`) : leur source se lit ici.
     $sourceOf = fn (string $class): string => (string) @file_get_contents($api.'/'.ImpactMap::fileForClass($class));
 
-    $selection = (new ImpactSelector($map, $translations->consumersOf(...), $sourceOf))
-        ->select(array_keys($changed), $diffFor, $testClassesSince);
+    $selector = new ImpactSelector($map, $translations->consumersOf(...), $sourceOf);
+
+    // `--connus` : un fichier qui, SEUL, ferait escalader est écarté et nommé. Les règles
+    // jugent chaque chemin pour lui-même : la sélection des fichiers gardés ne peut plus
+    // escalader. Sans tests postérieurs à la carte ici : ils se jugent sur le diff gardé.
+    $ignored = [];
+    if ($knownOnly) {
+        foreach (array_keys($changed) as $path) {
+            $alone = $selector->select([(string) $path], $diffFor, []);
+            if ($alone->fullSuite) {
+                $ignored[(string) $path] = $alone->reason;
+                unset($changed[$path]);
+            }
+        }
+        if ($ignored !== []) {
+            printf("--connus : %d fichier(s) écarté(s), que la carte ne sait pas situer — leurs tests se nomment à la main :\n", count($ignored));
+            foreach ($ignored as $path => $reason) {
+                printf("  ✗ %s (%s)\n", $path, $reason);
+            }
+        }
+        if ($changed === []) {
+            echo "règle : rien à lancer parmi les fichiers connus de la carte.\n";
+            exit(0);
+        }
+    }
+
+    $selection = $selector->select(array_map('strval', array_keys($changed)), $diffFor, $testClassesSince);
 
     if ($selection->fullSuite) {
         printf("règle : SUITE ENTIÈRE — %s\n", $selection->reason);

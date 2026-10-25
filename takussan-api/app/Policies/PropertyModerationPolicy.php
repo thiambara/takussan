@@ -2,8 +2,11 @@
 
 namespace App\Policies;
 
+use App\Models\Agency;
+use App\Models\Enums\Capability;
 use App\Models\Property;
 use App\Models\User;
+use App\Services\Property\BailleurDuBien;
 
 /**
  * TCK-098 — Only agency_admin or super_admin within the property's agency
@@ -28,10 +31,12 @@ class PropertyModerationPolicy
 
     public function resubmit(User $user, Property $property): bool
     {
-        // The property owner or any member of the actor's *currently active*
-        // agency context can resubmit. Strict active-profile match — see
-        // canModerate() rationale below.
-        if ($user->id === $property->user_id) {
+        // TCK-2029 (P190.06) — `user_id` est le CRÉATEUR du bien : sur un bien d'agence, souvent
+        // l'agent qui l'a saisi. Il ne vaut titre que sur un bien sans agence, ou pour un bailleur
+        // de l'agence qui n'y est pas bloqué (la règle de `BasePolicy::bailleurEcrit`, que cette
+        // policy n'hérite pas). L'agent n'entre que par la branche du personnel actif, ci-dessous.
+        if (BailleurDuBien::est($user, $property->user_id, $property->agency_id)
+            && ($property->agency_id === null || ! $user->isBlockedOwnerAt((int) $property->agency_id))) {
             return true;
         }
 
@@ -51,10 +56,25 @@ class PropertyModerationPolicy
         // The active-profile-aware `$user->agency_id` accessor enforces
         // that the admin is currently acting under the right agency.
         $agencyId = $user->agency_id;
-        if ($agencyId === null || $agencyId !== $property->agency_id || ! $user->isAgencyAdminAt((int) $agencyId)) {
+        if ($agencyId === null || $agencyId !== $property->agency_id) {
             return false;
         }
 
-        return true;
+        return $this->moderatesAt($user, (int) $agencyId);
+    }
+
+    /**
+     * TCK-2022 (P116.05, décision du porteur) — approuver un bien en attente le PUBLIE : la
+     * modération d'agence exige l'admin de l'agence ET `properties.publish` à cette agence, patron
+     * d'`AgencyPolicy::updatePayoutThreshold`. Aucun agent ne la gagne, même s'il tient la capacité.
+     * Lue par `canModerate` et par la file (`PropertyModerationController::index`).
+     */
+    public function moderatesAt(User $user, int $agencyId): bool
+    {
+        $agency = Agency::query()->find($agencyId);
+
+        return $agency !== null
+            && $user->isAgencyAdminAt($agencyId)
+            && $user->canActAt(Capability::PropertiesPublish, $agency);
     }
 }

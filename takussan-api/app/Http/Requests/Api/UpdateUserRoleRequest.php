@@ -49,16 +49,13 @@ class UpdateUserRoleRequest extends BaseFormRequest
      * d'octroi d'un `PlatformProfile`. Ce PUT créait un super-admin sans invitation, sans 2FA
      * forcée ni activité, réactivait un profil révoqué et promouvait un `support`.
      *
+     * TCK-2372 (P249.01) — une seule liste pour les deux routes de rôle, celle de
+     * {@see UpdateAgencyMemberRoleRequest} : `tenant`, `customer` et `service_provider` en sont
+     * sortis, parce que ce PUT rendait 200 pour eux sans créer aucun profil.
+     *
      * @var list<string>
      */
-    public const ALLOWED_ROLES = [
-        'agency_admin',
-        'agent',
-        'owner',
-        'tenant',
-        'customer',
-        'service_provider',
-    ];
+    public const ALLOWED_ROLES = UpdateAgencyMemberRoleRequest::ALLOWED_ROLES;
 
     /** @return array<string, mixed> */
     public function rules(): array

@@ -99,6 +99,15 @@ type UseApiMutationOptions<TData, TVariables> = Omit<
    * Un `Idempotency-Key` posé dans `request.headers` l'emporte (le boost, TCK-822).
    */
   idempotence?: boolean;
+  /**
+   * TCK-2048 (P182.02) — un geste de transition (confirmer, annuler, payer…) relit aussi l'état
+   * quand il ÉCHOUE : les clés `invalidate` données en tableau sont invalidées sur erreur, pour
+   * que l'écran montre le statut réel (un 422 de garde d'état dit souvent que le geste est déjà
+   * fait) au lieu du bouton tiré du cache. Une invalidation calculée depuis la réponse n'est pas
+   * rejouée : il n'y a pas de réponse. À ne pas poser sur un formulaire qui s'initialise de la
+   * requête relue : un 422 de validation le remettrait à zéro.
+   */
+  relireSurErreur?: boolean;
 };
 
 /** TCK-1396 — ce que `useApiMutation` rend en plus de `useMutation`. */
@@ -164,7 +173,7 @@ export function useApiMutation<TData, TVariables = void>(
   const { token } = useAuth();
   const queryClient = useQueryClient();
   const garde = useGardeDoubleFacteur();
-  const { invalidate, request, onSuccess, idempotence, ...rest } = options;
+  const { invalidate, request, onSuccess, onError, idempotence, relireSurErreur, ...rest } = options;
   // TCK-1396 — la clé vit hors de l'état React : la renouveler ne re-rend rien.
   const cle = useRef<string | null>(null);
   const cleCourante = (): string => {
@@ -211,6 +220,14 @@ export function useApiMutation<TData, TVariables = void>(
         keys.map((key) => queryClient.invalidateQueries({ queryKey: key })),
       );
       await onSuccess?.(data, variables, ...rest2);
+    },
+    onError: async (error, variables, ...rest2) => {
+      if (relireSurErreur && Array.isArray(invalidate)) {
+        // Sans attendre : l'erreur s'affiche tout de suite, la relecture suit (après une coupure
+        // de réseau, elle peut elle-même tarder).
+        for (const key of invalidate) void queryClient.invalidateQueries({ queryKey: key });
+      }
+      await onError?.(error, variables, ...rest2);
     },
     ...rest,
   });

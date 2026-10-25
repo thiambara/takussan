@@ -7,11 +7,13 @@ use App\Http\Requests\Api\MarkLateFeePaidRequest;
 use App\Http\Requests\Api\MarkPaidLeasePaymentRequest;
 use App\Http\Requests\Api\StoreLeasePaymentRequest;
 use App\Http\Resources\LeasePaymentResource;
+use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\LeaseStatus;
 use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Services\Lease\LateFeeSettlement;
 use App\Services\Model\LeasePaymentService;
+use App\Support\Http\ParametreUnique;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -36,7 +38,9 @@ class LeasePaymentController extends Controller
         // en dur par `period_start` décroissant, un bail de plus de 100 échéances perdait ses plus
         // anciennes, celles qui tombent en retard les premières. Un `sort` hors de cette liste garde
         // l'ordre d'avant ; l'`id` départage deux échéances de même date.
-        [$colonne, $sens] = self::TRIS[(string) $request->query('sort')] ?? ['period_start', 'desc'];
+        // P216.04 (TCK-2126) — `sort[]=…` vaut l'ordre par défaut (TCK-1407), et n'est plus casté.
+        $tri = ParametreUnique::chaine($request, 'sort');
+        [$colonne, $sens] = ($tri !== null ? self::TRIS[$tri] ?? null : null) ?? ['period_start', 'desc'];
 
         $payments = $lease->payments()
             ->orderBy($colonne, $sens)
@@ -62,6 +66,15 @@ class LeasePaymentController extends Controller
         );
 
         $data = $request->validated();
+
+        // TCK-1920 (P170.04, décision du porteur) — la route garde les charges, régularisations et
+        // pénalités. Loyer et caution naissent de l'échéancier (`generate-schedule`) : posés ici,
+        // ils prenaient tout montant et un second loyer sur une période déjà échue.
+        abort_code_if(
+            in_array($data['payment_type'], [LeasePaymentType::Rent->value, LeasePaymentType::Deposit->value], true),
+            422,
+            'lease_payment.type_from_schedule',
+        );
 
         $payment = $this->payments->create($lease, $request->user(), $data);
 

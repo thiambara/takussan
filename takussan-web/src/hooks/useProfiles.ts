@@ -8,9 +8,10 @@ import { useAuth } from '@/context/AuthContext';
 import { ApiError } from '@/lib/api';
 import type { MyProfilesResponse, Profile } from '@/types/profile';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
+import { CLE_PROFILS, oublierLeCacheDEspace } from '@/lib/cache-d-espace';
 
 export const profilesKeys = {
-  all: ['me', 'profiles'] as const,
+  all: CLE_PROFILS,
 };
 
 async function fetchProfilesViaProxy(): Promise<MyProfilesResponse> {
@@ -63,7 +64,7 @@ export function useMyProfiles() {
 
 export function useSwitchActiveProfile() {
   const queryClient = useQueryClient();
-  const { refreshUser } = useAuth();
+  const { refreshUser, setActiveProfileId } = useAuth();
   const router = useRouter();
   const toast = useToast();
   const t = useTranslations('profile.switcher');
@@ -85,7 +86,10 @@ export function useSwitchActiveProfile() {
       }
       return { previousProfiles };
     },
-    onSuccess: (_data, profileId) => {
+    onSuccess: (data, profileId) => {
+      // TCK-2050 (P174.01) — le relais vient de poser le cookie, que le navigateur ne transmet pas
+      // à l'API : les appels qui suivent (relectures ci-dessous comprises) portent le profil choisi.
+      setActiveProfileId(data.data.id);
       const profiles = queryClient.getQueryData<MyProfilesResponse>(profilesKeys.all);
       const switched = profiles?.data.find((p) => p.id === profileId);
       toast.add({
@@ -95,14 +99,12 @@ export function useSwitchActiveProfile() {
       // Re-render server components with the new cookie context so dashboard
       // pages refetch under the right team_id.
       router.refresh();
-      // TCK-1899 (P197.01) — ces deux lectures passent par les relais `/api/me/subscription`
-      // et `/api/me/payouts`, qui posent l'indice du profil actif : leur clé ne porte pas
-      // l'agence, et les composants restent montés par `router.refresh()`. Sans cette
-      // invalidation, l'agence quittée resterait affichée jusqu'au `staleTime` (5 min).
-      return Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['me', 'subscription'] }),
-        queryClient.invalidateQueries({ queryKey: ['me', 'payouts'] }),
-      ]);
+      // TCK-2091 (P197.05) — le cache suit le changement d'espace confirmé : tout est OUBLIÉ et
+      // relu, hors les profils (`onSettled` les relit). Ici et non dans un effet sur
+      // `meta.active_profile_id`, que `onMutate` réécrit AVANT le `PATCH`. Le `router.refresh()`
+      // ci-dessus rend le profil déjà posé par `setActiveProfileId` : `AuthProvider`, qui oublie
+      // aussi le cache quand la mise en page change le profil (TCK-2229), ne le refait pas.
+      return oublierLeCacheDEspace(queryClient);
     },
     onError: (err, _profileId, context) => {
       if (context?.previousProfiles) {

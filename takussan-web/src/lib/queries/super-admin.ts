@@ -245,6 +245,26 @@ export async function assignAdminAgencySubscription(
   return jsonOrThrow<AgencySubscriptionResponse>(res);
 }
 
+/**
+ * TCK-2222 (P214.01) — les dérogations de l'abonnement ouvert, modifiées sur place : ni le plan,
+ * ni l'essai, ni la période ne changent. Une valeur `null` retire la dérogation.
+ */
+export async function updateAdminAgencySubscriptionOverrides(
+  agencyId: number,
+  payload: {
+    platform_fee_pct: number | null;
+    limits: { max_active_listings: number | null; max_agents: number | null; max_branches: number | null };
+  },
+): Promise<AgencySubscriptionResponse> {
+  const res = await fetch(cheminApi`/api/super-admin/agencies/${agencyId}/subscription/overrides`, {
+    method: 'PATCH',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  return jsonOrThrow<AgencySubscriptionResponse>(res);
+}
+
 export async function cancelAdminAgencySubscription(agencyId: number): Promise<AgencySubscriptionResponse> {
   const res = await fetch(cheminApi`/api/super-admin/agencies/${agencyId}/subscription/cancel`, {
     method: 'POST',
@@ -291,6 +311,11 @@ export type AgencyOnboardingPayload = {
     first_name: string;
     last_name: string;
     email: string;
+    /**
+     * P251.02 (TCK-2365) — facultatif : cherché parmi les numéros vérifiés, il fait refuser la
+     * création en 409 (`agency.admin_phone_taken`) quand un compte le porte déjà.
+     */
+    phone?: string;
     language?: 'fr' | 'en' | 'wo';
   };
 };
@@ -441,6 +466,8 @@ export interface FetchAdminPropertiesParams {
   readonly status?: string;
   readonly type?: string;
   readonly visibility?: string;
+  /** P167.07 (TCK-2087) — « publiés » au sens du catalogue : `filter[public]=1` (TCK-2036). */
+  readonly public?: boolean;
   readonly agencyId?: number;
   readonly sort?: string;
   readonly page?: number;
@@ -457,6 +484,7 @@ export async function fetchAdminProperties(
   if (params.status) qs.set('filter[status]', params.status);
   if (params.type) qs.set('filter[type]', params.type);
   if (params.visibility) qs.set('filter[visibility]', params.visibility);
+  if (params.public) qs.set('filter[public]', '1');
   if (typeof params.agencyId === 'number') qs.set('filter[agency_id]', String(params.agencyId));
   qs.set('sort', params.sort ?? '-created_at');
   qs.set('page', String(params.page ?? 1));
@@ -719,7 +747,7 @@ export async function fetchIntegrationWebhooks(id: number): Promise<IntegrationW
 // ─── TCK-602 — console « Paiements » et journal des webhooks ───────────────────────────────
 
 export type PaymentSupervisionFilters = {
-  status?: 'failed' | 'late';
+  status?: 'failed' | 'late' | 'refund_due';
   provider?: string;
   page?: number;
   perPage?: number;

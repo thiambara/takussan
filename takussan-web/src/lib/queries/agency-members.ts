@@ -1,6 +1,5 @@
 import { apiRequest } from '@/lib/api';
 import type { ApiResponse } from '@/types/api';
-import type { User } from '@/types/user';
 import { cheminApi } from '@/lib/chemin-api';
 
 /**
@@ -18,35 +17,8 @@ export const AGENCY_MEMBER_FIELDS = [
   'created_at',
 ] as const;
 
-export type AgencyMemberRole = 'agent' | 'agency_admin';
-
-export interface AddAgencyMemberPayload {
-  readonly email?: string;
-  readonly user_id?: number;
-  readonly role: AgencyMemberRole;
-}
-
-export interface AddAgencyMemberResponse {
-  readonly user_id: number;
-  readonly agency_id: number;
-  readonly role: AgencyMemberRole;
-  readonly user: User;
-}
-
-export async function addAgencyMember(
-  agencyId: number,
-  payload: AddAgencyMemberPayload,
-  token: string,
-): Promise<ApiResponse<AddAgencyMemberResponse>> {
-  return apiRequest<ApiResponse<AddAgencyMemberResponse>>(
-    cheminApi`/api/agencies/${agencyId}/members`,
-    {
-      method: 'POST',
-      body: payload,
-      token,
-    },
-  );
-}
+// TCK-2365 (P242.01) — `addAgencyMember` (`POST /api/agencies/{id}/members`) est parti avec la
+// route : un compte existant entre dans l'équipe par l'invitation (`inviteAgencyAgent`).
 
 export async function removeAgencyMember(
   agencyId: number,

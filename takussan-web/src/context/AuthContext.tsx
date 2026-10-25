@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import { createContext, useContext, useState, useEffect, useLayoutEffect, useCallback, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   login as apiLogin,
@@ -13,6 +13,8 @@ import {
 } from '@/lib/auth';
 import { DELAI_DECONNEXION_MS } from '@/lib/delais-deconnexion';
 import { apiRequest } from '@/lib/api';
+import { poserProfilActifNavigateur } from '@/lib/profil-actif-navigateur';
+import { oublierLeCacheDEspace } from '@/lib/cache-d-espace';
 import {
   getIds as getLocalFavoriteIds,
   clear as clearLocalFavorites,
@@ -30,6 +32,15 @@ type AuthContextValue = {
    * cookie server-side — but direct cross-origin calls need this token.
    */
   token: string | null;
+  /**
+   * TCK-2050 (P174.01) — le profil actif, que `apiRequest` pose en `X-Active-Profile-Hint` sur
+   * tout appel authentifié du navigateur : le cookie `active_profile_id` du front n'atteint pas
+   * l'API, qui est sur une autre origine. Reçu du layout racine, mis à jour par
+   * `useSwitchActiveProfile` ; oublié à l'ouverture et à la fermeture d'une session, comme le
+   * cookie (`set-token`, `logout`).
+   */
+  activeProfileId: string | null;
+  setActiveProfileId: (id: string | null) => void;
   isLoading: boolean;
   setUser: (user: User | null) => void;
   refreshUser: () => Promise<void>;
@@ -73,17 +84,74 @@ export function AuthProvider({
   children,
   initialUser,
   initialToken,
+  initialActiveProfileId,
 }: {
   children: React.ReactNode;
   initialUser?: User | null;
   initialToken?: string | null;
+  initialActiveProfileId?: string | null;
 }) {
   const [user, setUser] = useState<User | null>(initialUser ?? null);
   const [token, setToken] = useState<string | null>(initialToken ?? null);
-  const [isLoading, setIsLoading] = useState(initialUser === undefined);
-  const hasRetriedRef = useRef(false);
+  // TCK-2158 (P202.01) — le layout racine relit `/api/auth/me` à chaque rendu serveur
+  // (`router.refresh()`, action serveur) : ce qu'il rend de NEUF fait foi, comme pour le profil
+  // actif ci-dessous. Un utilisateur non nul se pose ; un jeton neuf se pose ; le compte ne se vide
+  // que si le jeton disparaît aussi. Un `null` sous un jeton présent (échec ou délai de `/me`, cf.
+  // `DELAI_ME_RACINE_MS`) garde le compte, comme TCK-1992. Tant que les propriétés ne changent
+  // pas, ce que le client a posé (`setUser`, `openSession`, `logout`) reste.
+  const [compteDuLayout, setCompteDuLayout] = useState({
+    user: initialUser ?? null,
+    token: initialToken ?? null,
+  });
+  if ((initialUser ?? null) !== compteDuLayout.user || (initialToken ?? null) !== compteDuLayout.token) {
+    const nouvelUtilisateur = initialUser ?? null;
+    const nouveauJeton = initialToken ?? null;
+    setCompteDuLayout({ user: nouvelUtilisateur, token: nouveauJeton });
+    if (nouveauJeton !== compteDuLayout.token) setToken(nouveauJeton);
+    if (nouvelUtilisateur !== null) setUser(nouvelUtilisateur);
+    else if (nouveauJeton === null) setUser(null);
+  }
+  // TCK-2050 (P174.01) — écrit dans le module que lit `apiRequest` dès le premier rendu, avant que
+  // les requêtes des enfants partent (elles partent à l'abonnement, après le rendu).
+  const [activeProfileId, setActiveProfileIdState] = useState<string | null>(() => {
+    poserProfilActifNavigateur(initialActiveProfileId);
+    return initialActiveProfileId ?? null;
+  });
+  // Le layout racine se rend de nouveau sur `router.refresh()` et après une action serveur qui
+  // pose le cookie (les parcours d'accueil) : la valeur qu'il lit fait alors foi.
+  const [profilDuLayout, setProfilDuLayout] = useState<string | null>(initialActiveProfileId ?? null);
+  // TCK-2229 (P197.06) — rang des changements d'espace venus de la mise en page : l'effet plus bas
+  // oublie le cache à chaque rang neuf, jamais pendant le rendu.
+  const [changementsDuLayout, setChangementsDuLayout] = useState(0);
+  if ((initialActiveProfileId ?? null) !== profilDuLayout) {
+    const profilNeuf = initialActiveProfileId ?? null;
+    setProfilDuLayout(profilNeuf);
+    // Seulement un profil que le client ne tient pas déjà : après un changement par le menu,
+    // `useSwitchActiveProfile` a posé le profil et oublié le cache avant son `router.refresh()`,
+    // dont le rendu apporte ce même profil.
+    if (profilNeuf !== activeProfileId) setChangementsDuLayout((n) => n + 1);
+    setActiveProfileIdState(profilNeuf);
+  }
+  useLayoutEffect(() => {
+    poserProfilActifNavigateur(activeProfileId);
+  }, [activeProfileId]);
+  const setActiveProfileId = useCallback((id: string | null) => {
+    poserProfilActifNavigateur(id);
+    setActiveProfileIdState(id);
+  }, []);
+  // TCK-1992 (P172.06) — plus de lecture initiale de `/api/auth/me` par le navigateur : le seul
+  // monteur, la mise en page racine, passe toujours `initialUser` (`null` ou un utilisateur), et
+  // cette lecture morte portait la même déconnexion sur 401 que `refreshUser`.
+  const [isLoading, setIsLoading] = useState(false);
+  // TCK-1992 (P172.03) — rang de la dernière demande de `refreshUser` : seule sa réponse
+  // s'applique. `logout` l'avance aussi, pour qu'une relecture en vol ne remette pas un compte.
+  const rangDemandeRef = useRef(0);
   const wasAuthedRef = useRef(false);
   const queryClient = useQueryClient();
+  useEffect(() => {
+    if (changementsDuLayout === 0) return;
+    void oublierLeCacheDEspace(queryClient);
+  }, [changementsDuLayout, queryClient]);
 
   // Sync local (anonymous) favorites into the DB after login. Returns nothing
   // — the seed effect picks up the canonical IDs immediately after.
@@ -143,77 +211,28 @@ export function AuthProvider({
     };
   }, [userId, userAgencyId, token, queryClient]);
 
-  useEffect(() => {
-    if (initialUser !== undefined) return;
-
-    let cancelled = false;
-    let retryTimer: ReturnType<typeof setTimeout> | null = null;
-    const controller = new AbortController();
-
-    const fetchUser = async () => {
-      try {
-        const r = await fetch('/api/auth/me', { signal: controller.signal });
-        if (cancelled) return;
-        if (r.ok) {
-          const u = await r.json();
-          if (!cancelled) setUser(u);
-        } else {
-          if (!cancelled) setUser(null);
-          // If we got 401 and this is first load, try once more after delay
-          // This handles race conditions where cookie isn't ready yet
-          if (r.status === 401 && !hasRetriedRef.current) {
-            hasRetriedRef.current = true;
-            retryTimer = setTimeout(() => {
-              fetch('/api/auth/me', { signal: controller.signal })
-                .then((r2) => (r2.ok ? r2.json() : null))
-                .then((u) => {
-                  if (cancelled) return;
-                  if (u) setUser(u);
-                  else {
-                    // Second try failed, logout to clean state
-                    fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
-                  }
-                })
-                .catch(() => {
-                  if (!cancelled) setUser(null);
-                });
-            }, 500);
-          }
-        }
-      } catch {
-        if (!cancelled) setUser(null);
-      } finally {
-        if (!cancelled) setIsLoading(false);
-      }
-    };
-
-    fetchUser();
-
-    return () => {
-      cancelled = true;
-      controller.abort();
-      if (retryTimer) clearTimeout(retryTimer);
-    };
-  }, [initialUser]);
-
   const handleSetUser = useCallback((u: User | null) => setUser(u), []);
 
   const refreshUser = useCallback(async () => {
+    const rang = ++rangDemandeRef.current;
+    const derniere = () => rang === rangDemandeRef.current;
     setIsLoading(true);
     try {
       const r = await fetch('/api/auth/me');
+      if (!derniere()) return;
       if (r.ok) {
-        setUser(await r.json());
-      } else {
+        const u = await r.json();
+        if (derniere()) setUser(u);
+      } else if (r.status === 401) {
+        // TCK-1992 (P172.01) — seul un 401 dit la session morte. Toute autre erreur (API en
+        // panne, lente, limitée, refus de second facteur) garde l'utilisateur en place.
         setUser(null);
-        if (r.status === 401) {
-          fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
-        }
+        fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
       }
     } catch {
-      setUser(null);
+      // Relais injoignable : rien ne dit que la session est close, l'utilisateur reste.
     } finally {
-      setIsLoading(false);
+      if (derniere()) setIsLoading(false);
     }
   }, []);
 
@@ -236,10 +255,12 @@ export function AuthProvider({
       // (5 min de `staleTime`) serait rendue telle quelle. Vidé AVANT de poser le jeton : les
       // composants montés reconstruisent leurs requêtes au rendu qui suit, sous le nouveau jeton.
       queryClient.clear();
+      // `set-token` vient d'effacer le cookie de profil actif : la nouvelle session n'en a aucun.
+      setActiveProfileId(null);
       setToken(next);
       setUser(nextUser);
     },
-    [persistToken, syncLocalFavorites, queryClient],
+    [persistToken, syncLocalFavorites, queryClient, setActiveProfileId],
   );
 
   const login = useCallback(
@@ -266,6 +287,8 @@ export function AuthProvider({
   );
 
   const logout = useCallback(async () => {
+    // TCK-1992 (P172.03) — toute relecture encore en vol est périmée.
+    rangDemandeRef.current += 1;
     // TCK-1481 (P113.05) — l'attente du relais est bornée : sur une API figée, « Se déconnecter »
     // ne produisait rien de visible et la session restait ouverte dans l'onglet. Passé
     // `DELAI_DECONNEXION_MS`, l'état local se vide quand même (décision du porteur, 2026-10-22).
@@ -282,15 +305,19 @@ export function AuthProvider({
     // mise en cache sous celui-ci. Les favoris locaux, eux, sont vidés par l'effet d'amorçage
     // ci-dessus dès que `user` repasse à `null` — c'est apprendre la déconnexion qui manquait.
     queryClient.clear();
+    setActiveProfileId(null);
     setToken(null);
     setUser(null);
-  }, [queryClient]);
+    setIsLoading(false);
+  }, [queryClient, setActiveProfileId]);
 
   return (
     <AuthContext.Provider
       value={{
         user,
         token,
+        activeProfileId,
+        setActiveProfileId,
         isLoading,
         setUser: handleSetUser,
         refreshUser,
@@ -317,6 +344,8 @@ export function useAuth(): AuthContextValue {
     ctx ?? {
       user: null,
       token: null,
+      activeProfileId: null,
+      setActiveProfileId: noop,
       isLoading: false,
       setUser: noop,
       refreshUser: noopAsync,

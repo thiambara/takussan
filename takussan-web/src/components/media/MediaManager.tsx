@@ -34,8 +34,10 @@ import { reduirePhotos, reduirePhotosSousPlafond } from '@/lib/reduire-photo';
  *   - `onDelete(id)` removes a single item.
  *
  * The component is **optimistic** on reorder / delete — it mutates the
- * grid first, then calls the server. If the server rejects it, we revert
- * using the snapshot captured before the mutation.
+ * grid first, then calls the server. If the server rejects it, the grid is
+ * re-read through `onRelire` (P243.02, TCK-2371) : the snapshot captured
+ * before the gesture is wrong as soon as two gestures overlap. Without
+ * `onRelire`, or if the re-read fails too, the snapshot is the fallback.
  */
 
 export interface MediaItem {
@@ -52,6 +54,11 @@ export interface MediaManagerProps {
   readonly onUpload: (files: File[]) => Promise<MediaItem[]>;
   readonly onReorder: (mediaIds: number[]) => Promise<void>;
   readonly onDelete: (mediaId: number) => Promise<void>;
+  /**
+   * P243.02 (TCK-2371) — relit la liste du serveur après un geste refusé. Sans elle, la grille
+   * remet l'instantané pris avant le geste.
+   */
+  readonly onRelire?: () => Promise<MediaItem[]>;
   /** Accepted MIME list — defaults to images only. */
   readonly accept?: readonly string[];
   /** Max size per file in bytes — defaults to 10 Mo for property images. */
@@ -107,6 +114,7 @@ export function MediaManager({
   onUpload,
   onReorder,
   onDelete,
+  onRelire,
   accept = DEFAULT_ACCEPT,
   maxSize = DEFAULT_MAX_SIZE,
   maxFiles = DEFAULT_MAX_FILES,
@@ -127,6 +135,9 @@ export function MediaManager({
   // Mirror of `dragIndex` so synchronous drop handlers can read it even
   // before React has committed the state update from dragStart.
   const dragIndexRef = useRef<number | null>(null);
+  // P243.02 — les suppressions qui n'ont pas encore dit leur sort : une liste relue entre-temps
+  // les porte encore, et leur photo ne doit pas reparaître avant la réponse.
+  const suppressionsEnVolRef = useRef<Set<number>>(new Set());
 
   // Sync external updates (e.g. initial fetch). Pendant le rendu, et non dans un effet
   // (`react-hooks/set-state-in-effect`, levé depuis TCK-673) : même résultat, sans second rendu.
@@ -196,6 +207,25 @@ export function MediaManager({
     [accept, maxFiles, maxSize, onUpload, t],
   );
 
+  // P243.02 (TCK-2371) — sur l'échec d'un geste, la grille se pose sur la liste relue, pas sur
+  // l'instantané d'avant le geste : deux gestes en vol se recouvraient, et une suppression refusée
+  // après une autre acceptée faisait reparaître la photo supprimée en base.
+  const relireApresEchec = useCallback(
+    async (snapshot: MediaItem[]) => {
+      if (!onRelire) {
+        setGrid(snapshot);
+        return;
+      }
+      try {
+        const relue = await onRelire();
+        setGrid(relue.filter((m) => !suppressionsEnVolRef.current.has(m.id)));
+      } catch {
+        setGrid(snapshot);
+      }
+    },
+    [onRelire],
+  );
+
   const persistReorder = useCallback(
     async (next: MediaItem[]) => {
       const snapshot = grid;
@@ -203,11 +233,11 @@ export function MediaManager({
       try {
         await onReorder(next.map((m) => m.id));
       } catch {
-        setGrid(snapshot);
         setError(t('reorder_error'));
+        await relireApresEchec(snapshot);
       }
     },
-    [grid, onReorder, t],
+    [grid, onReorder, relireApresEchec, t],
   );
 
   const onItemDrop = useCallback(
@@ -235,16 +265,19 @@ export function MediaManager({
       setBusyId(mediaId);
       const snapshot = grid;
       setGrid((prev) => prev.filter((m) => m.id !== mediaId));
+      suppressionsEnVolRef.current.add(mediaId);
       try {
         await onDelete(mediaId);
+        suppressionsEnVolRef.current.delete(mediaId);
       } catch {
-        setGrid(snapshot);
+        suppressionsEnVolRef.current.delete(mediaId);
         setError(t('delete_error'));
+        await relireApresEchec(snapshot);
       } finally {
         setBusyId(null);
       }
     },
-    [grid, onDelete, t],
+    [grid, onDelete, relireApresEchec, t],
   );
 
   const makeCover = useCallback(

@@ -892,7 +892,7 @@
       "countSuffix": "{count, plural, one {# review} other {# reviews}}",
       "loading": "Loading reviews…",
       "empty": "No reviews yet.",
-      "notEligible": "You will be able to leave a review after a completed visit or a signed lease on this property.",
+      "notEligible": "You can leave a review after a completed booking or a lease on this property.",
       "alreadyReviewed": "Thank you, you have already reviewed this property.",
       "agentReply": "Agent reply",
       "edit": "Edit",
@@ -905,10 +905,8 @@
         "ratingAria": "Rating out of 5",
         "titlePlaceholder": "Title (optional)",
         "thanks": "Thank you for your feedback.",
-        "contentTooShort": "Your comment must be at least {min} characters.",
-        "contentPlaceholder": "Your review (min. {min} characters)",
-        "charsLeft": "{count, plural, =1 {# more character needed.} other {# more characters needed.}}",
-        "starsAria": "{count, plural, one {# star} other {# stars}}"
+        "starsAria": "{count, plural, one {# star} other {# stars}}",
+        "contentOptionalPlaceholder": "Your comment (optional)"
       },
       "replyForm": {
         "editTitle": "Edit my reply",
@@ -921,7 +919,7 @@
         "publish": "Publish reply",
         "sending": "Sending…",
         "save": "Save",
-        "contentTooShort": "Your reply must be at least {min} characters."
+        "contentRequired": "Write a reply before publishing."
       },
       "loadError": "Reviews could not be loaded."
     },
@@ -1459,6 +1457,25 @@
         "designateFor": "Make {name} the primary agent",
         "empty": "No collaborator is associated with this property.",
         "error": "The designation did not go through. Please try again."
+      },
+      "ownerTransfer": {
+        "trigger": "Change holder",
+        "title": "Change the property's holder",
+        "description": "Give this property back to the landlord it was entered for: they will see it and receive its upcoming rents. Nothing is written before you confirm.",
+        "ownerLabel": "New holder",
+        "ownerPlaceholder": "Choose an active landlord",
+        "loadingOwners": "Loading landlords…",
+        "noOwners": "No active landlord in the agency.",
+        "loadingPreview": "Working out what follows the property…",
+        "moving": "{count, plural, =0 {No draft lease moves to {name}.} one {# draft lease will move to {name}.} other {# draft leases will move to {name}.}}",
+        "staying": "Lease {reference} ({status}) of {tenant} stays in the agency's name.",
+        "stayingNoTenant": "Lease {reference} ({status}) stays in the agency's name.",
+        "payouts": "Payouts already made do not change.",
+        "confirm": "Confirm the change",
+        "submitting": "Changing…",
+        "cancel": "Cancel",
+        "success": "The property is now held by {name}.",
+        "error": "The change failed. Please try again."
       }
     },
     "visibility": {
@@ -1680,7 +1697,17 @@
         "optional": "optional",
         "reopen": "Go back to: {step}"
       },
-      "photosProgress": "Uploading photos: {sent} of {total}"
+      "photosProgress": "Uploading photos: {sent} of {total}",
+      "owner": {
+        "label": "On whose behalf are you entering this property?",
+        "hint": "Optional. Without a choice, the property stays with the agency; the chosen landlord will be notified.",
+        "agency": "The agency (no landlord)",
+        "loading": "Loading landlords…",
+        "empty": "No active landlord matches.",
+        "invite": "Invite a new landlord",
+        "invited": "Invitation sent to {name}. The property stays with the agency until {name} accepts; it will then pass to them.",
+        "unlink": "Do not link this property to this invitation"
+      }
     },
     "titleTypes": {
       "bail": "Lease",
@@ -1754,6 +1781,7 @@
       "activeLeases": "Active leases",
       "nextRent": "Next rent",
       "overdue": "Overdue",
+      "lateFeesOutstanding": "Late fees to collect",
       "pendingBookings": "Pending bookings",
       "upcoming30d": "Instalments in the next 30 days",
       "noUpcoming": "No instalment scheduled.",
@@ -2162,7 +2190,8 @@
         "eyebrow": "Property · {reference}",
         "forbidden_title": "Property access denied",
         "forbidden_message": "Your active profile cannot open this property record.",
-        "back_cta": "Back to properties"
+        "back_cta": "Back to properties",
+        "pendingOwner": "Waiting for {name}: the property will pass to them once the invitation is accepted."
       },
       "leaseDetail": {
         "metaTitleFallback": "Lease not found",
@@ -2244,6 +2273,7 @@
       "occupancyRate": "Occupancy rate",
       "revenueMonth": "Revenue this month",
       "overdue": "Overdue",
+      "lateFeesHint": "Late fees to collect: {amount}",
       "unpaidRate": "Unpaid rate",
       "rentedHint": "{count, plural, one {# property rented} other {# properties rented}}",
       "commissionHint": "Commissions: {amount}"
@@ -2378,6 +2408,8 @@
       "tooManyRequests": "Too many attempts. Please try again in a few minutes.",
       "tooManyRequestsIn": "Too many attempts. Try again in {minutes} min.",
       "network": "The connection to the server failed. Check your internet connection and try again.",
+      "serverUnreachable": "The server cannot be reached right now. Try again in a moment.",
+      "payloadTooLarge": "The upload exceeds 25 MB: send fewer files at a time, or lighter files.",
       "submitFailed": "Submission failed. Please try again.",
       "unknown": "Something went wrong. Please try again."
     },
@@ -2499,7 +2531,9 @@
           "draft_not_saved_body": "Saving your draft was refused (lost connection or expired session). Check your connection, sign back in if needed, then click “Submit request” again — your entries are still here."
         },
         "toasts": {
-          "submitted": "Your request has been sent."
+          "submitted": "Your request has been sent.",
+          "draft_not_cleared_title": "Draft not cleared",
+          "draft_not_cleared_body": "Your request was sent, but its draft could not be cleared (connection lost or session expired). It may still be offered for you to resume: you can ignore it."
         }
       },
       "status": {
@@ -2681,6 +2715,8 @@
       },
       "reasonDialog": {
         "title": "Move to {stage} — give a reason",
+        "descriptionConverted": "Explain why this customer converted.",
+        "descriptionLost": "Explain why this customer was lost.",
         "placeholder": "e.g. converted after lease signed on May 10…"
       },
       "tabs": {
@@ -2724,6 +2760,12 @@
       "caption": "Customer list"
     },
     "customerDetail": {
+      "inviteAccount": {
+        "action": "Invite to create an account",
+        "sending": "Sending…",
+        "sent": "Invitation sent. The link works once; on acceptance, the account is linked to this record.",
+        "failed": "The invitation could not be sent. Try again."
+      },
       "relationships": {
         "empty_title": "No relationship recorded",
         "empty_description": "Link this contact to a spouse, a guarantor or a company to keep their circle at hand.",
@@ -3095,7 +3137,8 @@
         "collaborations": "Property collaborations",
         "customers": "Customers they are the lead contact for",
         "responsible_properties": "Properties they are the responsible agent for",
-        "held_properties": "Properties registered in their name"
+        "held_properties": "Properties registered in their name",
+        "contact_leads": "Unhandled contact requests"
       },
       "notTransferable": "not transferable yet",
       "successor": "Successor",
@@ -3224,7 +3267,8 @@
       "loadingMore": "Loading…",
       "attachAria": "Attach a file",
       "placeholder": "Write a message…",
-      "sendAria": "Send"
+      "sendAria": "Send",
+      "readOnly": "This thread is read-only: your lease for this home has ended."
     },
     "group": {
       "create": {
@@ -3600,10 +3644,15 @@
       "colAmount": "Amount",
       "colCommission": "Commission",
       "leaseLine": "Rent — lease {reference}",
+      "lateFeeLine": "Late fee — lease {reference}",
       "bookingLine": "Booking {reference}",
       "billLine": "Job {reference}",
       "rateFromLease": "({rate}% from the lease)",
       "rateFromAgency": "({rate}% from the agency)",
+      "platformFeeLine": "Platform fee: {amount} ({rate}%) · received by the agency: {received}",
+      "settledByPlatform": "Collected by the platform",
+      "platformFeeTotal": "Platform fee, borne by the agency",
+      "commissionBelowPlatformFee": "On {count, plural, one {one item} other {# items}}, the commission taken from the landlord is lower than the platform fee, which the agency bears: it pays the landlord more than it keeps. The payout can still be created.",
       "requiresApproval": "This net, added to the unapproved payouts to this landlord over the last {days} days, reaches the agency's approval threshold ({threshold}): another member must approve it before payment.",
       "destination": "Destination",
       "destinationNone": "No destination on file",
@@ -3668,7 +3717,8 @@
       "dueOn": "due on {date}",
       "paidOn": "Paid on {date}",
       "lateFeeAtAgency": "Late fee: {amount}, to be settled with the agency.",
-      "otherDues": "Other payments due",
+      "otherDuesHorizon": "Payments due in the next {months} months",
+      "historyLink": "See history",
       "historyTitle": "History",
       "emptyTitle": "No payments yet",
       "emptyDescription": "Your payments and their receipts will show up here.",
@@ -3693,10 +3743,15 @@
       "fees": "Repairs",
       "net": "Net",
       "paidOut": "Already paid out",
+      "lateFeesOutstanding": "Late fees to collect",
       "downloadPdf": "Download PDF",
       "downloadCsv": "Download CSV",
       "downloadFailed": "The statement download failed.",
-      "unavailable": "The statement is not available."
+      "unavailable": "The statement is not available.",
+      "sentOn": "Statement sent on {date}",
+      "rectificationTitle": "Correction as of {date}",
+      "rectificationIntro": "Entries recorded since this statement was sent. The totals above are those of the statement as sent.",
+      "clawback": "Clawback"
     },
     "serviceProviderBills": {
       "providerTitle": "My repair invoices",
@@ -3751,7 +3806,10 @@
         "attachments_label": "Supporting documents (photos, invoices)",
         "cancel": "Cancel",
         "submit": "Confirm refund",
-        "submitting": "Submitting…"
+        "submitting": "Submitting…",
+        "file_too_large": "File too large ({max} MB max): {files}",
+        "max_files": "Maximum {max} files.",
+        "total_too_large": "Together, these files exceed {max} MB: remove some or use lighter files."
       },
       "error_generic": "Refund failed, please retry."
     },
@@ -3779,6 +3837,7 @@
       "diff_modified": "Changed",
       "diff_unchanged": "Unchanged",
       "tenant_immutable": "Tenant and property cannot be changed in an amendment.",
+      "guarantors_not_carried_over": "{count, plural, one {The current lease’s guarantor is not carried over to the new lease: attach them to the new lease if they renew their commitment.} other {The current lease’s # guarantors are not carried over to the new lease: attach to the new lease those who renew their commitment.}}",
       "timeline_title": "Lease chain",
       "timeline_root": "Root lease",
       "timeline_amendment": "Amendment {n}",
@@ -3942,8 +4001,8 @@
       "noPropertySelected": "No property selected",
       "selectedTenant": "Selected tenant",
       "noTenantSelected": "No tenant selected",
-      "activeLandlord": "Active landlord: {name}",
-      "loadingLandlord": "Loading the active landlord",
+      "landlordOfProperty": "Landlord: {name}",
+      "landlordPending": "Landlord: the holder of the chosen property",
       "guarantorsHint": "Guarantors can be added on the lease page once the draft is created.",
       "financialTerms": "Financial terms",
       "contractType": "Contract type",
@@ -3969,7 +4028,10 @@
         "quarterly": "Quarterly",
         "yearly": "Yearly"
       },
-      "customerFallback": "Customer #{id}"
+      "customerFallback": "Customer #{id}",
+      "fromBooking": "Lease drawn from booking {reference}",
+      "fromBookingHint": "The property and the tenant are those of the booking. When the lease is created, the booking becomes “completed” and frees its dates.",
+      "fromBookingError": "The booking could not be loaded."
     },
     "payment": {
       "title": "Record a payment",
@@ -4045,7 +4107,8 @@
       "activatedToast": "Lease signed and activated.",
       "paperLabel": "Contract signed on paper (PDF, JPG or PNG, 10 MB)",
       "paperSubmit": "Activate on paper contract",
-      "genericError": "The operation failed. Try again."
+      "genericError": "The operation failed. Try again.",
+      "paperTooLarge": "File too large ({max} MB max): {files}"
     }
   },
   "maintenance": {
@@ -4080,6 +4143,7 @@
       "property_fallback": "Property #{id}"
     },
     "history": {
+      "title": "Maintenance on this property",
       "empty_title": "No intervention recorded",
       "empty_description": "Maintenance requests on this property will show up here.",
       "completed_at": "Completed on {date}"
@@ -4142,8 +4206,12 @@
       "priority_hint": "(Normal by default)",
       "photos_label": "Photos (optional)",
       "photos_selected": "{count, plural, =1 {# photo selected.} other {# photos selected.}}",
+      "photos_hint": "{max} photos at most.",
+      "photos_too_many": "{count, plural, other {# photos selected}}: {max} at most. Choose fewer.",
       "submitting": "Sending…",
-      "submit": "Report the problem"
+      "submit": "Report the problem",
+      "photos_failed_title": "Photos not sent",
+      "photos_failed_body": "The request was created, but its photos could not be sent."
     },
     "complete": {
       "title": "Close the intervention",
@@ -4234,6 +4302,8 @@
         "after": "After",
         "quotes": "Quote",
         "before_label": "Photos before the work",
+        "before_hint": "{max} photos at most.",
+        "before_too_many": "{count, plural, other {# photos selected}}: {max} at most. Choose fewer.",
         "send": "{count, plural, =0 {Send} =1 {Send # photo} other {Send # photos}}",
         "sending": "Sending…",
         "failed": "The photos were not sent. They are still selected: try again."
@@ -4287,6 +4357,7 @@
         "max_files": "Maximum {max} files.",
         "file_type_refused": "File type refused (PDF, JPG, PNG or WEBP only): {files}",
         "file_too_large": "File too large ({max} MB max): {files}",
+        "total_too_large": "Together, these files exceed {max} MB: remove some or use lighter files.",
         "incomplete": "Each line needs a description, a quantity and a price, and the quote a validity date.",
         "failed": "The quote was not sent.",
         "submitting": "Sending…",
@@ -4314,7 +4385,8 @@
     "button": {
       "aria": "My favorites",
       "remove": "Remove from favourites",
-      "add": "Add to favourites"
+      "add": "Add to favourites",
+      "refusedTitle": "The favorite was not updated"
     },
     "popover": {
       "title": "My favorites",
@@ -4650,7 +4722,9 @@
       "saveFailedToastTitle": "Progress not saved",
       "saveFailedToastBody": "The save was refused (lost connection or expired session). Sign back in, reopen the wizard and check your latest entries: they were not kept.",
       "completionFailedToastTitle": "Can’t finish just yet",
-      "completionFailedToastBody": "Your progress could not be saved. Check your connection, then click “Finish” again — nothing is lost."
+      "completionFailedToastBody": "Your progress could not be saved. Check your connection, then click “Finish” again — nothing is lost.",
+      "draftNotClearedToastTitle": "Draft not cleared",
+      "draftNotClearedToastBody": "Your request went through, but its draft could not be cleared (connection lost or session expired). It may still be offered for you to resume: you can ignore it."
     },
     "banner": {
       "ariaLabel": "Resume an in-progress flow",
@@ -4769,6 +4843,7 @@
       "columns": {
         "name": "Name",
         "email": "Email",
+        "phone": "Phone",
         "status": "Status",
         "actions": "Actions",
         "identifiers": "Identifiers"
@@ -5208,6 +5283,7 @@
       "empty_description": "Invite your first provider to start building your book.",
       "columns": {
         "name": "Name",
+        "phone": "Phone",
         "trades": "Trades",
         "zones": "Zones",
         "status": "Status",
@@ -5257,7 +5333,8 @@
         "error_title": "Could not send invitation",
         "resend_success": "Invitation resent",
         "revoke_success": "Invitation revoked",
-        "existing_other_agency": "This provider is already attached to another agency — they can opt-in to multi-attachment when accepting."
+        "existing_other_agency": "This provider is already attached to another agency — they can opt-in to multi-attachment when accepting.",
+        "existing_other_agency_trades": "This service provider is already linked to another agency: they will appear under their profile's trades ({trades}), not the ones ticked here."
       },
       "errors": {
         "already_member": "This provider is already active in your agency.",
@@ -5503,21 +5580,8 @@
             "spaceName": "Space name",
             "primaryCity": "Primary city",
             "currency": "Currency",
-            "primaryPropertyType": "Primary property type",
             "phone": "Phone number",
             "otpCode": "SMS code"
-          },
-          "propertyTypes": {
-            "apartment": "Apartment",
-            "house": "House",
-            "villa": "Villa",
-            "studio": "Studio",
-            "room": "Room",
-            "land": "Land",
-            "office": "Office",
-            "shop": "Shop",
-            "warehouse": "Warehouse",
-            "other": "Other"
           },
           "otp": {
             "heading": "Phone verification",
@@ -5930,8 +5994,7 @@
         "date": "Date",
         "user": "User",
         "action": "Action",
-        "subject": "Object",
-        "description": "Description"
+        "subject": "Object"
       },
       "tableCaption": "Agency audit trail",
       "entries": "{count, plural, =1 {{total} entry} other {{total} entries}}",
@@ -5951,6 +6014,24 @@
         "personal_data_viewed": "Personal data viewed",
         "kyc_expired": "KYC document expired",
         "data_exported": "Data exported"
+      }
+    },
+    "businessEnums": {
+      "property_type": {
+        "name": "Property types",
+        "description": "Categories shown in property forms and filters."
+      },
+      "contract_type": {
+        "name": "Transaction types",
+        "description": "Sale, rental and future marketing modes."
+      },
+      "title_type": {
+        "name": "Land titles",
+        "description": "Business labels of the land titles attached to properties."
+      },
+      "rent_period": {
+        "name": "Rent periods",
+        "description": "Billing cadences shown on rental properties."
       }
     },
     "roles": {
@@ -6041,6 +6122,12 @@
           "owner": "Landlord"
         }
       },
+      "commissionRate": {
+        "label": "Agent commission rate (%)",
+        "hint": "Their share of the commission on each lease they negotiate, credited when the lease is activated. Empty: no share.",
+        "submit": "Save the rate",
+        "submitting": "Saving…"
+      },
       "errors": {
         "load": "Could not load the roles. Check your connection, then try again.",
         "generic": "Something went wrong."
@@ -6100,7 +6187,8 @@
         "payments": {
           "record": "Record a payment",
           "refund": "Refund a payment",
-          "export": "Export payments"
+          "export": "Export payments",
+          "reconcile": "Reconcile bank statements"
         },
         "invoices": {
           "create": "Create an invoice",
@@ -6279,8 +6367,7 @@
           "performance": "Performance"
         },
         "invite": "Invite",
-        "inviteAgent": "Invite",
-        "addExisting": "Add an existing account"
+        "inviteAgent": "Invite"
       },
       "invitations": {
         "title": "Pending invitations",
@@ -6429,19 +6516,6 @@
         "thresholdPendingSaved": "Saved. Relaxing the threshold requires a second approver's confirmation: they have been notified."
       }
     },
-    "inviteMember": {
-      "title": "Add an existing account",
-      "description": "Enter the email of a user who already has an account. They will be added to your agency with the role you choose.",
-      "email": "Email",
-      "emailPlaceholder": "jane@example.sn",
-      "emailInvalid": "Invalid email.",
-      "role": "Role",
-      "roles": {
-        "agent": "Agent",
-        "agency_admin": "Administrator"
-      },
-      "submit": "Add"
-    },
     "users": {
       "status": {
         "active": "Active",
@@ -6512,14 +6586,12 @@
       "emailPlaceholder": "jane@example.sn",
       "emailInvalid": "Invalid email.",
       "phone": "Phone (optional)",
-      "required": "This field is required.",
       "role": "Role",
       "roles": {
         "agent": "Agent",
-        "agent_senior": "Senior agent",
-        "agent_manager": "Team manager"
+        "agency_admin": "Administrator"
       },
-      "adminNote": "An agency administrator cannot be invited by email: add them from “Add an existing account”, which requires an existing Takussan account.",
+      "required": "This field is required.",
       "submit": "Send the invitation"
     },
     "reconciliation": {
@@ -6879,7 +6951,8 @@
       "actions": {
         "accept": "Accept",
         "reject": "Reject",
-        "cancel": "Cancel the booking"
+        "cancel": "Cancel the booking",
+        "createLease": "Create the lease"
       },
       "toasts": {
         "accepted": {
@@ -6946,6 +7019,8 @@
         "action": "Refund",
         "dialogTitle": "Record a refund",
         "dialogDescription": "Amount collected: {amount}.",
+        "paidOut": "Paid out to the landlord on {date} ({reference})",
+        "paidOutWarning": "This deposit was already paid out to the landlord on {date} ({reference}). Refunding it will create a clawback on their next payout.",
         "fields": {
           "amount": "Amount refunded",
           "reason": "Reason"
@@ -7382,7 +7457,7 @@
       "decisionTitle": "Decision",
       "decisionReason": "Decision reason",
       "decisionReasonPlaceholder": "Reason visible in the audit log",
-      "statTotalPage": "Page total",
+      "statTotal": "Total",
       "statProperties": "Properties",
       "statReviews": "Reviews",
       "staleWarning": "{count, plural, one {# item} other {# items}} on this page have been waiting for more than 7 days.",
@@ -7695,7 +7770,11 @@
         "search": "Search",
         "queue": "Job queues",
         "workers": "Workers",
-        "cdn": "CDN"
+        "cdn": "CDN",
+        "whatsapp": "WhatsApp",
+        "scheduler": "Scheduler",
+        "proxies": "Trusted proxies",
+        "lemon_squeezy_webhook": "Lemon Squeezy webhook"
       },
       "hint": {
         "error": "Error: {message}",
@@ -7706,7 +7785,9 @@
         "reason": {
           "no_delivery": "Nothing actually sent (test driver)",
           "unreachable": "Server unreachable",
-          "not_meilisearch": "Search not on Meilisearch"
+          "not_meilisearch": "Search not on Meilisearch",
+          "wildcard_trusts_nobody": "“*” trusts no proxy",
+          "signing_secret_missing": "Signing secret missing from configuration"
         }
       },
       "status": {
@@ -7821,6 +7902,7 @@
     },
     "agencyDetail": {
       "loadError": "Unable to load this agency.",
+      "seeAll": "See all",
       "kycLoadError": "Unable to load the KYC file.",
       "crossTenant": "Cross-tenant agency",
       "verified": "Verified",
@@ -8521,6 +8603,7 @@
       "toastCreatedTitle": "Agency created",
       "toastCreatedDescription": "Invitation sent to {email}.",
       "errorEmailConflict": "An account already exists with this admin email.",
+      "errorPhoneConflict": "An account already exists with this verified number.",
       "errorGeneric": "Creation failed.",
       "newAgency": "New agency",
       "dialogTitle": "Create an agency",
@@ -8549,6 +8632,7 @@
         "firstName": "First name",
         "lastName": "Last name",
         "adminEmail": "Admin email",
+        "adminPhone": "Manager phone (optional)",
         "language": "Language"
       },
       "currencies": {
@@ -8798,7 +8882,8 @@
         "responseSummary": "Response summary",
         "proof": "Proof of response",
         "proofHint": "PDF or image (JPG, PNG, WebP, HEIC).",
-        "proofReplace": "A proof is already on file ({name}): a new file replaces it."
+        "proofReplace": "A proof is already on file ({name}): a new file replaces it.",
+        "proofTooLarge": "File too large ({max} MB max): {files}"
       }
     },
     "payments": {
@@ -8835,7 +8920,8 @@
         "colAt": "Date",
         "reasons": {
           "failed": "Failed",
-          "late": "Late"
+          "late": "Late",
+          "refund_due": "Deposit refund overdue"
         },
         "types": {
           "lease_payment": "Rent instalment",
@@ -9192,6 +9278,7 @@
       "opportunitySentTitle": "Review sent",
       "opportunitySentBody": "Thank you! Your review will be published once approved.",
       "opportunityError": "Your review could not be sent.",
+      "opportunityPartiallySent": "Already saved: {targets}.",
       "anonymous": "Anonymous"
     },
     "contact": {
@@ -9545,7 +9632,13 @@
         "suspended": "Suspended",
         "ended": "Ended"
       },
-      "noneDescription": "Your plan's limits and commission will appear here as soon as a subscription is active."
+      "noneDescription": "Your plan's limits and commission will appear here as soon as a subscription is active.",
+      "overrides": {
+        "title": "Active overrides",
+        "none": "No override: the plan values apply.",
+        "item": "{label}: {value}"
+      },
+      "branches": "Branches"
     },
     "agencySubscription": {
       "changePlan": "Change plan",
@@ -9558,7 +9651,19 @@
         "assigned": "Subscription updated",
         "assignFailed": "Assignment failed",
         "closed": "Subscription closed",
-        "closeFailed": "Closing failed"
+        "closeFailed": "Closing failed",
+        "overridesSaved": "Overrides saved",
+        "overridesFailed": "Could not save overrides"
+      },
+      "overrides": {
+        "title": "Edit overrides",
+        "hint": "Edits the current subscription without changing plan, trial or period. An empty field restores the plan value.",
+        "fee": "Fee override (%)",
+        "listings": "Active listings quota override",
+        "agents": "Agents quota override",
+        "branches": "Branches quota override",
+        "planValue": "Plan value",
+        "save": "Save overrides"
       }
     },
     "plans": {
@@ -9611,7 +9716,8 @@
         "status": "Status",
         "paidOn": "Paid on",
         "emptyForAgency": "No platform payout received yet.",
-        "caption": "Platform payouts"
+        "caption": "Platform payouts",
+        "refundedSincePaid": "Refunded since"
       },
       "close": {
         "title": "Close a period",
@@ -9662,7 +9768,8 @@
         "paymentReferenceLabel": "Transfer reference",
         "paymentReferencePlaceholder": "Transfer reference (required)",
         "approveSelfRefused": "You closed this period: someone else must approve the payout.",
-        "paySelfRefused": "You approved this payout: someone else must mark it paid."
+        "paySelfRefused": "You approved this payout: someone else must mark it paid.",
+        "refundedSincePaid": "{count, plural, one {One line has been refunded since the payout was paid: {references}.} other {# lines have been refunded since the payout was paid: {references}.}} No amount is withheld automatically."
       }
     }
   },
@@ -10083,7 +10190,8 @@
       "choose": "Choose a file",
       "replace": "Replace the file",
       "accepted": "PDF, JPG, PNG or WEBP",
-      "chooseAria": "Choose the file: {document}"
+      "chooseAria": "Choose the file: {document}",
+      "fileTooLarge": "File too large ({max} MB max): {files}"
     },
     "review": {
       "title": "Super-admin review",
@@ -10467,6 +10575,7 @@
     "retry": "Try again"
   },
   "notifications": {
+    "unnamedPerson": "(unnamed)",
     "codes": {
       "lease_payment": {
         "due_soon": {
@@ -10496,6 +10605,14 @@
         "settled_online": {
           "title": "Payment received: {property}",
           "body": "Your payment of {amount} for {property} has been received. Your receipt is available in your account."
+        },
+        "refunded": {
+          "title": "Refund: {property}",
+          "body": "A refund of {amount} was made on your rent payment for {property}. Your receipt no longer covers the refunded amount."
+        },
+        "refunded_landlord": {
+          "title": "Rent refunded: {property}",
+          "body": "{amount} of the rent paid by {tenant} for {property} was refunded through the online payment method."
         }
       },
       "payment": {
@@ -10506,6 +10623,12 @@
         "duplicate_late_fee": {
           "title": "Late fee collected twice",
           "body": "The late fee of {amount} for {reference}, already settled at the agency, was also collected online. Refund the payer or allocate the amount."
+        }
+      },
+      "platform_payout": {
+        "refunded_since_paid": {
+          "title": "Payment refunded after payout",
+          "body": "Payment {reference}, included in the platform payout for {period} already paid to your agency, has since been refunded through the online payment method. No deduction is applied automatically."
         }
       },
       "booking": {
@@ -10758,6 +10881,10 @@
         "step_in_progress_scheduled": {
           "title": "Your request \"{request}\": in progress",
           "body": "Your maintenance request is now: in progress. Visit planned on {scheduled_at}."
+        },
+        "schedule_changed": {
+          "title": "Visit planned: \"{request}\"",
+          "body": "The visit for the maintenance request \"{request}\" is planned on {scheduled_at}."
         }
       },
       "maintenance_quote": {
@@ -10796,6 +10923,10 @@
         "rejected": {
           "title": "Property rejected: {property}",
           "body": "Your property \"{property}\" was rejected. Reason: {reason}. You can fix the listing and resubmit it from your workspace."
+        },
+        "assigned_to_owner": {
+          "title": "A property saved in your name: {property}",
+          "body": "Your agency has saved the property “{property}” in your name. You will find it among your properties, with its leases and your owner statement."
         },
         "submitted_for_review": {
           "title": "Property to review: {property}",
@@ -10842,6 +10973,10 @@
         "reinstated": {
           "title": "Suspension lifted: {agency}",
           "body": "The suspension of the agency {agency} has been lifted. Reason: {reason}. Its public listings are visible again."
+        },
+        "member_deletion_requested": {
+          "title": "Account deletion requested: {member}",
+          "body": "{member} has requested the deletion of their account, effective {scheduled_for}. Their portfolio in the agency: {tasks, plural, one {# task} other {# tasks}}, {visits, plural, one {# visit} other {# visits}}, {maintenance, plural, one {# maintenance request} other {# maintenance requests}}, {responsible_properties, plural, one {# property as lead agent} other {# properties as lead agent}}, {held_properties, plural, one {# property entered} other {# properties entered}}, {collaborations, plural, one {# collaboration} other {# collaborations}}, {customers, plural, one {# client followed} other {# clients followed}}, {contact_leads, plural, one {# unhandled contact request} other {# unhandled contact requests}}. Hand it over to a colleague before that date from the team page: {url}"
         }
       },
       "platform_operator": {
@@ -10880,6 +11015,12 @@
         "removed": {
           "title": "Payment destination removed",
           "body": "Payment destination {destination} was removed from your account. If you did not make this change, contact your agency immediately."
+        }
+      },
+      "service_provider_bill": {
+        "kept_on_reopen": {
+          "title": "Maintenance bill kept: {reference}",
+          "body": "The maintenance request “{request}” was contested or cancelled, but its bill {reference} for {amount} is already paid, recharged to the landlord or being paid: it is not cancelled. Check it and settle it manually."
         }
       },
       "owner_statement": {
@@ -11139,6 +11280,7 @@
     "password": "Password",
     "passwordHint": "At least 8 characters, with a letter and a digit.",
     "create": "Create my account and accept",
+    "confirmName": "Your account has no name yet. Confirm or correct the one the inviting space entered for you.",
     "haveAccount": "I already have an account",
     "signIn": "Sign in",
     "required": "Enter your first name and a password.",

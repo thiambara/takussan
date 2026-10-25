@@ -14,7 +14,7 @@
  */
 
 import { useRouter } from 'next/navigation';
-import { useRef, useState } from 'react';
+import { useId, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 
 import { Controller } from 'react-hook-form';
@@ -26,6 +26,7 @@ import {
   FormTextarea,
 } from '@/components/forms';
 import { Button } from '@/components/ui/button';
+import { useToast } from '@/components/ui/toast';
 import { useApiForm } from '@/hooks/useApiForm';
 import {
   maintenanceCreateSchema,
@@ -36,12 +37,17 @@ import {
   useUploadMaintenancePhotos,
 } from '@/lib/queries/maintenance';
 import { MAINTENANCE_CATEGORIES } from '@/types/maintenance';
+import { PHOTOS_PAR_SELECTION_MAX } from '@/lib/borne-du-corps';
 import { reduirePhotos } from '@/lib/reduire-photo';
 import { MaintenancePrioritySelector } from './MaintenancePrioritySelector';
 
 /**
  * Report-a-problem form. Submits the request, then — if the user
  * attached photos — calls `/photos` with `collection=photos`.
+ *
+ * TCK-2370 (P236.02) — une photo par appel, comme la clôture (TCK-2330), arrêt au premier échec :
+ * tout le lot dans un corps dépassait la borne du proxy (25 Mio) dès 19 photos réduites. La borne
+ * de 20 se lit au sélecteur, et une sélection qui la dépasse est refusée entière.
  *
  * `propertyId` is required; the CLI page receives it from the query
  * string (`?property=…`) or the property detail page.
@@ -59,8 +65,11 @@ export function MaintenanceForm({
   const router = useRouter();
   const create = useCreateMaintenanceRequest();
   const uploadPhotos = useUploadMaintenancePhotos();
+  const toast = useToast();
   const [photos, setPhotos] = useState<File[]>([]);
+  const [tropDePhotos, setTropDePhotos] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const borneId = useId();
 
   const { form, handleSubmit, isSubmitting, globalError } = useApiForm<
     MaintenanceCreateInput,
@@ -80,15 +89,20 @@ export function MaintenanceForm({
       const id = res.data.id;
       if (photos.length > 0) {
         try {
-          await uploadPhotos.mutateAsync({
-            id,
-            // Réduites dans le navigateur avant l'envoi (TCK-542).
-            files: await reduirePhotos(photos),
-            collection: 'photos',
-          });
+          // Réduites dans le navigateur avant l'envoi (TCK-542).
+          for (const photo of await reduirePhotos(photos)) {
+            await uploadPhotos.mutateAsync({ id, files: [photo], collection: 'photos' });
+          }
         } catch {
-          // Photo upload failures should not roll back the created request.
-          // The detail page offers a retry path ("Ajouter des photos").
+          // La demande reste créée : on mène quand même à sa fiche, puisqu'un second envoi du
+          // formulaire la dupliquerait. L'avertissement est persistant (`timeout: 0`) : le
+          // `Toaster` du layout survit à la navigation, il se lit donc sur la fiche (TCK-2146).
+          toast.add({
+            title: t('photos_failed_title'),
+            description: t('photos_failed_body'),
+            type: 'warning',
+            timeout: 0,
+          });
         }
       }
       return res;
@@ -162,9 +176,28 @@ export function MaintenanceForm({
           type="file"
           accept="image/jpeg,image/png,image/webp"
           multiple
-          onChange={(e) => setPhotos(Array.from(e.target.files ?? []))}
+          aria-describedby={borneId}
+          onChange={(e) => {
+            const choisies = Array.from(e.target.files ?? []);
+            if (choisies.length > PHOTOS_PAR_SELECTION_MAX) {
+              setTropDePhotos(choisies.length);
+              setPhotos([]);
+              e.target.value = '';
+              return;
+            }
+            setTropDePhotos(null);
+            setPhotos(choisies);
+          }}
           className="block w-full text-sm text-muted-foreground file:mr-3 file:h-8 file:cursor-pointer file:rounded-lg file:border file:border-border file:bg-background file:px-3 file:text-sm file:font-medium file:text-foreground hover:file:bg-muted"
         />
+        <p id={borneId} className="mt-1 text-xs text-muted-foreground">
+          {t('photos_hint', { max: PHOTOS_PAR_SELECTION_MAX })}
+        </p>
+        {tropDePhotos !== null ? (
+          <p role="alert" className="mt-1 text-xs text-destructive">
+            {t('photos_too_many', { count: tropDePhotos, max: PHOTOS_PAR_SELECTION_MAX })}
+          </p>
+        ) : null}
         {photos.length > 0 ? (
           <p className="mt-1 text-xs text-muted-foreground">
             {t('photos_selected', { count: photos.length })}

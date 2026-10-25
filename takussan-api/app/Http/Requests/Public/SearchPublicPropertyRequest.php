@@ -23,6 +23,11 @@ class SearchPublicPropertyRequest extends BaseFormRequest
      */
     use FiltreParPointEtRayon;
 
+    /** P185.02 (TCK-2061) — les bornes de `criteria.cities` dans `SavedSearchCriteria`. */
+    public const VILLES_MAX = 20;
+
+    public const VILLE_LONGUEUR_MAX = 120;
+
     /**
      * L'autorisation reste dans le controleur / la policy (principes 1 et 2, TCK-306).
      * `BaseFormRequest` refuse par defaut : sans cette surcharge, l'endpoint rendrait 403.
@@ -58,7 +63,28 @@ class SearchPublicPropertyRequest extends BaseFormRequest
             }
         }
 
+        $this->villesEnListe();
         $this->ecreteDisponibiliteAuPresent();
+    }
+
+    /**
+     * P185.02 (TCK-2061) — `cities` arrive en liste à virgules depuis l'URL du front
+     * (`cities=Dakar,Thiès`, la forme de `type` et `condition`), ou en tableau (`cities[]=Dakar`).
+     * La chaîne devient un tableau, segments vides retirés ; un tableau passe tel quel, sa règle
+     * le juge.
+     */
+    private function villesEnListe(): void
+    {
+        $valeur = $this->input('cities');
+
+        if (! is_string($valeur)) {
+            return;
+        }
+
+        $this->merge(['cities' => array_values(array_filter(
+            array_map('trim', explode(',', $valeur)),
+            fn (string $ville) => $ville !== '',
+        ))]);
     }
 
     /**
@@ -103,6 +129,22 @@ class SearchPublicPropertyRequest extends BaseFormRequest
             'search' => 'nullable|string|max:200',
             'location' => 'nullable|string|max:100',
             'city' => 'nullable|string|max:100',
+            // P185.02 (TCK-2061) — la liste de villes du profil (TCK-136), en OU comme l'alerte la
+            // lit (TCK-599). Mêmes bornes que `SavedSearchCriteria` (20 villes de 120 caractères) :
+            // toute alerte enregistrée s'ouvre en résultats. Une seule clé de règle, pour que la
+            // carte et `search-filters.parity.test.ts` la voient comme les autres.
+            'cities' => [
+                'nullable', 'array', 'max:'.self::VILLES_MAX,
+                function (string $attribut, mixed $valeur, Closure $echec): void {
+                    foreach ((array) $valeur as $ville) {
+                        if (! is_string($ville) || mb_strlen($ville) > self::VILLE_LONGUEUR_MAX) {
+                            $echec(__('validation.in', ['attribute' => $attribut]));
+
+                            return;
+                        }
+                    }
+                },
+            ],
             // TCK-635 (ADR-0062 §8) — la région d'une ville homonyme ; le front ne l'écrit que là.
             'region' => 'nullable|string|max:100',
             'price_min' => 'nullable|numeric|min:0',

@@ -8,6 +8,7 @@ use App\Models\Profiles\AgentProfile;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Testing\TestResponse;
 use Tests\TestCase;
 
 /**
@@ -16,110 +17,83 @@ use Tests\TestCase;
  *
  * ## Pourquoi ce fichier existe à côté d'`InviteAgentTest`
  *
- * TCK-392 avait fermé `POST /agencies/{id}/members` et éprouvé le chemin
- * canonique. Il restait **l'alias historique** `POST /agencies/{id}/agents`
- * (`routes/api/agencies.php`) : la même méthode de contrôleur, une seconde
- * route, et aucun test. Un futur découplage des routes en rouvrirait une sans
- * que rien ne bronche — c'est le motif que TCK-392 avait lui-même établi pour
- * `AgencyMemberRoleController@update`.
- *
- * L'inventaire des routes vient de `php artisan route:list`, pas de la
- * mémoire :
- *
- * ```
- * POST api/agencies/{agency}/agents   AgencyController@addAgent
- * POST api/agencies/{agency}/members  AgencyController@addAgent
- * ```
+ * TCK-392 avait fermé `POST /agencies/{id}/members` et son alias historique
+ * `POST /agencies/{id}/agents`. TCK-2365 (P242.01) les a retirés : un compte
+ * existant entre dans l'équipe par l'invitation, au rôle agent OU
+ * administrateur. Ce fichier éprouve donc la frontière sur les deux rôles de
+ * l'invitation, comme il l'éprouvait sur les deux routes : un rôle couvert et
+ * l'autre non est le motif que TCK-392 avait établi.
  *
  * ## AC5 — la définition unique se prouve par ABLATION, pas par lecture
  *
  * `AgencyKindGuard::canFormTeam()` est le seul endroit où la règle s'écrit.
  * Ce que ce fichier éprouve à l'exécution, ce sont ses effets ; ce qui prouve
  * l'unicité, c'est qu'en retirer le `Standard` fait rougir **d'un seul geste**
- * les deux familles — l'invitation (`agents/invite`) ET le rattachement
- * (`members`, `agents`, `members/{u}/role`). Une règle recopiée n'aurait fait
+ * les deux familles — l'invitation (`agents/invite`, aux deux rôles) ET le
+ * changement de rôle (`members/{u}/role`). Une règle recopiée n'aurait fait
  * rougir qu'une moitié.
  */
 class TeamFormationBoundaryTest extends TestCase
 {
     use RefreshDatabase;
 
-    /**
-     * Les DEUX routes qui mènent à `AgencyController@addAgent`, dérivées de
-     * `route:list`. Écrire la liste ici et boucler dessus est ce qui empêche
-     * qu'un chemin reste couvert et l'autre non.
-     *
-     * @return list<string>
-     */
-    private function routesDeRattachement(Agency $agency): array
+    /** Les deux rôles auxquels l'invitation fait entrer un compte dans l'équipe (TCK-2365). */
+    private const ROLES_D_EQUIPE = ['agent', 'agency_admin'];
+
+    private function inviter(Agency $agency, User $cible, string $role): TestResponse
     {
-        return [
-            "/api/agencies/{$agency->id}/members",
-            "/api/agencies/{$agency->id}/agents",
-        ];
+        return $this->postJson("/api/agencies/{$agency->id}/agents/invite", [
+            'email' => $cible->email,
+            'role' => $role,
+            'first_name' => 'Awa',
+            'last_name' => 'Diop',
+        ]);
     }
 
     /**
-     * AC1 + AC2 + AC4 — les deux routes refusent, sur une agence
+     * AC1 + AC2 + AC4 — l'invitation refuse, aux deux rôles, sur une agence
      * `individual` **sans souscription**.
      *
      * ⚠ L'absence de souscription n'est pas un détail de mise en scène :
-     * c'est LE cas où rien d'autre ne garde. `QuotaResolver::assertCanAddAgent()`
-     * sort immédiatement quand l'agence n'a pas de souscription — croire qu'un
-     * plan « individual » borne déjà l'équipe est faux dans le cas le plus
-     * courant. Le test l'assère plutôt que de le supposer.
+     * c'est LE cas où rien d'autre ne garde. Croire qu'un plan « individual »
+     * borne déjà l'équipe est faux dans le cas le plus courant. Le test
+     * l'assère plutôt que de le supposer.
      */
-    public function test_les_deux_routes_de_rattachement_refusent_une_agence_individuelle_sans_souscription(): void
+    public function test_les_deux_roles_de_l_invitation_refusent_une_agence_individuelle_sans_souscription(): void
     {
         Mail::fake();
         $agency = Agency::factory()->create(['kind' => AgencyKind::Individual]);
         $this->actingAsRole('agency_admin', ['agency_id' => $agency->id]);
 
-        // Le garde de quota ne peut rien garder ici, et on le montre.
         $this->assertDatabaseMissing('agency_subscriptions', ['agency_id' => $agency->id]);
 
-        foreach ($this->routesDeRattachement($agency) as $route) {
-            $cible = User::factory()->create();
-
-            $this->postJson($route, [
-                'email' => $cible->email,
-                'role' => 'agent',
-            ])->assertStatus(403);
-
-            // Un 403 qui écrit quand même n'est pas un refus.
-            $this->assertDatabaseMissing('agent_profiles', [
-                'user_id' => $cible->id,
-                'agency_id' => $agency->id,
-            ]);
+        foreach (self::ROLES_D_EQUIPE as $role) {
+            $this->inviter($agency, User::factory()->create(), $role)->assertStatus(403);
         }
+
+        // Un 403 qui écrit quand même n'est pas un refus.
+        $this->assertDatabaseMissing('agent_profiles', ['agency_id' => $agency->id, 'user_id' => null]);
+        $this->assertDatabaseMissing('invitations', ['agency_id' => $agency->id]);
     }
 
     /**
-     * AC3 — TÉMOIN. Les deux mêmes routes restent ouvertes sur une agence
+     * AC3 — TÉMOIN. Les deux mêmes rôles restent ouverts sur une agence
      * `standard`, elle aussi sans souscription.
      *
      * Sans ce témoin, une garde qui refuserait tout le monde cocherait AC1 et
      * AC2 sans rien garder.
      */
-    public function test_les_deux_routes_de_rattachement_restent_ouvertes_sur_une_agence_standard(): void
+    public function test_les_deux_roles_de_l_invitation_restent_ouverts_sur_une_agence_standard(): void
     {
         Mail::fake();
         $agency = Agency::factory()->create(['kind' => AgencyKind::Standard]);
         $this->actingAsRole('agency_admin', ['agency_id' => $agency->id]);
 
-        foreach ($this->routesDeRattachement($agency) as $route) {
-            $cible = User::factory()->create();
-
-            $this->postJson($route, [
-                'email' => $cible->email,
-                'role' => 'agent',
-            ])->assertOk();
-
-            $this->assertDatabaseHas('agent_profiles', [
-                'user_id' => $cible->id,
-                'agency_id' => $agency->id,
-            ]);
+        foreach (self::ROLES_D_EQUIPE as $role) {
+            $this->inviter($agency, User::factory()->create(), $role)->assertCreated();
         }
+
+        $this->assertSame(2, AgentProfile::query()->where('agency_id', $agency->id)->whereNull('user_id')->count());
     }
 
     /**
@@ -140,11 +114,8 @@ class TeamFormationBoundaryTest extends TestCase
         $membre = User::factory()->create();
         AgentProfile::query()->create(['user_id' => $membre->id, 'agency_id' => $agency->id]);
 
-        // Rattachement — les deux routes.
-        foreach ($this->routesDeRattachement($agency) as $route) {
-            $this->postJson($route, ['email' => $cible->email, 'role' => 'agent'])
-                ->assertStatus(403);
-        }
+        // Invitation d'un administrateur — le rôle qui remplace le rattachement direct.
+        $this->inviter($agency, $cible, 'agency_admin')->assertStatus(403);
 
         // Changement de rôle — les deux routes de la même méthode.
         $this->putJson("/api/agencies/{$agency->id}/members/{$membre->id}/role", ['role' => 'agency_admin'])

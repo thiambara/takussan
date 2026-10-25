@@ -21,6 +21,8 @@ class UrgentMaintenanceCreatedNotification extends Notification implements Shoul
     public function __construct(
         public MaintenanceRequest $maintenanceRequest,
         public bool $isEscalation = false,
+        // TCK-1991 (P169.03) — la demande existait et vient de passer en urgent (`PATCH`).
+        public bool $becameUrgent = false,
     ) {
         $this->onQueue('notifications-urgent');
     }
@@ -46,7 +48,7 @@ class UrgentMaintenanceCreatedNotification extends Notification implements Shoul
 
     public function toMail(object $notifiable): MailMessage
     {
-        $title = $this->maintenanceRequest->title ?? '#'.$this->maintenanceRequest->id;
+        $title = $this->maintenanceRequest->title;
 
         $mail = (new MailMessage)
             ->subject(__($this->isEscalation
@@ -60,7 +62,9 @@ class UrgentMaintenanceCreatedNotification extends Notification implements Shoul
                 'title' => $title,
             ]));
         } else {
-            $mail->line(__('notifications.urgent_maintenance.intro'))
+            $mail->line(__($this->becameUrgent
+                ? 'notifications.urgent_maintenance.intro_became_urgent'
+                : 'notifications.urgent_maintenance.intro'))
                 ->line(__('notifications.urgent_maintenance.job', ['title' => $title]));
         }
 
@@ -76,7 +80,7 @@ class UrgentMaintenanceCreatedNotification extends Notification implements Shoul
             'title' => __($this->isEscalation
                 ? 'notifications.urgent_maintenance.title_escalation'
                 : 'notifications.urgent_maintenance.title', [
-                    'title' => $this->maintenanceRequest->title ?? '#'.$this->maintenanceRequest->id,
+                    'title' => $this->maintenanceRequest->title,
                 ]),
             'priority' => 'urgent',
             'escalation' => $this->isEscalation,

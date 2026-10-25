@@ -6,8 +6,9 @@ import { getTranslations } from 'next-intl/server';
 
 
 import { getToken } from '@/lib/session';
+import { nomAffichable } from '@/lib/identite';
 import { getMeAction } from '@/app/actions/auth';
-import { isAdmin } from '@/lib/roles';
+import { isAdmin, isAgencyAdmin, isAgent, isSuperAdmin } from '@/lib/roles';
 import { ApiError } from '@/lib/api';
 import { lireClientDuRendu } from '@/lib/detail/ressource-de-detail';
 import {
@@ -20,6 +21,7 @@ import { buttonVariants } from '@/components/ui/button';
 import { CustomerDetailTabs } from '@/components/customer-dashboard/CustomerDetailTabs';
 import { CustomerTagPickerSection } from '@/components/customer-dashboard/CustomerTagPickerSection';
 import { ContactGestures } from '@/components/crm/ContactGestures';
+import { InviterACreerSonCompte } from '@/components/crm/InviterACreerSonCompte';
 import { CustomerReferent } from '@/components/crm/CustomerReferent';
 import { CustomerStageControl } from '@/components/crm/CustomerStageControl';
 import { AddDocumentButton } from '@/components/documents/AddDocumentButton';
@@ -70,7 +72,11 @@ export default async function Page({ params }: { params: Params }) {
   if (!token) return null;
   // TCK-955 — le geste « Afficher » du numéro de pièce. `getMeAction` est mémoïsé par requête : le
   // layout l'a déjà appelé.
-  const canRevealIdNumber = isAdmin((await getMeAction()).roles);
+  const { roles } = await getMeAction();
+  const canRevealIdNumber = isAdmin(roles);
+  // P15.01 (TCK-2351) — inviter le client à créer son compte : un geste du personnel de l'agence
+  // de la fiche, que l'API juge (`CustomerPolicy::invite`) ; le bailleur ne le voit pas.
+  const canInviteToAccount = isAgent(roles) || isAgencyAdmin(roles) || isSuperAdmin(roles);
 
   const t = await getTranslations('crm.customerDetail');
   const tPage = await getTranslations('dashboard.pages.customerDetail');
@@ -116,12 +122,14 @@ export default async function Page({ params }: { params: Params }) {
     ? enumLabel(tStage, pipelineStageValues, customer.pipeline_stage)
     : null;
   const statusLabel = enumLabel(tStatus, customerStatusValues, customer.status);
+  // P220.03 (TCK-2281) — une fiche née d'un compte sans nom : son e-mail, son numéro ou `#<id>`.
+  const nom = nomAffichable(customer);
 
   return (
     <div className="space-y-6">
       <PageHeader
         eyebrow={tPage('eyebrow', { id: customer.id })}
-        title={`${customer.first_name} ${customer.last_name}`}
+        title={nom}
         description={
           <span className="flex flex-wrap items-center gap-2">
             {customer.email ? <span className="min-w-0 break-all">{customer.email}</span> : null}
@@ -140,13 +148,16 @@ export default async function Page({ params }: { params: Params }) {
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <PlanifierUneVisite
-              customer={{ id: customer.id, libelle: `${customer.first_name} ${customer.last_name}` }}
+              customer={{ id: customer.id, libelle: nom }}
             />
             <AddDocumentButton
               documentableType="customer"
               documentableId={customer.id}
-              displayLabel={`${customer.first_name} ${customer.last_name}`}
+              displayLabel={nom}
             />
+            {canInviteToAccount && customer.user_id === null ? (
+              <InviterACreerSonCompte customerId={customer.id} />
+            ) : null}
           </div>
         }
       />
@@ -156,12 +167,12 @@ export default async function Page({ params }: { params: Params }) {
         <ContactGestures
           phone={customer.phone}
           firstName={customer.first_name}
-          fullName={`${customer.first_name} ${customer.last_name}`}
+          fullName={nom}
         />
         {customer.pipeline_stage ? (
           <CustomerStageControl
             customerId={customer.id}
-            name={`${customer.first_name} ${customer.last_name}`}
+            name={nom}
             stage={customer.pipeline_stage}
           />
         ) : null}

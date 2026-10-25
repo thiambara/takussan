@@ -8,6 +8,7 @@ use App\Models\Bases\Auditable;
 use App\Models\Enums\TaskPriority;
 use App\Models\Enums\TaskStatus;
 use App\Sorts\TaskPrioritySort;
+use App\Support\Http\ParametreUnique;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -124,7 +125,7 @@ class Task extends AbstractModel
                 $endOfDay = $now->copy()->endOfDay()->utc();
 
                 // TCK-1407 (P151.06) — une liste (`filter[due][]=`) est une valeur inconnue : rien.
-                match (is_string($value) ? $value : null) {
+                match (ParametreUnique::valeur($value)) {
                     'overdue' => $query->overdue(),
                     'today' => $query->whereBetween('due_at', [$startOfDay, $endOfDay]),
                     'upcoming' => $query->where('due_at', '>', $endOfDay),
@@ -137,7 +138,8 @@ class Task extends AbstractModel
             // tâches closes restent, comme sous `filter[due]=today` (TCK-591). Toute autre valeur : rien.
             AllowedFilter::callback('assigned_to', function (Builder $query, mixed $value): void {
                 $user = request()->user();
-                if ($value !== 'me' || $user === null) {
+                // ADR-0075 § 2 — une liste vaut absente, donc pas `me` : aucune ligne, comme avant.
+                if (ParametreUnique::valeur($value) !== 'me' || $user === null) {
                     $query->whereRaw('1 = 0');
 
                     return;

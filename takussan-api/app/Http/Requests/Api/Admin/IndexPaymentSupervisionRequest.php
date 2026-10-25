@@ -22,7 +22,7 @@ class IndexPaymentSupervisionRequest extends BaseFormRequest
     {
         return [
             'filter' => ['sometimes', 'array'],
-            'filter.status' => ['sometimes', 'nullable', Rule::in([PaymentSupervisionService::STATUS_FAILED, PaymentSupervisionService::STATUS_LATE])],
+            'filter.status' => ['sometimes', 'nullable', Rule::in([PaymentSupervisionService::STATUS_FAILED, PaymentSupervisionService::STATUS_LATE, PaymentSupervisionService::STATUS_REFUND_DUE])],
             'filter.provider' => ['sometimes', 'nullable', 'string', 'max:60'],
             'filter.agency_id' => ['sometimes', 'nullable', 'integer', 'min:1'],
             'filter.from' => ['sometimes', 'nullable', 'date'],

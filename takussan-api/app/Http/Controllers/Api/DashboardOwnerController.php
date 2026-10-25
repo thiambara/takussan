@@ -3,7 +3,10 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
+use App\Models\Agency;
+use App\Models\Enums\Capability;
 use App\Services\Dashboard\DashboardOwnerService;
+use App\Support\Http\ParametreUnique;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -18,10 +21,13 @@ class DashboardOwnerController extends Controller
     {
         $user = $request->user();
 
+        // TCK-2260 (P116.07) — l'admin qui n'est pas bailleur y entre par `reports.view_agency`, comme
+        // aux autres chiffres de l'agence ; le bailleur, par son seul profil.
         abort_unless(
             ($user->agency_id !== null && $user->isOwnerAt((int) $user->agency_id))
                 || $user->isSuperAdmin()
-                || ($user->agency_id !== null && $user->isAgencyAdminAt((int) $user->agency_id)),
+                || ($user->agency_id !== null && $user->isAgencyAdminAt((int) $user->agency_id)
+                    && $user->canActAt(Capability::ReportsViewAgency, Agency::query()->find($user->agency_id))),
             403,
         );
 
@@ -35,9 +41,9 @@ class DashboardOwnerController extends Controller
             $data = array_intersect_key($data, array_flip($keep));
         }
 
-        // TCK-1866 — `include[]=…` est ignoré comme une valeur absente (TCK-1407), et non casté.
-        $include = $request->input('include', '');
-        $includes = is_string($include) ? array_filter(array_map('trim', explode(',', $include))) : [];
+        // TCK-1866 — `include[]=…` est ignoré comme une valeur absente (ADR-0075), et non casté.
+        $include = ParametreUnique::chaine($request, 'include') ?? '';
+        $includes = array_filter(array_map('trim', explode(',', $include)));
 
         $payload = ['data' => $data];
 

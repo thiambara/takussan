@@ -14,17 +14,24 @@ import {
   maintenanceCompleteSchema,
   type MaintenanceCompleteInput,
 } from '@/lib/schemas/maintenance';
-import { useCompleteMaintenanceRequest } from '@/lib/queries/maintenance';
+import {
+  useCompleteMaintenanceRequest,
+  useUploadMaintenancePhotos,
+} from '@/lib/queries/maintenance';
 import { reduirePhotos } from '@/lib/reduire-photo';
 
 /**
  * Completion workflow — captures the resolution notes, optional actual
  * cost, and post-resolution photos.
  *
- * TCK-592 (P15) — les photos voyagent DANS `PUT …/complete` (`photos[]`). Elles partaient par
- * `/photos` APRÈS la transition, et leur échec était avalé : la demande passait « terminée »
- * sans preuve, sans que personne le voie. Désormais un échec n'écrit rien, s'affiche, et les
- * fichiers choisis restent pour réessayer.
+ * TCK-592 (P15) — une photo dont l'envoi échoue ne laisse pas la demande « terminée » sans preuve.
+ * Elles partaient par `/photos` APRÈS la transition, et leur échec était avalé.
+ *
+ * TCK-2330 (P222.02) — elles partent UNE À UNE par `/photos` (`completion_photos`), AVANT
+ * `/complete`, qui n'en porte plus : tout le lot dans un corps dépassait la borne du proxy
+ * (25 Mio, `docker/Caddyfile`) dès 19 photos réduites. Le premier échec arrête tout, s'affiche,
+ * et la transition n'a pas lieu ; une photo jointe sort de la sélection, pour ne pas repartir
+ * quand on réessaie.
  *
  * TCK-592 (verif-592, M1) — le coût réel est un champ du DONNEUR D'ORDRE (`withCost`, lu de
  * `abilities.can_assign`) : le prestataire qui le portait à la complétion prend un 403.
@@ -41,6 +48,7 @@ export function MaintenanceCompleteForm({
   const t = useTranslations('maintenance.complete');
   const tCommon = useTranslations('common');
   const complete = useCompleteMaintenanceRequest(id);
+  const upload = useUploadMaintenancePhotos();
   const [photos, setPhotos] = useState<File[]>([]);
 
   const { form, handleSubmit, isSubmitting, globalError } = useApiForm<
@@ -52,13 +60,19 @@ export function MaintenanceCompleteForm({
       resolution_notes: undefined,
       actual_cost: undefined,
     },
-    onSubmit: async (values) =>
-      complete.mutateAsync({
+    onSubmit: async (values) => {
+      // Réduites dans le navigateur avant l'envoi (TCK-542), dans l'ordre de la sélection.
+      const reduites = photos.length > 0 ? await reduirePhotos(photos) : [];
+      for (const [index, photo] of reduites.entries()) {
+        await upload.mutateAsync({ id, files: [photo], collection: 'completion_photos' });
+        const jointe = photos[index];
+        setPhotos((restantes) => restantes.filter((p) => p !== jointe));
+      }
+      return complete.mutateAsync({
         ...values,
         actual_cost: withCost ? values.actual_cost : undefined,
-        // Réduites dans le navigateur avant l'envoi (TCK-542).
-        photos: photos.length > 0 ? await reduirePhotos(photos) : undefined,
-      }),
+      });
+    },
     onSuccess: () => {
       onClose();
     },

@@ -6,6 +6,7 @@ import { buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { getTranslations } from 'next-intl/server';
 import { avecRedirection } from '@/lib/redirection-interne';
+import { RelireLeCompteAuMontage } from '@/components/auth/RelireLeCompteAuMontage';
 
 // Un lien stylé en bouton, et non un `<button>` DANS un `<a>` : deux éléments interactifs
 // imbriqués, c'est deux arrêts de tabulation pour une seule action, et un HTML invalide.
@@ -39,6 +40,9 @@ export default async function VerifyEmailHashPage({ params, searchParams }: Prop
   if (success) {
     return (
       <div>
+        {/* TCK-2162 (P202.07) — le layout racine a pu lire `/api/auth/me` avant la vérification :
+            le contexte de la session relit le compte, l'adresse y devient vérifiée. */}
+        {token ? <RelireLeCompteAuMontage /> : null}
         <div className="flex items-center justify-center size-14 rounded-full bg-success/10 text-success mb-6">
           <CheckCircle2 className="size-7" aria-hidden="true" />
         </div>

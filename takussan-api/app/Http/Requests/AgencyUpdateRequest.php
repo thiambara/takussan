@@ -24,7 +24,8 @@ class AgencyUpdateRequest extends BaseFormRequest
      */
     public function authorize(): bool
     {
-        return $this->user()?->can('update', $this->route('agency')) === true;
+        // TCK-2024 (P116.02) — `configure` : `update()` ET `agency.update`.
+        return $this->user()?->can('configure', $this->route('agency')) === true;
     }
 
     /**

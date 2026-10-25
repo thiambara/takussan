@@ -22,8 +22,11 @@ import {
   fetchDashboardCustomer,
 } from '@/lib/queries/customers';
 import { PIPELINE_QUERY_KEY } from '@/hooks/pipelineKeys';
+import { AGENT_CRM_QUERY_KEY } from '@/lib/queries/agent-crm';
 import type { Locale } from '@/i18n/config';
 import { formatDateTime } from '@/lib/format';
+import { nomAffichable } from '@/lib/identite';
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
 interface CustomerDetailSheetProps {
   customerId: number;
@@ -34,6 +37,7 @@ export function CustomerDetailSheet({ customerId, onOpenChange }: CustomerDetail
   const t = useTranslations('crm.pipeline');
   const { token } = useAuth();
   const queryClient = useQueryClient();
+  const messageErreur = useMessageErreurApi();
   const [tab, setTab] = useState<'overview' | 'notes' | 'tasks' | 'activity'>('overview');
 
   const customerQuery = useQuery({
@@ -61,6 +65,8 @@ export function CustomerDetailSheet({ customerId, onOpenChange }: CustomerDetail
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: PIPELINE_QUERY_KEY.customerNotes(customerId) });
+      // TCK-2093 — la note est journalisée : l'onglet « Activité » la montre sans attendre.
+      void queryClient.invalidateQueries({ queryKey: AGENT_CRM_QUERY_KEY.activity(customerId) });
     },
   });
 
@@ -76,7 +82,7 @@ export function CustomerDetailSheet({ customerId, onOpenChange }: CustomerDetail
         <header className="flex items-start justify-between gap-3 border-b border-muted p-4">
           <div className="min-w-0">
             <p className="truncate font-display text-lg font-semibold tracking-tight text-foreground">
-              {customer ? `${customer.first_name} ${customer.last_name}` : '…'}
+              {customer ? nomAffichable(customer) : '…'}
             </p>
             {customer?.email ? (
               <p className="truncate text-xs text-muted-foreground">{customer.email}</p>
@@ -110,7 +116,7 @@ export function CustomerDetailSheet({ customerId, onOpenChange }: CustomerDetail
                   <ContactGestures
                     phone={customer.phone}
                     firstName={customer.first_name}
-                    fullName={`${customer.first_name} ${customer.last_name}`}
+                    fullName={nomAffichable(customer)}
                   />
                   <Field label={t('fields.phone')} value={customer.phone} />
                   <Field label={t('fields.email')} value={customer.email} />
@@ -130,8 +136,9 @@ export function CustomerDetailSheet({ customerId, onOpenChange }: CustomerDetail
               <NotesTab
                 notes={notesQuery.data ?? []}
                 isLoading={notesQuery.isLoading}
-                onAdd={(body) => noteMutation.mutate(body)}
+                onAdd={(body, apresSucces) => noteMutation.mutate(body, { onSuccess: apresSucces })}
                 isAdding={noteMutation.isPending}
+                erreur={noteMutation.isError ? messageErreur(noteMutation.error) : null}
               />
             </TabsContent>
 
@@ -175,11 +182,13 @@ function Empty() {
 interface NotesTabProps {
   notes: Array<{ id: number; body: string; pinned: boolean; created_at: string; kind?: string | null }>;
   isLoading: boolean;
-  onAdd: (body: string) => void;
+  /** P228.02 (TCK-2212) — `apresSucces` vide le champ : un refus y laisse le texte. */
+  onAdd: (body: string, apresSucces: () => void) => void;
   isAdding: boolean;
+  erreur: string | null;
 }
 
-function NotesTab({ notes, isLoading, onAdd, isAdding }: NotesTabProps) {
+function NotesTab({ notes, isLoading, onAdd, isAdding, erreur }: NotesTabProps) {
   const t = useTranslations('crm.pipeline');
   const tNotes = useTranslations('agentCrm.notes');
   const locale = useLocale() as Locale;
@@ -192,16 +201,20 @@ function NotesTab({ notes, isLoading, onAdd, isAdding }: NotesTabProps) {
           value={body}
           onChange={(e) => setBody(e.target.value)}
           rows={3}
+          // P228.02 (TCK-2212) — la borne de `StoreCustomerNoteRequest` (`max:5000`).
+          maxLength={5000}
           placeholder={t('notes.placeholder')}
         />
+        {erreur ? (
+          <p role="alert" className="mt-2 text-sm text-destructive">
+            {erreur}
+          </p>
+        ) : null}
         <div className="mt-2 flex justify-end">
           <Button
             size="sm"
             disabled={body.trim().length === 0 || isAdding}
-            onClick={() => {
-              onAdd(body.trim());
-              setBody('');
-            }}
+            onClick={() => onAdd(body.trim(), () => setBody(''))}
           >
             {t('notes.add')}
           </Button>

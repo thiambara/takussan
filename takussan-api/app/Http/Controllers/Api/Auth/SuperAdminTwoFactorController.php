@@ -9,6 +9,7 @@ use App\Models\Enums\PlatformProfileLevel;
 use App\Models\Invitation;
 use App\Models\Profiles\PlatformProfile;
 use App\Notifications\SuperAdminAcceptedBroadcast;
+use App\Services\Auth\MetadataDuCompte;
 use App\Services\Auth\SessionTokenIssuer;
 use App\Services\Auth\SuperAdminBootstrapService;
 use App\Services\Auth\SuperAdminCooptationService;
@@ -57,6 +58,18 @@ class SuperAdminTwoFactorController extends Controller
     {
         $user = $request->user();
         $this->assertCooptedSuperAdmin($user);
+
+        // P208.03 (TCK-2190) — une 2FA active ne se coupe que pour un enrôlement qui pourra se
+        // confirmer : une cooptation acceptée, ou l'opérateur amorcé (profil plateforme actif,
+        // {@see SuperAdminBootstrapService}). Sans cela, `confirm` rend `super_admin.not_pending`
+        // et le compte reste sans second facteur.
+        abort_code_if(
+            (bool) $user->two_factor_enabled
+                && ! $user->hasActivePlatformProfile()
+                && $this->acceptedCooptation($user) === null,
+            403,
+            'super_admin.not_pending',
+        );
 
         $secret = $this->twoFactor->generateSecret();
         $recoveryCodesPlain = $this->twoFactor->generateRecoveryCodes();
@@ -114,15 +127,13 @@ class SuperAdminTwoFactorController extends Controller
         );
 
         DB::transaction(function () use ($user): void {
-            // TCK-589 — l'enrôlement solde aussi une réinitialisation par le support.
-            $metadata = $user->metadata ?? [];
-            unset($metadata['force_2fa_reconfigure']);
-
+            // TCK-589 — l'enrôlement solde aussi une réinitialisation par le support. P245.02
+            // (TCK-2367) — sur la ligne en base : un échec de connexion écrit entre-temps reste compté.
             $user->forceFill([
                 'two_factor_enabled' => true,
                 'force_2fa_at_first_login' => false,
-                'metadata' => $metadata,
             ])->save();
+            MetadataDuCompte::retirer($user, ['force_2fa_reconfigure']);
 
             $this->attachSuperAdminRole($user);
 

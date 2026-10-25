@@ -223,6 +223,26 @@ describe('<ModerationQueueTable>', () => {
     expect(seconde).toHaveTextContent('25 min');
     expect(seconde).toHaveTextContent(/pris par fatou sow/i);
   });
+
+  it('P193.05 (TCK-2053) — « Anonyme » seulement sans compte : un signaleur connu sans nom ne l’est pas', () => {
+    render(wrap(
+      <ModerationQueueTable
+        items={[
+          itemDe({ id: 'review:14', reporter: { id: 7, name: null, email: null } }),
+          itemDe({ id: 'review:15', reporter: null }),
+        ]}
+        selectedId={null}
+        onSelect={vi.fn()}
+        checkedIds={new Set()}
+        onToggleChecked={vi.fn()}
+      />,
+    ));
+
+    const connu = screen.getByTestId('moderation-item-review:14');
+    expect(connu).not.toHaveTextContent('Anonyme');
+    expect(connu).toHaveTextContent('#7');
+    expect(screen.getByTestId('moderation-item-review:15')).toHaveTextContent('Anonyme');
+  });
 });
 
 describe('<ModerationBatchBar>', () => {

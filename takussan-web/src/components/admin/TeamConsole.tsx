@@ -14,7 +14,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AdminUsersFilters } from '@/components/admin/users/AdminUsersFilters';
 import { AdminUsersTable } from '@/components/admin/users/AdminUsersTable';
 import { UserDetailDrawer } from '@/components/admin/users/UserDetailDrawer';
-import { InviteMemberDialog } from '@/components/admin/InviteMemberDialog';
+import { InviteAgentDialog } from '@/components/admin/InviteAgentDialog';
 import { HandoverWizard } from '@/components/crm/HandoverWizard';
 import { AgentAbsencesSection } from '@/components/crm/AgentAbsencesSection';
 import { ConfirmSuspendDialog } from '@/components/admin/ConfirmSuspendDialog';
@@ -378,7 +378,8 @@ export function TeamConsole({
         isRemoving={removing !== null}
       />
 
-      <InviteMemberDialog
+      {/* TCK-2365 (P242.01) — l'invitation, seul chemin d'entrée dans l'équipe. */}
+      <InviteAgentDialog
         agencyId={agencyId}
         open={inviteOpen}
         onOpenChange={setInviteOpen}

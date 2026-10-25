@@ -25,7 +25,8 @@ class PayoutResource extends BaseResource
             'processed_by_id' => $this->processed_by_id,
             'issuer' => $this->whenLoaded('issuer', fn () => $this->issuer ? [
                 'id' => $this->issuer->id,
-                'name' => trim($this->issuer->first_name.' '.$this->issuer->last_name) ?: $this->issuer->username,
+                // P235.02 (TCK-2369) — nom, puis `username`, puis « — » : jamais `''` ni `null` pour un compte sans nom.
+                'name' => $this->issuer->nameWithoutContact(),
             ] : null),
             'status' => $this->status?->value,
             'period_start' => $this->calendarDate($this->period_start),
@@ -50,6 +51,10 @@ class PayoutResource extends BaseResource
             'processed_at' => $this->iso($this->processed_at),
             // TCK-593 — rapproché sur un débit du relevé bancaire.
             'bank_reconciled_at' => $this->iso($this->bank_reconciled_at),
+            // TCK-2052 (ADR-0039, amendement du 2026-10-23, n° 13) — non nuls pour un `Payout`
+            // « constaté » : le remboursement déjà sorti de ce payable, pas un reversement à approuver.
+            'refunded_payment_type' => $this->resource->refundedPaymentTypeKey(),
+            'refunded_payment_id' => $this->refunded_payment_id,
             'failed_reason' => $this->failed_reason,
             'notes' => $this->notes,
             'created_at' => $this->iso($this->created_at),

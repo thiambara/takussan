@@ -22,13 +22,18 @@ import {
 
 const ALL = '__all__';
 
-/** Les cinq paramètres d'URL qui portent un FILTRE — `page` et `sort` n'en sont pas. */
+/**
+ * Les paramètres d'URL qui portent un FILTRE — `page` et `sort` n'en sont pas. `filter[public]`
+ * (P167.07, TCK-2087) n'a pas de contrôle : il vient du lien de la tuile « Biens publiés », et
+ * « réinitialiser » le retire.
+ */
 const PARAMS_DE_FILTRE = [
   'filter[search]',
   'filter[status]',
   'filter[type]',
   'filter[visibility]',
   'filter[agency_id]',
+  'filter[public]',
 ] as const;
 
 interface SuperAdminPropertiesFiltersProps {

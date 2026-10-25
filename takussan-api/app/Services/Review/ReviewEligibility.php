@@ -5,17 +5,22 @@ namespace App\Services\Review;
 use App\Models\Agency;
 use App\Models\Booking;
 use App\Models\Enums\BookingStatus;
+use App\Models\Enums\CollaboratorRole;
 use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\MaintenanceStatus;
 use App\Models\Enums\VisitStatus;
 use App\Models\Lease;
 use App\Models\MaintenanceRequest;
+use App\Models\Profiles\OwnerProfile;
 use App\Models\Profiles\ServiceProviderProfile;
 use App\Models\Property;
+use App\Models\PropertyCollaborator;
 use App\Models\PropertyVisit;
 use App\Models\Review;
 use App\Models\User;
+use App\Rules\PersonnelDeLAgence;
 use App\Services\Membership\MembershipCapabilityResolver;
+use App\Services\Property\BailleurDuBien;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
@@ -25,8 +30,9 @@ use Illuminate\Database\Eloquent\Model;
  *
  *  - bien : une réservation `confirmed`/`completed` ou un bail `active`/`terminating`/`terminated`/`expired`
  *    dont l'auteur est le client (règle existante) ;
- *  - agent : une visite `completed` qu'il a menée, ou un bail / une réservation honorés sur un bien
- *    qu'il a publié — jamais soi-même ;
+ *  - agent : une visite `completed` qu'il a menée, ou un bail / une réservation honorés dont il est
+ *    un sujet « agent » (TCK-2062, amendement d'ADR-0043 du 2026-10-23, cf. {@see self::agentSubjectIds()})
+ *    — jamais soi-même, jamais le bailleur ;
  *  - agence : un bail de l'agence dont l'auteur est le locataire (règle existante, tout statut) ;
  *  - prestataire : une intervention `completed`/`closed` qui lui était assignée, notée par son
  *    demandeur ou par le personnel de l'agence du bien.
@@ -65,11 +71,74 @@ class ReviewEligibility
             return null;
         }
 
-        $published = Property::withTrashed()->select('id')->where('user_id', $agent->id);
+        $visit = $this->visitsOf($author)->where('agent_id', $agent->id)->first();
+        if ($visit !== null) {
+            return $visit;
+        }
 
-        return $this->visitsOf($author)->where('agent_id', $agent->id)->first()
-            ?? $this->leasesOf($author)->whereIn('property_id', $published)->first()
-            ?? $this->bookingsOf($author)->whereIn('property_id', $published)->first();
+        foreach ([...$this->leasesOf($author)->get(), ...$this->bookingsOf($author)->get()] as $proof) {
+            if (in_array($agent->id, $this->agentSubjectIds($proof), true)) {
+                return $proof;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * TCK-2062 (P160.05, ADR-0043 amendement du 2026-10-23) — les sujets « agent » d'un bail ou d'une
+     * réservation honorés : l'agent du bail (`leases.agent_id`, une réservation n'en a pas), les
+     * collaborateurs acceptés `agent`/`manager` encore du personnel de l'agence du bien, le créateur
+     * du bien s'il en est du personnel. Jamais le bailleur, même s'il figure parmi eux : le bailleur
+     * du bail, et quiconque tient un profil propriétaire dans l'agence du bien (l'hôte d'une agence
+     * `individual` compris). Tout statut de profil propriétaire écarte : c'est la voie la plus
+     * étroite, celle de {@see BailleurDuBien::est()}.
+     *
+     * `properties.user_id` était pris tel quel : sur le bien d'un bailleur, le locataire était invité
+     * à noter son bailleur comme agent, et ne pouvait pas noter l'agent de son bail.
+     *
+     * @return list<int>
+     */
+    private function agentSubjectIds(Lease|Booking $proof): array
+    {
+        $property = Property::withTrashed()->whereKey($proof->property_id)->first(['id', 'user_id', 'agency_id']);
+        if ($property === null) {
+            return [];
+        }
+        $agencyId = $property->agency_id !== null ? (int) $property->agency_id : null;
+
+        $candidates = [];
+        if ($proof instanceof Lease && $proof->agent_id !== null) {
+            $candidates[] = (int) $proof->agent_id;
+        }
+        if ($agencyId !== null) {
+            $collaborators = PropertyCollaborator::query()
+                ->with('user')
+                ->where('property_id', $property->id)
+                ->whereNotNull('accepted_at')
+                ->whereIn('role', [CollaboratorRole::Agent->value, CollaboratorRole::Manager->value])
+                ->orderBy('id')
+                ->get();
+            foreach ($collaborators as $collaborator) {
+                if (PersonnelDeLAgence::estPersonnel($collaborator->user, $agencyId)) {
+                    $candidates[] = (int) $collaborator->user_id;
+                }
+            }
+            if ($property->user_id !== null && PersonnelDeLAgence::estPersonnel(User::query()->find($property->user_id), $agencyId)) {
+                $candidates[] = (int) $property->user_id;
+            }
+        }
+
+        $landlordId = $proof instanceof Lease && $proof->landlord_id !== null ? (int) $proof->landlord_id : null;
+        $owners = $agencyId === null ? [] : OwnerProfile::query()
+            ->where('agency_id', $agencyId)
+            ->whereIn('user_id', $candidates)
+            ->pluck('user_id')->map(fn ($id) => (int) $id)->all();
+
+        return array_values(array_unique(array_filter(
+            $candidates,
+            fn (int $id) => $id !== $landlordId && ! in_array($id, $owners, true),
+        )));
     }
 
     public function forServiceProvider(User $author, ServiceProviderProfile $provider, ?MaintenanceRequest $intervention): bool
@@ -112,8 +181,8 @@ class ReviewEligibility
             ];
         };
 
-        $leases = $this->leasesOf($author)->with('property.agency', 'property.owner')->get();
-        $bookings = $this->bookingsOf($author)->with('property.owner')->get();
+        $leases = $this->leasesOf($author)->with('property.agency')->get();
+        $bookings = $this->bookingsOf($author)->with('property')->get();
         $visits = $this->visitsOf($author)->whereNotNull('agent_id')->with('agent', 'property')->get();
 
         foreach ([...$bookings, ...$leases] as $proof) {
@@ -123,9 +192,13 @@ class ReviewEligibility
             }
         }
         foreach ([...$visits, ...$leases, ...$bookings] as $proof) {
-            $agent = $proof instanceof PropertyVisit ? $proof->agent : $proof->property?->owner;
-            if ($agent !== null && $agent->id !== $author->id && ! $done(User::class, $agent->id)) {
-                $push('agent', $agent, ['title' => $agent->full_name, 'slug' => $agent->username], $proof);
+            $agents = $proof instanceof PropertyVisit
+                ? [$proof->agent]
+                : User::query()->whereIn('id', $this->agentSubjectIds($proof))->orderBy('id')->get()->all();
+            foreach ($agents as $agent) {
+                if ($agent !== null && $agent->id !== $author->id && ! $done(User::class, $agent->id)) {
+                    $push('agent', $agent, ['title' => $agent->full_name, 'slug' => $agent->username], $proof);
+                }
             }
         }
         foreach ($leases as $lease) {

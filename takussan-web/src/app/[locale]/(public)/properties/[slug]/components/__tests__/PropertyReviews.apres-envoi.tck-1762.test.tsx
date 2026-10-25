@@ -50,7 +50,7 @@ describe('PropertyReviews — après l’envoi d’un avis (TCK-1762)', () => {
     render(withIntl(<PropertyReviews slug="villa" propertyId={1} averageRating={null} reviewsCount={0} />));
 
     await utilisateur.click(await screen.findByRole('radio', { name: /5 étoiles/i }));
-    await utilisateur.type(screen.getByPlaceholderText(/min\. 10/i), 'Un logement calme et lumineux.');
+    await utilisateur.type(screen.getByPlaceholderText(/votre commentaire/i), 'Un logement calme et lumineux.');
     await utilisateur.click(screen.getByRole('button', { name: /publier/i }));
 
     expect(actions.submitReview).toHaveBeenCalledTimes(1);
@@ -64,7 +64,7 @@ describe('PropertyReviews — après l’envoi d’un avis (TCK-1762)', () => {
     render(withIntl(<PropertyReviews slug="villa" propertyId={1} averageRating={null} reviewsCount={0} />));
 
     await utilisateur.click(await screen.findByRole('radio', { name: /5 étoiles/i }));
-    await utilisateur.type(screen.getByPlaceholderText(/min\. 10/i), 'Un logement calme et lumineux.');
+    await utilisateur.type(screen.getByPlaceholderText(/votre commentaire/i), 'Un logement calme et lumineux.');
     await utilisateur.click(screen.getByRole('button', { name: /publier/i }));
 
     expect(await screen.findByText('Refusé')).toBeInTheDocument();

@@ -62,6 +62,12 @@ export type OwnerProfileSummary = {
   readonly id_document_number_masked?: string | null;
   /** TCK-956 (ADR-0070) — `••••` si un revenu est saisi ; aucun chiffre ne sort. */
   readonly monthly_income_masked?: string | null;
+  /**
+   * P237.01 (TCK-2371) — l'invitation `sent` du brouillon, émise par l'agence du profil (`null`
+   * sans elle). Rendue sur chaque ligne quelle que soit la liste `fields[]` demandée : la relance
+   * et la révocation partent par elle.
+   */
+  readonly pending_invitation_id?: number | null;
   readonly user?: {
     readonly id: number;
     readonly first_name: string;
@@ -69,6 +75,18 @@ export type OwnerProfileSummary = {
     readonly email: string;
   } | null;
 };
+
+/**
+ * TCK-1323 (P117.05) — la raison sociale d'un bailleur société (`metadata.company_name`, exigée à
+ * l'invitation), `null` pour un particulier. P234.06 (TCK-2315) : lue par le carnet et par le
+ * dialogue de reversement.
+ */
+export function raisonSocialeDe(owner: OwnerProfileSummary): string | null {
+  const meta = owner.metadata ?? null;
+  if (meta?.owner_type !== 'company') return null;
+  const raison = meta.company_name?.trim();
+  return raison ? raison : null;
+}
 
 export type InviteOwnerPayload = {
   readonly email: string;

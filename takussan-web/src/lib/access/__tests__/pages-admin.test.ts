@@ -21,12 +21,12 @@ import {
 const SOLO: ContexteAdmin = {
   roles: ['agency_admin', 'owner', 'customer'],
   agence: { kind: 'individual' },
-  capacites: ['agency.update_billing', 'agency.update_kyc', 'team.assign_role'],
+  capacites: ['agency.update_billing', 'agency.update_kyc', 'team.assign_role', 'payments.reconcile', 'reports.view_agency'],
 };
 const STANDARD: ContexteAdmin = {
   roles: ['agency_admin', 'customer'],
   agence: { kind: 'standard' },
-  capacites: ['agency.update_billing', 'agency.update_kyc', 'team.assign_role'],
+  capacites: ['agency.update_billing', 'agency.update_kyc', 'team.assign_role', 'payments.reconcile', 'reports.view_agency'],
 };
 const SUPER_ADMIN: ContexteAdmin = { roles: ['super_admin'], agence: null, capacites: [] };
 
@@ -62,10 +62,10 @@ describe('PAGES_ADMIN', () => {
       ['/app/agency/kyc', { role: 'admin', capacite: 'agency.update_kyc', ouvertePar: ['agency.update_kyc'] }],
       ['/app/agency/billing', { role: 'admin', capacite: 'agency.update_billing' }],
       ['/app/agency/finances', { role: 'admin' }],
-      ['/app/agency/finances/reconciliation', { role: 'admin' }],
+      ['/app/agency/finances/reconciliation', { role: 'admin', capacite: 'payments.reconcile' }],
       ['/app/agency/moderation', { role: 'admin', agence: 'standard' }],
       ['/app/agency/moderation/properties', { role: 'admin', agence: 'standard' }],
-      ['/app/agency/audit', { role: 'admin', agence: 'standard' }],
+      ['/app/agency/audit', { role: 'admin', agence: 'standard', capacite: 'reports.view_agency' }],
       ['/app/agency/integrations', { role: 'admin' }],
     ]);
   });
@@ -140,6 +140,18 @@ describe('pageAccessible / accesDepuis', () => {
     const avecLaLecture = accesDepuis({ ...STANDARD, capacites: ['team.assign_role', 'agency.update_kyc'] }).chemins;
     expect(avecLaLecture).toContain('/app/agency/roles');
     expect(avecLaLecture).toContain('/app/agency/kyc');
+  });
+
+  // TCK-2260 (P116.07) — le rapprochement exige `payments.reconcile` (`BankStatementPolicy::viewAny`),
+  // le journal `reports.view_agency` (`ActivityLogPolicy::viewAny`) : sans elles, l'API rend 403.
+  it('un admin au rôle personnalisé sans payments.reconcile ni reports.view_agency n’a ni le rapprochement ni le journal (TCK-2260)', () => {
+    const sans = accesDepuis({ ...STANDARD, capacites: ['agency.update_billing'] }).chemins;
+    expect(sans).not.toContain('/app/agency/finances/reconciliation');
+    expect(sans).not.toContain('/app/agency/audit');
+    expect(sans).toContain('/app/agency/finances');
+    const avec = accesDepuis({ ...STANDARD, capacites: ['payments.reconcile', 'reports.view_agency'] }).chemins;
+    expect(avec).toContain('/app/agency/finances/reconciliation');
+    expect(avec).toContain('/app/agency/audit');
   });
 
   it('capacités inconnues : la page à capacité est refusée', () => {

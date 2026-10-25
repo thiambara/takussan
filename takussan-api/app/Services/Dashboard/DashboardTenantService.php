@@ -50,6 +50,7 @@ class DashboardTenantService
         $nextDue = null;
         $upcoming = [];
         $overdue = null;
+        $lateFees = null;
         $visits = [];
 
         if ($customerIds !== []) {
@@ -82,6 +83,13 @@ class DashboardTenantService
                 ->whereDate('lease_payments.due_date', '<', $today)
                 ->toBase()
                 ->selectRaw('COUNT(*) AS n, COALESCE(SUM('.CollectedPayments::OWED_REMAINING_SQL.'), 0) AS total')
+                ->first();
+
+            // P206.03 (ADR-0057, amendement du 2026-10-24) — les pénalités à recouvrer, à part.
+            $lateFees = CollectedPayments::lateFeesOutstanding()
+                ->whereIn('lease_payments.payer_id', $customerIds)
+                ->toBase()
+                ->selectRaw('COUNT(*) AS n, COALESCE(SUM('.CollectedPayments::LATE_FEE_OUTSTANDING_SQL.'), 0) AS total')
                 ->first();
 
             $visits = PropertyVisit::query()
@@ -133,6 +141,8 @@ class DashboardTenantService
                 'upcoming_30d' => $upcoming,
                 'overdue_count' => (int) ($overdue->n ?? 0),
                 'overdue_amount' => round((float) ($overdue->total ?? 0), 2),
+                'late_fees_outstanding_count' => (int) ($lateFees->n ?? 0),
+                'late_fees_outstanding_amount' => round((float) ($lateFees->total ?? 0), 2),
             ],
             'visits' => ['upcoming' => $visits],
             'maintenance' => ['open' => $openMaintenance],

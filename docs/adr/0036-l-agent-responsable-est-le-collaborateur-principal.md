@@ -1,6 +1,6 @@
 # ADR-0036 — L'agent responsable d'un bien est son collaborateur `agent` principal, jamais son propriétaire
 
-- **Statut** : Accepté, **amendé le 2026-10-19** (cf. § *Amendement du 2026-10-19 — le bien passe au bailleur*)
+- **Statut** : Accepté, **amendé le 2026-10-19** (cf. § *Amendement du 2026-10-19 — le bien passe au bailleur*) et **le 2026-10-25** (cf. § *Amendement du 2026-10-25 — une seule règle de bénéficiaire*)
 - **Date** : 2026-10-07
 - **Tickets** : [TCK-591](../backlog/tickets/TCK-591-crm-agenda-agent-et-passation.md) ; dépend de
   [TCK-504](../backlog/tickets/TCK-504-agent-principal-choisi-plutot-que-deduit.md) pour son application
@@ -147,3 +147,28 @@ ou bail neuf) n'est pas décidée : elle se cadrera quand un cas réel se prése
 d'un membre du personnel qui tient encore un bien en attente d'invitation garde le lien : le bien
 passe au repreneur, puis au bailleur à l'acceptation.
 
+## Amendement du 2026-10-25 — une seule règle de bénéficiaire (TCK-997, P232.07, P232.05)
+
+**Constat.** Le reversement admettait pour bénéficiaire tout compte qui tient un profil de bailleur,
+d'agent ou d'admin dans l'agence, « APPARTENANCE, sans filtre de statut » (TCK-587) : un agent
+suspendu restait bénéficiaire des loyers des biens qu'il avait saisis (P232.07, mesuré le
+2026-10-24). Le relevé de gérance et l'avis mensuel, eux, exigeaient un profil de bailleur : le loyer
+d'un bien gardé par l'agence se reversait à son agent sans que personne n'en lise le relevé (P50.02).
+L'effacement d'un compte comptait comme agence débitrice toute agence où un bail le désignait
+(P232.05).
+
+**Décision** (porteur, 2026-10-25). Une seule règle, `App\Services\Payout\BeneficiaireDuReversement`,
+lue par le reversement et sa préparation, le relevé, l'avis mensuel et l'effacement
+(`agenciesOwingPayout`) :
+
+- **le bailleur** : un profil propriétaire dans l'agence, de tout statut. La branche garde
+  l'appartenance : c'est son argent, le bailleur bloqué le touche ;
+- **le personnel**, pour un bien que l'agence garde en propre (Q1) : un profil **actif** d'agent ou
+  d'admin d'agence, ou une délégation en vigueur (ADR-0031 § 3). Les loyers d'un bien gardé par un
+  agent suspendu attendent sa réactivation, ou le geste « changer le titulaire » (TCK-999).
+
+**Ce qui n'est pas gardé.** Les reversements déjà émis au profit d'un agent aujourd'hui suspendu ne
+sont ni défaits ni signalés. Le compte effacé garde son relevé par la règle de TCK-2015, que la
+policy du relevé porte à part : il n'est plus bénéficiaire. Le déploiement ne réécrit aucun
+`user_id` : les biens déjà saisis au nom du personnel restent à leur auteur, et passent au bailleur
+par TCK-999 ou TCK-1000.

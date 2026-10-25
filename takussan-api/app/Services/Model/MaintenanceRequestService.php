@@ -52,37 +52,62 @@ class MaintenanceRequestService
         string $cause = MaintenanceStatusChanged::CAUSE_TRANSITION,
         array $context = [],
     ): MaintenanceRequest {
-        $current = $mr->status ?? MaintenanceStatus::Open;
+        // P211.03 (TCK-2193) — le patron d'`accept` (TCK-1822) : la ligne relue sous verrou, la
+        // table jugée sur elle, l'événement après le commit. Jugée sur le modèle reçu, la clôture
+        // automatique écrasait une contestation faite pendant son passage.
+        $current = DB::transaction(function () use ($mr, $to, $actor): ?MaintenanceStatus {
+            $fresh = $this->lockFresh($mr);
+            $current = $fresh->status ?? MaintenanceStatus::Open;
 
-        // Idempotent when already in the target state.
-        if ($current === $to) {
-            return $mr;
+            // Idempotent when already in the target state.
+            if ($current === $to) {
+                return null;
+            }
+
+            $this->assertTransition($current, $to);
+
+            $fresh->status = $to;
+
+            if ($to === MaintenanceStatus::InProgress && $fresh->started_at === null) {
+                $fresh->started_at = now();
+            }
+
+            // TCK-592 — démarrer, c'est accepter : le prestataire qui démarre sans avoir cliqué
+            // « J'accepte » ne doit pas pouvoir refuser ensuite.
+            if ($to === MaintenanceStatus::InProgress && $fresh->accepted_at === null
+                && $actor !== null && $fresh->assigned_to === $actor->id) {
+                $fresh->accepted_at = now();
+            }
+
+            if ($to === MaintenanceStatus::Completed && $fresh->completed_at === null) {
+                $fresh->completed_at = now();
+            }
+
+            $fresh->save();
+
+            return $current;
+        });
+
+        $mr->refresh();
+
+        if ($current !== null) {
+            MaintenanceStatusChanged::dispatch($mr, $current, $to, $actor, $cause, $context);
         }
 
-        $this->assertTransition($current, $to);
+        return $mr;
+    }
 
-        $mr->status = $to;
-
-        if ($to === MaintenanceStatus::InProgress && $mr->started_at === null) {
-            $mr->started_at = now();
-        }
-
-        // TCK-592 — démarrer, c'est accepter : le prestataire qui démarre sans avoir cliqué
-        // « J'accepte » ne doit pas pouvoir refuser ensuite.
-        if ($to === MaintenanceStatus::InProgress && $mr->accepted_at === null
-            && $actor !== null && $mr->assigned_to === $actor->id) {
-            $mr->accepted_at = now();
-        }
-
-        if ($to === MaintenanceStatus::Completed && $mr->completed_at === null) {
-            $mr->completed_at = now();
-        }
-
-        $mr->save();
-
-        MaintenanceStatusChanged::dispatch($mr, $current, $to, $actor, $cause, $context);
-
-        return $mr->refresh();
+    /**
+     * P211.03, P211.04 (TCK-2193) — la ligne de la demande, relue sous `lockForUpdate`. À appeler
+     * dans une transaction : c'est elle, et non le modèle lié à la route ou chargé par une tâche,
+     * qui porte le statut et les gardes jugés.
+     */
+    public function lockFresh(MaintenanceRequest $mr): MaintenanceRequest
+    {
+        return MaintenanceRequest::query()
+            ->whereKey($mr->getKey())
+            ->lockForUpdate()
+            ->firstOrFail();
     }
 
     /**
@@ -312,44 +337,50 @@ class MaintenanceRequestService
      */
     public function complete(MaintenanceRequest $mr, array $data, array $photos = [], ?User $actor = null): MaintenanceRequest
     {
-        $current = $mr->status ?? MaintenanceStatus::Open;
+        // P211.03 (TCK-2193) — table, coût et accord du bailleur jugés sur la ligne relue sous verrou.
+        $current = DB::transaction(function () use ($mr, $data, $photos, $actor): MaintenanceStatus {
+            $fresh = $this->lockFresh($mr);
+            $current = $fresh->status ?? MaintenanceStatus::Open;
 
-        $this->assertTransition($current, MaintenanceStatus::Completed);
+            $this->assertTransition($current, MaintenanceStatus::Completed);
 
-        // TCK-592 (verif-592, M1) — seul le donneur d'ordre porte un coût ici (403 au FormRequest),
-        // et au-delà du plafond du bailleur, c'est l'accord du bailleur qui s'applique.
-        $cost = $data['cost'] ?? $data['actual_cost'] ?? null;
-        // verif-592 passe 2 (N5) — arrondi à l'unité de la devise avant d'être comparé ou écrit.
-        $cost = $cost !== null ? CurrencyUnit::cost($mr, $cost) : null;
-        // verif-592 passe 3 (N8, N9) — sans coût fourni, celui déjà inscrit est REJUGÉ : un coût
-        // posé sous un accord qui n'existe plus (refusé, ou donné au devis d'un autre prestataire)
-        // ne se fige pas à la fin des travaux.
-        $judged = $cost ?? ($mr->actual_cost !== null ? (string) $mr->actual_cost : null);
-        if ($judged !== null && $actor !== null) {
-            app(OwnerApprovalThreshold::class)->assertActualCostAgreed($mr, $judged, $actor->id);
-        }
+            // TCK-592 (verif-592, M1) — seul le donneur d'ordre porte un coût ici (403 au FormRequest),
+            // et au-delà du plafond du bailleur, c'est l'accord du bailleur qui s'applique.
+            $cost = $data['cost'] ?? $data['actual_cost'] ?? null;
+            // verif-592 passe 2 (N5) — arrondi à l'unité de la devise avant d'être comparé ou écrit.
+            $cost = $cost !== null ? CurrencyUnit::cost($fresh, $cost) : null;
+            // verif-592 passe 3 (N8, N9) — sans coût fourni, celui déjà inscrit est REJUGÉ : un coût
+            // posé sous un accord qui n'existe plus (refusé, ou donné au devis d'un autre prestataire)
+            // ne se fige pas à la fin des travaux.
+            $judged = $cost ?? ($fresh->actual_cost !== null ? (string) $fresh->actual_cost : null);
+            if ($judged !== null && $actor !== null) {
+                app(OwnerApprovalThreshold::class)->assertActualCostAgreed($fresh, $judged, $actor->id);
+            }
 
-        DB::transaction(function () use ($mr, $data, $photos, $cost, $actor): void {
-            $mr->status = MaintenanceStatus::Completed;
-            $mr->completed_at = now();
+            $fresh->status = MaintenanceStatus::Completed;
+            $fresh->completed_at = now();
 
             if (array_key_exists('resolution_notes', $data) && $data['resolution_notes'] !== null) {
-                $mr->resolution_notes = $data['resolution_notes'];
+                $fresh->resolution_notes = $data['resolution_notes'];
             }
 
             if ($cost !== null) {
-                $mr->actual_cost = $cost;
+                $fresh->actual_cost = $cost;
                 if ($actor !== null) {
-                    app(OwnerApprovalThreshold::class)->recordOwnerCost($mr, $cost, $actor->id);
+                    app(OwnerApprovalThreshold::class)->recordOwnerCost($fresh, $cost, $actor->id);
                 }
             }
 
-            $mr->save();
+            $fresh->save();
 
             foreach ($photos as $photo) {
-                $mr->addMedia($photo)->toMediaCollection('completion_photos');
+                $fresh->addMedia($photo)->toMediaCollection('completion_photos');
             }
+
+            return $current;
         });
+
+        $mr->refresh();
 
         MaintenanceStatusChanged::dispatch(
             $mr,
@@ -359,7 +390,7 @@ class MaintenanceRequestService
             MaintenanceStatusChanged::CAUSE_COMPLETED,
         );
 
-        return $mr->refresh();
+        return $mr;
     }
 
     /**
@@ -384,18 +415,25 @@ class MaintenanceRequestService
      */
     public function contestResolution(MaintenanceRequest $mr, User $actor, string $comment, array $photos = []): MaintenanceRequest
     {
-        $current = $mr->status ?? MaintenanceStatus::Open;
-        $this->assertTransition($current, MaintenanceStatus::InProgress);
+        // P211.03 (TCK-2193) — la table jugée sur la ligne relue sous verrou : une contestation
+        // ne rouvre pas une demande close entre-temps.
+        $current = DB::transaction(function () use ($mr, $photos): MaintenanceStatus {
+            $fresh = $this->lockFresh($mr);
+            $current = $fresh->status ?? MaintenanceStatus::Open;
+            $this->assertTransition($current, MaintenanceStatus::InProgress);
 
-        DB::transaction(function () use ($mr, $photos): void {
-            $mr->status = MaintenanceStatus::InProgress;
-            $mr->completed_at = null;
-            $mr->save();
+            $fresh->status = MaintenanceStatus::InProgress;
+            $fresh->completed_at = null;
+            $fresh->save();
 
             foreach ($photos as $photo) {
-                $mr->addMedia($photo)->toMediaCollection('photos');
+                $fresh->addMedia($photo)->toMediaCollection('photos');
             }
+
+            return $current;
         });
+
+        $mr->refresh();
 
         activity()
             ->performedOn($mr)

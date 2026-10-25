@@ -8,8 +8,11 @@ use App\Models\BookingPayment;
 use App\Models\Enums\PaymentStatus;
 use App\Models\LeasePayment;
 use App\Models\Property;
+use App\Services\Membership\MembershipCapabilityResolver;
 use App\Services\Payments\PaymentGatewayService;
+use App\Services\Property\BailleurDuBien;
 use App\Support\DayRange;
+use App\Support\Http\ParametreUnique;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -46,10 +49,15 @@ class PaymentController extends Controller
         $bookingQuery = BookingPayment::query()
             ->with('booking.property')
             ->when(! $user->isSuperAdmin(), function ($q) use ($user): void {
-                $q->whereHas('booking', function ($bq) use ($user): void {
-                    $bq->where(function ($inner) use ($user): void {
-                        $inner->where('created_by_id', $user->id)
-                            ->orWhereHas('property', fn ($p) => $p->where('user_id', $user->id));
+                // P233.01 (TCK-2241) — l'auteur encore membre de l'agence de la réservation, comme
+                // `BookingController::index` et `BookingPolicy::view` depuis TCK-2196 (ADR-0031, B.2).
+                $memberAgencyIds = app(MembershipCapabilityResolver::class)->memberAgencyIds($user);
+                $q->whereHas('booking', function ($bq) use ($user, $memberAgencyIds): void {
+                    $bq->where(function ($inner) use ($user, $memberAgencyIds): void {
+                        $inner->where(fn ($a) => $a->where('created_by_id', $user->id)
+                            ->where(fn ($m) => $m->whereNull('agency_id')->orWhereIn('agency_id', $memberAgencyIds)))
+                            // TCK-1932 (P190.03) — le bailleur du bien, comme `BookingPaymentPolicy`.
+                            ->orWhereHas('property', fn ($p) => BailleurDuBien::restreindre($p, $user));
                         // TCK-587 — le personnel de l'agence, plus tout membre (ADR-0031).
                         if (($staffAgencyId = $user->staffAgencyId()) !== null) {
                             $inner->orWhere('agency_id', $staffAgencyId);
@@ -64,7 +72,9 @@ class PaymentController extends Controller
             ->when(! $user->isSuperAdmin(), function ($q) use ($user): void {
                 $q->whereHas('lease', function ($lq) use ($user): void {
                     $lq->where(function ($inner) use ($user): void {
-                        $inner->where('landlord_id', $user->id);
+                        // TCK-2181 (P217.03) — le bailleur du bail, comme `LeaseController::index` et la
+                        // branche des acomptes ci-dessus : l'agent recopié en `landlord_id` passe par le personnel.
+                        $inner->where(fn ($l) => BailleurDuBien::restreindre($l, $user, 'landlord_id'));
                         if (($staffAgencyId = $user->staffAgencyId()) !== null) {
                             $inner->orWhere('agency_id', $staffAgencyId);
                         }
@@ -74,7 +84,9 @@ class PaymentController extends Controller
             });
 
         // Entity-scoped filtering
-        $entityType = isset($filters['entity_type']) ? strtolower((string) $filters['entity_type']) : null;
+        // P216.02 (TCK-2122) — un type en liste vaut un type absent (TCK-1407), et n'est plus casté.
+        $entityType = ParametreUnique::valeur($filters['entity_type'] ?? null);
+        $entityType = $entityType !== null ? strtolower($entityType) : null;
         $entityId = $filters['entity_id'] ?? null;
 
         if ($entityType && $entityId) {
@@ -84,6 +96,10 @@ class PaymentController extends Controller
         // Status filter — TCK-593 : une liste séparée par des virgules (`pending,late,failed`), pour
         // que le locataire obtienne « ce que je dois » sans filtrer côté client.
         if (! empty($filters['status'])) {
+            // P216.02 (TCK-2122) — un statut en liste se lit comme un statut inconnu, et n'est plus casté.
+            if (is_array($filters['status'])) {
+                abort_code(422, 'payment.filter_status_invalid');
+            }
             $statuses = array_map(
                 fn (string $value) => PaymentStatus::tryFrom(trim($value)),
                 explode(',', (string) $filters['status']),
@@ -120,7 +136,9 @@ class PaymentController extends Controller
         // Pagination
         $perPage = min(max((int) $request->input('per_page', 20), 1), 100);
         $page = max((int) $request->input('page', 1), 1);
-        $sort = (string) $request->input('sort', '-date');
+        // P216.02 (TCK-2122) — un tri en liste vaut le tri par défaut, et n'est plus casté.
+        $sort = $request->input('sort', '-date');
+        $sort = $sort === null ? '' : ParametreUnique::valeur($sort) ?? '-date';
 
         // Hard cap to keep the merge-in-PHP strategy bounded. Beyond this the
         // caller must narrow the filter (entity, date range, status). The

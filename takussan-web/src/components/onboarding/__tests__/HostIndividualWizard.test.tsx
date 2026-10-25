@@ -75,7 +75,8 @@ let brouillon: { step: number; data: Record<string, unknown> } | null = null;
 // TCK-566 — espions stables : le brouillon fantôme hérité doit être SUPPRIMÉ
 // (et non réécrit) à la réouverture.
 const sauverBrouillon = vi.fn();
-const effacerBrouillon = vi.fn().mockResolvedValue(undefined);
+// P237.04 — `clear()` rend son sort (`true` : effacé).
+const effacerBrouillon = vi.fn().mockResolvedValue(true);
 vi.mock('@/hooks/useWizardDraft', () => ({
   useWizardDraft: () => ({
     draft: brouillon,
@@ -146,6 +147,21 @@ describe('<HostIndividualWizard> — trois étapes', () => {
     const envoye = hostIndividualOnboardAction.mock.calls[0][0];
     expect(envoye).not.toHaveProperty('payment_setting');
     expect(envoye.cgu_accepted).toBe(true);
+  });
+
+  it('TCK-2372 (P249.03) — l’étape identité ne demande plus le type de bien principal, et rien ne l’envoie', async () => {
+    // Rien ne lit ce choix depuis TCK-966 (P47.07) : l'API l'acceptait puis le jetait.
+    render(withIntl(<HostIndividualWizard />));
+
+    fireEvent.click(screen.getByRole('button', { name: /Suivant/i })); // intent → identité
+    expect(screen.queryByText('Type de bien principal')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /Suivant/i })); // identité → récap
+    fireEvent.click(screen.getByRole('checkbox'));
+    fireEvent.click(screen.getByRole('button', { name: /Terminer|Publier|Créer/i }));
+
+    await waitFor(() => expect(hostIndividualOnboardAction).toHaveBeenCalledTimes(1));
+    expect(hostIndividualOnboardAction.mock.calls[0][0]).not.toHaveProperty('preferences');
   });
 
   it('TCK-625 — « Particulier » mène au premier bien, et le message ne promet aucun brouillon', async () => {

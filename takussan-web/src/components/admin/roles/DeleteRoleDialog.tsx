@@ -109,7 +109,7 @@ export function DeleteRoleDialog({
                 key={`${profile.type}-${profile.id}`}
                 className="rounded-md bg-muted/60 px-3 py-1.5 text-foreground"
               >
-                {profile.display_name ?? t('remove.conflict_unnamed', { id: profile.id })}
+                {profile.display_name || t('remove.conflict_unnamed', { id: profile.id })}
               </li>
             ))}
           </ul>

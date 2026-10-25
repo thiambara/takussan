@@ -41,7 +41,7 @@ class ExpireEndedLeasesJobTest extends TestCase
     public function test_un_bail_echu_passe_expired_puis_sa_caution_se_restitue(): void
     {
         $admin = $this->actingAsRole('agency_admin');
-        $lease = Lease::factory()->active()->create([
+        $lease = Lease::factory()->active()->withCollectedDeposit()->create([
             'landlord_id' => $admin->id,
             'agency_id' => $admin->agency_id,
             'start_date' => '2025-11-02',

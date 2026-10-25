@@ -2,13 +2,14 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 
 import { ReasonDialog } from '@/components/pipeline/ReasonDialog';
 import { PIPELINE_STAGES, TERMINAL_STAGES } from '@/components/pipeline/constants';
 import { useAuth } from '@/context/AuthContext';
 import { ApiError } from '@/lib/api';
+import { AGENT_CRM_QUERY_KEY } from '@/lib/queries/agent-crm';
 import { patchCustomerPipelineStage } from '@/lib/queries/pipeline';
 import type { CustomerPipelineStage } from '@/types/customer';
 
@@ -28,16 +29,25 @@ export function CustomerStageControl({ customerId, name, stage }: CustomerStageC
   const tCrm = useTranslations('agentCrm.pipeline');
   const router = useRouter();
   const { token } = useAuth();
+  const queryClient = useQueryClient();
   const [pending, setPending] = useState<{ customerId: number; from: CustomerPipelineStage; to: CustomerPipelineStage } | null>(null);
 
   const mutation = useMutation<unknown, ApiError, { to: CustomerPipelineStage; reason?: string }>({
     mutationFn: ({ to, reason }) => patchCustomerPipelineStage(token ?? '', customerId, to, reason),
-    onSuccess: () => router.refresh(),
+    onSuccess: () => {
+      router.refresh();
+      // TCK-2093 — le changement d'étape est journalisé : l'onglet « Activité » le montre.
+      void queryClient.invalidateQueries({ queryKey: AGENT_CRM_QUERY_KEY.activity(customerId) });
+    },
   });
+
+  const erreur = mutation.error ? (mutation.error.proseServeur ?? tCrm('stageFailed')) : null;
 
   const change = (to: CustomerPipelineStage) => {
     if (to === stage) return;
     if (TERMINAL_STAGES.includes(to)) {
+      // P244.01 (TCK-2361) — un dialogue neuf ne reprend pas le refus d'un envoi précédent.
+      mutation.reset();
       setPending({ customerId, from: stage, to });
       return;
     }
@@ -57,17 +67,21 @@ export function CustomerStageControl({ customerId, name, stage }: CustomerStageC
           <option key={s} value={s}>{t(`stage.${s}`)}</option>
         ))}
       </select>
-      {mutation.error ? (
-        <p role="alert" className="text-sm text-destructive">{mutation.error.proseServeur ?? tCrm('stageFailed')}</p>
+      {/* P244.01 (TCK-2361) — dialogue ouvert, le refus se dit dans le dialogue, à côté du motif. */}
+      {mutation.error && pending === null ? (
+        <p role="alert" className="text-sm text-destructive">{erreur}</p>
       ) : null}
       <ReasonDialog
         pending={pending}
         onCancel={() => setPending(null)}
         onSubmit={(reason) => {
           if (!pending) return;
-          mutation.mutate({ to: pending.to, reason });
-          setPending(null);
+          // P244.01 (TCK-2361) — fermé sur le succès seulement (patron de TCK-2212) : un refus garde
+          // le motif saisi, au lieu de démonter le champ avant la réponse.
+          mutation.mutate({ to: pending.to, reason }, { onSuccess: () => setPending(null) });
         }}
+        erreur={erreur}
+        enCours={mutation.isPending}
       />
     </div>
   );

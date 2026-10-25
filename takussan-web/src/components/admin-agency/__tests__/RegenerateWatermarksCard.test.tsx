@@ -127,8 +127,8 @@ describe('<RegenerateWatermarksCard>', () => {
   });
 
   it("affiche le refus du serveur plutôt que de masquer le bouton", async () => {
-    // La garde serveur est `primary_admin_id === user->id` ou super-admin — plus étroite que
-    // l'`isAdmin` qui ouvre la page. Un agency_admin secondaire DOIT voir le refus.
+    // La garde serveur est `AgencyPolicy::configure` (TCK-2311) — plus étroite que l'`isAdmin`
+    // qui ouvre la page. Un admin dont le rôle retire `agency.update` DOIT voir le refus.
     actionMock.mockResolvedValue({ ok: false, status: 403, message: 'Action non autorisée.' });
     const user = userEvent.setup();
     await monte();

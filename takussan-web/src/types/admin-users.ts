@@ -17,7 +17,8 @@ export type AdminAgencyUserRow = {
   id: number;
   first_name: string;
   last_name: string;
-  email: string;
+  /** P220.04 — nul pour un compte créé par téléphone. */
+  email: string | null;
   phone: string | null;
   status: UserStatus;
   last_login_at: string | null;

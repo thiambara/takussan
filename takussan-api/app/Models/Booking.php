@@ -7,11 +7,11 @@ use App\Models\Bases\Auditable;
 use App\Models\Enums\BookingStatus;
 use App\Models\Enums\CancellationBy;
 use App\Models\Enums\Currency;
+use App\Models\Enums\PaymentStatus;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\QueryBuilder\AllowedFilter;
 
@@ -42,6 +42,23 @@ class Booking extends AbstractModel
         'expired_at' => 'datetime',
         'metadata' => 'array',
     ];
+
+    /**
+     * TCK-1914 (P170.01, décision du porteur) — les statuts où le client paie sa réservation, à la
+     * création de la ligne comme à l'initiation en ligne (`PaymentGatewayService::isPayable`). Une
+     * réservation annulée appelle un remboursement, pas un paiement (`docs/features.md` § 1.3).
+     *
+     * @var list<BookingStatus>
+     */
+    public const CUSTOMER_PAYABLE_STATUSES = [BookingStatus::Pending, BookingStatus::Confirmed];
+
+    /**
+     * TCK-1916 (P170.02, décision du porteur) — les statuts où le personnel enregistre un paiement :
+     * ceux du client, plus `completed` (un solde réglé après le séjour).
+     *
+     * @var list<BookingStatus>
+     */
+    public const STAFF_PAYABLE_STATUSES = [BookingStatus::Pending, BookingStatus::Confirmed, BookingStatus::Completed];
 
     protected static array $requestFilterable = ['property_id', 'customer_id', 'created_by_id', 'agency_id', 'status', 'currency'];
 
@@ -112,8 +129,35 @@ class Booking extends AbstractModel
         return $this->hasMany(BookingPayment::class);
     }
 
-    public function lease(): HasOne
+    /**
+     * TCK-2152 (P200.01, décision du porteur du 2026-10-24) — à la fermeture (annulation, refus,
+     * expiration), les lignes `pending` de la réservation passent `cancelled`. Un checkout ouvert
+     * avant la fermeture et confirmé après prend alors le chemin du doublon du webhook
+     * (`gateway_duplicate_payment`, avis `payment.duplicate` aux admins d'agence) au lieu d'être
+     * écrit `paid` sans tâche de remboursement, et n'entre jamais au reversement du bailleur.
+     *
+     * À appeler sous le verrou de la réservation, dans la transaction qui la ferme. Ligne à ligne,
+     * pour que la matrice de transitions et le journal d'audit s'appliquent.
+     */
+    public function cancelPendingPayments(): void
     {
-        return $this->hasOne(Lease::class);
+        $this->payments()
+            ->where('status', PaymentStatus::Pending->value)
+            ->orderBy('id')
+            ->lockForUpdate()
+            ->get()
+            ->each(static fn (BookingPayment $payment) => $payment->update(['status' => PaymentStatus::Cancelled]));
+    }
+
+    /** TCK-1916 (P170.02) — le personnel peut-il encore y enregistrer un paiement ? */
+    public function acceptsStaffPayment(): bool
+    {
+        return in_array($this->status, self::STAFF_PAYABLE_STATUSES, true);
+    }
+
+    /** TCK-1914 (P170.01) — le client peut-il encore payer cette réservation ? */
+    public function isPayableByCustomer(): bool
+    {
+        return in_array($this->status, self::CUSTOMER_PAYABLE_STATUSES, true);
     }
 }

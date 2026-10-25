@@ -3,6 +3,8 @@
 return [
 
     'salutation' => 'Ekip Takussan',
+    // P235.03 (TCK-2369) — une personne sans nom dans un avis (`NotificationCode::PARAM_PERSON`).
+    'unnamed_person' => '(sans nom)',
 
     // TCK-249 — Invitation lifecycle emails (Wolof).
     'invitation' => [
@@ -111,6 +113,8 @@ return [
         'consequences' => 'Sa donné personnel ya, dañ leen di anonimiser sax-sax. Donné yu jaadu ag téé yi (paye, bail, fakture) dañ leen di kàllaaxoo waaye sànni leen sa tur.',
         'action' => 'Aju ndogal li',
         'ignore' => 'Bu yaa ko sàppal-li, aju ko leegi te soppi sa baatu jubaale.',
+        // P193.04 (TCK-2051) — un compte sans e-mail : SMS au numéro vérifié.
+        'sms' => 'Takussan : votre demande de suppression de compte est enregistrée. Elle sera exécutée le :date. Pour l\'annuler, connectez-vous avant cette date.',
     ],
 
     // TCK-272 — kod bu step-up ngir kont yu amul baatu jubaale bu baax.
@@ -137,6 +141,8 @@ return [
         'intro' => 'Sa kont di nañu ko suufeel ci :days fan, ci :date. Soo soppee xel, manga ko aju ba leegi.',
         'action' => 'Aju ndogal li',
         'ignore' => 'Soo dëggee suufeel bi, ñakkul wax dara.',
+        // P193.04 (TCK-2051) — un compte sans e-mail : SMS au numéro vérifié.
+        'sms' => 'Takussan : votre compte sera supprimé dans :days jours, le :date. Pour annuler, connectez-vous avant cette date.',
     ],
 
     'account_deletion_executed' => [
@@ -145,6 +151,8 @@ return [
         'intro' => 'Sa kont Takussan suufeel nañ ko, te sa donné personnel anonimiser nañ leen sax-sax.',
         'retention' => 'Naka noonu mu nekke ci yoonu réew, doxal yi nu mëniw (paye, fakture) lañ kàllaaxoo waaye anonim ci 10 at.',
         'contact' => 'Yoonu sa laaj, jokkok ekipu jëfundikuwaay ya.',
+        // P193.04 (TCK-2051) — un compte sans e-mail : SMS au numéro vérifié.
+        'sms' => 'Takussan : votre compte a été supprimé et vos données personnelles ont été anonymisées.',
     ],
 
     'lease_deposit_refunded' => [
@@ -274,6 +282,11 @@ return [
                 'body' => 'Taxawal gu ajans :agency dindi nañu ko. Lu ko waral : :reason. Ay yéenekaayam feeñ nañu ci kaw.',
                 'sms' => 'Takussan : taxawal gu :agency dindi nañu ko.',
             ],
+            'member_deletion_requested' => [
+                'title' => 'Effacement de compte demandé : :member',
+                'body' => ':member a demandé l\'effacement de son compte, effectif le :scheduled_for. Son portefeuille dans l\'agence : :tasks tâche(s), :visits visite(s), :maintenance intervention(s), :responsible_properties bien(s) dont il est l\'agent principal, :held_properties bien(s) saisi(s), :collaborations collaboration(s), :customers client(s) suivi(s), :contact_leads demande(s) de contact non traitée(s). Passez-le à un collègue avant cette date depuis l\'équipe : :url',
+                'sms' => 'Takussan : :member efface son compte le :scheduled_for. Passez son portefeuille depuis l\'équipe.',
+            ],
         ],
         'platform_operator' => [
             'revoked' => [
@@ -327,6 +340,16 @@ return [
                 'sms' => 'Takussan : fey bu :amount agsi na (:property).',
                 'sms_link' => 'Takussan : fey bu :amount agsi na (:property). Kitaas : :receipt_url',
             ],
+            'refunded' => [
+                'title' => 'Remboursement : :property',
+                'body' => 'Un remboursement de :amount a été fait sur votre paiement de loyer pour :property. Votre quittance ne couvre plus la somme remboursée.',
+                'sms' => 'Takussan : remboursement de :amount sur votre loyer (:property).',
+            ],
+            'refunded_landlord' => [
+                'title' => 'Loyer remboursé : :property',
+                'body' => ':amount du loyer payé par :tenant pour :property ont été remboursés par le moyen de paiement en ligne.',
+                'sms' => 'Takussan : :amount du loyer de :tenant (:property) remboursés.',
+            ],
         ],
         // TCK-593 — un double encaissement à rembourser, signalé aux admins de l'agence.
         'payment' => [
@@ -339,6 +362,15 @@ return [
                 'title' => 'Pénalité bi ñu ko jot ñaari yoon',
                 'body' => 'Pénalité bu :amount ngir :reference, bu ñu fey ba noppi ci agence bi, ñu jot na ko itam ci internet. Delloo ko ki fey walla jox ko beneen.',
                 'sms' => 'Takussan : pénalité bu :amount agsi na ñaari yoon ngir :reference. Delloo ko walla jox ko beneen.',
+            ],
+        ],
+        // TCK-2320 (P39.07) — aux admins de l'agence : une ligne d'un reversement de la plateforme déjà
+        // versé a été remboursée depuis. Aucun montant n'est écrit.
+        'platform_payout' => [
+            'refunded_since_paid' => [
+                'title' => 'Paiement remboursé après reversement',
+                'body' => 'Le paiement :reference, compris dans le reversement de la plateforme de :period déjà versé à votre agence, a été remboursé depuis par le moyen de paiement en ligne. Aucune retenue n\'est appliquée automatiquement.',
+                'sms' => 'Takussan : le paiement :reference du reversement de :period a été remboursé depuis.',
             ],
         ],
         'booking' => [
@@ -660,6 +692,12 @@ return [
                 'body' => 'Sa laaj liggéey léegi mungi : liggéey bi dafa ndeyi. Prestataire bi dina ñëw ci :scheduled_at.',
                 'sms' => 'Takussan : Sa laaj « :request » : liggéey bi dafa ndeyi',
             ],
+            // TCK-2012 (P184.01) — le passage fixé ou déplacé, à toutes les parties sauf l'auteur.
+            'schedule_changed' => [
+                'title' => 'Passage prévu : « :request »',
+                'body' => 'Le passage pour l\'intervention « :request » est prévu le :scheduled_at.',
+                'sms' => 'Takussan : passage prévu le :scheduled_at pour « :request ».',
+            ],
         ],
         'maintenance_quote' => [
             'requested' => [
@@ -718,6 +756,11 @@ return [
                 'title' => 'Yégle bi nangu nañu ko : :property',
                 'body' => 'Sa yégle « :property » nangu nañu ko, ñépp mën nañu koo gis léegi.',
                 'sms' => 'Takussan : yégle « :property » nangu nañu ko.',
+            ],
+            'assigned_to_owner' => [
+                'title' => 'Un bien saisi à votre nom : :property',
+                'body' => 'Votre agence a enregistré le bien « :property » à votre nom. Vous le retrouvez dans vos biens, avec ses baux et votre relevé de gérance.',
+                'sms' => 'Takussan : le bien « :property » est enregistré à votre nom.',
             ],
             'submitted_for_review' => [
                 'title' => 'Bien à modérer : :property',
@@ -790,6 +833,13 @@ return [
                 'title' => 'Woyofal seuil bu reversement yi, war nañu ko dëggal',
                 'body' => 'Benn ci mbootaayu :agency laaj na ñu woyofal seuil d\'approbation bu reversement yi. Dara du soppiku fii ak benn approbateur bu ñaareel dëggal ko ci réglages bu agence bi.',
                 'sms' => 'Takussan : woyofal seuil bu reversement yu :agency, war nañu ko dëggal.',
+            ],
+        ],
+        'service_provider_bill' => [
+            'kept_on_reopen' => [
+                'title' => 'Facture d\'intervention maintenue : :reference',
+                'body' => 'L\'intervention « :request » a été contestée ou annulée, mais sa facture :reference de :amount est déjà payée, refacturée au bailleur ou en cours de paiement : elle n\'est pas annulée. Vérifiez-la et régularisez-la à la main.',
+                'sms' => 'Takussan : facture :reference maintenue, intervention contestée ou annulée. À régulariser.',
             ],
         ],
         'owner_statement' => [
@@ -866,6 +916,7 @@ return [
         'subject_escalation' => 'GAAW LOOL : :title',
         'greeting' => 'Salaam aleekum,',
         'intro' => 'Ñu yónne na laaj defar bu GAAW ngir kër gi.',
+        'intro_became_urgent' => 'Une demande de maintenance est passée en URGENTE pour le bien.',
         'job' => 'Liggéey : :title',
         'intro_escalation' => 'Laaj defar #:id (:title) dafa GAAW te kenn jàppagul ko ci lu ëpp 30 simili.',
         'cta' => 'Jàppal laaj bii léegi.',

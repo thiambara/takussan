@@ -110,8 +110,11 @@ export function useLeasePropertyOptions() {
         'status',
         'visibility',
         'created_at',
+        // TCK-997 — la clé de `include=owner` : le récapitulatif nomme le titulaire du bien.
+        'user_id',
       ],
     },
+    include: ['owner'],
     filter: { status: STATUTS_BIEN_POUR_UN_BAIL },
     sort: ['title'],
   };
@@ -304,6 +307,7 @@ export type CreateLeasePayload = {
   property_id: number;
   tenant_id: number;
   agency_id?: number;
+  booking_id?: number;
   type: 'residential_rent' | 'commercial_rent' | 'seasonal_rent' | 'sale';
   start_date: string;
   end_date?: string;
@@ -343,6 +347,7 @@ export function useActivateLease(id: number) {
       },
     },
     {
+      relireSurErreur: true,
       invalidate: [
         ['leases', 'list'],
         ['leases', 'detail', id],

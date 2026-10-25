@@ -56,6 +56,11 @@ export type ServiceProviderProfileSummary = {
    * présent). Calculé par l'API (`withExists`), jamais recopié en `metadata`.
    */
   readonly insured?: boolean;
+  /**
+   * P237.01 (TCK-2371) — l'invitation `sent` du brouillon par l'agence du carnet (`null` sans elle).
+   * La relance et la révocation partent par elle.
+   */
+  readonly pending_invitation_id?: number | null;
   readonly user?: {
     readonly id: number;
     readonly first_name: string;
@@ -92,6 +97,8 @@ export type InviteServiceProviderResponse = ApiResponse<ServiceProviderInvitatio
     readonly existing_sp_other_agency: boolean;
     readonly existing_sp_same_agency: boolean;
     readonly service_provider_profile_id: number;
+    /** P234.05 (TCK-2280) — les métiers du profil, ceux sous lesquels le prestataire apparaîtra. */
+    readonly retained_trades?: readonly string[];
   };
 };
 

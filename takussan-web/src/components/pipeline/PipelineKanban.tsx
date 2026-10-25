@@ -20,6 +20,7 @@ import { useCustomerStageMutation } from '@/hooks/useCustomerStageMutation';
 import { PIPELINE_QUERY_KEY } from '@/hooks/pipelineKeys';
 import { PIPELINE_COLUMN_PAGE_SIZE, fetchPipelineColumn, fetchPipelineStats } from '@/lib/queries/pipeline';
 import { cn } from '@/lib/utils';
+import { nomAffichable } from '@/lib/identite';
 import type { CustomerPipelineStage } from '@/types/customer';
 import type { PipelineCustomerCard } from '@/types/pipeline';
 
@@ -145,7 +146,7 @@ export function PipelineKanban() {
 
   const nameOf = (id: unknown) => {
     const card = Object.values(allCards).flat().find((c) => c.id === Number(id));
-    return card ? `${card.first_name} ${card.last_name}` : '';
+    return card ? nomAffichable(card) : '';
   };
   const stageName = (id: unknown) =>
     PIPELINE_STAGES.includes(id as CustomerPipelineStage) ? t(`stage.${id as CustomerPipelineStage}`) : '';
@@ -167,6 +168,8 @@ export function PipelineKanban() {
     const from = card.pipeline_stage;
     if (from === to) return;
     if (TERMINAL_STAGES.includes(to)) {
+      // P244.01 (TCK-2361) — un dialogue neuf ne reprend pas le refus d'un envoi précédent.
+      stageMutation.reset();
       setPendingReason({ customerId: card.id, from, to, card });
       return;
     }
@@ -212,10 +215,12 @@ export function PipelineKanban() {
     from: CustomerPipelineStage,
     to: CustomerPipelineStage,
     reason?: string,
+    apresSucces?: () => void,
   ) => {
     stageMutation.mutate(
       { customerId, from, to, reason },
       {
+        onSuccess: () => apresSucces?.(),
         onError: (err) => {
           setErrorMessage(messageErreur(err, t('errors.moveFailed')));
           setTimeout(() => setErrorMessage(null), 4000);
@@ -330,9 +335,16 @@ export function PipelineKanban() {
         onSubmit={(reason) => {
           if (!pendingReason) return;
           const { customerId, from, to } = pendingReason;
-          runStageMutation(customerId, from, to, reason);
-          setPendingReason(null);
+          // P244.01 (TCK-2361) — fermé sur le succès seulement (patron de TCK-2212) : un refus garde
+          // le motif saisi et le dit dans le dialogue.
+          runStageMutation(customerId, from, to, reason, () => setPendingReason(null));
         }}
+        erreur={
+          pendingReason !== null && stageMutation.error
+            ? messageErreur(stageMutation.error, t('errors.moveFailed'))
+            : null
+        }
+        enCours={stageMutation.isPending}
       />
 
       {selectedCustomer !== null ? (

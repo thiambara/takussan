@@ -7,10 +7,13 @@ use App\Http\Middleware\EnsureAgencyWritable;
 use App\Models\Bases\AbstractModel;
 use App\Models\Contracts\HasAuditAgency;
 use App\Models\Enums\AgencyStatus;
+use App\Models\Enums\ConversationType;
 use App\Models\Enums\MaintenanceCategory;
 use App\Models\Enums\MaintenancePriority;
 use App\Models\Enums\MaintenanceStatus;
 use App\Services\Maintenance\ProviderEligibility;
+use App\Services\Membership\MembershipCapabilityResolver;
+use App\Services\Property\BailleurDuBien;
 use App\Sorts\MaintenancePrioritySort;
 use App\Support\Query\DepartageQueryBuilder;
 use Illuminate\Database\Eloquent\Builder;
@@ -21,14 +24,29 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Http\Request;
 use Laravel\Scout\Searchable;
+use Spatie\Image\Enums\Fit;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use Spatie\QueryBuilder\AllowedSort;
 use Spatie\QueryBuilder\QueryBuilder;
 
 class MaintenanceRequest extends AbstractModel implements HasAuditAgency, HasMedia
 {
     use HasFactory, InteractsWithMedia, Searchable, SoftDeletes;
+
+    /** TCK-2088 — grand côté de la vignette des photos (tuiles de la galerie, 3 à 5 colonnes). */
+    public const THUMBNAIL_WIDTH = 400;
+
+    /**
+     * TCK-1991 (P169.03) — `metadata.urgent_since` date le passage en urgent (création ou `PATCH`) :
+     * l'escalade compte ses 30 minutes depuis elle, `created_at` en repli pour les demandes plus
+     * anciennes que la marque. `metadata.escalated_at` marque l'escalade faite. Les deux tombent
+     * quand la priorité quitte `urgent`.
+     */
+    public const URGENT_SINCE = 'urgent_since';
+
+    public const ESCALATED_AT = 'escalated_at';
 
     /**
      * ⚠ TCK-474 — `resolution_report` A ÉTÉ RETIRÉ d'ici, et ne doit pas y revenir sans
@@ -154,10 +172,19 @@ class MaintenanceRequest extends AbstractModel implements HasAuditAgency, HasMed
         $eligibility = app(ProviderEligibility::class);
         $assignableAgencyIds = $eligibility->agencyIdsWhereAssignable($user);
         $staffAgencyId = $user->staffAgencyId();
+        $agencesQuittees = app(MembershipCapabilityResolver::class)->agencesDuPersonnelParti($user);
 
-        return $query->where(function (Builder $q) use ($user, $assignableAgencyIds, $staffAgencyId): void {
-            $q->where('requester_id', $user->id)
-                ->orWhereHas('property', fn (Builder $p) => $p->where('user_id', $user->id))
+        return $query->where(function (Builder $q) use ($user, $assignableAgencyIds, $staffAgencyId, $agencesQuittees): void {
+            // P233.03 (TCK-2290) — le demandeur, au sens de `MaintenanceRequestPolicy::isRequester` :
+            // pas sur un bien d'une agence dont il est du personnel parti (ADR-0031, amendement du
+            // 2026-10-25, D2). Le locataire et le client demandeurs n'y ont jamais été personnel.
+            $q->where(fn (Builder $requested) => $requested
+                ->where('requester_id', $user->id)
+                ->when($agencesQuittees !== [], fn (Builder $r) => $r
+                    ->whereDoesntHave('property', fn (Builder $p) => $p->whereIn('agency_id', $agencesQuittees))))
+                // TCK-2179 (P217.01) — le bailleur du bien, au sens de `view` (`BailleurDuBien::est`,
+                // TCK-1720) : l'agent qui l'a saisi est jugé par la branche du personnel ci-dessous.
+                ->orWhereHas('property', fn (Builder $p) => BailleurDuBien::restreindre($p, $user))
                 ->orWhere(fn (Builder $assigned) => $assigned
                     ->where('assigned_to', $user->id)
                     ->whereHas('property', fn (Builder $p) => $p->whereIn('agency_id', $assignableAgencyIds)));
@@ -177,6 +204,21 @@ class MaintenanceRequest extends AbstractModel implements HasAuditAgency, HasMed
         $this->addMediaCollection('quotes');
         // TCK-592 (P7) — l'état constaté par le prestataire AVANT d'intervenir.
         $this->addMediaCollection('before_photos');
+    }
+
+    /**
+     * TCK-2088 (P180.02, ADR-0029, amendement du 2026-10-23) — la vignette que la galerie affiche
+     * au lieu de l'original, en file `media`, sur le même disque privé. Servie par la route signée
+     * (`PrivateMediaAccess::SERVABLE_CONVERSIONS`). Les devis (`quotes`, souvent des PDF) n'en ont pas.
+     */
+    public function registerMediaConversions(?Media $media = null): void
+    {
+        $this->addMediaConversion('thumbnail')
+            ->fit(Fit::Max, self::THUMBNAIL_WIDTH, self::THUMBNAIL_WIDTH)
+            ->format('jpg')
+            ->quality(70)
+            ->performOnCollections('photos', 'before_photos', 'completion_photos')
+            ->queued();
     }
 
     /**
@@ -241,9 +283,18 @@ class MaintenanceRequest extends AbstractModel implements HasAuditAgency, HasMed
         return $this->belongsTo(User::class, 'quote_decision_by_id');
     }
 
+    /**
+     * TCK-2372 (P250.03, décision du porteur du 2026-10-25) — LE fil de l'intervention, et sa seule
+     * lecture : le plus ancien groupe qui porte la demande. Le `HasOne` nu ne filtrait ni le type ni
+     * l'ordre, et le fil se lisait ailleurs (`SyncMaintenanceConversation::conversationFor`, retiré).
+     * Seule l'assignation crée ce groupe : `POST /api/conversations` refuse `maintenance_request_id`.
+     */
     public function conversation(): HasOne
     {
-        return $this->hasOne(Conversation::class);
+        return $this->hasOne(Conversation::class)->ofMany(
+            ['id' => 'min'],
+            fn ($query) => $query->where('type', ConversationType::Group->value),
+        );
     }
 
     public function documents(): MorphMany

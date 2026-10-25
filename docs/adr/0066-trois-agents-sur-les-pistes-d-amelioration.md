@@ -786,6 +786,336 @@ La garde continue de refuser `gh pr close` en direct, et indique le verbe au sup
 se restaure depuis la PR. Le verbe ne touche ni le code de `pre-dev` ni le travail d'un autre rôle.
 Le porteur reste prévenu par une notification.
 
+## Amendement du 2026-10-24 — un rouge se lit sur les runs conclus, et ne reste pas sans maître
+
+**Constat**, le 2026-10-24, sur #1469. Elle est restée rouge de 14:34 à 16:30 sur un seul test,
+`DashboardQueryBudgetTest` (plafond du bailleur : 27 requêtes pour 26), sans que rien ne le vise :
+- **14:47 — rafraîchie pour rien.** L'étape 1 du tri (« base périmée ») a fusionné `pre-dev` dans
+  la branche, parce que le run rouge précédait une fusion dans `pre-dev`. Mais le rouge ne venait
+  pas de `pre-dev`, et la CI est repartie pour 30 min.
+- **15:14 — une réparation morte, comptée quand même.** La réparation 1/3 est morte sur « API
+  Error: Can't reach the API server (ENOTFOUND) » : claude sorti en 1, `is_error: true`,
+  `terminal_reason: "api_error"`, après 11 tours et 0,44 USD. Elle a pourtant été comptée dans
+  `etat/reparations-<rôle>-<n°>`. Le même message apparaît dans deux autres sorties de la chaîne,
+  le 2026-10-23 et le 2026-10-24.
+- **15:21 — une réparation sans rouge à réparer.** Pour la réparation 2/3, la PR était en conflit,
+  et le run rouge avait fini 14 s plus tôt. `gh pr checks` ne le rendait pas encore : le message
+  portait « Checks rouges : » vide. L'agent a résolu le conflit et écrit « aucun check rouge à
+  corriger ».
+- **14:55 — le superviseur ne voit rien.** Il ne lit que les checks de la tête courante. À 14:55,
+  la CI relancée par la fusion de 14:47 était « en cours », et son rapport disait « 3 PR
+  mergeables sans rouge ». Un rouge propre à une PR n'était de toute façon pas de son ressort
+  avant l'abandon, soit trois réparations.
+- **Le test n'a jamais été joué avant la CI.** L'implémenteur n'a lancé que ses classes. Pourtant,
+  la carte d'impact relie `app/Services/Dashboard/PortfolioMetrics.php` à `DashboardQueryBudgetTest`.
+  Mais `impacted-tests --base=origin/pre-dev` rend « SUITE ENTIÈRE — fichier absent de la carte »
+  dès qu'un fichier neuf est dans le diff, et un agent ne lance jamais la suite entière.
+
+**Décision du porteur** :
+
+1. **Une réparation porte le dernier run rouge conclu de sa branche.** Le message garde les checks
+   rouges de la tête courante, et y ajoute le dernier run **conclu** rouge de chaque workflow de la
+   branche, toutes têtes confondues, avec ses tests (`rouge_conclu`, `tests_rouges`). Il le dit en
+   toutes lettres : « Dernier run rouge conclu de ta branche… », puis le run, sa tête et ses tests.
+   - Quand la tête n'a aucun check rouge, le message dit pourquoi : CI en cours, ou PR en conflit.
+     `commun.md` impose de lancer ces tests après le conflit, et interdit d'écrire « aucun rouge »
+     sans les avoir lancés.
+   - Si `gh` ne répond pas, le message le dit, et retombe sur le registre du tri
+     (`etat/rouges/<n°>`).
+2. **Une réparation morte sur une panne d'API ou de réseau ne compte pas** (`panne_d_api`). La
+   détection est étroite. Il faut `is_error: true` dans `claude.json`, et l'un de ces deux cas :
+   - un résultat qui commence par « API Error » ou qui nomme une panne de réseau (`ENOTFOUND`,
+     `EAI_AGAIN`, `ECONNREFUSED`, `ECONNRESET`, `ETIMEDOUT`, « Could not resolve host », « Can't
+     reach the API server ») ;
+   - aucun tour de travail (`num_turns` à 0).
+
+   Le compteur est alors rendu, `REPARATIONS_MAX` fois au plus par PR
+   (`etat/reparations-rendues-<rôle>-<n°>`) : une détection trop large ne fera jamais tourner une PR
+   sans fin. Tout le reste compte : budget dépassé, durée atteinte, `claude.json` illisible ou
+   absent, échec de l'agent.
+3. **La base n'est rafraîchie qu'une fois par PR.** Ceci remplace « une fois par tête de branche »
+   (amendement du 2026-10-22, § 1.1). La présence de `etat/rafraichi-<n°>` suffit, quel que soit
+   le sha qu'il porte. La fois suivante, le rouge passe aux étapes 2 et 3. Une PR gelée se
+   rafraîchit toujours à chaque fusion, comme avant : la cause de son rouge est ailleurs.
+4. **Une PR rouge depuis plus de 2 h revient au superviseur.**
+   - **L'âge** se compte depuis le premier run rouge conclu de la branche, toutes têtes confondues
+     (`rouges_anciens`). Pour chaque workflow, la série de runs rouges qui se suivent sans vert
+     entre eux donne son début. Une CI relancée par une fusion ne remet pas l'âge à zéro ; un
+     verdict vert, si.
+   - **Une PR en réparation n'est pas comptée** (`en_reparation`) : sa tête porte, après celle du
+     dernier run rouge conclu, au moins un commit qui n'est pas une fusion (lu sur la première
+     ligne parentale), et la CI de cette tête n'a pas conclu. Un rafraîchissement seul ne la
+     protège pas.
+   - **Le message du superviseur** porte la liste « PR rouges depuis plus de 2 h » : chaque PR,
+     depuis quand, le dernier run rouge conclu et ses tests.
+   - **Le fusionneur**, toutes les 10 min, le fait partir hors de sa cadence quand une PR franchit
+     le seuil (`signaler_rouges_anciens`). L'appel passe par `appeler_superviseur`, une fois par
+     clé `rouge-ancien-<n°>-<début>`, donc une fois par PR et par série rouge.
+   - **Le superviseur répare la PR lui-même**, avec le même périmètre que ses réparations de
+     `pre-dev`, mais **sur la branche de la PR**. Il part de sa tête, commite par-dessus et écrit
+     son numéro dans `pr-reparee.txt`. `pistes.sh` (`reparation_du_superviseur`) vérifie alors cinq
+     bornes avant de pousser en avance rapide, jamais forcée, puis commente la PR :
+     - la PR figure dans la liste de ce passage ;
+     - elle est ouverte, vise `pre-dev` et sa tête est une branche d'agent ;
+     - la branche du superviseur descend de cette tête ;
+     - elle ne porte aucun commit de fusion ;
+     - son diff ne touche ni le fichier de pistes ni les outils des agents.
+
+     Les gardes, l'index et Pint se jouent depuis la tête de la PR.
+   - **S'il ne peut pas**, son rapport s'ouvre sur `ALERTE : #<n> rouge depuis <HH:MM> — …`, et il
+     prévient le porteur.
+5. **L'implémenteur lance aussi ce que la carte d'impact relie à ses fichiers connus.**
+   `bin/impacted-tests.php` prend une option, `--connus`. Chaque fichier modifié y est jugé seul.
+   Celui qui ferait escalader est écarté et nommé : fichier neuf absent de la carte, migration,
+   config, harnais, chemin non reconnu. La sélection des autres est rendue. Le comportement par
+   défaut de l'outil ne change pas.
+   - `implementeur.md` l'impose une fois par lot, avant de publier, et avant de rendre une
+     réparation. L'agent lance la commande affichée, sans `--run` (la garde le refuse toujours)
+     et sans `--parallel`.
+   - Ceci **complète** le § 1 de l'amendement quater du 2026-10-21 : aux tests des pistes s'ajoutent
+     ceux que la carte relie aux fichiers du lot. Ce sont des fichiers de test nommés, que la garde
+     accepte.
+
+**Éprouvé** sur les données du jour, en lecture seule :
+- **Le rouge conclu** de la branche de #1469 rend son API CI rouge : run 40106943842, tête
+  `f38288b5`, rouge depuis 14:34, test `DashboardQueryBudgetTest::test_ac6_…@bailleur`. Pourtant,
+  la CI de sa tête `450e334c` était en cours.
+- **Le message de réparation**, rendu dans ce même état (tête en cours, conflit), nomme ce test.
+  Le 2026-10-24 à 15:21, il portait une liste vide.
+- **La liste des rouges anciens** rend #1469 (depuis 14:34) et #1478 (depuis 15:21) avec un seuil
+  d'1 h, et rien avec celui de 2 h à 16:32. À 16:38, #1469 en sort : `450e334cb`, un commit qui
+  n'est pas une fusion, suit la tête rouge `f38288b5`, et sa CI tourne. Entre `62e0d10a5` et
+  `f38288b5`, deux rafraîchissements seuls, la première ligne parentale ne porte aucun commit
+  hors fusion : ils n'auraient pas protégé la PR.
+- **`panne_d_api`** reconnaît les trois sorties « ENOTFOUND » de la chaîne, et ce sont les seules
+  sorties en erreur. Sur huit cas fabriqués, elle compte le budget dépassé, l'échec de l'agent, un
+  `is_error` faux et un `claude.json` vide ou `null`. Elle rend `EAI_AGAIN`, « API Error: 529 » et
+  le passage sans un seul tour.
+- **`reparation_du_superviseur`**, sur un dépôt jetable : une réparation par-dessus la tête passe.
+  Sont refusés : le fichier de pistes, les outils des agents, un commit de fusion, une branche qui
+  ne descend pas de la tête, une PR hors liste et une PR fermée.
+- **`impacted-tests --connus`**, sur un diff qui ajoute un fichier neuf dans `app/` et modifie
+  `PortfolioMetrics.php` : trois fichiers écartés et nommés, 20 classes, dont
+  `DashboardQueryBudgetTest`. Sans l'option, le même diff rend « SUITE ENTIÈRE ».
+
+**État** sous `~/.takussan-agents/etat/`, en plus de celui du 2026-10-22 :
+
+| Fichier | Contenu |
+|---|---|
+| `rafraichi-<n°>` | présent : la PR a eu son rafraîchissement (une fois par PR) |
+| `reparations-rendues-<rôle>-<n°>` | les réparations rendues après une panne d'API ou de réseau |
+| `appel-superviseur-rouge-ancien-<n°>-<début>` | l'appel hors cadence d'une série rouge, une fois |
+
+**Ce qui ne change pas** :
+- le tri du 2026-10-22, dans son ordre : base périmée, relance unique, rouge confirmé et rouge
+  commun ;
+- `REPARATIONS_MAX` et l'abandon qui suit ;
+- les réparations de `pre-dev` et des rouges communs, qui passent avant celle d'une PR ;
+- la garde : `impacted-tests --run`, la suite entière et `--parallel` restent refusés ;
+- le superviseur ne fusionne rien, et ne touche ni au fichier de pistes ni, sur la branche d'une
+  autre PR, aux outils des agents.
+
+**Ce qui n'est pas gardé** :
+- `rouge_conclu` lit les 50 derniers runs de la branche. Une série rouge plus longue sous-estime
+  l'âge.
+- Un workflow que la dernière tête ne déclenche plus (filtre de chemins) garde son dernier verdict
+  rouge.
+- Une réparation morte sur une panne qui ne dit pas son nom (un claude tué sans `claude.json`)
+  compte toujours.
+- `--connus` sélectionne beaucoup de classes pour une classe très partagée (un modèle) : la
+  sélection est jouée telle quelle, sans plafond.
+
+## Amendement du 2026-10-24 (bis) — l'archive des pistes closes
+
+**Constat**, le 2026-10-24, sur `pre-dev` `0277a8163` :
+- Le fichier de pistes pèse **4,9 Mo** (4 869 451 octets) pour **20 900 lignes** et **1 254
+  entrées**.
+- **101 entrées seulement sont vivantes** (`retenu · autonome` 9, `retenu · à valider` 76,
+  `validé` 16, aucune `à mesurer`) : 0,30 Mo de contenu.
+- **1 153 sont closes** : `fait` 1 129, dont 303 `fait · TCK-N — reste : …`, `caduc` 18, `refusé`
+  6. Elles pèsent 4,17 Mo, et plus aucun agent ne les écrit.
+- **2 202 commits ont touché le fichier en 7 jours** (`git log --since='7 days ago'`). Chaque
+  essai de fusion, chaque conflit et chaque réparation porte sur le fichier entier, et GitHub n'en
+  rend plus le diff.
+
+**Décision du porteur** :
+
+1. **Les entrées closes partent, telles quelles, dans une archive.**
+   - Le statut `fait…` (avec ou sans reste), `caduc…` ou `refusé…` ferme une entrée.
+   - Elle part dans `docs/plans/pistes-archive/angles-001-099.md`, `angles-100-199.md`,
+     `angles-200-299.md`… : un fichier par centaine du numéro d'angle de sa Réf.
+   - Chaque fichier d'archive porte un court en-tête (ce qu'il est, qui l'écrit, le renvoi à cet
+     amendement). Pour chaque angle, il porte ensuite le titre `## Angle N — <titre>` repris du
+     fichier vivant, sous lequel les entrées sont rangées par Réf, donc dans l'ordre du fichier.
+   - Le fichier vivant garde son en-tête, le tableau des angles, chaque section d'angle (son titre,
+     ses lignes d'introduction et son texte de fin, même vide d'entrées) et ses seules entrées non
+     archivées. La garde exige une section pour tout angle `fait` du tableau, et l'explorateur
+     écrit après la dernière section : les sections ne partent jamais.
+   - **Le contenu d'une entrée** va de son titre `###` à sa dernière ligne de champ (`- …`), de suite
+     indentée ou de ligne vide. Une ligne de texte en colonne 0 ouvre le texte de fin de la
+     section, qui reste en place. Le 2026-10-24, deux sections en ont un : « Ce qui tient » à
+     l'angle 4, « Angles voisins » à l'angle 10.
+2. **Le déplacement est déterministe, sans modèle.**
+   - `scripts/agents/archiver-pistes.mjs` déplace les entrées. Le déplacement lui-même est
+     `deplacer()`, exporté par `scripts/check-pistes.mjs` avec son analyseur : la garde le rejoue.
+   - **Une entrée ne part que close depuis 24 h sur `pre-dev`.** On prend le dernier commit de la
+     première lignée parentale de HEAD antérieur à la fenêtre
+     (`git rev-list -1 --first-parent --before=<maintenant − 24 h> HEAD`). L'entrée doit y être
+     déjà close, **et son contenu déjà celui d'aujourd'hui**.
+     - Une entrée touchée dans la fenêtre attend donc un jour de plus : un reste corrigé, une
+       mesure du porteur. Ce qu'on écrit encore ne quitte pas le fichier qu'on édite.
+     - La méthode coûte deux lectures de git, quel que soit le nombre d'entrées, au lieu d'un
+       `git log -S` par entrée.
+     - Mesuré le 2026-10-24, la condition sur le contenu n'a retenu aucune entrée de plus. Sur
+       les 215 restées, 124 n'existaient pas 24 h plus tôt et 91 étaient alors ouvertes.
+   - **Il est idempotent** : relancé sur l'arbre qu'il vient d'écrire, il ne trouve rien.
+   - **`pistes.sh archiver`** le lance sous un verrou et vérifie le résultat avec
+     `check-pistes --role archiveur --base origin/pre-dev`, dans sa version de `pre-dev`. Il pousse
+     ensuite une branche `agents/archiveur/<horodatage>` et ouvre une PR vers `pre-dev`, étiquetée
+     `agent:archiveur`. Le fusionneur la prend comme les autres : tête `agents/*`, étiquette
+     `agent:*`, CI verte, essai de fusion vert.
+   - **Le superviseur le lance une fois par jour**, au premier passage de la journée, avant son
+     modèle (`archiver_du_jour`, marqueur `etat/archive-AAAA-MM-JJ`). Le marqueur ne se pose que
+     sur un archivage fait : PR ouverte, rien à archiver, ou PR d'archivage encore ouverte. Un
+     échec, une pause (`PAUSE` ou `PAUSE-archiveur`) ou un verrou tenu se retentent au passage
+     suivant.
+   - **Une seule PR d'archivage à la fois.** Une PR d'archivage en conflit ou rouge est fermée par
+     le script, branche supprimée, puis regénérée depuis la base du jour : un déplacement
+     déterministe n'a rien à réparer à la main.
+   - Aucun agent modèle n'écrit l'archive.
+3. **La garde** (`scripts/check-pistes.mjs`) lit le fichier vivant ET `docs/plans/pistes-archive/*.md`.
+   - **En mode garde**, elle vérifie :
+     - la Réf unique dans l'ensemble ;
+     - toute Réf `PNN.MM` citée par une entrée vivante existe dans l'ensemble ;
+     - l'archive ne garde que des entrées closes : une entrée vivante y est une erreur ;
+     - chaque entrée archivée est dans le fichier de sa centaine ;
+     - chaque section d'archive a sa section dans le fichier vivant ;
+     - la forme de chaque entrée, archivée comprise.
+   - **Une entrée close plus vieille que la fenêtre peut rester** dans le fichier vivant : ce n'est
+     pas une erreur, l'archiveur passera.
+   - **En mode rôle**, aucun rôle modèle ne touche l'archive. Le message nomme le fichier et dit
+     comment rouvrir.
+   - **Le rôle `archiveur`** ne touche que le fichier vivant et l'archive. Ce qu'il propose doit
+     être **exactement** `deplacer()` rejoué depuis la base sur les seules entrées sorties du
+     fichier vivant, au caractère près, et ces entrées doivent être closes à la base.
+   - **Lisent l'ensemble** : `--report` (les comptes ne changent pas, une ligne dit la part de
+     chaque côté), `--liste` (nomme le fichier d'archive devant la ligne), `--restes`,
+     `--delegations`, et les désaveux du porteur qui retirent une catégorie au délégué.
+   - **Les messages d'erreur nomment le fichier** d'une entrée archivée. Ceux du fichier vivant
+     gardent leur forme `l. N`.
+   - **Le contrôle « précision mot pour mot au passage à `fait` » ne change pas** : il joue avant
+     l'archivage.
+   - `scripts/agents/pistes.sh` passe l'archive à la garde partout où il en extrait une copie
+     (`travail_disponible`, `releve`). Sans elle, une Réf citée qui y est rangée manquerait, la
+     garde sortirait en 1, et ce doute lancerait le modèle à chaque passage.
+   - La réparation d'une PR par le superviseur, et sa propre branche, refusent l'archive comme le
+     fichier de pistes.
+4. **Les consignes** (`.agent/agents/pistes/commun.md` et les cinq rôles) :
+   - **chercher dans les deux**, avec
+     `grep -rn … docs/plans/2026-10-15-pistes-d-amelioration.md docs/plans/pistes-archive/`. Cela
+     vaut pour un doublon, une Réf citée, un précédent ou une décision du porteur ;
+   - **écrire dans le seul fichier vivant** ;
+   - **rouvrir une piste close**, c'est écrire une entrée neuve qui cite l'ancienne Réf.
+
+   `scripts/check-app-key-base64.mjs` range l'archive avec le fichier de pistes parmi les
+   récits qu'il ne lit pas. Sans cela, il rougit sur deux lignes archivées de l'angle 42, qui
+   citent la commande fautive pour raconter le défaut. Les ADR qui citent le fichier comme source
+   historique restent tels quels.
+5. **Le premier archivage** est fait par la commande, pas à la main (voir « Éprouvé »).
+
+**Éprouvé**, le 2026-10-24, sur `pre-dev` `0277a8163`. Premier archivage à 19 h 26, avec pour
+référence des 24 h `aae5f2a23` :
+- **938 entrées archivées**, de 185 angles : 1 812 847 octets dans `angles-001-099.md`, 1 497 089
+  dans `angles-100-199.md`.
+- **Le fichier vivant passe de 4 869 451 à 1 576 111 octets**, et de 20 900 à 7 074 lignes. Il
+  garde 316 entrées : les 101 vivantes et 215 closes depuis moins de 24 h.
+- **La comparaison indépendante** (opérations de chaînes, sans l'analyseur de la garde) :
+  - 316 + 938 = 1 254 Réf, le même ensemble qu'avant ;
+  - chaque bloc archivé apparaît une fois, octet pour octet, dans le fichier d'origine ;
+  - le fichier d'origine moins ces blocs et leurs lignes vides est le fichier vivant, au
+    caractère près.
+- **Une seconde exécution ne déplace rien.**
+- **Les sorties de la garde sont identiques avant et après** :
+  - `--report` rend les mêmes comptes ;
+  - `--restes` rend les mêmes 305 lignes ; `--liste` donne le même ensemble pour chaque statut.
+    Seul l'ordre change : le fichier vivant d'abord, puis l'archive ;
+  - `--angles-a-faire`, `--a-deleguer` et `--delegations` sont identiques à la ligne près.
+- **Ablation** sur un clone jetable : 19 cas, tous au verdict attendu.
+  - Rougissent :
+    - en mode garde : un statut vivant dans l'archive, une Réf en double entre le fichier vivant
+      et l'archive, la citation d'une Réf inexistante, un angle dans le mauvais fichier
+      d'archive, une section d'archive sans section vivante ;
+    - pour l'archiveur : un octet changé dans l'archive, une entrée archivée perdue, une entrée
+      ouverte archivée, un autre fichier touché, un titre retouché dans le fichier vivant ;
+    - l'archive touchée par chacun des quatre rôles modèles.
+  - Restent verts : l'arbre archivé, la citation d'une Réf archivée, le déplacement réel,
+    l'implémenteur qui ne touche que du code.
+  - Un désaveu V7 écrit sur une entrée archivée retire bien V7 au délégué.
+- **`pistes.sh archiver`**, rejoué contre un dépôt local avec `gh` simulé. Il ouvre la PR
+  `[archiveur] 938 entrée(s) archivée(s)…`, sa garde de rôle est verte, et il journalise. Avec une
+  PR d'archivage ouverte et fusionnable, il ne fait rien. Avec une PR en conflit, il la ferme et
+  la regénère. Après la fusion, il rend « 0 entrée archivée ». Sous `PAUSE`, il ne fait rien, et
+  `--a-blanc` ne pousse rien.
+
+**Ce qui ne change pas** :
+- le vocabulaire des statuts, et le format d'une entrée ;
+- la précision du porteur, recopiée mot pour mot dans le ticket au passage à `fait`, et le reste
+  qu'elle garde ;
+- les rôles, leurs transitions et leurs plafonds ;
+- les cadences : l'archiveur n'a pas de job launchd, il passe avec le superviseur.
+
+**Ce qui n'est pas gardé** :
+- **La garde ne vérifie pas la fenêtre des 24 h**, seulement que les entrées archivées étaient
+  closes à la base. La fenêtre est tenue par l'archiveur.
+- **Une PR d'agent ouverte avant un archivage, et qui touche une entrée archivée depuis**, entre
+  en conflit « modifié / supprimé ». Aucun rôle ne modifie une entrée close, et l'archiveur
+  n'archive qu'une entrée intouchée depuis 24 h : le cas demande une écriture du porteur sur une
+  entrée close. Sa réparation ne peut écrire l'archive, et revient au porteur.
+- **Une PR qui écrit une ligne `Mesure` à la fin d'une entrée vivante juste avant une entrée
+  archivée** peut entrer en conflit textuel avec l'archivage, selon la façon dont `diff` aligne
+  la ligne vide. La PR se répare alors comme tout conflit.
+- **Les fichiers d'archive restent gros**, 1,5 à 1,8 Mo chacun. Ils ne changent qu'une fois par
+  jour, et seulement par l'archiveur.
+- **Sans dossier d'archive, la garde ne juge pas les Réf citées.** C'est le cas de la copie que
+  l'ancien `pistes.sh` extrait pour lire une liste (`travail_disponible`), qui ne prend que le
+  fichier vivant. Mesuré sur cette copie, la vérification rendait 136 erreurs : `--liste` sortait
+  en 1, et ce doute aurait lancé le modèle à chaque passage de chaque rôle jusqu'à la
+  réinstallation. Partout où l'archive existe (CI, arbre d'un agent, essai de fusion), la
+  vérification joue.
+
+**Mise en service** : le porteur fusionne vers `pre-dev`, puis réinstalle (`pistes.sh installer`).
+La réinstallation crée l'étiquette `agent:archiveur`, sans laquelle `gh pr create` échoue, et pose
+le `pistes.sh` qui passe l'archive à la garde et lance l'archivage. Avant elle, rien n'archive.
+
+## Amendement du 2026-10-24 (ter) — une PR ne se répare qu'une fois à la fois
+
+**Constat**, le 2026-10-24, sur #1491 :
+- 19:29 — l'implémenteur part réparer #1491 ;
+- 19:35 — le fusionneur appelle le superviseur, la PR étant rouge depuis plus de 2 h ;
+- 19:38 — le superviseur pousse sa réparation, et la CI passe au vert ;
+- l'implémenteur, lui, tourne encore à 20:49 avec un commit non poussé qui portait le même
+  correctif. Son passage a été arrêté à la main, la PR étant fusionnée.
+
+`en_reparation` (amendement précédent) ne protège qu'une réparation **poussée**. Une réparation en
+cours ne se voyait pas.
+
+**Décision** : chaque passage écrit dans son verrou, `verrous/<nom>/reparation`, les PR qu'il peut
+réparer :
+- l'implémenteur, la PR de son mode réparation ;
+- le superviseur, la liste de ses rouges anciens.
+
+Le fichier part avec le verrou. `reparation_vivante <n°>` le lit chez les autres passages dont le
+pid vit encore. Une PR qu'un autre passage répare :
+- ne compte pas parmi les rouges anciens : le fusionneur n'appelle pas le superviseur pour elle,
+  et elle n'entre pas dans sa liste ;
+- n'est ni triée ni réparée par l'implémenteur : elle compte parmi ses PR ouvertes ;
+- est refusée à la réparation du superviseur si l'implémenteur l'a prise pendant son passage.
+
+**Ce qui n'est pas gardé** :
+- Deux passages qui choisissent la même PR à la même seconde.
+- Pendant tout son passage (une heure au plus), le superviseur retient chacun de ses rouges
+  anciens, y compris ceux qu'il finit par ne pas réparer.
+
 ## Conséquences
 
 - **Ce que ça rend possible** :

@@ -5,6 +5,7 @@ namespace Tests\Feature\Api\Admin;
 use App\Models\User;
 use App\Notifications\ResetPasswordNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Spatie\Activitylog\Models\Activity;
 use Tests\TestCase;
@@ -31,6 +32,30 @@ class UserSupportTest extends TestCase
         Notification::assertSentTo($target, ResetPasswordNotification::class);
         $this->assertSame(0, $target->tokens()->count());
         $this->assertAudit($actor, $target, 'super_admin_password_reset_forced', 'Compte compromis');
+    }
+
+    /**
+     * TCK-1995 (P193.02) — un compte sans e-mail n'a pas de lien de réinitialisation à recevoir :
+     * refusé par un code avant tout appel au broker, au lieu d'un 500 sur `password_reset_tokens`.
+     */
+    public function test_force_password_reset_refuses_an_account_without_email(): void
+    {
+        Notification::fake();
+        $this->actingAsRole('super_admin');
+        User::factory()->create(['email' => null]);
+        $target = User::factory()->create(['email' => null, 'phone' => '+221770000099']);
+        $target->createToken('mobile');
+
+        $this->postJson("/api/admin/users/{$target->id}/force-password-reset", [
+            'reason' => 'Compte compromis',
+        ])
+            ->assertStatus(409)
+            ->assertJsonPath('code', 'support.no_email');
+
+        $this->assertSame(0, DB::table('password_reset_tokens')->count());
+        $this->assertSame(1, $target->tokens()->count());
+        $this->assertFalse(Activity::query()->where('event', 'super_admin_password_reset_forced')->exists());
+        Notification::assertNothingSent();
     }
 
     public function test_unlock_requires_locked_metadata_and_clears_it(): void

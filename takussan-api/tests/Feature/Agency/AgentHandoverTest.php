@@ -2,7 +2,6 @@
 
 namespace Tests\Feature\Agency;
 
-use App\Listeners\Maintenance\SyncMaintenanceConversation;
 use App\Models\Agency;
 use App\Models\Customer;
 use App\Models\Enums\CollaborationStatus;
@@ -137,7 +136,7 @@ class AgentHandoverTest extends ApiTestCase
             ->assertOk()
             ->assertJsonPath('data.portfolio', [
                 'tasks' => 3, 'visits' => 2, 'maintenance' => 1, 'responsible_properties' => 0, 'held_properties' => 0,
-                'collaborations' => 2, 'customers' => 2,
+                'collaborations' => 2, 'customers' => 2, 'contact_leads' => 0,
             ]);
 
         $this->actingAsApi($this->leaver)->apiGet($this->url('portfolio'))->assertForbidden();
@@ -389,7 +388,7 @@ class AgentHandoverTest extends ApiTestCase
             'quote_amount' => 150000,
             'quote_submitted_at' => now(),
         ])->save();
-        $conversation = SyncMaintenanceConversation::conversationFor($mr);
+        $conversation = $mr->conversation()->first();
         $this->assertNotNull($conversation);
 
         $this->actingAsApi($this->admin)->apiPost($this->url('handover'), [

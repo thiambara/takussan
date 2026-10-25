@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { initialesDe, libelleDe, nomCompletDe, prenomDe } from '@/lib/identite';
+import { initialesDe, libelleDe, nomAffichable, nomCompletDe, prenomDe } from '@/lib/identite';
 
 const SANS_NOM = { first_name: '', last_name: '', email: null, phone: '+221770000623' };
 
@@ -37,5 +37,20 @@ describe('identite — TCK-623', () => {
   it('rien du tout rend null partout', () => {
     expect(libelleDe(null)).toBeNull();
     expect(initialesDe(undefined)).toBeNull();
+  });
+});
+
+describe('nomAffichable — P220.04 (TCK-2138)', () => {
+  it('prénom et nom, sinon e-mail, sinon numéro, sinon #<id>', () => {
+    expect(nomAffichable({ id: 1, first_name: 'Awa', last_name: 'Diop', email: 'a@x.sn' })).toBe('Awa Diop');
+    expect(nomAffichable({ id: 1, first_name: '', last_name: '', email: 'a@x.sn', phone: '+221770000623' })).toBe('a@x.sn');
+    expect(nomAffichable({ id: 1, ...SANS_NOM })).toBe('+221 77 000 06 23');
+    expect(nomAffichable({ id: 12, first_name: null, last_name: ' ' })).toBe('#12');
+  });
+
+  it("le repli d'un écran remplace #<id>, jamais un nom connu", () => {
+    expect(nomAffichable({ id: 12, first_name: '', last_name: '' }, 'Membre #12')).toBe('Membre #12');
+    expect(nomAffichable({ id: 12, first_name: 'Awa', last_name: '' }, 'Membre #12')).toBe('Awa');
+    expect(nomAffichable({ id: 12, first_name: '', last_name: '' }, '')).toBe('#12');
   });
 });

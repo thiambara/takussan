@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Domain\Notifications\NotificationCode;
 use App\Domain\Notifications\NotificationTarget;
+use App\Events\Maintenance\MaintenanceScheduleChanged;
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Api\CompleteMaintenanceRequestRequest;
 use App\Http\Requests\Api\ConfirmMaintenanceResolutionRequest;
@@ -25,12 +26,15 @@ use App\Policies\MaintenanceRequestPolicy;
 use App\Services\Maintenance\CurrencyUnit;
 use App\Services\Maintenance\MaintenanceStateMachine;
 use App\Services\Maintenance\OwnerApprovalThreshold;
+use App\Services\Membership\AdminsDeLAgence;
 use App\Services\Model\MaintenanceRequestService;
 use App\Services\Model\NotificationService;
 use App\Services\Property\PrimaryPropertyContact;
+use App\Support\Http\ParametreUnique;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 
 class MaintenanceRequestController extends Controller
@@ -58,7 +62,9 @@ class MaintenanceRequestController extends Controller
 
         // TCK-592 (P17) — « Mes interventions » montre le quartier et l'agence : comme `show()`, le
         // bien inclus vient avec son adresse, et ici avec l'agence (le front demande `agency_id`).
-        if (in_array('property', explode(',', (string) $request->query('include')), true)) {
+        // P216.03 (TCK-2124) — `include[]=…` vaut un `include` absent (TCK-1407, TCK-1866), et n'est plus casté.
+        $include = ParametreUnique::chaine($request, 'include');
+        if ($include !== null && in_array('property', explode(',', $include), true)) {
             $paginator->getCollection()->loadMissing(['property.address', 'property.agency:id,name']);
         }
 
@@ -109,12 +115,22 @@ class MaintenanceRequestController extends Controller
 
         // TCK-1070 (P62.04) — le bail rattaché se juge ici, avec la réponse du refus : un bail
         // absent et un bail que l'appelant ne voit pas reçoivent le même 403.
+        // TCK-2204 (P226.02) — et le bail d'un AUTRE bien aussi : un bail et un bien rattachés
+        // ensemble vont ensemble (TCK-576, `guardLeaseMatchesProperty`).
         if (isset($data['lease_id'])) {
             $lease = Lease::query()->find((int) $data['lease_id']);
-            abort_unless($lease !== null && $user->can('view', $lease), 403);
+            abort_unless(
+                $lease !== null
+                    && (int) $lease->property_id === (int) $property->id
+                    && $user->can('view', $lease),
+                403,
+            );
         }
 
         $assigneeId = $isStaff ? ($data['assigned_to'] ?? null) : null;
+        // TCK-2203 (P227.02) — assigner à la création est le geste que la modification juge par
+        // `actAsPrincipal` : le personnel sans `maintenance.assign` reçoit le même 403.
+        abort_if($assigneeId !== null && ! MaintenanceRequestPolicy::teamMayAssignOn($user, $property), 403);
         unset($data['assigned_to']);
 
         $mr = MaintenanceRequest::create(array_merge($data, [
@@ -122,6 +138,12 @@ class MaintenanceRequestController extends Controller
             'status' => MaintenanceStatus::Open->value,
             'priority' => $data['priority'] ?? MaintenancePriority::Normal->value,
         ]));
+
+        // TCK-1991 (P169.03) — l'escalade compte ses 30 minutes depuis le passage en urgent.
+        if ($mr->priority === MaintenancePriority::Urgent) {
+            $mr->metadata = [...($mr->metadata ?? []), MaintenanceRequest::URGENT_SINCE => $this->instant(now())];
+            $mr->saveQuietly();
+        }
 
         // TCK-592 — une assignation à la création emprunte le chemin de toutes les autres :
         // `accepted_at` nul, événement émis (notification, fil de l'intervention).
@@ -135,14 +157,7 @@ class MaintenanceRequestController extends Controller
         $owner = PrimaryPropertyContact::createurDestinataire($property);
 
         if ($mr->priority === MaintenancePriority::Urgent) {
-            $assignedAgent = $mr->assignee;
-            $manager = $property->agency?->primaryAdmin;
-
-            $notifiables = collect([$assignedAgent, $manager])->filter()->unique('id');
-
-            if ($notifiables->isNotEmpty()) {
-                Notification::send($notifiables, new UrgentMaintenanceCreatedNotification($mr));
-            }
+            $this->sendUrgentAlert($mr, $property);
         }
 
         if ($owner && $owner->id !== $user->id) {
@@ -161,7 +176,9 @@ class MaintenanceRequestController extends Controller
     {
         $this->authorize('view', $maintenanceRequest);
 
-        $includes = collect(explode(',', (string) $request->query('include')))
+        // P216.03 (TCK-2124) — `include[]=…` vaut un `include` absent (TCK-1407, TCK-1866), et n'est plus casté.
+        $include = ParametreUnique::chaine($request, 'include');
+        $includes = collect($include !== null ? explode(',', $include) : [])
             ->map(fn (string $include) => trim($include))
             ->filter()
             ->intersect(['property', 'requester', 'assignee', 'quoteDecisionBy'])
@@ -191,36 +208,93 @@ class MaintenanceRequestController extends Controller
 
         $data = Arr::except($request->validated(), UpdateMaintenanceRequestRequest::STATE_FIELDS);
 
-        // TCK-592 — l'assignation a son chemin (`accepted_at` remis à nul, événement) : elle ne passe
-        // pas par `fill()`.
-        // TCK-592 (verif-592, M1) — au-delà du plafond du bailleur, `actual_cost` est à son accord.
-        if (($data['actual_cost'] ?? null) !== null) {
-            // verif-592 passe 2 (N5) — arrondi à l'unité de la devise avant d'être comparé ou écrit.
-            $data['actual_cost'] = CurrencyUnit::cost($maintenanceRequest, $data['actual_cost']);
-            app(OwnerApprovalThreshold::class)->assertActualCostAgreed($maintenanceRequest, $data['actual_cost'], $request->user()->id);
-            app(OwnerApprovalThreshold::class)->recordOwnerCost($maintenanceRequest, $data['actual_cost'], $request->user()->id);
-        } elseif (array_key_exists('actual_cost', $data)) {
-            // verif-592 passe 4 (N11) — un coût retiré n'est plus un accord du bailleur.
-            app(OwnerApprovalThreshold::class)->forgetOwnerCost($maintenanceRequest);
-        }
+        // TCK-2010 (P184.02) — tout ou rien : `assign()` peut encore refuser (`completed`,
+        // `maintenance.reassign_after_completion`) après que l'heure, la priorité et le coût réel
+        // ont été écrits. La transaction rend la ligne intacte sur ce refus.
+        $becameUrgent = false;
+        DB::transaction(function () use ($request, $maintenanceRequest, $data, &$becameUrgent): void {
+            // P245.03 (TCK-2362) — les écritures de `metadata` se font sur la ligne RELUE sous verrou :
+            // recomposée depuis la copie liée à la route, la colonne réécrite en entier effaçait
+            // l'escalade (`escalated_at`) que `EscalateUrgentMaintenanceJob` pose entre-temps sous
+            // le même verrou (TCK-2225), et l'escalade repartait au passage suivant.
+            $locked = $this->service->lockFresh($maintenanceRequest);
 
-        $assignmentChanged = array_key_exists('assigned_to', $data);
-        $assigneeId = $data['assigned_to'] ?? null;
-        unset($data['assigned_to']);
+            // TCK-592 — l'assignation a son chemin (`accepted_at` remis à nul, événement) : elle ne passe
+            // pas par `fill()`.
+            // TCK-592 (verif-592, M1) — au-delà du plafond du bailleur, `actual_cost` est à son accord.
+            if (($data['actual_cost'] ?? null) !== null) {
+                // verif-592 passe 2 (N5) — arrondi à l'unité de la devise avant d'être comparé ou écrit.
+                $data['actual_cost'] = CurrencyUnit::cost($locked, $data['actual_cost']);
+                app(OwnerApprovalThreshold::class)->assertActualCostAgreed($locked, $data['actual_cost'], $request->user()->id);
+                app(OwnerApprovalThreshold::class)->recordOwnerCost($locked, $data['actual_cost'], $request->user()->id);
+            } elseif (array_key_exists('actual_cost', $data)) {
+                // verif-592 passe 4 (N11) — un coût retiré n'est plus un accord du bailleur.
+                app(OwnerApprovalThreshold::class)->forgetOwnerCost($locked);
+            }
 
-        $maintenanceRequest->fill($data)->save();
+            $assignmentChanged = array_key_exists('assigned_to', $data);
+            $assigneeId = $data['assigned_to'] ?? null;
+            unset($data['assigned_to']);
 
-        if ($assignmentChanged) {
-            $this->service->assign(
-                $maintenanceRequest,
-                $assigneeId !== null ? User::query()->findOrFail($assigneeId) : null,
-                $request->user(),
-            );
+            $wasUrgent = $locked->priority === MaintenancePriority::Urgent;
+            $locked->fill($data);
+            $isUrgent = $locked->priority === MaintenancePriority::Urgent;
+            $becameUrgent = ! $wasUrgent && $isUrgent;
+
+            // TCK-1991 (P169.03) — le passage en urgent est daté, et le retour à une autre priorité
+            // efface cette date et l'escalade : une demande remise en urgent s'escalade de nouveau.
+            if ($wasUrgent !== $isUrgent) {
+                $metadata = $locked->metadata ?? [];
+                unset($metadata[MaintenanceRequest::URGENT_SINCE], $metadata[MaintenanceRequest::ESCALATED_AT]);
+                if ($becameUrgent) {
+                    $metadata[MaintenanceRequest::URGENT_SINCE] = $this->instant(now());
+                }
+                $locked->metadata = $metadata;
+            }
+
+            // TCK-2012 (P184.01) — un passage fixé ou déplacé s'annonce ; la même heure renvoyée par
+            // le bloc d'assignation (`isDirty` compare l'instant) ou une heure retirée, non.
+            $scheduleChanged = $locked->isDirty('scheduled_at') && $locked->scheduled_at !== null;
+            $locked->save();
+
+            if ($assignmentChanged) {
+                $this->service->assign(
+                    $locked,
+                    $assigneeId !== null ? User::query()->findOrFail($assigneeId) : null,
+                    $request->user(),
+                );
+            }
+
+            if ($scheduleChanged) {
+                MaintenanceScheduleChanged::dispatch($locked, $request->user());
+            }
+        });
+
+        // TCK-1991 (P169.03) — l'alerte d'urgence part au passage en urgent, pas seulement à la
+        // création : sans elle, l'escalade arrivait la première, ou personne n'était prévenu.
+        if ($becameUrgent) {
+            $maintenanceRequest->refresh();
+            $this->sendUrgentAlert($maintenanceRequest, $maintenanceRequest->property, becameUrgent: true);
         }
 
         return $this->json([
             'data' => MaintenanceRequestResource::make($maintenanceRequest->refresh())->resolve($request),
         ]);
+    }
+
+    /**
+     * L'alerte d'urgence : l'assigné et l'admin principal de l'agence du bien. TCK-2185 (P225.01) —
+     * l'admin principal s'il est joignable, sinon les admins joignables de l'agence.
+     */
+    private function sendUrgentAlert(MaintenanceRequest $mr, ?Property $property, bool $becameUrgent = false): void
+    {
+        $notifiables = collect([$mr->assignee])
+            ->merge(AdminsDeLAgence::principalSinonDestinataires($property?->agency))
+            ->filter()->unique('id');
+
+        if ($notifiables->isNotEmpty()) {
+            Notification::send($notifiables, new UrgentMaintenanceCreatedNotification($mr, becameUrgent: $becameUrgent));
+        }
     }
 
     public function updateStatus(UpdateStatusMaintenanceRequestRequest $request, MaintenanceRequest $maintenanceRequest): JsonResponse

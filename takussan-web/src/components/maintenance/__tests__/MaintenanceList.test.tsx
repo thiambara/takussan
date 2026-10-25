@@ -8,6 +8,8 @@ const auth = { user: { id: 13, roles: ['service_provider'] } as { id: number; ro
 const listParams: (MaintenanceListParams | undefined)[] = [];
 const apiQueryCalls: unknown[][] = [];
 let canCreate = false;
+let pageRows: MaintenanceRequest[] | null = null;
+let lastPage = 1;
 
 vi.mock('@/context/AuthContext', () => ({ useAuth: () => auth }));
 
@@ -60,8 +62,14 @@ vi.mock('@/lib/queries/maintenance', async () => {
       listParams.push(params);
       return {
         data: {
-          data: [row],
-          meta: { current_page: 1, last_page: 1, per_page: 20, total: 1, abilities: { can_create: canCreate } },
+          data: pageRows ?? [row],
+          meta: {
+            current_page: 1,
+            last_page: lastPage,
+            per_page: 20,
+            total: (pageRows ?? [row]).length * lastPage,
+            abilities: { can_create: canCreate },
+          },
         },
         isLoading: false,
         isError: false,
@@ -78,6 +86,35 @@ describe('<MaintenanceList> — prestataire', () => {
     apiQueryCalls.length = 0;
     auth.user = { id: 13, roles: ['service_provider'] };
     canCreate = false;
+    pageRows = null;
+    lastPage = 1;
+  });
+
+  /**
+   * P199.04 (TCK-2167) — triée par créneau, la liste du prestataire sépare les urgences de la
+   * seule page reçue : une urgence planifiée tard est en page 2, et la page 1 n'a pas de section.
+   * La section ne se rend donc que quand la liste tient sur une page.
+   */
+  it('rend « Urgences prioritaires » quand la liste tient sur une page', async () => {
+    pageRows = [row, { ...row, id: 8, title: 'Coupure de courant', priority: 'urgent' }];
+    const { MaintenanceList } = await import('../MaintenanceList');
+    render(withIntl(<MaintenanceList />));
+
+    expect(screen.getByRole('heading', { name: 'Urgences prioritaires' })).toBeInTheDocument();
+  });
+
+  it('ne rend pas la section quand la liste a plusieurs pages : l’urgence reste à sa place, avec son badge', async () => {
+    pageRows = [row, { ...row, id: 8, title: 'Coupure de courant', priority: 'urgent' }];
+    lastPage = 2;
+    const { MaintenanceList } = await import('../MaintenanceList');
+    render(withIntl(<MaintenanceList />));
+
+    expect(screen.queryByRole('heading', { name: 'Urgences prioritaires' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Autres demandes' })).not.toBeInTheDocument();
+    const titres = screen.getAllByRole('link').map((a) => a.textContent ?? '');
+    const urgence = titres.findIndex((texte) => texte.includes('Coupure de courant'));
+    expect(urgence).toBeGreaterThan(titres.findIndex((texte) => texte.includes('Fuite sous évier')));
+    expect(titres[urgence]).toContain('Urgente');
   });
 
   it('part triée par créneau, nomme le quartier et l\'agence, et ne propose pas « Nouvelle demande »', async () => {

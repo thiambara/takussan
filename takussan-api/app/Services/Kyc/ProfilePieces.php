@@ -31,18 +31,7 @@ class ProfilePieces
                 'type' => $type,
             ];
 
-            $previous = Document::query()->where($keys)->lockForUpdate()->first();
-            if ($previous !== null && ($previous->is_verified || $previous->verified_by !== null)) {
-                activity('Document')
-                    ->performedOn($previous)
-                    ->causedBy($uploader)
-                    ->event('document_verification_reset')
-                    ->withProperties([
-                        'verified_by' => $previous->verified_by,
-                        'verified_at' => $previous->verified_at?->toIso8601String(),
-                    ])
-                    ->log('document_verification_reset');
-            }
+            Document::query()->where($keys)->lockForUpdate()->first()?->logVerificationReset($uploader);
 
             return Document::query()->updateOrCreate($keys, [
                 'uploaded_by' => $uploader->id,

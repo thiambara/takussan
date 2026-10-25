@@ -11,7 +11,8 @@ use Illuminate\Support\Collection;
  * TCK-591 (ADR-0035) — qui reprend le travail d'un agent absent.
  *
  * Lecteur des lignes d'absence de `role_delegations` dans leur fenêtre ACTIVE (la fenêtre est
- * celle de `RoleDelegation::scopeActive()`, source unique depuis TCK-456). Il n'accorde aucun
+ * celle de `RoleDelegation::scopeActive()`, source unique depuis TCK-456 ; lue par `scopeEnVigueur()`
+ * depuis TCK-2202 : le remplaçant sans profil actif dans l'agence ne couvre rien). Il n'accorde aucun
  * droit : il dit seulement à qui router une affectation, et qui couvre qui.
  *
  * **Pas de transitivité** : si le remplaçant est lui-même absent, la chaîne s'arrête au premier
@@ -30,7 +31,7 @@ class AgentAvailability
     {
         $absence = RoleDelegation::query()
             ->absences()
-            ->active()
+            ->enVigueur()
             ->where('agency_id', $agencyId)
             ->where('replaces_user_id', $absent->id)
             ->latest('id')
@@ -48,7 +49,7 @@ class AgentAvailability
     {
         return RoleDelegation::query()
             ->absences()
-            ->active()
+            ->enVigueur()
             ->where('agency_id', $agencyId)
             ->where('user_id', $substitute->id)
             ->where('replaces_user_id', $absentId)
@@ -67,7 +68,7 @@ class AgentAvailability
 
         return RoleDelegation::query()
             ->absences()
-            ->active()
+            ->enVigueur()
             ->where('user_id', $substitute->id)
             ->whereIn('agency_id', $staffAgencyIds)
             ->get(['replaces_user_id', 'agency_id'])

@@ -11,6 +11,7 @@ import { QueryBoundary } from '@/components/shared/QueryBoundary';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { formatDateTime } from '@/lib/format';
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import type { Locale } from '@/i18n/config';
 import {
   useDeleteInventoryRoomPhoto,
@@ -177,8 +178,29 @@ function RoomCard({
   const tConditions = useTranslations('inventory.conditions');
   const upload = useUploadInventoryRoomPhotos(inventoryId);
   const remove = useDeleteInventoryRoomPhoto(inventoryId);
+  const messageErreur = useMessageErreurApi();
   const [photos, setPhotos] = useState<File[]>([]);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [envoi, setEnvoi] = useState(false);
+  const [erreurEnvoi, setErreurEnvoi] = useState<unknown>(null);
+
+  // TCK-2370 (P236.02) — une photo par appel, comme la clôture (TCK-2330) : tout le lot dans un
+  // corps (jusqu'à 20 photos de 5 Mo) dépassait la borne du proxy (25 Mio). Le premier échec arrête
+  // tout et se dit ; une photo jointe sort de la sélection, pour que réessayer n'envoie que le reste.
+  const envoyer = async () => {
+    setEnvoi(true);
+    setErreurEnvoi(null);
+    try {
+      for (const photo of photos) {
+        await upload.mutateAsync({ files: [photo], roomName: room.name });
+        setPhotos((restantes) => restantes.filter((p) => p !== photo));
+      }
+    } catch (e) {
+      setErreurEnvoi(e);
+    } finally {
+      setEnvoi(false);
+    }
+  };
 
   return (
     <article className="rounded-xl bg-card p-4" data-testid={`room-card-${room.name}`}>
@@ -218,14 +240,22 @@ function RoomCard({
         <ul className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-6" aria-label={t('roomPhotos', { room: room.name })}>
           {sent.map((photo, i) => (
             <li key={photo.id} className="relative overflow-hidden rounded-lg bg-muted outline outline-1 -outline-offset-1 outline-border">
-              {/* URL d'API signée, servie par Laravel : ni `next/image` ni son optimiseur n'y ont accès. */}
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={photo.url}
-                alt={t('roomPhotoAlt', { index: i + 1, room: room.name })}
-                className="aspect-square w-full object-cover"
-                loading="lazy"
-              />
+              {/* TCK-2088 — la `preview` signée dans la tuile, l'original au clic. */}
+              <a
+                href={photo.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                {/* URL d'API signée, servie par Laravel : ni `next/image` ni son optimiseur n'y ont accès. */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={photo.preview_url ?? photo.url}
+                  alt={t('roomPhotoAlt', { index: i + 1, room: room.name })}
+                  className="aspect-square w-full object-cover"
+                  loading="lazy"
+                />
+              </a>
               {canUpload ? (
                 <button
                   type="button"
@@ -275,22 +305,14 @@ function RoomCard({
             <Button
               type="button"
               size="sm"
-              disabled={photos.length === 0 || upload.isPending}
-              onClick={async () => {
-                if (photos.length === 0) return;
-                try {
-                  await upload.mutateAsync({ files: photos, roomName: room.name });
-                  setPhotos([]);
-                } catch {
-                  // Error surfaced via `upload.isError` below.
-                }
-              }}
+              disabled={photos.length === 0 || envoi}
+              onClick={() => void envoyer()}
             >
-              {upload.isPending ? t('sending') : t('sendPhotos')}
+              {envoi ? t('sending') : t('sendPhotos')}
             </Button>
-            {upload.isError ? (
+            {erreurEnvoi !== null ? (
               <span role="alert" className="text-xs text-destructive">
-                {t('uploadFailed')}
+                {messageErreur(erreurEnvoi, t('uploadFailed'))}
               </span>
             ) : null}
           </div>
@@ -305,6 +327,10 @@ function ActionBar({ inventory }: { readonly inventory: Inventory }) {
   const tStatus = useTranslations('inventory.status');
   const submit = useSubmitInventory(inventory.id);
   const dispute = useDisputeInventory(inventory.id);
+  const messageErreur = useMessageErreurApi();
+  // P228.05 (TCK-2218) — l'envoi à la signature refusé (écran périmé : l'état des lieux n'est plus un
+  // brouillon) se dit sous les gestes ; il ne disait rien.
+  const [erreurEnvoi, setErreurEnvoi] = useState<string | null>(null);
   const [reason, setReason] = useState('');
   const [showDispute, setShowDispute] = useState(false);
 
@@ -328,7 +354,12 @@ function ActionBar({ inventory }: { readonly inventory: Inventory }) {
         {canSubmit ? (
           <Button
             type="button"
-            onClick={() => submit.mutate()}
+            onClick={() => {
+              setErreurEnvoi(null);
+              submit.mutate(undefined, {
+                onError: (erreur) => setErreurEnvoi(messageErreur(erreur)),
+              });
+            }}
             disabled={submit.isPending}
           >
             {submit.isPending ? t('submitting') : t('submitForSignature')}
@@ -350,6 +381,11 @@ function ActionBar({ inventory }: { readonly inventory: Inventory }) {
           />
         ) : null}
       </div>
+      {erreurEnvoi ? (
+        <p role="alert" className="text-xs text-destructive">
+          {erreurEnvoi}
+        </p>
+      ) : null}
 
       {showDispute ? (
         <div className="space-y-2 rounded-lg bg-muted p-3">

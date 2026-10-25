@@ -11,6 +11,7 @@ import {
   twoFactorRegenerateAction,
 } from '@/app/actions/security';
 import { useGardeDoubleFacteur } from '@/components/auth/garde-double-facteur-contexte';
+import { useAuth } from '@/context/AuthContext';
 import { avecGardeDoubleFacteurAction } from '@/lib/double-facteur';
 
 /**
@@ -46,6 +47,9 @@ export function TwoFactorSection({ enabled: initialEnabled }: TwoFactorSectionPr
   const [pending, startTransition] = useTransition();
   // TCK-1203 — renouveler l'appareil et régénérer les codes exigent un TOTP récent (step-up).
   const garde = useGardeDoubleFacteur();
+  // TCK-2160 (P202.02) — `two_factor_enabled` se lit dans le contexte, par le dialogue de
+  // suppression du compte notamment : la confirmation et la coupure le relisent, comme TCK-2042.
+  const { refreshUser } = useAuth();
 
   function handleEnable() {
     setError(null);
@@ -78,6 +82,7 @@ export function TwoFactorSection({ enabled: initialEnabled }: TwoFactorSectionPr
       setSetup(null);
       setCode('');
       setRecoveryCodes(result.data.recovery_codes);
+      await refreshUser();
     });
   }
 
@@ -94,6 +99,7 @@ export function TwoFactorSection({ enabled: initialEnabled }: TwoFactorSectionPr
       setShowDisable(false);
       setDisablePassword('');
       setRecoveryCodes(null);
+      await refreshUser();
     });
   }
 

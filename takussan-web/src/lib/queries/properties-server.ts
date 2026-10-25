@@ -82,6 +82,8 @@ export interface DashboardPropertyFilters {
   readonly type?: string;
   readonly contract_type?: string;
   readonly visibility?: string;
+  /** TCK-2036 (P198.03) — `'1'` : les seuls biens publiés au sens du catalogue (`Property::public()`). */
+  readonly public?: string;
   readonly search?: string;
   readonly city?: string;
   readonly user_id?: string;
@@ -110,6 +112,7 @@ function buildListParams({
   if (filters?.type) filter.type = filters.type;
   if (filters?.contract_type) filter.contract_type = filters.contract_type;
   if (filters?.visibility) filter.visibility = filters.visibility;
+  if (filters?.public) filter.public = filters.public;
   if (filters?.search) filter.search = filters.search;
   if (filters?.city) filter.city = filters.city;
   if (filters?.user_id) filter.user_id = filters.user_id;
@@ -276,22 +279,29 @@ export async function assignPropertyAgent(
  * TCK-071 — upload one or more photos to a property's `photos` media
  * collection. The backend route is `POST /api/properties/:id/media`
  * (see `PropertyMediaController::store`), expecting a `photos[]` array.
+ *
+ * TCK-2370 (P237.03) — rend les médias créés, que l'API renvoie (`201 {data: [...]}`) : la grille
+ * les affiche sans relire la liste, dont l'échec laissait une photo « envoyée » invisible.
  */
 export async function uploadPropertyPhotos(
   token: string,
   propertyId: number,
   files: File[],
-): Promise<void> {
+): Promise<PropertyMediaUploaded[]> {
   const form = new FormData();
   for (const file of files) {
     form.append('photos[]', file);
   }
-  await apiRequest<void>(cheminApi`/api/properties/${propertyId}/media`, {
-    method: 'POST',
-    body: form,
-    token,
-    formData: true,
-  });
+  const res = await apiRequest<ApiResponse<PropertyMediaUploaded[]>>(
+    cheminApi`/api/properties/${propertyId}/media`,
+    {
+      method: 'POST',
+      body: form,
+      token,
+      formData: true,
+    },
+  );
+  return res.data;
 }
 
 /**
@@ -306,6 +316,9 @@ export interface PropertyMediaItem {
   readonly original: string;
   readonly order: number | null;
 }
+
+/** TCK-2370 (P237.03) — un média tel que `PropertyMediaController::store` le rend : sans `order`. */
+export type PropertyMediaUploaded = Omit<PropertyMediaItem, 'order'>;
 
 /**
  * TCK-071 — fetch the current photo list (cover = item at position 0).

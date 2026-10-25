@@ -19,6 +19,7 @@ import { isNightOccupied, isStayFree } from '@/lib/occupancy';
 import { submitPurchaseOffer } from '@/app/actions/property';
 import { useCleIdempotence } from '@/hooks/useCleIdempotence';
 import { formatMontant } from '@/lib/format/currency';
+import { decalerJour, jourDeLApi } from '@/lib/jour-de-l-api';
 import { getPrimaryCtaForProperty } from '@/lib/property-cta';
 import { quoteBooking } from '@/lib/booking-quote';
 import { ROUTES_LEGALES } from '@/lib/legal-routes';
@@ -316,11 +317,9 @@ function OfferForm({ property, onClose, onSuccess, submitLabel, title }: InnerFo
   // réponse perdue n'en crée pas une seconde.
   const idempotence = useCleIdempotence();
 
-  const minExpiry = useMemo(() => {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    return tomorrow.toISOString().slice(0, 10);
-  }, []);
+  // P230.05 — `offer_expires_at` `after:today` : le lendemain du jour de l'API. `setDate()` local
+  // puis `toISOString()` rendait le jour UTC lui-même au passage à l'heure d'été.
+  const minExpiry = useMemo(() => decalerJour(jourDeLApi(), 1), []);
 
   async function handleSubmit(e: React.FormEvent): Promise<void> {
     e.preventDefault();

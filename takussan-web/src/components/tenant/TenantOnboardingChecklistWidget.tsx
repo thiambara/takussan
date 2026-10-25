@@ -10,6 +10,7 @@ import { useActiveLeaseSummaries, type ActiveLeaseSummary } from '@/lib/queries/
 import { useCompleteOnboardingItem, useTenantOnboardingChecklist } from '@/lib/queries/tenant-onboarding';
 import type { TenantOnboardingChecklist, TenantOnboardingChecklistItem } from '@/types/tenant-onboarding';
 import { cn } from '@/lib/utils';
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
 /**
  * TCK-266 — "Bienvenue chez vous" checklist surfaced on the tenant
@@ -73,6 +74,7 @@ function TenantOnboardingChecklistCard({ lease }: { lease: LeaseSummary }) {
   const t = useTranslations('tenant.onboarding');
   const query = useTenantOnboardingChecklist(lease.id);
   const mutation = useCompleteOnboardingItem(lease.id);
+  const messageErreur = useMessageErreurApi();
 
   const checklist = query.data?.data ?? null;
 
@@ -157,6 +159,10 @@ function TenantOnboardingChecklistCard({ lease }: { lease: LeaseSummary }) {
           );
         })}
       </ul>
+      {/* P228.05 (TCK-2218) — un accusé de réception refusé ne disait rien. */}
+      {mutation.isError ? (
+        <p role="alert" className="mt-2 text-sm text-destructive">{messageErreur(mutation.error)}</p>
+      ) : null}
     </section>
   );
 }

@@ -4,10 +4,13 @@ namespace App\Services\Model;
 
 use App\Models\Customer;
 use App\Models\Enums\CustomerPipelineStage;
+use App\Models\Property;
 use App\Models\User;
+use App\Services\Crm\CustomerDuplicateDetector;
 use App\Services\Crm\CustomerPhoneNormalizer;
 use App\Support\CaseInsensitive;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\DB;
 
 class CustomerService
 {
@@ -34,15 +37,45 @@ class CustomerService
         $customer->update(['user_id' => $user->id]);
     }
 
-    public function findOrCreateFromUser(User $user): Customer
+    /**
+     * TCK-2054 (ADR-0073) — la ligne `users` du compte est verrouillée, puis la fiche relue SOUS ce
+     * verrou : sans relecture, la seconde de deux requêtes simultanées attendait le verrou puis créait
+     * quand même. Le verrou consultatif de la fiche suit, si l'agence visée est connue.
+     *
+     * P15.01 (TCK-2350, décision du porteur du 2026-10-25) — la fiche d'une candidature, d'une
+     * offre ou d'une réservation sur un bien d'agence est une fiche de l'agence DU BIEN : relue dans
+     * cette agence seule, rattachée dans cette agence sur une coordonnée vérifiée, créée dans cette
+     * agence. Elle naissait dans l'agence du visiteur, `null` pour un candidat sans profil : le
+     * personnel du bien ne la voyait pas, et le bail tiré de la candidature rendait 403. La fiche
+     * du compte dans une autre agence n'est plus reprise, et ne change pas d'agence. Un bien sans
+     * agence (ou sans bien) garde la règle d'avant : l'agence du compte, la première fiche du compte.
+     */
+    public function findOrCreateFromUser(User $user, ?Property $property = null): Customer
     {
-        $existing = Customer::where('user_id', $user->id)->first();
-        if ($existing !== null) {
-            return $existing;
-        }
+        $agenceDuBien = $property?->agency_id !== null ? (int) $property->agency_id : null;
 
-        $agencyId = $user->agency_id;
-        $orpheline = $agencyId !== null ? $this->ficheARattacher((int) $agencyId, $user) : null;
+        return DB::transaction(function () use ($user, $agenceDuBien): Customer {
+            User::query()->whereKey($user->id)->lockForUpdate()->first(['id']);
+
+            $existing = Customer::where('user_id', $user->id)
+                ->when($agenceDuBien !== null, fn (Builder $q) => $q->where('agency_id', $agenceDuBien)->orderBy('id'))
+                ->first();
+            if ($existing !== null) {
+                return $existing;
+            }
+
+            $agencyId = $agenceDuBien ?? ($user->agency_id !== null ? (int) $user->agency_id : null);
+            if ($agencyId !== null) {
+                CustomerDuplicateDetector::lockCreation($agencyId, $user->phone, $user->email);
+            }
+
+            return $this->rattacherOuCreer($user, $agencyId);
+        });
+    }
+
+    private function rattacherOuCreer(User $user, ?int $agencyId): Customer
+    {
+        $orpheline = $agencyId !== null ? $this->ficheARattacher($agencyId, $user) : null;
         if ($orpheline !== null) {
             $this->linkUser($orpheline, $user);
 
@@ -52,9 +85,11 @@ class CustomerService
         return Customer::create([
             'user_id' => $user->id,
             'added_by_id' => $user->id,
-            'agency_id' => $user->agency_id,
-            'first_name' => $user->first_name ?? 'Client',
-            'last_name' => $user->last_name ?? '#'.$user->id,
+            'agency_id' => $agencyId,
+            // P220.03 (TCK-2281) — un compte sans nom donne une fiche sans nom : c'est le front qui
+            // la nomme (`nomAffichable`). Les colonnes de `users` sont `NOT NULL`.
+            'first_name' => $user->first_name,
+            'last_name' => $user->last_name,
             'email' => $user->email,
             'phone' => $user->phone,
         ]);

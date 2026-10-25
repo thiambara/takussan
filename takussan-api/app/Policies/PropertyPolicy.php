@@ -2,6 +2,7 @@
 
 namespace App\Policies;
 
+use App\Models\Agency;
 use App\Models\Enums\Capability;
 use App\Models\Enums\PropertyVisibility;
 use App\Models\Profiles\AgencyAdminProfile;
@@ -9,6 +10,8 @@ use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\Property;
 use App\Models\User;
+use App\Services\Model\LeaseService;
+use App\Services\Property\BailleurDuBien;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -49,9 +52,12 @@ class PropertyPolicy extends BasePolicy
         }
 
         // TCK-1705 (P153.01) — sur un bien d'agence, `user_id` (le CRÉATEUR, souvent l'agent qui l'a
-        // saisi) ne vaut titre que pour qui a encore un profil dans l'agence : l'agent retiré ne lit
-        // plus le bien. Même règle que `PropertyVisitPolicy` pour l'agent parti.
-        if ($user->id === $model->user_id && ($model->agency_id === null || $this->isMemberOf($user, $model->agency_id))) {
+        // saisi) ne vaut pas titre à lui seul : l'agent retiré ne lit plus le bien.
+        // TCK-2031 (P190.07, ADR-0031 § 3) — l'agent SUSPENDU non plus : `user_id` ne vaut titre que
+        // pour le bailleur du bien (`BailleurDuBien`, de tout statut : le bailleur bloqué garde la
+        // lecture, § 2), ou pour l'auteur qui est encore personnel ACTIF de l'agence du bien.
+        if (BailleurDuBien::est($user, $model->user_id, $model->agency_id)
+            || ($user->id === $model->user_id && $this->isActiveStaffMemberOf($user, $model->agency_id))) {
             return true;
         }
 
@@ -131,7 +137,8 @@ class PropertyPolicy extends BasePolicy
      *  - son propre bien (`user_id`) : `properties.update_own` dans l'agence du bien, pour qui en
      *    est membre ; l'auteur d'un bien sans agence garde son bien, il n'a pas de rôle qui
      *    pourrait porter la capacité. TCK-1705 (P153.01) : l'auteur sans aucun profil dans l'agence
-     *    du bien — l'agent retiré qui l'avait saisi — ne le garde plus ;
+     *    du bien — l'agent retiré qui l'avait saisi — ne le garde plus ; TCK-2031 (P190.07) : ni
+     *    l'agent suspendu, l'auteur doit en être le bailleur ou le personnel actif ;
      *  - le bien d'un autre : personnel de l'agence du bien tenant `properties.update_any`.
      */
     public function update(User $user, Model $model): bool
@@ -144,9 +151,11 @@ class PropertyPolicy extends BasePolicy
             return true;
         }
 
+        // TCK-2031 (P190.07) — membre de l'agence au sens du bailleur du bien ou du personnel ACTIF,
+        // plus de tout statut (`isMemberOf`).
         if ($user->id === $model->user_id) {
             return $model->agency_id === null
-                || ($this->isMemberOf($user, $model->agency_id)
+                || ((BailleurDuBien::est($user, $model->user_id, $model->agency_id) || $this->isActiveStaffMemberOf($user, $model->agency_id))
                     && $user->can(Capability::PropertiesUpdateOwn->value, $model));
         }
 
@@ -171,7 +180,29 @@ class PropertyPolicy extends BasePolicy
      */
     public function publish(User $user, Property $property): bool
     {
-        return $this->agencyGesture($user, $property, Capability::PropertiesPublish);
+        if ($property->agency_id === null) {
+            return $user->isSuperAdmin() || $user->id === $property->user_id;
+        }
+
+        return $this->publishAt($user, $property->agency_id);
+    }
+
+    /**
+     * P209.01 (TCK-2175) — `publish` jugé pour une AGENCE, quand le bien n'existe pas encore : la
+     * création qui pose un statut publiant ou `visibility=public` (`StorePropertyRequest`). Même
+     * règle que pour un bien de l'agence : `properties.publish` et un profil dans l'agence.
+     */
+    public function publishAt(User $user, mixed $agencyId): bool
+    {
+        if ($user->isSuperAdmin()) {
+            return true;
+        }
+
+        $agency = $agencyId === null ? null : Agency::query()->find((int) $agencyId);
+
+        return $agency !== null
+            && $this->isMemberOf($user, $agency->id)
+            && $user->can(Capability::PropertiesPublish->value, $agency);
     }
 
     private function agencyGesture(User $user, Model $model, Capability $capability): bool
@@ -190,6 +221,18 @@ class PropertyPolicy extends BasePolicy
 
         return $this->isMemberOf($user, $model->agency_id)
             && $user->can($capability->value, $model);
+    }
+
+    /**
+     * TCK-2031 (P190.07, ADR-0031 § 3) — un profil de PERSONNEL (agent, admin d'agence) au statut
+     * actif dans l'agence, quel que soit le profil actif de la requête : l'agent de deux agences garde
+     * le bien qu'il a saisi dans l'autre (`AgencySuspendedWriteLockTest`), l'agent suspendu non.
+     */
+    private function isActiveStaffMemberOf(User $user, mixed $agencyId): bool
+    {
+        return $agencyId !== null
+            && $user->activeProfileTypesAt((int) $agencyId)
+                ->contains(fn (string $type): bool => in_array($type, ['agent', 'agency_admin'], true));
     }
 
     /** Un profil (de tout statut) dans l'agence : c'est ce qui fait qu'un rôle juge l'auteur. */
@@ -218,6 +261,18 @@ class PropertyPolicy extends BasePolicy
     }
 
     /**
+     * TCK-2364 (P241.01, P241.03 ; ADR-0049, amendement du 2026-10-25) — écrire et lire la part de
+     * commission des collaborateurs du bien (`commission_share`) : la ventilation de la commission
+     * de l'agence, jugée par la règle de ses termes ({@see LeaseService::maySetCommissionTerms()},
+     * personnel de l'agence du bien qui tient `leases.create`). `update` ne suffit pas : le
+     * bailleur, débiteur de la commission, le tient par `properties.update_own`.
+     */
+    public function manageCommissionShares(User $user, Property $property): bool
+    {
+        return LeaseService::maySetCommissionTerms($user, $property->agency_id);
+    }
+
+    /**
      * Duplicate requires update rights on the source property.
      */
     public function duplicate(User $user, Property $property): bool
@@ -241,6 +296,18 @@ class PropertyPolicy extends BasePolicy
     public function bulkPublish(User $user): bool
     {
         return $user->agency_id !== null && $user->can(Capability::PropertiesPublish->value);
+    }
+
+    /**
+     * TCK-999 (P15.06, Q5 ; ADR-0036, amendement du 2026-10-19, voie 3) — « changer le titulaire » :
+     * l'admin ACTIF de l'agence du bien, seul (le super-admin par `Gate::before`). Le geste décide à
+     * qui vont des loyers : ni l'agent titulaire, ni `properties.update_any`, ni le bailleur. Ce que le
+     * bien peut devenir (jamais depuis un bailleur, vers un bailleur actif) se juge à part, en 422,
+     * par `PropertyOwnerTransfer::refus()`.
+     */
+    public function transferOwner(User $user, Property $property): bool
+    {
+        return $property->agency_id !== null && $user->isAgencyAdminAt((int) $property->agency_id);
     }
 
     /**

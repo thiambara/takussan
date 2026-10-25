@@ -279,6 +279,20 @@ class AgentAbsenceTest extends ApiTestCase
         $this->declare($this->member('owner'))->assertForbidden();
     }
 
+    /** P235.02 (TCK-2369) — un membre sans nom ni `username` se lit « — », jamais `''`. */
+    public function test_un_absent_et_un_remplacant_sans_nom_se_lisent_par_un_tiret(): void
+    {
+        User::query()->whereKey([$this->absent->id, $this->substitute->id])->update(['first_name' => '', 'last_name' => '', 'username' => null]);
+        $this->declare($this->admin)->assertCreated()
+            ->assertJsonPath('data.absent.name', '—')
+            ->assertJsonPath('data.substitute.name', '—');
+
+        $this->actingAsApi($this->admin)->apiGet("/api/agencies/{$this->agency->id}/absences")
+            ->assertOk()
+            ->assertJsonPath('data.0.absent.name', '—')
+            ->assertJsonPath('data.0.substitute.name', '—');
+    }
+
     public function test_the_delegation_console_does_not_list_absences_and_revocation_ends_it(): void
     {
         $id = $this->declare($this->admin)->assertCreated()->json('data.id');

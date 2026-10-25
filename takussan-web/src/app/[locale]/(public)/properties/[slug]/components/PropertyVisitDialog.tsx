@@ -21,7 +21,8 @@ import { MentionDeConfidentialite } from '@/components/public/MentionDeConfident
 import { arrivee } from '@/lib/attribution';
 import { lireCoordonnees, retenirCoordonnees } from '@/lib/coordonnees-retenues';
 import { instantADakar, jourChoisi } from '@/lib/visites/heure-de-dakar';
-import { useCreneaux } from '@/lib/visites/useCreneaux';
+import { JOURS_DE_VISITE_OUVERTS, useCreneaux } from '@/lib/visites/useCreneaux';
+import { decalerJour, jourDeLApi, jourEnDateLocale } from '@/lib/jour-de-l-api';
 import type { VisitType } from '@/types/visit';
 import { cn } from '@/lib/utils';
 
@@ -78,10 +79,14 @@ export function PropertyVisitDialog({ slug, open, onOpenChange, onSuccess }: Pro
   const [erreurs, setErreurs] = useState<Partial<Record<'name' | 'phone', string>>>({});
   const [envoyee, setEnvoyee] = useState<{ when: string; phone: string; email: string } | null>(null);
 
-  const today = useMemo(() => {
-    const d = new Date();
-    d.setHours(0, 0, 0, 0);
-    return d;
+  // La fenêtre que l'API accepte (`VisitSlotsPublicPropertyRequest`) : du jour UTC à J+60. Hors
+  // d'elle, le jour choisi rendait « Les créneaux n'ont pas pu être chargés » (P212.01).
+  const { today, dernierJour } = useMemo(() => {
+    const premier = jourDeLApi();
+    return {
+      today: jourEnDateLocale(premier),
+      dernierJour: jourEnDateLocale(decalerJour(premier, JOURS_DE_VISITE_OUVERTS)),
+    };
   }, []);
 
   const jour = date ? jourChoisi(date) : null;
@@ -203,7 +208,7 @@ export function PropertyVisitDialog({ slug, open, onOpenChange, onSuccess }: Pro
                   mode="single"
                   selected={date}
                   onSelect={handleDateSelect}
-                  disabled={{ before: today }}
+                  disabled={[{ before: today }, { after: dernierJour }]}
                   defaultMonth={date ?? today}
                   autoFocus
                 />

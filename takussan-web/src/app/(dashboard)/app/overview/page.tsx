@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { getMeAction } from '@/app/actions/auth';
 import { isAgent, isAdmin, isOwner, isServiceProvider, isTenant } from '@/lib/roles';
 import { resolveAgencyOrNull } from '@/lib/access/server-guards';
+import { repliDeLaVueBailleur, vueBailleurOuverte } from '@/lib/access/tableau-du-bailleur';
 import { getToken } from '@/lib/session';
 
 export default async function OverviewPage() {
@@ -31,7 +32,13 @@ export default async function OverviewPage() {
       //
       // *`decision` se réserve aux endroits où `kind` GARDE l'accès. Ailleurs, ne pas savoir
       // doit dégrader, pas interrompre.*
-      if (agency?.kind === 'individual') redirect('/app/overview/owner');
+      if (agency?.kind === 'individual') {
+        // TCK-2260 (P116.07) — la vue bailleur ne s'offre qu'au bailleur, ou à l'admin qui détient
+        // `reports.view_agency`. Capacités illisibles (`null`) : on aiguille quand même, le layout
+        // de la vue décide — ici, ne pas savoir dégrade.
+        if ((await vueBailleurOuverte(user)) === false) redirect(await repliDeLaVueBailleur(user));
+        redirect('/app/overview/owner');
+      }
       if (!agency || agency.kind !== 'standard') redirect('/app/overview/agent');
     }
     redirect('/app/overview/agency');

@@ -154,6 +154,18 @@ type PreparationLine = {
   amount: number;
 };
 
+/**
+ * TCK-2074 (P178.03) — la commission de la plateforme sur une pièce qu'elle a encaissée : l'agence
+ * la porte, le bailleur n'en voit rien. Nuls hors des pièces soldées par la plateforme.
+ */
+type PlatformFeeFields = {
+  settled_by_platform: boolean;
+  platform_fee_rate: number | null;
+  platform_fee: number | null;
+  agency_received: number | null;
+  commission_below_platform_fee: boolean;
+};
+
 /** `GET /api/payouts/preparation` — la lecture qui précède un reversement : rien ne s'y saisit. */
 export type PayoutPreparation = {
   agency_id: number;
@@ -170,7 +182,7 @@ export type PayoutPreparation = {
       commission_rate: number;
       commission_rate_source: 'lease' | 'agency';
       commission: number;
-    }>;
+    } & PlatformFeeFields>;
     booking_payments: Array<PreparationLine & {
       payment_type: string | null;
       booking_id: number;
@@ -178,10 +190,23 @@ export type PayoutPreparation = {
       paid_at: string | null;
       commission_rate: number;
       commission: number;
-    }>;
+    } & PlatformFeeFields>;
     service_provider_bills: Array<PreparationLine & { maintenance_request_id: number | null }>;
+    /**
+     * P206.01 (ADR-0039, amendement du 2026-10-24, point 6) — la pénalité de retard réglée, ligne
+     * propre : `id` est la ligne de loyer qui la porte, `paid_at` la date de son règlement.
+     */
+    late_fees?: Array<PreparationLine & {
+      lease_id: number;
+      lease_reference: string | null;
+      paid_at: string | null;
+      commission_rate: number;
+      commission_rate_source: 'lease' | 'agency';
+      commission: number;
+    }>;
   };
-  totals: { gross: number; commission: number; fees: number; net: number };
+  /** `platform_fee` (TCK-2074) : la commission de la plateforme sur les pièces qu'elle a encaissées. */
+  totals: { gross: number; commission: number; fees: number; net: number; platform_fee: number };
   requires_approval: boolean;
   approval_threshold: number | null;
   /** VERIF-594 passe 2, N-3 — la fenêtre du cumul, en jours glissants (`PayoutApprovalRule::WINDOW_DAYS`). */
@@ -195,13 +220,16 @@ export type PayoutPreparation = {
  */
 export type OwnerStatement = {
   agency: { id: number; name: string };
-  landlord: { id: number; name: string };
+  /** P234.06 (TCK-2315) — `company_name` : la raison sociale d'un bailleur société, `null` sinon. */
+  landlord: { id: number; name: string; company_name: string | null };
   period: string;
   annual: boolean;
   period_start: string;
   period_end: string;
   currency: string;
   totals: { gross: number; commission: number; fees: number; net: number; paid_out: number };
+  /** P206.03 (ADR-0057, amendement du 2026-10-24) — pénalités des échéances de la période non réglées. */
+  late_fees_outstanding?: { count: number; amount: number };
   payouts: Array<{
     id: number;
     reference_number: string | null;
@@ -210,6 +238,21 @@ export type OwnerStatement = {
     transaction_id: string | null;
     processed_at: string | null;
   }>;
+  /**
+   * TCK-2321 (P177.05) — le relevé envoyé : un mois qui en a un est servi depuis lui, et ce qui a
+   * été écrit depuis vient en rectificatif. Nuls hors instantané (mois non envoyé, attestation).
+   */
+  snapshot?: { sent_at: string } | null;
+  rectification?: OwnerStatementRectification | null;
+};
+
+export type OwnerStatementTotals = OwnerStatement['totals'] & { clawback?: number };
+
+export type OwnerStatementRectification = {
+  as_of: string;
+  totals: OwnerStatementTotals;
+  delta: Partial<Record<keyof OwnerStatementTotals, number>>;
+  lines: { added: Record<string, unknown[]>; removed: Record<string, unknown[]> };
 };
 
 /** TCK-594 (ADR-0039 §8) — la facture d'un prestataire pour une intervention terminée. */

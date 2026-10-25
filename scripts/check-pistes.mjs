@@ -23,6 +23,16 @@
  *   · `fait · TCK-NNN` désigne un ticket qui existe ;
  *   · le tableau des angles et les sections `## Angle N` se correspondent.
  *
+ * L'ARCHIVE (amendement du 2026-10-24) : les entrées closes (`fait`, `caduc`, `refusé`) quittent
+ * le fichier vivant, telles quelles, pour `docs/plans/pistes-archive/angles-NNN-NNN.md`, une par
+ * centaine d'angles. Seul l'archiveur (`scripts/agents/archiver-pistes.mjs`, sans modèle) les y
+ * déplace. La garde lit le fichier vivant ET l'archive, et tient de plus :
+ *   · la Réf unique dans l'ensemble des deux ;
+ *   · toute Réf `PNN.MM` qu'une entrée vivante cite existe dans l'ensemble ;
+ *   · l'archive ne garde que des entrées closes, chacune dans le fichier de sa centaine et sous une
+ *     section dont le fichier vivant garde le titre.
+ * `--report`, `--liste`, `--restes`, `--delegations` et les désaveux du porteur lisent l'ensemble.
+ *
  * Mode rôle (`--role <rôle> --base <ref>`), le PÉRIMÈTRE. `scripts/agents/pistes.sh` le joue
  * après chaque passage d'agent, AVANT tout push, contre la base de fusion avec `pre-dev`. Il
  * vérifie les fichiers touchés et les transitions de statut faites, au regard du rôle. Un agent ne
@@ -34,7 +44,9 @@
  * ses pistes faites se relient par un angle commun ou un fichier cité en commun (amendements du
  * 2026-10-17). Le délégué (amendement du 2026-10-18) n'écrit que `validé (délégué) — …`, et
  * seulement sur une entrée que le porteur n'a pas encore tranchée, dont TOUS les critères V sont
- * délégables : jamais V1, V2, V3, V5 ni V9, ni une catégorie que le porteur a désavouée.
+ * délégables : jamais V1, V2, V3, V5 ni V9, ni une catégorie que le porteur a désavouée. Aucun rôle
+ * modèle n'écrit l'archive ; l'archiveur (`--role archiveur`) n'y fait que déplacer des entrées
+ * closes, octet pour octet, et ne touche à rien d'autre.
  *
  * ─── Ce qu'elle ne vérifie PAS ───────────────────────────────────────────────────────────────
  *
@@ -51,6 +63,7 @@
  *   node scripts/check-pistes.mjs --a-deleguer            # « à valider » que le délégué peut prendre
  *   node scripts/check-pistes.mjs --delegations           # validations et recommandations du délégué
  *   node scripts/check-pistes.mjs --role mesureur --base origin/pre-dev
+ *   node scripts/check-pistes.mjs --role archiveur --base origin/pre-dev   # joué par `pistes.sh archiver`
  */
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
@@ -61,6 +74,9 @@ import { fileURLToPath } from 'node:url';
 // de l'arbre de l'agent, contre cet arbre — un agent ne juge pas son travail avec une garde qu'il a modifiée.
 const ROOT = process.env.CHECK_PISTES_RACINE ?? resolve(dirname(fileURLToPath(import.meta.url)), '..');
 export const FICHIER = 'docs/plans/2026-10-15-pistes-d-amelioration.md';
+// L'archive des entrées closes (amendement d'ADR-0066 du 2026-10-24) : un fichier par centaine
+// d'angles, que seul l'archiveur écrit.
+export const ARCHIVE = 'docs/plans/pistes-archive';
 const TICKETS = 'docs/backlog/tickets';
 
 // Le vocabulaire est FERMÉ : un statut hors de cette liste est une erreur, jamais un « autre ».
@@ -75,8 +91,11 @@ const STATUTS = [
   { nom: 'refusé', motif: /^refusé( — .+)?$/ },
   { nom: 'fait', motif: /^fait · TCK-\d{3,}( — reste : .{10,})?$/ },
 ];
+// Les statuts qui ferment une entrée : seuls eux partent à l'archive.
+export const CLOS = ['fait', 'caduc', 'refusé'];
 
-const ROLES = ['explorateur', 'mesureur', 'implementeur', 'delegue'];
+// `archiveur` n'est pas un agent modèle : c'est le périmètre de `pistes.sh archiver`.
+const ROLES = ['explorateur', 'mesureur', 'implementeur', 'delegue', 'archiveur'];
 
 // Ce que chaque rôle a le droit de faire d'un statut. `refusé` n'est une cible nulle part, et
 // `validé` ne l'est que du délégué, sous la forme `validé (délégué) — …` et dans les bornes de
@@ -140,37 +159,60 @@ const LOT_MAX = 10;
 
 const MESURE = /^- Mesure \((\d{4}-\d{2}-\d{2}), ([0-9a-f]{7,40}), (explorateur|mesureur|implementeur|delegue|humain)\) : (.+)$/;
 
-/** Découpe le fichier en en-tête, tableau des angles, sections et entrées. */
-export function analyser(texte) {
+/**
+ * Découpe le fichier en en-tête, tableau des angles, sections et entrées. Un fichier d'archive
+ * (`archive: true`) n'a pas de tableau : ses sections suivent l'en-tête.
+ */
+export function analyser(texte, { archive = false } = {}) {
   const lignes = texte.split('\n');
   const erreurs = [];
-  const iAngles = lignes.findIndex((l) => l === '## Angles');
-  if (iAngles < 0) return { erreurs: ['section « ## Angles » introuvable'] };
+  let i;
+  let entete;
+  let tableau = null;
+  if (archive) {
+    i = lignes.findIndex((l) => l.startsWith('## '));
+    if (i < 0) i = lignes.length;
+    entete = lignes.slice(0, i).join('\n');
+  } else {
+    const iAngles = lignes.findIndex((l) => l === '## Angles');
+    if (iAngles < 0) return { erreurs: ['section « ## Angles » introuvable'] };
 
-  const entete = lignes.slice(0, iAngles).join('\n');
-  const tableau = new Map();
-  let i = iAngles + 1;
-  for (; i < lignes.length && !lignes[i].startsWith('## '); i++) {
-    const m = lignes[i].match(/^\| (\d+) \| (.+) \| (.+) \|$/);
-    if (!m) continue;
-    const num = Number(m[1]);
-    if (tableau.has(num)) erreurs.push(`tableau : l'angle ${num} apparaît deux fois (l. ${i + 1})`);
-    tableau.set(num, { num, ligne: i + 1, sujet: m[2], etat: m[3], brut: lignes[i] });
+    entete = lignes.slice(0, iAngles).join('\n');
+    tableau = new Map();
+    i = iAngles + 1;
+    for (; i < lignes.length && !lignes[i].startsWith('## '); i++) {
+      const m = lignes[i].match(/^\| (\d+) \| (.+) \| (.+) \|$/);
+      if (!m) continue;
+      const num = Number(m[1]);
+      if (tableau.has(num)) erreurs.push(`tableau : l'angle ${num} apparaît deux fois (l. ${i + 1})`);
+      tableau.set(num, { num, ligne: i + 1, sujet: m[2], etat: m[3], brut: lignes[i] });
+    }
   }
 
   const sections = new Map();
   const entrees = [];
   let section = null;
   let entree = null;
-  const fermerEntree = () => {
-    if (entree) entrees.push(entree);
+  // Le CONTENU d'une entrée, celui que l'archiveur déplace : du `###` à la dernière ligne qui lui
+  // appartient. Après ses champs (`- …`), leurs suites indentées et ses lignes vides, une ligne de
+  // texte en colonne 0 ouvre le texte de fin de SECTION (« Ce qui tient », « Angles voisins »), qui
+  // reste où il est. Les lignes vides de fin n'en sont pas.
+  const fermerEntree = (fin) => {
+    if (entree) {
+      let f = entree.debut + 1;
+      while (f < fin && (lignes[f] === '' || lignes[f].startsWith('- ') || lignes[f].startsWith(' '))) f++;
+      while (f > entree.debut + 1 && lignes[f - 1] === '') f--;
+      entree.finContenu = f;
+      entree.contenu = lignes.slice(entree.debut, f).join('\n');
+      entrees.push(entree);
+    }
     entree = null;
   };
   for (; i < lignes.length; i++) {
     const l = lignes[i];
     const mSection = l.match(/^## Angle (\d+) — (.+)$/);
     if (mSection) {
-      fermerEntree();
+      fermerEntree(i);
       const num = Number(mSection[1]);
       if (sections.has(num)) erreurs.push(`la section « Angle ${num} » apparaît deux fois (l. ${i + 1})`);
       section = { num, ligne: i + 1, lignes: [l] };
@@ -178,19 +220,19 @@ export function analyser(texte) {
       continue;
     }
     if (l.startsWith('## ')) {
-      fermerEntree();
-      erreurs.push(`l. ${i + 1} : titre de niveau 2 hors de la forme « ## Angle N — … » après le tableau`);
+      fermerEntree(i);
+      erreurs.push(`l. ${i + 1} : titre de niveau 2 hors de la forme « ## Angle N — … »${archive ? '' : ' après le tableau'}`);
       section = null;
       continue;
     }
     if (section) section.lignes.push(l);
     if (l.startsWith('### ')) {
-      fermerEntree();
+      fermerEntree(i);
       if (!section) {
         erreurs.push(`l. ${i + 1} : entrée hors de toute section d'angle`);
         continue;
       }
-      entree = { angle: section.num, titre: l.slice(4), ligne: i + 1, champs: [], mesures: [] };
+      entree = { angle: section.num, titre: l.slice(4), ligne: i + 1, debut: i, champs: [], mesures: [] };
       continue;
     }
     if (entree && /^- /.test(l)) {
@@ -199,7 +241,7 @@ export function analyser(texte) {
       if (l.startsWith('- Mesure ')) entree.mesures.push({ brut: l, ligne: i + 1, m: l.match(MESURE) });
     }
   }
-  fermerEntree();
+  fermerEntree(lignes.length);
   for (const s of sections.values()) s.texte = s.lignes.join('\n').replace(/[\s-]+$/, '');
   return { entete, tableau, sections, entrees, erreurs };
 }
@@ -209,7 +251,101 @@ export const statutDe = (e) => {
   const v = champ(e, 'Statut')?.valeur ?? '';
   return STATUTS.find((s) => s.motif.test(v))?.nom ?? null;
 };
-const refDe = (e) => champ(e, 'Réf')?.valeur ?? '';
+export const refDe = (e) => champ(e, 'Réf')?.valeur ?? '';
+const rangDe = (ref) => Number(ref.match(/\.(\d+)$/)?.[1] ?? 0);
+
+// ─── L'archive ────────────────────────────────────────────────────────────────────────────────
+
+/** Le fichier d'archive d'un angle : `angles-001-099.md`, `angles-100-199.md`… */
+export function fichierDArchive(angle) {
+  const c = Math.floor(angle / 100);
+  const n = (x) => String(x).padStart(3, '0');
+  return `${ARCHIVE}/angles-${n(c === 0 ? 1 : c * 100)}-${n(c * 100 + 99)}.md`;
+}
+
+function enteteDArchive(chemin) {
+  const [, de, a] = chemin.match(/angles-(\d+)-(\d+)\.md$/);
+  return [
+    `# Pistes closes — angles ${Number(de)} à ${Number(a)}`,
+    '',
+    `Archive du [fichier de pistes](../${FICHIER.split('/').pop()}) : ses entrées closes (\`fait\`, \`caduc\`,`,
+    '`refusé`), déplacées telles quelles, angle par angle, quand leur statut est clos sur `pre-dev`',
+    'depuis 24 h au moins.',
+    '',
+    '**Écrite par `scripts/agents/archiver-pistes.mjs` (`pistes.sh archiver`), jamais à la main ni par',
+    'un agent** ([ADR-0066](../../adr/0066-trois-agents-sur-les-pistes-d-amelioration.md), amendement du',
+    "2026-10-24, « l'archive des pistes closes »). Rouvrir une piste close, c'est écrire une entrée",
+    "neuve dans le fichier vivant, qui cite l'ancienne Réf. `node scripts/check-pistes.mjs` lit les deux.",
+  ].join('\n');
+}
+
+/** Le fichier vivant et l'archive, lus ensemble : `entrees` les porte tous, chacune avec son fichier. */
+export function ensemble(texteVivant, archives) {
+  const vivant = charger(texteVivant);
+  for (const e of vivant.entrees ?? []) e.fichier = FICHIER;
+  const lues = archives.map(({ chemin, texte }) => {
+    const doc = charger(texte, { archive: true });
+    for (const e of doc.entrees) e.fichier = chemin;
+    return { chemin, doc };
+  });
+  return { vivant, archives: lues, entrees: [...(vivant.entrees ?? []), ...lues.flatMap((a) => a.doc.entrees)] };
+}
+
+/** L'ensemble tel qu'il est sur le disque, sous `racine`. */
+export function lireEnsemble(racine = ROOT) {
+  const dossier = join(racine, ARCHIVE);
+  const noms = existsSync(dossier) ? readdirSync(dossier).filter((n) => n.endsWith('.md')).sort() : [];
+  const ens = ensemble(
+    readFileSync(join(racine, FICHIER), 'utf8'),
+    noms.map((n) => ({ chemin: `${ARCHIVE}/${n}`, texte: readFileSync(join(dossier, n), 'utf8') })),
+  );
+  ens.sansArchive = !existsSync(dossier);
+  return ens;
+}
+
+/**
+ * Le déplacement, fonction pure : les entrées `refs` du fichier vivant partent, octet pour octet,
+ * dans le fichier d'archive de leur angle, sous le titre de leur section, rangées par Réf. Le
+ * fichier vivant perd leur contenu et la ou les lignes vides qui le suivent : rien d'autre. Une
+ * archive existante est réécrite à l'identique, plus les entrées neuves. Rend les textes de chaque
+ * fichier, et les Réf demandées introuvables.
+ */
+export function deplacer(ens, refs) {
+  const demandees = new Set(refs);
+  const lignes = ens.vivant.texteSource.split('\n');
+  const retire = new Array(lignes.length).fill(false);
+  const parFichier = new Map();
+  const sectionDe = (chemin, num, titre) => {
+    if (!parFichier.has(chemin)) parFichier.set(chemin, new Map());
+    const sections = parFichier.get(chemin);
+    if (!sections.has(num)) sections.set(num, { titre, entrees: [] });
+    return sections.get(num);
+  };
+  for (const a of ens.archives) {
+    for (const [num, s] of a.doc.sections) sectionDe(a.chemin, num, s.lignes[0]);
+    for (const e of a.doc.entrees) sectionDe(a.chemin, e.angle).entrees.push({ ref: refDe(e), contenu: e.contenu });
+  }
+  const deplacees = [];
+  for (const e of ens.vivant.entrees) {
+    const ref = refDe(e);
+    if (!demandees.delete(ref)) continue;
+    let f = e.finContenu;
+    while (f < lignes.length && lignes[f] === '') f++;
+    for (let k = e.debut; k < f; k++) retire[k] = true;
+    sectionDe(fichierDArchive(e.angle), e.angle, ens.vivant.sections.get(e.angle).lignes[0]).entrees.push({ ref, contenu: e.contenu });
+    deplacees.push(ref);
+  }
+  const archives = new Map();
+  for (const [chemin, sections] of [...parFichier].sort(([a], [b]) => a.localeCompare(b))) {
+    const morceaux = [enteteDArchive(chemin)];
+    for (const [, s] of [...sections].sort(([a], [b]) => a - b)) {
+      if (!s.entrees.length) continue;
+      morceaux.push(s.titre, ...s.entrees.sort((x, y) => rangDe(x.ref) - rangDe(y.ref)).map((x) => x.contenu));
+    }
+    archives.set(chemin, `${morceaux.join('\n\n')}\n`);
+  }
+  return { vivant: lignes.filter((_, k) => !retire[k]).join('\n'), archives, deplacees, introuvables: [...demandees] };
+}
 const codesV = (texte) => new Set([...texte.matchAll(/\bV(\d)\b/g)].map((m) => `V${m[1]}`));
 
 /** Les catégories que le porteur confie au délégué, moins celles qu'il lui a retirées. */
@@ -245,21 +381,27 @@ export function refusDeDelegation(e, permises) {
   return null;
 }
 
-/** La garde de forme : renvoie la liste des erreurs. */
-export function verifierForme(doc, { racine = ROOT } = {}) {
+// Où est une entrée, pour un message : le fichier vivant se dit par ses seules lignes, comme
+// avant l'archive ; un fichier d'archive se nomme.
+const lieu = (e, ligne = e.ligne) => (e.fichier && e.fichier !== FICHIER ? `${e.fichier} l. ${ligne}` : `l. ${ligne}`);
+
+/** La garde de forme, sur le fichier vivant et l'archive : renvoie la liste des erreurs. */
+export function verifierForme(ens, { racine = ROOT } = {}) {
+  const doc = ens.vivant;
   const erreurs = [...doc.erreurs];
   if (!doc.tableau) return erreurs;
+  for (const a of ens.archives) erreurs.push(...a.doc.erreurs.map((x) => `${a.chemin} : ${x}`));
   const vues = new Map();
   const tickets = existsSync(join(racine, TICKETS)) ? readdirSync(join(racine, TICKETS)) : [];
 
-  for (const e of doc.entrees) {
-    const ou = `l. ${e.ligne} (« ${e.titre} »)`;
+  for (const e of ens.entrees) {
+    const ou = `${lieu(e)} (« ${e.titre} »)`;
     const ref = refDe(e);
     const m = ref.match(/^P(\d{2,3})\.(\d{2,3})$/);
     if (!m) erreurs.push(`${ou} : « - Réf : PNN.MM » absente ou mal formée (« ${ref} »)`);
     else if (Number(m[1]) !== e.angle) erreurs.push(`${ou} : la Réf ${ref} n'est pas de l'angle ${e.angle}`);
-    if (ref && vues.has(ref)) erreurs.push(`${ou} : Réf ${ref} déjà portée l. ${vues.get(ref)}`);
-    vues.set(ref, e.ligne);
+    if (ref && vues.has(ref)) erreurs.push(`${ou} : Réf ${ref} déjà portée ${lieu(vues.get(ref))}`);
+    vues.set(ref, e);
 
     const brut = champ(e, 'Statut')?.valeur;
     const statut = statutDe(e);
@@ -271,8 +413,8 @@ export function verifierForme(doc, { racine = ROOT } = {}) {
     if (!e.champs.some((c) => /constat/i.test(c.cle))) erreurs.push(`${ou} : aucun constat`);
 
     for (const mes of e.mesures) {
-      if (!mes.m) erreurs.push(`l. ${mes.ligne} : ligne Mesure hors forme « - Mesure (AAAA-MM-JJ, <sha>, <rôle>) : … »`);
-      else if (mes.m[4].trim().length < 40) erreurs.push(`l. ${mes.ligne} : une mesure dit ce qui a été lancé ou lu, et ce que cela a rendu (40 caractères au moins)`);
+      if (!mes.m) erreurs.push(`${lieu(e, mes.ligne)} : ligne Mesure hors forme « - Mesure (AAAA-MM-JJ, <sha>, <rôle>) : … »`);
+      else if (mes.m[4].trim().length < 40) erreurs.push(`${lieu(e, mes.ligne)} : une mesure dit ce qui a été lancé ou lu, et ce que cela a rendu (40 caractères au moins)`);
     }
     if (statut && statut !== 'à mesurer' && !e.mesures.some((x) => x.m)) {
       erreurs.push(`${ou} : le statut « ${statut} » n'est appuyé par aucune ligne Mesure`);
@@ -280,6 +422,26 @@ export function verifierForme(doc, { racine = ROOT } = {}) {
     if (statut === 'fait') {
       const tck = brut.match(/TCK-\d+/)[0];
       if (!tickets.some((f) => f.startsWith(`${tck}-`))) erreurs.push(`${ou} : ${tck} n'existe pas dans ${TICKETS}`);
+    }
+    if (e.fichier !== FICHIER) {
+      if (statut && !CLOS.includes(statut)) erreurs.push(`${ou} : statut « ${statut} » : l'archive ne garde que les entrées closes (${CLOS.join(', ')})`);
+      if (fichierDArchive(e.angle) !== e.fichier) erreurs.push(`${ou} : l'angle ${e.angle} s'archive dans ${fichierDArchive(e.angle)}`);
+    }
+  }
+
+  // Une entrée vivante qui cite une Réf (« voir P02.04 », « né de P227.01 ») la trouve dans
+  // l'ensemble : archivée, elle se cherche aussi dans l'archive, mais elle ne disparaît pas. Sans
+  // dossier d'archive, on ne juge pas : la copie que `pistes.sh` extrait pour lire une liste ne le
+  // portait pas avant l'amendement, et une erreur y passe pour un doute qui lance le modèle.
+  for (const e of ens.sansArchive ? [] : doc.entrees) {
+    const propre = refDe(e);
+    for (const [cite] of e.contenu.matchAll(/\bP\d{2,3}\.\d{2,3}\b/g)) {
+      if (cite !== propre && !vues.has(cite)) erreurs.push(`${lieu(e)} (« ${e.titre} ») : cite ${cite}, qui n'existe ni dans ${FICHIER} ni dans ${ARCHIVE}/`);
+    }
+  }
+  for (const a of ens.archives) {
+    for (const [num, s] of a.doc.sections) {
+      if (!doc.sections.has(num)) erreurs.push(`${a.chemin} l. ${s.ligne} : la section « Angle ${num} » n'existe plus dans ${FICHIER}`);
     }
   }
 
@@ -306,20 +468,60 @@ const sansSuivi = (texte) =>
     .filter((l) => !l.startsWith('- Statut : ') && !l.startsWith('- Mesure ('))
     .join('\n');
 
+const dansLArchive = (chemin) => chemin.startsWith(`${ARCHIVE}/`);
+const ARCHIVE_FERMEE = `l'archive des pistes n'est écrite que par l'archiveur (pistes.sh archiver) ; une piste close se rouvre par une entrée neuve dans ${FICHIER}, qui cite son ancienne Réf`;
+
+/**
+ * Le périmètre de l'archiveur : il ne touche que le fichier vivant et l'archive, et ce qu'il
+ * propose est EXACTEMENT le déplacement, depuis la base, des entrées closes qui ont quitté le
+ * fichier vivant. Rien d'autre ne change : ni une ligne du fichier vivant, ni une entrée archivée.
+ */
+function verifierArchivage(baseEns, teteEns, touche) {
+  const erreurs = [];
+  for (const c of touche) {
+    if (c !== FICHIER && !dansLArchive(c)) erreurs.push(`${c} : l'archiveur n'écrit que ${FICHIER} et ${ARCHIVE}/`);
+  }
+  const restees = new Set(teteEns.vivant.entrees.map(refDe));
+  const parties = baseEns.vivant.entrees.filter((e) => !restees.has(refDe(e)));
+  if (!parties.length) erreurs.push(`aucune entrée n'a quitté ${FICHIER} : rien à archiver`);
+  for (const e of parties) {
+    if (!CLOS.includes(statutDe(e))) erreurs.push(`${refDe(e)} : statut « ${champ(e, 'Statut')?.valeur ?? ''} » : seule une entrée close s'archive`);
+  }
+  const attendu = deplacer(baseEns, parties.map(refDe));
+  if (attendu.vivant !== teteEns.vivant.texteSource) {
+    const refs = parties.map(refDe);
+    erreurs.push(`${FICHIER} : il ne résulte pas du seul retrait des ${refs.length} entrées archivées (${refs.slice(0, 5).join(', ')}${refs.length > 5 ? ', …' : ''})`);
+  }
+  const lues = new Map(teteEns.archives.map((a) => [a.chemin, a.doc.texteSource]));
+  for (const chemin of new Set([...attendu.archives.keys(), ...lues.keys()])) {
+    if (attendu.archives.get(chemin) !== lues.get(chemin)) {
+      erreurs.push(`${chemin} : il ne résulte pas du seul ajout, octet pour octet, des entrées archivées à l'archive de la base`);
+    }
+  }
+  return erreurs;
+}
+
 /** Le périmètre d'un rôle : fichiers touchés et transitions, contre la version de base. */
-export function verifierRole(role, base, tete, fichiers, { racine = ROOT } = {}) {
+export function verifierRole(role, baseEns, teteEns, fichiers, { racine = ROOT } = {}) {
   const erreurs = [];
   const touche = fichiers.map((f) => f.chemin);
+  if (role === 'archiveur') return verifierArchivage(baseEns, teteEns, touche);
+  const base = baseEns.vivant;
+  const tete = teteEns.vivant;
 
   if (role === 'implementeur') {
     for (const f of fichiers) {
-      if (PROTEGES_IMPLEMENTEUR.some((re) => re.test(f.chemin))) erreurs.push(`${f.chemin} : chemin réservé au porteur`);
+      if (dansLArchive(f.chemin)) erreurs.push(`${f.chemin} : ${ARCHIVE_FERMEE}`);
+      else if (PROTEGES_IMPLEMENTEUR.some((re) => re.test(f.chemin))) erreurs.push(`${f.chemin} : chemin réservé au porteur`);
       if (MIGRATIONS.test(f.chemin) && f.etat !== 'A') erreurs.push(`${f.chemin} : une migration existante ne se modifie ni ne se supprime`);
       if (GARDES.test(f.chemin) && f.etat !== 'A') erreurs.push(`${f.chemin} : une garde existante ne se modifie pas (critère V9)`);
       if (TESTS.test(f.chemin) && f.etat === 'D') erreurs.push(`${f.chemin} : un test ne se supprime pas`);
     }
   } else {
-    for (const c of touche) if (c !== FICHIER) erreurs.push(`${c} : le rôle ${role} n'écrit que ${FICHIER}`);
+    for (const c of touche) {
+      if (dansLArchive(c)) erreurs.push(`${c} : ${ARCHIVE_FERMEE}`);
+      else if (c !== FICHIER) erreurs.push(`${c} : le rôle ${role} n'écrit que ${FICHIER}`);
+    }
   }
   if (!touche.includes(FICHIER) && role !== 'implementeur') erreurs.push(`${FICHIER} n'a pas changé : rien à proposer`);
 
@@ -399,7 +601,8 @@ export function verifierRole(role, base, tete, fichiers, { racine = ROOT } = {})
       erreurs.push(`${ref} : un classement « ${vers} » dit pourquoi (« Classement : … », 20 caractères au moins)`);
     }
     if (role === 'delegue') {
-      const permises = delegables(base);
+      // Un désaveu du porteur vaut aussi écrit sur une entrée archivée.
+      const permises = delegables(baseEns);
       const refus = refusDeDelegation(avantE, permises);
       if (refus) erreurs.push(`${ref} : le délégué ne tranche pas cette entrée (${refus})`);
       if (!/^validé \(délégué\) — /.test(champ(e, 'Statut').valeur)) {
@@ -489,19 +692,35 @@ function git(args) {
   return execFileSync('git', args, { cwd: ROOT, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
 }
 
-function charger(texte) {
-  const doc = analyser(texte);
+function charger(texte, options) {
+  const doc = analyser(texte, options);
   doc.texteSource = texte;
   return doc;
 }
+
+/** L'ensemble tel qu'il est dans un commit. */
+function ensembleAu(rev) {
+  const chemins = git(['ls-tree', '--name-only', rev, `${ARCHIVE}/`])
+    .split('\n')
+    .filter((c) => c.endsWith('.md'));
+  return ensemble(
+    git(['show', `${rev}:${FICHIER}`]),
+    chemins.map((chemin) => ({ chemin, texte: git(['show', `${rev}:${chemin}`]) })),
+  );
+}
+
+// La colonne « où » de `--liste` et `--a-deleguer` : `l. N` dans le fichier vivant, le nom du
+// fichier d'archive devant sinon.
+const ouDans = (e) => (e.fichier === FICHIER ? `l. ${e.ligne}` : `${e.fichier.split('/').pop()} l. ${e.ligne}`);
 
 function principal(argv) {
   const opt = (nom) => {
     const k = argv.indexOf(nom);
     return k >= 0 ? (argv[k + 1] ?? '') : null;
   };
-  const tete = charger(readFileSync(join(ROOT, FICHIER), 'utf8'));
-  const erreurs = verifierForme(tete);
+  const ens = lireEnsemble(ROOT);
+  const tete = ens.vivant;
+  const erreurs = verifierForme(ens);
 
   const role = opt('--role');
   if (role !== null) {
@@ -523,14 +742,13 @@ function principal(argv) {
         const [etat, chemin] = l.split('\t');
         return { etat: etat[0], chemin };
       });
-    const base = charger(git(['show', `${mb}:${FICHIER}`]));
-    erreurs.push(...verifierRole(role, base, tete, fichiers));
+    erreurs.push(...verifierRole(role, ensembleAu(mb), ens, fichiers));
   }
 
   if (argv.includes('--restes')) {
     // Ce qui reste d'une validation partielle : à faire (`validé — … ; reste : …`) ou laissé par
-    // le ticket qui l'a implémentée (`fait · TCK-NNN — reste : …`).
-    for (const e of tete.entrees) {
+    // le ticket qui l'a implémentée (`fait · TCK-NNN — reste : …`), archivé compris.
+    for (const e of ens.entrees) {
       const s = champ(e, 'Statut')?.valeur ?? '';
       const fait = s.match(/^fait · (TCK-\d+) — reste : (.+)$/);
       const valide = s.match(/^validé(?: \(délégué\))? — .* ; reste : (.+)$/);
@@ -539,15 +757,15 @@ function principal(argv) {
     }
   }
   if (argv.includes('--a-deleguer')) {
-    const permises = delegables(tete);
+    const permises = delegables(ens);
     for (const e of tete.entrees) {
-      if (refusDeDelegation(e, permises) === null) console.log(`${refDe(e)}\t${(champ(e, 'Gravité')?.valeur ?? '').slice(0, 2)}\tl. ${e.ligne}\t${champ(e, 'Statut').valeur}\t${e.titre}`);
+      if (refusDeDelegation(e, permises) === null) console.log(`${refDe(e)}\t${(champ(e, 'Gravité')?.valeur ?? '').slice(0, 2)}\t${ouDans(e)}\t${champ(e, 'Statut').valeur}\t${e.titre}`);
     }
   }
   if (argv.includes('--delegations')) {
     // Le relevé du porteur : ce que le délégué a tranché ou recommandé, le plus récent d'abord.
     const lignes = [];
-    for (const e of tete.entrees) {
+    for (const e of ens.entrees) {
       for (const x of e.mesures) {
         if (x.m?.[3] !== 'delegue') continue;
         const quoi = /Recommandation : /.test(x.m[4]) ? 'recommandé' : 'validé';
@@ -555,21 +773,21 @@ function principal(argv) {
       }
     }
     for (const l of lignes.sort().reverse()) console.log(l);
-    console.log(`catégories délégables : ${delegables(tete).join(', ') || 'aucune'}`);
+    console.log(`catégories délégables : ${delegables(ens).join(', ') || 'aucune'}`);
   }
   if (argv.includes('--angles-a-faire')) {
     for (const a of tete.tableau.values()) if (a.etat === 'à faire') console.log(`${a.num}\t${a.sujet}`);
   }
   const liste = opt('--liste');
   if (liste !== null) {
-    for (const e of tete.entrees) {
+    for (const e of ens.entrees) {
       const s = champ(e, 'Statut')?.valeur ?? '';
-      if (s.startsWith(liste)) console.log(`${refDe(e)}\t${(champ(e, 'Gravité')?.valeur ?? '').slice(0, 2)}\tl. ${e.ligne}\t${s}\t${e.titre}`);
+      if (s.startsWith(liste)) console.log(`${refDe(e)}\t${(champ(e, 'Gravité')?.valeur ?? '').slice(0, 2)}\t${ouDans(e)}\t${s}\t${e.titre}`);
     }
   }
   if (argv.includes('--report')) {
     const comptes = new Map();
-    for (const e of tete.entrees) {
+    for (const e of ens.entrees) {
       const cle = `${statutDe(e) ?? '(hors vocabulaire)'}`;
       const g = [...(champ(e, 'Gravité')?.valeur ?? '?')][0];
       const c = comptes.get(cle) ?? { '🔴': 0, '🟠': 0, '🟢': 0, total: 0 };
@@ -577,8 +795,10 @@ function principal(argv) {
       c.total++;
       comptes.set(cle, c);
     }
-    console.log(`${FICHIER}`);
-    console.log(`  ${tete.entrees.length} entrées, ${tete.sections.size} angles explorés sur ${tete.tableau.size}`);
+    const archivees = ens.entrees.length - tete.entrees.length;
+    console.log(`${FICHIER}${ens.archives.length ? ` et ${ARCHIVE}/` : ''}`);
+    console.log(`  ${ens.entrees.length} entrées, ${tete.sections.size} angles explorés sur ${tete.tableau.size}`);
+    console.log(`  dont ${tete.entrees.length} dans le fichier vivant, ${archivees} archivées (${ens.archives.length} fichier(s))`);
     for (const s of STATUTS) {
       const c = comptes.get(s.nom);
       if (c) console.log(`  ${s.nom.padEnd(20)} ${String(c.total).padStart(4)}   🔴 ${c['🔴']}  🟠 ${c['🟠']}  🟢 ${c['🟢']}`);
@@ -591,7 +811,8 @@ function principal(argv) {
     return 1;
   }
   if (liste === null && !['--angles-a-faire', '--restes', '--a-deleguer', '--delegations'].some((o) => argv.includes(o))) {
-    console.log(`✓ ${FICHIER} : ${tete.entrees.length} entrées bien formées${role ? `, périmètre du rôle ${role} tenu` : ''}`);
+    const archivees = ens.entrees.length - tete.entrees.length;
+    console.log(`✓ ${FICHIER} : ${ens.entrees.length} entrées bien formées, dont ${archivees} dans ${ARCHIVE}/${role ? `, périmètre du rôle ${role} tenu` : ''}`);
   }
   return 0;
 }

@@ -11,7 +11,12 @@ import { apiRequest } from './api';
 export type HostIndividualOnboardPayload = {
   agency: { name: string; primary_city: string; currency: string };
   phone_otp: { phone: string; code: string };
-  preferences: { primary_property_type: string };
+  /**
+   * TCK-2372 (P249.03) — FACULTATIF : le « Type de bien principal » a quitté
+   * l'assistant, rien ne le lisait (TCK-966). Le back l'accepte encore, pour un
+   * brouillon repris ; l'assistant ne l'envoie plus.
+   */
+  preferences?: { primary_property_type: string };
   /**
    * TCK-496 — FACULTATIF depuis que l'étape « mode de paiement » a quitté
    * l'assistant. Le champ reste dans le contrat, et le back l'accepte encore :

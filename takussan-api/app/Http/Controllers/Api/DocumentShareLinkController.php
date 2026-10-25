@@ -74,7 +74,8 @@ class DocumentShareLinkController extends Controller
                     // TCK-285 — la collection est `file` au singulier (Document.php:71,
                     // écrite par DocumentController.php:92). Ce contrôleur lisait `files` :
                     // la taille était donc TOUJOURS nulle, et le téléchargement toujours 404.
-                    'size' => $document->getFirstMedia('file')?->size,
+                    // TCK-2300 (P231.02) — la version active, sinon `file`.
+                    'size' => $document->currentFile()?->size,
                 ],
                 'expires_at' => $this->instant($link->expires_at),
                 'downloads_count' => $link->downloads_count,
@@ -88,7 +89,7 @@ class DocumentShareLinkController extends Controller
         $password = $this->passwordFromBody($request);
         $link = $this->shareLinks->validate($token, $password);
 
-        $media = $link->document->getFirstMedia('file');
+        $media = $link->document->currentFile();
         abort_code_unless($media !== null, 404, 'document.file_missing');
 
         $this->shareLinks->recordDownload($link);

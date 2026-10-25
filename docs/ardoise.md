@@ -3057,7 +3057,14 @@ ssh root@178.18.247.62 'for k in PUBLIC_CACHE_REVALIDATE_SECRET API_INTERNAL_URL
 
 ## 🟡 Rattachée à la phase F par décision du porteur (2026-10-15)
 
-### D-72 — Le référencement n'est pas en ligne : `www.takussan.com` sert `master` du 2026-08-15
+### D-72 — Le référencement n'est pas en ligne : aucun site public n'est servi
+
+> **Re-mesuré (2026-10-25).** Le titre de cette entrée disait jusqu'ici « `www.takussan.com` sert
+> `master` du 2026-08-15 ». Ce n'est plus vrai depuis la suppression de Vercel : son dernier
+> déploiement date du 2026-10-15, et le 2026-10-18 ni `www.takussan.com` ni `takussan.com` n'avaient
+> d'enregistrement DNS (CLAUDE.md, § Workflow git). Il n'y a donc plus de site en retard : il n'y a
+> pas de site. Le relevé du 2026-10-15 ci-dessous reste exact à sa date. La décision et la
+> condition de clôture ne changent pas.
 
 Relevé par la piste P09.01 (2026-10-15, `25820d04`) : `origin/master` est à `fefe2c87`
 (2026-08-15), sans `robots.ts` ni `sitemap.ts`, et `origin/dev` le devançait de 1 885 commits. Tout

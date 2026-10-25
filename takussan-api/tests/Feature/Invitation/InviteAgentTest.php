@@ -24,7 +24,7 @@ use Tests\TestCase;
  *  - AC1: standard agency_admin invites → invitation + draft profile + mail
  *  - AC2: individual agency_admin → 403
  *  - agent without `manage_team` permission → 403
- *  - invalid role (e.g. agency_admin) → 422
+ *  - invalid role (e.g. super_admin) → 422 ; `agency_admin` is invitable since TCK-2365
  *  - 409 when an active agent already exists for that email + agency
  *  - resend / revoke proxied via the generic invitation endpoints
  *  - activity log row `agent_invited`
@@ -80,7 +80,12 @@ class InviteAgentTest extends TestCase
         );
     }
 
-    public function test_invite_agent_senior_and_manager_roles_are_accepted(): void
+    /**
+     * P234.01 (TCK-2280) — `agent_senior` et `agent_manager` n'accordaient rien de plus que `agent`
+     * (le rôle choisi n'était jamais appliqué) : l'invitation ne les offre plus. Celles déjà émises
+     * s'acceptent toujours ({@see RolesDAgentSansEffetTest}).
+     */
+    public function test_invite_agent_senior_and_manager_roles_are_rejected(): void
     {
         Mail::fake();
         [$agency] = $this->standardAgencyWithAdmin();
@@ -91,8 +96,9 @@ class InviteAgentTest extends TestCase
                 'role' => $role,
                 'first_name' => 'X',
                 'last_name' => 'Y',
-            ])->assertStatus(201)->assertJsonPath('data.role', $role);
+            ])->assertStatus(422)->assertJsonValidationErrors(['role']);
         }
+        $this->assertSame(0, Invitation::query()->count());
     }
 
     public function test_invite_rejects_disallowed_roles(): void
@@ -102,7 +108,7 @@ class InviteAgentTest extends TestCase
 
         $this->postJson("/api/agencies/{$agency->id}/agents/invite", [
             'email' => 'badrole@example.com',
-            'role' => 'agency_admin',
+            'role' => 'super_admin',
             'first_name' => 'X',
             'last_name' => 'Y',
         ])->assertStatus(422)->assertJsonValidationErrors(['role']);
@@ -122,43 +128,9 @@ class InviteAgentTest extends TestCase
         ])->assertStatus(403);
     }
 
-    /**
-     * TCK-392, AC4 — **la moitié qui n'avait pas été mesurée.**
-     *
-     * AC4 dit « une agence `individual` ne voit aucun de CES GESTES, et l'API
-     * LES refuse (403) même si l'écran est contourné » : au pluriel. TCK-392
-     * fait précisément de « Ajouter un compte existant » un second bouton,
-     * nommé et distinct — le geste entre donc dans le champ d'AC4.
-     *
-     * Mesuré par la passe adverse, et reproduit ici avant correction :
-     * `POST /agencies/{id}/members` rendait **200** sur une agence
-     * `individual`, quand son jumeau `agents/invite` (le cas juste au-dessus)
-     * rendait 403. L'administrateur d'une agence individuelle pouvait s'y
-     * rattacher un agent en contournant simplement l'écran — ce que le modèle
-     * `individual` (host solo, « pas d'invitation de collaborateurs internes »)
-     * existe pour interdire.
-     *
-     * `AddAgentAgencyRequest::authorize()` délègue à `AgencyPolicy@update`, qui
-     * ne juge pas le `kind` ; le garde vit donc dans `addAgent()`.
-     */
-    public function test_individual_agency_cannot_add_an_existing_account_as_member(): void
-    {
-        Mail::fake();
-        $agency = Agency::factory()->create(['kind' => AgencyKind::Individual]);
-        $this->actingAsRole('agency_admin', ['agency_id' => $agency->id]);
-
-        $existant = User::factory()->create();
-
-        $this->postJson("/api/agencies/{$agency->id}/members", [
-            'email' => $existant->email,
-            'role' => 'agent',
-        ])->assertStatus(403);
-
-        $this->assertDatabaseMissing('agent_profiles', [
-            'user_id' => $existant->id,
-            'agency_id' => $agency->id,
-        ]);
-    }
+    // TCK-392, AC4 — « Ajouter un compte existant » (`POST /agencies/{id}/members`) refusait une
+    // agence `individual` ici. La route est retirée (TCK-2365, P242.01) : l'invitation, aux deux
+    // rôles, porte la frontière (`TeamFormationBoundaryTest`).
 
     /**
      * TCK-392 (revue, passe 2) — le TROISIÈME geste de la famille, et les deux
@@ -170,7 +142,7 @@ class InviteAgentTest extends TestCase
      * rouvrirait l'une sans que rien ne bronche.
      *
      * Mesuré avant correction : 200 et 200 sur une agence `individual`, quand
-     * `agents/invite` et `POST /members` rendaient déjà 403. L'endpoint promeut
+     * `agents/invite` et `POST /members` (retirée depuis, TCK-2365) rendaient déjà 403. L'endpoint promeut
      * jusqu'à `agency_admin`, or une agence individuelle n'a qu'un seul
      * administrateur et pas d'équipe.
      */
@@ -209,25 +181,6 @@ class InviteAgentTest extends TestCase
 
         $this->assertDatabaseHas('agency_admin_profiles', [
             'user_id' => $membre->id,
-            'agency_id' => $agency->id,
-        ]);
-    }
-
-    /** Témoin : le même geste reste ouvert sur une agence `standard`. */
-    public function test_standard_agency_can_still_add_an_existing_account_as_member(): void
-    {
-        Mail::fake();
-        [$agency] = $this->standardAgencyWithAdmin();
-
-        $existant = User::factory()->create();
-
-        $this->postJson("/api/agencies/{$agency->id}/members", [
-            'email' => $existant->email,
-            'role' => 'agent',
-        ])->assertOk();
-
-        $this->assertDatabaseHas('agent_profiles', [
-            'user_id' => $existant->id,
             'agency_id' => $agency->id,
         ]);
     }
@@ -361,7 +314,7 @@ class InviteAgentTest extends TestCase
 
         $this->postJson("/api/agencies/{$agency->id}/agents/invite", [
             'email' => 'log@example.com',
-            'role' => 'agent_senior',
+            'role' => 'agent',
             'first_name' => 'A',
             'last_name' => 'B',
         ])->assertStatus(201);
@@ -371,7 +324,7 @@ class InviteAgentTest extends TestCase
         $this->assertSame($admin->id, $log->causer_id);
         $this->assertSame('log@example.com', data_get($log->properties, 'target_email'));
         $this->assertSame($agency->id, data_get($log->properties, 'agency_id'));
-        $this->assertSame('agent_senior', data_get($log->properties, 'role'));
+        $this->assertSame('agent', data_get($log->properties, 'role'));
     }
 
     public function test_super_admin_bypass_works(): void

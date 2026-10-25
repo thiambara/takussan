@@ -64,14 +64,18 @@ class AnnouncementResolver
 
         $matched = false;
 
+        // TCK-2006 (P176.05 ; ADR-0005, amendement du 2026-10-23, point 2) — les profils ACTIFS
+        // seulement : une annonce ciblée par rôle n'atteint plus un profil suspendu.
         $roles = $segment['roles'] ?? [];
         if (is_array($roles) && $roles !== []) {
-            $matched = collect($roles)->intersect($user->profileTypes())->isNotEmpty();
+            $matched = collect($roles)->intersect($user->activeProfileTypes())->isNotEmpty();
         }
 
+        // TCK-2006 — toutes les agences où le compte a un profil actif, quel que soit l'en-tête de
+        // profil de la requête (avant : `$user->agency_id`, l'agence active seule, ou `null`).
         $agencyIds = $segment['agency_ids'] ?? [];
-        if (! $matched && is_array($agencyIds) && $agencyIds !== [] && $user->agency_id !== null) {
-            $matched = in_array((int) $user->agency_id, array_map('intval', $agencyIds), true);
+        if (! $matched && is_array($agencyIds) && $agencyIds !== []) {
+            $matched = array_intersect($user->activeAgencyIds(), array_map('intval', $agencyIds)) !== [];
         }
 
         $percentage = (int) ($segment['rollout_percentage'] ?? 0);

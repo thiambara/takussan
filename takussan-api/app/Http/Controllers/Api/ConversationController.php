@@ -187,7 +187,6 @@ class ConversationController extends Controller
             array_map('intval', $data['participants']),
             $data['property_id'] ?? null,
             $data['lease_id'] ?? null,
-            $data['maintenance_request_id'] ?? null,
         );
 
         if (! empty($data['initial_message'])) {
@@ -260,7 +259,14 @@ class ConversationController extends Controller
         $conversation->loadForDetail();
 
         return $this->json([
-            'data' => ConversationResource::make($conversation)->resolve($request),
+            'data' => [
+                ...ConversationResource::make($conversation)->resolve($request),
+                // P248.01 (TCK-2374) — le front cache la saisie quand l'API refuserait l'envoi : le
+                // demandeur au bail fini lit le fil d'une intervention sans y écrire.
+                'abilities' => [
+                    'can_send_message' => app(ConversationAccess::class)->allowsWriting($request->user(), $conversation),
+                ],
+            ],
         ]);
     }
 
@@ -284,7 +290,8 @@ class ConversationController extends Controller
                 // for a long time). The client re-polls so anything beyond
                 // this cap will be fetched on the next call.
                 ->limit(200)
-                ->with('media')
+                // TCK-2013 (P175.04) — `MessageResource` rend l'auteur.
+                ->with(['media', 'sender'])
                 ->get();
 
             return $this->json([
@@ -302,8 +309,9 @@ class ConversationController extends Controller
             $query->where('id', '<', (int) $data['before_id']);
         }
 
-        // TCK-592 — `MessageResource` rend `attachments` : les médias chargés d'un coup.
-        $messages = $query->limit($perPage)->with('media')->get();
+        // TCK-592 — `MessageResource` rend `attachments` : les médias chargés d'un coup ;
+        // TCK-2013 (P175.04) — et `sender`, l'auteur.
+        $messages = $query->limit($perPage)->with(['media', 'sender'])->get();
 
         return $this->json([
             'data' => MessageResource::collection($messages)->toArray($request),

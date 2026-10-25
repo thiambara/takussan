@@ -11,8 +11,20 @@ import { useAuth } from '@/context/AuthContext';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import { ApiError, urlApiPublique } from '@/lib/api';
 import { formatCurrency } from '@/lib/format';
+import { DATE_COURTE, useFormatteurs } from '@/lib/format/useFormatteurs';
 import { useOwnerStatement } from '@/lib/queries/payments';
 import type { Locale } from '@/i18n/config';
+import type { OwnerStatementTotals } from '@/types/invoice';
+
+/** TCK-2321 — le libellé de chaque total que le rectificatif peut faire bouger. */
+const LIBELLE_DU_TOTAL: Record<keyof OwnerStatementTotals, string> = {
+  gross: 'gross',
+  commission: 'commission',
+  fees: 'fees',
+  net: 'net',
+  paid_out: 'paidOut',
+  clawback: 'clawback',
+};
 
 /**
  * TCK-594 (ADR-0039 §3) — le relevé de gérance, à côté des versements du bailleur.
@@ -34,6 +46,7 @@ interface OwnerStatementPanelProps {
 export function OwnerStatementPanel({ landlordId, initialMonth }: OwnerStatementPanelProps = {}) {
   const t = useTranslations('payments.ownerStatement');
   const locale = useLocale() as Locale;
+  const fmt = useFormatteurs();
   const messageErreur = useMessageErreurApi();
   const { token } = useAuth();
   const [month, setMonth] = useState(() => initialMonth ?? new Date().toISOString().slice(0, 7));
@@ -125,7 +138,34 @@ export function OwnerStatementPanel({ landlordId, initialMonth }: OwnerStatement
             <Total label={t('fees')} value={money(-statement.totals.fees)} />
             <Total label={t('net')} value={money(statement.totals.net)} strong />
             <Total label={t('paidOut')} value={money(statement.totals.paid_out)} />
+            {/* P206.03 (ADR-0057, amendement du 2026-10-24) — à part de l'impayé, qui ne les compte pas. */}
+            {(statement.late_fees_outstanding?.amount ?? 0) > 0 ? (
+              <Total label={t('lateFeesOutstanding')} value={money(statement.late_fees_outstanding?.amount ?? 0)} />
+            ) : null}
           </dl>
+          {/* TCK-2321 (P177.05) — un mois envoyé se lit tel qu'il a été envoyé, et ce qui a été
+              écrit depuis vient à part, en rectificatif. */}
+          {statement.snapshot ? (
+            <p className="text-xs text-muted-foreground">
+              {t('sentOn', { date: fmt.date(statement.snapshot.sent_at, DATE_COURTE) })}
+            </p>
+          ) : null}
+          {statement.rectification ? (
+            <div role="status" className="space-y-2 rounded-lg border border-border/60 bg-muted/20 p-3 text-sm">
+              <p className="font-medium text-foreground">
+                {t('rectificationTitle', { date: fmt.date(statement.rectification.as_of, DATE_COURTE) })}
+              </p>
+              <p className="text-xs text-muted-foreground">{t('rectificationIntro')}</p>
+              <dl className="grid grid-cols-2 gap-3 md:grid-cols-5">
+                {(Object.keys(LIBELLE_DU_TOTAL) as (keyof OwnerStatementTotals)[])
+                  .filter((key) => (statement.rectification?.delta[key] ?? 0) !== 0)
+                  .map((key) => {
+                    const gap = statement.rectification?.delta[key] ?? 0;
+                    return <Total key={key} label={t(LIBELLE_DU_TOTAL[key])} value={`${gap > 0 ? '+' : ''}${money(gap)}`} />;
+                  })}
+              </dl>
+            </div>
+          ) : null}
           <div className="flex flex-wrap items-center gap-2">
             <Button type="button" variant="outline" size="sm" disabled={downloading !== null} onClick={() => void download('pdf')}>
               <Download className="mr-1 size-4" aria-hidden="true" />

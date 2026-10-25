@@ -7,6 +7,7 @@ use App\Http\Filters\RangeFilter;
 use App\Http\Filters\TypedExactFilter;
 use App\Sorts\SearchRelevanceSort;
 use App\Support\CaseInsensitive;
+use App\Support\Http\ParametreUnique;
 use App\Support\Query\DepartageQueryBuilder;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -221,7 +222,9 @@ trait HasQueryBuilder
         $search = [];
         if (! empty(static::$requestSearchFields ?? [])) {
             $fields = static::$requestSearchFields;
-            $search[] = AllowedFilter::callback('search', function (Builder $q, string $value) use ($fields) {
+            $search[] = AllowedFilter::callback('search', function (Builder $q, mixed $value) use ($fields) {
+                // P216.05 (TCK-2244, ADR-0075) — `filter[search][]=…` vaut une recherche absente.
+                $value = ParametreUnique::valeur($value) ?? '';
                 if (trim($value) === '') {
                     return;
                 }

@@ -1,6 +1,11 @@
 import type { SpatieQueryParams } from '@/types/api';
 import { origineApi } from '@/lib/config-publique';
-import { cheminParLeRelais, relaisImpersonationActif } from '@/lib/impersonation';
+import {
+  cheminParLeRelais,
+  profilActifEspaceApplicatif,
+  relaisImpersonationActif,
+} from '@/lib/impersonation';
+import { profilActifNavigateur } from '@/lib/profil-actif-navigateur';
 
 // L'origine publique de l'API, sans `/api`, se lit à l'appel (`origineApi()`, ADR-0069 § 3) :
 // une constante de module figerait la valeur du premier import.
@@ -327,6 +332,10 @@ export const CODES_ERREUR_API = [
   ...CODES_ERREUR_BFF,
   'too_many_requests',
   'network',
+  // TCK-2370 (P236.03) — `fetch` rejeté alors que le navigateur se dit en ligne.
+  'server_unreachable',
+  // TCK-2370 (P236.01) — corps refusé par le proxy de l'API (`docker/Caddyfile`, 25 Mio).
+  'payload_too_large',
   'unknown',
 ] as const;
 
@@ -337,6 +346,8 @@ export const CLE_I18N_ERREUR_API: Record<CodeErreurApi, string> = {
   ...CLE_I18N_ERREUR_BFF,
   too_many_requests: 'errors.api.tooManyRequests',
   network: 'errors.api.network',
+  server_unreachable: 'errors.api.serverUnreachable',
+  payload_too_large: 'errors.api.payloadTooLarge',
   unknown: 'errors.api.unknown',
 };
 
@@ -507,6 +518,9 @@ export class ApiError extends Error {
     if (brut !== undefined) return codeSentinelle(brut);
 
     // 3. Enfin seulement, le code déduit du statut — quand le serveur n'a rien dit d'affichable.
+    //    TCK-2370 (P236.01) — le 413 du proxy de l'API porte `{code: payload_too_large}` et aucune
+    //    prose ; un relais qui recopie un corps vide n'en laisse que le statut.
+    if (this.status === 413 || codeLaravel(this.data) === 'payload_too_large') return 'payload_too_large';
     if (this.status >= 500) return 'server_error';
     return undefined;
   }
@@ -601,8 +615,14 @@ export function messageErreurApi(
     return erreur.proseServeur ?? repli;
   }
 
-  // `fetch` ne lève un `TypeError` que lorsque la requête n'a pas abouti du tout.
-  if (erreur instanceof Error && erreur.name === 'TypeError') return t(CLE_I18N_ERREUR_API.network);
+  // `fetch` ne lève un `TypeError` que lorsque la requête n'a pas abouti du tout. TCK-2370
+  // (P236.03) — le réseau de l'utilisateur n'est en cause que si le navigateur se dit hors ligne :
+  // en ligne, c'est le serveur qui ne répond pas (API arrêtée, ou 502/503 du mandataire, sans
+  // en-tête CORS). Sans `navigator.onLine` (action serveur), c'est l'API qui manque au serveur Next.
+  if (erreur instanceof Error && erreur.name === 'TypeError') {
+    const horsLigne = typeof navigator !== 'undefined' && navigator?.onLine === false;
+    return t(CLE_I18N_ERREUR_API[horsLigne ? 'network' : 'server_unreachable']);
+  }
   // TCK-1295 (P113.04) — un appel abandonné par sa borne (`AbortSignal.timeout`) est une panne
   // réseau pour l'utilisateur. Lu par le nom seul : selon l'environnement, la `DOMException` n'est
   // pas toujours un `Error` (jsdom), et son message est anglais (« signal timed out »).
@@ -753,6 +773,29 @@ async function resolveServerLocale(): Promise<string | undefined> {
 }
 
 /**
+ * TCK-1996 (P174.02, P174.03) — côté serveur, le profil actif du cookie `active_profile_id`, pour
+ * `X-Active-Profile-Hint`. Sans ce repli, les lectures et les écritures serveur de `/app` partaient
+ * avec le seul jeton : pour un compte de deux agences, l'API ne voyait aucun profil (elle
+ * n'auto-bascule que pour une seule agence) et rendait listes vides, fiches en 403 et créations
+ * refusées. La règle est celle de `getActiveProfileId()` : rien pendant une impersonation
+ * (TCK-600, invariant 11), par {@link profilActifEspaceApplicatif}. Rend `undefined` dans le
+ * navigateur et hors requête. Même garde que {@link resolveVisitorIp}.
+ *
+ * ⚠ `next/headers` s'importe ici directement, jamais par `@/lib/session` : ce module l'importe en
+ * statique, et `api.ts` est aussi chargé côté client — `next build` refuse alors le graphe
+ * (« You're importing a module that depends on "next/headers" »), ce que ni `tsc` ni vitest ne voient.
+ */
+async function resolveServerActiveProfile(): Promise<string | undefined> {
+  if (typeof window !== 'undefined') return undefined;
+  try {
+    const { cookies } = await import('next/headers');
+    return profilActifEspaceApplicatif(await cookies()) || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
  * L'appel à l'API Laravel, du navigateur comme du serveur Next.
  *
  * ⚠ TCK-1386 (P138.01) — **côté serveur, la seule déduplication d'une lecture est `cache()` de
@@ -791,8 +834,16 @@ export async function apiRequest<T>(
     requestHeaders['Accept-Language'] = requestLocale;
   }
 
-  if (activeProfileId && !requestHeaders['X-Active-Profile-Hint']) {
-    requestHeaders['X-Active-Profile-Hint'] = activeProfileId;
+  // TCK-1996 — un appel authentifié du serveur qui ne nomme aucun profil prend celui du cookie ;
+  // l'appelant qui passe le sien, un indice ou un `X-Profile-Id` l'emporte. TCK-2050 (P174.01) —
+  // dans le navigateur, celui que tient `AuthProvider` : le cookie n'y atteint pas l'API.
+  const profilActif =
+    activeProfileId ??
+    (token && !requestHeaders['X-Active-Profile-Hint'] && !requestHeaders['X-Profile-Id']
+      ? (profilActifNavigateur() ?? (await resolveServerActiveProfile()))
+      : undefined);
+  if (profilActif && !requestHeaders['X-Active-Profile-Hint']) {
+    requestHeaders['X-Active-Profile-Hint'] = profilActif;
   }
 
   if (!requestHeaders['X-Forwarded-For']) {

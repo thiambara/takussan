@@ -62,7 +62,10 @@ class NotificationsDeCompteEnFileTest extends TestCase
         foreach (self::EN_FILE as $classe) {
             $this->assertTrue(is_subclass_of($classe, ShouldQueue::class), "{$classe} doit être ShouldQueue");
             $notification = (new \ReflectionClass($classe))->newInstanceWithoutConstructor();
-            $this->assertSame(['mail' => 'notifications-urgent'], $notification->viaQueues(), $classe);
+            // TCK-2051 — un avis de suppression peut aussi partir par SMS (compte sans e-mail) : même file.
+            $files = $notification->viaQueues();
+            $this->assertSame('notifications-urgent', $files['mail'] ?? null, $classe);
+            $this->assertSame(['notifications-urgent'], array_values(array_unique($files)), $classe);
         }
         foreach (self::CHIFFREES as $classe) {
             $this->assertTrue(is_subclass_of($classe, ShouldBeEncrypted::class), "{$classe} porte un secret : ShouldBeEncrypted");

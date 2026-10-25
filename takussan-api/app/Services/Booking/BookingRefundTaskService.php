@@ -10,6 +10,7 @@ use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Task;
 use App\Models\User;
 use App\Services\Membership\MembershipCapabilityResolver;
+use App\Services\Payout\PayoutClawbacks;
 use App\Services\Property\PrimaryPropertyContact;
 use Illuminate\Support\Facades\DB;
 
@@ -65,9 +66,34 @@ class BookingRefundTaskService
                 'created_by_id' => $authorId,
                 'status' => TaskStatus::Open,
                 'priority' => TaskPriority::High,
-                'metadata' => ['kind' => self::KIND, 'booking_payment_ids' => $paidIds],
+                'metadata' => ['kind' => self::KIND, 'booking_payment_ids' => $paidIds, 'paid_out' => $this->paidOut($paidIds)],
             ]);
         });
+    }
+
+    /**
+     * TCK-2153 (P205.02 ; ADR-0039, amendement du 2026-10-24, point 5) — les acomptes déjà reversés
+     * au bailleur, par id : la référence et la date du reversement. Les rembourser créera une
+     * reprise sur son reversement suivant (TCK-2151) : l'agence le lit avant le geste.
+     *
+     * @param  list<int>  $paymentIds
+     * @return array<int, array{payout_id: int, reference_number: string, processed_at: ?string}>
+     */
+    private function paidOut(array $paymentIds): array
+    {
+        $paidOut = [];
+        foreach ($paymentIds as $id) {
+            $payout = app(PayoutClawbacks::class)->paidOutPayout($id);
+            if ($payout !== null) {
+                $paidOut[$id] = [
+                    'payout_id' => (int) $payout->id,
+                    'reference_number' => $payout->reference_number,
+                    'processed_at' => $payout->processed_at?->toIso8601String(),
+                ];
+            }
+        }
+
+        return $paidOut;
     }
 
     /**

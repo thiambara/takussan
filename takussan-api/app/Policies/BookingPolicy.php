@@ -34,7 +34,9 @@ class BookingPolicy extends BasePolicy
         $property = $model->property;
 
         return $user->isSuperAdmin()
-            || $model->created_by_id === $user->id
+            // P218.03 (TCK-2196) — le créateur encore membre de l'agence (ADR-0031, amendement du
+            // 2026-10-24) ; le client du tunnel public garde la lecture par la branche du client.
+            || $this->auteurEncoreMembre($user, $model->created_by_id, $model->agency_id)
             || $this->ownerOfProperty($user, $property)
             || $this->isStaffOf($user, $model->agency_id)
             || ($model->customer && $model->customer->user_id === $user->id);

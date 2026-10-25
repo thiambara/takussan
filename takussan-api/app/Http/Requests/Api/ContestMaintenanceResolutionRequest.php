@@ -4,6 +4,7 @@ namespace App\Http\Requests\Api;
 
 use App\Http\Requests\BaseFormRequest;
 use App\Models\Enums\MaintenanceStatus;
+use App\Rules\PixelsAuPlus;
 
 /**
  * TCK-592 (P10) — le demandeur conteste la réparation : `completed → in_progress`, avec ce qui ne va
@@ -23,7 +24,9 @@ class ContestMaintenanceResolutionRequest extends BaseFormRequest
         return [
             'comment' => ['required', 'string', 'min:3', 'max:2000'],
             'photos' => ['nullable', 'array', 'max:5'],
-            'photos.*' => ['file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:10240'],
+            // TCK-2088 (P180.02) — la vignette fait décoder la photo par GD : la borne de 20 Mpx
+            // des autres collections décodées (ADR-0029, amendement du 2026-10-23).
+            'photos.*' => ['file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:10240', new PixelsAuPlus],
         ];
     }
 }

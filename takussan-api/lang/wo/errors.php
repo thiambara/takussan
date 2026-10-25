@@ -18,6 +18,7 @@ return [
     ],
     'activity_log' => [
         'export_too_large' => 'Bari na lool ngir génne ko : wàññil seetu yi.',
+        'export_needs_email' => 'Cet export dépasse 5 000 lignes : il est préparé puis envoyé par e-mail. Ajoutez une adresse e-mail à votre compte, ou resserrez les filtres.',
         'export_link_invalid' => 'Lënk bi jeex na walla baaxul.',
         'date_range_inverted' => 'La date de début doit précéder la date de fin, ou lui être égale.',
         'date_range_too_long' => 'La période exportée ne doit pas dépasser un an.',
@@ -25,7 +26,7 @@ return [
     'agency' => [
         'active_profile_missing' => 'Amul benn profil agence bu dox.',
         'admin_email_taken' => 'Am na compte bu am e-mail administrateur bii ba noppi.',
-        'already_administered' => 'Yaa ngi administré benn agence ba noppi.',
+        'admin_phone_taken' => 'Un compte existe déjà avec ce numéro vérifié du gérant.',
         'context_missing' => 'Amul benn agence bu dox.',
         'id_required' => 'War nga wax agence bi.',
         'individual_no_custom_roles' => 'Ajance ind amul rol yu ñu defar ci boppam.',
@@ -90,6 +91,8 @@ return [
         'property_unavailable' => 'Kër gii nekkul ci woote.',
     ],
     'booking_payment' => [
+        'booking_not_payable' => 'Cette réservation n\'est plus en attente ni confirmée : elle ne se paie plus.',
+        'exceeds_remaining' => 'Ce montant dépasse le reste dû de la réservation (:remaining).',
         'nothing_due' => 'Cette réservation est soldée : il ne reste rien à payer.',
         'receipt_unpaid' => 'Quittance bi, fay bu ñu fay ba noppi rekk la.',
         'refund_exceeds_paid' => 'Delloo bi mënul a ëpp xaalis bi ñu fay.',
@@ -135,6 +138,9 @@ return [
     'customer' => [
         'attached_to_open_lease' => 'Ce client est titulaire d\'un bail en attente de signature ou en cours : il ne peut pas être supprimé tant que ce bail est ouvert.',
         'duplicate' => 'Am na kiliyaan ci sa ajaans bu am nimero bii walla email bii.',
+        // P15.01 (TCK-2351) — inviter le client de la fiche à créer son compte.
+        'invite_already_linked' => "Cette fiche est déjà rattachée à un compte : il n'y a personne à inviter.",
+        'invite_no_contact' => "Cette fiche n'a pas de coordonnée où envoyer l'invitation : ajoutez une adresse e-mail.",
         'pipeline_stage_invalid' => 'Étape bi baaxul.',
     ],
     'dashboard' => [
@@ -149,11 +155,13 @@ return [
         'exceeds_remaining' => 'Mbënd mi gënal kaution bi des.',
         'lease_not_ended' => 'Luwé bi war a jeex walla mujj bala ñu delloo kaution.',
         'no_deposit' => 'Amul kaution bu ñuy delloo.',
+        'not_collected' => 'Aucune caution n\'a été encaissée pour ce bail : rien n\'est à rembourser.',
         'reason_required' => 'Su delloo gi gen, motivation lañu war a indi.',
     ],
     'document' => [
         'file_missing' => 'Amul benn fichier bu ñu takk ci document bii.',
         'owner_not_found' => 'Mbir mi ñuy takk document bi gisuñu ko.',
+        'profile_piece_not_versioned' => 'Une pièce de profil ne se versionne pas : renvoyez-la depuis votre profil.',
         'pdf_template_missing' => 'Modèle document bi gisuñu ko.',
         'pdf_uploader_missing' => 'Document bi mënuñu ko defar te amul ki ko def.',
         'unsupported_type' => 'Xeetu mbir mii mënul am document.',
@@ -242,8 +250,11 @@ return [
         'tenant_not_found' => 'Luwekat bu bail bi gisuñu ko.',
     ],
     'invitation' => [
+        'already_member' => 'Ce compte est déjà membre de l\'agence sous ce profil : l\'invitation n\'a rien à ajouter.',
         'sms_daily_cap_reached' => 'Limu woote yi ci SMS ci bés bi jot na ci agence bi. Jéemaatal ëllëg, walla woo ko ci e-mail.',
         'phone_mismatch' => 'Nimero bii du bi ñu yónne woote bi.',
+        'profile_unavailable' => 'Le profil visé par cette invitation n\'est plus disponible (suspendu ou inactif). Demandez une nouvelle invitation à l\'agence.',
+        'service_provider_profile_exists' => 'Ce compte a déjà un profil de prestataire. Demandez à l\'agence de vous inviter à l\'adresse ou au numéro de ce compte : l\'invitation rejoindra alors ce profil.',
         'email_mismatch' => 'Email bu nga dugg ci compte bi du jaadu ak email bu invitation bi.',
         'requires_login' => 'Email bii dafa am ab compte. Dugg al ngir nangu invitation bi.',
         'token_accepted' => 'Lëkkalekaay bi nanguwoon nañu ko.',
@@ -251,6 +262,8 @@ return [
         'token_not_found' => 'Lëkkalekaay bi gisuñu ko.',
         'token_revoked' => 'Lëkkalekaay bi indi nañu ko ci suuf.',
         'token_sent' => 'Lëkkalekaay bi ngir xaar la.',
+        // P15.01 (TCK-2351) — la fiche visée a reçu un autre compte depuis l'envoi.
+        'tenant_already_linked' => "Cette fiche a été rattachée à un autre compte depuis l'envoi de l'invitation. Demandez une nouvelle invitation à l'agence.",
     ],
     'invoice' => [
         'amount_too_large' => 'Le montant total de la facture dépasse le maximum enregistrable.',
@@ -258,7 +271,9 @@ return [
         'cannot_mark_paid' => 'Facture bii mënuñu ko màndargaal ni lu ñu fay ni mu nekke léegi.',
         'foreign_target' => 'Bii bail walla bii réservation bokkul ci agence bu facture bi.',
         'not_draft_send' => 'Facture bu nekk brouillon rekk lañu mën a yónni.',
+        'recipient_mismatch' => 'Le destinataire de la facture doit être le client de la réservation ou le locataire du bail.',
         'status_transition_invalid' => 'Soppi statut facture bii nangouñu ko.',
+        'target_not_billable' => 'Une réservation annulée, refusée ou expirée, ou un bail non signé, ne se facture pas.',
         'target_not_found' => 'Mbir mi ñuy facturer gisuñu ko.',
         'unsupported_target' => 'Xeetu mbir mii mënuñu ko facturer.',
     ],
@@ -290,6 +305,8 @@ return [
         'renewal_parent_not_renewable' => 'Bayle bi ñuy yeesal du dox ba tey (yégle walla dakkal) : yeesal bii mënul a am doole. Dakkal ko, ba noppi defar beneen su soxlawee.',
         'schedule_exists' => 'Échéancier bi defar nañu ko ba noppi.',
         'terms_locked' => 'Sarti bayle bu ñu xaatim mënuñu leen soppi : defal ab yokk walla bayle bu bees.',
+        // P48.03 (TCK-2352) — le bail tiré d'une réservation.
+        'tenant_not_booking_customer' => "Le locataire d'un bail tiré d'une réservation est le client de cette réservation.",
     ],
     'lease_signature' => [
         'already_signed' => 'Xaatim nga kontraa bii ba noppi.',
@@ -301,6 +318,7 @@ return [
         'resend_too_soon' => 'Yónne nañu kood leegi : xaaral benn simili balaa ngay laaj beneen.',
         'terms_changed' => 'Bayle bi soppiku na bi ñuy waajal kontra bi : dara fëjjul. Laajaatal xaatim bi.',
         'sms_not_sent' => 'Le code n\'a pas pu partir par SMS : réessayez dans une minute, ou contactez le support.',
+        'no_destination' => 'Aucun moyen de vous envoyer le code : vérifiez votre numéro de téléphone depuis votre profil, puis réessayez.',
         'tenant_without_account' => 'Kiy luye bayle bii amul kont : xaatimal ci kayit te boole ci kontraa bi ñu scanné.',
     ],
     'lease_payment' => [
@@ -311,6 +329,7 @@ return [
         'lease_not_active' => 'Seul un bail actif ou en préavis reçoit une ligne de paiement.',
         'receipt_not_a_payment' => 'Kaution bu ñu delloo du fey bu luwékat bi : amul kitaas.',
         'receipt_unpaid' => 'Kitaas bi, ñu ngi koy jox rekk su luyer bi feyoo.',
+        'type_from_schedule' => 'Un loyer ou une caution naît de l\'échéancier du bail : cette saisie ne prend que les charges, régularisations et pénalités.',
     ],
     'mail' => [
         'invitation_not_sent' => 'E-mail invitation bi mënuñu ko yónni.',
@@ -363,6 +382,9 @@ return [
         'owner_not_owner' => 'Amul nga acces ci profil borom kër bii.',
         'service_provider_not_owner' => 'Mënuloo soppi profil prestataire bii.',
         'service_provider_suspended' => 'Profil prestataire bii dañu ko taxawal : jeexal bindu bi du ko yeesal.',
+    ],
+    'password_reset' => [
+        'invalid_link' => 'Ce lien de réinitialisation est invalide ou a expiré. Demandez-en un nouveau.',
     ],
     'payment' => [
         'amount_not_positive' => 'Xaalis bi ñuy fay war na ëpp tus.',
@@ -461,11 +483,17 @@ return [
         'cannot_publish' => 'Mbaar yi ñu jaay walla ñu luwé du ñu mën a siiwal.',
         'cannot_unpublish' => 'Mbaar yi ñu mën a jël rekk la ñu mën a xëccu.',
         'collaborator_exists' => 'Jàngalekat bi ci mbaar mi nekk na.',
+        'commission_share_forbidden' => 'Seul le personnel de l\'agence autorisé à ouvrir des baux fixe la part de commission d\'un collaborateur.',
         'collaborator_not_found' => 'Jàngalekat bii bokkul ci kër gii.',
         'has_confirmed_booking' => 'Ce bien porte une réservation confirmée : annulez-la avant de supprimer le bien.',
         'has_upcoming_visit' => 'Ce bien porte une visite à venir : annulez-la avant de supprimer le bien.',
         'not_found' => 'Kër gi gisuñu ko.',
         'not_pending_moderation' => 'Kër gi nekkul ci xaar modération.',
+        'owner_designation_forbidden' => 'Le bailleur ne se désigne pas ici : seul le personnel d\'une agence standard saisit un bien au nom d\'un de ses bailleurs.',
+        'owner_not_in_agency' => 'Le bailleur choisi n\'est pas un bailleur actif de l\'agence du bien.',
+        'parent_owner_mismatch' => 'Un lot appartient au bailleur du bien qui le contient : ce lot a un autre titulaire.',
+        'owner_transfer_forbidden' => 'Ce bien ne change pas de titulaire : il appartient déjà à un bailleur de l\'agence, et un bien ne se retire pas à son bailleur.',
+        'pending_owner_not_invited' => 'Ce bailleur n\'est pas une invitation en cours de l\'agence du bien : invitez-le d\'abord, ou choisissez un bailleur inscrit.',
         'primary_not_eligible' => 'Ajaa bu dox ci ajaasu kër gi rekk moo mën a nekk ajaa bu njëkk bi.',
         'primary_requires_agent' => 'Jàngalekat bu am wàll ajaa rekk moo mën a nekk ajaa bu njëkk bu kër gi.',
         'publish_contact_incomplete' => 'Ngir siiwal, ki ñuy woo ci kër gi war na am tur ak nimero bu ñu wóor, te war nañu nangu sàrt yi.',
@@ -521,6 +549,7 @@ return [
         'already_in_payout' => 'Bii facture d\'intervention mi ngi ci reversement bu ñu nekk di def.',
         'not_payable' => 'Facture d\'intervention bu ñu valider rekk lañuy fey.',
         'not_pending' => 'Bii facture d\'intervention du xaar validation.',
+        'request_not_completed' => 'Le travail de cette intervention n\'est pas rendu (contestée, reprise ou annulée) : sa facture ne se valide, ne se paie ni ne se refacture.',
     ],
     'session' => [
         'cannot_revoke_current' => 'Mënuñu dindi session bi ngay jëfandikoo: génnal ci sa compte.',
@@ -547,6 +576,7 @@ return [
     'support' => [
         'account_not_locked' => 'Compte bii tëjuñu ko.',
         'cannot_revoke_current' => 'Mënuñu dindi sa session bi ngay jëfandikoo.',
+        'no_email' => 'Ce compte n\'a pas d\'adresse e-mail : aucun lien de réinitialisation ne peut lui être envoyé.',
         'no_revocable_session' => 'Amul benn session buñu mën a dindi.',
         'target_super_admin' => 'Jëfi support mënuñu jublu ci beneen super-administrateur.',
         'two_factor_already_disabled' => 'Double authentification bi fey nañu ko ba noppi.',

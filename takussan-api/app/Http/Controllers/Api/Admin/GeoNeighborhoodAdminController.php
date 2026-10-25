@@ -108,7 +108,8 @@ class GeoNeighborhoodAdminController extends Controller
             'origin' => $q->origin->value,
             'city' => ['id' => $q->city->id, 'name' => $q->city->name],
             'region' => ['id' => $q->city->region->id, 'name' => $q->city->region->name],
-            'created_by' => $q->createdBy !== null ? ['id' => $q->createdBy->id, 'name' => trim($q->createdBy->first_name.' '.$q->createdBy->last_name)] : null,
+            // P235.02 (TCK-2369) — le nom sans coordonnée, « — » pour un compte sans nom.
+            'created_by' => $q->createdBy !== null ? ['id' => $q->createdBy->id, 'name' => $q->createdBy->nameWithoutContact()] : null,
             'addresses_count' => (int) ($q->addresses_count ?? $q->addresses()->count()),
             'created_at' => $this->instant($q->created_at),
         ];

@@ -138,7 +138,8 @@ class LeaseExistenceOracleTest extends TestCase
         Sanctum::actingAs($landlord);
         $property = Property::factory()->create(['user_id' => $landlord->id]);
         $sien = Customer::factory()->create(['added_by_id' => $landlord->id]);
-        $booking = Booking::factory()->create(['property_id' => $property->id]);
+        // P48.03 (TCK-2352) — le locataire d'un bail tiré d'une réservation en est le client.
+        $booking = Booking::factory()->create(['property_id' => $property->id, 'customer_id' => $sien->id]);
 
         $this->lease(['property_id' => $property->id, 'tenant_id' => $sien->id, 'booking_id' => $booking->id])
             ->assertCreated();

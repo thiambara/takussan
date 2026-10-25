@@ -308,7 +308,15 @@ export function WizardReprenable<TData extends Record<string, unknown>>({
         return;
       }
       await onComplete(data);
-      await clear();
+      // P237.04 (TCK-2371) — la démarche est close ; seul son brouillon a survécu au DELETE, et le
+      // bandeau des démarches le reproposerait. Le dire, sans démentir la finalisation.
+      if (!(await clear())) {
+        toast.add({
+          title: t('draftNotClearedToastTitle'),
+          description: t('draftNotClearedToastBody'),
+          type: 'warning',
+        });
+      }
     } finally {
       setCompleting(false);
     }

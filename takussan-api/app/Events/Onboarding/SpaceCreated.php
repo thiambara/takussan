@@ -8,9 +8,10 @@ use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
 /**
- * TCK-633 (lot C) — un espace vient de naître : par l'assistant hôte, par la création
- * automatique de « Publier », ou par `POST /api/agencies` (lot F). Après le commit : la transaction d'onboarding peut encore
- * se défaire (409 `phone.taken`), et l'écouteur ne doit pas voir un espace qui n'existe plus.
+ * TCK-633 (lot C) — un espace vient de naître : par l'assistant hôte, ou par la création
+ * automatique de « Publier ». `POST /api/agencies` (lot F) le déclenchait aussi : elle est retirée
+ * (TCK-2311, P225.06). Après le commit : la transaction d'onboarding peut encore se défaire
+ * (409 `phone.taken`), et l'écouteur ne doit pas voir un espace qui n'existe plus.
  */
 class SpaceCreated implements ShouldDispatchAfterCommit
 {

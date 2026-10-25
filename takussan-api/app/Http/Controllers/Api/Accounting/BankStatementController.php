@@ -10,6 +10,7 @@ use App\Models\Agency;
 use App\Models\BankStatement;
 use App\Models\Enums\BankStatementStatus;
 use App\Services\Accounting\StatementParser\CsvDriver;
+use App\Support\Http\ParametreUnique;
 use App\Support\Masking;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -93,7 +94,8 @@ class BankStatementController extends Controller
         $this->authorize('view', $statement);
 
         $statement->load(array_intersect(
-            explode(',', $request->query('include', '')),
+            // P216.05 (TCK-2244, ADR-0075) — `include[]=…` vaut un `include` absent.
+            explode(',', ParametreUnique::chaine($request, 'include') ?? ''),
             ['uploadedBy', 'finalizedBy'],
         ));
 

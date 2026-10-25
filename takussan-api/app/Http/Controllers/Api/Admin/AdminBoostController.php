@@ -13,6 +13,7 @@ use App\Models\Property;
 use App\Models\PropertyBoost;
 use App\Services\Boost\BoostLifecycle;
 use App\Services\Boost\BoostPurchaseService;
+use App\Support\Http\ParametreUnique;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -22,8 +23,8 @@ class AdminBoostController extends Controller
     public function index(Request $request): JsonResponse
     {
         $filtres = (array) $request->input('filter', []);
-        // TCK-1866 — une valeur en liste est ignorée comme une valeur absente (TCK-1407), et non castée.
-        $chaine = fn (string $cle): string => is_string($filtres[$cle] ?? null) ? $filtres[$cle] : '';
+        // TCK-1866 — une valeur en liste est ignorée comme une valeur absente (ADR-0075), et non castée.
+        $chaine = fn (string $cle): string => ParametreUnique::valeur($filtres[$cle] ?? null) ?? '';
         $paginator = PropertyBoost::query()
             ->with(['property:id,title,slug', 'agency:id,name'])
             ->when(BoostStatus::tryFrom($chaine('status')), fn ($q, BoostStatus $s) => $q->where('status', $s))

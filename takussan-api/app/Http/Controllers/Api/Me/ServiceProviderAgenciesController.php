@@ -34,8 +34,11 @@ class ServiceProviderAgenciesController extends Controller
         $user = $request->user();
         abort_if($user === null, 401);
 
+        // TCK-2372 (P250.02) — un seul profil vivant par compte, tenu par
+        // `service_provider_profiles_user_live_unique` ; l'ordre reste explicite.
         $sp = ServiceProviderProfile::query()
             ->where('user_id', $user->id)
+            ->orderBy('id')
             ->first();
 
         $perPage = $this->tailleDePage($request, 20);
@@ -87,8 +90,10 @@ class ServiceProviderAgenciesController extends Controller
         $user = $request->user();
         abort_if($user === null, 401);
 
+        // TCK-2372 (P250.02) — voir index().
         $sp = ServiceProviderProfile::query()
             ->where('user_id', $user->id)
+            ->orderBy('id')
             ->first();
 
         if ($sp === null) {

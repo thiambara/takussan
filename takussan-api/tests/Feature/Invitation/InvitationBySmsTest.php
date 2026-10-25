@@ -125,7 +125,8 @@ class InvitationBySmsTest extends TestCase
     {
         $porteur = User::factory()->create(['phone' => self::NUMERO, 'phone_verified_at' => null]);
 
-        $this->inviter()->assertCreated()->assertJsonPath('data.invited_user_id', null);
+        $this->inviter()->assertCreated();
+        $this->assertNull(Invitation::query()->latest('id')->value('invited_user_id'));
 
         $this->assertCount(1, $this->sms->sentTo(self::NUMERO));
         Mail::assertNothingOutgoing();

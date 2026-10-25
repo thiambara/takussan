@@ -377,8 +377,13 @@ class MembershipCapabilityResolverTest extends TestCase
      * **Décision du 2026-10-12 — TCK-633 lot F (ADR-0061 §5), 44/46 → 45/47.** Le cas ajouté est
      * `boost.spend` : dépenser les crédits de l'espace pour mettre un bien en avant. Accordé à
      * `agency_admin` (c'est lui qui tient le portefeuille), pas à l'agent système.
+     *
+     * **Décision du 2026-10-24 — TCK-2260 (P116.07, ADR-0003 amendé), 45/47 → 46/48.** Le cas
+     * ajouté est `payments.reconcile`, le rapprochement bancaire, que l'admin tenait par son seul
+     * type de profil : accordé à `agency_admin`, pas à l'agent système (`payments.record`, qu'il
+     * tient, lui aurait ouvert les relevés de toute l'agence).
      */
-    public function test_agency_admin_breadth_is_pinned_to_45_of_47(): void
+    public function test_agency_admin_breadth_is_pinned_to_46_of_48(): void
     {
         $user = User::factory()->create();
         $agency = Agency::factory()->create();
@@ -390,13 +395,13 @@ class MembershipCapabilityResolverTest extends TestCase
         ));
 
         $this->assertCount(
-            45,
+            46,
             $granted,
             'La largeur de `agency_admin` a changé. Ce n’est pas un compte à '.
             'rafraîchir : c’est une décision à prendre, puis à reporter dans le '.
             'bloc « TABLE DE VÉRITÉ PHASE 1 » du resolver.',
         );
-        $this->assertCount(47, Capability::cases());
+        $this->assertCount(48, Capability::cases());
     }
 
     /**

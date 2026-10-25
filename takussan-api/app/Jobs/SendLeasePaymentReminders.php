@@ -6,7 +6,9 @@ use App\Domain\Notifications\NotificationCode;
 use App\Domain\Notifications\NotificationTarget;
 use App\Jobs\Concerns\AlertsOnFirstFailure;
 use App\Models\Enums\Currency;
+use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\PaymentStatus;
+use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Models\User;
 use App\Services\Model\NotificationService;
@@ -94,7 +96,7 @@ class SendLeasePaymentReminders implements ShouldQueue
                         'days' => $days,
                         'property' => $lease->property?->title,
                         'tenant' => trim(($lease->tenant?->first_name ?? '').' '.($lease->tenant?->last_name ?? '')),
-                    ], NotificationTarget::of('lease', $lease->id));
+                    ], NotificationTarget::of('lease', $lease->id), agencyId: self::agenceDuBail($lease));
                 }
 
                 // L'agent : le contact principal du bien, quand ce n'est pas le bailleur lui-même.
@@ -130,8 +132,11 @@ class SendLeasePaymentReminders implements ShouldQueue
         $key = "reminder_{$milestone}_sent_at";
         // TCK-594 (VERIF-594 passe 4, P4-7) — une caution rendue est due AU locataire : il n'en est
         // pas relancé.
+        // TCK-2375 (P04.10) — l'échéance de caution non plus : aucun texte de relance de caution
+        // n'existe, et ceux du loyer lui annonceraient « Votre loyer de… ».
         $candidates = LeasePayment::query()
             ->exceptDepositRefunds()
+            ->where('payment_type', '!=', LeasePaymentType::Deposit->value)
             ->whereIn('status', self::OPEN_STATUSES)
             ->whereDate('due_date', '<=', $dueDate->toDateString())
             ->whereDate('due_date', '>=', $dueDate->copy()->subDays(self::CATCH_UP_DAYS)->toDateString())
@@ -183,15 +188,17 @@ class SendLeasePaymentReminders implements ShouldQueue
         $lease = $payment->lease;
         $tenant = $lease?->tenant;
         $target = $lease ? NotificationTarget::of('lease', $lease->id) : null;
+        // P203.01 (TCK-2161) — les SMS et WhatsApp d'un bail partent par l'intégration de son agence.
+        $agencyId = self::agenceDuBail($lease);
 
         if ($tenant?->user) {
             // VERIF-602 M2 — un compte n'a pas besoin du lien porteur : sa cloche mène à son bail.
-            $notifications->send($tenant->user, $code, $params, $target);
+            $notifications->send($tenant->user, $code, $params, $target, agencyId: $agencyId);
             // TCK-1493 (P107.01) — sans téléphone vérifié, le canal mobile part au numéro de la
             // fiche, avec les paramètres du compte : pas de lien porteur.
             $relais = ContactSansCompte::relaisMobileDuCompte($tenant->user, ContactSansCompte::fromCustomer($tenant));
             if ($relais !== null) {
-                $notifications->send($relais, $code, $params, $target);
+                $notifications->send($relais, $code, $params, $target, agencyId: $agencyId);
             }
 
             return;
@@ -208,7 +215,9 @@ class SendLeasePaymentReminders implements ShouldQueue
                 // TCK-1346 (P132.04) — reporté à la nuit, le SMS relit son lien avant de partir.
                 $guard = DeferredSmsGuard::forPayLink($params['payment_url']);
             }
-            $notifications->send($contact, $code, $params, $target, deferredSmsGuard: $guard);
+            // P207.01 (TCK-2157) — au plus une fois (TCK-740) : un SMS que tous les fournisseurs
+            // refusent n'est pas renvoyé, et laisse une activité d'exploitation sur l'échéance.
+            $notifications->send($contact, $code, $params, $target, deferredSmsGuard: $guard, smsRefusalSubject: $payment, agencyId: $agencyId);
 
             return;
         }
@@ -217,5 +226,10 @@ class SendLeasePaymentReminders implements ShouldQueue
             'lease_payment_id' => $payment->id,
             'code' => $code->value,
         ]);
+    }
+
+    private static function agenceDuBail(?Lease $lease): ?int
+    {
+        return $lease?->agency_id !== null ? (int) $lease->agency_id : null;
     }
 }

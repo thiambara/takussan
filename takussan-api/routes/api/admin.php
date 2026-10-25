@@ -87,6 +87,9 @@ Route::middleware(['auth:sanctum', 'super-admin'])->prefix('admin')->group(funct
             ->name('admin.agencies.subscription.store');
         Route::post('{agency}/subscription/cancel', [AgencySubscriptionController::class, 'cancel'])
             ->name('admin.agencies.subscription.cancel');
+        // TCK-2222 (P214.01) — modifier les dérogations sans changer de plan ni clore l'abonnement.
+        Route::patch('{agency}/subscription/overrides', [AgencySubscriptionController::class, 'updateOverrides'])
+            ->name('admin.agencies.subscription.overrides');
         Route::post('{agency}/verify', [AgencyModerationController::class, 'verify'])
             ->name('admin.agencies.verify');
         Route::post('{agency}/suspend', [AgencyModerationController::class, 'suspend'])
@@ -158,7 +161,7 @@ Route::middleware(['auth:sanctum', 'super-admin'])->prefix('admin')->group(funct
             ->name('admin.users.reset-2fa');
         Route::post('users/{user}/revoke-sessions', [UserSupportController::class, 'revokeSessions'])
             ->name('admin.users.revoke-sessions');
-        Route::delete('users/{user}/sessions/{tokenId}', [UserSupportController::class, 'destroySession'])
+        Route::delete('users/{user}/sessions/{tokenId}', [UserSupportController::class, 'destroySession'])->where('tokenId', '[0-9]{1,18}')
             ->name('admin.users.sessions.destroy');
     });
     // TCK-600 — cycle de vie d'un compte : bloquer / réactiver (`support`), effacer (`super_admin`).
@@ -186,10 +189,10 @@ Route::middleware(['auth:sanctum', 'super-admin'])->prefix('admin')->group(funct
         Route::get('scheduler', SchedulerController::class)->name('admin.scheduler');
     });
     Route::get('jobs/failed', [FailedJobController::class, 'index'])->name('admin.jobs.failed.index');
-    Route::get('jobs/failed/{id}', [FailedJobController::class, 'show'])->name('admin.jobs.failed.show');
-    Route::post('jobs/failed/{id}/retry', [FailedJobController::class, 'retry'])->name('admin.jobs.failed.retry');
+    Route::get('jobs/failed/{id}', [FailedJobController::class, 'show'])->where('id', '[0-9]{1,18}')->name('admin.jobs.failed.show');
+    Route::post('jobs/failed/{id}/retry', [FailedJobController::class, 'retry'])->where('id', '[0-9]{1,18}')->name('admin.jobs.failed.retry');
     Route::post('jobs/failed/retry-all', [FailedJobController::class, 'retryAll'])->name('admin.jobs.failed.retry-all');
-    Route::delete('jobs/failed/{id}', [FailedJobController::class, 'destroy'])->name('admin.jobs.failed.destroy');
+    Route::delete('jobs/failed/{id}', [FailedJobController::class, 'destroy'])->where('id', '[0-9]{1,18}')->name('admin.jobs.failed.destroy');
 
     // Cross-tenant audit log — no agency restriction (unlike AuditLogController).
     Route::get('audit', [CrossTenantAuditController::class, 'index'])
@@ -300,6 +303,6 @@ Route::middleware(['auth:sanctum', 'super-admin'])->prefix('admin')->group(funct
 // préfixe `admin` et de `auth:sanctum` : une messagerie n'envoie pas le jeton. La signature, liée
 // au demandeur et échue avec l'export, porte l'autorisation (voir l'en-tête du contrôleur).
 Route::get('report-exports/{reportExport}/download', ReportExportDownloadController::class)
-    ->whereNumber('reportExport')
+    ->where('reportExport', '[0-9]{1,18}')
     ->middleware(['signed:relative', 'throttle:60,1,report-export-download'])
     ->name('report-exports.download');

@@ -65,7 +65,13 @@ export function CustomerActivityFeed({ customerId }: CustomerActivityFeedProps) 
     );
   }
 
-  const rows = query.data.pages.flatMap((p) => p.data);
+  // TCK-2093 (P199.06) — l'API pagine par décalage : une entrée journalisée entre deux « Voir
+  // plus » repousse la dernière ligne d'une page en tête de la suivante. Elle n'est rendue qu'une
+  // fois, à sa première place, comme dans `ConversationList`.
+  const vus = new Set<number>();
+  const rows = query.data.pages
+    .flatMap((p) => p.data)
+    .filter((row) => (vus.has(row.id) ? false : (vus.add(row.id), true)));
   if (rows.length === 0) {
     return <EmptyState icon={<History className="size-8" aria-hidden="true" />} title={t('empty')} />;
   }

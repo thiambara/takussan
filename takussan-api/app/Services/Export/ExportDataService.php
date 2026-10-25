@@ -13,6 +13,7 @@ use App\Models\Payout;
 use App\Models\Property;
 use App\Models\User;
 use App\Services\Dashboard\CollectedPayments;
+use App\Services\Property\BailleurDuBien;
 use App\Services\Reporting\AgingBalanceService;
 use App\Support\DayRange;
 use Illuminate\Support\Carbon;
@@ -54,7 +55,7 @@ class ExportDataService
     public function payments(User $actor, array $filters = []): array
     {
         $query = LeasePayment::query()
-            ->select(['id', 'reference_number', 'lease_id', 'payer_id', 'amount', 'currency', 'payment_method', 'payment_type', 'due_date', 'paid_at', 'status', 'late_fee_amount', 'refund_amount'])
+            ->select(['id', 'reference_number', 'lease_id', 'payer_id', 'amount', 'currency', 'payment_method', 'payment_type', 'due_date', 'paid_at', 'status', 'late_fee_amount', 'refund_amount', 'late_fee_paid_at'])
             ->with(['lease:id,reference_number,agency_id,landlord_id', 'payer:id,first_name,last_name']);
 
         $this->scopeToActor($query, $actor, 'lease_payment');
@@ -77,11 +78,13 @@ class ExportDataService
                 'late_fee_amount' => (float) $p->late_fee_amount,
                 // TCK-1135 (P76.06) — la valeur en base, sans calcul.
                 'refund_amount' => $p->refund_amount !== null ? (float) $p->refund_amount : null,
+                // TCK-2060 (P206.05) — pénalité réglée ou due : la valeur en base, sans calcul.
+                'late_fee_paid_at' => $p->late_fee_paid_at?->toDateTimeString(),
             ];
         })->all();
 
         return [
-            'columns' => ['id', 'reference', 'lease', 'payer', 'amount', 'currency', 'payment_method', 'payment_type', 'due_date', 'paid_at', 'status', 'late_fee_amount', 'refund_amount'],
+            'columns' => ['id', 'reference', 'lease', 'payer', 'amount', 'currency', 'payment_method', 'payment_type', 'due_date', 'paid_at', 'status', 'late_fee_amount', 'refund_amount', 'late_fee_paid_at'],
             'rows' => $rows,
             'filename' => 'payments-'.now()->format('Ymd-His'),
         ];
@@ -94,7 +97,7 @@ class ExportDataService
     {
         $query = Lease::query()
             ->select(['id', 'reference_number', 'property_id', 'tenant_id', 'landlord_id', 'monthly_rent', 'currency', 'type', 'status', 'start_date', 'end_date', 'signed_at'])
-            ->with(['property:id,title,reference_number', 'tenant:id,first_name,last_name', 'landlord:id,first_name,last_name']);
+            ->with(['property:id,title,reference_number', 'tenant:id,first_name,last_name', 'landlord:id,first_name,last_name,username']);
 
         $this->scopeToActor($query, $actor, 'lease');
 
@@ -106,7 +109,7 @@ class ExportDataService
                 'reference' => $l->reference_number,
                 'property' => $l->property?->title,
                 'tenant' => $l->tenant ? trim("{$l->tenant->first_name} {$l->tenant->last_name}") : null,
-                'landlord' => $l->landlord ? trim("{$l->landlord->first_name} {$l->landlord->last_name}") : null,
+                'landlord' => $this->fullName($l->landlord),
                 'monthly_rent' => (float) $l->monthly_rent,
                 'currency' => $l->currency?->value,
                 'type' => $l->type?->value,
@@ -197,8 +200,8 @@ class ExportDataService
     public function payouts(User $actor, array $filters = []): array
     {
         $query = Payout::query()
-            ->select(['id', 'reference_number', 'payee_role', 'landlord_id', 'lease_id', 'period_start', 'period_end', 'gross_amount', 'commission_amount', 'fees_amount', 'net_amount', 'currency', 'status', 'approved_at', 'processed_at'])
-            ->with(['lease:id,reference_number', 'landlord:id,first_name,last_name']);
+            ->select(['id', 'reference_number', 'payee_role', 'landlord_id', 'lease_id', 'period_start', 'period_end', 'gross_amount', 'commission_amount', 'fees_amount', 'net_amount', 'currency', 'status', 'approved_at', 'processed_at', 'refunded_payment_type', 'refunded_payment_id'])
+            ->with(['lease:id,reference_number', 'landlord:id,first_name,last_name,username']);
 
         $this->scopeToActor($query, $actor, 'payout');
         $this->applyRangeFilter($query, 'created_at', $filters['from'] ?? null, $filters['to'] ?? null);
@@ -219,10 +222,13 @@ class ExportDataService
             'status' => $p->status?->value,
             'approved_at' => $p->approved_at?->toDateTimeString(),
             'processed_at' => $p->processed_at?->toDateTimeString(),
+            'refunded_payment_type' => $p->refundedPaymentTypeKey(),
+            'refunded_payment_id' => $p->refunded_payment_id,
         ])->all();
 
         return [
-            'columns' => ['id', 'reference', 'payee_role', 'payee', 'lease', 'period_start', 'period_end', 'gross_amount', 'commission_amount', 'fees_amount', 'net_amount', 'currency', 'status', 'approved_at', 'processed_at'],
+            // TCK-2052 — les deux dernières colonnes désignent le payable d'un `Payout` constaté.
+            'columns' => ['id', 'reference', 'payee_role', 'payee', 'lease', 'period_start', 'period_end', 'gross_amount', 'commission_amount', 'fees_amount', 'net_amount', 'currency', 'status', 'approved_at', 'processed_at', 'refunded_payment_type', 'refunded_payment_id'],
             'rows' => $rows,
             'filename' => 'payouts-'.now()->format('Ymd-His'),
         ];
@@ -272,7 +278,7 @@ class ExportDataService
     {
         $query = CommissionEntry::query()
             ->select(['id', 'lease_id', 'beneficiary_id', 'origin', 'base_amount', 'share_percent', 'amount', 'currency', 'status', 'earned_at', 'paid_at'])
-            ->with(['lease:id,reference_number', 'beneficiary:id,first_name,last_name']);
+            ->with(['lease:id,reference_number', 'beneficiary:id,first_name,last_name,username']);
 
         // verif-595 M2 — le périmètre du relevé, pas seulement l'agence : sans `viewReports`, ses lignes.
         $query->visibleTo($actor);
@@ -314,7 +320,7 @@ class ExportDataService
             ->whereDate('due_date', '<', $today->toDateString())
             // `metadata` porte le reçu d'un paiement partiel, que lit `remaining_amount`.
             ->select(['id', 'reference_number', 'lease_id', 'payer_id', 'due_date', 'amount', 'currency', 'status', 'metadata'])
-            ->with(['lease:id,reference_number,landlord_id', 'lease.landlord:id,first_name,last_name', 'payer:id,first_name,last_name']);
+            ->with(['lease:id,reference_number,landlord_id', 'lease.landlord:id,first_name,last_name,username', 'payer:id,first_name,last_name']);
 
         $this->scopeToActor($query, $actor, 'lease_payment');
         $this->applyRangeFilter($query, 'due_date', $filters['from'] ?? null, $filters['to'] ?? null);
@@ -371,7 +377,7 @@ class ExportDataService
         $leases = Lease::query()
             ->select(['id', 'reference_number', 'property_id', 'tenant_id', 'landlord_id', 'currency'])
             ->whereIn('id', $sums->keys()->all())
-            ->with(['property:id,title', 'tenant:id,first_name,last_name', 'landlord:id,first_name,last_name'])
+            ->with(['property:id,title', 'tenant:id,first_name,last_name', 'landlord:id,first_name,last_name,username'])
             ->orderBy('id')
             ->limit($this->limit($filters) + 1)
             ->get();
@@ -458,11 +464,14 @@ class ExportDataService
             return;
         }
 
+        // TCK-2275 (P232.06 ; ADR-0031, amendement du 2026-10-25, D1) — le bailleur n'exporte que les
+        // biens et baux dont il est le bailleur au sens de `BailleurDuBien`, dans toutes ses agences :
+        // bailleur d'une agence B, il n'exporte pas ce qu'il a saisi comme agent d'une agence A.
         if ($agencyId && $actor->isOwnerAt((int) $agencyId)) {
             match ($entity) {
-                'property' => $query->where('user_id', $actor->id),
-                'lease' => $query->where('landlord_id', $actor->id),
-                'lease_payment' => $query->whereHas('lease', fn ($q) => $q->where('landlord_id', $actor->id)),
+                'property' => BailleurDuBien::restreindre($query, $actor),
+                'lease' => BailleurDuBien::restreindre($query, $actor, 'landlord_id'),
+                'lease_payment' => $query->whereHas('lease', fn ($q) => BailleurDuBien::restreindre($q, $actor, 'landlord_id')),
                 'customer' => $query->whereRaw('1 = 0'), // owners cannot export CRM
                 // TCK-595 — un export financier d'agence n'est jamais celui du bailleur.
                 default => $query->whereRaw('1 = 0'),
@@ -471,14 +480,16 @@ class ExportDataService
             return;
         }
 
-        // Tenants / customers: only their own payments
-        $customer = Customer::where('user_id', $actor->id)->first();
-        if ($customer) {
+        // Tenants / customers: only their own payments.
+        // TCK-2366 (P250.01) — toutes ses fiches, une par agence, comme `DashboardTenantService` :
+        // un `->first()` sans ordre en prenait une au hasard et taisait l'autre agence.
+        $customerIds = Customer::query()->where('user_id', $actor->id)->orderBy('id')->pluck('id');
+        if ($customerIds->isNotEmpty()) {
             match ($entity) {
-                'lease_payment' => $query->where('payer_id', $customer->id),
-                'lease' => $query->where('tenant_id', $customer->id),
+                'lease_payment' => $query->whereIn('payer_id', $customerIds),
+                'lease' => $query->whereIn('tenant_id', $customerIds),
                 'property' => $query->whereRaw('1 = 0'),
-                'customer' => $query->where('id', $customer->id),
+                'customer' => $query->whereIn('id', $customerIds),
                 default => $query->whereRaw('1 = 0'),
             };
         } else {
@@ -498,8 +509,16 @@ class ExportDataService
         return null;
     }
 
+    /**
+     * P193.05 (TCK-2053) — un compte (`User`) se nomme par `nameWithoutContact()` : un compte créé
+     * par téléphone n'a pas de nom, et sa cellule restait vide. Une fiche client garde son nom.
+     */
     protected function fullName(?object $person): ?string
     {
+        if ($person instanceof User) {
+            return $person->nameWithoutContact();
+        }
+
         return $person ? trim("{$person->first_name} {$person->last_name}") : null;
     }
 

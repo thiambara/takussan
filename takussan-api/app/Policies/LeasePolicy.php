@@ -8,6 +8,7 @@ use App\Models\LeaseSignature;
 use App\Models\User;
 use App\Services\Lease\LandlordSignatory;
 use App\Services\Lease\LeaseSignatureService;
+use App\Services\Property\BailleurDuBien;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -65,7 +66,10 @@ class LeasePolicy extends BasePolicy
             return false;
         }
 
-        if ($user->id === $model->landlord_id) {
+        // TCK-1926 (P190.04, décision du porteur) — `landlord_id` recopie le créateur du bien : sur un
+        // bien d'agence, l'agent qui l'a saisi. Lu tel quel, il gardait la lecture du bail suspendu ou
+        // retiré ; il lit désormais au titre du personnel. Le bailleur, même suspendu, garde la sienne.
+        if (BailleurDuBien::est($user, $model->landlord_id, $model->agency_id)) {
             return true;
         }
 

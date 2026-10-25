@@ -36,7 +36,20 @@ class PlanController extends Controller
 
     public function update(UpdatePlanRequest $request, Plan $plan): JsonResponse
     {
-        $plan->update($request->validated());
+        $data = $request->validated();
+
+        // TCK-2114 (P214.02) — `limits` se FUSIONNE clé par clé avec les bornes en base, comme
+        // `settings` d'une agence (TCK-593) : `limits: {max_agents: 5}` effaçait les deux autres
+        // bornes, qu'un plan sans borne lit comme illimitées. Une clé envoyée à `null` est retirée ;
+        // `limits: null` en entier garde son sens (le plan n'a plus de bornes).
+        if (is_array($data['limits'] ?? null)) {
+            $data['limits'] = array_filter(
+                array_replace($plan->limits ?? [], $data['limits']),
+                fn ($value) => $value !== null,
+            );
+        }
+
+        $plan->update($data);
 
         activity('Billing')
             ->causedBy($request->user())

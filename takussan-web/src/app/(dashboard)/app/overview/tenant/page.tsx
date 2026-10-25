@@ -88,6 +88,14 @@ export default async function TenantDashboardPage() {
           hint={formatCurrency(data.payments.overdue_amount, locale)}
           accent={data.payments.overdue_count > 0 ? 'danger' : 'default'}
         />
+        {/* P206.03 (ADR-0057, amendement du 2026-10-24) — à part de l'impayé, qui ne les compte pas. */}
+        {(data.payments.late_fees_outstanding_amount ?? 0) > 0 ? (
+          <StatCard
+            label={t('tenant.lateFeesOutstanding')}
+            value={formatCurrency(data.payments.late_fees_outstanding_amount ?? 0, locale)}
+            accent="danger"
+          />
+        ) : null}
         <StatCard
           label={t('tenant.pendingBookings')}
           value={formatNumber(data.bookings.pending, locale)}

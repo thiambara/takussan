@@ -22,6 +22,13 @@ final class PrintedIdentity
 {
     public const KEY = 'printed_identity';
 
+    /**
+     * P234.06 (TCK-2315) — la raison sociale du bailleur société, figée à côté des rôles : ce n'est
+     * pas une colonne d'un modèle, mais `owner_profiles.metadata.company_name` de son profil dans
+     * l'agence.
+     */
+    public const LANDLORD_COMPANY = 'landlord_company_name';
+
     /** Les attributs d'une personne (locataire, client, bailleur) que les gabarits impriment. */
     private const PERSON = ['first_name', 'last_name', 'name', 'email'];
 
@@ -59,7 +66,7 @@ final class PrintedIdentity
      */
     public static function restore(mixed $metadata, array $roles): array
     {
-        $snapshot = is_array($metadata) && is_array($metadata[self::KEY] ?? null) ? $metadata[self::KEY] : null;
+        $snapshot = self::snapshot($metadata);
         if ($snapshot === null) {
             return $roles;
         }
@@ -85,6 +92,37 @@ final class PrintedIdentity
         }
 
         return $roles;
+    }
+
+    /**
+     * P234.06 (TCK-2315) — la raison sociale à imprimer : celle de l'instantané quand l'acte en a un
+     * (un acte figé sans elle n'en imprime aucune), `$current` sinon, comme les autres identités.
+     */
+    public static function landlordCompany(mixed $metadata, ?string $current): ?string
+    {
+        $snapshot = self::snapshot($metadata);
+        if ($snapshot === null) {
+            return $current;
+        }
+
+        return is_string($snapshot[self::LANDLORD_COMPANY] ?? null) ? $snapshot[self::LANDLORD_COMPANY] : null;
+    }
+
+    /**
+     * P234.06 (TCK-2315) — le rôle a-t-il été figé ABSENT ? L'instantané le porte à `null` : l'acte
+     * l'a été sans lui, et l'imprimer maintenant changerait ce qui a été signé.
+     */
+    public static function frozenAbsent(mixed $metadata, string $role): bool
+    {
+        $snapshot = self::snapshot($metadata);
+
+        return $snapshot !== null && array_key_exists($role, $snapshot) && $snapshot[$role] === null;
+    }
+
+    /** @return array<string, mixed>|null */
+    private static function snapshot(mixed $metadata): ?array
+    {
+        return is_array($metadata) && is_array($metadata[self::KEY] ?? null) ? $metadata[self::KEY] : null;
     }
 
     /**

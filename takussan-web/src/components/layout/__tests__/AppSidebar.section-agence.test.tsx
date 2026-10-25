@@ -67,7 +67,8 @@ interface Profil {
 // TCK-1412 (P148.01, P148.02) — un profil sans rôle d'administration ouvre les pages que ses
 // capacités ouvrent (délégations comprises) : l'agent, le bailleur et le locataire de ce fichier
 // n'en portent donc aucune, sans quoi `team.assign_role` leur ouvrirait « Équipe » et « Rôles ».
-const CAPACITES_ADMIN = ['agency.update_billing', 'agency.update_kyc', 'team.assign_role'];
+// TCK-2260 — le journal d'audit exige `reports.view_agency`, que porte le rôle système d'admin.
+const CAPACITES_ADMIN = ['agency.update_billing', 'agency.update_kyc', 'team.assign_role', 'payments.reconcile', 'reports.view_agency'];
 const profil = (roles: UserRole[], kind: 'standard' | 'individual' | null, agencyIsStandard?: boolean): Profil => ({
   roles,
   ctx: { roles, agence: kind ? { kind } : null, capacites: roles.includes('agency_admin') ? CAPACITES_ADMIN : [] },

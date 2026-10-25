@@ -38,6 +38,13 @@ const agence = vi.hoisted(() => ({ kind: 'standard' as 'standard' | 'individual'
 
 vi.mock('@/lib/access/server-guards', () => ({
   resolveAgencyOrNull: async () => ({ id: 1, kind: agence.kind }),
+  ROUTE_VERIF_INDISPONIBLE: '/verification-indisponible',
+}));
+// TCK-2260 — l'aiguillage lit les capacités du profil actif pour le seul hôte qui n'est pas bailleur.
+const capacites = vi.hoisted(() => ({ liste: ['reports.view_agency'] as readonly string[] | null }));
+vi.mock('@/lib/access/pages-admin-server', () => ({
+  capacitesDuProfilActif: async () => capacites.liste,
+  accesAdmin: async () => ({ chemins: ['/app/agency', '/app/agency/finances'], espaceIndividuel: true }),
 }));
 
 function utilisateur(roles: UserRole[], agencyId: number | null = null): User {
@@ -60,6 +67,7 @@ describe('/app/overview — aiguillage par rôle', () => {
   beforeEach(() => {
     vi.resetModules();
     agence.kind = 'standard';
+    capacites.liste = ['reports.view_agency'];
   });
 
   it('n’envoie plus un prestataire vers la vue locataire', async () => {
@@ -88,6 +96,21 @@ describe('/app/overview — aiguillage par rôle', () => {
   it('TCK-595 (AC7) — l’hôte d’une agence `individual` atterrit sur la vue bailleur', async () => {
     agence.kind = 'individual';
     expect(await cibleDe(['agency_admin'], 1)).toBe('/app/overview/owner');
+  });
+
+  // TCK-2260 (P116.07) — la vue bailleur ne s'offre qu'au bailleur, ou à l'admin qui détient
+  // `reports.view_agency` (`DashboardOwnerController`) : sans elle, l'hôte va à la première page
+  // qu'il peut ouvrir, au lieu de l'état d'erreur de la vue.
+  it('TCK-2260 — l’hôte sans reports.view_agency ne va pas sur la vue bailleur', async () => {
+    agence.kind = 'individual';
+    capacites.liste = ['agency.update'];
+    expect(await cibleDe(['agency_admin'], 1)).toBe('/app/agency');
+  });
+
+  it('TCK-2260 — l’hôte qui est aussi bailleur garde la vue bailleur sans la capacité', async () => {
+    agence.kind = 'individual';
+    capacites.liste = [];
+    expect(await cibleDe(['agency_admin', 'owner'], 1)).toBe('/app/overview/owner');
   });
 
   it('TCK-595 (AC7) — l’admin d’une agence `standard` garde la vue agence', async () => {

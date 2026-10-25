@@ -1,6 +1,9 @@
 'use client';
 import { useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import { useAuth } from '@/context/AuthContext';
+import { useToast } from '@/components/ui/toast';
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import {
   useAddFavoriteMutation,
   useRemoveFavoriteMutation,
@@ -22,6 +25,9 @@ import { useTriggerMinimalProfileOnce } from '@/hooks/useTriggerMinimalProfileOn
 export function useFavorite(propertyId: number, _initialFavoriteId: number | null = null) {
   void _initialFavoriteId;
   const { user } = useAuth();
+  const t = useTranslations('favorites.button');
+  const toast = useToast();
+  const messageErreur = useMessageErreurApi();
   const { has, add, remove } = useFavorites();
   const addMutation = useAddFavoriteMutation();
   const removeMutation = useRemoveFavoriteMutation();
@@ -50,11 +56,13 @@ export function useFavorite(propertyId: number, _initialFavoriteId: number | nul
       } else {
         await addMutation.mutateAsync({ property_id: propertyId });
       }
-    } catch {
+    } catch (error) {
       if (wasFavorite) add(propertyId);
       else remove(propertyId);
+      // P243.02 (TCK-2371) — le cœur revenait sans un mot : le refus se dit.
+      toast.add({ title: t('refusedTitle'), description: messageErreur(error), type: 'error' });
     }
-  }, [user, propertyId, has, add, remove, addMutation, removeMutation, triggerIfNeeded]);
+  }, [user, propertyId, has, add, remove, addMutation, removeMutation, triggerIfNeeded, toast, t, messageErreur]);
 
   return { isFavorite, toggle, loading };
 }

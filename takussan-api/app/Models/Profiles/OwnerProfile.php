@@ -140,13 +140,53 @@ class OwnerProfile extends AbstractModel
      */
     public function getDisplayNameAttribute(): string
     {
-        if ($this->user !== null) {
-            return trim(($this->user->first_name ?? '').' '.($this->user->last_name ?? ''));
+        // P234.07 (TCK-2280) — un compte lié sans nom (créé par téléphone, noms `''`) laisse place
+        // au nom saisi par l'agence à l'invitation, comme au front depuis TCK-2136.
+        $account = $this->user !== null
+            ? trim(($this->user->first_name ?? '').' '.($this->user->last_name ?? ''))
+            : '';
+        if ($account !== '') {
+            return $account;
         }
 
         $first = (string) data_get($this->metadata, 'first_name', '');
         $last = (string) data_get($this->metadata, 'last_name', '');
 
         return trim($first.' '.$last);
+    }
+
+    /**
+     * TCK-1323 (P117.05) — la raison sociale d'un bailleur société, exigée à l'invitation
+     * (`metadata.company_name`) ; `null` pour un particulier, même saisie.
+     */
+    public function companyName(): ?string
+    {
+        if (data_get($this->metadata, 'owner_type') !== 'company') {
+            return null;
+        }
+        $name = trim((string) data_get($this->metadata, 'company_name', ''));
+
+        return $name !== '' ? $name : null;
+    }
+
+    /**
+     * P234.06 (TCK-2315) — la raison sociale que les pièces d'une agence impriment pour un bailleur
+     * (contrat, relevé, état des lieux) : celle de SON profil dans CETTE agence, jamais d'une autre.
+     * Un profil retiré de l'agence nomme encore la société d'un bail passé ; le profil en vigueur
+     * l'emporte.
+     */
+    public static function companyNameOf(?int $userId, ?int $agencyId): ?string
+    {
+        if ($userId === null || $agencyId === null) {
+            return null;
+        }
+
+        return self::query()->withTrashed()
+            ->where('user_id', $userId)
+            ->where('agency_id', $agencyId)
+            ->orderByRaw('deleted_at IS NOT NULL')
+            ->orderByDesc('id')
+            ->first(['id', 'metadata'])
+            ?->companyName();
     }
 }

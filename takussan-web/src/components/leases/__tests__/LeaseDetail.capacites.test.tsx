@@ -103,8 +103,8 @@ describe('LeaseDetail — gestes jugés par capacité (P152.02)', () => {
     expect(screen.queryByRole('button', { name: fr.lease.renewal.cta })).toBeNull();
     expect(screen.getByText('dépôt : sans restitution')).toBeInTheDocument();
     expect(screen.getByText('échéancier : sans pénalité')).toBeInTheDocument();
-    // Les gestes qu'une autre règle juge restent au gestionnaire.
-    expect(screen.getByRole('button', { name: d.generateSchedule })).toBeInTheDocument();
+    // P228.01 (TCK-2210) — l'échéancier suit `record_payment`, que la route juge.
+    expect(screen.queryByRole('button', { name: d.generateSchedule })).toBeNull();
   });
 
   it('chaque geste suit son drapeau', () => {
@@ -120,6 +120,7 @@ describe('LeaseDetail — gestes jugés par capacité (P152.02)', () => {
 
     expect(screen.getByRole('button', { name: fr.lease.renewal.cta })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: d.recordPayment })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: d.generateSchedule })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: d.reviewRent })).toBeNull();
     expect(screen.getByText('dépôt : restitution offerte')).toBeInTheDocument();
     expect(screen.getByText('échéancier : pénalité offerte')).toBeInTheDocument();

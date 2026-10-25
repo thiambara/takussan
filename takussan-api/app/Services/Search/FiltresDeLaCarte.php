@@ -57,6 +57,16 @@ final class FiltresDeLaCarte
         if (! empty($p['region'])) {
             $this->adresseEgale($query, 'region', (string) $p['region']);
         }
+        // P185.02 (TCK-2061) — `cities` : OU entre les villes, comme `buildFilter()`.
+        if (! empty($p['cities']) && is_array($p['cities'])) {
+            $villes = array_values(array_filter(array_map(fn ($v) => trim((string) $v), $p['cities'])));
+            if ($villes !== []) {
+                $query->whereHas('address', fn (Builder $q) => $q->whereRaw(
+                    CaseInsensitive::sql('city').' IN ('.implode(', ', array_fill(0, count($villes), '?')).')',
+                    array_map(fn (string $v) => CaseInsensitive::fold($v), $villes),
+                ));
+            }
+        }
         if (isset($p['price_min']) && is_numeric($p['price_min'])) {
             $query->where($query->qualifyColumn('price'), '>=', (float) $p['price_min']);
         }

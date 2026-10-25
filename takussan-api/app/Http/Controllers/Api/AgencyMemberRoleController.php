@@ -31,7 +31,6 @@ class AgencyMemberRoleController extends Controller
     {
         // TCK-305 — l'autorisation court dans UpdateAgencyMemberRoleRequest::authorize(), donc AVANT la
         // validation : un appel non autorisé ET mal formé doit rendre 403, pas 422.
-        $actor = $request->user();
 
         // TCK-392 (revue, passe 2) — TROISIÈME geste de la même famille, trouvé
         // en cherchant celui que la passe 1 avait manqué. Mesuré : `PUT
@@ -63,11 +62,10 @@ class AgencyMemberRoleController extends Controller
             'agency_member.not_in_agency',
         );
 
+        // TCK-2372 (P249.01) — `role` ne vaut plus que `agency_admin`, `agent` ou `owner`
+        // (UpdateAgencyMemberRoleRequest::ALLOWED_ROLES) : `super_admin` rend 422 à la validation,
+        // et le refus 403 `role.super_admin_grant_forbidden` qui le gardait ici n'a plus de cas.
         $data = $request->validated();
-
-        if ($data['role'] === 'super_admin' && ! $actor->isSuperAdmin()) {
-            abort_code(403, 'role.super_admin_grant_forbidden');
-        }
 
         // Last-admin invariant : si le target est l'unique agency_admin et
         // le nouveau rôle le lui retire, refuser. Wrap en transaction +
@@ -105,7 +103,6 @@ class AgencyMemberRoleController extends Controller
                 'agency_admin' => $this->setAgencyAdmin($user, (int) $agency->id),
                 'agent' => $this->setAgent($user, (int) $agency->id),
                 'owner' => $this->setOwner($user, (int) $agency->id),
-                default => null, // super_admin / tenant / customer / sp : no-op agence-scoped
             };
         });
 

@@ -1,8 +1,8 @@
 import { useLocale, useTranslations } from 'next-intl';
 
-import { DEFAULT_LOCALE, isLocale } from '@/i18n/config';
+import { DEFAULT_LOCALE, isLocale, type Locale } from '@/i18n/config';
 import { formatCurrency, formatNumber, formatPercent } from '@/lib/format';
-import type { DashboardAgencySummary } from '@/lib/queries/dashboard-agency';
+import type { DashboardAgencyKpi, DashboardAgencySummary } from '@/lib/queries/dashboard-agency';
 import { formatOccupancyRate } from '../occupancy';
 import { AgencyKpiTile } from './AgencyKpiTile';
 
@@ -20,6 +20,10 @@ type Props = {
  * loués. Celui des impayés répétait le NOMBRE d'échéances que la file « Échéances impayées »
  * d'`AgencyQueues` affiche juste au-dessus, avec son lien : la tuile garde le montant. La
  * commission du mois, que seule la vue `/app/overview/agency` montrait, passe en indice des revenus.
+ *
+ * TCK-2373 (P249.02) — quand l'agence a configuré ses indicateurs (écran « Indicateurs »,
+ * `kpi_configs`), l'API les sert sous `summary.kpis` : ils remplacent les six tuiles, dans l'ordre
+ * servi, avec le libellé saisi et le format choisi. Sans configuration, les six tuiles restent.
  */
 export function AgencyKpis({ summary }: Props) {
   const t = useTranslations('dashboard.agencyKpis');
@@ -28,6 +32,25 @@ export function AgencyKpis({ summary }: Props) {
   const locale = isLocale(brute) ? brute : DEFAULT_LOCALE;
   const overdueCount = summary.finance.overdue_count;
   const unpaidRate = summary.finance.unpaid_rate_percent;
+  // P206.03 (ADR-0057, amendement du 2026-10-24) — les pénalités à recouvrer, à part de l'impayé.
+  const lateFees = summary.finance.late_fees_outstanding_amount ?? 0;
+  const configures = summary.kpis ?? [];
+
+  if (configures.length > 0) {
+    return (
+      <div className="grid grid-flow-row-dense grid-cols-2 gap-4 lg:grid-cols-3 2xl:grid-cols-6">
+        {configures.map((kpi) => (
+          <AgencyKpiTile
+            key={kpi.metric}
+            label={kpi.label}
+            value={valeurConfiguree(kpi, locale)}
+            // Un montant prend la ligne entière tant que la grille n'a que deux colonnes (ci-dessous).
+            className={kpi.format === 'currency' ? 'col-span-2 lg:col-span-1' : undefined}
+          />
+        ))}
+      </div>
+    );
+  }
 
   return (
     // Les deux MONTANTS prennent la ligne entière tant que la grille n'a que deux colonnes : un
@@ -62,6 +85,7 @@ export function AgencyKpis({ summary }: Props) {
       <AgencyKpiTile
         label={t('overdue')}
         value={formatCurrency(summary.finance.overdue_amount, locale)}
+        hint={lateFees > 0 ? t('lateFeesHint', { amount: formatCurrency(lateFees, locale) }) : undefined}
         accent={overdueCount > 0 ? 'danger' : 'default'}
         className="col-span-2 lg:col-span-1"
       />
@@ -72,4 +96,17 @@ export function AgencyKpis({ summary }: Props) {
       />
     </div>
   );
+}
+
+/** Le format choisi dans l'écran « Indicateurs » ; un tiret sans valeur, jamais « 0 ». */
+function valeurConfiguree(kpi: DashboardAgencyKpi, locale: Locale): string {
+  if (kpi.value === null) return '—';
+  switch (kpi.format) {
+    case 'currency':
+      return formatCurrency(kpi.value, locale);
+    case 'percent':
+      return formatPercent(kpi.value / 100, locale);
+    default:
+      return formatNumber(kpi.value, locale);
+  }
 }

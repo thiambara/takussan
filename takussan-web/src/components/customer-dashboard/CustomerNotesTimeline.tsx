@@ -1,6 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { useQueryClient } from '@tanstack/react-query';
 import { useLocale, useTranslations } from 'next-intl';
 import { useState, useTransition } from 'react';
 import { Loader2, NotebookPen, Pin, Send } from 'lucide-react';
@@ -14,6 +15,7 @@ import type { Locale } from '@/i18n/config';
 import type { CustomerNote } from '@/types/customer';
 import { cn } from '@/lib/utils';
 import { noteBody } from '@/components/crm/noteBody';
+import { AGENT_CRM_QUERY_KEY } from '@/lib/queries/agent-crm';
 
 /**
  * Chronological note timeline — TCK-042.
@@ -32,6 +34,7 @@ export function CustomerNotesTimeline({
   notes,
 }: CustomerNotesTimelineProps) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const locale = useLocale() as Locale;
   const t = useTranslations('crm.customerDetail.notes');
   const tNotes = useTranslations('agentCrm.notes');
@@ -55,6 +58,8 @@ export function CustomerNotesTimeline({
       }
       setBody('');
       router.refresh();
+      // TCK-2093 — la note est journalisée : l'onglet « Activité » la montre sans attendre.
+      void queryClient.invalidateQueries({ queryKey: AGENT_CRM_QUERY_KEY.activity(customerId) });
     });
   };
 

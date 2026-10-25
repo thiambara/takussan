@@ -117,6 +117,9 @@ class DashboardAgencyService
                 'commission_month' => self::commissionMonth((int) $agency->id),
                 'overdue_count' => $overdue['count'],
                 'overdue_amount' => $overdue['amount'],
+                // P206.03 (ADR-0057, amendement du 2026-10-24) — à part de l'impayé, qui ne les compte pas.
+                'late_fees_outstanding_count' => $overdue['late_fees_count'],
+                'late_fees_outstanding_amount' => $overdue['late_fees_amount'],
                 // P93.03 (TCK-1177) — impayé ÷ facturé des échéances échues sur 12 mois, `null` sans échéance.
                 'unpaid_rate_percent' => $this->metrics->unpaidRate($scope),
             ],

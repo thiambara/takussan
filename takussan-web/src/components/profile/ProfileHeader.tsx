@@ -17,6 +17,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { updateProfileAction } from '@/app/actions/auth';
+import { useAuth } from '@/context/AuthContext';
 import { reduirePhotoSousPlafond } from '@/lib/reduire-photo';
 import { initialesDe, libelleDe } from '@/lib/identite';
 
@@ -44,6 +45,7 @@ export function ProfileHeader({ user }: ProfileHeaderProps) {
   const tNav = useTranslations('nav');
   const tCommon = useTranslations('common.actions');
   const router = useRouter();
+  const { user: contextUser, setUser } = useAuth();
   const [currentUser, setCurrentUser] = useState(user);
   const [open, setOpen] = useState(false);
   const [firstName, setFirstName] = useState(user.first_name);
@@ -123,6 +125,9 @@ export function ProfileHeader({ user }: ProfileHeaderProps) {
       return;
     }
     setCurrentUser(result.user);
+    // TCK-2046 (P202.06) — comme `EtapePrenom` : la `Navbar` publique lit le nom et la photo dans
+    // le contexte, que `router.refresh()` ne change pas.
+    if (contextUser) setUser({ ...contextUser, ...result.user });
     setAvatar(null);
     setAvatarPreview(null);
     setRemoveAvatar(false);

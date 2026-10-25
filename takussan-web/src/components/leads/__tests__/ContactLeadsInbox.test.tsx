@@ -17,6 +17,7 @@ const etat = vi.hoisted(() => ({
   capacites: ['crm.assign'] as string[],
   recherche: '',
   designe: null as { id: number | null; data?: ContactLead; isError?: boolean } | null,
+  membres: [{ id: 21, first_name: 'Moussa', last_name: 'Fall' }] as { id: number; first_name: string; last_name: string }[],
 }));
 const handle = { mutateAsync: vi.fn().mockResolvedValue({}), isPending: false };
 const convert = { mutateAsync: vi.fn().mockResolvedValue({ customer: { id: 88 } }), isPending: false };
@@ -51,7 +52,7 @@ const lecturesDesMembres = vi.hoisted(() => [] as unknown[][]);
 
 vi.mock('@/hooks/useApiQuery', () => ({
   useApiQuery: (...args: unknown[]) => (lecturesDesMembres.push(args), {
-    data: { data: [{ id: 21, first_name: 'Moussa', last_name: 'Fall' }] },
+    data: { data: etat.membres },
     isLoading: false,
   }),
 }));
@@ -108,6 +109,19 @@ describe('<ContactLeadsInbox> — TCK-590', () => {
     etat.capacites = ['crm.assign'];
     etat.recherche = '';
     etat.designe = null;
+    etat.membres = [{ id: 21, first_name: 'Moussa', last_name: 'Fall' }];
+  });
+
+  it('P220.05 (TCK-2140) — un destinataire et un collègue sans nom ont un libellé', async () => {
+    etat.roles = ['agency_admin'];
+    etat.leads = [lead({ recipient: { id: 7, first_name: '', last_name: '' } })];
+    etat.membres = [{ id: 21, first_name: '', last_name: '' }];
+    const user = userEvent.setup();
+    render(withIntl(<ContactLeadsInbox />));
+
+    expect(screen.getByText('Pour #7')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Attribuer' }));
+    expect(await screen.findByRole('option', { name: '#21' })).toBeInTheDocument();
   });
 
   it('le message se lit en entier, avec le téléphone, l’e-mail, le destinataire et la source', () => {

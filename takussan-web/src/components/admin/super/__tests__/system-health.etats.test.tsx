@@ -23,7 +23,7 @@ const SANTE: PlatformHealth = {
   queue: { status: 'degraded', pending: 4, processing: 0, failed_24h: 0, oldest_pending_seconds: 900, checked_at: A },
   workers: { status: 'ok', checked_at: A },
   cdn: { status: 'ok', value: 'disabled', checked_at: A },
-  scheduler: { last_run_at: A },
+  scheduler: { status: 'ok', last_run_at: A },
   status: 'failed',
   generated_at: A,
 };

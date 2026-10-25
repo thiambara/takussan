@@ -3,6 +3,8 @@
 return [
 
     'salutation' => 'The Takussan team',
+    // P235.03 (TCK-2369) — une personne sans nom dans un avis (`NotificationCode::PARAM_PERSON`).
+    'unnamed_person' => '(unnamed)',
 
     // TCK-249 — Invitation lifecycle emails.
     'invitation' => [
@@ -110,6 +112,8 @@ return [
         'consequences' => 'Your personal data will be irreversibly anonymized. Accounting and legal records (payments, leases, invoices) will be retained anonymously in accordance with applicable law.',
         'action' => 'Cancel deletion',
         'ignore' => 'If you did not initiate this request, cancel it immediately and change your password.',
+        // P193.04 (TCK-2051) — un compte sans e-mail : SMS au numéro vérifié.
+        'sms' => 'Takussan: your account deletion request is recorded. It will be carried out on :date. To cancel it, sign in before that date.',
     ],
 
     // TCK-272 — step-up code for accounts without a usable password
@@ -138,6 +142,8 @@ return [
         'intro' => 'Your account will be deleted in :days days, on :date. If you change your mind, you can still cancel the deletion.',
         'action' => 'Cancel deletion',
         'ignore' => 'If you confirm the deletion, no further action is required.',
+        // P193.04 (TCK-2051) — un compte sans e-mail : SMS au numéro vérifié.
+        'sms' => 'Takussan: your account will be deleted in :days days, on :date. To cancel, sign in before that date.',
     ],
 
     'account_deletion_executed' => [
@@ -146,6 +152,8 @@ return [
         'intro' => 'Your Takussan account has been deleted and your personal data has been irreversibly anonymized.',
         'retention' => 'In accordance with legal obligations, certain accounting records (payments, invoices) are kept anonymously for 10 years.',
         'contact' => 'For any questions, please contact our support team.',
+        // P193.04 (TCK-2051) — un compte sans e-mail : SMS au numéro vérifié.
+        'sms' => 'Takussan: your account has been deleted and your personal data anonymised.',
     ],
 
     'lease_deposit_refunded' => [
@@ -275,6 +283,11 @@ return [
                 'body' => 'The suspension of the agency :agency has been lifted. Reason: :reason. Its public listings are visible again.',
                 'sms' => 'Takussan: the suspension of :agency is lifted.',
             ],
+            'member_deletion_requested' => [
+                'title' => 'Account deletion requested: :member',
+                'body' => ':member has requested the deletion of their account, effective :scheduled_for. Their portfolio in the agency: :tasks task(s), :visits visit(s), :maintenance maintenance request(s), :responsible_properties propert(y/ies) as lead agent, :held_properties propert(y/ies) entered, :collaborations collaboration(s), :customers client(s) followed, :contact_leads unhandled contact request(s). Hand it over to a colleague before that date from the team page: :url',
+                'sms' => 'Takussan: :member deletes their account on :scheduled_for. Hand over their portfolio from the team page.',
+            ],
         ],
         'platform_operator' => [
             'revoked' => [
@@ -327,6 +340,16 @@ return [
                 'sms' => 'Takussan: payment of :amount received (:property).',
                 'sms_link' => 'Takussan: payment of :amount received (:property). Receipt: :receipt_url',
             ],
+            'refunded' => [
+                'title' => 'Refund: :property',
+                'body' => 'A refund of :amount was made on your rent payment for :property. Your receipt no longer covers the refunded amount.',
+                'sms' => 'Takussan: refund of :amount on your rent (:property).',
+            ],
+            'refunded_landlord' => [
+                'title' => 'Rent refunded: :property',
+                'body' => ':amount of the rent paid by :tenant for :property was refunded through the online payment method.',
+                'sms' => 'Takussan: :amount of the rent from :tenant (:property) refunded.',
+            ],
         ],
         // TCK-593 — un double encaissement à rembourser, signalé aux admins de l'agence.
         'payment' => [
@@ -339,6 +362,15 @@ return [
                 'title' => 'Late fee collected twice',
                 'body' => 'The late fee of :amount for :reference, already settled at the agency, was also collected online. Refund the payer or allocate the amount.',
                 'sms' => 'Takussan: late fee of :amount collected twice for :reference. Refund or allocate it.',
+            ],
+        ],
+        // TCK-2320 (P39.07) — aux admins de l'agence : une ligne d'un reversement de la plateforme déjà
+        // versé a été remboursée depuis. Aucun montant n'est écrit.
+        'platform_payout' => [
+            'refunded_since_paid' => [
+                'title' => 'Payment refunded after payout',
+                'body' => 'Payment :reference, included in the platform payout for :period already paid to your agency, has since been refunded through the online payment method. No deduction is applied automatically.',
+                'sms' => 'Takussan: payment :reference of the :period payout has since been refunded.',
             ],
         ],
         'booking' => [
@@ -660,6 +692,12 @@ return [
                 'body' => 'Your maintenance request is now: in progress. Visit planned on :scheduled_at.',
                 'sms' => 'Takussan: Your request ":request": in progress',
             ],
+            // TCK-2012 (P184.01) — le passage fixé ou déplacé, à toutes les parties sauf l'auteur.
+            'schedule_changed' => [
+                'title' => 'Visit planned: ":request"',
+                'body' => 'The visit for the maintenance request ":request" is planned on :scheduled_at.',
+                'sms' => 'Takussan: visit planned on :scheduled_at for ":request".',
+            ],
         ],
         'maintenance_quote' => [
             'requested' => [
@@ -718,6 +756,11 @@ return [
                 'title' => 'Property approved: :property',
                 'body' => 'Your property ":property" was approved and is now visible on the platform.',
                 'sms' => 'Takussan: listing ":property" approved.',
+            ],
+            'assigned_to_owner' => [
+                'title' => 'A property saved in your name: :property',
+                'body' => 'Your agency has saved the property “:property” in your name. You will find it among your properties, with its leases and your owner statement.',
+                'sms' => 'Takussan: the property “:property” is saved in your name.',
             ],
             'submitted_for_review' => [
                 'title' => 'Property to review: :property',
@@ -792,6 +835,13 @@ return [
                 'sms' => 'Takussan: payout threshold relaxation at :agency to confirm.',
             ],
         ],
+        'service_provider_bill' => [
+            'kept_on_reopen' => [
+                'title' => 'Maintenance bill kept: :reference',
+                'body' => 'The maintenance request “:request” was contested or cancelled, but its bill :reference for :amount is already paid, recharged to the landlord or being paid: it is not cancelled. Check it and settle it manually.',
+                'sms' => 'Takussan: bill :reference kept, maintenance contested or cancelled. To be settled.',
+            ],
+        ],
         'owner_statement' => [
             'available' => [
                 'title' => 'Your :period management statement is available',
@@ -864,6 +914,7 @@ return [
         'subject_escalation' => 'URGENT ESCALATION: :title',
         'greeting' => 'Hello,',
         'intro' => 'An URGENT maintenance request was submitted for the property.',
+        'intro_became_urgent' => 'A maintenance request was raised to URGENT for the property.',
         'job' => 'Job: :title',
         'intro_escalation' => 'Maintenance request #:id (:title) is URGENT and has not been handled for more than 30 minutes.',
         'cta' => 'Please take charge of this request immediately.',

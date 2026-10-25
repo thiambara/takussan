@@ -7,6 +7,7 @@ use App\Domain\Notifications\NotificationTarget;
 use App\Models\Enums\LeaseStatus;
 use App\Models\Lease;
 use App\Models\LeaseSignature;
+use App\Models\Profiles\OwnerProfile;
 use App\Models\User;
 use App\Notifications\LeaseSignatureCodeNotification;
 use App\Services\Auth\OtpPreview;
@@ -110,9 +111,14 @@ class LeaseSignatureService
         $this->assertAwaiting($lease, $role);
 
         abort_code_if($this->otp->isLocked($lease, $user, $role), 423, 'lease_signature.code_locked');
-        abort_code_unless($this->otp->canResend($lease, $user, $role), 429, 'lease_signature.resend_too_soon');
 
         $sms = is_string($user->phone) && $user->phone !== '' && $user->phone_verified_at !== null;
+        // P193.06 (TCK-2055) — ni numéro vérifié ni e-mail : aucun canal n'a de destination. Refusé
+        // avant d'émettre le code et de consommer la fenêtre de renvoi ; la réponse annonçait sinon
+        // un envoi par e-mail (`•••@`) qui n'avait pas lieu.
+        abort_code_if(! $sms && (! is_string($user->email) || $user->email === ''), 422, 'lease_signature.no_destination');
+        abort_code_unless($this->otp->canResend($lease, $user, $role), 429, 'lease_signature.resend_too_soon');
+
         $channel = $sms ? LeaseSignatureCodeNotification::CHANNEL_SMS : LeaseSignatureCodeNotification::CHANNEL_MAIL;
         $destination = $sms ? self::maskPhone((string) $user->phone) : self::maskEmail((string) $user->email);
 
@@ -275,6 +281,8 @@ class LeaseSignatureService
             'lease' => $printed,
             'tenant' => $lease->tenant,
             'landlord' => $lease->landlord,
+            // P234.06 (TCK-2315) — la raison sociale du jour du gel, figée avec les octets.
+            'landlord_company' => OwnerProfile::companyNameOf($lease->landlord_id, $lease->agency_id),
             'property' => $lease->property,
             'agency' => $lease->agency,
             'guarantors' => $lease->guarantors,

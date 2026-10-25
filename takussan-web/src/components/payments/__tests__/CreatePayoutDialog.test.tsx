@@ -100,6 +100,37 @@ describe('CreatePayoutDialog — le calcul se lit, il ne se saisit pas (TCK-594)
     PREPARATION.current = { data: undefined, isError: false, isFetching: false, error: null };
   });
 
+  // P220.06 (TCK-2136) — un bailleur lié à un compte sans nom garde le nom de son invitation.
+  it("nomme un bailleur au compte sans nom par le nom saisi à l'invitation", () => {
+    const avant = OWNERS.data.data;
+    OWNERS.data.data = [
+      { id: 6, user_id: 43, agency_id: 3, status: 'active', metadata: { first_name: 'Moussa', last_name: 'Ndiaye' } as never, created_at: null, user: { id: 43, first_name: '', last_name: '', email: null as never } },
+    ];
+    try {
+      monter();
+      expect(screen.getByRole('option', { name: 'Moussa Ndiaye' })).toBeInTheDocument();
+    } finally {
+      OWNERS.data.data = avant;
+    }
+  });
+
+  // P234.06 (TCK-2315) — un bailleur société est nommé par sa raison sociale, puis sa personne
+  // (TCK-1323) ; un particulier reste nommé par son nom, même avec une raison sociale saisie.
+  it('nomme un bailleur société par sa raison sociale, puis sa personne', () => {
+    const avant = OWNERS.data.data;
+    OWNERS.data.data = [
+      { id: 7, user_id: 44, agency_id: 3, status: 'active', metadata: { owner_type: 'company', company_name: 'SCI Baobab' } as never, created_at: null, user: { id: 44, first_name: 'Fatou', last_name: 'Sarr', email: 'fatou@example.test' } },
+      { id: 8, user_id: 45, agency_id: 3, status: 'active', metadata: { owner_type: 'individual', company_name: 'SCI Fantôme' } as never, created_at: null, user: { id: 45, first_name: 'Awa', last_name: 'Diop', email: 'awa@example.test' } },
+    ];
+    try {
+      monter();
+      expect(screen.getByRole('option', { name: 'SCI Baobab — Fatou Sarr' })).toBeInTheDocument();
+      expect(screen.getByRole('option', { name: 'Awa Diop' })).toBeInTheDocument();
+    } finally {
+      OWNERS.data.data = avant;
+    }
+  });
+
   it('propose les bailleurs actifs et inactifs, à qui des loyers peuvent rester dus (P120.04)', () => {
     monter();
 
@@ -157,6 +188,38 @@ describe('CreatePayoutDialog — le calcul se lit, il ne se saisit pas (TCK-594)
     for (const montant of ['gross_amount', 'commission_amount', 'fees_amount', 'net_amount']) {
       expect(payload).not.toHaveProperty(montant);
     }
+  });
+
+  // P206.01 (ADR-0039, amendement du 2026-10-24, point 6) — la pénalité de retard réglée est une
+  // ligne propre du reversement : montrée, et citée à la création par sa ligne de loyer.
+  it('montre la pénalité de retard réglée et la cite à la création', async () => {
+    PREPARATION.current = {
+      data: {
+        data: {
+          ...CALCUL.data,
+          lines: {
+            ...CALCUL.data.lines,
+            late_fees: [
+              { id: 101, reference_number: 'LP-1', lease_id: 7, lease_reference: 'BAIL-7', property_id: 1, paid_at: '2026-09-12T10:00:00Z', amount: 7500, commission_rate: 10, commission_rate_source: 'lease', commission: 750 },
+            ],
+          },
+        },
+      },
+      isError: false,
+      isFetching: false,
+      error: null,
+    };
+    const user = userEvent.setup();
+    monter();
+
+    const ligne = screen.getByText('Pénalité de retard — bail BAIL-7').closest('tr');
+    expect(sansEspaces(ligne?.textContent ?? '')).toContain('7500FCFA');
+
+    await user.click(screen.getByRole('button', { name: 'Créer le reversement' }));
+    expect(MUTATION.mutateAsync.mock.calls[0][0]).toMatchObject({
+      lease_payment_ids: [101, 102],
+      late_fee_lease_payment_ids: [101],
+    });
   });
 
   it("propose à l'agence de vérifier une destination en attente, et seulement celle-là", async () => {
@@ -235,5 +298,90 @@ describe('CreatePayoutDialog — le relevé du bailleur choisi, avant de reverse
     expect(bouton).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByRole('heading', { name: 'Relevé de gérance' })).toBeInTheDocument();
     expect(RELEVE_ARGS.at(-1)).toEqual(['2026-09', 42]);
+  });
+});
+
+describe('CreatePayoutDialog — la commission de la plateforme, portée par l\'agence (TCK-2074, P178.03)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    PREPARATION.current = { data: undefined, isError: false, isFetching: false, error: null };
+  });
+
+  const enLigne = {
+    id: 103, reference_number: 'LP-3', payment_type: 'rent', lease_id: 8, lease_reference: 'BAIL-8', property_id: 2,
+    paid_at: '2026-09-15T10:00:00Z', amount: 150000, commission_rate: 0, commission_rate_source: 'lease', commission: 0,
+    settled_by_platform: true, platform_fee_rate: 5, platform_fee: 7500, agency_received: 142500, commission_below_platform_fee: true,
+  };
+  const especes = {
+    ...CALCUL.data.lines.lease_payments[0],
+    settled_by_platform: false, platform_fee_rate: null, platform_fee: null, agency_received: null, commission_below_platform_fee: false,
+  };
+
+  function calcul(lignes: unknown[], platformFee: number) {
+    return {
+      data: {
+        ...CALCUL.data,
+        requires_approval: false,
+        lines: { lease_payments: lignes, booking_payments: [], service_provider_bills: [] },
+        totals: { gross: 350000, commission: 20000, fees: 0, net: 330000, platform_fee: platformFee },
+      },
+    };
+  }
+
+  it('montre la commission de la plateforme et ce que l\'agence a reçu, et avertit sans bloquer', () => {
+    PREPARATION.current = { data: calcul([enLigne, especes], 7500), isError: false, isFetching: false, error: null };
+    monter();
+
+    const ligne = screen.getByText('Loyer — bail BAIL-8').closest('tr');
+    expect(sansEspaces(ligne?.textContent ?? '')).toContain(sansEspaces('Commission de la plateforme : 7 500 FCFA (5 %) · reçu par l\'agence : 142 500 FCFA'));
+    const autre = screen.getByText('Loyer — bail BAIL-7').closest('tr');
+    expect(autre?.textContent).not.toContain('plateforme');
+    const total = screen.getAllByText('Commission de la plateforme, portée par l\'agence').find((el) => el.tagName === 'DT');
+    expect(sansEspaces(total?.nextElementSibling?.textContent ?? '')).toBe('7500FCFA');
+    expect(screen.getByRole('status')).toHaveTextContent(/inférieure à celle de la plateforme/);
+    expect(screen.getByRole('button', { name: 'Créer le reversement' })).toBeEnabled();
+  });
+
+  it("ne dit rien de la plateforme quand aucune pièce n'est passée par elle", () => {
+    PREPARATION.current = { data: calcul([especes], 0), isError: false, isFetching: false, error: null };
+    monter();
+
+    expect(screen.queryByText(/plateforme/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
+});
+
+describe("CreatePayoutDialog — « encaissé par la plateforme » sur la ligne (TCK-2076, P178.04)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('marque la pièce encaissée par la plateforme, et elle seule', () => {
+    const base = CALCUL.data.lines.lease_payments[0];
+    const sansPlateforme = { settled_by_platform: false, platform_fee_rate: null, platform_fee: null, agency_received: null, commission_below_platform_fee: false };
+    PREPARATION.current = {
+      data: {
+        data: {
+          ...CALCUL.data,
+          requires_approval: false,
+          lines: {
+            lease_payments: [
+              { ...base, id: 201, lease_reference: 'BAIL-EN-LIGNE', ...sansPlateforme, settled_by_platform: true, platform_fee_rate: 5, platform_fee: 10000, agency_received: 190000 },
+              { ...base, id: 202, lease_reference: 'BAIL-ESPECES', ...sansPlateforme },
+            ],
+            booking_payments: [],
+            service_provider_bills: [],
+          },
+          totals: { ...CALCUL.data.totals, platform_fee: 10000 },
+        },
+      },
+      isError: false,
+      isFetching: false,
+      error: null,
+    };
+    monter();
+
+    expect(screen.getByText('Loyer — bail BAIL-EN-LIGNE').closest('td')).toHaveTextContent('Encaissé par la plateforme');
+    expect(screen.getByText('Loyer — bail BAIL-ESPECES').closest('td')).not.toHaveTextContent('Encaissé par la plateforme');
   });
 });

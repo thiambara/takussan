@@ -1,10 +1,11 @@
 /**
- * TCK-642 — `useSoldeCredits` : un nombre sur 200, `null` sur tout le reste (AC2, AC5), et un
- * solde qui suit le changement de profil actif (AC4).
+ * TCK-642 — `useSoldeCredits` : un nombre sur 200, `null` sur tout le reste (AC2, AC5). Le solde qui
+ * suit le changement de profil actif (AC4) est gardé par `useSwitchActiveProfile.lectures-d-agence`
+ * depuis TCK-2091 : le hook n'écoute plus le cache des profils.
  */
 import type { ReactNode } from 'react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { act, renderHook, waitFor } from '@testing-library/react';
+import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { withIntl } from '@/test/intl';
 
@@ -15,8 +16,7 @@ vi.mock('@/lib/api', async (original) => ({
 }));
 
 const { ApiError } = await import('@/lib/api');
-const { useSoldeCredits, CLE_SOLDE_CREDITS, CLE_PROFILS_ECOUTEE } = await import('../credits-solde');
-const { profilesKeys } = await import('@/hooks/useProfiles');
+const { useSoldeCredits, CLE_SOLDE_CREDITS } = await import('../credits-solde');
 
 function monter(enabled = true) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -27,7 +27,6 @@ function monter(enabled = true) {
 }
 
 const solde = (balance: number) => ({ data: { balance } });
-const profils = (actif: string) => ({ data: [], meta: { active_profile_id: actif } });
 
 beforeEach(() => {
   apiRequest.mockReset();
@@ -68,61 +67,5 @@ describe('useSoldeCredits — ce qui s’affiche', () => {
     const { result } = monter(false);
     expect(result.current).toBeNull();
     expect(apiRequest).not.toHaveBeenCalled();
-  });
-});
-
-describe('useSoldeCredits — le solde suit le profil actif (AC4)', () => {
-  it('la clé écoutée est celle du cache des profils (recopiée pour la frontière i18n publique)', () => {
-    expect(CLE_PROFILS_ECOUTEE).toEqual(profilesKeys.all);
-  });
-
-  it('relit après un changement CONFIRMÉ par le serveur, pas sur l’écriture optimiste', async () => {
-    apiRequest.mockResolvedValueOnce(solde(5));
-    const { result, client } = monter();
-    await act(() => client.fetchQuery({ queryKey: profilesKeys.all, queryFn: async () => profils('agency_admin:1') }));
-    await waitFor(() => expect(result.current).toBe(5));
-
-    // Le sélecteur bascule l'identifiant AVANT le `PATCH` : rien ne doit être relu là.
-    act(() => {
-      client.setQueryData(profilesKeys.all, profils('agency_admin:2'));
-    });
-    expect(apiRequest).toHaveBeenCalledTimes(1);
-
-    // Le `PATCH` abouti, les profils sont relus : le serveur confirme le nouvel espace.
-    apiRequest.mockResolvedValueOnce(solde(40));
-    await act(() => client.fetchQuery({ queryKey: profilesKeys.all, queryFn: async () => profils('agency_admin:2') }));
-    await waitFor(() => expect(result.current).toBe(40));
-    expect(apiRequest).toHaveBeenCalledTimes(2);
-  });
-
-  it('pendant la relecture du nouvel espace, le solde de l’ancien n’est PLUS affiché', async () => {
-    apiRequest.mockResolvedValueOnce(solde(5));
-    const { result, client } = monter();
-    await act(() => client.fetchQuery({ queryKey: profilesKeys.all, queryFn: async () => profils('agency_admin:1') }));
-    await waitFor(() => expect(result.current).toBe(5));
-    apiRequest.mockReturnValueOnce(new Promise(() => {}));
-    await act(() => client.fetchQuery({ queryKey: profilesKeys.all, queryFn: async () => profils('agency_admin:2'), staleTime: 0 }));
-    await waitFor(() => expect(apiRequest).toHaveBeenCalledTimes(2));
-    expect(result.current).toBeNull();
-  });
-
-  it('une relecture des profils SANS changement d’espace ne relit pas le solde', async () => {
-    apiRequest.mockResolvedValue(solde(5));
-    const { result, client } = monter();
-    await act(() => client.fetchQuery({ queryKey: profilesKeys.all, queryFn: async () => profils('agency_admin:1') }));
-    await waitFor(() => expect(result.current).toBe(5));
-    await act(() => client.fetchQuery({ queryKey: profilesKeys.all, queryFn: async () => profils('agency_admin:1'), staleTime: 0 }));
-    expect(apiRequest).toHaveBeenCalledTimes(1);
-  });
-
-  it('le nouvel espace refuse le portefeuille : le solde de l’ancien n’est PAS gardé', async () => {
-    apiRequest.mockResolvedValueOnce(solde(5));
-    const { result, client } = monter();
-    await act(() => client.fetchQuery({ queryKey: profilesKeys.all, queryFn: async () => profils('agency_admin:1') }));
-    await waitFor(() => expect(result.current).toBe(5));
-    apiRequest.mockRejectedValueOnce(new ApiError(403, {}));
-    await act(() => client.fetchQuery({ queryKey: profilesKeys.all, queryFn: async () => profils('owner:3'), staleTime: 0 }));
-    await waitFor(() => expect(apiRequest).toHaveBeenCalledTimes(2));
-    await waitFor(() => expect(result.current).toBeNull());
   });
 });

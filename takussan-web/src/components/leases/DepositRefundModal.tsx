@@ -24,6 +24,15 @@ import { useGardeDoubleFacteur } from '@/components/auth/garde-double-facteur-co
 import { buildDepositRefundSchema, type DepositRefundFormValues } from '@/lib/schemas/lease';
 import { useQueryClient } from '@tanstack/react-query';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
+import { PIECES_PAR_ENVOI_MAX_MO, piecesDepassentLeCorps } from '@/lib/borne-du-corps';
+
+/**
+ * TCK-2148 (P222.04) — ce que `RefundDepositRequest` admet : `uploads` `max:10`, `uploads.*`
+ * `max:10240` (Ko). Les pièces partent telles quelles, sans réduction (pièce justificative, TCK-542).
+ */
+const MAX_ATTACHMENTS = 10;
+const MAX_ATTACHMENT_MB = 10;
+const MAX_ATTACHMENT_BYTES = MAX_ATTACHMENT_MB * 1024 * 1024;
 
 interface DepositRefundModalProps {
   readonly open: boolean;
@@ -60,6 +69,9 @@ export function DepositRefundModal({
   const garde = useGardeDoubleFacteur();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [tooLargeFiles, setTooLargeFiles] = useState<string[]>([]);
+  const [tooManyFiles, setTooManyFiles] = useState(false);
+  const [totalTooLarge, setTotalTooLarge] = useState(false);
   const [globalError, setGlobalError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -114,7 +126,7 @@ export function DepositRefundModal({
         queryClient.invalidateQueries({ queryKey: ['leases', 'deposit-refund', leaseId] }),
       ]);
       reset();
-      setSelectedFiles([]);
+      resetFiles();
       onOpenChange(false);
     } catch (err) {
       if (err instanceof ApiError) {
@@ -145,7 +157,25 @@ export function DepositRefundModal({
 
   function handleFiles(event: React.ChangeEvent<HTMLInputElement>): void {
     const files = Array.from(event.target.files ?? []);
-    setSelectedFiles(files);
+    // TCK-2148 — jugées au choix, comme le devis (TCK-1907, TCK-1889), au lieu d'un 422 qui
+    // refusait toute la restitution après l'envoi : la pièce trop lourde est écartée et nommée,
+    // une sélection au-delà de la borne est refusée entière et dite.
+    const accepted = files.filter((f) => f.size <= MAX_ATTACHMENT_BYTES);
+    setTooLargeFiles(files.filter((f) => f.size > MAX_ATTACHMENT_BYTES).map((f) => f.name));
+    const tooMany = accepted.length > MAX_ATTACHMENTS;
+    setTooManyFiles(tooMany);
+    // TCK-2330 (P222.05) — trois pièces de 9 Mo, chacune admise, dépassent la borne du proxy
+    // (25 Mio) : la somme se juge sous la constante commune au devis, refusée entière et dite.
+    const tooHeavy = !tooMany && piecesDepassentLeCorps(accepted);
+    setTotalTooLarge(tooHeavy);
+    setSelectedFiles(tooMany || tooHeavy ? [] : accepted);
+  }
+
+  function resetFiles(): void {
+    setSelectedFiles([]);
+    setTooLargeFiles([]);
+    setTooManyFiles(false);
+    setTotalTooLarge(false);
   }
 
   return (
@@ -154,7 +184,7 @@ export function DepositRefundModal({
       onOpenChange={(next) => {
         if (!next) {
           reset();
-          setSelectedFiles([]);
+          resetFiles();
           setGlobalError(null);
         }
         onOpenChange(next);
@@ -249,6 +279,21 @@ export function DepositRefundModal({
                   <li key={file.name}>{file.name}</li>
                 ))}
               </ul>
+            )}
+            {tooLargeFiles.length > 0 && (
+              <p role="alert" className="text-xs text-destructive">
+                {t('modal.file_too_large', { max: MAX_ATTACHMENT_MB, files: tooLargeFiles.join(', ') })}
+              </p>
+            )}
+            {tooManyFiles && (
+              <p role="alert" className="text-xs text-destructive">
+                {t('modal.max_files', { max: MAX_ATTACHMENTS })}
+              </p>
+            )}
+            {totalTooLarge && (
+              <p role="alert" className="text-xs text-destructive">
+                {t('modal.total_too_large', { max: PIECES_PAR_ENVOI_MAX_MO })}
+              </p>
             )}
           </div>
 

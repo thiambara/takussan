@@ -2,16 +2,15 @@
 
 namespace Tests\Feature\Invitation;
 
-use App\Http\Requests\Invitation\CreateInvitationRequest;
 use App\Mail\InvitationMailable;
 use App\Models\Invitation;
 use App\Models\User;
 use App\Notifications\InvitationAcceptedNotification;
 use App\Services\Invitation\AgentInvitationService;
+use App\Services\Invitation\InvitationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Lang;
-use Illuminate\Validation\Rules\In;
 use Tests\TestCase;
 
 /**
@@ -24,17 +23,22 @@ class RoleDInvitationRenduTest extends TestCase
     use RefreshDatabase;
 
     /**
-     * Les rôles des deux émetteurs, lus à leur source : un rôle ajouté à l'un d'eux entre ici seul.
+     * Les rôles qu'`InvitationService::send()` émet, lus à leur source : un rôle ajouté entre ici
+     * seul. P208.01 (TCK-2190) — ils se lisaient sur `CreateInvitationRequest`, partie avec la
+     * création générique ; `agency_admin`, qu'elle acceptait et que le service refuse toujours, en
+     * sort.
      *
      * @return list<string>
      */
     private function rolesAcceptes(): array
     {
-        $regle = collect((new CreateInvitationRequest)->rules()['role'])->first(fn ($r) => $r instanceof In);
-        $this->assertNotNull($regle, 'CreateInvitationRequest ne borne plus `role` par Rule::in.');
-        preg_match_all('/"([a-z_]+)"/', (string) $regle, $m);
-
-        $roles = array_values(array_unique([...$m[1], ...AgentInvitationService::ALLOWED_ROLES]));
+        $roles = array_values(array_unique([
+            ...array_keys(InvitationService::INVITABLE_TYPE_BY_ROLE),
+            ...InvitationService::ROLES_WITHOUT_INVITABLE,
+            ...AgentInvitationService::ALLOWED_ROLES,
+        ]));
+        $this->assertContains('super_admin', $roles);
+        $this->assertContains('service_provider', $roles);
         $this->assertContains('owner', $roles);
         $this->assertContains('agent_manager', $roles);
 

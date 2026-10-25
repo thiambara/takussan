@@ -21,6 +21,8 @@
 #       # un passage complet SANS RIEN PUBLIER (ni push, ni PR, ni fusion) ; avec
 #       # PISTES_BASE_REF=<ref> il part d'une autre base que origin/pre-dev
 #   ~/.takussan-agents/outils/pistes.sh fusionner   # fusionne les PR vertes (launchd, toutes les 10 min)
+#   ~/.takussan-agents/outils/pistes.sh archiver [--a-blanc]   # archive les entrées closes depuis 24 h,
+#       # sans modèle, par une PR vers pre-dev ; le superviseur le fait une fois par jour (2026-10-24)
 #   ~/.takussan-agents/outils/pistes.sh etat
 #   ~/.takussan-agents/outils/pistes.sh releve [jours]   # ce que le délégué a tranché (7 jours par défaut)
 #   ~/.takussan-agents/outils/pistes.sh pause | reprendre
@@ -37,6 +39,8 @@ export LC_NUMERIC=C
 BASE="${PISTES_BASE:-$HOME/.takussan-agents}"
 ROLES="explorateur mesureur implementeur delegue"
 LAUNCHD=com.takussan.agents
+# L'archive des entrées closes du fichier de pistes (amendement d'ADR-0066 du 2026-10-24).
+ARCHIVE_PISTES=docs/plans/pistes-archive
 
 die() {
   DETAIL="$*"
@@ -206,6 +210,7 @@ CONFIG
     gh label create agent:implementeur --color b60205 --description "PR de l'agent implémenteur (ADR-0066)" --force > /dev/null
     gh label create agent:delegue --color fbca04 --description "PR du délégué du porteur (ADR-0066, amendement du 2026-10-18)" --force > /dev/null
     gh label create agent:superviseur --color 0e8a16 --description "PR du superviseur des agents (ADR-0066, amendement du 2026-10-21)" --force > /dev/null
+    gh label create agent:archiveur --color 006b75 --description "Archivage des pistes closes, sans modèle (ADR-0066, amendement du 2026-10-24)" --force > /dev/null
     gh label create agents:synchro --color c5def5 --description "Synchronisation dev → pre-dev (ADR-0066)" --force > /dev/null
   ); fi
 
@@ -439,6 +444,8 @@ fusionner() {
   mkdir -p "$BASE/etat"
   noter_intermittents
   evaluer_pre_dev
+  # Une PR rouge depuis plus de 2 h fait partir le superviseur (amendement du 2026-10-24).
+  signaler_rouges_anciens
 
   local lignes num tete mergeable etiquettes
   lignes="$(GH_REPO="$GH_REPO" gh pr list --base pre-dev --state open --json number,headRefName,mergeable,labels \
@@ -513,6 +520,14 @@ relancer_suivant() {
   done
 }
 
+# Le fichier de pistes sur une référence : le fichier vivant, et son archive quand elle y existe.
+# La garde lit les deux : sans l'archive, une Réf citée qui y est rangée manquerait, et la garde
+# sortirait en 1, ce que `travail_disponible` prend pour un doute qui lance le modèle.
+chemins_des_pistes() {
+  printf '%s\n' docs/plans/2026-10-15-pistes-d-amelioration.md
+  if git -C "$CLONE" cat-file -e "$1:$ARCHIVE_PISTES" 2> /dev/null; then printf '%s\n' "$ARCHIVE_PISTES"; fi
+}
+
 # Le relevé du porteur : ce que le délégué a tranché ou recommandé, lu sur origin/pre-dev. Une
 # validation déléguée se reprend d'une ligne (« - Statut : » rendu au porteur) ; un désaveu
 # (« - Mesure (…, humain) : désaveu de la délégation V7 — … ») lui retire toute la catégorie.
@@ -523,13 +538,129 @@ releve() {
   depuis="$(date -v-"${jours}"d '+%Y-%m-%d')"
   racine="$(mktemp -d)"
   git -C "$CLONE" fetch --quiet origin pre-dev
-  git -C "$CLONE" archive origin/pre-dev scripts/check-pistes.mjs docs/plans/2026-10-15-pistes-d-amelioration.md \
+  # shellcheck disable=SC2046 # des chemins sans espace, un par ligne
+  git -C "$CLONE" archive origin/pre-dev scripts/check-pistes.mjs $(chemins_des_pistes origin/pre-dev) \
     docs/backlog/tickets | tar -x -C "$racine"
   racine="$(cd "$racine" && pwd -P)"
   echo "Délégations depuis le $depuis (origin/pre-dev) :"
   CHECK_PISTES_RACINE="$racine" node "$racine/scripts/check-pistes.mjs" --delegations \
     | awk -F '\t' -v d="$depuis" 'NF == 1 || $1 >= d'
   rm -rf "$racine"
+}
+
+# ─── archiveur (amendement d'ADR-0066 du 2026-10-24, « l'archive des pistes closes ») ─────────
+# Mesuré le 2026-10-24 : le fichier de pistes pesait 4,9 Mo, dont 4,4 Mo d'entrées closes, et
+# 2 205 commits l'avaient touché en 7 jours ; chaque essai de fusion, conflit ou réparation
+# portait sur le fichier entier. L'archiveur en sort chaque jour les entrées closes depuis 24 h,
+# sans modèle : `scripts/agents/archiver-pistes.mjs` les déplace, `check-pistes --role archiveur`
+# (version de BASE_REF) rejoue le déplacement depuis la base et le compare, puis une PR
+# `agents/archiveur/*` (étiquette `agent:archiveur`) part vers pre-dev, que le fusionneur prend
+# comme les autres. Rend 0 quand l'archivage du jour est fait (publié, rien à archiver, ou une PR
+# d'archivage encore ouverte), 1 sur un échec, 2 quand il n'a pas eu lieu (pause, déjà en cours).
+# Appelée derrière `||`, elle tourne sans `set -e` : chaque étape se vérifie.
+
+archiver_pistes() {
+  local verrou="$BASE/verrous/archiveur" pid statut=0
+  if ! mkdir "$verrou" 2> /dev/null; then
+    pid="$(cat "$verrou/pid" 2> /dev/null || true)"
+    if [ -n "$pid" ] && kill -0 "$pid" 2> /dev/null; then
+      info "archiveur : un archivage tourne déjà (pid $pid)"
+      return 2
+    fi
+    rm -rf "$verrou"
+    mkdir "$verrou" || return 1
+  fi
+  printf '%s' "$$" > "$verrou/pid"
+  archiver_sous_verrou || statut=$?
+  rm -rf "$verrou"
+  return "$statut"
+}
+
+archiver_sous_verrou() {
+  # `ROLE` local : `preparer_arbre` ne nettoie que les branches locales `agents/$ROLE/`.
+  local ROLE=archiveur arbre="$BASE/arbres/archiveur" horo dossier branche lignes num tete etat_fusion resume fige corps
+  if [ -e "$BASE/PAUSE" ] || [ -e "$BASE/PAUSE-archiveur" ]; then
+    info "archiveur : en pause"
+    return 2
+  fi
+  avec_verrou_git git -C "$CLONE" fetch origin --prune --quiet || return 1
+  # Une PR d'archivage à la fois : la suivante déplacerait les mêmes lignes. Une PR en conflit ou
+  # rouge se ferme et se regénère depuis la base du jour : le déplacement est déterministe, il n'y a
+  # rien à réparer à la main.
+  lignes="$(GH_REPO="$GH_REPO" gh pr list --base pre-dev --state open --label agent:archiveur \
+    --json number,headRefName,mergeable --jq '.[] | "\(.number)\t\(.headRefName)\t\(.mergeable)"')" || return 1
+  if [ -n "$lignes" ]; then
+    IFS=$'\t' read -r num tete etat_fusion <<< "$(printf '%s\n' "$lignes" | head -n 1)"
+    if [ "$etat_fusion" != CONFLICTING ] && ! en_conflit "$tete" && [ "$(etat_ci "$num")" != rouge ]; then
+      info "archiveur : #$num encore ouverte, rien de plus aujourd'hui"
+      return 0
+    fi
+    GH_REPO="$GH_REPO" gh pr close "$num" --delete-branch --comment \
+      "Fermée par \`pistes.sh archiver\` : en conflit ou rouge sur \`$BASE_REF\`. L'archivage, déterministe, est regénéré depuis la base du jour." \
+      > /dev/null || return 1
+    info "archiveur : #$num fermée (conflit ou rouge), regénérée depuis $BASE_REF"
+  fi
+
+  horo="$(date +%Y%m%d-%H%M%S)"
+  dossier="$BASE/sorties/archiveur/$horo"
+  branche="agents/archiveur/$horo"
+  mkdir -p "$dossier" || return 1
+  avec_verrou_git preparer_arbre "$arbre" "$branche" "$BASE_REF" "$dossier" || return 1
+  if [ "$(git -C "$arbre" rev-parse HEAD)" != "$(git -C "$CLONE" rev-parse "$BASE_REF")" ]; then
+    info "✗ archiveur : l'arbre $arbre n'est pas sur $BASE_REF"
+    return 1
+  fi
+  if ! (cd "$arbre" && node scripts/agents/archiver-pistes.mjs) > "$dossier/archivage.txt" 2>&1; then
+    info "✗ archiveur : $(tail -n 1 "$dossier/archivage.txt")"
+    return 1
+  fi
+  resume="$(head -n 1 "$dossier/archivage.txt")"
+  if [ -z "$(git -C "$arbre" status --porcelain)" ]; then
+    info "archiveur : $resume"
+    return 0
+  fi
+  git -C "$arbre" add -A -- docs/plans/2026-10-15-pistes-d-amelioration.md "$ARCHIVE_PISTES" || return 1
+  git -C "$arbre" commit --quiet -m "chore(pistes): archiver les entrées closes depuis 24 h" -m "$resume" \
+    -m "Déplacement pur, sans modèle, par scripts/agents/archiver-pistes.mjs (ADR-0066, amendement du 2026-10-24)." || return 1
+  # Comme pour un rôle : la garde jouée est celle de BASE_REF, et elle refuse tout ce qui n'est pas
+  # le déplacement, rejoué depuis la base, des entrées closes parties du fichier vivant.
+  fige="$dossier/check-pistes.mjs"
+  git -C "$CLONE" show "$BASE_REF:scripts/check-pistes.mjs" > "$fige" || return 1
+  if ! (cd "$arbre" && CHECK_PISTES_RACINE="$arbre" node "$fige" --role archiveur --base "$BASE_REF") > "$dossier/verif-pistes.txt" 2>&1; then
+    info "✗ archiveur : check-pistes --role archiveur ($dossier/verif-pistes.txt)"
+    return 1
+  fi
+  if [ "$A_BLANC" -eq 1 ]; then
+    info "archiveur : à blanc, aurait poussé $branche — $resume"
+    return 0
+  fi
+  corps="$dossier/pr-corps.md"
+  {
+    printf '%s\n\n' "Archivage quotidien du fichier de pistes, sans modèle (ADR-0066, amendement du 2026-10-24, « l'archive des pistes closes »)."
+    printf '```\n%s\n```\n\n' "$(cat "$dossier/archivage.txt")"
+    printf '%s\n' "Les entrées closes sur \`$BASE_REF\` depuis 24 h au moins, et que rien n'a touchées depuis, passent telles quelles dans \`$ARCHIVE_PISTES/\`. Vérifié avant push par \`scripts/agents/pistes.sh\` (outils $OUTILS_SHA) : \`check-pistes --role archiveur --base $BASE_REF\` vert, le déplacement rejoué depuis la base est identique au caractère près."
+    printf '\n%s\n' '🤖 Generated with [Claude Code](https://claude.com/claude-code)'
+  } > "$corps"
+  git -C "$arbre" push --quiet -u origin "HEAD:refs/heads/$branche" || return 1
+  num="$(GH_REPO="$GH_REPO" gh pr create --base pre-dev --head "$branche" --label agent:archiveur \
+    --title "[archiveur] $resume" --body-file "$corps" | sed 's#.*/##')" || return 1
+  info "archiveur : PR #$num ouverte — $resume"
+  printf '%s\tarchiveur\t-\tpublie\t%s\t-\t-\t-\t%s\n' "$(date '+%Y-%m-%d %H:%M')" "$num" "$resume" >> "$BASE/journal.tsv"
+}
+
+# Une fois par jour, au premier passage du superviseur de la journée : il passe toutes les 2 h, et
+# l'archivage n'a pas d'heure. Le marqueur `etat/archive-AAAA-MM-JJ` ne se pose que sur un archivage
+# fait ; un échec ou une pause se retentent au passage suivant.
+archiver_du_jour() {
+  local marque statut=0
+  marque="$BASE/etat/archive-$(date +%Y-%m-%d)"
+  [ ! -e "$marque" ] || return 0
+  archiver_pistes || statut=$?
+  if [ "$statut" -eq 0 ]; then
+    touch "$marque"
+    find "$BASE/etat" -maxdepth 1 -name 'archive-*' -mtime +7 -delete 2> /dev/null || true
+  fi
+  [ "$statut" -ne 1 ]
 }
 
 # ─── état ─────────────────────────────────────────────────────────────────────────────────────
@@ -568,6 +699,8 @@ etat() {
   planification superviseur
   if [ -d "$BASE/verrous/superviseur" ]; then echo "  passage en cours (pid $(cat "$BASE/verrous/superviseur/pid" 2> /dev/null || echo '?'))"; fi
   if [ -f "$BASE/journal.tsv" ]; then awk -F '\t' '$2 == "superviseur"' "$BASE/journal.tsv" | tail -3 | sed 's/^/  /'; fi
+  printf '\n%s\n' "── archiveur (une fois par jour, au premier passage du superviseur)"
+  if [ -f "$BASE/journal.tsv" ]; then awk -F '\t' '$2 == "archiveur"' "$BASE/journal.tsv" | tail -3 | sed 's/^/  /'; fi
   printf '\n%s\n' "── PR ouvertes vers pre-dev"
   GH_REPO="$GH_REPO" gh pr list --base pre-dev --state open --json number,title,labels \
     --jq '.[] | "  #\(.number)  \(.title)"'
@@ -727,6 +860,201 @@ appeler_superviseur() {
   fi
 }
 
+# ─── le rouge d'une branche, toutes têtes confondues (amendement d'ADR-0066 du 2026-10-24) ─────
+# Relevé le 2026-10-24 sur #1469, rouge de 14:34 à 16:30 sans que rien ne vise son test : les checks
+# de la tête courante ne disent rien quand la CI de cette tête est en cours (après un rafraîchissement)
+# ou que la PR est en conflit. La réparation de 15:21 a reçu « Checks rouges : » vide, le run rouge
+# ayant fini 14 s avant ; le superviseur de 14:55 a vu la CI « en cours ». Le rouge se lit donc sur
+# les runs CONCLUS de la branche, quelle que soit leur tête.
+
+# Au-delà, une PR rouge est confiée au superviseur, qui part hors de sa cadence.
+ROUGE_ANCIEN_S="${ROUGE_ANCIEN_S:-7200}"
+
+# Pour chaque workflow de la branche, son dernier verdict conclu (un run en cours, annulé ou sauté ne
+# dit rien) ; s'il est rouge, une ligne « <début>|<run>|<tentative>|<workflow>|<sha>|<fin> ». <run> est
+# ce dernier run rouge et <fin> l'heure où il a conclu ; <début> est l'heure où a conclu le PREMIER
+# run rouge de la série (les runs rouges qui se suivent sans vert entre eux), en secondes. Un
+# rafraîchissement ne remet donc pas l'âge à zéro, un vert si. Sort en 1 si gh ne répond pas.
+rouge_conclu() {
+  GH_REPO="$GH_REPO" gh run list --branch "$1" --limit 50 \
+    --json databaseId,workflowName,status,conclusion,attempt,headSha,createdAt,updatedAt \
+    --jq '[.[] | select(.status == "completed" and (.conclusion == "success" or .conclusion == "failure"
+          or .conclusion == "timed_out" or .conclusion == "startup_failure"))]
+      | group_by(.workflowName)[] | sort_by(.createdAt) | reverse
+      | select(.[0].conclusion != "success")
+      | . as $g
+      | (([range(0; $g | length) | select($g[.].conclusion == "success")] | .[0]) // ($g | length)) as $n
+      | $g[0:$n] as $s
+      | "\($s[-1].updatedAt | fromdateiso8601)|\($s[0].databaseId)|\($s[0].attempt)|\($s[0].workflowName)|\($s[0].headSha)|\($s[0].updatedAt | fromdateiso8601)"' \
+    2> /dev/null
+}
+
+# Une heure de `date +%s` : « HH:MM » le jour même, « JJ/MM HH:MM » sinon.
+heure_de() {
+  if [ "$(date -r "$1" +%F)" = "$(date +%F)" ]; then date -r "$1" '+%H:%M'; else date -r "$1" '+%d/%m %H:%M'; fi
+}
+
+# Les lignes de rouge_conclu, lisibles par un agent : le run, puis ses tests rouges.
+rouge_conclu_lisible() {
+  local debut run tentative wf sha fin
+  while IFS='|' read -r debut run tentative wf sha fin; do
+    [ -n "$run" ] || continue
+    printf -- '- %s, run %s (tête %s), conclu rouge à %s, rouge depuis %s — tests :\n' \
+      "$wf" "$run" "${sha:0:8}" "$(heure_de "$fin")" "$(heure_de "$debut")"
+    # `sed -n` lit tout : un `head` fermerait le tube, et pipefail ferait échouer le message entier.
+    tests_rouges "$run" "$tentative" | tr '\t' ' ' | sed -n '1,20s/^/    · /p'
+  done <<< "$1"
+  return 0
+}
+
+# Une PR « en réparation » : sa tête porte, après la tête <rouge> du dernier run rouge conclu, au
+# moins un commit qui n'est PAS une fusion (une réparation poussée, par un agent ou en session), et
+# la CI de cette tête n'a pas conclu. Sans cela, le superviseur réparerait en même temps que
+# l'implémenteur, sur un correctif déjà en vol. Un rafraîchissement (une fusion seule) ne protège
+# PAS : c'est le masquage que l'amendement du 2026-10-24 corrige. Les commits se lisent sur la
+# première ligne parentale : ceux de pre-dev qu'une fusion apporte ne comptent pas. Une tête sans
+# aucun run (un commit qui ne déclenche rien) n'est pas protégée : elle le serait pour toujours.
+# Relevé : #1469, rouge sur f38288b5 (une fusion), réparée par 450e334cb poussé à 16:30.
+en_reparation() {
+  local rouge="$1" tete="$2" sha
+  sha="$(git -C "$CLONE" rev-parse --verify --quiet "origin/$tete")" || return 1
+  [ -n "$(git -C "$CLONE" rev-list --first-parent --no-merges "$rouge..$sha" 2> /dev/null)" ] || return 1
+  [ "$(GH_REPO="$GH_REPO" gh run list --commit "$sha" --json status \
+    --jq 'any(.[]; .status != "completed")' 2> /dev/null)" = true ]
+}
+
+# Le passage vivant, autre que celui-ci, qui répare la PR <n°> : son nom sur la sortie, et 0 ; 1 si
+# aucun. Chaque passage écrit dans `verrous/<nom>/reparation` les PR qu'il peut réparer : celle de
+# son mode réparation, ou, pour le superviseur, la liste de ses rouges anciens. Le fichier part avec
+# le verrou. Relevé le 2026-10-24 sur #1491 : l'implémenteur la réparait depuis 19:29, sans rien
+# avoir poussé, quand le fusionneur a appelé le superviseur à 19:35 ; le superviseur a poussé sa
+# réparation à 19:38, et le commit de l'implémenteur, le même correctif, est resté sans objet.
+# `en_reparation` ne voit qu'une réparation POUSSÉE ; celle-ci voit une réparation en cours.
+reparation_vivante() {
+  local f nom pid
+  for f in "$BASE"/verrous/*/reparation; do
+    [ -f "$f" ] || continue
+    nom="$(basename "$(dirname "$f")")"
+    [ "$nom" != "${NOM:-}" ] || continue
+    pid="$(cat "$BASE/verrous/$nom/pid" 2> /dev/null || true)"
+    { [ -n "$pid" ] && kill -0 "$pid" 2> /dev/null; } || continue
+    if grep -qxF "$1" "$f"; then
+      printf '%s' "$nom"
+      return 0
+    fi
+  done
+  return 1
+}
+
+# Les PR d'agents vers pre-dev rouges depuis ROUGE_ANCIEN_S au moins, l'âge compté depuis le premier
+# run rouge conclu de la branche, hors PR en réparation (en_reparation, jugée sur la tête du dernier
+# run rouge conclu) et hors PR qu'un autre passage répare en ce moment (reparation_vivante) : une
+# ligne « <n°>|<branche>|<début> » chacune.
+rouges_anciens() {
+  local maintenant lignes num tete conclus debut dernier
+  maintenant="$(date +%s)"
+  lignes="$(GH_REPO="$GH_REPO" gh pr list --base pre-dev --state open --json number,headRefName \
+    --jq '.[] | select(.headRefName | startswith("agents/")) | "\(.number)|\(.headRefName)"' 2> /dev/null)" || return 0
+  avec_verrou_git git -C "$CLONE" fetch origin --prune --quiet || true
+  while IFS='|' read -r num tete; do
+    [ -n "$num" ] || continue
+    if reparation_vivante "$num" > /dev/null; then continue; fi
+    conclus="$(rouge_conclu "$tete")" || continue
+    [ -n "$conclus" ] || continue
+    debut="$(printf '%s\n' "$conclus" | cut -d '|' -f 1 | sort -n | sed -n 1p)"
+    [ $((maintenant - debut)) -ge "$ROUGE_ANCIEN_S" ] || continue
+    dernier="$(printf '%s\n' "$conclus" | sort -t '|' -k 6,6n | sed -n '$p' | cut -d '|' -f 5)"
+    if en_reparation "$dernier" "$tete"; then continue; fi
+    printf '%s|%s|%s\n' "$num" "$tete" "$debut"
+  done <<< "$lignes"
+}
+
+# Le fusionneur (toutes les 10 min) fait partir le superviseur dès qu'une PR franchit le seuil, une
+# fois par PR et par série rouge (la clé porte son début).
+signaler_rouges_anciens() {
+  local num tete debut
+  while IFS='|' read -r num tete debut; do
+    [ -n "$num" ] || continue
+    appeler_superviseur "rouge-ancien-$num-$debut" "PR #$num rouge depuis $(heure_de "$debut"), plus de $((ROUGE_ANCIEN_S / 3600)) h"
+  done <<< "$(rouges_anciens)"
+}
+
+# Le message du superviseur : les PR de rouges_anciens, avec leur dernier run rouge conclu et ses
+# tests. Leurs numéros vont dans <sortie>/rouges-anciens.txt : ce sont les seules PR qu'il peut
+# réparer sur leur propre branche (reparation_du_superviseur).
+rouges_anciens_du_passage() {
+  local sortie="$1" num tete debut
+  : > "$sortie/rouges-anciens.txt"
+  while IFS='|' read -r num tete debut; do
+    [ -n "$num" ] || continue
+    printf '%s\n' "$num" >> "$sortie/rouges-anciens.txt"
+    printf '  · #%s — rouge depuis %s (%s) :\n' "$num" "$(heure_de "$debut")" "$tete"
+    rouge_conclu_lisible "$(rouge_conclu "$tete" || true)" | sed 's/^/    /'
+  done <<< "$(rouges_anciens)"
+  if [ ! -s "$sortie/rouges-anciens.txt" ]; then printf '  · aucune\n'; fi
+}
+
+# Une réparation morte sur une panne d'API ou de réseau ne compte pas (amendement du 2026-10-24) :
+# elle n'a rien poussé, et rien jugé de la PR. Relevé le 2026-10-24, réparation 1/3 de #1469 : claude
+# sorti en 1 après 11 tours, `is_error: true`, `terminal_reason: "api_error"`, résultat « API Error:
+# Can't reach the API server — check your internet or DNS (ENOTFOUND) », et pourtant comptée.
+# Détection ÉTROITE : `is_error` ET, soit un résultat qui commence par « API Error » ou nomme une
+# panne de réseau (ENOTFOUND, EAI_AGAIN, ECONNREFUSED, ECONNRESET, ETIMEDOUT, « Could not resolve
+# host », « Can't reach the API server »), soit aucun tour de travail (`num_turns` à 0). Le reste
+# compte toujours : budget dépassé, durée atteinte, claude.json illisible ou absent, échec de l'agent.
+# Rend 0 en écrivant le résultat de claude quand elle reconnaît la panne.
+panne_d_api() {
+  node -e '
+    let r;
+    try { r = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8")) } catch { process.exit(1) }
+    if (r === null || r.is_error !== true) process.exit(1);
+    const res = typeof r.result === "string" ? r.result : "";
+    const reseau = /^API Error\b|\b(ENOTFOUND|EAI_AGAIN|ECONNREFUSED|ECONNRESET|ETIMEDOUT)\b|Could not resolve host|reach the API server/;
+    if (reseau.test(res) || r.num_turns === 0) { process.stdout.write(res.slice(0, 160) || "aucun tour"); process.exit(0) }
+    process.exit(1);
+  ' "$1"
+}
+
+# Le superviseur répare une PR rouge depuis plus de 2 h sur SA branche (amendement du 2026-10-24) :
+# il part de la tête de la PR, commite son correctif par-dessus et écrit le numéro dans
+# pr-reparee.txt. Les bornes se vérifient ici, pas chez l'agent :
+#   - la PR est dans la liste de CE passage (rouges-anciens.txt) ;
+#   - elle est ouverte, vise pre-dev, et sa tête est une branche d'agent ;
+#   - HEAD descend de la tête de la PR, sans commit de fusion : son diff est origin/<tête>..HEAD ;
+#   - ce diff ne touche ni le fichier de pistes, ni les outils des agents (le fusionneur fusionnerait
+#     la PR sans que le porteur la lise).
+# Le passage devient alors une réparation de cette PR : vérifiée depuis sa tête, poussée en avance
+# rapide, jamais forcée. Une réparation de l'implémenteur poussée entre-temps la fait refuser.
+reparation_du_superviseur() {
+  local num lu tete fichiers qui
+  num="$(head -n 1 "$sortie/pr-reparee.txt" | tr -dc '0-9')"
+  [ -n "$num" ] || fin refuse "pr-reparee.txt sans numéro de PR"
+  grep -qxF "$num" "$sortie/rouges-anciens.txt" 2> /dev/null \
+    || fin refuse "#$num n'est pas dans la liste des PR rouges depuis plus de $((ROUGE_ANCIEN_S / 3600)) h de ce passage"
+  lu="$(GH_REPO="$GH_REPO" gh pr view "$num" --json state,baseRefName,headRefName \
+    --jq '"\(.state)|\(.baseRefName)|\(.headRefName)"' 2> /dev/null)" || fin refuse "#$num illisible"
+  case "$lu" in
+    "OPEN|pre-dev|agents/"*) tete="${lu##*|}" ;;
+    *) fin refuse "#$num : seule une PR ouverte d'agent vers pre-dev se répare ainsi ($lu)" ;;
+  esac
+  # Le passage du superviseur dure ; une réparation de l'implémenteur a pu partir entre-temps.
+  if qui="$(reparation_vivante "$num")"; then fin refuse "#$num : $qui la répare en ce moment"; fi
+  avec_verrou_git git -C "$CLONE" fetch origin --prune --quiet
+  git -C "$arbre" merge-base --is-ancestor "origin/$tete" HEAD \
+    || fin refuse "#$num : HEAD ne descend pas de la tête de la PR ($tete)"
+  [ -z "$(git -C "$arbre" rev-list --merges "origin/$tete..HEAD")" ] \
+    || fin refuse "#$num : commit de fusion sur la tête de la PR (le rafraîchissement et les conflits sont au tri et à l'implémenteur)"
+  fichiers="$(git -C "$arbre" diff --name-only "origin/$tete" HEAD)" || fin refuse "#$num : diff illisible"
+  if printf '%s\n' "$fichiers" | grep -qE "$OUTILS_DES_AGENTS|^docs/plans/2026-10-15-pistes-d-amelioration\\.md\$|^$ARCHIVE_PISTES/"; then
+    fin refuse "#$num : le correctif touche le fichier de pistes ou les outils des agents (ta propre PR, qui attend le porteur)"
+  fi
+  MODE=reparation
+  PR="$num"
+  branche="$tete"
+  depart="origin/$tete"
+  info "superviseur : réparation de #$PR sur sa branche ($tete)"
+}
+
 # Relance une fois les jobs rouges d'un run à sa première tentative, et garde ses tests rouges pour
 # juger, à la fin de la relance, s'ils étaient intermittents (noter_intermittents). Rend 0 si le run
 # a été relancé.
@@ -744,7 +1072,9 @@ relancer_une_fois() {
 # Le tri d'une PR rouge, sans conflit. Pose TRI à `rafraichie`, `relancee`, `gelee` ou `reparer`,
 # et ROUGES_COMMUNS à ce qui rougit aussi ailleurs. Seul `reparer` coûte une réparation.
 #   1. Base périmée : le run a démarré avant une fusion que la branche n'a pas → la base est fusionnée
-#      dans la branche, une fois par tête (une PR gelée, toujours : sa cause était ailleurs).
+#      dans la branche, UNE fois par PR (une PR gelée, toujours : sa cause était ailleurs). Une fois
+#      par tête jusqu'au 2026-10-24 : #1469, rafraîchie à 14:47 pour un rouge qui ne venait pas de
+#      la base, a relancé 30 min de CI pour rien ; la seconde fois, le rouge passe aux étapes 2 et 3.
 #   2. Première tentative : les jobs rouges sont relancés, une fois par run.
 #   3. Rouge confirmé : ses tests rejoignent le registre (etat/rouges/<n°>) ; un test qui rougit aussi
 #      sur une autre PR ouverte ou sur pre-dev, dans un fichier que la PR ne touche pas, est commun.
@@ -771,7 +1101,7 @@ trier_rouge() {
   # 1. Base périmée.
   derniere="$(git -C "$CLONE" log --format=%ct "origin/$tete..$BASE_REF" 2> /dev/null | sort -n | tail -1)"
   if [ -n "$derniere" ] && [ "$debut" -gt 0 ] && [ "$derniere" -gt "$debut" ] \
-    && { [ "$(cat "$BASE/etat/rafraichi-$num" 2> /dev/null || true)" != "$tete_sha" ] || [ -e "$BASE/etat/gele-$num" ]; } \
+    && { [ ! -e "$BASE/etat/rafraichi-$num" ] || [ -e "$BASE/etat/gele-$num" ]; } \
     && avec_verrou_git rafraichir "$num" "$tete"; then
     TRI=rafraichie
     info "PR #$num : run rouge antérieur à la dernière fusion dans $BASE_REF, base fusionnée dans la branche"
@@ -1022,8 +1352,9 @@ verifier() {
     return 1
   fi
   if [ "$ROLE" = superviseur ]; then
-    # Le superviseur n'a pas de pistes : il ne touche pas leur fichier, qui est aux autres rôles.
-    if git -C "$arbre" diff --name-only "$depart" HEAD | grep -qxF docs/plans/2026-10-15-pistes-d-amelioration.md; then
+    # Le superviseur n'a pas de pistes : il ne touche ni leur fichier, qui est aux autres rôles, ni
+    # leur archive, qui est à l'archiveur.
+    if git -C "$arbre" diff --name-only "$depart" HEAD | grep -qE "^(docs/plans/2026-10-15-pistes-d-amelioration\\.md|$ARCHIVE_PISTES/)"; then
       info "✗ le superviseur a touché le fichier de pistes"
       echecs=$((echecs + 1))
     fi
@@ -1092,7 +1423,7 @@ en_conflit() {
 }
 
 etat_des_pr() {
-  local pr_max lignes num tete etat_fusion ci_pr conflit_pr essai ouvertes=0 fusionnees=0 abandons=""
+  local pr_max lignes num tete etat_fusion ci_pr conflit_pr essai qui ouvertes=0 fusionnees=0 abandons=""
   pr_max="$(par_role PR_MAX "$ROLE")"
   if [ -z "$pr_max" ]; then
     if [ "$ROLE" = implementeur ]; then pr_max=3; else pr_max=1; fi
@@ -1106,6 +1437,13 @@ etat_des_pr() {
     # instance qui la fusionne, la réconcilie ou la répare : deux réparations de la même PR à la
     # fois écriraient chacune sur la branche de l'autre.
     if [ "$(instance_de_branche "$tete")" != "$INSTANCE" ]; then
+      ouvertes=$((ouvertes + 1))
+      continue
+    fi
+    # Le superviseur peut la réparer en ce moment (une PR rouge depuis plus de 2 h) : ni tri, ni
+    # seconde réparation, qui écriraient sous la sienne.
+    if qui="$(reparation_vivante "$num")"; then
+      info "#$num : $qui la répare en ce moment, rien ici"
       ouvertes=$((ouvertes + 1))
       continue
     fi
@@ -1239,7 +1577,8 @@ travail_disponible() {
   # preuve, par `--report`, qu'elle a lu le fichier.
   mkdir -p "$sortie/base"
   racine="$(cd "$sortie/base" && pwd -P)"
-  git -C "$CLONE" archive "$BASE_REF" scripts/check-pistes.mjs docs/plans/2026-10-15-pistes-d-amelioration.md \
+  # shellcheck disable=SC2046 # des chemins sans espace, un par ligne
+  git -C "$CLONE" archive "$BASE_REF" scripts/check-pistes.mjs $(chemins_des_pistes "$BASE_REF") \
     docs/backlog/tickets | tar -x -C "$racine" || return 0
   CHECK_PISTES_RACINE="$racine" node "$racine/scripts/check-pistes.mjs" --report | grep -q ' entrées, ' || return 0
   case "$ROLE" in
@@ -1367,6 +1706,12 @@ lancer() {
 
   avec_verrou_git recuperer
 
+  # L'archivage quotidien du fichier de pistes, sans modèle (amendement d'ADR-0066 du 2026-10-24) :
+  # au premier passage du superviseur de la journée, avant son modèle.
+  if [ "$ROLE" = superviseur ] && [ "$A_BLANC" -eq 0 ]; then
+    archiver_du_jour || info "archiveur : en échec, retenté au prochain passage du superviseur"
+  fi
+
   # 2. Les PR du rôle (etat_des_pr).
   local branche depart ci="" conflit="" communs="" reparations=0
   if [ "$ROLE" = superviseur ]; then
@@ -1376,6 +1721,8 @@ lancer() {
     depart="$BASE_REF"
   else
     etat_des_pr
+    # Ce que ce passage répare, pour les autres (reparation_vivante).
+    if [ "$MODE" = reparation ]; then printf '%s\n' "$PR" > "$verrou/reparation"; fi
     if [ "$MODE" = nouveau ]; then
       branche="agents/$ROLE/$horo"
       # Le suffixe de l'instance, que lit instance_de_branche : sans lui, une PR de l'instance 2 est
@@ -1413,7 +1760,13 @@ $(if [ -s "$BASE/etat/rouges/pre-dev" ]; then tail -n +2 "$BASE/etat/rouges/pre-
 - rouges communs à plusieurs PR, 24 dernières heures :
 $(awk -F '\t' -v d="$(date -v-1d '+%Y-%m-%d %H:%M')" '$1 >= d { print "  · " $0 }' "$BASE/etat/rouges-communs.tsv" 2> /dev/null | tail -20)
 - tests intermittents non traités :
-$(intermittents_a_traiter | sed 's/^/  · /')"
+$(intermittents_a_traiter | sed 's/^/  · /')
+- PR rouges depuis plus de $((ROUGE_ANCIEN_S / 3600)) h (l'âge court depuis le premier run rouge conclu de la branche, toutes têtes confondues) :
+$(rouges_anciens_du_passage "$sortie")"
+  fi
+  # Les rouges anciens que ce passage peut réparer, pour les autres (reparation_vivante).
+  if [ "$ROLE" = superviseur ] && [ -s "$sortie/rouges-anciens.txt" ]; then
+    cp "$sortie/rouges-anciens.txt" "$verrou/reparation"
   fi
   # La part d'une instance ne vaut que pour l'implémenteur : reçue par le délégué, elle lui a fait
   # écarter les angles impairs (2026-10-21, P103.*, P111.02, P111.04).
@@ -1423,11 +1776,31 @@ $(intermittents_a_traiter | sed 's/^/  · /')"
 Instance $INSTANCE sur $INSTANCES_IMPLEMENTEUR (implementeur.md, « Plusieurs instances ») : tu ne prends que les pistes P<nn>.… dont le numéro d'angle nn vaut $((INSTANCE - 1)) modulo $INSTANCES_IMPLEMENTEUR, et chaque ticket neuf prend le plus petit numéro au-dessus du plus grand vu qui vaut $((INSTANCE - 1)) modulo $INSTANCES_IMPLEMENTEUR."
   fi
   if [ "$MODE" = reparation ]; then
+    local checks dernier
+    checks="$(GH_REPO="$GH_REPO" gh pr checks "$PR" --json name,bucket,link --jq '.[] | select(.bucket == "fail" or .bucket == "cancel") | "- \(.name) : \(.link)"' 2> /dev/null || true)"
+    # Le dernier run rouge CONCLU de la branche, toutes têtes confondues (amendement du 2026-10-24) :
+    # quand la CI de la tête tourne encore, ou que la PR est en conflit, c'est le seul rouge connu.
+    if dernier="$(rouge_conclu "$branche")"; then
+      if [ -n "$dernier" ]; then
+        dernier="$(rouge_conclu_lisible "$dernier")"
+      else
+        dernier="(aucun : le dernier verdict conclu de chaque workflow de ta branche est vert)"
+      fi
+    else
+      dernier="(illisible : gh run list a échoué)"
+      if [ -s "$BASE/etat/rouges/$PR" ]; then
+        dernier="$dernier ; registre du tri, tête $(head -c 8 "$BASE/etat/rouges/$PR") :
+$(tail -n +2 "$BASE/etat/rouges/$PR" | tr '\t' ' ' | sed 's/^/    · /')"
+      fi
+    fi
     message="$message
 
 RÉPARATION de ta PR #$PR (tentative $((reparations + 1))/$REPARATIONS_MAX) : CI $ci, conflit $conflit.
-Checks rouges :
-$(GH_REPO="$GH_REPO" gh pr checks "$PR" --json name,bucket,link --jq '.[] | select(.bucket == "fail" or .bucket == "cancel") | "- \(.name) : \(.link)"' 2> /dev/null || true)"
+Checks rouges de la tête courante :
+${checks:-(aucun : la CI de la tête est en cours, ou la PR est en conflit — le dernier run rouge conclu ci-dessous reste à réparer)}
+
+Dernier run rouge conclu de ta branche, toutes têtes confondues (commun.md, « Mode réparation ») :
+$dernier"
     if [ -n "$communs" ]; then
       message="$message
 
@@ -1454,7 +1827,21 @@ Suis tes instructions d'agent, en commençant par .agent/agents/pistes/commun.md
   COUT="$(node -e 'try { const r = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8")); process.stdout.write(String(r.total_cost_usd ?? "")) } catch {}' "$sortie/claude.json")"
   TOURS="$(node -e 'try { const r = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8")); process.stdout.write(String(r.num_turns ?? "")) } catch {}' "$sortie/claude.json")"
   if [ "$statut" -eq 124 ]; then fin delai "durée maximale atteinte ; l'arbre est laissé tel quel, sauvé au prochain passage"; fi
-  if [ "$statut" -ne 0 ]; then fin erreur "claude sorti en $statut (claude.err)"; fi
+  if [ "$statut" -ne 0 ]; then
+    # La réparation rendue l'est REPARATIONS_MAX fois au plus par PR : une détection trop large ne
+    # ferait pas tourner une PR sans fin.
+    local panne rendues
+    if [ "$MODE" = reparation ] && panne="$(panne_d_api "$sortie/claude.json")"; then
+      rendues="$(cat "$BASE/etat/reparations-rendues-$ROLE-$PR" 2> /dev/null || echo 0)"
+      if [ "$rendues" -lt "$REPARATIONS_MAX" ]; then
+        printf '%s' "$reparations" > "$BASE/etat/reparations-$ROLE-$PR"
+        printf '%s' "$((rendues + 1))" > "$BASE/etat/reparations-rendues-$ROLE-$PR"
+        fin erreur "claude sorti en $statut sur une panne d'API ou de réseau (« $panne ») : réparation de #$PR non comptée"
+      fi
+    fi
+    fin erreur "claude sorti en $statut (claude.err)"
+  fi
+  if [ "$ROLE" = superviseur ] && [ -s "$sortie/pr-reparee.txt" ]; then reparation_du_superviseur; fi
 
   # 5. Rien à proposer ?
   local avance
@@ -1469,8 +1856,15 @@ Suis tes instructions d'agent, en commençant par .agent/agents/pistes/commun.md
     fin rien "aucun commit, sans rien.txt"
   fi
 
-  # 6. Vérification, puis publication.
-  if ! verifier "$arbre" "$sortie" "$(git -C "$arbre" merge-base HEAD "$BASE_REF")"; then
+  # 6. Vérification, puis publication. La réparation d'une PR par le superviseur se vérifie depuis la
+  # tête de la PR : depuis la base, le diff porterait aussi le lot de l'implémenteur.
+  local depart_verifie
+  if [ "$ROLE" = superviseur ] && [ "$MODE" = reparation ]; then
+    depart_verifie="$depart"
+  else
+    depart_verifie="$(git -C "$arbre" merge-base HEAD "$BASE_REF")"
+  fi
+  if ! verifier "$arbre" "$sortie" "$depart_verifie"; then
     git -C "$arbre" format-patch --quiet -o "$sortie/patchs" "$(git -C "$arbre" merge-base HEAD "$BASE_REF")..HEAD" || true
     fin refuse "vérification rouge — rien n'est poussé ; correctifs dans $sortie/patchs"
   fi
@@ -1497,7 +1891,9 @@ Suis tes instructions d'agent, en commençant par .agent/agents/pistes/commun.md
   if [ "$A_BLANC" -eq 1 ]; then
     fin a-blanc "aurait poussé $branche ($avance commits) et publié « $(head -n 1 "$sortie/pr-titre.txt" 2> /dev/null || echo "réparation de #$PR") » ; corps dans $corps"
   fi
-  git -C "$arbre" push --quiet -u origin "HEAD:refs/heads/$branche"
+  # Jamais forcé : une branche de PR que quelqu'un a poussée entre-temps refuse, sans rien perdre.
+  git -C "$arbre" push --quiet -u origin "HEAD:refs/heads/$branche" \
+    || fin erreur "push de $branche refusé (la branche a bougé pendant le passage ?) ; commits dans l'arbre $arbre"
   if [ "$MODE" != reparation ]; then
     PR="$(GH_REPO="$GH_REPO" gh pr create --base pre-dev --head "$branche" --label "agent:$ROLE" \
       --title "$(head -n 1 "$sortie/pr-titre.txt")" --body-file "$corps" | sed 's#.*/##')"
@@ -1505,6 +1901,7 @@ Suis tes instructions d'agent, en commençant par .agent/agents/pistes/commun.md
     fin publie "PR #$PR ouverte"
   fi
   GH_REPO="$GH_REPO" gh pr comment "$PR" --body-file "$corps" > /dev/null
+  if [ "$ROLE" = superviseur ]; then notifier "PR #$PR réparée par le superviseur, sur sa branche"; fi
   fin repare "PR #$PR : réparation poussée"
 }
 
@@ -1742,8 +2139,20 @@ case "${1:-}" in
   etat) etat ;;
   releve) releve "${2:-}" ;;
   fusionner) fusionner ;;
+  archiver)
+    charger_config
+    for a in "${@:2}"; do
+      case "$a" in
+        --a-blanc) A_BLANC=1 ;;
+        *) die "usage : archiver [--a-blanc]" ;;
+      esac
+    done
+    statut=0
+    archiver_pistes || statut=$?
+    [ "$statut" -ne 1 ] || die "archivage en échec (journal ci-dessus, et $BASE/sorties/archiveur/)"
+    ;;
   pause) mkdir -p "$BASE" && touch "$BASE/PAUSE" && info "pause : aucun passage ne démarre (« reprendre » pour lever)" ;;
   reprendre) rm -f "$BASE/PAUSE" && info "reprise" ;;
   action) shift; action "$@" ;;
-  *) sed -n '2,28p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
+  *) sed -n '2,31p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
 esac

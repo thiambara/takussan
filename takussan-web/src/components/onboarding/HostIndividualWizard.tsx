@@ -52,22 +52,8 @@ type HostWizardData = {
   intent: Intent;
   agency: { name: string; primary_city: string; currency: string };
   phone_otp: { phone: string; code: string; verified: boolean };
-  preferences: { primary_property_type: string };
   cgu_accepted: boolean;
 };
-
-const PROPERTY_TYPES = [
-  'apartment',
-  'house',
-  'villa',
-  'studio',
-  'room',
-  'land',
-  'office',
-  'shop',
-  'warehouse',
-  'other',
-] as const;
 
 const CURRENCIES = ['XOF', 'XAF', 'EUR', 'USD'] as const;
 type Currency = (typeof CURRENCIES)[number];
@@ -154,7 +140,6 @@ export function HostIndividualWizard() {
         // mirrors this — `phone_verified_at !== null` ⇒ no fresh OTP check.
         verified: Boolean(user?.phone_verified_at),
       },
-      preferences: { primary_property_type: 'apartment' },
       cgu_accepted: false,
     };
   }, [user, t, location]);
@@ -166,14 +151,22 @@ export function HostIndividualWizard() {
   // supprimé ; et une forme corrompue (`780143710+221`) laissait « Envoyer le
   // code » inactif sans explication.
   const indicatifGeo = normaliserIndicatif(location?.country_calling_code);
+  //
+  // TCK-2372 (P249.03) — un brouillon écrit avant porte encore `preferences`
+  // (le « Type de bien principal », retiré : rien ne le lisait). La clé est
+  // retirée à la relecture : gardée, elle rendait le brouillon fantôme hérité
+  // différent de l'état vierge, donc jamais supprimé.
   const relireBrouillon = useCallback(
-    (data: HostWizardData): HostWizardData => ({
-      ...data,
-      phone_otp: {
-        ...data.phone_otp,
-        phone: relireTelephoneBrouillon(data.phone_otp?.phone, indicatifGeo),
-      },
-    }),
+    (data: HostWizardData): HostWizardData => {
+      const { preferences: _retire, ...reste } = data as HostWizardData & { preferences?: unknown };
+      return {
+        ...reste,
+        phone_otp: {
+          ...reste.phone_otp,
+          phone: relireTelephoneBrouillon(reste.phone_otp?.phone, indicatifGeo),
+        },
+      };
+    },
     [indicatifGeo],
   );
 
@@ -202,7 +195,6 @@ export function HostIndividualWizard() {
       const result = await hostIndividualOnboardAction({
         agency: data.agency,
         phone_otp: { phone: data.phone_otp.phone, code: data.phone_otp.code },
-        preferences: data.preferences,
         cgu_accepted: data.cgu_accepted,
       });
 
@@ -250,8 +242,7 @@ export function HostIndividualWizard() {
           (d.agency?.primary_city ?? '').trim() !== '' &&
           (d.agency?.currency ?? '') !== '' &&
           (d.phone_otp?.phone ?? '').trim() !== '' &&
-          d.phone_otp?.verified === true &&
-          (d.preferences?.primary_property_type ?? '') !== '',
+          d.phone_otp?.verified === true,
         render: ({ data, setData }) => (
           <IdentityStep data={data} setData={setData} />
         ),
@@ -401,38 +392,6 @@ function IdentityStep({ data, setData }: StepProps) {
               {CURRENCIES.map((c) => (
                 <SelectItem key={c} value={c}>
                   {c}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="flex flex-col gap-1">
-          <Label htmlFor="primary-property-type">
-            {t('fields.primaryPropertyType')}
-          </Label>
-          <Select
-            value={data.preferences.primary_property_type}
-            onValueChange={(value) =>
-              setData({
-                ...data,
-                preferences: {
-                  ...data.preferences,
-                  primary_property_type: value ?? '',
-                },
-              })
-            }
-            items={PROPERTY_TYPES.map((p) => ({
-              value: p,
-              label: t(`propertyTypes.${p}` as never),
-            }))}
-          >
-            <SelectTrigger id="primary-property-type" className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {PROPERTY_TYPES.map((p) => (
-                <SelectItem key={p} value={p}>
-                  {t(`propertyTypes.${p}` as never)}
                 </SelectItem>
               ))}
             </SelectContent>

@@ -12,12 +12,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { nomAffichable, type IdentiteAvecId } from '@/lib/identite';
 import type { TeamSuspensionAction } from '@/lib/queries/team-suspension';
 
-interface MinimalMember {
-  readonly first_name: string;
-  readonly last_name: string;
-}
+type MinimalMember = IdentiteAvecId;
 
 interface ConfirmSuspendDialogProps<T extends MinimalMember> {
   readonly target: { member: T; action: TeamSuspensionAction } | null;
@@ -39,7 +37,7 @@ export function ConfirmSuspendDialog<T extends MinimalMember>({
   isPending,
 }: ConfirmSuspendDialogProps<T>) {
   const t = useTranslations('admin.team.suspension');
-  const name = target ? `${target.member.first_name} ${target.member.last_name}` : '';
+  const name = target ? nomAffichable(target.member) : '';
   const suspend = target?.action === 'suspend';
 
   return (

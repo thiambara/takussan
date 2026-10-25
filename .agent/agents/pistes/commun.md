@@ -29,6 +29,22 @@
   ```
 
   Puis lis les seules lignes utiles (`sed -n '120,140p' …`).
+- **Les entrées closes sont archivées** (amendement d'ADR-0066 du 2026-10-24). Une entrée `fait`,
+  `caduc` ou `refusé` depuis 24 h quitte le fichier, telle quelle, pour
+  `docs/plans/pistes-archive/angles-NNN-NNN.md`, sous le titre de son angle. Les sections d'angle
+  restent dans le fichier vivant, même vides. Les commandes ci-dessus lisent les deux ; `--liste`
+  nomme le fichier d'archive devant le numéro de ligne d'une entrée archivée.
+  - **Chercher**, c'est chercher dans les deux : un doublon, une Réf citée (« voir P02.04 »), un
+    précédent, une décision du porteur :
+
+    ```bash
+    grep -rn '<mot>' docs/plans/2026-10-15-pistes-d-amelioration.md docs/plans/pistes-archive/
+    ```
+  - **Écrire**, c'est écrire dans le seul fichier vivant. L'archive n'est écrite que par
+    l'archiveur, un script sans modèle que `pistes.sh` lance une fois par jour ; la vérification
+    refuse le push d'un rôle qui la touche.
+  - **Rouvrir une piste close**, c'est écrire une entrée neuve dans le fichier vivant, qui cite
+    l'ancienne Réf. On ne rouvre jamais l'entrée archivée.
 
 ## Ce que tu ne fais jamais
 
@@ -117,9 +133,18 @@ Pour que les autres te lisent de même, ton titre et ton corps de PR citent ce q
 
 ## Mode réparation
 
-Le message de lancement donne ta PR, et les checks rouges ou le conflit.
+Le message de lancement donne ta PR, les checks rouges de sa tête courante ou le conflit, et
+**le dernier run rouge conclu de ta branche, toutes têtes confondues, avec ses tests**
+(amendement d'ADR-0066 du 2026-10-24).
 
 - **Tu répares cela et rien d'autre.** Aucun travail neuf dans une réparation.
+- **Le dernier run rouge conclu reste à réparer** même quand la tête courante n'a aucun check
+  rouge : sa CI tourne encore (après un rafraîchissement de la base), ou la PR est en conflit. Le
+  2026-10-24, une réparation de #1469 a résolu le conflit et écrit « aucun check rouge à corriger »,
+  alors que `DashboardQueryBudgetTest` rougissait depuis une heure. Après le conflit, lance ces tests
+  par leur nom sur ta branche. S'ils rougissent, corrige-les dans la même réparation. N'écris
+  « aucun rouge » que si le message dit « aucun », ou si tu as lancé ces tests et qu'ils passent :
+  donne alors la commande et sa sortie.
 - **Conflit** : `git merge origin/pre-dev`. Résous, en gardant les lignes `Mesure` des deux côtés,
   puis commite la fusion.
 - **Check rouge** : lis le journal du job (`gh run view <id> --log-failed`) et établis la cause.

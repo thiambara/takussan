@@ -33,12 +33,11 @@ describe('AccesAdminProvider (TCK-633)', () => {
     render(<Sonde roles={['agency_admin']} agencyIsStandard={false} />);
     expect(screen.getByTestId('brut').textContent).toBe('null');
     // Capacités inconnues : « Abonnement » (agency.update_billing) n'y est pas, ni le KYC
-    // (agency.update_kyc, TCK-1274).
+    // (agency.update_kyc, TCK-1274), ni le rapprochement (payments.reconcile, TCK-2260).
     expect(JSON.parse(screen.getByTestId('acces').textContent!)).toEqual({
       chemins: [
         '/app/agency',
         '/app/agency/finances',
-        '/app/agency/finances/reconciliation',
         '/app/agency/integrations',
       ],
       espaceIndividuel: true,

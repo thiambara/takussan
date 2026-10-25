@@ -8,7 +8,9 @@ use App\Models\Enums\MaintenanceStatus;
 use App\Models\MaintenanceRequest;
 use App\Models\User;
 use App\Services\Model\MaintenanceRequestService;
+use Closure;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 
 /**
  * TCK-592 — chaque geste du devis émet {@see MaintenanceStatusChanged} : les notifications (en clés
@@ -45,21 +47,63 @@ class MaintenanceQuoteWorkflow
         return $current;
     }
 
+    /**
+     * P211.04 (TCK-2193) — chaque geste du devis se joue sur la ligne relue sous `lockForUpdate`,
+     * dans une transaction : la table, la validité et le seuil du bailleur se jugent sur elle, et
+     * l'événement part après le commit, sur le modèle reçu rechargé. Jugés sur le modèle lié, un
+     * rejet puis une approbation simultanés laissaient un devis `approved` portant le motif du rejet.
+     *
+     * Le geste rend `[from, to, cause, context?]`.
+     *
+     * @param  Closure(MaintenanceRequest): array<int, mixed>  $geste
+     */
+    private function underLock(MaintenanceRequest $mr, ?User $actor, Closure $geste): MaintenanceRequest
+    {
+        [$from, $to, $cause, $context] = DB::transaction(function () use ($mr, $geste): array {
+            return $geste($this->requests->lockFresh($mr)) + [3 => []];
+        });
+
+        $mr->refresh();
+
+        MaintenanceStatusChanged::dispatch($mr, $from, $to, $actor, $cause, $context);
+
+        return $mr;
+    }
+
+    /**
+     * ADR-0037 — seul le bailleur sort d'`awaiting_owner`, et `decideQuote` l'a jugé sur le modèle
+     * lié. Si la ligne y est passée depuis (un autre membre a approuvé au-delà du plafond), la
+     * décision prise sur l'état d'avant ne vaut pas : 422, comme une transition hors table.
+     */
+    private function assertStillDecidable(MaintenanceRequest $seen, MaintenanceRequest $fresh, MaintenanceStatus $to): void
+    {
+        $was = $seen->status ?? MaintenanceStatus::Open;
+        $now = $fresh->status ?? MaintenanceStatus::Open;
+
+        abort_code_if(
+            $now === MaintenanceStatus::AwaitingOwner && $was !== MaintenanceStatus::AwaitingOwner,
+            422,
+            'maintenance.status_transition_invalid', ['from' => $now->value, 'to' => $to->value],
+        );
+    }
+
     public function requestQuote(MaintenanceRequest $mr, ?User $actor = null): MaintenanceRequest
     {
-        $from = $this->assertTransition($mr, MaintenanceStatus::QuoteRequested);
+        $mr = $this->underLock($mr, $actor, function (MaintenanceRequest $fresh): array {
+            $from = $this->assertTransition($fresh, MaintenanceStatus::QuoteRequested);
 
-        $mr->status = MaintenanceStatus::QuoteRequested;
-        $mr->save();
+            $fresh->status = MaintenanceStatus::QuoteRequested;
+            $fresh->save();
+
+            return [$from, MaintenanceStatus::QuoteRequested, MaintenanceStatusChanged::CAUSE_QUOTE_REQUESTED];
+        });
 
         activity()
             ->performedOn($mr)
             ->event('quote.requested')
             ->log('Quote requested');
 
-        MaintenanceStatusChanged::dispatch($mr, $from, MaintenanceStatus::QuoteRequested, $actor, MaintenanceStatusChanged::CAUSE_QUOTE_REQUESTED);
-
-        return $mr->refresh();
+        return $mr;
     }
 
     /**
@@ -71,32 +115,36 @@ class MaintenanceQuoteWorkflow
      */
     public function submitQuote(MaintenanceRequest $mr, array $data, array $attachments = [], ?User $actor = null): MaintenanceRequest
     {
-        $from = $this->assertTransition($mr, MaintenanceStatus::QuoteSubmitted);
+        $mr = $this->underLock($mr, $actor, function (MaintenanceRequest $fresh) use ($data, $attachments, $actor): array {
+            $from = $this->assertTransition($fresh, MaintenanceStatus::QuoteSubmitted);
 
-        $currency = $this->resolveCurrency($mr);
-        [$lines, $amount] = $this->priceLines($data['lines'] ?? [], $currency);
+            $currency = $this->resolveCurrency($fresh);
+            [$lines, $amount] = $this->priceLines($data['lines'] ?? [], $currency);
 
-        $mr->status = MaintenanceStatus::QuoteSubmitted;
-        // Chiffrer l'intervention, c'est l'accepter : le prestataire qui a remis un devis ne la
-        // refuse plus (`decline` → 422).
-        if ($mr->accepted_at === null && $actor !== null && $mr->assigned_to === $actor->id) {
-            $mr->accepted_at = now();
-        }
-        $mr->quote_lines = $lines;
-        $mr->quote_amount = $amount;
-        $mr->quote_currency = $currency;
-        $mr->quote_valid_until = $data['valid_until'] ?? null;
-        $mr->quote_estimated_duration_days = $data['estimated_duration_days'] ?? null;
-        $mr->quote_submitted_at = now();
-        // Un devis re-soumis après refus repart sans la décision précédente.
-        $mr->quote_decision_at = null;
-        $mr->quote_decision_by_id = null;
-        $mr->quote_rejection_reason = null;
-        $mr->save();
+            $fresh->status = MaintenanceStatus::QuoteSubmitted;
+            // Chiffrer l'intervention, c'est l'accepter : le prestataire qui a remis un devis ne la
+            // refuse plus (`decline` → 422).
+            if ($fresh->accepted_at === null && $actor !== null && $fresh->assigned_to === $actor->id) {
+                $fresh->accepted_at = now();
+            }
+            $fresh->quote_lines = $lines;
+            $fresh->quote_amount = $amount;
+            $fresh->quote_currency = $currency;
+            $fresh->quote_valid_until = $data['valid_until'] ?? null;
+            $fresh->quote_estimated_duration_days = $data['estimated_duration_days'] ?? null;
+            $fresh->quote_submitted_at = now();
+            // Un devis re-soumis après refus repart sans la décision précédente.
+            $fresh->quote_decision_at = null;
+            $fresh->quote_decision_by_id = null;
+            $fresh->quote_rejection_reason = null;
+            $fresh->save();
 
-        foreach ($attachments as $attachment) {
-            $mr->addMedia($attachment)->toMediaCollection('quotes');
-        }
+            foreach ($attachments as $attachment) {
+                $fresh->addMedia($attachment)->toMediaCollection('quotes');
+            }
+
+            return [$from, MaintenanceStatus::QuoteSubmitted, MaintenanceStatusChanged::CAUSE_QUOTE_SUBMITTED];
+        });
 
         activity()
             ->performedOn($mr)
@@ -104,9 +152,7 @@ class MaintenanceQuoteWorkflow
             ->withProperties(['amount' => $mr->quote_amount, 'currency' => $mr->quote_currency])
             ->log('Quote submitted');
 
-        MaintenanceStatusChanged::dispatch($mr, $from, MaintenanceStatus::QuoteSubmitted, $actor, MaintenanceStatusChanged::CAUSE_QUOTE_SUBMITTED);
-
-        return $mr->refresh();
+        return $mr;
     }
 
     /**
@@ -159,45 +205,50 @@ class MaintenanceQuoteWorkflow
      */
     public function approveQuote(MaintenanceRequest $mr, int $approvedById, ?User $actor = null): MaintenanceRequest
     {
-        $this->assertNotExpired($mr);
+        $seen = $mr;
+        $mr = $this->underLock($mr, $actor, function (MaintenanceRequest $fresh) use ($seen, $approvedById): array {
+            // P211.04 (TCK-2193) — validité, seuil du bailleur et table jugés sur la ligne fraîche.
+            $this->assertNotExpired($fresh);
+            $this->assertStillDecidable($seen, $fresh, MaintenanceStatus::Approved);
 
-        $current = $mr->status ?? MaintenanceStatus::Open;
-        $needsOwner = $current === MaintenanceStatus::QuoteSubmitted
-            && ! $this->isLandlord($mr, $approvedById)
-            && $this->exceedsOwnerThreshold($mr);
+            $current = $fresh->status ?? MaintenanceStatus::Open;
+            $needsOwner = $current === MaintenanceStatus::QuoteSubmitted
+                && ! $this->isLandlord($fresh, $approvedById)
+                && $this->exceedsOwnerThreshold($fresh);
 
-        if ($needsOwner) {
-            $from = $this->assertTransition($mr, MaintenanceStatus::AwaitingOwner);
+            if ($needsOwner) {
+                $from = $this->assertTransition($fresh, MaintenanceStatus::AwaitingOwner);
 
-            $mr->status = MaintenanceStatus::AwaitingOwner;
-            $mr->save();
+                $fresh->status = MaintenanceStatus::AwaitingOwner;
+                $fresh->save();
 
+                return [$from, MaintenanceStatus::AwaitingOwner, MaintenanceStatusChanged::CAUSE_QUOTE_AWAITING_OWNER];
+            }
+
+            $from = $this->assertTransition($fresh, MaintenanceStatus::Approved);
+
+            $fresh->status = MaintenanceStatus::Approved;
+            $fresh->quote_decision_at = now();
+            $fresh->quote_decision_by_id = $approvedById;
+            $fresh->save();
+
+            return [$from, MaintenanceStatus::Approved, MaintenanceStatusChanged::CAUSE_QUOTE_APPROVED];
+        });
+
+        if ($mr->status === MaintenanceStatus::AwaitingOwner) {
             activity()
                 ->performedOn($mr)
                 ->event('quote.awaiting_owner')
                 ->withProperties(['amount' => $mr->quote_amount, 'endorsed_by' => $approvedById])
                 ->log('Quote awaiting owner');
-
-            MaintenanceStatusChanged::dispatch($mr, $from, MaintenanceStatus::AwaitingOwner, $actor, MaintenanceStatusChanged::CAUSE_QUOTE_AWAITING_OWNER);
-
-            return $mr->refresh();
+        } else {
+            activity()
+                ->performedOn($mr)
+                ->event('quote.approved')
+                ->log('Quote approved');
         }
 
-        $from = $this->assertTransition($mr, MaintenanceStatus::Approved);
-
-        $mr->status = MaintenanceStatus::Approved;
-        $mr->quote_decision_at = now();
-        $mr->quote_decision_by_id = $approvedById;
-        $mr->save();
-
-        activity()
-            ->performedOn($mr)
-            ->event('quote.approved')
-            ->log('Quote approved');
-
-        MaintenanceStatusChanged::dispatch($mr, $from, MaintenanceStatus::Approved, $actor, MaintenanceStatusChanged::CAUSE_QUOTE_APPROVED);
-
-        return $mr->refresh();
+        return $mr;
     }
 
     private function assertNotExpired(MaintenanceRequest $mr): void
@@ -224,13 +275,19 @@ class MaintenanceQuoteWorkflow
 
     public function rejectQuote(MaintenanceRequest $mr, string $reason, int $rejectedById, ?User $actor = null): MaintenanceRequest
     {
-        $from = $this->assertTransition($mr, MaintenanceStatus::Rejected);
+        $seen = $mr;
+        $mr = $this->underLock($mr, $actor, function (MaintenanceRequest $fresh) use ($seen, $reason, $rejectedById): array {
+            $this->assertStillDecidable($seen, $fresh, MaintenanceStatus::Rejected);
+            $from = $this->assertTransition($fresh, MaintenanceStatus::Rejected);
 
-        $mr->status = MaintenanceStatus::Rejected;
-        $mr->quote_decision_at = now();
-        $mr->quote_decision_by_id = $rejectedById;
-        $mr->quote_rejection_reason = $reason;
-        $mr->save();
+            $fresh->status = MaintenanceStatus::Rejected;
+            $fresh->quote_decision_at = now();
+            $fresh->quote_decision_by_id = $rejectedById;
+            $fresh->quote_rejection_reason = $reason;
+            $fresh->save();
+
+            return [$from, MaintenanceStatus::Rejected, MaintenanceStatusChanged::CAUSE_QUOTE_REJECTED, ['reason' => $reason]];
+        });
 
         activity()
             ->performedOn($mr)
@@ -238,9 +295,7 @@ class MaintenanceQuoteWorkflow
             ->withProperties(['reason' => $reason])
             ->log('Quote rejected');
 
-        MaintenanceStatusChanged::dispatch($mr, $from, MaintenanceStatus::Rejected, $actor, MaintenanceStatusChanged::CAUSE_QUOTE_REJECTED, ['reason' => $reason]);
-
-        return $mr->refresh();
+        return $mr;
     }
 
     /**

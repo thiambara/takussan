@@ -18,6 +18,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/context/AuthContext';
 import { ApiError } from '@/lib/api';
+import { nomAffichable } from '@/lib/identite';
+import { decalerJour, jourDeLApi } from '@/lib/jour-de-l-api';
 import { useCreateRoleDelegation, useDelegationCandidates } from '@/lib/queries/role-delegations';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import { DELEGABLE_ROLES, type DelegableRole } from '@/types/role-delegation';
@@ -32,11 +34,6 @@ import { DELEGABLE_ROLES, type DelegableRole } from '@/types/role-delegation';
  * bissextile, pas douze mois calendaires. C'est 366 qui est appliqué.
  */
 const DUREE_MAX_JOURS = 366;
-
-/** `YYYY-MM-DD` — la forme qu'un `<input type="date">` lit et écrit. */
-function jourIso(date: Date): string {
-  return date.toISOString().slice(0, 10);
-}
 
 /**
  * Les messages d'un refus 422, **tels que le serveur les écrit**.
@@ -151,11 +148,9 @@ export function CreateDelegationDialog({
     return membres.filter((membre) => membre.id !== utilisateurCourant?.id);
   }, [candidatsQuery.data, utilisateurCourant?.id]);
 
-  const dateMax = useMemo(() => {
-    const limite = new Date();
-    limite.setDate(limite.getDate() + DUREE_MAX_JOURS);
-    return jourIso(limite);
-  }, []);
+  // P230.05 — le jour de l'API + 366 : `setDate()` local puis `toISOString()` passait d'un jour
+  // l'instant J+366 de l'API à l'ouest d'UTC, quand l'heure d'été change dans l'intervalle.
+  const dateMax = useMemo(() => decalerJour(jourDeLApi(), DUREE_MAX_JOURS), []);
 
   const refus = messagesDeRefus(create.error);
   const pannePlusQueRefus = create.error !== null && refus.length === 0;
@@ -199,7 +194,7 @@ export function CreateDelegationDialog({
               <option value="">{t('create.member_placeholder')}</option>
               {candidats.map((membre) => (
                 <option key={membre.id} value={String(membre.id)}>
-                  {`${membre.first_name} ${membre.last_name}`.trim()}
+                  {nomAffichable(membre)}
                 </option>
               ))}
             </select>

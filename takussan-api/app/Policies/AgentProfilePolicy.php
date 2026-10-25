@@ -63,6 +63,19 @@ class AgentProfilePolicy
     }
 
     /**
+     * TCK-2364 (P241.02 ; ADR-0049 « Ventilation » § 2, amendement du 2026-10-25) — fixer le taux de
+     * commission d'un agent, sur sa fiche de membre : `team.assign_role` dans l'agence du profil, la
+     * capacité qui garde déjà le rôle de la même fiche ({@see AgencyRolePolicy::assign()}). Le taux
+     * est la part du négociateur au grand livre : l'agent ne fixe pas le sien.
+     */
+    public function setCommissionRate(User $user, AgentProfile $profile): bool
+    {
+        $agency = $profile->agency;
+
+        return $agency !== null && $user->canActAt(Capability::TeamAssignRole, $agency);
+    }
+
+    /**
      * TCK-278 — Profile-based check (no more spatie `setPermissionsTeamId` +
      * `hasPermissionTo`). Membership comes from `AgencyAdminProfile` actif
      * OR an active `RoleDelegation` granting `agency_admin` on the agency

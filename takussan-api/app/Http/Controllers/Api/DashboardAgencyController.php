@@ -6,6 +6,8 @@ use App\Http\Controllers\Base\Controller;
 use App\Models\Agency;
 use App\Models\Enums\AgencyKind;
 use App\Services\Dashboard\DashboardAgencyService;
+use App\Services\Dashboard\KpiResolver;
+use App\Support\Http\ParametreUnique;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -19,6 +21,9 @@ use Illuminate\Http\Request;
  * - `?include=timeseries` — appends a 12-month revenue/occupancy chart.
  * - `?months=6` — overrides the chart window (1..36).
  * - `?fields[summary]=properties,finance` — sparse sections (spatie-style).
+ *
+ * TCK-2373 (P249.02) — `data.kpis` : les indicateurs configurés par l'agence (`kpi_configs`),
+ * activés et ordonnés, avec libellé, format et valeur ; `[]` sans configuration.
  */
 class DashboardAgencyController extends Controller
 {
@@ -51,6 +56,7 @@ class DashboardAgencyController extends Controller
         );
 
         $data = $this->service->summary($agency);
+        $data['kpis'] = KpiResolver::configuredTiles($agency, $data);
 
         // Sparse sections via ?fields[summary]=properties,finance,…
         $fieldsParam = $request->input('fields.summary');
@@ -61,9 +67,9 @@ class DashboardAgencyController extends Controller
             $data = array_intersect_key($data, array_flip($keep));
         }
 
-        // TCK-1866 — `include[]=…` est ignoré comme une valeur absente (TCK-1407), et non casté.
-        $include = $request->input('include', '');
-        $includes = is_string($include) ? array_filter(array_map('trim', explode(',', $include))) : [];
+        // TCK-1866 — `include[]=…` est ignoré comme une valeur absente (ADR-0075), et non casté.
+        $include = ParametreUnique::chaine($request, 'include') ?? '';
+        $includes = array_filter(array_map('trim', explode(',', $include)));
 
         $payload = ['data' => $data];
 

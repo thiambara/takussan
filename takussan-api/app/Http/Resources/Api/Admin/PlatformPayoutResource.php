@@ -3,6 +3,7 @@
 namespace App\Http\Resources\Api\Admin;
 
 use App\Http\Resources\Bases\BaseResource;
+use App\Services\Billing\PlatformPayoutRefundSignal;
 use Illuminate\Http\Request;
 
 class PlatformPayoutResource extends BaseResource
@@ -31,6 +32,9 @@ class PlatformPayoutResource extends BaseResource
             'processed_at' => $this->iso($this->processed_at),
             'failure_reason' => $this->failure_reason,
             'metadata' => $this->metadata ?? [],
+            // TCK-2320 (P39.07) — les lignes remboursées depuis le paiement du reversement : un
+            // signal, sans montant (la compensation n'est pas décidée).
+            'refunded_since_paid' => PlatformPayoutRefundSignal::of($this->resource),
             // TCK-1205 (P95.01) — absente quand la ventilation n'est pas calculée (liste, clôture) :
             // une clé nulle se lisait « aucune ventilation ».
             'breakdown' => $this->when(array_key_exists('breakdown', $this->additional), fn () => $this->additional['breakdown']),

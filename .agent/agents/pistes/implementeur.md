@@ -89,7 +89,9 @@ jamais deux pistes à moitié.
      (étape 2), avec pour raison `choix non tranché : <les options>`.
 2. **Re-mesurer la prémisse**, avant toute ligne de code. Entre la mesure et toi, un autre ticket
    a pu fermer le défaut. Reproduis-le sur ton arbre, idéalement par le test qui deviendra le test
-   de garde.
+   de garde. Une Réf que cite l'entrée, et le précédent d'une piste voisine déjà faite, se
+   cherchent dans le fichier ET dans son archive (`grep -rn …
+   docs/plans/2026-10-15-pistes-d-amelioration.md docs/plans/pistes-archive/`, voir `commun.md`).
    - **Le défaut n'existe plus** : passe l'entrée à `caduc — <raison>`, ajoute ta ligne `Mesure`,
      et passe à la piste suivante du lot.
    - **Un critère V de l'ADR apparaît**, ou le correctif dépasse M, ou la spec est muette ou
@@ -138,6 +140,20 @@ jamais deux pistes à moitié.
      - `php artisan test <chaque classe de test touchée ou ajoutée>`, et celle qui couvre
        directement une classe que tu modifies, si elle existe — nommées, jamais un dossier
        entier. Ni `impacted-tests --run`, ni `--parallel` : la garde les refuse.
+     - **Puis, une fois sur le lot, avant de publier, les classes que la carte d'impact relie à
+       tes fichiers** (amendement d'ADR-0066 du 2026-10-24) :
+
+       ```bash
+       cd takussan-api && php bin/impacted-tests.php --base=origin/pre-dev --connus
+       ```
+
+       Lance la commande `php artisan test '<fichier>' …` qu'elle affiche, telle quelle et sans
+       `--parallel`. `--connus` écarte les fichiers que la carte ne sait pas situer (fichier neuf,
+       migration, config) et les nomme : leurs tests sont ceux que tu nommes ci-dessus. Sans
+       `--connus`, un seul fichier neuf rend « SUITE ENTIÈRE », que tu ne lances jamais. Ainsi,
+       le 2026-10-24, `PortfolioMetrics.php` a rougi `DashboardQueryBudgetTest` pendant deux heures
+       de CI, alors que la carte reliait les deux. Un rouge de cette sélection se traite comme un
+       rouge de tes pistes. Si la sélection est **vide**, dis-le dans le corps de PR.
    - Front :
      - `npx eslint <fichiers touchés>` ;
      - `npx tsc --noEmit` ;
@@ -184,3 +200,8 @@ La règle de `commun.md` vaut, avec une issue de plus : **une piste du lot qui n
 sort du lot**. Annule ses commits (`git revert`), ce qui rend son entrée à son statut de départ,
 et dis-le dans le rapport de réparation. Les autres pistes du lot ne restent pas bloquées
 derrière elle.
+
+Avant de rendre la réparation, rejoue sur la branche réparée deux séries de tests (amendement
+d'ADR-0066 du 2026-10-24) :
+- les tests du dernier run rouge conclu que donne le message ;
+- la sélection `impacted-tests --connus` de l'étape 5.

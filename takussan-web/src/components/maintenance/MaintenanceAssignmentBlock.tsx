@@ -180,10 +180,11 @@ function providerOptions(
 }
 
 function providerName(p: ServiceProviderProfileSummary): string {
-  const first = p.user?.first_name ?? p.metadata?.first_name ?? '';
-  const last = p.user?.last_name ?? p.metadata?.last_name ?? '';
-  const name = `${first} ${last}`.trim();
-  return name || p.user?.email || p.metadata?.email || String(p.user_id);
+  // TCK-2136 (P220.06) — le nom du compte, puis celui de l'invitation : `''` (compte créé par
+  // téléphone) ne bloque plus le repli, comme le faisait `??`.
+  const compte = `${p.user?.first_name ?? ''} ${p.user?.last_name ?? ''}`.trim();
+  const invitation = `${p.metadata?.first_name ?? ''} ${p.metadata?.last_name ?? ''}`.trim();
+  return compte || invitation || p.user?.email || p.metadata?.email || String(p.user_id);
 }
 
 /**

@@ -10,6 +10,13 @@ export interface Creneau {
   readonly available: boolean;
 }
 
+/**
+ * La fenêtre de `GET …/visit-slots` : `before_or_equal:+60 days` de
+ * `VisitSlotsPublicPropertyRequest`, à partir du jour de l'API (`after_or_equal:today`). Hors
+ * d'elle, la requête est refusée et le jour rend l'état `erreur` (P212.01, P230.01).
+ */
+export const JOURS_DE_VISITE_OUVERTS = 60;
+
 export type EtatDesCreneaux =
   | { readonly etat: 'attente' }
   | { readonly etat: 'charge'; readonly creneaux: readonly Creneau[] }

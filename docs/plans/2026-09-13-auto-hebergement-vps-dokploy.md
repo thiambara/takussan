@@ -4164,6 +4164,8 @@ de la préproduction (ADR-0069 § 1).
 | `QUEUE_CONNECTION` | `database` |
 | `MAIL_MAILER` | `resend` — la préproduction est en `log` : sans cette ligne, la production n'enverrait aucun courriel (P71.03) |
 | `SESSION_SECURE_COOKIE` | `true` |
+| `LOG_CHANNEL` | `stderr`, comme la préproduction (relevé du 2026-10-25, P14.08) : les journaux partent sur la sortie du conteneur, sans collecteur, et les erreurs sont gardées par P14.07 |
+| `LOG_LEVEL` | `info`, comme la préproduction (relevé du 2026-10-25, P14.08) |
 | `SESSION_DOMAIN` / `SESSION_COOKIE` | `.takussan.com` / `takussan_session`. Le domaine est celui de la préproduction (l'API et le front partagent le cookie de Sanctum) ; le **nom** les sépare : la préproduction pose `takussan_session_preview` (relevé du 2026-10-20). Jamais le même nom dans les deux (P71.06) |
 | `GOOGLE_REDIRECT_URI` | `https://www.takussan.com/auth/oauth/google/callback`, à déclarer aussi dans le client OAuth de production de Google. Celle de la préproduction redirigerait la connexion Google vers `preview.takussan.com` (P71.06) |
 | `SMS_ORANGE_WEBHOOK_IPS` / `SMS_MTARGET_WEBHOOK_IPS` / `SMS_LAM_WEBHOOK_IPS` | les plages publiées par chaque fournisseur, demandées au fournisseur si elles ne le sont pas. **Vides en `production`, elles refusent tous les accusés en 403** (`webhook.ip_allowlist_not_configured`, ADR-0051), sans erreur côté envoi. La préproduction n'en pose aucune : en `staging`, une liste vide ne filtre pas. Après le déploiement, un accusé de test doit être accepté, et le journal ne doit porter aucune ligne `webhook.ip_allowlist_not_configured` (P71.04) |

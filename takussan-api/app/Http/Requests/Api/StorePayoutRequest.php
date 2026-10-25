@@ -40,7 +40,7 @@ class StorePayoutRequest extends BaseFormRequest
      */
     public function rules(): array
     {
-        $oneItem = 'required_without_all:lease_payment_ids,booking_payment_ids,service_provider_bill_ids';
+        $oneItem = 'required_without_all:lease_payment_ids,booking_payment_ids,service_provider_bill_ids,late_fee_lease_payment_ids';
 
         return [
             'landlord_id' => ['required', 'integer', 'exists:users,id'],
@@ -51,6 +51,9 @@ class StorePayoutRequest extends BaseFormRequest
             'booking_payment_ids.*' => ['integer', 'distinct'],
             'service_provider_bill_ids' => ['nullable', 'array', 'max:100', $oneItem],
             'service_provider_bill_ids.*' => ['integer', 'distinct'],
+            // P206.01 — les lignes de loyer dont la pénalité de retard réglée est reversée.
+            'late_fee_lease_payment_ids' => ['nullable', 'array', 'max:500', $oneItem],
+            'late_fee_lease_payment_ids.*' => ['integer', 'distinct'],
             'payout_method_id' => ['nullable', 'integer'],
             'lease_id' => ['prohibited'],
             'booking_id' => ['prohibited'],

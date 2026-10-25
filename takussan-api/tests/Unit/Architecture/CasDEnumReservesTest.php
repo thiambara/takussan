@@ -7,8 +7,9 @@ use App\Models\Enums\BankStatementStatus;
 use App\Models\Enums\CancellationBy;
 use App\Models\Enums\ConversationStatus;
 use App\Models\Enums\PayoutStatus;
+use App\Models\Enums\PlatformPayoutStatus;
 use App\Models\Enums\RelationshipStatus;
-use App\Models\Enums\ServiceProviderBillStatus;
+use App\Models\Enums\ServiceProviderProfileStatus;
 use PHPUnit\Framework\TestCase;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
@@ -31,11 +32,16 @@ class CasDEnumReservesTest extends TestCase
             ConversationStatus::Closed,
             BankStatementStatus::Archived,
             PayoutStatus::Processing,
-            ServiceProviderBillStatus::Cancelled,
             RelationshipStatus::Ended,
             RelationshipStatus::Suspended,
             // TCK-1898 (P196.03) : `BookingService::cancel` ne pose que `customer`, `owner` ou `agent`.
             CancellationBy::System,
+            // TCK-2043 (P115.04) : un profil prestataire ne naît que `draft` et ne devient que `active`.
+            ServiceProviderProfileStatus::Inactive,
+            ServiceProviderProfileStatus::Suspended,
+            // TCK-2078 (P196.01) : `approve`, `markPaid`, `cancel` et la clôture ne posent ni l'un ni l'autre.
+            PlatformPayoutStatus::Processing,
+            PlatformPayoutStatus::Failed,
         ];
     }
 

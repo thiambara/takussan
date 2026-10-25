@@ -12,6 +12,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import {
+  espacesAtteignables,
   importsDe,
   premierNiveau,
   recolteRacine,
@@ -21,14 +22,26 @@ import {
 } from '../../../scripts/i18n-namespaces-scan.mjs';
 
 const CONNUS = new Set(['property', 'errors', 'nav', 'dashboard', 'crm', 'superAdmin', 'agents']);
+const CONNUS_LECTEURS = new Set([...CONNUS, 'meta']);
 
 describe('règle A — le namespace littéral', () => {
   it('relève `useTranslations(\'a.b\')` au premier niveau', () => {
     expect(releveFichier("const t = useTranslations('property.types');").litteraux).toEqual(['property']);
   });
 
-  it('relève aussi la forme serveur `getTranslations`', () => {
-    expect(releveFichier("await getTranslations('crm.pipeline.stage');").litteraux).toEqual(['crm']);
+  it('range la forme serveur `getTranslations` à part — elle ne lit jamais le provider client', () => {
+    // P105.04 (amendement d'ADR-0022 du 2026-10-25) : `getTranslations` résout contre le
+    // dictionnaire ENTIER de la requête (`src/i18n/request.ts`), jamais contre le sous-ensemble
+    // sérialisé pour le navigateur. Le compter côté client embarquait `meta` et `serverActions`
+    // dans chaque document.
+    const r = releveFichier("await getTranslations('crm.pipeline.stage');");
+    expect(r.litteraux).toEqual([]);
+    expect(r.litterauxServeur).toEqual(['crm']);
+  });
+
+  it('un fichier qui lit le même espace des deux façons le garde côté client', () => {
+    const r = releveFichier("await getTranslations('crm.a'); const t = useTranslations('crm.b');");
+    expect(r.litteraux).toEqual(['crm']);
   });
 
   it('relève la forme objet `getTranslations({ namespace })`', () => {
@@ -74,12 +87,54 @@ describe('règle B — le namespace calculé', () => {
   it('rend un ensemble VIDE quand rien ne se replie — c’est ce qui fait échouer la garde', () => {
     expect(resoudreDynamique('espaceInconnu', ['const x = 1;'])).toEqual([]);
   });
+
+  it('ne demande pas de résoudre un site SERVEUR — il ne nourrit pas le provider', () => {
+    const r = releveFichier('const t = await getTranslations(namespace);');
+    expect(r.dynamiques).toEqual([]);
+    expect(r.dynamiquesServeur).toEqual(['namespace']);
+  });
+});
+
+describe('lecteurs serveur et client — ce qui entre dans le dictionnaire du navigateur', () => {
+  const RACINE = '/src';
+  // Un seul fichier : `resoudreModule` lit le vrai disque, et le graphe n'est pas ce qu'on éprouve.
+  const fichiers: Record<string, string> = {
+    '/src/app/page.tsx': [
+      'export async function generateMetadata() {',
+      "  const t = await getTranslations('meta.home');",
+      '}',
+      "const tRacine = await getTranslations(); tRacine('dashboard.x');",
+      "function Carte() { const t = useTranslations('nav'); }",
+    ].join('\n'),
+  };
+  const lire = (f: string) => {
+    if (!(f in fichiers)) throw new Error(f);
+    return fichiers[f]!;
+  };
+
+  it('ne sert au navigateur que les espaces d’un lecteur client', () => {
+    const { espaces } = espacesAtteignables(['/src/app/page.tsx'], RACINE, CONNUS_LECTEURS, lire);
+    expect([...espaces].sort()).toEqual(['nav']);
+  });
+
+  it('nomme à part les espaces que seul le serveur lit — pour le rapport', () => {
+    const { serveurSeul } = espacesAtteignables(['/src/app/page.tsx'], RACINE, CONNUS_LECTEURS, lire);
+    expect([...serveurSeul].sort()).toEqual(['dashboard', 'meta']);
+  });
 });
 
 describe('règle C — le traducteur RACINE', () => {
   it('repère un `useTranslations()` sans argument', () => {
     expect(releveFichier('const t = useTranslations();').racine).toBe(true);
     expect(releveFichier("const t = useTranslations('nav');").racine).toBe(false);
+  });
+
+  it('un `getTranslations()` sans argument est un traducteur racine SERVEUR', () => {
+    // `actions/property.ts` : `tRacine('publicLeadErrors.contactUnavailable')`, lu par une action
+    // serveur, faisait servir `publicLeadErrors` au navigateur de toutes les pages (P105.04).
+    const r = releveFichier("const tRacine = await getTranslations();");
+    expect(r.racine).toBe(false);
+    expect(r.racineServeur).toBe(true);
   });
 
   it('récolte les chemins absolus, y compris ceux qui ne sont pas des arguments d’appel', () => {

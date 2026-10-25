@@ -17,6 +17,7 @@ use App\Services\Membership\MembershipCapabilityResolver;
 use App\Services\Property\CoutDEntree;
 use App\Services\Property\PrimaryPropertyContact;
 use App\Services\Property\PropertyContactNumbers;
+use App\Services\Property\TitulaireALaSaisie;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
@@ -222,14 +223,19 @@ class PropertyResource extends BaseResource
                     'role' => $collaborator->role?->value,
                     // TCK-504 — la marque d'agent principal (ADR-0053), telle qu'en base.
                     'is_primary' => (bool) $collaborator->is_primary,
-                    'commission_share' => $collaborator->commission_share !== null
-                        ? (float) $collaborator->commission_share
-                        : null,
+                    // TCK-2364 (P241.03) — à qui fixe les parts seulement, comme la liste des
+                    // collaborateurs : le bailleur du bien ne les lit plus.
+                    'commission_share' => $this->when(
+                        PropertyCollaboratorResource::partsLisibles($request, $this->resource),
+                        fn () => $collaborator->commission_share !== null
+                            ? (float) $collaborator->commission_share
+                            : null,
+                    ),
                     'user' => $collaborator->relationLoaded('user') && $collaborator->user
                         ? [
                             'id' => $collaborator->user->id,
-                            'name' => trim($collaborator->user->first_name.' '.$collaborator->user->last_name)
-                                ?: $collaborator->user->username,
+                            // P235.02 (TCK-2369) — nom, puis `username`, puis « — » : jamais `''` ni `null` pour un compte sans nom.
+                            'name' => $collaborator->user->nameWithoutContact(),
                             // Collaborator email is private team data — only surface it to
                             // authenticated viewers (agent dashboard), never on the public
                             // property page which eager-loads `collaborators.user`.
@@ -237,6 +243,25 @@ class PropertyResource extends BaseResource
                         ]
                         : null,
                 ])->values()->all()
+            ),
+            // TCK-999 (P15.06, Q5) — la fiche pro offre « Changer le titulaire » à qui le geste est
+            // permis (`PropertyPolicy::transferOwner`) sur un bien que le personnel tient encore : la
+            // même règle que l'API applique au geste (`PropertyOwnerTransfer::refus`, hors cible).
+            'abilities' => $this->when(
+                $isDetail && $appelantConnu,
+                fn (): array => [
+                    'transfer_owner' => $request->user()->can('transferOwner', $this->resource)
+                        && ! TitulaireALaSaisie::tenuParUnBailleur($this->resource),
+                ],
+            ),
+            // TCK-1000 (P15.06, Q2) — « En attente de <nom> » : le bailleur invité pour qui le bien a
+            // été saisi, lu par le personnel de l'agence du bien seulement (jamais un autre bailleur).
+            'pending_owner' => $this->when(
+                $isDetail && $appelantConnu && $this->resource->getAttribute('pending_owner_profile_id') !== null
+                    && $this->lePersonnelLit($request->user()),
+                fn (): ?array => ($profil = $this->resource->pendingOwnerProfile) !== null
+                    ? ['profile_id' => (int) $profil->id, 'name' => $profil->display_name]
+                    : null,
             ),
             'agency' => $this->when(
                 $isDetail || $this->resource->relationLoaded('agency'),
@@ -353,6 +378,15 @@ class PropertyResource extends BaseResource
             ?? $user->isAgentAt((int) $agencyId);
     }
 
+    /** TCK-1000 — le personnel actif de l'agence du bien, ou le super-admin. */
+    private function lePersonnelLit(User $user): bool
+    {
+        $agencyId = $this->resource->getAttribute('agency_id');
+
+        return $user->isSuperAdmin()
+            || ($agencyId !== null && app(MembershipCapabilityResolver::class)->isStaffAt($user, (int) $agencyId));
+    }
+
     /**
      * @return array<string, mixed>|null
      */
@@ -405,7 +439,8 @@ class PropertyResource extends BaseResource
     {
         return [
             'id' => $user->id,
-            'name' => trim($user->first_name.' '.$user->last_name) ?: $user->username,
+            // P235.02 (TCK-2369) — nom, puis `username`, puis « — » : jamais `''` ni `null` pour un compte sans nom.
+            'name' => $user->nameWithoutContact(),
             // TCK-177 — used to link the contact card to /agents/[slug].
             'slug' => $user->username,
             'avatar_url' => $user->avatarUrl(),
@@ -463,7 +498,9 @@ class PropertyResource extends BaseResource
             ->filter(fn (Document $doc) => (bool) data_get($doc->metadata, 'public', false))
             ->values()
             ->map(function (Document $doc) {
-                $media = $doc->getFirstMedia('file');
+                // TCK-2300 (P231.02) — la version active : une nouvelle version d'un document public
+                // devient publique aussitôt.
+                $media = $doc->currentFile();
 
                 return [
                     'id' => $doc->id,

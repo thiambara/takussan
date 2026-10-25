@@ -64,6 +64,12 @@ enum Capability: string
     case PaymentsRecord = 'payments.record';
     case PaymentsRefund = 'payments.refund';
     case PaymentsExport = 'payments.export';
+    // TCK-2260 (P116.07, ADR-0003, amendement du 2026-10-24) — le rapprochement bancaire : relevés,
+    // lignes, mapping CSV, clôture. Accordée à l'admin par `agencyAssignable()` ; l'agent système ne
+    // la reçoit pas (`payments.record`, qu'il tient, aurait ouvert à chaque agent les relevés de
+    // toute l'agence). Les rôles personnalisés de base `agency_admin` la reçoivent par la migration
+    // `2026_10_24_170000`, les rôles système par `membership:reconcile-system-roles`.
+    case PaymentsReconcile = 'payments.reconcile';
 
     // invoices.*
     case InvoicesCreate = 'invoices.create';

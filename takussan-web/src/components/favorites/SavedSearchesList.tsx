@@ -16,6 +16,7 @@ import {
 import { EmptyState, ErrorState } from '@/components/feedback';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button, buttonVariants } from '@/components/ui/button';
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import { filtersFromSearchParams } from '@/hooks/useSearch';
 import { puceDeChaqueFiltreActif, type TraducteursDeFiltre } from '@/types/search';
 import { ESPACE_DU_CATALOGUE } from '@/lib/libelle-equipement';
@@ -136,10 +137,13 @@ function SavedSearchRow({
   search,
   onDelete,
   deleting,
+  deleteError,
 }: {
   search: SavedSearch;
   onDelete: (id: number) => void;
   deleting: boolean;
+  /** P210.03 (TCK-2084) — le refus de la suppression, déjà traduit, montré sur la ligne. */
+  deleteError: string | null;
 }) {
   const t = useTranslations('search.saved');
   const tCatalogue = useTranslations(ESPACE_DU_CATALOGUE);
@@ -170,6 +174,11 @@ function SavedSearchRow({
           {humaniseCriteria(search.criteria, t('noCriteria'), trads)}
         </p>
         <AlertSetting search={search} />
+        {deleteError ? (
+          <p className="mt-2 text-xs text-destructive" role="alert">
+            {deleteError}
+          </p>
+        ) : null}
       </div>
       <div className="flex items-center gap-2">
         <LienLocalise
@@ -204,6 +213,9 @@ export function SavedSearchesList() {
   const query = useSavedSearchesQuery();
   const remove = useDeleteSavedSearchMutation();
   const [pendingId, setPendingId] = useState<number | null>(null);
+  const messageErreur = useMessageErreurApi();
+  // P210.03 (TCK-2084) — la suppression qui échoue se dit sur SA ligne (ADR-0019), qui reste.
+  const [erreurSuppression, setErreurSuppression] = useState<{ id: number; message: string } | null>(null);
 
   if (query.isLoading) {
     return (
@@ -243,8 +255,11 @@ export function SavedSearchesList() {
 
   async function handleDelete(id: number) {
     setPendingId(id);
+    setErreurSuppression(null);
     try {
       await remove.mutateAsync({ id });
+    } catch (erreur) {
+      setErreurSuppression({ id, message: messageErreur(erreur) });
     } finally {
       setPendingId((current) => (current === id ? null : current));
     }
@@ -256,8 +271,9 @@ export function SavedSearchesList() {
         <SavedSearchRow
           key={s.id}
           search={s}
-          onDelete={handleDelete}
+          onDelete={(id) => void handleDelete(id)}
           deleting={pendingId === s.id && remove.isPending}
+          deleteError={erreurSuppression?.id === s.id ? erreurSuppression.message : null}
         />
       ))}
     </div>

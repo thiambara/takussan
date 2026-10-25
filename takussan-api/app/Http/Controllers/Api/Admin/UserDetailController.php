@@ -13,6 +13,7 @@ use App\Services\Privacy\PersonalDataAccessLogger;
 use App\Sorts\CollatedNameSort;
 use App\Support\Audit\PropertyRedactor;
 use App\Support\CaseInsensitive;
+use App\Support\Http\ParametreUnique;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -27,7 +28,7 @@ class UserDetailController extends Controller
     {
         $query = User::query();
 
-        if ($search = $request->string('filter.search')->trim()->value()) {
+        if ($search = $this->chaine($request, 'filter.search')) {
             $query->where(function (Builder $q) use ($search): void {
                 if (ctype_digit($search)) {
                     $q->orWhere('id', (int) $search);
@@ -43,11 +44,11 @@ class UserDetailController extends Controller
             });
         }
 
-        if ($status = $request->string('filter.status')->trim()->value()) {
+        if ($status = $this->chaine($request, 'filter.status')) {
             $query->where('status', $status);
         }
 
-        if ($role = $request->string('filter.role')->trim()->value()) {
+        if ($role = $this->chaine($request, 'filter.role')) {
             // TCK-278 — Le rôle est matérialisé par les profils polymorphes
             // (cf. Règle 5). Filtrer via les relations correspondantes.
             match ($role) {
@@ -68,7 +69,7 @@ class UserDetailController extends Controller
             };
         }
 
-        if ($agencyId = $request->string('filter.agency_id')->trim()->value()) {
+        if ($agencyId = $this->chaine($request, 'filter.agency_id')) {
             // P119.01 (TCK-1269) — la portée commune des trois listes de membres : l'administrateur
             // d'agence sans profil d'agent ni de bailleur y figure (TCK-277, TCK-1244).
             // P119.03 (TCK-1273) — une valeur non numérique rend 400, plus 500.
@@ -86,7 +87,7 @@ class UserDetailController extends Controller
             $query->where('two_factor_enabled', $this->booleanFilter($request->query('filter')['two_factor_enabled'] ?? null));
         }
 
-        $sort = (string) $request->query('sort', '-created_at');
+        $sort = $this->chaine($request, 'sort', '-created_at');
         $direction = str_starts_with($sort, '-') ? 'desc' : 'asc';
         $field = ltrim($sort, '-');
         $sorts = ['created_at', 'first_name', 'last_name', 'email', 'status', 'last_login_at'];
@@ -237,6 +238,18 @@ class UserDetailController extends Controller
 
             $user->admin_role_rows = $rows;
         });
+    }
+
+    /**
+     * P216.01 (TCK-2120) — une valeur en liste est lue comme une valeur absente (TCK-1407,
+     * TCK-1866), et non castée : `$request->string()` rendait 500 « Array to string conversion ».
+     */
+    private function chaine(Request $request, string $cle, string $defaut = ''): string
+    {
+        $valeur = $request->input($cle, $defaut);
+
+        // ADR-0075 — une liste vaut le défaut ; une chaîne vide (devenue `null`) reste vide.
+        return $valeur === null ? '' : trim(ParametreUnique::valeur($valeur) ?? $defaut);
     }
 
     private function booleanFilter(mixed $value): bool

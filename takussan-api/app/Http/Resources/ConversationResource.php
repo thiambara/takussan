@@ -73,7 +73,10 @@ class ConversationResource extends BaseResource
                     'left_at' => $this->iso($user->pivot?->left_at),
                     'user' => [
                         'id' => $user->id,
-                        'full_name' => $user->full_name,
+                        // TCK-2132 (P220.01) — le nom montré aux autres participants : prénom
+                        // et nom, puis `username`, puis « — » (`nameWithoutContact()`, TCK-815),
+                        // jamais `''` pour un compte créé par téléphone.
+                        'full_name' => $user->nameWithoutContact(),
                         'avatar_url' => $user->avatarUrl(),
                     ],
                 ])

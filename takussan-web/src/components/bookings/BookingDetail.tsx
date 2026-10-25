@@ -14,7 +14,7 @@ import { formatCurrency, formatDate, formatDateTime } from '@/lib/format';
 import { ErrorState } from '@/components/feedback';
 import { ApiError } from '@/lib/api';
 import { StatusBadge } from '@/components/console';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Dialog,
@@ -29,7 +29,8 @@ import { useToast } from '@/components/ui/toast';
 import { useAuth } from '@/context/AuthContext';
 import { useCanAll } from '@/hooks/useCan';
 import { isAgent, isAdmin, isOwner } from '@/lib/roles';
-import { formatISODate } from '@/lib/calendar-date';
+import { jourDeLApi } from '@/lib/jour-de-l-api';
+import { cn } from '@/lib/utils';
 import type { Locale } from '@/i18n/config';
 import type { Booking, BookingPayment, BookingPaymentStatus } from '@/types/booking';
 import {
@@ -55,6 +56,7 @@ import type { GatewayProvider } from '@/hooks/useInitiatePayment';
 const CAPABILITY_VALIDATE = ['bookings.validate'] as const;
 const CAPABILITY_CANCEL = ['bookings.cancel'] as const;
 const CAPABILITY_RECORD_PAYMENT = ['payments.record'] as const;
+const CAPABILITY_CREATE_LEASE = ['leases.create'] as const;
 
 /**
  * TCK-292 — les tables ci-dessous transportent la CLÉ (relative au namespace `bookings`), le
@@ -150,6 +152,9 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
   const { can: canRecordPayments } = useCanAll(CAPABILITY_RECORD_PAYMENT, {
     enabled: isDashboardAgent,
   });
+  const { can: canCreateLeases } = useCanAll(CAPABILITY_CREATE_LEASE, {
+    enabled: isDashboardAgent,
+  });
   const toast = useToast();
 
   if (isLoading) {
@@ -188,11 +193,12 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
     isDashboardAgent && (capabilitiesLoading ? true : granted);
 
   // TCK-1301 (P115.01) — un séjour confirmé dont le premier jour est arrivé ne
-  // s'annule plus : l'API le refuse (`booking.cannot_cancel`).
+  // s'annule plus : l'API le refuse (`booking.cannot_cancel`). Le premier jour se juge sur le
+  // jour de l'API, en UTC, pas sur celui du navigateur (P212.02).
   const stayStarted =
     booking.status === 'confirmed' &&
     !!booking.start_date &&
-    booking.start_date.slice(0, 10) <= formatISODate(new Date());
+    booking.start_date.slice(0, 10) <= jourDeLApi();
   const canCancel =
     (isCustomer || staffMay(canCancelBookings)) &&
     (booking.status === 'pending' || booking.status === 'confirmed') &&
@@ -200,6 +206,12 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
   const canConfirm = staffMay(canValidateBookings) && booking.status === 'pending';
   const canReject = staffMay(canValidateBookings) && booking.status === 'pending';
   const canRegisterPayment = staffMay(canRecordPayments);
+  // P48.03 (TCK-2352) — la candidature acceptée d'un bien à louer mène au bail prérempli. L'API
+  // vérifie que le locataire est le client de la réservation, et la passe à `completed`.
+  const canCreateLease =
+    staffMay(canCreateLeases) &&
+    booking.status === 'confirmed' &&
+    booking.property?.contract_type === 'rent';
 
   return (
     <div className="space-y-6">
@@ -243,6 +255,14 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
             >
               {t('actions.reject')}
             </Button>
+          )}
+          {canCreateLease && (
+            <Link
+              href={`/app/leases/new?booking_id=${booking.id}`}
+              className={cn(buttonVariants(), 'h-10 sm:h-8')}
+            >
+              {t('actions.createLease')}
+            </Link>
           )}
           {canRegisterPayment && (
             <Button variant="outline" className="h-10 sm:h-8" onClick={() => setPaymentOpen(true)}>
@@ -547,6 +567,10 @@ function CustomerPayCta({
 }) {
   const t = useTranslations('bookings.detail');
   const createPayment = useCreateBookingPayment(bookingId);
+  const messageErreur = useMessageErreurApi();
+  // P210.02 (TCK-2082) — le refus de l'API (422 `booking_payment.nothing_due` quand le paiement a
+  // été acquitté pendant que la fiche montrait encore le bouton) se dit sous le bouton (ADR-0019).
+  const [erreur, setErreur] = useState<string | null>(null);
   const payments = booking.booking_payments ?? [];
   const hasPending = payments.some((p) => p.status === 'pending');
 
@@ -571,7 +595,12 @@ function CustomerPayCta({
   // TCK-1309 (P133.05) — le montant et sa nature sont dérivés par l'API (acompte, puis reste
   // dû) : le calcul ci-dessus ne sert plus qu'au libellé.
   async function handleClick() {
-    await createPayment.mutateAsync({ status: 'pending' });
+    setErreur(null);
+    try {
+      await createPayment.mutateAsync({ status: 'pending' });
+    } catch (e) {
+      setErreur(messageErreur(e));
+    }
   }
 
   return (
@@ -582,13 +611,18 @@ function CustomerPayCta({
           <p className="mt-1 text-xs text-muted-foreground">{t('payCta.notice')}</p>
         </div>
         <Button
-          onClick={handleClick}
+          onClick={() => void handleClick()}
           disabled={createPayment.isPending}
           className="h-10 w-full sm:h-8 sm:w-auto"
         >
           {label}
         </Button>
       </div>
+      {erreur ? (
+        <p role="alert" className="mt-3 text-sm text-destructive">
+          {erreur}
+        </p>
+      ) : null}
     </section>
   );
 }

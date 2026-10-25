@@ -145,6 +145,42 @@ class Document extends AbstractModel implements HasMedia
             ->first(fn (Media $m) => (bool) $m->getCustomProperty('is_active', false));
     }
 
+    /**
+     * TCK-2300 (P231.02) — le fichier qui fait foi : la version active de `versions` (TCK-097),
+     * sinon le fichier d'origine `file`. Tout lecteur qui sert le fichier passe par ici : le lien de
+     * partage, la page publique d'un bien, `file_url` de la fiche et la revue des demandes d'agence
+     * servaient `file` après une nouvelle version.
+     *
+     * Lu sur la relation `media`, chargée une fois pour les deux collections, comme `getFirstMedia`.
+     */
+    public function currentFile(): ?Media
+    {
+        return $this->getMedia('versions')->first(fn (Media $m) => (bool) $m->getCustomProperty('is_active', false))
+            ?? $this->getFirstMedia('file');
+    }
+
+    /**
+     * TCK-1063 (P64.04), TCK-2300 (P231.03) — le fichier vérifié est remplacé : `Document` n'étant
+     * pas journalisé, qui l'avait vérifié, et quand, s'écrit au journal d'audit avant d'être
+     * effacé. Rien n'est écrit pour une pièce qui n'était pas vérifiée.
+     */
+    public function logVerificationReset(User $actor): void
+    {
+        if (! $this->is_verified && $this->verified_by === null) {
+            return;
+        }
+
+        activity('Document')
+            ->performedOn($this)
+            ->causedBy($actor)
+            ->event('document_verification_reset')
+            ->withProperties([
+                'verified_by' => $this->verified_by,
+                'verified_at' => $this->verified_at?->toIso8601String(),
+            ])
+            ->log('document_verification_reset');
+    }
+
     public function documentable(): MorphTo
     {
         return $this->morphTo();

@@ -15,6 +15,7 @@ use App\Services\Membership\AdminsDeLAgence;
 use App\Services\Model\NotificationService;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class KycWorkflowService
@@ -93,86 +94,112 @@ class KycWorkflowService
         return $dates->isEmpty() ? null : $dates->sort()->first();
     }
 
+    /**
+     * P211.01 (TCK-2105) — `submit`, `verify` et `reject` relisent le dossier sous verrou dans une
+     * transaction, et y jugent leur garde : jugée sur le modèle lié à la route, deux super-admins
+     * qui tranchaient ensemble passaient tous deux, et laissaient un dossier `rejected` derrière une
+     * agence vérifiée. L'écriture de l'agence est dans la même transaction ; l'avis part après.
+     */
     public function submit(KycDossier $dossier, User $actor): KycDossier
     {
-        $this->assertNotVerified($dossier);
-        $this->assertRequiredDocuments($dossier);
+        $locked = DB::transaction(function () use ($dossier, $actor): KycDossier {
+            $locked = $this->lock($dossier);
+            $this->assertNotVerified($locked);
+            $this->assertRequiredDocuments($locked);
 
-        $dossier->update([
-            'status' => KycDossierStatus::Submitted,
-            'submitted_at' => now(),
-            'rejection_reason' => null,
-        ]);
+            $locked->update([
+                'status' => KycDossierStatus::Submitted,
+                'submitted_at' => now(),
+                'rejection_reason' => null,
+            ]);
 
-        activity('KYC')
-            ->causedBy($actor)
-            ->performedOn($dossier)
-            ->event('kyc_submitted')
-            ->log('Dossier KYC soumis');
+            activity('KYC')
+                ->causedBy($actor)
+                ->performedOn($locked)
+                ->event('kyc_submitted')
+                ->log('Dossier KYC soumis');
 
-        $this->notifySubmitted($dossier);
+            return $locked;
+        });
 
-        return $dossier->refresh();
+        $this->notifySubmitted($locked);
+
+        return $locked->refresh();
     }
 
     public function verify(KycDossier $dossier, User $actor): KycDossier
     {
-        $this->assertTransitionable($dossier);
-        $this->assertRequiredDocuments($dossier);
+        $locked = DB::transaction(function () use ($dossier, $actor): KycDossier {
+            $locked = $this->lock($dossier);
+            $this->assertTransitionable($locked);
+            $this->assertRequiredDocuments($locked);
 
-        $metadata = $dossier->metadata ?? [];
-        // Une nouvelle vérification ouvre une nouvelle échéance : ses relances repartent de zéro.
-        unset($metadata['expiry_reminders'], $metadata['expired_at']);
+            $metadata = $locked->metadata ?? [];
+            // Une nouvelle vérification ouvre une nouvelle échéance : ses relances repartent de zéro.
+            unset($metadata['expiry_reminders'], $metadata['expired_at']);
 
-        $dossier->update([
-            'status' => KycDossierStatus::Verified,
-            'reviewed_at' => now(),
-            'reviewed_by' => $actor->id,
-            'rejection_reason' => null,
-            'expires_at' => $this->expiryOf($dossier),
-            'metadata' => $metadata,
-        ]);
-
-        if ($dossier->subject instanceof Agency) {
-            $dossier->subject->update([
-                'status' => AgencyStatus::Active,
-                'is_verified' => true,
-                'verified_at' => now(),
+            $locked->update([
+                'status' => KycDossierStatus::Verified,
+                'reviewed_at' => now(),
+                'reviewed_by' => $actor->id,
+                'rejection_reason' => null,
+                'expires_at' => $this->expiryOf($locked),
+                'metadata' => $metadata,
             ]);
-        }
 
-        activity('KYC')
-            ->causedBy($actor)
-            ->performedOn($dossier)
-            ->event('kyc_verified')
-            ->log('Dossier KYC vérifié');
+            if ($locked->subject instanceof Agency) {
+                $locked->subject->update([
+                    'status' => AgencyStatus::Active,
+                    'is_verified' => true,
+                    'verified_at' => now(),
+                ]);
+            }
 
-        $this->notifyReviewed($dossier, verified: true);
+            activity('KYC')
+                ->causedBy($actor)
+                ->performedOn($locked)
+                ->event('kyc_verified')
+                ->log('Dossier KYC vérifié');
 
-        return $dossier->refresh();
+            return $locked;
+        });
+
+        $this->notifyReviewed($locked, verified: true);
+
+        return $locked->refresh();
     }
 
     public function reject(KycDossier $dossier, User $actor, string $reason): KycDossier
     {
-        $this->assertTransitionable($dossier);
+        $locked = DB::transaction(function () use ($dossier, $actor, $reason): KycDossier {
+            $locked = $this->lock($dossier);
+            $this->assertTransitionable($locked);
 
-        $dossier->update([
-            'status' => KycDossierStatus::Rejected,
-            'reviewed_at' => now(),
-            'reviewed_by' => $actor->id,
-            'rejection_reason' => $reason,
-        ]);
+            $locked->update([
+                'status' => KycDossierStatus::Rejected,
+                'reviewed_at' => now(),
+                'reviewed_by' => $actor->id,
+                'rejection_reason' => $reason,
+            ]);
 
-        activity('KYC')
-            ->causedBy($actor)
-            ->performedOn($dossier)
-            ->event('kyc_rejected')
-            ->withProperties(['reason' => $reason])
-            ->log('Dossier KYC rejeté');
+            activity('KYC')
+                ->causedBy($actor)
+                ->performedOn($locked)
+                ->event('kyc_rejected')
+                ->withProperties(['reason' => $reason])
+                ->log('Dossier KYC rejeté');
 
-        $this->notifyReviewed($dossier, verified: false);
+            return $locked;
+        });
 
-        return $dossier->refresh();
+        $this->notifyReviewed($locked, verified: false);
+
+        return $locked->refresh();
+    }
+
+    private function lock(KycDossier $dossier): KycDossier
+    {
+        return KycDossier::query()->whereKey($dossier->getKey())->lockForUpdate()->firstOrFail();
     }
 
     private function assertNotVerified(KycDossier $dossier): void

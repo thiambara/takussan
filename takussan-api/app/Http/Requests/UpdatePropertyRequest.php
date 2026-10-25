@@ -44,10 +44,8 @@ class UpdatePropertyRequest extends BaseFormRequest
 
         // P147.01 (TCK-1427) — la règle de `PUT …/status` (TCK-587) : un statut qui met au
         // catalogue, ou `visibility=public`, c'est publier. Le `PATCH` le faisait sans `publish`.
-        $publie = in_array($this->input('status'), UpdateStatusPropertyRequest::STATUTS_QUI_PUBLIENT, true)
-            || $this->input('visibility') === PropertyVisibility::Public->value;
-
-        return ! $publie || $this->user()->can('publish', $bien);
+        return ! UpdateStatusPropertyRequest::publie($this->input('status'), $this->input('visibility'))
+            || $this->user()->can('publish', $bien);
     }
 
     public function rules(): array

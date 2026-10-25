@@ -105,6 +105,16 @@ export interface AgencyRoleAssignment {
   readonly user_id: number;
   readonly agency_role_id: number;
   readonly agency_role_name: string | null;
+  /**
+   * TCK-2364 (P241.02) — sur la ligne d'un profil `agent` seulement : son taux de commission, en
+   * pourcentage, ou `null` (taux nul).
+   */
+  readonly commission_rate?: number | null;
+}
+
+/** TCK-2364 — corps de `PATCH /api/profiles/{agent_profile}/commission-rate`. */
+export interface SetAgentCommissionRateInput {
+  readonly commission_rate: number | null;
 }
 
 /** Profil bloquant la suppression d'un rôle — corps du 409. */

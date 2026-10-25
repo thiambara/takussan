@@ -197,7 +197,8 @@ function tilesOf(
       key: 'publishedProperties',
       label: t('publishedProperties'),
       value: fmt.nombre(m.properties.published),
-      href: '/super-admin/properties?filter[status]=published',
+      // P167.07 (TCK-2087) — la tuile compte `Property::public()` : sa liste lit le même prédicat.
+      href: '/super-admin/properties?filter[public]=1',
     },
     {
       key: 'pendingReview',

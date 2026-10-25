@@ -28,6 +28,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { isAgencyAdmin, isAgent, isOwner, isServiceProvider } from '@/lib/roles';
 import { formatDate } from '@/lib/format';
+import { REVIEW_CONTENT_MAX, REVIEW_REPLY_MAX } from '@/lib/review-limits';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import type { UserRole } from '@/types/user';
 import type { Locale } from '@/i18n/config';
@@ -190,9 +191,13 @@ function OpportunityForm({ group }: { readonly group: OpportunityGroup }) {
   const [ratings, setRatings] = useState<Record<string, number>>({});
   const [contents, setContents] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
+  // P201.04 (TCK-2039) — les cibles déjà enregistrées quand un dépôt suivant échoue.
+  const [sent, setSent] = useState<string[]>([]);
   const idPrefix = useId();
 
   const keyOf = (item: ReviewOpportunity) => `${item.type}:${item.subject.id}`;
+  const targetLabel = (item: ReviewOpportunity) =>
+    `${t(`targets.${item.type}`)}${item.subject.title ? ` · ${item.subject.title}` : ''}`;
   const rated = group.items.filter((item) => (ratings[keyOf(item)] ?? 0) > 0);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -202,6 +207,8 @@ function OpportunityForm({ group }: { readonly group: OpportunityGroup }) {
       return;
     }
     setError(null);
+    setSent([]);
+    const done: string[] = [];
     try {
       // Un avis par cible notée : le bien et l'agent sont deux sujets, deux modérations.
       for (const item of rated) {
@@ -210,9 +217,11 @@ function OpportunityForm({ group }: { readonly group: OpportunityGroup }) {
           rating: ratings[keyOf(item)]!,
           content: contents[keyOf(item)]?.trim() || undefined,
         });
+        done.push(targetLabel(item));
       }
       toast.add({ title: t('opportunitySentTitle'), description: t('opportunitySentBody'), type: 'success' });
     } catch (err) {
+      setSent(done);
       setError(messageErreur(err, t('opportunityError')));
     }
   }
@@ -248,13 +257,20 @@ function OpportunityForm({ group }: { readonly group: OpportunityGroup }) {
                 value={contents[key] ?? ''}
                 onChange={(e) => setContents((c) => ({ ...c, [key]: e.target.value }))}
                 rows={2}
-                maxLength={2000}
+                maxLength={REVIEW_CONTENT_MAX}
               />
             </label>
           </fieldset>
         );
       })}
-      {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
+      {error ? (
+        <div role="alert" className="space-y-1 text-sm text-destructive">
+          <p>{error}</p>
+          {sent.length > 0 ? (
+            <p>{t('opportunityPartiallySent', { targets: sent.join(', ') })}</p>
+          ) : null}
+        </div>
+      ) : null}
       <div className="flex justify-end">
         <Button type="submit" size="sm" disabled={postReview.isPending}>
           <Star aria-hidden="true" />
@@ -539,7 +555,7 @@ function ReceivedReviewCard({ review }: { readonly review: Review }) {
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             rows={3}
-            maxLength={2000}
+            maxLength={REVIEW_REPLY_MAX}
             aria-invalid={error ? true : undefined}
             aria-describedby={error ? `${fieldId}-error` : undefined}
             autoFocus

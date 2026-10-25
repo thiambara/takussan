@@ -1,6 +1,9 @@
 # ADR-0031 — Le personnel de l'agence et le cloisonnement des bailleurs ; capacités sans lecteur
 
-- **Statut** : Accepté
+- **Statut** : Accepté, **amendé le 2026-10-24** (cf. § *Amendement du 2026-10-24 — délégations,
+  colonnes d'auteur, colonnes de bailleur*) et **le 2026-10-25** (cf. § *Amendement du 2026-10-25 —
+  l'accès suit l'appartenance*, et § *Amendement du 2026-10-25 — le contact d'un bail ou d'une
+  réservation est une fiche de l'agence du bien*)
 - **Date** : 2026-10-07
 - **Tickets** : [TCK-587](../backlog/tickets/TCK-587-cloisonnement-bailleurs-capacites-jamais-lues.md)
 - **Précise** : le principe non négociable n° 2 (« l'agence est la frontière d'isolation »),
@@ -44,12 +47,14 @@ Est **personnel** de l'agence *A* l'utilisateur qui, *A* étant l'agence de son 
 (contrat de TCK-146 : `User::$agency_id`, profil actif puis auto-bascule), y détient :
 
 - un `AgentProfile` ou un `AgencyAdminProfile` **actif** (`scopeActive`) ; **ou**
-- une `RoleDelegation` **active** (`RoleDelegation::scopeActive`) de rôle `agent` ou `agency_admin`
-  dans *A*.
+- une `RoleDelegation` **en vigueur** (`RoleDelegation::scopeEnVigueur`) de rôle `agent` ou
+  `agency_admin` dans *A*.
 
 La délégation compte : sans elle, une délégation `agent` conférerait des capacités (TCK-395) que
 le périmètre rendrait inutilisables. Ce n'est pas un élargissement : une délégation n'a d'effet que
-dans l'agence d'un profil que le délégué y possède déjà.
+dans l'agence d'un profil **actif** que le délégué y possède déjà. *Amendé le 2026-10-24 : la
+version d'origine disait « une délégation active (`scopeActive`) » et « un profil que le délégué y
+possède », sans condition de statut ; voir l'amendement, § A.*
 
 Le prédicat s'écrit **une fois** : `MembershipCapabilityResolver::staffAgencyId(User): ?int`, qui
 rend l'agence du profil actif si l'utilisateur y est personnel, sinon `null` ; `User::staffAgencyId()`
@@ -176,3 +181,561 @@ leur réserve.
   toutes deux auto-éprouvées à chaque invocation.
 - Tests : `OwnerIsolationWithinAgencyTest`, `InactiveProfileGrantsNothingTest`,
   `BranchedCapabilitiesTest`, `StaffAgencyIdTest`.
+
+## Amendement du 2026-10-24 — délégations, colonnes d'auteur, colonnes de bailleur
+
+Décisions du porteur du 2026-10-24 sur les angles 217 et 218 du fichier de pistes
+(`docs/plans/2026-10-15-pistes-d-amelioration.md`). Relevé sur `54f0f14b4`.
+
+Les trois parties ont une même cause. Un membre suspendu (`TeamMemberSuspensionService`) ou retiré
+(`AgencyMemberRemovalService`) n'est plus personnel au sens du § 1. Pourtant, il garde ce qu'une
+autre voie lui ouvre : sa délégation, la colonne qui le nomme auteur d'une ligne, ou la colonne de
+bailleur que la saisie d'un bien lui a donnée.
+
+### A. Une délégation ne confère rien à un délégué sans profil actif (P218.01, P218.02, P218.05 b)
+
+**Constat.**
+
+- Le § 3 dit qu'un profil non actif ne confère rien, mais aucun lecteur des délégations ne regarde
+  les profils du délégué.
+- La suspension ne touche que les profils, et ses délégations restent `active`. Le retrait, lui,
+  les révoque (`AgencyMemberRemovalService.php:93-98`).
+- Les lecteurs qui confèrent un droit à partir d'une délégation sont les suivants. Les deux derniers
+  points vont hors du résolveur :
+  - **le résolveur** `MembershipCapabilityResolver` :
+    - `loadActiveDelegations` (l. 330-338), qui alimente les capacités (`delegationAllows`,
+      l. 251) ;
+    - la branche délégation d'`isStaffAt` (l. 486-491), donc aussi `staffAgencyId()`,
+      `isMemberAt()` et `memberAgencyIds()` ;
+    - l'amorce `primed` (l. 525-527) ;
+    - `staffAgencyIds` (l. 588-592) ;
+  - **`ContactLeadService::delegues`** (l. 117-131). Il range les délégués parmi les destinataires
+    d'une demande de contact, filtrés par `joignable` seul : **un agent suspendu reçoit les
+    demandes** ;
+  - **`PayoutApprovers::holders`** (l. 36-39). Les délégués y sont des candidats, filtrés ensuite
+    par le résolveur : **un agent suspendu délégué approuve un reversement** ;
+  - **`AgentAvailability`** (l. 31, 49, 68). Il lit les absences, puis juge le remplaçant par
+    `isStaffAt`.
+- `RoleDelegationService::create` (l. 72-77) accepte un délégué par `hasProfileAt`, sans filtre de
+  statut. `ProcessRoleDelegationsJob` (l. 20-21) active une délégation planifiée sans juger le
+  délégué.
+
+**Décision (voie « lecture », option a de P218.01).**
+
+1. **Une délégation est en vigueur** si elle est `active()` et si, dans l'agence de la délégation,
+   son délégué détient un profil d'agence **actif** : `AgentProfile`, `AgencyAdminProfile` ou
+   `OwnerProfile`, selon le `scopeActive` de chacun. La règle s'écrit **une fois** :
+   `RoleDelegation::scopeEnVigueur()`.
+2. **Tout site qui confère un droit à partir d'une délégation lit `enVigueur()`** :
+   - les quatre sites du résolveur ;
+   - `ContactLeadService::delegues` ;
+   - `PayoutApprovers::holders`. Le résolveur le couvrirait déjà, mais la règle n'a qu'une
+     écriture ;
+   - les trois lectures d'`AgentAvailability`.
+
+   Les sites qui ne font que rassembler des agences candidates et laissent `isStaffAt` trancher
+   n'ont rien à changer : `ProviderEligibility::staffAgencyIds` (l. 83) et
+   `TwoFactorRequirement::requiredAtAgency` (l. 43).
+3. **`active()` reste la règle du cycle de vie** : liste et état des délégations
+   (`RoleDelegationController`), activation et expiration (`ProcessRoleDelegationsJob`), révocation
+   au retrait, chevauchement des absences (`AgentAbsenceService`, l. 63), et
+   `HasProfiles::hasActiveAgencyDelegation`. Ce dernier n'a aucun appelant de production : il sert
+   aux tests qui distinguent « la ligne est active » de « le privilège est ouvert ».
+4. **La réactivation rend la délégation sans geste de plus.** La suspension ne touche pas la
+   délégation, et sa fenêtre court toujours. Si elle échoit pendant la suspension, le job l'expire
+   comme les autres.
+5. **Créer une délégation vers un délégué sans profil actif reste permis** (option a de P218.02).
+   La délégation est inerte jusqu'au retour du délégué, selon le § 3. Une délégation planifiée
+   pendant une suspension peut donc préparer un retour. `RoleDelegationService::create` garde
+   `hasProfileAt`, un test d'**appartenance** au sens du § 3, et son commentaire le dit en citant ce
+   paragraphe. **P218.05 b** (le job active une délégation planifiée vers un délégué suspendu) n'a
+   rien de propre : la délégation activée reste inerte.
+
+Le § 1 est amendé en conséquence (« en vigueur », « un profil **actif** que le délégué y possède »).
+
+### B. L'auteur d'une ligne n'en garde que ce que son appartenance lui laisse (P218.03, P218.04, P218.05 a, garants de P217.05)
+
+**Constat.** Plusieurs policies ont une branche « auteur » sans condition d'appartenance. Un agent
+suspendu ou retiré lit et modifie donc ce qu'il a saisi :
+
+- `InvoicePolicy` : `view` (l. 39) et `update` (l. 56), sur `issued_by_id` ;
+- `PayoutPolicy::view` (l. 41), sur `issued_by_id` ;
+- `BookingPolicy::view` (l. 37), sur `created_by_id` ;
+- `InventoryPolicy` : `view` (l. 32), sur `conducted_by`, et `update` (l. 56), où
+  `landlordWrites(conducted_by)` laisse passer l'agent pur ;
+- `InvitationPolicy::view` (l. 66), sur `invited_by` ;
+- `GuarantorPolicy::view` (l. 32), sur `added_by_id`. `update` et `delete` s'en remettent à `view` :
+  l'agent qui a saisi des garants lit, modifie et supprime leurs nom, téléphone et courriel.
+
+Les listes reprennent les mêmes branches : `InvoiceController.php:26`, `PayoutController.php:32`,
+`BookingController.php:30`, `InventoryController.php:47` et `GuarantorController.php:25`.
+
+`CustomerPolicy` a déjà la règle depuis TCK-591 : `isAuthorStillMember` (l. 43-48).
+
+**Décision : une règle d'auteur.**
+
+1. **La branche « auteur d'une ligne » d'une policy ne vaut que si la ligne est sans agence, ou si
+   l'auteur est encore membre de l'agence de la ligne.** Une colonne d'auteur nomme qui a créé,
+   émis, conduit, ajouté ou invité : `issued_by_id`, `created_by_id`, `conducted_by`,
+   `added_by_id`, `invited_by`. Est membre celui que `MembershipCapabilityResolver::isMemberAt`
+   reconnaît : personnel actif au sens du § 1, ou bailleur à profil actif.
+2. **La règle s'écrit une fois**, dans `BasePolicy`, à l'image de `BailleurDuBien::est`.
+   `CustomerPolicy::isAuthorStillMember` s'y rebranche. **Sa forme SQL borne les listes** : la
+   colonne d'auteur, et l'agence de la ligne nulle ou comprise dans `memberAgencyIds()`.
+3. **Exception : l'état des lieux** (`conducted_by`), selon la décision P190.05 :
+   - en **écriture**, il garde `landlordWrites` et y **ajoute** l'appartenance :
+     `landlordWrites(conducted_by, …)` et (agence nulle ou `isMemberAt`) ;
+   - en **lecture** et dans la **liste**, l'auteur garde la ligne si l'agence est nulle, s'il est
+     membre (`isMemberAt`), ou s'il détient dans l'agence un profil propriétaire **de tout
+     statut**. Le bailleur bloqué garde ainsi la lecture (§ 2).
+4. **Ce que la règle ne retire pas** :
+   - le bailleur **actif** garde la facture qu'il a émise (`DepositRefundService.php:111`) : il est
+     membre ;
+   - le client du tunnel public, `created_by_id` de sa réservation (`BookingService.php:126`), la
+     garde par la branche client de `BookingPolicy::view` (l. 40). Les documents de sa
+     réservation ne changent pas (point 7) ;
+   - l'émetteur actif d'une invitation garde « your pending invites ».
+5. **Limite actée** : un bailleur **bloqué** perd la lecture d'une facture qu'il a émise. Le cas est
+   rare (remboursement de dépôt), et `InvoicePolicy` n'a pas de branche bailleur qui la lui
+   rendrait.
+6. **Ordre** : la partie B suppose la partie A. Aujourd'hui, `isMemberAt` compte la délégation d'un
+   suspendu. Les deux se livrent ensemble, ou A d'abord.
+
+7. **`DocumentPolicy` sort de la règle pour l'instant** (décision du porteur du 2026-10-24, qui
+   retire ces branches à l'option a de P218.03). Rien n'y change :
+   - ni `uploaded_by` (`view` l. 48, `update` l. 78, `share` l. 100) ;
+   - ni les branches d'auteur de `reaches` : `created_by_id` d'une réservation (l. 192),
+     `added_by_id` d'une fiche client (l. 198), `conducted_by` d'un état des lieux (l. 213).
+
+   La raison : appliquer le point 1 tel quel retirerait des lectures légitimes que personne n'a
+   mesurées.
+   - Le client du tunnel public n'entre dans les documents de sa réservation que par
+     `created_by_id`, car `reaches` n'a pas de branche client pour une réservation (l. 189-195),
+     à la différence de `BookingPolicy::view` (l. 40).
+   - `uploaded_by` nomme aussi un locataire, un client ou un bailleur bloqué qui a joint une pièce.
+
+   Une piste à mesurer de l'angle 218 les reprend. La règle de cet amendement ne s'y appliquera
+   qu'après sa mesure et sa validation.
+
+   *Réserve levée par l'amendement du 2026-10-25 (D3, P218.06), après relevé par sonde.*
+
+### C. Les colonnes de bailleur suivent `BailleurDuBien` (P217.01 à P217.04)
+
+Le § 2 range parmi les colonnes qui désignent le bailleur `landlord_id` et `property.user_id`. Ces
+deux colonnes nomment aussi l'agent qui a saisi le bien (`PropertyController::store`), et
+`LeaseService::create` le recopie en `landlord_id`. L'angle 190 a tranché (porteur, 2026-10-23,
+P190.01 à P190.07, TCK-1718 et TCK-1926 à TCK-1932). Cet ADR ne l'écrivait pas encore :
+
+- **Une colonne de bailleur ne désigne son bailleur que selon `BailleurDuBien::est`** : la ligne est
+  sans agence, ou il détient un profil propriétaire dans l'agence, de tout statut. La règle vaut en
+  lecture. En écriture, c'est **`bailleurEcrit`**, qui refuse en plus le bailleur bloqué. Dans une
+  liste, c'est **`BailleurDuBien::restreindre`**.
+- L'agent qui a saisi le bien agit au titre du **personnel**, sous ses capacités, et seulement s'il
+  est actif. Suspendu ou retiré, il n'est plus rien pour ces lignes.
+- Une colonne d'**auteur** (partie B) n'est pas une colonne de bailleur. `landlordWrites` reste la
+  règle d'écriture des colonnes d'auteur (P190.05), complétée par l'appartenance.
+
+Les lecteurs que l'angle 190 n'avait pas relus suivent la même règle. L'amendement du 2026-10-25
+(D1) l'étend à tous les lecteurs de ces deux colonnes :
+
+- **P217.01** : `MaintenanceRequest::scopeVisibleTo`, clause du bien (l. 175),
+  `BailleurDuBien::restreindre`. Le scope sert `MaintenanceRequestController` (l. 51, 81) et
+  `ConversationAccess::constrainListing` (l. 164).
+- **P217.02** : la liste des conversations se ferme par P217.01, dans le même ticket. Aucune règle
+  propre.
+- **P217.03** : `PaymentController::history`, branche des loyers (l. 69),
+  `BailleurDuBien::restreindre(…, 'landlord_id')`, la forme de `LeaseController.php:39`.
+- **P217.04** : `LeasePaymentPolicy::update` (l. 35), `bailleurEcrit` à la place de
+  `landlordWrites`. Cette ability garde aussi `initiate`, `verify` et `providers`
+  (`PaymentGatewayController.php:33, 55, 80`). L'agent créateur seul perd la main ; le bailleur
+  bloqué reste refusé.
+
+### Conséquences de l'amendement
+
+- Un membre suspendu ne garde plus rien par sa délégation : ni capacité, ni périmètre, ni
+  approbation de reversement, ni demande de contact. Sa réactivation lui rend tout, sans geste.
+- Un membre suspendu ou retiré perd les lignes qu'il a saisies dans l'agence. Il garde celles qui
+  sont sans agence, et le personnel actif les reprend. Le bailleur actif, le locataire et le client
+  ne perdent rien. Le bailleur bloqué ne perd que la facture qu'il a émise.
+- Une branche « auteur » neuve passe par la règle de la partie B, et une colonne de bailleur neuve
+  par `BailleurDuBien`.
+
+### Application de l'amendement
+
+- A : `RoleDelegation::scopeEnVigueur()` ; les sites du point A.2 ; le commentaire de
+  `RoleDelegationService::create`.
+- B : la règle d'auteur de `BasePolicy` et sa forme SQL ; les policies et les listes du constat B ;
+  `CustomerPolicy` rebranchée. `DocumentPolicy` reste telle quelle (point B.7).
+- C : `MaintenanceRequest::scopeVisibleTo`, `PaymentController::history` et
+  `LeasePaymentPolicy::update`.
+- Tests : un agent **suspendu** (`TeamMemberSuspensionService::suspend`), un agent **retiré**
+  (`AgencyMemberRemovalService::remove`), et pour témoins un agent actif, un bailleur actif et un
+  bailleur bloqué. Le délégué suspendu est réactivé et retrouve sa délégation.
+
+## Amendement du 2026-10-25 — l'accès suit l'appartenance
+
+Décisions du porteur du 2026-10-25, prises en bloc sur les angles 218, 223, 232 et 233 du fichier de
+pistes (`docs/plans/2026-10-15-pistes-d-amelioration.md`). Relevé sur `b4d905cd3`.
+
+Les quatre décisions prolongent l'amendement du 2026-10-24. Une colonne qui nomme quelqu'un (le
+bailleur, l'auteur, le demandeur, le téléverseur) ne lui ouvre une ligne que si son appartenance à
+l'agence le permet encore. L'amendement précédent avait énuméré les lecteurs et les colonnes qu'il
+relevait. Cette énumération laissait d'autres lecteurs hors de la règle : ils sont relevés ici.
+
+### D1. La partie C vaut pour tous les lecteurs de `landlord_id` et de `properties.user_id`
+
+**Constat** (angle 232). Plusieurs lecteurs, hors policy et hors liste, tenaient encore l'agent qui a
+saisi un bien d'agence pour son bailleur :
+
+- `DashboardRoleResolver` donnait la vue du bailleur à tout compte qui a créé un bien. Son périmètre
+  `PortfolioScope::landlord` comptait biens, baux, loyers, impayés et dépôts par la seule colonne
+  (P232.01) ;
+- `ExportDataService::scopeToActor` exportait, à un bailleur d'une agence B, les biens, baux et
+  loyers qu'il avait saisis comme agent d'une agence A (P232.06) ;
+- `DataExportBuilder` versait dans l'archive RGPD de l'agent les baux qu'il avait saisis, locataire
+  et loyer compris, agent actif compris (P232.02) ;
+- `ConversationAccess` tenait l'agent créateur suspendu pour « partie » aux fils du bail et du bien,
+  et le suspendu en recevait l'avis des messages (P232.03) ;
+- `AccountDeletionService` comptait les baux saisis parmi les obligations de bailleur de l'agent,
+  agent retiré compris, ce qui l'empêchait d'effacer son compte (P232.05).
+
+**Décision.**
+
+1. **La partie C vaut pour tous les lecteurs de `leases.landlord_id` et de `properties.user_id`**, et
+   pas seulement pour ceux qu'elle énumère : `BailleurDuBien::est` pour une ligne,
+   `BailleurDuBien::restreindre` pour une liste ou un agrégat.
+2. **L'agent actif n'est pas le bailleur de ce qu'il a saisi**, même là où il n'agit pas comme
+   personnel. Il le reste à l'archive RGPD et à l'effacement, selon le précédent TCK-1017 : l'export
+   d'accès d'un membre ne contient plus les données des tiers qu'il a créées.
+3. **Ce que voit l'agent écarté n'est pas à inventer.** Sans la branche du bailleur, le résolveur du
+   tableau de bord tombe sur la vue client, comme pour tout compte sans rôle.
+
+**Ce que la règle ne retire pas.** Les témoins mesurés sont les suivants : le particulier sans
+agence, l'hôte d'une agence `individual` (profil propriétaire), le bailleur bloqué (profil
+propriétaire de tout statut) et le bailleur d'une agence B qui est agent suspendu d'une agence A.
+Aucun n'y perd une ligne qui le désigne comme bailleur.
+
+**Ce qui n'est pas gardé** :
+
+- `payouts.landlord_id` nomme le **bénéficiaire** d'un reversement, pas le bailleur d'un bien. Ses
+  lecteurs suivent la règle du reversement (P232.07, TCK-997) : le « net reversé » du tableau de
+  bord, les reprises, l'obligation `payout_upcoming` et `agenciesOwingPayout` de l'effacement.
+- Les lignes de l'archive RGPD par `collector_id` et `created_by_id` vont à l'angle 247.
+- Le retiré n'est pas couvert par la branche « contexte » de `ConversationAccess`. Ses profils sont
+  supprimés en douceur, et `inactiveOnlyAgencyIds` ne les lit pas. C'est le retrait qui lui fait
+  quitter les fils du bail et les groupes du bien (TCK-1711, TCK-2021). Un fil
+  `type = property` sans bail n'est pas quitté et reste ouvert. Ce type n'a aucun écrivain dans le
+  code, et la règle ne le garde pas.
+
+### D2. La partie B s'étend à `requester_id` et à `submitted_by`
+
+**Constat** (angle 233). B.1 énumère cinq colonnes d'auteur. Deux autres nomment aussi du personnel :
+
+- `requester_id` d'une intervention : le membre suspendu ou retiré qui l'a ouverte la lit, la liste,
+  et confirme ou conteste la réparation (P233.03) ;
+- `submitted_by` d'une demande de passage en agence professionnelle : l'administrateur suspendu ou
+  retiré la révoque encore, et la révocation est finale (P233.04).
+
+**Décision.**
+
+1. **`requester_id`** : la branche du demandeur vaut si le bien est sans agence, si le demandeur est
+   membre (`isMemberAt`), ou s'il n'a jamais tenu de profil de personnel dans l'agence, profils
+   supprimés compris. Elle s'applique sur les trois sites de `MaintenanceRequestPolicy` (`view`,
+   `respondToResolution`, `actorsOf`) et sur la liste `MaintenanceRequest::scopeVisibleTo`. La
+   règle de B ne vise que le personnel : le locataire et le client demandeurs gardent tout, et
+   l'agent actif sans capacité garde sa demande.
+2. **`submitted_by`** : `AgencyUpgradeRequestPolicy::revoke` juge le déposant par
+   `auteurEncoreMembre($user, submitted_by, agency_id)`, la forme écrite de B.2.
+
+Un autre lot implémente D2 et cite cet amendement.
+
+### D3. `DocumentPolicy` entre dans la règle d'auteur, après relevé par sonde
+
+**Constat** (P218.06). B.7 avait sorti `DocumentPolicy` de la règle « pour l'instant », faute de
+mesure. Le téléverseur (`uploaded_by` : `view`, `update`, `share`, et la liste de
+`DocumentController`) et les trois branches d'auteur de `reaches` (`created_by_id` d'une
+réservation, `added_by_id` d'une fiche client, `conducted_by` d'un état des lieux) gardent leurs
+documents sans condition d'appartenance.
+
+**Décision.** **La réserve B.7 est levée.** La règle d'auteur s'applique à `DocumentPolicy` :
+`uploaded_by` et les trois branches d'auteur de `reaches`, liste comprise. Elle vient avec la
+branche client de réservation, qui rend au client du tunnel public les documents de sa réservation
+sans passer par `created_by_id`, et avec l'exception de l'état des lieux (B.3). Elle s'applique
+**après un relevé par sonde de chaque lecteur légitime** : client de réservation, locataire ou
+client qui a joint une pièce, bailleur bloqué.
+
+Un autre lot implémente D3 et cite cet amendement. Jusqu'à sa livraison, B.7 décrit le code.
+
+### D4. Une fiche client supprimée ne relie plus deux personnes dans la messagerie
+
+**Constat** (P223.02). Les trois jointures `customers` de la règle 2 de `MessagingReach` (le « lien
+CRM ») ne filtrent pas `deleted_at`, et `CustomerController::destroy` supprime la fiche en douceur
+sans toucher à ses rattachements. Après la suppression, l'agent et le client se joignent encore, et
+`POST /api/conversations` ouvre un fil entre eux (201).
+
+**Décision.** `whereNull(deleted_at)` s'applique sur les trois jointures `customers` de
+`MessagingReach`. La règle s'écrit dans son docblock et dans `docs/features.md`.
+
+Un autre lot implémente D4 et cite cet amendement.
+
+### Les précisions des statuts, telles que le porteur les a validées
+
+- **P232.01** : « validation du porteur (2026-10-25) : `BailleurDuBien` dans le résolveur du
+  tableau de bord et dans `PortfolioScope::landlord` (partie C d'ADR-0031 étendue à tous les
+  lecteurs de `landlord_id` et `properties.user_id`) »
+- **P232.02** : « validation du porteur (2026-10-25) : l'archive RGPD lit les baux par
+  `BailleurDuBien::restreindre`, agent actif compris (précédent TCK-1017) ; les lignes par
+  `collector_id` et `created_by_id` vont à l'angle 247 »
+- **P232.03** : « validation du porteur (2026-10-25) : `BailleurDuBien` dans `contextAllows` et
+  `constrainContext` de `ConversationAccess`, avec la mesure du cas du retiré et de l'avis de
+  `NotifyNewMessageJob` »
+- **P232.05** : « validation du porteur (2026-10-25) : les deux clauses de baux de l'effacement
+  bornées par `BailleurDuBien` ; `agenciesOwingPayout` aligné sur le prédicat de bénéficiaire de
+  P232.07 (TCK-997) »
+- **P232.06** : « validation du porteur (2026-10-25) : `BailleurDuBien::restreindre` sur les trois
+  clauses de `scopeToActor`, avec le `PortfolioScope` de P232.01 »
+- **P233.03** : « validation du porteur (2026-10-25) : la branche du demandeur vaut si le bien est
+  sans agence, si le demandeur est membre, ou s'il n'a jamais tenu de profil de personnel dans
+  l'agence ; trois sites et la liste (partie B d'ADR-0031 étendue à `requester_id`) »
+- **P233.04** : « validation du porteur (2026-10-25) : `auteurEncoreMembre($user, submitted_by,
+  agency_id)` (partie B d'ADR-0031 étendue à `submitted_by`) »
+- **P218.06** : « validation du porteur (2026-10-25) : la règle d'auteur d'ADR-0031 s'applique à
+  `DocumentPolicy` (`uploaded_by` et les trois branches d'auteur de `reaches`, liste comprise), avec
+  la branche client de réservation et l'exception de l'état des lieux, après un relevé par sonde de
+  chaque lecteur légitime »
+- **P223.02** : « validation du porteur (2026-10-25) : `whereNull(deleted_at)` sur les trois
+  jointures `customers` de `MessagingReach`, écrit dans le docblock et dans `docs/features.md` »
+
+### Conséquences de l'amendement
+
+- Une colonne de bailleur neuve, ou un lecteur neuf de `landlord_id` ou de `properties.user_id`,
+  passe par `BailleurDuBien`. Il n'y a pas de liste de lecteurs à tenir.
+- Une colonne neuve qui nomme du personnel, comme auteur, demandeur ou déposant, passe par la règle
+  de la partie B.
+- L'agent qui a saisi un bien ne garde rien de ce bien comme bailleur, ni à l'archive, ni à
+  l'effacement, ni au tableau de bord. Le personnel actif garde ce que ses capacités lui ouvrent.
+
+### Application de l'amendement
+
+- D1 : [TCK-2275](../backlog/tickets/TCK-2275-colonne-de-bailleur-chez-tous-ses-lecteurs.md).
+  Les sites sont `BailleurDuBien::agences()`, `PortfolioScope` et `PortfolioMetrics`,
+  `DashboardOwnerService::summary`, `DashboardRoleResolver`, `ExportDataService::scopeToActor`,
+  `DataExportBuilder` (`leases.json`), `AccountDeletionService::collectOpenObligations`, ainsi que
+  `ConversationAccess::contextAllows` et `constrainContext`. Le test est
+  `ColonneDeBailleurAgentCreateurTest` : agent créateur actif, suspendu et retiré, avec pour
+  témoins le particulier, l'hôte `individual`, le bailleur bloqué, le bailleur de B agent suspendu
+  de A, et le locataire.
+- D2 : [TCK-2290](../backlog/tickets/TCK-2290-demandeur-et-deposant-encore-membres.md). Le
+  demandeur est jugé par `MaintenanceRequestPolicy::isRequester` (lu par `view`,
+  `respondToResolution` et `actorsOf`) et par `MaintenanceRequest::scopeVisibleTo`, sur
+  `MembershipCapabilityResolver::agencesDuPersonnelParti` : les agences où il a tenu un profil
+  d'agent ou d'administrateur, de tout statut et supprimé compris, sans y être encore membre. Un
+  profil d'agent en `draft` (invitation non acceptée) n'a pas été tenu, et une délégation n'est pas
+  un profil. `BasePolicy::auteurEncoreMembre` est publique et statique, pour
+  `AgencyUpgradeRequestPolicy::revoke`, qui n'hérite pas de `BasePolicy`. Les tests sont
+  `DemandeurEncoreMembreTest` et `DeposantEncoreMembreTest`.
+- D3 : [TCK-2295](../backlog/tickets/TCK-2295-documents-et-messagerie-suivent-l-appartenance.md).
+  Le relevé par sonde a précédé le code. Il a mesuré l'agent actif, suspendu et retiré sur les
+  quatre colonnes, et chaque lecteur légitime : le client du tunnel, le locataire et le client qui
+  ont joint une pièce, le bailleur bloqué, l'agent sur les pièces de son propre profil. Seuls quatre
+  chemins créent un `Document` : `POST /api/documents` (borné par `attachTo`), les pièces de profil
+  (`ProfilePieces`), les statuts d'une demande de passage et `DocumentPdfService::store`, sans
+  appelant. Tout lecteur légitime qui a téléversé sans être membre atteint donc le porteur par une
+  branche qui n'est pas d'auteur. Le site est `DocumentPolicy`, en quatre points :
+  - `televerseurGarde` porte la branche `uploaded_by` de `view`, `update` et `share`. Elle vaut si le
+    document est sans agence, si c'est une pièce du propre profil du téléverseur, ou s'il est
+    encore membre. En lecture, elle vaut aussi pour un profil propriétaire de tout statut (B.3). En
+    écriture, `landlordWrites` est gardé et une branche de `reaches` en écriture suffit : le
+    locataire et le client gardent les gestes sur leur pièce ;
+  - l'agence d'un état des lieux est celle de son bien, faute de colonne `agency_id` ;
+  - dans `reaches`, `created_by_id` et `added_by_id` passent par `auteurEncoreMembre`, et
+    `conducted_by` par la forme d'`InventoryPolicy`. La branche client de réservation
+    (`customer.user_id`) vaut en lecture comme pour joindre une pièce ;
+  - la liste de `DocumentController::index` passe par `restreindreAuTeleverseur`, sa forme SQL.
+
+  `isMemberAt` lit l'amorce `owner` d'une page. **Ce qui n'est pas gardé** : la recherche
+  `GET /api/search/documents` filtre Meilisearch par `uploaded_by` seul, faute d'agence indexée.
+  Les documents récents du tableau de bord du locataire et l'archive RGPD lisent `uploaded_by` sans
+  la règle : ce sont les propres téléversements de l'utilisateur, l'archive relevant de l'angle 247.
+  `agencyOf`, nul pour un état des lieux, reste tel quel pour `landlordWrites`. Le test est
+  `AuteurDuDocumentEncoreMembreTest`.
+- D4 : [TCK-2295](../backlog/tickets/TCK-2295-documents-et-messagerie-suivent-l-appartenance.md).
+  `whereNull(deleted_at)` porte sur les trois jointures `customers` de la règle 2 de
+  `MessagingReach`, écrit dans son docblock et dans `docs/features.md` (§ 1.7). Le test est
+  `FicheClientSupprimeeLienCrmTest`.
+
+## Amendement du 2026-10-25 — le contact d'un bail ou d'une réservation est une fiche de l'agence du bien
+
+Décision du porteur du 2026-10-25 sur P226.01 (TCK-2285). Relevé sur `b4d905cd3`.
+
+**Constat.** `LeaseService::create` (locataire, garant), `BookingService::create` (client) et
+`LeaseController::attachGuarantor` jugeaient la fiche par `can('view')` seul. `CustomerPolicy::view` et
+`GuarantorPolicy::view` ne lisent que l'agence **de la fiche**. Un compte agent de A et de B, sous
+l'indice `agent:B`, rattachait la fiche de A qu'il avait ajoutée à un bail ou à une réservation d'un
+bien de B. Le personnel de B la lisait ensuite par le bail (`?include=tenant`), alors que
+`GET /api/customers/{id}` lui rendait 403. La règle d'auteur de l'amendement du 2026-10-24 ne ferme
+pas ce passage : l'agent reste membre de A.
+
+**Décision.** Quand le bien a une agence, le locataire, le garant et le client sont des fiches de
+**cette agence**, en plus de `can('view')` (`App\Services\Property\ContactDeLAgenceDuBien`). L'agence
+d'un garant se lit comme sa policy la lit (`GuarantorPolicy::agencyOf()`). Le refus est le 403 de
+l'absent et du tiers. Pour `attachGuarantor`, c'est l'agence du **bien** du bail qui compte, et non
+`leases.agency_id`. Une fiche **sans agence** ne se rattache donc pas à un bien d'agence, même par son
+auteur : `BookingCustomerScopeTest` la donnait réservable par l'agent qui l'avait ajoutée. Le code
+courant n'en fait naître qu'au super-admin hors agence et au tunnel.
+
+**Ce qui ne change pas.**
+
+- Un bien sans agence : `can('view')` seul. La règle des visites (`ClientDeLAgence`, TCK-590), qui
+  n'y admet aucune fiche, n'est pas reprise : elle refuserait tout bail d'un bailleur direct.
+- La réservation **pour soi** (`customer_id` = la fiche du demandeur) et le tunnel public. La fiche
+  sans agence d'un client du tunnel (`CustomerService::findOrCreateFromUser`) n'est pas davantage
+  refusée : le personnel de B ne la lisait déjà pas.
+
+**Ce qui n'est pas gardé.** Le renouvellement recopie le locataire et le garant du parent sans les
+rejuger. Un bail antérieur dont la fiche est d'une autre agence garde son contact.
+
+## Amendement du 2026-10-25 (P15.01) — la fiche d'un candidat naît dans l'agence du bien
+
+Décision du porteur du 2026-10-25 sur P15.01 (TCK-2350). Relevé sur `0282d41e7`.
+
+**Constat.** `CustomerService::findOrCreateFromUser()`, seul écrivain de `customers.user_id` à la
+candidature, à l'offre d'achat et à la réservation par `POST /api/bookings`, créait la fiche dans
+l'agence **du visiteur** : `null` pour un candidat sans profil d'agence. Le personnel de l'agence du
+bien ne la lisait pas (`CustomerPolicy::view`, `scopeVisibleTo`), et le bail tiré de la candidature
+rendait 403 (`LeaseService::create`, puis `ContactDeLAgenceDuBien` de l'amendement précédent). La
+fiche reprise était la première du compte, quelle que soit son agence.
+
+**Décision.** Sur un bien d'agence, la fiche du candidat est une fiche de **l'agence du bien** :
+relue dans cette agence seule, rattachée dans cette agence seulement sur un téléphone ou un e-mail
+**vérifié** du compte (règle de TCK-1710), créée dans cette agence sinon. `added_by_id` reste le
+candidat : le personnel la lit par `crm.view_all`. Un compte porte ainsi une fiche par agence, ce
+que `User::tenantLeases()` et `DashboardTenantService` supposaient déjà.
+
+Ce point modifie le § « Ce qui ne change pas » de l'amendement précédent : la fiche du tunnel n'est
+plus « sans agence », et le personnel de l'agence du bien la prend pour locataire et pour client.
+
+**Ce qui ne change pas.** Un bien sans agence garde la règle d'avant (agence du compte, première
+fiche du compte). Aucune fiche existante ne change d'agence et aucun `user_id` n'est posé sur une
+fiche existante hors de l'appariement vérifié : une fiche née sans agence avant cet amendement reste
+telle quelle, et la candidature suivante en fait naître une dans l'agence du bien.
+
+**Ce qui n'est pas gardé.** Une fiche née sans agence avant l'amendement reste invisible au
+personnel ; rien ne la rapproche de la fiche neuve du même compte.
+
+**Second volet (TCK-2351) — inviter le locataire à créer son compte.** Une fiche saisie par l'agence
+n'a de compte que par l'invitation de son client. `POST /api/customers/{id}/invite`, geste du
+personnel de l'agence de la fiche qui la lit (`CustomerPolicy::invite`), émet une invitation de rôle
+`tenant` dont la cible est la fiche (`InvitationService`, jeton à usage unique, expiration, rappel,
+relance et révocation inchangés). Le destinataire est la coordonnée **de la fiche** : son e-mail, à
+défaut son numéro si le lien par SMS est ouvert. L'acceptation pose `customers.user_id`
+(`CustomerService::linkUser`) sous verrou de la fiche ; une fiche liée entre-temps à un autre compte
+refuse l'acceptation (409), une fiche supprimée la rend révoquée (410). Ce n'est pas une action
+protégée par le second facteur : elle ne donne au compte que l'espace du locataire de cette fiche,
+aucun accès à l'agence.
+
+**Ce qui n'est pas gardé (second volet).** Relancer ou révoquer l'invitation passe par les routes
+génériques, qui exigent `team.invite` : l'agent qui l'a émise sans tenir cette capacité ne la relance
+pas. Une fiche liée à un compte n'a pas de geste inverse.
+
+## Amendement du 2026-10-25 (P242, P251) — on entre dans le personnel par l'invitation, et l'on y revient au rôle système
+
+Décision du porteur du 2026-10-25 sur P242.01, P242.02, P242.03, P251.01 et P251.02 (TCK-2365).
+Relevé sur `db3e25230` par le mesureur, et sur `0553e6c38` à l'implémentation.
+
+**Constat.**
+
+- `POST /api/agencies/{id}/members`, et son alias historique `POST …/agents`
+  (`AgencyController::addAgent`), faisaient d'un compte quelconque, désigné par son identifiant ou
+  son e-mail, un agent **actif** de l'agence. Il n'y avait ni invitation, ni accord, ni avis au
+  compte. Le seul refus portait sur un profil d'agent dans une autre agence, et la réponse rendait
+  les coordonnées du compte. Le compte entrait ainsi dans le personnel de l'agence (§ 1), sans
+  l'avoir demandé.
+- La route disait aussi à tout admin d'agence si une adresse avait un compte (422
+  `user_not_found_by_email`). Elle ne trouvait ni une adresse en casse mixte, ni un compte créé par
+  numéro (P251.01).
+- `ProfileMaterializer::materializeOrRestore` restaurait la ligne d'un membre retiré **avec son
+  `agency_role_id`**, ce que TCK-1450 avait accordé. Un rôle personnalisé (`team.assign_role`,
+  `payouts.approve`…) revenait ainsi par un geste qui ne juge pas `team.assign_role` (P242.02).
+- Réinviter un agent retiré rendait 201, puis l'acceptation rendait **500** : la ligne retirée tient
+  encore `unique(user_id, agency_id)`.
+- La console super-admin ne refusait que l'e-mail déjà pris. Le gérant qui avait un compte créé par
+  numéro en recevait un second (P251.02).
+
+**Décision.**
+
+1. **On n'entre dans le personnel que par l'invitation** : profil d'agent brouillon, lien, puis
+   acceptation par le compte, au rôle `agent` ou `agency_admin`. Les deux routes de rattachement
+   direct sont retirées. Inviter au rôle `agency_admin` se juge en plus par
+   `AgencyPolicy::changeMemberRole` (`team.assign_role`, ou l'administrateur principal), comme le
+   changement de rôle. L'acceptation active le profil d'agent et crée l'`AgencyAdminProfile`.
+   Aucun profil n'est actif avant l'acceptation.
+2. **Un membre retiré puis rattaché reçoit le rôle système demandé**, jamais son ancien rôle
+   personnalisé. Toute ligne restaurée par `ProfileMaterializer` prend le rôle système de son type
+   dans son agence : c'est vrai à l'acceptation d'une invitation comme au changement de rôle. La
+   ligne retirée d'un agent réinvité est reprise, avec son historique. Le brouillon, qui ne portait
+   que l'invitation, est retiré, et l'invitation pointe désormais la ligne reprise. Cette décision
+   revient sur ce que TCK-1450 avait accordé.
+3. **Une invitation ne dit rien de l'existence du compte** : `invited_user_id` n'est rendu qu'une
+   fois l'invitation acceptée. L'invitation cherche le compte par l'adresse repliée ou par le numéro
+   vérifié (`InvitationService::recipientAccount`).
+4. **La console demande, facultatif, le numéro du gérant.** Elle le cherche parmi les numéros
+   vérifiés. S'il appartient à un compte, la création est refusée en 409
+   (`agency.admin_phone_taken`), comme pour l'e-mail. Le numéro n'est pas écrit sur le compte neuf :
+   saisi par un tiers, il n'est pas celui du compte tant que celui-ci ne l'a pas vérifié (P234.04).
+
+**Ce qui reste.** Un second administrateur passe désormais par deux chemins, tous deux jugés par
+`team.assign_role` :
+
+- l'invitation au rôle `agency_admin` ;
+- la promotion d'un membre, `PUT /api/agencies/{id}/members/{u}/role` (et `PUT /api/users/{u}/role`).
+
+**Ce qui n'est pas gardé.**
+
+- Le bailleur retiré puis réinvité heurte le même `unique(user_id, agency_id)` à l'acceptation. La
+  reprise ne vaut ici que pour le profil d'agent, et ce point reste à mesurer.
+- L'acceptation ne rejuge pas le droit de l'invitant : un administrateur invité par un membre qui a
+  perdu `team.assign_role` depuis l'envoi entre quand même. L'invitation se révoque.
+- Le refus à l'acceptation dit encore au porteur du jeton que le compte existe (`requires_login`).
+  C'est le destinataire, et non l'invitant.
+
+## Amendement du 2026-10-25 (P248.01) — le demandeur au bail fini lit, et n'agit plus
+
+Décision du porteur du 2026-10-25 sur P248.01 (TCK-2374), second tour. Relevé sur `db3e25230`.
+
+**Constat.** D2 juge la branche du demandeur (`requester_id`) par l'appartenance du **personnel** à
+l'agence, et écrit que « le locataire et le client demandeurs gardent tout ». La fin du bail n'y est
+pas tranchée. L'ouverture d'une intervention exige un bail en cours du bien (`store`,
+`openRequests`), mais la suite ne relisait que `requester_id`. Une fois son bail `terminated` et un
+nouveau locataire arrivé, l'ancien locataire confirmait la réparation (200, la demande passait
+`closed`), la contestait, ajoutait des photos (201) et écrivait dans le fil de l'intervention.
+L'occupant actuel, lui, recevait 403 sur la même demande.
+
+**Décision.** Le demandeur dont le bail a pris fin garde la **lecture** de ses interventions, comme
+celle de son bail passé (`LeasePolicy::view`) : fiche, liste, pièces et fil. **Confirmer, contester,
+ajouter des photos et écrire dans le fil** exigent un bail en cours du bien, par la liste de `store`
+(`User::ACTIVE_TENANT_LEASE_STATUSES` : un préavis compte, et un renouvellement aussi, puisque le bail
+suivant est en cours).
+
+- `MaintenanceRequestPolicy::requesterMayAct()` est la branche du demandeur pour agir : celle de
+  `isRequester` (D2), sauf pour qui a été locataire du bien (bail ou fiche supprimés compris) et n'y
+  tient plus de bail en cours. Elle est lue par `respondToResolution` et `actorsOf`.
+- `MaintenanceRequestPolicy::contribute()` décide qui verse au dossier : les acteurs de `view`, avec
+  `requesterMayAct` à la place de `isRequester`. Elle garde `POST …/photos` (la décision TCK-445
+  passe de `view` à `contribute`), l'envoi d'un message dans un fil d'intervention
+  (`ConversationAccess::allowsWriting`). Le rattachement d'un groupe neuf à l'intervention n'est plus
+  un geste de personne : `maintenance_request_id` est refusé à toute création de groupe (P250.03, TCK-2372).
+- `GET /api/conversations/{id}` rend `abilities.can_send_message`, et le front cache la saisie
+  quand ce drapeau est faux.
+
+La règle de D2 ne change pas, et les deux se cumulent. Le personnel parti perd tout, lecture
+comprise. Le locataire parti garde la lecture et perd les gestes.
+
+**Ce qui ne change pas.** Un demandeur qui n'a jamais été locataire du bien (personnel actif,
+bailleur) n'est pas visé. Le bailleur, le personnel et le prestataire assigné gardent leurs gestes,
+qui ne dépendent d'aucun bail. Les photos et les messages postés après la fin du bail restent
+lisibles comme le reste.
+
+**Ce qui n'est pas gardé.** Le fil reste lisible et l'ancien locataire en reste participant : il en
+reçoit encore les notifications de nouveaux messages (`NotifyNewMessageJob` suit la lecture). Les
+gestes du fil autres qu'écrire (sourdine, archivage, lecture, quitter le groupe) restent ouverts.

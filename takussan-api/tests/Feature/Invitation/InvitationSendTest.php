@@ -3,47 +3,54 @@
 namespace Tests\Feature\Invitation;
 
 use App\Mail\InvitationMailable;
-use App\Models\Agency;
 use App\Models\Enums\InvitationStatus;
 use App\Models\Invitation;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\User;
+use App\Services\Invitation\InvitationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
 use Spatie\Activitylog\Models\Activity;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\TestCase;
 
 /**
  * TCK-249 — AC1, AC4, AC7 (send/dedup/activity log).
+ *
+ * P208.01 (TCK-2190) — la route générique `POST /api/invitations` est retirée : ces tests
+ * éprouvent `InvitationService::send()`, que traversent les routes par rôle et la cooptation.
+ * L'autorisation de chaque route par rôle se teste avec elle (`InviteAgentTest`…), et le retrait
+ * de la route dans `CreationGeneriqueRetireeTest`.
  */
 class InvitationSendTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_agency_admin_can_create_invitation_and_email_is_sent(): void
+    private function envoyer(array $payload, User $inviter): Invitation
+    {
+        return app(InvitationService::class)->send($payload, $inviter);
+    }
+
+    public function test_an_invitation_is_created_and_email_is_sent(): void
     {
         Mail::fake();
         $admin = $this->actingAsRole('agency_admin');
 
-        // TCK-455 — le couple (rôle, profil visé) est désormais EXIGÉ : une
-        // invitation qui ne rattache à rien produisait un compte accepté membre
-        // de rien. Ce test poste donc l'invitation complète que la production
-        // émet, et non plus le payload minimal qui fabriquait le couloir sans
-        // issue.
+        // TCK-455 — le couple (rôle, profil visé) est EXIGÉ : une invitation qui ne rattache à
+        // rien produisait un compte accepté membre de rien.
         $profil = OwnerProfile::factory()->create(['agency_id' => $admin->agency_id]);
 
-        $response = $this->postJson('/api/invitations', [
+        $invitation = $this->envoyer([
             'email' => 'NewOwner@example.com',
             'role' => 'owner',
+            'agency_id' => $admin->agency_id,
             'invitable_type' => OwnerProfile::class,
             'invitable_id' => $profil->id,
-        ]);
+        ], $admin);
 
-        $response->assertStatus(201)
-            ->assertJsonPath('data.email', 'newowner@example.com')
-            ->assertJsonPath('data.role', 'owner')
-            ->assertJsonPath('data.status', InvitationStatus::Sent->value);
+        $this->assertSame('newowner@example.com', $invitation->email);
+        $this->assertSame(InvitationStatus::Sent, $invitation->status);
 
         $this->assertDatabaseHas('invitations', [
             'email' => 'newowner@example.com',
@@ -64,15 +71,14 @@ class InvitationSendTest extends TestCase
         $existing = User::factory()->create(['email' => 'existing@example.com']);
         $profil = AgentProfile::factory()->create(['agency_id' => $admin->agency_id, 'user_id' => null]);
 
-        $this->postJson('/api/invitations', [
+        $invitation = $this->envoyer([
             'email' => 'existing@example.com',
             'role' => 'agent',
+            'agency_id' => $admin->agency_id,
             'invitable_type' => AgentProfile::class,
             'invitable_id' => $profil->id,
-        ])->assertStatus(201);
+        ], $admin);
 
-        $invitation = Invitation::query()->where('email', 'existing@example.com')->first();
-        $this->assertNotNull($invitation);
         $this->assertSame($existing->id, $invitation->invited_user_id);
     }
 
@@ -92,12 +98,20 @@ class InvitationSendTest extends TestCase
         $owner = OwnerProfile::factory()->create(['agency_id' => $admin->agency_id]);
 
         // Same (email, invitable_type, agency_id) → 409.
-        $this->postJson('/api/invitations', [
-            'email' => 'dup@example.com',
-            'role' => 'owner',
-            'invitable_type' => OwnerProfile::class,
-            'invitable_id' => $owner->id,
-        ])->assertStatus(409);
+        try {
+            $this->envoyer([
+                'email' => 'dup@example.com',
+                'role' => 'owner',
+                'agency_id' => $admin->agency_id,
+                'invitable_type' => OwnerProfile::class,
+                'invitable_id' => $owner->id,
+            ], $admin);
+            $this->fail('Le doublon devait rendre 409.');
+        } catch (HttpException $e) {
+            $this->assertSame(409, $e->getStatusCode());
+        }
+
+        $this->assertSame(1, Invitation::query()->where('email', 'dup@example.com')->count());
     }
 
     public function test_revoked_pending_does_not_block_resend_of_new_invitation(): void
@@ -114,12 +128,15 @@ class InvitationSendTest extends TestCase
 
         $profil = OwnerProfile::factory()->create(['agency_id' => $admin->agency_id]);
 
-        $this->postJson('/api/invitations', [
+        $invitation = $this->envoyer([
             'email' => 'revoked@example.com',
             'role' => 'owner',
+            'agency_id' => $admin->agency_id,
             'invitable_type' => OwnerProfile::class,
             'invitable_id' => $profil->id,
-        ])->assertStatus(201);
+        ], $admin);
+
+        $this->assertSame(InvitationStatus::Sent, $invitation->status);
     }
 
     public function test_activity_log_records_invitation_sent(): void
@@ -129,68 +146,16 @@ class InvitationSendTest extends TestCase
 
         $profil = OwnerProfile::factory()->create(['agency_id' => $admin->agency_id]);
 
-        $this->postJson('/api/invitations', [
+        $this->envoyer([
             'email' => 'log@example.com',
             'role' => 'owner',
+            'agency_id' => $admin->agency_id,
             'invitable_type' => OwnerProfile::class,
             'invitable_id' => $profil->id,
-        ])->assertStatus(201);
+        ], $admin);
 
         $activity = Activity::query()->where('event', 'invitation_sent')->first();
         $this->assertNotNull($activity);
         $this->assertSame($admin->id, $activity->causer_id);
-    }
-
-    public function test_non_admin_user_cannot_create_invitation(): void
-    {
-        $agent = $this->actingAsRole('agent');
-        // TCK-455 — le payload doit rester VALIDE : la validation court avant
-        // la policy sur ce chemin, et un payload incomplet rendrait 422. Ce
-        // test-là porte sur l'autorisation ; un 422 l'aurait coché sans rien
-        // éprouver.
-        $profil = OwnerProfile::factory()->create(['agency_id' => $agent->agency_id]);
-
-        $this->postJson('/api/invitations', [
-            'email' => 'test@example.com',
-            'role' => 'owner',
-            'invitable_type' => OwnerProfile::class,
-            'invitable_id' => $profil->id,
-        ])->assertStatus(403);
-    }
-
-    public function test_super_admin_can_invite_cross_agency(): void
-    {
-        Mail::fake();
-        $superAdmin = $this->actingAsRole('super_admin');
-        $otherAgency = Agency::factory()->create();
-
-        // TCK-455 — le rôle passe d'`agency_admin` à `owner`, et ce n'est pas
-        // un contournement : l'acceptation d'une invitation `agency_admin` ne
-        // matérialise AUCUN profil (constat de TCK-392), donc ce chemin est
-        // désormais refusé. Ce test porte sur le franchissement d'agence par un
-        // super-admin, pas sur un rôle en particulier.
-        $profil = OwnerProfile::factory()->create(['agency_id' => $otherAgency->id]);
-
-        $this->postJson('/api/invitations', [
-            'email' => 'cross@example.com',
-            'role' => 'owner',
-            'agency_id' => $otherAgency->id,
-            'invitable_type' => OwnerProfile::class,
-            'invitable_id' => $profil->id,
-        ])->assertStatus(201);
-
-        $this->assertDatabaseHas('invitations', [
-            'email' => 'cross@example.com',
-            'agency_id' => $otherAgency->id,
-        ]);
-    }
-
-    public function test_invalid_role_is_rejected(): void
-    {
-        $this->actingAsRole('agency_admin');
-        $this->postJson('/api/invitations', [
-            'email' => 'test@example.com',
-            'role' => 'tenant', // not in the invitation whitelist
-        ])->assertStatus(422)->assertJsonValidationErrors(['role']);
     }
 }

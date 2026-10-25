@@ -105,7 +105,12 @@ const TABLE = [
   { chemin: '/app/agency/finances', exige: { role: 'admin' }, menu: { cle: 'finances', icone: CreditCard } },
   // TCK-593 — le rapprochement vit SOUS les finances : un lien de la page, pas une entrée de menu.
   // Le détail `[statementId]` est gardé par ce chemin-ci, son plus proche ancêtre statique.
-  { chemin: '/app/agency/finances/reconciliation', exige: { role: 'admin' }, menu: null },
+  // TCK-2260 (P116.07) — l'API l'exige de l'admin (`BankStatementPolicy::viewAny`).
+  {
+    chemin: '/app/agency/finances/reconciliation',
+    exige: { role: 'admin', capacite: 'payments.reconcile' },
+    menu: null,
+  },
   // TCK-597 (ADR-0043 §1) — l'admin d'agence `standard` modère les avis de SON agence.
   {
     chemin: '/app/agency/moderation',
@@ -118,9 +123,10 @@ const TABLE = [
     exige: { role: 'admin', agence: 'standard' },
     menu: { cle: 'propertyModeration', icone: Building2 },
   },
+  // TCK-2260 (P116.07) — l'API exige `reports.view_agency` de l'admin (`ActivityLogPolicy::viewAny`).
   {
     chemin: '/app/agency/audit',
-    exige: { role: 'admin', agence: 'standard' },
+    exige: { role: 'admin', agence: 'standard', capacite: 'reports.view_agency' },
     menu: { cle: 'auditLog', icone: FileText },
     profil: 'auditLog',
   },

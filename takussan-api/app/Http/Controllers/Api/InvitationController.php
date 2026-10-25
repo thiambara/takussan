@@ -4,11 +4,11 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
 use App\Http\Controllers\Public\InvitationAcceptController;
-use App\Http\Requests\Invitation\CreateInvitationRequest;
 use App\Http\Resources\InvitationResource;
 use App\Models\Invitation;
 use App\Models\User;
 use App\Services\Invitation\InvitationService;
+use App\Services\Membership\MembershipCapabilityResolver;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -16,6 +16,12 @@ use Illuminate\Http\Request;
 
 /**
  * TCK-249 — admin/agency-side invitation management.
+ *
+ * P208.01 (TCK-2190) — no generic creation: an invitation is issued by the
+ * per-role routes (`agencies/{agency}/owners|agents|service-providers/invite`)
+ * or by the super-admin cooptation (`admin/super-admins/invite`), each of which
+ * creates or checks the targeted profile itself. The generic `store` let the
+ * client pick `invitable_id` and `role` freely.
  *
  * The public accept route lives in {@see InvitationAcceptController}
  * because it must NOT require `auth:sanctum`.
@@ -45,43 +51,6 @@ class InvitationController extends Controller
             ->paginate($this->tailleDePage($request, 20));
 
         return $this->paginated($paginator, InvitationResource::collection($paginator)->toArray($request));
-    }
-
-    /**
-     * POST /api/invitations
-     */
-    public function store(CreateInvitationRequest $request): JsonResponse
-    {
-        $user = $request->user();
-        abort_if($user === null, 401);
-
-        // Authorize via the policy. Super_admin short-circuits via the
-        // global Gate::before bypass.
-        if (! $user->can('create', Invitation::class)) {
-            throw new AuthorizationException(__('invitations.errors.cannot_create'));
-        }
-
-        $data = $request->validated();
-
-        // Non-super_admin actors are constrained to invite within their
-        // own agency. Force-set / cross-check `agency_id` against the
-        // active profile so a malicious payload can't trick us into
-        // issuing cross-tenant invitations.
-        if (! $user->isSuperAdmin()) {
-            $activeAgencyId = $request->activeProfile()?->agency_id ?? $user->agency_id;
-            if (! isset($data['agency_id'])) {
-                $data['agency_id'] = $activeAgencyId;
-            } elseif ((int) $data['agency_id'] !== (int) $activeAgencyId) {
-                throw new AuthorizationException(__('invitations.errors.cross_agency'));
-            }
-        }
-
-        $invitation = $this->service->send($data, $user);
-
-        return $this->json(
-            ['data' => InvitationResource::make($invitation)->resolve($request)],
-            201,
-        );
     }
 
     /**
@@ -155,6 +124,11 @@ class InvitationController extends Controller
             return Invitation::query()->where('agency_id', $user->staffAgencyId());
         }
 
-        return Invitation::query()->where('invited_by', $user->id);
+        // P233.02 (TCK-2243) — l'émetteur encore membre de l'agence de l'invitation : la forme SQL de
+        // la branche émetteur d'`InvitationPolicy::view` depuis TCK-2194 (ADR-0031, B.2).
+        $memberAgencyIds = app(MembershipCapabilityResolver::class)->memberAgencyIds($user);
+
+        return Invitation::query()->where('invited_by', $user->id)
+            ->where(fn (Builder $m) => $m->whereNull('agency_id')->orWhereIn('agency_id', $memberAgencyIds));
     }
 }

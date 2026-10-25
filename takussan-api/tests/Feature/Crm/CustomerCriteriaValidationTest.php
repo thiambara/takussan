@@ -6,6 +6,7 @@ use App\Models\Agency;
 use App\Models\Customer;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\ApiTestCase;
 
 /**
@@ -14,6 +15,10 @@ use Tests\ApiTestCase;
  *
  * `gte:budget_min` nu refusait un `budget_max` seul : la règle compare au champ voisin, et un
  * nombre n'est jamais « du même type » que `null` (`ValidatesAttributes::validateGte`).
+ *
+ * P209.03 (TCK-2067) — à la modification, une borne envoyée seule se compare à l'autre borne
+ * ENREGISTRÉE : `gte:budget_min` ne voyait que la requête, et un `PATCH {budget_max: 100}`
+ * passait sous un plancher de 500 000.
  */
 class CustomerCriteriaValidationTest extends ApiTestCase
 {
@@ -54,6 +59,47 @@ class CustomerCriteriaValidationTest extends ApiTestCase
         $this->update(['budget_min' => 400000, 'budget_max' => 300000])
             ->assertStatus(422)
             ->assertJsonValidationErrors('budget_max');
+    }
+
+    /** @return array<string, array{array<string, int>, string}> */
+    public static function bornesSeulesDePartEtDAutre(): array
+    {
+        return [
+            'plafond seul sous le plancher enregistré' => [['budget_max' => 100], 'budget_max'],
+            'plancher seul au-dessus du plafond enregistré' => [['budget_min' => 900000], 'budget_min'],
+        ];
+    }
+
+    /**
+     * @param  array<string, int>  $body
+     */
+    #[DataProvider('bornesSeulesDePartEtDAutre')]
+    public function test_a_lone_bound_is_compared_to_the_stored_one(array $body, string $champ): void
+    {
+        $this->customer->update(['budget_min' => 500000, 'budget_max' => 800000]);
+
+        $this->actingAsApi($this->agent)->patchJson("/api/customers/{$this->customer->id}", $body)
+            ->assertStatus(422)
+            ->assertJsonValidationErrors($champ);
+
+        $fresh = $this->customer->fresh();
+        $this->assertSame('500000.00', $fresh->budget_min);
+        $this->assertSame('800000.00', $fresh->budget_max);
+    }
+
+    public function test_a_lone_bound_on_the_right_side_of_the_stored_one_is_accepted(): void
+    {
+        $this->customer->update(['budget_min' => 500000, 'budget_max' => 800000]);
+
+        $this->update(['budget_max' => 600000])->assertOk();
+        $this->update(['budget_min' => 600000])->assertOk();
+        // Le plancher effacé libère le plafond.
+        $this->update(['budget_min' => null])->assertOk();
+        $this->update(['budget_max' => 100])->assertOk();
+
+        $fresh = $this->customer->fresh();
+        $this->assertNull($fresh->budget_min);
+        $this->assertSame('100.00', $fresh->budget_max);
     }
 
     public function test_a_criterion_is_cleared_with_null(): void

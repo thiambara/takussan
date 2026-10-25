@@ -31,10 +31,12 @@ class DashboardOwnerService
         $monthStart = now()->startOfMonth();
         $monthEnd = now()->endOfMonth();
         $scope = PortfolioScope::landlord((int) $owner->id);
-        $propertyIds = Property::query()->select('id')->where('user_id', $owner->id);
+        // TCK-2275 (P232.01, P232.06) — les biens et les baux dont il est le bailleur au sens de
+        // `BailleurDuBien`, comme `PortfolioScope::landlord` : ni ceux qu'il a saisis comme agent,
+        // ni, bailleur d'une agence B, ceux d'une agence A où il n'est que personnel.
+        $propertyIds = $scope->properties(Property::query()->select('id'));
 
-        $portfolio = Property::query()
-            ->where('user_id', $owner->id)
+        $portfolio = $scope->properties(Property::query())
             ->toBase()
             // P127.04 (TCK-1359) — un bien archivé ou vendu a quitté le portefeuille.
             ->selectRaw('COUNT(*) FILTER (WHERE status NOT IN (?, ?)) AS total', array_map(
@@ -45,8 +47,7 @@ class DashboardOwnerService
             ->selectRaw('COUNT(*) FILTER (WHERE status = ?) AS available', [PropertyStatus::Available->value])
             ->first();
 
-        $leases = Lease::query()
-            ->where('landlord_id', $owner->id)
+        $leases = $scope->leases(Lease::query())
             // P162.02 (TCK-1714) — le bail en préavis reste en cours, son loyer est dû.
             ->whereIn('status', Lease::ONGOING_STATUSES)
             ->toBase()

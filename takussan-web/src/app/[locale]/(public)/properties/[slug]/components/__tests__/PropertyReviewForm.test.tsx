@@ -5,7 +5,7 @@ import userEvent from '@testing-library/user-event';
 // `withIntl` charge le VRAI `fr.json` : depuis TCK-292 ces composants passent par next-intl, et
 // un rendu sans provider LÈVE. Les assertions françaises sont inchangées — c'est le point.
 import { withIntl } from '@/test/intl';
-import { PropertyReviewForm, REVIEW_CONTENT_MIN } from '../PropertyReviewForm';
+import { PropertyReviewForm } from '../PropertyReviewForm';
 
 type ReviewSubmit = ComponentProps<typeof PropertyReviewForm>['onSubmit'];
 
@@ -25,29 +25,33 @@ describe('<PropertyReviewForm>', () => {
 
     // Filling the content without a rating keeps it disabled.
     await user.type(
-      screen.getByPlaceholderText(new RegExp(`min\\. ${REVIEW_CONTENT_MIN}`, 'i')),
+      screen.getByPlaceholderText(/votre commentaire/i),
       'This is a long enough review.',
     );
     expect(screen.getByRole('button', { name: /publier/i })).toBeDisabled();
     expect(submit).not.toHaveBeenCalled();
   });
 
-  it('blocks submit when comment is shorter than the minimum', async () => {
+  it('TCK-2089 — un avis noté sans commentaire se publie, sans `content` : l’API ne l’exige pas', async () => {
     const user = userEvent.setup();
     render(withIntl(<PropertyReviewForm onSubmit={submit} />));
 
-    // Pick 5 stars.
     await user.click(screen.getByRole('radio', { name: /5 étoiles/i }));
+    await user.click(screen.getByRole('button', { name: /publier/i }));
 
-    // Type fewer than REVIEW_CONTENT_MIN characters.
-    await user.type(
-      screen.getByPlaceholderText(new RegExp(`min\\. ${REVIEW_CONTENT_MIN}`, 'i')),
-      'short',
-    );
+    expect(submit).toHaveBeenCalledWith({ rating: 5, title: undefined, content: undefined });
+  });
 
-    // Button stays disabled as long as content is too short.
-    expect(screen.getByRole('button', { name: /publier/i })).toBeDisabled();
-    expect(submit).not.toHaveBeenCalled();
+  it('TCK-2089 — un commentaire court est accepté, et le champ en permet 2000 comme l’API', async () => {
+    const user = userEvent.setup();
+    render(withIntl(<PropertyReviewForm onSubmit={submit} />));
+
+    await user.click(screen.getByRole('radio', { name: /4 étoiles/i }));
+    await user.type(screen.getByPlaceholderText(/votre commentaire/i), 'Calme.');
+    expect(screen.getByPlaceholderText(/votre commentaire/i)).toHaveAttribute('maxLength', '2000');
+    await user.click(screen.getByRole('button', { name: /publier/i }));
+
+    expect(submit).toHaveBeenCalledWith(expect.objectContaining({ rating: 4, content: 'Calme.' }));
   });
 
   it('submits payload when rating + long-enough comment are provided', async () => {
@@ -56,7 +60,7 @@ describe('<PropertyReviewForm>', () => {
 
     await user.click(screen.getByRole('radio', { name: /4 étoiles/i }));
     await user.type(
-      screen.getByPlaceholderText(new RegExp(`min\\. ${REVIEW_CONTENT_MIN}`, 'i')),
+      screen.getByPlaceholderText(/votre commentaire/i),
       'Un logement vraiment très agréable et calme.',
     );
     await user.click(screen.getByRole('button', { name: /publier/i }));
@@ -77,7 +81,7 @@ describe('<PropertyReviewForm>', () => {
 
     await user.click(screen.getByRole('radio', { name: /3 étoiles/i }));
     await user.type(
-      screen.getByPlaceholderText(new RegExp(`min\\. ${REVIEW_CONTENT_MIN}`, 'i')),
+      screen.getByPlaceholderText(/votre commentaire/i),
       'Encore une tentative de publication.',
     );
     await user.click(screen.getByRole('button', { name: /publier/i }));

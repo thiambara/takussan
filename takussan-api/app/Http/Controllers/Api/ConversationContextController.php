@@ -12,6 +12,7 @@ use App\Models\Property;
 use App\Models\User;
 use App\Policies\LeasePolicy;
 use App\Policies\PropertyPolicy;
+use App\Services\Property\BailleurDuBien;
 use App\Support\CaseInsensitive;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -97,7 +98,10 @@ class ConversationContextController extends Controller
         if (! $user->isSuperAdmin()) {
             // {@see LeasePolicy::view()} : bailleur, personnel de l'agence, ou locataire.
             $base->where(function (Builder $q) use ($user) {
-                $q->where('leases.landlord_id', $user->id)
+                // TCK-2240 (P232.04) — le bailleur au sens de la policy (`BailleurDuBien`), pas le seul
+                // `landlord_id` : il désigne aussi l'agent qui a saisi le bail, que la policy juge
+                // par la branche du personnel une fois suspendu ou retiré.
+                $q->where(fn (Builder $b) => BailleurDuBien::restreindre($b, $user, 'leases.landlord_id', 'leases.agency_id'))
                     ->orWhereHas('tenant', fn (Builder $t) => $t->where('user_id', $user->id));
                 // TCK-587 — le personnel de l'agence, comme la policy (ADR-0031) : un bailleur de l'agence
                 // se voyait proposer les baux des autres comme contexte de conversation.
@@ -132,7 +136,7 @@ class ConversationContextController extends Controller
     }
 
     /**
-     * {@see PropertyPolicy::view()} en requête : le bien de l'acteur, ou un bien de l'agence dont il est personnel.
+     * {@see PropertyPolicy::view()} en requête : le bien dont l'acteur est le bailleur, ou un bien de l'agence dont il est personnel.
      *
      * @param  Builder<Property>  $base
      */
@@ -143,7 +147,10 @@ class ConversationContextController extends Controller
         }
 
         $base->where(function (Builder $q) use ($user) {
-            $q->where('properties.user_id', $user->id);
+            // TCK-2240 (P232.04) — le bailleur au sens de la policy (`BailleurDuBien`) : `user_id`
+            // est aussi l'agent qui a saisi le bien. L'auteur encore personnel ACTIF de l'agence est
+            // couvert par la branche du personnel ci-dessous.
+            $q->where(fn (Builder $b) => BailleurDuBien::restreindre($b, $user, 'properties.user_id', 'properties.agency_id'));
             // TCK-587 — le personnel de l'agence, comme la policy (ADR-0031) : un bailleur de l'agence
             // se voyait proposer les biens des autres comme contexte de conversation.
             if (($staffAgencyId = $user->staffAgencyId()) !== null) {
