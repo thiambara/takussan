@@ -1,7 +1,7 @@
 ---
 id: TCK-2340
 title: "La restitution d'une caution est bornée à la caution réellement encaissée, selon la définition des rapports"
-status: todo
+status: done
 phase: P3
 family: bug
 estimate: M
@@ -66,27 +66,27 @@ Réf : **P04.10** du fichier de pistes, `validé`.
 
 ## Delta à produire
 
-- [ ] `LeasePayment::scopePaidDepositMovements()`, lu par `PortfolioMetrics::depositsHeld` et
+- [x] `LeasePayment::scopePaidDepositMovements()`, lu par `PortfolioMetrics::depositsHeld` et
       `AgingBalanceService::depositsHeld`.
-- [ ] `Lease::collectedDeposit()` ; `getDepositRemainingAttribute()` borné à l'encaissé.
-- [ ] `DepositRefundService::refund` : refus `deposit_refund.not_collected` quand rien n'est encaissé.
-- [ ] Textes du code (`fr`, `en` ; `wo` = `fr`).
-- [ ] ADR-0039 amendé (2026-10-25), `docs/adr/README.md`, `docs/features.md` § 1.4.
+- [x] `Lease::collectedDeposit()` ; `getDepositRemainingAttribute()` borné à l'encaissé.
+- [x] `DepositRefundService::refund` : refus `deposit_refund.not_collected` quand rien n'est encaissé.
+- [x] Textes du code (`fr`, `en` ; `wo` = `fr`).
+- [x] ADR-0039 amendé (2026-10-25), `docs/adr/README.md`, `docs/features.md` § 1.4.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Bail terminé, caution de 600 000 au bail, aucune échéance `deposit` payée : la
+- [x] AC1 — Bail terminé, caution de 600 000 au bail, aucune échéance `deposit` payée : la
       restitution rend 422 `deposit_refund.not_collected`, rien n'est créé, `deposit_remaining`
       vaut 0.
-- [ ] AC2 — Encaissé 300 000 sur 600 000 : rendre 300 001 → 422 `deposit_refund.exceeds_remaining` ;
+- [x] AC2 — Encaissé 300 000 sur 600 000 : rendre 300 001 → 422 `deposit_refund.exceeds_remaining` ;
       rendre 200 000 avec un motif → retenue de 100 000, pas de 400 000 ; rendre 300 000 → aucune
       retenue.
-- [ ] AC3 — Une échéance `deposit` non payée, une `deposit` payée d'un autre bail et une
+- [x] AC3 — Une échéance `deposit` non payée, une `deposit` payée d'un autre bail et une
       `deposit_refund` payée ne comptent pas dans l'encaissé.
-- [ ] AC4 — Une restitution déjà faite au-delà de la borne n'est ni réécrite ni annulée :
+- [x] AC4 — Une restitution déjà faite au-delà de la borne n'est ni réécrite ni annulée :
       `deposit_refunded_amount`, sa ligne et son reversement restent tels quels ; une nouvelle est
       refusée.
-- [ ] AC5 — Les deux rapports rendent les mêmes cautions détenues qu'avant (non-régression).
+- [x] AC5 — Les deux rapports rendent les mêmes cautions détenues qu'avant (non-régression).
 
 ## Hors périmètre
 
@@ -95,3 +95,19 @@ Réf : **P04.10** du fichier de pistes, `validé`.
 - Le titre du bandeau quand rien n'est encaissé.
 
 ## Notes d'implémentation
+
+- **Mesuré avant le correctif** (`DepositRefundBoundedToCollectedTest`, 5 rouges sur 7) : une caution
+  jamais encaissée se restituait en entier ; encaissée à 300 000 sur 600 000, le restituable valait
+  600 000 et une restitution de 200 000 retenait 400 000.
+- **Ablations**, chacune sur `DepositRefundBoundedToCollectedTest` puis remise :
+  - borne retirée (`$total = deposit_amount`) → 5 rouges ;
+  - refus `not_collected` retiré → 2 rouges (rien d'encaissé, seules les échéances payées du bail) ;
+  - plafond du bail retiré (`$total = collectedDeposit()`) → 1 rouge (l'encaissé au-delà du bail).
+  - `test_une_caution_encaissee_en_entier_se_restitue_comme_avant` est une non-régression : verte
+    avec et sans le correctif.
+- **Fixtures** : dix classes qui restituent une caution créaient un bail sans échéance payée. Elles
+  passent par `LeaseFactory::withCollectedDeposit()` ou `BuildsMoneyOut::leasePayment(…, Deposit)`,
+  et deux assertions qui comptaient « la » ligne du bail (`sole()`, `count() === 1`) comptent la
+  ligne `deposit_refund`.
+- Les rapports lisent le scope au lieu de leurs deux `where` : même SQL, `AgingBalanceTest` et
+  `DashboardOwnerMetricsTest` verts.
