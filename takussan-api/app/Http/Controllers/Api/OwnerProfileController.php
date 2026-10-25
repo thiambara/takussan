@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Base\Controller;
 use App\Http\Resources\IncludedUserResource;
 use App\Http\Resources\OwnerProfileResource;
+use App\Models\Invitation;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\User;
 use App\Policies\OwnerProfilePolicy;
@@ -68,6 +69,11 @@ class OwnerProfileController extends Controller
                 OwnerProfile::SENSITIVE,
             ));
         }
+
+        // P237.01 (TCK-2371) — l'invitation `sent` du brouillon, émise par l'agence du profil : le
+        // front relance ou révoque par elle (une invitation au seul numéro ne se cherchait pas).
+        $query->addSelect(['pending_invitation_id' => Invitation::idEnvoyeePour(new OwnerProfile)
+            ->whereColumn('invitations.agency_id', 'owner_profiles.agency_id')]);
 
         $paginator = $query->paginate($this->tailleDePage($request, 20));
 
