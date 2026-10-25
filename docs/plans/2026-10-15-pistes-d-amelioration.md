@@ -7386,7 +7386,7 @@ base de développement. Les écrans n'ont pas été joués.*
 
 ### Valider son numéro à la publication enregistre le code, mais le choix WhatsApp refusé par l'API est perdu sous un message de succès
 - Réf : P237.02
-- Statut : retenu · autonome
+- Statut : fait · TCK-2361
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/contact/CoordonneesPublication.tsx:145-159`, `:107`, `:161-167`
 - Constat :
@@ -7396,6 +7396,7 @@ base de développement. Les écrans n'ont pas été joués.*
   - Établi comment : lu.
 - Piste : sur `!w.ok`, dire le refus avec le message de l'action, comme l. 166, et garder « numéro vérifié » pour la première moitié. Garde : un test du bloc où `updateContactPreferencesAction` rend `ok: false` après un code accepté → le message d'échec s'affiche.
 - Mesure (2026-10-25, db3e25230, mesureur) : relu `CoordonneesPublication.tsx:145-159` (`if (w.ok) setUser(w.user);` sans `else`, puis `setRetour({ ok: true, message: t('phoneVerified') })`) et `:161-167` (`repondreWhatsApp` dit l'échec), puis lancé un test vitest temporaire du bloc : code accepté, `updateContactPreferencesAction` rend `{ ok: false, message: 'REFUS-WHATSAPP' }` → seul « Numéro vérifié. » s'affiche, le message de refus n'apparaît pas. Le constat tient. Classement : A1, le comportement attendu est déjà écrit dans le geste voisin `repondreWhatsApp` (l. 166), et la correction réutilise le message que rend l'action, sans texte neuf.
+- Mesure (2026-10-25, 8d1afa650, implementeur) : reproduit avant correctif par `CoordonneesPublication.whatsapp-refuse.p237-02.test.tsx` (code accepté, `updateContactPreferencesAction` rend `{ ok: false, message: 'REFUS-WHATSAPP' }` → aucune alerte, seul « Numéro vérifié. ») ; correctif : `verifierCode` garde « Numéro vérifié. » en statut et dit le refus en alerte avec le message de l'action (champ `refus` du retour), sans texte neuf. Ablation : correctif retiré → le test du refus rougit ; remis → 2/2 verts, et les 49 tests de `src/components/contact/__tests__/` verts.
 
 ### Une photo de bien envoyée, dont la relecture échoue, est marquée « envoyée » sans paraître dans la grille
 - Réf : P237.03
@@ -7708,7 +7709,7 @@ Le seul passage restant est `CustomerService::findOrCreateFromUser`, dans la ré
 
 ### Le retour arrière du retrait d'un favori depuis le menu (TCK-2214) est un rappel de l'appel `mutate()` : il ne joue pas une fois le menu fermé, ni pour un retrait suivi d'un autre
 - Réf : P243.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-2361
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/favorites/FavoritesPopover.tsx:150-166`, `:117`, `takussan-web/src/components/ui/popover.tsx:46-71`, `takussan-web/src/lib/favoritesStore.ts:6`, `:62-72`, `takussan-web/src/hooks/useFavorite.ts:47-56`, `takussan-web/package.json:20`
 - Constat :
@@ -7720,6 +7721,7 @@ Le seul passage restant est `CustomerService::findOrCreateFromUser`, dans la ré
   - Établi comment : lu ; l'effet est à vérifier par un test.
 - Piste : le patron de `useFavorite` (`mutateAsync` et `catch`), ou le retour arrière dans l'`onError` du crochet, qui reçoit `variables`. Garde : un test du menu avec deux retraits refusés → les deux biens reviennent ; menu démonté avant le refus → le bien revient.
 - Mesure (2026-10-25, db3e25230, mesureur) : relu `FavoritesPopover.tsx:150-166` (`removeMutation.mutate(…, { onError: () => storeAdd(id) })` dans `PopoverBody`). Le test existant `FavoritesPopover.retrait-refuse.p228-03.test.tsx` simule `mutate` en entier, donc il ne voit pas ce défaut. J'ai lancé un test vitest temporaire avec le vrai `useRemoveFavoriteMutation` (TanStack Query 5.101.4, lu `node_modules/@tanstack/react-query/package.json`) et `apiRequest` retenu puis rejeté en 500 → deux retraits (624 puis 625) refusés ensemble ne remettent que `[625]`, et un retrait refusé après la fermeture du menu par Échap ne remet rien (le store reste `[625]`). Les deux effets « à vérifier » sont établis. Classement : A1, le contrat est écrit par TCK-2214 (P228.03 : un refus de l'API remet le bien dans le store), sans aucun texte ni choix de produit.
+- Mesure (2026-10-25, 8d1afa650, implementeur) : reproduit avant correctif par `FavoritesPopover.retrait-refuse.p243-01.test.tsx`, avec le vrai `useRemoveFavoriteMutation` et `apiRequest` retenu puis refusé en 500 → deux retraits refusés rendent `[625]` au lieu de `[624, 625]`, et un retrait refusé menu fermé par Échap laisse `[625]` sans 624 ; correctif : `mutateAsync(…).catch(() => storeAdd(id))`, le patron de `useFavorite`, et le test P228.03 double désormais `mutateAsync`. Ablation : correctif retiré → les deux tests rougissent ; remis → 10/10 verts sur les trois fichiers `FavoritesPopover.*`.
 
 ### Petites améliorations
 - Réf : P243.02
@@ -7739,7 +7741,7 @@ Le seul passage restant est `CustomerService::findOrCreateFromUser`, dans la ré
 
 ### Le motif d'un passage en « converti » ou « perdu » est perdu quand l'API refuse : le dialogue se ferme avant la réponse, et le champ ne porte pas la borne de 5 000 caractères
 - Réf : P244.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-2361
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/pipeline/ReasonDialog.tsx:39-55`, `:81-87`, `:96`, `takussan-web/src/components/pipeline/PipelineKanban.tsx:211-226`, `:328-337`, `takussan-web/src/components/crm/CustomerStageControl.tsx:35-42`, `:66-77`, `takussan-api/app/Http/Requests/Api/UpdatePipelineStageCustomerRequest.php:29-40`, `takussan-api/app/Http/Controllers/Api/CustomerController.php:276-278`
 - Constat :
@@ -7750,6 +7752,7 @@ Le seul passage restant est `CustomerService::findOrCreateFromUser`, dans la ré
   - Établi comment : lu, front et API.
 - Piste : le patron de TCK-2212 : fermer le dialogue dans `onSuccess` (rappel passé à `onSubmit`, ou `mutateAsync` attendu), garder le motif sur un refus et y afficher l'erreur, et poser `maxLength={5000}` sur le `Textarea`. Garde : un test du tableau et un test de la fiche où la mutation rejette en 422 → le dialogue reste ouvert avec le motif ; `maxLength=5000`.
 - Mesure (2026-10-25, db3e25230, mesureur) : relu `ReasonDialog.tsx:39-55,81-87,96` (le `Textarea` n'a pas de `maxLength`), `PipelineKanban.tsx:331-336` (`runStageMutation` puis `setPendingReason(null)` dans le même gestionnaire) et `CustomerStageControl.tsx:72-76` (`mutation.mutate` puis `setPending(null)`), tous inchangés depuis TCK-2093 ; `UpdatePipelineStageCustomerRequest.php:39` (`max:5000`) ; test vitest temporaire (retiré), `CustomerStageControl` avec un `patchCustomerPipelineStage` qui rejette en `ApiError(422)` → `maxlength` = `null`, alerte « Le motif est trop long. » affichée, `reason-input` absent et le texte saisi « Budget insuffisant » introuvable dans le document → le constat tient. Classement : A1, la borne est écrite dans le contrat de l'API et le rendu de l'erreur par ADR-0019, sur le patron de TCK-2212 (P228.02, classé A1). Aucun texte neuf : les messages d'erreur existent déjà.
+- Mesure (2026-10-25, 8d1afa650, implementeur) : reproduit avant correctif par `CustomerStageControl.motif-refuse.p244-01.test.tsx` et `PipelineKanban.motif-refuse.p244-01.test.tsx` (refus en `ApiError(422)` → dialogue introuvable, motif perdu ; `maxlength` absent) ; correctif : `ReasonDialog` porte `maxLength={5000}`, dit `erreur` en alerte et désactive la confirmation `enCours`, et la fiche comme le tableau ferment le dialogue dans le `onSuccess` de l'appel, en remettant la mutation à zéro à l'ouverture. Ablation : les trois fichiers retirés → 3 tests rouges (borne, refus dans la fiche, refus dans le tableau) ; remis → 23/23 verts dans `pipeline/__tests__` et `CustomerStageControl*`. Le toast du tableau reste aussi sur un refus venu du dialogue (non retiré, choix conservateur).
 
 ## Angle 245 — Colonnes JSON recomposées depuis le modèle chargé puis réécrites en entier
 
