@@ -1,6 +1,6 @@
 # ADR-0032 — L'API n'écrit plus de prose : une notification est un code rendu par surface, une erreur est un code et un message localisé
 
-- **Statut** : Accepté
+- **Statut** : Accepté, **amendé le 2026-10-25** (cf. § *Amendement du 2026-10-25 — un compte non joignable ne reçoit que les avis de son compte, par tous les chemins*)
 - **Date** : 2026-10-07
 - **Tickets** : [TCK-588](../backlog/tickets/TCK-588-api-sans-prose-notifications-multicanal.md)
 - **Étend** : [ADR-0019](0019-l-erreur-d-api-porte-un-code-pas-un-libelle.md) (« l'erreur d'API porte un code, la
@@ -164,3 +164,39 @@ HTTP 403  { "code": "payout.landlord_not_in_agency", "message": "<errors.payout.
 - Gardes : `tests/Unit/Architecture/ProseLitteraleInterditeTest.php`,
   `tests/Unit/Lang/LangGroupParityTest.php`, `tests/Unit/Notifications/MobileClassEventsTest.php`,
   `scripts/check-notification-codes.mjs` (étape de `repo-ci.yml`).
+
+## Amendement du 2026-10-25 — un compte non joignable ne reçoit que les avis de son compte, par tous les chemins
+
+- **Ticket** : [TCK-2363](../backlog/tickets/TCK-2363-compte-bloque-sans-avis-par-tous-les-chemins.md)
+  (P239.01, décision du porteur du 2026-10-25). Prolonge [TCK-1350](../backlog/tickets/TCK-1350-compte-bloque-sans-notifications-metier.md) (P88.04).
+
+**Constat.** TCK-1350 a posé qu'un compte bloqué ou supprimé ne reçoit que les codes de son
+compte, mais la règle ne vivait que dans `NotificationService::send()` et `CodedNotification::via()`.
+Les classes `Notification` envoyées directement (`Notification::send`, `->notify()`) ne jugeaient
+pas le compte. Mesuré : un locataire `blocked` recevait la pénalité de retard (`database`, `mail`,
+`broadcast`) et le rappel d'état des lieux (`database`, `mail`), et un administrateur d'agence
+`blocked` au profil actif recevait l'alerte de seuil (`database`, `mail`). Seul un compte
+`trashed()` était arrêté partout (`RienPourUnCompteEfface`, TCK-1752).
+
+**Décision.** La règle se juge au point commun de tous les envois : l'écouteur
+`App\Listeners\Notifications\RienPourUnCompteNonJoignable` de `NotificationSending`, à côté de
+`RienPourUnCompteEfface`, rend `false` pour un `User` non joignable (`blocked` ou `deleted`, au sens
+de `PrimaryPropertyContact::joignable()`), sauf pour une **liste fermée d'avis de compte** :
+
+- les codes de `NotificationCode::reachesUnreachableAccount()` : blocage, réactivation, fin
+  d'impersonation ;
+- les classes de `RienPourUnCompteNonJoignable::AVIS_DU_COMPTE` : effacement (demande, rappel, code
+  de confirmation, exécution), réinitialisation du mot de passe, export prêt
+  (`DataExportReadyNotification`, le droit d'accès aux données d'un compte bloqué).
+
+Toute autre notification est coupée sur tous les canaux. Les avis du bail au locataire bloqué
+(pénalité, révision, renouvellement, caution, bienvenue, résiliation, rappels) le sont donc aussi.
+Une notification neuve se classe : `RienPourUnCompteNonJoignableTest` relève chaque classe
+`Notification` de `app/` et casse tant qu'elle n'est ni dans la liste fermée ni dans la liste des
+coupées.
+
+**Ce qui n'est pas gardé.** Le courrier envoyé hors des notifications (`Mail::to()`, mailables) ne
+passe pas par `NotificationSending` : l'écouteur ne le voit pas. Un contact sans compte
+(`ContactSansCompte`, `AnonymousNotifiable`) n'est pas un `User` et n'est pas jugé. Le statut
+`inactive` reste joignable. Les autres exports (`ActivityLogExportReadyNotification`,
+`ReportExportReadyNotification`) sont des avis de travail d'agence, et sont coupés.
