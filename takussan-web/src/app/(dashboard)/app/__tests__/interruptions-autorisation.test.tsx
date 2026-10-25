@@ -73,6 +73,9 @@ vi.mock('@/app/actions/auth', () => ({ getMeAction: () => getMeAction() }));
 vi.mock('next-intl/server', () => ({
   getTranslations: async () => Object.assign((k: string) => k, { rich: (k: string) => k }),
 }));
+// Les layouts de section sont aussi des frontières de dictionnaire (ADR-0022, amendement du
+// 2026-10-25) : le refus se décide avant, le dictionnaire n'importe pas ici.
+vi.mock('@/i18n/messages', () => ({ messagesPour: async () => ({}) }));
 
 // Les enfants montent des arbres entiers (kanban avec glisser-déposer, formulaire client,
 // listes paginées). Le refus se décide AVANT eux : des marqueurs suffisent, et leur absence

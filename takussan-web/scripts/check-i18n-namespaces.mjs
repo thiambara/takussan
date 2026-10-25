@@ -71,6 +71,16 @@
  *    un plafond en octets rougirait à chaque traduction ajoutée, ce qui apprend à relever le
  *    plafond sans regarder. Une part, elle, ne bouge que si le DÉCOUPAGE se dégrade.
  *
+ * E. **Une frontière À SECTIONS ne sert que sa coque** (P105.01, amendement du 2026-10-25). Sous
+ *    `(dashboard)/app`, chaque section de premier niveau (`crm/`, `leases/`, `properties/`…) dont
+ *    les fichiers atteignent un espace que la coque ne sert pas monte sa propre frontière. La
+ *    coque, ce sont les fichiers du routeur posés dans le répertoire même de la frontière (son
+ *    `layout.tsx`, `not-found.tsx`…) plus ce que servent ses parents. Sans cette règle, une
+ *    section neuve écrite sans `layout.tsx` ferait entrer ses espaces dans la frontière de
+ *    `/app`, donc dans le document de TOUS ses écrans — et `--update` le rendrait conforme.
+ *    Mesuré le 2026-10-25 : la coque de `/app` atteint 21 espaces (31,9 Ko gzip), la frontière en
+ *    servait 47 (71,6 Ko).
+ *
  * Ce que la garde ne prouve PAS, et il faut le dire : qu'aucun `MISSING_MESSAGE` ne survient. Elle
  * prouve que le sous-ensemble déclaré couvre ce que le graphe d'imports peut atteindre. Un espace
  * adressé par une chaîne construite à l'exécution qu'aucune des trois règles ne récolte lui
@@ -148,6 +158,10 @@ const fichiersRouteur = fichiersDe(APP).filter(
  * 14 `messagesPour` — c'est-à-dire 14 fois les 38 espaces de noms du tableau de bord, sérialisés
  * pour des composants qui n'affichent pas un seul mot. *Le coût que ce fichier existe pour
  * mesurer, payé par la garde elle-même.*
+ *
+ * ⚠ Depuis l'amendement d'ADR-0022 du 2026-10-25, sept d'entre eux — `calendar`, `commissions`,
+ * `customers`, `leads`, `owners`, `properties`, `tasks` — sont aussi des frontières de SECTION
+ * (règle E) : la table étant différentielle, ils ne servent que les espaces de leur section.
  *
  * ⚠ L'exemption est DÉRIVÉE et étroite, pas déclarée : il faut À LA FOIS qu'aucune API de
  * traduction n'apparaisse dans le fichier ET que le rendu soit exactement `<>{children}</>`. Un
@@ -243,6 +257,40 @@ for (const f of frontieres) {
   derive[id] = cumule(f).filter((n) => !duParent.has(n));
   const part = (100 * partGzip(cumule(f))) / totalGzip;
   plafonds[id] = Math.min(100, Math.ceil(part) + MARGE_POINTS);
+}
+
+// ── 2 bis. Les frontières À SECTIONS ne servent que leur coque (règle E, P105.01) ──────────────
+const FRONTIERES_A_SECTIONS = ['(dashboard)/app'];
+for (const id of FRONTIERES_A_SECTIONS) {
+  const f = join(APP, id);
+  if (!frontieres.includes(f)) {
+    echecs.push(`frontière à sections « ${id} » introuvable : la règle E ne garde plus rien.`);
+    continue;
+  }
+  const parent = parentDe(f);
+  const dansLaCoque = entrees.get(f).filter((x) => dirname(x) === f);
+  const coque = new Set([
+    ...PLANCHER,
+    ...(parent ? cumule(parent) : []),
+    ...espacesAtteignables(dansLaCoque, SRC, espacesConnus).espaces,
+  ]);
+  const parSection = new Map();
+  for (const x of entrees.get(f)) {
+    if (dirname(x) === f) continue;
+    const section = relative(f, x).split('/')[0];
+    parSection.set(section, [...(parSection.get(section) ?? []), x]);
+  }
+  for (const [section, fichiers] of [...parSection].sort()) {
+    const hors = [...espacesAtteignables(fichiers, SRC, espacesConnus).espaces].filter((n) => !coque.has(n)).sort();
+    if (hors.length) {
+      echecs.push(
+        `section « ${section} » de « ${id} » — atteint ${hors.join(', ')}, que la coque ne sert pas\n` +
+          `    Lui monter sa frontière : \`${id}/${section}/layout.tsx\`, qui rend\n` +
+          `    \`<IntlProvider messages={await messagesPour('${id}/${section}')}>\`, puis --update.\n` +
+          '    Sans elle, ces espaces entrent dans le document de TOUS les écrans de la frontière.',
+      );
+    }
+  }
 }
 
 // ── 3. `getMessages()` ne doit vivre qu'à un endroit ─────────────────────────────────────────────
@@ -411,6 +459,35 @@ if (rapport || majTable) {
     console.log(`${' '.repeat(large)}  ${derive[id].join(' ')}`);
     const seulServeur = [...serveurSeul.get(f)].filter((n) => !cumul.includes(n)).sort();
     if (seulServeur.length) console.log(`${' '.repeat(large)}  lus par le serveur seul, non servis : ${seulServeur.join(' ')}`);
+  }
+}
+
+// P105.01 — le rapport chiffre aussi chaque ÉCRAN : ce que sa frontière lui sert (le cumul) et ce
+// que l'écran peut lire (sa page et la chaîne de ses layouts, `loading`, `error`… jusqu'à la
+// racine, plancher compris). L'écart est ce qu'une frontière plus fine rendrait. Statique : les
+// octets du document servi (`next start`) ne sont pas mesurés ici.
+if (rapport) {
+  console.log('\nPar écran — servi par sa frontière / atteint par la page et ses layouts (gzip) :\n');
+  const pages = fichiersRouteur.filter((f) => basename(f).startsWith('page.'));
+  const lignes = [];
+  for (const page of pages) {
+    const ici = dirname(page);
+    const chaine = fichiersRouteur.filter(
+      (f) => !basename(f).startsWith('page.') && (ici + '/').startsWith(dirname(f) + '/'),
+    );
+    const atteints = new Set([...PLANCHER, ...espacesAtteignables([page, ...chaine], SRC, espacesConnus).espaces]);
+    const f = frontierePour(page);
+    const servis = cumule(f);
+    lignes.push([relative(APP, ici) || '.', idDe(f), servis.length, partGzip(servis), atteints.size, partGzip([...atteints].sort())]);
+  }
+  lignes.sort((a, b) => a[0].localeCompare(b[0]));
+  const large = Math.max(...lignes.map((l) => l[0].length));
+  for (const [ecran, id, nServis, oServis, nAtteints, oAtteints] of lignes) {
+    console.log(
+      `${ecran.padEnd(large)}  servi ${String(nServis).padStart(2)} / ${String(oServis).padStart(6)} o` +
+        `  atteint ${String(nAtteints).padStart(2)} / ${String(oAtteints).padStart(6)} o` +
+        `  ${String(Math.round((100 * oAtteints) / oServis)).padStart(3)} %  ← ${id}`,
+    );
   }
 }
 

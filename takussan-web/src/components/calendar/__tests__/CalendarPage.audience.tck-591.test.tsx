@@ -29,6 +29,9 @@ vi.mock('next/navigation', async () => ({
   redirect: redirectMock,
 }));
 vi.mock('@/app/actions/auth', () => ({ getMeAction: getMeMock }));
+// Le layout est aussi la frontière de dictionnaire de l'agenda (ADR-0022, amendement du
+// 2026-10-25) : seule sa garde est éprouvée ici.
+vi.mock('@/i18n/messages', () => ({ messagesPour: async () => ({}) }));
 
 import CalendarLayout from '@/app/(dashboard)/app/calendar/layout';
 
