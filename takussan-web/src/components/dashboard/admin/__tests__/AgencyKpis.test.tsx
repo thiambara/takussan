@@ -136,4 +136,47 @@ describe('<AgencyKpis>', () => {
     expect(screen.queryByText(/échéances/)).toBeNull();
     expect(container.querySelector('[class*="bg-destructive"]')).toBeNull();
   });
+
+  // TCK-2373 (P249.02) — les tuiles lisent `kpi_configs`, servis par l'API sous `kpis`.
+  it('rend les indicateurs configurés, dans l’ordre servi, avec leur libellé et leur format', () => {
+    const { container } = render(withIntl(<AgencyKpis
+        summary={buildSummary({
+          kpis: [
+            { metric: 'occupancy_rate_percent', label: 'Taux', format: 'percent', value: 37.5 },
+            { metric: 'properties_total', label: 'Parc', format: 'number', value: 1234 },
+            { metric: 'revenue_month', label: 'Encaissé', format: 'currency', value: 1_540_000 },
+          ],
+        })}
+      />));
+
+    const libelles = Array.from(container.querySelectorAll('p'))
+      .map((p) => p.textContent)
+      .filter((texte) => ['Taux', 'Parc', 'Encaissé'].includes(texte ?? ''));
+    expect(libelles).toEqual(['Taux', 'Parc', 'Encaissé']);
+    expect(screen.getByText(/^37,5\s*%$/)).toBeInTheDocument();
+    expect(screen.getByText(/^1\s?234$/)).toBeInTheDocument();
+    expect(screen.getByText(/^1\s?540\s?000\s*F\s?CFA$/)).toBeInTheDocument();
+    // Les tuiles par défaut cèdent la place à la configuration.
+    expect(screen.queryByText('Biens')).toBeNull();
+    expect(screen.queryByText("Taux d'impayés")).toBeNull();
+  });
+
+  it('affiche un tiret pour un indicateur configuré sans valeur (pas de dénominateur)', () => {
+    render(withIntl(<AgencyKpis
+        summary={buildSummary({
+          kpis: [{ metric: 'unpaid_rate_percent', label: 'Impayés 12 mois', format: 'percent', value: null }],
+        })}
+      />));
+
+    const tuile = screen.getByText('Impayés 12 mois').parentElement as HTMLElement;
+    expect(tuile.textContent).toContain('—');
+    expect(tuile.textContent).not.toMatch(/0\s*%/);
+  });
+
+  it('garde les six tuiles par défaut quand l’agence n’a rien configuré', () => {
+    render(withIntl(<AgencyKpis summary={buildSummary({ kpis: [] })} />));
+
+    expect(screen.getByText('Biens')).toBeInTheDocument();
+    expect(screen.getByText("Taux d'impayés")).toBeInTheDocument();
+  });
 });

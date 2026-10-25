@@ -23,7 +23,7 @@ import { EmptyState } from '@/components/feedback';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/toast';
 import { useAuth } from '@/context/AuthContext';
-import { apiRequest, ApiError, buildQueryString } from '@/lib/api';
+import { ApiError } from '@/lib/api';
 import { formaterTelephone } from '@/lib/phone';
 import {
   fetchOwners,
@@ -123,7 +123,9 @@ export function OwnersList({ agencyId, canInvite, initialData, canRevealSensitiv
   const resendMutation = useMutation<unknown, ApiError, OwnerProfileSummary>({
     mutationFn: async (owner) => {
       if (!token) throw new ApiError(401, { message: tErr('missingToken') });
-      const id = await resolveInvitationId(token, owner);
+      // P237.01 (TCK-2371) — l'API porte l'invitation en attente sur la ligne. La recherche par
+      // e-mail qu'elle remplace disait « aucune invitation » pour toute panne, et pour un numéro.
+      const id = owner.pending_invitation_id ?? null;
       if (id === null) throw new ApiError(404, { message: tErr('noPendingInvitation') });
       // TCK-1203 — relancer exige la 2FA de l'agence (`InvitationController@resend`).
       return avecGardeDoubleFacteur(() => resendInvitation(token, id), garde);
@@ -143,7 +145,7 @@ export function OwnersList({ agencyId, canInvite, initialData, canRevealSensitiv
   const revokeMutation = useMutation<unknown, ApiError, OwnerProfileSummary>({
     mutationFn: async (owner) => {
       if (!token) throw new ApiError(401, { message: tErr('missingToken') });
-      const id = await resolveInvitationId(token, owner);
+      const id = owner.pending_invitation_id ?? null;
       if (id === null) throw new ApiError(404, { message: tErr('noPendingInvitation') });
       return avecGardeDoubleFacteur(() => revokeInvitation(token, id), garde);
     },
@@ -391,35 +393,4 @@ function nomDe(owner: OwnerProfileSummary): string {
   // par l'agence à l'invitation, rangé dans `metadata`.
   const compte = `${owner.user?.first_name ?? ''} ${owner.user?.last_name ?? ''}`.trim();
   return compte || `${meta?.first_name ?? ''} ${meta?.last_name ?? ''}`.trim();
-}
-
-/**
- * Resolve the latest pending invitation for this draft profile. The
- * owners listing endpoint doesn't include the invitation id (sparse
- * fieldset), so we look it up via the generic invitation listing scoped
- * to the same email + agency.
- */
-async function resolveInvitationId(
-  token: string,
-  owner: OwnerProfileSummary,
-): Promise<number | null> {
-  const email = owner.user?.email ?? owner.metadata?.email ?? null;
-  if (!email) return null;
-
-  const qs = buildQueryString({
-    fields: { invitations: ['id', 'email', 'status', 'agency_id'] },
-    filter: { email, status: 'sent', agency_id: owner.agency_id },
-    sort: '-created_at',
-    per_page: 1,
-  });
-
-  try {
-    const json = await apiRequest<{ data: Array<{ id: number }> }>(
-      `/api/invitations${qs ? `?${qs}` : ''}`,
-      { token },
-    );
-    return json.data?.[0]?.id ?? null;
-  } catch {
-    return null;
-  }
 }

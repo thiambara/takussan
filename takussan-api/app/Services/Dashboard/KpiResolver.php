@@ -3,11 +3,12 @@
 namespace App\Services\Dashboard;
 
 use App\Models\Agency;
+use App\Models\KpiConfig;
 
 /**
  * Flattens DashboardAgencyService::summary() → simple
  * metric_key => numeric_value map. Used by:
- *   - KpiConfig frontend rendering (labels + values).
+ *   - the agency dashboard tiles configured in `kpi_configs` (TCK-2373, {@see self::configuredTiles()}).
  *   - ThresholdAlert evaluation (CheckThresholdAlertsCommand).
  */
 class KpiResolver
@@ -22,8 +23,15 @@ class KpiResolver
      */
     public function forAgency(Agency $agency): array
     {
-        $s = $this->agencyService->summary($agency);
+        return self::flatten($this->agencyService->summary($agency));
+    }
 
+    /**
+     * @param  array<string, mixed>  $s  le résumé de {@see DashboardAgencyService::summary()}
+     * @return array<string, float|int|null>
+     */
+    public static function flatten(array $s): array
+    {
         return [
             'properties_total' => $s['properties']['total'] ?? 0,
             'properties_rented' => $s['properties']['rented'] ?? 0,
@@ -40,5 +48,36 @@ class KpiResolver
             'unpaid_rate_percent' => $s['finance']['unpaid_rate_percent'] ?? null,
             'occupancy_rate_percent' => $s['occupancy']['rate_percent'] ?? null,
         ];
+    }
+
+    /**
+     * TCK-2373 (P249.02) — les tuiles que l'agence a configurées dans l'écran « Indicateurs » : les
+     * seules activées, par `sort_order` puis `id`, avec leur libellé, leur format et la valeur lue
+     * dans le résumé déjà calculé (une requête de plus, constante). Une métrique hors de
+     * {@see self::flatten()} n'a pas de valeur servie : elle est omise, jamais rendue à zéro.
+     * Liste vide sans configuration : le tableau de bord garde alors ses tuiles par défaut.
+     *
+     * @param  array<string, mixed>  $summary
+     * @return list<array{metric: string, label: string, format: string, value: float|int|null}>
+     */
+    public static function configuredTiles(Agency $agency, array $summary): array
+    {
+        $values = self::flatten($summary);
+
+        return KpiConfig::query()
+            ->where('agency_id', $agency->id)
+            ->where('is_enabled', true)
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get(['metric', 'label', 'format'])
+            ->filter(fn (KpiConfig $config): bool => array_key_exists($config->metric, $values))
+            ->map(fn (KpiConfig $config): array => [
+                'metric' => $config->metric,
+                'label' => $config->label,
+                'format' => $config->format,
+                'value' => $values[$config->metric],
+            ])
+            ->values()
+            ->all();
     }
 }

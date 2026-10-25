@@ -48,7 +48,7 @@ class UrgentMaintenanceCreatedNotification extends Notification implements Shoul
 
     public function toMail(object $notifiable): MailMessage
     {
-        $title = $this->maintenanceRequest->title ?? '#'.$this->maintenanceRequest->id;
+        $title = $this->maintenanceRequest->title;
 
         $mail = (new MailMessage)
             ->subject(__($this->isEscalation
@@ -80,7 +80,7 @@ class UrgentMaintenanceCreatedNotification extends Notification implements Shoul
             'title' => __($this->isEscalation
                 ? 'notifications.urgent_maintenance.title_escalation'
                 : 'notifications.urgent_maintenance.title', [
-                    'title' => $this->maintenanceRequest->title ?? '#'.$this->maintenanceRequest->id,
+                    'title' => $this->maintenanceRequest->title,
                 ]),
             'priority' => 'urgent',
             'escalation' => $this->isEscalation,

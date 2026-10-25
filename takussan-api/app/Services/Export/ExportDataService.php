@@ -480,14 +480,16 @@ class ExportDataService
             return;
         }
 
-        // Tenants / customers: only their own payments
-        $customer = Customer::where('user_id', $actor->id)->first();
-        if ($customer) {
+        // Tenants / customers: only their own payments.
+        // TCK-2366 (P250.01) — toutes ses fiches, une par agence, comme `DashboardTenantService` :
+        // un `->first()` sans ordre en prenait une au hasard et taisait l'autre agence.
+        $customerIds = Customer::query()->where('user_id', $actor->id)->orderBy('id')->pluck('id');
+        if ($customerIds->isNotEmpty()) {
             match ($entity) {
-                'lease_payment' => $query->where('payer_id', $customer->id),
-                'lease' => $query->where('tenant_id', $customer->id),
+                'lease_payment' => $query->whereIn('payer_id', $customerIds),
+                'lease' => $query->whereIn('tenant_id', $customerIds),
                 'property' => $query->whereRaw('1 = 0'),
-                'customer' => $query->where('id', $customer->id),
+                'customer' => $query->whereIn('id', $customerIds),
                 default => $query->whereRaw('1 = 0'),
             };
         } else {

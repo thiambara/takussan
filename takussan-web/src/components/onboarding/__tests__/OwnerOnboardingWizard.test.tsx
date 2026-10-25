@@ -68,7 +68,7 @@ vi.mock('@/hooks/useWizardDraft', () => ({
     // `{ ok: true, ecrit: false }` est ce que la production rend au repos : rien
     // en attente, aucun échec antérieur (`useWizardDraft.ts`, `flush()`).
     flush: vi.fn().mockResolvedValue({ ok: true, ecrit: false }),
-    clear: vi.fn().mockResolvedValue(undefined),
+    clear: vi.fn().mockResolvedValue(true),
   }),
 }));
 

@@ -38,6 +38,8 @@ class ExportScopingTest extends ApiTestCase
 
     private const AMOUNT_B = 222222;      // agence B
 
+    private const AMOUNT_B_TENANT = 333333; // agence B, bail du locataire A sous sa seconde fiche
+
     private Agency $agencyA;
 
     private Agency $agencyB;
@@ -249,6 +251,32 @@ class ExportScopingTest extends ApiTestCase
         $leases = $this->export('leases');
         $lines = $this->dataLines($leases);
         $this->assertCount(1, $lines, 'Un locataire ne doit exporter que SON bail.');
+    }
+
+    /**
+     * TCK-2366 (P250.01) — un compte a une fiche client par agence : l'export en prenait une
+     * seule, sans ordre, et taisait les baux et paiements de l'autre agence.
+     */
+    public function test_a_tenant_of_two_agencies_exports_the_leases_and_payments_of_both(): void
+    {
+        $tenantUser = User::factory()->create();
+        $this->tenantA->update(['user_id' => $tenantUser->id]);
+        $tenantB = Customer::factory()->create(['agency_id' => $this->agencyB->id, 'user_id' => $tenantUser->id]);
+        $leaseB = Lease::factory()->active()->create([
+            'agency_id' => $this->agencyB->id,
+            'tenant_id' => $tenantB->id,
+            'property_id' => Property::factory()->create(['agency_id' => $this->agencyB->id])->id,
+        ]);
+        $this->payment($leaseB, $tenantB, self::AMOUNT_B_TENANT);
+        $this->actingAs($tenantUser, 'sanctum');
+
+        $payments = $this->export('payments');
+        $this->assertStringContainsString((string) self::AMOUNT_A, $payments);
+        $this->assertStringContainsString((string) self::AMOUNT_B_TENANT, $payments);
+        $this->assertStringNotContainsString((string) self::AMOUNT_B, $payments);
+        $this->assertStringNotContainsString((string) self::AMOUNT_A_OTHER, $payments);
+
+        $this->assertCount(2, $this->dataLines($this->export('leases')));
     }
 
     public function test_a_tenant_is_refused_the_crm_and_properties_exports(): void

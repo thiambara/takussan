@@ -82,6 +82,9 @@ function ReasonForm({ pending, onCancel, onSubmit, erreur, enCours }: ReasonForm
           {t('reasonDialog.title', { stage: t(`stage.${pending.to}`) })}
         </DialogTitle>
         <DialogDescription>
+          {/* TCK-2371 — aucune garde du dépôt ne confronte les clés du code au dictionnaire : ces
+              deux-là, absentes des trois langues, ne se voyaient qu'à l'écran. Leur garde est
+              `ReasonDialog.description.tck-2371.test.tsx`. */}
           {t(
             pending.to === 'converted'
               ? 'reasonDialog.descriptionConverted'

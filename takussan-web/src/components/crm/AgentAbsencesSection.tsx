@@ -135,9 +135,10 @@ export function AgentAbsencesSection({ agencyId, currentUserId }: AgentAbsencesS
           {rows.map((a) => (
             <li key={a.id} className="flex flex-wrap items-center justify-between gap-2">
               <span>
+                {/* P235.02 (TCK-2369) — `||` : un nom vide ne laisse pas de trou dans la phrase. */}
                 {t('row', {
-                  absent: a.absent?.name ?? '—',
-                  substitute: a.substitute?.name ?? '—',
+                  absent: a.absent?.name || '—',
+                  substitute: a.substitute?.name || '—',
                   until: formatDate(a.ends_at, locale),
                 })}
               </span>

@@ -2500,7 +2500,9 @@
           "draft_not_saved_body": "L'enregistrement de votre brouillon a été refusé (connexion perdue ou session expirée). Vérifiez votre connexion, reconnectez-vous si besoin, puis cliquez de nouveau sur « Envoyer la demande » — vos saisies sont toujours là."
         },
         "toasts": {
-          "submitted": "Votre demande a bien été envoyée."
+          "submitted": "Votre demande a bien été envoyée.",
+          "draft_not_cleared_title": "Brouillon non effacé",
+          "draft_not_cleared_body": "Votre demande est bien envoyée, mais son brouillon n'a pas pu être effacé (connexion perdue ou session expirée). Il peut encore vous être proposé à la reprise : vous pouvez l'ignorer."
         }
       },
       "status": {
@@ -2682,6 +2684,8 @@
       },
       "reasonDialog": {
         "title": "Passer en {stage} — préciser la raison",
+        "descriptionConverted": "Précisez pourquoi ce client est converti.",
+        "descriptionLost": "Précisez pourquoi ce client est perdu.",
         "placeholder": "Ex. : converti suite à signature du bail le 10 mai…"
       },
       "tabs": {
@@ -4374,7 +4378,8 @@
     "button": {
       "aria": "Mes favoris",
       "remove": "Retirer des favoris",
-      "add": "Ajouter aux favoris"
+      "add": "Ajouter aux favoris",
+      "refusedTitle": "Le favori n'a pas été modifié"
     },
     "popover": {
       "title": "Mes favoris",
@@ -4710,7 +4715,9 @@
       "saveFailedToastTitle": "Progression non enregistrée",
       "saveFailedToastBody": "L'enregistrement a été refusé (connexion perdue ou session expirée). Reconnectez-vous, rouvrez l'assistant et vérifiez vos dernières saisies : elles n'ont pas été conservées.",
       "completionFailedToastTitle": "Impossible de terminer pour l'instant",
-      "completionFailedToastBody": "Votre progression n'a pas pu être enregistrée. Vérifiez votre connexion, puis cliquez de nouveau sur « Terminer » — rien n'est perdu."
+      "completionFailedToastBody": "Votre progression n'a pas pu être enregistrée. Vérifiez votre connexion, puis cliquez de nouveau sur « Terminer » — rien n'est perdu.",
+      "draftNotClearedToastTitle": "Brouillon non effacé",
+      "draftNotClearedToastBody": "Votre démarche est bien enregistrée, mais son brouillon n'a pas pu être effacé (connexion perdue ou session expirée). Il peut encore vous être proposé à la reprise : vous pouvez l'ignorer."
     },
     "banner": {
       "ariaLabel": "Reprendre une démarche en cours",
@@ -10568,6 +10575,7 @@
     "retry": "Réessayer"
   },
   "notifications": {
+    "unnamedPerson": "(sans nom)",
     "codes": {
       "lease_payment": {
         "due_soon": {

@@ -103,24 +103,35 @@ export function SuperAdminPropertiesTable({ rows, total, onChange }: SuperAdminP
     [router, searchParams],
   );
 
-  const refresh = useCallback(() => {
-    setSelected(new Set());
-    setIntent(null);
-    setError(null);
+  const relire = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ['super-admin', 'properties'] });
     onChange();
   }, [onChange, queryClient]);
+
+  const remettreAZero = useCallback(() => {
+    setSelected(new Set());
+    setIntent(null);
+    setError(null);
+  }, []);
+
+  const refresh = useCallback(() => {
+    remettreAZero();
+    relire();
+  }, [relire, remettreAZero]);
 
   const publishMutation = useMutation({
     mutationFn: (id: number) => postPropertyAction(id, 'publish'),
     onSuccess: refresh,
     onError: (err: ApiError) => setError(messageErreur(err)),
   });
+  // P237.04 (TCK-2371) — un lot part en une requête par bien : au premier refus, ceux déjà traités
+  // le sont pour de bon. La liste se relit donc dans `onSettled`, et le refus reste dit.
   const unpublishMutation = useMutation({
     mutationFn: (ids: number[]) =>
       Promise.all(ids.map((id) => postPropertyAction(id, 'unpublish'))),
-    onSuccess: refresh,
+    onSuccess: remettreAZero,
     onError: (err: ApiError) => setError(messageErreur(err)),
+    onSettled: relire,
   });
   const archiveMutation = useMutation({
     mutationFn: (ids: number[]) => archiveProperties(ids),
@@ -129,8 +140,9 @@ export function SuperAdminPropertiesTable({ rows, total, onChange }: SuperAdminP
   });
   const deleteMutation = useMutation({
     mutationFn: (ids: number[]) => Promise.all(ids.map((id) => deleteProperty(id))),
-    onSuccess: refresh,
+    onSuccess: remettreAZero,
     onError: (err: ApiError) => setError(messageErreur(err)),
+    onSettled: relire,
   });
 
   const pending =

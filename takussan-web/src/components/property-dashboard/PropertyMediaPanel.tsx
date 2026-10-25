@@ -97,6 +97,21 @@ export function PropertyMediaPanel({ propertyId }: PropertyMediaPanelProps) {
     [propertyId],
   );
 
+  // P243.02 (TCK-2371) — la liste relue après un geste refusé ; les identifiants connus s'y alignent.
+  const handleRelire = useCallback(async (): Promise<MediaItem[]> => {
+    const res = await fetchPropertyMediaAction(propertyId);
+    if (!res.ok) throw new Error(res.message);
+    const data = res.data ?? [];
+    knownIdsRef.current = new Set(data.map((m) => m.id));
+    return data.map((m) => ({
+      id: m.id,
+      thumbnail: m.thumbnail,
+      preview: m.preview,
+      original: m.original,
+      order: m.order,
+    }));
+  }, [propertyId]);
+
   const handleDelete = useCallback(
     async (mediaId: number) => {
       const res = await deletePropertyMediaAction(propertyId, mediaId);
@@ -131,6 +146,7 @@ export function PropertyMediaPanel({ propertyId }: PropertyMediaPanelProps) {
         onUpload={handleUpload}
         onReorder={handleReorder}
         onDelete={handleDelete}
+        onRelire={handleRelire}
         maxSize={10 * 1024 * 1024}
         title={t('title')}
         hint={t('hint')}

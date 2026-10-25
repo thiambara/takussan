@@ -2529,7 +2529,9 @@
           "draft_not_saved_body": "Saving your draft was refused (lost connection or expired session). Check your connection, sign back in if needed, then click “Submit request” again — your entries are still here."
         },
         "toasts": {
-          "submitted": "Your request has been sent."
+          "submitted": "Your request has been sent.",
+          "draft_not_cleared_title": "Draft not cleared",
+          "draft_not_cleared_body": "Your request was sent, but its draft could not be cleared (connection lost or session expired). It may still be offered for you to resume: you can ignore it."
         }
       },
       "status": {
@@ -2711,6 +2713,8 @@
       },
       "reasonDialog": {
         "title": "Move to {stage} — give a reason",
+        "descriptionConverted": "Explain why this customer converted.",
+        "descriptionLost": "Explain why this customer was lost.",
         "placeholder": "e.g. converted after lease signed on May 10…"
       },
       "tabs": {
@@ -4374,7 +4378,8 @@
     "button": {
       "aria": "My favorites",
       "remove": "Remove from favourites",
-      "add": "Add to favourites"
+      "add": "Add to favourites",
+      "refusedTitle": "The favorite was not updated"
     },
     "popover": {
       "title": "My favorites",
@@ -4710,7 +4715,9 @@
       "saveFailedToastTitle": "Progress not saved",
       "saveFailedToastBody": "The save was refused (lost connection or expired session). Sign back in, reopen the wizard and check your latest entries: they were not kept.",
       "completionFailedToastTitle": "Can’t finish just yet",
-      "completionFailedToastBody": "Your progress could not be saved. Check your connection, then click “Finish” again — nothing is lost."
+      "completionFailedToastBody": "Your progress could not be saved. Check your connection, then click “Finish” again — nothing is lost.",
+      "draftNotClearedToastTitle": "Draft not cleared",
+      "draftNotClearedToastBody": "Your request went through, but its draft could not be cleared (connection lost or session expired). It may still be offered for you to resume: you can ignore it."
     },
     "banner": {
       "ariaLabel": "Resume an in-progress flow",
@@ -10568,6 +10575,7 @@
     "retry": "Try again"
   },
   "notifications": {
+    "unnamedPerson": "(unnamed)",
     "codes": {
       "lease_payment": {
         "due_soon": {

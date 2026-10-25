@@ -11,6 +11,18 @@ import { cheminApi } from '@/lib/chemin-api';
  * bubble.
  */
 
+/**
+ * TCK-2373 (P249.02) — un indicateur que l'agence a configuré dans l'écran « Indicateurs »
+ * (`kpi_configs`), avec la valeur que l'API calcule. Un format `percent` porte des points (0..100),
+ * comme les métriques `*_percent` ; `value` vaut `null` sans dénominateur.
+ */
+export type DashboardAgencyKpi = {
+  metric: string;
+  label: string;
+  format: 'number' | 'percent' | 'currency';
+  value: number | null;
+};
+
 export type DashboardAgencySummary = {
   agency_id: number;
   period: { start: string; end: string };
@@ -38,6 +50,8 @@ export type DashboardAgencySummary = {
   };
   /** `null` sans bien éligible longue durée : pas de dénominateur (TCK-1114). */
   occupancy: { rate_percent: number | null };
+  /** TCK-2373 — les indicateurs activés, dans l'ordre ; vide sans configuration (tuiles par défaut). */
+  kpis?: DashboardAgencyKpi[];
 };
 
 export type DashboardAgencyTimeseries = {

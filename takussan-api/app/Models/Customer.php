@@ -243,6 +243,22 @@ class Customer extends AbstractModel
     }
 
     /**
+     * P235.01 (TCK-2369) — le destinataire d'une facture : le nom de la fiche, à défaut son numéro,
+     * à défaut son e-mail (décision du porteur du 2026-10-25). Une fiche née d'un compte créé par
+     * téléphone garde des noms vides (TCK-2281). `null` : le gabarit imprime « — ».
+     */
+    public function invoiceRecipientName(): ?string
+    {
+        foreach ([$this->full_name, $this->phone, $this->email] as $candidate) {
+            if (is_string($candidate) && trim($candidate) !== '') {
+                return trim($candidate);
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * TCK-281 — n'indexe que l'id et les champs de `$requestSearchFields`.
      * Les colonnes sensibles (`id_number`, `metadata`, `emergency_contact_*`)
      * ne partent JAMAIS vers Meilisearch : l'index est un second magasin, hors

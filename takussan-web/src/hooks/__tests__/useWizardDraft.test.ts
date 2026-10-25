@@ -283,4 +283,26 @@ describe('useWizardDraft', () => {
     expect(fetchMock.mock.calls[1][1].method).toBe('DELETE');
     expect(result.current.draft).toBeNull();
   });
+
+  // P237.04 (TCK-2371) — `clear()` ne lève pas : il RENDAIT `undefined` sur un DELETE refusé, et
+  // l'appelant annonçait la démarche close pendant que le bandeau la reproposait. Il rend son sort.
+  it.each([
+    [204, true],
+    [500, false],
+  ] as const)('clear() rend son sort : DELETE en %i → %s', async (status, attendu) => {
+    setupFetchSequence([
+      { status: 200, json: async () => ({ data: { id: 1, key: 'k', step: 1, data: { y: 1 }, updated_at: 'now' } }) },
+      { status, json: async () => null },
+    ]);
+
+    const { result } = renderHook(() => useWizardDraft<{ y: number }>('k'));
+    await tick();
+
+    let efface: boolean | undefined;
+    await act(async () => {
+      efface = await result.current.clear();
+    });
+
+    expect(efface).toBe(attendu);
+  });
 });
