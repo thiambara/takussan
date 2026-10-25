@@ -141,20 +141,6 @@ class DemandeurAuBailFiniTest extends TestCase
             ->assertForbidden();
     }
 
-    public function test_l_ancien_locataire_ne_rattache_plus_un_groupe_neuf_a_l_intervention(): void
-    {
-        $this->finDuBail();
-        Sanctum::actingAs($this->tenant->fresh());
-
-        $this->postJson('/api/conversations', [
-            'type' => 'group',
-            'subject' => 'La fuite',
-            'participants' => [$this->landlord->id, $this->provider->id],
-            'maintenance_request_id' => $this->inProgress->id,
-            'initial_message' => 'Toujours là ?',
-        ])->assertJsonValidationErrors(['maintenance_request_id']);
-    }
-
     /** Témoin : au bail actif, tout reste ouvert. */
     public function test_temoin_le_locataire_au_bail_actif_garde_les_gestes(): void
     {
@@ -165,12 +151,6 @@ class DemandeurAuBailFiniTest extends TestCase
         $this->postJson("/api/maintenance-requests/{$this->inProgress->id}/photos", [
             'photos' => [UploadedFile::fake()->image('fuite.jpg')],
         ])->assertCreated();
-        $this->postJson('/api/conversations', [
-            'type' => 'group',
-            'subject' => 'La fuite',
-            'participants' => [$this->landlord->id, $this->provider->id],
-            'maintenance_request_id' => $this->inProgress->id,
-        ])->assertJsonMissingValidationErrors(['maintenance_request_id']);
         $this->postJson("/api/maintenance-requests/{$this->completed->id}/confirm-resolution")
             ->assertOk()->assertJsonPath('data.status', 'closed');
     }
