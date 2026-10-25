@@ -62,6 +62,12 @@ export type OwnerProfileSummary = {
   readonly id_document_number_masked?: string | null;
   /** TCK-956 (ADR-0070) — `••••` si un revenu est saisi ; aucun chiffre ne sort. */
   readonly monthly_income_masked?: string | null;
+  /**
+   * P237.01 (TCK-2371) — l'invitation `sent` du brouillon, émise par l'agence du profil (`null`
+   * sans elle). Rendue sur chaque ligne quelle que soit la liste `fields[]` demandée : la relance
+   * et la révocation partent par elle.
+   */
+  readonly pending_invitation_id?: number | null;
   readonly user?: {
     readonly id: number;
     readonly first_name: string;

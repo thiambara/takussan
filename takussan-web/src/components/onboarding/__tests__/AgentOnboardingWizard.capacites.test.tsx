@@ -42,7 +42,7 @@ vi.mock('@/hooks/useWizardDraft', () => ({
     isLoading: false,
     save: vi.fn(),
     flush: vi.fn().mockResolvedValue({ ok: true, ecrit: false }),
-    clear: vi.fn().mockResolvedValue(undefined),
+    clear: vi.fn().mockResolvedValue(true),
   }),
 }));
 

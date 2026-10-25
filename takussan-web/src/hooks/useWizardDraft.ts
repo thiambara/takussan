@@ -87,8 +87,12 @@ export type UseWizardDraftResult<TData> = {
    * quitter la page doit pouvoir ne PAS la quitter.
    */
   flush: () => Promise<ResultatEcritureBrouillon>;
-  /** Delete the draft on the server and reset local state. */
-  clear: () => Promise<void>;
+  /**
+   * Delete the draft on the server and reset local state. Ne lève pas : rend `false` si le DELETE a
+   * échoué (le brouillon vit toujours côté serveur, et le bandeau le reproposera), `true` sinon —
+   * P237.04 (TCK-2371). L'échec reste aussi dans `error`.
+   */
+  clear: () => Promise<boolean>;
 };
 
 type FetchResponse<T> = { ok: boolean; status: number; json: () => Promise<T> };
@@ -249,7 +253,7 @@ export function useWizardDraft<TData = Record<string, unknown>>(
     [debounceMs, performSave],
   );
 
-  const clear = useCallback(async (): Promise<void> => {
+  const clear = useCallback(async (): Promise<boolean> => {
     if (timerRef.current) {
       clearTimeout(timerRef.current);
       timerRef.current = null;
@@ -271,8 +275,10 @@ export function useWizardDraft<TData = Record<string, unknown>>(
         throw new Error(`DELETE wizard-drafts failed (${res.status})`);
       }
       setDraft(null);
+      return true;
     } catch (err) {
       setError(err instanceof Error ? err : new Error(String(err)));
+      return false;
     } finally {
       setIsSaving(false);
     }
