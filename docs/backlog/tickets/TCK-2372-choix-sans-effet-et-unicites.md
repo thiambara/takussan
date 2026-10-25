@@ -1,7 +1,7 @@
 ---
 id: TCK-2372
 title: "Les routes de rôle refusent les rôles sans effet, l'assistant de l'hôte perd un champ sans lecteur, et un profil de prestataire comme une destination par défaut deviennent uniques en base"
-status: doing
+status: done
 phase: P2
 family: bug
 estimate: M
@@ -115,3 +115,24 @@ l'arbre par le test de garde avant le correctif.
   défaut.
 
 ## Notes d'implémentation
+
+- **Ablations** (chaque correctif retiré, puis remis) : P249.01, anciennes listes → 13 rouges sur
+  15 ; P249.03, règle `required` → rouge côté API, sélecteur remis → rouge côté front, relecture du
+  brouillon sans retrait de `preferences` → les deux tests du brouillon fantôme hérité rougissent ;
+  P250.02, migration retirée → 3 rouges ; P250.03, relation nue et règle `nullable` → 5 rouges,
+  migration `payout_methods` retirée → 3 rouges.
+- **Écart à la lettre de P250.03, mesuré** : l'index de `payout_methods` porte `AND deleted_at IS
+  NULL`. Sans la clause, `PayoutMethodDefaultUniqueTest` rougit sur deux cas : une destination
+  supprimée garde `is_default`, et ajouter une destination après avoir supprimé celle par défaut
+  heurte l'index (23505, 500).
+- **Piège** : `keepOneDefault` écrivait la nouvelle destination par défaut AVANT de retirer le défaut
+  des autres. Sous l'index, la promotion d'une seconde destination rendait 500 : l'ordre est inversé,
+  sous verrou de la ligne `users`.
+- **Piège** : `HasOne::ofMany` avec un `where` posé APRÈS filtre la requête externe seulement : le
+  plus ancien enregistrement, s'il est une directe, rend `null`. Le filtre de type passe par la
+  fermeture d'`ofMany`, qui contraint la sous-requête.
+- `ProfileSchemaTest::test_service_provider_profile_allows_multiple_rows_for_same_user` tenait
+  l'état que la décision retire : réécrit sur la nouvelle règle.
+- Tests de groupe réécrits : le refus « ne concerne pas le bien » (TCK-576) et l'exception du
+  prestataire assigné à la création manuelle (TCK-2191) n'ont plus de cas, l'intervention ne se
+  rattachant plus. L'exception tient toujours à l'ajout de participants, dans le fil.
