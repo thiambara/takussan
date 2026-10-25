@@ -2724,6 +2724,12 @@
       "caption": "Customer list"
     },
     "customerDetail": {
+      "inviteAccount": {
+        "action": "Invite to create an account",
+        "sending": "Sending…",
+        "sent": "Invitation sent. The link works once; on acceptance, the account is linked to this record.",
+        "failed": "The invitation could not be sent. Try again."
+      },
       "relationships": {
         "empty_title": "No relationship recorded",
         "empty_description": "Link this contact to a spouse, a guarantor or a company to keep their circle at hand.",

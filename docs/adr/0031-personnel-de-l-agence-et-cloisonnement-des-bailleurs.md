@@ -622,3 +622,18 @@ telle quelle, et la candidature suivante en fait naître une dans l'agence du bi
 
 **Ce qui n'est pas gardé.** Une fiche née sans agence avant l'amendement reste invisible au
 personnel ; rien ne la rapproche de la fiche neuve du même compte.
+
+**Second volet (TCK-2351) — inviter le locataire à créer son compte.** Une fiche saisie par l'agence
+n'a de compte que par l'invitation de son client. `POST /api/customers/{id}/invite`, geste du
+personnel de l'agence de la fiche qui la lit (`CustomerPolicy::invite`), émet une invitation de rôle
+`tenant` dont la cible est la fiche (`InvitationService`, jeton à usage unique, expiration, rappel,
+relance et révocation inchangés). Le destinataire est la coordonnée **de la fiche** : son e-mail, à
+défaut son numéro si le lien par SMS est ouvert. L'acceptation pose `customers.user_id`
+(`CustomerService::linkUser`) sous verrou de la fiche ; une fiche liée entre-temps à un autre compte
+refuse l'acceptation (409), une fiche supprimée la rend révoquée (410). Ce n'est pas une action
+protégée par le second facteur : elle ne donne au compte que l'espace du locataire de cette fiche,
+aucun accès à l'agence.
+
+**Ce qui n'est pas gardé (second volet).** Relancer ou révoquer l'invitation passe par les routes
+génériques, qui exigent `team.invite` : l'agent qui l'a émise sans tenir cette capacité ne la relance
+pas. Une fiche liée à un compte n'a pas de geste inverse.

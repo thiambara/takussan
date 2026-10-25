@@ -138,6 +138,9 @@ return [
     'customer' => [
         'attached_to_open_lease' => 'Ce client est titulaire d\'un bail en attente de signature ou en cours : il ne peut pas être supprimé tant que ce bail est ouvert.',
         'duplicate' => 'Am na kiliyaan ci sa ajaans bu am nimero bii walla email bii.',
+        // P15.01 (TCK-2351) — inviter le client de la fiche à créer son compte.
+        'invite_already_linked' => "Cette fiche est déjà rattachée à un compte : il n'y a personne à inviter.",
+        'invite_no_contact' => "Cette fiche n'a pas de coordonnée où envoyer l'invitation : ajoutez une adresse e-mail.",
         'pipeline_stage_invalid' => 'Étape bi baaxul.',
     ],
     'dashboard' => [
@@ -257,6 +260,8 @@ return [
         'token_not_found' => 'Lëkkalekaay bi gisuñu ko.',
         'token_revoked' => 'Lëkkalekaay bi indi nañu ko ci suuf.',
         'token_sent' => 'Lëkkalekaay bi ngir xaar la.',
+        // P15.01 (TCK-2351) — la fiche visée a reçu un autre compte depuis l'envoi.
+        'tenant_already_linked' => "Cette fiche a été rattachée à un autre compte depuis l'envoi de l'invitation. Demandez une nouvelle invitation à l'agence.",
     ],
     'invoice' => [
         'amount_too_large' => 'Le montant total de la facture dépasse le maximum enregistrable.',

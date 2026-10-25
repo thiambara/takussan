@@ -2721,10 +2721,10 @@ exigée pour `director_id`.
 | phone | string(30) | oui | null | Numéro du destinataire (E.164) — le lien part par SMS quand l'e-mail manque, sous le drapeau `auth.phone_login.enabled` (TCK-589, ADR-0033) |
 | invited_user_id | FK users | oui | null | User cible si déjà existant en base (sinon créé à l'acceptation) |
 | invited_by | FK users | | | User qui a émis l'invitation |
-| invitable_type | string | oui | null | Type morph du profil cible (ex. `OwnerProfile`, `AgentProfile`, `ServiceProviderProfile`, `AgencyAdminProfile`) |
+| invitable_type | string | oui | null | Type morph du profil cible (ex. `OwnerProfile`, `AgentProfile`, `ServiceProviderProfile`, `AgencyAdminProfile`), ou `Customer` pour le rôle `tenant` (P15.01, TCK-2351 : la fiche reçoit le compte à l'acceptation) |
 | invitable_id | bigint | oui | null | ID du profil cible créé en `draft` |
 | agency_id | FK agencies | oui | null | Agence d'accueil (null pour cooptation super-admin) |
-| role | string | | | Rôle visé par l'invitation (ex. `owner`, `agent`, `agency_admin`, `service_provider`, `super_admin`) — **simple discriminant de parcours**, pas une permission : il choisit le type de profil à activer et les branches d'acceptation. Aucun rôle n'est « assigné » à partir de cette valeur. |
+| role | string | | | Rôle visé par l'invitation (ex. `owner`, `agent`, `agency_admin`, `service_provider`, `super_admin`, `tenant`) — **simple discriminant de parcours**, pas une permission : il choisit le type de profil à activer et les branches d'acceptation. Aucun rôle n'est « assigné » à partir de cette valeur. |
 | status | InvitationStatus | | 'sent' | sent, accepted, expired, revoked |
 | expires_at | datetime | | | Expiration du token (par défaut now+7j) |
 | accepted_at | datetime | oui | null | |
@@ -5050,6 +5050,7 @@ Tout User ayant un rôle de locataire actif doit avoir un `Customer` associé (`
 - Un User peut exister sans Customer (propriétaire, agent, admin, service_provider).
 - Dès qu'un User devient locataire (signature d'un Lease en tant que `tenant`), un Customer doit être créé ou associé.
 - **Agence de la fiche d'un candidat** (P15.01, TCK-2350, 2026-10-25) : la candidature, l'offre d'achat ou la réservation d'un compte sur un bien d'agence lui donne une fiche de **l'agence du bien** (`CustomerService::findOrCreateFromUser`) — reprise si le compte en a déjà une dans cette agence, rattachée si l'agence a une fiche sans compte au téléphone ou à l'e-mail **vérifié** du compte, créée sinon. La fiche du compte dans une autre agence n'est ni reprise ni déplacée. Un compte porte donc une fiche par agence. Un bien sans agence garde l'agence du compte.
+- **Fiche saisie sans compte** (P15.01, TCK-2351, 2026-10-25) : le personnel de l'agence de la fiche invite son client à créer son compte (`POST /api/customers/{id}/invite`, rôle d'invitation `tenant`) ; le lien part à l'e-mail de la fiche, ou à son numéro si le lien par SMS est ouvert, et l'acceptation pose `customers.user_id` (`CustomerService::linkUser`). Hors de l'appariement vérifié de la candidature (ci-dessus), aucun `user_id` n'est posé autrement sur une fiche saisie par l'agence.
 - **Implémentation :** `UserObserver` ou logique dans `LeaseService` lors de la création d'un bail.
 - **Conséquence :** `MaintenanceRequest.requester_id` pointe vers User ; le Customer du demandeur se lit depuis l'utilisateur (`User::customer()`, hasOne) — aucune relation `requesterCustomer()` sur le modèle (relevé 2026-10-14).
 

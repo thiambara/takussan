@@ -40,7 +40,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 1. [👤 Visiteur anonyme (pas encore de compte)](#visiteur-anonyme-pas-encore-de-compte) — 31 fonctionnalités
 2. [🏠 Locataire / Acheteur (Customer)](#locataire-acheteur-customer) — 86 fonctionnalités
 3. [🏢 Bailleur / Propriétaire (owner)](#bailleur-propriétaire-owner) — 83 fonctionnalités
-4. [🧑‍💼 Agent immobilier](#agent-immobilier) — 117 fonctionnalités
+4. [🧑‍💼 Agent immobilier](#agent-immobilier) — 119 fonctionnalités
 5. [🔧 Prestataire de service (service provider)](#prestataire-de-service-service-provider) — 17 fonctionnalités
 6. [🛡️ Admin d'agence / Super-admin](#admin-dagence-super-admin) — 122 fonctionnalités
 7. [👥 Tous les utilisateurs authentifiés](#tous-les-utilisateurs-authentifiés) — 68 fonctionnalités
@@ -511,6 +511,8 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P0 | §1.6 | Liste et recherche de clients |
 | P0 | §1.6 | Le CRM de l'agence n'est lu et alimenté que par son personnel ; un bailleur ne voit que les fiches qu'il a lui-même ajoutées (TCK-591) |
 | P1 | §1.6 | Lier un Customer à un User existant |
+| P1 | §1.6 | Inviter le client d'une fiche sans compte à créer son compte : un lien à usage unique part à l'e-mail de la fiche (ou à son numéro, si le lien par SMS est ouvert), et le compte qui l'accepte est relié à la fiche ; geste du personnel de l'agence de la fiche (TCK-2351) |
+| P1 | §1.6 | La fiche née d'une candidature, d'une offre ou d'une réservation est une fiche de l'agence du bien, reprise ou rattachée (coordonnée vérifiée) dans cette agence seule (TCK-2350) |
 | P1 | §1.6 | Définir la relation agent ↔ client (type, période) |
 | P1 | §1.6 | Joindre pièces d'identité et documents |
 | P1 | §1.6 | Historique d'interactions (via journal d'activité) |
@@ -958,8 +960,8 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 
 ## Provenance
 
-- Source : [`features.md`](./features.md) — **385** lignes de fonctionnalité lues,
-  réparties en **524** placements (une ligne multi-acteurs compte une fois par acteur).
+- Source : [`features.md`](./features.md) — **387** lignes de fonctionnalité lues,
+  réparties en **526** placements (une ligne multi-acteurs compte une fois par acteur).
 - Générateur : `docs/gen-features-by-actor.mjs`.
 - Fraîcheur vérifiée en CI par `node docs/gen-features-by-actor.mjs --check`, qui échoue si
   cette sortie ne correspond plus à sa source.

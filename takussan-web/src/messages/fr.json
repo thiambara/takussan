@@ -2695,6 +2695,12 @@
       "caption": "Liste des clients"
     },
     "customerDetail": {
+      "inviteAccount": {
+        "action": "Inviter à créer son compte",
+        "sending": "Envoi…",
+        "sent": "Invitation envoyée. Le lien vaut une seule fois ; à l'acceptation, le compte est relié à cette fiche.",
+        "failed": "L'invitation n'a pas pu partir. Réessayez."
+      },
       "relationships": {
         "empty_title": "Aucune relation enregistrée",
         "empty_description": "Reliez ce contact à un conjoint, un garant ou une société pour retrouver son entourage.",
