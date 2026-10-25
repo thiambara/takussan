@@ -674,7 +674,7 @@ Les deux 🔴 ont été relus par la session dans le code :
 
 ### Aucun rapporteur d'erreurs, ni côté API ni côté front
 - Réf : P14.07
-- Statut : validé — validation du porteur (2026-10-25) : `instrumentation.ts` (`onRequestError`) et `global-error.tsx` journalisent les erreurs en JSON sur stdout, côté front comme côté API ; reste : l'ADR du rapporteur d'erreurs (GlitchTip auto-hébergé ou Sentry), avant la phase F
+- Statut : fait · TCK-2356 — reste : l'ADR du rapporteur d'erreurs (GlitchTip auto-hébergé ou Sentry), avant la phase F
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/composer.json`, `takussan-web/package.json`, `takussan-web/src/app/error.tsx:35-37`
 - Constat :
@@ -684,6 +684,7 @@ Les deux 🔴 ont été relus par la session dans le code :
 - Piste : un ADR « rapport d'erreurs » (GlitchTip auto-hébergé ou Sentry), avec la forme `SafeExceptionContext` de TCK-613.
 - Mesure (2026-10-15, 28167fee, mesureur) : grep `sentry|flare|nightwatch|bugsnag|glitchtip` dans `takussan-api/composer.json` et `takussan-web/package.json` → rien ; `find takussan-web -maxdepth 3 -name 'instrumentation*' -o -name 'global-error*'` → rien ; lu `takussan-web/src/app/error.tsx:35-37` → `console.error` seul ; aucun ADR ni ticket ne traite d'un rapporteur (grep `docs/adr`, `docs/backlog/tickets`). Le constat tient en entier. Classement : V6, la piste demande un ADR et une dépendance.
 - Mesure (2026-10-25, ece5a91ea, humain) : validation du porteur en bloc (2026-10-25) sur la re-vérification de la session à c35c20d16 ; statut précédent : « retenu · à valider — V6 : dépendance neuve et ADR « rapport d'erreurs » ; porteur (2026-10-15) : traité hors agents, ADR « rapport d'erreurs » à écrire ».
+- Mesure (2026-10-25, 68e6bdb64, implementeur) : re-mesuré sur `pre-dev` 0282d41e7 — ni `instrumentation*` ni `global-error*` dans `takussan-web/src`, aucun canal JSON dans `config/logging.php` → API : canal `exceptions` (`php://stdout`, `JsonFormatter`) et rapporteur de `bootstrap/app.php` avant celui des `QueryException`, forme `SafeExceptionContext` + méthode, gabarit de la route, utilisateur ; `ExceptionJsonStdoutTest` (4 tests) rouge avant, ablations : rapporteur retiré → 2 rouges, URL réelle → 1, en-têtes et corps → 1, rapporteur après celui des `QueryException` → 1 ; front : `instrumentation.ts` (`onRequestError`, `console.log` d'une ligne JSON sans chemin réel, en-tête ni message) et `global-error.tsx` (texte de `errors.boundary` chargé par langue, ligne JSON dans la console du navigateur) ; `instrumentation.test.ts` et `EcranErreurGlobale.test.tsx` rouges avant, ablations : pile avec sa première ligne, chemin réel, en-têtes, message, langue ignorée → 1 rouge chacune ; dans les images locales : une ligne JSON sur la sortie standard de l'API (zéro sur stderr, aucune sur l'image précédente, inscrit dans `smoke-api.sh image`) et du front (`GET /app/overview` → `500`, `request_error` sans les témoins `Authorization`/`Cookie`).
 
 ### Les journaux de l'API disparaissent à chaque déploiement
 - Réf : P14.08
