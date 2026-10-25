@@ -7198,7 +7198,7 @@ base de développement. Les écrans n'ont pas été joués.*
 
 ### La raison sociale d'un bailleur société n'atteint ni le bail, ni le relevé, ni l'état des lieux, ni le reversement
 - Réf : P234.06
-- Statut : validé — validation du porteur (2026-10-25) : la raison sociale (format de TCK-1323) sur le contrat, le relevé, l'état des lieux et le reversement ; un contrat figé garde ses octets
+- Statut : fait · TCK-2315
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/resources/views/pdf/leases/contract.blade.php:43`, `takussan-api/app/Services/Payout/OwnerStatementService.php:98`, `takussan-api/app/Http/Controllers/Api/InventoryController.php:218-262`, `takussan-web/src/components/payments/CreatePayoutDialog.tsx:41-47`
 - Constat :
@@ -7209,6 +7209,7 @@ base de développement. Les écrans n'ont pas été joués.*
 - Piste : choisir le lecteur de la raison sociale pour ces quatre documents (le profil de bailleur de l'agence du bail), puis la rendre en tête, la personne en dessous, comme le carnet. Test de rendu du bail et du relevé pour un bailleur `owner_type: company`.
 - Mesure (2026-10-24, 28bbd67c8, mesureur) : relu `contract.blade.php:43` (nom du `User` bailleur, sinon e-mail), `OwnerStatementService.php:97` (prénom et nom du compte, sinon `username`), `InventoryController.php:216-221` (`PrintedIdentity::restore` sur `property->user`) et `:262` (`getFullNameAttribute()`), `CreatePayoutDialog.tsx:41-47` (`ownerName` : compte, invitation, e-mail) ; `grep -rl company_name takussan-api/app takussan-api/resources takussan-web/src` hors messages → `InviteOwnerRequest`, `OwnerInvitationService`, `InviteOwnerSheet`, `OwnersList` (et son test), `lib/queries/owners.ts` : le constat tient à la lecture ; aucun PDF rendu. Classement : V7, la raison sociale en tête d'un bail ou d'un relevé est un affichage neuf de documents, et le profil à lire (celui de l'agence du bail) reste à choisir.
 - Mesure (2026-10-25, ece5a91ea, humain) : validation du porteur en bloc (2026-10-25) sur la re-vérification de la session à c35c20d16 ; statut précédent : « retenu · à valider — V7 : choisir le lecteur et la place de la raison sociale sur quatre documents ».
+- Mesure (2026-10-25, d0cc1bdf5, implementeur) : reproduit par `LandlordCompanyNameTest` (neuf, 9 cas) : 5 rouges avant correctif (contrat rendu, contrat figé après coup, relevé, deux états des lieux) ; relevé en passant que l'état des lieux n'imprimait aucun bailleur (`$property->user`, relation que `Property` n'a pas) → `OwnerProfile::companyNameOf` (profil du bailleur dans l'agence de la pièce, société seule) lu par le contrat (rendu et gel), le relevé (`landlord.company_name`, PDF), l'état des lieux (bailleur par `$property->owner`, raison sociale figée dans l'instantané à la seconde signature ; un état des lieux figé sans bailleur n'en imprime pas) et le dialogue de reversement (« SCI Baobab — Fatou Sarr ») ; un contrat figé est servi avec ses octets d'origine (AC3) ; `PrintedIdentityFrozenTest` vérifie désormais le bailleur de l'état des lieux ; ablations une à une (rendu, gel, relevé, instantané par `user`, `frozenAbsent`, raison sociale courante, option du dialogue) → chacune rouge, remis → verts.
 
 ### Petites améliorations
 - Réf : P234.07
