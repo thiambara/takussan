@@ -3,7 +3,7 @@ id: TCK-2341
 title: "takussan-api/CLAUDE.md, § Tâches planifiées : le compte des Schedule::job se recompte, et withoutOverlapping ne couvre que leur mise en file"
 status: done
 phase: P3
-family: docs
+family: technique
 estimate: S
 wave: null
 created: 2026-10-25
