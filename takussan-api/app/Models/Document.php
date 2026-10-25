@@ -145,6 +145,20 @@ class Document extends AbstractModel implements HasMedia
             ->first(fn (Media $m) => (bool) $m->getCustomProperty('is_active', false));
     }
 
+    /**
+     * TCK-2300 (P231.02) — le fichier qui fait foi : la version active de `versions` (TCK-097),
+     * sinon le fichier d'origine `file`. Tout lecteur qui sert le fichier passe par ici : le lien de
+     * partage, la page publique d'un bien, `file_url` de la fiche et la revue des demandes d'agence
+     * servaient `file` après une nouvelle version.
+     *
+     * Lu sur la relation `media`, chargée une fois pour les deux collections, comme `getFirstMedia`.
+     */
+    public function currentFile(): ?Media
+    {
+        return $this->getMedia('versions')->first(fn (Media $m) => (bool) $m->getCustomProperty('is_active', false))
+            ?? $this->getFirstMedia('file');
+    }
+
     public function documentable(): MorphTo
     {
         return $this->morphTo();

@@ -106,7 +106,8 @@ class AgencyUpgradeRequestController extends Controller
                         'name' => $doc->name,
                         'type' => $doc->type?->value,
                         // TCK-539 — URL d'API signée, jamais l'URL directe du fichier.
-                        'media_url' => ($file = $doc->getFirstMedia('file'))
+                        // TCK-2300 (P231.02) — la version active, sinon `file`.
+                        'media_url' => ($file = $doc->currentFile())
                             ? app(PrivateMediaAccess::class)->signedUrl($file)
                             : null,
                     ])->all(),
