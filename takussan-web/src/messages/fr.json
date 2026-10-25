@@ -10936,6 +10936,12 @@
           "body": "La destination de paiement {destination} a été supprimée de votre compte. Si vous n'êtes pas à l'origine de ce changement, contactez votre agence immédiatement."
         }
       },
+      "service_provider_bill": {
+        "kept_on_reopen": {
+          "title": "Facture d'intervention maintenue : {reference}",
+          "body": "L'intervention « {request} » a été contestée ou annulée, mais sa facture {reference} de {amount} est déjà payée, refacturée au bailleur ou en cours de paiement : elle n'est pas annulée. Vérifiez-la et régularisez-la à la main."
+        }
+      },
       "owner_statement": {
         "available": {
           "title": "Relevé de gérance {period} disponible",

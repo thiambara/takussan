@@ -809,6 +809,13 @@ return [
                 'sms' => 'Takussan: payout threshold relaxation at :agency to confirm.',
             ],
         ],
+        'service_provider_bill' => [
+            'kept_on_reopen' => [
+                'title' => 'Maintenance bill kept: :reference',
+                'body' => 'The maintenance request “:request” was contested or cancelled, but its bill :reference for :amount is already paid, recharged to the landlord or being paid: it is not cancelled. Check it and settle it manually.',
+                'sms' => 'Takussan: bill :reference kept, maintenance contested or cancelled. To be settled.',
+            ],
+        ],
         'owner_statement' => [
             'available' => [
                 'title' => 'Your :period management statement is available',

@@ -809,6 +809,13 @@ return [
                 'sms' => 'Takussan : woyofal seuil bu reversement yu :agency, war nañu ko dëggal.',
             ],
         ],
+        'service_provider_bill' => [
+            'kept_on_reopen' => [
+                'title' => 'Facture d\'intervention maintenue : :reference',
+                'body' => 'L\'intervention « :request » a été contestée ou annulée, mais sa facture :reference de :amount est déjà payée, refacturée au bailleur ou en cours de paiement : elle n\'est pas annulée. Vérifiez-la et régularisez-la à la main.',
+                'sms' => 'Takussan : facture :reference maintenue, intervention contestée ou annulée. À régulariser.',
+            ],
+        ],
         'owner_statement' => [
             'available' => [
                 'title' => 'Sa relevé de gérance :period am na',

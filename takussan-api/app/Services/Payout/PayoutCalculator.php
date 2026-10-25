@@ -312,7 +312,8 @@ final class PayoutCalculator
     }
 
     /**
-     * Les factures d'intervention refacturables au bailleur du bien, validées et non imputées.
+     * Les factures d'intervention refacturables au bailleur du bien, validées et non imputées, dont
+     * l'intervention est `completed` ou `closed`.
      *
      * @return Builder<ServiceProviderBill>
      */
@@ -329,6 +330,8 @@ final class PayoutCalculator
                 ServiceProviderBillStatus::Paid->value,
             ])
             ->whereNull('service_provider_bills.imputed_payout_id')
+            // TCK-2270 (P224.01) — pour un travail rendu : ni contestée, ni reprise, ni annulée.
+            ->whereRequestBillable()
             ->orderBy('service_provider_bills.id');
     }
 

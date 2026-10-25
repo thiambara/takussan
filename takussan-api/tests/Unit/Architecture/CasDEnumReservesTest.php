@@ -9,7 +9,6 @@ use App\Models\Enums\ConversationStatus;
 use App\Models\Enums\PayoutStatus;
 use App\Models\Enums\PlatformPayoutStatus;
 use App\Models\Enums\RelationshipStatus;
-use App\Models\Enums\ServiceProviderBillStatus;
 use App\Models\Enums\ServiceProviderProfileStatus;
 use PHPUnit\Framework\TestCase;
 use RecursiveDirectoryIterator;
@@ -33,7 +32,6 @@ class CasDEnumReservesTest extends TestCase
             ConversationStatus::Closed,
             BankStatementStatus::Archived,
             PayoutStatus::Processing,
-            ServiceProviderBillStatus::Cancelled,
             RelationshipStatus::Ended,
             RelationshipStatus::Suspended,
             // TCK-1898 (P196.03) : `BookingService::cancel` ne pose que `customer`, `owner` ou `agent`.
