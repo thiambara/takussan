@@ -61,6 +61,43 @@ class BookingPaymentManualStatusTest extends TestCase
         }
     }
 
+    /**
+     * TCK-2286 (P227.04, décision du porteur) — une ligne `pending` n'a pas de date d'encaissement :
+     * le `paid_at` envoyé était gardé (201, ligne `pending` datée du 2026-01-01), et la passerelle,
+     * qui écrit `paid_at ??= now()`, le conservait au règlement. 422, comme la ligne de bail (TCK-681).
+     */
+    public function test_une_ligne_pending_ne_porte_pas_de_paid_at(): void
+    {
+        $booking = $this->bookingOfClient(['status' => BookingStatus::Confirmed]);
+        Sanctum::actingAs($this->agent);
+
+        $this->postJson("/api/bookings/{$booking->id}/payments", [
+            'amount' => 5_000,
+            'payment_type' => BookingPaymentType::Advance->value,
+            'status' => PaymentStatus::Pending->value,
+            'paid_at' => '2026-01-01',
+        ])->assertStatus(422)->assertJsonValidationErrors('paid_at');
+
+        $this->assertSame(0, $booking->payments()->count());
+    }
+
+    /** Témoin : une ligne `paid`, explicite ou par défaut, garde la date d'encaissement saisie. */
+    public function test_une_ligne_paid_garde_le_paid_at_saisi(): void
+    {
+        $booking = $this->bookingOfClient(['status' => BookingStatus::Confirmed]);
+        Sanctum::actingAs($this->agent);
+
+        foreach ([['status' => PaymentStatus::Paid->value], []] as $status) {
+            $this->postJson("/api/bookings/{$booking->id}/payments", $status + [
+                'amount' => 5_000,
+                'payment_type' => BookingPaymentType::Advance->value,
+                'paid_at' => '2026-01-01',
+            ])->assertCreated()->assertJsonPath('data.status', PaymentStatus::Paid->value);
+        }
+
+        $this->assertSame(2, $booking->payments()->whereDate('paid_at', '2026-01-01')->count());
+    }
+
     public function test_une_part_recue_saisie_paid_reduit_le_du_du_client(): void
     {
         $booking = $this->bookingOfClient([

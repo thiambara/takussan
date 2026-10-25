@@ -2,7 +2,8 @@
 
 - **Statut** : Accepté, **amendé le 2026-10-24** (cf. § *Amendement du 2026-10-24 — délégations,
   colonnes d'auteur, colonnes de bailleur*) et **le 2026-10-25** (cf. § *Amendement du 2026-10-25 —
-  l'accès suit l'appartenance*)
+  l'accès suit l'appartenance*, et § *Amendement du 2026-10-25 — le contact d'un bail ou d'une
+  réservation est une fiche de l'agence du bien*)
 - **Date** : 2026-10-07
 - **Tickets** : [TCK-587](../backlog/tickets/TCK-587-cloisonnement-bailleurs-capacites-jamais-lues.md)
 - **Précise** : le principe non négociable n° 2 (« l'agence est la frontière d'isolation »),
@@ -562,3 +563,34 @@ Un autre lot implémente D4 et cite cet amendement.
   `whereNull(deleted_at)` porte sur les trois jointures `customers` de la règle 2 de
   `MessagingReach`, écrit dans son docblock et dans `docs/features.md` (§ 1.7). Le test est
   `FicheClientSupprimeeLienCrmTest`.
+
+## Amendement du 2026-10-25 — le contact d'un bail ou d'une réservation est une fiche de l'agence du bien
+
+Décision du porteur du 2026-10-25 sur P226.01 (TCK-2285). Relevé sur `b4d905cd3`.
+
+**Constat.** `LeaseService::create` (locataire, garant), `BookingService::create` (client) et
+`LeaseController::attachGuarantor` jugeaient la fiche par `can('view')` seul. `CustomerPolicy::view` et
+`GuarantorPolicy::view` ne lisent que l'agence **de la fiche**. Un compte agent de A et de B, sous
+l'indice `agent:B`, rattachait la fiche de A qu'il avait ajoutée à un bail ou à une réservation d'un
+bien de B. Le personnel de B la lisait ensuite par le bail (`?include=tenant`), alors que
+`GET /api/customers/{id}` lui rendait 403. La règle d'auteur de l'amendement du 2026-10-24 ne ferme
+pas ce passage : l'agent reste membre de A.
+
+**Décision.** Quand le bien a une agence, le locataire, le garant et le client sont des fiches de
+**cette agence**, en plus de `can('view')` (`App\Services\Property\ContactDeLAgenceDuBien`). L'agence
+d'un garant se lit comme sa policy la lit (`GuarantorPolicy::agencyOf()`). Le refus est le 403 de
+l'absent et du tiers. Pour `attachGuarantor`, c'est l'agence du **bien** du bail qui compte, et non
+`leases.agency_id`. Une fiche **sans agence** ne se rattache donc pas à un bien d'agence, même par son
+auteur : `BookingCustomerScopeTest` la donnait réservable par l'agent qui l'avait ajoutée. Le code
+courant n'en fait naître qu'au super-admin hors agence et au tunnel.
+
+**Ce qui ne change pas.**
+
+- Un bien sans agence : `can('view')` seul. La règle des visites (`ClientDeLAgence`, TCK-590), qui
+  n'y admet aucune fiche, n'est pas reprise : elle refuserait tout bail d'un bailleur direct.
+- La réservation **pour soi** (`customer_id` = la fiche du demandeur) et le tunnel public. La fiche
+  sans agence d'un client du tunnel (`CustomerService::findOrCreateFromUser`) n'est pas davantage
+  refusée : le personnel de B ne la lisait déjà pas.
+
+**Ce qui n'est pas gardé.** Le renouvellement recopie le locataire et le garant du parent sans les
+rejuger. Un bail antérieur dont la fiche est d'une autre agence garde son contact.
