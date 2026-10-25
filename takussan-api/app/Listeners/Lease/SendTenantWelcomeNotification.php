@@ -34,6 +34,12 @@ class SendTenantWelcomeNotification implements ShouldQueue
             return;
         }
 
+        // TCK-2368 (P238.02) — un bail renouvelé, signé plus tard, émet aussi `LeaseActivated` : le
+        // locataire en place n'a pas à être accueilli une seconde fois.
+        if ($lease->renewed_from_lease_id !== null) {
+            return;
+        }
+
         $lease->loadMissing('tenant.user');
         $tenantUser = $lease->tenant?->user;
 

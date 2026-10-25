@@ -9,6 +9,7 @@ use App\Models\Enums\PlatformProfileLevel;
 use App\Models\Invitation;
 use App\Models\Profiles\PlatformProfile;
 use App\Notifications\SuperAdminAcceptedBroadcast;
+use App\Services\Auth\MetadataDuCompte;
 use App\Services\Auth\SessionTokenIssuer;
 use App\Services\Auth\SuperAdminBootstrapService;
 use App\Services\Auth\SuperAdminCooptationService;
@@ -126,15 +127,13 @@ class SuperAdminTwoFactorController extends Controller
         );
 
         DB::transaction(function () use ($user): void {
-            // TCK-589 — l'enrôlement solde aussi une réinitialisation par le support.
-            $metadata = $user->metadata ?? [];
-            unset($metadata['force_2fa_reconfigure']);
-
+            // TCK-589 — l'enrôlement solde aussi une réinitialisation par le support. P245.02
+            // (TCK-2367) — sur la ligne en base : un échec de connexion écrit entre-temps reste compté.
             $user->forceFill([
                 'two_factor_enabled' => true,
                 'force_2fa_at_first_login' => false,
-                'metadata' => $metadata,
             ])->save();
+            MetadataDuCompte::retirer($user, ['force_2fa_reconfigure']);
 
             $this->attachSuperAdminRole($user);
 

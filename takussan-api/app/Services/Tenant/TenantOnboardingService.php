@@ -27,9 +27,16 @@ class TenantOnboardingService
      *
      * Idempotent : un second appel pour le même bail rend la ligne
      * existante (`firstOrCreate` sur la PK logique `lease_id`).
+     *
+     * TCK-2368 (P238.02) — `null` aussi pour un bail renouvelé (`renewed_from_lease_id`) : le
+     * locataire est déjà dans les lieux, il n'a ni entrée, ni état des lieux d'entrée à signer.
      */
     public function create(Lease $lease): ?TenantOnboardingChecklist
     {
+        if ($lease->renewed_from_lease_id !== null) {
+            return null;
+        }
+
         $lease->loadMissing(['agency', 'tenant.user']);
 
         // Default = activé. TCK-970 — `false` comme `0` (que la règle `boolean` laisse écrire)
@@ -116,6 +123,47 @@ class TenantOnboardingService
                 ->event('tenant_checklist_completed')
                 ->log('tenant_checklist_completed');
         }
+
+        return $checklist->refresh();
+    }
+
+    /**
+     * TCK-2368 (P238.01) — décoche un item : ce qui l'avait coché est revenu en arrière (un EDL
+     * d'entrée contesté après sa signature). Un item requis rouvre la liste (`completed_at` à nul).
+     * Pour l'EDL, une marque `inventory_reopened` s'ajoute à `reminders_sent` : le rappel J+7 ne
+     * compte que les rappels partis après elle, et rejoue donc une fois. No-op si l'item n'est pas
+     * coché.
+     */
+    public function reopenItem(TenantOnboardingChecklist $checklist, string $item): TenantOnboardingChecklist
+    {
+        $column = TenantOnboardingChecklist::columnForItem($item);
+
+        if ($checklist->getAttribute($column) === null) {
+            return $checklist;
+        }
+
+        $changes = [$column => null];
+        if (in_array($item, TenantOnboardingChecklist::REQUIRED_FOR_COMPLETION, true)) {
+            $changes['completed_at'] = null;
+        }
+        if ($item === TenantOnboardingChecklist::ITEM_INVENTORY_COMPLETED) {
+            $changes['reminders_sent'] = [
+                ...($checklist->reminders_sent ?? []),
+                ['type' => TenantOnboardingChecklist::REMINDER_INVENTORY_REOPENED, 'sent_at' => now()->toIso8601String()],
+            ];
+        }
+
+        $checklist->forceFill($changes)->save();
+
+        activity()
+            ->causedBy($checklist->user)
+            ->performedOn($checklist)
+            ->withProperties([
+                'lease_id' => $checklist->lease_id,
+                'item' => $item,
+            ])
+            ->event('tenant_checklist_item_reopened')
+            ->log('tenant_checklist_item_reopened');
 
         return $checklist->refresh();
     }
