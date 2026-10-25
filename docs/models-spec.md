@@ -2369,8 +2369,8 @@ JSON libre (`{"value": …}`), sans journal, `updated_by_id` pour seule trace. U
 | created_at | datetime | | auto | |
 | updated_at | datetime | | auto | |
 
-**Contraintes et index** (mesurés sur `2026_05_02_000004` et `2026_05_10_170000`) :
-- **Aucune unicité sur `user_id`.** L'unicité `service_provider_profiles_user_id_unique` de la création a été **retirée** par `2026_05_10_170000` (TCK-260), pour laisser coexister plusieurs brouillons. « Un user a au plus un profil prestataire » n'est plus une garantie de la base : c'est l'application qui le tient — une invitation d'une autre agence **réutilise** le profil existant et crée une collaboration à l'acceptation (`InvitationService`, TCK-262), et `User.serviceProviderProfile()` est un `hasOne`. L'unicité réelle est celle de la collaboration `(profil, agence)` (§39).
+**Contraintes et index** (mesurés sur `2026_05_02_000004`, `2026_05_10_170000` et `2026_10_25_223720`) :
+- **Un profil vivant par compte : index unique partiel `service_provider_profiles_user_live_unique` `(user_id) WHERE user_id IS NOT NULL AND deleted_at IS NULL`** (TCK-2372, P250.02). L'unicité `service_provider_profiles_user_id_unique` de la création avait été **retirée** par `2026_05_10_170000` (TCK-260), pour laisser coexister plusieurs brouillons, qui naissent sans compte : ils restent admis, comme un profil supprimé. Une invitation d'une autre agence **réutilise** le profil existant et crée une collaboration à l'acceptation (`InvitationService`, TCK-262), et `User.serviceProviderProfile()` est un `hasOne`. La migration échoue, en les nommant, s'il existe des doublons vivants : elle ne fusionne rien. L'unicité par agence est celle de la collaboration `(profil, agence)` (§39).
 - Index : `status`, `deleted_at`.
 
 **Relations :**
@@ -5247,7 +5247,8 @@ Toute requête authentifiée résout un **profil actif** parmi les profils du us
 | owner_profiles | `(user_id, agency_id)` | unique composé | si `user_id` non null (brouillon d'invitation sans titulaire : plusieurs admis) |
 | agent_profiles | `(user_id, agency_id)` | unique composé | si `user_id` non null (idem) |
 | agency_admin_profiles | `(user_id, agency_id)` | unique composé | toujours (`user_id` nullable : plusieurs lignes sans titulaire admises) — [§98](#98-agencyadminprofile-) |
-| service_provider_agency_collaborations | `(service_provider_profile_id, agency_id)` (`sp_agency_collab_live_unique`) | unique partiel | `deleted_at IS NULL` (`2026_10_07_120100`) — *`service_provider_profiles.user_id` n'est plus unique : retiré par `2026_05_10_170000` (TCK-260) ; « un profil par utilisateur » est applicatif, voir [§37](#37-serviceproviderprofile-)* |
+| service_provider_agency_collaborations | `(service_provider_profile_id, agency_id)` (`sp_agency_collab_live_unique`) | unique partiel | `deleted_at IS NULL` (`2026_10_07_120100`) |
+| service_provider_profiles | `user_id` (`service_provider_profiles_user_live_unique`) | unique partiel | `user_id IS NOT NULL AND deleted_at IS NULL` (`2026_10_25_223720`, TCK-2372) — un profil de prestataire vivant par compte ; l'unicité de la création, retirée par `2026_05_10_170000` (TCK-260), ne laissait que la garde applicative, voir [§37](#37-serviceproviderprofile-) |
 | platform_payouts | `(agency_id, period_end)` (`platform_payouts_unique_open_period`) | unique partiel | `status <> 'cancelled'` (`2026_05_07_000223`) |
 | agency_upgrade_requests | `agency_id` (`agency_upgrade_requests_one_pending_per_agency`) | unique partiel | `status = 'pending'` (`2026_05_10_180000`) |
 | notification_templates | `(event, channel, locale)` | unique composé | toujours (`2026_05_07_000215`) |
