@@ -6,6 +6,7 @@ use App\Models\Agency;
 use App\Models\User;
 use App\Services\Admin\AgencyProvisioningService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
@@ -68,6 +69,37 @@ class AgencySettingsMergeTest extends TestCase
         $this->assertArrayNotHasKey('late_fee_online_collection', $settings);
         $this->assertFalse($settings['watermark_enabled']);
         $this->assertFalse($agency->collectsLateFeesOnline());
+    }
+
+    /**
+     * P245.04 (TCK-2362) — la fusion se fait sur la ligne RELUE sous verrou : faite sur l'agence
+     * liée à la route, elle effaçait le réglage qu'un autre administrateur venait d'enregistrer.
+     * Son enregistrement est joué une fois, dans l'écouteur `retrieved`, à la liaison de la route.
+     */
+    public function test_un_reglage_enregistre_pendant_la_requete_n_est_pas_efface(): void
+    {
+        [$admin, $agency] = $this->agencyWithSettings(['timezone' => 'Africa/Dakar']);
+        Sanctum::actingAs($admin);
+
+        $joue = false;
+        Agency::retrieved(function () use (&$joue, $agency): void {
+            if ($joue) {
+                return;
+            }
+            $joue = true;
+            DB::table('agencies')->where('id', $agency->id)->update([
+                'settings' => json_encode(['timezone' => 'Africa/Dakar', 'watermark_enabled' => false]),
+            ]);
+        });
+
+        $this->patchJson("/api/agencies/{$agency->id}", [
+            'settings' => ['late_fee_online_collection' => true],
+        ])->assertOk();
+
+        $settings = $agency->refresh()->settings;
+        $this->assertFalse($settings['watermark_enabled'] ?? null);
+        $this->assertSame('Africa/Dakar', $settings['timezone']);
+        $this->assertTrue($settings['late_fee_online_collection']);
     }
 
     public function test_settings_null_est_refuse(): void

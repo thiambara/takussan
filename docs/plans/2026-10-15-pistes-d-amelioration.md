@@ -7783,7 +7783,7 @@ entre deux processus n'a été jouée. Charge 1,69 / 1,71 / 2,01 sur 8 cœurs.*
 
 ### Le rappel de reversement échu efface la trace du décaissement d'un reversement payé pendant son passage, et rappelle un reversement soldé
 - Réf : P245.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-2362
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Console/Commands/Payouts/RemindDuePayouts.php:35-53`, `takussan-api/app/Services/Model/PayoutService.php:277-345`, `takussan-api/app/Http/Resources/PayoutResource.php:45`
 - Constat :
@@ -7794,6 +7794,7 @@ entre deux processus n'a été jouée. Charge 1,69 / 1,71 / 2,01 sur 8 cœurs.*
   - Établi comment : lu, et mesuré par test temporaire.
 - Piste : poser le marqueur par une réclamation conditionnelle (`whereKey()->whereIn('status', [pending, scheduled])->whereRaw("metadata->>'due_reminded_at' IS NULL")->update(['metadata' => DB::raw("jsonb_set(…)")])`), ou relire sous verrou et fusionner, et n'envoyer que si la ligne a été prise. Garde : reversement payé après la lecture de la commande → trace du décaissement intacte, aucun rappel.
 - Mesure (2026-10-25, db3e25230, mesureur) : relu `RemindDuePayouts.php:35-55` (`chunkById`, puis `metadata` du modèle chargé + `due_reminded_at` par `saveQuietly()`, sans relecture ni statut rejugé), et `PayoutService::markProcessed` (verrou, `metadata` fusionnée avec la trace du décaissement) ; aucun commit ni ticket ne le couvre (TCK-594, TCK-1467, TCK-1706 relus) ; sonde temporaire `TmpMesureurM4/SondeP24501Test.php` (retirée), `php artisan test <fichier>`, PostgreSQL de test, charge 1,71 / 1,62 / 1,79 sur 8 cœurs ; un écouteur `retrieved` passe en base le reversement `pending` échu à `completed`, avec `metadata = {approved_net_amount, disbursement_driver, destination_masked}` → ligne finale `status = completed`, `metadata = {due_reminded_at, approved_net_amount}`, et 1 rappel envoyé à l'émetteur. Le constat tient. Classement : A1, le docblock de la commande et sa sélection ne rappellent qu'un reversement `pending` ou `scheduled`, une fois, et le précédent P229.04 (TCK-2227) a corrigé la même course de la même façon ; le correctif n'écrit que la clé `due_reminded_at` et ne touche ni montant, ni statut, ni échéance (V1 non touché).
+- Mesure (2026-10-25, a5668767d, implementeur) : rejoué par `tests/Feature/Console/RappelDeReversementFaceAuGesteConcurrentTest.php` avant correctif (écouteur `retrieved` du reversement, comme le mesureur) → 3 rouges : reversement payé pendant le passage rappelé et sa trace réduite à `{due_reminded_at, approved_net_amount}`, reversement reprogrammé rappelé, clé écrite entre-temps effacée. Correctif (`RemindDuePayouts::claim`) : la sélection de la commande est rejugée sous `lockForUpdate`, le marqueur fusionné sur la ligne relue par `saveQuietly()`, et rien ne part si la ligne n'est plus à rappeler → 3 verts ; ablation (commande remise à db3e25230) → 3 rouges, correctif remis → 3 verts. `RemindDuePayoutsCommandTest` reste vert (4).
 
 ### Deux échecs de connexion simultanés sur un compte n'en comptent qu'un, et un échec peut effacer la réinitialisation forcée de la 2FA
 - Réf : P245.02
@@ -7811,7 +7812,7 @@ entre deux processus n'a été jouée. Charge 1,69 / 1,71 / 2,01 sur 8 cœurs.*
 
 ### La modification d'une intervention réécrit sa `metadata` depuis la fiche liée à la route, et efface l'escalade posée entre-temps
 - Réf : P245.03
-- Statut : retenu · autonome
+- Statut : fait · TCK-2362
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/MaintenanceRequestController.php:203-262`, `takussan-api/app/Services/Maintenance/OwnerApprovalThreshold.php:87-108`, `takussan-api/app/Services/Model/MaintenanceRequestService.php:187-207`, `takussan-api/app/Jobs/EscalateUrgentMaintenanceJob.php:32-50,81-86`
 - Constat :
@@ -7822,10 +7823,11 @@ entre deux processus n'a été jouée. Charge 1,69 / 1,71 / 2,01 sur 8 cœurs.*
   - Établi comment : lu, et mesuré par test temporaire.
 - Piste : dans `update()`, relire la ligne sous `lockForUpdate` au début de la transaction (`MaintenanceRequestService::lockFresh`), et appliquer les écritures de `metadata` à cette ligne relue. Garde : escalade posée après la liaison de la route, coût réel saisi → `escalated_at` conservé.
 - Mesure (2026-10-25, db3e25230, mesureur) : relu `MaintenanceRequestController::update` (l. 203-262 : transaction sans verrou, `metadata` recomposée sur la copie liée à la route par `recordOwnerCost`/`forgetOwnerCost`, par le passage dans ou hors de l'urgence et par `resetQuoteOfPreviousProvider`, puis `save()`), `EscalateUrgentMaintenanceJob` (l. 32-50, relu sous verrou depuis TCK-2225) et `MaintenanceRequestService::lockFresh` (l. 105) ; sonde temporaire `TmpMesureurM4/SondeP24503Test.php` (retirée), charge 1,85 / 1,71 / 1,81 sur 8 cœurs ; intervention urgente `open` avec `metadata = {urgent_since}`, `escalated_at` écrit en base par un écouteur `retrieved` après la liaison de la route, puis `PATCH {actual_cost: 1000}` par le bailleur → 200 et `metadata = {urgent_since, owner_agreed_actual_cost}` : `escalated_at` est effacé. Le constat tient. Le second avis d'escalade est déduit de la sélection du job (`whereNull('metadata->escalated_at')`), et n'a pas été joué. Classement : A1, TCK-2225 a écrit le contrat (« `escalated_at` s'écrit sur la `metadata` relue, sans écraser ce qui a été écrit entre-temps ») et le seul écrivain qui ne le respecte pas est `update()` ; le correctif ne change ni le coût réel écrit, ni l'accord du bailleur, ni le seuil.
+- Mesure (2026-10-25, a5668767d, implementeur) : rejoué par `tests/Feature/Maintenance/ModificationFaceAEscaladeConcurrenteTest.php` avant correctif (escalade écrite en base à la liaison de la route) → 3 rouges : `escalated_at` effacé par le coût réel du bailleur et par la réassignation, clé écrite entre-temps effacée par le passage en urgence. Correctif : `update()` relit la ligne par `MaintenanceRequestService::lockFresh` au début de sa transaction et y applique toutes ses écritures (coût réel, urgence, `fill`, `assign`, événement de passage) → 3 verts ; ablation (contrôleur remis à db3e25230) → 3 rouges, correctif remis → 3 verts. Restent verts : `MaintenanceActualCostTest`, `MaintenanceUpdateAtomiciteTest`, `MaintenanceReassignmentQuoteResetTest`, `MaintenanceRequestTest`, `MaintenanceAssignmentTest`, `EscaladeFaceAuGesteConcurrentTest`, `MaintenanceScheduleChangedNotificationTest`, `UrgenceSansAdministrateurPrincipalJoignableTest`, `UrgenceTardiveDInterventionTest`, `FormeDesDatesDeNotificationTest`.
 
 ### Petites améliorations
 - Réf : P245.04
-- Statut : retenu · autonome
+- Statut : fait · TCK-2362
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Controllers/Api/AgencyController.php:108-127`, `takussan-api/app/Services/Agency/AgencyKindFlipService.php:83-115`
 - Constat :
@@ -7834,6 +7836,7 @@ entre deux processus n'a été jouée. Charge 1,69 / 1,71 / 2,01 sur 8 cœurs.*
   - Établi comment : lu.
 - Piste : relire l'agence sous verrou dans ces deux écritures, et fusionner sur la ligne relue.
 - Mesure (2026-10-25, db3e25230, mesureur) : relu `AgencyController::update` (l. 107-129 : `settings` fusionnés par `array_replace` sur l'agence liée à la route, puis `fill()->save()`, sans transaction ni verrou) et `AgencyKindFlipService::flip` (l. 68-115) ; sonde temporaire `TmpMesureurM4/SondeP24504Test.php` (retirée), charge 1,37 / 1,60 / 1,76 sur 8 cœurs ; agence `settings = {timezone}`, un écouteur `retrieved` écrit en base `{timezone, watermark_enabled: false}` (le réglage d'un autre administrateur), puis `PATCH /api/agencies/{id}` `{settings: {late_fee_online_collection: true}}` → 200 et `settings = {timezone, late_fee_online_collection}` : `watermark_enabled` est effacé. La première partie tient. La seconde est caduque : le slug ne s'édite que si `Agency::slugEditableOnce()` est vrai (l. 275-280 : `kind = standard` et `welcome.standard_unlocked_at` déjà posés, donc le passage déjà commité), et `flip()` refuse une agence déjà `standard`. Les deux écritures ne peuvent donc pas se croiser. PR #1530 retire `AgencyController::store()` dans le même fichier, sans toucher `update()`. Classement : A1, TCK-593 a écrit le contrat (`AgencySettingsMergeTest` : « un réglage enregistré n'en efface aucun autre »), et le correctif ne change aucune valeur de réglage ni aucune règle.
+- Mesure (2026-10-25, a5668767d, implementeur) : moitié `settings` seule, la seconde étant caduque d'après la mesure du mesureur. Rejoué par `AgencySettingsMergeTest::test_un_reglage_enregistre_pendant_la_requete_n_est_pas_efface` avant correctif (réglage `watermark_enabled` écrit en base à la liaison de la route) → rouge, `watermark_enabled` effacé. Correctif : `AgencyController::update` fusionne `settings` (et la marque du slug, qui passe par le même `fill()->save()`) dans une transaction, sur la ligne relue par `lockForUpdate` → vert ; ablation (contrôleur remis à db3e25230) → 1 rouge sur 6, correctif remis → 6 verts. Restent verts : `AgencySlugAfterUpgradeTest`, `PayoutApprovalThresholdTest`, `AgencyTest`, `AgencyCurrencyUpdateTest`, `InvoiceLegalMentionsTest`, `AgencySettingsWritableTest`, `WatermarkActivationTest`, `AgencyLicenseNumberUniqueTest`.
 
 ## Angle 246 — Montants calculés hors de la transaction, écrits après une relecture qui ne rejuge que le statut
 
