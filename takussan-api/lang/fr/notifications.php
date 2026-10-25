@@ -760,6 +760,11 @@ return [
                 'body' => 'Votre bien « :property » a été approuvé et est maintenant visible sur la plateforme.',
                 'sms' => 'Takussan : annonce « :property » approuvée.',
             ],
+            'assigned_to_owner' => [
+                'title' => 'Un bien saisi à votre nom : :property',
+                'body' => 'Votre agence a enregistré le bien « :property » à votre nom. Vous le retrouvez dans vos biens, avec ses baux et votre relevé de gérance.',
+                'sms' => 'Takussan : le bien « :property » est enregistré à votre nom.',
+            ],
             'submitted_for_review' => [
                 'title' => 'Bien à modérer : :property',
                 'body' => 'Le bien « :property » attend votre validation avant d\'être publié.',

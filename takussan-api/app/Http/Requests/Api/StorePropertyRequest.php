@@ -16,6 +16,8 @@ use App\Models\Property;
 use App\Rules\HoteDeVisiteVirtuelle;
 use App\Services\Geo\GeoAddressRules;
 use App\Services\Property\CoutDEntree;
+use App\Services\Property\HierarchyService;
+use Closure;
 use Illuminate\Validation\Rule;
 
 /**
@@ -44,6 +46,17 @@ class StorePropertyRequest extends BaseFormRequest
 
         if ($user?->can('create', Property::class) !== true) {
             return false;
+        }
+
+        // TCK-997 (Q3) — créer un lot sous un bien, c'est le rattacher : la règle de
+        // `PropertyPolicy::updateParent` pour le parent, qui exige `update` sur lui. Un parent absent
+        // rend le même 403 qu'un parent d'autrui : la création n'est pas un oracle d'existence
+        // (TCK-1068).
+        if ($this->filled('parent_id')) {
+            $parent = $this->parentDemande();
+            if ($parent === null || $user->can('update', $parent) !== true) {
+                return false;
+            }
         }
 
         // P209.01 (TCK-2175) — la règle du `PATCH` (TCK-1427) : créer un bien d'emblée publié ou
@@ -95,6 +108,16 @@ class StorePropertyRequest extends BaseFormRequest
             'parking_spaces' => ['nullable', 'integer', 'min:0', 'max:500'],
             'available_from' => ['nullable', 'date'],
             'agency_id' => ['nullable', Rule::exists('agencies', 'id')->withoutTrashed()],
+            // TCK-997 (P15.06, P50.01) — le bailleur au nom duquel le personnel saisit le bien. Le
+            // titulaire se juge par `TitulaireALaSaisie` (bailleur actif de l'agence du bien).
+            'owner_id' => ['nullable', 'integer'],
+            // TCK-997 (Q3) — le lot naît sous son parent, et prend son titulaire s'il est bailleur.
+            'parent_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('properties', 'id')->whereNull('deleted_at'),
+                $this->parentRule(),
+            ],
             'address' => ['nullable', 'array'],
             // TCK-633 — les longueurs du formulaire (`lib/schemas/property.ts`) : sans elles, un
             // texte de 121 caractères devenait une proposition de quartier que la colonne refuse.
@@ -131,6 +154,38 @@ class StorePropertyRequest extends BaseFormRequest
     {
         parent::prepareForValidation();
         $this->merge(['currency' => Currency::XOF->value]);
+    }
+
+    /** Le parent demandé, s'il existe. */
+    public function parentDemande(): ?Property
+    {
+        $id = $this->input('parent_id');
+
+        return is_numeric($id) ? Property::query()->find((int) $id) : null;
+    }
+
+    /**
+     * TCK-997 — les invariants de `UpdatePropertyRequest::parentIdRule` pour un bien qui n'existe pas
+     * encore : même agence que le bien créé, et profondeur maximale. Un cycle est impossible.
+     */
+    private function parentRule(): Closure
+    {
+        return function (string $attribute, mixed $value, Closure $fail): void {
+            $parent = $this->parentDemande();
+            if ($parent === null) {
+                return;
+            }
+
+            if ((int) $parent->agency_id !== (int) $this->agenceVisee()?->id) {
+                $fail(__('messages.property_parent_same_agency_required'));
+
+                return;
+            }
+
+            if (app(HierarchyService::class)->depth($parent) + 1 > HierarchyService::MAX_DEPTH) {
+                $fail(__('messages.property_parent_max_depth_exceeded'));
+            }
+        };
     }
 
     /** L'agence où le bien sera créé — la règle de `PropertyController::store`. */

@@ -755,6 +755,11 @@ return [
                 'body' => 'Sa yégle « :property » nangu nañu ko, ñépp mën nañu koo gis léegi.',
                 'sms' => 'Takussan : yégle « :property » nangu nañu ko.',
             ],
+            'assigned_to_owner' => [
+                'title' => 'Un bien saisi à votre nom : :property',
+                'body' => 'Votre agence a enregistré le bien « :property » à votre nom. Vous le retrouvez dans vos biens, avec ses baux et votre relevé de gérance.',
+                'sms' => 'Takussan : le bien « :property » est enregistré à votre nom.',
+            ],
             'submitted_for_review' => [
                 'title' => 'Bien à modérer : :property',
                 'body' => 'Le bien « :property » attend votre validation avant d\'être publié.',

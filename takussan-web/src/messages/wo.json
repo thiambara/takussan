@@ -2197,8 +2197,8 @@
       "noPropertySelected": "Tannuñu benn kër",
       "selectedTenant": "Luwékat bi ñu tànn",
       "noTenantSelected": "Tannuñu benn luwékat",
-      "activeLandlord": "Boroom kër bi : {name}",
-      "loadingLandlord": "Ñu ngi yeb boroom kër bi",
+      "landlordOfProperty": "Bailleur : {name}",
+      "landlordPending": "Bailleur : le titulaire du bien choisi",
       "guarantorsHint": "Garant yi mën nañu leen yokk ci xëtu luwé bi bu buruyoŋ bi sosoo.",
       "financialTerms": "Conditions yu xaalis",
       "contractType": "Xeetu kontaraa",
@@ -5987,7 +5987,14 @@
         "optional": "doyul waar",
         "reopen": "Dellu ci : {step}"
       },
-      "photosProgress": "Yónnee nataal yi : {sent} ci {total}"
+      "photosProgress": "Yónnee nataal yi : {sent} ci {total}",
+      "owner": {
+        "label": "Au nom de qui saisissez-vous ce bien ?",
+        "hint": "Facultatif. Sans choix, le bien reste celui de l'agence ; le bailleur choisi en sera prévenu.",
+        "agency": "L'agence (aucun bailleur)",
+        "loading": "Chargement des bailleurs…",
+        "empty": "Aucun bailleur actif ne correspond."
+      }
     },
     "titleTypes": {
       "bail": "Contrat",
@@ -10864,6 +10871,10 @@
         "rejected": {
           "title": "Yégle bi gàntu nañu ko : {property}",
           "body": "Sa yégle « {property} » gàntu nañu ko. Ngirte : {reason}. Mën nga koo defar te yónneewaat ko ci sa bérab."
+        },
+        "assigned_to_owner": {
+          "title": "Un bien saisi à votre nom : {property}",
+          "body": "Votre agence a enregistré le bien « {property} » à votre nom. Vous le retrouvez dans vos biens, avec ses baux et votre relevé de gérance."
         },
         "submitted_for_review": {
           "title": "Bien à modérer : {property}",

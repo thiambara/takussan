@@ -755,6 +755,11 @@ return [
                 'body' => 'Your property ":property" was approved and is now visible on the platform.',
                 'sms' => 'Takussan: listing ":property" approved.',
             ],
+            'assigned_to_owner' => [
+                'title' => 'A property saved in your name: :property',
+                'body' => 'Your agency has saved the property “:property” in your name. You will find it among your properties, with its leases and your owner statement.',
+                'sms' => 'Takussan: the property “:property” is saved in your name.',
+            ],
             'submitted_for_review' => [
                 'title' => 'Property to review: :property',
                 'body' => 'The property “:property” is awaiting your approval before it goes live.',
