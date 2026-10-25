@@ -384,7 +384,9 @@ pas ce passage : l'agent reste membre de A.
 **cette agence**, en plus de `can('view')` (`App\Services\Property\ContactDeLAgenceDuBien`). L'agence
 d'un garant se lit comme sa policy la lit (`GuarantorPolicy::agencyOf()`). Le refus est le 403 de
 l'absent et du tiers. Pour `attachGuarantor`, c'est l'agence du **bien** du bail qui compte, et non
-`leases.agency_id`.
+`leases.agency_id`. Une fiche **sans agence** ne se rattache donc pas à un bien d'agence, même par son
+auteur : `BookingCustomerScopeTest` la donnait réservable par l'agent qui l'avait ajoutée. Le code
+courant n'en fait naître qu'au super-admin hors agence et au tunnel.
 
 **Ce qui ne change pas.**
 

@@ -75,6 +75,12 @@ validé — validation du porteur (2026-10-25) : la fiche (locataire, garant, cl
 - `attachGuarantor` juge contre l'agence du **bien** et non contre `leases.agency_id` : sur un bien
   sans agence, `LeaseService::create` pose l'agence du bailleur, et la décision veut ce bien inchangé.
 - Le refus reste un 403 sans code, celui de l'absent et du tiers (P62).
+- Une fiche **sans agence** sur un bien d'agence est refusée, même à son auteur : c'est la
+  comparaison que la décision pose (`null` n'est pas l'agence du bien). Le code courant n'en crée
+  qu'au super-admin hors agence (`CustomerController::store`, `staffAgencyId()` nul) et au tunnel
+  (`findOrCreateFromUser`, auteur = le client). `BookingCustomerScopeTest::test_an_agent_books_for_a_customer_they_added`
+  la donnait réservable (201) : il prend désormais une fiche de l'agence, et un test voisin garde le
+  refus de la fiche sans agence.
 
 ## Notes d'implémentation
 
