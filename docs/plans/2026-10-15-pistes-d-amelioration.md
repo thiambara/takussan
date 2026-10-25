@@ -311,23 +311,23 @@ voie d'écriture (angle 13, puis 47).
 | 232 | Lecteurs hors policy et hors liste qui tiennent `leases.landlord_id` ou `properties.user_id` pour le bailleur sans `BailleurDuBien` (`DashboardOwnerService:49`, `ExportDataService::scopeToActor`, `DataExportBuilder:121`, `OwnerStatementService:110,131`, `PayoutApprovalRule:66`, `ConversationAccess::constrainContext:199`) : agent créateur suspendu ou retiré qui compte, exporte ou lit encore les baux et loyers d'un bien qu'il a saisi — né de P217.03 | fait |
 | 233 | Colonnes d'auteur qui désignent du personnel (`issued_by_id`, `created_by_id`, `conducted_by`, `uploaded_by`, `requester_id`, `submitted_by`, `reviewed_by`, `invited_by`, et leurs pareilles) admises seules par une branche de policy ou une clause de liste sous `app/Policies` et `app/Http/Controllers/Api`, hors des factures, reversements, réservations et états des lieux de l'angle 218 : membre suspendu ou retiré qui garde ce qu'il a saisi — né de P218.03 et P218.04 | fait |
 | 234 | Ce que l'invitation porte dans `metadata` du profil brouillon (prénom, nom, téléphone, raison sociale, type de bailleur, métiers) face à l'acceptation par un compte déjà existant (`InvitationService::acceptForUser` → `finalizeAccept`, sans recopie) et aux lecteurs qui préfèrent le compte dès qu'il est lié (`nomDe` d'`OwnersList` et `ServiceProvidersList`) : valeur saisie par l'agence perdue à l'acceptation — né de P220.06 et P220.07 | fait |
-| 235 | Replis `??` de l'API sur des colonnes texte non nulles que des écrivains remplissent de `''` (`CustomerService::rattacherOuCreer` `?? 'Client'`, et leurs pareils sous `app/Services` et `app/Http/Resources` sur `first_name`, `last_name`, `username`, `title`, `name`) : repli écrit qui ne joue jamais, chaîne vide rangée ou rendue — né de P220.03 | à faire |
-| 236 | Réponses d'erreur sans corps JSON (413 de la borne de 25 Mio de `docker/Caddyfile`, 502 et 504 du proxy, page d'erreur de PHP) lues par `apiRequest`, `jsonOrThrow` de `lib/queries/kyc.ts` et les relais BFF, puis rendues par `useMessageErreurApi` et `messageErreur` : envoi refusé pour sa taille ou coupé par le proxy affiché comme une erreur générique ou de réseau, sans dire quoi changer — né de P222.02 et P222.04 | à faire |
-| 237 | Gestes en deux requêtes, création puis complément (photos, pièces, invitations, lignes), dont le second échec est avalé par un `catch {}` ou un `.catch(() => undefined)` sous `takussan-web/src/components` et `src/app/actions` (`MaintenanceForm.tsx:89-92` et ses pareils) : ligne créée sans son complément, et rien ne le dit — né de P222.01 | à faire |
-| 238 | Observateurs et écouteurs qui créent une ligne fille au passage d'un statut (`wasChanged('status')` sous `app/Observers` et `app/Listeners`, `insertOrIgnore` contre un index unique partiel) face aux transitions de retour de la machine d'état du parent (contestation, réouverture, reprise, annulation après coup) : ligne née d'un état que le parent a quitté, jamais retirée ni recalculée — né de P224.01 et P224.03 | à faire |
-| 239 | Avis envoyés par `Notification::send()` ou `->notify()` directs, hors de `NotificationService::send` qui écarte les comptes non joignables (l. 73-78, TCK-1350) : une cinquantaine de sites sous `app/Jobs`, `app/Console`, `app/Services` et `app/Http/Controllers` (`EscalateUrgentMaintenanceJob`, `RemindTenantOnboarding`, `BookingExpirationService`, `MaintenanceRequestController::sendUrgentAlert`, et leurs pareils) dont le destinataire peut être un compte `blocked` : courriel et avis remis à un compte que la plateforme a fermé — né de P225.01 et P225.02 | à faire |
-| 240 | Gestes qui rattachent à une ligne d'agence une fiche jugée par `can('view', …)` de l'appelant plutôt que par l'agence du parent (`LeaseService::create` locataire et garant, `BookingService` client, `attachGuarantor`, `TaskController` et `DocumentPolicy::attachTo` pour un client ou un bien, `AddParticipantsRequest`, et leurs pareils sous `app/Services` et `app/Http/Controllers/Api`) face au compte membre de plusieurs agences : fiche d'une agence rattachée à la ligne d'une autre, puis lue par son personnel — né de P226.01 | à faire |
-| 241 | Termes du mandat d'agence écrits hors de `LeaseService::COMMISSION_TERMS` (`commission_amount`, `agent_id`) : `leases.commission_rate` à la création et au renouvellement, `property_collaborators.commission_share` (`StorePropertyCollaboratorRequest` et `UpdatePropertyCollaboratorRequest` jugés par `can('update', $property)`), et leurs pareils lus par `PayoutCalculator` et `CommissionLedgerService` : compte qui n'est pas le personnel de l'agence sous la capacité qui garde la commission, et qui fixe ce que l'agence ou ses agents perçoivent — né de P227.01 | à faire |
-| 242 | `POST /api/agencies/{id}/members` (`AgencyController::addAgent`), qui rattache un compte existant désigné par identifiant ou par e-mail en créant d'emblée son profil actif, face au parcours d'invitation (`InvitationService`, acceptation par le compte) : accord du compte visé, compte bailleur ou client d'une autre agence, avis envoyés, quota et profils restaurés — né de P227.03 | à faire |
-| 243 | Écritures optimistes du front posées avant la réponse (bascules du store local `favoritesStore` et pareils, `setQueryData` dans `onMutate`, `useState` mis à la valeur visée avant l'appel, sous `takussan-web/src/components` et `src/hooks`) sans retour arrière dans `onError` ni relecture sur l'échec : écran qui montre fait un geste que l'API a refusé — né de P228.03 | à faire |
-| 244 | Champs de saisie remis à zéro dans le même gestionnaire que l'envoi, avant la réponse (`onAdd(x); setX('')` de `NotesTab`, `mutate(x); reset()`, fermeture du dialogue au clic, sous `takussan-web/src/components`) face aux bornes de l'API que le champ ne porte pas (`max:` sans `maxLength`) : texte saisi perdu quand l'API refuse — né de P228.02 | à faire |
-| 245 | Colonnes JSON recomposées depuis le modèle chargé puis réécrites en entier (`$m->metadata = [...]; save()`, `forceFill(['reminders_sent' => …])`, `expiry_reminders`, sous `app/Jobs`, `app/Console`, `app/Services` et `app/Observers`) face à un second écrivain de la même colonne pendant l'écriture : clé posée entre-temps effacée, ou clé effacée remise — né de P229.03 | à faire |
-| 246 | Montants calculés hors de la transaction sur le modèle reçu, puis écrits après une relecture sous verrou qui ne rejuge que le statut (`LateFeeCalculator::apply`, et leurs pareils sous `app/Services` : pénalités, commissions, remboursements, reversements, crédits) : montant d'une ligne que la relecture a vue changer — né de P229.05 | à faire |
-| 247 | Archive RGPD `DataExportBuilder::payloads` : clauses par colonne d'auteur ou d'encaisseur (`bookings.created_by_id`, `lease_payments.collector_id`, `documents.uploaded_by`, `messages` des fils encore ouverts) qui font entrer dans l'archive du titulaire, par `toArray()` entier, des lignes qui décrivent un tiers (client, locataire, bailleur) : données d'autrui remises par le droit d'accès d'un membre du personnel — né de P232.02 | à faire |
-| 248 | Branches « demandeur » d'une intervention (`MaintenanceRequestPolicy::view`, `respondToResolution`, `MaintenanceRequest::scopeVisibleTo`, l'accès au fil de l'intervention par `ConversationAccess`) quand le demandeur est un locataire dont le bail du bien a pris fin (`ACTIVE_TENANT_LEASE_STATUSES`, jugé par `MaintenanceRequestController::store` seulement) : ancien locataire qui lit, liste, confirme ou conteste les interventions et leurs photos privées du logement (ADR-0029 § 3) — né de P233.03 | à faire |
-| 249 | Valeurs de choix acceptées par une FormRequest ou une constante (`Rule::in`, `in:`, `ALLOWED_*`) et offertes par un sélecteur du front, rangées dans une colonne ou un `metadata` sans qu'aucun lecteur n'en tire d'effet (`invitations.role` `agent_senior`/`agent_manager`, et leurs pareils sous `app/Http/Requests`, `app/Services` et `takussan-web/src/components`) : choix montré à l'écran, sans conséquence — né de P234.01 | à faire |
-| 250 | Relations `HasOne` et lectures `->first()` sans ordre sur une table où plusieurs lignes par parent sont possibles, unicité retirée ou jamais posée (`User::serviceProviderProfile` depuis la migration `2026_05_10_170000`, `ServiceProviderProfile::query()->where('user_id')->first()` de `Me\ServiceProviderAgenciesController`, et leurs pareils sous `app/Models/Concerns` et `app/Http/Controllers`) : seconde ligne invisible, ou ligne prise au hasard — né de P234.02 | à faire |
-| 251 | Gardes d'existence et dédoublonnages écrits sur l'e-mail seul (`where email`, `lookup*ForEmail`, `assertNoActive*`, `firstOrCreate(['email' => …])`) hors des invitations — fiches client, garants, contacts, rattachement de compte — face aux comptes et fiches créés par numéro depuis TCK-589 (`PHONE_LOGIN_ENABLED`) : doublon créé, ou contrainte heurtée en 500 — né de P234.02 et P234.03 | à faire |
+| 235 | Replis `??` de l'API sur des colonnes texte non nulles que des écrivains remplissent de `''` (`CustomerService::rattacherOuCreer` `?? 'Client'`, et leurs pareils sous `app/Services` et `app/Http/Resources` sur `first_name`, `last_name`, `username`, `title`, `name`) : repli écrit qui ne joue jamais, chaîne vide rangée ou rendue — né de P220.03 | fait |
+| 236 | Réponses d'erreur sans corps JSON (413 de la borne de 25 Mio de `docker/Caddyfile`, 502 et 504 du proxy, page d'erreur de PHP) lues par `apiRequest`, `jsonOrThrow` de `lib/queries/kyc.ts` et les relais BFF, puis rendues par `useMessageErreurApi` et `messageErreur` : envoi refusé pour sa taille ou coupé par le proxy affiché comme une erreur générique ou de réseau, sans dire quoi changer — né de P222.02 et P222.04 | fait |
+| 237 | Gestes en deux requêtes, création puis complément (photos, pièces, invitations, lignes), dont le second échec est avalé par un `catch {}` ou un `.catch(() => undefined)` sous `takussan-web/src/components` et `src/app/actions` (`MaintenanceForm.tsx:89-92` et ses pareils) : ligne créée sans son complément, et rien ne le dit — né de P222.01 | fait |
+| 238 | Observateurs et écouteurs qui créent une ligne fille au passage d'un statut (`wasChanged('status')` sous `app/Observers` et `app/Listeners`, `insertOrIgnore` contre un index unique partiel) face aux transitions de retour de la machine d'état du parent (contestation, réouverture, reprise, annulation après coup) : ligne née d'un état que le parent a quitté, jamais retirée ni recalculée — né de P224.01 et P224.03 | fait |
+| 239 | Avis envoyés par `Notification::send()` ou `->notify()` directs, hors de `NotificationService::send` qui écarte les comptes non joignables (l. 73-78, TCK-1350) : une cinquantaine de sites sous `app/Jobs`, `app/Console`, `app/Services` et `app/Http/Controllers` (`EscalateUrgentMaintenanceJob`, `RemindTenantOnboarding`, `BookingExpirationService`, `MaintenanceRequestController::sendUrgentAlert`, et leurs pareils) dont le destinataire peut être un compte `blocked` : courriel et avis remis à un compte que la plateforme a fermé — né de P225.01 et P225.02 | fait |
+| 240 | Gestes qui rattachent à une ligne d'agence une fiche jugée par `can('view', …)` de l'appelant plutôt que par l'agence du parent (`LeaseService::create` locataire et garant, `BookingService` client, `attachGuarantor`, `TaskController` et `DocumentPolicy::attachTo` pour un client ou un bien, `AddParticipantsRequest`, et leurs pareils sous `app/Services` et `app/Http/Controllers/Api`) face au compte membre de plusieurs agences : fiche d'une agence rattachée à la ligne d'une autre, puis lue par son personnel — né de P226.01 | fait |
+| 241 | Termes du mandat d'agence écrits hors de `LeaseService::COMMISSION_TERMS` (`commission_amount`, `agent_id`) : `leases.commission_rate` à la création et au renouvellement, `property_collaborators.commission_share` (`StorePropertyCollaboratorRequest` et `UpdatePropertyCollaboratorRequest` jugés par `can('update', $property)`), et leurs pareils lus par `PayoutCalculator` et `CommissionLedgerService` : compte qui n'est pas le personnel de l'agence sous la capacité qui garde la commission, et qui fixe ce que l'agence ou ses agents perçoivent — né de P227.01 | fait |
+| 242 | `POST /api/agencies/{id}/members` (`AgencyController::addAgent`), qui rattache un compte existant désigné par identifiant ou par e-mail en créant d'emblée son profil actif, face au parcours d'invitation (`InvitationService`, acceptation par le compte) : accord du compte visé, compte bailleur ou client d'une autre agence, avis envoyés, quota et profils restaurés — né de P227.03 | fait |
+| 243 | Écritures optimistes du front posées avant la réponse (bascules du store local `favoritesStore` et pareils, `setQueryData` dans `onMutate`, `useState` mis à la valeur visée avant l'appel, sous `takussan-web/src/components` et `src/hooks`) sans retour arrière dans `onError` ni relecture sur l'échec : écran qui montre fait un geste que l'API a refusé — né de P228.03 | fait |
+| 244 | Champs de saisie remis à zéro dans le même gestionnaire que l'envoi, avant la réponse (`onAdd(x); setX('')` de `NotesTab`, `mutate(x); reset()`, fermeture du dialogue au clic, sous `takussan-web/src/components`) face aux bornes de l'API que le champ ne porte pas (`max:` sans `maxLength`) : texte saisi perdu quand l'API refuse — né de P228.02 | fait |
+| 245 | Colonnes JSON recomposées depuis le modèle chargé puis réécrites en entier (`$m->metadata = [...]; save()`, `forceFill(['reminders_sent' => …])`, `expiry_reminders`, sous `app/Jobs`, `app/Console`, `app/Services` et `app/Observers`) face à un second écrivain de la même colonne pendant l'écriture : clé posée entre-temps effacée, ou clé effacée remise — né de P229.03 | fait |
+| 246 | Montants calculés hors de la transaction sur le modèle reçu, puis écrits après une relecture sous verrou qui ne rejuge que le statut (`LateFeeCalculator::apply`, et leurs pareils sous `app/Services` : pénalités, commissions, remboursements, reversements, crédits) : montant d'une ligne que la relecture a vue changer — né de P229.05 | fait |
+| 247 | Archive RGPD `DataExportBuilder::payloads` : clauses par colonne d'auteur ou d'encaisseur (`bookings.created_by_id`, `lease_payments.collector_id`, `documents.uploaded_by`, `messages` des fils encore ouverts) qui font entrer dans l'archive du titulaire, par `toArray()` entier, des lignes qui décrivent un tiers (client, locataire, bailleur) : données d'autrui remises par le droit d'accès d'un membre du personnel — né de P232.02 | fait |
+| 248 | Branches « demandeur » d'une intervention (`MaintenanceRequestPolicy::view`, `respondToResolution`, `MaintenanceRequest::scopeVisibleTo`, l'accès au fil de l'intervention par `ConversationAccess`) quand le demandeur est un locataire dont le bail du bien a pris fin (`ACTIVE_TENANT_LEASE_STATUSES`, jugé par `MaintenanceRequestController::store` seulement) : ancien locataire qui lit, liste, confirme ou conteste les interventions et leurs photos privées du logement (ADR-0029 § 3) — né de P233.03 | fait |
+| 249 | Valeurs de choix acceptées par une FormRequest ou une constante (`Rule::in`, `in:`, `ALLOWED_*`) et offertes par un sélecteur du front, rangées dans une colonne ou un `metadata` sans qu'aucun lecteur n'en tire d'effet (`invitations.role` `agent_senior`/`agent_manager`, et leurs pareils sous `app/Http/Requests`, `app/Services` et `takussan-web/src/components`) : choix montré à l'écran, sans conséquence — né de P234.01 | fait |
+| 250 | Relations `HasOne` et lectures `->first()` sans ordre sur une table où plusieurs lignes par parent sont possibles, unicité retirée ou jamais posée (`User::serviceProviderProfile` depuis la migration `2026_05_10_170000`, `ServiceProviderProfile::query()->where('user_id')->first()` de `Me\ServiceProviderAgenciesController`, et leurs pareils sous `app/Models/Concerns` et `app/Http/Controllers`) : seconde ligne invisible, ou ligne prise au hasard — né de P234.02 | fait |
+| 251 | Gardes d'existence et dédoublonnages écrits sur l'e-mail seul (`where email`, `lookup*ForEmail`, `assertNoActive*`, `firstOrCreate(['email' => …])`) hors des invitations — fiches client, garants, contacts, rattachement de compte — face aux comptes et fiches créés par numéro depuis TCK-589 (`PHONE_LOGIN_ENABLED`) : doublon créé, ou contrainte heurtée en 500 — né de P234.02 et P234.03 | fait |
 
 
 ---
@@ -7268,3 +7268,782 @@ base de développement. Les écrans n'ont pas été joués.*
 - Piste : dans les trois accesseurs, retomber sur `metadata` quand le nom composé du compte est vide, et dans `DeleteRoleDialog` tester la vacuité (`||`). Test unitaire de l'accesseur pour un compte à noms `''`.
 - Mesure (2026-10-24, 28bbd67c8, mesureur) : relu les trois accesseurs `getDisplayNameAttribute` (`AgentProfile.php:109-119`, `OwnerProfile.php:141-152`, `ServiceProviderProfile.php:173-184` : nom du compte dès qu'il est lié, `metadata` seulement sans compte), `AgencyRoleService.php:224` (`$holder->display_name ?? null`) et `DeleteRoleDialog.tsx:112` (`?? t('remove.conflict_unnamed')`) ; `grep -rn display_name takussan-api/app takussan-api/resources` → ce seul lecteur des accesseurs, `grep -rl display_name takussan-web/src` → le dialogue, son test et `types/agency-role.ts` : le constat tient à la lecture, non joué. Classement : A1, le repli sur `metadata` est le contrat écrit par TCK-2136 au front et le repli « #id » est déjà la clé `remove.conflict_unnamed` du dialogue ; aucun texte neuf.
 - Mesure (2026-10-25, 9b192130e, implementeur) : `display_name` des profils d'agent, de bailleur et de prestataire retombe sur le nom de `metadata` quand le nom composé du compte est vide ; `DeleteRoleDialog` teste la vacuité (`||`). `NomAffichableDesProfilsTest` (6) vert ; ablation : repli retiré → 3 rouges ; `DeleteRoleDialog.test.tsx` rouge avec `??`.
+
+## Angle 235 — Replis `??` de l'API sur des colonnes texte non nulles que des écrivains remplissent de `''`
+
+*Exploré le 2026-10-25 sur `pre-dev` e243019a1, par l'explorateur, en session (groupe A). Relu par l'explorateur lui-même : les replis `??` et `?:` sur `first_name`, `last_name`, `full_name`, `username`, `title` et `name` sous `app/Services`, `app/Http/Resources`, `app/Http/Controllers`, `app/Notifications`, `app/Listeners`, `app/Jobs` et `resources/views/pdf` (relevés par `grep`) ; les écrivains de `''` (`PhoneLoginService.php:172-173`, `AccountDeletionService.php:309-310`, les services d'invitation, `CustomerService` depuis TCK-2281) ; la nullabilité des colonnes dans les migrations. Deux tests temporaires, retirés (charge 1,44 / 1,60 / 2,10 puis 1,66 / 1,71 / 2,01 sur 8 cœurs). Le repli `?? 'Client'` / `?? '#id'` de `CustomerService::rattacherOuCreer`, qui a fait naître l'angle, est retiré par TCK-2281 (P220.03) : ce n'est pas un constat. Les replis sur `title` et `name` de `properties`, `agencies` et `maintenance_requests` ne jouent que sur une relation absente (`?->`), et leurs écrivains exigent la valeur (`required`, et `ConvertEmptyStringsToNull`) : écartés, sauf une ligne des petites améliorations.*
+
+### La facture d'une fiche client sans nom porte « — » pour destinataire : le repli `$customer->name` ne lit aucune colonne
+- Réf : P235.01
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Invoice/InvoiceNumberAllocator.php:77-83`, `takussan-api/resources/views/pdf/invoices/default.blade.php:40-43`, `:85`, `takussan-api/app/Models/Customer.php:240-243`, `takussan-api/database/migrations/2026_04_17_160006_create_customers_table.php:16`, `takussan-api/tests/Feature/Crm/FicheDUnCompteSansNomTest.php:22-34`
+- Constat :
+  - `issuedMentions` nomme le destinataire par `trim(($customer->first_name ?? '').' '.($customer->last_name ?? '')) ?: ($customer->name ?? null)` (lu, l. 82). La table `customers` n'a pas de colonne `name` (lu, migration ; `grep "'name'"` sur les migrations de `customers` → aucune), et le modèle n'a pas d'accesseur `name`, seulement `getFullNameAttribute` (lu, `Customer.php:240`). Le repli rend donc toujours `null`.
+  - Depuis TCK-2281, une fiche née d'un compte créé par téléphone garde `''` et `''` en base, par décision du porteur (lu, `FicheDUnCompteSansNomTest.php:22-34`).
+  - mesuré (test temporaire retiré) : facture de fabrique, fiche passée à `''` / `''` avec `+221770000623`, `issuedMentions()` → `customer` = `{"name":null,"email":"kurt68@example.org","phone":"+221770000623"}`.
+  - Le gabarit rend `($recipient['name'] ?? null) ?: '—'` (lu, l. 85), avec le même repli mort pour une facture non émise (lu, l. 41). Le nom est figé à l'émission dans `metadata.issued` (lu, `InvoiceNumberAllocator.php:59`) : la facture garde « — » même si la fiche est nommée ensuite.
+  - TCK-2281 renvoie ce cas à « une piste à part » (lu, `TCK-2281-noms-vides-fiche-client-et-acceptation.md:84`). Aucune entrée du fichier ni de l'archive ne le porte (`grep -rn InvoiceNumberAllocator` → seulement la `Mesure` du délégué de P220.03).
+  - Établi comment : lu, et mesuré par test.
+- Piste : retirer le repli mort, et décider ce que porte la ligne « destinataire » d'une facture dont la fiche n'a pas de nom (le numéro ou l'e-mail, déjà imprimés sous le nom, ou un libellé traduit). C'est un document d'argent remis au client : le choix revient au porteur. Test : émission pour une fiche `''` / `''` → `metadata.issued.customer.name` égal à la valeur décidée.
+
+### Des ressources et contrôleurs de l'API recomposent le nom d'un compte à la main et rendent `''` ou `null`, que le `??` du front ne rattrape pas
+- Réf : P235.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Controllers/Api/Agency/AgentAbsenceController.php:56`, `takussan-web/src/components/crm/AgentAbsencesSection.tsx:138-141`, `takussan-web/src/messages/fr.json:3099`, `takussan-api/app/Http/Resources/PayoutResource.php:26-29`, `takussan-web/src/components/payments/PayoutDetailDialog.tsx:177-181`, `takussan-api/app/Http/Resources/PropertyResource.php:231-232`, `:408`, `takussan-api/app/Http/Resources/CommissionEntryResource.php:31`, `takussan-api/app/Services/Payout/OwnerStatementService.php:102`, `takussan-api/app/Http/Controllers/Api/Admin/TagModerationAdminController.php:64`, `takussan-api/app/Http/Controllers/Api/Admin/GeoNeighborhoodAdminController.php:111`, `takussan-api/app/Models/User.php:371-381`
+- Constat :
+  - `AgentAbsenceController::format` rend `'name' => trim($u->first_name.' '.$u->last_name)` (lu, l. 56), donc `''` pour un membre sans nom. Le front écrit `t('row', { absent: a.absent?.name ?? '—', substitute: a.substitute?.name ?? '—', … })` (lu, l. 139-140). `??` ne remplace que `null` : la ligne « {absent} est remplacé par {substitute} jusqu'au {until} » (lu, `fr.json:3099`) s'affiche avec un trou.
+  - `PayoutResource` rend `issuer.name` = `trim(…) ?: $this->issuer->username` (lu, l. 28). `username` est nullable (lu, migration `2026_04_15_210400_add_fields_to_users_table.php:16`), et un compte créé par téléphone n'en a pas (P193.05, `Mesure` du délégué). Le nom vaut donc `null`, et `PayoutDetailDialog` le rend tel quel sous « Préparé par » (lu, l. 180).
+  - La même composition `?: username` se retrouve dans `PropertyResource.php:231-232` (collaborateurs), dans `:408` (`buildUserLite`), dans `CommissionEntryResource.php:31` et dans `OwnerStatementService.php:102` (lu). Le front des commissions retombe déjà sur `beneficiaryFallback` (lu, `CommissionsLedger.tsx:101`). Les autres lecteurs ne sont pas relus (à vérifier).
+  - `TagModerationAdminController.php:64` et `GeoNeighborhoodAdminController.php:111` rendent `created_by.name` = `trim(…)` sans repli (lu). Leur rendu au front n'est pas relu (à vérifier).
+  - `User::nameWithoutContact()` existe (lu, l. 371-381 : nom, puis `username`, puis `—`), et sert déjà à la messagerie, aux signatures, à la gouvernance et aux exports (TCK-815, TCK-2053, TCK-2134). Les sites ci-dessus ne l'emploient pas.
+  - Pas mesuré : qu'un membre d'agence garde aujourd'hui des noms vides. Depuis TCK-2281, l'acceptation recopie les noms envoyés (P220.07) ; le front les exige, mais `AcceptInvitationRequest` les admet nuls (à vérifier).
+  - Établi comment : lu.
+- Piste : `nameWithoutContact()` pour ces lecteurs, ou la règle `full_name ?: email ?: phone` de TCK-2053 pour la console. Côté front, `nomAffichable()` ou `||` au lieu de `?? '—'` dans `AgentAbsencesSection`. Garde : un test de l'API des absences pour un membre à noms `''` → `name` non vide.
+
+### Petites améliorations
+- Réf : P235.03
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Services/Model/LeasePaymentService.php:135`, `takussan-api/app/Listeners/Payments/SendRentReceiptAfterOnlinePayment.php:65`, `takussan-api/app/Listeners/Payments/NotifyPartiesOfRentRefund.php:54`, `takussan-api/app/Jobs/SendLeasePaymentReminders.php:97`, `takussan-api/app/Listeners/Permissions/NotifyDelegationActivated.php:46`, `takussan-api/app/Listeners/Permissions/NotifyDelegationExpired.php:43`, `takussan-api/app/Listeners/Permissions/NotifyDelegationRevoked.php:43`, `takussan-api/app/Services/Notifications/NotificationRenderer.php:99`, `takussan-api/app/Notifications/AgentTenantInventoryReminderNotification.php:61-66`, `:95-97`, `takussan-api/resources/views/pdf/leases/contract.blade.php:46`, `:48`, `takussan-api/resources/views/pdf/inventories/report.blade.php:76`, `:78`, `takussan-api/app/Notifications/UrgentMaintenanceCreatedNotification.php:51`, `:83`
+- Constat :
+  - **Avis au bailleur et au délégant.** `:tenant` et `:beneficiary` sont composés par `trim(($x?->first_name ?? '').' '.($x?->last_name ?? ''))`, sans repli (lu, sept sites ci-dessus). Le moteur remplace un paramètre texte vide par `—` (lu, `NotificationRenderer.php:99`). mesuré (test temporaire retiré, `NotificationRenderer::render` avec `tenant` et `beneficiary` vides) : le corps de `LeasePaymentReceivedLandlord` commence par « — a payé … pour Villa Almadies. », et le SMS de `RoleDelegationExpiredDelegator` se lit « Takussan : délégation Comptable à — expirée. ». `AgentTenantInventoryReminderNotification`, lui, retombe sur « Le locataire » (lu, l. 61-66, 95-97, `lang/fr/notifications.php:196`). Piste : le même repli traduit pour ces avis, ou le numéro masqué si le porteur le veut.
+  - **PDF du bail et de l'état des lieux.** `$landlord->last_name ?? $landlord->name ?? ''` (lu, `contract.blade.php:46,48`, `report.blade.php:76,78`) : `last_name` est `NOT NULL`, et `users.name` est retirée (lu, migration `2026_04_15_210400_add_fields_to_users_table.php:13`). Le second repli est mort. Le `?: email ?? '—'` qui suit joue : un bailleur sans nom ni e-mail est « — » sur le contrat (lu).
+  - **Repli mort.** `UrgentMaintenanceCreatedNotification` écrit `title ?? '#'.id` (lu, l. 51 et 83), sur une colonne `NOT NULL` que `StoreMaintenanceRequestRequest.php:52` exige. Le repli ne joue jamais, mais n'a aucun effet.
+  - Établi comment : lu ; un rendu mesuré par test.
+- Piste : un repli de nom unique pour les paramètres de personne des avis (sur le modèle de `unknown_tenant`), et le retrait des replis morts. Test : avis « loyer reçu » pour une fiche à noms `''` → pas de `—` en tête.
+
+## Angle 236 — Réponses d'erreur sans corps JSON lues par `apiRequest`, `jsonOrThrow` et les relais, puis rendues comme une erreur générique ou de réseau
+
+*Exploré le 2026-10-25 sur `pre-dev` e243019a1, par l'explorateur, en session (groupe A). Relu par l'explorateur lui-même : dans `lib/api.ts`, `apiRequest`, `apiFetch`, `ApiError.codeErreur` et `messageErreurApi` ; `useMessageErreurApi` ; `lib/relais-api.ts` ; le relais `api/me/profiles/[id]/kyc/upload` ; `jsonOrThrow` de `lib/queries/kyc.ts` ; `docker/Caddyfile` ; `docker/php.ini` ; `config/cors.php` ; `next.config.ts` ; `lib/borne-du-corps.ts` ; les envois de photos (`maintenance.ts`, `inventory.ts`, `MaintenanceForm`, `MaintenanceGallery`, `InventoryDetail`, `MediaDropzone`). Rien n'a été envoyé à l'image de l'API ni au navigateur. L'absence d'en-tête CORS sur le 413 de Caddy est déduite de l'ordre des directives (`respond` avant `php_server`), non mesurée. L'arbre de lecture n'a pas de `node_modules` côté front : aucun test Vitest lancé. Le devis et la caution jugent déjà la somme sous la borne du corps (`borne-du-corps.ts`, TCK-2330, P222.05 et P222.04) : écartés.*
+
+### Un envoi refusé pour sa taille par le proxy de l'API s'affiche comme une panne de la connexion de l'utilisateur, ou comme une erreur générique
+- Réf : P236.01
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/docker/Caddyfile:21-31`, `takussan-api/config/cors.php:10`, `:19-37`, `takussan-web/src/lib/api.ts:865-880`, `:483-517`, `:591-631`, `takussan-web/src/messages/fr.json:2358`, `takussan-web/src/components/maintenance/MaintenanceGallery.tsx:121-128`, `takussan-web/src/components/inventory/InventoryDetail.tsx:286-304`, `takussan-web/src/components/maintenance/MaintenanceForm.tsx:83-101`, `takussan-web/src/app/api/me/profiles/[id]/kyc/upload/route.ts:50-55`, `takussan-web/src/lib/queries/kyc.ts:5-11`
+- Constat :
+  - Le proxy de l'image répond `respond @trop_gros 413` à toute requête dont le `Content-Length` dépasse 26 214 400 octets, avant `php_server` (lu, `Caddyfile:21-31`). La réponse n'a donc ni corps JSON ni les en-têtes CORS que pose Laravel sur `api/*` (lu, `cors.php:19`). Côté image, c'est déduit et à vérifier.
+  - **Dans le navigateur**, `apiRequest` appelle l'API directement (lu, `api.ts:865`). Le front et l'API ont deux origines (lu, docblock de `cors.php` ; `preview.takussan.com` et `preview.api.takussan.com`, `hebergement.md:20`). Une réponse sans `Access-Control-Allow-Origin` fait rejeter `fetch` en `TypeError`, et `messageErreurApi` traduit tout `TypeError` en `network` (lu, `api.ts:610`) : « La connexion au serveur a échoué. Vérifiez votre connexion internet et réessayez. » (lu, `fr.json:2358`). Le texte accuse le réseau de l'utilisateur, et un nouvel essai du même lot échoue de la même façon (déduit, à vérifier).
+  - **Par un relais ou une action serveur**, le corps vide devient `ApiError(413, null)` (lu, `api.ts:876-879` ; même chose pour `kyc.ts:5-11`, après le relais KYC qui recopie le corps vide sous `Content-Type: application/json`, lu `route.ts:50-55`). `codeErreur` rend `undefined` : ce n'est ni un 429, ni une prose, ni un 5xx (lu, `api.ts:483-517`). Le message est alors le repli générique de l'appelant (lu, l. 606). Aucun code ni libellé ne nomme un envoi trop lourd (lu, `CODES_ERREUR_API` ; `grep 413 src/lib/api.ts` → 0).
+  - Où cela se voit aujourd'hui (voir P236.02) :
+    - photos « avant » : `messageErreur(upload.error, t('failed'))` (lu, `MaintenanceGallery.tsx:126`), donc le texte réseau ;
+    - photos d'état des lieux : `t('uploadFailed')`, « L'envoi a échoué. Réessayez. » (lu, `InventoryDetail.tsx:300-303`) ;
+    - photos d'une demande neuve : le toast « Photos non envoyées », sans raison (lu, `MaintenanceForm.tsx:91-101`).
+  - Établi comment : lu ; l'effet sur l'image et dans le navigateur est à vérifier.
+- Piste : poser à Caddy les en-têtes CORS de Laravel sur la réponse 413, ou faire porter le refus à PHP, avec un corps `{code}` ; puis un code `payload_too_large` dans `CODES_ERREUR_API`, traduit par un libellé qui dit quoi changer (moins de fichiers, ou plus légers). Garde : un test de `messageErreurApi` sur `ApiError(413, null)`, et un cas de `smoke-api.sh image` qui envoie 26 Mio avec un `Origin` et exige l'en-tête.
+
+### Photos d'une demande neuve, photos « avant » et photos d'état des lieux partent en un seul lot de 20 sans borne de somme : 19 photos réduites dépassent la borne du proxy
+- Réf : P236.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/lib/queries/maintenance.ts:329-345`, `takussan-web/src/lib/queries/inventory.ts:160-172`, `takussan-web/src/components/maintenance/MaintenanceForm.tsx:83-90`, `:168-174`, `takussan-web/src/components/maintenance/MaintenanceGallery.tsx:97-100`, `:113`, `takussan-web/src/components/inventory/InventoryDetail.tsx:274-292`, `takussan-web/src/components/media/MediaManager.tsx:546-560`, `takussan-web/src/lib/borne-du-corps.ts:1-21`, `takussan-api/app/Http/Requests/Api/UploadPhotosMaintenanceRequestRequest.php:52`, `:55`, `takussan-api/app/Http/Requests/Api/UploadRoomPhotosInventoryRequest.php:41`, `:44`
+- Constat :
+  - TCK-2330 (P222.02) a borné `photos` à 20 sur les trois routes. Il a fait partir une à une les seules photos de clôture (lu, `maintenance.ts:185-187`). `useUploadMaintenancePhotos` et `useUploadInventoryRoomPhotos` mettent toujours tout le lot dans un seul `FormData` (lu, `maintenance.ts:337`, `inventory.ts:168`).
+  - Les photos d'une demande neuve et les photos « avant » prennent tout ce que rend le sélecteur `multiple`, sans compte ni somme (lu, `MaintenanceForm.tsx:173`, `MaintenanceGallery.tsx:113`), puis les réduisent (`reduirePhotos`). L'état des lieux cumule jusqu'à 20 photos de 5 Mo au plus après réduction (lu, `MediaManager.tsx:547-567`, `InventoryDetail.tsx:30`).
+  - `borne-du-corps.ts` (24 Mio de pièces par envoi) n'est appelé que par le devis et la caution (mesuré : `grep -rn borne-du-corps src` → `QuoteSubmitForm.tsx`, `DepositRefundModal.tsx`).
+  - Avec 1 446 048 o par photo réduite (mesure de TCK-542, non refaite), 19 photos font 27 474 912 o, au-dessus des 26 214 400 du proxy : refus 413, rendu comme le dit P236.01. Au-delà de 20 photos, la demande neuve reçoit un 422 `photos.max` que le toast tait aussi (lu, `MaintenanceForm.tsx:91-101`). P222.02 est close : ce constat porte ce que sa piste demandait (« l'envoi par photo ou par paquets sous 25 Mio ») pour les routes `/photos` et `/room-photos`, que TCK-2330 n'a pas faites.
+  - Établi comment : lu ; le poids réel d'une photo réduite et le refus de l'image ne sont pas mesurés.
+- Piste : envoyer ces photos une à une, comme la clôture (TCK-2330), ou par paquets jugés par `piecesDepassentLeCorps`, et annoncer la borne de 20 au sélecteur de la demande neuve et des photos « avant ». Garde : un test Vitest par écran, avec 19 fichiers de 1,4 Mo → aucun appel unique au-dessus de la borne.
+
+### Petites améliorations
+- Réf : P236.03
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-web/src/lib/relais-api.ts:45-73`, `takussan-web/src/lib/api.ts:610`, `:300-311`, `takussan-api/docker/php.ini:5-13`
+- Constat :
+  - **Même panne, deux textes.** Une API arrêtée donne deux messages selon le chemin. Par un relais BFF, l'échec de `fetch` devient `upstream_unavailable` ou `upstream_timeout`, traduits par le libellé « serveur » (lu, `relais-api.ts:45-73`, `api.ts:300-311`). Dans le navigateur, le 502 ou le 503 du mandataire devant l'API n'a pas d'en-tête CORS (déduit, à vérifier) : il devient un `TypeError`, puis « Vérifiez votre connexion internet » (lu, `api.ts:610`).
+  - **Page d'erreur de PHP.** Une erreur fatale au-delà de `max_execution_time = 60` ou de `memory_limit = 256M` (lu, `php.ini`) sur un envoi rendrait une page sans corps JSON et peut-être sans en-tête CORS. Ce cas n'est pas relu (à vérifier : ce que rend `HandleExceptions` hors de la pile des middlewares).
+  - Établi comment : lu, et déduit.
+- Piste : distinguer, dans `messageErreurApi`, un `TypeError` d'appel à l'API d'une absence de réseau (`navigator.onLine`), ou faire porter à l'API ses en-têtes CORS sur toute réponse d'erreur du mandataire.
+
+## Angle 237 — Gestes en deux requêtes dont le second échec est avalé
+
+*Exploré le 2026-10-25 sur `pre-dev` e243019a1, par l'explorateur, en session (groupe A). Un sous-agent en lecture seule a relevé, sous `takussan-web/src/components`, `src/app` et `src/hooks` hors tests, les `catch {}`, `.catch(() => …)`, `Promise.allSettled` et les gestionnaires qui enchaînent plusieurs `await`. L'explorateur a relu lui-même chaque site retenu ci-dessous. Le cas d'origine, `MaintenanceForm.tsx:89-92`, est corrigé par TCK-2146 (toast persistant, lu l. 91-101) : ce n'est pas un constat. Écartés après lecture :*
+- *les gestes qui lisent chaque `ok` et le disent : `PropertyWizard` (`echecs`), `PropertyForm` (`tagsWarning`), `AgencyRoleEditor`, `ServiceProviderOnboardingWizard`, `LeaseSchedule` ;*
+- *les `.catch(() => undefined)` qui coupent seulement un rejet déjà rendu par l'état de la mutation (`MaintenanceGallery`, `QuoteSubmitForm`, `MaintenanceAssignmentBlock`, `DocumentVersionsList`, `CreateRoleDialog`) ;*
+- *la sortie d'impersonation (`useImpersonation`, intention écrite) et la vérification de retour de `PayLinkReception` (le webhook fait foi, intention écrite).*
+
+### Relancer ou révoquer l'invitation d'un bailleur ou d'un prestataire dit « Aucune invitation en attente » pour toute panne de la recherche, et toujours pour une invitation par numéro
+- Réf : P237.01
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/components/owners/OwnersList.tsx:123-161`, `:233-255`, `:402-425`, `takussan-web/src/components/service-providers/ServiceProvidersList.tsx:83-120`, `:190`, `:293-317`, `takussan-web/src/messages/fr.json:2348`, `takussan-api/app/Http/Requests/Invitation/InviteOwnerRequest.php:41-51`, `takussan-api/app/Http/Requests/Invitation/InviteServiceProviderRequest.php:46-53`
+- Constat :
+  - Le geste se fait en deux requêtes. La première cherche l'invitation (`GET /api/invitations?filter[email]=…&filter[status]=sent`). La seconde relance ou révoque, sous la garde de double facteur (lu, `OwnersList.tsx:124-129`, `144-148`).
+  - `resolveInvitationId` avale tout échec de la première (`catch { return null; }`, lu l. 422-424), et rend `null` sans requête quand le contact n'a pas d'e-mail (lu, l. 406-407). Un `null` devient `ApiError(404, { message: 'Aucune invitation en attente pour ce contact.' })` (lu, l. 127 et 147, `fr.json:2348`). Une coupure réseau, un 401, un 403 ou un 5xx de la recherche s'affichent donc comme l'absence d'invitation, et la seconde requête ne part jamais. Même code dans `ServiceProvidersList.tsx:86-87`, `105-106`, `298-299` et `314-316` (lu).
+  - Drapeau `auth.phone_login.enabled` allumé, une invitation de bailleur ou de prestataire peut partir au seul numéro (lu, `InviteOwnerRequest.php:41-51`, `InviteServiceProviderRequest.php:46-53`). Les boutons sont montrés pour tout brouillon (lu, `OwnersList.tsx:234`, `ServiceProvidersList.tsx:190`), mais pour ce brouillon le clic rend toujours « Aucune invitation en attente ». L'état du drapeau en préproduction n'est pas relevé (à vérifier).
+  - Établi comment : lu.
+- Piste : laisser remonter l'erreur de la recherche (retirer le `catch`), rechercher aussi par `phone` quand il n'y a pas d'e-mail (le modèle range `phone`, lu `Invitation.php:42`), ou mieux, faire porter l'identifiant d'invitation au profil brouillon rendu par l'API. Garde : un test de la liste où la recherche rejette en 500 → le message n'est pas « Aucune invitation en attente » ; un brouillon invité par numéro → la relance part.
+
+### Valider son numéro à la publication enregistre le code, mais le choix WhatsApp refusé par l'API est perdu sous un message de succès
+- Réf : P237.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/components/contact/CoordonneesPublication.tsx:145-159`, `:107`, `:161-167`
+- Constat :
+  - `verifierCode` vérifie le code (`phoneVerifyOtpAction`, dont l'échec est dit, lu l. 148-152). Il enregistre ensuite la case WhatsApp par `updateContactPreferencesAction({ phone_whatsapp: whatsapp })`, puis traite le résultat par `if (w.ok) setUser(w.user);` sans `else` (lu, l. 154-155). Il enchaîne sur `refreshUser()` et `setRetour({ ok: true, message: t('phoneVerified') })` (lu, l. 156-157).
+  - Un refus de la seconde requête ne laisse donc qu'un message de succès. Si la valeur reste `null` côté API, la question oui/non revient (`whatsappSansReponse`, lu l. 107) : la réponse cochée est perdue sans explication.
+  - Contraste : la réponse directe à la question WhatsApp dit son échec (`else setRetour({ ok: false, message: r.message })`, lu l. 166).
+  - Établi comment : lu.
+- Piste : sur `!w.ok`, dire le refus avec le message de l'action, comme l. 166, et garder « numéro vérifié » pour la première moitié. Garde : un test du bloc où `updateContactPreferencesAction` rend `ok: false` après un code accepté → le message d'échec s'affiche.
+
+### Une photo de bien envoyée, dont la relecture échoue, est marquée « envoyée » sans paraître dans la grille
+- Réf : P237.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/components/property-dashboard/PropertyMediaPanel.tsx:67-90`, `takussan-web/src/components/media/MediaManager.tsx:176-191`
+- Constat :
+  - `handleUpload` envoie la photo (`uploadPropertyPhotosAction`, dont l'échec lève, lu l. 71-72), puis relit la liste (`fetchPropertyMediaAction`). Sur l'échec de la relecture, il rend `[]` (lu, l. 74-75 : `if (!list.ok) return [];`).
+  - `MediaManager` ajoute ce `[]` à la grille et marque la ligne `status: 'done', progress: 100` (lu, l. 181-183). La photo est enregistrée, mais l'écran ne la montre pas et dit l'envoi réussi.
+  - Elle reparaît au prochain envoi réussi (filtre `knownIdsRef`, lu l. 77-80) ou au rechargement. D'ici là, rien ne dissuade de la renvoyer, ce qui ferait un doublon (déduit).
+  - Établi comment : lu.
+- Piste : rendre la photo créée depuis la réponse de l'envoi plutôt que d'une relecture, ou faire lever la relecture en échec, pour que la ligne dise « envoyée, liste à recharger ». Garde : un test du panneau où la relecture rend `ok: false` → la ligne ne passe pas à « envoyée » sans photo.
+
+### Petites améliorations
+- Réf : P237.04
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-web/src/hooks/useWizardDraft.ts:252-279`, `takussan-web/src/components/agency/UpgradeRequestForm.tsx:186-189`, `takussan-web/src/components/wizard/WizardReprenable.tsx:310-311`, `takussan-web/src/components/wizard/WizardDraftsBanner.tsx:39`, `:64`, `:102`, `takussan-web/src/components/admin/super/SuperAdminPropertiesTable.tsx:119-134`
+- Constat :
+  - **Brouillon non effacé.** `clear()` range l'échec du `DELETE /api/me/wizard-drafts/{key}` dans `error`, sans lever (lu, `useWizardDraft.ts:274-275`). `UpgradeRequestForm` et `WizardReprenable` l'appellent après la soumission réussie, puis annoncent le succès sans lire `error` (lu, `UpgradeRequestForm.tsx:186-189`, `WizardReprenable.tsx:310-311`). Le brouillon reste côté serveur, et le bandeau des démarches en cours le propose ensuite à la reprise (lu, `WizardDraftsBanner.tsx:39`, `64`, `102`). Ce n'est pas mesuré pour un parcours déjà soumis (à vérifier).
+  - **Lot de la console.** Le retrait et la suppression de biens en lot (`Promise.all` d'une requête par bien) n'appellent `refresh` que si tout réussit (lu, `SuperAdminPropertiesTable.tsx:119-134`). Au premier refus, l'erreur s'affiche, mais les biens déjà traités ne sont pas relus et paraissent inchangés.
+  - Établi comment : lu.
+- Piste : lever, ou dire, l'échec de `clear()` après une soumission (le bandeau ne doit pas reproposer une démarche close) ; relire la liste dans `onSettled` du lot.
+
+## Angle 238 — Lignes nées au passage d'un statut, face aux transitions de retour du parent
+
+*Exploré le 2026-10-25 sur `pre-dev` e243019a1, par l'explorateur, sans sous-agent. Relu par
+l'explorateur lui-même : tous les `wasChanged`, `getOriginal('status')`, `insertOrIgnore`,
+`firstOrCreate` et `create()` de `app/Observers` et `app/Listeners` (`MaintenanceRequestObserver`,
+`InventoryOnboardingObserver`, `LeasePaymentOnboardingObserver`, `PaymentPlatformFeeObserver`,
+`ReviewObserver`, `PropertyObserver`, `AgencyObserver`, `AgencyBoostObserver`,
+`PlatformProfileObserver`, `PrivacyRegistryObserver`, `PropertyVisitObserver`,
+`GenerateCommissionEntries`, `CreateTenantOnboardingChecklist`, `SendTenantWelcomeNotification`,
+`OpenBookingRefundTask`, `SyncMaintenanceConversation`, `FlipAgencyKindOnUpgradeApproved`), puis
+la machine d'état de chaque parent (`LeaseStatus` et `EarlyTerminationService::cancel`,
+`InventoryStatus` et `InventoryService::dispute`, `PaymentStatus`). Écartés : la facture de
+prestataire, fermée par TCK-2270 (P224.01 à P224.03, `ReopenedRequestBills`) ; les lignes de
+commission, car aucun chemin ne ramène un bail actif en brouillon (`UpdateLeaseRequest` sans
+`status`), et le retour `terminating → active` n'en crée ni n'en retire ; la commission figée au
+paiement, qui est voulue (`PaymentPlatformFeeObserver.php:26-31`) ; la tâche de remboursement d'une
+réservation, refermée par `closeIfSettled`. Une mesure par un test temporaire
+(`tests/Feature/TmpExplorateurB/SondeGroupeBTest.php`, retiré), base de test PostgreSQL, file
+`sync`, charge 1,69 / 1,71 / 2,01 sur 8 cœurs.*
+
+### Un état des lieux d'entrée contesté après sa signature reste coché dans la liste d'entrée du locataire, et sort des rappels
+- Réf : P238.01
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Observers/InventoryOnboardingObserver.php:28-44,63-74`, `takussan-api/app/Services/Model/InventoryService.php:73-89`, `takussan-api/app/Console/Commands/RemindTenantOnboarding.php:37-40`, `takussan-api/app/Http/Controllers/Api/Agency/TenantOnboardingPendingController.php:57`, `takussan-web/src/components/tenant/TenantOnboardingChecklistWidget.tsx:45`
+- Constat :
+  - L'observateur coche `inventory_completed_at` au passage d'un EDL d'entrée à `signed`, et ne lit aucune autre transition (lu, l. 28-44). `markItem` ferme aussi la liste (`completed_at`) quand le premier paiement est déjà là (lu, `TenantOnboardingService.php:96-98`).
+  - `dispute()` accepte un EDL `signed` et le passe à `disputed` sans toucher la liste (lu, `InventoryService.php:76-86`). Aucun écrivain ne remet `inventory_completed_at` ni `completed_at` à nul (lu : `grep -rn inventory_completed_at app`).
+  - Le rappel J+7 ne prend que les listes à `inventory_completed_at` nul (lu, `RemindTenantOnboarding.php:38-39`). La liste des retards de l'agence ne prend que les listes à `completed_at` nul (lu, contrôleur l. 57). Le widget du locataire affiche l'étape faite dès que la colonne est posée (lu, `TenantOnboardingChecklistWidget.tsx:45`).
+  - mesuré (test temporaire) : EDL d'entrée `pending_signature` → `signed` → la colonne est posée. Puis `InventoryService::dispute()` → EDL `disputed`, `inventory_completed_at` toujours posé. Liste vieillie de 8 jours, `tenant-onboarding:remind` → 0 avis.
+  - La conduite attendue pour un EDL contesté n'est écrite nulle part (lu, `docs/features.md` et `docs/models-spec.md:1820` ne décrivent que le cas `disputed`) : décoche, ou case cochée mais signalée, c'est un choix.
+  - Établi comment : lu, et mesuré par test temporaire.
+- Piste : dans `InventoryOnboardingObserver`, à la sortie de `signed` d'un EDL d'entrée, remettre `inventory_completed_at` à nul (et `completed_at` s'il était posé par lui), tant qu'aucun autre EDL d'entrée du bail n'est signé ; ou garder la case et montrer la contestation, au choix du porteur. Garde : EDL d'entrée signé puis contesté → case décochée, liste rouverte, rappel J+7 rejoué.
+
+### Un renouvellement signé rouvre la liste d'entrée du locataire en place, avec son rappel d'état des lieux et un second message de bienvenue
+- Réf : P238.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/TenantOnboardingService.php`, `takussan-api/app/Listeners/SendTenantWelcomeNotification.php`
+- Constat :
+  - Le renouvellement signé émet `LeaseActivated` (TCK-596). `TenantOnboardingService::create` et `SendTenantWelcomeNotification` ne lisent pas `renewed_from_lease_id`, contrairement à `CommissionLedgerService` (lu).
+  - Le locataire en place recevrait donc une liste d'entrée neuve, son rappel J+7 « état des lieux non signé » et un second message de bienvenue.
+  - Établi comment : lu, déduit, non joué (relevé hors angle de l'explorateur du groupe B, rattaché à cet angle par la session).
+- Piste : sur un bail renouvelé (`renewed_from_lease_id` posé), ne créer ni liste d'entrée ni message de bienvenue, comme le grand livre des commissions. Test : renouvellement signé → aucune liste d'entrée neuve, aucun avis de bienvenue ; bail neuf → les deux, avec ablation.
+
+### Petites améliorations
+- Réf : P238.03
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Observers/LeasePaymentOnboardingObserver.php:31-91`, `takussan-api/app/Services/Model/PayoutService.php:330`, `takussan-api/app/Services/Lease/DepositRefundService.php:90-103`
+- Constat :
+  - Le « premier paiement » de la liste d'entrée se coche quand `paid_at` est posé, et rien ne le décoche : un premier loyer remboursé ensuite (`refunded`) laisse la case et la liste fermée (lu, l. 62-91 ; `grep -rn TenantOnboarding app/Services/Payments` ne rend rien). Non joué.
+  - L'observateur ne filtre pas `payment_type`. La ligne `deposit_refund` d'une caution rendue (née `pending`, `DepositRefundService.php:90-103`) reçoit `paid_at` au paiement du reversement (`PayoutService.php:330`) : c'est l'agence qui paie, et la case « premier paiement » se coche si elle ne l'était pas encore (lu ; déduit, à vérifier, et la liste est d'ordinaire déjà complète à la fin du bail).
+  - Établi comment : lu.
+- Piste : ne compter que les loyers et les cautions versés par le locataire (`payment_type`), et décider si un remboursement intégral du premier loyer décoche la case. Garde : caution rendue → case intacte.
+
+## Angle 239 — Avis envoyés hors de `NotificationService::send`, vers un compte bloqué
+
+*Exploré le 2026-10-25 sur `pre-dev` e243019a1, par l'explorateur, sans sous-agent. Relu par
+l'explorateur lui-même : chacun des 46 appels `Notification::send(`, `->notify(` et
+`->notifyNow(` de `app/` (`grep -rn`), avec la provenance de son destinataire ; le filtre de
+`NotificationService::send` (l. 89-94), `NotificationCode::reachesUnreachableAccount()`,
+`RienPourUnCompteEfface`, `PrimaryPropertyContact::joignable()`, `AdminsDeLAgence`,
+`BookingStakeholders`, `UserLifecycleController::block`, et le ticket TCK-1350 (P88.04). Écartés,
+car ils jugent déjà le compte : `SendTaskDueReminders`, `SendSavedSearchAlerts`,
+`SendFavoriteChangeAlerts`, `EscalateUrgentMaintenanceJob`, `CreditExpiryNotifier`,
+`notifyAgencyAdminsOfProposal` (par `AdminsDeLAgence`), et les avis de compte ou de session
+(mot de passe, inscription, effacement, code de signature à l'utilisateur de la session,
+activation d'un administrateur neuf). Trois sites mesurés par un test temporaire (le même que
+l'angle 238, retiré), les envois relevés par un écouteur de `NotificationSent` sur les vrais
+canaux (`MAIL_MAILER=array`, file `sync`), charge 1,69 / 1,71 / 2,01 sur 8 cœurs.*
+
+### Un compte bloqué par la plateforme reçoit encore les avis envoyés en direct : pénalité, révision, renouvellement, rappel d'état des lieux, alerte de seuil, expiration de réservation
+- Réf : P239.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Listeners/Lease/NotifyTenantOfLateFee.php:21-36`, `takussan-api/app/Console/Commands/RemindTenantOnboarding.php:53-56`, `takussan-api/app/Console/Commands/CheckThresholdAlertsCommand.php:60-62,76-78`, `takussan-api/app/Listeners/Lease/NotifyTenantOfRentReview.php:22-36`, `takussan-api/app/Listeners/Lease/NotifyTenantOfRenewal.php:19-29`, `takussan-api/app/Listeners/Lease/NotifyTenantOfDepositRefund.php:19-33`, `takussan-api/app/Listeners/Lease/SendTenantWelcomeNotification.php:36-52`, `takussan-api/app/Listeners/Lease/NotifyOnEarlyTermination.php:40-57`, `takussan-api/app/Services/Booking/BookingExpirationService.php:270-286`, `takussan-api/app/Services/Property/PropertyModerationService.php:67-70,111`, `takussan-api/app/Services/Invoice/OverdueReminderService.php:192,229`, `takussan-api/app/Services/Invitation/InvitationService.php:586-590,921-926`, `takussan-api/app/Services/Boost/BoostLifecycle.php:361-371`, `takussan-api/app/Http/Controllers/Api/MaintenanceRequestController.php:284-290`, `takussan-api/app/Services/Agency/AgencyUpgradeReviewService.php:212`
+- Constat :
+  - La règle est écrite : « un compte bloqué ou supprimé ne reçoit que les codes de son compte » (objectif de TCK-1350, P88.04, validé par le porteur ; lu, `NotificationService.php:89-94`). Elle ne vit que dans `NotificationService::send`. TCK-1350 a laissé hors périmètre les envois directs (lu, ticket, « Hors périmètre »).
+  - Hors de ce service, seul un compte effacé est arrêté (`RienPourUnCompteEfface`, `trashed()`, lu l. 26). Le blocage ne touche que `users.status`, les jetons et les flux de calendrier : les profils restent actifs (lu, `UserLifecycleController.php:44-50`).
+  - mesuré (test temporaire) :
+    - locataire `blocked`, `NotifyTenantOfLateFee::handle()` → `LeasePaymentLateFeeNotification` remise par `database`, `mail` et `broadcast` ;
+    - locataire `blocked`, liste d'entrée de 8 jours, `tenant-onboarding:remind` → `TenantInventoryReminderNotification` par `database` et `mail` ;
+    - administrateur d'agence `blocked` au profil actif, alerte de seuil franchie, `dashboard:check-alerts` → `ThresholdAlertTriggered` par `database` et `mail`. La requête des destinataires ne lit que le profil (lu, l. 60-62).
+  - Lu, non joué : le même envoi sans jugement du compte part au locataire (révision, renouvellement, caution, bienvenue, rappel de facture), au locataire et au bailleur (résiliation anticipée), au client (réservation expirée, l. 270-272), au propriétaire (approbation et refus d'annonce), à l'invitant (invitation expirée ou acceptée), à l'acheteur d'un boost, au prestataire assigné (alerte d'urgence, l. 285-287) et au demandeur d'un passage en agence standard.
+  - Rien ne garde la règle : un envoi direct neuf passe la CI (lu : aucun test ni garde ne cherche `Notification::send(` ou `->notify(` hors du service).
+  - Établi comment : lu, et mesuré pour trois sites.
+- Piste : porter la règle au point commun de tous les envois : un écouteur de `NotificationSending`, à côté de `RienPourUnCompteEfface`, qui rend `false` pour un `User` non joignable, sauf pour une liste fermée de notifications de compte (blocage, réactivation, fin d'impersonation, effacement, réinitialisation du mot de passe). Le sort d'un export prêt (`DataExportReadyNotification`, droit d'accès d'un compte bloqué, V3) et des avis du bail au locataire bloqué revient au porteur. Garde : un test par famille (bail, rappel, alerte), compte `blocked` → aucun canal ; et un test qui énumère les notifications de compte permises.
+
+## Angle 240 — Gestes qui rattachent une fiche à une ligne d'agence par `can('view')` de l'appelant
+
+Aucun constat : relu sur `pre-dev` e243019a1, par l'explorateur, sans sous-agent. Les trois sites de P226.01 sont fermés par TCK-2285 (`ContactDeLAgenceDuBien` dans `LeaseService::create`, `BookingService::create` et `LeaseController::attachGuarantor`). Les autres sites ne rattachent rien d'une autre agence :
+- `TaskPolicy::attachTo` et `TaskController::store`/`authorizeAssignee` : la tâche n'a pas d'agence propre, elle prend celle de son parent, et l'assigné est jugé contre cette agence ;
+- `DocumentPolicy::attachTo`/`reaches` : un seul porteur, jugé par son agence ;
+- `AddParticipantsRequest`, `GuardsConversationScope` (contexte, paire bail/bien, intervention/bien, lecteurs du bail) : rien ne rattache ;
+- `InvoiceService::create`/`resolveInvoiceableTarget` : `staffAgencyId()` = l'agence du client, cible de la même agence, destinataire = client ou locataire ;
+- `MaintenanceRequestController::store` : bail du même bien (TCK-2204), `AssignableProvider` jugé par le bien ;
+- `ReconciliationManager::confirmMatch` : `reconciliation.cross_agency` ;
+- `SetPrimaryContactCustomerRequest`, `AssignContactLeadRequest`, `UpdateLeaseRequest` (`agent_id`) : `PersonnelDeLAgence` de l'agence de la ligne ;
+- `ContactLeadService::convert` : la fiche naît dans l'agence de la demande ;
+- `StorePropertyRequest`/`UpdatePropertyRequest` (`parent_id`) : même agence, et `update` sur le parent.
+
+Le seul passage restant est `CustomerService::findOrCreateFromUser`, dans la réservation pour soi et dans les demandes et offres du tunnel public (`PublicPropertyController.php:974,1015`). Il prend `->first()` sur `user_id` seul, ou crée la fiche dans l'agence active du compte. Une réservation du bien de B y porte donc la fiche de A. C'est P15.01, validé le 2026-10-25 (« `first()` borné à cette agence ») : pas de nouvelle entrée.
+
+## Angle 241 — Termes du mandat d'agence écrits hors de `LeaseService::COMMISSION_TERMS`
+
+*Exploré le 2026-10-25 sur `pre-dev` e243019a1, par l'explorateur, sans sous-agent.*
+
+*Relu par l'explorateur :*
+- *`LeaseService::COMMISSION_TERMS` et `maySetCommissionTerms` : `commission_rate` y est depuis TCK-2286, ce que P227.01 a fermé, sans nouveau constat ;*
+- *`StorePropertyCollaboratorRequest`, `UpdatePropertyCollaboratorRequest`, `PropertyCollaboratorController`, `CollaboratorEligibleForProperty`, `PropertyPolicy::update`, `SystemRoleCapabilities`, `CommissionLedgerService::generateFor` ;*
+- *les écrivains de `agent_profiles.commission_rate` et `agencies.commission_rate` (`AgencyUpdateRequest`, jugé par `configure`).*
+
+*Mesuré par un test temporaire `tests/Feature/TmpExplorateurC/SondeC241Test.php` (retiré), lancé par `XDEBUG_MODE=off php artisan test <fichier>`. Base de test PostgreSQL, charge 1,44 / 1,65 / 2,16 sur 8 cœurs.*
+
+### Le bailleur du bien fixe la part de commission des agents de l'agence, et peut tout donner à un agent de son choix
+
+- Réf : P241.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où :
+  - `takussan-api/app/Http/Requests/Api/StorePropertyCollaboratorRequest.php:30-56`
+  - `takussan-api/app/Http/Requests/Api/UpdatePropertyCollaboratorRequest.php:31-46`
+  - `takussan-api/app/Http/Controllers/Api/PropertyCollaboratorController.php:46-109`
+  - `takussan-api/app/Policies/PropertyPolicy.php:143-163`
+  - `takussan-api/app/Services/Membership/SystemRoleCapabilities.php:92-95`
+  - `takussan-api/app/Services/Commission/CommissionLedgerService.php:52-76`
+  - `docs/adr/0049-attribution-des-transactions-et-grand-livre-des-commissions.md:60-63,116-125`
+- Constat :
+  - L'ajout et la modification d'un collaborateur, `commission_share` compris, ne jugent que `can('update', $property)` (lu, les deux `authorize()`). Le bailleur du bien y entre :
+    - sa branche est `BailleurDuBien::est` et `properties.update_own` (lu, `PropertyPolicy.php:155-158`) ;
+    - le rôle système `owner` porte cette capacité, et elle seule (lu, `SystemRoleCapabilities.php:92-95`).
+  - Le contrôleur ne lit que le plafond de 100 % (lu, l. 60-63 et 93-99).
+  - `CommissionLedgerService::generateFor` sert chaque part `agent` avant le négociateur, et plafonne le négociateur à `100 − Σ parts` (lu, l. 52-76).
+  - ADR-0049 dit que le bailleur, « débiteur de la commission, ne les écrit jamais » (lu, l. 63). La règle porte sur les termes du bail. Aucune règle ne dit qui fixe la ventilation (lu, « Ventilation » § 1).
+  - Mesuré (test temporaire) :
+    - bailleur du bien (`OwnerProfile` de l'agence) : `POST /api/properties/{id}/collaborators` `{user_id: <agent de l'agence>, role: agent, commission_share: 100}` → 201, `commission_share` « 100.00 » en base ;
+    - le même bailleur : `PUT …/collaborators/{id}` `{commission_share: 0}` sur la ligne posée par l'admin → 200 ;
+    - bail de l'agence créé par l'admin (`commission_amount` 100 000, négociateur au taux 30), puis activé → une seule ligne au grand livre : l'agent choisi par le bailleur, `share_percent` 100, `amount` 100 000. Le négociateur ne reçoit rien ;
+    - `GET …/collaborators` par le bailleur → 200 : la part de chaque agent lui est rendue.
+  - Le front ne propose pas la part au bailleur : `takussan-web/src/lib/queries/property-collaborators.ts` la lit seulement (lu ; `grep commission_share takussan-web/src` ne rend que des types et des lectures). Le passage est l'API seule.
+  - Établi comment : lu, puis mesuré.
+- Piste :
+  - Juger l'écriture de `commission_share` (ajout et modification, part non nulle) par la règle des termes de commission : `LeaseService::maySetCommissionTerms` (personnel de l'agence du bien qui tient `leases.create`), ou une règle propre à décider. Le bailleur reçoit alors 403 `lease.commission_forbidden` ou un code voisin, et aucune ligne.
+  - Décider si le bailleur lit encore les parts (`PropertyCollaboratorResource`, `PropertyResource.php:217-230`).
+  - Garde : un test « bailleur → 403 à l'ajout et à la modification d'une part, ajout sans part accepté si voulu ; personnel → 201 », avec ablation.
+
+### Le taux du négociateur (`agent_profiles.commission_rate`) n'a aucun écrivain : le négociateur ne reçoit jamais de ligne au grand livre
+
+- Réf : P241.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où :
+  - `takussan-api/app/Services/Commission/CommissionLedgerService.php:66-79`
+  - `takussan-api/app/Models/Profiles/AgentProfile.php:27-31`
+  - `takussan-api/database/migrations/2026_05_02_000002_create_agent_profiles_table.php:17`
+  - `takussan-api/app/Services/Invitation/AgentInvitationService.php:98-110`
+  - `takussan-api/app/Services/Admin/AgencyProvisioningService.php:75-78`
+  - `takussan-api/app/Http/Controllers/Api/AgencyController.php:280-284`
+- Constat :
+  - La part du négociateur est le `commission_rate` de son `AgentProfile` actif, et 0 à défaut (lu, `CommissionLedgerService.php:70-75`). ADR-0049 « Ventilation » § 2 la décrit ainsi.
+  - La colonne est `nullable`, sans défaut (lu, migration l. 17).
+  - Aucun chemin de l'API ne l'écrit. Mesuré par `grep -rn commission_rate takussan-api/app` :
+    - hors baux, reversements et agence, on ne trouve que le modèle, `AgentProfileResource` et la lecture du grand livre ;
+    - les trois créations de profil d'agent n'en posent pas (lu : invitation, provisionnement, `addAgent`) ;
+    - aucune FormRequest ne l'accepte (`grep -rn commission_rate app/Http/Requests` : agence et bail seulement).
+  - Les seeders n'écrivent que le taux de l'agence (lu, `AgencySeeder.php:32-112`).
+  - La règle 2 de la ventilation ne sert donc rien hors tests : un bail activé ne crédite que les collaborateurs (déduit du code, à vérifier en `SELECT` sur `commission_entries.origin = 'negotiator'` en base de développement, non fait).
+  - Établi comment : lu, et `grep`.
+- Piste :
+  - Donner une voie d'écriture au taux d'un agent (fiche de membre, sous `team.assign_role` ou une capacité à décider), ou retirer la règle 2 d'ADR-0049 et son calcul.
+  - Garde : un test « l'admin fixe le taux d'un agent → la ligne `negotiator` naît à l'activation ».
+
+### Petites améliorations
+
+- Réf : P241.03
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où :
+  - `takussan-api/app/Services/Property/PropertyDuplicationService.php:112`
+  - `takussan-api/app/Http/Resources/PropertyResource.php:217-230`
+- Constat :
+  - La copie d'un bien recopie les lignes de collaborateurs, `commission_share` comprise (lu, l. 112). Elle s'ouvre par `PropertyPolicy::duplicate` = `update` (lu, `PropertyPolicy.php:265-268`). Le bailleur qui copie son bien recopie donc la ventilation de l'agence, avec la même règle que P241.01 (déduit, non joué).
+  - `PropertyResource` rend `commission_share` de chaque collaborateur hors des routes publiques, sans condition de lecteur (lu, l. 217-230). Le bailleur la lit par `GET /api/properties/{id}?include=collaborators` (déduit ; mesuré seulement par `GET …/collaborators`, 200).
+  - Établi comment : lu.
+- Piste : faire suivre à la copie et aux deux lectures la règle choisie pour P241.01.
+
+## Angle 242 — `POST /api/agencies/{id}/members` face au parcours d'invitation
+
+*Exploré le 2026-10-25 sur `pre-dev` e243019a1, par l'explorateur, sans sous-agent.*
+
+*Relu par l'explorateur :*
+- *`AgencyController::addAgent`, `AddAgentAgencyRequest` (avec la garde TCK-2205 de P227.03, fermée) et `ProfileMaterializer::materializeOrRestore` ;*
+- *`AgencyMemberRemovalService::remove`, `AgentInvitationService::invite` et `docs/features.md:501-510` ;*
+- *côté front, `InviteMemberDialog.tsx` (« Ajouter un compte existant », par e-mail).*
+
+*Mesuré par un test temporaire `tests/Feature/TmpExplorateurC/SondeC242Test.php` (retiré), lancé par `XDEBUG_MODE=off php artisan test <fichier>`. `Notification::fake()`, base de test PostgreSQL, charge 1,80 / 1,73 / 2,08 sur 8 cœurs.*
+
+### Un admin d'agence fait d'un compte quelconque, désigné par son e-mail, un agent actif de son agence, sans accord ni avis, et reçoit ses coordonnées
+
+- Réf : P242.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où :
+  - `takussan-api/app/Http/Controllers/Api/AgencyController.php:230-303`
+  - `takussan-api/app/Http/Requests/Api/AddAgentAgencyRequest.php:28-48`
+  - `takussan-web/src/components/admin/InviteMemberDialog.tsx:79-85`
+  - `docs/features.md:501,505,510`
+- Constat :
+  - `addAgent` trouve le compte par `user_id` ou par e-mail (lu, l. 262-266). Il ne refuse que l'`AgentProfile` dans une autre agence (lu, l. 271-274), puis matérialise un `AgentProfile` **actif** (lu, l. 280-284). Il n'y a :
+    - ni invitation ni acceptation ;
+    - ni notification ni courriel (lu, l. 230-303 : aucun appel d'envoi) ;
+    - aucun regard sur les profils de bailleur ou de client du compte.
+  - `docs/features.md:501` écrit que l'agent « naît `draft` à l'invitation » et passe « `active` à l'acceptation ». La ligne 505 range tous les parcours d'entrée sous le « pattern d'invitation unifié », et la ligne 510 prévoit le wizard d'agent « post-acceptation ». Ce chemin n'y figure pas (lu).
+  - Mesuré (test temporaire) : agence A, admin de A, compte X bailleur de l'agence C (`OwnerProfile` de C). `POST /api/agencies/{A}/members` `{email: <celui de X>}` donne :
+    - **200**, et X est agent actif de A (`isAgentAt(A)` vrai) ;
+    - aucune notification envoyée à X ;
+    - une réponse qui porte `email`, `phone`, `email_verified_at`, `two_factor_enabled`, `has_usable_password` et `roles: ["agent","customer"]` de X.
+  - Le compte rattaché devient du personnel de A. Il entre dans `PersonnelDeLAgence` (attribution de prospects, de biens, de tâches), et il est joignable par l'équipe (règle 3 de `MessagingReach`). Déduit des règles lues, non joué.
+  - P227.03 avait laissé ce point « à vérifier » et hors du correctif (lu, `docs/plans/2026-10-15-pistes-d-amelioration.md:6613,6616`).
+  - Établi comment : lu, puis mesuré.
+- Piste :
+  - Faire passer le rattachement d'un compte existant par une invitation : profil `draft`, lien, acceptation par le compte, comme `AgentInvitationService`. Ou retirer la route et la remplacer, au dialogue, par l'invitation, qui accepte déjà un e-mail.
+  - Si le rattachement direct est voulu, le décider en ADR : qui peut l'être (jamais un bailleur ou un client d'une autre agence ?), l'avis au compte visé, et ce que la réponse rend.
+  - Garde : un test « compte existant → aucun profil actif avant acceptation, invitation créée », avec ablation.
+
+### Rattacher de nouveau un membre retiré lui rend son ancien rôle personnalisé, capacités comprises, sans `team.assign_role`
+
+- Réf : P242.02
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où :
+  - `takussan-api/app/Http/Controllers/Api/AgencyController.php:280-293`
+  - `takussan-api/app/Services/Membership/ProfileMaterializer.php:7-42`
+  - `takussan-api/app/Http/Requests/Api/AddAgentAgencyRequest.php:28-39`
+  - `takussan-api/app/Policies/AgencyPolicy.php` (`changeMemberRole`)
+  - `takussan-api/app/Http/Controllers/Api/AgencyMemberRoleController.php:125-150` (à vérifier)
+- Constat :
+  - `materializeOrRestore` restaure la ligne supprimée « avec ce qu'elle portait (dont son `agency_role_id`, donc ses capacités d'avant) ». Seul le statut y est réécrit (lu, l. 13-15 et 34-39).
+  - `AgencyMemberRemovalService::remove` supprime le profil en douceur (lu, l. 85-89).
+  - `AddAgentAgencyRequest::authorize` ne délègue à `changeMemberRole` (`team.assign_role`, TCK-1498) que pour `role: agency_admin` (lu, l. 35-38).
+  - Mesuré (test temporaire) :
+    - agent X au rôle personnalisé « agent + `team.assign_role` + `payouts.approve` », retiré par `AgencyMemberRemovalService::remove(…, leaveUnassigned: true)` → plus agent ;
+    - un admin dont le rôle retire `team.assign_role` envoie `POST /api/agencies/{id}/members` `{user_id: X, role: agent}` → **200**. Le profil est restauré `active`, avec le même `agency_role_id` qu'avant le retrait ;
+    - ensuite, `canActAt(team.assign_role)` et `canActAt(payouts.approve)` de X sont **vrais** ;
+    - le même admin, `PUT /api/agencies/{id}/members/{X}/role` `{role: agent}` → 403.
+  - `AgencyMemberRoleController` passe aussi par `materializeOrRestore` (lu, l. 125-150). Ce chemin est gardé par `changeMemberRole` ; s'il restaure aussi un rôle ancien au lieu du rôle demandé, ce n'est pas joué (à vérifier).
+  - Établi comment : lu, puis mesuré.
+- Piste :
+  - Au rattachement, remettre `agency_role_id` au rôle système du rôle demandé (`agent` ou `agency_admin`), ou à `null`, au lieu de restaurer celui d'avant. Ou juger la restauration d'un rôle personnalisé par `changeMemberRole`.
+  - Garde : le cas mesuré dans `MemberRoleChangeCapabilityTest`, avec ablation.
+
+### Petites améliorations
+
+- Réf : P242.03
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Http/Controllers/Api/AgencyController.php:262-266`
+- Constat :
+  - Mesuré : `{email: inconnu@example.test}` → 422 `agency_member.user_not_found_by_email`. Un e-mail connu → 200 et le rattachement. La route dit à tout admin d'agence si un e-mail a un compte sur la plateforme.
+  - Mesuré : le même compte désigné par son e-mail en capitales (`BAILLEUR@example.test`) → 422 `user_not_found_by_email`. `User::where('email', …)` compare à la casse près, là où le dépôt replie les e-mails par `App\Support\CaseInsensitive` (lu, `CLAUDE.md` § Migrations ; `CustomerService::ficheARattacher`).
+  - Établi comment : mesuré.
+- Piste : dépendra de P242.01 :
+  - une invitation ne dit rien de l'existence du compte ;
+  - si la route reste, replier l'e-mail par `CaseInsensitive` et rendre la même réponse au compte absent.
+
+## Angle 243 — Écritures optimistes du front posées avant la réponse, sans retour arrière ni relecture sur l'échec
+
+*Exploré le 2026-10-25 sur `pre-dev` e243019a1, par l'explorateur, en session (groupe A). Un sous-agent en lecture seule a relevé les `onMutate`, les écritures du store local et les `useState` posés avant un appel, sous `takussan-web/src` hors tests. L'explorateur a relu lui-même chaque site retenu, plus les trois `onMutate` du dépôt (`grep onMutate` → `NotificationPreferencesMatrix.tsx:131`, `useCustomerStageMutation.ts:59`, `useProfiles.ts:75`) : tous trois remettent l'instantané dans l'`onError` du crochet, et deux affichent l'erreur. Écartés :*
+- *`FavoriteButton` et `useFavorite`, qui remettent le store dans le `catch` d'un `mutateAsync` (lu, `useFavorite.ts:47-56`) ;*
+- *les accueils « déjà vus » (`useAccueilsVus` et les quatre crochets qui l'appellent) : l'écriture locale avant la réponse y est voulue et écrite (relevé du sous-agent, commentaire de `useWelcomeOnce.ts:42-43`).*
+
+*`stores/` n'existe pas, et le seul store local est `lib/favoritesStore.ts` (lu). Le comportement de TanStack Query invoqué ci-dessous n'est pas mesuré : pas de `node_modules` dans l'arbre de lecture.*
+
+### Le retour arrière du retrait d'un favori depuis le menu (TCK-2214) est un rappel de l'appel `mutate()` : il ne joue pas une fois le menu fermé, ni pour un retrait suivi d'un autre
+- Réf : P243.01
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/components/favorites/FavoritesPopover.tsx:150-166`, `:117`, `takussan-web/src/components/ui/popover.tsx:46-71`, `takussan-web/src/lib/favoritesStore.ts:6`, `:62-72`, `takussan-web/src/hooks/useFavorite.ts:47-56`, `takussan-web/package.json:20`
+- Constat :
+  - `removeOne` retire le bien du store partagé (`storeRemove(id)`), puis lance `removeMutation.mutate({ property_id: id }, { onError: () => storeAdd(id) })` (lu, l. 158-162). Le store est un module adossé au `localStorage`, lu par tous les cœurs (lu, `favoritesStore.ts:6`, `62-72`).
+  - En TanStack Query v5 (`^5.101.4`, lu `package.json:20`), les rappels passés à `mutate()` ne partent pas si le composant qui tient la mutation est démonté avant la réponse, et seul le dernier appel les reçoit quand plusieurs se suivent. C'est la règle documentée de la bibliothèque, non mesurée ici (à vérifier par un test).
+  - `PopoverBody` tient la mutation (lu, l. 153). Il est rendu dans `Popup`, sous `Portal`, sans `keepMounted` (lu, `popover.tsx:46-71`) : fermer le menu pendant l'appel le démonterait (à vérifier).
+  - Effet déduit : deux retraits refusés coup sur coup ne remettent que le second bien, et un retrait refusé après la fermeture du menu n'est pas remis. Le cœur reste vide partout pour un favori toujours en base, ce que P228.03 voulait fermer.
+  - Contraste : `useFavorite` et `FavoriteButton` attendent `mutateAsync` dans un `try` et remettent le store dans le `catch` (lu, `useFavorite.ts:47-56`). Cette promesse se rejette que le composant soit monté ou non.
+  - Établi comment : lu ; l'effet est à vérifier par un test.
+- Piste : le patron de `useFavorite` (`mutateAsync` et `catch`), ou le retour arrière dans l'`onError` du crochet, qui reçoit `variables`. Garde : un test du menu avec deux retraits refusés → les deux biens reviennent ; menu démonté avant le refus → le bien revient.
+
+### Petites améliorations
+- Réf : P243.02
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-web/src/components/media/MediaManager.tsx:199-211`, `:233-248`, `takussan-web/src/hooks/useFavorite.ts:53-56`, `takussan-web/src/components/favorites/FavoriteButton.tsx:101-111`
+- Constat :
+  - **Instantané entier de `MediaManager`.** Réordonner, mettre en couverture et supprimer posent la grille visée avant la réponse. Sur un échec, ils remettent tout l'instantané `grid` lu dans la fermeture (lu, l. 201-206 et 236-241). Deux gestes en vol se recouvrent. Si une suppression échoue après une autre qui a réussi, l'instantané remet le média supprimé en base ; si elle échoue après un envoi, l'instantané retire la photo neuve jusqu'au rechargement (déduit, à vérifier : `busyId` ne bloque peut-être pas le second geste).
+  - **Cœur remis sans un mot.** `useFavorite` et `FavoriteButton` remettent le cœur sur un refus sans rien afficher (lu, `useFavorite.ts:53-56`, `FavoriteButton.tsx:101-111`). Le geste « ne prend pas », sans dire pourquoi (session expirée, réseau).
+  - Établi comment : lu, et déduit.
+- Piste : retour arrière ciblé (remettre le seul média en cause, à sa place), ou relecture de la liste sur l'échec ; un toast `messageErreur` sur le refus d'un favori.
+
+## Angle 244 — Champs de saisie remis à zéro avant la réponse, face aux bornes de l'API que le champ ne porte pas
+
+*Exploré le 2026-10-25 sur `pre-dev` e243019a1, par l'explorateur, en session (groupe A). Un sous-agent en lecture seule a relevé, sous `takussan-web/src/components` et `src/app` hors tests, les remises à zéro (`set*('')`, `reset(`, `form.reset`, fermeture de dialogue) placées dans le même gestionnaire qu'un envoi non attendu. Il a aussi relu à la main chaque fichier qui porte un `Textarea`. L'explorateur a relu lui-même les sites retenus et l'API qu'ils appellent, et refait le relevé `grep -A2 "\.mutate("` suivi d'une remise à zéro (→ `CustomerStageControl.tsx:75` et `NotificationBell.tsx:228`, qui n'a pas de champ). Le cas d'origine, `NotesTab`, est corrigé par TCK-2212 (vidage passé en rappel de `onSuccess`, `maxLength={5000}`, lu `CustomerDetailSheet.tsx:139`, `205`, `217`) : ce n'est pas un constat. Écartés, parce qu'ils vident après un `await` réussi ou après un `ok` vérifié : `ChatView`, `MaintenanceResolutionResponse`, `QuoteSubmitForm`, `CustomerNotesTimeline`, `BookingDetail` (`ReasonForm`) et les dialogues d'invitation.*
+
+### Le motif d'un passage en « converti » ou « perdu » est perdu quand l'API refuse : le dialogue se ferme avant la réponse, et le champ ne porte pas la borne de 5 000 caractères
+- Réf : P244.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/components/pipeline/ReasonDialog.tsx:39-55`, `:81-87`, `:96`, `takussan-web/src/components/pipeline/PipelineKanban.tsx:211-226`, `:328-337`, `takussan-web/src/components/crm/CustomerStageControl.tsx:35-42`, `:66-77`, `takussan-api/app/Http/Requests/Api/UpdatePipelineStageCustomerRequest.php:29-40`, `takussan-api/app/Http/Controllers/Api/CustomerController.php:276-278`
+- Constat :
+  - `ReasonForm` tient le motif dans son propre état et appelle `onSubmit(reason.trim())` (lu, `ReasonDialog.tsx:65`, `96`). Le dialogue est ouvert tant que `pending !== null` (lu, l. 40-42).
+  - Dans le tableau, `onSubmit` lance `runStageMutation(…, reason)`, donc un `stageMutation.mutate()` non attendu, puis `setPendingReason(null)` dans le même gestionnaire (lu, `PipelineKanban.tsx:331-336`). Dans la fiche, même ordre : `mutation.mutate({ to, reason })` puis `setPending(null)` (lu, `CustomerStageControl.tsx:72-76`). Le dialogue se ferme et `ReasonForm` est démonté avant la réponse : le motif saisi n'existe plus nulle part.
+  - L'API refuse un motif de plus de 5 000 caractères (`'reason' => ['sometimes', 'nullable', 'string', 'max:5000']`, lu `UpdatePipelineStageCustomerRequest.php:39`) et juge `can('view', customer)` (lu, l. 31). Le `Textarea` n'a pas de `maxLength` (lu, `ReasonDialog.tsx:81-87`). Un motif long est donc refusé en 422, et l'agent doit le ressaisir en entier. Il en va de même d'un 403, d'une coupure réseau ou d'un 5xx.
+  - L'erreur est bien dite : un toast de 4 s dans le tableau (lu, `PipelineKanban.tsx:220-223`), la prose de l'API dans la fiche (lu, `CustomerStageControl.tsx:66-68`). Mais le texte est perdu, et c'est lui que l'API épingle en note (lu, `CustomerController.php:276-278`).
+  - Établi comment : lu, front et API.
+- Piste : le patron de TCK-2212 : fermer le dialogue dans `onSuccess` (rappel passé à `onSubmit`, ou `mutateAsync` attendu), garder le motif sur un refus et y afficher l'erreur, et poser `maxLength={5000}` sur le `Textarea`. Garde : un test du tableau et un test de la fiche où la mutation rejette en 422 → le dialogue reste ouvert avec le motif ; `maxLength=5000`.
+
+## Angle 245 — Colonnes JSON recomposées depuis le modèle chargé puis réécrites en entier
+
+*Exploré le 2026-10-25 sur `pre-dev` e243019a1, par l'explorateur, sans sous-agent. Relu par
+l'explorateur lui-même : chaque écriture de `metadata`, `settings`, `reminders_sent` et
+`expiry_reminders` relevée par `grep -rnE` sous `app/Jobs`, `app/Console`, `app/Services`,
+`app/Observers`, `app/Listeners` et `app/Http/Controllers`, puis, pour chacune, les autres
+écrivains de la même colonne et la présence d'un verrou. Écartés, car relus sous verrou des deux
+côtés : `SendTaskDueReminders`, `SendPropertyVisitReminders`, `SendLeasePaymentReminders`,
+`EscalateUrgentMaintenanceJob` (depuis TCK-2225, P229.03), `ReviewReportService`,
+`ReviewModerationService`, `LateFeeSettlement`, `PlatformPayoutRefundSignal`, `PayoutService`
+(`approve`, `markProcessed`), `PaymentGatewayService::initiate`. Écartés, faute d'un second
+écrivain : `KycExpiryService::remind` (seul `verify`, qui exige `submitted`, écrit la même clé),
+`RemindTenantOnboarding` (`reminders_sent` n'a pas d'autre écrivain). Mesures par le test
+temporaire de l'angle 238 (retiré) : l'écrivain concurrent est joué une fois dans un écouteur
+`retrieved` du modèle, après la lecture et avant l'écriture, comme à l'angle 229. Aucune course
+entre deux processus n'a été jouée. Charge 1,69 / 1,71 / 2,01 sur 8 cœurs.*
+
+### Le rappel de reversement échu efface la trace du décaissement d'un reversement payé pendant son passage, et rappelle un reversement soldé
+- Réf : P245.01
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Console/Commands/Payouts/RemindDuePayouts.php:35-53`, `takussan-api/app/Services/Model/PayoutService.php:277-345`, `takussan-api/app/Http/Resources/PayoutResource.php:45`
+- Constat :
+  - `payouts:remind-due` charge les reversements `pending` ou `scheduled` échus par `chunkById(200)`, puis écrit `metadata` = celle du modèle chargé, plus `due_reminded_at`, par `saveQuietly()`. Ni relecture, ni verrou, ni statut rejugé avant l'envoi (lu, l. 35-52).
+  - `markProcessed()` passe le même reversement à `completed` sous verrou et ajoute à `metadata` la trace du décaissement : `disbursement_driver`, `destination_kind`, `destination_masked`, `destination_id` (lu, l. 318-327 ; `ManualDisbursementDriver.php:18-23`). La fiche du reversement lit `destination_masked` (lu, `PayoutResource.php:45`).
+  - mesuré (test temporaire) : reversement `pending` échu, chargé par la commande ; la ligne passe en base à `completed`, avec la trace du décaissement → après le passage : `status = completed`, `metadata = {due_reminded_at, approved_net_amount}`. La trace est effacée, et l'émetteur reçoit « reversement échu » pour un reversement soldé.
+  - La fenêtre s'étend avec la boucle, qui envoie ses avis en synchrone (lu ; durée non mesurée).
+  - Établi comment : lu, et mesuré par test temporaire.
+- Piste : poser le marqueur par une réclamation conditionnelle (`whereKey()->whereIn('status', [pending, scheduled])->whereRaw("metadata->>'due_reminded_at' IS NULL")->update(['metadata' => DB::raw("jsonb_set(…)")])`), ou relire sous verrou et fusionner, et n'envoyer que si la ligne a été prise. Garde : reversement payé après la lecture de la commande → trace du décaissement intacte, aucun rappel.
+
+### Deux échecs de connexion simultanés sur un compte n'en comptent qu'un, et un échec peut effacer la réinitialisation forcée de la 2FA
+- Réf : P245.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Auth/LoginLock.php:75-105`, `takussan-api/app/Http/Controllers/Api/Auth/AuthController.php:72-87,124-126`, `takussan-api/app/Services/Auth/OAuthSessionOpener.php:96`, `takussan-api/app/Services/Admin/UserSupportService.php:51-66`, `takussan-api/app/Http/Middleware/RequireTwoFactor.php:47`
+- Constat :
+  - `login()` charge le compte (l. 72), vérifie le mot de passe par `Hash::check` (l. 84), puis `recordFailure($user)` recompose `metadata` depuis ce modèle et l'écrit en entier (lu, `LoginLock.php:77-104`). Le compteur `failed_login_attempts` est lu puis réécrit, sans verrou ni incrément en base. La fenêtre est la durée du hachage.
+  - mesuré (test temporaire, `ThrottleRequests` retiré comme dans `PasswordLoginLockTest`) : un échec joué par une requête parallèle, commité pendant le `POST /api/auth/login` au mauvais mot de passe → `failed_login_attempts = 1` au lieu de 2.
+  - Le verrou du compte (10 échecs, `MAX_FAILURES`) est la garde par compte, le limiteur `throttle:5,10` étant par adresse IP (lu, commentaire de `PasswordLoginLockTest.php:29`). Des essais parallèles depuis plusieurs adresses sont donc sous-comptés (déduit, à vérifier sous charge réelle).
+  - `resetTwoFactor()` pose `metadata.force_2fa_reconfigure` sur le modèle lié de la console (lu, `UserSupportService.php:57-63`), et `RequireTwoFactor` le lit (lu, l. 47). Un échec de connexion chargé avant et écrit après efface ce drapeau, la 2FA restant désactivée (déduit de la même écriture, non joué, fenêtre étroite).
+  - Établi comment : lu, et mesuré pour le compteur.
+- Piste : écrire le compteur en base, sous verrou de la ligne `users` relue, ou par un `UPDATE … SET metadata = jsonb_set(…)` qui incrémente ; écrire `force_2fa_reconfigure` de même. Garde : deux échecs croisés → compteur à 2 ; échec croisé avec `resetTwoFactor` → drapeau présent.
+
+### La modification d'une intervention réécrit sa `metadata` depuis la fiche liée à la route, et efface l'escalade posée entre-temps
+- Réf : P245.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Controllers/Api/MaintenanceRequestController.php:203-262`, `takussan-api/app/Services/Maintenance/OwnerApprovalThreshold.php:87-108`, `takussan-api/app/Services/Model/MaintenanceRequestService.php:187-207`, `takussan-api/app/Jobs/EscalateUrgentMaintenanceJob.php:32-50,81-86`
+- Constat :
+  - `update()` travaille sur l'intervention liée à la route, dans une transaction sans verrou de la ligne (lu, l. 215). Trois chemins y recomposent `metadata` depuis cette copie : l'accord du bailleur sur le coût réel (`recordOwnerCost`, `forgetOwnerCost`, lu l. 223-226), le passage dans ou hors de l'urgence (lu, l. 237-246), et la réassignation, qui archive le devis de l'ancien prestataire (`resetQuoteOfPreviousProvider`, lu l. 192-207). Puis `save()` écrit la colonne entière (l. 252).
+  - Depuis P229.03 (TCK-2225), l'escalade relit la demande sous verrou et pose `escalated_at` sur la `metadata` relue (lu, job l. 32-50). Le verrou n'est pris que de ce côté : la modification ne le prend pas, et ne relit rien.
+  - mesuré (test temporaire) : intervention urgente `open`, `metadata = {urgent_since}`. `escalated_at` est écrit en base après la liaison de la route, comme l'écrit le job. Puis `PATCH /api/maintenance-requests/{id}` `{actual_cost: 1000}` par le bailleur → 200, `metadata = {urgent_since, owner_agreed_actual_cost}`. `escalated_at` est effacé.
+  - La sélection du job exige `metadata->escalated_at` nul (lu, l. 86) : l'escalade repartira au passage suivant, et un second avis d'escalade partira (déduit, non joué).
+  - Établi comment : lu, et mesuré par test temporaire.
+- Piste : dans `update()`, relire la ligne sous `lockForUpdate` au début de la transaction (`MaintenanceRequestService::lockFresh`), et appliquer les écritures de `metadata` à cette ligne relue. Garde : escalade posée après la liaison de la route, coût réel saisi → `escalated_at` conservé.
+
+### Petites améliorations
+- Réf : P245.04
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Http/Controllers/Api/AgencyController.php:108-127`, `takussan-api/app/Services/Agency/AgencyKindFlipService.php:83-115`
+- Constat :
+  - La modification de l'agence fusionne `settings` et `metadata.slug_changed_at` sur l'agence liée à la route, puis `fill()->save()`, sans verrou (lu, `AgencyController.php:111-127`). Deux administrateurs qui changent chacun un réglage au même moment : le second efface celui du premier (déduit, fenêtre de la durée d'une requête, non joué).
+  - Le passage en agence standard recompose `metadata` (mentions légales, `welcome.standard_unlocked_at`) depuis l'agence reçue, sans la relire sous verrou (lu, l. 83-115), face à la même écriture du slug (déduit, fenêtre étroite).
+  - Établi comment : lu.
+- Piste : relire l'agence sous verrou dans ces deux écritures, et fusionner sur la ligne relue.
+
+## Angle 246 — Montants calculés hors de la transaction, écrits après une relecture qui ne rejuge que le statut
+
+*Exploré le 2026-10-25 sur `pre-dev` e243019a1, par l'explorateur, sans sous-agent. L'exemple de
+l'intitulé, `LateFeeCalculator::apply`, est P229.05 (validé, TCK-2310, PR #1530 non fusionnée sur
+cet arbre) : il n'est pas repris. Relu par l'explorateur lui-même : les `DB::transaction(… use (…
+$amount …))` de `app/` (`grep -rnE`), et pour chacun l'endroit où le montant est calculé, puis
+`BoostLifecycle` (`cancel`, `closeWithRefund`, `refundableCredits`, `claimTransition`),
+`BoostPurchaseService::featured`, `CreditLedger::refundPlan`, `DepositRefundService::refund`,
+`BookingPaymentService::refund`, `LateFeeSettlement`, `PayoutService` (`create`, `createLocked`,
+`createForBill`, `approve`, `markProcessed`), `PlatformPayoutService`, `EarlyTerminationService`,
+`RentReviewService`, `PaymentGatewayService::initiate`, `CommissionLedgerService`. Sains, et
+écartés : chacun calcule son montant sur la ligne verrouillée. Une mesure par le test temporaire
+de l'angle 238 (retiré), charge 1,69 / 1,71 / 2,01 sur 8 cœurs.*
+
+### L'annulation remboursée d'une Vedette rend les jours d'avant une prolongation achetée pendant le geste : les crédits de la prolongation sont perdus
+- Réf : P246.01
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Boost/BoostLifecycle.php:114-134,143-166,311-345`, `takussan-api/app/Services/Boost/BoostPurchaseService.php:203-249`, `takussan-api/app/Http/Controllers/Api/Admin/AdminBoostController.php:40-44`
+- Constat :
+  - `closeWithRefund()` calcule `$amount = refundableCredits($boost)` sur le modèle reçu, hors transaction (lu, l. 313). Ce calcul lit `ends_at` ou `remaining_seconds` et `duration_days` de ce modèle. La transaction ne fait que réclamer la ligne par `whereIn('status', live)` (lu, l. 322), puis écrit `refunded_credits` et rend les crédits du plan calculé avant (l. 319).
+  - `pause` et `resume` réclament au contraire sur la valeur lue (`claimTransition`, le cas ABA, lu l. 274-288). `closeWithRefund` ne le fait pas.
+  - La prolongation d'une Vedette vivante (`featured()`, sous verrou de la ligne du boost, lu l. 207-235) change `ends_at`, `duration_days` et `price_credits` sans changer le statut. L'annulation de la plateforme passe le boost lié à la route (lu, `AdminBoostController.php:44`).
+  - mesuré (test temporaire, aides de `FeaturedExtensionRefundTest`) : Vedette de 7 jours (20 crédits), un jour plus tard le boost est lu, une seconde Vedette de 7 jours est achetée (prolongation commitée), puis `cancel($lu, refund: true)` → `refunded_credits = 17`. Sur la ligne relue, `refundableCredits` rend 37. Solde : 477 au lieu de 497. Les 20 crédits de la prolongation sont débités et non rendus.
+  - Le chemin de `reconcile` (bien loué ou vendu) partage le calcul, mais l'achat exige un bien public sous le verrou du bien (lu, `BoostPurchaseService.php:137-140,151-156`) : la fenêtre y paraît fermée (déduit, à vérifier).
+  - Établi comment : lu, et mesuré par test temporaire.
+- Piste : relire le boost sous verrou dans la transaction de `closeWithRefund` et y calculer `refundableCredits`, ou réclamer aussi sur `ends_at`, `remaining_seconds` et `duration_days` lus, comme `claimTransition`, et rejouer sur la ligne à jour si la réclamation échoue. Garde : prolongation commitée après la lecture de l'annulation → remboursement calculé sur la ligne relue.
+
+### Petites améliorations
+- Réf : P246.02
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Http/Controllers/Public/PublicPropertyController.php:962,1008-1027`
+- Constat :
+  - La demande de séjour publique calcule `total_amount` et `deposit_amount` sur le bien lié à la route (lu, l. 962). Elle verrouille ensuite la ligne du bien sans en garder la relecture (`lockForUpdate()->first()` dont le résultat est jeté, lu l. 1009), puis écrit les montants calculés avant (lu, l. 1026-1027). Un prix changé entre la liaison et le verrou fait naître la demande à l'ancien prix (déduit, fenêtre de quelques requêtes, non joué). La demande attend une confirmation de l'agence, qui voit le total.
+  - Établi comment : lu.
+- Piste : garder le bien relu sous verrou et y calculer les montants, ou refuser la demande si le prix lu a changé.
+
+## Angle 247 — Archive RGPD `DataExportBuilder::payloads` : clauses par colonne d'auteur ou d'encaisseur
+
+*Exploré le 2026-10-25 sur `pre-dev` e243019a1, par l'explorateur, sans sous-agent.*
+
+*Relu par l'explorateur :*
+- *`DataExportBuilder::payloads` en entier, et `ConversationAccess::participatingQuery` ;*
+- *les `$fillable` de `Booking`, `LeasePayment` et `Document`, sans `$hidden` ;*
+- *ADR-0070 § 7, et les précédents TCK-1017 (journal : « une ligne dont le titulaire n'est que le causeur décrit un tiers ») et TCK-2275 (P232.02, `leases.json` borné par `BailleurDuBien`).*
+
+*Mesuré par un test temporaire `tests/Feature/TmpExplorateurC/SondeC247Test.php` (retiré), qui appelle `payloads()` directement. Base de test PostgreSQL, charge 2,11 / 1,79 / 2,05 sur 8 cœurs.*
+
+*`messages.json` n'est pas écrit en constat. Il prend les messages d'autrui des seuls fils que la garde ouvre encore, par décision de TCK-592 (passe 2, N1, lu l. 92-94). Il reste cité dans la Piste.*
+
+### L'archive personnelle d'un agent, même retiré, contient les réservations, les encaissements et les pièces des clients qu'il a saisis
+
+- Réf : P247.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Privacy/DataExportBuilder.php:116-120,131,149-153`
+- Constat :
+  - `bookings.json` prend `orWhere('created_by_id', $user->id)` (lu, l. 118). `lease_payments` prend `orWhere('collector_id', $user->id)` (lu, l. 131). `documents.json` prend `where('uploaded_by', $user->id)` (lu, l. 150).
+  - Les trois sont sérialisés par `toArray()` entier : `customer_id`, montants, `notes` et `metadata` de la réservation ; `payer_id`, montant et `notes` de l'encaissement ; porteur, type et nom de la pièce. Aucun des trois modèles ne déclare de `$hidden` (lu).
+  - Mesuré (test temporaire) : agent X de l'agence A, et trois lignes saisies par lui :
+    - une réservation pour le client Moussa Ba (`notes` « Message du client Moussa ») ;
+    - un encaissement du loyer de Fatou Diop (`collector_id` = X, `notes` « Espèces remises par Fatou ») ;
+    - deux documents téléversés par X : `id_card` « CNI Fatou Diop » sur la fiche client, et `lease_contract` sur le bail.
+
+    `payloads(X)` rend les quatre lignes : `bookings.json` avec `customer_id`, `total_amount` et `notes` ; `lease_payments` avec `payer_id`, `amount` et `notes` ; `documents.json` avec la CNI et le bail. X est ensuite retiré par `AgencyMemberRemovalService::remove(…, leaveUnassigned: true)` (`isAgentAt` faux) : **les quatre lignes restent**.
+  - Ces lignes décrivent le client, le locataire ou le bailleur. P232.02 a retiré pour ce motif les baux saisis par l'agent (TCK-2275, V3 validé par le porteur), en laissant ces trois colonnes à cet angle (lu, `docs/plans/2026-10-15-pistes-d-amelioration.md:7010,7015`).
+  - Établi comment : lu, puis mesuré.
+- Piste :
+  - Appliquer le précédent de TCK-1017 : pour une ligne dont le titulaire n'est que l'auteur ou l'encaisseur, ne rendre que l'acte (identifiant, type, date, montant s'il est jugé sien), sans `customer_id`, `payer_id`, `notes`, `metadata` ni nom de pièce. Ou retirer ces trois clauses comme P232.02. Choix de contenu de l'archive (V3).
+  - Trancher au même passage `messages.json` : messages des autres participants dans les fils encore lisibles (TCK-592 N1).
+  - Garde : un test « agent auteur, actif et retiré → ni client ni payeur ni nom de pièce dans son archive ; client, locataire et payeur gardent la leur », avec ablation.
+
+### L'archive RGPD du locataire et du bailleur livre les termes de commission du bail, que `LeaseResource` leur retire
+- Réf : P247.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Privacy/DataExportBuilder.php:124-128`
+- Constat :
+  - `leases.json` sérialise le bail par `toArray()`, `commission_amount`, `commission_rate` et `agent_id` compris. `LeaseResource` retire `commission_amount` à qui n'est pas du personnel (ADR-0049, verif-595 m6).
+  - Mesuré (test temporaire, retiré) : archive du locataire → `["45000.00","10.00",<id de l'agent>]`.
+  - Établi comment : lu, puis mesuré (relevé hors angle de l'explorateur du groupe C, rattaché à cet angle par la session).
+- Piste : sérialiser le bail de l'archive par la même liste de colonnes que `LeaseResource` pour un lecteur hors personnel, ou retirer `LeaseService::COMMISSION_TERMS`. Test : archive du locataire et du bailleur sans terme de commission, avec ablation.
+
+### L'archive RGPD du titulaire ne contient pas les pièces qui le décrivent, rattachées à sa fiche client ou à son bail
+- Réf : P247.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Privacy/DataExportBuilder.php:149-153`
+- Constat :
+  - `documents.json` ne prend que `uploaded_by` et `documentable_type = User`.
+  - Mesuré (test temporaire, retiré) : CNI sur la fiche du locataire et contrat sur son bail → `documents.json` vide pour lui.
+  - Établi comment : lu, puis mesuré (relevé hors angle de l'explorateur du groupe C, rattaché à cet angle par la session).
+- Piste : ajouter les pièces dont le porteur est une fiche client liée au compte (`customers.user_id`) ou un bail dont il est le locataire, en métadonnées (type, nom, date) ou en fichier. Contenu de l'archive (V3), à trancher avec P247.01. Test avec ablation.
+
+## Angle 248 — Branches « demandeur » d'une intervention face au locataire dont le bail a pris fin
+
+*Exploré le 2026-10-25 sur `pre-dev` e243019a1, par l'explorateur, sans sous-agent.*
+
+*Relu par l'explorateur :*
+- *`MaintenanceRequestPolicy` (`view`, `respondToResolution`, `actorsOf`, `isRequester` réécrit par TCK-2290, `openRequests`) et `MaintenanceRequest::scopeVisibleTo` ;*
+- *`MaintenanceRequestController::store` et `::uploadPhotos`, `UploadPhotosMaintenanceRequestRequest` (décision TCK-445) ;*
+- *`ConversationAccess` (`allows`, `branchesAllow`, `maintenanceAllows`, `contextAllows`) et `SyncMaintenanceConversation::open` ;*
+- *ADR-0031, amendement D2.*
+
+*Mesuré par un test temporaire `tests/Feature/TmpExplorateurC/SondeC248Test.php` (retiré), sur le jeu de `MaintenanceActors`. Base de test PostgreSQL, charge 1,75 / 1,72 / 1,98 sur 8 cœurs.*
+
+*TCK-2290 a fermé P233.03 pour le personnel. Ce qui suit ne touche que le locataire.*
+
+### Le locataire dont le bail a pris fin lit et liste les interventions du logement qu'il a ouvertes, y ajoute des photos, en lit le fil, et en confirme la réparation
+
+- Réf : P248.01
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette (décision à prendre)
+- Où :
+  - `takussan-api/app/Policies/MaintenanceRequestPolicy.php:34-44,111-119,229-264`
+  - `takussan-api/app/Models/MaintenanceRequest.php:165-195`
+  - `takussan-api/app/Http/Controllers/Api/MaintenanceRequestController.php:107-114,386-415`
+  - `takussan-api/app/Http/Requests/Api/UploadPhotosMaintenanceRequestRequest.php:29-44`
+  - `takussan-api/app/Services/Messaging/ConversationAccess.php:58-62,144-153`
+  - `docs/adr/0031-personnel-de-l-agence-et-cloisonnement-des-bailleurs.md:441-446`
+- Constat :
+  - L'ouverture exige un bail en cours (`ACTIVE_TENANT_LEASE_STATUSES`, lu, contrôleur l. 107-114, et `openRequests`).
+  - Toutes les branches suivantes ne lisent que `requester_id` : `isRequester` (lu, l. 254-264 : bien sans agence, ou aucun profil de personnel quitté dans l'agence), `view`, `respondToResolution`, `actorsOf` et `scopeVisibleTo`. La fin du bail n'y est lue nulle part.
+  - ADR-0031 D2 écrit que « le locataire et le client demandeurs gardent tout » (lu, l. 445-446). La décision visait le partage entre personnel et locataire (P233.03 renvoyait le locataire à cet angle). La fin du bail n'y est pas tranchée.
+  - Mesuré (test temporaire) : bien de l'agence, locataire T au bail actif, deux demandes ouvertes par T et rattachées au bail : l'une `completed`, l'autre `in_progress` avec son fil de groupe, dont T est participant. Le bail passe ensuite `terminated`, et un nouveau locataire N arrive au bail actif. Pour T :
+    - `GET /api/maintenance-requests/{completed}` → 200, avec les blocs `photos`, `before_photos` et `completion_photos` ;
+    - `GET /api/maintenance-requests` liste les deux demandes ;
+    - `POST …/{in_progress}/photos` → **201** ;
+    - `ConversationAccess::allows(T, fil)` → vrai : `contextAllows` ne refuse que le personnel non actif, et `maintenanceAllows` suit `view` ;
+    - `POST …/{completed}/confirm-resolution` → **200**, et la demande passe `closed`.
+  - Pour N, l'occupant actuel : `GET` de la demande en cours dans son logement → 403.
+  - Établi comment : lu, puis mesuré.
+- Piste :
+  - Décider ce que garde le demandeur dont le bail a pris fin. Voie étroite proposée :
+    - la **lecture** de ses demandes reste, comme la lecture de son bail passé (`LeasePolicy::view`, relevé par l'angle 191) ;
+    - les **gestes** (`respondToResolution`, l'ajout de photos par la décision TCK-445, l'écriture dans le fil) exigent un bail en cours du bien, par la liste de `store` ;
+    - les photos et messages postés après la fin du bail sont à trancher avec la lecture.
+  - Garde : un test « bail `terminated` → `confirm-resolution`, `contest-resolution` et photos 403 ; lecture selon la décision ; locataire au bail actif inchangé », avec ablation.
+
+## Angle 249 — Valeurs de choix acceptées et rangées sans effet
+
+*Exploré le 2026-10-25 sur `pre-dev` e243019a1, par l'explorateur, sans sous-agent. P234.01, d'où naît l'angle, est fermé (TCK-2280 : `AgentInvitationService::ALLOWED_ROLES` = `['agent']`), et n'est pas repris. Relu par l'explorateur lui-même : toutes les constantes `ALLOWED_*` de `app/`, tous les `in:` et `Rule::in([…])` de `app/Http/Requests`, puis un à un les lecteurs des valeurs (`grep -rn` dans `takussan-api/app` et `takussan-web/src`). Ont un lecteur, et ne sont pas repris : `search_intent`, `entry_intent`, `preferred_language`, `notification_frequency` (`SendSavedSearchAlerts`), `frequency` des alertes publiques, `channels` des règles d'alerte (Slack, Discord), `mode` et `severity` de la maintenance, `collection` des photos d'intervention, `decision` de modération, `role` de `POST /members`, `payment_frequency` des baux, `currency` de l'agence. Les clés de `metadata` des profils sont sous l'angle 117 et ne sont pas reprises. Mesuré par un test temporaire (`tests/Feature/TmpExplorateurD/TmpMesureGroupeDTest.php`, retiré), `XDEBUG_MODE=off php artisan test <fichier>`, PostgreSQL de test, charge `{ 1.51 1.68 1.98 }` sur 8 cœurs. Aucun parcours joué dans un navigateur.*
+
+### Les deux routes de changement de rôle acceptent `tenant`, `customer` et `service_provider`, répondent 200 avec le rôle demandé, et ne changent rien
+- Réf : P249.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Http/Requests/Api/UpdateAgencyMemberRoleRequest.php:41-49`, `takussan-api/app/Http/Requests/Api/UpdateUserRoleRequest.php:54-61`, `takussan-api/app/Http/Controllers/Api/AgencyMemberRoleController.php:66-118`, `takussan-api/app/Http/Controllers/Api/UserRoleController.php:25-31,84-94,146-157`, `takussan-web/src/components/admin/users/UserRolesEditor.tsx:23-40`
+- Constat :
+  - `UpdateAgencyMemberRoleRequest::ALLOWED_ROLES` accepte sept rôles, `super_admin` compris, et `UpdateUserRoleRequest::ALLOWED_ROLES` en accepte six (lu). Les deux contrôleurs ne traitent que `agency_admin`, `agent` et `owner`. Les autres tombent sur `default => null` (lu, `AgencyMemberRoleController.php:108`, `UserRoleController.php:155`), puis la réponse renvoie `role` tel que reçu (lu).
+  - Le front a retiré ces trois rôles de `UserRolesEditor` pour cette raison. Son docblock le dit : « L'API répond 200, l'écran affiche un succès, et **aucune mutation n'a lieu** — un no-op silencieux est pire qu'un refus » (lu, l. 23-34). Le contrat de l'API, lui, n'a pas changé. TCK-600 n'a retiré `super_admin` que d'`UpdateUserRoleRequest`, pas de sa jumelle (lu).
+  - mesuré (test temporaire) : admin d'agence, membre agent. `PUT /api/agencies/{a}/members/{u}/role` → 200 pour `tenant`, `customer` et `service_provider`, avec `data.role` égal au rôle demandé. `super_admin` → 403 `role.super_admin_grant_forbidden`. `PUT /api/users/{u}/role` → 200 et `data.role` égal au rôle demandé pour les trois mêmes rôles. Après les sept appels, les profils du membre dans l'agence sont inchangés : un agent, aucun bailleur, aucun administrateur.
+  - Le dernier administrateur se juge sur `role !== 'agency_admin'` (lu, `AgencyMemberRoleController.php:76-100`). Demander `tenant` pour le seul administrateur rendrait donc 422 `agency_member.cannot_remove_last_admin` pour un geste qui ne retire rien (déduit, à vérifier). Pour un acteur super-administrateur, `super_admin` passe le 403 et finit en no-op (déduit, à vérifier).
+  - Aucun écran du front n'appelle `PUT /api/agencies/{a}/members/{u}/role` (lu : `grep -rn "members/" takussan-web/src` hors tests → `DELETE`, `portfolio`, `handover`).
+  - Établi comment : lu, `grep`, puis mesuré.
+- Piste : réduire les deux listes à `agency_admin`, `agent` et `owner`, pour qu'un rôle sans effet rende 422 et non 200. Ne retenir qu'une liste, partagée par les deux requêtes. Test : `tenant`, `customer`, `service_provider` et `super_admin` → 422 sur les deux routes, profils inchangés.
+
+### L'écran « Indicateurs » enregistre métrique, libellé et format, mais aucun tableau de bord ne lit ces réglages
+- Réf : P249.02
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/app/(dashboard)/app/overview/kpis/KpiConfigList.tsx:21,42-53,121-135,151-159`, `takussan-web/src/messages/fr.json:2127`, `takussan-api/app/Http/Requests/Api/StoreKpiConfigRequest.php:52-61`, `takussan-api/app/Http/Requests/Api/UpdateKpiConfigRequest.php:49-52`, `takussan-api/app/Services/Dashboard/KpiResolver.php:7-12`, `takussan-web/src/components/dashboard/admin/AgencyKpis.tsx:40-60`, `docs/models-spec.md:3346-3364`
+- Constat :
+  - La page `/app/overview/kpis` annonce : « Choisissez les indicateurs à mettre en avant sur le tableau de bord de votre agence » (lu, `fr.json:2127`). Elle propose une métrique, un libellé et un sélecteur de format (`number`, `percent`, `currency`), puis enregistre par `POST /api/kpi-configs` (lu). L'API accepte aussi `sort_order` et `is_enabled` (lu). `models-spec` § 64 décrit `label` comme le « libellé affiché sur la carte » et `is_enabled` comme « KPI affiché » (lu).
+  - `grep -rn "KpiConfig" takussan-api/app` → le modèle, son contrôleur, sa ressource, ses deux requêtes, sa policy et son enregistrement. Aucun service de tableau de bord ne le lit. `KpiResolver` calcule ses 14 métriques sans regarder `kpi_configs`, malgré son docblock qui parle de « KpiConfig frontend rendering (labels + values) » (lu).
+  - `grep -rln "kpi-configs\|KpiConfig" takussan-web/src` hors tests → la page de réglage, sa liste, ses actions, `lib/queries/kpis.ts` et l'entrée de barre latérale. `AgencyKpis.tsx`, qui rend les tuiles du tableau de bord d'agence, en affiche une liste fixe, avec des libellés `t('properties')`, `t('activeLeases')` et suivants (lu).
+  - La liste de la page n'affiche ni le format ni le rang qu'on vient de choisir (lu, l. 151-159). Rien à l'écran ne montre donc que le choix est sans effet.
+  - Établi comment : lu et `grep`, non joué dans un navigateur.
+- Piste : soit faire lire `kpi_configs` aux tuiles du tableau de bord d'agence (métriques activées, dans l'ordre, avec libellé et format), soit retirer la page et son entrée de menu, ou réécrire sa promesse. C'est un choix de produit. Test : une configuration `occupancy_rate_percent` / « Taux » / `percent` → la tuile apparaît sur le tableau de bord d'agence avec ce libellé, ou la route n'existe plus.
+
+### L'assistant de l'hôte particulier exige un « Type de bien principal », que l'API valide puis jette
+- Réf : P249.03
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Http/Requests/Onboarding/HostIndividualOnboardRequest.php:74-79`, `takussan-api/app/Services/Onboarding/HostIndividualOnboardingService.php:240-246`, `takussan-web/src/components/onboarding/HostIndividualWizard.tsx:157,254,409-439`
+- Constat :
+  - Voir P47.07 (fait, TCK-966). Ce ticket a cessé d'écrire `primary_property_type` dans `agencies.settings`, faute de lecteur. Le docblock du service le dit : « l'assistant garde ses champs (et les valide), mais ne les enregistre plus » (lu, l. 245).
+  - Le champ reste `required` dans `HostIndividualOnboardRequest` (lu, l. 75). L'étape 2 de l'assistant affiche toujours le sélecteur « Type de bien principal » et bloque la suite tant qu'il est vide (lu, `HostIndividualWizard.tsx:254,409-439`).
+  - `grep -rn primary_property_type takussan-api/app/Services` → rien : la valeur n'atteint aucune écriture.
+  - Établi comment : lu et `grep`.
+- Piste : retirer le sélecteur de l'assistant et passer la règle à `sometimes`, pour qu'un brouillon repris passe encore (même précaution que TCK-496 pour `payment_setting`). Ou nommer un lecteur, par exemple le type présélectionné du premier bien. Test : `POST /api/host/individual/onboard` sans `preferences` → 201.
+
+## Angle 250 — `HasOne` et `->first()` sans ordre là où plusieurs lignes par parent sont possibles
+
+*Exploré le 2026-10-25 sur `pre-dev` e243019a1, par l'explorateur, sans sous-agent. P234.02, d'où naît l'angle, est fermé (TCK-2280 : réutilisation du profil par e-mail ou numéro vérifié, et refus 409 `invitation.service_provider_profile_exists` à l'acceptation). Seul le reste est repris. Relu par l'explorateur lui-même : tous les `hasOne` de `app/Models` et leurs contraintes en migration, tous les `->first()` de `app/Models/Concerns` et `app/Http/Controllers` hors clé, ordre ou verrou, et ceux de `app/Services` filtrés par `user_id`, `tenant_id`, `customer_id`, `lease_id`, `agency_id` ou `email`. Écartés après lecture : les `->first()` bornés par clé ou par une unicité (fiches d'accueil, favoris, abonnement courant, intégrations depuis `2026_10_14_120100` en `NULLS NOT DISTINCT`), `PublicAgentController` et `PublicAgencyController` (profil d'agent pris dans l'agence affichée). `CustomerService::findOrCreateFromUser` (`->first()` sur `user_id` seul) est déjà sous P15.01, validé, et n'est pas repris. Mesuré par le même test temporaire (retiré), même charge.*
+
+### L'export d'un locataire ne porte que l'une de ses fiches client, prise sans ordre : ses baux et paiements d'une autre agence en sont absents
+- Réf : P250.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Export/ExportDataService.php:483-494`, `takussan-api/app/Services/Dashboard/DashboardTenantService.php:34-37`, `takussan-api/database/migrations/2026_10_18_050000_index_customers_on_user_id.php`
+- Constat :
+  - Hors personnel et hors bailleur, `scopeToActor` lit `Customer::where('user_id', $actor->id)->first()`, sans agence ni ordre (lu, l. 484). Il borne ensuite paiements, baux et fiche à ce seul `customer.id` (lu, l. 486-491).
+  - Une fiche client appartient à une agence, et `customers.user_id` n'a qu'un index, sans unicité (lu, migration `2026_10_18_050000`). Le tableau de bord du locataire lit déjà toutes ses fiches : `->orderBy('id')->pluck('id')`, puis `whereIn('payer_id', …)` (lu, `DashboardTenantService.php:34-37`).
+  - mesuré (test temporaire) : un compte lié à deux fiches, dans les agences A et B, avec un bail actif et un paiement payé dans chacune (montants marqueurs 111111 et 222222). `GET /api/export/payments?format=csv` → 200, avec le paiement de A et sans celui de B. `GET /api/export/leases?format=csv` → une seule ligne de données. `GET /api/dashboard/tenant` → `leases.active: 2`.
+  - Le choix de la fiche dépend de l'ordre de lecture de PostgreSQL, qu'aucun `ORDER BY` ne fixe (déduit) : d'un export à l'autre, l'agence oubliée peut changer.
+  - Établi comment : lu, puis mesuré.
+- Piste : prendre toutes les fiches du compte (`pluck('id')`, comme `DashboardTenantService`) et borner par `whereIn`. Test : locataire de deux agences → l'export des paiements et celui des baux portent les deux.
+
+### Un compte n'a qu'un profil de prestataire par la seule garde de l'acceptation : aucune contrainte, aucun verrou, et `HasOne` / `->first()` sans ordre prendraient la mauvaise ligne
+- Réf : P250.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Models/Concerns/HasProfiles.php:69-72,103-105,396-398`, `takussan-api/app/Http/Controllers/Api/Me/ServiceProviderAgenciesController.php:37-39,90-92`, `takussan-api/app/Services/Invitation/InvitationService.php:752-762,947-967`, `takussan-api/database/migrations/2026_05_10_170000_make_user_id_nullable_and_add_status_on_service_provider_profiles.php:37`
+- Constat :
+  - Depuis TCK-2280, la règle « un seul profil de prestataire par compte » (ADR-0016, amendement du 2026-10-25) tient dans `assertDraftDoesNotDuplicateAProfile` : un `exists()` sur `user_id`, lu avant de poser `user_id` sur le brouillon (lu, l. 961-966). Aucune contrainte ne la porte depuis la migration `2026_05_10_170000`, qui a retiré `service_provider_profiles_user_id_unique` (lu, l. 37).
+  - `acceptForUser` ouvre une transaction mais ne verrouille ni la ligne `users` ni rien que deux invitations distinctes partageraient (lu, l. 752-762). Seul le profil est verrouillé, et plus loin, dans `ensureServiceProviderCollaboration` (lu, l. 991). Deux acceptations simultanées, par le même compte, de deux brouillons de prestataire de deux agences liraient donc toutes deux « aucun profil » (déduit, non rejoué entre deux processus, à vérifier).
+  - Les lecteurs restent écrits pour une ligne unique. `User::serviceProviderProfile()` est un `HasOne` (lu, l. 69-72), et `profiles()` comme le second chemin de `HasProfiles` en prennent `->first()` (lu, l. 103-105, 396-398). `Me\ServiceProviderAgenciesController::index` et `::agencies` lisent `where('user_id')->first()` sans ordre (lu, l. 37-39, 90-92). Avec deux lignes, l'écran du prestataire en montrerait une seule, au hasard : c'est le défaut de P234.02.
+  - Les comptes qui portaient déjà deux profils avant TCK-2280 n'ont été ni comptés ni fusionnés : aucune migration ne le fait (lu : `grep -rln service_provider_profiles database/migrations`). La base de développement n'a pas été relevée.
+  - Établi comment : lu ; la course est déduite.
+- Piste : un index unique partiel `(user_id) WHERE user_id IS NOT NULL AND deleted_at IS NULL`, sur le patron de `integrations_provider_agency_live_unique`, précédé d'un relevé des doublons existants. Ou, à défaut, un verrou sur la ligne `users` dans `acceptForUser`. Et un `orderBy('id')` explicite dans les deux lectures de `ServiceProviderAgenciesController`. Test : deux brouillons acceptés coup sur coup par le même compte → un profil, et un 409 pour le second.
+
+### Petites améliorations
+- Réf : P250.03
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Models/User.php:646-649`, `takussan-api/app/Models/Booking.php:153-156`, `takussan-api/app/Models/MaintenanceRequest.php:285-288`, `takussan-api/app/Listeners/Maintenance/SyncMaintenanceConversation.php:67-74`, `takussan-api/app/Http/Requests/Conversation/CreateGroupConversationRequest.php:70`, `takussan-api/app/Services/Payout/PayoutMethodService.php:43,141-147`
+- Constat :
+  - `User::customer()` est un `HasOne` sur `customers.user_id`, sans unicité, alors qu'un compte a une fiche par agence (lu). Plus aucun lecteur ne l'emploie : le dernier a été retiré du tunnel public, et le docblock de `PublicPropertyController.php:820-821` le dit (« un `hasOne` sans unicité, qui rattachait une fiche arbitraire »). `grep` des appels `->customer` sur un `User` → aucun (lu). La relation attend son prochain lecteur.
+  - `Booking::lease()` est un `HasOne` sur `leases.booking_id`, colonne sans unicité (lu, migration `2026_04_17_160011:17`). Aucun lecteur (lu : `grep -rn "booking->lease"` → rien).
+  - `MaintenanceRequest::conversation()` est un `HasOne` sans filtre de type ni ordre, et aucun lecteur ne l'emploie (lu). Le fil d'une intervention se lit par `SyncMaintenanceConversation::conversationFor`, qui prend le plus ancien groupe portant ce `maintenance_request_id` (lu, l. 67-74). Or `POST /api/conversations` accepte `maintenance_request_id` pour un groupe créé à la main (lu, `CreateGroupConversationRequest.php:70`). Un tel groupe, créé avant la première assignation, deviendrait le fil de l'intervention, avec ses propres participants (déduit, à vérifier). Le front n'envoie pas ce champ (lu, `NewGroupDialog.tsx:127-128`).
+  - `PayoutMethodService` garde une seule destination par défaut en lisant puis écrivant, sans verrou (lu, l. 43, 141-147) : deux ajouts simultanés pourraient laisser deux `is_default` (déduit). `defaultVerifiedDestination` les lit par `->first()` sans ordre (lu, `PayoutService.php:775-782`).
+  - Établi comment : lu et `grep`.
+- Piste : retirer `User::customer()` et `Booking::lease()`, ou les changer en `HasMany`. Faire de `MaintenanceRequest::conversation()` la seule lecture du fil (filtre de type, `oldestOfMany`), et refuser `maintenance_request_id` à la création manuelle d'un groupe, ou l'accepter seulement quand l'intervention n'a pas encore de fil. Index unique partiel `(user_id) WHERE is_default` sur `payout_methods`.
+
+## Angle 251 — Gardes d'existence et dédoublonnages sur l'e-mail seul, face aux comptes créés par numéro
+
+*Exploré le 2026-10-25 sur `pre-dev` e243019a1, par l'explorateur, sans sous-agent. Les gardes des invitations (P234.02, P234.03) sont fermées par TCK-2280 et n'ont pas été reprises. Relu par l'explorateur lui-même : `grep -rn` de `where('email'`, `ForEmail(`, `assertNoActive`, `firstOrCreate`, `CaseInsensitive::…('email')` et des comparaisons sur `->email` sous `app/`, hors `Services/Invitation`. Lus de bout en bout : `AgencyController::addAgent`, `AgencyProvisioningService`, `OAuthProvisioningService`, `SuperAdminCooptationService`, `PasswordResetController`, `AuthController::login` et `LoginRequest`, `CustomerDuplicateDetector`, `CustomerService::ficheARattacher`, `ContactLeadService::convert`, `RecordPublicSearchAlert`, `SavedSearchController::claim` et `PhoneVerificationService`. Les fiches client, les demandes de contact, les alertes et leur rattachement cherchent sur le téléphone ET sur l'e-mail (détecteur, ou contact vérifié). La vérification d'un numéro refuse en 409 `phone.taken` un numéro déjà vérifié ailleurs. Rien de tout cela n'est repris. Les garants n'ont aucune détection de doublon, ni par e-mail ni par numéro : ce n'est pas l'objet de l'angle (voir « Hors angle »). L'angle 242, à faire, porte sur le même `POST /members` (accord du compte, quota, avis) : le constat ci-dessous ne touche que la recherche du compte. Mesuré par le même test temporaire (retiré), même charge.*
+
+### `POST /api/agencies/{id}/members`, seul chemin vers un second administrateur, cherche le compte par l'e-mail exact : une majuscule rend 422, et un compte créé par numéro est inatteignable
+- Réf : P251.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Http/Controllers/Api/AgencyController.php:262-266`, `takussan-api/app/Http/Requests/Api/AddAgentAgencyRequest.php:45-47`, `takussan-api/app/Models/User.php:96-101`, `takussan-web/src/components/admin/InviteMemberDialog.tsx:39-41,83-85`, `takussan-web/src/lib/queries/agency-invitations.ts:156-159`
+- Constat :
+  - `addAgent` désigne la cible par `User::where('email', $data['email'])->first()` (lu, l. 264). L'adresse n'est ni repliée ni débarrassée de ses espaces, alors que `User::setEmailAttribute` écrit `CaseInsensitive::fold(trim(…))` (lu, `User.php:96-101`). Les autres recherches par e-mail replient d'abord : `LoginRequest::prepareForValidation`, `PasswordResetController`, `SuperAdminCooptationService::invite`, `OAuthProvisioningService` (lu).
+  - `AddAgentAgencyRequest` n'accepte que `user_id` ou `email`, sans numéro (lu, l. 45-47). `InviteMemberDialog`, le bouton « Inviter » de l'équipe, n'envoie que l'e-mail (lu). Selon `agency-invitations.ts:156-159`, c'est « aujourd'hui le seul chemin » vers un second administrateur d'agence (lu).
+  - mesuré (test temporaire) : compte `awa.diop@example.test`. `POST /api/agencies/{a}/members` avec `Awa.Diop@Example.test` → 422 `agency_member.user_not_found_by_email`, puis avec la même adresse en minuscules → 200. Compte créé par numéro (`email` nul, `+221771112233` vérifié), désigné par `phone` → 422, `user_id` et `email` requis.
+  - Un collègue inscrit par numéro depuis TCK-589 ne peut donc pas devenir administrateur sans saisir d'abord une adresse sur son compte. Et un administrateur qui tape l'adresse avec une majuscule lit « aucun compte à cette adresse » pour un compte qui existe.
+  - Établi comment : lu, puis mesuré.
+- Piste : replier l'adresse comme `LoginRequest` (`prepareForValidation`, ou `CaseInsensitive::sql('email')`). Accepter un numéro, cherché sur le seul numéro vérifié, comme `InvitationService::recipientAccount`. Test : adresse en casse mixte → 200 ; compte à numéro vérifié désigné par son numéro → 200 ; numéro non vérifié → 422.
+
+### Petites améliorations
+- Réf : P251.02
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Services/Admin/AgencyProvisioningService.php:26-73`, `takussan-api/app/Http/Requests/Api/Admin/StoreAgencyOnboardingRequest.php:33`
+- Constat :
+  - La création d'une agence par la console ne refuse que l'e-mail déjà pris (409 `agency.admin_email_taken`, lu, l. 27-32), puis crée un compte neuf pour le gérant (lu, l. 66-73). Le formulaire ne demande aucun numéro (lu, `StoreAgencyOnboardingRequest.php:33`). Un gérant qui a déjà un compte créé par numéro, sans adresse, en reçoit donc un second : rien ne peut le voir (déduit de la lecture, non mesuré).
+  - Établi comment : lu.
+- Piste : demander le numéro du gérant et le chercher parmi les numéros vérifiés. S'il appartient à un compte, rattacher ce compte ou refuser en 409, comme pour l'e-mail. Test : numéro vérifié d'un compte existant → pas de second compte.
