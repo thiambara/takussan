@@ -482,6 +482,7 @@ return [
         'cannot_publish' => 'Mbaar yi ñu jaay walla ñu luwé du ñu mën a siiwal.',
         'cannot_unpublish' => 'Mbaar yi ñu mën a jël rekk la ñu mën a xëccu.',
         'collaborator_exists' => 'Jàngalekat bi ci mbaar mi nekk na.',
+        'commission_share_forbidden' => 'Seul le personnel de l\'agence autorisé à ouvrir des baux fixe la part de commission d\'un collaborateur.',
         'collaborator_not_found' => 'Jàngalekat bii bokkul ci kër gii.',
         'has_confirmed_booking' => 'Ce bien porte une réservation confirmée : annulez-la avant de supprimer le bien.',
         'has_upcoming_visit' => 'Ce bien porte une visite à venir : annulez-la avant de supprimer le bien.',

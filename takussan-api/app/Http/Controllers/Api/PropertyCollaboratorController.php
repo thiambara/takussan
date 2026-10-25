@@ -69,7 +69,7 @@ class PropertyCollaboratorController extends Controller
         // TCK-888 (ADR-0068 § 3) — un premier agent remplace le titulaire comme contact principal.
         $conversations->transmitForProperty($property->id);
 
-        return $this->json(['data' => (new PropertyCollaboratorResource($collaborator->load('user')))->resolve($request)], 201);
+        return $this->json(['data' => (new PropertyCollaboratorResource($collaborator->load('user')->setRelation('property', $property)))->resolve($request)], 201);
     }
 
     public function update(UpdatePropertyCollaboratorRequest $request, Property $property, PropertyCollaborator $collaborator, PropertyConversationResolver $conversations): JsonResponse
@@ -105,7 +105,7 @@ class PropertyCollaboratorController extends Controller
         // TCK-888 (ADR-0068 § 3) — un changement de rôle peut déplacer le contact principal.
         $conversations->transmitForProperty($property->id);
 
-        return $this->json(['data' => (new PropertyCollaboratorResource($collaborator->refresh()->load('user')))->resolve($request)]);
+        return $this->json(['data' => (new PropertyCollaboratorResource($collaborator->refresh()->load('user')->setRelation('property', $property)))->resolve($request)]);
     }
 
     public function destroy(Request $request, Property $property, PropertyCollaborator $collaborator, PropertyConversationResolver $conversations): JsonResponse
@@ -165,6 +165,8 @@ class PropertyCollaboratorController extends Controller
         // La forme d'avant (`with('user')`, sans les médias que le contact principal charge), chaque
         // ligne passée par sa ressource (TCK-1047, P61.01) : le compte n'en sort que projeté.
         $lignes = $property->collaborators()->with('user')->orderBy('id')->get();
+        // TCK-2364 (P241.01) — la ressource juge la lecture de la part sur le bien, déjà en main.
+        $lignes->each->setRelation('property', $property);
         IncludedUserResource::preload($lignes);
 
         return [

@@ -4332,6 +4332,12 @@
           "owner": "boroom kër"
         }
       },
+      "commissionRate": {
+        "label": "Taux de commission de l'agent (%)",
+        "hint": "Sa part de la commission de chaque bail qu'il négocie, versée à l'activation du bail. Vide : aucune part.",
+        "submit": "Enregistrer le taux",
+        "submitting": "Enregistrement…"
+      },
       "errors": {
         "load": "Mënunu yeb wàll yi. Seetal sa koneksioŋ, ba noppi jéemaat.",
         "generic": "Am na njumte."

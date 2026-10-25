@@ -26,7 +26,8 @@ export interface PropertyCollaboratorRow {
   readonly user_id: number;
   readonly role: CollaboratorRole;
   readonly is_primary: boolean;
-  readonly commission_share: string | null;
+  /** TCK-2364 (P241.01) — absente pour qui ne fixe pas les parts (le bailleur du bien). */
+  readonly commission_share?: string | null;
   readonly user: {
     readonly id: number;
     readonly first_name: string | null;

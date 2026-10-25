@@ -10,6 +10,7 @@ use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\Property;
 use App\Models\User;
+use App\Services\Model\LeaseService;
 use App\Services\Property\BailleurDuBien;
 use Illuminate\Database\Eloquent\Model;
 
@@ -257,6 +258,18 @@ class PropertyPolicy extends BasePolicy
     public function matchProspects(User $user, Property $property): bool
     {
         return $this->isStaffOf($user, $property->agency_id);
+    }
+
+    /**
+     * TCK-2364 (P241.01, P241.03 ; ADR-0049, amendement du 2026-10-25) — écrire et lire la part de
+     * commission des collaborateurs du bien (`commission_share`) : la ventilation de la commission
+     * de l'agence, jugée par la règle de ses termes ({@see LeaseService::maySetCommissionTerms()},
+     * personnel de l'agence du bien qui tient `leases.create`). `update` ne suffit pas : le
+     * bailleur, débiteur de la commission, le tient par `properties.update_own`.
+     */
+    public function manageCommissionShares(User $user, Property $property): bool
+    {
+        return LeaseService::maySetCommissionTerms($user, $property->agency_id);
     }
 
     /**

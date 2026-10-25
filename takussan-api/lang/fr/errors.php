@@ -482,6 +482,7 @@ return [
         'cannot_publish' => 'Les biens vendus ou loués ne peuvent pas être publiés.',
         'cannot_unpublish' => 'Seuls les biens disponibles peuvent être dépubliés.',
         'collaborator_exists' => 'Ce collaborateur est déjà ajouté à ce bien.',
+        'commission_share_forbidden' => 'Seul le personnel de l\'agence autorisé à ouvrir des baux fixe la part de commission d\'un collaborateur.',
         'collaborator_not_found' => 'Ce collaborateur ne fait pas partie de ce bien.',
         'has_confirmed_booking' => 'Ce bien porte une réservation confirmée : annulez-la avant de supprimer le bien.',
         'has_upcoming_visit' => 'Ce bien porte une visite à venir : annulez-la avant de supprimer le bien.',

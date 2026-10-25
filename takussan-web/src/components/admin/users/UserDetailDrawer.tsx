@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { UserRolesEditor } from './UserRolesEditor';
 import { MemberAgencyRoleSelect } from '@/components/admin/roles/MemberAgencyRoleSelect';
+import { AgentCommissionRateField } from '@/components/admin/roles/AgentCommissionRateField';
 import { formatDate as formatDateIntl } from '@/lib/format';
 import { initialesDe, nomAffichable } from '@/lib/identite';
 import type { Locale } from '@/i18n/config';
@@ -154,11 +155,13 @@ export function UserDetailDrawer({
                       {agencyRoleHeading}
                     </p>
                     {assignments.map((assignment) => (
-                      <MemberAgencyRoleSelect
-                        key={`${assignment.profile_type}-${assignment.profile_id}`}
-                        agencyId={agencyId}
-                        assignment={assignment}
-                      />
+                      <div key={`${assignment.profile_type}-${assignment.profile_id}`} className="space-y-4">
+                        <MemberAgencyRoleSelect agencyId={agencyId} assignment={assignment} />
+                        {/* TCK-2364 (P241.02) — le taux de l'agent, sous la même capacité que son rôle. */}
+                        {assignment.profile_type === 'agent' ? (
+                          <AgentCommissionRateField assignment={assignment} />
+                        ) : null}
+                      </div>
                     ))}
                   </div>
                 </>

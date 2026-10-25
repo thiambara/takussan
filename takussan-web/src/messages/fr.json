@@ -6122,6 +6122,12 @@
           "owner": "propriétaire"
         }
       },
+      "commissionRate": {
+        "label": "Taux de commission de l'agent (%)",
+        "hint": "Sa part de la commission de chaque bail qu'il négocie, versée à l'activation du bail. Vide : aucune part.",
+        "submit": "Enregistrer le taux",
+        "submitting": "Enregistrement…"
+      },
       "errors": {
         "load": "Impossible de charger les rôles. Vérifiez votre connexion, puis réessayez.",
         "generic": "Une erreur est survenue."

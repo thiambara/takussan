@@ -35,8 +35,14 @@ class PropertyIndexQueryBudgetTest extends ApiTestCase
 
     private const LIGNES = 20;
 
-    /** Agence + médias + amorce (trois requêtes) : constant, quelle que soit la page. */
-    private const SURCOUT_MAX = 8;
+    /**
+     * Agence + médias + amorce (trois requêtes) : constant, quelle que soit la page.
+     *
+     * TCK-2364 (P241.03) — plus la règle de lecture des parts de commission, que `agency_id` fait
+     * juger : six requêtes (super-admin, personnel, agence, capacité), une fois par agence et par
+     * requête, jamais par bien. Mesuré : 6 de surcoût avant, 12 après, sur 20 biens.
+     */
+    private const SURCOUT_MAX = 14;
 
     protected function setUp(): void
     {
