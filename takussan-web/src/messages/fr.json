@@ -6528,12 +6528,6 @@
       "emailInvalid": "Email invalide.",
       "phone": "Téléphone (facultatif)",
       "required": "Ce champ est requis.",
-      "role": "Rôle",
-      "roles": {
-        "agent": "Agent",
-        "agent_senior": "Agent senior",
-        "agent_manager": "Responsable d'équipe"
-      },
       "adminNote": "Un administrateur d'agence ne s'invite pas par e-mail : il s'ajoute depuis « Ajouter un compte existant », qui exige un compte Takussan déjà créé.",
       "submit": "Envoyer l'invitation"
     },

@@ -6528,12 +6528,6 @@
       "emailInvalid": "Invalid email.",
       "phone": "Phone (optional)",
       "required": "This field is required.",
-      "role": "Role",
-      "roles": {
-        "agent": "Agent",
-        "agent_senior": "Senior agent",
-        "agent_manager": "Team manager"
-      },
       "adminNote": "An agency administrator cannot be invited by email: add them from “Add an existing account”, which requires an existing Takussan account.",
       "submit": "Send the invitation"
     },

@@ -47,8 +47,15 @@ class AgentInvitationService
      * Roles assignable when inviting through the team management surface.
      * `agency_admin` is intentionally absent — promoting/creating other
      * admins lives in a separate, more-restricted flow (TCK-209).
+     *
+     * P234.01 (TCK-2280, décision du porteur du 2026-10-25) — `agent_senior` et
+     * `agent_manager` sont retirés : `metadata.invited_role` n'avait aucun lecteur, et le
+     * membre entrait avec le rôle système « Agent » quel que soit le choix. Le rôle se
+     * réaffecte après l'acceptation (`/app/agency/roles`). Les invitations déjà émises sous
+     * ces rôles s'acceptent toujours : ils restent dans
+     * {@see InvitationService::INVITABLE_TYPE_BY_ROLE} et la liste de `finalizeAccept`.
      */
-    public const ALLOWED_ROLES = ['agent', 'agent_senior', 'agent_manager'];
+    public const ALLOWED_ROLES = ['agent'];
 
     public function __construct(private readonly InvitationService $invitations) {}
 

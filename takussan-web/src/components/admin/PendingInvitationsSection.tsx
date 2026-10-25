@@ -106,7 +106,10 @@ interface PendingInvitationsSectionProps {
   readonly canManage: boolean;
 }
 
-/** Les rôles qu'une invitation peut porter (`CreateInvitationRequest::rules()` + `AgentInvitationService::ALLOWED_ROLES`). */
+/**
+ * Les rôles qu'une invitation peut porter. `agent_senior` et `agent_manager` ne s'émettent plus
+ * (P234.01, TCK-2280), mais les invitations déjà émises sous ces rôles restent listées.
+ */
 const ROLE_LABEL_KEYS = new Set([
   'owner',
   'agent',

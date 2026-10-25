@@ -4768,12 +4768,6 @@
       "emailInvalid": "Email bi baaxul.",
       "phone": "Telefon (du wareef)",
       "required": "Barab bii war na am.",
-      "role": "Rol",
-      "roles": {
-        "agent": "Ajaŋ",
-        "agent_senior": "Ajaŋ bu mag",
-        "agent_manager": "Kilifa ekip"
-      },
       "adminNote": "Njiitu ajance du ñu ko woo ci email: dañu koy yokk ci « Yokk kont bu am », bu laaj kont Takussan bu am ba tey.",
       "submit": "Yónnee woote bi"
     },
