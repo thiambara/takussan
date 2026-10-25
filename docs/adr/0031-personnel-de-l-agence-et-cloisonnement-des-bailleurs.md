@@ -723,7 +723,8 @@ suivant est en cours).
 - `MaintenanceRequestPolicy::contribute()` décide qui verse au dossier : les acteurs de `view`, avec
   `requesterMayAct` à la place de `isRequester`. Elle garde `POST …/photos` (la décision TCK-445
   passe de `view` à `contribute`), l'envoi d'un message dans un fil d'intervention
-  (`ConversationAccess::allowsWriting`), et le rattachement d'un groupe neuf à l'intervention.
+  (`ConversationAccess::allowsWriting`). Le rattachement d'un groupe neuf à l'intervention n'est plus
+  un geste de personne : `maintenance_request_id` est refusé à toute création de groupe (P250.03, TCK-2372).
 - `GET /api/conversations/{id}` rend `abilities.can_send_message`, et le front cache la saisie
   quand ce drapeau est faux.
 

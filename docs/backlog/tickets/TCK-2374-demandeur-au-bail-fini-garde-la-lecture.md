@@ -50,6 +50,8 @@ l'intervention. L'occupant actuel, lui, recevait 403 sur la même demande.
       d'intervention. `SendMessageConversationRequest::authorize()` la lit.
 - [x] `CreateGroupConversationRequest` : rattacher un groupe neuf à l'intervention exige
       `contribute`, avec la même erreur de validation que le contexte invisible.
+      *Retiré à la fusion (2026-10-25) : TCK-2372 (P250.03) refuse `maintenance_request_id` à toute
+      création de groupe, ce geste n'existe plus pour personne.*
 - [x] `GET /api/conversations/{id}` rend `data.abilities.can_send_message`. `ChatView` remplace la
       saisie par une note quand il est faux.
 - [x] ADR-0031, amendement du 2026-10-25 (P248.01), et `docs/features.md` § 1.8.
