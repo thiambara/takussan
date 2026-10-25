@@ -17,6 +17,7 @@ use App\Models\Profiles\ServiceProviderProfile;
 use App\Models\Review;
 use App\Models\User;
 use App\Services\Messaging\ConversationAccess;
+use App\Services\Property\BailleurDuBien;
 use App\Support\Audit\PropertyRedactor;
 use Illuminate\Support\Facades\Storage;
 use Spatie\Activitylog\Models\Activity;
@@ -117,8 +118,11 @@ class DataExportBuilder
                 ->orWhere('created_by_id', $user->id)
                 ->get()
                 ->toArray(),
+            // TCK-2275 (P232.02, précédent TCK-1017) — les baux dont il est le bailleur au sens de
+            // `BailleurDuBien`, ou le locataire : pas ceux qu'il a saisis comme agent, actif compris.
+            // Ils décrivent le locataire et le bailleur réel.
             'leases.json' => Lease::query()
-                ->where('landlord_id', $user->id)
+                ->where(fn ($q) => BailleurDuBien::restreindre($q, $user, 'landlord_id'))
                 ->orWhereIn('tenant_id', $customerIds)
                 ->get()
                 ->toArray(),

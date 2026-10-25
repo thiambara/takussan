@@ -32,6 +32,7 @@ use App\Notifications\AccountDeletionRequestedNotification;
 use App\Services\Agency\AgencyMemberRemovalService;
 use App\Services\Notifications\Sms\PhoneNumber;
 use App\Services\Payout\PayoutCalculator;
+use App\Services\Property\BailleurDuBien;
 use App\Support\CaseInsensitive;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Carbon;
@@ -482,9 +483,9 @@ class AccountDeletionService
     {
         $obligations = [];
 
-        // Active leases as landlord.
-        $activeLandlordLeases = Lease::query()
-            ->where('landlord_id', $user->id)
+        // Active leases as landlord. TCK-2275 (P232.05) — bailleur au sens de `BailleurDuBien` : le
+        // bail d'un bien qu'il a saisi comme agent, actif compris, n'est pas son obligation.
+        $activeLandlordLeases = BailleurDuBien::restreindre(Lease::query(), $user, 'landlord_id')
             ->whereIn('status', self::openLeaseStatuses())
             ->get(['id', 'reference_number']);
         foreach ($activeLandlordLeases as $lease) {

@@ -13,6 +13,7 @@ use App\Models\Payout;
 use App\Models\Property;
 use App\Models\User;
 use App\Services\Dashboard\CollectedPayments;
+use App\Services\Property\BailleurDuBien;
 use App\Services\Reporting\AgingBalanceService;
 use App\Support\DayRange;
 use Illuminate\Support\Carbon;
@@ -463,11 +464,14 @@ class ExportDataService
             return;
         }
 
+        // TCK-2275 (P232.06 ; ADR-0031, amendement du 2026-10-25, D1) — le bailleur n'exporte que les
+        // biens et baux dont il est le bailleur au sens de `BailleurDuBien`, dans toutes ses agences :
+        // bailleur d'une agence B, il n'exporte pas ce qu'il a saisi comme agent d'une agence A.
         if ($agencyId && $actor->isOwnerAt((int) $agencyId)) {
             match ($entity) {
-                'property' => $query->where('user_id', $actor->id),
-                'lease' => $query->where('landlord_id', $actor->id),
-                'lease_payment' => $query->whereHas('lease', fn ($q) => $q->where('landlord_id', $actor->id)),
+                'property' => BailleurDuBien::restreindre($query, $actor),
+                'lease' => BailleurDuBien::restreindre($query, $actor, 'landlord_id'),
+                'lease_payment' => $query->whereHas('lease', fn ($q) => BailleurDuBien::restreindre($q, $actor, 'landlord_id')),
                 'customer' => $query->whereRaw('1 = 0'), // owners cannot export CRM
                 // TCK-595 — un export financier d'agence n'est jamais celui du bailleur.
                 default => $query->whereRaw('1 = 0'),
