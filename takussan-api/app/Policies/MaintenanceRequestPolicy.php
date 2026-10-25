@@ -3,6 +3,7 @@
 namespace App\Policies;
 
 use App\Http\Controllers\Api\MediaController;
+use App\Models\Customer;
 use App\Models\Enums\Capability;
 use App\Models\Enums\MaintenanceStatus;
 use App\Models\Lease;
@@ -12,6 +13,7 @@ use App\Models\User;
 use App\Services\Maintenance\MaintenanceStateMachine;
 use App\Services\Maintenance\ProviderEligibility;
 use App\Services\Membership\MembershipCapabilityResolver;
+use App\Services\Messaging\ConversationAccess;
 use App\Services\Property\BailleurDuBien;
 use Illuminate\Database\Eloquent\Model;
 
@@ -56,6 +58,21 @@ class MaintenanceRequestPolicy extends BasePolicy
         return $user->isSuperAdmin()
             || $this->isAssignedProvider($user, $model)
             || $this->principalWrites($user, $model->property);
+    }
+
+    /**
+     * P248.01 (TCK-2374) — ADR-0031, amendement du 2026-10-25 : VERSER au dossier, c'est-à-dire
+     * ajouter des photos au signalement (`POST …/photos`, décision TCK-445) et écrire dans le fil de
+     * l'intervention ({@see ConversationAccess::allowsWriting()}). Les acteurs
+     * de `view`, sauf le demandeur dont le bail du bien a pris fin : il garde la lecture, comme celle
+     * de son bail passé, et perd les gestes.
+     */
+    public function contribute(User $user, MaintenanceRequest $request): bool
+    {
+        return $user->isSuperAdmin()
+            || $this->requesterMayAct($user, $request)
+            || $this->isAssignedProvider($user, $request)
+            || self::isPrincipalFor($user, $request->property);
     }
 
     /**
@@ -114,7 +131,7 @@ class MaintenanceRequestPolicy extends BasePolicy
             return false;
         }
 
-        return ($this->isRequester($user, $request) || $this->principalWrites($user, $request->property))
+        return ($this->requesterMayAct($user, $request) || $this->principalWrites($user, $request->property))
             && $this->transitionTo($user, $request, $target);
     }
 
@@ -235,7 +252,9 @@ class MaintenanceRequestPolicy extends BasePolicy
         if ($this->principalWrites($user, $request->property)) {
             $actors[] = MaintenanceStateMachine::ACTOR_PRINCIPAL;
         }
-        if ($this->isRequester($user, $request)) {
+        // P248.01 (TCK-2374) — le demandeur au bail fini n'est plus acteur : la matrice ne lui donne
+        // que la confirmation et la contestation, qu'il perd.
+        if ($this->requesterMayAct($user, $request)) {
             $actors[] = MaintenanceStateMachine::ACTOR_REQUESTER;
         }
 
@@ -261,6 +280,36 @@ class MaintenanceRequestPolicy extends BasePolicy
 
         return $agencyId === null
             || ! in_array((int) $agencyId, app(MembershipCapabilityResolver::class)->agencesDuPersonnelParti($user), true);
+    }
+
+    /**
+     * P248.01 (TCK-2374) — ADR-0031, amendement du 2026-10-25 : la branche du demandeur pour
+     * AGIR (confirmer, contester, verser photos et messages). Celle de `isRequester`, sauf si le
+     * demandeur a été locataire du bien et n'y tient plus de bail en cours, par la liste de `store`
+     * (`User::ACTIVE_TENANT_LEASE_STATUSES` : un préavis compte, un renouvellement aussi). Le
+     * demandeur qui n'a jamais été locataire du bien (personnel, bailleur) n'est pas visé.
+     */
+    private function requesterMayAct(User $user, MaintenanceRequest $request): bool
+    {
+        return $this->isRequester($user, $request) && ! self::bailDuBienFini($user, (int) $request->property_id);
+    }
+
+    /**
+     * Vrai si `$user` a été locataire du bien (bail ou fiche supprimés compris) et n'y tient plus de
+     * bail en cours au sens de `store`.
+     */
+    private static function bailDuBienFini(User $user, int $propertyId): bool
+    {
+        $aEteLocataire = Lease::withTrashed()
+            ->where('property_id', $propertyId)
+            ->whereIn('tenant_id', Customer::withTrashed()->where('user_id', $user->id)->select('id'))
+            ->exists();
+
+        return $aEteLocataire && ! Lease::query()
+            ->where('property_id', $propertyId)
+            ->whereIn('status', User::ACTIVE_TENANT_LEASE_STATUSES)
+            ->whereHas('tenant', fn ($q) => $q->where('user_id', $user->id))
+            ->exists();
     }
 
     /**
