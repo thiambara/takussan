@@ -1,7 +1,7 @@
 ---
 id: TCK-2270
 title: "La contestation ou l'annulation d'une intervention annule sa facture de prestataire ouverte, et rien ne valide, ne paie ni ne refacture une facture dont le travail n'est pas rendu"
-status: todo
+status: done
 phase: P3
 family: bug
 estimate: M
@@ -88,31 +88,31 @@ Réfs : **P224.01**, **P224.02**, **P224.03** et **P224.04** du fichier de piste
 
 ## Delta à produire
 
-- [ ] `MaintenanceRequestObserver` : à la sortie de `completed`/`closed` ou à l'entrée en
+- [x] `MaintenanceRequestObserver` : à la sortie de `completed`/`closed` ou à l'entrée en
       `cancelled`, `ReopenedRequestBills` annule ou garde chaque facture ouverte, sous verrou.
-- [ ] Garde de l'état de l'intervention dans `validateBill`, `createForBill`,
+- [x] Garde de l'état de l'intervention dans `validateBill`, `createForBill`,
       `PayoutCalculator::rechargeableBills`, `PayoutService::assertItemsInScope` et `createLocked`.
-- [ ] Code `service_provider_bill.kept_on_reopen`, cible `service_provider_bills`, textes API et
+- [x] Code `service_provider_bill.kept_on_reopen`, cible `service_provider_bills`, textes API et
       cloche (`fr`, `en` ; `wo` = `fr`) ; erreur `service_provider_bill.request_not_completed`.
-- [ ] `ServiceProviderBillStatus::Cancelled` n'est plus réservé (`CasDEnumReservesTest`).
-- [ ] ADR-0039 § 8 amendé (2026-10-25), `docs/adr/README.md`, `docs/models-spec.md` § 77,
+- [x] `ServiceProviderBillStatus::Cancelled` n'est plus réservé (`CasDEnumReservesTest`).
+- [x] ADR-0039 § 8 amendé (2026-10-25), `docs/adr/README.md`, `docs/models-spec.md` § 77,
       `docs/features.md` § 1.8.
 
 ## Critères d'acceptation
 
-- [ ] AC1 (P224.01) — Contestation puis annulation : la facture `pending_validation` passe
+- [x] AC1 (P224.01) — Contestation puis annulation : la facture `pending_validation` passe
       `cancelled` ; `validate` et `pay` rendent 422 ; `rechargeableBills` ne la rend pas.
-- [ ] AC2 (P224.01) — Une facture `validated` sans reversement vivant et non imputée passe
+- [x] AC2 (P224.01) — Une facture `validated` sans reversement vivant et non imputée passe
       `cancelled` à la contestation.
-- [ ] AC3 (P224.01) — Une facture `paid` reste `paid` à la contestation, et les détenteurs de
+- [x] AC3 (P224.01) — Une facture `paid` reste `paid` à la contestation, et les détenteurs de
       `payouts.create` reçoivent l'avis.
-- [ ] AC4 (P224.01) — Une facture imputée à un reversement au bailleur reste, avec l'avis.
-- [ ] AC5 (P224.01) — La garde seule : une facture `pending_validation` d'une intervention
+- [x] AC4 (P224.01) — Une facture imputée à un reversement au bailleur reste, avec l'avis.
+- [x] AC5 (P224.01) — La garde seule : une facture `pending_validation` d'une intervention
       `in_progress` (contestée hors de l'observateur) ne se valide pas, une facture `validated`
       ne se paie pas et n'est ni proposée ni acceptée par `POST /api/payouts`.
-- [ ] AC6 (P224.02) — Contestation, réassignation à B, fin des travaux de B : une facture ouverte,
+- [x] AC6 (P224.02) — Contestation, réassignation à B, fin des travaux de B : une facture ouverte,
       celle de B, et celle de A `cancelled`.
-- [ ] AC7 (P224.03) — Seconde fin des travaux à 80 000 : la facture ouverte est de 80 000,
+- [x] AC7 (P224.03) — Seconde fin des travaux à 80 000 : la facture ouverte est de 80 000,
       `exceeds_quote` vrai, et la première est `cancelled`.
 
 ## Hors périmètre
@@ -120,3 +120,23 @@ Réfs : **P224.01**, **P224.02**, **P224.03** et **P224.04** du fichier de piste
 - P224.04 : sans objet par la décision ; aucun changement de l'écran ni de la ressource.
 - La reprise d'une facture payée ou imputée : chemin manuel (l'avis le dit).
 - Les autres observateurs de l'angle 238.
+
+## Notes d'implémentation
+
+- Le test d'origine `ServiceProviderBillTest::test_ac15_completion_creates_one_bill_at_the_approved_quote`
+  épinglait « un second passage par `completed` n'en crée pas de seconde » en passant par
+  `in_progress` : c'est exactement P224.03. Il garde l'unicité sur deux `completed` de suite, et
+  attend désormais une facture annulée et une ouverte après une contestation.
+- La fabrique faisait naître sa demande `open` : avec la garde, six tests d'`OwnerStatementTest`
+  imputaient une facture d'un travail non rendu (mesuré : 6 rouges avec l'ancienne fabrique). Elle
+  naît `completed`.
+- `getPrevious()` rend la valeur brute (`'completed'`) : l'observateur la relit par `tryFrom`.
+- Ablations, chacune sur `FactureDInterventionRouverteTest` (8 tests) puis remise :
+  - appel de `ReopenedRequestBills::settle` retiré → 7 rouges, la garde seule verte ;
+  - rien n'est « engagé » → 3 rouges (payée, imputée, en cours de paiement) ;
+  - imputation non lue → 1 rouge (imputée) ; reversement vivant non lu → 2 rouges ;
+  - entrée en `cancelled` non lue → 1 rouge (le second avis de la facture payée) ;
+  - garde de `validate`, de `pay`, d'imputation : 1 rouge chacune (la garde seule) ;
+    garde de `rechargeableBills` → 2 rouges (la garde seule, la facture payée).
+- La relecture sous verrou de `createLocked` n'a pas de test propre (course non reproduite) : son
+  ablation va avec celle du contrôle d'avant le verrou (même prédicat `billImputable`).
