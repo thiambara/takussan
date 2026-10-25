@@ -79,7 +79,7 @@ export interface OptionsAutosaveBrouillon<TData> {
   /** Un brouillon existait-il côté serveur au moment de l'hydratation ? */
   readonly brouillonServeurExiste: boolean;
   readonly save: (step: number, data: TData) => void;
-  readonly clear: () => Promise<void>;
+  readonly clear: () => Promise<unknown>;
 }
 
 export function useAutosaveBrouillon<TData>({

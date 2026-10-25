@@ -739,7 +739,9 @@
           "draft_not_saved_body": "Denc brouillon bi dañu ko bañ (kotëk bi dagg na walla sa session jeex na). Seetal sa kotëk, duggati su soxlawoon, ba noppi bësaat ci « Yónni demaande bi » — say mbind mu ngi fi."
         },
         "toasts": {
-          "submitted": "Demaande bi dem na."
+          "submitted": "Demaande bi dem na.",
+          "draft_not_cleared_title": "Brouillon non effacé",
+          "draft_not_cleared_body": "Votre demande est bien envoyée, mais son brouillon n'a pas pu être effacé (connexion perdue ou session expirée). Il peut encore vous être proposé à la reprise : vous pouvez l'ignorer."
         }
       },
       "status": {

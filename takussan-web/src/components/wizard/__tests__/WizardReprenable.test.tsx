@@ -181,7 +181,7 @@ describe('WizardReprenable', () => {
   // la reproposerait à la reprise. Le dire, sans démentir la finalisation.
   it('P237.04 — un DELETE refusé après la finalisation dit le brouillon non effacé', async () => {
     const parDefaut = globalThis.fetch as unknown as ReturnType<typeof vi.fn>;
-    const impl = parDefaut.getMockImplementation()!;
+    const impl = parDefaut.getMockImplementation() as (url: unknown, init: unknown) => Promise<unknown>;
     parDefaut.mockImplementation(async (url: unknown, init: unknown) =>
       (init as RequestInit | undefined)?.method === 'DELETE'
         ? { ok: false, status: 500, json: async () => ({}) }

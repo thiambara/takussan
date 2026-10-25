@@ -53,7 +53,6 @@ const ACCEPT_MIME = 'application/pdf,image/jpeg,image/png';
 
 export function UpgradeRequestForm({ agencyId }: UpgradeRequestFormProps) {
   const t = useTranslations('agency.upgrade.form');
-  const tBrouillon = useTranslations('wizardDrafts.component');
   const messageErreur = useMessageErreurApi();
   const { token } = useAuth();
   const toast = useToast();
@@ -191,8 +190,8 @@ export function UpgradeRequestForm({ agencyId }: UpgradeRequestFormProps) {
         // le bandeau des démarches le reproposerait. Le dire, sans démentir l'envoi.
         if (!brouillonEfface) {
           toast.add({
-            title: tBrouillon('draftNotClearedToastTitle'),
-            description: tBrouillon('draftNotClearedToastBody'),
+            title: t('toasts.draft_not_cleared_title'),
+            description: t('toasts.draft_not_cleared_body'),
             type: 'warning',
           });
         }

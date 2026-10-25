@@ -2500,7 +2500,9 @@
           "draft_not_saved_body": "L'enregistrement de votre brouillon a été refusé (connexion perdue ou session expirée). Vérifiez votre connexion, reconnectez-vous si besoin, puis cliquez de nouveau sur « Envoyer la demande » — vos saisies sont toujours là."
         },
         "toasts": {
-          "submitted": "Votre demande a bien été envoyée."
+          "submitted": "Votre demande a bien été envoyée.",
+          "draft_not_cleared_title": "Brouillon non effacé",
+          "draft_not_cleared_body": "Votre demande est bien envoyée, mais son brouillon n'a pas pu être effacé (connexion perdue ou session expirée). Il peut encore vous être proposé à la reprise : vous pouvez l'ignorer."
         }
       },
       "status": {

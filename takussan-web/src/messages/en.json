@@ -2529,7 +2529,9 @@
           "draft_not_saved_body": "Saving your draft was refused (lost connection or expired session). Check your connection, sign back in if needed, then click “Submit request” again — your entries are still here."
         },
         "toasts": {
-          "submitted": "Your request has been sent."
+          "submitted": "Your request has been sent.",
+          "draft_not_cleared_title": "Draft not cleared",
+          "draft_not_cleared_body": "Your request was sent, but its draft could not be cleared (connection lost or session expired). It may still be offered for you to resume: you can ignore it."
         }
       },
       "status": {
