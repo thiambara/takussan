@@ -9,7 +9,6 @@ use App\Models\Enums\UserStatus;
 use App\Models\Profiles\AgentProfile;
 use App\Models\User;
 use Database\Seeders\Support\SeedingContext;
-use Database\Seeders\Support\StatusDistribution;
 use Database\Seeders\Support\Timeline;
 use Database\Seeders\Support\Tirage;
 use Illuminate\Database\Seeder;
@@ -27,10 +26,7 @@ class CustomerSeeder extends Seeder
             $addedByIds = $agents->isEmpty() ? [null] : $agents->pluck('id')->all();
 
             for ($i = 0; $i < $this->ctx->config->customersPerAgency; $i++) {
-                $createdAt = Timeline::randomDateBetween(
-                    Timeline::seedStart(),
-                    Timeline::seedEnd()->subDays(1),
-                );
+                $createdAt = Timeline::creation(Timeline::PART_DU_PORTEFEUILLE, Timeline::seedEnd()->subDays(1));
                 $firstName = $this->ctx->faker()->senegaleseFirstName();
                 $lastName = $this->ctx->faker()->senegaleseLastName();
                 $slug = Str::slug($firstName.' '.$lastName);
@@ -61,15 +57,6 @@ class CustomerSeeder extends Seeder
                     // limited to the dedicated agency owner accounts.
                 }
 
-                $pipelineStage = StatusDistribution::pick([
-                    CustomerPipelineStage::Lead->value => 30,
-                    CustomerPipelineStage::Prospect->value => 25,
-                    CustomerPipelineStage::Qualified->value => 15,
-                    CustomerPipelineStage::Negotiating->value => 10,
-                    CustomerPipelineStage::Converted->value => 15,
-                    CustomerPipelineStage::Lost->value => 5,
-                ]);
-
                 $customer = Customer::create([
                     'user_id' => $user?->id,
                     'agency_id' => $agency->id,
@@ -80,7 +67,8 @@ class CustomerSeeder extends Seeder
                     'phone' => $this->ctx->faker()->senegalesePhoneNumber(),
                     'occupation' => $this->ctx->faker()->jobTitle(),
                     'status' => CustomerStatus::Active->value,
-                    'pipeline_stage' => $pipelineStage,
+                    // Le stade se déduit de l'activité, une fois qu'elle est semée (CustomerPipelineStageSeeder).
+                    'pipeline_stage' => CustomerPipelineStage::Lead->value,
                     'created_at' => $createdAt,
                     'updated_at' => $createdAt,
                 ]);

@@ -3,9 +3,13 @@
 namespace Database\Seeders\Activity;
 
 use App\Models\Booking;
+use App\Models\Customer;
 use App\Models\Enums\BookingStatus;
 use App\Models\Enums\CancellationBy;
+use App\Models\Enums\PropertyStatus;
 use App\Models\Profiles\AgentProfile;
+use App\Models\Property;
+use Carbon\CarbonImmutable;
 use Database\Seeders\Support\SeedingContext;
 use Database\Seeders\Support\StatusDistribution;
 use Database\Seeders\Support\Timeline;
@@ -27,15 +31,22 @@ class BookingSeeder extends Seeder
                 continue;
             }
 
-            $propertyIds = $properties->pluck('id')->values();
-            $customerIds = $customers->pluck('id')->values();
+            // TCK-2377 — on ne réserve qu'un bien publié, après sa mise en ligne, et le client est
+            // inscrit avant de réserver.
+            $properties = $properties->filter(fn (Property $p) => $p->status !== PropertyStatus::Draft)->values();
             $agentIds = $agents->pluck('id')->values();
 
-            for ($i = 0; $i < $this->ctx->config->bookingsPerAgency; $i++) {
+            for ($i = 0; $i < $this->ctx->config->bookingsPerAgency && $properties->isNotEmpty(); $i++) {
+                $property = Tirage::un($properties);
                 $createdAt = Timeline::randomDateBetween(
-                    Timeline::seedStart(),
+                    CarbonImmutable::parse($property->created_at)->addDays(2),
                     Timeline::seedEnd()->subDays(3),
                 );
+                $inscrits = $customers->filter(fn (Customer $c) => CarbonImmutable::parse($c->created_at)->lessThan($createdAt));
+                if ($inscrits->isEmpty()) {
+                    continue;
+                }
+                $customerId = Tirage::un($inscrits)->id;
 
                 // TCK-2376 — une réservation n'est terminée qu'une fois commencée, et n'expire qu'une
                 // fois son délai passé : tirées sans regard pour la date, les réservations des
@@ -72,13 +83,13 @@ class BookingSeeder extends Seeder
                 );
 
                 Booking::withoutEvents(function () use (
-                    $propertyIds, $customerIds, $agentIds, $agency,
+                    $property, $customerId, $agentIds, $agency,
                     $createdAt, $startDate, $status, $expiresAt, $confirmedAt, $cancelledAt,
                     $totalAmount, $depositAmount,
                 ) {
                     Booking::create([
-                        'property_id' => Tirage::un($propertyIds),
-                        'customer_id' => Tirage::un($customerIds),
+                        'property_id' => $property->id,
+                        'customer_id' => $customerId,
                         'created_by_id' => Tirage::un($agentIds),
                         'agency_id' => $agency->id,
                         'reference_number' => 'BK-'.strtoupper(Tirage::code(8)),

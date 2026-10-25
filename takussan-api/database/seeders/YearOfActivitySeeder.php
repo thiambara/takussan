@@ -19,6 +19,7 @@ use Database\Seeders\Core\AgencySeeder;
 use Database\Seeders\Core\IntegrationSeeder;
 use Database\Seeders\Core\UserSeeder;
 use Database\Seeders\Crm\CustomerNoteSeeder;
+use Database\Seeders\Crm\CustomerPipelineStageSeeder;
 use Database\Seeders\Crm\CustomerSeeder;
 use Database\Seeders\Crm\FavoriteSeeder;
 use Database\Seeders\Crm\GuarantorSeeder;
@@ -80,12 +81,16 @@ class YearOfActivitySeeder extends Seeder
         // Activity
         PropertyVisitSeeder::class,
         BookingSeeder::class,
-        BookingPaymentSeeder::class,
+        // TCK-2377 — les baux AVANT les paiements de réservation : un bail sur trois naît d'une
+        // réservation, dont l'acompte et le solde se paient comme les autres.
         LeaseSeeder::class,
+        BookingPaymentSeeder::class,
         LeasePaymentSeeder::class,
         InventorySeeder::class,
         InvoiceSeeder::class,
         PayoutSeeder::class,
+        // TCK-2377 — le stade CRM se lit dans les visites, réservations et baux : après eux.
+        CustomerPipelineStageSeeder::class,
         // Operations
         MaintenanceRequestSeeder::class,
         ConversationSeeder::class,

@@ -2,11 +2,17 @@
 
 namespace Database\Seeders\Operations;
 
+use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\MaintenanceCategory;
 use App\Models\Enums\MaintenancePriority;
 use App\Models\Enums\MaintenanceStatus;
+use App\Models\Enums\PropertyStatus;
+use App\Models\Lease;
 use App\Models\MaintenanceRequest;
 use App\Models\Profiles\ServiceProviderProfile;
+use App\Models\Property;
+use Carbon\CarbonImmutable;
+use Database\Seeders\Activity\LeaseSeeder;
 use Database\Seeders\Support\SeedingContext;
 use Database\Seeders\Support\StatusDistribution;
 use Database\Seeders\Support\Timeline;
@@ -20,7 +26,12 @@ class MaintenanceRequestSeeder extends Seeder
     public function run(): void
     {
         foreach ($this->ctx->agencies as $agency) {
-            $properties = $this->ctx->propertiesByAgency[$agency->id] ?? collect();
+            // TCK-2377 — une intervention porte sur un bien bâti et publié : tirée dans tout le parc,
+            // elle tombait sur des terrains et des garages (40 sur 150).
+            $properties = ($this->ctx->propertiesByAgency[$agency->id] ?? collect())
+                ->filter(fn (Property $p) => $p->status !== PropertyStatus::Draft && LeaseSeeder::typeDeBailPour($p) !== null)
+                ->values();
+            $customers = $this->ctx->customersByAgency[$agency->id] ?? collect();
             $providers = $this->ctx->usersWithProfile(ServiceProviderProfile::class, $agency->id);
 
             if ($properties->isEmpty()) {
@@ -35,13 +46,32 @@ class MaintenanceRequestSeeder extends Seeder
                 $property = Tirage::un($properties);
                 $requestsForProperty = min(mt_rand(1, 3), $targetCount - $created);
 
-                for ($i = 0; $i < $requestsForProperty; $i++) {
-                    $createdAt = Timeline::randomDateBetween(
-                        Timeline::seedStart(),
-                        Timeline::seedEnd()->subDays(1),
-                    );
+                $baux = $this->ctx->leases
+                    ->filter(fn (Lease $l) => $l->property_id === $property->id
+                        && $l->status !== LeaseStatus::Draft
+                        && CarbonImmutable::parse($l->start_date)->lessThan(Timeline::seedEnd()->subDays(10)))
+                    ->values();
 
-                    $status = StatusDistribution::pick([
+                for ($i = 0; $i < $requestsForProperty; $i++) {
+                    // Pendant un bail, le locataire la signale — par son compte s'il en a un ; hors bail,
+                    // c'est le bailleur.
+                    $bail = $baux->isNotEmpty() && mt_rand(1, 100) <= 75 ? Tirage::un($baux) : null;
+                    $createdAt = $bail !== null
+                        ? Timeline::randomDateBetween(
+                            CarbonImmutable::parse($bail->start_date)->addDays(7),
+                            collect([CarbonImmutable::parse($bail->terminated_at ?? $bail->end_date), Timeline::seedEnd()->subDays(1)])->min(),
+                        )
+                        : Timeline::randomDateBetween(
+                            CarbonImmutable::parse($property->created_at)->addDays(3),
+                            Timeline::seedEnd()->subDays(1),
+                        );
+                    $requesterId = $customers->get($bail?->tenant_id)?->user_id ?? $property->user_id;
+
+                    // Une demande ancienne est close ; seules les récentes sont encore en cours.
+                    $status = $createdAt->lessThan(Timeline::seedEnd()->subDays(60)) ? StatusDistribution::pick([
+                        MaintenanceStatus::Completed->value => 88,
+                        MaintenanceStatus::Cancelled->value => 12,
+                    ]) : StatusDistribution::pick([
                         MaintenanceStatus::Completed->value => 45,
                         MaintenanceStatus::InProgress->value => 15,
                         MaintenanceStatus::Assigned->value => 15,
@@ -57,7 +87,7 @@ class MaintenanceRequestSeeder extends Seeder
                     ], true) ? $providerIds[array_rand($providerIds)] : null;
 
                     $completedAt = $status === MaintenanceStatus::Completed->value
-                        ? $createdAt->addDays(mt_rand(1, 15))
+                        ? collect([$createdAt->addDays(mt_rand(1, 15)), Timeline::seedEnd()->subHour()])->min()
                         : null;
 
                     $category = $this->ctx->faker()->randomElement(MaintenanceCategory::cases());
@@ -65,7 +95,8 @@ class MaintenanceRequestSeeder extends Seeder
 
                     MaintenanceRequest::create([
                         'property_id' => $property->id,
-                        'requester_id' => $property->user_id,
+                        'requester_id' => $requesterId,
+                        'lease_id' => $bail?->id,
                         'assigned_to' => $assignedTo,
                         'title' => $title,
                         'description' => $description,

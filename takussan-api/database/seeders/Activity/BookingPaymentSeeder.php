@@ -45,7 +45,9 @@ class BookingPaymentSeeder extends Seeder
                 if ($booking->status === BookingStatus::Completed) {
                     $balance = (int) ($booking->total_amount - $depositAmount);
                     if ($balance > 0) {
-                        $finalPaid = $booking->end_date ?: $paidAt;
+                        // Le solde se règle à l'entrée dans les lieux : réglé à la sortie, il tombait dans le futur
+                        // pour une réservation dont le bail court encore (TCK-2377).
+                        $finalPaid = $booking->start_date ?: $paidAt;
                         BookingPayment::create([
                             'booking_id' => $booking->id,
                             'payer_id' => $booking->customer_id,

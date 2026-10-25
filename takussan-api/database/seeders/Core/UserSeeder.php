@@ -127,9 +127,12 @@ class UserSeeder extends Seeder
         $persona = $data['persona'] ?? null;
         unset($data['role'], $data['persona']);
 
+        // L'équipe précède le portefeuille qu'elle gère (TCK-2377) : un bien ou un bail d'avant la
+        // fenêtre ne peut pas avoir été suivi par un agent arrivé après. Les arrivées étalées sont
+        // l'affaire de TCK-2378.
         $createdAt = Timeline::randomDateBetween(
-            Timeline::seedStart(),
-            Timeline::seedStart()->addMonth(),
+            Timeline::portfolioStart()->subMonth(),
+            Timeline::portfolioStart(),
         );
 
         $user = User::updateOrCreate(

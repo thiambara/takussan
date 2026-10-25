@@ -21,9 +21,10 @@ class InvoiceSeeder extends Seeder
 
     public function run(): void
     {
-        // Only generate invoices for active/terminated leases (not drafts).
+        // Tout bail signé est facturé, renouvelé compris (TCK-2377) : sauter les `renewed` laissait
+        // un an sans facture au milieu de chaque chaîne de baux.
         foreach ($this->ctx->leases as $lease) {
-            if (in_array($lease->status, [LeaseStatus::Draft, LeaseStatus::Renewed], true)) {
+            if ($lease->status === LeaseStatus::Draft) {
                 continue;
             }
 

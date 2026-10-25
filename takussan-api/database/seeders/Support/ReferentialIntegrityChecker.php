@@ -4,6 +4,7 @@ namespace Database\Seeders\Support;
 
 use App\Models\Enums\BookingStatus;
 use App\Models\Enums\ContractType;
+use App\Models\Enums\CustomerPipelineStage;
 use App\Models\Enums\InvoiceStatus;
 use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\LeaseStatus;
@@ -11,6 +12,7 @@ use App\Models\Enums\LeaseType;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Lease;
+use App\Models\Property;
 use App\Support\Search\PropertyLabels;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
@@ -108,6 +110,78 @@ class ReferentialIntegrityChecker
                 ->where('l.status', LeaseStatus::Active->value)
                 ->whereIn('l.type', self::typesDeLocation())
                 ->where('p.status', '!=', PropertyStatus::Rented->value)
+                ->count(),
+            // TCK-2377 — le parcours se lit dans l'ordre du temps, et l'occupation d'un bien aussi.
+            'bien_occupe_par_deux_baux_qui_se_chevauchent' => DB::table('leases as a')
+                ->join('leases as b', fn ($join) => $join->on('b.property_id', '=', 'a.property_id')->whereColumn('b.id', '>', 'a.id'))
+                ->where('a.status', '!=', LeaseStatus::Draft->value)
+                ->where('b.status', '!=', LeaseStatus::Draft->value)
+                ->whereRaw('a.start_date <= COALESCE(b.terminated_at::date, b.end_date)')
+                ->whereRaw('b.start_date <= COALESCE(a.terminated_at::date, a.end_date)')
+                ->distinct()
+                ->count('a.property_id'),
+            'bail_anterieur_a_son_bien' => DB::table('leases as l')
+                ->join('properties as p', 'p.id', '=', 'l.property_id')
+                ->whereRaw('l.start_date < p.created_at::date')
+                ->count(),
+            'visite_anterieure_a_son_bien' => DB::table('property_visits as v')
+                ->join('properties as p', 'p.id', '=', 'v.property_id')
+                ->whereColumn('v.scheduled_at', '<', 'p.created_at')
+                ->count(),
+            'reservation_anterieure_a_son_bien' => DB::table('bookings as b')
+                ->join('properties as p', 'p.id', '=', 'b.property_id')
+                ->whereColumn('b.created_at', '<', 'p.created_at')
+                ->count(),
+            'bail_expire_dont_la_fin_est_a_venir' => DB::table('leases')
+                ->where('status', LeaseStatus::Expired->value)
+                ->where('end_date', '>=', now()->toDateString())
+                ->count(),
+            'bail_actif_dont_la_fin_est_passee' => DB::table('leases')
+                ->where('status', LeaseStatus::Active->value)
+                ->where('end_date', '<', now()->toDateString())
+                ->count(),
+            'bail_renouvele_sans_successeur' => DB::table('leases as a')
+                ->where('a.status', LeaseStatus::Renewed->value)
+                ->whereNotExists(fn (Builder $q) => $q->from('leases as b')->whereColumn('b.renewed_from_lease_id', 'a.id'))
+                ->count(),
+            'locataire_qui_n_est_pas_converti' => DB::table('leases as l')
+                ->join('customers as c', 'c.id', '=', 'l.tenant_id')
+                ->where('l.status', '!=', LeaseStatus::Draft->value)
+                ->where('c.pipeline_stage', '!=', CustomerPipelineStage::Converted->value)
+                ->distinct()
+                ->count('c.id'),
+            'lead_qui_a_un_bail' => DB::table('leases as l')
+                ->join('customers as c', 'c.id', '=', 'l.tenant_id')
+                ->where('c.pipeline_stage', CustomerPipelineStage::Lead->value)
+                ->distinct()
+                ->count('c.id'),
+            'avis_ecrit_par_le_personnel_ou_le_bailleur' => DB::table('reviews as r')
+                ->join('properties as p', 'p.id', '=', 'r.reviewable_id')
+                ->where('r.reviewable_type', (new Property)->getMorphClass())
+                ->where(fn (Builder $q) => $q
+                    ->whereColumn('r.author_id', 'p.user_id')
+                    ->orWhereExists(fn (Builder $e) => $e->from('agent_profiles as ap')
+                        ->whereColumn('ap.user_id', 'r.author_id')->whereColumn('ap.agency_id', 'p.agency_id'))
+                    ->orWhereExists(fn (Builder $e) => $e->from('agency_admin_profiles as aa')
+                        ->whereColumn('aa.user_id', 'r.author_id')->whereColumn('aa.agency_id', 'p.agency_id')))
+                ->count(),
+            'impaye_de_plus_de_90_jours_sur_un_bail_actif' => DB::table('lease_payments as lp')
+                ->join('leases as l', 'l.id', '=', 'lp.lease_id')
+                ->where('l.status', LeaseStatus::Active->value)
+                ->where('lp.status', PaymentStatus::Late->value)
+                ->where('lp.due_date', '<', now()->subDays(90)->toDateString())
+                ->count(),
+            'maintenance_sur_un_bien_non_bati' => DB::table('maintenance_requests as m')
+                ->join('properties as p', 'p.id', '=', 'm.property_id')
+                ->whereIn('p.type', self::typesDeLaFamille(PropertyLabels::FAMILLE_FONCIER))
+                ->count(),
+            'maintenance_demandee_ni_par_le_locataire_ni_par_le_bailleur' => DB::table('maintenance_requests as m')
+                ->join('properties as p', 'p.id', '=', 'm.property_id')
+                ->whereColumn('m.requester_id', '!=', 'p.user_id')
+                ->whereNotExists(fn (Builder $q) => $q->from('leases as l')
+                    ->join('customers as c', 'c.id', '=', 'l.tenant_id')
+                    ->whereColumn('l.property_id', 'm.property_id')
+                    ->whereColumn('c.user_id', 'm.requester_id'))
                 ->count(),
         ];
     }

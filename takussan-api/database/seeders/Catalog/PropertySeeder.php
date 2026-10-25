@@ -62,8 +62,9 @@ class PropertySeeder extends Seeder
         foreach ($statusCounts as $key => $count) {
             [$contractValue, $status] = explode('|', $key);
             for ($i = 0; $i < $count; $i++) {
-                $createdAt = Timeline::randomDateBetween(
-                    Timeline::seedStart(),
+                // Un brouillon est récent ; un bien publié peut venir du portefeuille d'avant la fenêtre.
+                $createdAt = Timeline::creation(
+                    $status === PropertyStatus::Draft->value ? 0 : Timeline::PART_DU_PORTEFEUILLE,
                     Timeline::seedEnd()->subDays(7),
                 );
                 $ownerId = Tirage::un($ownerIds);

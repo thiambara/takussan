@@ -14,11 +14,38 @@ class Timeline
     /** Months of historical activity to simulate. */
     public const MONTHS_OF_HISTORY = 13;
 
+    /** Ancienneté du portefeuille avant la fenêtre, en mois — cf. {@see portfolioStart()}. */
+    public const MONTHS_OF_PORTFOLIO = 24;
+
+    /** Part des biens publiés et des clients qui précèdent la fenêtre, en %. */
+    public const PART_DU_PORTEFEUILLE = 30;
+
     public static function seedStart(): CarbonImmutable
     {
         return CarbonImmutable::now()
             ->startOfDay()
             ->subMonths(self::MONTHS_OF_HISTORY);
+    }
+
+    /**
+     * Le début du portefeuille : une agence fondée des années avant la fenêtre y entre avec des biens
+     * et des clients déjà là (TCK-2377). Sans eux, aucun bail d'un an n'avait le temps d'expirer ni
+     * d'être renouvelé dans une fenêtre de 13 mois.
+     */
+    public static function portfolioStart(): CarbonImmutable
+    {
+        return self::seedStart()->subMonths(self::MONTHS_OF_PORTFOLIO);
+    }
+
+    /**
+     * Une date de création : dans le portefeuille d'avant la fenêtre pour `$partAncienne` % des cas,
+     * dans la fenêtre sinon.
+     */
+    public static function creation(int $partAncienne, CarbonInterface $finDeFenetre): CarbonImmutable
+    {
+        return mt_rand(1, 100) <= $partAncienne
+            ? self::randomDateBetween(self::portfolioStart(), self::seedStart())
+            : self::randomDateBetween(self::seedStart(), $finDeFenetre);
     }
 
     public static function seedEnd(): CarbonImmutable
