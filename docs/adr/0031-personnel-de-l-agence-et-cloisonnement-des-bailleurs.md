@@ -533,4 +533,32 @@ Un autre lot implémente D4 et cite cet amendement.
   un profil. `BasePolicy::auteurEncoreMembre` est publique et statique, pour
   `AgencyUpgradeRequestPolicy::revoke`, qui n'hérite pas de `BasePolicy`. Les tests sont
   `DemandeurEncoreMembreTest` et `DeposantEncoreMembreTest`.
-- D3 et D4 : les lots qui les implémentent citent cet amendement.
+- D3 : [TCK-2295](../backlog/tickets/TCK-2295-documents-et-messagerie-suivent-l-appartenance.md).
+  Le relevé par sonde a précédé le code. Il a mesuré l'agent actif, suspendu et retiré sur les
+  quatre colonnes, et chaque lecteur légitime : le client du tunnel, le locataire et le client qui
+  ont joint une pièce, le bailleur bloqué, l'agent sur les pièces de son propre profil. Seuls quatre
+  chemins créent un `Document` : `POST /api/documents` (borné par `attachTo`), les pièces de profil
+  (`ProfilePieces`), les statuts d'une demande de passage et `DocumentPdfService::store`, sans
+  appelant. Tout lecteur légitime qui a téléversé sans être membre atteint donc le porteur par une
+  branche qui n'est pas d'auteur. Le site est `DocumentPolicy`, en quatre points :
+  - `televerseurGarde` porte la branche `uploaded_by` de `view`, `update` et `share`. Elle vaut si le
+    document est sans agence, si c'est une pièce du propre profil du téléverseur, ou s'il est
+    encore membre. En lecture, elle vaut aussi pour un profil propriétaire de tout statut (B.3). En
+    écriture, `landlordWrites` est gardé et une branche de `reaches` en écriture suffit : le
+    locataire et le client gardent les gestes sur leur pièce ;
+  - l'agence d'un état des lieux est celle de son bien, faute de colonne `agency_id` ;
+  - dans `reaches`, `created_by_id` et `added_by_id` passent par `auteurEncoreMembre`, et
+    `conducted_by` par la forme d'`InventoryPolicy`. La branche client de réservation
+    (`customer.user_id`) vaut en lecture comme pour joindre une pièce ;
+  - la liste de `DocumentController::index` passe par `restreindreAuTeleverseur`, sa forme SQL.
+
+  `isMemberAt` lit l'amorce `owner` d'une page. **Ce qui n'est pas gardé** : la recherche
+  `GET /api/search/documents` filtre Meilisearch par `uploaded_by` seul, faute d'agence indexée.
+  Les documents récents du tableau de bord du locataire et l'archive RGPD lisent `uploaded_by` sans
+  la règle : ce sont les propres téléversements de l'utilisateur, l'archive relevant de l'angle 247.
+  `agencyOf`, nul pour un état des lieux, reste tel quel pour `landlordWrites`. Le test est
+  `AuteurDuDocumentEncoreMembreTest`.
+- D4 : [TCK-2295](../backlog/tickets/TCK-2295-documents-et-messagerie-suivent-l-appartenance.md).
+  `whereNull(deleted_at)` porte sur les trois jointures `customers` de la règle 2 de
+  `MessagingReach`, écrit dans son docblock et dans `docs/features.md` (§ 1.7). Le test est
+  `FicheClientSupprimeeLienCrmTest`.
