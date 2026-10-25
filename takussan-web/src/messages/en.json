@@ -10847,6 +10847,10 @@
           "title": "Property rejected: {property}",
           "body": "Your property \"{property}\" was rejected. Reason: {reason}. You can fix the listing and resubmit it from your workspace."
         },
+        "assigned_to_owner": {
+          "title": "A property saved in your name: {property}",
+          "body": "Your agency has saved the property “{property}” in your name. You will find it among your properties, with its leases and your owner statement."
+        },
         "submitted_for_review": {
           "title": "Property to review: {property}",
           "body": "The property “{property}” is awaiting your approval before it goes live."

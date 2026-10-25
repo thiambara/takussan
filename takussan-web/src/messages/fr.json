@@ -10847,6 +10847,10 @@
           "title": "Bien refusé : {property}",
           "body": "Votre bien « {property} » a été refusé. Motif : {reason}. Vous pouvez corriger l'annonce et la resoumettre depuis votre espace."
         },
+        "assigned_to_owner": {
+          "title": "Un bien saisi à votre nom : {property}",
+          "body": "Votre agence a enregistré le bien « {property} » à votre nom. Vous le retrouvez dans vos biens, avec ses baux et votre relevé de gérance."
+        },
         "submitted_for_review": {
           "title": "Bien à modérer : {property}",
           "body": "Le bien « {property} » attend votre validation avant d'être publié."

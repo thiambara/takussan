@@ -32,6 +32,7 @@ use App\Services\Property\PropertyPublication;
 use App\Services\Property\PropertyViewCounter;
 use App\Services\Property\PublishReadiness;
 use App\Services\Property\ResponsibleAgentAssigner;
+use App\Services\Property\TitulaireALaSaisie;
 use App\Support\Logging\SafeExceptionContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -133,6 +134,19 @@ class PropertyController extends Controller
             $data['visibility'] = PropertyVisibility::Private->value;
         }
 
+        // TCK-997 (P15.06, P50.01, P50.03 ; ADR-0036, amendement du 2026-10-19) — le titulaire se
+        // fixe ICI, une fois : le bailleur désigné, sinon celui du parent, sinon l'auteur. Jugé
+        // avant toute écriture : un refus (422) ne crée rien.
+        $titulaires = app(TitulaireALaSaisie::class);
+        $titulaire = $titulaires->resoudre(
+            $request->user(),
+            ! empty($data['agency_id']) ? (int) $data['agency_id'] : null,
+            $data['owner_id'] ?? null,
+            $request->parentDemande(),
+            $isProposal,
+        );
+        unset($data['owner_id']);
+
         // TCK-633 (lot C) — créer un bien DIRECTEMENT public est une publication : le créateur en
         // est le contact (aucun collaborateur n'existe encore). Jugé AVANT la transaction : un
         // refus ne doit pas passer par le `catch` qui journalise les échecs de création.
@@ -142,9 +156,9 @@ class PropertyController extends Controller
         }
 
         try {
-            $property = DB::transaction(function () use ($data, $request) {
+            $property = DB::transaction(function () use ($data, $titulaire) {
                 $property = Property::create(array_merge($data, [
-                    'user_id' => $request->user()->id,
+                    'user_id' => $titulaire,
                     'status' => $data['status'] ?? PropertyStatus::Draft->value,
                     'visibility' => $data['visibility'] ?? PropertyVisibility::Private->value,
                 ]));
@@ -170,6 +184,8 @@ class PropertyController extends Controller
             if ($isProposal && $property->agency_id !== null) {
                 $this->notifyAgencyAdminsOfProposal($property);
             }
+
+            $titulaires->annoncer($property, $request->user(), isset($request->validated()['owner_id']) ? 'owner_id' : 'parent');
 
             return $this->json(
                 ['data' => PropertyResource::make($property->load('address'))->resolve($request)],
@@ -238,6 +254,15 @@ class PropertyController extends Controller
             abort_unless(
                 Gate::forUser($request->user())->allows('updateParent', [$property, $newParent]),
                 403
+            );
+
+            // TCK-997 (Q3, Q4 ; ADR-0036, amendement du 2026-10-19) — le rattachement ne réécrit
+            // jamais `user_id` : sous le bien d'un bailleur, le lot doit déjà être à ce bailleur.
+            abort_code_if(
+                $newParent !== null && TitulaireALaSaisie::tenuParUnBailleur($newParent)
+                    && (int) $newParent->user_id !== (int) $property->user_id,
+                422,
+                'property.parent_owner_mismatch',
             );
         }
 
