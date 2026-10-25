@@ -18,3 +18,10 @@ export const PIECES_PAR_ENVOI_MAX_MO = PIECES_PAR_ENVOI_MAX_OCTETS / MIO;
 export function piecesDepassentLeCorps(fichiers: readonly File[]): boolean {
   return fichiers.reduce((somme, fichier) => somme + fichier.size, 0) > PIECES_PAR_ENVOI_MAX_OCTETS;
 }
+
+/**
+ * TCK-2370 (P236.02) — les photos qu'un sélecteur admet d'un coup : la règle `photos` `max:20` de
+ * l'API (TCK-2330) et `max_file_uploads = 20` de l'image. Envoyées une à une, elles ne passent plus
+ * par la règle, qui juge chaque requête : la borne se tient donc au sélecteur.
+ */
+export const PHOTOS_PAR_SELECTION_MAX = 20;

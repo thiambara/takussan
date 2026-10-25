@@ -54,9 +54,20 @@ describe('extractApiErrorMessage', () => {
     expect(extractApiErrorMessage(err, 'fallback', tRacine)).toBe('Email déjà utilisé');
   });
 
-  it('returns a network message for TypeError (fetch failure)', () => {
+  // TCK-2370 (P236.03) — « vérifiez votre connexion » hors ligne seulement ; en ligne, le serveur.
+  it('returns a network message for TypeError (fetch failure) when offline', () => {
+    const enLigne = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+    try {
+      const err = new TypeError('fetch failed');
+      expect(extractApiErrorMessage(err, 'fallback', tRacine)).toMatch(/connexion/i);
+    } finally {
+      enLigne.mockRestore();
+    }
+  });
+
+  it('returns a server-unreachable message for TypeError (fetch failure) when online', () => {
     const err = new TypeError('fetch failed');
-    expect(extractApiErrorMessage(err, 'fallback', tRacine)).toMatch(/connexion/i);
+    expect(extractApiErrorMessage(err, 'fallback', tRacine)).toMatch(/serveur est injoignable/i);
   });
 
   it('returns the fallback for unknown errors', () => {
