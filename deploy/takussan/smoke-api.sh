@@ -66,6 +66,39 @@ verifier_image() {
 
   verifier_delai_d_execution
   verifier_exif_retire
+  verifier_journal_des_exceptions
+}
+
+# TCK-2356 (P14.07) — une exception rapportée sous `php_server` sort en UNE ligne JSON sur la sortie
+# STANDARD du conteneur (canal `exceptions`), sans son message. Ce que les tests de l'API ne
+# peuvent pas voir : que `php://stdout` d'un fil FrankenPHP est bien celle de `docker logs` — le
+# serveur web, lui, écrit sur la sortie d'erreur. Mesuré le 2026-10-25 : une ligne sur stdout, zéro
+# sur stderr ; sur l'image précédente, aucune ligne (ablation).
+verifier_journal_des_exceptions() {
+  local nom="takussan-smoke-journal-$$" reponse sortie
+  docker run -d --rm --name "$nom" --entrypoint frankenphp "$IMAGE:$TAG" run --config /etc/frankenphp/Caddyfile >/dev/null
+  # shellcheck disable=SC2064 # $nom est fixé ici, et doit l'être au moment du piège.
+  trap "docker rm -f '$nom' >/dev/null 2>&1 || true" EXIT
+  docker exec -i -u root "$nom" sh -c 'cat > /app/public/sonde-journal.php' <<'PHP'
+<?php
+require '/app/vendor/autoload.php';
+$app = require '/app/bootstrap/app.php';
+$app->instance('request', Illuminate\Http\Request::capture());
+$app->make(Illuminate\Contracts\Http\Kernel::class)->bootstrap();
+report(new RuntimeException('temoin-message-2356'));
+echo 'rapporte';
+PHP
+  for _ in $(seq 30); do
+    reponse=$(docker exec "$nom" curl -sS http://127.0.0.1:8080/sonde-journal.php 2>/dev/null || true)
+    [ "$reponse" = rapporte ] && break; sleep 1
+  done
+  [ "$reponse" = rapporte ] || echec "la sonde du journal ne répond pas : « $reponse »"
+  sortie=$(docker logs "$nom" 2>/dev/null)
+  grep -q '^{"message":"exception","context":{"exception":"RuntimeException"' <<<"$sortie" \
+    || echec "aucune ligne JSON de l'exception sur la sortie standard du conteneur : « $sortie »"
+  grep -q 'temoin-message-2356' <<<"$sortie" && echec "le message de l'exception est sur la sortie standard"
+  docker rm -f "$nom" >/dev/null
+  ok "une exception rapportée sort en une ligne JSON sur la sortie standard, sans son message"
 }
 
 # TCK-2355 (P65.01) — `max_execution_time = 60` (docker/php.ini) est la seule borne de durée d'une
