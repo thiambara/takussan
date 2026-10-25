@@ -7577,7 +7577,7 @@ Le seul passage restant est `CustomerService::findOrCreateFromUser`, dans la ré
 ### Le bailleur du bien fixe la part de commission des agents de l'agence, et peut tout donner à un agent de son choix
 
 - Réf : P241.01
-- Statut : validé — validation du porteur (2026-10-25) : seul le personnel de l'agence du bien qui tient `leases.create` (`maySetCommissionTerms`) écrit une part de commission non nulle, à l'ajout comme à la modification ; le bailleur reçoit 403 et ne lit plus les parts
+- Statut : fait · TCK-2364
 - Gravité : 🔴 défaut avéré
 - Où :
   - `takussan-api/app/Http/Requests/Api/StorePropertyCollaboratorRequest.php:30-56`
@@ -7607,11 +7607,12 @@ Le seul passage restant est `CustomerService::findOrCreateFromUser`, dans la ré
   - Garde : un test « bailleur → 403 à l'ajout et à la modification d'une part, ajout sans part accepté si voulu ; personnel → 201 », avec ablation.
 - Mesure (2026-10-25, db3e25230, mesureur) : relu `StorePropertyCollaboratorRequest::authorize` et `UpdatePropertyCollaboratorRequest::authorize` (`can('update', $property)` seul), `PropertyPolicy::update` (branche `BailleurDuBien::est` + `properties.update_own`), `SystemRoleCapabilities::owner()` (`PropertiesUpdateOwn` seule), `CommissionLedgerService::generateFor` (parts `agent` servies avant le négociateur plafonné à 100 − Σ), ADR-0049 l. 53-63 et « Ventilation » l. 114-131 (règle des termes du bail, aucune règle sur qui écrit `commission_share`) ; `git log e243019a1..HEAD` sur ces fichiers → aucun commit ; aucune des PR #1530, #1540, #1541, #1543 ne touche ces fichiers ; test temporaire `tests/Feature/TmpMesureurM5/SondeM5Test.php` (retiré), `XDEBUG_MODE=off php artisan test <fichier>`, charge 1,57 / 1,65 / 1,79 sur 8 cœurs → bailleur du bien (`OwnerProfile` de l'agence) : `POST …/collaborators` agent part 60 → 201, « 60.00 » en base ; `PUT` part 0 sur la ligne posée par l'admin → 200 ; `PUT` part 100 sur sa ligne → 200 ; `GET …/collaborators` → 200 avec les parts ; bail de l'admin (`commission_amount` 100 000, négociateur au taux 30) activé → une seule ligne, l'agent choisi par le bailleur, `collaborator`, 100 %, 100 000, le négociateur rien. Le constat tient en entier. Classement : V1, la part décide du montant versé à chaque agent, et la piste laisse le choix de la règle (celle des termes du bail ou une règle propre) et de la lecture par le bailleur.
 - Mesure (2026-10-25, b9c58e007, humain) : validation du porteur en bloc (2026-10-25), second tour, sur les recommandations (a) de la session ; statut précédent : « retenu · à valider — V1 : qui fixe la ventilation d'une commission, que l'ADR-0049 ne tranche pas ».
+- Mesure (2026-10-25, e5c5c9b0d, implementeur) : reproduit avant correctif par `CommissionShareWritersTest` (bailleur : ajout d'une part 100 → 201, part de l'admin ramenée à 0 → 200, parts lues ; admin sans `leases.create` → 201) → `PropertyPolicy::manageCommissionShares` (= `maySetCommissionTerms`), jugée dans `authorize()` de l'ajout (part > 0) et de la modification (part changée, effacée comprise) : 403 `property.commission_share_forbidden`, aucune ligne ; ajout sans part et part renvoyée inchangée acceptés ; `commission_share` omise des réponses pour qui ne tient pas la règle. Ablations : garde de l'ajout, de la modification, lecture de la liste → chaque fois rouge, puis remis. Quatre classes qui posaient la part en bailleur la posent en admin. ADR-0049 amendé (bis).
 
 ### Le taux du négociateur (`agent_profiles.commission_rate`) n'a aucun écrivain : le négociateur ne reçoit jamais de ligne au grand livre
 
 - Réf : P241.02
-- Statut : validé — validation du porteur (2026-10-25) : le taux de commission d'un agent s'écrit sur sa fiche de membre, sous `team.assign_role` ; la règle 2 d'ADR-0049 reste
+- Statut : fait · TCK-2364
 - Gravité : 🟠 risque ou dette
 - Où :
   - `takussan-api/app/Services/Commission/CommissionLedgerService.php:66-79`
@@ -7635,11 +7636,12 @@ Le seul passage restant est `CustomerService::findOrCreateFromUser`, dans la ré
   - Garde : un test « l'admin fixe le taux d'un agent → la ligne `negotiator` naît à l'activation ».
 - Mesure (2026-10-25, db3e25230, mesureur) : `grep -rn commission_rate takussan-api/app` → pour `AgentProfile`, seuls `$fillable`, `AUDIT_ONLY`, `$queryFields`, les casts et la lecture de `CommissionLedgerService.php:74` ; aucune FormRequest ne l'accepte (agence, bail, renouvellement seulement), `UpdateSpecializationAgentProfileRequest` n'écrit que spécialité, zones et `license_number` ; les seeders posent `AgentProfile` par `firstOrCreate` sans taux (`UserSeeder.php:177`, `TestSeeder.php:58`), seule `AgentProfileFactory` en tire un au hasard (1 à 15), d'où les lignes `negotiator` des tests ; `SELECT` en lecture seule (`begin read only`) sur la base de développement → 20 `agent_profiles`, 0 taux non nul, `commission_entries` vide, aucun bail avec `agent_id` et `commission_amount` > 0 (la base ne montre donc pas une ligne `negotiator` manquante, seulement qu'aucun taux n'existe) ; aucun commit depuis e243019a1 ni PR ouverte sur ces fichiers. Le constat tient : la règle 2 n'est servie par aucun chemin de l'API. Classement : V7 (et V1), la piste propose deux voies opposées, une écriture neuve sous une capacité à choisir ou le retrait d'une règle d'un ADR accepté.
 - Mesure (2026-10-25, b9c58e007, humain) : validation du porteur en bloc (2026-10-25), second tour, sur les recommandations (a) de la session ; statut précédent : « retenu · à valider — V7 : donner une voie d'écriture au taux d'un agent, ou retirer la règle 2 d'ADR-0049 (V6) ».
+- Mesure (2026-10-25, e5c5c9b0d, implementeur) : reproduit par `AgentCommissionRateTest` (8 rouges, route absente) → `PATCH /api/profiles/{agent_profile}/commission-rate` sous `team.assign_role` (`AgentProfilePolicy::setCommissionRate`), 0 à 100 ou `null`, dans `AGENCY_TWO_FACTOR` ; taux rendu dans `meta.role_assignments` ; champ `AgentCommissionRateField` sur la fiche de membre (`UserDetailDrawer`). Garde : l'admin pose 30, bail de 100 000 activé → une ligne `negotiator`, 30 %, 30 000. Refus : agent, bailleur, admin sans la capacité, admin d'une autre agence (403). Ablations : policy à `true` → 4 rouges ; écriture retirée → 2 rouges ; lecture retirée → 1 rouge ; front : champ retiré de la fiche → 1 rouge ; règle 2 d'ADR-0049 inchangée.
 
 ### Petites améliorations
 
 - Réf : P241.03
-- Statut : validé — validation du porteur (2026-10-25) : la copie et les deux lectures suivent la règle de P241.01
+- Statut : fait · TCK-2364
 - Gravité : 🟢 amélioration
 - Où :
   - `takussan-api/app/Services/Property/PropertyDuplicationService.php:112`
@@ -7651,6 +7653,7 @@ Le seul passage restant est `CustomerService::findOrCreateFromUser`, dans la ré
 - Piste : faire suivre à la copie et aux deux lectures la règle choisie pour P241.01.
 - Mesure (2026-10-25, db3e25230, mesureur) : relu `PropertyDuplicationService.php:103-113` (parts recopiées, ligne rejugée par `stillEligible` seulement), `PropertyPolicy::duplicate` = `update`, `PropertyResource.php:216-230` (parts rendues hors des routes publiques, sans condition de lecteur) ; même test temporaire que P241.01 → bailleur : `POST /api/properties/{id}/duplicate` `{copy_collaborators: true}` → 201, parts recopiées `["100.00","0.00"]`, clone au bailleur dans l'agence ; `GET /api/properties/{id}?include=collaborators` par le bailleur → 200, `commission_share` `[100, 0]`. Les deux parties « déduites » du constat sont établies. Classement : V1, la piste fait suivre ces chemins à une règle non encore choisie (P241.01).
 - Mesure (2026-10-25, b9c58e007, humain) : validation du porteur en bloc (2026-10-25), second tour, sur les recommandations (a) de la session ; statut précédent : « retenu · à valider — V1 : suit la règle à choisir pour P241.01 ».
+- Mesure (2026-10-25, e5c5c9b0d, implementeur) : reproduit par `CommissionShareWritersTest` (copie du bailleur → parts recopiées 40 ; `GET /api/properties/{id}?include=collaborators` → parts lues) → la copie ne recopie la part que si `$actor` tient `manageCommissionShares`, et `PropertyResource` omet `commission_share` hors de ce lecteur ; témoins : copie et lecture de l'admin gardent 40. Ablations : copie, lecture de `PropertyResource` → chaque fois rouge, puis remis. `PropertyIndexQueryBudgetTest` : surcoût d'`agency_id` mesuré 6 → 12 requêtes (règle jugée une fois par agence et par requête), plafond porté de 8 à 14.
 
 ## Angle 242 — `POST /api/agencies/{id}/members` face au parcours d'invitation
 
