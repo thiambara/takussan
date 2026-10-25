@@ -1477,7 +1477,8 @@
       "loadingMore": "Yëngu…",
       "attachAria": "Boole ab fiise",
       "placeholder": "Bind ab bataaxal…",
-      "sendAria": "Yónnee"
+      "sendAria": "Yónnee",
+      "readOnly": "Ce fil est en lecture seule : votre bail pour ce logement a pris fin."
     },
     "group": {
       "create": {

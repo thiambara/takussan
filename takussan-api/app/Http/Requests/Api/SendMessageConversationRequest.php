@@ -5,6 +5,7 @@ namespace App\Http\Requests\Api;
 use App\Http\Requests\BaseFormRequest;
 use App\Http\Requests\Concerns\AuthorizesTransitionally;
 use App\Models\Enums\MessageType;
+use App\Services\Messaging\ConversationAccess;
 use Illuminate\Validation\Rule;
 
 /**
@@ -33,7 +34,12 @@ class SendMessageConversationRequest extends BaseFormRequest
      */
     public function authorize(): bool
     {
-        return $this->isActiveParticipant($this->route('conversation'));
+        $conversation = $this->route('conversation');
+
+        // P248.01 (TCK-2374) — écrire n'est pas lire : le demandeur au bail fini garde le fil d'une
+        // intervention en lecture seule (`ConversationAccess::allowsWriting`).
+        return $this->isActiveParticipant($conversation)
+            && app(ConversationAccess::class)->allowsWriting($this->user(), $conversation);
     }
 
     /**

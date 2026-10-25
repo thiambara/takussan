@@ -125,6 +125,14 @@ class CreateGroupConversationRequest extends BaseFormRequest
             'property_id' => Property::class,
             'lease_id' => Lease::class,
         ], 'messaging.errors.group_context_forbidden');
+        // P248.01 (TCK-2374) — rattacher un groupe à une intervention, c'est écrire dans un de ses fils :
+        // le demandeur au bail fini la lit encore, mais ne la rattache plus (`contribute`).
+        $maintenance = $v->errors()->has('maintenance_request_id') || $this->input('maintenance_request_id') === null
+            ? null
+            : MaintenanceRequest::query()->find($this->input('maintenance_request_id'));
+        if ($maintenance !== null && ! $actor->can('contribute', $maintenance)) {
+            $v->errors()->add('maintenance_request_id', __('messaging.errors.group_context_forbidden'));
+        }
         // L'ordre est un contrat (tenu par `GroupConversationCreationTest`) : la visibilité
         // d'abord, puis la cohérence entre contextes déjà visibles — jamais « ne concerne pas »
         // d'un élément qu'on ne peut pas voir.

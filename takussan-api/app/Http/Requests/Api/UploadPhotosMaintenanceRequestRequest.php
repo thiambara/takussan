@@ -37,10 +37,13 @@ class UploadPhotosMaintenanceRequestRequest extends BaseFormRequest
      * `docs/features.md` §1.8 et épinglée par
      * `tests/Feature/Api/MaintenancePrincipalFieldsTest::test_requester_can_still_add_photos_to_his_own_report()`,
      * pour qu'un resserrement futur soit un choix et non un effet de bord.
+     *
+     * P248.01 (TCK-2374) — le premier resserrement, choisi (ADR-0031, amendement du 2026-10-25, P248.01) :
+     * `contribute`, c'est-à-dire `view` sauf le demandeur dont le bail du bien a pris fin.
      */
     public function authorize(): bool
     {
-        return $this->user()?->can('view', $this->route('maintenanceRequest')) === true;
+        return $this->user()?->can('contribute', $this->route('maintenanceRequest')) === true;
     }
 
     /** @return array<string, mixed> */

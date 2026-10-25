@@ -64,6 +64,26 @@ class ConversationAccess
     }
 
     /**
+     * P248.01 (TCK-2374) — ÉCRIRE dans le fil : la garde de lecture, et, pour un fil d'intervention,
+     * `MaintenanceRequestPolicy::contribute`. Le demandeur dont le bail du bien a pris fin lit encore
+     * le fil et n'y écrit plus (ADR-0031, amendement du 2026-10-25, P248.01).
+     */
+    public function allowsWriting(User $user, Conversation $conversation): bool
+    {
+        if (! $this->allows($user, $conversation)) {
+            return false;
+        }
+
+        if ($user->isSuperAdmin() || $conversation->maintenance_request_id === null) {
+            return true;
+        }
+
+        $request = $conversation->maintenanceRequest;
+
+        return $request !== null && $user->can('contribute', $request);
+    }
+
+    /**
      * Les branches propres à un type de fil, sans la participation : ce que filtre aussi
      * `NotifyNewMessageJob`, dont les destinataires sont déjà des participants actifs.
      */
