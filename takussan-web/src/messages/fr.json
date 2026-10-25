@@ -2682,6 +2682,8 @@
       },
       "reasonDialog": {
         "title": "Passer en {stage} — préciser la raison",
+        "descriptionConverted": "Précisez pourquoi ce client est converti.",
+        "descriptionLost": "Précisez pourquoi ce client est perdu.",
         "placeholder": "Ex. : converti suite à signature du bail le 10 mai…"
       },
       "tabs": {

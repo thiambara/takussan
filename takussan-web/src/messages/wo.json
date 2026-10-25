@@ -921,6 +921,8 @@
       },
       "reasonDialog": {
         "title": "Wéyal ci {stage} — joxal raison bi",
+        "descriptionConverted": "Précisez pourquoi ce client est converti.",
+        "descriptionLost": "Précisez pourquoi ce client est perdu.",
         "placeholder": "Misaal: converti gnaan lay signe bail bi 10 mee…"
       },
       "tabs": {

@@ -2711,6 +2711,8 @@
       },
       "reasonDialog": {
         "title": "Move to {stage} — give a reason",
+        "descriptionConverted": "Explain why this customer converted.",
+        "descriptionLost": "Explain why this customer was lost.",
         "placeholder": "e.g. converted after lease signed on May 10…"
       },
       "tabs": {
