@@ -178,7 +178,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P2 | §1.4 | Donner congé depuis son espace locataire : délai de préavis et pénalité affichés avant l'envoi, retrait possible tant que la fenêtre d'annulation est ouverte ; la clôture reste au gestionnaire (TCK-596) |
 | P2 | §1.4 | Signature du bail par code à usage unique (SMS sur numéro vérifié, sinon e-mail) : empreinte du contrat figé, horodatage et IP de chaque partie ; activation à la seconde signature (TCK-596 — remplace la ligne P3 « Signature électronique du bail ») |
 | P3 | §1.4 | Espace locataire : les factures adressées au client — l'API les lui liste (`GET /api/invoices`), son espace ne les montre pas encore ; le reste y est déjà : baux, échéances et paiement, quittances, interventions, états des lieux, documents (lignes P1/P2 de §1.4, §1.8, §2.5) |
-| P1 | §1.4 | Onboarding résident à la signature du bail : notification "Bienvenue chez vous", welcome modale "Espace résident", checklist d'entrée (état des lieux, premier paiement, accès aux documents), suivi de complétion par un `TenantOnboardingChecklist` |
+| P1 | §1.4 | Onboarding résident à la signature du bail : notification "Bienvenue chez vous", welcome modale "Espace résident", checklist d'entrée (état des lieux, premier paiement, accès aux documents), suivi de complétion par un `TenantOnboardingChecklist` ; rien de cela pour un bail renouvelé, et un état des lieux d'entrée contesté rouvre la checklist (TCK-2368) |
 
 ### §1.5 Transactions & paiements
 
@@ -495,7 +495,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P2 | §1.4 | Renouveler un bail ou créer un avenant (loyer, durée, conditions) avec traçabilité du bail parent ; le bail renouvelé reçoit son échéancier sans geste manuel (TCK-596) ; il naît sans garant, et la réponse et le récapitulatif le disent (TCK-2316) |
 | P2 | §1.4 | Résiliation anticipée avec calcul des pénalités |
 | P2 | §1.4 | Signature du bail par code à usage unique (SMS sur numéro vérifié, sinon e-mail) : empreinte du contrat figé, horodatage et IP de chaque partie ; activation à la seconde signature (TCK-596 — remplace la ligne P3 « Signature électronique du bail ») |
-| P1 | §1.4 | Onboarding résident à la signature du bail : notification "Bienvenue chez vous", welcome modale "Espace résident", checklist d'entrée (état des lieux, premier paiement, accès aux documents), suivi de complétion par un `TenantOnboardingChecklist` |
+| P1 | §1.4 | Onboarding résident à la signature du bail : notification "Bienvenue chez vous", welcome modale "Espace résident", checklist d'entrée (état des lieux, premier paiement, accès aux documents), suivi de complétion par un `TenantOnboardingChecklist` ; rien de cela pour un bail renouvelé, et un état des lieux d'entrée contesté rouvre la checklist (TCK-2368) |
 
 ### §1.5 Transactions & paiements
 
