@@ -310,13 +310,19 @@ final class BoostLifecycle
      */
     private function closeWithRefund(PropertyBoost $boost, ?User $actor, ?string $reason, bool $cancelled, bool $anyKind): int
     {
-        $amount = ($anyKind || $boost->kind === BoostKind::Featured) ? $this->refundableCredits($boost) : 0;
-
         // ADR-0061 §4 : la répartition par lot d'origine est calculée AVANT la réclamation, pour que
         // le statut et `refunded_credits` disent ce qui est RÉELLEMENT rendu — une part payée par un
         // lot déjà expiré ne l'est pas. Réclamation et écriture des lots vont ensemble.
-        $plan = DB::transaction(function () use ($boost, $actor, $reason, $cancelled, $amount): ?RefundPlan {
-            $plan = $this->ledger->refundPlan($boost, $amount);
+        $plan = DB::transaction(function () use ($boost, $actor, $reason, $cancelled, $anyKind): ?RefundPlan {
+            // P246.01 (TCK-2367) — le montant se calcule sur la ligne relue sous le verrou que prend
+            // aussi la prolongation (`BoostPurchaseService`) : calculé sur le boost reçu, il ignorait
+            // une prolongation commitée depuis, dont les crédits étaient débités et jamais rendus.
+            $locked = PropertyBoost::query()->whereKey($boost->getKey())->whereIn('status', $this->liveValues())->lockForUpdate()->first();
+            if ($locked === null) {
+                return null;
+            }
+            $amount = ($anyKind || $locked->kind === BoostKind::Featured) ? $this->refundableCredits($locked) : 0;
+            $plan = $this->ledger->refundPlan($locked, $amount);
             $status = $plan->refunded > 0 ? BoostStatus::Refunded : ($cancelled ? BoostStatus::Cancelled : BoostStatus::Ended);
 
             $claimed = PropertyBoost::query()->whereKey($boost->getKey())->whereIn('status', $this->liveValues())->update([

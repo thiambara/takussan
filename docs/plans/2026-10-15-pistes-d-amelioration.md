@@ -7831,7 +7831,7 @@ entre deux processus n'a été jouée. Charge 1,69 / 1,71 / 2,01 sur 8 cœurs.*
 
 ### Deux échecs de connexion simultanés sur un compte n'en comptent qu'un, et un échec peut effacer la réinitialisation forcée de la 2FA
 - Réf : P245.02
-- Statut : validé — validation du porteur (2026-10-25) : le compteur d'échecs de connexion et `force_2fa_reconfigure` s'écrivent par un `UPDATE … jsonb_set` atomique, jamais depuis le modèle chargé
+- Statut : fait · TCK-2367
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Auth/LoginLock.php:75-105`, `takussan-api/app/Http/Controllers/Api/Auth/AuthController.php:72-87,124-126`, `takussan-api/app/Services/Auth/OAuthSessionOpener.php:96`, `takussan-api/app/Services/Admin/UserSupportService.php:51-66`, `takussan-api/app/Http/Middleware/RequireTwoFactor.php:47`
 - Constat :
@@ -7843,6 +7843,7 @@ entre deux processus n'a été jouée. Charge 1,69 / 1,71 / 2,01 sur 8 cœurs.*
 - Piste : écrire le compteur en base, sous verrou de la ligne `users` relue, ou par un `UPDATE … SET metadata = jsonb_set(…)` qui incrémente ; écrire `force_2fa_reconfigure` de même. Garde : deux échecs croisés → compteur à 2 ; échec croisé avec `resetTwoFactor` → drapeau présent.
 - Mesure (2026-10-25, db3e25230, mesureur) : relu `LoginLock::recordFailure` (l. 75-105 : `metadata` recomposée du modèle chargé, compteur lu puis réécrit, `save()` sans verrou), `AuthController::login` (l. 72-90, et l. 124-126 sur l'échec 2FA) et `UserSupportService::resetTwoFactor` (l. 51-66) ; sonde temporaire `TmpMesureurM4/SondeP24502Test.php` (retirée), `ThrottleRequests` retiré comme dans `PasswordLoginLockTest`, charge 1,88 / 1,70 / 1,81 sur 8 cœurs ; un écouteur `retrieved` du compte écrit en base, après le chargement de `login()` : (a) un échec concurrent `{failed_login_attempts: 1}`, puis `POST /api/auth/login` au mauvais mot de passe → 401 et `failed_login_attempts = 1` au lieu de 2 ; (b) la réinitialisation de la console (`two_factor_enabled = false`, `metadata = {force_2fa_reconfigure: true}`), puis le même échec → `metadata = {failed_login_attempts: 1, failed_login_first_at}` et `two_factor_enabled = false` : le drapeau est effacé, et la 2FA reste coupée. Les deux parties tiennent, la seconde est jouée ici pour la première fois. La sous-estimation entre plusieurs adresses n'a pas été jouée sous charge réelle. Classement : V2, le correctif réécrit le verrou de compte de la connexion et le drapeau que lit `RequireTwoFactor`.
 - Mesure (2026-10-25, b9c58e007, humain) : validation du porteur en bloc (2026-10-25), second tour, sur les recommandations (a) de la session ; statut précédent : « retenu · à valider — V2 : compteur du verrou de connexion et drapeau de réinitialisation 2FA ».
+- Mesure (2026-10-25, dd9e72567, implementeur) : rejoué par `tests/Feature/Auth/Session/EchecsDeConnexionCroisesTest.php` avant correctif (écouteur `retrieved` du compte, comme le mesureur, ou compte chargé avant le geste) → 6 rouges : deux échecs croisés comptés 1, drapeau effacé par un échec croisé, compteur effacé par `resetTwoFactor`, drapeau effacé par le déblocage, compteur effacé par les deux enrôlements qui soldent la réinitialisation. Correctif : `LoginLock::recordFailure` joue sa règle (verrou échu, série de 24 h, incrément, verrou au 10ᵉ) dans un seul `UPDATE users … RETURNING metadata` sur la valeur en base (`MetadataDuCompte`) ; `clear`, le déblocage, `resetTwoFactor` et les deux enrôlements écrivent ou retirent leurs clés par `jsonb_set` ou `-` → 6 verts ; ablation (4 fichiers remis) → 6 rouges, correctif remis → 6 verts. Concurrence réelle jouée hors suite (deux sessions psql, base jetable) : l'`UPDATE` qui attend le verrou rend 2 et garde le drapeau. `PasswordLoginLockTest`, `LoginFailureWindowTest`, `ThirdPartyLockTest`, `UserSupportTest`, `ForceTwoFactorReconfigureTest`, `OAuthDefiAvantFacteurTest`, `SuperAdminCooptationTest`, `TwoFactorTest`, `AuthLoginTest` restent verts (73).
 
 ### La modification d'une intervention réécrit sa `metadata` depuis la fiche liée à la route, et efface l'escalade posée entre-temps
 - Réf : P245.03
@@ -7888,7 +7889,7 @@ de l'angle 238 (retiré), charge 1,69 / 1,71 / 2,01 sur 8 cœurs.*
 
 ### L'annulation remboursée d'une Vedette rend les jours d'avant une prolongation achetée pendant le geste : les crédits de la prolongation sont perdus
 - Réf : P246.01
-- Statut : validé — validation du porteur (2026-10-25) : le remboursement de crédits d'une Vedette se calcule sur le boost relu sous verrou dans la transaction de `closeWithRefund`
+- Statut : fait · TCK-2367
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Boost/BoostLifecycle.php:114-134,143-166,311-345`, `takussan-api/app/Services/Boost/BoostPurchaseService.php:203-249`, `takussan-api/app/Http/Controllers/Api/Admin/AdminBoostController.php:40-44`
 - Constat :
@@ -7901,10 +7902,11 @@ de l'angle 238 (retiré), charge 1,69 / 1,71 / 2,01 sur 8 cœurs.*
 - Piste : relire le boost sous verrou dans la transaction de `closeWithRefund` et y calculer `refundableCredits`, ou réclamer aussi sur `ends_at`, `remaining_seconds` et `duration_days` lus, comme `claimTransition`, et rejouer sur la ligne à jour si la réclamation échoue. Garde : prolongation commitée après la lecture de l'annulation → remboursement calculé sur la ligne relue.
 - Mesure (2026-10-25, db3e25230, mesureur) : relu `BoostLifecycle::closeWithRefund` l. 311-347 (`refundableCredits($boost)` calculé l. 313 sur le modèle reçu, hors de la transaction ; la réclamation l. 322 ne juge que le statut) ; test temporaire (aides de `FeaturedExtensionRefundTest`) : Vedette de 7 jours achetée, un jour plus tard le boost est lu, une seconde Vedette de 7 jours est achetée (prolongation commitée), puis `cancel($lu, true, …)` → `refunded_credits = 17`, alors que `refundableCredits` sur la ligne relue rend 37 ; solde 460 → 477 au lieu de 497 → le constat tient tel quel. Classement : V1, la piste change le nombre de crédits rendus.
 - Mesure (2026-10-25, b9c58e007, humain) : validation du porteur en bloc (2026-10-25), second tour, sur les recommandations (a) de la session ; statut précédent : « retenu · à valider — V1 : calcul d'un remboursement de crédits ».
+- Mesure (2026-10-25, dd9e72567, implementeur) : rejoué par `tests/Feature/Boost/AnnulationRembourseeFaceAProlongationTest.php` avant correctif (Vedette de 7 jours, lue un jour plus tard, prolongée de 7 jours, puis `cancel($lu, true, …)`) → rouge : 17 rendus au lieu de 37. Correctif : `closeWithRefund` relit le boost vivant sous `lockForUpdate` dans sa transaction et y calcule `refundableCredits` et le plan → 37 rendus, solde 497 ; ablation (`BoostLifecycle` remis) → rouge (17), correctif remis → vert. `FeaturedExtensionRefundTest`, `BoostPauseAndRefundTest`, `BoostTransitionClaimTest`, `CreditMovementObjectTest` restent verts.
 
 ### Petites améliorations
 - Réf : P246.02
-- Statut : validé — validation du porteur (2026-10-25) : les montants d'une demande de séjour se calculent sur le bien relu sous verrou
+- Statut : fait · TCK-2367
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Controllers/Public/PublicPropertyController.php:962,1008-1027`
 - Constat :
@@ -7913,6 +7915,7 @@ de l'angle 238 (retiré), charge 1,69 / 1,71 / 2,01 sur 8 cœurs.*
 - Piste : garder le bien relu sous verrou et y calculer les montants, ou refuser la demande si le prix lu a changé.
 - Mesure (2026-10-25, db3e25230, mesureur) : relu `PublicPropertyController::bookingRequest` l. 962-970 (montants calculés sur le bien lié), l. 1009 (`lockForUpdate()->first()`, résultat jeté) et l. 1026-1027 (montants calculés avant le verrou, écrits tels quels) ; test temporaire : bien `daily` à 50 000, prix passé à 80 000 en base par un écouteur `Property::retrieved` à la première lecture du bien, puis demande de 3 nuits → `total_amount = 150000.00`, `deposit_amount = 45000.00`, alors que le prix en base est de 80 000 → la demande naît à l'ancien prix, et le constat tient. Classement : V1, la piste choisit entre recalculer le montant sous le verrou et refuser la demande.
 - Mesure (2026-10-25, b9c58e007, humain) : validation du porteur en bloc (2026-10-25), second tour, sur les recommandations (a) de la session ; statut précédent : « retenu · à valider — V1 : montant d'une demande de séjour ».
+- Mesure (2026-10-25, dd9e72567, implementeur) : rejoué par `tests/Feature/Public/DemandeDeSejourAuPrixReluTest.php` avant correctif (bien `daily` à 50 000, prix passé à 80 000 par l'écouteur `retrieved` à la liaison, 3 nuits) → rouge : le total de la demande diffère du devis du prix relu (`240000.00`). Correctif : `bookingRequest` garde le bien relu sous `lockForUpdate()->firstOrFail()` et y calcule total, acompte et devise → vert ; ablation (contrôleur remis) → rouge, correctif remis → vert. `PropertyBookingRequestTest`, `BookingGuestsTest`, `BookingAvailabilityTest`, `BookingRequestNotificationTest`, `BookingRefuseeSansFicheClientTest`, `ReservationRejoueeTest` et deux classes CRM restent verts (51).
 
 ## Angle 247 — Archive RGPD `DataExportBuilder::payloads` : clauses par colonne d'auteur ou d'encaisseur
 
