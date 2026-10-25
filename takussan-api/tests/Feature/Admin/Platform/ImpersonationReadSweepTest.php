@@ -314,7 +314,7 @@ class ImpersonationReadSweepTest extends TestCase
 
     private function retenue(Agency $agence, Property $property, User $bailleur, Customer $locataire): Lease
     {
-        $bail = Lease::factory()->create([
+        $bail = Lease::factory()->withCollectedDeposit()->create([
             'agency_id' => $agence->id,
             'landlord_id' => $bailleur->id,
             'tenant_id' => $locataire->id,

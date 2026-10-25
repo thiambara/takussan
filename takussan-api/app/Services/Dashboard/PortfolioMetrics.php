@@ -339,8 +339,7 @@ class PortfolioMetrics
             ->join('leases', 'leases.id', '=', 'lease_payments.lease_id')
             ->whereNull('leases.deleted_at')
             ->where(fn (Builder $q) => $scope->leases($q))
-            ->where('lease_payments.status', PaymentStatus::Paid->value)
-            ->whereIn('lease_payments.payment_type', [LeasePaymentType::Deposit->value, LeasePaymentType::DepositRefund->value])
+            ->paidDepositMovements()
             ->selectRaw('COALESCE(SUM(CASE WHEN lease_payments.payment_type = ? THEN lease_payments.amount ELSE -lease_payments.amount END), 0) AS held', [LeasePaymentType::Deposit->value])
             ->value('held');
 

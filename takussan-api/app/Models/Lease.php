@@ -8,10 +8,12 @@ use App\Models\Bases\Auditable;
 use App\Models\Enums\Currency;
 use App\Models\Enums\InvoiceKind;
 use App\Models\Enums\InvoiceStatus;
+use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\LeaseType;
 use App\Models\Enums\PayeeRole;
 use App\Models\Enums\PaymentFrequency;
+use App\Services\Lease\LeaseRenewalService;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -394,6 +396,13 @@ class Lease extends AbstractModel implements HasMedia
      * Caution restant à rembourser (deposit_amount − deposit_refunded_amount − la retenue vivante),
      * borné à 0. Lecture seule.
      *
+     * TCK-2375 (P04.10, ADR-0039, amendement du 2026-10-25 sur la caution) — la caution ne se rend
+     * que si elle est entrée : la base est le plus petit du montant écrit au bail et de la caution
+     * encaissée ({@see collectedDeposit()}). Une restitution déjà faite au-delà n'est ni réécrite ni
+     * annulée : le reste vaut 0, et rien d'autre ne change. La caution d'une chaîne de
+     * renouvellements est une seule caution : ce qu'un bail antérieur en a déjà rendu ou retenu ne
+     * se rend pas une seconde fois.
+     *
      * VERIF-594 passe 4 (P4-1, P4-2) — ce qui est retenu est réglé autant que ce qui est rendu : une
      * restitution partielle retient le reste par une facture, et la caution est soldée. Sans la
      * retenue, une seconde restitution partielle facturait une retenue de plus, et une restitution
@@ -401,10 +410,58 @@ class Lease extends AbstractModel implements HasMedia
      */
     public function getDepositRemainingAttribute(): float
     {
-        $total = (float) ($this->deposit_amount ?? 0);
+        $total = min((float) ($this->deposit_amount ?? 0), $this->collectedDeposit());
         $refunded = (float) ($this->deposit_refunded_amount ?? 0);
+        foreach ($this->renewalAncestors() as $ancestor) {
+            $refunded += (float) ($ancestor->deposit_refunded_amount ?? 0) + $ancestor->liveDepositRetention();
+        }
 
         return max(round($total - $refunded - $this->liveDepositRetention(), 2), 0.0);
+    }
+
+    /**
+     * TCK-2375 (P04.10) — la caution réellement encaissée : la somme des échéances `deposit` payées du
+     * bail et des baux qu'il renouvelle, la définition des cautions détenues des rapports
+     * ({@see LeasePayment::scopePaidDepositMovements()}). L'échéancier écrit l'échéance de caution à
+     * l'activation, jamais pour un renouvellement (`LeaseService::writeDepositInstalment`) : celle du
+     * bail d'origine reste la sienne. Une caution reçue hors plateforme y entre par le `mark-paid` de
+     * son échéance (TCK-681).
+     */
+    public function collectedDeposit(): float
+    {
+        if ($this->getKey() === null) {
+            return 0.0;
+        }
+
+        $leaseIds = [$this->getKey(), ...array_map(fn (self $ancestor) => $ancestor->getKey(), $this->renewalAncestors())];
+
+        return round((float) LeasePayment::query()
+            ->whereIn('lease_id', $leaseIds)
+            ->paidDepositMovements()
+            ->where('payment_type', LeasePaymentType::Deposit->value)
+            ->sum('amount'), 2);
+    }
+
+    /**
+     * Les baux que celui-ci renouvelle, du parent à la racine. Bornée comme
+     * `LeaseRenewalService::root()`, contre une filiation corrompue.
+     *
+     * @return list<self>
+     */
+    private function renewalAncestors(): array
+    {
+        $ancestors = [];
+        $parentId = $this->renewed_from_lease_id;
+        while ($parentId !== null && count($ancestors) < LeaseRenewalService::MAX_CHAIN_DEPTH * 2) {
+            $parent = self::query()->find($parentId);
+            if ($parent === null) {
+                break;
+            }
+            $ancestors[] = $parent;
+            $parentId = $parent->renewed_from_lease_id;
+        }
+
+        return $ancestors;
     }
 
     /**
