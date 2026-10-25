@@ -1,7 +1,7 @@
 ---
 id: TCK-997
 title: "Le bailleur se désigne à la saisie du bien : le bail, les reversements, le relevé, la copie et le lot le suivent (P15.06, P50.01 à P50.03)"
-status: doing
+status: done
 phase: P1
 family: applicatif
 estimate: L
@@ -147,34 +147,34 @@ Lot C — écrans :
 
 Chaque test est rouge sans son correctif (ablation consignée dans les notes).
 
-- [ ] AC1 — Agence `standard`, un agent, un bailleur B actif : l'agent crée un bien avec
+- [x] AC1 — Agence `standard`, un agent, un bailleur B actif : l'agent crée un bien avec
   `owner_id` = B → 201, `properties.user_id` = B en base ; pour B, `GET /api/properties` le liste,
   `GET /api/properties/{id}` → 200, et B a une notification `property.assigned_to_owner` qui cite
   ce bien. *Un champ accepté puis ignoré échoue sur `user_id` ; une notification envoyée à l'auteur
   échoue sur le destinataire.*
-- [ ] AC2 — `owner_id` = un bailleur d'une autre agence, un profil `draft`, `inactive` ou
+- [x] AC2 — `owner_id` = un bailleur d'une autre agence, un profil `draft`, `inactive` ou
   `blocked`, ou un agent de l'agence → 422, aucun bien créé (compte inchangé), aucune notification.
-- [ ] AC3 — B, bailleur sans `properties.create`, propose un bien avec `owner_id` = un autre
+- [x] AC3 — B, bailleur sans `properties.create`, propose un bien avec `owner_id` = un autre
   bailleur → 422 ; sans le champ, le bien proposé a B pour titulaire.
-- [ ] AC4 — L'agent crée un bail sur le bien de AC1 en envoyant `landlord_id` = lui-même → 201,
+- [x] AC4 — L'agent crée un bail sur le bien de AC1 en envoyant `landlord_id` = lui-même → 201,
   `leases.landlord_id` = B ; pour B, `GET /api/leases` → `total = 1`. Le formulaire de bail affiche
   le nom de B (test front qui échoue sur le libellé « utilisateur courant »).
-- [ ] AC5 — Un loyer de ce bail est payé : `POST /api/payouts` vers B → 201 ; le relevé de B lu par
+- [x] AC5 — Un loyer de ce bail est payé : `POST /api/payouts` vers B → 201 ; le relevé de B lu par
   l'admin → 200 et `gross` = ce loyer ; `payouts:send-owner-statements` pour la période → un avis à
   B. *Rejoue la mesure de P50.01, qui rendait 0 partout.*
-- [ ] AC6 — L'admin duplique le bien de B → la copie a `user_id` = B ; dupliquer un bien dont le
+- [x] AC6 — L'admin duplique le bien de B → la copie a `user_id` = B ; dupliquer un bien dont le
   titulaire est du personnel garde le comportement actuel (titulaire = l'acteur).
-- [ ] AC7 — L'agent crée un lot avec `parent_id` = le bien de B, sans `owner_id` → `user_id` = B,
+- [x] AC7 — L'agent crée un lot avec `parent_id` = le bien de B, sans `owner_id` → `user_id` = B,
   et B ouvre le lot (`GET /api/properties/{lot}` → 200) qu'il lit dans
   `GET /api/properties/{bien}/children`. Avec `owner_id` = un autre bailleur → 422. Rattacher par
   `PUT` au bien de B un lot d'un autre bailleur, ou un lot tenu par le personnel → 422, `parent_id`
   et `user_id` inchangés en base.
-- [ ] AC8 — L'agent crée un bien sans `owner_id` → `user_id` = l'agent (bien de l'agence) ; un loyer
+- [x] AC8 — L'agent crée un bien sans `owner_id` → `user_id` = l'agent (bien de l'agence) ; un loyer
   payé sur un bail de ce bien : le relevé de l'agent est lisible par l'admin (200, aujourd'hui 403)
   et `payouts:send-owner-statements` lui envoie l'avis ; un utilisateur qui n'est ni bailleur ni
   personnel de l'agence → relevé 403 et aucun avis.
-- [ ] AC9 — Agence `individual` : `owner_id` envoyé → 422 ; sans lui, titulaire = le créateur.
-- [ ] AC10 — La désignation laisse une ligne `activity_log` `Property` / `owner_designated` (auteur,
+- [x] AC9 — Agence `individual` : `owner_id` envoyé → 422 ; sans lui, titulaire = le créateur.
+- [x] AC10 — La désignation laisse une ligne `activity_log` `Property` / `owner_designated` (auteur,
   bailleur) et aucune ligne `updated` qui changerait `user_id`.
 
 ## Hors périmètre
@@ -187,6 +187,65 @@ Chaque test est rouge sans son correctif (ablation consignée dans les notes).
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+Implémenté le 2026-10-25 par l'implémenteur (lot L12a), branche `feat/tck-997-bailleur-designe-a-la-saisie`
+depuis `origin/pre-dev`. Commits : `8947b5597` (lot A), `4fef72314` (ADR-0036, amendement du
+2026-10-25), `7c3af271e` (lot B), `8ab79c71b` (lot C).
+
+**Où vit la règle.**
+
+- `App\Services\Property\TitulaireALaSaisie` : le titulaire à la saisie, au lot et à la copie, et
+  l'annonce (`owner_designated` + `property.assigned_to_owner`). `StorePropertyRequest` ouvre
+  `parent_id` à la création : le parent doit exister, être de l'agence visée, laisser une
+  profondeur ≤ `HierarchyService::MAX_DEPTH`, et l'auteur doit pouvoir le modifier — sinon **403**,
+  y compris pour un parent absent (pas d'oracle d'existence).
+- `App\Services\Payout\BeneficiaireDuReversement::est` : le prédicat unique (bailleur de tout
+  statut, ou personnel actif par `isStaffAt`), lu par `PayoutService::create`,
+  `PayoutPreparationService::prepare`, `OwnerStatementPolicy::isLandlordAt` (hors branche
+  effacée de TCK-2015, inchangée), `SendOwnerStatements` et `AccountDeletionService::agenciesOwingPayout`.
+  `collectOpenObligations` n'est pas touchée (lot D1).
+- Aucune migration : aucun `user_id` existant n'est réécrit (contrainte de P15.06).
+
+**Ablations** (chaque test rouge sans son correctif, puis rétabli vert) :
+
+- Lot A — A1 `user_id` = l'auteur : AC1, AC4, AC10 et deux AC7 rouges ; A2 sans contrôle du
+  bailleur actif : 7 cas d'AC2 ; A3 proposition / `individual` admises : AC3, AC9 ; A4 sans 422 au
+  `PUT parent_id` : 2 ; A5 copie à l'acteur : AC6 ; A6 sans annonce : 4 ; A7 sans héritage du
+  parent : 1 ; A8 sans contrôle parent ≠ `owner_id` à la création : 1 ; A9 `update` du parent non
+  exigé : 1 ; A10 sans règle « même agence » : 1 ; A11 sans borne de profondeur : 1.
+- Lot B — B1 relevé limité à `OwnerProfile` : AC8 ; B2 avis limité à `OwnerProfile` : AC8 ; B3
+  reversement, personnel de tout statut : P232.07 ; B4 préparation, idem : P232.07 ; B5 effacement
+  sans le prédicat : 2 ; B6 personnel de tout statut dans le prédicat : rouge ; B7 bailleur actif
+  seulement : le test du bailleur bloqué rouge.
+- Lot C — F1 `avecBailleur` qui ignore le choix : 2 rouges (unitaire et parcours) ; F2 l'assistant
+  qui n'envoie pas le choix : 1 ; F3 invité sans compte proposé : 1 ; L1 la ligne du bail qui nomme
+  l'utilisateur courant : 2 ; P1 page sans exiger `properties.update_any` : 1 ; P2 page sans
+  exiger une agence `standard` : 2.
+
+**Choix faits, à relire.**
+
+- L'écran n'offre le choix du bailleur qu'au personnel qui tient `properties.create` **et**
+  `properties.update_any` : le bien désigné n'est plus le sien, et les écritures qui suivent la
+  création dans l'assistant (équipements, photos, contacts) exigent `update` sur lui — l'agent du
+  rôle système, qui n'a pas `update_any`, verrait son parcours échouer après la création. L'API,
+  elle, accepte `owner_id` de tout personnel tenant `properties.create`, comme le ticket l'écrit.
+  Corollaire : un agent sans `update_any` qui désigne B par l'API perd l'édition du bien.
+- Le choix liste **tous** les bailleurs actifs (toutes les pages), sans champ de recherche :
+  `filter[search]` des profils propriétaires ne cherche que `employer` (TCK-601), il ne trouverait
+  aucun nom. Un bailleur invité sans compte (`user_id` nul) n'est pas proposé (Q2, TCK-1000).
+- Aucun écran ne crée de lot (`grep -rn parent_id takussan-web/src` → 0) : « le bailleur du parent
+  repris et non modifiable » n'a pas d'écran ; l'API le tient (AC7).
+- Créer un lot exige `update` sur le parent (`updateParent`, comme au `PUT`) : l'agent d'AC7 tient
+  `properties.update_any`.
+- Un compte qui est à la fois bailleur et personnel de l'agence n'est pas désignable (« jamais un
+  agent de l'agence ») ; tout `owner_id` sur une proposition → 422, même le sien.
+- Le lot et la copie annoncent la désignation (`via` = `parent` ou `duplicate`) comme la saisie.
+- La garde `!proposition` de la page est redondante avec la capacité (une proposition ne tient pas
+  `properties.create`) : elle évite une lecture, aucun test ne la distingue.
+
+**Vérifications.** API : les quatre classes du ticket et 30 classes voisines (propriété, reversement,
+relevé, effacement, notifications, contrat du front, baux) vertes ; Pint propre. Front : 66 fichiers
+voisins verts (570 tests), `tsc --noEmit`, `npm run lint`, `check:i18n`, `check:i18n-namespaces`,
+`check:classes-emises` propres. Gardes du dépôt vertes. La suite entière n'a pas été lancée
+(consignes : c'est la session qui la lance).
 
 - À la fusion : retirer de `docs/models-spec.md` §3 la marque « à venir » de la désignation du bailleur à la saisie et du titulaire bailleur d'un lot (ligne `user_id`), et mettre à jour la phrase « Aujourd'hui » (passe `/sync-specs` 015, MD7).
