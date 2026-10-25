@@ -342,7 +342,7 @@ class EdgeCaseSeeder extends Seeder
             'updated_at' => now()->subMonths(6),
         ]);
 
-        // 3. Customer Converti (recevra une activité via ReferentialIntegrityChecker)
+        // 3. Customer Converti sans activité — un cas limite, que rien ne « répare » (TCK-2376)
         Customer::create([
             'user_id' => null,
             'agency_id' => $agencyId,

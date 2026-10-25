@@ -3,9 +3,12 @@
 namespace Database\Seeders\Activity;
 
 use App\Models\Enums\InvoiceStatus;
+use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\LeaseStatus;
+use App\Models\Enums\PaymentStatus;
 use App\Models\Invoice;
 use App\Models\Lease;
+use App\Models\LeasePayment;
 use Carbon\CarbonImmutable;
 use Database\Seeders\Support\SeedingContext;
 use Database\Seeders\Support\Timeline;
@@ -37,9 +40,23 @@ class InvoiceSeeder extends Seeder
                 ? Timeline::seedEnd()->startOfMonth()
                 : CarbonImmutable::parse($lease->end_date)->startOfMonth());
 
+        // TCK-2376 — la facture d'un mois dit ce qu'est devenue l'échéance de ce mois. Écrite `paid`
+        // à toute date passée, elle l'était aussi sur 273 loyers restés impayés.
+        $echeances = LeasePayment::query()
+            ->where('lease_id', $lease->id)
+            ->where('payment_type', LeasePaymentType::Rent->value)
+            ->get(['period_start', 'status'])
+            ->keyBy(fn (LeasePayment $p) => CarbonImmutable::parse($p->period_start)->format('Y-m'));
+
         $cursor = $start;
         while ($cursor->lessThanOrEqualTo($end)) {
-            Invoice::withoutEvents(function () use ($lease, $cursor) {
+            $status = match ($echeances->get($cursor->format('Y-m'))?->status) {
+                PaymentStatus::Paid => InvoiceStatus::Paid,
+                PaymentStatus::Late => InvoiceStatus::Overdue,
+                default => InvoiceStatus::Sent,
+            };
+
+            Invoice::withoutEvents(function () use ($lease, $cursor, $status) {
                 Invoice::create([
                     'invoiceable_id' => $lease->id,
                     'invoiceable_type' => Lease::class,
@@ -47,9 +64,7 @@ class InvoiceSeeder extends Seeder
                     'issued_by_id' => null,
                     'agency_id' => $lease->agency_id,
                     'reference_number' => 'INV-'.strtoupper(Str::random(8)),
-                    'status' => $cursor->lessThan(Timeline::seedEnd())
-                        ? InvoiceStatus::Paid->value
-                        : InvoiceStatus::Sent->value,
+                    'status' => $status->value,
                     'issue_date' => $cursor->toDateString(),
                     'due_date' => $cursor->addDays(15)->toDateString(),
                     'subtotal' => $lease->monthly_rent,

@@ -41,27 +41,32 @@ class PropertySeeder extends Seeder
             return;
         }
 
+        // TCK-2376 — le contrat d'abord, le statut ensuite : `sold` n'existe que pour un bien à vendre,
+        // et `rented` ne se tire plus — il se DÉDUIT des baux actifs (LeaseSeeder). Tiré ici, il
+        // laissait 96 biens « loués » sans bail, que le vérificateur de fin de pipeline « réparait »
+        // en fabriquant des baux au loyer égal au prix du bien, ventes comprises.
         $statusCounts = StatusDistribution::split($this->ctx->config->propertiesPerAgency, [
-            PropertyStatus::Available->value => 72,
-            PropertyStatus::Rented->value => 15,
-            PropertyStatus::Sold->value => 5,
-            PropertyStatus::UnderMaintenance->value => 3,
-            PropertyStatus::Archived->value => 2,
-            PropertyStatus::Draft->value => 3,
+            ContractType::Rent->value.'|'.PropertyStatus::Available->value => 61,
+            ContractType::Rent->value.'|'.PropertyStatus::UnderMaintenance->value => 3,
+            ContractType::Rent->value.'|'.PropertyStatus::Archived->value => 2,
+            ContractType::Rent->value.'|'.PropertyStatus::Draft->value => 4,
+            ContractType::Sale->value.'|'.PropertyStatus::Available->value => 22,
+            ContractType::Sale->value.'|'.PropertyStatus::Sold->value => 5,
+            ContractType::Sale->value.'|'.PropertyStatus::Archived->value => 1,
+            ContractType::Sale->value.'|'.PropertyStatus::Draft->value => 2,
         ]);
 
         $ownerIds = $owners->pluck('id')->values();
 
-        foreach ($statusCounts as $status => $count) {
+        foreach ($statusCounts as $key => $count) {
+            [$contractValue, $status] = explode('|', $key);
             for ($i = 0; $i < $count; $i++) {
                 $createdAt = Timeline::randomDateBetween(
                     Timeline::seedStart(),
                     Timeline::seedEnd()->subDays(7),
                 );
                 $ownerId = $ownerIds->random();
-                $contract = $this->ctx->faker()->boolean(70)
-                    ? ContractType::Rent
-                    : ContractType::Sale;
+                $contract = ContractType::from($contractValue);
 
                 // ~80% Dakar (avec pricing par quartier), ~20% autres villes du Sénégal.
                 $isDakar = $this->ctx->faker()->boolean(80);

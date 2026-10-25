@@ -98,7 +98,9 @@ class YearOfActivitySeeder extends Seeder
         AppNotificationSeeder::class,
         NotificationPreferenceSeeder::class,
         ActivityLogBackfillSeeder::class,
-        // Post-processing (doit être en dernier)
+        // TCK-2376 — le vérificateur juge le jeu RÉALISTE, donc AVANT les fixtures : les cas limites et
+        // la couverture des filtres violent ses invariants exprès (et ne sont semés que sur demande).
+        PostProcessingSeeder::class,
         FilterCoverageSeeder::class,
         EdgeCaseSeeder::class,
         // PropertyMediaSeeder runs last so properties created by FilterCoverage
@@ -106,7 +108,6 @@ class YearOfActivitySeeder extends Seeder
         // skips any that already have files in the `photos` collection, so
         // it stays idempotent.
         PropertyMediaSeeder::class,
-        PostProcessingSeeder::class,
     ];
 
     /**
@@ -140,7 +141,9 @@ class YearOfActivitySeeder extends Seeder
 
     public function run(): void
     {
-        $this->config = SeedingConfig::fromEnv();
+        // Une configuration liée au conteneur l'emporte sur l'environnement : c'est la porte des tests,
+        // qui sèment un jeu réduit sans toucher aux variables du processus.
+        $this->config = app()->bound(SeedingConfig::class) ? app(SeedingConfig::class) : SeedingConfig::fromEnv();
         $this->prepareEnvironment();
 
         $context = new SeedingContext($this->config);

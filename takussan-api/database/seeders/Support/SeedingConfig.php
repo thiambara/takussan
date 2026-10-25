@@ -34,9 +34,9 @@ class SeedingConfig
         public int $maintenanceRequestsPerAgency = 50,
         public int $conversationsPerAgency = 60,
         public int $documentsPerAgency = 40,
-        public bool $includeEdgeCases = true,
+        public bool $includeEdgeCases = false,
         public bool $ensureReferentialIntegrity = true,
-        public bool $includeFilterCoverage = true,
+        public bool $includeFilterCoverage = false,
         public bool $includeDemoUsers = true,
         public bool $downloadMedia = false,
     ) {}
@@ -55,9 +55,9 @@ class SeedingConfig
             maintenanceRequestsPerAgency: 50,
             conversationsPerAgency: 60,
             documentsPerAgency: 40,
-            includeEdgeCases: true,
+            includeEdgeCases: false,
             ensureReferentialIntegrity: true,
-            includeFilterCoverage: true,
+            includeFilterCoverage: false,
             downloadMedia: false,
         );
     }
@@ -119,9 +119,12 @@ class SeedingConfig
             maintenanceRequestsPerAgency: (int) env('SEED_MAINTENANCE_PER_AGENCY', 50),
             conversationsPerAgency: (int) env('SEED_CONVERSATIONS_PER_AGENCY', 60),
             documentsPerAgency: (int) env('SEED_DOCUMENTS_PER_AGENCY', 40),
-            includeEdgeCases: (bool) env('SEED_EDGE_CASES', true),
+            // TCK-2376 — les cas limites et la couverture des filtres sont des FIXTURES : ils posent
+            // un loyer de 301 M XOF, des biens loués sans bail. Allumés par défaut, ils se mêlaient
+            // au jeu réaliste et à ses tableaux de bord ; ils se demandent désormais.
+            includeEdgeCases: (bool) env('SEED_EDGE_CASES', false),
             ensureReferentialIntegrity: (bool) env('SEED_REFERENTIAL_INTEGRITY', true),
-            includeFilterCoverage: (bool) env('SEED_FILTER_COVERAGE', true),
+            includeFilterCoverage: (bool) env('SEED_FILTER_COVERAGE', false),
             includeDemoUsers: (bool) env('SEED_DEMO_USERS', true),
             downloadMedia: (bool) env('SEED_DOWNLOAD_MEDIA', false),
         );

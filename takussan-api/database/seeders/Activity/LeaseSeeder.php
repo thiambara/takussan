@@ -2,12 +2,14 @@
 
 namespace Database\Seeders\Activity;
 
+use App\Models\Enums\ContractType;
 use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\LeaseType;
 use App\Models\Enums\PaymentFrequency;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Lease;
 use App\Models\Property;
+use App\Support\Search\PropertyLabels;
 use Database\Seeders\Support\SeedingContext;
 use Database\Seeders\Support\StatusDistribution;
 use Database\Seeders\Support\Timeline;
@@ -31,7 +33,13 @@ class LeaseSeeder extends Seeder
 
     private function seedAgencyLeases(int $agencyId): void
     {
-        $properties = $this->ctx->propertiesByAgency[$agencyId] ?? collect();
+        // TCK-2376 — un bail de location ne porte que sur un bien EN LOCATION, publié et bâti : tiré
+        // dans tout le parc, il tombait sur des biens à vendre (172 baux sur 584) et sur des terrains.
+        $properties = ($this->ctx->propertiesByAgency[$agencyId] ?? collect())
+            ->filter(fn (Property $p) => $p->contract_type === ContractType::Rent
+                && $p->status === PropertyStatus::Available
+                && self::typeDeBailPour($p) !== null)
+            ->values();
         $customers = $this->ctx->customersByAgency[$agencyId] ?? collect();
         if ($properties->isEmpty() || $customers->isEmpty()) {
             return;
@@ -56,14 +64,17 @@ class LeaseSeeder extends Seeder
                 );
                 $endDate = $startDate->addYear();
 
-                $monthlyRent = $this->ctx->faker()->numberBetween(200_000, 1_800_000);
+                // Le loyer du bail est celui que l'annonce affiche, à la négociation près (±10 %,
+                // arrondi à 5 000) : tiré sans lien avec le prix, il ne lui ressemblait pas.
+                $monthlyRent = (int) (round((float) $property->price * $this->ctx->faker()->randomFloat(2, 0.9, 1.1) / 5_000) * 5_000);
+                $depositAmount = $monthlyRent * ($property->deposit_months ?: 1);
                 $terminatedAt = $status === LeaseStatus::Terminated->value
                     ? Timeline::randomDateBetween($startDate->addMonths(2), Timeline::seedEnd())
                     : null;
 
                 $lease = Lease::withoutEvents(function () use (
                     $property, $customerIds, $agencyId, $status,
-                    $startDate, $endDate, $monthlyRent, $terminatedAt
+                    $startDate, $endDate, $monthlyRent, $depositAmount, $terminatedAt
                 ) {
                     return Lease::create([
                         'property_id' => $property->id,
@@ -71,13 +82,13 @@ class LeaseSeeder extends Seeder
                         'tenant_id' => $customerIds->random(),
                         'agency_id' => $agencyId,
                         'reference_number' => 'LS-'.strtoupper(Str::random(8)),
-                        'type' => LeaseType::ResidentialRent->value,
+                        'type' => self::typeDeBailPour($property)->value,
                         'status' => $status,
                         'start_date' => $startDate->toDateString(),
                         'end_date' => $endDate->toDateString(),
                         'monthly_rent' => $monthlyRent,
                         'currency' => 'XOF',
-                        'deposit_amount' => $monthlyRent,
+                        'deposit_amount' => $depositAmount,
                         'commission_rate' => $this->ctx->faker()->randomFloat(2, 5, 10),
                         'payment_frequency' => PaymentFrequency::Monthly->value,
                         'payment_day' => 5,
@@ -103,5 +114,18 @@ class LeaseSeeder extends Seeder
             Property::whereIn('id', $rentedPropertyIds)
                 ->update(['status' => PropertyStatus::Rented->value]);
         }
+    }
+
+    /**
+     * Le type de bail que le bien admet : résidentiel pour une habitation, commercial pour un local
+     * professionnel, aucun pour du foncier.
+     */
+    private static function typeDeBailPour(Property $property): ?LeaseType
+    {
+        return match (PropertyLabels::famille($property->type)) {
+            PropertyLabels::FAMILLE_HABITATION => LeaseType::ResidentialRent,
+            PropertyLabels::FAMILLE_PROFESSIONNEL => LeaseType::CommercialRent,
+            default => null,
+        };
     }
 }

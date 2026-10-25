@@ -37,13 +37,23 @@ class BookingSeeder extends Seeder
                     Timeline::seedEnd()->subDays(3),
                 );
 
-                $status = StatusDistribution::pick([
-                    BookingStatus::Completed->value => 40,
-                    BookingStatus::Expired->value => 20,
-                    BookingStatus::Cancelled->value => 15,
-                    BookingStatus::Confirmed->value => 15,
-                    BookingStatus::Pending->value => 10,
-                ]);
+                // TCK-2376 — une réservation n'est terminée qu'une fois commencée, et n'expire qu'une
+                // fois son délai passé : tirées sans regard pour la date, les réservations des
+                // derniers jours sortaient `completed` avant leur début.
+                $startDate = $createdAt->addDays(7);
+                $status = StatusDistribution::pick($startDate->isFuture()
+                    ? [
+                        BookingStatus::Confirmed->value => 45,
+                        BookingStatus::Pending->value => 40,
+                        BookingStatus::Cancelled->value => 15,
+                    ]
+                    : [
+                        BookingStatus::Completed->value => 40,
+                        BookingStatus::Expired->value => 20,
+                        BookingStatus::Cancelled->value => 15,
+                        BookingStatus::Confirmed->value => 15,
+                        BookingStatus::Pending->value => 10,
+                    ]);
 
                 $expiresAt = $createdAt->addDays(7);
                 $confirmedAt = in_array($status, [
@@ -63,7 +73,7 @@ class BookingSeeder extends Seeder
 
                 Booking::withoutEvents(function () use (
                     $propertyIds, $customerIds, $agentIds, $agency,
-                    $createdAt, $status, $expiresAt, $confirmedAt, $cancelledAt,
+                    $createdAt, $startDate, $status, $expiresAt, $confirmedAt, $cancelledAt,
                     $totalAmount, $depositAmount,
                 ) {
                     Booking::create([
@@ -76,7 +86,7 @@ class BookingSeeder extends Seeder
                         'total_amount' => $totalAmount,
                         'deposit_amount' => $depositAmount,
                         'currency' => 'XOF',
-                        'start_date' => $createdAt->addDays(7)->toDateString(),
+                        'start_date' => $startDate->toDateString(),
                         'end_date' => $createdAt->addMonth()->toDateString(),
                         'expires_at' => $expiresAt,
                         'confirmed_at' => $confirmedAt,

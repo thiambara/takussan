@@ -97,6 +97,13 @@ class FilterCoverageSeeder extends Seeder
 
     public function run(): void
     {
+        // TCK-2376 — l'étiquetage du catalogue appartient au jeu RÉALISTE : il tourne toujours. Seules
+        // les fixtures de couverture (biens, baux et clients fabriqués pour chaque valeur d'enum) se
+        // demandent par `SEED_FILTER_COVERAGE`.
+        foreach ($this->ctx->agencies as $agency) {
+            $this->tagExistingCatalog($agency->id);
+        }
+
         if (! $this->ctx->config->includeFilterCoverage) {
             return;
         }
@@ -105,7 +112,6 @@ class FilterCoverageSeeder extends Seeder
 
         foreach ($this->ctx->agencies as $agency) {
             $this->createFilterCoverageProperties($agency->id);
-            $this->tagExistingCatalog($agency->id);
             $this->createFilterCoverageLeases($agency->id);
             $this->createFilterCoverageCustomers($agency->id);
         }
