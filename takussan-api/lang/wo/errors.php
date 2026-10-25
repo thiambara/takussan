@@ -303,6 +303,8 @@ return [
         'renewal_parent_not_renewable' => 'Bayle bi ñuy yeesal du dox ba tey (yégle walla dakkal) : yeesal bii mënul a am doole. Dakkal ko, ba noppi defar beneen su soxlawee.',
         'schedule_exists' => 'Échéancier bi defar nañu ko ba noppi.',
         'terms_locked' => 'Sarti bayle bu ñu xaatim mënuñu leen soppi : defal ab yokk walla bayle bu bees.',
+        // P48.03 (TCK-2352) — le bail tiré d'une réservation.
+        'tenant_not_booking_customer' => "Le locataire d'un bail tiré d'une réservation est le client de cette réservation.",
     ],
     'lease_signature' => [
         'already_signed' => 'Xaatim nga kontraa bii ba noppi.',

@@ -303,6 +303,8 @@ return [
         'renewal_parent_not_renewable' => 'The renewed lease is no longer in force (notice given or terminated): this renewal can no longer take effect. Terminate it, then create another one if needed.',
         'schedule_exists' => 'The payment schedule has already been generated.',
         'terms_locked' => 'The terms of a signed lease can no longer be changed: draw up an amendment or a new lease.',
+        // P48.03 (TCK-2352) — le bail tiré d'une réservation.
+        'tenant_not_booking_customer' => 'The tenant of a lease created from a booking is the customer of that booking.',
     ],
     'lease_signature' => [
         'already_signed' => 'You have already signed this contract.',

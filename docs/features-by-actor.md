@@ -39,8 +39,8 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 
 1. [👤 Visiteur anonyme (pas encore de compte)](#visiteur-anonyme-pas-encore-de-compte) — 31 fonctionnalités
 2. [🏠 Locataire / Acheteur (Customer)](#locataire-acheteur-customer) — 86 fonctionnalités
-3. [🏢 Bailleur / Propriétaire (owner)](#bailleur-propriétaire-owner) — 83 fonctionnalités
-4. [🧑‍💼 Agent immobilier](#agent-immobilier) — 119 fonctionnalités
+3. [🏢 Bailleur / Propriétaire (owner)](#bailleur-propriétaire-owner) — 84 fonctionnalités
+4. [🧑‍💼 Agent immobilier](#agent-immobilier) — 120 fonctionnalités
 5. [🔧 Prestataire de service (service provider)](#prestataire-de-service-service-provider) — 17 fonctionnalités
 6. [🛡️ Admin d'agence / Super-admin](#admin-dagence-super-admin) — 122 fonctionnalités
 7. [👥 Tous les utilisateurs authentifiés](#tous-les-utilisateurs-authentifiés) — 68 fonctionnalités
@@ -306,6 +306,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | Prio | Domaine | Fonctionnalité |
 |------|---------|----------------|
 | P1 | §1.4 | Créer un bail (locataire, bailleur, durée, loyer, caution) |
+| P1 | §1.4 | Créer le bail depuis une candidature acceptée (« Créer le bail » sur la réservation confirmée d'un bien à louer) : bien, locataire, dates et loyer préremplis ; le locataire est le client de la réservation, et la réservation passe à « terminée », ce qui libère ses dates (P48.03, TCK-2352) |
 | P1 | §1.4 | Générer l'échéancier de loyers mensuels |
 | P1 | §1.4 | Enregistrer un paiement mensuel |
 | P1 | §1.4 | Alerte d'impayé au bailleur (J+1, J+7) et récapitulatif quotidien unique des impayés à l'agent (TCK-588) |
@@ -481,6 +482,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | Prio | Domaine | Fonctionnalité |
 |------|---------|----------------|
 | P1 | §1.4 | Créer un bail (locataire, bailleur, durée, loyer, caution) |
+| P1 | §1.4 | Créer le bail depuis une candidature acceptée (« Créer le bail » sur la réservation confirmée d'un bien à louer) : bien, locataire, dates et loyer préremplis ; le locataire est le client de la réservation, et la réservation passe à « terminée », ce qui libère ses dates (P48.03, TCK-2352) |
 | P1 | §1.4 | Ajouter un ou plusieurs garants avec documents joints |
 | P1 | §1.4 | Générer l'échéancier de loyers mensuels |
 | P1 | §1.4 | Relances de loyer automatiques (J-3, J+1, J+7) au locataire, y compris sans compte (téléphone du client), sur WhatsApp puis SMS en secours, dans sa langue ; un retard est relancé que le bail porte une pénalité ou non, et la relance annonce le solde restant dû (TCK-588) ; chaque relance part au plus une fois : celle que tous les fournisseurs SMS refusent n'est pas renvoyée et laisse une activité d'exploitation rattachée à l'échéance, sans le numéro (P207.01) ; pour un locataire sans compte, le SMS ne prend le relais que d'un échec immédiat de WhatsApp, pas d'un échec que Meta rapporte plus tard (P207.02) |
@@ -960,8 +962,8 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 
 ## Provenance
 
-- Source : [`features.md`](./features.md) — **387** lignes de fonctionnalité lues,
-  réparties en **526** placements (une ligne multi-acteurs compte une fois par acteur).
+- Source : [`features.md`](./features.md) — **388** lignes de fonctionnalité lues,
+  réparties en **528** placements (une ligne multi-acteurs compte une fois par acteur).
 - Générateur : `docs/gen-features-by-actor.mjs`.
 - Fraîcheur vérifiée en CI par `node docs/gen-features-by-actor.mjs --check`, qui échoue si
   cette sortie ne correspond plus à sa source.

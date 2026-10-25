@@ -303,6 +303,8 @@ return [
         'renewal_parent_not_renewable' => 'Le bail renouvelé n\'est plus en cours (préavis ou résiliation) : ce renouvellement ne peut plus prendre effet. Résiliez-le, puis créez-en un autre si besoin.',
         'schedule_exists' => 'L\'échéancier a déjà été généré.',
         'terms_locked' => 'Les conditions d\'un bail signé ne se modifient plus : établissez un avenant ou un nouveau bail.',
+        // P48.03 (TCK-2352) — le bail tiré d'une réservation.
+        'tenant_not_booking_customer' => "Le locataire d'un bail tiré d'une réservation est le client de cette réservation.",
     ],
     'lease_signature' => [
         'already_signed' => 'Vous avez déjà signé ce contrat.',

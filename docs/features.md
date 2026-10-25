@@ -184,6 +184,7 @@ Gestion complète d'un contrat de bail et de son cycle de vie.
 | Prio | Acteurs | Fonctionnalité |
 |------|---------|----------------|
 | P1 | 🏢🧑‍💼 | Créer un bail (locataire, bailleur, durée, loyer, caution) |
+| P1 | 🏢🧑‍💼 | Créer le bail depuis une candidature acceptée (« Créer le bail » sur la réservation confirmée d'un bien à louer) : bien, locataire, dates et loyer préremplis ; le locataire est le client de la réservation, et la réservation passe à « terminée », ce qui libère ses dates (P48.03, TCK-2352) |
 | P1 | 🧑‍💼 | Ajouter un ou plusieurs garants avec documents joints |
 | P1 | 🏢🧑‍💼 | Générer l'échéancier de loyers mensuels |
 | P1 | 🏠🏢 | Enregistrer un paiement mensuel |

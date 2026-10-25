@@ -9,13 +9,25 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: t('metaTitle') };
 }
 
-export default async function Page() {
+/** P48.03 (TCK-2352) — `?booking_id=…` : le bail tiré d'une candidature, prérempli. */
+function reservationDemandee(valeur: string | string[] | undefined): number | undefined {
+  const brut = Array.isArray(valeur) ? valeur[0] : valeur;
+  const id = Number(brut);
+  return Number.isInteger(id) && id > 0 ? id : undefined;
+}
+
+export default async function Page({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const t = await getTranslations('dashboard.pages.leaseNew');
   await getMeAction();
+  const bookingId = reservationDemandee((await searchParams).booking_id);
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <PageHeader title={t('title')} description={t('subtitle')} />
-      <CreateLeaseForm />
+      <CreateLeaseForm bookingId={bookingId} />
     </div>
   );
 }

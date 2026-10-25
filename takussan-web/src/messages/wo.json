@@ -2225,7 +2225,10 @@
         "quarterly": "Ci ñetti weer",
         "yearly": "Ci at"
       },
-      "customerFallback": "Customer #{id}"
+      "customerFallback": "Customer #{id}",
+      "fromBooking": "Bail tiré de la réservation {reference}",
+      "fromBookingHint": "Le bien et le locataire sont ceux de la réservation. À la création du bail, elle passe à « terminée » et libère ses dates.",
+      "fromBookingError": "La réservation n'a pas pu être chargée."
     },
     "payment": {
       "title": "Bind benn pey",
@@ -6244,7 +6247,8 @@
       "actions": {
         "accept": "Nangu",
         "reject": "Bañ",
-        "cancel": "Neenal réservasioŋ bi"
+        "cancel": "Neenal réservasioŋ bi",
+        "createLease": "Créer le bail"
       },
       "toasts": {
         "accepted": {

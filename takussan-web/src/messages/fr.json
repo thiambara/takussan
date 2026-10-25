@@ -3956,7 +3956,10 @@
         "quarterly": "Trimestriel",
         "yearly": "Annuel"
       },
-      "customerFallback": "Customer #{id}"
+      "customerFallback": "Customer #{id}",
+      "fromBooking": "Bail tiré de la réservation {reference}",
+      "fromBookingHint": "Le bien et le locataire sont ceux de la réservation. À la création du bail, elle passe à « terminée » et libère ses dates.",
+      "fromBookingError": "La réservation n'a pas pu être chargée."
     },
     "payment": {
       "title": "Enregistrer un paiement",
@@ -6897,7 +6900,8 @@
       "actions": {
         "accept": "Accepter",
         "reject": "Refuser",
-        "cancel": "Annuler la réservation"
+        "cancel": "Annuler la réservation",
+        "createLease": "Créer le bail"
       },
       "toasts": {
         "accepted": {

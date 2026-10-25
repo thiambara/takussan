@@ -14,7 +14,7 @@ import { formatCurrency, formatDate, formatDateTime } from '@/lib/format';
 import { ErrorState } from '@/components/feedback';
 import { ApiError } from '@/lib/api';
 import { StatusBadge } from '@/components/console';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Dialog,
@@ -30,6 +30,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useCanAll } from '@/hooks/useCan';
 import { isAgent, isAdmin, isOwner } from '@/lib/roles';
 import { jourDeLApi } from '@/lib/jour-de-l-api';
+import { cn } from '@/lib/utils';
 import type { Locale } from '@/i18n/config';
 import type { Booking, BookingPayment, BookingPaymentStatus } from '@/types/booking';
 import {
@@ -55,6 +56,7 @@ import type { GatewayProvider } from '@/hooks/useInitiatePayment';
 const CAPABILITY_VALIDATE = ['bookings.validate'] as const;
 const CAPABILITY_CANCEL = ['bookings.cancel'] as const;
 const CAPABILITY_RECORD_PAYMENT = ['payments.record'] as const;
+const CAPABILITY_CREATE_LEASE = ['leases.create'] as const;
 
 /**
  * TCK-292 — les tables ci-dessous transportent la CLÉ (relative au namespace `bookings`), le
@@ -150,6 +152,9 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
   const { can: canRecordPayments } = useCanAll(CAPABILITY_RECORD_PAYMENT, {
     enabled: isDashboardAgent,
   });
+  const { can: canCreateLeases } = useCanAll(CAPABILITY_CREATE_LEASE, {
+    enabled: isDashboardAgent,
+  });
   const toast = useToast();
 
   if (isLoading) {
@@ -201,6 +206,12 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
   const canConfirm = staffMay(canValidateBookings) && booking.status === 'pending';
   const canReject = staffMay(canValidateBookings) && booking.status === 'pending';
   const canRegisterPayment = staffMay(canRecordPayments);
+  // P48.03 (TCK-2352) — la candidature acceptée d'un bien à louer mène au bail prérempli. L'API
+  // vérifie que le locataire est le client de la réservation, et la passe à `completed`.
+  const canCreateLease =
+    staffMay(canCreateLeases) &&
+    booking.status === 'confirmed' &&
+    booking.property?.contract_type === 'rent';
 
   return (
     <div className="space-y-6">
@@ -244,6 +255,14 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
             >
               {t('actions.reject')}
             </Button>
+          )}
+          {canCreateLease && (
+            <Link
+              href={`/app/leases/new?booking_id=${booking.id}`}
+              className={cn(buttonVariants(), 'h-10 sm:h-8')}
+            >
+              {t('actions.createLease')}
+            </Link>
           )}
           {canRegisterPayment && (
             <Button variant="outline" className="h-10 sm:h-8" onClick={() => setPaymentOpen(true)}>

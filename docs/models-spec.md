@@ -803,7 +803,7 @@ vide), utilisé par les PDF.
 | created_by_id | FK users | oui | null | Utilisateur ayant créé la réservation (`nullOnDelete`) | ✏️ ancien `user_id` |
 | agency_id | FK agencies | oui | null | Agence du bien (`nullOnDelete`) | |
 | reference_number | string | oui | null | Numéro de référence (unique) | |
-| status | BookingStatus | | 'pending' | Statut de la réservation | |
+| status | BookingStatus | | 'pending' | Statut de la réservation — passe à `completed` au lendemain de sa fin (`CompleteEndedBookingsJob`), ou, encore `pending` ou `confirmed`, à la création du bail qui en est tiré (`LeaseService::create`, P48.03, TCK-2352) : ses nuits ne bloquent plus | |
 | total_amount | decimal(14,2) | | | Montant total de la réservation (NOT NULL) | |
 | deposit_amount | decimal(14,2) | oui | null | Montant de l'acompte demandé | |
 | currency | Currency | | 'XOF' | Devise (string(3)) | |
@@ -1346,7 +1346,7 @@ Relation : `agency()` (belongsTo). Un admin d'agence ne lit que `agency_id = <ag
 | landlord_id | FK users | | | Propriétaire / bailleur (`restrictOnDelete`) |
 | tenant_id | FK customers | | | Locataire / acheteur (`restrictOnDelete`) |
 | agency_id | FK agencies | oui | null | Agence intermédiaire |
-| booking_id | FK bookings | oui | null | Réservation d'origine (si applicable) |
+| booking_id | FK bookings | oui | null | Réservation d'origine (si applicable) — une réservation du même bien, dont le client est `tenant_id` (sinon 422 sur `tenant_id`) ; la création du bail la passe à `completed` si elle est encore ouverte (P48.03, TCK-2352) |
 | agent_id | FK users | oui | null | **Négociateur** du bail ou de la vente — FK `leases_agent_id_fk`, `nullOnDelete` ; index `leases_agent_id_signed_at_idx` `(agent_id, signed_at)` pour la vue agent et la performance d'équipe. Interne à l'agence, pas une partie au contrat (TCK-595, [ADR-0049 §1](adr/0049-attribution-des-transactions-et-grand-livre-des-commissions.md), `2026_10_08_150000`) |
 | renewed_from_lease_id | FK leases | oui | null | Bail parent — rempli si ce bail est un renouvellement ou avenant (`nullOnDelete`, index `leases_renewed_from_idx`) |
 | reference_number | string | | | Numéro de contrat unique |

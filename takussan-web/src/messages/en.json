@@ -3985,7 +3985,10 @@
         "quarterly": "Quarterly",
         "yearly": "Yearly"
       },
-      "customerFallback": "Customer #{id}"
+      "customerFallback": "Customer #{id}",
+      "fromBooking": "Lease drawn from booking {reference}",
+      "fromBookingHint": "The property and the tenant are those of the booking. When the lease is created, the booking becomes “completed” and frees its dates.",
+      "fromBookingError": "The booking could not be loaded."
     },
     "payment": {
       "title": "Record a payment",
@@ -6897,7 +6900,8 @@
       "actions": {
         "accept": "Accept",
         "reject": "Reject",
-        "cancel": "Cancel the booking"
+        "cancel": "Cancel the booking",
+        "createLease": "Create the lease"
       },
       "toasts": {
         "accepted": {
