@@ -1,7 +1,7 @@
 ---
 id: TCK-2342
 title: "La purge du journal d'activité garde chaque famille de journaux sa durée : 12 mois par défaut, 5 ans pour les journaux de preuve, 10 ans pour les pièces comptables"
-status: todo
+status: done
 phase: P1
 family: bug
 estimate: M
@@ -70,27 +70,27 @@ Réf : **P19.04** du fichier de pistes, `validé`.
 
 ## Delta à produire
 
-- [ ] `App\Console\Commands\PruneActivityLog` (`audit:prune-activity-log`), ses deux listes et ses
+- [x] `App\Console\Commands\PruneActivityLog` (`audit:prune-activity-log`), ses deux listes et ses
       trois durées en constantes.
-- [ ] Planification dans `routes/console.php`.
-- [ ] `privacy.ts` § 6 (`fr`, `en`) et son test ; `VERSION_DOCUMENTS` au 25 octobre 2026.
-- [ ] TCK-537 : contrainte 5, delta et AC3b écrits avec les trois durées ; ligne datée de ce qui est
+- [x] Planification dans `routes/console.php`.
+- [x] `privacy.ts` § 6 (`fr`, `en`) et son test ; `VERSION_DOCUMENTS` au 25 octobre 2026.
+- [x] TCK-537 : contrainte 5, delta et AC3b écrits avec les trois durées ; ligne datée de ce qui est
       fait ; TCK-537 reste `todo` pour ses autres parties.
-- [ ] ADR-0044 amendé (2026-10-25), `docs/adr/README.md` ; `docs/models-spec.md` § 13,
+- [x] ADR-0044 amendé (2026-10-25), `docs/adr/README.md` ; `docs/models-spec.md` § 13,
       `docs/features.md` § 2.6.
 
 ## Critères d'acceptation
 
-- [ ] AC1 (famille par défaut) — une ligne `default`, `Lease`, `Property` ou sans `log_name` de
+- [x] AC1 (famille par défaut) — une ligne `default`, `Lease`, `Property` ou sans `log_name` de
       12 mois et un jour disparaît ; à 11 mois, elle reste.
-- [ ] AC2 (famille de preuve, 5 ans) — pour chacun des onze journaux : une ligne de 400 jours et une
+- [x] AC2 (famille de preuve, 5 ans) — pour chacun des onze journaux : une ligne de 400 jours et une
       de 5 ans moins un jour restent ; une de 5 ans et un jour disparaît.
-- [ ] AC3 (pièces comptables, 10 ans) — pour chacun des sept journaux : une ligne de 5 ans et un
+- [x] AC3 (pièces comptables, 10 ans) — pour chacun des sept journaux : une ligne de 5 ans et un
       jour et une de 10 ans moins un jour restent ; une de 10 ans et un jour disparaît.
-- [ ] AC4 — la purge passe par lots (`--batch=2` sur cinq lignes échues les supprime toutes) et une
+- [x] AC4 — la purge passe par lots (`--batch=2` sur cinq lignes échues les supprime toutes) et une
       seconde exécution ne supprime rien.
-- [ ] AC5 — `audit:prune-activity-log` est planifiée chaque jour, sans chevauchement.
-- [ ] AC6 — `privacy.ts` § 6 donne les trois durées, en français et en anglais.
+- [x] AC5 — `audit:prune-activity-log` est planifiée chaque jour, sans chevauchement.
+- [x] AC6 — `privacy.ts` § 6 donne les trois durées, en français et en anglais.
 
 ## Hors périmètre
 
@@ -100,3 +100,18 @@ Réf : **P19.04** du fichier de pistes, `validé`.
   `actions.clean_log`).
 
 ## Notes d'implémentation
+
+- **Avant** : aucune purge planifiée (`grep -n "activitylog\|audit:prune" routes/console.php` → rien) ;
+  `PruneActivityLogCommandTest` rouge en entier (24 sur 24, commande absente).
+- **Ablations**, chacune sur `PruneActivityLogCommandTest` (24 tests) puis remise :
+  - `Account` retiré de la liste de preuve → 1 rouge (son cas) ;
+  - `Billing` retiré des pièces comptables → 1 rouge (son cas) ;
+  - 5 ans portés à 10 → 11 rouges (chaque journal de preuve) ;
+  - `whereNull('log_name')` retiré → 1 rouge (la ligne sans nom n'était plus jamais purgée) ;
+  - un seul lot (`while (false)`) → 1 rouge (les lots) ;
+  - planification retirée → 1 rouge.
+- Les listes sont écrites en toutes lettres dans le test, non lues dans la commande : c'est ce qui
+  fait rougir un nom retiré.
+- Front : `textes.test.ts` rouge avant le texte (1 sur 17), vert après ; `VERSION_DOCUMENTS` avance
+  au 25 octobre 2026. `PublishReadiness::TERMS_VERSION` (« 2026-09-17 », « à changer ensemble »)
+  était déjà désaccordé de la date du front (18 octobre) : non touché.
