@@ -28,7 +28,8 @@ class ServiceProviderDirectoryProjectionTest extends TestCase
     /** `SERVICE_PROVIDER_PROFILE_FIELDS`, `lib/queries/service-providers.ts`. */
     private const FIELDS = 'fields[service_provider_profiles]=id,user_id,status,specialties,service_areas,metadata,created_at';
 
-    private const SOUS_CLES_LUES = ['first_name', 'last_name', 'email', 'trades', 'intervention_zones', 'availability'];
+    /** P234.04 (TCK-2280) — `phone`, le numéro saisi par l'agence à l'invitation, que le carnet rend. */
+    private const SOUS_CLES_LUES = ['first_name', 'last_name', 'email', 'phone', 'trades', 'intervention_zones', 'availability'];
 
     public function test_le_carnet_ne_sort_que_les_sous_cles_lues_de_metadata(): void
     {
@@ -42,6 +43,7 @@ class ServiceProviderDirectoryProjectionTest extends TestCase
         $this->assertSame($profile->id, $row['id']);
         $this->assertEqualsCanonicalizing(self::SOUS_CLES_LUES, array_keys($row['metadata']));
         $this->assertSame('awa@example.sn', $row['metadata']['email']);
+        $this->assertSame('+221770000000', $row['metadata']['phone']);
         $this->assertSame([['day' => 'monday']], $row['metadata']['availability']);
         $this->assertArrayNotHasKey('insurance_policy_id', $row);
         $this->assertMatchesRegularExpression('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+00:00$/', $row['created_at'], 'ADR-0018');

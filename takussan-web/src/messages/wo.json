@@ -3023,6 +3023,7 @@
       "columns": {
         "name": "Tur",
         "email": "Email",
+        "phone": "Téléphone",
         "status": "Aada",
         "actions": "Jëf",
         "identifiers": "Xibaar yu sutura"
@@ -3462,6 +3463,7 @@
       "empty_description": "Wow sa prestataire bu njëkk ngir yokk ko ci sa téere.",
       "columns": {
         "name": "Tur",
+        "phone": "Téléphone",
         "trades": "Liggéey",
         "zones": "Bérébi liggéey",
         "status": "Tëralin",

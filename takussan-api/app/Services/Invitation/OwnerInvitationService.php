@@ -32,7 +32,10 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
  *    to an `agent` via {@see RoleDelegation}.
  *  - Pre-creates an `OwnerProfile` in `OwnerProfileStatus::Draft` linked
  *    to the agency. The first/last/phone/owner_type payload lands in
- *    `metadata` until acceptance promotes it onto a real `User` row.
+ *    `metadata`, and stays there: acceptance writes nothing of it onto the
+ *    `User`. P234.04 (TCK-2280) — the phone typed by the agency is a datum
+ *    of the agency's record, rendered by the owners book (`OwnersList`),
+ *    never the account's number.
  *  - Conflict guard: if the email already maps to an OwnerProfile
  *    *attached to a User* in this agency, throws 409. A pre-existing
  *    `draft` for the same email is not blocked — the inviter can resend

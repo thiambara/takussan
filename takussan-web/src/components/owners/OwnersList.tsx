@@ -24,6 +24,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/toast';
 import { useAuth } from '@/context/AuthContext';
 import { apiRequest, ApiError, buildQueryString } from '@/lib/api';
+import { formaterTelephone } from '@/lib/phone';
 import {
   fetchOwners,
   fetchOwnerSensitive,
@@ -160,7 +161,8 @@ export function OwnersList({ agencyId, canInvite, initialData, canRevealSensitiv
 
   /**
    * Les colonnes, dans l'ORDRE EXACT de la table faite main qu'elles remplacent
-   * (nom · e-mail · statut · actions). L'ordre est éprouvé par test : une colonne perdue
+   * (nom · e-mail · statut · actions), plus deux ajouts délibérés : le téléphone saisi à
+   * l'invitation (P234.04) et les identifiants (TCK-601). L'ordre est éprouvé par test : une colonne perdue
    * à la conversion ne se voit pas dans un diff de quarante lignes.
    */
   const colonnes: readonly DataTableColumn<OwnerProfileSummary>[] = [
@@ -187,6 +189,14 @@ export function OwnersList({ agencyId, canInvite, initialData, canRevealSensitiv
       header: t('page.columns.email'),
       className: 'text-muted-foreground',
       cell: (owner) => owner.user?.email ?? owner.metadata?.email ?? '—',
+    },
+    {
+      // P234.04 (TCK-2280) — le numéro saisi par l'agence à l'invitation : une donnée de SA fiche,
+      // jamais posée sur le compte. Ajout délibéré, entre l'e-mail et les identifiants.
+      id: 'phone',
+      header: t('page.columns.phone'),
+      className: 'whitespace-nowrap text-muted-foreground tabular-nums',
+      cell: (owner) => (owner.metadata?.phone ? formaterTelephone(owner.metadata.phone) : '—'),
     },
     {
       id: 'identifiers',

@@ -4783,6 +4783,7 @@
       "columns": {
         "name": "Nom",
         "email": "Email",
+        "phone": "Téléphone",
         "status": "Statut",
         "actions": "Actions",
         "identifiers": "Identifiants"
@@ -5222,6 +5223,7 @@
       "empty_description": "Invitez votre premier prestataire pour le rattacher à votre carnet.",
       "columns": {
         "name": "Nom",
+        "phone": "Téléphone",
         "trades": "Métiers",
         "zones": "Zones",
         "status": "Statut",

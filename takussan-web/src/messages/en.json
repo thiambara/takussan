@@ -4783,6 +4783,7 @@
       "columns": {
         "name": "Name",
         "email": "Email",
+        "phone": "Phone",
         "status": "Status",
         "actions": "Actions",
         "identifiers": "Identifiers"
@@ -5222,6 +5223,7 @@
       "empty_description": "Invite your first provider to start building your book.",
       "columns": {
         "name": "Name",
+        "phone": "Phone",
         "trades": "Trades",
         "zones": "Zones",
         "status": "Status",

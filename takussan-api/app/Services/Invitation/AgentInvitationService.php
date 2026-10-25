@@ -32,8 +32,11 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
  *    uninstalled, ADR-0002). Held by `agency_admin`, optionally delegated
  *    to a senior agent via {@see RoleDelegation}.
  *  - Pre-creates an `AgentProfile` in `AgentProfileStatus::Draft` linked
- *    to the agency. The first/last/phone payload lands in `metadata`
- *    until acceptance promotes it onto a real `User` row.
+ *    to the agency. The first/last/phone payload lands in `metadata`, and
+ *    stays there: acceptance writes nothing of it onto the `User` (a new
+ *    account takes the names typed at acceptance). P234.04 (TCK-2280) — the
+ *    phone typed by the agency is a datum of the agency's record, never
+ *    the account's number.
  *  - Conflict guard: if the email already maps to an active AgentProfile
  *    in this agency (i.e. the agent has already accepted, or was added
  *    directly), throws 409.

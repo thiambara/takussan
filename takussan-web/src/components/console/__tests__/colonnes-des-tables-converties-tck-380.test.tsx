@@ -174,7 +174,8 @@ describe('AC3 — les colonnes des tables converties', () => {
 
     // TCK-601 — « Identifiants » (RIB, NINEA, pièce, masqués) est un AJOUT délibéré, entre
     // l'e-mail et le statut ; les quatre colonnes relevées à `73ca883b` restent, dans leur ordre.
-    expect(enTetesDe('Propriétaires')).toEqual(['Nom', 'Email', 'Identifiants', 'Statut', 'Actions']);
+    // P234.04 (TCK-2280) — « Téléphone » (le numéro saisi à l'invitation) en est un autre, après l'e-mail.
+    expect(enTetesDe('Propriétaires')).toEqual(['Nom', 'Email', 'Téléphone', 'Identifiants', 'Statut', 'Actions']);
   });
 
   it('ServiceProvidersList : nom · métiers · zones · statut · actions', () => {
@@ -200,9 +201,12 @@ describe('AC3 — les colonnes des tables converties', () => {
       />,
     );
 
+    // P234.04 (TCK-2280) — « Téléphone » (le numéro saisi à l'invitation) est un AJOUT délibéré,
+    // après le nom ; les cinq colonnes relevées à `73ca883b` restent, dans leur ordre.
     const entetes = enTetesDe('Carnet prestataires');
-    expect(entetes).toHaveLength(5);
+    expect(entetes).toHaveLength(6);
     expect(entetes[0]).toBe('Nom');
-    expect(entetes[4]).toBe('Actions');
+    expect(entetes[1]).toBe('Téléphone');
+    expect(entetes[5]).toBe('Actions');
   });
 });
