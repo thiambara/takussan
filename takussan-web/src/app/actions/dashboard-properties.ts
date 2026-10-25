@@ -19,6 +19,7 @@ import {
   uploadPropertyPhotos,
   type ListingQuota,
   type PropertyMediaItem,
+  type PropertyMediaUploaded,
 } from '@/lib/queries/properties-server';
 import type {
   PropertyCreatePayload,
@@ -239,7 +240,7 @@ export async function bulkAssignPropertiesAction(
 export async function uploadPropertyPhotosAction(
   propertyId: number,
   formData: FormData,
-): Promise<ActionResult> {
+): Promise<ActionResult<PropertyMediaUploaded[]>> {
   const auth = await requireToken();
   if (!auth.ok) return auth.result;
   const files = formData.getAll('photos').filter((f): f is File => f instanceof File);
@@ -248,9 +249,10 @@ export async function uploadPropertyPhotosAction(
     return { ok: false, message: t('noPhotoSelected') };
   }
   try {
-    await uploadPropertyPhotos(auth.token, propertyId, files);
+    // TCK-2370 (P237.03) — les médias créés, pour que la grille les montre sans relecture.
+    const data = await uploadPropertyPhotos(auth.token, propertyId, files);
     revalidatePath(`/app/properties/${propertyId}`);
-    return { ok: true };
+    return { ok: true, data };
   } catch (e) {
     return { ok: false, ...(await mapError(e)) };
   }

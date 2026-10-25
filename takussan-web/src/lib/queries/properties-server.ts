@@ -279,22 +279,29 @@ export async function assignPropertyAgent(
  * TCK-071 — upload one or more photos to a property's `photos` media
  * collection. The backend route is `POST /api/properties/:id/media`
  * (see `PropertyMediaController::store`), expecting a `photos[]` array.
+ *
+ * TCK-2370 (P237.03) — rend les médias créés, que l'API renvoie (`201 {data: [...]}`) : la grille
+ * les affiche sans relire la liste, dont l'échec laissait une photo « envoyée » invisible.
  */
 export async function uploadPropertyPhotos(
   token: string,
   propertyId: number,
   files: File[],
-): Promise<void> {
+): Promise<PropertyMediaUploaded[]> {
   const form = new FormData();
   for (const file of files) {
     form.append('photos[]', file);
   }
-  await apiRequest<void>(cheminApi`/api/properties/${propertyId}/media`, {
-    method: 'POST',
-    body: form,
-    token,
-    formData: true,
-  });
+  const res = await apiRequest<ApiResponse<PropertyMediaUploaded[]>>(
+    cheminApi`/api/properties/${propertyId}/media`,
+    {
+      method: 'POST',
+      body: form,
+      token,
+      formData: true,
+    },
+  );
+  return res.data;
 }
 
 /**
@@ -309,6 +316,9 @@ export interface PropertyMediaItem {
   readonly original: string;
   readonly order: number | null;
 }
+
+/** TCK-2370 (P237.03) — un média tel que `PropertyMediaController::store` le rend : sans `order`. */
+export type PropertyMediaUploaded = Omit<PropertyMediaItem, 'order'>;
 
 /**
  * TCK-071 — fetch the current photo list (cover = item at position 0).

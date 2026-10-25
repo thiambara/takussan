@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import { MediaManager, type MediaItem } from '@/components/media';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -18,6 +18,10 @@ import {
  * The panel self-hydrates (fetches the media list once on mount) so it
  * can be dropped into any page that has a property id, without the host
  * page having to care about the dashboard media endpoints.
+ *
+ * TCK-2370 (P237.03) — une photo envoyée est rendue depuis la réponse de l'envoi, qui porte les
+ * médias créés. Elle était cherchée par une relecture de la liste, dont l'échec rendait `[]` : la
+ * ligne passait à « envoyée » sans photo dans la grille.
  */
 
 interface PropertyMediaPanelProps {
@@ -29,12 +33,6 @@ export function PropertyMediaPanel({ propertyId }: PropertyMediaPanelProps) {
   const [items, setItems] = useState<MediaItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  // Mirror of the full media-id set to diff server responses against.
-  // `items` is only set on initial mount; MediaManager owns its own grid
-  // state afterwards, so we track previously-seen ids in a ref that is
-  // updated on every successful upload. Without this, a second upload
-  // would re-emit the first batch as "new" and the grid would duplicate.
-  const knownIdsRef = useRef<Set<number>>(new Set());
 
   useEffect(() => {
     let cancelled = false;
@@ -46,7 +44,6 @@ export function PropertyMediaPanel({ propertyId }: PropertyMediaPanelProps) {
         setError(res.message);
       } else {
         const data = res.data ?? [];
-        knownIdsRef.current = new Set(data.map((m) => m.id));
         setItems(
           data.map((m) => ({
             id: m.id,
@@ -70,20 +67,11 @@ export function PropertyMediaPanel({ propertyId }: PropertyMediaPanelProps) {
       for (const f of files) formData.append('photos', f);
       const res = await uploadPropertyPhotosAction(propertyId, formData);
       if (!res.ok) throw new Error(res.message);
-      // Refresh to pick up server-assigned ids / thumbnails.
-      const list = await fetchPropertyMediaAction(propertyId);
-      if (!list.ok) return [];
-      const data = list.data ?? [];
-      const fresh = data.filter((m) => !knownIdsRef.current.has(m.id));
-      // Update the ref BEFORE returning so concurrent/rapid uploads don't
-      // re-emit the same items twice.
-      for (const m of fresh) knownIdsRef.current.add(m.id);
-      return fresh.map((m) => ({
+      return (res.data ?? []).map((m) => ({
         id: m.id,
         thumbnail: m.thumbnail,
         preview: m.preview,
         original: m.original,
-        order: m.order,
       }));
     },
     [propertyId],
@@ -101,7 +89,6 @@ export function PropertyMediaPanel({ propertyId }: PropertyMediaPanelProps) {
     async (mediaId: number) => {
       const res = await deletePropertyMediaAction(propertyId, mediaId);
       if (!res.ok) throw new Error(res.message);
-      knownIdsRef.current.delete(mediaId);
     },
     [propertyId],
   );
