@@ -115,8 +115,10 @@ class AvisSansEmailTest extends ApiTestCase
 
         $envois = $sms->sentTo(self::NUMERO);
         $this->assertCount(3, $envois);
-        $this->assertStringContainsString($demande->scheduled_for->format('d/m/Y'), $envois[0]['message']);
-        $this->assertStringContainsString($demande->scheduled_for->format('d/m/Y'), $envois[1]['message']);
+        // TCK-2325 (P128.03) — la date en `LL`, dans la langue du compte, et non plus `d/m/Y`.
+        $date = $demande->scheduled_for->copy()->setTimezone($compte->timezone)->locale('fr')->isoFormat('LL');
+        $this->assertStringContainsString($date, $envois[0]['message']);
+        $this->assertStringContainsString($date, $envois[1]['message']);
         $this->assertTrue($envois[0]['context']['is_critical']);
         Mail::assertNothingOutgoing();
     }
