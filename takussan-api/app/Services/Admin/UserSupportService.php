@@ -4,6 +4,8 @@ namespace App\Services\Admin;
 
 use App\Models\User;
 use App\Services\Auth\LoginLock;
+use App\Services\Auth\MetadataDuCompte;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Password;
 use Laravel\Sanctum\PersonalAccessToken;
 
@@ -31,7 +33,6 @@ class UserSupportService
     public function unlock(User $actor, User $target, string $reason): int
     {
         $this->guardTarget($actor, $target);
-        $metadata = $target->metadata ?? [];
         // Vérification adverse M1 — un verrou par canal : celui du numéro vérifié se lève aussi.
         $lock = app(LoginLock::class);
         $numero = $target->phone_verified_at !== null && $target->phone ? (string) $target->phone : null;
@@ -39,8 +40,9 @@ class UserSupportService
         // rien, le « débloquer » rendait 200 et journalisait un déblocage qui n'en était pas un.
         abort_code_if($lock->lockedUntil($target) === null, 409, 'support.account_not_locked');
 
-        unset($metadata['locked_at'], $metadata['failed_login_attempts'], $metadata['failed_login_first_at']);
-        $target->forceFill(['metadata' => $metadata])->save();
+        // P245.02 (TCK-2367) — les clés se retirent sur la ligne en base : recomposée depuis le compte
+        // chargé, la colonne effaçait le drapeau d'une réinitialisation de la 2FA écrite entre-temps.
+        $lock->clear($target);
         if ($numero !== null) {
             $lock->clearNumber($numero);
         }
@@ -54,14 +56,17 @@ class UserSupportService
 
         abort_code_unless($target->two_factor_enabled, 409, 'support.two_factor_already_disabled');
 
-        $metadata = $target->metadata ?? [];
-        $metadata['force_2fa_reconfigure'] = true;
-        $target->forceFill([
-            'two_factor_enabled' => false,
-            'two_factor_secret' => null,
-            'two_factor_recovery_codes' => null,
-            'metadata' => $metadata,
-        ])->save();
+        // P245.02 (TCK-2367) — le drapeau se pose sur la ligne en base, pas sur le compte chargé : un
+        // échec de connexion écrit entre-temps reste compté. Les colonnes passent par le modèle, que
+        // le journal d'activité suit (`two_factor_enabled`).
+        DB::transaction(function () use ($target): void {
+            $target->forceFill([
+                'two_factor_enabled' => false,
+                'two_factor_secret' => null,
+                'two_factor_recovery_codes' => null,
+            ])->save();
+            MetadataDuCompte::poser($target, 'force_2fa_reconfigure', true);
+        });
 
         return $this->log($actor, $target, 'super_admin_2fa_reset', $reason);
     }
