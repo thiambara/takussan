@@ -1,7 +1,7 @@
 ---
 id: TCK-2341
 title: "takussan-api/CLAUDE.md, § Tâches planifiées : le compte des Schedule::job se recompte, et withoutOverlapping ne couvre que leur mise en file"
-status: todo
+status: done
 phase: P3
 family: docs
 estimate: S
@@ -55,18 +55,18 @@ Réf : **P05.07** du fichier de pistes, `validé`.
 
 ## Delta à produire
 
-- [ ] `takussan-api/CLAUDE.md`, § Tâches planifiées : les commandes qui recomptent, la portée de
+- [x] `takussan-api/CLAUDE.md`, § Tâches planifiées : les commandes qui recomptent, la portée de
       `withoutOverlapping` pour un `Schedule::job` et pour un `Schedule::command`, ce que mesure
       `scheduled_task_runs`, et la règle « pas de verrou d'exécution tant que chaque job est
       idempotent ».
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Le § ne porte plus de compte figé de `Schedule::job` ni de `Schedule::command` ; les
+- [x] AC1 — Le § ne porte plus de compte figé de `Schedule::job` ni de `Schedule::command` ; les
       commandes qu'il donne rendent le compte du jour quand on les lance.
-- [ ] AC2 — Le § dit que `withoutOverlapping()` sur un `Schedule::job` ne couvre que la mise en file,
+- [x] AC2 — Le § dit que `withoutOverlapping()` sur un `Schedule::job` ne couvre que la mise en file,
       et que `scheduled_task_runs` mesure cette mise en file.
-- [ ] AC3 — Le § dit que le verrou d'exécution des balayages n'est pas retenu tant que chaque job
+- [x] AC3 — Le § dit que le verrou d'exécution des balayages n'est pas retenu tant que chaque job
       planifié est idempotent.
 
 ## Hors périmètre
@@ -77,3 +77,9 @@ Réf : **P05.07** du fichier de pistes, `validé`.
   `app/Console/Commands` le 2026-10-25) : hors décision, signalé au rapport.
 
 ## Notes d'implémentation
+
+- Aucun test : le delta est un texte. Vérifié en lançant chaque commande du § sur l'arbre
+  (`grep -cE` → 24 et 26 ; `schedule:list` → 27 événements de job, le battement de file planifié
+  pour 4 files ; `grep -rlE 'WithoutOverlapping|ShouldBeUnique' app/Jobs` → les 2 jobs d'alerte).
+- La portée du verrou est relue dans le framework : `Schedule::job()` (`Schedule.php:217-226`) ne
+  fait que `dispatchToQueue` dans la fermeture, et `Event::run` rend le mutex à sa sortie.
