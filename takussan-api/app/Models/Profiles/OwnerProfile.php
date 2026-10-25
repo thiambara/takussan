@@ -149,4 +149,39 @@ class OwnerProfile extends AbstractModel
 
         return trim($first.' '.$last);
     }
+
+    /**
+     * TCK-1323 (P117.05) — la raison sociale d'un bailleur société, exigée à l'invitation
+     * (`metadata.company_name`) ; `null` pour un particulier, même saisie.
+     */
+    public function companyName(): ?string
+    {
+        if (data_get($this->metadata, 'owner_type') !== 'company') {
+            return null;
+        }
+        $name = trim((string) data_get($this->metadata, 'company_name', ''));
+
+        return $name !== '' ? $name : null;
+    }
+
+    /**
+     * P234.06 (TCK-2315) — la raison sociale que les pièces d'une agence impriment pour un bailleur
+     * (contrat, relevé, état des lieux) : celle de SON profil dans CETTE agence, jamais d'une autre.
+     * Un profil retiré de l'agence nomme encore la société d'un bail passé ; le profil en vigueur
+     * l'emporte.
+     */
+    public static function companyNameOf(?int $userId, ?int $agencyId): ?string
+    {
+        if ($userId === null || $agencyId === null) {
+            return null;
+        }
+
+        return self::query()->withTrashed()
+            ->where('user_id', $userId)
+            ->where('agency_id', $agencyId)
+            ->orderByRaw('deleted_at IS NOT NULL')
+            ->orderByDesc('id')
+            ->first(['id', 'metadata'])
+            ?->companyName();
+    }
 }

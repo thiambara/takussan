@@ -21,7 +21,15 @@
 
     <table class="kv">
         <tr><th>{{ __('money_out.statement.agency') }}</th><td>{{ $agency?->legal_name ?: $statement['agency']['name'] }}</td></tr>
-        <tr><th>{{ __('money_out.statement.landlord') }}</th><td>{{ $statement['landlord']['name'] }}</td></tr>
+        {{-- P234.06 (TCK-2315) — une société en tête, la personne en dessous (TCK-1323). --}}
+        <tr><th>{{ __('money_out.statement.landlord') }}</th><td>
+            @if ($statement['landlord']['company_name'] ?? null)
+                {{ $statement['landlord']['company_name'] }}
+                <div class="muted">{{ $statement['landlord']['name'] }}</div>
+            @else
+                {{ $statement['landlord']['name'] }}
+            @endif
+        </td></tr>
         <tr><th>{{ __('money_out.statement.period') }}</th><td>{{ $frDate($statement['period_start']) }} — {{ $frDate($statement['period_end']) }}</td></tr>
     </table>
 

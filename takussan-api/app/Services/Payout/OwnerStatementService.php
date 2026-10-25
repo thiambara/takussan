@@ -8,6 +8,7 @@ use App\Models\Enums\PayeeRole;
 use App\Models\Enums\PayoutStatus;
 use App\Models\LeasePayment;
 use App\Models\Payout;
+use App\Models\Profiles\OwnerProfile;
 use App\Models\ServiceProviderBill;
 use App\Models\User;
 use App\Services\Dashboard\CollectedPayments;
@@ -95,7 +96,12 @@ final class OwnerStatementService
 
         return [
             'agency' => ['id' => $agency->id, 'name' => $agency->name],
-            'landlord' => ['id' => $landlord->id, 'name' => trim(($landlord->first_name ?? '').' '.($landlord->last_name ?? '')) ?: $landlord->username],
+            // P234.06 (TCK-2315) — la raison sociale d'un bailleur société, `null` pour un particulier.
+            'landlord' => [
+                'id' => $landlord->id,
+                'name' => trim(($landlord->first_name ?? '').' '.($landlord->last_name ?? '')) ?: $landlord->username,
+                'company_name' => OwnerProfile::companyNameOf((int) $landlord->id, (int) $agency->id),
+            ],
             'period' => $period,
             'annual' => $annual,
             'period_start' => $start->toDateString(),
