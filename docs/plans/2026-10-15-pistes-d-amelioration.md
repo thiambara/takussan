@@ -7926,7 +7926,7 @@ de l'angle 238 (retiré), charge 1,69 / 1,71 / 2,01 sur 8 cœurs.*
 ### L'archive personnelle d'un agent, même retiré, contient les réservations, les encaissements et les pièces des clients qu'il a saisis
 
 - Réf : P247.01
-- Statut : validé — validation du porteur (2026-10-25) : pour une ligne dont le titulaire n'est que l'auteur ou l'encaisseur, l'archive ne rend que l'acte (identifiant, type, date, montant), sans client, payeur, notes, metadata ni nom de pièce, comme TCK-1017 ; `messages.json` reste tel que TCK-592 l'a décidé
+- Statut : fait · TCK-2366
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Privacy/DataExportBuilder.php:116-120,131,149-153`
 - Constat :
@@ -7946,10 +7946,11 @@ de l'angle 238 (retiré), charge 1,69 / 1,71 / 2,01 sur 8 cœurs.*
   - Garde : un test « agent auteur, actif et retiré → ni client ni payeur ni nom de pièce dans son archive ; client, locataire et payeur gardent la leur », avec ablation.
 - Mesure (2026-10-25, db3e25230, mesureur) : relu `DataExportBuilder::payloads` (l. 116-120 `orWhere('created_by_id')`, l. 131 `orWhere('collector_id')`, l. 149-153 `where('uploaded_by')`, tous par `toArray()` entier), inchangé depuis TCK-2275 ; sonde temporaire `TmpMesureurM4/SondeP247Test.php` (retirée), `payloads()` appelé directement, charge 1,74 / 1,67 / 1,77 sur 8 cœurs ; agent X de l'agence : réservation qu'il a saisie pour le client Moussa Ba (`notes` « Message du client Moussa »), encaissement du loyer de Fatou Diop (`collector_id` = X, `notes` « Espèces remises par Fatou »), CNI de Fatou sur sa fiche client et contrat sur le bail, téléversés par X → `payloads(X)` rend `customer_id` et `notes` de la réservation, `payer_id` et `notes` de l'encaissement, et les deux pièces avec leur type et leur nom ; après `AgencyMemberRemovalService::remove(…, leaveUnassigned: true)` (`isAgentAt` faux) → mêmes lignes. Le constat tient. Classement : V3, ce que garde l'archive d'un auteur est un choix de contenu RGPD, et la Piste propose deux options (acte seul, ou clauses retirées).
 - Mesure (2026-10-25, b9c58e007, humain) : validation du porteur en bloc (2026-10-25), second tour, sur les recommandations (a) de la session ; statut précédent : « retenu · à valider — V3 : contenu de l'archive RGPD de l'agent auteur ou encaisseur ».
+- Mesure (2026-10-25, 2d85f65cf, implementeur) : `ArchiveDuTitulaireTest` rejoue le constat (agent actif et retiré par `AgencyMemberRemovalService::remove(…, leaveUnassigned: true)` : « Moussa » et « Fatou » dans `bookings.json`, `lease_payments` et `documents.json`, rouge avant correctif) → `DataExportBuilder` rend l'acte seul quand le titulaire n'est que l'auteur ou l'encaisseur (réservation `id`, `total_amount`, `currency`, `created_at` ; encaissement `id`, `amount`, `currency`, `payment_type`, `paid_at` ; pièce `id`, `type`, `created_at`), la ligne entière au client, au payeur et au bailleur (`BailleurDuBien`) du bien ou du bail, et à toute pièce déposée par lui sur un porteur qui le décrit (profils supprimés compris) ; `messages.json` inchangé ; 6 verts ; ablations (réservation entière, encaissement entier, pièce d'autrui entière, profils sans `withTrashed`, bailleur non partie) → rouges, correctif remis → verts ; ADR-0070 amendé le 2026-10-25.
 
 ### L'archive RGPD du locataire et du bailleur livre les termes de commission du bail, que `LeaseResource` leur retire
 - Réf : P247.02
-- Statut : validé — validation du porteur (2026-10-25) : le bail de l'archive du locataire et du bailleur porte les mêmes colonnes que `LeaseResource` pour un lecteur hors personnel : sans `commission_amount`
+- Statut : fait · TCK-2366
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Privacy/DataExportBuilder.php:124-128`
 - Constat :
@@ -7959,10 +7960,11 @@ de l'angle 238 (retiré), charge 1,69 / 1,71 / 2,01 sur 8 cœurs.*
 - Piste : sérialiser le bail de l'archive par la même liste de colonnes que `LeaseResource` pour un lecteur hors personnel, ou retirer `LeaseService::COMMISSION_TERMS`. Test : archive du locataire et du bailleur sans terme de commission, avec ablation.
 - Mesure (2026-10-25, db3e25230, mesureur) : relu `DataExportBuilder.php:124-128` (`leases.json` par `toArray()`), `LeaseResource.php:54-60,134-136` et `LeaseService::COMMISSION_TERMS` (`commission_amount`, `agent_id`, `commission_rate` depuis l'amendement ADR-0049 du 2026-10-25) ; même sonde `SondeP247Test.php` (retirée) ; bail actif `commission_amount = 45000`, `commission_rate = 10`, `agent_id` = X → `leases.json` du locataire et du bailleur : `["45000.00","10.00",<id de X>]`. Le constat tient pour `commission_amount`. Il est inexact pour les deux autres termes : `LeaseResource` ne retire au lecteur hors personnel **que** `commission_amount`, et rend `commission_rate` et `agent_id` à tous (l. 39, 54, 135). Les deux options de la Piste divergent donc : « mêmes colonnes que `LeaseResource` » ne retire que le montant, et « retirer `COMMISSION_TERMS` » retire aussi ce que l'API rend. Classement : V3, le contenu de l'archive est à trancher, avec le choix entre ces deux options.
 - Mesure (2026-10-25, b9c58e007, humain) : validation du porteur en bloc (2026-10-25), second tour, sur les recommandations (a) de la session ; statut précédent : « retenu · à valider — V3 : termes de commission dans l'archive du locataire et du bailleur ».
+- Mesure (2026-10-25, 2d85f65cf, implementeur) : `ArchiveDuTitulaireTest::test_le_bail_de_l_archive_du_locataire_et_du_bailleur_ne_porte_pas_le_montant_de_commission` rouge avant correctif (`commission_amount` présent) → `leases.json` par `makeHidden(['commission_amount'])`, `commission_rate` et `agent_id` gardés comme `LeaseResource` hors personnel ; vert ; ablation (`makeHidden` retiré) → rouge, remis → vert.
 
 ### L'archive RGPD du titulaire ne contient pas les pièces qui le décrivent, rattachées à sa fiche client ou à son bail
 - Réf : P247.03
-- Statut : validé — validation du porteur (2026-10-25) : l'archive du titulaire ajoute en métadonnées (type, nom, date), sans le fichier, les pièces de ses fiches client liées et de ses baux de locataire
+- Statut : fait · TCK-2366
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Privacy/DataExportBuilder.php:149-153`
 - Constat :
@@ -7972,6 +7974,7 @@ de l'angle 238 (retiré), charge 1,69 / 1,71 / 2,01 sur 8 cœurs.*
 - Piste : ajouter les pièces dont le porteur est une fiche client liée au compte (`customers.user_id`) ou un bail dont il est le locataire, en métadonnées (type, nom, date) ou en fichier. Contenu de l'archive (V3), à trancher avec P247.01. Test avec ablation.
 - Mesure (2026-10-25, db3e25230, mesureur) : relu `DataExportBuilder.php:149-153` (`uploaded_by`, ou `documentable_type = User` du titulaire) ; même sonde `SondeP247Test.php` (retirée) ; CNI sur la fiche client de la locataire (`customers.user_id` = elle) et contrat sur son bail, téléversés par l'agent → `documents.json` de la locataire vide (et celui du bailleur aussi). Le constat tient. Classement : V3, ajouter des pièces à l'archive, en métadonnées ou en fichiers, est un choix de contenu RGPD, à trancher avec P247.01.
 - Mesure (2026-10-25, b9c58e007, humain) : validation du porteur en bloc (2026-10-25), second tour, sur les recommandations (a) de la session ; statut précédent : « retenu · à valider — V3 : pièces du titulaire à ajouter à son archive ».
+- Mesure (2026-10-25, 2d85f65cf, implementeur) : `ArchiveDuTitulaireTest::test_l_archive_du_locataire_porte_les_pieces_de_sa_fiche_et_de_son_bail_en_metadonnees` rouge avant correctif (CNI absente) → `documents.json` prend les pièces de ses fiches client et de ses baux de locataire, posées par un autre, en `id`, `type`, `name`, `created_at` ; la pièce d'une autre fiche n'y entre pas ; vert ; ablations (clause des fiches retirée, forme entière au lieu des métadonnées) → rouges, remises → vert.
 
 ## Angle 248 — Branches « demandeur » d'une intervention face au locataire dont le bail a pris fin
 
@@ -8075,7 +8078,7 @@ de l'angle 238 (retiré), charge 1,69 / 1,71 / 2,01 sur 8 cœurs.*
 
 ### L'export d'un locataire ne porte que l'une de ses fiches client, prise sans ordre : ses baux et paiements d'une autre agence en sont absents
 - Réf : P250.01
-- Statut : validé — validation du porteur (2026-10-25) : l'export du locataire prend toutes les fiches client du compte, comme `DashboardTenantService`
+- Statut : fait · TCK-2366
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Export/ExportDataService.php:483-494`, `takussan-api/app/Services/Dashboard/DashboardTenantService.php:34-37`, `takussan-api/database/migrations/2026_10_18_050000_index_customers_on_user_id.php`
 - Constat :
@@ -8087,6 +8090,7 @@ de l'angle 238 (retiré), charge 1,69 / 1,71 / 2,01 sur 8 cœurs.*
 - Piste : prendre toutes les fiches du compte (`pluck('id')`, comme `DashboardTenantService`) et borner par `whereIn`. Test : locataire de deux agences → l'export des paiements et celui des baux portent les deux.
 - Mesure (2026-10-25, db3e25230, mesureur) : relu `ExportDataService.php:484` (`Customer::where('user_id', $actor->id)->first()`, sans agence ni ordre, puis `payer_id` / `tenant_id` / `id` bornés à ce seul id) et `DashboardTenantService.php:35` (`->orderBy('id')->pluck('id')`) ; test temporaire (retiré), compte locataire lié à deux fiches de deux agences, un bail actif et un paiement payé dans chacune (111111 et 222222) → `GET /api/export/payments?format=csv` 200 avec A et sans B, `GET /api/export/leases?format=csv` 200 avec une seule ligne de données, `GET /api/dashboard/tenant` `leases.active: 2` → constat reproduit à l'identique. Classement : V3, le correctif change ce qu'un export de données personnelles rend et la portée de lecture du locataire, même si le patron existe déjà dans `DashboardTenantService`.
 - Mesure (2026-10-25, b9c58e007, humain) : validation du porteur en bloc (2026-10-25), second tour, sur les recommandations (a) de la session ; statut précédent : « retenu · à valider — V3 : élargir ce que l'export du locataire expose, une règle de portée ».
+- Mesure (2026-10-25, 2d85f65cf, implementeur) : `ExportScopingTest::test_a_tenant_of_two_agencies_exports_the_leases_and_payments_of_both` rouge avant correctif (montant de l'agence B absent de `GET /api/export/payments`) → `ExportDataService::scopeToActor` borne le locataire par `whereIn` sur toutes ses fiches (`orderBy('id')->pluck('id')`, comme `DashboardTenantService`) ; `ExportScopingTest` 14 verts ; ablation (une seule fiche, `limit(1)`) → rouge, remise → vert.
 
 ### Un compte n'a qu'un profil de prestataire par la seule garde de l'acceptation : aucune contrainte, aucun verrou, et `HasOne` / `->first()` sans ordre prendraient la mauvaise ligne
 - Réf : P250.02
