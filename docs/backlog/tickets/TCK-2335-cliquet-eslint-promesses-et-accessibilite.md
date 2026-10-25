@@ -67,6 +67,9 @@ Réfs : **P210.05** et **P07.12** du fichier de pistes, toutes deux `validé`.
 - [x] `eslint.config.mjs` : blocs `takussan/a11y-en-erreur` et `takussan/promesses`, et le mode
       d'emploi du cliquet en commentaire.
 - [x] `takussan-web/eslint-suppressions.json` versionné : 166 violations dans 112 fichiers.
+- [x] `scripts/check-eslint-suppressions.mjs`, joué par `repo-ci.yml` : aucun compte du gel ne
+      dépasse celui de la base (`origin/$GITHUB_BASE_REF` en PR, `HEAD^` en push, sinon
+      `origin/pre-dev` puis `origin/dev`), et une entrée neuve rougit.
 
 ## Critères d'acceptation
 
@@ -77,6 +80,9 @@ Réfs : **P210.05** et **P07.12** du fichier de pistes, toutes deux `validé`.
 - [x] AC3 (P210.05) — Une violation de plus dans un fichier gelé rougit (exit 1).
 - [x] AC4 (P210.05) — Une violation corrigée sans élaguer rougit (exit 2), jusqu'à
       `--prune-suppressions` : le cliquet ne se desserre pas en silence.
+- [x] AC6 (P210.05) — Un regel par `--suppress-all` rougit `check-eslint-suppressions` : une
+      promesse flottante dans un fichier neuf, gelée, lint vert → la garde sort en 1 et nomme
+      l'entrée neuve.
 - [ ] AC5 (P210.05) — Surcoût relevé sur le runner de `web-ci` de la PR.
 
 ## Mesures
@@ -99,8 +105,8 @@ Réfs : **P210.05** et **P07.12** du fichier de pistes, toutes deux `validé`.
 
 ## Hors périmètre
 
-- Une garde qui refuse qu'`eslint-suppressions.json` grossisse : ESLint n'empêche pas un
-  `--suppress-all` qui regèlerait du code neuf. Voir le rapport.
+- Une garde qui empêche de déplacer une violation d'un fichier gelé à un autre à compte égal :
+  `check-eslint-suppressions` compare des comptes, par fichier et par règle.
 
 ## Notes d'implémentation
 
@@ -112,6 +118,11 @@ Réfs : **P210.05** et **P07.12** du fichier de pistes, toutes deux `validé`.
   - `forgot-password/page.tsx`, gelé à une violation : un second `onReset={handleSubmit}` → exit 1 ;
     la violation corrigée (`onSubmit={(e) => void handleSubmit(e)}`) → exit 2 sur le fichier et
     sur `npm run lint` ; fichier remis → exit 0.
+- `check-eslint-suppressions` en push compare à `HEAD^` et non à `origin/pre-dev` : comparer
+  `dev` à `pre-dev` rougirait `dev` à chaque lot résorbé sur `pre-dev` et pas encore promu.
+  Ablation : une hausse, une règle neuve et un fichier neuf ajoutés au JSON → 3 hausses, exit 1 ;
+  un regel réel par `--suppress-all` → exit 1 ; une baisse → exit 0, imprimée ; base sans le
+  fichier → exit 0, dit ; ref absente → exit 1.
 - Le fichier de suppressions se lit depuis le répertoire courant : `npx eslint` se lance depuis
   `takussan-web/`, comme `npm run lint` et `web-ci.yml`. Lancé depuis la racine du dépôt, il ne le
   trouverait pas et rougirait sur tout l'existant.
