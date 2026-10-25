@@ -1,7 +1,7 @@
 ---
 id: TCK-2370
 title: "Envois trop lourds lisibles : 413 du proxy avec CORS et code, serveur injoignable distingué du réseau, photos une à une, photo de bien rendue depuis son envoi"
-status: doing
+status: done
 phase: P2
 family: bug
 estimate: M
@@ -90,37 +90,37 @@ Réfs : **P236.01, P236.02, P236.03, P237.03** du fichier de pistes, `validé` p
 
 ## Delta à produire
 
-- [ ] `takussan-api/docker/Caddyfile` : en-têtes CORS, `Content-Type: application/json` et corps
+- [x] `takussan-api/docker/Caddyfile` : en-têtes CORS, `Content-Type: application/json` et corps
       `{"code":"payload_too_large"}` sur le 413 de `@trop_gros`.
-- [ ] `deploy/takussan/smoke-api.sh image` : `verifier_refus_trop_gros_lisible` (26 Mio avec un
+- [x] `deploy/takussan/smoke-api.sh image` : `verifier_refus_trop_gros_lisible` (26 Mio avec un
       `Origin`, 413, en-têtes CORS, corps).
-- [ ] `src/lib/api.ts` : codes `payload_too_large` et `server_unreachable` ; `codeErreur` rend
+- [x] `src/lib/api.ts` : codes `payload_too_large` et `server_unreachable` ; `codeErreur` rend
       `payload_too_large` sur un 413 sans prose ; `messageErreurApi` lit `navigator.onLine`.
-- [ ] Clés `errors.api.payloadTooLarge` et `errors.api.serverUnreachable` en `fr`, `en`, `wo` (le
+- [x] Clés `errors.api.payloadTooLarge` et `errors.api.serverUnreachable` en `fr`, `en`, `wo` (le
       `wo` porte le français).
-- [ ] `MaintenanceForm`, `MaintenanceGallery` (photos « avant »), `InventoryDetail` : une photo
+- [x] `MaintenanceForm`, `MaintenanceGallery` (photos « avant »), `InventoryDetail` : une photo
       par appel, arrêt au premier échec ; borne de 20 annoncée et tenue aux deux sélecteurs.
-- [ ] `uploadPropertyPhotos` et `uploadPropertyPhotosAction` rendent les médias créés ;
+- [x] `uploadPropertyPhotos` et `uploadPropertyPhotosAction` rendent les médias créés ;
       `PropertyMediaPanel` les rend sans relire la liste.
 
 ## Critères d'acceptation
 
-- [ ] AC1 (P236.01) — `smoke-api.sh image` : un corps de 26 Mio envoyé avec un `Origin` rend 413,
+- [x] AC1 (P236.01) — `smoke-api.sh image` : un corps de 26 Mio envoyé avec un `Origin` rend 413,
       `Access-Control-Allow-Origin` = `FRONTEND_URL`, `Access-Control-Allow-Credentials: true`,
       `Content-Type: application/json` et `{"code":"payload_too_large"}`. Sur l'image
       précédente, l'étape rougit sur l'en-tête.
-- [ ] AC2 (P236.01) — `messageErreurApi` sur `ApiError(413, {code: 'payload_too_large'})` et sur
+- [x] AC2 (P236.01) — `messageErreurApi` sur `ApiError(413, {code: 'payload_too_large'})` et sur
       `ApiError(413, null)` rend « L'envoi dépasse 25 Mo : envoyez moins de fichiers à la fois, ou
       des fichiers plus légers. » ; la prose de Laravel sur son 413 l'emporte.
-- [ ] AC3 (P236.03) — un `TypeError` en ligne, ou sans `navigator`, rend « Le serveur est
+- [x] AC3 (P236.03) — un `TypeError` en ligne, ou sans `navigator`, rend « Le serveur est
       injoignable pour le moment. Réessayez dans un instant. » ; hors ligne, le libellé réseau.
-- [ ] AC4 (P236.02) — demande neuve, photos « avant » et état des lieux : 19 photos choisies →
+- [x] AC4 (P236.02) — demande neuve, photos « avant » et état des lieux : 19 photos choisies →
       19 appels d'une photo chacun, aucun appel à plusieurs photos.
-- [ ] AC5 (P236.02) — le deuxième envoi échoue : aucun envoi suivant ; aux photos « avant » et à
+- [x] AC5 (P236.02) — le deuxième envoi échoue : aucun envoi suivant ; aux photos « avant » et à
       l'état des lieux, réessayer n'envoie que les photos non jointes.
-- [ ] AC6 (P236.02) — la borne de 20 se lit sous les sélecteurs de la demande neuve et des photos
+- [x] AC6 (P236.02) — la borne de 20 se lit sous les sélecteurs de la demande neuve et des photos
       « avant » ; 21 photos choisies sont refusées et dites, et rien ne part.
-- [ ] AC7 (P237.03) — un envoi réussi dont la relecture échouerait montre la photo dans la grille,
+- [x] AC7 (P237.03) — un envoi réussi dont la relecture échouerait montre la photo dans la grille,
       depuis la réponse de l'envoi, et la liste n'est pas relue.
 
 ## Hors périmètre
@@ -132,4 +132,20 @@ Réfs : **P236.01, P236.02, P236.03, P237.03** du fichier de pistes, `validé` p
 
 ## Notes d'implémentation
 
-À compléter à la clôture.
+- **Image** : construite en local sous `ghcr.io/thiambara/takussan-api:local-l38` (jamais poussée),
+  `TAG=local-l38 deploy/takussan/smoke-api.sh image` vert de bout en bout. Ablation : la seule
+  étape neuve jouée sur l'image précédente (`local-l27`, même Caddyfile qu'avant ce ticket) rougit
+  sur « le 413 du proxy n'a pas l'en-tête Access-Control-Allow-Origin » (le 413 y est déjà).
+- **`header @trop_gros` avant `respond`** : `static_response` ne pose son `Content-Type` que s'il
+  n'y en a pas, et l'ordre des directives de Caddy place `header` avant `respond`. Le serveur de
+  la sonde tourne sans l'entrypoint : Caddy répond avant PHP, `APP_KEY` est inutile.
+- **Ablations du front** : la ligne `413` de `codeErreur` retirée → les deux tests de libellé de
+  P236.01 rouges ; la lecture de `navigator.onLine` retirée → les deux tests « injoignable » rouges ;
+  les trois écrans de photos rendus à leur version d'avant → les dix tests de P236.02 rouges ; le
+  seul retrait de la photo jointe de la sélection supprimé → les tests de reprise rouges (et ceux
+  du compte, qui attendent le bouton vide) ; l'ancien `PropertyMediaPanel` remis → le test de
+  P237.03 rouge (ligne `done`, aucune tuile).
+- `useApiForm.test.tsx` attendait « connexion » pour tout `TypeError` : le cas se fait hors ligne,
+  et un second cas fixe « serveur injoignable » en ligne.
+- `InventoryDetail` perd un `onClick` asynchrone : `eslint-suppressions.json` est élagué d'une
+  entrée `no-misused-promises`, sans quoi `npm run lint` sort en 2.
