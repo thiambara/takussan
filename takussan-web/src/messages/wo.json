@@ -2920,7 +2920,9 @@
       "saveFailedToastTitle": "Sa liggéey dencuñu ko",
       "saveFailedToastBody": "Denc bi dañu ko bañ (kotëk bi dagg na walla sa session jeex na). Dellul duggati, ubbi jëf-jëf bi te seetaat say mbind yu mujj: dencuñu leen.",
       "completionFailedToastTitle": "Mënuñu koo mottali léegi",
-      "completionFailedToastBody": "Sa liggéey dencuñu ko. Seetal sa kotëk, te bësaat ci « Mottali » — dara sànkuwul."
+      "completionFailedToastBody": "Sa liggéey dencuñu ko. Seetal sa kotëk, te bësaat ci « Mottali » — dara sànkuwul.",
+      "draftNotClearedToastTitle": "Brouillon non effacé",
+      "draftNotClearedToastBody": "Votre démarche est bien enregistrée, mais son brouillon n'a pas pu être effacé (connexion perdue ou session expirée). Il peut encore vous être proposé à la reprise : vous pouvez l'ignorer."
     },
     "banner": {
       "ariaLabel": "Dellusi liggéey bi nga taxoon",

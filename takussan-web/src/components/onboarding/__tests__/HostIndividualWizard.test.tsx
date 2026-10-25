@@ -75,7 +75,8 @@ let brouillon: { step: number; data: Record<string, unknown> } | null = null;
 // TCK-566 — espions stables : le brouillon fantôme hérité doit être SUPPRIMÉ
 // (et non réécrit) à la réouverture.
 const sauverBrouillon = vi.fn();
-const effacerBrouillon = vi.fn().mockResolvedValue(undefined);
+// P237.04 — `clear()` rend son sort (`true` : effacé).
+const effacerBrouillon = vi.fn().mockResolvedValue(true);
 vi.mock('@/hooks/useWizardDraft', () => ({
   useWizardDraft: () => ({
     draft: brouillon,

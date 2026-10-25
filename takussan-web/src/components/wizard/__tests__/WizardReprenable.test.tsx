@@ -20,6 +20,8 @@ const messages = {
       saveFailedToastBody: 'Rouvrez l’assistant et vérifiez vos dernières saisies.',
       completionFailedToastTitle: 'Impossible de terminer pour l’instant',
       completionFailedToastBody: 'Vérifiez votre connexion, puis cliquez de nouveau sur Terminer.',
+      draftNotClearedToastTitle: 'Brouillon non effacé',
+      draftNotClearedToastBody: 'Votre démarche est bien enregistrée.',
     },
   },
   // `<Toaster />` traduit le bouton de fermeture : sans ce bloc, next-intl
@@ -173,6 +175,45 @@ describe('WizardReprenable', () => {
     const fetchMock = globalThis.fetch as unknown as ReturnType<typeof vi.fn>;
     const deletes = fetchMock.mock.calls.filter((c) => (c[1]?.method ?? 'GET') === 'DELETE');
     expect(deletes.length).toBeGreaterThanOrEqual(1);
+  });
+
+  // P237.04 (TCK-2371) — la démarche est close, mais le DELETE du brouillon a échoué : le bandeau
+  // la reproposerait à la reprise. Le dire, sans démentir la finalisation.
+  it('P237.04 — un DELETE refusé après la finalisation dit le brouillon non effacé', async () => {
+    const parDefaut = globalThis.fetch as unknown as ReturnType<typeof vi.fn>;
+    const impl = parDefaut.getMockImplementation()!;
+    parDefaut.mockImplementation(async (url: unknown, init: unknown) =>
+      (init as RequestInit | undefined)?.method === 'DELETE'
+        ? { ok: false, status: 500, json: async () => ({}) }
+        : impl(url, init));
+    const onComplete = vi.fn();
+    renderWizard({ onComplete });
+    await tick();
+
+    fireEvent.change(screen.getByLabelText('title'), { target: { value: 'Studio' } });
+    await tick(80);
+    fireEvent.click(screen.getByRole('button', { name: 'Suivant' }));
+    await tick();
+    fireEvent.click(screen.getByRole('button', { name: 'Terminer' }));
+    await tick(80);
+
+    expect(onComplete).toHaveBeenCalled();
+    expect(await screen.findByText('Brouillon non effacé')).toBeInTheDocument();
+    expect(screen.queryByText('Impossible de terminer pour l’instant')).not.toBeInTheDocument();
+  });
+
+  it('P237.04 (contre-épreuve) — un DELETE accepté ne dit rien du brouillon', async () => {
+    renderWizard();
+    await tick();
+
+    fireEvent.change(screen.getByLabelText('title'), { target: { value: 'Studio' } });
+    await tick(80);
+    fireEvent.click(screen.getByRole('button', { name: 'Suivant' }));
+    await tick();
+    fireEvent.click(screen.getByRole('button', { name: 'Terminer' }));
+    await tick(80);
+
+    expect(screen.queryByText('Brouillon non effacé')).not.toBeInTheDocument();
   });
 
   it('hydrates from an existing server draft and resumes at the saved step', async () => {

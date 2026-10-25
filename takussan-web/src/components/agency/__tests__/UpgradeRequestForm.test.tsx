@@ -103,7 +103,8 @@ describe('<UpgradeRequestForm>', () => {
     brouillon.draft = null;
     // AC5 — la doublure rend un `ResultatEcritureBrouillon`, jamais `undefined`.
     brouillon.flush.mockResolvedValue({ ok: true, ecrit: false });
-    brouillon.clear.mockResolvedValue(undefined);
+    // P237.04 — `clear()` rend son sort : `true`, le brouillon est effacé.
+    brouillon.clear.mockResolvedValue(true);
   });
 
   it('blocks submission when no statuts file is attached', async () => {
@@ -175,6 +176,27 @@ describe('<UpgradeRequestForm>', () => {
     // correctif qui éteindrait les DEUX chemins passerait un test qui ne
     // regarde que l'échec.
     expect(brouillon.clear).toHaveBeenCalledTimes(1);
+  });
+
+  // P237.04 (TCK-2371) — la demande est partie, mais le DELETE du brouillon a échoué : le bandeau
+  // la reproposerait à la reprise. Le succès reste dit, et le brouillon non effacé aussi.
+  it('P237.04 — clear() en échec après la soumission : le succès est dit, et le brouillon conservé aussi', async () => {
+    submitAgencyUpgradeRequest.mockResolvedValue({ data: { id: 1 } });
+    brouillon.clear.mockResolvedValue(false);
+
+    render(withIntl(<UpgradeRequestForm agencyId={42} />));
+    fillRequiredText();
+    const file = new File(['%PDF-1.4'], 'statuts.pdf', { type: 'application/pdf' });
+    fireEvent.change(screen.getByLabelText(/Statuts juridiques/i), { target: { files: [file] } });
+    fireEvent.submit(screen.getByRole('form', { name: /Formulaire de demande/i }));
+
+    await waitFor(() => {
+      expect(toastAdd).toHaveBeenCalledWith(expect.objectContaining({ type: 'success' }));
+    });
+    expect(toastAdd).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'warning',
+      title: 'Brouillon non effacé',
+    }));
   });
 
   // ── TCK-482 ────────────────────────────────────────────────────────────────

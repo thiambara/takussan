@@ -4710,7 +4710,9 @@
       "saveFailedToastTitle": "Progress not saved",
       "saveFailedToastBody": "The save was refused (lost connection or expired session). Sign back in, reopen the wizard and check your latest entries: they were not kept.",
       "completionFailedToastTitle": "Can’t finish just yet",
-      "completionFailedToastBody": "Your progress could not be saved. Check your connection, then click “Finish” again — nothing is lost."
+      "completionFailedToastBody": "Your progress could not be saved. Check your connection, then click “Finish” again — nothing is lost.",
+      "draftNotClearedToastTitle": "Draft not cleared",
+      "draftNotClearedToastBody": "Your request went through, but its draft could not be cleared (connection lost or session expired). It may still be offered for you to resume: you can ignore it."
     },
     "banner": {
       "ariaLabel": "Resume an in-progress flow",

@@ -53,6 +53,7 @@ const ACCEPT_MIME = 'application/pdf,image/jpeg,image/png';
 
 export function UpgradeRequestForm({ agencyId }: UpgradeRequestFormProps) {
   const t = useTranslations('agency.upgrade.form');
+  const tBrouillon = useTranslations('wizardDrafts.component');
   const messageErreur = useMessageErreurApi();
   const { token } = useAuth();
   const toast = useToast();
@@ -184,8 +185,17 @@ export function UpgradeRequestForm({ agencyId }: UpgradeRequestFormProps) {
           return;
         }
         await submitAgencyUpgradeRequest(token, agencyId, form, statutsDoc);
-        await clear();
+        const brouillonEfface = await clear();
         toast.add({ title: t('toasts.submitted'), type: 'success' });
+        // P237.04 (TCK-2371) — la demande est partie ; seul son brouillon a survécu au DELETE, et
+        // le bandeau des démarches le reproposerait. Le dire, sans démentir l'envoi.
+        if (!brouillonEfface) {
+          toast.add({
+            title: tBrouillon('draftNotClearedToastTitle'),
+            description: tBrouillon('draftNotClearedToastBody'),
+            type: 'warning',
+          });
+        }
         router.refresh();
       } catch (error) {
         if (error instanceof ApiError) {

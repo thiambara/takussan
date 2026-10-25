@@ -4710,7 +4710,9 @@
       "saveFailedToastTitle": "Progression non enregistrée",
       "saveFailedToastBody": "L'enregistrement a été refusé (connexion perdue ou session expirée). Reconnectez-vous, rouvrez l'assistant et vérifiez vos dernières saisies : elles n'ont pas été conservées.",
       "completionFailedToastTitle": "Impossible de terminer pour l'instant",
-      "completionFailedToastBody": "Votre progression n'a pas pu être enregistrée. Vérifiez votre connexion, puis cliquez de nouveau sur « Terminer » — rien n'est perdu."
+      "completionFailedToastBody": "Votre progression n'a pas pu être enregistrée. Vérifiez votre connexion, puis cliquez de nouveau sur « Terminer » — rien n'est perdu.",
+      "draftNotClearedToastTitle": "Brouillon non effacé",
+      "draftNotClearedToastBody": "Votre démarche est bien enregistrée, mais son brouillon n'a pas pu être effacé (connexion perdue ou session expirée). Il peut encore vous être proposé à la reprise : vous pouvez l'ignorer."
     },
     "banner": {
       "ariaLabel": "Reprendre une démarche en cours",
