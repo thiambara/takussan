@@ -654,7 +654,7 @@ Les trois 🔴 ont été relus par la session dans le code :
 
 ### Le cliquet de couverture laisse sept points de marge
 - Réf : P12.05
-- Statut : validé — validation du porteur (2026-10-25) : le cliquet de couverture passe à 92 % si l'artefact `couverture-api-clover` du dernier run nocturne de `dev` mesure au moins 92,5 % ; CLAUDE.md suit dans le même commit
+- Statut : fait · TCK-2360
 - Gravité : 🟠 risque ou dette
 - Où : `.github/workflows/api-ci.yml:464`
 - Constat :
@@ -664,6 +664,7 @@ Les trois 🔴 ont été relus par la session dans le code :
 - Piste : selon CLAUDE.md, le seuil se resserre sur un chiffre de CI. Relever un second run sur `dev`, puis passer à 92 %.
 - Mesure (2026-10-15, 89a52efe, mesureur) : `gh run download 38700039987 -n couverture-api-clover` (run `schedule` sur `dev`, 53b3d2ee) puis `php bin/coverage-gate.php <clover> --min=86` → « Total: 93.1 % (38381 / 41218 lignes exécutables) … ✓ cliquet tenu » ; `.github/workflows/api-ci.yml:464` porte toujours `--min=86`. C'est le second chiffre de CI que la piste demandait, et il confirme celui de la PR (93,15 %). Le dernier run de `dev` (38711643375) n'a pas d'artefact de couverture : sauté par l'attestation (ADR-0063). Classement : V9, resserrer un seuil de garde revient au porteur.
 - Mesure (2026-10-25, ece5a91ea, humain) : validation du porteur en bloc (2026-10-25) sur la re-vérification de la session à c35c20d16 ; statut précédent : « retenu · à valider — V9 : seuil du cliquet de couverture ; porteur (2026-10-15) : traité hors agents, seuil à 92 % sur un chiffre de CI ».
+- Mesure (2026-10-25, ece5a91ea, humain) : `gh run download 40074381064 -n couverture-api-clover` (dernier run nocturne de `dev`, `69979ae96`), puis `php bin/coverage-gate.php <clover> --min=92.5` → « Total: 95.6 % (43037 / 45015 lignes exécutables) … ✓ cliquet tenu ». La condition est remplie : `api-ci.yml` passe à `--min=92`, et CLAUDE.md suit dans le même commit (TCK-2360).
 
 ## Angle 14 — Observabilité : ce qu'on ne verrait pas en production
 
