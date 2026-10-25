@@ -1319,6 +1319,14 @@ Index : `activity_log_agency_created_idx (agency_id, created_at)`, `activity_log
 Relation : `agency()` (belongsTo). Un admin d'agence ne lit que `agency_id = <agence du profil actif>`
 (`AuditScope`).
 
+**Conservation** (TCK-2342, [ADR-0044, amendement du 2026-10-25](adr/0044-donnees-personnelles-chiffrement-journal-d-agence-registre-des-droits.md#amendement-du-2026-10-25--le-journal-dactivité-se-conserve-par-famille-tck-2342)) :
+une ligne se purge au-delà de la durée de sa famille de `log_name`, comptée depuis `created_at`,
+par `audit:prune-activity-log` (chaque jour, 04:10 Dakar) — **12 mois** par défaut et pour un
+`log_name` nul ; **5 ans** pour `PersonalDataAccess`, `Privacy`, `Security`, `UserSupport`, `KYC`,
+`KycDossier`, `Account`, `Membership`, `AgencyRole`, `Integration`, `export` ; **10 ans** pour
+`LeasePayment`, `BookingPayment`, `Invoice`, `Payout`, `PlatformPayout`, `CommissionEntry`,
+`Billing`. Les listes vivent dans `App\Console\Commands\PruneActivityLog`.
+
 **Ce que rendent les lectures.** Les lectures du journal d'agence et de la console rendent
 `properties`, et **jamais `attribute_changes`** : aucun écran ne montre le détail d'un événement
 (décision du porteur du 2026-10-19, piste P56.03 — à rouvrir avec un écran qui le montre).
@@ -3626,6 +3634,8 @@ supprime l'ambiguïté de sous-chaîne qu'avait la recherche `LIKE` sur le JSON.
 |---------|------|----------|--------|-------------|
 | id | bigint PK | | auto | |
 | app_notification_id | FK app_notifications | oui | null | Notification acheminée (`cascadeOnDelete`). **Nulle** pour un SMS envoyé hors notification — contact sans compte, code de signature de bail (TCK-799, `2026_10_17_160000` ; son `down()` supprime d'abord ces tentatives) |
+| agency_id | FK agencies | oui | null | Agence de l'envoi, celle dont le canal a cherché l'intégration (`$context['agency_id']`, P203.01) ; `nullOnDelete`. Nulle pour un envoi de la plateforme, et sur les lignes d'avant `2026_10_25_120500`, qui ne se reconstituent pas (TCK-2326) |
+| integration_id | FK integrations | oui | null | Intégration que le fournisseur a prise, de l'agence ou de la plateforme (`agency_id` nul) ; `nullOnDelete`. Nulle quand aucun fournisseur n'a été appelé (report de nuit, plafond Orange, contact inéligible à WhatsApp, chaîne épuisée), pour le pilote SMS `log`, et sur les lignes d'avant (TCK-2326) |
 | attempt | unsignedSmallInteger | | | Rang de la tentative |
 | provider | string | | | Identifiant du driver, tel que rendu par sa méthode `id()` : `orange`, `mtarget`, `lafricamobile`, `log` (SMS) ou `whatsapp_cloud` |
 | provider_message_id | string | oui | null | Identifiant de message côté fournisseur |
@@ -3649,6 +3659,8 @@ supprime l'ambiguïté de sous-chaîne qu'avait la recherche `LIKE` sur le JSON.
 
 **Relations :**
 - `appNotification()` → belongsTo AppNotification
+- `agency()` → belongsTo Agency (TCK-2326)
+- `integration()` → belongsTo Integration (TCK-2326)
 
 > ⚠️ La colonne `app_notifications.delivery_attempts` **existe toujours** en base et reste
 > `$fillable` + castée `array` sur le modèle `AppNotification`. Elle n'est **plus écrite** :

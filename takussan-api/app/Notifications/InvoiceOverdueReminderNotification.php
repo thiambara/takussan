@@ -6,6 +6,7 @@ use App\Models\Enums\Currency;
 use App\Models\Invoice;
 use App\Notifications\Concerns\AlertsWhenMarkedDeliveryFails;
 use App\Services\Formatting\CurrencyFormatter;
+use App\Services\Notifications\NotificationRenderer;
 use App\Services\Notifications\PreferenceResolver;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -70,7 +71,8 @@ class InvoiceOverdueReminderNotification extends Notification implements ShouldQ
     {
         $reference = $this->invoice->reference_number ?? '#'.$this->invoice->id;
         $amount = app(CurrencyFormatter::class)->format((float) $this->invoice->total_amount, $this->invoice->currency ?? Currency::XOF, app()->getLocale());
-        $dueDate = $this->invoice->due_date?->toDateString() ?? '—';
+        // TCK-2325 (P128.03) — la date par le formateur du rendu par code (`LL`).
+        $dueDate = app(NotificationRenderer::class)->formatDate($this->invoice->due_date, app()->getLocale());
 
         return (new MailMessage)
             ->subject(__('notifications.invoice_reminder_sent.subject', ['reference' => $reference]))

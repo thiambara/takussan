@@ -7,7 +7,7 @@ use Tests\Support\CoverageGate;
  * Le cliquet de couverture (TCK-302), évalué depuis le clover (TCK-331).
  *
  * Usage :
- *   php bin/coverage-gate.php storage/coverage/clover.xml --min=86
+ *   php bin/coverage-gate.php storage/coverage/clover.xml --min=92
  *
  * ⚠ CE SCRIPT NE VIT PAS SOUS `app/`, ET C'EST DÉLIBÉRÉ — même raison que
  * `bin/build-impact-map.php` : `phpunit.xml` déclare `<source><include>app</include></source>`,

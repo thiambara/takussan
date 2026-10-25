@@ -5,6 +5,7 @@ namespace App\Notifications;
 use App\Jobs\SendTaskDueReminders;
 use App\Models\Task;
 use App\Notifications\Concerns\AlertsWhenMarkedDeliveryFails;
+use App\Services\Notifications\NotificationRenderer;
 use App\Services\Notifications\PreferenceResolver;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -61,7 +62,8 @@ class TaskDueReminderNotification extends Notification implements ShouldQueue
             ->greeting(__('notifications.task_due_reminder.greeting'))
             ->line(__('notifications.task_due_reminder.intro', [
                 'title' => $this->task->title,
-                'datetime' => optional($this->task->due_at)->format('Y-m-d H:i') ?? '—',
+                // TCK-2325 (P128.03) — l'échéance en `LLL`, dans le fuseau du destinataire.
+                'datetime' => app(NotificationRenderer::class)->formatDateTime($this->task->due_at, app()->getLocale(), NotificationRenderer::timezoneOf($notifiable)),
             ]))
             ->salutation(__('notifications.salutation'));
     }
