@@ -204,7 +204,7 @@ Gestion complète d'un contrat de bail et de son cycle de vie.
 | P2 | 🏠 | Donner congé depuis son espace locataire : délai de préavis et pénalité affichés avant l'envoi, retrait possible tant que la fenêtre d'annulation est ouverte ; la clôture reste au gestionnaire (TCK-596) |
 | P2 | 🏠🏢🧑‍💼 | Signature du bail par code à usage unique (SMS sur numéro vérifié, sinon e-mail) : empreinte du contrat figé, horodatage et IP de chaque partie ; activation à la seconde signature (TCK-596 — remplace la ligne P3 « Signature électronique du bail ») |
 | P3 | 🏠 | Espace locataire : les factures adressées au client — l'API les lui liste (`GET /api/invoices`), son espace ne les montre pas encore ; le reste y est déjà : baux, échéances et paiement, quittances, interventions, états des lieux, documents (lignes P1/P2 de §1.4, §1.8, §2.5) |
-| P1 | 🏠🧑‍💼 | Onboarding résident à la signature du bail : notification "Bienvenue chez vous", welcome modale "Espace résident", checklist d'entrée (état des lieux, premier paiement, accès aux documents), suivi de complétion par un `TenantOnboardingChecklist` |
+| P1 | 🏠🧑‍💼 | Onboarding résident à la signature du bail : notification "Bienvenue chez vous", welcome modale "Espace résident", checklist d'entrée (état des lieux, premier paiement, accès aux documents), suivi de complétion par un `TenantOnboardingChecklist` ; rien de cela pour un bail renouvelé, et un état des lieux d'entrée contesté rouvre la checklist (TCK-2368) |
 
 ### 1.5 Transactions & paiements
 
@@ -556,6 +556,7 @@ Cartographie complète des parcours d'entrée dans le système (référence : `d
 | P1 | Tous | Préférences par événement et par canal : chaque interrupteur commande exactement les messages de son événement ; une case qu'aucun envoi ne peut honorer (canal sans transport, canal mobile d'un événement qui ne part pas sur mobile) est verrouillée et dit pourquoi (TCK-588) |
 | P1 | 🏠🏢🧑‍💼 | WhatsApp (SMS en secours) activé par défaut, désactivable, pour l'échéance et le retard de loyer, le rappel de visite et le changement de statut d'une réservation, dès que le téléphone est vérifié (TCK-588) |
 | P1 | 🛡️🏢 | Les notifications de vérification KYC d'agence sont critiques : in-app et e-mail toujours, non désactivables (TCK-588) |
+| P1 | Tous | Un compte bloqué ou supprimé ne reçoit plus que les avis de son compte (blocage, réactivation, fin d'impersonation, effacement, réinitialisation du mot de passe, export de ses données prêt), par aucun canal et par aucun chemin d'envoi : les avis du bail, les rappels et les alertes ne lui parviennent plus (TCK-1350, TCK-2363) |
 | P1 | Tous | Templates localisés via fichiers lang/ Laravel |
 | P2 | Tous | Notifications SMS (événements critiques) |
 | P2 | 🛡️ | Annonces in-app cross-tenant (broadcast) ciblées par rôle / agence / segment, avec dismissal côté utilisateur — le bandeau s'affiche dans le flux de la page, sous la barre du haut (site public comme consoles), jamais sous une barre fixe (TCK-572) |
