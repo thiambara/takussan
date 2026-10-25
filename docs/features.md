@@ -196,7 +196,7 @@ Gestion complète d'un contrat de bail et de son cycle de vie.
 | P1 | 🏠🏢 | Télécharger le contrat de bail en PDF depuis le détail du bail (TCK-593) |
 | P1 | 🧑‍💼 | Remboursement de la caution en fin de bail |
 | P1 | 🏢🧑‍💼 | Consultation de l'historique complet d'un bail |
-| P2 | 🏢🧑‍💼 | Renouveler un bail ou créer un avenant (loyer, durée, conditions) avec traçabilité du bail parent ; le bail renouvelé reçoit son échéancier sans geste manuel (TCK-596) |
+| P2 | 🏢🧑‍💼 | Renouveler un bail ou créer un avenant (loyer, durée, conditions) avec traçabilité du bail parent ; le bail renouvelé reçoit son échéancier sans geste manuel (TCK-596) ; il naît sans garant, et la réponse et le récapitulatif le disent (TCK-2316) |
 | P2 | 🏢🧑‍💼 | Résiliation anticipée avec calcul des pénalités |
 | P2 | 🏠🏢 | Révision annuelle du loyer (indice ou accord amiable) journalisée via le journal d'activité |
 | P2 | 🏠🏢 | Télécharger la quittance d'une échéance de loyer payée — jamais pour une échéance non acquittée (TCK-593) |
@@ -213,7 +213,7 @@ Encaissements, factures et reversements.
 |------|---------|----------------|
 | P0 | 🛡️ | Enregistrer un paiement (réservation ou bail) |
 | P1 | 🛡️🏢 | Générer une facture à un Customer destinataire |
-| P1 | 🛡️🏢 | Facture opposable : numérotation chronologique continue par agence et par an, attribuée à l'émission ; mentions légales de l'agence (raison sociale, NINEA, RCCM, adresse) ; TVA par défaut de l'agence ; une facture émise ne s'annule que par un avoir (TCK-594) |
+| P1 | 🛡️🏢 | Facture opposable : numérotation chronologique continue par agence et par an, attribuée à l'émission ; mentions légales de l'agence (raison sociale, NINEA, RCCM, adresse) ; TVA par défaut de l'agence ; une facture émise ne s'annule que par un avoir (TCK-594), qui reprend ses lignes et sa désignation (TCK-2316) |
 | P1 | 🏢 | Reversement au bailleur après commission (Payout) |
 | P1 | 🏢🏠 | Reversement au bailleur calculé depuis les loyers et réservations encaissés de la période (loyer, charges, pénalités, régularisations ; jamais la caution), commission du bail sinon de l'agence, frais de travaux refacturés déduits ; le brut n'est pas saisi et un paiement n'est reversé qu'une fois (TCK-594) |
 | P1 | 🏢🏠 | Un reversement ne cite que des paiements de l'agence et du bailleur concernés ; un remboursement de caution est un versement au locataire, jamais compté comme reversé au bailleur (TCK-594) |

@@ -314,7 +314,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P1 | §1.4 | Enregistrer une pénalité de retard réglée à l'agence ; la quittance la dit acquittée ou restant due (TCK-593) |
 | P1 | §1.4 | Télécharger le contrat de bail en PDF depuis le détail du bail (TCK-593) |
 | P1 | §1.4 | Consultation de l'historique complet d'un bail |
-| P2 | §1.4 | Renouveler un bail ou créer un avenant (loyer, durée, conditions) avec traçabilité du bail parent ; le bail renouvelé reçoit son échéancier sans geste manuel (TCK-596) |
+| P2 | §1.4 | Renouveler un bail ou créer un avenant (loyer, durée, conditions) avec traçabilité du bail parent ; le bail renouvelé reçoit son échéancier sans geste manuel (TCK-596) ; il naît sans garant, et la réponse et le récapitulatif le disent (TCK-2316) |
 | P2 | §1.4 | Résiliation anticipée avec calcul des pénalités |
 | P2 | §1.4 | Révision annuelle du loyer (indice ou accord amiable) journalisée via le journal d'activité |
 | P2 | §1.4 | Télécharger la quittance d'une échéance de loyer payée — jamais pour une échéance non acquittée (TCK-593) |
@@ -325,7 +325,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | Prio | Domaine | Fonctionnalité |
 |------|---------|----------------|
 | P1 | §1.5 | Générer une facture à un Customer destinataire |
-| P1 | §1.5 | Facture opposable : numérotation chronologique continue par agence et par an, attribuée à l'émission ; mentions légales de l'agence (raison sociale, NINEA, RCCM, adresse) ; TVA par défaut de l'agence ; une facture émise ne s'annule que par un avoir (TCK-594) |
+| P1 | §1.5 | Facture opposable : numérotation chronologique continue par agence et par an, attribuée à l'émission ; mentions légales de l'agence (raison sociale, NINEA, RCCM, adresse) ; TVA par défaut de l'agence ; une facture émise ne s'annule que par un avoir (TCK-594), qui reprend ses lignes et sa désignation (TCK-2316) |
 | P1 | §1.5 | Reversement au bailleur après commission (Payout) |
 | P1 | §1.5 | Reversement au bailleur calculé depuis les loyers et réservations encaissés de la période (loyer, charges, pénalités, régularisations ; jamais la caution), commission du bail sinon de l'agence, frais de travaux refacturés déduits ; le brut n'est pas saisi et un paiement n'est reversé qu'une fois (TCK-594) |
 | P1 | §1.5 | Un reversement ne cite que des paiements de l'agence et du bailleur concernés ; un remboursement de caution est un versement au locataire, jamais compté comme reversé au bailleur (TCK-594) |
@@ -490,7 +490,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P1 | §1.4 | Enregistrer une pénalité de retard réglée à l'agence ; la quittance la dit acquittée ou restant due (TCK-593) |
 | P1 | §1.4 | Remboursement de la caution en fin de bail |
 | P1 | §1.4 | Consultation de l'historique complet d'un bail |
-| P2 | §1.4 | Renouveler un bail ou créer un avenant (loyer, durée, conditions) avec traçabilité du bail parent ; le bail renouvelé reçoit son échéancier sans geste manuel (TCK-596) |
+| P2 | §1.4 | Renouveler un bail ou créer un avenant (loyer, durée, conditions) avec traçabilité du bail parent ; le bail renouvelé reçoit son échéancier sans geste manuel (TCK-596) ; il naît sans garant, et la réponse et le récapitulatif le disent (TCK-2316) |
 | P2 | §1.4 | Résiliation anticipée avec calcul des pénalités |
 | P2 | §1.4 | Signature du bail par code à usage unique (SMS sur numéro vérifié, sinon e-mail) : empreinte du contrat figé, horodatage et IP de chaque partie ; activation à la seconde signature (TCK-596 — remplace la ligne P3 « Signature électronique du bail ») |
 | P1 | §1.4 | Onboarding résident à la signature du bail : notification "Bienvenue chez vous", welcome modale "Espace résident", checklist d'entrée (état des lieux, premier paiement, accès aux documents), suivi de complétion par un `TenantOnboardingChecklist` |
@@ -694,7 +694,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 |------|---------|----------------|
 | P0 | §1.5 | Enregistrer un paiement (réservation ou bail) |
 | P1 | §1.5 | Générer une facture à un Customer destinataire |
-| P1 | §1.5 | Facture opposable : numérotation chronologique continue par agence et par an, attribuée à l'émission ; mentions légales de l'agence (raison sociale, NINEA, RCCM, adresse) ; TVA par défaut de l'agence ; une facture émise ne s'annule que par un avoir (TCK-594) |
+| P1 | §1.5 | Facture opposable : numérotation chronologique continue par agence et par an, attribuée à l'émission ; mentions légales de l'agence (raison sociale, NINEA, RCCM, adresse) ; TVA par défaut de l'agence ; une facture émise ne s'annule que par un avoir (TCK-594), qui reprend ses lignes et sa désignation (TCK-2316) |
 | P1 | §1.5 | Double validation des sorties d'argent : la même personne ne tient jamais deux gestes consécutifs (préparer, approuver, marquer payé) ni n'approuve un versement dont elle est bénéficiaire. Reversements plateforme : toujours. Reversements d'agence : désactivée par défaut ; l'agence l'active par un seuil, possible seulement avec deux approbateurs (TCK-594) |
 | P1 | §1.5 | Historique des paiements par entité (bien, bail, client) |
 | P1 | §1.5 | Suivi des statuts (en attente, payé, remboursé, annulé) |

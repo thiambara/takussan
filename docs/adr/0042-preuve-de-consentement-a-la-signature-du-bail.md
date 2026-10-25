@@ -1,6 +1,6 @@
 # ADR-0042 — Un bail se signe par un code à usage unique sur un PDF figé et haché ; la preuve garde le signataire, l'empreinte, l'heure, l'IP et le canal ; `activate` devient la voie « papier »
 
-- **Statut** : Accepté
+- **Statut** : Accepté, **amendé le 2026-10-25** (cf. § *Amendement du 2026-10-25 — un renouvellement ne reporte pas les garants*)
 - **Date** : 2026-10-08
 - **Tickets** : [TCK-596](../backlog/tickets/TCK-596-cycle-locatif-conge-annulation-signature-edl.md) (O17)
 - **Précise** : [ADR-0031](0031-personnel-de-l-agence-et-cloisonnement-des-bailleurs.md) (qui signe pour
@@ -176,3 +176,25 @@ signature active le bail. `activate` ne reste que pour la signature hors platefo
   `DocumentPdfController::leaseContract`.
 - Tests : `LeaseSignatureTest` (parcours, verrou, rejeu, bail modifié, tiers, super-admin, agent avec et
   sans `leases.sign`, preuve, renouvellement) et `LeaseTest` (voie papier).
+
+## Amendement du 2026-10-25 — un renouvellement ne reporte pas les garants
+
+- **Ticket** : [TCK-2316](../backlog/tickets/TCK-2316-bail-renouvele-sans-garant-et-avoir-a-lignes.md)
+  (P231.01, décision du porteur du 2026-10-25).
+
+**Constat.** Le § 1 fait hériter à l'enfant d'un renouvellement les termes imprimés et signés du
+parent, et ne disait rien des garants. `LeaseRenewalService::renew` recopiait l'ancienne colonne
+`guarantor_id`, mais pas le pivot `lease_guarantor` dont le contrat imprime la section des garants :
+un enfant né `active` figeait donc un contrat sans garant, sans que personne l'ait décidé ni que
+rien le dise (mesuré : parent à un garant, enfant à zéro, `contract_sha256` posé).
+
+**Décision.** Le bail renouvelé **naît sans garant**, et la réponse et l'écran le disent. Une
+caution signée pour un bail n'engage pas d'office le bail suivant : le cautionnement ne se présume
+pas, et le garant ne signe pas dans l'outil. Ni le pivot ni `guarantor_id` ne passent à l'enfant ;
+`POST leases/{lease}/renew` rend `meta.guarantors_not_carried_over` (le nombre de garants du
+parent), et le récapitulatif du renouvellement l'annonce avant la confirmation. Rattacher ensuite
+un garant à l'enfant suit la règle du § 1 : cela défige son contrat.
+
+**Ce qui n'est pas gardé.** Recopier les garants reste au porteur, si un avis juridique dit que le
+cautionnement suit le bail renouvelé (OHADA). Que le rattachement d'un garant à un enfant déjà né
+`active` défige bien son contrat n'a pas été re-mesuré par ce ticket.
