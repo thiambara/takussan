@@ -1006,7 +1006,7 @@ ou dans une agence dont ils sont membres. Le super-admin voit tout.
 | user_id | FK users | | | Utilisateur collaborateur (`cascadeOnDelete`) | |
 | role | CollaboratorRole (string) | | | Rôle attribué (`manager`, `co_owner`, `agent`, `viewer`) | ✏️ |
 | is_primary | boolean | | false | **Agent principal** du bien — au plus une ligne marquée par bien, et seulement de rôle `agent` (deux garanties du schéma, ci-dessous). Hors `$fillable` : seul `PrimaryAgentDesignator` la déplace (`2026_10_08_120000`, TCK-504, ADR-0053) | ➕ |
-| commission_share | decimal(5,2) | oui | null | Part de commission allouée à ce collaborateur (%), de 0 à 100 par ligne. La somme par bien **n'est pas contrôlée à l'écriture** : le grand livre des commissions plafonne la part du négociateur à `100 − Σ` des parts servies (TCK-595, ADR-0049 §3) | ➕ |
+| commission_share | decimal(5,2) | oui | null | Part de commission allouée à ce collaborateur (%), de 0 à 100 par ligne. La somme par bien **n'est pas contrôlée à l'écriture** : le grand livre des commissions plafonne la part du négociateur à `100 − Σ` des parts servies (TCK-595, ADR-0049 §3). Écrite et lue par le seul personnel de l'agence du bien qui tient `leases.create` (`PropertyPolicy::manageCommissionShares`), à l'ajout, à la modification et à la copie ; absente de la réponse pour tout autre lecteur (TCK-2364) | ➕ |
 | invited_at | timestamp | oui | null | Date d'ajout, posée par `PropertyCollaboratorController::store()` ; sert d'ordre au repli du contact principal | |
 | accepted_at | timestamp | oui | null | **Aucun sens métier aujourd'hui** : rien dans l'application ne l'écrit (seul le seeder la remplit) et il n'existe aucun parcours d'acceptation ; ni le contact principal ni le grand livre ne la lisent (TCK-504) | |
 | metadata | jsonb | oui | null | Données libres | |
@@ -2312,7 +2312,7 @@ JSON libre (`{"value": …}`), sans journal, `updated_by_id` pour seule trace. U
 | agency_role_id | FK agency_roles | | | Le rôle personnalisé de ce profil — **exactement un** (`restrictOnDelete`, FK `agent_profiles_agency_role_id_fk`). Rôle système de son type par défaut à la création (`HasAgencyRole`) (TCK-279, `2026_08_16_120200` → `120400`) |
 | status | AgentProfileStatus | | 'active' | Statut du profil (draft, active, inactive, suspended). **`suspended` = adhésion suspendue par l'agence** (`TeamMemberSuspensionService`, capacité `team.suspend`, TCK-587, ADR-0031 §2 ; journal `team_member_suspended` / `team_member_reactivated`, qui passe par `AgentInvitationService::suspend()`) ; la réactivation ne lève que ce statut |
 | license_number | string | oui | null | Numéro de licence professionnelle |
-| commission_rate | decimal(5,2) | oui | null | Taux de commission (%) |
+| commission_rate | decimal(5,2) | oui | null | Taux de commission du négociateur (%) : sa part de la commission d'un bail qu'il négocie, plafonnée par les parts des collaborateurs (ADR-0049 « Ventilation » § 2) ; nul vaut 0. Écrit sur la fiche de membre sous `team.assign_role` (`PATCH /api/profiles/{agent_profile}/commission-rate`, TCK-2364) |
 | specialty | string | oui | null | Spécialité (résidentiel, commercial, luxe, etc.) |
 | hire_date | date | oui | null | Date d'embauche |
 | active_until | date | oui | null | Date de fin de contrat (si applicable) |
