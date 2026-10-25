@@ -3,7 +3,7 @@ id: TCK-2326
 title: "Une tentative de remise SMS ou WhatsApp garde l'agence de l'envoi et l'intégration prise"
 status: done
 phase: P2
-family: feature
+family: back
 estimate: S
 wave: null
 created: 2026-10-25
