@@ -12,6 +12,7 @@ use App\Notifications\CodedNotification;
 use App\Notifications\Concerns\SupportsSms;
 use App\Notifications\Concerns\SupportsWhatsapp;
 use App\Services\Notifications\PreferenceResolver;
+use App\Services\Notifications\Sms\IntegrationLocator;
 use App\Services\Notifications\Sms\PhoneNumber;
 use App\Services\Notifications\Sms\SmsRouterDriver;
 use App\Services\Notifications\Whatsapp\ServiceWindow;
@@ -65,6 +66,7 @@ class WhatsappChannel
         private readonly ServiceWindow $serviceWindow,
         private readonly TemplateResolver $templates,
         private readonly ConfigRepository $config,
+        private readonly IntegrationLocator $integrations,
     ) {}
 
     public function send(object $notifiable, Notification $notification): mixed
@@ -117,14 +119,18 @@ class WhatsappChannel
             // approved template) — record a deferred attempt then roll to SMS
             // without touching the provider.
             $deferred = WhatsappResult::deferred($phone, $this->driver->id(), $this->ineligibilityReason($contact, $notifiable));
-            $this->logAttempt($context['notification_id'], 1, $deferred);
+            $this->logAttempt($context, 1, $deferred);
 
             return $this->fallbackToSms($notifiable, $notification, $phone, $context, $deferred);
         }
 
+        // TCK-2326 (P203.05) — l'intégration que le pilote va prendre : même clé, même cache
+        // (`IntegrationLocator`, le temps de la requête ou du job).
+        $integrationId = $this->integrations
+            ->find($context['agency_id'], (string) $this->config->get('whatsapp.integration_provider', 'whatsapp_cloud'))?->id;
         $results = $this->driver->send($phone, $message, $context);
         $result = $results[$phone] ?? WhatsappResult::failed($phone, $this->driver->id(), 'whatsapp_no_result');
-        $this->logAttempt($context['notification_id'], 1, $result);
+        $this->logAttempt($context, 1, $result, $integrationId);
 
         if ($result->isTerminalSuccess()) {
             return $results;
@@ -155,6 +161,10 @@ class WhatsappChannel
         if (! $notifiable instanceof User && $contact?->opt_in_status !== WhatsappContact::OPT_IN_OPTED_IN) {
             return null;
         }
+        // P203.05 (TCK-2326) — cette branche attend l'écrivain entrant : rien n'écrit encore
+        // `last_inbound_at` (aucune route ne reçoit les messages de Meta), la fenêtre reste donc
+        // fermée hors des tests. Elle est gardée : TCK-282 écrit le texte libre en fenêtre, et la
+        // fenêtre de Meta se compte par numéro d'entreprise, que le contact ne garde pas encore.
         if ($this->serviceWindow->isOpen($contact)) {
             return WhatsappMessage::text($notification->toWhatsapp($notifiable));
         }
@@ -326,15 +336,22 @@ class WhatsappChannel
      * `(provider, provider_message_id)` et l'indicateur de santé la compte. Le repli SMS tardif
      * l'ignore ({@see SendSmsAfterLateWhatsappFailureJob}) : le secours d'un contact ne vaut que pour
      * l'échec immédiat.
+     *
+     * TCK-2326 (P203.05) — la tentative garde l'agence de l'envoi et l'intégration prise ; aucune
+     * quand le pilote n'a pas été appelé (contact inéligible).
+     *
+     * @param  array<string,mixed>  $context
      */
-    private function logAttempt(?int $notificationId, int $attempt, WhatsappResult $result): void
+    private function logAttempt(array $context, int $attempt, WhatsappResult $result, ?int $integrationId = null): void
     {
+        $notificationId = $context['notification_id'];
+        $trace = ['agency_id' => $context['agency_id'], 'integration_id' => $integrationId];
         if (! $notificationId) {
             try {
                 // Dans sa propre transaction, comme le SMS : un échec (identifiant en double)
                 // n'abandonne pas celle de l'appelant (PostgreSQL, 25P02).
                 DB::transaction(fn () => NotificationDeliveryAttempt::query()->create(
-                    ['app_notification_id' => null] + $this->attemptRow($attempt, $result),
+                    ['app_notification_id' => null] + $trace + $this->attemptRow($attempt, $result),
                 ));
             } catch (\Throwable $e) {
                 Log::error('[whatsapp-channel] tentative non enregistrée', [
@@ -347,10 +364,10 @@ class WhatsappChannel
             return;
         }
         try {
-            DB::transaction(function () use ($notificationId, $attempt, $result): void {
+            DB::transaction(function () use ($notificationId, $attempt, $result, $trace): void {
                 $notification = AppNotification::query()->lockForUpdate()->findOrFail($notificationId);
                 NotificationDeliveryAttempt::query()->create(
-                    ['app_notification_id' => $notification->id] + $this->attemptRow($attempt, $result),
+                    ['app_notification_id' => $notification->id] + $trace + $this->attemptRow($attempt, $result),
                 );
             });
         } catch (ModelNotFoundException) {
