@@ -18,22 +18,23 @@ import type { PaginatedResponse, SpatieQueryParams } from '@/types/api';
  */
 export const CHOIX_DU_BAILLEUR_FIELDS = ['id', 'user_id', 'metadata'];
 
-type BailleurDuChoix = Pick<OwnerProfileSummary, 'id' | 'user_id' | 'metadata' | 'user'>;
+export type BailleurDuChoix = Pick<OwnerProfileSummary, 'id' | 'user_id' | 'metadata' | 'user'>;
 
 const SELECT_CLASS =
   'h-9 w-full rounded-md border border-border bg-transparent px-3 text-sm text-foreground';
 
 /** Le compte désigné d'abord (nom, sinon e-mail), l'invitation en repli, `#<id>` en dernier. */
-function nomDuBailleur(bailleur: BailleurDuChoix): string {
+export function nomDuBailleur(bailleur: BailleurDuChoix): string {
   return nomAffichable({ ...bailleur.user, id: bailleur.user_id ?? bailleur.id }, libelleDe(bailleur.metadata));
 }
 
 /**
  * Les bailleurs ACTIFS de l'agence, TOUTES les pages : le serveur filtre (`filter[status]`,
  * `filter[agency_id]`). Pas de champ de recherche : `filter[search]` des profils ne cherche que
- * `employer` (TCK-601, colonnes chiffrées), il ne trouverait aucun nom.
+ * `employer` (TCK-601, colonnes chiffrées), il ne trouverait aucun nom. Relu par « Changer le
+ * titulaire » (TCK-999), qui propose les mêmes bailleurs.
  */
-function useBailleursActifs(agencyId: number) {
+export function useBailleursActifs(agencyId: number) {
   const locale = useLocale();
   const { token } = useAuth();
   const params: SpatieQueryParams = {

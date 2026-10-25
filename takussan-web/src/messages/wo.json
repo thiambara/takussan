@@ -5737,6 +5737,25 @@
         "designateFor": "Def {name} ajaa bu njëkk",
         "empty": "Amul benn jàngalekat bu ñu boole ak kër gii.",
         "error": "Tànn gi antuwul. Jéemaatal."
+      },
+      "ownerTransfer": {
+        "trigger": "Changer le titulaire",
+        "title": "Changer le titulaire du bien",
+        "description": "Rendez ce bien au bailleur pour qui il a été saisi : il le verra et en recevra les loyers à venir. Rien n'est écrit avant votre confirmation.",
+        "ownerLabel": "Nouveau titulaire",
+        "ownerPlaceholder": "Choisir un bailleur actif",
+        "loadingOwners": "Chargement des bailleurs…",
+        "noOwners": "Aucun bailleur actif dans l'agence.",
+        "loadingPreview": "Calcul de ce qui suit le bien…",
+        "moving": "{count, plural, =0 {Aucun bail en brouillon ne passe à {name}.} one {# bail en brouillon passera à {name}.} other {# baux en brouillon passeront à {name}.}}",
+        "staying": "Le bail {reference} ({status}) de {tenant} reste au nom de l'agence.",
+        "stayingNoTenant": "Le bail {reference} ({status}) reste au nom de l'agence.",
+        "payouts": "Les reversements déjà faits ne changent pas.",
+        "confirm": "Confirmer le changement",
+        "submitting": "Changement en cours…",
+        "cancel": "Annuler",
+        "success": "Le bien est désormais au nom de {name}.",
+        "error": "Changement impossible. Réessayez."
       }
     },
     "status": {
