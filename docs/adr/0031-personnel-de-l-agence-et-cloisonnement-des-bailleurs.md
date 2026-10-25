@@ -698,3 +698,43 @@ Relevé sur `db3e25230` par le mesureur, et sur `0553e6c38` à l'implémentation
   perdu `team.assign_role` depuis l'envoi entre quand même. L'invitation se révoque.
 - Le refus à l'acceptation dit encore au porteur du jeton que le compte existe (`requires_login`).
   C'est le destinataire, et non l'invitant.
+
+## Amendement du 2026-10-25 (P248.01) — le demandeur au bail fini lit, et n'agit plus
+
+Décision du porteur du 2026-10-25 sur P248.01 (TCK-2374), second tour. Relevé sur `db3e25230`.
+
+**Constat.** D2 juge la branche du demandeur (`requester_id`) par l'appartenance du **personnel** à
+l'agence, et écrit que « le locataire et le client demandeurs gardent tout ». La fin du bail n'y est
+pas tranchée. L'ouverture d'une intervention exige un bail en cours du bien (`store`,
+`openRequests`), mais la suite ne relisait que `requester_id`. Une fois son bail `terminated` et un
+nouveau locataire arrivé, l'ancien locataire confirmait la réparation (200, la demande passait
+`closed`), la contestait, ajoutait des photos (201) et écrivait dans le fil de l'intervention.
+L'occupant actuel, lui, recevait 403 sur la même demande.
+
+**Décision.** Le demandeur dont le bail a pris fin garde la **lecture** de ses interventions, comme
+celle de son bail passé (`LeasePolicy::view`) : fiche, liste, pièces et fil. **Confirmer, contester,
+ajouter des photos et écrire dans le fil** exigent un bail en cours du bien, par la liste de `store`
+(`User::ACTIVE_TENANT_LEASE_STATUSES` : un préavis compte, et un renouvellement aussi, puisque le bail
+suivant est en cours).
+
+- `MaintenanceRequestPolicy::requesterMayAct()` est la branche du demandeur pour agir : celle de
+  `isRequester` (D2), sauf pour qui a été locataire du bien (bail ou fiche supprimés compris) et n'y
+  tient plus de bail en cours. Elle est lue par `respondToResolution` et `actorsOf`.
+- `MaintenanceRequestPolicy::contribute()` décide qui verse au dossier : les acteurs de `view`, avec
+  `requesterMayAct` à la place de `isRequester`. Elle garde `POST …/photos` (la décision TCK-445
+  passe de `view` à `contribute`), l'envoi d'un message dans un fil d'intervention
+  (`ConversationAccess::allowsWriting`), et le rattachement d'un groupe neuf à l'intervention.
+- `GET /api/conversations/{id}` rend `abilities.can_send_message`, et le front cache la saisie
+  quand ce drapeau est faux.
+
+La règle de D2 ne change pas, et les deux se cumulent. Le personnel parti perd tout, lecture
+comprise. Le locataire parti garde la lecture et perd les gestes.
+
+**Ce qui ne change pas.** Un demandeur qui n'a jamais été locataire du bien (personnel actif,
+bailleur) n'est pas visé. Le bailleur, le personnel et le prestataire assigné gardent leurs gestes,
+qui ne dépendent d'aucun bail. Les photos et les messages postés après la fin du bail restent
+lisibles comme le reste.
+
+**Ce qui n'est pas gardé.** Le fil reste lisible et l'ancien locataire en reste participant : il en
+reçoit encore les notifications de nouveaux messages (`NotifyNewMessageJob` suit la lecture). Les
+gestes du fil autres qu'écrire (sourdine, archivage, lecture, quitter le groupe) restent ouverts.

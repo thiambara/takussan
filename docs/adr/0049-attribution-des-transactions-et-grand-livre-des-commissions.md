@@ -1,7 +1,8 @@
 # ADR-0049 — Attribution des transactions et grand livre des commissions
 
-- **Statut** : Accepté, **amendé le 2026-10-25** (cf. § *Amendement du 2026-10-25 — `commission_rate`
-  est un terme de commission*)
+- **Statut** : Accepté, **amendé deux fois le 2026-10-25** (cf. § *Amendement du 2026-10-25 —
+  `commission_rate` est un terme de commission* et § *Amendement du 2026-10-25, bis — qui écrit la
+  ventilation*)
 - **Date** : 2026-10-08
 - **Tickets** : [TCK-595](../backlog/tickets/TCK-595-tableaux-de-bord-justes-et-pilotage.md)
 - **Précise** : le principe non négociable n° 3 (montant décimal en base),
@@ -248,3 +249,62 @@ personnel.
 
 **Ce qui n'est pas gardé.** Les baux existants gardent leur taux, y compris un taux 0 posé par un
 bailleur. Rien ne le corrige en masse.
+
+## Amendement du 2026-10-25, bis — qui écrit la ventilation
+
+Décision du porteur du 2026-10-25 sur P241.01, P241.02 et P241.03 (TCK-2364). Relevé sur
+`0553e6c38`.
+
+**Constat.** Le § 1 dit qui écrit les termes du bail, mais rien ne disait qui écrit la ventilation
+de la « Ventilation » § 1 et § 2 :
+
+- **Les parts des collaborateurs** (`property_collaborators.commission_share`) s'écrivaient sous le
+  seul `update` du bien, que le bailleur tient par `properties.update_own`. Mesuré : le bailleur
+  donnait 100 % à l'agent de son choix (201), ramenait à 0 la part posée par l'admin (200), recopiait
+  la ventilation en copiant son bien, et lisait les parts de tous. Le bail activé ne créditait alors
+  que son agent, et le négociateur ne recevait rien.
+- **Le taux du négociateur** (`agent_profiles.commission_rate`) n'avait aucun écrivain dans l'API. La
+  règle 2 ne servait que les tests, qui le posent par factory. En base de développement, aucun des 20
+  profils d'agent ne portait de taux.
+
+**Décision.**
+
+1. **Les parts suivent la règle des termes du bail** (§ 1) : seul le personnel de l'agence du bien
+   qui détient `leases.create` (`LeaseService::maySetCommissionTerms`, désigné par
+   `PropertyPolicy::manageCommissionShares`) les écrit, et seul lui les lit.
+   - **Ajout** : une part non nulle par un autre appelant rend **403
+     `property.commission_share_forbidden`**, et aucune ligne. L'ajout sans part, ou à 0, reste à qui
+     tient `update` du bien, le bailleur compris.
+   - **Modification** : changer la part, l'effacer comprise, rend le même 403. Renvoyer la part telle
+     qu'elle est n'écrit rien.
+   - **Copie du bien** : les lignes suivent la copie, avec leur part si celui qui copie pourrait
+     l'écrire, sans part sinon.
+   - **Lecture** : `GET /api/properties/{id}/collaborators`, les réponses de l'ajout et de la
+     modification, et `collaborators` de `PropertyResource` omettent `commission_share` pour tout
+     autre lecteur. La clé manque, plutôt que de valoir `null`, qui dirait « aucune part ».
+2. **Le taux du négociateur s'écrit sur la fiche de membre**, sous `team.assign_role` dans l'agence du
+   profil (`AgentProfilePolicy::setCommissionRate`) : `PATCH /api/profiles/{agent_profile}/commission-rate`,
+   de 0 à 100, `null` l'efface. C'est la capacité qui garde déjà le rôle de la même fiche ; l'agent ne
+   fixe pas son propre taux. L'action est protégée comme les autres gestes d'équipe
+   (`ProtectedActions::AGENCY_TWO_FACTOR`). La fiche lit le taux dans `meta.role_assignments` de la
+   liste des membres, sur la ligne d'un profil d'agent, sous la même capacité.
+3. **La règle 2 de la ventilation reste** telle qu'elle est écrite.
+
+**Conséquences.**
+
+- Le bailleur garde ses gestes sur les collaborateurs de son bien (ajouter sans part, changer un
+  rôle, retirer), mais plus sur la commission de l'agence.
+- Le super-admin écrit et lit les parts par le `Gate::before` global, comme toute policy. Le § 1 ne
+  lui ouvre pas les termes du bail, qui passent par l'appel direct à `maySetCommissionTerms`.
+- Sur un bien sans agence, personne n'écrit de part (`maySetCommissionTerms` rend `false`). Un tel
+  bien n'a déjà pas de collaborateur (`CollaboratorEligibleForProperty`).
+
+**Ce qui n'est pas gardé.**
+
+- Les parts déjà posées par un bailleur restent en base : rien ne les corrige en masse, et un bail
+  déjà activé a figé son grand livre (§ 3).
+- Le bailleur qui change le rôle d'une ligne `agent` hors d'`agent`, ou qui retire un collaborateur,
+  efface encore sa part (TCK-1448). Il ne la donne à personne : la part libérée va au négociateur
+  plafonné, ou reste à l'agence.
+- Aucun profil d'agent existant ne reçoit de taux : sans saisie sur la fiche, le négociateur reste à
+  0, comme avant.

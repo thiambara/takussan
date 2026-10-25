@@ -21,8 +21,6 @@ return [
         'conversation_context_forbidden' => 'Mënuloo boole waxtaan wi ak lii.',
         // TCK-576, réparation 1 — un bail et un bien visibles, mais sans rapport, se refusent.
         'lease_property_mismatch' => 'Kontaaru lokal bii jëmul ci ber bi nga tànn. Tànnal kontaaru lokal bu ber bii, walla nga génne benn ci ñoom.',
-        // TCK-576, reprise (2026-09-24) — l'intervention doit concerner le bien du contexte.
-        'maintenance_property_mismatch' => 'Laaj liggéey bii jëmul ci ber bi nga tànn. Tànnal laaj liggéey bu ber bii, walla nga génne benn ci ñoom.',
         // TCK-565, passe finale — c'était une phrase française en dur dans AddParticipantsRequest.
         'participants_required' => 'Tànnal lu néew lool benn nit ngir yokk ko ci kuréel gi.',
     ],

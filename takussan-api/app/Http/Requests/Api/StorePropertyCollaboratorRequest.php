@@ -29,7 +29,20 @@ class StorePropertyCollaboratorRequest extends BaseFormRequest
      */
     public function authorize(): bool
     {
-        return $this->user()?->can('update', $this->route('property')) === true;
+        $property = $this->route('property');
+        if ($this->user()?->can('update', $property) !== true) {
+            return false;
+        }
+
+        // TCK-2364 (P241.01, ADR-0049 amendé le 2026-10-25) — une part non nulle est la ventilation
+        // de la commission de l'agence : `update` ne suffit pas, le bailleur du bien le tient.
+        abort_code_if(
+            (float) $this->input('commission_share') > 0 && ! $this->user()->can('manageCommissionShares', $property),
+            403,
+            'property.commission_share_forbidden',
+        );
+
+        return true;
     }
 
     /** @return array<string, mixed> */

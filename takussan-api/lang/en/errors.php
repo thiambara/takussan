@@ -155,6 +155,7 @@ return [
         'exceeds_remaining' => 'Amount exceeds the remaining deposit balance.',
         'lease_not_ended' => 'The lease must be terminated or expired to refund the deposit.',
         'no_deposit' => 'No deposit amount to refund.',
+        'not_collected' => 'No deposit has been collected for this lease: there is nothing to refund.',
         'reason_required' => 'A reason is required for a partial refund.',
     ],
     'document' => [
@@ -482,6 +483,7 @@ return [
         'cannot_publish' => 'Sold or rented properties cannot be published.',
         'cannot_unpublish' => 'Only available properties can be unpublished.',
         'collaborator_exists' => 'This collaborator is already added to this property.',
+        'commission_share_forbidden' => 'Only agency staff allowed to open leases can set a collaborator\'s commission share.',
         'collaborator_not_found' => 'This collaborator is not part of this property.',
         'has_confirmed_booking' => 'This property has a confirmed booking: cancel it before deleting the property.',
         'has_upcoming_visit' => 'This property has an upcoming visit: cancel it before deleting the property.',

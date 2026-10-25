@@ -643,11 +643,6 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
         return $this->hasMany(Property::class);
     }
 
-    public function customer(): HasOne
-    {
-        return $this->hasOne(Customer::class);
-    }
-
     public function addresses(): MorphMany
     {
         return $this->morphMany(Address::class, 'addressable');

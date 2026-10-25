@@ -35,7 +35,7 @@ class LeaseDepositRefundEndpointTest extends TestCase
     public function test_full_refund_returns_201_and_full_state(): void
     {
         $admin = $this->actingAsRole('agency_admin');
-        $lease = Lease::factory()->create([
+        $lease = Lease::factory()->withCollectedDeposit()->create([
             'landlord_id' => $admin->id,
             'agency_id' => $admin->agency_id,
             'status' => LeaseStatus::Terminated,
@@ -60,7 +60,7 @@ class LeaseDepositRefundEndpointTest extends TestCase
     {
         $admin = $this->actingAsRole('agency_admin');
         $tenant = Customer::factory()->create(['agency_id' => $admin->agency_id]);
-        $lease = Lease::factory()->create([
+        $lease = Lease::factory()->withCollectedDeposit()->create([
             'landlord_id' => $admin->id,
             'agency_id' => $admin->agency_id,
             'tenant_id' => $tenant->id,
@@ -87,7 +87,7 @@ class LeaseDepositRefundEndpointTest extends TestCase
     public function test_active_lease_returns_422(): void
     {
         $admin = $this->actingAsRole('agency_admin');
-        $lease = Lease::factory()->active()->create([
+        $lease = Lease::factory()->active()->withCollectedDeposit()->create([
             'landlord_id' => $admin->id,
             'agency_id' => $admin->agency_id,
             'deposit_amount' => 500000,
@@ -102,7 +102,7 @@ class LeaseDepositRefundEndpointTest extends TestCase
     public function test_amount_exceeding_remaining_returns_422(): void
     {
         $admin = $this->actingAsRole('agency_admin');
-        $lease = Lease::factory()->create([
+        $lease = Lease::factory()->withCollectedDeposit()->create([
             'landlord_id' => $admin->id,
             'agency_id' => $admin->agency_id,
             'status' => LeaseStatus::Terminated,
@@ -118,7 +118,7 @@ class LeaseDepositRefundEndpointTest extends TestCase
     public function test_partial_refund_without_reason_returns_422(): void
     {
         $admin = $this->actingAsRole('agency_admin');
-        $lease = Lease::factory()->create([
+        $lease = Lease::factory()->withCollectedDeposit()->create([
             'landlord_id' => $admin->id,
             'agency_id' => $admin->agency_id,
             'status' => LeaseStatus::Terminated,
@@ -139,7 +139,7 @@ class LeaseDepositRefundEndpointTest extends TestCase
             'user_id' => $tenantUser->id,
             'agency_id' => $admin->agency_id,
         ]);
-        $lease = Lease::factory()->create([
+        $lease = Lease::factory()->withCollectedDeposit()->create([
             'landlord_id' => $admin->id,
             'agency_id' => $admin->agency_id,
             'tenant_id' => $tenantCustomer->id,
@@ -157,7 +157,7 @@ class LeaseDepositRefundEndpointTest extends TestCase
     public function test_show_returns_state_and_attachments(): void
     {
         $admin = $this->actingAsRole('agency_admin');
-        $lease = Lease::factory()->create([
+        $lease = Lease::factory()->withCollectedDeposit()->create([
             'landlord_id' => $admin->id,
             'agency_id' => $admin->agency_id,
             'status' => LeaseStatus::Terminated,
@@ -181,7 +181,7 @@ class LeaseDepositRefundEndpointTest extends TestCase
     public function test_attachments_are_moved_to_dedicated_collection_on_refund(): void
     {
         $admin = $this->actingAsRole('agency_admin');
-        $lease = Lease::factory()->create([
+        $lease = Lease::factory()->withCollectedDeposit()->create([
             'landlord_id' => $admin->id,
             'agency_id' => $admin->agency_id,
             'status' => LeaseStatus::Terminated,
@@ -213,7 +213,7 @@ class LeaseDepositRefundEndpointTest extends TestCase
     {
         $admin = $this->actingAsRole('agency_admin');
         $tenant = Customer::factory()->create(['agency_id' => $admin->agency_id]);
-        $lease = Lease::factory()->create([
+        $lease = Lease::factory()->withCollectedDeposit()->create([
             'landlord_id' => $admin->id,
             'agency_id' => $admin->agency_id,
             'tenant_id' => $tenant->id,

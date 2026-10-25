@@ -618,6 +618,8 @@
       "tooManyRequests": "Jéem nga lu bare. Jéemaatal ci ay simili.",
       "tooManyRequestsIn": "Jéem nga lu bare. Jéemaatal ci {minutes} simili.",
       "network": "Jokkoo bi ak serwëer bi antuwul. Seetal sa jokkoo internet te jéemaat.",
+      "serverUnreachable": "Le serveur est injoignable pour le moment. Réessayez dans un instant.",
+      "payloadTooLarge": "L'envoi dépasse 25 Mo : envoyez moins de fichiers à la fois, ou des fichiers plus légers.",
       "submitFailed": "Yónnee bi antuwul. Jéemaatal.",
       "unknown": "Am na jafe-jafe. Jéemat."
     },
@@ -1475,7 +1477,8 @@
       "loadingMore": "Yëngu…",
       "attachAria": "Boole ab fiise",
       "placeholder": "Bind ab bataaxal…",
-      "sendAria": "Yónnee"
+      "sendAria": "Yónnee",
+      "readOnly": "Ce fil est en lecture seule : votre bail pour ce logement a pris fin."
     },
     "group": {
       "create": {
@@ -2413,6 +2416,8 @@
       "priority_hint": "(Yem la su nga tànnul dara)",
       "photos_label": "Nataal yi (bu ñu soxlawul)",
       "photos_selected": "{count, plural, other {# nataal la ñu tànn.}}",
+      "photos_hint": "{max} photos au plus.",
+      "photos_too_many": "{count, plural, other {# photos choisies}} : {max} au plus. Choisissez-en moins.",
       "submitting": "Yónnee…",
       "submit": "Yégle jafe-jafe bi",
       "photos_failed_title": "Photos non envoyées",
@@ -2507,6 +2512,8 @@
         "after": "Ginnaaw",
         "quotes": "Devi",
         "before_label": "Nataal yu balaa liggéey bi",
+        "before_hint": "{max} photos au plus.",
+        "before_too_many": "{count, plural, other {# photos choisies}} : {max} au plus. Choisissez-en moins.",
         "send": "{count, plural, =0 {Yónne} =1 {Yónne # nataal} other {Yónne # nataal}}",
         "sending": "Mungiy yónne…",
         "failed": "Nataal yi yónneesu leen. Ñu ngi tànnoo ba tey : jéemaatal."
@@ -3783,21 +3790,8 @@
             "spaceName": "Turu espas bi",
             "primaryCity": "Dëkk bu njëkk",
             "currency": "Xaalis",
-            "primaryPropertyType": "Xeetu biir bu njëkk",
             "phone": "Nimerou telefoŋ",
             "otpCode": "Kódu SMS bi"
-          },
-          "propertyTypes": {
-            "apartment": "Apartama",
-            "house": "Néeg",
-            "villa": "Wiila",
-            "studio": "Studio",
-            "room": "Néeg bu rëy",
-            "land": "Suuf",
-            "office": "Biro",
-            "shop": "Boutik",
-            "warehouse": "Magasin",
-            "other": "Yu sax"
           },
           "otp": {
             "heading": "Véerifikaasioŋ telefoŋ",
@@ -4337,6 +4331,12 @@
           "agency_admin": "njiit",
           "owner": "boroom kër"
         }
+      },
+      "commissionRate": {
+        "label": "Taux de commission de l'agent (%)",
+        "hint": "Sa part de la commission de chaque bail qu'il négocie, versée à l'activation du bail. Vide : aucune part.",
+        "submit": "Enregistrer le taux",
+        "submitting": "Enregistrement…"
       },
       "errors": {
         "load": "Mënunu yeb wàll yi. Seetal sa koneksioŋ, ba noppi jéemaat.",

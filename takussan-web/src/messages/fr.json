@@ -2379,6 +2379,8 @@
       "tooManyRequests": "Trop de tentatives. Réessayez dans quelques minutes.",
       "tooManyRequestsIn": "Trop de tentatives. Réessayez dans {minutes} min.",
       "network": "La connexion au serveur a échoué. Vérifiez votre connexion internet et réessayez.",
+      "serverUnreachable": "Le serveur est injoignable pour le moment. Réessayez dans un instant.",
+      "payloadTooLarge": "L'envoi dépasse 25 Mo : envoyez moins de fichiers à la fois, ou des fichiers plus légers.",
       "submitFailed": "La soumission a échoué. Réessayez.",
       "unknown": "Une erreur est survenue. Veuillez réessayer."
     },
@@ -3236,7 +3238,8 @@
       "loadingMore": "Chargement…",
       "attachAria": "Joindre un fichier",
       "placeholder": "Écrivez un message…",
-      "sendAria": "Envoyer"
+      "sendAria": "Envoyer",
+      "readOnly": "Ce fil est en lecture seule : votre bail pour ce logement a pris fin."
     },
     "group": {
       "create": {
@@ -4174,6 +4177,8 @@
       "priority_hint": "(Normale par défaut)",
       "photos_label": "Photos (optionnel)",
       "photos_selected": "{count, plural, =1 {# photo sélectionnée.} other {# photos sélectionnées.}}",
+      "photos_hint": "{max} photos au plus.",
+      "photos_too_many": "{count, plural, other {# photos choisies}} : {max} au plus. Choisissez-en moins.",
       "submitting": "Envoi…",
       "submit": "Signaler le problème",
       "photos_failed_title": "Photos non envoyées",
@@ -4268,6 +4273,8 @@
         "after": "Après",
         "quotes": "Devis",
         "before_label": "Photos avant intervention",
+        "before_hint": "{max} photos au plus.",
+        "before_too_many": "{count, plural, other {# photos choisies}} : {max} au plus. Choisissez-en moins.",
         "send": "{count, plural, =0 {Envoyer} =1 {Envoyer # photo} other {Envoyer # photos}}",
         "sending": "Envoi…",
         "failed": "Les photos n'ont pas été envoyées. Elles restent sélectionnées : réessayez."
@@ -5573,21 +5580,8 @@
             "spaceName": "Nom de votre espace",
             "primaryCity": "Ville principale",
             "currency": "Devise",
-            "primaryPropertyType": "Type de bien principal",
             "phone": "Numéro de téléphone",
             "otpCode": "Code reçu par SMS"
-          },
-          "propertyTypes": {
-            "apartment": "Appartement",
-            "house": "Maison",
-            "villa": "Villa",
-            "studio": "Studio",
-            "room": "Chambre",
-            "land": "Terrain",
-            "office": "Bureau",
-            "shop": "Local commercial",
-            "warehouse": "Entrepôt",
-            "other": "Autre"
           },
           "otp": {
             "heading": "Vérification du téléphone",
@@ -6127,6 +6121,12 @@
           "agency_admin": "administrateur",
           "owner": "propriétaire"
         }
+      },
+      "commissionRate": {
+        "label": "Taux de commission de l'agent (%)",
+        "hint": "Sa part de la commission de chaque bail qu'il négocie, versée à l'activation du bail. Vide : aucune part.",
+        "submit": "Enregistrer le taux",
+        "submitting": "Enregistrement…"
       },
       "errors": {
         "load": "Impossible de charger les rôles. Vérifiez votre connexion, puis réessayez.",

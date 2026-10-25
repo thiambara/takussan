@@ -132,36 +132,33 @@ class ProfileSchemaTest extends TestCase
 
     /**
      * TCK-260 — la contrainte `unique(user_id)` sur
-     * `service_provider_profiles` a été levée pour permettre :
-     *  - les drafts (user_id = NULL) lors de l'envoi d'une invitation,
-     *  - le multi-rattachement futur (TCK-262) qui pourrait, selon le
-     *    design final, créer un profil dédié par agence.
+     * `service_provider_profiles` a été levée pour permettre les drafts
+     * (user_id = NULL) lors de l'envoi d'une invitation.
      *
-     * L'unicité réelle est portée par la table pivot
-     * `service_provider_agency_collaborations(profile, agency)`.
+     * TCK-2372 (P250.02) — l'unicité revient pour les seuls profils VIVANTS d'un
+     * compte (`service_provider_profiles_user_live_unique`, index partiel) : les
+     * brouillons sans compte restent admis en nombre, et un profil supprimé ne
+     * compte pas. Le second profil vivant est refusé
+     * (`ServiceProviderProfileUserUniqueTest`).
      */
-    public function test_service_provider_profile_allows_multiple_rows_for_same_user(): void
+    public function test_service_provider_profile_allows_drafts_and_a_deleted_row_beside_the_live_one(): void
     {
         $user = User::factory()->create();
 
-        DB::table('service_provider_profiles')->insert([
-            'user_id' => $user->id,
-            'status' => 'active',
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
-
-        DB::table('service_provider_profiles')->insert([
-            'user_id' => $user->id,
-            'status' => 'active',
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
+        foreach ([
+            ['user_id' => null, 'status' => 'draft', 'deleted_at' => null],
+            ['user_id' => null, 'status' => 'draft', 'deleted_at' => null],
+            ['user_id' => $user->id, 'status' => 'active', 'deleted_at' => now()],
+            ['user_id' => $user->id, 'status' => 'active', 'deleted_at' => null],
+        ] as $row) {
+            DB::table('service_provider_profiles')->insert($row + ['created_at' => now(), 'updated_at' => now()]);
+        }
 
         $this->assertSame(
             2,
             DB::table('service_provider_profiles')->where('user_id', $user->id)->count(),
         );
+        $this->assertSame(2, DB::table('service_provider_profiles')->whereNull('user_id')->count());
     }
 
     public function test_service_provider_agency_collaboration_unique_pair(): void

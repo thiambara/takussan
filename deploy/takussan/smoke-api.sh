@@ -67,6 +67,35 @@ verifier_image() {
   verifier_delai_d_execution
   verifier_exif_retire
   verifier_journal_des_exceptions
+  verifier_refus_trop_gros_lisible
+}
+
+# TCK-2370 (P236.01) — le 413 que Caddy rend avant `php_server` (corps de plus de 25 Mio) porte les
+# en-têtes CORS de l'API et un corps `{"code":"payload_too_large"}`. Sans eux, le navigateur, qui
+# appelle l'API depuis une autre origine, rejetait `fetch` en `TypeError`, et le front disait
+# « Vérifiez votre connexion internet ». Le serveur tourne sans l'entrypoint : Caddy répond avant PHP.
+verifier_refus_trop_gros_lisible() {
+  local nom="takussan-smoke-413-$$" origine=https://front.sonde-2370.test entetes corps
+  docker run -d --rm --name "$nom" -e FRONTEND_URL="$origine" --entrypoint frankenphp "$IMAGE:$TAG" \
+    run --config /etc/frankenphp/Caddyfile >/dev/null
+  # shellcheck disable=SC2064 # $nom est fixé ici, et doit l'être au moment du piège.
+  trap "docker rm -f '$nom' >/dev/null 2>&1 || true" EXIT
+  docker exec "$nom" sh -c 'head -c $((26 * 1024 * 1024)) /dev/zero > /tmp/sonde-26mo'
+  for _ in $(seq 30); do
+    entetes=$(docker exec "$nom" curl -sS -o /tmp/sonde-corps -D - -H "Origin: $origine" \
+      --data-binary @/tmp/sonde-26mo http://127.0.0.1:8080/api/sonde 2>/dev/null | tr -d '\r' || true)
+    [ -n "$entetes" ] && break; sleep 1
+  done
+  corps=$(docker exec "$nom" cat /tmp/sonde-corps 2>/dev/null || true)
+  grep -q '^HTTP/[0-9.]* 413' <<<"$entetes" || echec "un corps de 26 Mio n'est pas refusé en 413 : « $entetes »"
+  grep -qix "access-control-allow-origin: $origine" <<<"$entetes" \
+    || echec "le 413 du proxy n'a pas l'en-tête Access-Control-Allow-Origin de FRONTEND_URL : le navigateur le lit comme une panne réseau"
+  grep -qix 'access-control-allow-credentials: true' <<<"$entetes" \
+    || echec "le 413 du proxy n'a pas Access-Control-Allow-Credentials (supports_credentials de config/cors.php)"
+  grep -qi '^content-type: application/json' <<<"$entetes" || echec "le 413 du proxy n'est pas du JSON : « $entetes »"
+  [ "$corps" = '{"code":"payload_too_large"}' ] || echec "le corps du 413 n'est pas {\"code\":\"payload_too_large\"} : « $corps »"
+  docker rm -f "$nom" >/dev/null
+  ok "un envoi de 26 Mio est refusé en 413, lisible par le front : en-têtes CORS et corps {code: payload_too_large}"
 }
 
 # TCK-2356 (P14.07) — une exception rapportée sous `php_server` sort en UNE ligne JSON sur la sortie

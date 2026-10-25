@@ -4,6 +4,7 @@ namespace Tests\Feature\Property;
 
 use App\Models\Agency;
 use App\Models\Enums\CollaboratorRole;
+use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\Property;
@@ -38,7 +39,11 @@ class CollaboratorCommissionShareRoleTest extends TestCase
         OwnerProfile::factory()->create(['user_id' => $this->owner->id, 'agency_id' => $agence->id]);
         $this->property = Property::factory()->create(['user_id' => $this->owner->id, 'agency_id' => $agence->id]);
 
-        Sanctum::actingAs($this->owner);
+        // TCK-2364 (P241.01) — la part ne s'écrit que par le personnel de l'agence qui tient
+        // `leases.create` : ces cas la posent en admin de l'agence, plus en bailleur.
+        $admin = User::factory()->create();
+        AgencyAdminProfile::factory()->create(['user_id' => $admin->id, 'agency_id' => $agence->id]);
+        Sanctum::actingAs($admin);
     }
 
     private function agent(): User

@@ -2408,6 +2408,8 @@
       "tooManyRequests": "Too many attempts. Please try again in a few minutes.",
       "tooManyRequestsIn": "Too many attempts. Try again in {minutes} min.",
       "network": "The connection to the server failed. Check your internet connection and try again.",
+      "serverUnreachable": "The server cannot be reached right now. Try again in a moment.",
+      "payloadTooLarge": "The upload exceeds 25 MB: send fewer files at a time, or lighter files.",
       "submitFailed": "Submission failed. Please try again.",
       "unknown": "Something went wrong. Please try again."
     },
@@ -3265,7 +3267,8 @@
       "loadingMore": "Loading…",
       "attachAria": "Attach a file",
       "placeholder": "Write a message…",
-      "sendAria": "Send"
+      "sendAria": "Send",
+      "readOnly": "This thread is read-only: your lease for this home has ended."
     },
     "group": {
       "create": {
@@ -4203,6 +4206,8 @@
       "priority_hint": "(Normal by default)",
       "photos_label": "Photos (optional)",
       "photos_selected": "{count, plural, =1 {# photo selected.} other {# photos selected.}}",
+      "photos_hint": "{max} photos at most.",
+      "photos_too_many": "{count, plural, other {# photos selected}}: {max} at most. Choose fewer.",
       "submitting": "Sending…",
       "submit": "Report the problem",
       "photos_failed_title": "Photos not sent",
@@ -4297,6 +4302,8 @@
         "after": "After",
         "quotes": "Quote",
         "before_label": "Photos before the work",
+        "before_hint": "{max} photos at most.",
+        "before_too_many": "{count, plural, other {# photos selected}}: {max} at most. Choose fewer.",
         "send": "{count, plural, =0 {Send} =1 {Send # photo} other {Send # photos}}",
         "sending": "Sending…",
         "failed": "The photos were not sent. They are still selected: try again."
@@ -5573,21 +5580,8 @@
             "spaceName": "Space name",
             "primaryCity": "Primary city",
             "currency": "Currency",
-            "primaryPropertyType": "Primary property type",
             "phone": "Phone number",
             "otpCode": "SMS code"
-          },
-          "propertyTypes": {
-            "apartment": "Apartment",
-            "house": "House",
-            "villa": "Villa",
-            "studio": "Studio",
-            "room": "Room",
-            "land": "Land",
-            "office": "Office",
-            "shop": "Shop",
-            "warehouse": "Warehouse",
-            "other": "Other"
           },
           "otp": {
             "heading": "Phone verification",
@@ -6127,6 +6121,12 @@
           "agency_admin": "Administrator",
           "owner": "Landlord"
         }
+      },
+      "commissionRate": {
+        "label": "Agent commission rate (%)",
+        "hint": "Their share of the commission on each lease they negotiate, credited when the lease is activated. Empty: no share.",
+        "submit": "Save the rate",
+        "submitting": "Saving…"
       },
       "errors": {
         "load": "Could not load the roles. Check your connection, then try again.",

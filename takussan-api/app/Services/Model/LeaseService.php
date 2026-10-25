@@ -297,6 +297,7 @@ class LeaseService
                 $current = $this->advancePeriod($current, $frequency);
             }
 
+            $deposits = $this->writeDepositInstalment($lease, $start);
             $count = 0;
 
             while ($end === null || $current->lte($end)) {
@@ -330,8 +331,47 @@ class LeaseService
                 }
             }
 
-            return $count;
+            return $count + $deposits;
         });
+    }
+
+    /**
+     * TCK-2375 (P04.10, ADR-0039, amendement du 2026-10-25 sur la caution) — l'échéancier écrit
+     * l'échéance de caution : `deposit_amount`, due au début du bail. Sans elle, aucun chemin
+     * n'écrivait de caution (la saisie la refuse depuis TCK-1920), et la restitution, bornée à la
+     * caution encaissée, ne rendait rien. Aucune pour un bail sans caution ; aucune pour un renouvellement, dont la caution
+     * reste celle du bail d'origine (`Lease::collectedDeposit` lit la chaîne) ; aucune seconde quand
+     * le bail en porte déjà une (régénération, ligne antérieure à TCK-1920). Rend 1 si elle est écrite.
+     */
+    private function writeDepositInstalment(Lease $lease, Carbon $start): int
+    {
+        $deposit = (float) ($lease->deposit_amount ?? 0);
+        if ($deposit <= 0 || $lease->renewed_from_lease_id !== null) {
+            return 0;
+        }
+
+        $exists = $lease->payments()
+            ->where('payment_type', LeasePaymentType::Deposit->value)
+            ->where('status', '!=', PaymentStatus::Cancelled->value)
+            ->exists();
+        if ($exists) {
+            return 0;
+        }
+
+        LeasePayment::create([
+            'lease_id' => $lease->id,
+            'reference_number' => ReferenceNumberGenerator::leasePayment(),
+            'payer_id' => $lease->tenant_id,
+            'payment_type' => LeasePaymentType::Deposit->value,
+            'amount' => $deposit,
+            'currency' => $lease->currency?->value ?? 'XOF',
+            'status' => PaymentStatus::Pending,
+            'due_date' => $start->toDateString(),
+            'period_start' => $start->toDateString(),
+            'period_end' => $start->toDateString(),
+        ]);
+
+        return 1;
     }
 
     private function monthsPerPeriod(PaymentFrequency $frequency): int

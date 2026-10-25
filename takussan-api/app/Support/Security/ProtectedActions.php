@@ -163,6 +163,8 @@ final class ProtectedActions
         TeamMemberSuspensionController::class.'@reactivate',
         AgentProfileController::class.'@suspend',
         AgentProfileController::class.'@destroy',
+        // TCK-2364 (P241.02) — le taux de l'agent est sa part de chaque commission qu'il négocie.
+        AgentProfileController::class.'@updateCommissionRate',
         // TCK-591 — même retrait que `removeAgent` quand `remove_after` est coché, et la
         // transmission du portefeuille dans tous les cas.
         AgentHandoverController::class.'@store',

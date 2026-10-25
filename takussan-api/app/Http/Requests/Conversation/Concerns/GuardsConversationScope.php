@@ -135,41 +135,4 @@ trait GuardsConversationScope
             $v->errors()->add('lease_id', __('messaging.errors.lease_property_mismatch'));
         }
     }
-
-    /**
-     * TCK-576, reprise des défauts mineurs (2026-09-24) — la demande d'intervention rattachée doit
-     * concerner le BIEN du contexte : `property_id` s'il est envoyé, sinon le bien du bail. La
-     * paire bien/bail l'ignorait : une intervention sur le bureau passait dans un groupe rattaché
-     * à la villa (201, mesuré). Même règle d'appel que {@see guardLeaseMatchesProperty()} : APRÈS
-     * `guardContext()`, et seulement entre contextes déjà acceptés. La comparaison se fait au
-     * niveau du bien, pas du bail : une intervention appartient à un bien, son `lease_id`
-     * (facultatif, `nullOnDelete`) ne dit que le bail en cours au moment de la demande.
-     *
-     * Groupe seulement : la conversation directe ne lit pas `maintenance_request_id`.
-     */
-    protected function guardMaintenanceMatchesContext(Validator $v): void
-    {
-        $maintenanceId = $this->input('maintenance_request_id');
-        if ($maintenanceId === null || $v->errors()->has('maintenance_request_id')) {
-            return;
-        }
-
-        $propertyId = $this->input('property_id');
-        if ($propertyId !== null) {
-            if ($v->errors()->has('property_id')) {
-                return;
-            }
-        } else {
-            $leaseId = $this->input('lease_id');
-            if ($leaseId === null || $v->errors()->has('lease_id')) {
-                return;
-            }
-            $propertyId = Lease::query()->whereKey($leaseId)->value('property_id');
-        }
-
-        $maintenancePropertyId = MaintenanceRequest::query()->whereKey($maintenanceId)->value('property_id');
-        if ((int) $maintenancePropertyId !== (int) $propertyId) {
-            $v->errors()->add('maintenance_request_id', __('messaging.errors.maintenance_property_mismatch'));
-        }
-    }
 }

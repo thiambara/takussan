@@ -376,11 +376,12 @@ class GroupConversationCreationTest extends TestCase
         $ailleurs = Agency::factory()->create();
         $bienAilleurs = Property::factory()->create(['agency_id' => $ailleurs->id]);
         $bailAilleurs = Lease::factory()->create(['property_id' => $bienAilleurs->id, 'agency_id' => $ailleurs->id]);
-        $interventionAilleurs = MaintenanceRequest::factory()->create(['property_id' => $bienAilleurs->id]);
 
         Sanctum::actingAs($me);
 
-        foreach (['lease_id' => $bailAilleurs->id, 'maintenance_request_id' => $interventionAilleurs->id] as $champ => $id) {
+        // TCK-2372 (P250.03) — `maintenance_request_id` n'est plus un contexte d'un groupe créé à la
+        // main : il est refusé quel qu'il soit (`test_une_intervention_n_est_rattachee_a_aucun_…`).
+        foreach (['lease_id' => $bailAilleurs->id] as $champ => $id) {
             $resp = $this->postJson('/api/conversations', [
                 'type' => 'group',
                 'subject' => 'Test',
@@ -396,15 +397,20 @@ class GroupConversationCreationTest extends TestCase
         $this->assertSame(0, Conversation::query()->where('type', ConversationType::Group->value)->count());
     }
 
-    public function test_son_propre_bail_et_sa_propre_intervention_peuvent_etre_rattaches(): void
+    /**
+     * TCK-2372 (P250.03, décision du porteur du 2026-10-25) — son propre bail se rattache ; sa propre
+     * intervention, non. Le fil d'une intervention est le plus ancien groupe qui la porte
+     * (`MaintenanceRequest::conversation()`) : un groupe créé à la main avant la première
+     * assignation devenait ce fil, avec ses propres participants. Seule l'assignation le crée
+     * (`SyncMaintenanceConversation`, par le service).
+     */
+    public function test_son_propre_bail_se_rattache_mais_pas_sa_propre_intervention(): void
     {
         $me = User::factory()->create();
         $a = User::factory()->create();
         $b = User::factory()->create();
         $this->relate($me, $a, $b);
         $bail = Lease::factory()->create(['landlord_id' => $me->id]);
-        // L'intervention porte sur le bien du bail : depuis la reprise du 2026-09-24, une
-        // intervention d'un AUTRE bien se refuse (les deux fabriques en créaient chacune un).
         $intervention = MaintenanceRequest::factory()->create(['requester_id' => $me->id, 'property_id' => $bail->property_id]);
         $this->lecteursDesBaux($me, [$bail], $a, $b);
 
@@ -416,6 +422,16 @@ class GroupConversationCreationTest extends TestCase
             'participants' => [$a->id, $b->id],
             'lease_id' => $bail->id,
             'maintenance_request_id' => $intervention->id,
+        ])->assertUnprocessable()
+            ->assertJsonValidationErrors(['maintenance_request_id'])
+            ->assertJsonMissingValidationErrors(['lease_id', 'participants']);
+        $this->assertSame(0, Conversation::query()->where('maintenance_request_id', $intervention->id)->count());
+
+        $this->postJson('/api/conversations', [
+            'type' => 'group',
+            'subject' => 'Test',
+            'participants' => [$a->id, $b->id],
+            'lease_id' => $bail->id,
         ])->assertCreated();
     }
 
@@ -450,7 +466,6 @@ class GroupConversationCreationTest extends TestCase
         foreach ([
             'property_id' => $bien->id,
             'lease_id' => $bail->id,
-            'maintenance_request_id' => $intervention->id,
             'property_id (le mien)' => $monBien->id,
         ] as $cas => $id) {
             $champ = explode(' ', $cas)[0];
@@ -572,15 +587,12 @@ class GroupConversationCreationTest extends TestCase
     }
 
     /**
-     * TCK-576, reprise des défauts mineurs (2026-09-24) — la paire bien/bail ignorait la demande
-     * d'intervention : une intervention sur le bureau, rattachée à un groupe sur la villa (ou sur
-     * le bail de la villa), passait — 201, mesuré avant correctif. Refus sur
-     * `maintenance_request_id`, dans la langue de la requête.
-     *
-     * La conversation DIRECTE n'est pas concernée : elle ne lit pas `maintenance_request_id`
-     * (absent de `StoreConversationRequest::rules()`, jamais écrit par le contrôleur).
+     * TCK-2372 (P250.03, décision du porteur du 2026-10-25) — une demande d'intervention ne se
+     * rattache à aucun groupe créé à la main, quel que soit le contexte qui l'accompagne : SON bien,
+     * un bail de son bien, un autre bien, ou rien. Le refus de TCK-576 (« ne concerne pas le bien
+     * choisi ») n'a plus de cas, et sa garde est retirée.
      */
-    public function test_une_intervention_d_un_autre_bien_que_le_contexte_est_refusee(): void
+    public function test_une_intervention_n_est_rattachee_a_aucun_groupe_cree_a_la_main(): void
     {
         $me = User::factory()->create();
         $a = User::factory()->create();
@@ -595,33 +607,8 @@ class GroupConversationCreationTest extends TestCase
 
         Sanctum::actingAs($me);
 
-        $phrases = [];
         foreach ([
-            'fr' => ['property_id' => $villa->id],
-            'en' => ['lease_id' => $bailDeLaVilla->id],
-            'wo' => ['property_id' => $villa->id, 'lease_id' => $bailDeLaVilla->id],
-        ] as $langue => $contexte) {
-            $resp = $this->postJson('/api/conversations', [
-                'type' => 'group',
-                'subject' => 'Test',
-                'participants' => [$a->id, $b->id],
-                'maintenance_request_id' => $interventionAuBureau->id,
-            ] + $contexte, ['Accept-Language' => $langue])
-                ->assertUnprocessable()
-                ->assertJsonMissingValidationErrors(['property_id', 'lease_id']);
-
-            $this->assertSame(
-                [__('messaging.errors.maintenance_property_mismatch', [], $langue)],
-                $resp->json('errors.maintenance_request_id'),
-                $langue,
-            );
-            $phrases[] = $resp->json('errors.maintenance_request_id.0');
-        }
-        $this->assertCount(3, array_unique($phrases), 'une phrase par langue, pas une phrase recopiée');
-        $this->assertSame(0, Conversation::query()->where('type', ConversationType::Group->value)->count());
-
-        // Témoins : l'intervention avec SON bien, avec un bail de son bien, et seule, passent.
-        foreach ([
+            ['property_id' => $villa->id],
             ['property_id' => $bureau->id],
             ['lease_id' => $bailDuBureau->id],
             ['property_id' => $bureau->id, 'lease_id' => $bailDuBureau->id],
@@ -632,8 +619,13 @@ class GroupConversationCreationTest extends TestCase
                 'subject' => 'Test',
                 'participants' => [$a->id, $b->id],
                 'maintenance_request_id' => $interventionAuBureau->id,
-            ] + $contexte)->assertCreated();
+            ] + $contexte)
+                ->assertUnprocessable()
+                ->assertJsonValidationErrors(['maintenance_request_id'])
+                ->assertJsonMissingValidationErrors(['property_id', 'lease_id']);
         }
+
+        $this->assertSame(0, Conversation::query()->where('type', ConversationType::Group->value)->count());
     }
 
     /** L'administrateur d'agence est de l'équipe : il range les propriétaires de son agence. */

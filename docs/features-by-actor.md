@@ -42,7 +42,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 3. [🏢 Bailleur / Propriétaire (owner)](#bailleur-propriétaire-owner) — 84 fonctionnalités
 4. [🧑‍💼 Agent immobilier](#agent-immobilier) — 120 fonctionnalités
 5. [🔧 Prestataire de service (service provider)](#prestataire-de-service-service-provider) — 17 fonctionnalités
-6. [🛡️ Admin d'agence / Super-admin](#admin-dagence-super-admin) — 124 fonctionnalités
+6. [🛡️ Admin d'agence / Super-admin](#admin-dagence-super-admin) — 126 fonctionnalités
 7. [👥 Tous les utilisateurs authentifiés](#tous-les-utilisateurs-authentifiés) — 69 fonctionnalités
 
 ---
@@ -307,7 +307,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 |------|---------|----------------|
 | P1 | §1.4 | Créer un bail (locataire, bailleur, durée, loyer, caution) |
 | P1 | §1.4 | Créer le bail depuis une candidature acceptée (« Créer le bail » sur la réservation confirmée d'un bien à louer) : bien, locataire, dates et loyer préremplis ; le locataire est le client de la réservation, et la réservation passe à « terminée », ce qui libère ses dates (P48.03, TCK-2352) |
-| P1 | §1.4 | Générer l'échéancier de loyers mensuels |
+| P1 | §1.4 | Générer l'échéancier de loyers mensuels, et l'échéance de caution à l'activation du bail (aucune pour un bail sans caution ni pour un renouvellement) ; elle se paie en ligne ou se marque payée comme un loyer (TCK-2375) |
 | P1 | §1.4 | Enregistrer un paiement mensuel |
 | P1 | §1.4 | Alerte d'impayé au bailleur (J+1, J+7) et récapitulatif quotidien unique des impayés à l'agent (TCK-588) |
 | P1 | §1.4 | Appliquer automatiquement des pénalités de retard sur les paiements en retard |
@@ -345,7 +345,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P1 | §1.7 | Envoyer un message texte avec pièces jointes |
 | P1 | §1.7 | Liste des conversations avec statut non lu — messages d'un autre postérieurs à la dernière lecture, hors avis système ; ouvrir un fil le marque lu (TCK-579) |
 | P1 | §1.7 | Notification en temps réel (in-app + email) |
-| P2 | §1.7 | Conversations de groupe (multi-participants) — participants choisis par leur nom ; bien et bail rattachés par recherche (titre, référence), dans le périmètre visible de l'acteur ; un bail doit concerner le bien choisi (TCK-565, TCK-576) |
+| P2 | §1.7 | Conversations de groupe (multi-participants) — participants choisis par leur nom ; bien et bail rattachés par recherche (titre, référence), dans le périmètre visible de l'acteur ; un bail doit concerner le bien choisi (TCK-565, TCK-576). Une demande d'intervention ne se rattache pas à un groupe créé à la main (422) : son fil naît de l'assignation (TCK-2372, P250.03) |
 | P2 | §1.7 | Groupe rattaché à un bail — il ne compte que des personnes qui lisent ce bail (`LeasePolicy::view` : parties au bail, personnel actif de l'agence) ; contrôlé à la création du groupe et à l'ajout de participants. Seule exception : le prestataire assigné à une intervention de ce bail reste dans le fil de cette intervention (TCK-592, `SyncMaintenanceConversation`), qu'il ne lise pas le bail. Un autre artisan ou un tiers se joint par un groupe sans bail rattaché (décisions du porteur du 2026-10-23, P191.04). ⚠ Au 2026-10-23, la règle n'est pas appliquée : `GuardsConversationScope` ne juge face au bail que l'acteur |
 | P2 | §1.7 | Accusés de lecture individuels (si > 5 participants) — non livré : la lecture se compte par participant (dernière lecture), aucune par message (`models-spec.md` EF5, refusé pour l'instant) ; le déclencheur d'EF5, des conversations à plus de 5 participants, est désormais atteignable — un groupe compte jusqu'à 20 participants actifs |
 | P2 | §1.7 | Recherche dans l'historique des messages |
@@ -442,7 +442,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P1 | §1.1 | Publier exige un contact joignable : prénom et numéro vérifié de la personne que les visiteurs appelleront — l'agent principal du bien, à défaut son titulaire — ; ce qui manque se complète au moment de publier (nom, numéro avec code SMS, WhatsApp) ; les CGU sont acceptées par le publieur, et sa première publication vaut acceptation, datée (TCK-633) |
 | P1 | §1.1 | Booster une annonce avec les crédits de l'espace : **Remontée** (le bien repasse en tête du tri par récence, au plus une fois par délai réglé), **En vedette** (emplacements « Sponsorisé » pour une durée), **Badge** (« Urgent », « Prix en baisse ») ; un boost se met en pause quand le bien quitte la surface publique, et ses jours restants sont rendus quand le bien est loué, vendu ou supprimé par l'annonceur (TCK-633, [ADR-0061](adr/0061-credits-d-espace-et-boost-des-annonces.md)) |
 | P1 | §1.1 | Historique de prix automatique à chaque changement |
-| P1 | §1.1 | Ajouter des collaborateurs au bien avec part de commission explicite et un rôle (gestionnaire, co-propriétaire, agent, lecteur), sans permission propre au collaborateur : le rôle fixe qui peut l'occuper et qui peut être l'agent principal, pas ce qu'il peut faire — un collaborateur appartient à l'agence du bien (agent ou admin pour les rôles agent / gestionnaire, bailleur de l'agence pour co-propriétaire) ; la part de commission et le rôle ne sont jamais exposés sur le site public (TCK-598, TCK-586) |
+| P1 | §1.1 | Ajouter des collaborateurs au bien avec part de commission explicite et un rôle (gestionnaire, co-propriétaire, agent, lecteur), sans permission propre au collaborateur : le rôle fixe qui peut l'occuper et qui peut être l'agent principal, pas ce qu'il peut faire — un collaborateur appartient à l'agence du bien (agent ou admin pour les rôles agent / gestionnaire, bailleur de l'agence pour co-propriétaire) ; la part de commission et le rôle ne sont jamais exposés sur le site public (TCK-598, TCK-586) ; la part de commission ne s'écrit (ajout, modification, copie du bien) et ne se lit que par le personnel de l'agence du bien qui ouvre les baux (`leases.create`) : le bailleur ajoute un collaborateur sans part, reçoit 403 `property.commission_share_forbidden` sur une part, et ne la lit pas (TCK-2364, [ADR-0049](adr/0049-attribution-des-transactions-et-grand-livre-des-commissions.md)) |
 | P1 | §1.1 | Désigner l'**agent principal** d'un bien parmi ses collaborateurs agents, un seul par bien (TCK-504, [ADR-0053](adr/0053-l-agent-principal-est-une-marque-unique-par-bien.md)). C'est l'**agent responsable** du bien et son **contact principal** : la fiche publique le nomme et révèle son numéro, il reçoit les messages et les demandes de contact et de visite. Sans désignation, ou si l'agent désigné n'est plus actif dans l'agence, c'est l'agent du bien le plus anciennement ajouté ; sans agent, le titulaire du bien ([ADR-0036](adr/0036-l-agent-responsable-est-le-collaborateur-principal.md)) |
 | P1 | §1.1 | Saisir un bien au nom d'un bailleur de l'agence : le bailleur se choisit à la saisie parmi les bailleurs actifs, facultativement (sans choix, l'agence garde le bien en propre) ; il est prévenu par une notification, voit le bien, ses baux et son relevé, et en reçoit les loyers ; un lot prend le bailleur de son immeuble, une copie celui du bien copié, et un lot ne se rattache qu'à un bien du même titulaire (TCK-997, [ADR-0036](adr/0036-l-agent-responsable-est-le-collaborateur-principal.md)) |
 | P1 | §1.1 | Inviter un bailleur depuis le formulaire de bien : le bien reste à l'agence et lui passe quand il accepte l'invitation ; une invitation révoquée ou expirée le laisse à l'agence (TCK-1000) |
@@ -484,13 +484,13 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P1 | §1.4 | Créer un bail (locataire, bailleur, durée, loyer, caution) |
 | P1 | §1.4 | Créer le bail depuis une candidature acceptée (« Créer le bail » sur la réservation confirmée d'un bien à louer) : bien, locataire, dates et loyer préremplis ; le locataire est le client de la réservation, et la réservation passe à « terminée », ce qui libère ses dates (P48.03, TCK-2352) |
 | P1 | §1.4 | Ajouter un ou plusieurs garants avec documents joints |
-| P1 | §1.4 | Générer l'échéancier de loyers mensuels |
+| P1 | §1.4 | Générer l'échéancier de loyers mensuels, et l'échéance de caution à l'activation du bail (aucune pour un bail sans caution ni pour un renouvellement) ; elle se paie en ligne ou se marque payée comme un loyer (TCK-2375) |
 | P1 | §1.4 | Relances de loyer automatiques (J-3, J+1, J+7) au locataire, y compris sans compte (téléphone du client), sur WhatsApp puis SMS en secours, dans sa langue ; un retard est relancé que le bail porte une pénalité ou non, et la relance annonce le solde restant dû (TCK-588) ; chaque relance part au plus une fois : celle que tous les fournisseurs SMS refusent n'est pas renvoyée et laisse une activité d'exploitation rattachée à l'échéance, sans le numéro (P207.01) ; pour un locataire sans compte, le SMS ne prend le relais que d'un échec immédiat de WhatsApp, pas d'un échec que Meta rapporte plus tard (P207.02) |
 | P1 | §1.4 | Alerte d'impayé au bailleur (J+1, J+7) et récapitulatif quotidien unique des impayés à l'agent (TCK-588) |
 | P1 | §1.4 | Appliquer automatiquement des pénalités de retard sur les paiements en retard |
 | P1 | §1.4 | Choisir, par agence, si les pénalités de retard s'encaissent avec le paiement en ligne du loyer — désactivé par défaut (TCK-593) |
 | P1 | §1.4 | Enregistrer une pénalité de retard réglée à l'agence ; la quittance la dit acquittée ou restant due (TCK-593) |
-| P1 | §1.4 | Remboursement de la caution en fin de bail |
+| P1 | §1.4 | Remboursement de la caution en fin de bail, borné à la caution encaissée (échéances `deposit` payées du bail et des baux qu'il renouvelle, moins le rendu et la retenue) ; une caution jamais encaissée ne se rembourse pas (TCK-2375) |
 | P1 | §1.4 | Consultation de l'historique complet d'un bail |
 | P2 | §1.4 | Renouveler un bail ou créer un avenant (loyer, durée, conditions) avec traçabilité du bail parent ; le bail renouvelé reçoit son échéancier sans geste manuel (TCK-596) ; il naît sans garant, et la réponse et le récapitulatif le disent (TCK-2316) |
 | P2 | §1.4 | Résiliation anticipée avec calcul des pénalités |
@@ -536,7 +536,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 |------|---------|----------------|
 | P1 | §1.7 | Conversation privée 1↔1 entre client et agent / bailleur |
 | P1 | §1.7 | Périmètre de messagerie — qui l'on peut faire entrer dans une conversation, directe ou de groupe ; une seule règle sert le sélecteur, la création et l'ajout de participants : un correspondant (une conversation déjà partagée), un lien CRM (une même fiche client, ou le compte du client d'une fiche ; une fiche supprimée ne relie plus personne, les fils déjà ouverts restant par la règle du correspondant — TCK-2295), l'équipe active de son agence, et ses propriétaires actifs pour l'équipe seulement ; pour compléter un groupe existant, aussi l'équipe active de l'agence de son bien ou de son bail ; un profil invité pas encore accepté, suspendu ou inactif ne compte pas (TCK-565). À ne pas confondre avec le « contact joignable » qu'exige la publication (§1.1, TCK-633) |
-| P2 | §1.7 | Conversations de groupe (multi-participants) — participants choisis par leur nom ; bien et bail rattachés par recherche (titre, référence), dans le périmètre visible de l'acteur ; un bail doit concerner le bien choisi (TCK-565, TCK-576) |
+| P2 | §1.7 | Conversations de groupe (multi-participants) — participants choisis par leur nom ; bien et bail rattachés par recherche (titre, référence), dans le périmètre visible de l'acteur ; un bail doit concerner le bien choisi (TCK-565, TCK-576). Une demande d'intervention ne se rattache pas à un groupe créé à la main (422) : son fil naît de l'assignation (TCK-2372, P250.03) |
 | P2 | §1.7 | Groupe rattaché à un bail — il ne compte que des personnes qui lisent ce bail (`LeasePolicy::view` : parties au bail, personnel actif de l'agence) ; contrôlé à la création du groupe et à l'ajout de participants. Seule exception : le prestataire assigné à une intervention de ce bail reste dans le fil de cette intervention (TCK-592, `SyncMaintenanceConversation`), qu'il ne lise pas le bail. Un autre artisan ou un tiers se joint par un groupe sans bail rattaché (décisions du porteur du 2026-10-23, P191.04). ⚠ Au 2026-10-23, la règle n'est pas appliquée : `GuardsConversationScope` ne juge face au bail que l'acteur |
 | P2 | §1.7 | Fil de discussion automatique par intervention, avec un message système à chaque étape (TCK-592) |
 
@@ -741,6 +741,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P0 | §1.12 | Configurer son agence (nom, licence, contact, logo). Une agence se crée par la console (super-admin) ou par l'espace hôte, jamais par `POST /api/agencies`, retirée (TCK-2311) |
 | P0 | §1.12 | Ajouter et retirer des agents |
 | P0 | §1.12 | Attribution de rôles aux membres |
+| P1 | §1.12 | Fixer le taux de commission d'un agent sur sa fiche de membre, sous `team.assign_role` : sa part de la commission de chaque bail qu'il négocie, que le grand livre lui verse à l'activation (TCK-2364, [ADR-0049](adr/0049-attribution-des-transactions-et-grand-livre-des-commissions.md) « Ventilation » § 2) |
 | P0 | §1.12 | Suspendre / réactiver l'adhésion d'un membre (agent, bailleur, co-admin) à l'agence, sans toucher au compte ; le blocage d'un compte reste un geste super-admin ; l'administrateur principal ne peut être suspendu ; acte journalisé (TCK-587) |
 | P1 | §1.12 | Crédits de l'espace : un solde par espace, en lots datés ; offre de bienvenue une fois par numéro vérifié, au titulaire de l'espace ; crédits offerts expirant (prévenu avant), consommés en premier ; dépense par boost (capacité `boost.spend`) ; page « Crédits » (solde, lots, historique, boosts) (TCK-633, [ADR-0061](adr/0061-credits-d-espace-et-boost-des-annonces.md)) |
 | P1 | §1.12 | Statistiques globales d'agence (portefeuille, revenus) |
@@ -966,8 +967,8 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 
 ## Provenance
 
-- Source : [`features.md`](./features.md) — **391** lignes de fonctionnalité lues,
-  réparties en **531** placements (une ligne multi-acteurs compte une fois par acteur).
+- Source : [`features.md`](./features.md) — **393** lignes de fonctionnalité lues,
+  réparties en **533** placements (une ligne multi-acteurs compte une fois par acteur).
 - Générateur : `docs/gen-features-by-actor.mjs`.
 - Fraîcheur vérifiée en CI par `node docs/gen-features-by-actor.mjs --check`, qui échoue si
   cette sortie ne correspond plus à sa source.

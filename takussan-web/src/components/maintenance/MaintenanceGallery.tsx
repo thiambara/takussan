@@ -1,11 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { FileText } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
+import { PHOTOS_PAR_SELECTION_MAX } from '@/lib/borne-du-corps';
 import { useUploadMaintenancePhotos } from '@/lib/queries/maintenance';
 import { reduirePhotos } from '@/lib/reduire-photo';
 import type { MaintenanceMediaItem, MaintenanceRequest } from '@/types/maintenance';
@@ -88,15 +89,37 @@ function MediaThumb({ item }: { readonly item: MaintenanceMediaItem }) {
   );
 }
 
+/**
+ * TCK-2370 (P236.02) — une photo par appel, comme la clôture (TCK-2330) : tout le lot dans un
+ * corps dépassait la borne du proxy (25 Mio) dès 19 photos réduites. Le premier échec arrête tout
+ * et se dit ; une photo jointe sort de la sélection, pour que réessayer n'envoie que le reste. La
+ * borne de 20 se lit au sélecteur, et une sélection qui la dépasse est refusée entière.
+ */
 function BeforePhotosUpload({ id }: { readonly id: number }) {
   const t = useTranslations('maintenance.intervention.gallery');
   const messageErreur = useMessageErreurApi();
   const upload = useUploadMaintenancePhotos();
   const [files, setFiles] = useState<File[]>([]);
+  const [tropDePhotos, setTropDePhotos] = useState<number | null>(null);
+  const [envoi, setEnvoi] = useState(false);
+  const [erreur, setErreur] = useState<unknown>(null);
+  const borneId = useId();
 
   const send = async () => {
-    await upload.mutateAsync({ id, files: await reduirePhotos(files), collection: 'before_photos' });
-    setFiles([]);
+    setEnvoi(true);
+    setErreur(null);
+    try {
+      const reduites = await reduirePhotos(files);
+      for (const [index, photo] of reduites.entries()) {
+        await upload.mutateAsync({ id, files: [photo], collection: 'before_photos' });
+        const jointe = files[index];
+        setFiles((restantes) => restantes.filter((f) => f !== jointe));
+      }
+    } catch (e) {
+      setErreur(e);
+    } finally {
+      setEnvoi(false);
+    }
   };
 
   return (
@@ -110,21 +133,41 @@ function BeforePhotosUpload({ id }: { readonly id: number }) {
         accept="image/jpeg,image/png,image/webp"
         capture="environment"
         multiple
-        onChange={(e) => setFiles(Array.from(e.target.files ?? []))}
+        aria-describedby={borneId}
+        onChange={(e) => {
+          const choisies = Array.from(e.target.files ?? []);
+          setErreur(null);
+          if (choisies.length > PHOTOS_PAR_SELECTION_MAX) {
+            setTropDePhotos(choisies.length);
+            setFiles([]);
+            e.target.value = '';
+            return;
+          }
+          setTropDePhotos(null);
+          setFiles(choisies);
+        }}
         className="block w-full text-sm text-muted-foreground file:mr-3 file:h-11 file:cursor-pointer file:rounded-lg file:border file:border-border file:bg-background file:px-3 file:text-sm file:font-medium file:text-foreground hover:file:bg-muted sm:file:h-8"
       />
+      <p id={borneId} className="mt-1 text-xs text-muted-foreground">
+        {t('before_hint', { max: PHOTOS_PAR_SELECTION_MAX })}
+      </p>
+      {tropDePhotos !== null ? (
+        <p role="alert" className="mt-1 text-xs text-destructive">
+          {t('before_too_many', { count: tropDePhotos, max: PHOTOS_PAR_SELECTION_MAX })}
+        </p>
+      ) : null}
       <div className="mt-3 flex flex-wrap items-center gap-3">
         <Button
           type="button"
           className="h-11 sm:h-9"
-          disabled={files.length === 0 || upload.isPending}
-          onClick={() => void send().catch(() => undefined)}
+          disabled={files.length === 0 || envoi}
+          onClick={() => void send()}
         >
-          {upload.isPending ? t('sending') : t('send', { count: files.length })}
+          {envoi ? t('sending') : t('send', { count: files.length })}
         </Button>
-        {upload.isError ? (
+        {erreur !== null ? (
           <span role="alert" className="text-xs text-destructive">
-            {messageErreur(upload.error, t('failed'))}
+            {messageErreur(erreur, t('failed'))}
           </span>
         ) : null}
       </div>

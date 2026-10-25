@@ -68,6 +68,8 @@ class UserAdminRoleAssignmentsTest extends ApiTestCase
             'user_id' => $agent->id,
             'agency_role_id' => (int) $profil->fresh()->agency_role_id,
             'agency_role_name' => AgencyRoleBaseType::Agent->defaultRoleName(),
+            // TCK-2364 (P241.02) — la ligne d'un agent porte son taux, que la fiche de membre écrit.
+            'commission_rate' => (float) $profil->fresh()->commission_rate,
         ], $rendu);
     }
 
