@@ -2,12 +2,14 @@
 
 namespace Tests\Feature\Console;
 
+use App\Models\Activity;
 use Illuminate\Console\Scheduling\Event;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\DataProvider;
+use Spatie\Activitylog\Actions\CleanActivityLogAction;
 use Tests\TestCase;
 
 /**
@@ -136,6 +138,31 @@ class PruneActivityLogCommandTest extends TestCase
         $this->assertSame('10 4 * * *', $event->expression);
         $this->assertSame('Africa/Dakar', $event->timezone);
         $this->assertTrue($event->withoutOverlapping);
+    }
+
+    /**
+     * `activitylog:clean` du paquet reste enregistrée et ne sait rien exclure : lancée à la main sans
+     * `--days`, elle purge à `activitylog.clean_after_days`, fixé à la plus longue durée de la purge
+     * par famille (10 ans) pour ne jamais effacer une pièce comptable qu'on doit garder.
+     */
+    public function test_activitylog_clean_lancee_a_la_main_n_efface_pas_une_piece_comptable_de_deux_ans(): void
+    {
+        $piece = $this->ligne('LeasePayment', now()->subYears(2));
+        $preuve = $this->ligne('PersonalDataAccess', now()->subYears(2));
+
+        $this->artisan('activitylog:clean')->assertSuccessful();
+
+        $this->assertPresente($piece);
+        $this->assertPresente($preuve);
+        $this->assertSame(3653, config('activitylog.clean_after_days'));
+    }
+
+    public function test_la_configuration_du_journal_garde_ses_autres_cles(): void
+    {
+        $this->assertSame(Activity::class, config('activitylog.activity_model'));
+        $this->assertSame('default', config('activitylog.default_log_name'));
+        $this->assertTrue((bool) config('activitylog.enabled'));
+        $this->assertSame(CleanActivityLogAction::class, config('activitylog.actions.clean_log'));
     }
 
     private function ligne(?string $logName, \DateTimeInterface $at): int

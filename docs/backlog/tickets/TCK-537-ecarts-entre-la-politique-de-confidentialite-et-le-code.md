@@ -122,5 +122,5 @@ tracé ici** — plutôt que d'écrire une politique qui décrirait un défaut c
   lots, idempotente, planifiée chaque jour à 04:10 (Dakar) ; `privacy.ts` § 6 donne les trois
   durées. Le ticket reste `todo` pour ses autres parties : preuve du consentement, effacement des
   profils, purges KYC et demandes de contact anonymes, auteur des avis, écarts hors politique.
-  `activitylog:clean` du paquet reste enregistré, non planifié : lancé à la main, il purgerait tout
-  à 365 jours.
+  `activitylog:clean` du paquet reste enregistré, non planifié ; lancé à la main sans `--days`, il
+  purge à 3653 jours (`config/activitylog.php`), la plus longue des trois durées.

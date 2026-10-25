@@ -496,8 +496,13 @@ une seconde exécution ne trouve rien. 12 mois se comptent en mois, comme la pol
 
 ### Ce qui n'est pas gardé
 
-- **`activitylog:clean`** reste enregistrée par le paquet, non planifiée. Lancée à la main, elle
-  purgerait tout à 365 jours, journaux de preuve et pièces comptables compris.
+- **`activitylog:clean`** reste enregistrée par le paquet, non planifiée, et ne sait rien exclure.
+  Lancée à la main sans `--days`, elle purge à `activitylog.clean_after_days`, porté de 365 à
+  **3653 jours** (10 ans, la plus longue durée de la purge par famille) : elle n'efface plus une
+  pièce comptable ni un journal de preuve qu'on doit garder (test
+  `test_activitylog_clean_lancee_a_la_main_n_efface_pas_une_piece_comptable_de_deux_ans`, rouge à
+  365). C'est la clé de la v5 du paquet ; `delete_records_older_than_days`, celle de la v4, serait
+  ignorée (mesuré : rouge). Un `--days` explicite passe outre, comme tout geste d'exploitant.
 - **Un journal neuf** relève des 12 mois tant qu'il n'est nommé dans aucune liste : rien ne relie la
   liste de la console (`SENSITIVE_LOG_NAMES`) à celle de la purge, qui diffèrent déjà (`PrivacyRequest`,
   que la console nomme et sous lequel aucun code n'écrit).
@@ -505,7 +510,8 @@ une seconde exécution ne trouve rien. 12 mois se comptent en mois, comme la pol
 
 ### Application
 
-- `PruneActivityLog` et sa ligne de `routes/console.php` ; `privacy.ts` § 6 (`fr`, `en`) et
+- `PruneActivityLog` et sa ligne de `routes/console.php` ; `config/activitylog.php`
+  (`clean_after_days` = 3653) ; `privacy.ts` § 6 (`fr`, `en`) et
   `VERSION_DOCUMENTS` au 25 octobre 2026 ; TCK-537 (contrainte 5, AC3b).
 - **Gardes**, vérifiées par ablation (`tests/Feature/Console/PruneActivityLogCommandTest.php`) : un
   cas par journal de chaque famille (un nom retiré d'une liste → son cas rougit), la frontière de

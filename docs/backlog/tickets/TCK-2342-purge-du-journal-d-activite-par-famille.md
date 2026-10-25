@@ -62,8 +62,9 @@ Réf : **P19.04** du fichier de pistes, `validé`.
   la liste se lit dans la commande.
 - **`PrivacyRequest`** n'est pas nommé par la décision : `PrivacyRequest` écrit sous `Privacy`
   (`PrivacyRequest::getActivitylogOptions()`), et aucun code n'écrit sous `PrivacyRequest`.
-- **`activitylog:clean`** reste enregistré par le paquet, non planifié. Lancé à la main, il
-  purgerait tout à 365 jours : hors périmètre, signalé.
+- **`activitylog:clean`** reste enregistré par le paquet, non planifié. Lancé à la main sans
+  `--days`, il purge à `activitylog.clean_after_days`, porté à 3653 jours (10 ans), la plus longue
+  des trois durées (demande de la session du 2026-10-25).
 - **La politique** : `privacy.ts` § 6, en `fr` et `en` (`wo` est vide à dessein, README du dossier),
   et `VERSION_DOCUMENTS` avance au 25 octobre 2026, comme le README le demande pour une nouvelle
   purge.
@@ -96,8 +97,8 @@ Réf : **P19.04** du fichier de pistes, `validé`.
 
 - Les trois autres parties de TCK-537 (preuve du consentement, effacement des profils, purges KYC et
   demandes de contact anonymes, auteur des avis) : TCK-537 reste `todo`.
-- Le traitement de `activitylog:clean` (désenregistrer la commande du paquet ou surcharger
-  `actions.clean_log`).
+- Désenregistrer `activitylog:clean`, ou surcharger `actions.clean_log` pour qu'elle suive les
+  familles : non fait, la borne à 10 ans suffit à ne rien effacer qu'on doive garder.
 
 ## Notes d'implémentation
 
@@ -115,3 +116,7 @@ Réf : **P19.04** du fichier de pistes, `validé`.
 - Front : `textes.test.ts` rouge avant le texte (1 sur 17), vert après ; `VERSION_DOCUMENTS` avance
   au 25 octobre 2026. `PublishReadiness::TERMS_VERSION` (« 2026-09-17 », « à changer ensemble »)
   était déjà désaccordé de la date du front (18 octobre) : non touché.
+- **`activitylog:clean`** : `test_activitylog_clean_lancee_a_la_main_n_efface_pas_une_piece_comptable_de_deux_ans`
+  rouge à `clean_after_days = 365`, vert à 3653 ; rouge aussi sous la clé de la v4
+  (`delete_records_older_than_days`), que la v5 ignore. Les autres clés de la configuration gardent
+  leur valeur (test).
