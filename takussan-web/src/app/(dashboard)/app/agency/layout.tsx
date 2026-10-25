@@ -20,8 +20,9 @@ import { messagesPour } from '@/i18n/messages';
  *     est la défense en profondeur que portait le layout de l'ancienne console. Décidé dans un
  *     layout sans `loading.tsx` au-dessus de lui, il rend 307 (TCK-426) ;
  *  2. **la frontière de dictionnaire** de l'administration (ADR-0022, TCK-337) : ses pages adressent
- *     des espaces de noms que la frontière de `/app` ne sert pas. Ensemble CUMULÉ, cf.
- *     `src/i18n/IntlProvider.tsx` — sans lui, une clé manquante lève.
+ *     des espaces de noms que la frontière de `/app` ne sert pas. La table n'en porte que le
+ *     différentiel, que `IntlProvider` ajoute à celui du parent (amendement d'ADR-0022 du
+ *     2026-10-25) — sans lui, une clé manquante lève.
  *
  * ⚠ Aucun `loading.tsx` dans ce sous-arbre ni au-dessus : il effacerait le 307 de la garde de
  * chaque page (`app/__tests__/etats-de-route.test.ts`, TCK-649).

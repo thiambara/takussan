@@ -36,10 +36,10 @@ const LOCALE_OPEN_GRAPH: Record<Locale, string> = { fr: 'fr_SN', en: 'en_US', wo
  *   selection store (TCK-082). The floating bar is rendered here so it
  *   follows the user across every public page.
  *
- * i18n (TCK-337) : ce layout est une FRONTIÈRE de dictionnaire. Il sert le sous-ensemble cumulé
- * du groupe `(public)` — le sien plus le socle racine —, et non les 60 espaces de noms du
- * produit. La table est dérivée du graphe d'imports par `scripts/check-i18n-namespaces.mjs` ;
- * ⚠ le provider imbriqué REMPLACE celui du parent, d'où l'ensemble cumulé (cf. `IntlProvider`).
+ * i18n (TCK-337) : ce layout est une FRONTIÈRE de dictionnaire. Il sert les espaces du groupe
+ * `(public)` que le socle racine ne sert pas, et non les 60 espaces de noms du produit :
+ * `IntlProvider` les ajoute au dictionnaire du parent (amendement d'ADR-0022 du 2026-10-25). La
+ * table est dérivée du graphe d'imports par `scripts/check-i18n-namespaces.mjs`.
  *
  * SEO : indexable par défaut, SANS clé `robots` (TCK-915, P09.08) : `index, follow` est la valeur
  * par défaut des moteurs, et déclarée ici elle s'ajoutait au `noindex` que Next pose sur une page

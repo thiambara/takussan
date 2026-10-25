@@ -10,9 +10,9 @@ import { ToastProvider, Toaster } from '@/components/ui/toast';
 export const metadata: Metadata = { robots: { index: false, follow: false } };
 
 /**
- * i18n (TCK-337) : frontière de dictionnaire du sous-arbre `/onboarding`. Sert l'ensemble CUMULÉ
- * (socle racine + espaces des six assistants), parce qu'un provider imbriqué REMPLACE celui de
- * son parent au lieu de le compléter — cf. `src/i18n/IntlProvider.tsx`.
+ * i18n (TCK-337) : frontière de dictionnaire du sous-arbre `/onboarding`. Sert les espaces des six
+ * assistants que le socle racine ne sert pas ; `IntlProvider` les ajoute au dictionnaire du parent
+ * (amendement d'ADR-0022 du 2026-10-25) — cf. `src/i18n/IntlProvider.tsx`.
  */
 export default async function OnboardingLayout({
   children,

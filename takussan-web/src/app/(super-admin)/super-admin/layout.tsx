@@ -29,7 +29,8 @@ export const metadata: Metadata = { robots: { index: false, follow: false } };
  * `/app/agency/*` since TCK-649); the intent (dedicated namespace, distinct
  * shell, server-side gate) is preserved.
  *
- * i18n (TCK-337) : frontière de dictionnaire — ensemble CUMULÉ. ⚠ `property` y entre par une voie
+ * i18n (TCK-337) : frontière de dictionnaire — son différentiel seul, que `IntlProvider` ajoute à
+ * celui du parent (amendement d'ADR-0022 du 2026-10-25). ⚠ `property` y entre par une voie
  * que le relevé littéral ne voit pas : `SuperAdminPropertiesFilters` passe
  * `PROPERTY_ENUM_NAMESPACES.status` à `useTranslations`. C'est le repli de constantes de la garde
  * qui l'a trouvé ; écrite à la main, la table aurait cassé cet écran-là.

@@ -36,6 +36,12 @@
  *    source » du `CLAUDE.md`, appliquée au seul endroit du dépôt où la sanction d'une table
  *    périmée est visible par un utilisateur.
  *
+ *    **La table est DIFFÉRENTIELLE** depuis le même amendement (P105.02) : chaque frontière n'y
+ *    porte que les espaces que son sous-arbre lit et qu'AUCUN de ses parents ne sert ; la racine
+ *    porte le plancher. `IntlProvider` fusionne dans le navigateur le dictionnaire du parent et
+ *    ce différentiel. Avant, chaque entrée portait l'ensemble cumulé, et une navigation vers une
+ *    section renvoyait tous les espaces que le navigateur avait déjà.
+ *
  *    ⚠ Le dérivateur SUR-APPROXIME (cf. son en-tête) : il compte plus large plutôt que plus juste,
  *    parce qu'un faux positif coûte quelques centaines d'octets et un faux négatif casse un écran.
  *    Sa preuve de justesse tient dans `src/i18n/__tests__/i18n-namespaces-scan.test.ts`, un cas
@@ -48,13 +54,19 @@
  *    super-admin adressent `property.*` par la table `PROPERTY_ENUM_NAMESPACES`, et le sous-arbre
  *    `(super-admin)` n'aurait pas reçu `property`.
  *
- * C. **Aucune frontière ne sert le dictionnaire entier.** `getMessages()` est interdit hors de
+ * C. **Aucune frontière ne sert le dictionnaire entier, et aucune ne remplace celui de son
+ *    parent** (réécrite par l'amendement du 2026-10-25). `getMessages()` est interdit hors de
  *    `src/i18n/messages.ts` (c'est l'appel exact qui a produit le défaut), et tout `layout.tsx`
- *    déclaré frontière doit appeler `messagesPour`. Cette seconde vérification vise le piège
- *    documenté dans `IntlProvider.tsx` : un provider imbriqué SANS prop `messages` hérite du
- *    parent en silence.
+ *    déclaré frontière doit appeler `messagesPour('<son identifiant exact>')` — sans quoi son
+ *    sous-arbre n'aurait pas son différentiel. `NextIntlClientProvider` est interdit hors de
+ *    `src/i18n/IntlProvider.tsx`, et `IntlProviderRacine` hors de `src/app/layout.tsx` : un
+ *    provider qui REMPLACE le dictionnaire (cf. l'en-tête de `IntlProvider.tsx`) ne recevrait plus
+ *    que le différentiel, et perdrait tous les espaces de ses parents. L'ancien piège — un
+ *    provider imbriqué sans `messages` hérite en silence — n'en est plus un : hériter est la
+ *    règle.
  *
- * D. **Un cliquet sur la part du dictionnaire** effectivement servie par chaque frontière, exprimé
+ * D. **Un cliquet sur la part du dictionnaire** qu'un document de chaque frontière porte — son
+ *    ensemble CUMULÉ, différentiels des parents compris —, exprimé
  *    en POINTS DE POURCENTAGE du dictionnaire complet gzippé — et non en octets. Le choix compte :
  *    un plafond en octets rougirait à chaque traduction ajoutée, ce qui apprend à relever le
  *    plafond sans regarder. Une part, elle, ne bouge que si le DÉCOUPAGE se dégrade.
@@ -219,12 +231,17 @@ function cumule(f) {
   return trie;
 }
 
+// La table porte le DIFFÉRENTIEL (P105.02) : ce que la frontière ajoute à l'ensemble cumulé de son
+// parent, que `IntlProvider` fusionne dans le navigateur. Le cliquet, lui, porte sur le CUMUL :
+// c'est ce qu'un document de la frontière transporte.
 const derive = {};
 const plafonds = {};
 for (const f of frontieres) {
   const id = idDe(f);
-  derive[id] = cumule(f);
-  const part = (100 * partGzip(derive[id])) / totalGzip;
+  const parent = parentDe(f);
+  const duParent = new Set(parent ? cumule(parent) : []);
+  derive[id] = cumule(f).filter((n) => !duParent.has(n));
+  const part = (100 * partGzip(cumule(f))) / totalGzip;
   plafonds[id] = Math.min(100, Math.ceil(part) + MARGE_POINTS);
 }
 
@@ -258,9 +275,29 @@ for (const f of frontieres) {
   if (!attendu.test(source)) {
     echecs.push(
       `frontière sans \`messagesPour('${id}')\` — ${relative(WEB, layout)}\n` +
-        '    Un `layout.tsx` est une frontière de rendu : ou bien il sert LE sous-ensemble de sa\n' +
-        '    propre frontière, ou bien il hérite EN SILENCE de celui de son parent — plus pauvre\n' +
-        '    que ce que son sous-arbre adresse (cf. l’en-tête de `src/i18n/IntlProvider.tsx`).',
+        '    Un `layout.tsx` est une frontière de rendu : la table ne sert QUE son différentiel —\n' +
+        '    les espaces que son sous-arbre lit et qu’aucun parent ne sert. Sans cet appel, ils\n' +
+        '    manquent à l’écran (cf. l’en-tête de `src/i18n/IntlProvider.tsx`).',
+    );
+  }
+}
+
+// ── 4 bis. Aucun provider ne REMPLACE le dictionnaire de son parent (règle C, 2026-10-25) ─────────
+// La table étant différentielle, un `NextIntlClientProvider` monté ailleurs que dans
+// `IntlProvider.tsx` ne recevrait que le différentiel de sa frontière, et perdrait tout ce que
+// ses parents servent. Le provider racine, lui, ne vit qu'à la racine.
+const SEULS_PROVIDERS = new Map([
+  [/\bNextIntlClientProvider\b/, [join(SRC, 'i18n', 'IntlProvider.tsx'), join(SRC, 'test', 'intl.tsx')]],
+  [/\bIntlProviderRacine\b/, [join(SRC, 'i18n', 'IntlProvider.tsx'), join(APP, 'layout.tsx')]],
+]);
+for (const fichier of fichiersDe(SRC)) {
+  const source = retireCommentairesPleineLigne(readFileSync(fichier, 'utf8'));
+  for (const [motif, permis] of SEULS_PROVIDERS) {
+    if (permis.includes(fichier) || !motif.test(source)) continue;
+    echecs.push(
+      `${motif.source.replace(/\\b/g, '')} hors de ${permis.map((f) => relative(WEB, f)).join(' et ')} — ${relative(WEB, fichier)}\n` +
+        '    Un provider qui REMPLACE le dictionnaire de son parent ne reçoit que le différentiel\n' +
+        '    de sa frontière. Monter `IntlProvider` (il fusionne celui du parent).',
     );
   }
 }
@@ -268,8 +305,10 @@ for (const f of frontieres) {
 // ── 5. Comparaison à la table, ou régénération ───────────────────────────────────────────────────
 const enTete =
   'GÉNÉRÉ par takussan-web/scripts/check-i18n-namespaces.mjs — ne jamais éditer à la main. ' +
-  'Chaque frontière porte son ensemble CUMULÉ (le sien plus celui de tous ses parents), parce que ' +
-  'les providers next-intl imbriqués REMPLACENT le dictionnaire du parent au lieu de le compléter.';
+  'Chaque frontière porte son DIFFÉRENTIEL : les espaces que son sous-arbre lit et qu’aucun de ses ' +
+  'parents ne sert ; la racine porte le plancher. `IntlProvider` fusionne dans le navigateur le ' +
+  'dictionnaire du parent et ce différentiel (ADR-0022, amendement du 2026-10-25). Les plafonds ' +
+  'portent sur l’ensemble CUMULÉ, celui qu’un document de la frontière transporte.';
 
 if (majTable) {
   writeFileSync(
@@ -308,22 +347,40 @@ if (majTable) {
           '    Ce sont des libellés qui s’afficheraient en chemin de clé brut à un utilisateur.',
       );
     }
-    if (surplus.length) {
+    const f = frontieres.find((x) => idDe(x) === id);
+    const duParent = new Set(parentDe(f) ? cumule(parentDe(f)) : []);
+    const repetes = surplus.filter((n) => duParent.has(n));
+    const morts = surplus.filter((n) => !duParent.has(n));
+    if (morts.length) {
       echecs.push(
-        `frontière « ${id} » — espaces déclarés et PLUS atteignables : ${surplus.join(', ')}\n` +
+        `frontière « ${id} » — espaces déclarés et PLUS atteignables : ${morts.join(', ')}\n` +
           '    Des octets sérialisés dans chaque document pour du code qui ne les lit plus.',
+      );
+    }
+    if (repetes.length) {
+      echecs.push(
+        `frontière « ${id} » — espaces déclarés que sert DÉJÀ un parent : ${repetes.join(', ')}\n` +
+          '    La table est différentielle : `IntlProvider` les tient déjà du parent, et les répéter\n' +
+          '    les renvoie à chaque navigation vers cette frontière.',
       );
     }
   }
 
-  // Cliquet — sur la table DÉCLARÉE, qui est ce que le produit sert réellement.
+  // Cliquet — sur la table DÉCLARÉE, qui est ce que le produit sert réellement, cumulée le long de
+  // la chaîne des parents : c'est la part qu'un document de la frontière transporte.
+  const cumulDeclare = (id) => {
+    const f = frontieres.find((x) => idDe(x) === id);
+    const chaine = [];
+    for (let x = f; x; x = parentDe(x)) chaine.push(idDe(x));
+    return [...new Set(chaine.flatMap((c) => declare[c] ?? []))];
+  };
   for (const id of idsDeclares) {
     const plafond = table.plafondsPourcent?.[id];
     if (plafond === undefined) {
       echecs.push(`frontière « ${id} » — aucun plafond déclaré. → --update`);
       continue;
     }
-    const part = (100 * partGzip(declare[id])) / totalGzip;
+    const part = (100 * partGzip(frontieres.some((x) => idDe(x) === id) ? cumulDeclare(id) : declare[id])) / totalGzip;
     if (part > plafond) {
       echecs.push(
         `CLIQUET — frontière « ${id} » sert ${part.toFixed(1)} % du dictionnaire, plafond ${plafond} %.\n` +
@@ -338,16 +395,21 @@ if (majTable) {
 if (rapport || majTable) {
   console.log(`\ndictionnaire complet : ${Object.keys(dico).length} espaces, ${totalGzip} o gzip\n`);
   const large = Math.max(...frontieres.map((f) => idDe(f).length));
+  console.log(
+    `${'frontière'.padEnd(large)}  différentiel (servi par la frontière)   document (cumul des parents)`,
+  );
   for (const f of frontieres) {
     const id = idDe(f);
     const octets = partGzip(derive[id]);
+    const cumul = cumule(f);
+    const octetsCumul = partGzip(cumul);
     console.log(
-      `${id.padEnd(large)}  ${String(derive[id].length).padStart(2)} espaces  ` +
-        `${String(octets).padStart(6)} o gzip  ${((100 * octets) / totalGzip).toFixed(1).padStart(5)} %` +
-        `  (plafond ${plafonds[id]} %)`,
+      `${id.padEnd(large)}  ${String(derive[id].length).padStart(2)} espaces  ${String(octets).padStart(6)} o gzip` +
+        `        ${String(cumul.length).padStart(2)} espaces  ${String(octetsCumul).padStart(6)} o gzip` +
+        `  ${((100 * octetsCumul) / totalGzip).toFixed(1).padStart(5)} %  (plafond ${plafonds[id]} %)`,
     );
     console.log(`${' '.repeat(large)}  ${derive[id].join(' ')}`);
-    const seulServeur = [...serveurSeul.get(f)].sort();
+    const seulServeur = [...serveurSeul.get(f)].filter((n) => !cumul.includes(n)).sort();
     if (seulServeur.length) console.log(`${' '.repeat(large)}  lus par le serveur seul, non servis : ${seulServeur.join(' ')}`);
   }
 }
