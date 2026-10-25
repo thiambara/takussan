@@ -360,7 +360,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P2 | §1.8 | Demande de devis et validation avant travaux — le donneur d'ordre demande, approuve ou refuse ; le prestataire assigné est seul à soumettre le devis |
 | P2 | §1.8 | Plafond de travaux sans accord : au-delà, le bailleur approuve ou refuse le devis ; le bailleur est averti de tout devis sur son bien (TCK-592) |
 | P2 | §1.8 | Noter le prestataire après une intervention terminée (1 à 5 + commentaire) ; note agrégée visible des agences dans le carnet (TCK-597) |
-| P3 | §1.8 | Facturation directe prestataire → agence : à la fin d'une intervention, facture du prestataire générée (devis approuvé ou coût réel), validée par l'agence, payée par mobile money et imputable au reversement du bailleur (TCK-594) |
+| P3 | §1.8 | Facturation directe prestataire → agence : à la fin d'une intervention, facture du prestataire générée (devis approuvé ou coût réel), validée par l'agence, payée par mobile money et imputable au reversement du bailleur (TCK-594) ; la contestation ou l'annulation de l'intervention annule la facture encore ouverte et non engagée, une facture déjà payée ou refacturée reste avec un avis à l'agence, et seule une intervention terminée ou close voit sa facture validée, payée ou refacturée (TCK-2270) |
 | P3 | §1.8 | Annuaire public des prestataires, sur consentement du prestataire, contact via la plateforme |
 
 ### §1.9 État des lieux & inventaires
@@ -644,7 +644,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P2 | §1.8 | Devis structuré (lignes main-d'œuvre / fournitures, validité, durée), devise imposée, PDF (TCK-592) |
 | P1 | §1.8 | Pièces du devis : PDF ou images seulement (TCK-592) |
 | P2 | §1.8 | Kit d'accès au logement (adresse, itinéraire, téléphone du locataire, consignes) pendant l'intervention acceptée (TCK-592) |
-| P3 | §1.8 | Facturation directe prestataire → agence : à la fin d'une intervention, facture du prestataire générée (devis approuvé ou coût réel), validée par l'agence, payée par mobile money et imputable au reversement du bailleur (TCK-594) |
+| P3 | §1.8 | Facturation directe prestataire → agence : à la fin d'une intervention, facture du prestataire générée (devis approuvé ou coût réel), validée par l'agence, payée par mobile money et imputable au reversement du bailleur (TCK-594) ; la contestation ou l'annulation de l'intervention annule la facture encore ouverte et non engagée, une facture déjà payée ou refacturée reste avec un avis à l'agence, et seule une intervention terminée ou close voit sa facture validée, payée ou refacturée (TCK-2270) |
 
 ### §1.12 Agence & équipe
 

@@ -42,6 +42,8 @@ final class NotificationTarget
         // TCK-1469 (P161.02) — la file « À approuver », où le geste se fait (TCK-594, ADR-0039 § 4),
         // pour tout détenteur de `payouts.approve`, admins compris.
         'payout_approvals' => '/app/payments?tab=approvals',
+        // TCK-2270 (P224.01) — l'onglet des factures d'intervention, où se trouve la facture gardée.
+        'service_provider_bills' => '/app/payments?tab=bills',
         'booking' => '/app/bookings/{id}',
         'visit' => '/app/visits/{id}',
         'maintenance' => '/app/maintenance/{id}',

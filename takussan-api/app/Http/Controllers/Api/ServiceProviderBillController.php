@@ -44,6 +44,9 @@ class ServiceProviderBillController extends Controller
     public function validateBill(ValidateServiceProviderBillRequest $request, ServiceProviderBill $serviceProviderBill): JsonResponse
     {
         $bill = $this->decide($serviceProviderBill, $request, function (ServiceProviderBill $locked) use ($request): array {
+            // TCK-2270 (P224.01) — le travail d'une intervention contestée ou annulée n'est pas rendu.
+            abort_code_unless($locked->requestIsBillable(), 422, 'service_provider_bill.request_not_completed');
+
             return array_merge($request->validated(), [
                 'status' => ServiceProviderBillStatus::Validated,
                 'validated_by_id' => $request->user()->id,
