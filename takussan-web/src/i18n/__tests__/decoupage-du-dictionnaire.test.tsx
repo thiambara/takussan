@@ -243,6 +243,26 @@ describe('la table dérivée', () => {
     }
   });
 
+  /**
+   * P69.05 (amendement d'ADR-0022 du 2026-10-25) — `[locale]/(public)` est une frontière À
+   * SECTIONS, comme `(dashboard)/app`. Avant, le provider du site public servait l'union de ses
+   * pages (26 espaces, 32,3 Ko gzip) à chaque document, page légale comprise. Ce cas rougit si une
+   * frontière de section disparaît, ou si l'un de ses espaces remonte dans la coque.
+   */
+  it('ne sert à toute page publique que la coque : fiche, liste et pages légales ont leur frontière (P69.05)', () => {
+    for (const section of ['properties/[slug]', 'properties/(liste)', 'legal']) {
+      expect(Object.keys(frontieres), `« [locale]/(public)/${section} » n’est plus une frontière`).toContain(
+        `[locale]/(public)/${section}`,
+      );
+    }
+    // Les espaces que lit UNE section : réservation, agence, agents, lien de paiement, partage,
+    // carte et contact de la fiche. Ils ne doivent entrer que dans le document de leur section.
+    const coque = ['.', '[locale]/(public)'].flatMap((f) => frontieres[f]!);
+    for (const espace of ['bookings', 'agency', 'agents', 'payLink', 'shareReception', 'map', 'boost', 'contact']) {
+      expect(coque, `la coque publique sert « ${espace} »`).not.toContain(espace);
+    }
+  });
+
   it('sert `property` à la console super-admin — l’espace que seul le repli de constantes trouve', () => {
     // `SuperAdminPropertiesFilters` n'écrit aucun `useTranslations('property…')` : il passe
     // `PROPERTY_ENUM_NAMESPACES.status`. Une table écrite à la main aurait cassé cet écran, et

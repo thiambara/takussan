@@ -40,6 +40,9 @@ const LOCALE_OPEN_GRAPH: Record<Locale, string> = { fr: 'fr_SN', en: 'en_US', wo
  * `(public)` que le socle racine ne sert pas, et non les 60 espaces de noms du produit :
  * `IntlProvider` les ajoute au dictionnaire du parent (amendement d'ADR-0022 du 2026-10-25). La
  * table est dérivée du graphe d'imports par `scripts/check-i18n-namespaces.mjs`.
+ * C'est une frontière À SECTIONS (règle E, P69.05) : elle ne sert que sa coque — l'accueil, la
+ * navbar et le footer. Une section qui lit davantage (fiche, liste, agences, agents,
+ * réservations, paiement, partage, pages légales) monte sa propre frontière.
  *
  * SEO : indexable par défaut, SANS clé `robots` (TCK-915, P09.08) : `index, follow` est la valeur
  * par défaut des moteurs, et déclarée ici elle s'ajoutait au `noindex` que Next pose sur une page

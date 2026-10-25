@@ -71,15 +71,21 @@
  *    un plafond en octets rougirait à chaque traduction ajoutée, ce qui apprend à relever le
  *    plafond sans regarder. Une part, elle, ne bouge que si le DÉCOUPAGE se dégrade.
  *
- * E. **Une frontière À SECTIONS ne sert que sa coque** (P105.01, amendement du 2026-10-25). Sous
- *    `(dashboard)/app`, chaque section de premier niveau (`crm/`, `leases/`, `properties/`…) dont
- *    les fichiers atteignent un espace que la coque ne sert pas monte sa propre frontière. La
+ * E. **Une frontière À SECTIONS ne sert que sa coque** (P105.01, P69.05, amendement du
+ *    2026-10-25). Sous `(dashboard)/app` et `[locale]/(public)`, chaque section de premier
+ *    niveau (`crm/`, `leases/`, `properties/`…) dont les fichiers atteignent un espace que la
+ *    coque ne sert pas monte sa propre frontière. La
  *    coque, ce sont les fichiers du routeur posés dans le répertoire même de la frontière (son
  *    `layout.tsx`, `not-found.tsx`…) plus ce que servent ses parents. Sans cette règle, une
  *    section neuve écrite sans `layout.tsx` ferait entrer ses espaces dans la frontière de
  *    `/app`, donc dans le document de TOUS ses écrans — et `--update` le rendrait conforme.
  *    Mesuré le 2026-10-25 : la coque de `/app` atteint 21 espaces (31,9 Ko gzip), la frontière en
  *    servait 47 (71,6 Ko).
+ *    `[locale]/(public)` est soumise à la même règle (P69.05) : sa coque est l'accueil, la navbar
+ *    et le footer (14 espaces, 23,9 Ko cumulés) ; elle servait l'union de ses pages (26 espaces,
+ *    32,3 Ko), page légale comprise. Le sous-dossier qui fait une section est celui de premier
+ *    niveau : `properties/` n'a pas de frontière, mais ses deux groupes `(liste)` et `[slug]` en
+ *    ont chacun une, donc aucun de ses fichiers n'appartient à la coque.
  *
  * Ce que la garde ne prouve PAS, et il faut le dire : qu'aucun `MISSING_MESSAGE` ne survient. Elle
  * prouve que le sous-ensemble déclaré couvre ce que le graphe d'imports peut atteindre. Un espace
@@ -260,7 +266,7 @@ for (const f of frontieres) {
 }
 
 // ── 2 bis. Les frontières À SECTIONS ne servent que leur coque (règle E, P105.01) ──────────────
-const FRONTIERES_A_SECTIONS = ['(dashboard)/app'];
+const FRONTIERES_A_SECTIONS = ['(dashboard)/app', '[locale]/(public)'];
 for (const id of FRONTIERES_A_SECTIONS) {
   const f = join(APP, id);
   if (!frontieres.includes(f)) {

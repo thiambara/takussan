@@ -57,26 +57,14 @@
       "welcome"
     ],
     "[locale]/(public)": [
-      "agency",
-      "agents",
-      "bookings",
-      "boost",
       "compare",
-      "contact",
       "favorites",
       "footer",
       "homepage",
-      "map",
       "nav",
-      "payLink",
       "property",
-      "propertyContact",
-      "publicContact",
-      "publicProfile",
-      "publicProfileIndex",
       "recentlyViewed",
       "search",
-      "shareReception",
       "ui"
     ],
     "(dashboard)/app/crm": [
@@ -90,6 +78,9 @@
     ],
     "(dashboard)/app/tasks": [
       "agentCrm"
+    ],
+    "[locale]/(public)/pay": [
+      "payLink"
     ],
     "(dashboard)/app/agency": [
       "admin",
@@ -131,6 +122,10 @@
       "property",
       "serviceProviders"
     ],
+    "[locale]/(public)/legal": [],
+    "[locale]/(public)/share": [
+      "shareReception"
+    ],
     "(dashboard)/app/bookings": [
       "bookings",
       "console",
@@ -151,6 +146,13 @@
       "documents",
       "payments",
       "property"
+    ],
+    "[locale]/(public)/agents": [
+      "agents",
+      "propertyContact",
+      "publicContact",
+      "publicProfile",
+      "publicProfileIndex"
     ],
     "(dashboard)/app/(accueil)": [
       "wizardDrafts"
@@ -202,6 +204,16 @@
       "property",
       "visitPlanning"
     ],
+    "[locale]/(public)/agencies": [
+      "agency",
+      "propertyContact",
+      "publicContact",
+      "publicProfile",
+      "publicProfileIndex"
+    ],
+    "[locale]/(public)/bookings": [
+      "bookings"
+    ],
     "(dashboard)/app/commissions": [
       "commissions",
       "console"
@@ -218,6 +230,17 @@
     ],
     "(dashboard)/app/saved-searches": [
       "property"
+    ],
+    "[locale]/(public)/properties/[slug]": [
+      "boost",
+      "contact",
+      "map",
+      "propertyContact",
+      "publicContact",
+      "publicProfile"
+    ],
+    "[locale]/(public)/properties/(liste)": [
+      "map"
     ]
   },
   "plafondsPourcent": {
@@ -228,10 +251,11 @@
     "(dashboard)": 14,
     "invitations": 11,
     "(dashboard)/app": 34,
-    "[locale]/(public)": 35,
+    "[locale]/(public)": 27,
     "(dashboard)/app/crm": 39,
     "(dashboard)/app/leads": 38,
     "(dashboard)/app/tasks": 37,
+    "[locale]/(public)/pay": 28,
     "(dashboard)/app/agency": 64,
     "(dashboard)/app/leases": 43,
     "(dashboard)/app/owners": 36,
@@ -239,19 +263,26 @@
     "(dashboard)/app/account": 35,
     "(dashboard)/app/credits": 35,
     "(dashboard)/app/profile": 50,
+    "[locale]/(public)/legal": 27,
+    "[locale]/(public)/share": 27,
     "(dashboard)/app/bookings": 41,
     "(dashboard)/app/calendar": 38,
     "(dashboard)/app/overview": 34,
     "(dashboard)/app/payments": 49,
+    "[locale]/(public)/agents": 30,
     "(dashboard)/app/(accueil)": 35,
     "(dashboard)/app/customers": 57,
     "(dashboard)/app/documents": 46,
     "(dashboard)/app/favorites": 46,
     "(super-admin)/super-admin": 44,
     "(dashboard)/app/properties": 54,
+    "[locale]/(public)/agencies": 30,
+    "[locale]/(public)/bookings": 29,
     "(dashboard)/app/commissions": 35,
     "(dashboard)/app/inventories": 39,
     "(dashboard)/app/maintenance": 42,
-    "(dashboard)/app/saved-searches": 45
+    "(dashboard)/app/saved-searches": 45,
+    "[locale]/(public)/properties/[slug]": 29,
+    "[locale]/(public)/properties/(liste)": 27
   }
 }
