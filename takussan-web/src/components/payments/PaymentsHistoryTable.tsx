@@ -7,17 +7,20 @@ import { useLocale, useTranslations } from 'next-intl';
 import { Wallet } from 'lucide-react';
 
 import { StatusBadge } from '@/components/console';
+import { DataTable, type DataTableColumn } from '@/components/console/DataTable';
 import { EmptyState } from '@/components/feedback';
 import { QueryBoundary } from '@/components/shared/QueryBoundary';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PropertyPagination } from '@/components/property-dashboard/PropertyPagination';
 import { formatCurrency, formatDate } from '@/lib/format';
+import { cn } from '@/lib/utils';
 import {
   usePaymentsHistory,
   type PaymentHistoryEntity,
   type UsePaymentsHistoryParams,
 } from '@/lib/queries/payments';
 import type { Locale } from '@/i18n/config';
+import type { PaymentHistoryRow } from '@/types/invoice';
 
 import {
   PAYMENT_STATUS_TONE,
@@ -78,85 +81,133 @@ export function PaymentsHistoryTable() {
           );
         }
 
+        const reference = (row: PaymentHistoryRow) => row.reference_number ?? `#${row.id}`;
+        const montant = (value: number, row: PaymentHistoryRow) =>
+          formatCurrency(value, locale, { currency: row.currency || 'XOF' });
+        const acompte = (row: PaymentHistoryRow) =>
+          row.remaining_amount > 0 && row.remaining_amount < row.amount
+            ? tTable('paidAmount', { amount: montant(row.paid_amount, row) })
+            : null;
+        const statut = (row: PaymentHistoryRow) => {
+          const status = (row.status ?? 'pending') as PaymentStatus;
+          return <StatusBadge tone={PAYMENT_STATUS_TONE[status] ?? 'neutral'} label={tStatus(status)} />;
+        };
+        // « Bank Transfer » s'affichait en anglais : l'enum brut, capitalisé.
+        const moyen = (row: PaymentHistoryRow) =>
+          row.payment_method
+            ? tMethods.has(row.payment_method)
+              ? tMethods(row.payment_method)
+              : row.payment_method.replace(/_/g, ' ')
+            : '—';
+        const entite = (row: PaymentHistoryRow, className?: string) => {
+          const label = row.lease_id
+            ? tTable('entityLease', { id: String(row.lease_id) })
+            : row.booking_id
+              ? tTable('entityBooking', { id: String(row.booking_id) })
+              : '—';
+          const href = row.lease_id
+            ? `/app/leases/${row.lease_id}`
+            : row.booking_id
+              ? `/app/bookings/${row.booking_id}`
+              : null;
+          return href ? (
+            <Link href={href} className={cn('underline-offset-2 hover:underline', className)}>
+              {label}
+            </Link>
+          ) : (
+            <span>{label}</span>
+          );
+        };
+
+        const colonnes: DataTableColumn<PaymentHistoryRow>[] = [
+          {
+            id: 'reference',
+            header: tTable('reference'),
+            className: 'whitespace-nowrap',
+            cell: (row) => (
+              <span className="font-mono text-xs text-muted-foreground tabular-nums">{reference(row)}</span>
+            ),
+          },
+          {
+            id: 'source',
+            header: tTable('source'),
+            className: 'whitespace-nowrap',
+            cell: (row) => <span className="text-xs">{tTable(`sources.${row.source}`)}</span>,
+          },
+          {
+            id: 'date',
+            header: tTable('date'),
+            className: 'whitespace-nowrap',
+            cell: (row) => <span className="text-xs">{row.date ? formatDate(row.date, locale) : '—'}</span>,
+          },
+          {
+            id: 'amount',
+            header: tTable('amount'),
+            align: 'end',
+            className: 'whitespace-nowrap',
+            cell: (row) => (
+              <>
+                <span className="font-semibold">{montant(row.amount, row)}</span>
+                {acompte(row) ? (
+                  <span className="ml-1 text-xs font-normal text-muted-foreground">{acompte(row)}</span>
+                ) : null}
+              </>
+            ),
+          },
+          {
+            id: 'status',
+            header: tTable('status'),
+            className: 'whitespace-nowrap',
+            cell: statut,
+          },
+          {
+            id: 'method',
+            header: tTable('method'),
+            className: 'whitespace-nowrap',
+            cell: (row) => <span className="text-xs">{moyen(row)}</span>,
+          },
+          {
+            id: 'entity',
+            header: tTable('entity'),
+            className: 'whitespace-nowrap',
+            cell: (row) => <span className="text-xs">{entite(row)}</span>,
+          },
+        ];
+
         return (
           <div className="space-y-4">
-          <div className="overflow-x-auto rounded-xl border border-border bg-card">
-            <table className="w-full text-left text-sm tabular-nums">
-              <caption className="sr-only">{tTable('caption')}</caption>
-              <thead className="bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
-                <tr>
-                  <th className="px-3 py-2 font-medium whitespace-nowrap">{tTable('reference')}</th>
-                  <th className="px-3 py-2 font-medium whitespace-nowrap">{tTable('source')}</th>
-                  <th className="px-3 py-2 font-medium whitespace-nowrap">{tTable('date')}</th>
-                  <th className="px-3 py-2 text-right font-medium whitespace-nowrap">{tTable('amount')}</th>
-                  <th className="px-3 py-2 font-medium whitespace-nowrap">{tTable('status')}</th>
-                  <th className="px-3 py-2 font-medium whitespace-nowrap">{tTable('method')}</th>
-                  <th className="px-3 py-2 font-medium whitespace-nowrap">{tTable('entity')}</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {rows.map((row) => {
-                  const status = (row.status ?? 'pending') as PaymentStatus;
-                  const entityLabel = row.lease_id
-                    ? tTable('entityLease', { id: String(row.lease_id) })
-                    : row.booking_id
-                      ? tTable('entityBooking', { id: String(row.booking_id) })
-                      : '—';
-                  const entityHref = row.lease_id
-                    ? `/app/leases/${row.lease_id}`
-                    : row.booking_id
-                      ? `/app/bookings/${row.booking_id}`
-                      : null;
-
-                  return (
-                    <tr key={`${row.source}-${row.id}`} className="text-foreground">
-                      <td className="px-3 py-2.5 font-mono text-xs whitespace-nowrap text-muted-foreground tabular-nums">
-                        {row.reference_number ?? `#${row.id}`}
-                      </td>
-                      <td className="px-3 py-2.5 text-xs whitespace-nowrap">{tTable(`sources.${row.source}`)}</td>
-                      <td className="px-3 py-2.5 text-xs whitespace-nowrap">
-                        {row.date ? formatDate(row.date, locale) : '—'}
-                      </td>
-                      <td className="px-3 py-2.5 text-right font-semibold whitespace-nowrap">
-                        {formatCurrency(row.amount, locale, {
-                          currency: row.currency || 'XOF',
-                        })}
-                        {row.remaining_amount > 0 && row.remaining_amount < row.amount ? (
-                          <span className="ml-1 text-xs font-normal text-muted-foreground">
-                            {tTable('paidAmount', {
-                              amount: formatCurrency(row.paid_amount, locale, {
-                                currency: row.currency || 'XOF',
-                              }),
-                            })}
-                          </span>
-                        ) : null}
-                      </td>
-                      <td className="px-3 py-2.5 whitespace-nowrap">
-                        <StatusBadge tone={PAYMENT_STATUS_TONE[status] ?? 'neutral'} label={tStatus(status)} />
-                      </td>
-                      <td className="px-3 py-2.5 text-xs whitespace-nowrap">
-                        {/* « Bank Transfer » s'affichait en anglais : l'enum brut, capitalisé. */}
-                        {row.payment_method
-                          ? tMethods.has(row.payment_method)
-                            ? tMethods(row.payment_method)
-                            : row.payment_method.replace(/_/g, ' ')
-                          : '—'}
-                      </td>
-                      <td className="px-3 py-2.5 text-xs whitespace-nowrap">
-                        {entityHref ? (
-                          <Link href={entityHref} className="underline-offset-2 hover:underline">
-                            {entityLabel}
-                          </Link>
-                        ) : (
-                          <span>{entityLabel}</span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          {/* TCK-2331 (P08.07) — sous `md`, une carte par paiement : le lien vers le bail ou la
+              réservation, en dernière colonne, ne s'atteignait qu'après un défilement horizontal. */}
+          <DataTable
+            caption={tTable('caption')}
+            columns={colonnes}
+            rows={rows}
+            rowKey={(row) => `${row.source}-${row.id}`}
+            carteMobile={(row) => (
+              <>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-mono text-xs text-muted-foreground tabular-nums">
+                      {reference(row)} · {tTable(`sources.${row.source}`)}
+                    </p>
+                    <p className="mt-1 text-base font-semibold text-foreground tabular-nums">
+                      {montant(row.amount, row)}
+                    </p>
+                    {acompte(row) ? (
+                      <p className="text-xs text-muted-foreground tabular-nums">{acompte(row)}</p>
+                    ) : null}
+                  </div>
+                  {statut(row)}
+                </div>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  {row.date ? formatDate(row.date, locale) : '—'} · {moyen(row)}
+                </p>
+                <p className="mt-2 text-sm">
+                  {entite(row, 'inline-flex min-h-11 items-center font-medium text-primary')}
+                </p>
+              </>
+            )}
+          />
 
           {totals ? (
             <dl className="grid grid-cols-2 gap-3 rounded-xl bg-card p-3 text-xs text-muted-foreground tabular-nums lg:grid-cols-4">

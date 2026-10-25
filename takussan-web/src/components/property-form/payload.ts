@@ -96,6 +96,17 @@ export type PropertyCreatePayload = PropertyBodyFields &
     status: 'draft';
     visibility: 'private';
     address?: PropertyAddressBlock;
+    /**
+     * TCK-997 (P15.06, P50.01) — le COMPTE du bailleur au nom duquel le personnel saisit le bien.
+     * Absent, le bien est celui de l'agence (Q1). Hors du schéma du formulaire : l'édition ne
+     * change jamais le titulaire (ADR-0036, amendement du 2026-10-19).
+     */
+    owner_id?: number;
+    /**
+     * TCK-1000 (P15.06, Q2) — ou le profil `draft` du bailleur INVITÉ, jamais avec `owner_id` : le
+     * bien naît au nom de l'auteur et passe au bailleur quand il accepte l'invitation.
+     */
+    pending_owner_profile_id?: number;
   };
 
 export type PropertyUpdatePayload = PropertyBodyFields &
@@ -154,6 +165,20 @@ export function toCreatePayload(values: PropertyFormPayload): PropertyCreatePayl
     visibility: 'private',
     ...(adresse ? { address: adresse } : {}),
   };
+}
+
+/**
+ * TCK-997 — le bailleur choisi part en `owner_id` ; sans choix, la clé est ABSENTE du corps, et
+ * l'API garde le bien au nom de son auteur. TCK-1000 — le bailleur invité part en
+ * `pending_owner_profile_id`, et seulement sans `owner_id` (l'API refuse les deux ensemble).
+ */
+export function avecBailleur(
+  payload: PropertyCreatePayload,
+  ownerId: number | null,
+  pendingOwnerProfileId: number | null = null,
+): PropertyCreatePayload {
+  if (ownerId !== null) return { ...payload, owner_id: ownerId };
+  return pendingOwnerProfileId === null ? payload : { ...payload, pending_owner_profile_id: pendingOwnerProfileId };
 }
 
 /**

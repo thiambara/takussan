@@ -337,6 +337,9 @@ Les tables `lemon_squeezy_*` viennent d'un paquet, voir [`lemonsqueezy/laravel`]
 #### Crédits d'espace et boost — tranches d'une Vedette 🆕 (TCK-942, ADR-0061 amendement du 2026-10-18)
 100. [PropertyBoostTranche](#100-propertyboosttranche-) 🆕
 
+#### Relevé de gérance — l'instantané envoyé 🆕 (TCK-2321, ADR-0039 amendement du 2026-10-25)
+101. [OwnerStatementSnapshot](#101-ownerstatementsnapshot-) 🆕
+
 ### Enums
 
 - [Enums](#enums-1)
@@ -625,8 +628,8 @@ pause, le réactiver les reprend (ADR-0061 §8).
 |---------|------|----------|--------|-------------|------------|
 | id | bigint PK | | auto | Identifiant unique | |
 | parent_id | FK properties | oui | null | Bien parent (ex: immeuble contenant des appartements) | |
-| user_id | FK users | | | Titulaire du bien (`restrictOnDelete`) — son propriétaire pour un particulier ; sur un bien d'agence, **le bailleur désigné à la saisie** (un bailleur actif de l'agence), ou **l'auteur** quand l'agence garde le bien en propre ou en attendant qu'un bailleur invité accepte ; un lot prend à sa création le titulaire bailleur de son parent, et la copie celui de sa source. **Ce n'est pas l'agent responsable** (le collaborateur principal, [§8](#8-propertycollaborator)) : hors création, seules trois voies le réécrivent, jamais depuis un bailleur — la passation d'un bien saisi par un partant (TCK-603), l'acceptation de l'invitation du bailleur en attente, et « changer le titulaire » par l'admin d'agence ([ADR-0036](adr/0036-l-agent-responsable-est-le-collaborateur-principal.md), amendé le 2026-10-19 ; TCK-997, TCK-999, TCK-1000). **À venir** (les trois tickets sont `todo` au 2026-10-19) : la désignation du bailleur à la saisie, le titulaire bailleur d'un lot, l'invitation en attente et « changer le titulaire ». **Aujourd'hui**, le titulaire est l'auteur de la saisie — celui d'une copie aussi (`PropertyDuplicationService`, l'auteur de la copie) —, et seule la passation (TCK-603) le réécrit | ✏️ |
-| pending_owner_profile_id | FK owner_profiles | oui | null | **À venir — TCK-1000, non migrée au 2026-10-19.** Bailleur invité pour qui le bien a été saisi (`nullOnDelete`) : le bien lui passe quand il accepte l'invitation, et le lien s'efface à l'acceptation, à la révocation ou à l'expiration | ➕ (à venir) |
+| user_id | FK users | | | Titulaire du bien (`restrictOnDelete`) — son propriétaire pour un particulier ; sur un bien d'agence, **le bailleur désigné à la saisie** (un bailleur actif de l'agence), ou **l'auteur** quand l'agence garde le bien en propre ou en attendant qu'un bailleur invité accepte ; un lot prend à sa création le titulaire bailleur de son parent, et la copie celui de sa source. **Ce n'est pas l'agent responsable** (le collaborateur principal, [§8](#8-propertycollaborator)) : hors création, seules trois voies le réécrivent, jamais depuis un bailleur — la passation d'un bien saisi par un partant (TCK-603), l'acceptation de l'invitation du bailleur en attente, et « changer le titulaire » par l'admin d'agence ([ADR-0036](adr/0036-l-agent-responsable-est-le-collaborateur-principal.md), amendé le 2026-10-19 ; TCK-997, TCK-999, TCK-1000). La désignation du bailleur à la saisie, le titulaire bailleur d'un lot et la copie sont faits (TCK-997, 2026-10-25), ainsi que « changer le titulaire » (TCK-999, 2026-10-25 : `PUT /api/properties/{id}/owner`, après l'aperçu `GET …/owner-transfer`) et l'invitation en attente (TCK-1000, 2026-10-25 : `pending_owner_profile_id` à la création, transfert à l'acceptation). **Aujourd'hui**, hors création, les trois voies le réécrivent : la passation (TCK-603), l'acceptation de l'invitation (TCK-1000) et « changer le titulaire » (TCK-999). Un bien saisi avant TCK-997 garde son titulaire, l'auteur de la saisie, tant que l'admin d'agence ne le change pas | ✏️ |
+| pending_owner_profile_id | FK owner_profiles | oui | null | Bailleur invité pour qui le bien a été saisi (`nullOnDelete`, TCK-1000) : un profil `draft` de l'agence du bien dont l'invitation est `sent` et non échue, jamais avec `owner_id`. Le bien lui passe quand il accepte l'invitation, si son titulaire est encore du personnel ; le lien s'efface à l'acceptation, à la révocation (effacement du compte compris) ou à l'expiration. Ajoutée sans reprise : aucun bien saisi avant n'en porte | ➕ |
 | agency_id | FK agencies | oui | null | Agence gestionnaire (`nullOnDelete`) | |
 | title | string | | | Titre de l'annonce | |
 | slug | string | | | Identifiant URL — **unique** ; fabriqué par `Str::slug()`, donc sans variante de casse possible | |
@@ -803,7 +806,7 @@ vide), utilisé par les PDF.
 | created_by_id | FK users | oui | null | Utilisateur ayant créé la réservation (`nullOnDelete`) | ✏️ ancien `user_id` |
 | agency_id | FK agencies | oui | null | Agence du bien (`nullOnDelete`) | |
 | reference_number | string | oui | null | Numéro de référence (unique) | |
-| status | BookingStatus | | 'pending' | Statut de la réservation | |
+| status | BookingStatus | | 'pending' | Statut de la réservation — passe à `completed` au lendemain de sa fin (`CompleteEndedBookingsJob`), ou, encore `pending` ou `confirmed`, à la création du bail qui en est tiré (`LeaseService::create`, P48.03, TCK-2352) : ses nuits ne bloquent plus | |
 | total_amount | decimal(14,2) | | | Montant total de la réservation (NOT NULL) | |
 | deposit_amount | decimal(14,2) | oui | null | Montant de l'acompte demandé | |
 | currency | Currency | | 'XOF' | Devise (string(3)) | |
@@ -1316,6 +1319,14 @@ Index : `activity_log_agency_created_idx (agency_id, created_at)`, `activity_log
 Relation : `agency()` (belongsTo). Un admin d'agence ne lit que `agency_id = <agence du profil actif>`
 (`AuditScope`).
 
+**Conservation** (TCK-2342, [ADR-0044, amendement du 2026-10-25](adr/0044-donnees-personnelles-chiffrement-journal-d-agence-registre-des-droits.md#amendement-du-2026-10-25--le-journal-dactivité-se-conserve-par-famille-tck-2342)) :
+une ligne se purge au-delà de la durée de sa famille de `log_name`, comptée depuis `created_at`,
+par `audit:prune-activity-log` (chaque jour, 04:10 Dakar) — **12 mois** par défaut et pour un
+`log_name` nul ; **5 ans** pour `PersonalDataAccess`, `Privacy`, `Security`, `UserSupport`, `KYC`,
+`KycDossier`, `Account`, `Membership`, `AgencyRole`, `Integration`, `export` ; **10 ans** pour
+`LeasePayment`, `BookingPayment`, `Invoice`, `Payout`, `PlatformPayout`, `CommissionEntry`,
+`Billing`. Les listes vivent dans `App\Console\Commands\PruneActivityLog`.
+
 **Ce que rendent les lectures.** Les lectures du journal d'agence et de la console rendent
 `properties`, et **jamais `attribute_changes`** : aucun écran ne montre le détail d'un événement
 (décision du porteur du 2026-10-19, piste P56.03 — à rouvrir avec un écran qui le montre).
@@ -1346,7 +1357,7 @@ Relation : `agency()` (belongsTo). Un admin d'agence ne lit que `agency_id = <ag
 | landlord_id | FK users | | | Propriétaire / bailleur (`restrictOnDelete`) |
 | tenant_id | FK customers | | | Locataire / acheteur (`restrictOnDelete`) |
 | agency_id | FK agencies | oui | null | Agence intermédiaire |
-| booking_id | FK bookings | oui | null | Réservation d'origine (si applicable) |
+| booking_id | FK bookings | oui | null | Réservation d'origine (si applicable) — une réservation du même bien, dont le client est `tenant_id` (sinon 422 sur `tenant_id`) ; la création du bail la passe à `completed` si elle est encore ouverte (P48.03, TCK-2352) |
 | agent_id | FK users | oui | null | **Négociateur** du bail ou de la vente — FK `leases_agent_id_fk`, `nullOnDelete` ; index `leases_agent_id_signed_at_idx` `(agent_id, signed_at)` pour la vue agent et la performance d'équipe. Interne à l'agence, pas une partie au contrat (TCK-595, [ADR-0049 §1](adr/0049-attribution-des-transactions-et-grand-livre-des-commissions.md), `2026_10_08_150000`) |
 | renewed_from_lease_id | FK leases | oui | null | Bail parent — rempli si ce bail est un renouvellement ou avenant (`nullOnDelete`, index `leases_renewed_from_idx`) |
 | reference_number | string | | | Numéro de contrat unique |
@@ -1759,7 +1770,9 @@ La facture du prestataire est une ligne de [ServiceProviderBill](#77-serviceprov
 | updated_at | datetime | | auto | |
 
 **Traits :**
-- `InteractsWithMedia` (spatie/laravel-medialibrary) — collection `file` (le fichier du document : PDF, image, scan, etc.)
+- `InteractsWithMedia` (spatie/laravel-medialibrary) — collection `file` (le fichier d'origine : PDF, image, scan, etc.) et collection `versions` (les versions suivantes, une seule active)
+- **Le fichier servi est la version active, sinon `file`** (`Document::currentFile()`, TCK-2300) : le lien de partage, la page publique d'un bien, `file_url` de la fiche et la revue des demandes de passage en agence le lisent tous. Une nouvelle version d'un document public de bien devient donc publique aussitôt.
+- **Une nouvelle version vide `is_verified`, `verified_by`, `verified_at` et `expiry_date`** (TCK-2300), comme le renvoi d'une pièce par les assistants (TCK-1063) : la vérification remplacée s'écrit au journal (`document_verification_reset`), et l'échéance se reprend si la requête en porte une neuve. Une pièce de profil (`isProfilePiece()`) ne se versionne pas (422 `document.profile_piece_not_versioned`) : elle se renvoie par les assistants.
 
 **Note :** Les colonnes `original_filename`, `file_path`, `file_size`, `mime_type` ne sont **pas** nécessaires dans cette table car elles sont gérées automatiquement par la table `media` de spatie/medialibrary.
 
@@ -2637,7 +2650,7 @@ exigée pour `director_id`.
 | processed_at | timestamp | oui | null | Date d'exécution du virement |
 | payment_reference | string | oui | null | Référence du virement, écrite au paiement. Remplace le `metadata.bank_ref` facultatif d'avant (TCK-594, `2026_10_07_200600`) |
 | failure_reason | text | oui | null | |
-| metadata | jsonb | oui | null | Lot, breakdown |
+| metadata | jsonb | oui | null | Lot, breakdown ; `refunded_since_paid` : les lignes remboursées depuis le paiement du reversement (type, identifiant, référence, date, **sans montant**), écrites par le webhook de remboursement d'un reversement `paid` (TCK-2320, P39.07) |
 | created_at / updated_at | datetime | | auto | |
 
 **Séparation des gestes** (TCK-594, ADR-0039 §4 ; `features.md` §1.5) : clôture, approbation et paiement sont trois colonnes pour que la base permette de comparer les acteurs. `PlatformPayoutService` refuse qu'on approuve un reversement qu'on a clôturé, ou qu'on paie un reversement qu'on a approuvé (`SegregationOfDuties::assertDistinct`), et qu'un bénéficiaire — l'administrateur principal de l'agence payée ou un membre de son équipe — approuve ou paie.
@@ -2721,10 +2734,10 @@ exigée pour `director_id`.
 | phone | string(30) | oui | null | Numéro du destinataire (E.164) — le lien part par SMS quand l'e-mail manque, sous le drapeau `auth.phone_login.enabled` (TCK-589, ADR-0033) |
 | invited_user_id | FK users | oui | null | User cible si déjà existant en base (sinon créé à l'acceptation) |
 | invited_by | FK users | | | User qui a émis l'invitation |
-| invitable_type | string | oui | null | Type morph du profil cible (ex. `OwnerProfile`, `AgentProfile`, `ServiceProviderProfile`, `AgencyAdminProfile`) |
+| invitable_type | string | oui | null | Type morph du profil cible (ex. `OwnerProfile`, `AgentProfile`, `ServiceProviderProfile`, `AgencyAdminProfile`), ou `Customer` pour le rôle `tenant` (P15.01, TCK-2351 : la fiche reçoit le compte à l'acceptation) |
 | invitable_id | bigint | oui | null | ID du profil cible créé en `draft` |
 | agency_id | FK agencies | oui | null | Agence d'accueil (null pour cooptation super-admin) |
-| role | string | | | Rôle visé par l'invitation (ex. `owner`, `agent`, `agency_admin`, `service_provider`, `super_admin`) — **simple discriminant de parcours**, pas une permission : il choisit le type de profil à activer et les branches d'acceptation. Aucun rôle n'est « assigné » à partir de cette valeur. |
+| role | string | | | Rôle visé par l'invitation (ex. `owner`, `agent`, `agency_admin`, `service_provider`, `super_admin`, `tenant`) — **simple discriminant de parcours**, pas une permission : il choisit le type de profil à activer et les branches d'acceptation. Aucun rôle n'est « assigné » à partir de cette valeur. |
 | status | InvitationStatus | | 'sent' | sent, accepted, expired, revoked |
 | expires_at | datetime | | | Expiration du token (par défaut now+7j) |
 | accepted_at | datetime | oui | null | |
@@ -3621,6 +3634,8 @@ supprime l'ambiguïté de sous-chaîne qu'avait la recherche `LIKE` sur le JSON.
 |---------|------|----------|--------|-------------|
 | id | bigint PK | | auto | |
 | app_notification_id | FK app_notifications | oui | null | Notification acheminée (`cascadeOnDelete`). **Nulle** pour un SMS envoyé hors notification — contact sans compte, code de signature de bail (TCK-799, `2026_10_17_160000` ; son `down()` supprime d'abord ces tentatives) |
+| agency_id | FK agencies | oui | null | Agence de l'envoi, celle dont le canal a cherché l'intégration (`$context['agency_id']`, P203.01) ; `nullOnDelete`. Nulle pour un envoi de la plateforme, et sur les lignes d'avant `2026_10_25_120500`, qui ne se reconstituent pas (TCK-2326) |
+| integration_id | FK integrations | oui | null | Intégration que le fournisseur a prise, de l'agence ou de la plateforme (`agency_id` nul) ; `nullOnDelete`. Nulle quand aucun fournisseur n'a été appelé (report de nuit, plafond Orange, contact inéligible à WhatsApp, chaîne épuisée), pour le pilote SMS `log`, et sur les lignes d'avant (TCK-2326) |
 | attempt | unsignedSmallInteger | | | Rang de la tentative |
 | provider | string | | | Identifiant du driver, tel que rendu par sa méthode `id()` : `orange`, `mtarget`, `lafricamobile`, `log` (SMS) ou `whatsapp_cloud` |
 | provider_message_id | string | oui | null | Identifiant de message côté fournisseur |
@@ -3644,6 +3659,8 @@ supprime l'ambiguïté de sous-chaîne qu'avait la recherche `LIKE` sur le JSON.
 
 **Relations :**
 - `appNotification()` → belongsTo AppNotification
+- `agency()` → belongsTo Agency (TCK-2326)
+- `integration()` → belongsTo Integration (TCK-2326)
 
 > ⚠️ La colonne `app_notifications.delivery_attempts` **existe toujours** en base et reste
 > `$fillable` + castée `array` sur le modèle `AppNotification`. Elle n'est **plus écrite** :
@@ -4697,6 +4714,35 @@ position)`, qui sert aussi d'index à la clé étrangère ; CHECK `property_boos
 
 ---
 
+### 101. OwnerStatementSnapshot 🆕
+
+**Table :** `owner_statement_snapshots` (migration `2026_10_25_100000`, TCK-2321)
+**Modèle :** aucun — la table se lit et s'écrit par `App\Services\Payout\OwnerStatementSnapshots`
+sur le constructeur de requêtes, comme `payout_clawbacks`. Écrite par
+`payouts:send-owner-statements` seul, lue par `OwnerStatementController` (JSON, PDF, CSV).
+**Description :** Le relevé de gérance mensuel d'un bailleur dans une agence, **tel qu'il a été
+envoyé** : la commande l'écrit quand elle envoie l'avis du mois, et le premier reste
+([ADR-0039, amendement du 2026-10-25](adr/0039-les-sorties-d-argent.md#amendement-du-2026-10-25--le-relevé-envoyé-est-conservé)).
+Un mois qui a un instantané est servi depuis lui, et ce qui a été écrit depuis se montre en
+rectificatif (le calcul du jour, l'écart des totaux, les lignes apparues ou disparues). Sans
+instantané — mois envoyé avant cette table, pas encore envoyé, attestation annuelle — le relevé est
+le calcul du jour. **Reprise** : aucune ; aucun instantané n'est écrit après coup.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| agency_id | FK agencies | | | `cascadeOnDelete` |
+| landlord_id | FK users | | | Le bailleur, `cascadeOnDelete` ; index `owner_statement_snapshots_landlord_idx` |
+| period | string(7) | | | `YYYY-MM` : seul le relevé mensuel est envoyé |
+| payload | jsonb | | | Le relevé calculé à l'envoi (`OwnerStatementService::statement`), **sans le nom du bailleur** : l'identité se lit au jour |
+| sent_at | timestamp | | | L'envoi de l'avis |
+| created_at / updated_at | timestamp | | auto | |
+
+**Contraintes :** unique `owner_statement_snapshots_period_unique (agency_id, landlord_id, period)` :
+un relevé envoyé par mois, une relance n'écrit rien (`insertOrIgnore`).
+
+---
+
 ## Enums
 
 ### Enums existants (à renommer / ajuster)
@@ -5049,6 +5095,8 @@ Tout User ayant un rôle de locataire actif doit avoir un `Customer` associé (`
 
 - Un User peut exister sans Customer (propriétaire, agent, admin, service_provider).
 - Dès qu'un User devient locataire (signature d'un Lease en tant que `tenant`), un Customer doit être créé ou associé.
+- **Agence de la fiche d'un candidat** (P15.01, TCK-2350, 2026-10-25) : la candidature, l'offre d'achat ou la réservation d'un compte sur un bien d'agence lui donne une fiche de **l'agence du bien** (`CustomerService::findOrCreateFromUser`) — reprise si le compte en a déjà une dans cette agence, rattachée si l'agence a une fiche sans compte au téléphone ou à l'e-mail **vérifié** du compte, créée sinon. La fiche du compte dans une autre agence n'est ni reprise ni déplacée. Un compte porte donc une fiche par agence. Un bien sans agence garde l'agence du compte.
+- **Fiche saisie sans compte** (P15.01, TCK-2351, 2026-10-25) : le personnel de l'agence de la fiche invite son client à créer son compte (`POST /api/customers/{id}/invite`, rôle d'invitation `tenant`) ; le lien part à l'e-mail de la fiche, ou à son numéro si le lien par SMS est ouvert, et l'acceptation pose `customers.user_id` (`CustomerService::linkUser`). Hors de l'appariement vérifié de la candidature (ci-dessus), aucun `user_id` n'est posé autrement sur une fiche saisie par l'agence.
 - **Implémentation :** `UserObserver` ou logique dans `LeaseService` lors de la création d'un bail.
 - **Conséquence :** `MaintenanceRequest.requester_id` pointe vers User ; le Customer du demandeur se lit depuis l'utilisateur (`User::customer()`, hasOne) — aucune relation `requesterCustomer()` sur le modèle (relevé 2026-10-14).
 

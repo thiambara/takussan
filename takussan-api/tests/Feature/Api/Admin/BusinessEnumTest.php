@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Api\Admin;
 
+use App\Domain\Settings\EditableBusinessEnums;
 use App\Models\Enums\PropertyType;
 use App\Models\Property;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -112,5 +113,25 @@ class BusinessEnumTest extends TestCase
         $this->actingAsRole('super_admin');
         $admin = collect($this->getJson('/api/admin/enums/property_type')->assertOk()->json('data.values'));
         $this->assertSame(3, $admin->firstWhere('value', 'villa')['usage_count']);
+    }
+
+    /**
+     * P06.12 (TCK-2336) : la console rend le libellé de chaque entrée par
+     * `admin.businessEnums.<key>.name/description`, côté front (principe n° 5). L'identifiant stable
+     * `key` est donc le contrat ; `name` et `description` restent dans la réponse, en repli pour une
+     * entrée que le front ne connaît pas encore.
+     */
+    public function test_console_catalogue_emits_the_stable_key_of_each_entry_with_its_name(): void
+    {
+        $this->actingAsRole('super_admin');
+
+        $entries = collect($this->getJson('/api/admin/enums')->assertOk()->json('data'));
+
+        $this->assertSame(array_keys(EditableBusinessEnums::all()), $entries->pluck('key')->all());
+        foreach ($entries as $entry) {
+            $definition = EditableBusinessEnums::get($entry['key']);
+            $this->assertSame($definition['name'], $entry['name'], "name de {$entry['key']}");
+            $this->assertSame($definition['description'], $entry['description'], "description de {$entry['key']}");
+        }
     }
 }

@@ -1428,6 +1428,25 @@
         "designateFor": "Désigner {name} comme agent principal",
         "empty": "Aucun collaborateur n'est associé à ce bien.",
         "error": "La désignation n'a pas abouti. Réessayez."
+      },
+      "ownerTransfer": {
+        "trigger": "Changer le titulaire",
+        "title": "Changer le titulaire du bien",
+        "description": "Rendez ce bien au bailleur pour qui il a été saisi : il le verra et en recevra les loyers à venir. Rien n'est écrit avant votre confirmation.",
+        "ownerLabel": "Nouveau titulaire",
+        "ownerPlaceholder": "Choisir un bailleur actif",
+        "loadingOwners": "Chargement des bailleurs…",
+        "noOwners": "Aucun bailleur actif dans l'agence.",
+        "loadingPreview": "Calcul de ce qui suit le bien…",
+        "moving": "{count, plural, =0 {Aucun bail en brouillon ne passe à {name}.} one {# bail en brouillon passera à {name}.} other {# baux en brouillon passeront à {name}.}}",
+        "staying": "Le bail {reference} ({status}) de {tenant} reste au nom de l'agence.",
+        "stayingNoTenant": "Le bail {reference} ({status}) reste au nom de l'agence.",
+        "payouts": "Les reversements déjà faits ne changent pas.",
+        "confirm": "Confirmer le changement",
+        "submitting": "Changement en cours…",
+        "cancel": "Annuler",
+        "success": "Le bien est désormais au nom de {name}.",
+        "error": "Changement impossible. Réessayez."
       }
     },
     "visibility": {
@@ -1649,7 +1668,17 @@
         "optional": "facultatif",
         "reopen": "Revenir à : {step}"
       },
-      "photosProgress": "Envoi des photos : {sent} sur {total}"
+      "photosProgress": "Envoi des photos : {sent} sur {total}",
+      "owner": {
+        "label": "Au nom de qui saisissez-vous ce bien ?",
+        "hint": "Facultatif. Sans choix, le bien reste celui de l'agence ; le bailleur choisi en sera prévenu.",
+        "agency": "L'agence (aucun bailleur)",
+        "loading": "Chargement des bailleurs…",
+        "empty": "Aucun bailleur actif ne correspond.",
+        "invite": "Inviter un nouveau bailleur",
+        "invited": "Invitation envoyée à {name}. Le bien reste à l'agence jusqu'à ce que {name} accepte ; il lui passera alors.",
+        "unlink": "Ne pas lier ce bien à cette invitation"
+      }
     },
     "titleTypes": {
       "bail": "Bail",
@@ -2132,7 +2161,8 @@
         "eyebrow": "Bien · {reference}",
         "forbidden_title": "Accès au bien refusé",
         "forbidden_message": "Votre profil actif ne permet pas d'ouvrir la fiche de ce bien.",
-        "back_cta": "Revenir aux biens"
+        "back_cta": "Revenir aux biens",
+        "pendingOwner": "En attente de {name} : le bien lui passera quand l'invitation sera acceptée."
       },
       "leaseDetail": {
         "metaTitleFallback": "Bail introuvable",
@@ -2695,6 +2725,12 @@
       "caption": "Liste des clients"
     },
     "customerDetail": {
+      "inviteAccount": {
+        "action": "Inviter à créer son compte",
+        "sending": "Envoi…",
+        "sent": "Invitation envoyée. Le lien vaut une seule fois ; à l'acceptation, le compte est relié à cette fiche.",
+        "failed": "L'invitation n'a pas pu partir. Réessayez."
+      },
       "relationships": {
         "empty_title": "Aucune relation enregistrée",
         "empty_description": "Reliez ce contact à un conjoint, un garant ou une société pour retrouver son entourage.",
@@ -3675,7 +3711,11 @@
       "downloadPdf": "Télécharger le PDF",
       "downloadCsv": "Télécharger le CSV",
       "downloadFailed": "Le téléchargement du relevé a échoué.",
-      "unavailable": "Le relevé n'est pas disponible."
+      "unavailable": "Le relevé n'est pas disponible.",
+      "sentOn": "Relevé envoyé le {date}",
+      "rectificationTitle": "Rectificatif au {date}",
+      "rectificationIntro": "Écritures enregistrées depuis l'envoi de ce relevé. Les totaux ci-dessus sont ceux du relevé envoyé.",
+      "clawback": "Reprise"
     },
     "serviceProviderBills": {
       "providerTitle": "Mes factures d'intervention",
@@ -3732,7 +3772,8 @@
         "submit": "Confirmer le remboursement",
         "submitting": "Envoi en cours…",
         "file_too_large": "Fichier trop lourd ({max} Mo au plus) : {files}",
-        "max_files": "Maximum {max} fichiers."
+        "max_files": "Maximum {max} fichiers.",
+        "total_too_large": "Ces pièces dépassent {max} Mo à elles toutes : retirez-en ou allégez-les."
       },
       "error_generic": "Le remboursement a échoué, réessayez."
     },
@@ -3760,6 +3801,7 @@
       "diff_modified": "Modifié",
       "diff_unchanged": "Inchangé",
       "tenant_immutable": "Le locataire et le bien ne peuvent pas être modifiés dans un avenant.",
+      "guarantors_not_carried_over": "{count, plural, one {Le garant du bail actuel n’est pas reporté sur le nouveau bail : rattachez-le au nouveau bail s’il renouvelle son engagement.} other {Les # garants du bail actuel ne sont pas reportés sur le nouveau bail : rattachez au nouveau bail ceux qui renouvellent leur engagement.}}",
       "timeline_title": "Chaîne de baux",
       "timeline_root": "Bail racine",
       "timeline_amendment": "Avenant {n}",
@@ -3923,8 +3965,8 @@
       "noPropertySelected": "Aucun bien sélectionné",
       "selectedTenant": "Locataire sélectionné",
       "noTenantSelected": "Aucun locataire sélectionné",
-      "activeLandlord": "Bailleur actif : {name}",
-      "loadingLandlord": "Bailleur actif en cours de chargement",
+      "landlordOfProperty": "Bailleur : {name}",
+      "landlordPending": "Bailleur : le titulaire du bien choisi",
       "guarantorsHint": "Les garants pourront être ajoutés sur la fiche du bail une fois le brouillon créé.",
       "financialTerms": "Conditions financières",
       "contractType": "Type de contrat",
@@ -3950,7 +3992,10 @@
         "quarterly": "Trimestriel",
         "yearly": "Annuel"
       },
-      "customerFallback": "Customer #{id}"
+      "customerFallback": "Client #{id}",
+      "fromBooking": "Bail tiré de la réservation {reference}",
+      "fromBookingHint": "Le bien et le locataire sont ceux de la réservation. À la création du bail, elle passe à « terminée » et libère ses dates.",
+      "fromBookingError": "La réservation n'a pas pu être chargée."
     },
     "payment": {
       "title": "Enregistrer un paiement",
@@ -4272,6 +4317,7 @@
         "max_files": "Maximum {max} fichiers.",
         "file_type_refused": "Type de fichier refusé (PDF, JPG, PNG ou WEBP seulement) : {files}",
         "file_too_large": "Fichier trop lourd ({max} Mo au plus) : {files}",
+        "total_too_large": "Ces pièces dépassent {max} Mo à elles toutes : retirez-en ou allégez-les.",
         "incomplete": "Chaque ligne doit avoir une désignation, une quantité et un prix, et le devis une date de validité.",
         "failed": "Le devis n'a pas été envoyé.",
         "submitting": "Envoi…",
@@ -5947,8 +5993,7 @@
         "date": "Date",
         "user": "Utilisateur",
         "action": "Action",
-        "subject": "Objet",
-        "description": "Description"
+        "subject": "Objet"
       },
       "tableCaption": "Journal d'audit de l'agence",
       "entries": "{count, plural, =1 {{total} entrée} other {{total} entrées}}",
@@ -5968,6 +6013,24 @@
         "personal_data_viewed": "Données personnelles consultées",
         "kyc_expired": "Pièce KYC expirée",
         "data_exported": "Données exportées"
+      }
+    },
+    "businessEnums": {
+      "property_type": {
+        "name": "Types de biens",
+        "description": "Catégories visibles dans les formulaires et les filtres de biens."
+      },
+      "contract_type": {
+        "name": "Types de transaction",
+        "description": "Vente, location et futurs modes de commercialisation."
+      },
+      "title_type": {
+        "name": "Titres fonciers",
+        "description": "Libellés métier des titres fonciers rattachés aux biens."
+      },
+      "rent_period": {
+        "name": "Périodes de loyer",
+        "description": "Cadences de facturation affichées sur les biens en location."
       }
     },
     "roles": {
@@ -6891,7 +6954,8 @@
       "actions": {
         "accept": "Accepter",
         "reject": "Refuser",
-        "cancel": "Annuler la réservation"
+        "cancel": "Annuler la réservation",
+        "createLease": "Créer le bail"
       },
       "toasts": {
         "accepted": {
@@ -9653,7 +9717,8 @@
         "status": "Statut",
         "paidOn": "Versé le",
         "emptyForAgency": "Aucun reversement plateforme reçu pour le moment.",
-        "caption": "Reversements de la plateforme"
+        "caption": "Reversements de la plateforme",
+        "refundedSincePaid": "Remboursé depuis"
       },
       "close": {
         "title": "Clôturer une période",
@@ -9704,7 +9769,8 @@
         "paymentReferenceLabel": "Référence du virement",
         "paymentReferencePlaceholder": "Référence du virement (obligatoire)",
         "approveSelfRefused": "Vous avez clôturé cette période : une autre personne doit approuver le reversement.",
-        "paySelfRefused": "Vous avez approuvé ce reversement : une autre personne doit le marquer payé."
+        "paySelfRefused": "Vous avez approuvé ce reversement : une autre personne doit le marquer payé.",
+        "refundedSincePaid": "{count, plural, one {Une ligne a été remboursée depuis le versement : {references}.} other {# lignes ont été remboursées depuis le versement : {references}.}} Aucun montant n'est retenu automatiquement."
       }
     }
   },
@@ -10539,6 +10605,14 @@
         "settled_online": {
           "title": "Paiement reçu : {property}",
           "body": "Votre paiement de {amount} pour {property} a bien été reçu. Votre quittance est disponible dans votre espace."
+        },
+        "refunded": {
+          "title": "Remboursement : {property}",
+          "body": "Un remboursement de {amount} a été fait sur votre paiement de loyer pour {property}. Votre quittance ne couvre plus la somme remboursée."
+        },
+        "refunded_landlord": {
+          "title": "Loyer remboursé : {property}",
+          "body": "{amount} du loyer payé par {tenant} pour {property} ont été remboursés par le moyen de paiement en ligne."
         }
       },
       "payment": {
@@ -10549,6 +10623,12 @@
         "duplicate_late_fee": {
           "title": "Pénalité encaissée deux fois",
           "body": "La pénalité de retard de {amount} pour {reference}, déjà réglée à l'agence, a aussi été encaissée en ligne. Remboursez le payeur ou affectez la somme."
+        }
+      },
+      "platform_payout": {
+        "refunded_since_paid": {
+          "title": "Paiement remboursé après reversement",
+          "body": "Le paiement {reference}, compris dans le reversement de la plateforme de {period} déjà versé à votre agence, a été remboursé depuis par le moyen de paiement en ligne. Aucune retenue n'est appliquée automatiquement."
         }
       },
       "booking": {
@@ -10843,6 +10923,10 @@
         "rejected": {
           "title": "Bien refusé : {property}",
           "body": "Votre bien « {property} » a été refusé. Motif : {reason}. Vous pouvez corriger l'annonce et la resoumettre depuis votre espace."
+        },
+        "assigned_to_owner": {
+          "title": "Un bien saisi à votre nom : {property}",
+          "body": "Votre agence a enregistré le bien « {property} » à votre nom. Vous le retrouvez dans vos biens, avec ses baux et votre relevé de gérance."
         },
         "submitted_for_review": {
           "title": "Bien à modérer : {property}",

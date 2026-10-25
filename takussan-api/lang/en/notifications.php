@@ -338,6 +338,16 @@ return [
                 'sms' => 'Takussan: payment of :amount received (:property).',
                 'sms_link' => 'Takussan: payment of :amount received (:property). Receipt: :receipt_url',
             ],
+            'refunded' => [
+                'title' => 'Refund: :property',
+                'body' => 'A refund of :amount was made on your rent payment for :property. Your receipt no longer covers the refunded amount.',
+                'sms' => 'Takussan: refund of :amount on your rent (:property).',
+            ],
+            'refunded_landlord' => [
+                'title' => 'Rent refunded: :property',
+                'body' => ':amount of the rent paid by :tenant for :property was refunded through the online payment method.',
+                'sms' => 'Takussan: :amount of the rent from :tenant (:property) refunded.',
+            ],
         ],
         // TCK-593 — un double encaissement à rembourser, signalé aux admins de l'agence.
         'payment' => [
@@ -350,6 +360,15 @@ return [
                 'title' => 'Late fee collected twice',
                 'body' => 'The late fee of :amount for :reference, already settled at the agency, was also collected online. Refund the payer or allocate the amount.',
                 'sms' => 'Takussan: late fee of :amount collected twice for :reference. Refund or allocate it.',
+            ],
+        ],
+        // TCK-2320 (P39.07) — aux admins de l'agence : une ligne d'un reversement de la plateforme déjà
+        // versé a été remboursée depuis. Aucun montant n'est écrit.
+        'platform_payout' => [
+            'refunded_since_paid' => [
+                'title' => 'Payment refunded after payout',
+                'body' => 'Payment :reference, included in the platform payout for :period already paid to your agency, has since been refunded through the online payment method. No deduction is applied automatically.',
+                'sms' => 'Takussan: payment :reference of the :period payout has since been refunded.',
             ],
         ],
         'booking' => [
@@ -735,6 +754,11 @@ return [
                 'title' => 'Property approved: :property',
                 'body' => 'Your property ":property" was approved and is now visible on the platform.',
                 'sms' => 'Takussan: listing ":property" approved.',
+            ],
+            'assigned_to_owner' => [
+                'title' => 'A property saved in your name: :property',
+                'body' => 'Your agency has saved the property “:property” in your name. You will find it among your properties, with its leases and your owner statement.',
+                'sms' => 'Takussan: the property “:property” is saved in your name.',
             ],
             'submitted_for_review' => [
                 'title' => 'Property to review: :property',

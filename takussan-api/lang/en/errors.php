@@ -26,7 +26,6 @@ return [
     'agency' => [
         'active_profile_missing' => 'No active agency profile.',
         'admin_email_taken' => 'An account already exists with this administrator email.',
-        'already_administered' => 'You already administer an agency.',
         'context_missing' => 'No active agency.',
         'id_required' => 'The agency must be specified.',
         'individual_no_custom_roles' => 'Individual agencies don\'t have custom roles.',
@@ -138,6 +137,9 @@ return [
     'customer' => [
         'attached_to_open_lease' => 'This customer is the tenant of a lease awaiting signature or in force: they cannot be deleted while that lease is open.',
         'duplicate' => 'A customer of your agency already has this phone number or email address.',
+        // P15.01 (TCK-2351) — inviter le client de la fiche à créer son compte.
+        'invite_already_linked' => 'This record is already linked to an account: there is no one to invite.',
+        'invite_no_contact' => 'This record has no contact detail to send the invitation to: add an email address.',
         'pipeline_stage_invalid' => 'Invalid pipeline stage.',
     ],
     'dashboard' => [
@@ -157,6 +159,7 @@ return [
     'document' => [
         'file_missing' => 'No file is attached to this document.',
         'owner_not_found' => 'The item to attach the document to was not found.',
+        'profile_piece_not_versioned' => 'A profile document cannot be versioned: upload it again from your profile.',
         'pdf_template_missing' => 'The document template was not found.',
         'pdf_uploader_missing' => 'The document cannot be generated without an author.',
         'unsupported_type' => 'This kind of item cannot hold documents.',
@@ -257,6 +260,8 @@ return [
         'token_not_found' => 'This invitation cannot be found.',
         'token_revoked' => 'This invitation has been revoked.',
         'token_sent' => 'This invitation is still pending acceptance.',
+        // P15.01 (TCK-2351) — la fiche visée a reçu un autre compte depuis l'envoi.
+        'tenant_already_linked' => 'This record has been linked to another account since the invitation was sent. Ask the agency for a new invitation.',
     ],
     'invoice' => [
         'amount_too_large' => 'The invoice total exceeds the largest amount that can be recorded.',
@@ -298,6 +303,8 @@ return [
         'renewal_parent_not_renewable' => 'The renewed lease is no longer in force (notice given or terminated): this renewal can no longer take effect. Terminate it, then create another one if needed.',
         'schedule_exists' => 'The payment schedule has already been generated.',
         'terms_locked' => 'The terms of a signed lease can no longer be changed: draw up an amendment or a new lease.',
+        // P48.03 (TCK-2352) — le bail tiré d'une réservation.
+        'tenant_not_booking_customer' => 'The tenant of a lease created from a booking is the customer of that booking.',
     ],
     'lease_signature' => [
         'already_signed' => 'You have already signed this contract.',
@@ -479,6 +486,11 @@ return [
         'has_upcoming_visit' => 'This property has an upcoming visit: cancel it before deleting the property.',
         'not_found' => 'Property not found.',
         'not_pending_moderation' => 'The property is not awaiting moderation.',
+        'owner_designation_forbidden' => 'The landlord cannot be chosen here: only the staff of a standard agency saves a property in the name of one of its landlords.',
+        'owner_not_in_agency' => 'The chosen landlord is not an active landlord of the property\'s agency.',
+        'parent_owner_mismatch' => 'A unit belongs to the landlord of the property that contains it: this unit has another holder.',
+        'owner_transfer_forbidden' => 'This property cannot change holder: it already belongs to a landlord of the agency, and a property is never taken from its landlord.',
+        'pending_owner_not_invited' => 'This landlord is not a pending invitation of the property\'s agency: invite them first, or choose a registered landlord.',
         'primary_not_eligible' => 'Only an active agent of the property\'s agency can be its primary agent.',
         'primary_requires_agent' => 'Only a collaborator with the agent role can be the property\'s primary agent.',
         'publish_contact_incomplete' => 'To publish, the property contact needs a first name and a verified number, and the terms of use must be accepted.',

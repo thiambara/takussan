@@ -16,6 +16,7 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/toast';
 import { useGardeDoubleFacteur } from '@/components/auth/garde-double-facteur-contexte';
 import { avecGardeDoubleFacteur } from '@/lib/double-facteur';
+import { libelleEvenementAudit } from '@/lib/audit-events';
 import { exportAuditLog, fetchAuditLog, type AuditLogExport } from '@/lib/queries/super-admin';
 import type { AuditLogEntry, AuditLogResponse } from '@/types/super-admin';
 import type { ApiError } from '@/lib/api';
@@ -24,6 +25,7 @@ import { useFormatteurs } from '@/lib/format/useFormatteurs';
 
 export function CrossTenantAuditTable() {
   const t = useTranslations('superAdmin.audit');
+  const tEvents = useTranslations('admin.audit.events');
   const tFiltres = useTranslations('console.filterBar');
   const fmt = useFormatteurs();
   const messageErreur = useMessageErreurApi();
@@ -93,7 +95,8 @@ export function CrossTenantAuditTable() {
       id: 'event',
       header: t('colEvent'),
       className: 'font-medium text-foreground',
-      cell: (entry) => entry.event ?? '—',
+      // P06.09 (TCK-2336) — l'événement traduit ; la description brute pour un événement sans clé.
+      cell: (entry) => libelleEvenementAudit(entry, (event) => tEvents(event)) ?? '—',
     },
     {
       id: 'causer',

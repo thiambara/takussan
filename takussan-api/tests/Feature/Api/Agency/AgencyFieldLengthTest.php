@@ -11,39 +11,13 @@ use Tests\ApiTestCase;
 
 /**
  * TCK-1106 (P91.01) — `agencies.phone` est un `varchar(30)`, `name` et `license_number` des
- * `varchar(255)`. Les trois voies d'écriture (création, modification, ouverture par la console)
- * les bornent à la colonne : une valeur trop longue rend 422 sur sa clé, et non le 500 de
- * PostgreSQL (22001). Une valeur à la borne passe.
+ * `varchar(255)`. Les voies d'écriture (modification, ouverture par la console) les bornent à la
+ * colonne : une valeur trop longue rend 422 sur sa clé, et non le 500 de PostgreSQL (22001). Une
+ * valeur à la borne passe. La création par `POST /api/agencies` est retirée (TCK-2311, P225.06).
  */
 class AgencyFieldLengthTest extends ApiTestCase
 {
     use RefreshDatabase;
-
-    public function test_creer_une_agence_avec_un_champ_trop_long_rend_422(): void
-    {
-        Sanctum::actingAs(User::factory()->create());
-
-        foreach ([
-            'phone' => str_repeat('1', 31),
-            'name' => str_repeat('a', 256),
-            'license_number' => str_repeat('L', 256),
-        ] as $cle => $valeur) {
-            $this->postJson('/api/agencies', array_merge(['name' => 'Nouvelle'], [$cle => $valeur]))
-                ->assertStatus(422)
-                ->assertJsonValidationErrors($cle);
-        }
-
-        $this->assertSame(0, Agency::query()->count());
-
-        // Témoin : à la borne de la colonne, l'agence se crée. Le nom s'arrête à 249 : au-delà, le
-        // slug dérivé (`Str::slug(name)` + 6 caractères, `Agency::booted`) déborde encore de son
-        // `varchar(255)`, défaut à part laissé en reste de P91.01.
-        $this->postJson('/api/agencies', [
-            'name' => str_repeat('a', 249),
-            'phone' => str_repeat('1', 30),
-            'license_number' => str_repeat('L', 255),
-        ])->assertCreated();
-    }
 
     public function test_modifier_une_agence_avec_un_champ_trop_long_rend_422(): void
     {

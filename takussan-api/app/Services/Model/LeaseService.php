@@ -7,6 +7,7 @@ use App\Jobs\GenerateLeasePaymentSchedule;
 use App\Models\Agency;
 use App\Models\Booking;
 use App\Models\Customer;
+use App\Models\Enums\BookingStatus;
 use App\Models\Enums\Capability;
 use App\Models\Enums\Currency;
 use App\Models\Enums\LeasePaymentType;
@@ -68,10 +69,21 @@ class LeaseService
         // TCK-1068 (P62.01) — la réservation d'origine doit être une réservation DU BIEN. Jugée ici,
         // après l'autorisation du bien, et non par un `exists:` du FormRequest qui répondait à tout
         // compte connecté : une réservation absente et celle d'un autre bien rendent la même erreur.
-        if (! empty($data['booking_id'])
-            && ! Booking::query()->whereKey((int) $data['booking_id'])->where('property_id', $property->id)->exists()) {
+        $reservation = ! empty($data['booking_id'])
+            ? Booking::query()->whereKey((int) $data['booking_id'])->where('property_id', $property->id)->first()
+            : null;
+        if (! empty($data['booking_id']) && $reservation === null) {
             throw ValidationException::withMessages([
                 'booking_id' => [__('validation.exists', ['attribute' => 'booking id'])],
+            ]);
+        }
+
+        // P48.03 (TCK-2352, décision du porteur du 2026-10-25) — le bail tiré d'une réservation a pour
+        // locataire le client de cette réservation : rien ne l'imposait, et le bail d'une candidature
+        // pouvait nommer n'importe quelle fiche lisible.
+        if ($reservation !== null && (int) $reservation->customer_id !== (int) $tenant->id) {
+            throw ValidationException::withMessages([
+                'tenant_id' => [__('errors.lease.tenant_not_booking_customer')],
             ]);
         }
 
@@ -98,14 +110,47 @@ class LeaseService
         // l'unité de la devise du bail : `round(…, 2)` laissait 30 864,18 XOF (ADR-0009).
         $data['commission_amount'] = self::roundCommission($data['commission_amount'] ?? null, $data['currency'] ?? 'XOF');
 
-        return Lease::create(array_merge($data, [
-            'reference_number' => ReferenceNumberGenerator::lease(),
-            'landlord_id' => $property->user_id,
-            'agency_id' => $property->agency_id ?? $user->agency_id,
-            'status' => LeaseStatus::Draft->value,
-            'currency' => $data['currency'] ?? 'XOF',
-            'payment_frequency' => $data['payment_frequency'] ?? 'monthly',
-        ]));
+        return DB::transaction(function () use ($data, $property, $user, $reservation): Lease {
+            $lease = Lease::create(array_merge($data, [
+                'reference_number' => ReferenceNumberGenerator::lease(),
+                'landlord_id' => $property->user_id,
+                'agency_id' => $property->agency_id ?? $user->agency_id,
+                'status' => LeaseStatus::Draft->value,
+                'currency' => $data['currency'] ?? 'XOF',
+                'payment_frequency' => $data['payment_frequency'] ?? 'monthly',
+            ]));
+
+            if ($reservation !== null) {
+                $this->terminerLaReservation($reservation, $lease, $user);
+            }
+
+            return $lease;
+        });
+    }
+
+    /**
+     * P48.03 (TCK-2352, décision du porteur du 2026-10-25) — la réservation dont naît le bail passe
+     * `completed` : seule `confirmed` bloque des nuits (`PropertyAvailabilityService`), et la
+     * candidature retenue gardait les siennes après le bail. Relue sous verrou, comme
+     * `CompleteEndedBookingsJob` ; seule une réservation encore ouverte (`pending`, `confirmed`)
+     * change : une réservation close (annulée, refusée, expirée, terminée) garde son statut.
+     */
+    private function terminerLaReservation(Booking $reservation, Lease $lease, User $user): void
+    {
+        $verrouillee = Booking::query()->whereKey($reservation->getKey())->lockForUpdate()->first();
+        if ($verrouillee === null
+            || ! in_array($verrouillee->status, [BookingStatus::Pending, BookingStatus::Confirmed], true)) {
+            return;
+        }
+
+        $verrouillee->forceFill(['status' => BookingStatus::Completed])->save();
+
+        activity('Booking')
+            ->performedOn($verrouillee)
+            ->causedBy($user)
+            ->withProperties(['lease_id' => $lease->id])
+            ->event('booking_completed')
+            ->log('booking_completed');
     }
 
     /** TCK-1924 (P170.06) — la commission d'un bail, arrondie à l'unité de sa devise ; nulle reste nulle. */

@@ -8,6 +8,7 @@ import { ArrowRight, ScrollText } from 'lucide-react';
 
 import { DataState } from '@/components/console';
 import { EmptyState } from '@/components/feedback';
+import { libelleEvenementAudit } from '@/lib/audit-events';
 import { fetchAuditLog } from '@/lib/queries/super-admin';
 import { ACTIVITE_RECENTE_ENTREES, CLE_ACTIVITE_RECENTE } from '@/lib/queries/accueil-console-cles';
 import type { AuditLogEntry, AuditLogResponse } from '@/types/super-admin';
@@ -27,6 +28,7 @@ const RECENT_ENTRIES = ACTIVITE_RECENTE_ENTREES;
  */
 export function ConsoleRecentActivity() {
   const t = useTranslations('superAdmin.recentActivity');
+  const tEvents = useTranslations('admin.audit.events');
   // TCK-364 — `toLocaleString()` NU suit la locale du NAVIGATEUR, pas celle de
   // l'application : un super-admin en `wo` sur un navigateur anglais lisait une date
   // anglaise. Invisible au grep `'fr-FR'` de l'AC1 — il n'y a pas de littéral à trouver.
@@ -75,7 +77,8 @@ export function ConsoleRecentActivity() {
               <li key={entry.id} className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-medium text-foreground">
-                    {entry.description ?? entry.event ?? t('unknownEvent')}
+                    {/* P06.09 (TCK-2336) — l'événement traduit ; la description brute pour un événement sans clé. */}
+                    {libelleEvenementAudit(entry, (event) => tEvents(event)) ?? t('unknownEvent')}
                   </span>
                   <span className="block truncate text-xs text-muted-foreground">{causerOf(entry, t)}</span>
                 </span>

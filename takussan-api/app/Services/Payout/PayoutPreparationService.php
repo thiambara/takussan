@@ -8,9 +8,6 @@ use App\Models\Enums\Currency;
 use App\Models\Enums\PayeeRole;
 use App\Models\LeasePayment;
 use App\Models\PayoutMethod;
-use App\Models\Profiles\AgencyAdminProfile;
-use App\Models\Profiles\AgentProfile;
-use App\Models\Profiles\OwnerProfile;
 use App\Models\User;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
@@ -38,10 +35,9 @@ final class PayoutPreparationService
         abort_code_if($agencyId === null, 403, 'payout.agency_required');
         $agency = Agency::query()->findOrFail($agencyId);
 
+        // TCK-997 (P232.07) — la règle de `PayoutService::create`, écrite une fois.
         abort_code_unless(
-            $landlord->hasProfileAt((int) $agency->id, OwnerProfile::class)
-            || $landlord->hasProfileAt((int) $agency->id, AgentProfile::class)
-            || $landlord->hasProfileAt((int) $agency->id, AgencyAdminProfile::class),
+            BeneficiaireDuReversement::est($landlord, (int) $agency->id),
             403,
             'payout.landlord_not_in_agency',
         );

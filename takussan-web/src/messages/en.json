@@ -1457,6 +1457,25 @@
         "designateFor": "Make {name} the primary agent",
         "empty": "No collaborator is associated with this property.",
         "error": "The designation did not go through. Please try again."
+      },
+      "ownerTransfer": {
+        "trigger": "Change holder",
+        "title": "Change the property's holder",
+        "description": "Give this property back to the landlord it was entered for: they will see it and receive its upcoming rents. Nothing is written before you confirm.",
+        "ownerLabel": "New holder",
+        "ownerPlaceholder": "Choose an active landlord",
+        "loadingOwners": "Loading landlords…",
+        "noOwners": "No active landlord in the agency.",
+        "loadingPreview": "Working out what follows the property…",
+        "moving": "{count, plural, =0 {No draft lease moves to {name}.} one {# draft lease will move to {name}.} other {# draft leases will move to {name}.}}",
+        "staying": "Lease {reference} ({status}) of {tenant} stays in the agency's name.",
+        "stayingNoTenant": "Lease {reference} ({status}) stays in the agency's name.",
+        "payouts": "Payouts already made do not change.",
+        "confirm": "Confirm the change",
+        "submitting": "Changing…",
+        "cancel": "Cancel",
+        "success": "The property is now held by {name}.",
+        "error": "The change failed. Please try again."
       }
     },
     "visibility": {
@@ -1678,7 +1697,17 @@
         "optional": "optional",
         "reopen": "Go back to: {step}"
       },
-      "photosProgress": "Uploading photos: {sent} of {total}"
+      "photosProgress": "Uploading photos: {sent} of {total}",
+      "owner": {
+        "label": "On whose behalf are you entering this property?",
+        "hint": "Optional. Without a choice, the property stays with the agency; the chosen landlord will be notified.",
+        "agency": "The agency (no landlord)",
+        "loading": "Loading landlords…",
+        "empty": "No active landlord matches.",
+        "invite": "Invite a new landlord",
+        "invited": "Invitation sent to {name}. The property stays with the agency until {name} accepts; it will then pass to them.",
+        "unlink": "Do not link this property to this invitation"
+      }
     },
     "titleTypes": {
       "bail": "Lease",
@@ -2161,7 +2190,8 @@
         "eyebrow": "Property · {reference}",
         "forbidden_title": "Property access denied",
         "forbidden_message": "Your active profile cannot open this property record.",
-        "back_cta": "Back to properties"
+        "back_cta": "Back to properties",
+        "pendingOwner": "Waiting for {name}: the property will pass to them once the invitation is accepted."
       },
       "leaseDetail": {
         "metaTitleFallback": "Lease not found",
@@ -2724,6 +2754,12 @@
       "caption": "Customer list"
     },
     "customerDetail": {
+      "inviteAccount": {
+        "action": "Invite to create an account",
+        "sending": "Sending…",
+        "sent": "Invitation sent. The link works once; on acceptance, the account is linked to this record.",
+        "failed": "The invitation could not be sent. Try again."
+      },
       "relationships": {
         "empty_title": "No relationship recorded",
         "empty_description": "Link this contact to a spouse, a guarantor or a company to keep their circle at hand.",
@@ -3704,7 +3740,11 @@
       "downloadPdf": "Download PDF",
       "downloadCsv": "Download CSV",
       "downloadFailed": "The statement download failed.",
-      "unavailable": "The statement is not available."
+      "unavailable": "The statement is not available.",
+      "sentOn": "Statement sent on {date}",
+      "rectificationTitle": "Correction as of {date}",
+      "rectificationIntro": "Entries recorded since this statement was sent. The totals above are those of the statement as sent.",
+      "clawback": "Clawback"
     },
     "serviceProviderBills": {
       "providerTitle": "My repair invoices",
@@ -3761,7 +3801,8 @@
         "submit": "Confirm refund",
         "submitting": "Submitting…",
         "file_too_large": "File too large ({max} MB max): {files}",
-        "max_files": "Maximum {max} files."
+        "max_files": "Maximum {max} files.",
+        "total_too_large": "Together, these files exceed {max} MB: remove some or use lighter files."
       },
       "error_generic": "Refund failed, please retry."
     },
@@ -3789,6 +3830,7 @@
       "diff_modified": "Changed",
       "diff_unchanged": "Unchanged",
       "tenant_immutable": "Tenant and property cannot be changed in an amendment.",
+      "guarantors_not_carried_over": "{count, plural, one {The current lease’s guarantor is not carried over to the new lease: attach them to the new lease if they renew their commitment.} other {The current lease’s # guarantors are not carried over to the new lease: attach to the new lease those who renew their commitment.}}",
       "timeline_title": "Lease chain",
       "timeline_root": "Root lease",
       "timeline_amendment": "Amendment {n}",
@@ -3952,8 +3994,8 @@
       "noPropertySelected": "No property selected",
       "selectedTenant": "Selected tenant",
       "noTenantSelected": "No tenant selected",
-      "activeLandlord": "Active landlord: {name}",
-      "loadingLandlord": "Loading the active landlord",
+      "landlordOfProperty": "Landlord: {name}",
+      "landlordPending": "Landlord: the holder of the chosen property",
       "guarantorsHint": "Guarantors can be added on the lease page once the draft is created.",
       "financialTerms": "Financial terms",
       "contractType": "Contract type",
@@ -3979,7 +4021,10 @@
         "quarterly": "Quarterly",
         "yearly": "Yearly"
       },
-      "customerFallback": "Customer #{id}"
+      "customerFallback": "Customer #{id}",
+      "fromBooking": "Lease drawn from booking {reference}",
+      "fromBookingHint": "The property and the tenant are those of the booking. When the lease is created, the booking becomes “completed” and frees its dates.",
+      "fromBookingError": "The booking could not be loaded."
     },
     "payment": {
       "title": "Record a payment",
@@ -4301,6 +4346,7 @@
         "max_files": "Maximum {max} files.",
         "file_type_refused": "File type refused (PDF, JPG, PNG or WEBP only): {files}",
         "file_too_large": "File too large ({max} MB max): {files}",
+        "total_too_large": "Together, these files exceed {max} MB: remove some or use lighter files.",
         "incomplete": "Each line needs a description, a quantity and a price, and the quote a validity date.",
         "failed": "The quote was not sent.",
         "submitting": "Sending…",
@@ -5947,8 +5993,7 @@
         "date": "Date",
         "user": "User",
         "action": "Action",
-        "subject": "Object",
-        "description": "Description"
+        "subject": "Object"
       },
       "tableCaption": "Agency audit trail",
       "entries": "{count, plural, =1 {{total} entry} other {{total} entries}}",
@@ -5968,6 +6013,24 @@
         "personal_data_viewed": "Personal data viewed",
         "kyc_expired": "KYC document expired",
         "data_exported": "Data exported"
+      }
+    },
+    "businessEnums": {
+      "property_type": {
+        "name": "Property types",
+        "description": "Categories shown in property forms and filters."
+      },
+      "contract_type": {
+        "name": "Transaction types",
+        "description": "Sale, rental and future marketing modes."
+      },
+      "title_type": {
+        "name": "Land titles",
+        "description": "Business labels of the land titles attached to properties."
+      },
+      "rent_period": {
+        "name": "Rent periods",
+        "description": "Billing cadences shown on rental properties."
       }
     },
     "roles": {
@@ -6891,7 +6954,8 @@
       "actions": {
         "accept": "Accept",
         "reject": "Reject",
-        "cancel": "Cancel the booking"
+        "cancel": "Cancel the booking",
+        "createLease": "Create the lease"
       },
       "toasts": {
         "accepted": {
@@ -9653,7 +9717,8 @@
         "status": "Status",
         "paidOn": "Paid on",
         "emptyForAgency": "No platform payout received yet.",
-        "caption": "Platform payouts"
+        "caption": "Platform payouts",
+        "refundedSincePaid": "Refunded since"
       },
       "close": {
         "title": "Close a period",
@@ -9704,7 +9769,8 @@
         "paymentReferenceLabel": "Transfer reference",
         "paymentReferencePlaceholder": "Transfer reference (required)",
         "approveSelfRefused": "You closed this period: someone else must approve the payout.",
-        "paySelfRefused": "You approved this payout: someone else must mark it paid."
+        "paySelfRefused": "You approved this payout: someone else must mark it paid.",
+        "refundedSincePaid": "{count, plural, one {One line has been refunded since the payout was paid: {references}.} other {# lines have been refunded since the payout was paid: {references}.}} No amount is withheld automatically."
       }
     }
   },
@@ -10539,6 +10605,14 @@
         "settled_online": {
           "title": "Payment received: {property}",
           "body": "Your payment of {amount} for {property} has been received. Your receipt is available in your account."
+        },
+        "refunded": {
+          "title": "Refund: {property}",
+          "body": "A refund of {amount} was made on your rent payment for {property}. Your receipt no longer covers the refunded amount."
+        },
+        "refunded_landlord": {
+          "title": "Rent refunded: {property}",
+          "body": "{amount} of the rent paid by {tenant} for {property} was refunded through the online payment method."
         }
       },
       "payment": {
@@ -10549,6 +10623,12 @@
         "duplicate_late_fee": {
           "title": "Late fee collected twice",
           "body": "The late fee of {amount} for {reference}, already settled at the agency, was also collected online. Refund the payer or allocate the amount."
+        }
+      },
+      "platform_payout": {
+        "refunded_since_paid": {
+          "title": "Payment refunded after payout",
+          "body": "Payment {reference}, included in the platform payout for {period} already paid to your agency, has since been refunded through the online payment method. No deduction is applied automatically."
         }
       },
       "booking": {
@@ -10843,6 +10923,10 @@
         "rejected": {
           "title": "Property rejected: {property}",
           "body": "Your property \"{property}\" was rejected. Reason: {reason}. You can fix the listing and resubmit it from your workspace."
+        },
+        "assigned_to_owner": {
+          "title": "A property saved in your name: {property}",
+          "body": "Your agency has saved the property “{property}” in your name. You will find it among your properties, with its leases and your owner statement."
         },
         "submitted_for_review": {
           "title": "Property to review: {property}",

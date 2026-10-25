@@ -8,7 +8,7 @@ import { getTranslations } from 'next-intl/server';
 import { getToken } from '@/lib/session';
 import { nomAffichable } from '@/lib/identite';
 import { getMeAction } from '@/app/actions/auth';
-import { isAdmin } from '@/lib/roles';
+import { isAdmin, isAgencyAdmin, isAgent, isSuperAdmin } from '@/lib/roles';
 import { ApiError } from '@/lib/api';
 import { lireClientDuRendu } from '@/lib/detail/ressource-de-detail';
 import {
@@ -21,6 +21,7 @@ import { buttonVariants } from '@/components/ui/button';
 import { CustomerDetailTabs } from '@/components/customer-dashboard/CustomerDetailTabs';
 import { CustomerTagPickerSection } from '@/components/customer-dashboard/CustomerTagPickerSection';
 import { ContactGestures } from '@/components/crm/ContactGestures';
+import { InviterACreerSonCompte } from '@/components/crm/InviterACreerSonCompte';
 import { CustomerReferent } from '@/components/crm/CustomerReferent';
 import { CustomerStageControl } from '@/components/crm/CustomerStageControl';
 import { AddDocumentButton } from '@/components/documents/AddDocumentButton';
@@ -71,7 +72,11 @@ export default async function Page({ params }: { params: Params }) {
   if (!token) return null;
   // TCK-955 — le geste « Afficher » du numéro de pièce. `getMeAction` est mémoïsé par requête : le
   // layout l'a déjà appelé.
-  const canRevealIdNumber = isAdmin((await getMeAction()).roles);
+  const { roles } = await getMeAction();
+  const canRevealIdNumber = isAdmin(roles);
+  // P15.01 (TCK-2351) — inviter le client à créer son compte : un geste du personnel de l'agence
+  // de la fiche, que l'API juge (`CustomerPolicy::invite`) ; le bailleur ne le voit pas.
+  const canInviteToAccount = isAgent(roles) || isAgencyAdmin(roles) || isSuperAdmin(roles);
 
   const t = await getTranslations('crm.customerDetail');
   const tPage = await getTranslations('dashboard.pages.customerDetail');
@@ -150,6 +155,9 @@ export default async function Page({ params }: { params: Params }) {
               documentableId={customer.id}
               displayLabel={nom}
             />
+            {canInviteToAccount && customer.user_id === null ? (
+              <InviterACreerSonCompte customerId={customer.id} />
+            ) : null}
           </div>
         }
       />

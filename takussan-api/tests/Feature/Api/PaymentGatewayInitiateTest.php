@@ -12,8 +12,10 @@ use App\Models\Enums\PaymentStatus;
 use App\Models\Integration;
 use App\Models\Property;
 use App\Models\User;
+use App\Services\Admin\AgencyProvisioningService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Notification;
 use Laravel\Sanctum\Sanctum;
 use Tests\Support\LeaseDueFixture;
 use Tests\TestCase;
@@ -255,17 +257,20 @@ class PaymentGatewayInitiateTest extends TestCase
         $this->assertTrue($meta['late_fee_included']);
     }
 
-    /** AC4 — une agence créée par l'API n'a pas la clé : la pénalité n'entre pas. */
+    /**
+     * AC4 — une agence ouverte par la console n'a pas la clé : la pénalité n'entre pas.
+     * TCK-2311 (P225.06) — `POST /api/agencies` est retirée : l'agence neuve vient de la console.
+     */
     public function test_agence_neuve_n_encaisse_pas_la_penalite_en_ligne(): void
     {
-        $creator = User::factory()->create();
-        Sanctum::actingAs($creator);
-        $agencyId = $this->postJson('/api/agencies', ['name' => 'Agence neuve '.uniqid()])
-            ->assertCreated()
-            ->json('data.id');
+        Notification::fake();
+        $agencyId = app(AgencyProvisioningService::class)->provision([
+            'agency' => ['name' => 'Agence neuve '.uniqid()],
+            'admin' => ['first_name' => 'Awa', 'last_name' => 'Ndiaye', 'email' => uniqid('admin').'@agence.test'],
+        ], User::factory()->create())['agency']->id;
 
         $ctx = $this->leaseDue();
-        // L'échéance de l'AC3, rattachée à l'agence que l'API vient de créer.
+        // L'échéance de l'AC3, rattachée à l'agence que la console vient d'ouvrir.
         $ctx['lease']->update(['agency_id' => $agencyId]);
         Integration::query()->update(['agency_id' => $agencyId]);
         $agency = Agency::query()->findOrFail($agencyId);

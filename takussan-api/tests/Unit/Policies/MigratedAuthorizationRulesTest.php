@@ -479,7 +479,10 @@ class MigratedAuthorizationRulesTest extends TestCase
 
     public function test_document_update_is_narrower_than_view(): void
     {
+        // P218.06 (TCK-2295) — le téléverseur suit la règle d'auteur (ADR-0031, amendement du
+        // 2026-10-25, D3) : il garde le document tant qu'il est membre de l'agence du porteur.
         $televerseur = $this->quidam();
+        $this->materializeRoleProfile($televerseur, 'owner', $this->agency);
         $property = Property::factory()->create(['agency_id' => $this->agency->id]);
         $document = Document::factory()->create([
             'uploaded_by' => $televerseur->id,

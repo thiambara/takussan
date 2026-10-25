@@ -5,6 +5,7 @@ namespace App\Services\Inventory;
 use App\Http\Requests\InventorySignRequest;
 use App\Models\Enums\InventoryStatus;
 use App\Models\Inventory;
+use App\Models\Profiles\OwnerProfile;
 use App\Models\Property;
 use App\Models\User;
 use App\Services\Lease\LandlordSignatory;
@@ -73,14 +74,18 @@ class InventorySignatureService
                 $locked->traceability_hash = $this->frozenTraceabilityHash($locked);
                 // P140.02 (TCK-1792) — les parties, le bien et l'agence que le PDF imprime, figés
                 // avec l'empreinte : l'empreinte ne les couvre pas, l'instantané les garde.
-                $property = Property::withTrashed()->with(['address', 'agency'])->find($locked->property_id);
+                // P234.06 (TCK-2315) — le bailleur est le propriétaire du bien (`owner` : il n'y a
+                // pas de relation `user`, et l'instantané le figeait nul), avec sa raison sociale.
+                $property = Property::withTrashed()->with(['address', 'agency', 'owner'])->find($locked->property_id);
                 $locked->metadata = (is_array($locked->metadata) ? $locked->metadata : []) + [
                     PrintedIdentity::KEY => PrintedIdentity::capture([
                         'tenant' => $locked->tenant()->withTrashed()->first(),
-                        'landlord' => $property?->user,
+                        'landlord' => $property?->owner,
                         'property' => $property,
                         'agency' => $property?->agency,
-                    ]),
+                    ]) + [
+                        PrintedIdentity::LANDLORD_COMPANY => OwnerProfile::companyNameOf($property?->user_id, $property?->agency_id),
+                    ],
                 ];
             } elseif ($locked->status === InventoryStatus::Draft) {
                 // First signature promotes a draft to pending_signature so the
