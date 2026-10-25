@@ -24,7 +24,9 @@ vi.mock('@/context/AuthContext', () => ({
   useAuth: () => ({ user: { id: 3 }, token: 'jeton', isLoading: false }),
 }));
 
-const retrait = vi.hoisted(() => ({ mutate: vi.fn() }));
+// P243.01 (TCK-2361) — le menu attend désormais la promesse de `mutateAsync` : c'est elle qui est
+// doublée ici. Le contrat avec la vraie mutation est gardé par `…p243-01.test.tsx`.
+const retrait = vi.hoisted(() => ({ mutateAsync: vi.fn() }));
 vi.mock('@/lib/queries/favorites', () => ({
   usePropertiesByIdsQuery: () => ({
     data: {
@@ -68,35 +70,29 @@ describe('<FavoritesPopover> — un retrait refusé revient en arrière (P228.03
   beforeEach(() => {
     localStorage.clear();
     localStorage.setItem('takussan.favorites', JSON.stringify([624]));
-    retrait.mutate.mockReset();
+    retrait.mutateAsync.mockReset();
   });
   afterEach(() => {
     cleanup();
   });
 
   it('l’API refuse : le bien revient dans les favoris', async () => {
-    retrait.mutate.mockImplementation(
-      (_vars: unknown, options?: { onError?: (erreur: unknown) => void }) =>
-        options?.onError?.(new ApiError(500, { message: 'panne' })),
-    );
+    retrait.mutateAsync.mockRejectedValue(new ApiError(500, { message: 'panne' }));
     rendre();
 
     await retirerDepuisLeMenu();
 
-    expect(retrait.mutate).toHaveBeenCalledWith({ property_id: 624 }, expect.anything());
+    expect(retrait.mutateAsync).toHaveBeenCalledWith({ property_id: 624 });
     await waitFor(() => expect(getIds()).toContain(624));
   });
 
   it('l’API accepte : le bien reste retiré', async () => {
-    retrait.mutate.mockImplementation(
-      (_vars: unknown, options?: { onSuccess?: (donnees: unknown) => void }) =>
-        options?.onSuccess?.({}),
-    );
+    retrait.mutateAsync.mockResolvedValue({});
     rendre();
 
     await retirerDepuisLeMenu();
 
-    await waitFor(() => expect(retrait.mutate).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(retrait.mutateAsync).toHaveBeenCalledTimes(1));
     expect(getIds()).not.toContain(624);
   });
 });
