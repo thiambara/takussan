@@ -26,6 +26,7 @@ return [
     'agency' => [
         'active_profile_missing' => 'Amul benn profil agence bu dox.',
         'admin_email_taken' => 'Am na compte bu am e-mail administrateur bii ba noppi.',
+        'admin_phone_taken' => 'Un compte existe déjà avec ce numéro vérifié du gérant.',
         'context_missing' => 'Amul benn agence bu dox.',
         'id_required' => 'War nga wax agence bi.',
         'individual_no_custom_roles' => 'Ajance ind amul rol yu ñu defar ci boppam.',

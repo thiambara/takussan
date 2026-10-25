@@ -26,6 +26,7 @@ return [
     'agency' => [
         'active_profile_missing' => 'Aucun profil d\'agence actif.',
         'admin_email_taken' => 'Un compte existe déjà avec cet e-mail d\'administrateur.',
+        'admin_phone_taken' => 'Un compte existe déjà avec ce numéro vérifié du gérant.',
         'context_missing' => 'Aucune agence active.',
         'id_required' => 'L\'agence doit être précisée.',
         'individual_no_custom_roles' => 'Les agences individuelles n\'ont pas de rôles personnalisés.',

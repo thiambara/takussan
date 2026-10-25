@@ -49,7 +49,7 @@ class ExistsLigneSupprimeeTest extends ApiTestCase
             'remplaçant d\'une absence' => ['remplacant'],
             'délégataire d\'un rôle' => ['delegataire'],
             'garant d\'un bail' => ['garant'],
-            'membre ajouté à l\'agence' => ['membre'],
+            // TCK-2365 (P242.01) — `membre ajouté à l'agence` est parti avec `POST …/members`.
         ];
     }
 
@@ -106,7 +106,6 @@ class ExistsLigneSupprimeeTest extends ApiTestCase
                 'ends_at' => now()->addWeek()->toIso8601String(),
             ]),
             'garant' => $api->apiPost('/api/leases/'.$this->bail()->id.'/guarantors', ['guarantor_id' => $id]),
-            'membre' => $api->apiPost("/api/agencies/{$this->agency->id}/members", ['user_id' => $id, 'role' => 'agent']),
         };
     }
 

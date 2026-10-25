@@ -158,7 +158,6 @@ final class ProtectedActions
         AgencyController::class.'@update',
         // TCK-594 (VERIF-594 M-2) — le second geste d'un relâchement du seuil des quatre yeux.
         AgencyController::class.'@confirmPayoutThreshold',
-        AgencyController::class.'@addAgent',
         AgencyController::class.'@removeAgent',
         TeamMemberSuspensionController::class.'@suspend',
         TeamMemberSuspensionController::class.'@reactivate',

@@ -210,65 +210,9 @@ class AgencyMembersListTest extends TestCase
             ->assertForbidden();
     }
 
-    public function test_admin_can_add_member_by_email(): void
-    {
-        [$admin, $agency] = $this->createAdminWithAgency();
-        $target = User::factory()->create(['email' => 'target@example.com', 'agency_id' => null]);
-
-        Sanctum::actingAs($admin);
-
-        $this->postJson("/api/agencies/{$agency->id}/members", [
-            'email' => 'target@example.com',
-            'role' => 'agent',
-        ])->assertOk()
-            ->assertJsonPath('data.user_id', $target->id)
-            ->assertJsonPath('data.role', 'agent');
-
-        $this->assertDatabaseHas('agent_profiles', ['user_id' => $target->id, 'agency_id' => $agency->id]);
-    }
-
-    public function test_adding_member_with_unknown_email_returns_422(): void
-    {
-        [$admin, $agency] = $this->createAdminWithAgency();
-
-        Sanctum::actingAs($admin);
-
-        $this->postJson("/api/agencies/{$agency->id}/members", [
-            'email' => 'unknown@example.com',
-            'role' => 'agent',
-        ])->assertStatus(422);
-    }
-
-    public function test_admin_can_add_member_as_agency_admin(): void
-    {
-        [$admin, $agency] = $this->createAdminWithAgency();
-        $target = User::factory()->create(['agency_id' => null]);
-
-        Sanctum::actingAs($admin);
-
-        $this->postJson("/api/agencies/{$agency->id}/members", [
-            'user_id' => $target->id,
-            'role' => 'agency_admin',
-        ])->assertOk()
-            ->assertJsonPath('data.role', 'agency_admin');
-
-        // TCK-278 — Le rôle est désormais matérialisé par AgencyAdminProfile
-        // (cf. Règle 5), plus par spatie team-scoped role.
-        $this->assertTrue($target->refresh()->isAgencyAdminAt((int) $agency->id));
-    }
-
-    public function test_cannot_add_member_with_invalid_role(): void
-    {
-        [$admin, $agency] = $this->createAdminWithAgency();
-        $target = User::factory()->create(['agency_id' => null]);
-
-        Sanctum::actingAs($admin);
-
-        $this->postJson("/api/agencies/{$agency->id}/members", [
-            'user_id' => $target->id,
-            'role' => 'super_admin',
-        ])->assertStatus(422);
-    }
+    // TCK-2365 (P242.01) — les quatre cas de `POST /agencies/{id}/members` (par e-mail, e-mail
+    // inconnu, comme admin, rôle invalide) sont partis avec la route : un compte existant entre par
+    // l'invitation (`RattachementParInvitationTest`, `InviteAgentTest`).
 
     public function test_cannot_remove_last_agency_admin(): void
     {

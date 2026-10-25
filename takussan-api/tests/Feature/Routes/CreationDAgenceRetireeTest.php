@@ -46,7 +46,7 @@ class CreationDAgenceRetireeTest extends TestCase
             'GET api/agencies',
             'GET api/agencies/{agency}',
             'PATCH api/agencies/{agency}',
-            'POST api/agencies/{agency}/members',
+            'GET api/agencies/{agency}/members',
             'POST api/admin/agencies',
         ] as $voisine) {
             $this->assertContains($voisine, $routes, "$voisine n'est pas touchée");

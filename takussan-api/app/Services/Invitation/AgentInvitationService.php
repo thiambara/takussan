@@ -38,8 +38,7 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
  *    phone typed by the agency is a datum of the agency's record, never
  *    the account's number.
  *  - Conflict guard: if the email already maps to an active AgentProfile
- *    in this agency (i.e. the agent has already accepted, or was added
- *    directly), throws 409.
+ *    in this agency (i.e. the agent has already accepted), throws 409.
  *  - Activity log: `agent_invited`, `agent_suspended`, `agent_removed`.
  */
 class AgentInvitationService
@@ -48,8 +47,11 @@ class AgentInvitationService
 
     /**
      * Roles assignable when inviting through the team management surface.
-     * `agency_admin` is intentionally absent — promoting/creating other
-     * admins lives in a separate, more-restricted flow (TCK-209).
+     *
+     * P242.01 (TCK-2365, décision du porteur du 2026-10-25 ; ADR-0031) — `agency_admin` y entre :
+     * un compte existant ne rejoint l'équipe que par l'invitation, au rôle agent ou administrateur
+     * (`POST /agencies/{id}/members`, qui l'activait sans accord, est retirée). Inviter un
+     * administrateur se juge en plus par `AgencyPolicy::changeMemberRole` ({@see self::invite()}).
      *
      * P234.01 (TCK-2280, décision du porteur du 2026-10-25) — `agent_senior` et
      * `agent_manager` sont retirés : `metadata.invited_role` n'avait aucun lecteur, et le
@@ -58,7 +60,7 @@ class AgentInvitationService
      * ces rôles s'acceptent toujours : ils restent dans
      * {@see InvitationService::INVITABLE_TYPE_BY_ROLE} et la liste de `finalizeAccept`.
      */
-    public const ALLOWED_ROLES = ['agent'];
+    public const ALLOWED_ROLES = ['agent', 'agency_admin'];
 
     public function __construct(private readonly InvitationService $invitations) {}
 
@@ -86,6 +88,13 @@ class AgentInvitationService
             throw ValidationException::withMessages([
                 'role' => [__('team.invite.errors.invalid_role')],
             ])->status(422);
+        }
+
+        // P242.01 (TCK-2365) — inviter au rôle d'administrateur confère ce que le changement de rôle
+        // juge par `team.assign_role` (TCK-1498) : même règle, comme le rattachement retiré
+        // (TCK-2205). L'administrateur principal la garde sans la capacité.
+        if ($role === 'agency_admin') {
+            $this->assertInviterCanManageTeam($inviter, 'changeMemberRole', $agency);
         }
 
         if ($email !== null) {
@@ -247,7 +256,7 @@ class AgentInvitationService
     /**
      * Throws 409 if an AgentProfile already exists for this email in the
      * agency *with a User attached* (i.e. the agent has already accepted
-     * a previous invitation, or was added directly).
+     * a previous invitation).
      */
     protected function assertNoActiveAgentInAgency(Agency $agency, string $email): void
     {

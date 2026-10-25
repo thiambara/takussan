@@ -4,22 +4,14 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\AgencyUpdateRequest;
-use App\Http\Requests\Api\AddAgentAgencyRequest;
 use App\Http\Requests\Api\ConfirmPayoutThresholdRequest;
 use App\Http\Resources\AgencyResource;
 use App\Http\Resources\UserResource;
 use App\Models\Agency;
-use App\Models\Enums\AgencyAdminProfileStatus;
-use App\Models\Enums\AgentProfileStatus;
 use App\Models\Enums\CollaborationStatus;
-use App\Models\Profiles\AgencyAdminProfile;
-use App\Models\Profiles\AgentProfile;
 use App\Models\User;
 use App\Services\Agency\AgencyMemberRemovalService;
-use App\Services\Billing\QuotaResolver;
-use App\Services\Membership\ProfileMaterializer;
 use App\Services\Payout\PayoutApprovalThreshold;
-use App\Support\AgencyKindGuard;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -204,81 +196,6 @@ class AgencyController extends Controller
             'first_name' => $user->first_name,
             'last_name' => $user->last_name,
         ])->all());
-    }
-
-    public function addAgent(AddAgentAgencyRequest $request, Agency $agency): JsonResponse
-    {
-        // TCK-392 (revue) — une agence `individual` n'a PAS d'équipe : c'est un
-        // host solo, et « pas d'invitation de collaborateurs internes » est la
-        // première restriction que `features.md` lui attache.
-        //
-        // Ce garde manquait, et la mesure l'a montré là où l'écran le cachait :
-        // `POST /agencies/{id}/members` rendait **200** sur une agence
-        // `individual`, quand le geste jumeau `POST /agencies/{id}/agents/invite`
-        // rendait 403. Un administrateur d'agence individuelle pouvait donc s'y
-        // rattacher un agent en contournant simplement l'écran.
-        //
-        // Le garde vit ICI et non dans `AddAgentAgencyRequest::authorize()` :
-        // TCK-305 a posé que cette méthode est une SIMPLE DÉLÉGATION à la policy
-        // (« aucune règle d'autorisation n'a migré ici »), et `AgencyPolicy@update`
-        // ne juge pas le `kind`.
-        //
-        // TCK-449 (AC5) — la RÈGLE, elle, ne vit plus ici : elle était recopiée
-        // dans quatre fichiers, et c'est la copie manquante qui a produit ce
-        // ticket. `AgencyKindGuard::canFormTeam()` en porte désormais la seule
-        // définition, partagée par l'invitation ET le rattachement.
-        //
-        // ⚠ Les DEUX routes qui mènent ici — `POST /agencies/{id}/members`
-        // (canonique, TCK-015) et son alias historique `…/agents` — sont
-        // couvertes par ce seul appel, parce qu'il est dans le contrôleur et
-        // non sur une route.
-        AgencyKindGuard::ensureCanFormTeam($agency);
-
-        app(QuotaResolver::class)->assertCanAddAgent($agency);
-
-        $data = $request->validated();
-
-        $target = isset($data['user_id'])
-            ? User::findOrFail($data['user_id'])
-            : User::where('email', $data['email'])->first();
-
-        abort_code_if($target === null, 422, 'agency_member.user_not_found_by_email');
-
-        // TCK-142 — agency attachment is now profile-driven. Block if the
-        // user already has an active agent profile at a different agency,
-        // matching the previous "user_already_in_agency" guard.
-        $existingElsewhere = $target->agentProfiles()
-            ->where('agency_id', '!=', $agency->id)
-            ->exists();
-        abort_code_if($existingElsewhere, 422, 'agency_member.already_in_other_agency');
-
-        // TCK-278 — Rôle = présence d'un profil polymorphe. On crée toujours
-        // un AgentProfile (le rôle de base d'un membre d'équipe) ; si le rôle
-        // demandé est `agency_admin`, on matérialise aussi un AgencyAdminProfile
-        // sur la même agence.
-        ProfileMaterializer::materializeOrRestore(
-            AgentProfile::class,
-            ['user_id' => $target->id, 'agency_id' => $agency->id],
-            ['status' => AgentProfileStatus::Active->value],
-        );
-
-        $role = $data['role'] ?? 'agent';
-        if ($role === 'agency_admin') {
-            ProfileMaterializer::materializeOrRestore(
-                AgencyAdminProfile::class,
-                ['user_id' => $target->id, 'agency_id' => $agency->id],
-                ['status' => AgencyAdminProfileStatus::Active->value],
-            );
-        }
-
-        return $this->json([
-            'data' => [
-                'user_id' => $target->id,
-                'agency_id' => $agency->id,
-                'role' => $role,
-                'user' => UserResource::dansLAgence($target->refresh(), (int) $agency->id)->resolve($request),
-            ],
-        ]);
     }
 
     /**
