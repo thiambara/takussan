@@ -6,6 +6,7 @@ use App\Domain\Notifications\NotificationCode;
 use App\Domain\Notifications\NotificationTarget;
 use App\Jobs\Concerns\AlertsOnFirstFailure;
 use App\Models\Enums\Currency;
+use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Lease;
 use App\Models\LeasePayment;
@@ -131,8 +132,11 @@ class SendLeasePaymentReminders implements ShouldQueue
         $key = "reminder_{$milestone}_sent_at";
         // TCK-594 (VERIF-594 passe 4, P4-7) — une caution rendue est due AU locataire : il n'en est
         // pas relancé.
+        // TCK-2375 (P04.10) — l'échéance de caution non plus : aucun texte de relance de caution
+        // n'existe, et ceux du loyer lui annonceraient « Votre loyer de… ».
         $candidates = LeasePayment::query()
             ->exceptDepositRefunds()
+            ->where('payment_type', '!=', LeasePaymentType::Deposit->value)
             ->whereIn('status', self::OPEN_STATUSES)
             ->whereDate('due_date', '<=', $dueDate->toDateString())
             ->whereDate('due_date', '>=', $dueDate->copy()->subDays(self::CATCH_UP_DAYS)->toDateString())
