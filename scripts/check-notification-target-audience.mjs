@@ -49,7 +49,11 @@ export const EXIGENCES = {
   // Le verdict et l'échéance du KYC : les admins actifs (TCK-1763 pour le verdict).
   agency_kyc: { role: 'admin', capacite: 'agency.update_kyc', ouvertePar: ['agency.update_kyc'] },
   // Les alertes de gouvernance, aux admins d'une agence `standard` seulement (TCK-1763).
-  audit: { role: 'admin', agence: 'standard' },
+  // TCK-2260 (P116.07) — la page exige `reports.view_agency`. Destinataires relus
+  // (`GovernanceAlertService::recipients`) et laissés à TOUS les admins actifs : une alerte de
+  // sécurité ne se retire pas par l'éditeur de rôles. L'admin dont le rôle retire la capacité reçoit
+  // l'avis, et son lien le renvoie à la première page qu'il peut ouvrir.
+  audit: { role: 'admin', agence: 'standard', capacite: 'reports.view_agency' },
   // `ReviewNotifier::toModerate` : les admins d'une agence `standard`.
   review_moderation: { role: 'admin', agence: 'standard' },
   // `PropertyModerationNotifier` : les admins de l'agence du bien.

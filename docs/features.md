@@ -225,7 +225,7 @@ Encaissements, factures et reversements.
 | P2 | 🏠🏢🧑‍💼 | Lien de paiement en ligne (Wave / Orange Money) par échéance de loyer, utilisable sans compte : jeton expirant et révocable envoyé au locataire, quittance remise après paiement (TCK-602) |
 | P1 | 🏠🧑‍💼 | Le payeur (locataire, client) voit les fournisseurs de paiement en ligne que l'agence a activés — intégration plateforme comprise — et seulement ceux-là (TCK-602) |
 | P2 | 🛡️ | Supervision des paiements (console plateforme) : paiements en échec, en retard et webhooks non appariés, par fournisseur et par agence (TCK-602) |
-| P2 | 🛡️ | Rapprochement bancaire semi-automatique |
+| P2 | 🛡️ | Rapprochement bancaire semi-automatique — relevés, lignes, mapping CSV et clôture réservés à l'admin d'agence qui détient `payments.reconcile` (son rôle système la porte, jamais celui d'agent ; l'admin principal la garde toujours) (TCK-2260) |
 | P2 | 🛡️ | Régler depuis l'écran le mapping CSV des relevés de l'agence (colonnes, format de date, séparateur décimal déclaré) et voir les lignes ignorées à l'import (TCK-593) — les préréglages Wave Business / Orange Money attendent un export réel (dette D-67) |
 | P2 | 🛡️ | Rapprocher les débits d'un relevé avec les reversements (Payout) émis (TCK-593) |
 | P2 | 🛡️ | Relance automatique des factures en retard |
@@ -586,7 +586,7 @@ Canal de notification **WhatsApp sortant** qui remplace certains SMS pour les fa
 |------|---------|----------------|
 | P1 | 🛡️ | Dashboard agence (biens, vues, revenus, impayés) — **agences `standard` uniquement** : c'est le « reporting cross-équipe » restreint en [§1.12](#112-agence--équipe), sous un autre nom (TCK-295) |
 | P1 | 🛡️ | Dashboard agence réservé aux détenteurs de `reports.view_agency` (admin d'agence par défaut), jamais à un agent ; effectif « Équipe » = agents et admins actifs, jamais les bailleurs (TCK-595) |
-| P1 | 🏢 | Dashboard bailleur (portefeuille, cashflow, occupation) |
+| P1 | 🏢 | Dashboard bailleur (portefeuille, cashflow, occupation) — ouvert au bailleur, et à l'admin d'agence qui détient `reports.view_agency` (TCK-2260) |
 | P1 | 🏢 | « Prochains versements » et « Net reversé » du bailleur : seuls les versements dont il est bénéficiaire (TCK-595) |
 | P1 | 🏢 | Dashboard hôte : le host solo (agence `individual`) atterrit sur le dashboard bailleur, enrichi des réservations, visites et avis à traiter — jamais sur le dashboard agent ni agence (TCK-595) |
 | P1 | 🧑‍💼 | Dashboard agent (pipeline, commissions, tâches) — ses biens, ses clients, ses commissions ; bascule « agence » sous capacité (TCK-595) |
@@ -620,6 +620,7 @@ hors spec*. Ouvrir un ticket avant d'en construire un.
 | P0 | 🛡️ | Journal d'activité automatique sur entités critiques |
 | P0 | 🛡️ | Aucun journal technique ne recopie une saisie, le message d'une exception ni les paramètres d'une requête SQL en échec (TCK-601) |
 | P1 | 🛡️ | Consultation du journal par entité |
+| P1 | 🛡️ | Journal d'audit de l'agence (liste, historique d'un objet, export) réservé à l'admin d'agence qui détient `reports.view_agency` (TCK-2260) |
 | P1 | 🛡️ | Filtrage par utilisateur, date, action |
 | P1 | 🛡️ | Le journal d'une agence couvre tout ce qui touche ses objets (actes des admins, du système et des webhooks compris) et rien de ce qui touche une autre agence (TCK-601) |
 | P1 | 🛡️ | Journal des consultations de données personnelles depuis la console (fiche utilisateur, sessions, dossier et pièces KYC, valeurs bancaires) et des valeurs claires lues dans l'application (pièce, revenu) (TCK-601, TCK-955) |

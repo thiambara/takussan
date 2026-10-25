@@ -26,10 +26,8 @@ class AuditLogController extends Controller
     public function indexByEntity(Request $request, string $entity, int $id): JsonResponse
     {
         $user = $request->user();
-        abort_unless(
-            $user->isSuperAdmin() || ($user->agency_id !== null && $user->isAgencyAdminAt((int) $user->agency_id)),
-            403
-        );
+        // TCK-2260 (P116.07) — `ActivityLogPolicy::viewAny` : l'admin ET `reports.view_agency`.
+        abort_unless($user->can('viewAny', Activity::class), 403);
         AgencyKindGuard::ensureStandardForNonGlobal(
             $user,
             $request->activeProfile()?->agency_id ?? $user->agency_id,

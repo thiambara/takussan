@@ -10,6 +10,7 @@ use App\Http\Requests\Api\UpdateIntegrationRequest;
 use App\Http\Resources\IntegrationResource;
 use App\Models\Agency;
 use App\Models\Integration;
+use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -23,9 +24,8 @@ class IntegrationController extends Controller
 
         $base = Integration::query();
 
+        abort_unless($this->mayListIntegrations($user), 403);
         if (! $user->isSuperAdmin()) {
-            // TCK-2024 (P116.02) — `AgencyPolicy::configure` : l'admin ET `agency.update`.
-            abort_unless($user->agency_id !== null && $user->can('configure', Agency::query()->find($user->agency_id)), 403);
             // TCK-587 — un admin actif est personnel : le prédicat unique (ADR-0031 §1).
             $base->where('agency_id', $user->staffAgencyId());
         }
@@ -44,11 +44,8 @@ class IntegrationController extends Controller
      */
     public function paymentProviders(Request $request, IntegrationProviderRegistry $registry): JsonResponse
     {
-        $user = $request->user();
-        if (! $user->isSuperAdmin()) {
-            // TCK-2024 (P116.02) — `AgencyPolicy::configure` : l'admin ET `agency.update`.
-            abort_unless($user->agency_id !== null && $user->can('configure', Agency::query()->find($user->agency_id)), 403);
-        }
+        // TCK-2260 (P116.07) — le prédicat de la liste, appelé et non plus recopié.
+        abort_unless($this->mayListIntegrations($request->user()), 403);
 
         $providers = [];
         foreach ($registry->all() as $provider) {
@@ -189,6 +186,16 @@ class IntegrationController extends Controller
             ->log('integration.webhook_token_rotated');
 
         return $this->json(['data' => $this->webhookEndpointPayload($integration)]);
+    }
+
+    /**
+     * TCK-2024 (P116.02) — `AgencyPolicy::configure` : l'admin ET `agency.update`, sur l'agence du
+     * profil actif ; le super-admin voit tout. Lu par `index` et `paymentProviders` (TCK-2260).
+     */
+    private function mayListIntegrations(User $user): bool
+    {
+        return $user->isSuperAdmin()
+            || ($user->agency_id !== null && $user->can('configure', Agency::query()->find($user->agency_id)));
     }
 
     /** @return array{integration_id: int, provider: string, url: ?string} */

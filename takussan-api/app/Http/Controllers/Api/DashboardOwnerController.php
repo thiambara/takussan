@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
+use App\Models\Agency;
+use App\Models\Enums\Capability;
 use App\Services\Dashboard\DashboardOwnerService;
 use App\Support\Http\ParametreUnique;
 use Illuminate\Http\JsonResponse;
@@ -19,10 +21,13 @@ class DashboardOwnerController extends Controller
     {
         $user = $request->user();
 
+        // TCK-2260 (P116.07) — l'admin qui n'est pas bailleur y entre par `reports.view_agency`, comme
+        // aux autres chiffres de l'agence ; le bailleur, par son seul profil.
         abort_unless(
             ($user->agency_id !== null && $user->isOwnerAt((int) $user->agency_id))
                 || $user->isSuperAdmin()
-                || ($user->agency_id !== null && $user->isAgencyAdminAt((int) $user->agency_id)),
+                || ($user->agency_id !== null && $user->isAgencyAdminAt((int) $user->agency_id)
+                    && $user->canActAt(Capability::ReportsViewAgency, Agency::query()->find($user->agency_id))),
             403,
         );
 
