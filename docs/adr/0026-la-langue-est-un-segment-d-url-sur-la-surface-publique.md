@@ -355,8 +355,11 @@ sans son correctif (redirection retirée, en-tête de langue retiré, préséanc
 **Décision du porteur** : 2026-10-15 (piste P09.07, « 308 vers /fr »), précisée le 2026-10-17
 (piste P34.01, option a).
 
-**Le problème.** `www.takussan.com` sert encore `master` du 2026-08-15, sans préfixe de langue
-(D-72 de l'ardoise). Tout ce que les moteurs ont indexé — `/`, `/properties/<slug>`, `/agencies/…` —
+**Le problème.** `www.takussan.com` servait encore `master` du 2026-08-15, sans préfixe de langue
+(D-72 de l'ardoise). *Re-mesuré le 2026-10-25 : depuis la suppression de Vercel (dernier déploiement
+le 2026-10-15), le domaine n'a plus d'enregistrement DNS (2026-10-18), et aucun build n'est servi.
+Le raisonnement ne change pas : les URL déjà indexées de l'ancien site passeront par la
+redirection du § 3 le jour de la bascule.* Tout ce que les moteurs ont indexé — `/`, `/properties/<slug>`, `/agencies/…` —
 passera, à la bascule de la phase F, par la redirection du § 3. Une 307 est temporaire : les moteurs
 gardent l'URL source et ne transfèrent pas franchement son signal à la cible.
 

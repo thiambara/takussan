@@ -1,13 +1,13 @@
 ---
 id: TCK-720
-title: "Réglages de déploiement que les agents ne peuvent pas faire : jeton des accusés SMS, délai du worker, CACHE_PREFIX, image de l'API et next/image"
+title: "Réglages de déploiement que les agents ne peuvent pas faire : jeton des accusés SMS, délai du worker, image de l'API et next/image"
 status: todo
 phase: P2
 family: technique
 estimate: S
 wave: null
 created: 2026-10-16
-updated: 2026-10-20
+updated: 2026-10-25
 depends_on: []
 blocks: []
 spec_refs:
@@ -42,8 +42,6 @@ où chaque constat est sourcé et daté.
 - Le délai du worker se règle **après** le budget de la chaîne SMS posé en code (P27.04, validé
   pour l'implémenteur) et **au-dessus** de lui : un worker plus court que la chaîne tue le job et
   le rejoue, et un fournisseur qui a déjà accepté renvoie le SMS.
-- Préproduction et production partagent `redis-takussan` : deux environnements ne doivent jamais
-  avoir le même préfixe de cache.
 
 ## Delta à produire
 
@@ -55,8 +53,9 @@ où chaque constat est sourcé et daté.
   supérieur au budget de la chaîne et au `$timeout` des notifications SMS ; vérifier que
   `retry_after` de la connexion `database` reste au-dessus (voir aussi P05.06, déjà noté hors
   agents avec le `stop_grace_period`).
-- [ ] **P05.09** — `CACHE_PREFIX` distinct par environnement déployé (préproduction, puis
-  production à la phase F), et la clé ajoutée au relevé des clés de `docs/infra/hebergement.md`.
+- *2026-10-25 : la ligne **P05.09** (`CACHE_PREFIX` par environnement) est retirée. La piste est
+  `caduc`, car depuis TCK-880 chaque environnement a son Redis (ADR-0069 § 4). Le préfixe ne
+  protège donc plus rien.*
 - [ ] **P10.10** — image de l'API : installer `jpegoptim`, `pngquant`, `optipng`, `gifsicle`,
   `cwebp` et `avifenc` dans `takussan-api/Dockerfile`, **ou** retirer le bloc d'optimiseurs de
   `config/media-library.php` et son commentaire `--strip-all`, qui laisse croire que l'EXIF est
@@ -65,8 +64,8 @@ où chaque constat est sourcé et daté.
   `dangerouslyAllowLocalIP` limités au développement (ou une `contentSecurityPolicy` si le SVG
   distant doit rester), et le commentaire de `deviceSizes` corrigé (`full` à 1600 px, pas
   `preview` à 800 px).
-- [ ] **P10.10** — servir l'avatar par une conversion à sa taille d'affichage, plutôt que
-  l'original jusqu'à 2560 px.
+- *2026-10-25 : la ligne **P10.10** sur l'avatar est retirée. L'avatar est déjà servi en
+  `thumbnail` 150 px (`User::avatarUrl()`, TCK-762, P10.05).*
 - [ ] **P65.01** — mesurer dans l'image de l'API le sens de `max_execution_time = 60` sous
   FrankenPHP (`php -d max_execution_time=1 -r 'sleep(3);'`, puis une requête de plus de 60 s derrière
   `php_server`) et l'inscrire dans `deploy/takussan/smoke-api.sh image` ; poser `num_threads` et
@@ -118,8 +117,8 @@ où chaque constat est sourcé et daté.
   `driver_exception_UrlGenerationException` dans `sms_attempts`.
 - [ ] AC2 — la commande `queue:work` servie en préproduction porte un `--timeout` supérieur au
   budget de la chaîne SMS, relu dans la Compose déployée et pas seulement dans le dépôt.
-- [ ] AC3 — les variables de la préproduction relevées dans Dokploy portent un `CACHE_PREFIX`
-  propre à l'environnement.
+- [x] AC3 — sans objet depuis le 2026-10-25 : chaque environnement a son Redis (TCK-880,
+  ADR-0069 § 4), et P05.09 est `caduc`.
 - [ ] AC4 — une image téléversée en préproduction est optimisée (binaire présent dans l'image,
   `which jpegoptim` dans le conteneur), ou le bloc d'optimiseurs n'existe plus.
 - [ ] AC5 — `next build` en mode production ne déclare plus `dangerouslyAllowSVG` ni
