@@ -40,6 +40,9 @@ class LoginLock
     /** Passe 2 (p2-3) — durée de vie d'une série d'échecs, depuis son premier : celle du leurre. */
     public const SERIES_HOURS = 24;
 
+    /** Les clés du verrou du mot de passe dans `users.metadata`. */
+    public const COUNTER_KEYS = ['locked_at', 'failed_login_attempts', 'failed_login_first_at'];
+
     public function __construct(private readonly CacheRepository $cache) {}
 
     public function isLocked(User $user): bool
@@ -72,48 +75,57 @@ class LoginLock
         return $echeances === [] ? null : max($echeances);
     }
 
+    /**
+     * P245.02 (TCK-2367) — la règle se joue en base, en une instruction, sur la `metadata` de la
+     * ligne ({@see MetadataDuCompte}) : recomposée depuis le compte chargé, elle comptait 1 pour deux
+     * échecs croisés, et effaçait le drapeau d'une réinitialisation de la 2FA écrite entre-temps.
+     * Chaque étape porte le nom de celle qu'elle remplace.
+     */
     public function recordFailure(User $user): void
     {
-        $metadata = $user->metadata ?? [];
-        $lockedAt = $metadata['locked_at'] ?? null;
+        $now = now();
+        $colonne = MetadataDuCompte::COLONNE;
+        // `isset()` : la clé est là, et n'est pas `null`.
+        $echuVerrouille = "COALESCE(jsonb_typeof(echu.m->'locked_at'), 'null') <> 'null'";
+        $premierPose = "COALESCE(jsonb_typeof(serie.m->'failed_login_first_at'), 'null') <> 'null'";
+        $premierVerrouille = "COALESCE(jsonb_typeof(premier.m->'locked_at'), 'null') <> 'null'";
 
-        // Un verrou échu ne compte plus : la série repart de zéro.
-        if (is_string($lockedAt) && ! $this->stillRunning(Carbon::parse($lockedAt))) {
-            unset($metadata['locked_at'], $metadata['failed_login_first_at']);
-            $metadata['failed_login_attempts'] = 0;
-        }
-
-        // Passe 2 (p2-3) — une série vit 24 h depuis son premier échec, comme le leurre d'une
-        // adresse inconnue (sa clé de cache). Sans cette fenêtre, le compteur du compte durait
-        // toujours, celui du leurre non : neuf échecs anciens verrouillaient `connu@` au premier
-        // essai suivant, jamais `inconnu@`, et le verrou énumérait de nouveau les adresses.
-        $firstAt = $metadata['failed_login_first_at'] ?? null;
-        if (! isset($metadata['locked_at']) && is_string($firstAt)
-            && Carbon::parse($firstAt)->addHours(self::SERIES_HOURS)->isPast()) {
-            unset($metadata['failed_login_first_at']);
-            $metadata['failed_login_attempts'] = 0;
-        }
-        $metadata['failed_login_first_at'] ??= now()->toIso8601String();
-
-        $failures = (int) ($metadata['failed_login_attempts'] ?? 0) + 1;
-        $metadata['failed_login_attempts'] = $failures;
-        if ($failures >= self::MAX_FAILURES && ! isset($metadata['locked_at'])) {
-            $metadata['locked_at'] = now()->toIso8601String();
-        }
-
-        $user->forceFill(['metadata' => $metadata])->save();
+        MetadataDuCompte::ecrire($user, <<<SQL
+            (SELECT CASE WHEN echec.nombre >= ? AND NOT echec.verrouille
+                         THEN jsonb_set(echec.m, '{locked_at}', to_jsonb(?::text))
+                         ELSE echec.m END
+               FROM (SELECT {$colonne} AS m) lue
+              -- Un verrou échu ne compte plus : la série repart de zéro.
+              CROSS JOIN LATERAL (SELECT CASE
+                    WHEN jsonb_typeof(lue.m->'locked_at') = 'string' AND (lue.m->>'locked_at')::timestamptz <= ?::timestamptz
+                    THEN (lue.m - 'locked_at' - 'failed_login_first_at') || '{"failed_login_attempts": 0}'::jsonb
+                    ELSE lue.m END AS m) echu
+              -- Passe 2 (p2-3) — une série vit 24 h depuis son premier échec, comme le leurre.
+              CROSS JOIN LATERAL (SELECT CASE
+                    WHEN NOT ({$echuVerrouille}) AND jsonb_typeof(echu.m->'failed_login_first_at') = 'string'
+                         AND (echu.m->>'failed_login_first_at')::timestamptz < ?::timestamptz
+                    THEN (echu.m - 'failed_login_first_at') || '{"failed_login_attempts": 0}'::jsonb
+                    ELSE echu.m END AS m) serie
+              CROSS JOIN LATERAL (SELECT CASE
+                    WHEN {$premierPose} THEN serie.m
+                    ELSE jsonb_set(serie.m, '{failed_login_first_at}', to_jsonb(?::text)) END AS m) premier
+              CROSS JOIN LATERAL (SELECT COALESCE((premier.m->>'failed_login_attempts')::int, 0) + 1 AS nombre,
+                                         {$premierVerrouille} AS verrouille) compte
+              CROSS JOIN LATERAL (SELECT jsonb_set(premier.m, '{failed_login_attempts}', to_jsonb(compte.nombre)) AS m,
+                                         compte.nombre, compte.verrouille) echec)
+            SQL, [
+            self::MAX_FAILURES,
+            $now->toIso8601String(),
+            $now->copy()->subMinutes(self::LOCK_MINUTES)->toIso8601String(),
+            $now->copy()->subHours(self::SERIES_HOURS)->toIso8601String(),
+            $now->toIso8601String(),
+        ]);
     }
 
+    /** Un succès remet le compteur à zéro — sur la ligne en base, comme l'échec (P245.02). */
     public function clear(User $user): void
     {
-        $metadata = $user->metadata ?? [];
-        if (! array_key_exists('locked_at', $metadata) && ! array_key_exists('failed_login_attempts', $metadata)
-            && ! array_key_exists('failed_login_first_at', $metadata)) {
-            return;
-        }
-
-        unset($metadata['locked_at'], $metadata['failed_login_attempts'], $metadata['failed_login_first_at']);
-        $user->forceFill(['metadata' => $metadata])->save();
+        MetadataDuCompte::retirer($user, self::COUNTER_KEYS);
     }
 
     // -----------------------------------------------------------------

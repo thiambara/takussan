@@ -87,15 +87,22 @@ class RemindTenantOnboarding extends Command
         return self::SUCCESS;
     }
 
+    /**
+     * TCK-2368 (P238.01) — un rappel parti avant la dernière réouverture de l'EDL d'entrée
+     * (`inventory_reopened`) ne compte plus : le rappel rejoue une fois par réouverture.
+     */
     private function alreadyReminded(TenantOnboardingChecklist $checklist): bool
     {
+        $reminded = false;
         foreach ($checklist->reminders_sent ?? [] as $entry) {
             $type = is_array($entry) ? ($entry['type'] ?? null) : null;
             if ($type === TenantOnboardingChecklist::REMINDER_INVENTORY_D7) {
-                return true;
+                $reminded = true;
+            } elseif ($type === TenantOnboardingChecklist::REMINDER_INVENTORY_REOPENED) {
+                $reminded = false;
             }
         }
 
-        return false;
+        return $reminded;
     }
 }

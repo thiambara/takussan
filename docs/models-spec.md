@@ -2836,9 +2836,9 @@ invitation sans e-mail existe : le retour en arrière ne supprime pas d'invitati
 | user_id | FK users | | | Le résident (Customer) |
 | welcome_seen_at | datetime | oui | null | Welcome modale "Espace résident" vue |
 | inventory_completed_at | datetime | oui | null | État des lieux d'entrée signé (référence `Inventory` via `lease_id`) |
-| first_payment_at | datetime | oui | null | Premier paiement enregistré (acompte ou 1er loyer, voir `LeasePayment`) |
+| first_payment_at | datetime | oui | null | Premier paiement enregistré : loyer ou caution versé par le locataire (`LeasePayment.payment_type` `rent` ou `deposit` — ni restitution de caution, ni charges, pénalité ou régularisation) ; un remboursement ne décoche pas la case (TCK-2368) |
 | documents_acknowledged_at | datetime | oui | null | Bail + EDL accusés réception |
-| reminders_sent | jsonb | | '[]' | Liste des rappels envoyés (ex. `[{type:'inventory', sent_at:...}]`) |
+| reminders_sent | jsonb | | '[]' | Liste des rappels envoyés (ex. `[{type:'inventory_d7', sent_at:...}]`), et des réouvertures de l'EDL d'entrée (`{type:'inventory_reopened', sent_at:...}`, TCK-2368) |
 | completed_at | datetime | oui | null | Tous les items requis cochés |
 | created_at | datetime | | auto | |
 | updated_at | datetime | | auto | |
@@ -2856,6 +2856,8 @@ invitation sans e-mail existe : le retour en arrière ne supprime pas d'invitati
 - Items requis pour `completed_at` : `inventory_completed_at` + `first_payment_at` (les deux autres sont informatifs).
 - Cron horaire : si `inventory_completed_at` null à J+7 de la signature → notification rappel locataire + notification agent.
 - N'est pas créé si l'agence n'a pas activé le workflow EDL (configurable via `Agency.settings.tenant_onboarding_enabled`).
+- N'est pas créé pour un bail renouvelé (`renewed_from_lease_id` posé), qu'il naisse `active` ou soit signé plus tard : le locataire est déjà en place. Ni liste, ni rappel d'état des lieux, ni message de bienvenue (TCK-2368).
+- Un EDL d'entrée qui sort de `signed` (contesté) décoche `inventory_completed_at`, rouvre la liste (`completed_at` à nul) et rejoue le rappel J+7 une fois (marque `inventory_reopened`), tant qu'aucun autre EDL d'entrée du bail n'est signé (TCK-2368).
 
 ---
 
