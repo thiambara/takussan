@@ -36,6 +36,19 @@ class PropertyCollaboratorTest extends TestCase
         return [$bailleur, Property::factory()->create(['user_id' => $bailleur->id, 'agency_id' => $agence->id])];
     }
 
+    /**
+     * TCK-2364 (P241.01, ADR-0049 amendé le 2026-10-25) — la part de commission ne s'écrit que par le
+     * personnel de l'agence du bien qui tient `leases.create` : les cas du plafond la posent en admin
+     * de l'agence, plus en bailleur (403 `property.commission_share_forbidden`).
+     */
+    private function adminDe(int $agencyId): User
+    {
+        $admin = User::factory()->create();
+        AgencyAdminProfile::factory()->create(['user_id' => $admin->id, 'agency_id' => $agencyId]);
+
+        return $admin;
+    }
+
     private function agentDe(int $agencyId): User
     {
         $agent = User::factory()->create();
@@ -54,10 +67,8 @@ class PropertyCollaboratorTest extends TestCase
         $this->postJson("/api/properties/{$property->id}/collaborators", [
             'user_id' => $collaborator->id,
             'role' => CollaboratorRole::Agent->value,
-            'commission_share' => 10,
         ])->assertCreated()
-            ->assertJsonPath('data.role', CollaboratorRole::Agent->value)
-            ->assertJsonPath('data.commission_share', '10.00');
+            ->assertJsonPath('data.role', CollaboratorRole::Agent->value);
 
         $this->assertDatabaseCount('property_collaborators', 1);
     }
@@ -150,7 +161,7 @@ class PropertyCollaboratorTest extends TestCase
 
     public function test_store_rejects_when_total_commission_exceeds_100(): void
     {
-        [$owner, $property] = $this->bienDUnBailleur();
+        [, $property] = $this->bienDUnBailleur();
 
         PropertyCollaborator::create([
             'property_id' => $property->id,
@@ -162,7 +173,7 @@ class PropertyCollaboratorTest extends TestCase
 
         $new = $this->agentDe($property->agency_id);
 
-        Sanctum::actingAs($owner);
+        Sanctum::actingAs($this->adminDe($property->agency_id));
 
         $this->postJson("/api/properties/{$property->id}/collaborators", [
             'user_id' => $new->id,
@@ -174,7 +185,7 @@ class PropertyCollaboratorTest extends TestCase
 
     public function test_store_allows_boundary_total_commission_of_exactly_100(): void
     {
-        [$owner, $property] = $this->bienDUnBailleur();
+        [, $property] = $this->bienDUnBailleur();
 
         PropertyCollaborator::create([
             'property_id' => $property->id,
@@ -186,7 +197,7 @@ class PropertyCollaboratorTest extends TestCase
 
         $new = $this->agentDe($property->agency_id);
 
-        Sanctum::actingAs($owner);
+        Sanctum::actingAs($this->adminDe($property->agency_id));
 
         $this->postJson("/api/properties/{$property->id}/collaborators", [
             'user_id' => $new->id,
@@ -197,7 +208,7 @@ class PropertyCollaboratorTest extends TestCase
 
     public function test_update_rejects_when_total_commission_exceeds_100(): void
     {
-        [$owner, $property] = $this->bienDUnBailleur();
+        [, $property] = $this->bienDUnBailleur();
 
         PropertyCollaborator::create([
             'property_id' => $property->id,
@@ -215,7 +226,7 @@ class PropertyCollaboratorTest extends TestCase
             'invited_at' => now(),
         ]);
 
-        Sanctum::actingAs($owner);
+        Sanctum::actingAs($this->adminDe($property->agency_id));
 
         $this->putJson("/api/properties/{$property->id}/collaborators/{$collab->id}", [
             'commission_share' => 50,
@@ -225,7 +236,7 @@ class PropertyCollaboratorTest extends TestCase
 
     public function test_update_allows_boundary_total_commission_of_exactly_100(): void
     {
-        [$owner, $property] = $this->bienDUnBailleur();
+        [, $property] = $this->bienDUnBailleur();
 
         PropertyCollaborator::create([
             'property_id' => $property->id,
@@ -243,7 +254,7 @@ class PropertyCollaboratorTest extends TestCase
             'invited_at' => now(),
         ]);
 
-        Sanctum::actingAs($owner);
+        Sanctum::actingAs($this->adminDe($property->agency_id));
 
         $this->putJson("/api/properties/{$property->id}/collaborators/{$collab->id}", [
             'commission_share' => 40,
@@ -258,7 +269,7 @@ class PropertyCollaboratorTest extends TestCase
         // literal "FOR UPDATE" clause (the grammar strips it), so we instead
         // assert the transaction nesting level at the moment the collaborator
         // row is being created.
-        [$owner, $property] = $this->bienDUnBailleur();
+        [, $property] = $this->bienDUnBailleur();
 
         PropertyCollaborator::create([
             'property_id' => $property->id,
@@ -275,7 +286,7 @@ class PropertyCollaboratorTest extends TestCase
             $observedLevel = DB::transactionLevel();
         });
 
-        Sanctum::actingAs($owner);
+        Sanctum::actingAs($this->adminDe($property->agency_id));
 
         $this->postJson("/api/properties/{$property->id}/collaborators", [
             'user_id' => $new->id,
@@ -529,11 +540,11 @@ class PropertyCollaboratorTest extends TestCase
 
     public function test_store_et_update_ne_rendent_du_compte_que_la_projection(): void
     {
-        [$bailleur, $property] = $this->bienDUnBailleur();
+        [, $property] = $this->bienDUnBailleur();
         $agent = $this->agentDe($property->agency_id);
         $agent->forceFill(['google_id' => 'g-456'])->save();
 
-        Sanctum::actingAs($bailleur);
+        Sanctum::actingAs($this->adminDe($property->agency_id));
         $cree = $this->postJson("/api/properties/{$property->id}/collaborators", [
             'user_id' => $agent->id, 'role' => CollaboratorRole::Agent->value, 'commission_share' => 10,
         ])->assertCreated();

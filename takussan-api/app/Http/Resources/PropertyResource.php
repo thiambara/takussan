@@ -223,9 +223,14 @@ class PropertyResource extends BaseResource
                     'role' => $collaborator->role?->value,
                     // TCK-504 — la marque d'agent principal (ADR-0053), telle qu'en base.
                     'is_primary' => (bool) $collaborator->is_primary,
-                    'commission_share' => $collaborator->commission_share !== null
-                        ? (float) $collaborator->commission_share
-                        : null,
+                    // TCK-2364 (P241.03) — à qui fixe les parts seulement, comme la liste des
+                    // collaborateurs : le bailleur du bien ne les lit plus.
+                    'commission_share' => $this->when(
+                        PropertyCollaboratorResource::partsLisibles($request, $this->resource),
+                        fn () => $collaborator->commission_share !== null
+                            ? (float) $collaborator->commission_share
+                            : null,
+                    ),
                     'user' => $collaborator->relationLoaded('user') && $collaborator->user
                         ? [
                             'id' => $collaborator->user->id,

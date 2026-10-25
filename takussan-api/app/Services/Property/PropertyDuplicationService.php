@@ -101,6 +101,7 @@ class PropertyDuplicationService
             }
 
             if ($copyCollaborators) {
+                $partsCopiees = $actor->can('manageCommissionShares', $clone);
                 foreach ($source->collaborators as $collab) {
                     // TCK-1478 (P86.05) — la ligne se rejuge comme un ajout fait par `$actor` : un
                     // agent sorti de l'agence, ou un `co_owner` qui n'y est plus bailleur, est écarté
@@ -108,9 +109,14 @@ class PropertyDuplicationService
                     if (! $this->stillEligible($clone, $collab, $actor)) {
                         continue;
                     }
-                    $clone->collaborators()->create($collab->only([
-                        'user_id', 'role', 'commission_share', 'invited_at', 'metadata',
-                    ]));
+                    // TCK-2364 (P241.03, ADR-0049 amendé le 2026-10-25) — la ventilation ne suit
+                    // la copie que si `$actor` pourrait l'écrire : le bailleur copie les lignes,
+                    // sans leur part.
+                    $ligne = $collab->only(['user_id', 'role', 'commission_share', 'invited_at', 'metadata']);
+                    if (! $partsCopiees) {
+                        $ligne['commission_share'] = null;
+                    }
+                    $clone->collaborators()->create($ligne);
                 }
 
                 // TCK-504 (vérification adverse m4) — le clone répond par le même agent que la

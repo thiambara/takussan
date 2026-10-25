@@ -235,7 +235,6 @@ class DoubleEnvoiVerrouilleLaLigneMereTest extends ApiTestCase
         $requetes = $this->requetesDe(fn () => $this->postJson("/api/properties/{$property->id}/collaborators", [
             'user_id' => $agent->id,
             'role' => CollaboratorRole::Agent->value,
-            'commission_share' => 30,
         ])->assertCreated());
 
         $this->assertVerrouAvant(

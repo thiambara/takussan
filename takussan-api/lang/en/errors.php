@@ -481,6 +481,7 @@ return [
         'cannot_publish' => 'Sold or rented properties cannot be published.',
         'cannot_unpublish' => 'Only available properties can be unpublished.',
         'collaborator_exists' => 'This collaborator is already added to this property.',
+        'commission_share_forbidden' => 'Only agency staff allowed to open leases can set a collaborator\'s commission share.',
         'collaborator_not_found' => 'This collaborator is not part of this property.',
         'has_confirmed_booking' => 'This property has a confirmed booking: cancel it before deleting the property.',
         'has_upcoming_visit' => 'This property has an upcoming visit: cancel it before deleting the property.',
