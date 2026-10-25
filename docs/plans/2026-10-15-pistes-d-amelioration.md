@@ -506,7 +506,7 @@ Sain (vérifié par l'agent) :
 
 ### Brouillons : les photos ne sont jamais sauvées, rien n'est gardé hors ligne
 - Réf : P08.05
-- Statut : validé — validation du porteur (2026-10-25) : l'enregistrement automatique du brouillon reprend au retour du réseau (`online`) ; reste : copie hors ligne des valeurs et des photos (IndexedDB), plus tard
+- Statut : fait · TCK-2331 — reste : copie hors ligne des valeurs et des photos (IndexedDB), plus tard
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/property-form/PropertyWizard.tsx:240,465-470`, `takussan-web/src/hooks/useWizardDraft.ts:166-188`
 - Constat :
@@ -515,16 +515,18 @@ Sain (vérifié par l'agent) :
 - Piste : une copie IndexedDB (valeurs et `File`) et une relance sur `online`.
 - Mesure (2026-10-15, ccabd662, mesureur) : lu `PropertyWizard.tsx:240` (`useState<File[]>([])`, photos en mémoire seule) et `useWizardDraft.ts:167-193` (`performSave` : un `PUT /api/me/wizard-drafts/{key}` seul, aucune copie locale) ; `grep "'online'\|'offline'\|indexedDB" takussan-web/src` hors tests → rien → tient. Classement : V7 et V8, garder les `File` en IndexedDB et relancer au retour du réseau est un comportement visible neuf (reprise hors ligne, quota, purge), au-delà d'un ticket M.
 - Mesure (2026-10-25, ece5a91ea, humain) : validation du porteur en bloc (2026-10-25) sur la re-vérification de la session à c35c20d16 ; statut précédent : « retenu · à valider — V7 et V8 : une copie hors ligne des brouillons et de leurs photos est une fonction neuve ; porteur (2026-10-15) : plus tard ».
+- Mesure (2026-10-25, 0adc9ed6a, implementeur) : reproduit avant correctif par `useWizardDraft.reprise-en-ligne.tck-2331.test.ts` : un `PUT` débouncé qui échoue par coupure (`fetch` rejette) n'est jamais renvoyé à l'évènement `online` (1 rouge) → `useWizardDraft` garde la dernière écriture échouée et la rejoue sur `online`, sauf si une écriture plus récente est en attente ou en vol ; une réussite et `clear()` l'effacent (4 verts, `useWizardDraft.test.ts` et les assistants `PropertyWizard`, `UpgradeRequestForm`, `HostIndividualWizard`, `useAutosaveBrouillon` verts). Ablation : écouteur retiré → 1 rouge ; effacement sur réussite retiré → 1 rouge ; effacement dans `clear()` retiré → 1 rouge ; remis → 4/4. Rien n'est copié hors ligne (reste).
 
 ### Des tableaux sans alternative en cartes, l'action en dernière colonne
 - Réf : P08.07
-- Statut : validé — validation du porteur (2026-10-25) : option `carteMobile` de `DataTable` (cartes sous `md`), sur le patron de `CustomerList` et `PropertyList`, adoptée d'abord sur les écrans de paiements et de factures ; reste : les autres consommateurs de `DataTable`, par lots
+- Statut : fait · TCK-2331 — reste : les autres consommateurs de `DataTable`, par lots
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/console/DataTable.tsx:140`, `owners/OwnersList.tsx:209-230`, `service-providers/ServiceProvidersList.tsx:163,223`, `commissions/CommissionsLedger.tsx:126,212`, `payments/InvoicesTable.tsx:74,99-106`
 - Constat : sur 32 consommateurs de `DataTable`, seuls `CustomerList` et `PropertyList` ont une liste mobile. Ailleurs, l'action ne s'atteint qu'après un défilement horizontal (mesuré).
 - Piste : une option `carteMobile` dans `DataTable`, ou la ligne cliquable avec l'action en tête.
 - Mesure (2026-10-15, 66ed4340, mesureur) : `grep -rl '<DataTable' takussan-web/src` hors tests → **32** fichiers ; parmi eux, seuls `CustomerList.tsx` et `PropertyList.tsx` portent un `md:hidden`/`sm:hidden`/`lg:hidden` ; `DataTable.tsx:140` enveloppe la table sans vue en cartes → tient. La position de l'action en dernière colonne n'a pas été relue fichier par fichier. Classement : V7 et V8, choisir entre cartes et ligne cliquable est du design, et l'appliquer à 30 consommateurs dépasse un ticket M.
 - Mesure (2026-10-25, ece5a91ea, humain) : validation du porteur en bloc (2026-10-25) sur la re-vérification de la session à c35c20d16 ; statut précédent : « retenu · à valider — V7 et V8 : une présentation mobile de 30 tableaux est un choix de design ; porteur (2026-10-15) : plus tard ».
+- Mesure (2026-10-25, 0adc9ed6a, implementeur) : relu `DataTable.tsx` (aucune vue mobile) et `payments/InvoicesTable.tsx`, `PaymentsHistoryTable.tsx` (des `<table>` à la main, « Ouvrir » et le lien du bail en dernière colonne) → option `carteMobile` de `DataTable` (liste nommée par `caption` en `md:hidden`, table en `hidden md:block`, état vide dans les deux vues), et les onglets Factures et Paiements de `/app/payments` convertis à `DataTable` avec leurs cartes (action à pleine largeur, 44 px). `DataTable.carte-mobile.tck-2331.test.tsx` (3) et `cartes-mobiles.tck-2331.test.tsx` (2) ; les tests TCK-505 et TCK-912 de ces tables, lus sur la table, verts. Ablation : vue en cartes retirée de `DataTable` → 4 rouges ; remis → verts. La bascule n'est pas mesurée au navigateur.
 
 ## Angle 9 — Pages publiques : SEO et partage
 
