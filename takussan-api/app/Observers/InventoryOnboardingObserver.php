@@ -20,6 +20,9 @@ use App\Services\Tenant\TenantOnboardingService;
  * Filtres : seul l'EDL **d'entrée** (`InventoryType::MoveIn`) compte
  * pour l'onboarding ; un EDL de sortie marque la fin du bail et n'a
  * pas à flipper la checklist.
+ *
+ * TCK-2368 (P238.01) — et la sortie de `signed` (contestation) décoche la case : la liste se
+ * rouvre et le rappel J+7 rejoue, tant qu'aucun autre EDL d'entrée du bail n'est signé.
  */
 class InventoryOnboardingObserver
 {
@@ -30,9 +33,6 @@ class InventoryOnboardingObserver
         if (! $inventory->wasChanged('status')) {
             return;
         }
-        if ($inventory->status !== InventoryStatus::Signed) {
-            return;
-        }
         if ($inventory->lease_id === null) {
             return;
         }
@@ -40,7 +40,11 @@ class InventoryOnboardingObserver
             return;
         }
 
-        $this->markChecklist($inventory);
+        if ($inventory->status === InventoryStatus::Signed) {
+            $this->markChecklist($inventory);
+        } elseif ($inventory->getOriginal('status') === InventoryStatus::Signed) {
+            $this->reopenChecklist($inventory);
+        }
     }
 
     public function created(Inventory $inventory): void
@@ -71,5 +75,28 @@ class InventoryOnboardingObserver
         }
 
         $this->service->markItem($checklist, TenantOnboardingChecklist::ITEM_INVENTORY_COMPLETED);
+    }
+
+    private function reopenChecklist(Inventory $inventory): void
+    {
+        $anotherSigned = Inventory::query()
+            ->where('lease_id', $inventory->lease_id)
+            ->where('type', InventoryType::MoveIn)
+            ->where('status', InventoryStatus::Signed)
+            ->whereKeyNot($inventory->id)
+            ->exists();
+        if ($anotherSigned) {
+            return;
+        }
+
+        $checklist = TenantOnboardingChecklist::query()
+            ->where('lease_id', $inventory->lease_id)
+            ->first();
+
+        if ($checklist === null) {
+            return;
+        }
+
+        $this->service->reopenItem($checklist, TenantOnboardingChecklist::ITEM_INVENTORY_COMPLETED);
     }
 }
