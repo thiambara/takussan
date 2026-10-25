@@ -14,8 +14,9 @@ use App\Services\Model\NotificationService;
 /**
  * TCK-997 (P15.06, P50.01, P50.03 ; ADR-0036, amendement du 2026-10-19) — le titulaire d'un bien
  * (`properties.user_id`) se fixe à sa CRÉATION : la saisie, le lot et la copie. Ce service ne
- * l'écrit jamais après coup (ni transfert à l'acceptation, TCK-1000, ni « changer le titulaire »,
- * TCK-999).
+ * l'écrit jamais après coup : le transfert (« changer le titulaire », TCK-999, et l'acceptation
+ * d'une invitation, TCK-1000) est {@see PropertyOwnerTransfer}, qui lit ici la même règle du
+ * bailleur désignable ({@see self::bailleurActif()}) et le même avis ({@see self::prevenir()}).
  *
  * À la saisie (`PropertyController::store`) :
  *  - `owner_id` envoyé : un bailleur ACTIF de l'agence du bien, jamais du personnel ; refusé pour
@@ -95,6 +96,12 @@ final class TitulaireALaSaisie
             ->event('owner_designated')
             ->log('owner_designated');
 
+        $this->prevenir($bien);
+    }
+
+    /** Q6 — le bailleur au nom duquel le bien est désormais tenu en est prévenu. */
+    public function prevenir(Property $bien): void
+    {
         $bailleur = User::query()->find($bien->user_id);
         if ($bailleur !== null) {
             app(NotificationService::class)->send(
@@ -108,7 +115,7 @@ final class TitulaireALaSaisie
     }
 
     /** Un profil propriétaire ACTIF dans l'agence, et aucun profil actif de personnel. */
-    private function bailleurActif(int $userId, int $agencyId): bool
+    public function bailleurActif(int $userId, int $agencyId): bool
     {
         $user = User::query()->find($userId);
 

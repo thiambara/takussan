@@ -17,6 +17,7 @@ use App\Services\Membership\MembershipCapabilityResolver;
 use App\Services\Property\CoutDEntree;
 use App\Services\Property\PrimaryPropertyContact;
 use App\Services\Property\PropertyContactNumbers;
+use App\Services\Property\TitulaireALaSaisie;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
@@ -237,6 +238,16 @@ class PropertyResource extends BaseResource
                         ]
                         : null,
                 ])->values()->all()
+            ),
+            // TCK-999 (P15.06, Q5) — la fiche pro offre « Changer le titulaire » à qui le geste est
+            // permis (`PropertyPolicy::transferOwner`) sur un bien que le personnel tient encore : la
+            // même règle que l'API applique au geste (`PropertyOwnerTransfer::refus`, hors cible).
+            'abilities' => $this->when(
+                $isDetail && $appelantConnu,
+                fn (): array => [
+                    'transfer_owner' => $request->user()->can('transferOwner', $this->resource)
+                        && ! TitulaireALaSaisie::tenuParUnBailleur($this->resource),
+                ],
             ),
             'agency' => $this->when(
                 $isDetail || $this->resource->relationLoaded('agency'),

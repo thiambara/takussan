@@ -480,6 +480,7 @@ return [
         'owner_designation_forbidden' => 'Le bailleur ne se désigne pas ici : seul le personnel d\'une agence standard saisit un bien au nom d\'un de ses bailleurs.',
         'owner_not_in_agency' => 'Le bailleur choisi n\'est pas un bailleur actif de l\'agence du bien.',
         'parent_owner_mismatch' => 'Un lot appartient au bailleur du bien qui le contient : ce lot a un autre titulaire.',
+        'owner_transfer_forbidden' => 'Ce bien ne change pas de titulaire : il appartient déjà à un bailleur de l\'agence, et un bien ne se retire pas à son bailleur.',
         'primary_not_eligible' => 'Seul un agent actif de l\'agence du bien peut en être l\'agent principal.',
         'primary_requires_agent' => 'Seul un collaborateur de rôle agent peut être l\'agent principal du bien.',
         'publish_contact_incomplete' => "Pour publier, le contact du bien doit avoir un prénom et un numéro vérifié, et les conditions d'utilisation doivent être acceptées.",

@@ -480,6 +480,7 @@ return [
         'owner_designation_forbidden' => 'The landlord cannot be chosen here: only the staff of a standard agency saves a property in the name of one of its landlords.',
         'owner_not_in_agency' => 'The chosen landlord is not an active landlord of the property\'s agency.',
         'parent_owner_mismatch' => 'A unit belongs to the landlord of the property that contains it: this unit has another holder.',
+        'owner_transfer_forbidden' => 'This property cannot change holder: it already belongs to a landlord of the agency, and a property is never taken from its landlord.',
         'primary_not_eligible' => 'Only an active agent of the property\'s agency can be its primary agent.',
         'primary_requires_agent' => 'Only a collaborator with the agent role can be the property\'s primary agent.',
         'publish_contact_incomplete' => 'To publish, the property contact needs a first name and a verified number, and the terms of use must be accepted.',
