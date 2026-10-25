@@ -51,6 +51,13 @@ RUN apt-get update \
  && apt-mark manual libzstd1 liblz4-1 \
  && apt-get purge -y libzstd-dev liblz4-dev && apt-get autoremove -y \
  && rm -rf /var/lib/apt/lists/* /tmp/phpredis.tgz /tmp/liblzf.tgz /tmp/empreintes
+# P10.10 (TCK-2355) — jpegoptim, SEUL des sept optimiseurs de config/media-library.php à être
+# installé (décision du porteur, 2026-10-25). Les six autres restent absents, et Spatie les saute
+# sans rien dire. Version de bookworm lue le 2026-10-25 dans l'image de base. smoke-api.sh image
+# vérifie le binaire et qu'une photo à EXIF en ressort sans.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends jpegoptim=1.4.7-1 \
+ && rm -rf /var/lib/apt/lists/*
 COPY docker/php.ini "$PHP_INI_DIR/conf.d/zz-takussan.ini"
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 WORKDIR /app

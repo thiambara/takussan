@@ -164,6 +164,9 @@
         <!-- TCK-620 — `.env.docker` allume la connexion par téléphone : la suite ne doit pas en hériter.
              Les tests qui la veulent l'allument pour eux seuls (`PhoneLoginTest`). -->
         <env name="PHONE_LOGIN_ENABLED" value="false"/>
+        <!-- TCK-2356 — le canal `exceptions` écrit sur `php://stdout` : la suite y imprimerait une ligne
+             par exception rapportée. Détourné en mémoire ; `ExceptionJsonStdoutTest` le relit dans un fichier. -->
+        <env name="LOG_EXCEPTIONS_STREAM" value="php://memory"/>
         <env name="SMS_ORANGE_OAUTH_URL" value="https://api.orange.com/oauth/v3/token"/>
         <env name="SMS_ORANGE_SEND_URL" value="https://api.orange.com/smsmessaging/v1/outbound/{senderAddress}/requests"/>
         <env name="SMS_MTARGET_SEND_URL" value="https://api-public-2.mtarget.fr/messages"/>

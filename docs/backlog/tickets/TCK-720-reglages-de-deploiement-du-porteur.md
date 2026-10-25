@@ -56,21 +56,27 @@ où chaque constat est sourcé et daté.
 - *2026-10-25 : la ligne **P05.09** (`CACHE_PREFIX` par environnement) est retirée. La piste est
   `caduc`, car depuis TCK-880 chaque environnement a son Redis (ADR-0069 § 4). Le préfixe ne
   protège donc plus rien.*
-- [ ] **P10.10** — image de l'API : installer `jpegoptim`, `pngquant`, `optipng`, `gifsicle`,
+- [x] **P10.10** — image de l'API : installer `jpegoptim`, `pngquant`, `optipng`, `gifsicle`,
   `cwebp` et `avifenc` dans `takussan-api/Dockerfile`, **ou** retirer le bloc d'optimiseurs de
   `config/media-library.php` et son commentaire `--strip-all`, qui laisse croire que l'EXIF est
   retiré. Choix à faire.
-- [ ] **P10.10** — `takussan-web/next.config.ts` : `dangerouslyAllowSVG` et
+  *2026-10-25 : choix du porteur, `jpegoptim` seul, installé par TCK-2355 ; le commentaire dit
+  désormais ce qui tourne (les conversions seules, jamais l'original).*
+- [x] **P10.10** — `takussan-web/next.config.ts` : `dangerouslyAllowSVG` et
   `dangerouslyAllowLocalIP` limités au développement (ou une `contentSecurityPolicy` si le SVG
   distant doit rester), et le commentaire de `deviceSizes` corrigé (`full` à 1600 px, pas
   `preview` à 800 px).
 - *2026-10-25 : la ligne **P10.10** sur l'avatar est retirée. L'avatar est déjà servi en
   `thumbnail` 150 px (`User::avatarUrl()`, TCK-762, P10.05).*
-- [ ] **P65.01** — mesurer dans l'image de l'API le sens de `max_execution_time = 60` sous
+- [x] **P65.01** — mesurer dans l'image de l'API le sens de `max_execution_time = 60` sous
   FrankenPHP (`php -d max_execution_time=1 -r 'sleep(3);'`, puis une requête de plus de 60 s derrière
-  `php_server`) et l'inscrire dans `deploy/takussan/smoke-api.sh image` ; poser `num_threads` et
-  `max_wait_time` dans `docker/Caddyfile` ; relever les délais de Traefik et de Cloudflare dans
-  `docs/infra/hebergement.md` et y corriger l'équivalence avec nginx selon la mesure.
+  `php_server`) et l'inscrire dans `deploy/takussan/smoke-api.sh image` ; et y corriger, dans
+  `docs/infra/hebergement.md`, l'équivalence avec nginx selon la mesure.
+  *2026-10-25 : fait par TCK-2355. PHP est ZTS dans l'image, et `max_execution_time` y borne le
+  temps d'horloge : derrière `php_server`, `sleep(5)` sous une borne de 2 s rend `500` à 2,0 s. La
+  décision du porteur ne retient pas `num_threads` ni `max_wait_time`.*
+- [ ] **P65.01** (reste) — relever les délais de Traefik et de Cloudflare, sur le serveur, dans
+  `docs/infra/hebergement.md`.
 - [ ] **P36.04** — piste faite en session par TCK-943 (un jeton d'URL par fournisseur, repli sur
   `SMS_WEBHOOK_URL_TOKEN`) : poser les trois jetons `SMS_ORANGE_WEBHOOK_URL_TOKEN`,
   `SMS_MTARGET_WEBHOOK_URL_TOKEN` et `SMS_LAM_WEBHOOK_URL_TOKEN`, un par environnement, dans Dokploy, puis reporter l'URL de chacun dans le tableau de bord de son fournisseur. Le jeton
@@ -120,9 +126,12 @@ où chaque constat est sourcé et daté.
 - [x] AC3 — sans objet depuis le 2026-10-25 : chaque environnement a son Redis (TCK-880,
   ADR-0069 § 4), et P05.09 est `caduc`.
 - [ ] AC4 — une image téléversée en préproduction est optimisée (binaire présent dans l'image,
-  `which jpegoptim` dans le conteneur), ou le bloc d'optimiseurs n'existe plus.
-- [ ] AC5 — `next build` en mode production ne déclare plus `dangerouslyAllowSVG` ni
-  `dangerouslyAllowLocalIP` sans `contentSecurityPolicy`.
+  `which jpegoptim` dans le conteneur), ou le bloc d'optimiseurs n'existe plus. *2026-10-25 :
+  vérifié dans l'image locale par `smoke-api.sh image` (TCK-2355) ; reste le conteneur de la
+  préproduction, après promotion.*
+- [x] AC5 — `next build` en mode production ne déclare plus `dangerouslyAllowSVG` ni
+  `dangerouslyAllowLocalIP` sans `contentSecurityPolicy`. *2026-10-25, TCK-2355 : les deux valent
+  `NODE_ENV !== 'production'`, gardé par `next-config.images-dangerously.test.ts`.*
 - [x] AC6 — en préproduction, un accusé posté sur la route d'Orange avec le jeton de LAfricaMobile
   est refusé, et le jeton d'Orange l'ouvre.
 - [ ] AC7 — en préproduction, `API_INTERNAL_URL` est présente dans `takussan-web-preview`
