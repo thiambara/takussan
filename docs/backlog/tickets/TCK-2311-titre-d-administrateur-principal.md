@@ -50,6 +50,8 @@ avant correctif. Le co-administrateur qui tient `agency.update` prend 403 au lie
 - P225.05 : validation du porteur (2026-10-25) : aucun geste neuf de transmission du titre ; la limite est écrite dans ADR-0048
 - P225.06 : validation du porteur (2026-10-25) : `POST /api/agencies` retiré, les tests passent à la fabrique ou à `AgencyProvisioningService`, un test exige le 404
 
+  405 et non 404 (2026-10-25, accord de la session) : `GET api/agencies` (la liste) reste sur ce chemin, et Laravel répond 405 à une méthode qu'aucune route du chemin ne porte plus ; le test exige donc 405 (`http.method_not_allowed`), aucune agence créée et `POST api/agencies` absente de la table des routes, ce qui garde l'intention de la décision : la route n'existe plus.
+
 ## Hypothèses
 
 - **P225.06, 405 et non 404.** `GET api/agencies` (la liste) reste sur le même chemin. Une fois
