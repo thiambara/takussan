@@ -6,7 +6,6 @@ use App\Models\Customer;
 use App\Models\Enums\CustomerPipelineStage;
 use App\Models\Enums\CustomerStatus;
 use App\Models\Enums\UserStatus;
-use App\Models\Profiles\AgentProfile;
 use App\Models\User;
 use Database\Seeders\Support\SeedingContext;
 use Database\Seeders\Support\Timeline;
@@ -22,10 +21,8 @@ class CustomerSeeder extends Seeder
     public function run(): void
     {
         foreach ($this->ctx->agencies as $agency) {
-            $agents = $this->ctx->usersWithProfile(AgentProfile::class, $agency->id);
-            $addedByIds = $agents->isEmpty() ? [null] : $agents->pluck('id')->all();
 
-            for ($i = 0; $i < $this->ctx->config->customersPerAgency; $i++) {
+            for ($i = 0; $i < $this->ctx->volume($this->ctx->config->customersPerAgency, $agency->id); $i++) {
                 $createdAt = Timeline::creation(Timeline::PART_DU_PORTEFEUILLE, Timeline::seedEnd()->subDays(1));
                 $firstName = $this->ctx->faker()->senegaleseFirstName();
                 $lastName = $this->ctx->faker()->senegaleseLastName();
@@ -60,7 +57,7 @@ class CustomerSeeder extends Seeder
                 $customer = Customer::create([
                     'user_id' => $user?->id,
                     'agency_id' => $agency->id,
-                    'added_by_id' => $addedByIds[array_rand($addedByIds)],
+                    'added_by_id' => $this->ctx->agentAu($agency->id, $createdAt),
                     'first_name' => $firstName,
                     'last_name' => $lastName,
                     'email' => $email,

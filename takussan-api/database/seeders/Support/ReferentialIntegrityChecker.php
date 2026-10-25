@@ -2,6 +2,8 @@
 
 namespace Database\Seeders\Support;
 
+use App\Models\Enums\AgencyKind;
+use App\Models\Enums\AgentProfileStatus;
 use App\Models\Enums\BookingStatus;
 use App\Models\Enums\ContractType;
 use App\Models\Enums\CustomerPipelineStage;
@@ -183,7 +185,30 @@ class ReferentialIntegrityChecker
                     ->whereColumn('l.property_id', 'm.property_id')
                     ->whereColumn('c.user_id', 'm.requester_id'))
                 ->count(),
+            // TCK-2378 — un agent n'agit qu'entre son arrivée et son départ ; une agence individuelle
+            // est une personne seule.
+            'visite_menee_par_un_agent_absent' => $this->parUnAgentAbsent('property_visits', 'agent_id', 'scheduled_at'),
+            'bail_suivi_par_un_agent_absent' => $this->parUnAgentAbsent('leases', 'agent_id', 'created_at'),
+            'reservation_saisie_par_un_agent_absent' => $this->parUnAgentAbsent('bookings', 'created_by_id', 'created_at'),
+            'agence_individuelle_avec_un_agent' => DB::table('agent_profiles as ap')
+                ->join('agencies as a', 'a.id', '=', 'ap.agency_id')
+                ->where('a.kind', AgencyKind::Individual->value)
+                ->count(),
         ];
+    }
+
+    /** Les lignes de `$table` dont l'agent n'était pas encore arrivé, ou déjà parti, à leur date. */
+    private function parUnAgentAbsent(string $table, string $colonneAgent, string $colonneDate): int
+    {
+        return DB::table("{$table} as t")
+            ->join('users as u', 'u.id', '=', "t.{$colonneAgent}")
+            ->where(fn (Builder $q) => $q
+                ->whereColumn('u.created_at', '>', "t.{$colonneDate}")
+                ->orWhereExists(fn (Builder $e) => $e->from('agent_profiles as ap')
+                    ->whereColumn('ap.user_id', 'u.id')
+                    ->where('ap.status', AgentProfileStatus::Suspended->value)
+                    ->whereColumn('ap.updated_at', '<=', "t.{$colonneDate}")))
+            ->count();
     }
 
     private function bauxDeLocation(): Builder

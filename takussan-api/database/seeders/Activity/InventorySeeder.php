@@ -9,7 +9,6 @@ use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\PropertyType;
 use App\Models\Inventory;
 use App\Models\Lease;
-use App\Models\Profiles\AgentProfile;
 use App\Models\Property;
 use Carbon\CarbonImmutable;
 use Database\Seeders\Support\SeedingContext;
@@ -47,14 +46,11 @@ class InventorySeeder extends Seeder
                 continue;
             }
 
-            $agents = $this->ctx->usersWithProfile(AgentProfile::class, $lease->agency_id);
-            $conductedBy = $agents->isNotEmpty()
-                ? $agents->pluck('id')->values()->pipe(Tirage::un(...))
-                : $lease->landlord_id;
             $pieces = self::piecesDuBien($property);
 
             if ($lease->renewed_from_lease_id === null) {
-                $this->etatDesLieux($lease, InventoryType::MoveIn, $conductedBy, CarbonImmutable::parse($lease->start_date), InventoryCondition::Good, array_map(
+                $debut = CarbonImmutable::parse($lease->start_date);
+                $this->etatDesLieux($lease, InventoryType::MoveIn, $this->ctx->agentAu($lease->agency_id, $debut) ?? $lease->landlord_id, $debut, InventoryCondition::Good, array_map(
                     fn (string $piece) => ['name' => $piece, 'condition' => mt_rand(1, 100) <= 80 ? 'good' : 'excellent', 'notes' => null],
                     $pieces,
                 ));
@@ -66,7 +62,7 @@ class InventorySeeder extends Seeder
                 default => null,
             };
             if ($sortie !== null) {
-                $this->etatDesLieux($lease, InventoryType::MoveOut, $conductedBy, $sortie, InventoryCondition::Fair, array_map(function (string $piece) {
+                $this->etatDesLieux($lease, InventoryType::MoveOut, $this->ctx->agentAu($lease->agency_id, $sortie) ?? $lease->landlord_id, $sortie, InventoryCondition::Fair, array_map(function (string $piece) {
                     $usee = mt_rand(1, 100) <= 35;
 
                     return ['name' => $piece, 'condition' => $usee ? 'fair' : 'good', 'notes' => $usee ? Tirage::un(self::USURES) : null];

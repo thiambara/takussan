@@ -4,6 +4,7 @@ namespace Database\Seeders\Support;
 
 use App\Models\Agency;
 use App\Models\Enums\AgencyAdminProfileStatus;
+use App\Models\Enums\AgencyKind;
 use App\Models\Enums\AgentProfileStatus;
 use App\Models\Enums\OwnerProfileStatus;
 use App\Models\Enums\PlatformProfileLevel;
@@ -118,6 +119,14 @@ class DemoUsersSeeder extends Seeder
      */
     private function createDemoUser(Agency $agency, array $userData): void
     {
+        // TCK-2378 — une agence `individual` est une personne seule : pas d'agent de démonstration.
+        if ($userData['persona'] === 'agent' && $agency->kind === AgencyKind::Individual) {
+            return;
+        }
+        // Un compte de démonstration a l'ancienneté de l'équipe qu'il rejoint : créé `now()`, il
+        // suivait des visites et des baux antérieurs à son arrivée.
+        $arrivee = Timeline::portfolioStart()->subMonth();
+
         $email = str_replace('@demo.takussan.sn', "@agency{$agency->id}.demo.takussan.sn", $userData['email']);
 
         $user = User::updateOrCreate(
@@ -127,12 +136,13 @@ class DemoUsersSeeder extends Seeder
                 'first_name' => $userData['first_name'],
                 'last_name' => $userData['last_name'],
                 'status' => UserStatus::Active,
-                'email_verified_at' => now(),
+                'email_verified_at' => $arrivee,
                 'password' => Hash::make(self::DEFAULT_PASSWORD),
                 'preferred_language' => 'fr',
                 'timezone' => 'Africa/Dakar',
-                'created_at' => now(),
-                'updated_at' => now(),
+                'last_login_at' => now()->subDay(),
+                'created_at' => $arrivee,
+                'updated_at' => $arrivee,
             ]
         );
 

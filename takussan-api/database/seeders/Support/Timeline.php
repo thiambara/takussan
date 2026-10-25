@@ -39,13 +39,29 @@ class Timeline
 
     /**
      * Une date de création : dans le portefeuille d'avant la fenêtre pour `$partAncienne` % des cas,
-     * dans la fenêtre sinon.
+     * dans la fenêtre sinon, à un rythme qui croît (cf. {@see dateCroissante()}).
      */
     public static function creation(int $partAncienne, CarbonInterface $finDeFenetre): CarbonImmutable
     {
         return mt_rand(1, 100) <= $partAncienne
             ? self::randomDateBetween(self::portfolioStart(), self::seedStart())
-            : self::randomDateBetween(self::seedStart(), $finDeFenetre);
+            : self::dateCroissante(self::seedStart(), $finDeFenetre);
+    }
+
+    /**
+     * Une date dont la densité croît linéairement de `$from` à `$to` : une activité qui monte
+     * (TCK-2378). Le dernier tiers de l'intervalle reçoit 5/9 des tirages, le premier 1/9 — un tirage
+     * uniforme leur en donnait un tiers chacun.
+     */
+    public static function dateCroissante(CarbonInterface $from, CarbonInterface $to): CarbonImmutable
+    {
+        $fromTs = $from->getTimestamp();
+        $toTs = $to->getTimestamp();
+        if ($toTs <= $fromTs) {
+            return CarbonImmutable::createFromTimestamp($fromTs);
+        }
+
+        return CarbonImmutable::createFromTimestamp($fromTs + (int) (($toTs - $fromTs) * sqrt(mt_rand() / mt_getrandmax())));
     }
 
     public static function seedEnd(): CarbonImmutable

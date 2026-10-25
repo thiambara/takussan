@@ -4,10 +4,8 @@ namespace Database\Seeders\Crm;
 
 use App\Models\Enums\RelationshipStatus;
 use App\Models\Enums\RelationshipType;
-use App\Models\Profiles\AgentProfile;
 use App\Models\UserCustomerRelationship;
 use Database\Seeders\Support\SeedingContext;
-use Database\Seeders\Support\Tirage;
 use Illuminate\Database\Seeder;
 
 class UserCustomerRelationshipSeeder extends Seeder
@@ -18,15 +16,14 @@ class UserCustomerRelationshipSeeder extends Seeder
     {
         foreach ($this->ctx->agencies as $agency) {
             $customers = $this->ctx->customersByAgency[$agency->id] ?? collect();
-            $agents = $this->ctx->usersWithProfile(AgentProfile::class, $agency->id);
+            $agents = $this->ctx->equipe($agency->id);
             if ($agents->isEmpty()) {
                 continue;
             }
 
-            $agentIds = $agents->pluck('id')->values();
-
             foreach ($customers as $customer) {
-                $primaryAgent = Tirage::un($agentIds);
+                // L'agent qui a saisi le client le suit (TCK-2378).
+                $primaryAgent = $customer->added_by_id ?? $this->ctx->agentAu($agency->id, $customer->created_at);
                 $startedAt = $customer->created_at;
 
                 UserCustomerRelationship::updateOrCreate(

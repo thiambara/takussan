@@ -4,6 +4,7 @@ namespace Database\Seeders\Core;
 
 use App\Models\Agency;
 use App\Models\Enums\AgencyAdminProfileStatus;
+use App\Models\Enums\AgencyKind;
 use App\Models\Enums\AgentProfileStatus;
 use App\Models\Enums\CollaborationStatus;
 use App\Models\Enums\OwnerProfileStatus;
@@ -16,6 +17,7 @@ use App\Models\Profiles\PlatformProfile;
 use App\Models\Profiles\ServiceProviderAgencyCollaboration;
 use App\Models\Profiles\ServiceProviderProfile;
 use App\Models\User;
+use Carbon\CarbonImmutable;
 use Database\Seeders\Support\SeedingContext;
 use Database\Seeders\Support\Timeline;
 use Database\Seeders\Support\Tirage;
@@ -84,44 +86,78 @@ class UserSeeder extends Seeder
 
         $agency->forceFill(['primary_admin_id' => $admin->id])->save();
 
-        foreach (range(1, 4) as $i) {
-            $this->createUser($agency, [
-                'email' => "agent{$i}@{$domain}",
-                'username' => "{$slug}-agent-{$i}",
-                'first_name' => $this->ctx->faker()->senegaleseFirstName(),
-                'last_name' => $this->ctx->faker()->senegaleseLastName(),
-                'persona' => 'agent',
-                'role' => 'agent',
-            ]);
+        // TCK-2378 — l'équipe est à la taille de l'agence, et une agence `individual` est une personne
+        // seule : son titulaire suit ses dossiers (SeedingContext::equipe()).
+        $taille = $this->ctx->tailles[$agency->id] ?? 1.0;
+        $individuelle = $agency->kind === AgencyKind::Individual;
+        $nbAgents = $individuelle ? 0 : max(1, (int) round(5 * $taille));
+        $agents = [];
+
+        for ($i = 1; $i <= $nbAgents; $i++) {
+            $agents[] = $this->createUser($agency, $this->membre($domain, $slug, 'agent', $i));
         }
 
-        foreach (range(1, 10) as $i) {
-            $this->createUser($agency, [
-                'email' => "owner{$i}@{$domain}",
-                'username' => "{$slug}-owner-{$i}",
-                'first_name' => $this->ctx->faker()->senegaleseFirstName(),
-                'last_name' => $this->ctx->faker()->senegaleseLastName(),
-                'persona' => 'owner',
-                'role' => 'owner',
-            ]);
+        foreach (range(1, max(2, (int) round(10 * $taille))) as $i) {
+            $this->createUser($agency, $this->membre($domain, $slug, 'owner', $i));
         }
 
-        foreach (range(1, 5) as $i) {
-            $this->createUser($agency, [
-                'email' => "provider{$i}@{$domain}",
-                'username' => "{$slug}-provider-{$i}",
-                'first_name' => $this->ctx->faker()->senegaleseFirstName(),
-                'last_name' => $this->ctx->faker()->senegaleseLastName(),
-                'persona' => 'service_provider',
-                'role' => 'service_provider',
-            ]);
+        foreach (range(1, max(1, (int) round(5 * $taille))) as $i) {
+            $this->createUser($agency, $this->membre($domain, $slug, 'service_provider', $i, 'provider'));
         }
+
+        if ($individuelle) {
+            return;
+        }
+
+        // Des arrivées pendant la fenêtre — la dernière il y a quelques semaines — et, dans une équipe
+        // de trois agents ou plus, un départ : le collaborateur parti garde ses visites et ses baux,
+        // datés d'avant son départ, et son adhésion est suspendue (TeamMemberSuspensionService).
+        $arrivees = max(1, (int) round(2 * $taille));
+        for ($k = 1; $k <= $arrivees; $k++) {
+            $arrivee = $k === $arrivees
+                ? Timeline::randomDateBetween(Timeline::seedEnd()->subDays(75), Timeline::seedEnd()->subDays(15))
+                : Timeline::randomDateBetween(Timeline::seedStart()->addMonths(2), Timeline::seedStart()->addMonths(6));
+            $this->createUser($agency, $this->membre($domain, $slug, 'agent', $nbAgents + $k), $arrivee);
+        }
+
+        if (count($agents) >= 3) {
+            $this->depart(Tirage::un(array_slice($agents, 1)), $agency);
+        }
+    }
+
+    /** @return array<string, mixed> */
+    private function membre(string $domain, string $slug, string $persona, int $i, ?string $prefixe = null): array
+    {
+        $prefixe ??= $persona;
+
+        return [
+            'email' => "{$prefixe}{$i}@{$domain}",
+            'username' => "{$slug}-{$prefixe}-{$i}",
+            'first_name' => $this->ctx->faker()->senegaleseFirstName(),
+            'last_name' => $this->ctx->faker()->senegaleseLastName(),
+            'persona' => $persona,
+            'role' => $persona,
+        ];
+    }
+
+    /** Le départ d'un agent, quelques mois dans la fenêtre, par le geste de l'application : la suspension. */
+    private function depart(User $agent, Agency $agency): void
+    {
+        $le = Timeline::businessHour(Timeline::randomDateBetween(Timeline::seedStart()->addMonths(3), Timeline::seedStart()->addMonths(9)));
+
+        AgentProfile::query()
+            ->where('user_id', $agent->id)
+            ->where('agency_id', $agency->id)
+            ->update(['status' => AgentProfileStatus::Suspended->value, 'updated_at' => $le]);
+        $agent->forceFill(['last_login_at' => $le->subDays(mt_rand(1, 6))])->save();
+
+        $this->ctx->departs[$agent->id] = $le;
     }
 
     /**
      * @param  array<string, mixed>  $data
      */
-    private function createUser(Agency $agency, array $data): User
+    private function createUser(Agency $agency, array $data, ?CarbonImmutable $arrivee = null): User
     {
         $role = $data['role'] ?? null;
         $persona = $data['persona'] ?? null;
@@ -129,8 +165,8 @@ class UserSeeder extends Seeder
 
         // L'équipe précède le portefeuille qu'elle gère (TCK-2377) : un bien ou un bail d'avant la
         // fenêtre ne peut pas avoir été suivi par un agent arrivé après. Les arrivées étalées sont
-        // l'affaire de TCK-2378.
-        $createdAt = Timeline::randomDateBetween(
+        // l'affaire des arrivées de seedAgencyTeam() (TCK-2378).
+        $createdAt = $arrivee ?? Timeline::randomDateBetween(
             Timeline::portfolioStart()->subMonth(),
             Timeline::portfolioStart(),
         );
@@ -148,7 +184,12 @@ class UserSeeder extends Seeder
                 'updated_at' => $createdAt,
             ]),
         );
-        $user->forceFill(['email_verified_at' => $createdAt])->save();
+        // TCK-2378 — une dernière connexion récente pour l'équipe, plus espacée pour les bailleurs et les
+        // prestataires : aucune n'était semée.
+        $user->forceFill([
+            'email_verified_at' => $createdAt,
+            'last_login_at' => Timeline::businessHour(Timeline::seedEnd()->subDays($persona === 'owner' || $persona === 'service_provider' ? mt_rand(1, 45) : mt_rand(0, 6))),
+        ])->save();
 
         // TCK-278 — Le rôle est matérialisé via le profil polymorphe
         // (cf. seedProfileFor + Règle 5). Plus de spatie syncRoles ici.

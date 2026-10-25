@@ -39,7 +39,7 @@ class MaintenanceRequestSeeder extends Seeder
             }
 
             $providerIds = $providers->isEmpty() ? [null] : $providers->pluck('id')->all();
-            $targetCount = $this->ctx->config->maintenanceRequestsPerAgency;
+            $targetCount = $this->ctx->volume($this->ctx->config->maintenanceRequestsPerAgency, $agency->id);
             $created = 0;
 
             while ($created < $targetCount && $properties->isNotEmpty()) {

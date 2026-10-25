@@ -7,7 +7,6 @@ use App\Models\Customer;
 use App\Models\Enums\BookingStatus;
 use App\Models\Enums\CancellationBy;
 use App\Models\Enums\PropertyStatus;
-use App\Models\Profiles\AgentProfile;
 use App\Models\Property;
 use Carbon\CarbonImmutable;
 use Database\Seeders\Support\SeedingContext;
@@ -25,7 +24,7 @@ class BookingSeeder extends Seeder
         foreach ($this->ctx->agencies as $agency) {
             $properties = $this->ctx->propertiesByAgency[$agency->id] ?? collect();
             $customers = $this->ctx->customersByAgency[$agency->id] ?? collect();
-            $agents = $this->ctx->usersWithProfile(AgentProfile::class, $agency->id);
+            $agents = $this->ctx->equipe($agency->id);
 
             if ($properties->isEmpty() || $customers->isEmpty() || $agents->isEmpty()) {
                 continue;
@@ -34,9 +33,8 @@ class BookingSeeder extends Seeder
             // TCK-2377 — on ne réserve qu'un bien publié, après sa mise en ligne, et le client est
             // inscrit avant de réserver.
             $properties = $properties->filter(fn (Property $p) => $p->status !== PropertyStatus::Draft)->values();
-            $agentIds = $agents->pluck('id')->values();
 
-            for ($i = 0; $i < $this->ctx->config->bookingsPerAgency && $properties->isNotEmpty(); $i++) {
+            for ($i = 0; $i < $this->ctx->volume($this->ctx->config->bookingsPerAgency, $agency->id) && $properties->isNotEmpty(); $i++) {
                 $property = Tirage::un($properties);
                 $createdAt = Timeline::randomDateBetween(
                     CarbonImmutable::parse($property->created_at)->addDays(2),
@@ -83,14 +81,14 @@ class BookingSeeder extends Seeder
                 );
 
                 Booking::withoutEvents(function () use (
-                    $property, $customerId, $agentIds, $agency,
+                    $property, $customerId, $agency,
                     $createdAt, $startDate, $status, $expiresAt, $confirmedAt, $cancelledAt,
                     $totalAmount, $depositAmount,
                 ) {
                     Booking::create([
                         'property_id' => $property->id,
                         'customer_id' => $customerId,
-                        'created_by_id' => Tirage::un($agentIds),
+                        'created_by_id' => $this->ctx->agentAu($agency->id, $createdAt),
                         'agency_id' => $agency->id,
                         'reference_number' => 'BK-'.strtoupper(Tirage::code(8)),
                         'status' => $status,

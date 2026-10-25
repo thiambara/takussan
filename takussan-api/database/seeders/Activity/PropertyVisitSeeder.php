@@ -6,7 +6,6 @@ use App\Models\Customer;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Enums\VisitStatus;
 use App\Models\Enums\VisitType;
-use App\Models\Profiles\AgentProfile;
 use App\Models\PropertyVisit;
 use Carbon\CarbonImmutable;
 use Database\Seeders\Support\SeedingContext;
@@ -24,13 +23,11 @@ class PropertyVisitSeeder extends Seeder
         foreach ($this->ctx->agencies as $agency) {
             $properties = $this->ctx->propertiesByAgency[$agency->id] ?? collect();
             $customers = $this->ctx->customersByAgency[$agency->id] ?? collect();
-            $agents = $this->ctx->usersWithProfile(AgentProfile::class, $agency->id);
+            $agents = $this->ctx->equipe($agency->id);
 
             if ($properties->isEmpty() || $customers->isEmpty() || $agents->isEmpty()) {
                 continue;
             }
-
-            $agentIds = $agents->pluck('id')->values();
 
             foreach ($properties as $property) {
                 // TCK-2377 — un brouillon ne se visite pas, et aucune visite ne précède la mise en ligne
@@ -65,7 +62,7 @@ class PropertyVisitSeeder extends Seeder
                         'property_id' => $property->id,
                         'visitor_id' => null,
                         'customer_id' => Tirage::un($inscrits)->id,
-                        'agent_id' => Tirage::un($agentIds),
+                        'agent_id' => $this->ctx->agentAu($agency->id, $scheduledAt),
                         'type' => VisitType::InPerson->value,
                         'status' => $status,
                         'scheduled_at' => $scheduledAt,

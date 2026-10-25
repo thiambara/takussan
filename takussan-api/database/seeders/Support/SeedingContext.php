@@ -10,6 +10,8 @@ use App\Models\Profiles\OwnerProfile;
 use App\Models\Profiles\ServiceProviderProfile;
 use App\Models\Property;
 use App\Models\User;
+use Carbon\CarbonImmutable;
+use Carbon\CarbonInterface;
 use Database\Seeders\YearOfActivitySeeder;
 use Faker\Generator as FakerGenerator;
 use Illuminate\Support\Collection;
@@ -61,6 +63,12 @@ class SeedingContext
 
     /** @var Collection<int, User> super admins and system users */
     public Collection $systemUsers;
+
+    /** @var array<int, float> taille relative de chaque agence, par agency_id (TCK-2378) */
+    public array $tailles = [];
+
+    /** @var array<int, CarbonImmutable> date de départ des collaborateurs partis, par user_id (TCK-2378) */
+    public array $departs = [];
 
     /** Téléchargements de médias tentés — cf. {@see downloadMedia()}. */
     private int $mediaAttempted = 0;
@@ -145,6 +153,45 @@ class SeedingContext
         if ($property->agency_id !== null && $this->agencies->has($property->agency_id)) {
             $this->propertiesByAgency[$property->agency_id]->put($property->id, $property);
         }
+    }
+
+    /**
+     * Un volume « par agence » de la configuration, à la taille de cette agence (TCK-2378) : les
+     * quatre agences avaient 214 biens et 141 clients chacune, agence individuelle comprise.
+     */
+    public function volume(int $parAgence, int $agencyId): int
+    {
+        return max(1, (int) round($parAgence * ($this->tailles[$agencyId] ?? 1.0)));
+    }
+
+    /**
+     * Ceux qui suivent les dossiers de l'agence : ses agents, ou son titulaire quand elle n'en a pas
+     * — une agence `individual` est une personne seule (TCK-2378).
+     *
+     * @return Collection<int, User>
+     */
+    public function equipe(int $agencyId): Collection
+    {
+        $agents = $this->usersWithProfile(AgentProfile::class, $agencyId);
+
+        return $agents->isNotEmpty() ? $agents : ($this->usersByAgencyAndPersona[$agencyId]['admin'] ?? new Collection);
+    }
+
+    /**
+     * Un membre de l'équipe présent à cette date : arrivé avant, et pas encore parti. Sans personne
+     * de présent, le plus ancien — un acte n'est jamais sans agent.
+     */
+    public function agentAu(int $agencyId, CarbonInterface $date): ?int
+    {
+        $equipe = $this->equipe($agencyId);
+        $presents = $equipe->filter(fn (User $u) => $u->created_at->lessThanOrEqualTo($date)
+            && (! isset($this->departs[$u->id]) || $this->departs[$u->id]->greaterThan($date)));
+
+        if ($presents->isEmpty()) {
+            return $equipe->sortBy('created_at')->first()?->id;
+        }
+
+        return Tirage::un($presents->pluck('id'));
     }
 
     /**

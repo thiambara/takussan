@@ -25,6 +25,10 @@ class SeedingConfig
      * @param  bool  $includeDemoUsers  Créer utilisateurs de test prédéfinis
      * @param  bool  $downloadMedia  Télécharger des images réelles
      * @param  int  $graine  Graine de tous les tirages : même graine, même jeu (TCK-2380)
+     * @param  list<float>  $taillesDAgence  Taille relative de chaque agence `standard`, dans l'ordre de
+     *                                       création : les volumes « par agence » ci-dessus sont ceux de la
+     *                                       plus grande (TCK-2378)
+     * @param  float  $tailleIndividuelle  Taille relative d'une agence `individual` : une personne seule
      */
     public function __construct(
         public int $agencies = 3,
@@ -41,6 +45,8 @@ class SeedingConfig
         public bool $includeDemoUsers = true,
         public bool $downloadMedia = false,
         public int $graine = 2026,
+        public array $taillesDAgence = [1.0, 0.65, 0.4],
+        public float $tailleIndividuelle = 0.12,
     ) {}
 
     /**

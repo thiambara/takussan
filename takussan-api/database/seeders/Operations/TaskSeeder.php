@@ -4,13 +4,11 @@ namespace Database\Seeders\Operations;
 
 use App\Models\Enums\TaskPriority;
 use App\Models\Enums\TaskStatus;
-use App\Models\Profiles\AgentProfile;
 use App\Models\Property;
 use App\Models\Task;
 use Database\Seeders\Support\SeedingContext;
 use Database\Seeders\Support\StatusDistribution;
 use Database\Seeders\Support\Timeline;
-use Database\Seeders\Support\Tirage;
 use Illuminate\Database\Seeder;
 
 class TaskSeeder extends Seeder
@@ -20,13 +18,11 @@ class TaskSeeder extends Seeder
     public function run(): void
     {
         foreach ($this->ctx->agencies as $agency) {
-            $agents = $this->ctx->usersWithProfile(AgentProfile::class, $agency->id);
+            $agents = $this->ctx->equipe($agency->id);
             $properties = $this->ctx->propertiesByAgency[$agency->id] ?? collect();
             if ($agents->isEmpty() || $properties->isEmpty()) {
                 continue;
             }
-
-            $agentIds = $agents->pluck('id')->values();
 
             foreach ($properties as $property) {
                 if (! $this->ctx->faker()->boolean(35)) {
@@ -34,8 +30,9 @@ class TaskSeeder extends Seeder
                 }
                 $count = mt_rand(1, 3);
                 for ($i = 0; $i < $count; $i++) {
+                    // TCK-2378 — une tâche suit la mise en ligne du bien, et revient à un agent présent ce jour-là.
                     $createdAt = Timeline::randomDateBetween(
-                        Timeline::seedStart(),
+                        collect([Timeline::seedStart(), $property->created_at->toImmutable()])->max(),
                         Timeline::seedEnd(),
                     );
                     $status = StatusDistribution::pick([
@@ -52,8 +49,8 @@ class TaskSeeder extends Seeder
                         'description' => $description,
                         'taskable_id' => $property->id,
                         'taskable_type' => Property::class,
-                        'assigned_to_id' => Tirage::un($agentIds),
-                        'created_by_id' => Tirage::un($agentIds),
+                        'assigned_to_id' => $this->ctx->agentAu($agency->id, $createdAt),
+                        'created_by_id' => $this->ctx->agentAu($agency->id, $createdAt),
                         'due_at' => $createdAt->addDays(mt_rand(1, 14)),
                         'completed_at' => $status === TaskStatus::Done->value
                             ? $createdAt->addDays(mt_rand(1, 10))

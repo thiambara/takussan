@@ -46,7 +46,7 @@ class PropertySeeder extends Seeder
         // et `rented` ne se tire plus — il se DÉDUIT des baux actifs (LeaseSeeder). Tiré ici, il
         // laissait 96 biens « loués » sans bail, que le vérificateur de fin de pipeline « réparait »
         // en fabriquant des baux au loyer égal au prix du bien, ventes comprises.
-        $statusCounts = StatusDistribution::split($this->ctx->config->propertiesPerAgency, [
+        $statusCounts = StatusDistribution::split($this->ctx->volume($this->ctx->config->propertiesPerAgency, $agency->id), [
             ContractType::Rent->value.'|'.PropertyStatus::Available->value => 61,
             ContractType::Rent->value.'|'.PropertyStatus::UnderMaintenance->value => 3,
             ContractType::Rent->value.'|'.PropertyStatus::Archived->value => 2,

@@ -14,7 +14,6 @@ use App\Models\Enums\VisitStatus;
 use App\Models\Enums\VisitType;
 use App\Models\Guarantor;
 use App\Models\Lease;
-use App\Models\Profiles\AgentProfile;
 use App\Models\Property;
 use App\Models\PropertyVisit;
 use App\Support\Search\PropertyLabels;
@@ -87,8 +86,7 @@ class LeaseSeeder extends Seeder
                 && $p->status === PropertyStatus::Available
                 && self::typeDeBailPour($p) !== null)
             ->values();
-        $agents = $this->ctx->usersWithProfile(AgentProfile::class, $agencyId)->pluck('id')->values();
-        if ($properties->isEmpty() || $agents->isEmpty()) {
+        if ($properties->isEmpty() || $this->ctx->equipe($agencyId)->isEmpty()) {
             return;
         }
 
@@ -99,7 +97,7 @@ class LeaseSeeder extends Seeder
             ->orderBy('id')
             ->get();
 
-        $cible = $this->ctx->config->leasesPerAgency;
+        $cible = $this->ctx->volume($this->ctx->config->leasesPerAgency, $agencyId);
         $semes = 0;
         $vacants = collect();
 
@@ -120,7 +118,7 @@ class LeaseSeeder extends Seeder
                     continue;
                 }
 
-                [$fin, $occupe, $crees] = $this->chaineDUnLocataire($property, $locataire, $agents, $debut);
+                [$fin, $occupe, $crees] = $this->chaineDUnLocataire($property, $locataire, $debut);
                 $semes += $crees;
                 if ($occupe) {
                     break;
@@ -139,8 +137,8 @@ class LeaseSeeder extends Seeder
             $debut = Timeline::seedEnd()->startOfMonth()->addMonthsNoOverflow(mt_rand(1, 2));
             $locataire = $this->locataireDisponible($locatairesLibres, $debut);
             if ($locataire !== null) {
-                $this->visites($property, $locataire, $agents, $debut);
-                $this->bail($property, $locataire, $agents, $debut, LeaseStatus::Draft, null, null);
+                $this->visites($property, $locataire, $debut);
+                $this->bail($property, $locataire, $debut, LeaseStatus::Draft, null, null);
             }
         }
     }
@@ -149,14 +147,13 @@ class LeaseSeeder extends Seeder
      * Un locataire dans un bien : son bail, et ses renouvellements, jusqu'à ce qu'il parte ou
      * qu'il soit encore là aujourd'hui.
      *
-     * @param  Collection<int, int>  $agents
      * @return array{0: CarbonImmutable, 1: bool, 2: int} date de départ, encore occupé, baux créés
      */
-    private function chaineDUnLocataire(Property $property, Customer $locataire, Collection $agents, CarbonImmutable $debut): array
+    private function chaineDUnLocataire(Property $property, Customer $locataire, CarbonImmutable $debut): array
     {
-        $this->visites($property, $locataire, $agents, $debut);
+        $this->visites($property, $locataire, $debut);
         // Un locataire sur trois a bloqué le bien par une réservation avant de signer.
-        $reservation = mt_rand(1, 100) <= self::PART_PAR_RESERVATION ? $this->reservation($property, $locataire, $agents, $debut) : null;
+        $reservation = mt_rand(1, 100) <= self::PART_PAR_RESERVATION ? $this->reservation($property, $locataire, $debut) : null;
         $parent = null;
         $crees = 0;
         $aujourdhui = Timeline::seedEnd();
@@ -176,7 +173,7 @@ class LeaseSeeder extends Seeder
                 ])),
             };
 
-            $parent = $this->bail($property, $locataire, $agents, $debut, $statut, $resiliation, $parent, $parent === null ? $reservation : null);
+            $parent = $this->bail($property, $locataire, $debut, $statut, $resiliation, $parent, $parent === null ? $reservation : null);
             $crees++;
 
             if ($statut === LeaseStatus::Renewed) {
@@ -210,10 +207,8 @@ class LeaseSeeder extends Seeder
     /**
      * Une ou deux visites du futur locataire, faites avant la réservation et la signature — jamais
      * avant la mise en ligne du bien ni l'inscription du client.
-     *
-     * @param  Collection<int, int>  $agents
      */
-    private function visites(Property $property, Customer $locataire, Collection $agents, CarbonImmutable $debut): void
+    private function visites(Property $property, Customer $locataire, CarbonImmutable $debut): void
     {
         $auPlusTot = collect([
             CarbonImmutable::parse($property->created_at)->addDay(),
@@ -227,7 +222,7 @@ class LeaseSeeder extends Seeder
             PropertyVisit::create([
                 'property_id' => $property->id,
                 'customer_id' => $locataire->id,
-                'agent_id' => Tirage::un($agents),
+                'agent_id' => $this->ctx->agentAu($property->agency_id, $visite),
                 'type' => VisitType::InPerson->value,
                 'status' => VisitStatus::Completed->value,
                 'scheduled_at' => $visite,
@@ -242,10 +237,8 @@ class LeaseSeeder extends Seeder
     /**
      * La réservation qui a bloqué le bien jusqu'à la signature : l'acompte d'un demi-loyer, puis le
      * bail qui en est tiré la clôt (`completed`, comme `LeaseService::create`).
-     *
-     * @param  Collection<int, int>  $agents
      */
-    private function reservation(Property $property, Customer $locataire, Collection $agents, CarbonImmutable $debut): Booking
+    private function reservation(Property $property, Customer $locataire, CarbonImmutable $debut): Booking
     {
         $creee = Timeline::businessHour($debut->subDays(mt_rand(10, 25)));
         $loyer = (int) (round((float) $property->price / 5_000) * 5_000);
@@ -253,7 +246,7 @@ class LeaseSeeder extends Seeder
         return Booking::withoutEvents(fn () => Booking::create([
             'property_id' => $property->id,
             'customer_id' => $locataire->id,
-            'created_by_id' => Tirage::un($agents),
+            'created_by_id' => $this->ctx->agentAu($property->agency_id, $creee),
             'agency_id' => $property->agency_id,
             'reference_number' => 'BK-'.strtoupper(Tirage::code(8)),
             'status' => BookingStatus::Completed->value,
@@ -269,11 +262,9 @@ class LeaseSeeder extends Seeder
         ]));
     }
 
-    /** @param  Collection<int, int>  $agents */
     private function bail(
         Property $property,
         Customer $locataire,
-        Collection $agents,
         CarbonImmutable $debut,
         LeaseStatus $statut,
         ?CarbonImmutable $resiliation,
@@ -294,7 +285,7 @@ class LeaseSeeder extends Seeder
             'landlord_id' => $property->user_id,
             'tenant_id' => $locataire->id,
             'agency_id' => $property->agency_id,
-            'agent_id' => Tirage::un($agents),
+            'agent_id' => $this->ctx->agentAu($property->agency_id, $debut->subDays(5)),
             'renewed_from_lease_id' => $parent?->id,
             'booking_id' => $reservation?->id,
             'reference_number' => 'LS-'.strtoupper(Tirage::code(8)),
