@@ -155,7 +155,8 @@ class GenerateLeasePaymentScheduleTest extends TestCase
 
         app(LeaseService::class)->generateSchedule($lease);
 
-        return LeasePayment::query()->where('lease_id', $lease->id)->orderBy('due_date')->get()
+        // TCK-2375 — l'échéance de caution, écrite par le même échéancier, n'est pas une période.
+        return LeasePayment::query()->where('lease_id', $lease->id)->where('payment_type', LeasePaymentType::Rent->value)->orderBy('due_date')->get()
             ->map(fn (LeasePayment $p): array => [$p->period_start->toDateString(), $p->period_end->toDateString(), (float) $p->amount])
             ->all();
     }
@@ -216,8 +217,11 @@ class GenerateLeasePaymentScheduleTest extends TestCase
         $created = app(LeaseService::class)->generateScheduleIfMissing($lease);
 
         $this->assertGreaterThan(0, $witness);
-        $this->assertSame($witness, $created);
-        $this->assertSame($witness, $lease->payments()->where('payment_type', LeasePaymentType::Rent->value)->count());
+        // TCK-2375 — le témoin reçoit aussi son échéance de caution ; la caution déjà posée n'est pas
+        // réécrite : une ligne de moins, et autant de loyers.
+        $this->assertSame($witness - 1, $created);
+        $this->assertSame($created, $lease->payments()->where('payment_type', LeasePaymentType::Rent->value)->count());
+        $this->assertSame(1, $lease->payments()->where('payment_type', LeasePaymentType::Deposit->value)->count());
     }
 
     /** P46.04 (TCK-957) — une échéance de loyer annulée (par un renouvellement) n'est plus due. */

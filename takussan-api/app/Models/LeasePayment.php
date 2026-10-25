@@ -241,4 +241,17 @@ class LeasePayment extends AbstractModel implements HasAuditAgency
     {
         return $query->where($query->qualifyColumn('payment_type'), '!=', LeasePaymentType::DepositRefund->value);
     }
+
+    /**
+     * TCK-2375 (P04.10) — les mouvements de caution réellement passés : les lignes `deposit` et
+     * `deposit_refund` PAYÉES. Une seule définition, que lisent les cautions détenues des rapports
+     * (`PortfolioMetrics::depositsHeld`, `AgingBalanceService::depositsHeld`) et la caution encaissée
+     * qui borne la restitution (`Lease::collectedDeposit`).
+     */
+    public function scopePaidDepositMovements(Builder $query): Builder
+    {
+        return $query
+            ->where($query->qualifyColumn('status'), PaymentStatus::Paid->value)
+            ->whereIn($query->qualifyColumn('payment_type'), [LeasePaymentType::Deposit->value, LeasePaymentType::DepositRefund->value]);
+    }
 }

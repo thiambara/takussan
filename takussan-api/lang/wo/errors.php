@@ -154,6 +154,7 @@ return [
         'exceeds_remaining' => 'Mbënd mi gënal kaution bi des.',
         'lease_not_ended' => 'Luwé bi war a jeex walla mujj bala ñu delloo kaution.',
         'no_deposit' => 'Amul kaution bu ñuy delloo.',
+        'not_collected' => 'Aucune caution n\'a été encaissée pour ce bail : rien n\'est à rembourser.',
         'reason_required' => 'Su delloo gi gen, motivation lañu war a indi.',
     ],
     'document' => [
