@@ -4,6 +4,7 @@ namespace App\Services\Membership;
 
 use App\Models\Agency;
 use App\Models\Enums\AgencyRoleBaseType;
+use App\Models\Profiles\AgentProfile;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -21,7 +22,7 @@ class AffectationsDeRole
 {
     /**
      * @param  list<int>  $userIds
-     * @return list<array{profile_id: int, profile_type: string, user_id: int, agency_role_id: int, agency_role_name: ?string}>
+     * @return list<array{profile_id: int, profile_type: string, user_id: int, agency_role_id: int, agency_role_name: ?string, commission_rate?: ?float}>
      */
     public function pour(Agency $agency, array $userIds): array
     {
@@ -44,13 +45,19 @@ class AffectationsDeRole
                     ->with('agencyRole')
                     ->get() as $profile
             ) {
-                $rows[] = [
+                $row = [
                     'profile_id' => (int) $profile->getKey(),
                     'profile_type' => $type->value,
                     'user_id' => (int) $profile->user_id,
                     'agency_role_id' => (int) $profile->agency_role_id,
                     'agency_role_name' => $profile->agencyRole?->name,
                 ];
+                // TCK-2364 (P241.02) — la fiche de membre lit le taux de l'agent là où elle lit son
+                // rôle, sous la même règle (`team.assign_role`), qui est aussi celle de son écriture.
+                if ($profile instanceof AgentProfile) {
+                    $row['commission_rate'] = $profile->commission_rate !== null ? (float) $profile->commission_rate : null;
+                }
+                $rows[] = $row;
             }
         }
 
