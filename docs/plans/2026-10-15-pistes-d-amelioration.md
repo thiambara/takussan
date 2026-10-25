@@ -7045,7 +7045,7 @@ base de développement. Les écrans n'ont pas été joués.*
 
 ### L'agent créateur ne peut pas effacer son compte : les baux qu'il a saisis comptent comme ses obligations de bailleur
 - Réf : P232.05
-- Statut : fait · TCK-2275 — reste : `agenciesOwingPayout` aligné sur le prédicat de bénéficiaire de P232.07 (TCK-997)
+- Statut : fait · TCK-997
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Account/AccountDeletionService.php:485-498`, `:617-635`, `takussan-api/app/Http/Requests/Auth/RequestAccountDeletionRequest.php:172-180`
 - Constat :
@@ -7057,6 +7057,7 @@ base de développement. Les écrans n'ont pas été joués.*
 - Mesure (2026-10-24, 027642063, mesureur) : relu `AccountDeletionService::collectOpenObligations` (l. 486-489, baux par `landlord_id`) et `agenciesOwingPayout` (l. 623-628, `leases.landlord_id` et `properties.user_id`), inchangés ; test temporaire `tests/Feature/TmpMesureur/SondeP232Test.php` (retiré ; charge 3,30 / 3,65 / 4,12 sur 8 cœurs) : bien d'agence passé au `user_id` de l'agent, bail `active` à 150 000 au `landlord_id` de l'agent, fils `lease` et `property` dont l'agent et un admin sont participants ; suspendu par `TeamMemberSuspensionService::suspend`, retiré par `AgencyMemberRemovalService::remove(…, leaveUnassigned: true)` (`staffAgencyId()` null, `can('view')` du bail et du bien faux dans les deux cas), plus le témoin actif → `collectOpenObligations` rend une obligation `lease` pour l'agent actif, suspendu et retiré : le constat tient ; le 422 de `POST /api/auth/me/deletion-request` n'a pas été rejoué (step-up). Classement : V3, le correctif change quels comptes peuvent être effacés, et touche `agenciesOwingPayout` qui juge un reversement dû (V1).
 - Mesure (2026-10-25, ece5a91ea, humain) : validation du porteur en bloc (2026-10-25) sur la re-vérification de la session à c35c20d16 ; statut précédent : « retenu · à valider — V3 : effacement de compte ».
 - Mesure (2026-10-25, aee373364, implementeur) : avant correctif, `tests/Feature/Authorization/ColonneDeBailleurAgentCreateurTest.php::test_p232_05_…` → `collectOpenObligations` rend une obligation `lease` (le bail saisi) pour l'agent actif, suspendu et retiré (3 rouges) → les baux « as landlord » par `BailleurDuBien::restreindre(…, 'landlord_id')` ; verts : aucune obligation `lease` pour l'agent ; le bailleur actif, le bailleur bloqué, le particulier et le locataire gardent la leur. Ablation : `AccountDeletionService` remis → 3 rouges ; rétabli → verts. Sur l'arbre, une seule clause de baux est hors d'`agenciesOwingPayout` (l. 486) ; la lecture de la l. 577 est `payouts.landlord_id` (bénéficiaire, non un bail), laissée telle quelle avec `agenciesOwingPayout` (TCK-997, `todo`). Le 422 de `POST /api/auth/me/deletion-request` n'a pas été rejoué (step-up).
+- Mesure (2026-10-25, e243019a1, humain) : le reste est fermé par TCK-997 (#1535, fusionné) : `agenciesOwingPayout` lit le prédicat unique de bénéficiaire (`BeneficiaireDuReversement`, branche du personnel à profil actif, P232.07) ; la première moitié, les clauses de baux de `collectOpenObligations` bornées par `BailleurDuBien`, est faite par TCK-2275 (#1527). Les deux tickets recopient la précision.
 
 ### Bailleur dans une agence, agent suspendu dans une autre : `/dashboard/owner` et `/export/leases` comptent et exportent les baux saisis dans la seconde
 - Réf : P232.06
