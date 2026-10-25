@@ -13,6 +13,8 @@ use App\Services\Model\NotificationService;
 use App\Services\Model\PayoutService;
 use App\Services\Payout\PayoutApprovers;
 use Illuminate\Console\Command;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\DB;
 
 /**
  * TCK-594 (AC20) — un reversement `pending` ou `scheduled` dont `scheduled_at` est échu se rappelle
@@ -32,20 +34,16 @@ class RemindDuePayouts extends Command
     {
         $sent = 0;
 
-        Payout::query()
-            ->whereIn('status', [PayoutStatus::Pending->value, PayoutStatus::Scheduled->value])
-            ->whereNotNull('scheduled_at')
-            ->where('scheduled_at', '<=', now())
-            ->whereNotNull('issued_by_id')
-            ->whereRaw("(metadata->>'due_reminded_at') IS NULL")
+        self::due(Payout::query())
             ->orderBy('id')
             ->chunkById(200, function ($payouts) use (&$sent, $notifications, $approvers): void {
-                foreach ($payouts as $payout) {
+                foreach ($payouts as $loaded) {
                     // Marqué AVANT l'envoi : une relance rejouée ne double jamais l'avis, au prix
                     // d'un avis perdu si l'envoi échoue — c'est un rappel, pas l'argent.
-                    $payout->forceFill(['metadata' => array_merge($payout->metadata ?? [], [
-                        'due_reminded_at' => now()->toIso8601String(),
-                    ])])->saveQuietly();
+                    $payout = $this->claim($loaded);
+                    if ($payout === null) {
+                        continue;
+                    }
 
                     foreach ($this->recipientsFor($payout, $approvers) as $recipient) {
                         $notifications->send($recipient, NotificationCode::PayoutDue, PayoutService::notificationParams($payout), self::targetFor($recipient, $payout));
@@ -57,6 +55,47 @@ class RemindDuePayouts extends Command
         $this->info("{$sent} rappel(s) envoyé(s).");
 
         return self::SUCCESS;
+    }
+
+    /**
+     * La sélection des reversements à rappeler : `pending` ou `scheduled`, échus, émis, jamais
+     * rappelés. Jugée au chargement du lot, puis REJUGÉE sous verrou par `claim()`.
+     *
+     * @param  Builder<Payout>  $query
+     * @return Builder<Payout>
+     */
+    private static function due(Builder $query): Builder
+    {
+        return $query
+            ->whereIn('status', [PayoutStatus::Pending->value, PayoutStatus::Scheduled->value])
+            ->whereNotNull('scheduled_at')
+            ->where('scheduled_at', '<=', now())
+            ->whereNotNull('issued_by_id')
+            ->whereRaw("(metadata->>'due_reminded_at') IS NULL");
+    }
+
+    /**
+     * P245.01 (TCK-2362) — le marqueur se pose sur la ligne RELUE sous verrou, et seulement si elle
+     * est encore à rappeler. Posé sur le modèle chargé en lot, il réécrivait `metadata` en entier :
+     * un reversement payé pendant le passage (`PayoutService::markProcessed`, qui verrouille la
+     * ligne) perdait la trace du décaissement, et son émetteur était rappelé pour un reversement
+     * soldé. Rend `null` quand la ligne n'est plus à rappeler : rien ne part.
+     */
+    private function claim(Payout $loaded): ?Payout
+    {
+        return DB::transaction(function () use ($loaded): ?Payout {
+            /** @var Payout|null $locked */
+            $locked = self::due(Payout::query()->whereKey($loaded->getKey()))->lockForUpdate()->first();
+            if ($locked === null) {
+                return null;
+            }
+
+            $locked->forceFill(['metadata' => array_merge($locked->metadata ?? [], [
+                'due_reminded_at' => now()->toIso8601String(),
+            ])])->saveQuietly();
+
+            return $locked;
+        });
     }
 
     /**

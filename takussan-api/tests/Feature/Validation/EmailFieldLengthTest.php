@@ -106,16 +106,9 @@ class EmailFieldLengthTest extends ApiTestCase
             ->assertCreated();
     }
 
+    /** TCK-2311 (P225.06) — la création par `POST /api/agencies` est retirée : reste la modification. */
     public function test_agence(): void
     {
-        Sanctum::actingAs(User::factory()->create());
-
-        $this->postJson('/api/agencies', ['name' => 'Nouvelle', 'email' => self::adresse(256)])
-            ->assertStatus(422)
-            ->assertJsonValidationErrors('email');
-        $this->assertSame(0, Agency::query()->count());
-        $this->postJson('/api/agencies', ['name' => 'Nouvelle', 'email' => self::adresse(255)])->assertCreated();
-
         $admin = User::factory()->create();
         $agency = Agency::factory()->create(['primary_admin_id' => $admin->id]);
         Sanctum::actingAs($admin);

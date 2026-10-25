@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\CustomerController;
+use App\Http\Controllers\Api\CustomerInvitationController;
 use App\Http\Controllers\Api\CustomerNoteController;
 use App\Http\Controllers\Api\CustomerTagController;
 use Illuminate\Support\Facades\Route;
@@ -21,6 +22,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('customers/{customer}/relationships', [CustomerController::class, 'relationships'])->name('customers.relationships.index');
     Route::post('customers/{customer}/primary-contact', [CustomerController::class, 'setPrimaryContact'])->name('customers.primary-contact');
     Route::patch('customers/{customer}/pipeline-stage', [CustomerController::class, 'updatePipelineStage'])->name('customers.pipeline-stage');
+    // P15.01 (TCK-2351) — inviter le client de la fiche à créer son compte (lien à usage unique).
+    Route::post('customers/{customer}/invite', CustomerInvitationController::class)
+        ->middleware('throttle:invitations-send')
+        ->name('customers.invite');
     // TCK-591 — le journal de la fiche (client, notes, tâches), autorisé par la lecture du client.
     Route::get('customers/{customer}/activity', [CustomerController::class, 'activity'])->name('customers.activity');
 

@@ -2754,6 +2754,12 @@
       "caption": "Customer list"
     },
     "customerDetail": {
+      "inviteAccount": {
+        "action": "Invite to create an account",
+        "sending": "Sending…",
+        "sent": "Invitation sent. The link works once; on acceptance, the account is linked to this record.",
+        "failed": "The invitation could not be sent. Try again."
+      },
       "relationships": {
         "empty_title": "No relationship recorded",
         "empty_description": "Link this contact to a spouse, a guarantor or a company to keep their circle at hand.",
@@ -3734,7 +3740,11 @@
       "downloadPdf": "Download PDF",
       "downloadCsv": "Download CSV",
       "downloadFailed": "The statement download failed.",
-      "unavailable": "The statement is not available."
+      "unavailable": "The statement is not available.",
+      "sentOn": "Statement sent on {date}",
+      "rectificationTitle": "Correction as of {date}",
+      "rectificationIntro": "Entries recorded since this statement was sent. The totals above are those of the statement as sent.",
+      "clawback": "Clawback"
     },
     "serviceProviderBills": {
       "providerTitle": "My repair invoices",
@@ -3791,7 +3801,8 @@
         "submit": "Confirm refund",
         "submitting": "Submitting…",
         "file_too_large": "File too large ({max} MB max): {files}",
-        "max_files": "Maximum {max} files."
+        "max_files": "Maximum {max} files.",
+        "total_too_large": "Together, these files exceed {max} MB: remove some or use lighter files."
       },
       "error_generic": "Refund failed, please retry."
     },
@@ -4010,7 +4021,10 @@
         "quarterly": "Quarterly",
         "yearly": "Yearly"
       },
-      "customerFallback": "Customer #{id}"
+      "customerFallback": "Customer #{id}",
+      "fromBooking": "Lease drawn from booking {reference}",
+      "fromBookingHint": "The property and the tenant are those of the booking. When the lease is created, the booking becomes “completed” and frees its dates.",
+      "fromBookingError": "The booking could not be loaded."
     },
     "payment": {
       "title": "Record a payment",
@@ -4332,6 +4346,7 @@
         "max_files": "Maximum {max} files.",
         "file_type_refused": "File type refused (PDF, JPG, PNG or WEBP only): {files}",
         "file_too_large": "File too large ({max} MB max): {files}",
+        "total_too_large": "Together, these files exceed {max} MB: remove some or use lighter files.",
         "incomplete": "Each line needs a description, a quantity and a price, and the quote a validity date.",
         "failed": "The quote was not sent.",
         "submitting": "Sending…",
@@ -5978,8 +5993,7 @@
         "date": "Date",
         "user": "User",
         "action": "Action",
-        "subject": "Object",
-        "description": "Description"
+        "subject": "Object"
       },
       "tableCaption": "Agency audit trail",
       "entries": "{count, plural, =1 {{total} entry} other {{total} entries}}",
@@ -5999,6 +6013,24 @@
         "personal_data_viewed": "Personal data viewed",
         "kyc_expired": "KYC document expired",
         "data_exported": "Data exported"
+      }
+    },
+    "businessEnums": {
+      "property_type": {
+        "name": "Property types",
+        "description": "Categories shown in property forms and filters."
+      },
+      "contract_type": {
+        "name": "Transaction types",
+        "description": "Sale, rental and future marketing modes."
+      },
+      "title_type": {
+        "name": "Land titles",
+        "description": "Business labels of the land titles attached to properties."
+      },
+      "rent_period": {
+        "name": "Rent periods",
+        "description": "Billing cadences shown on rental properties."
       }
     },
     "roles": {
@@ -6922,7 +6954,8 @@
       "actions": {
         "accept": "Accept",
         "reject": "Reject",
-        "cancel": "Cancel the booking"
+        "cancel": "Cancel the booking",
+        "createLease": "Create the lease"
       },
       "toasts": {
         "accepted": {
@@ -9684,7 +9717,8 @@
         "status": "Status",
         "paidOn": "Paid on",
         "emptyForAgency": "No platform payout received yet.",
-        "caption": "Platform payouts"
+        "caption": "Platform payouts",
+        "refundedSincePaid": "Refunded since"
       },
       "close": {
         "title": "Close a period",
@@ -9735,7 +9769,8 @@
         "paymentReferenceLabel": "Transfer reference",
         "paymentReferencePlaceholder": "Transfer reference (required)",
         "approveSelfRefused": "You closed this period: someone else must approve the payout.",
-        "paySelfRefused": "You approved this payout: someone else must mark it paid."
+        "paySelfRefused": "You approved this payout: someone else must mark it paid.",
+        "refundedSincePaid": "{count, plural, one {One line has been refunded since the payout was paid: {references}.} other {# lines have been refunded since the payout was paid: {references}.}} No amount is withheld automatically."
       }
     }
   },
@@ -10570,6 +10605,14 @@
         "settled_online": {
           "title": "Payment received: {property}",
           "body": "Your payment of {amount} for {property} has been received. Your receipt is available in your account."
+        },
+        "refunded": {
+          "title": "Refund: {property}",
+          "body": "A refund of {amount} was made on your rent payment for {property}. Your receipt no longer covers the refunded amount."
+        },
+        "refunded_landlord": {
+          "title": "Rent refunded: {property}",
+          "body": "{amount} of the rent paid by {tenant} for {property} was refunded through the online payment method."
         }
       },
       "payment": {
@@ -10580,6 +10623,12 @@
         "duplicate_late_fee": {
           "title": "Late fee collected twice",
           "body": "The late fee of {amount} for {reference}, already settled at the agency, was also collected online. Refund the payer or allocate the amount."
+        }
+      },
+      "platform_payout": {
+        "refunded_since_paid": {
+          "title": "Payment refunded after payout",
+          "body": "Payment {reference}, included in the platform payout for {period} already paid to your agency, has since been refunded through the online payment method. No deduction is applied automatically."
         }
       },
       "booking": {

@@ -16,7 +16,11 @@ import { ROUTES_LEGALES } from '@/lib/legal-routes';
 import { formaterTelephone, isE164 } from '@/lib/phone';
 import type { User } from '@/types/user';
 
-type Retour = { ok: boolean; message: string };
+/**
+ * `refus` : P237.02 (TCK-2361) — la seconde moitié d'un geste refusée après une première réussie
+ * (code accepté, case WhatsApp refusée). Les deux se disent : ni l'une n'efface l'autre.
+ */
+type Retour = { ok: boolean; message: string; refus?: string };
 
 /** Ce que l'écran sait déjà manquer, avant même que l'API le dise. */
 export function manquesLocaux(user: Partial<User> | null): Array<'first_name' | 'verified_phone'> {
@@ -154,7 +158,9 @@ export function CoordonneesPublication({
       const w = await updateContactPreferencesAction({ phone_whatsapp: whatsapp });
       if (w.ok) setUser(w.user);
       await refreshUser();
-      setRetour({ ok: true, message: t('phoneVerified') });
+      // P237.02 (TCK-2361) — le numéro est vérifié, mais la réponse WhatsApp n'est pas enregistrée :
+      // le dire, comme `repondreWhatsApp`, au lieu de la perdre sous un seul « Numéro vérifié ».
+      setRetour({ ok: true, message: t('phoneVerified'), ...(w.ok ? {} : { refus: w.message }) });
     });
   };
 
@@ -284,6 +290,11 @@ export function CoordonneesPublication({
           {retour ? (
             <p role={retour.ok ? 'status' : 'alert'} className={'text-xs ' + (retour.ok ? 'text-success' : 'text-destructive')}>
               {retour.message}
+            </p>
+          ) : null}
+          {retour?.refus ? (
+            <p role="alert" className="text-xs text-destructive">
+              {retour.refus}
             </p>
           ) : null}
         </>

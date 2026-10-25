@@ -19,20 +19,17 @@ class AgencyTest extends ApiTestCase
     use InteractsWithMeilisearch;
     use RefreshDatabase;
 
-    public function test_creates_and_lists_agencies(): void
+    /** TCK-2311 (P225.06) — `POST /api/agencies` est retirée : l'agence vient de la fabrique. */
+    public function test_primary_admin_lists_its_agency(): void
     {
         $user = User::factory()->create();
+        Agency::factory()->create(['primary_admin_id' => $user->id, 'name' => 'Takussan Immo']);
         Sanctum::actingAs($user);
-
-        $this->postJson('/api/agencies', [
-            'name' => 'Takussan Immo',
-            'email' => 'contact@takussan.sn',
-        ])->assertCreated()
-            ->assertJsonPath('data.name', 'Takussan Immo');
 
         $this->getJson('/api/agencies')
             ->assertOk()
-            ->assertJsonPath('meta.total', 1);
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('data.0.name', 'Takussan Immo');
     }
 
     public function test_super_admin_can_list_all_agencies_with_sparse_fields(): void
@@ -101,17 +98,6 @@ class AgencyTest extends ApiTestCase
         $this->getJson('/api/agencies')
             ->assertOk()
             ->assertJsonPath('meta.total', 0);
-    }
-
-    public function test_user_cannot_create_second_agency(): void
-    {
-        $user = User::factory()->create();
-        Agency::factory()->create(['primary_admin_id' => $user->id]);
-
-        Sanctum::actingAs($user);
-
-        $this->postJson('/api/agencies', ['name' => 'Second'])
-            ->assertStatus(422);
     }
 
     public function test_only_primary_admin_can_update_agency(): void

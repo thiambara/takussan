@@ -88,6 +88,16 @@ interface DataTableProps<Row> {
    * les lignes défiler dessous, et c'est ce que l'écran rendait déjà.
    */
   readonly stickyHeader?: boolean;
+  /**
+   * TCK-2331 (P08.07) — sous `md`, la table cède la place à une LISTE DE CARTES, une par ligne,
+   * rendues par cette fonction : le patron de `CustomerList` et `PropertyList`. Sans elle, une
+   * action en dernière colonne ne s'atteignait sur téléphone qu'après un défilement horizontal.
+   *
+   * La carte porte ce que la ligne porte, action comprise, dans le flux. Elle arrive déjà
+   * traduite, comme `header`. `rowProps` ne s'y applique pas : un `data-testid` de ligne s'y
+   * dédoublerait. La liste est nommée par `caption`, et l'état vide y est rendu aussi.
+   */
+  readonly carteMobile?: (row: Row) => ReactNode;
   /** Classes du cadre extérieur (marges, `col-span`, …). */
   readonly className?: string;
   readonly 'data-testid'?: string;
@@ -128,6 +138,7 @@ export function DataTable<Row>({
   emptyState,
   density = 'default',
   stickyHeader = false,
+  carteMobile,
   className,
   'data-testid': dataTestId,
 }: DataTableProps<Row>) {
@@ -135,10 +146,13 @@ export function DataTable<Row>({
   // reste alignée sur les autres colonne par colonne.
   const cellPadding = density === 'compact' ? 'px-3 py-1.5' : 'px-3 py-2.5';
 
-  return (
+  const tableau = (
     <div
-      className={cn('overflow-hidden rounded-xl bg-card ring-1 ring-border', className)}
-      data-testid={dataTestId}
+      className={cn(
+        'overflow-hidden rounded-xl bg-card ring-1 ring-border',
+        carteMobile ? 'hidden md:block' : className,
+      )}
+      data-testid={carteMobile ? undefined : dataTestId}
     >
       <Table>
         <TableCaption className="sr-only">{caption}</TableCaption>
@@ -193,6 +207,32 @@ export function DataTable<Row>({
           ) : null}
         </TableBody>
       </Table>
+    </div>
+  );
+
+  if (!carteMobile) return tableau;
+
+  // Avec `carteMobile`, le cadre extérieur englobe les deux vues : `className` (marges,
+  // `col-span`) et `data-testid` y vont, une seule fois.
+  return (
+    <div className={className} data-testid={dataTestId}>
+      {tableau}
+      {rows.length > 0 ? (
+        <ul aria-label={caption} data-testid="data-table-cartes" className="space-y-3 md:hidden">
+          {rows.map((row) => (
+            <li key={rowKey(row)} className="rounded-xl bg-card p-4 ring-1 ring-border">
+              {carteMobile(row)}
+            </li>
+          ))}
+        </ul>
+      ) : emptyState ? (
+        <div
+          data-testid="data-table-cartes"
+          className="overflow-hidden rounded-xl bg-card ring-1 ring-border md:hidden *:rounded-none *:border-0 *:bg-transparent"
+        >
+          {emptyState}
+        </div>
+      ) : null}
     </div>
   );
 }

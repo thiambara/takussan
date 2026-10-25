@@ -190,9 +190,6 @@ final class ProtectedActions
     public const EXEMPT = [
         // L'invité n'a pas encore de compte : il accepte par le lien reçu.
         InvitationAcceptController::class.'@__invoke' => 'acceptation publique d\'une invitation',
-        // Qui crée son agence n'en est pas encore l'admin : l'exigence le prend au
-        // premier geste protégé, dans l'agence créée.
-        AgencyController::class.'@store' => 'création d\'une agence',
         // L'argent ENTRE : le client règle sa réservation, il n'est le personnel de personne.
         BookingPaymentController::class.'@store' => 'paiement d\'une réservation par le client',
     ];

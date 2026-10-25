@@ -93,7 +93,12 @@ export type Booking = {
     currency: string | null;
     contract_type: 'sale' | 'rent' | null;
   };
-  customer?: { id: number; user_id?: number | null } | null;
+  customer?: {
+    id: number;
+    user_id?: number | null;
+    first_name?: string | null;
+    last_name?: string | null;
+  } | null;
   booking_payments?: BookingPayment[];
   /**
    * TCK-596 — dérivé des paiements : `pending` tant qu'un acompte encaissé reste à rendre sur une

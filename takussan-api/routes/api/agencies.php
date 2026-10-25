@@ -23,7 +23,9 @@ use Illuminate\Support\Facades\Route;
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('agencies', [AgencyController::class, 'index'])->name('agencies.index');
-    Route::post('agencies', [AgencyController::class, 'store'])->name('agencies.store');
+    // TCK-2311 (P225.06, décision du porteur) — `POST agencies` est retirée : une agence se crée par
+    // la console (`AgencyProvisioningService`) ou par l'espace hôte (`HostIndividualOnboardingService`),
+    // qui créent toutes deux le profil d'administrateur.
     Route::get('agencies/{agency}', [AgencyController::class, 'show'])->name('agencies.show');
     Route::put('agencies/{agency}', [AgencyController::class, 'update'])->name('agencies.update');
     Route::patch('agencies/{agency}', [AgencyController::class, 'update']);

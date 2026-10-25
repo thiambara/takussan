@@ -26,7 +26,6 @@ return [
     'agency' => [
         'active_profile_missing' => 'Aucun profil d\'agence actif.',
         'admin_email_taken' => 'Un compte existe déjà avec cet e-mail d\'administrateur.',
-        'already_administered' => 'Vous administrez déjà une agence.',
         'context_missing' => 'Aucune agence active.',
         'id_required' => 'L\'agence doit être précisée.',
         'individual_no_custom_roles' => 'Les agences individuelles n\'ont pas de rôles personnalisés.',
@@ -138,6 +137,9 @@ return [
     'customer' => [
         'attached_to_open_lease' => 'Ce client est titulaire d\'un bail en attente de signature ou en cours : il ne peut pas être supprimé tant que ce bail est ouvert.',
         'duplicate' => 'Un client de votre agence porte déjà ce numéro ou cette adresse e-mail.',
+        // P15.01 (TCK-2351) — inviter le client de la fiche à créer son compte.
+        'invite_already_linked' => "Cette fiche est déjà rattachée à un compte : il n'y a personne à inviter.",
+        'invite_no_contact' => "Cette fiche n'a pas de coordonnée où envoyer l'invitation : ajoutez une adresse e-mail.",
         'pipeline_stage_invalid' => 'Étape de suivi invalide.',
     ],
     'dashboard' => [
@@ -258,6 +260,8 @@ return [
         'token_not_found' => 'Cette invitation est introuvable.',
         'token_revoked' => 'Cette invitation a été révoquée.',
         'token_sent' => 'Cette invitation est encore en attente d\'acceptation.',
+        // P15.01 (TCK-2351) — la fiche visée a reçu un autre compte depuis l'envoi.
+        'tenant_already_linked' => "Cette fiche a été rattachée à un autre compte depuis l'envoi de l'invitation. Demandez une nouvelle invitation à l'agence.",
     ],
     'invoice' => [
         'amount_too_large' => 'Le montant total de la facture dépasse le maximum enregistrable.',
@@ -299,6 +303,8 @@ return [
         'renewal_parent_not_renewable' => 'Le bail renouvelé n\'est plus en cours (préavis ou résiliation) : ce renouvellement ne peut plus prendre effet. Résiliez-le, puis créez-en un autre si besoin.',
         'schedule_exists' => 'L\'échéancier a déjà été généré.',
         'terms_locked' => 'Les conditions d\'un bail signé ne se modifient plus : établissez un avenant ou un nouveau bail.',
+        // P48.03 (TCK-2352) — le bail tiré d'une réservation.
+        'tenant_not_booking_customer' => "Le locataire d'un bail tiré d'une réservation est le client de cette réservation.",
     ],
     'lease_signature' => [
         'already_signed' => 'Vous avez déjà signé ce contrat.',

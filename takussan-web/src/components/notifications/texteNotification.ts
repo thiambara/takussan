@@ -21,6 +21,13 @@ const DATE_SEULE = /^\d{4}-\d{2}-\d{2}$/;
 const DATE_HEURE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/;
 
 /**
+ * TCK-2325 (P128.03) — le mois en toutes lettres, comme le courriel de la même notification
+ * (`NotificationRenderer` : `LL` pour une date, `LLL` pour un instant) : même rendu en courriel et
+ * en cloche. L'ordre des mots reste celui de la locale de l'écran (`en` → `en-GB`).
+ */
+const DATE_DU_COURRIEL = { dateStyle: 'long' } as const;
+
+/**
  * P164.05 (TCK-1806) — la nature d'un paramètre se lit dans `param_types`, que l'API dérive de
  * `NotificationCode::params()` : plus de table par code ici, ni de devinette par la forme. La forme
  * ne sert plus que de repli à une ligne qui n'en porte pas (montant, date et motif seulement).
@@ -111,9 +118,9 @@ export function valeursDeNotification(
     } else if (typeof valeur === 'object') {
       valeurs[nom] = fmt.montant(Number(valeur.amount), valeur.currency);
     } else if (nature === 'date' || (nature === null && DATE_SEULE.test(valeur))) {
-      valeurs[nom] = fmt.date(valeur);
+      valeurs[nom] = fmt.date(valeur, DATE_DU_COURRIEL);
     } else if (nature === 'datetime' || (nature === null && DATE_HEURE.test(valeur))) {
-      valeurs[nom] = fmt.dateTime(valeur);
+      valeurs[nom] = fmt.dateTime(valeur, DATE_DU_COURRIEL);
     } else {
       valeurs[nom] = valeur;
     }

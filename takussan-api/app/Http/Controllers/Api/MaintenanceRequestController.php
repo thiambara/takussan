@@ -213,54 +213,60 @@ class MaintenanceRequestController extends Controller
         // ont été écrits. La transaction rend la ligne intacte sur ce refus.
         $becameUrgent = false;
         DB::transaction(function () use ($request, $maintenanceRequest, $data, &$becameUrgent): void {
+            // P245.03 (TCK-2362) — les écritures de `metadata` se font sur la ligne RELUE sous verrou :
+            // recomposée depuis la copie liée à la route, la colonne réécrite en entier effaçait
+            // l'escalade (`escalated_at`) que `EscalateUrgentMaintenanceJob` pose entre-temps sous
+            // le même verrou (TCK-2225), et l'escalade repartait au passage suivant.
+            $locked = $this->service->lockFresh($maintenanceRequest);
+
             // TCK-592 — l'assignation a son chemin (`accepted_at` remis à nul, événement) : elle ne passe
             // pas par `fill()`.
             // TCK-592 (verif-592, M1) — au-delà du plafond du bailleur, `actual_cost` est à son accord.
             if (($data['actual_cost'] ?? null) !== null) {
                 // verif-592 passe 2 (N5) — arrondi à l'unité de la devise avant d'être comparé ou écrit.
-                $data['actual_cost'] = CurrencyUnit::cost($maintenanceRequest, $data['actual_cost']);
-                app(OwnerApprovalThreshold::class)->assertActualCostAgreed($maintenanceRequest, $data['actual_cost'], $request->user()->id);
-                app(OwnerApprovalThreshold::class)->recordOwnerCost($maintenanceRequest, $data['actual_cost'], $request->user()->id);
+                $data['actual_cost'] = CurrencyUnit::cost($locked, $data['actual_cost']);
+                app(OwnerApprovalThreshold::class)->assertActualCostAgreed($locked, $data['actual_cost'], $request->user()->id);
+                app(OwnerApprovalThreshold::class)->recordOwnerCost($locked, $data['actual_cost'], $request->user()->id);
             } elseif (array_key_exists('actual_cost', $data)) {
                 // verif-592 passe 4 (N11) — un coût retiré n'est plus un accord du bailleur.
-                app(OwnerApprovalThreshold::class)->forgetOwnerCost($maintenanceRequest);
+                app(OwnerApprovalThreshold::class)->forgetOwnerCost($locked);
             }
 
             $assignmentChanged = array_key_exists('assigned_to', $data);
             $assigneeId = $data['assigned_to'] ?? null;
             unset($data['assigned_to']);
 
-            $wasUrgent = $maintenanceRequest->priority === MaintenancePriority::Urgent;
-            $maintenanceRequest->fill($data);
-            $isUrgent = $maintenanceRequest->priority === MaintenancePriority::Urgent;
+            $wasUrgent = $locked->priority === MaintenancePriority::Urgent;
+            $locked->fill($data);
+            $isUrgent = $locked->priority === MaintenancePriority::Urgent;
             $becameUrgent = ! $wasUrgent && $isUrgent;
 
             // TCK-1991 (P169.03) — le passage en urgent est daté, et le retour à une autre priorité
             // efface cette date et l'escalade : une demande remise en urgent s'escalade de nouveau.
             if ($wasUrgent !== $isUrgent) {
-                $metadata = $maintenanceRequest->metadata ?? [];
+                $metadata = $locked->metadata ?? [];
                 unset($metadata[MaintenanceRequest::URGENT_SINCE], $metadata[MaintenanceRequest::ESCALATED_AT]);
                 if ($becameUrgent) {
                     $metadata[MaintenanceRequest::URGENT_SINCE] = $this->instant(now());
                 }
-                $maintenanceRequest->metadata = $metadata;
+                $locked->metadata = $metadata;
             }
 
             // TCK-2012 (P184.01) — un passage fixé ou déplacé s'annonce ; la même heure renvoyée par
             // le bloc d'assignation (`isDirty` compare l'instant) ou une heure retirée, non.
-            $scheduleChanged = $maintenanceRequest->isDirty('scheduled_at') && $maintenanceRequest->scheduled_at !== null;
-            $maintenanceRequest->save();
+            $scheduleChanged = $locked->isDirty('scheduled_at') && $locked->scheduled_at !== null;
+            $locked->save();
 
             if ($assignmentChanged) {
                 $this->service->assign(
-                    $maintenanceRequest,
+                    $locked,
                     $assigneeId !== null ? User::query()->findOrFail($assigneeId) : null,
                     $request->user(),
                 );
             }
 
             if ($scheduleChanged) {
-                MaintenanceScheduleChanged::dispatch($maintenanceRequest, $request->user());
+                MaintenanceScheduleChanged::dispatch($locked, $request->user());
             }
         });
 

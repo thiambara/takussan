@@ -7,6 +7,7 @@ use App\Notifications\Channels\SmsChannel;
 use App\Notifications\Concerns\RepliSmsSansEmail;
 use App\Notifications\Concerns\RetriesWithBackoff;
 use App\Notifications\Concerns\SupportsSms;
+use App\Services\Notifications\NotificationRenderer;
 use App\Support\LienFront;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -43,7 +44,7 @@ class AccountDeletionRequestedNotification extends Notification implements Shoul
 
     public function toMail(object $notifiable): MailMessage
     {
-        $scheduledFor = $this->request->scheduled_for?->format('d/m/Y') ?? '';
+        $scheduledFor = $this->dateDeSuppression($notifiable);
         $cancelUrl = LienFront::vers('/app/profile');
 
         return (new MailMessage)
@@ -59,6 +60,16 @@ class AccountDeletionRequestedNotification extends Notification implements Shoul
     /** P193.04 (TCK-2051) — un compte sans e-mail : SMS au numéro vérifié. */
     public function toSms(object $notifiable): string
     {
-        return __('notifications.account_deletion_requested.sms', ['date' => $this->request->scheduled_for?->format('d/m/Y') ?? '']);
+        return __('notifications.account_deletion_requested.sms', ['date' => $this->dateDeSuppression($notifiable)]);
+    }
+
+    /** TCK-2325 (P128.03) — la date de suppression en `LL`, celle du fuseau du destinataire. */
+    private function dateDeSuppression(object $notifiable): string
+    {
+        return app(NotificationRenderer::class)->formatDate(
+            $this->request->scheduled_for,
+            app()->getLocale(),
+            NotificationRenderer::timezoneOf($notifiable),
+        );
     }
 }

@@ -3,6 +3,7 @@
 - **Statut** : Accepté
 - **Date** : 2026-10-08
 - **Tickets** : [TCK-601](../backlog/tickets/TCK-601-donnees-personnelles-audit-kyc.md)
+- **Amendement du 2026-10-25 ([TCK-2342](../backlog/tickets/TCK-2342-purge-du-journal-d-activite-par-famille.md), piste P19.04)** : le journal d'activité se conserve par famille de journaux — 12 mois par défaut, 5 ans pour onze journaux de preuve, 10 ans pour sept journaux de pièces comptables — et une purge maison, `audit:prune-activity-log`, planifiée chaque jour, le tient. Voir [§ Amendement du 2026-10-25](#amendement-du-2026-10-25--le-journal-dactivité-se-conserve-par-famille-tck-2342).
 - **Amendement du 2026-10-22 (piste P84.01)** : le NINEA d'une agence `standard` est une mention légale publique de personne morale, en clair dans `agencies.ninea` ; celui de la demande de passage reste chiffré et masqué le temps de la revue ; le journal le rend en clair pour le seul sujet `Agency`. Voir [§ Amendement du 2026-10-22](#amendement-du-2026-10-22--le-ninea-dune-personne-morale-est-une-mention-légale-publique).
 - **Amendement du 2026-10-18 ([TCK-883](../backlog/tickets/TCK-883-sauvegardes-consignes-et-retour-d-une-restauration.md))** : une donnée effacée survit dans les sauvegardes le temps de leur rétention ; après une restauration, les effacements postérieurs à la sauvegarde se rejouent depuis une liste tenue hors de la base ; `APP_KEY` est rangée hors du serveur et son empreinte est au relevé. Voir [§ Amendement du 2026-10-18](#amendement-du-2026-10-18--les-sauvegardes-gardent-ce-que-la-base-a-effacé-tck-883).
 - **Précisé par [ADR-0070](0070-piece-et-revenu-du-locataire-et-de-la-caution-chiffres-masques-lus-sous-step-up.md) (2026-10-18)** : l'application de l'amendement A — périmètre, migrations, masques, lectures claires et leurs lecteurs, exports, contrat du front.
@@ -150,7 +151,9 @@ existantes se fait par migration, une jointure par type de sujet.
   la déclaration à la CDP est un geste du porteur, hors code). `due_at = received_at + délai`.
 - **Conservation** : les journaux `PersonalDataAccess` et `Privacy` se conservent **5 ans**, alignés
   sur la conservation KYC. La purge du journal (`activitylog:clean`, 365 jours) n'est pas planifiée
-  aujourd'hui ; TCK-537, qui la planifiera, doit **exempter** ces deux journaux. Les jobs échoués
+  aujourd'hui ; TCK-537, qui la planifiera, doit **exempter** ces deux journaux. *(Étendu par le
+  [§ Amendement du 2026-10-25](#amendement-du-2026-10-25--le-journal-dactivité-se-conserve-par-famille-tck-2342) :
+  une durée par famille, et la purge est planifiée.)* Les jobs échoués
   (`failed_jobs`, `payload` compris) se conservent **30 jours** ([§ Amendement](#amendement-du-2026-10-16--la-pièce-du-locataire-et-de-la-caution-et-la-purge-des-jobs-échoués-tck-723)).
 
 ### 5. Le KYC d'agence a une échéance
@@ -455,3 +458,62 @@ demande de passage reste chiffré et masqué le temps de la revue.**
   d'un changement de NINEA d'agence et y lit la valeur en clair, à côté d'une clé `rib` de la même
   ligne toujours `[REDACTED]`. Avec l'ablation : sans la règle par sujet, la valeur sort
   `[REDACTED]`.
+
+## Amendement du 2026-10-25 — le journal d'activité se conserve par famille (TCK-2342)
+
+Décision du porteur du 2026-10-25, sur la piste P19.04 (angle 19 du fichier de pistes,
+`docs/plans/2026-10-15-pistes-d-amelioration.md`). Elle étend la ligne *Conservation* du § 4. Relu
+sur `pre-dev` f10a94ff3. Ticket :
+[TCK-2342](../backlog/tickets/TCK-2342-purge-du-journal-d-activite-par-famille.md), qui fait la
+partie « purge du journal » de [TCK-537](../backlog/tickets/TCK-537-ecarts-entre-la-politique-de-confidentialite-et-le-code.md).
+
+### Constat
+
+- Rien ne purgeait `activity_log` : `activitylog:clean` n'était pas planifiée, alors que la politique
+  de confidentialité promet 12 mois (`privacy.ts` § 6).
+- La commande du paquet purge un journal ou tous, sans exclusion (`CleanActivitylogCommand`). Le
+  § 4 n'exemptait que `PersonalDataAccess` et `Privacy`, quand la console tient onze journaux pour
+  sensibles (`CrossTenantAuditController::SENSITIVE_LOG_NAMES`), que la suppression de compte écrit
+  sous `Account`, et que `Auditable` écrit les pièces comptables sous le nom court de leur modèle,
+  pièces que la politique et l'Acte uniforme OHADA gardent 10 ans. Une purge à 365 jours les aurait
+  effacés.
+
+### Décision
+
+**Le journal d'activité se conserve par famille de journaux (`log_name`), et la durée de chaque
+famille est écrite dans la politique de confidentialité :**
+
+- **12 mois** par défaut, et pour tout journal qu'aucune liste ne nomme (`log_name` nul compris) ;
+- **5 ans** pour `PersonalDataAccess`, `Privacy`, `Security`, `UserSupport`, `KYC`, `KycDossier`,
+  `Account`, `Membership`, `AgencyRole`, `Integration` et `export` ;
+- **10 ans** pour les pièces comptables : `LeasePayment`, `BookingPayment`, `Invoice`, `Payout`,
+  `PlatformPayout`, `CommissionEntry`, `Billing`.
+
+La purge est une commande maison, `audit:prune-activity-log` (`App\Console\Commands\PruneActivityLog`,
+qui porte les deux listes et les trois durées), planifiée chaque jour à 04:10 (Dakar),
+`withoutOverlapping`. Elle supprime par lots au-delà de la durée comptée depuis `created_at`, et
+une seconde exécution ne trouve rien. 12 mois se comptent en mois, comme la politique l'écrit.
+
+### Ce qui n'est pas gardé
+
+- **`activitylog:clean`** reste enregistrée par le paquet, non planifiée, et ne sait rien exclure.
+  Lancée à la main sans `--days`, elle purge à `activitylog.clean_after_days`, porté de 365 à
+  **3653 jours** (10 ans, la plus longue durée de la purge par famille) : elle n'efface plus une
+  pièce comptable ni un journal de preuve qu'on doit garder (test
+  `test_activitylog_clean_lancee_a_la_main_n_efface_pas_une_piece_comptable_de_deux_ans`, rouge à
+  365). C'est la clé de la v5 du paquet ; `delete_records_older_than_days`, celle de la v4, serait
+  ignorée (mesuré : rouge). Un `--days` explicite passe outre, comme tout geste d'exploitant.
+- **Un journal neuf** relève des 12 mois tant qu'il n'est nommé dans aucune liste : rien ne relie la
+  liste de la console (`SENSITIVE_LOG_NAMES`) à celle de la purge, qui diffèrent déjà (`PrivacyRequest`,
+  que la console nomme et sous lequel aucun code n'écrit).
+- Les sauvegardes gardent une ligne purgée le temps de leur rétention (§ Amendement du 2026-10-18).
+
+### Application
+
+- `PruneActivityLog` et sa ligne de `routes/console.php` ; `config/activitylog.php`
+  (`clean_after_days` = 3653) ; `privacy.ts` § 6 (`fr`, `en`) et
+  `VERSION_DOCUMENTS` au 25 octobre 2026 ; TCK-537 (contrainte 5, AC3b).
+- **Gardes**, vérifiées par ablation (`tests/Feature/Console/PruneActivityLogCommandTest.php`) : un
+  cas par journal de chaque famille (un nom retiré d'une liste → son cas rougit), la frontière de
+  chaque durée, le `log_name` nul, les lots, la seconde exécution, la planification ;
+  `takussan-web/src/content/legal/__tests__/textes.test.ts` pour le texte.

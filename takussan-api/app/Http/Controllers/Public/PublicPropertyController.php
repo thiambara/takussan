@@ -971,7 +971,7 @@ class PublicPropertyController extends Controller
 
         if ($isSale) {
             // L'offre d'achat n'a aucune garde après ce point : la fiche se résout ici.
-            $customer = $customers->findOrCreateFromUser($user);
+            $customer = $customers->findOrCreateFromUser($user, $property);
             $booking = Booking::create([
                 'property_id' => $property->id,
                 'customer_id' => $customer->id,
@@ -1012,7 +1012,7 @@ class PublicPropertyController extends Controller
             // P213.03 (TCK-2199) — la fiche se résout après la garde des nuits, dans la transaction :
             // une demande refusée en 422 ne crée ni ne rattache plus de fiche. Verrous dans l'ordre
             // `properties` puis `users` (`findOrCreateFromUser`), comme `BookingService::create`.
-            $customer = $customers->findOrCreateFromUser($user);
+            $customer = $customers->findOrCreateFromUser($user, $property);
 
             return Booking::create([
                 'property_id' => $property->id,

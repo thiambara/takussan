@@ -2725,6 +2725,12 @@
       "caption": "Liste des clients"
     },
     "customerDetail": {
+      "inviteAccount": {
+        "action": "Inviter à créer son compte",
+        "sending": "Envoi…",
+        "sent": "Invitation envoyée. Le lien vaut une seule fois ; à l'acceptation, le compte est relié à cette fiche.",
+        "failed": "L'invitation n'a pas pu partir. Réessayez."
+      },
       "relationships": {
         "empty_title": "Aucune relation enregistrée",
         "empty_description": "Reliez ce contact à un conjoint, un garant ou une société pour retrouver son entourage.",
@@ -3705,7 +3711,11 @@
       "downloadPdf": "Télécharger le PDF",
       "downloadCsv": "Télécharger le CSV",
       "downloadFailed": "Le téléchargement du relevé a échoué.",
-      "unavailable": "Le relevé n'est pas disponible."
+      "unavailable": "Le relevé n'est pas disponible.",
+      "sentOn": "Relevé envoyé le {date}",
+      "rectificationTitle": "Rectificatif au {date}",
+      "rectificationIntro": "Écritures enregistrées depuis l'envoi de ce relevé. Les totaux ci-dessus sont ceux du relevé envoyé.",
+      "clawback": "Reprise"
     },
     "serviceProviderBills": {
       "providerTitle": "Mes factures d'intervention",
@@ -3762,7 +3772,8 @@
         "submit": "Confirmer le remboursement",
         "submitting": "Envoi en cours…",
         "file_too_large": "Fichier trop lourd ({max} Mo au plus) : {files}",
-        "max_files": "Maximum {max} fichiers."
+        "max_files": "Maximum {max} fichiers.",
+        "total_too_large": "Ces pièces dépassent {max} Mo à elles toutes : retirez-en ou allégez-les."
       },
       "error_generic": "Le remboursement a échoué, réessayez."
     },
@@ -3981,7 +3992,10 @@
         "quarterly": "Trimestriel",
         "yearly": "Annuel"
       },
-      "customerFallback": "Customer #{id}"
+      "customerFallback": "Client #{id}",
+      "fromBooking": "Bail tiré de la réservation {reference}",
+      "fromBookingHint": "Le bien et le locataire sont ceux de la réservation. À la création du bail, elle passe à « terminée » et libère ses dates.",
+      "fromBookingError": "La réservation n'a pas pu être chargée."
     },
     "payment": {
       "title": "Enregistrer un paiement",
@@ -4303,6 +4317,7 @@
         "max_files": "Maximum {max} fichiers.",
         "file_type_refused": "Type de fichier refusé (PDF, JPG, PNG ou WEBP seulement) : {files}",
         "file_too_large": "Fichier trop lourd ({max} Mo au plus) : {files}",
+        "total_too_large": "Ces pièces dépassent {max} Mo à elles toutes : retirez-en ou allégez-les.",
         "incomplete": "Chaque ligne doit avoir une désignation, une quantité et un prix, et le devis une date de validité.",
         "failed": "Le devis n'a pas été envoyé.",
         "submitting": "Envoi…",
@@ -5978,8 +5993,7 @@
         "date": "Date",
         "user": "Utilisateur",
         "action": "Action",
-        "subject": "Objet",
-        "description": "Description"
+        "subject": "Objet"
       },
       "tableCaption": "Journal d'audit de l'agence",
       "entries": "{count, plural, =1 {{total} entrée} other {{total} entrées}}",
@@ -5999,6 +6013,24 @@
         "personal_data_viewed": "Données personnelles consultées",
         "kyc_expired": "Pièce KYC expirée",
         "data_exported": "Données exportées"
+      }
+    },
+    "businessEnums": {
+      "property_type": {
+        "name": "Types de biens",
+        "description": "Catégories visibles dans les formulaires et les filtres de biens."
+      },
+      "contract_type": {
+        "name": "Types de transaction",
+        "description": "Vente, location et futurs modes de commercialisation."
+      },
+      "title_type": {
+        "name": "Titres fonciers",
+        "description": "Libellés métier des titres fonciers rattachés aux biens."
+      },
+      "rent_period": {
+        "name": "Périodes de loyer",
+        "description": "Cadences de facturation affichées sur les biens en location."
       }
     },
     "roles": {
@@ -6922,7 +6954,8 @@
       "actions": {
         "accept": "Accepter",
         "reject": "Refuser",
-        "cancel": "Annuler la réservation"
+        "cancel": "Annuler la réservation",
+        "createLease": "Créer le bail"
       },
       "toasts": {
         "accepted": {
@@ -9684,7 +9717,8 @@
         "status": "Statut",
         "paidOn": "Versé le",
         "emptyForAgency": "Aucun reversement plateforme reçu pour le moment.",
-        "caption": "Reversements de la plateforme"
+        "caption": "Reversements de la plateforme",
+        "refundedSincePaid": "Remboursé depuis"
       },
       "close": {
         "title": "Clôturer une période",
@@ -9735,7 +9769,8 @@
         "paymentReferenceLabel": "Référence du virement",
         "paymentReferencePlaceholder": "Référence du virement (obligatoire)",
         "approveSelfRefused": "Vous avez clôturé cette période : une autre personne doit approuver le reversement.",
-        "paySelfRefused": "Vous avez approuvé ce reversement : une autre personne doit le marquer payé."
+        "paySelfRefused": "Vous avez approuvé ce reversement : une autre personne doit le marquer payé.",
+        "refundedSincePaid": "{count, plural, one {Une ligne a été remboursée depuis le versement : {references}.} other {# lignes ont été remboursées depuis le versement : {references}.}} Aucun montant n'est retenu automatiquement."
       }
     }
   },
@@ -10570,6 +10605,14 @@
         "settled_online": {
           "title": "Paiement reçu : {property}",
           "body": "Votre paiement de {amount} pour {property} a bien été reçu. Votre quittance est disponible dans votre espace."
+        },
+        "refunded": {
+          "title": "Remboursement : {property}",
+          "body": "Un remboursement de {amount} a été fait sur votre paiement de loyer pour {property}. Votre quittance ne couvre plus la somme remboursée."
+        },
+        "refunded_landlord": {
+          "title": "Loyer remboursé : {property}",
+          "body": "{amount} du loyer payé par {tenant} pour {property} ont été remboursés par le moyen de paiement en ligne."
         }
       },
       "payment": {
@@ -10580,6 +10623,12 @@
         "duplicate_late_fee": {
           "title": "Pénalité encaissée deux fois",
           "body": "La pénalité de retard de {amount} pour {reference}, déjà réglée à l'agence, a aussi été encaissée en ligne. Remboursez le payeur ou affectez la somme."
+        }
+      },
+      "platform_payout": {
+        "refunded_since_paid": {
+          "title": "Paiement remboursé après reversement",
+          "body": "Le paiement {reference}, compris dans le reversement de la plateforme de {period} déjà versé à votre agence, a été remboursé depuis par le moyen de paiement en ligne. Aucune retenue n'est appliquée automatiquement."
         }
       },
       "booking": {

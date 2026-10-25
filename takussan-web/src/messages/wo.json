@@ -964,6 +964,12 @@
       "caption": "Limu kiliyaan yi"
     },
     "customerDetail": {
+      "inviteAccount": {
+        "action": "Inviter à créer son compte",
+        "sending": "Envoi…",
+        "sent": "Invitation envoyée. Le lien vaut une seule fois ; à l'acceptation, le compte est relié à cette fiche.",
+        "failed": "L'invitation n'a pas pu partir. Réessayez."
+      },
       "relationships": {
         "empty_title": "Amul jokkoo bu ñu bind",
         "empty_description": "Boolel ki ak jabar, gàrant walla kompaañi ngir gis ñi ko wër.",
@@ -1944,7 +1950,11 @@
       "downloadPdf": "Yebbi PDF bi",
       "downloadCsv": "Yebbi CSV bi",
       "downloadFailed": "Yebbi relevé bi antuwul.",
-      "unavailable": "Relevé bi amul fii."
+      "unavailable": "Relevé bi amul fii.",
+      "sentOn": "Relevé envoyé le {date}",
+      "rectificationTitle": "Rectificatif au {date}",
+      "rectificationIntro": "Écritures enregistrées depuis l'envoi de ce relevé. Les totaux ci-dessus sont ceux du relevé envoyé.",
+      "clawback": "Reprise"
     },
     "serviceProviderBills": {
       "providerTitle": "Samay factuur liggéey",
@@ -2001,7 +2011,8 @@
         "submit": "Dëggal delloo",
         "submitting": "Yónnee…",
         "file_too_large": "Fichier trop lourd ({max} Mo au plus) : {files}",
-        "max_files": "Maximum {max} fichiers."
+        "max_files": "Maximum {max} fichiers.",
+        "total_too_large": "Ces pièces dépassent {max} Mo à elles toutes : retirez-en ou allégez-les."
       },
       "error_generic": "Delloo gi am na njuumte, jeemal ndax."
     },
@@ -2220,7 +2231,10 @@
         "quarterly": "Ci ñetti weer",
         "yearly": "Ci at"
       },
-      "customerFallback": "Customer #{id}"
+      "customerFallback": "Customer #{id}",
+      "fromBooking": "Bail tiré de la réservation {reference}",
+      "fromBookingHint": "Le bien et le locataire sont ceux de la réservation. À la création du bail, elle passe à « terminée » et libère ses dates.",
+      "fromBookingError": "La réservation n'a pas pu être chargée."
     },
     "payment": {
       "title": "Bind benn pey",
@@ -2542,6 +2556,7 @@
         "max_files": "Maximum {max} fichiers.",
         "file_type_refused": "Xeetu kayit bii nanguñu ko (PDF, JPG, PNG walla WEBP rekk) : {files}",
         "file_too_large": "Fichier trop lourd ({max} Mo au plus) : {files}",
+        "total_too_large": "Ces pièces dépassent {max} Mo à elles toutes : retirez-en ou allégez-les.",
         "incomplete": "Bépp rëdd war na am tur, lim ak njëg, te devi bi war na am bés bu muy jeex.",
         "failed": "Devi bi yónneesu ko.",
         "submitting": "Mungiy yónne…",
@@ -4188,8 +4203,7 @@
         "date": "Bés",
         "user": "Jëfandikukat",
         "action": "Jëf",
-        "subject": "Objet",
-        "description": "Leeral"
+        "subject": "Objet"
       },
       "tableCaption": "Sàqu jëf yi ci agence bi",
       "entries": "{count, plural, =1 {{total} ligne} other {{total} ligne}}",
@@ -4209,6 +4223,24 @@
         "personal_data_viewed": "Xool nañu xibaar yu sutura",
         "kyc_expired": "Kayitu KYC bi jeex na",
         "data_exported": "Génne nañu xibaar yi"
+      }
+    },
+    "businessEnums": {
+      "property_type": {
+        "name": "Types de biens",
+        "description": "Catégories visibles dans les formulaires et les filtres de biens."
+      },
+      "contract_type": {
+        "name": "Types de transaction",
+        "description": "Vente, location et futurs modes de commercialisation."
+      },
+      "title_type": {
+        "name": "Titres fonciers",
+        "description": "Libellés métier des titres fonciers rattachés aux biens."
+      },
+      "rent_period": {
+        "name": "Périodes de loyer",
+        "description": "Cadences de facturation affichées sur les biens en location."
       }
     },
     "roles": {
@@ -6268,7 +6300,8 @@
       "actions": {
         "accept": "Nangu",
         "reject": "Bañ",
-        "cancel": "Neenal réservasioŋ bi"
+        "cancel": "Neenal réservasioŋ bi",
+        "createLease": "Créer le bail"
       },
       "toasts": {
         "accepted": {
@@ -9684,7 +9717,8 @@
         "status": "Nekkin",
         "paidOn": "Fey ci",
         "emptyForAgency": "Amul benn peymaan platform bu ñu jot ba tey.",
-        "caption": "Reversements de la plateforme"
+        "caption": "Reversements de la plateforme",
+        "refundedSincePaid": "Remboursé depuis"
       },
       "close": {
         "title": "Tëj benn jamono",
@@ -9735,7 +9769,8 @@
         "paymentReferenceLabel": "Référence virement bi",
         "paymentReferencePlaceholder": "Référence virement bi (war na)",
         "approveSelfRefused": "Yaa tëj diir bii : keneen moo war a nangu reversement bi.",
-        "paySelfRefused": "Yaa nangu reversement bii : keneen moo war a ko màndargaal ni fey nañu ko."
+        "paySelfRefused": "Yaa nangu reversement bii : keneen moo war a ko màndargaal ni fey nañu ko.",
+        "refundedSincePaid": "{count, plural, one {Une ligne a été remboursée depuis le versement : {references}.} other {# lignes ont été remboursées depuis le versement : {references}.}} Aucun montant n'est retenu automatiquement."
       }
     }
   },
@@ -10570,6 +10605,14 @@
         "settled_online": {
           "title": "Fey bi agsi na : {property}",
           "body": "Sa fey bu {amount} ngir {property} agsi na. Sa kitaas mi ngi ci sa bérab."
+        },
+        "refunded": {
+          "title": "Remboursement : {property}",
+          "body": "Un remboursement de {amount} a été fait sur votre paiement de loyer pour {property}. Votre quittance ne couvre plus la somme remboursée."
+        },
+        "refunded_landlord": {
+          "title": "Loyer remboursé : {property}",
+          "body": "{amount} du loyer payé par {tenant} pour {property} ont été remboursés par le moyen de paiement en ligne."
         }
       },
       "payment": {
@@ -10580,6 +10623,12 @@
         "duplicate_late_fee": {
           "title": "Pénalité bi ñu ko jot ñaari yoon",
           "body": "Pénalité bu {amount} ngir {reference}, bu ñu fey ba noppi ci agence bi, ñu jot na ko itam ci internet. Delloo ko ki fey walla jox ko beneen."
+        }
+      },
+      "platform_payout": {
+        "refunded_since_paid": {
+          "title": "Paiement remboursé après reversement",
+          "body": "Le paiement {reference}, compris dans le reversement de la plateforme de {period} déjà versé à votre agence, a été remboursé depuis par le moyen de paiement en ligne. Aucune retenue n'est appliquée automatiquement."
         }
       },
       "booking": {

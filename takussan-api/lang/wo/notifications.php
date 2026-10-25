@@ -338,6 +338,16 @@ return [
                 'sms' => 'Takussan : fey bu :amount agsi na (:property).',
                 'sms_link' => 'Takussan : fey bu :amount agsi na (:property). Kitaas : :receipt_url',
             ],
+            'refunded' => [
+                'title' => 'Remboursement : :property',
+                'body' => 'Un remboursement de :amount a été fait sur votre paiement de loyer pour :property. Votre quittance ne couvre plus la somme remboursée.',
+                'sms' => 'Takussan : remboursement de :amount sur votre loyer (:property).',
+            ],
+            'refunded_landlord' => [
+                'title' => 'Loyer remboursé : :property',
+                'body' => ':amount du loyer payé par :tenant pour :property ont été remboursés par le moyen de paiement en ligne.',
+                'sms' => 'Takussan : :amount du loyer de :tenant (:property) remboursés.',
+            ],
         ],
         // TCK-593 — un double encaissement à rembourser, signalé aux admins de l'agence.
         'payment' => [
@@ -350,6 +360,15 @@ return [
                 'title' => 'Pénalité bi ñu ko jot ñaari yoon',
                 'body' => 'Pénalité bu :amount ngir :reference, bu ñu fey ba noppi ci agence bi, ñu jot na ko itam ci internet. Delloo ko ki fey walla jox ko beneen.',
                 'sms' => 'Takussan : pénalité bu :amount agsi na ñaari yoon ngir :reference. Delloo ko walla jox ko beneen.',
+            ],
+        ],
+        // TCK-2320 (P39.07) — aux admins de l'agence : une ligne d'un reversement de la plateforme déjà
+        // versé a été remboursée depuis. Aucun montant n'est écrit.
+        'platform_payout' => [
+            'refunded_since_paid' => [
+                'title' => 'Paiement remboursé après reversement',
+                'body' => 'Le paiement :reference, compris dans le reversement de la plateforme de :period déjà versé à votre agence, a été remboursé depuis par le moyen de paiement en ligne. Aucune retenue n\'est appliquée automatiquement.',
+                'sms' => 'Takussan : le paiement :reference du reversement de :period a été remboursé depuis.',
             ],
         ],
         'booking' => [

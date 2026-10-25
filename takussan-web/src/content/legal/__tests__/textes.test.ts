@@ -74,3 +74,28 @@ describe('politique de confidentialité — durées de conservation tenues par u
     expect(privacy.en).toContain('- **In-app notifications**: 6 months after they are read.');
   });
 });
+
+/**
+ * TCK-2342 (P19.04) — décision du porteur : le journal d'activité se conserve par famille, durées
+ * écrites dans la politique. L'API les tient par `audit:prune-activity-log`
+ * (`PruneActivityLog::DEFAULT_RETENTION_MONTHS`, `PROOF_RETENTION_YEARS`,
+ * `ACCOUNTING_RETENTION_YEARS`).
+ */
+describe('politique de confidentialité — durées du journal d’activité par famille', () => {
+  it('donne les trois durées, en français et en anglais', () => {
+    expect(privacy.fr).toContain('- **Journal d’activité** : 12 mois, sauf les deux familles qui suivent.');
+    expect(privacy.fr).toContain(
+      '- **Journaux de sécurité et de preuve** (consultation de vos données, exercice de vos droits, sécurité et suppression du compte, accès du support, vérification d’identité, rôles et adhésions dans une agence, intégrations, exports) : 5 ans.',
+    );
+    expect(privacy.fr).toContain(
+      '- **Journaux des paiements, factures, reversements, commissions et abonnements** : 10 ans, comme les pièces qu’ils concernent.',
+    );
+    expect(privacy.en).toContain('- **Activity log**: 12 months, except for the two families below.');
+    expect(privacy.en).toContain(
+      '- **Security and evidence logs** (access to your data, exercise of your rights, account security and deletion, support access, identity verification, roles and memberships within an agency, integrations, exports): 5 years.',
+    );
+    expect(privacy.en).toContain(
+      '- **Logs of payments, invoices, payouts, commissions and subscriptions**: 10 years, like the records they relate to.',
+    );
+  });
+});

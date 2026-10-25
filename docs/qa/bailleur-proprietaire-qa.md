@@ -802,7 +802,7 @@
 **Étape 2 :** API directe avec token owner :
 - `GET /api/dashboard/agency` → 403
 - `GET /api/customers/{id-other-agency}` → 403
-- `POST /api/agencies` (création d'agence) → 403
+- `POST /api/agencies` (création d'agence) → 405 : la route est retirée (TCK-2311)
 
 **Q1 :** Toutes les tentatives ci-dessus sont correctement bloquées ?
 > Réponse : _______________________________________________

@@ -126,20 +126,17 @@ class LateFeeCalculator
      */
     public function apply(LeasePayment $payment, ?CarbonInterface $now = null): float
     {
-        $amount = $this->compute($payment, $now);
-        if ($amount <= 0.0) {
+        if (! $this->isApplicable($payment, $now)) {
             return 0.0;
         }
 
         $now = $now ? Carbon::instance($now) : now();
-        $percent = (float) ($payment->lease->late_fee_percent ?? 0);
-        $base = $this->base($payment);
 
         // Guard against concurrent invocations (manual dispatch outside the
         // scheduler's `withoutOverlapping` lock) by re-checking inside a
         // row-level transaction. Without this, two workers can both read
         // `late_fee_applied_at = null` and both write a fee.
-        return DB::transaction(function () use ($payment, $now, $amount, $percent, $base) {
+        return DB::transaction(function () use ($payment, $now) {
             $locked = LeasePayment::query()
                 ->whereKey($payment->id)
                 ->lockForUpdate()
@@ -151,6 +148,15 @@ class LateFeeCalculator
                 || ! in_array($locked->status, [PaymentStatus::Pending, PaymentStatus::PartiallyPaid, PaymentStatus::Late], true)) {
                 return 0.0;
             }
+
+            // TCK-2310 (P229.05) — montant et base se calculent sur la ligne relue : un paiement
+            // partiel posé depuis la lecture du lot réduit le restant dû, donc la pénalité.
+            $amount = $this->compute($locked, $now);
+            if ($amount <= 0.0) {
+                return 0.0;
+            }
+            $percent = (float) ($locked->lease->late_fee_percent ?? 0);
+            $base = $this->base($locked);
 
             $locked->forceFill([
                 'late_fee_amount' => $amount,

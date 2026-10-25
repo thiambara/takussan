@@ -5,6 +5,7 @@ namespace App\Services\Invitation;
 use App\Domain\Notifications\NotificationCode;
 use App\Mail\InvitationMailable;
 use App\Models\Agency;
+use App\Models\Customer;
 use App\Models\Enums\CollaborationStatus;
 use App\Models\Enums\InvitationStatus;
 use App\Models\Invitation;
@@ -17,6 +18,7 @@ use App\Notifications\InvitationAcceptedNotification;
 use App\Notifications\InvitationExpiredNotification;
 use App\Services\Auth\PhoneVerificationService;
 use App\Services\Auth\SuperAdminCooptationService;
+use App\Services\Model\CustomerService;
 use App\Services\Model\NotificationService;
 use App\Services\Notifications\ContactSansCompte;
 use App\Services\Notifications\Sms\DeferredSmsGuard;
@@ -104,6 +106,9 @@ class InvitationService
         'agent_senior' => AgentProfile::class,
         'agent_manager' => AgentProfile::class,
         'service_provider' => ServiceProviderProfile::class,
+        // P15.01 (TCK-2351) — inviter le locataire à créer son compte : la cible est la fiche
+        // client, qui reçoit le compte à l'acceptation ({@see self::lierLaFiche()}).
+        'tenant' => Customer::class,
     ];
 
     /**
@@ -824,6 +829,16 @@ class InvitationService
         // the invitation `sent`. The flip below used to lift the suspension of
         // another account's profile, in another agency, without a trace.
         $invitable = $invitation->invitable;
+
+        // P15.01 (TCK-2351) — une fiche client n'est pas un profil : son statut est celui du CRM,
+        // et rien ne s'y active. Elle reçoit le compte, avant toute autre écriture. Supprimée depuis
+        // l'envoi, l'invitation ne lie plus rien : elle vaut révoquée.
+        abort_code_if($invitation->role === 'tenant' && ! $invitable instanceof Customer, 410, 'invitation.token_revoked');
+        if ($invitable instanceof Customer) {
+            $this->lierLaFiche($invitable, $user);
+            $invitable = null;
+        }
+
         $invitableStatus = $invitable !== null && array_key_exists('status', $invitable->getAttributes())
             ? ($invitable->status instanceof \BackedEnum ? (string) $invitable->status->value : (string) $invitable->status)
             : null;
@@ -948,6 +963,26 @@ class InvitationService
         }
 
         return $invitation->fresh();
+    }
+
+    /**
+     * P15.01 (TCK-2351, décision du porteur du 2026-10-25) — « inviter le locataire à créer son
+     * compte » : la fiche reçoit le compte qui accepte, par `linkUser()`. Relue sous verrou : une
+     * fiche liée entre l'envoi et l'acceptation à un AUTRE compte refuse l'acceptation (409), et
+     * l'invitation reste `sent` ; liée à ce compte-ci, rien ne change.
+     */
+    protected function lierLaFiche(Customer $fiche, User $user): void
+    {
+        /** @var Customer $fraiche */
+        $fraiche = Customer::query()->whereKey($fiche->getKey())->lockForUpdate()->firstOrFail();
+
+        if ($fraiche->user_id === null) {
+            app(CustomerService::class)->linkUser($fraiche, $user);
+
+            return;
+        }
+
+        abort_code_if((int) $fraiche->user_id !== (int) $user->id, 409, 'invitation.tenant_already_linked');
     }
 
     /**

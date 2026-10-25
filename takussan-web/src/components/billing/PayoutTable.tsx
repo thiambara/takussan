@@ -152,7 +152,15 @@ export function PayoutTable({
                   <td className="px-4 py-2 whitespace-nowrap text-right font-semibold tabular-nums">
                     {xof(payout.net_amount, payout.currency)}
                   </td>
-                  <td className="px-4 py-2"><PayoutStatusPill status={payout.status} /></td>
+                  <td className="px-4 py-2">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <PayoutStatusPill status={payout.status} />
+                      {/* TCK-2320 (P39.07) — une ligne remboursée depuis le versement : un signal, sans montant. */}
+                      {(payout.refunded_since_paid?.length ?? 0) > 0 ? (
+                        <StatusBadge label={t('refundedSincePaid')} tone="attention" />
+                      ) : null}
+                    </div>
+                  </td>
                   <td className="whitespace-nowrap px-4 py-2 tabular-nums text-muted-foreground">
                     {fmt.date(payout.processed_at, DATE_COURTE)}
                   </td>

@@ -182,6 +182,19 @@ describe('NotificationRow', () => {
     expect(screen.getByText(corps)).toBeInTheDocument();
   });
 
+  // TCK-2325 (P128.03) — une date déclarée s'écrit comme dans le courriel (`LL` : « 29 septembre
+  // 2026 », « 29 September 2026 »), et non plus en mois abrégé.
+  it.each([
+    ['fr', '29 septembre 2026', '29 sept. 2026'],
+    ['en', '29 September 2026', '29 Sept 2026'],
+  ] as const)('écrit une date en mois entier, comme le courriel (%s)', (locale, attendu, abrege) => {
+    renderRow(notification(), locale);
+
+    const texte = document.body.textContent ?? '';
+    expect(texte).toContain(attendu);
+    expect(texte).not.toContain(abrege);
+  });
+
   it('laisse tel quel un texte à forme de date, et formate une date déclarée', () => {
     renderRow(notification({
       type: 'payment',
@@ -193,7 +206,7 @@ describe('NotificationRow', () => {
 
     const texte = document.body.textContent ?? '';
     expect(texte).toContain('2026-10-30');
-    expect(texte).toContain('29 sept. 2026');
+    expect(texte).toContain('29 septembre 2026');
     expect(texte).not.toContain('2026-09-29');
   });
 
@@ -202,7 +215,7 @@ describe('NotificationRow', () => {
 
     const corps = screen.getByText(/est en retard de 7 jours/).textContent ?? '';
     expect(corps).toMatch(/150\s000\sF\sCFA/u);
-    expect(corps).toContain('29 sept. 2026');
+    expect(corps).toContain('29 septembre 2026');
   });
 
   it('formate le montant et la date, sans « 150000.00 » ni « XOF » bruts', () => {
@@ -210,15 +223,17 @@ describe('NotificationRow', () => {
 
     const corps = screen.getByText(/est en retard de 7 jours/).textContent ?? '';
     expect(corps).toMatch(/150\s000\sF\sCFA/u);
-    expect(corps).toContain('29 sept. 2026');
+    expect(corps).toContain('29 septembre 2026');
     expect(corps).not.toContain('150000.00');
   });
 
   // TCK-1328 (P128.06) — un paramètre `datetime` (instant ISO à décalage) se rend en date ET
   // heure, à Dakar ; une `date` seule (`due_date`, cas ci-dessus) sans heure.
+  // TCK-2325 (P128.03) — mois en toutes lettres, comme le courriel (`LL`, `LLL`) : même rendu en
+  // courriel et en cloche.
   it.each([
-    ['fr', /25 oct\. 2026.*14:30/],
-    ['en', /25 Oct 2026, 14:30/],
+    ['fr', /25 octobre 2026.*14:30/],
+    ['en', /25 October 2026.*14:30/],
   ] as const)('formate un instant en date et heure (%s)', (locale, attendu) => {
     renderRow(notification({
       type: 'visit',

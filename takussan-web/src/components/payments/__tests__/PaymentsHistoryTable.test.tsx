@@ -84,7 +84,8 @@ describe('PaymentsHistoryTable — défilement horizontal sur petit écran (TCK-
     expect(conteneur, 'aucun ancêtre défilant avant un ancêtre rognant').not.toBeNull();
     expect(porteUnRognageHorizontal(conteneur!)).toBe(false);
     // Le cadre reste une carte : l'arrondi et la bordure survivent au passage à `overflow-x-auto`.
-    expect(conteneur).toHaveClass('rounded-xl', 'border');
+    // TCK-2331 — la table est celle de `DataTable` : son conteneur défilant est celui de `<Table>`.
+    expect(conteneur).toHaveAttribute('data-slot', 'table-container');
   });
 
   it('ne laisse pas la date, le montant ni le statut revenir à la ligne', () => {
