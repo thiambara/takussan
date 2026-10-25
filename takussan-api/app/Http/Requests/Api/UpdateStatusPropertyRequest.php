@@ -4,6 +4,7 @@ namespace App\Http\Requests\Api;
 
 use App\Http\Requests\BaseFormRequest;
 use App\Models\Enums\PropertyStatus;
+use App\Models\Enums\PropertyVisibility;
 use Illuminate\Validation\Rule;
 
 /**
@@ -21,6 +22,17 @@ class UpdateStatusPropertyRequest extends BaseFormRequest
      * `UpdatePropertyRequest` (P147.01, TCK-1427), pour que le `PATCH` juge la même règle.
      */
     public const STATUTS_QUI_PUBLIENT = [PropertyStatus::Available->value, PropertyStatus::Published->value];
+
+    /**
+     * P209.01 (TCK-2175) — la règle « c'est publier », écrite une fois : un statut de
+     * `STATUTS_QUI_PUBLIENT`, ou `visibility=public`. Lue par la création (`StorePropertyRequest`)
+     * et le `PATCH` (`UpdatePropertyRequest`) ; ce geste-ci ne reçoit pas de visibilité.
+     */
+    public static function publie(mixed $status, mixed $visibility = null): bool
+    {
+        return in_array($status, self::STATUTS_QUI_PUBLIENT, true)
+            || $visibility === PropertyVisibility::Public->value;
+    }
 
     /**
      * TCK-305 — l'autorisation court ICI, avant la validation.
@@ -43,8 +55,7 @@ class UpdateStatusPropertyRequest extends BaseFormRequest
 
         // TCK-587 — passer un bien en `available` / `published` le met au catalogue : c'est publier,
         // et `PUT …/status` était un contournement de `publish`.
-        return ! in_array($this->input('status'), self::STATUTS_QUI_PUBLIENT, true)
-            || $user->can('publish', $property);
+        return ! self::publie($this->input('status')) || $user->can('publish', $property);
     }
 
     /** @return array<string, mixed> */

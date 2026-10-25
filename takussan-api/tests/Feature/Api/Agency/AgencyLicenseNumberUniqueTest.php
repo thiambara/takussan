@@ -10,36 +10,13 @@ use Tests\ApiTestCase;
 
 /**
  * TCK-1105 (P92.04) — `agencies.license_number` est unique sur toutes les lignes, supprimées
- * comprises. Un numéro déjà porté se refuse en 422 sur `license_number`, à la création comme à la
- * modification, au lieu du 500 de la contrainte. Le numéro d'une agence supprimée n'est pas libéré.
+ * comprises. Un numéro déjà porté se refuse en 422 sur `license_number` à la modification, au lieu
+ * du 500 de la contrainte. La création par `POST /api/agencies` est retirée (TCK-2311, P225.06) :
+ * ses deux cas sont partis avec elle, et la console ne reçoit pas de numéro d'agrément.
  */
 class AgencyLicenseNumberUniqueTest extends ApiTestCase
 {
     use RefreshDatabase;
-
-    public function test_creer_avec_le_numero_d_une_agence_vivante_rend_422(): void
-    {
-        Agency::factory()->create(['license_number' => 'AGR-2026-001']);
-        Sanctum::actingAs(User::factory()->create());
-
-        $this->postJson('/api/agencies', ['name' => 'Nouvelle', 'license_number' => 'AGR-2026-001'])
-            ->assertStatus(422)
-            ->assertJsonValidationErrors('license_number');
-    }
-
-    public function test_creer_avec_le_numero_d_une_agence_supprimee_rend_422(): void
-    {
-        Agency::factory()->create(['license_number' => 'AGR-2026-002'])->delete();
-        Sanctum::actingAs(User::factory()->create());
-
-        $this->postJson('/api/agencies', ['name' => 'Nouvelle', 'license_number' => 'AGR-2026-002'])
-            ->assertStatus(422)
-            ->assertJsonValidationErrors('license_number');
-
-        // Témoin : un numéro libre passe.
-        $this->postJson('/api/agencies', ['name' => 'Nouvelle', 'license_number' => 'AGR-2026-003'])
-            ->assertCreated();
-    }
 
     public function test_modifier_vers_un_numero_pris_rend_422(): void
     {

@@ -7,10 +7,12 @@ use App\Models\BookingPayment;
 use App\Models\Customer;
 use App\Models\Enums\BookingPaymentType;
 use App\Models\Enums\Currency;
+use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\PaymentProvider;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Integration;
 use App\Models\IntegrationWebhookLog;
+use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Models\Property;
 use App\Services\Payments\PaymentGatewayService;
@@ -178,6 +180,86 @@ class PaymentSupervisionTest extends TestCase
         $this->assertSame([$due['payment']->id], collect($late)->pluck('id')->all());
         $this->assertSame(['lease_payment'], collect($late)->pluck('type')->unique()->values()->all());
         $this->assertSame('pending', $late[0]['status']);
+    }
+
+    /**
+     * P198.05 (TCK-2034) — une restitution de caution échue n'est pas « en retard » (c'est l'agence
+     * qui la doit, `LeasePayment::isOverdue()`) : elle paraît sous son propre motif, `refund_due`.
+     * Une échéance d'un bail supprimé ne paraît sous aucun motif.
+     */
+    public function test_p198_05_une_restitution_echue_a_son_motif_et_un_bail_supprime_ne_compte_pas(): void
+    {
+        $om = ['gateway' => ['provider' => 'orange_money', 'transaction_id' => 'om_19805']];
+        $due = $this->leaseDue(payment: [
+            'status' => PaymentStatus::Pending,
+            'due_date' => now()->subDays(3)->toDateString(),
+            'late_fee_amount' => 0,
+            'late_fee_applied_at' => null,
+            'metadata' => $om,
+        ]);
+        $due['lease']->update(['late_fee_percent' => 0]);
+
+        $echeance = fn (array $attrs) => LeasePayment::factory()->create($attrs + [
+            'lease_id' => $due['lease']->id,
+            'amount' => 150_000,
+            'currency' => Currency::XOF,
+            'status' => PaymentStatus::Pending,
+            'due_date' => now()->subDays(2)->toDateString(),
+            'metadata' => $om,
+        ]);
+        $restitution = $echeance(['payment_type' => LeasePaymentType::DepositRefund]);
+        $echeance(['payment_type' => LeasePaymentType::DepositRefund, 'due_date' => now()->addDays(5)->toDateString()]);
+
+        $bailSupprime = Lease::factory()->create([
+            'agency_id' => $due['agency']->id,
+            'property_id' => $due['lease']->property_id,
+        ]);
+        $echeance(['lease_id' => $bailSupprime->id, 'payment_type' => LeasePaymentType::Rent]);
+        $echeance(['lease_id' => $bailSupprime->id, 'payment_type' => LeasePaymentType::DepositRefund]);
+        $bailSupprime->delete();
+
+        $this->actingAsRole('super_admin');
+        $summary = $this->getJson('/api/admin/payments/summary')->assertOk()->json('data');
+        $this->assertSame(1, $summary['last_30_days']['orange_money']['late']);
+
+        $late = $this->getJson('/api/admin/payments?filter[status]=late')->assertOk()->json('data');
+        $this->assertSame([$due['payment']->id], collect($late)->pluck('id')->all());
+
+        $this->getJson('/api/admin/payments?filter[status]=refund_due')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $restitution->id)
+            ->assertJsonPath('data.0.reason', 'refund_due')
+            ->assertJsonPath('data.0.due_date', now()->subDays(2)->toDateString());
+
+        $tout = collect($this->getJson('/api/admin/payments')->assertOk()->json('data'));
+        $this->assertEqualsCanonicalizing(
+            ["late-{$due['payment']->id}", "refund_due-{$restitution->id}"],
+            $tout->map(fn (array $r) => "{$r['reason']}-{$r['id']}")->all(),
+        );
+    }
+
+    /**
+     * P223.03 (TCK-2173) — `bookingBase` écarte une réservation supprimée, comme `leaseBase` un bail
+     * supprimé depuis TCK-2034 : l'échec de paiement d'une réservation supprimée ne paraît pas.
+     */
+    public function test_p223_03_un_echec_d_une_reservation_supprimee_ne_parait_pas(): void
+    {
+        $echec = fn (Booking $booking) => BookingPayment::factory()->create([
+            'booking_id' => $booking->id,
+            'status' => PaymentStatus::Failed,
+            'updated_at' => now()->subDay(),
+        ]);
+        $vivante = Booking::factory()->create();
+        $supprimee = Booking::factory()->create();
+        $garde = $echec($vivante);
+        $echec($supprimee);
+        $supprimee->delete();
+
+        $this->actingAsRole('super_admin');
+        $echecs = $this->getJson('/api/admin/payments?filter[status]=failed')->assertOk()->json('data');
+
+        $this->assertSame([$garde->id], collect($echecs)->pluck('id')->all());
     }
 
     /** AC10 — un agent ou un admin d'agence : 403 sur les quatre routes. */

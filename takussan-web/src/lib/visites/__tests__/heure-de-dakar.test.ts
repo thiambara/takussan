@@ -7,7 +7,7 @@
 process.env.TZ = 'Europe/Paris';
 
 import { describe, expect, it } from 'vitest';
-import { instantADakar, jourChoisi } from '../heure-de-dakar';
+import { heureMuraleADakar, instantADakar, jourChoisi } from '../heure-de-dakar';
 
 describe('heure de Dakar — navigateur à Europe/Paris', () => {
   it('le fuseau du test est bien Paris, hiver comme été', () => {
@@ -28,5 +28,16 @@ describe('heure de Dakar — navigateur à Europe/Paris', () => {
   it('le calcul lit le décalage du fuseau visé, il ne suppose pas UTC', () => {
     expect(instantADakar('2026-11-12', '10:00', 'Europe/Paris')).toBe('2026-11-12T09:00:00Z');
     expect(instantADakar('2026-06-15', '10:00', 'Europe/Paris')).toBe('2026-06-15T08:00:00Z');
+  });
+});
+
+describe('heureMuraleADakar (P230.05)', () => {
+  it('rend l’heure murale de Dakar, et non celle du navigateur', () => {
+    // 01:00 Z le 25 octobre 2026 : 03:00 à Paris (heure d'été), 01:00 à Dakar.
+    expect(heureMuraleADakar(new Date('2026-10-25T01:00:30Z'))).toBe('2026-10-25T01:00');
+  });
+
+  it('lit le décalage du fuseau, sans supposer UTC+0', () => {
+    expect(heureMuraleADakar(new Date('2026-10-25T01:00:00Z'), 'Asia/Tokyo')).toBe('2026-10-25T10:00');
   });
 });

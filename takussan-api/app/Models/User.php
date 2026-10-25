@@ -6,6 +6,7 @@ use App\Http\Includes\AgencyScopedRelationship;
 use App\Models\Concerns\HasMediaConversions;
 use App\Models\Concerns\HasProfiles;
 use App\Models\Concerns\HasQueryBuilder;
+use App\Models\Concerns\RefusesImpossibleRouteKeys;
 use App\Models\Enums\AgencyRoleBaseType;
 use App\Models\Enums\EmailFrequency;
 use App\Models\Enums\PlatformProfileLevel;
@@ -21,6 +22,7 @@ use App\Services\Membership\MembershipCapabilityResolver;
 use App\Services\Profiles\ActiveProfileResolver;
 use App\Sorts\CollatedNameSort;
 use App\Support\CaseInsensitive;
+use App\Support\Http\ParametreUnique;
 use App\Support\Query\DepartageQueryBuilder;
 use Database\Factories\UserFactory;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
@@ -52,7 +54,7 @@ use Spatie\QueryBuilder\QueryBuilder;
 class User extends Authenticatable implements HasLocalePreference, HasMedia, MustVerifyEmail
 {
     /** @use HasFactory<UserFactory> */
-    use HasApiTokens, HasFactory, HasProfiles, HasQueryBuilder, InteractsWithMedia, LogsActivity, Notifiable, Searchable, SoftDeletes;
+    use HasApiTokens, HasFactory, HasProfiles, HasQueryBuilder, InteractsWithMedia, LogsActivity, Notifiable, RefusesImpossibleRouteKeys, Searchable, SoftDeletes;
 
     use HasMediaConversions {
         HasMediaConversions::registerMediaConversions insteadof InteractsWithMedia;
@@ -328,7 +330,9 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
 
         return AllowedFilter::callback(
             'role',
-            fn (Builder $q, string $value) => match ($value) {
+            // P216.05 (TCK-2244, ADR-0075 § 2) — un rôle inconnu rend déjà aucune ligne : une liste,
+            // lue absente, tombe dans le même `default`, au lieu d'un TypeError.
+            fn (Builder $q, mixed $value) => match (ParametreUnique::valeur($value)) {
                 'agent' => $q->whereHas('agentProfiles', $inAgency),
                 'agency_admin' => $q->whereHas('agencyAdminProfiles', $inAgency),
                 'owner' => $q->whereHas('ownerProfiles', $inAgency),
@@ -637,11 +641,6 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
     public function properties(): HasMany
     {
         return $this->hasMany(Property::class);
-    }
-
-    public function customer(): HasOne
-    {
-        return $this->hasOne(Customer::class);
     }
 
     public function addresses(): MorphMany

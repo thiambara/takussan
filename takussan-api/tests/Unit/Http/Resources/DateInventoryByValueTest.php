@@ -83,6 +83,13 @@ class DateInventoryByValueTest extends TestCase
             .'(`tenant`, `landlord`), jamais une date.',
         'App\Http\Resources\LeaseResource::early_termination_penalty_months' => '`when()` sur le même lecteur posé par '
             .'`forViewer()` (P98.05, TCK-1166) : un nombre de mois ENTIER (`penaltyMonthsFor(): int`), jamais une date.',
+        'App\Http\Resources\PropertyCollaboratorResource::commission_share' => '`when()` sur `partsLisibles()` (P241.01, '
+            .'TCK-2364) : réservée à qui peut fixer les conditions de commission, absente pour le bailleur. Le cast `decimal:2` '
+            .'du modèle, une chaîne numérique, jamais une date.',
+        'App\Http\Resources\PropertyResource::abilities' => '`when()` sur le détail lu par un appelant connu (TCK-999) : '
+            .'un booléen `transfer_owner`, jamais une date.',
+        'App\Http\Resources\PropertyResource::pending_owner' => '`when()` sur `pending_owner_profile_id` et la lecture du '
+            .'personnel (TCK-1000) : un identifiant ENTIER et un nom, jamais une date.',
         'App\Http\Resources\PropertyResource::primary_contact_source' => '`when()` refusé sur `public.*` (TCK-603, '
             .'ADR-0059 §6) — or la route du second appelant répond « oui » à tout `routeIs()`, `public.*` compris. '
             .'Un vocabulaire fermé (`designated`, `invitation_order`, `owner`, `null`), jamais une date.',

@@ -157,6 +157,24 @@ describe('LeaseSignaturePanel (TCK-596 §4B)', () => {
     expect(screen.getByTestId('lease-signature-tenant')).toHaveTextContent('En attente');
   });
 
+  // P220.02 (TCK-2134) — un nom vide (compte créé par téléphone) ne fait ni « Signé par  le … »
+  // ni disparaître le mandat : le texte se choisit sur la présence du mandat, pas sur son nom.
+  it('garde le « pour le compte de » et replie les noms vides sur « — »', () => {
+    rendre(
+      bail({
+        signatures: [
+          preuve({ id: 1, role: 'tenant', signer_name: '' }),
+          preuve({ id: 2, role: 'landlord', signer_name: 'Awa Agent', on_behalf_of_name: '' }),
+        ],
+      }),
+    );
+
+    expect(screen.getByTestId('lease-signature-tenant')).toHaveTextContent(/Signé par — le/);
+    expect(screen.getByTestId('lease-signature-landlord')).toHaveTextContent(
+      /Signé par Awa Agent pour le compte de — le/,
+    );
+  });
+
   it("une signature posée sur un contrat défigé n'est pas affichée comme valable", () => {
     rendre(
       bail({
@@ -205,6 +223,42 @@ describe('LeaseSignaturePanel (TCK-596 §4B)', () => {
       fireEvent.click(envoyer);
     });
     expect(appels.activate).toHaveBeenCalledWith({ contract: fichier });
+  });
+
+  // TCK-2150 (P222.06) — `ActivateLeaseRequest` borne le contrat à `max:10240` : refusé au choix,
+  // il n'attend plus le 422 de l'API.
+  it('un contrat papier de 11 Mo est refusé au choix, nommé, et ne part pas', async () => {
+    rendre(bail({ status: 'draft', contract_sha256: null, can_request_signature: true, can_activate_on_paper: true }));
+
+    const lourd = new File(['%PDF-1.4'], 'scan-lourd.pdf', { type: 'application/pdf' });
+    Object.defineProperty(lourd, 'size', { value: 11 * 1024 * 1024 });
+    fireEvent.change(screen.getByLabelText('Contrat signé sur papier (PDF, JPG ou PNG, 10 Mo)'), {
+      target: { files: [lourd] },
+    });
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Fichier trop lourd (10 Mo au plus) : scan-lourd.pdf');
+    const envoyer = screen.getByRole('button', { name: 'Activer sur contrat papier' });
+    expect(envoyer).toBeDisabled();
+    await act(async () => {
+      fireEvent.submit(envoyer.closest('form')!);
+    });
+    expect(appels.activate).not.toHaveBeenCalled();
+  });
+
+  it('un contrat papier de 10 Mo exactement est retenu, sans alerte', async () => {
+    rendre(bail({ status: 'draft', contract_sha256: null, can_request_signature: true, can_activate_on_paper: true }));
+
+    const juste = new File(['%PDF-1.4'], 'scan.pdf', { type: 'application/pdf' });
+    Object.defineProperty(juste, 'size', { value: 10 * 1024 * 1024 });
+    fireEvent.change(screen.getByLabelText('Contrat signé sur papier (PDF, JPG ou PNG, 10 Mo)'), {
+      target: { files: [juste] },
+    });
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Activer sur contrat papier' }));
+    });
+    expect(appels.activate).toHaveBeenCalledWith({ contract: juste });
   });
 
   it("un gestionnaire sans `leases.sign` lance la demande mais n'a pas la voie papier (VERIF-596 M1)", () => {

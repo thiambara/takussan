@@ -169,6 +169,25 @@ class LeaseSignatureTest extends TestCase
         Bus::assertDispatchedTimes(GenerateLeasePaymentSchedule::class, 1);
     }
 
+    /**
+     * P193.06 (TCK-2055) — ni numéro vérifié ni e-mail : le code n'est pas émis, la réponse ne
+     * l'annonce pas envoyé (`202 {"channel":"mail","destination":"•••@"}` avant), et la fenêtre
+     * de renvoi n'est pas consommée.
+     */
+    public function test_p193_06_un_signataire_sans_destination_est_refuse_avant_tout_code(): void
+    {
+        $this->requestSignature()->assertOk();
+        $this->tenantUser->forceFill(['email' => null, 'email_verified_at' => null, 'phone_verified_at' => null])->save();
+
+        $this->sendCode($this->tenantUser, 'tenant')
+            ->assertStatus(422)
+            ->assertJsonPath('code', 'lease_signature.no_destination');
+        Notification::assertNotSentTo($this->tenantUser, LeaseSignatureCodeNotification::class);
+
+        $this->tenantUser->forceFill(['email' => 'locataire@example.test'])->save();
+        $this->sendCode($this->tenantUser, 'tenant')->assertStatus(202);
+    }
+
     public function test_the_landlord_may_sign_first(): void
     {
         $this->requestSignature()->assertOk();
@@ -742,6 +761,23 @@ class LeaseSignatureTest extends TestCase
         $this->assertSame($this->owner->id, $proof->on_behalf_of_user_id);
         // Le bailleur, pour le compte duquel on a signé, est prévenu.
         $this->assertSame(1, AppNotification::query()->where('code', 'lease.signed_by_party')->where('user_id', $this->owner->id)->count());
+    }
+
+    /**
+     * P220.02 (TCK-2134) — un bailleur ou un signataire sans nom (compte créé par téléphone) est
+     * nommé par `nameWithoutContact()` : jamais `''`, qui effaçait au panneau le « pour le compte
+     * de » et laissait « Signé par  le … ».
+     */
+    public function test_les_noms_d_une_signature_pour_le_compte_d_un_bailleur_sans_nom_ne_sont_jamais_vides(): void
+    {
+        $agent = $this->agencyAgent($this->agency);
+        $agent->forceFill(['first_name' => '', 'last_name' => '', 'username' => null])->save();
+        $this->owner->forceFill(['first_name' => '', 'last_name' => '', 'username' => null])->save();
+        $this->requestSignature()->assertOk();
+
+        $this->signWithCode($agent, 'landlord')->assertOk()
+            ->assertJsonPath('data.signatures.0.signer_name', '—')
+            ->assertJsonPath('data.signatures.0.on_behalf_of_name', '—');
     }
 
     /** Un agent d'une AUTRE agence, titulaire de `leases.sign` chez lui, ne signe pas ce bail. */

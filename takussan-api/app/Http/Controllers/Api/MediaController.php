@@ -26,7 +26,10 @@ class MediaController extends Controller
 
         /** @var class-string<Model&HasMedia> $type */
         $type = $data['model_type'];
-        $target = $type::query()->findOrFail($data['model_id']);
+        // TCK-2206 (P226.03) — une cible absente reçoit le refus d'une cible tierce (angle 62) : un
+        // `findOrFail` rendait 404 avant l'autorisation, et disait à tout compte quelles lignes existent.
+        $target = $type::query()->find($data['model_id']);
+        abort_if($target === null, Response::HTTP_FORBIDDEN);
 
         if (! $target instanceof HasMedia) {
             abort_code(Response::HTTP_UNPROCESSABLE_ENTITY, 'media.unsupported_target');

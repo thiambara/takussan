@@ -128,6 +128,9 @@ export function ChatView({ conversationId, variant = 'page', onBack }: ChatViewP
     (p) => p.user_id === user?.id && !p.left_at,
   );
   const isMuted = Boolean(myParticipant?.is_muted);
+  // TCK-2374 (P248.01) — l'API refuserait l'envoi : la saisie laisse place à une note. Absent (liste,
+  // cache d'avant la réponse), le drapeau ne cache rien.
+  const canSend = conversation?.abilities?.can_send_message !== false;
 
   // Reset the per-conversation scroll bookkeeping whenever the open
   // conversation changes — otherwise the dashboard's persistent ChatView
@@ -360,31 +363,37 @@ export function ChatView({ conversationId, variant = 'page', onBack }: ChatViewP
         )}
       </div>
 
-      <ChatComposerShell
-        // TCK-316 — `handleSubmit(onSubmit)` était APPELÉ pendant le rendu pour
-        // produire le gestionnaire ; on diffère l'appel dans l'événement, ce que fait
-        // déjà le bouton plus bas.
-        onSubmit={(e) => void form.handleSubmit(onSubmit)(e)}
-        sendDisabled={sendMessage.isPending}
-        sendAriaLabel={t('chat.sendAria')}
-        // TCK-683 (P13.03) — plus de trombone : il postait sur
-        // `/messages/{m}/attachments`, qu'aucune route de l'API ne sert. Le porteur l'a
-        // retiré « pour l'instant » ; la note vocale reste (TCK-592, ADR-0038).
-        leading={<VoiceNoteRecorder conversationId={conversationId} />}
-      >
-        <Textarea
-          {...form.register('content')}
-          rows={1}
-          placeholder={t('chat.placeholder')}
-          className="min-h-11 resize-none sm:min-h-9"
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-              e.preventDefault();
-              void form.handleSubmit(onSubmit)();
-            }
-          }}
-        />
-      </ChatComposerShell>
+      {canSend ? (
+        <ChatComposerShell
+          // TCK-316 — `handleSubmit(onSubmit)` était APPELÉ pendant le rendu pour
+          // produire le gestionnaire ; on diffère l'appel dans l'événement, ce que fait
+          // déjà le bouton plus bas.
+          onSubmit={(e) => void form.handleSubmit(onSubmit)(e)}
+          sendDisabled={sendMessage.isPending}
+          sendAriaLabel={t('chat.sendAria')}
+          // TCK-683 (P13.03) — plus de trombone : il postait sur
+          // `/messages/{m}/attachments`, qu'aucune route de l'API ne sert. Le porteur l'a
+          // retiré « pour l'instant » ; la note vocale reste (TCK-592, ADR-0038).
+          leading={<VoiceNoteRecorder conversationId={conversationId} />}
+        >
+          <Textarea
+            {...form.register('content')}
+            rows={1}
+            placeholder={t('chat.placeholder')}
+            className="min-h-11 resize-none sm:min-h-9"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                void form.handleSubmit(onSubmit)();
+              }
+            }}
+          />
+        </ChatComposerShell>
+      ) : (
+        <p role="status" className="border-t border-border bg-card p-3 text-sm text-muted-foreground">
+          {t('chat.readOnly')}
+        </p>
+      )}
     </div>
   );
 }

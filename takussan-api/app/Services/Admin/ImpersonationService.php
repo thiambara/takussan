@@ -82,9 +82,9 @@ class ImpersonationService
     /**
      * Idempotent : une session déjà fermée n'est ni refermée, ni re-notifiée. La ligne est
      * verrouillée — deux fermetures simultanées (`stop` et la commande d'expiration) n'envoient
-     * qu'un avis.
+     * qu'un avis. Rend vrai quand c'est cet appel qui a fermé la session (TCK-2310, P229.06).
      */
-    public function stop(ImpersonationSession $session, ImpersonationEndReason $cause): void
+    public function stop(ImpersonationSession $session, ImpersonationEndReason $cause): bool
     {
         $fermee = DB::transaction(function () use ($session, $cause): ?ImpersonationSession {
             /** @var ImpersonationSession|null $ligne */
@@ -112,9 +112,13 @@ class ImpersonationService
             return $ligne;
         });
 
-        if ($fermee !== null) {
-            $this->notifierLaCible($fermee, $cause);
+        if ($fermee === null) {
+            return false;
         }
+
+        $this->notifierLaCible($fermee, $cause);
+
+        return true;
     }
 
     /** La session ouverte (non fermée, non échue) que porte ce jeton, s'il y en a une. */
@@ -157,18 +161,22 @@ class ImpersonationService
         }
     }
 
-    /** La commande planifiée : toute session ouverte échue. */
+    /**
+     * La commande planifiée : toute session ouverte échue. Rend le nombre de sessions que cet appel
+     * a fermées, sans celles qu'un `stop` concurrent a fermées depuis la sélection (TCK-2310).
+     */
     public function closeExpired(): int
     {
         $echues = ImpersonationSession::query()
             ->whereNull('ended_at')
             ->where('expires_at', '<=', now())
             ->get();
+        $fermees = 0;
         foreach ($echues as $session) {
-            $this->stop($session, ImpersonationEndReason::Expired);
+            $fermees += $this->stop($session, ImpersonationEndReason::Expired) ? 1 : 0;
         }
 
-        return $echues->count();
+        return $fermees;
     }
 
     private function notifierLaCible(ImpersonationSession $session, ImpersonationEndReason $cause): void

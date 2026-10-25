@@ -6,6 +6,7 @@ use App\Models\AgencyRole;
 use App\Models\Enums\AgencyRoleBaseType;
 use App\Models\Enums\Capability;
 use App\Models\Enums\MaintenanceStatus;
+use App\Models\MaintenanceRequest;
 use App\Models\Profiles\AgentProfile;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -45,6 +46,47 @@ class MaintenanceCapabilitiesTest extends TestCase
         $this->patchJson("/api/maintenance-requests/{$mr->id}", ['assigned_to' => $other->id])
             ->assertOk()
             ->assertJsonPath('data.assigned_to', $other->id);
+    }
+
+    /**
+     * TCK-2203 (P227.02) — la création assignait sur le seul `isPrincipalFor`, sans `maintenance.assign`
+     * que la modification exige. Le témoin « avec » assigne : sans lui, un refus de toute création
+     * assignée rendrait ce test vert.
+     */
+    public function test_agent_without_assign_cannot_assign_at_creation(): void
+    {
+        ['property' => $property, 'agency' => $agency] = $this->maintenanceScenario();
+        $other = $this->providerFor($agency);
+        $payload = [
+            'property_id' => $property->id,
+            'assigned_to' => $other->id,
+            'title' => 'Fuite sous l\'évier',
+            'description' => 'Une fuite sous l\'évier de la cuisine.',
+            'category' => 'plumbing',
+        ];
+
+        Sanctum::actingAs($this->agentWithCapabilities($agency, [Capability::MaintenanceClose]));
+        $this->postJson('/api/maintenance-requests', $payload)->assertForbidden();
+        $this->assertSame(0, MaintenanceRequest::query()->where('assigned_to', $other->id)->count());
+
+        Sanctum::actingAs($this->agentWithCapabilities($agency, [Capability::MaintenanceAssign]));
+        $this->postJson('/api/maintenance-requests', $payload)
+            ->assertCreated()
+            ->assertJsonPath('data.assigned_to', $other->id);
+    }
+
+    /** TCK-2203 (P227.02) — sans `assigned_to`, l'agent sans la capacité crée toujours. */
+    public function test_agent_without_assign_still_creates_unassigned(): void
+    {
+        ['property' => $property, 'agency' => $agency] = $this->maintenanceScenario();
+
+        Sanctum::actingAs($this->agentWithCapabilities($agency, [Capability::MaintenanceClose]));
+        $this->postJson('/api/maintenance-requests', [
+            'property_id' => $property->id,
+            'title' => 'Fuite sous l\'évier',
+            'description' => 'Une fuite sous l\'évier de la cuisine.',
+            'category' => 'plumbing',
+        ])->assertCreated()->assertJsonPath('data.assigned_to', null);
     }
 
     public function test_agent_without_close_cannot_close(): void

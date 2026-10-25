@@ -3,7 +3,8 @@
  * (`ui/input.tsx` : « 16 px sous `md` (`text-base md:text-sm`) : iOS ne zoome pas au focus »).
  * Sous 16 px, Safari iOS zoome la page au focus, et l'utilisateur doit la dézoomer à la main.
  *
- * Garde de SOURCE, limitée aux trois fichiers que cite la piste : jsdom ne rend aucune taille de
+ * Garde de SOURCE, limitée aux fichiers que cite la piste (`InviteMemberDialog.tsx` est parti avec
+ * le rattachement direct, TCK-2365) : jsdom ne rend aucune taille de
  * police. Un `<input>` ou `<textarea>` dont la classe porte `text-sm` doit aussi porter `text-base`.
  */
 import { readFileSync } from 'node:fs';
@@ -13,7 +14,6 @@ import { describe, expect, it } from 'vitest';
 const FICHIERS = [
   'src/components/inventory/RoomEditor.tsx',
   'src/components/admin/InviteAgentDialog.tsx',
-  'src/components/admin/InviteMemberDialog.tsx',
 ];
 
 /** Les classes de chaque `<input>` / `<textarea>` du fichier, avec la ligne de la balise. */

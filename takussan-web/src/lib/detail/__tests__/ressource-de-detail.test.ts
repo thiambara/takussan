@@ -140,3 +140,20 @@ describe('TCK-442 — l’identifiant illisible, l’autre moitié du défaut', 
     expect(apiRequestMock).not.toHaveBeenCalled();
   });
 });
+
+describe('TCK-2119 (P215.03) — l’identifiant au-delà des entiers exacts', () => {
+  it.each([
+    ['99999999999999999999', 'vingt chiffres — lu 1e20 et réécrit 100000000000000000000'],
+    ['12345678901234567', 'au-delà de MAX_SAFE_INTEGER — lu 12345678901234568, une autre ligne'],
+    ['9007199254740992', 'MAX_SAFE_INTEGER + 1'],
+    ['1e3', 'notation exponentielle — lue 1000'],
+    ['0x10', 'hexadécimal — lu 16'],
+    ['042', 'zéro de tête — un autre chemin que celui de la ligne 42'],
+  ])('« %s » n’est pas un identifiant (%s)', (brut) => {
+    expect(idDeDetail(brut)).toBeNull();
+  });
+
+  it('le plus grand entier exact en est un', () => {
+    expect(idDeDetail('9007199254740991')).toBe(9_007_199_254_740_991);
+  });
+});

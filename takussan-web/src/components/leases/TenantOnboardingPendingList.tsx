@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 
 import { ClipboardCheck } from 'lucide-react';
@@ -9,6 +10,7 @@ import { useAgencyOnboardingPending } from '@/lib/queries/tenant-onboarding';
 import { EmptyState } from '@/components/feedback';
 import { QueryBoundary } from '@/components/shared/QueryBoundary';
 import { Badge } from '@/components/ui/badge';
+import { Pagination } from '@/components/console/Pagination';
 import { formatDate } from '@/lib/format';
 import type { Locale } from '@/i18n/config';
 import type { TenantOnboardingChecklist } from '@/types/tenant-onboarding';
@@ -54,7 +56,10 @@ function missingItems(row: Row, label: (field: string) => string): string[] {
 export function TenantOnboardingPendingList({ agencyId }: Props) {
   const t = useTranslations('agency.tenantOnboardingPending');
   const locale = useLocale() as Locale;
-  const query = useAgencyOnboardingPending({ agencyId, per_page: 30 });
+  // TCK-2005 (P171.03) — la page dans l'état de la liste : une page de 30 sans page suivante
+  // taisait le 31ᵉ accueil en attente.
+  const [page, setPage] = useState(1);
+  const query = useAgencyOnboardingPending({ agencyId, per_page: 30, page });
 
   return (
     <QueryBoundary
@@ -77,43 +82,48 @@ export function TenantOnboardingPendingList({ agencyId }: Props) {
         }
 
         return (
-          <ul className="space-y-3">
-            {rows.map((row) => {
-              const days = daysSince(row.created_at);
-              const missing = missingItems(row, (field) => t(`items.${field}`));
-              const reference = row.lease?.reference_number ?? `#${row.lease_id}`;
-              const signedAt = row.lease?.signed_at ?? row.created_at;
-
-              return (
-                <li
-                  key={row.id}
-                  className="rounded-xl border border-border bg-card p-4"
-                >
-                  <div className="flex flex-wrap items-start justify-between gap-4">
-                    <div className="min-w-0">
-                      <Link
-                        href={`/app/leases/${row.lease_id}`}
-                        className="text-sm font-semibold text-foreground hover:underline"
-                      >
-                        {t('leaseReference', { reference })}
-                      </Link>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {t('signedAt', { date: formatDate(signedAt ?? '', locale) })}
-                      </p>
-                      {missing.length > 0 ? (
-                        <p className="mt-2 text-xs text-muted-foreground">
-                          {t('missing', { items: missing.join(' · ') })}
+          <div className="space-y-4">
+            <ul className="space-y-3">
+              {rows.map((row) => {
+                const days = daysSince(row.created_at);
+                const missing = missingItems(row, (field) => t(`items.${field}`));
+                const reference = row.lease?.reference_number ?? `#${row.lease_id}`;
+                const signedAt = row.lease?.signed_at ?? row.created_at;
+  
+                return (
+                  <li
+                    key={row.id}
+                    className="rounded-xl border border-border bg-card p-4"
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-4">
+                      <div className="min-w-0">
+                        <Link
+                          href={`/app/leases/${row.lease_id}`}
+                          className="text-sm font-semibold text-foreground hover:underline"
+                        >
+                          {t('leaseReference', { reference })}
+                        </Link>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {t('signedAt', { date: formatDate(signedAt ?? '', locale) })}
                         </p>
-                      ) : null}
+                        {missing.length > 0 ? (
+                          <p className="mt-2 text-xs text-muted-foreground">
+                            {t('missing', { items: missing.join(' · ') })}
+                          </p>
+                        ) : null}
+                      </div>
+                      <Badge variant={days > 14 ? 'destructive' : 'outline'}>
+                        {t('daysOpen', { count: days })}
+                      </Badge>
                     </div>
-                    <Badge variant={days > 14 ? 'destructive' : 'outline'}>
-                      {t('daysOpen', { count: days })}
-                    </Badge>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
+                  </li>
+                );
+              })}
+            </ul>
+            {data.meta ? (
+              <Pagination page={data.meta.current_page} lastPage={data.meta.last_page} onChange={setPage} />
+            ) : null}
+          </div>
         );
       }}
     </QueryBoundary>

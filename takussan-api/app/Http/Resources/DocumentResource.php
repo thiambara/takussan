@@ -8,6 +8,7 @@ use App\Models\Document;
 use App\Services\Document\DocumentVersionService;
 use App\Services\Media\PrivateMediaAccess;
 use App\Services\Membership\MembershipCapabilityResolver;
+use App\Support\Http\ParametreUnique;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\Request;
 
@@ -42,7 +43,8 @@ class DocumentResource extends BaseResource
     public function toArray(Request $request): array
     {
         /** @var Document $this */
-        $file = $this->getFirstMedia('file');
+        // TCK-2300 (P231.02) — la version active, sinon `file`.
+        $file = $this->currentFile();
 
         // Version active de la collection `versions`. P20.05 (TCK-901) — sur la relation `media`
         // quand la liste l'a chargée ; sinon `activeVersion()`, qui interroge la table.
@@ -51,7 +53,9 @@ class DocumentResource extends BaseResource
                 ->first(fn ($m) => (bool) $m->getCustomProperty('is_active', false))
             : $this->activeVersion();
 
-        $includes = array_filter(array_map('trim', explode(',', (string) $request->query('include', ''))));
+        // P216.03 (TCK-2124) — `include[]=…` vaut un `include` absent (TCK-1407, TCK-1866), et n'est plus casté.
+        $include = ParametreUnique::chaine($request, 'include') ?? '';
+        $includes = array_filter(array_map('trim', explode(',', $include)));
         $includeVersions = in_array('versions', $includes, true);
 
         return [
@@ -66,7 +70,7 @@ class DocumentResource extends BaseResource
             'verified_by' => $this->verified_by,
             'verified_at' => $this->iso($this->verified_at),
             'expiry_date' => $this->calendarDate($this->expiry_date),
-            // Legacy single-file collection. TCK-539 — URL d'API signée, plus l'URL du fichier :
+            // Le fichier qui fait foi (TCK-2300). TCK-539 — URL d'API signée, plus l'URL du fichier :
             // elle expire (30 min), elle ne se garde pas.
             'file_url' => $file ? app(PrivateMediaAccess::class)->signedUrl($file) : null,
             'file_name' => $file?->file_name,

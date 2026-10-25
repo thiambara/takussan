@@ -15,7 +15,9 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { UserRolesEditor } from './UserRolesEditor';
 import { MemberAgencyRoleSelect } from '@/components/admin/roles/MemberAgencyRoleSelect';
+import { AgentCommissionRateField } from '@/components/admin/roles/AgentCommissionRateField';
 import { formatDate as formatDateIntl } from '@/lib/format';
+import { initialesDe, nomAffichable } from '@/lib/identite';
 import type { Locale } from '@/i18n/config';
 import type { TeamSuspensionAction } from '@/lib/queries/team-suspension';
 import type { AdminAgencyUserRow } from '@/types/admin-users';
@@ -72,7 +74,7 @@ function formatDate(value: string | null, locale: Locale): string {
 }
 
 function getInitials(u: AdminAgencyUserRow): string {
-  return `${u.first_name?.[0] ?? ''}${u.last_name?.[0] ?? ''}`.toUpperCase() || '·';
+  return initialesDe(u) ?? '·';
 }
 
 /**
@@ -113,9 +115,7 @@ export function UserDetailDrawer({
                   <AvatarFallback>{getInitials(user)}</AvatarFallback>
                 </Avatar>
                 <div className="flex-1 min-w-0">
-                  <SheetTitle className="truncate text-lg">
-                    {user.first_name} {user.last_name}
-                  </SheetTitle>
+                  <SheetTitle className="truncate text-lg">{nomAffichable(user)}</SheetTitle>
                   <SheetDescription className="truncate">{user.email}</SheetDescription>
                 </div>
               </div>
@@ -155,11 +155,13 @@ export function UserDetailDrawer({
                       {agencyRoleHeading}
                     </p>
                     {assignments.map((assignment) => (
-                      <MemberAgencyRoleSelect
-                        key={`${assignment.profile_type}-${assignment.profile_id}`}
-                        agencyId={agencyId}
-                        assignment={assignment}
-                      />
+                      <div key={`${assignment.profile_type}-${assignment.profile_id}`} className="space-y-4">
+                        <MemberAgencyRoleSelect agencyId={agencyId} assignment={assignment} />
+                        {/* TCK-2364 (P241.02) — le taux de l'agent, sous la même capacité que son rôle. */}
+                        {assignment.profile_type === 'agent' ? (
+                          <AgentCommissionRateField assignment={assignment} />
+                        ) : null}
+                      </div>
                     ))}
                   </div>
                 </>

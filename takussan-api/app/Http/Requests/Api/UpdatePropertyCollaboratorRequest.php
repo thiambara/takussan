@@ -4,6 +4,7 @@ namespace App\Http\Requests\Api;
 
 use App\Http\Requests\BaseFormRequest;
 use App\Models\Enums\CollaboratorRole;
+use App\Models\PropertyCollaborator;
 use App\Rules\CollaboratorEligibleForProperty;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Validation\Rule;
@@ -30,7 +31,33 @@ class UpdatePropertyCollaboratorRequest extends BaseFormRequest
      */
     public function authorize(): bool
     {
-        return $this->user()?->can('update', $this->route('property')) === true;
+        $property = $this->route('property');
+        if ($this->user()?->can('update', $property) !== true) {
+            return false;
+        }
+
+        // TCK-2364 (P241.01, ADR-0049 amendé le 2026-10-25) — changer la part, l'effacer comprise,
+        // c'est écrire la ventilation de la commission de l'agence. Renvoyer la part telle qu'elle
+        // est n'écrit rien. Une part absente vaut 0, comme au grand livre.
+        abort_code_if(
+            $this->changeLaPart() && ! $this->user()->can('manageCommissionShares', $property),
+            403,
+            'property.commission_share_forbidden',
+        );
+
+        return true;
+    }
+
+    private function changeLaPart(): bool
+    {
+        if (! $this->has('commission_share')) {
+            return false;
+        }
+
+        $ligne = $this->route('collaborator');
+        $actuelle = $ligne instanceof PropertyCollaborator ? (float) $ligne->commission_share : 0.0;
+
+        return round((float) $this->input('commission_share'), 2) !== round($actuelle, 2);
     }
 
     /** @return array<string, mixed> */

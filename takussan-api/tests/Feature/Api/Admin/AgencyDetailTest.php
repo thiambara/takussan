@@ -5,6 +5,7 @@ namespace Tests\Feature\Api\Admin;
 use App\Models\Agency;
 use App\Models\Booking;
 use App\Models\BookingPayment;
+use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Lease;
@@ -13,7 +14,9 @@ use App\Models\Profiles\AgentProfile;
 use App\Models\Property;
 use App\Models\PropertyReport;
 use App\Models\User;
+use App\Services\Dashboard\CollectedPayments;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Tests\TestCase;
 
 class AgencyDetailTest extends TestCase
@@ -111,6 +114,34 @@ class AgencyDetailTest extends TestCase
             ->assertJsonStructure(['data' => ['last_platform_payment_at']]);
     }
 
+    /**
+     * P223.01 (TCK-2171) — « Plaintes ouvertes » comptait le signalement d'un bien supprimé, que la
+     * file de modération écarte (`whereNull('p.deleted_at')`) et que personne ne peut donc clore.
+     */
+    public function test_open_complaints_skip_reports_of_a_deleted_property(): void
+    {
+        $this->actingAsRole('super_admin');
+        $agency = Agency::factory()->create();
+        $live = Property::factory()->create(['agency_id' => $agency->id]);
+        $deleted = Property::factory()->create(['agency_id' => $agency->id]);
+        foreach ([$live, $deleted] as $property) {
+            PropertyReport::query()->create([
+                'property_id' => $property->id,
+                'reason' => 'fraud',
+                'details' => 'Annonce douteuse',
+            ]);
+        }
+
+        $deleted->delete();
+
+        $this->getJson("/api/admin/agencies/{$agency->id}/health")
+            ->assertOk()
+            ->assertJsonPath('data.open_complaints', 1);
+        $this->getJson('/api/admin/moderation?filter[agency_id]='.$agency->id)
+            ->assertOk()
+            ->assertJsonPath('meta.counts.property', 1);
+    }
+
     public function test_team_and_properties_are_paginated(): void
     {
         $this->actingAsRole('super_admin');
@@ -153,5 +184,75 @@ class AgencyDetailTest extends TestCase
 
             $this->assertEqualsCanonicalizing($attendus, $libelles, "Accept-Language: {$locale}");
         }
+    }
+
+    /**
+     * P198.02 (TCK-2032) — le « revenu 30 jours » de la santé d'agence est l'*Encaissé* d'ADR-0057 § 2
+     * ({@see CollectedPayments}) : ni dépôt de garantie, ni restitution, les
+     * réservations nettes de remboursement, aucune ligne supprimée. `transactions_30d` suit le même
+     * périmètre, et les comptes de biens et le dernier paiement écartent les lignes supprimées.
+     */
+    public function test_p198_02_revenu_30_jours_suit_la_regle_de_l_encaisse(): void
+    {
+        $this->travelTo(now()->startOfSecond());
+        $this->actingAsRole('super_admin');
+        $agency = Agency::factory()->create();
+
+        $active = Property::factory()->create(['agency_id' => $agency->id, 'status' => PropertyStatus::Available]);
+        Property::factory()->create(['agency_id' => $agency->id, 'status' => PropertyStatus::Available])->delete();
+        Property::factory()->create([
+            'agency_id' => $agency->id,
+            'status' => PropertyStatus::PendingReview,
+            'published_at' => null,
+        ])->delete();
+
+        $lease = Lease::factory()->create(['agency_id' => $agency->id, 'property_id' => $active->id]);
+        $paye = fn (array $attrs) => LeasePayment::factory()->create($attrs + [
+            'lease_id' => $lease->id,
+            'status' => PaymentStatus::Paid,
+            'paid_at' => now()->subDays(2),
+        ]);
+        $paye(['payment_type' => LeasePaymentType::Rent, 'amount' => 75000]);
+        $paye(['payment_type' => LeasePaymentType::Deposit, 'amount' => 150000]);
+        $paye(['payment_type' => LeasePaymentType::DepositRefund, 'amount' => 150000]);
+        $paye(['payment_type' => LeasePaymentType::Rent, 'amount' => 60000])->delete();
+
+        $leaseSupprime = Lease::factory()->create(['agency_id' => $agency->id, 'property_id' => $active->id]);
+        LeasePayment::factory()->create([
+            'lease_id' => $leaseSupprime->id,
+            'payment_type' => LeasePaymentType::Rent,
+            'status' => PaymentStatus::Paid,
+            'amount' => 40000,
+            'paid_at' => now()->subDay(),
+        ]);
+        $leaseSupprime->delete();
+
+        $booking = Booking::factory()->create(['agency_id' => $agency->id, 'property_id' => $active->id]);
+        BookingPayment::factory()->create([
+            'booking_id' => $booking->id,
+            'status' => PaymentStatus::Paid,
+            'amount' => 125000,
+            'refund_amount' => 25000,
+            'paid_at' => now()->subDays(3),
+        ]);
+        BookingPayment::factory()->create([
+            'booking_id' => $booking->id,
+            'status' => PaymentStatus::Paid,
+            'amount' => 30000,
+            'paid_at' => now()->subHours(2),
+        ])->delete();
+
+        $this->getJson("/api/admin/agencies/{$agency->id}/health")
+            ->assertOk()
+            ->assertJsonPath('data.active_properties', 1)
+            ->assertJsonPath('data.properties_in_moderation', 0)
+            ->assertJsonPath('data.transactions_30d', 2)
+            ->assertJsonPath('data.revenue_30d', 175000)
+            ->assertJsonPath('data.last_platform_payment_at', $this->instantAttendu(now()->subDays(2)));
+    }
+
+    private function instantAttendu(Carbon $instant): string
+    {
+        return $instant->copy()->utc()->format(DATE_ATOM);
     }
 }

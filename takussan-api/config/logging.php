@@ -1,5 +1,6 @@
 <?php
 
+use Monolog\Formatter\JsonFormatter;
 use Monolog\Handler\NullHandler;
 use Monolog\Handler\StreamHandler;
 use Monolog\Handler\SyslogUdpHandler;
@@ -103,6 +104,22 @@ return [
             ],
             'formatter' => env('LOG_STDERR_FORMATTER'),
             'processors' => [PsrLogMessageProcessor::class],
+        ],
+
+        // TCK-2356 (P14.07) — toute exception rapportée y part AUSSI (`bootstrap/app.php`), quel que
+        // soit `LOG_CHANNEL` : une ligne JSON sur la sortie standard du conteneur, que `docker logs`
+        // garde et qu'un collecteur lira sans analyser de texte. La forme est celle de
+        // `SafeExceptionContext` (ADR-0044 §2), jamais le message. `LOG_EXCEPTIONS_STREAM` n'existe
+        // que pour `phpunit.xml`, qui la détourne : aucun environnement ne la pose. Pourquoi un canal
+        // à part et non `LOG_CHANNEL` (`stderr` en préproduction) : TCK-2356, « Hypothèses ».
+        'exceptions' => [
+            'driver' => 'monolog',
+            'level' => 'error',
+            'handler' => StreamHandler::class,
+            'handler_with' => [
+                'stream' => env('LOG_EXCEPTIONS_STREAM', 'php://stdout'),
+            ],
+            'formatter' => JsonFormatter::class,
         ],
 
         'syslog' => [

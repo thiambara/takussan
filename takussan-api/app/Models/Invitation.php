@@ -9,6 +9,7 @@ use App\Support\CaseInsensitive;
 use Database\Factories\InvitationFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Spatie\Activitylog\Models\Concerns\LogsActivity;
@@ -60,6 +61,8 @@ class Invitation extends AbstractModel
         'accepted_at' => 'datetime',
         'revoked_at' => 'datetime',
         'last_reminded_at' => 'datetime',
+        // P179.01 (TCK-2155) — essais du rappel automatique ({@see \App\Services\Invitation\InvitationService::remindPending()}).
+        'reminder_attempts' => 'integer',
         'metadata' => 'array',
     ];
 
@@ -110,6 +113,25 @@ class Invitation extends AbstractModel
         return $query
             ->where('status', InvitationStatus::Sent->value)
             ->where('expires_at', '>', now());
+    }
+
+    /**
+     * P237.01 (TCK-2371) — l'identifiant de la dernière invitation `sent` d'un profil, en
+     * sous-requête corrélée à la table du profil : les carnets des bailleurs et des prestataires le
+     * rendent en `pending_invitation_id`, et le front relance ou révoque par lui. L'appelant y ajoute
+     * la contrainte d'agence. `sent` seulement, comme la recherche qu'il remplace : une invitation
+     * échue que le cron n'a pas encore passée à `expired` se relance (`InvitationService::resend`).
+     */
+    public static function idEnvoyeePour(Model $profile): Builder
+    {
+        return static::query()
+            ->select('invitations.id')
+            ->where('invitations.invitable_type', $profile->getMorphClass())
+            ->whereColumn('invitations.invitable_id', $profile->getQualifiedKeyName())
+            ->where('invitations.status', InvitationStatus::Sent->value)
+            ->orderByDesc('invitations.created_at')
+            ->orderByDesc('invitations.id')
+            ->limit(1);
     }
 
     /**

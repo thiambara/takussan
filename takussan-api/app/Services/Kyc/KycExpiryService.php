@@ -63,16 +63,26 @@ class KycExpiryService
             return false;
         }
 
-        $dossier->forceFill(['metadata' => ['expiry_reminders' => [...$sent, $milestone]] + $metadata])->save();
-
+        // P207.04 (TCK-2073) — le jalon dit un rappel REÇU (`models-spec.md`, `expiry_reminders`) : il
+        // ne se pose qu'après qu'au moins un administrateur a reçu l'avis. Sans destinataire, il reste
+        // libre, et le rappel part au passage suivant si un administrateur arrive entre-temps.
+        $recus = 0;
         foreach ($this->activeAdmins((int) $dossier->subject_id) as $admin) {
-            $this->notifications->send(
+            $recu = $this->notifications->send(
                 $admin,
                 NotificationCode::KycExpiringSoon,
                 ['expires_at' => $dossier->expires_at->toDateString()],
                 NotificationTarget::of('agency_kyc')->forAgency($dossier->subject_id),
             );
+            if ($recu !== null) {
+                $recus++;
+            }
         }
+        if ($recus === 0) {
+            return false;
+        }
+
+        $dossier->forceFill(['metadata' => ['expiry_reminders' => [...$sent, $milestone]] + $metadata])->save();
 
         return true;
     }

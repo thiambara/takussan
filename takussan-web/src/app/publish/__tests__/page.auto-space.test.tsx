@@ -22,7 +22,7 @@ vi.mock('@/app/actions/auto-onboard', () => ({
 }));
 
 vi.mock('@/context/AuthContext', () => ({
-  useAuth: () => ({ user: { id: 1, preferences: { city: 'Thiès' } }, isLoading: false, refreshUser: vi.fn() }),
+  useAuth: () => ({ user: { id: 1, preferences: { city: 'Thiès' } }, isLoading: false, refreshUser: vi.fn(), setActiveProfileId: vi.fn() }),
 }));
 
 vi.mock('@/hooks/useProfiles', async (importOriginal) => ({

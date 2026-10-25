@@ -32,7 +32,8 @@ const PROVIDERS = ['wave', 'orange_money', 'lemon_squeezy'] as const;
 const REPLAY_PHRASE = 'REJOUER';
 
 type Window = 'last_7_days' | 'last_30_days';
-type ReasonFilter = '' | 'failed' | 'late';
+/** P198.05 (TCK-2034) — `refund_due` : une restitution de caution échue, jamais « en retard ». */
+type ReasonFilter = '' | 'failed' | 'late' | 'refund_due';
 type ChannelFilter = '' | 'payment' | 'sms' | 'whatsapp';
 
 /**
@@ -175,7 +176,7 @@ function PaymentListSection() {
       id: 'at',
       header: t('list.colAt'),
       className: 'text-muted-foreground',
-      cell: (row) => (row.reason === 'late' && row.due_date ? fmt.date(row.due_date) : row.event_at ? fmt.dateTime(row.event_at) : ''),
+      cell: (row) => (row.reason !== 'failed' && row.due_date ? fmt.date(row.due_date) : row.event_at ? fmt.dateTime(row.event_at) : ''),
     },
   ];
 
@@ -197,6 +198,7 @@ function PaymentListSection() {
           options={[
             { value: 'failed', label: t('list.reasons.failed') },
             { value: 'late', label: t('list.reasons.late') },
+            { value: 'refund_due', label: t('list.reasons.refund_due') },
             { value: '', label: t('all') },
           ]}
         />

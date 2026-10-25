@@ -15,8 +15,10 @@ use App\Services\Lead\ContactLeadService;
 use App\Services\Model\NotificationService;
 use App\Sorts\CollatedNameSort;
 use App\Support\CaseInsensitive;
+use App\Support\Http\ParametreUnique;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 /**
  * TCK-144 — Agency moderation (super-admin only). The verify / suspend /
@@ -61,13 +63,13 @@ class AgencyModerationController extends Controller
             ->selectSub($this->memberCountSubquery(), 'members_count')
             ->selectSub($this->lastActivitySubquery(), 'last_activity_at');
 
-        if ($status = $request->string('filter.status')->trim()->value()) {
+        if ($status = $this->chaine($request, 'filter.status')) {
             if ($enum = AgencyStatus::tryFrom($status)) {
                 $query->where('status', $enum);
             }
         }
 
-        if ($search = $request->string('filter.search')->trim()->value()) {
+        if ($search = $this->chaine($request, 'filter.search')) {
             $query->where(function ($q) use ($search): void {
                 // TCK-600 — insensible à la casse ET aux majuscules accentuées : « keur » trouve
                 // « Keur Immo », « café » trouve « CAFÉ IMMO » (`CaseInsensitive`, ADR-0025).
@@ -87,7 +89,7 @@ class AgencyModerationController extends Controller
         // Une valeur non booléenne ne filtre PAS (même repli que `filter.status`, dont un
         // `AgencyStatus::tryFrom()` raté laisse la requête intacte) : filtrer sur du vide
         // rendrait une liste que rien dans l'écran n'expliquerait.
-        $rawVerified = $request->string('filter.is_verified')->trim()->value();
+        $rawVerified = $this->chaine($request, 'filter.is_verified');
         if ($rawVerified !== '') {
             $isVerified = filter_var($rawVerified, FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE);
             if ($isVerified !== null) {
@@ -95,17 +97,17 @@ class AgencyModerationController extends Controller
             }
         }
 
-        if ($createdFrom = $request->string('filter.created_from')->trim()->value()) {
+        if ($createdFrom = $this->chaine($request, 'filter.created_from')) {
             DateBoundaryFilter::exiger($createdFrom, 'created_from');
             $query->whereDate('agencies.created_at', '>=', $createdFrom);
         }
 
-        if ($createdTo = $request->string('filter.created_to')->trim()->value()) {
+        if ($createdTo = $this->chaine($request, 'filter.created_to')) {
             DateBoundaryFilter::exiger($createdTo, 'created_to');
             $query->whereDate('agencies.created_at', '<=', $createdTo);
         }
 
-        $sort = (string) $request->query('sort', '-created_at');
+        $sort = $this->chaine($request, 'sort', '-created_at');
         $direction = str_starts_with($sort, '-') ? 'desc' : 'asc';
         $field = ltrim($sort, '-');
         $sorts = [
@@ -215,7 +217,21 @@ class AgencyModerationController extends Controller
         abort_code_unless($agency->status === AgencyStatus::Suspended, 422, 'agency.not_suspended');
 
         $reason = (string) $request->validated('reason');
-        $response = $this->transition($request, $agency, AgencyStatus::Active, 'super_admin_agency_reinstated', [], $reason);
+        // P211.07 (TCK-2195) — la condition `status = suspended` se juge en base, dans la
+        // transaction, sur la ligne verrouillée : deux réintégrations ensemble journalisaient et
+        // prévenaient deux fois. L'écriture passe par le modèle : `AgencyObserver` réindexe les biens.
+        $response = DB::transaction(function () use ($request, $agency, $reason): ?JsonResponse {
+            $ligne = Agency::query()
+                ->whereKey($agency->getKey())
+                ->where('status', AgencyStatus::Suspended->value)
+                ->lockForUpdate()
+                ->first();
+
+            return $ligne === null
+                ? null
+                : $this->transition($request, $ligne, AgencyStatus::Active, 'super_admin_agency_reinstated', [], $reason);
+        });
+        abort_code_if($response === null, 422, 'agency.not_suspended');
         $this->notifyAdmins($agency, NotificationCode::AgencyReinstated, $reason);
 
         return $response;
@@ -275,5 +291,17 @@ class AgencyModerationController extends Controller
                 'reason' => $reason,
             ]);
         }
+    }
+
+    /**
+     * P216.01 (TCK-2120) — une valeur en liste est lue comme une valeur absente (TCK-1407,
+     * TCK-1866), et non castée : `$request->string()` rendait 500 « Array to string conversion ».
+     */
+    private function chaine(Request $request, string $cle, string $defaut = ''): string
+    {
+        $valeur = $request->input($cle, $defaut);
+
+        // ADR-0075 — une liste vaut le défaut ; une chaîne vide (devenue `null`) reste vide.
+        return $valeur === null ? '' : trim(ParametreUnique::valeur($valeur) ?? $defaut);
     }
 }

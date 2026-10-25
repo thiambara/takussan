@@ -28,7 +28,7 @@ class LeasePaymentResourceContractTest extends TestCase
         'amount', 'currency', 'payment_method', 'payment_type',
         'period_start', 'period_end', 'due_date', 'paid_at', 'status',
         'paid_amount', 'remaining_amount', 'refund_amount',
-        'late_fee_amount', 'late_fee_applied_at', 'late_fee_paid_at',
+        'late_fee_amount', 'late_fee_applied_at', 'late_fee_paid_at', 'late_fee_refund_amount',
         'late_fee_outstanding', 'late_fee_payable_online', 'amount_due', 'receipt_available',
         'is_overdue', 'notes', 'created_at',
     ];
@@ -62,9 +62,42 @@ class LeasePaymentResourceContractTest extends TestCase
             ->assertJsonPath('data.0.refund_amount', 40000);
 
         $export = app(ExportDataService::class)->payments($ctx['tenant']);
-        $this->assertSame('refund_amount', end($export['columns']));
+        // TCK-2060 (P206.05) — `late_fee_paid_at` prend la dernière colonne ; `refund_amount` la précède.
+        $this->assertSame('refund_amount', $export['columns'][count($export['columns']) - 2]);
         $this->assertSame(40000.0, $export['rows'][0]['refund_amount']);
         $this->assertSame(array_keys($export['rows'][0]), $export['columns']);
+    }
+
+    /**
+     * TCK-2060 (P206.05) — l'export des paiements distingue une pénalité réglée d'une pénalité due :
+     * `late_fee_paid_at`, en dernière colonne, la valeur en base sans calcul, comme `paid_at`.
+     */
+    public function test_l_export_rend_la_date_de_reglement_de_la_penalite_en_derniere_colonne(): void
+    {
+        $ctx = $this->leaseDue(null, [
+            'status' => PaymentStatus::Paid,
+            'paid_at' => '2026-03-10 09:15:00',
+            'late_fee_amount' => 7_500,
+            'late_fee_applied_at' => '2026-03-06 00:00:00',
+            'late_fee_paid_at' => '2026-03-10 09:15:00',
+        ]);
+
+        $export = app(ExportDataService::class)->payments($ctx['tenant']);
+
+        $this->assertSame('late_fee_paid_at', end($export['columns']));
+        $this->assertSame('2026-03-10 09:15:00', $export['rows'][0]['late_fee_paid_at']);
+        $this->assertSame(array_keys($export['rows'][0]), $export['columns']);
+    }
+
+    public function test_une_penalite_due_rend_une_date_de_reglement_nulle_a_l_export(): void
+    {
+        $ctx = $this->leaseDue();
+        $this->assertNotNull($ctx['payment']->refresh()->late_fee_amount, 'La fixture porte une pénalité due.');
+
+        $export = app(ExportDataService::class)->payments($ctx['tenant']);
+
+        $this->assertArrayHasKey('late_fee_paid_at', $export['rows'][0]);
+        $this->assertNull($export['rows'][0]['late_fee_paid_at']);
     }
 
     public function test_sans_remboursement_refund_amount_est_nul(): void

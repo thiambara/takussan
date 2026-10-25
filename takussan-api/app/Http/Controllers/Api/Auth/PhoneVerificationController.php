@@ -46,6 +46,7 @@ class PhoneVerificationController extends Controller
     {
 
         $user = $request->user();
+        $remplace = null;
 
         // Onboarding wizards collect the phone in the same step as the OTP
         // send — persist it here (mirroring `MeController::update` semantics)
@@ -66,18 +67,19 @@ class PhoneVerificationController extends Controller
             if ($incoming !== null && $incoming !== $user->phone) {
                 // TCK-589 p3-1 — remplacer un numéro VÉRIFIÉ exige une preuve sur le facteur en
                 // place. Jugé avant la branche neutre : le refus ne dépend que de l'appelant.
-                $remplace = null;
                 if ($this->phoneChange->replacesVerified($user, $incoming)) {
                     $this->phoneChange->authorize($request, $user);
                     $remplace = (string) $user->phone;
                 }
+                // P213.02 (TCK-2197) — le délai de renvoi du compte et le quota du numéro ENTRANT se
+                // jugent avant toute écriture : un 429 remplaçait le numéro vérifié, et l'annonçait,
+                // sans qu'aucun code parte. La branche neutre, elle, reste après l'écriture.
+                $this->refuseWhileCoolingDown($this->service->resendAvailableIn($user));
+                $this->quota->ensureAvailable($incoming);
                 $user->forceFill([
                     'phone' => $incoming,
                     'phone_verified_at' => null,
                 ])->save();
-                if ($remplace !== null) {
-                    $this->phoneChange->notifyReplaced($user, $remplace);
-                }
             }
         }
 
@@ -87,7 +89,11 @@ class PhoneVerificationController extends Controller
         // TCK-589 — ne pas dépenser de SMS pour un numéro qu'un autre compte a déjà
         // vérifié : le code reçu ne pourrait rien vérifier.
         if ($this->service->isVerifiedElsewhere((string) $user->phone, $user)) {
-            return $this->neutralSend($user);
+            $response = $this->neutralSend($user);
+            // La réponse neutre se comporte comme un envoi réel réussi : l'avis part de même.
+            $this->notifyReplacedIf($user, $remplace);
+
+            return $response;
         }
 
         $this->refuseWhileCoolingDown($this->service->resendAvailableIn($user));
@@ -106,8 +112,18 @@ class PhoneVerificationController extends Controller
             return AuthRefusal::response(503, 'sms_capacity_reached', 'auth.phone.capacity_reached');
         }
         $this->quota->hit((string) $user->phone);
+        // P213.02 (TCK-2197) — l'avis du remplacement ne part qu'après un envoi réussi : ni sur un
+        // 429, ni sur le 503 du plafond global.
+        $this->notifyReplacedIf($user, $remplace);
 
         return $this->sent();
+    }
+
+    private function notifyReplacedIf(User $user, ?string $ancien): void
+    {
+        if ($ancien !== null) {
+            $this->phoneChange->notifyReplaced($user, $ancien);
+        }
     }
 
     /**

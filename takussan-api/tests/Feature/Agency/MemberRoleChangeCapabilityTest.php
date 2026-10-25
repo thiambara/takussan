@@ -97,6 +97,10 @@ class MemberRoleChangeCapabilityTest extends ApiTestCase
         $this->changeByMemberRoute($principal)->assertOk();
     }
 
+    // TCK-2205 (P227.03) — rattacher un compte comme `agency_admin` se jugeait ici par la même règle.
+    // La route est retirée (TCK-2365, P242.01) : inviter un administrateur la garde désormais,
+    // éprouvée par `RattachementParInvitationTest`.
+
     public function test_le_personnel_d_une_autre_agence_est_refuse(): void
     {
         $this->changeByMemberRoute($this->agencyAdmin(Agency::factory()->create()))->assertForbidden();

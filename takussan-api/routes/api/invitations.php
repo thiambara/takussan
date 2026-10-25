@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\InvitationController;
+use App\Http\Controllers\Api\InvitationPrefillController;
 use App\Http\Controllers\Public\InvitationAcceptController;
 use Illuminate\Support\Facades\Route;
 
@@ -15,10 +16,11 @@ Route::post('invitations/{token}/accept', InvitationAcceptController::class)
 
 Route::middleware('auth:sanctum')->group(function (): void {
     Route::get('invitations', [InvitationController::class, 'index'])->name('invitations.index');
-    // TCK-589, vérification adverse m1 — par invitant, par numéro, une relance par 10 min.
-    Route::post('invitations', [InvitationController::class, 'store'])
-        ->middleware('throttle:invitations-send')->name('invitations.store');
+    // P208.01 (TCK-2190) — plus de création générique : les routes par rôle
+    // (`routes/api/agencies.php`) et la cooptation (`routes/api/admin.php`) émettent.
     Route::get('invitations/{invitation}', [InvitationController::class, 'show'])->name('invitations.show');
+    // P220.07 (TCK-2281) — le nom de l'invitation, à préremplir pour un compte connecté sans nom.
+    Route::get('invitations/{token}/prefill', InvitationPrefillController::class)->name('invitations.prefill');
     Route::post('invitations/{invitation}/revoke', [InvitationController::class, 'revoke'])->name('invitations.revoke');
     Route::post('invitations/{invitation}/resend', [InvitationController::class, 'resend'])
         ->middleware('throttle:invitations-send')->name('invitations.resend');

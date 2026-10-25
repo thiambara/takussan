@@ -28,7 +28,10 @@ class InvoicePolicy extends BasePolicy
         return Capability::InvoicesCreate;
     }
 
-    /** Lire une facture : super-admin, émetteur, personnel de l'agence, ou le CLIENT facturé. */
+    /**
+     * Lire une facture : super-admin, émetteur encore membre de l'agence (P218.03, TCK-2196),
+     * personnel de l'agence, ou le CLIENT facturé.
+     */
     public function view(User $user, Model $model): bool
     {
         if (! $model instanceof Invoice) {
@@ -36,7 +39,7 @@ class InvoicePolicy extends BasePolicy
         }
 
         return $user->isSuperAdmin()
-            || $model->issued_by_id === $user->id
+            || $this->auteurEncoreMembre($user, $model->issued_by_id, $model->agency_id)
             || $this->isStaffOf($user, $model->agency_id)
             || ($model->customer && $model->customer->user_id === $user->id);
     }
@@ -53,7 +56,7 @@ class InvoicePolicy extends BasePolicy
         }
 
         return $user->isSuperAdmin()
-            || $model->issued_by_id === $user->id
+            || $this->auteurEncoreMembre($user, $model->issued_by_id, $model->agency_id)
             || $this->isStaffOf($user, $model->agency_id);
     }
 

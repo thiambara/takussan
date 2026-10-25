@@ -44,7 +44,6 @@ class CollaboratorDeletedAccountTest extends ApiTestCase
         return $this->actingAsApi($this->bailleur)->apiPost("/api/properties/{$this->bien->id}/collaborators", [
             'user_id' => $userId,
             'role' => $role->value,
-            'commission_share' => 10,
         ]);
     }
 

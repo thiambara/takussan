@@ -15,6 +15,7 @@ use App\Services\Credits\CreditLedger;
 use App\Services\Credits\InsufficientCredits;
 use App\Sorts\CollatedNameSort;
 use App\Support\CaseInsensitive;
+use App\Support\Http\ParametreUnique;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -24,7 +25,8 @@ class AdminCreditWalletController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $search = trim((string) $request->input('search', ''));
+        // P216.01 (TCK-2120) — `search[]=…` vaut une recherche absente (TCK-1407), et n'est plus casté.
+        $search = trim(ParametreUnique::chaine($request, 'search') ?? '');
         $paginator = Agency::query()
             ->whereIn('id', CreditLot::query()->select('agency_id'))
             ->when($search !== '', fn ($q) => $q->whereRaw(CaseInsensitive::sql('name').' LIKE ?', ['%'.CaseInsensitive::fold($search).'%']))

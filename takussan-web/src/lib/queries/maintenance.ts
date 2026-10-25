@@ -180,15 +180,16 @@ export function useTransitionMaintenanceStatus(id: number) {
 }
 
 /**
- * `PUT /api/maintenance-requests/{id}/complete` — rapport, coût et photos de fin dans LA MÊME
- * requête (TCK-592, P15). Elles partaient après la transition, et leur échec était avalé.
+ * `PUT /api/maintenance-requests/{id}/complete` — rapport et coût de fin.
+ *
+ * TCK-2330 (P222.02) — sans les photos : elles partent une à une par `/photos`
+ * (`completion_photos`) AVANT cet appel (`MaintenanceCompleteForm`). Dans ce corps, le lot
+ * dépassait la borne du proxy (25 Mio) dès 19 photos réduites.
  *
  * Multipart en `POST` + `_method=PUT` : PHP ne lit pas un corps multipart sur `PUT`, et Laravel
  * rejoue la méthode depuis `_method`.
  */
-export type MaintenanceCompleteVariables = MaintenanceCompleteInput & {
-  readonly photos?: readonly File[];
-};
+export type MaintenanceCompleteVariables = MaintenanceCompleteInput;
 
 export function useCompleteMaintenanceRequest(id: number) {
   return useApiMutation<ApiResponse<MaintenanceRequest>, MaintenanceCompleteVariables>(
@@ -196,12 +197,11 @@ export function useCompleteMaintenanceRequest(id: number) {
       path: cheminApi`/api/maintenance-requests/${id}/complete`,
       method: 'POST',
       formData: true,
-      body: ({ resolution_notes, actual_cost, photos }) => {
+      body: ({ resolution_notes, actual_cost }) => {
         const fd = new FormData();
         fd.append('_method', 'PUT');
         if (resolution_notes) fd.append('resolution_notes', resolution_notes);
         if (actual_cost !== undefined) fd.append('actual_cost', String(actual_cost));
-        for (const photo of photos ?? []) fd.append('photos[]', photo);
         return fd;
       },
     },
@@ -215,7 +215,7 @@ export function useCompleteMaintenanceRequest(id: number) {
 export function useAcceptMaintenance(id: number) {
   return useApiMutation<ApiResponse<MaintenanceRequest>, void>(
     { path: cheminApi`/api/maintenance-requests/${id}/accept`, method: 'POST' },
-    { invalidate: [maintenanceKeys.all, maintenanceKeys.detail(id)] },
+    { relireSurErreur: true, invalidate: [maintenanceKeys.all, maintenanceKeys.detail(id)] },
   );
 }
 
@@ -223,7 +223,7 @@ export function useAcceptMaintenance(id: number) {
 export function useDeclineMaintenance(id: number) {
   return useApiMutation<ApiResponse<MaintenanceRequest>, { reason: string }>(
     { path: cheminApi`/api/maintenance-requests/${id}/decline`, method: 'POST' },
-    { invalidate: [maintenanceKeys.all, maintenanceKeys.detail(id)] },
+    { relireSurErreur: true, invalidate: [maintenanceKeys.all, maintenanceKeys.detail(id)] },
   );
 }
 

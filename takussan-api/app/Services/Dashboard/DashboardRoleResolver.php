@@ -11,6 +11,7 @@ use App\Services\Dashboard\Adapters\AgencyMeMetrics;
 use App\Services\Dashboard\Adapters\AgentMeMetrics;
 use App\Services\Dashboard\Adapters\OwnerMeMetrics;
 use App\Services\Dashboard\Adapters\TenantMeMetrics;
+use App\Services\Property\BailleurDuBien;
 
 /**
  * Picks the right DashboardMetrics adapter for GET /api/dashboard/me.
@@ -20,7 +21,7 @@ use App\Services\Dashboard\Adapters\TenantMeMetrics;
  *   2. agency_admin of a `standard` agency            → agency view
  *   3. agency_admin of an `individual` agency (host)  → owner view
  *   4. agent with agency                              → agent view
- *   5. owner role OR owns properties                  → owner view
+ *   5. owner role OR landlord of a property (BailleurDuBien, TCK-2275) → owner view
  *   6. anyone else                                    → tenant view, never null
  *
  * TCK-595 — l'hôte créé par « Publier » est `agency_admin` + `owner` d'une agence `individual`
@@ -61,8 +62,10 @@ class DashboardRoleResolver
             return $this->agent;
         }
 
+        // TCK-2275 (P232.01) — « possède des biens » se juge par `BailleurDuBien` : l'agent suspendu
+        // ou retiré qui a saisi un bien d'agence n'en est pas le bailleur, et tombe sur la vue client.
         if (($agencyId !== null && $user->isOwnerAt((int) $agencyId))
-            || Property::where('user_id', $user->id)->exists()) {
+            || BailleurDuBien::restreindre(Property::query(), $user)->exists()) {
             return $this->owner;
         }
 

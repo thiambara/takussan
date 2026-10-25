@@ -9,6 +9,7 @@ use App\Models\AppNotification;
 use App\Models\Customer;
 use App\Models\Enums\CollaboratorRole;
 use App\Models\Enums\Currency;
+use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Integration;
 use App\Models\Lease;
@@ -276,6 +277,28 @@ class SendLeasePaymentRemindersTest extends TestCase
                 NotificationCode::LeasePaymentDueSoon->value,
             ]));
         }
+    }
+
+    /**
+     * TCK-2375 (P04.10) — l'échéance de caution n'est pas relancée : aucun texte de relance de caution
+     * n'existe, et les textes de loyer annonceraient « Votre loyer de… ». Ni J-3, ni retard, ni avis
+     * au bailleur ; un loyer du même jour l'est toujours.
+     */
+    public function test_tck2375_l_echeance_de_caution_n_est_pas_relancee(): void
+    {
+        Carbon::setTestNow('2026-09-30 08:00:00');
+        $soon = $this->payment(['due_date' => '2026-10-03', 'status' => PaymentStatus::Pending, 'payment_type' => LeasePaymentType::Deposit]);
+        $late = $this->payment(['due_date' => '2026-09-29', 'status' => PaymentStatus::Pending, 'payment_type' => LeasePaymentType::Deposit]);
+        $rent = $this->payment(['due_date' => '2026-09-29', 'status' => PaymentStatus::Pending, 'payment_type' => LeasePaymentType::Rent]);
+
+        $this->run_();
+
+        foreach ([$soon, $late] as $deposit) {
+            $this->assertCount(0, $this->rows($deposit->lease->tenant->user));
+            $this->assertCount(0, $this->rows($deposit->lease->landlord));
+            $this->assertSame([], array_keys(array_filter($deposit->fresh()->metadata ?? [], fn ($key) => str_starts_with($key, 'reminder_'), ARRAY_FILTER_USE_KEY)));
+        }
+        $this->assertCount(1, $this->rows($rent->lease->tenant->user, NotificationCode::LeasePaymentOverdue));
     }
 
     public function test_le_rappel_j_moins_3_part_une_seule_fois(): void

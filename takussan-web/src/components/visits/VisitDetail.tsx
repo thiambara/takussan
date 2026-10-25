@@ -14,9 +14,11 @@ import {
   useUpdateVisit,
   useVisit,
 } from '@/lib/queries/visits';
-import { instantADakar } from '@/lib/visites/heure-de-dakar';
+import { nomAffichable } from '@/lib/identite';
+import { heureMuraleADakar, instantADakar } from '@/lib/visites/heure-de-dakar';
 import { smsRetenu } from '@/lib/visites/sort-du-sms';
-import { useCreneaux } from '@/lib/visites/useCreneaux';
+import { JOURS_DE_VISITE_OUVERTS, useCreneaux } from '@/lib/visites/useCreneaux';
+import { decalerJour, jourDeLApi } from '@/lib/jour-de-l-api';
 import { useAuth } from '@/context/AuthContext';
 import { formatDateTime } from '@/lib/format';
 import { ErrorState } from '@/components/feedback';
@@ -276,7 +278,7 @@ export function VisitDetail({ id }: { id: number }) {
             <div>
               <dt className="text-muted-foreground">{t('support')}</dt>
               <dd className="font-medium text-foreground">
-                {formatUserName(visit.agent) || t('assignedAgent')}
+                {nomAffichable(visit.agent, t('assignedAgent'))}
               </dd>
             </div>
           ) : null}
@@ -382,6 +384,9 @@ function ProposerUnCreneau({ visitId, slug, onClose }: { visitId: number; slug: 
   const [jour, setJour] = useState('');
   const [heure, setHeure] = useState<string | null>(null);
   const creneaux = useCreneaux(slug, jour || null);
+  // La fenêtre que l'API accepte : du jour UTC à J+60. Hors d'elle, le jour rendait
+  // « L'action n'a pas abouti. » (P230.01).
+  const [premierJour] = useState(() => jourDeLApi());
 
   async function valider(e: React.FormEvent) {
     e.preventDefault();
@@ -411,6 +416,8 @@ function ProposerUnCreneau({ visitId, slug, onClose }: { visitId: number; slug: 
             <Input
               id={`visit-${visitId}-propose-date`}
               type="date"
+              min={premierJour}
+              max={decalerJour(premierJour, JOURS_DE_VISITE_OUVERTS)}
               value={jour}
               onChange={(e) => {
                 setJour(e.target.value);
@@ -513,6 +520,9 @@ function VisitActionForm({
   const t = useTranslations('visits.detail');
   const messageErreur = useMessageErreurApi();
   const [value, setValue] = useState(kind === 'reschedule' ? defaultSlot : '');
+  // P230.05 — `scheduled_at` `after:now` : le champ se lit à Dakar, son `min` est donc l'instant
+  // présent à Dakar (`AAAA-MM-JJTHH:MM`), et non dans le fuseau du navigateur.
+  const [maintenantADakar] = useState(() => heureMuraleADakar());
   const [touched, setTouched] = useState(false);
   // P182.01 — l'erreur de l'API se dit dans le dialogue, qui reste ouvert (ADR-0019).
   const [erreurApi, setErreurApi] = useState<string | null>(null);
@@ -564,6 +574,7 @@ function VisitActionForm({
           <Input
             id={fieldId}
             type="datetime-local"
+            min={maintenantADakar}
             value={value}
             onChange={(event) => setValue(event.target.value)}
             onBlur={() => setTouched(true)}
@@ -598,14 +609,6 @@ function VisitActionForm({
       </DialogFooter>
     </form>
   );
-}
-
-function formatUserName(user: {
-  first_name?: string | null;
-  last_name?: string | null;
-  email?: string | null;
-}): string {
-  return [user.first_name, user.last_name].filter(Boolean).join(' ').trim() || user.email || '';
 }
 
 function RequesterSummary({ visit }: { visit: PropertyVisit }) {
@@ -658,7 +661,7 @@ function resolveRequester(visit: PropertyVisit, t: ReturnType<typeof useTranslat
 } {
   if (visit.customer) {
     return {
-      name: formatUserName(visit.customer) || t('requester.crmFallbackName', { id: String(visit.customer.id) }),
+      name: nomAffichable(visit.customer, t('requester.crmFallbackName', { id: String(visit.customer.id) })),
       email: visit.customer.email ?? null,
       phone: visit.customer.phone ?? null,
       customerId: visit.customer.id,
@@ -668,7 +671,7 @@ function resolveRequester(visit: PropertyVisit, t: ReturnType<typeof useTranslat
 
   if (visit.visitor) {
     return {
-      name: formatUserName(visit.visitor) || t('requester.userFallbackName'),
+      name: nomAffichable(visit.visitor, t('requester.userFallbackName')),
       email: visit.visitor.email ?? null,
       phone: visit.visitor.phone ?? null,
       customerId: null,

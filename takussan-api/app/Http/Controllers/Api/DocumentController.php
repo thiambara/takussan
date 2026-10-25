@@ -9,10 +9,12 @@ use App\Models\Agency;
 use App\Models\Booking;
 use App\Models\Customer;
 use App\Models\Document;
+use App\Models\Enums\DocumentType;
 use App\Models\Inventory;
 use App\Models\Lease;
 use App\Models\Property;
 use App\Models\User;
+use App\Policies\DocumentPolicy;
 use App\Services\Privacy\PersonalDataAccessLogger;
 use App\Support\ImpersonationContext;
 use Illuminate\Http\JsonResponse;
@@ -41,7 +43,10 @@ class DocumentController extends Controller
         // TCK-820 (P23.04) — ses propres téléversements, pour tous, super-admin compris : aucun écran
         // de la console ne lit cette liste, et elle lui rendait les pièces de toute la plateforme.
         // Le super-admin ouvre toujours un document par son identifiant (`show`), journalisé.
-        $base = Document::query()->where('uploaded_by', $user->id);
+        //
+        // P218.06 (TCK-2295) — sous la règle d'auteur de `DocumentPolicy::view` (ADR-0031, amendement du
+        // 2026-10-25, D3) : l'agent suspendu ou retiré ne liste plus ce qu'il a téléversé dans l'agence.
+        $base = DocumentPolicy::restreindreAuTeleverseur(Document::query(), $user);
 
         // TCK-697 (P23.01) — la règle de `DocumentPolicy::view()` : sous impersonation, les pièces
         // rattachées à un profil ne se listent pas.
@@ -53,6 +58,19 @@ class DocumentController extends Controller
         // `defaultSortsWithRelevance()` s'évalue APRÈS `buildQuery()`, qui interroge Meilisearch.
         $query = Document::buildQuery($base, $request);
 
+        // P199.03 (TCK-2165) — le compte par type de toute la liste filtrée : l'écran groupe par
+        // type une page triée par date, et le badge d'un groupe comptait les lignes de sa page.
+        $parType = $query->getEloquentBuilder()->clone()->toBase()
+            ->reorder()
+            ->select('type')
+            ->selectRaw('COUNT(*) as aggregate')
+            ->groupBy('type')
+            ->pluck('aggregate', 'type');
+        $counts = [];
+        foreach (DocumentType::cases() as $type) {
+            $counts[$type->value] = (int) ($parType[$type->value] ?? 0);
+        }
+
         // P20.05 (TCK-901) — le fichier et la version active de chaque ligne se lisent sur `media`
         // chargé une fois pour la page, et non par deux requêtes par document.
         $paginator = $query
@@ -60,7 +78,7 @@ class DocumentController extends Controller
             ->with('media')
             ->paginate();
 
-        return $this->paginated($paginator, DocumentResource::page($paginator, $request));
+        return $this->paginated($paginator, DocumentResource::page($paginator, $request), ['counts' => $counts]);
     }
 
     public function store(StoreDocumentRequest $request): JsonResponse

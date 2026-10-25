@@ -40,7 +40,7 @@ describe('/app/properties — liens des tuiles (TCK-1289)', () => {
   it('sous « mes biens », les quatre tuiles gardent `only_mine=1`', async () => {
     expect((await tuiles({ only_mine: '1' })).map((t) => t.href)).toEqual([
       '/app/properties?only_mine=1',
-      '/app/properties?visibility=public&only_mine=1',
+      '/app/properties?public=1&only_mine=1',
       '/app/properties?status=sold,rented&only_mine=1',
       '/app/properties?include_archived=1&status=archived&only_mine=1',
     ]);
@@ -49,7 +49,7 @@ describe('/app/properties — liens des tuiles (TCK-1289)', () => {
   it('sous un agent choisi, les tuiles gardent son `user_id`', async () => {
     expect((await tuiles({ user_id: '12' })).map((t) => t.href)).toEqual([
       '/app/properties?user_id=12',
-      '/app/properties?visibility=public&user_id=12',
+      '/app/properties?public=1&user_id=12',
       '/app/properties?status=sold,rented&user_id=12',
       '/app/properties?include_archived=1&status=archived&user_id=12',
     ]);
@@ -58,7 +58,7 @@ describe('/app/properties — liens des tuiles (TCK-1289)', () => {
   it('sans portée, les liens restent ceux de toute la liste', async () => {
     expect((await tuiles({})).map((t) => t.href)).toEqual([
       '/app/properties',
-      '/app/properties?visibility=public',
+      '/app/properties?public=1',
       '/app/properties?status=sold,rented',
       '/app/properties?include_archived=1&status=archived',
     ]);

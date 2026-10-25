@@ -4,7 +4,7 @@
  */
 process.env.TZ = 'Europe/Paris';
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { withIntl } from '@/test/intl';
@@ -60,7 +60,14 @@ function visite(overrides: Partial<PropertyVisit> = {}): PropertyVisit {
 }
 
 describe('<VisitDetail> — TCK-590', () => {
+  // P230.01 — le jour proposé est borné à [jour de l'API, J+60] : l'horloge est figée avant le
+  // 12 novembre saisi plus bas, pour que ce jour reste recevable.
+  afterEach(() => {
+    vi.useRealTimers();
+  });
   beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-24T12:00:00Z'));
     vi.clearAllMocks();
     etat.user = { id: 7, roles: ['agent'] };
     etat.visit = visite();
@@ -164,5 +171,17 @@ describe('<VisitDetail> — TCK-590', () => {
       rendu.unmount();
     }
   });
-});
 
+  it('P220.08 (TCK-2142) — un visiteur inscrit sans nom ni e-mail se nomme par son numéro', () => {
+    etat.visit = visite({
+      visitor_id: 30,
+      visitor_name: null,
+      visitor_phone: null,
+      visitor: { id: 30, first_name: '', last_name: '', email: null, phone: '+221771234567' },
+    });
+    render(withIntl(<VisitDetail id={1} />));
+
+    expect(screen.getByText('+221 77 123 45 67')).toBeInTheDocument();
+    expect(screen.queryByText('Utilisateur inscrit')).toBeNull();
+  });
+});

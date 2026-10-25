@@ -11,6 +11,7 @@ use App\Http\Resources\PayoutResource;
 use App\Models\Enums\Capability;
 use App\Models\Payout;
 use App\Models\User;
+use App\Services\Membership\MembershipCapabilityResolver;
 use App\Services\Model\PayoutService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -27,9 +28,12 @@ class PayoutController extends Controller
         $base = Payout::query()->with(['payoutMethod:id,masked_identifier']);
 
         if (! $user->isSuperAdmin()) {
-            $base->where(function ($q) use ($user) {
+            // P218.03 (TCK-2196) — l'émetteur encore membre de l'agence, comme `PayoutPolicy::view`.
+            $memberAgencyIds = app(MembershipCapabilityResolver::class)->memberAgencyIds($user);
+            $base->where(function ($q) use ($user, $memberAgencyIds) {
                 $q->where('landlord_id', $user->id)
-                    ->orWhere('issued_by_id', $user->id);
+                    ->orWhere(fn ($a) => $a->where('issued_by_id', $user->id)
+                        ->where(fn ($m) => $m->whereNull('agency_id')->orWhereIn('agency_id', $memberAgencyIds)));
                 // TCK-587 — les versements de l'agence : le personnel tenant `payouts.create`, comme
                 // `PayoutPolicy::view` (ADR-0031). Un bailleur de l'agence listait ceux des autres.
                 if (($staffAgencyId = $user->staffAgencyId()) !== null

@@ -62,6 +62,14 @@ export const documentsQueryKeys = {
   detail: (id: number | null | undefined) => ['documents', 'detail', id] as const,
 };
 
+/**
+ * P199.03 (TCK-2165) — la liste rend, à côté de sa pagination, le compte par type de TOUTE la
+ * liste filtrée : l'écran groupe par type une page triée par date.
+ */
+export type DocumentsListResponse = PaginatedResponse<Document> & {
+  meta: PaginatedResponse<Document>['meta'] & { counts?: Partial<Record<DocumentType, number>> };
+};
+
 export function useDocuments(params: UseDocumentsParams = {}) {
   const filter: Record<string, string | number | boolean> = {};
   if (params.documentable_type) filter.documentable_type = params.documentable_type;
@@ -78,7 +86,7 @@ export function useDocuments(params: UseDocumentsParams = {}) {
     per_page: params.per_page ?? 20,
   };
 
-  return useApiQuery<PaginatedResponse<Document>>(
+  return useApiQuery<DocumentsListResponse>(
     documentsQueryKeys.list(params),
     '/api/documents',
     // TCK-1024 — `file_url` est une URL signée de 30 min.

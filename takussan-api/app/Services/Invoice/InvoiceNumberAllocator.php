@@ -78,9 +78,6 @@ final class InvoiceNumberAllocator
     {
         $agency = Agency::query()->find($invoice->agency_id);
         $customer = $invoice->customer()->withTrashed()->first();
-        $name = $customer !== null
-            ? (trim(($customer->first_name ?? '').' '.($customer->last_name ?? '')) ?: ($customer->name ?? null))
-            : null;
 
         return [
             'agency' => [
@@ -90,7 +87,8 @@ final class InvoiceNumberAllocator
                 'legal_address' => $agency?->legal_address,
             ],
             'customer' => [
-                'name' => $name,
+                // P235.01 (TCK-2369) — une fiche sans nom se nomme par son numéro, puis son e-mail.
+                'name' => $customer?->invoiceRecipientName(),
                 'email' => $customer?->email,
                 'phone' => $customer?->phone,
             ],

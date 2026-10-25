@@ -71,7 +71,7 @@ class MoneyOutTwoFactorTest extends TestCase
 
     private function bail(User $admin): Lease
     {
-        return Lease::factory()->create([
+        return Lease::factory()->withCollectedDeposit()->create([
             'landlord_id' => $admin->id,
             'agency_id' => $admin->agency_id,
             'status' => LeaseStatus::Terminated,

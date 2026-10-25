@@ -4,6 +4,7 @@ namespace App\Services\Notifications\Sms;
 
 use App\Jobs\SendDeferredSmsJob;
 use App\Models\AppNotification;
+use App\Models\Integration;
 use App\Models\NotificationDeliveryAttempt;
 use App\Support\Logging\SafeExceptionContext;
 use Carbon\CarbonImmutable;
@@ -165,7 +166,7 @@ class SmsRouterDriver implements SmsDriverInterface
                     if (! $this->orangeCap->hasCapacity($number)) {
                         $attemptIndex[$number]++;
                         $deferred = SmsResult::deferred($number, 'orange', 'orange_daily_cap_reached');
-                        $this->appendAttempt($context['notification_id'] ?? null, $attemptIndex[$number], $deferred);
+                        $this->appendAttempt($context, $attemptIndex[$number], $deferred);
                         $finalResults[$number] = $deferred;
                         $skippedDueToCap[] = $number;
                     } else {
@@ -199,6 +200,9 @@ class SmsRouterDriver implements SmsDriverInterface
                 break;
             }
 
+            // TCK-2326 (P203.05) — l'intégration que le fournisseur va prendre, la même instance
+            // (`IntegrationLocator` garde son cache le temps de la requête ou du job).
+            $integrationId = $this->integrationFor($driverId, $context['agency_id'] ?? null)?->id;
             try {
                 $batch = $driver->send($callable, $message, $context);
             } catch (\Throwable $e) {
@@ -212,7 +216,7 @@ class SmsRouterDriver implements SmsDriverInterface
             foreach ($callable as $n) {
                 $result = $batch[$n] ?? SmsResult::failed($n, $driverId, 'driver_no_result');
                 $attemptIndex[$n]++;
-                $this->appendAttempt($context['notification_id'] ?? null, $attemptIndex[$n], $result);
+                $this->appendAttempt($context, $attemptIndex[$n], $result, $integrationId);
                 $finalResults[$n] = $result;
                 if ($result->isTerminalSuccess()) {
                     if ($driverId === 'orange') {
@@ -237,7 +241,7 @@ class SmsRouterDriver implements SmsDriverInterface
             if (! isset($finalResults[$n])) {
                 $attemptIndex[$n]++;
                 $finalResults[$n] = SmsResult::failed($n, $this->id(), 'no_provider_available');
-                $this->appendAttempt($context['notification_id'] ?? null, $attemptIndex[$n], $finalResults[$n]);
+                $this->appendAttempt($context, $attemptIndex[$n], $finalResults[$n]);
                 Log::warning('[sms.router] aucun fournisseur disponible', [
                     'phone_suffix' => substr($n, -4),
                     'chain' => $chain,
@@ -289,7 +293,7 @@ class SmsRouterDriver implements SmsDriverInterface
         foreach ($numbers as $n) {
             $attemptIndex[$n]++;
             $finalResults[$n] = SmsResult::failed($n, $this->id(), 'time_budget_exhausted');
-            $this->appendAttempt($context['notification_id'] ?? null, $attemptIndex[$n], $finalResults[$n]);
+            $this->appendAttempt($context, $attemptIndex[$n], $finalResults[$n]);
         }
         Log::warning('[sms.router] budget de temps épuisé, chaîne arrêtée', [
             'next_driver' => $driverId,
@@ -312,8 +316,8 @@ class SmsRouterDriver implements SmsDriverInterface
             ->delay(CarbonImmutable::now()->diffInSeconds($delay, true));
         $results = [];
         foreach ($recipients as $r) {
-            $deferred = SmsResult::deferred($r, $this->id(), 'quiet_hours');
-            $this->appendAttempt($context['notification_id'] ?? null, 1, $deferred);
+            $deferred = SmsResult::deferred($r, $this->id(), SmsResult::REASON_QUIET_HOURS);
+            $this->appendAttempt($context, 1, $deferred);
             $results[$r] = $deferred;
         }
 
@@ -322,15 +326,21 @@ class SmsRouterDriver implements SmsDriverInterface
 
     private function hasIntegrationFor(string $driverId, ?int $agencyId): bool
     {
+        return $driverId === 'log' || $this->integrationFor($driverId, $agencyId) !== null;
+    }
+
+    /** L'intégration active du fournisseur pour l'agence, ou celle de la plateforme ; aucune pour `log`. */
+    private function integrationFor(string $driverId, ?int $agencyId): ?Integration
+    {
         if ($driverId === 'log') {
-            return true;
+            return null;
         }
         $providerKey = (string) $this->config->get(
             "sms.integration_providers.{$driverId}",
             "sms_{$driverId}",
         );
 
-        return $this->integrations->find($agencyId, $providerKey) !== null;
+        return $this->integrations->find($agencyId, $providerKey);
     }
 
     /**
@@ -340,11 +350,19 @@ class SmsRouterDriver implements SmsDriverInterface
      *
      * TCK-799 (P11.05) — an SMS without notification (a contact without an
      * account, a lease signature code) writes its attempt too, unattached.
+     *
+     * TCK-2326 (P203.05) — the attempt keeps the sending agency (`$context['agency_id']`) and the
+     * Integration the provider took; none when no provider was called.
+     *
+     * @param  array<string,mixed>  $context
      */
-    private function appendAttempt(?int $notificationId, int $attempt, SmsResult $result): void
+    private function appendAttempt(array $context, int $attempt, SmsResult $result, ?int $integrationId = null): void
     {
+        $notificationId = $context['notification_id'] ?? null;
+        $agencyId = $context['agency_id'] ?? null;
+        $trace = ['agency_id' => is_int($agencyId) ? $agencyId : null, 'integration_id' => $integrationId];
         try {
-            $this->writeAttempt($notificationId, $attempt, $result);
+            $this->writeAttempt($notificationId, $attempt, $result, $trace);
         } catch (\Throwable $e) {
             Log::error('[sms.router] tentative non enregistrée', [
                 'notification_id' => $notificationId,
@@ -355,14 +373,15 @@ class SmsRouterDriver implements SmsDriverInterface
         }
     }
 
-    private function writeAttempt(?int $notificationId, int $attempt, SmsResult $result): void
+    /** @param  array{agency_id: ?int, integration_id: ?int}  $trace */
+    private function writeAttempt(?int $notificationId, int $attempt, SmsResult $result, array $trace): void
     {
         if (! $notificationId) {
             // Dans sa propre transaction, comme l'autre chemin : imbriquée, c'est un point de
             // sauvegarde, et un échec (identifiant fournisseur en double) n'abandonne pas la
             // transaction de l'appelant (PostgreSQL, 25P02).
             DB::transaction(fn () => NotificationDeliveryAttempt::query()->create(
-                ['app_notification_id' => null] + $this->attemptRow($attempt, $result),
+                ['app_notification_id' => null] + $trace + $this->attemptRow($attempt, $result),
             ));
 
             return;
@@ -373,12 +392,12 @@ class SmsRouterDriver implements SmsDriverInterface
         // collisions across notifications. Inserting with the
         // notification's row locked guarantees a stable per-notification
         // attempt sequence under concurrent appends.
-        DB::transaction(function () use ($notificationId, $attempt, $result): void {
+        DB::transaction(function () use ($notificationId, $attempt, $result, $trace): void {
             $notification = AppNotification::query()->lockForUpdate()->find($notificationId);
             if (! $notification) {
                 return;
             }
-            NotificationDeliveryAttempt::query()->create(['app_notification_id' => $notification->id] + $this->attemptRow($attempt, $result));
+            NotificationDeliveryAttempt::query()->create(['app_notification_id' => $notification->id] + $trace + $this->attemptRow($attempt, $result));
         });
     }
 

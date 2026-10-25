@@ -28,7 +28,17 @@
 	# POST de 26 Mio n'était refusé en 413. ⚠ Un envoi chunked, sans Content-Length, n'est borné
 	# que par request_body, et sans 413.
 	@trop_gros expression `{http.request.header.Content-Length} != "" && int({http.request.header.Content-Length}) > 26214400`
-	respond @trop_gros 413
+	# TCK-2370 (P236.01) — ce refus est rendu AVANT php_server, donc sans les en-têtes CORS que
+	# Laravel pose (config/cors.php). Le navigateur, qui appelle l'API depuis l'origine du front,
+	# rejetait alors `fetch` en TypeError, et le front disait « Vérifiez votre connexion internet ».
+	# Les mêmes en-têtes que Laravel avec une seule origine permise (FRONTEND_URL, même défaut) et
+	# `supports_credentials`, sur tout chemin : le corps ne dit rien d'autre que le code.
+	header @trop_gros {
+		Access-Control-Allow-Origin {$FRONTEND_URL:http://localhost:3000}
+		Access-Control-Allow-Credentials true
+		Content-Type application/json
+	}
+	respond @trop_gros `{"code":"payload_too_large"}` 413
 
 	# nginx : location /storage/. PAS `immutable` : RegenerateAgencyWatermarksJob réécrit les
 	# conversions à la MÊME URL, et un navigateur ne reverrait jamais la nouvelle.

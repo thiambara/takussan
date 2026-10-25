@@ -15,6 +15,8 @@ use App\Models\Lease;
 use App\Models\Property;
 use App\Services\Lease\LeaseSignatureService;
 use App\Services\Model\LeaseService;
+use App\Services\Property\BailleurDuBien;
+use App\Services\Property\ContactDeLAgenceDuBien;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -32,7 +34,10 @@ class LeaseController extends Controller
 
         if (! $user->isSuperAdmin()) {
             $base->where(function ($q) use ($user) {
-                $q->where('landlord_id', $user->id)
+                // TCK-1926 (P190.04) — la clause du bailleur suit `LeasePolicy::view` : désigné, ET bail
+                // sans agence ou profil propriétaire dans son agence (`BailleurDuBien`). L'agent
+                // créateur suspendu ou retiré ne liste plus le bail qui le désigne.
+                $q->where(fn ($b) => BailleurDuBien::restreindre($b, $user, 'landlord_id'))
                     ->orWhereHas('tenant', fn ($t) => $t->where('user_id', $user->id));
                 // TCK-587 — le périmètre d'agence est celui du PERSONNEL (ADR-0031) : un bailleur de l'agence
                 // listait les ressources de tous les autres.
@@ -111,6 +116,10 @@ class LeaseController extends Controller
                 422,
                 'lease.commission_locked'
             );
+            // TCK-1924 (P170.06) — une commission saisie s'arrondit à la devise du bail.
+            if (array_key_exists('commission_amount', $data)) {
+                $data['commission_amount'] = LeaseService::roundCommission($data['commission_amount'], $data['currency'] ?? $locked->currency);
+            }
             if ($data !== []) {
                 $locked->fill($data)->save();
             }
@@ -167,26 +176,18 @@ class LeaseController extends Controller
     {
         $data = $request->validated();
 
+        $guarantor = null;
         if (! empty($data['guarantor_id'])) {
             $guarantor = Guarantor::findOrFail($data['guarantor_id']);
             // TCK-587 (vérification adverse, B2) — un garant hors du périmètre de l'émetteur ne se
             // rattache pas : sa fiche se lirait ensuite par `GET /api/leases/{id}/guarantors`.
             $this->authorize('view', $guarantor);
-        } else {
-            $guarantor = Guarantor::create([
-                'first_name' => $data['first_name'],
-                'last_name' => $data['last_name'],
-                'phone' => $data['phone'] ?? null,
-                'email' => $data['email'] ?? null,
-                'id_type' => $data['id_type'] ?? null,
-                'id_number' => $data['id_number'] ?? null,
-                'occupation' => $data['occupation'] ?? null,
-                'employer' => $data['employer'] ?? null,
-                'monthly_income' => $data['monthly_income'] ?? null,
-                'relationship_to_tenant' => $data['relationship_to_tenant'] ?? null,
-                'notes' => $data['notes'] ?? null,
-                'added_by_id' => $request->user()->id,
-            ]);
+            // TCK-2285 (P226.01) — et de l'agence du BIEN quand il en a une (celle du bail suit l'agence
+            // du bailleur sur un bien sans agence, qui ne change pas).
+            abort_unless(ContactDeLAgenceDuBien::garant(
+                $guarantor,
+                Property::query()->whereKey($lease->property_id)->value('agency_id'),
+            ), 403);
         }
 
         // Atomic cap check + attach: without the transaction+lock, two
@@ -199,13 +200,17 @@ class LeaseController extends Controller
         // toutes les voies du bail (signature, PATCH, résiliation). Le défigement se juge sur la ligne
         // verrouillée : sur l'instance liée, une activation validée entre-temps voyait son empreinte
         // remise à NULL.
-        DB::transaction(function () use ($lease, $guarantor, $data) {
+        //
+        // TCK-2113 (P213.01) — la fiche d'un garant neuf se crée ICI, après les deux refus : créée
+        // avant la transaction, un 422 `lease.max_guarantors` la laissait en base, rattachée à aucun
+        // bail.
+        $guarantor = DB::transaction(function () use ($lease, $guarantor, $data, $request) {
             /** @var Lease $locked */
             $locked = Lease::query()->whereKey($lease->getKey())->lockForUpdate()->firstOrFail();
             $pivotRows = $locked->guarantors()->lockForUpdate()->get(['guarantors.id']);
 
             abort_code_if(
-                $pivotRows->contains('id', $guarantor->id),
+                $guarantor !== null && $pivotRows->contains('id', $guarantor->id),
                 422,
                 'lease.guarantor_already_attached'
             );
@@ -216,11 +221,30 @@ class LeaseController extends Controller
                 'lease.max_guarantors'
             );
 
+            $guarantor ??= Guarantor::create([
+                'first_name' => $data['first_name'],
+                'last_name' => $data['last_name'],
+                'phone' => $data['phone'] ?? null,
+                'email' => $data['email'] ?? null,
+                'id_type' => $data['id_type'] ?? null,
+                'id_number' => $data['id_number'] ?? null,
+                'occupation' => $data['occupation'] ?? null,
+                'employer' => $data['employer'] ?? null,
+                'monthly_income' => $data['monthly_income'] ?? null,
+                'relationship_to_tenant' => $data['relationship_to_tenant'] ?? null,
+                'notes' => $data['notes'] ?? null,
+                'added_by_id' => $request->user()->id,
+                // TCK-1993 (P175.01) — l'agence du bail qui la porte.
+                'agency_id' => $lease->agency_id,
+            ]);
+
             $locked->guarantors()->attach($guarantor->id, [
                 'role' => $data['role'] ?? null,
             ]);
             // TCK-596 §4B (ADR-0042 §1) — le garant est dans le contrat : un contrat figé est défigé.
             $locked->unfreezeContract();
+
+            return $guarantor;
         });
 
         return $this->json([

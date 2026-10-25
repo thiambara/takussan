@@ -28,14 +28,19 @@ class InvitationResource extends BaseResource
             'invitable_type' => $this->invitable_type,
             'invitable_id' => $this->invitable_id,
             'invited_by' => $this->invited_by,
-            'invited_user_id' => $this->invited_user_id,
+            // P242.03 (TCK-2365, décision du porteur du 2026-10-25) — une invitation ne dit rien de
+            // l'existence du compte : avant l'acceptation, ce champ disait à l'invitant si l'adresse
+            // ou le numéro vérifié avait un compte sur la plateforme. Aucun écran ne le lisait.
+            'invited_user_id' => $this->status === InvitationStatus::Accepted ? $this->invited_user_id : null,
             'expires_at' => $this->iso($this->expires_at),
             'accepted_at' => $this->iso($this->accepted_at),
             'revoked_at' => $this->iso($this->revoked_at),
             'last_reminded_at' => $this->iso($this->last_reminded_at),
             'created_at' => $this->iso($this->created_at),
             'is_expired' => $this->isExpired(),
-            'metadata' => $this->metadata,
+            // P181.05 (TCK-2221) — `metadata` n'est pas rendu : il porte des clés internes que
+            // l'API relit (`level`, `from_maintenance_request_id`, `deep_link_consumed_at`,
+            // `locale`) et qu'aucun écran ne lit, y compris à l'invité qui accepte par le jeton.
         ];
     }
 

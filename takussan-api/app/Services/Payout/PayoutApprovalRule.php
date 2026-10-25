@@ -53,6 +53,9 @@ final class PayoutApprovalRule
             ->where('agency_id', $agency->id)
             ->where('payee_role', $role->value)
             ->whereNull('approved_by_id')
+            // TCK-2052 (ADR-0039, amendement du 2026-10-23, n° 1) — le `Payout` constaté d'un
+            // remboursement déjà sorti n'a rien eu à approuver : il ne gonfle pas le cumul.
+            ->whereNull('refunded_payment_id')
             ->whereIn('status', array_map(fn (PayoutStatus $s) => $s->value, [
                 PayoutStatus::Pending, PayoutStatus::Scheduled, PayoutStatus::Processing, PayoutStatus::Completed,
             ]))

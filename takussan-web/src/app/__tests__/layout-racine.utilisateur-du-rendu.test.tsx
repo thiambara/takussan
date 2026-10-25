@@ -34,10 +34,7 @@ vi.mock('react', async (importOriginal) => {
     },
   };
 });
-vi.mock('next/font/google', () => ({
-  Bricolage_Grotesque: () => ({ variable: 'f1' }),
-  DM_Sans: () => ({ variable: 'f2' }),
-}));
+vi.mock('next/font/local', () => ({ default: () => ({ variable: 'f' }) }));
 vi.mock('next/headers', () => ({
   cookies: vi.fn(async () => ({
     get: (nom: string) => (nom in cookiesDuRendu ? { value: cookiesDuRendu[nom] } : undefined),

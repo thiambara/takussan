@@ -130,11 +130,18 @@ export function InviteServiceProviderSheet({
     },
     onSuccess: async (response) => {
       const otherAgency = response.meta?.existing_sp_other_agency === true;
+      // P234.05 (TCK-2280) — un prestataire déjà inscrit garde les métiers de son profil (TCK-262) :
+      // le toast les nomme, pour que l'agence sache que ceux qu'elle a cochés ne sont pas retenus.
+      const retenus = (response.meta?.retained_trades ?? []).map((metier) =>
+        tCategories.has(metier) ? tCategories(metier) : metier,
+      );
       toast.add({
         title: t('toasts.success_title'),
-        description: otherAgency
-          ? t('toasts.existing_other_agency')
-          : undefined,
+        description: !otherAgency
+          ? undefined
+          : retenus.length > 0
+            ? t('toasts.existing_other_agency_trades', { trades: retenus.join(', ') })
+            : t('toasts.existing_other_agency'),
         type: 'success',
       });
       setForm(emptyForm(prefilledTrades, prefilledZones));

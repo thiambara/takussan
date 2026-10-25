@@ -63,7 +63,9 @@ class NotificationTemplateService
             ->where('channel', $channel)
             ->get()
             ->keyBy('locale');
-        $isActive = (bool) ($payload['is_active'] ?? true);
+        // TCK-2114 (P214.02) — `is_active` absent garde l'état que `get()` rend : un `PATCH` qui ne
+        // portait que `templates` réactivait un gabarit coupé.
+        $isActive = (bool) ($payload['is_active'] ?? $rows->first()?->is_active ?? true);
 
         foreach (self::LOCALES as $locale) {
             $row = $rows[$locale] ?? null;

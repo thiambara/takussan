@@ -3,7 +3,6 @@
 namespace App\Http\Resources;
 
 use App\Http\Resources\Bases\BaseResource;
-use App\Listeners\Maintenance\SyncMaintenanceConversation;
 use App\Models\Enums\MaintenanceStatus;
 use App\Models\MaintenanceRequest;
 use App\Models\User;
@@ -115,6 +114,9 @@ class MaintenanceRequestResource extends BaseResource
      * TCK-592 (P7) — les pièces de la demande, en URL d'API signées (`PrivateMediaAccess`, seule
      * sortie d'un fichier privé). `quotes` au prestataire assigné et aux donneurs d'ordre seulement.
      *
+     * TCK-2088 (P180.02) — `thumbnail_url` sert la vignette des photos à la galerie, `url`
+     * l'original au clic ; l'original tant que la file ne l'a pas produite, et toujours pour un devis.
+     *
      * @return array<string, list<array<string, mixed>>>
      */
     private function mediaBlock(User $user): array
@@ -133,7 +135,8 @@ class MaintenanceRequestResource extends BaseResource
                     'name' => $media->file_name,
                     'mime_type' => $media->mime_type,
                     'size' => $media->size,
-                    'url' => $access->signedUrl($media),
+                    'url' => $url = $access->signedUrl($media),
+                    'thumbnail_url' => $access->signedConversionUrl($media, 'thumbnail') ?? $url,
                     'created_at' => $this->iso($media->created_at),
                 ])
                 ->values()
@@ -209,7 +212,9 @@ class MaintenanceRequestResource extends BaseResource
                 && in_array($status, [MaintenanceStatus::QuoteRequested, MaintenanceStatus::Rejected], true),
             'can_accept' => $canRespond,
             'can_decline' => $canRespond && in_array($status->value, MaintenanceRequestService::UNSTARTED, true),
-            'can_assign' => ! $terminal && $user->can('actAsPrincipal', $mr),
+            // TCK-2010 (P184.02) — faux sur `completed` aussi : `assign()` y refuse toute réassignation
+            // (`maintenance.reassign_after_completion`), et le bloc menait à ce 422.
+            'can_assign' => ! $terminal && $status !== MaintenanceStatus::Completed && $user->can('actAsPrincipal', $mr),
             'can_complete' => $user->can('transitionTo', [$mr, MaintenanceStatus::Completed]),
             'can_upload_before_photos' => ! $terminal && $isProvider && $mr->accepted_at !== null,
             'can_confirm_resolution' => $user->can('respondToResolution', [$mr, MaintenanceStatus::Closed]),
@@ -223,7 +228,8 @@ class MaintenanceRequestResource extends BaseResource
      */
     private function conversationIdFor(User $user): ?int
     {
-        $conversation = SyncMaintenanceConversation::conversationFor($this->resource);
+        // TCK-2372 (P250.03) — le fil se lit par la relation seule.
+        $conversation = $this->resource->conversation()->first();
         if ($conversation === null) {
             return null;
         }

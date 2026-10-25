@@ -151,10 +151,12 @@ class SystemMessageFactory
         };
     }
 
+    /**
+     * P193.05 (TCK-2053) — le nom montré aux autres membres : `nameWithoutContact()` (nom, puis
+     * `username`, puis « — »), jamais l'e-mail ni `#id`.
+     */
     protected function displayName(User $user): string
     {
-        $full = trim(($user->first_name ?? '').' '.($user->last_name ?? ''));
-
-        return $full !== '' ? $full : ($user->email ?? '#'.$user->id);
+        return $user->nameWithoutContact();
     }
 }

@@ -21,6 +21,13 @@ const DATE_SEULE = /^\d{4}-\d{2}-\d{2}$/;
 const DATE_HEURE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/;
 
 /**
+ * TCK-2325 (P128.03) — le mois en toutes lettres, comme le courriel de la même notification
+ * (`NotificationRenderer` : `LL` pour une date, `LLL` pour un instant) : même rendu en courriel et
+ * en cloche. L'ordre des mots reste celui de la locale de l'écran (`en` → `en-GB`).
+ */
+const DATE_DU_COURRIEL = { dateStyle: 'long' } as const;
+
+/**
  * P164.05 (TCK-1806) — la nature d'un paramètre se lit dans `param_types`, que l'API dérive de
  * `NotificationCode::params()` : plus de table par code ici, ni de devinette par la forme. La forme
  * ne sert plus que de repli à une ligne qui n'en porte pas (montant, date et motif seulement).
@@ -74,6 +81,12 @@ function nomAbsent(code: string, params: AppNotification['params']): boolean {
   });
 }
 
+/**
+ * P235.03 (TCK-2369) — un paramètre de nature `person` (`PARAM_PERSON`) vide — compte ou fiche créés
+ * par téléphone — se lit par ce libellé traduit, comme dans le courriel (`NotificationRenderer`).
+ */
+export type LibellePersonneSansNom = string;
+
 function libelleGeneriqueFournisseur(code: string): string {
   return code
     .split('_')
@@ -89,6 +102,7 @@ export function valeursDeNotification(
   role?: LibelleRole,
   fournisseur?: LibelleFournisseur,
   natures?: Natures,
+  personneSansNom?: LibellePersonneSansNom,
 ): ValeursNotification {
   const valeurs: ValeursNotification = {};
   for (const [nom, valeur] of Object.entries(params ?? {})) {
@@ -102,6 +116,8 @@ export function valeursDeNotification(
       valeurs[nom] = role?.(chaine) ?? chaine;
     } else if (nature === 'provider' && chaine !== null) {
       valeurs[nom] = fournisseur?.(chaine) ?? chaine;
+    } else if (nature === 'person' && (chaine === null || chaine.trim() === '') && personneSansNom) {
+      valeurs[nom] = personneSansNom;
     } else if (nature === 'month' && chaine !== null && MOIS.test(chaine)) {
       valeurs[nom] = fmt.date(`${chaine}-01`, { month: 'long', year: 'numeric' });
     } else if (valeur === null || valeur === undefined || valeur === '') {
@@ -111,9 +127,9 @@ export function valeursDeNotification(
     } else if (typeof valeur === 'object') {
       valeurs[nom] = fmt.montant(Number(valeur.amount), valeur.currency);
     } else if (nature === 'date' || (nature === null && DATE_SEULE.test(valeur))) {
-      valeurs[nom] = fmt.date(valeur);
+      valeurs[nom] = fmt.date(valeur, DATE_DU_COURRIEL);
     } else if (nature === 'datetime' || (nature === null && DATE_HEURE.test(valeur))) {
-      valeurs[nom] = fmt.dateTime(valeur);
+      valeurs[nom] = fmt.dateTime(valeur, DATE_DU_COURRIEL);
     } else {
       valeurs[nom] = valeur;
     }
@@ -127,6 +143,7 @@ export type TexteNotification = { titre: string; corps: string | null };
 /** Rend le titre et le corps d'une notification dans la langue de l'écran. */
 export function useTexteNotification(): (notification: AppNotification) => TexteNotification {
   const t = useTranslations('notifications.codes');
+  const tNotifications = useTranslations('notifications');
   const tMotifs = useTranslations('common.moderationReasons');
   const fmt = useFormatteurs();
   const motif: LibelleMotif = (code) => (tMotifs.has(code) ? tMotifs(code) : null);
@@ -148,6 +165,7 @@ export function useTexteNotification(): (notification: AppNotification) => Texte
       libelleRole,
       libelleGeneriqueFournisseur,
       notification.param_types,
+      tNotifications('unnamedPerson'),
     );
     const cleCorps = nomAbsent(code, notification.params) && t.has(`${code}.body_unnamed`)
       ? `${code}.body_unnamed`

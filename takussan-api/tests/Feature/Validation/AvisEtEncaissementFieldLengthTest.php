@@ -82,7 +82,8 @@ class AvisEtEncaissementFieldLengthTest extends ApiTestCase
     {
         $owner = User::factory()->create();
         $property = Property::factory()->create(['user_id' => $owner->id]);
-        $booking = Booking::factory()->create(['property_id' => $property->id, 'customer_id' => Customer::factory()->create()->id]);
+        // Le reste dû borne l'acompte (TCK-1916) : un total tiré sous 100 000 rendait 422.
+        $booking = Booking::factory()->create(['property_id' => $property->id, 'customer_id' => Customer::factory()->create()->id, 'total_amount' => 1_000_000]);
         Sanctum::actingAs($owner);
 
         $corps = fn (string $reference) => [

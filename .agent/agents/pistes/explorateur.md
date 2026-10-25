@@ -21,7 +21,9 @@ re-mesurer sans toi.
    n'est pas cité par une PR ouverte (voir « Ce qui est déjà pris »). S'il n'en reste aucun, écris
    `rien.txt` et arrête-toi.
 2. **Cadrer avant de chercher.** Relis l'intitulé de l'angle et ce que le fichier en dit ailleurs :
-   `grep -n` sur les mots clés, et sections voisines. Lis `docs/ardoise.md` sur le même sujet.
+   `grep -rn` sur les mots clés, dans le fichier ET dans son archive
+   (`docs/plans/2026-10-15-pistes-d-amelioration.md docs/plans/pistes-archive/`, voir `commun.md`),
+   et sections voisines. Lis `docs/ardoise.md` sur le même sujet.
    Lis aussi le `CLAUDE.md` du dossier concerné (`takussan-api/` ou `takussan-web/`).
 3. **Explorer en lecture seule** : code, specs, tests, migrations, configuration.
    - Tu peux mesurer :
@@ -33,8 +35,11 @@ re-mesurer sans toi.
    - Tu peux déléguer des recherches à des sous-agents en lecture seule. Relis toi-même chaque 🔴
      qu'ils rapportent : leur rapport n'est pas un constat.
 4. **Éviter les doublons.** Avant d'écrire une entrée, cherche son `fichier:ligne` et son sujet
-   dans le fichier. Si une entrée existante le couvre déjà, ne la duplique pas. Une entrée neuve
-   peut la citer (« voir P02.04 ») si ton constat y ajoute un fait.
+   dans le fichier et dans son archive (`grep -rn … docs/plans/2026-10-15-pistes-d-amelioration.md
+   docs/plans/pistes-archive/`). Si une entrée existante le couvre déjà, ne la duplique pas. Une
+   entrée neuve peut la citer (« voir P02.04 ») si ton constat y ajoute un fait. Une entrée close
+   dont le défaut est revenu ne se rouvre pas : ton entrée neuve cite sa Réf, et dit ce qui a
+   changé depuis.
 5. **Écrire la section**, à la fin du fichier, après la dernière section `## Angle` :
 
    ```

@@ -12,6 +12,7 @@ use App\Models\Enums\UserStatus;
 use App\Models\KycDossier;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\User;
+use App\Services\Kyc\KycExpiryService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Notification;
@@ -139,6 +140,31 @@ class KycDossierExpiryTest extends ApiTestCase
         // Repasser la commande ne relance plus rien.
         $this->artisan('kyc:expire-dossiers')->assertSuccessful();
         $this->assertSame(2, $this->remindersFor($admin1));
+    }
+
+    /**
+     * P207.04 (TCK-2073) — le jalon ne se consomme qu'une fois l'avis reçu par au moins un
+     * administrateur : sans destinataire joignable, ni jalon posé ni rappel compté, et le rappel
+     * part au passage suivant quand un administrateur arrive.
+     */
+    public function test_sans_administrateur_joignable_le_jalon_n_est_pas_consomme(): void
+    {
+        $this->travelTo(now()->setDate(2026, 10, 16)->setTime(6, 0));
+        $agency = Agency::factory()->create(['status' => AgencyStatus::Active, 'is_verified' => true]);
+        $blocked = User::factory()->create(['status' => UserStatus::Blocked]);
+        AgencyAdminProfile::factory()->create(['user_id' => $blocked->id, 'agency_id' => $agency->id]);
+        $dossier = $this->verifiedDossier($agency, '2026-11-15 00:00:00');
+
+        $this->assertSame(['reminded' => 0, 'expired' => 0], app(KycExpiryService::class)->run());
+        $this->assertArrayNotHasKey('expiry_reminders', $dossier->fresh()->metadata ?? []);
+
+        $admin = User::factory()->create();
+        AgencyAdminProfile::factory()->create(['user_id' => $admin->id, 'agency_id' => $agency->id]);
+        $this->travelTo(now()->setDate(2026, 10, 17));
+
+        $this->assertSame(['reminded' => 1, 'expired' => 0], app(KycExpiryService::class)->run());
+        $this->assertSame(1, $this->remindersFor($admin));
+        $this->assertSame([30], $dossier->fresh()->metadata['expiry_reminders']);
     }
 
     /** Un passage manqué à J-30 rattrape au jalon atteint, sans envoyer deux relances d'un coup. */

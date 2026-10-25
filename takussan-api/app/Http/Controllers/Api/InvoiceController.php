@@ -7,6 +7,7 @@ use App\Http\Requests\Api\StoreInvoiceRequest;
 use App\Http\Resources\InvoiceResource;
 use App\Models\Customer;
 use App\Models\Invoice;
+use App\Services\Membership\MembershipCapabilityResolver;
 use App\Services\Model\InvoiceService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -22,8 +23,11 @@ class InvoiceController extends Controller
         $base = Invoice::query()->with('customer');
 
         if (! $user->isSuperAdmin()) {
-            $base->where(function ($q) use ($user) {
-                $q->where('issued_by_id', $user->id)
+            // P218.03 (TCK-2196) — l'émetteur encore membre de l'agence, comme `InvoicePolicy::view`.
+            $memberAgencyIds = app(MembershipCapabilityResolver::class)->memberAgencyIds($user);
+            $base->where(function ($q) use ($user, $memberAgencyIds) {
+                $q->where(fn ($a) => $a->where('issued_by_id', $user->id)
+                    ->where(fn ($m) => $m->whereNull('agency_id')->orWhereIn('agency_id', $memberAgencyIds)))
                     ->orWhereHas('customer', fn ($c) => $c->where('user_id', $user->id));
                 // TCK-587 — le périmètre d'agence est celui du PERSONNEL (ADR-0031) : un bailleur de l'agence
                 // listait les ressources de tous les autres.

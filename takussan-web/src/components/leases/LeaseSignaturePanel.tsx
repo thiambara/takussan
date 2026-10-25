@@ -108,14 +108,16 @@ export function LeaseSignaturePanel({ lease }: LeaseSignaturePanelProps) {
                 </div>
                 {signature && (
                   <p className="mt-2 text-xs text-muted-foreground">
-                    {signature.on_behalf_of_name
+                    {/* TCK-2134 (P220.02) — le mandat se lit à sa présence, non à la vérité du
+                        nom : `''` (compte sans nom) effaçait le « pour le compte de ». */}
+                    {signature.on_behalf_of_name != null
                       ? t('signedOnBehalf', {
-                          signer: signature.signer_name ?? '—',
-                          landlord: signature.on_behalf_of_name,
+                          signer: signature.signer_name || '—',
+                          landlord: signature.on_behalf_of_name || '—',
                           date: signature.signed_at ? formatDate(signature.signed_at, locale) : '—',
                         })
                       : t('signedBy', {
-                          signer: signature.signer_name ?? '—',
+                          signer: signature.signer_name || '—',
                           date: signature.signed_at ? formatDate(signature.signed_at, locale) : '—',
                         })}
                   </p>
@@ -247,10 +249,15 @@ interface PaperActivationProps {
   readonly onSubmit: (file: File) => Promise<void>;
 }
 
+/** TCK-2150 (P222.06) — `max:10240` (Ko) d'`ActivateLeaseRequest`. Le contrat part tel quel. */
+const PAPER_MAX_MB = 10;
+const PAPER_MAX_BYTES = PAPER_MAX_MB * 1024 * 1024;
+
 /** La voie hors plateforme : le contrat signé sur papier, numérisé, fait foi (ADR-0042 §6). */
 function PaperActivation({ pending, onSubmit }: PaperActivationProps) {
   const t = useTranslations('lease.signature');
   const [file, setFile] = useState<File | null>(null);
+  const [tooLarge, setTooLarge] = useState<string | null>(null);
 
   return (
     <form
@@ -266,8 +273,24 @@ function PaperActivation({ pending, onSubmit }: PaperActivationProps) {
           id="lease-paper-contract"
           type="file"
           accept="application/pdf,image/jpeg,image/png"
-          onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+          onChange={(e) => {
+            const chosen = e.target.files?.[0] ?? null;
+            // Refusé au choix plutôt qu'en 422 après l'envoi (TCK-2150).
+            if (chosen && chosen.size > PAPER_MAX_BYTES) {
+              setTooLarge(chosen.name);
+              setFile(null);
+              e.target.value = '';
+              return;
+            }
+            setTooLarge(null);
+            setFile(chosen);
+          }}
         />
+        {tooLarge && (
+          <p role="alert" className="text-xs text-destructive">
+            {t('paperTooLarge', { max: PAPER_MAX_MB, files: tooLarge })}
+          </p>
+        )}
       </div>
       <Button type="submit" variant="outline" disabled={!file || pending}>
         {t('paperSubmit')}

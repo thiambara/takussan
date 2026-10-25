@@ -5,9 +5,13 @@ namespace App\Services\Invitation;
 use App\Domain\Notifications\NotificationCode;
 use App\Mail\InvitationMailable;
 use App\Models\Agency;
+use App\Models\Customer;
+use App\Models\Enums\AgencyAdminProfileStatus;
+use App\Models\Enums\AgentProfileStatus;
 use App\Models\Enums\CollaborationStatus;
 use App\Models\Enums\InvitationStatus;
 use App\Models\Invitation;
+use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\Profiles\ServiceProviderAgencyCollaboration;
@@ -17,10 +21,15 @@ use App\Notifications\InvitationAcceptedNotification;
 use App\Notifications\InvitationExpiredNotification;
 use App\Services\Auth\PhoneVerificationService;
 use App\Services\Auth\SuperAdminCooptationService;
+use App\Services\Membership\ProfileMaterializer;
+use App\Services\Model\CustomerService;
 use App\Services\Model\NotificationService;
 use App\Services\Notifications\ContactSansCompte;
 use App\Services\Notifications\Sms\DeferredSmsGuard;
 use App\Services\Notifications\Sms\PhoneNumber;
+use App\Services\Notifications\Sms\SmsOutcome;
+use App\Services\Property\PropertyOwnerTransfer;
+use App\Services\Property\TitulaireALaSaisie;
 use App\Support\CanonicalPhone;
 use App\Support\CaseInsensitive;
 use App\Support\LienFront;
@@ -87,11 +96,12 @@ class InvitationService
      * `finalizeAccept()` : les deux disent la même chose et doivent bouger
      * ensemble.
      *
-     * `agency_admin` n'y figure pas, et c'est le constat de TCK-392 :
-     * l'acceptation ne matérialise aucun `AgencyAdminProfile`, « l'invité
-     * obtiendrait un compte accepté et aucun accès — pire que le refus
-     * actuel ». Le second administrateur d'agence passe donc, comme
-     * aujourd'hui, par `POST /agencies/{id}/members`.
+     * `agency_admin` (P242.01, TCK-2365, ADR-0031 amendé le 2026-10-25) cible,
+     * comme l'agent, un `AgentProfile` brouillon : l'acceptation l'active et
+     * matérialise en plus l'`AgencyAdminProfile` ({@see self::finalizeAccept()}).
+     * Il en était absent (TCK-392) parce que l'acceptation ne matérialisait
+     * aucun profil d'administrateur ; le second administrateur passait par
+     * `POST /agencies/{id}/members`, retirée, qui l'activait sans accord.
      *
      * @var array<string,class-string>
      */
@@ -100,7 +110,11 @@ class InvitationService
         'agent' => AgentProfile::class,
         'agent_senior' => AgentProfile::class,
         'agent_manager' => AgentProfile::class,
+        'agency_admin' => AgentProfile::class,
         'service_provider' => ServiceProviderProfile::class,
+        // P15.01 (TCK-2351) — inviter le locataire à créer son compte : la cible est la fiche
+        // client, qui reçoit le compte à l'acceptation ({@see self::lierLaFiche()}).
+        'tenant' => Customer::class,
     ];
 
     /**
@@ -130,13 +144,22 @@ class InvitationService
     public const REMINDER_OFFSET_DAYS = 2;
 
     /**
+     * P179.01 (TCK-2155, décision du porteur du 2026-10-24) — essais du rappel au plus, un par
+     * jour : un SMS que tous les fournisseurs refusent se retente, sans plus. Un rappel posé
+     * épuise le compte ({@see self::remindPending()}).
+     */
+    public const MAX_REMINDER_ATTEMPTS = 3;
+
+    /**
      * Send a new invitation.
      *
      * Pre-conditions:
-     *  - email is RFC-valid (handled by the FormRequest)
-     *  - inviter has the `invite_<role>` permission OR is super_admin
-     *    (the controller / policy enforces this — the service trusts the
-     *    caller for permission, but still guards data integrity below)
+     *  - email is RFC-valid (handled by the caller's FormRequest)
+     *  - the caller has authorised the gesture: the per-role routes by
+     *    their profile policy's `invite` (TCK-256/258/260), the cooptation
+     *    by {@see SuperAdminCooptationService} — the service trusts the
+     *    caller for permission, but still guards data integrity below.
+     *    There is no generic creation route any more (P208.01, TCK-2190).
      *
      * Behaviour:
      *  - Generates a 64-char URL-safe token, retries on the (extremely
@@ -174,12 +197,9 @@ class InvitationService
         $metadata = [...($payload['metadata'] ?? []), 'locale' => ContactSansCompte::DEFAULT_LOCALE];
 
         // TCK-455 — refus À L'ÉMISSION d'une invitation qui ne rattache à
-        // rien. Le garde vit ICI et non seulement dans
-        // `CreateInvitationRequest` : `send()` est le seul point que
-        // traversent AUSSI les quatre services par rôle, et une règle posée
-        // dans la seule FormRequest laisserait ouvert tout appelant interne.
-        // La FormRequest la rejoue pour rendre une erreur de CHAMP au client,
-        // en lisant les mêmes constantes — deux couches, une définition.
+        // rien. Le garde vit ICI : `send()` est le seul point que traversent
+        // les services par rôle et la cooptation. (La FormRequest de la
+        // création générique qui le rejouait est partie avec elle, P208.01.)
         self::assertInvitationAttachesToSomething($role, $invitableType);
 
         // Dedup guard: a pending `sent` invitation for the same
@@ -295,7 +315,7 @@ class InvitationService
                 ]);
             }
 
-            return $this->acceptForUser($invitation, $existingUser);
+            return $this->acceptForUser($invitation, $existingUser, $payload);
         }
 
         // Branch A — create the User as part of the accept transaction.
@@ -339,20 +359,39 @@ class InvitationService
             ])->status(422);
         }
 
-        DB::transaction(function () use ($invitation, $actor): void {
-            $invitation->forceFill([
+        return DB::transaction(function () use ($invitation, $actor): Invitation {
+            // P229.02 (TCK-2223) — relire SOUS le verrou et rejuger : le modèle lié est d'avant
+            // la transaction, et une acceptation ou une révocation a pu passer entre-temps.
+            /** @var Invitation $fraiche */
+            $fraiche = Invitation::query()
+                ->whereKey($invitation->getKey())
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if ($fraiche->status === InvitationStatus::Revoked) {
+                return $fraiche;
+            }
+
+            if ($fraiche->status === InvitationStatus::Accepted) {
+                throw ValidationException::withMessages([
+                    'status' => [__('invitations.errors.already_accepted')],
+                ])->status(422);
+            }
+
+            $fraiche->forceFill([
                 'status' => InvitationStatus::Revoked->value,
                 'revoked_at' => now(),
             ])->save();
+            $this->delierLesBiens($fraiche);
 
             activity('Invitation')
-                ->performedOn($invitation)
+                ->performedOn($fraiche)
                 ->causedBy($actor)
                 ->event('invitation_revoked')
                 ->log('invitation_revoked');
-        });
 
-        return $invitation->fresh();
+            return $fraiche->fresh();
+        });
     }
 
     /**
@@ -429,9 +468,10 @@ class InvitationService
 
         $fraiche = DB::transaction(function () use ($invitation, $actor): Invitation {
             // Relire SOUS le verrou : le modèle vient du route-model binding,
-            // donc d'avant la transaction. `lockForUpdate()` sur la ligne
-            // elle-même ferme la course avec les écrivains qui ne passent pas
-            // par ici (le cron `invitations:expire`, la révocation).
+            // donc d'avant la transaction. Le verrou ne ferme la course qu'avec
+            // les écrivains qui le prennent aussi : le cron `invitations:expire`
+            // et la révocation relisent la ligne sous verrou et rejugent son
+            // état (P229.01, P229.02, TCK-2223).
             /** @var Invitation $fraiche */
             $fraiche = Invitation::query()
                 ->whereKey($invitation->getKey())
@@ -452,6 +492,7 @@ class InvitationService
                 'token' => $this->generateUniqueToken(),
                 'expires_at' => now()->addDays(self::DEFAULT_TTL_DAYS),
                 'last_reminded_at' => null,
+                'reminder_attempts' => 0,
             ])->save();
 
             // Le courriel part DANS la transaction (TCK-367 : un échec la défait).
@@ -505,6 +546,11 @@ class InvitationService
      * in the past to `expired`, notify the inviter, and write an activity
      * row. Idempotent — already-expired rows are skipped by the scope.
      *
+     * P229.01, P229.02 (TCK-2223) — chaque ligne est relue sous verrou et la
+     * sélection rejugée (`sent`, échue) : une relance, une révocation ou une
+     * acceptation jouée pendant le passage n'est pas écrasée, et ni journal
+     * ni avis ne partent pour elle. Rend les seules invitations expirées.
+     *
      * @return Collection<int,Invitation>
      */
     public function expire(?Carbon $now = null): Collection
@@ -516,17 +562,40 @@ class InvitationService
             ->where('expires_at', '<=', $now)
             ->get();
 
-        foreach ($stale as $invitation) {
-            DB::transaction(function () use ($invitation): void {
-                $invitation->forceFill([
+        $expired = new Collection;
+
+        foreach ($stale as $candidate) {
+            $invitation = DB::transaction(function () use ($candidate, $now): ?Invitation {
+                /** @var Invitation|null $fraiche */
+                $fraiche = Invitation::query()
+                    ->whereKey($candidate->getKey())
+                    ->where('status', InvitationStatus::Sent->value)
+                    ->where('expires_at', '<=', $now)
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($fraiche === null) {
+                    return null;
+                }
+
+                $fraiche->forceFill([
                     'status' => InvitationStatus::Expired->value,
                 ])->save();
+                $this->delierLesBiens($fraiche);
 
                 activity('Invitation')
-                    ->performedOn($invitation)
+                    ->performedOn($fraiche)
                     ->event('invitation_expired')
                     ->log('invitation_expired');
+
+                return $fraiche;
             });
+
+            if ($invitation === null) {
+                continue;
+            }
+
+            $expired->push($invitation);
 
             // P123.04 (TCK-1251) — l'échec d'un avis est rapporté par invitation, la boucle
             // continue : il arrêtait la tâche, qui n'expirait plus qu'une invitation par passage.
@@ -540,13 +609,15 @@ class InvitationService
             }
         }
 
-        return $stale;
+        return $expired;
     }
 
     /**
      * Send a J+2 reminder to invitees who haven't accepted yet. Idempotent
      * via `last_reminded_at` — the second pass is a no-op for any
-     * invitation already reminded.
+     * invitation already reminded. P179.01 (TCK-2155) : un SMS de rappel
+     * qu'aucun fournisseur n'a pu recevoir n'est pas tenu pour posé ; il se
+     * retente un jour plus tard, `MAX_REMINDER_ATTEMPTS` essais au plus.
      *
      * @return Collection<int,Invitation>
      */
@@ -562,14 +633,19 @@ class InvitationService
             // docblock de `resend`. `created_at` faisait partir le rappel dans l'heure de la relance.
             ->where('expires_at', '<=', $threshold->copy()->addDays(self::DEFAULT_TTL_DAYS))
             ->where('expires_at', '>', $now)
-            ->whereNull('last_reminded_at')
+            // P179.01 (TCK-2155) — jamais rappelée, ou un essai refusé (compte entre 1 et le
+            // plafond) daté de plus d'un jour. Un rappel posé épuise le compte ; une invitation
+            // rappelée avant la colonne (compte 0, date posée) reste tenue pour rappelée.
+            ->where(fn ($q) => $q->whereNull('last_reminded_at')->orWhere(fn ($q) => $q
+                ->whereBetween('reminder_attempts', [1, self::MAX_REMINDER_ATTEMPTS - 1])
+                ->where('last_reminded_at', '<=', $now->copy()->subDay())))
             ->get();
 
         foreach ($due as $invitation) {
             // P123.04 (TCK-1251) — un rappel qui échoue est rapporté et n'arrête plus les suivants ;
             // non marqué, il est retenté au passage suivant.
             try {
-                $this->deliver(
+                $outcome = $this->deliver(
                     $invitation,
                     $this->recipientAccount($invitation->email, $this->smsRecipient($invitation)),
                     isReminder: true,
@@ -580,7 +656,16 @@ class InvitationService
                 continue;
             }
 
-            $invitation->forceFill(['last_reminded_at' => $now])->save();
+            // P179.01 (TCK-2155) — le SMS du rappel part hors file et son sort se relit : posé s'il
+            // a pu atteindre l'invité (accepté, échec ambigu, report de nuit), sinon un essai de
+            // plus, retenté le lendemain. Le courriel, synchrone, lève sur un échec (ci-dessus).
+            $pose = $outcome === null || ! $outcome->smsChosen || $outcome->mayHaveReached();
+            $invitation->forceFill([
+                'last_reminded_at' => $now,
+                'reminder_attempts' => $pose
+                    ? self::MAX_REMINDER_ATTEMPTS
+                    : min(self::MAX_REMINDER_ATTEMPTS, (int) $invitation->reminder_attempts + 1),
+            ])->save();
         }
 
         return $due;
@@ -669,13 +754,68 @@ class InvitationService
     }
 
     /**
-     * Branch B: shared finalize when the User already exists.
+     * TCK-1000 (Q2) — l'invitation d'un bailleur est révoquée ou expirée : les biens saisis pour lui
+     * perdent le lien et restent à l'agence ({@see TitulaireALaSaisie::delier()}).
      */
-    protected function acceptForUser(Invitation $invitation, User $user): Invitation
+    private function delierLesBiens(Invitation $invitation): void
     {
-        return DB::transaction(function () use ($invitation, $user): Invitation {
+        if ($invitation->invitable_type === OwnerProfile::class && $invitation->invitable_id !== null) {
+            TitulaireALaSaisie::delier([(int) $invitation->invitable_id]);
+        }
+    }
+
+    /**
+     * Branch B: shared finalize when the User already exists.
+     *
+     * P220.07 (TCK-2281, décision du porteur du 2026-10-25) — un compte SANS NOM (créé par
+     * téléphone, noms `''`) reçoit le prénom et le nom qu'il a confirmés à l'acceptation, que
+     * l'écran lui a préremplis avec ceux de l'invitation ({@see self::prefillFor()}). Un compte
+     * qui porte un nom le garde, quoi qu'on envoie. Dans la transaction : un refus de
+     * `finalizeAccept` n'écrit rien.
+     *
+     * @param  array<string,mixed>  $payload
+     */
+    protected function acceptForUser(Invitation $invitation, User $user, array $payload = []): Invitation
+    {
+        return DB::transaction(function () use ($invitation, $user, $payload): Invitation {
+            $first = trim((string) ($payload['first_name'] ?? ''));
+            $last = trim((string) ($payload['last_name'] ?? ''));
+            if (self::isNameless($user) && ($first !== '' || $last !== '')) {
+                $user->forceFill(['first_name' => $first, 'last_name' => $last])->save();
+            }
+
             return $this->finalizeAccept($invitation, $user);
         });
+    }
+
+    /**
+     * P220.07 (TCK-2281) — le prénom et le nom que l'agence a saisis à l'invitation, à préremplir
+     * sur l'écran d'acceptation d'un compte connecté SANS NOM. `null` pour tout autre compte : un
+     * compte qui porte un nom, ou qui n'est pas le destinataire (le même que l'acceptation exige,
+     * {@see self::accept()}) — l'écran garde alors son seul bouton, et rien de l'invitation ne
+     * sort. 404 et 410 comme l'acceptation.
+     *
+     * @return array{first_name: string, last_name: string}|null
+     */
+    public function prefillFor(string $token, User $user): ?array
+    {
+        $invitation = $this->lookupActiveInvitation($token);
+        $recipient = $this->recipientAccount($invitation->email, $this->smsRecipient($invitation));
+
+        if ($recipient === null || $recipient->id !== $user->id || ! self::isNameless($user)) {
+            return null;
+        }
+
+        return [
+            'first_name' => trim((string) data_get($invitation->metadata, 'first_name', '')),
+            'last_name' => trim((string) data_get($invitation->metadata, 'last_name', '')),
+        ];
+    }
+
+    /** P220.07 (TCK-2281) — « sans nom » : prénom ET nom vides. */
+    protected static function isNameless(User $user): bool
+    {
+        return trim((string) $user->first_name) === '' && trim((string) $user->last_name) === '';
     }
 
     /**
@@ -689,6 +829,33 @@ class InvitationService
      */
     protected function finalizeAccept(Invitation $invitation, User $user): Invitation
     {
+        // P208.02 (TCK-2192) — the targeted profile is judged BEFORE any write:
+        // only a `draft` is activated, an `active` one is left as is, anything
+        // else (suspended, inactive, blocked) refuses the acceptance and leaves
+        // the invitation `sent`. The flip below used to lift the suspension of
+        // another account's profile, in another agency, without a trace.
+        $invitable = $invitation->invitable;
+
+        // P15.01 (TCK-2351) — une fiche client n'est pas un profil : son statut est celui du CRM,
+        // et rien ne s'y active. Elle reçoit le compte, avant toute autre écriture. Supprimée depuis
+        // l'envoi, l'invitation ne lie plus rien : elle vaut révoquée.
+        abort_code_if($invitation->role === 'tenant' && ! $invitable instanceof Customer, 410, 'invitation.token_revoked');
+        if ($invitable instanceof Customer) {
+            $this->lierLaFiche($invitable, $user);
+            $invitable = null;
+        }
+
+        $invitableStatus = $invitable !== null && array_key_exists('status', $invitable->getAttributes())
+            ? ($invitable->status instanceof \BackedEnum ? (string) $invitable->status->value : (string) $invitable->status)
+            : null;
+        abort_code_if(
+            $invitableStatus !== null && ! in_array($invitableStatus, ['draft', 'active'], true),
+            409,
+            'invitation.profile_unavailable',
+        );
+        $this->assertDraftDoesNotDuplicateAProfile($invitation, $invitable, $user);
+        $invitable = $this->reprendreLeProfilRetire($invitation, $invitable, $user);
+
         // TCK-264 — super_admin cooptation: the spatie role is NOT
         // attached at acceptance time. The user must first enroll a
         // TOTP factor through the dedicated onboarding flow; only the
@@ -697,7 +864,13 @@ class InvitationService
         // column) so the dashboard / router can detect the pending state
         // and gate every super-admin surface until the factor is
         // confirmed.
-        if ($invitation->role === 'super_admin') {
+        //
+        // P208.03 (TCK-2190) — only a cooptation WITHOUT agency: that is the
+        // one `confirm` honours ({@see SuperAdminTwoFactorController}). A
+        // `super_admin` row tied to an agency (the retired generic route
+        // emitted some) set the flag, sent the account to an enrolment that
+        // cut its 2FA and could never be confirmed.
+        if ($invitation->role === 'super_admin' && $invitation->agency_id === null) {
             $user->forceFill([
                 'force_2fa_at_first_login' => true,
                 'email_verified_at' => $user->email_verified_at ?? now(),
@@ -719,8 +892,8 @@ class InvitationService
             // user opérationnel ; plus de double-écriture spatie.
         }
 
-        // Flip the polymorphic profile to `active` if it exists and
-        // exposes a `status` attribute.
+        // Flip the polymorphic profile from `draft` to `active` if it exists
+        // and exposes a `status` attribute (P208.02: only a draft).
         //
         // TCK-261 — for a draft ServiceProviderProfile (created sans User
         // by ServiceProviderInvitationService), we additionally attach
@@ -728,14 +901,13 @@ class InvitationService
         // to /api/me/profiles/{sp_profile}/* with a clean ownership check.
         // TCK-257 — same treatment for OwnerProfile drafts created by
         // OwnerInvitationService (user_id null until acceptance).
-        $invitable = $invitation->invitable;
         if ($invitable !== null) {
             $patch = [];
-            if (array_key_exists('status', $invitable->getAttributes())) {
+            if ($invitableStatus === 'draft') {
                 // Use a string literal rather than ProfileStatus::Active->value
                 // so this stays decoupled from any specific profile enum —
-                // every profile-status enum we ship uses the same `active`
-                // string for the active state.
+                // every profile-status enum we ship uses the same `draft` and
+                // `active` strings.
                 $patch['status'] = 'active';
             }
             // TCK-259 — agent drafts (created sans User by
@@ -743,13 +915,29 @@ class InvitationService
             // here so the post-acceptance wizard can write to
             // /api/me/profiles/{agent_profile}/* with a clean ownership
             // check (mirror Owner / SP).
-            if (in_array($invitation->role, ['service_provider', 'owner', 'agent', 'agent_senior', 'agent_manager'], true)
+            if (in_array($invitation->role, ['service_provider', 'owner', 'agent', 'agent_senior', 'agent_manager', 'agency_admin'], true)
                 && array_key_exists('user_id', $invitable->getAttributes())
                 && $invitable->user_id === null) {
                 $patch['user_id'] = $user->id;
             }
             if ($patch !== []) {
                 $invitable->forceFill($patch)->save();
+            }
+
+            // P242.01 (TCK-2365) — l'administrateur invité est aussi agent (comme le gérant que la
+            // console crée) : son profil d'administrateur naît ici, à l'acceptation, jamais avant.
+            if ($invitation->role === 'agency_admin' && $invitable instanceof AgentProfile && (int) $invitable->user_id === (int) $user->id) {
+                ProfileMaterializer::materializeOrRestore(
+                    AgencyAdminProfile::class,
+                    ['user_id' => $user->id, 'agency_id' => $invitable->agency_id],
+                    ['status' => AgencyAdminProfileStatus::Active->value],
+                );
+            }
+
+            // TCK-1000 (P15.06, Q2 ; ADR-0036, amendement du 2026-10-19, voie 2) — les biens saisis
+            // pour ce bailleur invité lui passent ici, dans la transaction qui active son profil.
+            if ($invitable instanceof OwnerProfile && (int) $invitable->user_id === (int) $user->id) {
+                app(PropertyOwnerTransfer::class)->aLAcceptation($invitable, $user);
             }
         }
 
@@ -792,6 +980,94 @@ class InvitationService
         }
 
         return $invitation->fresh();
+    }
+
+    /**
+     * P15.01 (TCK-2351, décision du porteur du 2026-10-25) — « inviter le locataire à créer son
+     * compte » : la fiche reçoit le compte qui accepte, par `linkUser()`. Relue sous verrou : une
+     * fiche liée entre l'envoi et l'acceptation à un AUTRE compte refuse l'acceptation (409), et
+     * l'invitation reste `sent` ; liée à ce compte-ci, rien ne change.
+     */
+    protected function lierLaFiche(Customer $fiche, User $user): void
+    {
+        /** @var Customer $fraiche */
+        $fraiche = Customer::query()->whereKey($fiche->getKey())->lockForUpdate()->firstOrFail();
+
+        if ($fraiche->user_id === null) {
+            app(CustomerService::class)->linkUser($fraiche, $user);
+
+            return;
+        }
+
+        abort_code_if((int) $fraiche->user_id !== (int) $user->id, 409, 'invitation.tenant_already_linked');
+    }
+
+    /**
+     * P234.02 et P234.03 (TCK-2280) — un brouillon ne se lie pas à un compte qui porte déjà ce qu'il
+     * créerait. Jugé avant toute écriture, l'invitation reste `sent` :
+     *
+     *  - un brouillon de bailleur ou d'agent, accepté par un compte déjà membre de l'agence sous ce
+     *    profil, heurtait `unique(user_id, agency_id)` en 500 (`invitation.already_member`) ;
+     *  - un brouillon de prestataire, accepté par un compte qui a déjà son profil de prestataire, lui
+     *    en créait un second, que ses propres écrans ne voient pas (`HasProfiles::serviceProviderProfile`
+     *    est un `HasOne`) : un seul profil par compte, N agences par ses collaborations (ADR-0016,
+     *    amendement du 2026-10-25), que plus aucune contrainte ne tient depuis
+     *    `2026_05_10_170000` (`invitation.service_provider_profile_exists`).
+     *
+     * ⚠ Le profil retiré (`SoftDeletes`) n'est pas compté : il n'est plus membre, mais
+     * `unique(user_id, agency_id)` le compte encore.
+     */
+    protected function assertDraftDoesNotDuplicateAProfile(Invitation $invitation, mixed $invitable, User $user): void
+    {
+        if (! is_object($invitable) || ! array_key_exists('user_id', $invitable->getAttributes()) || $invitable->user_id !== null) {
+            return;
+        }
+
+        if ($invitable instanceof OwnerProfile || $invitable instanceof AgentProfile) {
+            abort_code_if(
+                $invitable::query()->where('agency_id', $invitable->agency_id)->where('user_id', $user->id)->exists(),
+                409,
+                'invitation.already_member',
+            );
+        }
+
+        if ($invitable instanceof ServiceProviderProfile) {
+            abort_code_if(
+                ServiceProviderProfile::query()->where('user_id', $user->id)->whereKeyNot($invitable->getKey())->exists(),
+                409,
+                'invitation.service_provider_profile_exists',
+            );
+        }
+    }
+
+    /**
+     * P242.02 (TCK-2365, décision du porteur du 2026-10-25) — un agent retiré de l'agence puis
+     * réinvité : sa ligne retirée tient encore `unique(user_id, agency_id)`, et lier le brouillon
+     * à son compte rendait 500. La ligne retirée est reprise (historique, portefeuille d'avant),
+     * au rôle SYSTÈME de l'agent ({@see ProfileMaterializer}), jamais à son ancien rôle
+     * personnalisé ; le brouillon, qui n'a servi qu'à porter l'invitation, est retiré, et
+     * l'invitation pointe la ligne reprise.
+     */
+    protected function reprendreLeProfilRetire(Invitation $invitation, mixed $invitable, User $user): mixed
+    {
+        if (! $invitable instanceof AgentProfile || $invitable->user_id !== null) {
+            return $invitable;
+        }
+
+        $match = ['user_id' => $user->id, 'agency_id' => $invitable->agency_id];
+        if (! AgentProfile::onlyTrashed()->where($match)->exists()) {
+            return $invitable;
+        }
+
+        $repris = ProfileMaterializer::materializeOrRestore(
+            AgentProfile::class,
+            $match,
+            ['status' => AgentProfileStatus::Active->value],
+        );
+        $invitable->delete();
+        $invitation->forceFill(['invitable_id' => $repris->getKey()])->save();
+
+        return $repris;
     }
 
     /**
@@ -978,8 +1254,11 @@ class InvitationService
      * TCK-589 — le compte déjà titulaire du destinataire : par e-mail, ou pour une
      * invitation par SMS, le compte qui a VÉRIFIÉ ce numéro — un numéro seulement
      * saisi ne prouve rien (ADR-0033, contrainte 2).
+     *
+     * P234.02 et P234.03 (TCK-2280) — public : les services par rôle jugent « déjà membre » et
+     * « profil existant » sur ce même compte, avant d'émettre.
      */
-    protected function recipientAccount(?string $email, ?string $phone): ?User
+    public function recipientAccount(?string $email, ?string $phone): ?User
     {
         if ($email !== null) {
             return User::query()->where('email', $email)->first();
@@ -1012,7 +1291,7 @@ class InvitationService
      * l'invitation, l'invitant peut relancer. Seul le courriel d'une RELANCE part
      * dans sa transaction ({@see self::resend()}, TCK-367).
      */
-    protected function deliver(Invitation $invitation, ?User $existingUser, bool $isReminder = false): void
+    protected function deliver(Invitation $invitation, ?User $existingUser, bool $isReminder = false): ?SmsOutcome
     {
         $locale = $this->preferredLocale($existingUser, $invitation);
 
@@ -1020,20 +1299,28 @@ class InvitationService
             Mail::to($invitation->email)->locale($locale)
                 ->send(new InvitationMailable($invitation, isReminder: $isReminder));
 
-            return;
+            return null;
         }
 
-        app(NotificationService::class)->send(
-            ContactSansCompte::fromInvitation($invitation, $locale),
-            $isReminder ? NotificationCode::InvitationReminder : NotificationCode::InvitationReceived,
-            [
-                'agency' => self::smsAgencyName($invitation->agency?->name),
-                // Même lien que le courriel (`InvitationMailable`).
-                'url' => LienFront::vers('/invitations/accept?token='.$invitation->token),
-            ],
-            // TCK-1346 (P132.04) — reporté à la nuit, le SMS relit l'invitation avant de partir.
-            deferredSmsGuard: DeferredSmsGuard::forInvitation($invitation),
-        );
+        $contact = ContactSansCompte::fromInvitation($invitation, $locale);
+        $params = [
+            'agency' => self::smsAgencyName($invitation->agency?->name),
+            // Même lien que le courriel (`InvitationMailable`).
+            'url' => LienFront::vers('/invitations/accept?token='.$invitation->token),
+        ];
+        // TCK-1346 (P132.04) — reporté à la nuit, le SMS relit l'invitation avant de partir.
+        $guard = DeferredSmsGuard::forInvitation($invitation);
+
+        // P179.01 (TCK-2155) — le rappel part hors file : la tâche relit le sort du SMS.
+        if ($isReminder) {
+            return app(NotificationService::class)->sendToContactNow(
+                $contact, NotificationCode::InvitationReminder, $params, deferredSmsGuard: $guard,
+            );
+        }
+
+        app(NotificationService::class)->send($contact, NotificationCode::InvitationReceived, $params, deferredSmsGuard: $guard);
+
+        return null;
     }
 
     /**

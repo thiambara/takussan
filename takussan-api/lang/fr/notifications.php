@@ -3,6 +3,8 @@
 return [
 
     'salutation' => 'L\'équipe Takussan',
+    // P235.03 (TCK-2369) — une personne sans nom dans un avis (`NotificationCode::PARAM_PERSON`).
+    'unnamed_person' => '(sans nom)',
 
     // TCK-249 — Invitation lifecycle emails (initial + reminder + inviter
     // notifications on acceptance/expiration).
@@ -111,6 +113,8 @@ return [
         'consequences' => 'Vos données personnelles seront anonymisées de manière irréversible. Les enregistrements comptables et légaux (paiements, baux, factures) seront conservés sous forme anonyme conformément à la loi.',
         'action' => 'Annuler la suppression',
         'ignore' => 'Si vous n\'êtes pas à l\'origine de cette demande, annulez-la immédiatement et changez votre mot de passe.',
+        // P193.04 (TCK-2051) — un compte sans e-mail : SMS au numéro vérifié.
+        'sms' => 'Takussan : votre demande de suppression de compte est enregistrée. Elle sera exécutée le :date. Pour l\'annuler, connectez-vous avant cette date.',
     ],
 
     // TCK-272 — code de step-up pour les comptes sans mot de passe
@@ -139,6 +143,8 @@ return [
         'intro' => 'Votre compte sera supprimé dans :days jours, le :date. Si vous changez d\'avis, vous pouvez encore annuler la suppression.',
         'action' => 'Annuler la suppression',
         'ignore' => 'Si vous confirmez la suppression, aucune action n\'est requise.',
+        // P193.04 (TCK-2051) — un compte sans e-mail : SMS au numéro vérifié.
+        'sms' => 'Takussan : votre compte sera supprimé dans :days jours, le :date. Pour annuler, connectez-vous avant cette date.',
     ],
 
     'account_deletion_executed' => [
@@ -147,6 +153,8 @@ return [
         'intro' => 'Votre compte Takussan a été supprimé et vos données personnelles ont été anonymisées de manière irréversible.',
         'retention' => 'Conformément à nos obligations légales, certains enregistrements comptables (paiements, factures) sont conservés sous forme anonyme pendant 10 ans.',
         'contact' => 'Pour toute question, contactez notre service client.',
+        // P193.04 (TCK-2051) — un compte sans e-mail : SMS au numéro vérifié.
+        'sms' => 'Takussan : votre compte a été supprimé et vos données personnelles ont été anonymisées.',
     ],
 
     'lease_deposit_refunded' => [
@@ -280,6 +288,11 @@ return [
                 'body' => 'La suspension de l\'agence :agency est levée. Motif : :reason. Ses annonces publiques sont de nouveau visibles.',
                 'sms' => 'Takussan : la suspension de :agency est levée.',
             ],
+            'member_deletion_requested' => [
+                'title' => 'Effacement de compte demandé : :member',
+                'body' => ':member a demandé l\'effacement de son compte, effectif le :scheduled_for. Son portefeuille dans l\'agence : :tasks tâche(s), :visits visite(s), :maintenance intervention(s), :responsible_properties bien(s) dont il est l\'agent principal, :held_properties bien(s) saisi(s), :collaborations collaboration(s), :customers client(s) suivi(s), :contact_leads demande(s) de contact non traitée(s). Passez-le à un collègue avant cette date depuis l\'équipe : :url',
+                'sms' => 'Takussan : :member efface son compte le :scheduled_for. Passez son portefeuille depuis l\'équipe.',
+            ],
         ],
         'platform_operator' => [
             'revoked' => [
@@ -332,6 +345,16 @@ return [
                 'sms' => 'Takussan : paiement de :amount reçu (:property).',
                 'sms_link' => 'Takussan : paiement de :amount reçu (:property). Quittance : :receipt_url',
             ],
+            'refunded' => [
+                'title' => 'Remboursement : :property',
+                'body' => 'Un remboursement de :amount a été fait sur votre paiement de loyer pour :property. Votre quittance ne couvre plus la somme remboursée.',
+                'sms' => 'Takussan : remboursement de :amount sur votre loyer (:property).',
+            ],
+            'refunded_landlord' => [
+                'title' => 'Loyer remboursé : :property',
+                'body' => ':amount du loyer payé par :tenant pour :property ont été remboursés par le moyen de paiement en ligne.',
+                'sms' => 'Takussan : :amount du loyer de :tenant (:property) remboursés.',
+            ],
         ],
         // TCK-593 — un double encaissement à rembourser, signalé aux admins de l'agence.
         'payment' => [
@@ -344,6 +367,15 @@ return [
                 'title' => 'Pénalité encaissée deux fois',
                 'body' => 'La pénalité de retard de :amount pour :reference, déjà réglée à l\'agence, a aussi été encaissée en ligne. Remboursez le payeur ou affectez la somme.',
                 'sms' => 'Takussan : pénalité de :amount encaissée en double pour :reference. À rembourser ou affecter.',
+            ],
+        ],
+        // TCK-2320 (P39.07) — aux admins de l'agence : une ligne d'un reversement de la plateforme déjà
+        // versé a été remboursée depuis. Aucun montant n'est écrit.
+        'platform_payout' => [
+            'refunded_since_paid' => [
+                'title' => 'Paiement remboursé après reversement',
+                'body' => 'Le paiement :reference, compris dans le reversement de la plateforme de :period déjà versé à votre agence, a été remboursé depuis par le moyen de paiement en ligne. Aucune retenue n\'est appliquée automatiquement.',
+                'sms' => 'Takussan : le paiement :reference du reversement de :period a été remboursé depuis.',
             ],
         ],
         'booking' => [
@@ -665,6 +697,12 @@ return [
                 'body' => 'Votre demande d\'intervention est désormais : en cours. Passage prévu le :scheduled_at.',
                 'sms' => 'Takussan : Votre demande « :request » : en cours',
             ],
+            // TCK-2012 (P184.01) — le passage fixé ou déplacé, à toutes les parties sauf l'auteur.
+            'schedule_changed' => [
+                'title' => 'Passage prévu : « :request »',
+                'body' => 'Le passage pour l\'intervention « :request » est prévu le :scheduled_at.',
+                'sms' => 'Takussan : passage prévu le :scheduled_at pour « :request ».',
+            ],
         ],
         'maintenance_quote' => [
             'requested' => [
@@ -723,6 +761,11 @@ return [
                 'title' => 'Bien approuvé : :property',
                 'body' => 'Votre bien « :property » a été approuvé et est maintenant visible sur la plateforme.',
                 'sms' => 'Takussan : annonce « :property » approuvée.',
+            ],
+            'assigned_to_owner' => [
+                'title' => 'Un bien saisi à votre nom : :property',
+                'body' => 'Votre agence a enregistré le bien « :property » à votre nom. Vous le retrouvez dans vos biens, avec ses baux et votre relevé de gérance.',
+                'sms' => 'Takussan : le bien « :property » est enregistré à votre nom.',
             ],
             'submitted_for_review' => [
                 'title' => 'Bien à modérer : :property',
@@ -797,6 +840,13 @@ return [
                 'sms' => 'Takussan : assouplissement du seuil des reversements de :agency à confirmer.',
             ],
         ],
+        'service_provider_bill' => [
+            'kept_on_reopen' => [
+                'title' => 'Facture d\'intervention maintenue : :reference',
+                'body' => 'L\'intervention « :request » a été contestée ou annulée, mais sa facture :reference de :amount est déjà payée, refacturée au bailleur ou en cours de paiement : elle n\'est pas annulée. Vérifiez-la et régularisez-la à la main.',
+                'sms' => 'Takussan : facture :reference maintenue, intervention contestée ou annulée. À régulariser.',
+            ],
+        ],
         'owner_statement' => [
             'available' => [
                 'title' => 'Relevé de gérance :period disponible',
@@ -869,6 +919,7 @@ return [
         'subject_escalation' => 'ESCALADE URGENTE : :title',
         'greeting' => 'Bonjour,',
         'intro' => 'Une demande de maintenance URGENTE a été soumise pour le bien.',
+        'intro_became_urgent' => 'Une demande de maintenance est passée en URGENTE pour le bien.',
         'job' => 'Intervention : :title',
         'intro_escalation' => 'La demande de maintenance #:id (:title) est URGENTE et n\'a pas été traitée depuis plus de 30 minutes.',
         'cta' => 'Veuillez prendre en charge cette demande immédiatement.',

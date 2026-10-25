@@ -14,8 +14,15 @@ return [
     /*
      * When the clean command is executed, all recording activities older than
      * the number of days specified here will be deleted.
+     *
+     * TCK-2342 (P19.04, ADR-0044 amendement du 2026-10-25) — la purge du journal est
+     * `audit:prune-activity-log` (`PruneActivityLog`), par famille : 12 mois, 5 ans, 10 ans.
+     * `activitylog:clean` du paquet reste enregistrée et ne sait rien exclure : lancée à la main
+     * sans `--days`, elle purge ici à la PLUS LONGUE de ces durées (10 ans, 3653 jours), pour ne
+     * jamais effacer une pièce comptable ni un journal de preuve qu'on doit garder. (Clé de la v5 du
+     * paquet : `clean_after_days`, et non `delete_records_older_than_days`, celle de la v4.)
      */
-    'clean_after_days' => 365,
+    'clean_after_days' => 3653,
 
     /*
      * If no log name is passed to the activity() helper

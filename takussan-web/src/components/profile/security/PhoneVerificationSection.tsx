@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { CodeDePreproduction } from '@/components/auth/CodeDePreproduction';
+import { useAuth } from '@/context/AuthContext';
 import {
   phoneSendOtpAction,
   phoneVerifyOtpAction,
@@ -31,7 +32,12 @@ export function PhoneVerificationSection({
   // server actions) : ses libellés vivent sous `profile.contact.*`, et les
   // rejouer ici créerait des clés jumelles.
   const tOtp = useTranslations('profile.contact');
-  const [verified, setVerified] = useState(initialVerified);
+  const { user, setUser } = useAuth();
+  // TCK-2040 (P202.03) — l'état se lit dans la propriété, que `ProfileSecuritySection` tire du
+  // contexte : un numéro changé dans « Coordonnées » repasse ici à « non vérifié ». La copie
+  // locale ne retient que le numéro vérifié par cette section, et ne vaut que pour lui.
+  const [verifiedPhone, setVerifiedPhone] = useState<string | null>(null);
+  const verified = initialVerified || (phone !== null && verifiedPhone === phone);
   const [code, setCode] = useState('');
   const [sent, setSent] = useState(false);
   const [apercu, setApercu] = useState<string | null>(null);
@@ -65,7 +71,10 @@ export function PhoneVerificationSection({
         setError(result.message);
         return;
       }
-      setVerified(true);
+      setVerifiedPhone(phone);
+      // Comme « Coordonnées » : le reste de l'application (second numéro, badge des
+      // coordonnées, publication) lit la vérification dans le contexte.
+      if (user) setUser({ ...user, phone_verified_at: new Date().toISOString() });
       setCode('');
       setFeedback(tOtp('phoneVerifiedOk'));
     });

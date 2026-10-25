@@ -7,6 +7,7 @@ use App\Http\Resources\IncludedUserResource;
 use App\Http\Resources\ServiceProviderDirectoryResource;
 use App\Models\Agency;
 use App\Models\Enums\CollaborationStatus;
+use App\Models\Invitation;
 use App\Models\Profiles\ServiceProviderProfile;
 use App\Policies\Profiles\ServiceProviderProfilePolicy;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -45,6 +46,10 @@ class ServiceProviderProfileController extends Controller
             ->withCount(['reviews as reviews_count' => fn (Builder $q) => $q->where('is_approved', true)])
             // TCK-1325 (P117.06) — le badge « Assuré » : une pièce d'assurance vivante existe.
             ->withExists('liveInsuranceDocuments as insured')
+            // P237.01 (TCK-2371) — l'invitation `sent` du brouillon par CETTE agence : le front
+            // relance ou révoque par elle (une invitation au seul numéro ne se cherchait pas).
+            ->addSelect(['pending_invitation_id' => Invitation::idEnvoyeePour(new ServiceProviderProfile)
+                ->where('invitations.agency_id', $agency->id)])
             ->paginate($this->tailleDePage($request, 20));
 
         // TCK-693 — le `User` inclus sort par sa projection fixe, jamais en ligne `users` entière.

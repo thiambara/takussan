@@ -75,7 +75,8 @@ describe('InvoicesTable — défilement horizontal sur petit écran (TCK-505 #5)
     const conteneur = conteneurDefilant(table, container);
     expect(conteneur, 'aucun ancêtre défilant avant un ancêtre rognant').not.toBeNull();
     expect(porteUnRognageHorizontal(conteneur!)).toBe(false);
-    expect(conteneur).toHaveClass('rounded-xl', 'border');
+    // TCK-2331 — la table est celle de `DataTable` : son conteneur défilant est celui de `<Table>`.
+    expect(conteneur).toHaveAttribute('data-slot', 'table-container');
   });
 
   it('ne laisse pas les dates, le montant ni le statut revenir à la ligne', () => {

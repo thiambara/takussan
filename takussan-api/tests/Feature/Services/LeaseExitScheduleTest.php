@@ -147,6 +147,80 @@ class LeaseExitScheduleTest extends TestCase
     }
 
     /**
+     * TCK-2375 (P04.10) — la sortie annule aussi l'échéance de caution encore due : sans quoi un
+     * locataire parti restait relancé et payait en ligne une caution qu'on lui rendrait aussitôt.
+     * Tracée à part dans le même journal (`cancelled_deposits`).
+     */
+    public function test_la_resiliation_immediate_annule_la_caution_encore_due(): void
+    {
+        [$lease, $landlord] = $this->leaseWithSchedule();
+        $deposit = $this->deposit($lease);
+        $this->assertSame(PaymentStatus::Pending, $deposit->status);
+
+        app(LeaseService::class)->terminate($lease, $landlord, 'départ');
+
+        $this->assertSame(PaymentStatus::Cancelled, $deposit->fresh()->status);
+        $log = Activity::query()->where('event', 'lease_termination_schedule_cancelled')->sole();
+        $this->assertSame([$deposit->reference_number], $log->properties['cancelled_deposits']);
+        $this->assertCount(8, $log->properties['cancelled'], 'Les loyers annulés restent listés seuls.');
+    }
+
+    public function test_la_confirmation_de_la_resiliation_anticipee_annule_la_caution_encore_due(): void
+    {
+        [$lease, $landlord] = $this->leaseWithSchedule();
+        $deposit = $this->deposit($lease);
+        $deposit->forceFill(['status' => PaymentStatus::Late])->save();
+        $service = app(EarlyTerminationService::class);
+        $service->request($lease, $landlord, ['effective_date' => '2026-12-05']);
+        Invoice::query()->findOrFail($lease->fresh()->early_termination_invoice_id)
+            ->forceFill(['status' => InvoiceStatus::Paid])->save();
+
+        Carbon::setTestNow('2026-12-06 10:00:00');
+        $service->confirm($lease->fresh(), $landlord);
+
+        $this->assertSame(PaymentStatus::Cancelled, $deposit->fresh()->status);
+    }
+
+    /** Une caution réglée, en partie réglée ou en cours de paiement n'est pas annulée, et ne fait pas refuser la sortie. */
+    public function test_une_caution_reglee_ou_engagee_reste_telle_quelle_a_la_sortie(): void
+    {
+        [$lease, $landlord] = $this->leaseWithSchedule();
+        $deposit = $this->deposit($lease);
+        $deposit->forceFill(['status' => PaymentStatus::PartiallyPaid, 'metadata' => ['paid_amount' => 10_000]])->save();
+
+        app(LeaseService::class)->terminate($lease, $landlord, 'départ');
+
+        $this->assertSame(LeaseStatus::Terminated, $lease->fresh()->status);
+        $this->assertSame(PaymentStatus::PartiallyPaid, $deposit->fresh()->status);
+
+        [$paidLease, $paidLandlord] = $this->leaseWithSchedule();
+        $paid = $this->deposit($paidLease);
+        $paid->forceFill(['status' => PaymentStatus::Paid, 'paid_at' => now()])->save();
+
+        app(LeaseService::class)->terminate($paidLease, $paidLandlord, 'départ');
+
+        $this->assertSame(PaymentStatus::Paid, $paid->fresh()->status);
+
+        // En attente, mais un paiement en ligne est ouvert dessus : le locataire est en train de payer.
+        [$openLease, $openLandlord] = $this->leaseWithSchedule();
+        $open = $this->deposit($openLease);
+        $open->forceFill(['metadata' => ['gateway' => [
+            'initiated_at' => now()->toIso8601String(),
+            'checkout_url' => 'https://pay.example/c/1',
+            'transaction_id' => 'txn_1',
+        ]]])->save();
+
+        app(LeaseService::class)->terminate($openLease, $openLandlord, 'départ');
+
+        $this->assertSame(PaymentStatus::Pending, $open->fresh()->status);
+    }
+
+    private function deposit(Lease $lease): LeasePayment
+    {
+        return LeasePayment::query()->where('lease_id', $lease->id)->where('payment_type', 'deposit')->sole();
+    }
+
+    /**
      * Bail de douze mois (juillet 2026 à juin 2027) à 100 000, pénalité de 10 %, échéancier émis.
      *
      * @return array{0: Lease, 1: User}

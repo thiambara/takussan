@@ -20,6 +20,7 @@ import { ApiError } from '@/lib/api';
 import type { CustomerDuplicateMatch } from '@/app/actions/dashboard-customers';
 import { useAuth } from '@/context/AuthContext';
 import { formatDateTime } from '@/lib/format';
+import { nomAffichable } from '@/lib/identite';
 import { EmptyState, ErrorState } from '@/components/feedback';
 import { StatusBadge } from '@/components/console';
 import { Pagination } from '@/components/console/Pagination';
@@ -144,8 +145,9 @@ function ficheDejaCreeeDe(e: unknown): number | null {
   return data.customer.id;
 }
 
-function nomComplet(u: { first_name?: string | null; last_name?: string | null } | null | undefined): string {
-  return [u?.first_name, u?.last_name].filter(Boolean).join(' ').trim();
+/** P220.05 — le nom d'un destinataire ou d'un collègue, jamais vide : `#<id>` faute de mieux. */
+function nomComplet(u: { id: number; first_name?: string | null; last_name?: string | null }): string {
+  return nomAffichable(u);
 }
 
 function DemandeDeContact({ lead, designee = false }: { readonly lead: ContactLead; readonly designee?: boolean }) {

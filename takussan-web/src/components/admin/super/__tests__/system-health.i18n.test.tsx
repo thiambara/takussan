@@ -26,7 +26,7 @@ const SANTE: PlatformHealth = {
   mail: { status: 'ok', driver: 'log' },
   sms: { status: 'ok', driver: 'log' },
   queue: { pending: 2, processing: 1, failed_24h: 0 },
-  scheduler: { last_run_at: '2026-03-14T09:05:00Z' },
+  scheduler: { status: 'ok', last_run_at: '2026-03-14T09:05:00Z' },
   generated_at: '2026-03-14T09:05:00Z',
 };
 

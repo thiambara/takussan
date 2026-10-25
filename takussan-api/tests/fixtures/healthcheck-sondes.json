@@ -1,0 +1,26 @@
+{
+  "_doc": "TCK-2129 — les sondes de HealthcheckService::snapshot() (hors status et generated_at), une tuile chacune sur la page de santé. Lu par HealthcheckTuilesConcordanceTest (API) et system-health.concordance.test.ts (front). TCK-2131 — les motifs (`'reason' =>`) que ses sondes émettent, que l'union HealthReason du front porte : lus par HealthcheckMotifsConcordanceTest (API) et system-health.concordance.test.ts (front).",
+  "sondes": [
+    "db",
+    "cache",
+    "storage",
+    "media_storage",
+    "mail",
+    "sms",
+    "whatsapp",
+    "search",
+    "queue",
+    "workers",
+    "cdn",
+    "scheduler",
+    "proxies",
+    "lemon_squeezy_webhook"
+  ],
+  "motifs": [
+    "no_delivery",
+    "unreachable",
+    "not_meilisearch",
+    "wildcard_trusts_nobody",
+    "signing_secret_missing"
+  ]
+}

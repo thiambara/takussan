@@ -10,6 +10,7 @@ use App\Http\Requests\Api\UpdateIntegrationRequest;
 use App\Http\Resources\IntegrationResource;
 use App\Models\Agency;
 use App\Models\Integration;
+use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -23,8 +24,8 @@ class IntegrationController extends Controller
 
         $base = Integration::query();
 
+        abort_unless($this->mayListIntegrations($user), 403);
         if (! $user->isSuperAdmin()) {
-            abort_unless($user->agency_id !== null && $user->isAgencyAdminAt((int) $user->agency_id), 403);
             // TCK-587 — un admin actif est personnel : le prédicat unique (ADR-0031 §1).
             $base->where('agency_id', $user->staffAgencyId());
         }
@@ -43,10 +44,8 @@ class IntegrationController extends Controller
      */
     public function paymentProviders(Request $request, IntegrationProviderRegistry $registry): JsonResponse
     {
-        $user = $request->user();
-        if (! $user->isSuperAdmin()) {
-            abort_unless($user->agency_id !== null && $user->isAgencyAdminAt((int) $user->agency_id), 403);
-        }
+        // TCK-2260 (P116.07) — le prédicat de la liste, appelé et non plus recopié.
+        abort_unless($this->mayListIntegrations($request->user()), 403);
 
         $providers = [];
         foreach ($registry->all() as $provider) {
@@ -77,7 +76,7 @@ class IntegrationController extends Controller
         $agencyId = $data['agency_id'] ?? $user->agency_id;
 
         abort_code_unless(
-            $user->isSuperAdmin() || ($user->agency_id !== null && $user->agency_id === $agencyId && $user->isAgencyAdminAt((int) $agencyId)),
+            $user->isSuperAdmin() || ($user->agency_id !== null && $user->agency_id === $agencyId && $user->can('configure', Agency::query()->find($agencyId))),
             403,
             'integration.other_agency_forbidden'
         );
@@ -189,6 +188,16 @@ class IntegrationController extends Controller
         return $this->json(['data' => $this->webhookEndpointPayload($integration)]);
     }
 
+    /**
+     * TCK-2024 (P116.02) — `AgencyPolicy::configure` : l'admin ET `agency.update`, sur l'agence du
+     * profil actif ; le super-admin voit tout. Lu par `index` et `paymentProviders` (TCK-2260).
+     */
+    private function mayListIntegrations(User $user): bool
+    {
+        return $user->isSuperAdmin()
+            || ($user->agency_id !== null && $user->can('configure', Agency::query()->find($user->agency_id)));
+    }
+
     /** @return array{integration_id: int, provider: string, url: ?string} */
     private function webhookEndpointPayload(Integration $integration): array
     {
@@ -204,7 +213,7 @@ class IntegrationController extends Controller
         $user = $request->user();
 
         abort_unless(
-            $user->isSuperAdmin() || ($user->agency_id !== null && $user->agency_id === $integration->agency_id && $user->isAgencyAdminAt((int) $integration->agency_id)),
+            $user->isSuperAdmin() || ($user->agency_id !== null && $user->agency_id === $integration->agency_id && $user->isAgencyAdminAt((int) $integration->agency_id) && $user->can('configure', $integration->agency)),
             403
         );
 
@@ -226,7 +235,7 @@ class IntegrationController extends Controller
         $user = $request->user();
 
         abort_unless(
-            $user->isSuperAdmin() || ($user->agency_id !== null && $user->agency_id === $integration->agency_id && $user->isAgencyAdminAt((int) $integration->agency_id)),
+            $user->isSuperAdmin() || ($user->agency_id !== null && $user->agency_id === $integration->agency_id && $user->isAgencyAdminAt((int) $integration->agency_id) && $user->can('configure', $integration->agency)),
             403
         );
 

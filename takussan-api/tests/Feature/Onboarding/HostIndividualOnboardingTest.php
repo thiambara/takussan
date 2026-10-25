@@ -141,6 +141,40 @@ class HostIndividualOnboardingTest extends TestCase
             ->assertJsonValidationErrors('payment_setting.preferred_provider');
     }
 
+    /**
+     * TCK-2372 (P249.03) — le « Type de bien principal » a quitté l'assistant : aucun lecteur ne le
+     * lit depuis TCK-966 (P47.07). Un parcours qui ne l'envoie pas aboutit.
+     */
+    public function test_un_parcours_sans_type_de_bien_principal_cree_l_espace(): void
+    {
+        Sanctum::actingAs(User::factory()->create(['phone' => '+221770000000', 'phone_verified_at' => now()]));
+        $payload = $this->defaultPayload();
+        unset($payload['preferences'], $payload['payment_setting']);
+
+        $response = $this->postJson('/api/host/individual/onboard', $payload)->assertStatus(201);
+
+        $agency = Agency::query()->findOrFail($response->json('data.agency.id'));
+        $this->assertNull(data_get($agency->settings, 'primary_property_type'));
+    }
+
+    /**
+     * TCK-2372 (P249.03) — un brouillon repris porte encore la clé : il passe, et la valeur reste
+     * confrontée à la liste des types, comme l'opérateur de TCK-496.
+     */
+    public function test_un_brouillon_qui_porte_encore_le_type_passe_et_un_type_inconnu_reste_refuse(): void
+    {
+        Sanctum::actingAs(User::factory()->create(['phone' => '+221770000000', 'phone_verified_at' => now()]));
+        $payload = $this->defaultPayload();
+        $payload['preferences']['primary_property_type'] = 'castle';
+
+        $this->postJson('/api/host/individual/onboard', $payload)
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('preferences.primary_property_type');
+
+        $payload['preferences']['primary_property_type'] = 'house';
+        $this->postJson('/api/host/individual/onboard', $payload)->assertStatus(201);
+    }
+
     public function test_nominal_flow_creates_agency_admin_and_owner_profiles_and_attaches_roles(): void
     {
         $user = User::factory()->create([

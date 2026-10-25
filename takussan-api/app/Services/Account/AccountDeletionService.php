@@ -4,6 +4,7 @@ namespace App\Services\Account;
 
 use App\Models\AccountDeletionRequest;
 use App\Models\Activity;
+use App\Models\Agency;
 use App\Models\AlertSubscriber;
 use App\Models\Booking;
 use App\Models\Customer;
@@ -14,18 +15,27 @@ use App\Models\Enums\DataExportStatus;
 use App\Models\Enums\InvitationStatus;
 use App\Models\Enums\InvoiceStatus;
 use App\Models\Enums\PaymentStatus;
+use App\Models\Enums\PayoutStatus;
 use App\Models\Enums\UserStatus;
+use App\Models\Enums\VisitStatus;
 use App\Models\Invitation;
 use App\Models\Invoice;
 use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Models\NotificationDeliveryAttempt;
+use App\Models\Payout;
+use App\Models\Profiles\OwnerProfile;
 use App\Models\PropertyVisit;
 use App\Models\User;
 use App\Models\WhatsappContact;
 use App\Notifications\AccountDeletionExecutedNotification;
 use App\Notifications\AccountDeletionRequestedNotification;
+use App\Services\Agency\AgencyMemberRemovalService;
 use App\Services\Notifications\Sms\PhoneNumber;
+use App\Services\Payout\BeneficiaireDuReversement;
+use App\Services\Payout\PayoutCalculator;
+use App\Services\Property\BailleurDuBien;
+use App\Services\Property\TitulaireALaSaisie;
 use App\Support\CaseInsensitive;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Carbon;
@@ -137,6 +147,10 @@ class AccountDeletionService
                 ->log('account.deletion.requested');
 
             $user->notify(new AccountDeletionRequestedNotification($request));
+
+            // TCK-2164 (P204.01) — les admins de chaque agence où le compte laisse un portefeuille
+            // en reçoivent l'inventaire, pour le passer pendant le délai de grâce.
+            DB::afterCommit(fn () => app(ErasedMemberPortfolio::class)->notifyAgencies($user, $scheduledFor));
 
             return $request->fresh();
         });
@@ -271,6 +285,15 @@ class AccountDeletionService
         // (décision du porteur, 2026-10-19).
         PropertyVisit::query()->where('visitor_id', $user->id)->update(['visitor_id' => null]);
 
+        // TCK-2011 (P175.02) — les visites à venir que le compte accompagnait comme agent
+        // retombent dans « non attribuées » (`filter[unassigned]`), pour qu'un collègue les prenne
+        // en charge ; les visites passées gardent leur agent, pour l'historique (décision du
+        // porteur, 2026-10-23).
+        PropertyVisit::query()
+            ->where('agent_id', $user->id)
+            ->whereIn('status', [VisitStatus::Scheduled->value, VisitStatus::Confirmed->value])
+            ->update(['agent_id' => null]);
+
         // Tokens already revoked at request time, but in case the user
         // signed back in to cancel and let the request lapse, revoke now.
         $user->tokens()->delete();
@@ -317,6 +340,12 @@ class AccountDeletionService
         $user->clearMediaCollection('avatar');
         $user->clearMediaCollection('avatars');
         $user->clearMediaCollection('photos');
+
+        // TCK-2172 (P204.05) — les extinctions du retrait, par sa méthode : délégations révoquées,
+        // marques d'agent principal ôtées, dans toutes les agences. AVANT la suppression : l'avis
+        // de révocation lit encore le délégué (`$delegation->user`), déjà anonymisé et `deleted`,
+        // que les avis écartent.
+        app(AgencyMemberRemovalService::class)->dropDelegationsAndMarks($user, null, $user);
 
         // Soft-delete the row. Auth queries use the default scope so the
         // user can no longer log in.
@@ -366,11 +395,14 @@ class AccountDeletionService
         // en a un, part, l'adresse masquée suffisant à la contrainte. Décision du
         // porteur, 2026-10-20. Par requête : aucun champ journalisé de l'invitation ne porte
         // l'adresse.
-        Invitation::query()
+        $ouvertes = Invitation::query()
             ->where('status', InvitationStatus::Sent->value)
             ->where(fn ($query) => $query
                 ->where('invited_user_id', $user->id)
-                ->orWhere('email', CaseInsensitive::fold(trim((string) $originalEmail))))
+                ->orWhere('email', CaseInsensitive::fold(trim((string) $originalEmail))));
+        // TCK-1000 (Q2) — révoquée, l'invitation d'un bailleur laisse à l'agence les biens saisis pour lui.
+        TitulaireALaSaisie::delier((clone $ouvertes)->where('invitable_type', OwnerProfile::class)->pluck('invitable_id'));
+        $ouvertes
             ->update([
                 'status' => InvitationStatus::Revoked->value,
                 'revoked_at' => now(),
@@ -401,6 +433,14 @@ class AccountDeletionService
         // mais le nom de fichier choisi par la personne, sur la pièce et sur ses médias, cède la
         // place au type. Les profils déjà terminés (agent retiré de l'agence) comptent aussi.
         // Décision du porteur, 2026-10-20.
+        // TCK-2166 (P204.02) — l'agence dont le compte était le seul administrateur, ou
+        // l'administrateur principal : inactive, ou titre transmis. Avant la fin des profils, qui
+        // les rend inactifs.
+        app(ErasedAgencyAdmin::class)->settle($user);
+
+        // TCK-2168 (P204.03) — tâches et interventions qui restent au compte : libérées.
+        app(ErasedMemberPortfolio::class)->release($user);
+
         $this->endProfiles($user);
 
         // TCK-1025 (P57.05) — le contact WhatsApp et les alertes sans compte du contact vérifié
@@ -449,9 +489,9 @@ class AccountDeletionService
     {
         $obligations = [];
 
-        // Active leases as landlord.
-        $activeLandlordLeases = Lease::query()
-            ->where('landlord_id', $user->id)
+        // Active leases as landlord. TCK-2275 (P232.05) — bailleur au sens de `BailleurDuBien` : le
+        // bail d'un bien qu'il a saisi comme agent, actif compris, n'est pas son obligation.
+        $activeLandlordLeases = BailleurDuBien::restreindre(Lease::query(), $user, 'landlord_id')
             ->whereIn('status', self::openLeaseStatuses())
             ->get(['id', 'reference_number']);
         foreach ($activeLandlordLeases as $lease) {
@@ -537,7 +577,74 @@ class AccountDeletionService
             ];
         }
 
+        // TCK-2015 (P175.03) — ce que l'agence doit encore au compte : un reversement en cours, et
+        // les pièces encaissées qu'aucun reversement ne retient (décision du porteur, 2026-10-23).
+        // Effacé, le bailleur ne pourrait plus recevoir sa préparation.
+        $upcomingPayouts = Payout::query()
+            ->where('landlord_id', $user->id)
+            ->whereIn('status', array_map(fn (PayoutStatus $s) => $s->value, PayoutStatus::upcoming()))
+            ->get(['id', 'reference_number']);
+        foreach ($upcomingPayouts as $payout) {
+            $obligations[] = [
+                'type' => 'payout',
+                'id' => $payout->id,
+                'reference' => $payout->reference_number,
+                'label' => __('account.deletion.obligations.payout_upcoming', [
+                    'reference' => $payout->reference_number ?? '#'.$payout->id,
+                ]),
+            ];
+        }
+
+        foreach ($this->agenciesOwingPayout($user) as $agency) {
+            $obligations[] = [
+                'type' => 'payout_due',
+                'id' => $agency->id,
+                'reference' => null,
+                'label' => __('account.deletion.obligations.payout_due', ['agency' => $agency->name]),
+            ];
+        }
+
+        // TCK-2166 (P204.02) — une agence qui garde du personnel sans autre administrateur : le
+        // compte nomme d'abord un autre administrateur (décision du porteur, 2026-10-24).
+        foreach (app(ErasedAgencyAdmin::class)->successionsDue($user) as $agency) {
+            $obligations[] = [
+                'type' => 'agency_admin_succession',
+                'id' => $agency->id,
+                'reference' => null,
+                'label' => __('account.deletion.obligations.agency_admin_succession', ['agency' => $agency->name]),
+            ];
+        }
+
         return $obligations;
+    }
+
+    /**
+     * TCK-2015 (P175.03) — les agences qui détiennent pour le bailleur une pièce reversable : celles
+     * que {@see PayoutCalculator} rendrait à la préparation d'un reversement, sans période.
+     *
+     * TCK-997 (P232.05, P232.07) — et où le compte est bénéficiaire d'un reversement
+     * ({@see BeneficiaireDuReversement}) : l'agent suspendu ou retiré qui a saisi un bien loué n'est
+     * plus un créancier de l'agence, le bailleur de tout statut le reste.
+     *
+     * @return Collection<int, Agency>
+     */
+    private function agenciesOwingPayout(User $user): Collection
+    {
+        $calculator = app(PayoutCalculator::class);
+        $agencyIds = Lease::query()->where('landlord_id', $user->id)->whereNotNull('agency_id')->distinct()->pluck('agency_id')
+            ->merge(Booking::query()
+                ->join('properties', 'properties.id', '=', 'bookings.property_id')
+                ->where('properties.user_id', $user->id)
+                ->whereNotNull('bookings.agency_id')
+                ->distinct()
+                ->pluck('bookings.agency_id'))
+            ->unique()
+            ->filter(fn ($agencyId) => BeneficiaireDuReversement::est($user, (int) $agencyId)
+                && ($calculator->leasePayments((int) $agencyId, (int) $user->id)->exists()
+                    || $calculator->bookingPayments((int) $agencyId, (int) $user->id)->exists()))
+            ->values();
+
+        return Agency::query()->whereIn('id', $agencyIds)->orderBy('id')->get(['id', 'name']);
     }
 
     /**

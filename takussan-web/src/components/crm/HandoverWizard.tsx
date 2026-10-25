@@ -17,6 +17,7 @@ import {
 import { useAuth } from '@/context/AuthContext';
 import { ApiError } from '@/lib/api';
 import { avecGardeDoubleFacteur } from '@/lib/double-facteur';
+import { nomAffichable } from '@/lib/identite';
 import { useGardeDoubleFacteur } from '@/components/auth/garde-double-facteur-contexte';
 import {
   AGENT_CRM_QUERY_KEY,
@@ -31,6 +32,8 @@ interface Leaver {
   readonly id: number;
   readonly first_name: string;
   readonly last_name: string;
+  readonly email?: string | null;
+  readonly phone?: string | null;
 }
 
 interface HandoverWizardProps {
@@ -44,6 +47,7 @@ interface HandoverWizardProps {
 // passation traite dans cet ordre (TCK-603, ADR-0059 §3).
 const CATEGORIES: readonly PortfolioCategory[] = [
   'tasks', 'visits', 'maintenance', 'responsible_properties', 'held_properties', 'collaborations', 'customers',
+  'contact_leads',
 ];
 
 /**
@@ -70,7 +74,7 @@ export function HandoverWizard({ agencyId, member, onClose, onDone }: HandoverWi
 
   const open = member !== null;
   const memberId = member?.id ?? 0;
-  const name = member ? `${member.first_name} ${member.last_name}` : '';
+  const name = member ? nomAffichable(member) : '';
 
   const portfolio = useQuery<MemberPortfolio, ApiError>({
     queryKey: AGENT_CRM_QUERY_KEY.portfolio(agencyId, memberId),

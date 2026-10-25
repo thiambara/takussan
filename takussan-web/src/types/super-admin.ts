@@ -408,8 +408,9 @@ export type AdminModerationItem = {
   } | null;
   reporter: {
     id: number;
-    name: string;
-    email: string;
+    /** P193.05 (TCK-2053) — `full_name ?: email ?: phone` : nul pour un compte sans aucun des trois. */
+    name: string | null;
+    email: string | null;
   } | null;
   agency: {
     id: number;
@@ -451,6 +452,12 @@ export type ModerationBatchResult = {
   code?: string;
 };
 
+/** P199.02 (TCK-2165) — les comptes par type de toute la file filtrée, calculés par l'API. */
+export type ModerationCounts = {
+  property: number;
+  review: number;
+};
+
 export type AdminModerationResponse = {
   data: AdminModerationItem[];
   meta: {
@@ -458,6 +465,7 @@ export type AdminModerationResponse = {
     current_page: number;
     last_page: number;
     per_page: number;
+    counts?: ModerationCounts;
   };
 };
 
@@ -735,8 +743,16 @@ export type DataExportsResponse = {
 /** TCK-600 — `degraded` distingue « marche mal » de « en panne » ; chaque sonde est datée. */
 export type HealthLevel = 'ok' | 'degraded' | 'failed';
 
-/** Les raisons qu'une sonde émet par code (`HealthcheckService`) : le front les traduit. */
-export type HealthReason = 'no_delivery' | 'unreachable' | 'not_meilisearch';
+/**
+ * Les raisons qu'une sonde émet par code (`HealthcheckService`) : le front les traduit.
+ * TCK-2131 — `HealthcheckMotifsConcordanceTest` (API) compare cette union aux `'reason' =>` émis.
+ */
+export type HealthReason =
+  | 'no_delivery'
+  | 'unreachable'
+  | 'not_meilisearch'
+  | 'wildcard_trusts_nobody'
+  | 'signing_secret_missing';
 
 export type HealthcheckStatus = {
   status: HealthLevel;
@@ -755,6 +771,7 @@ export type PlatformHealth = {
   media_storage?: HealthcheckStatus & { disks?: string[]; disk?: string };
   mail: HealthcheckStatus;
   sms: HealthcheckStatus & { attempts_1h?: number; failure_rate_1h?: number };
+  whatsapp?: HealthcheckStatus & { attempts_1h?: number; failure_rate_1h?: number };
   search?: HealthcheckStatus & { documents?: number; expected?: number; gap?: number };
   queue: Partial<HealthcheckStatus> & {
     pending: number;
@@ -766,7 +783,10 @@ export type PlatformHealth = {
     queues?: Record<string, { status: HealthLevel; last_heartbeat_seconds: number | null }>;
   };
   cdn?: HealthcheckStatus;
-  scheduler: { last_run_at: string | null };
+  /** TCK-2129 — `failed` quand aucune tâche n'a tourné depuis le seuil (`HealthcheckService::scheduler()`). */
+  scheduler?: HealthcheckStatus & { last_run_at?: string | null };
+  proxies?: HealthcheckStatus;
+  lemon_squeezy_webhook?: HealthcheckStatus;
   status?: HealthLevel;
   generated_at: string;
 };
@@ -901,8 +921,17 @@ export type PlatformPayout = {
   failure_reason: string | null;
   metadata: Record<string, unknown> | null;
   breakdown?: { booking: PlatformPayoutBreakdownGroup; lease: PlatformPayoutBreakdownGroup } | null;
+  /** TCK-2320 (P39.07) — les lignes remboursées depuis le versement : un signal, sans montant. */
+  refunded_since_paid?: PlatformPayoutRefundedLine[];
   created_at: string | null;
   updated_at: string | null;
+};
+
+export type PlatformPayoutRefundedLine = {
+  payment_type: 'lease_payment' | 'booking_payment';
+  payment_id: number;
+  reference_number: string;
+  refunded_at: string;
 };
 
 export type PlatformPayoutsResponse = {
@@ -968,7 +997,7 @@ export type AdminPropertiesResponse = {
 /** TCK-602 — la console « Paiements » : une échéance ou un acompte en échec ou en retard. */
 export type PaymentSupervisionRow = {
   type: 'lease_payment' | 'booking_payment';
-  reason: 'failed' | 'late';
+  reason: 'failed' | 'late' | 'refund_due';
   id: number;
   reference_number: string | null;
   status: string;

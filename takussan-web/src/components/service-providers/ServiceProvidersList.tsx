@@ -23,7 +23,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/toast';
 import { useAuth } from '@/context/AuthContext';
-import { apiRequest, ApiError, buildQueryString } from '@/lib/api';
+import { ApiError } from '@/lib/api';
+import { formaterTelephone } from '@/lib/phone';
 import { avecGardeDoubleFacteur } from '@/lib/double-facteur';
 import { useGardeDoubleFacteur } from '@/components/auth/garde-double-facteur-contexte';
 import {
@@ -82,7 +83,9 @@ export function ServiceProvidersList({ agencyId, canInvite, initialData }: Props
   const resendMutation = useMutation<unknown, ApiError, ServiceProviderProfileSummary>({
     mutationFn: async (sp) => {
       if (!token) throw new ApiError(401, { message: tErr('missingToken') });
-      const id = await resolveInvitationId(token, sp, agencyId);
+      // P237.01 (TCK-2371) — l'API porte l'invitation en attente sur la ligne. La recherche par
+      // e-mail qu'elle remplace disait « aucune invitation » pour toute panne, et pour un numéro.
+      const id = sp.pending_invitation_id ?? null;
       if (id === null) throw new ApiError(404, { message: tErr('noPendingInvitation') });
       return avecGardeDoubleFacteur(() => resendInvitation(token, id), garde);
     },
@@ -101,7 +104,7 @@ export function ServiceProvidersList({ agencyId, canInvite, initialData }: Props
   const revokeMutation = useMutation<unknown, ApiError, ServiceProviderProfileSummary>({
     mutationFn: async (sp) => {
       if (!token) throw new ApiError(401, { message: tErr('missingToken') });
-      const id = await resolveInvitationId(token, sp, agencyId);
+      const id = sp.pending_invitation_id ?? null;
       if (id === null) throw new ApiError(404, { message: tErr('noPendingInvitation') });
       return avecGardeDoubleFacteur(() => revokeInvitation(token, id), garde);
     },
@@ -120,7 +123,8 @@ export function ServiceProvidersList({ agencyId, canInvite, initialData }: Props
 
   /**
    * Les colonnes, dans l'ORDRE EXACT de la table faite main qu'elles remplacent
-   * (nom · métiers · zones · statut · actions), éprouvé par test.
+   * (nom · métiers · zones · statut · actions), éprouvé par test, plus le téléphone saisi à
+   * l'invitation (P234.04), ajout délibéré après le nom.
    */
   const colonnes: readonly DataTableColumn<ServiceProviderProfileSummary>[] = [
     {
@@ -134,6 +138,14 @@ export function ServiceProvidersList({ agencyId, canInvite, initialData }: Props
           {sp.insured ? <Badge variant="outline">{tList('insured')}</Badge> : null}
         </span>
       ),
+    },
+    {
+      // P234.04 (TCK-2280) — le numéro saisi par l'agence à l'invitation (`metadata.phone`),
+      // jamais posé sur le compte. Ajout délibéré, après le nom.
+      id: 'phone',
+      header: tList('columns.phone'),
+      className: 'whitespace-nowrap text-muted-foreground tabular-nums',
+      cell: (sp) => (sp.metadata?.phone ? formaterTelephone(sp.metadata.phone) : '—'),
     },
     {
       id: 'trades',
@@ -255,9 +267,10 @@ export function ServiceProvidersList({ agencyId, canInvite, initialData }: Props
 /** Le nom composé, seule logique propre à l'ancienne `ProviderRow` qui survivait à la conversion. */
 function nomDe(provider: ServiceProviderProfileSummary): string {
   const meta = provider.metadata ?? null;
-  return provider.user
-    ? `${provider.user.first_name ?? ''} ${provider.user.last_name ?? ''}`.trim()
-    : `${meta?.first_name ?? ''} ${meta?.last_name ?? ''}`.trim();
+  // TCK-2136 (P220.06) — un compte lié sans nom (créé par téléphone) laisse place au nom saisi
+  // par l'agence à l'invitation, rangé dans `metadata`.
+  const compte = `${provider.user?.first_name ?? ''} ${provider.user?.last_name ?? ''}`.trim();
+  return compte || `${meta?.first_name ?? ''} ${meta?.last_name ?? ''}`.trim();
 }
 
 /**
@@ -271,36 +284,5 @@ function translateTrade(t: (key: string) => string, trade: string): string {
     return t(trade);
   } catch {
     return trade;
-  }
-}
-
-/**
- * Resolve la dernière invitation pending pour ce draft. Le listing
- * carnet n'inclut pas l'id d'invitation (sparse fieldset), donc on
- * lookup via le listing générique scoped sur (email, agency).
- */
-async function resolveInvitationId(
-  token: string,
-  provider: ServiceProviderProfileSummary,
-  agencyId: number,
-): Promise<number | null> {
-  const email = provider.user?.email ?? provider.metadata?.email ?? null;
-  if (!email) return null;
-
-  const qs = buildQueryString({
-    fields: { invitations: ['id', 'email', 'status', 'agency_id'] },
-    filter: { email, status: 'sent', agency_id: agencyId },
-    sort: '-created_at',
-    per_page: 1,
-  });
-
-  try {
-    const json = await apiRequest<{ data: Array<{ id: number }> }>(
-      `/api/invitations${qs ? `?${qs}` : ''}`,
-      { token },
-    );
-    return json.data?.[0]?.id ?? null;
-  } catch {
-    return null;
   }
 }

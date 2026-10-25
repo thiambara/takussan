@@ -5,11 +5,13 @@ namespace App\Notifications;
 use App\Domain\Notifications\NotificationCode;
 use App\Models\User;
 use App\Models\WhatsappContact;
+use App\Notifications\Concerns\AlertsWhenMarkedDeliveryFails;
 use App\Notifications\Concerns\SupportsSms;
 use App\Notifications\Concerns\SupportsWhatsapp;
 use App\Services\Model\NotificationService;
 use App\Services\Notifications\NotificationRenderer;
 use App\Services\Notifications\PreferenceResolver;
+use App\Services\Notifications\Sms\SmsOutcome;
 use App\Services\Notifications\Sms\SmsTimeBudget;
 use App\Services\Notifications\Whatsapp\TemplateResolver;
 use App\Services\Notifications\Whatsapp\WhatsappTemplateRef;
@@ -69,6 +71,13 @@ class CodedNotification extends Notification implements ShouldBeEncrypted, Shoul
         // TCK-1346 (P132.04) — ce qu'un SMS reporté par les heures calmes relit avant de partir
         // ({@see \App\Services\Notifications\Sms\DeferredSmsGuard}).
         public readonly ?array $deferredSmsGuard = null,
+        // P207.01 (TCK-2157) — l'objet auquel rattacher l'activité d'exploitation quand tous les
+        // fournisseurs refusent le SMS d'un envoi marqué « au plus une fois » (classe et clé, pas
+        // le modèle : la copie en file ne doit pas échouer si la ligne disparaît d'ici là).
+        public readonly ?array $smsRefusalSubject = null,
+        // P203.01 (TCK-2161) — l'agence de l'objet notifié, dont les canaux mobiles prennent
+        // l'intégration ({@see \App\Notifications\Channels\AgenceDeLEnvoi}) ; `null`, l'accesseur du destinataire.
+        public readonly ?int $agencyId = null,
     ) {}
 
     /**
@@ -77,6 +86,18 @@ class CodedNotification extends Notification implements ShouldBeEncrypted, Shoul
      * {@see middleware()}, que `NotificationSender::queueNotification()` appelle sur chaque copie.
      */
     public ?string $queuedChannel = null;
+
+    /**
+     * P207.03 (TCK-2071) — la copie vise un contact sans compte (`AnonymousNotifiable`), retenu à la
+     * mise en file comme le canal : `failed()` ne reçoit pas le destinataire.
+     */
+    public bool $queuedForContact = false;
+
+    /**
+     * P179.01 (TCK-2155) — posé par un envoi HORS FILE dont l'appelant relit le sort du SMS
+     * ({@see NotificationService::sendToContactNow()}) ; `null` pour tout envoi en file.
+     */
+    public ?SmsOutcome $smsOutcome = null;
 
     /**
      * TCK-800 (P11.10) — attendre avant de réessayer : sans délai, le worker (`--tries=3`)
@@ -93,6 +114,7 @@ class CodedNotification extends Notification implements ShouldBeEncrypted, Shoul
     public function middleware(object $notifiable, string $channel): array
     {
         $this->queuedChannel = $channel;
+        $this->queuedForContact = $notifiable instanceof AnonymousNotifiable;
 
         return [];
     }
@@ -100,6 +122,12 @@ class CodedNotification extends Notification implements ShouldBeEncrypted, Shoul
     /**
      * TCK-800 (P11.10) — l'échec final se journalise : le code, le canal, la ligne de la cloche. Ni
      * les paramètres ni le message de l'exception, qui peuvent porter des données personnelles.
+     *
+     * P207.03 (TCK-2071) — vers un contact sans compte, l'activité alertable `ops_critical_job_failed`
+     * s'écrit en plus, comme pour les envois marqués hors code ({@see AlertsWhenMarkedDeliveryFails},
+     * TCK-1794) : aucune cloche ne lui reste, et l'appelant (relance de loyer, rappel de visite) a
+     * déjà posé sa marque « envoyé ». Mêmes clés que le journal, sans la ligne de cloche qu'un contact n'a pas (ADR-0044
+     * § 2). La marque n'est pas touchée, et rien n'est renvoyé.
      */
     public function failed(?\Throwable $e): void
     {
@@ -112,6 +140,19 @@ class CodedNotification extends Notification implements ShouldBeEncrypted, Shoul
             'exception' => $context['exception'] ?? null,
             'at' => $context['at'] ?? null,
         ]);
+
+        if ($this->queuedForContact) {
+            activity('Ops')
+                ->event('ops_critical_job_failed')
+                ->withProperties([
+                    'job' => class_basename(static::class),
+                    'code' => $this->code->value,
+                    'channel' => $this->queuedChannel,
+                    'exception' => $context['exception'] ?? null,
+                    'at' => $context['at'] ?? null,
+                ])
+                ->log('ops_critical_job_failed');
+        }
     }
 
     /** Le SMS a été borné au point d'envoi : les canaux mobiles ne le recomptent pas. */
@@ -188,6 +229,9 @@ class CodedNotification extends Notification implements ShouldBeEncrypted, Shoul
             ->where('opt_in_status', WhatsappContact::OPT_IN_OPTED_IN)
             ->exists();
         $channels[] = $optedIn ? 'whatsapp' : 'sms';
+        if (! $optedIn && $this->smsOutcome !== null) {
+            $this->smsOutcome->smsChosen = true;
+        }
 
         return $channels;
     }

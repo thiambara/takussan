@@ -69,6 +69,9 @@ class RoleDelegationService
         // accessor is null for multi-profile users without an active context
         // and would falsely reject an otherwise-valid delegation target.
         // TCK-587 — APPARTENANCE du délégataire, sans filtre de statut.
+        // TCK-2202 (ADR-0031, amendement du 2026-10-24, § A, point 5) — voulu : vers un délégué
+        // sans profil actif (suspendu, bailleur bloqué), la délégation se crée et reste INERTE
+        // (`RoleDelegation::scopeEnVigueur`) jusqu'à son retour ; elle peut ainsi préparer un retour.
         if (! $user->hasProfileAt((int) $agency->id, AgentProfile::class)
             && ! $user->hasProfileAt((int) $agency->id, OwnerProfile::class)) {
             throw ValidationException::withMessages([
@@ -128,21 +131,24 @@ class RoleDelegationService
         });
     }
 
+    /**
+     * P211.06 (TCK-2111) — `revoke`, `activate` et `expire` relisent la délégation sous verrou dans
+     * leur transaction et jugent le statut sur elle. Jugé sur le modèle reçu, la tâche planifiée,
+     * qui charge ses délégations avant de les traiter, réactivait une délégation qu'un admin venait
+     * de révoquer, et prévenait le délégataire. Le modèle reçu est rafraîchi après une transition
+     * faite : il portait le statut neuf avant, ses appelants peuvent le relire.
+     */
     public function revoke(RoleDelegation $delegation, User $caller): void
     {
-        if ($delegation->status !== RoleDelegationStatus::Active && $delegation->status !== RoleDelegationStatus::Scheduled) {
-            return;
-        }
+        $this->transition($delegation, [RoleDelegationStatus::Active, RoleDelegationStatus::Scheduled], function (RoleDelegation $locked) use ($caller): void {
+            $locked->markRevoked($caller);
 
-        DB::transaction(function () use ($delegation, $caller) {
-            $delegation->markRevoked($caller);
-
-            event(new RoleDelegationRevoked($delegation));
+            event(new RoleDelegationRevoked($locked));
 
             activity()
                 ->causedBy($caller)
-                ->performedOn($delegation)
-                ->withProperties(['role' => $delegation->role])
+                ->performedOn($locked)
+                ->withProperties(['role' => $locked->role])
                 ->event('revoked')
                 ->log('role_delegation.revoked');
         });
@@ -150,19 +156,15 @@ class RoleDelegationService
 
     public function activate(RoleDelegation $delegation): void
     {
-        if ($delegation->status !== RoleDelegationStatus::Scheduled) {
-            return;
-        }
+        $this->transition($delegation, [RoleDelegationStatus::Scheduled], function (RoleDelegation $locked): void {
+            $locked->markActive();
 
-        DB::transaction(function () use ($delegation) {
-            $delegation->markActive();
-
-            event(new RoleDelegationActivated($delegation));
+            event(new RoleDelegationActivated($locked));
 
             activity()
-                ->causedBy($delegation->user)
-                ->performedOn($delegation)
-                ->withProperties(['role' => $delegation->role, 'agency_id' => $delegation->agency_id])
+                ->causedBy($locked->user)
+                ->performedOn($locked)
+                ->withProperties(['role' => $locked->role, 'agency_id' => $locked->agency_id])
                 ->event('activated')
                 ->log('role_delegation.activated');
         });
@@ -170,22 +172,46 @@ class RoleDelegationService
 
     public function expire(RoleDelegation $delegation): void
     {
-        if ($delegation->status !== RoleDelegationStatus::Active) {
-            return;
-        }
+        $this->transition($delegation, [RoleDelegationStatus::Active], function (RoleDelegation $locked): void {
+            $locked->markExpired();
 
-        DB::transaction(function () use ($delegation) {
-            $delegation->markExpired();
-
-            event(new RoleDelegationExpired($delegation));
+            event(new RoleDelegationExpired($locked));
 
             activity()
-                ->causedBy($delegation->user)
-                ->performedOn($delegation)
-                ->withProperties(['role' => $delegation->role, 'agency_id' => $delegation->agency_id])
+                ->causedBy($locked->user)
+                ->performedOn($locked)
+                ->withProperties(['role' => $locked->role, 'agency_id' => $locked->agency_id])
                 ->event('expired')
                 ->log('role_delegation.expired');
         });
+    }
+
+    /**
+     * @param  list<RoleDelegationStatus>  $from  les statuts d'où le geste part ; ailleurs, il ne fait rien
+     * @param  callable(RoleDelegation): void  $geste
+     */
+    private function transition(RoleDelegation $delegation, array $from, callable $geste): void
+    {
+        // Le contrôle sur le modèle reçu évite le verrou quand il refuse déjà ; seul celui sur la
+        // ligne relue fait foi.
+        if (! in_array($delegation->status, $from, true)) {
+            return;
+        }
+
+        $done = DB::transaction(function () use ($delegation, $from, $geste): bool {
+            $locked = RoleDelegation::query()->whereKey($delegation->getKey())->lockForUpdate()->first();
+            if ($locked === null || ! in_array($locked->status, $from, true)) {
+                return false;
+            }
+
+            $geste($locked);
+
+            return true;
+        });
+
+        if ($done) {
+            $delegation->refresh();
+        }
     }
 
     /**

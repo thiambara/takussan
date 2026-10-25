@@ -91,7 +91,9 @@ class PdfImageConversionsTest extends TestCase
     /** @return array{0: User, 1: Inventory} */
     private function signedInventory(Agency $agency): array
     {
-        $owner = User::factory()->create();
+        // P218.04 (TCK-2198) — le conducteur d'un bien d'agence n'y lit que s'il en est membre : le
+        // propriétaire du bien est ici le bailleur de l'agence (`OwnerProfile`), comme en vrai.
+        $owner = User::factory()->create(['agency_id' => $agency->id]);
         $property = Property::factory()->create(['user_id' => $owner->id, 'agency_id' => $agency->id]);
         $tenant = Customer::factory()->create(['user_id' => User::factory()->create()->id]);
 

@@ -6,7 +6,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { withIntl } from '@/test/intl';
 import { AgentAbsencesSection } from '../AgentAbsencesSection';
@@ -39,7 +39,14 @@ function rendu() {
 }
 
 describe('AgentAbsencesSection', () => {
+  // P230.03 — « Jusqu'au » est borné au jour de l'API : l'horloge est figée avant le 20 octobre
+  // saisi plus bas, pour que ce jour reste recevable.
+  afterEach(() => {
+    vi.useRealTimers();
+  });
   beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-15T12:00:00Z'));
     for (const m of [fetchAbsences, fetchAgencyAgents, declareAbsence]) m.mockReset();
     can.value = false;
     fetchAgencyAgents.mockResolvedValue([{ id: 7, name: 'Moussa Fall' }, { id: 8, name: 'Awa Diop' }]);

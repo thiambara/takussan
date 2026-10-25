@@ -28,8 +28,8 @@ import { GardeDoubleFacteur } from '@/components/auth/GardeDoubleFacteur';
  *
  * i18n (TCK-337) : frontière de dictionnaire. `(dashboard)` ne porte que sa propre chrome — le
  * sous-arbre `/app` a sa frontière, plus riche, et la section d'agence `/app/agency` la sienne
- * (TCK-649). ⚠ Un provider
- * imbriqué REMPLACE celui du parent : chaque entrée de la table est donc l'ensemble CUMULÉ.
+ * (TCK-649). Chaque entrée de la table ne porte que son différentiel : `IntlProvider` fusionne
+ * celui du parent (amendement d'ADR-0022 du 2026-10-25).
  *
  * SEO: noindex for every dashboard page — these are authenticated, private.
  */

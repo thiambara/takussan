@@ -12,14 +12,17 @@ use App\Http\Resources\InventoryResource;
 use App\Models\Enums\InventoryStatus;
 use App\Models\Inventory;
 use App\Models\Lease;
+use App\Models\Profiles\OwnerProfile;
 use App\Models\Property;
 use App\Models\User;
 use App\Services\Inventory\InventorySignatureService;
 use App\Services\Media\PdfImageEmbedder;
 use App\Services\Media\PrivateMediaAccess;
+use App\Services\Membership\MembershipCapabilityResolver;
 use App\Services\Model\InventoryService;
 use App\Services\Pdf\DocumentPdfService;
 use App\Services\Pdf\PrintedIdentity;
+use App\Services\Property\BailleurDuBien;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -42,11 +45,16 @@ class InventoryController extends Controller
         $base = Inventory::query()->with(['lease', 'property']);
 
         if (! $user->isSuperAdmin()) {
-            $base->where(function ($q) use ($user) {
-                $q->where('conducted_by', $user->id)
-                    ->orWhereHas('property', function ($pq) use ($user) {
-                        $pq->where('user_id', $user->id);
-                    })
+            // P218.04 (TCK-2198) — le conducteur, comme `InventoryPolicy::view` : bien sans agence,
+            // agence dont il est encore membre, ou où il a un profil de bailleur de tout statut.
+            $conducteurAgencyIds = collect(app(MembershipCapabilityResolver::class)->memberAgencyIds($user))
+                ->merge($user->ownerProfiles()->pluck('agency_id'))
+                ->filter()->map(fn ($id) => (int) $id)->unique()->values()->all();
+            $base->where(function ($q) use ($user, $conducteurAgencyIds) {
+                $q->where(fn ($c) => $c->where('conducted_by', $user->id)
+                    ->whereHas('property', fn ($pq) => $pq->whereNull('agency_id')->orWhereIn('agency_id', $conducteurAgencyIds)))
+                    // TCK-1928 (P190.01) — le bailleur du bien (`BailleurDuBien`), comme `view`.
+                    ->orWhereHas('property', fn ($pq) => BailleurDuBien::restreindre($pq, $user))
                     ->orWhereHas('tenant', function ($tq) use ($user) {
                         $tq->where('user_id', $user->id);
                     });
@@ -208,12 +216,19 @@ class InventoryController extends Controller
 
         // P140.02 (TCK-1792) — les identités du jour de la seconde signature, quand l'état des lieux
         // les a figées.
+        // P234.06 (TCK-2315) — le bailleur est le propriétaire du bien (`owner`), en tête sa raison
+        // sociale ; un état des lieux figé sans lui (l'instantané lisait `property->user`, toujours
+        // nul) n'en imprime pas.
         ['tenant' => $tenant, 'landlord' => $landlord, 'property' => $property, 'agency' => $agency] = PrintedIdentity::restore($inventory->metadata, [
             'tenant' => $inventory->tenant,
-            'landlord' => $inventory->property?->user,
+            'landlord' => PrintedIdentity::frozenAbsent($inventory->metadata, 'landlord') ? null : $inventory->property?->owner,
             'property' => $inventory->property,
             'agency' => $inventory->property?->agency,
         ]);
+        $landlordCompany = $landlord === null ? null : PrintedIdentity::landlordCompany(
+            $inventory->metadata,
+            OwnerProfile::companyNameOf($inventory->property?->user_id, $inventory->property?->agency_id),
+        );
 
         $roomPhotos = $this->groupRoomPhotos($inventory);
 
@@ -227,6 +242,7 @@ class InventoryController extends Controller
             'property' => $property,
             'tenant' => $tenant,
             'landlord' => $landlord,
+            'landlord_company' => $landlordCompany,
             'agency' => $agency,
             'room_photos' => $roomPhotos,
             'tenant_signature' => $inventory->tenant_signature_data,
@@ -298,11 +314,7 @@ class InventoryController extends Controller
         // recomposé au téléchargement, une photo ajoutée après signature changerait le document signé.
         $this->assertDraft($inventory);
 
-        foreach ($request->file('photos') as $photo) {
-            $inventory->addMedia($photo)
-                ->withCustomProperties(['room_name' => $request->input('room_name')])
-                ->toMediaCollection('room_photos');
-        }
+        $inventory = $this->inventories->addRoomPhotos($inventory, $request->file('photos'), $request->input('room_name'));
 
         return $this->json([
             'data' => $inventory->getMedia('room_photos')->map(fn ($m) => [
@@ -330,7 +342,7 @@ class InventoryController extends Controller
 
         $this->assertDraft($inventory);
 
-        $photo->delete();
+        $this->inventories->removeRoomPhoto($inventory, $photo);
 
         return response()->noContent();
     }

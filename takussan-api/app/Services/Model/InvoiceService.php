@@ -5,9 +5,11 @@ namespace App\Services\Model;
 use App\Models\Agency;
 use App\Models\Booking;
 use App\Models\Customer;
+use App\Models\Enums\BookingStatus;
 use App\Models\Enums\Currency;
 use App\Models\Enums\InvoiceKind;
 use App\Models\Enums\InvoiceStatus;
+use App\Models\Enums\LeaseStatus;
 use App\Models\Invoice;
 use App\Models\Lease;
 use App\Models\User;
@@ -19,6 +21,11 @@ use Illuminate\Support\Facades\DB;
 class InvoiceService
 {
     public function __construct(private readonly InvoiceNumberAllocator $numbers) {}
+
+    /** TCK-2156 (P200.03) — les statuts d'objet sur lesquels une facture ne se crée pas. */
+    private const UNBILLABLE_BOOKING_STATUSES = [BookingStatus::Cancelled, BookingStatus::Rejected, BookingStatus::Expired];
+
+    private const UNBILLABLE_LEASE_STATUSES = [LeaseStatus::Draft, LeaseStatus::PendingSignature];
 
     /**
      * Allow-list of invoiceable types accepted by the API.
@@ -55,6 +62,7 @@ class InvoiceService
             $data['invoiceable_type'] ?? null,
             $data['invoiceable_id'] ?? null,
             $agencyId,
+            (int) $customer->id,
         );
 
         // TCK-594 (ADR-0039 §7) — sans taux, celui de l'agence, à défaut 0. Un taux explicite —
@@ -63,7 +71,11 @@ class InvoiceService
         // P133.02 (TCK-1377) — avec des lignes, le sous-total se recompte depuis elles, et elles
         // s'impriment (`metadata.lines`, lues par `Invoice::lines()`).
         $lines = isset($data['items']) ? $this->priceLines($data['items'], $currency) : null;
-        $subtotal = $lines !== null ? (float) $lines['subtotal'] : (float) $data['subtotal'];
+        // TCK-1922 (P170.05, décision du porteur) — sans lignes, le sous-total saisi s'arrondit à
+        // l'unité de la devise, comme chaque ligne.
+        $subtotal = $lines !== null
+            ? (float) $lines['subtotal']
+            : Currency::roundAmount((float) $data['subtotal'], $currency);
         $taxRate = isset($data['tax_rate'])
             ? (float) $data['tax_rate']
             : (float) ($agencyId !== null ? Agency::query()->whereKey($agencyId)->value('default_tax_rate') ?? 0 : 0);
@@ -201,9 +213,18 @@ class InvoiceService
     /**
      * L'avoir reprend les montants de l'originale. Son statut est `void` : il n'appelle aucun
      * paiement (ni relance, ni encours), et il ne compte pas comme encaissé.
+     *
+     * P231.04 (TCK-2316) — il reprend aussi ses lignes et sa désignation, que la numérotation fige
+     * ensuite dans `issued.designation` comme pour une facture : sans elles, il s'imprimait sur une
+     * ligne unique « Prestation ». Les notes de l'originale ne le suivent pas.
      */
     private function creditNoteFor(Invoice $invoice, ?User $actor): Invoice
     {
+        $metadata = array_intersect_key(
+            is_array($invoice->metadata) ? $invoice->metadata : [],
+            array_flip(['lines', 'designation'])
+        );
+
         return Invoice::query()->create([
             'kind' => InvoiceKind::CreditNote->value,
             'credited_invoice_id' => $invoice->id,
@@ -221,13 +242,14 @@ class InvoiceService
             'tax_amount' => $invoice->tax_amount,
             'total_amount' => $invoice->total_amount,
             'currency' => $invoice->currency,
+            'metadata' => $metadata !== [] ? $metadata : null,
         ]);
     }
 
     /**
      * @return array{0:?string,1:?int}
      */
-    protected function resolveInvoiceableTarget(?string $typeAlias, ?int $id, ?int $agencyId = null): array
+    protected function resolveInvoiceableTarget(?string $typeAlias, ?int $id, ?int $agencyId = null, ?int $customerId = null): array
     {
         if (empty($typeAlias)) {
             return [null, null];
@@ -236,7 +258,7 @@ class InvoiceService
         $fqcn = $this->resolveInvoiceableType($typeAlias);
         abort_code_if($fqcn === null, 422, 'invoice.unsupported_target');
 
-        $target = $fqcn::query()->whereKey($id)->first(['id', 'agency_id']);
+        $target = $fqcn::query()->whereKey($id)->first(['id', 'agency_id', 'status', $fqcn === Lease::class ? 'tenant_id' : 'customer_id']);
         abort_code_if($target === null, 404, 'invoice.target_not_found');
 
         // TCK-594 (AC22) — un bail ou une réservation d'une AUTRE agence ne se facture pas au nom de
@@ -245,6 +267,24 @@ class InvoiceService
             $target->agency_id !== null && (int) $target->agency_id === (int) $agencyId,
             422,
             'invoice.foreign_target'
+        );
+
+        // TCK-2156 (P200.03, décision du porteur du 2026-10-24) — une réservation close ou un bail
+        // pas encore signé ne se facturent pas. Un bail actif, terminé ou résilié et une
+        // réservation `pending`, `confirmed` ou `completed` restent facturables.
+        abort_code_if(
+            in_array($target->status, $fqcn === Lease::class ? self::UNBILLABLE_LEASE_STATUSES : self::UNBILLABLE_BOOKING_STATUSES, true),
+            422,
+            'invoice.target_not_billable'
+        );
+
+        // TCK-2156 (P200.04, décision du porteur du 2026-10-24) — le destinataire est le client de la
+        // réservation ou le locataire du bail.
+        $recipientId = $fqcn === Lease::class ? $target->tenant_id : $target->customer_id;
+        abort_code_unless(
+            $customerId !== null && $recipientId !== null && (int) $recipientId === $customerId,
+            422,
+            'invoice.recipient_mismatch'
         );
 
         return [$fqcn, $id];

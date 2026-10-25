@@ -25,6 +25,8 @@ use Illuminate\Support\Facades\DB;
  *
  * What is NOT copied:
  *  - `reference_number`, `slug` — regenerated via the boot hook.
+ *  - `user_id` — the source's holder when that account is a landlord of its agency, else the actor
+ *    (TCK-997).
  *  - `published_at`, `archived_at` — cleared.
  *  - Counters: `views_count`, `favorites_count`, `visits_count`,
  *    `reviews_count`, `average_rating`.
@@ -66,7 +68,10 @@ class PropertyDuplicationService
             $clone->title = trim(((string) $source->title).($titleSuffix ?? ''));
             $clone->status = PropertyStatus::Draft;
             $clone->visibility = PropertyVisibility::Private;
-            $clone->user_id = $actor->id;
+            // TCK-997 (P50.03 ; ADR-0036, amendement du 2026-10-19) — la copie est une création :
+            // elle reste au bailleur de la source, et ne passe à `$actor` que si la source est tenue
+            // par le personnel (ou sans agence).
+            $clone->user_id = app(TitulaireALaSaisie::class)->titulaireDeLaCopie($source, $actor);
             // TCK-597 (verif-597 B1) — le verrou plateforme SUIT la copie, délibérément : copier
             // une annonce masquée ne doit pas la remettre en ligne sous un autre identifiant.
             $clone->platform_hold_at = $source->platform_hold_at;
@@ -96,6 +101,7 @@ class PropertyDuplicationService
             }
 
             if ($copyCollaborators) {
+                $partsCopiees = $actor->can('manageCommissionShares', $clone);
                 foreach ($source->collaborators as $collab) {
                     // TCK-1478 (P86.05) — la ligne se rejuge comme un ajout fait par `$actor` : un
                     // agent sorti de l'agence, ou un `co_owner` qui n'y est plus bailleur, est écarté
@@ -103,9 +109,14 @@ class PropertyDuplicationService
                     if (! $this->stillEligible($clone, $collab, $actor)) {
                         continue;
                     }
-                    $clone->collaborators()->create($collab->only([
-                        'user_id', 'role', 'commission_share', 'invited_at', 'metadata',
-                    ]));
+                    // TCK-2364 (P241.03, ADR-0049 amendé le 2026-10-25) — la ventilation ne suit
+                    // la copie que si `$actor` pourrait l'écrire : le bailleur copie les lignes,
+                    // sans leur part.
+                    $ligne = $collab->only(['user_id', 'role', 'commission_share', 'invited_at', 'metadata']);
+                    if (! $partsCopiees) {
+                        $ligne['commission_share'] = null;
+                    }
+                    $clone->collaborators()->create($ligne);
                 }
 
                 // TCK-504 (vérification adverse m4) — le clone répond par le même agent que la
@@ -150,6 +161,9 @@ class PropertyDuplicationService
                 $media->copy($clone, 'photos');
             }
         }
+
+        // TCK-997 (Q6) — hors transaction, comme les médias : un avis n'annule pas une copie.
+        app(TitulaireALaSaisie::class)->annoncer($clone, $actor, 'duplicate');
 
         return $clone->refresh();
     }

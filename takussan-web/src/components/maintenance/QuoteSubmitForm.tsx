@@ -9,10 +9,12 @@ import { DatePicker } from '@/components/ui/date-picker';
 import { Input } from '@/components/ui/input';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import { ApiError } from '@/lib/api';
+import { PIECES_PAR_ENVOI_MAX_MO, piecesDepassentLeCorps } from '@/lib/borne-du-corps';
 import { formatCurrency } from '@/lib/format';
 import { CURRENCY_METADATA, type CurrencyCode } from '@/lib/format/currency';
 import type { Locale } from '@/i18n/config';
 import { useSubmitMaintenanceQuote } from '@/lib/queries/maintenance';
+import { jourDeLApi } from '@/lib/jour-de-l-api';
 import type { MaintenanceQuoteLineKind, MaintenanceRequest } from '@/types/maintenance';
 
 /**
@@ -79,6 +81,7 @@ export function QuoteSubmitForm({ request }: { readonly request: MaintenanceRequ
   const [rejectedFiles, setRejectedFiles] = useState<string[]>([]);
   const [tooLargeFiles, setTooLargeFiles] = useState<string[]>([]);
   const [tooManyFiles, setTooManyFiles] = useState(false);
+  const [totalTooLarge, setTotalTooLarge] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
 
   // TCK-1729 — la devise du devis (celle qu'un premier devis a fixée), sinon le XOF : l'API la tire
@@ -103,6 +106,13 @@ export function QuoteSubmitForm({ request }: { readonly request: MaintenanceRequ
       return;
     }
     setTooManyFiles(false);
+    // TCK-2330 (P222.05) — cinq pièces de 5 Mo font la borne même du proxy (25 Mio), que les lignes
+    // franchissent : 413 sans corps. Une sélection qui porterait la somme au-delà est refusée de même.
+    if (piecesDepassentLeCorps([...attachments, ...accepted])) {
+      setTotalTooLarge(true);
+      return;
+    }
+    setTotalTooLarge(false);
     setAttachments((prev) => [...prev, ...accepted]);
   };
 
@@ -245,7 +255,13 @@ export function QuoteSubmitForm({ request }: { readonly request: MaintenanceRequ
             <label htmlFor="quote-valid-until" className="mb-1.5 block text-sm font-medium">
               {t('valid_until_label')}
             </label>
-            <DatePicker id="quote-valid-until" value={validUntil} onValueChange={setValidUntil} />
+            {/* P212.06 — `after_or_equal:today` de `SubmitQuoteRequest`, jugé au jour UTC. */}
+            <DatePicker
+              id="quote-valid-until"
+              value={validUntil}
+              onValueChange={setValidUntil}
+              min={jourDeLApi()}
+            />
           </div>
           <div>
             <label htmlFor="quote-duration" className="mb-1.5 block text-sm font-medium">
@@ -290,6 +306,7 @@ export function QuoteSubmitForm({ request }: { readonly request: MaintenanceRequ
                     onClick={() => {
                       setAttachments((prev) => prev.filter((_, i) => i !== index));
                       setTooManyFiles(false);
+                      setTotalTooLarge(false);
                     }}
                   >
                     {t('remove_file')}
@@ -311,6 +328,11 @@ export function QuoteSubmitForm({ request }: { readonly request: MaintenanceRequ
           {tooManyFiles ? (
             <p role="alert" className="mt-1 text-xs text-destructive">
               {t('max_files', { max: MAX_ATTACHMENTS })}
+            </p>
+          ) : null}
+          {totalTooLarge ? (
+            <p role="alert" className="mt-1 text-xs text-destructive">
+              {t('total_too_large', { max: PIECES_PAR_ENVOI_MAX_MO })}
             </p>
           ) : null}
           {attachmentErrors.map(([field, messages]) => (

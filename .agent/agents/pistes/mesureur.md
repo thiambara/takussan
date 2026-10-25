@@ -26,7 +26,9 @@ ce qui autorise du code sans relecture préalable : **le doute classe « à vali
    - Relis les lignes citées. Elles ont pu bouger : retrouve le code par son contenu, pas par son
      numéro.
    - Cherche si un commit ou un ticket l'a déjà traitée : `git log --oneline -S '<extrait>'` et
-     `grep -rn` dans `docs/backlog/tickets`.
+     `grep -rn` dans `docs/backlog/tickets`. Une entrée close qui la couvrait se cherche dans le
+     fichier ET dans son archive (`grep -rn … docs/plans/2026-10-15-pistes-d-amelioration.md
+     docs/plans/pistes-archive/`), et une Réf que cite l'entrée aussi.
    - Un constat de **comportement** se re-mesure en exécutant :
      - un test existant ;
      - un test temporaire que tu retires ensuite ;

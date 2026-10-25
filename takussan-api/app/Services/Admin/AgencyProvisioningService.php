@@ -11,6 +11,7 @@ use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
 use App\Models\User;
 use App\Notifications\AgencyAdminActivationNotification;
+use App\Support\CanonicalPhone;
 use App\Support\CaseInsensitive;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -30,6 +31,22 @@ class AgencyProvisioningService
             User::query()->where('email', $adminEmail)->exists(),
             409,
             'agency.admin_email_taken'
+        );
+
+        // P251.02 (TCK-2365, décision du porteur du 2026-10-25) — le numéro du gérant, s'il est
+        // donné, est cherché parmi les numéros VÉRIFIÉS (un numéro seulement saisi ne prouve rien,
+        // ADR-0033) : il appartient à un compte, la création est refusée en 409, comme pour
+        // l'e-mail. Sans cela, le gérant inscrit par son numéro recevait un second compte. Le
+        // numéro n'est pas écrit sur le compte neuf : saisi par un tiers, il n'est pas le sien
+        // tant qu'il ne l'a pas vérifié (P234.04).
+        $adminPhone = data_get($payload, 'admin.phone');
+        abort_code_if(
+            filled($adminPhone) && User::query()
+                ->whereRaw(CanonicalPhone::sql('phone').' = ?', [CanonicalPhone::fold((string) $adminPhone)])
+                ->whereNotNull('phone_verified_at')
+                ->exists(),
+            409,
+            'agency.admin_phone_taken'
         );
 
         return DB::transaction(function () use ($payload, $actor, $adminEmail): array {

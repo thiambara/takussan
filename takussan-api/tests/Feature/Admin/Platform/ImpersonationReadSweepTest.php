@@ -256,7 +256,7 @@ class ImpersonationReadSweepTest extends TestCase
 
         // Une pièce de profil, téléversée par la voie réelle de l'assistant d'accueil.
         $owner = OwnerProfile::query()->where('user_id', $this->cible->id)->first()
-            ?? OwnerProfile::factory()->create(['user_id' => $this->cible->id]);
+            ?? OwnerProfile::factory()->create(['user_id' => $this->cible->id, 'agency_id' => $agence->id]);
         Sanctum::actingAs($this->cible);
         $this->postJson("/api/me/owner-profiles/{$owner->id}/kyc/upload", [
             'file' => UploadedFile::fake()->create(self::NOM_DE_PIECE, 200, 'application/pdf'),
@@ -314,7 +314,7 @@ class ImpersonationReadSweepTest extends TestCase
 
     private function retenue(Agency $agence, Property $property, User $bailleur, Customer $locataire): Lease
     {
-        $bail = Lease::factory()->create([
+        $bail = Lease::factory()->withCollectedDeposit()->create([
             'agency_id' => $agence->id,
             'landlord_id' => $bailleur->id,
             'tenant_id' => $locataire->id,

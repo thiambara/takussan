@@ -102,3 +102,15 @@ describe('TCK-132 — super-admin property queries', () => {
     expect(init?.method).toBe('DELETE');
   });
 });
+
+describe('P167.07 (TCK-2087) — « Biens publiés » de la console', () => {
+  it('fetchAdminProperties relaie filter[public]=1, et rien sans le paramètre', async () => {
+    const spy = mockFetch({ data: [], meta: { current_page: 1, last_page: 1, per_page: 20, total: 0 } });
+
+    await fetchAdminProperties({ public: true });
+    await fetchAdminProperties({});
+
+    expect(String(spy.mock.calls[0][0])).toContain('filter%5Bpublic%5D=1');
+    expect(String(spy.mock.calls[1][0])).not.toContain('filter%5Bpublic%5D');
+  });
+});

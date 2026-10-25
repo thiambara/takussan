@@ -37,7 +37,8 @@ class PublicPropertyDocumentController extends Controller
 
         abort_unless((bool) data_get($doc->metadata, 'public', false), 404);
 
-        $media = $doc->getFirstMedia('file');
+        // TCK-2300 (P231.02) — la version active, sinon `file`.
+        $media = $doc->currentFile();
         abort_if($media === null, 404);
 
         return $access->redirect($media, 'inline');

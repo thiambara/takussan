@@ -29,6 +29,7 @@ use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Route;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Spatie\MediaLibrary\MediaCollections\Exceptions\FileCannotBeAdded;
@@ -170,6 +171,26 @@ return Application::configure(basePath: dirname(__DIR__))
             }
 
             return null;
+        });
+
+        // TCK-2356 (P14.07) — toute exception rapportée part aussi en une ligne JSON sur stdout
+        // (canal `exceptions`), quel que soit `LOG_CHANNEL`. Enregistré AVANT le rapporteur des
+        // `QueryException`, qui s'arrête (`stop()`) : après lui, elles n'y arriveraient jamais.
+        // Ne s'arrête pas, lui : le rapport par défaut suit. Forme sûre (`SafeExceptionContext`),
+        // plus la route en GABARIT — jamais l'URL, qui porte des jetons (`/pay/{token}`, signatures) —,
+        // la méthode et l'utilisateur. Ni corps, ni en-tête, ni cookie. Un échec du journal ne
+        // casse jamais la réponse qu'il décrit.
+        $exceptions->report(function (Throwable $e): void {
+            try {
+                $route = request()->route();
+                Log::channel('exceptions')->error('exception', SafeExceptionContext::of($e) + array_filter([
+                    'method' => $route instanceof Route ? request()->method() : null,
+                    'route' => $route instanceof Route ? $route->uri() : null,
+                    'user_id' => Auth::id(),
+                ], fn ($valeur) => $valeur !== null));
+            } catch (Throwable) {
+                // Rien : la sortie standard injoignable ne doit pas changer la réponse.
+            }
         });
 
         // TCK-601 (ADR-0044 §2) — le rapport par défaut d'une `QueryException` écrit son message,

@@ -2,11 +2,10 @@
 
 namespace App\Http\Requests\Api;
 
-use App\Domain\Settings\EditablePlatformSettings;
 use App\Http\Requests\BaseFormRequest;
+use App\Http\Requests\Concerns\JugeLaLigneDeReglageDAgence;
+use App\Models\Agency;
 use App\Models\Enums\SettingScope;
-use App\Support\ScopedSetting;
-use Illuminate\Support\Facades\Validator as ValidatorFactory;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
@@ -22,9 +21,13 @@ use Illuminate\Validation\Validator;
  * par agence (catégorie `rentals`, ADR-0065), et sa valeur, déballée comme `ScopedSetting` la
  * lira, passe les `rules` et l'`item_rules` de la clé. Elle l'emporte sur la ligne globale, que le
  * catalogue bornait seule.
+ *
+ * TCK-1999 (P181.01) — la règle vit dans {@see JugeLaLigneDeReglageDAgence}, que le `PUT` joue aussi.
  */
 class StoreSettingRequest extends BaseFormRequest
 {
+    use JugeLaLigneDeReglageDAgence;
+
     /**
      * TCK-964 — l'autorisation de `SettingController::store` court ICI, avant la validation : la
      * règle du catalogue rendait sinon 422 à qui n'a aucun droit, et lui nommait les clés admises
@@ -45,9 +48,11 @@ class StoreSettingRequest extends BaseFormRequest
             return true;
         }
 
+        // TCK-2206 (P226.03) — comparé en entier : `"12"` désigne l'agence 12.
         $targetAgencyId = $this->input('scope_id') ?? $user->agency_id;
         abort_code_unless(
-            $user->isSuperAdmin() || ($user->agency_id !== null && $user->agency_id === $targetAgencyId && $user->isAgencyAdminAt((int) $targetAgencyId)),
+            // TCK-2024 (P116.02) — `AgencyPolicy::configure` : l'admin ET `agency.update`.
+            $user->isSuperAdmin() || ($user->agency_id !== null && (int) $user->agency_id === (int) $targetAgencyId && $user->can('configure', Agency::query()->find($targetAgencyId))),
             403,
             'setting.other_agency_forbidden'
         );
@@ -74,21 +79,7 @@ class StoreSettingRequest extends BaseFormRequest
                 return;
             }
 
-            $key = (string) $this->input('key');
-            if (! EditablePlatformSettings::has($key) || EditablePlatformSettings::get($key)['category'] !== 'rentals') {
-                $validator->errors()->add('key', 'setting_key_not_editable');
-
-                return;
-            }
-
-            $definition = EditablePlatformSettings::get($key);
-            $value = ValidatorFactory::make(
-                ['value' => ScopedSetting::unwrap($key, $this->input('value'))],
-                ['value' => $definition['rules'], 'value.*' => $definition['item_rules'] ?? ['nullable']],
-            );
-            foreach ($value->errors()->all() as $message) {
-                $validator->errors()->add('value', $message);
-            }
+            $this->jugerLaLigneDAgence($validator, (string) $this->input('key'), $this->input('value'));
         }];
     }
 }

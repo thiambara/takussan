@@ -35,11 +35,8 @@ use App\Models\Enums\PropertyStatus;
 use App\Models\Enums\RentPeriod;
 use App\Models\Enums\VisitStatus;
 use App\Models\Enums\VisitType;
-use App\Models\Lease;
 use App\Models\Property;
 use App\Models\PropertyReport;
-use App\Models\PropertyVisit;
-use App\Models\Review;
 use App\Rules\PersonnelDeLAgence;
 use App\Services\Booking\BookingQuote;
 use App\Services\Booking\PropertyAvailabilityService;
@@ -54,6 +51,7 @@ use App\Services\Property\PrimaryPropertyContact;
 use App\Services\Property\PropertyContactNumbers;
 use App\Services\Property\PropertyViewCounter;
 use App\Services\Property\SimilarPropertiesService;
+use App\Services\Review\ReviewEligibility;
 use App\Services\Search\FiltresDeLaCarte;
 use App\Services\Search\PropertySearchService;
 use App\Services\Visit\VisitNotifier;
@@ -790,6 +788,9 @@ class PublicPropertyController extends Controller
                 )
                 ->exists();
 
+            // P201.04 (TCK-2039) — voulu, pas un oubli : le second signalement (même autre motif,
+            // autres détails) n'est ni écrit ni fusionné, et la réponse reste la même — dédoublonnage
+            // par compte, sinon par empreinte (ADR-0043 § 6, TCK-597).
             if ($already) {
                 return;
             }
@@ -892,11 +893,14 @@ class PublicPropertyController extends Controller
      * TCK-180 — gate the "Laisser un avis" form on the property page.
      *
      * GET /api/public/properties/{slug}/review-eligibility →
-     *   { eligible: bool, reason: 'visit'|'lease'|'none', already_reviewed: bool }
+     *   { eligible: bool, reason: 'booking'|'lease'|'none', already_reviewed: bool }
      *
-     * Anonymous callers always get `eligible:false, reason:'none'`.
+     * P201.01 (TCK-2033) — le verdict est celui du dépôt (ADR-0043 § 3) : `ReviewEligibility::forProperty`,
+     * que juge aussi `StoreForPropertyReviewRequest::authorize`, et un avis retiré compte
+     * (`withTrashed()`, comme `ReviewController::storeForProperty`). Une visite finalisée n'ouvre
+     * plus l'avis du bien. Anonymous callers always get `eligible:false, reason:'none'`.
      */
-    public function reviewEligibility(Request $request, string $slug): JsonResponse
+    public function reviewEligibility(Request $request, ReviewEligibility $eligibility, string $slug): JsonResponse
     {
         $property = Property::query()
             ->public()
@@ -911,37 +915,14 @@ class PublicPropertyController extends Controller
             ]);
         }
 
-        $hasCompletedVisit = PropertyVisit::query()
-            ->where('property_id', $property->id)
-            ->where('status', VisitStatus::Completed)
-            ->where(function ($q) use ($user): void {
-                $q->where('visitor_id', $user->id)
-                    ->orWhereHas('customer', fn ($c) => $c->where('user_id', $user->id));
-            })
-            ->exists();
+        $proof = $eligibility->forProperty($user, $property);
 
-        $hasLease = Lease::query()
-            ->where('property_id', $property->id)
-            ->whereHas('tenant', fn ($c) => $c->where('user_id', $user->id))
-            ->exists();
-
-        $alreadyReviewed = Review::query()
-            ->where('reviewable_type', Property::class)
-            ->where('reviewable_id', $property->id)
-            ->where('author_id', $user->id)
-            ->exists();
-
-        $reason = 'none';
-        if ($hasLease) {
-            $reason = 'lease';
-        } elseif ($hasCompletedVisit) {
-            $reason = 'visit';
-        }
+        $alreadyReviewed = $property->reviews()->withTrashed()->where('author_id', $user->id)->exists();
 
         return $this->json([
             'data' => [
-                'eligible' => $reason !== 'none',
-                'reason' => $reason,
+                'eligible' => $proof !== null,
+                'reason' => $proof === null ? 'none' : ReviewEligibility::contextKind($proof),
                 'already_reviewed' => $alreadyReviewed,
             ],
         ]);
@@ -972,25 +953,9 @@ class PublicPropertyController extends Controller
             'booking.own_property'
         );
 
-        // TCK-535 — un séjour court (`daily`, `weekly`) suit la règle du tunnel (TCK-530) : total
-        // et acompte de `BookingQuote`, calculés AVANT toute écriture. Toute autre location est la
-        // CANDIDATURE du bouton « Postuler » (TCK-165, `getPrimaryCtaForProperty()` → `apply`),
-        // qui poste ici : elle reste possible, au montant d'UN loyer — jamais prix × nuits — et
-        // sans l'acompte qu'elle n'a jamais porté. Le prix `decimal:2` est recopié tel quel, sans
-        // passer par un flottant.
-        $amounts = match (true) {
-            $isSale => null,
-            in_array($property->rent_period, [RentPeriod::Daily, RentPeriod::Weekly], true) => $quotes->for(
-                $property,
-                Carbon::parse($data['start_date']),
-                Carbon::parse($data['end_date']),
-            ),
-            default => ['total_amount' => (string) $property->price, 'deposit_amount' => null],
-        };
-
-        $customer = $customers->findOrCreateFromUser($user);
-
         if ($isSale) {
+            // L'offre d'achat n'a aucune garde après ce point : la fiche se résout ici.
+            $customer = $customers->findOrCreateFromUser($user, $property);
             $booking = Booking::create([
                 'property_id' => $property->id,
                 'customer_id' => $customer->id,
@@ -1024,9 +989,28 @@ class PublicPropertyController extends Controller
 
         // TCK-596 — un séjour daté sur des nuits déjà confirmées est refusé, sous le verrou de la
         // ligne du bien que `BookingService::confirm` prend aussi. L'offre d'achat n'a pas de nuits.
-        $booking = DB::transaction(function () use ($availability, $property, $customer, $user, $data, $amounts): Booking {
-            Property::query()->whereKey($property->getKey())->lockForUpdate()->first();
+        $booking = DB::transaction(function () use ($availability, $customers, $quotes, $property, $user, $data): Booking {
+            // P246.02 (TCK-2367) — les montants se calculent sur le bien relu sous ce verrou : calculés
+            // sur le bien lié à la route, un prix changé entre-temps faisait naître la demande à
+            // l'ancien prix.
+            $locked = Property::query()->whereKey($property->getKey())->lockForUpdate()->firstOrFail();
+
+            // TCK-535 — un séjour court (`daily`, `weekly`) suit la règle du tunnel (TCK-530) : total
+            // et acompte de `BookingQuote`, calculés AVANT toute écriture. Toute autre location est la
+            // CANDIDATURE du bouton « Postuler » (TCK-165, `getPrimaryCtaForProperty()` → `apply`),
+            // qui poste ici : elle reste possible, au montant d'UN loyer — jamais prix × nuits — et
+            // sans l'acompte qu'elle n'a jamais porté. Le prix `decimal:2` est recopié tel quel, sans
+            // passer par un flottant.
+            $amounts = in_array($locked->rent_period, [RentPeriod::Daily, RentPeriod::Weekly], true)
+                ? $quotes->for($locked, Carbon::parse($data['start_date']), Carbon::parse($data['end_date']))
+                : ['total_amount' => (string) $locked->price, 'deposit_amount' => null];
+
             $availability->assertAvailable($property, $data['start_date'], $data['end_date']);
+
+            // P213.03 (TCK-2199) — la fiche se résout après la garde des nuits, dans la transaction :
+            // une demande refusée en 422 ne crée ni ne rattache plus de fiche. Verrous dans l'ordre
+            // `properties` puis `users` (`findOrCreateFromUser`), comme `BookingService::create`.
+            $customer = $customers->findOrCreateFromUser($user, $property);
 
             return Booking::create([
                 'property_id' => $property->id,
@@ -1039,7 +1023,7 @@ class PublicPropertyController extends Controller
                 // toute autre période : dix nuits dans un bien hebdomadaire valaient une semaine.
                 'total_amount' => $amounts['total_amount'],
                 'deposit_amount' => $amounts['deposit_amount'],
-                'currency' => $property->currency,
+                'currency' => $locked->currency,
                 'status' => BookingStatus::Pending->value,
                 'notes' => $data['message'] ?? null,
                 'metadata' => ['guests' => $data['guests']],

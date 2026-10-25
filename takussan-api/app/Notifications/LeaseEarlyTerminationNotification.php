@@ -7,6 +7,7 @@ use App\Models\Invoice;
 use App\Models\Lease;
 use App\Notifications\Concerns\RetriesWithBackoff;
 use App\Services\Formatting\CurrencyFormatter;
+use App\Services\Notifications\NotificationRenderer;
 use App\Services\Notifications\PreferenceResolver;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -65,7 +66,8 @@ class LeaseEarlyTerminationNotification extends Notification implements ShouldQu
     public function toMail(object $notifiable): MailMessage
     {
         $reference = $this->lease->reference_number ?? '#'.$this->lease->id;
-        $effective = optional($this->lease->early_termination_effective_date)->toDateString() ?? '—';
+        // TCK-2325 (P128.03) — la date par le formateur du rendu par code (`LL`).
+        $effective = app(NotificationRenderer::class)->formatDate($this->lease->early_termination_effective_date, app()->getLocale());
         $penalty = $this->lease->early_termination_penalty_amount !== null
             ? (float) $this->lease->early_termination_penalty_amount
             : null;

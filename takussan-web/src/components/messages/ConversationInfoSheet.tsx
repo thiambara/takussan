@@ -103,16 +103,22 @@ export function ConversationInfoSheet({
     );
   }
 
+  // P228.05 (TCK-2218) — retrait, départ, rôle et sourdine disent leur refus dans la zone d'erreur de
+  // l'écran (404 d'un participant déjà parti, 422 du dernier administrateur sur un écran périmé).
+  const direLeRefus = (err: unknown) => setErreurs([messageErreur(err)]);
+
   function handleLeave() {
     if (!user) return;
     if (isLastAdmin) {
       setError(t('lastAdminLeaveBlocked'));
       return;
     }
+    setError(null);
     removeParticipant.mutate(
       { user_id: user.id },
       {
         onSuccess: () => onClose(),
+        onError: direLeRefus,
       },
     );
   }
@@ -169,13 +175,18 @@ export function ConversationInfoSheet({
                   participant={p}
                   isSelf={p.user_id === user?.id}
                   canManage={Boolean(isAdmin)}
-                  onRemove={(id) =>
-                    removeParticipant.mutate({ user_id: id })
-                  }
-                  onPromote={(id) =>
-                    updateRole.mutate({ user_id: id, role: 'admin' })
-                  }
-                  onDemote={(id) => updateRole.mutate({ user_id: id, role: 'member' })}
+                  onRemove={(id) => {
+                    setError(null);
+                    removeParticipant.mutate({ user_id: id }, { onError: direLeRefus });
+                  }}
+                  onPromote={(id) => {
+                    setError(null);
+                    updateRole.mutate({ user_id: id, role: 'admin' }, { onError: direLeRefus });
+                  }}
+                  onDemote={(id) => {
+                    setError(null);
+                    updateRole.mutate({ user_id: id, role: 'member' }, { onError: direLeRefus });
+                  }}
                   busy={removeParticipant.isPending || updateRole.isPending}
                 />
               ))}
@@ -216,7 +227,10 @@ export function ConversationInfoSheet({
             variant="outline"
             className="w-full justify-start"
             disabled={toggleMute.isPending}
-            onClick={() => toggleMute.mutate({ is_muted: !currentMute })}
+            onClick={() => {
+              setError(null);
+              toggleMute.mutate({ is_muted: !currentMute }, { onError: direLeRefus });
+            }}
           >
             {currentMute ? (
               <Bell className="mr-2 size-4" aria-hidden />

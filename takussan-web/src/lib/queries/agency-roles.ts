@@ -19,6 +19,7 @@ import type {
   AssignAgencyRoleInput,
   CapabilityValue,
   CreateAgencyRoleInput,
+  SetAgentCommissionRateInput,
   UpdateAgencyRoleInput,
 } from '@/types/agency-role';
 import { cheminApi } from '@/lib/chemin-api';
@@ -177,5 +178,17 @@ export function useAssignAgencyRole(profileId: number) {
   return useApiMutation<ApiResponse<unknown>, AssignAgencyRoleInput>(
     { path: cheminApi`/api/profiles/${profileId}/agency-role`, method: 'PATCH' },
     { invalidate: [agencyRoleKeys.all, ['admin-users'], ME_CAPABILITY_KEY] },
+  );
+}
+
+/**
+ * TCK-2364 (P241.02) — `PATCH /api/profiles/{agent_profile}/commission-rate` : le taux de commission
+ * d'un agent, sous `team.assign_role`. `null` l'efface. La fiche le relit dans
+ * `meta.role_assignments` de la liste des membres, d'où l'invalidation de `admin-users`.
+ */
+export function useSetAgentCommissionRate(profileId: number) {
+  return useApiMutation<ApiResponse<unknown>, SetAgentCommissionRateInput>(
+    { path: cheminApi`/api/profiles/${profileId}/commission-rate`, method: 'PATCH' },
+    { invalidate: [agencyRoleKeys.all, ['admin-users']] },
   );
 }

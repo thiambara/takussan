@@ -25,11 +25,25 @@ return [
         'paid_out' => 'Paid out',
         'unpaid' => 'Unpaid for the period',
         'unpaid_as_of' => 'as of :date',
+        'late_fees_outstanding' => 'Late fees to collect',
         'payouts' => 'Payouts',
+        // P177.03 (TCK-2041) — le versé du relevé se lit au mois (ou à l'année) de son versement.
+        'paid_this_month' => 'Paid out this month',
+        'paid_this_year' => 'Paid out this year',
         'reference' => 'Reference',
         'date' => 'Date',
         'total' => 'Total',
         'agency' => 'Agency',
+        // TCK-2321 (P177.05) — the statement as sent, and what was recorded since.
+        'sent_on' => 'Statement sent on :date',
+        'rectification' => 'Correction as of :date',
+        'rectification_intro' => 'Entries recorded since this statement was sent. The amounts above are those of the statement as sent.',
+        'rectification_delta' => 'Difference',
+        'rectification_added' => 'Added',
+        'rectification_removed' => 'Removed',
+        'rectification_line' => 'Line',
+        'gross' => 'Collected',
+        'clawback' => 'Clawback',
     ],
 
     'legal' => [

@@ -26,7 +26,7 @@ class AgentAbsenceController extends Controller
             ->absences()
             ->where('agency_id', $agency->id)
             ->when($request->boolean('current'), fn ($q) => $q->whereIn('status', ['scheduled', 'active']))
-            ->with(['user:id,first_name,last_name', 'replaces:id,first_name,last_name'])
+            ->with(['user:id,first_name,last_name,username', 'replaces:id,first_name,last_name,username'])
             ->orderByDesc('ends_at')
             ->paginate(min(50, max(1, (int) $request->input('per_page', 20))));
 
@@ -53,7 +53,8 @@ class AgentAbsenceController extends Controller
     /** @return array<string, mixed> */
     private function format(RoleDelegation $absence, User $viewer): array
     {
-        $person = fn ($u) => $u === null ? null : ['id' => $u->id, 'name' => trim($u->first_name.' '.$u->last_name)];
+        // P235.02 (TCK-2369) — nom, puis `username`, puis « — » : jamais `''` ni `null` pour un compte sans nom.
+        $person = fn ($u) => $u === null ? null : ['id' => $u->id, 'name' => $u->nameWithoutContact()];
 
         return [
             'id' => $absence->id,

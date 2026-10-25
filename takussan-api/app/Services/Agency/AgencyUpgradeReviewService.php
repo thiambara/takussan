@@ -67,6 +67,7 @@ class AgencyUpgradeReviewService
         // is a no-op on the happy path because the agency is already
         // standard by the time it fires.
         $approved = DB::transaction(function () use ($request, $reviewer, $comment): AgencyUpgradeRequest {
+            $request = $this->lockPending($request);
             $request->update([
                 'status' => AgencyUpgradeRequestStatus::Approved->value,
                 'reviewed_by' => $reviewer->id,
@@ -124,6 +125,7 @@ class AgencyUpgradeReviewService
         }
 
         $rejected = DB::transaction(function () use ($request, $reviewer, $trimmed): AgencyUpgradeRequest {
+            $request = $this->lockPending($request);
             $request->update([
                 'status' => AgencyUpgradeRequestStatus::Rejected->value,
                 'reviewed_by' => $reviewer->id,
@@ -147,6 +149,21 @@ class AgencyUpgradeReviewService
         $this->notifySubmitter($rejected, new AgencyUpgradeRejectedNotification($rejected));
 
         return $rejected->fresh() ?? $rejected;
+    }
+
+    /**
+     * P211.02 (TCK-2107) — la demande relue sous verrou dans la transaction de la décision, et
+     * `pending` jugé sur elle. Jugé sur le modèle lié seul, hors transaction, un rejet sur une copie
+     * périmée passait après une approbation : demande `rejected`, agence déjà `standard`, et le
+     * demandeur recevait les deux avis. Le contrôle d'avant la transaction reste : il garde l'ordre
+     * des refus (`not_pending` avant le KYC et la suspension).
+     */
+    protected function lockPending(AgencyUpgradeRequest $request): AgencyUpgradeRequest
+    {
+        $locked = AgencyUpgradeRequest::query()->whereKey($request->getKey())->lockForUpdate()->firstOrFail();
+        $this->assertPending($locked);
+
+        return $locked;
     }
 
     /**

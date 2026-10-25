@@ -62,6 +62,22 @@ describe('OwnerStatementPanel — le relevé à côté des versements (TCK-594)'
     expect(PERIODES.at(-1)).toBe('2026');
   });
 
+  // P206.03 (ADR-0057, amendement du 2026-10-24) — les pénalités à recouvrer, à part de l'impayé.
+  it('montre les pénalités à recouvrer de la période, et rien quand il n’y en a pas', () => {
+    const { unmount } = render(withIntl(<OwnerStatementPanel />));
+    expect(screen.queryByText('Pénalités à recouvrer')).toBeNull();
+    unmount();
+
+    const avant = REPONSE.data.data;
+    REPONSE.data.data = { ...avant, late_fees_outstanding: { count: 1, amount: 5000 } } as typeof avant;
+    try {
+      render(withIntl(<OwnerStatementPanel />));
+      expect(sansEspaces(screen.getByText('Pénalités à recouvrer').nextElementSibling?.textContent)).toBe('5000FCFA');
+    } finally {
+      REPONSE.data.data = avant;
+    }
+  });
+
   it('télécharge le PDF avec le jeton de session', async () => {
     fetchMock.mockResolvedValue(new Response(new Blob(['%PDF']), { status: 200 }));
     render(withIntl(<OwnerStatementPanel />));

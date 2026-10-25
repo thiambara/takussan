@@ -176,4 +176,39 @@ class NotificationTemplateTest extends TestCase
         ])->assertOk()
             ->assertJsonPath('data.is_active', false);
     }
+
+    /**
+     * TCK-2114 (P214.02) — `is_active` absent du `PATCH` garde l'état que la lecture rend : un appel
+     * qui ne porte que `templates` réactivait un gabarit coupé (`?? true`).
+     */
+    public function test_un_patch_sans_is_active_garde_un_gabarit_coupe(): void
+    {
+        $this->actingAsRole('super_admin');
+        $url = '/api/admin/notification-templates/payment_received/sms';
+        $templates = $this->getJson($url)->json('data.templates');
+
+        $this->patchJson($url, ['is_active' => false, 'templates' => $templates])
+            ->assertOk()
+            ->assertJsonPath('data.is_active', false);
+
+        $templates['fr']['body'] = 'Paiement reçu.';
+        $this->patchJson($url, ['templates' => $templates])
+            ->assertOk()
+            ->assertJsonPath('data.is_active', false)
+            ->assertJsonPath('data.templates.fr.body', 'Paiement reçu.');
+
+        $this->assertFalse(NotificationTemplate::query()
+            ->where('event', 'payment_received')->where('channel', 'sms')
+            ->where('is_active', true)->exists());
+    }
+
+    public function test_un_patch_sans_is_active_sur_un_gabarit_jamais_ecrit_le_garde_actif(): void
+    {
+        $this->actingAsRole('super_admin');
+
+        $this->patchJson('/api/admin/notification-templates/booking_confirmed/email', [
+            'templates' => ['fr' => ['subject' => 'Sujet', 'body' => 'Corps']],
+        ])->assertOk()
+            ->assertJsonPath('data.is_active', true);
+    }
 }

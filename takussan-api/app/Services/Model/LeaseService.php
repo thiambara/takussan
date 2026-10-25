@@ -7,7 +7,9 @@ use App\Jobs\GenerateLeasePaymentSchedule;
 use App\Models\Agency;
 use App\Models\Booking;
 use App\Models\Customer;
+use App\Models\Enums\BookingStatus;
 use App\Models\Enums\Capability;
+use App\Models\Enums\Currency;
 use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\LeaseType;
@@ -23,6 +25,7 @@ use App\Services\Lease\EarlyTerminationService;
 use App\Services\Lease\LeaseExitScheduleService;
 use App\Services\Lease\LeaseRenewalService;
 use App\Services\Property\BailleurDuBien;
+use App\Services\Property\ContactDeLAgenceDuBien;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -52,20 +55,35 @@ class LeaseService
         // périmètre de l'émetteur (`view`), comme le client d'une réservation (`BookingService`).
         // `exists:` seul laissait rattacher le contact de n'importe qui, puis lire sa fiche par
         // le bail.
+        // TCK-2285 (P226.01) — et une fiche de l'agence du bien quand il en a une : `view` admet la
+        // fiche de A que l'agent de A et de B a ajoutée, sur un bien de B. Même refus.
         $tenant = Customer::query()->find($data['tenant_id'] ?? null);
-        abort_unless($tenant !== null && $user->can('view', $tenant), 403);
+        abort_unless($tenant !== null && $user->can('view', $tenant)
+            && ContactDeLAgenceDuBien::client($tenant, $property->agency_id), 403);
         if (! empty($data['guarantor_id'])) {
             $guarantor = Guarantor::query()->find($data['guarantor_id']);
-            abort_unless($guarantor !== null && $user->can('view', $guarantor), 403);
+            abort_unless($guarantor !== null && $user->can('view', $guarantor)
+                && ContactDeLAgenceDuBien::garant($guarantor, $property->agency_id), 403);
         }
 
         // TCK-1068 (P62.01) — la réservation d'origine doit être une réservation DU BIEN. Jugée ici,
         // après l'autorisation du bien, et non par un `exists:` du FormRequest qui répondait à tout
         // compte connecté : une réservation absente et celle d'un autre bien rendent la même erreur.
-        if (! empty($data['booking_id'])
-            && ! Booking::query()->whereKey((int) $data['booking_id'])->where('property_id', $property->id)->exists()) {
+        $reservation = ! empty($data['booking_id'])
+            ? Booking::query()->whereKey((int) $data['booking_id'])->where('property_id', $property->id)->first()
+            : null;
+        if (! empty($data['booking_id']) && $reservation === null) {
             throw ValidationException::withMessages([
                 'booking_id' => [__('validation.exists', ['attribute' => 'booking id'])],
+            ]);
+        }
+
+        // P48.03 (TCK-2352, décision du porteur du 2026-10-25) — le bail tiré d'une réservation a pour
+        // locataire le client de cette réservation : rien ne l'imposait, et le bail d'une candidature
+        // pouvait nommer n'importe quelle fiche lisible.
+        if ($reservation !== null && (int) $reservation->customer_id !== (int) $tenant->id) {
+            throw ValidationException::withMessages([
+                'tenant_id' => [__('errors.lease.tenant_not_booking_customer')],
             ]);
         }
 
@@ -86,24 +104,72 @@ class LeaseService
             && self::maySetCommissionTerms($user, $property->agency_id)
             && ($data['type'] ?? null) === LeaseType::Sale->value
             && isset($data['sale_price'], $data['commission_rate'])) {
-            $data['commission_amount'] = round((float) $data['sale_price'] * (float) $data['commission_rate'] / 100, 2);
+            $data['commission_amount'] = (float) $data['sale_price'] * (float) $data['commission_rate'] / 100;
         }
+        // TCK-1924 (P170.06, décision du porteur) — dérivée ou saisie, la commission s'arrondit à
+        // l'unité de la devise du bail : `round(…, 2)` laissait 30 864,18 XOF (ADR-0009).
+        $data['commission_amount'] = self::roundCommission($data['commission_amount'] ?? null, $data['currency'] ?? 'XOF');
 
-        return Lease::create(array_merge($data, [
-            'reference_number' => ReferenceNumberGenerator::lease(),
-            'landlord_id' => $property->user_id,
-            'agency_id' => $property->agency_id ?? $user->agency_id,
-            'status' => LeaseStatus::Draft->value,
-            'currency' => $data['currency'] ?? 'XOF',
-            'payment_frequency' => $data['payment_frequency'] ?? 'monthly',
-        ]));
+        return DB::transaction(function () use ($data, $property, $user, $reservation): Lease {
+            $lease = Lease::create(array_merge($data, [
+                'reference_number' => ReferenceNumberGenerator::lease(),
+                'landlord_id' => $property->user_id,
+                'agency_id' => $property->agency_id ?? $user->agency_id,
+                'status' => LeaseStatus::Draft->value,
+                'currency' => $data['currency'] ?? 'XOF',
+                'payment_frequency' => $data['payment_frequency'] ?? 'monthly',
+            ]));
+
+            if ($reservation !== null) {
+                $this->terminerLaReservation($reservation, $lease, $user);
+            }
+
+            return $lease;
+        });
     }
 
-    /** Les champs du mandat d'agence (ADR-0049 §1-§2) que seul son personnel écrit. */
-    public const COMMISSION_TERMS = ['commission_amount', 'agent_id'];
+    /**
+     * P48.03 (TCK-2352, décision du porteur du 2026-10-25) — la réservation dont naît le bail passe
+     * `completed` : seule `confirmed` bloque des nuits (`PropertyAvailabilityService`), et la
+     * candidature retenue gardait les siennes après le bail. Relue sous verrou, comme
+     * `CompleteEndedBookingsJob` ; seule une réservation encore ouverte (`pending`, `confirmed`)
+     * change : une réservation close (annulée, refusée, expirée, terminée) garde son statut.
+     */
+    private function terminerLaReservation(Booking $reservation, Lease $lease, User $user): void
+    {
+        $verrouillee = Booking::query()->whereKey($reservation->getKey())->lockForUpdate()->first();
+        if ($verrouillee === null
+            || ! in_array($verrouillee->status, [BookingStatus::Pending, BookingStatus::Confirmed], true)) {
+            return;
+        }
+
+        $verrouillee->forceFill(['status' => BookingStatus::Completed])->save();
+
+        activity('Booking')
+            ->performedOn($verrouillee)
+            ->causedBy($user)
+            ->withProperties(['lease_id' => $lease->id])
+            ->event('booking_completed')
+            ->log('booking_completed');
+    }
+
+    /** TCK-1924 (P170.06) — la commission d'un bail, arrondie à l'unité de sa devise ; nulle reste nulle. */
+    public static function roundCommission(mixed $amount, Currency|string|null $currency): ?float
+    {
+        return $amount === null ? null : Currency::roundAmount((float) $amount, $currency);
+    }
 
     /**
-     * TCK-595 (verif-595 B1) — `commission_amount` et `agent_id` ne s'écrivent que par le personnel
+     * Les champs du mandat d'agence (ADR-0049 §1-§2) que seul son personnel écrit.
+     *
+     * TCK-2286 (P227.01, amendement d'ADR-0049 du 2026-10-25) — `commission_rate` aussi : pour une
+     * location, c'est le taux de gestion que le reversement retient (`PayoutCalculator`), et le
+     * bailleur le mettait à 0 à la création comme au renouvellement.
+     */
+    public const COMMISSION_TERMS = ['commission_amount', 'agent_id', 'commission_rate'];
+
+    /**
+     * TCK-595 (verif-595 B1) — les termes de commission ne s'écrivent que par le personnel
      * de l'agence du bail qui tient `leases.create` (la capacité qui ouvre le bail). Le bailleur et
      * le locataire ne les écrivent jamais. À la création, une valeur nulle vaut absence ; à la
      * modification (`$nullIsWrite`), effacer le négociateur est une écriture.
@@ -231,6 +297,7 @@ class LeaseService
                 $current = $this->advancePeriod($current, $frequency);
             }
 
+            $deposits = $this->writeDepositInstalment($lease, $start);
             $count = 0;
 
             while ($end === null || $current->lte($end)) {
@@ -264,8 +331,47 @@ class LeaseService
                 }
             }
 
-            return $count;
+            return $count + $deposits;
         });
+    }
+
+    /**
+     * TCK-2375 (P04.10, ADR-0039, amendement du 2026-10-25 sur la caution) — l'échéancier écrit
+     * l'échéance de caution : `deposit_amount`, due au début du bail. Sans elle, aucun chemin
+     * n'écrivait de caution (la saisie la refuse depuis TCK-1920), et la restitution, bornée à la
+     * caution encaissée, ne rendait rien. Aucune pour un bail sans caution ; aucune pour un renouvellement, dont la caution
+     * reste celle du bail d'origine (`Lease::collectedDeposit` lit la chaîne) ; aucune seconde quand
+     * le bail en porte déjà une (régénération, ligne antérieure à TCK-1920). Rend 1 si elle est écrite.
+     */
+    private function writeDepositInstalment(Lease $lease, Carbon $start): int
+    {
+        $deposit = (float) ($lease->deposit_amount ?? 0);
+        if ($deposit <= 0 || $lease->renewed_from_lease_id !== null) {
+            return 0;
+        }
+
+        $exists = $lease->payments()
+            ->where('payment_type', LeasePaymentType::Deposit->value)
+            ->where('status', '!=', PaymentStatus::Cancelled->value)
+            ->exists();
+        if ($exists) {
+            return 0;
+        }
+
+        LeasePayment::create([
+            'lease_id' => $lease->id,
+            'reference_number' => ReferenceNumberGenerator::leasePayment(),
+            'payer_id' => $lease->tenant_id,
+            'payment_type' => LeasePaymentType::Deposit->value,
+            'amount' => $deposit,
+            'currency' => $lease->currency?->value ?? 'XOF',
+            'status' => PaymentStatus::Pending,
+            'due_date' => $start->toDateString(),
+            'period_start' => $start->toDateString(),
+            'period_end' => $start->toDateString(),
+        ]);
+
+        return 1;
     }
 
     private function monthsPerPeriod(PaymentFrequency $frequency): int

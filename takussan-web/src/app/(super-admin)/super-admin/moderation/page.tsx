@@ -89,7 +89,7 @@ export default function SuperAdminModerationPage() {
         description={tPage('subtitle')}
       />
 
-      <ModerationStats items={items} total={meta?.total ?? 0} />
+      <ModerationStats items={items} total={meta?.total ?? 0} counts={meta?.counts} />
       <ModerationFilters total={meta?.total} />
 
       {queueQuery.isLoading ? (

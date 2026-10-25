@@ -15,10 +15,16 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { DatePicker } from '@/components/ui/date-picker';
 import { Textarea } from '@/components/ui/textarea';
+import { WarningBanner } from '@/components/ui/warning-banner';
 import { ApiError } from '@/lib/api';
-import { useRenewLease, type RenewLeasePayload } from '@/lib/queries/leases';
+import {
+  useLeaseGuarantors,
+  useRenewLease,
+  type RenewLeasePayload,
+} from '@/lib/queries/leases';
 import type { Lease } from '@/types/lease';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
+import { decalerAnnees, decalerJour, jourDeLApi } from '@/lib/jour-de-l-api';
 
 interface LeaseRenewalDialogProps {
   readonly open: boolean;
@@ -39,18 +45,17 @@ type FormState = {
   terms: string;
 };
 
+// P212.05 — en jours calendaires : début = fin du parent + 1, comme `LeaseRenewalService`, et fin
+// = début + 1 an. Calculés en heure locale puis relus par `toISOString()`, les deux défauts
+// perdaient un jour aux changements d'heure hors de Dakar.
 function defaultStartDate(parent: Lease): string {
-  if (!parent.end_date) return new Date().toISOString().slice(0, 10);
-  const next = new Date(parent.end_date);
-  next.setDate(next.getDate() + 1);
-  return next.toISOString().slice(0, 10);
+  if (!parent.end_date) return jourDeLApi();
+  return decalerJour(parent.end_date.slice(0, 10), 1);
 }
 
 function defaultEndDate(start: string): string {
   if (!start) return '';
-  const end = new Date(start);
-  end.setFullYear(end.getFullYear() + 1);
-  return end.toISOString().slice(0, 10);
+  return decalerAnnees(start.slice(0, 10), 1);
 }
 
 /** P133.04 (TCK-1381) — une valeur du parent en texte de champ, vide si elle manque. */
@@ -82,6 +87,9 @@ export function LeaseRenewalDialog({
   const fmt = useFormatteurs();
   const messageErreur = useMessageErreurApi();
   const renew = useRenewLease(parent.id);
+  // P231.01 (TCK-2316) — le bail renouvelé naît sans garant (l'API le dit aussi, dans
+  // `meta.guarantors_not_carried_over`) : le récapitulatif l'annonce avant la confirmation.
+  const garantsDuParent = useLeaseGuarantors(parent.id).data?.data.length ?? 0;
   const [step, setStep] = useState<Step>(1);
   const [error, setError] = useState<string | null>(null);
   const initialStart = useMemo(() => defaultStartDate(parent), [parent]);
@@ -308,6 +316,11 @@ export function LeaseRenewalDialog({
 
         {step === 3 && (
           <div className="space-y-3">
+            {garantsDuParent > 0 && (
+              <WarningBanner>
+                {t('guarantors_not_carried_over', { count: garantsDuParent })}
+              </WarningBanner>
+            )}
             <RenewalDiffRow
               label={t('field_start_date')}
               from={parent.start_date}

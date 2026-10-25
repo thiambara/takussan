@@ -12,7 +12,7 @@ import { OwnersList } from '../OwnersList';
 /**
  * TCK-1203 — relancer ou révoquer l'invitation d'un bailleur exige la 2FA de l'agence
  * (`InvitationController@resend` / `@revoke`) : le refus passe par la garde, puis le geste est
- * rejoué. La recherche de l'invitation (une lecture) n'est pas rejouée.
+ * rejoué. L'invitation est celle que porte la ligne (`pending_invitation_id`, P237.01).
  */
 const apiRequestMock = vi.fn();
 vi.mock('@/lib/api', async (importOriginal) => ({
@@ -28,6 +28,7 @@ const refus = () => new ApiError(403, { code: 'two_factor_required', message: 'S
 const donnees = {
   data: [{
     id: 3, user_id: 9, agency_id: 7, status: 'draft', metadata: null, created_at: null,
+    pending_invitation_id: 44,
     user: { id: 9, first_name: 'Fatou', last_name: 'Sarr', email: 'f@example.test' },
     rib_masked: null, tax_id_masked: null, id_document_number_masked: null,
   }],
@@ -39,7 +40,6 @@ const donnees = {
 function api(geste: 'resend' | 'revoke', refusals: number) {
   let refuses = 0;
   apiRequestMock.mockImplementation(async (chemin: string) => {
-    if (chemin.startsWith('/api/invitations?')) return { data: [{ id: 44 }] };
     if (chemin === `/api/invitations/44/${geste}`) {
       if (refuses < refusals) {
         refuses += 1;

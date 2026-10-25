@@ -14,6 +14,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import type { ApiError } from '@/lib/api';
+import { nomAffichable } from '@/lib/identite';
 import { useRevokeRoleDelegation } from '@/lib/queries/role-delegations';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import { useFormatDate } from '@/i18n/hooks';
@@ -74,7 +75,7 @@ export function RevokeDelegationDialog({
   }
 
   const nom = delegation?.user
-    ? `${delegation.user.first_name} ${delegation.user.last_name}`.trim()
+    ? nomAffichable(delegation.user)
     : t('unknown_member', { id: delegation?.user_id ?? 0 });
 
   const submit = () => {

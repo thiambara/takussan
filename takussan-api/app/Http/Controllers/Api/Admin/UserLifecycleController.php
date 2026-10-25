@@ -60,8 +60,26 @@ class UserLifecycleController extends Controller
         abort_code_unless($user->status === UserStatus::Blocked, 422, 'user.not_blocked');
         $reason = (string) $request->validated('reason');
 
-        $user->forceFill(['status' => UserStatus::Active])->save();
-        $this->journaliser($request->user(), $user, 'super_admin_user_reactivated', $reason);
+        // P211.07 (TCK-2195) — la condition `status = blocked` se juge en base, dans la transaction,
+        // sur la ligne verrouillée : deux réactivations ensemble journalisaient et prévenaient deux
+        // fois. L'écriture passe par le modèle, pour garder le journal du statut (`User` audité).
+        $reactive = DB::transaction(function () use ($request, $user, $reason): ?User {
+            $ligne = User::query()
+                ->whereKey($user->getKey())
+                ->where('status', UserStatus::Blocked->value)
+                ->lockForUpdate()
+                ->first();
+            if ($ligne === null) {
+                return null;
+            }
+
+            $ligne->forceFill(['status' => UserStatus::Active])->save();
+            $this->journaliser($request->user(), $ligne, 'super_admin_user_reactivated', $reason);
+
+            return $ligne;
+        });
+        abort_code_if($reactive === null, 422, 'user.not_blocked');
+        $user = $reactive;
         $this->notifications->send($user, NotificationCode::AccountReactivated, ['reason' => $reason]);
 
         return $this->json(['data' => ['id' => $user->id, 'status' => $user->status->value]]);

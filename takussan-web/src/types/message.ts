@@ -72,10 +72,10 @@ export type Message = {
   metadata?: MessageMetadata | null;
   created_at: string;
   updated_at: string;
+  // TCK-2013 (P175.04) — rendu par `MessageResource` ; nul pour un compte effacé.
   sender?: {
     id: number;
     full_name: string;
-    avatar_url: string | null;
   } | null;
 };
 
@@ -105,6 +105,14 @@ export type Conversation = {
    * `metadata` d'un avis système seulement (`null` sinon), d'où le front dérive l'aperçu.
    */
   last_message?: Pick<Message, 'id' | 'type' | 'metadata'> | null;
+  /**
+   * TCK-2374 (P248.01) — rendu par `GET /api/conversations/{id}` seulement. `can_send_message` est
+   * faux pour le demandeur dont le bail a pris fin, dans le fil de son intervention : il le lit sans
+   * y écrire.
+   */
+  abilities?: {
+    can_send_message: boolean;
+  };
 };
 
 /**

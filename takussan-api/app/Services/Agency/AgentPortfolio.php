@@ -5,12 +5,14 @@ namespace App\Services\Agency;
 use App\Models\Agency;
 use App\Models\Customer;
 use App\Models\Enums\CollaboratorRole;
+use App\Models\Enums\ContactLeadChannel;
 use App\Models\Enums\MaintenanceStatus;
 use App\Models\Enums\RelationshipStatus;
 use App\Models\Enums\VisitStatus;
 use App\Models\MaintenanceRequest;
 use App\Models\Property;
 use App\Models\PropertyCollaborator;
+use App\Models\PropertyContactLead;
 use App\Models\PropertyVisit;
 use App\Models\Task;
 use App\Models\User;
@@ -35,13 +37,16 @@ use Illuminate\Database\Eloquent\Builder;
  *    propres biens ne se distinguent pas des autres par la colonne, et un bailleur n'est jamais
  *    dépossédé.
  *
+ * `contact_leads` (TCK-2170, P204.04, décision du porteur) : les demandes de contact par formulaire
+ * NON TRAITÉES dont le membre est le destinataire, dans l'agence de la demande.
+ *
  * L'ORDRE de {@see self::TRANSFERABLE} est celui de la passation : les biens avant les
  * collaborations, pour que la marque passe au repreneur avant que la ligne du partant ne bouge.
  */
 class AgentPortfolio
 {
     /** Les catégories que la passation transmet, dans l'ordre où elle les traite. */
-    public const TRANSFERABLE = ['tasks', 'visits', 'maintenance', 'responsible_properties', 'held_properties', 'collaborations', 'customers'];
+    public const TRANSFERABLE = ['tasks', 'visits', 'maintenance', 'responsible_properties', 'held_properties', 'collaborations', 'customers', 'contact_leads'];
 
     /** Comptées, non transmises : aucune depuis TCK-603. */
     public const PENDING = [];
@@ -104,6 +109,11 @@ class AgentPortfolio
                     ->where('user_id', $member->id)
                     ->where('role', CollaboratorRole::Agent)
                     ->where('is_primary', true)),
+            'contact_leads' => PropertyContactLead::query()
+                ->where('recipient_user_id', $member->id)
+                ->where('channel', ContactLeadChannel::Form)
+                ->whereNull('handled_at')
+                ->where('agency_id', $agencyId),
             'held_properties' => Property::query()
                 ->where('user_id', $member->id)
                 ->where('agency_id', $agencyId)

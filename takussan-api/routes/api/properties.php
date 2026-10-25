@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\PropertyCollaboratorController;
 use App\Http\Controllers\Api\PropertyContactController;
 use App\Http\Controllers\Api\PropertyController;
 use App\Http\Controllers\Api\PropertyMediaController;
+use App\Http\Controllers\Api\PropertyOwnerController;
 use App\Http\Controllers\Api\PropertyPriceHistoryController;
 use App\Http\Controllers\Api\PropertyTagController;
 use App\Http\Controllers\Api\ReviewController;
@@ -42,6 +43,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('properties/{property}/status', [PropertyController::class, 'updateStatus'])->name('properties.status.update');
     Route::put('properties/{property}/visibility', [PropertyController::class, 'updateVisibility'])->name('properties.visibility.update');
     Route::put('properties/{property}/assigned-agent', [PropertyController::class, 'assignAgent'])->name('properties.assigned-agent.update');
+    // TCK-999 (ADR-0036, amendement du 2026-10-19, voie 3) — « changer le titulaire » : l'aperçu, puis le geste.
+    Route::get('properties/{property}/owner-transfer', [PropertyOwnerController::class, 'preview'])->name('properties.owner-transfer.preview');
+    Route::put('properties/{property}/owner', [PropertyOwnerController::class, 'update'])->name('properties.owner.update');
     Route::post('properties/{property}/publish', [PropertyController::class, 'publish'])->name('properties.publish');
     Route::post('properties/{property}/unpublish', [PropertyController::class, 'unpublish'])->name('properties.unpublish');
     Route::post('properties/{property}/view', [PropertyController::class, 'recordView'])->name('properties.view');
@@ -51,7 +55,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Media
     Route::get('properties/{property}/media', [PropertyMediaController::class, 'index'])->name('properties.media.index');
     Route::post('properties/{property}/media', [PropertyMediaController::class, 'store'])->name('properties.media.store');
-    Route::delete('properties/{property}/media/{mediaId}', [PropertyMediaController::class, 'destroy'])->name('properties.media.destroy');
+    Route::delete('properties/{property}/media/{mediaId}', [PropertyMediaController::class, 'destroy'])->where('mediaId', '[0-9]{1,18}')->name('properties.media.destroy');
     Route::put('properties/{property}/media/reorder', [PropertyMediaController::class, 'reorder'])->name('properties.media.reorder');
 
     // Collaborators

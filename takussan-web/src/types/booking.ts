@@ -44,6 +44,11 @@ export type BookingPayment = {
   notes: string | null;
   created_at: string;
   updated_at: string;
+  /**
+   * TCK-2153 (P205.02) — le reversement au bailleur `completed` qui a porté cet acompte, rendu à qui
+   * peut lire ce reversement. Le rembourser crée une reprise sur le reversement suivant (TCK-2151).
+   */
+  paid_out?: { payout_id: number; reference_number: string; processed_at: string | null } | null;
 };
 
 export type Booking = {
@@ -88,7 +93,12 @@ export type Booking = {
     currency: string | null;
     contract_type: 'sale' | 'rent' | null;
   };
-  customer?: { id: number; user_id?: number | null } | null;
+  customer?: {
+    id: number;
+    user_id?: number | null;
+    first_name?: string | null;
+    last_name?: string | null;
+  } | null;
   booking_payments?: BookingPayment[];
   /**
    * TCK-596 — dérivé des paiements : `pending` tant qu'un acompte encaissé reste à rendre sur une

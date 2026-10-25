@@ -16,12 +16,10 @@ import { InviteMemberButton } from '../InviteMemberButton';
  * n'existait aucun fichier de test pour ce composant. Le raccord était livré et
  * NON exécuté ; ce fichier le rend exécuté.
  *
- * TCK-392 — l'en-tête porte désormais DEUX gestes, et le défaut corrigé est
- * précisément qu'on n'en voyait qu'un : le bouton « Inviter » ouvrait le
- * dialogue « compte existant », qui appelle `POST /members` et n'écrit aucune
- * ligne `invitations`. Les deux cas ci-dessous vérifient que chaque libellé
- * ouvre le dialogue qui porte son nom — *un test qui n'ouvrirait qu'« Inviter »
- * serait resté vert pendant tout le temps où « Inviter » n'invitait pas.*
+ * TCK-392 — le bouton « Inviter » ouvrait le dialogue « compte existant », qui
+ * appelait `POST /members` et n'écrivait aucune ligne `invitations`. TCK-2365
+ * (P242.01) a retiré ce rattachement direct : « Inviter » est le seul geste, et
+ * il ouvre le dialogue d'invitation.
  *
  * ## Pourquoi les dialogues sont bouchonnés
  *
@@ -41,10 +39,6 @@ function bouchon(testId: string) {
   Bouchon.displayName = `Bouchon(${testId})`;
   return Bouchon;
 }
-
-vi.mock('@/components/admin/InviteMemberDialog', () => ({
-  InviteMemberDialog: bouchon('succes-compte-existant'),
-}));
 
 vi.mock('@/components/admin/InviteAgentDialog', () => ({
   InviteAgentDialog: bouchon('succes-invitation'),
@@ -86,52 +80,39 @@ describe('<InviteMemberButton>', () => {
 
   /**
    * TCK-1412 (P148.02) — la page Équipe s'ouvre à un agent qui tient `team.invite` : il invite
-   * (`AgentProfilePolicy::invite` juge la capacité), mais « ajouter un compte existant » passe par
-   * `AgencyPolicy::update`, qui juge le profil d'admin — l'API le lui refuserait.
+   * (`AgentProfilePolicy::invite` juge la capacité).
    */
-  it('un non-admin qui tient team.invite ne voit que « Inviter »', () => {
+  it('un non-admin qui tient team.invite voit « Inviter »', () => {
     capacites = ['team.invite'];
     monter(false);
     expect(screen.getByRole('button', { name: /^Inviter$/ })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /compte existant/i })).toBeNull();
   });
 
-  it('un non-admin sans team.invite ne voit aucun des deux gestes', () => {
+  it('un non-admin sans team.invite ne voit aucun geste', () => {
     capacites = ['team.suspend'];
     monter(false);
     expect(screen.queryByRole('button', { name: /^Inviter$/ })).toBeNull();
-    expect(screen.queryByRole('button', { name: /compte existant/i })).toBeNull();
-  });
-
-  it("l'admin garde les deux gestes, sans capacité lue (son profil suffit à l'API)", () => {
-    monter(true);
-    expect(screen.getByRole('button', { name: /^Inviter$/ })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /compte existant/i })).toBeInTheDocument();
   });
 
   /**
-   * TCK-392, AC1 — le libellé « Inviter » doit ouvrir le dialogue d'INVITATION
-   * (`POST /agents/invite`), pas celui qui ajoute un compte existant. C'est
-   * exactement l'échange que le ticket décrit.
+   * TCK-2365 (P242.01) — « Ajouter un compte existant » rattachait un compte sans son accord, par
+   * `POST /members`, retirée : l'admin n'a plus que l'invitation.
    */
-  it('« Inviter » ouvre le dialogue d’invitation par e-mail, pas l’ajout d’un compte existant', async () => {
+  it("l'admin n'a plus que « Inviter » : le rattachement direct est retiré", () => {
+    monter(true);
+    expect(screen.getByRole('button', { name: /^Inviter$/ })).toBeInTheDocument();
+    // Compté, et non cherché par son libellé : la clé partie avec le geste, le bouton
+    // ressuscité s'afficherait sous sa clé brute, que « compte existant » ne trouve pas.
+    expect(screen.getAllByRole('button')).toHaveLength(1);
+  });
+
+  it('« Inviter » ouvre le dialogue d’invitation', async () => {
     const user = userEvent.setup();
     monter();
 
     await user.click(screen.getByRole('button', { name: /^Inviter$/ }));
 
     expect(screen.getByRole('button', { name: 'succes-invitation' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'succes-compte-existant' })).toBeNull();
-  });
-
-  it('« Ajouter un compte existant » ouvre l’autre dialogue', async () => {
-    const user = userEvent.setup();
-    monter();
-
-    await user.click(screen.getByRole('button', { name: /compte existant/i }));
-
-    expect(screen.getByRole('button', { name: 'succes-compte-existant' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'succes-invitation' })).toBeNull();
   });
 
   it('invalide LES DEUX listes après une invitation réussie', async () => {
@@ -147,18 +128,6 @@ describe('<InviteMemberButton>', () => {
     // ET la zone des invitations en attente, qui vit sous ce bouton sans le
     // connaître. C'est CELLE-CI que la mutation de la revue retirait sans
     // qu'un seul test ne bronche.
-    expect(cles).toContain(JSON.stringify(['agency-invitations']));
-  });
-
-  it('invalide LES DEUX listes après l’ajout d’un compte existant', async () => {
-    const user = userEvent.setup();
-    const { invalidate } = monter();
-
-    await user.click(screen.getByRole('button', { name: /compte existant/i }));
-    await user.click(screen.getByRole('button', { name: 'succes-compte-existant' }));
-
-    const cles = clesInvalidees(invalidate);
-    expect(cles).toContain(JSON.stringify(['admin-users']));
     expect(cles).toContain(JSON.stringify(['agency-invitations']));
   });
 

@@ -39,10 +39,17 @@ enum NotificationCode: string
     case LeasePaymentReceivedLandlord = 'lease_payment.received_landlord';
     // TCK-602 (ADR-0051 §2) — la quittance d'un paiement en ligne, au locataire même sans compte.
     case LeasePaymentSettledOnline = 'lease_payment.settled_online';
+    // TCK-2320 (P39.07) — un remboursement du fournisseur sur un loyer encaissé en ligne : le
+    // locataire, même sans compte (sa quittance ne couvre plus la somme rendue), et le bailleur.
+    case LeasePaymentRefunded = 'lease_payment.refunded';
+    case LeasePaymentRefundedLandlord = 'lease_payment.refunded_landlord';
 
     // ─── Encaissements en ligne (TCK-593) ───────────────────────────────────────────────
     case PaymentDuplicate = 'payment.duplicate';
     case PaymentDuplicateLateFee = 'payment.duplicate_late_fee';
+    // TCK-2320 (P39.07) — aux admins de l'agence : une ligne d'un reversement de la plateforme déjà
+    // versé a été remboursée depuis. Aucun montant : la compensation n'est pas décidée.
+    case PlatformPayoutRefundedSincePaid = 'platform_payout.refunded_since_paid';
 
     // ─── Réservations ───────────────────────────────────────────────────────────────────
     case BookingCreated = 'booking.created';
@@ -125,6 +132,8 @@ enum NotificationCode: string
     case MaintenanceStepAssignedScheduled = 'maintenance.step_assigned_scheduled';
     case MaintenanceStepInProgressScheduled = 'maintenance.step_in_progress_scheduled';
     case MaintenanceQuoteAwaitingOwner = 'maintenance_quote.awaiting_owner';
+    // TCK-2012 (P184.01) — le passage fixé ou déplacé par le `PATCH`, à toutes les parties sauf l'auteur.
+    case MaintenanceScheduleChanged = 'maintenance.schedule_changed';
 
     // ─── CRM ───────────────────────────────────────────────────────────────────────────
     /** TCK-591 — le récapitulatif quotidien des biens qui correspondent aux prospects d'un référent. */
@@ -136,6 +145,12 @@ enum NotificationCode: string
 
     /** TCK-782 (P15.10) — un bien passe en `pending_review` : les admins actifs de son agence. */
     case PropertySubmittedForReview = 'property.submitted_for_review';
+
+    /**
+     * TCK-997 (Q6, ADR-0036 amendé le 2026-10-19) — un bien vient d'être saisi au nom du bailleur
+     * (désignation, lot sous son bien, copie de son bien). Repris par TCK-999 et TCK-1000.
+     */
+    case PropertyAssignedToOwner = 'property.assigned_to_owner';
 
     /** TCK-596 (ADR-0041 §6) — un événement importé chevauche une réservation confirmée. */
     case PropertyCalendarConflict = 'property.calendar_conflict';
@@ -161,6 +176,12 @@ enum NotificationCode: string
     case PayoutMethodUpdated = 'payout_method.updated';
     case PayoutMethodRemoved = 'payout_method.removed';
     case PayoutThresholdRelaxRequested = 'payout_threshold.relax_requested';
+    /**
+     * TCK-2270 (P224.01, ADR-0039 § 8, amendement du 2026-10-25) — à qui gère les factures de
+     * l'agence (`payouts.create`) : l'intervention est contestée ou annulée, et sa facture, déjà
+     * payée, imputée ou en cours de paiement, n'est pas annulée.
+     */
+    case ServiceProviderBillKeptOnReopen = 'service_provider_bill.kept_on_reopen';
     case OwnerStatementAvailable = 'owner_statement.available';
 
     // ─── Avis et signalements (TCK-597, ADR-0043) ───────────────────────────────────────
@@ -184,6 +205,8 @@ enum NotificationCode: string
     /** Aux admins de l'agence (ADR-0048). */
     case AgencySuspended = 'agency.suspended';
     case AgencyReinstated = 'agency.reinstated';
+    /** TCK-2164 (P204.01) — aux admins de l'agence : un membre du personnel a demandé l'effacement de son compte. */
+    case AgencyMemberDeletionRequested = 'agency.member_deletion_requested';
     /** Au compte bloqué ou réactivé depuis la console. */
     case AccountBlocked = 'account.blocked';
     case AccountReactivated = 'account.reactivated';
@@ -230,13 +253,21 @@ enum NotificationCode: string
      */
     public const PARAM_MONTH = 'month';
 
+    /**
+     * P235.03 (TCK-2369) — le nom d'une PERSONNE (le locataire d'un avis au bailleur, le bénéficiaire
+     * d'une délégation). Vide — compte ou fiche créés par téléphone —, il se rend par le libellé
+     * traduit `notifications.unnamed_person`, jamais par « — » ni par un numéro, même masqué.
+     */
+    public const PARAM_PERSON = 'person';
+
     public function type(): NotificationType
     {
         return match ($this) {
             self::LeasePaymentDueSoon, self::LeasePaymentOverdue, self::LeasePaymentOverdueLandlord,
             self::LeasePaymentOverdueDigest, self::LeasePaymentRecorded,
             self::LeasePaymentReceivedLandlord, self::LeasePaymentSettledOnline, self::PaymentDuplicate,
-            self::PaymentDuplicateLateFee => NotificationType::Payment,
+            self::PaymentDuplicateLateFee, self::LeasePaymentRefunded, self::LeasePaymentRefundedLandlord,
+            self::PlatformPayoutRefundedSincePaid => NotificationType::Payment,
             self::BookingCreated, self::BookingRequestedUndated, self::BookingConfirmed, self::BookingRejected,
             self::BookingCancelled => NotificationType::Booking,
             self::VisitReminder, self::VisitRequested, self::VisitRescheduledByVisitor,
@@ -250,11 +281,12 @@ enum NotificationCode: string
             self::BankStatementFinalized => NotificationType::BankStatementFinalized,
             self::MaintenanceCreated, self::MaintenanceQuoteRequested, self::MaintenanceQuoteSubmitted,
             self::MaintenanceQuoteApproved, self::MaintenanceQuoteRejected => NotificationType::Maintenance,
-            self::MaintenanceAssigned, self::MaintenanceUnassigned, self::MaintenanceAccepted, self::MaintenanceDeclined, self::MaintenanceCompleted, self::MaintenanceConfirmed, self::MaintenanceContested, self::MaintenanceAutoClosed, self::MaintenanceCancelled, self::MaintenanceStepAcknowledged, self::MaintenanceStepAssigned, self::MaintenanceStepInProgress, self::MaintenanceStepCompleted, self::MaintenanceStepClosed, self::MaintenanceStepCancelled, self::MaintenanceStepAcknowledgedScheduled, self::MaintenanceStepAssignedScheduled, self::MaintenanceStepInProgressScheduled, self::MaintenanceQuoteAwaitingOwner => NotificationType::Maintenance,
+            self::MaintenanceAssigned, self::MaintenanceUnassigned, self::MaintenanceAccepted, self::MaintenanceDeclined, self::MaintenanceCompleted, self::MaintenanceConfirmed, self::MaintenanceContested, self::MaintenanceAutoClosed, self::MaintenanceCancelled, self::MaintenanceStepAcknowledged, self::MaintenanceStepAssigned, self::MaintenanceStepInProgress, self::MaintenanceStepCompleted, self::MaintenanceStepClosed, self::MaintenanceStepCancelled, self::MaintenanceStepAcknowledgedScheduled, self::MaintenanceStepAssignedScheduled, self::MaintenanceStepInProgressScheduled, self::MaintenanceQuoteAwaitingOwner, self::MaintenanceScheduleChanged => NotificationType::Maintenance,
             self::KycSubmitted, self::KycVerified, self::KycRejected, self::KycExpiringSoon,
             self::GovernanceRoleCapabilitiesChanged, self::GovernanceAdminAdded, self::GovernanceDataExported,
             self::GovernanceIntegrationChanged, self::GovernanceApprovalThresholdChanged,
             self::PropertyApproved, self::PropertyRejected, self::PropertySubmittedForReview,
+            self::PropertyAssignedToOwner,
             self::ReviewToModerate, self::ReviewReceived,
             self::ModerationPropertyHidden, self::ModerationPropertyRemoved,
             self::ModerationReportUpheld, self::ModerationReportDismissed,
@@ -262,14 +294,15 @@ enum NotificationCode: string
             self::AccountPhoneChanged => NotificationType::System,
             self::ImpersonationEnded, self::AgencySuspended, self::AgencyReinstated,
             self::AccountBlocked, self::AccountReactivated, self::PropertyUnpublishedContactErased,
-            self::PlatformOperatorRevoked => NotificationType::System,
+            self::PlatformOperatorRevoked, self::AgencyMemberDeletionRequested => NotificationType::System,
             self::ProspectMatchDigest => NotificationType::System,
             self::PropertyCalendarConflict, self::PropertyCalendarFeedFailing => NotificationType::System,
             self::LeaseSignatureRequested, self::LeaseSignedByParty,
             self::LeaseSignatureCompleted => NotificationType::Lease,
             self::PayoutAwaitingApproval, self::PayoutDue, self::PayoutProcessed, self::PayoutFailed,
             self::PayoutMethodAdded, self::PayoutMethodUpdated, self::PayoutMethodRemoved,
-            self::PayoutThresholdRelaxRequested, self::OwnerStatementAvailable => NotificationType::Payment,
+            self::PayoutThresholdRelaxRequested, self::OwnerStatementAvailable,
+            self::ServiceProviderBillKeptOnReopen => NotificationType::Payment,
         };
     }
 
@@ -302,7 +335,7 @@ enum NotificationCode: string
             self::GovernanceIntegrationChanged, self::GovernanceApprovalThresholdChanged => null,
             self::MaintenanceCreated, self::MaintenanceQuoteRequested, self::MaintenanceQuoteSubmitted,
             self::MaintenanceQuoteApproved, self::MaintenanceQuoteRejected => 'maintenance_status_changed',
-            self::MaintenanceAssigned, self::MaintenanceUnassigned, self::MaintenanceAccepted, self::MaintenanceDeclined, self::MaintenanceCompleted, self::MaintenanceConfirmed, self::MaintenanceContested, self::MaintenanceAutoClosed, self::MaintenanceCancelled, self::MaintenanceStepAcknowledged, self::MaintenanceStepAssigned, self::MaintenanceStepInProgress, self::MaintenanceStepCompleted, self::MaintenanceStepClosed, self::MaintenanceStepCancelled, self::MaintenanceStepAcknowledgedScheduled, self::MaintenanceStepAssignedScheduled, self::MaintenanceStepInProgressScheduled, self::MaintenanceQuoteAwaitingOwner => 'maintenance_status_changed',
+            self::MaintenanceAssigned, self::MaintenanceUnassigned, self::MaintenanceAccepted, self::MaintenanceDeclined, self::MaintenanceCompleted, self::MaintenanceConfirmed, self::MaintenanceContested, self::MaintenanceAutoClosed, self::MaintenanceCancelled, self::MaintenanceStepAcknowledged, self::MaintenanceStepAssigned, self::MaintenanceStepInProgress, self::MaintenanceStepCompleted, self::MaintenanceStepClosed, self::MaintenanceStepCancelled, self::MaintenanceStepAcknowledgedScheduled, self::MaintenanceStepAssignedScheduled, self::MaintenanceStepInProgressScheduled, self::MaintenanceQuoteAwaitingOwner, self::MaintenanceScheduleChanged => 'maintenance_status_changed',
             self::RoleDelegationActivated, self::RoleDelegationActivatedDelegator,
             self::RoleDelegationExpired, self::RoleDelegationExpiredDelegator,
             self::RoleDelegationRevoked, self::RoleDelegationRevokedDelegator,
@@ -317,12 +350,17 @@ enum NotificationCode: string
             self::ModerationReportUpheld, self::ModerationReportDismissed,
             // TCK-593 — une somme à rembourser : l'admin ne peut pas s'en désabonner.
             self::PaymentDuplicate, self::PaymentDuplicateLateFee => null,
+            // TCK-2320 — de l'argent rendu après coup : on ne s'en désabonne pas.
+            self::LeasePaymentRefunded, self::LeasePaymentRefundedLandlord, self::PlatformPayoutRefundedSincePaid => null,
             // TCK-594 — une sortie d'argent n'a pas d'interrupteur : l'approbateur, le payeur et le
             // bénéficiaire en sont toujours avisés, et un changement de destination est le signal
             // d'un détournement (ADR-0039 §6).
             self::PayoutAwaitingApproval, self::PayoutDue, self::PayoutProcessed, self::PayoutFailed,
             self::PayoutMethodAdded, self::PayoutMethodUpdated, self::PayoutMethodRemoved,
-            self::PayoutThresholdRelaxRequested, self::OwnerStatementAvailable => null,
+            self::PayoutThresholdRelaxRequested, self::OwnerStatementAvailable,
+            self::ServiceProviderBillKeptOnReopen => null,
+            // TCK-997 — comme le relevé de gérance : le bien décide à qui vont des loyers.
+            self::PropertyAssignedToOwner => null,
             self::InvitationReceived, self::InvitationReminder => null,
             // Un avis de sécurité : on ne s'en désabonne pas.
             self::AccountPhoneChanged => null,
@@ -330,6 +368,8 @@ enum NotificationCode: string
             self::ImpersonationEnded, self::AgencySuspended, self::AgencyReinstated,
             self::AccountBlocked, self::AccountReactivated, self::PropertyUnpublishedContactErased,
             self::PlatformOperatorRevoked => null,
+            // TCK-2164 — un portefeuille à passer avant l'effacement : non désactivable.
+            self::AgencyMemberDeletionRequested => null,
         };
     }
 
@@ -344,12 +384,15 @@ enum NotificationCode: string
         return match ($this) {
             self::LeasePaymentDueSoon => ['amount' => self::PARAM_MONEY, 'due_date' => self::PARAM_DATE, 'property' => self::PARAM_TEXT],
             self::LeasePaymentOverdue => ['amount' => self::PARAM_MONEY, 'days' => self::PARAM_COUNT, 'due_date' => self::PARAM_DATE, 'property' => self::PARAM_TEXT],
-            self::LeasePaymentOverdueLandlord => ['amount' => self::PARAM_MONEY, 'days' => self::PARAM_COUNT, 'property' => self::PARAM_TEXT, 'tenant' => self::PARAM_TEXT],
+            self::LeasePaymentOverdueLandlord => ['amount' => self::PARAM_MONEY, 'days' => self::PARAM_COUNT, 'property' => self::PARAM_TEXT, 'tenant' => self::PARAM_PERSON],
             self::LeasePaymentOverdueDigest => ['count' => self::PARAM_COUNT, 'total' => self::PARAM_MONEY],
             self::LeasePaymentRecorded => ['amount' => self::PARAM_MONEY, 'property' => self::PARAM_TEXT],
-            self::LeasePaymentReceivedLandlord => ['amount' => self::PARAM_MONEY, 'property' => self::PARAM_TEXT, 'tenant' => self::PARAM_TEXT],
+            self::LeasePaymentReceivedLandlord => ['amount' => self::PARAM_MONEY, 'property' => self::PARAM_TEXT, 'tenant' => self::PARAM_PERSON],
             self::LeasePaymentSettledOnline => ['amount' => self::PARAM_MONEY, 'property' => self::PARAM_TEXT],
             self::PaymentDuplicate, self::PaymentDuplicateLateFee => ['amount' => self::PARAM_MONEY, 'reference' => self::PARAM_TEXT],
+            self::LeasePaymentRefunded => ['amount' => self::PARAM_MONEY, 'property' => self::PARAM_TEXT],
+            self::LeasePaymentRefundedLandlord => ['amount' => self::PARAM_MONEY, 'property' => self::PARAM_TEXT, 'tenant' => self::PARAM_PERSON],
+            self::PlatformPayoutRefundedSincePaid => ['period' => self::PARAM_MONTH, 'reference' => self::PARAM_TEXT],
             self::BookingCreated, self::BookingConfirmed, self::BookingRejected,
             self::BookingCancelled => ['reference' => self::PARAM_TEXT, 'property' => self::PARAM_TEXT, 'start_date' => self::PARAM_DATE, 'end_date' => self::PARAM_DATE],
             self::BookingRequestedUndated => ['reference' => self::PARAM_TEXT, 'property' => self::PARAM_TEXT],
@@ -380,7 +423,7 @@ enum NotificationCode: string
             self::RoleDelegationActivated => ['role' => self::PARAM_ROLE, 'ends_at' => self::PARAM_DATE],
             self::RoleDelegationExpired, self::RoleDelegationRevoked => ['role' => self::PARAM_ROLE],
             self::RoleDelegationActivatedDelegator, self::RoleDelegationExpiredDelegator,
-            self::RoleDelegationRevokedDelegator => ['role' => self::PARAM_ROLE, 'beneficiary' => self::PARAM_TEXT],
+            self::RoleDelegationRevokedDelegator => ['role' => self::PARAM_ROLE, 'beneficiary' => self::PARAM_PERSON],
             self::BankStatementImported => ['bank' => self::PARAM_TEXT, 'lines' => self::PARAM_COUNT],
             self::BankStatementFinalized => ['period_start' => self::PARAM_DATE, 'period_end' => self::PARAM_DATE, 'confirmed' => self::PARAM_COUNT, 'total' => self::PARAM_COUNT],
             self::MaintenanceCreated => ['property' => self::PARAM_TEXT, 'reference' => self::PARAM_TEXT],
@@ -397,9 +440,11 @@ enum NotificationCode: string
             self::MaintenanceContested => ['request' => self::PARAM_TEXT, 'comment' => self::PARAM_TEXT],
             self::MaintenanceAutoClosed => ['request' => self::PARAM_TEXT, 'days' => self::PARAM_COUNT],
             self::MaintenanceStepAcknowledgedScheduled, self::MaintenanceStepAssignedScheduled,
-            self::MaintenanceStepInProgressScheduled => ['request' => self::PARAM_TEXT, 'scheduled_at' => self::PARAM_DATETIME],
+            self::MaintenanceStepInProgressScheduled,
+            self::MaintenanceScheduleChanged => ['request' => self::PARAM_TEXT, 'scheduled_at' => self::PARAM_DATETIME],
             self::PropertyApproved => ['property' => self::PARAM_TEXT],
             self::PropertySubmittedForReview => ['property' => self::PARAM_TEXT],
+            self::PropertyAssignedToOwner => ['property' => self::PARAM_TEXT],
             self::PropertyRejected => ['property' => self::PARAM_TEXT, 'reason' => self::PARAM_TEXT],
             self::PropertyCalendarConflict => ['property' => self::PARAM_TEXT, 'feed' => self::PARAM_TEXT, 'start_date' => self::PARAM_DATE, 'end_date' => self::PARAM_DATE],
             self::PropertyCalendarFeedFailing => ['property' => self::PARAM_TEXT, 'feed' => self::PARAM_TEXT],
@@ -412,6 +457,7 @@ enum NotificationCode: string
             self::PayoutMethodAdded, self::PayoutMethodUpdated, self::PayoutMethodRemoved => ['destination' => self::PARAM_TEXT],
             self::PayoutThresholdRelaxRequested => ['agency' => self::PARAM_TEXT],
             self::OwnerStatementAvailable => ['period' => self::PARAM_MONTH],
+            self::ServiceProviderBillKeptOnReopen => ['reference' => self::PARAM_TEXT, 'amount' => self::PARAM_MONEY, 'request' => self::PARAM_TEXT],
             self::ReviewToModerate, self::ReviewReceived => ['subject' => self::PARAM_TEXT, 'rating' => self::PARAM_COUNT],
             self::ModerationPropertyHidden, self::ModerationPropertyRemoved => ['property' => self::PARAM_TEXT, 'reason_code' => self::PARAM_REASON_CODE, 'reason' => self::PARAM_TEXT],
             self::ModerationReportUpheld, self::ModerationReportDismissed => ['property' => self::PARAM_TEXT],
@@ -425,6 +471,14 @@ enum NotificationCode: string
             self::AgencySuspended, self::AgencyReinstated => ['agency' => self::PARAM_TEXT, 'reason' => self::PARAM_TEXT],
             self::AccountBlocked, self::AccountReactivated => ['reason' => self::PARAM_TEXT],
             self::PropertyUnpublishedContactErased => ['property' => self::PARAM_TEXT, 'reference' => self::PARAM_TEXT, 'url' => self::PARAM_URL],
+            self::AgencyMemberDeletionRequested => [
+                'member' => self::PARAM_TEXT, 'scheduled_for' => self::PARAM_DATE,
+                'tasks' => self::PARAM_COUNT, 'visits' => self::PARAM_COUNT, 'maintenance' => self::PARAM_COUNT,
+                'responsible_properties' => self::PARAM_COUNT, 'held_properties' => self::PARAM_COUNT,
+                'collaborations' => self::PARAM_COUNT, 'customers' => self::PARAM_COUNT,
+                // TCK-2170 (P204.04)
+                'contact_leads' => self::PARAM_COUNT, 'url' => self::PARAM_URL,
+            ],
             self::PlatformOperatorRevoked => ['operator' => self::PARAM_TEXT, 'reason' => self::PARAM_TEXT],
         };
     }
@@ -502,6 +556,10 @@ enum NotificationCode: string
             // TCK-1002 — vers un contact sans compte seulement : l'envoi à un compte retient le
             // canal mobile (`LeasePaymentService::markPaid`, `$mobileBorne = false`).
             self::LeasePaymentRecorded,
+            // TCK-2320 (P39.07) — le remboursement de ce qu'une quittance couvrait : vers un contact
+            // sans compte, ou le numéro de la fiche (TCK-1493). Sans préférence, aucun canal mobile
+            // vers un compte.
+            self::LeasePaymentRefunded,
             self::VisitReminder,
             // TCK-590 (contrainte 4) — un SMS ne suit qu'un geste humain de l'agence, jamais le
             // dépôt d'une demande par un tiers ; il est borné au point d'envoi (`VisitNotifier`).
@@ -541,6 +599,8 @@ enum NotificationCode: string
             self::LeasePaymentSettledOnline,
             // TCK-1002 — et celle d'une échéance enregistrée payée par l'agence.
             self::LeasePaymentRecorded,
+            // TCK-2320 — et le remboursement de cette échéance par le fournisseur.
+            self::LeasePaymentRefunded,
             self::InvitationReceived, self::InvitationReminder,
             self::AccountPhoneChanged,
             self::VisitConfirmed, self::VisitRescheduled, self::VisitCancelled,

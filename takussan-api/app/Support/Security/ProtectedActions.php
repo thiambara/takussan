@@ -158,12 +158,13 @@ final class ProtectedActions
         AgencyController::class.'@update',
         // TCK-594 (VERIF-594 M-2) — le second geste d'un relâchement du seuil des quatre yeux.
         AgencyController::class.'@confirmPayoutThreshold',
-        AgencyController::class.'@addAgent',
         AgencyController::class.'@removeAgent',
         TeamMemberSuspensionController::class.'@suspend',
         TeamMemberSuspensionController::class.'@reactivate',
         AgentProfileController::class.'@suspend',
         AgentProfileController::class.'@destroy',
+        // TCK-2364 (P241.02) — le taux de l'agent est sa part de chaque commission qu'il négocie.
+        AgentProfileController::class.'@updateCommissionRate',
         // TCK-591 — même retrait que `removeAgent` quand `remove_after` est coché, et la
         // transmission du portefeuille dans tous les cas.
         AgentHandoverController::class.'@store',
@@ -174,7 +175,6 @@ final class ProtectedActions
         OwnerInvitationController::class.'@__invoke',
         AgentInvitationController::class.'@__invoke',
         ServiceProviderInvitationController::class.'@__invoke',
-        InvitationController::class.'@store',
         InvitationController::class.'@revoke',
         InvitationController::class.'@resend',
 
@@ -191,9 +191,6 @@ final class ProtectedActions
     public const EXEMPT = [
         // L'invité n'a pas encore de compte : il accepte par le lien reçu.
         InvitationAcceptController::class.'@__invoke' => 'acceptation publique d\'une invitation',
-        // Qui crée son agence n'en est pas encore l'admin : l'exigence le prend au
-        // premier geste protégé, dans l'agence créée.
-        AgencyController::class.'@store' => 'création d\'une agence',
         // L'argent ENTRE : le client règle sa réservation, il n'est le personnel de personne.
         BookingPaymentController::class.'@store' => 'paiement d\'une réservation par le client',
     ];

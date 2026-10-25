@@ -243,6 +243,9 @@ class HostIndividualOnboardingService
      * TCK-966 (P47.07) — l'agence naît sans `settings`. La ville, le type de bien préféré, la source
      * de l'inscription et l'opérateur de paiement y étaient écrits sans que rien ne les lise :
      * l'assistant garde ses champs (et les valide), mais ne les enregistre plus.
+     *
+     * TCK-2372 (P249.03) — le type de bien préféré a quitté l'assistant ; la requête l'accepte
+     * encore, facultatif, pour un brouillon repris.
      */
     private function createAgency(User $user, array $payload): Agency
     {

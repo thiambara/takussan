@@ -31,6 +31,7 @@ import {
 } from '@/lib/queries/super-admin';
 import type {
   AdminModerationItem,
+  ModerationCounts,
   ModerationBatchResult,
   ModerationDecision,
   ModerationDecisionPayload,
@@ -257,7 +258,11 @@ export function ModerationQueueTable({
       header: t('colReporter'),
       cell: (item) => (
         <>
-          <span className="block">{item.reporter?.name ?? t('anonymous')}</span>
+          {/* P193.05 (TCK-2053) — « Anonyme » seulement sans compte : un compte connu sans nom
+              est désigné par son identifiant. */}
+          <span className="block">
+            {item.reporter ? (item.reporter.name ?? `#${item.reporter.id}`) : t('anonymous')}
+          </span>
           {item.reporter?.email ? (
             <span className="text-xs text-muted-foreground">{item.reporter.email}</span>
           ) : null}
@@ -715,19 +720,30 @@ function FilterSelect({
   );
 }
 
-export function ModerationStats({ items, total }: { items: AdminModerationItem[]; total: number }) {
+/**
+ * P199.02 (TCK-2165) — « Biens » et « Avis » lisent les comptes par type que l'API calcule sur la
+ * file filtrée (`meta.counts`) : ils comptaient les lignes de la page de 20. Seul l'avertissement
+ * de retard reste pris sur la page, et il le dit.
+ */
+export function ModerationStats({
+  items,
+  total,
+  counts,
+}: {
+  items: AdminModerationItem[];
+  total: number;
+  counts: ModerationCounts | undefined;
+}) {
   const t = useTranslations('superAdmin.moderation');
   const stats = useMemo(() => {
-    const properties = items.filter((item) => item.type === 'property').length;
-    const reviews = items.filter((item) => item.type === 'review').length;
     const old = items.filter((item) => (item.age_minutes ?? 0) > 7 * MINUTES_PAR_JOUR).length;
-    return { properties, reviews, old };
-  }, [items]);
+    return { properties: counts?.property ?? 0, reviews: counts?.review ?? 0, old };
+  }, [items, counts]);
 
   return (
     // Trois tuiles sur une rangée dès le mobile : empilées, elles repoussaient la file de 300 px.
     <div className="grid grid-cols-3 gap-3">
-      <StatCard label={t('statTotalPage')} value={total} />
+      <StatCard label={t('statTotal')} value={total} />
       <StatCard label={t('statProperties')} value={stats.properties} />
       <StatCard label={t('statReviews')} value={stats.reviews} />
       {stats.old > 0 ? (

@@ -14,6 +14,7 @@ import { PIPELINE_QUERY_KEY } from '@/hooks/pipelineKeys';
 import type { Locale } from '@/i18n/config';
 import { ApiError } from '@/lib/api';
 import { formatDate } from '@/lib/format';
+import { AGENT_CRM_QUERY_KEY } from '@/lib/queries/agent-crm';
 import { createCustomerTask, fetchCustomerTasks, updateTask } from '@/lib/queries/pipeline';
 import type { Task } from '@/types/pipeline';
 
@@ -40,7 +41,12 @@ export function CustomerTasksPanel({ customerId }: CustomerTasksPanelProps) {
     queryFn: () => fetchCustomerTasks(token ?? '', customerId),
     enabled: !!token,
   });
-  const refresh = () => queryClient.invalidateQueries({ queryKey: PIPELINE_QUERY_KEY.customerTasks(customerId) });
+  // TCK-2093 — créer ou basculer une tâche est journalisé : le fil d'activité se relit aussi.
+  const refresh = () =>
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: PIPELINE_QUERY_KEY.customerTasks(customerId) }),
+      queryClient.invalidateQueries({ queryKey: AGENT_CRM_QUERY_KEY.activity(customerId) }),
+    ]);
 
   const create = useMutation<Task, ApiError, { title: string; due_at?: string }>({
     mutationFn: (payload) => createCustomerTask(token ?? '', customerId, payload),

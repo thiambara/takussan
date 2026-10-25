@@ -23,10 +23,12 @@ import { EmptyState } from '@/components/feedback';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/toast';
 import { useAuth } from '@/context/AuthContext';
-import { apiRequest, ApiError, buildQueryString } from '@/lib/api';
+import { ApiError } from '@/lib/api';
+import { formaterTelephone } from '@/lib/phone';
 import {
   fetchOwners,
   fetchOwnerSensitive,
+  raisonSocialeDe,
   resendInvitation,
   revokeInvitation,
   type OwnerProfileSummary,
@@ -121,7 +123,9 @@ export function OwnersList({ agencyId, canInvite, initialData, canRevealSensitiv
   const resendMutation = useMutation<unknown, ApiError, OwnerProfileSummary>({
     mutationFn: async (owner) => {
       if (!token) throw new ApiError(401, { message: tErr('missingToken') });
-      const id = await resolveInvitationId(token, owner);
+      // P237.01 (TCK-2371) — l'API porte l'invitation en attente sur la ligne. La recherche par
+      // e-mail qu'elle remplace disait « aucune invitation » pour toute panne, et pour un numéro.
+      const id = owner.pending_invitation_id ?? null;
       if (id === null) throw new ApiError(404, { message: tErr('noPendingInvitation') });
       // TCK-1203 — relancer exige la 2FA de l'agence (`InvitationController@resend`).
       return avecGardeDoubleFacteur(() => resendInvitation(token, id), garde);
@@ -141,7 +145,7 @@ export function OwnersList({ agencyId, canInvite, initialData, canRevealSensitiv
   const revokeMutation = useMutation<unknown, ApiError, OwnerProfileSummary>({
     mutationFn: async (owner) => {
       if (!token) throw new ApiError(401, { message: tErr('missingToken') });
-      const id = await resolveInvitationId(token, owner);
+      const id = owner.pending_invitation_id ?? null;
       if (id === null) throw new ApiError(404, { message: tErr('noPendingInvitation') });
       return avecGardeDoubleFacteur(() => revokeInvitation(token, id), garde);
     },
@@ -160,7 +164,8 @@ export function OwnersList({ agencyId, canInvite, initialData, canRevealSensitiv
 
   /**
    * Les colonnes, dans l'ORDRE EXACT de la table faite main qu'elles remplacent
-   * (nom · e-mail · statut · actions). L'ordre est éprouvé par test : une colonne perdue
+   * (nom · e-mail · statut · actions), plus deux ajouts délibérés : le téléphone saisi à
+   * l'invitation (P234.04) et les identifiants (TCK-601). L'ordre est éprouvé par test : une colonne perdue
    * à la conversion ne se voit pas dans un diff de quarante lignes.
    */
   const colonnes: readonly DataTableColumn<OwnerProfileSummary>[] = [
@@ -187,6 +192,14 @@ export function OwnersList({ agencyId, canInvite, initialData, canRevealSensitiv
       header: t('page.columns.email'),
       className: 'text-muted-foreground',
       cell: (owner) => owner.user?.email ?? owner.metadata?.email ?? '—',
+    },
+    {
+      // P234.04 (TCK-2280) — le numéro saisi par l'agence à l'invitation : une donnée de SA fiche,
+      // jamais posée sur le compte. Ajout délibéré, entre l'e-mail et les identifiants.
+      id: 'phone',
+      header: t('page.columns.phone'),
+      className: 'whitespace-nowrap text-muted-foreground tabular-nums',
+      cell: (owner) => (owner.metadata?.phone ? formaterTelephone(owner.metadata.phone) : '—'),
     },
     {
       id: 'identifiers',
@@ -373,49 +386,11 @@ function OwnerIdentifiersCell({
   );
 }
 
-/** TCK-1323 (P117.05) — la raison sociale d'un bailleur société, `null` pour un particulier. */
-function raisonSocialeDe(owner: OwnerProfileSummary): string | null {
-  const meta = owner.metadata ?? null;
-  if (meta?.owner_type !== 'company') return null;
-  const raison = meta.company_name?.trim();
-  return raison ? raison : null;
-}
-
 /** Le nom composé, seule logique propre à l'ancienne `OwnerRow` qui survivait à la conversion. */
 function nomDe(owner: OwnerProfileSummary): string {
   const meta = owner.metadata ?? null;
-  return owner.user
-    ? `${owner.user.first_name ?? ''} ${owner.user.last_name ?? ''}`.trim()
-    : `${meta?.first_name ?? ''} ${meta?.last_name ?? ''}`.trim();
-}
-
-/**
- * Resolve the latest pending invitation for this draft profile. The
- * owners listing endpoint doesn't include the invitation id (sparse
- * fieldset), so we look it up via the generic invitation listing scoped
- * to the same email + agency.
- */
-async function resolveInvitationId(
-  token: string,
-  owner: OwnerProfileSummary,
-): Promise<number | null> {
-  const email = owner.user?.email ?? owner.metadata?.email ?? null;
-  if (!email) return null;
-
-  const qs = buildQueryString({
-    fields: { invitations: ['id', 'email', 'status', 'agency_id'] },
-    filter: { email, status: 'sent', agency_id: owner.agency_id },
-    sort: '-created_at',
-    per_page: 1,
-  });
-
-  try {
-    const json = await apiRequest<{ data: Array<{ id: number }> }>(
-      `/api/invitations${qs ? `?${qs}` : ''}`,
-      { token },
-    );
-    return json.data?.[0]?.id ?? null;
-  } catch {
-    return null;
-  }
+  // TCK-2136 (P220.06) — un compte lié sans nom (créé par téléphone) laisse place au nom saisi
+  // par l'agence à l'invitation, rangé dans `metadata`.
+  const compte = `${owner.user?.first_name ?? ''} ${owner.user?.last_name ?? ''}`.trim();
+  return compte || `${meta?.first_name ?? ''} ${meta?.last_name ?? ''}`.trim();
 }

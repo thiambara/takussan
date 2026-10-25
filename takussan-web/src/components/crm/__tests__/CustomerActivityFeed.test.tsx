@@ -68,4 +68,26 @@ describe('CustomerActivityFeed', () => {
     expect(await screen.findByText("Aucune activité pour l'instant.")).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Réessayer' })).not.toBeInTheDocument();
   });
+
+  it('TCK-2093 — deux pages décalées d’une insertion entre deux lectures : chaque ligne est rendue une fois', async () => {
+    const ligne = (id: number) => ({
+      id,
+      subject: 'note',
+      subject_id: 7,
+      event: 'created',
+      causer: { id: 2, name: `Agent ${id}` },
+      changes: {},
+      created_at: `2026-10-0${id}T10:00:00Z`,
+    });
+    // Page 1 lue : 3, 2. Une entrée 4 est journalisée, puis « Voir plus » lit la page 2 décalée : 2, 1.
+    fetchCustomerActivity.mockResolvedValueOnce({ data: [ligne(3), ligne(2)], meta: { current_page: 1, last_page: 2, per_page: 2, total: 3 } });
+    fetchCustomerActivity.mockResolvedValueOnce({ data: [ligne(2), ligne(1)], meta: { current_page: 2, last_page: 2, per_page: 2, total: 4 } });
+    rendu();
+
+    await userEvent.setup().click(await screen.findByRole('button', { name: 'Voir plus' }));
+    expect(await screen.findByText(/Agent 1/)).toBeInTheDocument();
+
+    expect(screen.getAllByText(/Agent 2/)).toHaveLength(1);
+    expect(screen.getByTestId('customer-activity').querySelectorAll('li')).toHaveLength(3);
+  });
 });

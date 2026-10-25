@@ -26,9 +26,9 @@ use Illuminate\Support\Facades\DB;
  *     chemin d'octroi d'un PlatformProfile.
  *   - agency_admin / agent / owner → dans l'agence du user, supprime les
  *     profils agence-scopés concurrents et matérialise le profil cible.
- *   - tenant / customer / service_provider → rôles dérivés en P1 ; le PUT
- *     ne crée pas de profil pour eux (le frontend doit utiliser les flows
- *     dédiés — invitation/booking/lease).
+ *   - tenant / customer / service_provider → refusés (422) : TCK-2372 (P249.01). Le PUT ne
+ *     crée pas de profil pour eux et rendait 200 sans rien changer ; ils s'obtiennent par leurs
+ *     flux dédiés (invitation, réservation, bail).
  *
  * Rules :
  *   - Only `agency_admin` (within the target user's agency) or
@@ -88,7 +88,11 @@ class UserRoleController extends Controller
                 // TCK-278 — `roles` est dérivé des profils polymorphes
                 // (cf. Règle 5) ; expose-le pour rétro-compat des clients
                 // qui utilisaient la sortie spatie.
-                'roles' => $user->fresh()->profileTypes()->all(),
+                // TCK-2004 (P176.04 ; ADR-0005, amendement du 2026-10-23, point 4) — rapporté à
+                // l'agence où le rôle vient d'être posé, qui tient lieu d'agence de la route : rien
+                // de ce que la cible tient dans une autre agence.
+                'roles' => $user->fresh()->memberProfileTypesAt((int) $targetAgencyId)->all(),
+                'role_statuses' => (object) $user->fresh()->profileStatusesAt((int) $targetAgencyId),
             ],
         ]);
     }
@@ -146,9 +150,6 @@ class UserRoleController extends Controller
             'agency_admin' => $this->setAgencyAdmin($user, $agencyId),
             'agent' => $this->setAgent($user, $agencyId),
             'owner' => $this->setOwner($user, $agencyId),
-            // tenant / customer / service_provider : pas de profil
-            // canonique en P1 ; no-op (le rôle est dérivé).
-            default => null,
         };
     }
 

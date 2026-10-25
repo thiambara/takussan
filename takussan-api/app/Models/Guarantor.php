@@ -30,7 +30,7 @@ class Guarantor extends AbstractModel
         'first_name', 'last_name', 'phone', 'email',
         'id_type', 'id_number', 'occupation', 'employer',
         'monthly_income', 'relationship_to_tenant',
-        'added_by_id', 'notes', 'metadata',
+        'added_by_id', 'agency_id', 'notes', 'metadata',
     ];
 
     protected $casts = [
@@ -43,6 +43,15 @@ class Guarantor extends AbstractModel
     public function addedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'added_by_id');
+    }
+
+    /**
+     * TCK-1993 (P175.01) — l'agence de la caution, posée à sa création : elle ne dépend plus de la
+     * vie de son auteur. Nulle pour une caution ajoutée hors de toute agence.
+     */
+    public function agency(): BelongsTo
+    {
+        return $this->belongsTo(Agency::class);
     }
 
     public function leases(): HasMany

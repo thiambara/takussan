@@ -6,6 +6,7 @@ use App\Exceptions\ApiError;
 use App\Models\Agency;
 use App\Models\Conversation;
 use App\Models\ConversationParticipant;
+use App\Models\Enums\ConversationType;
 use App\Models\Enums\RoleDelegationStatus;
 use App\Models\Lease;
 use App\Models\Profiles\AgencyAdminProfile;
@@ -89,15 +90,8 @@ class AgencyMemberRemovalService
                 $removed[] = 'agency_admin';
             }
 
-            RoleDelegation::query()
-                ->where('agency_id', $agencyId)
-                ->where(fn ($q) => $q->where('user_id', $member->id)->orWhere('replaces_user_id', $member->id))
-                ->whereIn('status', [RoleDelegationStatus::Scheduled, RoleDelegationStatus::Active])
-                ->get()
-                ->each(fn (RoleDelegation $d) => $this->delegations->revoke($d, $actor));
-
+            $this->dropDelegationsAndMarks($member, $agencyId, $actor);
             $this->feeds->revoke($member, $agencyId);
-            $this->dropPrimaryMarks($member, $agencyId);
             $this->leaveUnreadableLeaseThreads($member, $agencyId);
 
             activity('Membership')
@@ -140,6 +134,41 @@ class AgencyMemberRemovalService
             ->get()
             ->reject(fn (ConversationParticipant $p) => $p->conversation?->lease !== null && $retire->can('view', $p->conversation->lease))
             ->each(fn (ConversationParticipant $p) => $p->forceFill(['left_at' => now()])->save());
+
+        // P191.02 (TCK-2021) — de même pour un groupe rattaché au seul bien (sans bail) d'un bien de
+        // l'agence, jugé par `PropertyPolicy::view` : `NewGroupDialog` ouvre de tels groupes.
+        ConversationParticipant::query()
+            ->where('user_id', $member->id)
+            ->whereNull('left_at')
+            ->whereIn('conversation_id', Conversation::query()
+                ->where('type', ConversationType::Group->value)
+                ->whereNull('lease_id')
+                ->whereIn('property_id', Property::withTrashed()->where('agency_id', $agencyId)->select('id'))
+                ->select('id'))
+            ->with(['conversation.property' => fn ($q) => $q->withTrashed()])
+            ->get()
+            ->reject(fn (ConversationParticipant $p) => $p->conversation?->property !== null && $retire->can('view', $p->conversation->property))
+            ->each(fn (ConversationParticipant $p) => $p->forceFill(['left_at' => now()])->save());
+    }
+
+    /**
+     * TCK-2172 (P204.05, décision du porteur du 2026-10-24) — LA méthode commune au retrait et à
+     * l'effacement (`AccountDeletionService::anonymize()`) : les délégations de rôle où figure le
+     * membre (délégué ou remplacé) sont révoquées (ADR-0035), et ses marques d'agent principal
+     * tombent (TCK-1333). `$agencyId` nul : dans toutes les agences — l'effacement. Le référent
+     * client reste un sujet à part.
+     */
+    public function dropDelegationsAndMarks(User $member, ?int $agencyId, User $actor): void
+    {
+        RoleDelegation::query()
+            ->when($agencyId !== null, fn ($q) => $q->where('agency_id', $agencyId))
+            ->where(fn ($q) => $q->where('user_id', $member->id)->orWhere('replaces_user_id', $member->id))
+            ->whereIn('status', [RoleDelegationStatus::Scheduled, RoleDelegationStatus::Active])
+            ->orderBy('id')
+            ->get()
+            ->each(fn (RoleDelegation $d) => $this->delegations->revoke($d, $actor));
+
+        $this->dropPrimaryMarks($member, $agencyId);
     }
 
     /**
@@ -148,12 +177,12 @@ class AgencyMemberRemovalService
      * (TCK-1253). La ligne reste — seule la marque part. Les biens sont verrouillés d'abord, par
      * identifiant croissant (ADR-0059 §3 : bien → lignes, l'ordre de `PrimaryAgentDesignator`).
      */
-    private function dropPrimaryMarks(User $member, int $agencyId): void
+    private function dropPrimaryMarks(User $member, ?int $agencyId): void
     {
         $marked = fn () => PropertyCollaborator::query()
             ->where('user_id', $member->id)
             ->where('is_primary', true)
-            ->whereIn('property_id', Property::withTrashed()->where('agency_id', $agencyId)->select('id'));
+            ->when($agencyId !== null, fn ($q) => $q->whereIn('property_id', Property::withTrashed()->where('agency_id', $agencyId)->select('id')));
 
         $propertyIds = $marked()->pluck('property_id')->all();
         if ($propertyIds === []) {

@@ -25,11 +25,17 @@ class DashboardQueryBudgetTest extends ApiTestCase
 {
     use RefreshDatabase;
 
-    /** Valeurs mesurées le 2026-10-08, toutes strictement inférieures à 34. */
+    /**
+     * Valeurs mesurées le 2026-10-08, toutes strictement inférieures à 34. `owner` relevé de 26 à 27
+     * le 2026-10-24 (décision du porteur, TCK-2151) : la lecture des reprises du versé (ADR-0039,
+     * amendement du 2026-10-24) est une requête de plus, constante. `agency` relevé de 29 à 30 le
+     * 2026-10-25 (décision du porteur sur P249.02, TCK-2373) : la lecture de `kpi_configs` pour les
+     * tuiles configurées est une requête de plus, constante.
+     */
     private const CEILINGS = [
-        'owner' => 26,
+        'owner' => 27,
         'agent' => 25,
-        'agency' => 29,
+        'agency' => 30,
     ];
 
     /** @return array<string, array{string, string}> */

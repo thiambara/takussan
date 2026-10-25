@@ -110,7 +110,7 @@ class ContactLeadService
     }
 
     /**
-     * Les délégués ACTIFS (`RoleDelegation::scopeActive`, comme `isStaffAt`) d'un rôle de l'agence.
+     * Les délégués EN VIGUEUR (`RoleDelegation::scopeEnVigueur`, comme `isStaffAt` ; TCK-2202) d'un rôle de l'agence.
      *
      * @return Collection<int,User>
      */
@@ -123,7 +123,7 @@ class ContactLeadService
         return RoleDelegation::query()
             ->where('agency_id', $agencyId)
             ->where('role', $role->value)
-            ->active()
+            ->enVigueur()
             ->with('user')
             ->get()
             ->pluck('user')
@@ -261,6 +261,11 @@ class ContactLeadService
             if ($fresh->agency_id === null) {
                 abort_code(422, 'lead.without_agency');
             }
+
+            // TCK-2054 (ADR-0073) — après la ligne de la demande, le verrou consultatif de la fiche :
+            // deux demandes du même visiteur converties en même temps ne passent plus toutes deux
+            // le détecteur.
+            CustomerDuplicateDetector::lockCreation((int) $fresh->agency_id, $fresh->phone, $fresh->email);
 
             if (! $allowDuplicate) {
                 $this->refuseDuplicate($fresh, $actor);

@@ -402,11 +402,30 @@ describe('TCK-335 / TCK-438 — aucune fiche à slug ne vit sous une frontière 
     // Mesuré le 2026-08-27 : un `notFound()` levé depuis `<segment>/layout.tsx` est attrapé par la
     // frontière du segment PARENT. Un `layout.tsx` apparu ici rendrait donc silencieusement mort le
     // `not-found.tsx` voisin — un écran que plus rien ne rend, qu'aucun type ne signale.
+    //
+    // ⚠ Ce qui tue le `not-found.tsx` voisin est le `notFound()` LEVÉ dans le layout, pas le
+    // layout lui-même. Seule exception admise : la frontière de dictionnaire de la fiche
+    // (`properties/[slug]/layout.tsx`, ADR-0022, amendement du 2026-10-25, P69.05), qui ne fait
+    // que monter `IntlProvider`. Mesuré le 2026-10-25 sur `next build` + `next start`, API
+    // factice qui rend 404 : `/fr/properties/<slug inconnu>` rend 404 et le « Bien introuvable »
+    // de `properties/[slug]/not-found.tsx`, AVEC ce layout comme SANS lui.
     for (const segment of ['agencies/[slug]', 'agents/[slug]', 'properties/[slug]']) {
       expect(existsSync(join(PUBLIC, segment, 'not-found.tsx')), `${segment}/not-found.tsx`).toBe(
         true,
       );
-      expect(fichiersDe(join(PUBLIC, segment)), `${segment}/layout.tsx`).not.toContain('layout.tsx');
+      if (segment !== 'properties/[slug]') {
+        expect(fichiersDe(join(PUBLIC, segment)), `${segment}/layout.tsx`).not.toContain('layout.tsx');
+        continue;
+      }
+      const layout = join(PUBLIC, segment, 'layout.tsx');
+      if (!existsSync(layout)) continue;
+      const source = sourceSansCommentaires(layout);
+      expect(source, `${segment}/layout.tsx doit rester une frontière de dictionnaire`).toMatch(
+        /messagesPour\(\s*'\[locale\]\/\(public\)\/properties\/\[slug\]'\s*\)/,
+      );
+      expect(source, `${segment}/layout.tsx lève notFound() : son not-found.tsx devient mort`).not.toMatch(
+        /\bnotFound\s*\(/,
+      );
     }
   });
 });

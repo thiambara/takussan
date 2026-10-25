@@ -4,7 +4,6 @@ namespace App\Listeners\Maintenance;
 
 use App\Events\Maintenance\MaintenanceStatusChanged;
 use App\Models\Conversation;
-use App\Models\Enums\ConversationType;
 use App\Models\MaintenanceRequest;
 use App\Models\User;
 use App\Services\Messaging\GroupConversationService;
@@ -38,7 +37,8 @@ class SyncMaintenanceConversation
         // pu charger la relation avant que `assigned_to` change, et le fil gardait alors l'ancien
         // prestataire (et remettait celui qui refuse).
         $mr = $event->maintenanceRequest->loadMissing(['property', 'requester'])->load('assignee');
-        $conversation = self::conversationFor($mr);
+        // TCK-2372 (P250.03) — le fil se lit par la relation seule, relue (jamais la copie chargée).
+        $conversation = $mr->conversation()->first();
 
         if ($conversation === null) {
             if ($event->cause !== MaintenanceStatusChanged::CAUSE_ASSIGNED || $mr->assignee === null) {
@@ -62,15 +62,6 @@ class SyncMaintenanceConversation
                 ? $mr->assignee
                 : User::query()->find($event->context['previous_assignee_id'] ?? $mr->assigned_to)),
         ]);
-    }
-
-    public static function conversationFor(MaintenanceRequest $mr): ?Conversation
-    {
-        return Conversation::query()
-            ->where('maintenance_request_id', $mr->id)
-            ->where('type', ConversationType::Group->value)
-            ->oldest('id')
-            ->first();
     }
 
     private function open(MaintenanceRequest $mr, ?User $actor): Conversation

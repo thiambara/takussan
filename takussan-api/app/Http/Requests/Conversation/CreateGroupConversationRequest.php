@@ -5,7 +5,6 @@ namespace App\Http\Requests\Conversation;
 use App\Http\Requests\BaseFormRequest;
 use App\Http\Requests\Conversation\Concerns\GuardsConversationScope;
 use App\Models\Lease;
-use App\Models\MaintenanceRequest;
 use App\Models\Property;
 use App\Models\User;
 use App\Rules\ParticipantIdsRule;
@@ -29,9 +28,10 @@ use Illuminate\Validation\Validator;
  *
  *  - les participants doivent être JOIGNABLES ({@see MessagingReach} — la règle même que liste le
  *    sélecteur du front, `GET /api/conversations/contacts`) ;
- *  - le bien, le bail et la demande d'intervention rattachés doivent être VISIBLES de l'acteur
- *    (leurs policies `view`). Ce n'est pas qu'une question de lecture : `AddParticipantsRequest`
- *    ouvre ensuite l'ajout de participants à toute l'agence du bien rattaché.
+ *  - le bien et le bail rattachés doivent être VISIBLES de l'acteur (leurs policies `view`). Ce
+ *    n'est pas qu'une question de lecture : `AddParticipantsRequest` ouvre ensuite l'ajout de
+ *    participants à toute l'agence du bien rattaché. La demande d'intervention, elle, ne se
+ *    rattache plus à un groupe créé à la main (TCK-2372, P250.03 : voir `rules()`).
  *
  * ⚠️ Réparation 2 (vérificateur, 2026-09-23) : ce docblock disait déjà « les deux sont désormais
  * vérifiés », et c'était faux EN PRATIQUE — une conversation directe, qui ne vérifiait rien, faisait
@@ -67,7 +67,11 @@ class CreateGroupConversationRequest extends BaseFormRequest
             // visibilité ensemble, avec un seul message pour les deux.
             'property_id' => ['nullable', 'integer'],
             'lease_id' => ['nullable', 'integer'],
-            'maintenance_request_id' => ['nullable', 'integer'],
+            // TCK-2372 (P250.03, décision du porteur du 2026-10-25) — refusé : le fil d'une
+            // intervention est le plus ancien groupe qui la porte (`MaintenanceRequest::conversation()`),
+            // et seule l'assignation le crée (`SyncMaintenanceConversation`, par le service). Un groupe
+            // créé à la main avant elle devenait ce fil, avec ses propres participants.
+            'maintenance_request_id' => ['prohibited'],
             'initial_message' => ['nullable', 'string', 'max:5000'],
         ];
     }
@@ -94,6 +98,15 @@ class CreateGroupConversationRequest extends BaseFormRequest
 
             $this->checkParticipants($v, $actor);
             $this->checkContext($v, $actor);
+            // TCK-2191 (P191.04) — après le contexte : un bail que l'acteur ne voit pas est déjà refusé.
+            if (! $v->errors()->has('lease_id')) {
+                $this->guardLeaseReaders(
+                    $v,
+                    $this->input('lease_id'),
+                    (array) $this->input('participants', []),
+                    'participants',
+                );
+            }
         });
     }
 
@@ -111,12 +124,10 @@ class CreateGroupConversationRequest extends BaseFormRequest
         $this->guardContext($v, $actor, [
             'property_id' => Property::class,
             'lease_id' => Lease::class,
-            'maintenance_request_id' => MaintenanceRequest::class,
         ], 'messaging.errors.group_context_forbidden');
         // L'ordre est un contrat (tenu par `GroupConversationCreationTest`) : la visibilité
         // d'abord, puis la cohérence entre contextes déjà visibles — jamais « ne concerne pas »
         // d'un élément qu'on ne peut pas voir.
         $this->guardLeaseMatchesProperty($v);
-        $this->guardMaintenanceMatchesContext($v);
     }
 }

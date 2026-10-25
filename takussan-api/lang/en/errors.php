@@ -18,6 +18,7 @@ return [
     ],
     'activity_log' => [
         'export_too_large' => 'Too many rows to export: narrow the filters.',
+        'export_needs_email' => 'This export exceeds 5,000 rows: it is prepared and then sent by e-mail. Add an e-mail address to your account, or narrow the filters.',
         'export_link_invalid' => 'Expired or invalid link.',
         'date_range_inverted' => 'date_from must be before or equal to date_to.',
         'date_range_too_long' => 'Date range must not exceed 1 year.',
@@ -25,7 +26,7 @@ return [
     'agency' => [
         'active_profile_missing' => 'No active agency profile.',
         'admin_email_taken' => 'An account already exists with this administrator email.',
-        'already_administered' => 'You already administer an agency.',
+        'admin_phone_taken' => 'An account already exists with this verified manager phone number.',
         'context_missing' => 'No active agency.',
         'id_required' => 'The agency must be specified.',
         'individual_no_custom_roles' => 'Individual agencies don\'t have custom roles.',
@@ -90,6 +91,8 @@ return [
         'property_unavailable' => 'This property is not available for booking.',
     ],
     'booking_payment' => [
+        'booking_not_payable' => 'This booking is no longer pending or confirmed: it can no longer be paid.',
+        'exceeds_remaining' => 'This amount exceeds what is left to pay on the booking (:remaining).',
         'nothing_due' => 'This booking is fully paid: nothing is left to pay.',
         'receipt_unpaid' => 'The receipt is only available for a settled payment.',
         'refund_exceeds_paid' => 'The refund cannot exceed the amount paid.',
@@ -135,6 +138,9 @@ return [
     'customer' => [
         'attached_to_open_lease' => 'This customer is the tenant of a lease awaiting signature or in force: they cannot be deleted while that lease is open.',
         'duplicate' => 'A customer of your agency already has this phone number or email address.',
+        // P15.01 (TCK-2351) — inviter le client de la fiche à créer son compte.
+        'invite_already_linked' => 'This record is already linked to an account: there is no one to invite.',
+        'invite_no_contact' => 'This record has no contact detail to send the invitation to: add an email address.',
         'pipeline_stage_invalid' => 'Invalid pipeline stage.',
     ],
     'dashboard' => [
@@ -149,11 +155,13 @@ return [
         'exceeds_remaining' => 'Amount exceeds the remaining deposit balance.',
         'lease_not_ended' => 'The lease must be terminated or expired to refund the deposit.',
         'no_deposit' => 'No deposit amount to refund.',
+        'not_collected' => 'No deposit has been collected for this lease: there is nothing to refund.',
         'reason_required' => 'A reason is required for a partial refund.',
     ],
     'document' => [
         'file_missing' => 'No file is attached to this document.',
         'owner_not_found' => 'The item to attach the document to was not found.',
+        'profile_piece_not_versioned' => 'A profile document cannot be versioned: upload it again from your profile.',
         'pdf_template_missing' => 'The document template was not found.',
         'pdf_uploader_missing' => 'The document cannot be generated without an author.',
         'unsupported_type' => 'This kind of item cannot hold documents.',
@@ -242,8 +250,11 @@ return [
         'tenant_not_found' => 'The lease tenant was not found.',
     ],
     'invitation' => [
+        'already_member' => 'This account is already a member of the agency with this profile: the invitation has nothing to add.',
         'sms_daily_cap_reached' => 'The agency\'s daily limit of SMS invitations has been reached. Try again tomorrow, or invite by email.',
         'phone_mismatch' => 'This number is not the one the invitation was sent to.',
+        'profile_unavailable' => 'The profile this invitation targets is no longer available (suspended or inactive). Ask the agency for a new invitation.',
+        'service_provider_profile_exists' => 'This account already has a service provider profile. Ask the agency to invite you at this account\'s email or number: the invitation will then join that profile.',
         'email_mismatch' => 'The logged-in account email does not match this invitation.',
         'requires_login' => 'This email maps to an existing account. Please log in to accept the invitation.',
         'token_accepted' => 'This invitation has already been accepted.',
@@ -251,6 +262,8 @@ return [
         'token_not_found' => 'This invitation cannot be found.',
         'token_revoked' => 'This invitation has been revoked.',
         'token_sent' => 'This invitation is still pending acceptance.',
+        // P15.01 (TCK-2351) — la fiche visée a reçu un autre compte depuis l'envoi.
+        'tenant_already_linked' => 'This record has been linked to another account since the invitation was sent. Ask the agency for a new invitation.',
     ],
     'invoice' => [
         'amount_too_large' => 'The invoice total exceeds the largest amount that can be recorded.',
@@ -258,7 +271,9 @@ return [
         'cannot_mark_paid' => 'This invoice cannot be marked paid in its current state.',
         'foreign_target' => 'This lease or booking does not belong to the invoice\'s agency.',
         'not_draft_send' => 'Only a draft invoice can be sent.',
+        'recipient_mismatch' => 'The invoice recipient must be the booking\'s customer or the lease\'s tenant.',
         'status_transition_invalid' => 'This invoice status change is not allowed.',
+        'target_not_billable' => 'A cancelled, rejected or expired booking, or an unsigned lease, cannot be invoiced.',
         'target_not_found' => 'The item to invoice was not found.',
         'unsupported_target' => 'This kind of item cannot be invoiced.',
     ],
@@ -290,6 +305,8 @@ return [
         'renewal_parent_not_renewable' => 'The renewed lease is no longer in force (notice given or terminated): this renewal can no longer take effect. Terminate it, then create another one if needed.',
         'schedule_exists' => 'The payment schedule has already been generated.',
         'terms_locked' => 'The terms of a signed lease can no longer be changed: draw up an amendment or a new lease.',
+        // P48.03 (TCK-2352) — le bail tiré d'une réservation.
+        'tenant_not_booking_customer' => 'The tenant of a lease created from a booking is the customer of that booking.',
     ],
     'lease_signature' => [
         'already_signed' => 'You have already signed this contract.',
@@ -301,6 +318,7 @@ return [
         'resend_too_soon' => 'A code was just sent: wait a minute before asking for another one.',
         'terms_changed' => 'The lease changed while the contract was being prepared: nothing was frozen. Request the signature again.',
         'sms_not_sent' => 'The code could not be sent by SMS: try again in a minute, or contact support.',
+        'no_destination' => 'There is no way to send you the code: verify your phone number from your profile, then try again.',
         'tenant_without_account' => 'The tenant of this lease has no account: sign on paper and attach the scanned contract.',
     ],
     'lease_payment' => [
@@ -311,6 +329,7 @@ return [
         'lease_not_active' => 'Only an active lease, or one under notice, can take a payment line.',
         'receipt_not_a_payment' => 'A refunded deposit is not a tenant payment: it has no receipt.',
         'receipt_unpaid' => 'A rent receipt is only issued for a paid rent.',
+        'type_from_schedule' => 'Rent and deposit lines come from the lease schedule: this entry only takes charges, regularizations and penalties.',
     ],
     'mail' => [
         'invitation_not_sent' => 'The invitation email could not be sent.',
@@ -363,6 +382,9 @@ return [
         'owner_not_owner' => 'You do not have access to this owner profile.',
         'service_provider_not_owner' => 'You cannot edit this service provider profile.',
         'service_provider_suspended' => 'This service provider profile is suspended: completing onboarding does not reactivate it.',
+    ],
+    'password_reset' => [
+        'invalid_link' => 'This reset link is invalid or has expired. Request a new one.',
     ],
     'payment' => [
         'amount_not_positive' => 'The amount to pay must be positive.',
@@ -461,11 +483,17 @@ return [
         'cannot_publish' => 'Sold or rented properties cannot be published.',
         'cannot_unpublish' => 'Only available properties can be unpublished.',
         'collaborator_exists' => 'This collaborator is already added to this property.',
+        'commission_share_forbidden' => 'Only agency staff allowed to open leases can set a collaborator\'s commission share.',
         'collaborator_not_found' => 'This collaborator is not part of this property.',
         'has_confirmed_booking' => 'This property has a confirmed booking: cancel it before deleting the property.',
         'has_upcoming_visit' => 'This property has an upcoming visit: cancel it before deleting the property.',
         'not_found' => 'Property not found.',
         'not_pending_moderation' => 'The property is not awaiting moderation.',
+        'owner_designation_forbidden' => 'The landlord cannot be chosen here: only the staff of a standard agency saves a property in the name of one of its landlords.',
+        'owner_not_in_agency' => 'The chosen landlord is not an active landlord of the property\'s agency.',
+        'parent_owner_mismatch' => 'A unit belongs to the landlord of the property that contains it: this unit has another holder.',
+        'owner_transfer_forbidden' => 'This property cannot change holder: it already belongs to a landlord of the agency, and a property is never taken from its landlord.',
+        'pending_owner_not_invited' => 'This landlord is not a pending invitation of the property\'s agency: invite them first, or choose a registered landlord.',
         'primary_not_eligible' => 'Only an active agent of the property\'s agency can be its primary agent.',
         'primary_requires_agent' => 'Only a collaborator with the agent role can be the property\'s primary agent.',
         'publish_contact_incomplete' => 'To publish, the property contact needs a first name and a verified number, and the terms of use must be accepted.',
@@ -521,6 +549,7 @@ return [
         'already_in_payout' => 'This maintenance bill is already in an ongoing payout.',
         'not_payable' => 'Only a validated maintenance bill can be paid.',
         'not_pending' => 'This maintenance bill is no longer awaiting validation.',
+        'request_not_completed' => 'The work on this maintenance request is not delivered (contested, resumed or cancelled): its bill cannot be validated, paid or recharged.',
     ],
     'session' => [
         'cannot_revoke_current' => 'The current session cannot be revoked: sign out instead.',
@@ -547,6 +576,7 @@ return [
     'support' => [
         'account_not_locked' => 'This account is not locked.',
         'cannot_revoke_current' => 'Your own current session cannot be revoked.',
+        'no_email' => 'This account has no email address: no reset link can be sent to it.',
         'no_revocable_session' => 'No session to revoke.',
         'target_super_admin' => 'Support actions cannot target another super administrator.',
         'two_factor_already_disabled' => 'Two-factor authentication is already disabled.',

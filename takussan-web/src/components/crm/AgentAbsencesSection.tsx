@@ -14,6 +14,8 @@ import { ApiError } from '@/lib/api';
 import { avecGardeDoubleFacteur } from '@/lib/double-facteur';
 import { useGardeDoubleFacteur } from '@/components/auth/garde-double-facteur-contexte';
 import { formatDate } from '@/lib/format';
+import { decalerJour, jourDeLApi } from '@/lib/jour-de-l-api';
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import {
   AGENT_CRM_QUERY_KEY,
   declareAbsence,
@@ -22,6 +24,13 @@ import {
   revokeAbsence,
 } from '@/lib/queries/agent-crm';
 import type { AgentAbsence } from '@/types/agent-crm';
+
+/**
+ * Miroir de `config('role_delegations.max_duration_days')`, que juge `StoreAgentAbsenceRequest`
+ * (`before_or_equal:` l'instant `now()->addDays(366)`). Indice de saisie, pas garde : le refus
+ * reste à l'API, que l'écran affiche.
+ */
+const DUREE_MAX_JOURS = 366;
 
 interface AgentAbsencesSectionProps {
   readonly agencyId: number;
@@ -50,6 +59,9 @@ export function AgentAbsencesSection({ agencyId, currentUserId }: AgentAbsencesS
   const [substituteId, setSubstituteId] = useState('');
   const [endsOn, setEndsOn] = useState('');
   const [reason, setReason] = useState('');
+  // L'écran envoie le soir du jour choisi, lu en UTC par l'API : `after:now` l'ouvre au jour de
+  // l'API, et l'instant J+366 le ferme au soir de J+365, J+366 au soir le dépassant (P230.03).
+  const [premierJour] = useState(() => jourDeLApi());
 
   const absences = useQuery<AgentAbsence[], ApiError>({
     queryKey: AGENT_CRM_QUERY_KEY.absences(agencyId),
@@ -87,6 +99,7 @@ export function AgentAbsencesSection({ agencyId, currentUserId }: AgentAbsencesS
       void refresh();
     },
   });
+  const messageErreur = useMessageErreurApi();
   const revoke = useMutation<void, ApiError, number>({
     mutationFn: (id) => avecGardeDoubleFacteur(() => revokeAbsence(token ?? '', agencyId, id), garde),
     onSuccess: () => void refresh(),
@@ -122,9 +135,10 @@ export function AgentAbsencesSection({ agencyId, currentUserId }: AgentAbsencesS
           {rows.map((a) => (
             <li key={a.id} className="flex flex-wrap items-center justify-between gap-2">
               <span>
+                {/* P235.02 (TCK-2369) — `||` : un nom vide ne laisse pas de trou dans la phrase. */}
                 {t('row', {
-                  absent: a.absent?.name ?? '—',
-                  substitute: a.substitute?.name ?? '—',
+                  absent: a.absent?.name || '—',
+                  substitute: a.substitute?.name || '—',
                   until: formatDate(a.ends_at, locale),
                 })}
               </span>
@@ -137,6 +151,10 @@ export function AgentAbsencesSection({ agencyId, currentUserId }: AgentAbsencesS
           ))}
         </ul>
       )}
+      {/* P228.05 (TCK-2218) — une levée refusée (403, step-up fermé, réseau) ne disait rien. */}
+      {revoke.isError ? (
+        <p role="alert" className="mt-2 text-sm text-destructive">{messageErreur(revoke.error)}</p>
+      ) : null}
 
       {open ? (
         <form
@@ -177,7 +195,14 @@ export function AgentAbsencesSection({ agencyId, currentUserId }: AgentAbsencesS
           </label>
           <label className="space-y-1 text-sm">
             <span className="font-medium">{t('until')}</span>
-            <Input type="date" required value={endsOn} onChange={(e) => setEndsOn(e.target.value)} />
+            <Input
+              type="date"
+              required
+              min={premierJour}
+              max={decalerJour(premierJour, DUREE_MAX_JOURS - 1)}
+              value={endsOn}
+              onChange={(e) => setEndsOn(e.target.value)}
+            />
           </label>
           <label className="space-y-1 text-sm">
             <span className="font-medium">{t('reason')}</span>

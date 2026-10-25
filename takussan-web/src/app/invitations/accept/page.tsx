@@ -8,6 +8,7 @@ import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 
 import { OnboardingShell } from '@/components/onboarding/OnboardingShell';
+import { lireNomsPreremplis } from '@/lib/invitation-prerempli';
 import { getToken } from '@/lib/session';
 
 import { AccepterInvitation } from './AccepterInvitation';
@@ -26,7 +27,8 @@ export default async function PageAccepterInvitation({
 }) {
   const t = await getTranslations('invitationAccept');
   const { token: jeton } = await searchParams;
-  const connecte = Boolean(await getToken());
+  const session = await getToken();
+  const connecte = Boolean(session);
 
   if (!jeton) {
     return (
@@ -36,9 +38,12 @@ export default async function PageAccepterInvitation({
     );
   }
 
+  // P220.07 (TCK-2281) — connecté et sans nom, le compte confirme le nom saisi par l'agence.
+  const prerempli = session ? await lireNomsPreremplis(jeton, session) : null;
+
   return (
     <OnboardingShell title={t('title')} subtitle={connecte ? t('subtitleSignedIn') : t('subtitleSignedOut')}>
-      <AccepterInvitation jeton={jeton} connecte={connecte} />
+      <AccepterInvitation jeton={jeton} connecte={connecte} prerempli={prerempli} />
     </OnboardingShell>
   );
 }

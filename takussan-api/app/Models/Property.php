@@ -18,11 +18,13 @@ use App\Models\Enums\PropertyType;
 use App\Models\Enums\PropertyVisibility;
 use App\Models\Enums\RentPeriod;
 use App\Models\Enums\TitleType;
+use App\Models\Profiles\OwnerProfile;
 use App\Observers\PropertyObserver;
 use App\Services\Media\AgencyWatermarkContext;
 use App\Services\Media\PhotoConversionFormat;
 use App\Services\Media\WatermarkRequirement;
 use App\Support\DayRange;
+use App\Support\Http\ParametreUnique;
 use App\Support\Search\CleDeQuartier;
 use App\Support\Search\PropertyLabels;
 use Illuminate\Database\Eloquent\Builder;
@@ -70,6 +72,8 @@ class Property extends AbstractModel implements HasMedia
         // TCK-598 — coût d'entrée d'une location mensuelle, et visite virtuelle (lien seulement).
         'deposit_months', 'advance_months', 'agency_fee_months', 'monthly_charges',
         'virtual_tour_url',
+        // TCK-1000 — le bailleur invité pour qui le bien a été saisi, jusqu'à l'acceptation.
+        'pending_owner_profile_id',
     ];
 
     protected $casts = [
@@ -708,7 +712,8 @@ class Property extends AbstractModel implements HasMedia
         });
 
         $filters[] = AllowedFilter::callback('city', function (Builder $q, mixed $value): void {
-            $city = trim((string) $value);
+            // P216.05 (TCK-2244, ADR-0075) — `filter[city][]=…` vaut une ville absente.
+            $city = trim(ParametreUnique::valeur($value) ?? '');
             if ($city === '') {
                 return;
             }
@@ -716,6 +721,14 @@ class Property extends AbstractModel implements HasMedia
             $q->whereHas('address', fn (Builder $address) => $address->where('city', 'like', '%'.$city.'%'));
             // TCK-1401 (P151.01) — texte libre : sans délimiteur, spatie découpe « Diop, Awa » en tableau.
         })->delimiter('');
+
+        // P198.03 (TCK-2036) — « publiés » au sens du catalogue (TCK-1115) : la règle que compte
+        // l'accueil d'agence, et non le seul `visibility = public`, qui garde loués et vendus.
+        $filters[] = AllowedFilter::callback('public', function (Builder $q, mixed $value): void {
+            if (filter_var($value, FILTER_VALIDATE_BOOL)) {
+                $q->public();
+            }
+        });
 
         $filters[] = AllowedFilter::callback('created_from', function (Builder $q, mixed $value): void {
             if ($value !== null && $value !== '') {
@@ -879,6 +892,15 @@ class Property extends AbstractModel implements HasMedia
     public function owner(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    /**
+     * TCK-1000 (ADR-0036, amendement du 2026-10-19, voie 2) — le profil `draft` du bailleur invité
+     * pour qui le bien a été saisi. Effacé à l'acceptation, à la révocation et à l'expiration.
+     */
+    public function pendingOwnerProfile(): BelongsTo
+    {
+        return $this->belongsTo(OwnerProfile::class, 'pending_owner_profile_id');
     }
 
     /**

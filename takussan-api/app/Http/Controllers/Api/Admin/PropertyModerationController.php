@@ -7,9 +7,11 @@ use App\Http\Requests\RejectPropertyRequest;
 use App\Http\Resources\PropertyResource;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Property;
+use App\Policies\PropertyModerationPolicy;
 use App\Services\Property\PropertyModerationService;
 use App\Support\AgencyKindGuard;
 use App\Support\CaseInsensitive;
+use App\Support\Http\ParametreUnique;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -31,7 +33,8 @@ class PropertyModerationController extends Controller
     public function index(Request $request): JsonResponse
     {
         $user = $request->user();
-        abort_unless($user->isSuperAdmin() || ($user->agency_id !== null && $user->isAgencyAdminAt((int) $user->agency_id)), 403);
+        // TCK-2022 (P116.05) — l'admin de l'agence ET `properties.publish`, la règle de l'approbation.
+        abort_unless($user->isSuperAdmin() || ($user->agency_id !== null && app(PropertyModerationPolicy::class)->moderatesAt($user, (int) $user->agency_id)), 403);
 
         $query = Property::query()
             ->with(['owner', 'agency', 'address'])
@@ -46,7 +49,8 @@ class PropertyModerationController extends Controller
             $query->where('agency_id', $activeAgencyId);
         }
 
-        if ($search = $request->string('filter.search')->trim()->value()) {
+        // P216.01 (TCK-2120) — une valeur en liste vaut une valeur absente (TCK-1407), et n'est plus castée.
+        if ($search = trim(ParametreUnique::chaine($request, 'filter.search') ?? '')) {
             // TCK-1840 (P186.02) — `like` nu : sensible à la casse sous PostgreSQL, et `%` y valait
             // un joker. Même forme que TCK-600 (piège n° 9 du CLAUDE.md de l'API).
             $motif = '%'.addcslashes(CaseInsensitive::fold($search), '\\%_').'%';

@@ -2,28 +2,16 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Events\Onboarding\SpaceCreated;
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\AgencyUpdateRequest;
-use App\Http\Requests\Api\AddAgentAgencyRequest;
 use App\Http\Requests\Api\ConfirmPayoutThresholdRequest;
-use App\Http\Requests\Api\StoreAgencyRequest;
 use App\Http\Resources\AgencyResource;
 use App\Http\Resources\UserResource;
 use App\Models\Agency;
-use App\Models\Enums\AgencyAdminProfileStatus;
-use App\Models\Enums\AgencyStatus;
-use App\Models\Enums\AgentProfileStatus;
 use App\Models\Enums\CollaborationStatus;
-use App\Models\Enums\Currency;
-use App\Models\Profiles\AgencyAdminProfile;
-use App\Models\Profiles\AgentProfile;
 use App\Models\User;
 use App\Services\Agency\AgencyMemberRemovalService;
-use App\Services\Billing\QuotaResolver;
-use App\Services\Membership\ProfileMaterializer;
 use App\Services\Payout\PayoutApprovalThreshold;
-use App\Support\AgencyKindGuard;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -42,31 +30,6 @@ class AgencyController extends Controller
             ->paginate();
 
         return $this->paginated($paginator, AgencyResource::collection($paginator)->toArray($request));
-    }
-
-    public function store(StoreAgencyRequest $request): JsonResponse
-    {
-        $user = $request->user();
-
-        $alreadyOwns = Agency::where('primary_admin_id', $user->id)->exists();
-        abort_code_if(
-            $alreadyOwns && ! ($user->isSuperAdmin()),
-            422,
-            'agency.already_administered'
-        );
-
-        $data = $request->validated();
-
-        $agency = Agency::create(array_merge($data, [
-            'primary_admin_id' => $user->id,
-            'currency' => $data['currency'] ?? Currency::default()->value,
-            'status' => AgencyStatus::Active->value,
-        ]));
-        // TCK-633 lot F (ADR-0061 §3) — un espace qui naît ici, d'un titulaire au numéro déjà
-        // vérifié, reçoit sa bienvenue : aucun `PhoneVerified` ne viendra plus la rattraper.
-        SpaceCreated::dispatch($agency);
-
-        return $this->json(['data' => AgencyResource::make($agency)->resolve($request)], 201);
     }
 
     public function show(Request $request, Agency $agency): JsonResponse
@@ -88,7 +51,8 @@ class AgencyController extends Controller
         // `{"message":"This action is unauthorized."}` — une phrase ANGLAISE
         // que le front affiche telle quelle (`ApiError::displayMessage`) dans
         // une UI française. Dédupliquer ne doit rien changer d'observable.
-        abort_unless($request->user()->can('update', $agency), 403);
+        // TCK-2024 (P116.02) — modifier la fiche, c'est CONFIGURER l'agence : `agency.update` en plus.
+        abort_unless($request->user()->can('configure', $agency), 403);
 
         $data = $request->validated();
 
@@ -108,24 +72,32 @@ class AgencyController extends Controller
         // autres (un filigrane désactivé revenait à son défaut). Une clé envoyée à `null` est
         // retirée, donc rendue au défaut écrit dans le code. TCK-589 en dépend aussi : poser
         // `require_team_two_factor` seul n'efface pas les autres réglages.
-        if (array_key_exists('settings', $data)) {
-            $data['settings'] = array_filter(
-                array_replace($agency->settings ?? [], $data['settings']),
-                fn ($value) => $value !== null,
-            );
-        }
+        //
+        // P245.04 (TCK-2362) — la fusion se fait sur la ligne RELUE sous verrou : faite sur l'agence
+        // liée à la route, elle effaçait le réglage qu'un autre administrateur venait d'enregistrer.
+        DB::transaction(function () use ($agency, $data): void {
+            /** @var Agency $locked */
+            $locked = Agency::query()->whereKey($agency->getKey())->lockForUpdate()->firstOrFail();
 
-        // TCK-1004 (P49.04) — le changement unique du slug se marque ; renvoyer le slug courant
-        // (le formulaire le fait) ne le consomme pas.
-        if (array_key_exists('slug', $data)) {
-            if ($data['slug'] === $agency->slug) {
-                unset($data['slug']);
-            } else {
-                $agency->metadata = array_replace($agency->metadata ?? [], [Agency::SLUG_CHANGED_AT => $this->instant(now())]);
+            if (array_key_exists('settings', $data)) {
+                $data['settings'] = array_filter(
+                    array_replace($locked->settings ?? [], $data['settings']),
+                    fn ($value) => $value !== null,
+                );
             }
-        }
 
-        $agency->fill($data)->save();
+            // TCK-1004 (P49.04) — le changement unique du slug se marque ; renvoyer le slug courant
+            // (le formulaire le fait) ne le consomme pas.
+            if (array_key_exists('slug', $data)) {
+                if ($data['slug'] === $locked->slug) {
+                    unset($data['slug']);
+                } else {
+                    $locked->metadata = array_replace($locked->metadata ?? [], [Agency::SLUG_CHANGED_AT => $this->instant(now())]);
+                }
+            }
+
+            $locked->fill($data)->save();
+        });
 
         return $this->json(
             ['data' => AgencyResource::make($agency->refresh())->resolve($request)],
@@ -192,7 +164,10 @@ class AgencyController extends Controller
         ]);
 
         return $this->json([
-            'data' => UserResource::collection($paginator)->toArray($request),
+            // TCK-2004 (P176.04) — `roles` rapporté à l'agence de la route, pas à toutes celles du membre.
+            'data' => $paginator->getCollection()
+                ->map(fn (User $user): array => UserResource::dansLAgence($user, (int) $agency->id)->resolve($request))
+                ->all(),
             'meta' => $this->paginationMeta($paginator),
         ]);
     }
@@ -221,81 +196,6 @@ class AgencyController extends Controller
             'first_name' => $user->first_name,
             'last_name' => $user->last_name,
         ])->all());
-    }
-
-    public function addAgent(AddAgentAgencyRequest $request, Agency $agency): JsonResponse
-    {
-        // TCK-392 (revue) — une agence `individual` n'a PAS d'équipe : c'est un
-        // host solo, et « pas d'invitation de collaborateurs internes » est la
-        // première restriction que `features.md` lui attache.
-        //
-        // Ce garde manquait, et la mesure l'a montré là où l'écran le cachait :
-        // `POST /agencies/{id}/members` rendait **200** sur une agence
-        // `individual`, quand le geste jumeau `POST /agencies/{id}/agents/invite`
-        // rendait 403. Un administrateur d'agence individuelle pouvait donc s'y
-        // rattacher un agent en contournant simplement l'écran.
-        //
-        // Le garde vit ICI et non dans `AddAgentAgencyRequest::authorize()` :
-        // TCK-305 a posé que cette méthode est une SIMPLE DÉLÉGATION à la policy
-        // (« aucune règle d'autorisation n'a migré ici »), et `AgencyPolicy@update`
-        // ne juge pas le `kind`.
-        //
-        // TCK-449 (AC5) — la RÈGLE, elle, ne vit plus ici : elle était recopiée
-        // dans quatre fichiers, et c'est la copie manquante qui a produit ce
-        // ticket. `AgencyKindGuard::canFormTeam()` en porte désormais la seule
-        // définition, partagée par l'invitation ET le rattachement.
-        //
-        // ⚠ Les DEUX routes qui mènent ici — `POST /agencies/{id}/members`
-        // (canonique, TCK-015) et son alias historique `…/agents` — sont
-        // couvertes par ce seul appel, parce qu'il est dans le contrôleur et
-        // non sur une route.
-        AgencyKindGuard::ensureCanFormTeam($agency);
-
-        app(QuotaResolver::class)->assertCanAddAgent($agency);
-
-        $data = $request->validated();
-
-        $target = isset($data['user_id'])
-            ? User::findOrFail($data['user_id'])
-            : User::where('email', $data['email'])->first();
-
-        abort_code_if($target === null, 422, 'agency_member.user_not_found_by_email');
-
-        // TCK-142 — agency attachment is now profile-driven. Block if the
-        // user already has an active agent profile at a different agency,
-        // matching the previous "user_already_in_agency" guard.
-        $existingElsewhere = $target->agentProfiles()
-            ->where('agency_id', '!=', $agency->id)
-            ->exists();
-        abort_code_if($existingElsewhere, 422, 'agency_member.already_in_other_agency');
-
-        // TCK-278 — Rôle = présence d'un profil polymorphe. On crée toujours
-        // un AgentProfile (le rôle de base d'un membre d'équipe) ; si le rôle
-        // demandé est `agency_admin`, on matérialise aussi un AgencyAdminProfile
-        // sur la même agence.
-        ProfileMaterializer::materializeOrRestore(
-            AgentProfile::class,
-            ['user_id' => $target->id, 'agency_id' => $agency->id],
-            ['status' => AgentProfileStatus::Active->value],
-        );
-
-        $role = $data['role'] ?? 'agent';
-        if ($role === 'agency_admin') {
-            ProfileMaterializer::materializeOrRestore(
-                AgencyAdminProfile::class,
-                ['user_id' => $target->id, 'agency_id' => $agency->id],
-                ['status' => AgencyAdminProfileStatus::Active->value],
-            );
-        }
-
-        return $this->json([
-            'data' => [
-                'user_id' => $target->id,
-                'agency_id' => $agency->id,
-                'role' => $role,
-                'user' => UserResource::make($target->refresh())->resolve($request),
-            ],
-        ]);
     }
 
     /**

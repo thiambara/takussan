@@ -64,14 +64,22 @@ const RE_IMPORT_STATIQUE = /(?:^|[^\w$.])(?:import|export)\s+(?:[\s\S]*?\sfrom\s
 const RE_IMPORT_DYNAMIQUE = /\bimport\s*\(\s*['"]([^'"\n]+)['"]\s*\)/g;
 const RE_REQUIRE = /\brequire\s*\(\s*['"]([^'"\n]+)['"]\s*\)/g;
 
-/** `useTranslations('a.b')` / `getTranslations('a.b')` — la forme littérale, la seule sûre. */
-const RE_NS_LITTERAL = /\b(?:useTranslations|getTranslations)\s*\(\s*(['"`])([^'"`\n]+)\1\s*\)/g;
-/** `getTranslations({ namespace: 'a.b', … })` — la forme objet de `next-intl/server`. */
+/**
+ * `useTranslations('a.b')` / `getTranslations('a.b')` — la forme littérale, la seule sûre. Le
+ * premier groupe nomme l'API : c'est lui qui range le site côté client ou côté serveur.
+ */
+const RE_NS_LITTERAL = /\b(useTranslations|getTranslations)\s*\(\s*(['"`])([^'"`\n]+)\2\s*\)/g;
+/**
+ * `getTranslations({ namespace: 'a.b', … })` — la forme objet de `next-intl/server`. Le motif ne
+ * voit pas l'appel qui l'entoure : il est donc compté CÔTÉ CLIENT, le sens sûr de l'erreur.
+ */
 const RE_NS_OBJET = /\bnamespace\s*:\s*(['"`])([^'"`\n]+)\1/g;
-/** `useTranslations()` / `getTranslations()` — traducteur à la RACINE du dictionnaire. */
-const RE_TRADUCTEUR_RACINE = /\b(?:useTranslations|getTranslations)\s*\(\s*\)/;
+/** `useTranslations()` — traducteur à la RACINE du dictionnaire, lu dans le provider client. */
+const RE_TRADUCTEUR_RACINE = /\buseTranslations\s*\(\s*\)/;
+/** `getTranslations()` — traducteur racine SERVEUR : il lit le dictionnaire entier de la requête. */
+const RE_TRADUCTEUR_RACINE_SERVEUR = /\bgetTranslations\s*\(\s*\)/;
 /** `useTranslations(<autre chose qu'un littéral>)` — le cas qu'il faut résoudre ou refuser. */
-const RE_NS_DYNAMIQUE = /\b(?:useTranslations|getTranslations)\s*\(\s*([^)'"`\s][^)]*?)\s*\)/g;
+const RE_NS_DYNAMIQUE = /\b(useTranslations|getTranslations)\s*\(\s*([^)'"`\s][^)]*?)\s*\)/g;
 /** Tout littéral de chaîne, pour les récoltes (règles B et C). */
 const RE_LITTERAL = /(['"`])([^'"`\n]{2,120})\1/g;
 
@@ -119,20 +127,51 @@ export const premierNiveau = (chemin) => String(chemin).split('.')[0];
  *   résolvent, et refuse ceux qu'elle ne sait pas résoudre plutôt que de les ignorer.
  * - `racine` — le fichier tient un traducteur à la racine du dictionnaire. Il peut alors adresser
  *   n'importe quel espace, et la règle C ci-dessous récolte ses littéraux.
+ *
+ * ────────────────────────────────────────────────────────────────────────────────────────────────
+ * LECTEURS SERVEUR ET CLIENT (P105.04, amendement d'ADR-0022 du 2026-10-25)
+ * ────────────────────────────────────────────────────────────────────────────────────────────────
+ *
+ * Les trois champs ci-dessus ne décrivent que les lecteurs CLIENT : ce sont les seuls qui lisent
+ * le dictionnaire sérialisé pour le navigateur. `getTranslations` — l'API de `next-intl/server`,
+ * qu'aucun composant client ne peut appeler — résout contre le dictionnaire ENTIER de la requête
+ * (`src/i18n/request.ts`), et ses sites vont dans `litterauxServeur`, `dynamiquesServeur` et
+ * `racineServeur`. Ils ne nourrissent pas la table : compter `getTranslations('meta.home')` comme
+ * un lecteur client sérialisait `meta`, `serverActions` et `publicLeadErrors` dans CHAQUE document.
+ *
+ * Le partage est volontairement asymétrique. `useTranslations` dans un composant SERVEUR (non
+ * `async`) lit lui aussi le dictionnaire de la requête, mais il reste compté côté client : le
+ * dire serveur demanderait de suivre la frontière `'use client'` à travers le graphe, et une
+ * erreur de ce côté-là peindrait une clé à l'écran. Sur-approximer coûte des octets ; c'est le
+ * sens de l'erreur qu'on veut.
  */
 export function releveFichier(source) {
   const litteraux = new Set();
+  const litterauxServeur = new Set();
   const dynamiques = new Set();
+  const dynamiquesServeur = new Set();
   let m;
 
   RE_NS_LITTERAL.lastIndex = 0;
-  while ((m = RE_NS_LITTERAL.exec(source))) litteraux.add(premierNiveau(m[2]));
+  while ((m = RE_NS_LITTERAL.exec(source))) {
+    (m[1] === 'getTranslations' ? litterauxServeur : litteraux).add(premierNiveau(m[3]));
+  }
   RE_NS_OBJET.lastIndex = 0;
   while ((m = RE_NS_OBJET.exec(source))) litteraux.add(premierNiveau(m[2]));
   RE_NS_DYNAMIQUE.lastIndex = 0;
-  while ((m = RE_NS_DYNAMIQUE.exec(source))) dynamiques.add(m[1].trim());
+  while ((m = RE_NS_DYNAMIQUE.exec(source))) {
+    (m[1] === 'getTranslations' ? dynamiquesServeur : dynamiques).add(m[2].trim());
+  }
+  for (const e of litteraux) litterauxServeur.delete(e);
 
-  return { litteraux: [...litteraux], dynamiques: [...dynamiques], racine: RE_TRADUCTEUR_RACINE.test(source) };
+  return {
+    litteraux: [...litteraux],
+    litterauxServeur: [...litterauxServeur],
+    dynamiques: [...dynamiques],
+    dynamiquesServeur: [...dynamiquesServeur],
+    racine: RE_TRADUCTEUR_RACINE.test(source),
+    racineServeur: RE_TRADUCTEUR_RACINE_SERVEUR.test(source),
+  };
 }
 
 /**
@@ -296,16 +335,18 @@ export function marcheGraphe(entrees, racineSrc, lire = (f) => readFileSync(f, '
 }
 
 /**
- * L'ensemble des espaces de noms atteignables depuis `entrees`.
+ * L'ensemble des espaces de noms atteignables depuis `entrees` par un lecteur CLIENT.
  *
- * Rend `{ espaces, irresolus }`. `irresolus` liste les sites dynamiques que la règle B n'a pas su
- * résoudre : la garde ÉCHOUE dessus. Les ignorer reviendrait à livrer un provider amputé d'un
- * espace dont rien n'aurait signalé l'absence — précisément le défaut que cette garde existe pour
- * empêcher.
+ * Rend `{ espaces, serveurSeul, irresolus, fichiers }`. `irresolus` liste les sites dynamiques que
+ * la règle B n'a pas su résoudre : la garde ÉCHOUE dessus. Les ignorer reviendrait à livrer un
+ * provider amputé d'un espace dont rien n'aurait signalé l'absence — précisément le défaut que
+ * cette garde existe pour empêcher. `serveurSeul` nomme les espaces que seul du code serveur lit
+ * (`getTranslations`) : ils ne sont pas servis au navigateur, et le rapport les affiche.
  */
 export function espacesAtteignables(entrees, racineSrc, espacesConnus, lire) {
   const { fichiers, sources, releves } = marcheGraphe(entrees, racineSrc, lire);
   const espaces = new Set();
+  const serveur = new Set();
   const irresolus = [];
   // `marcheGraphe` a déjà retiré les commentaires pleine ligne de chaque source : les récoltes
   // larges (règles B et C) relisent donc directement ce qu'il a mis en cache.
@@ -313,12 +354,17 @@ export function espacesAtteignables(entrees, racineSrc, espacesConnus, lire) {
 
   for (const [fichier, releve] of releves) {
     for (const e of releve.litteraux) espaces.add(e);
+    for (const e of releve.litterauxServeur) serveur.add(e);
     if (releve.racine) for (const e of recolteRacine(sources.get(fichier), espacesConnus)) espaces.add(e);
+    else if (releve.racineServeur) {
+      for (const e of recolteRacine(sources.get(fichier), espacesConnus)) serveur.add(e);
+    }
     for (const expression of releve.dynamiques) {
       const valeurs = resoudreDynamique(expression, toutesSources).filter((v) => espacesConnus.has(premierNiveau(v)));
       if (valeurs.length === 0) irresolus.push({ fichier, expression });
       else for (const v of valeurs) espaces.add(premierNiveau(v));
     }
   }
-  return { espaces, irresolus, fichiers };
+  const serveurSeul = new Set([...serveur].filter((e) => espacesConnus.has(e) && !espaces.has(e)));
+  return { espaces, serveurSeul, irresolus, fichiers };
 }

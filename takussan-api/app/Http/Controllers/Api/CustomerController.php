@@ -9,6 +9,7 @@ use App\Http\Requests\Api\StoreCustomerRequest;
 use App\Http\Requests\Api\UpdateCustomerRequest;
 use App\Http\Requests\Api\UpdatePipelineStageCustomerRequest;
 use App\Http\Resources\CustomerResource;
+use App\Http\Resources\UserCustomerRelationshipResource;
 use App\Models\Customer;
 use App\Models\CustomerNote;
 use App\Models\Enums\CustomerNoteKind;
@@ -24,6 +25,7 @@ use App\Services\Membership\MembershipCapabilityResolver;
 use App\Services\Privacy\PersonalDataAccessLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class CustomerController extends Controller
 {
@@ -56,16 +58,23 @@ class CustomerController extends Controller
         // (`CustomerPolicy::create` l'a établi ; `null` pour le super-admin hors agence).
         $agencyId = $user->staffAgencyId();
 
-        if (! $allowDuplicate) {
-            $this->refuseDuplicate($duplicates, $agencyId, $data, $user);
-        }
+        // TCK-2054 (ADR-0073) — la détection et la création dans une même transaction, sous le
+        // verrou consultatif de la fiche : deux créations simultanées du même client ne passent
+        // plus toutes deux le détecteur. `allow_duplicate` saute la sonde, pas le verrou.
+        $customer = DB::transaction(function () use ($duplicates, $agencyId, $data, $user, $allowDuplicate): Customer {
+            CustomerDuplicateDetector::lockCreation($agencyId, $data['phone'] ?? null, $data['email'] ?? null);
 
-        $customer = Customer::create(array_merge($data, [
-            'added_by_id' => $user->id,
-            'agency_id' => $agencyId,
-            'status' => CustomerStatus::Active->value,
-            'pipeline_stage' => $data['pipeline_stage'] ?? CustomerPipelineStage::Lead->value,
-        ]));
+            if (! $allowDuplicate) {
+                $this->refuseDuplicate($duplicates, $agencyId, $data, $user);
+            }
+
+            return Customer::create(array_merge($data, [
+                'added_by_id' => $user->id,
+                'agency_id' => $agencyId,
+                'status' => CustomerStatus::Active->value,
+                'pipeline_stage' => $data['pipeline_stage'] ?? CustomerPipelineStage::Lead->value,
+            ]));
+        });
 
         // TCK-953 — relue en entier : le masque de la pièce se calcule même si elle n'a pas été saisie.
         return $this->json([
@@ -217,12 +226,9 @@ class CustomerController extends Controller
 
         $relationship->update(['is_primary' => true]);
 
-        // TCK-1500 (P94.04) — `started_at` et `ended_at` sont castés `date` : ils sortent en
-        // `Y-m-d` (ADR-0018), et non en instant de minuit comme le rendait le modèle brut.
-        return $this->json(['data' => array_merge($relationship->toArray(), [
-            'started_at' => $relationship->started_at?->toDateString(),
-            'ended_at' => $relationship->ended_at?->toDateString(),
-        ])]);
+        // TCK-1500 (P94.04) — `started_at` et `ended_at` sont castés `date` : `Y-m-d` (ADR-0018).
+        // TCK-2045 (P61.04) — par la ressource, et non plus le modèle brut.
+        return $this->json(['data' => (new UserCustomerRelationshipResource($relationship))->resolve($request)]);
     }
 
     public function relationships(Request $request, Customer $customer): JsonResponse

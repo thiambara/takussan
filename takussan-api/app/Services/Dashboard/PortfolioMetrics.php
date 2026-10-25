@@ -13,8 +13,10 @@ use App\Models\Enums\PropertyStatus;
 use App\Models\Enums\RentPeriod;
 use App\Models\LeasePayment;
 use App\Models\Payout;
+use App\Services\Payout\PayoutClawbacks;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -248,12 +250,26 @@ class PortfolioMetrics
     {
         [$start, $end] = $this->monthBounds($from, $to);
 
-        $rows = CollectedPayments::leaseIncome()
+        $ofScope = fn (Builder $q): Builder => $q
             ->join('leases', 'leases.id', '=', 'lease_payments.lease_id')
             ->whereNull('leases.deleted_at')
-            ->where('leases.'.$scope->leaseColumn, $scope->id)
+            ->where(fn (Builder $q) => $scope->leases($q));
+
+        $rents = $ofScope(CollectedPayments::leaseIncome())
             ->whereBetween('lease_payments.paid_at', [$start->startOfDay(), $end->endOfDay()])
-            ->selectRaw("to_char(date_trunc('month', lease_payments.paid_at), 'YYYY-MM') AS m, SUM(".CollectedPayments::LEASE_NET_SQL.') AS total')
+            ->selectRaw("to_char(date_trunc('month', lease_payments.paid_at), 'YYYY-MM') AS m, ".CollectedPayments::LEASE_NET_SQL.' AS v')
+            ->toBase();
+
+        // P206.02 (ADR-0057, amendement du 2026-10-24) — la pénalité réglée, au mois de son règlement,
+        // dans la même requête : le budget de requêtes de l'accueil ne bouge pas.
+        $lateFees = $ofScope(CollectedPayments::lateFeeIncome())
+            ->whereBetween('lease_payments.late_fee_paid_at', [$start->startOfDay(), $end->endOfDay()])
+            ->selectRaw("to_char(date_trunc('month', lease_payments.late_fee_paid_at), 'YYYY-MM') AS m, ".CollectedPayments::LATE_FEE_NET_SQL.' AS v')
+            ->toBase();
+
+        $rows = DB::query()
+            ->fromSub($rents->unionAll($lateFees), 'income')
+            ->selectRaw('m, SUM(v) AS total')
             ->groupBy('m')
             ->pluck('total', 'm');
 
@@ -273,7 +289,7 @@ class PortfolioMetrics
             ->join('bookings', 'bookings.id', '=', 'booking_payments.booking_id')
             ->join('properties', 'properties.id', '=', 'bookings.property_id')
             ->whereNull('bookings.deleted_at')
-            ->where('properties.'.$scope->propertyColumn, $scope->id)
+            ->where(fn (Builder $q) => $scope->properties($q))
             ->whereBetween('booking_payments.paid_at', [$start->startOfDay(), $end->endOfDay()])
             ->selectRaw("to_char(date_trunc('month', booking_payments.paid_at), 'YYYY-MM') AS m, SUM(".CollectedPayments::BOOKING_NET_SQL.') AS total')
             ->groupBy('m')
@@ -296,11 +312,24 @@ class PortfolioMetrics
             ->where('payouts.status', PayoutStatus::Completed->value)
             ->where('payouts.payee_role', PayeeRole::Landlord->value)
             ->whereBetween('payouts.processed_at', [$start->startOfDay(), $end->endOfDay()])
-            ->selectRaw("to_char(date_trunc('month', payouts.processed_at), 'YYYY-MM') AS m, SUM(payouts.net_amount) AS total")
+            ->selectRaw("to_char(date_trunc('month', payouts.processed_at), 'YYYY-MM') AS m, SUM(payouts.net_amount + COALESCE(payouts.clawback_amount, 0)) AS total")
+            ->groupBy('m')
+            ->pluck('total', 'm')
+            ->all();
+
+        // TCK-2151 (P205.03 ; ADR-0039, amendement du 2026-10-24, point 4) — la reprise est un versé
+        // négatif daté de son mois ; le reversement qui l'impute compte avant reprise (ci-dessus).
+        $clawbacks = DB::table(PayoutClawbacks::TABLE)
+            ->where($scope->payoutColumn, $scope->id)
+            ->whereBetween('refunded_at', [$start->startOfDay(), $end->endOfDay()])
+            ->selectRaw("to_char(date_trunc('month', refunded_at), 'YYYY-MM') AS m, SUM(amount) AS total")
             ->groupBy('m')
             ->pluck('total', 'm');
+        foreach ($clawbacks as $month => $total) {
+            $rows[$month] = (float) ($rows[$month] ?? 0) - (float) $total;
+        }
 
-        return $this->fillMonths($start, $end, $rows->all());
+        return $this->fillMonths($start, $end, $rows);
     }
 
     /** Cautions détenues : dépôts payés − restitutions payées, sur tous les baux du périmètre. */
@@ -309,9 +338,8 @@ class PortfolioMetrics
         $value = LeasePayment::query()
             ->join('leases', 'leases.id', '=', 'lease_payments.lease_id')
             ->whereNull('leases.deleted_at')
-            ->where('leases.'.$scope->leaseColumn, $scope->id)
-            ->where('lease_payments.status', PaymentStatus::Paid->value)
-            ->whereIn('lease_payments.payment_type', [LeasePaymentType::Deposit->value, LeasePaymentType::DepositRefund->value])
+            ->where(fn (Builder $q) => $scope->leases($q))
+            ->paidDepositMovements()
             ->selectRaw('COALESCE(SUM(CASE WHEN lease_payments.payment_type = ? THEN lease_payments.amount ELSE -lease_payments.amount END), 0) AS held', [LeasePaymentType::Deposit->value])
             ->value('held');
 
@@ -326,16 +354,30 @@ class PortfolioMetrics
      */
     public function overdue(PortfolioScope $scope): array
     {
-        $row = CollectedPayments::leaseOwed()
+        $ofScope = fn (Builder $q): Builder => $q
             ->join('leases', 'leases.id', '=', 'lease_payments.lease_id')
             ->whereNull('leases.deleted_at')
-            ->where('leases.'.$scope->leaseColumn, $scope->id)
-            ->whereDate('lease_payments.due_date', '<', now()->toDateString())
-            ->selectRaw('COUNT(*) AS n, COALESCE(SUM('.CollectedPayments::OWED_REMAINING_SQL.'), 0) AS total')
-            ->toBase()
-            ->first();
+            ->where(fn (Builder $q) => $scope->leases($q));
 
-        return ['count' => (int) ($row->n ?? 0), 'amount' => round((float) ($row->total ?? 0), 2)];
+        $owed = $ofScope(CollectedPayments::leaseOwed())
+            ->whereDate('lease_payments.due_date', '<', now()->toDateString())
+            ->selectRaw("'owed' AS k, COUNT(*) AS n, COALESCE(SUM(".CollectedPayments::OWED_REMAINING_SQL.'), 0) AS total')
+            ->toBase();
+
+        // P206.03 (ADR-0057, amendement du 2026-10-24, point 3) — les pénalités à recouvrer, total à
+        // part, lues dans la même requête : le budget de requêtes de l'accueil ne bouge pas.
+        $lateFees = $ofScope(CollectedPayments::lateFeesOutstanding())
+            ->selectRaw("'late_fees' AS k, COUNT(*) AS n, COALESCE(SUM(".CollectedPayments::LATE_FEE_OUTSTANDING_SQL.'), 0) AS total')
+            ->toBase();
+
+        $rows = $owed->unionAll($lateFees)->get()->keyBy('k');
+
+        return [
+            'count' => (int) ($rows['owed']->n ?? 0),
+            'amount' => round((float) ($rows['owed']->total ?? 0), 2),
+            'late_fees_count' => (int) ($rows['late_fees']->n ?? 0),
+            'late_fees_amount' => round((float) ($rows['late_fees']->total ?? 0), 2),
+        ];
     }
 
     /**
@@ -358,7 +400,7 @@ class PortfolioMetrics
             ->exceptDepositRefunds()
             ->join('leases', 'leases.id', '=', 'lease_payments.lease_id')
             ->whereNull('leases.deleted_at')
-            ->where('leases.'.$scope->leaseColumn, $scope->id)
+            ->where(fn (Builder $q) => $scope->leases($q))
             ->whereNotIn('lease_payments.status', [PaymentStatus::Cancelled->value, PaymentStatus::Failed->value])
             ->whereDate('lease_payments.due_date', '>=', now()->subMonthsNoOverflow(12)->toDateString())
             ->whereDate('lease_payments.due_date', '<', $today)
@@ -387,14 +429,14 @@ class PortfolioMetrics
     {
         $statusPlaceholders = implode(', ', array_fill(0, count(self::EXCLUDED_PROPERTY_STATUSES), '?'));
         $periodPlaceholders = implode(', ', array_fill(0, count($periods), '?'));
-        $column = $scope->propertyColumn;
+        [$scopeSql, $scopeBindings] = $scope->propertiesSql('p');
 
         $sql = <<<SQL
             SELECT p.id, p.created_at,
                 (p.contract_type = ? AND p.status NOT IN ({$statusPlaceholders})) AS is_current
             FROM properties p
             WHERE p.deleted_at IS NULL
-              AND p.{$column} = ?
+              AND {$scopeSql}
               AND p.rent_period IN ({$periodPlaceholders})
               AND NOT EXISTS (
                   SELECT 1 FROM properties c WHERE c.parent_id = p.id AND c.deleted_at IS NULL
@@ -404,7 +446,7 @@ class PortfolioMetrics
         return [$sql, array_merge(
             [ContractType::Rent->value],
             array_map(static fn (PropertyStatus $s): string => $s->value, self::EXCLUDED_PROPERTY_STATUSES),
-            [$scope->id],
+            $scopeBindings,
             array_map(static fn (RentPeriod $p): string => $p->value, $periods),
         )];
     }

@@ -68,6 +68,51 @@ trait GuardsConversationScope
     }
 
     /**
+     * TCK-2191 (P191.04, décision du porteur du 2026-10-24) — un groupe rattaché à un bail ne compte
+     * que des personnes qui LISENT ce bail (`LeasePolicy::view` : parties au bail, personnel actif
+     * de l'agence), `docs/features.md` § 1.7. {@see guardReach()} ne juge que la joignabilité : un
+     * simple correspondant de l'acteur entrait dans le fil du locataire et en lisait l'historique.
+     *
+     * Seule exception : le prestataire ASSIGNÉ à l'intervention que le groupe porte
+     * (`maintenance_request_id`), dans le fil de cette intervention (TCK-592,
+     * `SyncMaintenanceConversation`, qui passe par le service et non par ces requêtes). Un autre
+     * artisan ou un tiers se joint par un groupe sans bail rattaché.
+     *
+     * À appeler après {@see guardContext()} : on ne juge les participants que face à un bail que
+     * l'acteur voit. Une seule erreur sur `$field`, comme {@see guardReach()}.
+     *
+     * @param  array<int, int|string>  $userIds
+     */
+    protected function guardLeaseReaders(Validator $v, mixed $leaseId, array $userIds, string $field, mixed $maintenanceRequestId = null): void
+    {
+        if ($leaseId === null || $userIds === [] || $v->errors()->has($field)) {
+            return;
+        }
+
+        $lease = Lease::query()->find($leaseId);
+        if ($lease === null) {
+            return;
+        }
+
+        $assignee = $maintenanceRequestId === null ? null : MaintenanceRequest::query()
+            ->whereKey($maintenanceRequestId)
+            ->where('lease_id', $lease->getKey())
+            ->value('assigned_to');
+
+        $users = User::query()->whereIn('id', array_map('intval', $userIds))->get();
+        foreach ($users as $user) {
+            if ($assignee !== null && (int) $assignee === $user->id) {
+                continue;
+            }
+            if (! $user->can('view', $lease)) {
+                $v->errors()->add($field, __('messaging.errors.participants_cannot_read_lease'));
+
+                return;
+            }
+        }
+    }
+
+    /**
      * TCK-576, réparation 1 — un bail et un bien rattachés ENSEMBLE doivent aller ensemble.
      *
      * {@see guardContext()} juge chaque champ séparément : un bien et un bail visibles l'un et
@@ -88,43 +133,6 @@ trait GuardsConversationScope
         $leasePropertyId = Lease::query()->whereKey($leaseId)->value('property_id');
         if ((int) $leasePropertyId !== (int) $propertyId) {
             $v->errors()->add('lease_id', __('messaging.errors.lease_property_mismatch'));
-        }
-    }
-
-    /**
-     * TCK-576, reprise des défauts mineurs (2026-09-24) — la demande d'intervention rattachée doit
-     * concerner le BIEN du contexte : `property_id` s'il est envoyé, sinon le bien du bail. La
-     * paire bien/bail l'ignorait : une intervention sur le bureau passait dans un groupe rattaché
-     * à la villa (201, mesuré). Même règle d'appel que {@see guardLeaseMatchesProperty()} : APRÈS
-     * `guardContext()`, et seulement entre contextes déjà acceptés. La comparaison se fait au
-     * niveau du bien, pas du bail : une intervention appartient à un bien, son `lease_id`
-     * (facultatif, `nullOnDelete`) ne dit que le bail en cours au moment de la demande.
-     *
-     * Groupe seulement : la conversation directe ne lit pas `maintenance_request_id`.
-     */
-    protected function guardMaintenanceMatchesContext(Validator $v): void
-    {
-        $maintenanceId = $this->input('maintenance_request_id');
-        if ($maintenanceId === null || $v->errors()->has('maintenance_request_id')) {
-            return;
-        }
-
-        $propertyId = $this->input('property_id');
-        if ($propertyId !== null) {
-            if ($v->errors()->has('property_id')) {
-                return;
-            }
-        } else {
-            $leaseId = $this->input('lease_id');
-            if ($leaseId === null || $v->errors()->has('lease_id')) {
-                return;
-            }
-            $propertyId = Lease::query()->whereKey($leaseId)->value('property_id');
-        }
-
-        $maintenancePropertyId = MaintenanceRequest::query()->whereKey($maintenanceId)->value('property_id');
-        if ((int) $maintenancePropertyId !== (int) $propertyId) {
-            $v->errors()->add('maintenance_request_id', __('messaging.errors.maintenance_property_mismatch'));
         }
     }
 }

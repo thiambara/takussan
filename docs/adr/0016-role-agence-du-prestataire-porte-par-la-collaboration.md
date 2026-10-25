@@ -1,6 +1,7 @@
 # ADR-0016 — Le rôle d'agence d'un prestataire est porté par la collaboration, pas par le profil
 
-- **Statut** : Accepté
+- **Statut** : Accepté, **amendé le 2026-10-25** (cf. § *Amendement du 2026-10-25 — un seul profil de
+  prestataire par compte, tenu par le code*)
 - **Date** : 2026-08-17
 - **Ticket** : TCK-315
 - **Se lit avec** : [ADR-0002](0002-role-est-un-profil-polymorphe.md) (le rôle est un profil
@@ -117,6 +118,41 @@ existante — soft-deletées comprises, puisque la colonne passe NOT NULL pour *
 rôle système `service_provider` de **son** agence, puis vérifie qu'il n'en reste aucune sans rôle. Il
 échoue avec le compte exact plutôt que de laisser la migration NOT NULL suivante planter sur une
 contrainte.
+
+## Amendement du 2026-10-25 — un seul profil de prestataire par compte, tenu par le code
+
+Décision du porteur du 2026-10-25 sur P234.02 du fichier de pistes
+(`docs/plans/2026-10-15-pistes-d-amelioration.md`). Ticket :
+[TCK-2280](../backlog/tickets/TCK-2280-invitation-acceptee-par-un-compte-existant.md).
+
+**Constat.** Le tableau du Contexte donne `service_provider_profiles.user_id` **UNIQUE**. C'était
+déjà faux le jour de la décision : la migration `2026_05_10_170000` a retiré cette contrainte, pour
+que plusieurs brouillons d'invitation coexistent sans compte. Le « 1 profil global, N agences »
+n'était plus tenu que par la recherche du profil existant à l'invitation (TCK-262). Or cette
+recherche ne passait que par l'e-mail. Une invitation par numéro, acceptée par un compte qui avait
+déjà son profil, lui en créait un second. `User::serviceProviderProfile()` est un `HasOne`, et la
+liste des collaborations du prestataire lit `first()` : il ne voyait pas l'agence qui l'avait
+invité, alors que l'agence le voyait.
+
+**Décision.**
+
+1. **Le profil existant se cherche sur le compte que l'invitation désigne**,
+   `InvitationService::recipientAccount()` : le compte de l'e-mail, ou celui qui a **vérifié** le
+   numéro (ADR-0033). C'est le compte que l'acceptation exigera. Le refus « déjà rattaché à
+   l'agence » (409) se juge sur ce même profil.
+2. **L'acceptation refuse de lier un brouillon de prestataire à un compte qui a déjà un profil de
+   prestataire**, par un 409 nommé `invitation.service_provider_profile_exists`, avant toute
+   écriture. L'invitation reste `sent`. Le cas que le point 1 ne couvre pas est celui d'un compte
+   connecté dont l'adresse diffère, ou qui a vérifié le numéro après l'envoi.
+3. **La règle du Contexte se lit donc ainsi** : un profil de prestataire par compte, tenu par ces
+   deux points du code, **pas par le schéma**.
+
+**Ce qui n'est pas gardé.**
+
+- Aucune contrainte en base. Un autre chemin qui créerait un profil de prestataire pour un compte
+  qui en a déjà un ne rougirait rien. Le 2026-10-25, l'invitation est le seul créateur
+  (`grep -rn "ServiceProviderProfile::query()->create" app` → `ServiceProviderInvitationService`).
+- Les comptes qui portent déjà deux profils ne sont ni comptés ni fusionnés.
 
 ## Application
 

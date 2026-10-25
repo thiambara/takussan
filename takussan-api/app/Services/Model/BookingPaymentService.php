@@ -10,6 +10,8 @@ use App\Models\Enums\PaymentStatus;
 use App\Models\User;
 use App\Services\Billing\PlatformPayoutService;
 use App\Services\Booking\BookingRefundTaskService;
+use App\Services\Payout\ObservedRefundPayout;
+use App\Services\Payout\PayoutClawbacks;
 use Illuminate\Support\Facades\DB;
 
 class BookingPaymentService
@@ -17,12 +19,64 @@ class BookingPaymentService
     public function __construct(
         private readonly BookingRefundTaskService $refundTasks,
         private readonly PlatformPayoutService $platformPayouts,
+        private readonly ObservedRefundPayout $observedRefunds,
+        private readonly PayoutClawbacks $clawbacks,
     ) {}
+
+    /**
+     * TCK-1916 (P170.02, décision du porteur) — `$boundedByRemaining` : le montant saisi par le
+     * personnel ne dépasse pas le reste dû ({@see remainingReversable()}), jugé sous le verrou de la
+     * réservation pour que deux saisies concurrentes ne passent pas toutes deux la borne. Le client
+     * n'en a pas besoin : son montant est dérivé ({@see dueFromCustomer()}).
+     *
+     * @param  array<string,mixed>  $data
+     */
+    public function create(Booking $booking, User $user, array $data, bool $boundedByRemaining = false): BookingPayment
+    {
+        if (! $boundedByRemaining) {
+            return $this->write($booking, $user, $data);
+        }
+
+        return DB::transaction(function () use ($booking, $user, $data): BookingPayment {
+            Booking::query()->whereKey($booking->getKey())->lockForUpdate()->firstOrFail();
+
+            $type = $data['payment_type'] instanceof BookingPaymentType
+                ? $data['payment_type']
+                : BookingPaymentType::from((string) $data['payment_type']);
+
+            if ($type !== BookingPaymentType::Fee) {
+                $remaining = $this->remainingReversable($booking);
+                abort_code_if(
+                    (float) $data['amount'] > $remaining,
+                    422,
+                    'booking_payment.exceeds_remaining',
+                    ['remaining' => $remaining],
+                );
+            }
+
+            return $this->write($booking, $user, $data);
+        });
+    }
+
+    /**
+     * TCK-1916 (P170.02) — ce qui reste à encaisser sur le total de la réservation : `total_amount`
+     * moins les lignes `paid` d'acompte et de solde. Les frais (`fee`) ne sont pas dans le total
+     * reversable au bailleur (ADR-0039 § 3) : ils n'en sont ni bornés ni déduits.
+     */
+    public function remainingReversable(Booking $booking): float
+    {
+        $paid = (float) $booking->payments()
+            ->where('status', PaymentStatus::Paid->value)
+            ->whereIn('payment_type', [BookingPaymentType::Deposit->value, BookingPaymentType::Advance->value])
+            ->sum('amount');
+
+        return max((float) $booking->total_amount - $paid, 0.0);
+    }
 
     /**
      * @param  array<string,mixed>  $data
      */
-    public function create(Booking $booking, User $user, array $data): BookingPayment
+    private function write(Booking $booking, User $user, array $data): BookingPayment
     {
         $status = (isset($data['status']) && $data['status'] !== null && $data['status'] !== '')
             ? $data['status']
@@ -123,6 +177,14 @@ class BookingPaymentService
                 'refund_amount' => $refunded,
                 'refund_reason' => $data['refund_reason'] ?? $payment->refund_reason,
             ]);
+
+            // TCK-2052 (ADR-0039, amendement du 2026-10-23) — l'argent est sorti du compte de
+            // l'agence : un `Payout` constaté, de CE remboursement, que le débit du relevé rapproche.
+            $this->observedRefunds->record($payment, (float) $data['refund_amount'], now(), auth()->id() !== null ? (int) auth()->id() : null);
+
+            // TCK-2151 (ADR-0039, amendement du 2026-10-24, point 2) — l'acompte déjà reversé au
+            // bailleur : une reprise au net de commission, imputée à son reversement suivant.
+            $this->clawbacks->recordRefund($payment, (float) $data['refund_amount'], now());
 
             return $payment->refresh();
         });

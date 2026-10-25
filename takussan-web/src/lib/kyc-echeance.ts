@@ -17,6 +17,9 @@
  * ⚠ Aucun libellé ne l'écrit en chiffres : un délai chiffré affiché est une promesse que
  * `promesses-de-delai.test.ts` exige d'adosser à un mécanisme.
  */
+
+import { decalerJour, jourDeLApi } from '@/lib/jour-de-l-api';
+
 export const SEUIL_ECHEANCE_PROCHE_JOURS = 30;
 
 export type EtatEcheance = 'expired' | 'soon' | 'valid';
@@ -64,10 +67,11 @@ export function veilleEcheance(valeur: string): Date | null {
   return new Date(instant.getTime() - JOUR_MS);
 }
 
-/** Demain, en `YYYY-MM-DD` local : la première date d'échéance que l'API accepte au dépôt. */
+/**
+ * Demain, en `YYYY-MM-DD`, au jour de l'API (UTC) : la première date d'échéance que l'API accepte
+ * au dépôt (`after:today`). Le lendemain local proposait, le soir à l'ouest d'UTC, le jour même de
+ * l'API, refusé (P212.04).
+ */
 export function demainIso(maintenant: Date = new Date()): string {
-  const d = new Date(maintenant.getFullYear(), maintenant.getMonth(), maintenant.getDate() + 1);
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  const jj = String(d.getDate()).padStart(2, '0');
-  return `${d.getFullYear()}-${mm}-${jj}`;
+  return decalerJour(jourDeLApi(maintenant), 1);
 }

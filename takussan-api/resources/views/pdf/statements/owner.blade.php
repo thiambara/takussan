@@ -21,9 +21,22 @@
 
     <table class="kv">
         <tr><th>{{ __('money_out.statement.agency') }}</th><td>{{ $agency?->legal_name ?: $statement['agency']['name'] }}</td></tr>
-        <tr><th>{{ __('money_out.statement.landlord') }}</th><td>{{ $statement['landlord']['name'] }}</td></tr>
+        {{-- P234.06 (TCK-2315) — une société en tête, la personne en dessous (TCK-1323). --}}
+        <tr><th>{{ __('money_out.statement.landlord') }}</th><td>
+            @if ($statement['landlord']['company_name'] ?? null)
+                {{ $statement['landlord']['company_name'] }}
+                <div class="muted">{{ $statement['landlord']['name'] }}</div>
+            @else
+                {{ $statement['landlord']['name'] }}
+            @endif
+        </td></tr>
         <tr><th>{{ __('money_out.statement.period') }}</th><td>{{ $frDate($statement['period_start']) }} — {{ $frDate($statement['period_end']) }}</td></tr>
     </table>
+
+    @if (! empty($statement['snapshot']))
+        {{-- TCK-2321 (P177.05) — un mois envoyé est imprimé tel qu'il a été envoyé. --}}
+        <p class="muted">{{ __('money_out.statement.sent_on', ['date' => $frDate($statement['snapshot']['sent_at'])]) }}</p>
+    @endif
 
     <table class="data">
         <thead>
@@ -79,9 +92,60 @@
         </table>
     @endif
 
+    {{-- P177.03 (TCK-2041) — le versé est celui des reversements versés dans la période (`processed_at`). --}}
+    <p><strong>{{ __($statement['annual'] ? 'money_out.statement.paid_this_year' : 'money_out.statement.paid_this_month') }}</strong> : @currency($statement['totals']['paid_out'], $currency)</p>
+
     @if (($statement['unpaid']['count'] ?? 0) > 0)
         {{-- P177.06 (TCK-1785) — les impayés sont jugés au jour du rendu : le relevé le dit. --}}
         <p>{{ __('money_out.statement.unpaid') }}@if (! empty($statement['unpaid']['as_of'])) {{ __('money_out.statement.unpaid_as_of', ['date' => \Illuminate\Support\Carbon::parse($statement['unpaid']['as_of'])->format('d/m/Y')]) }}@endif : {{ $statement['unpaid']['count'] }} — @currency($statement['unpaid']['amount'], $currency)</p>
+    @endif
+
+    @if (($statement['late_fees_outstanding']['count'] ?? 0) > 0)
+        {{-- P206.03 (ADR-0057, amendement du 2026-10-24) — à part de l'impayé, qui ne les compte pas. --}}
+        <p>{{ __('money_out.statement.late_fees_outstanding') }} : {{ $statement['late_fees_outstanding']['count'] }} — @currency($statement['late_fees_outstanding']['amount'], $currency)</p>
+    @endif
+
+    @if (! empty($statement['rectification']))
+        {{-- TCK-2321 (P177.05) — ce qui a été écrit depuis l'envoi : l'écart des totaux, puis les lignes. --}}
+        <h2>{{ __('money_out.statement.rectification', ['date' => $frDate($statement['rectification']['as_of'])]) }}</h2>
+        <p>{{ __('money_out.statement.rectification_intro') }}</p>
+        @if ($statement['rectification']['delta'] !== [])
+            <table class="data">
+                <tbody>
+                    @foreach ($statement['rectification']['delta'] as $key => $gap)
+                        <tr>
+                            <td>{{ \Illuminate\Support\Facades\Lang::has('money_out.statement.'.$key) ? __('money_out.statement.'.$key) : $key }}</td>
+                            <td class="right amount">{{ $gap > 0 ? '+' : '' }}@currency($gap, $currency)</td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        @endif
+        <table class="data">
+            <thead>
+                <tr>
+                    <th>{{ __('money_out.statement.rectification_line') }}</th>
+                    <th>{{ __('money_out.statement.date') }}</th>
+                    <th></th>
+                    <th class="right">{{ __('money_out.statement.rectification_delta') }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (['added', 'removed'] as $side)
+                    @foreach ($statement['rectification']['lines'][$side] as $lines)
+                        @foreach ($lines as $line)
+                            @php($date = $line['paid_at'] ?? $line['refunded_at'] ?? null)
+                            <tr>
+                                <td>{{ $line['reference_number'] ?? ('#'.($line['id'] ?? '')) }}</td>
+                                <td>{{ $date ? $frDate($date) : '—' }}</td>
+                                <td>{{ __('money_out.statement.rectification_'.$side) }}</td>
+                                <td class="right amount">@currency($line['amount'] ?? 0, $currency)</td>
+                            </tr>
+                        @endforeach
+                    @endforeach
+                @endforeach
+            </tbody>
+        </table>
     @endif
 
     @if ($legal !== [])

@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\QueryBuilder\AllowedFilter;
 
@@ -35,6 +36,11 @@ class Payout extends AbstractModel
         'scheduled_at', 'processed_at', 'failed_reason', 'notes', 'metadata',
         // TCK-593 — rapprochement bancaire (un débit du relevé).
         'bank_reconciled_at', 'bank_statement_line_id',
+        // TCK-2052 (ADR-0039, amendement du 2026-10-23, point 8) — le payable d'un remboursement
+        // déjà sorti : la marque et le lien du `Payout` « constaté ».
+        'refunded_payment_type', 'refunded_payment_id',
+        // TCK-2151 (ADR-0039, amendement du 2026-10-24) — la reprise imputée à ce reversement.
+        'clawback_amount',
     ];
 
     /** TCK-594 — le défaut de la colonne, lisible avant le premier `refresh()`. */
@@ -52,6 +58,7 @@ class Payout extends AbstractModel
         'gross_amount' => 'decimal:2',
         'commission_amount' => 'decimal:2',
         'fees_amount' => 'decimal:2',
+        'clawback_amount' => 'decimal:2',
         'net_amount' => 'decimal:2',
         'scheduled_at' => 'datetime',
         'processed_at' => 'datetime',
@@ -94,6 +101,7 @@ class Payout extends AbstractModel
         'gross_amount', 'commission_amount', 'fees_amount', 'net_amount', 'currency',
         'payment_method', 'payout_method_id', 'transaction_id', 'scheduled_at', 'processed_at',
         'failed_reason', 'notes', 'created_at', 'updated_at',
+        'refunded_payment_type', 'refunded_payment_id',
     ];
 
     protected static function booted(): void
@@ -126,6 +134,33 @@ class Payout extends AbstractModel
                 ]);
             }
         });
+    }
+
+    /**
+     * TCK-2052 (ADR-0039, amendement du 2026-10-23) — le `LeasePayment` ou le `BookingPayment` dont
+     * ce `Payout` constate le remboursement déjà sorti. Nul pour tout autre `Payout`, caution rendue
+     * comprise.
+     */
+    public function refundedPayment(): MorphTo
+    {
+        return $this->morphTo(__FUNCTION__, 'refunded_payment_type', 'refunded_payment_id');
+    }
+
+    /** TCK-2052 — un `Payout` constaté est exactement un `Payout` qui désigne un payable remboursé. */
+    public function isObservedRefund(): bool
+    {
+        return $this->refunded_payment_id !== null;
+    }
+
+    /** TCK-2052 — le type du payable remboursé, sous la forme courte des réponses (`booking_payment`). */
+    public function refundedPaymentTypeKey(): ?string
+    {
+        return match ($this->refunded_payment_type) {
+            null => null,
+            BookingPayment::class => 'booking_payment',
+            LeasePayment::class => 'lease_payment',
+            default => $this->refunded_payment_type,
+        };
     }
 
     public function lease(): BelongsTo

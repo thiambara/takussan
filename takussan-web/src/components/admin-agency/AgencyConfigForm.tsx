@@ -22,6 +22,7 @@ import { useTranslations } from 'next-intl';
 import {
   agencyFormSchema,
   AGENCY_LOGO_ACCEPT,
+  AGENCY_LOGO_MAX_BYTES,
   normaliseAgencyForm,
   validateAgencyLogoFile,
   type AgencyFormValues,
@@ -34,7 +35,7 @@ import {
   uploadAgencyLogoAction,
 } from '@/app/actions/admin-agency';
 import type { Agency } from '@/types/agency';
-import { reduirePhoto } from '@/lib/reduire-photo';
+import { reduirePhotoSousPlafond } from '@/lib/reduire-photo';
 import { useCan } from '@/hooks/useCan';
 import { useAuth } from '@/context/AuthContext';
 import { useGardeDoubleFacteur } from '@/components/auth/garde-double-facteur-contexte';
@@ -190,25 +191,28 @@ export function AgencyConfigForm({ agency }: AgencyConfigFormProps) {
   const originalCurrency = (agency.currency ?? 'XOF').toUpperCase() as CurrencyCode;
   const currencyChanged = selectedCurrency !== originalCurrency;
 
-  function handleLogoPick(ev: React.ChangeEvent<HTMLInputElement>) {
+  async function handleLogoPick(ev: React.ChangeEvent<HTMLInputElement>) {
     setLogoError(null);
-    const file = ev.target.files?.[0];
+    const input = ev.target;
+    const file = input.files?.[0];
     if (!file) return;
-    const validation = validateAgencyLogoFile(file);
+    // TCK-2144 (P222.03) — réduit AVANT de juger la taille, comme l'avatar (TCK-1887) : une photo
+    // de 5 Mo qui tombe sous les 2 Mo de l'API une fois réduite n'a pas à être refusée (TCK-542).
+    const reduit = await reduirePhotoSousPlafond(file, AGENCY_LOGO_MAX_BYTES);
+    const validation = validateAgencyLogoFile(reduit);
     if (validation) {
       // `validateAgencyLogoFile` rend une CLÉ (`validation.agency.logoTooLarge`), pas un libellé :
       // sans cette résolution l'utilisateur lit la clé brute (TCK-292, 2026-08-22).
       setLogoError(traduireMessageValidation(validation, tValidation));
-      ev.target.value = '';
+      input.value = '';
       return;
     }
-    const objectUrl = URL.createObjectURL(file);
+    const objectUrl = URL.createObjectURL(reduit);
     setLogoPreview(objectUrl);
 
     startLogoTransition(async () => {
       const formData = new FormData();
-      // Réduit dans le navigateur avant l'envoi (TCK-542).
-      formData.append('file', await reduirePhoto(file));
+      formData.append('file', reduit);
       const result = await uploadAgencyLogoAction(agency.id, formData);
       if (!result.ok) {
         setLogoError(result.message);
@@ -218,7 +222,7 @@ export function AgencyConfigForm({ agency }: AgencyConfigFormProps) {
         setSuccessMessage(t('logoUpdated'));
         router.refresh();
       }
-      if (ev.target) ev.target.value = '';
+      input.value = '';
     });
   }
 

@@ -23,7 +23,8 @@ class AgencySetupStatusController extends Controller
 {
     public function __invoke(Request $request, Agency $agency, AgencySetupStatus $status): JsonResponse
     {
-        abort_unless($request->user()->can('update', $agency), 403);
+        // TCK-2024 (P116.02) — la carte de mise en service : `configure` (`update()` ET `agency.update`).
+        abort_unless($request->user()->can('configure', $agency), 403);
 
         return $this->json(['data' => $status->for($agency)]);
     }

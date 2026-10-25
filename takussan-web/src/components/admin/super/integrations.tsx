@@ -98,6 +98,7 @@ export function IntegrationCard({
 
 export function IntegrationTestButton({ integrationId }: { integrationId: number }) {
   const t = useTranslations('superAdmin.integrations');
+  const messageErreur = useMessageErreurApi();
   const garde = useGardeDoubleFacteur();
   const queryClient = useQueryClient();
   const [message, setMessage] = useState<string | null>(null);
@@ -118,6 +119,10 @@ export function IntegrationTestButton({ integrationId }: { integrationId: number
         {t('test')}
       </Button>
       <span className="text-xs tabular-nums text-muted-foreground" aria-live="polite">{message}</span>
+      {/* P228.04 (TCK-2216) — un test refusé (step-up fermé compris) ne disait rien. */}
+      {mutation.isError ? (
+        <span role="alert" className="text-xs text-destructive">{messageErreur(mutation.error)}</span>
+      ) : null}
     </div>
   );
 }

@@ -11,6 +11,8 @@ import {
 import { useFavorites } from '@/lib/favoritesStore';
 import { useTranslations } from 'next-intl';
 import { ZONE_TACTILE_44 } from '@/lib/zone-tactile';
+import { useToast } from '@/components/ui/toast';
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
 /**
  * Heart button — toggles a property's favorite state.
@@ -65,6 +67,8 @@ export function FavoriteButton({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { user } = useAuth();
+  const toast = useToast();
+  const messageErreur = useMessageErreurApi();
 
   const addMutation = useAddFavoriteMutation();
   const removeMutation = useRemoveFavoriteMutation();
@@ -104,13 +108,15 @@ export function FavoriteButton({
         } else {
           await addMutation.mutateAsync({ property_id: propertyId });
         }
-      } catch {
+      } catch (error) {
         // Rollback on API failure.
         if (wasFavorite) add(propertyId);
         else remove(propertyId);
+        // P243.02 (TCK-2371) — le cœur revenait sans un mot : le refus se dit.
+        toast.add({ title: t('refusedTitle'), description: messageErreur(error), type: 'error' });
       }
     },
-    [user, requireAuth, router, redirectHref, propertyId, has, add, remove, addMutation, removeMutation],
+    [user, requireAuth, router, redirectHref, propertyId, has, add, remove, addMutation, removeMutation, toast, t, messageErreur],
   );
 
   return (
