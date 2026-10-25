@@ -7473,7 +7473,7 @@ réservation, refermée par `closeIfSettled`. Une mesure par un test temporaire
 
 ### Un état des lieux d'entrée contesté après sa signature reste coché dans la liste d'entrée du locataire, et sort des rappels
 - Réf : P238.01
-- Statut : validé — validation du porteur (2026-10-25) : à la sortie de `signed` d'un état des lieux d'entrée, la case se décoche, la liste d'entrée se rouvre et le rappel J+7 rejoue, tant qu'aucun autre état des lieux d'entrée du bail n'est signé
+- Statut : fait · TCK-2368
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Observers/InventoryOnboardingObserver.php:28-44,63-74`, `takussan-api/app/Services/Model/InventoryService.php:73-89`, `takussan-api/app/Console/Commands/RemindTenantOnboarding.php:37-40`, `takussan-api/app/Http/Controllers/Api/Agency/TenantOnboardingPendingController.php:57`, `takussan-web/src/components/tenant/TenantOnboardingChecklistWidget.tsx:45`
 - Constat :
@@ -7486,10 +7486,11 @@ réservation, refermée par `closeIfSettled`. Une mesure par un test temporaire
 - Piste : dans `InventoryOnboardingObserver`, à la sortie de `signed` d'un EDL d'entrée, remettre `inventory_completed_at` à nul (et `completed_at` s'il était posé par lui), tant qu'aucun autre EDL d'entrée du bail n'est signé ; ou garder la case et montrer la contestation, au choix du porteur. Garde : EDL d'entrée signé puis contesté → case décochée, liste rouverte, rappel J+7 rejoué.
 - Mesure (2026-10-25, db3e25230, mesureur) : relu `InventoryOnboardingObserver.php:28-44,63-74` (ne regarde que la transition vers `signed`), `InventoryService::dispute` l. 73-89 (`signed` → `disputed`, liste intacte), `RemindTenantOnboarding.php:38-39`, et `grep -rn inventory_completed_at app` (aucun écrivain ne remet la colonne à nul) ; test temporaire : EDL d'entrée `pending_signature` → `signed` (colonne posée), puis `dispute()` → EDL `disputed` mais `inventory_completed_at` toujours posé, et liste vieillie de 8 jours plus `tenant-onboarding:remind` → 0 rappel au locataire → le constat tient tel quel, lignes inchangées. Classement : V7, la piste elle-même propose deux conduites possibles et laisse le choix au porteur.
 - Mesure (2026-10-25, b9c58e007, humain) : validation du porteur en bloc (2026-10-25), second tour, sur les recommandations (a) de la session ; statut précédent : « retenu · à valider — V7 : la conduite pour un EDL d'entrée contesté après signature (décocher la case et rouvrir la liste, ou la garder cochée en signalant la contestation) n'est écrite nulle part, et c'est un choix de produit ».
+- Mesure (2026-10-25, 96cfda26f, implementeur) : rejoué avant correctif par `ListeDEntreeFaceAuxRetoursTest` (EDL d'entrée signé puis `dispute()` → `inventory_completed_at` toujours posé, 0 rappel) → `InventoryOnboardingObserver` lit la sortie de `signed` et appelle `TenantOnboardingService::reopenItem` (case et `completed_at` à nul, marque `inventory_reopened` dans `reminders_sent`, le rappel ne compte que les `inventory_d7` postérieurs), sauf autre EDL d'entrée signé ; 5 tests (rappel rejoué, liste fermée rouverte, rappel déjà parti rejoué une fois, autre EDL signé, EDL de sortie), ablation de la réouverture, de la remise à zéro du rappel et de la garde « autre EDL » → chacune rouge sur ses tests, vert remis.
 
 ### Un renouvellement signé rouvre la liste d'entrée du locataire en place, avec son rappel d'état des lieux et un second message de bienvenue
 - Réf : P238.02
-- Statut : validé — validation du porteur (2026-10-25) : un bail renouvelé (`renewed_from_lease_id` posé) ne crée ni liste d'entrée, ni rappel d'état des lieux, ni message de bienvenue
+- Statut : fait · TCK-2368
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/TenantOnboardingService.php`, `takussan-api/app/Listeners/SendTenantWelcomeNotification.php`
 - Constat :
@@ -7499,10 +7500,11 @@ réservation, refermée par `closeIfSettled`. Une mesure par un test temporaire
 - Piste : sur un bail renouvelé (`renewed_from_lease_id` posé), ne créer ni liste d'entrée ni message de bienvenue, comme le grand livre des commissions. Test : renouvellement signé → aucune liste d'entrée neuve, aucun avis de bienvenue ; bail neuf → les deux, avec ablation.
 - Mesure (2026-10-25, db3e25230, mesureur) : relu `LeaseRenewalService::renew` l. 146-189 (un enfant né `active` n'émet pas `LeaseActivated`, d'après le commentaire de la l. 189 et le code) et `LeaseService::completeActivation` l. 170-195 (un enfant né `pending_signature`, puis signé, émet `LeaseActivated`) ; test temporaire : parent actif avec sa liste et `tenant_welcomed_at` posé, enfant `pending_signature` à `renewed_from_lease_id` posé, `completeActivation(enfant)` → enfant `active`, nouvelle liste créée pour l'enfant, 1 `TenantWelcomeNotification` au locataire → le constat tient seulement pour un renouvellement qui demande une signature (avenant, ou `lease.require_signature`) ; le renouvellement né `active` ne crée ni liste ni bienvenue. Classement : V7, ce que doit vivre le locataire en place est un choix de produit, que ni `docs/features.md:206` ni `models-spec.md:2822` ne tranchent.
 - Mesure (2026-10-25, b9c58e007, humain) : validation du porteur en bloc (2026-10-25), second tour, sur les recommandations (a) de la session ; statut précédent : « retenu · à valider — V7 : donner ou non une liste d'entrée et un message de bienvenue au locataire déjà en place lors d'un renouvellement n'est écrit nulle part (la spec dit « à la signature du bail ») ».
+- Mesure (2026-10-25, 96cfda26f, implementeur) : rejoué avant correctif (renouvellement `pending_signature` puis `completeActivation` → liste créée pour l'enfant, seconde `TenantWelcomeNotification`) → `TenantOnboardingService::create` et `SendTenantWelcomeNotification` ne font rien pour un bail à `renewed_from_lease_id` posé ; un test par chemin de renouvellement (né `active` : témoin, déjà vert ; signé plus tard : rouge puis vert) et un bail neuf qui reçoit toujours les deux ; ablation de chacun des deux filtres → le test du renouvellement signé rougit, vert remis.
 
 ### Petites améliorations
 - Réf : P238.03
-- Statut : validé — validation du porteur (2026-10-25) : la case « premier paiement » ne compte que les loyers et cautions versés par le locataire (`payment_type`) ; un remboursement ne la décoche pas
+- Statut : fait · TCK-2368
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Observers/LeasePaymentOnboardingObserver.php:31-91`, `takussan-api/app/Services/Model/PayoutService.php:330`, `takussan-api/app/Services/Lease/DepositRefundService.php:90-103`
 - Constat :
@@ -7512,6 +7514,7 @@ réservation, refermée par `closeIfSettled`. Une mesure par un test temporaire
 - Piste : ne compter que les loyers et les cautions versés par le locataire (`payment_type`), et décider si un remboursement intégral du premier loyer décoche la case. Garde : caution rendue → case intacte.
 - Mesure (2026-10-25, db3e25230, mesureur) : relu `LeasePaymentOnboardingObserver.php:31-91` (aucun filtre sur `payment_type`, rien ne décoche la case), `DepositRefundService.php:90-103` et `PayoutService.php:330` ; test temporaire : liste avec `first_payment_at` nul, ligne `deposit_refund` passée de `pending` à `paid` avec `paid_at` (ce que fait le paiement du reversement) → `first_payment_at` posé ; premier loyer payé puis `refunded` → la case reste cochée → le constat tient en entier, et sa partie « à vérifier » est vérifiée. Classement : V7 pour le remboursement ; ne compter que les versements du locataire relèverait de A1 (`models-spec.md:2832` : « acompte ou 1er loyer »), mais l'entrée reste d'un seul tenant.
 - Mesure (2026-10-25, b9c58e007, humain) : validation du porteur en bloc (2026-10-25), second tour, sur les recommandations (a) de la session ; statut précédent : « retenu · à valider — V7 : décider si le remboursement du premier loyer décoche la case « premier paiement » est un choix ; seul le filtre sur `payment_type` relève de A1 ».
+- Mesure (2026-10-25, 96cfda26f, implementeur) : rejoué avant correctif (ligne `deposit_refund` passée à `paid`, ou créée payée, et pénalité payée → `first_payment_at` posé) → `LeasePaymentOnboardingObserver` ne compte que `rent` et `deposit`, à la création comme à la mise à jour ; témoins verts : caution versée coche la case, premier loyer `refunded` la laisse ; ablation du filtre → les trois cas « case vide » rougissent, vert remis.
 
 ## Angle 239 — Avis envoyés hors de `NotificationService::send`, vers un compte bloqué
 
