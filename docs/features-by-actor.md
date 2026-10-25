@@ -307,7 +307,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 |------|---------|----------------|
 | P1 | §1.4 | Créer un bail (locataire, bailleur, durée, loyer, caution) |
 | P1 | §1.4 | Créer le bail depuis une candidature acceptée (« Créer le bail » sur la réservation confirmée d'un bien à louer) : bien, locataire, dates et loyer préremplis ; le locataire est le client de la réservation, et la réservation passe à « terminée », ce qui libère ses dates (P48.03, TCK-2352) |
-| P1 | §1.4 | Générer l'échéancier de loyers mensuels |
+| P1 | §1.4 | Générer l'échéancier de loyers mensuels, et l'échéance de caution à l'activation du bail (aucune pour un bail sans caution ni pour un renouvellement) ; elle se paie en ligne ou se marque payée comme un loyer (TCK-2375) |
 | P1 | §1.4 | Enregistrer un paiement mensuel |
 | P1 | §1.4 | Alerte d'impayé au bailleur (J+1, J+7) et récapitulatif quotidien unique des impayés à l'agent (TCK-588) |
 | P1 | §1.4 | Appliquer automatiquement des pénalités de retard sur les paiements en retard |
@@ -484,13 +484,13 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P1 | §1.4 | Créer un bail (locataire, bailleur, durée, loyer, caution) |
 | P1 | §1.4 | Créer le bail depuis une candidature acceptée (« Créer le bail » sur la réservation confirmée d'un bien à louer) : bien, locataire, dates et loyer préremplis ; le locataire est le client de la réservation, et la réservation passe à « terminée », ce qui libère ses dates (P48.03, TCK-2352) |
 | P1 | §1.4 | Ajouter un ou plusieurs garants avec documents joints |
-| P1 | §1.4 | Générer l'échéancier de loyers mensuels |
+| P1 | §1.4 | Générer l'échéancier de loyers mensuels, et l'échéance de caution à l'activation du bail (aucune pour un bail sans caution ni pour un renouvellement) ; elle se paie en ligne ou se marque payée comme un loyer (TCK-2375) |
 | P1 | §1.4 | Relances de loyer automatiques (J-3, J+1, J+7) au locataire, y compris sans compte (téléphone du client), sur WhatsApp puis SMS en secours, dans sa langue ; un retard est relancé que le bail porte une pénalité ou non, et la relance annonce le solde restant dû (TCK-588) ; chaque relance part au plus une fois : celle que tous les fournisseurs SMS refusent n'est pas renvoyée et laisse une activité d'exploitation rattachée à l'échéance, sans le numéro (P207.01) ; pour un locataire sans compte, le SMS ne prend le relais que d'un échec immédiat de WhatsApp, pas d'un échec que Meta rapporte plus tard (P207.02) |
 | P1 | §1.4 | Alerte d'impayé au bailleur (J+1, J+7) et récapitulatif quotidien unique des impayés à l'agent (TCK-588) |
 | P1 | §1.4 | Appliquer automatiquement des pénalités de retard sur les paiements en retard |
 | P1 | §1.4 | Choisir, par agence, si les pénalités de retard s'encaissent avec le paiement en ligne du loyer — désactivé par défaut (TCK-593) |
 | P1 | §1.4 | Enregistrer une pénalité de retard réglée à l'agence ; la quittance la dit acquittée ou restant due (TCK-593) |
-| P1 | §1.4 | Remboursement de la caution en fin de bail |
+| P1 | §1.4 | Remboursement de la caution en fin de bail, borné à la caution encaissée (échéances `deposit` payées du bail et des baux qu'il renouvelle, moins le rendu et la retenue) ; une caution jamais encaissée ne se rembourse pas (TCK-2375) |
 | P1 | §1.4 | Consultation de l'historique complet d'un bail |
 | P2 | §1.4 | Renouveler un bail ou créer un avenant (loyer, durée, conditions) avec traçabilité du bail parent ; le bail renouvelé reçoit son échéancier sans geste manuel (TCK-596) ; il naît sans garant, et la réponse et le récapitulatif le disent (TCK-2316) |
 | P2 | §1.4 | Résiliation anticipée avec calcul des pénalités |

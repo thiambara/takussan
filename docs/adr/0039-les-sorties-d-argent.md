@@ -1,8 +1,8 @@
 # ADR-0039 — Les sorties d'argent : brut calculé, bénéficiaire explicite, quatre yeux, décaissement manuel tracé, factures numérotées à l'émission
 
-- **Statut** : Accepté, **amendé le 2026-10-23** (cf. § *Amendement du 2026-10-23 — le remboursement déjà sorti devient un `Payout` constaté*), **le 2026-10-24** (cf. § *Amendement du 2026-10-24 — la reprise au bailleur, le relevé lu par la copie, la pénalité de retard reversée*), **le 2026-10-25** (cf. § *Amendement du 2026-10-25 — la facture d'une intervention contestée ou annulée*) et le même jour (cf. § *Amendement du 2026-10-25 — le relevé envoyé est conservé*)
+- **Statut** : Accepté, **amendé le 2026-10-23** (cf. § *Amendement du 2026-10-23 — le remboursement déjà sorti devient un `Payout` constaté*), **le 2026-10-24** (cf. § *Amendement du 2026-10-24 — la reprise au bailleur, le relevé lu par la copie, la pénalité de retard reversée*), **le 2026-10-25** (cf. § *Amendement du 2026-10-25 — la facture d'une intervention contestée ou annulée*) le même jour (cf. § *Amendement du 2026-10-25 — le relevé envoyé est conservé*) et encore le même jour (cf. § *Amendement du 2026-10-25 — l'échéance de caution, et la restitution bornée à la caution encaissée*)
 - **Date** : 2026-10-07
-- **Tickets** : [TCK-594](../backlog/tickets/TCK-594-sorties-d-argent-calculees-et-validees.md), [TCK-2270](../backlog/tickets/TCK-2270-facture-d-intervention-contestee-ou-annulee.md) (amendement du 2026-10-25)
+- **Tickets** : [TCK-594](../backlog/tickets/TCK-594-sorties-d-argent-calculees-et-validees.md), [TCK-2270](../backlog/tickets/TCK-2270-facture-d-intervention-contestee-ou-annulee.md) (amendement du 2026-10-25), [TCK-2375](../backlog/tickets/TCK-2375-echeance-de-caution-et-restitution-bornee.md) (amendement du 2026-10-25 sur la caution)
 - **Précise** : le principe non négociable n° 3 (« le montant est décimal en base, entier ×100 à la
   frontière du driver »), [ADR-0007](0007-pas-d-enum-sql.md) (pas d'`enum()` SQL) et
   [ADR-0031](0031-personnel-de-l-agence-et-cloisonnement-des-bailleurs.md) (le bénéficiaire ne gère
@@ -1056,3 +1056,84 @@ table. Aucune reprise de données.
   P177.05 (septembre servi à 220 000, rectificatif de + 200 000 et la ligne du loyer encaissé, au
   JSON, au PDF et au CSV) ; sans instantané, le mois clos et l'année au jour, aucun instantané
   écrit ; une relance garde l'instantané envoyé ; le nom du bailleur hors de l'instantané.
+
+## Amendement du 2026-10-25 — l'échéance de caution, et la restitution bornée à la caution encaissée
+
+Décision du porteur du 2026-10-25 sur la piste P04.10 (angle 4 de
+`docs/plans/2026-10-15-pistes-d-amelioration.md`), prise en deux temps. Elle précise le § 4, qui
+définit le restituable (`deposit_remaining`), et le sens d'une échéance de l'échéancier. Relu sur
+`pre-dev` 0553e6c38. Ticket : [TCK-2375](../backlog/tickets/TCK-2375-echeance-de-caution-et-restitution-bornee.md).
+
+### Constat
+
+- Le restituable valait `deposit_amount − deposit_refunded_amount −` la retenue vivante : il partait
+  du montant écrit au bail, et aucune ligne ne lisait une échéance `deposit` payée
+  (`DepositRefundService::refund`, `Lease::getDepositRemainingAttribute`).
+- Les rapports définissaient déjà la caution détenue autrement : `Σ deposit payés − Σ deposit_refund
+  payés` (`PortfolioMetrics::depositsHeld`, `AgingBalanceService::depositsHeld`).
+- **Aucun chemin n'écrivait d'échéance `deposit`** (mesuré le 2026-10-25) :
+  `LeaseService::generateSchedule` n'écrivait que des loyers, et `POST /api/leases/{lease}/payments`
+  refuse `deposit` depuis TCK-1920, qui disait pourtant « loyer et caution naissent de
+  l'échéancier ». La caution détenue des rapports valait donc 0 pour tout bail créé dans
+  l'application. Une première borne (TCK-2340) a été retirée avant fusion (#1540) : seule, elle
+  refusait toute restitution.
+
+### Décision
+
+**L'échéancier écrit l'échéance `deposit` à l'activation du bail ; la restitution d'une caution est
+ensuite bornée à la caution réellement encaissée (Σ des échéances `deposit` payées − déjà rendu −
+retenue vivante), la définition qu'emploient déjà les rapports.**
+
+1. **L'échéance de caution.** La génération de l'échéancier (`LeaseService::scheduleUnderLock`,
+   celle de l'activation, de la tâche `GenerateLeasePaymentSchedule` et du bouton
+   `generate-schedule`) écrit une ligne `deposit`, `pending`, de `deposit_amount`, payée par le
+   locataire, due à `start_date` (`period_start = period_end = start_date`). Elle n'en écrit
+   **aucune** :
+   - pour un bail sans caution (`deposit_amount` nul ou à 0) ;
+   - pour un renouvellement (`renewed_from_lease_id` non nul) : la caution est celle du bail
+     d'origine, versée une fois pour toute la chaîne ;
+   - quand le bail porte déjà une ligne `deposit` non annulée (régénération, ligne antérieure à
+     TCK-1920).
+   L'échéance compte dans `payments_created` ; elle ne compte pas parmi les loyers qui disent
+   « l'échéancier existe », ni dans le plafond de douze loyers d'un bail sans fin.
+2. **Son règlement** passe par les chemins existants, sans code neuf : le paiement en ligne
+   (Wave / Orange Money, lien de paiement compris) et `mark-paid` (TCK-681). Elle reste hors du
+   reversement au bailleur, des encaissements et des pénalités de retard, qui ne lisent que leurs
+   types (`PayoutCalculator`, `CollectedPayments`, `ApplyLateFeesJob`).
+3. **L'encaissé** est `Lease::collectedDeposit()` : la somme des échéances `deposit` payées du bail
+   **et des baux qu'il renouvelle**, lue par le scope `LeasePayment::paidDepositMovements()` que les
+   deux rapports lisent aussi.
+4. **Le restituable** devient `min(deposit_amount, encaissé) − déjà rendu −` la retenue vivante,
+   borné à 0. « Déjà rendu » reste `deposit_refunded_amount` (il compte une restitution en cours et
+   la retire quand elle est refusée ou échoue, `PayoutService::releaseDeposit`), augmenté de ce que
+   les baux antérieurs de la chaîne ont rendu ou retenu : une caution rendue sur un bail échu,
+   renouvelé ensuite, ne se rend pas une seconde fois. Le montant du bail reste un plafond.
+5. **Rien d'encaissé** : `refund` refuse avec `deposit_refund.not_collected` (422). L'écran suit
+   `deposit_remaining`, comme avant : le bouton disparaît.
+
+### Ce qui n'est pas gardé
+
+- **Aucune reprise de l'existant.** Un bail activé avant ce changement n'a pas d'échéance de caution
+  et ne s'en voit pas écrire : sa caution ne se restitue pas par la plateforme (`not_collected`)
+  tant qu'aucune ligne `deposit` payée n'existe. Une reprise automatique aurait réclamé, en retard,
+  une caution peut-être remise hors plateforme ; elle reste au porteur.
+- **Un renouvellement qui relève la caution** (`deposit_amount` plus haut que le parent) n'écrit
+  pas d'échéance du complément : l'encaissé de la chaîne borne la restitution.
+- **Une restitution déjà faite au-delà de la borne n'est ni réécrite ni annulée.**
+- **L'échéance de caution est relancée comme une échéance de loyer** (`SendLeasePaymentReminders`
+  ne lit pas le type) : les textes de relance disent « loyer ».
+- **Un bail résilié avant le règlement de sa caution** garde son échéance `deposit` en attente.
+
+### Application
+
+- `LeaseService::writeDepositInstalment` ; `LeasePayment::scopePaidDepositMovements()` ;
+  `Lease::collectedDeposit()` et `getDepositRemainingAttribute()` sur la chaîne ; le refus de
+  `DepositRefundService::refund` ; le code `deposit_refund.not_collected`
+  (`lang/{fr,en,wo}/errors.php`, `wo` = `fr`). La fabrique `LeaseFactory::withCollectedDeposit()`
+  pose l'échéance payée des tests qui restituent.
+- **Gardes**, vérifiées par ablation : `tests/Feature/Lease/DepositInstalmentScheduleTest.php`
+  (l'échéance naît à l'activation ; aucune sans caution, pour un renouvellement, ni en double ;
+  douze loyers d'un bail sans fin ; réglée par `mark-paid` puis restituée ; payée en ligne et
+  comptée par la balance âgée) et `tests/Feature/Lease/DepositRefundBoundedToCollectedTest.php`
+  (rien d'encaissé → refus ; encaissé en partie → restitution et retenue bornées ; le montant du
+  bail plafonne ; la chaîne de renouvellements, encaissé et rendu).
