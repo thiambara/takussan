@@ -6,14 +6,16 @@ import { useLocale, useTranslations } from 'next-intl';
 import { ReceiptText } from 'lucide-react';
 
 import { StatusBadge } from '@/components/console';
+import { DataTable, type DataTableColumn } from '@/components/console/DataTable';
 import { EmptyState } from '@/components/feedback';
 import { QueryBoundary } from '@/components/shared/QueryBoundary';
+import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PropertyPagination } from '@/components/property-dashboard/PropertyPagination';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { useInvoices, type UseInvoicesParams } from '@/lib/queries/payments';
 import type { Locale } from '@/i18n/config';
-import type { InvoiceStatus } from '@/types/invoice';
+import type { Invoice, InvoiceStatus } from '@/types/invoice';
 
 import { INVOICE_STATUS_TONE } from './constants';
 
@@ -60,61 +62,109 @@ export function InvoicesTable({ onSelect }: InvoicesTableProps) {
           );
         }
 
+        const reference = (invoice: Invoice) => invoice.reference_number ?? `#${invoice.id}`;
+        const montant = (invoice: Invoice) =>
+          formatCurrency(invoice.total_amount, locale, { currency: invoice.currency || 'XOF' });
+        const jour = (value: string | null | undefined) => (value ? formatDate(value, locale) : '—');
+        const statut = (invoice: Invoice) => {
+          const status = invoice.status as InvoiceStatus;
+          return <StatusBadge tone={INVOICE_STATUS_TONE[status] ?? 'neutral'} label={tStatus(status)} />;
+        };
+
+        const colonnes: DataTableColumn<Invoice>[] = [
+          {
+            id: 'reference',
+            header: tTable('reference'),
+            className: 'whitespace-nowrap',
+            cell: (invoice) => (
+              <span className="font-mono text-xs text-muted-foreground">{reference(invoice)}</span>
+            ),
+          },
+          {
+            id: 'issuedOn',
+            header: tTable('issuedOn'),
+            className: 'whitespace-nowrap',
+            cell: (invoice) => <span className="text-xs">{jour(invoice.issue_date)}</span>,
+          },
+          {
+            id: 'dueDate',
+            header: tTable('dueDate'),
+            className: 'whitespace-nowrap',
+            cell: (invoice) => <span className="text-xs">{jour(invoice.due_date)}</span>,
+          },
+          {
+            id: 'amount',
+            header: tTable('amount'),
+            align: 'end',
+            className: 'whitespace-nowrap',
+            cell: (invoice) => <span className="font-semibold">{montant(invoice)}</span>,
+          },
+          {
+            id: 'status',
+            header: tTable('status'),
+            className: 'whitespace-nowrap',
+            cell: statut,
+          },
+          {
+            id: 'actions',
+            header: tTable('actions'),
+            headerSrOnly: true,
+            align: 'end',
+            cell: (invoice) => (
+              <button
+                type="button"
+                className="inline-flex min-h-9 items-center rounded-md px-2 text-xs font-medium whitespace-nowrap text-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                onClick={() => onSelect(invoice.id)}
+                aria-label={tTable('openLabel', { reference: reference(invoice) })}
+              >
+                {tTable('open')}
+              </button>
+            ),
+          },
+        ];
+
         return (
           <div className="space-y-3">
-            <div className="overflow-x-auto rounded-xl border border-border bg-card">
-              <table className="w-full text-left text-sm tabular-nums">
-                <caption className="sr-only">{tTable('caption')}</caption>
-                <thead className="bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
-                  <tr>
-                    <th className="px-3 py-2 font-medium whitespace-nowrap">{tTable('reference')}</th>
-                    <th className="px-3 py-2 font-medium whitespace-nowrap">{tTable('issuedOn')}</th>
-                    <th className="px-3 py-2 font-medium whitespace-nowrap">{tTable('dueDate')}</th>
-                    <th className="px-3 py-2 text-right font-medium whitespace-nowrap">{tTable('amount')}</th>
-                    <th className="px-3 py-2 font-medium whitespace-nowrap">{tTable('status')}</th>
-                    <th className="px-3 py-2" aria-label={tTable('actions')} />
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {rows.map((invoice) => {
-                    const status = invoice.status as InvoiceStatus;
-                    return (
-                      <tr key={invoice.id} className="text-foreground">
-                        <td className="px-3 py-2.5 font-mono text-xs whitespace-nowrap text-muted-foreground">
-                          {invoice.reference_number ?? `#${invoice.id}`}
-                        </td>
-                        <td className="px-3 py-2.5 text-xs whitespace-nowrap">
-                          {invoice.issue_date ? formatDate(invoice.issue_date, locale) : '—'}
-                        </td>
-                        <td className="px-3 py-2.5 text-xs whitespace-nowrap">
-                          {invoice.due_date ? formatDate(invoice.due_date, locale) : '—'}
-                        </td>
-                        <td className="px-3 py-2.5 text-right font-semibold whitespace-nowrap">
-                          {formatCurrency(invoice.total_amount, locale, {
-                            currency: invoice.currency || 'XOF',
-                          })}
-                        </td>
-                        <td className="px-3 py-2.5 whitespace-nowrap">
-                          <StatusBadge tone={INVOICE_STATUS_TONE[status] ?? 'neutral'} label={tStatus(status)} />
-                        </td>
-                        <td className="px-3 py-2.5 text-right">
-                          <button
-                            type="button"
-                            className="inline-flex min-h-9 items-center rounded-md px-2 text-xs font-medium whitespace-nowrap text-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                            onClick={() => onSelect(invoice.id)}
-                            aria-label={tTable('openLabel', {
-                              reference: invoice.reference_number ?? `#${invoice.id}`,
-                            })}
-                          >
-                            {tTable('open')}
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+            {/* TCK-2331 (P08.07) — sous `md`, une carte par facture : « Ouvrir » ne s'atteignait
+                qu'après un défilement horizontal de la table. */}
+            <DataTable
+              caption={tTable('caption')}
+              columns={colonnes}
+              rows={rows}
+              rowKey={(invoice) => invoice.id}
+              carteMobile={(invoice) => (
+                <>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-mono text-xs text-muted-foreground">{reference(invoice)}</p>
+                      <p className="mt-1 text-base font-semibold text-foreground tabular-nums">
+                        {montant(invoice)}
+                      </p>
+                    </div>
+                    {statut(invoice)}
+                  </div>
+                  <dl className="mt-2 grid grid-cols-2 gap-x-3 text-xs text-muted-foreground">
+                    <div>
+                      <dt>{tTable('issuedOn')}</dt>
+                      <dd className="text-foreground">{jour(invoice.issue_date)}</dd>
+                    </div>
+                    <div>
+                      <dt>{tTable('dueDate')}</dt>
+                      <dd className="text-foreground">{jour(invoice.due_date)}</dd>
+                    </div>
+                  </dl>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="mt-3 h-11 w-full"
+                    onClick={() => onSelect(invoice.id)}
+                    aria-label={tTable('openLabel', { reference: reference(invoice) })}
+                  >
+                    {tTable('open')}
+                  </Button>
+                </>
+              )}
+            />
             {data.meta ? <PropertyPagination meta={data.meta} /> : null}
           </div>
         );

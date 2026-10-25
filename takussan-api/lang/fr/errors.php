@@ -156,6 +156,7 @@ return [
     'document' => [
         'file_missing' => 'Aucun fichier n\'est joint à ce document.',
         'owner_not_found' => 'L\'objet auquel rattacher le document est introuvable.',
+        'profile_piece_not_versioned' => 'Une pièce de profil ne se versionne pas : renvoyez-la depuis votre profil.',
         'pdf_template_missing' => 'Le modèle de document est introuvable.',
         'pdf_uploader_missing' => 'Le document ne peut pas être généré sans auteur.',
         'unsupported_type' => 'Ce type d\'objet ne peut pas porter de document.',
@@ -244,9 +245,11 @@ return [
         'tenant_not_found' => 'Le locataire du bail est introuvable.',
     ],
     'invitation' => [
+        'already_member' => 'Ce compte est déjà membre de l\'agence sous ce profil : l\'invitation n\'a rien à ajouter.',
         'sms_daily_cap_reached' => 'Le plafond journalier d\'invitations par SMS de l\'agence est atteint. Réessayez demain, ou invitez par e-mail.',
         'phone_mismatch' => 'Ce numéro n\'est pas celui qui a reçu l\'invitation.',
         'profile_unavailable' => 'Le profil visé par cette invitation n\'est plus disponible (suspendu ou inactif). Demandez une nouvelle invitation à l\'agence.',
+        'service_provider_profile_exists' => 'Ce compte a déjà un profil de prestataire. Demandez à l\'agence de vous inviter à l\'adresse ou au numéro de ce compte : l\'invitation rejoindra alors ce profil.',
         'email_mismatch' => 'L\'email du compte connecté ne correspond pas à celui de l\'invitation.',
         'requires_login' => 'Cet email correspond à un compte existant. Veuillez vous connecter pour accepter l\'invitation.',
         'token_accepted' => 'Cette invitation a déjà été acceptée.',
@@ -476,6 +479,9 @@ return [
         'has_upcoming_visit' => 'Ce bien porte une visite à venir : annulez-la avant de supprimer le bien.',
         'not_found' => 'Bien introuvable.',
         'not_pending_moderation' => 'Le bien n\'est pas en attente de modération.',
+        'owner_designation_forbidden' => 'Le bailleur ne se désigne pas ici : seul le personnel d\'une agence standard saisit un bien au nom d\'un de ses bailleurs.',
+        'owner_not_in_agency' => 'Le bailleur choisi n\'est pas un bailleur actif de l\'agence du bien.',
+        'parent_owner_mismatch' => 'Un lot appartient au bailleur du bien qui le contient : ce lot a un autre titulaire.',
         'primary_not_eligible' => 'Seul un agent actif de l\'agence du bien peut en être l\'agent principal.',
         'primary_requires_agent' => 'Seul un collaborateur de rôle agent peut être l\'agent principal du bien.',
         'publish_contact_incomplete' => "Pour publier, le contact du bien doit avoir un prénom et un numéro vérifié, et les conditions d'utilisation doivent être acceptées.",
@@ -531,6 +537,7 @@ return [
         'already_in_payout' => 'Cette facture d\'intervention est déjà dans un reversement en cours.',
         'not_payable' => 'Seule une facture d\'intervention validée se paie.',
         'not_pending' => 'Cette facture d\'intervention n\'attend plus de validation.',
+        'request_not_completed' => 'Le travail de cette intervention n\'est pas rendu (contestée, reprise ou annulée) : sa facture ne se valide, ne se paie ni ne se refacture.',
     ],
     'session' => [
         'cannot_revoke_current' => 'Impossible de révoquer la session en cours : déconnectez-vous.',

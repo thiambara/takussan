@@ -5,7 +5,7 @@
  * dire lequel), et un bouton « Ouvrir » répété à chaque ligne des factures et des reversements :
  * dans la liste des boutons, N fois le même nom, sans dire quelle ligne il ouvre.
  */
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { withIntl } from '@/test/intl';
@@ -101,7 +101,8 @@ describe('tableaux de paiement — un nom par tableau (caption)', () => {
 describe('tableaux de paiement — « Ouvrir » dit quelle ligne il ouvre', () => {
   it('facture : « Ouvrir la facture <référence> »', () => {
     render(withIntl(<InvoicesTable onSelect={vi.fn()} />));
-    const bouton = screen.getByRole('button', { name: 'Ouvrir la facture INV-2026-0003' });
+    // TCK-2331 — la carte mobile porte le même bouton : on lit celui de la table.
+    const bouton = within(screen.getByRole('table')).getByRole('button', { name: 'Ouvrir la facture INV-2026-0003' });
     // Le libellé visible reste au début du nom accessible (WCAG 2.5.3, label in name).
     expect(bouton).toHaveTextContent('Ouvrir');
   });

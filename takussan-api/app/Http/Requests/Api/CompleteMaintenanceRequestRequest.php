@@ -55,7 +55,9 @@ class CompleteMaintenanceRequestRequest extends BaseFormRequest
             // verif-592 passe 3 (N10) — au-delà de la colonne `decimal(14,2)` : 500.
             'cost' => ['nullable', 'numeric', 'min:0', 'max:'.CurrencyUnit::MAX_COLUMN, 'decimal:0,2'],
             'actual_cost' => ['nullable', 'numeric', 'min:0', 'max:'.CurrencyUnit::MAX_COLUMN, 'decimal:0,2'],
-            'photos' => ['nullable', 'array'],
+            // TCK-2330 (P222.02) — 20 au plus, la borne `max_file_uploads` de l'image (`docker/php.ini`) :
+            // au-delà, PHP ignore un fichier sans erreur, et le lot passait amputé (comme TCK-673).
+            'photos' => ['nullable', 'array', 'max:20'],
             // TCK-2088 (P180.02) — la vignette fait décoder la photo par GD : la borne de 20 Mpx
             // des autres collections décodées (ADR-0029, amendement du 2026-10-23).
             'photos.*' => ['file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:10240', new PixelsAuPlus],

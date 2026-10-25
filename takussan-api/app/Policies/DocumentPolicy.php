@@ -3,15 +3,21 @@
 namespace App\Policies;
 
 use App\Models\Agency;
+use App\Models\AgencyUpgradeRequest;
 use App\Models\Booking;
 use App\Models\Customer;
 use App\Models\Document;
 use App\Models\Inventory;
 use App\Models\Lease;
+use App\Models\Profiles\AgencyAdminProfile;
+use App\Models\Profiles\AgentProfile;
+use App\Models\Profiles\OwnerProfile;
 use App\Models\Property;
 use App\Models\User;
+use App\Services\Membership\MembershipCapabilityResolver;
 use App\Services\Property\BailleurDuBien;
 use App\Support\ImpersonationContext;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -45,7 +51,9 @@ class DocumentPolicy extends BasePolicy
             return false;
         }
 
-        if ($user->isSuperAdmin() || $model->uploaded_by === $user->id) {
+        // P218.06 (TCK-2295) — le téléverseur, selon la règle d'auteur (ADR-0031, amendement du
+        // 2026-10-25, D3) : l'agent suspendu ou retiré n'y entre plus par sa seule signature.
+        if ($user->isSuperAdmin() || $this->televerseurGarde($user, $model, writing: false)) {
             return true;
         }
 
@@ -74,8 +82,10 @@ class DocumentPolicy extends BasePolicy
             return false;
         }
 
+        // P218.06 (TCK-2295) — `landlordWrites` gardé, et la règle d'auteur en écriture.
         return $user->isSuperAdmin()
-            || $this->landlordWrites($user, $model->uploaded_by, $this->agencyOf($model));
+            || ($this->landlordWrites($user, $model->uploaded_by, $this->agencyOf($model))
+                && $this->televerseurGarde($user, $model, writing: true));
     }
 
     /**
@@ -97,7 +107,8 @@ class DocumentPolicy extends BasePolicy
         $agencyId = $this->agencyOf($model);
 
         return $user->isSuperAdmin()
-            || $this->landlordWrites($user, $model->uploaded_by, $agencyId)
+            || ($this->landlordWrites($user, $model->uploaded_by, $agencyId)
+                && $this->televerseurGarde($user, $model, writing: true))
             || ($porteur && isset($porteur->user_id) && $this->landlordWrites($user, $porteur->user_id, $agencyId))
             || ($porteur && isset($porteur->agency_id) && $this->isStaffOf($user, $porteur->agency_id));
     }
@@ -112,6 +123,117 @@ class DocumentPolicy extends BasePolicy
         }
 
         return isset($porteur?->agency_id) ? (int) $porteur->agency_id : null;
+    }
+
+    /**
+     * P218.06 (TCK-2295) — ADR-0031, amendement du 2026-10-25 (D3) : la branche du TÉLÉVERSEUR
+     * (`uploaded_by`) suit la règle d'auteur. Elle vaut si le document est sans agence, si c'est une
+     * pièce du propre profil du téléverseur, si le téléverseur est encore membre de l'agence
+     * (`isMemberAt`), ou :
+     *
+     * - en lecture, s'il y détient un profil propriétaire de tout statut (l'exception de l'état
+     *   des lieux, B.3 : le bailleur bloqué garde la lecture) ;
+     * - en écriture, si une autre branche le fait atteindre le porteur en écriture (`reaches`) :
+     *   le locataire et le client gardent les gestes sur la pièce qu'ils ont jointe.
+     *
+     * Le relevé par sonde (TCK-2295) l'a établi : tout lecteur légitime qui a téléversé sans être
+     * membre atteint le porteur par une branche qui n'est pas d'auteur. La règle n'atteint que le
+     * personnel parti. Forme SQL : {@see self::restreindreAuTeleverseur()}.
+     */
+    private function televerseurGarde(User $user, Document $document, bool $writing): bool
+    {
+        if ($document->uploaded_by === null || (int) $document->uploaded_by !== $user->id) {
+            return false;
+        }
+
+        $agencyId = self::agenceDeLaRegle($document);
+        $porteur = $document->documentable;
+        if ($agencyId === null || $this->estSonProfil($user, $document)) {
+            return true;
+        }
+
+        if (self::auteurEncoreMembre($user, $document->uploaded_by, $agencyId)) {
+            return true;
+        }
+
+        return $writing
+            ? $porteur !== null && $this->reaches($user, $porteur, writing: true)
+            : $user->ownerProfiles()->where('agency_id', $agencyId)->exists();
+    }
+
+    /** Une pièce rattachée à un profil que l'utilisateur détient lui-même. */
+    private function estSonProfil(User $user, Document $document): bool
+    {
+        return in_array($document->documentable_type, Document::PROFILE_TYPES, true)
+            && (int) ($document->documentable?->user_id ?? 0) === $user->id;
+    }
+
+    /**
+     * L'agence que la règle d'auteur juge : celle du porteur, et pour un état des lieux, qui n'a pas
+     * de colonne `agency_id`, celle de son bien. {@see self::agencyOf()} reste tel quel pour
+     * `landlordWrites` et `share`.
+     */
+    private static function agenceDeLaRegle(Document $document): ?int
+    {
+        $porteur = $document->documentable;
+        if ($porteur instanceof Inventory) {
+            $agencyId = $porteur->property?->agency_id;
+
+            return $agencyId !== null ? (int) $agencyId : null;
+        }
+
+        if ($porteur instanceof Agency) {
+            return (int) $porteur->id;
+        }
+
+        return isset($porteur?->agency_id) ? (int) $porteur->agency_id : null;
+    }
+
+    /**
+     * P218.06 (TCK-2295) — la forme SQL de {@see self::televerseurGarde()} en lecture, pour la liste
+     * de `DocumentController::index` (« ses propres téléversements ») : sont retirés les documents
+     * dont le porteur est d'une agence où l'appelant n'est ni membre ni propriétaire de tout statut,
+     * sauf s'il atteint le porteur par une branche qui n'est pas d'auteur (locataire du bail, client
+     * de la réservation ou de la fiche, titulaire du profil). Un porteur supprimé ne retire rien :
+     * `view` le juge sans agence.
+     *
+     * @param  Builder<Document>  $query
+     * @return Builder<Document>
+     */
+    public static function restreindreAuTeleverseur(Builder $query, User $user): Builder
+    {
+        $resolver = app(MembershipCapabilityResolver::class);
+        $gardees = collect($resolver->memberAgencyIds($user))
+            ->merge($user->ownerProfiles()->pluck('agency_id'))
+            ->filter()->map(fn ($id) => (int) $id)->unique()->values()->all();
+
+        $horsAgence = fn (Builder $q, string $colonne = 'agency_id') => $q
+            ->whereNotNull($colonne)
+            ->when($gardees !== [], fn (Builder $q) => $q->whereNotIn($colonne, $gardees));
+
+        return $query
+            ->where('uploaded_by', $user->id)
+            // `whereNot(whereHasMorph)` et non `whereDoesntHaveMorph`, qui écarterait aussi tout
+            // document d'un type hors de la liste (un `User`, un profil de prestataire).
+            ->whereNot(fn (Builder $q) => $q->whereHasMorph('documentable', [
+                Property::class, Lease::class, Booking::class, Customer::class, Agency::class,
+                Inventory::class, AgencyUpgradeRequest::class,
+                OwnerProfile::class, AgentProfile::class, AgencyAdminProfile::class,
+            ], function (Builder $q, string $type) use ($user, $horsAgence): void {
+                match ($type) {
+                    Agency::class => $horsAgence($q, 'id'),
+                    Inventory::class => $q->whereHas('property', fn (Builder $p) => $horsAgence($p)),
+                    Lease::class => $horsAgence($q)
+                        ->whereDoesntHave('tenant', fn (Builder $t) => $t->where('user_id', $user->id)),
+                    Booking::class => $horsAgence($q)
+                        ->whereDoesntHave('customer', fn (Builder $c) => $c->where('user_id', $user->id)),
+                    Customer::class => $horsAgence($q)
+                        ->where(fn (Builder $c) => $c->whereNull('user_id')->orWhere('user_id', '!=', $user->id)),
+                    OwnerProfile::class, AgentProfile::class, AgencyAdminProfile::class => $horsAgence($q)
+                        ->where('user_id', '!=', $user->id),
+                    default => $horsAgence($q),
+                };
+            }));
     }
 
     /**
@@ -189,13 +311,18 @@ class DocumentPolicy extends BasePolicy
         if ($documentable instanceof Booking) {
             $property = $documentable->property;
 
-            return $documentable->created_by_id === $user->id
+            // P218.06 (TCK-2295) — le créateur encore membre (règle d'auteur, comme
+            // `BookingPolicy::view`) ; le client du tunnel public garde les documents de sa
+            // réservation par la branche du client, en lecture comme pour en joindre.
+            return self::auteurEncoreMembre($user, $documentable->created_by_id, $documentable->agency_id)
+                || ($documentable->customer && $documentable->customer->user_id === $user->id)
                 || ($property && $bailleur($property->user_id, $property->agency_id))
                 || $this->isStaffOf($user, $documentable->agency_id);
         }
 
         if ($documentable instanceof Customer) {
-            return $documentable->added_by_id === $user->id
+            // P218.06 (TCK-2295) — l'auteur de la fiche encore membre, comme `CustomerPolicy`.
+            return self::auteurEncoreMembre($user, $documentable->added_by_id, $documentable->agency_id)
                 || $documentable->user_id === $user->id
                 || $this->isStaffOf($user, $documentable->agency_id);
         }
@@ -210,7 +337,18 @@ class DocumentPolicy extends BasePolicy
         }
 
         if ($documentable instanceof Inventory) {
-            return $documentable->conducted_by === $user->id
+            // P218.06 (TCK-2295) — le conducteur selon l'exception de l'état des lieux (B.3), la forme
+            // d'`InventoryPolicy` : en écriture `landlordWrites` et encore membre ; en lecture encore
+            // membre, ou propriétaire de tout statut dans l'agence du bien.
+            $agencyId = $documentable->property?->agency_id;
+            $conducteur = $writing
+                ? $this->landlordWrites($user, $documentable->conducted_by, $agencyId)
+                    && self::auteurEncoreMembre($user, $documentable->conducted_by, $agencyId)
+                : self::auteurEncoreMembre($user, $documentable->conducted_by, $agencyId)
+                    || ($agencyId !== null && $documentable->conducted_by === $user->id
+                        && $user->ownerProfiles()->where('agency_id', $agencyId)->exists());
+
+            return $conducteur
                 || ($documentable->property && $bailleur($documentable->property->user_id, $documentable->property->agency_id))
                 || ($documentable->property && $this->isStaffOf($user, $documentable->property->agency_id));
         }

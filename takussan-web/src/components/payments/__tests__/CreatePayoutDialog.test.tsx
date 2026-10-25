@@ -114,6 +114,23 @@ describe('CreatePayoutDialog — le calcul se lit, il ne se saisit pas (TCK-594)
     }
   });
 
+  // P234.06 (TCK-2315) — un bailleur société est nommé par sa raison sociale, puis sa personne
+  // (TCK-1323) ; un particulier reste nommé par son nom, même avec une raison sociale saisie.
+  it('nomme un bailleur société par sa raison sociale, puis sa personne', () => {
+    const avant = OWNERS.data.data;
+    OWNERS.data.data = [
+      { id: 7, user_id: 44, agency_id: 3, status: 'active', metadata: { owner_type: 'company', company_name: 'SCI Baobab' } as never, created_at: null, user: { id: 44, first_name: 'Fatou', last_name: 'Sarr', email: 'fatou@example.test' } },
+      { id: 8, user_id: 45, agency_id: 3, status: 'active', metadata: { owner_type: 'individual', company_name: 'SCI Fantôme' } as never, created_at: null, user: { id: 45, first_name: 'Awa', last_name: 'Diop', email: 'awa@example.test' } },
+    ];
+    try {
+      monter();
+      expect(screen.getByRole('option', { name: 'SCI Baobab — Fatou Sarr' })).toBeInTheDocument();
+      expect(screen.getByRole('option', { name: 'Awa Diop' })).toBeInTheDocument();
+    } finally {
+      OWNERS.data.data = avant;
+    }
+  });
+
   it('propose les bailleurs actifs et inactifs, à qui des loyers peuvent rester dus (P120.04)', () => {
     monter();
 

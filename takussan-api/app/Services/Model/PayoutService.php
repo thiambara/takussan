@@ -23,11 +23,10 @@ use App\Models\LeasePayment;
 use App\Models\Payout;
 use App\Models\PayoutMethod;
 use App\Models\Profiles\AgencyAdminProfile;
-use App\Models\Profiles\AgentProfile;
-use App\Models\Profiles\OwnerProfile;
 use App\Models\ServiceProviderBill;
 use App\Models\User;
 use App\Services\Notifications\NotificationRenderer;
+use App\Services\Payout\BeneficiaireDuReversement;
 use App\Services\Payout\PayoutApprovalRule;
 use App\Services\Payout\PayoutApprovers;
 use App\Services\Payout\PayoutCalculator;
@@ -90,10 +89,9 @@ class PayoutService
 
         // TCK-528 — le bailleur doit tenir un profil DANS l'agence de l'émetteur.
         abort_code_unless(
-            // TCK-587 — APPARTENANCE du bénéficiaire, sans filtre de statut.
-            $landlord->hasProfileAt((int) $agency->id, OwnerProfile::class)
-            || $landlord->hasProfileAt((int) $agency->id, AgentProfile::class)
-            || $landlord->hasProfileAt((int) $agency->id, AgencyAdminProfile::class),
+            // TCK-997 (P232.07) — la règle unique du bénéficiaire : le bailleur par APPARTENANCE
+            // (TCK-587), le personnel par un profil ACTIF.
+            BeneficiaireDuReversement::est($landlord, (int) $agency->id),
             403,
             'payout.landlord_not_in_agency',
         );
@@ -162,6 +160,9 @@ class PayoutService
             if ($locked->status !== ServiceProviderBillStatus::Validated) {
                 abort_code(422, 'service_provider_bill.not_payable');
             }
+            // TCK-2270 (P224.01) — relue sous le verrou de la facture : une intervention contestée ou
+            // annulée ne paie pas son prestataire.
+            abort_code_unless($locked->requestIsBillable(), 422, 'service_provider_bill.request_not_completed');
 
             $live = Payout::query()
                 ->where('service_provider_bill_id', $locked->id)
@@ -453,6 +454,13 @@ class PayoutService
         }
         // TCK-2154 (P200.02) — relu sous le verrou des réservations : une fermeture passée entre-temps.
         $this->assertNotHeldForRefund($bookingIds);
+        // TCK-2270 (P224.01) — relue sous son verrou : une facture annulée par la contestation de son
+        // intervention, ou dont le travail n'est plus rendu, ne s'impute pas.
+        foreach ($bills as $bill) {
+            if (! $this->billImputable($bill)) {
+                $this->ineligibleItem('service_provider_bill_ids', (int) $bill->id);
+            }
+        }
 
         // P206.01 — la pénalité relue sous le verrou de son bail : encore réglée, et pas déjà prise.
         $lateFees = LeasePayment::query()
@@ -632,11 +640,21 @@ class PayoutService
                 || (int) $bill->property?->user_id !== (int) $landlord->id) {
                 $this->foreignItem('service_provider_bill_ids', $id);
             }
-            if (! $bill->rechargeable_to_landlord
-                || ! in_array($bill->status, [ServiceProviderBillStatus::Validated, ServiceProviderBillStatus::Paid], true)) {
+            if (! $this->billImputable($bill)) {
                 $this->ineligibleItem('service_provider_bill_ids', $id);
             }
         }
+    }
+
+    /**
+     * Une facture d'intervention s'impute au bailleur refacturable, validée ou payée, et pour un
+     * travail rendu (TCK-2270, P224.01) : le prédicat de {@see PayoutCalculator::rechargeableBills()}.
+     */
+    private function billImputable(ServiceProviderBill $bill): bool
+    {
+        return $bill->rechargeable_to_landlord
+            && in_array($bill->status, [ServiceProviderBillStatus::Validated, ServiceProviderBillStatus::Paid], true)
+            && $bill->requestIsBillable();
     }
 
     /**

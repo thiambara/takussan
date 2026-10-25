@@ -31,7 +31,9 @@ use App\Notifications\AccountDeletionExecutedNotification;
 use App\Notifications\AccountDeletionRequestedNotification;
 use App\Services\Agency\AgencyMemberRemovalService;
 use App\Services\Notifications\Sms\PhoneNumber;
+use App\Services\Payout\BeneficiaireDuReversement;
 use App\Services\Payout\PayoutCalculator;
+use App\Services\Property\BailleurDuBien;
 use App\Support\CaseInsensitive;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Carbon;
@@ -482,9 +484,9 @@ class AccountDeletionService
     {
         $obligations = [];
 
-        // Active leases as landlord.
-        $activeLandlordLeases = Lease::query()
-            ->where('landlord_id', $user->id)
+        // Active leases as landlord. TCK-2275 (P232.05) — bailleur au sens de `BailleurDuBien` : le
+        // bail d'un bien qu'il a saisi comme agent, actif compris, n'est pas son obligation.
+        $activeLandlordLeases = BailleurDuBien::restreindre(Lease::query(), $user, 'landlord_id')
             ->whereIn('status', self::openLeaseStatuses())
             ->get(['id', 'reference_number']);
         foreach ($activeLandlordLeases as $lease) {
@@ -615,6 +617,10 @@ class AccountDeletionService
      * TCK-2015 (P175.03) — les agences qui détiennent pour le bailleur une pièce reversable : celles
      * que {@see PayoutCalculator} rendrait à la préparation d'un reversement, sans période.
      *
+     * TCK-997 (P232.05, P232.07) — et où le compte est bénéficiaire d'un reversement
+     * ({@see BeneficiaireDuReversement}) : l'agent suspendu ou retiré qui a saisi un bien loué n'est
+     * plus un créancier de l'agence, le bailleur de tout statut le reste.
+     *
      * @return Collection<int, Agency>
      */
     private function agenciesOwingPayout(User $user): Collection
@@ -628,8 +634,9 @@ class AccountDeletionService
                 ->distinct()
                 ->pluck('bookings.agency_id'))
             ->unique()
-            ->filter(fn ($agencyId) => $calculator->leasePayments((int) $agencyId, (int) $user->id)->exists()
-                || $calculator->bookingPayments((int) $agencyId, (int) $user->id)->exists())
+            ->filter(fn ($agencyId) => BeneficiaireDuReversement::est($user, (int) $agencyId)
+                && ($calculator->leasePayments((int) $agencyId, (int) $user->id)->exists()
+                    || $calculator->bookingPayments((int) $agencyId, (int) $user->id)->exists()))
             ->values();
 
         return Agency::query()->whereIn('id', $agencyIds)->orderBy('id')->get(['id', 'name']);

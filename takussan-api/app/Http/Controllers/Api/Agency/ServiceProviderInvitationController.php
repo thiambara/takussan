@@ -22,6 +22,9 @@ use Illuminate\Http\JsonResponse;
  *  - `existing_sp_other_agency` : vrai si un SP existe déjà pour cet
  *    email dans une autre agence (la modale frontend propose un
  *    multi-rattachement à l'acceptation).
+ *  - `retained_trades` : les métiers du profil, ceux sous lesquels le
+ *    prestataire apparaîtra (P234.05). Pour un profil réutilisé, ce ne
+ *    sont pas ceux que l'agence vient de saisir.
  *  - `existing_sp_same_agency` : toujours false ici car le service
  *    aurait déjà jeté 409 si un SP actif existait dans cette agence.
  *    Conservé dans la réponse pour symétrie front (le 409 le contient
@@ -48,6 +51,9 @@ class ServiceProviderInvitationController extends Controller
                 'existing_sp_other_agency' => $result['existing_sp_other_agency'],
                 'existing_sp_same_agency' => $result['existing_sp_same_agency'],
                 'service_provider_profile_id' => $result['profile']->id,
+                // P234.05 (TCK-2280) — les métiers sous lesquels le prestataire apparaîtra : ceux du
+                // profil. Un profil déjà inscrit garde les siens (TCK-262), et l'écran le dit.
+                'retained_trades' => array_values($result['profile']->specialties ?? []),
             ],
         ], 201);
     }

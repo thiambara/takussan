@@ -156,6 +156,7 @@ return [
     'document' => [
         'file_missing' => 'No file is attached to this document.',
         'owner_not_found' => 'The item to attach the document to was not found.',
+        'profile_piece_not_versioned' => 'A profile document cannot be versioned: upload it again from your profile.',
         'pdf_template_missing' => 'The document template was not found.',
         'pdf_uploader_missing' => 'The document cannot be generated without an author.',
         'unsupported_type' => 'This kind of item cannot hold documents.',
@@ -244,9 +245,11 @@ return [
         'tenant_not_found' => 'The lease tenant was not found.',
     ],
     'invitation' => [
+        'already_member' => 'This account is already a member of the agency with this profile: the invitation has nothing to add.',
         'sms_daily_cap_reached' => 'The agency\'s daily limit of SMS invitations has been reached. Try again tomorrow, or invite by email.',
         'phone_mismatch' => 'This number is not the one the invitation was sent to.',
         'profile_unavailable' => 'The profile this invitation targets is no longer available (suspended or inactive). Ask the agency for a new invitation.',
+        'service_provider_profile_exists' => 'This account already has a service provider profile. Ask the agency to invite you at this account\'s email or number: the invitation will then join that profile.',
         'email_mismatch' => 'The logged-in account email does not match this invitation.',
         'requires_login' => 'This email maps to an existing account. Please log in to accept the invitation.',
         'token_accepted' => 'This invitation has already been accepted.',
@@ -476,6 +479,9 @@ return [
         'has_upcoming_visit' => 'This property has an upcoming visit: cancel it before deleting the property.',
         'not_found' => 'Property not found.',
         'not_pending_moderation' => 'The property is not awaiting moderation.',
+        'owner_designation_forbidden' => 'The landlord cannot be chosen here: only the staff of a standard agency saves a property in the name of one of its landlords.',
+        'owner_not_in_agency' => 'The chosen landlord is not an active landlord of the property\'s agency.',
+        'parent_owner_mismatch' => 'A unit belongs to the landlord of the property that contains it: this unit has another holder.',
         'primary_not_eligible' => 'Only an active agent of the property\'s agency can be its primary agent.',
         'primary_requires_agent' => 'Only a collaborator with the agent role can be the property\'s primary agent.',
         'publish_contact_incomplete' => 'To publish, the property contact needs a first name and a verified number, and the terms of use must be accepted.',
@@ -531,6 +537,7 @@ return [
         'already_in_payout' => 'This maintenance bill is already in an ongoing payout.',
         'not_payable' => 'Only a validated maintenance bill can be paid.',
         'not_pending' => 'This maintenance bill is no longer awaiting validation.',
+        'request_not_completed' => 'The work on this maintenance request is not delivered (contested, resumed or cancelled): its bill cannot be validated, paid or recharged.',
     ],
     'session' => [
         'cannot_revoke_current' => 'The current session cannot be revoked: sign out instead.',

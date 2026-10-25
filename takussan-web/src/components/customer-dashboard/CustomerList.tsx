@@ -17,6 +17,7 @@ import { DataTable, type DataTableColumn } from '@/components/console/DataTable'
 import { CustomerTagChips } from '@/components/customer-dashboard/CustomerTagPicker';
 import { EmptyState } from '@/components/feedback';
 import { buttonVariants } from '@/components/ui/button';
+import { nomAffichable } from '@/lib/identite';
 import type { PaginatedResponse } from '@/types/api';
 import type { CustomerListItem } from '@/types/customer';
 import {
@@ -56,7 +57,7 @@ export function CustomerList({ page, onTagClick, canAdd = true }: CustomerListPr
             href={`/app/customers/${customer.id}`}
             className="block font-semibold text-foreground underline-offset-4 hover:underline"
           >
-            {customer.first_name} {customer.last_name}
+            {nomAffichable(customer)}
           </Link>
           {customer.occupation ? (
             <p className="text-xs text-muted-foreground">{customer.occupation}</p>
@@ -125,7 +126,7 @@ export function CustomerList({ page, onTagClick, canAdd = true }: CustomerListPr
               className="block rounded-xl bg-card p-4 transition-colors hover:bg-muted"
             >
               <p className="text-sm font-semibold text-foreground">
-                {customer.first_name} {customer.last_name}
+                {nomAffichable(customer)}
               </p>
               <p className="text-xs text-muted-foreground">
                 {customer.email ?? customer.phone ?? '—'}

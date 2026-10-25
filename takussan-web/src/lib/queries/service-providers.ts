@@ -92,6 +92,8 @@ export type InviteServiceProviderResponse = ApiResponse<ServiceProviderInvitatio
     readonly existing_sp_other_agency: boolean;
     readonly existing_sp_same_agency: boolean;
     readonly service_provider_profile_id: number;
+    /** P234.05 (TCK-2280) — les métiers du profil, ceux sous lesquels le prestataire apparaîtra. */
+    readonly retained_trades?: readonly string[];
   };
 };
 

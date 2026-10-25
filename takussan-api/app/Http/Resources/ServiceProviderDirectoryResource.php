@@ -13,13 +13,14 @@ use Illuminate\Http\Request;
  * projection fixe (TCK-693), les dates sous les deux formes d'ADR-0018, et deux retraits : `insurance_policy_id` ne sort jamais, et de
  * `metadata` ne sortent que les sous-clés que le front lit (`ServiceProvidersList.tsx`,
  * `MaintenanceAssignmentBlock.tsx`) — nom, e-mail, métiers, zones et disponibilités du brouillon.
+ * P234.04 (TCK-2280) — et le numéro saisi par l'agence à l'invitation, que le carnet rend.
  *
  * @mixin ServiceProviderProfile
  */
 class ServiceProviderDirectoryResource extends BaseResource
 {
     /** Les sous-clés de `metadata` que le carnet rend. */
-    public const METADATA_KEYS = ['first_name', 'last_name', 'email', 'trades', 'intervention_zones', 'availability'];
+    public const METADATA_KEYS = ['first_name', 'last_name', 'email', 'phone', 'trades', 'intervention_zones', 'availability'];
 
     public function toArray(Request $request): array
     {

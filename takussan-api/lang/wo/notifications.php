@@ -338,6 +338,16 @@ return [
                 'sms' => 'Takussan : fey bu :amount agsi na (:property).',
                 'sms_link' => 'Takussan : fey bu :amount agsi na (:property). Kitaas : :receipt_url',
             ],
+            'refunded' => [
+                'title' => 'Remboursement : :property',
+                'body' => 'Un remboursement de :amount a été fait sur votre paiement de loyer pour :property. Votre quittance ne couvre plus la somme remboursée.',
+                'sms' => 'Takussan : remboursement de :amount sur votre loyer (:property).',
+            ],
+            'refunded_landlord' => [
+                'title' => 'Loyer remboursé : :property',
+                'body' => ':amount du loyer payé par :tenant pour :property ont été remboursés par le moyen de paiement en ligne.',
+                'sms' => 'Takussan : :amount du loyer de :tenant (:property) remboursés.',
+            ],
         ],
         // TCK-593 — un double encaissement à rembourser, signalé aux admins de l'agence.
         'payment' => [
@@ -350,6 +360,15 @@ return [
                 'title' => 'Pénalité bi ñu ko jot ñaari yoon',
                 'body' => 'Pénalité bu :amount ngir :reference, bu ñu fey ba noppi ci agence bi, ñu jot na ko itam ci internet. Delloo ko ki fey walla jox ko beneen.',
                 'sms' => 'Takussan : pénalité bu :amount agsi na ñaari yoon ngir :reference. Delloo ko walla jox ko beneen.',
+            ],
+        ],
+        // TCK-2320 (P39.07) — aux admins de l'agence : une ligne d'un reversement de la plateforme déjà
+        // versé a été remboursée depuis. Aucun montant n'est écrit.
+        'platform_payout' => [
+            'refunded_since_paid' => [
+                'title' => 'Paiement remboursé après reversement',
+                'body' => 'Le paiement :reference, compris dans le reversement de la plateforme de :period déjà versé à votre agence, a été remboursé depuis par le moyen de paiement en ligne. Aucune retenue n\'est appliquée automatiquement.',
+                'sms' => 'Takussan : le paiement :reference du reversement de :period a été remboursé depuis.',
             ],
         ],
         'booking' => [
@@ -736,6 +755,11 @@ return [
                 'body' => 'Sa yégle « :property » nangu nañu ko, ñépp mën nañu koo gis léegi.',
                 'sms' => 'Takussan : yégle « :property » nangu nañu ko.',
             ],
+            'assigned_to_owner' => [
+                'title' => 'Un bien saisi à votre nom : :property',
+                'body' => 'Votre agence a enregistré le bien « :property » à votre nom. Vous le retrouvez dans vos biens, avec ses baux et votre relevé de gérance.',
+                'sms' => 'Takussan : le bien « :property » est enregistré à votre nom.',
+            ],
             'submitted_for_review' => [
                 'title' => 'Bien à modérer : :property',
                 'body' => 'Le bien « :property » attend votre validation avant d\'être publié.',
@@ -807,6 +831,13 @@ return [
                 'title' => 'Woyofal seuil bu reversement yi, war nañu ko dëggal',
                 'body' => 'Benn ci mbootaayu :agency laaj na ñu woyofal seuil d\'approbation bu reversement yi. Dara du soppiku fii ak benn approbateur bu ñaareel dëggal ko ci réglages bu agence bi.',
                 'sms' => 'Takussan : woyofal seuil bu reversement yu :agency, war nañu ko dëggal.',
+            ],
+        ],
+        'service_provider_bill' => [
+            'kept_on_reopen' => [
+                'title' => 'Facture d\'intervention maintenue : :reference',
+                'body' => 'L\'intervention « :request » a été contestée ou annulée, mais sa facture :reference de :amount est déjà payée, refacturée au bailleur ou en cours de paiement : elle n\'est pas annulée. Vérifiez-la et régularisez-la à la main.',
+                'sms' => 'Takussan : facture :reference maintenue, intervention contestée ou annulée. À régulariser.',
             ],
         ],
         'owner_statement' => [

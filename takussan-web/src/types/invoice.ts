@@ -220,7 +220,8 @@ export type PayoutPreparation = {
  */
 export type OwnerStatement = {
   agency: { id: number; name: string };
-  landlord: { id: number; name: string };
+  /** P234.06 (TCK-2315) — `company_name` : la raison sociale d'un bailleur société, `null` sinon. */
+  landlord: { id: number; name: string; company_name: string | null };
   period: string;
   annual: boolean;
   period_start: string;
@@ -237,6 +238,21 @@ export type OwnerStatement = {
     transaction_id: string | null;
     processed_at: string | null;
   }>;
+  /**
+   * TCK-2321 (P177.05) — le relevé envoyé : un mois qui en a un est servi depuis lui, et ce qui a
+   * été écrit depuis vient en rectificatif. Nuls hors instantané (mois non envoyé, attestation).
+   */
+  snapshot?: { sent_at: string } | null;
+  rectification?: OwnerStatementRectification | null;
+};
+
+export type OwnerStatementTotals = OwnerStatement['totals'] & { clawback?: number };
+
+export type OwnerStatementRectification = {
+  as_of: string;
+  totals: OwnerStatementTotals;
+  delta: Partial<Record<keyof OwnerStatementTotals, number>>;
+  lines: { added: Record<string, unknown[]>; removed: Record<string, unknown[]> };
 };
 
 /** TCK-594 (ADR-0039 §8) — la facture d'un prestataire pour une intervention terminée. */

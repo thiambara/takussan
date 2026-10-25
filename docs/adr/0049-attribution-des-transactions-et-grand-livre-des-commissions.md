@@ -1,6 +1,7 @@
 # ADR-0049 — Attribution des transactions et grand livre des commissions
 
-- **Statut** : Accepté
+- **Statut** : Accepté, **amendé le 2026-10-25** (cf. § *Amendement du 2026-10-25 — `commission_rate`
+  est un terme de commission*)
 - **Date** : 2026-10-08
 - **Tickets** : [TCK-595](../backlog/tickets/TCK-595-tableaux-de-bord-justes-et-pilotage.md)
 - **Précise** : le principe non négociable n° 3 (montant décimal en base),
@@ -52,6 +53,9 @@ négociateur. Les chiffres consolidés d'une agence s'ouvrent par une capacité 
 **Qui écrit le négociateur et le montant (verif-595 B1).** `agent_id` et `commission_amount` sont les
 **termes de commission** du bail (`LeaseService::COMMISSION_TERMS`), et les deux mêmes règles les
 gardent, à la création (`POST /api/leases`) comme à la modification (`PATCH /api/leases/{id}`) :
+
+> *Amendement du 2026-10-25* : `commission_rate` est le troisième terme de commission (P227.01,
+> TCK-2286). Voir le § en fin de document.
 
 - **Seul le personnel de l'agence du bail qui détient `leases.create`** les écrit
   (`LeaseService::maySetCommissionTerms()` : `staffAgencyId()` = l'agence du bail, et
@@ -216,3 +220,31 @@ La tuile de l'agent lit **ses** lignes du grand livre (`beneficiary_id` = lui, `
   `CommissionEntryApiTest.php` (cloisonnement, 403 de l'agent, 200 de l'approbateur, journal), et
   `tests/Feature/Dashboard/DashboardAgencyAccessTest.php` (capacité). Chaque refus est prouvé par
   ablation.
+
+## Amendement du 2026-10-25 — `commission_rate` est un terme de commission
+
+Décision du porteur du 2026-10-25 sur P227.01 (TCK-2286). Relevé sur `b4d905cd3`.
+
+**Constat.** `LeaseService::COMMISSION_TERMS` ne comptait que `commission_amount` et `agent_id`.
+`StoreLeaseRequest` et `RenewLeaseRequest` acceptaient `commission_rate` de 0 à 100, et le
+renouvellement est ouvert au bailleur (`LeasePolicy::renew`). Or le `commission_rate` d'une location est
+le taux de gestion que le reversement retient (§ 2, ADR-0039 ; `PayoutCalculator` prend celui du bail
+avant celui de l'agence). Mesuré : le bailleur créait son bail au taux 0, puis renouvelait au taux 0
+(201), et le reversement ne retenait rien.
+
+**Décision.** `commission_rate` rejoint `LeaseService::COMMISSION_TERMS`. Le § 1 s'y applique tel quel :
+seul le personnel de l'agence du bail qui détient `leases.create` l'écrit, sinon **403
+`lease.commission_forbidden`**. La règle vaut à la création (`POST /api/leases`) et au renouvellement
+(`POST /api/leases/{id}/renew`, `LeaseRenewalController`). Absent d'un renouvellement, le taux suit le
+parent. `PATCH /api/leases/{id}` ne l'accepte pas : un taux posé ne change que par un renouvellement du
+personnel.
+
+**Conséquences.**
+
+- Une vente ouverte par le bailleur ne porte plus de taux du tout (403). Elle naît donc sans commission,
+  comme le § 2 le voulait déjà.
+- Sur un bien sans agence, personne ne fixe le taux (`maySetCommissionTerms` rend `false`) : le
+  bailleur direct qui en envoie un reçoit 403, pour un taux qu'aucun reversement d'agence ne lit.
+
+**Ce qui n'est pas gardé.** Les baux existants gardent leur taux, y compris un taux 0 posé par un
+bailleur. Rien ne le corrige en masse.

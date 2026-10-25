@@ -45,7 +45,11 @@ use Illuminate\Support\Facades\DB;
  *     fiche client, OU l'un est rattaché à la fiche dont l'autre est le client (`customers.user_id`) :
  *     un propriétaire joint son locataire, et le locataire son propriétaire. Sur une fiche D'AGENCE,
  *     un rattachement ne compte que pour qui a encore un profil (de tout statut) dans l'agence de la
- *     fiche (TCK-1713, P153.06) : le référent retiré de l'agence ne représente plus le client ;
+ *     fiche (TCK-1713, P153.06) : le référent retiré de l'agence ne représente plus le client.
+ *     Une fiche SUPPRIMÉE (`customers.deleted_at`) ne relie plus personne, dans aucun des trois
+ *     sens (P223.02, TCK-2295, ADR-0031, amendement du 2026-10-25, D4) : `CustomerController::destroy`
+ *     la supprime en douceur sans toucher à ses rattachements. Les fils déjà ouverts restent, par
+ *     la règle 1 ;
  *  3. **l'agence active de l'acteur** (principe n°2 : l'agence est la frontière) :
  *     - son **équipe** (agents, administrateurs) est joignable par tout membre de l'agence ;
  *     - ses **propriétaires** ne le sont que par l'équipe. Un propriétaire n'a pas à découvrir
@@ -129,13 +133,15 @@ class MessagingReach
                 // 2. Lien CRM, dans les trois sens où une fiche client relie deux comptes. TCK-1713
                 //    (P153.06) — un rattachement à une fiche D'AGENCE ne compte que pour qui a encore
                 //    un profil dans l'agence de la fiche (`liveAttachment`) : l'agent retiré ne joint
-                //    plus les clients dont il était référent, ni eux lui.
+                //    plus les clients dont il était référent, ni eux lui. P223.02 (TCK-2295) — une fiche
+                //    supprimée ne relie plus personne (`deleted_at IS NULL` sur les trois jointures).
                 //    a. une même fiche rattachée aux deux (le propriétaire et l'agent d'un client) ;
                 $reach->orWhereIn('users.id', function (QueryBuilder $sub) use ($actor) {
                     $sub->select('ucrb.user_id')
                         ->from('user_customer_relationships as ucra')
                         ->join('user_customer_relationships as ucrb', 'ucra.customer_id', '=', 'ucrb.customer_id')
                         ->join('customers as ca', 'ca.id', '=', 'ucra.customer_id')
+                        ->whereNull('ca.deleted_at')
                         ->where('ucra.user_id', $actor->id);
                     $this->liveAttachment($sub, 'ucra.user_id', 'ca.agency_id');
                     $this->liveAttachment($sub, 'ucrb.user_id', 'ca.agency_id');
@@ -145,6 +151,7 @@ class MessagingReach
                     $sub->select('c.user_id')
                         ->from('user_customer_relationships as ucr')
                         ->join('customers as c', 'c.id', '=', 'ucr.customer_id')
+                        ->whereNull('c.deleted_at')
                         ->where('ucr.user_id', $actor->id)
                         ->whereNotNull('c.user_id');
                     $this->liveAttachment($sub, 'ucr.user_id', 'c.agency_id');
@@ -154,6 +161,7 @@ class MessagingReach
                     $sub->select('ucr.user_id')
                         ->from('user_customer_relationships as ucr')
                         ->join('customers as c', 'c.id', '=', 'ucr.customer_id')
+                        ->whereNull('c.deleted_at')
                         ->where('c.user_id', $actor->id);
                     $this->liveAttachment($sub, 'ucr.user_id', 'c.agency_id');
                 });

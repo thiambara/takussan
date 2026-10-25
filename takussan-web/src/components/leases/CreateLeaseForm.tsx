@@ -30,7 +30,6 @@ import {
   useLeasePropertyOptions,
 } from '@/lib/queries/leases';
 import { createLeaseSchema, type CreateLeaseFormValues } from '@/lib/schemas/lease';
-import { useAuth } from '@/context/AuthContext';
 import { formatCurrency } from '@/lib/format';
 import { nomAffichable } from '@/lib/identite';
 import type { CustomerListItem } from '@/types/customer';
@@ -60,7 +59,6 @@ export function CreateLeaseForm() {
   const tCommon = useTranslations('common');
   const router = useRouter();
   const createLease = useCreateLease();
-  const { user } = useAuth();
   const [customerSearch, setCustomerSearch] = useState('');
   const propertiesQuery = useLeasePropertyOptions();
   const customersQuery = useLeaseCustomerOptions(customerSearch);
@@ -211,9 +209,13 @@ export function CreateLeaseForm() {
             label={t('selectedTenant')}
             value={selectedCustomer ? customerLabel(selectedCustomer) : t('noTenantSelected')}
             detail={
-              user
-                ? t('activeLandlord', { name: nomAffichable(user) })
-                : t('loadingLandlord')
+              // TCK-997 (P50.01) — le bail naît au nom du TITULAIRE du bien (`LeaseService::create`,
+              // `landlord_id = property.user_id`), jamais de qui le saisit : la ligne le nomme.
+              selectedProperty?.owner
+                ? t('landlordOfProperty', {
+                    name: nomAffichable({ id: selectedProperty.owner.id }, selectedProperty.owner.name),
+                  })
+                : t('landlordPending')
             }
           />
         </div>
@@ -434,10 +436,10 @@ function formatCustomerLabel(
   customer: CustomerListItem,
   fallback: (id: number) => string,
 ): string {
+  // P220.03 (TCK-2281) — le nom seul : le contact suit déjà, il ne se répète pas en repli.
   const name =
     customer.full_name ||
-    [customer.first_name, customer.last_name].filter(Boolean).join(' ').trim() ||
-    fallback(customer.id);
+    nomAffichable({ id: customer.id, first_name: customer.first_name, last_name: customer.last_name }, fallback(customer.id));
   const contact = [customer.email, customer.phone].filter(Boolean).join(' · ');
   return contact ? `${name} · ${contact}` : name;
 }

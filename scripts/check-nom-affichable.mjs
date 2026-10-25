@@ -36,15 +36,6 @@ const REPORT = process.argv.includes('--report');
 
 /** Fichier (relatif à la racine) → nombre de compositions tolérées et pourquoi. */
 export const EXCEPTIONS = {
-  // Fiches client : leur repli est P220.03, soumise au porteur (V7, et V1 par la facture).
-  'takussan-web/src/app/(dashboard)/app/customers/[id]/page.tsx': { max: 5, motif: 'fiche client, P220.03 à valider' },
-  'takussan-web/src/components/pipeline/PipelineKanban.tsx': { max: 1, motif: 'fiche client, P220.03 à valider' },
-  'takussan-web/src/components/pipeline/PipelineCard.tsx': { max: 4, motif: 'fiche client (et son auteur), P220.03 à valider' },
-  'takussan-web/src/components/pipeline/CustomerDetailSheet.tsx': { max: 2, motif: 'fiche client, P220.03 à valider' },
-  'takussan-web/src/components/customer-dashboard/CustomerList.tsx': { max: 2, motif: 'fiche client, P220.03 à valider' },
-  'takussan-web/src/components/visits/PlanifierUneVisite.tsx': { max: 1, motif: 'fiche client, P220.03 à valider' },
-  'takussan-web/src/components/leases/CreateLeaseForm.tsx': { max: 1, motif: 'fiche client du locataire (customerLabel), P220.03 à valider' },
-  'takussan-web/src/lib/queries/agent-crm.ts': { max: 1, motif: 'fiche client de la recherche CRM, P220.03 à valider' },
   // Le nom de l'invitation (`metadata`) passe avant le repli : TCK-2136 l'a écrit ainsi.
   'takussan-web/src/components/owners/OwnersList.tsx': { max: 2, motif: 'compte puis nom saisi à l’invitation (TCK-2136)' },
   'takussan-web/src/components/service-providers/ServiceProvidersList.tsx': { max: 2, motif: 'compte puis nom saisi à l’invitation (TCK-2136)' },

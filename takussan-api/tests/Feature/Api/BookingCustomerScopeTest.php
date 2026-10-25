@@ -77,8 +77,22 @@ class BookingCustomerScopeTest extends TestCase
 
     public function test_an_agent_books_for_a_customer_they_added(): void
     {
-        $added = Customer::factory()->create(['agency_id' => null, 'added_by_id' => $this->agentA->id]);
+        $added = Customer::factory()->create(['agency_id' => $this->agencyA->id, 'added_by_id' => $this->agentA->id]);
 
         $this->bookFor($added)->assertCreated();
+    }
+
+    /**
+     * TCK-2285 (P226.01, décision du porteur) — sur un bien d'agence, le client est une fiche de
+     * cette agence, en plus de `view` : la fiche sans agence que l'agent a ajoutée ne s'y rattache
+     * plus. Ce test la donnait réservable (201) avant la décision.
+     */
+    public function test_a_customer_without_agency_is_not_booked_on_an_agency_property(): void
+    {
+        $added = Customer::factory()->create(['agency_id' => null, 'added_by_id' => $this->agentA->id]);
+
+        $this->bookFor($added)->assertForbidden();
+
+        $this->assertDatabaseCount('bookings', 0);
     }
 }

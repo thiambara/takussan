@@ -32,8 +32,11 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
  *    uninstalled, ADR-0002). Held by `agency_admin`, optionally delegated
  *    to a senior agent via {@see RoleDelegation}.
  *  - Pre-creates an `AgentProfile` in `AgentProfileStatus::Draft` linked
- *    to the agency. The first/last/phone payload lands in `metadata`
- *    until acceptance promotes it onto a real `User` row.
+ *    to the agency. The first/last/phone payload lands in `metadata`, and
+ *    stays there: acceptance writes nothing of it onto the `User` (a new
+ *    account takes the names typed at acceptance). P234.04 (TCK-2280) — the
+ *    phone typed by the agency is a datum of the agency's record, never
+ *    the account's number.
  *  - Conflict guard: if the email already maps to an active AgentProfile
  *    in this agency (i.e. the agent has already accepted, or was added
  *    directly), throws 409.
@@ -47,8 +50,15 @@ class AgentInvitationService
      * Roles assignable when inviting through the team management surface.
      * `agency_admin` is intentionally absent — promoting/creating other
      * admins lives in a separate, more-restricted flow (TCK-209).
+     *
+     * P234.01 (TCK-2280, décision du porteur du 2026-10-25) — `agent_senior` et
+     * `agent_manager` sont retirés : `metadata.invited_role` n'avait aucun lecteur, et le
+     * membre entrait avec le rôle système « Agent » quel que soit le choix. Le rôle se
+     * réaffecte après l'acceptation (`/app/agency/roles`). Les invitations déjà émises sous
+     * ces rôles s'acceptent toujours : ils restent dans
+     * {@see InvitationService::INVITABLE_TYPE_BY_ROLE} et la liste de `finalizeAccept`.
      */
-    public const ALLOWED_ROLES = ['agent', 'agent_senior', 'agent_manager'];
+    public const ALLOWED_ROLES = ['agent'];
 
     public function __construct(private readonly InvitationService $invitations) {}
 
@@ -80,6 +90,8 @@ class AgentInvitationService
 
         if ($email !== null) {
             $this->assertNoActiveAgentInAgency($agency, $email);
+        } else {
+            $this->assertRecipientIsNotAgentInAgency($agency, $this->cleanString($data['phone'] ?? null));
         }
 
         return DB::transaction(function () use ($agency, $inviter, $email, $role, $data): Invitation {
@@ -244,6 +256,27 @@ class AgentInvitationService
             ->whereHas('user', function ($query) use ($email): void {
                 $query->whereRaw(CaseInsensitive::sql('email').' = ?', [CaseInsensitive::fold($email)]);
             })
+            ->first();
+
+        if ($existing !== null) {
+            throw new HttpException(
+                409,
+                __('team.invite.errors.already_member', ['profile_id' => $existing->id]),
+            );
+        }
+    }
+
+    /**
+     * P234.03 (TCK-2280) — sans e-mail, le destinataire est le compte qui a VÉRIFIÉ ce numéro
+     * ({@see InvitationService::recipientAccount()}) : déjà agent de l'agence, même 409 que par
+     * e-mail. Sans ce refus, le SMS partait et l'acceptation heurtait `unique(user_id, agency_id)`.
+     */
+    protected function assertRecipientIsNotAgentInAgency(Agency $agency, ?string $phone): void
+    {
+        $account = $phone !== null ? $this->invitations->recipientAccount(null, $phone) : null;
+        $existing = $account === null ? null : AgentProfile::query()
+            ->where('agency_id', $agency->id)
+            ->where('user_id', $account->id)
             ->first();
 
         if ($existing !== null) {

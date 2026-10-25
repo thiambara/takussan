@@ -76,6 +76,8 @@ describe('<DeleteRoleDialog>', () => {
         profiles: [
           { id: 3, type: 'agent', user_id: 12, display_name: 'Awa Diop' },
           { id: 4, type: 'agent', user_id: 13, display_name: null },
+          // P234.07 (TCK-2280) — un nom vide (compte et invitation sans nom) retombe aussi sur le libellé.
+          { id: 5, type: 'agent', user_id: 14, display_name: '' },
         ],
       }),
     }));
@@ -95,6 +97,7 @@ describe('<DeleteRoleDialog>', () => {
     const conflict = await screen.findByTestId('delete-role-conflict');
     expect(within(conflict).getByText('Awa Diop')).toBeInTheDocument();
     expect(within(conflict).getByText('Profil #4')).toBeInTheDocument();
+    expect(within(conflict).getByText('Profil #5')).toBeInTheDocument();
     expect(screen.getByText('Ce rôle est encore attribué')).toBeInTheDocument();
     expect(onDeleted).not.toHaveBeenCalled();
     // Réessayer ne servirait à rien tant que les profils sont attachés.

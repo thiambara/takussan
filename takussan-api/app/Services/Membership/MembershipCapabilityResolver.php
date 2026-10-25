@@ -6,6 +6,7 @@ use App\Models\Agency;
 use App\Models\AgencyRole;
 use App\Models\Enums\AgencyRoleBaseType;
 use App\Models\Enums\AgencyStatus;
+use App\Models\Enums\AgentProfileStatus;
 use App\Models\Enums\Capability;
 use App\Models\Enums\CollaborationStatus;
 use App\Models\Enums\OwnerProfileStatus;
@@ -602,8 +603,11 @@ class MembershipCapabilityResolver
      */
     public function isMemberAt(User $user, int $agencyId): bool
     {
+        // P218.06 (TCK-2295) — l'amorce `owner` d'une page ({@see self::primed()}), même portée
+        // (`active()`) : la liste des documents juge la règle d'auteur à chaque ligne.
         return $this->isStaffAt($user, $agencyId)
-            || OwnerProfile::query()->where('user_id', $user->id)->where('agency_id', $agencyId)->active()->exists();
+            || (self::amorce('owner', (int) $user->id, $agencyId)
+                ?? OwnerProfile::query()->where('user_id', $user->id)->where('agency_id', $agencyId)->active()->exists());
     }
 
     /**
@@ -616,6 +620,37 @@ class MembershipCapabilityResolver
         return collect($this->staffAgencyIds($user))
             ->merge(OwnerProfile::query()->where('user_id', $user->id)->active()->pluck('agency_id'))
             ->filter()->map(fn ($id) => (int) $id)->unique()->values()->all();
+    }
+
+    /**
+     * P233.03 (TCK-2290, ADR-0031, amendement du 2026-10-25, D2) — les agences dont l'utilisateur est
+     * du PERSONNEL PARTI : il y a tenu un profil d'agent ou d'administrateur, de tout statut et
+     * supprimé compris (le retrait supprime en douceur), et n'y est plus membre ({@see self::isMemberAt()}).
+     *
+     * C'est là, et là seulement, qu'une colonne qui nomme aussi un tiers (`requester_id` : le
+     * locataire, le client) cesse de valoir. Un profil d'agent en brouillon (`draft`, invitation non
+     * acceptée) n'a jamais été tenu. Une délégation n'est pas un profil.
+     *
+     * @return list<int>
+     */
+    public function agencesDuPersonnelParti(User $user): array
+    {
+        $tenues = collect();
+        foreach ([AgencyRoleBaseType::Agent, AgencyRoleBaseType::AgencyAdmin] as $type) {
+            $class = $type->profileClass();
+            $query = $class::withTrashed()->where('user_id', $user->id);
+            if ($type === AgencyRoleBaseType::Agent) {
+                $query->where('status', '!=', AgentProfileStatus::Draft->value);
+            }
+            $tenues = $tenues->merge($query->pluck('agency_id'));
+        }
+
+        $tenues = $tenues->filter()->map(fn ($id) => (int) $id)->unique();
+        if ($tenues->isEmpty()) {
+            return [];
+        }
+
+        return $tenues->diff($this->memberAgencyIds($user))->values()->all();
     }
 
     /**

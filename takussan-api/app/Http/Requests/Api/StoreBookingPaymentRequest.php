@@ -76,7 +76,11 @@ class StoreBookingPaymentRequest extends BaseFormRequest
             // comptée ni dans le dû du client ni au reversement. Une part reçue est une ligne `paid`
             // de son montant.
             'status' => ['nullable', Rule::enum(PaymentStatus::class)->only([PaymentStatus::Paid, PaymentStatus::Pending])],
-            'paid_at' => ['nullable', 'date'],
+            // TCK-2286 (P227.04, décision du porteur) — une ligne `pending` n'a pas de date
+            // d'encaissement : gardée, elle survivait au règlement par la passerelle
+            // (`paid_at ??= now()`). 422, comme la ligne de bail (TCK-681). Sans `status`, la ligne
+            // naît `paid` et garde sa date : d'où `prohibited_if` et non `prohibited_unless`.
+            'paid_at' => ['nullable', 'date', 'prohibited_if:status,'.PaymentStatus::Pending->value],
             'transaction_id' => ['nullable', 'string', 'max:255'],
             'notes' => ['nullable', 'string'],
         ];

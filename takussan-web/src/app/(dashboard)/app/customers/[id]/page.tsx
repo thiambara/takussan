@@ -6,6 +6,7 @@ import { getTranslations } from 'next-intl/server';
 
 
 import { getToken } from '@/lib/session';
+import { nomAffichable } from '@/lib/identite';
 import { getMeAction } from '@/app/actions/auth';
 import { isAdmin } from '@/lib/roles';
 import { ApiError } from '@/lib/api';
@@ -116,12 +117,14 @@ export default async function Page({ params }: { params: Params }) {
     ? enumLabel(tStage, pipelineStageValues, customer.pipeline_stage)
     : null;
   const statusLabel = enumLabel(tStatus, customerStatusValues, customer.status);
+  // P220.03 (TCK-2281) — une fiche née d'un compte sans nom : son e-mail, son numéro ou `#<id>`.
+  const nom = nomAffichable(customer);
 
   return (
     <div className="space-y-6">
       <PageHeader
         eyebrow={tPage('eyebrow', { id: customer.id })}
-        title={`${customer.first_name} ${customer.last_name}`}
+        title={nom}
         description={
           <span className="flex flex-wrap items-center gap-2">
             {customer.email ? <span className="min-w-0 break-all">{customer.email}</span> : null}
@@ -140,12 +143,12 @@ export default async function Page({ params }: { params: Params }) {
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <PlanifierUneVisite
-              customer={{ id: customer.id, libelle: `${customer.first_name} ${customer.last_name}` }}
+              customer={{ id: customer.id, libelle: nom }}
             />
             <AddDocumentButton
               documentableType="customer"
               documentableId={customer.id}
-              displayLabel={`${customer.first_name} ${customer.last_name}`}
+              displayLabel={nom}
             />
           </div>
         }
@@ -156,12 +159,12 @@ export default async function Page({ params }: { params: Params }) {
         <ContactGestures
           phone={customer.phone}
           firstName={customer.first_name}
-          fullName={`${customer.first_name} ${customer.last_name}`}
+          fullName={nom}
         />
         {customer.pipeline_stage ? (
           <CustomerStageControl
             customerId={customer.id}
-            name={`${customer.first_name} ${customer.last_name}`}
+            name={nom}
             stage={customer.pipeline_stage}
           />
         ) : null}
