@@ -302,7 +302,7 @@ class InvitationService
                 ]);
             }
 
-            return $this->acceptForUser($invitation, $existingUser);
+            return $this->acceptForUser($invitation, $existingUser, $payload);
         }
 
         // Branch A — create the User as part of the accept transaction.
@@ -740,12 +740,56 @@ class InvitationService
 
     /**
      * Branch B: shared finalize when the User already exists.
+     *
+     * P220.07 (TCK-2281, décision du porteur du 2026-10-25) — un compte SANS NOM (créé par
+     * téléphone, noms `''`) reçoit le prénom et le nom qu'il a confirmés à l'acceptation, que
+     * l'écran lui a préremplis avec ceux de l'invitation ({@see self::prefillFor()}). Un compte
+     * qui porte un nom le garde, quoi qu'on envoie. Dans la transaction : un refus de
+     * `finalizeAccept` n'écrit rien.
+     *
+     * @param  array<string,mixed>  $payload
      */
-    protected function acceptForUser(Invitation $invitation, User $user): Invitation
+    protected function acceptForUser(Invitation $invitation, User $user, array $payload = []): Invitation
     {
-        return DB::transaction(function () use ($invitation, $user): Invitation {
+        return DB::transaction(function () use ($invitation, $user, $payload): Invitation {
+            $first = trim((string) ($payload['first_name'] ?? ''));
+            $last = trim((string) ($payload['last_name'] ?? ''));
+            if (self::isNameless($user) && ($first !== '' || $last !== '')) {
+                $user->forceFill(['first_name' => $first, 'last_name' => $last])->save();
+            }
+
             return $this->finalizeAccept($invitation, $user);
         });
+    }
+
+    /**
+     * P220.07 (TCK-2281) — le prénom et le nom que l'agence a saisis à l'invitation, à préremplir
+     * sur l'écran d'acceptation d'un compte connecté SANS NOM. `null` pour tout autre compte : un
+     * compte qui porte un nom, ou qui n'est pas le destinataire (le même que l'acceptation exige,
+     * {@see self::accept()}) — l'écran garde alors son seul bouton, et rien de l'invitation ne
+     * sort. 404 et 410 comme l'acceptation.
+     *
+     * @return array{first_name: string, last_name: string}|null
+     */
+    public function prefillFor(string $token, User $user): ?array
+    {
+        $invitation = $this->lookupActiveInvitation($token);
+        $recipient = $this->recipientAccount($invitation->email, $this->smsRecipient($invitation));
+
+        if ($recipient === null || $recipient->id !== $user->id || ! self::isNameless($user)) {
+            return null;
+        }
+
+        return [
+            'first_name' => trim((string) data_get($invitation->metadata, 'first_name', '')),
+            'last_name' => trim((string) data_get($invitation->metadata, 'last_name', '')),
+        ];
+    }
+
+    /** P220.07 (TCK-2281) — « sans nom » : prénom ET nom vides. */
+    protected static function isNameless(User $user): bool
+    {
+        return trim((string) $user->first_name) === '' && trim((string) $user->last_name) === '';
     }
 
     /**

@@ -11190,6 +11190,7 @@
     "password": "Mot de passe",
     "passwordHint": "8 caractères minimum, avec une lettre et un chiffre.",
     "create": "Créer mon compte et accepter",
+    "confirmName": "Votre compte n’a pas encore de nom. Confirmez ou corrigez celui que l’espace a saisi pour vous.",
     "haveAccount": "J’ai déjà un compte",
     "signIn": "Se connecter",
     "required": "Indiquez votre prénom et un mot de passe.",

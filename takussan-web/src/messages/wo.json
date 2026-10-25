@@ -11190,6 +11190,7 @@
     "password": "Baatu jàll",
     "passwordHint": "8 araf lu néew, ak benn araf ak benn limu.",
     "create": "Sos sama kont te nangu",
+    "confirmName": "Votre compte n’a pas encore de nom. Confirmez ou corrigez celui que l’espace a saisi pour vous.",
     "haveAccount": "Am naa kont ba pare",
     "signIn": "Dugg",
     "required": "Bindal sa tur ak benn baatu jàll.",
