@@ -6552,7 +6552,7 @@ sans `delete`).*
 
 ### Le bailleur fixe à la création et au renouvellement le taux de gestion que l'agence retient sur ses reversements, et peut le mettre à zéro
 - Réf : P227.01
-- Statut : validé — validation du porteur (2026-10-25) : `commission_rate` rejoint `LeaseService::COMMISSION_TERMS` (ADR-0049 § 1), gardé à la création et au renouvellement
+- Statut : fait · TCK-2286
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Requests/Api/StoreLeaseRequest.php:51`, `takussan-api/app/Http/Requests/RenewLeaseRequest.php:38`, `takussan-api/app/Services/Model/LeaseService.php:36-50,76,113-140`, `takussan-api/app/Services/Lease/LeaseRenewalService.php:121`, `takussan-api/app/Policies/LeasePolicy.php:162-174`, `takussan-api/app/Services/Payout/PayoutCalculator.php:254-259`, `takussan-api/app/Models/Lease.php:354-355`
 - Constat :
@@ -6565,6 +6565,7 @@ sans `delete`).*
 - Piste : ajouter `commission_rate` aux termes que seul le personnel de l'agence écrit (création et renouvellement), le bailleur recevant 403 `lease.commission_forbidden` comme pour `commission_amount` ; décider qui peut le corriger ensuite. Garde : le test B1 étendu au taux, à la création et au renouvellement.
 - Mesure (2026-10-24, 973736af4, mesureur) : aucun commit sur `takussan-api` depuis 47223cd19 (`git log`), aucun ticket ne cite P227 ; relu `StoreLeaseRequest.php:51` (`commission_rate` 0-100), `LeaseService::COMMISSION_TERMS` (l. 113, sans `commission_rate`), `LeasePolicy::renew` (bailleur admis sans capacité), `LeaseRenewalService.php:121` (taux recopié), `PayoutCalculator::compute` (l. 257-258, taux du bail avant celui de l'agence) ; test temporaire `TmpMesureurP227Test` (retiré), charge 2,59 sur 8 cœurs : agence à 10 %, bailleur du bien, `POST /api/leases` `{type: residential_rent, monthly_rent: 300000, commission_rate: 0}` → 201, `commission_rate` `0.00` en base ; bail passé `active` à 10, `POST /api/leases/{id}/renew` `{commission_rate: 0}` par le bailleur → 201, enfant à `0.00`. Le calcul du reversement n'a pas été rejoué (lu seulement). Classement : V1, le correctif change qui fixe le taux retenu sur un reversement, et la piste laisse ouvert « qui peut le corriger ensuite ».
 - Mesure (2026-10-25, ece5a91ea, humain) : validation du porteur en bloc (2026-10-25) sur la re-vérification de la session à c35c20d16 ; statut précédent : « retenu · à valider — V1 : taux de gestion retenu sur les reversements ».
+- Mesure (2026-10-25, 2e4aafaf8, implementeur) : reproduit avant correctif dans `CommissionLedgerTest` : le bailleur crée une location au taux 0, une vente au taux 3, et renouvelle un bail actif au taux 0 → 201 (3 rouges) ; le témoin du personnel (taux 10 à la création, 7 au renouvellement) était vert. Correctif : `commission_rate` dans `COMMISSION_TERMS`, et `assertMaySetCommissionTerms` dans `LeaseRenewalController` → 403 `lease.commission_forbidden`, aucune ligne ; sans taux, le bailleur renouvelle et l'enfant garde le taux du parent. Ablation : le terme retiré → 3 rouges ; la ligne du renouvellement neutralisée → 1 rouge ; remis : 25 verts, et 118 verts sur les classes du renouvellement et du bail. ADR-0049, amendement du 2026-10-25.
 
 ### Créer une intervention l'assigne sans `maintenance.assign`, que la modification exige
 - Réf : P227.02
@@ -6598,7 +6599,7 @@ sans `delete`).*
 
 ### Petites améliorations
 - Réf : P227.04
-- Statut : validé — validation du porteur (2026-10-25) : 422 pour un paiement `pending` accompagné de `paid_at` (`prohibited_unless:status,paid`), comme TCK-681
+- Statut : fait · TCK-2286
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Model/BookingPaymentService.php:78-97`, `takussan-api/app/Http/Requests/Api/StoreBookingPaymentRequest.php:78-79`, `takussan-api/app/Http/Requests/Api/StoreLeasePaymentRequest.php:54-57`
 - Constat :
@@ -6608,6 +6609,7 @@ sans `delete`).*
 - Piste : ne garder `paid_at` que pour une ligne `paid` (ou refuser le couple `pending` + `paid_at` en 422), et ne numéroter le reçu qu'au paiement. Garde : un cas `pending` + `paid_at` dans `BookingPaymentManualStatusTest`.
 - Mesure (2026-10-24, 973736af4, mesureur) : aucun commit sur `takussan-api` depuis 47223cd19, aucun ticket ne cite P227 ; relu `BookingPaymentService::write` (l. 82-83 commentaire « leave it null », l. 91 `receipt_number` toujours posé, l. 97 `$data['paid_at'] ?? null` pour une ligne non payée) ; test temporaire `TmpMesureurP227Test` (retiré), charge 2,59 sur 8 cœurs : agent, `POST /api/bookings/{id}/payments` `{amount: 5000, payment_type: advance, status: pending, paid_at: 2026-01-01}` → 201, ligne `pending`, `paid_at` 2026-01-01, `receipt_number` `RCP-…`. L'affichage à l'écran n'a pas été vérifié. Classement : V1, le correctif change l'écriture d'un paiement (date d'encaissement, numéro de reçu), et la piste laisse le choix entre ignorer et refuser en 422.
 - Mesure (2026-10-25, ece5a91ea, humain) : validation du porteur en bloc (2026-10-25) sur la re-vérification de la session à c35c20d16 ; statut précédent : « retenu · à valider — V1 : écriture d'un paiement de réservation ».
+- Mesure (2026-10-25, 2e4aafaf8, implementeur) : reproduit avant correctif dans `BookingPaymentManualStatusTest` : agent, `pending` + `paid_at` 2026-01-01 → 201 (1 rouge). Correctif `prohibited_if:status,pending` sur `paid_at` → 422, aucune ligne. `prohibited_if` et non `prohibited_unless` : sans `status`, la ligne naît `paid`, et `prohibited_unless` refusait sa date (le témoin rougit, mesuré). Ablation : la règle retirée → 1 rouge ; remise : 5 verts, et 28 sur les trois classes des paiements de réservation.
 
 ## Angle 228 — Mutations lancées par `mutate()` sans `onError` et dont l'écran ne lit pas l'erreur
 
