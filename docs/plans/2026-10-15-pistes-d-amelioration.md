@@ -400,7 +400,7 @@ défaut avéré : ce sont des risques, dont trois coûtent cher le jour où ils 
 
 ### `scheduled_task_runs` ne mesure que la mise en file des `Schedule::job`
 - Réf : P05.07
-- Statut : validé — validation du porteur (2026-10-25) : `takussan-api/CLAUDE.md` § Tâches planifiées corrigé (compte des `Schedule::job` et portée de `withoutOverlapping`, qui ne couvre que la mise en file) ; verrou d'exécution des balayages non retenu tant que chaque job planifié est idempotent
+- Statut : fait · TCK-2341
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Admin/ScheduledRunRecorder.php`, et `Schedule.php:217-226` du framework
 - Constat :
@@ -409,6 +409,7 @@ défaut avéré : ce sont des risques, dont trois coûtent cher le jour où ils 
 - Piste : l'écrire dans `takussan-api/CLAUDE.md` § Tâches planifiées, et le middleware `WithoutOverlapping` sur les balayages.
 - Mesure (2026-10-15, e9f9289c, mesureur) : `routes/console.php` compte 19 `Schedule::job`, tous `ShouldQueue` (lu) ; `Schedule.php:218-226` du framework ne fait que `dispatchToQueue` dans la fermeture (lu) ; `SELECT task, status, count(*), max(duration_ms) FROM scheduled_task_runs` par tinker → toutes les lignes `App\Jobs\…` sont `finished`, de 0 à 600 ms, une seule à 17 650 ms (`SendPropertyVisitReminders`, dispatch sous charge) ; `grep ShouldBeUnique app` → rien, mais `WithoutOverlapping` existe désormais sur 2 jobs sur 19 (`SendSavedSearchAlerts:90`, `SendFavoriteChangeAlerts:68`, TCK-599) : le constat « aucun » est inexact pour ces deux-là ; `takussan-api/CLAUDE.md` § Tâches planifiées dit encore « presque tous `->withoutOverlapping()` » sans dire que ce verrou ne couvre que le dispatch → tient. Classement : V1, la partie documentaire relève d'A6 mais le middleware sur les balayages touche `ApplyLateFeesJob` (pénalités) et demande de choisir quels jobs borner.
 - Mesure (2026-10-25, ece5a91ea, humain) : validation du porteur en bloc (2026-10-25) sur la re-vérification de la session à c35c20d16 ; statut précédent : « retenu · à valider — V1 : le verrou d'exécution toucherait ApplyLateFeesJob, et le choix des jobs à borner ; porteur (2026-10-15) : plus tard, repris par P14.04 ».
+- Mesure (2026-10-25, 1ec8fae29, implementeur) : relu `takussan-api/CLAUDE.md` § Tâches planifiées (« 77 lignes : 13 `Schedule::job()` et 6 `Schedule::command()`, presque tous `->withoutOverlapping()` ») contre `routes/console.php` (218 lignes ; `grep -cE '^\s*Schedule::job\('` → 24, `Schedule::command\(` → 26 ; `schedule:list` → 27 événements de job) et `Schedule.php:217-226` du framework (mise en file seule) → le § donne désormais ces commandes au lieu d'un compte, dit que `withoutOverlapping()` d'un `Schedule::job` ne couvre que la mise en file (et celui d'un `Schedule::command` l'exécution), que `scheduled_task_runs` mesure cette mise en file, et que le verrou d'exécution des balayages n'est pas retenu tant que chaque job planifié est idempotent. Pas de test : delta de texte, chaque commande lancée sur l'arbre ; gardes du dépôt vertes.
 
 ### `onOneServer` et le fuseau horaire : pas de défaut aujourd'hui, un piège pour la production
 - Réf : P05.09
