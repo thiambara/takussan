@@ -129,6 +129,12 @@ export default async function Page({ params, searchParams }: { params: Params; s
               as="span"
               className="block whitespace-normal"
             />
+            {/* TCK-1000 — le bien saisi pour un bailleur invité lui passe à l'acceptation. */}
+            {property.pending_owner ? (
+              <span className="block text-xs text-muted-foreground" data-testid="bailleur-en-attente">
+                {t('pendingOwner', { name: property.pending_owner.name })}
+              </span>
+            ) : null}
           </>
         }
         actions={

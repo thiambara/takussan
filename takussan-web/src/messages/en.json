@@ -1703,7 +1703,10 @@
         "hint": "Optional. Without a choice, the property stays with the agency; the chosen landlord will be notified.",
         "agency": "The agency (no landlord)",
         "loading": "Loading landlords…",
-        "empty": "No active landlord matches."
+        "empty": "No active landlord matches.",
+        "invite": "Invite a new landlord",
+        "invited": "Invitation sent to {name}. The property stays with the agency until {name} accepts; it will then pass to them.",
+        "unlink": "Do not link this property to this invitation"
       }
     },
     "titleTypes": {
@@ -2187,7 +2190,8 @@
         "eyebrow": "Property · {reference}",
         "forbidden_title": "Property access denied",
         "forbidden_message": "Your active profile cannot open this property record.",
-        "back_cta": "Back to properties"
+        "back_cta": "Back to properties",
+        "pendingOwner": "Waiting for {name}: the property will pass to them once the invitation is accepted."
       },
       "leaseDetail": {
         "metaTitleFallback": "Lease not found",

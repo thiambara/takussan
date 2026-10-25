@@ -285,6 +285,11 @@ export interface PropertyDetail extends PropertyListItem {
    * que le personnel tient encore).
    */
   abilities?: { transfer_owner?: boolean };
+  /**
+   * TCK-1000 (P15.06, Q2) — le bailleur invité pour qui le bien a été saisi, tant que l'invitation
+   * court. Émis sur `properties.show` au seul personnel de l'agence du bien.
+   */
+  pending_owner?: { profile_id: number; name: string } | null;
 }
 
 export interface PaginatedProperties {

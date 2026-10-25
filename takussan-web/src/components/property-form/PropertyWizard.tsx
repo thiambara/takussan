@@ -29,7 +29,7 @@ import type { Tag } from '@/types/tag';
 import { isFieldRelevant, type ConditionalFieldKey } from './field-matrix';
 import { PROPERTY_ENUM_NAMESPACES } from './options';
 import { avecBailleur, toCreatePayload } from './payload';
-import { ChoixDuBailleur } from './ChoixDuBailleur';
+import { ChoixDuBailleur, type BailleurInvite } from './ChoixDuBailleur';
 import { WizardShell, type WizardStepDef } from './wizard/WizardShell';
 import { StepBien } from './wizard/steps/StepBien';
 import { StepLieu } from './wizard/steps/StepLieu';
@@ -212,6 +212,7 @@ export function PropertyWizard({
   quotaNote,
   fraisDAgence = true,
   agenceDuChoixDuBailleur = null,
+  peutInviterUnBailleur = false,
 }: {
   readonly tags?: Tag[];
   /**
@@ -220,6 +221,11 @@ export function PropertyWizard({
    * choix, le bien est celui de l'agence.
    */
   readonly agenceDuChoixDuBailleur?: number | null;
+  /**
+   * TCK-1000 (P15.06, Q2) — le choix offre « Inviter un nouveau bailleur » : l'admin, ou
+   * `team.invite` (la page en juge, comme `/app/owners`). Sans choix du bailleur, sans effet.
+   */
+  readonly peutInviterUnBailleur?: boolean;
   /**
    * TCK-633 — faux quand l'agence de l'auteur est un indépendant (`kind: 'individual'`) : il ne
    * facture pas de frais d'agence, et l'API les refuse pour lui. La page le lit (`new/page.tsx`).
@@ -286,6 +292,8 @@ export function PropertyWizard({
   const [contactsSurPlace, setContactsSurPlace] = useState<ContactSurPlace[]>([]);
   /** TCK-997 — le compte du bailleur désigné, `null` : le bien de l'agence. */
   const [bailleurId, setBailleurId] = useState<number | null>(null);
+  /** TCK-1000 — le bailleur invité depuis le choix, `null` sans invitation liée. */
+  const [bailleurInvite, setBailleurInvite] = useState<BailleurInvite | null>(null);
   const [contactsEnvoyes, setContactsEnvoyes] = useState(false);
   /** TCK-633 — ce que l'API a refusé de publier faute de coordonnées (`missing`), et pour qui. */
   const [manquants, setManquants] = useState<string[] | null>(null);
@@ -314,7 +322,11 @@ export function PropertyWizard({
       if (idCree !== null) return { id: idCree } as PropertyDetail;
 
       const resultat = await createPropertyAction(
-        avecBailleur(toCreatePayload(values as unknown as PropertyFormPayload), bailleurId),
+        avecBailleur(
+          toCreatePayload(values as unknown as PropertyFormPayload),
+          bailleurId,
+          bailleurInvite?.profileId ?? null,
+        ),
       );
       if (!resultat.ok) {
         throw new ApiError(resultat.status ?? 500, {
@@ -544,7 +556,14 @@ export function PropertyWizard({
         <>
           <StepBien form={form} />
           {agenceDuChoixDuBailleur !== null ? (
-            <ChoixDuBailleur agencyId={agenceDuChoixDuBailleur} valeur={bailleurId} onChange={setBailleurId} />
+            <ChoixDuBailleur
+              agencyId={agenceDuChoixDuBailleur}
+              valeur={bailleurId}
+              onChange={setBailleurId}
+              peutInviter={peutInviterUnBailleur}
+              invite={bailleurInvite}
+              onInvite={setBailleurInvite}
+            />
           ) : null}
         </>
       ),

@@ -145,6 +145,13 @@ class PropertyController extends Controller
             $request->parentDemande(),
             $isProposal,
         );
+        // TCK-1000 (Q2) — le bailleur invité : le bien reste au nom de l'auteur jusqu'à l'acceptation.
+        $data['pending_owner_profile_id'] = $titulaires->bailleurEnAttente(
+            ! empty($data['agency_id']) ? (int) $data['agency_id'] : null,
+            $data['pending_owner_profile_id'] ?? null,
+            $request->parentDemande(),
+            $isProposal,
+        );
         unset($data['owner_id']);
 
         // TCK-633 (lot C) — créer un bien DIRECTEMENT public est une publication : le créateur en

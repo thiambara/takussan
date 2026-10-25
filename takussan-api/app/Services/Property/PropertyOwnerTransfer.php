@@ -4,6 +4,7 @@ namespace App\Services\Property;
 
 use App\Models\Enums\LeaseStatus;
 use App\Models\Lease;
+use App\Models\Profiles\OwnerProfile;
 use App\Models\Property;
 use App\Models\User;
 use Illuminate\Support\Collection;
@@ -113,6 +114,31 @@ final class PropertyOwnerTransfer
 
             return $bilan;
         });
+    }
+
+    /**
+     * TCK-1000 (Q2, voie 2) — le bailleur invité vient d'accepter : son profil est actif et porte son
+     * compte. Dans la transaction de l'acceptation, les biens liés au profil perdent le lien, et
+     * chacun passe au bailleur s'il est de l'agence du profil et que le transfert l'admet (titulaire
+     * encore du personnel : jamais depuis un bailleur). Un bien refusé reste à l'agence, en silence :
+     * l'acceptation n'échoue pas pour lui.
+     *
+     * @return list<int> les biens passés au bailleur
+     */
+    public function aLAcceptation(OwnerProfile $profil, User $bailleur): array
+    {
+        $biens = Property::query()->where('pending_owner_profile_id', $profil->id)->orderBy('id')->get();
+        TitulaireALaSaisie::delier([$profil->id]);
+
+        $passes = [];
+        foreach ($biens as $bien) {
+            if ((int) $bien->agency_id === (int) $profil->agency_id && $this->refus($bien, $bailleur) === null) {
+                $this->transfer($bien, $bailleur, $bailleur, self::VOIE_INVITATION);
+                $passes[] = (int) $bien->id;
+            }
+        }
+
+        return $passes;
     }
 
     private function exiger(Property $bien, User $bailleur): void

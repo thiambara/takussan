@@ -6010,7 +6010,10 @@
         "hint": "Facultatif. Sans choix, le bien reste celui de l'agence ; le bailleur choisi en sera prévenu.",
         "agency": "L'agence (aucun bailleur)",
         "loading": "Chargement des bailleurs…",
-        "empty": "Aucun bailleur actif ne correspond."
+        "empty": "Aucun bailleur actif ne correspond.",
+        "invite": "Inviter un nouveau bailleur",
+        "invited": "Invitation envoyée à {name}. Le bien reste à l'agence jusqu'à ce que {name} accepte ; il lui passera alors.",
+        "unlink": "Ne pas lier ce bien à cette invitation"
       }
     },
     "titleTypes": {
@@ -9355,7 +9358,8 @@
         "eyebrow": "Kër · {reference}",
         "forbidden_title": "Bañ nañu la ci kër gi",
         "forbidden_message": "Sa profil buy dox mënul ubbi fiisu kër gii.",
-        "back_cta": "Dellu ci kër yi"
+        "back_cta": "Dellu ci kër yi",
+        "pendingOwner": "En attente de {name} : le bien lui passera quand l'invitation sera acceptée."
       },
       "leaseDetail": {
         "metaTitleFallback": "Gisuñu kontaraa bi",
