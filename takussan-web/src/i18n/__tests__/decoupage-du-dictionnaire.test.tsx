@@ -97,24 +97,51 @@ describe('la politique d’erreur — ce qui rend le découpage falsifiable', ()
   });
 });
 
-describe('le piège des providers imbriqués', () => {
-  it('un provider imbriqué REMPLACE le dictionnaire du parent, il ne le complète pas', () => {
-    // C'est la contrainte mesurée au code de `use-intl` (`messages: void 0 === i ? w?.messages : i`)
-    // et c'est elle qui impose que chaque entrée de la table soit CUMULÉE. Si ce test passait au
-    // vert avec un ensemble non cumulé, la table pourrait l'être aussi — et elle ne le serait plus
-    // le jour où quelqu'un l'allègerait.
+describe('les providers imbriqués COMPLÈTENT leur parent (P105.02)', () => {
+  it('un provider imbriqué rend aussi les espaces de son parent', () => {
+    // `use-intl` REMPLACE le dictionnaire du parent quand on lui passe `messages`
+    // (`messages: void 0 === i ? w?.messages : i`). `IntlProvider` fusionne donc lui-même
+    // `useMessages()` et le sien : c'est ce qui permet à la table de ne porter que le
+    // DIFFÉRENTIEL de chaque frontière (amendement d'ADR-0022 du 2026-10-25). Sans la fusion,
+    // ce rendu lève : `homepage` n'est que chez le parent.
+    const { container } = render(
+      <IntlProviderRacine locale="fr" messages={sousEnsemble(['homepage'])}>
+        <IntlProvider messages={sousEnsemble(['nav'])}>
+          <Consommateur espace="homepage.row" cle="viewAll" />
+        </IntlProvider>
+      </IntlProviderRacine>,
+    );
+    expect(container.textContent).toBe(
+      (fr as { homepage: { row: { viewAll: string } } }).homepage.row.viewAll,
+    );
+  });
+
+  it('et ses propres espaces, sur trois niveaux', () => {
+    const { container } = render(
+      <IntlProviderRacine locale="fr" messages={sousEnsemble(['homepage'])}>
+        <IntlProvider messages={sousEnsemble(['nav'])}>
+          <IntlProvider messages={{}}>
+            <Consommateur espace="nav" cle="login" />
+          </IntlProvider>
+        </IntlProvider>
+      </IntlProviderRacine>,
+    );
+    expect(container.textContent).toBe((fr as { nav: { login: string } }).nav.login);
+  });
+
+  it('un espace absent de TOUTE la chaîne lève toujours', () => {
     expect(() =>
       render(
         <IntlProviderRacine locale="fr" messages={sousEnsemble(['homepage'])}>
           <IntlProvider messages={sousEnsemble(['nav'])}>
-            <Consommateur espace="homepage.row" cle="viewAll" />
+            <Consommateur espace="crm.pipeline" cle="title" />
           </IntlProvider>
         </IntlProviderRacine>,
       ),
     ).toThrow();
   });
 
-  it('la locale, ELLE, s’hérite — sans quoi les layouts devraient tous être `async`', () => {
+  it('la locale s’hérite — sans quoi les layouts devraient tous être `async`', () => {
     const { container } = render(
       <IntlProviderRacine locale="fr" messages={sousEnsemble(['homepage'])}>
         <IntlProvider messages={sousEnsemble(['homepage', 'nav'])}>
@@ -140,18 +167,18 @@ describe('messagesPour', () => {
   });
 
   /**
-   * TCK-1489 (P105.03) — deux frontières imbriquées portent chacune l'ensemble CUMULÉ, et le document
-   * n'en sert pourtant qu'une copie : Flight remplace un objet déjà émis par une référence. Il ne
-   * le reconnaît qu'à son IDENTITÉ. `toEqual` passerait sur une copie ; `toBe` rougit si un
-   * clonage ou une fusion par frontière ramène les doublons.
+   * TCK-1489 (P105.03) — `messagesPour` recopie la RÉFÉRENCE de chaque espace, jamais une copie.
+   * Depuis l'amendement d'ADR-0022 du 2026-10-25, deux frontières imbriquées ne partagent plus
+   * d'espace (la table est différentielle) ; l'identité reste gardée, parce que c'est elle qui
+   * laisse Flight réduire à une référence un espace qu'un futur changement servirait deux fois.
+   * `toEqual` passerait sur une copie ; `toBe` rougit si un clonage revient.
    */
-  it('deux frontières imbriquées partagent le MÊME objet pour chaque espace commun', async () => {
-    const app = await messagesPour('(dashboard)/app');
+  it('rend pour chaque espace le MÊME objet que le dictionnaire de la requête', async () => {
     const agence = await messagesPour('(dashboard)/app/agency');
-    const communs = Object.keys(app).filter((nom) => nom in agence);
+    const noms = Object.keys(agence);
 
-    expect(communs.length).toBeGreaterThan(0);
-    for (const nom of communs) expect(agence[nom], nom).toBe(app[nom]);
+    expect(noms.length).toBeGreaterThan(0);
+    for (const nom of noms) expect(agence[nom], nom).toBe((fr as Arbre)[nom]);
   });
 
   it('laisse dehors le back-office : c’est tout l’objet du ticket', async () => {
@@ -165,25 +192,36 @@ describe('messagesPour', () => {
 describe('la table dérivée', () => {
   const frontieres = table.frontieres as Record<string, readonly string[]>;
 
-  it('donne à chaque frontière l’ensemble CUMULÉ de ses parents', () => {
+  /** Les frontières parentes d'un identifiant, de la plus proche à la racine. */
+  const parentsDe = (id: string): string[] =>
+    id === '.'
+      ? []
+      : [
+          ...Object.keys(frontieres)
+            .filter((p) => p !== id && p !== '.' && id.startsWith(p + '/'))
+            .sort((a, b) => b.length - a.length),
+          '.',
+        ];
+
+  it('ne répète dans aucune frontière un espace que sert déjà l’un de ses parents (P105.02)', () => {
+    // La table est DIFFÉRENTIELLE : `IntlProvider` fusionne le dictionnaire de son parent, donc un
+    // espace répété ne serait qu'un octet payé deux fois — et renvoyé à chaque navigation.
     for (const [id, noms] of Object.entries(frontieres)) {
-      if (id === '.') continue;
-      const parents = Object.keys(frontieres).filter((p) => p !== id && p !== '.' && id.startsWith(p + '/'));
-      for (const parent of [...parents, '.']) {
-        const manquants = frontieres[parent]!.filter((n) => !noms.includes(n));
-        expect(manquants, `« ${id} » n’hérite pas de « ${parent} »`).toEqual([]);
+      for (const parent of parentsDe(id)) {
+        const repetes = frontieres[parent]!.filter((n) => noms.includes(n));
+        expect(repetes, `« ${id} » répète des espaces de « ${parent} »`).toEqual([]);
       }
     }
   });
 
-  it('porte le PLANCHER partout — les deux espaces qu’aucun scan ne peut voir', () => {
+  it('porte le PLANCHER à la racine, d’où toute frontière l’hérite', () => {
     // `validation` et `errors` n'apparaissent au point de rendu sous AUCUN littéral : les clés sont
     // fabriquées par concaténation (`PREFIXE_VALIDATION`, `CLE_I18N_ERREUR_API`) et voyagent comme
     // des DONNÉES. Sans ce plancher, tout message de formulaire s'afficherait en clé brute.
-    for (const [id, noms] of Object.entries(frontieres)) {
-      for (const socle of table.plancher) {
-        expect(noms, `« ${id} » a perdu le plancher`).toContain(socle);
-      }
+    for (const socle of table.plancher) expect(frontieres['.'], 'la racine a perdu le plancher').toContain(socle);
+    for (const id of Object.keys(frontieres)) {
+      const chaine = [id, ...parentsDe(id)].flatMap((f) => frontieres[f]!);
+      for (const socle of table.plancher) expect(chaine, `« ${id} » n’hérite pas du plancher`).toContain(socle);
     }
   });
 
@@ -194,10 +232,42 @@ describe('la table dérivée', () => {
     }
   });
 
+  it('ne sert au navigateur aucun espace que seul le serveur lit (P105.04)', () => {
+    // `meta` (les `generateMetadata`), `serverActions` (les actions serveur) et `publicLeadErrors`
+    // (un `getTranslations()` racine d'action) ne sont lus que par `getTranslations`, qui résout
+    // contre le dictionnaire entier de la requête. Les sérialiser coûtait ~1,5 Ko gzip par document.
+    for (const [id, noms] of Object.entries(frontieres)) {
+      for (const serveur of ['meta', 'serverActions', 'publicLeadErrors']) {
+        expect(noms, `« ${id} » sert « ${serveur} »`).not.toContain(serveur);
+      }
+    }
+  });
+
+  /**
+   * P69.05 (amendement d'ADR-0022 du 2026-10-25) — `[locale]/(public)` est une frontière À
+   * SECTIONS, comme `(dashboard)/app`. Avant, le provider du site public servait l'union de ses
+   * pages (26 espaces, 32,3 Ko gzip) à chaque document, page légale comprise. Ce cas rougit si une
+   * frontière de section disparaît, ou si l'un de ses espaces remonte dans la coque.
+   */
+  it('ne sert à toute page publique que la coque : fiche, liste et pages légales ont leur frontière (P69.05)', () => {
+    for (const section of ['properties/[slug]', 'properties/(liste)', 'legal']) {
+      expect(Object.keys(frontieres), `« [locale]/(public)/${section} » n’est plus une frontière`).toContain(
+        `[locale]/(public)/${section}`,
+      );
+    }
+    // Les espaces que lit UNE section : réservation, agence, agents, lien de paiement, partage,
+    // carte et contact de la fiche. Ils ne doivent entrer que dans le document de leur section.
+    const coque = ['.', '[locale]/(public)'].flatMap((f) => frontieres[f]!);
+    for (const espace of ['bookings', 'agency', 'agents', 'payLink', 'shareReception', 'map', 'boost', 'contact']) {
+      expect(coque, `la coque publique sert « ${espace} »`).not.toContain(espace);
+    }
+  });
+
   it('sert `property` à la console super-admin — l’espace que seul le repli de constantes trouve', () => {
     // `SuperAdminPropertiesFilters` n'écrit aucun `useTranslations('property…')` : il passe
     // `PROPERTY_ENUM_NAMESPACES.status`. Une table écrite à la main aurait cassé cet écran, et
     // rien — ni build, ni lint, ni types, ni tests — ne l'aurait dit.
-    expect(frontieres['(super-admin)/super-admin']).toContain('property');
+    const chaine = ['(super-admin)/super-admin', ...parentsDe('(super-admin)/super-admin')];
+    expect(chaine.flatMap((f) => frontieres[f]!)).toContain('property');
   });
 });

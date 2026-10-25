@@ -4,6 +4,8 @@ import { getMeAction } from '@/app/actions/auth';
 import { resolveAgencyOrNull } from '@/lib/access/server-guards';
 import { isAdmin } from '@/lib/roles';
 import { getToken } from '@/lib/session';
+import { IntlProvider } from '@/i18n/IntlProvider';
+import { messagesPour } from '@/i18n/messages';
 
 /**
  * TCK-426 — LA GARDE VIT DANS LE LAYOUT, ET C'EST LA SEULE PLACE OÙ ELLE GARDE VRAIMENT.
@@ -57,5 +59,7 @@ export default async function Layout({ children }: { children: React.ReactNode }
   const agency = await resolveAgencyOrNull(token, agencyId, 'owners', 'decision');
   if (!agency || agency.kind !== 'standard') redirect('/app');
 
-  return <>{children}</>;
+  // La section est aussi une frontière de dictionnaire (ADR-0022, amendement du 2026-10-25,
+  // règle E) : `IntlProvider` ajoute ses espaces à ceux de la coque de `/app`.
+  return <IntlProvider messages={await messagesPour('(dashboard)/app/owners')}>{children}</IntlProvider>;
 }

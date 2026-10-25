@@ -26,20 +26,23 @@ import table from './namespaces.json';
  * *une liste écrite à la main est juste le jour où on l'écrit*. Ici la sanction d'une table périmée
  * n'est pas un document faux — c'est un chemin de clé peint à l'écran d'un utilisateur.
  *
- * Chaque entrée porte l'ensemble **CUMULÉ** (la frontière plus tous ses parents). C'est délibéré :
- * les providers next-intl imbriqués REMPLACENT le dictionnaire du parent au lieu de le compléter
- * (cf. `IntlProvider.tsx`), et une union à écrire au point d'appel est une union à oublier.
+ * Chaque entrée porte le **DIFFÉRENTIEL** de sa frontière : les espaces que son sous-arbre lit et
+ * qu'aucun de ses parents ne sert (amendement d'ADR-0022 du 2026-10-25, P105.02). `IntlProvider`
+ * fusionne dans le navigateur le dictionnaire du parent et ce différentiel. Jusque-là, chaque entrée
+ * portait l'ensemble CUMULÉ, parce qu'un provider next-intl imbriqué REMPLACE celui du parent : une
+ * navigation vers `/app/agency` renvoyait alors 50 espaces que le navigateur avait déjà.
  *
  * ────────────────────────────────────────────────────────────────────────────────────────────────
  * CE QUI EMPÊCHE CE CUMUL DE DOUBLER LE DOCUMENT : L'IDENTITÉ DES OBJETS (TCK-1489, P105.03)
  * ────────────────────────────────────────────────────────────────────────────────────────────────
  *
- * Deux frontières imbriquées portent chacune les mêmes espaces, et le document servi n'en porte
- * pourtant qu'UNE copie : Flight remplace un objet déjà émis par une référence
- * (`$2:props:…:messages:<espace>`, mesuré sur `/app/overview/tenant` et `/app/agency`). Il ne le
- * reconnaît qu'à son identité. `messagesPour` recopie donc la RÉFÉRENCE de chaque espace depuis
- * `getMessages()`, jamais une copie : un clonage, une fusion profonde ou un repli de locale fait
- * par frontière rendrait des objets neufs, et les doublons reviendraient sans erreur.
+ * Quand la table était cumulée, deux frontières imbriquées portaient chacune les mêmes espaces, et
+ * le document servi n'en portait pourtant qu'UNE copie : Flight remplace un objet déjà émis par
+ * une référence (`$2:props:…:messages:<espace>`, mesuré sur `/app/overview/tenant` et
+ * `/app/agency`). Il ne le reconnaît qu'à son identité. Les différentiels ne se recouvrent plus,
+ * mais `messagesPour` recopie toujours la RÉFÉRENCE de chaque espace depuis `getMessages()`,
+ * jamais une copie : un clonage, une fusion profonde ou un repli de locale fait par frontière
+ * rendrait des objets neufs, et un espace servi deux fois le serait en double, sans erreur.
  * `decoupage-du-dictionnaire.test.tsx` le garde par `toBe`.
  */
 export type Frontiere = keyof typeof table.frontieres;
@@ -54,8 +57,8 @@ export async function messagesPour(frontiere: Frontiere): Promise<Record<string,
 }
 
 /**
- * Les espaces de noms qu'AUCUN scan de site d'appel ne peut voir, et qui sont donc ajoutés à
- * toutes les frontières sans exception. Ils sont deux, et chacun a une raison mesurée :
+ * Les espaces de noms qu'AUCUN scan de site d'appel ne peut voir, et qui sont donc servis par la
+ * frontière racine — d'où toutes les autres les héritent. Ils sont deux, et chacun a une raison mesurée :
  *
  * · `validation` — les schémas zod portent une CLÉ, jamais un libellé
  *   (`src/lib/schemas/messages.ts`), fabriquée par concaténation depuis
