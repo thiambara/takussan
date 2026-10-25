@@ -184,6 +184,7 @@ Gestion complète d'un contrat de bail et de son cycle de vie.
 | Prio | Acteurs | Fonctionnalité |
 |------|---------|----------------|
 | P1 | 🏢🧑‍💼 | Créer un bail (locataire, bailleur, durée, loyer, caution) |
+| P1 | 🏢🧑‍💼 | Créer le bail depuis une candidature acceptée (« Créer le bail » sur la réservation confirmée d'un bien à louer) : bien, locataire, dates et loyer préremplis ; le locataire est le client de la réservation, et la réservation passe à « terminée », ce qui libère ses dates (P48.03, TCK-2352) |
 | P1 | 🧑‍💼 | Ajouter un ou plusieurs garants avec documents joints |
 | P1 | 🏢🧑‍💼 | Générer l'échéancier de loyers mensuels |
 | P1 | 🏠🏢 | Enregistrer un paiement mensuel |
@@ -247,6 +248,8 @@ Gestion des contacts (Customer) liés ou non à un compte utilisateur.
 | P0 | 🧑‍💼 | Liste et recherche de clients |
 | P0 | 🧑‍💼 | Le CRM de l'agence n'est lu et alimenté que par son personnel ; un bailleur ne voit que les fiches qu'il a lui-même ajoutées (TCK-591) |
 | P1 | 🧑‍💼 | Lier un Customer à un User existant |
+| P1 | 🧑‍💼 | Inviter le client d'une fiche sans compte à créer son compte : un lien à usage unique part à l'e-mail de la fiche (ou à son numéro, si le lien par SMS est ouvert), et le compte qui l'accepte est relié à la fiche ; geste du personnel de l'agence de la fiche (TCK-2351) |
+| P1 | 🧑‍💼 | La fiche née d'une candidature, d'une offre ou d'une réservation est une fiche de l'agence du bien, reprise ou rattachée (coordonnée vérifiée) dans cette agence seule (TCK-2350) |
 | P1 | 🧑‍💼 | Définir la relation agent ↔ client (type, période) |
 | P1 | 🧑‍💼 | Joindre pièces d'identité et documents |
 | P1 | 🧑‍💼 | Historique d'interactions (via journal d'activité) |

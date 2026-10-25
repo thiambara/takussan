@@ -2731,6 +2731,12 @@
       "caption": "Customer list"
     },
     "customerDetail": {
+      "inviteAccount": {
+        "action": "Invite to create an account",
+        "sending": "Sending…",
+        "sent": "Invitation sent. The link works once; on acceptance, the account is linked to this record.",
+        "failed": "The invitation could not be sent. Try again."
+      },
       "relationships": {
         "empty_title": "No relationship recorded",
         "empty_description": "Link this contact to a spouse, a guarantor or a company to keep their circle at hand.",
@@ -3992,7 +3998,10 @@
         "quarterly": "Quarterly",
         "yearly": "Yearly"
       },
-      "customerFallback": "Customer #{id}"
+      "customerFallback": "Customer #{id}",
+      "fromBooking": "Lease drawn from booking {reference}",
+      "fromBookingHint": "The property and the tenant are those of the booking. When the lease is created, the booking becomes “completed” and frees its dates.",
+      "fromBookingError": "The booking could not be loaded."
     },
     "payment": {
       "title": "Record a payment",
@@ -6922,7 +6931,8 @@
       "actions": {
         "accept": "Accept",
         "reject": "Reject",
-        "cancel": "Cancel the booking"
+        "cancel": "Cancel the booking",
+        "createLease": "Create the lease"
       },
       "toasts": {
         "accepted": {

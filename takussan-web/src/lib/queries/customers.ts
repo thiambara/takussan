@@ -156,6 +156,14 @@ export async function updateCustomer(
   return res.data;
 }
 
+/**
+ * P15.01 (TCK-2351) — inviter le client de la fiche à créer son compte. Aucun corps : l'API envoie le
+ * lien à la coordonnée de la fiche, et relie le compte à l'acceptation.
+ */
+export async function inviteCustomerToAccount(token: string, customerId: number): Promise<void> {
+  await apiRequest(cheminApi`/api/customers/${customerId}/invite`, { method: 'POST', token });
+}
+
 export async function createCustomerNote(
   token: string,
   customerId: number,

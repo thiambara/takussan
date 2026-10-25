@@ -137,6 +137,9 @@ return [
     'customer' => [
         'attached_to_open_lease' => 'This customer is the tenant of a lease awaiting signature or in force: they cannot be deleted while that lease is open.',
         'duplicate' => 'A customer of your agency already has this phone number or email address.',
+        // P15.01 (TCK-2351) — inviter le client de la fiche à créer son compte.
+        'invite_already_linked' => 'This record is already linked to an account: there is no one to invite.',
+        'invite_no_contact' => 'This record has no contact detail to send the invitation to: add an email address.',
         'pipeline_stage_invalid' => 'Invalid pipeline stage.',
     ],
     'dashboard' => [
@@ -257,6 +260,8 @@ return [
         'token_not_found' => 'This invitation cannot be found.',
         'token_revoked' => 'This invitation has been revoked.',
         'token_sent' => 'This invitation is still pending acceptance.',
+        // P15.01 (TCK-2351) — la fiche visée a reçu un autre compte depuis l'envoi.
+        'tenant_already_linked' => 'This record has been linked to another account since the invitation was sent. Ask the agency for a new invitation.',
     ],
     'invoice' => [
         'amount_too_large' => 'The invoice total exceeds the largest amount that can be recorded.',
@@ -298,6 +303,8 @@ return [
         'renewal_parent_not_renewable' => 'The renewed lease is no longer in force (notice given or terminated): this renewal can no longer take effect. Terminate it, then create another one if needed.',
         'schedule_exists' => 'The payment schedule has already been generated.',
         'terms_locked' => 'The terms of a signed lease can no longer be changed: draw up an amendment or a new lease.',
+        // P48.03 (TCK-2352) — le bail tiré d'une réservation.
+        'tenant_not_booking_customer' => 'The tenant of a lease created from a booking is the customer of that booking.',
     ],
     'lease_signature' => [
         'already_signed' => 'You have already signed this contract.',
