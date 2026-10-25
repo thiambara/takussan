@@ -1,6 +1,6 @@
 ---
 id: TCK-2345
-title: "Les dictionnaires de /app se découpent par section, la table devient différentielle, et un espace lu par le seul serveur n'est plus servi"
+title: "Les dictionnaires de /app et du site public se découpent par section, la table devient différentielle, et un espace lu par le seul serveur n'est plus servi"
 status: done
 phase: P2
 family: technique
@@ -23,7 +23,7 @@ tags: [front, i18n, rsc, poids, garde, pistes]
 
 ## Objectif
 
-Un document de `/app` ne sert plus que les dictionnaires que son écran peut lire. Une navigation
+Un document de `/app` ou du site public ne sert plus que les dictionnaires que son écran peut lire. Une navigation
 ne renvoie plus les espaces que le navigateur a déjà reçus. Un espace que seul le serveur lit ne
 part plus vers le navigateur.
 
@@ -74,8 +74,10 @@ sérialisé pour le navigateur.
       réécrits.
 - [x] P105.01 : une frontière par section de `/app`, et une règle de garde qui exige la frontière
       d'une section qui atteint un espace hors de la coque.
-- [ ] P69.05 : frontières sous `(public)`. **Non fait, rendu au porteur** : voir « Notes
-      d'implémentation ».
+- [x] P69.05 : `[locale]/(public)` devient une frontière à sections (règle E, option b tranchée
+      par la session le 2026-10-25) : frontières fiche, liste et pages légales, et les cinq que
+      la règle exige en plus (`agencies`, `agents`, `bookings`, `pay`, `share`). Plafonds
+      régénérés.
 
 ## Critères d'acceptation
 
@@ -87,6 +89,12 @@ sérialisé pour le navigateur.
 - [x] AC4 — une section de `/app` sans frontière, qui atteint un espace hors de la coque, fait
       rougir la garde.
 - [x] AC5 — `--report` imprime, pour chaque écran, l'espace servi et l'espace atteint.
+- [x] AC6 — fiche, liste et pages légales ont leur frontière, et la coque publique ne sert aucun
+      espace d'une seule section (`bookings`, `agency`, `agents`, `payLink`, `shareReception`,
+      `map`, `boost`, `contact`). Une section publique sans frontière qui en atteint un fait
+      rougir la garde.
+- [x] AC7 — un slug inconnu rend toujours 404 et le `not-found.tsx` de la fiche : son layout ne
+      lève pas `notFound()`.
 
 ## Hors périmètre
 
@@ -138,11 +146,51 @@ l'explorateur (2026-10-21, `next start`).
 appellent un layout de section directement : ils doublent désormais `@/i18n/messages`, comme les
 autres tests de layout.
 
-**P69.05 n'est pas fait.** Appliquées seules, les trois frontières décidées (fiche, liste, pages
-légales) font passer la page légale de 33 939 à 33 244 o (−2 %) : `(public)` continue de servir
-l'union de toutes les autres pages (26 espaces, 33 019 o), et un provider imbriqué ne peut que
-compléter son parent. La page légale descend à 25 544 o (−25 %) si `agencies`, `agents`,
-`bookings`, `pay` et `share` ont aussi leur frontière, c'est-à-dire si `[locale]/(public)` entre
-dans `FRONTIERES_A_SECTIONS`. Le plancher réel est la barre et le pied de chaque page (`property`,
-`search`, `favorites`, `footer`, `nav`). L'entrée reste `validé`, et ces chiffres vont au porteur.
+**P69.05, premier passage.** Appliquées seules, les trois frontières décidées (fiche, liste, pages
+légales) faisaient passer la page légale de 33 939 à 33 244 o (−2 %) : `(public)` continuait de
+servir l'union de toutes les autres pages, et un provider imbriqué ne peut que compléter son
+parent. L'entrée a d'abord été rendue au porteur avec ces chiffres.
 
+**P69.05, reprise (option b, tranchée par la session le 2026-10-25).** `[locale]/(public)` entre
+dans `FRONTIERES_A_SECTIONS` ; 8 layouts de section, 40 frontières en tout. Tailles dérivées par la
+garde, cumul servi au document :
+
+| | `pre-dev` aba6693c7 | avant P69.05 (39343621f) | après (060a4f631) |
+|---|---|---|---|
+| coque `(public)` | 30 espaces, 33 939 o | 26 espaces, 32 312 o | 14 espaces, 23 929 o |
+| page légale | 33 939 o | 32 312 o | 23 929 o (−26 % ; −29 %) |
+| fiche | 33 939 o | 32 312 o | 25 696 o (−20 % ; −24 %) |
+| liste | 33 939 o | 32 312 o | 24 083 o (−25 % ; −29 %) |
+| les 19 écrans publics | 33 939 o | 32 312 o | 23 929 à 27 442 o (−15 à −26 %, −23 % en somme) |
+| plafond `(public)` | 36 % | 35 % | 27 % |
+
+**Mesuré sur un document servi** (`next build` vert en 35 s, puis `next start`, API factice qui
+rend 404 sur tout chemin ; somme des props `messages` des providers dans la charge RSC, gzip 6) :
+page légale 23 955 o, fiche d'un slug inconnu 25 706 o (statut 404), liste 24 122 o, soit 10 à
+39 o de plus que la dérivation (l'enveloppe JSON). `/app/overview/tenant` n'a pas pu être mesuré :
+sans session, 307 vers `/auth/login` ; avec un jeton factice, 500, car l'API factice ne rend pas
+l'utilisateur. Les chiffres de `/app` restent dérivés.
+
+**La garde de suspension** (`(public)/__tests__/pas-de-frontiere-de-suspension.test.ts`, TCK-438)
+refusait tout `layout.tsx` sous `properties/[slug]`, et a rougi sur la frontière de la fiche. Ce
+qu'elle garde, c'est le `notFound()` levé dans un layout, qu'attrape la frontière du parent. Elle
+admet donc le seul layout de la fiche, s'il appelle `messagesPour('[locale]/(public)/properties/[slug]')`
+et ne lève pas `notFound()`. Mesuré par ablation, `next build` + `next start` : un slug inconnu
+rend 404 et le « Bien introuvable » du segment, avec ce layout comme sans lui.
+
+**Ablations, P69.05.**
+
+- Table d'avant P69.05 remise (`git show HEAD:…/namespaces.json`) → le cas « ne sert à toute page
+  publique que la coque » rouge (« `[locale]/(public)/properties/[slug]` n'est plus une
+  frontière ») ; remise → vert.
+- `bookings/layout.tsx` retiré, puis `--update` → la garde reste rouge sur la règle E
+  (« section « bookings » de « [locale]/(public) » — atteint bookings »).
+- Règle E retirée pour `(public)` en plus, puis `--update` → la garde est verte (39 frontières) et
+  le test rouge (« la coque publique sert « bookings » ») : c'est la règle E, et elle seule, qui
+  tient le découpage. Tout remis → table identique octet pour octet, vert.
+- `notFound()` ajouté au layout de la fiche → le cas de la garde de suspension rouge ; remis → vert.
+
+**Non gardé.** La frontière `legal` a un différentiel vide (`legal` n'est lu que par
+`getTranslations`) : aucune règle ne l'exige, seul le test de découpage la nomme. Le plancher du
+public reste la barre de navigation et le pied de page (`property`, `search`, `favorites`,
+`footer`, `nav`).

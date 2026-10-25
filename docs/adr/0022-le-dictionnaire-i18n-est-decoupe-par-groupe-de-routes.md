@@ -159,7 +159,17 @@ chemin de `check-i18n-namespaces.mjs`. Elles ne mesurent pas un document servi.
    un layout de garde (TCK-426). `messages`, `notifications`, `settings` et `[...introuvable]`
    n'en ont pas besoin, car elles ne lisent rien hors de la coque. Le grain de la page reste écarté :
    la section suffit, puisqu'un écran y lit en médiane 99 % de ce qu'on lui sert.
-4. **Sous `(public)`** (P69.05) : voir « Ce qui n'est pas tranché ici ».
+4. **Sous `(public)`, la même règle** (P69.05). `[locale]/(public)` devient elle aussi une
+   frontière **à sections**. Les trois frontières que nomme la décision (fiche
+   `properties/[slug]`, liste `properties/(liste)`, pages légales `legal`) ne suffisaient pas
+   (constat 4) : la règle E en exige cinq de plus, `agencies`, `agents`, `bookings`, `pay` et
+   `share`. La coque de `(public)` ne sert plus que l'accueil, la barre de navigation et le pied
+   de page, que chaque page publique monte : 14 espaces cumulés, 23,9 Ko. `compare`, `favorites`,
+   `notifications`, `playground` et `search-alerts` n'ont pas de frontière, car elles ne lisent
+   rien hors de la coque. La frontière `legal` a un différentiel vide aujourd'hui : `legal` n'est
+   lu que par `getTranslations` (décision 1). Elle est posée quand même, parce que la décision la
+   nomme, et qu'un lecteur client de `legal` ajouté demain resterait hors du document des autres
+   pages. Option b, tranchée par la session le 2026-10-25 sur les chiffres du constat 4.
 
 ### Règles et contrat de la garde, réécrits
 
@@ -186,7 +196,8 @@ chemin de `check-i18n-namespaces.mjs`. Elles ne mesurent pas un document servi.
   section sans frontière qui atteint un espace hors de la coque fait échouer la garde, même après
   `--update`. Sans cette règle, une section neuve écrite sans `layout.tsx` ferait entrer ses
   espaces dans le document de tous les écrans de `/app`, et `--update` la rendrait conforme. La
-  liste des frontières à sections est `FRONTIERES_A_SECTIONS`, aujourd'hui `(dashboard)/app` seule.
+  liste des frontières à sections est `FRONTIERES_A_SECTIONS` : `(dashboard)/app` et
+  `[locale]/(public)`.
 - **`--report`** imprime, par frontière, le différentiel (ce qu'une navigation vers elle coûte) et
   le cumul (ce que son document porte), puis les espaces lus par le seul serveur. Il imprime
   ensuite, **par écran**, l'ensemble servi et l'ensemble atteint.
@@ -199,6 +210,24 @@ chemin de `check-i18n-namespaces.mjs`. Elles ne mesurent pas un document servi.
   Avant les frontières de section, il en comptait 5 (14,0 Ko) ; il porte maintenant aussi
   `property`, `documents`, `payments`… que `/app` ne sert plus à tous ses écrans.
 - Racine : 6 147 o au lieu de 7 615.
+- Document des 19 écrans de `(public)` (P69.05) : 23,9 à 27,4 Ko servis au lieu de 32,3 après les
+  décisions 1 et 2 (33,9 sur `pre-dev`), soit −15 à −26 % selon l'écran, et −23 % en somme.
+  - page légale : 32,3 → 23,9 Ko (−26 % ; −29 % depuis `pre-dev`) ;
+  - fiche : 32,3 → 25,7 Ko (−20 % ; −24 %) ;
+  - liste : 32,3 → 24,1 Ko (−25 % ; −29 %).
+  Le plafond de `(public)` passe de 35 à 27 %.
+- **Mesuré, le même jour, sur un document servi** (`next build` puis `next start` à 060a4f631,
+  API factice qui rend 404 partout ; somme des props `messages` des providers dans la charge
+  RSC, gzip niveau 6) : page légale 23 955 o (3 providers : racine, `(public)`, `legal` vide),
+  fiche d'un slug inconnu 25 706 o (statut 404), liste 24 122 o. L'écart aux tailles dérivées va
+  de 10 à 39 o : l'enveloppe JSON de chaque provider. Les documents de `/app` n'ont pas pu être
+  relevés : sans API, la console redirige vers `/auth/login`, ou rend 500 avec un jeton factice.
+- **La fiche garde son 404.** La garde de TCK-438 (`pas-de-frontiere-de-suspension.test.ts`)
+  refusait tout `layout.tsx` dans `properties/[slug]`, au motif qu'un `notFound()` levé dans un
+  layout est attrapé par la frontière du parent. Elle admet désormais le seul layout de la fiche,
+  tant qu'il n'appelle que `messagesPour` et ne lève pas `notFound()`. Mesuré par ablation sur le
+  même serveur : un slug inconnu rend 404 et le « Bien introuvable » du segment, avec ce layout
+  comme sans lui.
 
 ### Ce qui n'est pas gardé
 
@@ -218,15 +247,23 @@ chemin de `check-i18n-namespaces.mjs`. Elles ne mesurent pas un document servi.
   au-dessus lève (`useMessages()`), comme il levait déjà sur `useLocale()`.
 - **L'identité des objets** (TCK-1489) reste gardée par `toBe`. Les différentiels ne se recouvrent
   plus, mais un espace servi deux fois par une erreur future ne serait alors pas dédupliqué.
+- **Le plancher du public est la coque** (P69.05). La barre de navigation et le pied de page lisent
+  `property` (12,5 Ko gzip à lui seul), `search`, `favorites`, `footer` et `nav` : aucune
+  frontière de section ne les retire d'une page publique. Les réduire demanderait de toucher ces
+  composants, ce que la décision ne demande pas.
+- **Une frontière à différentiel vide** (`legal`) n'est exigée par aucune règle : la règle E ne
+  demande une frontière qu'à une section qui atteint un espace hors de la coque. Si elle
+  disparaissait, la garde resterait verte ; c'est le test de découpage qui la nomme.
 
-### Ce qui n'est pas tranché ici
+### Ce qui était resté ouvert, et comment c'est tranché (P69.05)
 
-**P69.05 (`(public)`)** : la décision nomme trois frontières (fiche, liste, pages légales).
-Appliquées seules, elles ne rapportent que −2 % sur la page légale (constat 4), parce que
-`(public)` continue de servir l'union des autres pages. La règle E rendrait la page légale à
-25,5 Ko si `[locale]/(public)` entrait dans `FRONTIERES_A_SECTIONS`, au prix de cinq frontières
-de plus (`agencies`, `agents`, `bookings`, `pay`, `share`). La piste est rendue au porteur avec
-ces chiffres.
+Le premier passage de ce lot avait laissé P69.05 ouverte : les trois frontières que nomme la
+décision (fiche, liste, pages légales) ne rapportaient, seules, que −2 % sur la page légale
+(constat 4), parce que `(public)` continuait de servir l'union des autres pages. La session a
+tranché le 2026-10-25 pour l'option b : la règle E appliquée à `[locale]/(public)`, avec les
+trois frontières nommées et les cinq que la règle exige en plus (décision 4). C'est l'option qui
+tient la décision du porteur, « frontières fiche, liste et pages légales sous `(public)` [...],
+plafonds `plafondsPourcent` resserrés », sans la vider de son effet.
 
 ### Application
 
@@ -235,7 +272,8 @@ ces chiffres.
 - `takussan-web/scripts/check-i18n-namespaces.mjs` : la table différentielle, les règles C et D
   réécrites, la règle E et `--report`.
 - `takussan-web/src/i18n/IntlProvider.tsx` (la fusion) et `src/i18n/namespaces.json`, régénéré :
-  32 frontières.
-- 22 `layout.tsx` de section sous `src/app/(dashboard)/app/`.
+  40 frontières.
+- 22 `layout.tsx` de section sous `src/app/(dashboard)/app/`, et 8 sous
+  `src/app/[locale]/(public)/` (P69.05).
 - Tests : `src/i18n/__tests__/i18n-namespaces-scan.test.ts` et
   `decoupage-du-dictionnaire.test.tsx`.
