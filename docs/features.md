@@ -345,6 +345,12 @@ un pouvoir, il ne l'explique pas.
   qui engage la responsabilité du prestataire, `completion_photos`, reste gardée par `update`.
   La ligne du tableau ne porte pas 🏠 parce que le geste appartient au signalement (P1, 🏠), pas à
   l'intervention.
+- **Le demandeur dont le bail a pris fin lit encore, et n'agit plus** (TCK-2374, ADR-0031,
+  amendement du 2026-10-25, P248.01). Il garde la lecture de ses interventions, de leurs pièces et
+  de leur fil, comme celle de son bail passé. Confirmer, contester, ajouter des photos au
+  signalement et écrire dans le fil exigent un bail en cours du bien (préavis et renouvellement
+  compris). Le fil s'affiche alors en lecture seule. Un demandeur qui n'a jamais été locataire du
+  bien n'est pas visé.
 
 ### 1.9 État des lieux & inventaires
 
