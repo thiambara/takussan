@@ -38,8 +38,8 @@ Réf : **P04.10** du fichier de pistes, `validé`.
 - Les rapports définissent déjà la caution détenue comme `Σ deposit payés − Σ deposit_refund payés`
   (`PortfolioMetrics::depositsHeld`, `AgingBalanceService::depositsHeld`). La restitution est la
   seule à suivre une autre règle.
-- Une caution reçue hors plateforme se règle par `mark-paid` sur son échéance (TCK-681, P13.01) ;
-  l'échéance naît de l'échéancier, jamais à la main (TCK-1920).
+- Une caution reçue hors plateforme se règle par `mark-paid` sur son échéance (TCK-681, P13.01).
+  ⚠ Mesuré après coup (2026-10-25) : aucun chemin de l'application ne crée aujourd'hui d'échéance `deposit` (mesuré le 2026-10-25 : `LeaseService::generateSchedule` n'écrit que des loyers, `POST /api/leases/{lease}/payments` refuse `deposit` depuis TCK-1920, la résiliation n'écrit qu'une pénalité).
 
 ## Décision du porteur
 
@@ -91,7 +91,9 @@ Réf : **P04.10** du fichier de pistes, `validé`.
 ## Hors périmètre
 
 - Une dérogation « caution remise hors plateforme » pour un bail sans échéance de caution (option b
-  de la re-vérification) : non retenue ; la voie est `mark-paid` sur l'échéance.
+  de la re-vérification) : non retenue (« on ne rend pas ce qu'on n'a pas encaissé », session du
+  2026-10-25). La voie qui écrirait l'échéance `deposit` n'existe pas et n'est pas créée ici :
+  écart signalé au porteur.
 - Le titre du bandeau quand rien n'est encaissé.
 
 ## Notes d'implémentation

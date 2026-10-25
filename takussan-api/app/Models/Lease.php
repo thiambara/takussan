@@ -416,7 +416,8 @@ class Lease extends AbstractModel implements HasMedia
     /**
      * TCK-2340 (P04.10) — la caution réellement encaissée : la somme des échéances `deposit` payées du
      * bail, la définition des cautions détenues des rapports ({@see LeasePayment::scopePaidDepositMovements()}).
-     * Une caution reçue hors plateforme y entre par le `mark-paid` de son échéance (TCK-681).
+     * Une caution reçue hors plateforme y entre par le `mark-paid` de son échéance (TCK-681) — quand
+     * l'échéance existe : aucun chemin n'en écrit aujourd'hui (ADR-0039, amendement du 2026-10-25 bis).
      */
     public function collectedDeposit(): float
     {

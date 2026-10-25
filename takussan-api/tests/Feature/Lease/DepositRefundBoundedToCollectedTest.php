@@ -12,6 +12,7 @@ use App\Models\Payout;
 use App\Models\User;
 use App\Services\Lease\DepositRefundService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Laravel\Sanctum\Sanctum;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\TestCase;
 
@@ -123,6 +124,37 @@ class DepositRefundBoundedToCollectedTest extends TestCase
 
         $this->assertSame(600000.0, (float) $result['lease']->deposit_refunded_amount);
         $this->assertSame('full', $this->service->state($result['lease'])['state']);
+    }
+
+    /**
+     * La voie manuelle de l'encaissement (TCK-681) : une échéance `deposit` en attente, réglée par
+     * `mark-paid`, ouvre la restitution. ⚠ Aucun chemin de l'application n'écrit aujourd'hui cette
+     * échéance (ADR-0039, amendement du 2026-10-25 bis) : le test la pose par la fabrique.
+     */
+    public function test_une_caution_reglee_par_mark_paid_sur_son_echeance_se_restitue(): void
+    {
+        $admin = $this->actingAsRole('agency_admin');
+        $lease = $this->lease(['landlord_id' => $admin->id, 'agency_id' => $admin->agency_id]);
+        $line = $this->depositLine($lease, 600000, PaymentStatus::Pending);
+        Sanctum::actingAs($admin);
+
+        $this->assertSame(0.0, $lease->fresh()->deposit_remaining);
+        $this->postJson("/api/lease-payments/{$line->id}/mark-paid", ['payment_method' => 'cash'])->assertOk();
+
+        $this->assertSame(600000.0, $lease->fresh()->deposit_remaining);
+    }
+
+    public function test_le_refus_http_porte_son_code_et_son_message(): void
+    {
+        $admin = $this->actingAsRole('agency_admin');
+        $lease = $this->lease(['landlord_id' => $admin->id, 'agency_id' => $admin->agency_id]);
+        Sanctum::actingAs($admin);
+
+        $this->withHeader('Accept-Language', 'fr')
+            ->postJson("/api/leases/{$lease->id}/deposit-refund", ['amount' => 600000])
+            ->assertStatus(422)
+            ->assertJsonPath('code', 'deposit_refund.not_collected')
+            ->assertJsonPath('message', __('errors.deposit_refund.not_collected', [], 'fr'));
     }
 
     /** @param array<string, mixed> $overrides */

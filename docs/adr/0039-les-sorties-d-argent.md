@@ -1009,14 +1009,20 @@ Décision du porteur du 2026-10-25, sur la piste P04.10 (angle 4 du fichier de p
    jamais plus que ce qui est entré.
 4. **Rien d'encaissé** : `refund` refuse avec `deposit_refund.not_collected` (422), et non plus
    `already_refunded`. L'écran suit `deposit_remaining`, comme avant : le bouton disparaît.
-5. **Une caution reçue hors plateforme** entre dans l'encaissé par le `mark-paid` de son échéance
-   (TCK-681) ; l'échéance naît de l'échéancier, jamais à la main (TCK-1920).
+5. **L'encaissement se constate sur l'échéance `deposit`** : payée en ligne, ou réglée par
+   `POST /api/lease-payments/{payment}/mark-paid` (TCK-681), qui accepte une échéance `deposit`.
+   ⚠ Mais aucun chemin de l'application ne crée aujourd'hui d'échéance `deposit` (mesuré le 2026-10-25 : `LeaseService::generateSchedule` n'écrit que des loyers, `POST /api/leases/{lease}/payments` refuse `deposit` depuis TCK-1920, la résiliation n'écrit qu'une pénalité). La voie manuelle n'existe donc que pour une échéance déjà présente (données
+   antérieures à TCK-1920, import) ; elle n'est pas créée ici (décision de la session du
+   2026-10-25 : « On ne rend pas ce qu'on n'a pas encaissé »).
 
 ### Ce qui n'est pas gardé
 
 - **Une restitution déjà faite au-delà de la borne n'est ni réécrite ni annulée** : sa ligne
   `deposit_refund`, son reversement et `deposit_refunded_amount` restent tels quels, le restituable
   vaut 0 et une nouvelle restitution est refusée. Aucune migration ne relit l'existant.
+- **Conséquence du point 5 : un bail créé dans l'application n'a pas d'échéance de caution, et sa
+  caution ne se restitue pas par la plateforme** tant qu'aucune voie n'écrit cette échéance. C'est
+  un écart à trancher par le porteur, signalé par TCK-2340.
 - **Un bail sans échéance de caution** (bail importé, caution remise avant l'échéancier) ne se
   restitue plus par la plateforme tant que son échéance n'est pas posée et réglée. Aucune dérogation
   « caution remise hors plateforme » n'est ouverte.
