@@ -146,6 +146,11 @@ class YearOfActivitySeeder extends Seeder
         $this->config = app()->bound(SeedingConfig::class) ? app(SeedingConfig::class) : SeedingConfig::fromEnv();
         $this->prepareEnvironment();
 
+        // TCK-2380 — AVANT de poser la graine : un `Faker\Generator` orphelin forme un cycle (ses
+        // fournisseurs le référencent) que seul le ramasse-miettes libère, au moment qu'il choisit,
+        // et son `__destruct()` ré-initialise `mt_srand()` au hasard. Libéré en plein seed, il
+        // effaçait la graine (cf. SeedFaker). On les libère ici, avant qu'elle compte.
+        gc_collect_cycles();
         $context = new SeedingContext($this->config);
         app()->instance(SeedingContext::class, $context);
 

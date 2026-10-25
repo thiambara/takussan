@@ -11,6 +11,7 @@ use App\Models\User;
 use Database\Seeders\Support\SeedingContext;
 use Database\Seeders\Support\StatusDistribution;
 use Database\Seeders\Support\Timeline;
+use Database\Seeders\Support\Tirage;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -33,13 +34,13 @@ class CustomerSeeder extends Seeder
                 $firstName = $this->ctx->faker()->senegaleseFirstName();
                 $lastName = $this->ctx->faker()->senegaleseLastName();
                 $slug = Str::slug($firstName.' '.$lastName);
-                $email = $slug.'-'.Str::random(4).'@'.$this->ctx->faker()->safeEmailDomain();
+                $email = $slug.'-'.Tirage::code(4).'@'.$this->ctx->faker()->safeEmailDomain();
 
                 $user = null;
                 // 40% of customers also have a linked User account.
                 if ($this->ctx->faker()->boolean(40)) {
                     $user = User::create([
-                        'username' => $slug.'-'.Str::random(4),
+                        'username' => $slug.'-'.Tirage::code(4),
                         'first_name' => $firstName,
                         'last_name' => $lastName,
                         'status' => UserStatus::Active,

@@ -18,7 +18,7 @@ class PropertyPriceHistorySeeder extends Seeder
             $properties = $this->ctx->propertiesByAgency[$agency->id] ?? collect();
 
             foreach ($properties as $property) {
-                $changes = random_int(0, 2);
+                $changes = mt_rand(0, 2);
                 if ($changes === 0) {
                     continue;
                 }
@@ -39,7 +39,7 @@ class PropertyPriceHistorySeeder extends Seeder
                         'new_price' => $newPrice,
                         'currency' => 'XOF',
                         'reason' => $this->ctx->faker()->randomElement(PriceChangeReason::cases())->value,
-                        'notes' => $this->ctx->faker()->optional()->sentence(),
+                        'notes' => $this->ctx->faker()->boolean() ? $this->ctx->texts()->noteDeChangementDePrix() : null,
                         'changed_at' => $changedAt,
                         'created_at' => $changedAt,
                     ]);

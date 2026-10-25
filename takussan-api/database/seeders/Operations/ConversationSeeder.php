@@ -12,6 +12,7 @@ use App\Services\Messaging\PropertyConversationResolver;
 use App\Services\Property\PrimaryPropertyContact;
 use Database\Seeders\Support\SeedingContext;
 use Database\Seeders\Support\Timeline;
+use Database\Seeders\Support\Tirage;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Collection;
 
@@ -69,7 +70,7 @@ class ConversationSeeder extends Seeder
                     ? (int) array_rand($contacts)
                     : null;
                 $prospectId = $propertyId !== null
-                    ? $prospectIds->reject(fn (int $id) => $id === $contacts[$propertyId])->random()
+                    ? $prospectIds->reject(fn (int $id) => $id === $contacts[$propertyId])->pipe(Tirage::un(...))
                     : null;
 
                 if ($propertyId !== null && $prospectId !== null && ! isset($prospectThreads["{$propertyId}:{$prospectId}"])) {
@@ -82,7 +83,7 @@ class ConversationSeeder extends Seeder
                     continue;
                 }
 
-                $creator = (int) $agentIds->random();
+                $creator = (int) Tirage::un($agentIds);
                 $others = $userIds->map(fn ($id) => (int) $id)->reject(fn (int $id) => $id === $creator)->values();
                 if ($others->count() < 2) {
                     continue;
@@ -90,10 +91,10 @@ class ConversationSeeder extends Seeder
 
                 $this->conversations->push($this->seed(
                     ConversationType::Group,
-                    $this->ctx->faker()->sentence(4),
+                    $this->ctx->texts()->sujetDeGroupe(),
                     $creator,
                     null,
-                    $others->random(min($this->ctx->faker()->numberBetween(2, 3), $others->count()))->prepend($creator)->all(),
+                    Tirage::plusieurs($others, min($this->ctx->faker()->numberBetween(2, 3), $others->count()))->prepend($creator)->all(),
                     $creator,
                     $createdAt,
                 ));

@@ -35,7 +35,7 @@ class Timeline
         if ($toTs <= $fromTs) {
             return CarbonImmutable::createFromTimestamp($fromTs);
         }
-        $ts = random_int($fromTs, $toTs);
+        $ts = mt_rand($fromTs, $toTs);
 
         return CarbonImmutable::createFromTimestamp($ts);
     }
@@ -47,7 +47,7 @@ class Timeline
     public static function businessHour(CarbonInterface $date): CarbonImmutable
     {
         return CarbonImmutable::parse($date)
-            ->setTime(random_int(8, 18), random_int(0, 59), random_int(0, 59));
+            ->setTime(mt_rand(8, 18), mt_rand(0, 59), mt_rand(0, 59));
     }
 
     /**

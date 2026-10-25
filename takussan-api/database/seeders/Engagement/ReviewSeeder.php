@@ -6,6 +6,7 @@ use App\Models\Property;
 use App\Models\Review;
 use Database\Seeders\Support\SeedingContext;
 use Database\Seeders\Support\Timeline;
+use Database\Seeders\Support\Tirage;
 use Illuminate\Database\Seeder;
 
 class ReviewSeeder extends Seeder
@@ -28,18 +29,21 @@ class ReviewSeeder extends Seeder
                     continue;
                 }
 
-                $count = random_int(1, 3);
+                $count = mt_rand(1, 3);
                 for ($i = 0; $i < $count; $i++) {
                     $createdAt = Timeline::randomDateBetween($property->created_at, Timeline::seedEnd());
                     $isApproved = $this->ctx->faker()->boolean(80);
 
+                    $rating = $this->ctx->faker()->numberBetween(3, 5);
+                    [$title, $content] = $this->ctx->texts()->avis($rating);
+
                     Review::create([
                         'reviewable_id' => $property->id,
                         'reviewable_type' => Property::class,
-                        'author_id' => $userIds->random(),
-                        'rating' => $this->ctx->faker()->numberBetween(3, 5),
-                        'title' => $this->ctx->faker()->sentence(4),
-                        'content' => $this->ctx->faker()->paragraph(),
+                        'author_id' => Tirage::un($userIds),
+                        'rating' => $rating,
+                        'title' => $title,
+                        'content' => $content,
                         'is_approved' => $isApproved,
                         'approved_at' => $isApproved ? $createdAt->addDays(1) : null,
                         'approved_by_id' => $isApproved ? $agency->primary_admin_id : null,

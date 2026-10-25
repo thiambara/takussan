@@ -18,9 +18,9 @@ use App\Models\Profiles\ServiceProviderProfile;
 use App\Models\User;
 use Database\Seeders\Support\SeedingContext;
 use Database\Seeders\Support\Timeline;
+use Database\Seeders\Support\Tirage;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Str;
 
 class UserSeeder extends Seeder
 {
@@ -140,7 +140,7 @@ class UserSeeder extends Seeder
                 'password' => Hash::make('password'),
                 'preferred_language' => 'fr',
                 'timezone' => 'Africa/Dakar',
-                'remember_token' => Str::random(10),
+                'remember_token' => Tirage::code(10),
                 'created_at' => $createdAt,
                 'updated_at' => $createdAt,
             ]),

@@ -10,6 +10,7 @@ use App\Models\Profiles\ServiceProviderProfile;
 use Database\Seeders\Support\SeedingContext;
 use Database\Seeders\Support\StatusDistribution;
 use Database\Seeders\Support\Timeline;
+use Database\Seeders\Support\Tirage;
 use Illuminate\Database\Seeder;
 
 class MaintenanceRequestSeeder extends Seeder
@@ -31,8 +32,8 @@ class MaintenanceRequestSeeder extends Seeder
             $created = 0;
 
             while ($created < $targetCount && $properties->isNotEmpty()) {
-                $property = $properties->random();
-                $requestsForProperty = min(random_int(1, 3), $targetCount - $created);
+                $property = Tirage::un($properties);
+                $requestsForProperty = min(mt_rand(1, 3), $targetCount - $created);
 
                 for ($i = 0; $i < $requestsForProperty; $i++) {
                     $createdAt = Timeline::randomDateBetween(
@@ -56,29 +57,32 @@ class MaintenanceRequestSeeder extends Seeder
                     ], true) ? $providerIds[array_rand($providerIds)] : null;
 
                     $completedAt = $status === MaintenanceStatus::Completed->value
-                        ? $createdAt->addDays(random_int(1, 15))
+                        ? $createdAt->addDays(mt_rand(1, 15))
                         : null;
+
+                    $category = $this->ctx->faker()->randomElement(MaintenanceCategory::cases());
+                    [$title, $description] = $this->ctx->texts()->intervention($category);
 
                     MaintenanceRequest::create([
                         'property_id' => $property->id,
                         'requester_id' => $property->user_id,
                         'assigned_to' => $assignedTo,
-                        'title' => $this->ctx->faker()->sentence(4),
-                        'description' => $this->ctx->faker()->paragraph(),
-                        'category' => $this->ctx->faker()->randomElement(MaintenanceCategory::cases())->value,
+                        'title' => $title,
+                        'description' => $description,
+                        'category' => $category->value,
                         'priority' => $this->ctx->faker()->randomElement(MaintenancePriority::cases())->value,
                         'status' => $status,
                         'estimated_cost' => $this->ctx->faker()->numberBetween(15_000, 300_000),
                         'actual_cost' => $completedAt
                             ? $this->ctx->faker()->numberBetween(10_000, 350_000)
                             : null,
-                        'scheduled_at' => $assignedTo ? $createdAt->addDays(random_int(1, 5)) : null,
+                        'scheduled_at' => $assignedTo ? $createdAt->addDays(mt_rand(1, 5)) : null,
                         'started_at' => in_array($status, [
                             MaintenanceStatus::InProgress->value,
                             MaintenanceStatus::Completed->value,
-                        ], true) ? $createdAt->addDays(random_int(1, 6)) : null,
+                        ], true) ? $createdAt->addDays(mt_rand(1, 6)) : null,
                         'completed_at' => $completedAt,
-                        'resolution_notes' => $completedAt ? $this->ctx->faker()->sentence() : null,
+                        'resolution_notes' => $completedAt ? $this->ctx->texts()->compteRenduDIntervention() : null,
                         'created_at' => $createdAt,
                         'updated_at' => $completedAt ?? $createdAt,
                     ]);

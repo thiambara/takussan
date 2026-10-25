@@ -12,8 +12,8 @@ use App\Models\LeasePayment;
 use Carbon\CarbonImmutable;
 use Database\Seeders\Support\SeedingContext;
 use Database\Seeders\Support\Timeline;
+use Database\Seeders\Support\Tirage;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Str;
 
 class InvoiceSeeder extends Seeder
 {
@@ -63,7 +63,7 @@ class InvoiceSeeder extends Seeder
                     'customer_id' => $lease->tenant_id,
                     'issued_by_id' => null,
                     'agency_id' => $lease->agency_id,
-                    'reference_number' => 'INV-'.strtoupper(Str::random(8)),
+                    'reference_number' => 'INV-'.strtoupper(Tirage::code(8)),
                     'status' => $status->value,
                     'issue_date' => $cursor->toDateString(),
                     'due_date' => $cursor->addDays(15)->toDateString(),

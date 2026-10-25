@@ -9,8 +9,8 @@ use App\Models\LeasePayment;
 use App\Models\Payout;
 use Carbon\CarbonImmutable;
 use Database\Seeders\Support\SeedingContext;
+use Database\Seeders\Support\Tirage;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Str;
 
 class PayoutSeeder extends Seeder
 {
@@ -48,7 +48,7 @@ class PayoutSeeder extends Seeder
             $commission = (int) round($gross * $commissionRate);
             $net = $gross - $commission;
             $periodStart = CarbonImmutable::parse($bucket.'-01');
-            $processedAt = $periodStart->endOfMonth()->addDays(random_int(1, 5));
+            $processedAt = $periodStart->endOfMonth()->addDays(mt_rand(1, 5));
 
             Payout::withoutEvents(function () use (
                 $lease, $gross, $commission, $net, $periodStart, $processedAt, $payments
@@ -57,7 +57,7 @@ class PayoutSeeder extends Seeder
                     'lease_id' => $lease->id,
                     'agency_id' => $lease->agency_id,
                     'landlord_id' => $lease->landlord_id,
-                    'reference_number' => 'PO-'.strtoupper(Str::random(8)),
+                    'reference_number' => 'PO-'.strtoupper(Tirage::code(8)),
                     'status' => PayoutStatus::Completed->value,
                     'period_start' => $periodStart->toDateString(),
                     'period_end' => $periodStart->endOfMonth()->toDateString(),
@@ -66,7 +66,7 @@ class PayoutSeeder extends Seeder
                     'net_amount' => $net,
                     'currency' => 'XOF',
                     'payment_method' => 'bank_transfer',
-                    'transaction_id' => 'PO-TX-'.strtoupper(Str::random(8)),
+                    'transaction_id' => 'PO-TX-'.strtoupper(Tirage::code(8)),
                     'scheduled_at' => $processedAt->subDays(2),
                     'processed_at' => $processedAt,
                     'created_at' => $processedAt->subDays(3),

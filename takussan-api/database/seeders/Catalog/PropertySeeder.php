@@ -17,6 +17,7 @@ use Database\Seeders\Support\SeedingContext;
 use Database\Seeders\Support\SenegalFakerProvider;
 use Database\Seeders\Support\StatusDistribution;
 use Database\Seeders\Support\Timeline;
+use Database\Seeders\Support\Tirage;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Str;
 
@@ -65,7 +66,7 @@ class PropertySeeder extends Seeder
                     Timeline::seedStart(),
                     Timeline::seedEnd()->subDays(7),
                 );
-                $ownerId = $ownerIds->random();
+                $ownerId = Tirage::un($ownerIds);
                 $contract = ContractType::from($contractValue);
 
                 // ~80% Dakar (avec pricing par quartier), ~20% autres villes du Sénégal.
@@ -172,9 +173,9 @@ class PropertySeeder extends Seeder
                     return Property::create($coutDEntree + [
                         'user_id' => $ownerId,
                         'agency_id' => $agency->id,
-                        'reference_number' => 'PR-'.strtoupper(Str::random(8)),
+                        'reference_number' => 'PR-'.strtoupper(Tirage::code(8)),
                         'title' => $title,
-                        'slug' => Str::slug($title).'-'.Str::random(6),
+                        'slug' => Str::slug($title).'-'.Tirage::code(6),
                         'description' => $description,
                         'type' => $type->value,
                         'contract_type' => $contract->value,

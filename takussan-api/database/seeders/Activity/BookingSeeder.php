@@ -9,8 +9,8 @@ use App\Models\Profiles\AgentProfile;
 use Database\Seeders\Support\SeedingContext;
 use Database\Seeders\Support\StatusDistribution;
 use Database\Seeders\Support\Timeline;
+use Database\Seeders\Support\Tirage;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Str;
 
 class BookingSeeder extends Seeder
 {
@@ -59,10 +59,10 @@ class BookingSeeder extends Seeder
                 $confirmedAt = in_array($status, [
                     BookingStatus::Confirmed->value,
                     BookingStatus::Completed->value,
-                ], true) ? $createdAt->addDays(random_int(0, 3)) : null;
+                ], true) ? $createdAt->addDays(mt_rand(0, 3)) : null;
 
                 $cancelledAt = $status === BookingStatus::Cancelled->value
-                    ? $createdAt->addDays(random_int(0, 5))
+                    ? $createdAt->addDays(mt_rand(0, 5))
                     : null;
 
                 $totalAmount = $this->ctx->faker()->numberBetween(150_000, 3_000_000);
@@ -77,11 +77,11 @@ class BookingSeeder extends Seeder
                     $totalAmount, $depositAmount,
                 ) {
                     Booking::create([
-                        'property_id' => $propertyIds->random(),
-                        'customer_id' => $customerIds->random(),
-                        'created_by_id' => $agentIds->random(),
+                        'property_id' => Tirage::un($propertyIds),
+                        'customer_id' => Tirage::un($customerIds),
+                        'created_by_id' => Tirage::un($agentIds),
                         'agency_id' => $agency->id,
-                        'reference_number' => 'BK-'.strtoupper(Str::random(8)),
+                        'reference_number' => 'BK-'.strtoupper(Tirage::code(8)),
                         'status' => $status,
                         'total_amount' => $totalAmount,
                         'deposit_amount' => $depositAmount,
@@ -98,7 +98,7 @@ class BookingSeeder extends Seeder
                             ])
                             : null,
                         'cancellation_reason' => $cancelledAt
-                            ? $this->ctx->faker()->sentence()
+                            ? $this->ctx->texts()->motifDAnnulation()
                             : null,
                         'created_at' => $createdAt,
                         'updated_at' => $confirmedAt ?? $cancelledAt ?? $createdAt,

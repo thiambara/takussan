@@ -7,6 +7,7 @@ use App\Models\Enums\RelationshipType;
 use App\Models\Profiles\AgentProfile;
 use App\Models\UserCustomerRelationship;
 use Database\Seeders\Support\SeedingContext;
+use Database\Seeders\Support\Tirage;
 use Illuminate\Database\Seeder;
 
 class UserCustomerRelationshipSeeder extends Seeder
@@ -25,7 +26,7 @@ class UserCustomerRelationshipSeeder extends Seeder
             $agentIds = $agents->pluck('id')->values();
 
             foreach ($customers as $customer) {
-                $primaryAgent = $agentIds->random();
+                $primaryAgent = Tirage::un($agentIds);
                 $startedAt = $customer->created_at;
 
                 UserCustomerRelationship::updateOrCreate(

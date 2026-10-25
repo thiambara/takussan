@@ -10,6 +10,7 @@ use App\Models\Task;
 use Database\Seeders\Support\SeedingContext;
 use Database\Seeders\Support\StatusDistribution;
 use Database\Seeders\Support\Timeline;
+use Database\Seeders\Support\Tirage;
 use Illuminate\Database\Seeder;
 
 class TaskSeeder extends Seeder
@@ -31,7 +32,7 @@ class TaskSeeder extends Seeder
                 if (! $this->ctx->faker()->boolean(35)) {
                     continue;
                 }
-                $count = random_int(1, 3);
+                $count = mt_rand(1, 3);
                 for ($i = 0; $i < $count; $i++) {
                     $createdAt = Timeline::randomDateBetween(
                         Timeline::seedStart(),
@@ -44,16 +45,18 @@ class TaskSeeder extends Seeder
                         TaskStatus::Cancelled->value => 10,
                     ]);
 
+                    [$title, $description] = $this->ctx->texts()->tache();
+
                     Task::create([
-                        'title' => $this->ctx->faker()->sentence(6),
-                        'description' => $this->ctx->faker()->paragraph(),
+                        'title' => $title,
+                        'description' => $description,
                         'taskable_id' => $property->id,
                         'taskable_type' => Property::class,
-                        'assigned_to_id' => $agentIds->random(),
-                        'created_by_id' => $agentIds->random(),
-                        'due_at' => $createdAt->addDays(random_int(1, 14)),
+                        'assigned_to_id' => Tirage::un($agentIds),
+                        'created_by_id' => Tirage::un($agentIds),
+                        'due_at' => $createdAt->addDays(mt_rand(1, 14)),
                         'completed_at' => $status === TaskStatus::Done->value
-                            ? $createdAt->addDays(random_int(1, 10))
+                            ? $createdAt->addDays(mt_rand(1, 10))
                             : null,
                         'status' => $status,
                         'priority' => $this->ctx->faker()->randomElement(TaskPriority::cases())->value,

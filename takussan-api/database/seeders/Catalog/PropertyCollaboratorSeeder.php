@@ -10,6 +10,7 @@ use App\Models\PropertyCollaborator;
 use App\Models\User;
 use Database\Seeders\Support\SeedingContext;
 use Database\Seeders\Support\Timeline;
+use Database\Seeders\Support\Tirage;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Collection;
 
@@ -39,7 +40,7 @@ class PropertyCollaboratorSeeder extends Seeder
                     Timeline::seedEnd(),
                 );
 
-                $pickedAgentIds = $agentIds->random(min(2, $agentIds->count()));
+                $pickedAgentIds = Tirage::plusieurs($agentIds, min(2, $agentIds->count()));
                 foreach ((array) $pickedAgentIds->toArray() as $agentId) {
                     PropertyCollaborator::updateOrCreate(
                         [
@@ -53,7 +54,7 @@ class PropertyCollaboratorSeeder extends Seeder
                             ]),
                             'commission_share' => $this->ctx->faker()->randomFloat(2, 10, 50),
                             'invited_at' => $invitedAt,
-                            'accepted_at' => $invitedAt->addDays(random_int(0, 3)),
+                            'accepted_at' => $invitedAt->addDays(mt_rand(0, 3)),
                             'created_at' => $invitedAt,
                             'updated_at' => $invitedAt,
                         ],

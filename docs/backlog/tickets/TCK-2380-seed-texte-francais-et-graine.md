@@ -1,7 +1,7 @@
 ---
 id: TCK-2380
 title: "Le seed écrit en français de métier et rejoue le même jeu : plus de lorem ipsum, une seule graine pour tous les tirages"
-status: todo
+status: review
 phase: P2
 family: technique
 estimate: M
@@ -52,29 +52,29 @@ Audit du seeding du 2026-10-25 (base `takussan_seed_audit`) :
 
 ## Delta à produire
 
-- [ ] `SenegalFakerProvider` (ou provider voisin) : banques de phrases par domaine — messages
+- [x] `SenegalFakerProvider` (ou provider voisin) : banques de phrases par domaine — messages
       (prospect, bailleur, locataire, groupe d'agence), tâches, interventions par catégorie,
       avis par note, motifs d'annulation, notes CRM, noms de documents par `DocumentType`.
-- [ ] Remplacer chaque `sentence()`/`paragraph()` des seeders par ces banques.
-- [ ] `DocumentSeeder` : types et noms variés selon le support (titre foncier, plan, diagnostic,
+- [x] Remplacer chaque `sentence()`/`paragraph()` des seeders par ces banques.
+- [x] `DocumentSeeder` : types et noms variés selon le support (titre foncier, plan, diagnostic,
       pièce d'identité, contrat).
-- [ ] Moyens de paiement répartis entre ceux que l'application accepte.
-- [ ] Graine unique : tous les tirages des seeders passent par le faker de `SeedingContext`
+- [x] Moyens de paiement répartis entre ceux que l'application accepte.
+- [x] Graine unique : tous les tirages des seeders passent par le faker de `SeedingContext`
       (ou `mt_srand`/`Random\Randomizer` initialisés sur la même graine), `SEED_RANDOM_SEED`
       surchargeable.
-- [ ] Test : deux seeds `SeedingConfig::minimal()` consécutifs produisent les mêmes empreintes
+- [x] Test : deux seeds `SeedingConfig::minimal()` consécutifs produisent les mêmes empreintes
       (titres de biens, montants, dates relatives à `now()` figé).
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Aucun texte semé ne contient un mot du vocabulaire lorem de Faker (liste du provider
+- [x] AC1 — Aucun texte semé ne contient un mot du vocabulaire lorem de Faker (liste du provider
       `Lorem`) : test sur `messages.content`, `tasks.title`, `maintenance_requests.title`,
       `reviews.content`, `customer_notes`.
-- [ ] AC2 — Les titres de maintenance de deux catégories différentes ne partagent pas leur banque.
-- [ ] AC3 — Deux seeds consécutifs avec la même graine et la même date figée produisent des
+- [x] AC2 — Les titres de maintenance de deux catégories différentes ne partagent pas leur banque.
+- [x] AC3 — Deux seeds consécutifs avec la même graine et la même date figée produisent des
       empreintes identiques ; deux graines différentes produisent des empreintes différentes.
-- [ ] AC4 — Au moins trois moyens de paiement apparaissent dans `lease_payments`.
-- [ ] AC5 — Ablation : AC1 est rouge si on rétablit un `sentence()` ; AC3 est rouge si on rétablit un
+- [x] AC4 — Au moins trois moyens de paiement apparaissent dans `lease_payments`.
+- [x] AC5 — Ablation : AC1 est rouge si on rétablit un `sentence()` ; AC3 est rouge si on rétablit un
       `random_int` non initialisé.
 
 ## Hors périmètre
@@ -84,4 +84,19 @@ Audit du seeding du 2026-10-25 (base `takussan_seed_audit`) :
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- **Deux tireurs non rejouables de plus que le ticket n'en nommait** : `Collection::random()` et
+  `shuffle()` passent par `Arr` → `Random\Randomizer` (moteur sécurisé), hors de `mt_srand()`. Tous
+  les tirages passent désormais par `Support/Tirage` (même état que Faker) ; `random_int` → `mt_rand`.
+- **La vraie cause du non-déterminisme restant : `Faker\Generator::__destruct()` appelle `mt_srand()`
+  sans argument.** Un générateur orphelin forme un cycle (ses fournisseurs le référencent), libéré par
+  le ramasse-miettes à un moment imprévisible — en plein `LeasePaymentSeeder` au relevé : même état
+  avant `LeasePayment::create()`, état différent après. Deux parades, chacune prouvée par ablation :
+  `SeedFaker` (le Faker du seed ne ré-initialise rien en mourant) et `gc_collect_cycles()` avant de
+  poser la graine (`YearOfActivitySeeder`) — le test crée un Faker orphelin avant chaque seed ; sans
+  la collecte, il rougit.
+- **Le test des moyens de paiement comptait aussi les cautions** (déjà trois moyens) : vert à
+  l'ablation. Restreint aux loyers, il rougit quand tous passent par Wave.
+- **Ablation, le 2026-10-25** : Faker d'origine → déterminisme rouge ; `random_int` rétabli dans
+  `Timeline` → rouge ; `sentence()` rétabli dans `MessageSeeder` → lorem rouge ; loyers tout-Wave →
+  rouge ; `gc_collect_cycles()` retiré → rouge.
+- `SEED_RANDOM_SEED` (défaut 2026) déclarée commentée dans `.env.example` et `.env.docker`.

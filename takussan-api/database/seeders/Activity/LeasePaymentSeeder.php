@@ -10,9 +10,10 @@ use App\Models\Lease;
 use App\Models\LeasePayment;
 use Carbon\CarbonImmutable;
 use Database\Seeders\Support\SeedingContext;
+use Database\Seeders\Support\StatusDistribution;
 use Database\Seeders\Support\Timeline;
+use Database\Seeders\Support\Tirage;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Str;
 
 class LeasePaymentSeeder extends Seeder
 {
@@ -47,10 +48,15 @@ class LeasePaymentSeeder extends Seeder
         LeasePayment::create([
             'lease_id' => $lease->id,
             'payer_id' => $lease->tenant_id,
-            'reference_number' => 'LPY-'.strtoupper(Str::random(6)),
+            'reference_number' => 'LPY-'.strtoupper(Tirage::code(6)),
             'amount' => $lease->deposit_amount ?: $lease->monthly_rent,
             'currency' => 'XOF',
-            'payment_method' => PaymentMethod::BankTransfer->value,
+            // TCK-2380 — une caution se verse par virement ou en espèces à l'agence, parfois par Wave.
+            'payment_method' => StatusDistribution::pick([
+                PaymentMethod::BankTransfer->value => 50,
+                PaymentMethod::Cash->value => 30,
+                PaymentMethod::Wave->value => 20,
+            ]),
             'payment_type' => LeasePaymentType::Deposit->value,
             'period_start' => $start->toDateString(),
             'period_end' => $start->toDateString(),
@@ -71,14 +77,14 @@ class LeasePaymentSeeder extends Seeder
                 $lateFee = null;
             } else {
                 // 70% on time, 20% paid late, 10% unpaid/late.
-                $roll = random_int(1, 100);
+                $roll = mt_rand(1, 100);
                 if ($roll <= 70) {
                     $status = PaymentStatus::Paid->value;
-                    $paidAt = $due->addDays(random_int(0, 5));
+                    $paidAt = $due->addDays(mt_rand(0, 5));
                     $lateFee = null;
                 } elseif ($roll <= 90) {
                     $status = PaymentStatus::Paid->value;
-                    $paidAt = $due->addDays(random_int(6, 20));
+                    $paidAt = $due->addDays(mt_rand(6, 20));
                     $lateFee = (int) round(($lease->monthly_rent) * 0.05);
                 } else {
                     $status = PaymentStatus::Late->value;
@@ -90,10 +96,18 @@ class LeasePaymentSeeder extends Seeder
             LeasePayment::create([
                 'lease_id' => $lease->id,
                 'payer_id' => $lease->tenant_id,
-                'reference_number' => 'LPY-'.strtoupper(Str::random(6)),
+                'reference_number' => 'LPY-'.strtoupper(Tirage::code(6)),
                 'amount' => $lease->monthly_rent,
                 'currency' => 'XOF',
-                'payment_method' => PaymentMethod::Wave->value,
+                // TCK-2380 — tous les loyers passaient par Wave : le mobile money domine, le virement et
+                // les espèces gardent leur part.
+                'payment_method' => StatusDistribution::pick([
+                    PaymentMethod::Wave->value => 45,
+                    PaymentMethod::OrangeMoney->value => 25,
+                    PaymentMethod::BankTransfer->value => 15,
+                    PaymentMethod::Cash->value => 10,
+                    PaymentMethod::FreeMoney->value => 5,
+                ]),
                 'payment_type' => LeasePaymentType::Rent->value,
                 'period_start' => $cursor->toDateString(),
                 'period_end' => $cursor->endOfMonth()->toDateString(),
@@ -102,7 +116,7 @@ class LeasePaymentSeeder extends Seeder
                 'status' => $status,
                 'late_fee_amount' => $lateFee,
                 'late_fee_applied_at' => $lateFee > 0 ? $due : null,
-                'transaction_id' => $paidAt ? 'TX-'.strtoupper(Str::random(10)) : null,
+                'transaction_id' => $paidAt ? 'TX-'.strtoupper(Tirage::code(10)) : null,
                 'created_at' => $cursor,
                 'updated_at' => $paidAt ?? $due,
             ]);

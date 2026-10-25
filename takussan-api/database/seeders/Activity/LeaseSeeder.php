@@ -13,8 +13,8 @@ use App\Support\Search\PropertyLabels;
 use Database\Seeders\Support\SeedingContext;
 use Database\Seeders\Support\StatusDistribution;
 use Database\Seeders\Support\Timeline;
+use Database\Seeders\Support\Tirage;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Str;
 
 class LeaseSeeder extends Seeder
 {
@@ -57,7 +57,7 @@ class LeaseSeeder extends Seeder
 
         foreach ($statusCounts as $status => $count) {
             for ($i = 0; $i < $count; $i++) {
-                $property = $properties->random();
+                $property = Tirage::un($properties);
                 $startDate = Timeline::randomDateBetween(
                     Timeline::seedStart(),
                     Timeline::seedStart()->addMonths(10),
@@ -79,9 +79,9 @@ class LeaseSeeder extends Seeder
                     return Lease::create([
                         'property_id' => $property->id,
                         'landlord_id' => $property->user_id,
-                        'tenant_id' => $customerIds->random(),
+                        'tenant_id' => Tirage::un($customerIds),
                         'agency_id' => $agencyId,
-                        'reference_number' => 'LS-'.strtoupper(Str::random(8)),
+                        'reference_number' => 'LS-'.strtoupper(Tirage::code(8)),
                         'type' => self::typeDeBailPour($property)->value,
                         'status' => $status,
                         'start_date' => $startDate->toDateString(),

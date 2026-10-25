@@ -7,6 +7,7 @@ use App\Models\Enums\AgencyKind;
 use App\Models\Enums\AgencyStatus;
 use Database\Seeders\Support\SeedingContext;
 use Database\Seeders\Support\Timeline;
+use Database\Seeders\Support\Tirage;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Str;
 
@@ -74,7 +75,7 @@ class AgencySeeder extends Seeder
         for ($i = count($agencies); $i < $minimumAgencies; $i++) {
             do {
                 $city = $this->ctx->faker()->senegaleseCity();
-                $suffix = strtolower(Str::random(4));
+                $suffix = strtolower(Tirage::code(4));
                 $name = "{$city} Real Estate ".($i - 2);
                 $slug = Str::slug($name).'-'.$suffix;
             } while (in_array($slug, $existingSlugs, true));
@@ -104,7 +105,7 @@ class AgencySeeder extends Seeder
                 [
                     'name' => $data['name'],
                     'kind' => $data['kind'] ?? AgencyKind::Standard,
-                    'license_number' => strtoupper(Str::random(8)),
+                    'license_number' => strtoupper(Tirage::code(8)),
                     'description' => 'Agence immobilière spécialisée dans la location et la vente au Sénégal.',
                     'email' => $data['email'],
                     'phone' => $data['phone'],

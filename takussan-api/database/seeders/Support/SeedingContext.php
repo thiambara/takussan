@@ -11,7 +11,6 @@ use App\Models\Profiles\ServiceProviderProfile;
 use App\Models\Property;
 use App\Models\User;
 use Database\Seeders\YearOfActivitySeeder;
-use Faker\Factory as FakerFactory;
 use Faker\Generator as FakerGenerator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Http;
@@ -27,6 +26,8 @@ use Spatie\MediaLibrary\HasMedia;
 class SeedingContext
 {
     private FakerGenerator $faker;
+
+    private SeedTexts $texts;
 
     public SeedingConfig $config;
 
@@ -87,16 +88,23 @@ class SeedingContext
     }
 
     /**
-     * Boot a French faker with the Senegal provider attached and a fixed seed
-     * for reproducible runs.
+     * Boot a French faker with the Senegal provider attached, on the seed's
+     * graine — which also seeds every {@see Tirage} (TCK-2380).
      */
     private function bootFaker(): void
     {
-        $faker = FakerFactory::create('fr_FR');
+        $faker = SeedFaker::create('fr_FR');
         $faker->addProvider(new SenegalFakerProvider($faker));
-        $faker->seed(2026);
+        Tirage::graine($this->config->graine);
 
         $this->faker = $faker;
+        $this->texts = new SeedTexts($faker);
+    }
+
+    /** Le texte métier des seeders, tiré sur la même graine. */
+    public function texts(): SeedTexts
+    {
+        return $this->texts;
     }
 
     public function registerAgency(Agency $agency): void

@@ -24,6 +24,7 @@ class SeedingConfig
      * @param  bool  $includeFilterCoverage  Générer données pour couverture filtres
      * @param  bool  $includeDemoUsers  Créer utilisateurs de test prédéfinis
      * @param  bool  $downloadMedia  Télécharger des images réelles
+     * @param  int  $graine  Graine de tous les tirages : même graine, même jeu (TCK-2380)
      */
     public function __construct(
         public int $agencies = 3,
@@ -39,6 +40,7 @@ class SeedingConfig
         public bool $includeFilterCoverage = false,
         public bool $includeDemoUsers = true,
         public bool $downloadMedia = false,
+        public int $graine = 2026,
     ) {}
 
     /**
@@ -127,6 +129,7 @@ class SeedingConfig
             includeFilterCoverage: (bool) env('SEED_FILTER_COVERAGE', false),
             includeDemoUsers: (bool) env('SEED_DEMO_USERS', true),
             downloadMedia: (bool) env('SEED_DOWNLOAD_MEDIA', false),
+            graine: (int) env('SEED_RANDOM_SEED', 2026),
         );
     }
 }

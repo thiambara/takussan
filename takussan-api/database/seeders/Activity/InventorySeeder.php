@@ -9,6 +9,7 @@ use App\Models\Enums\LeaseStatus;
 use App\Models\Inventory;
 use App\Models\Profiles\AgentProfile;
 use Database\Seeders\Support\SeedingContext;
+use Database\Seeders\Support\Tirage;
 use Illuminate\Database\Seeder;
 
 class InventorySeeder extends Seeder
@@ -24,7 +25,7 @@ class InventorySeeder extends Seeder
 
             $agents = $this->ctx->usersWithProfile(AgentProfile::class, $lease->agency_id);
             $conductedBy = $agents->isNotEmpty()
-                ? $agents->pluck('id')->values()->random()
+                ? $agents->pluck('id')->values()->pipe(Tirage::un(...))
                 : $lease->landlord_id;
 
             Inventory::create([

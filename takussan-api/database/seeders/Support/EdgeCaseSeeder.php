@@ -69,8 +69,8 @@ class EdgeCaseSeeder extends Seeder
         // 1. Lease qui expire aujourd'hui
         $this->createLeaseWithDates(
             $agencyId,
-            $properties->random(),
-            $customers->random(),
+            Tirage::un($properties),
+            Tirage::un($customers),
             now()->subMonths(11),
             now(),
             LeaseStatus::Active
@@ -79,8 +79,8 @@ class EdgeCaseSeeder extends Seeder
         // 2. Lease qui a commencé hier
         $this->createLeaseWithDates(
             $agencyId,
-            $properties->random(),
-            $customers->random(),
+            Tirage::un($properties),
+            Tirage::un($customers),
             now()->subDay(),
             now()->addYear(),
             LeaseStatus::Active
@@ -89,8 +89,8 @@ class EdgeCaseSeeder extends Seeder
         // 3. Lease terminé hier
         $this->createLeaseWithDates(
             $agencyId,
-            $properties->random(),
-            $customers->random(),
+            Tirage::un($properties),
+            Tirage::un($customers),
             now()->subYear()->subDay(),
             now()->subDay(),
             LeaseStatus::Terminated,
@@ -98,16 +98,16 @@ class EdgeCaseSeeder extends Seeder
         );
 
         // 4. Lease avec loyer très bas
-        $this->createLeaseWithRent($agencyId, $properties->random(), $customers->random(), 75000);
+        $this->createLeaseWithRent($agencyId, Tirage::un($properties), Tirage::un($customers), 75000);
 
         // 5. Lease avec loyer très haut
-        $this->createLeaseWithRent($agencyId, $properties->random(), $customers->random(), 5000000);
+        $this->createLeaseWithRent($agencyId, Tirage::un($properties), Tirage::un($customers), 5000000);
 
         // 6. Lease expiré depuis longtemps
         $this->createLeaseWithDates(
             $agencyId,
-            $properties->random(),
-            $customers->random(),
+            Tirage::un($properties),
+            Tirage::un($customers),
             now()->subYears(2),
             now()->subYear(),
             LeaseStatus::Expired
@@ -116,8 +116,8 @@ class EdgeCaseSeeder extends Seeder
         // 7. Lease en draft depuis longtemps
         $this->createLeaseWithDates(
             $agencyId,
-            $properties->random(),
-            $customers->random(),
+            Tirage::un($properties),
+            Tirage::un($customers),
             now()->addMonth(),
             now()->addYear()->addMonth(),
             LeaseStatus::Draft,
@@ -141,9 +141,9 @@ class EdgeCaseSeeder extends Seeder
         // 1. Booking expirant aujourd'hui
         $this->createBookingWithStatus(
             $agencyId,
-            $properties->random(),
-            $customers->random(),
-            $agents->isNotEmpty() ? $agents->random()->id : null,
+            Tirage::un($properties),
+            Tirage::un($customers),
+            $agents->isNotEmpty() ? Tirage::un($agents)->id : null,
             BookingStatus::Pending,
             ['expires_at' => now()->endOfDay()]
         );
@@ -151,9 +151,9 @@ class EdgeCaseSeeder extends Seeder
         // 2. Booking annulé par le customer
         $this->createBookingWithStatus(
             $agencyId,
-            $properties->random(),
-            $customers->random(),
-            $agents->isNotEmpty() ? $agents->random()->id : null,
+            Tirage::un($properties),
+            Tirage::un($customers),
+            $agents->isNotEmpty() ? Tirage::un($agents)->id : null,
             BookingStatus::Cancelled,
             [
                 'cancelled_at' => now()->subDays(2),
@@ -165,9 +165,9 @@ class EdgeCaseSeeder extends Seeder
         // 3. Booking annulé par l'agent
         $this->createBookingWithStatus(
             $agencyId,
-            $properties->random(),
-            $customers->random(),
-            $agents->isNotEmpty() ? $agents->random()->id : null,
+            Tirage::un($properties),
+            Tirage::un($customers),
+            $agents->isNotEmpty() ? Tirage::un($agents)->id : null,
             BookingStatus::Cancelled,
             [
                 'cancelled_at' => now()->subDays(3),
@@ -179,9 +179,9 @@ class EdgeCaseSeeder extends Seeder
         // 4. Booking confirmé avec montant très bas
         $this->createBookingWithAmount(
             $agencyId,
-            $properties->random(),
-            $customers->random(),
-            $agents->isNotEmpty() ? $agents->random()->id : null,
+            Tirage::un($properties),
+            Tirage::un($customers),
+            $agents->isNotEmpty() ? Tirage::un($agents)->id : null,
             50000,
             10000
         );
@@ -189,9 +189,9 @@ class EdgeCaseSeeder extends Seeder
         // 5. Booking confirmé avec montant très haut
         $this->createBookingWithAmount(
             $agencyId,
-            $properties->random(),
-            $customers->random(),
-            $agents->isNotEmpty() ? $agents->random()->id : null,
+            Tirage::un($properties),
+            Tirage::un($customers),
+            $agents->isNotEmpty() ? Tirage::un($agents)->id : null,
             5000000,
             1000000
         );
@@ -199,9 +199,9 @@ class EdgeCaseSeeder extends Seeder
         // 6. Booking expiré depuis longtemps
         $this->createBookingWithStatus(
             $agencyId,
-            $properties->random(),
-            $customers->random(),
-            $agents->isNotEmpty() ? $agents->random()->id : null,
+            Tirage::un($properties),
+            Tirage::un($customers),
+            $agents->isNotEmpty() ? Tirage::un($agents)->id : null,
             BookingStatus::Expired,
             [
                 'expires_at' => now()->subMonth(),
@@ -226,9 +226,9 @@ class EdgeCaseSeeder extends Seeder
         Property::withoutEvents(fn () => Property::create([
             'user_id' => $ownerId,
             'agency_id' => $agencyId,
-            'reference_number' => 'PR-EC-'.strtoupper(Str::random(6)),
+            'reference_number' => 'PR-EC-'.strtoupper(Tirage::code(6)),
             'title' => 'Property Sans Activité - Edge Case',
-            'slug' => 'property-sans-activite-'.Str::random(4),
+            'slug' => 'property-sans-activite-'.Tirage::code(4),
             'description' => 'Cette propriété n\'a ni visites ni bookings.',
             'type' => PropertyType::Apartment->value,
             'contract_type' => ContractType::Rent->value,
@@ -317,7 +317,7 @@ class EdgeCaseSeeder extends Seeder
             'added_by_id' => $addedById,
             'first_name' => 'Nouveau',
             'last_name' => 'Client',
-            'email' => 'nouveau.client.'.Str::random(4).'@example.com',
+            'email' => 'nouveau.client.'.Tirage::code(4).'@example.com',
             'phone' => $this->ctx->faker()->senegalesePhoneNumber(),
             'occupation' => 'Étudiant',
             'status' => CustomerStatus::Active->value,
@@ -333,7 +333,7 @@ class EdgeCaseSeeder extends Seeder
             'added_by_id' => $addedById,
             'first_name' => 'Client',
             'last_name' => 'Inactif',
-            'email' => 'client.inactif.'.Str::random(4).'@example.com',
+            'email' => 'client.inactif.'.Tirage::code(4).'@example.com',
             'phone' => $this->ctx->faker()->senegalesePhoneNumber(),
             'occupation' => 'Retraité',
             'status' => CustomerStatus::Inactive->value,
@@ -349,7 +349,7 @@ class EdgeCaseSeeder extends Seeder
             'added_by_id' => $addedById,
             'first_name' => 'Client',
             'last_name' => 'Fidèle',
-            'email' => 'client.fidele.'.Str::random(4).'@example.com',
+            'email' => 'client.fidele.'.Tirage::code(4).'@example.com',
             'phone' => $this->ctx->faker()->senegalesePhoneNumber(),
             'occupation' => 'Cadre',
             'status' => CustomerStatus::Active->value,
@@ -371,7 +371,7 @@ class EdgeCaseSeeder extends Seeder
         }
 
         // 1. Maintenance ouverte depuis 6 mois
-        $longOpen = $properties->random();
+        $longOpen = Tirage::un($properties);
         MaintenanceRequest::create([
             'property_id' => $longOpen->id,
             'requester_id' => $longOpen->user_id,
@@ -387,7 +387,7 @@ class EdgeCaseSeeder extends Seeder
         ]);
 
         // 2. Maintenance urgente complétée rapidement
-        $urgent = $properties->random();
+        $urgent = Tirage::un($properties);
         MaintenanceRequest::create([
             'property_id' => $urgent->id,
             'requester_id' => $urgent->user_id,
@@ -408,7 +408,7 @@ class EdgeCaseSeeder extends Seeder
         ]);
 
         // 3. Maintenance annulée
-        $cancelled = $properties->random();
+        $cancelled = Tirage::un($properties);
         MaintenanceRequest::create([
             'property_id' => $cancelled->id,
             'requester_id' => $cancelled->user_id,
@@ -443,7 +443,7 @@ class EdgeCaseSeeder extends Seeder
             'landlord_id' => $property->user_id,
             'tenant_id' => $customer->id,
             'agency_id' => $agencyId,
-            'reference_number' => 'LS-EC-'.strtoupper(Str::random(6)),
+            'reference_number' => 'LS-EC-'.strtoupper(Tirage::code(6)),
             'type' => LeaseType::ResidentialRent->value,
             'status' => $status->value,
             'start_date' => $startDate->format('Y-m-d'),
@@ -502,7 +502,7 @@ class EdgeCaseSeeder extends Seeder
             'customer_id' => $customer->id,
             'created_by_id' => $agentId,
             'agency_id' => $agencyId,
-            'reference_number' => 'BK-EC-'.strtoupper(Str::random(6)),
+            'reference_number' => 'BK-EC-'.strtoupper(Tirage::code(6)),
             'status' => $status->value,
             'total_amount' => $property->price,
             'deposit_amount' => (int) ($property->price * 0.2),
@@ -552,9 +552,9 @@ class EdgeCaseSeeder extends Seeder
         return Property::withoutEvents(fn () => Property::create(array_merge([
             'user_id' => $ownerId,
             'agency_id' => $agencyId,
-            'reference_number' => 'PR-EC-'.strtoupper(Str::random(6)),
+            'reference_number' => 'PR-EC-'.strtoupper(Tirage::code(6)),
             'title' => $title,
-            'slug' => Str::slug($title).'-'.Str::random(4),
+            'slug' => Str::slug($title).'-'.Tirage::code(4),
             'description' => 'Property créée pour tester les cas limites.',
             'type' => PropertyType::Apartment->value,
             'contract_type' => ContractType::Rent->value,
