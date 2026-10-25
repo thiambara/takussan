@@ -20,6 +20,7 @@ import { useCustomerStageMutation } from '@/hooks/useCustomerStageMutation';
 import { PIPELINE_QUERY_KEY } from '@/hooks/pipelineKeys';
 import { PIPELINE_COLUMN_PAGE_SIZE, fetchPipelineColumn, fetchPipelineStats } from '@/lib/queries/pipeline';
 import { cn } from '@/lib/utils';
+import { nomAffichable } from '@/lib/identite';
 import type { CustomerPipelineStage } from '@/types/customer';
 import type { PipelineCustomerCard } from '@/types/pipeline';
 
@@ -145,7 +146,7 @@ export function PipelineKanban() {
 
   const nameOf = (id: unknown) => {
     const card = Object.values(allCards).flat().find((c) => c.id === Number(id));
-    return card ? `${card.first_name} ${card.last_name}` : '';
+    return card ? nomAffichable(card) : '';
   };
   const stageName = (id: unknown) =>
     PIPELINE_STAGES.includes(id as CustomerPipelineStage) ? t(`stage.${id as CustomerPipelineStage}`) : '';

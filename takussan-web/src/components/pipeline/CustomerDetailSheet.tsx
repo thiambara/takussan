@@ -25,6 +25,7 @@ import { PIPELINE_QUERY_KEY } from '@/hooks/pipelineKeys';
 import { AGENT_CRM_QUERY_KEY } from '@/lib/queries/agent-crm';
 import type { Locale } from '@/i18n/config';
 import { formatDateTime } from '@/lib/format';
+import { nomAffichable } from '@/lib/identite';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
 interface CustomerDetailSheetProps {
@@ -81,7 +82,7 @@ export function CustomerDetailSheet({ customerId, onOpenChange }: CustomerDetail
         <header className="flex items-start justify-between gap-3 border-b border-muted p-4">
           <div className="min-w-0">
             <p className="truncate font-display text-lg font-semibold tracking-tight text-foreground">
-              {customer ? `${customer.first_name} ${customer.last_name}` : '…'}
+              {customer ? nomAffichable(customer) : '…'}
             </p>
             {customer?.email ? (
               <p className="truncate text-xs text-muted-foreground">{customer.email}</p>
@@ -115,7 +116,7 @@ export function CustomerDetailSheet({ customerId, onOpenChange }: CustomerDetail
                   <ContactGestures
                     phone={customer.phone}
                     firstName={customer.first_name}
-                    fullName={`${customer.first_name} ${customer.last_name}`}
+                    fullName={nomAffichable(customer)}
                   />
                   <Field label={t('fields.phone')} value={customer.phone} />
                   <Field label={t('fields.email')} value={customer.email} />

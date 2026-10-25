@@ -10,6 +10,7 @@ import { smsRetenu } from '@/lib/visites/sort-du-sms';
 import { instantADakar } from '@/lib/visites/heure-de-dakar';
 import { jourDeLApi } from '@/lib/jour-de-l-api';
 import { ApiError } from '@/lib/api';
+import { nomAffichable } from '@/lib/identite';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -244,7 +245,7 @@ function PlanifierDialog({
                   <option value="">{t('noCustomer')}</option>
                   {(clients.data?.data ?? []).map((c) => (
                     <option key={c.id} value={c.id}>
-                      {[c.first_name, c.last_name].filter(Boolean).join(' ')}
+                      {nomAffichable(c)}
                     </option>
                   ))}
                 </select>
