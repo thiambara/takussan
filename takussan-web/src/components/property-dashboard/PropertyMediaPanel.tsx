@@ -85,12 +85,11 @@ export function PropertyMediaPanel({ propertyId }: PropertyMediaPanelProps) {
     [propertyId],
   );
 
-  // P243.02 (TCK-2371) — la liste relue après un geste refusé ; les identifiants connus s'y alignent.
+  // P243.02 (TCK-2371) — la liste relue après un geste refusé.
   const handleRelire = useCallback(async (): Promise<MediaItem[]> => {
     const res = await fetchPropertyMediaAction(propertyId);
     if (!res.ok) throw new Error(res.message);
     const data = res.data ?? [];
-    knownIdsRef.current = new Set(data.map((m) => m.id));
     return data.map((m) => ({
       id: m.id,
       thumbnail: m.thumbnail,
