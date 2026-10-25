@@ -806,7 +806,7 @@ vide), utilisé par les PDF.
 | created_by_id | FK users | oui | null | Utilisateur ayant créé la réservation (`nullOnDelete`) | ✏️ ancien `user_id` |
 | agency_id | FK agencies | oui | null | Agence du bien (`nullOnDelete`) | |
 | reference_number | string | oui | null | Numéro de référence (unique) | |
-| status | BookingStatus | | 'pending' | Statut de la réservation | |
+| status | BookingStatus | | 'pending' | Statut de la réservation — passe à `completed` au lendemain de sa fin (`CompleteEndedBookingsJob`), ou, encore `pending` ou `confirmed`, à la création du bail qui en est tiré (`LeaseService::create`, P48.03, TCK-2352) : ses nuits ne bloquent plus | |
 | total_amount | decimal(14,2) | | | Montant total de la réservation (NOT NULL) | |
 | deposit_amount | decimal(14,2) | oui | null | Montant de l'acompte demandé | |
 | currency | Currency | | 'XOF' | Devise (string(3)) | |
@@ -1319,6 +1319,14 @@ Index : `activity_log_agency_created_idx (agency_id, created_at)`, `activity_log
 Relation : `agency()` (belongsTo). Un admin d'agence ne lit que `agency_id = <agence du profil actif>`
 (`AuditScope`).
 
+**Conservation** (TCK-2342, [ADR-0044, amendement du 2026-10-25](adr/0044-donnees-personnelles-chiffrement-journal-d-agence-registre-des-droits.md#amendement-du-2026-10-25--le-journal-dactivité-se-conserve-par-famille-tck-2342)) :
+une ligne se purge au-delà de la durée de sa famille de `log_name`, comptée depuis `created_at`,
+par `audit:prune-activity-log` (chaque jour, 04:10 Dakar) — **12 mois** par défaut et pour un
+`log_name` nul ; **5 ans** pour `PersonalDataAccess`, `Privacy`, `Security`, `UserSupport`, `KYC`,
+`KycDossier`, `Account`, `Membership`, `AgencyRole`, `Integration`, `export` ; **10 ans** pour
+`LeasePayment`, `BookingPayment`, `Invoice`, `Payout`, `PlatformPayout`, `CommissionEntry`,
+`Billing`. Les listes vivent dans `App\Console\Commands\PruneActivityLog`.
+
 **Ce que rendent les lectures.** Les lectures du journal d'agence et de la console rendent
 `properties`, et **jamais `attribute_changes`** : aucun écran ne montre le détail d'un événement
 (décision du porteur du 2026-10-19, piste P56.03 — à rouvrir avec un écran qui le montre).
@@ -1349,7 +1357,7 @@ Relation : `agency()` (belongsTo). Un admin d'agence ne lit que `agency_id = <ag
 | landlord_id | FK users | | | Propriétaire / bailleur (`restrictOnDelete`) |
 | tenant_id | FK customers | | | Locataire / acheteur (`restrictOnDelete`) |
 | agency_id | FK agencies | oui | null | Agence intermédiaire |
-| booking_id | FK bookings | oui | null | Réservation d'origine (si applicable) |
+| booking_id | FK bookings | oui | null | Réservation d'origine (si applicable) — une réservation du même bien, dont le client est `tenant_id` (sinon 422 sur `tenant_id`) ; la création du bail la passe à `completed` si elle est encore ouverte (P48.03, TCK-2352) |
 | agent_id | FK users | oui | null | **Négociateur** du bail ou de la vente — FK `leases_agent_id_fk`, `nullOnDelete` ; index `leases_agent_id_signed_at_idx` `(agent_id, signed_at)` pour la vue agent et la performance d'équipe. Interne à l'agence, pas une partie au contrat (TCK-595, [ADR-0049 §1](adr/0049-attribution-des-transactions-et-grand-livre-des-commissions.md), `2026_10_08_150000`) |
 | renewed_from_lease_id | FK leases | oui | null | Bail parent — rempli si ce bail est un renouvellement ou avenant (`nullOnDelete`, index `leases_renewed_from_idx`) |
 | reference_number | string | | | Numéro de contrat unique |
@@ -2726,10 +2734,10 @@ exigée pour `director_id`.
 | phone | string(30) | oui | null | Numéro du destinataire (E.164) — le lien part par SMS quand l'e-mail manque, sous le drapeau `auth.phone_login.enabled` (TCK-589, ADR-0033) |
 | invited_user_id | FK users | oui | null | User cible si déjà existant en base (sinon créé à l'acceptation) |
 | invited_by | FK users | | | User qui a émis l'invitation |
-| invitable_type | string | oui | null | Type morph du profil cible (ex. `OwnerProfile`, `AgentProfile`, `ServiceProviderProfile`, `AgencyAdminProfile`) |
+| invitable_type | string | oui | null | Type morph du profil cible (ex. `OwnerProfile`, `AgentProfile`, `ServiceProviderProfile`, `AgencyAdminProfile`), ou `Customer` pour le rôle `tenant` (P15.01, TCK-2351 : la fiche reçoit le compte à l'acceptation) |
 | invitable_id | bigint | oui | null | ID du profil cible créé en `draft` |
 | agency_id | FK agencies | oui | null | Agence d'accueil (null pour cooptation super-admin) |
-| role | string | | | Rôle visé par l'invitation (ex. `owner`, `agent`, `agency_admin`, `service_provider`, `super_admin`) — **simple discriminant de parcours**, pas une permission : il choisit le type de profil à activer et les branches d'acceptation. Aucun rôle n'est « assigné » à partir de cette valeur. |
+| role | string | | | Rôle visé par l'invitation (ex. `owner`, `agent`, `agency_admin`, `service_provider`, `super_admin`, `tenant`) — **simple discriminant de parcours**, pas une permission : il choisit le type de profil à activer et les branches d'acceptation. Aucun rôle n'est « assigné » à partir de cette valeur. |
 | status | InvitationStatus | | 'sent' | sent, accepted, expired, revoked |
 | expires_at | datetime | | | Expiration du token (par défaut now+7j) |
 | accepted_at | datetime | oui | null | |
@@ -5087,6 +5095,8 @@ Tout User ayant un rôle de locataire actif doit avoir un `Customer` associé (`
 
 - Un User peut exister sans Customer (propriétaire, agent, admin, service_provider).
 - Dès qu'un User devient locataire (signature d'un Lease en tant que `tenant`), un Customer doit être créé ou associé.
+- **Agence de la fiche d'un candidat** (P15.01, TCK-2350, 2026-10-25) : la candidature, l'offre d'achat ou la réservation d'un compte sur un bien d'agence lui donne une fiche de **l'agence du bien** (`CustomerService::findOrCreateFromUser`) — reprise si le compte en a déjà une dans cette agence, rattachée si l'agence a une fiche sans compte au téléphone ou à l'e-mail **vérifié** du compte, créée sinon. La fiche du compte dans une autre agence n'est ni reprise ni déplacée. Un compte porte donc une fiche par agence. Un bien sans agence garde l'agence du compte.
+- **Fiche saisie sans compte** (P15.01, TCK-2351, 2026-10-25) : le personnel de l'agence de la fiche invite son client à créer son compte (`POST /api/customers/{id}/invite`, rôle d'invitation `tenant`) ; le lien part à l'e-mail de la fiche, ou à son numéro si le lien par SMS est ouvert, et l'acceptation pose `customers.user_id` (`CustomerService::linkUser`). Hors de l'appariement vérifié de la candidature (ci-dessus), aucun `user_id` n'est posé autrement sur une fiche saisie par l'agence.
 - **Implémentation :** `UserObserver` ou logique dans `LeaseService` lors de la création d'un bail.
 - **Conséquence :** `MaintenanceRequest.requester_id` pointe vers User ; le Customer du demandeur se lit depuis l'utilisateur (`User::customer()`, hasOne) — aucune relation `requesterCustomer()` sur le modèle (relevé 2026-10-14).
 

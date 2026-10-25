@@ -964,6 +964,12 @@
       "caption": "Limu kiliyaan yi"
     },
     "customerDetail": {
+      "inviteAccount": {
+        "action": "Inviter à créer son compte",
+        "sending": "Envoi…",
+        "sent": "Invitation envoyée. Le lien vaut une seule fois ; à l'acceptation, le compte est relié à cette fiche.",
+        "failed": "L'invitation n'a pas pu partir. Réessayez."
+      },
       "relationships": {
         "empty_title": "Amul jokkoo bu ñu bind",
         "empty_description": "Boolel ki ak jabar, gàrant walla kompaañi ngir gis ñi ko wër.",
@@ -2225,7 +2231,10 @@
         "quarterly": "Ci ñetti weer",
         "yearly": "Ci at"
       },
-      "customerFallback": "Customer #{id}"
+      "customerFallback": "Customer #{id}",
+      "fromBooking": "Bail tiré de la réservation {reference}",
+      "fromBookingHint": "Le bien et le locataire sont ceux de la réservation. À la création du bail, elle passe à « terminée » et libère ses dates.",
+      "fromBookingError": "La réservation n'a pas pu être chargée."
     },
     "payment": {
       "title": "Bind benn pey",
@@ -6269,7 +6278,8 @@
       "actions": {
         "accept": "Nangu",
         "reject": "Bañ",
-        "cancel": "Neenal réservasioŋ bi"
+        "cancel": "Neenal réservasioŋ bi",
+        "createLease": "Créer le bail"
       },
       "toasts": {
         "accepted": {

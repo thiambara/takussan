@@ -9,6 +9,8 @@ import { useApiForm } from '@/hooks/useApiForm';
 import { useAvertissementDepart } from '@/hooks/useAvertissementDepart';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
+import { ErrorState } from '@/components/feedback';
 import {
   Select,
   SelectContent,
@@ -29,9 +31,11 @@ import {
   useLeaseCustomerOptions,
   useLeasePropertyOptions,
 } from '@/lib/queries/leases';
+import { useBooking } from '@/lib/queries/bookings';
 import { createLeaseSchema, type CreateLeaseFormValues } from '@/lib/schemas/lease';
 import { formatCurrency } from '@/lib/format';
 import { nomAffichable } from '@/lib/identite';
+import type { Booking } from '@/types/booking';
 import type { CustomerListItem } from '@/types/customer';
 import type { PropertyListItem } from '@/types/property';
 
@@ -53,7 +57,54 @@ const CURRENCY_OPTIONS = (['XOF', 'EUR', 'USD', 'XAF'] as const).map((code) => (
   label: `${code} (${CURRENCY_METADATA[code].symbol})`,
 }));
 
-export function CreateLeaseForm() {
+const DEVISES = ['XOF', 'XAF', 'EUR', 'USD'] as const;
+
+interface CreateLeaseFormProps {
+  /**
+   * P48.03 (TCK-2352) — `/app/leases/new?booking_id=…` : le bail tiré d'une candidature. Le bien,
+   * le locataire (le client de la réservation), les dates et le loyer se préremplissent, et
+   * `booking_id` part avec le bail : l'API refuse un autre locataire, et passe la réservation à
+   * `completed`, ce qui libère ses nuits.
+   */
+  readonly bookingId?: number;
+}
+
+export function CreateLeaseForm({ bookingId }: CreateLeaseFormProps = {}) {
+  if (bookingId) {
+    return <CreateLeaseFormDepuisReservation bookingId={bookingId} />;
+  }
+  return <FormulaireDuBail reservation={null} />;
+}
+
+/** `useBooking` ne s'appelle que sur ce chemin : le formulaire vierge ne lit aucune réservation. */
+function CreateLeaseFormDepuisReservation({ bookingId }: { readonly bookingId: number }) {
+  const t = useTranslations('lease.form');
+  const query = useBooking(bookingId);
+  if (query.isLoading) {
+    return <Skeleton className="h-48 rounded-xl" />;
+  }
+  const reservation = query.data?.data;
+  if (query.isError || !reservation) {
+    return <ErrorState message={t('fromBookingError')} />;
+  }
+  return <FormulaireDuBail reservation={reservation} />;
+}
+
+function valeursDeLaReservation(reservation: Booking): Partial<CreateLeaseFormValues> {
+  const bien = reservation.property;
+  const devise = DEVISES.find((code) => code === bien?.currency);
+  return {
+    property_id: reservation.property_id,
+    tenant_id: reservation.customer_id,
+    booking_id: reservation.id,
+    start_date: reservation.start_date?.slice(0, 10) ?? '',
+    end_date: reservation.end_date?.slice(0, 10) ?? '',
+    ...(bien?.contract_type === 'rent' && typeof bien.price === 'number' ? { monthly_rent: bien.price } : {}),
+    ...(devise ? { currency: devise } : {}),
+  };
+}
+
+function FormulaireDuBail({ reservation }: { readonly reservation: Booking | null }) {
   const t = useTranslations('lease.form');
   const tLease = useTranslations('lease');
   const tCommon = useTranslations('common');
@@ -81,6 +132,7 @@ export function CreateLeaseForm() {
       payment_day: 1,
       terms: '',
       special_conditions: '',
+      ...(reservation ? valeursDeLaReservation(reservation) : {}),
     },
     onSubmit: async (values) => {
       const result = await createLease.mutateAsync(values);
@@ -135,90 +187,99 @@ export function CreateLeaseForm() {
 
       <section className="space-y-4 rounded-xl border border-border bg-card p-5">
         <h2 className="text-sm font-semibold text-foreground">{t('parties')}</h2>
-        <div className="grid gap-4 lg:grid-cols-2">
-          <EntitySelect
-            control={form.control}
-            name="property_id"
-            label={t('property')}
-            placeholder={propertiesQuery.isLoading ? t('loadingProperties') : t('selectProperty')}
-            options={properties.map((property) => ({
-              value: property.id,
-              label: formatPropertyLabel(property),
-            }))}
-            required
+        {reservation ? (
+          <PartiesDeLaReservation
+            reservation={reservation}
+            titulaire={properties.find((p) => p.id === reservation.property_id)?.owner ?? null}
           />
-          <div className="space-y-2">
-            <label htmlFor="tenant-search" className="block text-sm font-medium">
-              {t('tenant')}
-              <span aria-hidden="true" className="ml-0.5 text-destructive">*</span>
-            </label>
-            <Input
-              id="tenant-search"
-              value={customerSearch}
-              onChange={(event) => setCustomerSearch(event.target.value)}
-              placeholder={t('tenantSearchPlaceholder')}
-            />
-            <EntitySelect
-              control={form.control}
-              name="tenant_id"
-              label={null}
-              ariaLabel={t('tenant')}
-              placeholder={customersQuery.isLoading ? t('searching') : t('selectTenant')}
-              options={customers.map((customer) => ({
-                value: customer.id,
-                label: customerLabel(customer),
-              }))}
-              required
-            />
-          </div>
-        </div>
-        {aucunBien || aucunLocataire ? (
-          // TCK-776 (P15.09) — une liste vide se dit, et mène à ce qui la remplit.
-          <div className="space-y-2 rounded-lg border border-dashed border-border p-4 text-sm">
-            {aucunBien ? <p className="text-muted-foreground">{t('emptyProperties')}</p> : null}
-            {aucunLocataire ? <p className="text-muted-foreground">{t('emptyTenants')}</p> : null}
-            <div className="flex flex-wrap gap-3">
-              {aucunBien ? (
-                <Link href="/app/properties/new" className="font-medium text-primary underline-offset-4 hover:underline">
-                  {t('createProperty')}
-                </Link>
-              ) : null}
-              {aucunLocataire ? (
-                <Link href="/app/customers/new" className="font-medium text-primary underline-offset-4 hover:underline">
-                  {t('addTenant')}
-                </Link>
-              ) : null}
+        ) : (
+          <>
+            <div className="grid gap-4 lg:grid-cols-2">
+              <EntitySelect
+                control={form.control}
+                name="property_id"
+                label={t('property')}
+                placeholder={propertiesQuery.isLoading ? t('loadingProperties') : t('selectProperty')}
+                options={properties.map((property) => ({
+                  value: property.id,
+                  label: formatPropertyLabel(property),
+                }))}
+                required
+              />
+              <div className="space-y-2">
+                <label htmlFor="tenant-search" className="block text-sm font-medium">
+                  {t('tenant')}
+                  <span aria-hidden="true" className="ml-0.5 text-destructive">*</span>
+                </label>
+                <Input
+                  id="tenant-search"
+                  value={customerSearch}
+                  onChange={(event) => setCustomerSearch(event.target.value)}
+                  placeholder={t('tenantSearchPlaceholder')}
+                />
+                <EntitySelect
+                  control={form.control}
+                  name="tenant_id"
+                  label={null}
+                  ariaLabel={t('tenant')}
+                  placeholder={customersQuery.isLoading ? t('searching') : t('selectTenant')}
+                  options={customers.map((customer) => ({
+                    value: customer.id,
+                    label: customerLabel(customer),
+                  }))}
+                  required
+                />
+              </div>
             </div>
-          </div>
-        ) : null}
-        <div className="grid gap-3 rounded-lg bg-muted/50 p-4 text-sm sm:grid-cols-2">
-          <SummaryBlock
-            label={t('selectedProperty')}
-            value={
-              selectedProperty
-                ? `${selectedProperty.title} · ${selectedProperty.reference_number ?? `#${selectedProperty.id}`}`
-                : t('noPropertySelected')
-            }
-            detail={
-              selectedProperty && typeof selectedProperty.price === 'number'
-                ? formatCurrency(selectedProperty.price, 'fr', { currency: selectedProperty.currency ?? 'XOF' })
-                : undefined
-            }
-          />
-          <SummaryBlock
-            label={t('selectedTenant')}
-            value={selectedCustomer ? customerLabel(selectedCustomer) : t('noTenantSelected')}
-            detail={
-              // TCK-997 (P50.01) — le bail naît au nom du TITULAIRE du bien (`LeaseService::create`,
-              // `landlord_id = property.user_id`), jamais de qui le saisit : la ligne le nomme.
-              selectedProperty?.owner
-                ? t('landlordOfProperty', {
-                    name: nomAffichable({ id: selectedProperty.owner.id }, selectedProperty.owner.name),
-                  })
-                : t('landlordPending')
-            }
-          />
-        </div>
+            {aucunBien || aucunLocataire ? (
+              // TCK-776 (P15.09) — une liste vide se dit, et mène à ce qui la remplit.
+              <div className="space-y-2 rounded-lg border border-dashed border-border p-4 text-sm">
+                {aucunBien ? <p className="text-muted-foreground">{t('emptyProperties')}</p> : null}
+                {aucunLocataire ? <p className="text-muted-foreground">{t('emptyTenants')}</p> : null}
+                <div className="flex flex-wrap gap-3">
+                  {aucunBien ? (
+                    <Link href="/app/properties/new" className="font-medium text-primary underline-offset-4 hover:underline">
+                      {t('createProperty')}
+                    </Link>
+                  ) : null}
+                  {aucunLocataire ? (
+                    <Link href="/app/customers/new" className="font-medium text-primary underline-offset-4 hover:underline">
+                      {t('addTenant')}
+                    </Link>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
+            <div className="grid gap-3 rounded-lg bg-muted/50 p-4 text-sm sm:grid-cols-2">
+              <SummaryBlock
+                label={t('selectedProperty')}
+                value={
+                  selectedProperty
+                    ? `${selectedProperty.title} · ${selectedProperty.reference_number ?? `#${selectedProperty.id}`}`
+                    : t('noPropertySelected')
+                }
+                detail={
+                  selectedProperty && typeof selectedProperty.price === 'number'
+                    ? formatCurrency(selectedProperty.price, 'fr', { currency: selectedProperty.currency ?? 'XOF' })
+                    : undefined
+                }
+              />
+              <SummaryBlock
+                label={t('selectedTenant')}
+                value={selectedCustomer ? customerLabel(selectedCustomer) : t('noTenantSelected')}
+                detail={
+                  // TCK-997 (P50.01) — le bail naît au nom du TITULAIRE du bien (`LeaseService::create`,
+                  // `landlord_id = property.user_id`), jamais de qui le saisit : la ligne le nomme.
+                  selectedProperty?.owner
+                    ? t('landlordOfProperty', {
+                        name: nomAffichable({ id: selectedProperty.owner.id }, selectedProperty.owner.name),
+                      })
+                    : t('landlordPending')
+                }
+              />
+            </div>
+          </>
+        )}
         <div className="rounded-lg border border-dashed border-border p-3 text-xs text-muted-foreground">
           {t('guarantorsHint')}
         </div>
@@ -325,6 +386,54 @@ export function CreateLeaseForm() {
         </Button>
       </div>
     </form>
+  );
+}
+
+/**
+ * `titulaire` vient des options de bien du formulaire (`include=owner`, TCK-997) : la lecture de la
+ * réservation ne charge pas le titulaire du bien, et le bail naît à son nom, pas à celui de qui le
+ * saisit. Un bien hors de ces options laisse la ligne en attente, comme le formulaire vierge.
+ */
+function PartiesDeLaReservation({
+  reservation,
+  titulaire,
+}: {
+  readonly reservation: Booking;
+  readonly titulaire: PropertyListItem['owner'] | null;
+}) {
+  const t = useTranslations('lease.form');
+  const bien = reservation.property;
+  const client = reservation.customer;
+  return (
+    <>
+      <p className="text-sm text-foreground">
+        {t('fromBooking', { reference: reservation.reference_number ?? `#${reservation.id}` })}
+      </p>
+      <div className="grid gap-3 rounded-lg bg-muted/50 p-4 text-sm sm:grid-cols-2">
+        <SummaryBlock
+          label={t('selectedProperty')}
+          value={bien?.title ?? `#${reservation.property_id}`}
+          detail={
+            bien && typeof bien.price === 'number'
+              ? formatCurrency(bien.price, 'fr', { currency: bien.currency ?? 'XOF' })
+              : undefined
+          }
+        />
+        <SummaryBlock
+          label={t('selectedTenant')}
+          value={nomAffichable(
+            { id: reservation.customer_id, first_name: client?.first_name, last_name: client?.last_name },
+            t('customerFallback', { id: String(reservation.customer_id) }),
+          )}
+          detail={
+            titulaire
+              ? t('landlordOfProperty', { name: nomAffichable({ id: titulaire.id }, titulaire.name) })
+              : t('landlordPending')
+          }
+        />
+      </div>
+      <p className="text-xs text-muted-foreground">{t('fromBookingHint')}</p>
+    </>
   );
 }
 

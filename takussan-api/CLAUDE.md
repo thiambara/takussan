@@ -453,10 +453,41 @@ de gabarit de migration (`stubs/`) qui le rappelle : c'est cette ligne qui le di
 
 ## Tâches planifiées
 
-Le scheduler est **entièrement** dans `routes/console.php` (77 lignes) : 13 `Schedule::job()` et 6
-`Schedule::command()`, presque tous `->withoutOverlapping()`, **chaque entrée annotée d'un commentaire
+Le scheduler est **entièrement** dans `routes/console.php`, **chaque entrée annotée d'un commentaire
 `TCK-NNN` qui explique son idempotence**. Tenir cette convention : un job planifié non idempotent est
 un incident qui n'arrive qu'en production.
+
+Le compte ne s'écrit pas ici, il se prend (ce paragraphe a annoncé « 13 `Schedule::job()` et 6
+`Schedule::command()` » quand il y en avait 24 et 26, P05.07) :
+
+```bash
+grep -cE '^\s*Schedule::job\(' routes/console.php       # appels Schedule::job
+grep -cE '^\s*Schedule::command\(' routes/console.php   # appels Schedule::command
+php artisan schedule:list                               # les événements : un appel dans une boucle
+                                                        #   (le battement de file) en compte plusieurs
+```
+
+⚠️ **`->withoutOverlapping()` ne protège pas la même chose selon l'entrée** (P05.07, relu dans
+`Illuminate\Console\Scheduling\Schedule::job()`) :
+
+- sur un **`Schedule::command()`**, le verrou est tenu pendant que la commande tourne : deux
+  exécutions ne se chevauchent pas ;
+- sur un **`Schedule::job()`**, le scheduler n'exécute qu'une fermeture qui **met le job en file** : le
+  verrou est rendu dès la mise en file. Il empêche deux mises en file simultanées, **jamais** deux
+  exécutions du job dans les workers. Seuls les jobs qui portent eux-mêmes le middleware
+  `WithoutOverlapping`, ou `ShouldBeUnique`, sont bornés à l'exécution :
+  `grep -rlE 'WithoutOverlapping|ShouldBeUnique' app/Jobs`.
+
+Même portée pour **`scheduled_task_runs`** (`ScheduledRunRecorder`) : pour un `Schedule::job`, la
+ligne mesure la mise en file — quelques millisecondes, `finished` même quand le job échoue ensuite.
+L'échec d'un job ne se lit que dans `failed_jobs`, ou par l'alerte au premier échec des jobs qui
+portent `AlertsOnFirstFailure` (TCK-772).
+
+**Le verrou d'exécution des balayages n'est pas retenu tant que chaque job planifié est idempotent**
+(décision du porteur du 2026-10-25, P05.07) : deux exécutions concurrentes d'un même balayage doivent
+rendre le même état qu'une seule. C'est cette idempotence, dite par le commentaire `TCK-NNN` de
+l'entrée, qui tient lieu de verrou. Un job planifié qui ne peut pas l'être prend le middleware
+`WithoutOverlapping` (ou `ShouldBeUnique`) dans le même changement, et le dit dans son commentaire.
 
 16 commandes maison, signature `{domaine}:{verbe-kebab}` — **le préfixe est un DOMAINE, jamais le
 nom du produit**. `scripts/check-command-prefixes.mjs` (Repo CI) le garde. **Fichier exemplaire :

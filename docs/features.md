@@ -184,6 +184,7 @@ Gestion complète d'un contrat de bail et de son cycle de vie.
 | Prio | Acteurs | Fonctionnalité |
 |------|---------|----------------|
 | P1 | 🏢🧑‍💼 | Créer un bail (locataire, bailleur, durée, loyer, caution) |
+| P1 | 🏢🧑‍💼 | Créer le bail depuis une candidature acceptée (« Créer le bail » sur la réservation confirmée d'un bien à louer) : bien, locataire, dates et loyer préremplis ; le locataire est le client de la réservation, et la réservation passe à « terminée », ce qui libère ses dates (P48.03, TCK-2352) |
 | P1 | 🧑‍💼 | Ajouter un ou plusieurs garants avec documents joints |
 | P1 | 🏢🧑‍💼 | Générer l'échéancier de loyers mensuels |
 | P1 | 🏠🏢 | Enregistrer un paiement mensuel |
@@ -247,6 +248,8 @@ Gestion des contacts (Customer) liés ou non à un compte utilisateur.
 | P0 | 🧑‍💼 | Liste et recherche de clients |
 | P0 | 🧑‍💼 | Le CRM de l'agence n'est lu et alimenté que par son personnel ; un bailleur ne voit que les fiches qu'il a lui-même ajoutées (TCK-591) |
 | P1 | 🧑‍💼 | Lier un Customer à un User existant |
+| P1 | 🧑‍💼 | Inviter le client d'une fiche sans compte à créer son compte : un lien à usage unique part à l'e-mail de la fiche (ou à son numéro, si le lien par SMS est ouvert), et le compte qui l'accepte est relié à la fiche ; geste du personnel de l'agence de la fiche (TCK-2351) |
+| P1 | 🧑‍💼 | La fiche née d'une candidature, d'une offre ou d'une réservation est une fiche de l'agence du bien, reprise ou rattachée (coordonnée vérifiée) dans cette agence seule (TCK-2350) |
 | P1 | 🧑‍💼 | Définir la relation agent ↔ client (type, période) |
 | P1 | 🧑‍💼 | Joindre pièces d'identité et documents |
 | P1 | 🧑‍💼 | Historique d'interactions (via journal d'activité) |
@@ -424,7 +427,7 @@ Une agence porte un **`kind`** :
 
 | Prio | Acteurs | Fonctionnalité |
 |------|---------|----------------|
-| P0 | 🛡️ | Créer et configurer une agence (nom, licence, contact, logo) |
+| P0 | 🛡️ | Configurer son agence (nom, licence, contact, logo). Une agence se crée par la console (super-admin) ou par l'espace hôte, jamais par `POST /api/agencies`, retirée (TCK-2311) |
 | P0 | 🛡️ | Ajouter et retirer des agents |
 | P0 | 🛡️ | Attribution de rôles aux membres |
 | P0 | 🛡️ | Suspendre / réactiver l'adhésion d'un membre (agent, bailleur, co-admin) à l'agence, sans toucher au compte ; le blocage d'un compte reste un geste super-admin ; l'administrateur principal ne peut être suspendu ; acte journalisé (TCK-587) |
@@ -624,6 +627,7 @@ hors spec*. Ouvrir un ticket avant d'en construire un.
 | P1 | 🛡️ | Filtrage par utilisateur, date, action |
 | P1 | 🛡️ | Le journal d'une agence couvre tout ce qui touche ses objets (actes des admins, du système et des webhooks compris) et rien de ce qui touche une autre agence (TCK-601) |
 | P1 | 🛡️ | Journal des consultations de données personnelles depuis la console (fiche utilisateur, sessions, dossier et pièces KYC, valeurs bancaires) et des valeurs claires lues dans l'application (pièce, revenu) (TCK-601, TCK-955) |
+| P1 | 🛡️ | Le journal d'activité se purge par famille : 12 mois par défaut, 5 ans pour les journaux de sécurité et de preuve (consultations de données personnelles, droits, sécurité, support, KYC, compte, rôles et adhésions, intégrations, exports), 10 ans pour les pièces comptables ; durées écrites dans la politique de confidentialité (TCK-2342) |
 | P2 | 🛡️ | Export de l'audit trail |
 | P3 | 🛡️ | Alertes sur actions sensibles |
 | P3 | 🛡️ | Alertes d'exploitation à seuil (pic d'échecs de jobs, file bloquée, santé dégradée), en plus des gestes sensibles (TCK-600) |

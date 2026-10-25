@@ -37,6 +37,9 @@ export const createLeaseSchema = z
     // TCK-1372 (P114.05) — plus de `landlord_id` : `StoreLeaseRequest` ne le lit pas, et le service
     // recalcule le bailleur depuis le bien.
     agency_id: z.number().int().positive().optional(),
+    // P48.03 (TCK-2352) — le bail tiré d'une candidature : l'API exige alors que `tenant_id` soit le
+    // client de la réservation, et la passe à `completed`.
+    booking_id: z.number().int().positive().optional(),
     type: leaseTypeSchema,
     start_date: isoDate,
     end_date: isoDate.optional().or(z.literal('').transform(() => undefined)),

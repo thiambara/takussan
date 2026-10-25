@@ -2,20 +2,16 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Events\Onboarding\SpaceCreated;
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\AgencyUpdateRequest;
 use App\Http\Requests\Api\AddAgentAgencyRequest;
 use App\Http\Requests\Api\ConfirmPayoutThresholdRequest;
-use App\Http\Requests\Api\StoreAgencyRequest;
 use App\Http\Resources\AgencyResource;
 use App\Http\Resources\UserResource;
 use App\Models\Agency;
 use App\Models\Enums\AgencyAdminProfileStatus;
-use App\Models\Enums\AgencyStatus;
 use App\Models\Enums\AgentProfileStatus;
 use App\Models\Enums\CollaborationStatus;
-use App\Models\Enums\Currency;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
 use App\Models\User;
@@ -42,31 +38,6 @@ class AgencyController extends Controller
             ->paginate();
 
         return $this->paginated($paginator, AgencyResource::collection($paginator)->toArray($request));
-    }
-
-    public function store(StoreAgencyRequest $request): JsonResponse
-    {
-        $user = $request->user();
-
-        $alreadyOwns = Agency::where('primary_admin_id', $user->id)->exists();
-        abort_code_if(
-            $alreadyOwns && ! ($user->isSuperAdmin()),
-            422,
-            'agency.already_administered'
-        );
-
-        $data = $request->validated();
-
-        $agency = Agency::create(array_merge($data, [
-            'primary_admin_id' => $user->id,
-            'currency' => $data['currency'] ?? Currency::default()->value,
-            'status' => AgencyStatus::Active->value,
-        ]));
-        // TCK-633 lot F (ADR-0061 §3) — un espace qui naît ici, d'un titulaire au numéro déjà
-        // vérifié, reçoit sa bienvenue : aucun `PhoneVerified` ne viendra plus la rattraper.
-        SpaceCreated::dispatch($agency);
-
-        return $this->json(['data' => AgencyResource::make($agency)->resolve($request)], 201);
     }
 
     public function show(Request $request, Agency $agency): JsonResponse

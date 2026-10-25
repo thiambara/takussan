@@ -105,6 +105,16 @@ class CustomerPolicy extends BasePolicy
         return $this->view($user, $customer) && $this->isStaffOf($user, $customer->agency_id);
     }
 
+    /**
+     * P15.01 (TCK-2351) — inviter le client de la fiche à créer son compte : lire la fiche ET être
+     * du personnel de son agence. Le compte qui accepte reçoit l'espace du locataire de cette fiche :
+     * un bailleur qui l'a ajoutée ne l'ouvre pas, le personnel d'une autre agence non plus.
+     */
+    public function invite(User $user, Customer $customer): bool
+    {
+        return $this->view($user, $customer) && $this->isStaffOf($user, $customer->agency_id);
+    }
+
     private function seesWholeCrm(User $user, Customer $customer): bool
     {
         return $this->isStaffOf($user, $customer->agency_id)

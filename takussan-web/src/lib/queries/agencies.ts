@@ -170,10 +170,10 @@ export interface RegenerateWatermarksResult {
  * 2026-08-27 : `grep -rn "regenerate-watermarks" src/` ne rendait rien. Le contrôleur pousse un
  * `RegenerateAgencyWatermarksJob` et rend 202 sans attendre.
  *
- * ⚠ La garde est SERVEUR et plus étroite que `isAdmin` : `primary_admin_id === user->id` ou
- * super-admin. Un `agency_admin` qui n'est pas l'admin principal reçoit 403 — le bouton n'ouvre
- * donc aucun droit, il rend seulement le geste atteignable, et l'erreur est affichée telle
- * quelle.
+ * ⚠ La garde est SERVEUR, `AgencyPolicy::configure` comme le logo (TCK-2311, P225.04) :
+ * l'admin de l'agence qui tient `agency.update`, l'admin principal et le super-admin. Un admin
+ * dont le rôle retire `agency.update` reçoit 403 — le bouton n'ouvre donc aucun droit, il rend
+ * seulement le geste atteignable, et l'erreur est affichée telle quelle.
  *
  * `activeProfileId` est transmis pour la même raison que sur `updateAgency` : sans lui, un
  * compte multi-agences n'a pas de profil actif résolu côté serveur.

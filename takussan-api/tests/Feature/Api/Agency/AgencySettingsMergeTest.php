@@ -4,8 +4,10 @@ namespace Tests\Feature\Api\Agency;
 
 use App\Models\Agency;
 use App\Models\User;
+use App\Services\Admin\AgencyProvisioningService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -122,15 +124,15 @@ class AgencySettingsMergeTest extends TestCase
         ])->assertStatus(422)->assertJsonValidationErrors('settings.late_fee_online_collection');
     }
 
+    /** TCK-2311 (P225.06) — `POST /api/agencies` est retirée : l'agence neuve vient de la console. */
     public function test_agence_neuve_n_a_pas_la_cle_et_n_encaisse_pas_en_ligne(): void
     {
-        $user = User::factory()->create();
-        Sanctum::actingAs($user);
+        Notification::fake();
+        $agency = app(AgencyProvisioningService::class)->provision([
+            'agency' => ['name' => 'Agence Neuve '.uniqid()],
+            'admin' => ['first_name' => 'Awa', 'last_name' => 'Ndiaye', 'email' => uniqid('admin').'@agence.test'],
+        ], User::factory()->create())['agency'];
 
-        $response = $this->postJson('/api/agencies', ['name' => 'Agence Neuve '.uniqid()]);
-        $response->assertCreated();
-
-        $agency = Agency::query()->findOrFail($response->json('data.id'));
         $this->assertArrayNotHasKey('late_fee_online_collection', $agency->settings ?? []);
         $this->assertFalse($agency->collectsLateFeesOnline());
     }

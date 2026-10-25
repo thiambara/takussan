@@ -379,6 +379,7 @@ contre le code par la session.*
 - les reversements verrouillent leurs pièces (`PayoutService.php:414-473`) ;
 - un webhook rejoué n'est pas recompté.
 - Mesure (2026-10-25, ece5a91ea, humain) : validation du porteur en bloc (2026-10-25) sur la re-vérification de la session à c35c20d16 ; statut précédent : « retenu · à valider — V1 : montant d'une restitution de caution ; porteur (2026-10-15) : plus tard, après P13.01 ».
+- Mesure (2026-10-25, b4d905cd3, humain) : implémentée puis retirée avant fusion par la session, car la décision est inapplicable telle quelle. Aucun chemin n'écrit d'échéance `deposit` : `generateSchedule` (`LeaseService`) n'écrit que des loyers, et `POST /leases/{id}/payments` refuse `deposit` depuis TCK-1920 (`lease_payment.type_from_schedule`). La « caution encaissée » des rapports vaut donc 0 pour tout bail créé dans l'application. Bornée à elle, la restitution refusait toute caution en 422. Reste au porteur : (a) l'échéancier écrit l'échéance de caution à l'activation, et la borne s'applique ensuite ; (b) la borne ne vaut que pour un bail qui porte une échéance `deposit`, avec repli sur `deposit_amount` ; (c) garder la restitution actuelle. Recommandation de la session : a.
 
 ## Angle 5 — Jobs planifiés et files
 
@@ -399,7 +400,7 @@ défaut avéré : ce sont des risques, dont trois coûtent cher le jour où ils 
 
 ### `scheduled_task_runs` ne mesure que la mise en file des `Schedule::job`
 - Réf : P05.07
-- Statut : validé — validation du porteur (2026-10-25) : `takussan-api/CLAUDE.md` § Tâches planifiées corrigé (compte des `Schedule::job` et portée de `withoutOverlapping`, qui ne couvre que la mise en file) ; verrou d'exécution des balayages non retenu tant que chaque job planifié est idempotent
+- Statut : fait · TCK-2341
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Admin/ScheduledRunRecorder.php`, et `Schedule.php:217-226` du framework
 - Constat :
@@ -408,6 +409,7 @@ défaut avéré : ce sont des risques, dont trois coûtent cher le jour où ils 
 - Piste : l'écrire dans `takussan-api/CLAUDE.md` § Tâches planifiées, et le middleware `WithoutOverlapping` sur les balayages.
 - Mesure (2026-10-15, e9f9289c, mesureur) : `routes/console.php` compte 19 `Schedule::job`, tous `ShouldQueue` (lu) ; `Schedule.php:218-226` du framework ne fait que `dispatchToQueue` dans la fermeture (lu) ; `SELECT task, status, count(*), max(duration_ms) FROM scheduled_task_runs` par tinker → toutes les lignes `App\Jobs\…` sont `finished`, de 0 à 600 ms, une seule à 17 650 ms (`SendPropertyVisitReminders`, dispatch sous charge) ; `grep ShouldBeUnique app` → rien, mais `WithoutOverlapping` existe désormais sur 2 jobs sur 19 (`SendSavedSearchAlerts:90`, `SendFavoriteChangeAlerts:68`, TCK-599) : le constat « aucun » est inexact pour ces deux-là ; `takussan-api/CLAUDE.md` § Tâches planifiées dit encore « presque tous `->withoutOverlapping()` » sans dire que ce verrou ne couvre que le dispatch → tient. Classement : V1, la partie documentaire relève d'A6 mais le middleware sur les balayages touche `ApplyLateFeesJob` (pénalités) et demande de choisir quels jobs borner.
 - Mesure (2026-10-25, ece5a91ea, humain) : validation du porteur en bloc (2026-10-25) sur la re-vérification de la session à c35c20d16 ; statut précédent : « retenu · à valider — V1 : le verrou d'exécution toucherait ApplyLateFeesJob, et le choix des jobs à borner ; porteur (2026-10-15) : plus tard, repris par P14.04 ».
+- Mesure (2026-10-25, 1ec8fae29, implementeur) : relu `takussan-api/CLAUDE.md` § Tâches planifiées (« 77 lignes : 13 `Schedule::job()` et 6 `Schedule::command()`, presque tous `->withoutOverlapping()` ») contre `routes/console.php` (218 lignes ; `grep -cE '^\s*Schedule::job\('` → 24, `Schedule::command\(` → 26 ; `schedule:list` → 27 événements de job) et `Schedule.php:217-226` du framework (mise en file seule) → le § donne désormais ces commandes au lieu d'un compte, dit que `withoutOverlapping()` d'un `Schedule::job` ne couvre que la mise en file (et celui d'un `Schedule::command` l'exécution), que `scheduled_task_runs` mesure cette mise en file, et que le verrou d'exécution des balayages n'est pas retenu tant que chaque job planifié est idempotent. Pas de test : delta de texte, chaque commande lancée sur l'arbre ; gardes du dépôt vertes.
 
 ### `onOneServer` et le fuseau horaire : pas de défaut aujourd'hui, un piège pour la production
 - Réf : P05.09
@@ -743,7 +745,7 @@ Les trois 🔴 ont été relus par la session dans le code :
 
 ### Un locataire ne peut pas être à la fois lié à un compte et visible de l'agence : la signature n'est jamais atteinte
 - Réf : P15.01
-- Statut : validé — validation du porteur (2026-10-25) : en deux tickets : la fiche née d'une candidature naît dans l'agence du bien, rattachée seulement sur une coordonnée vérifiée (patron de TCK-1710), `first()` borné à cette agence ; un geste « inviter le locataire à créer son compte » (lien à usage unique, `linkUser()` à l'acceptation)
+- Statut : fait · TCK-2351
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Model/CustomerService.php:28-48`, `takussan-api/app/Models/Customer.php:178-196`, `takussan-api/app/Services/Model/LeaseService.php:49-50`, `takussan-api/app/Services/Lease/LeaseSignatureService.php:55`, `takussan-web/src/components/leases/LeaseSignaturePanel.tsx:140-143`
 - Constat :
@@ -756,6 +758,7 @@ Les trois 🔴 ont été relus par la session dans le code :
 - Piste : rattacher un compte à une fiche, par une invitation du locataire ou par appariement sur un téléphone ou un e-mail vérifié. Créer la fiche de candidature dans l'agence du bien.
 - Mesure (2026-10-15, 5062193b, mesureur) : lu `CustomerService.php:28` (`linkUser`, aucun appelant : `grep -rn linkUser app` ne rend que sa définition et un docblock de `DashboardTenantService.php:22`) et `:33-49` (`findOrCreateFromUser` : `->first()` sur `user_id` seul, `agency_id` = celui du visiteur, `added_by_id` = le visiteur), appelé par `PublicPropertyController.php:956` et `BookingService.php:98` ; `StoreCustomerRequest`/`UpdateCustomerRequest` sans `user_id` ; les deux autres créateurs (`CustomerController.php:61`, `ContactLeadService.php:263`) n'en posent pas ; `Customer::scopeVisibleTo` (l. 178-196) ; `LeaseService.php:49-50` (`can('view', $tenant)` sinon 403) ; `LeaseSignatureService.php:55` (422 `lease_signature.tenant_without_account`). Lu, non exécuté. Classement : V7, la piste ouvre un parcours visible neuf (invitation ou appariement du locataire) et V3, elle décide quel compte se lie à quelle fiche de données personnelles.
 - Mesure (2026-10-25, ece5a91ea, humain) : validation du porteur en bloc (2026-10-25) sur la re-vérification de la session à c35c20d16 ; statut précédent : « retenu · à valider — V7 : rattacher un compte à une fiche (invitation ou appariement) est un parcours neuf ; porteur (2026-10-15) : prioritaire, à cadrer en ticket avant de le confier ».
+- Mesure (2026-10-25, 5ddf2d04f, implementeur) : reproduit avant correctif sur `0282d41e7` — candidature d'un compte sans profil sur un bien de A : fiche à `agency_id` null, invisible à l'agent de A (5 rouges sur 7 de `FicheDeCandidatureDansLAgenceDuBienTest`) ; `POST /api/customers/{id}/invite` absent (8 rouges sur 8 de `InvitationDuLocataireTest`). TCK-2350 (07af0cdc3) : `findOrCreateFromUser(User, ?Property)` relit, rattache (coordonnée vérifiée) et crée la fiche dans l'agence du bien ; ablation du service → 6 rouges, dont le témoin de `ContactDeLAgenceDuBienTest` réécrit (la fiche du tunnel naît dans l'agence du bien et le personnel la prend). TCK-2351 : rôle d'invitation `tenant` ciblant la fiche dans `InvitationService`, `linkUser()` sous verrou à l'acceptation, geste « Inviter à créer son compte » sur la fiche ; ablations du lien, de la clause « personnel de l'agence », de la garde « déjà liée » et du drapeau SMS → chacune ses rouges ; front 2 rouges sans le correctif. ADR-0031 amendé (P15.01). Aucune fiche existante ne change d'agence.
 
 ### Un bien créé par le personnel fait de l'agent le bailleur du contrat
 - Réf : P15.06
@@ -829,7 +832,7 @@ ajoutent que des faits neufs.*
 
 ### La purge que TCK-537 doit planifier n'épargnerait pas la plupart des journaux de preuve
 - Réf : P19.04
-- Statut : validé — validation du porteur (2026-10-25) : durées par famille de journaux, écrites dans TCK-537 et dans `privacy.ts` § 6 : 12 mois par défaut ; 5 ans pour `PersonalDataAccess`, `Privacy`, `Security`, `UserSupport`, `KYC`, `KycDossier`, `Account`, `Membership`, `AgencyRole`, `Integration` et `export` ; 10 ans pour les pièces comptables (`LeasePayment`, `BookingPayment`, `Invoice`, `Payout`, `PlatformPayout`, `CommissionEntry`, `Billing`) ; un test par famille
+- Statut : fait · TCK-2342
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/vendor/spatie/laravel-activitylog/src/Commands/CleanActivitylogCommand.php:13-40`, `takussan-api/config/activitylog.php:71-74`, `takussan-api/app/Http/Controllers/Api/Admin/CrossTenantAuditController.php:40-52`, `docs/backlog/tickets/TCK-537-ecarts-entre-la-politique-de-confidentialite-et-le-code.md` (contrainte 5, AC3b)
 - Constat :
@@ -839,6 +842,7 @@ ajoutent que des faits neufs.*
 - Piste : écrire dans TCK-537 la liste des journaux exemptés à partir de ceux qui existent (`grep -rhoE "activity\('[A-Za-z_]+'\)" app` et `useLogName`), et une durée par journal plutôt qu'une exemption. Un test par journal exempté, en plus de l'AC3b.
 - Mesure (2026-10-15, d62e3290, mesureur) : relu `CleanActivitylogCommand.php:13-40` (argument `{log?}` unique, pas d'exclusion), `config/activitylog.php:71-74` (`clean_log` surchargeable), `CrossTenantAuditController::SENSITIVE_LOG_NAMES` (onze journaux), TCK-537 contrainte 5 et AC3b (exempte seulement `PersonalDataAccess` et `Privacy`, ticket `todo`, dernière modification `e8882992`) ; `grep activitylog:clean routes/console.php` → rien, purge toujours non planifiée ; `grep -rhoE "activity\('…'\)|LOG_NAME|useLogName"` → 30 noms de journaux, dont `Account` (3, `AccountDeletionService.php:115,154,193`) que rien n'exempte. Inexact dans le constat : `PrivacyRequest::LOG_NAME` vaut `'Privacy'` (`PrivacyRequest.php:34`), donc le registre des droits écrit sous `Privacy`, déjà exempté par TCK-537, et aucun code n'écrit sous `'PrivacyRequest'` (seule mention : `CrossTenantAuditController.php:43`). Le reste du constat tient. Classement : V3, fixer la durée de conservation de chaque journal (et celle des journaux de pièces comptables) est une décision RGPD que la piste renvoie elle-même au porteur.
 - Mesure (2026-10-25, ece5a91ea, humain) : validation du porteur en bloc (2026-10-25) sur la re-vérification de la session à c35c20d16 ; statut précédent : « retenu · à valider — V3 : durée de conservation de journaux qui portent des données personnelles ; porteur (2026-10-15) : traité hors agents, durées à écrire dans TCK-537 ».
+- Mesure (2026-10-25, c3afca7e5, implementeur) : re-mesuré sur l'arbre : `routes/console.php` ne planifiait aucune purge d'`activity_log`, TCK-537 `todo` n'exemptait que `PersonalDataAccess` et `Privacy` → `audit:prune-activity-log` (`PruneActivityLog`), par famille de `log_name` (12 mois par défaut et pour un nom nul, 5 ans pour les onze journaux de preuve, 10 ans pour les sept de pièces comptables), par lots, idempotente, planifiée chaque jour à 04:10 (Dakar) ; `privacy.ts` § 6 (`fr`, `en`) donne les trois durées, `VERSION_DOCUMENTS` au 25 octobre 2026 ; TCK-537 reçoit les durées (contrainte 5, AC3b) et reste `todo` ; ADR-0044 amendé (2026-10-25). `PruneActivityLogCommandTest` (24 tests, un cas par journal de chaque famille) rouge en entier avant, vert après ; ablations : un nom retiré d'une liste → son cas rouge, 5 ans portés à 10 → 11 rouges, `whereNull` retiré → 1, lot unique → 1, planification retirée → 1 ; `textes.test.ts` rouge puis vert.
 
 ## Angle 20 — Nombre réel de requêtes SQL par écran
 
@@ -1303,7 +1307,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 
 ### Une candidature retenue ne mène à aucun bail : elle devient une réservation datée, et rien ne relie le bail à elle
 - Réf : P48.03
-- Statut : validé — validation du porteur (2026-10-25) : après P15.01 : le geste prérempli `/app/leases/new?booking_id=…` et le contrôle `tenant_id` = `customer_id` ; la création du bail depuis une réservation la passe à `completed` et libère ses nuits
+- Statut : fait · TCK-2352
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Public/PublicPropertyController.php:966-986,1016-1040`, `takussan-api/app/Services/Model/BookingService.php:166-209`, `takussan-api/app/Http/Requests/Api/StoreLeaseRequest.php:39`, `takussan-api/app/Services/Model/LeaseService.php:46-48`, `takussan-web/src/components/leases/LeasesList.tsx:153`
 - Constat :
@@ -1317,6 +1321,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 - Mesure (2026-10-19, f356e5a5f, mesureur) : relu `BookingRequestPublicPropertyRequest.php:29-30` (`start_date`, `end_date` requis), `BookingService::confirm:166-209` (passe à `confirmed`, prévient par `BookingConfirmed`, ne crée aucun bail), `StoreLeaseRequest.php:39` (`booking_id` borné au seul bien) ; `grep booking_id takussan-web/src` → seuls des types (`types/lease.ts:58`…), et les deux liens vers `/app/leases/new` sont sans paramètre (`(liste)/page.tsx:36`, `LeasesList.tsx:153`) → tout tient. Classement : V7, le geste et son préremplissage sont un parcours neuf ; le contrôle `tenant_id` = client de la réservation change une validation qu'aucun texte n'écrit, et la piste dépend de P15.01.
 - Mesure (2026-10-19, 082179de0, delegue) : relu le constat et la `Mesure` du mesureur, puis le statut de P15.01 (`porteur (2026-10-15) : prioritaire, à cadrer en ticket avant de le confier`) ; `grep -rln booking_id docs/features.md docs/backlog/tickets` ne rend que la colonne (TCK-027) et des cibles de notification (TCK-588, TCK-073…), aucune décision sur un bail tiré d'une candidature → rien d'écrit n'appuie le parcours. Recommandation : attendre le ticket de P15.01, puis un geste « créer le bail » sur une candidature `confirmed` qui ouvre `/app/leases/new?booking_id=…` prérempli (bien, locataire), avec le contrôle API `tenant_id` = `customer_id` de la réservation ; c'est un parcours neuf (V7 non mineur) et une règle de validation neuve, qui dépendent d'un cadrage que le porteur s'est réservé ; manque : le ticket de P15.01, et la décision de ce que devient la réservation une fois le bail créé (statut, nuits bloquées).
 - Mesure (2026-10-25, ece5a91ea, humain) : validation du porteur en bloc (2026-10-25) sur la re-vérification de la session à c35c20d16 ; statut précédent : « retenu · à valider — V7 : un geste « créer le bail » depuis une candidature est une fonction visible neuve ; porteur (2026-10-19) : plus tard, après le ticket de P15.01, sur la recommandation du délégué : un geste « créer le bail » sur une candidature `confirmed`, prérempli, avec le contrôle `tenant_id` = `customer_id` de la réservation ».
+- Mesure (2026-10-25, d5d0934ea, implementeur) : TCK-2352 — `LeaseService::create` rend 422 sur `tenant_id` quand le locataire n'est pas le client de la réservation, et passe une réservation `pending` ou `confirmed` à `completed` dans la transaction du bail (une réservation close garde son statut) ; « Créer le bail » sur une candidature `confirmed` d'un bien à louer ouvre `/app/leases/new?booking_id=…` prérempli (bien, locataire, dates, loyer). `BailTireDUneCandidatureTest` 5 verts (3 rouges avant, dont la candidature voisine qui se confirme aux mêmes dates), 2 fichiers front neufs 6 verts (3 rouges avant) ; chaque garde vérifiée par ablation ; statut précédent : « validé — validation du porteur (2026-10-25) : après P15.01 : le geste prérempli `/app/leases/new?booking_id=…` et le contrôle `tenant_id` = `customer_id` ; la création du bail depuis une réservation la passe à `completed` et libère ses nuits ».
 
 ## Angle 49 — Passage d'une agence `individual` à `standard`
 
@@ -6463,7 +6468,7 @@ sans `delete`).*
 
 ### Régénérer les filigranes n'est permis qu'à l'administrateur principal : bloqué ou effacé, plus personne dans l'agence ne le peut
 - Réf : P225.04
-- Statut : validé — validation du porteur (2026-10-25) : la régénération des filigranes est jugée par `AgencyPolicy::configure` (capacité `agency.update`), comme le logo, conforme à TCK-106 ; docblock du front corrigé
+- Statut : fait · TCK-2311
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/Agency/RegenerateWatermarksController.php:17-20`, `takussan-web/src/components/admin-agency/RegenerateWatermarksCard.tsx:31-34`, `takussan-web/src/app/(dashboard)/app/agency/page.tsx:66`
 - Constat :
@@ -6475,10 +6480,11 @@ sans `delete`).*
 - Piste : juger le geste par `AgencyPolicy::configure` (capacité `agency.update`, administrateur principal en court-circuit), comme le logo. Garde : un test « co-administrateur qui tient `agency.update` → 202 ».
 - Mesure (2026-10-24, f249b97f5, mesureur) : relu `RegenerateWatermarksController.php:17-20` (`primary_admin_id === user->id || isSuperAdmin()`, aucune capacité) ; sonde temporaire `SondeAngle225Test` (retirée) : co-administrateur actif avec la 2FA, administrateur principal effacé (par `anonymize()`) puis bloqué → `POST /api/agencies/{id}/regenerate-watermarks` rend 403 dans les deux cas. Le constat tient. Classement : V2, élargir l'autorisation de ce geste à `AgencyPolicy::configure` est une décision d'autorisation, et le docblock de `RegenerateWatermarksCard.tsx` (l. 31-34) assume aujourd'hui le 403 du co-administrateur, ce qui en fait un choix et non un oubli écrit.
 - Mesure (2026-10-25, ece5a91ea, humain) : validation du porteur en bloc (2026-10-25) sur la re-vérification de la session à c35c20d16 ; statut précédent : « retenu · à valider — V2 : ouvrir le geste à une capacité change une règle d'autorisation que le docblock de la carte assume ».
+- Mesure (2026-10-25, 6d01d7758, implementeur) : reproduit par `RegenerateWatermarksEndpointTest` (co-administrateur du rôle système, qui n'est pas le titulaire : 403 au lieu de 202) → correctif : `RegenerateWatermarksController` juge par `can('configure', $agency)`, comme le logo ; témoins : admin dont le rôle retire `agency.update` et agent qui la tient en 403, admin principal sans la capacité en 202 ; docblocks de `RegenerateWatermarksCard.tsx`, de `lib/queries/agencies.ts` et du test de la carte corrigés ; ablation (contrôleur remis à `pre-dev`) → un rouge, remis → vert (8 tests, et `ConfigurerLAgenceExigeAgencyUpdateTest`).
 
 ### Le titre d'administrateur principal ne se transmet par aucune route, et le blocage d'un compte par la plateforme ne le lit pas
 - Réf : P225.05
-- Statut : validé — validation du porteur (2026-10-25) : aucun geste neuf de transmission du titre ; la limite est écrite dans ADR-0048
+- Statut : fait · TCK-2311
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/Admin/UserLifecycleController.php:39-56,97-101`, `takussan-api/app/Http/Controllers/Api/AgencyController.php:47-69`, `takussan-api/app/Services/Admin/AgencyProvisioningService.php:81`, `takussan-api/app/Services/Onboarding/HostIndividualOnboardingService.php:260`
 - Constat :
@@ -6499,10 +6505,11 @@ sans `delete`).*
   Garde : un test de transmission, et un test de blocage de l'administrateur principal.
 - Mesure (2026-10-24, f249b97f5, mesureur) : `grep -rn primary_admin_id takussan-api/app` → écrit seulement par `AgencyController::store` (l. 61), `AgencyProvisioningService` (l. 81) et `HostIndividualOnboardingService` ; aucune requête de `app/Http/Requests` ne l'accepte (seul `StoreRoleDelegationRequest.php:80` le lit) ; relu `UserLifecycleController::block` (l. 39-56) et `refuserSoiEtOperateur` (l. 97-101) : aucune lecture du titre ; `AccountDeletionService::collectOpenObligations` ne lit pas non plus le titre (le correctif validé de P204.02 n'est pas implémenté). Le constat tient ; le blocage du seul administrateur n'a pas été rejoué. Classement : V7, un geste neuf de transmission et le comportement de `block()` sur un titulaire sont deux choix de produit, et le blocage touche aussi V2.
 - Mesure (2026-10-25, ece5a91ea, humain) : validation du porteur en bloc (2026-10-25) sur la re-vérification de la session à c35c20d16 ; statut précédent : « retenu · à valider — V7 : la piste demande elle-même deux décisions, la transmission du titre et le blocage de son titulaire ».
+- Mesure (2026-10-25, 0fefda6ec, implementeur) : relu `UserLifecycleController::block` (aucune lecture du titre), les trois refus de sortie (`AgencyMemberRemovalService.php:59`, `TeamMemberSuspensionService.php:59`, `UserRoleController.php:111`) et `ErasedAgencyAdmin::settle` (TCK-2166 : le titre passe au plus ancien autre administrateur actif à l'effacement) ; `grep primary_admin_id app` : trois écrivains, après le retrait de `AgencyController::store` (P225.06) → ADR-0048 amendé le 2026-10-25 : aucun geste de transmission, `block()` ne lit pas le titre et c'est voulu (bloquer un titulaire fraudeur), ce qui n'est pas gardé (aucun test n'interdit une route qui accepterait `primary_admin_id`, blocage du seul administrateur non rejoué) ; ligne de `docs/adr/README.md` à jour ; aucun code.
 
 ### `POST /api/agencies` fait de son auteur l'administrateur principal sans lui créer de profil d'administrateur
 - Réf : P225.06
-- Statut : validé — validation du porteur (2026-10-25) : `POST /api/agencies` retiré, les tests passent à la fabrique ou à `AgencyProvisioningService`, un test exige le 404
+- Statut : fait · TCK-2311
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/AgencyController.php:47-69`, `takussan-api/app/Services/Admin/AgencyProvisioningService.php:141`, `takussan-api/app/Services/Onboarding/HostIndividualOnboardingService.php:272`
 - Constat :
@@ -6522,6 +6529,7 @@ sans `delete`).*
 - Mesure (2026-10-24, f249b97f5, mesureur) : relu `AgencyController::store` (l. 47-69, `primary_admin_id` = l'auteur, aucun profil créé) ; sonde temporaire `SondeAngle225Test` (retirée) : compte sans agence, `POST /api/agencies {name}` → 201, 0 `AgencyAdminProfile`, `GET /api/me/capabilities` → `{agency_id: null, capabilities: []}`, `PATCH /api/agencies/{id}` → 200, `GET …/bank-statements` → 403 ; `grep` dans `takussan-web/src` : aucun appel de `POST /api/agencies`. Le constat tient. Classement : V7, la `Piste` offre deux options (créer le profil d'administrateur, ou retirer la route sans appelant), et le choix entre elles revient au porteur.
 - Mesure (2026-10-24, cb7a02353, delegue) : relu l'entrée et la `Mesure` du mesureur, `AgencyController::store` (l. 47-69), P147.07 (`fait · TCK-1279` : la route est gardée, seule la clé `status` retirée) et P91.01 (`fait · TCK-1106`, reste sur le slug de `POST /api/agencies`) ; `grep -rln "postJson('/api/agencies'" takussan-api/tests` → 8 fichiers de test s'en servent pour créer une agence (`AgencyTest`, `AgencySettingsMergeTest`, `PaymentGatewayInitiateTest`, …) ; aucun appel dans `takussan-web/src` ; les voies réelles de création sont la console (`AgencyProvisioningService`) et l'espace hôte (`HostIndividualOnboardingService`), et le passage à l'agence professionnelle a sa demande (TCK-267). Recommandation : retirer la route `POST /api/agencies` (A3 : sans appelant au front ; les 8 tests passent à la factory ou à `AgencyProvisioningService`, et un test exige le 404), plutôt que créer le profil d'administrateur dans `store` : cette voie ferait de tout compte connecté l'administrateur d'une agence qu'il crée seul, capacités comprises, en contournant la console et la demande de passage — un critère V2 que le mesureur n'avait pas nommé ; non validé : la première voie est V2, et le retrait d'une route publique qu'un client direct pourrait appeler revient sur le choix de TCK-1279 de la garder ; manque : l'accord du porteur sur le retrait.
 - Mesure (2026-10-25, ece5a91ea, humain) : validation du porteur en bloc (2026-10-25) sur la re-vérification de la session à c35c20d16 ; statut précédent : « retenu · à valider — V7 : la piste propose deux voies, créer le profil ou retirer la route ».
+- Mesure (2026-10-25, 3d7bda867, implementeur) : `grep` dans `takussan-web/src` : aucun appel de `POST /api/agencies` (la console passe par `/api/admin/agencies`) ; reproduit par `CreationDAgenceRetireeTest` (201 et route enregistrée) → route, `AgencyController::store`, `StoreAgencyRequest` et le code `agency.already_administered` retirés ; 405 et non 404 (2026-10-25, accord de la session) : `GET api/agencies` (la liste) reste sur ce chemin, et Laravel répond 405 à une méthode qu'aucune route du chemin ne porte plus ; le test exige donc 405 (`http.method_not_allowed`), aucune agence créée et `POST api/agencies` absente de la table des routes, ce qui garde l'intention de la décision : la route n'existe plus ; 8 classes de test passées à la fabrique ou à `AgencyProvisioningService`, 2 retirées avec la route (`CreationDAgenceSansStatutTest`, `WelcomeCreditOnAgencyStoreTest`) ; `features.md` § 1.12 et la campagne QA à jour ; ablation (route, contrôleur et requête remis à `pre-dev`) → deux rouges, remis → vert (94 tests sur les 10 classes touchées).
 
 ## Angle 226 — Identifiants de ligne cible reçus du client sur les routes d'écriture
 
@@ -6791,7 +6799,7 @@ sans `delete`).*
 
 ### La pénalité de retard se calcule sur l'échéance lue par le lot, puis s'écrit sous verrou sans être recalculée
 - Réf : P229.05
-- Statut : validé — validation du porteur (2026-10-25) : `compute` et `base` sur la ligne relue sous verrou
+- Statut : fait · TCK-2310
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Lease/LateFeeCalculator.php:127-170,180-185`, `takussan-api/app/Jobs/Lease/ApplyLateFeesJob.php:50-62`
 - Constat :
@@ -6801,10 +6809,11 @@ sans `delete`).*
 - Piste : calculer montant et base depuis la ligne verrouillée (`compute($locked)`), dans la transaction. Garde : paiement partiel posé après la lecture du lot → pénalité sur le restant relu.
 - Mesure (2026-10-24, c2629a2af, mesureur) : relu `LateFeeCalculator.php:127-170` (`compute($payment)` et `base($payment)` sur le modèle du lot, hors transaction ; sous verrou, seuls `late_fee_applied_at` et le statut sont rejugés) ; Test temporaire `tests/Feature/TmpMesureur/TmpSonde229Test.php` (retiré), `XDEBUG_MODE=off php artisan test <fichier>`, PostgreSQL de test, charge 2,85 / 2,61 / 2,67 sur 8 cœurs, geste concurrent joué une fois dans un écouteur `retrieved` sans écouteur : modèle lu, puis ligne passée en base à `partially_paid` avec `paid_amount = 80000`, puis `apply()` → pénalité écrite 5000.00, restant 20000, `compute` sur la ligne relue → 1000. Le constat tient. Classement : V1, le correctif change le montant d'une pénalité écrite.
 - Mesure (2026-10-25, ece5a91ea, humain) : validation du porteur en bloc (2026-10-25) sur la re-vérification de la session à c35c20d16 ; statut précédent : « retenu · à valider — V1 : montant de la pénalité de retard ».
+- Mesure (2026-10-25, d03d8ca43, implementeur) : reproduit par `LateFeeCalculatorTest::test_apply_calcule_montant_et_base_sur_la_ligne_relue_sous_verrou` (loyer `pending` de 100 000 lu, puis passé en base à `partially_paid` avec `paid_amount = 80 000`) : pénalité écrite 5000.0 → correctif : `compute()`, `base()` et le taux relus dans la transaction, journal et événement à la base 20 000 ; ablation (`LateFeeCalculator.php` remis à `pre-dev`) → rouge (5000.0 au lieu de 1000.0), remis → vert, avec `ApplyLateFeesJobTest` (12 tests).
 
 ### Petites améliorations
 - Réf : P229.06
-- Statut : validé — validation du porteur (2026-10-25) : le patron de `renewPeriods` (verrou, critères rejugés, statut de l'agence compris) ; `stop()` rend un booléen additionné par `closeExpired`
+- Statut : fait · TCK-2310
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Billing/AgencySubscriptionService.php:136-162`, `takussan-api/app/Services/Admin/ImpersonationService.php:161-172`
 - Constat :
@@ -6814,6 +6823,7 @@ sans `delete`).*
 - Piste : `processTrialExpirations` sur le modèle de `renewPeriods` ; `stop()` rend un booléen que `closeExpired` additionne.
 - Mesure (2026-10-24, c2629a2af, mesureur) : relu `AgencySubscriptionService.php:136-162` (`find()` hors verrou, seul `status = trialing` rejugé, puis `update`) et `ImpersonationService.php:161-172` (`closeExpired` rend le compte chargé, `stop()` ne rend rien et saute une session déjà fermée, l. 92) ; Test temporaire `tests/Feature/TmpMesureur/TmpSonde229Test.php` (retiré), `XDEBUG_MODE=off php artisan test <fichier>`, PostgreSQL de test, charge 2,85 / 2,61 / 2,67 sur 8 cœurs, geste concurrent joué une fois dans un écouteur `retrieved` : `cancel()` réel joué au `retrieved` de `find()` (l'écouteur saute le `retrieved` de `pluck('id')`, l. 151 : c'est pourquoi le test de l'explorateur n'a rien mesuré) → 1 converti, `status = active`, `ended_at` posé. Les deux parties tiennent, la première est mesurée, la seconde lue. Classement : V1, un essai converti en abonnement actif ouvre la facturation : rejuger tous les critères sous verrou (le modèle de `renewPeriods`) change qui est facturé.
 - Mesure (2026-10-25, ece5a91ea, humain) : validation du porteur en bloc (2026-10-25) sur la re-vérification de la session à c35c20d16 ; statut précédent : « retenu · à valider — V1 : passage d'un essai à l'abonnement facturé ».
+- Mesure (2026-10-25, d03d8ca43, implementeur) : reproduit par `FinDEssaiParStatutDAgenceTest` (agence suspendue, essai prolongé ou fin posée par `DB::listen` juste après la requête qui fige la sélection : 1 converti au lieu de 0) et `ImpersonationLifecycleTest` (`closeExpired` rend 2 au lieu de 1, `stop()` rend `null`) → correctif : une transaction par essai, `lockForUpdate`, `trialing`, `ended_at`, `trial_ends_at` et statut de l'agence rejugés ; `stop()` rend un booléen que `closeExpired` additionne ; ablation critère par critère → un rouge chacun, `closeExpired` au compte chargé → rouge, remis → vert, avec `RenewAgencySubscriptionPeriodsTest` et `BillingPlansTest` (34 tests).
 
 ## Angle 230 — Règles de date relatives au jour de l'API face aux bornes des champs du front
 
@@ -7386,7 +7396,7 @@ base de développement. Les écrans n'ont pas été joués.*
 
 ### Valider son numéro à la publication enregistre le code, mais le choix WhatsApp refusé par l'API est perdu sous un message de succès
 - Réf : P237.02
-- Statut : retenu · autonome
+- Statut : fait · TCK-2361
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/contact/CoordonneesPublication.tsx:145-159`, `:107`, `:161-167`
 - Constat :
@@ -7396,6 +7406,7 @@ base de développement. Les écrans n'ont pas été joués.*
   - Établi comment : lu.
 - Piste : sur `!w.ok`, dire le refus avec le message de l'action, comme l. 166, et garder « numéro vérifié » pour la première moitié. Garde : un test du bloc où `updateContactPreferencesAction` rend `ok: false` après un code accepté → le message d'échec s'affiche.
 - Mesure (2026-10-25, db3e25230, mesureur) : relu `CoordonneesPublication.tsx:145-159` (`if (w.ok) setUser(w.user);` sans `else`, puis `setRetour({ ok: true, message: t('phoneVerified') })`) et `:161-167` (`repondreWhatsApp` dit l'échec), puis lancé un test vitest temporaire du bloc : code accepté, `updateContactPreferencesAction` rend `{ ok: false, message: 'REFUS-WHATSAPP' }` → seul « Numéro vérifié. » s'affiche, le message de refus n'apparaît pas. Le constat tient. Classement : A1, le comportement attendu est déjà écrit dans le geste voisin `repondreWhatsApp` (l. 166), et la correction réutilise le message que rend l'action, sans texte neuf.
+- Mesure (2026-10-25, 8d1afa650, implementeur) : reproduit avant correctif par `CoordonneesPublication.whatsapp-refuse.p237-02.test.tsx` (code accepté, `updateContactPreferencesAction` rend `{ ok: false, message: 'REFUS-WHATSAPP' }` → aucune alerte, seul « Numéro vérifié. ») ; correctif : `verifierCode` garde « Numéro vérifié. » en statut et dit le refus en alerte avec le message de l'action (champ `refus` du retour), sans texte neuf. Ablation : correctif retiré → le test du refus rougit ; remis → 2/2 verts, et les 49 tests de `src/components/contact/__tests__/` verts.
 
 ### Une photo de bien envoyée, dont la relecture échoue, est marquée « envoyée » sans paraître dans la grille
 - Réf : P237.03
@@ -7708,7 +7719,7 @@ Le seul passage restant est `CustomerService::findOrCreateFromUser`, dans la ré
 
 ### Le retour arrière du retrait d'un favori depuis le menu (TCK-2214) est un rappel de l'appel `mutate()` : il ne joue pas une fois le menu fermé, ni pour un retrait suivi d'un autre
 - Réf : P243.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-2361
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/favorites/FavoritesPopover.tsx:150-166`, `:117`, `takussan-web/src/components/ui/popover.tsx:46-71`, `takussan-web/src/lib/favoritesStore.ts:6`, `:62-72`, `takussan-web/src/hooks/useFavorite.ts:47-56`, `takussan-web/package.json:20`
 - Constat :
@@ -7720,6 +7731,7 @@ Le seul passage restant est `CustomerService::findOrCreateFromUser`, dans la ré
   - Établi comment : lu ; l'effet est à vérifier par un test.
 - Piste : le patron de `useFavorite` (`mutateAsync` et `catch`), ou le retour arrière dans l'`onError` du crochet, qui reçoit `variables`. Garde : un test du menu avec deux retraits refusés → les deux biens reviennent ; menu démonté avant le refus → le bien revient.
 - Mesure (2026-10-25, db3e25230, mesureur) : relu `FavoritesPopover.tsx:150-166` (`removeMutation.mutate(…, { onError: () => storeAdd(id) })` dans `PopoverBody`). Le test existant `FavoritesPopover.retrait-refuse.p228-03.test.tsx` simule `mutate` en entier, donc il ne voit pas ce défaut. J'ai lancé un test vitest temporaire avec le vrai `useRemoveFavoriteMutation` (TanStack Query 5.101.4, lu `node_modules/@tanstack/react-query/package.json`) et `apiRequest` retenu puis rejeté en 500 → deux retraits (624 puis 625) refusés ensemble ne remettent que `[625]`, et un retrait refusé après la fermeture du menu par Échap ne remet rien (le store reste `[625]`). Les deux effets « à vérifier » sont établis. Classement : A1, le contrat est écrit par TCK-2214 (P228.03 : un refus de l'API remet le bien dans le store), sans aucun texte ni choix de produit.
+- Mesure (2026-10-25, 8d1afa650, implementeur) : reproduit avant correctif par `FavoritesPopover.retrait-refuse.p243-01.test.tsx`, avec le vrai `useRemoveFavoriteMutation` et `apiRequest` retenu puis refusé en 500 → deux retraits refusés rendent `[625]` au lieu de `[624, 625]`, et un retrait refusé menu fermé par Échap laisse `[625]` sans 624 ; correctif : `mutateAsync(…).catch(() => storeAdd(id))`, le patron de `useFavorite`, et le test P228.03 double désormais `mutateAsync`. Ablation : correctif retiré → les deux tests rougissent ; remis → 10/10 verts sur les trois fichiers `FavoritesPopover.*`.
 
 ### Petites améliorations
 - Réf : P243.02
@@ -7739,7 +7751,7 @@ Le seul passage restant est `CustomerService::findOrCreateFromUser`, dans la ré
 
 ### Le motif d'un passage en « converti » ou « perdu » est perdu quand l'API refuse : le dialogue se ferme avant la réponse, et le champ ne porte pas la borne de 5 000 caractères
 - Réf : P244.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-2361
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/pipeline/ReasonDialog.tsx:39-55`, `:81-87`, `:96`, `takussan-web/src/components/pipeline/PipelineKanban.tsx:211-226`, `:328-337`, `takussan-web/src/components/crm/CustomerStageControl.tsx:35-42`, `:66-77`, `takussan-api/app/Http/Requests/Api/UpdatePipelineStageCustomerRequest.php:29-40`, `takussan-api/app/Http/Controllers/Api/CustomerController.php:276-278`
 - Constat :
@@ -7750,6 +7762,7 @@ Le seul passage restant est `CustomerService::findOrCreateFromUser`, dans la ré
   - Établi comment : lu, front et API.
 - Piste : le patron de TCK-2212 : fermer le dialogue dans `onSuccess` (rappel passé à `onSubmit`, ou `mutateAsync` attendu), garder le motif sur un refus et y afficher l'erreur, et poser `maxLength={5000}` sur le `Textarea`. Garde : un test du tableau et un test de la fiche où la mutation rejette en 422 → le dialogue reste ouvert avec le motif ; `maxLength=5000`.
 - Mesure (2026-10-25, db3e25230, mesureur) : relu `ReasonDialog.tsx:39-55,81-87,96` (le `Textarea` n'a pas de `maxLength`), `PipelineKanban.tsx:331-336` (`runStageMutation` puis `setPendingReason(null)` dans le même gestionnaire) et `CustomerStageControl.tsx:72-76` (`mutation.mutate` puis `setPending(null)`), tous inchangés depuis TCK-2093 ; `UpdatePipelineStageCustomerRequest.php:39` (`max:5000`) ; test vitest temporaire (retiré), `CustomerStageControl` avec un `patchCustomerPipelineStage` qui rejette en `ApiError(422)` → `maxlength` = `null`, alerte « Le motif est trop long. » affichée, `reason-input` absent et le texte saisi « Budget insuffisant » introuvable dans le document → le constat tient. Classement : A1, la borne est écrite dans le contrat de l'API et le rendu de l'erreur par ADR-0019, sur le patron de TCK-2212 (P228.02, classé A1). Aucun texte neuf : les messages d'erreur existent déjà.
+- Mesure (2026-10-25, 8d1afa650, implementeur) : reproduit avant correctif par `CustomerStageControl.motif-refuse.p244-01.test.tsx` et `PipelineKanban.motif-refuse.p244-01.test.tsx` (refus en `ApiError(422)` → dialogue introuvable, motif perdu ; `maxlength` absent) ; correctif : `ReasonDialog` porte `maxLength={5000}`, dit `erreur` en alerte et désactive la confirmation `enCours`, et la fiche comme le tableau ferment le dialogue dans le `onSuccess` de l'appel, en remettant la mutation à zéro à l'ouverture. Ablation : les trois fichiers retirés → 3 tests rouges (borne, refus dans la fiche, refus dans le tableau) ; remis → 23/23 verts dans `pipeline/__tests__` et `CustomerStageControl*`. Le toast du tableau reste aussi sur un refus venu du dialogue (non retiré, choix conservateur).
 
 ## Angle 245 — Colonnes JSON recomposées depuis le modèle chargé puis réécrites en entier
 

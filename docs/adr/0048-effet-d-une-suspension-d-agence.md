@@ -1,7 +1,8 @@
 # ADR-0048 — Une agence suspendue disparaît du site et ne s'écrit plus ; ses locataires paient encore
 
-- **Statut** : Accepté, **amendé le 2026-10-22 et le 2026-10-24** (cf. § *Amendement du 2026-10-24 —
-  l'effacement du dernier administrateur*)
+- **Statut** : Accepté, **amendé le 2026-10-22, le 2026-10-24 et le 2026-10-25** (cf. § *Amendement
+  du 2026-10-24 — l'effacement du dernier administrateur* et § *Amendement du 2026-10-25 — le titre
+  d'administrateur principal ne se transmet par aucun geste*)
 - **Date** : 2026-10-08
 - **Tickets** : [TCK-600](../backlog/tickets/TCK-600-console-plateforme-gouvernance-et-exploitation.md)
 
@@ -302,3 +303,63 @@ Décision du porteur du 2026-10-24 sur P204.02, option b (angle 204 du fichier d
     non converti (amendement du 2026-10-22), loyers qui courent (§ 5) ;
   - **le retour à `active`** passe par la console, comme pour toute agence `inactive`
     (`verify`, qui exige un dossier KYC vérifié).
+
+## Amendement du 2026-10-25 — le titre d'administrateur principal ne se transmet par aucun geste
+
+Décision du porteur du 2026-10-25 sur P225.05 (angle 225 du fichier de pistes,
+`docs/plans/2026-10-15-pistes-d-amelioration.md`) : « aucun geste neuf de transmission du titre ;
+la limite est écrite dans ADR-0048 ». Prise avec P225.04 et P225.06, livrées par le même ticket
+([TCK-2311](../backlog/tickets/TCK-2311-titre-d-administrateur-principal.md)). Relevé sur
+`b4d905cd3`.
+
+**Constat.**
+
+- **`primary_admin_id` s'écrit en trois endroits** :
+  - au provisionnement par la console (`AgencyProvisioningService.php:81`) ;
+  - à la création de l'espace hôte (`HostIndividualOnboardingService.php:260`) ;
+  - à l'exécution de l'effacement du titulaire, au profit du plus ancien autre administrateur
+    actif (`ErasedAgencyAdmin::settle`, point 2 de l'amendement du 2026-10-24, TCK-2166).
+
+  Le quatrième écrivain que citait l'amendement du 2026-10-24, `AgencyController::store`
+  (`POST /api/agencies`), est **retiré** par TCK-2311 (P225.06). Aucune requête de
+  `app/Http/Requests` n'accepte `primary_admin_id`, et aucune route de la console ne modifie une
+  agence.
+- **Les trois sorties du personnel refusent le titulaire** : le retrait
+  (`agency_member.cannot_remove_primary_admin`, `AgencyMemberRemovalService.php:59`), la
+  suspension (`team.suspension_primary_admin`, `TeamMemberSuspensionService.php:59`) et la
+  rétrogradation (`user.role_primary_admin`, `UserRoleController.php:111`).
+- **Le blocage par la plateforme ne lit pas le titre.** `UserLifecycleController::block` ne refuse
+  que de se bloquer soi-même ou de bloquer un opérateur (`refuserSoiEtOperateur`), puis bloque le
+  compte et retire ses jetons. L'agence garde pour titulaire un compte sans session.
+- **Depuis TCK-2311 (P225.04), aucun geste d'agence n'est réservé au seul titre.** La régénération
+  des filigranes, le dernier, est jugée par `AgencyPolicy::configure`, comme le logo. Partout
+  ailleurs, le titre est un court-circuit doublé par une capacité : `AgencyPolicy` (`update`,
+  `configure`, `removeMember`, `changeMemberRole`, `updateKyc`), `AgencyIndicatorPolicy`,
+  `InvitationPolicy`, `MediaPolicy::viewRaw`, `BankStatementPolicy`, `RoleDelegationPolicy`. Un
+  autre administrateur qui tient la capacité fait donc le geste sans le titulaire. Le titre sert
+  encore de garde de séparation (`PlatformPayoutService::assertNotBeneficiary` par
+  `SegregationOfDuties`, `StoreRoleDelegationRequest.php:80`), et de destinataire parmi d'autres.
+
+**Décision.**
+
+1. **Aucun geste neuf ne transmet le titre**, ni à la console, ni à l'administrateur principal.
+   Le titre ne change qu'aux trois écritures du constat. Un administrateur principal qui veut
+   quitter l'agence sans effacer son compte n'a pas de chemin : c'est la **limite acceptée**.
+2. **`block()` ne lit pas le titre, et c'est voulu.** La plateforme doit pouvoir bloquer un
+   titulaire fraudeur sans condition. Bloquer le titulaire ne transmet rien et ne change pas le
+   statut de l'agence. Ses autres administrateurs gardent les gestes d'administration par leurs
+   capacités.
+
+**Ce qui n'est pas gardé.**
+
+- Aucun test n'exige qu'aucune requête n'accepte `primary_admin_id` : une route neuve qui
+  l'accepterait ouvrirait la transmission sans amender cet ADR.
+- Le blocage du **seul** administrateur d'une agence n'a pas été rejoué. L'agence n'a alors plus
+  personne pour l'administrer. Rien ne la passe `inactive`, et rien ne prévient la plateforme.
+  Le remède existe par la console, sans geste neuf (déduit, non rejoué) :
+  - réactiver le compte ;
+  - ou effacer le compte (`UserLifecycleController::erase`). À l'exécution, l'effacement applique
+    les points 1 et 2 de l'amendement du 2026-10-24.
+- Un geste de transmission par la console seule, journalisé (`primary_admin_id` est déjà dans
+  `Agency::AUDIT_ONLY`), reste la voie si un cas réel se présente. Il demanderait son propre
+  amendement de cet ADR.
