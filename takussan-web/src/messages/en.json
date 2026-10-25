@@ -3772,7 +3772,8 @@
         "submit": "Confirm refund",
         "submitting": "Submitting…",
         "file_too_large": "File too large ({max} MB max): {files}",
-        "max_files": "Maximum {max} files."
+        "max_files": "Maximum {max} files.",
+        "total_too_large": "Together, these files exceed {max} MB: remove some or use lighter files."
       },
       "error_generic": "Refund failed, please retry."
     },
@@ -4313,6 +4314,7 @@
         "max_files": "Maximum {max} files.",
         "file_type_refused": "File type refused (PDF, JPG, PNG or WEBP only): {files}",
         "file_too_large": "File too large ({max} MB max): {files}",
+        "total_too_large": "Together, these files exceed {max} MB: remove some or use lighter files.",
         "incomplete": "Each line needs a description, a quantity and a price, and the quote a validity date.",
         "failed": "The quote was not sent.",
         "submitting": "Sending…",

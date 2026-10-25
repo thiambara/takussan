@@ -3743,7 +3743,8 @@
         "submit": "Confirmer le remboursement",
         "submitting": "Envoi en cours…",
         "file_too_large": "Fichier trop lourd ({max} Mo au plus) : {files}",
-        "max_files": "Maximum {max} fichiers."
+        "max_files": "Maximum {max} fichiers.",
+        "total_too_large": "Ces pièces dépassent {max} Mo à elles toutes : retirez-en ou allégez-les."
       },
       "error_generic": "Le remboursement a échoué, réessayez."
     },
@@ -4284,6 +4285,7 @@
         "max_files": "Maximum {max} fichiers.",
         "file_type_refused": "Type de fichier refusé (PDF, JPG, PNG ou WEBP seulement) : {files}",
         "file_too_large": "Fichier trop lourd ({max} Mo au plus) : {files}",
+        "total_too_large": "Ces pièces dépassent {max} Mo à elles toutes : retirez-en ou allégez-les.",
         "incomplete": "Chaque ligne doit avoir une désignation, une quantité et un prix, et le devis une date de validité.",
         "failed": "Le devis n'a pas été envoyé.",
         "submitting": "Envoi…",
