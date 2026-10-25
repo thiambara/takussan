@@ -1,13 +1,13 @@
 ---
 id: TCK-997
 title: "Le bailleur se désigne à la saisie du bien : le bail, les reversements, le relevé, la copie et le lot le suivent (P15.06, P50.01 à P50.03)"
-status: todo
+status: doing
 phase: P1
 family: applicatif
 estimate: L
 wave: null
 created: 2026-10-19
-updated: 2026-10-19
+updated: 2026-10-25
 depends_on: []
 blocks: [TCK-999, TCK-1000]
 spec_refs:
@@ -73,6 +73,15 @@ Ce que la session en a tiré (ADR-0036, amendement) : le rattachement d'un lot *
 personnel** sous le bien d'un bailleur est refusé aussi (422), puisqu'il ne peut plus réécrire le
 titulaire ; le lot passe d'abord par « changer le titulaire » (TCK-999).
 
+## Validation du porteur (2026-10-25)
+
+Recopiée mot pour mot du statut de chaque piste :
+
+- P15.06 : validation du porteur (2026-10-25) : décisions 1a à 6a du porteur (2026-10-19), consignées dans TCK-997, TCK-999 et TCK-1000, V1 et V7 accordés ; les biens déjà saisis ne changent pas de titulaire en silence au déploiement
+- P50.01, P50.02 et P50.03 : validation du porteur (2026-10-25) : TCK-997 tel qu'écrit (décisions 1a à 6a du porteur, 2026-10-19), V1 accordé
+- P232.07 : validation du porteur (2026-10-25) : dans le prédicat unique de bénéficiaire de TCK-997, la branche du personnel exige un profil actif ; la branche du bailleur garde l'appartenance
+- P232.05 (sa seconde moitié, la première relevant d'un autre lot) : validation du porteur (2026-10-25) : les deux clauses de baux de l'effacement bornées par `BailleurDuBien` ; `agenciesOwingPayout` aligné sur le prédicat de bénéficiaire de P232.07 (TCK-997)
+
 ## Contraintes strictes (métier)
 
 - **Le titulaire se juge côté API** : un bailleur `active` de l'agence du bien, sinon 422 et aucun
@@ -96,22 +105,22 @@ titulaire ; le lot passe d'abord par « changer le titulaire » (TCK-999).
 
 Lot A — désignation, bail, copie et lot :
 
-- [ ] `StorePropertyRequest` : champ facultatif `owner_id` (identifiant d'utilisateur), validé par
+- [x] `StorePropertyRequest` : champ facultatif `owner_id` (identifiant d'utilisateur), validé par
   une règle qui exige un `OwnerProfile` `active` de l'agence du bien ; champ `parent_id` ouvert à
   la création, jugé par `PropertyPolicy::updateParent` comme à la mise à jour ; codes
   `property.owner_not_in_agency` et `property.owner_designation_forbidden`.
-- [ ] `PropertyController::store` : `user_id` = `owner_id` validé, sinon le titulaire du parent
+- [x] `PropertyController::store` : `user_id` = `owner_id` validé, sinon le titulaire du parent
   quand c'est un bailleur de l'agence (lot), sinon l'auteur ; un `owner_id` différent du titulaire
   bailleur du parent → 422 ; refus pour une proposition et pour une agence `individual` ;
   journalisation `owner_designated` ; notification `property.assigned_to_owner` au bailleur.
-- [ ] `PropertyController::update` (`parent_id`) : 422 `property.parent_owner_mismatch` quand le
+- [x] `PropertyController::update` (`parent_id`) : 422 `property.parent_owner_mismatch` quand le
   parent a un bailleur pour titulaire et que le lot en a un autre (bailleur ou personnel) ;
   `user_id` jamais réécrit.
-- [ ] `PropertyDuplicationService` : la copie prend le titulaire de la source quand c'est un
+- [x] `PropertyDuplicationService` : la copie prend le titulaire de la source quand c'est un
   bailleur de l'agence de la source (notification comme à la saisie), sinon l'acteur.
-- [ ] `NotificationCode::PropertyAssignedToOwner`, ses textes `fr` et `en`, `wo` = texte français
+- [x] `NotificationCode::PropertyAssignedToOwner`, ses textes `fr` et `en`, `wo` = texte français
   (wolof en pause), canaux comme `owner_statement.available`.
-- [ ] Tests : `PropertyOwnerDesignationTest` (AC1 à AC4, AC9, AC10), `PropertyDuplicationOwnerTest`
+- [x] Tests : `PropertyOwnerDesignationTest` (AC1 à AC4, AC9, AC10), `PropertyDuplicationOwnerTest`
   (AC6), `PropertyChildOwnerTest` (AC7).
 
 Lot B — le relevé suit le reversement (Q1) :
@@ -120,6 +129,9 @@ Lot B — le relevé suit le reversement (Q1) :
   `OwnerStatementPolicy::view` et `SendOwnerStatements`.
 - [ ] Test `OwnerStatementBeneficiaryTest` : pour un même bien, le bénéficiaire du reversement est
   le lecteur du relevé et le destinataire de l'avis (AC5, AC8).
+- [ ] P232.07 (porteur, 2026-10-25) : « dans le prédicat unique de bénéficiaire de TCK-997, la branche du personnel exige un profil actif ; la branche du bailleur garde l'appartenance ».
+- [ ] Le reste de P232.05 (porteur, 2026-10-25) : « `agenciesOwingPayout` aligné sur le prédicat de bénéficiaire de P232.07 (TCK-997) ». Dans `AccountDeletionService` ; `collectOpenObligations` n'est pas touchée ici (lot D1).
+- [ ] Contrainte de P15.06 (porteur, 2026-10-25) : « les biens déjà saisis ne changent pas de titulaire en silence au déploiement ». Aucune migration de données ne réécrit `user_id`.
 
 Lot C — écrans :
 
