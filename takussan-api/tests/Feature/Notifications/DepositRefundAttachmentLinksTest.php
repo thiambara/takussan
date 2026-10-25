@@ -31,7 +31,7 @@ class DepositRefundAttachmentLinksTest extends TestCase
         $tenant = User::factory()->create();
         $customer = Customer::factory()->create(['user_id' => $tenant->id]);
         $landlord = User::factory()->create();
-        $lease = Lease::factory()->withCollectedDeposit()->create([
+        $lease = Lease::factory()->create([
             'landlord_id' => $landlord->id,
             'tenant_id' => $customer->id,
             'status' => LeaseStatus::Terminated,

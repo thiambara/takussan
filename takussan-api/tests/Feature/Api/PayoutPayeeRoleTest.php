@@ -29,7 +29,6 @@ class PayoutPayeeRoleTest extends TestCase
         $landlord = $this->landlordOf($agency);
         $lease = $this->leaseOf($agency, $landlord);
         $lease->forceFill(['status' => LeaseStatus::Terminated, 'deposit_amount' => 400_000])->save();
-        $this->leasePayment($lease, (float) $lease->deposit_amount, LeasePaymentType::Deposit);
         $admin = $this->agencyAdmin($agency);
 
         $refund = app(DepositRefundService::class)->refund($lease->fresh(), $admin, ['amount' => 400_000])['payout'];

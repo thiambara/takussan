@@ -3,7 +3,6 @@
 namespace Tests\Unit\Services;
 
 use App\Events\Lease\LeaseDepositRefunded;
-use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\LeaseType;
 use App\Models\Enums\PaymentFrequency;
@@ -120,7 +119,7 @@ class DepositRefundServiceTest extends TestCase
 
         $this->assertAborts422(fn () => $this->service->refund($lease->fresh(), $this->issuer, ['amount' => 200000]));
         $this->assertSame(400000.0, (float) $lease->fresh()->deposit_refunded_amount);
-        $this->assertSame(1, LeasePayment::query()->where('lease_id', $lease->id)->where('payment_type', LeasePaymentType::DepositRefund)->count());
+        $this->assertSame(1, LeasePayment::query()->where('lease_id', $lease->id)->count());
     }
 
     public function test_refund_writes_activity_log_entry(): void
@@ -160,7 +159,7 @@ class DepositRefundServiceTest extends TestCase
     /** @param array<string,mixed> $overrides */
     protected function lease(array $overrides = []): Lease
     {
-        return Lease::factory()->withCollectedDeposit()->create(array_merge([
+        return Lease::factory()->create(array_merge([
             'landlord_id' => $this->issuer->id,
             'agency_id' => $this->issuer->agency_id,
             'type' => LeaseType::ResidentialRent,

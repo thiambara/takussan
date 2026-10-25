@@ -73,10 +73,6 @@ class DepositRefundService
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            // TCK-2340 (P04.10) — une caution jamais encaissée ne se rend pas : le reste la borne
-            // (`Lease::collectedDeposit`), et le refus le dit plutôt que « déjà remboursée ».
-            abort_code_if($lease->collectedDeposit() <= 0, 422, 'deposit_refund.not_collected');
-
             $remaining = (float) $lease->deposit_remaining;
             abort_code_if($remaining <= 0, 422, 'deposit_refund.already_refunded');
             abort_code_if(

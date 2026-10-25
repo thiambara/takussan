@@ -35,7 +35,7 @@ class LeaseDepositRefundNotificationTest extends TestCase
             'user_id' => $tenantUser->id,
         ]);
         $landlord = User::factory()->create();
-        $lease = Lease::factory()->withCollectedDeposit()->create([
+        $lease = Lease::factory()->create([
             'landlord_id' => $landlord->id,
             'tenant_id' => $tenantCustomer->id,
             'status' => LeaseStatus::Terminated,
@@ -70,7 +70,7 @@ class LeaseDepositRefundNotificationTest extends TestCase
 
         $tenantCustomer = Customer::factory()->create(['user_id' => null]);
         $landlord = User::factory()->create();
-        $lease = Lease::factory()->withCollectedDeposit()->create([
+        $lease = Lease::factory()->create([
             'landlord_id' => $landlord->id,
             'tenant_id' => $tenantCustomer->id,
             'status' => LeaseStatus::Terminated,
