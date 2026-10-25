@@ -6123,7 +6123,7 @@ les envoie.*
 
 ### La désactivation et la connexion à deux facteurs passent `two_factor_secret` sans contrôler qu'il existe : un compte « 2FA active, secret nul » rendrait 500
 - Réf : P221.01
-- Statut : validé — validation du porteur (2026-10-25) : `verifyCodeForUser` rend faux pour un secret nul ou vide (échec fermé), ce qui corrige les six sites ; pas de contrainte en base
+- Statut : fait · TCK-2305
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Auth/TwoFactorService.php:106`, `takussan-api/app/Http/Controllers/Api/Auth/TwoFactorController.php:127,141-145`, `takussan-api/app/Http/Controllers/Api/Auth/AuthController.php:99,114-118`
 - Constat :
@@ -6134,6 +6134,7 @@ les envoie.*
 - Piste : traiter `enabled` sans secret comme « 2FA non configurée » aux deux appels, comme le fait déjà `TwoFactorController.php:95` (refus 422 `two_factor.not_enabled` à la désactivation, code refusé à la connexion), ou faire porter le contrôle par `verifyCodeForUser` en typant le secret `?string` et en rendant `false`. Test : utilisateur `two_factor_enabled = true`, `two_factor_secret = null`, `POST` de désactivation avec un code, puis connexion avec `two_factor_code` → pas de 500.
 - Mesure (2026-10-24, cb411bbe7, mesureur) : relu `TwoFactorService.php:106` (`string $secret`, aucun `strict_types`), `TwoFactorController.php:128,141-145` et `AuthController.php:99,114-118` (secret passé tel quel), `:95` (seul contrôle `!== null`), `UserFactory.php:119-120` (la fabrique pose un secret non nul), inchangés ; `git log -S` et `grep` des tickets → rien ne l'a traité ; test PHPUnit temporaire (retiré, charge 2,48 / 2,01 / 1,96 sur 8 cœurs), utilisateur `two_factor_enabled = true`, `two_factor_secret = null` → `POST /api/auth/two-factor/disable` avec `code` et `POST /api/auth/login` avec `two_factor_code` rendent tous deux 500, `TypeError` « Argument #2 ($secret) must be of type string, null given » (l. 141) → le constat tient, latent puisqu'aucun écrivain connu ne produit la ligne. Classement : V2, le correctif fixe ce que la connexion et la désactivation de la 2FA répondent à ce compte (refus du code, repli sur le code de secours, 422), et la piste propose deux options.
 - Mesure (2026-10-25, ece5a91ea, humain) : validation du porteur en bloc (2026-10-25) sur la re-vérification de la session à c35c20d16 ; statut précédent : « retenu · à valider — V2 : la réponse à « 2FA active, secret nul » se décide à la connexion et à la désactivation de la 2FA ».
+- Mesure (2026-10-25, ad6989ae8, implementeur) : avant correctif, un compte « 2FA active » au secret nul ou vide rendait 500 sur les six sites (`TypeError` pour le nul à la désactivation et à la connexion, `SecretKeyTooShortException` ailleurs) : `SecretAbsentTest`, 12 rouges ; `verifyCodeForUser` prend un `?string` et rend faux pour un secret nul ou vide → désactivation 422, step-up 422, connexion 401 et code de secours 200, téléphone 401, défi OAuth 401, suppression 422 ; voisins verts (66) ; ablation : la garde retirée → 12 rouges, remise → 12 verts.
 
 ## Angle 222 — Photos et pièces téléversées hors de `MediaManager` et `MediaDropzone`
 
