@@ -6761,7 +6761,7 @@ sans `delete`).*
 
 ### La pénalité de retard se calcule sur l'échéance lue par le lot, puis s'écrit sous verrou sans être recalculée
 - Réf : P229.05
-- Statut : validé — validation du porteur (2026-10-25) : `compute` et `base` sur la ligne relue sous verrou
+- Statut : fait · TCK-2310
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Lease/LateFeeCalculator.php:127-170,180-185`, `takussan-api/app/Jobs/Lease/ApplyLateFeesJob.php:50-62`
 - Constat :
@@ -6771,10 +6771,11 @@ sans `delete`).*
 - Piste : calculer montant et base depuis la ligne verrouillée (`compute($locked)`), dans la transaction. Garde : paiement partiel posé après la lecture du lot → pénalité sur le restant relu.
 - Mesure (2026-10-24, c2629a2af, mesureur) : relu `LateFeeCalculator.php:127-170` (`compute($payment)` et `base($payment)` sur le modèle du lot, hors transaction ; sous verrou, seuls `late_fee_applied_at` et le statut sont rejugés) ; Test temporaire `tests/Feature/TmpMesureur/TmpSonde229Test.php` (retiré), `XDEBUG_MODE=off php artisan test <fichier>`, PostgreSQL de test, charge 2,85 / 2,61 / 2,67 sur 8 cœurs, geste concurrent joué une fois dans un écouteur `retrieved` sans écouteur : modèle lu, puis ligne passée en base à `partially_paid` avec `paid_amount = 80000`, puis `apply()` → pénalité écrite 5000.00, restant 20000, `compute` sur la ligne relue → 1000. Le constat tient. Classement : V1, le correctif change le montant d'une pénalité écrite.
 - Mesure (2026-10-25, ece5a91ea, humain) : validation du porteur en bloc (2026-10-25) sur la re-vérification de la session à c35c20d16 ; statut précédent : « retenu · à valider — V1 : montant de la pénalité de retard ».
+- Mesure (2026-10-25, d03d8ca43, implementeur) : reproduit par `LateFeeCalculatorTest::test_apply_calcule_montant_et_base_sur_la_ligne_relue_sous_verrou` (loyer `pending` de 100 000 lu, puis passé en base à `partially_paid` avec `paid_amount = 80 000`) : pénalité écrite 5000.0 → correctif : `compute()`, `base()` et le taux relus dans la transaction, journal et événement à la base 20 000 ; ablation (`LateFeeCalculator.php` remis à `pre-dev`) → rouge (5000.0 au lieu de 1000.0), remis → vert, avec `ApplyLateFeesJobTest` (12 tests).
 
 ### Petites améliorations
 - Réf : P229.06
-- Statut : validé — validation du porteur (2026-10-25) : le patron de `renewPeriods` (verrou, critères rejugés, statut de l'agence compris) ; `stop()` rend un booléen additionné par `closeExpired`
+- Statut : fait · TCK-2310
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Billing/AgencySubscriptionService.php:136-162`, `takussan-api/app/Services/Admin/ImpersonationService.php:161-172`
 - Constat :
@@ -6784,6 +6785,7 @@ sans `delete`).*
 - Piste : `processTrialExpirations` sur le modèle de `renewPeriods` ; `stop()` rend un booléen que `closeExpired` additionne.
 - Mesure (2026-10-24, c2629a2af, mesureur) : relu `AgencySubscriptionService.php:136-162` (`find()` hors verrou, seul `status = trialing` rejugé, puis `update`) et `ImpersonationService.php:161-172` (`closeExpired` rend le compte chargé, `stop()` ne rend rien et saute une session déjà fermée, l. 92) ; Test temporaire `tests/Feature/TmpMesureur/TmpSonde229Test.php` (retiré), `XDEBUG_MODE=off php artisan test <fichier>`, PostgreSQL de test, charge 2,85 / 2,61 / 2,67 sur 8 cœurs, geste concurrent joué une fois dans un écouteur `retrieved` : `cancel()` réel joué au `retrieved` de `find()` (l'écouteur saute le `retrieved` de `pluck('id')`, l. 151 : c'est pourquoi le test de l'explorateur n'a rien mesuré) → 1 converti, `status = active`, `ended_at` posé. Les deux parties tiennent, la première est mesurée, la seconde lue. Classement : V1, un essai converti en abonnement actif ouvre la facturation : rejuger tous les critères sous verrou (le modèle de `renewPeriods`) change qui est facturé.
 - Mesure (2026-10-25, ece5a91ea, humain) : validation du porteur en bloc (2026-10-25) sur la re-vérification de la session à c35c20d16 ; statut précédent : « retenu · à valider — V1 : passage d'un essai à l'abonnement facturé ».
+- Mesure (2026-10-25, d03d8ca43, implementeur) : reproduit par `FinDEssaiParStatutDAgenceTest` (agence suspendue, essai prolongé ou fin posée par `DB::listen` juste après la requête qui fige la sélection : 1 converti au lieu de 0) et `ImpersonationLifecycleTest` (`closeExpired` rend 2 au lieu de 1, `stop()` rend `null`) → correctif : une transaction par essai, `lockForUpdate`, `trialing`, `ended_at`, `trial_ends_at` et statut de l'agence rejugés ; `stop()` rend un booléen que `closeExpired` additionne ; ablation critère par critère → un rouge chacun, `closeExpired` au compte chargé → rouge, remis → vert, avec `RenewAgencySubscriptionPeriodsTest` et `BillingPlansTest` (34 tests).
 
 ## Angle 230 — Règles de date relatives au jour de l'API face aux bornes des champs du front
 
