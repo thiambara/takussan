@@ -109,24 +109,32 @@ class AgencyController extends Controller
         // autres (un filigrane désactivé revenait à son défaut). Une clé envoyée à `null` est
         // retirée, donc rendue au défaut écrit dans le code. TCK-589 en dépend aussi : poser
         // `require_team_two_factor` seul n'efface pas les autres réglages.
-        if (array_key_exists('settings', $data)) {
-            $data['settings'] = array_filter(
-                array_replace($agency->settings ?? [], $data['settings']),
-                fn ($value) => $value !== null,
-            );
-        }
+        //
+        // P245.04 (TCK-2362) — la fusion se fait sur la ligne RELUE sous verrou : faite sur l'agence
+        // liée à la route, elle effaçait le réglage qu'un autre administrateur venait d'enregistrer.
+        DB::transaction(function () use ($agency, $data): void {
+            /** @var Agency $locked */
+            $locked = Agency::query()->whereKey($agency->getKey())->lockForUpdate()->firstOrFail();
 
-        // TCK-1004 (P49.04) — le changement unique du slug se marque ; renvoyer le slug courant
-        // (le formulaire le fait) ne le consomme pas.
-        if (array_key_exists('slug', $data)) {
-            if ($data['slug'] === $agency->slug) {
-                unset($data['slug']);
-            } else {
-                $agency->metadata = array_replace($agency->metadata ?? [], [Agency::SLUG_CHANGED_AT => $this->instant(now())]);
+            if (array_key_exists('settings', $data)) {
+                $data['settings'] = array_filter(
+                    array_replace($locked->settings ?? [], $data['settings']),
+                    fn ($value) => $value !== null,
+                );
             }
-        }
 
-        $agency->fill($data)->save();
+            // TCK-1004 (P49.04) — le changement unique du slug se marque ; renvoyer le slug courant
+            // (le formulaire le fait) ne le consomme pas.
+            if (array_key_exists('slug', $data)) {
+                if ($data['slug'] === $locked->slug) {
+                    unset($data['slug']);
+                } else {
+                    $locked->metadata = array_replace($locked->metadata ?? [], [Agency::SLUG_CHANGED_AT => $this->instant(now())]);
+                }
+            }
+
+            $locked->fill($data)->save();
+        });
 
         return $this->json(
             ['data' => AgencyResource::make($agency->refresh())->resolve($request)],
