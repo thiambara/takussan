@@ -3675,7 +3675,11 @@
       "downloadPdf": "Télécharger le PDF",
       "downloadCsv": "Télécharger le CSV",
       "downloadFailed": "Le téléchargement du relevé a échoué.",
-      "unavailable": "Le relevé n'est pas disponible."
+      "unavailable": "Le relevé n'est pas disponible.",
+      "sentOn": "Relevé envoyé le {date}",
+      "rectificationTitle": "Rectificatif au {date}",
+      "rectificationIntro": "Écritures enregistrées depuis l'envoi de ce relevé. Les totaux ci-dessus sont ceux du relevé envoyé.",
+      "clawback": "Reprise"
     },
     "serviceProviderBills": {
       "providerTitle": "Mes factures d'intervention",

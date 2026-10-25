@@ -1944,7 +1944,11 @@
       "downloadPdf": "Yebbi PDF bi",
       "downloadCsv": "Yebbi CSV bi",
       "downloadFailed": "Yebbi relevé bi antuwul.",
-      "unavailable": "Relevé bi amul fii."
+      "unavailable": "Relevé bi amul fii.",
+      "sentOn": "Relevé envoyé le {date}",
+      "rectificationTitle": "Rectificatif au {date}",
+      "rectificationIntro": "Écritures enregistrées depuis l'envoi de ce relevé. Les totaux ci-dessus sont ceux du relevé envoyé.",
+      "clawback": "Reprise"
     },
     "serviceProviderBills": {
       "providerTitle": "Samay factuur liggéey",

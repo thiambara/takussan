@@ -3704,7 +3704,11 @@
       "downloadPdf": "Download PDF",
       "downloadCsv": "Download CSV",
       "downloadFailed": "The statement download failed.",
-      "unavailable": "The statement is not available."
+      "unavailable": "The statement is not available.",
+      "sentOn": "Statement sent on {date}",
+      "rectificationTitle": "Correction as of {date}",
+      "rectificationIntro": "Entries recorded since this statement was sent. The totals above are those of the statement as sent.",
+      "clawback": "Clawback"
     },
     "serviceProviderBills": {
       "providerTitle": "My repair invoices",
