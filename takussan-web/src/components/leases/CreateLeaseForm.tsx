@@ -30,7 +30,6 @@ import {
   useLeasePropertyOptions,
 } from '@/lib/queries/leases';
 import { createLeaseSchema, type CreateLeaseFormValues } from '@/lib/schemas/lease';
-import { useAuth } from '@/context/AuthContext';
 import { formatCurrency } from '@/lib/format';
 import { nomAffichable } from '@/lib/identite';
 import type { CustomerListItem } from '@/types/customer';
@@ -60,7 +59,6 @@ export function CreateLeaseForm() {
   const tCommon = useTranslations('common');
   const router = useRouter();
   const createLease = useCreateLease();
-  const { user } = useAuth();
   const [customerSearch, setCustomerSearch] = useState('');
   const propertiesQuery = useLeasePropertyOptions();
   const customersQuery = useLeaseCustomerOptions(customerSearch);
@@ -211,9 +209,13 @@ export function CreateLeaseForm() {
             label={t('selectedTenant')}
             value={selectedCustomer ? customerLabel(selectedCustomer) : t('noTenantSelected')}
             detail={
-              user
-                ? t('activeLandlord', { name: nomAffichable(user) })
-                : t('loadingLandlord')
+              // TCK-997 (P50.01) — le bail naît au nom du TITULAIRE du bien (`LeaseService::create`,
+              // `landlord_id = property.user_id`), jamais de qui le saisit : la ligne le nomme.
+              selectedProperty?.owner
+                ? t('landlordOfProperty', {
+                    name: nomAffichable({ id: selectedProperty.owner.id }, selectedProperty.owner.name),
+                  })
+                : t('landlordPending')
             }
           />
         </div>

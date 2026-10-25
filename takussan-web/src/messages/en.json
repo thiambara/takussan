@@ -1678,7 +1678,14 @@
         "optional": "optional",
         "reopen": "Go back to: {step}"
       },
-      "photosProgress": "Uploading photos: {sent} of {total}"
+      "photosProgress": "Uploading photos: {sent} of {total}",
+      "owner": {
+        "label": "On whose behalf are you entering this property?",
+        "hint": "Optional. Without a choice, the property stays with the agency; the chosen landlord will be notified.",
+        "agency": "The agency (no landlord)",
+        "loading": "Loading landlords…",
+        "empty": "No active landlord matches."
+      }
     },
     "titleTypes": {
       "bail": "Lease",
@@ -3952,8 +3959,8 @@
       "noPropertySelected": "No property selected",
       "selectedTenant": "Selected tenant",
       "noTenantSelected": "No tenant selected",
-      "activeLandlord": "Active landlord: {name}",
-      "loadingLandlord": "Loading the active landlord",
+      "landlordOfProperty": "Landlord: {name}",
+      "landlordPending": "Landlord: the holder of the chosen property",
       "guarantorsHint": "Guarantors can be added on the lease page once the draft is created.",
       "financialTerms": "Financial terms",
       "contractType": "Contract type",

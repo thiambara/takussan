@@ -135,12 +135,13 @@ Lot B — le relevé suit le reversement (Q1) :
 
 Lot C — écrans :
 
-- [ ] Formulaire de bien : le choix du bailleur, dans les seules agences `standard` et pour le seul
+- [x] Formulaire de bien : le choix du bailleur, dans les seules agences `standard` et pour le seul
   personnel tenant `properties.create`, avec `fields[owner_profiles]` restreint ; à la création
-  d'un lot, le bailleur du parent est repris et non modifiable.
-- [ ] Formulaire de bail : la ligne « Bailleur » lit le titulaire du bien choisi.
-- [ ] Libellés `fr` et `en`, `wo` = texte français.
-- [ ] Tests Vitest du choix (envoi de `owner_id`, absent par défaut) et du libellé du bail.
+  d'un lot, le bailleur du parent est repris et non modifiable. *(Aucun écran ne crée de lot —
+  `grep -rn parent_id takussan-web/src` → 0 : la reprise est tenue par l'API, AC7.)*
+- [x] Formulaire de bail : la ligne « Bailleur » lit le titulaire du bien choisi.
+- [x] Libellés `fr` et `en`, `wo` = texte français.
+- [x] Tests Vitest du choix (envoi de `owner_id`, absent par défaut) et du libellé du bail.
 
 ## Critères d'acceptation
 

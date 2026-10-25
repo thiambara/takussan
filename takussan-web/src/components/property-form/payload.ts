@@ -96,6 +96,12 @@ export type PropertyCreatePayload = PropertyBodyFields &
     status: 'draft';
     visibility: 'private';
     address?: PropertyAddressBlock;
+    /**
+     * TCK-997 (P15.06, P50.01) — le COMPTE du bailleur au nom duquel le personnel saisit le bien.
+     * Absent, le bien est celui de l'agence (Q1). Hors du schéma du formulaire : l'édition ne
+     * change jamais le titulaire (ADR-0036, amendement du 2026-10-19).
+     */
+    owner_id?: number;
   };
 
 export type PropertyUpdatePayload = PropertyBodyFields &
@@ -154,6 +160,14 @@ export function toCreatePayload(values: PropertyFormPayload): PropertyCreatePayl
     visibility: 'private',
     ...(adresse ? { address: adresse } : {}),
   };
+}
+
+/**
+ * TCK-997 — le bailleur choisi part en `owner_id` ; sans choix, la clé est ABSENTE du corps, et
+ * l'API garde le bien au nom de son auteur.
+ */
+export function avecBailleur(payload: PropertyCreatePayload, ownerId: number | null): PropertyCreatePayload {
+  return ownerId === null ? payload : { ...payload, owner_id: ownerId };
 }
 
 /**

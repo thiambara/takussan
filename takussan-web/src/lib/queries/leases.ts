@@ -110,8 +110,11 @@ export function useLeasePropertyOptions() {
         'status',
         'visibility',
         'created_at',
+        // TCK-997 — la clé de `include=owner` : le récapitulatif nomme le titulaire du bien.
+        'user_id',
       ],
     },
+    include: ['owner'],
     filter: { status: STATUTS_BIEN_POUR_UN_BAIL },
     sort: ['title'],
   };
