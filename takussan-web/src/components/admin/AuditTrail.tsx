@@ -10,6 +10,7 @@ import { DataState, StatusBadge, type StatusTone } from '@/components/console';
 import { DataTable, type DataTableColumn } from '@/components/console/DataTable';
 import { DebouncedSearchInput } from '@/components/console/DebouncedSearchInput';
 import { Pagination } from '@/components/console/Pagination';
+import { KNOWN_AUDIT_EVENTS, libelleEvenementAudit } from '@/lib/audit-events';
 import { auditSubjectHref, shortSubjectType } from '@/lib/audit-subject-links';
 import { formatDate as formatDateIntl } from '@/lib/format';
 import type { Locale } from '@/i18n/config';
@@ -41,35 +42,6 @@ import {
   type ActivityLogEntry,
 } from '@/lib/queries/audit-logs';
 import { origineApi } from '@/lib/config-publique';
-
-/**
- * Les événements que le filtre propose ET dont la pastille porte un libellé (`admin.audit.events.*`).
- *
- * TCK-601 — jusqu'ici le journal ne connaissait que les quatre événements de modèle, affichés tels
- * quels (`created`…) ; les événements métier (`agent_suspended`, `role_capabilities_changed`,
- * `personal_data_viewed`…) arrivaient en `snake_case` brut. Un événement absent de cette liste
- * garde son rendu d'avant — la valeur d'API, lisible — : le journal n'en cache aucun.
- */
-const KNOWN_EVENTS = [
-  'created',
-  'updated',
-  'deleted',
-  'exported',
-  'agent_suspended',
-  'agent_removed',
-  'agent_reactivated',
-  'role_capabilities_changed',
-  'role_created',
-  'role_assigned',
-  'personal_data_viewed',
-  'kyc_expired',
-  'data_exported',
-] as const;
-type KnownEvent = (typeof KNOWN_EVENTS)[number];
-
-function isKnownEvent(event: string | null): event is KnownEvent {
-  return event !== null && (KNOWN_EVENTS as readonly string[]).includes(event);
-}
 
 /**
  * TCK-292 — la DONNÉE porte la clé, le rendu la résout : la liste des types
@@ -172,7 +144,7 @@ export function AuditTrail() {
   const t = useTranslations('admin.audit');
   const eventOptions: ReadonlyArray<{ value: string; label: string }> = [
     { value: ANY, label: t('filters.anyAction') },
-    ...KNOWN_EVENTS.map((ev) => ({ value: ev, label: t(`events.${ev}`) })),
+    ...KNOWN_AUDIT_EVENTS.map((ev) => ({ value: ev, label: t(`events.${ev}`) })),
   ];
   const subjectTypeOptions: ReadonlyArray<{ value: string; label: string }> = [
     { value: ANY, label: t('filters.anySubject') },
@@ -212,7 +184,7 @@ export function AuditTrail() {
   };
   const dateFrom = dateDeLUrl('from') ?? thirtyDaysAgo();
   const dateTo = dateDeLUrl('to') ?? today();
-  const event = valeurBornee(requete, 'event', KNOWN_EVENTS) ?? '';
+  const event = valeurBornee(requete, 'event', KNOWN_AUDIT_EVENTS) ?? '';
   const subjectType = valeurBornee(requete, 'subject', KNOWN_SUBJECT_TYPES.map((st) => st.value)) ?? '';
   const membre = requete.get('member');
   const causerId = membre !== null && /^[1-9]\d*$/.test(membre) ? Number(membre) : null;
@@ -510,10 +482,12 @@ function useAuditColumns(): readonly DataTableColumn<ActivityLogEntry>[] {
     {
       id: 'action',
       header: t('columns.action'),
-      // TCK-601 — un événement connu porte son libellé ; un inconnu garde la valeur d'API, lisible.
+      // P06.09 (TCK-2336) — un événement connu porte son libellé ; un inconnu se lit par sa
+      // description brute, ou à défaut par sa valeur d'API. La description n'a plus de colonne :
+      // elle reste dans l'export.
       cell: (log) => (
         <StatusBadge
-          label={isKnownEvent(log.event) ? t(`events.${log.event}`) : (log.event ?? '—')}
+          label={libelleEvenementAudit(log, (event) => t(`events.${event}`)) ?? '—'}
           tone={eventTone(log.event)}
         />
       ),
@@ -522,20 +496,6 @@ function useAuditColumns(): readonly DataTableColumn<ActivityLogEntry>[] {
       id: 'subject',
       header: t('columns.subject'),
       cell: (log) => <AuditSubjectCell log={log} />,
-    },
-    {
-      id: 'description',
-      header: t('columns.description'),
-      // La troncature se pose dans la CELLULE, jamais dans `className` : celui-ci va aussi sur
-      // le `<th>`, et surtout `DataTable` impose `whitespace-normal` à chaque cellule. `truncate`
-      // et `whitespace-*` sont deux familles distinctes pour twMerge — les deux survivent, et
-      // `.whitespace-normal` est émise APRÈS `.truncate` dans la feuille Tailwind : l'ellipse
-      // exige `white-space: nowrap`, elle ne s'appliquait donc plus du tout.
-      cell: (log) => (
-        <span className="block max-w-xs truncate text-muted-foreground">
-          {log.description ?? '—'}
-        </span>
-      ),
     },
   ];
 }

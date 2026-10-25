@@ -66,6 +66,9 @@ on:
       # est absent de la config. Même règle qu'en haut de ce bloc — sans cette ligne, activer le
       # drapeau seul n'exécuterait pas la garde qui existe pour en juger.
       - 'takussan-web/next.config.ts'
+      # `check-eslint-suppressions` (TCK-2335) compare le gel d'ESLint à celui de la base : un
+      # `--suppress-all` qui ne touche que ce fichier doit la réveiller.
+      - 'takussan-web/eslint-suppressions.json'
       # `check-design-sync-entry` (TCK-582) compare `takussan-web/src/components/ui` ET les listes de
       # `.design-sync/` (réexports d'`entry/index.ts`, exclusions de `config.json`, fiches, aperçus).
       # Le premier côté est couvert par `takussan-web/src/**` ; sans cette ligne, retirer une
@@ -176,6 +179,9 @@ on:
       # est absent de la config. Même règle qu'en haut de ce bloc — sans cette ligne, activer le
       # drapeau seul n'exécuterait pas la garde qui existe pour en juger.
       - 'takussan-web/next.config.ts'
+      # `check-eslint-suppressions` (TCK-2335) compare le gel d'ESLint à celui de la base : un
+      # `--suppress-all` qui ne touche que ce fichier doit la réveiller.
+      - 'takussan-web/eslint-suppressions.json'
       - '.design-sync/**'
       # `check-notification-codes` (TCK-588) compare l'enum `NotificationCode` (`app/**`), les
       # textes de l'API (`lang/**`) et ceux du front (`src/**`) : les trois doivent la déclencher.
@@ -377,6 +383,13 @@ jobs:
         # prémisse que personne n'a revérifiée. Le périmètre de chaque rôle (`--role`) est joué
         # par `scripts/agents/pistes.sh` avant tout push, pas ici.
         run: node scripts/check-pistes.mjs --report
+
+      - name: Le gel d'ESLint ne grossit jamais (TCK-2335)
+        # ESLint refuse une violation neuve, mais `--suppress-all` la regèle en une commande et le
+        # lint redevient vert. Cette garde compare chaque compte de `eslint-suppressions.json` à
+        # celui de la base (`origin/$GITHUB_BASE_REF` en PR, `HEAD^` en push) : une hausse ou une
+        # entrée neuve rougit. La base se lit grâce au `fetch-depth: 0` du checkout.
+        run: node scripts/check-eslint-suppressions.mjs --report
 
       - name: La décision de réindexation de `release.sh` fait ce qu'elle annonce
         # Successeur du test de la décision de `deploy.sh`, retiré avec lui (ADR-0028). Même

@@ -3963,7 +3963,7 @@
         "quarterly": "Trimestriel",
         "yearly": "Annuel"
       },
-      "customerFallback": "Customer #{id}"
+      "customerFallback": "Client #{id}"
     },
     "payment": {
       "title": "Enregistrer un paiement",
@@ -5961,8 +5961,7 @@
         "date": "Date",
         "user": "Utilisateur",
         "action": "Action",
-        "subject": "Objet",
-        "description": "Description"
+        "subject": "Objet"
       },
       "tableCaption": "Journal d'audit de l'agence",
       "entries": "{count, plural, =1 {{total} entrée} other {{total} entrées}}",
@@ -5982,6 +5981,24 @@
         "personal_data_viewed": "Données personnelles consultées",
         "kyc_expired": "Pièce KYC expirée",
         "data_exported": "Données exportées"
+      }
+    },
+    "businessEnums": {
+      "property_type": {
+        "name": "Types de biens",
+        "description": "Catégories visibles dans les formulaires et les filtres de biens."
+      },
+      "contract_type": {
+        "name": "Types de transaction",
+        "description": "Vente, location et futurs modes de commercialisation."
+      },
+      "title_type": {
+        "name": "Titres fonciers",
+        "description": "Libellés métier des titres fonciers rattachés aux biens."
+      },
+      "rent_period": {
+        "name": "Périodes de loyer",
+        "description": "Cadences de facturation affichées sur les biens en location."
       }
     },
     "roles": {

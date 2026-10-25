@@ -428,7 +428,7 @@ ont été relus contre le code par la session ; le premier est mesuré (`route:l
 
 ### Wolof : 334 valeurs identiques au français, dont des phrases d'interface
 - Réf : P06.06
-- Statut : validé — validation du porteur (2026-10-25) : `lease.form.customerFallback` traduit en français ; reste : relecture wolof et cliquet wo == fr, à la levée de la pause du wolof
+- Statut : fait · TCK-2336 — reste : relecture wolof et cliquet wo == fr, à la levée de la pause du wolof
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/messages/wo.json:5731-5734,3549`, `takussan-web/src/messages/fr.json:3897`
 - Constat :
@@ -438,26 +438,29 @@ ont été relus contre le code par la session ; le premier est mesuré (`route:l
 - Piste : relecture des 46 valeurs par un locuteur, et un cliquet décroissant « wo == fr hors emprunts » dans `check-i18n`.
 - Mesure (2026-10-15, 5e758845, mesureur) : `node -e` qui aplatit `fr.json`, `en.json` et `wo.json` → 8 032 clés dans chacun, aucune absente ; **360** valeurs `wo` égales au `fr` (le constat en comptait 334), dont `property.wizard.position` « Étape {current} sur {total} », `.back`, `.continue`, `.skip`, `property.conditions.*` et `crm.pipeline.stage.*` ; `lease.form.customerFallback` vaut « Customer #{id} » en `fr` comme en `en` → le constat tient. Classement : V7, la piste demande une traduction wolof qu'un locuteur doit écrire ; seule la valeur anglaise du `fr` relèverait d'A4.
 - Mesure (2026-10-25, ece5a91ea, humain) : validation du porteur en bloc (2026-10-25) sur la re-vérification de la session à c35c20d16 ; statut précédent : « retenu · à valider — V7 : texte wolof neuf, à écrire par un locuteur ; porteur (2026-10-15) : en attente d'un relecteur wolof ; porteur (2026-10-16) : wolof en pause jusqu'à nouvel ordre ».
+- Mesure (2026-10-25, 63247e639, implementeur) : `lease.form.customerFallback` valait « Customer #{id} » en `fr` (relu, `fr.json`), et un locataire sans nom ni contact se proposait « Customer #7 » dans `CreateLeaseForm` (reproduit par `CreateLeaseForm.client-sans-nom.p06-06.test.tsx`, rouge) → « Client #{id} » ; 1 vert, ablation (valeur remise) → 1 rouge, remise → vert ; `en` inchangé, `wo` non touché (pause).
 
 ### Journal d'audit : des descriptions brutes qui mêlent français, anglais et codes
 - Réf : P06.09
-- Statut : validé — validation du porteur (2026-10-25) : la colonne du journal d'audit affiche l'événement traduit (`admin.audit.events.*`), avec repli sur la description brute pour un événement sans clé ; la description reste dans l'export
+- Statut : fait · TCK-2336
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/admin/AuditTrail.tsx:536`, `admin/super/ConsoleRecentActivity.tsx:77`, `user-detail.tsx:479`
 - Constat : 147 `->log('…')` littéraux, dont 31 en français. Les autres sont en anglais (« Exported audit trail ») ou sont des codes (mesuré).
 - Piste : afficher `event` traduit (`admin.audit.events.*`), et réserver `description` à l'export.
 - Mesure (2026-10-15, e9f9289c, mesureur) : `grep -rhoE "->log\('[^']*'\)" app | wc -l` → 141 littéraux entre apostrophes (plus 22 appels non littéraux), dont 31 à motif français (mesuré, compte voisin des 147/31 du constat) ; `AuditTrail.tsx:535` affiche `log.description` brut, `ConsoleRecentActivity.tsx:77` `description ?? event`, `user-detail.tsx:476-479` `event` puis `description` bruts (lu) ; `admin.audit.events` porte 13 clés dans `fr.json` (mesuré) → tient. Classement : V7, afficher l'événement traduit demande d'écrire un libellé pour chaque événement et de décider ce que la colonne montre.
 - Mesure (2026-10-25, ece5a91ea, humain) : validation du porteur en bloc (2026-10-25) sur la re-vérification de la session à c35c20d16 ; statut précédent : « retenu · à valider — V7 : libellés neufs par événement, et choix de ce que l'écran montre ; porteur (2026-10-15) : plus tard ».
+- Mesure (2026-10-25, c9ce06c8d, implementeur) : `AuditTrail` affichait la description brute dans sa colonne et un événement sans clé par son code, la console `description ?? event` (`ConsoleRecentActivity`), `event` brut (`CrossTenantAuditTable`) ou `event` puis `description` (`user-detail`) (relu ; avant correctif, 5 tests rouges et le test du helper sans module) → `libelleEvenementAudit` (`src/lib/audit-events.ts`) rend `admin.audit.events.*`, sinon la description brute, sinon la valeur d'API, sur les quatre écrans ; la colonne « Description » quitte l'écran de l'agence, l'export (API) est inchangé ; 42 verts sur 7 fichiers, ablation de chaque composant (2, 1, 1, 1 rouges) et du helper (6 rouges), remis → verts.
 
 ### Libellés du catalogue super-admin écrits en français par l'API
 - Réf : P06.12
-- Statut : validé — validation du porteur (2026-10-25) : l'API émet l'identifiant stable de chaque entrée du catalogue super-admin et le front rend `admin.businessEnums.<id>.name/description` ; `name` reste dans la réponse, en repli et pour l'objet de courriel
+- Statut : fait · TCK-2336 — reste : les événements de notification (`EditableNotificationEvents`, `notification-templates.tsx`) et les champs de `MailProvider`, que la décision ne nomme pas
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Domain/Settings/EditableBusinessEnums.php:20-40`, `Domain/Notifications/EditableNotificationEvents.php:13-29`, `Domain/Integrations/Providers/MailProvider.php:26`
 - Constat : `name` et `description` sont affichés tels quels par `business-enums.tsx:117-118` et `notification-templates.tsx:101` (lu). Les paramètres plateforme, eux, sont traduits par clé depuis TCK-600.
 - Piste : émettre une clé, et rendre le libellé côté front.
 - Mesure (2026-10-15, e9f9289c, mesureur) : `EditableBusinessEnums.php:19-41` et `EditableNotificationEvents.php:12-30` portent `name`/`description`/`domain` en français, `MailProvider.php:26-27` des `label` mêlés (« API key », « Adresse expéditeur ») (lu) ; `business-enums.tsx:117-118` et `notification-templates.tsx:100` les affichent tels quels (lu) ; ce `name` sert aussi d'objet de courriel de repli (`NotificationTemplateService.php:154`) → tient. Classement : V7, émettre une clé change le contrat de l'API et demande d'écrire les libellés `en` et `wo`.
 - Mesure (2026-10-25, ece5a91ea, humain) : validation du porteur en bloc (2026-10-25) sur la re-vérification de la session à c35c20d16 ; statut précédent : « retenu · à valider — V7 : contrat d'API à changer et libellés neufs en `en` et `wo` ; porteur (2026-10-15) : plus tard ».
+- Mesure (2026-10-25, c9ce06c8d, implementeur) : `business-enums.tsx` affichait le `name` et la `description` français de l'API dans les trois langues (reproduit en `en` par `business-enums.libelles.p06-12.test.tsx`, rouge) ; l'API émettait déjà `key` (`BusinessEnumService::get`, lu) → test d'API qui épingle `key`, `name` et `description` de `GET /api/admin/enums` (vert dès l'écriture ; `'key'` retiré → rouge) ; le front rend `admin.businessEnums.<key>.name/description` (`fr` = API, `en` neuf, `wo` = `fr`) avec repli sur l'API ; 2 verts, ablation (composant remis) → 1 rouge ; l'espace `admin` entre dans la frontière super-admin (plafond 46 → 53 %).
 
 ## Angle 7 — Accessibilité du front (WCAG 2.2 AA)
 
@@ -474,13 +477,14 @@ Sain (vérifié par l'agent) :
 
 ### Le lint d'accessibilité est presque éteint
 - Réf : P07.12
-- Statut : validé — validation du porteur (2026-10-25) : règles `jsx-a11y` en error sous le cliquet natif d'ESLint (suppressions en masse, `eslint-suppressions.json`), sur le même mécanisme que P210.05
+- Statut : fait · TCK-2335 — reste : résorption par lots des 47 violations `jsx-a11y` gelées dans `takussan-web/eslint-suppressions.json`, chaque lot suivi de `--prune-suppressions`
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/eslint.config.mjs:37-39`
 - Constat : 6 règles `jsx-a11y` seulement, en `warn`. Ni `label-has-associated-control`, ni `click-events-have-key-events`, ni `no-static-element-interactions` : aucune garde n'aurait attrapé les constats ci-dessus (lu).
 - Piste : ces règles en `error`, sous un cliquet par fichier comme `check-i18n`.
 - Mesure (2026-10-15, ccabd662, mesureur) : lu `takussan-web/eslint.config.mjs` (aucune règle `jsx-a11y` propre au dépôt ; l.37-39 étalent `nextVitals` et `nextTs`) et `node_modules/eslint-config-next/dist/index.js:173-188` : `alt-text`, `aria-props`, `aria-proptypes`, `aria-unsupported-elements`, `role-has-required-aria-props`, `role-supports-aria-props`, toutes en `warn` ; ni `label-has-associated-control`, ni `click-events-have-key-events`, ni `no-static-element-interactions` → tient. Classement : V9, la piste resserre une garde (des règles en `error`) et invente un cliquet par fichier, dont la forme est à décider.
 - Mesure (2026-10-25, ece5a91ea, humain) : validation du porteur en bloc (2026-10-25) sur la re-vérification de la session à c35c20d16 ; statut précédent : « retenu · à valider — V9 : faire passer des règles de lint en erreur, sous un cliquet neuf, touche le seuil d'une garde ; porteur (2026-10-15) : traité hors agents, règles a11y en error sous cliquet ».
+- Mesure (2026-10-25, 0cb373600, implementeur) : six règles `jsx-a11y` en `warn` seulement (relu dans `eslint-config-next`) ; le jeu `recommended` du plugin, lu dans la config de Next, passe en `error` avec les options de Next → 47 violations dans 13 règles (dont `label-has-associated-control` 2, `no-static-element-interactions` 3, `click-events-have-key-events` 1), gelées par `--suppress-rule` dans le même `eslint-suppressions.json` que P210.05 ; ablation : un `div` cliquable dans un fichier neuf → exit 1 (`click-events-have-key-events`, `no-static-element-interactions`), retiré → exit 0.
 
 ## Angle 8 — Parcours sur téléphone
 
@@ -5353,7 +5357,7 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
 
 ### Aucune garde ne refuse une promesse passée à `onClick` ou laissée flottante
 - Réf : P210.05
-- Statut : validé — validation du porteur (2026-10-25) : `no-misused-promises` (attributs JSX) et `no-floating-promises` en error, l'existant gelé par les suppressions natives d'ESLint 10 (`eslint-suppressions.json`) puis résorbé par lots ; surcoût mesuré sur le runner de `web-ci` par la PR
+- Statut : fait · TCK-2335 — reste : résorption par lots des 119 violations gelées dans `takussan-web/eslint-suppressions.json`, chaque lot suivi de `--prune-suppressions`
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/eslint.config.mjs`
 - Constat :
@@ -5364,6 +5368,7 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
 - Mesure (2026-10-24, 0507e0a2f, mesureur) : `grep -n 'promise\|Promise\|projectService\|parserOptions' takussan-web/eslint.config.mjs` → rien (68 lignes, dernier changement f21ccd171) ; `@typescript-eslint/eslint-plugin`, `parser` et `project-service` présents dans `node_modules` par `eslint-config-next` (aucune dépendance à ajouter) ; le lint typé sur tout `src` n'a pas été lancé (passage limité aux tests ciblés), donc ni son coût ni le compte de violations ne sont mesurés → le constat tient (aucune garde) ; les trois sondes de P210.01-03 confirment le motif que la règle viserait. Classement : V6, activer le lint typé est une décision sur la chaîne d'outillage du front dont le coût en CI reste à mesurer, et la piste propose deux options (règle typée ou garde de dépôt) qu'il revient au porteur de départager.
 - Mesure (2026-10-24, 72976c063, delegue) : relu l'entrée et la `Mesure` du mesureur, `takussan-web/eslint.config.mjs` (68 lignes : `nextVitals`, `nextTs`, une règle `no-unused-vars` en `warn`, aucun `parserOptions` ni `projectService`), `.github/workflows/web-ci.yml:151` (`npm run lint` à chaque PR du front), et la décision voisine de P07.12 (`porteur (2026-10-15) : traité hors agents, règles a11y en error sous cliquet`, classée V9 parce qu'une règle de lint passée en erreur sur des violations existantes demande un cliquet) ; `grep -rn "lint typé\|no-misused-promises\|projectService" docs` → aucune autre décision ; le lint typé sur `src` n'a pas été lancé (hors des tests ciblés permis) → la `Piste` laisse deux options, et ni le coût du lint typé en CI ni le compte de violations ne sont mesurés. Recommandation : mesurer d'abord en session (`npx eslint src` avec `parserOptions.projectService` et la seule règle `@typescript-eslint/no-misused-promises` limitée à `checksVoidReturn: { attributes: true }` : temps et compte de violations), puis activer cette règle si le surcoût de `web-ci` reste de l'ordre de la minute et les violations corrigeables en un ticket, parce qu'elle voit aussi les gestionnaires importés et les props transmises, que la garde maison limitée au même fichier manque ; sinon la garde de dépôt (`scripts/check-*.mjs`, A5, sans seuil) ; ce qui manque pour trancher : ces deux mesures, et le choix entre erreur immédiate et cliquet, qui touche V9 comme pour P07.12 et reste au porteur.
 - Mesure (2026-10-25, ece5a91ea, humain) : validation du porteur en bloc (2026-10-25) sur la re-vérification de la session à c35c20d16 ; statut précédent : « retenu · à valider — porteur (2026-10-24) : traité hors agents, en session : `no-misused-promises` (attributs JSX) et `no-floating-promises` en lint typé sous cliquet, les violations existantes gelées et toute nouvelle refusée, résorption par lots, comme P07.12 ».
+- Mesure (2026-10-25, 0cb373600, implementeur) : `eslint.config.mjs` sans `projectService` ni les deux règles (relu) ; règles posées en `error` (`checksVoidReturn` limité aux attributs JSX) → 83 `no-misused-promises` et 36 `no-floating-promises`, gelés par `--suppress-rule` dans `eslint-suppressions.json`, que `npm run lint` lit sans option depuis `takussan-web/` comme `web-ci.yml` ; ablation : fichier neuf avec un `async` en `onClick` et une promesse flottante → exit 1, une violation de plus dans `forgot-password/page.tsx` → exit 1, la violation gelée corrigée sans élaguer → exit 2, fichier remis → exit 0 ; `npm run lint` local 26,0 s → 51,5 s (charge ~3,5 sur 8 cœurs), surcoût sur le runner de `web-ci` à relever par la PR (AC5 de TCK-2335).
 
 ## Angle 211 — Gestes d'écriture qui jugent le statut sur le modèle lié, hors verrou
 

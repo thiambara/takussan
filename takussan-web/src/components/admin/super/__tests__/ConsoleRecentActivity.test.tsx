@@ -55,4 +55,20 @@ describe('ConsoleRecentActivity (TCK-360)', () => {
     expect(await screen.findByText('Aucune activité enregistrée')).toBeInTheDocument();
     expect(screen.queryByTestId('super-admin-recent-activity')).not.toBeInTheDocument();
   });
+
+  it('P06.09 (TCK-2336) — un événement connu se lit traduit, un inconnu par sa description', async () => {
+    vi.mocked(fetchAuditLog).mockResolvedValue({
+      data: [
+        { ...entree(1), event: 'role_assigned', description: 'role_assigned' },
+        { ...entree(2), event: 'super_admin_setting_updated', description: 'Paramètre 2 modifié' },
+      ],
+      meta: { total: 2, current_page: 1, last_page: 1, per_page: 5 },
+    });
+
+    renderActivity(<ConsoleRecentActivity />);
+
+    expect(await screen.findByText('Rôle attribué')).toBeInTheDocument();
+    expect(screen.getByText('Paramètre 2 modifié')).toBeInTheDocument();
+    expect(screen.queryByText('role_assigned')).not.toBeInTheDocument();
+  });
 });

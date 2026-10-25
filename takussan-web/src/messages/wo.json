@@ -4194,8 +4194,7 @@
         "date": "Bés",
         "user": "Jëfandikukat",
         "action": "Jëf",
-        "subject": "Objet",
-        "description": "Leeral"
+        "subject": "Objet"
       },
       "tableCaption": "Sàqu jëf yi ci agence bi",
       "entries": "{count, plural, =1 {{total} ligne} other {{total} ligne}}",
@@ -4215,6 +4214,24 @@
         "personal_data_viewed": "Xool nañu xibaar yu sutura",
         "kyc_expired": "Kayitu KYC bi jeex na",
         "data_exported": "Génne nañu xibaar yi"
+      }
+    },
+    "businessEnums": {
+      "property_type": {
+        "name": "Types de biens",
+        "description": "Catégories visibles dans les formulaires et les filtres de biens."
+      },
+      "contract_type": {
+        "name": "Types de transaction",
+        "description": "Vente, location et futurs modes de commercialisation."
+      },
+      "title_type": {
+        "name": "Titres fonciers",
+        "description": "Libellés métier des titres fonciers rattachés aux biens."
+      },
+      "rent_period": {
+        "name": "Périodes de loyer",
+        "description": "Cadences de facturation affichées sur les biens en location."
       }
     },
     "roles": {
