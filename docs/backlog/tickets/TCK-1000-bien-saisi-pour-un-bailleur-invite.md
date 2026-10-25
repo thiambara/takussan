@@ -1,13 +1,13 @@
 ---
 id: TCK-1000
 title: "Un bien saisi pour un bailleur invité passe à ce bailleur quand il accepte l'invitation, et l'invitation part du formulaire de bien (Q2 de TCK-997)"
-status: todo
+status: doing
 phase: P1
 family: applicatif
 estimate: M
 wave: null
 created: 2026-10-19
-updated: 2026-10-19
+updated: 2026-10-25
 depends_on: [TCK-997, TCK-999]
 blocks: []
 spec_refs:
@@ -38,6 +38,16 @@ Décision du porteur du 2026-10-19 (Q2 a de TCK-997) et
   profil à lier.
 - `InvitationService::finalizeAccept` (acceptation), `revoke`, et le passage à `expired`.
 - `PropertyOwnerTransfer` (TCK-999), voie `invitation_accepted`.
+
+## Validation du porteur (2026-10-25)
+
+Recopiée mot pour mot du statut de P15.06 :
+
+- P15.06 : validation du porteur (2026-10-25) : décisions 1a à 6a du porteur (2026-10-19), consignées dans TCK-997, TCK-999 et TCK-1000, V1 et V7 accordés ; les biens déjà saisis ne changent pas de titulaire en silence au déploiement
+
+Ce qu'en tient ce ticket : « changer le titulaire » est un geste explicite de l'admin d'agence, avec
+aperçu et confirmation ; aucune migration ne réécrit `user_id` ; la migration
+`pending_owner_profile_id` ajoute une colonne nullable, sans la remplir.
 
 ## Direction UX / Artistique
 
