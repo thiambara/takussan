@@ -81,6 +81,12 @@ function nomAbsent(code: string, params: AppNotification['params']): boolean {
   });
 }
 
+/**
+ * P235.03 (TCK-2369) — un paramètre de nature `person` (`PARAM_PERSON`) vide — compte ou fiche créés
+ * par téléphone — se lit par ce libellé traduit, comme dans le courriel (`NotificationRenderer`).
+ */
+export type LibellePersonneSansNom = string;
+
 function libelleGeneriqueFournisseur(code: string): string {
   return code
     .split('_')
@@ -96,6 +102,7 @@ export function valeursDeNotification(
   role?: LibelleRole,
   fournisseur?: LibelleFournisseur,
   natures?: Natures,
+  personneSansNom?: LibellePersonneSansNom,
 ): ValeursNotification {
   const valeurs: ValeursNotification = {};
   for (const [nom, valeur] of Object.entries(params ?? {})) {
@@ -109,6 +116,8 @@ export function valeursDeNotification(
       valeurs[nom] = role?.(chaine) ?? chaine;
     } else if (nature === 'provider' && chaine !== null) {
       valeurs[nom] = fournisseur?.(chaine) ?? chaine;
+    } else if (nature === 'person' && (chaine === null || chaine.trim() === '') && personneSansNom) {
+      valeurs[nom] = personneSansNom;
     } else if (nature === 'month' && chaine !== null && MOIS.test(chaine)) {
       valeurs[nom] = fmt.date(`${chaine}-01`, { month: 'long', year: 'numeric' });
     } else if (valeur === null || valeur === undefined || valeur === '') {
@@ -134,6 +143,7 @@ export type TexteNotification = { titre: string; corps: string | null };
 /** Rend le titre et le corps d'une notification dans la langue de l'écran. */
 export function useTexteNotification(): (notification: AppNotification) => TexteNotification {
   const t = useTranslations('notifications.codes');
+  const tNotifications = useTranslations('notifications');
   const tMotifs = useTranslations('common.moderationReasons');
   const fmt = useFormatteurs();
   const motif: LibelleMotif = (code) => (tMotifs.has(code) ? tMotifs(code) : null);
@@ -155,6 +165,7 @@ export function useTexteNotification(): (notification: AppNotification) => Texte
       libelleRole,
       libelleGeneriqueFournisseur,
       notification.param_types,
+      tNotifications('unnamedPerson'),
     );
     const cleCorps = nomAbsent(code, notification.params) && t.has(`${code}.body_unnamed`)
       ? `${code}.body_unnamed`

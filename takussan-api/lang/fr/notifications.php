@@ -3,6 +3,8 @@
 return [
 
     'salutation' => 'L\'équipe Takussan',
+    // P235.03 (TCK-2369) — une personne sans nom dans un avis (`NotificationCode::PARAM_PERSON`).
+    'unnamed_person' => '(sans nom)',
 
     // TCK-249 — Invitation lifecycle emails (initial + reminder + inviter
     // notifications on acceptance/expiration).

@@ -98,6 +98,7 @@ class NotificationRenderer
                 NotificationCode::PARAM_ROLE => $this->role($value, $locale, $textMax),
                 NotificationCode::PARAM_PROVIDER => $this->provider($value, $textMax),
                 NotificationCode::PARAM_MONTH => $this->month($value, $locale, $textMax),
+                NotificationCode::PARAM_PERSON => $this->person($value, $locale, $textMax),
                 default => is_scalar($value) && (string) $value !== '' ? $this->text((string) $value, $textMax) : '—',
             };
         }
@@ -218,6 +219,14 @@ class NotificationRenderer
         }
 
         return Carbon::createFromFormat('!Y-m', $value)->locale($locale)->isoFormat('MMMM YYYY');
+    }
+
+    /** P235.03 (TCK-2369) — le nom d'une personne, ou le libellé traduit d'une personne sans nom. */
+    private function person(mixed $value, string $locale, ?int $max): string
+    {
+        $name = is_scalar($value) ? trim((string) $value) : '';
+
+        return $this->text($name !== '' ? $name : __('notifications.unnamed_person', [], $locale), $max);
     }
 
     private function text(string $value, ?int $max): string

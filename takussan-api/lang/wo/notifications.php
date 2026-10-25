@@ -3,6 +3,8 @@
 return [
 
     'salutation' => 'Ekip Takussan',
+    // P235.03 (TCK-2369) — une personne sans nom dans un avis (`NotificationCode::PARAM_PERSON`).
+    'unnamed_person' => '(sans nom)',
 
     // TCK-249 — Invitation lifecycle emails (Wolof).
     'invitation' => [
