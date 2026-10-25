@@ -428,7 +428,7 @@ ont été relus contre le code par la session ; le premier est mesuré (`route:l
 
 ### Wolof : 334 valeurs identiques au français, dont des phrases d'interface
 - Réf : P06.06
-- Statut : validé — validation du porteur (2026-10-25) : `lease.form.customerFallback` traduit en français ; reste : relecture wolof et cliquet wo == fr, à la levée de la pause du wolof
+- Statut : fait · TCK-2336 — reste : relecture wolof et cliquet wo == fr, à la levée de la pause du wolof
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/messages/wo.json:5731-5734,3549`, `takussan-web/src/messages/fr.json:3897`
 - Constat :
@@ -438,26 +438,29 @@ ont été relus contre le code par la session ; le premier est mesuré (`route:l
 - Piste : relecture des 46 valeurs par un locuteur, et un cliquet décroissant « wo == fr hors emprunts » dans `check-i18n`.
 - Mesure (2026-10-15, 5e758845, mesureur) : `node -e` qui aplatit `fr.json`, `en.json` et `wo.json` → 8 032 clés dans chacun, aucune absente ; **360** valeurs `wo` égales au `fr` (le constat en comptait 334), dont `property.wizard.position` « Étape {current} sur {total} », `.back`, `.continue`, `.skip`, `property.conditions.*` et `crm.pipeline.stage.*` ; `lease.form.customerFallback` vaut « Customer #{id} » en `fr` comme en `en` → le constat tient. Classement : V7, la piste demande une traduction wolof qu'un locuteur doit écrire ; seule la valeur anglaise du `fr` relèverait d'A4.
 - Mesure (2026-10-25, ece5a91ea, humain) : validation du porteur en bloc (2026-10-25) sur la re-vérification de la session à c35c20d16 ; statut précédent : « retenu · à valider — V7 : texte wolof neuf, à écrire par un locuteur ; porteur (2026-10-15) : en attente d'un relecteur wolof ; porteur (2026-10-16) : wolof en pause jusqu'à nouvel ordre ».
+- Mesure (2026-10-25, 63247e639, implementeur) : `lease.form.customerFallback` valait « Customer #{id} » en `fr` (relu, `fr.json`), et un locataire sans nom ni contact se proposait « Customer #7 » dans `CreateLeaseForm` (reproduit par `CreateLeaseForm.client-sans-nom.p06-06.test.tsx`, rouge) → « Client #{id} » ; 1 vert, ablation (valeur remise) → 1 rouge, remise → vert ; `en` inchangé, `wo` non touché (pause).
 
 ### Journal d'audit : des descriptions brutes qui mêlent français, anglais et codes
 - Réf : P06.09
-- Statut : validé — validation du porteur (2026-10-25) : la colonne du journal d'audit affiche l'événement traduit (`admin.audit.events.*`), avec repli sur la description brute pour un événement sans clé ; la description reste dans l'export
+- Statut : fait · TCK-2336
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/admin/AuditTrail.tsx:536`, `admin/super/ConsoleRecentActivity.tsx:77`, `user-detail.tsx:479`
 - Constat : 147 `->log('…')` littéraux, dont 31 en français. Les autres sont en anglais (« Exported audit trail ») ou sont des codes (mesuré).
 - Piste : afficher `event` traduit (`admin.audit.events.*`), et réserver `description` à l'export.
 - Mesure (2026-10-15, e9f9289c, mesureur) : `grep -rhoE "->log\('[^']*'\)" app | wc -l` → 141 littéraux entre apostrophes (plus 22 appels non littéraux), dont 31 à motif français (mesuré, compte voisin des 147/31 du constat) ; `AuditTrail.tsx:535` affiche `log.description` brut, `ConsoleRecentActivity.tsx:77` `description ?? event`, `user-detail.tsx:476-479` `event` puis `description` bruts (lu) ; `admin.audit.events` porte 13 clés dans `fr.json` (mesuré) → tient. Classement : V7, afficher l'événement traduit demande d'écrire un libellé pour chaque événement et de décider ce que la colonne montre.
 - Mesure (2026-10-25, ece5a91ea, humain) : validation du porteur en bloc (2026-10-25) sur la re-vérification de la session à c35c20d16 ; statut précédent : « retenu · à valider — V7 : libellés neufs par événement, et choix de ce que l'écran montre ; porteur (2026-10-15) : plus tard ».
+- Mesure (2026-10-25, c9ce06c8d, implementeur) : `AuditTrail` affichait la description brute dans sa colonne et un événement sans clé par son code, la console `description ?? event` (`ConsoleRecentActivity`), `event` brut (`CrossTenantAuditTable`) ou `event` puis `description` (`user-detail`) (relu ; avant correctif, 5 tests rouges et le test du helper sans module) → `libelleEvenementAudit` (`src/lib/audit-events.ts`) rend `admin.audit.events.*`, sinon la description brute, sinon la valeur d'API, sur les quatre écrans ; la colonne « Description » quitte l'écran de l'agence, l'export (API) est inchangé ; 42 verts sur 7 fichiers, ablation de chaque composant (2, 1, 1, 1 rouges) et du helper (6 rouges), remis → verts.
 
 ### Libellés du catalogue super-admin écrits en français par l'API
 - Réf : P06.12
-- Statut : validé — validation du porteur (2026-10-25) : l'API émet l'identifiant stable de chaque entrée du catalogue super-admin et le front rend `admin.businessEnums.<id>.name/description` ; `name` reste dans la réponse, en repli et pour l'objet de courriel
+- Statut : fait · TCK-2336 — reste : les événements de notification (`EditableNotificationEvents`, `notification-templates.tsx`) et les champs de `MailProvider`, que la décision ne nomme pas
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Domain/Settings/EditableBusinessEnums.php:20-40`, `Domain/Notifications/EditableNotificationEvents.php:13-29`, `Domain/Integrations/Providers/MailProvider.php:26`
 - Constat : `name` et `description` sont affichés tels quels par `business-enums.tsx:117-118` et `notification-templates.tsx:101` (lu). Les paramètres plateforme, eux, sont traduits par clé depuis TCK-600.
 - Piste : émettre une clé, et rendre le libellé côté front.
 - Mesure (2026-10-15, e9f9289c, mesureur) : `EditableBusinessEnums.php:19-41` et `EditableNotificationEvents.php:12-30` portent `name`/`description`/`domain` en français, `MailProvider.php:26-27` des `label` mêlés (« API key », « Adresse expéditeur ») (lu) ; `business-enums.tsx:117-118` et `notification-templates.tsx:100` les affichent tels quels (lu) ; ce `name` sert aussi d'objet de courriel de repli (`NotificationTemplateService.php:154`) → tient. Classement : V7, émettre une clé change le contrat de l'API et demande d'écrire les libellés `en` et `wo`.
 - Mesure (2026-10-25, ece5a91ea, humain) : validation du porteur en bloc (2026-10-25) sur la re-vérification de la session à c35c20d16 ; statut précédent : « retenu · à valider — V7 : contrat d'API à changer et libellés neufs en `en` et `wo` ; porteur (2026-10-15) : plus tard ».
+- Mesure (2026-10-25, c9ce06c8d, implementeur) : `business-enums.tsx` affichait le `name` et la `description` français de l'API dans les trois langues (reproduit en `en` par `business-enums.libelles.p06-12.test.tsx`, rouge) ; l'API émettait déjà `key` (`BusinessEnumService::get`, lu) → test d'API qui épingle `key`, `name` et `description` de `GET /api/admin/enums` (vert dès l'écriture ; `'key'` retiré → rouge) ; le front rend `admin.businessEnums.<key>.name/description` (`fr` = API, `en` neuf, `wo` = `fr`) avec repli sur l'API ; 2 verts, ablation (composant remis) → 1 rouge ; l'espace `admin` entre dans la frontière super-admin (plafond 46 → 53 %).
 
 ## Angle 7 — Accessibilité du front (WCAG 2.2 AA)
 
