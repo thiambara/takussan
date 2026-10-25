@@ -7398,7 +7398,7 @@ base de développement. Les écrans n'ont pas été joués.*
 
 ### Relancer ou révoquer l'invitation d'un bailleur ou d'un prestataire dit « Aucune invitation en attente » pour toute panne de la recherche, et toujours pour une invitation par numéro
 - Réf : P237.01
-- Statut : validé — validation du porteur (2026-10-25) : l'API porte l'identifiant de l'invitation en attente dans le profil brouillon, et le front relance ou révoque par cet identifiant sans plus chercher ; une panne n'est plus dite « Aucune invitation en attente »
+- Statut : fait · TCK-2371
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/owners/OwnersList.tsx:123-161`, `:233-255`, `:402-425`, `takussan-web/src/components/service-providers/ServiceProvidersList.tsx:83-120`, `:190`, `:293-317`, `takussan-web/src/messages/fr.json:2348`, `takussan-api/app/Http/Requests/Invitation/InviteOwnerRequest.php:41-51`, `takussan-api/app/Http/Requests/Invitation/InviteServiceProviderRequest.php:46-53`
 - Constat :
@@ -7409,6 +7409,7 @@ base de développement. Les écrans n'ont pas été joués.*
 - Piste : laisser remonter l'erreur de la recherche (retirer le `catch`), rechercher aussi par `phone` quand il n'y a pas d'e-mail (le modèle range `phone`, lu `Invitation.php:42`), ou mieux, faire porter l'identifiant d'invitation au profil brouillon rendu par l'API. Garde : un test de la liste où la recherche rejette en 500 → le message n'est pas « Aucune invitation en attente » ; un brouillon invité par numéro → la relance part.
 - Mesure (2026-10-25, db3e25230, mesureur) : relu `OwnersList.tsx:123-161` et `:402-425`, `ServiceProvidersList.tsx:83-120` et `:293-317` (inchangés depuis e243019a1 : `git log e243019a1..HEAD` vide sur ces chemins ; aucune PR ouverte #1530, #1540, #1541, #1543 ne les touche), `OwnerInvitationService.php:84-99` (brouillon par numéro : `metadata.email` null) et `Invitation.php:88` (`$requestFilterable` sans `phone` ni `invitable_id`), puis lancé un test vitest temporaire de `<OwnersList>` → la recherche rejetée en 500 rend le toast « Aucune invitation en attente pour ce contact. », et le brouillon au seul numéro rend le même toast sans qu'aucune requête `/api/invitations` parte (seul `/api/owners` appelé). Les deux moitiés du constat tiennent. Classement : V7, la recherche par numéro demande d'ouvrir un filtre de l'API ou de changer la réponse des profils, et ce choix entre options revient au porteur.
 - Mesure (2026-10-25, b9c58e007, humain) : validation du porteur en bloc (2026-10-25), second tour, sur les recommandations (a) de la session ; statut précédent : « retenu · à valider — V7 : la Piste propose trois corrections (retirer le `catch`, ouvrir un filtre `phone` à l'API, porter l'identifiant d'invitation dans le profil brouillon) ».
+- Mesure (2026-10-25, 5b6c7a369, implementeur) : reproduit avant correctif par `InvitationEnAttenteDuBrouillonTest` (API : `pending_invitation_id` absent des deux carnets, 4 rouges) et par `OwnersList.invitation-en-attente.p237-01` et `ServiceProvidersList.invitation-en-attente.p237-01` (brouillon au seul numéro → toast « Aucune invitation en attente » sans requête ; 6 rouges) ; correctif : sous-requête `Invitation::idEnvoyeePour()` (dernière invitation `sent`, agence du profil ou du carnet) rendue en `pending_invitation_id`, et les deux listes relancent ou révoquent par elle, sans recherche. Ablation : chaque moitié retirée → ses tests rougissent, et la contrainte d'agence ou de statut retirée seule rougit son test ; remis → verts, avec les classes voisines (`OwnerProfileListingTest`, `ServiceProviderDirectory*Test`, tests de second facteur des carnets mis au contrat).
 
 ### Valider son numéro à la publication enregistre le code, mais le choix WhatsApp refusé par l'API est perdu sous un message de succès
 - Réf : P237.02
@@ -7440,7 +7441,7 @@ base de développement. Les écrans n'ont pas été joués.*
 
 ### Petites améliorations
 - Réf : P237.04
-- Statut : validé — validation du porteur (2026-10-25) : l'échec de `clear()` après une soumission réussie se dit par un toast, et la liste du lot se relit dans `onSettled`
+- Statut : fait · TCK-2371
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/hooks/useWizardDraft.ts:252-279`, `takussan-web/src/components/agency/UpgradeRequestForm.tsx:186-189`, `takussan-web/src/components/wizard/WizardReprenable.tsx:310-311`, `takussan-web/src/components/wizard/WizardDraftsBanner.tsx:39`, `:64`, `:102`, `takussan-web/src/components/admin/super/SuperAdminPropertiesTable.tsx:119-134`
 - Constat :
@@ -7450,6 +7451,7 @@ base de développement. Les écrans n'ont pas été joués.*
 - Piste : lever, ou dire, l'échec de `clear()` après une soumission (le bandeau ne doit pas reproposer une démarche close) ; relire la liste dans `onSettled` du lot.
 - Mesure (2026-10-25, db3e25230, mesureur) : relu `useWizardDraft.ts:252-279`, `UpgradeRequestForm.tsx:186-189`, `WizardReprenable.tsx:310-311`, `wizard-drafts.ts:164-170` (le bandeau ne garde que la règle de clé et `estVierge`, sans tenir compte d'une soumission ; `agency-upgrade-` y figure) et `SuperAdminPropertiesTable.tsx:119-134`, puis lancé un test vitest temporaire de `useWizardDraft('agency-upgrade-7')` : un `DELETE` en 500 → `clear()` ne rejette pas, `error` vaut « DELETE wizard-drafts failed (500) » et `draft` est conservé. Ce que la page de reprise montre pour une demande déjà soumise n'est pas mesuré. La partie « lot de la console » tient en lecture : `refresh` est seulement dans `onSuccess`. Classement : V7 pour le brouillon, car lever l'échec ferait afficher une erreur sur une demande pourtant soumise, et le dire demande un texte neuf ; la partie console (déplacer `refresh` dans `onSettled`) relèverait seule de A1.
 - Mesure (2026-10-25, b9c58e007, humain) : validation du porteur en bloc (2026-10-25), second tour, sur les recommandations (a) de la session ; statut précédent : « retenu · à valider — V7 : dire ou lever l'échec de `clear()` après une soumission réussie demande de choisir ce que l'écran annonce ».
+- Mesure (2026-10-25, 5b6c7a369, implementeur) : reproduit avant correctif par `useWizardDraft.test` (`clear()` rend `undefined` sur un `DELETE` 500), `UpgradeRequestForm.test` et `WizardReprenable.test` (aucun toast sur un `DELETE` refusé après la soumission), et `SuperAdminPropertiesTable.lot-refuse.p237-04` (lot refusé sur un bien après un autre accepté → `onChange` jamais appelé) ; correctif : `clear()` rend son sort, un toast d'avertissement « Brouillon non effacé » suit l'annonce du succès, et le lot relit la liste dans `onSettled`. Ablation : les quatre fichiers remis à leur version d'avant → 5 rouges ; remis → 58/58 verts, et les assistants d'accueil verts (doublures de `clear()` rendues `true`).
 
 ## Angle 238 — Lignes nées au passage d'un statut, face aux transitions de retour du parent
 
@@ -7763,7 +7765,7 @@ Le seul passage restant est `CustomerService::findOrCreateFromUser`, dans la ré
 
 ### Petites améliorations
 - Réf : P243.02
-- Statut : validé — validation du porteur (2026-10-25) : sur l'échec d'un geste de la grille, la liste se relit ; le refus d'un favori se dit par un toast `messageErreur`
+- Statut : fait · TCK-2371
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/components/media/MediaManager.tsx:199-211`, `:233-248`, `takussan-web/src/hooks/useFavorite.ts:53-56`, `takussan-web/src/components/favorites/FavoriteButton.tsx:101-111`
 - Constat :
@@ -7773,6 +7775,7 @@ Le seul passage restant est `CustomerService::findOrCreateFromUser`, dans la ré
 - Piste : retour arrière ciblé (remettre le seul média en cause, à sa place), ou relecture de la liste sur l'échec ; un toast `messageErreur` sur le refus d'un favori.
 - Mesure (2026-10-25, db3e25230, mesureur) : relu `MediaManager.tsx:199-211` et `:233-248` (instantané `grid` entier remis sur l'échec ; `busyId` ne marque que la tuile visée, `isBusy={busyId === item.id}` l. 379, et le bouton de suppression n'est pas désactivé), `useFavorite.ts:53-56` et `FavoriteButton.tsx:101-111` (`catch` sans message), puis lancé un test vitest temporaire de `<MediaManager>` : photos 1, 2 et 3, suppression de 1 puis de 2 en vol, 2 acceptée, 1 refusée → la grille remontre 1, 2 et 3, donc la photo 2 reparaît alors qu'elle est supprimée en base. La partie « après un envoi » n'est pas mesurée. Le constat tient. Classement : V7, le choix du retour arrière et le toast ajouté sur le cœur sont un comportement visible neuf.
 - Mesure (2026-10-25, b9c58e007, humain) : validation du porteur en bloc (2026-10-25), second tour, sur les recommandations (a) de la session ; statut précédent : « retenu · à valider — V7 : la Piste laisse deux options pour la grille (retour ciblé ou relecture) et propose un toast neuf sur le refus d'un favori ».
+- Mesure (2026-10-25, 5b6c7a369, implementeur) : reproduit avant correctif par `MediaManager.echec-relu.p243-02` (suppression de 1 refusée après celle de 2 acceptée → la grille rend 1, 2 et 3 ; réordonnancement refusé → l'instantané) et `FavoriteButton.refus-dit.p243-02` (refus en 401 → aucun toast, bouton et hook) ; correctif : `MediaManager.onRelire` (branché par `PropertyMediaPanel`) pose la grille sur la liste relue, sans les suppressions encore en vol, et le favori refusé se dit par un toast `messageErreur`. Ablation : correctifs retirés → 4 rouges ; filtre des suppressions en vol retiré seul → son test rouge ; remis → verts, avec les 25 fichiers de test des cartes, de la fiche et des favoris.
 
 ## Angle 244 — Champs de saisie remis à zéro avant la réponse, face aux bornes de l'API que le champ ne porte pas
 
