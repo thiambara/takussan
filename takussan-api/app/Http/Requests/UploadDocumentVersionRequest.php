@@ -12,6 +12,7 @@ use Illuminate\Foundation\Http\FormRequest;
  * (formats + max 10 MB), with an optional comment (max 500 chars).
  * TCK-601 — true since both read {@see AcceptedUploads::document()}; the
  * formats were announced here and checked nowhere.
+ * TCK-2300 — an optional `expiry_date`: a new version clears the old one.
  */
 class UploadDocumentVersionRequest extends FormRequest
 {
@@ -26,6 +27,8 @@ class UploadDocumentVersionRequest extends FormRequest
         return [
             'file' => ['required', 'file', ...AcceptedUploads::document(10240)],
             'comment' => ['nullable', 'string', 'max:500'],
+            // TCK-2300 (P231.03) — l'échéance du nouveau fichier ; absente, elle se vide.
+            'expiry_date' => ['nullable', 'date'],
         ];
     }
 }

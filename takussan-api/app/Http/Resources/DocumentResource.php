@@ -43,7 +43,8 @@ class DocumentResource extends BaseResource
     public function toArray(Request $request): array
     {
         /** @var Document $this */
-        $file = $this->getFirstMedia('file');
+        // TCK-2300 (P231.02) — la version active, sinon `file`.
+        $file = $this->currentFile();
 
         // Version active de la collection `versions`. P20.05 (TCK-901) — sur la relation `media`
         // quand la liste l'a chargée ; sinon `activeVersion()`, qui interroge la table.
@@ -69,7 +70,7 @@ class DocumentResource extends BaseResource
             'verified_by' => $this->verified_by,
             'verified_at' => $this->iso($this->verified_at),
             'expiry_date' => $this->calendarDate($this->expiry_date),
-            // Legacy single-file collection. TCK-539 — URL d'API signée, plus l'URL du fichier :
+            // Le fichier qui fait foi (TCK-2300). TCK-539 — URL d'API signée, plus l'URL du fichier :
             // elle expire (30 min), elle ne se garde pas.
             'file_url' => $file ? app(PrivateMediaAccess::class)->signedUrl($file) : null,
             'file_name' => $file?->file_name,
