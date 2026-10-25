@@ -172,8 +172,13 @@ class ServiceProviderProfile extends AbstractModel
      */
     public function getDisplayNameAttribute(): string
     {
-        if ($this->user !== null) {
-            return trim(($this->user->first_name ?? '').' '.($this->user->last_name ?? ''));
+        // P234.07 (TCK-2280) — un compte lié sans nom (créé par téléphone, noms `''`) laisse place
+        // au nom saisi par l'agence à l'invitation, comme au front depuis TCK-2136.
+        $account = $this->user !== null
+            ? trim(($this->user->first_name ?? '').' '.($this->user->last_name ?? ''))
+            : '';
+        if ($account !== '') {
+            return $account;
         }
 
         $first = (string) data_get($this->metadata, 'first_name', '');

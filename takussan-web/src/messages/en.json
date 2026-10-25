@@ -4783,6 +4783,7 @@
       "columns": {
         "name": "Name",
         "email": "Email",
+        "phone": "Phone",
         "status": "Status",
         "actions": "Actions",
         "identifiers": "Identifiers"
@@ -5222,6 +5223,7 @@
       "empty_description": "Invite your first provider to start building your book.",
       "columns": {
         "name": "Name",
+        "phone": "Phone",
         "trades": "Trades",
         "zones": "Zones",
         "status": "Status",
@@ -5271,7 +5273,8 @@
         "error_title": "Could not send invitation",
         "resend_success": "Invitation resent",
         "revoke_success": "Invitation revoked",
-        "existing_other_agency": "This provider is already attached to another agency — they can opt-in to multi-attachment when accepting."
+        "existing_other_agency": "This provider is already attached to another agency — they can opt-in to multi-attachment when accepting.",
+        "existing_other_agency_trades": "This service provider is already linked to another agency: they will appear under their profile's trades ({trades}), not the ones ticked here."
       },
       "errors": {
         "already_member": "This provider is already active in your agency.",
@@ -6528,12 +6531,6 @@
       "emailInvalid": "Invalid email.",
       "phone": "Phone (optional)",
       "required": "This field is required.",
-      "role": "Role",
-      "roles": {
-        "agent": "Agent",
-        "agent_senior": "Senior agent",
-        "agent_manager": "Team manager"
-      },
       "adminNote": "An agency administrator cannot be invited by email: add them from “Add an existing account”, which requires an existing Takussan account.",
       "submit": "Send the invitation"
     },
@@ -11199,6 +11196,7 @@
     "password": "Password",
     "passwordHint": "At least 8 characters, with a letter and a digit.",
     "create": "Create my account and accept",
+    "confirmName": "Your account has no name yet. Confirm or correct the one the inviting space entered for you.",
     "haveAccount": "I already have an account",
     "signIn": "Sign in",
     "required": "Enter your first name and a password.",

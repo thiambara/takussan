@@ -70,6 +70,18 @@ describe('<InviteAgentDialog>', () => {
    * le générique `POST /api/invitations` l'accepterait sans créer aucun profil.
    * L'écran ne doit donc pas l'offrir — et il doit dire où ça se fait.
    */
+  /**
+   * P234.01 (TCK-2280) — « Agent senior » et « Responsable d'équipe » n'étaient jamais appliqués :
+   * le membre entrait comme simple agent. Le dialogue n'offre plus de choix de rôle.
+   */
+  it('n’offre plus de rôle sans effet : ni agent senior, ni responsable d’équipe', async () => {
+    monter();
+
+    expect(screen.queryByText(/Agent senior/)).toBeNull();
+    expect(screen.queryByText(/Responsable d'équipe/)).toBeNull();
+    expect(screen.queryByRole('combobox')).toBeNull();
+  });
+
   it('n’offre pas `agency_admin` et renvoie vers le chemin qui existe', async () => {
     monter();
 

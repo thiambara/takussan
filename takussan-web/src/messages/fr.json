@@ -4783,6 +4783,7 @@
       "columns": {
         "name": "Nom",
         "email": "Email",
+        "phone": "Téléphone",
         "status": "Statut",
         "actions": "Actions",
         "identifiers": "Identifiants"
@@ -5222,6 +5223,7 @@
       "empty_description": "Invitez votre premier prestataire pour le rattacher à votre carnet.",
       "columns": {
         "name": "Nom",
+        "phone": "Téléphone",
         "trades": "Métiers",
         "zones": "Zones",
         "status": "Statut",
@@ -5271,7 +5273,8 @@
         "error_title": "Impossible d'envoyer l'invitation",
         "resend_success": "Invitation renvoyée",
         "revoke_success": "Invitation révoquée",
-        "existing_other_agency": "Ce prestataire est déjà rattaché à une autre agence — il pourra accepter le multi-rattachement à l'acceptation."
+        "existing_other_agency": "Ce prestataire est déjà rattaché à une autre agence — il pourra accepter le multi-rattachement à l'acceptation.",
+        "existing_other_agency_trades": "Ce prestataire est déjà rattaché à une autre agence : il apparaîtra sous les métiers de son profil ({trades}), pas sous ceux cochés ici."
       },
       "errors": {
         "already_member": "Ce prestataire est déjà actif dans votre agence.",
@@ -6528,12 +6531,6 @@
       "emailInvalid": "Email invalide.",
       "phone": "Téléphone (facultatif)",
       "required": "Ce champ est requis.",
-      "role": "Rôle",
-      "roles": {
-        "agent": "Agent",
-        "agent_senior": "Agent senior",
-        "agent_manager": "Responsable d'équipe"
-      },
       "adminNote": "Un administrateur d'agence ne s'invite pas par e-mail : il s'ajoute depuis « Ajouter un compte existant », qui exige un compte Takussan déjà créé.",
       "submit": "Envoyer l'invitation"
     },
@@ -11199,6 +11196,7 @@
     "password": "Mot de passe",
     "passwordHint": "8 caractères minimum, avec une lettre et un chiffre.",
     "create": "Créer mon compte et accepter",
+    "confirmName": "Votre compte n’a pas encore de nom. Confirmez ou corrigez celui que l’espace a saisi pour vous.",
     "haveAccount": "J’ai déjà un compte",
     "signIn": "Se connecter",
     "required": "Indiquez votre prénom et un mot de passe.",

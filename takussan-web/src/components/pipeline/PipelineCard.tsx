@@ -8,6 +8,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import { ContactGestures } from '@/components/crm/ContactGestures';
 import type { Locale } from '@/i18n/config';
 import { formatDate } from '@/lib/format';
+import { nomAffichable, nomCompletDe } from '@/lib/identite';
 import { cn } from '@/lib/utils';
 import type { CustomerPipelineStage } from '@/types/customer';
 import type { PipelineCustomerCard } from '@/types/pipeline';
@@ -55,11 +56,10 @@ export function PipelineCard({
     ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` }
     : {};
 
-  const addedByName =
-    customer.added_by?.full_name
-    ?? [customer.added_by?.first_name, customer.added_by?.last_name]
-      .filter(Boolean)
-      .join(' ');
+  // P220.03 (TCK-2281) — la fiche se nomme par `nomAffichable` (numéro, sinon `#<id>`). Son
+  // auteur, chargé sans contact, garde sa ligne cachée quand il n'a pas de nom, comme avant.
+  const nom = nomAffichable(customer);
+  const addedByName = customer.added_by?.full_name || nomCompletDe(customer.added_by);
 
   return (
     <div
@@ -99,7 +99,7 @@ export function PipelineCard({
         </span>
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold text-foreground">
-            {customer.first_name} {customer.last_name}
+            {nom}
           </p>
           {addedByName ? (
             <p className="mt-0.5 truncate text-xs text-muted-foreground">
@@ -130,7 +130,7 @@ export function PipelineCard({
           <select
             value={customer.pipeline_stage}
             onChange={(e) => onStageChange(customer, e.target.value as CustomerPipelineStage)}
-            aria-label={tCrm('stageSelect', { name: `${customer.first_name} ${customer.last_name}` })}
+            aria-label={tCrm('stageSelect', { name: nom })}
             className="min-h-11 flex-1 rounded-md border border-input bg-background px-2 text-sm"
           >
             {PIPELINE_STAGES.map((stage) => (
@@ -141,7 +141,7 @@ export function PipelineCard({
             compact
             phone={customer.phone}
             firstName={customer.first_name}
-            fullName={`${customer.first_name} ${customer.last_name}`}
+            fullName={nom}
           />
         </div>
       ) : null}
