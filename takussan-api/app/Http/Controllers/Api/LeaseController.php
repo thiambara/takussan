@@ -16,6 +16,7 @@ use App\Models\Property;
 use App\Services\Lease\LeaseSignatureService;
 use App\Services\Model\LeaseService;
 use App\Services\Property\BailleurDuBien;
+use App\Services\Property\ContactDeLAgenceDuBien;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -181,6 +182,12 @@ class LeaseController extends Controller
             // TCK-587 (vérification adverse, B2) — un garant hors du périmètre de l'émetteur ne se
             // rattache pas : sa fiche se lirait ensuite par `GET /api/leases/{id}/guarantors`.
             $this->authorize('view', $guarantor);
+            // TCK-2285 (P226.01) — et de l'agence du BIEN quand il en a une (celle du bail suit l'agence
+            // du bailleur sur un bien sans agence, qui ne change pas).
+            abort_unless(ContactDeLAgenceDuBien::garant(
+                $guarantor,
+                Property::query()->whereKey($lease->property_id)->value('agency_id'),
+            ), 403);
         }
 
         // Atomic cap check + attach: without the transaction+lock, two
