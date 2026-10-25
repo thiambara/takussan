@@ -24,6 +24,7 @@ use App\Services\Lease\EarlyTerminationService;
 use App\Services\Lease\LeaseExitScheduleService;
 use App\Services\Lease\LeaseRenewalService;
 use App\Services\Property\BailleurDuBien;
+use App\Services\Property\ContactDeLAgenceDuBien;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -53,11 +54,15 @@ class LeaseService
         // périmètre de l'émetteur (`view`), comme le client d'une réservation (`BookingService`).
         // `exists:` seul laissait rattacher le contact de n'importe qui, puis lire sa fiche par
         // le bail.
+        // TCK-2285 (P226.01) — et une fiche de l'agence du bien quand il en a une : `view` admet la
+        // fiche de A que l'agent de A et de B a ajoutée, sur un bien de B. Même refus.
         $tenant = Customer::query()->find($data['tenant_id'] ?? null);
-        abort_unless($tenant !== null && $user->can('view', $tenant), 403);
+        abort_unless($tenant !== null && $user->can('view', $tenant)
+            && ContactDeLAgenceDuBien::client($tenant, $property->agency_id), 403);
         if (! empty($data['guarantor_id'])) {
             $guarantor = Guarantor::query()->find($data['guarantor_id']);
-            abort_unless($guarantor !== null && $user->can('view', $guarantor), 403);
+            abort_unless($guarantor !== null && $user->can('view', $guarantor)
+                && ContactDeLAgenceDuBien::garant($guarantor, $property->agency_id), 403);
         }
 
         // TCK-1068 (P62.01) — la réservation d'origine doit être une réservation DU BIEN. Jugée ici,
