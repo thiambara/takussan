@@ -1316,6 +1316,14 @@ Index : `activity_log_agency_created_idx (agency_id, created_at)`, `activity_log
 Relation : `agency()` (belongsTo). Un admin d'agence ne lit que `agency_id = <agence du profil actif>`
 (`AuditScope`).
 
+**Conservation** (TCK-2342, [ADR-0044, amendement du 2026-10-25](adr/0044-donnees-personnelles-chiffrement-journal-d-agence-registre-des-droits.md#amendement-du-2026-10-25--le-journal-dactivité-se-conserve-par-famille-tck-2342)) :
+une ligne se purge au-delà de la durée de sa famille de `log_name`, comptée depuis `created_at`,
+par `audit:prune-activity-log` (chaque jour, 04:10 Dakar) — **12 mois** par défaut et pour un
+`log_name` nul ; **5 ans** pour `PersonalDataAccess`, `Privacy`, `Security`, `UserSupport`, `KYC`,
+`KycDossier`, `Account`, `Membership`, `AgencyRole`, `Integration`, `export` ; **10 ans** pour
+`LeasePayment`, `BookingPayment`, `Invoice`, `Payout`, `PlatformPayout`, `CommissionEntry`,
+`Billing`. Les listes vivent dans `App\Console\Commands\PruneActivityLog`.
+
 **Ce que rendent les lectures.** Les lectures du journal d'agence et de la console rendent
 `properties`, et **jamais `attribute_changes`** : aucun écran ne montre le détail d'un événement
 (décision du porteur du 2026-10-19, piste P56.03 — à rouvrir avec un écran qui le montre).
