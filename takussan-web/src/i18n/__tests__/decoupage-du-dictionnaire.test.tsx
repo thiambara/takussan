@@ -194,6 +194,17 @@ describe('la table dérivée', () => {
     }
   });
 
+  it('ne sert au navigateur aucun espace que seul le serveur lit (P105.04)', () => {
+    // `meta` (les `generateMetadata`), `serverActions` (les actions serveur) et `publicLeadErrors`
+    // (un `getTranslations()` racine d'action) ne sont lus que par `getTranslations`, qui résout
+    // contre le dictionnaire entier de la requête. Les sérialiser coûtait ~1,5 Ko gzip par document.
+    for (const [id, noms] of Object.entries(frontieres)) {
+      for (const serveur of ['meta', 'serverActions', 'publicLeadErrors']) {
+        expect(noms, `« ${id} » sert « ${serveur} »`).not.toContain(serveur);
+      }
+    }
+  });
+
   it('sert `property` à la console super-admin — l’espace que seul le repli de constantes trouve', () => {
     // `SuperAdminPropertiesFilters` n'écrit aucun `useTranslations('property…')` : il passe
     // `PROPERTY_ENUM_NAMESPACES.status`. Une table écrite à la main aurait cassé cet écran, et

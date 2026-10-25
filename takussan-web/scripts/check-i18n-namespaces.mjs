@@ -26,7 +26,10 @@
  * A. **La table est DÉRIVÉE, pas relue.** On marche le graphe d'imports depuis les fichiers du
  *    routeur (`page`, `layout`, `error`, …), en suivant `@/…`, les chemins relatifs et les
  *    `import()`, puis on relève les espaces adressés (règles A/B/C de
- *    `i18n-namespaces-scan.mjs`). Le résultat est comparé à `src/i18n/namespaces.json` — **à
+ *    `i18n-namespaces-scan.mjs`) par un lecteur CLIENT : un espace que seul `getTranslations` lit
+ *    (`generateMetadata`, actions serveur) résout contre le dictionnaire entier de la requête et
+ *    n'entre pas dans la table — le rapport le nomme à part (P105.04, amendement du 2026-10-25).
+ *    Le résultat est comparé à `src/i18n/namespaces.json` — **à
  *    l'identique, dans les deux sens**. Un espace atteignable et non déclaré casse (l'écran
  *    manquerait un libellé) ; un espace déclaré et plus atteignable casse aussi (des octets payés
  *    par tous les visiteurs pour rien). C'est la garde « un document dérivé suit encore sa
@@ -190,9 +193,12 @@ for (const fichier of fichiersRouteur) {
 
 const echecs = [];
 const propres = new Map();
+/** Espaces que seul du code serveur lit sous la frontière (`getTranslations`) : non servis (P105.04). */
+const serveurSeul = new Map();
 for (const f of frontieres) {
-  const { espaces, irresolus } = espacesAtteignables(entrees.get(f), SRC, espacesConnus);
+  const { espaces, serveurSeul: lusParLeServeur, irresolus } = espacesAtteignables(entrees.get(f), SRC, espacesConnus);
   propres.set(f, espaces);
+  serveurSeul.set(f, lusParLeServeur);
   for (const { fichier, expression } of irresolus) {
     echecs.push(
       `namespace dynamique IRRÉSOLU — ${relative(WEB, fichier)} : useTranslations(${expression})\n` +
@@ -341,6 +347,8 @@ if (rapport || majTable) {
         `  (plafond ${plafonds[id]} %)`,
     );
     console.log(`${' '.repeat(large)}  ${derive[id].join(' ')}`);
+    const seulServeur = [...serveurSeul.get(f)].sort();
+    if (seulServeur.length) console.log(`${' '.repeat(large)}  lus par le serveur seul, non servis : ${seulServeur.join(' ')}`);
   }
 }
 
