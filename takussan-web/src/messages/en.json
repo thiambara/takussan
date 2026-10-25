@@ -4201,6 +4201,8 @@
       "priority_hint": "(Normal by default)",
       "photos_label": "Photos (optional)",
       "photos_selected": "{count, plural, =1 {# photo selected.} other {# photos selected.}}",
+      "photos_hint": "{max} photos at most.",
+      "photos_too_many": "{count, plural, other {# photos selected}}: {max} at most. Choose fewer.",
       "submitting": "Sending…",
       "submit": "Report the problem",
       "photos_failed_title": "Photos not sent",
@@ -4295,6 +4297,8 @@
         "after": "After",
         "quotes": "Quote",
         "before_label": "Photos before the work",
+        "before_hint": "{max} photos at most.",
+        "before_too_many": "{count, plural, other {# photos selected}}: {max} at most. Choose fewer.",
         "send": "{count, plural, =0 {Send} =1 {Send # photo} other {Send # photos}}",
         "sending": "Sending…",
         "failed": "The photos were not sent. They are still selected: try again."

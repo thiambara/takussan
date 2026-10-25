@@ -178,8 +178,29 @@ function RoomCard({
   const tConditions = useTranslations('inventory.conditions');
   const upload = useUploadInventoryRoomPhotos(inventoryId);
   const remove = useDeleteInventoryRoomPhoto(inventoryId);
+  const messageErreur = useMessageErreurApi();
   const [photos, setPhotos] = useState<File[]>([]);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [envoi, setEnvoi] = useState(false);
+  const [erreurEnvoi, setErreurEnvoi] = useState<unknown>(null);
+
+  // TCK-2370 (P236.02) — une photo par appel, comme la clôture (TCK-2330) : tout le lot dans un
+  // corps (jusqu'à 20 photos de 5 Mo) dépassait la borne du proxy (25 Mio). Le premier échec arrête
+  // tout et se dit ; une photo jointe sort de la sélection, pour que réessayer n'envoie que le reste.
+  const envoyer = async () => {
+    setEnvoi(true);
+    setErreurEnvoi(null);
+    try {
+      for (const photo of photos) {
+        await upload.mutateAsync({ files: [photo], roomName: room.name });
+        setPhotos((restantes) => restantes.filter((p) => p !== photo));
+      }
+    } catch (e) {
+      setErreurEnvoi(e);
+    } finally {
+      setEnvoi(false);
+    }
+  };
 
   return (
     <article className="rounded-xl bg-card p-4" data-testid={`room-card-${room.name}`}>
@@ -284,22 +305,14 @@ function RoomCard({
             <Button
               type="button"
               size="sm"
-              disabled={photos.length === 0 || upload.isPending}
-              onClick={async () => {
-                if (photos.length === 0) return;
-                try {
-                  await upload.mutateAsync({ files: photos, roomName: room.name });
-                  setPhotos([]);
-                } catch {
-                  // Error surfaced via `upload.isError` below.
-                }
-              }}
+              disabled={photos.length === 0 || envoi}
+              onClick={() => void envoyer()}
             >
-              {upload.isPending ? t('sending') : t('sendPhotos')}
+              {envoi ? t('sending') : t('sendPhotos')}
             </Button>
-            {upload.isError ? (
+            {erreurEnvoi !== null ? (
               <span role="alert" className="text-xs text-destructive">
-                {t('uploadFailed')}
+                {messageErreur(erreurEnvoi, t('uploadFailed'))}
               </span>
             ) : null}
           </div>
