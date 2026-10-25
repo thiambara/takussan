@@ -279,6 +279,17 @@ export interface PropertyDetail extends PropertyListItem {
   submitted_at?: string | null;
   approved_at?: string | null;
   rejected_at?: string | null;
+  /**
+   * TCK-999 — les gestes que la fiche pro offre à l'appelant, émis sur `properties.show` seulement
+   * (absents ailleurs) : `transfer_owner`, « Changer le titulaire » (l'admin de l'agence, sur un bien
+   * que le personnel tient encore).
+   */
+  abilities?: { transfer_owner?: boolean };
+  /**
+   * TCK-1000 (P15.06, Q2) — le bailleur invité pour qui le bien a été saisi, tant que l'invitation
+   * court. Émis sur `properties.show` au seul personnel de l'agence du bien.
+   */
+  pending_owner?: { profile_id: number; name: string } | null;
 }
 
 export interface PaginatedProperties {

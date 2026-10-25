@@ -26,8 +26,18 @@ vi.mock('@/lib/access/server-guards', () => ({
   resolveAgencyOrNull: (...args: unknown[]) => mockAgence(...args),
 }));
 vi.mock('@/components/property-form/PropertyWizard', () => ({
-  PropertyWizard: ({ agenceDuChoixDuBailleur }: { agenceDuChoixDuBailleur?: number | null }) => (
-    <div data-testid="assistant" data-agence-du-choix={String(agenceDuChoixDuBailleur ?? 'aucune')} />
+  PropertyWizard: ({
+    agenceDuChoixDuBailleur,
+    peutInviterUnBailleur,
+  }: {
+    agenceDuChoixDuBailleur?: number | null;
+    peutInviterUnBailleur?: boolean;
+  }) => (
+    <div
+      data-testid="assistant"
+      data-agence-du-choix={String(agenceDuChoixDuBailleur ?? 'aucune')}
+      data-invitation={String(Boolean(peutInviterUnBailleur))}
+    />
   ),
 }));
 
@@ -74,5 +84,31 @@ describe('/app/properties/new — à qui le choix du bailleur est offert (TCK-99
     capacites.valeur = [];
 
     expect(await agenceDuChoix()).toBe('aucune');
+  });
+
+  // TCK-1000 (Q2) — « Inviter un nouveau bailleur » depuis le choix : la règle de `/app/owners`
+  // (l'admin, ou `team.invite`), et seulement là où le choix est offert.
+  it('TCK-1000 — l’admin peut inviter un bailleur depuis le choix', async () => {
+    expect(await agenceDuChoix()).toBe('9');
+    expect(screen.getByTestId('assistant')).toHaveAttribute('data-invitation', 'true');
+  });
+
+  it('TCK-1000 — l’agent qui tient `team.invite` aussi ; sans elle, le choix reste sans invitation', async () => {
+    mockGetMe.mockResolvedValue({ id: 1, roles: ['agent'], agency_id: 9 });
+    capacites.valeur = ['properties.create', 'properties.update_any', 'team.invite'];
+    expect(await agenceDuChoix()).toBe('9');
+    expect(screen.getByTestId('assistant')).toHaveAttribute('data-invitation', 'true');
+  });
+
+  it('TCK-1000 — l’agent sans `team.invite` ne voit pas l’invitation', async () => {
+    mockGetMe.mockResolvedValue({ id: 1, roles: ['agent'], agency_id: 9 });
+    expect(await agenceDuChoix()).toBe('9');
+    expect(screen.getByTestId('assistant')).toHaveAttribute('data-invitation', 'false');
+  });
+
+  it('TCK-1000 — sans choix du bailleur, pas d’invitation non plus', async () => {
+    mockAgence.mockResolvedValue({ id: 9, kind: 'individual' });
+    expect(await agenceDuChoix()).toBe('aucune');
+    expect(screen.getByTestId('assistant')).toHaveAttribute('data-invitation', 'false');
   });
 });

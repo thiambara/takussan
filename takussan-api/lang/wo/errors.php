@@ -489,6 +489,8 @@ return [
         'owner_designation_forbidden' => 'Le bailleur ne se désigne pas ici : seul le personnel d\'une agence standard saisit un bien au nom d\'un de ses bailleurs.',
         'owner_not_in_agency' => 'Le bailleur choisi n\'est pas un bailleur actif de l\'agence du bien.',
         'parent_owner_mismatch' => 'Un lot appartient au bailleur du bien qui le contient : ce lot a un autre titulaire.',
+        'owner_transfer_forbidden' => 'Ce bien ne change pas de titulaire : il appartient déjà à un bailleur de l\'agence, et un bien ne se retire pas à son bailleur.',
+        'pending_owner_not_invited' => 'Ce bailleur n\'est pas une invitation en cours de l\'agence du bien : invitez-le d\'abord, ou choisissez un bailleur inscrit.',
         'primary_not_eligible' => 'Ajaa bu dox ci ajaasu kër gi rekk moo mën a nekk ajaa bu njëkk bi.',
         'primary_requires_agent' => 'Jàngalekat bu am wàll ajaa rekk moo mën a nekk ajaa bu njëkk bu kër gi.',
         'publish_contact_incomplete' => 'Ngir siiwal, ki ñuy woo ci kër gi war na am tur ak nimero bu ñu wóor, te war nañu nangu sàrt yi.',

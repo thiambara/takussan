@@ -24,6 +24,8 @@ use App\Services\Notifications\ContactSansCompte;
 use App\Services\Notifications\Sms\DeferredSmsGuard;
 use App\Services\Notifications\Sms\PhoneNumber;
 use App\Services\Notifications\Sms\SmsOutcome;
+use App\Services\Property\PropertyOwnerTransfer;
+use App\Services\Property\TitulaireALaSaisie;
 use App\Support\CanonicalPhone;
 use App\Support\CaseInsensitive;
 use App\Support\LienFront;
@@ -374,6 +376,7 @@ class InvitationService
                 'status' => InvitationStatus::Revoked->value,
                 'revoked_at' => now(),
             ])->save();
+            $this->delierLesBiens($fraiche);
 
             activity('Invitation')
                 ->performedOn($fraiche)
@@ -572,6 +575,7 @@ class InvitationService
                 $fraiche->forceFill([
                     'status' => InvitationStatus::Expired->value,
                 ])->save();
+                $this->delierLesBiens($fraiche);
 
                 activity('Invitation')
                     ->performedOn($fraiche)
@@ -744,6 +748,17 @@ class InvitationService
     }
 
     /**
+     * TCK-1000 (Q2) — l'invitation d'un bailleur est révoquée ou expirée : les biens saisis pour lui
+     * perdent le lien et restent à l'agence ({@see TitulaireALaSaisie::delier()}).
+     */
+    private function delierLesBiens(Invitation $invitation): void
+    {
+        if ($invitation->invitable_type === OwnerProfile::class && $invitation->invitable_id !== null) {
+            TitulaireALaSaisie::delier([(int) $invitation->invitable_id]);
+        }
+    }
+
+    /**
      * Branch B: shared finalize when the User already exists.
      *
      * P220.07 (TCK-2281, décision du porteur du 2026-10-25) — un compte SANS NOM (créé par
@@ -900,6 +915,12 @@ class InvitationService
             }
             if ($patch !== []) {
                 $invitable->forceFill($patch)->save();
+            }
+
+            // TCK-1000 (P15.06, Q2 ; ADR-0036, amendement du 2026-10-19, voie 2) — les biens saisis
+            // pour ce bailleur invité lui passent ici, dans la transaction qui active son profil.
+            if ($invitable instanceof OwnerProfile && (int) $invitable->user_id === (int) $user->id) {
+                app(PropertyOwnerTransfer::class)->aLAcceptation($invitable, $user);
             }
         }
 

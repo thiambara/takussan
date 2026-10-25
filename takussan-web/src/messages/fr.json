@@ -1428,6 +1428,25 @@
         "designateFor": "Désigner {name} comme agent principal",
         "empty": "Aucun collaborateur n'est associé à ce bien.",
         "error": "La désignation n'a pas abouti. Réessayez."
+      },
+      "ownerTransfer": {
+        "trigger": "Changer le titulaire",
+        "title": "Changer le titulaire du bien",
+        "description": "Rendez ce bien au bailleur pour qui il a été saisi : il le verra et en recevra les loyers à venir. Rien n'est écrit avant votre confirmation.",
+        "ownerLabel": "Nouveau titulaire",
+        "ownerPlaceholder": "Choisir un bailleur actif",
+        "loadingOwners": "Chargement des bailleurs…",
+        "noOwners": "Aucun bailleur actif dans l'agence.",
+        "loadingPreview": "Calcul de ce qui suit le bien…",
+        "moving": "{count, plural, =0 {Aucun bail en brouillon ne passe à {name}.} one {# bail en brouillon passera à {name}.} other {# baux en brouillon passeront à {name}.}}",
+        "staying": "Le bail {reference} ({status}) de {tenant} reste au nom de l'agence.",
+        "stayingNoTenant": "Le bail {reference} ({status}) reste au nom de l'agence.",
+        "payouts": "Les reversements déjà faits ne changent pas.",
+        "confirm": "Confirmer le changement",
+        "submitting": "Changement en cours…",
+        "cancel": "Annuler",
+        "success": "Le bien est désormais au nom de {name}.",
+        "error": "Changement impossible. Réessayez."
       }
     },
     "visibility": {
@@ -1655,7 +1674,10 @@
         "hint": "Facultatif. Sans choix, le bien reste celui de l'agence ; le bailleur choisi en sera prévenu.",
         "agency": "L'agence (aucun bailleur)",
         "loading": "Chargement des bailleurs…",
-        "empty": "Aucun bailleur actif ne correspond."
+        "empty": "Aucun bailleur actif ne correspond.",
+        "invite": "Inviter un nouveau bailleur",
+        "invited": "Invitation envoyée à {name}. Le bien reste à l'agence jusqu'à ce que {name} accepte ; il lui passera alors.",
+        "unlink": "Ne pas lier ce bien à cette invitation"
       }
     },
     "titleTypes": {
@@ -2139,7 +2161,8 @@
         "eyebrow": "Bien · {reference}",
         "forbidden_title": "Accès au bien refusé",
         "forbidden_message": "Votre profil actif ne permet pas d'ouvrir la fiche de ce bien.",
-        "back_cta": "Revenir aux biens"
+        "back_cta": "Revenir aux biens",
+        "pendingOwner": "En attente de {name} : le bien lui passera quand l'invitation sera acceptée."
       },
       "leaseDetail": {
         "metaTitleFallback": "Bail introuvable",

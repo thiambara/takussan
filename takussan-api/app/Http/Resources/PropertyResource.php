@@ -17,6 +17,7 @@ use App\Services\Membership\MembershipCapabilityResolver;
 use App\Services\Property\CoutDEntree;
 use App\Services\Property\PrimaryPropertyContact;
 use App\Services\Property\PropertyContactNumbers;
+use App\Services\Property\TitulaireALaSaisie;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
@@ -238,6 +239,25 @@ class PropertyResource extends BaseResource
                         : null,
                 ])->values()->all()
             ),
+            // TCK-999 (P15.06, Q5) — la fiche pro offre « Changer le titulaire » à qui le geste est
+            // permis (`PropertyPolicy::transferOwner`) sur un bien que le personnel tient encore : la
+            // même règle que l'API applique au geste (`PropertyOwnerTransfer::refus`, hors cible).
+            'abilities' => $this->when(
+                $isDetail && $appelantConnu,
+                fn (): array => [
+                    'transfer_owner' => $request->user()->can('transferOwner', $this->resource)
+                        && ! TitulaireALaSaisie::tenuParUnBailleur($this->resource),
+                ],
+            ),
+            // TCK-1000 (P15.06, Q2) — « En attente de <nom> » : le bailleur invité pour qui le bien a
+            // été saisi, lu par le personnel de l'agence du bien seulement (jamais un autre bailleur).
+            'pending_owner' => $this->when(
+                $isDetail && $appelantConnu && $this->resource->getAttribute('pending_owner_profile_id') !== null
+                    && $this->lePersonnelLit($request->user()),
+                fn (): ?array => ($profil = $this->resource->pendingOwnerProfile) !== null
+                    ? ['profile_id' => (int) $profil->id, 'name' => $profil->display_name]
+                    : null,
+            ),
             'agency' => $this->when(
                 $isDetail || $this->resource->relationLoaded('agency'),
                 fn () => $this->buildAgency()
@@ -351,6 +371,15 @@ class PropertyResource extends BaseResource
         // TCK-603 (verif-603 m4) — sur la liste, l'amorce de la page a déjà jugé le couple.
         return MembershipCapabilityResolver::amorce('agent', (int) $user->id, (int) $agencyId)
             ?? $user->isAgentAt((int) $agencyId);
+    }
+
+    /** TCK-1000 — le personnel actif de l'agence du bien, ou le super-admin. */
+    private function lePersonnelLit(User $user): bool
+    {
+        $agencyId = $this->resource->getAttribute('agency_id');
+
+        return $user->isSuperAdmin()
+            || ($agencyId !== null && app(MembershipCapabilityResolver::class)->isStaffAt($user, (int) $agencyId));
     }
 
     /**

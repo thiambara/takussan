@@ -111,6 +111,9 @@ class StorePropertyRequest extends BaseFormRequest
             // TCK-997 (P15.06, P50.01) — le bailleur au nom duquel le personnel saisit le bien. Le
             // titulaire se juge par `TitulaireALaSaisie` (bailleur actif de l'agence du bien).
             'owner_id' => ['nullable', 'integer'],
+            // TCK-1000 (Q2) — ou le profil du bailleur INVITÉ, jamais les deux : le bien naît au nom
+            // de l'auteur et passe au bailleur à l'acceptation (`TitulaireALaSaisie::bailleurEnAttente`).
+            'pending_owner_profile_id' => ['nullable', 'integer', 'prohibits:owner_id'],
             // TCK-997 (Q3) — le lot naît sous son parent, et prend son titulaire s'il est bailleur.
             'parent_id' => [
                 'nullable',

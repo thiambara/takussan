@@ -107,6 +107,10 @@ export default async function Page() {
     agencyId && capacites?.includes('properties.create') && capacites.includes('properties.update_any')
       ? agencyId
       : null;
+  // TCK-1000 (P15.06, Q2) — « Inviter un nouveau bailleur » depuis ce choix : la règle de
+  // `/app/owners` (l'admin, ou `team.invite`) ; l'API rejuge à l'invitation.
+  const peutInviterUnBailleur =
+    agenceDuChoixDuBailleur !== null && (isAdmin(roles) || (capacites ?? []).includes('team.invite'));
 
   if (quota && !quota.can_create) {
     return (
@@ -146,6 +150,7 @@ export default async function Page() {
         proposition={proposition}
         fraisDAgence={fraisDAgence}
         agenceDuChoixDuBailleur={agenceDuChoixDuBailleur}
+        peutInviterUnBailleur={peutInviterUnBailleur}
         quotaNote={
           quota && quota.limit !== null
             ? t('quotaUsage', { used: quota.used, limit: quota.limit })

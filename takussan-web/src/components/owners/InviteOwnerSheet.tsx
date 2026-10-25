@@ -51,8 +51,11 @@ export type InviteOwnerSheetProps = {
    * Optional callback fired with the freshly-created invitation. Property-
    * creation form uses it to auto-select the just-invited owner in its
    * dropdown without waiting for the next page load.
+   *
+   * TCK-1000 — second argument: what was typed in the sheet. The invitation
+   * resource carries no name, and the property form says who it waits for.
    */
-  readonly onInvited?: (invitation: InvitationSummary) => void;
+  readonly onInvited?: (invitation: InvitationSummary, saisie: InviteOwnerPayload) => void;
 };
 
 type FormState = {
@@ -97,12 +100,12 @@ export function InviteOwnerSheet({
       }
       return avecGardeDoubleFacteur(() => inviteOwner(token, agencyId, payload), garde);
     },
-    onSuccess: async (response) => {
+    onSuccess: async (response, saisie) => {
       toast.add({ title: t('toasts.success_title'), type: 'success' });
       setForm(EMPTY_FORM);
       setFieldErrors({});
       onOpenChange(false);
-      onInvited?.(response.data);
+      onInvited?.(response.data, saisie);
       await queryClient.invalidateQueries({ queryKey: ['owners', agencyId] });
     },
     onError: (error) => {
