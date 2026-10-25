@@ -1196,7 +1196,7 @@ sont atteignables par un webhook légitime, sans rejeu).*
 
 ### Ce qu'un paiement repassé à `refunded` laisse en aval n'est pas défait
 - Réf : P39.07
-- Statut : validé — validation du porteur (2026-10-25) : un reversement de plateforme `paid` qui porte une ligne remboursée depuis est signalé à la console super-admin et notifié à l'agence, sans écrire de montant ; un événement de remboursement avertit le locataire et le bailleur ; reste : la compensation sur le prochain reversement de la plateforme, si un volume réel la justifie
+- Statut : fait · TCK-2320 — reste : la compensation sur le prochain reversement de la plateforme, si un volume réel la justifie
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Payments/PaymentGatewayService.php:583-585`, `takussan-api/app/Services/Billing/PlatformPayoutService.php:249-268`
 - Constat :
@@ -1206,6 +1206,7 @@ sont atteignables par un webhook légitime, sans rejeu).*
 - Piste : relever ces effets un par un (angle 76 proposé) avant de choisir entre interdire, signaler ou compenser.
 - Mesure (2026-10-17, 8949e4ede, mesureur) : lu : la branche `REFUNDED` d'`applyStatusToPayment` n'émet aucun événement, seul `LeasePaymentSettledOnline` part (transition vers `paid`) ; `platform_payout_id` n'est remis à nul que par l'annulation d'un reversement (`PlatformPayoutService.php:178-181`), jamais par un remboursement ; la sélection de clôture (`whereNull('platform_payout_id')`, statut `paid`) est inchangée. Que la ligne remboursée reste comptée dans le reversement clos est lu, non mesuré. Classement : V7 et V1, la piste elle-même demande un choix entre interdire, signaler ou compenser.
 - Mesure (2026-10-25, ece5a91ea, humain) : validation du porteur en bloc (2026-10-25) sur la re-vérification de la session à c35c20d16 ; statut précédent : « retenu · à valider — V7 : interdire, signaler ou compenser ; porteur (2026-10-18) : plus tard, après l'angle 76 qui relève ces effets un par un ».
+- Mesure (2026-10-25, b9e8039b5, implementeur) : reproduit avant correctif par `PlatformPayoutRefundedSincePaidTest` (reversement de la plateforme clos puis `paid`, loyer remboursé par webhook → aucun `refunded_since_paid` sur le reversement, aucun avis) ; le remboursement par webhook note la ligne dans `platform_payouts.metadata.refunded_since_paid` (type, identifiant, référence, date, sans montant) sous verrou du reversement s'il est `paid`, la ressource le rend, la console montre une pastille et les références, et les admins de l'agence reçoivent `platform_payout.refunded_since_paid` (mois et référence, sans montant) ; l'événement `LeasePaymentRefunded` avertit le locataire (`lease_payment.refunded`, compte ou téléphone) et le bailleur (`lease_payment.refunded_landlord`) de la part remboursée (`RentRefundNoticeTest`) ; ablation (signal retiré → 2 rouges, garde `paid` retirée → 1 rouge, avis d'agence retiré → 2 rouges, événement retiré → 2 rouges, front retiré → 2 rouges), rétablie → vert 5/5 API et 2/2 front.
 
 ## Angle 41 — Chemins nominaux du BFF : cookie → Bearer, en-têtes relayés
 
