@@ -159,6 +159,28 @@ class Document extends AbstractModel implements HasMedia
             ?? $this->getFirstMedia('file');
     }
 
+    /**
+     * TCK-1063 (P64.04), TCK-2300 (P231.03) — le fichier vérifié est remplacé : `Document` n'étant
+     * pas journalisé, qui l'avait vérifié, et quand, s'écrit au journal d'audit avant d'être
+     * effacé. Rien n'est écrit pour une pièce qui n'était pas vérifiée.
+     */
+    public function logVerificationReset(User $actor): void
+    {
+        if (! $this->is_verified && $this->verified_by === null) {
+            return;
+        }
+
+        activity('Document')
+            ->performedOn($this)
+            ->causedBy($actor)
+            ->event('document_verification_reset')
+            ->withProperties([
+                'verified_by' => $this->verified_by,
+                'verified_at' => $this->verified_at?->toIso8601String(),
+            ])
+            ->log('document_verification_reset');
+    }
+
     public function documentable(): MorphTo
     {
         return $this->morphTo();

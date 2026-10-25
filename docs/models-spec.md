@@ -1759,7 +1759,9 @@ La facture du prestataire est une ligne de [ServiceProviderBill](#77-serviceprov
 | updated_at | datetime | | auto | |
 
 **Traits :**
-- `InteractsWithMedia` (spatie/laravel-medialibrary) — collection `file` (le fichier du document : PDF, image, scan, etc.)
+- `InteractsWithMedia` (spatie/laravel-medialibrary) — collection `file` (le fichier d'origine : PDF, image, scan, etc.) et collection `versions` (les versions suivantes, une seule active)
+- **Le fichier servi est la version active, sinon `file`** (`Document::currentFile()`, TCK-2300) : le lien de partage, la page publique d'un bien, `file_url` de la fiche et la revue des demandes de passage en agence le lisent tous. Une nouvelle version d'un document public de bien devient donc publique aussitôt.
+- **Une nouvelle version vide `is_verified`, `verified_by`, `verified_at` et `expiry_date`** (TCK-2300), comme le renvoi d'une pièce par les assistants (TCK-1063) : la vérification remplacée s'écrit au journal (`document_verification_reset`), et l'échéance se reprend si la requête en porte une neuve. Une pièce de profil (`isProfilePiece()`) ne se versionne pas (422 `document.profile_piece_not_versioned`) : elle se renvoie par les assistants.
 
 **Note :** Les colonnes `original_filename`, `file_path`, `file_size`, `mime_type` ne sont **pas** nécessaires dans cette table car elles sont gérées automatiquement par la table `media` de spatie/medialibrary.
 

@@ -369,7 +369,7 @@ Centralisation de tous les fichiers liés à une entité.
 | P1 | 🏢🏠 | Lien de partage d'un document : jeton stocké haché, accès public limité en débit, mot de passe envoyé dans le corps de la requête et protégé contre les essais répétés (TCK-602, TCK-587) |
 | P1 | 🧑‍💼 | Recherche dans la bibliothèque de documents |
 | P2 | 🧑‍💼 | Génération PDF (quittance, facture, bail) depuis templates |
-| P2 | 🧑‍💼 | Historique des versions d'un document (via medialibrary + journal d'activité) |
+| P2 | 🧑‍💼 | Historique des versions d'un document (via medialibrary + journal d'activité) ; la version active est le fichier servi partout, lien de partage et page publique d'un bien compris, et une nouvelle version repasse le document à « non vérifié », sans échéance sauf une neuve ; une pièce de profil ne se versionne pas (TCK-2300) |
 | P3 | 🧑‍💼 | Signature électronique intégrée des documents autres que le bail et l'état des lieux — le bail se signe par code à usage unique (§1.4, [ADR-0042](adr/0042-preuve-de-consentement-a-la-signature-du-bail.md)), l'état des lieux par le tracé de chaque partie (§1.9) (TCK-596) |
 | P3 | 🧑‍💼 | OCR et extraction automatique de données |
 
