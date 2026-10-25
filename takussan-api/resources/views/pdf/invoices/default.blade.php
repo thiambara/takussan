@@ -38,7 +38,7 @@
         'Adresse' => $legalSource['legal_address'] ?? null,
     ], static fn ($value): bool => is_string($value) && trim($value) !== '');
     $recipient = $issued !== null ? (array) ($issued['customer'] ?? []) : [
-        'name' => trim(($customer->first_name ?? '').' '.($customer->last_name ?? '')) ?: ($customer->name ?? null),
+        'name' => $customer?->invoiceRecipientName(),
         'email' => $customer->email ?? null,
         'phone' => $customer->phone ?? null,
     ];
