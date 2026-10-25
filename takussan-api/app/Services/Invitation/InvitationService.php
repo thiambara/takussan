@@ -773,6 +773,7 @@ class InvitationService
             409,
             'invitation.profile_unavailable',
         );
+        $this->assertDraftDoesNotDuplicateAProfile($invitation, $invitable, $user);
 
         // TCK-264 — super_admin cooptation: the spatie role is NOT
         // attached at acceptance time. The user must first enroll a
@@ -882,6 +883,44 @@ class InvitationService
         }
 
         return $invitation->fresh();
+    }
+
+    /**
+     * P234.02 et P234.03 (TCK-2280) — un brouillon ne se lie pas à un compte qui porte déjà ce qu'il
+     * créerait. Jugé avant toute écriture, l'invitation reste `sent` :
+     *
+     *  - un brouillon de bailleur ou d'agent, accepté par un compte déjà membre de l'agence sous ce
+     *    profil, heurtait `unique(user_id, agency_id)` en 500 (`invitation.already_member`) ;
+     *  - un brouillon de prestataire, accepté par un compte qui a déjà son profil de prestataire, lui
+     *    en créait un second, que ses propres écrans ne voient pas (`HasProfiles::serviceProviderProfile`
+     *    est un `HasOne`) : un seul profil par compte, N agences par ses collaborations (ADR-0016,
+     *    amendement du 2026-10-25), que plus aucune contrainte ne tient depuis
+     *    `2026_05_10_170000` (`invitation.service_provider_profile_exists`).
+     *
+     * ⚠ Le profil retiré (`SoftDeletes`) n'est pas compté : il n'est plus membre, mais
+     * `unique(user_id, agency_id)` le compte encore.
+     */
+    protected function assertDraftDoesNotDuplicateAProfile(Invitation $invitation, mixed $invitable, User $user): void
+    {
+        if (! is_object($invitable) || ! array_key_exists('user_id', $invitable->getAttributes()) || $invitable->user_id !== null) {
+            return;
+        }
+
+        if ($invitable instanceof OwnerProfile || $invitable instanceof AgentProfile) {
+            abort_code_if(
+                $invitable::query()->where('agency_id', $invitable->agency_id)->where('user_id', $user->id)->exists(),
+                409,
+                'invitation.already_member',
+            );
+        }
+
+        if ($invitable instanceof ServiceProviderProfile) {
+            abort_code_if(
+                ServiceProviderProfile::query()->where('user_id', $user->id)->whereKeyNot($invitable->getKey())->exists(),
+                409,
+                'invitation.service_provider_profile_exists',
+            );
+        }
     }
 
     /**
@@ -1068,8 +1107,11 @@ class InvitationService
      * TCK-589 — le compte déjà titulaire du destinataire : par e-mail, ou pour une
      * invitation par SMS, le compte qui a VÉRIFIÉ ce numéro — un numéro seulement
      * saisi ne prouve rien (ADR-0033, contrainte 2).
+     *
+     * P234.02 et P234.03 (TCK-2280) — public : les services par rôle jugent « déjà membre » et
+     * « profil existant » sur ce même compte, avant d'émettre.
      */
-    protected function recipientAccount(?string $email, ?string $phone): ?User
+    public function recipientAccount(?string $email, ?string $phone): ?User
     {
         if ($email !== null) {
             return User::query()->where('email', $email)->first();

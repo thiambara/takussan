@@ -74,6 +74,8 @@ class OwnerInvitationService
 
         if ($email !== null) {
             $this->assertNoActiveOwnerInAgency($agency, $email);
+        } else {
+            $this->assertRecipientIsNotOwnerInAgency($agency, $this->cleanString($data['phone'] ?? null));
         }
 
         return DB::transaction(function () use ($agency, $inviter, $email, $ownerType, $data): Invitation {
@@ -167,6 +169,27 @@ class OwnerInvitationService
             ->whereHas('user', function ($query) use ($email): void {
                 $query->whereRaw(CaseInsensitive::sql('email').' = ?', [CaseInsensitive::fold($email)]);
             })
+            ->first();
+
+        if ($existing !== null) {
+            throw new HttpException(
+                409,
+                __('owners.invite.errors.already_member', ['profile_id' => $existing->id]),
+            );
+        }
+    }
+
+    /**
+     * P234.03 (TCK-2280) — sans e-mail, le destinataire est le compte qui a VÉRIFIÉ ce numéro
+     * ({@see InvitationService::recipientAccount()}) : déjà bailleur de l'agence, même 409 que par
+     * e-mail. Sans ce refus, le SMS partait et l'acceptation heurtait `unique(user_id, agency_id)`.
+     */
+    protected function assertRecipientIsNotOwnerInAgency(Agency $agency, ?string $phone): void
+    {
+        $account = $phone !== null ? $this->invitations->recipientAccount(null, $phone) : null;
+        $existing = $account === null ? null : OwnerProfile::query()
+            ->where('agency_id', $agency->id)
+            ->where('user_id', $account->id)
             ->first();
 
         if ($existing !== null) {

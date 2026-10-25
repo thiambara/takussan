@@ -41,7 +41,7 @@ elles étaient déjà **contredites par la documentation censée les décrire**.
 | [0013](0013-un-seul-back-office-en-nextjs.md) | Il n'y a qu'un back-office, et il est en Next.js — Filament supprimé | Accepté |
 | [0014](0014-catalogue-code-defini-materialise-et-reconcilie.md) | Un catalogue défini en code et matérialisé en base se réconcilie ; il ne se lit pas à deux endroits | Accepté |
 | [0015](0015-react-compiler-active.md) | Le React Compiler est activé, et la mémoïsation manuelle devient l'exception | Accepté |
-| [0016](0016-role-agence-du-prestataire-porte-par-la-collaboration.md) | Le rôle d'agence d'un prestataire est porté par la collaboration, pas par le profil | Accepté |
+| [0016](0016-role-agence-du-prestataire-porte-par-la-collaboration.md) | Le rôle d'agence d'un prestataire est porté par la collaboration, pas par le profil | Accepté — amendé le 2026-10-25 : un seul profil de prestataire par compte, tenu par le code (recherche par le compte destinataire à l'invitation, 409 nommé à l'acceptation), non par le schéma |
 | [0017](0017-deploiement-du-front-pilote-par-vercel.md) | Le déploiement du front reste piloté par Vercel ; le dépôt le relève et le garde | Remplacé par ADR-0028 — caduc depuis le 2026-10-15 (Vercel supprimé avant la bascule) |
 | [0018](0018-format-des-dates-sur-le-fil.md) | L'API émet deux types de date : instant `…T12:34:56+00:00`, date calendaire `YYYY-MM-DD` | Accepté |
 | [0019](0019-l-erreur-d-api-porte-un-code-pas-un-libelle.md) | L'erreur d'API porte un code, la surface de rendu porte le texte | Accepté — étendu à l'API par ADR-0032 |

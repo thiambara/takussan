@@ -80,6 +80,8 @@ class AgentInvitationService
 
         if ($email !== null) {
             $this->assertNoActiveAgentInAgency($agency, $email);
+        } else {
+            $this->assertRecipientIsNotAgentInAgency($agency, $this->cleanString($data['phone'] ?? null));
         }
 
         return DB::transaction(function () use ($agency, $inviter, $email, $role, $data): Invitation {
@@ -244,6 +246,27 @@ class AgentInvitationService
             ->whereHas('user', function ($query) use ($email): void {
                 $query->whereRaw(CaseInsensitive::sql('email').' = ?', [CaseInsensitive::fold($email)]);
             })
+            ->first();
+
+        if ($existing !== null) {
+            throw new HttpException(
+                409,
+                __('team.invite.errors.already_member', ['profile_id' => $existing->id]),
+            );
+        }
+    }
+
+    /**
+     * P234.03 (TCK-2280) — sans e-mail, le destinataire est le compte qui a VÉRIFIÉ ce numéro
+     * ({@see InvitationService::recipientAccount()}) : déjà agent de l'agence, même 409 que par
+     * e-mail. Sans ce refus, le SMS partait et l'acceptation heurtait `unique(user_id, agency_id)`.
+     */
+    protected function assertRecipientIsNotAgentInAgency(Agency $agency, ?string $phone): void
+    {
+        $account = $phone !== null ? $this->invitations->recipientAccount(null, $phone) : null;
+        $existing = $account === null ? null : AgentProfile::query()
+            ->where('agency_id', $agency->id)
+            ->where('user_id', $account->id)
             ->first();
 
         if ($existing !== null) {
