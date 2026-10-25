@@ -3950,7 +3950,7 @@
         "quarterly": "Trimestriel",
         "yearly": "Annuel"
       },
-      "customerFallback": "Customer #{id}"
+      "customerFallback": "Client #{id}"
     },
     "payment": {
       "title": "Enregistrer un paiement",

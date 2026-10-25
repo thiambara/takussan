@@ -426,9 +426,9 @@ function formatPropertyLabel(property: PropertyListItem): string {
 }
 
 /**
- * ⚠ Le repli `Customer #<id>` était ANGLAIS en dur dans l'interface française. TCK-292 ne change
- * aucun rendu : la valeur `fr` du dictionnaire le reproduit au caractère près. Le corriger en
- * « Client #… » est une décision produit, pas un effet de bord de ce ticket.
+ * Le repli d'un locataire sans nom : « Client #<id> » en français depuis P06.06 (TCK-2336).
+ * TCK-292 avait gardé au dictionnaire l'anglais `Customer #<id>` qui était en dur ; la valeur `wo`
+ * le porte encore, le wolof étant en pause.
  */
 function formatCustomerLabel(
   customer: CustomerListItem,
