@@ -921,8 +921,17 @@ export type PlatformPayout = {
   failure_reason: string | null;
   metadata: Record<string, unknown> | null;
   breakdown?: { booking: PlatformPayoutBreakdownGroup; lease: PlatformPayoutBreakdownGroup } | null;
+  /** TCK-2320 (P39.07) — les lignes remboursées depuis le versement : un signal, sans montant. */
+  refunded_since_paid?: PlatformPayoutRefundedLine[];
   created_at: string | null;
   updated_at: string | null;
+};
+
+export type PlatformPayoutRefundedLine = {
+  payment_type: 'lease_payment' | 'booking_payment';
+  payment_id: number;
+  reference_number: string;
+  refunded_at: string;
 };
 
 export type PlatformPayoutsResponse = {

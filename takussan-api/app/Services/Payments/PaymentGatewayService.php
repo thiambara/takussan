@@ -5,6 +5,7 @@ namespace App\Services\Payments;
 use App\Contracts\Payments\PaymentDriverContract;
 use App\Domain\Notifications\NotificationCode;
 use App\Domain\Notifications\NotificationTarget;
+use App\Events\Payments\LeasePaymentRefunded;
 use App\Events\Payments\LeasePaymentSettledOnline;
 use App\Exceptions\ApiError;
 use App\Models\Agency;
@@ -21,6 +22,7 @@ use App\Models\LeasePayment;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\User;
 use App\Services\Admin\PlatformSettingService;
+use App\Services\Billing\PlatformPayoutRefundSignal;
 use App\Services\Booking\BookingRefundTaskService;
 use App\Services\Invoice\InvoiceNumberAllocator;
 use App\Services\Model\NotificationService;
@@ -868,6 +870,12 @@ class PaymentGatewayService
                 // TCK-2151 (ADR-0039, amendement du 2026-10-24, point 2) — quel que soit l'encaisseur :
                 // la part déjà reversée au bailleur donne une reprise, imputée au reversement suivant.
                 app(PayoutClawbacks::class)->recordRefund($payment, $refundedPart, now());
+                // TCK-2320 (P39.07) — une ligne d'un reversement de la plateforme déjà versé est
+                // signalée, sans montant ; le locataire et le bailleur sont avertis du remboursement.
+                app(PlatformPayoutRefundSignal::class)->record($payment, now());
+                if ($payment instanceof LeasePayment) {
+                    event(new LeasePaymentRefunded((int) $payment->getKey(), $refundedPart));
+                }
             }
         }
 
