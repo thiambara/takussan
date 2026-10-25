@@ -40,7 +40,9 @@ class ModelsTest extends TestCase
 
         $this->assertInstanceOf(BelongsTo::class, $user->addedBy());
         $this->assertInstanceOf(HasMany::class, $user->properties());
-        $this->assertInstanceOf(HasOne::class, $user->customer());
+        // TCK-2372 (P250.03) — `customer()` est retiré : un `HasOne` sans unicité, un compte ayant une
+        // fiche client par agence, et sans lecteur.
+        $this->assertFalse(method_exists($user, 'customer'));
         $this->assertInstanceOf(MorphMany::class, $user->addresses());
         $this->assertInstanceOf(MorphMany::class, $user->documents());
         $this->assertInstanceOf(HasMany::class, $user->favorites());
@@ -97,7 +99,9 @@ class ModelsTest extends TestCase
         $booking = new Booking;
         $this->assertInstanceOf(BelongsTo::class, $booking->property());
         $this->assertInstanceOf(BelongsTo::class, $booking->customer());
-        $this->assertInstanceOf(HasOne::class, $booking->lease());
+        // TCK-2372 (P250.03) — `lease()` est retiré : un `HasOne` sur `leases.booking_id`, sans unicité
+        // ni lecteur.
+        $this->assertFalse(method_exists($booking, 'lease'));
         $this->assertInstanceOf(HasMany::class, $booking->payments());
 
         $lease = new Lease;

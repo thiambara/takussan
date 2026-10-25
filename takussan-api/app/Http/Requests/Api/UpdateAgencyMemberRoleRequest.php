@@ -36,16 +36,17 @@ class UpdateAgencyMemberRoleRequest extends BaseFormRequest
      * TCK-305 — la liste vivait dans un `protected function allowedRoles()` du contrôleur,
      * donc hors de portée des règles une fois déplacées.
      *
+     * TCK-2372 (P249.01) — la liste ne porte plus que les rôles que les deux routes matérialisent,
+     * et {@see UpdateUserRoleRequest} la partage. `super_admin`, `tenant`, `customer` et
+     * `service_provider` passaient la validation, tombaient sur un `default => null` du contrôleur,
+     * et la réponse rendait 200 avec le rôle demandé sans qu'aucun profil change. Ils rendent 422.
+     *
      * @var list<string>
      */
     public const ALLOWED_ROLES = [
-        'super_admin',
         'agency_admin',
         'agent',
         'owner',
-        'tenant',
-        'customer',
-        'service_provider',
     ];
 
     /** @return array<string, mixed> */

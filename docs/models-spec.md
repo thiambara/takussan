@@ -485,7 +485,7 @@ d'écrire (piège PostgreSQL n°1 — une violation abandonne la transaction ent
 - `properties()` → hasMany Property
 - `bookings()` → hasMany Booking (via `created_by_id`)
 - `customers()` → hasMany Customer (via `added_by_id`)
-- `customer()` → hasOne Customer (via `user_id`) — commodité : un compte porte un dossier client **par agence**, `customers.user_id` n'est pas unique
+- ~~`customer()`~~ — **retirée** (TCK-2372, P250.03) : un `hasOne` sur `customers.user_id`, qui n'est pas unique (un compte porte un dossier client **par agence**), et sans lecteur. Les fiches d'un compte se lisent par `Customer::where('user_id', …)`
 - `customerRelationships()` → hasMany UserCustomerRelationship
 - `relatedCustomers()` → belongsToMany Customer (pivot `user_customer_relationships`)
 - `addresses()` → morphMany Address
@@ -848,7 +848,7 @@ dans les `$queryFields` (TCK-575) : `response_deadline` en dépend.
 - `createdBy()` → belongsTo User (via created_by_id) ✏️ ancien `user()`
 - `agency()` → belongsTo Agency
 - `payments()` → hasMany BookingPayment
-- `lease()` → hasOne Lease (le bail issu de cette réservation) 🆕
+- ~~`lease()`~~ — **retirée** (TCK-2372, P250.03) : un `hasOne` sur `leases.booking_id`, colonne sans unicité, et sans lecteur
 
 ---
 
@@ -1739,7 +1739,7 @@ depuis l'utilisateur.
 - `assignee()` → belongsTo User (via assigned_to)
 - `quoteDecisionBy()` → belongsTo User (via quote_decision_by_id) 🆕
 - `documents()` → morphMany Document
-- `conversation()` → hasOne Conversation (via `maintenance_request_id`)
+- `conversation()` → hasOne Conversation (via `maintenance_request_id`) — **le fil de l'intervention et sa seule lecture** : le plus ancien groupe (`type = group`, `ofMany(['id' => 'min'])`) qui porte la demande. Seule l'assignation le crée (`SyncMaintenanceConversation`) : `POST /api/conversations` refuse `maintenance_request_id` à un groupe créé à la main (TCK-2372, P250.03)
 
 La facture du prestataire est une ligne de [ServiceProviderBill](#77-serviceproviderbill-)
 (`maintenance_request_id`, `cascadeOnDelete`), que ce modèle ne déclare pas en relation.
@@ -2369,8 +2369,8 @@ JSON libre (`{"value": …}`), sans journal, `updated_by_id` pour seule trace. U
 | created_at | datetime | | auto | |
 | updated_at | datetime | | auto | |
 
-**Contraintes et index** (mesurés sur `2026_05_02_000004` et `2026_05_10_170000`) :
-- **Aucune unicité sur `user_id`.** L'unicité `service_provider_profiles_user_id_unique` de la création a été **retirée** par `2026_05_10_170000` (TCK-260), pour laisser coexister plusieurs brouillons. « Un user a au plus un profil prestataire » n'est plus une garantie de la base : c'est l'application qui le tient — une invitation d'une autre agence **réutilise** le profil existant et crée une collaboration à l'acceptation (`InvitationService`, TCK-262), et `User.serviceProviderProfile()` est un `hasOne`. L'unicité réelle est celle de la collaboration `(profil, agence)` (§39).
+**Contraintes et index** (mesurés sur `2026_05_02_000004`, `2026_05_10_170000` et `2026_10_25_223720`) :
+- **Un profil vivant par compte : index unique partiel `service_provider_profiles_user_live_unique` `(user_id) WHERE user_id IS NOT NULL AND deleted_at IS NULL`** (TCK-2372, P250.02). L'unicité `service_provider_profiles_user_id_unique` de la création avait été **retirée** par `2026_05_10_170000` (TCK-260), pour laisser coexister plusieurs brouillons, qui naissent sans compte : ils restent admis, comme un profil supprimé. Une invitation d'une autre agence **réutilise** le profil existant et crée une collaboration à l'acceptation (`InvitationService`, TCK-262), et `User.serviceProviderProfile()` est un `hasOne`. La migration échoue, en les nommant, s'il existe des doublons vivants : elle ne fusionne rien. L'unicité par agence est celle de la collaboration `(profil, agence)` (§39).
 - Index : `status`, `deleted_at`.
 
 **Relations :**
@@ -3883,7 +3883,7 @@ payé que vers une destination du bénéficiaire **vérifiée par l'agence qui p
 | deleted_at | timestamp | oui | null | Soft delete (un reversement passé garde sa destination) |
 | created_at / updated_at | timestamp | | auto | |
 
-**Index :** `payout_methods_user_idx (user_id)`.
+**Index :** `payout_methods_user_idx (user_id)` ; **`payout_methods_user_default_unique`**, unique partiel `(user_id) WHERE is_default AND deleted_at IS NULL` (`2026_10_25_223721`, TCK-2372, P250.03) — une seule destination vivante par défaut par compte. Une destination supprimée garde son `is_default` et ne compte pas. `PayoutMethodService` retire le défaut des autres avant d'écrire la nouvelle, sous verrou de la ligne `users` du titulaire. La migration échoue, en les nommant, s'il existe des doublons : elle ne retire le défaut d'aucune destination.
 
 Le modèle n'est pas `Auditable` : les identifiants ne passent jamais par `activity_log`. Ce que
 l'approbateur d'un reversement a approuvé se garde par `fingerprint()` — HMAC de la nature et du
@@ -4760,7 +4760,7 @@ un relevé envoyé par mois, une relance n'écrit rien (`insertOrIgnore`).
 | ~~ProprietyVisibility~~ | **PropertyVisibility** | public, private |
 | BookingStatus | BookingStatus | pending, confirmed, rejected, cancelled, completed, **expired** |
 | UserStatus | UserStatus | active, inactive, blocked, deleted |
-| UserRole | UserRole | customer, agency_admin, super_admin, agent, owner, service_provider — **@deprecated TCK-278** (le rôle est désormais dérivé du profil ; voir [Règle 5](#règle-5--profil--rôle)). Les cas existent encore : l'enum ne survit que comme vocabulaire du contrat `PUT /api/users/{user}/role` (`UserRoleController`, qui le traduit en profils) et n'exprime aucune autorisation |
+| UserRole | UserRole | customer, agency_admin, super_admin, agent, owner, service_provider — **@deprecated TCK-278** (le rôle est désormais dérivé du profil ; voir [Règle 5](#règle-5--profil--rôle)). Les cas existent encore : l'enum ne survit que comme vocabulaire du contrat `PUT /api/users/{user}/role` (`UserRoleController`, qui le traduit en profils) et n'exprime aucune autorisation. Ce PUT et `PUT /api/agencies/{agency}/members/{user}/role` n'en acceptent que `agency_admin`, `agent` et `owner`, par une liste partagée : tout autre rôle rend 422 (TCK-2372, P249.01) |
 | CustomerStatus | CustomerStatus | active, inactive, blocked, deleted |
 
 > **`UserType` — déprécié (TCK-138 → TCK-142).** L'enum `UserType` est conservé en lecture pendant la phase de migration mais **disparaît** au cutover (TCK-142, suppression de `users.type` + des deux fichiers `app/Models/Enums/UserType.php` et `app/Models/Bases/Enums/UserType.php`). La nature métier d'un user est désormais portée par ses **profils polymorphes** (OwnerProfile / AgentProfile / AgencyAdminProfile / ServiceProviderProfile / PlatformProfile) ; les permissions par l'enum `Capability`, résolue par `MembershipCapabilityResolver` pour un couple *(utilisateur, agence)* et lue via `canActAt()`. Aucun nouveau code ne doit lire `users.type`.
@@ -5254,7 +5254,9 @@ Toute requête authentifiée résout un **profil actif** parmi les profils du us
 | owner_profiles | `(user_id, agency_id)` | unique composé | si `user_id` non null (brouillon d'invitation sans titulaire : plusieurs admis) |
 | agent_profiles | `(user_id, agency_id)` | unique composé | si `user_id` non null (idem) |
 | agency_admin_profiles | `(user_id, agency_id)` | unique composé | toujours (`user_id` nullable : plusieurs lignes sans titulaire admises) — [§98](#98-agencyadminprofile-) |
-| service_provider_agency_collaborations | `(service_provider_profile_id, agency_id)` (`sp_agency_collab_live_unique`) | unique partiel | `deleted_at IS NULL` (`2026_10_07_120100`) — *`service_provider_profiles.user_id` n'est plus unique : retiré par `2026_05_10_170000` (TCK-260) ; « un profil par utilisateur » est applicatif, voir [§37](#37-serviceproviderprofile-)* |
+| service_provider_agency_collaborations | `(service_provider_profile_id, agency_id)` (`sp_agency_collab_live_unique`) | unique partiel | `deleted_at IS NULL` (`2026_10_07_120100`) |
+| service_provider_profiles | `user_id` (`service_provider_profiles_user_live_unique`) | unique partiel | `user_id IS NOT NULL AND deleted_at IS NULL` (`2026_10_25_223720`, TCK-2372) — un profil de prestataire vivant par compte ; l'unicité de la création, retirée par `2026_05_10_170000` (TCK-260), ne laissait que la garde applicative, voir [§37](#37-serviceproviderprofile-) |
+| payout_methods | `user_id` (`payout_methods_user_default_unique`) | unique partiel | `is_default AND deleted_at IS NULL` (`2026_10_25_223721`, TCK-2372) — une destination vivante par défaut par compte, voir [§76](#76-payoutmethod-) |
 | platform_payouts | `(agency_id, period_end)` (`platform_payouts_unique_open_period`) | unique partiel | `status <> 'cancelled'` (`2026_05_07_000223`) |
 | agency_upgrade_requests | `agency_id` (`agency_upgrade_requests_one_pending_per_agency`) | unique partiel | `status = 'pending'` (`2026_05_10_180000`) |
 | notification_templates | `(event, channel, locale)` | unique composé | toujours (`2026_05_07_000215`) |

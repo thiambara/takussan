@@ -5579,21 +5579,8 @@
             "spaceName": "Space name",
             "primaryCity": "Primary city",
             "currency": "Currency",
-            "primaryPropertyType": "Primary property type",
             "phone": "Phone number",
             "otpCode": "SMS code"
-          },
-          "propertyTypes": {
-            "apartment": "Apartment",
-            "house": "House",
-            "villa": "Villa",
-            "studio": "Studio",
-            "room": "Room",
-            "land": "Land",
-            "office": "Office",
-            "shop": "Shop",
-            "warehouse": "Warehouse",
-            "other": "Other"
           },
           "otp": {
             "heading": "Phone verification",

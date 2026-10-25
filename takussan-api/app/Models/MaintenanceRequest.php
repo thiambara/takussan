@@ -7,6 +7,7 @@ use App\Http\Middleware\EnsureAgencyWritable;
 use App\Models\Bases\AbstractModel;
 use App\Models\Contracts\HasAuditAgency;
 use App\Models\Enums\AgencyStatus;
+use App\Models\Enums\ConversationType;
 use App\Models\Enums\MaintenanceCategory;
 use App\Models\Enums\MaintenancePriority;
 use App\Models\Enums\MaintenanceStatus;
@@ -282,9 +283,18 @@ class MaintenanceRequest extends AbstractModel implements HasAuditAgency, HasMed
         return $this->belongsTo(User::class, 'quote_decision_by_id');
     }
 
+    /**
+     * TCK-2372 (P250.03, décision du porteur du 2026-10-25) — LE fil de l'intervention, et sa seule
+     * lecture : le plus ancien groupe qui porte la demande. Le `HasOne` nu ne filtrait ni le type ni
+     * l'ordre, et le fil se lisait ailleurs (`SyncMaintenanceConversation::conversationFor`, retiré).
+     * Seule l'assignation crée ce groupe : `POST /api/conversations` refuse `maintenance_request_id`.
+     */
     public function conversation(): HasOne
     {
-        return $this->hasOne(Conversation::class);
+        return $this->hasOne(Conversation::class)->ofMany(
+            ['id' => 'min'],
+            fn ($query) => $query->where('type', ConversationType::Group->value),
+        );
     }
 
     public function documents(): MorphMany

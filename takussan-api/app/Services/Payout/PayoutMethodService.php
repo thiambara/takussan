@@ -31,21 +31,23 @@ final class PayoutMethodService
     public function create(User $holder, array $data): PayoutMethod
     {
         $method = DB::transaction(function () use ($holder, $data): PayoutMethod {
+            $this->lockHolder($holder->id);
             $kind = PayoutMethodKind::from($data['kind']);
             $identifier = trim((string) $data['account_identifier']);
+            $isDefault = (bool) ($data['is_default'] ?? ! PayoutMethod::query()->where('user_id', $holder->id)->exists());
 
-            $method = PayoutMethod::query()->create([
+            if ($isDefault) {
+                $this->clearOtherDefaults($holder->id, null);
+            }
+
+            return PayoutMethod::query()->create([
                 'user_id' => $holder->id,
                 'kind' => $kind,
                 'account_identifier' => $identifier,
                 'account_holder_name' => $data['account_holder_name'] ?? null,
                 'masked_identifier' => PayoutMethod::mask($identifier),
-                'is_default' => (bool) ($data['is_default'] ?? ! PayoutMethod::query()->where('user_id', $holder->id)->exists()),
+                'is_default' => $isDefault,
             ]);
-
-            $this->keepOneDefault($method);
-
-            return $method;
         });
 
         $this->notifyHolder($holder, NotificationCode::PayoutMethodAdded, $method);
@@ -57,6 +59,7 @@ final class PayoutMethodService
     public function update(PayoutMethod $method, array $data): PayoutMethod
     {
         DB::transaction(function () use ($method, $data): void {
+            $this->lockHolder((int) $method->user_id);
             $changes = [];
             if (array_key_exists('kind', $data)) {
                 $changes['kind'] = PayoutMethodKind::from($data['kind']);
@@ -77,12 +80,13 @@ final class PayoutMethodService
             // Une destination dont la nature, le numéro ou le titulaire change n'est plus celle
             // qu'on a vérifiée.
             $unverify = $method->isDirty(['kind', 'account_identifier', 'account_holder_name']);
+            if ($method->is_default) {
+                $this->clearOtherDefaults((int) $method->user_id, (int) $method->id);
+            }
             $method->save();
             if ($unverify) {
                 $method->verifications()->delete();
             }
-
-            $this->keepOneDefault($method);
         });
 
         $this->notifyHolder($method->user, NotificationCode::PayoutMethodUpdated, $method->refresh());
@@ -136,13 +140,28 @@ final class PayoutMethodService
         return $method->refresh()->load('verifications');
     }
 
-    private function keepOneDefault(PayoutMethod $method): void
+    /**
+     * TCK-2372 (P250.03) — une seule destination vivante par défaut, tenue par
+     * `payout_methods_user_default_unique`. Les autres perdent le défaut AVANT que la nouvelle
+     * l'écrive : dans l'ordre inverse, l'index refusait l'écriture (23505). Une destination
+     * supprimée garde le sien, que l'index ne compte pas.
+     */
+    private function clearOtherDefaults(int $userId, ?int $exceptId): void
     {
-        if ($method->is_default) {
-            PayoutMethod::query()
-                ->where('user_id', $method->user_id)
-                ->whereKeyNot($method->id)
-                ->update(['is_default' => false]);
-        }
+        PayoutMethod::query()
+            ->where('user_id', $userId)
+            ->where('is_default', true)
+            ->when($exceptId !== null, fn ($query) => $query->whereKeyNot($exceptId))
+            ->update(['is_default' => false]);
+    }
+
+    /**
+     * TCK-2372 (P250.03) — sérialise les écritures d'un même titulaire sur la ligne `users` : deux
+     * ajouts simultanés lisaient tous deux « aucune destination par défaut », et le second heurtait
+     * désormais l'index en 500.
+     */
+    private function lockHolder(int $userId): void
+    {
+        User::query()->whereKey($userId)->lockForUpdate()->first();
     }
 }

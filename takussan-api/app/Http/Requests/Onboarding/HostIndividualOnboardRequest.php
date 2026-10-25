@@ -15,7 +15,7 @@ use Illuminate\Validation\Rule;
  * step has been moved out of the wizard, the user is routed to
  * `/app/properties/new` after onboarding instead):
  *   - Step 1 (Mode)      → orientation only, nothing posted
- *   - Step 2 (Identité)  → `agency.*`, `phone_otp.*`, `preferences.*`
+ *   - Step 2 (Identité)  → `agency.*`, `phone_otp.*` (`preferences.*` facultatif, TCK-2372)
  *   - Step 3 (Récap)     → `cgu_accepted`
  *
  * TCK-496 — l'étape « mode de paiement » a quitté l'assistant. On demandait
@@ -71,9 +71,14 @@ class HostIndividualOnboardRequest extends FormRequest
                 'size:6',
             ],
 
-            'preferences' => ['required', 'array'],
+            // TCK-2372 (P249.03) — facultatif, et NON supprimé, comme `payment_setting` : l'assistant
+            // ne demande plus le type de bien principal, que rien ne lit depuis TCK-966 (P47.07), mais
+            // un brouillon repris le porte encore et doit passer. Une valeur envoyée reste confrontée
+            // à la liste des types.
+            'preferences' => ['sometimes', 'nullable', 'array'],
             'preferences.primary_property_type' => [
-                'required',
+                'sometimes',
+                'nullable',
                 'string',
                 Rule::in(array_map(fn (PropertyType $t) => $t->value, PropertyType::cases())),
             ],

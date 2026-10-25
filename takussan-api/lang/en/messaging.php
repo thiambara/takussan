@@ -21,8 +21,6 @@ return [
         'conversation_context_forbidden' => 'You cannot link this conversation to this item.',
         // TCK-576, réparation 1 — un bail et un bien visibles, mais sans rapport, se refusent.
         'lease_property_mismatch' => 'This lease is not for the selected property. Choose a lease of this property, or remove one of the two.',
-        // TCK-576, reprise (2026-09-24) — l'intervention doit concerner le bien du contexte.
-        'maintenance_property_mismatch' => 'This maintenance request is not for the selected property. Choose a request for this property, or remove one of the two.',
         // TCK-565, passe finale — c'était une phrase française en dur dans AddParticipantsRequest.
         'participants_required' => 'Choose at least one person to add.',
     ],
