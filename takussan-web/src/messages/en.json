@@ -6121,6 +6121,12 @@
           "owner": "Landlord"
         }
       },
+      "commissionRate": {
+        "label": "Agent commission rate (%)",
+        "hint": "Their share of the commission on each lease they negotiate, credited when the lease is activated. Empty: no share.",
+        "submit": "Save the rate",
+        "submitting": "Saving…"
+      },
       "errors": {
         "load": "Could not load the roles. Check your connection, then try again.",
         "generic": "Something went wrong."

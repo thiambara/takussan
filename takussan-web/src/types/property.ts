@@ -69,7 +69,8 @@ export interface PropertyListItem {
     role: string | null;
     /** TCK-504 — la marque d'agent principal (ADR-0053). */
     is_primary?: boolean;
-    commission_share: number | null;
+    /** TCK-2364 (P241.03) — absente pour qui ne fixe pas les parts (le bailleur du bien). */
+    commission_share?: number | null;
     user: {
       id: number;
       name: string;
