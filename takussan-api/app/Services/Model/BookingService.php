@@ -16,6 +16,7 @@ use App\Services\Booking\BookingNotificationParams;
 use App\Services\Booking\BookingQuote;
 use App\Services\Booking\PropertyAvailabilityService;
 use App\Services\Property\BailleurDuBien;
+use App\Services\Property\ContactDeLAgenceDuBien;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -95,7 +96,10 @@ class BookingService
             // réserver au nom de N'IMPORTE QUEL client, y compris celui d'une autre agence. Le
             // client doit être dans le périmètre de l'émetteur (`CustomerPolicy::view` : agence
             // active, client qu'il a ajouté, super-admin), ou être l'émetteur lui-même.
-            abort_unless($isBookingForSelf || ($customer && $user->can('view', $customer)), 403);
+            // TCK-2285 (P226.01) — hors réservation pour soi, une fiche de l'agence du bien quand il en
+            // a une : `view` admettait la fiche de A que l'agent de A et de B avait ajoutée.
+            abort_unless($isBookingForSelf || ($customer && $user->can('view', $customer)
+                && ContactDeLAgenceDuBien::client($customer, $property->agency_id)), 403);
         } elseif (! $isStaff) {
             // TCK-530 — le tunnel public n'envoie pas de `customer_id` : sans cette résolution,
             // un client ne pouvait JAMAIS réserver par lui (403). Même geste que
