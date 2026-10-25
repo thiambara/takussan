@@ -39,10 +39,17 @@ enum NotificationCode: string
     case LeasePaymentReceivedLandlord = 'lease_payment.received_landlord';
     // TCK-602 (ADR-0051 §2) — la quittance d'un paiement en ligne, au locataire même sans compte.
     case LeasePaymentSettledOnline = 'lease_payment.settled_online';
+    // TCK-2320 (P39.07) — un remboursement du fournisseur sur un loyer encaissé en ligne : le
+    // locataire, même sans compte (sa quittance ne couvre plus la somme rendue), et le bailleur.
+    case LeasePaymentRefunded = 'lease_payment.refunded';
+    case LeasePaymentRefundedLandlord = 'lease_payment.refunded_landlord';
 
     // ─── Encaissements en ligne (TCK-593) ───────────────────────────────────────────────
     case PaymentDuplicate = 'payment.duplicate';
     case PaymentDuplicateLateFee = 'payment.duplicate_late_fee';
+    // TCK-2320 (P39.07) — aux admins de l'agence : une ligne d'un reversement de la plateforme déjà
+    // versé a été remboursée depuis. Aucun montant : la compensation n'est pas décidée.
+    case PlatformPayoutRefundedSincePaid = 'platform_payout.refunded_since_paid';
 
     // ─── Réservations ───────────────────────────────────────────────────────────────────
     case BookingCreated = 'booking.created';
@@ -138,6 +145,12 @@ enum NotificationCode: string
 
     /** TCK-782 (P15.10) — un bien passe en `pending_review` : les admins actifs de son agence. */
     case PropertySubmittedForReview = 'property.submitted_for_review';
+
+    /**
+     * TCK-997 (Q6, ADR-0036 amendé le 2026-10-19) — un bien vient d'être saisi au nom du bailleur
+     * (désignation, lot sous son bien, copie de son bien). Repris par TCK-999 et TCK-1000.
+     */
+    case PropertyAssignedToOwner = 'property.assigned_to_owner';
 
     /** TCK-596 (ADR-0041 §6) — un événement importé chevauche une réservation confirmée. */
     case PropertyCalendarConflict = 'property.calendar_conflict';
@@ -246,7 +259,8 @@ enum NotificationCode: string
             self::LeasePaymentDueSoon, self::LeasePaymentOverdue, self::LeasePaymentOverdueLandlord,
             self::LeasePaymentOverdueDigest, self::LeasePaymentRecorded,
             self::LeasePaymentReceivedLandlord, self::LeasePaymentSettledOnline, self::PaymentDuplicate,
-            self::PaymentDuplicateLateFee => NotificationType::Payment,
+            self::PaymentDuplicateLateFee, self::LeasePaymentRefunded, self::LeasePaymentRefundedLandlord,
+            self::PlatformPayoutRefundedSincePaid => NotificationType::Payment,
             self::BookingCreated, self::BookingRequestedUndated, self::BookingConfirmed, self::BookingRejected,
             self::BookingCancelled => NotificationType::Booking,
             self::VisitReminder, self::VisitRequested, self::VisitRescheduledByVisitor,
@@ -265,6 +279,7 @@ enum NotificationCode: string
             self::GovernanceRoleCapabilitiesChanged, self::GovernanceAdminAdded, self::GovernanceDataExported,
             self::GovernanceIntegrationChanged, self::GovernanceApprovalThresholdChanged,
             self::PropertyApproved, self::PropertyRejected, self::PropertySubmittedForReview,
+            self::PropertyAssignedToOwner,
             self::ReviewToModerate, self::ReviewReceived,
             self::ModerationPropertyHidden, self::ModerationPropertyRemoved,
             self::ModerationReportUpheld, self::ModerationReportDismissed,
@@ -328,6 +343,8 @@ enum NotificationCode: string
             self::ModerationReportUpheld, self::ModerationReportDismissed,
             // TCK-593 — une somme à rembourser : l'admin ne peut pas s'en désabonner.
             self::PaymentDuplicate, self::PaymentDuplicateLateFee => null,
+            // TCK-2320 — de l'argent rendu après coup : on ne s'en désabonne pas.
+            self::LeasePaymentRefunded, self::LeasePaymentRefundedLandlord, self::PlatformPayoutRefundedSincePaid => null,
             // TCK-594 — une sortie d'argent n'a pas d'interrupteur : l'approbateur, le payeur et le
             // bénéficiaire en sont toujours avisés, et un changement de destination est le signal
             // d'un détournement (ADR-0039 §6).
@@ -335,6 +352,8 @@ enum NotificationCode: string
             self::PayoutMethodAdded, self::PayoutMethodUpdated, self::PayoutMethodRemoved,
             self::PayoutThresholdRelaxRequested, self::OwnerStatementAvailable,
             self::ServiceProviderBillKeptOnReopen => null,
+            // TCK-997 — comme le relevé de gérance : le bien décide à qui vont des loyers.
+            self::PropertyAssignedToOwner => null,
             self::InvitationReceived, self::InvitationReminder => null,
             // Un avis de sécurité : on ne s'en désabonne pas.
             self::AccountPhoneChanged => null,
@@ -364,6 +383,9 @@ enum NotificationCode: string
             self::LeasePaymentReceivedLandlord => ['amount' => self::PARAM_MONEY, 'property' => self::PARAM_TEXT, 'tenant' => self::PARAM_TEXT],
             self::LeasePaymentSettledOnline => ['amount' => self::PARAM_MONEY, 'property' => self::PARAM_TEXT],
             self::PaymentDuplicate, self::PaymentDuplicateLateFee => ['amount' => self::PARAM_MONEY, 'reference' => self::PARAM_TEXT],
+            self::LeasePaymentRefunded => ['amount' => self::PARAM_MONEY, 'property' => self::PARAM_TEXT],
+            self::LeasePaymentRefundedLandlord => ['amount' => self::PARAM_MONEY, 'property' => self::PARAM_TEXT, 'tenant' => self::PARAM_TEXT],
+            self::PlatformPayoutRefundedSincePaid => ['period' => self::PARAM_MONTH, 'reference' => self::PARAM_TEXT],
             self::BookingCreated, self::BookingConfirmed, self::BookingRejected,
             self::BookingCancelled => ['reference' => self::PARAM_TEXT, 'property' => self::PARAM_TEXT, 'start_date' => self::PARAM_DATE, 'end_date' => self::PARAM_DATE],
             self::BookingRequestedUndated => ['reference' => self::PARAM_TEXT, 'property' => self::PARAM_TEXT],
@@ -415,6 +437,7 @@ enum NotificationCode: string
             self::MaintenanceScheduleChanged => ['request' => self::PARAM_TEXT, 'scheduled_at' => self::PARAM_DATETIME],
             self::PropertyApproved => ['property' => self::PARAM_TEXT],
             self::PropertySubmittedForReview => ['property' => self::PARAM_TEXT],
+            self::PropertyAssignedToOwner => ['property' => self::PARAM_TEXT],
             self::PropertyRejected => ['property' => self::PARAM_TEXT, 'reason' => self::PARAM_TEXT],
             self::PropertyCalendarConflict => ['property' => self::PARAM_TEXT, 'feed' => self::PARAM_TEXT, 'start_date' => self::PARAM_DATE, 'end_date' => self::PARAM_DATE],
             self::PropertyCalendarFeedFailing => ['property' => self::PARAM_TEXT, 'feed' => self::PARAM_TEXT],
@@ -526,6 +549,10 @@ enum NotificationCode: string
             // TCK-1002 — vers un contact sans compte seulement : l'envoi à un compte retient le
             // canal mobile (`LeasePaymentService::markPaid`, `$mobileBorne = false`).
             self::LeasePaymentRecorded,
+            // TCK-2320 (P39.07) — le remboursement de ce qu'une quittance couvrait : vers un contact
+            // sans compte, ou le numéro de la fiche (TCK-1493). Sans préférence, aucun canal mobile
+            // vers un compte.
+            self::LeasePaymentRefunded,
             self::VisitReminder,
             // TCK-590 (contrainte 4) — un SMS ne suit qu'un geste humain de l'agence, jamais le
             // dépôt d'une demande par un tiers ; il est borné au point d'envoi (`VisitNotifier`).
@@ -565,6 +592,8 @@ enum NotificationCode: string
             self::LeasePaymentSettledOnline,
             // TCK-1002 — et celle d'une échéance enregistrée payée par l'agence.
             self::LeasePaymentRecorded,
+            // TCK-2320 — et le remboursement de cette échéance par le fournisseur.
+            self::LeasePaymentRefunded,
             self::InvitationReceived, self::InvitationReminder,
             self::AccountPhoneChanged,
             self::VisitConfirmed, self::VisitRescheduled, self::VisitCancelled,

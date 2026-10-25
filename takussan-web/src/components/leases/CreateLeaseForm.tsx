@@ -33,7 +33,6 @@ import {
 } from '@/lib/queries/leases';
 import { useBooking } from '@/lib/queries/bookings';
 import { createLeaseSchema, type CreateLeaseFormValues } from '@/lib/schemas/lease';
-import { useAuth } from '@/context/AuthContext';
 import { formatCurrency } from '@/lib/format';
 import { nomAffichable } from '@/lib/identite';
 import type { Booking } from '@/types/booking';
@@ -111,7 +110,6 @@ function FormulaireDuBail({ reservation }: { readonly reservation: Booking | nul
   const tCommon = useTranslations('common');
   const router = useRouter();
   const createLease = useCreateLease();
-  const { user } = useAuth();
   const [customerSearch, setCustomerSearch] = useState('');
   const propertiesQuery = useLeasePropertyOptions();
   const customersQuery = useLeaseCustomerOptions(customerSearch);
@@ -192,7 +190,7 @@ function FormulaireDuBail({ reservation }: { readonly reservation: Booking | nul
         {reservation ? (
           <PartiesDeLaReservation
             reservation={reservation}
-            landlord={user ? t('activeLandlord', { name: nomAffichable(user) }) : t('loadingLandlord')}
+            titulaire={properties.find((p) => p.id === reservation.property_id)?.owner ?? null}
           />
         ) : (
           <>
@@ -270,9 +268,13 @@ function FormulaireDuBail({ reservation }: { readonly reservation: Booking | nul
                 label={t('selectedTenant')}
                 value={selectedCustomer ? customerLabel(selectedCustomer) : t('noTenantSelected')}
                 detail={
-                  user
-                    ? t('activeLandlord', { name: nomAffichable(user) })
-                    : t('loadingLandlord')
+                  // TCK-997 (P50.01) — le bail naît au nom du TITULAIRE du bien (`LeaseService::create`,
+                  // `landlord_id = property.user_id`), jamais de qui le saisit : la ligne le nomme.
+                  selectedProperty?.owner
+                    ? t('landlordOfProperty', {
+                        name: nomAffichable({ id: selectedProperty.owner.id }, selectedProperty.owner.name),
+                      })
+                    : t('landlordPending')
                 }
               />
             </div>
@@ -387,12 +389,17 @@ function FormulaireDuBail({ reservation }: { readonly reservation: Booking | nul
   );
 }
 
+/**
+ * `titulaire` vient des options de bien du formulaire (`include=owner`, TCK-997) : la lecture de la
+ * réservation ne charge pas le titulaire du bien, et le bail naît à son nom, pas à celui de qui le
+ * saisit. Un bien hors de ces options laisse la ligne en attente, comme le formulaire vierge.
+ */
 function PartiesDeLaReservation({
   reservation,
-  landlord,
+  titulaire,
 }: {
   readonly reservation: Booking;
-  readonly landlord: string;
+  readonly titulaire: PropertyListItem['owner'] | null;
 }) {
   const t = useTranslations('lease.form');
   const bien = reservation.property;
@@ -418,7 +425,11 @@ function PartiesDeLaReservation({
             { id: reservation.customer_id, first_name: client?.first_name, last_name: client?.last_name },
             t('customerFallback', { id: String(reservation.customer_id) }),
           )}
-          detail={landlord}
+          detail={
+            titulaire
+              ? t('landlordOfProperty', { name: nomAffichable({ id: titulaire.id }, titulaire.name) })
+              : t('landlordPending')
+          }
         />
       </div>
       <p className="text-xs text-muted-foreground">{t('fromBookingHint')}</p>

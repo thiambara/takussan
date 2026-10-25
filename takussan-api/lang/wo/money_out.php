@@ -34,6 +34,16 @@ return [
         'date' => 'Bés',
         'total' => 'Total',
         'agency' => 'Agence',
+        // TCK-2321 (P177.05) — le relevé envoyé, et ce qui a été écrit depuis.
+        'sent_on' => 'Relevé envoyé le :date',
+        'rectification' => 'Rectificatif au :date',
+        'rectification_intro' => 'Écritures enregistrées depuis l\'envoi de ce relevé. Les montants ci-dessus sont ceux du relevé envoyé.',
+        'rectification_delta' => 'Écart',
+        'rectification_added' => 'Ajoutée',
+        'rectification_removed' => 'Retirée',
+        'rectification_line' => 'Ligne',
+        'gross' => 'Encaissé',
+        'clawback' => 'Reprise',
     ],
 
     'legal' => [

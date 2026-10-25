@@ -160,6 +160,7 @@ return [
     'document' => [
         'file_missing' => 'Aucun fichier n\'est joint à ce document.',
         'owner_not_found' => 'L\'objet auquel rattacher le document est introuvable.',
+        'profile_piece_not_versioned' => 'Une pièce de profil ne se versionne pas : renvoyez-la depuis votre profil.',
         'pdf_template_missing' => 'Le modèle de document est introuvable.',
         'pdf_uploader_missing' => 'Le document ne peut pas être généré sans auteur.',
         'unsupported_type' => 'Ce type d\'objet ne peut pas porter de document.',
@@ -486,6 +487,9 @@ return [
         'has_upcoming_visit' => 'Ce bien porte une visite à venir : annulez-la avant de supprimer le bien.',
         'not_found' => 'Bien introuvable.',
         'not_pending_moderation' => 'Le bien n\'est pas en attente de modération.',
+        'owner_designation_forbidden' => 'Le bailleur ne se désigne pas ici : seul le personnel d\'une agence standard saisit un bien au nom d\'un de ses bailleurs.',
+        'owner_not_in_agency' => 'Le bailleur choisi n\'est pas un bailleur actif de l\'agence du bien.',
+        'parent_owner_mismatch' => 'Un lot appartient au bailleur du bien qui le contient : ce lot a un autre titulaire.',
         'primary_not_eligible' => 'Seul un agent actif de l\'agence du bien peut en être l\'agent principal.',
         'primary_requires_agent' => 'Seul un collaborateur de rôle agent peut être l\'agent principal du bien.',
         'publish_contact_incomplete' => "Pour publier, le contact du bien doit avoir un prénom et un numéro vérifié, et les conditions d'utilisation doivent être acceptées.",

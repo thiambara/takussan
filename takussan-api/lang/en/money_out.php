@@ -34,6 +34,16 @@ return [
         'date' => 'Date',
         'total' => 'Total',
         'agency' => 'Agency',
+        // TCK-2321 (P177.05) — the statement as sent, and what was recorded since.
+        'sent_on' => 'Statement sent on :date',
+        'rectification' => 'Correction as of :date',
+        'rectification_intro' => 'Entries recorded since this statement was sent. The amounts above are those of the statement as sent.',
+        'rectification_delta' => 'Difference',
+        'rectification_added' => 'Added',
+        'rectification_removed' => 'Removed',
+        'rectification_line' => 'Line',
+        'gross' => 'Collected',
+        'clawback' => 'Clawback',
     ],
 
     'legal' => [

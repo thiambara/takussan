@@ -160,6 +160,7 @@ return [
     'document' => [
         'file_missing' => 'No file is attached to this document.',
         'owner_not_found' => 'The item to attach the document to was not found.',
+        'profile_piece_not_versioned' => 'A profile document cannot be versioned: upload it again from your profile.',
         'pdf_template_missing' => 'The document template was not found.',
         'pdf_uploader_missing' => 'The document cannot be generated without an author.',
         'unsupported_type' => 'This kind of item cannot hold documents.',
@@ -486,6 +487,9 @@ return [
         'has_upcoming_visit' => 'This property has an upcoming visit: cancel it before deleting the property.',
         'not_found' => 'Property not found.',
         'not_pending_moderation' => 'The property is not awaiting moderation.',
+        'owner_designation_forbidden' => 'The landlord cannot be chosen here: only the staff of a standard agency saves a property in the name of one of its landlords.',
+        'owner_not_in_agency' => 'The chosen landlord is not an active landlord of the property\'s agency.',
+        'parent_owner_mismatch' => 'A unit belongs to the landlord of the property that contains it: this unit has another holder.',
         'primary_not_eligible' => 'Only an active agent of the property\'s agency can be its primary agent.',
         'primary_requires_agent' => 'Only a collaborator with the agent role can be the property\'s primary agent.',
         'publish_contact_incomplete' => 'To publish, the property contact needs a first name and a verified number, and the terms of use must be accepted.',

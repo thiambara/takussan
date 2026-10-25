@@ -7,10 +7,11 @@ use App\Models\Agency;
 use App\Models\BookingPayment;
 use App\Models\Enums\PaymentStatus;
 use App\Models\LeasePayment;
-use App\Models\Profiles\OwnerProfile;
 use App\Models\User;
 use App\Services\Model\NotificationService;
+use App\Services\Payout\BeneficiaireDuReversement;
 use App\Services\Payout\OwnerStatementService;
+use App\Services\Payout\OwnerStatementSnapshots;
 use App\Services\Payout\PayoutCalculator;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Cache;
@@ -19,9 +20,11 @@ use Illuminate\Support\Facades\Cache;
  * TCK-594 (ADR-0039 §3) — le 1er du mois, chaque bailleur qui a eu des encaissements le mois
  * précédent est avisé que son relevé de gérance est disponible (une fois par agence et par mois).
  *
- * Le relevé lui-même n'est pas joint : il se lit à la demande (`GET /api/owner-statements`), sur
- * l'état du moment. L'idempotence d'une relance tient au cache (`Cache::add`, 40 jours) : un cache
- * vidé entre deux exécutions du même mois renverrait l'avis — c'est un avis, pas l'argent.
+ * Le relevé lui-même n'est pas joint : il se lit à la demande (`GET /api/owner-statements`).
+ * TCK-2321 (P177.05 ; ADR-0039, amendement du 2026-10-25) — l'avis écrit l'instantané du relevé
+ * envoyé, que le mois clos sert ensuite ; le premier reste ({@see OwnerStatementSnapshots::record()}).
+ * L'idempotence d'une relance tient au cache (`Cache::add`, 40 jours) : un cache vidé entre deux
+ * exécutions du même mois renverrait l'avis — c'est un avis, pas l'argent — mais pas l'instantané.
  */
 class SendOwnerStatements extends Command
 {
@@ -29,7 +32,7 @@ class SendOwnerStatements extends Command
 
     protected $description = 'Avise les bailleurs que leur relevé de gérance du mois est disponible.';
 
-    public function handle(NotificationService $notifications): int
+    public function handle(NotificationService $notifications, OwnerStatementSnapshots $snapshots): int
     {
         $period = $this->option('period') ?: now()->subMonthNoOverflow()->format('Y-m');
         [$start, $end] = OwnerStatementService::period($period);
@@ -60,7 +63,9 @@ class SendOwnerStatements extends Command
         foreach ($pairs as $pair) {
             $landlord = User::query()->find($pair->landlord_id);
             $agency = Agency::query()->find($pair->agency_id);
-            if ($landlord === null || $agency === null || ! $landlord->hasProfileAt((int) $agency->id, OwnerProfile::class)) {
+            // TCK-997 (P50.02, Q1) — l'avis suit le reversement : bailleur, ou personnel actif d'un
+            // bien que l'agence garde ; jamais un compte qui n'est ni l'un ni l'autre.
+            if ($landlord === null || $agency === null || ! BeneficiaireDuReversement::est($landlord, (int) $agency->id)) {
                 continue;
             }
 
@@ -68,6 +73,7 @@ class SendOwnerStatements extends Command
                 continue;
             }
 
+            $snapshots->record($agency, $landlord, $period, now());
             $notifications->send($landlord, NotificationCode::OwnerStatementAvailable, ['period' => $period]);
             $sent++;
         }

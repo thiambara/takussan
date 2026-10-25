@@ -102,9 +102,17 @@ class TwoFactorService
      * `verifyKeyNewer` returns the 30-second timestamp used for the match
      * (or false). We persist the last accepted timestamp per user and
      * refuse any value <= that, blocking replay within the ±30 s window.
+     *
+     * TCK-2305 (P221.01) — un secret nul ou vide rend faux (échec fermé) : le compte « 2FA active,
+     * secret nul » rendait 500 sur les six sites qui vérifient un TOTP. Le code de secours reste
+     * une voie à la connexion, le mot de passe à la désactivation.
      */
-    public function verifyCodeForUser(User $user, string $secret, string $code): bool
+    public function verifyCodeForUser(User $user, ?string $secret, string $code): bool
     {
+        if ($secret === null || $secret === '') {
+            return false;
+        }
+
         $code = preg_replace('/\s+/', '', $code);
         if (! preg_match('/^\d{6}$/', $code)) {
             return false;

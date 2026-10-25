@@ -20,6 +20,7 @@ vi.mock('@/lib/queries/leases', () => ({
     mutateAsync: vi.fn().mockResolvedValue({ data: { id: 999 } }),
     isPending: false,
   }),
+  useLeaseGuarantors: () => ({ data: { data: [] } }),
 }));
 
 // The renewal wizard now uses our shadcn `<DatePicker>` (button + popover).

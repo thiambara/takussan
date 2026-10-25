@@ -160,6 +160,7 @@ return [
     'document' => [
         'file_missing' => 'Amul benn fichier bu ñu takk ci document bii.',
         'owner_not_found' => 'Mbir mi ñuy takk document bi gisuñu ko.',
+        'profile_piece_not_versioned' => 'Une pièce de profil ne se versionne pas : renvoyez-la depuis votre profil.',
         'pdf_template_missing' => 'Modèle document bi gisuñu ko.',
         'pdf_uploader_missing' => 'Document bi mënuñu ko defar te amul ki ko def.',
         'unsupported_type' => 'Xeetu mbir mii mënul am document.',
@@ -486,6 +487,9 @@ return [
         'has_upcoming_visit' => 'Ce bien porte une visite à venir : annulez-la avant de supprimer le bien.',
         'not_found' => 'Kër gi gisuñu ko.',
         'not_pending_moderation' => 'Kër gi nekkul ci xaar modération.',
+        'owner_designation_forbidden' => 'Le bailleur ne se désigne pas ici : seul le personnel d\'une agence standard saisit un bien au nom d\'un de ses bailleurs.',
+        'owner_not_in_agency' => 'Le bailleur choisi n\'est pas un bailleur actif de l\'agence du bien.',
+        'parent_owner_mismatch' => 'Un lot appartient au bailleur du bien qui le contient : ce lot a un autre titulaire.',
         'primary_not_eligible' => 'Ajaa bu dox ci ajaasu kër gi rekk moo mën a nekk ajaa bu njëkk bi.',
         'primary_requires_agent' => 'Jàngalekat bu am wàll ajaa rekk moo mën a nekk ajaa bu njëkk bu kër gi.',
         'publish_contact_incomplete' => 'Ngir siiwal, ki ñuy woo ci kër gi war na am tur ak nimero bu ñu wóor, te war nañu nangu sàrt yi.',

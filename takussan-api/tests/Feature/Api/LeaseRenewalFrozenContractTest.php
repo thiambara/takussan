@@ -5,6 +5,7 @@ namespace Tests\Feature\Api;
 use App\Jobs\GenerateLeasePaymentSchedule;
 use App\Models\Customer;
 use App\Models\Enums\LeaseStatus;
+use App\Models\Guarantor;
 use App\Models\Lease;
 use App\Models\Property;
 use App\Models\User;
@@ -102,6 +103,46 @@ class LeaseRenewalFrozenContractTest extends TestCase
         $child = Lease::query()->findOrFail($childId);
         $this->assertNull($child->contract_sha256);
         $this->assertNull($child->rent_review_max_pct);
+    }
+
+    /**
+     * P231.01 (TCK-2316) — le bail renouvelé naît sans garant, et la réponse le dit. Une caution
+     * signée pour le bail précédent n'engage pas d'office le suivant : rien ne recopie le pivot,
+     * ni l'ancienne colonne `guarantor_id`, et le contrat figé n'imprime aucun garant.
+     */
+    public function test_le_bail_renouvele_nait_sans_garant_et_la_reponse_le_dit(): void
+    {
+        [$landlord, $parent] = $this->scaffold();
+        [$principal, $second] = Guarantor::factory()->count(2)->create(['first_name' => 'Ousmane', 'last_name' => 'Garant']);
+        $parent->guarantors()->attach([$principal->id => ['role' => 'principal'], $second->id => ['role' => 'parent']]);
+        $parent->forceFill(['guarantor_id' => $principal->id])->save();
+        Sanctum::actingAs($landlord);
+
+        $childId = (int) $this->postJson("/api/leases/{$parent->id}/renew", [
+            'start_date' => $parent->end_date->copy()->addDay()->toDateString(),
+        ])->assertCreated()
+            ->assertJsonPath('data.status', 'active')
+            ->assertJsonPath('meta.guarantors_not_carried_over', 2)
+            ->json('data.id');
+
+        $child = Lease::query()->findOrFail($childId);
+        $this->assertSame(0, $child->guarantors()->count());
+        $this->assertNull($child->guarantor_id);
+        $this->assertSame(2, $parent->guarantors()->count(), 'le bail précédent garde ses garants');
+
+        $this->assertNotNull($child->contract_sha256);
+        $contrat = (string) $this->get("/api/leases/{$childId}/contract/pdf")->assertOk()->getContent();
+        $this->assertStringNotContainsString('Ousmane', $contrat);
+    }
+
+    public function test_sans_garant_au_bail_precedent_la_reponse_n_en_signale_aucun(): void
+    {
+        [$landlord, $parent] = $this->scaffold();
+        Sanctum::actingAs($landlord);
+
+        $this->postJson("/api/leases/{$parent->id}/renew", [
+            'start_date' => $parent->end_date->copy()->addDay()->toDateString(),
+        ])->assertCreated()->assertJsonPath('meta.guarantors_not_carried_over', 0);
     }
 
     /**

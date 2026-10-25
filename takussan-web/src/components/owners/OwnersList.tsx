@@ -28,6 +28,7 @@ import { formaterTelephone } from '@/lib/phone';
 import {
   fetchOwners,
   fetchOwnerSensitive,
+  raisonSocialeDe,
   resendInvitation,
   revokeInvitation,
   type OwnerProfileSummary,
@@ -381,14 +382,6 @@ function OwnerIdentifiersCell({
       ) : null}
     </div>
   );
-}
-
-/** TCK-1323 (P117.05) — la raison sociale d'un bailleur société, `null` pour un particulier. */
-function raisonSocialeDe(owner: OwnerProfileSummary): string | null {
-  const meta = owner.metadata ?? null;
-  if (meta?.owner_type !== 'company') return null;
-  const raison = meta.company_name?.trim();
-  return raison ? raison : null;
 }
 
 /** Le nom composé, seule logique propre à l'ancienne `OwnerRow` qui survivait à la conversion. */

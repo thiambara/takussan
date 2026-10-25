@@ -337,6 +337,9 @@ Les tables `lemon_squeezy_*` viennent d'un paquet, voir [`lemonsqueezy/laravel`]
 #### Crédits d'espace et boost — tranches d'une Vedette 🆕 (TCK-942, ADR-0061 amendement du 2026-10-18)
 100. [PropertyBoostTranche](#100-propertyboosttranche-) 🆕
 
+#### Relevé de gérance — l'instantané envoyé 🆕 (TCK-2321, ADR-0039 amendement du 2026-10-25)
+101. [OwnerStatementSnapshot](#101-ownerstatementsnapshot-) 🆕
+
 ### Enums
 
 - [Enums](#enums-1)
@@ -625,7 +628,7 @@ pause, le réactiver les reprend (ADR-0061 §8).
 |---------|------|----------|--------|-------------|------------|
 | id | bigint PK | | auto | Identifiant unique | |
 | parent_id | FK properties | oui | null | Bien parent (ex: immeuble contenant des appartements) | |
-| user_id | FK users | | | Titulaire du bien (`restrictOnDelete`) — son propriétaire pour un particulier ; sur un bien d'agence, **le bailleur désigné à la saisie** (un bailleur actif de l'agence), ou **l'auteur** quand l'agence garde le bien en propre ou en attendant qu'un bailleur invité accepte ; un lot prend à sa création le titulaire bailleur de son parent, et la copie celui de sa source. **Ce n'est pas l'agent responsable** (le collaborateur principal, [§8](#8-propertycollaborator)) : hors création, seules trois voies le réécrivent, jamais depuis un bailleur — la passation d'un bien saisi par un partant (TCK-603), l'acceptation de l'invitation du bailleur en attente, et « changer le titulaire » par l'admin d'agence ([ADR-0036](adr/0036-l-agent-responsable-est-le-collaborateur-principal.md), amendé le 2026-10-19 ; TCK-997, TCK-999, TCK-1000). **À venir** (les trois tickets sont `todo` au 2026-10-19) : la désignation du bailleur à la saisie, le titulaire bailleur d'un lot, l'invitation en attente et « changer le titulaire ». **Aujourd'hui**, le titulaire est l'auteur de la saisie — celui d'une copie aussi (`PropertyDuplicationService`, l'auteur de la copie) —, et seule la passation (TCK-603) le réécrit | ✏️ |
+| user_id | FK users | | | Titulaire du bien (`restrictOnDelete`) — son propriétaire pour un particulier ; sur un bien d'agence, **le bailleur désigné à la saisie** (un bailleur actif de l'agence), ou **l'auteur** quand l'agence garde le bien en propre ou en attendant qu'un bailleur invité accepte ; un lot prend à sa création le titulaire bailleur de son parent, et la copie celui de sa source. **Ce n'est pas l'agent responsable** (le collaborateur principal, [§8](#8-propertycollaborator)) : hors création, seules trois voies le réécrivent, jamais depuis un bailleur — la passation d'un bien saisi par un partant (TCK-603), l'acceptation de l'invitation du bailleur en attente, et « changer le titulaire » par l'admin d'agence ([ADR-0036](adr/0036-l-agent-responsable-est-le-collaborateur-principal.md), amendé le 2026-10-19 ; TCK-997, TCK-999, TCK-1000). La désignation du bailleur à la saisie, le titulaire bailleur d'un lot et la copie sont faits (TCK-997, 2026-10-25). **À venir** : l'invitation en attente (TCK-1000) et « changer le titulaire » (TCK-999). **Aujourd'hui**, hors création, seule la passation (TCK-603) le réécrit. Un bien saisi avant TCK-997 garde son titulaire, l'auteur de la saisie | ✏️ |
 | pending_owner_profile_id | FK owner_profiles | oui | null | **À venir — TCK-1000, non migrée au 2026-10-19.** Bailleur invité pour qui le bien a été saisi (`nullOnDelete`) : le bien lui passe quand il accepte l'invitation, et le lien s'efface à l'acceptation, à la révocation ou à l'expiration | ➕ (à venir) |
 | agency_id | FK agencies | oui | null | Agence gestionnaire (`nullOnDelete`) | |
 | title | string | | | Titre de l'annonce | |
@@ -1759,7 +1762,9 @@ La facture du prestataire est une ligne de [ServiceProviderBill](#77-serviceprov
 | updated_at | datetime | | auto | |
 
 **Traits :**
-- `InteractsWithMedia` (spatie/laravel-medialibrary) — collection `file` (le fichier du document : PDF, image, scan, etc.)
+- `InteractsWithMedia` (spatie/laravel-medialibrary) — collection `file` (le fichier d'origine : PDF, image, scan, etc.) et collection `versions` (les versions suivantes, une seule active)
+- **Le fichier servi est la version active, sinon `file`** (`Document::currentFile()`, TCK-2300) : le lien de partage, la page publique d'un bien, `file_url` de la fiche et la revue des demandes de passage en agence le lisent tous. Une nouvelle version d'un document public de bien devient donc publique aussitôt.
+- **Une nouvelle version vide `is_verified`, `verified_by`, `verified_at` et `expiry_date`** (TCK-2300), comme le renvoi d'une pièce par les assistants (TCK-1063) : la vérification remplacée s'écrit au journal (`document_verification_reset`), et l'échéance se reprend si la requête en porte une neuve. Une pièce de profil (`isProfilePiece()`) ne se versionne pas (422 `document.profile_piece_not_versioned`) : elle se renvoie par les assistants.
 
 **Note :** Les colonnes `original_filename`, `file_path`, `file_size`, `mime_type` ne sont **pas** nécessaires dans cette table car elles sont gérées automatiquement par la table `media` de spatie/medialibrary.
 
@@ -2637,7 +2642,7 @@ exigée pour `director_id`.
 | processed_at | timestamp | oui | null | Date d'exécution du virement |
 | payment_reference | string | oui | null | Référence du virement, écrite au paiement. Remplace le `metadata.bank_ref` facultatif d'avant (TCK-594, `2026_10_07_200600`) |
 | failure_reason | text | oui | null | |
-| metadata | jsonb | oui | null | Lot, breakdown |
+| metadata | jsonb | oui | null | Lot, breakdown ; `refunded_since_paid` : les lignes remboursées depuis le paiement du reversement (type, identifiant, référence, date, **sans montant**), écrites par le webhook de remboursement d'un reversement `paid` (TCK-2320, P39.07) |
 | created_at / updated_at | datetime | | auto | |
 
 **Séparation des gestes** (TCK-594, ADR-0039 §4 ; `features.md` §1.5) : clôture, approbation et paiement sont trois colonnes pour que la base permette de comparer les acteurs. `PlatformPayoutService` refuse qu'on approuve un reversement qu'on a clôturé, ou qu'on paie un reversement qu'on a approuvé (`SegregationOfDuties::assertDistinct`), et qu'un bénéficiaire — l'administrateur principal de l'agence payée ou un membre de son équipe — approuve ou paie.
@@ -4694,6 +4699,35 @@ position)`, qui sert aussi d'index à la clé étrangère ; CHECK `property_boos
 (position >= 1 AND price_credits >= 0 AND duration_days > 0)`.
 
 **Relations :** `boost()` → belongsTo PropertyBoost. Inverse : `PropertyBoost::tranches()`.
+
+---
+
+### 101. OwnerStatementSnapshot 🆕
+
+**Table :** `owner_statement_snapshots` (migration `2026_10_25_100000`, TCK-2321)
+**Modèle :** aucun — la table se lit et s'écrit par `App\Services\Payout\OwnerStatementSnapshots`
+sur le constructeur de requêtes, comme `payout_clawbacks`. Écrite par
+`payouts:send-owner-statements` seul, lue par `OwnerStatementController` (JSON, PDF, CSV).
+**Description :** Le relevé de gérance mensuel d'un bailleur dans une agence, **tel qu'il a été
+envoyé** : la commande l'écrit quand elle envoie l'avis du mois, et le premier reste
+([ADR-0039, amendement du 2026-10-25](adr/0039-les-sorties-d-argent.md#amendement-du-2026-10-25--le-relevé-envoyé-est-conservé)).
+Un mois qui a un instantané est servi depuis lui, et ce qui a été écrit depuis se montre en
+rectificatif (le calcul du jour, l'écart des totaux, les lignes apparues ou disparues). Sans
+instantané — mois envoyé avant cette table, pas encore envoyé, attestation annuelle — le relevé est
+le calcul du jour. **Reprise** : aucune ; aucun instantané n'est écrit après coup.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| agency_id | FK agencies | | | `cascadeOnDelete` |
+| landlord_id | FK users | | | Le bailleur, `cascadeOnDelete` ; index `owner_statement_snapshots_landlord_idx` |
+| period | string(7) | | | `YYYY-MM` : seul le relevé mensuel est envoyé |
+| payload | jsonb | | | Le relevé calculé à l'envoi (`OwnerStatementService::statement`), **sans le nom du bailleur** : l'identité se lit au jour |
+| sent_at | timestamp | | | L'envoi de l'avis |
+| created_at / updated_at | timestamp | | auto | |
+
+**Contraintes :** unique `owner_statement_snapshots_period_unique (agency_id, landlord_id, period)` :
+un relevé envoyé par mois, une relance n'écrit rien (`insertOrIgnore`).
 
 ---
 

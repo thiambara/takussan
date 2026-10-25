@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Api\OwnerStatementRequest;
-use App\Services\Payout\OwnerStatementService;
+use App\Services\Payout\OwnerStatementSnapshots;
 use App\Services\Pdf\DocumentPdfService;
 use Illuminate\Http\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
@@ -12,11 +12,15 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * TCK-594 (ADR-0039 §3) — le relevé de gérance : JSON, PDF, CSV. Les trois lisent le même calcul.
+ *
+ * TCK-2321 (P177.05 ; ADR-0039, amendement du 2026-10-25) — un mois dont le relevé a été envoyé est
+ * servi depuis son instantané, avec le rectificatif de ce qui a été écrit depuis
+ * ({@see OwnerStatementSnapshots::served()}).
  */
 class OwnerStatementController extends Controller
 {
     public function __construct(
-        private readonly OwnerStatementService $statements,
+        private readonly OwnerStatementSnapshots $statements,
         private readonly DocumentPdfService $pdf,
     ) {}
 
@@ -63,6 +67,21 @@ class OwnerStatementController extends Controller
             // pris à des dates différentes se distinguent.
             fputcsv($out, ['paid_out', '', '', '', $statement['totals']['paid_out'], ''], ';');
             fputcsv($out, ['generated_at', '', '', $this->instant(now()), '', ''], ';');
+            // TCK-2321 (P177.05) — le relevé envoyé, et ce qui a été écrit depuis : les lignes
+            // apparues ou disparues, puis l'écart du net et de la commission.
+            if ($statement['snapshot'] !== null) {
+                fputcsv($out, ['sent_at', '', '', $statement['snapshot']['sent_at'], '', ''], ';');
+            }
+            if ($statement['rectification'] !== null) {
+                foreach (['added', 'removed'] as $side) {
+                    foreach ($statement['rectification']['lines'][$side] as $set => $lines) {
+                        foreach ($lines as $line) {
+                            fputcsv($out, ["rectification_{$side}:{$set}", $line['reference_number'] ?? '', $line['property_id'] ?? '', $line['paid_at'] ?? $line['refunded_at'] ?? '', $line['amount'] ?? '', $line['commission'] ?? ''], ';');
+                        }
+                    }
+                }
+                fputcsv($out, ['rectification_net', '', '', $statement['rectification']['as_of'], $statement['rectification']['delta']['net'] ?? 0, $statement['rectification']['delta']['commission'] ?? 0], ';');
+            }
             fclose($out);
         }, $name, ['Content-Type' => 'text/csv; charset=UTF-8']);
     }
@@ -70,6 +89,6 @@ class OwnerStatementController extends Controller
     /** @return array<string, mixed> */
     private function statementOf(OwnerStatementRequest $request): array
     {
-        return $this->statements->statement($request->agency(), $request->landlord(), $request->string('period')->toString());
+        return $this->statements->served($request->agency(), $request->landlord(), $request->string('period')->toString());
     }
 }

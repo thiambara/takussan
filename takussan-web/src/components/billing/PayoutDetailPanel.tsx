@@ -90,6 +90,7 @@ function PayoutActions({ payout, onClose }: { payout: PlatformPayout; onClose: (
   });
 
   const breakdown = payout.breakdown ?? null;
+  const refunded = payout.refunded_since_paid ?? [];
 
   return (
     <Card>
@@ -110,6 +111,17 @@ function PayoutActions({ payout, onClose }: { payout: PlatformPayout; onClose: (
           {payout.approved_at ? <Item label={t('approvedAt')} value={fmt.date(payout.approved_at)} /> : null}
           {payout.payment_reference ? <Item label={t('paymentReference')} value={payout.payment_reference} /> : null}
         </dl>
+
+        {/* TCK-2320 (P39.07) — les lignes remboursées depuis le versement, sans montant : la
+            compensation sur le prochain reversement n'est pas décidée. */}
+        {refunded.length > 0 ? (
+          <p role="status" className="rounded-lg border border-border/60 bg-muted/20 p-3 text-sm text-foreground">
+            {t('refundedSincePaid', {
+              count: refunded.length,
+              references: refunded.map((line) => line.reference_number).join(', '),
+            })}
+          </p>
+        ) : null}
 
         {breakdown ? (
           <div className="rounded-lg border border-border/60 bg-muted/20 p-3 text-sm">

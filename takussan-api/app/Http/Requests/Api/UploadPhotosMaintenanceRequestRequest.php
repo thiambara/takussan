@@ -47,7 +47,9 @@ class UploadPhotosMaintenanceRequestRequest extends BaseFormRequest
     public function rules(): array
     {
         return [
-            'photos' => ['required', 'array', 'min:1'],
+            // TCK-2330 (P222.02) — 20 au plus, la borne `max_file_uploads` de l'image (`docker/php.ini`) :
+            // au-delà, PHP ignore un fichier sans erreur, et le lot passait amputé (comme TCK-673).
+            'photos' => ['required', 'array', 'min:1', 'max:20'],
             // TCK-2088 (P180.02) — la vignette fait décoder la photo par GD : la borne de 20 Mpx
             // des autres collections décodées (ADR-0029, amendement du 2026-10-23).
             'photos.*' => ['required', 'file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:10240', new PixelsAuPlus],

@@ -14,6 +14,7 @@ import { getMeAction } from '@/app/actions/auth';
 import { resolveAgencyOrNull } from '@/lib/access/server-guards';
 import { isAdmin } from '@/lib/roles';
 import { modeDeCreationDeBien } from '@/lib/access/creation-de-bien';
+import { capacitesDuProfilActif } from '@/lib/access/pages-admin-server';
 import { getToken } from '@/lib/session';
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -96,6 +97,17 @@ export default async function Page() {
     : null;
   const fraisDAgence = agence?.kind !== 'individual';
 
+  // TCK-997 (P15.06, P50.01) — le choix du bailleur : personnel d'une agence `standard` tenant
+  // `properties.create` (l'API en juge de même, `TitulaireALaSaisie`). Il lui faut AUSSI
+  // `properties.update_any` : le bien désigné n'est plus le sien, et les écritures qui suivent la
+  // création (équipements, photos, contacts) exigent `update` sur lui. Sans elle, l'agent du rôle
+  // système verrait son parcours échouer après la création ; le choix ne lui est pas offert.
+  const capacites = !proposition && agence?.kind === 'standard' ? await capacitesDuProfilActif() : null;
+  const agenceDuChoixDuBailleur =
+    agencyId && capacites?.includes('properties.create') && capacites.includes('properties.update_any')
+      ? agencyId
+      : null;
+
   if (quota && !quota.can_create) {
     return (
       <div className="absolute inset-0 flex flex-col overflow-y-auto">
@@ -133,6 +145,7 @@ export default async function Page() {
         tags={tags}
         proposition={proposition}
         fraisDAgence={fraisDAgence}
+        agenceDuChoixDuBailleur={agenceDuChoixDuBailleur}
         quotaNote={
           quota && quota.limit !== null
             ? t('quotaUsage', { used: quota.used, limit: quota.limit })

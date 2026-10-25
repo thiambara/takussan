@@ -12,6 +12,7 @@ use App\Http\Resources\InventoryResource;
 use App\Models\Enums\InventoryStatus;
 use App\Models\Inventory;
 use App\Models\Lease;
+use App\Models\Profiles\OwnerProfile;
 use App\Models\Property;
 use App\Models\User;
 use App\Services\Inventory\InventorySignatureService;
@@ -215,12 +216,19 @@ class InventoryController extends Controller
 
         // P140.02 (TCK-1792) — les identités du jour de la seconde signature, quand l'état des lieux
         // les a figées.
+        // P234.06 (TCK-2315) — le bailleur est le propriétaire du bien (`owner`), en tête sa raison
+        // sociale ; un état des lieux figé sans lui (l'instantané lisait `property->user`, toujours
+        // nul) n'en imprime pas.
         ['tenant' => $tenant, 'landlord' => $landlord, 'property' => $property, 'agency' => $agency] = PrintedIdentity::restore($inventory->metadata, [
             'tenant' => $inventory->tenant,
-            'landlord' => $inventory->property?->user,
+            'landlord' => PrintedIdentity::frozenAbsent($inventory->metadata, 'landlord') ? null : $inventory->property?->owner,
             'property' => $inventory->property,
             'agency' => $inventory->property?->agency,
         ]);
+        $landlordCompany = $landlord === null ? null : PrintedIdentity::landlordCompany(
+            $inventory->metadata,
+            OwnerProfile::companyNameOf($inventory->property?->user_id, $inventory->property?->agency_id),
+        );
 
         $roomPhotos = $this->groupRoomPhotos($inventory);
 
@@ -234,6 +242,7 @@ class InventoryController extends Controller
             'property' => $property,
             'tenant' => $tenant,
             'landlord' => $landlord,
+            'landlord_company' => $landlordCompany,
             'agency' => $agency,
             'room_photos' => $roomPhotos,
             'tenant_signature' => $inventory->tenant_signature_data,

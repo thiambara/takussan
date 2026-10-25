@@ -1950,7 +1950,11 @@
       "downloadPdf": "Yebbi PDF bi",
       "downloadCsv": "Yebbi CSV bi",
       "downloadFailed": "Yebbi relevé bi antuwul.",
-      "unavailable": "Relevé bi amul fii."
+      "unavailable": "Relevé bi amul fii.",
+      "sentOn": "Relevé envoyé le {date}",
+      "rectificationTitle": "Rectificatif au {date}",
+      "rectificationIntro": "Écritures enregistrées depuis l'envoi de ce relevé. Les totaux ci-dessus sont ceux du relevé envoyé.",
+      "clawback": "Reprise"
     },
     "serviceProviderBills": {
       "providerTitle": "Samay factuur liggéey",
@@ -2007,7 +2011,8 @@
         "submit": "Dëggal delloo",
         "submitting": "Yónnee…",
         "file_too_large": "Fichier trop lourd ({max} Mo au plus) : {files}",
-        "max_files": "Maximum {max} fichiers."
+        "max_files": "Maximum {max} fichiers.",
+        "total_too_large": "Ces pièces dépassent {max} Mo à elles toutes : retirez-en ou allégez-les."
       },
       "error_generic": "Delloo gi am na njuumte, jeemal ndax."
     },
@@ -2035,6 +2040,7 @@
       "diff_modified": "Soppi",
       "diff_unchanged": "Du soppi",
       "tenant_immutable": "Locataire ak mbaar mën nañu ko soppi ci avenant.",
+      "guarantors_not_carried_over": "{count, plural, one {Le garant du bail actuel n’est pas reporté sur le nouveau bail : rattachez-le au nouveau bail s’il renouvelle son engagement.} other {Les # garants du bail actuel ne sont pas reportés sur le nouveau bail : rattachez au nouveau bail ceux qui renouvellent leur engagement.}}",
       "timeline_title": "Chaîne luwé",
       "timeline_root": "Luwé bu njëkk",
       "timeline_amendment": "Avenant {n}",
@@ -2198,8 +2204,8 @@
       "noPropertySelected": "Tannuñu benn kër",
       "selectedTenant": "Luwékat bi ñu tànn",
       "noTenantSelected": "Tannuñu benn luwékat",
-      "activeLandlord": "Boroom kër bi : {name}",
-      "loadingLandlord": "Ñu ngi yeb boroom kër bi",
+      "landlordOfProperty": "Bailleur : {name}",
+      "landlordPending": "Bailleur : le titulaire du bien choisi",
       "guarantorsHint": "Garant yi mën nañu leen yokk ci xëtu luwé bi bu buruyoŋ bi sosoo.",
       "financialTerms": "Conditions yu xaalis",
       "contractType": "Xeetu kontaraa",
@@ -2550,6 +2556,7 @@
         "max_files": "Maximum {max} fichiers.",
         "file_type_refused": "Xeetu kayit bii nanguñu ko (PDF, JPG, PNG walla WEBP rekk) : {files}",
         "file_too_large": "Fichier trop lourd ({max} Mo au plus) : {files}",
+        "total_too_large": "Ces pièces dépassent {max} Mo à elles toutes : retirez-en ou allégez-les.",
         "incomplete": "Bépp rëdd war na am tur, lim ak njëg, te devi bi war na am bés bu muy jeex.",
         "failed": "Devi bi yónneesu ko.",
         "submitting": "Mungiy yónne…",
@@ -5991,7 +5998,14 @@
         "optional": "doyul waar",
         "reopen": "Dellu ci : {step}"
       },
-      "photosProgress": "Yónnee nataal yi : {sent} ci {total}"
+      "photosProgress": "Yónnee nataal yi : {sent} ci {total}",
+      "owner": {
+        "label": "Au nom de qui saisissez-vous ce bien ?",
+        "hint": "Facultatif. Sans choix, le bien reste celui de l'agence ; le bailleur choisi en sera prévenu.",
+        "agency": "L'agence (aucun bailleur)",
+        "loading": "Chargement des bailleurs…",
+        "empty": "Aucun bailleur actif ne correspond."
+      }
     },
     "titleTypes": {
       "bail": "Contrat",
@@ -9663,7 +9677,8 @@
         "status": "Nekkin",
         "paidOn": "Fey ci",
         "emptyForAgency": "Amul benn peymaan platform bu ñu jot ba tey.",
-        "caption": "Reversements de la plateforme"
+        "caption": "Reversements de la plateforme",
+        "refundedSincePaid": "Remboursé depuis"
       },
       "close": {
         "title": "Tëj benn jamono",
@@ -9714,7 +9729,8 @@
         "paymentReferenceLabel": "Référence virement bi",
         "paymentReferencePlaceholder": "Référence virement bi (war na)",
         "approveSelfRefused": "Yaa tëj diir bii : keneen moo war a nangu reversement bi.",
-        "paySelfRefused": "Yaa nangu reversement bii : keneen moo war a ko màndargaal ni fey nañu ko."
+        "paySelfRefused": "Yaa nangu reversement bii : keneen moo war a ko màndargaal ni fey nañu ko.",
+        "refundedSincePaid": "{count, plural, one {Une ligne a été remboursée depuis le versement : {references}.} other {# lignes ont été remboursées depuis le versement : {references}.}} Aucun montant n'est retenu automatiquement."
       }
     }
   },
@@ -10549,6 +10565,14 @@
         "settled_online": {
           "title": "Fey bi agsi na : {property}",
           "body": "Sa fey bu {amount} ngir {property} agsi na. Sa kitaas mi ngi ci sa bérab."
+        },
+        "refunded": {
+          "title": "Remboursement : {property}",
+          "body": "Un remboursement de {amount} a été fait sur votre paiement de loyer pour {property}. Votre quittance ne couvre plus la somme remboursée."
+        },
+        "refunded_landlord": {
+          "title": "Loyer remboursé : {property}",
+          "body": "{amount} du loyer payé par {tenant} pour {property} ont été remboursés par le moyen de paiement en ligne."
         }
       },
       "payment": {
@@ -10559,6 +10583,12 @@
         "duplicate_late_fee": {
           "title": "Pénalité bi ñu ko jot ñaari yoon",
           "body": "Pénalité bu {amount} ngir {reference}, bu ñu fey ba noppi ci agence bi, ñu jot na ko itam ci internet. Delloo ko ki fey walla jox ko beneen."
+        }
+      },
+      "platform_payout": {
+        "refunded_since_paid": {
+          "title": "Paiement remboursé après reversement",
+          "body": "Le paiement {reference}, compris dans le reversement de la plateforme de {period} déjà versé à votre agence, a été remboursé depuis par le moyen de paiement en ligne. Aucune retenue n'est appliquée automatiquement."
         }
       },
       "booking": {
@@ -10853,6 +10883,10 @@
         "rejected": {
           "title": "Yégle bi gàntu nañu ko : {property}",
           "body": "Sa yégle « {property} » gàntu nañu ko. Ngirte : {reason}. Mën nga koo defar te yónneewaat ko ci sa bérab."
+        },
+        "assigned_to_owner": {
+          "title": "Un bien saisi à votre nom : {property}",
+          "body": "Votre agence a enregistré le bien « {property} » à votre nom. Vous le retrouvez dans vos biens, avec ses baux et votre relevé de gérance."
         },
         "submitted_for_review": {
           "title": "Bien à modérer : {property}",

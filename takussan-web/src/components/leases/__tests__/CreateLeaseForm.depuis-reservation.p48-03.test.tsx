@@ -12,7 +12,8 @@ import { withIntl } from '@/test/intl';
  * Références stables (`vi.hoisted`), comme dans `CreateLeaseForm.test.tsx` (TCK-564).
  */
 const { BIENS, CLIENTS, AUTH, ROUTEUR, MUTATION, RESERVATION } = vi.hoisted(() => ({
-  BIENS: { data: [] },
+  // TCK-997 — les options de bien portent leur titulaire (`include=owner`) : c'est lui que le bail nomme.
+  BIENS: { data: [{ id: 2, title: 'Villa Almadies', user_id: 7, owner: { id: 7, name: 'Bineta Sarr' } }] },
   CLIENTS: { data: [] },
   AUTH: { user: { id: 4, full_name: 'Moussa Fall' } },
   ROUTEUR: { push: () => {}, back: () => {} },
@@ -56,6 +57,13 @@ describe('CreateLeaseForm — depuis une réservation (P48.03)', () => {
     expect(screen.getByText('Awa Diop')).toBeInTheDocument();
     expect(screen.queryByRole('combobox', { name: /^Bien/ })).toBeNull();
     expect(document.getElementById('field-tenant_id')).toBeNull();
+  });
+
+  it('nomme le titulaire du bien comme bailleur, jamais qui saisit le bail (TCK-997)', () => {
+    render(withIntl(<CreateLeaseForm bookingId={7} />));
+
+    expect(screen.getByText('Bailleur : Bineta Sarr')).toBeInTheDocument();
+    expect(screen.queryByText(/Moussa Fall/)).toBeNull();
   });
 
   it('envoie le bail prérempli avec la réservation', async () => {
