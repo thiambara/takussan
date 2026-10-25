@@ -8,6 +8,7 @@ use App\Http\Requests\Auth\DisableTwoFactorRequest;
 use App\Http\Requests\Auth\StepUpTwoFactorRequest;
 use App\Models\User;
 use App\Services\Auth\AuthRefusal;
+use App\Services\Auth\MetadataDuCompte;
 use App\Services\Auth\SessionTokenIssuer;
 use App\Services\Auth\TwoFactorService;
 use App\Support\Security\TwoFactorRequirement;
@@ -16,6 +17,7 @@ use Illuminate\Contracts\Cache\Repository as CacheRepository;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\PersonalAccessToken;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -103,15 +105,15 @@ class TwoFactorController extends Controller
         $recoveryCodes = $this->service->generateRecoveryCodes();
 
         // TCK-589 — l'enrôlement solde une réinitialisation par le support :
-        // `force_2fa_reconfigure` cesse de fermer les routes hors `auth/*`.
-        $metadata = $user->metadata ?? [];
-        unset($metadata['force_2fa_reconfigure']);
-
-        $user->forceFill([
-            'two_factor_enabled' => true,
-            'two_factor_recovery_codes' => json_encode($recoveryCodes),
-            'metadata' => $metadata,
-        ])->save();
+        // `force_2fa_reconfigure` cesse de fermer les routes hors `auth/*`. P245.02 (TCK-2367) — la
+        // clé se retire sur la ligne en base : un échec de connexion écrit entre-temps reste compté.
+        DB::transaction(function () use ($user, $recoveryCodes): void {
+            $user->forceFill([
+                'two_factor_enabled' => true,
+                'two_factor_recovery_codes' => json_encode($recoveryCodes),
+            ])->save();
+            MetadataDuCompte::retirer($user, ['force_2fa_reconfigure']);
+        });
         $this->markSessionVerified($user);
 
         return $this->json([

@@ -23,7 +23,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  *
  * `reminders_sent` stocke le journal d'idempotence du cron horaire
  * `tenant-onboarding:remind` ({@see RemindTenantOnboarding}) :
- * un push `{type: 'inventory_d7', sent_at: ISO}` par envoi.
+ * un push `{type: 'inventory_d7', sent_at: ISO}` par envoi, et une marque
+ * `{type: 'inventory_reopened', sent_at: ISO}` quand l'EDL d'entrée est contesté après sa
+ * signature (TCK-2368).
  */
 class TenantOnboardingChecklist extends AbstractModel
 {
@@ -53,6 +55,9 @@ class TenantOnboardingChecklist extends AbstractModel
     ];
 
     public const REMINDER_INVENTORY_D7 = 'inventory_d7';
+
+    /** TCK-2368 (P238.01) — l'EDL d'entrée est sorti de `signed` : le rappel J+7 rejoue après cette marque. */
+    public const REMINDER_INVENTORY_REOPENED = 'inventory_reopened';
 
     protected $fillable = [
         'lease_id',

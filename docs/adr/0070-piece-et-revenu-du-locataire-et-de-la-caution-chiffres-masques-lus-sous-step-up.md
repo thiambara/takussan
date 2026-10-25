@@ -3,12 +3,14 @@
 - **Statut** : Accepté le 2026-10-18 par le porteur (décision de session sur la piste P23.03 : « un
   ADR qui étend ADR-0044 § 1 aux pièces du locataire et de la caution (chiffrement, forme masquée
   par défaut, lecture sous step-up journalisée), puis ses tickets »). **Amendé le 2026-10-19** :
-  le super-admin lit aussi en clair (cf. § *Amendement du 2026-10-19*)
+  le super-admin lit aussi en clair (cf. § *Amendement du 2026-10-19*). **Amendé le 2026-10-25** :
+  ce que l'archive rend d'une ligne selon le lien du titulaire (cf. § *Amendement du 2026-10-25*)
 - **Date** : 2026-10-18
 - **Tickets** : [TCK-953](../backlog/tickets/TCK-953-piece-du-locataire-chiffree-et-masquee.md),
   [TCK-954](../backlog/tickets/TCK-954-piece-et-revenu-de-la-caution-chiffres-et-masques.md),
   [TCK-955](../backlog/tickets/TCK-955-lectures-claires-de-la-piece-sous-step-up-journalisees.md),
-  [TCK-956](../backlog/tickets/TCK-956-revenu-du-bailleur-chiffre-et-fiche-client-au-droit-d-acces.md)
+  [TCK-956](../backlog/tickets/TCK-956-revenu-du-bailleur-chiffre-et-fiche-client-au-droit-d-acces.md),
+  [TCK-2366](../backlog/tickets/TCK-2366-archive-rgpd-par-lien-du-titulaire-et-export-du-locataire.md)
 - **Précise** : [ADR-0044](0044-donnees-personnelles-chiffrement-journal-d-agence-registre-des-droits.md)
   § 1 et son amendement A du 2026-10-16 (TCK-723), qui ont posé la règle pour ces colonnes sans en
   fixer l'application. ADR-0044 n'est pas remplacé : cet ADR dit comment la règle s'applique ici,
@@ -390,3 +392,64 @@ La règle reste celle de `Gate::before`, sans exception. Trois options lui ont �
 **Ce que le test fixe désormais.** Le super-admin reçoit 200 sous step-up, et une ligne
 `PersonalDataAccess` est écrite. Un retrait futur du contournement fera donc rougir un test au lieu
 de passer en silence.
+
+## Amendement du 2026-10-25 — ce que l'archive rend d'une ligne selon le lien du titulaire
+
+*TCK-2366 ; pistes P247.01, P247.02, P247.03 et P250.01, validées par le porteur le 2026-10-25.
+Précise le § 7.*
+
+**Ce que la mesure a trouvé** (mesureur, 2026-10-25, db3e25230 ; rejoué par les tests de garde) :
+
+- `DataExportBuilder::payloads` prenait les réservations par `created_by_id`, les encaissements par
+  `collector_id` et les pièces par `uploaded_by`, sérialisés par `toArray()` entier. L'archive d'un
+  agent, actif ou retiré, livrait donc le client, le payeur, les notes, les metadata et les pièces
+  (CNI comprise, par son nom) des clients qu'il avait saisis.
+- `leases.json` livrait au locataire et au bailleur `commission_amount`, un terme du mandat de
+  l'agence que `LeaseResource` retire à qui n'est pas du personnel (ADR-0049, verif-595 m6).
+- `documents.json` ne contenait pas les pièces posées par un autre sur la fiche client ou le bail du
+  titulaire, alors qu'elles le décrivent.
+- L'export CSV du locataire (`ExportDataService::scopeToActor`, hors de l'archive) ne lisait
+  qu'une de ses fiches client, par `->first()` sans ordre : un locataire de deux agences n'exportait
+  les baux et paiements que de l'une.
+
+**Décision du porteur (2026-10-25)** — elle étend à l'archive entière la règle de TCK-1017 pour le
+journal : *une ligne dont le titulaire n'est que le causeur décrit un tiers*.
+
+1. **Partie ou seul auteur.** Le titulaire est partie à une réservation ou un encaissement quand il
+   en est le client ou le payeur, ou le bailleur (`BailleurDuBien`) du bien ou du bail : la ligne
+   est rendue entière. Quand il n'en est que l'auteur (`created_by_id`) ou l'encaisseur
+   (`collector_id`), l'archive ne rend que l'acte :
+   - réservation : `id`, `total_amount`, `currency`, `created_at` (elle n'a pas de colonne de type) ;
+   - encaissement : `id`, `amount`, `currency`, `payment_type`, `paid_at`.
+2. **Les pièces, en trois formes** :
+   - posée sur son compte, ou déposée par lui sur un porteur qui le décrit — son compte, un de ses
+     profils (supprimés compris), une de ses fiches client, un bail de son archive, un bien dont il
+     est le bailleur, une intervention qu'il a demandée, une demande de passage qu'il a déposée :
+     **entière**, comme avant ;
+   - posée par un autre sur une de ses fiches client ou un de ses baux de locataire :
+     **métadonnées**, `id`, `type`, `name`, `created_at`, sans le fichier ;
+   - déposée par lui sur un porteur qui décrit un tiers (fiche d'autrui, bail d'autrui, caution,
+     profil d'autrui…) : **l'acte**, `id`, `type`, `created_at`, sans nom de pièce.
+3. **Le bail de l'archive** porte les colonnes que `LeaseResource` rend à un lecteur hors personnel :
+   sans `commission_amount`. `commission_rate` et `agent_id` restent, comme dans l'API.
+4. **`messages.json` ne change pas** : TCK-592 (passe 2, N1) en reste la règle.
+5. **L'export CSV du locataire** lit toutes les fiches client du compte, comme
+   `DashboardTenantService`.
+
+**Ce qui n'est pas gardé :**
+
+- Les colonnes du bail que `LeaseResource` ne rend pas (`terms`, `special_conditions`,
+  `guarantor_id`, `metadata`…) restent dans l'archive : seule `commission_amount` en sort. Le droit
+  d'accès reste entier pour le reste.
+- Les pièces posées par un autre sur un bail dont le titulaire est le **bailleur** n'entrent pas
+  dans son archive : la décision ne nomme que les baux de locataire.
+- La liste des porteurs « qui le décrivent » est écrite dans `DataExportBuilder::documents()` : un
+  nouveau type de porteur de pièce n'y entre pas seul. Sans ligne dans cette liste, ses pièces
+  déposées par le titulaire tombent à l'acte, la forme la plus étroite.
+- La fiche de `bookings.json` (`notes`, `metadata`) rendue au client entier, et celle de
+  `customers.json` limitée à l'identité (§ 7), ne sont pas réconciliées : TCK-537 et le conseil
+  juridique restent juges des notes de l'agence.
+
+**Ce que les tests fixent** : `ArchiveDuTitulaireTest` (agent actif et retiré, client, locataire,
+bailleur, commission, pièces) et `ExportScopingTest::test_a_tenant_of_two_agencies_exports_the_leases_and_payments_of_both`,
+chacun vérifié par ablation.

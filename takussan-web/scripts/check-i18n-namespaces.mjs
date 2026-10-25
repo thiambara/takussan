@@ -339,10 +339,15 @@ for (const f of frontieres) {
 // ── 4 bis. Aucun provider ne REMPLACE le dictionnaire de son parent (règle C, 2026-10-25) ─────────
 // La table étant différentielle, un `NextIntlClientProvider` monté ailleurs que dans
 // `IntlProvider.tsx` ne recevrait que le différentiel de sa frontière, et perdrait tout ce que
-// ses parents servent. Le provider racine, lui, ne vit qu'à la racine.
+// ses parents servent. Le provider racine, lui, ne vit qu'à la racine — et dans l'écran de
+// `global-error.tsx` (TCK-2356), qui REMPLACE le layout racine : il n'a aucun parent dont
+// fusionner le dictionnaire, et charge lui-même le dictionnaire entier de la langue.
 const SEULS_PROVIDERS = new Map([
   [/\bNextIntlClientProvider\b/, [join(SRC, 'i18n', 'IntlProvider.tsx'), join(SRC, 'test', 'intl.tsx')]],
-  [/\bIntlProviderRacine\b/, [join(SRC, 'i18n', 'IntlProvider.tsx'), join(APP, 'layout.tsx')]],
+  [
+    /\bIntlProviderRacine\b/,
+    [join(SRC, 'i18n', 'IntlProvider.tsx'), join(APP, 'layout.tsx'), join(SRC, 'components', 'shared', 'EcranErreurGlobale.tsx')],
+  ],
 ]);
 for (const fichier of fichiersDe(SRC)) {
   const source = retireCommentairesPleineLigne(readFileSync(fichier, 'utf8'));
