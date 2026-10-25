@@ -5273,7 +5273,8 @@
         "error_title": "Could not send invitation",
         "resend_success": "Invitation resent",
         "revoke_success": "Invitation revoked",
-        "existing_other_agency": "This provider is already attached to another agency — they can opt-in to multi-attachment when accepting."
+        "existing_other_agency": "This provider is already attached to another agency — they can opt-in to multi-attachment when accepting.",
+        "existing_other_agency_trades": "This service provider is already linked to another agency: they will appear under their profile's trades ({trades}), not the ones ticked here."
       },
       "errors": {
         "already_member": "This provider is already active in your agency.",

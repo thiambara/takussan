@@ -5273,7 +5273,8 @@
         "error_title": "Impossible d'envoyer l'invitation",
         "resend_success": "Invitation renvoyée",
         "revoke_success": "Invitation révoquée",
-        "existing_other_agency": "Ce prestataire est déjà rattaché à une autre agence — il pourra accepter le multi-rattachement à l'acceptation."
+        "existing_other_agency": "Ce prestataire est déjà rattaché à une autre agence — il pourra accepter le multi-rattachement à l'acceptation.",
+        "existing_other_agency_trades": "Ce prestataire est déjà rattaché à une autre agence : il apparaîtra sous les métiers de son profil ({trades}), pas sous ceux cochés ici."
       },
       "errors": {
         "already_member": "Ce prestataire est déjà actif dans votre agence.",

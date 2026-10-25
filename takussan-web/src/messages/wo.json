@@ -3513,7 +3513,8 @@
         "error_title": "Mënumaa yónnee waaru bi",
         "resend_success": "Waaru bi yónnee nañu fi",
         "revoke_success": "Waaru bi far nañu ko",
-        "existing_other_agency": "Prestataire bii am na ba pare ci beneen agence — dina mën a nangu multi-rattachement bu nu ko nangoo."
+        "existing_other_agency": "Prestataire bii am na ba pare ci beneen agence — dina mën a nangu multi-rattachement bu nu ko nangoo.",
+        "existing_other_agency_trades": "Ce prestataire est déjà rattaché à une autre agence : il apparaîtra sous les métiers de son profil ({trades}), pas sous ceux cochés ici."
       },
       "errors": {
         "already_member": "Prestataire bii am na ba pare ci sa agence.",
