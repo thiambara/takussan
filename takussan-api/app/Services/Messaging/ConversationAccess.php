@@ -5,12 +5,14 @@ namespace App\Services\Messaging;
 use App\Models\Conversation;
 use App\Models\ConversationParticipant;
 use App\Models\Enums\ConversationType;
+use App\Models\Lease;
 use App\Models\MaintenanceRequest;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\Property;
 use App\Models\User;
+use App\Services\Property\BailleurDuBien;
 use App\Services\Property\PrimaryPropertyContact;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
@@ -41,6 +43,8 @@ use Illuminate\Support\Facades\DB;
  * ne tient plus, dans l'agence de ce bail ou de ce bien, qu'un profil non actif (agent,
  * administrateur ou bailleur suspendu), et qui n'est partie ni au bail (bailleur, locataire) ni au
  * bien (propriétaire). Il n'en est pas retiré (`left_at` reste nul) : réactivé, il retrouve le fil.
+ * TCK-2275 (P232.03) : « partie » se juge par `BailleurDuBien` ; l'agent qui a saisi le bien n'en
+ * est pas le bailleur.
  */
 class ConversationAccess
 {
@@ -92,8 +96,10 @@ class ConversationAccess
         $isTenant = $lease?->tenant_id !== null
             && DB::table('customers')->where('id', $lease->tenant_id)->where('user_id', $user->id)->exists();
 
-        return (int) ($lease?->landlord_id ?? 0) === (int) $user->id
-            || (int) ($property?->user_id ?? 0) === (int) $user->id
+        // TCK-2275 (P232.03 ; ADR-0031, amendement du 2026-10-25, D1) — « partie » au bail ou au bien
+        // selon `BailleurDuBien` : l'agent suspendu qui les a saisis n'en est pas le bailleur.
+        return BailleurDuBien::est($user, $lease?->landlord_id, $lease?->agency_id)
+            || BailleurDuBien::est($user, $property?->user_id, $property?->agency_id)
             || $isTenant;
     }
 
@@ -195,11 +201,13 @@ class ConversationAccess
 
         $leasesInAgencies = DB::table('leases')->whereIn('agency_id', $agencies)->select('id');
         $propertiesInAgencies = DB::table('properties')->whereIn('agency_id', $agencies)->select('id');
-        $leasesOfParty = DB::table('leases')->where(fn ($q) => $q
-            ->where('landlord_id', $user->id)
+        // TCK-2275 (P232.03) — partie selon `BailleurDuBien`, comme `contextAllows` ; supprimés
+        // compris, comme la lecture de `DB::table` qu'elles remplacent.
+        $leasesOfParty = Lease::withTrashed()->where(fn ($q) => $q
+            ->where(fn ($b) => BailleurDuBien::restreindre($b, $user, 'landlord_id'))
             ->orWhereIn('tenant_id', DB::table('customers')->where('user_id', $user->id)->select('id')))
             ->select('id');
-        $propertiesOfParty = DB::table('properties')->where('user_id', $user->id)->select('id');
+        $propertiesOfParty = BailleurDuBien::restreindre(Property::withTrashed(), $user)->select('id');
 
         return $query->whereNot(fn (Builder $q) => $q
             ->where(fn (Builder $c) => $c
