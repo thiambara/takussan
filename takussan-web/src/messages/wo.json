@@ -2584,7 +2584,8 @@
     "button": {
       "aria": "Sama bëgg-bëgg",
       "remove": "Dindi ci say cofeel",
-      "add": "Yokk ci say cofeel"
+      "add": "Yokk ci say cofeel",
+      "refusedTitle": "Le favori n'a pas été modifié"
     },
     "popover": {
       "title": "Sama bëgg-bëgg",

@@ -4374,7 +4374,8 @@
     "button": {
       "aria": "My favorites",
       "remove": "Remove from favourites",
-      "add": "Add to favourites"
+      "add": "Add to favourites",
+      "refusedTitle": "The favorite was not updated"
     },
     "popover": {
       "title": "My favorites",

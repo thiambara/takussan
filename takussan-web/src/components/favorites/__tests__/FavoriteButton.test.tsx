@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { ToastProvider } from '@/components/ui/toast';
 import { withIntl } from '@/test/intl';
 import { FavoriteButton } from '../FavoriteButton';
 
@@ -25,7 +26,12 @@ function wrap(ui: React.ReactElement) {
   });
   // `withIntl` charge le VRAI `fr.json` : depuis TCK-292 l'aria-label passe par next-intl, et
   // `messages={{}}` rendrait la CLÉ. Les assertions françaises sont inchangées.
-  return withIntl(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
+  // P243.02 — le bouton dit un refus par un toast : il se monte, comme en page, sous un fournisseur.
+  return withIntl(
+    <QueryClientProvider client={client}>
+      <ToastProvider>{ui}</ToastProvider>
+    </QueryClientProvider>,
+  );
 }
 
 describe('<FavoriteButton>', () => {
