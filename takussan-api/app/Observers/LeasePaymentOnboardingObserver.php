@@ -2,6 +2,7 @@
 
 namespace App\Observers;
 
+use App\Models\Enums\LeasePaymentType;
 use App\Models\LeasePayment;
 use App\Models\TenantOnboardingChecklist;
 use App\Services\Tenant\TenantOnboardingService;
@@ -23,6 +24,10 @@ use App\Services\Tenant\TenantOnboardingService;
  * en exigeant que le payment ait soit `paid_at` non null (paiement
  * réellement reçu) soit un `payment_method` (création manuelle par
  * l'agence/tenant via le formulaire).
+ *
+ * TCK-2368 (P238.03) — seuls les loyers et les cautions versés par le locataire comptent : ni la
+ * restitution de caution (payée par l'agence), ni les charges, pénalités ou régularisations. Un
+ * remboursement ne décoche pas la case.
  */
 class LeasePaymentOnboardingObserver
 {
@@ -30,7 +35,7 @@ class LeasePaymentOnboardingObserver
 
     public function created(LeasePayment $payment): void
     {
-        if ($payment->lease_id === null) {
+        if ($payment->lease_id === null || ! self::counts($payment)) {
             return;
         }
 
@@ -71,7 +76,7 @@ class LeasePaymentOnboardingObserver
         if ($payment->paid_at === null) {
             return;
         }
-        if ($payment->lease_id === null) {
+        if ($payment->lease_id === null || ! self::counts($payment)) {
             return;
         }
 
@@ -88,5 +93,10 @@ class LeasePaymentOnboardingObserver
         }
 
         $this->service->markItem($checklist, TenantOnboardingChecklist::ITEM_FIRST_PAYMENT);
+    }
+
+    private static function counts(LeasePayment $payment): bool
+    {
+        return in_array($payment->payment_type, [LeasePaymentType::Rent, LeasePaymentType::Deposit], true);
     }
 }

@@ -953,22 +953,6 @@ class PublicPropertyController extends Controller
             'booking.own_property'
         );
 
-        // TCK-535 — un séjour court (`daily`, `weekly`) suit la règle du tunnel (TCK-530) : total
-        // et acompte de `BookingQuote`, calculés AVANT toute écriture. Toute autre location est la
-        // CANDIDATURE du bouton « Postuler » (TCK-165, `getPrimaryCtaForProperty()` → `apply`),
-        // qui poste ici : elle reste possible, au montant d'UN loyer — jamais prix × nuits — et
-        // sans l'acompte qu'elle n'a jamais porté. Le prix `decimal:2` est recopié tel quel, sans
-        // passer par un flottant.
-        $amounts = match (true) {
-            $isSale => null,
-            in_array($property->rent_period, [RentPeriod::Daily, RentPeriod::Weekly], true) => $quotes->for(
-                $property,
-                Carbon::parse($data['start_date']),
-                Carbon::parse($data['end_date']),
-            ),
-            default => ['total_amount' => (string) $property->price, 'deposit_amount' => null],
-        };
-
         if ($isSale) {
             // L'offre d'achat n'a aucune garde après ce point : la fiche se résout ici.
             $customer = $customers->findOrCreateFromUser($user, $property);
@@ -1005,8 +989,22 @@ class PublicPropertyController extends Controller
 
         // TCK-596 — un séjour daté sur des nuits déjà confirmées est refusé, sous le verrou de la
         // ligne du bien que `BookingService::confirm` prend aussi. L'offre d'achat n'a pas de nuits.
-        $booking = DB::transaction(function () use ($availability, $customers, $property, $user, $data, $amounts): Booking {
-            Property::query()->whereKey($property->getKey())->lockForUpdate()->first();
+        $booking = DB::transaction(function () use ($availability, $customers, $quotes, $property, $user, $data): Booking {
+            // P246.02 (TCK-2367) — les montants se calculent sur le bien relu sous ce verrou : calculés
+            // sur le bien lié à la route, un prix changé entre-temps faisait naître la demande à
+            // l'ancien prix.
+            $locked = Property::query()->whereKey($property->getKey())->lockForUpdate()->firstOrFail();
+
+            // TCK-535 — un séjour court (`daily`, `weekly`) suit la règle du tunnel (TCK-530) : total
+            // et acompte de `BookingQuote`, calculés AVANT toute écriture. Toute autre location est la
+            // CANDIDATURE du bouton « Postuler » (TCK-165, `getPrimaryCtaForProperty()` → `apply`),
+            // qui poste ici : elle reste possible, au montant d'UN loyer — jamais prix × nuits — et
+            // sans l'acompte qu'elle n'a jamais porté. Le prix `decimal:2` est recopié tel quel, sans
+            // passer par un flottant.
+            $amounts = in_array($locked->rent_period, [RentPeriod::Daily, RentPeriod::Weekly], true)
+                ? $quotes->for($locked, Carbon::parse($data['start_date']), Carbon::parse($data['end_date']))
+                : ['total_amount' => (string) $locked->price, 'deposit_amount' => null];
+
             $availability->assertAvailable($property, $data['start_date'], $data['end_date']);
 
             // P213.03 (TCK-2199) — la fiche se résout après la garde des nuits, dans la transaction :
@@ -1025,7 +1023,7 @@ class PublicPropertyController extends Controller
                 // toute autre période : dix nuits dans un bien hebdomadaire valaient une semaine.
                 'total_amount' => $amounts['total_amount'],
                 'deposit_amount' => $amounts['deposit_amount'],
-                'currency' => $property->currency,
+                'currency' => $locked->currency,
                 'status' => BookingStatus::Pending->value,
                 'notes' => $data['message'] ?? null,
                 'metadata' => ['guests' => $data['guests']],
