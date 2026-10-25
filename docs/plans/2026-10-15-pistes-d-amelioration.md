@@ -596,7 +596,7 @@ Les deux 🔴 ont été relus par la session dans le code : le `catch` de `Prope
 
 ### Petites améliorations
 - Réf : P10.10
-- Statut : validé — validation du porteur (2026-10-25) : `dangerouslyAllowSVG` et `dangerouslyAllowLocalIP` conditionnés à `NODE_ENV !== 'production'`, commentaires `preview` corrigés, `jpegoptim` installé dans l'image de l'API pour retirer l'EXIF des photos de biens ; la ligne avatar de TCK-720 retirée (caduque depuis TCK-762)
+- Statut : fait · TCK-2355
 - Gravité : 🟢 amélioration
 - Constat (lu) :
   - **Optimiseurs** (`config/media-library.php:167-205`) : ils sont configurés, mais ni `jpegoptim`, ni `cwebp`, ni `avifenc` ne sont installés dans l'image (`Dockerfile:20`). Spatie les saute en silence, et le commentaire `--strip-all` laisse croire que l'EXIF est retiré.
@@ -605,6 +605,7 @@ Les deux 🔴 ont été relus par la session dans le code : le `catch` de `Prope
 - Piste : installer les binaires ou retirer le bloc ; couper les deux options `dangerously*` hors développement ; servir l'avatar en conversion.
 - Mesure (2026-10-16, ddb5f050, mesureur) : lu `config/media-library.php:167-205` (Jpegoptim avec `--strip-all`, Pngquant, Optipng, Svgo, Gifsicle, Cwebp, Avifenc) ; `grep -rn 'jpegoptim|cwebp|avifenc|optipng|pngquant'` dans `takussan-api/Dockerfile` et `deploy/` → rien, et `Dockerfile:20` n'installe que des extensions PHP ; `next.config.ts:161-162` : `dangerouslyAllowSVG` et `dangerouslyAllowLocalIP` à `true` sans condition d'environnement ni `contentSecurityPolicy` ; les commentaires de `next.config.ts:110-145` tiennent `preview` 800 px pour le plafond, quand `Property.php:762-786` déclare une conversion `full` à 1600 px → les deux premiers points tiennent ; la signature dans le journal Traefik n'est pas mesurable depuis le poste (préproduction hors d'atteinte), et la taille des avatars n'a pas été remesurée. Classement : V5, installer des binaires dans l'image ou changer la configuration d'images servie en production relève du déploiement, et retirer le bloc d'optimiseurs est un choix (V6).
 - Mesure (2026-10-25, ece5a91ea, humain) : validation du porteur en bloc (2026-10-25) sur la re-vérification de la session à c35c20d16 ; statut précédent : « retenu · à valider — V5 : paquets de l'image de l'API et options de `next/image` en production ; porteur (2026-10-16) : traité hors agents, avec le déploiement ; consigné dans TCK-720 ».
+- Mesure (2026-10-25, 14b1d5722, implementeur) : re-mesuré sur `pre-dev` 0282d41e7 — aucun optimiseur dans l'image (`which jpegoptim` → absent sur `local`), `dangerouslyAllowSVG`/`dangerouslyAllowLocalIP` à `true` sans condition, `deviceSizes` commenté sur `preview` 800 px → `jpegoptim=1.4.7-1` installé (`Dockerfile`), les deux options valent `NODE_ENV !== 'production'`, commentaires `preview` corrigés (`full`, 1600 px au plus) et celui du bloc d'optimiseurs dit ce qui tourne ; `next-config.images-dangerously.test.ts` (2 tests) rouge avant, chaque option remise à `true` → 1 rouge ; `smoke-api.sh image` passe un JPEG à EXIF dans la chaîne construite depuis `config/media-library.php` → EXIF retiré, sur l'image précédente → EXIF gardé (rouge). Mesuré aussi : GD n'écrit aucun EXIF, les conversions publiques n'en portaient donc déjà pas ; l'original d'une photo garde le sien sur le disque privé (`viewRaw`), la chaîne ne le touche pas — hors périmètre, noté dans TCK-2355.
 
 Angles voisins : mémoire et `--timeout` de `worker-media` face aux originaux de 48 Mpx ; contenu réel de `storage/media-library/temp` en préproduction ; facture Transformations et R2 au tableau de bord Cloudflare.
 
@@ -1557,7 +1558,7 @@ et la synchronisation de calendrier (10 s, hors verrou) le sont aussi.*
 
 ### La seule borne de durée d'une requête est `max_execution_time = 60`, dont le sens dans l'image n'est pas mesuré
 - Réf : P65.01
-- Statut : validé — validation du porteur (2026-10-25) : la mesure de `max_execution_time` dans l'image locale, inscrite dans `smoke-api.sh image`, et la correction de `docs/infra/hebergement.md` ; reste : les délais de Traefik et de Cloudflare, à relever sur le serveur
+- Statut : fait · TCK-2355 — reste : les délais de Traefik et de Cloudflare, à relever sur le serveur
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/docker/php.ini:10-11`, `takussan-api/docker/Caddyfile:12-50`, `takussan-api/Dockerfile:15-17,85`, `deploy/takussan/compose.api.yml:27-39`, `docs/infra/hebergement.md:547`
 - Constat :
@@ -1570,6 +1571,7 @@ et la synchronisation de calendrier (10 s, hors verrou) le sont aussi.*
 - Piste : mesurer dans l'image (`php -d max_execution_time=1 -r 'sleep(3);'`, puis une requête qui attend plus de 60 s derrière `php_server`), et l'inscrire dans `smoke-api.sh image` pour qu'un changement d'image ne la défasse pas en silence. Poser `num_threads` et `max_wait_time` explicitement. Relever les délais de Traefik et de Cloudflare dans `hebergement.md`, et y corriger l'équivalence avec nginx selon la mesure.
 - Mesure (2026-10-20, eb4dde5a0, mesureur) : relu `docker/php.ini:10-11` (commentaire nginx et `max_execution_time = 60` inchangés), `hebergement.md:547` (équivalence toujours écrite), `grep -n "timeout\|num_threads\|max_wait" docker/Caddyfile` → rien ; `docker ps` → aucun conteneur de l'API sur le poste, la mesure dans l'image n'est donc pas faite → le constat de lecture tient, le sens de `max_execution_time` dans l'image FrankenPHP reste « à vérifier ». Classement : V5, la piste touche le Caddyfile, l'image, `smoke-api.sh` et la configuration de Traefik, et demande une mesure dans l'image.
 - Mesure (2026-10-25, ece5a91ea, humain) : validation du porteur en bloc (2026-10-25) sur la re-vérification de la session à c35c20d16 ; statut précédent : « retenu · à valider — V5 : Caddyfile, image et délais de Traefik/Cloudflare ; porteur (2026-10-20) : traité hors agents, avec le déploiement ; consigné dans TCK-720 ».
+- Mesure (2026-10-25, 14b1d5722, implementeur) : mesuré dans l'image locale (FrankenPHP 1.13.2, PHP 8.4.27 ZTS) — `php -d max_execution_time=1 -r 'sleep(3);'` meurt sur « Maximum execution time », la CLI lit `0` ; derrière `php_server`, la requête lit `60` dans `php.ini`, `set_time_limit(2)` + `sleep(1)` → `200` à 1,0 s, + `sleep(5)` → `500` à 2,0 s : la borne compte le temps d'horloge → inscrit dans `smoke-api.sh image` (`verifier_delai_d_execution`), ablation `set_time_limit(0)` → rouge (`200 5.01`) ; `hebergement.md` (tableau nginx/Caddy) et le commentaire de `php.ini` corrigés selon la mesure (même borne d'horloge, `500` au lieu de `504`, sans effet en CLI). `num_threads`/`max_wait_time` non posés, hors décision.
 
 ## Angle 66 — Valeurs d'enum métier éditées par le super-admin : qui les lit hors de la console
 
