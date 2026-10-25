@@ -337,6 +337,9 @@ Les tables `lemon_squeezy_*` viennent d'un paquet, voir [`lemonsqueezy/laravel`]
 #### Crédits d'espace et boost — tranches d'une Vedette 🆕 (TCK-942, ADR-0061 amendement du 2026-10-18)
 100. [PropertyBoostTranche](#100-propertyboosttranche-) 🆕
 
+#### Relevé de gérance — l'instantané envoyé 🆕 (TCK-2321, ADR-0039 amendement du 2026-10-25)
+101. [OwnerStatementSnapshot](#101-ownerstatementsnapshot-) 🆕
+
 ### Enums
 
 - [Enums](#enums-1)
@@ -2637,7 +2640,7 @@ exigée pour `director_id`.
 | processed_at | timestamp | oui | null | Date d'exécution du virement |
 | payment_reference | string | oui | null | Référence du virement, écrite au paiement. Remplace le `metadata.bank_ref` facultatif d'avant (TCK-594, `2026_10_07_200600`) |
 | failure_reason | text | oui | null | |
-| metadata | jsonb | oui | null | Lot, breakdown |
+| metadata | jsonb | oui | null | Lot, breakdown ; `refunded_since_paid` : les lignes remboursées depuis le paiement du reversement (type, identifiant, référence, date, **sans montant**), écrites par le webhook de remboursement d'un reversement `paid` (TCK-2320, P39.07) |
 | created_at / updated_at | datetime | | auto | |
 
 **Séparation des gestes** (TCK-594, ADR-0039 §4 ; `features.md` §1.5) : clôture, approbation et paiement sont trois colonnes pour que la base permette de comparer les acteurs. `PlatformPayoutService` refuse qu'on approuve un reversement qu'on a clôturé, ou qu'on paie un reversement qu'on a approuvé (`SegregationOfDuties::assertDistinct`), et qu'un bénéficiaire — l'administrateur principal de l'agence payée ou un membre de son équipe — approuve ou paie.
@@ -4686,6 +4689,35 @@ position)`, qui sert aussi d'index à la clé étrangère ; CHECK `property_boos
 (position >= 1 AND price_credits >= 0 AND duration_days > 0)`.
 
 **Relations :** `boost()` → belongsTo PropertyBoost. Inverse : `PropertyBoost::tranches()`.
+
+---
+
+### 101. OwnerStatementSnapshot 🆕
+
+**Table :** `owner_statement_snapshots` (migration `2026_10_25_100000`, TCK-2321)
+**Modèle :** aucun — la table se lit et s'écrit par `App\Services\Payout\OwnerStatementSnapshots`
+sur le constructeur de requêtes, comme `payout_clawbacks`. Écrite par
+`payouts:send-owner-statements` seul, lue par `OwnerStatementController` (JSON, PDF, CSV).
+**Description :** Le relevé de gérance mensuel d'un bailleur dans une agence, **tel qu'il a été
+envoyé** : la commande l'écrit quand elle envoie l'avis du mois, et le premier reste
+([ADR-0039, amendement du 2026-10-25](adr/0039-les-sorties-d-argent.md#amendement-du-2026-10-25--le-relevé-envoyé-est-conservé)).
+Un mois qui a un instantané est servi depuis lui, et ce qui a été écrit depuis se montre en
+rectificatif (le calcul du jour, l'écart des totaux, les lignes apparues ou disparues). Sans
+instantané — mois envoyé avant cette table, pas encore envoyé, attestation annuelle — le relevé est
+le calcul du jour. **Reprise** : aucune ; aucun instantané n'est écrit après coup.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| agency_id | FK agencies | | | `cascadeOnDelete` |
+| landlord_id | FK users | | | Le bailleur, `cascadeOnDelete` ; index `owner_statement_snapshots_landlord_idx` |
+| period | string(7) | | | `YYYY-MM` : seul le relevé mensuel est envoyé |
+| payload | jsonb | | | Le relevé calculé à l'envoi (`OwnerStatementService::statement`), **sans le nom du bailleur** : l'identité se lit au jour |
+| sent_at | timestamp | | | L'envoi de l'avis |
+| created_at / updated_at | timestamp | | auto | |
+
+**Contraintes :** unique `owner_statement_snapshots_period_unique (agency_id, landlord_id, period)` :
+un relevé envoyé par mois, une relance n'écrit rien (`insertOrIgnore`).
 
 ---
 
