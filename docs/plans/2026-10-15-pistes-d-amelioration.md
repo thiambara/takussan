@@ -366,7 +366,7 @@ contre le code par la session.*
 
 ### Restitution d'une caution jamais encaissée
 - Réf : P04.10
-- Statut : validé — validation du porteur (2026-10-25) : la restitution d'une caution est bornée à la caution réellement encaissée (Σ des échéances `deposit` payées − déjà rendu − retenue vivante), la définition qu'emploient déjà les rapports
+- Statut : fait · TCK-2340
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Lease/DepositRefundService.php:55,74`
 - Constat : le restituable part de `leases.deposit_amount`, jamais rapproché d'une `LeasePayment` de type `deposit` payée (lu).
@@ -379,6 +379,7 @@ contre le code par la session.*
 - les reversements verrouillent leurs pièces (`PayoutService.php:414-473`) ;
 - un webhook rejoué n'est pas recompté.
 - Mesure (2026-10-25, ece5a91ea, humain) : validation du porteur en bloc (2026-10-25) sur la re-vérification de la session à c35c20d16 ; statut précédent : « retenu · à valider — V1 : montant d'une restitution de caution ; porteur (2026-10-15) : plus tard, après P13.01 ».
+- Mesure (2026-10-25, 4809ff620, implementeur) : reproduit avant correctif par `tests/Feature/Lease/DepositRefundBoundedToCollectedTest.php` (5 rouges sur 7 : une caution jamais encaissée se restituait en entier ; encaissée à 300 000 sur 600 000, le restituable valait 600 000 et une restitution de 200 000 retenait 400 000) → `Lease::deposit_remaining` part de `min(deposit_amount, Lease::collectedDeposit())`, l'encaissé lu par le scope `LeasePayment::paidDepositMovements()` que les deux rapports lisent désormais aussi ; rien d'encaissé → 422 `deposit_refund.not_collected` ; une restitution passée au-delà reste intacte (test) ; ADR-0039 amendé (2026-10-25, bis). Ablations : borne retirée → 5 rouges, refus retiré → 2, plafond du bail retiré → 1. Dix classes de restitution passent par `LeaseFactory::withCollectedDeposit()`, toutes vertes, `AgingBalanceTest` et `DashboardOwnerMetricsTest` verts.
 
 ## Angle 5 — Jobs planifiés et files
 
