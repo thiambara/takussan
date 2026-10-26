@@ -20,8 +20,9 @@ class UserSeederProfilesTest extends TestCase
     public function test_user_seeder_creates_one_profile_per_non_admin_user(): void
     {
         // Boot a minimal SeedingContext with one real agency so UserSeeder
-        // walks its full per-agency persona pipeline (admin + 4 agents +
-        // 10 owners + 5 providers).
+        // walks its full per-agency persona pipeline (admin + 5 agents + 2
+        // arrivals during the window + 10 owners + 5 providers — TCK-2378,
+        // for an agency of the configuration's full size).
         $agency = Agency::factory()->create();
 
         $context = new SeedingContext;
@@ -40,12 +41,12 @@ class UserSeederProfilesTest extends TestCase
             ->whereHas('agentProfiles', fn ($q) => $q->where('agency_id', $agency->id))
             ->get();
 
-        $this->assertSame(4, $agentUsers->count());
+        $this->assertSame(7, $agentUsers->count());
         $this->assertSame(10, $ownerUsers->count());
 
         // Profile counts mirror the seeded populations exactly.
         $this->assertSame(10, OwnerProfile::query()->count());
-        $this->assertSame(4, AgentProfile::query()->count());
+        $this->assertSame(7, AgentProfile::query()->count());
         $this->assertSame(5, ServiceProviderProfile::query()->count());
 
         // TCK-278 — Agency admin = présence d'un AgencyAdminProfile (cf. Règle 5).

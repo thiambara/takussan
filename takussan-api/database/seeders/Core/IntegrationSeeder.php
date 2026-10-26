@@ -5,6 +5,7 @@ namespace Database\Seeders\Core;
 use App\Models\Integration;
 use Database\Seeders\Support\SeedingContext;
 use Database\Seeders\Support\Timeline;
+use Database\Seeders\Support\Tirage;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Str;
 
@@ -20,11 +21,11 @@ class IntegrationSeeder extends Seeder
                     ['provider' => $provider, 'agency_id' => $agency->id],
                     [
                         'credentials' => [
-                            'api_key' => Str::random(32),
-                            'merchant_id' => Str::upper(Str::random(10)),
+                            'api_key' => Tirage::code(32),
+                            'merchant_id' => Str::upper(Tirage::code(10)),
                         ],
                         'is_active' => true,
-                        'last_used_at' => Timeline::seedEnd()->subDays(random_int(1, 30)),
+                        'last_used_at' => Timeline::seedEnd()->subDays(mt_rand(1, 30)),
                         'metadata' => ['environment' => 'sandbox'],
                     ],
                 );

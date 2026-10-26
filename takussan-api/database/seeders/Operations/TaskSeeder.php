@@ -4,7 +4,6 @@ namespace Database\Seeders\Operations;
 
 use App\Models\Enums\TaskPriority;
 use App\Models\Enums\TaskStatus;
-use App\Models\Profiles\AgentProfile;
 use App\Models\Property;
 use App\Models\Task;
 use Database\Seeders\Support\SeedingContext;
@@ -19,22 +18,21 @@ class TaskSeeder extends Seeder
     public function run(): void
     {
         foreach ($this->ctx->agencies as $agency) {
-            $agents = $this->ctx->usersWithProfile(AgentProfile::class, $agency->id);
+            $agents = $this->ctx->equipe($agency->id);
             $properties = $this->ctx->propertiesByAgency[$agency->id] ?? collect();
             if ($agents->isEmpty() || $properties->isEmpty()) {
                 continue;
             }
 
-            $agentIds = $agents->pluck('id')->values();
-
             foreach ($properties as $property) {
                 if (! $this->ctx->faker()->boolean(35)) {
                     continue;
                 }
-                $count = random_int(1, 3);
+                $count = mt_rand(1, 3);
                 for ($i = 0; $i < $count; $i++) {
+                    // TCK-2378 — une tâche suit la mise en ligne du bien, et revient à un agent présent ce jour-là.
                     $createdAt = Timeline::randomDateBetween(
-                        Timeline::seedStart(),
+                        collect([Timeline::seedStart(), $property->created_at->toImmutable()])->max(),
                         Timeline::seedEnd(),
                     );
                     $status = StatusDistribution::pick([
@@ -44,16 +42,18 @@ class TaskSeeder extends Seeder
                         TaskStatus::Cancelled->value => 10,
                     ]);
 
+                    [$title, $description] = $this->ctx->texts()->tache();
+
                     Task::create([
-                        'title' => $this->ctx->faker()->sentence(6),
-                        'description' => $this->ctx->faker()->paragraph(),
+                        'title' => $title,
+                        'description' => $description,
                         'taskable_id' => $property->id,
                         'taskable_type' => Property::class,
-                        'assigned_to_id' => $agentIds->random(),
-                        'created_by_id' => $agentIds->random(),
-                        'due_at' => $createdAt->addDays(random_int(1, 14)),
+                        'assigned_to_id' => $this->ctx->agentAu($agency->id, $createdAt),
+                        'created_by_id' => $this->ctx->agentAu($agency->id, $createdAt),
+                        'due_at' => $createdAt->addDays(mt_rand(1, 14)),
                         'completed_at' => $status === TaskStatus::Done->value
-                            ? $createdAt->addDays(random_int(1, 10))
+                            ? $createdAt->addDays(mt_rand(1, 10))
                             : null,
                         'status' => $status,
                         'priority' => $this->ctx->faker()->randomElement(TaskPriority::cases())->value,

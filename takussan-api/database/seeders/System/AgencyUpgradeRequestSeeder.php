@@ -9,8 +9,8 @@ use App\Models\Enums\AgencyUpgradeRequestStatus;
 use App\Models\User;
 use Database\Seeders\Support\SeedingContext;
 use Database\Seeders\Support\Timeline;
+use Database\Seeders\Support\Tirage;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Str;
 
 /**
  * TCK-252 / TCK-267 / TCK-268 / TCK-269 — démo data pour les demandes
@@ -77,17 +77,17 @@ class AgencyUpgradeRequestSeeder extends Seeder
             return 0;
         }
 
-        $submittedAt = Timeline::seedEnd()->subDays(random_int(1, 4));
+        $submittedAt = Timeline::seedEnd()->subDays(mt_rand(1, 4));
 
         AgencyUpgradeRequest::query()->create([
             'agency_id' => $agency->id,
             'submitted_by' => $submitter->id,
-            'rc' => 'RC-DKR-'.strtoupper(Str::random(6)),
+            'rc' => 'RC-DKR-'.strtoupper(Tirage::code(6)),
             'ninea' => $this->ctx->faker()->numerify('##########'),
             'rib_pro' => 'SN'.$this->ctx->faker()->numerify('### ##### ########### ##'),
             'address_fiscale' => $this->ctx->faker()->address(),
             'company_legal_name' => $agency->name.' SARL',
-            'planned_agents_count' => random_int(1, 8),
+            'planned_agents_count' => mt_rand(1, 8),
             'status' => AgencyUpgradeRequestStatus::Pending->value,
             'submitted_at' => $submittedAt,
             'created_at' => $submittedAt,
@@ -101,7 +101,7 @@ class AgencyUpgradeRequestSeeder extends Seeder
     {
         $created = 0;
 
-        if (random_int(1, 100) <= 30) {
+        if (mt_rand(1, 100) <= 30) {
             $rejectedAt = Timeline::seedEnd()->subDays(30);
             // Use the factory's `rejected()` state so we go through the same
             // shape the runtime relies on (status + reviewed_at + comment),
@@ -124,7 +124,7 @@ class AgencyUpgradeRequestSeeder extends Seeder
             $created++;
         }
 
-        if (random_int(1, 100) <= 10) {
+        if (mt_rand(1, 100) <= 10) {
             $approvedAt = Timeline::seedEnd()->subDays(60);
             // ⚠ On passe par la factory directement pour court-circuiter le
             // listener de flip — il n'y a pas d'étape `pending → approved`,

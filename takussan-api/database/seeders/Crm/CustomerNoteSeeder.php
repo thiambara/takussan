@@ -16,7 +16,7 @@ class CustomerNoteSeeder extends Seeder
         foreach ($this->ctx->agencies as $agency) {
             $customers = $this->ctx->customersByAgency[$agency->id] ?? collect();
             foreach ($customers as $customer) {
-                $noteCount = random_int(0, 4);
+                $noteCount = mt_rand(0, 4);
                 for ($i = 0; $i < $noteCount; $i++) {
                     $createdAt = Timeline::randomDateBetween(
                         $customer->created_at,
@@ -25,7 +25,7 @@ class CustomerNoteSeeder extends Seeder
                     CustomerNote::create([
                         'customer_id' => $customer->id,
                         'author_id' => $customer->added_by_id,
-                        'body' => $this->ctx->faker()->paragraph(),
+                        'body' => $this->ctx->texts()->noteClient(),
                         'pinned' => $i === 0 && $this->ctx->faker()->boolean(15),
                         'created_at' => $createdAt,
                         'updated_at' => $createdAt,

@@ -30,7 +30,7 @@ class PropertyMediaSeeder extends Seeder
                         continue;
                     }
 
-                    $count = random_int(2, 6);
+                    $count = mt_rand(2, 6);
                     $urls = [];
                     for ($i = 1; $i <= $count; $i++) {
                         $urls[] = "https://picsum.photos/seed/property-{$property->id}-{$i}/800/600";

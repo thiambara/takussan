@@ -38,6 +38,7 @@ class GuarantorSeeder extends Seeder
                         'parent', 'sibling', 'employer', 'friend',
                     ]),
                     'added_by_id' => $customer->added_by_id,
+                    'agency_id' => $agency->id,
                     'created_at' => $createdAt,
                     'updated_at' => $createdAt,
                 ]);

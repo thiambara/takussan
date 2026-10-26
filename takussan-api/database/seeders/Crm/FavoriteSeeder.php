@@ -5,6 +5,7 @@ namespace Database\Seeders\Crm;
 use App\Models\Favorite;
 use Database\Seeders\Support\SeedingContext;
 use Database\Seeders\Support\Timeline;
+use Database\Seeders\Support\Tirage;
 use Illuminate\Database\Seeder;
 
 class FavoriteSeeder extends Seeder
@@ -25,7 +26,7 @@ class FavoriteSeeder extends Seeder
 
             // Each user favorites 2–8 properties.
             foreach ($userIds as $userId) {
-                $picks = $propertyIds->random(min(random_int(2, 8), $propertyIds->count()));
+                $picks = Tirage::plusieurs($propertyIds, min(mt_rand(2, 8), $propertyIds->count()));
                 foreach ((array) $picks->toArray() as $propertyId) {
                     $createdAt = Timeline::randomDateBetween(
                         Timeline::seedStart(),

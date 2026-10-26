@@ -17,6 +17,7 @@ use Database\Seeders\Support\SeedingContext;
 use Database\Seeders\Support\SenegalFakerProvider;
 use Database\Seeders\Support\StatusDistribution;
 use Database\Seeders\Support\Timeline;
+use Database\Seeders\Support\Tirage;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Str;
 
@@ -41,27 +42,33 @@ class PropertySeeder extends Seeder
             return;
         }
 
-        $statusCounts = StatusDistribution::split($this->ctx->config->propertiesPerAgency, [
-            PropertyStatus::Available->value => 72,
-            PropertyStatus::Rented->value => 15,
-            PropertyStatus::Sold->value => 5,
-            PropertyStatus::UnderMaintenance->value => 3,
-            PropertyStatus::Archived->value => 2,
-            PropertyStatus::Draft->value => 3,
+        // TCK-2376 — le contrat d'abord, le statut ensuite : `sold` n'existe que pour un bien à vendre,
+        // et `rented` ne se tire plus — il se DÉDUIT des baux actifs (LeaseSeeder). Tiré ici, il
+        // laissait 96 biens « loués » sans bail, que le vérificateur de fin de pipeline « réparait »
+        // en fabriquant des baux au loyer égal au prix du bien, ventes comprises.
+        $statusCounts = StatusDistribution::split($this->ctx->volume($this->ctx->config->propertiesPerAgency, $agency->id), [
+            ContractType::Rent->value.'|'.PropertyStatus::Available->value => 61,
+            ContractType::Rent->value.'|'.PropertyStatus::UnderMaintenance->value => 3,
+            ContractType::Rent->value.'|'.PropertyStatus::Archived->value => 2,
+            ContractType::Rent->value.'|'.PropertyStatus::Draft->value => 4,
+            ContractType::Sale->value.'|'.PropertyStatus::Available->value => 22,
+            ContractType::Sale->value.'|'.PropertyStatus::Sold->value => 5,
+            ContractType::Sale->value.'|'.PropertyStatus::Archived->value => 1,
+            ContractType::Sale->value.'|'.PropertyStatus::Draft->value => 2,
         ]);
 
         $ownerIds = $owners->pluck('id')->values();
 
-        foreach ($statusCounts as $status => $count) {
+        foreach ($statusCounts as $key => $count) {
+            [$contractValue, $status] = explode('|', $key);
             for ($i = 0; $i < $count; $i++) {
-                $createdAt = Timeline::randomDateBetween(
-                    Timeline::seedStart(),
+                // Un brouillon est récent ; un bien publié peut venir du portefeuille d'avant la fenêtre.
+                $createdAt = Timeline::creation(
+                    $status === PropertyStatus::Draft->value ? 0 : Timeline::PART_DU_PORTEFEUILLE,
                     Timeline::seedEnd()->subDays(7),
                 );
-                $ownerId = $ownerIds->random();
-                $contract = $this->ctx->faker()->boolean(70)
-                    ? ContractType::Rent
-                    : ContractType::Sale;
+                $ownerId = Tirage::un($ownerIds);
+                $contract = ContractType::from($contractValue);
 
                 // ~80% Dakar (avec pricing par quartier), ~20% autres villes du Sénégal.
                 $isDakar = $this->ctx->faker()->boolean(80);
@@ -167,9 +174,9 @@ class PropertySeeder extends Seeder
                     return Property::create($coutDEntree + [
                         'user_id' => $ownerId,
                         'agency_id' => $agency->id,
-                        'reference_number' => 'PR-'.strtoupper(Str::random(8)),
+                        'reference_number' => 'PR-'.strtoupper(Tirage::code(8)),
                         'title' => $title,
-                        'slug' => Str::slug($title).'-'.Str::random(6),
+                        'slug' => Str::slug($title).'-'.Tirage::code(6),
                         'description' => $description,
                         'type' => $type->value,
                         'contract_type' => $contract->value,
@@ -188,7 +195,10 @@ class PropertySeeder extends Seeder
                         'year_built' => $yearBuilt,
                         'condition' => $condition?->value,
                         'parking_spaces' => $this->ctx->faker()->numberBetween(0, 3),
-                        'featured' => $this->ctx->faker()->boolean(15),
+                        // TCK-2379 — `featured` est la PROJECTION d'une Vedette active (`BoostLifecycle::project`) :
+                        // tirée au hasard, elle devenait 162 Vedettes « offertes » sans tranche ni statistique
+                        // (`LegacyFeaturedConversion`). Les Vedettes s'achètent dans BoostActivitySeeder.
+                        'featured' => false,
                         'available_from' => $createdAt->toDateString(),
                         'published_at' => $status === PropertyStatus::Draft->value
                             ? null
