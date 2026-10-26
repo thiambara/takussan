@@ -297,6 +297,9 @@ class LeaseSeeder extends Seeder
             'currency' => 'XOF',
             'deposit_amount' => $parent !== null ? $parent->deposit_amount : $caution,
             'commission_rate' => $this->ctx->faker()->randomFloat(2, 5, 10),
+            // TCK-2379 — les frais d'agence du mandat : un mois de loyer, l'usage à Dakar. C'est la base
+            // que le grand livre ventile (`CommissionLedgerService`) ; un renouvellement n'en porte pas.
+            'commission_amount' => $parent === null ? $loyer : null,
             'payment_frequency' => PaymentFrequency::Monthly->value,
             'payment_day' => 5,
             'signed_at' => $statut === LeaseStatus::Draft ? null : $debut->subDays(2),

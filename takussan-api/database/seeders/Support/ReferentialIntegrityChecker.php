@@ -5,6 +5,7 @@ namespace Database\Seeders\Support;
 use App\Models\Enums\AgencyKind;
 use App\Models\Enums\AgentProfileStatus;
 use App\Models\Enums\BookingStatus;
+use App\Models\Enums\BoostKind;
 use App\Models\Enums\ContractType;
 use App\Models\Enums\CustomerPipelineStage;
 use App\Models\Enums\InvoiceStatus;
@@ -15,6 +16,7 @@ use App\Models\Enums\PaymentStatus;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Lease;
 use App\Models\Property;
+use App\Services\Credits\CreditLedger;
 use App\Support\Search\PropertyLabels;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
@@ -193,6 +195,73 @@ class ReferentialIntegrityChecker
             'agence_individuelle_avec_un_agent' => DB::table('agent_profiles as ap')
                 ->join('agencies as a', 'a.id', '=', 'ap.agency_id')
                 ->where('a.kind', AgencyKind::Individual->value)
+                ->count(),
+            // TCK-2379 — les tables des fonctionnalités livrées tiennent les règles de leur service.
+            'lot_de_credits_hors_du_grand_livre' => count(app(CreditLedger::class)->invariantViolations()),
+            'solde_de_credits_different_de_ses_mouvements' => DB::table('credit_lots as l')
+                ->groupBy('l.agency_id')
+                ->havingRaw('SUM(l.remaining_amount) <> (SELECT COALESCE(SUM(m.amount), 0) FROM credit_movements m WHERE m.agency_id = l.agency_id)')
+                ->pluck('l.agency_id')
+                ->count(),
+            'commission_qui_ne_se_recalcule_pas' => DB::table('commission_entries as e')
+                ->join('leases as l', 'l.id', '=', 'e.lease_id')
+                ->where(fn ($q) => $q->whereColumn('e.base_amount', '<>', 'l.commission_amount')
+                    ->orWhereRaw('e.amount <> FLOOR(ROUND(e.base_amount * e.share_percent / 100, 6))'))
+                ->count(),
+            'commission_sur_un_renouvellement' => DB::table('commission_entries as e')
+                ->join('leases as l', 'l.id', '=', 'e.lease_id')
+                ->whereNotNull('l.renewed_from_lease_id')
+                ->count(),
+            'bail_fige_sans_ses_deux_signatures' => DB::table('leases as l')
+                ->whereNotNull('l.contract_sha256')
+                ->whereNull('l.renewed_from_lease_id')
+                ->where('l.status', '<>', LeaseStatus::Draft->value)
+                ->whereRaw('(SELECT COUNT(DISTINCT s.role) FROM lease_signatures s WHERE s.lease_id = l.id AND s.document_sha256 = l.contract_sha256) < 2')
+                ->count(),
+            'signature_sur_un_brouillon' => DB::table('lease_signatures as s')
+                ->join('leases as l', 'l.id', '=', 's.lease_id')
+                ->where('l.status', LeaseStatus::Draft->value)
+                ->count(),
+            'vedette_dont_les_tranches_ne_font_pas_le_total' => DB::table('property_boosts as b')
+                ->where('b.kind', BoostKind::Featured->value)
+                ->whereRaw('((SELECT COUNT(*) FROM property_boost_tranches t WHERE t.property_boost_id = b.id) = 0
+                    OR b.price_credits <> (SELECT COALESCE(SUM(t.price_credits), 0) FROM property_boost_tranches t WHERE t.property_boost_id = b.id)
+                    OR b.duration_days <> (SELECT COALESCE(SUM(t.duration_days), 0) FROM property_boost_tranches t WHERE t.property_boost_id = b.id))')
+                ->count(),
+            // Une ligne par jour, sans trou, de son premier jour à la veille (ou à sa fin) ; aucune hors de
+            // sa période. Le dernier jour peut manquer : un seed qui passe minuit l'a écrit la veille, comme
+            // l'application avant le versement de la nuit — mesuré le 2026-10-26, 4 Vedettes en cours.
+            'vedette_sans_une_statistique_par_jour' => DB::table('property_boosts as b')
+                ->leftJoinSub(
+                    DB::table('property_boost_daily_stats')->selectRaw('property_boost_id, COUNT(*) AS n, MIN(date) AS lo, MAX(date) AS hi')->groupBy('property_boost_id'),
+                    's', 's.property_boost_id', '=', 'b.id',
+                )
+                ->where('b.kind', BoostKind::Featured->value)
+                ->whereRaw('CASE WHEN s.n IS NULL
+                    THEN LEAST(COALESCE(b.ended_at::date, CURRENT_DATE - 1), CURRENT_DATE - 1) > b.starts_at::date
+                    ELSE s.lo <> b.starts_at::date OR s.n <> s.hi - s.lo + 1
+                        OR s.hi < LEAST(COALESCE(b.ended_at::date, CURRENT_DATE - 1), CURRENT_DATE - 1) - 1
+                    END')
+                ->count(),
+            'statistique_hors_de_la_periode_de_sa_vedette' => DB::table('property_boost_daily_stats as d')
+                ->join('property_boosts as b', 'b.id', '=', 'd.property_boost_id')
+                ->where(fn ($q) => $q->whereRaw('d.date < b.starts_at::date')->orWhereRaw('d.date > COALESCE(b.ended_at::date, CURRENT_DATE)'))
+                ->count(),
+            'indisponibilite_sur_une_reservation_confirmee' => DB::table('property_unavailabilities as u')
+                ->join('bookings as b', 'b.property_id', '=', 'u.property_id')
+                ->where('b.status', BookingStatus::Confirmed->value)
+                ->whereColumn('b.start_date', '<', 'u.ends_on')
+                ->whereColumn('b.end_date', '>', 'u.starts_on')
+                ->count(),
+            'demande_convertie_apres_sa_fiche' => DB::table('property_contact_leads as d')
+                ->join('customers as c', 'c.id', '=', 'd.customer_id')
+                ->whereColumn('d.created_at', '>', 'c.created_at')
+                ->count(),
+            'reversement_vers_une_destination_non_verifiee' => DB::table('payouts as p')
+                ->whereNotNull('p.payout_method_id')
+                ->whereNotExists(fn ($q) => $q->select(DB::raw(1))->from('payout_method_verifications as v')
+                    ->whereColumn('v.payout_method_id', 'p.payout_method_id')
+                    ->whereColumn('v.agency_id', 'p.agency_id'))
                 ->count(),
         ];
     }

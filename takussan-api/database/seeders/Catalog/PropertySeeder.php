@@ -195,7 +195,10 @@ class PropertySeeder extends Seeder
                         'year_built' => $yearBuilt,
                         'condition' => $condition?->value,
                         'parking_spaces' => $this->ctx->faker()->numberBetween(0, 3),
-                        'featured' => $this->ctx->faker()->boolean(15),
+                        // TCK-2379 — `featured` est la PROJECTION d'une Vedette active (`BoostLifecycle::project`) :
+                        // tirée au hasard, elle devenait 162 Vedettes « offertes » sans tranche ni statistique
+                        // (`LegacyFeaturedConversion`). Les Vedettes s'achètent dans BoostActivitySeeder.
+                        'featured' => false,
                         'available_from' => $createdAt->toDateString(),
                         'published_at' => $status === PropertyStatus::Draft->value
                             ? null

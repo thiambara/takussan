@@ -155,6 +155,8 @@ class SeedingJourneyTest extends TestCase
             conversationsPerAgency: 2,
             documentsPerAgency: 2,
             includeDemoUsers: false,
+            // Ne lit pas les signatures : le rendu des contrats (~0,25 s par bail) est pour SeedingFeatureTablesTest.
+            contratsFiges: false,
         ));
         config(['scout.driver' => null]);
 

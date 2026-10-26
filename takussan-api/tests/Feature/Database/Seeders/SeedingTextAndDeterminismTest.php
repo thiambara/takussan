@@ -36,6 +36,9 @@ class SeedingTextAndDeterminismTest extends TestCase
         'reviews' => 'content',
         'customer_notes' => 'body',
         'conversations' => 'subject',
+        'property_contact_leads' => 'message',
+        'property_reports' => 'details',
+        'property_unavailabilities' => 'reason',
     ];
 
     protected function setUp(): void
@@ -130,6 +133,13 @@ class SeedingTextAndDeterminismTest extends TestCase
                 'lease_payments' => DB::table('lease_payments')->orderBy('reference_number')->get(['reference_number', 'amount', 'status', 'payment_method', 'due_date']),
                 'messages' => DB::table('messages')->orderBy('created_at')->orderBy('content')->get(['content', 'created_at']),
                 'maintenance_requests' => DB::table('maintenance_requests')->orderBy('created_at')->get(['title', 'category', 'status', 'created_at']),
+                // TCK-2379 — les gestes rejoués par les services, au jour près : certains se datent
+                // depuis l'heure réelle du seed, qui avance entre deux exécutions.
+                'commission_entries' => DB::table('commission_entries')->selectRaw('amount, status, earned_at::date AS jour')->orderBy('jour')->orderBy('amount')->orderBy('status')->get(),
+                'credit_movements' => DB::table('credit_movements')->selectRaw('type, amount, created_at::date AS jour')->orderBy('jour')->orderBy('type')->orderBy('amount')->get(),
+                'property_boosts' => DB::table('property_boosts')->selectRaw('kind, status, starts_at::date AS jour')->orderBy('jour')->orderBy('kind')->orderBy('status')->get(),
+                'property_contact_leads' => DB::table('property_contact_leads')->selectRaw('channel, name, message, created_at::date AS jour')->orderBy('jour')->orderBy('channel')->orderBy('name')->orderBy('message')->get(),
+                'invitations' => DB::table('invitations')->selectRaw('role, status, email, created_at::date AS jour')->orderBy('jour')->orderBy('role')->orderBy('email')->orderBy('status')->get(),
             ]);
         } finally {
             DB::rollBack();
@@ -148,6 +158,8 @@ class SeedingTextAndDeterminismTest extends TestCase
             conversationsPerAgency: 4,
             documentsPerAgency: 2,
             includeDemoUsers: false,
+            // Ne lit pas les signatures : le rendu des contrats (~0,25 s par bail) est pour SeedingFeatureTablesTest.
+            contratsFiges: false,
             graine: $graine,
         ));
 

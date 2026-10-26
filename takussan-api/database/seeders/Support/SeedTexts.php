@@ -203,6 +203,53 @@ class SeedTexts
         ]);
     }
 
+    /** Le message d'un visiteur depuis le formulaire de contact d'une annonce (TCK-2379). */
+    public function demandeDeContact(): string
+    {
+        return $this->un([
+            'Bonjour, ce bien est-il toujours disponible ? Je souhaiterais le visiter.',
+            'Bonjour, je suis intéressé par cette annonce. Pouvez-vous me rappeler ?',
+            'Quel est le montant de la caution et des frais d\'agence ?',
+            'Bonjour, je cherche pour une entrée le mois prochain. Une visite samedi est-elle possible ?',
+            'Le prix est-il négociable ? Merci de me recontacter sur WhatsApp.',
+            'Bonjour, je vis à l\'étranger et je cherche pour ma famille. Pouvez-vous m\'envoyer plus de photos ?',
+            'Est-ce que l\'eau et l\'électricité sont sur compteurs séparés ?',
+            'Bonjour, je suis fonctionnaire et je peux fournir un garant. Le bien est-il libre ?',
+        ]);
+    }
+
+    /** Le motif d'un blocage du calendrier d'un bien loué à la nuit (TCK-2379). */
+    public function motifDIndisponibilite(): string
+    {
+        return $this->un([
+            'Travaux de peinture',
+            'Séjour du propriétaire',
+            'Nettoyage approfondi et désinsectisation',
+            'Réparation de la climatisation',
+            'Remplacement du chauffe-eau',
+            'Réservation prise en direct par le propriétaire',
+        ]);
+    }
+
+    /** Les détails qu'un visiteur ajoute à son signalement d'annonce, selon le motif (TCK-2379). */
+    public function detailDeSignalement(string $motif): ?string
+    {
+        return match ($motif) {
+            'misleading' => $this->un([
+                'Le prix affiché n\'est pas celui annoncé au téléphone.',
+                'Les photos ne correspondent pas au bien visité.',
+                'Le bien est annoncé meublé mais il est vide.',
+            ]),
+            'fraud' => $this->un([
+                'On m\'a demandé un dépôt par Wave avant toute visite.',
+                'La personne refuse de montrer le bien et réclame une avance.',
+            ]),
+            'spam' => 'La même annonce est publiée plusieurs fois.',
+            'inappropriate_content' => 'La description contient des propos discriminants.',
+            default => $this->faker->boolean(50) ? 'Le bien semble déjà loué.' : null,
+        };
+    }
+
     public function noteDeChangementDePrix(): string
     {
         return $this->un([

@@ -5,19 +5,30 @@ namespace Database\Seeders;
 use App\Support\Search\SearchableModels;
 use Database\Seeders\Activity\BookingPaymentSeeder;
 use Database\Seeders\Activity\BookingSeeder;
+use Database\Seeders\Activity\CommissionSeeder;
 use Database\Seeders\Activity\InventorySeeder;
 use Database\Seeders\Activity\InvoiceSeeder;
+use Database\Seeders\Activity\LeasePaymentLinkSeeder;
 use Database\Seeders\Activity\LeasePaymentSeeder;
 use Database\Seeders\Activity\LeaseSeeder;
+use Database\Seeders\Activity\LeaseSignatureSeeder;
+use Database\Seeders\Activity\PayoutMethodSeeder;
 use Database\Seeders\Activity\PayoutSeeder;
 use Database\Seeders\Activity\PropertyVisitSeeder;
+use Database\Seeders\Billing\AgencySubscriptionSeeder;
+use Database\Seeders\Billing\BoostActivitySeeder;
 use Database\Seeders\Catalog\PropertyCollaboratorSeeder;
+use Database\Seeders\Catalog\PropertyContactSeeder;
 use Database\Seeders\Catalog\PropertyMediaSeeder;
 use Database\Seeders\Catalog\PropertyPriceHistorySeeder;
 use Database\Seeders\Catalog\PropertySeeder;
+use Database\Seeders\Catalog\PropertyUnavailabilitySeeder;
 use Database\Seeders\Core\AgencySeeder;
 use Database\Seeders\Core\IntegrationSeeder;
+use Database\Seeders\Core\InvitationSeeder;
+use Database\Seeders\Core\KycDossierSeeder;
 use Database\Seeders\Core\UserSeeder;
+use Database\Seeders\Crm\ContactLeadSeeder;
 use Database\Seeders\Crm\CustomerNoteSeeder;
 use Database\Seeders\Crm\CustomerPipelineStageSeeder;
 use Database\Seeders\Crm\CustomerSeeder;
@@ -28,6 +39,7 @@ use Database\Seeders\Crm\UserCustomerRelationshipSeeder;
 use Database\Seeders\Engagement\ActivityLogBackfillSeeder;
 use Database\Seeders\Engagement\AppNotificationSeeder;
 use Database\Seeders\Engagement\NotificationPreferenceSeeder;
+use Database\Seeders\Engagement\PropertyReportSeeder;
 use Database\Seeders\Engagement\ReviewSeeder;
 use Database\Seeders\Operations\ConversationSeeder;
 use Database\Seeders\Operations\DocumentSeeder;
@@ -47,6 +59,7 @@ use Database\Seeders\System\TagSeeder;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
+use Spatie\LaravelPdf\Drivers\PdfDriver;
 
 class YearOfActivitySeeder extends Seeder
 {
@@ -67,10 +80,14 @@ class YearOfActivitySeeder extends Seeder
         // Doit s'exécuter après UserSeeder/DemoUsersSeeder (besoin du
         // primary_admin de chaque agence) et avant les seeders d'activité.
         AgencyUpgradeRequestSeeder::class,
+        // TCK-2379 — le dossier qui a fait vérifier l'agence, et son abonnement depuis sa fondation.
+        KycDossierSeeder::class,
+        AgencySubscriptionSeeder::class,
         // Catalog
         PropertySeeder::class,
         PropertyCollaboratorSeeder::class,
         PropertyPriceHistorySeeder::class,
+        PropertyContactSeeder::class,
         // CRM
         CustomerSeeder::class,
         GuarantorSeeder::class,
@@ -81,16 +98,28 @@ class YearOfActivitySeeder extends Seeder
         // Activity
         PropertyVisitSeeder::class,
         BookingSeeder::class,
+        PropertyUnavailabilitySeeder::class,
         // TCK-2377 — les baux AVANT les paiements de réservation : un bail sur trois naît d'une
         // réservation, dont l'acompte et le solde se paient comme les autres.
         LeaseSeeder::class,
         BookingPaymentSeeder::class,
         LeasePaymentSeeder::class,
+        // TCK-2379 — le contrat figé et signé de chaque bail, puis le grand livre de ses commissions,
+        // qui naît à l'activation ; les liens que les relances de loyer ont émis.
+        LeaseSignatureSeeder::class,
+        CommissionSeeder::class,
+        LeasePaymentLinkSeeder::class,
         InventorySeeder::class,
         InvoiceSeeder::class,
+        // TCK-2379 — la destination vérifiée de chaque bailleur, AVANT les reversements qui y vont.
+        PayoutMethodSeeder::class,
         PayoutSeeder::class,
         // TCK-2377 — le stade CRM se lit dans les visites, réservations et baux : après eux.
         CustomerPipelineStageSeeder::class,
+        // TCK-2379 — les demandes entrantes (dont les fiches nées d'une demande, et le bien visité
+        // ensuite), puis les invitations de l'équipe, des bailleurs et des locataires.
+        ContactLeadSeeder::class,
+        InvitationSeeder::class,
         // Operations
         MaintenanceRequestSeeder::class,
         ConversationSeeder::class,
@@ -100,6 +129,10 @@ class YearOfActivitySeeder extends Seeder
         TaskSeeder::class,
         // Engagement
         ReviewSeeder::class,
+        PropertyReportSeeder::class,
+        // TCK-2379 — six mois de crédits et de mise en avant, sur les biens publics à la fin du seed :
+        // après tout ce qui fixe le statut d'un bien.
+        BoostActivitySeeder::class,
         AppNotificationSeeder::class,
         NotificationPreferenceSeeder::class,
         ActivityLogBackfillSeeder::class,
@@ -136,13 +169,21 @@ class YearOfActivitySeeder extends Seeder
      * memory`, avalé par `SeedingContext::downloadMedia()`, puis `25P02` sur la requête suivante
      * — après 46 minutes de seed. PropertyMediaSeeder est idempotent (il saute un bien qui a déjà
      * ses photos) : sans transaction, un échec garde ce qui est fait, et le rejouer reprend.
+     *
+     * BoostActivitySeeder (TCK-2379) rejoue des gestes datés dont l'effet passe par un événement
+     * `ShouldDispatchAfterCommit` : `PhoneVerified` crédite l'offre de bienvenue. Dans la transaction
+     * du seeder, l'écouteur ne partait qu'à sa validation — à l'heure réelle, après tous les achats :
+     * mesuré, trois agences sur quatre n'achetaient rien, solde nul à chaque geste.
      */
-    private const HORS_TRANSACTION = [PropertyMediaSeeder::class];
+    private const HORS_TRANSACTION = [PropertyMediaSeeder::class, BoostActivitySeeder::class];
 
     private SeedingConfig $config;
 
     /** Scout driver captured before it's disabled for seeding, restored on reindex. */
     private ?string $originalScoutDriver = null;
+
+    /** PDF driver captured before seeding forces the local one, restored at the end. */
+    private ?string $originalPdfDriver = null;
 
     public function run(): void
     {
@@ -183,6 +224,8 @@ class YearOfActivitySeeder extends Seeder
         }
 
         $this->reindexSearchableModels();
+        Config::set('laravel-pdf.driver', $this->originalPdfDriver);
+        app()->forgetInstance(PdfDriver::class);
 
         // EN DERNIER, et après la réindexation : le bilan des médias peut LEVER, et
         // il ne doit le faire qu'une fois la base et l'index dans leur état final.
@@ -258,6 +301,13 @@ class YearOfActivitySeeder extends Seeder
         $this->originalScoutDriver = config('scout.driver');
         Config::set('scout.driver', null);
         Config::set('database.seed_download_media', $this->config->downloadMedia);
+        // TCK-2379 — les contrats de bail se figent par le rendu LOCAL. Le pilote d'un environnement
+        // déployé est Cloudflare : un appel sortant par contrat, limité en débit — mesuré le
+        // 2026-10-25 sur un seed local, `Rate limit exceeded` dès les premiers baux. Même gabarit,
+        // autre moteur, le temps du seed ; le singleton est oublié pour que la valeur soit relue.
+        $this->originalPdfDriver = config('laravel-pdf.driver');
+        Config::set('laravel-pdf.driver', 'dompdf');
+        app()->forgetInstance(PdfDriver::class);
         DB::disableQueryLog();
     }
 

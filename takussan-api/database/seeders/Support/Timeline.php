@@ -2,8 +2,10 @@
 
 namespace Database\Seeders\Support;
 
+use Carbon\Carbon;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
+use Closure;
 
 /**
  * Helpers for placing entities along a 13-month timeline. All methods return
@@ -67,6 +69,30 @@ class Timeline
     public static function seedEnd(): CarbonImmutable
     {
         return CarbonImmutable::now()->endOfDay();
+    }
+
+    /**
+     * TCK-2379 — joue `$geste` comme s'il avait lieu à `$date` : les services de l'application datent
+     * leurs écritures de `now()` (horodatages, périodes, échéances, journal d'activité), et le seed
+     * passe par eux plutôt que de recopier leurs lignes. L'horloge d'avant est rendue ensuite, y
+     * compris celle qu'un test a figée.
+     *
+     * ⚠ Dans `$geste`, ni {@see seedStart()} ni {@see seedEnd()} : ils lisent la même horloge.
+     *
+     * @template T
+     *
+     * @param  Closure(): T  $geste
+     * @return T
+     */
+    public static function aLaDate(CarbonInterface $date, Closure $geste): mixed
+    {
+        $avant = Carbon::getTestNow();
+        Carbon::setTestNow($date);
+        try {
+            return $geste();
+        } finally {
+            Carbon::setTestNow($avant);
+        }
     }
 
     public static function randomDateBetween(

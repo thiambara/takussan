@@ -4,9 +4,12 @@ namespace Database\Seeders\Support;
 
 use App\Models\Agency;
 use App\Models\Customer;
+use App\Models\Enums\PlatformProfileLevel;
 use App\Models\Lease;
+use App\Models\PayoutMethod;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
+use App\Models\Profiles\PlatformProfile;
 use App\Models\Profiles\ServiceProviderProfile;
 use App\Models\Property;
 use App\Models\User;
@@ -69,6 +72,11 @@ class SeedingContext
 
     /** @var array<int, CarbonImmutable> date de départ des collaborateurs partis, par user_id (TCK-2378) */
     public array $departs = [];
+
+    /** @var array<int, PayoutMethod> le moyen de reversement par défaut de chaque bailleur, par user_id (TCK-2379) */
+    public array $moyensDeReversement = [];
+
+    private ?User $operateur = null;
 
     /** Téléchargements de médias tentés — cf. {@see downloadMedia()}. */
     private int $mediaAttempted = 0;
@@ -139,6 +147,18 @@ class SeedingContext
         } else {
             $this->systemUsers->put($user->id, $user);
         }
+    }
+
+    /**
+     * Le super-admin semé par UserSeeder : l'auteur des gestes de la plateforme — abonnements,
+     * vérifications KYC, vedettes offertes, modération (TCK-2379).
+     */
+    public function operateur(): User
+    {
+        return $this->operateur ??= User::query()->findOrFail(PlatformProfile::query()
+            ->where('level', PlatformProfileLevel::SuperAdmin)
+            ->orderBy('id')
+            ->value('user_id'));
     }
 
     public function registerCustomer(Customer $customer): void

@@ -220,7 +220,8 @@ class UserSeeder extends Seeder
             ),
             'agent' => AgentProfile::query()->firstOrCreate(
                 ['user_id' => $user->id, 'agency_id' => $agency->id],
-                ['status' => AgentProfileStatus::Active->value],
+                // TCK-2379 — la part du négociateur dans les frais d'agence (`CommissionLedgerService`).
+                ['status' => AgentProfileStatus::Active->value, 'commission_rate' => mt_rand(20, 40)],
             ),
             'service_provider' => $this->seedServiceProviderProfile($user, $agency),
             'admin' => $this->seedAgencyAdminProfile($user, $agency),

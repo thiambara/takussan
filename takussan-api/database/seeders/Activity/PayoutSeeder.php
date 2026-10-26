@@ -50,8 +50,9 @@ class PayoutSeeder extends Seeder
             $periodStart = CarbonImmutable::parse($bucket.'-01');
             $processedAt = $periodStart->endOfMonth()->addDays(mt_rand(1, 5));
 
+            $moyen = $this->ctx->moyensDeReversement[(int) $lease->landlord_id] ?? null;
             Payout::withoutEvents(function () use (
-                $lease, $gross, $commission, $net, $periodStart, $processedAt, $payments
+                $lease, $gross, $commission, $net, $periodStart, $processedAt, $payments, $moyen
             ) {
                 $payout = Payout::create([
                     'lease_id' => $lease->id,
@@ -65,7 +66,10 @@ class PayoutSeeder extends Seeder
                     'commission_amount' => $commission,
                     'net_amount' => $net,
                     'currency' => 'XOF',
-                    'payment_method' => 'bank_transfer',
+                    // TCK-2379 — la destination déclarée et vérifiée du bailleur (PayoutMethodSeeder), par sa
+                    // nature ; un reversement sans destination reste un virement.
+                    'payment_method' => $moyen?->kind->value ?? 'bank_transfer',
+                    'payout_method_id' => $moyen?->id,
                     'transaction_id' => 'PO-TX-'.strtoupper(Tirage::code(8)),
                     'scheduled_at' => $processedAt->subDays(2),
                     'processed_at' => $processedAt,

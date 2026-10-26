@@ -29,6 +29,9 @@ class SeedingConfig
      *                                       création : les volumes « par agence » ci-dessus sont ceux de la
      *                                       plus grande (TCK-2378)
      * @param  float  $tailleIndividuelle  Taille relative d'une agence `individual` : une personne seule
+     * @param  bool  $contratsFiges  Figer le contrat PDF de chaque bail signé, comme l'application, pour
+     *                               que ses signatures portent sur un document (TCK-2379) — ~0,25 s par
+     *                               bail : seuls les tests qui ne lisent pas les signatures l'éteignent
      */
     public function __construct(
         public int $agencies = 3,
@@ -47,6 +50,7 @@ class SeedingConfig
         public int $graine = 2026,
         public array $taillesDAgence = [1.0, 0.65, 0.4],
         public float $tailleIndividuelle = 0.12,
+        public bool $contratsFiges = true,
     ) {}
 
     /**
@@ -136,6 +140,7 @@ class SeedingConfig
             includeDemoUsers: (bool) env('SEED_DEMO_USERS', true),
             downloadMedia: (bool) env('SEED_DOWNLOAD_MEDIA', false),
             graine: (int) env('SEED_RANDOM_SEED', 2026),
+            contratsFiges: (bool) env('SEED_SIGNED_CONTRACTS', true),
         );
     }
 }
