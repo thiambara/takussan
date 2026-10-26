@@ -65,9 +65,12 @@ couverture des filtres, comptes de démo), médias coupés et PHP limité à 256
 
 | `SEED_PROPERTIES_PER_AGENCY` | Biens réalistes | Biens de test | Annonces publiques | Vedettes réalistes actives | Pic mémoire | Durée |
 |---|---|---|---|---|---|---|
-| 150 (préproduction actuelle) | 342 | 240 | 161 | 2 | 183 Mo | 393 s |
+| 150 (préproduction actuelle)¹ | 342 | 240 | 161 | 2 | 183 Mo | 393 s |
 | 415, crédits du mois à 120 | 917 | 240 | 609 | 28 | 194 Mo | 545 s |
 | **430, crédits du mois à 60** | **950** | 240 | 617 | **22** | 194 Mo | 554 s |
+
+¹ Avant ce ticket. Annonces publiques et Vedettes relevées sur la préproduction ; mémoire et durée
+mesurées en local.
 
 Le volume suit `propertiesPerAgency` × la taille de chaque agence (somme des tailles ≈ 2,2) : 430
 rend exactement 950 biens réalistes. Les crédits ne limitaient pas les Vedettes : diviser les crédits
