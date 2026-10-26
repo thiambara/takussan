@@ -1,13 +1,13 @@
 ---
 id: TCK-2378
 title: "Le seed dessine une vie d'agence : croissance, arrivées et départs, agences de tailles différentes, messages et notifications qui vieillissent"
-status: review
+status: done
 phase: P2
 family: technique
 estimate: M
 wave: null
 created: 2026-10-25
-updated: 2026-10-25
+updated: 2026-10-26
 depends_on: [TCK-2377]
 blocks: []
 spec_refs:

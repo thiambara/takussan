@@ -1,13 +1,13 @@
 ---
 id: TCK-2377
 title: "Le seed suit le parcours d'un client — visite, réservation, bail, échéances, sortie — au lieu de tirer chaque table au hasard"
-status: review
+status: done
 phase: P2
 family: technique
 estimate: L
 wave: null
 created: 2026-10-25
-updated: 2026-10-25
+updated: 2026-10-26
 depends_on: [TCK-2376]
 blocks: [TCK-2378, TCK-2379]
 spec_refs:

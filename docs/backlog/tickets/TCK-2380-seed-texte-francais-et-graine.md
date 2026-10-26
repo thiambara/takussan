@@ -1,13 +1,13 @@
 ---
 id: TCK-2380
 title: "Le seed écrit en français de métier et rejoue le même jeu : plus de lorem ipsum, une seule graine pour tous les tirages"
-status: review
+status: done
 phase: P2
 family: technique
 estimate: M
 wave: null
 created: 2026-10-25
-updated: 2026-10-25
+updated: 2026-10-26
 depends_on: []
 blocks: []
 spec_refs:

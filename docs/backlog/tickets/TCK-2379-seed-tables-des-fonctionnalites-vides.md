@@ -1,7 +1,7 @@
 ---
 id: TCK-2379
 title: "Le seed remplit les tables des fonctionnalités livrées : commissions, abonnements et crédits, signatures, KYC, prospects, statistiques de boost"
-status: review
+status: done
 phase: P2
 family: technique
 estimate: L

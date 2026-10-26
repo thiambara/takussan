@@ -1,13 +1,13 @@
 ---
 id: TCK-2376
 title: "Le seed ne fabrique plus rien pour « réparer » : le vérificateur vérifie, et les jeux de cas limites quittent le jeu réaliste"
-status: review
+status: done
 phase: P2
 family: bug
 estimate: M
 wave: null
 created: 2026-10-25
-updated: 2026-10-25
+updated: 2026-10-26
 depends_on: []
 blocks: [TCK-2377]
 spec_refs:
