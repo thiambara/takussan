@@ -2,335 +2,300 @@
 
 namespace Database\Seeders\Support;
 
-use App\Models\Booking;
-use App\Models\BookingPayment;
-use App\Models\Customer;
-use App\Models\Enums\BookingPaymentType;
+use App\Models\Enums\AgencyKind;
+use App\Models\Enums\AgentProfileStatus;
 use App\Models\Enums\BookingStatus;
+use App\Models\Enums\BoostKind;
+use App\Models\Enums\ContractType;
+use App\Models\Enums\CustomerPipelineStage;
+use App\Models\Enums\InvoiceStatus;
 use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\LeaseType;
-use App\Models\Enums\PaymentFrequency;
-use App\Models\Enums\PaymentMethod;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Enums\PropertyStatus;
-use App\Models\Enums\VisitStatus;
-use App\Models\Favorite;
 use App\Models\Lease;
-use App\Models\LeasePayment;
-use App\Models\Profiles\AgentProfile;
 use App\Models\Property;
-use App\Models\PropertyVisit;
-use Illuminate\Support\Str;
+use App\Services\Credits\CreditLedger;
+use App\Support\Search\PropertyLabels;
+use Illuminate\Database\Query\Builder;
+use Illuminate\Support\Facades\DB;
+use RuntimeException;
 
 /**
- * Vérifie et corrige la cohérence référentielle des données seedées.
+ * Juge le jeu de données semé — et ne le corrige JAMAIS (TCK-2376).
  *
- * S'assure que les relations entre entités sont réalistes et complètes :
- * - Properties rented ont un lease active
- * - Leases active ont des payments
- * - Customers ont des bookings ou leases
- * - etc.
+ * La version précédente « réparait » : un bien `rented` sans bail recevait un bail daté de deux
+ * mois, au loyer égal au prix du bien, et ses paiements ; un client sans activité recevait une
+ * réservation `completed` créée trois jours plus tôt. Mesuré le 2026-10-25 : 66 % des loyers
+ * encaissés de la base semée venaient de ces baux, dont 40 sur des biens À VENDRE au loyer moyen
+ * de 53,6 M XOF. *Un correctif silencieux déplace le défaut du seeder vers les chiffres* : chaque
+ * invariant ci-dessous se tient désormais à la source, dans le seeder qui écrit la donnée, et ce
+ * vérificateur fait échouer `db:seed` en nommant ce qui ne tient pas.
+ *
+ * Il juge le jeu RÉALISTE : `YearOfActivitySeeder` le joue avant les cas limites et la couverture
+ * des filtres, qui violent certains de ces invariants exprès (un loyer de 301 M XOF, un bien loué
+ * sans bail).
  */
 class ReferentialIntegrityChecker
 {
-    public function __construct(private readonly SeedingContext $ctx) {}
+    /** Écart toléré entre le loyer d'un bail et le prix affiché du bien loué, dans les deux sens. */
+    public const ECART_LOYER_PRIX = 3;
 
     /**
-     * Exécute toutes les vérifications et corrections.
+     * Lève si un invariant ne tient pas. N'écrit rien.
+     *
+     * @throws RuntimeException
      */
-    public function ensureIntegrity(): void
+    public function assertIntegrity(): void
     {
-        $this->ensureRentedPropertiesHaveActiveLeases();
-        $this->ensureActiveLeasesHavePayments();
-        $this->ensureCustomersHaveActivity();
-        $this->ensureBookingsHavePaymentsWhenRequired();
-        $this->ensurePropertiesHaveVisitsOrBookings();
-        $this->syncPropertyStatusWithLeases();
-    }
+        $violations = array_filter($this->violations());
 
-    /**
-     * Vérifie que toutes les properties avec statut Rented ont au moins un lease Active.
-     */
-    public function checkPropertyHasActiveLease(Property $property): bool
-    {
-        if ($property->status !== PropertyStatus::Rented) {
-            return true;
-        }
-
-        return Lease::where('property_id', $property->id)
-            ->where('status', LeaseStatus::Active)
-            ->exists();
-    }
-
-    /**
-     * Vérifie qu'un lease active a des payments associés.
-     */
-    public function checkLeaseHasPayments(Lease $lease): bool
-    {
-        if ($lease->status !== LeaseStatus::Active) {
-            return true;
-        }
-
-        return LeasePayment::where('lease_id', $lease->id)->exists();
-    }
-
-    /**
-     * Vérifie qu'un customer a au moins une activité (booking ou lease).
-     */
-    public function checkCustomerHasActivity(Customer $customer): bool
-    {
-        $hasBooking = Booking::where('customer_id', $customer->id)->exists();
-        $hasLease = Lease::where('tenant_id', $customer->id)->exists();
-
-        return $hasBooking || $hasLease;
-    }
-
-    /**
-     * Corrige les properties Rented sans lease active.
-     */
-    private function ensureRentedPropertiesHaveActiveLeases(): void
-    {
-        $propertiesNeedingLeases = Property::where('status', PropertyStatus::Rented)
-            ->whereDoesntHave('leases', function ($query) {
-                $query->where('status', LeaseStatus::Active);
-            })
-            ->get();
-
-        foreach ($propertiesNeedingLeases as $property) {
-            // Créer un lease active pour cette property
-            $this->createMissingLeaseForProperty($property);
-        }
-    }
-
-    /**
-     * Crée un lease manquant pour une property.
-     */
-    private function createMissingLeaseForProperty(Property $property): void
-    {
-        $agencyId = $property->agency_id;
-        $customers = $this->ctx->customersByAgency[$agencyId] ?? collect();
-
-        if ($customers->isEmpty()) {
+        if ($violations === []) {
             return;
         }
 
-        $customer = $customers->random();
+        $lignes = array_map(
+            fn (string $invariant, int $nombre) => "  · {$invariant} : {$nombre}",
+            array_keys($violations),
+            $violations,
+        );
 
-        Lease::withoutEvents(fn () => Lease::create([
-            'property_id' => $property->id,
-            'landlord_id' => $property->user_id,
-            'tenant_id' => $customer->id,
-            'agency_id' => $agencyId,
-            'reference_number' => 'LS-'.strtoupper(Str::random(8)),
-            'type' => LeaseType::ResidentialRent->value,
-            'status' => LeaseStatus::Active->value,
-            'start_date' => now()->subMonths(2)->toDateString(),
-            'end_date' => now()->addMonths(10)->toDateString(),
-            'monthly_rent' => $property->price,
-            'currency' => $property->currency?->value ?? 'XOF',
-            'deposit_amount' => $property->price,
-            'commission_rate' => 8.0,
-            'payment_frequency' => PaymentFrequency::Monthly->value,
-            'payment_day' => 5,
-            'signed_at' => now()->subMonths(2)->subDays(2),
-            'created_at' => now()->subMonths(2)->subDays(5),
-            'updated_at' => now(),
-        ]));
+        throw new RuntimeException(
+            "Le jeu semé viole ses invariants — corrige le seeder qui écrit la donnée, pas ce vérificateur :\n"
+            .implode("\n", $lignes),
+        );
     }
 
     /**
-     * Assure que tous les leases active ont au moins un payment.
+     * Nombre de lignes fautives par invariant (0 = tenu).
+     *
+     * @return array<string, int>
      */
-    private function ensureActiveLeasesHavePayments(): void
+    public function violations(): array
     {
-        $leasesWithoutPayments = Lease::where('status', LeaseStatus::Active)
-            ->whereDoesntHave('payments')
-            ->get();
-
-        foreach ($leasesWithoutPayments as $lease) {
-            $this->createMissingPaymentsForLease($lease);
-        }
+        return [
+            'bail_de_location_sur_un_bien_a_vendre' => $this->bauxDeLocation()
+                ->where('p.contract_type', ContractType::Sale->value)
+                ->count(),
+            'bail_residentiel_sur_un_bien_qui_n_est_pas_une_habitation' => $this->bauxDeLocation()
+                ->where('l.type', LeaseType::ResidentialRent->value)
+                ->whereNotIn('p.type', self::typesDeLaFamille(PropertyLabels::FAMILLE_HABITATION))
+                ->count(),
+            'loyer_hors_de_proportion_avec_le_prix_du_bien' => $this->bauxDeLocation()
+                ->where('p.contract_type', ContractType::Rent->value)
+                ->where('p.price', '>', 0)
+                ->where(fn (Builder $q) => $q
+                    ->whereRaw('l.monthly_rent > p.price * ?', [self::ECART_LOYER_PRIX])
+                    ->orWhereRaw('l.monthly_rent < p.price / ?', [self::ECART_LOYER_PRIX]))
+                ->count(),
+            'facture_payee_sur_une_echeance_non_payee' => DB::table('invoices as i')
+                ->join('lease_payments as lp', function ($join) {
+                    $join->on('lp.lease_id', '=', 'i.invoiceable_id')
+                        ->where('lp.payment_type', LeasePaymentType::Rent->value)
+                        ->whereRaw("date_trunc('month', lp.period_start) = date_trunc('month', i.issue_date)");
+                })
+                ->where('i.invoiceable_type', (new Lease)->getMorphClass())
+                ->where('i.status', InvoiceStatus::Paid->value)
+                ->where('lp.status', '!=', PaymentStatus::Paid->value)
+                ->count(),
+            'reservation_terminee_avant_son_debut' => DB::table('bookings')
+                ->where('status', BookingStatus::Completed->value)
+                ->where('start_date', '>', now()->toDateString())
+                ->count(),
+            'bien_loue_sans_bail_actif' => DB::table('properties as p')
+                ->where('p.status', PropertyStatus::Rented->value)
+                ->whereNotExists(fn (Builder $q) => $q->from('leases as l')
+                    ->whereColumn('l.property_id', 'p.id')
+                    ->where('l.status', LeaseStatus::Active->value))
+                ->count(),
+            'bail_actif_sur_un_bien_qui_n_est_pas_loue' => DB::table('leases as l')
+                ->join('properties as p', 'p.id', '=', 'l.property_id')
+                ->where('l.status', LeaseStatus::Active->value)
+                ->whereIn('l.type', self::typesDeLocation())
+                ->where('p.status', '!=', PropertyStatus::Rented->value)
+                ->count(),
+            // TCK-2377 — le parcours se lit dans l'ordre du temps, et l'occupation d'un bien aussi.
+            'bien_occupe_par_deux_baux_qui_se_chevauchent' => DB::table('leases as a')
+                ->join('leases as b', fn ($join) => $join->on('b.property_id', '=', 'a.property_id')->whereColumn('b.id', '>', 'a.id'))
+                ->where('a.status', '!=', LeaseStatus::Draft->value)
+                ->where('b.status', '!=', LeaseStatus::Draft->value)
+                ->whereRaw('a.start_date <= COALESCE(b.terminated_at::date, b.end_date)')
+                ->whereRaw('b.start_date <= COALESCE(a.terminated_at::date, a.end_date)')
+                ->distinct()
+                ->count('a.property_id'),
+            'bail_anterieur_a_son_bien' => DB::table('leases as l')
+                ->join('properties as p', 'p.id', '=', 'l.property_id')
+                ->whereRaw('l.start_date < p.created_at::date')
+                ->count(),
+            'visite_anterieure_a_son_bien' => DB::table('property_visits as v')
+                ->join('properties as p', 'p.id', '=', 'v.property_id')
+                ->whereColumn('v.scheduled_at', '<', 'p.created_at')
+                ->count(),
+            'reservation_anterieure_a_son_bien' => DB::table('bookings as b')
+                ->join('properties as p', 'p.id', '=', 'b.property_id')
+                ->whereColumn('b.created_at', '<', 'p.created_at')
+                ->count(),
+            'bail_expire_dont_la_fin_est_a_venir' => DB::table('leases')
+                ->where('status', LeaseStatus::Expired->value)
+                ->where('end_date', '>=', now()->toDateString())
+                ->count(),
+            'bail_actif_dont_la_fin_est_passee' => DB::table('leases')
+                ->where('status', LeaseStatus::Active->value)
+                ->where('end_date', '<', now()->toDateString())
+                ->count(),
+            'bail_renouvele_sans_successeur' => DB::table('leases as a')
+                ->where('a.status', LeaseStatus::Renewed->value)
+                ->whereNotExists(fn (Builder $q) => $q->from('leases as b')->whereColumn('b.renewed_from_lease_id', 'a.id'))
+                ->count(),
+            'locataire_qui_n_est_pas_converti' => DB::table('leases as l')
+                ->join('customers as c', 'c.id', '=', 'l.tenant_id')
+                ->where('l.status', '!=', LeaseStatus::Draft->value)
+                ->where('c.pipeline_stage', '!=', CustomerPipelineStage::Converted->value)
+                ->distinct()
+                ->count('c.id'),
+            'lead_qui_a_un_bail' => DB::table('leases as l')
+                ->join('customers as c', 'c.id', '=', 'l.tenant_id')
+                ->where('c.pipeline_stage', CustomerPipelineStage::Lead->value)
+                ->distinct()
+                ->count('c.id'),
+            'avis_ecrit_par_le_personnel_ou_le_bailleur' => DB::table('reviews as r')
+                ->join('properties as p', 'p.id', '=', 'r.reviewable_id')
+                ->where('r.reviewable_type', (new Property)->getMorphClass())
+                ->where(fn (Builder $q) => $q
+                    ->whereColumn('r.author_id', 'p.user_id')
+                    ->orWhereExists(fn (Builder $e) => $e->from('agent_profiles as ap')
+                        ->whereColumn('ap.user_id', 'r.author_id')->whereColumn('ap.agency_id', 'p.agency_id'))
+                    ->orWhereExists(fn (Builder $e) => $e->from('agency_admin_profiles as aa')
+                        ->whereColumn('aa.user_id', 'r.author_id')->whereColumn('aa.agency_id', 'p.agency_id')))
+                ->count(),
+            'impaye_de_plus_de_90_jours_sur_un_bail_actif' => DB::table('lease_payments as lp')
+                ->join('leases as l', 'l.id', '=', 'lp.lease_id')
+                ->where('l.status', LeaseStatus::Active->value)
+                ->where('lp.status', PaymentStatus::Late->value)
+                ->where('lp.due_date', '<', now()->subDays(90)->toDateString())
+                ->count(),
+            'maintenance_sur_un_bien_non_bati' => DB::table('maintenance_requests as m')
+                ->join('properties as p', 'p.id', '=', 'm.property_id')
+                ->whereIn('p.type', self::typesDeLaFamille(PropertyLabels::FAMILLE_FONCIER))
+                ->count(),
+            'maintenance_demandee_ni_par_le_locataire_ni_par_le_bailleur' => DB::table('maintenance_requests as m')
+                ->join('properties as p', 'p.id', '=', 'm.property_id')
+                ->whereColumn('m.requester_id', '!=', 'p.user_id')
+                ->whereNotExists(fn (Builder $q) => $q->from('leases as l')
+                    ->join('customers as c', 'c.id', '=', 'l.tenant_id')
+                    ->whereColumn('l.property_id', 'm.property_id')
+                    ->whereColumn('c.user_id', 'm.requester_id'))
+                ->count(),
+            // TCK-2378 — un agent n'agit qu'entre son arrivée et son départ ; une agence individuelle
+            // est une personne seule.
+            'visite_menee_par_un_agent_absent' => $this->parUnAgentAbsent('property_visits', 'agent_id', 'scheduled_at'),
+            'bail_suivi_par_un_agent_absent' => $this->parUnAgentAbsent('leases', 'agent_id', 'created_at'),
+            'reservation_saisie_par_un_agent_absent' => $this->parUnAgentAbsent('bookings', 'created_by_id', 'created_at'),
+            'agence_individuelle_avec_un_agent' => DB::table('agent_profiles as ap')
+                ->join('agencies as a', 'a.id', '=', 'ap.agency_id')
+                ->where('a.kind', AgencyKind::Individual->value)
+                ->count(),
+            // TCK-2379 — les tables des fonctionnalités livrées tiennent les règles de leur service.
+            'lot_de_credits_hors_du_grand_livre' => count(app(CreditLedger::class)->invariantViolations()),
+            'solde_de_credits_different_de_ses_mouvements' => DB::table('credit_lots as l')
+                ->groupBy('l.agency_id')
+                ->havingRaw('SUM(l.remaining_amount) <> (SELECT COALESCE(SUM(m.amount), 0) FROM credit_movements m WHERE m.agency_id = l.agency_id)')
+                ->pluck('l.agency_id')
+                ->count(),
+            'commission_qui_ne_se_recalcule_pas' => DB::table('commission_entries as e')
+                ->join('leases as l', 'l.id', '=', 'e.lease_id')
+                ->where(fn ($q) => $q->whereColumn('e.base_amount', '<>', 'l.commission_amount')
+                    ->orWhereRaw('e.amount <> FLOOR(ROUND(e.base_amount * e.share_percent / 100, 6))'))
+                ->count(),
+            'commission_sur_un_renouvellement' => DB::table('commission_entries as e')
+                ->join('leases as l', 'l.id', '=', 'e.lease_id')
+                ->whereNotNull('l.renewed_from_lease_id')
+                ->count(),
+            'bail_fige_sans_ses_deux_signatures' => DB::table('leases as l')
+                ->whereNotNull('l.contract_sha256')
+                ->whereNull('l.renewed_from_lease_id')
+                ->where('l.status', '<>', LeaseStatus::Draft->value)
+                ->whereRaw('(SELECT COUNT(DISTINCT s.role) FROM lease_signatures s WHERE s.lease_id = l.id AND s.document_sha256 = l.contract_sha256) < 2')
+                ->count(),
+            'signature_sur_un_brouillon' => DB::table('lease_signatures as s')
+                ->join('leases as l', 'l.id', '=', 's.lease_id')
+                ->where('l.status', LeaseStatus::Draft->value)
+                ->count(),
+            'vedette_dont_les_tranches_ne_font_pas_le_total' => DB::table('property_boosts as b')
+                ->where('b.kind', BoostKind::Featured->value)
+                ->whereRaw('((SELECT COUNT(*) FROM property_boost_tranches t WHERE t.property_boost_id = b.id) = 0
+                    OR b.price_credits <> (SELECT COALESCE(SUM(t.price_credits), 0) FROM property_boost_tranches t WHERE t.property_boost_id = b.id)
+                    OR b.duration_days <> (SELECT COALESCE(SUM(t.duration_days), 0) FROM property_boost_tranches t WHERE t.property_boost_id = b.id))')
+                ->count(),
+            // Une ligne par jour, sans trou, de son premier jour à la veille (ou à sa fin) ; aucune hors de
+            // sa période. Le dernier jour peut manquer : un seed qui passe minuit l'a écrit la veille, comme
+            // l'application avant le versement de la nuit — mesuré le 2026-10-26, 4 Vedettes en cours.
+            'vedette_sans_une_statistique_par_jour' => DB::table('property_boosts as b')
+                ->leftJoinSub(
+                    DB::table('property_boost_daily_stats')->selectRaw('property_boost_id, COUNT(*) AS n, MIN(date) AS lo, MAX(date) AS hi')->groupBy('property_boost_id'),
+                    's', 's.property_boost_id', '=', 'b.id',
+                )
+                ->where('b.kind', BoostKind::Featured->value)
+                ->whereRaw('CASE WHEN s.n IS NULL
+                    THEN LEAST(COALESCE(b.ended_at::date, CURRENT_DATE - 1), CURRENT_DATE - 1) > b.starts_at::date
+                    ELSE s.lo <> b.starts_at::date OR s.n <> s.hi - s.lo + 1
+                        OR s.hi < LEAST(COALESCE(b.ended_at::date, CURRENT_DATE - 1), CURRENT_DATE - 1) - 1
+                    END')
+                ->count(),
+            'statistique_hors_de_la_periode_de_sa_vedette' => DB::table('property_boost_daily_stats as d')
+                ->join('property_boosts as b', 'b.id', '=', 'd.property_boost_id')
+                ->where(fn ($q) => $q->whereRaw('d.date < b.starts_at::date')->orWhereRaw('d.date > COALESCE(b.ended_at::date, CURRENT_DATE)'))
+                ->count(),
+            'indisponibilite_sur_une_reservation_confirmee' => DB::table('property_unavailabilities as u')
+                ->join('bookings as b', 'b.property_id', '=', 'u.property_id')
+                ->where('b.status', BookingStatus::Confirmed->value)
+                ->whereColumn('b.start_date', '<', 'u.ends_on')
+                ->whereColumn('b.end_date', '>', 'u.starts_on')
+                ->count(),
+            'demande_convertie_apres_sa_fiche' => DB::table('property_contact_leads as d')
+                ->join('customers as c', 'c.id', '=', 'd.customer_id')
+                ->whereColumn('d.created_at', '>', 'c.created_at')
+                ->count(),
+            'reversement_vers_une_destination_non_verifiee' => DB::table('payouts as p')
+                ->whereNotNull('p.payout_method_id')
+                ->whereNotExists(fn ($q) => $q->select(DB::raw(1))->from('payout_method_verifications as v')
+                    ->whereColumn('v.payout_method_id', 'p.payout_method_id')
+                    ->whereColumn('v.agency_id', 'p.agency_id'))
+                ->count(),
+        ];
     }
 
-    /**
-     * Crée des payments manquants pour un lease.
-     */
-    private function createMissingPaymentsForLease(Lease $lease): void
+    /** Les lignes de `$table` dont l'agent n'était pas encore arrivé, ou déjà parti, à leur date. */
+    private function parUnAgentAbsent(string $table, string $colonneAgent, string $colonneDate): int
     {
-        // Créer 2-3 payments historiques
-        $paymentCount = random_int(2, 3);
-
-        for ($i = 0; $i < $paymentCount; $i++) {
-            $dueDate = now()->subMonths($paymentCount - $i);
-
-            LeasePayment::create([
-                'lease_id' => $lease->id,
-                'payer_id' => $lease->tenant_id,
-                'reference_number' => 'LP-'.strtoupper(Str::random(8)),
-                'amount' => $lease->monthly_rent,
-                'currency' => $lease->currency?->value ?? 'XOF',
-                'due_date' => $dueDate->toDateString(),
-                'paid_at' => $dueDate->copy()->addDays(random_int(0, 5)),
-                'status' => PaymentStatus::Paid->value,
-                'payment_method' => PaymentMethod::BankTransfer->value,
-                'payment_type' => LeasePaymentType::Rent->value,
-                'period_start' => $dueDate->copy()->startOfMonth()->toDateString(),
-                'period_end' => $dueDate->copy()->endOfMonth()->toDateString(),
-                'created_at' => $dueDate,
-                'updated_at' => $dueDate,
-            ]);
-        }
+        return DB::table("{$table} as t")
+            ->join('users as u', 'u.id', '=', "t.{$colonneAgent}")
+            ->where(fn (Builder $q) => $q
+                ->whereColumn('u.created_at', '>', "t.{$colonneDate}")
+                ->orWhereExists(fn (Builder $e) => $e->from('agent_profiles as ap')
+                    ->whereColumn('ap.user_id', 'u.id')
+                    ->where('ap.status', AgentProfileStatus::Suspended->value)
+                    ->whereColumn('ap.updated_at', '<=', "t.{$colonneDate}")))
+            ->count();
     }
 
-    /**
-     * Assure que tous les customers ont au moins une activité.
-     */
-    private function ensureCustomersHaveActivity(): void
+    private function bauxDeLocation(): Builder
     {
-        foreach ($this->ctx->agencies as $agency) {
-            $customers = $this->ctx->customersByAgency[$agency->id] ?? collect();
-
-            foreach ($customers as $customer) {
-                if (! $this->checkCustomerHasActivity($customer)) {
-                    $this->createActivityForCustomer($customer, $agency->id);
-                }
-            }
-        }
+        return DB::table('leases as l')
+            ->join('properties as p', 'p.id', '=', 'l.property_id')
+            ->whereIn('l.type', self::typesDeLocation());
     }
 
-    /**
-     * Crée une activité (booking ou favori) pour un customer sans activité.
-     */
-    private function createActivityForCustomer(Customer $customer, int $agencyId): void
+    /** @return list<string> */
+    private static function typesDeLocation(): array
     {
-        $properties = $this->ctx->propertiesByAgency[$agencyId] ?? collect();
-
-        if ($properties->isEmpty()) {
-            return;
-        }
-
-        // 70% de chances de créer un booking, 30% un favori seulement
-        if (random_int(1, 100) <= 70) {
-            $property = $properties->random();
-            $agents = $this->ctx->usersWithProfile(AgentProfile::class, $agencyId);
-
-            Booking::withoutEvents(fn () => Booking::create([
-                'property_id' => $property->id,
-                'customer_id' => $customer->id,
-                'created_by_id' => $agents->isNotEmpty() ? $agents->random()->id : null,
-                'agency_id' => $agencyId,
-                'reference_number' => 'BK-'.strtoupper(Str::random(8)),
-                'status' => BookingStatus::Completed->value,
-                'total_amount' => $property->price,
-                'deposit_amount' => (int) ($property->price * 0.2),
-                'currency' => $property->currency?->value ?? 'XOF',
-                'start_date' => now()->addWeek()->toDateString(),
-                'end_date' => now()->addMonth()->toDateString(),
-                'confirmed_at' => now(),
-                'created_at' => now()->subDays(3),
-                'updated_at' => now(),
-            ]));
-        } elseif ($customer->user_id !== null) {
-            // Créer un favori (uniquement si le customer a un user lié)
-            $property = $properties->random();
-            Favorite::create([
-                'user_id' => $customer->user_id,
-                'property_id' => $property->id,
-                'created_at' => now()->subDays(random_int(1, 30)),
-                'updated_at' => now(),
-            ]);
-        }
+        return [LeaseType::ResidentialRent->value, LeaseType::CommercialRent->value, LeaseType::SeasonalRent->value];
     }
 
-    /**
-     * Assure que les bookings confirmed/completed ont des payments.
-     */
-    private function ensureBookingsHavePaymentsWhenRequired(): void
+    /** @return list<string> */
+    public static function typesDeLaFamille(string $famille): array
     {
-        $bookingsNeedingPayments = Booking::whereIn('status', [
-            BookingStatus::Confirmed->value,
-            BookingStatus::Completed->value,
-        ])
-            ->whereDoesntHave('payments')
-            ->get();
-
-        foreach ($bookingsNeedingPayments as $booking) {
-            BookingPayment::create([
-                'booking_id' => $booking->id,
-                'amount' => $booking->deposit_amount,
-                'currency' => $booking->currency?->value ?? 'XOF',
-                'payment_type' => BookingPaymentType::Deposit->value,
-                'status' => PaymentStatus::Paid->value,
-                'payment_method' => PaymentMethod::BankTransfer->value,
-                'paid_at' => $booking->confirmed_at ?? $booking->created_at,
-                'created_at' => $booking->confirmed_at ?? $booking->created_at,
-                'updated_at' => now(),
-            ]);
-        }
-    }
-
-    /**
-     * Assure que les properties available ont des visits ou bookings.
-     */
-    private function ensurePropertiesHaveVisitsOrBookings(): void
-    {
-        foreach ($this->ctx->agencies as $agency) {
-            $properties = $this->ctx->propertiesByAgency[$agency->id] ?? collect();
-
-            foreach ($properties as $property) {
-                if ($property->status !== PropertyStatus::Available) {
-                    continue;
-                }
-
-                $hasVisits = PropertyVisit::where('property_id', $property->id)->exists();
-                $hasBookings = Booking::where('property_id', $property->id)->exists();
-
-                if (! $hasVisits && ! $hasBookings) {
-                    $this->createVisitForProperty($property);
-                }
-            }
-        }
-    }
-
-    /**
-     * Crée une visite pour une property.
-     */
-    private function createVisitForProperty(Property $property): void
-    {
-        $customers = $this->ctx->customersByAgency[$property->agency_id] ?? collect();
-        $agents = $this->ctx->usersWithProfile(AgentProfile::class, $property->agency_id);
-
-        if ($customers->isEmpty() || $agents->isEmpty()) {
-            return;
-        }
-
-        PropertyVisit::create([
-            'property_id' => $property->id,
-            'customer_id' => $customers->random()->id,
-            'agent_id' => $agents->random()->id,
-            'scheduled_at' => now()->subDays(random_int(1, 30)),
-            'status' => VisitStatus::Completed->value,
-            'notes' => $this->ctx->faker()->sentence(),
-            'created_at' => now()->subDays(random_int(5, 35)),
-            'updated_at' => now(),
-        ]);
-    }
-
-    /**
-     * Synchronise le statut des properties avec leurs leases.
-     */
-    private function syncPropertyStatusWithLeases(): void
-    {
-        // Properties avec lease active mais statut non-Rented
-        $propertiesWithActiveLease = Property::whereHas('leases', function ($query) {
-            $query->where('status', LeaseStatus::Active);
-        })
-            ->where('status', '!=', PropertyStatus::Rented->value)
-            ->get();
-
-        foreach ($propertiesWithActiveLease as $property) {
-            Property::withoutEvents(fn () => $property->update(['status' => PropertyStatus::Rented]));
-        }
+        return array_keys(array_filter(PropertyLabels::FAMILLES, fn (string $f) => $f === $famille));
     }
 }
