@@ -7,8 +7,8 @@ family: applicatif
 estimate: XL
 wave: 43
 created: 2026-08-21
-updated: 2026-08-21
-depends_on: []
+updated: 2026-10-26
+depends_on: [TCK-2383]
 blocks: []
 spec_refs:
   features:
@@ -56,6 +56,13 @@ SELECT 1 FROM pg_available_extensions WHERE name = 'vector';
 
 C'est la seule raison pour laquelle ADR-0020 a embarqué l'image plutôt que de la remettre à ce
 ticket.
+
+## Le socle IA (2026-10-26)
+
+Ce ticket ne pose plus son intégration IA lui-même : il **déclare des usages** au socle
+d'[ADR-0076](../../adr/0076-le-socle-ia.md) (TCK-2383), qui choisit le modèle, tient le budget et
+journalise. La table `embeddings` est dessinée par ADR-0076 § 11 ; la crée **le premier de ses
+usagers** à être implémenté, ce ticket ou TCK-2392 (lot 2 du Radar).
 
 ## Références
 

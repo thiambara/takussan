@@ -2,7 +2,7 @@
 
 - **Statut** : Accepté
 - **Date** : 2026-10-26
-- **Tickets** : lot 0 du [plan Radar et socle IA](../plans/2026-10-26-radar-et-socle-ia.md) — tickets à créer par `/write-spec`
+- **Tickets** : TCK-2383, TCK-2384, TCK-2385 (lot 0 du [plan Radar et socle IA](../plans/2026-10-26-radar-et-socle-ia.md)) ; TCK-344 s'y rattache
 - **Premier usager** : [ADR-0077](0077-le-radar.md) (le Radar)
 
 ## Contexte
@@ -139,7 +139,7 @@ socle choisit le modèle, contrôle le budget et les données, journalise l'appe
 
 ## Application
 
-À écrire par les tickets du lot 0. Ce qui empêchera la régression :
+À écrire par TCK-2383 à TCK-2385. Ce qui empêchera la régression :
 
 - garde « tout agent `laravel/ai` est un usage déclaré » ;
 - garde « aucun identifiant de modèle hors de `config/ai.php` et des jeux d'évaluation » ;

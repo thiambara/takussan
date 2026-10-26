@@ -227,8 +227,9 @@ Les passages marqués ⚠ sont à trancher avec lui.
 >   la plateforme pour le relevé et le premier contact ; votre consentement pour la publication et
 >   la création du compte.
 
-**§ 4.3, nouvelle puce** (à n'écrire qu'avec les fournisseurs effectivement sélectionnables : la
-garde d'ADR-0076 § 3 les tient d'accord) :
+**§ 4.3, nouvelle puce.** Elle entre **dès le lot 0** (TCK-2383), en termes génériques, avec le
+premier fournisseur ajouté à la configuration : la garde d'ADR-0076 § 3 refuse un fournisseur
+sélectionnable que le texte ne nomme pas. Le lot 1 (TCK-2389) la précise ainsi :
 
 > - **Intelligence artificielle** : Anthropic (États-Unis) ⚠ [et tout autre fournisseur retenu] —
 >   analyse du texte et des images d'une annonce pour en extraire les caractéristiques, rédaction
@@ -256,19 +257,27 @@ garde d'ADR-0076 § 3 les tient d'accord) :
 4. **Un téléphone et un numéro WhatsApp dédiés au Radar**, et plus tard un second numéro Meta pour
    le lot 5.
 
-## Les tickets à créer (`/write-spec`)
+## Les tickets
 
-- **Lot 0** :
-  1. passerelle, registre, rôles de modèle, `ai_calls` ;
-  2. `ai_suggestions`, prompts versionnés, `ai:eval` et son cliquet ;
-  3. console `/super-admin/ai`.
-- **Lot 1** :
-  1. tables, saisie, extraction ;
-  2. relecture et rapprochements ;
-  3. démarchage et preuve d'accord ;
-  4. publier pour lui, avec les clauses juridiques ;
-  5. réclamation par l'annonceur ;
-  6. révocation et purge.
-- **Lots 2 à 5** : un ticket chacun, qui pointe vers ce plan.
+| Lot | Ticket | Objet | Dépend de |
+|---|---|---|---|
+| 0 | [TCK-2383](../backlog/tickets/TCK-2383-socle-ia-passerelle-registre-roles.md) | `laravel/ai`, rôles de modèle, registre, passerelle, `ai_calls` | — |
+| 0 | [TCK-2384](../backlog/tickets/TCK-2384-socle-ia-suggestions-prompts-evaluations.md) | `ai_suggestions`, prompts versionnés, `ai:eval` et son cliquet | 2383 |
+| 0 | [TCK-2385](../backlog/tickets/TCK-2385-console-super-admin-ia.md) | Console `/super-admin/ai` | 2383, 2384 |
+| 1 | [TCK-2386](../backlog/tickets/TCK-2386-radar-saisie-et-extraction.md) | Tables, saisie, extraction | 2383, 2384 |
+| 1 | [TCK-2387](../backlog/tickets/TCK-2387-radar-relecture-et-rapprochements.md) | Relecture et rapprochements | 2386 |
+| 1 | [TCK-2388](../backlog/tickets/TCK-2388-radar-demarchage-et-preuve-d-accord.md) | Fiche annonceur, message d'accord, preuve | 2386 |
+| 1 | [TCK-2389](../backlog/tickets/TCK-2389-radar-publier-pour-l-annonceur.md) | Publier pour lui, et les clauses juridiques | 2387, 2388 |
+| 1 | [TCK-2390](../backlog/tickets/TCK-2390-radar-reclamation-par-l-annonceur.md) | Réclamation par code SMS | 2388, 2389 |
+| 1 | [TCK-2391](../backlog/tickets/TCK-2391-radar-revocation-et-purge.md) | Révocation et purge | 2389 |
+| 2 | [TCK-2392](../backlog/tickets/TCK-2392-radar-collecte-automatique.md) | Collecte automatique, instantanés, `embeddings` | 2387 |
+| 3 | [TCK-2393](../backlog/tickets/TCK-2393-radar-annonceurs-et-observatoire.md) | Annonceurs et observatoire | 2392 |
+| 4 | [TCK-2394](../backlog/tickets/TCK-2394-radar-activation-et-mandat.md) | Activation et mandat (ADR à écrire) | 2389, 2390 |
+| 5 | [TCK-2395](../backlog/tickets/TCK-2395-radar-whatsapp-automatise.md) | WhatsApp automatisé | 2388 |
+
+TCK-2385 (console) et TCK-2386 (saisie) peuvent avancer en parallèle une fois le socle posé, puis
+TCK-2387 et TCK-2388. Les lots 2 à 5 sont des tickets de cap, à découper le moment venu.
+[TCK-344](../backlog/tickets/TCK-344-pgvector-et-chatbot.md) (le chatbot) dépend désormais du
+socle.
 
 Chaque ticket qui crée un modèle ajoute sa section à `docs/models-spec.md` **dans la même PR**.

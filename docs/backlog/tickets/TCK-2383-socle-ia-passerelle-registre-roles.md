@@ -1,0 +1,121 @@
+---
+id: TCK-2383
+title: "Socle IA : laravel/ai, rôles de modèle affectés en base, registre des usages et passerelle unique journalisée"
+status: todo
+phase: P1
+family: back
+estimate: L
+wave: 80
+created: 2026-10-26
+updated: 2026-10-26
+depends_on: []
+blocks: [TCK-2384, TCK-2385, TCK-2386, TCK-344]
+spec_refs:
+  features:
+    - "docs/features.md#211-socle-ia"
+  models: []
+tags: [api, ia, socle-ia, laravel-ai, adr-0076]
+---
+
+## Objectif utilisateur
+
+Le super-admin peut faire tourner n'importe quelle fonctionnalité IA de la plateforme sur le modèle
+de son choix, sous budget, sans qu'aucune ligne de code applicatif ne nomme un modèle.
+
+## Contexte
+
+Lot 0 du [plan Radar et socle IA](../../plans/2026-10-26-radar-et-socle-ia.md), décidé par
+[ADR-0076](../../adr/0076-le-socle-ia.md) §1 à §6. Mesuré sur `dev` `ac1ac129` : aucune IA dans le
+dépôt, `laravel/ai` absent de `composer.json`. Ce ticket pose la fondation ; les suggestions et les
+évaluations sont TCK-2384, la console TCK-2385.
+
+## Contrat de données
+
+- Table `ai_role_assignments` : l'affectation d'un rôle (enum fermé) à une chaîne ordonnée de
+  maillons *fournisseur · modèle · paramètres*, et le modèle forcé éventuel d'un usage.
+- Table `ai_calls` : le journal de chaque appel (ADR-0076 §5).
+- Aucune route HTTP dans ce ticket : la console (TCK-2385) les ajoute.
+
+## Contraintes strictes (métier)
+
+- **Aucun identifiant de modèle hors de `config/ai.php`** et des jeux d'évaluation.
+- **Repli** : sans ligne en base pour un rôle, la chaîne vient de `config/ai.php`. Une base vide
+  ne doit jamais rendre le socle inopérant.
+- **Les clés des fournisseurs viennent de l'environnement**, jamais de la base.
+- **Fournisseurs sélectionnables = liste fermée en configuration** (`ai.providers`). Une garde
+  vérifie qu'elle concorde avec les sous-traitants nommés par
+  `takussan-web/src/content/legal/privacy.ts` (ADR-0076 §3).
+- **Ordre de la passerelle**, non négociable : coupe-circuit → budget → masquage → cache → appel
+  avec bascule → journal. Un appel refusé (coupe-circuit, budget, données) est **journalisé aussi**,
+  avec son motif.
+- **Classe de données** : `publique` · `personnelle` · `sensible`. Une charge contenant une donnée
+  `sensible` est refusée avant l'appel, quel que soit l'usage.
+- Budget par agence : `ai_calls.agency_id` est renseigné quand l'appel agit pour une agence ;
+  `null` pour un usage de plateforme (le Radar).
+- Coût estimé calculé depuis une table de tarifs en configuration, par modèle ; un modèle sans
+  tarif est journalisé avec `cost_estimate` nul **et un avertissement**, jamais un coût inventé.
+
+## Delta à produire
+
+- [ ] `composer require laravel/ai`. Relire les migrations que le paquet publie : ne garder que
+      celles qu'un usage exige (les conversations du SDK ne le sont pas au lot 0), le noter.
+- [ ] `config/ai.php` : fournisseurs (liste fermée), rôles et chaînes par défaut, tarifs, budgets
+      par défaut. Clés `.env.example` et `.env.docker` (vides) : `ANTHROPIC_API_KEY`,
+      `AI_DAILY_BUDGET_XOF`.
+- [ ] Enum `App\Models\Enums\AiModelRole` (`extraction`, `redaction`, `raisonnement`, `vision`,
+      `embedding`) et `App\Models\Enums\AiDataClass`.
+- [ ] Migration `create_ai_role_assignments_table` · modèle `AiRoleAssignment`.
+- [ ] Migration `create_ai_calls_table` (usage, rôle, fournisseur, modèle, version du prompt,
+      tokens entrée/sortie/cache, `cost_estimate`, durée, issue, motif de refus, `agency_id`,
+      objet polymorphe) · modèle `AiCall`.
+- [ ] `App\Services\Ai\AiUsage` (contrat) et `App\Services\Ai\AiUsageRegistry` : déclaration
+      d'un usage (clé, rôle, prompt, budget, autorité requise — `Capability` ou
+      `PlatformAbility` —, classe de données).
+- [ ] `App\Services\Ai\ModelResolver` : rôle → chaîne (base, sinon configuration), modèle forcé
+      d'usage prioritaire.
+- [ ] `App\Services\Ai\AiGateway` : l'unique point d'appel, dans l'ordre des contraintes.
+- [ ] `App\Services\Ai\AiBudget` (global journalier, par usage, par agence, en XOF).
+- [ ] Coupe-circuit par usage sur `FeatureFlag` (clé `ai.<usage>`).
+- [ ] Garde `scripts/check-ai-usages.mjs` : tout agent `laravel/ai` sous `app/Ai/Agents/` est
+      déclaré au registre ; aucun identifiant de modèle hors de `config/ai.php`.
+- [ ] Garde `scripts/check-ai-providers-privacy.mjs` : `ai.providers` ⊆ sous-traitants de
+      `privacy.ts`.
+- [ ] `takussan-web/src/content/legal/privacy.ts` § 4.3 (`fr` et `en`) : une puce « Intelligence
+      artificielle » qui nomme chaque fournisseur de `ai.providers`, en termes génériques (des
+      contenus que certaines fonctionnalités lui soumettent ; jamais de donnée sensible) ;
+      `VERSION_DOCUMENTS` avance. C'est la PR qui ajoute un fournisseur qui le déclare : la garde
+      ci-dessus l'impose.
+- [ ] Sections `docs/models-spec.md` pour `AiRoleAssignment` et `AiCall`.
+- [ ] Tests : `AiGatewayTest` (ordre, refus journalisés, bascule sur panne du premier maillon,
+      cache par empreinte), `AiBudgetTest`, `ModelResolverTest` (base, repli, modèle forcé),
+      `AiSensitiveDataTest`. **Tous sur les faux modèles du SDK** : aucun appel réseau.
+
+## Critères d'acceptation
+
+- [ ] AC1 — Un usage déclaré appelle le modèle affecté à son rôle en base ; sans ligne en base,
+      celui de `config/ai.php` ; avec un modèle forcé, celui-là.
+- [ ] AC2 — Le premier maillon en erreur fait passer au suivant, et `ai_calls` porte les deux
+      lignes (l'échec et la réussite).
+- [ ] AC3 — Budget épuisé : aucun appel au fournisseur (le faux modèle n'est **pas** sollicité),
+      une ligne `ai_calls` au motif `budget`.
+- [ ] AC4 — Coupe-circuit levé : même chose, au motif `kill_switch`.
+- [ ] AC5 — Une charge marquée `sensible` est refusée avant l'appel, quel que soit l'usage.
+- [ ] AC6 — Deux appels au contenu identique : un seul appel au fournisseur, le second journalisé
+      `cache_hit`.
+- [ ] AC7 — Ajouter un agent sous `app/Ai/Agents/` sans le déclarer fait rougir
+      `check-ai-usages.mjs` ; écrire un identifiant de modèle dans un service aussi.
+- [ ] AC8 — Ajouter à `ai.providers` un fournisseur absent de `privacy.ts` fait rougir
+      `check-ai-providers-privacy.mjs`.
+- [ ] AC9 — Chaque test ci-dessus rougit quand on retire la ligne qu'il protège (ablation).
+
+## Hors périmètre
+
+- `ai_suggestions`, prompts versionnés, `ai:eval` (TCK-2384).
+- Toute route et tout écran (TCK-2385).
+- La table `embeddings` (créée par son premier usager : TCK-2392 ou TCK-344).
+- La facturation de l'IA en crédits d'espace.
+- Les finalités propres au Radar dans `privacy.ts` et l'article 6.3 de `terms.ts` (TCK-2389).
+
+## Notes d'implémentation
+
+_(à remplir par implementing-specs)_

@@ -2,7 +2,7 @@
 
 - **Statut** : Accepté
 - **Date** : 2026-10-26
-- **Tickets** : lot 1 du [plan Radar et socle IA](../plans/2026-10-26-radar-et-socle-ia.md) — tickets à créer par `/write-spec`
+- **Tickets** : TCK-2386 à TCK-2391 (lot 1 du [plan Radar et socle IA](../plans/2026-10-26-radar-et-socle-ia.md)) ; lots 2 à 5 : TCK-2392 à TCK-2395
 - **Dépend de** : [ADR-0076](0076-le-socle-ia.md) (le socle IA)
 
 ## Contexte
@@ -139,7 +139,7 @@ espace individuel ordinaire.**
 
 ## Application
 
-À écrire par les tickets du lot 1. Ce qui empêchera la régression :
+À écrire par TCK-2386 à TCK-2391. Ce qui empêchera la régression :
 
 - test « la publication pour l'annonceur refuse sans accord valide couvrant chaque annonce » ;
 - test « un numéro déjà inscrit ne crée pas de compte » ;
