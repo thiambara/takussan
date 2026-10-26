@@ -35,7 +35,9 @@ use Illuminate\Support\Facades\DB;
  *  - des achats de Vedette, de Remontée et de Badge (`BoostPurchaseService::purchase`), qui débitent
  *    le grand livre et prolongent une Vedette en cours par une tranche ; une agence à court de
  *    crédits n'achète pas — l'achat de crédits est la phase 2 (ADR-0061 §11) ;
- *  - quelques Vedettes offertes par la plateforme (`offerFeatured`).
+ *  - les crédits mensuels du programme de lancement (`CreditLedger::adminAdjust`) ;
+ *  - la campagne en cours : des Vedettes achetées ces dernières semaines, actives aujourd'hui ;
+ *  - quelques Vedettes offertes par la plateforme (`offerFeatured`), ces derniers jours.
  *
  * Les deux balayages de `boosts:tick` — fin des boosts échus (`BoostLifecycle::endExpired`) et
  * expiration des lots (`CreditLedger::expireDue`) — passent au créneau de cinq minutes qui suit
@@ -57,6 +59,12 @@ class BoostActivitySeeder extends Seeder
 
     /** Achats par agence sur la période, à la taille de l'agence (`SeedingContext::volume`). */
     private const ACHATS_PAR_AGENCE = 24;
+
+    /** Crédits du programme de lancement, chaque mois, à la taille de l'agence ; valables 45 jours. */
+    private const CREDITS_DU_MOIS = 60;
+
+    /** Vedettes de la campagne en cours, à la taille de l'agence : celles qu'un visiteur voit aujourd'hui. */
+    private const VEDETTES_EN_COURS = 8;
 
     /** @var array<string, int> offre (`kind:variant:durée`) => poids */
     private const OFFRES = [
@@ -107,11 +115,22 @@ class BoostActivitySeeder extends Seeder
                 ));
             }
 
+            // Le programme de lancement : des crédits chaque mois, sans quoi l'offre de bienvenue,
+            // valable 180 jours, s'épuisait des mois avant aujourd'hui — mesuré, 2 Vedettes actives sur
+            // 582 biens en préproduction (2026-10-26).
+            for ($mois = $debut->addMonth(); $mois->lessThan($maintenant); $mois = $mois->addMonth()) {
+                $this->planifier(Timeline::businessHour($mois), fn () => $this->grandLivre->adminAdjust(
+                    $agency, $this->ctx->volume(self::CREDITS_DU_MOIS, $agency->id), $this->ctx->operateur(),
+                    'Programme de lancement : crédits du mois', 45,
+                ));
+            }
+
             $publics = Property::query()->public()->where('agency_id', $agency->id)->orderBy('id')->get();
             for ($i = 0; $i < $this->ctx->volume(self::ACHATS_PAR_AGENCE, $agency->id); $i++) {
                 $date = Timeline::businessHour(Timeline::dateCroissante($debut->addDays(2), $maintenant->subHours(3)));
                 $this->achat($agency, $publics, $date);
             }
+            $this->campagneEnCours($agency, $publics, $maintenant);
         }
 
         $this->vedettesOffertes($maintenant);
@@ -216,7 +235,35 @@ class BoostActivitySeeder extends Seeder
         });
     }
 
-    /** Deux Vedettes offertes par la plateforme, ces dernières semaines, à la plus grande agence. */
+    /**
+     * Les Vedettes qu'un visiteur voit aujourd'hui : chaque agence en a acheté ces dernières semaines,
+     * sur des biens distincts, pour une durée qui court encore.
+     *
+     * @param  Collection<int, Property>  $publics
+     */
+    private function campagneEnCours(Agency $agency, Collection $publics, CarbonImmutable $maintenant): void
+    {
+        $candidats = $publics->filter(fn (Property $p) => CarbonImmutable::parse($p->published_at ?? $p->created_at)->lessThan($maintenant->subDays(30)))->values();
+        $nombre = min($candidats->count(), $this->ctx->volume(self::VEDETTES_EN_COURS, $agency->id));
+
+        foreach (Tirage::plusieurs($candidats, $nombre) as $bien) {
+            $longue = mt_rand(1, 100) <= 60;
+            $offre = $this->offres[$longue ? 'featured::30' : 'featured::15'] ?? null;
+            $date = Timeline::businessHour($maintenant->subDays($longue ? mt_rand(2, 25) : mt_rand(1, 12)));
+            $acheteurId = $this->ctx->agentAu($agency->id, $date);
+            if ($offre === null || $acheteurId === null) {
+                continue;
+            }
+
+            $this->planifier($date, function () use ($agency, $bien, $offre, $acheteurId): void {
+                if ($this->grandLivre->balance($agency) >= $offre->price_credits) {
+                    $this->achats->purchase($bien, $offre, User::query()->findOrFail($acheteurId));
+                }
+            });
+        }
+    }
+
+    /** Deux Vedettes offertes par la plateforme, ces derniers jours, à la plus grande agence. */
     private function vedettesOffertes(CarbonImmutable $maintenant): void
     {
         $offre = $this->offres['featured::15'] ?? null;
@@ -227,7 +274,7 @@ class BoostActivitySeeder extends Seeder
         $biens = Property::query()->public()->where('agency_id', $agencyId)->orderBy('id')->get();
 
         foreach (Tirage::plusieurs($biens, min(2, $biens->count())) as $bien) {
-            $this->planifier(Timeline::businessHour($maintenant->subDays(mt_rand(5, 40))), fn () => $this->achats->offerFeatured(
+            $this->planifier(Timeline::businessHour($maintenant->subDays(mt_rand(1, 12))), fn () => $this->achats->offerFeatured(
                 $bien, $offre, $this->ctx->operateur(), 'Vedette offerte : agence partenaire du lancement',
             ));
         }
