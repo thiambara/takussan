@@ -1,7 +1,7 @@
 ---
 id: TCK-2382
 title: "Le seed montre des Vedettes en cours, et la préproduction sème environ 950 biens"
-status: doing
+status: done
 phase: P2
 family: technique
 estimate: S
@@ -41,7 +41,7 @@ Le porteur demande aussi environ 950 biens, contre 582 (dont 240 biens de test, 
       ou 30 jours achetées ces dernières semaines sur des biens distincts ; les Vedettes offertes
       par la plateforme datées des derniers jours.
 - [x] `SeedingFeatureTablesTest` : chaque agence `standard` a au moins 3 Vedettes actives.
-- [ ] Préproduction : `SEED_PROPERTIES_PER_AGENCY` réglé pour environ 950 biens réalistes, puis
+- [x] Préproduction : `SEED_PROPERTIES_PER_AGENCY` réglé pour environ 950 biens réalistes, puis
       reseed.
 
 ## Critères d'acceptation
@@ -50,7 +50,7 @@ Le porteur demande aussi environ 950 biens, contre 582 (dont 240 biens de test, 
       venir, et le test rougit sans la campagne en cours.
 - [x] AC2 — Invariants tenus : solde de crédits = Σ mouvements, tranches = total de chaque Vedette,
       une statistique par jour écoulé.
-- [ ] AC3 — La préproduction compte environ 950 biens réalistes (`is_test = false`) après son
+- [x] AC3 — La préproduction compte environ 950 biens réalistes (`is_test = false`) après son
       reseed, et le seed y tient dans la limite mémoire du conteneur (256 Mo pour PHP).
 
 ## Hors périmètre
@@ -80,8 +80,15 @@ le test rougit (ablation jouée).
 Les 68 Vedettes offertes sur des biens de test (`LegacyFeaturedConversion`) s'ajoutent aux
 actives, mais la préproduction les met en pause : leurs biens ne sont pas publics.
 
-## Reste sur dev
+## Clôture en préproduction (2026-10-26)
 
-- AC3 et la dernière case du delta : régler `SEED_PROPERTIES_PER_AGENCY=430` dans le Compose de
-  l'API de préproduction, puis reseed (sauvegarde, seaux R2 vidés, service `seed`). Ce geste se
-  fait après la promotion vers `preview`.
+`SEED_PROPERTIES_PER_AGENCY=430` posé dans le Compose de l'API par `compose.update`, et relu sur
+le serveur après le déploiement de `c9dcc333`. Avant le reseed : sauvegarde manuelle de
+`takussan_preview` relue dans R2 (15:25 UTC), et les deux seaux de médias vidés (2 570 et 7 400
+objets). Seed de 15:50 à 17:40 UTC, sortie 0, invariants tenus.
+
+Relevé après le seed :
+- **950 biens réalistes**, plus 240 biens de test ;
+- 625 annonces publiques, dont **26 en Vedette** (2 avant ce ticket) ;
+- 4 982 photos téléchargées, 0 échec ;
+- file `media` vide, aucun job en échec.
