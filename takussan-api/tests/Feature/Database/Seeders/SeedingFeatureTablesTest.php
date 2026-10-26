@@ -6,6 +6,7 @@ use App\Models\Agency;
 use App\Models\CommissionEntry;
 use App\Models\Enums\AgencyKind;
 use App\Models\Enums\BoostKind;
+use App\Models\Enums\BoostStatus;
 use App\Models\Enums\LeaseStatus;
 use App\Models\Lease;
 use App\Models\PropertyBoost;
@@ -130,6 +131,14 @@ class SeedingFeatureTablesTest extends TestCase
         // et il y en a.
         $this->assertTrue(PropertyBoost::query()->where('kind', BoostKind::Featured)->exists(), 'Aucune Vedette.');
         $this->assertTrue(DB::table('property_boost_daily_stats')->exists());
+
+        // TCK-2382 — ce qu'un visiteur voit aujourd'hui : chaque agence standard a des Vedettes en
+        // cours, et non les seules survivantes de six mois d'achats (2 sur 582 biens en préproduction).
+        foreach ($standards as $agencyId) {
+            $actives = PropertyBoost::query()->where('agency_id', $agencyId)->where('kind', BoostKind::Featured)
+                ->where('status', BoostStatus::Active)->where('ends_at', '>', now())->count();
+            $this->assertGreaterThanOrEqual(3, $actives, "Vedettes actives de l'agence {$agencyId}.");
+        }
     }
 
     private function semer(): void
