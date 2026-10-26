@@ -59,6 +59,8 @@
 2.8 [Internationalisation & préférences](#28-internationalisation--préférences)
 2.9 [Administration & configuration](#29-administration--configuration)
 2.10 [Pages légales publiques](#210-pages-légales-publiques)
+2.11 [Socle IA](#211-socle-ia)
+2.12 [Radar — acquisition d'annonces](#212-radar--acquisition-dannonces)
 
 ---
 
@@ -733,6 +735,75 @@ français absent fait toujours afficher l'état « texte à fournir ».
   annoncées par la politique de confidentialité et la minimisation de l'auteur d'un avis public.
 - **Tout nouveau prestataire, traceur, purge ou changement de commission** se reporte dans le texte
   concerné dans le même changement, et la date de version (`VERSION_DOCUMENTS`) avance.
+
+### 2.11 Socle IA
+
+Toute fonctionnalité qui fait appel à un modèle d'IA passe par un socle commun : elle **déclare un
+usage**, et le socle choisit le modèle, tient le budget, masque les données, journalise l'appel et
+le rend évaluable ([ADR-0076](adr/0076-le-socle-ia.md)). Le Radar ([§2.12](#212-radar--acquisition-dannonces))
+en est le premier usager. Vision et lots : [plan du 2026-10-26](plans/2026-10-26-radar-et-socle-ia.md).
+
+| Prio | Acteurs | Fonctionnalité |
+|------|---------|----------------|
+| P1 | 🛡️ | Affecter à chaque rôle de modèle (`extraction`, `redaction`, `raisonnement`, `vision`, `embedding`) une chaîne ordonnée de modèles depuis la console super-admin, avec bascule automatique à la panne ; forcer un modèle pour un usage ; sous second facteur récent, journalisé |
+| P1 | 🛡️ | Évaluer un modèle candidat avant de l'affecter : score par champ et coût, comparés au modèle en place sur le jeu d'évaluation de chaque usage concerné ; un score sous le cliquet bloque l'affectation, sauf dérogation journalisée |
+| P1 | 🛡️ | Voir, par fournisseur, si sa clé est présente (jamais sa valeur) et tester la connexion ; seuls les fournisseurs nommés par la politique de confidentialité sont sélectionnables |
+| P1 | 🛡️ | Budgets (global journalier, par usage, par agence) et coupe-circuit par usage |
+| P1 | 🛡️ | Tableau de bord IA : coût et latence par usage et par jour, erreurs, taux d'acceptation des suggestions, dernier score d'évaluation |
+
+**Règles de gestion.**
+
+- **Aucun nom de modèle dans le code applicatif** : le code demande un rôle, l'affectation vit en
+  base avec un repli sur la configuration.
+- **Les clés des fournisseurs restent dans l'environnement**, jamais en base ni dans la console.
+- **L'IA propose, un humain décide** : une sortie qui modifierait une donnée est une suggestion
+  acceptée, corrigée ou rejetée, et la correction est conservée.
+- **Une donnée sensible** (pièce d'identité, revenu) **ne part jamais vers un fournisseur.**
+- **L'agence reste la frontière d'isolation** pour tout outil qu'un agent IA appelle.
+- **Un contenu externe est une donnée, jamais une consigne** : l'usage qui le lit n'a aucun outil
+  d'écriture.
+- La suite de tests n'appelle jamais un vrai modèle ; les évaluations se lancent à part.
+
+### 2.12 Radar — acquisition d'annonces
+
+Un outil de la console super-admin qui relève des annonces immobilières publiées ailleurs, en
+extrait les biens par IA, aide à contacter leurs annonceurs et publie leurs biens sur Takussan **sur
+leur accord prouvé** ([ADR-0077](adr/0077-le-radar.md)). Une annonce relevée vit hors du
+catalogue tant que cet accord n'existe pas. Vision et lots : [plan du 2026-10-26](plans/2026-10-26-radar-et-socle-ia.md).
+
+| Prio | Acteurs | Fonctionnalité |
+|------|---------|----------------|
+| P1 | 🛡️ | Saisir une annonce par URL (plusieurs à la fois), par texte collé ou par captures d'écran ; une lecture d'URL impossible le dit et propose les deux autres voies |
+| P1 | 🛡️ | Extraction IA des caractéristiques du bien, chaque champ avec sa confiance et le passage de la source qui le justifie ; quartier rapproché du référentiel géographique ; nature présumée de l'annonceur (propriétaire, intermédiaire, agence) et ses indices |
+| P1 | 🛡️ | Relecture : corriger, valider, marquer en doublon ou écarter ; rapprochements avec les biens publiés et les autres annonces relevées (téléphone, quartier, prix, pièces, empreinte des photos source) |
+| P1 | 🛡️ | Fiche annonceur, une par numéro : ses annonces, ses messages, ses accords ; prise en charge exclusive de 10 minutes |
+| P1 | 🛡️ | Préparer le message d'accord pour une ou plusieurs annonces d'un annonceur (clauses fixes, salutation et résumé personnalisés par l'IA) et l'ouvrir dans WhatsApp ; relances après un délai sans réponse |
+| P1 | 🛡️ | Déposer la capture de la réponse : l'IA la transcrit, vérifie le numéro et les clauses et classe la réponse (accord, refus, STOP, question, ambigu) ; un opérateur confirme ; refus et STOP s'enregistrent aussi sans capture |
+| P1 | 🛡️ | « Publier pour lui » (`super_admin` seulement) : sur un accord confirmé, crée l'espace individuel de l'annonceur (compte sans mot de passe à son numéro) et y publie les annonces couvertes, après un écran de vérification (compte, biens, photos, doublons) |
+| P1 | 👤🏢 | Réclamer ses annonces depuis le lien du message : connexion par code SMS au numéro de l'annonceur, acceptation des conditions, correction, publication |
+| P1 | 🛡️ | Retrait de l'accord (STOP, révocation) : les biens publiés quittent la surface publique sur-le-champ, l'annonceur n'est plus jamais contacté |
+| P1 | 🛡️ | Purge des annonces jamais publiées à 90 jours ou dès un STOP, en conservant l'empreinte du numéro qui a refusé |
+| P2 | 🛡️ | Collecte automatique planifiée sur des sites d'annonces (Expat-Dakar, CoinAfrique), instantanés datés, fusion des doublons entre sources |
+| P2 | 🛡️ | Annonceurs et observatoire du marché : regroupement par numéro, classement des annonceurs, prix au m² par quartier, temps de mise sur le marché, quartiers où Takussan manque d'annonces, alerte quand l'annonce source disparaît |
+| P2 | 🛡️ | Relance d'activation des comptes créés pour un annonceur ; publication sous mandat Takussan |
+| P3 | 🛡️ | Démarchage automatisé par l'API WhatsApp Cloud sur un numéro dédié, réception des réponses et preuve par identifiant de message |
+
+**Règles de gestion.**
+
+- **Aucun bien n'entre au catalogue sans un accord confirmé** qui le couvre ; l'API le refuse, pas
+  seulement l'écran.
+- **Un accord couvre toutes les annonces que le message listait**, et se rattache à l'annonceur.
+- **Les clauses du message d'accord sont un texte fixe**, jamais une génération.
+- **Le compte créé pour un annonceur est l'espace individuel de [§1.12](#112-agence--équipe)** : pas
+  de mot de passe, première connexion par code SMS, aucun crédit de bienvenue avant la vérification
+  du numéro ; un numéro déjà inscrit n'autorise que la réclamation.
+- **La nature de l'annonceur reste dans le Radar**, jamais dans les profils.
+- **Le numéro WhatsApp des notifications ne sert jamais à prospecter.**
+- **Les photos ne sont téléchargées qu'à la publication.**
+- **La lecture d'une URL refuse les adresses privées et de métadonnées**, respecte le `robots.txt`
+  et limite sa fréquence par domaine. Airbnb est hors périmètre.
+- Droits : `support` saisit, relit, démarche et dépose les preuves ; seul `super_admin` publie pour
+  l'annonceur.
 
 ---
 

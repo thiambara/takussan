@@ -37,12 +37,12 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 
 ## Sommaire
 
-1. [👤 Visiteur anonyme (pas encore de compte)](#visiteur-anonyme-pas-encore-de-compte) — 31 fonctionnalités
+1. [👤 Visiteur anonyme (pas encore de compte)](#visiteur-anonyme-pas-encore-de-compte) — 32 fonctionnalités
 2. [🏠 Locataire / Acheteur (Customer)](#locataire-acheteur-customer) — 86 fonctionnalités
-3. [🏢 Bailleur / Propriétaire (owner)](#bailleur-propriétaire-owner) — 84 fonctionnalités
+3. [🏢 Bailleur / Propriétaire (owner)](#bailleur-propriétaire-owner) — 85 fonctionnalités
 4. [🧑‍💼 Agent immobilier](#agent-immobilier) — 120 fonctionnalités
 5. [🔧 Prestataire de service (service provider)](#prestataire-de-service-service-provider) — 17 fonctionnalités
-6. [🛡️ Admin d'agence / Super-admin](#admin-dagence-super-admin) — 126 fonctionnalités
+6. [🛡️ Admin d'agence / Super-admin](#admin-dagence-super-admin) — 144 fonctionnalités
 7. [👥 Tous les utilisateurs authentifiés](#tous-les-utilisateurs-authentifiés) — 69 fonctionnalités
 
 ---
@@ -109,6 +109,12 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 |------|---------|----------------|
 | P1 | §2.1 | L'inscription garde l'intention du visiteur (bien, dates, action) jusqu'au retour sur la fiche, quel que soit le chemin (connexion, inscription, téléphone, OAuth) (TCK-589) |
 | P0 | §2.1 | Onboarding wizard Customer post-signup — welcome modale (3 slides skippables) + complétion différée du profil minimal (téléphone, ville, type de recherche) au moment de la première action sensible (favoris / réservation / contact) |
+
+### §2.12 Radar — acquisition d'annonces
+
+| Prio | Domaine | Fonctionnalité |
+|------|---------|----------------|
+| P1 | §2.12 | Réclamer ses annonces depuis le lien du message : connexion par code SMS au numéro de l'annonceur, acceptation des conditions, correction, publication |
 
 ---
 
@@ -417,6 +423,12 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P1 | §2.5 | Dashboard hôte : le host solo (agence `individual`) atterrit sur le dashboard bailleur, enrichi des réservations, visites et avis à traiter — jamais sur le dashboard agent ni agence (TCK-595) |
 | P2 | §2.5 | Occupation mesurée par chevauchement de dates (longue durée : jours-biens ; courte durée : nuitées) sur les biens feuilles en location ; encaissé net des cautions, net reversé (TCK-595) |
 | P2 | §2.5 | Balance âgée des impayés (1-30 / 31-60 / 61-90 / > 90 j) par locataire ou bailleur, et cautions détenues (TCK-595) |
+
+### §2.12 Radar — acquisition d'annonces
+
+| Prio | Domaine | Fonctionnalité |
+|------|---------|----------------|
+| P1 | §2.12 | Réclamer ses annonces depuis le lien du message : connexion par code SMS au numéro de l'annonceur, acceptation des conditions, correction, publication |
 
 ---
 
@@ -858,6 +870,34 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P3 | §2.9 | Mode maintenance programmé — l'avis parle la langue du visiteur, s'affiche sous la barre et se ferme pour la session ; il revient quand la fenêtre passe « en cours » ou que sa fin change (TCK-572) |
 | P3 | §2.9 | Feature flags |
 
+### §2.11 Socle IA
+
+| Prio | Domaine | Fonctionnalité |
+|------|---------|----------------|
+| P1 | §2.11 | Affecter à chaque rôle de modèle (`extraction`, `redaction`, `raisonnement`, `vision`, `embedding`) une chaîne ordonnée de modèles depuis la console super-admin, avec bascule automatique à la panne ; forcer un modèle pour un usage ; sous second facteur récent, journalisé |
+| P1 | §2.11 | Évaluer un modèle candidat avant de l'affecter : score par champ et coût, comparés au modèle en place sur le jeu d'évaluation de chaque usage concerné ; un score sous le cliquet bloque l'affectation, sauf dérogation journalisée |
+| P1 | §2.11 | Voir, par fournisseur, si sa clé est présente (jamais sa valeur) et tester la connexion ; seuls les fournisseurs nommés par la politique de confidentialité sont sélectionnables |
+| P1 | §2.11 | Budgets (global journalier, par usage, par agence) et coupe-circuit par usage |
+| P1 | §2.11 | Tableau de bord IA : coût et latence par usage et par jour, erreurs, taux d'acceptation des suggestions, dernier score d'évaluation |
+
+### §2.12 Radar — acquisition d'annonces
+
+| Prio | Domaine | Fonctionnalité |
+|------|---------|----------------|
+| P1 | §2.12 | Saisir une annonce par URL (plusieurs à la fois), par texte collé ou par captures d'écran ; une lecture d'URL impossible le dit et propose les deux autres voies |
+| P1 | §2.12 | Extraction IA des caractéristiques du bien, chaque champ avec sa confiance et le passage de la source qui le justifie ; quartier rapproché du référentiel géographique ; nature présumée de l'annonceur (propriétaire, intermédiaire, agence) et ses indices |
+| P1 | §2.12 | Relecture : corriger, valider, marquer en doublon ou écarter ; rapprochements avec les biens publiés et les autres annonces relevées (téléphone, quartier, prix, pièces, empreinte des photos source) |
+| P1 | §2.12 | Fiche annonceur, une par numéro : ses annonces, ses messages, ses accords ; prise en charge exclusive de 10 minutes |
+| P1 | §2.12 | Préparer le message d'accord pour une ou plusieurs annonces d'un annonceur (clauses fixes, salutation et résumé personnalisés par l'IA) et l'ouvrir dans WhatsApp ; relances après un délai sans réponse |
+| P1 | §2.12 | Déposer la capture de la réponse : l'IA la transcrit, vérifie le numéro et les clauses et classe la réponse (accord, refus, STOP, question, ambigu) ; un opérateur confirme ; refus et STOP s'enregistrent aussi sans capture |
+| P1 | §2.12 | « Publier pour lui » (`super_admin` seulement) : sur un accord confirmé, crée l'espace individuel de l'annonceur (compte sans mot de passe à son numéro) et y publie les annonces couvertes, après un écran de vérification (compte, biens, photos, doublons) |
+| P1 | §2.12 | Retrait de l'accord (STOP, révocation) : les biens publiés quittent la surface publique sur-le-champ, l'annonceur n'est plus jamais contacté |
+| P1 | §2.12 | Purge des annonces jamais publiées à 90 jours ou dès un STOP, en conservant l'empreinte du numéro qui a refusé |
+| P2 | §2.12 | Collecte automatique planifiée sur des sites d'annonces (Expat-Dakar, CoinAfrique), instantanés datés, fusion des doublons entre sources |
+| P2 | §2.12 | Annonceurs et observatoire du marché : regroupement par numéro, classement des annonceurs, prix au m² par quartier, temps de mise sur le marché, quartiers où Takussan manque d'annonces, alerte quand l'annonce source disparaît |
+| P2 | §2.12 | Relance d'activation des comptes créés pour un annonceur ; publication sous mandat Takussan |
+| P3 | §2.12 | Démarchage automatisé par l'API WhatsApp Cloud sur un numéro dédié, réception des réponses et preuve par identifiant de message |
+
 ---
 
 ## 👥 Tous les utilisateurs authentifiés
@@ -967,8 +1007,8 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 
 ## Provenance
 
-- Source : [`features.md`](./features.md) — **393** lignes de fonctionnalité lues,
-  réparties en **533** placements (une ligne multi-acteurs compte une fois par acteur).
+- Source : [`features.md`](./features.md) — **412** lignes de fonctionnalité lues,
+  réparties en **553** placements (une ligne multi-acteurs compte une fois par acteur).
 - Générateur : `docs/gen-features-by-actor.mjs`.
 - Fraîcheur vérifiée en CI par `node docs/gen-features-by-actor.mjs --check`, qui échoue si
   cette sortie ne correspond plus à sa source.
