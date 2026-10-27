@@ -12,6 +12,8 @@ namespace App\Services\Ai\Evaluation;
  * quand la sortie enveloppe chaque valeur (`{"price": {"value": …, "confidence": …}}` →
  * `"path": "price.value"`) ; à défaut, la clé de l'attendu. Un nombre attendu nul n'est juste que
  * face à une sortie nulle : ne pas inventer une surface absente se note, comme l'inventer.
+ * `text` compare comme `exact` mais sans AUCUN blanc (espaces, insécables) : un prix recopié
+ * « 450.000 f / mois » vaut « 450.000f/mois » ; la ponctuation, elle, compte.
  */
 final class FieldScorer
 {
@@ -35,6 +37,7 @@ final class FieldScorer
             $scores[$field] = match ($type) {
                 'list' => $this->list((array) $want, is_array($got) ? $got : []),
                 'number' => $this->number($want, $got, (float) ($spec['tolerance'] ?? 0)),
+                'text' => $this->withoutBlanks($want) === $this->withoutBlanks($got) ? 1.0 : 0.0,
                 default => $this->normalize($want) === $this->normalize($got) ? 1.0 : 0.0,
             };
         }
@@ -96,6 +99,11 @@ final class FieldScorer
         }
 
         return $value;
+    }
+
+    private function withoutBlanks(mixed $value): mixed
+    {
+        return is_string($value) ? (string) preg_replace('/[\s\x{00A0}\x{202F}]+/u', '', mb_strtolower($value)) : $value;
     }
 
     private function normalize(mixed $value): mixed

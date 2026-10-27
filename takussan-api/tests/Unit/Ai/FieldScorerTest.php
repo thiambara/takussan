@@ -23,6 +23,21 @@ class FieldScorerTest extends TestCase
         $this->assertSame(0.0, $scores['quartier']);
     }
 
+    public function test_a_text_field_ignores_every_blank_but_not_the_punctuation(): void
+    {
+        $scorer = new FieldScorer;
+        $text = ['prix' => ['type' => 'text']];
+
+        // Espaces, insécables (U+00A0, U+202F) et casse ne comptent pas ; un point ou une barre si.
+        $this->assertSame(['prix' => 1.0], $scorer->score(['prix' => '35 000 000 FCFA'], ['prix' => "35\u{00A0}000\u{202F}000 fcfa"], $text));
+        $this->assertSame(['prix' => 1.0], $scorer->score(['prix' => '450.000f/mois'], ['prix' => '450.000 f / mois'], $text));
+        $this->assertSame(['prix' => 0.0], $scorer->score(['prix' => '450.000f/mois'], ['prix' => '450000f/mois'], $text));
+        $this->assertSame(['prix' => 0.0], $scorer->score(['prix' => '450.000f/mois'], ['prix' => null], $text));
+        $this->assertSame(['prix' => 1.0], $scorer->score(['prix' => null], ['prix' => null], $text));
+        // Le type `exact` reste strict sur les blancs intérieurs.
+        $this->assertSame(['prix' => 0.0], $scorer->score(['prix' => '450.000f/mois'], ['prix' => '450.000 f / mois']));
+    }
+
     public function test_two_empty_lists_agree(): void
     {
         $this->assertSame(['equipements' => 1.0], (new FieldScorer)->score(['equipements' => []], ['equipements' => []]));

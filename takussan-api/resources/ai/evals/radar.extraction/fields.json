@@ -12,7 +12,7 @@
         "path": "rent_period.value"
     },
     "price": {
-        "type": "exact",
+        "type": "text",
         "path": "price.value"
     },
     "neighborhood": {

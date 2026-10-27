@@ -107,7 +107,7 @@ class RadarExtractionEvalSetTest extends TestCase
         foreach ($fields as $key => $spec) {
             $this->assertSame($key.'.value', $spec['path'] ?? null, "fields.json : {$key} doit lire la valeur");
             $this->assertContains($key, $schema);
-            $this->assertContains($spec['type'] ?? null, ['exact', 'number', 'list']);
+            $this->assertContains($spec['type'] ?? null, ['exact', 'text', 'number', 'list']);
         }
         $this->assertNotContains('title', array_keys($fields));
         $this->assertNotContains('description', array_keys($fields));
