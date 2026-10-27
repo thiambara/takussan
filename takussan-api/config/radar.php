@@ -39,4 +39,20 @@ return [
         'robots_cache_seconds' => 86_400,
     ],
 
+    // ADR-0077 §5 — les bornes de vraisemblance d'une extraction, lues par
+    // `App\Services\Radar\ExtractionNormalizer`. Hors bornes : drapeau `out_of_bounds` et confiance
+    // `low` ; la valeur reste, l'humain tranche. Montants en XOF, bornes incluses.
+    // Loyers hebdomadaire et annuel : sans borne propre, ils se déduisent du loyer mensuel au
+    // prorata (× 12/52 et × 12), arrondis à l'unité — une seule paire de chiffres à tenir.
+    'bounds' => [
+        'rent' => [
+            'monthly' => ['min' => 15_000, 'max' => 20_000_000],
+            'daily' => ['min' => 5_000, 'max' => 1_000_000],
+        ],
+        'sale' => ['min' => 1_000_000, 'max' => 10_000_000_000],
+        'surface_m2' => ['min' => 5, 'max' => 100_000],
+        'bedrooms' => ['min' => 0, 'max' => 30],
+        'bathrooms' => ['min' => 0, 'max' => 20],
+    ],
+
 ];
