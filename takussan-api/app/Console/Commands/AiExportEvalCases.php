@@ -8,7 +8,7 @@ use Illuminate\Console\Command;
 
 /**
  * TCK-2384 — transforme les suggestions corrigées d'un usage en cas d'évaluation anonymisés, sous
- * `tests/AiEvals/<usage>/cases/`. Relire chaque fichier avant de le commiter :
+ * `resources/ai/evals/<usage>/cases/`. Relire chaque fichier avant de le commiter :
  * `check-ai-evals-pii.mjs` attrape un numéro ou un courriel oublié, pas un nom.
  */
 class AiExportEvalCases extends Command

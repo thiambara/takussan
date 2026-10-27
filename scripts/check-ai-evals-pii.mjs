@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Garde : aucun numéro sénégalais plausible ni courriel dans les jeux d'évaluation du socle IA
- * (`takussan-api/tests/AiEvals/`) — TCK-2384.
+ * (`takussan-api/resources/ai/evals/`) — TCK-2384.
  *
  * **Pourquoi.** Les cas viennent de vraies annonces corrigées (`ai:export-eval-cases`). L'export
  * anonymise, mais un cas écrit à la main, ou un format de numéro que l'anonymisation ne connaît
@@ -19,7 +19,7 @@ import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const EVALS = join(ROOT, 'takussan-api', 'tests', 'AiEvals');
+const EVALS = join(ROOT, 'takussan-api', 'resources', 'ai', 'evals');
 
 // `\s` couvre déjà U+00A0 et U+202F (espaces insécables, fréquents dans un texte collé).
 export const TELEPHONE = /(?<!\d)(?:(?:\+|00)221[\s.-]?)?(?:7[05678]|33)[\s.-]?\d{3}[\s.-]?\d{2}[\s.-]?\d{2}(?!\d)/;

@@ -158,7 +158,9 @@ on:
       # `takussan-api/config/ai.php` (couvert par `config/**`) ET `takussan-web/src/content/legal/
       # privacy.ts` (par `takussan-web/src/**`) ; `check-ai-usages` lit `app/Ai/**` (`app/**`) et
       # `takussan-api/resources/ai/` — le seul de ses dossiers qu'aucune ligne ci-dessus ne couvre ;
-      # `check-ai-evals-pii` lit `takussan-api/tests/AiEvals/` (`tests/**`).
+      # `check-ai-evals-pii` lit `takussan-api/resources/ai/evals/` (couvert par la même ligne :
+      # les jeux vivent sous `resources/` et non `tests/` pour partir dans l'image, que
+      # `.dockerignore` prive de `tests`).
       - 'takussan-api/resources/ai/**'
   push:
     branches: [dev, master]

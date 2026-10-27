@@ -3085,9 +3085,9 @@ git commit -m "feat(api): les suggestions IA, la décision humaine et le différ
 **Interfaces :**
 - Consomme : `AiGateway`, `AiRequest`, `AiUsageRegistry`, `ModelResolver`, `ModelLink`.
 - Produit :
-  - Jeux : `tests/AiEvals/<usage>/cases/*.json` (`{"input": string, "expected": object}`),
-    `tests/AiEvals/<usage>/fields.json` facultatif (`{"<champ>": {"type": "number"|"list"|"exact", "tolerance": float}}`),
-    `tests/AiEvals/<usage>/baseline.json` (`{"global", "fields", "model", "prompt_version", "updated_at"}`).
+  - Jeux : `resources/ai/evals/<usage>/cases/*.json` (`{"input": string, "expected": object}`),
+    `resources/ai/evals/<usage>/fields.json` facultatif (`{"<champ>": {"type": "number"|"list"|"exact", "tolerance": float}}`),
+    `resources/ai/evals/<usage>/baseline.json` (`{"global", "fields", "model", "prompt_version", "updated_at"}`).
   - `FieldScorer::score(array $expected, array $actual, array $fields = []): array<string, float>`.
   - `EvaluationRunner::__construct(AiGateway, AiUsageRegistry, ModelResolver, FieldScorer, ?string $root = null, ?string $reportsRoot = null)`,
     `cases(string): list<array>`, `evaluableUsages(): list<string>`,
@@ -3458,7 +3458,7 @@ final class EvaluationRunner
 
     private function dir(string $usageKey): string
     {
-        return ($this->root ?? base_path('tests/AiEvals')).'/'.$usageKey;
+        return ($this->root ?? base_path('resources/ai/evals')).'/'.$usageKey;
     }
 
     /** @param  array<string, mixed>  $data */
@@ -3804,7 +3804,7 @@ final class EvalCaseExporter
     /** @return list<string> */
     public function export(string $usageKey, ?CarbonInterface $since = null): array
     {
-        $dir = ($this->root ?? base_path('tests/AiEvals')).'/'.$usageKey.'/cases';
+        $dir = ($this->root ?? base_path('resources/ai/evals')).'/'.$usageKey.'/cases';
         $written = [];
 
         AiSuggestion::query()
@@ -3839,7 +3839,7 @@ use Illuminate\Console\Command;
 
 /**
  * TCK-2384 — transforme les suggestions corrigées d'un usage en cas d'évaluation anonymisés, sous
- * `tests/AiEvals/<usage>/cases/`. Relire chaque fichier avant de le commiter :
+ * `resources/ai/evals/<usage>/cases/`. Relire chaque fichier avant de le commiter :
  * `check-ai-evals-pii.mjs` attrape un numéro ou un courriel oublié, pas un nom.
  */
 class AiExportEvalCases extends Command
@@ -3873,7 +3873,7 @@ class AiExportEvalCases extends Command
 #!/usr/bin/env node
 /**
  * Garde : aucun numéro sénégalais plausible ni courriel dans les jeux d'évaluation du socle IA
- * (`takussan-api/tests/AiEvals/`) — TCK-2384.
+ * (`takussan-api/resources/ai/evals/`) — TCK-2384.
  *
  * **Pourquoi.** Les cas viennent de vraies annonces corrigées (`ai:export-eval-cases`). L'export
  * anonymise, mais un cas écrit à la main, ou un format de numéro que l'anonymisation ne connaît
@@ -3888,7 +3888,7 @@ import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const EVALS = join(ROOT, 'takussan-api', 'tests', 'AiEvals');
+const EVALS = join(ROOT, 'takussan-api', 'resources', 'ai', 'evals');
 
 export const TELEPHONE = /(?<!\d)(?:(?:\+|00)221[\s.-]?)?(?:7[05678]|33)[\s.-]?\d{3}[\s.-]?\d{2}[\s.-]?\d{2}(?!\d)/;
 export const COURRIEL = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/;
@@ -3932,7 +3932,7 @@ console.log(`✓ check-ai-evals-pii : ${lus.length} fichier(s) lus, aucun numér
 Run : `cd takussan-api && php artisan test tests/Feature/Ai/AiEvalExportTest.php && node ../scripts/check-ai-evals-pii.mjs && node ../scripts/check-command-prefixes.mjs`
 Attendu : PASS (1 test) ; `✓ check-ai-evals-pii : 0 fichier(s) lus…` ; préfixes verts.
 
-Ablation (AC6) : créer `takussan-api/tests/AiEvals/essai/cases/x.json` contenant
+Ablation (AC6) : créer `takussan-api/resources/ai/evals/essai/cases/x.json` contenant
 `{"input": "appeler le 77 123 45 67"}` → la garde sort en 1 ; supprimer le dossier `essai`.
 
 - [ ] **Étape 6 : commit**

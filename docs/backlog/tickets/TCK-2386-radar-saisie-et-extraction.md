@@ -88,7 +88,7 @@ compteurs disent quoi faire maintenant. Une extraction en cours, en attente (bud
 - [ ] `PlatformAbility::RadarOperate`. Contrôleurs `App\Http\Controllers\Api\Admin\RadarListingController`,
       `RadarDashboardController` · FormRequest `StoreRadarListingRequest` · routes
       `routes/api/admin-radar.php`.
-- [ ] Premier jeu d'évaluation `tests/AiEvals/radar.extraction/` : 30 annonces anonymisées
+- [ ] Premier jeu d'évaluation `resources/ai/evals/radar.extraction/` : 30 annonces anonymisées
       (textes et captures) avec leurs sorties attendues, et la référence du cliquet.
 - [ ] Front : tableau de bord et saisie rapide sous `/super-admin/radar`.
 - [ ] `NamespaceAccessGuardTest`, sections `docs/models-spec.md` des deux modèles.

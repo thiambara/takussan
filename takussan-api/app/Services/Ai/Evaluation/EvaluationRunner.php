@@ -173,7 +173,7 @@ final class EvaluationRunner
 
     private function dir(string $usageKey): string
     {
-        return ($this->root ?? base_path('tests/AiEvals')).'/'.$usageKey;
+        return ($this->root ?? base_path('resources/ai/evals')).'/'.$usageKey;
     }
 
     /** @param  array<string, mixed>  $data */

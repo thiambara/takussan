@@ -22,7 +22,7 @@ final class EvalCaseExporter
     /** @return list<string> */
     public function export(string $usageKey, ?CarbonInterface $since = null): array
     {
-        $dir = ($this->root ?? base_path('tests/AiEvals')).'/'.$usageKey.'/cases';
+        $dir = ($this->root ?? base_path('resources/ai/evals')).'/'.$usageKey.'/cases';
         $written = [];
 
         AiSuggestion::query()

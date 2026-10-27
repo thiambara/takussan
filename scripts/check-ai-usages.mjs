@@ -5,8 +5,8 @@
  *   A. tout agent concret de `takussan-api/app/Ai/Agents/` est cité (`X::class`) par un usage de
  *      `app/Ai/Usages/` ;
  *   B. tout usage de `app/Ai/Usages/` est listé dans `AiUsageRegistry::USAGES` ;
- *   C. aucune classe hors de `app/Ai/Agents/` n'emploie `Laravel\Ai\Promptable` ni n'implémente
- *      `Laravel\Ai\Contracts\Agent` : un agent hors du dossier échapperait à A ;
+ *   C. aucune classe hors de `app/Ai/Agents/` n'emploie `Laravel\Ai\Promptable`, n'implémente
+ *      `Laravel\Ai\Contracts\Agent` ni n'étend `SocleAgent` : un agent hors du dossier échapperait à A ;
  *   D. aucun identifiant de modèle (`claude-…`, `gpt-…`, `gemini-…`, `mistral-…`, `llama-…` portant
  *      un chiffre) hors de `takussan-api/config/ai.php` : ni dans `app/`, `routes/`, `database/`,
  *      `resources/ai/` de l'API, ni dans `takussan-web/src/` hors tests.
@@ -21,7 +21,7 @@
  *   node scripts/check-ai-usages.mjs --report   # + agents, usages et fichiers lus
  */
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
-import { basename, dirname, join, relative } from 'node:path';
+import { basename, dirname, join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -30,6 +30,9 @@ const API = join(ROOT, 'takussan-api');
 const AGENTS = join(API, 'app', 'Ai', 'Agents');
 const USAGES = join(API, 'app', 'Ai', 'Usages');
 const REGISTRE = join(API, 'app', 'Services', 'Ai', 'AiUsageRegistry.php');
+// Les jeux d'évaluation citent des identifiants de modèle (`baseline.json` : « fournisseur/modèle ») :
+// ADR-0076 les y autorise, ils décrivent ce qui a été mesuré. Hors de la garde D.
+const EVALS = join(API, 'resources', 'ai', 'evals');
 const RACINES_MODELES = [
   join(API, 'app'), join(API, 'routes'), join(API, 'database'), join(API, 'resources', 'ai'),
   join(ROOT, 'takussan-web', 'src'),
@@ -53,6 +56,14 @@ function fichiers(dossier, filtre) {
   return sortie;
 }
 
+/** Le motif d'un agent du socle : `extends SocleAgent`, nom court ou qualifié. */
+export const MOTIF_SOCLE = /\bextends\s+\\?(?:[A-Za-z0-9_]+\\)*SocleAgent\b/;
+
+/** `chemin` est-il le dossier ou dans le dossier ? Le séparateur compte : `AgentsX` n'est pas `Agents`. */
+export function dans(dossier, chemin) {
+  return chemin === dossier || chemin.startsWith(dossier + sep);
+}
+
 export function estTest(chemin) {
   return /__tests__|\.test\.tsx?$|\.spec\.tsx?$/.test(chemin);
 }
@@ -65,6 +76,10 @@ const CAS_EPREUVE = [
   { motif: MOTIF_AGENT, texte: 'use Laravel\\Ai\\Promptable;', attendu: true },
   { motif: MOTIF_AGENT, texte: 'final class X extends SocleAgent implements HasStructuredOutput', attendu: false },
   { motif: MOTIF_AGENT, texte: 'abstract class SocleAgent implements Agent', attendu: true },
+  { motif: MOTIF_SOCLE, texte: 'final class X extends SocleAgent implements HasStructuredOutput', attendu: true },
+  { motif: MOTIF_SOCLE, texte: 'final class X extends \\App\\Ai\\Agents\\SocleAgent', attendu: true },
+  { motif: MOTIF_SOCLE, texte: 'final class X extends SocleAgentFactory', attendu: false },
+  { motif: MOTIF_SOCLE, texte: '// une classe qui étend SocleAgent', attendu: false },
 ];
 let echec = false;
 for (const cas of CAS_EPREUVE) {
@@ -72,6 +87,11 @@ for (const cas of CAS_EPREUVE) {
     console.error(`✗ épreuve : « ${cas.texte} » devait rendre ${cas.attendu}`);
     echec = true;
   }
+}
+if (dans(AGENTS, join(AGENTS, 'X.php')) !== true || dans(AGENTS, join(AGENTS, 'Sous', 'X.php')) !== true
+  || dans(AGENTS, `${AGENTS}X${sep}X.php`) !== false || dans(AGENTS, join(API, 'app', 'Ai', 'Usages', 'X.php')) !== false) {
+  console.error('✗ épreuve : dans (un dossier frère `AgentsX` ne doit pas passer pour `Agents`)');
+  echec = true;
 }
 if (estTest('src/a/__tests__/b.tsx') !== true || estTest('src/a/b.tsx') !== false) {
   console.error('✗ épreuve : estTest');
@@ -104,8 +124,9 @@ for (const [fichier] of sourcesUsages) {
 
 // C — aucun agent hors de app/Ai/Agents/.
 for (const fichier of fichiers(join(API, 'app'), (f) => f.endsWith('.php'))) {
-  if (fichier.startsWith(AGENTS)) continue;
-  if (MOTIF_AGENT.test(readFileSync(fichier, 'utf8')) && /Laravel\\Ai/.test(readFileSync(fichier, 'utf8'))) {
+  if (dans(AGENTS, fichier)) continue;
+  const source = readFileSync(fichier, 'utf8');
+  if ((MOTIF_AGENT.test(source) && /Laravel\\Ai/.test(source)) || MOTIF_SOCLE.test(source)) {
     erreurs.push(`C — ${relative(ROOT, fichier)} définit un agent hors de app/Ai/Agents/`);
   }
 }
@@ -113,7 +134,7 @@ for (const fichier of fichiers(join(API, 'app'), (f) => f.endsWith('.php'))) {
 // D — aucun identifiant de modèle hors de config/ai.php.
 let lus = 0;
 for (const racine of RACINES_MODELES) {
-  for (const fichier of fichiers(racine, (f) => /\.(php|ts|tsx|md|json)$/.test(f) && !estTest(f))) {
+  for (const fichier of fichiers(racine, (f) => /\.(php|ts|tsx|md|json)$/.test(f) && !estTest(f) && !dans(EVALS, f))) {
     lus++;
     const lignes = readFileSync(fichier, 'utf8').split('\n');
     lignes.forEach((ligne, i) => {

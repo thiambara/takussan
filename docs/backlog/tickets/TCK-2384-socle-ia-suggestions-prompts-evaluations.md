@@ -35,8 +35,8 @@ reprend l'esprit de celui de la couverture (`bin/coverage-gate.php`).
   décision (`pending` · `accepted` · `edited` · `rejected`), auteur et date de la décision,
   **différentiel de la correction** (jsonb).
 - Prompts : fichiers sous `takussan-api/resources/ai/prompts/<usage>/v<N>.md`.
-- Jeux d'évaluation : `takussan-api/tests/AiEvals/<usage>/cases/*.json` (entrée, sortie attendue)
-  et le score de référence dans `takussan-api/tests/AiEvals/<usage>/baseline.json`.
+- Jeux d'évaluation : `takussan-api/resources/ai/evals/<usage>/cases/*.json` (entrée, sortie attendue)
+  et le score de référence dans `takussan-api/resources/ai/evals/<usage>/baseline.json`.
 
 ## Contraintes strictes (métier)
 
@@ -44,7 +44,7 @@ reprend l'esprit de celui de la couverture (`bin/coverage-gate.php`).
   modifié est une nouvelle version, jamais une réécriture de l'ancienne.
 - **Un cas d'évaluation ne contient aucune donnée personnelle réelle** : téléphones, noms et
   adresses précises sont remplacés avant d'entrer dans le dépôt. La commande d'export (ci-dessous)
-  anonymise, et une garde refuse un numéro sénégalais plausible dans `tests/AiEvals/`.
+  anonymise, et une garde refuse un numéro sénégalais plausible dans `resources/ai/evals/`.
 - **`ai:eval` n'est jamais lancé par la suite de tests ni par la CI des PR** : il appelle de vrais
   modèles et coûte. Il se lance à la main et par une tâche planifiée de nuit.
 - **Cliquet** : un score inférieur à `baseline.json` fait sortir la commande en échec. Relever la
@@ -64,7 +64,7 @@ reprend l'esprit de celui de la couverture (`bin/coverage-gate.php`).
 - [ ] Commande `ai:export-eval-cases {usage} {--since=}` (forme `domaine:verbe`, `check-command-prefixes.mjs`) : transforme les suggestions corrigées
       (`edited`) en cas d'évaluation **anonymisés**.
 - [ ] Garde `scripts/check-ai-evals-pii.mjs` : aucun numéro sénégalais plausible ni e-mail dans
-      `tests/AiEvals/`.
+      `resources/ai/evals/`.
 - [ ] Tâche planifiée nocturne `ai:eval --all`, inscrite au suivi des tâches planifiées, qui ne
       fait rien si aucun fournisseur n'a de clé.
 - [ ] Taux d'acceptation par usage : requête de lecture prête pour la console (TCK-2385).
@@ -82,7 +82,7 @@ reprend l'esprit de celui de la couverture (`bin/coverage-gate.php`).
 - [ ] AC4 — `--update-baseline` est le seul chemin qui modifie `baseline.json`.
 - [ ] AC5 — `ai:export-eval-cases` produit des cas sans le téléphone ni le nom d'origine (vérifié sur une
       suggestion qui en contient).
-- [ ] AC6 — Un numéro `77 123 45 67` déposé dans `tests/AiEvals/` fait rougir la garde.
+- [ ] AC6 — Un numéro `77 123 45 67` déposé dans `resources/ai/evals/` fait rougir la garde.
 - [ ] AC7 — Aucun test de la suite n'ouvre de connexion réseau vers un fournisseur.
 
 ## Hors périmètre
