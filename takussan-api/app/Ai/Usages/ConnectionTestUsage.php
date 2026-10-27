@@ -56,4 +56,9 @@ final class ConnectionTestUsage implements AiUsage
     {
         return 0;
     }
+
+    public function readsExternalContent(): bool
+    {
+        return false;
+    }
 }

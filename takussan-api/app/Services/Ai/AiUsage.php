@@ -36,4 +36,11 @@ interface AiUsage
 
     /** Durée du cache par empreinte, en secondes ; 0 le désactive. */
     public function cacheTtlSeconds(): int;
+
+    /**
+     * Vrai si l'usage lit un contenu venu de l'extérieur (annonce, capture, message) : il le reçoit
+     * par `ExternalContent::wrap()`, n'a aucun outil et rend une sortie structurée (ADR-0076 §10,
+     * `ExternalContentPolicy`).
+     */
+    public function readsExternalContent(): bool;
 }

@@ -109,6 +109,11 @@ class AiBudgetTest extends TestCase
             {
                 return (new UsageDEssai)->cacheTtlSeconds();
             }
+
+            public function readsExternalContent(): bool
+            {
+                return false;
+            }
         };
 
         $this->depense(20, ['usage_key' => 'autre.usage']);

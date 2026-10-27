@@ -52,4 +52,9 @@ final class UsageDEssai implements AiUsage
     {
         return 3600;
     }
+
+    public function readsExternalContent(): bool
+    {
+        return false;
+    }
 }

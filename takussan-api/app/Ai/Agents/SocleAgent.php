@@ -9,6 +9,10 @@ use Laravel\Ai\Promptable;
  * TCK-2383 (ADR-0076) — la base de tout agent du socle. Ni prompt ni paramètre en dur : la
  * passerelle pose, avant chaque appel, le prompt versionné de l'usage et le `max_tokens` du maillon
  * joué. Un agent ne s'appelle jamais hors de `AiGateway`.
+ *
+ * L'agent d'un usage qui lit un contenu externe (ADR-0076 §10) n'implémente ni `HasTools` ni
+ * `HasSkills` et rend une sortie structurée ; il reçoit ce contenu par `ExternalContent::wrap()`.
+ * `ExternalContentPolicy` le tient.
  */
 abstract class SocleAgent implements Agent
 {

@@ -52,4 +52,9 @@ final class UsageAgenceDEssai implements AiUsage
     {
         return 0;
     }
+
+    public function readsExternalContent(): bool
+    {
+        return false;
+    }
 }

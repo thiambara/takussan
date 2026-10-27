@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 
 /**
  * TCK-2383 — ce qu'une fonctionnalité demande au socle. `input` est déjà mis en forme par l'usage,
- * le contenu externe délimité comme une donnée (ADR-0076 §10). `dataClasses` déclare ce que la
+ * le contenu externe délimité comme une donnée par `ExternalContent::wrap()` (ADR-0076 §10). `dataClasses` déclare ce que la
  * charge contient ; `link` impose un maillon (évaluation d'un candidat, test de connexion).
  */
 final readonly class AiRequest
