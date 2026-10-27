@@ -40,6 +40,10 @@ enum PlatformAbility: string
     case KycView = 'platform.kyc.view';
     case SettingsManage = 'platform.settings.manage';
 
+    // TCK-2385 (ADR-0076 §12) — la console IA : lire, puis régler rôles, usages, évaluations.
+    case AiView = 'platform.ai.view';
+    case AiManage = 'platform.ai.manage';
+
     /**
      * La matrice de l'ADR-0047. `super_admin` = tous les gestes.
      *

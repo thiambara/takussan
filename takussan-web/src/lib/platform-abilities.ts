@@ -24,6 +24,8 @@ export const PLATFORM_ABILITIES = [
   'platform.agencies.suspend',
   'platform.kyc.view',
   'platform.settings.manage',
+  'platform.ai.view',
+  'platform.ai.manage',
 ] as const;
 
 export type PlatformAbility = (typeof PLATFORM_ABILITIES)[number];
