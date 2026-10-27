@@ -1,7 +1,7 @@
 ---
 id: TCK-2401
 title: "La sonde des workers surveille la file long, avec des seuils à la mesure de ses jobs"
-status: todo
+status: doing
 phase: P2
 family: technique
 estimate: S
@@ -56,20 +56,20 @@ les deux sondes s'y trompaient de la même façon, sur la file des notifications
 
 ## Delta à produire
 
-- [ ] `RecordQueueHeartbeat::QUEUES` : ajouter `long`.
-- [ ] `HealthcheckService` : seuils de battement et d'âge de file par file, `long` dérivé de
+- [x] `RecordQueueHeartbeat::QUEUES` : ajouter `long`.
+- [x] `HealthcheckService` : seuils de battement et d'âge de file par file, `long` dérivé de
       `config('queue.connections.database-long.retry_after')`.
-- [ ] Tests : `HealthcheckProbesTest` — `long` muette au-delà de son seuil → `failed` ; `long`
+- [x] Tests : `HealthcheckProbesTest` — `long` muette au-delà de son seuil → `failed` ; `long`
       silencieuse depuis 20 min (job long en cours) → `ok` ; un job en attente depuis 20 min sur
       `long` → `ok`, sur `default` → `degraded`.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Un battement de `long` vieux de 20 min laisse la sonde `workers` à `ok` ; au-delà du
+- [x] AC1 — Un battement de `long` vieux de 20 min laisse la sonde `workers` à `ok` ; au-delà du
       délai de reprise de `database-long`, elle est `failed`.
-- [ ] AC2 — Les seuils de `default`, `media`, `notifications-urgent` et `reconciliation` sont
+- [x] AC2 — Les seuils de `default`, `media`, `notifications-urgent` et `reconciliation` sont
       inchangés (tests existants verts).
-- [ ] AC3 — Chaque test rougit sans son correctif (ablation consignée).
+- [x] AC3 — Chaque test rougit sans son correctif (ablation consignée).
 
 ## Hors périmètre
 
@@ -78,4 +78,29 @@ les deux sondes s'y trompaient de la même façon, sur la file des notifications
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+2026-10-27, sur `feat/socle-ia-lot-0`.
+
+- **Seuils de `long`, dérivés de `config('queue.connections.database-long.retry_after')`** (1900 s
+  par défaut) :
+  - battement : `ok` en deçà du délai, `failed` au-delà. Pas de palier `degraded` : en deçà, le
+    silence est celui d'un job en cours ; au-delà, aucun job ne vit plus (ADR-0078), donc le
+    worker est arrêté ;
+  - âge de la file : `degraded` au-delà d'un délai, `failed` au-delà de deux. Plusieurs jobs longs
+    peuvent se suivre (balayages de 09:00 et 09:15, évaluation) ; un seul délai de retard reste une
+    attente normale.
+- **Contrainte « arrêté, vu au plus tard au seuil, quel que soit l'arriéré »** : le battement de
+  `long` est écrit par le worker lui-même (`Looping`, `JobProcessed`, TCK-934), pas par le job
+  planifié qui attend derrière l'arriéré. Un `worker-long` arrêté passe donc `failed` au délai de
+  reprise, file pleine ou vide. Il fait aussi lever `ops_queue_stalled`
+  (`EvaluateOperationalAlerts`, `workers.status === failed`), sans changement de la commande.
+- **Le battement planifié de `long`** part sur la connexion par défaut (`database`) et la file
+  `long` : `database-long` partage la table `jobs`, et c'est le délai de reprise du worker qui
+  dépile (`worker-long`) qui compte. Pas de trait `RunsOnLongQueue` sur `RecordQueueHeartbeat` :
+  ce n'est pas un job long, et `LongJobsConnectionTest` tient l'inventaire.
+- **AC2** : les seuils des quatre files courtes sont épinglés par un test neuf (180 s → `degraded`,
+  3600 s d'attente → `failed`) en plus des tests existants, tous verts.
+- **AC3, ablations** (chacune annulée ensuite, `HealthcheckProbesTest`) : `long` retiré de
+  `QUEUES` → 3 rouges ; battement de `long` aux seuils courts → 2 ; âge de `long` aux seuils courts
+  → 2 ; délai recopié en dur (1900) → 1 ; échec de `long` à 3600 s au lieu de deux délais → 1.
+- **Vérifié** : `tests/Feature/Admin/Platform` 273 verts ; gardes du dépôt vertes. Le front
+  n'affiche pas de libellé par nom de file : rien à traduire.

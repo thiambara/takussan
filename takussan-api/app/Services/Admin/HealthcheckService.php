@@ -50,6 +50,15 @@ class HealthcheckService
 
     public const HEARTBEAT_FAILED_AFTER_SECONDS = 300;
 
+    /**
+     * TCK-2401 (ADR-0078) — `worker-long` n'écrit aucun battement pendant un job (ni `Looping` ni
+     * `JobProcessed`), et ce qui attend derrière lui attend jusqu'à la fin de ce job. Ses seuils se
+     * dérivent du délai de reprise de `database-long` — le plus long job possible —, pas des
+     * constantes des files courtes : battement `failed` au-delà de ce délai, file `degraded`
+     * au-delà d'un délai, `failed` au-delà de deux.
+     */
+    public const LONG_QUEUE = 'long';
+
     /** Aucune tâche planifiée terminée depuis cinq minutes : le planificateur est tenu pour arrêté (TCK-680). */
     public const SCHEDULER_FAILED_AFTER_SECONDS = 300;
 
@@ -346,10 +355,13 @@ class HealthcheckService
         $queues = [];
         foreach ($rows as $row) {
             $age = $now - (int) $row->oldest;
+            [$degradedAfter, $failedAfter] = $row->queue === self::LONG_QUEUE
+                ? [$this->longRetryAfter(), 2 * $this->longRetryAfter()]
+                : [self::QUEUE_DEGRADED_AFTER_SECONDS, self::QUEUE_FAILED_AFTER_SECONDS];
             $queues[$row->queue] = [
-                'status' => $age >= self::QUEUE_FAILED_AFTER_SECONDS
+                'status' => $age >= $failedAfter
                     ? 'failed'
-                    : ($age >= self::QUEUE_DEGRADED_AFTER_SECONDS ? 'degraded' : 'ok'),
+                    : ($age >= $degradedAfter ? 'degraded' : 'ok'),
                 'pending' => (int) $row->pending,
                 'oldest_pending_seconds' => $age,
             ];
@@ -366,7 +378,7 @@ class HealthcheckService
     }
 
     /**
-     * Le battement que `RecordQueueHeartbeat` dépose sur chacune des quatre files. Une file sans
+     * Le battement que `RecordQueueHeartbeat` dépose sur chacune des files. Une file sans
      * worker ne lève rien : seule l'absence de battement la trahit.
      *
      * @return array<string,mixed>
@@ -378,15 +390,24 @@ class HealthcheckService
         foreach (RecordQueueHeartbeat::QUEUES as $queue) {
             $beat = Cache::get(RecordQueueHeartbeat::cacheKey($queue));
             $age = $beat === null ? null : $now - (int) $beat;
+            [$degradedAfter, $failedAfter] = $queue === self::LONG_QUEUE
+                ? [$this->longRetryAfter(), $this->longRetryAfter()]
+                : [self::HEARTBEAT_DEGRADED_AFTER_SECONDS, self::HEARTBEAT_FAILED_AFTER_SECONDS];
             $queues[$queue] = [
-                'status' => $age === null || $age >= self::HEARTBEAT_FAILED_AFTER_SECONDS
+                'status' => $age === null || $age >= $failedAfter
                     ? 'failed'
-                    : ($age >= self::HEARTBEAT_DEGRADED_AFTER_SECONDS ? 'degraded' : 'ok'),
+                    : ($age >= $degradedAfter ? 'degraded' : 'ok'),
                 'last_heartbeat_seconds' => $age,
             ];
         }
 
         return ['status' => self::worst(array_column($queues, 'status')), 'queues' => $queues];
+    }
+
+    /** Le délai de reprise de `database-long` (ADR-0078) : rien n'y vit plus longtemps. */
+    private function longRetryAfter(): int
+    {
+        return (int) config('queue.connections.database-long.retry_after');
     }
 
     /**
