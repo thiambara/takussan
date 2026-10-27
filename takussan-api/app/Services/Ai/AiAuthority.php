@@ -22,6 +22,14 @@ final class AiAuthority
             return $actor->hasPlatformAbility($authority);
         }
 
-        return $actor->canActAt($authority, $agencyId !== null ? Agency::query()->find($agencyId) : null);
+        // Une capacité se juge pour un couple (utilisateur, agence) : sans agence, il n'y a pas de
+        // couple, et la décision ne se laisse pas au résolveur (un profil plateforme court-circuite
+        // l'agence). Une agence introuvable est refusée de même.
+        $agency = $agencyId !== null ? Agency::query()->find($agencyId) : null;
+        if ($agency === null) {
+            return false;
+        }
+
+        return $actor->canActAt($authority, $agency);
     }
 }
