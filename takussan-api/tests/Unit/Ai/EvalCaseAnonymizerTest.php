@@ -50,18 +50,81 @@ class EvalCaseAnonymizerTest extends TestCase
         $this->assertSame('Appartement à Mermoz, éclairé. Contactez [NOM]', $out);
     }
 
-    public function test_a_short_value_is_not_used_as_a_needle(): void
+    public function test_a_two_letter_name_is_matched_only_in_its_capitalised_form(): void
     {
-        $out = (new EvalCaseAnonymizer)->anonymize('Hotel et tel quel, El Hadj', ['contact_nom' => 'El'])['input'];
+        // « El » en majuscule initiale est un nom possible : un mot abîmé vaut mieux qu'un nom qui fuit.
+        $out = (new EvalCaseAnonymizer)->anonymize('Hotel et tel quel, El Hadj, el patio', ['contact_nom' => 'El'])['input'];
 
-        $this->assertSame('Hotel et tel quel, El Hadj', $out);
+        $this->assertSame('Hotel et tel quel, [NOM] Hadj, el patio', $out);
     }
 
-    public function test_a_short_word_of_a_longer_name_is_not_used_alone(): void
+    public function test_a_two_letter_word_of_a_longer_name_does_not_cut_longer_words(): void
     {
-        $out = (new EvalCaseAnonymizer)->anonymize('Hotel de Diop, tel quel, el patio', ['contact_nom' => 'El Diop'])['input'];
+        $out = (new EvalCaseAnonymizer)->anonymize('Hotel de Diop, tel quel, el patio, Baobab', ['contact_nom' => 'El Diop'])['input'];
 
-        $this->assertSame('Hotel de [NOM], tel quel, el patio', $out);
+        $this->assertSame('Hotel de [NOM], tel quel, el patio, Baobab', $out);
+    }
+
+    /** @return array<string, array{0: array<string, string>, 1: string, 2: string}> */
+    public static function shortSurnames(): array
+    {
+        return [
+            'Ba après M.' => [['proprietaire' => 'Ibrahima Ba'], 'M. Ba vous appelle', 'M. [NOM] vous appelle'],
+            'Ba en capitales' => [['proprietaire' => 'Ibrahima Ba'], 'M. BA vous appelle', 'M. [NOM] vous appelle'],
+            'Ly après Mme' => [['contact_nom' => 'Awa Ly'], 'Contactez Mme Ly', 'Contactez Mme [NOM]'],
+            'Sy seul' => [['contact_nom' => 'Sy'], 'Voir M. Sy', 'Voir M. [NOM]'],
+            'Ka accentué' => [['contact_nom' => 'Aïssatou Ká'], 'Voir Mme Ka.', 'Voir Mme [NOM].'],
+            'Ba minuscule dans la valeur' => [['contact_nom' => 'ba'], 'Voir M. Ba', 'Voir M. [NOM]'],
+            'Ba n\'entre pas dans Baobab' => [['proprietaire' => 'Ibrahima Ba'], 'Baobab, Bah et Abba', 'Baobab, Bah et Abba'],
+        ];
+    }
+
+    /** @param array<string, string> $expected */
+    #[DataProvider('shortSurnames')]
+    public function test_two_letter_surnames_do_not_leak(array $expected, string $input, string $wanted): void
+    {
+        $this->assertSame($wanted, (new EvalCaseAnonymizer)->anonymize($input, $expected)['input']);
+    }
+
+    public function test_a_one_letter_word_is_never_a_needle(): void
+    {
+        $out = (new EvalCaseAnonymizer)->anonymize('M. A et B Diop', ['contact_nom' => 'A B'])['input'];
+
+        $this->assertSame('M. A et B Diop', $out);
+    }
+
+    /** @return array<string, array{0: string, 1: string, 2: list<string>}> */
+    public static function apostropheNames(): array
+    {
+        return [
+            "N'Diaye" => ["Moussa N'Diaye", "Voir Mr N’Diaye et NDiaye et Diaye et n'diaye et N\u{02BC}Diaye", ['diaye']],
+            "M'Baye" => ["Awa M'Baye", 'Mme M’Baye, MBaye, Baye, M\'BAYE', ['baye']],
+            'valeur typographique' => ['Moussa N’Diaye', "Voir N'Diaye et Diaye", ['diaye']],
+            'trait d\'union' => ['Jean-Pierre Ndiaye', 'Voir Pierre, Jean-Pierre et Ndiaye', ['pierre', 'ndiaye', 'jean']],
+        ];
+    }
+
+    /** @param list<string> $traces */
+    #[DataProvider('apostropheNames')]
+    public function test_a_name_with_an_apostrophe_leaves_no_trace(string $name, string $input, array $traces): void
+    {
+        $out = (new EvalCaseAnonymizer)->anonymize($input, ['contact_nom' => $name])['input'];
+
+        foreach ($traces as $trace) {
+            $this->assertStringNotContainsStringIgnoringCase($trace, $out, "« $out »");
+        }
+    }
+
+    public function test_invisible_characters_inside_a_name_do_not_hide_it(): void
+    {
+        $out = (new EvalCaseAnonymizer)->anonymize("Aw\u{200B}a Di\u{00AD}op", ['contact_nom' => 'Awa Diop'])['input'];
+        $this->assertSame('[NOM]', $out);
+
+        $out = (new EvalCaseAnonymizer)->anonymize('Voir Awa Diop', ['contact_nom' => "A\u{200D}wa\u{FEFF} Di\u{2060}op"])['input'];
+        $this->assertSame('Voir [NOM]', $out);
+
+        $out = (new EvalCaseAnonymizer)->anonymize("Appelez le 77\u{200C}123 45\u{200B}67", [])['input'];
+        $this->assertSame('Appelez le [TELEPHONE]', $out);
     }
 
     public function test_a_name_inside_a_longer_word_is_left_alone(): void
@@ -110,6 +173,24 @@ class EvalCaseAnonymizerTest extends TestCase
             'nombre n\'est pas un nom' => ['nombre_chambres', 3, 3],
             'hotel n\'est pas un téléphone' => ['hotel', 'Terrou-Bi', 'Terrou-Bi'],
             'prix' => ['prix', 100, 100],
+            'username' => ['username', 'awa_diop', '[NOM]'],
+            'user_name' => ['user_name', 'awa_diop', '[NOM]'],
+            'userName' => ['userName', 'awa_diop', '[NOM]'],
+            'nombre_contacts' => ['nombre_contacts', 3, 3],
+            'contact_count' => ['contact_count', 3, 3],
+            'contactCount' => ['contactCount', 3, 3],
+            'nb_proprietaires' => ['nb_proprietaires', 2, 2],
+            'contact_preferred' => ['contact_preferred', 'email', 'email'],
+            'contact_prefere' => ['contact_prefere', 'email', 'email'],
+            'type_vendeur' => ['type_vendeur', 'particulier', 'particulier'],
+            'owner_type' => ['owner_type', 'agence', 'agence'],
+            'statut_proprietaire' => ['statut_proprietaire', 'actif', 'actif'],
+            'owner_status' => ['owner_status', 'actif', 'actif'],
+            'nom_quartier' => ['nom_quartier', 'Mermoz', 'Mermoz'],
+            'neighbourhood_name' => ['neighbourhood_name', 'Mermoz', 'Mermoz'],
+            'ville_contact' => ['ville_contact', 'Dakar', 'Dakar'],
+            'zone_adresse' => ['zone_adresse', 'Almadies', 'Almadies'],
+            'lieu_rendez_vous_contact' => ['lieu_rendez_vous_contact', 'Plateau', 'Plateau'],
         ];
     }
 
