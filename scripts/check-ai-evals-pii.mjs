@@ -27,9 +27,10 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const EVALS = join(ROOT, 'takussan-api', 'resources', 'ai', 'evals');
 
 // Préfixes : plan de numérotage national de l'ARTP, communication du 6.IX.2022 publiée par l'UIT le
-// 3.X.2023 (cf. PhoneMasker). `\s` couvre déjà U+00A0 et U+202F (espaces insécables).
+// 3.X.2023, plus 71 sur décision du porteur (cf. PhoneMasker). `\s` couvre déjà U+00A0 et U+202F
+// (espaces insécables).
 const SEP = '[\\s.\\-/]';
-const PREFIXE = '(?:3[02369]|7[0256789]|93)';
+const PREFIXE = '(?:3[02369]|7[0-25-9]|93)';
 export const TELEPHONE = new RegExp(
   `(?<!\\d)(?:(?:\\+|00)?221${SEP}?)?`
   + `(?:${PREFIXE}${SEP}?(?:\\d{3}${SEP}?\\d{2}${SEP}?\\d{2}|\\d{2}${SEP}?\\d{2}${SEP}?\\d{3})`

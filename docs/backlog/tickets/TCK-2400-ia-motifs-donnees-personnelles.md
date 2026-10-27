@@ -89,9 +89,11 @@ FCFA ») est pris pour un numéro par la garde — et, s'il est écrit d'un seul
   (`itu.int/dms_pub/itu-t/oth/02/02/T02020000B80006PDFF.pdf`, tableau « Détails du plan de
   numérotage ») : fixe **30** (Expresso), **32** (Free), **33** (Sonatel, 338/339), **36** (Hayo),
   **39** (ADIE) ; mobile **70**, **72** (Hayo), **75** (MVNO), **76**, **77**, **78**, **79** (ADIE) ;
-  VoIP **93** (FAI). **34 et 71 ne sont pas des préfixes** — 71 n'apparaît que comme bloc de 70
-  (`7011`) — : écartés, et épinglés comme non masqués par le fixture. 32, 36, 39, 72 et 93 ne
-  figuraient pas dans le ticket : ajoutés parce qu'ils sont au plan.
+  VoIP **93** (FAI). **34 n'est pas un préfixe** : écarté, et épinglé comme non masqué par le
+  fixture. 32, 36, 39, 72 et 93 ne figuraient pas dans le ticket : ajoutés parce qu'ils sont au plan.
+- **71, ajouté sur décision du porteur (2026-10-27)** alors que le plan de 2022 ne l'attribue pas
+  (il n'y apparaît que comme bloc de 70, `7011`) : un numéro en 71 se masque et se signale ; le
+  fixture le range parmi les téléphones. Ablation : 71 retiré → 2 rouges PHP, épreuve JS en échec.
 - **Le même ensemble des deux côtés, par construction** : `takussan-api/tests/fixtures/ai/donnees-personnelles.json`
   liste les formes (téléphones, courriels, et ce qui n'est pas personnel). `PhoneMaskerTest`,
   `EvalCaseAnonymizerTest` et les épreuves de `check-ai-evals-pii.mjs` le lisent tous trois : une

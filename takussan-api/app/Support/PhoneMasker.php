@@ -9,8 +9,8 @@ namespace App\Support;
  *
  * Préfixes (TCK-2400) : ceux du plan de numérotage national de l'ARTP, communication du 6.IX.2022
  * publiée par l'UIT le 3.X.2023 (Bulletin d'exploitation, « Sénégal (indicatif de pays +221) ») —
- * fixe 30, 32, 33, 36, 39 ; mobile 70, 72, 75, 76, 77, 78, 79 ; VoIP 93. Ni 34 ni 71 n'y sont des
- * préfixes (71 n'est qu'un bloc de 70).
+ * fixe 30, 32, 33, 36, 39 ; mobile 70, 72, 75, 76, 77, 78, 79 ; VoIP 93. Plus 71, ajouté sur
+ * décision du porteur (2026-10-27) bien que ce plan ne l'attribue pas encore. 34 n'y est pas.
  *
  * Avant le motif, les chiffres pleine chasse et arabes-indiens sont ramenés à l'ASCII et les
  * caractères invisibles (U+200B…) retirés, un code point pour un code point : le texte rendu garde
@@ -25,7 +25,7 @@ final class PhoneMasker
 {
     private const SEP = '[\s\x{00A0}\x{202F}.\-\/]';
 
-    private const PREFIX = '(?:3[02369]|7[0256789]|93)';
+    private const PREFIX = '(?:3[02369]|7[0-25-9]|93)';
 
     /**
      * S'applique au texte normalisé (`normalizeDigits()`, sans invisibles). Un séparateur facultatif
