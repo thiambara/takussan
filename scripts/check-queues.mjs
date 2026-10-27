@@ -15,6 +15,14 @@
  * les `onQueue('…')` du code, et les `--queue=` de ceux qui les consomment :
  * `deploy/takussan/compose.api.yml` (préproduction ET production, ADR-0028) et `dev.sh`.
  *
+ * **Et deux règles de plus depuis TCK-2397 (ADR-0078)**, parce que `retry_after` appartient à la
+ * CONNEXION et non au job :
+ *  - une file qui appartient à une connexion dédiée (`database-long` → `long`) n'est lue que par des
+ *    workers de cette connexion : un worker de `database` qui lirait `long` relivrerait après 90 s
+ *    un job de 30 min encore vivant ;
+ *  - aucun `$timeout` de `app/` n'atteint, à `MARGE_SECONDES` près, le `retry_after` par défaut de
+ *    sa connexion dans `config/queue.php`.
+ *
  * Usage :
  *   node scripts/check-queues.mjs            # garde, sort en 1 au moindre écart
  *   node scripts/check-queues.mjs --report   # + l'inventaire
@@ -61,6 +69,20 @@ const CONSOMMATEURS = [
   { fichier: join(ROOT, 'deploy', 'takussan', 'compose.api.yml'), ou: 'serveur — préproduction et production (Compose Dokploy)' },
   { fichier: join(ROOT, 'dev.sh'), ou: 'développement local' },
 ];
+
+/**
+ * La connexion d'un `queue:work` est son premier argument positionnel ; sans lui, c'est
+ * `QUEUE_CONNECTION`, qui vaut `database` dans les deux environnements déployés et dans
+ * `.env.docker`. Une garde ne lit pas un `.env` qu'elle n'a pas : elle pose ce défaut ici, nommé.
+ */
+const CONNEXION_PAR_DEFAUT = 'database';
+/**
+ * La plus petite marge en place au 2026-10-27 : `Audit\ExportActivityLogJob`, 85 s contre 90. La
+ * règle de Laravel est « quelques secondes » : le worker tue le job à `$timeout`, la file le rend à
+ * `retry_after`, et les deux horloges ne partent pas du même instant.
+ */
+const MARGE_SECONDES = 5;
+const CONFIG_FILE = join(ROOT, 'takussan-api', 'config', 'queue.php');
 
 /* ── 1. les files que le CODE pousse ─────────────────────────────────────── */
 // Les écritures possibles. Le commentaire d'origine en annonçait trois et le tableau
@@ -226,6 +248,7 @@ for (const { fichier, ou } of CONSOMMATEURS) {
   // L'UNION des files servies par les workers du fichier : deux workers qui se partagent les
   // files couvrent le contrat ensemble, et c'est bien ainsi qu'on les déploierait.
   const files = new Set();
+  const workers = [];
   lignes.forEach((ligne, i) => {
     const m = ligne.match(/--queue=([a-z0-9_,-]+)/);
 
@@ -241,13 +264,145 @@ for (const { fichier, ou } of CONSOMMATEURS) {
       process.exit(1);
     }
     m[1].split(',').forEach((q) => files.add(q));
+    workers.push({ connexion: connexionDuWorker(ligne), files: m[1].split(',') });
   });
-  lus.push({ ou, fichier, files, workers: lignes.length });
+  lus.push({ ou, fichier, files, workers: lignes.length, detail: workers });
 }
 
 // L'union serait indulgente : une file consommée en production mais pas en local resterait
 // invisible. On exige donc que CHAQUE consommateur couvre CHAQUE file.
 const consommees = new Set(lus.flatMap((c) => [...c.files]));
+
+/* ── 2 bis. connexions et délais de reprise (TCK-2397, ADR-0078) ─────────── */
+export function connexionDuWorker(ligne) {
+  const m = ligne.match(/artisan queue:work\s+(?!-)([a-z0-9_-]+)/);
+  return m ? m[1] : CONNEXION_PAR_DEFAUT;
+}
+
+/** `'nom' => [ … 'driver' => 'database' … 'queue' => 'long' … 'retry_after' => (int) env('X', 1900) … ]` */
+export function lireConnexions(php) {
+  const debut = php.indexOf("'connections' =>");
+  const connexions = new Map();
+  if (debut === -1) return connexions;
+  for (const m of sansCommentairesPhp(php.slice(debut)).matchAll(/'([a-z0-9_-]+)'\s*=>\s*\[([^\]]*)\]/g)) {
+    const driver = m[2].match(/'driver'\s*=>\s*'([a-z0-9_-]+)'/)?.[1];
+    if (!driver || connexions.has(m[1])) continue;
+    const retry = m[2].match(/'retry_after'\s*=>\s*(?:\(int\)\s*env\(\s*'[A-Z0-9_]+'\s*,\s*)?(\d+)/)?.[1];
+    connexions.set(m[1], {
+      driver,
+      file: m[2].match(/'queue'\s*=>\s*'([a-z0-9_-]+)'/)?.[1] ?? null,
+      retryAfter: retry === undefined ? null : Number(retry),
+    });
+  }
+  return connexions;
+}
+
+/**
+ * La file d'une connexion `database` dédiée lui appartient : `database-long` → `long`. Les files de
+ * la connexion par défaut n'ont pas de propriétaire écrit — c'est le cas général.
+ */
+export function proprietaires(connexions) {
+  const p = new Map();
+  for (const [nom, c] of connexions) if (nom !== CONNEXION_PAR_DEFAUT && c.driver === 'database' && c.file) p.set(c.file, nom);
+  return p;
+}
+
+/**
+ * Résout l'expression d'un `$timeout` : un entier, `self::X`, `Classe::X`, suivis d'un `+ N` ou
+ * `- N`. Ce qu'elle ne sait pas lire, elle le dit (`null`) — jamais « 0 », qui passerait toujours.
+ */
+export function resoudreTimeout(expr, source, constantesDe) {
+  const m = expr.trim().match(/^(?:(\d+)|(self|static|[A-Z]\w*)::([A-Z_][A-Z0-9_]*))\s*(?:([+-])\s*(\d+))?$/);
+  if (!m) return null;
+  let base;
+  if (m[1] !== undefined) base = Number(m[1]);
+  else {
+    const src = m[2] === 'self' || m[2] === 'static' ? source : constantesDe(m[2]);
+    const c = src?.match(new RegExp(`const\\s+(?:int\\s+)?${m[3]}\\s*=\\s*(\\d+)\\s*;`));
+    if (!c) return null;
+    base = Number(c[1]);
+  }
+  return m[4] === '+' ? base + Number(m[5]) : m[4] === '-' ? base - Number(m[5]) : base;
+}
+
+export function connexionDeLaClasse(source) {
+  // Le `use` DANS la classe (indenté), pas l'import en tête de fichier.
+  // `[ \t]+` et non `\s+` : sous `m`, `\s` traverse le saut de ligne, et l'import précédé d'une ligne
+  // vide passait pour un `use` de classe (attrapé par ablation, d'où la seconde épreuve).
+  return /^[ \t]+use\s+[^;]*\bRunsOnLongQueue\b/m.test(source) ? 'database-long' : CONNEXION_PAR_DEFAUT;
+}
+
+const EPREUVES = [
+  ['worker sans connexion', connexionDuWorker('    command: php artisan queue:work --queue=a,b --tries=3'), 'database'],
+  ['worker de database-long', connexionDuWorker('    command: php artisan queue:work database-long --queue=long'), 'database-long'],
+  ['timeout littéral', resoudreTimeout('300', '', () => null), 300],
+  ['timeout self::', resoudreTimeout('self::T', 'public const T = 1800;', () => null), 1800],
+  ['timeout Classe:: + N', resoudreTimeout('B::CHAIN + 20', '', (c) => (c === 'B' ? 'public const CHAIN = 30;' : null)), 50],
+  ['timeout illisible', resoudreTimeout('config(\'x\')', '', () => null), null],
+  ['classe longue', connexionDeLaClasse('use App\\Jobs\\Concerns\\RunsOnLongQueue;\nclass A {\n    use Queueable, RunsOnLongQueue;\n}'), 'database-long'],
+  ['import seul', connexionDeLaClasse('use App\\Jobs\\Concerns\\RunsOnLongQueue;\nclass A {\n    use Queueable;\n}'), 'database'],
+  ['import seul après une ligne vide', connexionDeLaClasse('<?php\n\nnamespace App\\Jobs;\n\nuse App\\Jobs\\Concerns\\RunsOnLongQueue;\nclass A {\n    use Queueable;\n}'), 'database'],
+  ['propriétaire de long', proprietaires(lireConnexions("'connections' => [\n 'database' => ['driver' => 'database', 'queue' => env('DB_QUEUE', 'default'), 'retry_after' => (int) env('DB_QUEUE_RETRY_AFTER', 90)],\n 'database-long' => ['driver' => 'database', 'queue' => 'long', 'retry_after' => (int) env('DB_LONG_QUEUE_RETRY_AFTER', 1900)],\n]")).get('long'), 'database-long'],
+];
+for (const [nom, obtenu, attendu] of EPREUVES) {
+  if (obtenu !== attendu) {
+    console.error(`✗ épreuve « ${nom} » : ${JSON.stringify(obtenu)} au lieu de ${JSON.stringify(attendu)}`);
+    process.exit(1);
+  }
+}
+
+const connexions = lireConnexions(readFileSync(CONFIG_FILE, 'utf8'));
+const proprio = proprietaires(connexions);
+const fautes = [];
+
+// Une file dédiée n'est lue que par sa connexion ; une file ordinaire, que par la connexion par défaut.
+for (const c of lus) {
+  for (const w of c.detail) {
+    if (!connexions.has(w.connexion)) {
+      fautes.push(`un worker de « ${c.ou} » vise la connexion \`${w.connexion}\`, absente de config/queue.php`);
+      continue;
+    }
+    for (const q of w.files) {
+      const attendue = proprio.get(q) ?? CONNEXION_PAR_DEFAUT;
+      if (w.connexion !== attendue) {
+        fautes.push(`« ${c.ou} » lit la file \`${q}\` par la connexion \`${w.connexion}\`, au lieu de \`${attendue}\` : son délai de reprise n'est pas celui des jobs de cette file`);
+      }
+    }
+  }
+}
+
+// Chaque `$timeout` contre le `retry_after` de sa connexion.
+const sources = new Map(); // classe → source sans commentaires
+const fichiersPhp = [];
+(function lister(dir) {
+  for (const e of readdirSync(dir)) {
+    const ch = join(dir, e);
+    if (statSync(ch).isDirectory()) lister(ch);
+    else if (e.endsWith('.php')) fichiersPhp.push(ch);
+  }
+})(join(ROOT, 'takussan-api', 'app'));
+for (const f of fichiersPhp) {
+  const src = sansCommentairesPhp(readFileSync(f, 'utf8'));
+  const cls = src.match(/^(?:final\s+|abstract\s+|readonly\s+)*(?:class|interface|trait|enum)\s+(\w+)/m)?.[1];
+  if (cls && !sources.has(cls)) sources.set(cls, src);
+}
+const delais = [];
+for (const f of fichiersPhp) {
+  const src = sansCommentairesPhp(readFileSync(f, 'utf8'));
+  const rel = f.slice(ROOT.length + 1);
+  for (const m of src.matchAll(/(?:public|protected|private)\s+(?:\??\w+\s+)?\$timeout\s*=\s*([^;]+);/g)) {
+    const t = resoudreTimeout(m[1], src, (c) => sources.get(c) ?? null);
+    const conn = connexionDeLaClasse(src);
+    const retry = connexions.get(conn)?.retryAfter ?? null;
+    delais.push({ rel, t, conn, retry });
+    if (t === null) fautes.push(`${rel} : \`$timeout = ${m[1].trim()}\` illisible — la garde ne peut pas juger son délai de reprise`);
+    else if (retry === null) fautes.push(`${rel} : la connexion \`${conn}\` n'a pas de \`retry_after\` lisible dans config/queue.php`);
+    else if (t + MARGE_SECONDES > retry) {
+      fautes.push(`${rel} : \`$timeout\` ${t} s sur \`${conn}\` (retry_after ${retry} s) — un worker de plus le relivrerait vivant. Prendre \`RunsOnLongQueue\` (ADR-0078)`);
+    }
+  }
+}
+if (delais.length === 0) fautes.push('aucun `$timeout` trouvé dans takussan-api/app : le motif ne lit plus rien');
 
 /* ── 3. l'écart ──────────────────────────────────────────────────────────── */
 // `default` est EXIGÉE inconditionnellement, et son absence de `poussees` est précisément la
@@ -286,6 +441,10 @@ if (REPORT) {
   MOTIFS.forEach((_, i) => {
     console.log(`  ${touches[i] === 0 ? '⚠ 0' : String(touches[i]).padStart(3)}  ${NOMS[i] ?? `motif n°${i + 1}`}`);
   });
+  console.log(`\nDélais de reprise (marge ${MARGE_SECONDES} s) :`);
+  for (const d of [...delais].sort((a, b) => (b.t ?? 0) - (a.t ?? 0))) {
+    console.log(`  ${String(d.t ?? '?').padStart(5)} s / ${String(d.retry ?? '?').padStart(4)} s  ${d.conn.padEnd(14)} ${d.rel}`);
+  }
   if (opaques.length) {
     console.log(`\nFiles nommées par une expression (${opaques.length}) — non lisibles ici :`);
     for (const [f, expr] of opaques) console.log(`  ${expr.padEnd(28)} ${f}`);
@@ -318,10 +477,18 @@ for (const [f, expr] of opaques) {
   );
 }
 
-if (orphelines.length === 0) {
+if (fautes.length) {
+  console.error(`\n✗ ${fautes.length} faute(s) de connexion ou de délai de reprise (ADR-0078) :\n`);
+  for (const f of fautes) console.error(`  · ${f}`);
+  console.error('');
+}
+
+if (orphelines.length === 0 && fautes.length === 0) {
   console.log(`✓ files de jobs : les ${EXIGEES.size} files exigées (dont \`default\`) sont consommées par les ${lus.length} consommateurs.`);
   process.exit(0);
 }
+
+if (orphelines.length === 0) process.exit(1);
 
 console.error(`\n✗ ${orphelines.length} file(s) exigée(s) et non consommée(s) quelque part :\n`);
 for (const [q, ou] of orphelines) {

@@ -2,6 +2,7 @@
 
 namespace App\Jobs\Ai;
 
+use App\Jobs\Concerns\RunsOnLongQueue;
 use App\Models\AiEvaluationRun;
 use App\Models\Enums\AiEvaluationStatus;
 use App\Services\Ai\AiUsageRegistry;
@@ -22,26 +23,22 @@ use Throwable;
  */
 class RunAiEvaluation implements ShouldQueue
 {
-    use Queueable;
+    use Queueable, RunsOnLongQueue;
 
     /** Source unique du délai d'une évaluation : `AiEvaluationRun::STALE_AFTER_SECONDS` en dérive. */
     public const TIMEOUT_SECONDS = 1800;
 
     /**
-     * ⚠ Hypothèse mesurée (2026-10-27) : UN SEUL consommateur de la file `default`
-     * (`deploy/takussan/compose.api.yml` : un service `worker`, sans réplicas), `QUEUE_CONNECTION=database`,
-     * `DB_QUEUE_RETRY_AFTER` non posée, donc `retry_after` = 90 s (`config/queue.php`). Un job vivant n'est
-     * alors jamais relivré à lui-même. Les vrais cas de mort sont deux :
+     * TCK-2397 (ADR-0078) — le job passe par `database-long` / `long` ({@see RunsOnLongQueue}), servie par
+     * le seul `worker-long`, dont le `retry_after` (1900 s) dépasse `TIMEOUT_SECONDS`. Un job vivant n'est
+     * donc jamais relivré à lui-même. Les vrais cas de mort sont deux :
      *  - un dépassement de `$timeout` passe par `$failOnTimeout` puis `failed()` ;
      *  - un SIGKILL (mémoire, redémarrage de déploiement) laisse la ligne `jobs` réservée ; la file la
-     *    relivre après `retry_after` (90 s), et avec `$tries = 1` cette relivraison échoue aussitôt
+     *    relivre après `retry_after`, et avec `$tries = 1` cette relivraison échoue aussitôt
      *    (`MaxAttemptsExceededException` → `failed()` → `Failed`). Avec `$tries = 3`, l'évaluation
      *    resterait `running` jusqu'à `STALE_AFTER_SECONDS` (2100 s) sans `failed()`.
-     * Un échec réel ne se rejoue pas : `handle()` attrape tout.
-     *
-     * ⚠ Si un SECOND consommateur de `default` est un jour ajouté, `DB_QUEUE_RETRY_AFTER` DOIT dépasser
-     * `TIMEOUT_SECONDS` : sinon une évaluation vivante plus longue que `retry_after` est relivrée, déclarée
-     * échouée, et son résultat est perdu. `markLostIfStale()` reste le filet de dernier recours.
+     * Un échec réel ne se rejoue pas : `handle()` attrape tout. `markLostIfStale()` reste le filet de
+     * dernier recours. `scripts/check-queues.mjs` rougit si `TIMEOUT_SECONDS` rattrape le délai de reprise.
      */
     public int $tries = 1;
 
@@ -51,7 +48,10 @@ class RunAiEvaluation implements ShouldQueue
     /** Un dépassement de `$timeout` échoue le job (donc `failed()`), il ne le remet pas en file. */
     public bool $failOnTimeout = true;
 
-    public function __construct(public readonly int $runId) {}
+    public function __construct(public readonly int $runId)
+    {
+        $this->onLongQueue();
+    }
 
     public function handle(EvaluationRunner $runner, AiUsageRegistry $registry): void
     {

@@ -30,7 +30,8 @@ on:
       - 'takussan-api/.env.docker'
       # Chaque garde doit être déclenchée par les DEUX côtés qu'elle compare, sinon elle
       # ne voit qu'une moitié de l'écart qu'elle existe pour trouver :
-      #   check-queues       → les `onQueue()` de takussan-api/app, deploy/takussan/compose.api.yml ET dev.sh
+      #   check-queues       → les `onQueue()` et `$timeout` de takussan-api/app, takussan-api/config/queue.php,
+      #                        deploy/takussan/compose.api.yml ET dev.sh
       #   check-pro-routes   → PRO_ROUTES et les pages, tous deux sous takussan-web/src
       #   check-backlog      → les tickets ET les specs qu'ils citent
       #   check-models-spec  → takussan-api/app/Models ET docs/models-spec.md

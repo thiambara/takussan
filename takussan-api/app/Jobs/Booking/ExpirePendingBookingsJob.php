@@ -2,6 +2,7 @@
 
 namespace App\Jobs\Booking;
 
+use App\Jobs\Concerns\RunsOnLongQueue;
 use App\Services\Booking\BookingExpirationService;
 use App\Support\Logging\SafeExceptionContext;
 use Illuminate\Bus\Queueable;
@@ -13,7 +14,7 @@ use Illuminate\Support\Facades\Log;
 
 class ExpirePendingBookingsJob implements ShouldQueue
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+    use Dispatchable, InteractsWithQueue, Queueable, RunsOnLongQueue, SerializesModels;
 
     /**
      * The number of times the job may be attempted.
@@ -24,6 +25,11 @@ class ExpirePendingBookingsJob implements ShouldQueue
      * The number of seconds the job can run before timing out.
      */
     public $timeout = 300;
+
+    public function __construct()
+    {
+        $this->onLongQueue();
+    }
 
     /**
      * Execute the job.
