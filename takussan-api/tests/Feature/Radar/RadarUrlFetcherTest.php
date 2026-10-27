@@ -7,6 +7,7 @@ use App\Services\Radar\Exceptions\RadarFetchDeferred;
 use App\Services\Radar\Exceptions\RadarFetchRefused;
 use App\Services\Radar\HostResolver;
 use App\Services\Radar\UrlFetcher;
+use GuzzleHttp\Exception\ConnectException;
 use GuzzleHttp\Promise\PromiseInterface;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Request;
@@ -145,6 +146,17 @@ class RadarUrlFetcherTest extends TestCase
             'localhost' => ['http://localhost/'],
             'sous-domaine de localhost' => ['http://admin.localhost/'],
             'localhost en capitales, point final' => ['http://LOCALHOST./'],
+            '6to4 2002::/16 vers 127.0.0.1' => ['http://[2002:7f00:1::1]/'],
+            '6to4 2002::/16 vers 192.168.1.1' => ['http://[2002:c0a8:101::1]/'],
+            'Teredo 2001::/32' => ['http://[2001:0:4136:e378:8000:63bf:3fff:fdd2]/'],
+            'NAT64 local 64:ff9b:1::/48' => ['http://[64:ff9b:1::a9fe:a9fe]/'],
+            'relais 6to4 192.88.99.0/24' => ['http://192.88.99.1/'],
+            'SRv6 5f00::/8' => ['http://[5f00::1]/'],
+            'documentation 3fff::/20' => ['http://[3fff::1]/'],
+            'ORCHID 2001:10::/28' => ['http://[2001:10::1]/'],
+            'ORCHIDv2 2001:20::/28' => ['http://[2001:20::1]/'],
+            'chiffres pleine chasse (IDN)' => ['http://１２７.０.０.１/'],
+            'points idéographiques (IDN)' => ['http://127。0。0。1/'],
         ];
     }
 
@@ -192,6 +204,25 @@ class RadarUrlFetcherTest extends TestCase
 
         $this->assertSame('radar.fetch.private_address', $this->refusalOf('https://v6.example.com/'));
         Http::assertNothingSent();
+    }
+
+    public function test_un_nom_qui_resout_en_6to4_vers_une_adresse_privee_est_refuse(): void
+    {
+        Http::fake();
+        $this->dns['sixtofour.example.com'] = ['2002:7f00:1::1'];
+
+        $this->assertSame('radar.fetch.private_address', $this->refusalOf('https://sixtofour.example.com/'));
+        Http::assertNothingSent();
+    }
+
+    public function test_un_litteral_idn_ne_part_pas_au_resolveur(): void
+    {
+        Http::fake();
+
+        $this->refusalOf('http://１２７.０.０.１/');
+        $this->refusalOf('http://127。0。0。1/');
+
+        $this->assertSame([], $this->resolved);
     }
 
     public function test_un_nom_qui_ne_resout_pas_est_refuse(): void
@@ -410,7 +441,7 @@ class RadarUrlFetcherTest extends TestCase
             'https://sn.coinafrique.com/annonce/*' => $this->html(),
         ]);
 
-        $this->assertSame('radar.fetch.robots', $this->refusalOf('https://sn.coinafrique.com/annonce/42'));
+        $this->assertSame('radar.fetch.robots_unavailable', $this->refusalOf('https://sn.coinafrique.com/annonce/42'));
         Http::assertSentCount(1);
     }
 
@@ -424,7 +455,7 @@ class RadarUrlFetcherTest extends TestCase
             return $this->html();
         });
 
-        $this->assertSame('radar.fetch.robots', $this->refusalOf('https://sn.coinafrique.com/annonce/42'));
+        $this->assertSame('radar.fetch.robots_unavailable', $this->refusalOf('https://sn.coinafrique.com/annonce/42'));
         Http::assertNotSent(fn (Request $r) => str_contains($r->url(), '/annonce/'));
     }
 
@@ -435,8 +466,66 @@ class RadarUrlFetcherTest extends TestCase
             '127.0.0.1/*' => Http::response("User-agent: *\nAllow: /\n"),
         ]);
 
-        $this->assertSame('radar.fetch.robots', $this->refusalOf('https://sn.coinafrique.com/annonce/42'));
+        $this->assertSame('radar.fetch.private_address', $this->refusalOf('https://sn.coinafrique.com/annonce/42'));
         Http::assertNotSent(fn (Request $r) => parse_url($r->url(), PHP_URL_HOST) === '127.0.0.1');
+    }
+
+    public function test_un_robots_txt_redirige_vers_un_autre_hote_est_suivi_et_s_applique(): void
+    {
+        $this->dns['www.coinafrique.com'] = [self::PUBLIC_IP];
+        Http::fake([
+            'https://sn.coinafrique.com/robots.txt' => Http::response('', 301, ['Location' => 'https://www.coinafrique.com/robots.txt']),
+            'https://www.coinafrique.com/robots.txt' => Http::response("User-agent: *\nDisallow: /annonce/\n"),
+            'https://sn.coinafrique.com/*' => $this->html(),
+        ]);
+
+        $this->assertSame('radar.fetch.robots', $this->refusalOf('https://sn.coinafrique.com/annonce/42'));
+        Http::assertNotSent(fn (Request $r) => str_contains($r->url(), '/annonce/'));
+    }
+
+    public function test_un_robots_txt_redirige_vers_un_autre_hote_prend_le_creneau_de_cet_hote(): void
+    {
+        $this->dns['www.coinafrique.com'] = [self::PUBLIC_IP];
+        Http::fake([
+            'https://www.coinafrique.com/robots.txt' => Http::response('', 404),
+            'https://www.coinafrique.com/*' => $this->html(),
+            'https://sn.coinafrique.com/robots.txt' => Http::response('', 301, ['Location' => 'https://www.coinafrique.com/robots.txt']),
+            'https://sn.coinafrique.com/*' => $this->html(),
+        ]);
+
+        $this->fetcher()->fetch('https://www.coinafrique.com/annonce/1');
+
+        $this->expectException(RadarFetchDeferred::class);
+        $this->fetcher()->fetch('https://sn.coinafrique.com/annonce/42');
+    }
+
+    public function test_une_lecture_longue_garde_son_creneau_jusqu_au_bout(): void
+    {
+        // Le pire cas d'une lecture : (redirections + 1) sauts de page, chacun pouvant lire un
+        // robots.txt de (redirections + 1) requêtes, chacune jusqu'au délai d'expiration — 200 s
+        // avec la configuration livrée. Le verrou ne doit pas expirer avant.
+        $nested = null;
+        Http::fake(function (Request $request) use (&$nested) {
+            if (str_ends_with($request->url(), '/robots.txt')) {
+                return Http::response('', 404);
+            }
+
+            if ($nested === null) {
+                $nested = 'pas différée';
+                $this->travel(200)->seconds();
+                try {
+                    $this->fetcher()->fetch('https://sn.coinafrique.com/autre');
+                } catch (RadarFetchDeferred) {
+                    $nested = 'différée';
+                }
+            }
+
+            return $this->html();
+        });
+
+        $this->fetcher()->fetch('https://sn.coinafrique.com/annonce/1');
+
+        $this->assertSame('différée', $nested);
     }
 
     public function test_le_robots_txt_est_garde_en_cache_par_domaine(): void
@@ -576,6 +665,26 @@ class RadarUrlFetcherTest extends TestCase
             }
 
             throw new ConnectionException('cURL error 28: Operation timed out after 10001 milliseconds');
+        });
+
+        $this->assertSame('radar.fetch.timeout', $this->refusalOf('https://sn.coinafrique.com/a'));
+    }
+
+    public function test_un_delai_depasse_est_reconnu_par_le_code_d_erreur_curl(): void
+    {
+        Http::fake(function (Request $request) {
+            if (str_ends_with($request->url(), '/robots.txt')) {
+                return Http::response('', 404);
+            }
+
+            $previous = new ConnectException(
+                'opaque',
+                new \GuzzleHttp\Psr7\Request('GET', $request->url()),
+                null,
+                ['errno' => CURLE_OPERATION_TIMEDOUT],
+            );
+
+            throw new ConnectionException('opaque', 0, $previous);
         });
 
         $this->assertSame('radar.fetch.timeout', $this->refusalOf('https://sn.coinafrique.com/a'));

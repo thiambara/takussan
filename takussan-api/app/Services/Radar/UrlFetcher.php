@@ -4,6 +4,8 @@ namespace App\Services\Radar;
 
 use App\Services\Radar\Exceptions\RadarFetchDeferred;
 use App\Services\Radar\Exceptions\RadarFetchRefused;
+use GuzzleHttp\Exception\ConnectException;
+use GuzzleHttp\Exception\RequestException;
 use GuzzleHttp\Exception\TransferException;
 use GuzzleHttp\Psr7\Exception\MalformedUriException;
 use GuzzleHttp\Psr7\Uri;
@@ -25,22 +27,29 @@ use InvalidArgumentException;
  * connexion (rebinding) ne mène nulle part. Les redirections sont suivies à la main, jamais par le
  * client. Aucun mandataire (`proxy => ''`) : il résoudrait le nom lui-même.
  *
- * **Polie.** `robots.txt` respecté (absent → tout permis ; 5xx, injoignable ou redirigé vers une
- * adresse refusée → tout refusé), User-Agent qui se nomme, une lecture à la fois par domaine et un
- * délai minimal entre deux (`RadarFetchDeferred`).
+ * **Polie.** `robots.txt` respecté (interdit → `robots` ; absent → tout permis ; 5xx ou
+ * injoignable → `robots_unavailable` ; saut refusé → le code de ce saut), User-Agent qui se nomme,
+ * une lecture à la fois par domaine et un délai minimal entre deux (`RadarFetchDeferred`).
  *
  * **Bornée.** Délais courts, au plus `max_redirects` redirections, corps borné à `max_bytes`
  * (en-tête `Content-Length`, octets reçus au fil de l'eau par `BoundedSink`, puis taille lue).
  */
 final class UrlFetcher
 {
-    /** Plages refusées : boucle locale, privées, métadonnées, CGNAT, réservées, multicast, IPv4 mappée. */
+    /**
+     * Plages refusées : boucle locale, privées, métadonnées, CGNAT, réservées, multicast, IPv4 mappée
+     * — et les préfixes de TRANSITION IPv6 qui embarquent une IPv4 (6to4 `2002::/16` et son relais
+     * `192.88.99.0/24`, Teredo `2001::/32`, NAT64 `64:ff9b::/96` et local `64:ff9b:1::/48`) :
+     * `2002:7f00:1::1` mène à 127.0.0.1 par un relais. Refusés en bloc, plutôt que d'extraire et de
+     * contrôler l'IPv4 embarquée : aucune annonce ne se sert depuis l'un d'eux.
+     */
     private const BLOCKED_RANGES = [
         '0.0.0.0/8', '10.0.0.0/8', '100.64.0.0/10', '127.0.0.0/8', '169.254.0.0/16', '172.16.0.0/12',
-        '192.0.0.0/24', '192.0.2.0/24', '192.168.0.0/16', '198.18.0.0/15', '198.51.100.0/24',
-        '203.0.113.0/24', '224.0.0.0/3',
-        '::/128', '::1/128', '::ffff:0:0/96', '::/96', '64:ff9b::/96', '100::/64', '2001:db8::/32',
-        'fc00::/7', 'fe80::/10', 'fec0::/10', 'ff00::/8',
+        '192.0.0.0/24', '192.0.2.0/24', '192.88.99.0/24', '192.168.0.0/16', '198.18.0.0/15',
+        '198.51.100.0/24', '203.0.113.0/24', '224.0.0.0/3',
+        '::/128', '::1/128', '::ffff:0:0/96', '::/96', '64:ff9b::/96', '64:ff9b:1::/48', '100::/64',
+        '2001::/32', '2001:10::/28', '2001:20::/28', '2001:db8::/32', '2002::/16', '3fff::/20',
+        '5f00::/8', 'fc00::/7', 'fe80::/10', 'fec0::/10', 'ff00::/8',
     ];
 
     private const REDIRECT_STATUSES = [301, 302, 303, 307, 308];
@@ -96,7 +105,7 @@ final class UrlFetcher
             $redirects = 0;
 
             while (true) {
-                if (! $this->robotsAllow($target)) {
+                if (! $this->robotsAllow($target, $held)) {
                     throw new RadarFetchRefused(RadarFetchRefused::ROBOTS);
                 }
 
@@ -193,7 +202,12 @@ final class UrlFetcher
 
         if ($literal === null) {
             $host = $this->asciiHost($host);
+            // Une seconde fois sur la forme ASCII : `１２７.０.０.１` et `127。0。0。1` ne sont un
+            // littéral qu'APRÈS la conversion IDN, et partiraient sinon au résolveur comme un nom.
+            $literal = $this->ipLiteral($host);
+        }
 
+        if ($literal === null) {
             if (self::isAirbnb($host)) {
                 throw new RadarFetchRefused(RadarFetchRefused::AIRBNB);
             }
@@ -279,8 +293,13 @@ final class UrlFetcher
 
     /**
      * Le créneau du domaine : une lecture à la fois, et `min_delay_seconds` entre deux. Le verrou
-     * est pris pour la durée la plus longue qu'une lecture puisse tenir (robots et page, à chaque
-     * saut), puis ramené au délai minimal compté depuis la fin de la lecture (`release()`).
+     * est pris pour la durée la plus longue qu'une lecture puisse tenir, puis ramené au délai
+     * minimal compté depuis la fin de la lecture (`release()`, dans un `finally`).
+     *
+     * Le pire cas : (R + 1) sauts de page, chacun pouvant lire le `robots.txt` d'une nouvelle
+     * origine en (R + 1) requêtes, soit (R + 1)(R + 2) requêtes, chacune bornée par le délai
+     * d'expiration — compté avec celui de connexion pour couvrir aussi les résolutions DNS, que
+     * cURL ne fait pas (elles sont faites avant, par `HostResolver`). 305 s avec R = 3.
      *
      * @param  list<string>  $held
      */
@@ -291,7 +310,8 @@ final class UrlFetcher
         }
 
         $delay = max(1, (int) config('radar.fetch.min_delay_seconds', 5));
-        $inFlight = $delay + 2 * ((int) config('radar.fetch.max_redirects', 3) + 1)
+        $redirects = (int) config('radar.fetch.max_redirects', 3);
+        $inFlight = $delay + ($redirects + 1) * ($redirects + 2)
             * ((int) config('radar.fetch.timeout_seconds', 10) + (int) config('radar.fetch.connect_timeout_seconds', 5));
 
         $now = now()->getTimestamp();
@@ -325,17 +345,15 @@ final class UrlFetcher
      * refusée) se relit à la lecture suivante — une panne passagère ne ferme pas un domaine un jour.
      *
      * @param  array{url: string, scheme: string, host: string, port: int, pathQuery: string, ips: list<string>}  $target
+     * @param  list<string>  $held
      */
-    private function robotsAllow(array $target): bool
+    private function robotsAllow(array $target, array &$held): bool
     {
         $key = 'radar:robots:'.$target['scheme'].'://'.$target['host'].':'.$target['port'];
         $robots = Cache::get($key);
 
         if (! is_string($robots)) {
-            $robots = $this->readRobots($target);
-            if ($robots === null) {
-                return false;
-            }
+            $robots = $this->readRobots($target, $held);
             Cache::put($key, $robots, (int) config('radar.fetch.robots_cache_seconds', 86_400));
         }
 
@@ -343,12 +361,20 @@ final class UrlFetcher
     }
 
     /**
-     * Le texte du `robots.txt` ('' s'il est absent), ou null s'il faut tout refuser. Lu par le même
-     * chemin protégé que la page : chaque redirection est un saut contrôlé.
+     * Le texte du `robots.txt`, '' s'il est absent (4xx). Lu par le même chemin protégé que la page :
+     * chaque redirection est un saut contrôlé, et une redirection vers un autre hôte prend le
+     * créneau de cet hôte (Google suit ces redirections ; `coinafrique.com` → `www.…` est courant).
+     *
+     * Un saut refusé propage son propre code (`private_address`, `too_many_redirects`…) ; un fichier
+     * qu'on n'a pas pu lire (5xx, délai, connexion) lève `robots_unavailable`, distinct de
+     * `robots` (le fichier interdit la page).
      *
      * @param  array{url: string, scheme: string, host: string, port: int, pathQuery: string, ips: list<string>}  $target
+     * @param  list<string>  $held
+     *
+     * @throws RadarFetchRefused
      */
-    private function readRobots(array $target): ?string
+    private function readRobots(array $target, array &$held): string
     {
         $hop = ['url' => (string) (new Uri($target['url']))->withPath('/robots.txt')->withQuery(''), 'pathQuery' => '/robots.txt'] + $target;
 
@@ -356,19 +382,26 @@ final class UrlFetcher
             $redirects = 0;
             while (($location = $this->redirectLocation($response = $this->send($hop))) !== null) {
                 if (++$redirects > (int) config('radar.fetch.max_redirects', 3)) {
-                    return null;
+                    throw new RadarFetchRefused(RadarFetchRefused::TOO_MANY_REDIRECTS);
                 }
                 $hop = $this->target($this->resolveLocation($hop['url'], $location));
+                $this->hold($hop['host'], $held);
             }
-        } catch (RadarFetchRefused) {
-            return null;
+        } catch (RadarFetchRefused $e) {
+            throw in_array($e->code, [RadarFetchRefused::TIMEOUT, RadarFetchRefused::HTTP_ERROR], true)
+                ? new RadarFetchRefused(RadarFetchRefused::ROBOTS_UNAVAILABLE)
+                : $e;
         }
 
         if ($response->successful()) {
             return $response->body();
         }
 
-        return $response->clientError() ? '' : null;
+        if ($response->clientError()) {
+            return '';
+        }
+
+        throw new RadarFetchRefused(RadarFetchRefused::ROBOTS_UNAVAILABLE);
     }
 
     /**
@@ -390,9 +423,7 @@ final class UrlFetcher
                 throw new RadarFetchRefused(RadarFetchRefused::TOO_LARGE);
             }
 
-            $timedOut = str_contains($e->getMessage(), 'cURL error 28') || stripos($e->getMessage(), 'timed out') !== false;
-
-            throw new RadarFetchRefused($timedOut ? RadarFetchRefused::TIMEOUT : RadarFetchRefused::HTTP_ERROR);
+            throw new RadarFetchRefused($this->timedOut($e) ? RadarFetchRefused::TIMEOUT : RadarFetchRefused::HTTP_ERROR);
         }
 
         $length = $response->header('Content-Length');
@@ -403,6 +434,25 @@ final class UrlFetcher
         }
 
         return $response;
+    }
+
+    /**
+     * Le délai est-il dépassé ? Le code cURL du contexte du gestionnaire (`errno` 28) d'abord — la
+     * `ConnectionException` de Laravel garde l'exception Guzzle en `previous` ; le texte du message
+     * seulement à défaut.
+     */
+    private function timedOut(\Throwable $e): bool
+    {
+        for ($cause = $e; $cause !== null; $cause = $cause->getPrevious()) {
+            if ($cause instanceof ConnectException || $cause instanceof RequestException) {
+                $errno = $cause->getHandlerContext()['errno'] ?? null;
+                if (is_int($errno)) {
+                    return $errno === CURLE_OPERATION_TIMEDOUT;
+                }
+            }
+        }
+
+        return str_contains($e->getMessage(), 'cURL error 28') || stripos($e->getMessage(), 'timed out') !== false;
     }
 
     private function redirectLocation(Response $response): ?string

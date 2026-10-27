@@ -19,7 +19,11 @@ final class RadarFetchRefused extends RuntimeException
 
     public const PRIVATE_ADDRESS = 'radar.fetch.private_address';
 
+    /** Le `robots.txt` du domaine interdit la page. */
     public const ROBOTS = 'radar.fetch.robots';
+
+    /** Le `robots.txt` n'a pas pu être lu (5xx, délai, connexion) : tout est refusé, sans cache. */
+    public const ROBOTS_UNAVAILABLE = 'radar.fetch.robots_unavailable';
 
     public const TOO_MANY_REDIRECTS = 'radar.fetch.too_many_redirects';
 

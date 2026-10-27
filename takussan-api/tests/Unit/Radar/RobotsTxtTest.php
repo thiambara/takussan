@@ -89,6 +89,37 @@ class RobotsTxtTest extends TestCase
         $this->assertTrue(RobotsTxt::allows($robots, '/axb(c)', self::UA));
     }
 
+    public function test_un_motif_non_ascii_se_compare_en_pourcent_encode(): void
+    {
+        $robots = "User-agent: *\nDisallow: /é\n";
+
+        $this->assertFalse(RobotsTxt::allows($robots, '/%C3%A9', self::UA));
+        $this->assertFalse(RobotsTxt::allows($robots, '/%c3%a9/annonce', self::UA));
+        $this->assertTrue(RobotsTxt::allows($robots, '/e', self::UA));
+    }
+
+    public function test_la_casse_des_pourcent_encodages_est_normalisee(): void
+    {
+        $robots = "User-agent: *\nDisallow: /a%2fb\n";
+
+        $this->assertFalse(RobotsTxt::allows($robots, '/a%2Fb', self::UA));
+    }
+
+    public function test_un_caractere_non_reserve_pourcent_encode_est_decode(): void
+    {
+        $robots = "User-agent: *\nDisallow: /%7Eagent\n";
+
+        $this->assertFalse(RobotsTxt::allows($robots, '/~agent', self::UA));
+        $this->assertFalse(RobotsTxt::allows("User-agent: *\nDisallow: /~agent\n", '/%7eagent', self::UA));
+    }
+
+    public function test_un_caractere_reserve_pourcent_encode_reste_distinct(): void
+    {
+        $robots = "User-agent: *\nDisallow: /a%2Fb\n";
+
+        $this->assertTrue(RobotsTxt::allows($robots, '/a/b', self::UA));
+    }
+
     public function test_le_groupe_du_radar_l_emporte_sur_l_etoile(): void
     {
         $robots = "User-agent: *\nDisallow: /\n\nUser-agent: TakussanRadar\nAllow: /\n";

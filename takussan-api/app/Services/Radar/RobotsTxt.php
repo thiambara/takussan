@@ -12,6 +12,8 @@ namespace App\Services\Radar;
  *   vide ne compte pas. Sans règle qui s'applique, tout est permis.
  * - `*` vaut n'importe quelle suite de caractères, `$` en fin de motif ancre la fin de l'URL.
  * - `/robots.txt` est toujours permis.
+ * - Motifs et chemin sont comparés sous une même forme pourcent-encodée (RFC 9309 §2.2.2) :
+ *   `Disallow: /é` interdit `/%C3%A9`, `%7E` vaut `~`, `%2f` vaut `%2F` mais pas `/`.
  *
  * La lecture du fichier (absent → tout permis, 5xx ou injoignable → tout refusé) est le travail
  * d'`UrlFetcher` ; cette classe ne fait qu'interpréter un texte.
@@ -28,6 +30,8 @@ final class RobotsTxt
         if ($path === '/robots.txt') {
             return true;
         }
+
+        $path = self::normalize($path);
 
         $groups = self::groups($robots);
         $token = self::productToken($userAgent);
@@ -111,7 +115,7 @@ final class RobotsTxt
             $lastWasAgent = false;
 
             if (($field === 'allow' || $field === 'disallow') && $agents !== [] && $value !== '') {
-                $rules[] = [$field === 'allow', $value];
+                $rules[] = [$field === 'allow', self::normalize($value)];
             }
         }
 
@@ -120,6 +124,26 @@ final class RobotsTxt
         }
 
         return $groups;
+    }
+
+    /**
+     * La forme de comparaison (RFC 9309 §2.2.2, RFC 3986 §6.2.2) : un `%xx` d'un caractère non
+     * réservé est décodé, les autres passent en capitales ; un octet hors ASCII imprimable est
+     * encodé. `*` et `$`, réservés, ne sont jamais touchés : ils restent des jokers.
+     */
+    private static function normalize(string $value): string
+    {
+        $value = preg_replace_callback('/%([0-9A-Fa-f]{2})/', function (array $m): string {
+            $char = chr((int) hexdec($m[1]));
+
+            return preg_match('/^[A-Za-z0-9._~-]$/', $char) === 1 ? $char : '%'.strtoupper($m[1]);
+        }, $value) ?? $value;
+
+        return preg_replace_callback(
+            '/[\x00-\x20\x7F-\xFF]/',
+            fn (array $m): string => sprintf('%%%02X', ord($m[0])),
+            $value,
+        ) ?? $value;
     }
 
     private static function matches(string $pattern, string $path): bool
