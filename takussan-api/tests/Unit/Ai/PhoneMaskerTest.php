@@ -19,6 +19,8 @@ class PhoneMaskerTest extends TestCase
             'double zéro' => ['00221761234567'],
             'points' => ['70.123.45.67'],
             'fixe' => ['33 821 00 00'],
+            'espace insécable' => ["77\u{00A0}123\u{00A0}45\u{00A0}67"],
+            'espace fine insécable' => ["+221\u{202F}77\u{202F}123\u{202F}45\u{202F}67"],
         ];
     }
 
@@ -26,6 +28,14 @@ class PhoneMaskerTest extends TestCase
     public function test_a_senegalese_number_is_masked(string $numero): void
     {
         $this->assertSame('Appelez le '.PhoneMasker::TOKEN.' ce soir', PhoneMasker::mask("Appelez le {$numero} ce soir"));
+    }
+
+    public function test_invalid_utf8_is_scrubbed_then_masked_instead_of_returned_as_is(): void
+    {
+        $masque = PhoneMasker::mask("\xC3\x28 appelez le 77 123 45 67");
+
+        $this->assertStringNotContainsString('123 45 67', $masque);
+        $this->assertStringContainsString(PhoneMasker::TOKEN, $masque);
     }
 
     public function test_prices_and_surfaces_are_left_alone(): void

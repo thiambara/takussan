@@ -5,7 +5,12 @@ namespace Tests\Feature\Ai;
 use App\Models\Agency;
 use App\Models\AiCall;
 use App\Models\AiUsageSetting;
+use App\Models\Enums\AiDataClass;
+use App\Models\Enums\AiModelRole;
+use App\Models\Enums\Capability;
+use App\Models\Enums\PlatformAbility;
 use App\Services\Ai\AiBudget;
+use App\Services\Ai\AiUsage;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Support\Ai\SocleIaDEssai;
 use Tests\Support\Ai\UsageDEssai;
@@ -59,5 +64,57 @@ class AiBudgetTest extends TestCase
         $this->assertTrue(app(AiBudget::class)->exhausted(new UsageDEssai, null, $a->id));
         $this->assertFalse(app(AiBudget::class)->exhausted(new UsageDEssai, null, $b->id));
         $this->assertSame(50.0, app(AiBudget::class)->spentToday(UsageDEssai::KEY));
+    }
+
+    public function test_without_a_console_ceiling_the_declared_one_applies_to_that_usage_only(): void
+    {
+        $usage = new class implements AiUsage
+        {
+            public function key(): string
+            {
+                return (new UsageDEssai)->key();
+            }
+
+            public function role(): AiModelRole
+            {
+                return (new UsageDEssai)->role();
+            }
+
+            public function agentClass(): string
+            {
+                return (new UsageDEssai)->agentClass();
+            }
+
+            public function promptVersion(): int
+            {
+                return (new UsageDEssai)->promptVersion();
+            }
+
+            public function maxDataClass(): AiDataClass
+            {
+                return (new UsageDEssai)->maxDataClass();
+            }
+
+            public function authority(): Capability|PlatformAbility
+            {
+                return (new UsageDEssai)->authority();
+            }
+
+            public function dailyBudgetXof(): ?float
+            {
+                return 20.0;
+            }
+
+            public function cacheTtlSeconds(): int
+            {
+                return (new UsageDEssai)->cacheTtlSeconds();
+            }
+        };
+
+        $this->depense(20, ['usage_key' => 'autre.usage']);
+        $this->assertFalse(app(AiBudget::class)->exhausted($usage, null, null));
+
+        $this->depense(20);
+        $this->assertTrue(app(AiBudget::class)->exhausted($usage, null, null));
     }
 }
