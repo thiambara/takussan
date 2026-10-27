@@ -120,6 +120,10 @@ services:
   # « Allowed memory size » au journal, ni `failed()`, et le job était rejoué. Avec 384m, c'est
   # l'erreur de PHP qui joue, et elle se lit. Le script de la mesure est dans TCK-951.
   # ⚠ Monter `memory_limit` sans monter ces deux limites rouvre le défaut.
+  # ⚠ `worker` est l'UNIQUE consommateur de `default`, sans réplicas : `RunAiEvaluation` (TCK-2385)
+  # en dépend. Ajouter un réplica ou un second consommateur de `default` exige
+  # `DB_QUEUE_RETRY_AFTER` > `RunAiEvaluation::TIMEOUT_SECONDS` (1800 s) ; sinon une évaluation
+  # vivante plus longue que `retry_after` est relivrée, déclarée échouée, et son résultat est perdu.
   worker:
     <<: [*api, *apres-release]
     command: php artisan queue:work --queue=notifications-urgent,default --sleep=3 --tries=3 --max-time=3600
