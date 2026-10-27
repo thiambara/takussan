@@ -1,7 +1,7 @@
 ---
 id: TCK-2386
 title: "Radar : tables, saisie d'une annonce (URL, texte, captures) et extraction IA avec confiance et passage cité"
-status: doing
+status: done
 phase: P1
 family: full
 estimate: L
@@ -9,7 +9,7 @@ wave: 80
 created: 2026-10-26
 updated: 2026-10-27
 depends_on: [TCK-2383, TCK-2384, TCK-2398]
-blocks: [TCK-2387, TCK-2388]
+blocks: [TCK-2387, TCK-2388, TCK-2403]
 spec_refs:
   features:
     - "docs/features.md#212-radar--acquisition-dannonces"
@@ -88,8 +88,9 @@ compteurs disent quoi faire maintenant. Une extraction en cours, en attente (bud
 - [x] `PlatformAbility::RadarOperate`. Contrôleurs `App\Http\Controllers\Api\Admin\RadarListingController`,
       `RadarDashboardController` · FormRequest `StoreRadarListingRequest` · routes
       `routes/api/admin-radar.php`.
-- [ ] Premier jeu d'évaluation `resources/ai/evals/radar.extraction/` : 30 annonces anonymisées
-      (textes et captures) avec leurs sorties attendues, et la référence du cliquet.
+- [x] Premier jeu d'évaluation `resources/ai/evals/radar.extraction/` : 30 annonces anonymisées
+      (textes et captures) avec leurs sorties attendues. La référence du cliquet est sortie dans
+      **TCK-2403** (décision du porteur du 2026-10-27).
 - [x] Front : tableau de bord et saisie rapide sous `/super-admin/radar`.
 - [x] `NamespaceAccessGuardTest`, sections `docs/models-spec.md` des deux modèles.
 - [x] Tests : `RadarUrlFetcherTest` (SSRF : IP privée, `localhost`, métadonnées, redirection vers
@@ -111,7 +112,8 @@ compteurs disent quoi faire maintenant. Une extraction en cours, en attente (bud
 - [x] AC6 — Une annonce saisie pour un numéro qui a dit STOP est marquée `do_not_contact` dès la
       saisie, sans appel IA.
 - [x] AC7 — Un `viewer` reçoit 403 ; un `support` saisit.
-- [ ] AC8 — `ai:eval radar.extraction` passe sur le jeu livré et en fixe la référence.
+- [x] ~~AC8 — `ai:eval radar.extraction` passe sur le jeu livré et en fixe la référence.~~ Sorti dans
+      **TCK-2403** (décision du porteur du 2026-10-27), avec le passage à de vraies annonces.
 
 ## Hors périmètre
 
@@ -135,7 +137,7 @@ Plan : [`docs/plans/2026-10-27-radar-tck-2386.md`](../../plans/2026-10-27-radar-
 | AC6 | `RadarListingStoreTest::test_ac6_*` (aucun job), `ExtractRadarListingTest::test_ac6_*` et les STOP relus après lecture de l'URL, des captures et sur chaque numéro de la sortie |
 | AC7 | `RadarListingStoreTest::test_ac7_*`, `RadarExtractionUsageTest::test_a_viewer_is_refused_without_reaching_the_model` |
 
-**AC8 n'est pas coché, et le ticket fusionne en `doing`** (décision du porteur du 2026-10-27) : `ai:eval radar.extraction --update-baseline` joue le jeu de 30 cas contre le vrai modèle (coût réel, faible). Il attend l'accord du porteur ; tant que `baseline.json` n'existe pas, le cliquet de l'usage ne garde rien. Les 30 cas sont **synthétiques** (aucune annonce réelle collectée à ce jour), ce que dit le `README.md` du jeu.
+**AC8 est sorti dans TCK-2403** (décisions du porteur du 2026-10-27 : 3b puis 8a — le ticket fusionne en `done`, la dette reste visible dans son propre ticket) : `ai:eval radar.extraction --update-baseline` joue le jeu de 30 cas contre le vrai modèle (coût réel, faible). Il attend l'accord du porteur ; tant que `baseline.json` n'existe pas, le cliquet de l'usage ne garde rien. Les 30 cas sont **synthétiques** (aucune annonce réelle collectée à ce jour), ce que dit le `README.md` du jeu.
 
 **Écarts et décisions prises en route** :
 
@@ -163,7 +165,7 @@ Plan : [`docs/plans/2026-10-27-radar-tck-2386.md`](../../plans/2026-10-27-radar-
   305 s.
 - Une URL Airbnb d'un lot est nommée (`params.field = urls.N`) ; le front relit pendant les
   attentes courtes (`radar.fetch.deferred`, réessai unique).
-- Hors de ce ticket : la file des appels IA (**TCK-2402**, avant la production), l'affichage des
+- Hors de ce ticket : la référence d'évaluation (**TCK-2403**), la file des appels IA (**TCK-2402**, avant la production), l'affichage des
   numéros écartés (TCK-2387), la purge des passages cités (TCK-2391), l'ordre des verrous du
   gestionnaire de STOP (TCK-2388).
 
