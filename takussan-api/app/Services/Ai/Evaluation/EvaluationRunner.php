@@ -2,21 +2,29 @@
 
 namespace App\Services\Ai\Evaluation;
 
+use App\Models\Enums\AiModelRole;
 use App\Services\Ai\AiGateway;
 use App\Services\Ai\AiRequest;
 use App\Services\Ai\AiUsageRegistry;
+use App\Services\Ai\AttachmentsUseVision;
 use App\Services\Ai\Exceptions\AiRefused;
 use App\Services\Ai\Exceptions\AiUnavailable;
 use App\Services\Ai\ModelLink;
 use App\Services\Ai\ModelResolver;
 use Illuminate\Support\Facades\File;
 use InvalidArgumentException;
+use Laravel\Ai\Files\Image;
 
 /**
  * TCK-2384 (ADR-0076 §8) — joue le jeu de cas d'un usage contre un maillon (le premier de son rôle,
  * ou un candidat) et rend le score par champ, le score global et le coût. Les appels passent par la
  * passerelle, marqués « évaluation » : journalisés, hors budget, hors cache. La référence
  * (`baseline.json`) ne se réécrit que par `writeBaseline()`, que seul `--update-baseline` appelle.
+ *
+ * TCK-2386 — un cas peut porter `"attachments": ["captures/x.png"]`, chemins relatifs au dossier de
+ * l'usage, passés au modèle en `Image::fromPath()`. Sans candidat, un tel cas se joue sur le premier
+ * maillon du rôle `vision` quand l'usage est `AttachmentsUseVision`, comme en production ; le
+ * rapport nomme alors chaque modèle joué.
  */
 final class EvaluationRunner
 {
@@ -29,7 +37,7 @@ final class EvaluationRunner
         private readonly ?string $reportsRoot = null,
     ) {}
 
-    /** @return list<array{input: string, expected: array<string, mixed>}> */
+    /** @return list<array{input: string, expected: array<string, mixed>, attachments?: list<string>}> */
     public function cases(string $usageKey): array
     {
         $files = glob($this->dir($usageKey).'/cases/*.json') ?: [];
@@ -52,13 +60,20 @@ final class EvaluationRunner
         if ($cases === []) {
             throw new InvalidArgumentException('ai.eval.no_cases');
         }
-        $first = $this->resolver->chainFor($usage)[0] ?? null;
-        $link = $candidate !== null
-            ? new ModelLink($candidate->provider, $candidate->model, $candidate->maxTokens ?? $first?->maxTokens)
-            : $first;
-        if ($link === null) {
-            throw new InvalidArgumentException('ai.role_unassigned');
-        }
+        $links = [];
+        $linkFor = function (array $case) use ($usage, $candidate, &$links): ModelLink {
+            $role = ($case['attachments'] ?? []) !== [] && $usage instanceof AttachmentsUseVision ? AiModelRole::Vision : $usage->role();
+            if (! array_key_exists($role->value, $links)) {
+                $first = $this->resolver->chainFor($usage, role: $role)[0] ?? null;
+                $links[$role->value] = $candidate !== null
+                    ? new ModelLink($candidate->provider, $candidate->model, $candidate->maxTokens ?? $first?->maxTokens)
+                    : $first;
+            }
+
+            return $links[$role->value] ?? throw new InvalidArgumentException('ai.role_unassigned');
+        };
+        // Tout se résout avant le premier appel : un jeu mal formé ou un rôle sans modèle ne coûte rien.
+        $plans = array_map(fn (array $case): array => [$linkFor($case), $this->attachments($usageKey, $case)], $cases);
 
         $fields = is_file($this->dir($usageKey).'/fields.json')
             ? json_decode((string) file_get_contents($this->dir($usageKey).'/fields.json'), true, flags: JSON_THROW_ON_ERROR)
@@ -67,10 +82,11 @@ final class EvaluationRunner
         $counts = [];
         $cost = 0.0;
         $failures = 0;
-        foreach ($cases as $case) {
+        foreach ($cases as $i => $case) {
+            [$link, $attachments] = $plans[$i];
             $actual = null;
             try {
-                $result = $this->gateway->run(new AiRequest($usageKey, (string) $case['input'], link: $link, evaluation: true));
+                $result = $this->gateway->run(new AiRequest($usageKey, (string) $case['input'], attachments: $attachments, link: $link, evaluation: true));
                 $actual = $result->structured;
                 $cost += (float) ($result->call->cost_estimate ?? 0);
             } catch (AiUnavailable|AiRefused) {
@@ -96,7 +112,7 @@ final class EvaluationRunner
         return [
             'usage' => $usageKey,
             'prompt_version' => $usage->promptVersion(),
-            'model' => $link->provider.'/'.$link->model,
+            'model' => implode(', ', array_values(array_unique(array_map(fn (array $plan): string => $plan[0]->provider.'/'.$plan[0]->model, $plans)))),
             'cases' => count($cases),
             'failures' => $failures,
             'fields' => $byField,
@@ -169,6 +185,28 @@ final class EvaluationRunner
     public function belowBaseline(array $report, ?array $baseline): bool
     {
         return $baseline !== null && (float) $report['global'] < (float) $baseline['global'];
+    }
+
+    /**
+     * Les pièces jointes d'un cas, sous le dossier de l'usage et nulle part ailleurs.
+     *
+     * @param  array<string, mixed>  $case
+     * @return list<Image>
+     */
+    private function attachments(string $usageKey, array $case): array
+    {
+        $dir = $this->dir($usageKey);
+
+        return array_map(function (mixed $relative) use ($dir): Image {
+            if (! is_string($relative) || $relative === '' || str_starts_with($relative, '/') || in_array('..', explode('/', $relative), true)) {
+                throw new InvalidArgumentException('ai.eval.attachment_invalid');
+            }
+            if (! is_file($dir.'/'.$relative)) {
+                throw new InvalidArgumentException('ai.eval.attachment_missing');
+            }
+
+            return Image::fromPath($dir.'/'.$relative);
+        }, array_values($case['attachments'] ?? []));
     }
 
     private function dir(string $usageKey): string

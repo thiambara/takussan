@@ -10,13 +10,17 @@ use App\Models\Enums\AiModelRole;
  * TCK-2383 (ADR-0076 §2, §4) — de l'usage à la chaîne de maillons : le modèle forcé de l'usage,
  * sinon l'affectation du rôle en base, sinon le repli de `config/ai.php`. Une base vide ne rend
  * jamais le socle inopérant.
+ *
+ * TCK-2386 — `$role` remplace le rôle de l'usage (le rôle `vision` d'une requête à pièces jointes,
+ * `AttachmentsUseVision`) ; le modèle forcé de l'usage l'emporte toujours, avec le plafond de
+ * tokens du rôle joué.
  */
 final class ModelResolver
 {
     /** @return list<ModelLink> */
-    public function chainFor(AiUsage $usage, ?AiUsageSetting $setting = null): array
+    public function chainFor(AiUsage $usage, ?AiUsageSetting $setting = null, ?AiModelRole $role = null): array
     {
-        $chain = $this->chainForRole($usage->role());
+        $chain = $this->chainForRole($role ?? $usage->role());
         $forced = $setting?->forcedLink($chain[0]->maxTokens ?? null);
 
         return $forced !== null ? [$forced] : $chain;

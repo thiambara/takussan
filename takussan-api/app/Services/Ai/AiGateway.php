@@ -6,6 +6,7 @@ use App\Models\AiCall;
 use App\Models\AiUsageSetting;
 use App\Models\Enums\AiCallOutcome;
 use App\Models\Enums\AiDataClass;
+use App\Models\Enums\AiModelRole;
 use App\Models\Enums\AiRefusalReason;
 use App\Services\Ai\Exceptions\AiRefused;
 use App\Services\Ai\Exceptions\AiUnavailable;
@@ -22,6 +23,9 @@ use Throwable;
  * appel maillon par maillon avec bascule, journal. Chaque refus, chaque tentative auprès d'un
  * fournisseur et un rôle sans modèle ont leur ligne de `ai_calls`. Une évaluation (`AiRequest::$evaluation`) ne juge ni l'autorité ni le budget et
  * n'emprunte pas le cache : elle doit mesurer le modèle, pas une réponse gardée.
+ *
+ * TCK-2386 — une requête à pièces jointes, pour un usage `AttachmentsUseVision`, joue la chaîne du
+ * rôle `vision` et chacune de ses lignes de journal porte ce rôle (`roleFor()`).
  */
 final class AiGateway
 {
@@ -54,7 +58,7 @@ final class AiGateway
         }
         $input = $this->dataGuard->prepare($usage, $request->input);
 
-        $chain = $request->link !== null ? [$request->link] : $this->resolver->chainFor($usage, $setting);
+        $chain = $request->link !== null ? [$request->link] : $this->resolver->chainFor($usage, $setting, $this->roleFor($usage, $request));
         if ($chain === []) {
             $this->journal($usage, $request, ['outcome' => AiCallOutcome::Error, 'error_code' => 'ai.role_unassigned']);
 
@@ -173,7 +177,7 @@ final class AiGateway
     {
         return AiCall::query()->create($columns + [
             'usage_key' => $usage->key(),
-            'role' => $usage->role(),
+            'role' => $this->roleFor($usage, $request),
             'prompt_version' => $usage->promptVersion(),
             'is_evaluation' => $request->evaluation,
             'agency_id' => $request->agencyId,
@@ -181,6 +185,12 @@ final class AiGateway
             'subject_type' => $request->subject?->getMorphClass(),
             'subject_id' => $request->subject?->getKey(),
         ]);
+    }
+
+    /** Le rôle joué : `vision` quand la requête porte des pièces jointes et que l'usage le demande. */
+    private function roleFor(AiUsage $usage, AiRequest $request): AiModelRole
+    {
+        return $request->attachments !== [] && $usage instanceof AttachmentsUseVision ? AiModelRole::Vision : $usage->role();
     }
 
     /** @return array{provider: string, model: string} */

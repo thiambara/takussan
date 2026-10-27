@@ -2,18 +2,26 @@
 
 namespace Tests\Feature\Ai;
 
+use App\Ai\Usages\ConnectionTestUsage;
+use App\Models\AiCall;
+use App\Models\Enums\AiModelRole;
 use App\Services\Ai\AiGateway;
 use App\Services\Ai\AiUsageRegistry;
 use App\Services\Ai\Evaluation\EvaluationRunner;
 use App\Services\Ai\Evaluation\FieldScorer;
+use App\Services\Ai\ModelLink;
 use App\Services\Ai\ModelResolver;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
+use InvalidArgumentException;
 use Laravel\Ai\Exceptions\RateLimitedException;
+use Laravel\Ai\Files\LocalImage;
 use Tests\Support\Ai\AgentDEssai;
 use Tests\Support\Ai\SocleIaDEssai;
 use Tests\Support\Ai\UsageDEssai;
+use Tests\Support\Ai\UsageVisionDEssai;
 use Tests\TestCase;
 
 /**
@@ -175,5 +183,78 @@ class AiEvalCommandTest extends TestCase
         File::deleteDirectory($this->racine.'/'.UsageDEssai::KEY);
 
         $this->artisan('ai:eval', ['usage' => UsageDEssai::KEY])->assertFailed();
+    }
+
+    /** TCK-2386 — un jeu de cas à captures : le catalogue d'essai porte l'usage vision et son rôle. */
+    private function jeuAvecCaptures(array $piecesDuPremierCas): EvaluationRunner
+    {
+        config([
+            'ai.roles.vision' => [['provider' => 'anthropic', 'model' => 'modele-v', 'max_tokens' => 2000]],
+            'ai.pricing.anthropic.modele-v' => ['input' => 3.0, 'output' => 15.0, 'cache_read' => 0.3, 'cache_write' => 3.75],
+        ]);
+        $this->app->instance(AiUsageRegistry::class, new AiUsageRegistry([UsageDEssai::class, UsageVisionDEssai::class, ConnectionTestUsage::class]));
+        $dossier = $this->racine.'/'.UsageVisionDEssai::KEY;
+        File::ensureDirectoryExists($dossier.'/cases');
+        File::ensureDirectoryExists($dossier.'/captures');
+        File::put($dossier.'/captures/annonce.png', base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII='));
+        File::put($dossier.'/cases/01.json', json_encode(['input' => 'Capture d\'une annonce', 'attachments' => $piecesDuPremierCas, 'expected' => ['titre' => 'Villa', 'prix' => 100]]));
+        File::put($dossier.'/cases/02.json', json_encode(['input' => 'Villa à Ngor, 100 francs', 'expected' => ['titre' => 'Villa', 'prix' => 100]]));
+
+        return new EvaluationRunner(app(AiGateway::class), app(AiUsageRegistry::class), app(ModelResolver::class), new FieldScorer, $this->racine, $this->racine.'/rapports');
+    }
+
+    public function test_a_case_with_attachments_sends_them_as_images_on_the_vision_chain(): void
+    {
+        $runner = $this->jeuAvecCaptures(['captures/annonce.png']);
+        $appels = [];
+        AgentDEssai::fake(function (string $p, Collection $pieces, $provider, string $model) use (&$appels) {
+            $appels[] = [$model, $pieces->map(fn ($piece) => $piece instanceof LocalImage ? $piece->path : get_debug_type($piece))->all()];
+
+            return ['titre' => 'Villa', 'prix' => 100];
+        });
+
+        $rapport = $runner->run(UsageVisionDEssai::KEY);
+
+        $this->assertSame([
+            ['modele-v', [$this->racine.'/'.UsageVisionDEssai::KEY.'/captures/annonce.png']],
+            ['modele-a', []],
+        ], $appels);
+        $this->assertSame(0, $rapport['failures']);
+        $this->assertSame('anthropic/modele-v, anthropic/modele-a', $rapport['model']);
+        $this->assertSame(
+            [[AiModelRole::Vision, true], [AiModelRole::Extraction, true]],
+            AiCall::query()->orderBy('id')->get()->map(fn (AiCall $c) => [$c->role, $c->is_evaluation])->all(),
+        );
+    }
+
+    public function test_a_candidate_model_also_serves_the_cases_with_attachments(): void
+    {
+        $runner = $this->jeuAvecCaptures(['captures/annonce.png']);
+        $modeles = [];
+        AgentDEssai::fake(function (string $p, Collection $pieces, $provider, string $model) use (&$modeles) {
+            $modeles[] = $model;
+
+            return ['titre' => 'Villa', 'prix' => 100];
+        });
+
+        $rapport = $runner->run(UsageVisionDEssai::KEY, ModelLink::parse('anthropic/modele-b'));
+
+        $this->assertSame(['modele-b', 'modele-b'], $modeles);
+        $this->assertSame('anthropic/modele-b', $rapport['model']);
+    }
+
+    public function test_an_attachment_outside_the_usage_folder_or_missing_is_refused(): void
+    {
+        AgentDEssai::fake(fn () => ['titre' => 'Villa', 'prix' => 100]);
+
+        foreach (['../essai.extraction/baseline.json' => 'ai.eval.attachment_invalid', '/etc/hosts' => 'ai.eval.attachment_invalid', 'captures/absente.png' => 'ai.eval.attachment_missing'] as $chemin => $code) {
+            try {
+                $this->jeuAvecCaptures([$chemin])->run(UsageVisionDEssai::KEY);
+                $this->fail("{$chemin} devait être refusé");
+            } catch (InvalidArgumentException $e) {
+                $this->assertSame($code, $e->getMessage(), $chemin);
+            }
+        }
+        AgentDEssai::assertNeverPrompted();
     }
 }

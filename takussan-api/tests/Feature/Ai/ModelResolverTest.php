@@ -58,6 +58,20 @@ class ModelResolverTest extends TestCase
         $this->assertSame(1000, $chain[0]->maxTokens);
     }
 
+    /** TCK-2386 — un rôle demandé (la vision d'une requête à captures) remplace celui de l'usage. */
+    public function test_a_requested_role_replaces_the_usage_role_but_not_the_forced_model(): void
+    {
+        config(['ai.roles.vision' => [['provider' => 'anthropic', 'model' => 'modele-v', 'max_tokens' => 2000]]]);
+        $setting = AiUsageSetting::query()->create([
+            'usage_key' => UsageDEssai::KEY, 'enabled' => true, 'forced_provider' => 'anthropic', 'forced_model' => 'modele-b',
+        ]);
+
+        $this->assertSame(['anthropic/modele-v'], $this->models(app(ModelResolver::class)->chainFor(new UsageDEssai, role: AiModelRole::Vision)));
+        $forced = app(ModelResolver::class)->chainFor(new UsageDEssai, $setting, AiModelRole::Vision);
+        $this->assertSame(['anthropic/modele-b'], $this->models($forced));
+        $this->assertSame(2000, $forced[0]->maxTokens);
+    }
+
     public function test_a_link_parses_and_knows_whether_it_is_priced(): void
     {
         $this->assertTrue(ModelLink::parse('anthropic/modele-a')?->isPriced());
