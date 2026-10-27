@@ -42,7 +42,9 @@ socle choisit le modèle, contrôle le budget et les données, journalise l'appe
 2. **Le code demande un *rôle de modèle*, jamais un modèle.** Les rôles sont fermés et nommés en code
    (`extraction`, `redaction`, `raisonnement`, `vision`, `embedding`). **L'affectation d'un rôle à
    une chaîne de modèles se fait dans la console super-admin** : un fournisseur et un modèle par
-   maillon, dans l'ordre de bascule, avec leurs paramètres (température, plafond de tokens). Elle
+   maillon, dans l'ordre de bascule, avec son plafond de tokens. *(Amendé le 2026-10-27 : la
+   température est retirée, l'API d'Anthropic refusant `temperature`, `top_p` et `top_k` sur tous
+   ses modèles depuis le 2026-10-21.)* Elle
    est stockée en base (`ai_role_assignments`), avec un repli sur `config/ai.php` quand la base
    est vide. Toute modification est journalisée et exige un second facteur récent, comme le
    catalogue des réglages (ADR-0065).
@@ -63,15 +65,22 @@ socle choisit le modèle, contrôle le budget et les données, journalise l'appe
    (`publique`, `personnelle`, `sensible`). Une donnée de la classe `sensible` (pièce d'identité,
    revenu : ADR-0070) ne part **jamais** vers un fournisseur. **Une garde casse si un agent
    `laravel/ai` existe sans usage déclaré.** Dans la console, chaque usage peut **forcer un modèle**
-   à la place de celui de son rôle, par exemple pour en essayer un.
+   à la place de celui de son rôle, par exemple pour en essayer un. Ce modèle forcé, le
+   coupe-circuit et le plafond de l'usage vivent dans **`ai_usage_settings`**.
 
 5. **La passerelle.** Tout appel passe par un seul point, qui applique dans l'ordre :
-   1. le coupe-circuit de l'usage (drapeau de fonctionnalité) ;
-   2. le budget (global, par usage, par agence) ;
-   3. le masquage selon la classe de données ;
-   4. le cache par empreinte du contenu ;
-   5. l'appel, avec bascule ;
-   6. le journal.
+   1. l'autorité de l'appelant (la `Capability` ou le geste plateforme de l'usage) ;
+   2. le coupe-circuit de l'usage (`ai_usage_settings.enabled`) ;
+   3. le budget (global, par usage, par agence) ;
+   4. les données : refus d'une classe interdite, masquage selon la classe ;
+   5. le cache par empreinte du contenu ;
+   6. l'appel, avec bascule ;
+   7. le journal.
+
+   *(Amendé le 2026-10-27 : le coupe-circuit n'est pas un drapeau de fonctionnalité. Le catalogue
+   `Flag` est fermé et une clé hors catalogue y vaut faux : un drapeau `ai.<usage>` aurait coupé
+   tout usage par défaut. L'autorité passe en tête : un refus de droit ne doit rien coûter ni rien
+   révéler.)*
 
    Le journal est la table **`ai_calls`** : usage, rôle, fournisseur, modèle, version du prompt,
    tokens (y compris le cache), coût estimé, durée, issue, agence, objet concerné (polymorphe).
@@ -113,7 +122,7 @@ socle choisit le modèle, contrôle le budget et les données, journalise l'appe
 12. **La console IA du super-admin**, sous `/super-admin/ai` :
     - affectation des rôles et modèles forcés par usage ;
     - présence des clés et test de connexion ;
-    - budgets et coupe-circuits ;
+    - budgets et coupe-circuits par usage (`ai_usage_settings`) ;
     - coût et latence par usage et par jour ;
     - taux d'acceptation ;
     - scores d'évaluation.

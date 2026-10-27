@@ -61,7 +61,7 @@ reprend l'esprit de celui de la couverture (`bin/coverage-gate.php`).
       la version ; l'usage déclare sa version courante.
 - [ ] Commande `ai:eval {usage} {--model=} {--update-baseline}` : joue les cas, écrit le rapport
       (score par champ, global, coût, modèle, version du prompt) sous `storage/ai-evals/`.
-- [ ] Commande `ai:eval:export {usage} {--since=}` : transforme les suggestions corrigées
+- [ ] Commande `ai:export-eval-cases {usage} {--since=}` (forme `domaine:verbe`, `check-command-prefixes.mjs`) : transforme les suggestions corrigées
       (`edited`) en cas d'évaluation **anonymisés**.
 - [ ] Garde `scripts/check-ai-evals-pii.mjs` : aucun numéro sénégalais plausible ni e-mail dans
       `tests/AiEvals/`.
@@ -80,7 +80,7 @@ reprend l'esprit de celui de la couverture (`bin/coverage-gate.php`).
 - [ ] AC3 — `ai:eval` sur un jeu de cas avec un faux modèle qui se trompe sur un champ rend un
       score par champ qui le montre, et sort en échec sous la référence.
 - [ ] AC4 — `--update-baseline` est le seul chemin qui modifie `baseline.json`.
-- [ ] AC5 — `ai:eval:export` produit des cas sans le téléphone ni le nom d'origine (vérifié sur une
+- [ ] AC5 — `ai:export-eval-cases` produit des cas sans le téléphone ni le nom d'origine (vérifié sur une
       suggestion qui en contient).
 - [ ] AC6 — Un numéro `77 123 45 67` déposé dans `tests/AiEvals/` fait rougir la garde.
 - [ ] AC7 — Aucun test de la suite n'ouvre de connexion réseau vers un fournisseur.

@@ -32,7 +32,11 @@ dépôt, `laravel/ai` absent de `composer.json`. Ce ticket pose la fondation ; l
 ## Contrat de données
 
 - Table `ai_role_assignments` : l'affectation d'un rôle (enum fermé) à une chaîne ordonnée de
-  maillons *fournisseur · modèle · paramètres*, et le modèle forcé éventuel d'un usage.
+  maillons *fournisseur · modèle · plafond de tokens* (`max_tokens` seul : l'API d'Anthropic
+  refuse `temperature`, `top_p` et `top_k` depuis le 2026-10-21).
+- Table `ai_usage_settings` : par usage, le coupe-circuit (`enabled`), le modèle forcé et le
+  plafond journalier réglés depuis la console. **Pas un `FeatureFlag`** : le catalogue `Flag` est
+  fermé, et une clé hors catalogue y vaut faux (`FeatureFlagTest::test_unknown_flag_is_fail_closed`).
 - Table `ai_calls` : le journal de chaque appel (ADR-0076 §5).
 - Aucune route HTTP dans ce ticket : la console (TCK-2385) les ajoute.
 
@@ -45,9 +49,9 @@ dépôt, `laravel/ai` absent de `composer.json`. Ce ticket pose la fondation ; l
 - **Fournisseurs sélectionnables = liste fermée en configuration** (`ai.providers`). Une garde
   vérifie qu'elle concorde avec les sous-traitants nommés par
   `takussan-web/src/content/legal/privacy.ts` (ADR-0076 §3).
-- **Ordre de la passerelle**, non négociable : coupe-circuit → budget → masquage → cache → appel
-  avec bascule → journal. Un appel refusé (coupe-circuit, budget, données) est **journalisé aussi**,
-  avec son motif.
+- **Ordre de la passerelle**, non négociable : autorité de l'appelant → coupe-circuit → budget →
+  données (refus, masquage) → cache → appel avec bascule → journal. Un appel refusé (autorité,
+  coupe-circuit, budget, données) est **journalisé aussi**, avec son motif.
 - **Classe de données** : `publique` · `personnelle` · `sensible`. Une charge contenant une donnée
   `sensible` est refusée avant l'appel, quel que soit l'usage.
 - Budget par agence : `ai_calls.agency_id` est renseigné quand l'appel agit pour une agence ;
@@ -60,11 +64,12 @@ dépôt, `laravel/ai` absent de `composer.json`. Ce ticket pose la fondation ; l
 - [ ] `composer require laravel/ai`. Relire les migrations que le paquet publie : ne garder que
       celles qu'un usage exige (les conversations du SDK ne le sont pas au lot 0), le noter.
 - [ ] `config/ai.php` : fournisseurs (liste fermée), rôles et chaînes par défaut, tarifs, budgets
-      par défaut. Clés `.env.example` et `.env.docker` (vides) : `ANTHROPIC_API_KEY`,
-      `AI_DAILY_BUDGET_XOF`.
+      par défaut, taux de conversion USD → XOF. Clés `.env.example` et `.env.docker` (vides) :
+      `ANTHROPIC_API_KEY`, `AI_DAILY_BUDGET_XOF`, `AI_USD_TO_XOF`.
 - [ ] Enum `App\Models\Enums\AiModelRole` (`extraction`, `redaction`, `raisonnement`, `vision`,
       `embedding`) et `App\Models\Enums\AiDataClass`.
 - [ ] Migration `create_ai_role_assignments_table` · modèle `AiRoleAssignment`.
+- [ ] Migration `create_ai_usage_settings_table` · modèle `AiUsageSetting`.
 - [ ] Migration `create_ai_calls_table` (usage, rôle, fournisseur, modèle, version du prompt,
       tokens entrée/sortie/cache, `cost_estimate`, durée, issue, motif de refus, `agency_id`,
       objet polymorphe) · modèle `AiCall`.
@@ -75,7 +80,7 @@ dépôt, `laravel/ai` absent de `composer.json`. Ce ticket pose la fondation ; l
       d'usage prioritaire.
 - [ ] `App\Services\Ai\AiGateway` : l'unique point d'appel, dans l'ordre des contraintes.
 - [ ] `App\Services\Ai\AiBudget` (global journalier, par usage, par agence, en XOF).
-- [ ] Coupe-circuit par usage sur `FeatureFlag` (clé `ai.<usage>`).
+- [ ] Coupe-circuit par usage : `ai_usage_settings.enabled` (faux ⇒ refus `kill_switch`).
 - [ ] Garde `scripts/check-ai-usages.mjs` : tout agent `laravel/ai` sous `app/Ai/Agents/` est
       déclaré au registre ; aucun identifiant de modèle hors de `config/ai.php`.
 - [ ] Garde `scripts/check-ai-providers-privacy.mjs` : `ai.providers` ⊆ sous-traitants de
@@ -85,7 +90,7 @@ dépôt, `laravel/ai` absent de `composer.json`. Ce ticket pose la fondation ; l
       contenus que certaines fonctionnalités lui soumettent ; jamais de donnée sensible) ;
       `VERSION_DOCUMENTS` avance. C'est la PR qui ajoute un fournisseur qui le déclare : la garde
       ci-dessus l'impose.
-- [ ] Sections `docs/models-spec.md` pour `AiRoleAssignment` et `AiCall`.
+- [ ] Sections `docs/models-spec.md` pour `AiRoleAssignment`, `AiUsageSetting` et `AiCall`.
 - [ ] Tests : `AiGatewayTest` (ordre, refus journalisés, bascule sur panne du premier maillon,
       cache par empreinte), `AiBudgetTest`, `ModelResolverTest` (base, repli, modèle forcé),
       `AiSensitiveDataTest`. **Tous sur les faux modèles du SDK** : aucun appel réseau.
@@ -98,7 +103,8 @@ dépôt, `laravel/ai` absent de `composer.json`. Ce ticket pose la fondation ; l
       lignes (l'échec et la réussite).
 - [ ] AC3 — Budget épuisé : aucun appel au fournisseur (le faux modèle n'est **pas** sollicité),
       une ligne `ai_calls` au motif `budget`.
-- [ ] AC4 — Coupe-circuit levé : même chose, au motif `kill_switch`.
+- [ ] AC4 — Usage coupé (`ai_usage_settings.enabled` à faux) : même chose, au motif
+      `kill_switch`, et le coupe-circuit est jugé avant le budget.
 - [ ] AC5 — Une charge marquée `sensible` est refusée avant l'appel, quel que soit l'usage.
 - [ ] AC6 — Deux appels au contenu identique : un seul appel au fournisseur, le second journalisé
       `cache_hit`.
