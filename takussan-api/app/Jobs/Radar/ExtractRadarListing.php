@@ -40,42 +40,56 @@ use Throwable;
  *
  * Dans l'ordre :
  *  1. **idempotent** : rien si l'annonce n'est plus `captured` ;
- *  2. **une URL sans texte est lue** (`UrlFetcher` + `HtmlCleaner`) : `raw_text` et `photo_urls`
- *     sont gardés dès la lecture, une reprise ne relit pas la page. Lecture remise à plus tard →
- *     `release()` ; refusée → `extraction_failed` avec son code `radar.fetch.*` ;
+ *  2. **une URL sans texte est lue, et ce passage s'arrête là** (`UrlFetcher` + `HtmlCleaner`) :
+ *     `raw_text` et `photo_urls` sont gardés, le refus STOP et la page vide sont jugés, puis le job
+ *     se relâche (`release(0)`) — l'appel au modèle a son propre passage, donc tout le `$timeout`
+ *     pour lui, et la reprise ne relit pas la page. Lecture remise à plus tard → `release()` ;
+ *     refusée → `extraction_failed` avec son code `radar.fetch.*` ;
  *  3. **refus STOP** : un numéro du texte chez un annonceur qui a dit STOP → `do_not_contact`, sans
  *     appel IA (`RadarAdvertiserDirectory::refusedAmong()`, la même lecture qu'à la saisie) ;
  *  4. **l'appel** `radar.extraction` par la passerelle, le texte délimité par `ExternalContent`, les
  *     captures en pièces jointes lues par leur disque (`Image::fromStorage`, jamais `getPath()`) —
  *     la passerelle joue alors le rôle `vision` ;
- *  5. **la sortie relue** par `ExtractionNormalizer`, puis l'annonceur rattaché (premier numéro
- *     valide de la sortie, à défaut du texte) ; un annonceur qui a dit STOP → `do_not_contact`, et
- *     l'extraction n'est pas gardée.
+ *  5. **la sortie relue** par `ExtractionNormalizer`. Le refus STOP est rejugé sur TOUS les numéros
+ *     (ceux de la sortie et ceux du texte) ; sinon l'annonceur du premier est rattaché, et son
+ *     refus relu sous verrou au moment d'écrire. Un STOP → `do_not_contact`, l'extraction n'est pas
+ *     gardée et l'annonceur n'est pas enrichi.
  *
  * **En attente, pas en échec** (étape `captured`, motif dans `stage_reason`) : plafond ou
- * coupe-circuit (`ai.budget`, `ai.kill_switch`, reprise à 30 min), panne de tous les maillons
- * (`ai.providers_unavailable`, reprises à 1, 5, 15 puis 60 min selon `extraction_attempts`),
- * lecture d'URL différée, première sortie invalide. Le tout dans la fenêtre de `retryUntil()`
- * (48 h), au-delà de laquelle `failed()` passe l'annonce en `extraction_failed` avec le dernier
- * motif.
+ * coupe-circuit (`ai.budget`, `ai.kill_switch`, reprise à 30 min), panne (`ai.providers_unavailable`
+ * et les erreurs passagères du fournisseur, reprises à 1, 5, 15 puis 60 min), lecture d'URL
+ * différée, première sortie invalide ou coupée. Le tout dans la fenêtre de `retryUntil()` (48 h),
+ * au-delà de laquelle `failed()` passe l'annonce en `extraction_failed` avec le dernier motif.
  *
- * **Une tentative** (`extraction_attempts`) = un passage qui atteint la lecture de l'URL ou l'appel
- * au modèle, compté une fois par passage, avant l'un ou l'autre. Un passage qui ne fait rien
- * (annonce déjà traitée) ou qui s'arrête au refus STOP ne compte pas.
+ * **En échec sans attendre** : refus de la passerelle autre que le plafond (`ai.forbidden`…),
+ * erreur déterministe du fournisseur (`ai.request_rejected`, `ai.provider_auth` : la rejouer rendrait
+ * la même), erreur de programmation (`radar.extraction.error`, rapportée), seconde sortie invalide
+ * ou coupée, source vide.
  *
- * **Sortie invalide** (sortie structurée nulle, clé de premier niveau manquante, normalisation qui
- * lève) : une seule nouvelle tentative, puis `extraction_failed`. « Déjà retentée » se lit sans
- * colonne de plus : le motif vaut `radar.extraction.invalid_output` à l'entrée du passage. Un autre
- * motif posé entre-temps (une panne) remet ce compte à zéro — au pire, un appel de plus.
+ * **Une tentative** (`extraction_attempts`) = un passage où la passerelle a passé ses refus et
+ * cherché un modèle : le fournisseur a été appelé (réponse, panne, erreur), ou aucun modèle n'est
+ * affecté. Une pause (plafond, coupe-circuit), une lecture d'URL, un refus STOP n'en sont pas. Le
+ * rang de la tentative espace les reprises après panne.
+ *
+ * **Une seule nouvelle tentative** pour une sortie invalide (structurée nulle, clé de premier niveau
+ * manquante, normalisation qui lève) ou coupée sur tous les maillons (`ai.response_truncated`,
+ * `ai.response_filtered`). « Déjà retentée » se lit sans colonne de plus : le motif vaut ce code à
+ * l'entrée du passage. Un autre motif posé entre-temps remet ce compte à zéro — au pire, un appel
+ * de plus.
+ *
+ * **Délais** : `$timeout` reste sous le `retry_after` de `database` (90 s, ADR-0078). Le délai d'un
+ * appel est borné par l'agent (`RadarExtraction::timeout()`) pour que TOUS les maillons de la plus
+ * longue chaîne (extraction ou vision) tiennent dans {@see self::AI_CALL_BUDGET_SECONDS} : un
+ * fournisseur muet lève alors une erreur de connexion, la passerelle bascule sur le maillon suivant,
+ * et le dernier rend `AiUnavailable` — une attente espacée, pas un job tué. Un dépassement reste
+ * possible (lecture des captures, base lente) : il ne fait pas échouer le job (`$failOnTimeout`
+ * faux, pas de `$maxExceptions`), la file le reprend, et seule la fenêtre de 48 h est terminale.
+ * Le coût d'une boucle d'exceptions imprévues est borné par le plafond de l'usage.
  *
  * **Concurrence** : deux exécutions du même job ne se chevauchent pas (`WithoutOverlapping` par
  * annonce, la seconde est relâchée puis ne trouve plus l'annonce `captured`) ; et toute écriture
  * d'issue relit l'annonce sous `lockForUpdate`, dans une transaction courte, et n'écrit que si elle
  * est encore `captured`. Aucune transaction ne reste ouverte pendant la lecture d'URL ni l'appel.
- *
- * **File** : `database` (ADR-0078), un seul appel au modèle par passage. `$timeout` reste sous le
- * délai de reprise de la connexion (90 s) ; un dépassement ne fait pas échouer le job, la file le
- * reprend (`$failOnTimeout` faux) dans la fenêtre de 48 h.
  */
 final class ExtractRadarListing implements ShouldQueue
 {
@@ -87,7 +101,15 @@ final class ExtractRadarListing implements ShouldQueue
 
     public const REASON_TIMEOUT = 'radar.extraction.timeout';
 
+    public const REASON_ERROR = 'radar.extraction.error';
+
     public const REASON_FETCH_DEFERRED = 'radar.fetch.deferred';
+
+    /** Les motifs qui n'ont droit qu'à une nouvelle tentative : la rejouer rend souvent la même. */
+    public const RETRY_ONCE_REASONS = [self::REASON_INVALID_OUTPUT, 'ai.response_truncated', 'ai.response_filtered'];
+
+    /** Erreurs du fournisseur qu'une reprise ne corrige pas : la requête ou la clé est refusée. */
+    public const DETERMINISTIC_PROVIDER_ERRORS = ['ai.request_rejected', 'ai.provider_auth'];
 
     /** Reprise après un plafond atteint ou un coupe-circuit, en secondes. */
     public const PAUSED_RETRY_SECONDS = 1800;
@@ -95,19 +117,22 @@ final class ExtractRadarListing implements ShouldQueue
     /** Reprises après une panne, selon le rang de la tentative : 1, 5, 15, puis 60 min. */
     public const OUTAGE_RETRY_SECONDS = [60, 300, 900, 3600];
 
-    /** Reprise après une première sortie invalide. */
-    public const INVALID_OUTPUT_RETRY_SECONDS = 60;
+    /** Reprise après une première sortie invalide ou coupée. */
+    public const RETRY_ONCE_SECONDS = 60;
 
     /** ADR-0078 : sous le `retry_after` de `database` (90 s), à 5 s de marge. */
-    public int $timeout = 85;
-
-    public bool $failOnTimeout = false;
+    public const TIMEOUT_SECONDS = 85;
 
     /**
-     * Une exception imprévue (ni refus ni panne, déjà rangés) n'est pas rejouée 48 h durant : au
-     * cinquième, `failed()` passe l'annonce en `extraction_failed` avec son dernier motif.
+     * Le temps laissé à l'appel, tous maillons compris : le `$timeout` moins 10 s pour le reste du
+     * passage (lecture de l'annonce et des captures, journal, écriture). `RadarExtraction::timeout()`
+     * le partage entre les maillons de la plus longue chaîne.
      */
-    public int $maxExceptions = 5;
+    public const AI_CALL_BUDGET_SECONDS = self::TIMEOUT_SECONDS - 10;
+
+    public int $timeout = self::TIMEOUT_SECONDS;
+
+    public bool $failOnTimeout = false;
 
     public function __construct(public readonly int $listingId) {}
 
@@ -139,44 +164,19 @@ final class ExtractRadarListing implements ShouldQueue
         if ($listing === null || $listing->stage !== RadarListingStage::Captured) {
             return;
         }
-        $retriedInvalidOutput = $listing->stage_reason === self::REASON_INVALID_OUTPUT;
-        $counted = false;
+        $enteredWith = $listing->stage_reason;
 
-        // 2. Une URL sans texte : la page est lue une fois, son texte gardé.
+        // 2. Une URL sans texte : ce passage lit la page, et rien d'autre.
         if ($listing->source_kind === RadarSourceKind::Url && $listing->raw_text === null) {
-            $attempts = $this->countAttempt($listing);
-            $counted = true;
-            try {
-                $page = $fetcher->fetch((string) $listing->source_url);
-            } catch (RadarFetchDeferred $e) {
-                $this->pending(self::REASON_FETCH_DEFERRED, $e->retryAfterSeconds);
+            $this->readPage($listing, $fetcher, $cleaner, $directory);
 
-                return;
-            } catch (RadarFetchRefused $e) {
-                $this->settle(fn (RadarListing $l) => $l->fill(['stage' => RadarListingStage::ExtractionFailed, 'stage_reason' => $e->code]));
-
-                return;
-            }
-
-            $clean = $cleaner->clean($page->body, $page->url);
-            $text = $clean->title !== null && ! str_contains($clean->text, $clean->title)
-                ? trim($clean->title."\n".$clean->text)
-                : $clean->text;
-            if (! $this->settle(fn (RadarListing $l) => $l->fill(['raw_text' => $text, 'photo_urls' => $clean->photoUrls]))) {
-                return;
-            }
-            $listing->forceFill(['raw_text' => $text, 'photo_urls' => $clean->photoUrls, 'extraction_attempts' => $attempts]);
+            return;
         }
 
         $text = trim((string) $listing->raw_text);
 
         // 3. Un numéro qui a dit STOP : aucun appel au modèle.
-        $stop = $directory->refusedAmong(RadarPhone::fromText($text));
-        if ($stop !== null) {
-            $this->settle(fn (RadarListing $l) => $l->fill([
-                'stage' => RadarListingStage::DoNotContact, 'stage_reason' => null, 'radar_advertiser_id' => $stop->id,
-            ]));
-
+        if ($this->refuseIfStopped($directory, RadarPhone::fromText($text))) {
             return;
         }
 
@@ -185,13 +185,12 @@ final class ExtractRadarListing implements ShouldQueue
                 ->withMimeType((string) $media->mime_type))->values()->all()
             : [];
         if ($text === '' && $attachments === []) {
-            $this->settle(fn (RadarListing $l) => $l->fill(['stage' => RadarListingStage::ExtractionFailed, 'stage_reason' => self::REASON_EMPTY_SOURCE]));
+            $this->markFailed(self::REASON_EMPTY_SOURCE);
 
             return;
         }
 
         // 4. L'appel, hors de toute transaction.
-        $attempts = $counted ? $listing->extraction_attempts : $this->countAttempt($listing);
         try {
             $result = $gateway->run(new AiRequest(
                 RadarExtractionUsage::KEY,
@@ -202,25 +201,39 @@ final class ExtractRadarListing implements ShouldQueue
                 attachments: $attachments,
             ));
         } catch (AiRefused $e) {
+            // Refusé avant le fournisseur : pas une tentative.
             if (in_array($e->reason, [AiRefusalReason::Budget, AiRefusalReason::KillSwitch], true)) {
                 $this->pending('ai.'.$e->reason->value, self::PAUSED_RETRY_SECONDS);
             } else {
-                $this->settle(fn (RadarListing $l) => $l->fill(['stage' => RadarListingStage::ExtractionFailed, 'stage_reason' => 'ai.'.$e->reason->value]));
+                $this->markFailed('ai.'.$e->reason->value);
             }
 
             return;
         } catch (AiUnavailable $e) {
-            $this->pending($e->getMessage(), $this->outageDelay($attempts));
+            $attempts = $this->countAttempt();
+            $previous = $e->getPrevious();
+            $code = $previous instanceof AiUnavailable && in_array($previous->getMessage(), self::RETRY_ONCE_REASONS, true)
+                ? $previous->getMessage()
+                : $e->getMessage();
+            in_array($code, self::RETRY_ONCE_REASONS, true)
+                ? $this->retryOnce($code, $enteredWith)
+                : $this->pending($code, $this->outageDelay($attempts));
 
             return;
         } catch (Throwable $e) {
-            // Une erreur du fournisseur que la passerelle ne bascule pas (401, 400…) : journalisée
-            // par elle, rangée ici comme une panne, en attente.
+            // Une erreur que la passerelle ne bascule pas : journalisée par elle, rangée ici.
             report($e);
-            $this->pending(AiErrorCode::fromThrowable($e), $this->outageDelay($attempts));
+            $attempts = $this->countAttempt();
+            $code = AiErrorCode::fromThrowable($e);
+            match (true) {
+                $e instanceof \Error, $code === 'ai.unexpected' => $this->markFailed(self::REASON_ERROR),
+                in_array($code, self::DETERMINISTIC_PROVIDER_ERRORS, true) => $this->markFailed($code),
+                default => $this->pending($code, $this->outageDelay($attempts)),
+            };
 
             return;
         }
+        $this->countAttempt();
 
         // 5. La sortie relue par du code.
         $normalized = null;
@@ -232,44 +245,44 @@ final class ExtractRadarListing implements ShouldQueue
             }
         }
         if ($normalized === null) {
-            if ($retriedInvalidOutput) {
-                $this->settle(fn (RadarListing $l) => $l->fill(['stage' => RadarListingStage::ExtractionFailed, 'stage_reason' => self::REASON_INVALID_OUTPUT]));
-            } else {
-                $this->pending(self::REASON_INVALID_OUTPUT, self::INVALID_OUTPUT_RETRY_SECONDS);
-            }
+            $this->retryOnce(self::REASON_INVALID_OUTPUT, $enteredWith);
 
             return;
         }
 
-        $phone = self::firstPhone([...(array) ($normalized['phones'] ?? []), ...RadarPhone::fromText($text)]);
-        $advertiser = $phone !== null ? $directory->findOrCreate($phone) : null;
-
-        if ($advertiser?->do_not_contact_at !== null) {
-            $this->settle(fn (RadarListing $l) => $l->fill([
-                'stage' => RadarListingStage::DoNotContact, 'stage_reason' => null, 'radar_advertiser_id' => $advertiser->id,
-            ]));
-
+        // Le refus se juge sur chaque numéro, pas sur le seul premier.
+        $phones = self::canonicalPhones([...(array) ($normalized['phones'] ?? []), ...RadarPhone::fromText($text)]);
+        if ($this->refuseIfStopped($directory, $phones)) {
             return;
         }
+        $advertiser = $phones !== [] ? $directory->findOrCreate($phones[0]) : null;
 
         $this->settle(function (RadarListing $l) use ($normalized, $advertiser): void {
+            // Relu sous verrou : un STOP dit depuis la lecture ci-dessus l'emporte.
+            $locked = $advertiser !== null ? RadarAdvertiser::query()->whereKey($advertiser->id)->lockForUpdate()->first() : null;
+            if ($locked?->do_not_contact_at !== null) {
+                $l->fill(['stage' => RadarListingStage::DoNotContact, 'stage_reason' => null, 'radar_advertiser_id' => $locked->id]);
+
+                return;
+            }
+
             $l->fill([
                 'stage' => RadarListingStage::Extracted,
                 'stage_reason' => null,
                 'extracted' => $normalized,
                 'extracted_at' => now(),
-                'radar_advertiser_id' => $advertiser?->id,
+                'radar_advertiser_id' => $locked?->id,
             ]);
-            if ($advertiser !== null) {
-                $this->enrich($advertiser, $normalized);
+            if ($locked !== null) {
+                $this->enrich($locked, $normalized);
             }
         });
     }
 
     /**
-     * Appelé par le worker quand la fenêtre de 48 h est passée (ou au cinquième imprévu) : l'annonce
-     * encore `captured` passe en `extraction_failed` avec son dernier motif, à défaut
-     * `radar.extraction.timeout`. Une issue déjà écrite n'est jamais réécrite.
+     * Appelé par le worker quand la fenêtre de 48 h est passée : l'annonce encore `captured` passe
+     * en `extraction_failed` avec son dernier motif, à défaut `radar.extraction.timeout`. Une issue
+     * déjà écrite n'est jamais réécrite.
      */
     public function failed(?Throwable $e): void
     {
@@ -283,6 +296,69 @@ final class ExtractRadarListing implements ShouldQueue
             ]);
     }
 
+    /**
+     * La page est lue, nettoyée et gardée ; le STOP et la page vide sont jugés sur son texte ; puis
+     * le job se relâche pour que l'appel ait son propre passage.
+     */
+    private function readPage(RadarListing $listing, UrlFetcher $fetcher, HtmlCleaner $cleaner, RadarAdvertiserDirectory $directory): void
+    {
+        try {
+            $page = $fetcher->fetch((string) $listing->source_url);
+        } catch (RadarFetchDeferred $e) {
+            $this->pending(self::REASON_FETCH_DEFERRED, $e->retryAfterSeconds);
+
+            return;
+        } catch (RadarFetchRefused $e) {
+            $this->markFailed($e->code);
+
+            return;
+        }
+
+        $clean = $cleaner->clean($page->body, $page->url);
+        $text = $clean->title !== null && ! str_contains($clean->text, $clean->title)
+            ? trim($clean->title."\n".$clean->text)
+            : trim($clean->text);
+        if (! $this->settle(fn (RadarListing $l) => $l->fill(['raw_text' => $text, 'photo_urls' => $clean->photoUrls, 'stage_reason' => null]))) {
+            return;
+        }
+
+        if ($this->refuseIfStopped($directory, RadarPhone::fromText($text))) {
+            return;
+        }
+        if ($text === '') {
+            $this->markFailed(self::REASON_EMPTY_SOURCE);
+
+            return;
+        }
+
+        $this->release(0);
+    }
+
+    /**
+     * `do_not_contact` si l'un de ces numéros a dit STOP (annonceur rattaché) ; vrai si c'est le cas.
+     *
+     * @param  list<string>  $phones
+     */
+    private function refuseIfStopped(RadarAdvertiserDirectory $directory, array $phones): bool
+    {
+        $stop = $directory->refusedAmong($phones);
+        if ($stop === null) {
+            return false;
+        }
+
+        $this->settle(fn (RadarListing $l) => $l->fill([
+            'stage' => RadarListingStage::DoNotContact, 'stage_reason' => null, 'radar_advertiser_id' => $stop->id,
+        ]));
+
+        return true;
+    }
+
+    /** Une nouvelle tentative si ce motif n'était pas déjà celui de l'entrée, sinon l'échec. */
+    private function retryOnce(string $reason, ?string $enteredWith): void
+    {
+        $enteredWith === $reason ? $this->markFailed($reason) : $this->pending($reason, self::RETRY_ONCE_SECONDS);
+    }
+
     /** Les clés de premier niveau du schéma : une sortie qui en manque n'est pas celle du schéma. */
     private static function hasEveryKey(array $structured): bool
     {
@@ -291,24 +367,30 @@ final class ExtractRadarListing implements ShouldQueue
         return array_diff($expected, array_keys($structured)) === [];
     }
 
-    /** @param  list<mixed>  $candidates */
-    private static function firstPhone(array $candidates): ?string
+    /**
+     * Les numéros valides, en E.164, dédoublonnés, dans l'ordre.
+     *
+     * @param  list<mixed>  $candidates
+     * @return list<string>
+     */
+    private static function canonicalPhones(array $candidates): array
     {
+        $phones = [];
         foreach ($candidates as $candidate) {
             $e164 = is_string($candidate) ? RadarPhone::canonical($candidate) : null;
             if ($e164 !== null) {
-                return $e164;
+                $phones[$e164] = true;
             }
         }
 
-        return null;
+        return array_keys($phones);
     }
 
-    private function countAttempt(RadarListing $listing): int
+    private function countAttempt(): int
     {
-        RadarListing::query()->whereKey($listing->id)->increment('extraction_attempts');
+        RadarListing::query()->whereKey($this->listingId)->increment('extraction_attempts');
 
-        return (int) RadarListing::query()->whereKey($listing->id)->value('extraction_attempts');
+        return (int) RadarListing::query()->whereKey($this->listingId)->value('extraction_attempts');
     }
 
     private function outageDelay(int $attempts): int
@@ -316,6 +398,12 @@ final class ExtractRadarListing implements ShouldQueue
         $delays = self::OUTAGE_RETRY_SECONDS;
 
         return $delays[min(max($attempts, 1), count($delays)) - 1];
+    }
+
+    /** `extraction_failed` avec ce motif, si l'annonce est encore `captured`. */
+    private function markFailed(string $reason): void
+    {
+        $this->settle(fn (RadarListing $l) => $l->fill(['stage' => RadarListingStage::ExtractionFailed, 'stage_reason' => $reason]));
     }
 
     /** En attente : l'annonce reste `captured`, son motif posé, et le job revient plus tard. */
@@ -347,16 +435,15 @@ final class ExtractRadarListing implements ShouldQueue
     }
 
     /**
-     * Le nom affiché, la nature et ses indices de l'annonceur, posés s'ils sont vides (nature
-     * `unknown`) : la première annonce lue ne les voit pas réécrits par la suivante. Sous verrou de
-     * la ligne, dans la transaction de l'issue.
+     * Le nom affiché, la nature et ses indices d'un annonceur déjà verrouillé (et qui n'a pas dit
+     * STOP), posés s'ils sont vides (nature `unknown`) : la première annonce lue ne les voit pas
+     * réécrits par la suivante.
      *
      * @param  array<string, mixed>  $normalized
      */
-    private function enrich(RadarAdvertiser $advertiser, array $normalized): void
+    private function enrich(RadarAdvertiser $locked, array $normalized): void
     {
-        $locked = RadarAdvertiser::query()->whereKey($advertiser->id)->lockForUpdate()->first();
-        if ($locked === null) {
+        if ($locked->do_not_contact_at !== null) {
             return;
         }
 

@@ -5,6 +5,7 @@ namespace Tests\Feature\Radar;
 use App\Ai\Agents\RadarExtraction;
 use App\Jobs\Radar\ExtractRadarListing;
 use App\Models\AiCall;
+use App\Models\AiRoleAssignment;
 use App\Models\AiUsageSetting;
 use App\Models\Enums\AiModelRole;
 use App\Models\Enums\PlatformProfileLevel;
@@ -19,13 +20,19 @@ use App\Services\Ai\AiUsageRegistry;
 use App\Services\Ai\PromptRepository;
 use App\Services\Radar\HostResolver;
 use App\Support\RadarPhone;
+use GuzzleHttp\Psr7\Response as Psr7Response;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\RequestException;
+use Illuminate\Http\Client\Response;
 use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Laravel\Ai\Exceptions\RateLimitedException;
 use Laravel\Ai\Files\StoredImage;
+use Laravel\Ai\Responses\Data\FinishReason;
+use PHPUnit\Framework\Attributes\DataProvider;
+use Tests\Support\Ai\AgentFinDEssai;
 use Tests\Support\Ai\SocleIaDEssai;
 use Tests\Support\OperateursPlateforme;
 use Tests\Support\RemoteDiskFake;
@@ -367,7 +374,17 @@ class ExtractRadarListingTest extends TestCase
             .'<body><script>pister()</script><p>Appartement F4 à louer aux Almadies, 450.000f/mois. Contact 77 123 45 67</p></body></html>');
         $listing = $this->annonceUrl();
 
-        $this->lancer($listing);
+        // Premier passage : la page seule, gardée ; l'appel au modèle aura son propre passage, et son
+        // propre délai (la lecture et l'appel ne se partagent jamais le `$timeout` du job).
+        $this->lancer($listing)->assertReleased(0);
+        RadarExtraction::assertNeverPrompted();
+        $this->assertSame([RadarListingStage::Captured, 0], [$listing->refresh()->stage, $listing->extraction_attempts]);
+        $this->assertStringContainsString('450.000f/mois', (string) $listing->raw_text);
+        Http::assertSentCount(2);
+
+        // Second passage : l'appel, sans relire la page.
+        $this->lancer($listing)->assertNotReleased();
+        Http::assertSentCount(2);
 
         $listing->refresh();
         $this->assertSame(RadarListingStage::Extracted, $listing->stage);
@@ -391,6 +408,7 @@ class ExtractRadarListingTest extends TestCase
         $listing->refresh();
         $this->assertSame([RadarListingStage::ExtractionFailed, 'radar.fetch.airbnb'], [$listing->stage, $listing->stage_reason]);
         $this->assertNull($listing->raw_text);
+        $this->assertSame(0, $listing->extraction_attempts);
         RadarExtraction::assertNeverPrompted();
         Http::assertNothingSent();
     }
@@ -408,7 +426,8 @@ class ExtractRadarListingTest extends TestCase
         $seconde->refresh();
         $this->assertSame([RadarListingStage::Captured, 'radar.fetch.deferred'], [$seconde->stage, $seconde->stage_reason]);
         $this->assertNull($seconde->raw_text);
-        RadarExtraction::assertPromptedTimes(1);
+        $this->assertSame(0, $seconde->extraction_attempts);
+        RadarExtraction::assertNeverPrompted();
     }
 
     public function test_an_empty_page_fails_so_the_operator_can_paste_the_text_or_captures(): void
@@ -437,6 +456,8 @@ class ExtractRadarListingTest extends TestCase
         $listing->refresh();
         $this->assertSame([RadarListingStage::Captured, 'ai.budget'], [$listing->stage, $listing->stage_reason]);
         $this->assertNull($listing->extracted);
+        // Une pause n'atteint pas le fournisseur : elle n'est pas une tentative.
+        $this->assertSame(0, $listing->extraction_attempts);
         RadarExtraction::assertNeverPrompted();
     }
 
@@ -551,12 +572,120 @@ class ExtractRadarListingTest extends TestCase
         $verrous = array_values(array_filter($job->middleware(), fn ($m) => $m instanceof WithoutOverlapping));
         $this->assertCount(1, $verrous);
         $this->assertSame('42', $verrous[0]->key);
-        $this->assertNotNull($verrous[0]->releaseAfter);
+        // Le doublon est relâché, jamais jeté ; et le verrou survit au délai de reprise de la file
+        // (90 s) : un job relivré pendant que le premier tourne encore ne passe pas.
+        $this->assertSame(30, $verrous[0]->releaseAfter);
+        $this->assertGreaterThanOrEqual((int) config('queue.connections.database.retry_after'), $verrous[0]->expiresAfter);
+        $this->assertGreaterThanOrEqual(90, $verrous[0]->expiresAfter);
 
         $this->freezeTime();
         $this->assertTrue(now()->addHours(48)->equalTo($job->retryUntil()));
         // ADR-0078 : un job de la file `database` reste sous son délai de reprise (90 s).
         $this->assertLessThanOrEqual(85, $job->timeout);
+        // Un délai dépassé n'est pas terminal : seule la fenêtre de 48 h l'est.
+        $this->assertNull($job->maxExceptions ?? null);
+    }
+
+    public function test_every_link_of_the_extraction_and_vision_chains_fits_in_the_job_timeout(): void
+    {
+        $job = new ExtractRadarListing(1);
+        $maillons = fn () => max(count(config('ai.roles.extraction')), count(config('ai.roles.vision')));
+
+        // La chaîne d'essai (2 maillons), puis la plus longue que la console admet (5, UpdateAiRoleRequest).
+        $this->assertSame(2, $maillons());
+        $this->assertLessThan($job->timeout, app(RadarExtraction::class)->timeout() * $maillons());
+
+        AiRoleAssignment::query()->create(['role' => AiModelRole::Vision, 'chain' => array_fill(0, 5, ['provider' => 'anthropic', 'model' => 'modele-v', 'max_tokens' => 2000])]);
+        $this->assertLessThan($job->timeout, app(RadarExtraction::class)->timeout() * 5);
+
+        // Jamais au-delà du délai configuré du socle.
+        config(['ai.timeout_seconds' => 7]);
+        $this->assertSame(7, app(RadarExtraction::class)->timeout());
+    }
+
+    public function test_a_stop_on_any_phone_of_the_output_marks_the_listing_do_not_contact(): void
+    {
+        $stop = RadarAdvertiser::factory()->doNotContact()->create(['phone_hmac' => RadarPhone::hmac('+221781112233')]);
+        $listing = $this->annonce(['source_kind' => RadarSourceKind::Captures, 'raw_text' => null]);
+        $listing->addMediaFromString(base64_decode(self::PNG))->usingFileName('capture-1.png')->toMediaCollection('radar_captures');
+        RadarExtraction::fake([$this->reponse([
+            'advertiser_name' => ['value' => 'Moussa', 'confidence' => 'medium', 'evidence' => 'Moussa'],
+            'phones' => ['77 123 45 67', '78 111 22 33'],
+        ])]);
+
+        $this->lancer($listing);
+
+        $listing->refresh();
+        $this->assertSame(RadarListingStage::DoNotContact, $listing->stage);
+        $this->assertSame($stop->id, $listing->radar_advertiser_id);
+        $this->assertNull($listing->extracted);
+        // Le premier numéro n'est ni créé ni enrichi.
+        $this->assertSame(1, RadarAdvertiser::query()->count());
+    }
+
+    public function test_a_stop_said_between_the_lookup_and_the_write_is_honoured_under_lock(): void
+    {
+        RadarExtraction::fake([$this->reponseComplete()]);
+        $listing = $this->annonce();
+        // Le STOP arrive juste après que le job a relu l'annonceur (fenêtre lecture → écriture).
+        $fait = false;
+        RadarAdvertiser::retrieved(function (RadarAdvertiser $annonceur) use (&$fait): void {
+            if (! $fait) {
+                $fait = true;
+                RadarAdvertiser::query()->whereKey($annonceur->id)->update(['do_not_contact_at' => now()]);
+            }
+        });
+
+        $this->lancer($listing);
+
+        $listing->refresh();
+        $this->assertSame(RadarListingStage::DoNotContact, $listing->stage);
+        $this->assertNull($listing->extracted);
+        $this->assertNull(RadarAdvertiser::query()->sole()->display_name);
+    }
+
+    /** @return array<string, array{\Closure(): never, string}> */
+    public static function deterministicErrors(): array
+    {
+        return [
+            'requête refusée (400)' => [fn () => throw new RequestException(new Response(new Psr7Response(400))), 'ai.request_rejected'],
+            'clé refusée (401)' => [fn () => throw new RequestException(new Response(new Psr7Response(401))), 'ai.provider_auth'],
+            'erreur de programmation' => [fn () => throw new \TypeError('boum'), 'radar.extraction.error'],
+        ];
+    }
+
+    #[DataProvider('deterministicErrors')]
+    public function test_a_deterministic_error_fails_the_extraction_without_retrying(\Closure $erreur, string $code): void
+    {
+        RadarExtraction::fake($erreur);
+        $listing = $this->annonce();
+
+        $this->lancer($listing)->assertNotReleased();
+
+        $this->assertSame([RadarListingStage::ExtractionFailed, $code], [$listing->refresh()->stage, $listing->stage_reason]);
+    }
+
+    public function test_a_transient_non_failover_error_leaves_the_listing_pending(): void
+    {
+        RadarExtraction::fake(fn () => throw new RequestException(new Response(new Psr7Response(503))));
+        $listing = $this->annonce();
+
+        $this->lancer($listing)->assertReleased(60);
+
+        $this->assertSame([RadarListingStage::Captured, 'ai.provider_unavailable'], [$listing->refresh()->stage, $listing->stage_reason]);
+    }
+
+    public function test_a_truncated_response_is_retried_once_then_fails(): void
+    {
+        $this->app->bind(RadarExtraction::class, fn () => new AgentFinDEssai(['modele-a' => FinishReason::Length, 'modele-b' => FinishReason::Length]));
+        $listing = $this->annonce();
+
+        $this->lancer($listing)->assertReleased(60);
+        $this->assertSame([RadarListingStage::Captured, 'ai.response_truncated'], [$listing->refresh()->stage, $listing->stage_reason]);
+
+        $this->lancer($listing)->assertNotReleased();
+        $this->assertSame([RadarListingStage::ExtractionFailed, 'ai.response_truncated'], [$listing->refresh()->stage, $listing->stage_reason]);
+        $this->assertSame(self::TEXTE, $listing->raw_text);
     }
 
     public function test_failed_marks_a_pending_listing_extraction_failed_with_its_last_reason(): void

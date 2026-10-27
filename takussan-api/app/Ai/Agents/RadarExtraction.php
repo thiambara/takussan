@@ -2,10 +2,13 @@
 
 namespace App\Ai\Agents;
 
+use App\Jobs\Radar\ExtractRadarListing;
+use App\Models\Enums\AiModelRole;
 use App\Models\Enums\PropertyType;
 use App\Models\Enums\RadarAdvertiserNature;
 use App\Models\Enums\RadarConfidence;
 use App\Models\Enums\RentPeriod;
+use App\Services\Ai\ModelResolver;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\JsonSchema\Types\Type;
 use Laravel\Ai\Contracts\HasStructuredOutput;
@@ -31,6 +34,22 @@ final class RadarExtraction extends SocleAgent implements HasStructuredOutput
     public const ADVERTISER_FIELDS = ['advertiser_name', 'advertiser_nature'];
 
     public const CONTRACTS = ['rent', 'sale'];
+
+    /**
+     * Le délai d'UN appel, borné pour que tous les maillons de la plus longue chaîne de l'usage
+     * (`extraction`, ou `vision` quand des captures sont jointes) tiennent ensemble dans
+     * `ExtractRadarListing::AI_CALL_BUDGET_SECONDS`, sous le `$timeout` du job. Sans cette borne, le
+     * délai du socle (300 s) laissait le worker tuer le job avant toute bascule : un fournisseur muet
+     * lève ici une erreur de connexion, et la passerelle passe au maillon suivant. Jamais au-delà du
+     * délai du socle ; au moins une seconde. Une évaluation de l'usage joue sous la même borne.
+     */
+    public function timeout(): int
+    {
+        $resolver = app(ModelResolver::class);
+        $links = max(1, count($resolver->chainForRole(AiModelRole::Extraction)), count($resolver->chainForRole(AiModelRole::Vision)));
+
+        return max(1, min(parent::timeout(), intdiv(ExtractRadarListing::AI_CALL_BUDGET_SECONDS, $links)));
+    }
 
     /** @return array<string, Type> */
     public function schema(JsonSchema $schema): array
