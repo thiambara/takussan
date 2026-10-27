@@ -170,10 +170,11 @@ export function RadarIntakeSheet({ open, onOpenChange }: RadarIntakeSheetProps) 
                 setRefusLocal(null);
               }}
             >
+              {/* Un envoi en cours garde son onglet : son retour s'affiche là où il a été saisi. */}
               <TabsList>
-                <TabsTrigger value="urls">{t('intake.tabs.urls')}</TabsTrigger>
-                <TabsTrigger value="text">{t('intake.tabs.text')}</TabsTrigger>
-                <TabsTrigger value="captures">{t('intake.tabs.captures')}</TabsTrigger>
+                <TabsTrigger value="urls" disabled={mutation.isPending}>{t('intake.tabs.urls')}</TabsTrigger>
+                <TabsTrigger value="text" disabled={mutation.isPending}>{t('intake.tabs.text')}</TabsTrigger>
+                <TabsTrigger value="captures" disabled={mutation.isPending}>{t('intake.tabs.captures')}</TabsTrigger>
               </TabsList>
 
               <TabsContent value="urls" className="space-y-1.5 pt-3">

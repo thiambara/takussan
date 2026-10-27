@@ -54,6 +54,8 @@ const enExtraction = (row: RadarListingRow) => row.stage === 'captured' && row.s
 const estSiteConnu = (valeur: string): valeur is (typeof RADAR_SOURCE_SITES)[number] =>
   (RADAR_SOURCE_SITES as readonly string[]).includes(valeur);
 
+const SURVOL_TUILE = 'h-full transition-colors group-hover:bg-muted/40';
+
 const PERIODES = ['daily', 'weekly', 'monthly', 'yearly'] as const;
 type Periode = (typeof PERIODES)[number];
 const estPeriode = (valeur: unknown): valeur is Periode => PERIODES.includes(valeur as Periode);
@@ -103,13 +105,16 @@ export function RadarWorkList() {
     setPage(1);
   };
 
-  /** Une tuile qui pose le filtre de son étape : un bouton, `aria-pressed` quand le filtre est posé. */
+  /**
+   * Une tuile qui pose le filtre de son étape : un bouton, `aria-pressed` quand le filtre est posé.
+   * Le survol se pose sur la carte (`SURVOL_TUILE`) : opaque, elle couvrirait celui du bouton.
+   */
   const tuileFiltrante = (etape: RadarListingStage, carte: ReactNode) => (
     <button
       type="button"
       onClick={() => filtrer(stage === etape ? '' : etape)}
       aria-pressed={stage === etape}
-      className="rounded-xl text-left transition-colors hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none aria-pressed:ring-2 aria-pressed:ring-primary"
+      className="group rounded-xl text-left focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none aria-pressed:ring-2 aria-pressed:ring-primary"
       data-testid={`radar-counter-${etape}`}
     >
       {carte}
@@ -237,14 +242,14 @@ export function RadarWorkList() {
       ) : (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6" data-testid="radar-counters">
           {tuileFiltrante('extracted', (
-            <StatCard className="h-full" label={t('counters.toReview')} value={compteurs?.stages.extracted ?? 0} loading={dashboard.isLoading} icon={<Eye className="size-4" aria-hidden="true" />} />
+            <StatCard className={SURVOL_TUILE} label={t('counters.toReview')} value={compteurs?.stages.extracted ?? 0} loading={dashboard.isLoading} icon={<Eye className="size-4" aria-hidden="true" />} />
           ))}
           <div data-testid="radar-counter-pending">
             <StatCard className="h-full" label={t('counters.pending')} value={compteurs?.pending_extraction ?? 0} loading={dashboard.isLoading} icon={<Clock3 className="size-4" aria-hidden="true" />} />
           </div>
           {tuileFiltrante('extraction_failed', (
             <StatCard
-              className="h-full"
+              className={SURVOL_TUILE}
               label={t('counters.failed')}
               value={compteurs?.stages.extraction_failed ?? 0}
               loading={dashboard.isLoading}
@@ -253,10 +258,10 @@ export function RadarWorkList() {
             />
           ))}
           {tuileFiltrante('reviewed', (
-            <StatCard className="h-full" label={t('counters.toContact')} value={compteurs?.stages.reviewed ?? 0} loading={dashboard.isLoading} icon={<PhoneOutgoing className="size-4" aria-hidden="true" />} />
+            <StatCard className={SURVOL_TUILE} label={t('counters.toContact')} value={compteurs?.stages.reviewed ?? 0} loading={dashboard.isLoading} icon={<PhoneOutgoing className="size-4" aria-hidden="true" />} />
           ))}
           {tuileFiltrante('published', (
-            <StatCard className="h-full" label={t('counters.published')} value={compteurs?.stages.published ?? 0} loading={dashboard.isLoading} icon={<CheckCircle2 className="size-4" aria-hidden="true" />} />
+            <StatCard className={SURVOL_TUILE} label={t('counters.published')} value={compteurs?.stages.published ?? 0} loading={dashboard.isLoading} icon={<CheckCircle2 className="size-4" aria-hidden="true" />} />
           ))}
           <div data-testid="radar-counter-ai">
           <StatCard

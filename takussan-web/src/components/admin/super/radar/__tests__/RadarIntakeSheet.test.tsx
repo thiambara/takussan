@@ -192,4 +192,21 @@ describe('RadarIntakeSheet (TCK-2386)', () => {
     expect(screen.queryByText('Annonce n° 12 créée')).not.toBeInTheDocument();
     expect(screen.getByRole('status')).toBe(zone);
   });
+
+  it('pendant un envoi, les onglets ne changent pas : le retour s’affiche sous l’onglet qui l’a envoyé', async () => {
+    let resoudre!: (valeur: { data: { id: number; stage: 'captured'; existing: boolean }[] }) => void;
+    vi.mocked(postRadarListings).mockReturnValue(new Promise((r) => { resoudre = r; }));
+    renderSheet();
+
+    await userEvent.type(screen.getByLabelText('URL des annonces'), 'https://www.coinafrique.com/annonce/42');
+    await userEvent.click(screen.getByRole('button', { name: 'Enregistrer' }));
+    await userEvent.click(screen.getByRole('tab', { name: 'Texte' }));
+
+    expect(screen.getByRole('tab', { name: 'URL' })).toHaveAttribute('aria-selected', 'true');
+    resoudre({ data: [{ id: 12, stage: 'captured', existing: false }] });
+    expect(await screen.findByText('Annonce n° 12 créée')).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'URL' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByLabelText('URL des annonces')).toBeVisible();
+  });
 });
+
