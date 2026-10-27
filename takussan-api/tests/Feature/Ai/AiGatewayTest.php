@@ -10,9 +10,11 @@ use App\Models\Enums\AiRefusalReason;
 use App\Models\User;
 use App\Services\Ai\AiGateway;
 use App\Services\Ai\AiRequest;
+use App\Services\Ai\AiUsageRegistry;
 use App\Services\Ai\Exceptions\AiRefused;
 use App\Services\Ai\Exceptions\AiUnavailable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Laravel\Ai\Exceptions\RateLimitedException;
 use Laravel\Ai\Responses\Data\Meta;
 use Laravel\Ai\Responses\Data\TextUsage;
@@ -21,6 +23,7 @@ use RuntimeException;
 use Tests\Support\Ai\AgentDEssai;
 use Tests\Support\Ai\SocleIaDEssai;
 use Tests\Support\Ai\UsageDEssai;
+use Tests\Support\Ai\UsagePersonnelleDEssai;
 use Tests\TestCase;
 
 /**
@@ -194,5 +197,64 @@ class AiGatewayTest extends TestCase
 
         AgentDEssai::assertPromptedTimes(2);
         $this->assertSame(2, AiCall::query()->where('is_evaluation', true)->where('outcome', 'success')->count());
+    }
+
+    public function test_a_non_public_usage_is_never_cached(): void
+    {
+        $this->app->instance(AiUsageRegistry::class, new AiUsageRegistry([UsagePersonnelleDEssai::class]));
+        AgentDEssai::fake([['titre' => 'Villa', 'prix' => 100], ['titre' => 'Villa', 'prix' => 100]]);
+        $requete = new AiRequest(UsagePersonnelleDEssai::KEY, 'Villa à Ngor', [AiDataClass::Personnelle], actor: $this->operateur);
+
+        app(AiGateway::class)->run($requete);
+        app(AiGateway::class)->run($requete);
+
+        AgentDEssai::assertPromptedTimes(2);
+        $this->assertSame(0, AiCall::query()->where('outcome', 'cache_hit')->count());
+    }
+
+    public function test_a_failing_cache_store_does_not_break_the_call(): void
+    {
+        AgentDEssai::fake([['titre' => 'Villa', 'prix' => 100]]);
+        Cache::shouldReceive('get')->andThrow(new RuntimeException('down'));
+        Cache::shouldReceive('put')->andThrow(new RuntimeException('down'));
+
+        $result = app(AiGateway::class)->run($this->requete());
+
+        $this->assertSame(['titre' => 'Villa', 'prix' => 100], $result->structured);
+        $this->assertSame([AiCallOutcome::Success], AiCall::query()->pluck('outcome')->all());
+    }
+
+    public function test_an_unassigned_role_is_journaled_then_unavailable(): void
+    {
+        AgentDEssai::fake();
+        config(['ai.roles.extraction' => []]);
+
+        try {
+            app(AiGateway::class)->run($this->requete());
+            $this->fail('la passerelle devait être indisponible');
+        } catch (AiUnavailable $e) {
+            $this->assertSame('ai.role_unassigned', $e->getMessage());
+        }
+        $call = AiCall::query()->sole();
+        $this->assertSame(AiCallOutcome::Error, $call->outcome);
+        $this->assertSame('ai.role_unassigned', $call->error_code);
+        AgentDEssai::assertNeverPrompted();
+    }
+
+    public function test_an_evaluation_skips_authority(): void
+    {
+        AgentDEssai::fake([['titre' => 'Villa', 'prix' => 100]]);
+
+        $result = app(AiGateway::class)->run(new AiRequest(UsageDEssai::KEY, 'Villa', actor: null, evaluation: true));
+
+        $this->assertSame(['titre' => 'Villa', 'prix' => 100], $result->structured);
+    }
+
+    public function test_authority_is_checked_before_the_kill_switch(): void
+    {
+        AgentDEssai::fake();
+        AiUsageSetting::query()->create(['usage_key' => UsageDEssai::KEY, 'enabled' => false]);
+
+        $this->assertSame(AiRefusalReason::Forbidden, $this->refus(new AiRequest(UsageDEssai::KEY, 'x', actor: User::factory()->create()))->reason);
     }
 }

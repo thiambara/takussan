@@ -5,10 +5,12 @@ namespace App\Services\Ai;
 use App\Models\AiCall;
 use App\Models\AiUsageSetting;
 use App\Models\Enums\AiCallOutcome;
+use App\Models\Enums\AiDataClass;
 use App\Models\Enums\AiRefusalReason;
 use App\Services\Ai\Exceptions\AiRefused;
 use App\Services\Ai\Exceptions\AiUnavailable;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 use Laravel\Ai\Exceptions\FailoverableException;
 use Laravel\Ai\Responses\StructuredAgentResponse;
 use Throwable;
@@ -16,8 +18,8 @@ use Throwable;
 /**
  * TCK-2383 (ADR-0076 §5) — l'UNIQUE point d'appel d'un modèle. Dans cet ordre, non négociable :
  * autorité de l'appelant, coupe-circuit, budget, données (refus, masquage), cache par empreinte,
- * appel maillon par maillon avec bascule, journal. Chaque issue, refus compris, a sa ligne de
- * `ai_calls`. Une évaluation (`AiRequest::$evaluation`) ne juge ni l'autorité ni le budget et
+ * appel maillon par maillon avec bascule, journal. Chaque refus, chaque tentative auprès d'un
+ * fournisseur et un rôle sans modèle ont leur ligne de `ai_calls`. Une évaluation (`AiRequest::$evaluation`) ne juge ni l'autorité ni le budget et
  * n'emprunte pas le cache : elle doit mesurer le modèle, pas une réponse gardée.
  */
 final class AiGateway
@@ -53,12 +55,17 @@ final class AiGateway
 
         $chain = $request->link !== null ? [$request->link] : $this->resolver->chainFor($usage, $setting);
         if ($chain === []) {
+            $this->journal($usage, $request, ['outcome' => AiCallOutcome::Error, 'error_code' => 'ai.role_unassigned']);
+
             throw new AiUnavailable('ai.role_unassigned');
         }
 
-        $cacheable = $usage->cacheTtlSeconds() > 0 && $request->attachments === [] && ! $request->evaluation;
+        // Seuls les usages publics sont mis en cache : la clé ne porte ni agence ni acteur, et la
+        // réponse d'un usage non public pourrait fuiter ou se révéler d'une agence à l'autre.
+        $cacheable = $usage->cacheTtlSeconds() > 0 && $usage->maxDataClass() === AiDataClass::Publique && $request->attachments === [] && ! $request->evaluation;
         $cacheKey = $this->cacheKey($usage, $input, $chain[0]);
-        if ($cacheable && is_array($hit = Cache::get($cacheKey))) {
+        $hit = $cacheable ? $this->cacheGet($usage, $cacheKey) : null;
+        if (is_array($hit)) {
             $call = $this->journal($usage, $request, [
                 'provider' => $hit['provider'], 'model' => $hit['model'],
                 'outcome' => AiCallOutcome::CacheHit, 'cost_estimate' => 0,
@@ -103,16 +110,38 @@ final class AiGateway
                 'duration_ms' => $this->elapsed($started),
             ]);
             if ($cacheable) {
-                Cache::put($cacheKey, [
+                $this->cachePut($usage, $cacheKey, [
                     'text' => $response->text, 'structured' => $structured,
                     'provider' => $link->provider, 'model' => $link->model,
-                ], $usage->cacheTtlSeconds());
+                ]);
             }
 
             return new AiResult($response->text, $structured, $call, false);
         }
 
         throw new AiUnavailable('ai.providers_unavailable', $last);
+    }
+
+    /** Un cache indisponible est un cache vide : il ne doit jamais coûter une réponse déjà payée. */
+    private function cacheGet(AiUsage $usage, string $key): mixed
+    {
+        try {
+            return Cache::get($key);
+        } catch (Throwable $e) {
+            Log::warning('ai.cache_unavailable', ['usage' => $usage->key(), 'error' => class_basename($e)]);
+
+            return null;
+        }
+    }
+
+    /** @param  array<string, mixed>  $value */
+    private function cachePut(AiUsage $usage, string $key, array $value): void
+    {
+        try {
+            Cache::put($key, $value, $usage->cacheTtlSeconds());
+        } catch (Throwable $e) {
+            Log::warning('ai.cache_unavailable', ['usage' => $usage->key(), 'error' => class_basename($e)]);
+        }
     }
 
     private function refuse(AiUsage $usage, AiRequest $request, AiRefusalReason $reason): AiRefused
