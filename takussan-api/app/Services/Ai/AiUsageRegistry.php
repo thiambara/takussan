@@ -3,6 +3,7 @@
 namespace App\Services\Ai;
 
 use App\Ai\Usages\ConnectionTestUsage;
+use App\Ai\Usages\RadarExtractionUsage;
 use App\Models\Enums\AiModelRole;
 use InvalidArgumentException;
 
@@ -15,6 +16,7 @@ final class AiUsageRegistry
     /** @var list<class-string<AiUsage>> */
     public const USAGES = [
         ConnectionTestUsage::class,
+        RadarExtractionUsage::class,
     ];
 
     /** @var array<string, AiUsage> */
