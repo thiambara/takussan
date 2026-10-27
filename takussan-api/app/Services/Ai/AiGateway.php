@@ -12,6 +12,7 @@ use App\Services\Ai\Exceptions\AiUnavailable;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Laravel\Ai\Exceptions\FailoverableException;
+use Laravel\Ai\Responses\Data\FinishReason;
 use Laravel\Ai\Responses\StructuredAgentResponse;
 use Throwable;
 
@@ -84,23 +85,23 @@ final class AiGateway
                     ->prompt($input, $request->attachments, provider: $link->provider, model: $link->model);
             } catch (FailoverableException $e) {
                 $this->journal($usage, $request, $this->linkColumns($link) + [
-                    'outcome' => AiCallOutcome::FailedOver, 'error_code' => class_basename($e), 'duration_ms' => $this->elapsed($started),
+                    'outcome' => AiCallOutcome::FailedOver, 'error_code' => AiErrorCode::fromThrowable($e), 'duration_ms' => $this->elapsed($started),
                 ]);
                 $last = $e;
 
                 continue;
             } catch (Throwable $e) {
                 $this->journal($usage, $request, $this->linkColumns($link) + [
-                    'outcome' => AiCallOutcome::Error, 'error_code' => class_basename($e), 'duration_ms' => $this->elapsed($started),
+                    'outcome' => AiCallOutcome::Error, 'error_code' => AiErrorCode::fromThrowable($e), 'duration_ms' => $this->elapsed($started),
                 ]);
 
                 throw $e;
             }
 
-            $structured = $response instanceof StructuredAgentResponse ? $response->toArray() : null;
             $cost = $this->costs->estimate($link->provider, $link->model, $response->usage);
-            $call = $this->journal($usage, $request, $this->linkColumns($link) + [
-                'outcome' => AiCallOutcome::Success,
+            $stop = $response->steps->last()?->finishReason;
+            $spent = $this->linkColumns($link) + [
+                'stop_reason' => $stop?->value,
                 'input_tokens' => $response->usage->inputTokens,
                 'output_tokens' => $response->usage->outputTokens,
                 'cache_read_tokens' => $response->usage->cacheReadInputTokens ?? 0,
@@ -108,7 +109,23 @@ final class AiGateway
                 'cost_estimate' => $cost,
                 'warning' => $cost === null ? 'model_unpriced' : null,
                 'duration_ms' => $this->elapsed($started),
-            ]);
+            ];
+            // TCK-2399 — une réponse coupée ou filtrée est inexploitable : le maillon a échoué, mais il
+            // a été payé (ses jetons comptent au budget). Elle n'entre pas dans le cache.
+            $unusable = match ($stop) {
+                FinishReason::Length => 'ai.response_truncated',
+                FinishReason::ContentFilter => 'ai.response_filtered',
+                default => null,
+            };
+            if ($unusable !== null) {
+                $this->journal($usage, $request, $spent + ['outcome' => AiCallOutcome::FailedOver, 'error_code' => $unusable]);
+                $last = new AiUnavailable($unusable);
+
+                continue;
+            }
+
+            $structured = $response instanceof StructuredAgentResponse ? $response->toArray() : null;
+            $call = $this->journal($usage, $request, $spent + ['outcome' => AiCallOutcome::Success]);
             if ($cacheable) {
                 $this->cachePut($usage, $cacheKey, [
                     'text' => $response->text, 'structured' => $structured,

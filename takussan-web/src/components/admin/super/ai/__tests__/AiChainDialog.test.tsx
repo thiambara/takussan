@@ -71,8 +71,20 @@ describe('chaîne d’un rôle (TCK-2385)', () => {
     expect(await screen.findByText(/L’évaluation a été perdue/)).toBeInTheDocument();
   });
 
-  it('une évaluation tombée en exception reste lisible : message générique, code en retrait', async () => {
-    const tombee = { ...run, status: 'failed' as const, below_baseline: null, report: null, error_code: 'RuntimeException' };
+  it('une évaluation dont l’appel a échoué dit sa cause (TCK-2399)', async () => {
+    const tronquee = { ...run, status: 'failed' as const, below_baseline: null, report: null, error_code: 'ai.response_truncated' };
+    vi.mocked(postAdminAiEvaluation).mockResolvedValue({ data: tronquee });
+    vi.mocked(fetchAdminAiEvaluation).mockResolvedValue({ data: tronquee });
+    renderDialog();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Évaluer le premier maillon' }));
+
+    expect(await screen.findByText('La réponse du modèle a été coupée avant la fin.')).toBeInTheDocument();
+    expect(screen.queryByText(/ai\.response_truncated/)).not.toBeInTheDocument();
+  });
+
+  it('une évaluation tombée sur un code inconnu reste lisible : message générique, code en retrait', async () => {
+    const tombee = { ...run, status: 'failed' as const, below_baseline: null, report: null, error_code: 'ai.code_futur' };
     vi.mocked(postAdminAiEvaluation).mockResolvedValue({ data: tombee });
     vi.mocked(fetchAdminAiEvaluation).mockResolvedValue({ data: tombee });
     renderDialog();
@@ -80,7 +92,7 @@ describe('chaîne d’un rôle (TCK-2385)', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Évaluer le premier maillon' }));
 
     expect(await screen.findByText('L’évaluation a échoué.')).toBeInTheDocument();
-    expect(screen.getByText('Code : RuntimeException')).toBeInTheDocument();
+    expect(screen.getByText('Code : ai.code_futur')).toBeInTheDocument();
   });
 
   it('nomme l’échec quand des appels ont échoué, au lieu de dire « sous la référence »', async () => {

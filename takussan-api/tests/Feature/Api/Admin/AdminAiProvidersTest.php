@@ -54,7 +54,7 @@ class AdminAiProvidersTest extends TestCase
         ConnectionTestAgent::fake(fn () => throw RateLimitedException::forProvider('anthropic'));
 
         $this->postJson('/api/admin/ai/providers/anthropic/test')->assertOk()
-            ->assertJsonPath('data.ok', false)->assertJsonPath('data.error_code', 'ai.providers_unavailable');
+            ->assertJsonPath('data.ok', false)->assertJsonPath('data.error_code', 'ai.provider_rate_limited');
     }
 
     public function test_a_missing_key_and_an_unknown_provider_are_refused(): void

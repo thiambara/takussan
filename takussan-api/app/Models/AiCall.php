@@ -15,7 +15,7 @@ class AiCall extends AbstractModel
     protected $fillable = [
         'usage_key', 'role', 'provider', 'model', 'prompt_version',
         'input_tokens', 'output_tokens', 'cache_read_tokens', 'cache_write_tokens',
-        'cost_estimate', 'duration_ms', 'outcome', 'refusal_reason', 'error_code', 'warning',
+        'cost_estimate', 'duration_ms', 'outcome', 'stop_reason', 'refusal_reason', 'error_code', 'warning',
         'is_evaluation', 'agency_id', 'actor_id', 'subject_type', 'subject_id',
     ];
 

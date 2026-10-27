@@ -5,6 +5,7 @@ namespace App\Jobs\Ai;
 use App\Jobs\Concerns\RunsOnLongQueue;
 use App\Models\AiEvaluationRun;
 use App\Models\Enums\AiEvaluationStatus;
+use App\Services\Ai\AiErrorCode;
 use App\Services\Ai\AiUsageRegistry;
 use App\Services\Ai\Evaluation\EvaluationRunner;
 use App\Services\Ai\ModelLink;
@@ -15,7 +16,7 @@ use Throwable;
 /**
  * TCK-2385 — joue l'évaluation d'un candidat sur chaque usage de son rôle qui a un jeu de cas.
  * Idempotent : une évaluation qui n'est plus `queued` n'est pas rejouée (un second passage du même
- * job ne rappelle pas les modèles). Un échec se lit dans `error_code` ; une reprise de la file n'est jamais rejouée.
+ * job ne rappelle pas les modèles). Un échec se lit dans `error_code` (un code `ai.*`, `AiErrorCode`) ; une reprise de la file n'est jamais rejouée.
  *
  * Toute écriture d'état est CONDITIONNELLE à l'état attendu : un état terminal n'est jamais réécrit,
  * ni par `failed()` (appelé par le worker quand le job est tué ou repris), ni par le verdict tardif
@@ -91,7 +92,7 @@ class RunAiEvaluation implements ShouldQueue
         } catch (Throwable $e) {
             report($e);
             $this->leave($run, [
-                'status' => AiEvaluationStatus::Failed, 'error_code' => class_basename($e), 'finished_at' => now(),
+                'status' => AiEvaluationStatus::Failed, 'error_code' => AiErrorCode::fromThrowable($e), 'finished_at' => now(),
             ], [AiEvaluationStatus::Running]);
         }
     }
@@ -105,7 +106,7 @@ class RunAiEvaluation implements ShouldQueue
     {
         AiEvaluationRun::query()->whereKey($this->runId)->whereIn('status', [AiEvaluationStatus::Queued->value, AiEvaluationStatus::Running->value])->update([
             'status' => AiEvaluationStatus::Failed->value,
-            'error_code' => $e === null ? 'ai.eval.job_failed' : class_basename($e),
+            'error_code' => $e === null ? 'ai.eval.job_failed' : AiErrorCode::fromThrowable($e),
             'finished_at' => now(),
         ]);
     }

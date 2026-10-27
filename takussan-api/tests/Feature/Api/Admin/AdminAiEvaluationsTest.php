@@ -133,7 +133,7 @@ class AdminAiEvaluationsTest extends TestCase
 
         $run->refresh();
         $this->assertSame(AiEvaluationStatus::Failed, $run->status);
-        $this->assertSame('RuntimeException', $run->error_code);
+        $this->assertSame('ai.unexpected', $run->error_code);
         $this->assertNotNull($run->finished_at);
     }
 
@@ -172,7 +172,7 @@ class AdminAiEvaluationsTest extends TestCase
 
         Exceptions::assertReported(ErrorException::class);
         $this->assertSame(AiEvaluationStatus::Failed, $run->fresh()->status);
-        $this->assertSame('ErrorException', $run->fresh()->error_code);
+        $this->assertSame('ai.unexpected', $run->fresh()->error_code);
     }
 
     public function test_a_run_already_failed_by_the_queue_is_not_turned_back_by_the_late_outcome(): void
@@ -189,7 +189,7 @@ class AdminAiEvaluationsTest extends TestCase
         (new RunAiEvaluation($run->id))->handle(app(EvaluationRunner::class), app(AiUsageRegistry::class));
 
         $this->assertSame(AiEvaluationStatus::Failed, $run->fresh()->status);
-        $this->assertSame('RuntimeException', $run->fresh()->error_code);
+        $this->assertSame('ai.unexpected', $run->fresh()->error_code);
         $this->assertNull($run->fresh()->report);
     }
 

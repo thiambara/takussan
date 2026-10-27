@@ -17,6 +17,7 @@ import { ApiError } from '@/lib/api';
 import { avecGardeDoubleFacteur } from '@/lib/double-facteur';
 import { fetchAdminAiEvaluation, postAdminAiEvaluation, putAdminAiRole } from '@/lib/queries/super-admin';
 import type { AiEvaluationStatus, AiModelLink, AiProvider, AiRoleRow } from '@/types/super-admin';
+import { ERREURS_APPEL_IA } from './codes-erreur-appel';
 
 type Props = {
   open: boolean;
@@ -136,6 +137,7 @@ export function AiChainDialog({ open, onOpenChange, row, providers }: Props) {
   // Aucune référence nulle part : il n'y a rien à tenir, « tient la référence » serait faux.
   const sansReference = !below && reports.length > 0 && reports.every((report) => report.baseline === null);
   const erreurConnue = run?.error_code ? ERREURS_CONNUES[run.error_code as keyof typeof ERREURS_CONNUES] : undefined;
+  const erreurAppel = run?.error_code ? ERREURS_APPEL_IA[run.error_code] : undefined;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -219,7 +221,8 @@ export function AiChainDialog({ open, onOpenChange, row, providers }: Props) {
             <div className="space-y-0.5 text-sm text-destructive">
               <p>{t('evaluationFailed')}</p>
               {erreurConnue ? <p>{t(`evaluationErrors.${erreurConnue}`)}</p> : null}
-              {!erreurConnue && run.error_code ? <p className="text-xs text-muted-foreground">{t('evaluationErrorCode', { code: run.error_code })}</p> : null}
+              {erreurAppel ? <p>{tAi(`callErrors.${erreurAppel}`)}</p> : null}
+              {!erreurConnue && !erreurAppel && run.error_code ? <p className="text-xs text-muted-foreground">{t('evaluationErrorCode', { code: run.error_code })}</p> : null}
             </div>
           ) : null}
           {run?.status === 'done' && run.report ? (

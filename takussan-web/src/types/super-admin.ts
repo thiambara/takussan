@@ -1095,7 +1095,7 @@ export type AiEvaluationRun = {
   status: AiEvaluationStatus;
   below_baseline: boolean | null;
   report: { usages: Record<string, AiEvalReport> } | null;
-  /** Un code pointé (`ai.eval.job_lost`, `ai.eval.job_failed`) ou le nom d'une classe d'exception. */
+  /** Un code pointé : `ai.eval.job_lost`, `ai.eval.job_failed`, ou un échec d'appel `ai.*` (`AiErrorCode`, TCK-2399). */
   error_code: string | null;
   created_at: string | null;
   finished_at: string | null;

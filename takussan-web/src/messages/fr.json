@@ -8376,6 +8376,18 @@
           "done": "Terminée",
           "failed": "Échouée"
         },
+        "callErrors": {
+          "providerTimeout": "Le fournisseur n’a pas répondu dans le délai.",
+          "providerRateLimited": "Le fournisseur limite le débit : réessayez dans un moment.",
+          "providerCredits": "Le crédit du compte chez le fournisseur est épuisé.",
+          "providerUnavailable": "Le fournisseur est indisponible ou injoignable.",
+          "providerAuth": "Le fournisseur a refusé la clé : vérifiez-la.",
+          "requestRejected": "Le fournisseur a rejeté la requête.",
+          "responseInvalid": "La réponse du modèle n’est pas exploitable.",
+          "responseTruncated": "La réponse du modèle a été coupée avant la fin.",
+          "responseFiltered": "La réponse du modèle a été bloquée par le filtre du fournisseur.",
+          "unexpected": "Erreur inattendue : le détail est au journal de l’API."
+        },
         "roles": {
           "caption": "Rôles de modèle et leur ordre de bascule",
           "role": "Rôle",

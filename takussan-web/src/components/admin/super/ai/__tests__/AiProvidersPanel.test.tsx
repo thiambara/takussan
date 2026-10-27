@@ -38,13 +38,23 @@ describe('fournisseurs IA (TCK-2385)', () => {
     expect(screen.queryByText(/ai\.providers_unavailable/)).not.toBeInTheDocument();
   });
 
-  it('une exception inconnue : message générique, nom de classe en retrait', async () => {
-    vi.mocked(testAdminAiProvider).mockResolvedValue({ data: { ok: false, model: 'modele-a', duration_ms: null, error_code: 'ConnectionException' } });
+  it('un échec d’appel se lit par sa cause (TCK-2399)', async () => {
+    vi.mocked(testAdminAiProvider).mockResolvedValue({ data: { ok: false, model: 'modele-a', duration_ms: null, error_code: 'ai.provider_auth' } });
+    renderPanel();
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Tester la connexion' }));
+
+    expect(await screen.findByText('Le fournisseur a refusé la clé : vérifiez-la.')).toBeInTheDocument();
+    expect(screen.queryByText(/ai\.provider_auth/)).not.toBeInTheDocument();
+  });
+
+  it('un code inconnu : message générique, code en retrait', async () => {
+    vi.mocked(testAdminAiProvider).mockResolvedValue({ data: { ok: false, model: 'modele-a', duration_ms: null, error_code: 'ai.code_futur' } });
     renderPanel();
 
     await userEvent.click(await screen.findByRole('button', { name: 'Tester la connexion' }));
 
     expect(await screen.findByText('La connexion a échoué.')).toBeInTheDocument();
-    expect(screen.getByText('Code : ConnectionException')).toBeInTheDocument();
+    expect(screen.getByText('Code : ai.code_futur')).toBeInTheDocument();
   });
 });

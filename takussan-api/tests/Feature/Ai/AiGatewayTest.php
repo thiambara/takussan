@@ -93,7 +93,7 @@ class AiGatewayTest extends TestCase
         app(AiGateway::class)->run($this->requete());
 
         $this->assertSame(
-            [['modele-a', AiCallOutcome::FailedOver, 'RateLimitedException'], ['modele-b', AiCallOutcome::Success, null]],
+            [['modele-a', AiCallOutcome::FailedOver, 'ai.provider_rate_limited'], ['modele-b', AiCallOutcome::Success, null]],
             AiCall::query()->orderBy('id')->get()->map(fn (AiCall $c) => [$c->model, $c->outcome, $c->error_code])->all(),
         );
     }

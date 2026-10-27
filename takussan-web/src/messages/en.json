@@ -8376,6 +8376,18 @@
           "done": "Done",
           "failed": "Failed"
         },
+        "callErrors": {
+          "providerTimeout": "The provider did not respond in time.",
+          "providerRateLimited": "The provider is rate limiting: try again in a moment.",
+          "providerCredits": "The account credit with the provider is exhausted.",
+          "providerUnavailable": "The provider is unavailable or unreachable.",
+          "providerAuth": "The provider rejected the key: check it.",
+          "requestRejected": "The provider rejected the request.",
+          "responseInvalid": "The model response cannot be used.",
+          "responseTruncated": "The model response was cut off before the end.",
+          "responseFiltered": "The model response was blocked by the provider’s filter.",
+          "unexpected": "Unexpected error: details are in the API log."
+        },
         "roles": {
           "caption": "Model roles and their failover order",
           "role": "Role",

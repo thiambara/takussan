@@ -14,8 +14,9 @@ import type { ApiError } from '@/lib/api';
 import { avecGardeDoubleFacteur } from '@/lib/double-facteur';
 import { fetchAdminAiProviders, testAdminAiProvider } from '@/lib/queries/super-admin';
 import type { AdminAiProvidersResponse, AiProvider, AiProviderTestResponse } from '@/types/super-admin';
+import { ERREURS_APPEL_IA } from './codes-erreur-appel';
 
-/** Les codes pointés qu'écrit `AiProviderController::test` dans `error_code` (`AiUnavailable`, `AiRefused`). */
+/** Les refus de la passerelle qu'écrit `AiProviderController::test` dans `error_code` ; les échecs d'appel sont dans `ERREURS_APPEL_IA`. */
 const ERREURS_CONNUES: Record<string, string> = {
   'ai.role_unassigned': 'roleUnassigned',
   'ai.providers_unavailable': 'providersUnavailable',
@@ -31,6 +32,7 @@ export function AiProvidersPanel() {
   const t = useTranslations('superAdmin.pages.ai.providers');
   const tShared = useTranslations('superAdmin.pages.shared');
   const tCommon = useTranslations('common');
+  const tAppel = useTranslations('superAdmin.pages.ai.callErrors');
   const messageErreur = useMessageErreurApi();
   const garde = useGardeDoubleFacteur();
   const [results, setResults] = useState<Record<string, AiProviderTestResponse['data']>>({});
@@ -49,6 +51,12 @@ export function AiProvidersPanel() {
       setErrors((current) => ({ ...current, [key]: messageErreur(error, t('testError')) }));
     },
   });
+
+  const libelleEchec = (code: string | null) => {
+    if (code && ERREURS_CONNUES[code]) return t(`testErrors.${ERREURS_CONNUES[code]}`);
+    if (code && ERREURS_APPEL_IA[code]) return tAppel(ERREURS_APPEL_IA[code]);
+    return t('testFailed');
+  };
 
   if (query.isLoading) return <Skeleton className="h-40 rounded-xl" />;
   if (query.isError) {
@@ -75,8 +83,8 @@ export function AiProvidersPanel() {
                 <span className="text-sm text-muted-foreground">{t('testOk', { model: result.model, duration: result.duration_ms ?? 0 })}</span>
               ) : (
                 <span className="flex flex-col items-end text-sm text-destructive">
-                  <span>{result.error_code && ERREURS_CONNUES[result.error_code] ? t(`testErrors.${ERREURS_CONNUES[result.error_code]}`) : t('testFailed')}</span>
-                  {result.error_code && !ERREURS_CONNUES[result.error_code] ? <span className="text-xs text-muted-foreground">{t('testErrorCode', { code: result.error_code })}</span> : null}
+                  <span>{libelleEchec(result.error_code)}</span>
+                  {result.error_code && !ERREURS_CONNUES[result.error_code] && !ERREURS_APPEL_IA[result.error_code] ? <span className="text-xs text-muted-foreground">{t('testErrorCode', { code: result.error_code })}</span> : null}
                 </span>
               )
             ) : null}

@@ -1,7 +1,7 @@
 ---
 id: TCK-2399
 title: "Journal des appels IA : une réponse tronquée ou filtrée n'est plus un succès, et les erreurs portent des codes ai.* au lieu de noms de classe"
-status: todo
+status: doing
 phase: P1
 family: back
 estimate: S
@@ -55,28 +55,28 @@ Relevé par la revue finale du lot 0 (2026-10-27), à corriger avant le premier 
 
 ## Delta à produire
 
-- [ ] Migration `add_stop_reason_to_ai_calls` (`string`, nullable, longueur bornée).
-- [ ] `App\Services\Ai\AiErrorCode::fromThrowable(Throwable): string` — table fermée des
+- [x] Migration `add_stop_reason_to_ai_calls` (`string`, nullable, longueur bornée).
+- [x] `App\Services\Ai\AiErrorCode::fromThrowable(Throwable): string` — table fermée des
       exceptions connues vers `ai.provider_timeout`, `ai.provider_rate_limited`,
       `ai.provider_unavailable`, `ai.provider_auth`, `ai.response_invalid`, repli
       `ai.unexpected`.
-- [ ] `AiGateway` : lit la raison de fin, la journalise dans `stop_reason`, applique la règle
+- [x] `AiGateway` : lit la raison de fin, la journalise dans `stop_reason`, applique la règle
       ci-dessus ; emploie `AiErrorCode` aux deux sites de `class_basename`.
-- [ ] `RunAiEvaluation` et `AiProviderController` : `AiErrorCode` à la place de `class_basename`.
-- [ ] Front `/super-admin/ai` : libellés des codes `ai.*` émis (console, tableau de bord,
+- [x] `RunAiEvaluation` et `AiProviderController` : `AiErrorCode` à la place de `class_basename`.
+- [x] Front `/super-admin/ai` : libellés des codes `ai.*` émis (console, tableau de bord,
       évaluations).
-- [ ] Tests : `tests/Feature/Ai/AiGatewayStopReasonTest.php` (`length`, `content_filter`, `stop`,
+- [x] Tests : `tests/Feature/Ai/AiGatewayStopReasonTest.php` (`length`, `content_filter`, `stop`,
       bascule) et `tests/Unit/Ai/AiErrorCodeTest.php` (chaque entrée de la table + repli).
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Une réponse factice `length` produit une ligne `ai_calls` `outcome = error`,
-      `stop_reason = length`, `error_code = ai.response_truncated`, et la passerelle essaie le
-      maillon suivant.
-- [ ] AC2 — Aucun `class_basename` n'alimente plus un `error_code` dans `app/` (grep consigné).
-- [ ] AC3 — Le test de connexion d'un fournisseur en panne rend un `error_code` en `ai.*`, affiché
+- [x] AC1 — Une réponse factice `length` produit une ligne `ai_calls` `outcome = failed_over`
+      (amendé, cf. notes), `stop_reason = length`, `error_code = ai.response_truncated`, et la
+      passerelle essaie le maillon suivant.
+- [x] AC2 — Aucun `class_basename` n'alimente plus un `error_code` dans `app/` (grep consigné).
+- [x] AC3 — Le test de connexion d'un fournisseur en panne rend un `error_code` en `ai.*`, affiché
       traduit dans la console.
-- [ ] AC4 — Chaque test rougit sans son correctif (ablation consignée).
+- [x] AC4 — Chaque test rougit sans son correctif (ablation consignée).
 
 ## Hors périmètre
 
@@ -85,4 +85,41 @@ Relevé par la revue finale du lot 0 (2026-10-27), à corriger avant le premier 
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+2026-10-27, sur `feat/socle-ia-lot-0`.
+
+- **Écart à la contrainte « `outcome = error` au dernier maillon », AC1 amendé.** La passerelle
+  journalise déjà `failed_over` pour toute erreur basculable, **même au dernier maillon**
+  (`FailoverableException`), et `error` pour une erreur qui interrompt la chaîne. Une réponse
+  `length`/`content_filter` suit la même règle : `failed_over` à chaque maillon, puis
+  `AiUnavailable('ai.providers_unavailable')` dont la cause (`getPrevious()`) porte
+  `ai.response_truncated` ou `ai.response_filtered`. Écrire `error` au dernier maillon pour ce seul
+  cas aurait donné deux sens à `failed_over` dans le même tableau de bord.
+- **Le maillon tronqué est payé** : ses jetons et son coût sont journalisés (ils comptent au
+  budget), et sa réponse n'entre pas dans le cache.
+- **`laravel/ai` ne sait pas simuler `length`** : `Agent::fake()` passe par `FakeTextGateway`, qui
+  rend toujours `FinishReason::Stop`. Le test lie au conteneur `Tests\Support\Ai\AgentFinDEssai`,
+  dont `prompt()` rend une réponse structurée avec un `Step` de la raison voulue, par modèle.
+- **`AiErrorCode`** couvre aussi `InsufficientCreditsException` (`ai.provider_credits`) et les
+  erreurs HTTP non basculables du SDK (`RequestException` 400 et autres → `ai.request_rejected`),
+  que le ticket ne listait pas : un 401 ou un 400 n'est pas converti par `HandlesFailoverErrors` et
+  arrive brut. `AiUnavailable`/`AiRefused` rendent leur propre code.
+- **Test de connexion** : un seul maillon y est joué, donc le contrôleur rend la **cause** de
+  `ai.providers_unavailable` (`ai.provider_auth`, `ai.provider_timeout`…) plutôt que ce code
+  générique. `AdminAiProvidersTest` attend désormais `ai.provider_rate_limited`.
+- **AC2, grep consigné** : `grep -rn class_basename app/Services/Ai app/Jobs/Ai
+  app/Http/Controllers/Api/Admin` ne rend plus que les deux `Log::warning('ai.cache_unavailable')`
+  d'`AiGateway` — le journal Laravel, jamais un `error_code`.
+- **Front** : une table commune `codes-erreur-appel.ts` (libellés
+  `superAdmin.pages.ai.callErrors`, `wo` = français) sert la console des fournisseurs et le
+  dialogue d'évaluation. Le tableau de bord n'affiche aucun `error_code` (il compte des issues) :
+  rien à y traduire. Un code inconnu s'affiche brut, en retrait.
+- **AC4, ablations** (chacune annulée ensuite) : sans la branche `length`/`content_filter` →
+  4 rouges sur 6 (`AiGatewayStopReasonTest`) ; `stop_reason` non journalisé → 3 rouges ;
+  `class_basename` dans la bascule → 1 rouge (`AiGatewayTest`) ; dans le job → 3 rouges
+  (`AdminAiEvaluationsTest`) ; contrôleur sans la cause → 1 rouge (`AdminAiProvidersTest`) ;
+  front, deux codes retirés de la table → 2 rouges.
+- **Vérifié** : tests IA du back (`tests/Unit/Ai`, `tests/Feature/Ai`, `AdminAi*Test`,
+  `LongJobsConnectionTest`) 258 verts ; front `src/components/admin/super/ai` 24 verts, ESLint,
+  `tsc --noEmit`, `check-i18n` et `check:*` propres ; gardes du dépôt et `check-backlog` verts.
+- **À faire par `/sync-specs` après fusion** : `docs/models-spec.md#104-aicall-` — colonne
+  `stop_reason`, et `error_code` = code `ai.*` (la spec dit encore « nom de l'exception »).

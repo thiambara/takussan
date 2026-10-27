@@ -4,10 +4,10 @@ namespace App\Http\Controllers\Api\Admin;
 
 use App\Ai\Usages\ConnectionTestUsage;
 use App\Http\Controllers\Base\Controller;
+use App\Services\Ai\AiErrorCode;
 use App\Services\Ai\AiGateway;
 use App\Services\Ai\AiProviderCatalogue;
 use App\Services\Ai\AiRequest;
-use App\Services\Ai\Exceptions\AiRefused;
 use App\Services\Ai\Exceptions\AiUnavailable;
 use App\Services\Ai\ModelLink;
 use Illuminate\Http\JsonResponse;
@@ -38,11 +38,12 @@ class AiProviderController extends Controller
             $result = $gateway->run(new AiRequest(ConnectionTestUsage::KEY, 'OK ?', actor: $request->user(), link: new ModelLink($provider, $model, 16)));
 
             return $this->json(['data' => ['ok' => true, 'model' => $model, 'duration_ms' => $result->call->duration_ms, 'error_code' => null]]);
-        } catch (AiRefused|AiUnavailable $e) {
-            return $this->json(['data' => ['ok' => false, 'model' => $model, 'duration_ms' => null, 'error_code' => $e->getMessage()]]);
         } catch (Throwable $e) {
-            // Le message d'un fournisseur ne sort pas : seul le nom de l'erreur, déjà journalisé.
-            return $this->json(['data' => ['ok' => false, 'model' => $model, 'duration_ms' => null, 'error_code' => class_basename($e)]]);
+            // Le message d'un fournisseur ne sort pas : seulement un code `ai.*`. Un seul maillon est
+            // joué, donc « aucun fournisseur n'a répondu » se précise par sa cause (clé, délai…).
+            $cause = $e instanceof AiUnavailable && $e->getPrevious() !== null ? $e->getPrevious() : $e;
+
+            return $this->json(['data' => ['ok' => false, 'model' => $model, 'duration_ms' => null, 'error_code' => AiErrorCode::fromThrowable($cause)]]);
         }
     }
 }
