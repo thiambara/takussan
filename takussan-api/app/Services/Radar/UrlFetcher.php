@@ -32,7 +32,9 @@ use InvalidArgumentException;
  * une lecture à la fois par domaine et un délai minimal entre deux (`RadarFetchDeferred`).
  *
  * **Bornée.** Délais courts, au plus `max_redirects` redirections, corps borné à `max_bytes`
- * (en-tête `Content-Length`, octets reçus au fil de l'eau par `BoundedSink`, puis taille lue).
+ * (en-tête `Content-Length`, octets reçus au fil de l'eau par `BoundedSink`, puis taille lue). Un
+ * délai TOTAL (`total_timeout_seconds`) couvre tous les sauts et leurs `robots.txt` : chaque requête
+ * n'a que le temps qui reste, et plus aucune ne part une fois le délai passé (`timeout`).
  */
 final class UrlFetcher
 {
@@ -53,6 +55,9 @@ final class UrlFetcher
     ];
 
     private const REDIRECT_STATUSES = [301, 302, 303, 307, 308];
+
+    /** L'échéance de la lecture en cours, en millisecondes (horloge de l'application). */
+    private ?int $deadlineMs = null;
 
     public function __construct(private readonly HostResolver $resolver) {}
 
@@ -94,6 +99,8 @@ final class UrlFetcher
      */
     public function fetch(string $url): FetchedPage
     {
+        $this->deadlineMs = now()->getTimestampMs() + 1000 * $this->totalTimeout();
+
         // Tout ce qui se refuse sans contacter personne se refuse AVANT de prendre le créneau du
         // domaine : une URL refusée ne retarde pas la lecture suivante.
         $target = $this->target($url);
@@ -146,11 +153,16 @@ final class UrlFetcher
      * Publique pour être éprouvée : `Http::fake()` n'exécute pas cURL, il ne peut pas prouver
      * l'épinglage.
      *
+     * `$remaining` : le temps qui reste au délai total, en secondes ; il borne les deux délais.
+     *
      * @param  list<string>  $ips
      * @return array<string, mixed>
      */
-    public function requestOptions(string $host, int $port, array $ips): array
+    public function requestOptions(string $host, int $port, array $ips, ?float $remaining = null): array
     {
+        $timeout = (int) config('radar.fetch.timeout_seconds', 10);
+        $connect = (int) config('radar.fetch.connect_timeout_seconds', 5);
+
         $addresses = implode(',', array_map(
             fn (string $ip) => str_contains($ip, ':') ? "[{$ip}]" : $ip,
             $ips,
@@ -159,8 +171,8 @@ final class UrlFetcher
         return [
             'allow_redirects' => false,
             'proxy' => '',
-            'timeout' => (int) config('radar.fetch.timeout_seconds', 10),
-            'connect_timeout' => (int) config('radar.fetch.connect_timeout_seconds', 5),
+            'timeout' => $remaining !== null && $remaining < $timeout ? $remaining : $timeout,
+            'connect_timeout' => $remaining !== null && $remaining < $connect ? $remaining : $connect,
             'curl' => [CURLOPT_RESOLVE => ["{$host}:{$port}:{$addresses}"]],
         ];
     }
@@ -296,10 +308,11 @@ final class UrlFetcher
      * est pris pour la durée la plus longue qu'une lecture puisse tenir, puis ramené au délai
      * minimal compté depuis la fin de la lecture (`release()`, dans un `finally`).
      *
-     * Le pire cas : (R + 1) sauts de page, chacun pouvant lire le `robots.txt` d'une nouvelle
-     * origine en (R + 1) requêtes, soit (R + 1)(R + 2) requêtes, chacune bornée par le délai
-     * d'expiration — compté avec celui de connexion pour couvrir aussi les résolutions DNS, que
-     * cURL ne fait pas (elles sont faites avant, par `HostResolver`). 305 s avec R = 3.
+     * Le pire cas : le délai total (`total_timeout_seconds`) — aucune requête ne part après lui, et
+     * chacune n'a que le temps qui reste —, plus les délais d'une requête (expiration et connexion)
+     * en marge pour une résolution DNS lancée juste avant l'échéance, que cURL ne borne pas (elle
+     * est faite avant, par `HostResolver`). 65 s avec la configuration livrée : un worker tué en
+     * pleine lecture ne garde pas le domaine plus longtemps.
      *
      * @param  list<string>  $held
      */
@@ -310,9 +323,8 @@ final class UrlFetcher
         }
 
         $delay = max(1, (int) config('radar.fetch.min_delay_seconds', 5));
-        $redirects = (int) config('radar.fetch.max_redirects', 3);
-        $inFlight = $delay + ($redirects + 1) * ($redirects + 2)
-            * ((int) config('radar.fetch.timeout_seconds', 10) + (int) config('radar.fetch.connect_timeout_seconds', 5));
+        $inFlight = $delay + $this->totalTimeout()
+            + (int) config('radar.fetch.timeout_seconds', 10) + (int) config('radar.fetch.connect_timeout_seconds', 5);
 
         $now = now()->getTimestamp();
         if (! Cache::add($this->slotKey($host), $now + $inFlight, $inFlight)) {
@@ -332,6 +344,19 @@ final class UrlFetcher
         foreach ($held as $host) {
             Cache::put($this->slotKey($host), now()->getTimestamp() + $delay, $delay);
         }
+    }
+
+    private function totalTimeout(): int
+    {
+        return max(1, (int) config('radar.fetch.total_timeout_seconds', 45));
+    }
+
+    /** Le temps qui reste au délai total de la lecture en cours, en secondes. */
+    private function remainingSeconds(): float
+    {
+        return $this->deadlineMs === null
+            ? (float) $this->totalTimeout()
+            : ($this->deadlineMs - now()->getTimestampMs()) / 1000;
     }
 
     private function slotKey(string $host): string
@@ -388,6 +413,11 @@ final class UrlFetcher
                 $this->hold($hop['host'], $held);
             }
         } catch (RadarFetchRefused $e) {
+            // Le délai TOTAL passé est celui de la lecture entière, pas une panne du `robots.txt`.
+            if ($e->code === RadarFetchRefused::TIMEOUT && $this->remainingSeconds() <= 0) {
+                throw $e;
+            }
+
             throw in_array($e->code, [RadarFetchRefused::TIMEOUT, RadarFetchRefused::HTTP_ERROR], true)
                 ? new RadarFetchRefused(RadarFetchRefused::ROBOTS_UNAVAILABLE)
                 : $e;
@@ -411,11 +441,16 @@ final class UrlFetcher
      */
     private function send(array $target): Response
     {
+        $remaining = $this->remainingSeconds();
+        if ($remaining <= 0) {
+            throw new RadarFetchRefused(RadarFetchRefused::TIMEOUT);
+        }
+
         $maxBytes = (int) config('radar.fetch.max_bytes', 2_000_000);
         $sink = new BoundedSink($maxBytes);
 
         try {
-            $response = Http::withOptions($this->requestOptions($target['host'], $target['port'], $target['ips']) + ['sink' => $sink])
+            $response = Http::withOptions($this->requestOptions($target['host'], $target['port'], $target['ips'], $remaining) + ['sink' => $sink])
                 ->withUserAgent((string) config('radar.fetch.user_agent'))
                 ->get($target['url']);
         } catch (ConnectionException|TransferException $e) {

@@ -28,6 +28,9 @@ return [
         'min_delay_seconds' => 5,
         'timeout_seconds' => 10,
         'connect_timeout_seconds' => 5,
+        // Délai TOTAL d'une lecture, tous sauts et `robots.txt` compris : au-delà, `radar.fetch.timeout`.
+        // Sous le `$timeout` du job (85 s), pour que la lecture finisse avant que le worker ne le tue.
+        'total_timeout_seconds' => 45,
         // Redirections suivies au plus, chacune contrôlée comme l'URL de départ.
         'max_redirects' => 3,
         // Corps lu au plus (en-tête `Content-Length` et octets reçus) : 2 Mo.

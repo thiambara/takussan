@@ -501,8 +501,7 @@ class RadarUrlFetcherTest extends TestCase
 
     public function test_une_lecture_longue_garde_son_creneau_jusqu_au_bout(): void
     {
-        // Le pire cas d'une lecture : (redirections + 1) sauts de page, chacun pouvant lire un
-        // robots.txt de (redirections + 1) requêtes, chacune jusqu'au délai d'expiration — 200 s
+        // Le pire cas d'une lecture : le délai total (45 s), plus une requête en marge — 60 s
         // avec la configuration livrée. Le verrou ne doit pas expirer avant.
         $nested = null;
         Http::fake(function (Request $request) use (&$nested) {
@@ -512,7 +511,7 @@ class RadarUrlFetcherTest extends TestCase
 
             if ($nested === null) {
                 $nested = 'pas différée';
-                $this->travel(200)->seconds();
+                $this->travel(59)->seconds();
                 try {
                     $this->fetcher()->fetch('https://sn.coinafrique.com/autre');
                 } catch (RadarFetchDeferred) {
@@ -688,6 +687,80 @@ class RadarUrlFetcherTest extends TestCase
         });
 
         $this->assertSame('radar.fetch.timeout', $this->refusalOf('https://sn.coinafrique.com/a'));
+    }
+
+    // ── F5 (revue finale) : un délai total pour toute la lecture ───────────────────────────
+
+    public function test_f5_une_chaine_de_sauts_qui_depasse_le_delai_total_est_refusee_sans_requete_de_plus(): void
+    {
+        // Chaque requête prend 20 s : robots, /a (301), /b (301) → 60 s, au-delà des 45 s.
+        Http::fake(function (Request $request) {
+            $this->travel(20)->seconds();
+
+            return match (true) {
+                str_ends_with($request->url(), '/robots.txt') => Http::response('', 404),
+                str_ends_with($request->url(), '/a') => Http::response('', 301, ['Location' => '/b']),
+                str_ends_with($request->url(), '/b') => Http::response('', 301, ['Location' => '/c']),
+                default => $this->html(),
+            };
+        });
+
+        $this->assertSame('radar.fetch.timeout', $this->refusalOf('https://sn.coinafrique.com/a'));
+        Http::assertSent(fn (Request $r) => str_ends_with($r->url(), '/b'));
+        Http::assertNotSent(fn (Request $r) => str_ends_with($r->url(), '/c'));
+    }
+
+    public function test_f5_chaque_requete_n_a_que_le_temps_qui_reste(): void
+    {
+        $delais = [];
+        Http::fake(function (Request $request, array $options) use (&$delais) {
+            $delais[] = [$options['timeout'], $options['connect_timeout']];
+            if (str_ends_with($request->url(), '/robots.txt')) {
+                $this->travel(42)->seconds();
+
+                return Http::response('', 404);
+            }
+
+            return $this->html();
+        });
+
+        $this->fetcher()->fetch('https://sn.coinafrique.com/annonce/1');
+
+        $this->assertSame([10, 5], $delais[0]);
+        $this->assertEqualsWithDelta(3.0, $delais[1][0], 0.5);
+        $this->assertEqualsWithDelta(3.0, $delais[1][1], 0.5);
+    }
+
+    public function test_f5_le_delai_total_passe_pendant_le_robots_txt_est_un_delai_pas_un_robots_injoignable(): void
+    {
+        $this->dns['www.coinafrique.com'] = [self::PUBLIC_IP];
+        Http::fake(function (Request $request) {
+            $this->travel(46)->seconds();
+
+            return Http::response('', 301, ['Location' => 'https://www.coinafrique.com/robots.txt']);
+        });
+
+        $this->assertSame('radar.fetch.timeout', $this->refusalOf('https://sn.coinafrique.com/annonce/1'));
+    }
+
+    public function test_f5_le_creneau_du_domaine_est_borne_par_le_delai_total(): void
+    {
+        // Un worker tué en pleine lecture ne relâche rien : le créneau doit expirer de lui-même,
+        // au délai total plus une requête en marge (5 + 45 + 10 + 5 = 65 s), pas à 305 s.
+        $jusqua = null;
+        $maintenant = null;
+        Http::fake(function (Request $request) use (&$jusqua, &$maintenant) {
+            $jusqua ??= Cache::get('radar:fetch:'.self::HOST);
+            $maintenant ??= now()->getTimestamp();
+
+            return str_ends_with($request->url(), '/robots.txt') ? Http::response('', 404) : $this->html();
+        });
+
+        $this->fetcher()->fetch('https://sn.coinafrique.com/annonce/1');
+
+        $this->assertIsInt($jusqua);
+        $this->assertLessThanOrEqual($maintenant + 65, $jusqua);
+        $this->assertGreaterThanOrEqual($maintenant + 60, $jusqua);
     }
 
     // ── Délai par domaine ──────────────────────────────────────────────────────────────────
