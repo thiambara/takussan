@@ -27,6 +27,7 @@ class RadarListing extends AbstractModel implements HasMedia
         'radar_advertiser_id', 'source_kind', 'source_site', 'source_url', 'raw_text', 'photo_urls',
         'content_fingerprint', 'extracted', 'matches', 'stage', 'stage_reason', 'extraction_attempts',
         'extracted_at', 'property_id', 'captured_by', 'purge_at',
+        'source_photo_hashes', 'duplicate_of_listing_id', 'duplicate_of_property_id',
     ];
 
     protected $casts = [
@@ -36,6 +37,9 @@ class RadarListing extends AbstractModel implements HasMedia
         'extracted' => 'array',
         'photo_urls' => 'array',
         'matches' => 'array',
+        'source_photo_hashes' => 'array',
+        'duplicate_of_listing_id' => 'integer',
+        'duplicate_of_property_id' => 'integer',
         'extraction_attempts' => 'integer',
         'extracted_at' => 'datetime',
         'purge_at' => 'datetime',
@@ -49,7 +53,8 @@ class RadarListing extends AbstractModel implements HasMedia
     protected static array $queryFields = [
         'id', 'radar_advertiser_id', 'source_kind', 'source_site', 'source_url', 'raw_text', 'photo_urls',
         'content_fingerprint', 'extracted', 'matches', 'stage', 'stage_reason', 'extraction_attempts',
-        'extracted_at', 'property_id', 'captured_by', 'purge_at', 'created_at', 'updated_at',
+        'extracted_at', 'property_id', 'captured_by', 'purge_at', 'source_photo_hashes', 'duplicate_of_listing_id',
+        'duplicate_of_property_id', 'created_at', 'updated_at',
     ];
 
     // Seul l'annonceur se charge par `include=` : la ressource ne rend que lui. Sous un sparse
@@ -91,5 +96,35 @@ class RadarListing extends AbstractModel implements HasMedia
     public function property(): BelongsTo
     {
         return $this->belongsTo(Property::class);
+    }
+
+    /** TCK-2387 — l'annonce collectée dont celle-ci est le doublon. */
+    public function duplicateOfListing(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'duplicate_of_listing_id');
+    }
+
+    /** TCK-2387 — le bien du catalogue dont cette annonce est le doublon. */
+    public function duplicateOfProperty(): BelongsTo
+    {
+        return $this->belongsTo(Property::class, 'duplicate_of_property_id');
+    }
+
+    /**
+     * TCK-2387 — où en est le calcul des empreintes des photos source. `none` : rien à calculer (pas une
+     * URL, ou pas de photo) ; `pending` : une URL de moins que prévu a été tentée (`null` : jamais
+     * calculé) ; `done` : toutes tentées, réussies ou non. Le total est borné par `max_per_listing`.
+     *
+     * @return array{status: 'none'|'pending'|'done', total: int, done: int}
+     */
+    public function photoFingerprintStatus(): array
+    {
+        if ($this->source_kind !== RadarSourceKind::Url || ($this->photo_urls ?? []) === []) {
+            return ['status' => 'none', 'total' => 0, 'done' => 0];
+        }
+        $total = min(count($this->photo_urls), (int) config('radar.photos.max_per_listing'));
+        $done = count($this->source_photo_hashes ?? []);
+
+        return ['status' => $done >= $total ? 'done' : 'pending', 'total' => $total, 'done' => min($done, $total)];
     }
 }

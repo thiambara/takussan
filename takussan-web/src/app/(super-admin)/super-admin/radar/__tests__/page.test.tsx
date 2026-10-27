@@ -19,7 +19,7 @@ vi.mock('@/lib/queries/radar', async (importOriginal) => ({
 const DASHBOARD: RadarDashboard = {
   stages: {
     captured: 3, extracted: 7, reviewed: 4, contacted: 0, consented: 0, published: 2,
-    extraction_failed: 5, duplicate: 0, refused: 0, do_not_contact: 1, purged: 0,
+    extraction_failed: 5, duplicate: 0, discarded: 0, refused: 0, do_not_contact: 1, purged: 0,
   },
   pending_extraction: 1,
   ai: { spent_today_xof: 20, daily_budget_xof: 2000, global_spent_today_xof: 23, global_daily_budget_xof: 5000 },

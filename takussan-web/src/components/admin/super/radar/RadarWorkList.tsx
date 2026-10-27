@@ -39,6 +39,7 @@ const STAGE_TONE: Record<RadarListingStage, StatusTone> = {
   published: 'success',
   extraction_failed: 'danger',
   duplicate: 'neutral',
+  discarded: 'neutral',
   refused: 'neutral',
   do_not_contact: 'neutral',
   purged: 'neutral',

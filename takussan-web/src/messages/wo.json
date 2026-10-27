@@ -7886,6 +7886,7 @@
           "published": "Publiée",
           "extraction_failed": "Extraction échouée",
           "duplicate": "Doublon",
+          "discarded": "Écartée",
           "refused": "Refusée",
           "do_not_contact": "Ne pas contacter",
           "purged": "Purgée"

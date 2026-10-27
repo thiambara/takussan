@@ -14,6 +14,7 @@ export const RADAR_LISTING_STAGES = [
   'published',
   'extraction_failed',
   'duplicate',
+  'discarded',
   'refused',
   'do_not_contact',
   'purged',

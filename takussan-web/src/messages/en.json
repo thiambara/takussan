@@ -8540,6 +8540,7 @@
           "published": "Published",
           "extraction_failed": "Extraction failed",
           "duplicate": "Duplicate",
+          "discarded": "Discarded",
           "refused": "Refused",
           "do_not_contact": "Do not contact",
           "purged": "Purged"

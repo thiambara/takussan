@@ -2,8 +2,10 @@
 
 namespace Tests\Feature\Radar;
 
+use App\Ai\Agents\RadarExtraction;
 use App\Models\Enums\RadarAdvertiserNature;
 use App\Models\Enums\RadarConfidence;
+use App\Models\Enums\RadarDiscardReason;
 use App\Models\Enums\RadarListingStage;
 use App\Models\Enums\RadarSourceKind;
 use App\Models\Enums\RadarSourceSite;
@@ -14,6 +16,7 @@ use App\Models\User;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
@@ -86,13 +89,156 @@ class RadarModelsTest extends TestCase
     public function test_les_enums_portent_leurs_valeurs(): void
     {
         $this->assertSame(
-            ['captured', 'extracted', 'reviewed', 'contacted', 'consented', 'published', 'extraction_failed', 'duplicate', 'refused', 'do_not_contact', 'purged'],
+            ['captured', 'extracted', 'reviewed', 'contacted', 'consented', 'published', 'extraction_failed', 'duplicate', 'discarded', 'refused', 'do_not_contact', 'purged'],
             array_map(fn ($c) => $c->value, RadarListingStage::cases()),
         );
         $this->assertSame(['url', 'text', 'captures'], array_map(fn ($c) => $c->value, RadarSourceKind::cases()));
         $this->assertSame(['probable_owner', 'probable_intermediary', 'agency', 'unknown'], array_map(fn ($c) => $c->value, RadarAdvertiserNature::cases()));
         $this->assertSame(['high', 'medium', 'low'], array_map(fn ($c) => $c->value, RadarConfidence::cases()));
         $this->assertSame(RadarConfidence::Low, RadarConfidence::lowest());
+        $this->assertSame(
+            ['not_real_estate', 'out_of_scope', 'no_longer_available', 'unusable_source', 'other'],
+            array_map(fn ($c) => $c->value, RadarDiscardReason::cases()),
+        );
+        $this->assertSame('radar.discard.out_of_scope', RadarDiscardReason::OutOfScope->code());
+    }
+
+    public function test_les_gestes_de_l_operateur_se_lisent_sur_l_etape(): void
+    {
+        $etapes = fn (string $geste) => array_values(array_map(
+            fn (RadarListingStage $s) => $s->value,
+            array_filter(RadarListingStage::cases(), fn (RadarListingStage $s) => $s->{$geste}()),
+        ));
+
+        $this->assertSame(['extracted'], $etapes('allowsCorrection'));
+        $this->assertSame(['extracted'], $etapes('allowsReview'));
+        $this->assertSame(['captured', 'extracted', 'reviewed', 'extraction_failed'], $etapes('allowsClosing'));
+        $this->assertSame(['extracted', 'reviewed'], $etapes('allowsAdvertiserChange'));
+    }
+
+    public function test_la_contrainte_refuse_un_doublon_de_deux_natures_a_la_fois(): void
+    {
+        $original = RadarListing::factory()->create();
+        $bien = Property::factory()->create();
+
+        $seul = RadarListing::factory()->create(['duplicate_of_listing_id' => $original->id]);
+        $this->assertTrue($seul->fresh()->duplicateOfListing->is($original));
+        $autre = RadarListing::factory()->create(['duplicate_of_property_id' => $bien->id]);
+        $this->assertTrue($autre->fresh()->duplicateOfProperty->is($bien));
+
+        // La contrainte CHECK vit en base : une transaction abandonnée ne se poursuit pas, on s'arrête là.
+        $this->expectException(QueryException::class);
+        $this->expectExceptionMessage('radar_listings_dup_one_chk');
+        RadarListing::factory()->create(['duplicate_of_listing_id' => $original->id, 'duplicate_of_property_id' => $bien->id]);
+    }
+
+    public function test_les_cles_de_doublon_se_vident_avec_leur_cible(): void
+    {
+        $original = RadarListing::factory()->create();
+        $bien = Property::factory()->create();
+        $a = RadarListing::factory()->create(['duplicate_of_listing_id' => $original->id]);
+        $b = RadarListing::factory()->create(['duplicate_of_property_id' => $bien->id]);
+
+        $original->delete();
+        $bien->forceDelete();
+
+        $this->assertNull($a->fresh()->duplicate_of_listing_id);
+        $this->assertNull($b->fresh()->duplicate_of_property_id);
+    }
+
+    public function test_les_empreintes_gardent_un_entier_64_bits_signe_exact(): void
+    {
+        $hashes = [
+            ['url' => 'https://exemple.test/a.jpg', 'hash' => PHP_INT_MIN + 1, 'b0' => 1, 'b1' => 2, 'b2' => 3, 'b3' => 4],
+            ['url' => 'https://exemple.test/b.jpg', 'hash' => -1, 'b0' => 65535, 'b1' => 65535, 'b2' => 65535, 'b3' => 65535],
+            ['url' => 'https://exemple.test/c.jpg', 'hash' => 0, 'b0' => 0, 'b1' => 0, 'b2' => 0, 'b3' => 0],
+            ['url' => 'https://exemple.test/d.jpg', 'hash' => PHP_INT_MAX, 'b0' => 65535, 'b1' => 0, 'b2' => 65535, 'b3' => 0],
+            ['url' => 'https://exemple.test/e.jpg', 'hash' => null, 'error' => 'radar.photo.too_large'],
+        ];
+
+        $listing = RadarListing::factory()->withPhotoHashes($hashes)->create();
+
+        // jsonb ne garde pas l'ordre des clés : on compare chaque élément à clés triées, types stricts.
+        $trier = function (array $liste): array {
+            return array_map(function (array $e): array {
+                ksort($e);
+
+                return $e;
+            }, $liste);
+        };
+        $relu = $listing->fresh()->source_photo_hashes;
+        $this->assertSame($trier($hashes), $trier($relu));
+        $this->assertIsInt($relu[0]['hash']);
+        $this->assertSame(PHP_INT_MAX, $relu[3]['hash']);
+    }
+
+    public function test_les_empreintes_se_distinguent_de_jamais_calcule_a_calcule_sans_photo(): void
+    {
+        $this->assertNull(RadarListing::factory()->create()->fresh()->source_photo_hashes);
+        $this->assertSame([], RadarListing::factory()->withPhotoHashes([])->create()->fresh()->source_photo_hashes);
+    }
+
+    public function test_l_index_gin_des_empreintes_existe_et_sert_la_recherche_par_bande(): void
+    {
+        $this->assertSame(1, DB::table('pg_indexes')
+            ->where('tablename', 'radar_listings')->where('indexname', 'radar_listings_photo_hashes_gin')
+            ->where('indexdef', 'like', '%USING gin (source_photo_hashes jsonb_path_ops)%')->count());
+
+        RadarListing::factory()->withPhotoHashes([['url' => 'u', 'hash' => 5, 'b0' => 7, 'b1' => 8, 'b2' => 9, 'b3' => 10]])->create();
+        RadarListing::factory()->withPhotoHashes([['url' => 'v', 'hash' => 6, 'b0' => 70, 'b1' => 8, 'b2' => 9, 'b3' => 10]])->create();
+
+        $trouvees = RadarListing::query()->whereRaw('source_photo_hashes @> ?::jsonb', ['[{"b0": 7}]'])->count();
+        $this->assertSame(1, $trouvees);
+    }
+
+    public function test_photo_fingerprint_status_dit_none_pending_ou_done(): void
+    {
+        $urls = ['https://exemple.test/1.jpg', 'https://exemple.test/2.jpg', 'https://exemple.test/3.jpg'];
+        $url = fn (array $extra) => RadarListing::factory()->make($extra + ['source_kind' => RadarSourceKind::Url, 'photo_urls' => $urls]);
+
+        // Pas d'URL de photo, ou une source qui n'est pas une URL : rien à calculer.
+        $this->assertSame(['status' => 'none', 'total' => 0, 'done' => 0], RadarListing::factory()->make()->photoFingerprintStatus());
+        $this->assertSame(['status' => 'none', 'total' => 0, 'done' => 0], $url(['photo_urls' => []])->photoFingerprintStatus());
+        $this->assertSame(['status' => 'none', 'total' => 0, 'done' => 0], $url(['source_kind' => RadarSourceKind::Text])->photoFingerprintStatus());
+
+        // Jamais calculé, puis à moitié, puis fini.
+        $this->assertSame(['status' => 'pending', 'total' => 3, 'done' => 0], $url([])->photoFingerprintStatus());
+        $deux = [['url' => $urls[0], 'hash' => 1, 'b0' => 0, 'b1' => 0, 'b2' => 0, 'b3' => 0], ['url' => $urls[1], 'hash' => null, 'error' => 'radar.photo.timeout']];
+        $this->assertSame(['status' => 'pending', 'total' => 3, 'done' => 2], $url(['source_photo_hashes' => $deux])->photoFingerprintStatus());
+        $trois = [...$deux, ['url' => $urls[2], 'hash' => 2, 'b0' => 0, 'b1' => 0, 'b2' => 0, 'b3' => 0]];
+        $this->assertSame(['status' => 'done', 'total' => 3, 'done' => 3], $url(['source_photo_hashes' => $trois])->photoFingerprintStatus());
+    }
+
+    public function test_photo_fingerprint_status_borne_le_total_a_max_per_listing(): void
+    {
+        config(['radar.photos.max_per_listing' => 2]);
+        $urls = ['https://exemple.test/1.jpg', 'https://exemple.test/2.jpg', 'https://exemple.test/3.jpg'];
+        $listing = RadarListing::factory()->make(['source_kind' => RadarSourceKind::Url, 'photo_urls' => $urls]);
+
+        $this->assertSame(['status' => 'pending', 'total' => 2, 'done' => 0], $listing->photoFingerprintStatus());
+
+        $listing->source_photo_hashes = array_map(fn ($u) => ['url' => $u, 'hash' => 1, 'b0' => 0, 'b1' => 0, 'b2' => 0, 'b3' => 0], $urls);
+        $this->assertSame(['status' => 'done', 'total' => 2, 'done' => 2], $listing->photoFingerprintStatus());
+    }
+
+    public function test_la_factory_extracted_rend_une_sortie_normalisee_complete(): void
+    {
+        $listing = RadarListing::factory()->extracted()->create()->fresh();
+
+        $this->assertSame(RadarListingStage::Extracted, $listing->stage);
+        $this->assertNotNull($listing->extracted_at);
+        foreach ([...RadarExtraction::PROPERTY_FIELDS, ...RadarExtraction::ADVERTISER_FIELDS] as $champ) {
+            // jsonb ne garde pas l'ordre des clés : on vérifie leur présence.
+            foreach (['value', 'confidence', 'evidence', 'flags'] as $cle) {
+                $this->assertArrayHasKey($cle, $listing->extracted[$champ], "$champ.$cle");
+            }
+        }
+        $this->assertSame([], $listing->extracted['phones_dropped']);
+        $this->assertIsArray($listing->extracted['phones']);
+        $this->assertSame(
+            450000,
+            RadarListing::factory()->extracted(['price' => ['value' => 450000]])->make()->extracted['price']['value'],
+        );
     }
 
     public function test_une_annonce_lit_ses_relations_et_ses_casts(): void
