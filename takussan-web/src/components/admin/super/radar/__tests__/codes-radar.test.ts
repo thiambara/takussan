@@ -1,8 +1,13 @@
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import en from '@/messages/en.json';
 import fr from '@/messages/fr.json';
 import wo from '@/messages/wo.json';
-import { ERREURS_SAISIE_RADAR, MOTIFS_RADAR, suggereTexteOuCaptures } from '../codes-radar';
+import { ERREURS_SAISIE_RADAR, MOTIFS_ATTENTE_COURTE, MOTIFS_RADAR, suggereTexteOuCaptures } from '../codes-radar';
+
+const RACINE = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..', '..', '..', '..');
 
 /** TCK-2386 — tout motif et tout code de saisie affiché a son libellé dans chaque langue. */
 describe('codes du Radar', () => {
@@ -30,6 +35,20 @@ describe('codes du Radar', () => {
     for (const code of ['radar.url.airbnb', 'radar.url.invalid', 'radar.captures.unreadable', 'radar.captures.too_large']) {
       expect(ERREURS_SAISIE_RADAR[code], code).toBeTruthy();
     }
+  });
+
+  it('les attentes courtes sont la lecture différée et les motifs à une seule nouvelle tentative du job', () => {
+    const job = readFileSync(join(RACINE, 'takussan-api', 'app', 'Jobs', 'Radar', 'ExtractRadarListing.php'), 'utf8');
+    const constante = (nom: string) => new RegExp(`const ${nom} = '([^']+)'`).exec(job)?.[1];
+    const liste = /const RETRY_ONCE_REASONS = \[([^\]]*)\]/.exec(job)?.[1] ?? '';
+    const uneTentative = liste.split(',').map((e) => e.trim()).filter(Boolean)
+      .map((e) => (e.startsWith('self::') ? constante(e.slice('self::'.length)) : e.replace(/^'|'$/g, '')));
+
+    expect(uneTentative.length).toBeGreaterThan(0);
+    expect([...MOTIFS_ATTENTE_COURTE].sort()).toEqual([constante('REASON_FETCH_DEFERRED'), ...uneTentative].sort());
+    // Garée longtemps : pas une attente courte.
+    expect(MOTIFS_ATTENTE_COURTE.has('ai.budget')).toBe(false);
+    expect(MOTIFS_ATTENTE_COURTE.has('ai.kill_switch')).toBe(false);
   });
 
   it('une URL illisible renvoie au texte ou aux captures, sauf Airbnb et une lecture différée', () => {

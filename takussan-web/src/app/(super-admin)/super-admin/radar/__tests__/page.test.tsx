@@ -212,6 +212,34 @@ describe('/super-admin/radar — relecture tant qu’une extraction tourne (TCK-
     expect(fetchRadarDashboard).toHaveBeenCalledTimes(2);
   });
 
+  it.each([
+    ['radar.fetch.deferred'],
+    ['ai.response_truncated'],
+    ['radar.extraction.invalid_output'],
+  ])('relit liste et compteurs pendant une attente courte (%s, revue finale F6)', async (motif) => {
+    // Le compteur range l'attente courte dans `pending_extraction` : seule la liste voit le motif.
+    vi.mocked(fetchRadarDashboard).mockResolvedValue({
+      data: { ...DASHBOARD, stages: { ...DASHBOARD.stages, captured: 1 }, pending_extraction: 1 },
+    });
+    vi.mocked(fetchRadarListings).mockResolvedValue(listeDe([ligne({ id: 7, stage: 'captured', stage_reason: motif })]));
+    renderPage();
+    await screen.findByTestId('radar-listing-7');
+    expect(fetchRadarListings).toHaveBeenCalledTimes(1);
+
+    vi.mocked(fetchRadarDashboard).mockResolvedValue({ data: { ...DASHBOARD, stages: { ...DASHBOARD.stages, captured: 0 }, pending_extraction: 0 } });
+    vi.mocked(fetchRadarListings).mockResolvedValue(listeDe([ligne({ id: 7, stage: 'extracted', stage_reason: null })]));
+    vi.advanceTimersByTime(10_000);
+    await vi.waitFor(() => expect(fetchRadarListings).toHaveBeenCalledTimes(2));
+    await vi.waitFor(() => expect(fetchRadarDashboard).toHaveBeenCalledTimes(2));
+    await within(screen.getByTestId('radar-listing-7')).findAllByText('À relire');
+    await new Promise((r) => setTimeout(r, 20));
+
+    vi.advanceTimersByTime(30_000);
+    await new Promise((r) => setTimeout(r, 20));
+    expect(fetchRadarListings).toHaveBeenCalledTimes(2);
+    expect(fetchRadarDashboard).toHaveBeenCalledTimes(2);
+  });
+
   it('ne relit pas une annonce garée sur le plafond IA ou le coupe-circuit', async () => {
     vi.mocked(fetchRadarDashboard).mockResolvedValue({
       data: { ...DASHBOARD, stages: { ...DASHBOARD.stages, captured: 2 }, pending_extraction: 2 },

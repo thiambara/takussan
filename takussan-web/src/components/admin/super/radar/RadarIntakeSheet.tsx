@@ -3,7 +3,7 @@
 import { useRef, useState, type FormEvent } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
-import { CheckCircle2, CopyCheck, Loader2, X } from 'lucide-react';
+import { CheckCircle2, CopyCheck, Loader2, RotateCcw, X } from 'lucide-react';
 
 import { ErrorState } from '@/components/feedback';
 import { Button } from '@/components/ui/button';
@@ -56,11 +56,20 @@ function codeDe(erreur: unknown): string | undefined {
   return typeof code === 'string' ? code : undefined;
 }
 
+/** Le rang de l'URL refusée d'un lot (`params.field` = `urls.N`), s'il est donné. */
+function rangUrlRefusee(erreur: unknown): number | undefined {
+  if (!(erreur instanceof ApiError) || !erreur.data || typeof erreur.data !== 'object') return undefined;
+  const champ = (erreur.data as { params?: { field?: unknown } }).params?.field;
+  const rang = typeof champ === 'string' ? /^urls\.(\d+)$/.exec(champ)?.[1] : undefined;
+  return rang === undefined ? undefined : Number(rang);
+}
+
 /**
  * TCK-2386 (ADR-0077) — la saisie rapide du Radar : URL (une par ligne), texte collé, ou captures
  * d'écran. On colle, on enregistre : le champ se vide, le panneau reste ouvert pour la suivante,
- * et le retour dit, ligne par ligne, « créée » ou « déjà saisie » (même empreinte, aucun nouveau
- * passage). Un refus 422 se lit par son code.
+ * et le retour dit, ligne par ligne, « créée », « déjà saisie » (même empreinte, aucun nouveau
+ * passage) ou « déjà saisie : extraction relancée » (une fiche en échec, remise en file). Un refus
+ * 422 se lit par son code, et nomme l'URL refusée d'un lot quand l'API en donne le rang.
  *
  * Les listes du tableau de bord sont invalidées après chaque envoi réussi.
  */
@@ -101,7 +110,12 @@ export function RadarIntakeSheet({ open, onOpenChange }: RadarIntakeSheetProps) 
     const code = codeDe(erreur);
     // Le 413 de l'image de l'API (`post_max_size`) : la cause et le geste propres au Radar.
     if (erreur.status === 413 || code === 'payload_too_large') return t('intake.errors.payloadTooLarge');
-    if (code && ERREURS_SAISIE_RADAR[code]) return t(`intake.errors.${ERREURS_SAISIE_RADAR[code]}`);
+    if (code && ERREURS_SAISIE_RADAR[code]) {
+      const libelle = t(`intake.errors.${ERREURS_SAISIE_RADAR[code]}`);
+      const rang = rangUrlRefusee(erreur);
+      const url = rang !== undefined && mutation.variables?.kind === 'urls' ? mutation.variables.urls[rang] : undefined;
+      return url ? `${libelle} ${t('intake.errors.refusedUrl', { url })}` : libelle;
+    }
     const validation = erreur.validationErrors;
     if (validation) {
       const messages = Object.values(validation).flat().filter(Boolean);
@@ -245,12 +259,16 @@ export function RadarIntakeSheet({ open, onOpenChange }: RadarIntakeSheetProps) 
                 <ul className="space-y-1.5 text-sm">
                   {dernier.rows.map((row, index) => (
                     <li key={`${row.id}-${index}`} className="flex items-start gap-2">
-                      {row.existing
-                        ? <CopyCheck className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-                        : <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-success" aria-hidden="true" />}
+                      {row.requeued
+                        ? <RotateCcw className="mt-0.5 size-4 shrink-0 text-success" aria-hidden="true" />
+                        : row.existing
+                          ? <CopyCheck className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                          : <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-success" aria-hidden="true" />}
                       <span className="min-w-0">
                         <span className="text-foreground">
-                          {row.existing ? t('intake.existing', { id: row.id }) : t('intake.created', { id: row.id })}
+                          {row.requeued
+                            ? t('intake.requeued', { id: row.id })
+                            : row.existing ? t('intake.existing', { id: row.id }) : t('intake.created', { id: row.id })}
                         </span>
                         {dernier.urls?.[index] ? (
                           <span className="block truncate text-xs text-muted-foreground">{dernier.urls[index]}</span>

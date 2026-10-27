@@ -7988,8 +7988,10 @@
           "resultsTitle": "Dernier envoi",
           "created": "Annonce n° {id} créée",
           "existing": "Annonce n° {id} déjà saisie",
+          "requeued": "Annonce n° {id} déjà saisie : extraction relancée",
           "failed": "L’envoi a échoué.",
           "errors": {
+            "refusedUrl": "Adresse refusée : {url}",
             "urlAirbnb": "Les annonces Airbnb ne sont pas reprises : rien n’a été enregistré.",
             "urlInvalid": "Une des adresses n’a pas de nom de site lisible : rien n’a été enregistré.",
             "capturesUnreadable": "Une des images ne se lit pas : rien n’a été enregistré.",

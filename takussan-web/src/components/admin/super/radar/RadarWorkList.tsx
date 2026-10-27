@@ -23,7 +23,7 @@ import {
   type RadarListingRow,
   type RadarListingStage,
 } from '@/types/radar';
-import { MOTIFS_RADAR, suggereTexteOuCaptures } from './codes-radar';
+import { MOTIFS_ATTENTE_COURTE, MOTIFS_RADAR, suggereTexteOuCaptures } from './codes-radar';
 
 const ANY = '__any__';
 const PER_PAGE = 25;
@@ -45,11 +45,13 @@ const STAGE_TONE: Record<RadarListingStage, StatusTone> = {
 };
 
 /**
- * Une extraction TOURNE (et vaut d'être relue) : `captured` sans motif. Avec un motif, l'annonce
- * est garée — plafond, coupe-circuit, panne — et attend des minutes ou des heures : la relire
- * toutes les 10 s ne montrerait rien.
+ * Une extraction TOURNE (et vaut d'être relue) : `captured` sans motif, ou avec un motif d'attente
+ * courte ({@link MOTIFS_ATTENTE_COURTE} : lecture différée de quelques secondes, nouvelle tentative
+ * dans la minute). Avec un autre motif, l'annonce est garée — plafond, coupe-circuit, panne — et
+ * attend des minutes ou des heures : la relire toutes les 10 s ne montrerait rien.
  */
-const enExtraction = (row: RadarListingRow) => row.stage === 'captured' && row.stage_reason === null;
+const enExtraction = (row: RadarListingRow) =>
+  row.stage === 'captured' && (row.stage_reason === null || MOTIFS_ATTENTE_COURTE.has(row.stage_reason));
 
 const estSiteConnu = (valeur: string): valeur is (typeof RADAR_SOURCE_SITES)[number] =>
   (RADAR_SOURCE_SITES as readonly string[]).includes(valeur);
@@ -65,7 +67,7 @@ const estPeriode = (valeur: unknown): valeur is Periode => PERIODES.includes(val
  * (relire, contacter, débloquer), le coût IA du jour, puis les annonces, filtrées par étape côté
  * serveur (`filter[stage]`).
  *
- * Tant qu'une extraction tourne (`captured` sans motif — {@link enExtraction}), la liste et les
+ * Tant qu'une extraction tourne (`captured` sans motif ou en attente courte — {@link enExtraction}), la liste et les
  * compteurs se relisent toutes les {@link RADAR_POLL_MS} ms, et s'arrêtent d'eux-mêmes ensuite.
  * Les compteurs à filtre exact (à relire, échouées, à contacter, publiées) posent le filtre d'étape.
  */
@@ -80,20 +82,23 @@ export function RadarWorkList() {
   const [page, setPage] = useState(1);
   const filters: RadarListingFilters = { stage: stage || undefined, page, perPage: PER_PAGE };
 
+  const list = useQuery<PaginatedResponse<RadarListingRow>, ApiError>({
+    queryKey: radarKeys.list(filters),
+    queryFn: () => fetchRadarListings(filters),
+    staleTime: 10_000,
+    refetchInterval: (query) => (query.state.data?.data.some(enExtraction) ? RADAR_POLL_MS : false),
+  });
+  // Le compteur `pending_extraction` range les attentes courtes avec les longues : la liste, qui
+  // voit le motif, dit aux compteurs qu'une extraction tourne encore.
+  const listeEnExtraction = list.data?.data.some(enExtraction) ?? false;
   const dashboard = useQuery<RadarDashboardResponse, ApiError>({
     queryKey: radarKeys.dashboard(),
     queryFn: fetchRadarDashboard,
     staleTime: 10_000,
     refetchInterval: (query) => {
       const d = query.state.data?.data;
-      return d && d.stages.captured - d.pending_extraction > 0 ? RADAR_POLL_MS : false;
+      return (d && d.stages.captured - d.pending_extraction > 0) || listeEnExtraction ? RADAR_POLL_MS : false;
     },
-  });
-  const list = useQuery<PaginatedResponse<RadarListingRow>, ApiError>({
-    queryKey: radarKeys.list(filters),
-    queryFn: () => fetchRadarListings(filters),
-    staleTime: 10_000,
-    refetchInterval: (query) => (query.state.data?.data.some(enExtraction) ? RADAR_POLL_MS : false),
   });
 
   const compteurs = dashboard.data?.data;

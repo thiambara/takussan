@@ -8642,8 +8642,10 @@
           "resultsTitle": "Last submission",
           "created": "Listing #{id} created",
           "existing": "Listing #{id} already captured",
+          "requeued": "Listing #{id} already captured: extraction restarted",
           "failed": "The submission failed.",
           "errors": {
+            "refusedUrl": "Refused address: {url}",
             "urlAirbnb": "Airbnb listings are not taken: nothing was saved.",
             "urlInvalid": "One of the addresses has no readable site name: nothing was saved.",
             "capturesUnreadable": "One of the images cannot be read: nothing was saved.",

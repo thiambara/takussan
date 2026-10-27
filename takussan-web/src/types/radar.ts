@@ -89,8 +89,10 @@ export interface RadarDashboardResponse {
 export interface RadarIntakeRow {
   readonly id: number;
   readonly stage: RadarListingStage;
-  /** `true` : empreinte déjà connue — la fiche existante, aucun nouveau passage. */
+  /** `true` : empreinte déjà connue — la fiche existante, aucun nouveau passage (sauf `requeued`). */
   readonly existing: boolean;
+  /** `true` : une fiche connue dont l'extraction avait échoué, remise en file par ce renvoi. */
+  readonly requeued?: boolean;
 }
 
 export interface RadarIntakeResponse {

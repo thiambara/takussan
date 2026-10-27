@@ -50,6 +50,21 @@ export const MOTIFS_RADAR: Record<string, string> = {
 };
 
 /**
+ * Les motifs d'une attente COURTE, que le job reprend de lui-même en quelques secondes ou une
+ * minute (`ExtractRadarListing`) : lecture d'URL remise à plus tard (domaine lu il y a moins de
+ * 5 s), et les motifs qui n'ont droit qu'à une nouvelle tentative, 60 s plus tard
+ * (`RETRY_ONCE_REASONS`). Une annonce `captured` garée sur l'un d'eux tourne encore. Pas le plafond
+ * ni le coupe-circuit (30 min), ni une panne (1 à 60 min).
+ */
+export const MOTIFS_ATTENTE_COURTE: ReadonlySet<string> = new Set([
+  'radar.fetch.deferred',
+  'radar.extraction.invalid_output',
+  'ai.response_invalid',
+  'ai.response_truncated',
+  'ai.response_filtered',
+]);
+
+/**
  * Une URL que le serveur n'a pas pu lire : le texte collé ou des captures d'écran prennent le
  * relais. Pas pour Airbnb, refusé par principe (ADR-0077), ni pour une lecture remise à plus tard.
  */

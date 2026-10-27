@@ -128,6 +128,31 @@ describe('RadarIntakeSheet (TCK-2386)', () => {
     expect(champ).toHaveValue('https://www.airbnb.com/rooms/1');
   });
 
+  it('nomme l’URL refusée d’un lot par son rang (params.field, revue finale F7)', async () => {
+    vi.mocked(postRadarListings).mockRejectedValue(
+      new ApiError(422, { code: 'radar.url.airbnb', message: 'prose', params: { field: 'urls.1' } }),
+    );
+    renderSheet();
+
+    await userEvent.type(screen.getByLabelText('URL des annonces'), 'https://www.coinafrique.com/a/1{enter}https://www.airbnb.com/rooms/1');
+    await userEvent.click(screen.getByRole('button', { name: 'Enregistrer' }));
+
+    expect(await screen.findByText(
+      'Les annonces Airbnb ne sont pas reprises : rien n’a été enregistré. Adresse refusée : https://www.airbnb.com/rooms/1',
+    )).toBeInTheDocument();
+  });
+
+  it('dit qu’une annonce déjà saisie dont l’extraction avait échoué est relancée (revue finale F2)', async () => {
+    vi.mocked(postRadarListings).mockResolvedValue({ data: [{ id: 5, stage: 'captured', existing: true, requeued: true }] });
+    renderSheet();
+
+    await userEvent.type(screen.getByLabelText('URL des annonces'), 'https://www.coinafrique.com/a/5');
+    await userEvent.click(screen.getByRole('button', { name: 'Enregistrer' }));
+
+    expect(await screen.findByText('Annonce n° 5 déjà saisie : extraction relancée')).toBeInTheDocument();
+    expect(screen.queryByText('Annonce n° 5 déjà saisie')).not.toBeInTheDocument();
+  });
+
   it('une validation Laravel affiche ses messages', async () => {
     vi.mocked(postRadarListings).mockRejectedValue(
       new ApiError(422, { message: 'invalide', errors: { text: ['Le texte doit contenir au moins 20 caractères.'] } }),
