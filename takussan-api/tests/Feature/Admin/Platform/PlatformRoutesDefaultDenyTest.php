@@ -63,6 +63,11 @@ class PlatformRoutesDefaultDenyTest extends TestCase
         'admin.moderation.index',
         // Sous-partie 8 — recherche globale (`platform.search.global`).
         'admin.search',
+        // TCK-2386 (ADR-0077) — le Radar (`platform.radar.operate`).
+        'admin.radar.dashboard',
+        'admin.radar.listings.store',
+        'admin.radar.listings.index',
+        'admin.radar.listings.show',
     ];
 
     public function test_toute_route_de_la_console_passe_par_la_garde_plateforme(): void

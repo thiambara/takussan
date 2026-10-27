@@ -39,6 +39,24 @@ return [
         'robots_cache_seconds' => 86_400,
     ],
 
+    // ADR-0077 §2 — la saisie par l'opérateur (`StoreRadarListingRequest`) : une seule des trois
+    // entrées par envoi. Une liste d'URL, un texte collé, ou des captures d'écran.
+    'intake' => [
+        'max_urls' => 20,
+        'max_url_length' => 2_048,
+        'text_min_chars' => 20,
+        'text_max_chars' => 20_000,
+    ],
+
+    // ADR-0077 §2, §9 — les captures : images seulement (type relu dans le contenu, pas dans le nom),
+    // nombre et taille bornés. Réencodées à la saisie (`RadarListingIntake`) : l'EXIF — position GPS
+    // comprise — ne survit pas ; l'empreinte SHA-256 de l'original reste en propriété du média.
+    'captures' => [
+        'max_files' => 10,
+        'max_kilobytes' => 8_192,
+        'mimes' => ['image/jpeg', 'image/png', 'image/webp'],
+    ],
+
     // ADR-0077 §5 — les bornes de vraisemblance d'une extraction, lues par
     // `App\Services\Radar\ExtractionNormalizer`. Hors bornes : drapeau `out_of_bounds` et confiance
     // `low` ; la valeur reste, l'humain tranche. Montants en XOF, bornes incluses.

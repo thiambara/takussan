@@ -674,6 +674,14 @@ return [
         'not_replayable' => 'This journal entry cannot be replayed: only an authenticated webhook that failed or matched nothing, with its body kept, can be.',
         'integration_unavailable' => 'The integration that validated this webhook is no longer active: it cannot be replayed.',
     ],
+    'radar' => [
+        'captures' => [
+            'unreadable' => 'A capture cannot be read as an image: send a JPEG, PNG or WebP screenshot.',
+        ],
+        'url' => [
+            'airbnb' => 'Airbnb is not a Radar source: its content is not collected.',
+        ],
+    ],
     'pay_link' => [
         'not_found' => 'This payment link does not exist.',
         'gone' => 'This payment link is no longer valid. Ask :agency for a new one.',

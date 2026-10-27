@@ -210,6 +210,12 @@ const EXCEPTIONS = [
     sorte: 'permanente',
     motif: "`UriInterface::getPath()` (PSR-7) rend le chemin d'une URL tierce que le Radar lit, pas celui d'un média (TCK-2386).",
   },
+  {
+    fichier: 'takussan-api/app/Services/Radar/RadarListingIntake.php',
+    ligne: /\$uri->getPath\(\)/,
+    sorte: 'permanente',
+    motif: "`UriInterface::getPath()` (PSR-7) rend le chemin de l'URL d'une annonce saisie, mise sous forme canonique pour son empreinte — pas celui d'un média (TCK-2386).",
+  },
 ];
 
 const rel = (p) => relative(ROOT, p).split(sep).join('/');

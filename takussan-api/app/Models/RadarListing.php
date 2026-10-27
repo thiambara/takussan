@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Http\Filters\ExactIdentifierFilter;
 use App\Models\Bases\AbstractModel;
 use App\Models\Enums\RadarListingStage;
 use App\Models\Enums\RadarSourceKind;
@@ -10,6 +11,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
+use Spatie\QueryBuilder\AllowedFilter;
 
 /**
  * TCK-2386 (ADR-0077 §1, §9) — une annonce collectée hors du catalogue. Elle ne devient un bien que
@@ -51,6 +53,12 @@ class RadarListing extends AbstractModel implements HasMedia
     ];
 
     protected static array $requestLoadable = ['advertiser', 'capturer', 'property'];
+
+    /** `filter[advertiser_id]` : le nom que lit la console, alias de la colonne `radar_advertiser_id`. */
+    protected static function customQueryFilters(): array
+    {
+        return [AllowedFilter::custom('advertiser_id', new ExactIdentifierFilter, 'radar_advertiser_id')];
+    }
 
     /** ADR-0077 §9 — posé à la création : collecte + 90 jours, sauf date explicite. */
     protected static function booted(): void

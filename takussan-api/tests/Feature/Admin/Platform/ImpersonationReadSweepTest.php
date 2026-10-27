@@ -96,6 +96,8 @@ class ImpersonationReadSweepTest extends TestCase
         // TCK-2385 — console IA des opérateurs de la plateforme : un opérateur n'est jamais une cible
         // d'impersonation (`impersonation.target_operator`), la route n'est donc pas lisible sous session.
         'evaluation',
+        // TCK-2386 — le Radar, console des opérateurs de la plateforme : même motif.
+        'listing',
     ];
 
     private User $cible;

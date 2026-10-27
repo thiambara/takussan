@@ -674,6 +674,14 @@ return [
         'not_replayable' => 'Bind bii mënuñu ko defaat : webhook bu ñu wóor, bu dañu ci tële walla bu amul lu mu méngóo, te ñu denc corps bi rekk lañuy defaat.',
         'integration_unavailable' => 'Intégration bi wóoral webhook bii dootul dox : mënuñu ko defaat.',
     ],
+    'radar' => [
+        'captures' => [
+            'unreadable' => 'Une capture ne se lit pas comme une image : envoyez une capture JPEG, PNG ou WebP.',
+        ],
+        'url' => [
+            'airbnb' => 'Airbnb n\'est pas une source du Radar : son contenu ne se collecte pas.',
+        ],
+    ],
     'pay_link' => [
         'not_found' => 'Lien fey bii amul.',
         'gone' => 'Lien fey bii jariñatul. Laajal :agency benn bu bees.',
