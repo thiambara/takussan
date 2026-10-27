@@ -44,12 +44,9 @@ final class SuggestionRecorder
 
     public function reject(AiSuggestion $suggestion, User $by): AiSuggestion
     {
-        $this->assertPending($suggestion);
-        $suggestion->forceFill([
+        return $this->decideOnce($suggestion, [
             'decision' => AiSuggestionDecision::Rejected, 'decided_by_id' => $by->id, 'decided_at' => now(),
-        ])->save();
-
-        return $suggestion;
+        ]);
     }
 
     /**
@@ -63,7 +60,7 @@ final class SuggestionRecorder
         foreach (array_unique([...array_keys($proposal), ...array_keys($final)]) as $key) {
             $from = $proposal[$key] ?? null;
             $to = $final[$key] ?? null;
-            if ($from !== $to) {
+            if (self::canonical($from) !== self::canonical($to)) {
                 $diff[$key] = ['from' => $from, 'to' => $to];
             }
         }
@@ -99,23 +96,53 @@ final class SuggestionRecorder
     /** @param  array<string, mixed>  $final */
     private function decide(AiSuggestion $suggestion, User $by, array $final): AiSuggestion
     {
-        $this->assertPending($suggestion);
         $diff = self::diff($suggestion->proposal, $final);
-        $suggestion->forceFill([
+
+        return $this->decideOnce($suggestion, [
             'decision' => $diff === [] ? AiSuggestionDecision::Accepted : AiSuggestionDecision::Edited,
             'final_value' => $final,
             'correction_diff' => $diff,
             'decided_by_id' => $by->id,
             'decided_at' => now(),
-        ])->save();
-
-        return $suggestion;
+        ]);
     }
 
-    private function assertPending(AiSuggestion $suggestion): void
+    /**
+     * La décision se prend une fois, et c'est la base qui l'arbitre : l'UPDATE conditionnel
+     * (`decision = pending`) est atomique, là où une garde sur le modèle en mémoire laisse deux
+     * instances chargées « en attente » écrire l'une par-dessus l'autre. Les colonnes passent par
+     * les casts du modèle (un `update()` de requête n'encode ni les JSON ni l'enum).
+     *
+     * @param  array<string, mixed>  $columns
+     */
+    private function decideOnce(AiSuggestion $suggestion, array $columns): AiSuggestion
     {
-        if ($suggestion->decision !== AiSuggestionDecision::Pending) {
+        $updated = AiSuggestion::query()
+            ->whereKey($suggestion->getKey())
+            ->where('decision', AiSuggestionDecision::Pending->value)
+            ->update((new AiSuggestion)->forceFill($columns)->getAttributes());
+
+        if ($updated === 0) {
             throw new LogicException('ai.suggestion_already_decided');
         }
+
+        return $suggestion->refresh();
+    }
+
+    /** Forme comparable : clés triées (jsonb réordonne), 100 et 100.0 égaux, les chaînes numériques restent des chaînes. */
+    private static function canonical(mixed $value): mixed
+    {
+        if (is_int($value) || is_float($value)) {
+            return (float) $value;
+        }
+        if (! is_array($value)) {
+            return $value;
+        }
+        $value = array_map(self::canonical(...), $value);
+        if (! array_is_list($value)) {
+            ksort($value);
+        }
+
+        return $value;
     }
 }

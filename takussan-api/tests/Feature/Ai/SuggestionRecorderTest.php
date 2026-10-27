@@ -30,7 +30,11 @@ class SuggestionRecorderTest extends TestCase
         $suggestion = app(SuggestionRecorder::class)->edit($this->suggestion(), ['titre' => 'Villa F4', 'prix' => 100, 'pieces' => 4], User::factory()->create());
 
         $this->assertSame(AiSuggestionDecision::Edited, $suggestion->decision);
-        $this->assertSame(['pieces' => ['from' => null, 'to' => 4], 'titre' => ['from' => 'Villa', 'to' => 'Villa F4']], $suggestion->correction_diff);
+        // Relu depuis jsonb : l'ordre des clés est celui du stockage (par longueur), donc assertEquals ;
+        // l'ordre déterministe de diff() est vérifié à part, en assertSame.
+        $expected = ['pieces' => ['from' => null, 'to' => 4], 'titre' => ['from' => 'Villa', 'to' => 'Villa F4']];
+        $this->assertEquals($expected, $suggestion->correction_diff);
+        $this->assertSame($expected, SuggestionRecorder::diff(['titre' => 'Villa', 'prix' => 100], ['titre' => 'Villa F4', 'prix' => 100, 'pieces' => 4]));
         $this->assertSame('Villa, 100 francs', $suggestion->input_snapshot);
     }
 
@@ -50,6 +54,72 @@ class SuggestionRecorderTest extends TestCase
         $this->expectException(LogicException::class);
         $this->expectExceptionMessage('ai.suggestion_already_decided');
         $recorder->accept($suggestion, User::factory()->create());
+    }
+
+    public function test_a_stale_instance_cannot_overwrite_a_decision(): void
+    {
+        $recorder = app(SuggestionRecorder::class);
+        $id = $this->suggestion()->id;
+        $first = AiSuggestion::query()->findOrFail($id);
+        $second = AiSuggestion::query()->findOrFail($id);
+        $userA = User::factory()->create();
+        $userB = User::factory()->create();
+        $recorder->accept($first, $userA);
+
+        try {
+            $recorder->reject($second, $userB);
+            $this->fail('La seconde décision aurait dû être refusée.');
+        } catch (LogicException $e) {
+            $this->assertSame('ai.suggestion_already_decided', $e->getMessage());
+        }
+
+        $stored = AiSuggestion::query()->findOrFail($id);
+        $this->assertSame(AiSuggestionDecision::Accepted, $stored->decision);
+        $this->assertSame($userA->id, $stored->decided_by_id);
+    }
+
+    public function test_an_edit_on_a_stale_instance_is_refused_too(): void
+    {
+        $recorder = app(SuggestionRecorder::class);
+        $id = $this->suggestion()->id;
+        $first = AiSuggestion::query()->findOrFail($id);
+        $second = AiSuggestion::query()->findOrFail($id);
+        $userA = User::factory()->create();
+        $recorder->reject($first, $userA);
+
+        try {
+            $recorder->edit($second, ['titre' => 'Autre'], User::factory()->create());
+            $this->fail('La seconde décision aurait dû être refusée.');
+        } catch (LogicException $e) {
+            $this->assertSame('ai.suggestion_already_decided', $e->getMessage());
+        }
+
+        $stored = AiSuggestion::query()->findOrFail($id);
+        $this->assertSame(AiSuggestionDecision::Rejected, $stored->decision);
+        $this->assertNull($stored->final_value);
+        $this->assertSame($userA->id, $stored->decided_by_id);
+    }
+
+    public function test_an_equal_value_with_another_key_order_is_an_acceptance(): void
+    {
+        $suggestion = $this->suggestion(['bien' => ['type' => 'villa', 'pieces' => 4], 'prix' => 100])->refresh();
+
+        $decided = app(SuggestionRecorder::class)->edit(
+            $suggestion,
+            ['prix' => 100.0, 'bien' => ['pieces' => 4, 'type' => 'villa']],
+            User::factory()->create(),
+        );
+
+        $this->assertSame(AiSuggestionDecision::Accepted, $decided->decision);
+        $this->assertSame([], $decided->correction_diff);
+    }
+
+    public function test_a_numeric_string_is_still_a_difference(): void
+    {
+        $this->assertSame(
+            ['prix' => ['from' => 100, 'to' => '100']],
+            SuggestionRecorder::diff(['prix' => 100], ['prix' => '100']),
+        );
     }
 
     public function test_acceptance_rates_count_decisions_per_usage(): void
