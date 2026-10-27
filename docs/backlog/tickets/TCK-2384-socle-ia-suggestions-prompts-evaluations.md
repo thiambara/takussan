@@ -9,7 +9,7 @@ wave: 80
 created: 2026-10-26
 updated: 2026-10-27
 depends_on: [TCK-2383]
-blocks: [TCK-2385, TCK-2386]
+blocks: [TCK-2385, TCK-2386, TCK-2398, TCK-2400]
 spec_refs:
   features:
     - "docs/features.md#211-socle-ia"

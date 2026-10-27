@@ -7,8 +7,8 @@ family: full
 estimate: L
 wave: 80
 created: 2026-10-26
-updated: 2026-10-26
-depends_on: [TCK-2383, TCK-2384]
+updated: 2026-10-27
+depends_on: [TCK-2383, TCK-2384, TCK-2398]
 blocks: [TCK-2387, TCK-2388]
 spec_refs:
   features:
