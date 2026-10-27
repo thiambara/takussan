@@ -1195,3 +1195,8 @@ jobs:
         # L'export anonymise, mais un cas écrit à la main ferait entrer une donnée personnelle dans
         # le dépôt, d'où elle ne sort plus. ⚠ Elle ne voit pas un nom de personne.
         run: node scripts/check-ai-evals-pii.mjs
+      - name: L'API inscrit à l'acceptation la version des CGU que le front affiche
+        # `PublishReadiness::TERMS_VERSION` (couvert par `app/**`) doit désigner le même jour que
+        # `VERSION_DOCUMENTS` de `takussan-web/src/content/legal/editeur.ts` (`takussan-web/src/**`).
+        # Mesuré le 2026-10-27 : l'API inscrivait `2026-09-17` sous des textes plus récents.
+        run: node scripts/check-terms-version.mjs --report
