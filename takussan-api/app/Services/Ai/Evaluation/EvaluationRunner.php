@@ -229,10 +229,20 @@ final class EvaluationRunner
      * Un rapport complet (sans rôle) réécrit toute la référence ; le rapport d'un seul rôle ne
      * réécrit que la section de ce rôle, le reste demeure.
      *
+     * ⚠ La référence du JEU COMPLET (`global`, `fields`) n'est réinitialisée que par un rapport
+     * complet : après la réécriture d'une seule section, elle reste celle du dernier jeu complet, et
+     * c'est contre elle qu'un jeu complet suivant est jugé. Elle ne se recalcule pas depuis les
+     * sections (une moyenne par champ demande le compte des cas de chaque champ). Une première
+     * référence vient donc d'un jeu complet : celle d'un seul rôle, sans référence complète, est
+     * refusée (`ai.eval.baseline_needs_full_run`).
+     *
      * @param  array<string, mixed>  $report
      */
     public function writeBaseline(string $usageKey, array $report): void
     {
+        if (($report['role'] ?? null) !== null && ! isset($this->baseline($usageKey)['global'])) {
+            throw new InvalidArgumentException('ai.eval.baseline_needs_full_run');
+        }
         $sections = array_map(
             fn (array $section): array => ['global' => $section['global'], 'fields' => $section['fields'], 'model' => $section['model']],
             $report['roles'],
@@ -245,6 +255,21 @@ final class EvaluationRunner
             'prompt_version' => $report['prompt_version'],
             'updated_at' => $report['ran_at'],
         ])));
+    }
+
+    /**
+     * Le score de référence auquel un rapport est comparé : la section de son rôle pour un rapport
+     * d'un seul rôle, le global du jeu complet sinon ; `$role` lit une section précise.
+     *
+     * @param  array<string, mixed>  $report
+     * @param  array<string, mixed>|null  $baseline
+     */
+    public function referenceGlobal(array $report, ?array $baseline, ?string $role = null): ?float
+    {
+        $role ??= $report['role'] ?? null;
+        $global = $role !== null ? ($baseline['roles'][$role]['global'] ?? null) : ($baseline['global'] ?? null);
+
+        return $global !== null ? (float) $global : null;
     }
 
     /**

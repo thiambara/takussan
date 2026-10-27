@@ -397,4 +397,57 @@ class AiEvalCommandTest extends TestCase
         }
         AgentDEssai::assertNeverPrompted();
     }
+
+    /** Revue 2 — une première référence vient d'un jeu complet : celle d'un seul rôle, écrite à vide, est refusée. */
+    public function test_a_single_role_baseline_cannot_be_the_first_one(): void
+    {
+        $this->app->instance(EvaluationRunner::class, $runner = $this->jeuAvecCaptures(['captures/annonce.png']));
+        $appels = [];
+        $this->enregistrerAppels($appels);
+
+        $this->artisan('ai:eval', ['usage' => UsageVisionDEssai::KEY, '--role' => 'vision', '--update-baseline' => true])
+            ->expectsOutputToContain('ai.eval.baseline_needs_full_run')
+            ->assertFailed();
+
+        $this->assertFalse(File::exists($this->racine.'/'.UsageVisionDEssai::KEY.'/baseline.json'));
+        try {
+            $runner->writeBaseline(UsageVisionDEssai::KEY, $runner->run(UsageVisionDEssai::KEY, role: AiModelRole::Vision));
+            $this->fail('référence d\'un seul rôle sans référence complète : refus attendu');
+        } catch (InvalidArgumentException $e) {
+            $this->assertSame('ai.eval.baseline_needs_full_run', $e->getMessage());
+        }
+    }
+
+    public function test_a_baseline_with_only_role_sections_neither_crashes_nor_misprints_the_reference(): void
+    {
+        $this->app->instance(EvaluationRunner::class, $this->jeuAvecCaptures(['captures/annonce.png']));
+        File::put($this->racine.'/'.UsageVisionDEssai::KEY.'/baseline.json', json_encode(['roles' => [
+            'extraction' => ['global' => 0.25, 'fields' => ['prix' => 0.25, 'titre' => 0.25]],
+            'vision' => ['global' => 0.75, 'fields' => ['prix' => 0.75, 'titre' => 0.75]],
+        ]]));
+        $appels = [];
+        $this->enregistrerAppels($appels);
+
+        $this->artisan('ai:eval', ['usage' => UsageVisionDEssai::KEY])
+            ->expectsOutputToContain('(référence aucune)')
+            ->expectsOutputToContain('référence 0.2500')
+            ->expectsOutputToContain('référence 0.7500')
+            ->assertSuccessful();
+        // Le rôle évalué se lit contre SA section, jamais contre un global d'un autre jeu.
+        $this->artisan('ai:eval', ['usage' => UsageVisionDEssai::KEY, '--role' => 'vision'])
+            ->expectsOutputToContain('(référence 0.7500)')
+            ->assertSuccessful();
+    }
+
+    public function test_a_single_role_rewrite_says_the_full_reference_is_kept(): void
+    {
+        $this->app->instance(EvaluationRunner::class, $runner = $this->jeuAvecCaptures(['captures/annonce.png']));
+        $appels = [];
+        $this->enregistrerAppels($appels);
+        $runner->writeBaseline(UsageVisionDEssai::KEY, $runner->run(UsageVisionDEssai::KEY));
+
+        $this->artisan('ai:eval', ['usage' => UsageVisionDEssai::KEY, '--role' => 'vision', '--update-baseline' => true])
+            ->expectsOutputToContain('seul un --update-baseline complet')
+            ->assertSuccessful();
+    }
 }

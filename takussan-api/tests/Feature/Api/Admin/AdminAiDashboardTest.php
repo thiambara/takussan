@@ -5,9 +5,16 @@ namespace Tests\Feature\Api\Admin;
 use App\Models\AiCall;
 use App\Models\AiSuggestion;
 use App\Models\User;
+use App\Services\Ai\AiGateway;
 use App\Services\Ai\AiResult;
+use App\Services\Ai\AiUsageRegistry;
+use App\Services\Ai\Evaluation\EvaluationRunner;
+use App\Services\Ai\Evaluation\FieldScorer;
+use App\Services\Ai\ModelResolver;
 use App\Services\Ai\SuggestionRecorder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\File;
+use Illuminate\Support\Str;
 use Tests\Support\Ai\SocleIaDEssai;
 use Tests\Support\Ai\UsageDEssai;
 use Tests\TestCase;
@@ -74,5 +81,28 @@ class AdminAiDashboardTest extends TestCase
         $this->actingAsRole('super_admin');
 
         $this->getJson('/api/admin/ai/dashboard?from=2026-10-27&to=2026-10-01')->assertStatus(422)->assertJsonValidationErrors('to');
+    }
+
+    /** Revue 2 (TCK-2386) — une référence sans global de jeu complet rend le global du rôle de l'usage, jamais rien. */
+    public function test_a_baseline_with_only_role_sections_still_shows_a_global(): void
+    {
+        $this->installerSocleDEssai();
+        $racine = storage_path('framework/testing/ai-evals-'.Str::random(8));
+        File::ensureDirectoryExists($racine.'/'.UsageDEssai::KEY);
+        File::put($racine.'/'.UsageDEssai::KEY.'/baseline.json', json_encode(['roles' => [
+            'vision' => ['global' => 0.5, 'fields' => ['prix' => 0.5], 'model' => 'anthropic/modele-v'],
+            'extraction' => ['global' => 0.8, 'fields' => ['prix' => 0.8], 'model' => 'anthropic/modele-a'],
+        ]]));
+        $this->app->instance(EvaluationRunner::class, new EvaluationRunner(app(AiGateway::class), app(AiUsageRegistry::class), app(ModelResolver::class), new FieldScorer, $racine));
+        $this->actingAsRole('super_admin');
+
+        try {
+            $reference = $this->getJson('/api/admin/ai/dashboard?'.http_build_query(['from' => now()->toDateString(), 'to' => now()->toDateString()]))
+                ->assertOk()->json('data.baselines')[UsageDEssai::KEY];
+        } finally {
+            File::deleteDirectory($racine);
+        }
+
+        $this->assertEquals([0.8, 'anthropic/modele-a'], [$reference['global'], $reference['model']]);
     }
 }

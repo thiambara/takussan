@@ -7,6 +7,7 @@ use App\Services\Ai\AiUsageRegistry;
 use App\Services\Ai\Evaluation\EvaluationRunner;
 use App\Services\Ai\ModelLink;
 use Illuminate\Console\Command;
+use InvalidArgumentException;
 use Throwable;
 
 /**
@@ -97,7 +98,7 @@ class AiEval extends Command
             $this->line(sprintf(
                 '%s — %s : %.4f (référence %s), %d cas, %d échec(s), %.2f XOF%s',
                 $key, implode(', ', $report['models']), $report['global'],
-                $baseline !== null ? sprintf('%.4f', $baseline['global']) : 'aucune',
+                $this->reference($runner->referenceGlobal($report, $baseline)),
                 $report['cases'], $report['failures'], $report['cost_xof'],
                 $verdict !== null ? ' — '.$verdict : '',
             ));
@@ -106,7 +107,11 @@ class AiEval extends Command
             }
             if (count($report['roles']) > 1) {
                 foreach ($report['roles'] as $sectionRole => $section) {
-                    $this->line(sprintf('  rôle %-23s %.4f (%s, %d cas)', $sectionRole, $section['global'], $section['model'], $section['cases']));
+                    $this->line(sprintf(
+                        '  rôle %-23s %.4f (%s, %d cas, référence %s)',
+                        $sectionRole, $section['global'], $section['model'], $section['cases'],
+                        $this->reference($runner->referenceGlobal($report, $baseline, $sectionRole)),
+                    ));
                 }
             }
             $this->line('  rapport : '.$path);
@@ -118,8 +123,17 @@ class AiEval extends Command
 
                     continue;
                 }
-                $runner->writeBaseline($key, $report);
-                $this->components->info($key.' : référence écrite.');
+                try {
+                    $runner->writeBaseline($key, $report);
+                } catch (InvalidArgumentException $e) {
+                    $this->components->error($key.' : '.$e->getMessage().' — une première référence vient d\'un jeu complet (sans --role ni --model).');
+                    $status = self::FAILURE;
+
+                    continue;
+                }
+                $this->components->info($report['role'] === null
+                    ? $key.' : référence écrite.'
+                    : $key.' : référence du rôle '.$report['role'].' écrite ; celle du jeu complet demeure (seul un --update-baseline complet la réécrit).');
 
                 continue;
             }
@@ -130,5 +144,10 @@ class AiEval extends Command
         }
 
         return $status;
+    }
+
+    private function reference(?float $global): string
+    {
+        return $global !== null ? sprintf('%.4f', $global) : 'aucune';
     }
 }
