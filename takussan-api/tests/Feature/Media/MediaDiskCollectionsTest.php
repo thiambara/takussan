@@ -12,6 +12,7 @@ use App\Models\MaintenanceRequest;
 use App\Models\Message;
 use App\Models\PrivacyRequest;
 use App\Models\Property;
+use App\Models\RadarListing;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -65,6 +66,8 @@ class MediaDiskCollectionsTest extends TestCase
         // TCK-601 — la preuve de réponse d'une demande de droits : document du demandeur, privé.
         PrivacyRequest::class => ['proof' => 'private'],
         Property::class => ['photos' => 'private, conversions public', 'videos' => 'public', 'plans' => 'public'],
+        // TCK-2386 (ADR-0077 §9) — les captures d'écran d'une annonce collectée : données personnelles, privées.
+        RadarListing::class => ['radar_captures' => 'private'],
         User::class => ['avatar' => 'public', 'avatars' => 'public', 'photos' => 'private', 'documents' => 'private'],
     ];
 

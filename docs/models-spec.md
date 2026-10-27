@@ -347,6 +347,10 @@ Les tables `lemon_squeezy_*` viennent d'un paquet, voir [`lemonsqueezy/laravel`]
 105. [AiSuggestion](#105-aisuggestion-) 🆕
 106. [AiEvaluationRun](#106-aievaluationrun-) 🆕
 
+#### Radar 🆕 (TCK-2386, ADR-0077)
+107. [RadarAdvertiser](#107-radaradvertiser-) 🆕
+108. [RadarListing](#108-radarlisting-) 🆕
+
 ### Enums
 
 - [Enums](#enums-1)
@@ -4899,6 +4903,67 @@ nom de la classe de l'exception.
 | created_at / updated_at | timestamp | | auto | |
 
 **Index :** `ai_eval_runs_role_status_idx (role, status)`.
+
+### 107. RadarAdvertiser 🆕
+
+**Table :** `radar_advertisers` (migration `2026_10_27_200000`, TCK-2386)
+**Modèle :** `App\Models\RadarAdvertiser` (`AbstractModel`) — `nature` casté en `RadarAdvertiserNature`,
+`nature_signals` en `array`, `do_not_contact_at` en `datetime` ; `hasMany listings`, `belongsTo user`.
+**Description :** L'annonceur d'une ou plusieurs annonces collectées, identifié par son numéro de
+téléphone ([ADR-0077 §1, §7, §9](adr/0077-le-radar.md)). Sa nature présumée et ses indices restent
+ici, jamais dans les profils. Après un STOP, `phone` est purgé et `phone_hmac` — l'empreinte à clé du
+numéro (`App\Support\RadarPhone::hmac`) — reste : sans elle le Radar le retrouverait sur une
+prochaine annonce et le recontacterait.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| phone | string(20) | oui | null | Numéro E.164 (`+221…`) ; **unique** ; null une fois purgé (STOP) |
+| phone_hmac | string(64) | | | HMAC-SHA256 du numéro E.164 ; **unique** ; seule trace d'un refus |
+| display_name | string(120) | oui | null | Nom lu dans l'annonce |
+| nature | string(30) | | unknown | `probable_owner`, `probable_intermediary`, `agency`, `unknown` |
+| nature_signals | jsonb | | `[]` | Indices de la nature |
+| do_not_contact_at | timestamp | oui | null | « Ne plus contacter » : définitif |
+| user_id | FK users | oui | null | Compte lié une fois réclamé ou publié (`nullOnDelete`) ; indexée |
+| created_at / updated_at | timestamp | | auto | |
+
+**Contraintes :** uniques `radar_advertisers_phone_unique (phone)` et `radar_advertisers_phone_hmac_unique (phone_hmac)`.
+
+### 108. RadarListing 🆕
+
+**Table :** `radar_listings` (migration `2026_10_27_200100`, TCK-2386)
+**Modèle :** `App\Models\RadarListing` (`AbstractModel`, `HasMedia`) — `stage` casté en `RadarListingStage`,
+`extracted`, `photo_urls` et `matches` en `array`, `extracted_at` et `purge_at` en `datetime` ;
+`belongsTo advertiser`, `capturer` (colonne `captured_by`), `property`. `purge_at` est posé à la
+création : collecte + 90 jours (`config('radar.purge_after_days')`).
+**Description :** Une annonce collectée hors du catalogue ([ADR-0077 §1, §9](adr/0077-le-radar.md)).
+Elle ne devient un bien que sur l'accord prouvé de son annonceur : `properties` ne reçoit aucune
+colonne, c'est `property_id` qui pointe vers le bien publié. Aucune photo n'est téléchargée : seules
+les URL source sont gardées. Les captures d'écran vivent dans la collection média `radar_captures`,
+sur le disque **privé** par défaut (ADR-0029).
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| radar_advertiser_id | FK radar_advertisers | oui | null | `nullOnDelete` ; indexée |
+| source_kind | string(20) | | | `url`, `text`, `captures` (`RadarSourceKind`) |
+| source_site | string(30) | | | `coinafrique`, `expat_dakar`, `facebook`, `whatsapp`, `other` (`RadarSourceSite::fromHost`) |
+| source_url | text | oui | null | URL collectée |
+| raw_text | text | oui | null | Texte brut ; purgé à `purge_at` ou dès un STOP |
+| photo_urls | jsonb | | `[]` | URL source des photos, jamais téléchargées |
+| content_fingerprint | string(64) | | | Empreinte du contenu ; **unique** : une annonce n'entre qu'une fois |
+| extracted | jsonb | oui | null | Sortie normalisée de l'extraction |
+| matches | jsonb | | `[]` | Rapprochements avec le catalogue |
+| stage | string(30) | | | `captured`, `extracted`, `reviewed`, `contacted`, `consented`, `published`, `extraction_failed`, `duplicate`, `refused`, `do_not_contact`, `purged` ; indexée |
+| stage_reason | string(60) | oui | null | Code du motif de l'état, jamais de prose |
+| extraction_attempts | smallint | | 0 | Passages de l'extraction |
+| extracted_at | timestamp | oui | null | |
+| property_id | FK properties | oui | null | Bien publié (`nullOnDelete`) ; indexée |
+| captured_by | FK users | oui | null | Opérateur qui a saisi l'annonce (`nullOnDelete`) ; indexée |
+| purge_at | timestamp | oui | null | Collecte + 90 jours ; indexée |
+| created_at / updated_at | timestamp | | auto | |
+
+**Contraintes :** unique `radar_listings_fingerprint_unique (content_fingerprint)`.
 
 ---
 
