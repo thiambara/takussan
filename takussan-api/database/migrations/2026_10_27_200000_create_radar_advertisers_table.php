@@ -21,7 +21,7 @@ return new class extends Migration
             $table->string('nature', 30)->default('unknown');
             $table->jsonb('nature_signals')->default('[]');
             $table->timestamp('do_not_contact_at')->nullable();
-            $table->foreignId('user_id')->nullable()->constrained('users')->nullOnDelete();
+            $table->foreignId('user_id')->nullable()->constrained('users', 'id', 'radar_advertisers_user_fk')->nullOnDelete();
             $table->timestamps();
 
             $table->unique('phone', 'radar_advertisers_phone_unique');

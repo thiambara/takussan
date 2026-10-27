@@ -16,7 +16,7 @@ return new class extends Migration
     {
         Schema::create('radar_listings', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('radar_advertiser_id')->nullable()->constrained('radar_advertisers')->nullOnDelete();
+            $table->foreignId('radar_advertiser_id')->nullable()->constrained('radar_advertisers', 'id', 'radar_listings_advertiser_fk')->nullOnDelete();
             $table->string('source_kind', 20);
             $table->string('source_site', 30);
             $table->text('source_url')->nullable();
@@ -29,8 +29,8 @@ return new class extends Migration
             $table->string('stage_reason', 60)->nullable();
             $table->smallInteger('extraction_attempts')->default(0);
             $table->timestamp('extracted_at')->nullable();
-            $table->foreignId('property_id')->nullable()->constrained('properties')->nullOnDelete();
-            $table->foreignId('captured_by')->nullable()->constrained('users')->nullOnDelete();
+            $table->foreignId('property_id')->nullable()->constrained('properties', 'id', 'radar_listings_property_fk')->nullOnDelete();
+            $table->foreignId('captured_by')->nullable()->constrained('users', 'id', 'radar_listings_captured_by_fk')->nullOnDelete();
             $table->timestamp('purge_at')->nullable();
             $table->timestamps();
 

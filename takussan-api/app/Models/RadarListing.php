@@ -4,6 +4,8 @@ namespace App\Models;
 
 use App\Models\Bases\AbstractModel;
 use App\Models\Enums\RadarListingStage;
+use App\Models\Enums\RadarSourceKind;
+use App\Models\Enums\RadarSourceSite;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Spatie\MediaLibrary\HasMedia;
@@ -27,6 +29,8 @@ class RadarListing extends AbstractModel implements HasMedia
 
     protected $casts = [
         'stage' => RadarListingStage::class,
+        'source_kind' => RadarSourceKind::class,
+        'source_site' => RadarSourceSite::class,
         'extracted' => 'array',
         'photo_urls' => 'array',
         'matches' => 'array',
