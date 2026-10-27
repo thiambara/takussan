@@ -20,7 +20,8 @@ use App\Support\RadarPhone;
  *     {@see RadarExtraction::ADVERTISER_FIELDS} : `{value, confidence, evidence, flags}` ;
  *     `price` y ajoute `{raw, period}` (`value` = montant entier en XOF), `neighborhood`
  *     `{neighborhood_id, suggestions}` ;
- *   - `phones` : E.164, les invalides tombent ; `nature_signals` : `{signal, evidence}`.
+ *   - `phones` : E.164, les invalides tombent, et avec un texte source ceux qu'il ne porte pas
+ *     aussi (`phones_flags` : `evidence_not_in_source`) ; `nature_signals` : `{signal, evidence}`.
  *
  * Règles :
  *   - un champ rendu SANS passage cité tombe à la confiance la plus basse (AC3,
@@ -86,7 +87,7 @@ final class ExtractionNormalizer
             ? ['neighborhood_id' => null, 'suggestions' => []]
             : $this->matcher->match($out['neighborhood']['value'], $out['city']['value']);
 
-        $out['phones'] = $this->phones($raw['phones'] ?? null);
+        [$out['phones'], $out['phones_flags']] = $this->phones($raw['phones'] ?? null, $source === null ? null : (string) $sourceText);
         $out['nature_signals'] = $this->natureSignals($raw['nature_signals'] ?? null);
 
         return $out;
@@ -315,21 +316,36 @@ final class ExtractionNormalizer
         return ! is_array($bounds) || ($value >= $bounds['min'] && $value <= $bounds['max']);
     }
 
-    /** @return list<string> */
-    private function phones(mixed $phones): array
+    /**
+     * Les numéros rendus, en E.164. Avec un texte source, seuls restent ceux que ce texte porte
+     * ({@see RadarPhone::fromText()} : mêmes neuf chiffres, quelle que soit l'écriture) ; un numéro
+     * absent tombe, sans être gardé, et pose `evidence_not_in_source` sur les numéros — c'est lui
+     * qui désignerait la personne à contacter. Sans texte source (captures), rien n'est confronté.
+     *
+     * @return array{0: list<string>, 1: list<string>}
+     */
+    private function phones(mixed $phones, ?string $sourceText): array
     {
         if (! is_array($phones)) {
-            return [];
+            return [[], []];
         }
+        $inSource = $sourceText === null ? null : array_flip(RadarPhone::fromText($sourceText));
         $out = [];
+        $flags = [];
         foreach ($phones as $phone) {
             $e164 = is_string($phone) ? RadarPhone::canonical($phone) : null;
-            if ($e164 !== null) {
-                $out[$e164] = true;
+            if ($e164 === null) {
+                continue;
             }
+            if ($inSource !== null && ! isset($inSource[$e164])) {
+                $flags = [self::FLAG_EVIDENCE_NOT_IN_SOURCE];
+
+                continue;
+            }
+            $out[$e164] = true;
         }
 
-        return array_keys($out);
+        return [array_keys($out), $flags];
     }
 
     /** @return list<array{signal: string, evidence: ?string}> */

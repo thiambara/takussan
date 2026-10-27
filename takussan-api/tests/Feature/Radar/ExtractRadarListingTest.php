@@ -259,6 +259,107 @@ class ExtractRadarListingTest extends TestCase
         $this->assertSame([['signal' => 'nom d\'agence', 'evidence' => 'Agence Teranga']], $annonceur->nature_signals);
     }
 
+    // --- Revue finale : l'annonceur ne vient que de la source -----------------------------------
+
+    public function test_f1_a_phone_only_the_model_returned_neither_creates_nor_attaches_an_advertiser(): void
+    {
+        RadarExtraction::fake([$this->reponse(['phones' => ['77 123 45 67']])]);
+        $listing = $this->annonce(['raw_text' => 'Villa à vendre aux Almadies, belle vue, contact en message privé.']);
+
+        $this->lancer($listing);
+
+        $listing->refresh();
+        $this->assertSame(RadarListingStage::Extracted, $listing->stage);
+        $this->assertNull($listing->radar_advertiser_id);
+        $this->assertSame(0, RadarAdvertiser::query()->count());
+        $this->assertSame([], $listing->extracted['phones']);
+        $this->assertSame(['evidence_not_in_source'], $listing->extracted['phones_flags']);
+    }
+
+    public function test_f1_the_number_of_the_source_comes_before_one_the_model_misread(): void
+    {
+        // Le modèle a mal lu un chiffre, et rend son numéro en premier : la source l'emporte.
+        RadarExtraction::fake([$this->reponse(['phones' => ['77 123 45 68', '77 123 45 67']])]);
+        $listing = $this->annonce();
+
+        $this->lancer($listing);
+
+        $listing->refresh();
+        $this->assertSame(self::NUMERO, RadarAdvertiser::query()->sole()->phone);
+        $this->assertSame(self::NUMERO, $listing->advertiser->phone);
+        $this->assertSame([self::NUMERO], $listing->extracted['phones']);
+    }
+
+    public function test_f1_the_advertiser_is_the_first_number_of_the_source_whatever_the_model_order(): void
+    {
+        RadarExtraction::fake([$this->reponse(['phones' => ['77 123 45 67', '78 765 43 21']])]);
+        $listing = $this->annonce(['raw_text' => 'Studio à Ngor. Moussa 78 765 43 21, ou son frère 77 123 45 67.']);
+
+        $this->lancer($listing);
+
+        $this->assertSame('+221787654321', $listing->refresh()->advertiser->phone);
+    }
+
+    public function test_f1_a_number_of_the_source_written_differently_by_the_model_is_kept(): void
+    {
+        RadarExtraction::fake([$this->reponse(['phones' => ['+221771234567']])]);
+        $listing = $this->annonce(['raw_text' => 'Studio meublé à Ngor, appelez le 77 123 45 67 ou passez.']);
+
+        $this->lancer($listing);
+
+        $listing->refresh();
+        $this->assertSame([self::NUMERO], $listing->extracted['phones']);
+        $this->assertSame([], $listing->extracted['phones_flags']);
+        $this->assertSame(self::NUMERO, $listing->advertiser->phone);
+    }
+
+    public function test_f1_a_stop_on_a_number_only_the_model_returned_still_marks_the_listing_do_not_contact(): void
+    {
+        $stop = RadarAdvertiser::factory()->doNotContact()->create(['phone_hmac' => RadarPhone::hmac('+221781112233')]);
+        RadarExtraction::fake([$this->reponse(['phones' => ['78 111 22 33']])]);
+        $listing = $this->annonce(['raw_text' => 'Villa à vendre aux Almadies, belle vue, contact en message privé.']);
+
+        $this->lancer($listing);
+
+        $listing->refresh();
+        $this->assertSame(RadarListingStage::DoNotContact, $listing->stage);
+        $this->assertSame($stop->id, $listing->radar_advertiser_id);
+        $this->assertNull($listing->extracted);
+    }
+
+    public function test_f3_flagged_advertiser_fields_do_not_enrich_the_advertiser(): void
+    {
+        RadarExtraction::fake([$this->reponse([
+            // Un nom dont le passage n'est pas dans le texte, une nature sans passage.
+            'advertiser_name' => ['value' => 'Agence Teranga', 'confidence' => 'high', 'evidence' => 'Agence Teranga'],
+            'advertiser_nature' => ['value' => 'agency', 'confidence' => 'high', 'evidence' => null],
+            'phones' => ['77 123 45 67'],
+        ])]);
+        $listing = $this->annonce();
+
+        $this->lancer($listing);
+
+        $this->assertSame(RadarListingStage::Extracted, $listing->refresh()->stage);
+        $annonceur = RadarAdvertiser::query()->sole();
+        $this->assertNull($annonceur->display_name);
+        $this->assertSame(RadarAdvertiserNature::Unknown, $annonceur->nature);
+    }
+
+    public function test_f4_a_listing_moved_on_during_the_model_call_creates_no_advertiser(): void
+    {
+        $listing = $this->annonce();
+        RadarExtraction::fake(function () use ($listing) {
+            RadarListing::query()->whereKey($listing->id)->update(['stage' => RadarListingStage::Refused->value]);
+
+            return $this->reponseComplete();
+        });
+
+        $this->lancer($listing);
+
+        $this->assertSame(RadarListingStage::Refused, $listing->refresh()->stage);
+        $this->assertSame(0, RadarAdvertiser::query()->count());
+    }
+
     // --- Captures ------------------------------------------------------------------------------
 
     public function test_captures_are_sent_as_stored_attachments_read_by_the_vision_role_without_a_local_path(): void

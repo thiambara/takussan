@@ -306,6 +306,34 @@ class ExtractionNormalizerTest extends TestCase
         $this->assertSame([['signal' => 'Parle de « mon appartement »', 'evidence' => 'mon appartement']], $out['nature_signals']);
     }
 
+    public function test_f1_avec_un_texte_source_un_numero_qu_il_ne_porte_pas_tombe_et_se_signale(): void
+    {
+        $out = $this->normalizer->normalize(self::raw([
+            'phones' => ['+221771234567', '78 999 88 77'],
+        ]), self::SOURCE);
+
+        // « 77 123 45 67 » dans la source, « +221771234567 » rendu : le même numéro, gardé.
+        $this->assertSame(['+221771234567'], $out['phones']);
+        $this->assertSame(['evidence_not_in_source'], $out['phones_flags']);
+        $this->assertStringNotContainsString('999', (string) json_encode($out), 'Le numéro écarté n\'est pas gardé.');
+    }
+
+    public function test_f1_un_numero_present_dans_la_source_ne_pose_aucun_drapeau(): void
+    {
+        $out = $this->normalizer->normalize(self::raw(), self::SOURCE);
+
+        $this->assertSame(['+221771234567'], $out['phones']);
+        $this->assertSame([], $out['phones_flags']);
+    }
+
+    public function test_f1_sans_texte_source_les_numeros_ne_sont_pas_confrontes(): void
+    {
+        $out = $this->normalizer->normalize(self::raw(['phones' => ['78 999 88 77']]), null);
+
+        $this->assertSame(['+221789998877'], $out['phones']);
+        $this->assertSame([], $out['phones_flags']);
+    }
+
     // ─── AC5 — le quartier rapproché du référentiel par du code ──────────────────────────
 
     public function test_ac5_liberte_6_est_rattache_au_quartier_du_referentiel(): void

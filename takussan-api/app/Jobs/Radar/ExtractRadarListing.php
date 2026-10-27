@@ -51,9 +51,12 @@ use Throwable;
  *     captures en pièces jointes lues par leur disque (`Image::fromStorage`, jamais `getPath()`) —
  *     la passerelle joue alors le rôle `vision` ;
  *  5. **la sortie relue** par `ExtractionNormalizer`. Le refus STOP est rejugé sur TOUS les numéros
- *     (ceux de la sortie et ceux du texte) ; sinon l'annonceur du premier est rattaché, et son
- *     refus relu sous verrou au moment d'écrire. Un STOP → `do_not_contact`, l'extraction n'est pas
- *     gardée et l'annonceur n'est pas enrichi.
+ *     (ceux du texte et ceux de la sortie, même écartés) ; sinon l'annonceur du premier numéro est
+ *     rattaché — ceux du texte d'abord, puis ceux de la sortie que le texte porte (pour une source
+ *     texte ou URL, un numéro que le modèle est seul à donner ne désigne personne). Il est trouvé
+ *     ou créé SOUS le verrou de l'annonce, puis son refus relu sous le sien (ordre : l'annonce,
+ *     puis l'annonceur). Un STOP → `do_not_contact`, l'extraction n'est pas gardée et l'annonceur
+ *     n'est pas enrichi ; l'enrichissement ne lit que des champs sans drapeau.
  *
  * **En attente, pas en échec** (étape `captured`, motif dans `stage_reason`) : plafond ou
  * coupe-circuit (`ai.budget`, `ai.kill_switch`, reprise à 30 min), panne (`ai.providers_unavailable`
@@ -253,14 +256,19 @@ final class ExtractRadarListing implements ShouldQueue
             return;
         }
 
-        // Le refus se juge sur chaque numéro, pas sur le seul premier.
-        $phones = self::canonicalPhones([...(array) ($normalized['phones'] ?? []), ...RadarPhone::fromText($text)]);
-        if ($this->refuseIfStopped($directory, $phones)) {
+        // L'annonceur se choisit parmi les numéros du texte d'abord, puis ceux que le modèle a rendus
+        // et que la normalisation a gardés (présents dans le texte, sauf pour des captures).
+        $phones = self::canonicalPhones([...RadarPhone::fromText($text), ...(array) ($normalized['phones'] ?? [])]);
+        // Le refus se juge sur chaque numéro, pas sur le seul premier — y compris ceux du modèle
+        // que la normalisation a écartés : prudence.
+        if ($this->refuseIfStopped($directory, self::canonicalPhones([...$phones, ...(array) ($result->structured['phones'] ?? [])]))) {
             return;
         }
-        $advertiser = $phones !== [] ? $directory->findOrCreate($phones[0]) : null;
 
-        $this->settle(function (RadarListing $l) use ($normalized, $advertiser): void {
+        $this->settle(function (RadarListing $l) use ($normalized, $phones, $directory): void {
+            // Sous le verrou de l'annonce (encore `captured`) : aucun annonceur n'est créé pour une
+            // annonce passée à autre chose. Ordre des verrous : l'annonce, puis l'annonceur.
+            $advertiser = $phones !== [] ? $directory->findOrCreate($phones[0]) : null;
             // Relu sous verrou : un STOP dit depuis la lecture ci-dessus l'emporte.
             $locked = $advertiser !== null ? RadarAdvertiser::query()->whereKey($advertiser->id)->lockForUpdate()->first() : null;
             if ($locked?->do_not_contact_at !== null) {
@@ -440,7 +448,7 @@ final class ExtractRadarListing implements ShouldQueue
     /**
      * Le nom affiché, la nature et ses indices d'un annonceur déjà verrouillé (et qui n'a pas dit
      * STOP), posés s'ils sont vides (nature `unknown`) : la première annonce lue ne les voit pas
-     * réécrits par la suivante.
+     * réécrits par la suivante. Le nom et la nature ne se prennent qu'à un champ sans drapeau.
      *
      * @param  array<string, mixed>  $normalized
      */
@@ -450,12 +458,14 @@ final class ExtractRadarListing implements ShouldQueue
             return;
         }
 
-        $name = $normalized['advertiser_name']['value'] ?? null;
+        // Seulement un champ que la normalisation n'a pas signalé (passage absent ou introuvable,
+        // valeur invalide) : ce qui est posé ici ne se réécrit plus.
+        $name = self::unflagged($normalized, 'advertiser_name');
         if (($locked->display_name === null || trim($locked->display_name) === '') && is_string($name) && trim($name) !== '') {
             $locked->display_name = mb_substr(trim($name), 0, 120);
         }
 
-        $nature = RadarAdvertiserNature::tryFrom((string) ($normalized['advertiser_nature']['value'] ?? ''));
+        $nature = RadarAdvertiserNature::tryFrom((string) self::unflagged($normalized, 'advertiser_nature'));
         if (($locked->nature ?? RadarAdvertiserNature::Unknown) === RadarAdvertiserNature::Unknown && $nature !== null) {
             $locked->nature = $nature;
         }
@@ -468,5 +478,17 @@ final class ExtractRadarListing implements ShouldQueue
         if ($locked->isDirty()) {
             $locked->save();
         }
+    }
+
+    /**
+     * La valeur d'un champ normalisé, s'il ne porte aucun drapeau ; sinon null.
+     *
+     * @param  array<string, mixed>  $normalized
+     */
+    private static function unflagged(array $normalized, string $field): mixed
+    {
+        $entry = $normalized[$field] ?? null;
+
+        return is_array($entry) && ($entry['flags'] ?? null) === [] ? ($entry['value'] ?? null) : null;
     }
 }

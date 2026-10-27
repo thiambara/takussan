@@ -20,6 +20,12 @@ final class RadarPhone
     private const SEPARATORS = '/[\s\x{00A0}\x{202F}.\-\/()]/u';
 
     /**
+     * Un indicatif de pays (`+33`, `0033`) juste avant le motif, au plus un séparateur entre eux :
+     * ce que le motif a trouvé est la suite d'un numéro étranger. `221` excepté.
+     */
+    private const FOREIGN_PREFIX = '/(?<![\d+])(?:\+|00)(\d{1,3})[\s\x{00A0}\x{202F}.\-\/]?$/u';
+
+    /**
      * Les numéros du texte, en `+221XXXXXXXXX`, dédoublonnés, dans l'ordre d'apparition.
      *
      * @return list<string>
@@ -27,12 +33,17 @@ final class RadarPhone
     public static function fromText(string $text): array
     {
         $normalized = PhoneMasker::normalizeDigits((string) preg_replace(PhoneMasker::INVISIBLE, '', $text));
-        if (preg_match_all(PhoneMasker::PATTERN, $normalized, $found) === false) {
+        if (preg_match_all(PhoneMasker::PATTERN, $normalized, $found, PREG_OFFSET_CAPTURE) === false) {
             return [];
         }
 
         $numbers = [];
-        foreach ($found[0] as $match) {
+        foreach ($found[0] as [$match, $offset]) {
+            // La fin d'un numéro étranger (`+1 77 123 45 67 89`, `0033 771234567`) n'est pas un numéro
+            // sénégalais : le masquage la masque quand même, le Radar ne la lit pas.
+            if (preg_match(self::FOREIGN_PREFIX, substr($normalized, 0, $offset), $prefix) === 1 && $prefix[1] !== '221') {
+                continue;
+            }
             $e164 = self::canonical($match);
             if ($e164 !== null) {
                 $numbers[$e164] = true;

@@ -36,6 +36,20 @@ class RadarPhoneTest extends TestCase
         $this->assertSame(['+221787654321', '+221771234567', '+221338210000'], RadarPhone::fromText($texte));
     }
 
+    public function test_la_fin_d_un_numero_etranger_n_est_pas_un_numero_senegalais(): void
+    {
+        // T1 (revue finale) : le motif trouvait `77 123 45 67` au milieu de ces numéros.
+        $this->assertSame([], RadarPhone::fromText('WhatsApp +1 77 123 45 67 89'));
+        $this->assertSame([], RadarPhone::fromText('Appelez le 0033 771234567'));
+        $this->assertSame([], RadarPhone::fromText('Tel : +33 6 77 12 34 56 7'));
+
+        // L'indicatif sénégalais, et deux numéros côte à côte, restent lus.
+        $this->assertSame(['+221771234567'], RadarPhone::fromText('Tel +221 77 123 45 67'));
+        $this->assertSame(['+221771234567'], RadarPhone::fromText('Tel 00221 771234567'));
+        $this->assertSame(['+221771234567', '+221781234567'], RadarPhone::fromText('771234567 781234567'));
+        $this->assertSame(['+221771234567'], RadarPhone::fromText('+33 6 12 34 56 78 ou 77 123 45 67'));
+    }
+
     public function test_un_prix_ou_un_texte_sans_numero_ne_donne_rien(): void
     {
         $this->assertSame([], RadarPhone::fromText('Loyer 450.000f par mois, caution 900 000 FCFA'));
