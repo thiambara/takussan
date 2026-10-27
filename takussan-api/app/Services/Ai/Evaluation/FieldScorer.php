@@ -7,13 +7,18 @@ namespace App\Services\Ai\Evaluation;
  * déclare dans `fields.json`, à défaut il se déduit de la valeur attendue : liste → recouvrement
  * (Jaccard, insensible à la casse) ; nombre → égalité à la tolérance relative près (0 par défaut) ;
  * le reste → égalité, les chaînes sans casse ni espaces de bord.
+ *
+ * TCK-2386 — `path` (notation pointée de `data_get`) désigne dans la sortie ce qu'un attendu compare,
+ * quand la sortie enveloppe chaque valeur (`{"price": {"value": …, "confidence": …}}` →
+ * `"path": "price.value"`) ; à défaut, la clé de l'attendu. Un nombre attendu nul n'est juste que
+ * face à une sortie nulle : ne pas inventer une surface absente se note, comme l'inventer.
  */
 final class FieldScorer
 {
     /**
      * @param  array<string, mixed>  $expected
      * @param  array<string, mixed>  $actual
-     * @param  array<string, array{type?: string, tolerance?: float}>  $fields
+     * @param  array<string, array{type?: string, tolerance?: float, path?: string}>  $fields
      * @return array<string, float>
      */
     public function score(array $expected, array $actual, array $fields = []): array
@@ -21,7 +26,7 @@ final class FieldScorer
         $scores = [];
         foreach ($expected as $field => $want) {
             $spec = $fields[$field] ?? [];
-            $got = $actual[$field] ?? null;
+            $got = isset($spec['path']) ? data_get($actual, (string) $spec['path']) : ($actual[$field] ?? null);
             $type = $spec['type'] ?? match (true) {
                 is_array($want) => 'list',
                 is_int($want) || is_float($want) => 'number',
@@ -39,6 +44,9 @@ final class FieldScorer
 
     private function number(mixed $want, mixed $got, float $tolerance): float
     {
+        if ($want === null) {
+            return $got === null ? 1.0 : 0.0;
+        }
         if (! is_numeric($want) || ! is_numeric($got)) {
             return 0.0;
         }

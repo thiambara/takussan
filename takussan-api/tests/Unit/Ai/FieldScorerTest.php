@@ -45,4 +45,42 @@ class FieldScorerTest extends TestCase
 
         $this->assertSame(round(1 / 3, 4), $scores['tags']);
     }
+
+    /**
+     * TCK-2386 — une sortie structurée champ par champ (`{value, confidence, evidence}`) se note sur
+     * sa seule valeur : `path` désigne, dans la sortie, ce qu'un attendu compare.
+     */
+    public function test_a_path_scores_the_value_nested_in_the_output(): void
+    {
+        $sortie = [
+            'price' => ['value' => '1M5', 'confidence' => 'high', 'evidence' => '1M5'],
+            'bedrooms' => ['value' => 3, 'confidence' => 'medium', 'evidence' => 'F4'],
+            'amenities' => ['value' => ['Piscine', 'gardien'], 'confidence' => 'high', 'evidence' => 'piscine, gardien'],
+        ];
+
+        $scores = (new FieldScorer)->score(
+            ['price' => '1m5', 'bedrooms' => 3, 'amenities' => ['piscine', 'gardien']],
+            $sortie,
+            [
+                'price' => ['type' => 'exact', 'path' => 'price.value'],
+                'bedrooms' => ['type' => 'number', 'path' => 'bedrooms.value'],
+                'amenities' => ['type' => 'list', 'path' => 'amenities.value'],
+            ],
+        );
+
+        $this->assertSame(['price' => 1.0, 'bedrooms' => 1.0, 'amenities' => 1.0], $scores);
+        // Sans `path`, l'objet entier est comparé : la valeur seule ne suffit plus.
+        $this->assertSame(0.0, (new FieldScorer)->score(['price' => '1M5'], $sortie)['price']);
+    }
+
+    /** TCK-2386 — un nombre attendu nul : la sortie qui ne l'invente pas a juste, celle qui l'invente a faux. */
+    public function test_a_null_expected_number_is_right_only_when_the_output_is_null_too(): void
+    {
+        $champs = ['surface' => ['type' => 'number', 'tolerance' => 0.05]];
+
+        $this->assertSame(1.0, (new FieldScorer)->score(['surface' => null], ['surface' => null], $champs)['surface']);
+        $this->assertSame(1.0, (new FieldScorer)->score(['surface' => null], [], $champs)['surface']);
+        $this->assertSame(0.0, (new FieldScorer)->score(['surface' => null], ['surface' => 120], $champs)['surface']);
+        $this->assertSame(0.0, (new FieldScorer)->score(['surface' => 120], ['surface' => null], $champs)['surface']);
+    }
 }
