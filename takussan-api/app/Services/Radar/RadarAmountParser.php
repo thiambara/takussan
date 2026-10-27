@@ -9,17 +9,31 @@ use App\Support\PhoneMasker;
  * TCK-2386 (ADR-0077 §5, AC4) — le prix d'une annonce tel qu'écrit, lu par du code : le modèle
  * recopie « 1M5 » ou « 450.000f/mois », ce parseur rend 1 500 000 XOF ou 450 000 XOF par mois.
  *
- * Formes lues, dans cet ordre de priorité à une même position du texte :
- *   - million abrégé à la sénégalaise : « 1M5 » = 1,5 million, « 2M250 » = 2,25 millions ;
- *   - nombre (décimale `.` ou `,`) suivi d'un multiplicateur : « 1,5M », « 1.5 million(s) »,
- *     « 45 millions », « 350K », « 350 mille », « 2 milliards » ;
+ * **Les candidats.** Chaque nombre du texte qui n'est pas collé à une lettre ni à un `+` (« T3 »,
+ * « F4 », « R+1 » ne sont pas des montants), sous l'une de ces formes :
+ *   - million abrégé à la sénégalaise : « 1M5 », « 1 M 5 » = 1,5 million, « 2M250 » = 2,25 millions
+ *     — sauf « m2 »/« m3 » à un chiffre, qui sont une surface ou un volume (« 300m2 ») ;
+ *   - nombre (décimale `.` ou `,`, ou groupé par milliers) suivi d'un multiplicateur : « 1,5M »,
+ *     « 1.5 million(s) », « 45 millions », « 350K », « 350 mille », « 1 000 K », « 2 milliards » ;
  *   - nombre groupé par milliers (espace, point, virgule) : « 450.000 », « 25 000 000 » ;
- *   - nombre nu : « 5000 ».
- * Le premier montant du texte l'emporte. La période ({@see RentPeriod}) vient du premier mot de
- * période trouvé : « /mois », « par jour », « nuitée », « semaine », « /an »… — sinon `null`.
+ *   - nombre nu : « 5000 ». Une décimale sans multiplicateur (« 1.5 ») n'est pas un montant.
  *
- * Calcul entier de bout en bout (aucun flottant) ; au-delà de 15 chiffres, ou à zéro, le texte
- * n'est pas un prix : `null`. Chiffres arabes et pleine chasse repliés par
+ * **Les écartés.** Un nombre suivi d'une unité qui n'est pas une monnaie (« 300 m² », « 3 chambres »,
+ * « 5 ans », « 2 mois » — une durée, pas une période : la période s'écrit « /mois », « par mois »),
+ * et un nombre qui fait partie d'un numéro de téléphone ({@see PhoneMasker::PATTERN}).
+ *
+ * **Le choix.** Un seul candidat restant → lui. Plusieurs → le PREMIER qui porte une marque : une
+ * monnaie (« F », « FCFA », « XOF », « francs »), un multiplicateur, ou une période attachée. Le
+ * premier et non le plus grand : à côté d'un loyer, l'autre montant est presque toujours une
+ * caution ou une avance, plus grande (« 450 000 F, caution 900 000 F »). Plusieurs candidats sans
+ * marque → `null` : le code ne devine pas, l'humain tranche (`unparsed_amount`).
+ *
+ * **La période** ({@see RentPeriod}) est celle qui suit le montant retenu, après sa monnaie et/ou un
+ * lien (« / », « par », « le », « la », « l' ») : « 450.000f/mois », « 25 000 la nuitée »,
+ * « 3 000 000/an ». Un « 2 mois » ailleurs dans le texte n'en est pas une.
+ *
+ * Calcul entier de bout en bout (aucun flottant) ; au-delà de 15 chiffres, ou à zéro, le nombre
+ * n'est pas un prix. Chiffres arabes et pleine chasse repliés par
  * {@see PhoneMasker::normalizeDigits()}, comme pour les numéros.
  */
 final class RadarAmountParser
@@ -34,46 +48,108 @@ final class RadarAmountParser
         'mille' => 3, 'k' => 3,
     ];
 
-    private const AMOUNT = '/(?<mshort>(?<mint>\d+)\s?m(?<mfrac>\d{1,3})(?!\d))'
-        .'|(?<mult>(?<num>\d+(?:[.,]\d+)?)\s*(?<unit>milliards?|mrds?|mds?|millions?|mille|m|k)(?![\p{L}\d²]))'
-        .'|(?<grouped>\d{1,3}(?:[ .,]\d{3})+(?!\d))'
-        .'|(?<plain>\d+)/u';
+    /** Pas collé à une lettre, à un `+` ni au milieu d'un nombre. */
+    private const CANDIDATE = '/(?<![\p{L}\d+])(?<!\d[.,])(?:'
+        .'(?<mshort>(?<mint>\d+)\s?m\s?(?![23](?!\d))(?<mfrac>\d{1,3})(?!\d))'
+        .'|(?<mult>(?<num>\d{1,3}(?:[ .]\d{3})+|\d+(?:[.,]\d+)?)\s*(?<unit>milliards?|mrds?|mds?|millions?|mille|m|k)(?![\p{L}\d²³]))'
+        .'|(?<grouped>\d{1,3}(?:[ .,]\d{3})+(?![.,]?\d))'
+        .'|(?<plain>\d+(?![.,]?\d))'
+        .')/u';
 
-    /** Le premier mot de période du texte l'emporte. */
-    private const PERIODS = [
-        'daily' => '/(?<![\p{L}])(?:jours?|journ[ée]es?|journali[eè]re?|nuits?|nuit[ée]es?|j)(?![\p{L}])/u',
-        'weekly' => '/(?<![\p{L}])(?:semaines?|sem|hebdo(?:madaire)?)(?![\p{L}])/u',
-        'monthly' => '/(?<![\p{L}])(?:mois|mensuel(?:le)?|mensualit[ée])(?![\p{L}])/u',
-        'yearly' => '/(?<![\p{L}])(?:an|ans|ann[ée]es?|annuel(?:le)?)(?![\p{L}])/u',
-    ];
+    private const CURRENCY = '(?:francs?\s?cfa|f\s?cfa|fcfa|cfa|xof|francs?|frs?|f)(?![\p{L}])';
+
+    /** Ce qui, collé derrière un nombre, en fait autre chose qu'un montant. */
+    private const UNIT = '/^\s*(?:m²|m³|m2|m3|m|mètres?|metres?|ml|cm|km|ha|hectares?|chambres?|chbres?|ch|pi[eè]ces?|pcs?'
+        .'|salles?|sdb|toilettes?|wc|douches?|lits?|places?|[ée]tages?|niveaux?|ans?|ann[ée]es?|mois|jours?|semaines?'
+        .'|nuits?|nuit[ée]es?|minutes?|min|mn|personnes?|appartements?|apparts?|appts?|studios?|villas?|%)(?![\p{L}])/u';
+
+    /** Une période attachée : monnaie et/ou lien obligatoire (« 2 mois » nu est une durée). */
+    private const PERIOD = '/^\s*(?<cur>'.self::CURRENCY.')?\s*(?<link>\/|par|chaque|le|la|l\')?\s*(?:'
+        .'(?<daily>jours?|journ[ée]es?|nuits?|nuit[ée]es?|j)'
+        .'|(?<weekly>semaines?|sem|hebdo(?:madaire)?)'
+        .'|(?<monthly>mois|mensuel(?:le)?)'
+        .'|(?<yearly>an|ann[ée]es?|annuel(?:le)?))(?![\p{L}])/u';
 
     /** @return array{amount: int, period: ?string}|null */
     public static function parse(string $text): ?array
     {
         $normalized = self::normalize($text);
-        if ($normalized === '' || preg_match(self::AMOUNT, $normalized, $m) !== 1) {
+        if ($normalized === '' || preg_match_all(self::CANDIDATE, $normalized, $matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE | PREG_UNMATCHED_AS_NULL) < 1) {
+            return null;
+        }
+
+        $phones = self::phoneSpans($normalized);
+        $plausible = [];
+        foreach ($matches as $m) {
+            $candidate = self::candidate($m, $normalized, $phones);
+            if ($candidate !== null) {
+                $plausible[] = $candidate;
+            }
+        }
+
+        $chosen = match (true) {
+            count($plausible) === 1 => $plausible[0],
+            default => array_values(array_filter($plausible, static fn (array $c): bool => $c['marked']))[0] ?? null,
+        };
+
+        return $chosen === null ? null : ['amount' => $chosen['amount'], 'period' => $chosen['period']];
+    }
+
+    /**
+     * @param  array<int|string, array{0: ?string, 1: int}>  $m
+     * @param  list<array{int, int}>  $phones
+     * @return array{amount: int, period: ?string, marked: bool}|null
+     */
+    private static function candidate(array $m, string $text, array $phones): ?array
+    {
+        [$match, $start] = $m[0];
+        $end = $start + strlen((string) $match);
+        foreach ($phones as [$from, $to]) {
+            if ($start < $to && $end > $from) {
+                return null;
+            }
+        }
+
+        $after = substr($text, $end, 60);
+        $multiplied = $m['mshort'][0] !== null || $m['mult'][0] !== null;
+        if (! $multiplied && preg_match(self::UNIT, $after) === 1) {
             return null;
         }
 
         $amount = match (true) {
-            ($m['mshort'] ?? '') !== '' => self::scaled($m['mint'], $m['mfrac'], 6),
-            ($m['mult'] ?? '') !== '' => self::multiplied($m['num'], $m['unit']),
-            ($m['grouped'] ?? '') !== '' => self::digits((string) preg_replace('/[ .,]/', '', $m['grouped'])),
-            default => self::digits($m['plain'] ?? ''),
+            $m['mshort'][0] !== null => self::scaled((string) $m['mint'][0], (string) $m['mfrac'][0], 6),
+            $m['mult'][0] !== null => self::multiplied((string) $m['num'][0], (string) $m['unit'][0]),
+            $m['grouped'][0] !== null => self::digits((string) preg_replace('/[ .,]/', '', (string) $m['grouped'][0])),
+            default => self::digits((string) $m['plain'][0]),
         };
-
         if ($amount === null || $amount <= 0) {
             return null;
         }
 
-        return ['amount' => $amount, 'period' => self::period($normalized)];
+        $period = self::period($after);
+
+        return [
+            'amount' => $amount,
+            'period' => $period,
+            'marked' => $multiplied || $period !== null || preg_match('/^\s*'.self::CURRENCY.'/u', $after) === 1,
+        ];
+    }
+
+    /** @return list<array{int, int}> les plages d'octets des numéros de téléphone du texte */
+    private static function phoneSpans(string $text): array
+    {
+        if (preg_match_all(PhoneMasker::PATTERN, $text, $found, PREG_OFFSET_CAPTURE) < 1) {
+            return [];
+        }
+
+        return array_map(static fn (array $f): array => [$f[1], $f[1] + strlen($f[0])], $found[0]);
     }
 
     private static function normalize(string $text): string
     {
         $text = PhoneMasker::normalizeDigits((string) preg_replace(PhoneMasker::INVISIBLE, '', $text));
         // Séparateurs arabes : ٫ est la décimale, ٬ le groupement des milliers.
-        $text = strtr($text, ['٫' => '.', '٬' => ',']);
+        $text = strtr($text, ['٫' => '.', '٬' => ',', '’' => "'", 'ʼ' => "'"]);
         $text = (string) preg_replace('/[\s\x{00A0}\x{202F}\x{2009}\x{3000}]+/u', ' ', $text);
 
         return trim(mb_strtolower($text));
@@ -81,6 +157,10 @@ final class RadarAmountParser
 
     private static function multiplied(string $number, string $unit): ?int
     {
+        // « 1 000 K » : un nombre groupé par milliers n'a pas de décimale.
+        if (preg_match('/^\d{1,3}(?:[ .]\d{3})+$/', $number) === 1) {
+            return self::scaled((string) preg_replace('/[ .]/', '', $number), '', self::MULTIPLIERS[$unit]);
+        }
         $parts = preg_split('/[.,]/', $number, 2) ?: [$number];
 
         return self::scaled($parts[0], $parts[1] ?? '', self::MULTIPLIERS[$unit]);
@@ -105,17 +185,17 @@ final class RadarAmountParser
         return (int) $digits;
     }
 
-    private static function period(string $text): ?string
+    private static function period(string $after): ?string
     {
-        $found = null;
-        $at = PHP_INT_MAX;
-        foreach (self::PERIODS as $period => $pattern) {
-            if (preg_match($pattern, $text, $m, PREG_OFFSET_CAPTURE) === 1 && $m[0][1] < $at) {
-                $at = $m[0][1];
-                $found = $period;
+        if (preg_match(self::PERIOD, $after, $m, PREG_UNMATCHED_AS_NULL) !== 1 || ($m['cur'] === null && $m['link'] === null)) {
+            return null;
+        }
+        foreach (['daily', 'weekly', 'monthly', 'yearly'] as $period) {
+            if ($m[$period] !== null) {
+                return RentPeriod::from($period)->value;
             }
         }
 
-        return $found === null ? null : RentPeriod::from($found)->value;
+        return null;
     }
 }

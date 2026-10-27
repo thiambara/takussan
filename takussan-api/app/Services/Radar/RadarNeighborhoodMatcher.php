@@ -37,6 +37,9 @@ final class RadarNeighborhoodMatcher
 {
     public const MAX_SUGGESTIONS = 5;
 
+    /** Une inclusion (dans un sens ou l'autre) ne suggère qu'à partir de trois caractères : « rt » est dans trop de noms. */
+    private const MIN_INCLUSION = 3;
+
     /** @return array{neighborhood_id: ?int, suggestions: list<array{id: int, name: string, city: string}>} */
     public function match(string $text, ?string $cityText): array
     {
@@ -115,15 +118,15 @@ final class RadarNeighborhoodMatcher
             ->values();
     }
 
-    /** 0 : même nom à l'accent près ; 1 : préfixe ; 2 : inclusion ; 3 : nom contenu dans le texte ; null : sans rapport. */
+    /** 0 : même nom à l'accent près ; 1 : préfixe ; 2 : inclusion ; 3 : nom contenu dans le texte (ces deux-là dès 3 caractères) ; null : sans rapport. */
     private static function rank(string $key, string $name): ?int
     {
         return match (true) {
             $name === '' => null,
             $name === $key => 0,
             str_starts_with($name, $key) => 1,
-            str_contains($name, $key) => 2,
-            str_contains(' '.$key.' ', ' '.$name.' ') => 3,
+            mb_strlen($key) >= self::MIN_INCLUSION && str_contains($name, $key) => 2,
+            mb_strlen($name) >= self::MIN_INCLUSION && str_contains(' '.$key.' ', ' '.$name.' ') => 3,
             default => null,
         };
     }

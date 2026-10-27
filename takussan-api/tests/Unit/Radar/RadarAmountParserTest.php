@@ -37,9 +37,29 @@ class RadarAmountParserTest extends TestCase
             '/an' => ['3 000 000/an', 3_000_000, 'yearly'],
             'par année' => ['3 000 000 F par année', 3_000_000, 'yearly'],
             'nombre nu' => ['5000', 5_000, null],
-            'chiffres arabes' => ['٤٥٠٠٠٠ ف / mois', 450_000, 'monthly'],
+            'chiffres arabes' => ['٤٥٠٠٠٠ F / mois', 450_000, 'monthly'],
             'chiffres pleine chasse' => ['４５０ ０００ F', 450_000, null],
             'séparateur décimal arabe' => ['١٫٥ M', 1_500_000, null],
+            '1 M 5 espacé' => ['1 M 5', 1_500_000, null],
+            '1 000 K groupé' => ['1 000 K', 1_000_000, null],
+            // Revue : une surface n'est pas un million abrégé, et n'est pas un prix.
+            '300m2 puis le prix' => ['300m2 450 000 F', 450_000, null],
+            'villa 300m2 à 75 000 000' => ['villa 300m2 à 75 000 000', 75_000_000, null],
+            '300 m² puis le prix' => ['300 m² 450 000', 450_000, null],
+            // Revue : le premier nombre n'est pas forcément le prix.
+            'chambres puis le prix' => ['3 chambres 450 000 F', 450_000, null],
+            'R+1 collé' => ['Villa R+1 à 85 millions', 85_000_000, null],
+            'T3 collé' => ['T3 450 000', 450_000, null],
+            'R+1 sans marque' => ['R+1 450 000', 450_000, null],
+            'numéro collé puis prix sans marque' => ['Appeler le 771234567, 450 000', 450_000, null],
+            'âge du bien' => ['Villa 5 ans, 450 000', 450_000, null],
+            'téléphone puis prix' => ['77 123 45 67 — 450 000 F', 450_000, null],
+            'deux montants marqués : le premier' => ['450 000 F, caution 900 000 F', 450_000, null],
+            // Revue : la période est celle qui suit le montant retenu, pas la première du texte.
+            'caution en mois sans période' => ['45M, caution 2 mois', 45_000_000, null],
+            'mois entre parenthèses' => ['45 000 000 F (négociable, 2 mois)', 45_000_000, null],
+            'caution puis loyer journalier' => ['caution 2 mois, 450 000 F/jour', 450_000, 'daily'],
+            "l'an" => ["1 200 000 F l'an", 1_200_000, 'yearly'],
         ];
     }
 
@@ -61,6 +81,14 @@ class RadarAmountParserTest extends TestCase
             'déraisonnablement long' => ['99999999999999999999 F'],
             'multiplicateur qui déborde' => ['999999999999 milliards'],
             'bruit' => ['%%%--///'],
+            'surface seule' => ['120 m2'],
+            'surface collée' => ['15m2'],
+            'surface en exposant' => ['15 m²'],
+            'téléphone seul' => ['77 123 45 67'],
+            'téléphone collé seul' => ['Tél 771234567'],
+            'décimale nue' => ['1.5'],
+            'durée seule' => ['2 ans'],
+            'plusieurs nombres sans marque' => ['450 000 ou 500 000'],
         ];
     }
 
@@ -68,11 +96,6 @@ class RadarAmountParserTest extends TestCase
     public function test_rien_de_lisible_rend_null(string $text): void
     {
         $this->assertNull(RadarAmountParser::parse($text));
-    }
-
-    public function test_un_m2_n_est_pas_un_million(): void
-    {
-        $this->assertSame(['amount' => 15, 'period' => null], RadarAmountParser::parse('15 m²'));
     }
 
     public function test_sejour_n_est_pas_une_periode_journaliere(): void

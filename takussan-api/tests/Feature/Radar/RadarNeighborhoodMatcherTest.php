@@ -134,6 +134,19 @@ class RadarNeighborhoodMatcherTest extends TestCase
         $this->assertSame([$mermoz->id], array_column($result['suggestions'], 'id'));
     }
 
+    public function test_l_inclusion_demande_une_cle_d_au_moins_trois_caracteres(): void
+    {
+        $dakar = $this->city('Dakar');
+        $this->quartier($dakar, 'Liberté 1');
+        $this->quartier($dakar, 'Fa');
+
+        // « rt » est dans « Liberté 1 », « Fa » dans « Rue Fa Mermoz » : trop court pour suggérer.
+        $this->assertSame([], $this->matcher->match('rt', 'Dakar')['suggestions']);
+        $this->assertSame([], $this->matcher->match('Rue Fa Mermoz', 'Dakar')['suggestions']);
+        // Le préfixe reste permis à deux caractères.
+        $this->assertSame(['Liberté 1'], array_column($this->matcher->match('Li', 'Dakar')['suggestions'], 'name'));
+    }
+
     public function test_un_texte_vide_ne_rend_rien(): void
     {
         $this->quartier($this->city('Dakar'), 'Liberté 6');

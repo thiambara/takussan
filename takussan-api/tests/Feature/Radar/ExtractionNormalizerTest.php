@@ -8,6 +8,7 @@ use App\Models\GeoNeighborhood;
 use App\Services\Radar\ExtractionNormalizer;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 /**
@@ -122,6 +123,36 @@ class ExtractionNormalizerTest extends TestCase
         $this->assertSame([], $out['bedrooms']['flags']);
     }
 
+    /** @return array<string, array{string, string}> passage cité → texte source où il se trouve */
+    public static function passagesRetrouves(): array
+    {
+        return [
+            'troncature par points de suspension' => ['Loyer : 450.000f…', 'Loyer : 450.000f/mois, charges comprises'],
+            'trois points entre deux segments' => ['Appartement ... Liberté 6', 'Appartement à louer à Liberté 6, Dakar'],
+            'source décomposée (NFD)' => ['Liberté 6', "Appartement à Liberte\u{0301} 6"],
+            'passage sans accents' => ['Liberte 6 Medina', 'Appartement à Liberté 6 Médina'],
+            'tirets typographiques' => ['Grand-Yoff', "Villa à Grand\u{2011}Yoff"],
+            'guillemets français contre droits' => ['"mon appartement"', 'Je loue « mon appartement » meublé'],
+            'apostrophe typographique' => ["l'appartement", 'Je loue l’appartement du haut'],
+        ];
+    }
+
+    #[DataProvider('passagesRetrouves')]
+    public function test_un_passage_cite_se_retrouve_malgre_la_typographie(string $evidence, string $source): void
+    {
+        $out = $this->normalizer->normalize(self::raw(['title' => self::field('Titre', $evidence)]), $source);
+
+        $this->assertSame([], $out['title']['flags']);
+        $this->assertSame('high', $out['title']['confidence']);
+    }
+
+    public function test_des_segments_tronques_dans_le_desordre_ne_se_retrouvent_pas(): void
+    {
+        $out = $this->normalizer->normalize(self::raw(['title' => self::field('Titre', 'Liberté 6 … Appartement')]), self::SOURCE);
+
+        $this->assertSame(['evidence_not_in_source'], $out['title']['flags']);
+    }
+
     // ─── AC4 — le prix lu par du code, et borné ──────────────────────────────────────────
 
     public function test_ac4_1m5_devient_1_500_000_xof(): void
@@ -191,6 +222,40 @@ class ExtractionNormalizerTest extends TestCase
             $this->assertSame('low', $out[$field]['confidence'], $field);
         }
         $this->assertSame(45, $out['bedrooms']['value']);
+    }
+
+    public function test_une_vente_ne_deduit_jamais_de_periode_de_loyer(): void
+    {
+        $out = $this->normalizer->normalize(self::raw([
+            'contract' => self::field('sale', 'à vendre'),
+            'price' => self::field('1 500 000 F/mois', '1 500 000 F/mois'),
+        ]), null);
+
+        $this->assertSame('monthly', $out['price']['period']);
+        $this->assertNull($out['rent_period']['value']);
+    }
+
+    public function test_une_periode_deduite_garde_le_drapeau_de_la_valeur_invalide_du_modele(): void
+    {
+        $out = $this->normalizer->normalize(self::raw(['rent_period' => self::field('month', 'par mois')]), null);
+
+        $this->assertSame('monthly', $out['rent_period']['value']);
+        $this->assertSame(['invalid_value'], $out['rent_period']['flags']);
+        $this->assertSame('low', $out['rent_period']['confidence']);
+    }
+
+    public function test_un_prix_rendu_en_nombre_est_deja_en_xof(): void
+    {
+        $entier = $this->normalizer->normalize(self::raw(['price' => self::field(450000, '450 000')]), null);
+        $flottant = $this->normalizer->normalize(self::raw(['price' => self::field(450000.4, '450 000')]), null);
+        $petit = $this->normalizer->normalize(self::raw(['price' => self::field(1.5, '1.5')]), null);
+        $negatif = $this->normalizer->normalize(self::raw(['price' => self::field(-5, '-5')]), null);
+
+        $this->assertSame([450_000, '450000', []], [$entier['price']['value'], $entier['price']['raw'], $entier['price']['flags']]);
+        $this->assertSame(450_000, $flottant['price']['value']);
+        // 1.5 n'est pas « 1,5 million » : un nombre rendu est un montant en XOF, ici hors bornes.
+        $this->assertSame([2, ['out_of_bounds']], [$petit['price']['value'], $petit['price']['flags']]);
+        $this->assertSame([null, ['invalid_value']], [$negatif['price']['value'], $negatif['price']['flags']]);
     }
 
     public function test_un_prix_illisible_est_null_et_signale(): void

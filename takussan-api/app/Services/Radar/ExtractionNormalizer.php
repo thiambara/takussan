@@ -25,12 +25,15 @@ use App\Support\RadarPhone;
  * Règles :
  *   - un champ rendu SANS passage cité tombe à la confiance la plus basse (AC3,
  *     `evidence_missing`) ; un passage introuvable dans le texte source aussi
- *     (`evidence_not_in_source`, comparaison après repli de la casse, des blancs, des apostrophes
- *     et des chiffres) — sans texte source (captures), la présence n'est pas contrôlée. Un champ
+ *     (`evidence_not_in_source` ; repli NFC, casse, blancs, chiffres, tirets, apostrophes et
+ *     guillemets ; un passage tronqué par « … » se cherche segment par segment, dans l'ordre ; à
+ *     défaut, sans accents) — sans texte source (captures), la présence n'est pas contrôlée. Un champ
  *     sans valeur (null, ou `unknown` pour la nature de l'annonceur) n'a rien à justifier : pas de
  *     drapeau, confiance `low` ;
- *   - `price` est lu par {@see RadarAmountParser} (`unparsed_amount` s'il n'en sort rien) ;
- *     `rent_period` absente se déduit de la période du prix ;
+ *   - `price` est lu par {@see RadarAmountParser} (`unparsed_amount` s'il n'en sort rien) ; un
+ *     nombre rendu tel quel est déjà en XOF (arrondi, `invalid_value` s'il n'est pas positif) ;
+ *     `rent_period` absente se déduit de la période du prix, jamais pour une vente, sans effacer
+ *     le drapeau d'une valeur invalide du modèle ;
  *   - les bornes de `config('radar.bounds')` (`out_of_bounds`) ; la valeur reste, l'humain tranche ;
  *   - une valeur d'enum ou de type inattendu devient `null` (`unknown` pour la nature), drapeau
  *     `invalid_value` ;
@@ -59,6 +62,7 @@ final class ExtractionNormalizer
     public function normalize(array $raw, ?string $sourceText): array
     {
         $source = $sourceText !== null && trim($sourceText) !== '' ? self::fold($sourceText) : null;
+        $source = $source === null ? null : ['folded' => $source, 'bare' => self::withoutAccents($source)];
 
         $out = [];
         foreach ([...RadarExtraction::PROPERTY_FIELDS, ...RadarExtraction::ADVERTISER_FIELDS] as $field) {
@@ -66,12 +70,15 @@ final class ExtractionNormalizer
         }
 
         $out['price'] = $this->boundPrice($out['price'], $out['contract']['value'], $out['rent_period']['value']);
-        if ($out['rent_period']['value'] === null && $out['price']['period'] !== null) {
+        // Une vente n'a pas de période de loyer, même si le texte du prix en porte une. Les drapeaux
+        // déjà posés (une valeur invalide du modèle) restent : la période déduite ne les efface pas.
+        if ($out['rent_period']['value'] === null && $out['price']['period'] !== null && $out['contract']['value'] !== 'sale') {
+            $flags = $out['rent_period']['flags'];
             $out['rent_period'] = [
                 'value' => $out['price']['period'],
-                'confidence' => $out['price']['confidence'],
+                'confidence' => $flags === [] ? $out['price']['confidence'] : RadarConfidence::lowest()->value,
                 'evidence' => $out['price']['evidence'],
-                'flags' => [],
+                'flags' => $flags,
             ];
         }
 
@@ -85,12 +92,15 @@ final class ExtractionNormalizer
         return $out;
     }
 
-    /** @return array{value: mixed, confidence: string, evidence: ?string, flags: list<string>} */
-    private function field(string $field, mixed $entry, ?string $source): array
+    /**
+     * @param  array{folded: string, bare: string}|null  $source
+     * @return array{value: mixed, confidence: string, evidence: ?string, flags: list<string>}
+     */
+    private function field(string $field, mixed $entry, ?array $source): array
     {
         $entry = is_array($entry) ? $entry : [];
         $rawValue = $entry['value'] ?? null;
-        $evidence = is_string($entry['evidence'] ?? null) && trim($entry['evidence']) !== '' ? trim($entry['evidence']) : null;
+        $evidence = is_string($entry['evidence'] ?? null) && self::segments($entry['evidence']) !== [] ? trim($entry['evidence']) : null;
         $confidence = RadarConfidence::tryFrom(is_string($entry['confidence'] ?? null) ? $entry['confidence'] : '') ?? RadarConfidence::lowest();
 
         [$value, $flags, $extra] = $this->value($field, $rawValue);
@@ -99,7 +109,7 @@ final class ExtractionNormalizer
             && ! ($field === 'advertiser_nature' && $rawValue === RadarAdvertiserNature::Unknown->value);
         if ($present && $evidence === null) {
             array_unshift($flags, self::FLAG_EVIDENCE_MISSING);
-        } elseif ($present && $source !== null && ! str_contains($source, self::fold((string) $evidence))) {
+        } elseif ($present && $source !== null && ! self::inSource((string) $evidence, $source)) {
             array_unshift($flags, self::FLAG_EVIDENCE_NOT_IN_SOURCE);
         }
 
@@ -230,11 +240,16 @@ final class ExtractionNormalizer
      */
     private function price(mixed $value): array
     {
-        $raw = match (true) {
-            is_string($value) => trim($value) === '' ? null : trim($value),
-            is_int($value), is_float($value) => (string) $value,
-            default => null,
-        };
+        // Un nombre rendu tel quel est déjà un montant en XOF (aucun multiplicateur à lire) : arrondi.
+        if (is_int($value) || is_float($value)) {
+            $amount = is_float($value) && is_finite($value) && abs($value) < 1e15 ? (int) round($value) : $value;
+
+            return is_int($amount) && $amount > 0
+                ? [$amount, [], ['raw' => (string) $value, 'period' => null]]
+                : [null, [self::FLAG_INVALID_VALUE], ['raw' => (string) $value, 'period' => null]];
+        }
+
+        $raw = is_string($value) && trim($value) !== '' ? trim($value) : null;
         if ($raw === null) {
             return [null, $value === null || $value === '' ? [] : [self::FLAG_INVALID_VALUE], ['raw' => null, 'period' => null]];
         }
@@ -338,12 +353,64 @@ final class ExtractionNormalizer
         return $out;
     }
 
-    /** Le repli sous lequel un passage cité se cherche dans le texte source. */
+    /**
+     * Le passage cité se trouve-t-il dans la source ? Un passage tronqué (« … », « ... ») se coupe
+     * en segments, qui doivent s'y trouver dans l'ordre. Repli de la typographie d'abord
+     * ({@see self::fold()}) ; à défaut, les deux côtés sans accents — le modèle en perd parfois.
+     *
+     * @param  array{folded: string, bare: string}  $source
+     */
+    private static function inSource(string $evidence, array $source): bool
+    {
+        $segments = array_map(self::fold(...), self::segments($evidence));
+
+        return self::inOrder($segments, $source['folded'])
+            || self::inOrder(array_map(self::withoutAccents(...), $segments), $source['bare']);
+    }
+
+    /** @return list<string> les segments non vides d'un passage, coupé à ses points de suspension */
+    private static function segments(string $evidence): array
+    {
+        $parts = preg_split('/…|\.{3,}/u', $evidence) ?: [$evidence];
+
+        return array_values(array_filter(array_map('trim', $parts), static fn (string $p): bool => $p !== ''));
+    }
+
+    /** @param  list<string>  $segments */
+    private static function inOrder(array $segments, string $haystack): bool
+    {
+        $offset = 0;
+        foreach ($segments as $segment) {
+            $at = $segment === '' ? false : mb_strpos($haystack, $segment, $offset);
+            if ($at === false) {
+                return false;
+            }
+            $offset = $at + mb_strlen($segment);
+        }
+
+        return $segments !== [];
+    }
+
+    /**
+     * Le repli sous lequel un passage cité se cherche dans le texte source : forme NFC, chiffres
+     * ASCII, invisibles retirés, apostrophes en `'`, tirets en `-`, guillemets retirés (« » “ ” "),
+     * blancs fusionnés, minuscules.
+     */
     private static function fold(string $text): string
     {
-        $text = PhoneMasker::normalizeDigits((string) preg_replace(PhoneMasker::INVISIBLE, '', $text));
-        $text = strtr($text, ['’' => "'", 'ʼ' => "'", '‘' => "'"]);
+        $nfc = \Normalizer::normalize($text, \Normalizer::FORM_C);
+        $text = PhoneMasker::normalizeDigits((string) preg_replace(PhoneMasker::INVISIBLE, '', $nfc === false ? $text : $nfc));
+        $text = strtr($text, ['’' => "'", 'ʼ' => "'", '‘' => "'", '`' => "'", '´' => "'"]);
+        $text = (string) preg_replace('/[«»“”„‟"]/u', ' ', $text);
+        $text = (string) preg_replace('/[‐‑‒–—―−]/u', '-', $text);
 
         return trim((string) preg_replace('/[\s\x{00A0}\x{202F}\x{2009}]+/u', ' ', mb_strtolower($text)));
+    }
+
+    private static function withoutAccents(string $folded): string
+    {
+        $nfd = \Normalizer::normalize($folded, \Normalizer::FORM_D);
+
+        return (string) preg_replace('/\p{Mn}+/u', '', $nfd === false ? $folded : $nfd);
     }
 }
