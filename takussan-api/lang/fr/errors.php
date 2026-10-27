@@ -68,6 +68,13 @@ return [
     'agent_handover' => [
         'member_not_staff' => "La passation ne concerne qu'un agent ou un administrateur de l'agence ; un bailleur n'en fait pas l'objet.",
     ],
+    'ai' => [
+        'model_unpriced' => "Ce modèle n'a pas de tarif : il ne peut pas être affecté.",
+        'provider_key_missing' => "Aucune clé n'est configurée pour ce fournisseur.",
+        'provider_unknown' => 'Fournisseur IA inconnu.',
+        'role_unknown' => 'Rôle IA inconnu.',
+        'usage_unknown' => 'Usage IA inconnu.',
+    ],
     'auth' => [
         'account_blocked' => 'Ce compte est bloqué.',
         'insufficient_privileges' => 'Droits insuffisants.',

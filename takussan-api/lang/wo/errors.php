@@ -68,6 +68,13 @@ return [
     'agent_handover' => [
         'member_not_staff' => 'Jox liggéey bi, ajaŋ walla njiitu ajaans bi rekk la jëm ; boroom kër bokkul ci.',
     ],
+    'ai' => [
+        'model_unpriced' => "Ce modèle n'a pas de tarif : il ne peut pas être affecté.",
+        'provider_key_missing' => "Aucune clé n'est configurée pour ce fournisseur.",
+        'provider_unknown' => 'Fournisseur IA inconnu.',
+        'role_unknown' => 'Rôle IA inconnu.',
+        'usage_unknown' => 'Usage IA inconnu.',
+    ],
     'auth' => [
         'account_blocked' => 'Kont bii dañu ko tëj.',
         'insufficient_privileges' => 'Sañ-sañ yi doyuñu.',

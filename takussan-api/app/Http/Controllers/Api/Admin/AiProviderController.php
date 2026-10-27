@@ -1,0 +1,48 @@
+<?php
+
+namespace App\Http\Controllers\Api\Admin;
+
+use App\Ai\Usages\ConnectionTestUsage;
+use App\Http\Controllers\Base\Controller;
+use App\Services\Ai\AiGateway;
+use App\Services\Ai\AiProviderCatalogue;
+use App\Services\Ai\AiRequest;
+use App\Services\Ai\Exceptions\AiRefused;
+use App\Services\Ai\Exceptions\AiUnavailable;
+use App\Services\Ai\ModelLink;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Throwable;
+
+/**
+ * TCK-2385 (ADR-0076 §3) — les fournisseurs : une clé présente ou non, et un test de connexion qui
+ * passe par la passerelle (journalisé, budgété). Aucune route ne rend ni n'accepte une clé.
+ */
+class AiProviderController extends Controller
+{
+    public function __construct(private readonly AiProviderCatalogue $providers) {}
+
+    public function index(): JsonResponse
+    {
+        return $this->json(['data' => $this->providers->describe()]);
+    }
+
+    public function test(Request $request, string $provider, AiGateway $gateway): JsonResponse
+    {
+        abort_code_unless($this->providers->has($provider), 404, 'ai.provider_unknown');
+        abort_code_unless($this->providers->keyPresent($provider), 422, 'ai.provider_key_missing');
+        $model = $this->providers->cheapestModel($provider);
+        abort_code_unless($model !== null, 422, 'ai.model_unpriced');
+
+        try {
+            $result = $gateway->run(new AiRequest(ConnectionTestUsage::KEY, 'OK ?', actor: $request->user(), link: new ModelLink($provider, $model, 16)));
+
+            return $this->json(['data' => ['ok' => true, 'model' => $model, 'duration_ms' => $result->call->duration_ms, 'error_code' => null]]);
+        } catch (AiRefused|AiUnavailable $e) {
+            return $this->json(['data' => ['ok' => false, 'model' => $model, 'duration_ms' => null, 'error_code' => $e->getMessage()]]);
+        } catch (Throwable $e) {
+            // Le message d'un fournisseur ne sort pas : seul le nom de l'erreur, déjà journalisé.
+            return $this->json(['data' => ['ok' => false, 'model' => $model, 'duration_ms' => null, 'error_code' => class_basename($e)]]);
+        }
+    }
+}

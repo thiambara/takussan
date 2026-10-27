@@ -68,6 +68,13 @@ return [
     'agent_handover' => [
         'member_not_staff' => 'A handover only applies to an agent or an administrator of the agency; a landlord is not handed over.',
     ],
+    'ai' => [
+        'model_unpriced' => 'This model has no price: it cannot be assigned.',
+        'provider_key_missing' => 'No key is configured for this provider.',
+        'provider_unknown' => 'Unknown AI provider.',
+        'role_unknown' => 'Unknown AI role.',
+        'usage_unknown' => 'Unknown AI usage.',
+    ],
     'auth' => [
         'account_blocked' => 'This account is blocked.',
         'insufficient_privileges' => 'Insufficient privileges.',
