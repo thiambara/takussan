@@ -135,7 +135,7 @@ Plan : [`docs/plans/2026-10-27-radar-tck-2386.md`](../../plans/2026-10-27-radar-
 | AC6 | `RadarListingStoreTest::test_ac6_*` (aucun job), `ExtractRadarListingTest::test_ac6_*` et les STOP relus après lecture de l'URL, des captures et sur chaque numéro de la sortie |
 | AC7 | `RadarListingStoreTest::test_ac7_*`, `RadarExtractionUsageTest::test_a_viewer_is_refused_without_reaching_the_model` |
 
-**AC8 n'est pas coché** : `ai:eval radar.extraction --update-baseline` joue le jeu de 30 cas contre le vrai modèle (coût réel, faible). Il attend l'accord du porteur ; tant que `baseline.json` n'existe pas, le cliquet de l'usage ne garde rien. Les 30 cas sont **synthétiques** (aucune annonce réelle collectée à ce jour), ce que dit le `README.md` du jeu.
+**AC8 n'est pas coché, et le ticket fusionne en `doing`** (décision du porteur du 2026-10-27) : `ai:eval radar.extraction --update-baseline` joue le jeu de 30 cas contre le vrai modèle (coût réel, faible). Il attend l'accord du porteur ; tant que `baseline.json` n'existe pas, le cliquet de l'usage ne garde rien. Les 30 cas sont **synthétiques** (aucune annonce réelle collectée à ce jour), ce que dit le `README.md` du jeu.
 
 **Écarts et décisions prises en route** :
 
@@ -147,4 +147,26 @@ Plan : [`docs/plans/2026-10-27-radar-tck-2386.md`](../../plans/2026-10-27-radar-
 - **Captures** : 10 fichiers de 8 Mo au plus, **24 Mo au total**, vérifiés côté client — le `post_max_size` de l'image de l'API est 26M (`docker/php.ini`) ; un test du front relit ces deux fichiers. Un 413 a son libellé Radar.
 - **Front** : relais multipart allongé à 90 s (`relayerVersApi`, comme le KYC) ; le rafraîchissement ne tourne que pendant une extraction réellement en cours (pas sur une annonce garée sur le budget ou l'arrêt d'urgence).
 
-**Non vérifié** : l'écran `/super-admin/radar` au navigateur.
+**Revue finale de la branche, puis décisions du porteur du 2026-10-27** :
+
+- **L'annonceur ne vient que d'un numéro que la source porte** : pour un texte ou une URL, un
+  numéro rendu par le modèle sans figurer dans la source est écarté (`phones_flags:
+  [evidence_not_in_source]`, non conservé — son affichage est TCK-2387). Parmi les numéros gardés,
+  **l'ordre du modèle** désigne l'annonceur ; ceux du texte ne servent qu'à défaut. Le refus STOP
+  se juge sur l'union de tous les numéros, écartés compris. L'annonceur est créé sous le verrou de
+  l'annonce (aucun orphelin) et ne s'enrichit que de champs sans drapeau.
+- **Recoller une annonce en `extraction_failed` la relance** (`requeued: true`), au nom de
+  l'opérateur qui recolle (`captured_by`). Mise à jour conditionnelle : deux renvois simultanés
+  ne relancent qu'une fois.
+- **Lecture d'URL bornée à 45 s au total** (`radar.fetch.total_timeout_seconds`), sauts et
+  `robots.txt` compris, résolution DNS incluse ; le créneau du domaine expire à 65 s au lieu de
+  305 s.
+- Une URL Airbnb d'un lot est nommée (`params.field = urls.N`) ; le front relit pendant les
+  attentes courtes (`radar.fetch.deferred`, réessai unique).
+- Hors de ce ticket : la file des appels IA (**TCK-2402**, avant la production), l'affichage des
+  numéros écartés (TCK-2387), la purge des passages cités (TCK-2391), l'ordre des verrous du
+  gestionnaire de STOP (TCK-2388).
+
+**Non vérifié** : l'écran `/super-admin/radar` au navigateur. En local, le PHP de brew borne
+l'envoi à 2 Mo par fichier et 8 Mo au total (l'image : 8 et 26) : une capture de 3 Mo y échoue
+sans libellé Radar.
