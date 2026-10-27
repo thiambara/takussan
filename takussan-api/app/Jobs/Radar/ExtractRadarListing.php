@@ -52,8 +52,9 @@ use Throwable;
  *     la passerelle joue alors le rôle `vision` ;
  *  5. **la sortie relue** par `ExtractionNormalizer`. Le refus STOP est rejugé sur TOUS les numéros
  *     (ceux du texte et ceux de la sortie, même écartés) ; sinon l'annonceur du premier numéro est
- *     rattaché — ceux du texte d'abord, puis ceux de la sortie que le texte porte (pour une source
- *     texte ou URL, un numéro que le modèle est seul à donner ne désigne personne). Il est trouvé
+ *     rattaché — ceux de la sortie que le texte porte d'abord, dans l'ordre du modèle, puis ceux du
+ *     texte (pour une source texte ou URL, un numéro que le modèle est seul à donner ne désigne
+ *     personne). Il est trouvé
  *     ou créé SOUS le verrou de l'annonce, puis son refus relu sous le sien (ordre : l'annonce,
  *     puis l'annonceur). Un STOP → `do_not_contact`, l'extraction n'est pas gardée et l'annonceur
  *     n'est pas enrichi ; l'enrichissement ne lit que des champs sans drapeau.
@@ -256,9 +257,11 @@ final class ExtractRadarListing implements ShouldQueue
             return;
         }
 
-        // L'annonceur se choisit parmi les numéros du texte d'abord, puis ceux que le modèle a rendus
-        // et que la normalisation a gardés (présents dans le texte, sauf pour des captures).
-        $phones = self::canonicalPhones([...RadarPhone::fromText($text), ...(array) ($normalized['phones'] ?? [])]);
+        // L'annonceur se choisit d'abord parmi les numéros que le modèle a rendus ET que la
+        // normalisation a gardés (présents dans le texte, sauf pour des captures), dans son ordre :
+        // le choix du contact principal lui revient (décision du porteur, 2026-10-27). Les numéros
+        // du texte suivent, pour le cas où il n'en a gardé aucun.
+        $phones = self::canonicalPhones([...(array) ($normalized['phones'] ?? []), ...RadarPhone::fromText($text)]);
         // Le refus se juge sur chaque numéro, pas sur le seul premier — y compris ceux du modèle
         // que la normalisation a écartés : prudence.
         if ($this->refuseIfStopped($directory, self::canonicalPhones([...$phones, ...(array) ($result->structured['phones'] ?? [])]))) {

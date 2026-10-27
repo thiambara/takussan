@@ -99,7 +99,7 @@ final class RadarListingIntake
         // Un renvoi se reconnaît à l'empreinte des originaux, avant tout décodage.
         $existing = RadarListing::query()->where('content_fingerprint', $fingerprint)->first();
         if ($existing !== null) {
-            return $this->known($existing);
+            return $this->known($existing, $by);
         }
 
         // Tout se lit et se réencode AVANT la moindre écriture : une image illisible ou démesurée
@@ -246,7 +246,7 @@ final class RadarListingIntake
     {
         $existing = RadarListing::query()->where('content_fingerprint', $fingerprint)->first();
         if ($existing !== null) {
-            return $this->known($existing);
+            return $this->known($existing, $by);
         }
 
         // `insertOrIgnore` court-circuite les événements du modèle : `purge_at` est donc posé ici,
@@ -293,19 +293,23 @@ final class RadarListingIntake
      * simultanés se sérialisent sur la ligne, le second n'en touche aucune, et seul celui qui l'a
      * changée met le job en file (après le commit). Toute autre étape reste ce qu'elle est.
      *
+     * Celui qui recolle devient l'auteur de la saisie (décision du porteur, 2026-10-27) : c'est en
+     * son nom que la passerelle juge l'appel, et un échec `ai.forbidden` d'un opérateur rétrogradé
+     * ou supprimé ne se rejoue pas à l'identique.
+     *
      * @return array{listing: RadarListing, existing: true, requeued: bool}
      */
-    private function known(RadarListing $listing): array
+    private function known(RadarListing $listing, User $by): array
     {
         if ($listing->stage !== RadarListingStage::ExtractionFailed) {
             return ['listing' => $listing, 'existing' => true, 'requeued' => false];
         }
 
-        $requeued = DB::transaction(function () use ($listing): bool {
+        $requeued = DB::transaction(function () use ($listing, $by): bool {
             $updated = RadarListing::query()
                 ->whereKey($listing->id)
                 ->where('stage', RadarListingStage::ExtractionFailed->value)
-                ->update(['stage' => RadarListingStage::Captured->value, 'stage_reason' => null, 'updated_at' => now()]);
+                ->update(['stage' => RadarListingStage::Captured->value, 'stage_reason' => null, 'captured_by' => $by->id, 'updated_at' => now()]);
             if ($updated !== 1) {
                 return false;
             }

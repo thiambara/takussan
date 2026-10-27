@@ -116,6 +116,31 @@ class RadarListingStoreTest extends TestCase
         Queue::assertPushed(ExtractRadarListing::class, 2);
     }
 
+    public function test_f2_the_operator_who_pastes_again_becomes_the_capturer_of_the_requeued_listing(): void
+    {
+        // Décision du porteur (2026-10-27) : celui qui recolle devient l'auteur de la saisie — un
+        // échec `ai.forbidden` d'un opérateur rétrogradé ou supprimé ne se rejoue pas à l'identique.
+        $this->support();
+        $id = $this->postJson('/api/admin/radar/listings', ['text' => self::TEXTE])->assertCreated()->json('data.0.id');
+        RadarListing::query()->whereKey($id)->update(['stage' => RadarListingStage::ExtractionFailed->value, 'stage_reason' => 'ai.forbidden']);
+
+        $autre = $this->agirEnOperateur(PlatformProfileLevel::Support);
+        $this->postJson('/api/admin/radar/listings', ['text' => self::TEXTE])->assertJsonPath('data.0.requeued', true);
+
+        $this->assertSame($autre->id, RadarListing::query()->sole()->captured_by);
+    }
+
+    public function test_f2_pasting_again_a_listing_that_did_not_fail_keeps_its_capturer(): void
+    {
+        $premier = $this->agirEnOperateur(PlatformProfileLevel::Support);
+        $this->postJson('/api/admin/radar/listings', ['text' => self::TEXTE])->assertCreated();
+
+        $this->agirEnOperateur(PlatformProfileLevel::Support);
+        $this->postJson('/api/admin/radar/listings', ['text' => self::TEXTE])->assertJsonPath('data.0.requeued', false);
+
+        $this->assertSame($premier->id, RadarListing::query()->sole()->captured_by);
+    }
+
     public function test_f2_a_concurrent_paste_that_already_requeued_the_listing_dispatches_nothing_more(): void
     {
         $this->support();

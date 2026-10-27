@@ -290,9 +290,21 @@ class ExtractRadarListingTest extends TestCase
         $this->assertSame([self::NUMERO], $listing->extracted['phones']);
     }
 
-    public function test_f1_the_advertiser_is_the_first_number_of_the_source_whatever_the_model_order(): void
+    public function test_f1_the_advertiser_follows_the_model_order_among_the_numbers_of_the_source(): void
     {
+        // Décision du porteur (2026-10-27) : parmi les numéros présents dans la source, le choix du
+        // contact principal revient au modèle — un numéro de barre latérale placé plus haut ne l'emporte pas.
         RadarExtraction::fake([$this->reponse(['phones' => ['77 123 45 67', '78 765 43 21']])]);
+        $listing = $this->annonce(['raw_text' => 'Studio à Ngor. Moussa 78 765 43 21, ou son frère 77 123 45 67.']);
+
+        $this->lancer($listing);
+
+        $this->assertSame('+221771234567', $listing->refresh()->advertiser->phone);
+    }
+
+    public function test_f1_without_a_kept_model_number_the_advertiser_is_the_first_number_of_the_source(): void
+    {
+        RadarExtraction::fake([$this->reponse(['phones' => []])]);
         $listing = $this->annonce(['raw_text' => 'Studio à Ngor. Moussa 78 765 43 21, ou son frère 77 123 45 67.']);
 
         $this->lancer($listing);
