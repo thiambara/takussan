@@ -314,7 +314,7 @@ class ExtractRadarListingTest extends TestCase
                 'phones' => ['77 123 45 67', '78 999 88 77'],
             ]);
         });
-        $listing = $this->annonce(['raw_text' => 'Appartement F4 à louer aux Almadies, 450.000f/mois. Contactez Moussa Diop au 77 123 45 67']);
+        $listing = $this->annonce(['raw_text' => $texte]);
 
         $this->lancer($listing);
 

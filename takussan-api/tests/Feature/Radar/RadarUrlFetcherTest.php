@@ -5,6 +5,7 @@ namespace Tests\Feature\Radar;
 use App\Services\Radar\BoundedSink;
 use App\Services\Radar\Exceptions\RadarFetchDeferred;
 use App\Services\Radar\Exceptions\RadarFetchRefused;
+use App\Services\Radar\FetchedImage;
 use App\Services\Radar\HostResolver;
 use App\Services\Radar\UrlFetcher;
 use GuzzleHttp\Exception\ConnectException;
@@ -831,5 +832,204 @@ class RadarUrlFetcherTest extends TestCase
         ]);
 
         $this->assertSame(200, $this->fetcher()->fetch('https://www.expat-dakar.com/a')->status);
+    }
+
+    // ── fetchImage (TCK-2387) : une photo source, par le MÊME chemin protégé ─────────────────
+
+    /** Une PNG de 2 × 3 pixels. */
+    private static function png(): string
+    {
+        $image = imagecreatetruecolor(2, 3);
+        ob_start();
+        imagepng($image);
+        $bytes = (string) ob_get_clean();
+        imagedestroy($image);
+
+        return $bytes;
+    }
+
+    private function image(string $bytes, string $type = 'image/png'): PromiseInterface
+    {
+        return Http::response($bytes, 200, ['Content-Type' => $type]);
+    }
+
+    private function imageRefusalOf(string $url): string
+    {
+        try {
+            $this->fetcher()->fetchImage($url);
+        } catch (RadarFetchRefused $e) {
+            return $e->code;
+        }
+
+        $this->fail("L'image {$url} aurait dû être refusée.");
+    }
+
+    public function test_une_photo_servie_rend_son_type_ses_dimensions_et_ses_octets(): void
+    {
+        $png = self::png();
+        Http::fake([
+            'https://sn.coinafrique.com/robots.txt' => Http::response('', 404),
+            'https://sn.coinafrique.com/photos/1.png' => $this->image($png),
+        ]);
+
+        $image = $this->fetcher()->fetchImage('https://sn.coinafrique.com/photos/1.png');
+
+        $this->assertInstanceOf(FetchedImage::class, $image);
+        $this->assertSame('https://sn.coinafrique.com/photos/1.png', $image->url);
+        $this->assertSame('image/png', $image->mime);
+        $this->assertSame([2, 3], [$image->width, $image->height]);
+        $this->assertSame($png, $image->bytes);
+        Http::assertSent(fn (Request $r) => str_ends_with($r->url(), '/photos/1.png') && $r->header('User-Agent') === [self::UA]);
+    }
+
+    public function test_un_octet_stream_generique_est_accepte_si_les_octets_sont_une_image(): void
+    {
+        Http::fake([
+            'https://sn.coinafrique.com/robots.txt' => Http::response('', 404),
+            'https://sn.coinafrique.com/photos/1' => $this->image(self::png(), 'application/octet-stream'),
+        ]);
+
+        $this->assertSame('image/png', $this->fetcher()->fetchImage('https://sn.coinafrique.com/photos/1')->mime);
+    }
+
+    public function test_du_html_servi_en_image_png_n_est_pas_une_image(): void
+    {
+        Http::fake([
+            'https://sn.coinafrique.com/robots.txt' => Http::response('', 404),
+            'https://sn.coinafrique.com/photos/1.png' => $this->image('<html><body>Pas une image</body></html>'),
+        ]);
+
+        $this->assertSame('radar.fetch.not_image', $this->imageRefusalOf('https://sn.coinafrique.com/photos/1.png'));
+    }
+
+    public function test_une_image_declaree_en_html_n_est_pas_une_image(): void
+    {
+        Http::fake([
+            'https://sn.coinafrique.com/robots.txt' => Http::response('', 404),
+            'https://sn.coinafrique.com/photos/1.png' => $this->image(self::png(), 'text/html'),
+        ]);
+
+        $this->assertSame('radar.fetch.not_image', $this->imageRefusalOf('https://sn.coinafrique.com/photos/1.png'));
+    }
+
+    public function test_un_type_hors_de_la_liste_est_refuse(): void
+    {
+        config(['radar.photos.mimes' => ['image/jpeg']]);
+        Http::fake([
+            'https://sn.coinafrique.com/robots.txt' => Http::response('', 404),
+            'https://sn.coinafrique.com/photos/1.png' => $this->image(self::png()),
+        ]);
+
+        $this->assertSame('radar.fetch.not_image', $this->imageRefusalOf('https://sn.coinafrique.com/photos/1.png'));
+    }
+
+    public function test_une_erreur_http_sur_la_photo_est_refusee(): void
+    {
+        Http::fake([
+            'https://sn.coinafrique.com/robots.txt' => Http::response('', 404),
+            'https://sn.coinafrique.com/photos/1.png' => Http::response('', 404),
+        ]);
+
+        $this->assertSame('radar.fetch.http_error', $this->imageRefusalOf('https://sn.coinafrique.com/photos/1.png'));
+    }
+
+    public function test_une_redirection_de_photo_vers_les_metadonnees_est_refusee_et_la_cible_jamais_contactee(): void
+    {
+        Http::fake([
+            'https://sn.coinafrique.com/robots.txt' => Http::response('', 404),
+            'https://sn.coinafrique.com/photos/piege.png' => Http::response('', 302, ['Location' => 'http://169.254.169.254/latest/meta-data/']),
+            '169.254.169.254/*' => $this->image(self::png()),
+        ]);
+
+        $this->assertSame('radar.fetch.private_address', $this->imageRefusalOf('https://sn.coinafrique.com/photos/piege.png'));
+
+        Http::assertNotSent(fn (Request $r) => parse_url($r->url(), PHP_URL_HOST) === '169.254.169.254');
+    }
+
+    public function test_une_photo_d_une_adresse_privee_est_refusee_sans_rien_contacter(): void
+    {
+        Http::fake();
+
+        $this->assertSame('radar.fetch.private_address', $this->imageRefusalOf('http://127.0.0.1/photo.png'));
+
+        Http::assertNothingSent();
+    }
+
+    public function test_un_robots_txt_qui_interdit_le_chemin_de_la_photo_la_refuse(): void
+    {
+        Http::fake([
+            'https://sn.coinafrique.com/robots.txt' => Http::response("User-agent: *\nDisallow: /photos/\n", 200, ['Content-Type' => 'text/plain']),
+            'https://sn.coinafrique.com/photos/*' => $this->image(self::png()),
+        ]);
+
+        $this->assertSame('radar.fetch.robots', $this->imageRefusalOf('https://sn.coinafrique.com/photos/1.png'));
+        Http::assertNotSent(fn (Request $r) => str_contains($r->url(), '/photos/'));
+    }
+
+    public function test_une_photo_annoncee_plus_grosse_que_la_borne_des_photos_est_refusee(): void
+    {
+        config(['radar.photos.max_bytes' => 1000, 'radar.fetch.max_bytes' => 5_000_000]);
+        Http::fake([
+            'https://sn.coinafrique.com/robots.txt' => Http::response('', 404),
+            'https://sn.coinafrique.com/photos/1.png' => Http::response(self::png(), 200, ['Content-Type' => 'image/png', 'Content-Length' => '999999']),
+        ]);
+
+        $this->assertSame('radar.fetch.too_large', $this->imageRefusalOf('https://sn.coinafrique.com/photos/1.png'));
+    }
+
+    public function test_une_photo_lue_plus_grosse_que_la_borne_est_refusee_meme_sans_content_length(): void
+    {
+        config(['radar.photos.max_bytes' => 10]);
+        Http::fake([
+            'https://sn.coinafrique.com/robots.txt' => Http::response('', 404),
+            'https://sn.coinafrique.com/photos/1.png' => $this->image(self::png()),
+        ]);
+
+        $this->assertSame('radar.fetch.too_large', $this->imageRefusalOf('https://sn.coinafrique.com/photos/1.png'));
+    }
+
+    public function test_la_borne_des_pages_ne_borne_pas_les_photos(): void
+    {
+        // Une page de 100 octets au plus, une photo de 5 Mo au plus : chacune sa borne.
+        config(['radar.fetch.max_bytes' => 100, 'radar.photos.max_bytes' => 5_000_000]);
+        Http::fake([
+            'https://sn.coinafrique.com/robots.txt' => Http::response('', 404),
+            'https://sn.coinafrique.com/photos/1.png' => $this->image(self::png().str_repeat("\0", 500)),
+        ]);
+
+        $this->assertSame(2, $this->fetcher()->fetchImage('https://sn.coinafrique.com/photos/1.png')->width);
+    }
+
+    public function test_le_creneau_du_domaine_pris_differe_la_photo(): void
+    {
+        Http::fake([
+            'https://sn.coinafrique.com/robots.txt' => Http::response('', 404),
+            'https://sn.coinafrique.com/photos/*' => $this->image(self::png()),
+        ]);
+        $this->fetcher()->fetchImage('https://sn.coinafrique.com/photos/1.png');
+
+        try {
+            $this->fetcher()->fetchImage('https://sn.coinafrique.com/photos/2.png');
+            $this->fail('La seconde photo aurait dû être différée.');
+        } catch (RadarFetchDeferred $e) {
+            $this->assertGreaterThanOrEqual(1, $e->retryAfterSeconds);
+        }
+        Http::assertNotSent(fn (Request $r) => str_ends_with($r->url(), '/photos/2.png'));
+    }
+
+    public function test_la_photo_a_le_meme_delai_total_que_la_page(): void
+    {
+        config(['radar.fetch.total_timeout_seconds' => 1]);
+        Http::fake([
+            'https://sn.coinafrique.com/robots.txt' => function () {
+                $this->travel(3)->seconds();
+
+                return Http::response('', 404);
+            },
+            'https://sn.coinafrique.com/photos/1.png' => $this->image(self::png()),
+        ]);
+
+        $this->assertSame('radar.fetch.timeout', $this->imageRefusalOf('https://sn.coinafrique.com/photos/1.png'));
+        Http::assertNotSent(fn (Request $r) => str_ends_with($r->url(), '/photos/1.png'));
     }
 }

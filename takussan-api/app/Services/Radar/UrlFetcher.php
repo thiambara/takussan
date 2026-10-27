@@ -32,7 +32,8 @@ use InvalidArgumentException;
  * une lecture à la fois par domaine et un délai minimal entre deux (`RadarFetchDeferred`).
  *
  * **Bornée.** Délais courts, au plus `max_redirects` redirections, corps borné à `max_bytes`
- * (en-tête `Content-Length`, octets reçus au fil de l'eau par `BoundedSink`, puis taille lue). Un
+ * (en-tête `Content-Length`, octets reçus au fil de l'eau par `BoundedSink` — en mémoire, jamais sur
+ * disque —, puis taille lue) ; une photo source (`fetchImage()`) a sa propre borne. Un
  * délai TOTAL (`total_timeout_seconds`) couvre tous les sauts et leurs `robots.txt` : chaque requête
  * n'a que le temps qui reste, et plus aucune ne part une fois le délai passé (`timeout`).
  */
@@ -99,6 +100,64 @@ final class UrlFetcher
      */
     public function fetch(string $url): FetchedPage
     {
+        [$final, $response] = $this->retrieve($url, (int) config('radar.fetch.max_bytes', 2_000_000));
+
+        if (! $response->successful()) {
+            throw new RadarFetchRefused(RadarFetchRefused::HTTP_ERROR);
+        }
+
+        $body = $response->body();
+        $contentType = $response->header('Content-Type');
+        $contentType = $contentType === '' ? null : $contentType;
+
+        if (! $this->isHtml($contentType, $body)) {
+            throw new RadarFetchRefused(RadarFetchRefused::NOT_HTML);
+        }
+
+        return new FetchedPage($final, $response->status(), $body, $contentType);
+    }
+
+    /**
+     * TCK-2387 — une photo source, par le MÊME chemin protégé que la page (chaque saut contrôlé et
+     * épinglé, `robots.txt`, créneau du domaine, délai total), corps borné à `radar.photos.max_bytes`
+     * et gardé en mémoire (`BoundedSink`). Rien n'est écrit : l'appelant calcule l'empreinte et jette.
+     * Le type est relu dans les OCTETS (`getimagesizefromstring`), pas dans l'en-tête, qui doit
+     * seulement ne pas dire autre chose (image, ou octet-stream générique, ou absent).
+     *
+     * @throws RadarFetchRefused `not_image` en plus des codes de `fetch()`
+     * @throws RadarFetchDeferred
+     */
+    public function fetchImage(string $url): FetchedImage
+    {
+        [$final, $response] = $this->retrieve($url, (int) config('radar.photos.max_bytes'));
+
+        if (! $response->successful()) {
+            throw new RadarFetchRefused(RadarFetchRefused::HTTP_ERROR);
+        }
+
+        $bytes = $response->body();
+        $info = @getimagesizefromstring($bytes);
+        if (! is_array($info)
+            || ! in_array($info['mime'], (array) config('radar.photos.mimes'), true)
+            || ! self::declaresImage($response->header('Content-Type'))) {
+            throw new RadarFetchRefused(RadarFetchRefused::NOT_IMAGE);
+        }
+
+        return new FetchedImage($final, $bytes, $info['mime'], (int) $info[0], (int) $info[1]);
+    }
+
+    /**
+     * Le chemin protégé commun à `fetch()` et `fetchImage()` : contrôle du premier saut, créneau du
+     * domaine, `robots.txt`, redirections suivies à la main (chacune contrôlée), délai total. Rend
+     * l'URL finale et la réponse du dernier saut, corps borné à `$maxBytes`.
+     *
+     * @return array{0: string, 1: Response}
+     *
+     * @throws RadarFetchRefused
+     * @throws RadarFetchDeferred
+     */
+    private function retrieve(string $url, int $maxBytes): array
+    {
         $this->deadlineMs = now()->getTimestampMs() + 1000 * $this->totalTimeout();
 
         // Tout ce qui se refuse sans contacter personne se refuse AVANT de prendre le créneau du
@@ -116,7 +175,7 @@ final class UrlFetcher
                     throw new RadarFetchRefused(RadarFetchRefused::ROBOTS);
                 }
 
-                $response = $this->send($target);
+                $response = $this->send($target, $maxBytes);
                 $location = $this->redirectLocation($response);
                 if ($location === null) {
                     break;
@@ -133,19 +192,7 @@ final class UrlFetcher
             $this->release($held);
         }
 
-        if (! $response->successful()) {
-            throw new RadarFetchRefused(RadarFetchRefused::HTTP_ERROR);
-        }
-
-        $body = $response->body();
-        $contentType = $response->header('Content-Type');
-        $contentType = $contentType === '' ? null : $contentType;
-
-        if (! $this->isHtml($contentType, $body)) {
-            throw new RadarFetchRefused(RadarFetchRefused::NOT_HTML);
-        }
-
-        return new FetchedPage($target['url'], $response->status(), $body, $contentType);
+        return [$target['url'], $response];
     }
 
     /**
@@ -444,14 +491,15 @@ final class UrlFetcher
      *
      * @param  array{url: string, scheme: string, host: string, port: int, pathQuery: string, ips: list<string>}  $target
      */
-    private function send(array $target): Response
+    private function send(array $target, ?int $maxBytes = null): Response
     {
         $remaining = $this->remainingSeconds();
         if ($remaining <= 0) {
             throw new RadarFetchRefused(RadarFetchRefused::TIMEOUT);
         }
 
-        $maxBytes = (int) config('radar.fetch.max_bytes', 2_000_000);
+        // Le `robots.txt` garde la borne des pages ; une photo passe la sienne.
+        $maxBytes ??= (int) config('radar.fetch.max_bytes', 2_000_000);
         $sink = new BoundedSink($maxBytes);
 
         try {
@@ -531,6 +579,14 @@ final class UrlFetcher
         $head = ltrim(substr(preg_replace('/^\xEF\xBB\xBF/', '', $body) ?? $body, 0, 1024));
 
         return preg_match('/^(<!--.*?-->\s*)*<(!doctype\s+html|html[\s>])/is', $head) === 1;
+    }
+
+    /** L'en-tête ne contredit pas les octets : absent, `image/*`, ou un octet-stream générique. */
+    private static function declaresImage(string $contentType): bool
+    {
+        $mime = strtolower(trim(explode(';', $contentType, 2)[0]));
+
+        return $mime === '' || str_starts_with($mime, 'image/') || in_array($mime, ['application/octet-stream', 'binary/octet-stream'], true);
     }
 
     private static function inRange(string $binary, string $cidr): bool

@@ -31,6 +31,9 @@ final class RadarFetchRefused extends RuntimeException
 
     public const NOT_HTML = 'radar.fetch.not_html';
 
+    /** TCK-2387 — une photo source dont les octets, relus, ne sont pas une image d'un type attendu. */
+    public const NOT_IMAGE = 'radar.fetch.not_image';
+
     public const HTTP_ERROR = 'radar.fetch.http_error';
 
     public const TIMEOUT = 'radar.fetch.timeout';
