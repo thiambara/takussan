@@ -21,9 +21,11 @@ final class RadarPhone
 
     /**
      * Un indicatif de pays (`+33`, `0033`) juste avant le motif, au plus un séparateur entre eux :
-     * ce que le motif a trouvé est la suite d'un numéro étranger. `221` excepté.
+     * ce que le motif a trouvé est la suite d'un numéro étranger. `221` excepté. Un indicatif ne
+     * commence jamais par 0 : sans `[1-9]`, le `000` d'un prix (`450 000 77 123 45 67`) se lisait
+     * `00` + indicatif `0`.
      */
-    private const FOREIGN_PREFIX = '/(?<![\d+])(?:\+|00)(\d{1,3})[\s\x{00A0}\x{202F}.\-\/]?$/u';
+    private const FOREIGN_PREFIX = '/(?<![\d+])(?:\+|00)([1-9]\d{0,2})[\s\x{00A0}\x{202F}.\-\/]?$/u';
 
     /**
      * Les numéros du texte, en `+221XXXXXXXXX`, dédoublonnés, dans l'ordre d'apparition.

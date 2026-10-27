@@ -743,6 +743,23 @@ class RadarUrlFetcherTest extends TestCase
         $this->assertSame('radar.fetch.timeout', $this->refusalOf('https://sn.coinafrique.com/annonce/1'));
     }
 
+    public function test_f5_une_redirection_recue_apres_le_delai_total_ne_resout_pas_son_hote(): void
+    {
+        // La résolution DNS n'a pas de délai propre : passé l'échéance, le saut suivant n'est plus résolu.
+        $this->dns['www.coinafrique.com'] = [self::PUBLIC_IP];
+        Http::fake(function (Request $request) {
+            if (str_ends_with($request->url(), '/robots.txt')) {
+                return Http::response('', 404);
+            }
+            $this->travel(46)->seconds();
+
+            return Http::response('', 301, ['Location' => 'https://www.coinafrique.com/annonce/1']);
+        });
+
+        $this->assertSame('radar.fetch.timeout', $this->refusalOf('https://sn.coinafrique.com/annonce/1'));
+        $this->assertNotContains('www.coinafrique.com', $this->resolved);
+    }
+
     public function test_f5_le_creneau_du_domaine_est_borne_par_le_delai_total(): void
     {
         // Un worker tué en pleine lecture ne relâche rien : le créneau doit expirer de lui-même,

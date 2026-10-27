@@ -48,6 +48,10 @@ class RadarPhoneTest extends TestCase
         $this->assertSame(['+221771234567'], RadarPhone::fromText('Tel 00221 771234567'));
         $this->assertSame(['+221771234567', '+221781234567'], RadarPhone::fromText('771234567 781234567'));
         $this->assertSame(['+221771234567'], RadarPhone::fromText('+33 6 12 34 56 78 ou 77 123 45 67'));
+
+        // Un groupe de milliers n'est pas un indicatif : `00` suivi de `0` n'en est jamais un (aucun pays ne commence par 0).
+        $this->assertSame(['+221771234567'], RadarPhone::fromText('Loyer 450 000 77 123 45 67'));
+        $this->assertSame(['+221771234567'], RadarPhone::fromText('Prix 25.000.000 77 123 45 67'));
     }
 
     public function test_un_prix_ou_un_texte_sans_numero_ne_donne_rien(): void

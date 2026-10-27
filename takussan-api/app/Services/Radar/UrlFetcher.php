@@ -228,6 +228,11 @@ final class UrlFetcher
                 throw new RadarFetchRefused(RadarFetchRefused::PRIVATE_ADDRESS);
             }
 
+            // La résolution n'a pas de délai propre : passé l'échéance de la lecture, on ne résout plus.
+            if ($this->deadlineMs !== null && $this->remainingSeconds() <= 0) {
+                throw new RadarFetchRefused(RadarFetchRefused::TIMEOUT);
+            }
+
             $ips = $this->resolver->resolve($host);
             if ($ips === []) {
                 throw new RadarFetchRefused(RadarFetchRefused::UNRESOLVABLE);
