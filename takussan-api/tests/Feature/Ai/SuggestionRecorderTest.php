@@ -38,6 +38,26 @@ class SuggestionRecorderTest extends TestCase
         $this->assertSame('Villa, 100 francs', $suggestion->input_snapshot);
     }
 
+    public function test_an_explicit_proposal_replaces_the_structured_output_and_the_edit_diffs_against_it(): void
+    {
+        $call = AiCall::query()->create(['usage_key' => UsageDEssai::KEY, 'outcome' => 'success']);
+        $recorder = app(SuggestionRecorder::class);
+
+        $suggestion = $recorder->record(
+            new AiResult('{}', ['phones' => ['+221771234567'], 'price' => '450.000f'], $call, false),
+            proposal: ['price' => 450000, 'contract' => 'rent'],
+        );
+
+        $this->assertEquals(['price' => 450000, 'contract' => 'rent'], $suggestion->fresh()->proposal);
+        $edited = $recorder->edit($suggestion, ['price' => 500000, 'contract' => 'rent'], User::factory()->create());
+        $this->assertEquals(['price' => ['from' => 450000, 'to' => 500000]], $edited->correction_diff);
+    }
+
+    public function test_without_an_explicit_proposal_the_structured_output_is_kept(): void
+    {
+        $this->assertEquals(['titre' => 'Villa', 'prix' => 100], $this->suggestion()->fresh()->proposal);
+    }
+
     public function test_an_edit_identical_to_the_proposal_is_an_acceptance(): void
     {
         $suggestion = app(SuggestionRecorder::class)->edit($this->suggestion(), ['titre' => 'Villa', 'prix' => 100], User::factory()->create());

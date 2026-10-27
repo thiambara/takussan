@@ -17,14 +17,20 @@ use LogicException;
  */
 final class SuggestionRecorder
 {
-    public function record(AiResult $result, ?Model $subject = null, ?float $confidence = null, ?string $inputSnapshot = null): AiSuggestion
+    /**
+     * `$proposal` remplace la sortie structurée du modèle quand ce qu'un humain décide n'est pas la sortie
+     * brute (le Radar propose les valeurs normalisées, TCK-2387) ; absent, le comportement est celui de toujours.
+     *
+     * @param  array<string, mixed>|null  $proposal
+     */
+    public function record(AiResult $result, ?Model $subject = null, ?float $confidence = null, ?string $inputSnapshot = null, ?array $proposal = null): AiSuggestion
     {
         return AiSuggestion::query()->create([
             'usage_key' => $result->call->usage_key,
             'ai_call_id' => $result->call->id,
             'subject_type' => $subject?->getMorphClass(),
             'subject_id' => $subject?->getKey(),
-            'proposal' => $result->structured ?? ['text' => $result->text],
+            'proposal' => $proposal ?? $result->structured ?? ['text' => $result->text],
             'confidence' => $confidence,
             'input_snapshot' => $inputSnapshot,
             'decision' => AiSuggestionDecision::Pending,

@@ -4,8 +4,10 @@ namespace App\Jobs\Radar;
 
 use App\Ai\Agents\RadarExtraction;
 use App\Ai\Usages\RadarExtractionUsage;
+use App\Models\AiSuggestion;
 use App\Models\Enums\AiDataClass;
 use App\Models\Enums\AiRefusalReason;
+use App\Models\Enums\AiSuggestionDecision;
 use App\Models\Enums\RadarAdvertiserNature;
 use App\Models\Enums\RadarListingStage;
 use App\Models\Enums\RadarSourceKind;
@@ -17,11 +19,13 @@ use App\Services\Ai\AiRequest;
 use App\Services\Ai\Exceptions\AiRefused;
 use App\Services\Ai\Exceptions\AiUnavailable;
 use App\Services\Ai\ExternalContent;
+use App\Services\Ai\SuggestionRecorder;
 use App\Services\Radar\Exceptions\RadarFetchDeferred;
 use App\Services\Radar\Exceptions\RadarFetchRefused;
 use App\Services\Radar\ExtractionNormalizer;
 use App\Services\Radar\HtmlCleaner;
 use App\Services\Radar\RadarAdvertiserDirectory;
+use App\Services\Radar\RadarReviewFields;
 use App\Services\Radar\UrlFetcher;
 use App\Support\RadarPhone;
 use DateTimeInterface;
@@ -58,6 +62,12 @@ use Throwable;
  *     ou créé SOUS le verrou de l'annonce, puis son refus relu sous le sien (ordre : l'annonce,
  *     puis l'annonceur). Un STOP → `do_not_contact`, l'extraction n'est pas gardée et l'annonceur
  *     n'est pas enrichi ; l'enrichissement ne lit que des champs sans drapeau.
+ *  6. **la suggestion** (TCK-2387, ADR-0076 §7) : sur la branche du succès, dans la même transaction que
+ *     le passage en `extracted`, UNE suggestion `radar.extraction` — la proposition est
+ *     {@see RadarReviewFields::values()} (valeurs normalisées, ni téléphone ni nom), l'`input_snapshot` le
+ *     texte délimité parti au modèle (`null` pour des captures). Une suggestion précédente encore en
+ *     attente s'efface dans la même transaction. Une annonce lue avec des `photo_urls` met ensuite
+ *     `FingerprintRadarSourcePhotos` en file, après le commit.
  *
  * **En attente, pas en échec** (étape `captured`, motif dans `stage_reason`) : plafond ou
  * coupe-circuit (`ai.budget`, `ai.kill_switch`, reprise à 30 min), panne (`ai.providers_unavailable`
@@ -165,6 +175,7 @@ final class ExtractRadarListing implements ShouldQueue
         AiGateway $gateway,
         ExtractionNormalizer $normalizer,
         RadarAdvertiserDirectory $directory,
+        SuggestionRecorder $recorder,
     ): void {
         $listing = RadarListing::query()->find($this->listingId);
         if ($listing === null || $listing->stage !== RadarListingStage::Captured) {
@@ -268,7 +279,8 @@ final class ExtractRadarListing implements ShouldQueue
             return;
         }
 
-        $this->settle(function (RadarListing $l) use ($normalized, $phones, $directory): void {
+        $extracted = false;
+        $this->settle(function (RadarListing $l) use ($normalized, $phones, $directory, $recorder, $result, $text, &$extracted): void {
             // Sous le verrou de l'annonce (encore `captured`) : aucun annonceur n'est créé pour une
             // annonce passée à autre chose. Ordre des verrous : l'annonce, puis l'annonceur.
             $advertiser = $phones !== [] ? $directory->findOrCreate($phones[0]) : null;
@@ -287,10 +299,29 @@ final class ExtractRadarListing implements ShouldQueue
                 'extracted_at' => now(),
                 'radar_advertiser_id' => $locked?->id,
             ]);
+            // TCK-2387 (ADR-0076 §7) — au plus une suggestion en attente par annonce ; une précédente,
+            // jamais jugée, s'efface (la rejeter compterait un échec du modèle dans le taux d'acceptation).
+            AiSuggestion::query()
+                ->where('usage_key', RadarExtractionUsage::KEY)
+                ->where('subject_type', $l->getMorphClass())->where('subject_id', $l->getKey())
+                ->where('decision', AiSuggestionDecision::Pending->value)
+                ->delete();
+            $recorder->record(
+                $result,
+                $l,
+                inputSnapshot: $l->source_kind === RadarSourceKind::Captures ? null : ExternalContent::wrap($l->source_site->value, $text),
+                proposal: RadarReviewFields::values($normalized),
+            );
             if ($locked !== null) {
                 $this->enrich($locked, $normalized);
             }
+            $extracted = ($l->photo_urls ?? []) !== [];
         });
+
+        // Après le commit, et seulement pour une fiche lue : une annonce STOP ne fait télécharger aucune photo.
+        if ($extracted) {
+            FingerprintRadarSourcePhotos::dispatch($this->listingId)->afterCommit();
+        }
     }
 
     /**

@@ -315,7 +315,35 @@ class ExtractionNormalizerTest extends TestCase
         // « 77 123 45 67 » dans la source, « +221771234567 » rendu : le même numéro, gardé.
         $this->assertSame(['+221771234567'], $out['phones']);
         $this->assertSame(['evidence_not_in_source'], $out['phones_flags']);
-        $this->assertStringNotContainsString('999', (string) json_encode($out), 'Le numéro écarté n\'est pas gardé.');
+        // Écarté de `phones`, jamais perdu : l'opérateur le voit à part (TCK-2387, décision 1).
+        $this->assertSame(['+221789998877'], $out['phones_dropped']);
+    }
+
+    public function test_ac6_un_numero_absent_de_la_source_est_garde_a_part(): void
+    {
+        $out = $this->normalizer->normalize(self::raw([
+            'phones' => ['78 999 88 77', '+221771234567', '78 999 88 77', '+221 78 111 22 33'],
+        ]), self::SOURCE);
+
+        $this->assertSame(['+221771234567'], $out['phones']);
+        // Dans l'ordre du modèle, dédoublonnés, au format E.164.
+        $this->assertSame(['+221789998877', '+221781112233'], $out['phones_dropped']);
+        $this->assertSame(['evidence_not_in_source'], $out['phones_flags']);
+    }
+
+    public function test_ac6_des_captures_ne_gardent_aucun_numero_a_part(): void
+    {
+        $out = $this->normalizer->normalize(self::raw(['phones' => ['78 999 88 77']]), null);
+
+        $this->assertSame(['+221789998877'], $out['phones']);
+        $this->assertSame([], $out['phones_dropped']);
+    }
+
+    public function test_ac6_sans_numero_ecarte_la_liste_est_vide(): void
+    {
+        $out = $this->normalizer->normalize(self::raw(), self::SOURCE);
+
+        $this->assertSame([], $out['phones_dropped']);
     }
 
     public function test_f1_un_numero_present_dans_la_source_ne_pose_aucun_drapeau(): void
