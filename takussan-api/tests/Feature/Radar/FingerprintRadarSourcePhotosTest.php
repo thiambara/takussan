@@ -325,7 +325,7 @@ class FingerprintRadarSourcePhotosTest extends TestCase
         $job = new FingerprintRadarSourcePhotos(12);
         $this->assertInstanceOf(ShouldBeUnique::class, $job);
         $this->assertSame('12', $job->uniqueId());
-        $this->assertSame(3600, $job->uniqueFor);
+        $this->assertSame($job->uniqueFor, (int) now()->diffInSeconds($job->retryUntil(), true), 'Unique sur toute la fenêtre de reprise.');
     }
 
     public function test_les_delais_du_job_respectent_le_retry_after_de_la_connexion(): void
@@ -338,6 +338,9 @@ class FingerprintRadarSourcePhotosTest extends TestCase
         $this->assertFalse($job->failOnTimeout);
         $this->assertEqualsWithDelta(6 * 3600, now()->diffInSeconds($job->retryUntil()), 5);
         $this->assertInstanceOf(WithoutOverlapping::class, $job->middleware()[0]);
+        // Sans `backoff()` et sans `--backoff` du worker, une exception imprévue rejouerait le job sans délai.
+        $this->assertNotEmpty($job->backoff());
+        $this->assertSame([], array_filter($job->backoff(), fn (int $s) => $s <= 0));
     }
 
     public function test_le_pire_cas_d_une_passe_tient_dans_le_timeout(): void

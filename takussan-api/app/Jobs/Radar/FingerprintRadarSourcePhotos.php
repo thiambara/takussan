@@ -43,12 +43,18 @@ final class FingerprintRadarSourcePhotos implements ShouldBeUnique, ShouldQueue
 
     public const ERROR_ABANDONED = 'radar.photo.abandoned';
 
+    /** La fenêtre de reprise : le job est abandonné (`failed()`) au-delà. */
+    public const WINDOW_SECONDS = 6 * 3600;
+
+    /** Reprises après une exception que le calcul ne rattrape pas (base ou cache en panne), en secondes. */
+    public const BACKOFF_SECONDS = [10, 60, 300];
+
     public int $timeout = 85;
 
     public bool $failOnTimeout = false;
 
-    /** Un seul exemplaire à la fois par annonce, au plus une heure. */
-    public int $uniqueFor = 3600;
+    /** Un seul exemplaire à la fois par annonce, sur toute la fenêtre de {@see self::retryUntil()} (6 h). */
+    public int $uniqueFor = self::WINDOW_SECONDS;
 
     public function __construct(public readonly int $listingId)
     {
@@ -62,7 +68,18 @@ final class FingerprintRadarSourcePhotos implements ShouldBeUnique, ShouldQueue
 
     public function retryUntil(): DateTimeInterface
     {
-        return now()->addHours(6);
+        return now()->addSeconds(self::WINDOW_SECONDS);
+    }
+
+    /**
+     * Espace les reprises : le worker n'a pas de `--backoff`, une exception imprévue (base, cache) rejouerait
+     * sinon le job sans délai, en boucle, sur la file `media` partagée.
+     *
+     * @return list<int>
+     */
+    public function backoff(): array
+    {
+        return self::BACKOFF_SECONDS;
     }
 
     /** @return list<object> */

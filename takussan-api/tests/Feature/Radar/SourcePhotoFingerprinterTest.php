@@ -164,8 +164,8 @@ class SourcePhotoFingerprinterTest extends TestCase
 
         $entry = $this->fingerprinter()->fingerprint(self::URL);
 
-        $this->assertNull($entry['hash']);
-        $this->assertContains($entry['error'], ['radar.photo.unreadable', 'radar.fetch.not_image']);
+        // L'en-tête se lit (type et dimensions), le décodage échoue : `unreadable`, pas `not_image`.
+        $this->assertSame(['url' => self::URL, 'hash' => null, 'error' => 'radar.photo.unreadable'], $entry);
     }
 
     public function test_une_url_refusee_donne_un_hash_nul_et_son_code(): void

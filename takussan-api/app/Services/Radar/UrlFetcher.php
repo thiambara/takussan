@@ -457,7 +457,7 @@ final class UrlFetcher
 
         try {
             $redirects = 0;
-            while (($location = $this->redirectLocation($response = $this->send($hop))) !== null) {
+            while (($location = $this->redirectLocation($response = $this->send($hop, (int) config('radar.fetch.max_bytes', 2_000_000)))) !== null) {
                 if (++$redirects > (int) config('radar.fetch.max_redirects', 3)) {
                     throw new RadarFetchRefused(RadarFetchRefused::TOO_MANY_REDIRECTS);
                 }
@@ -491,15 +491,13 @@ final class UrlFetcher
      *
      * @param  array{url: string, scheme: string, host: string, port: int, pathQuery: string, ips: list<string>}  $target
      */
-    private function send(array $target, ?int $maxBytes = null): Response
+    private function send(array $target, int $maxBytes): Response
     {
         $remaining = $this->remainingSeconds();
         if ($remaining <= 0) {
             throw new RadarFetchRefused(RadarFetchRefused::TIMEOUT);
         }
 
-        // Le `robots.txt` garde la borne des pages ; une photo passe la sienne.
-        $maxBytes ??= (int) config('radar.fetch.max_bytes', 2_000_000);
         $sink = new BoundedSink($maxBytes);
 
         try {
