@@ -204,6 +204,12 @@ const EXCEPTIONS = [
     sorte: 'permanente',
     motif: "`PathGenerator::getPath()` rend le répertoire RELATIF d'un média sur son disque, pas un chemin local — c'est la clé que la commande copie d'un disque à l'autre (TCK-538).",
   },
+  {
+    fichier: 'takussan-api/app/Services/Radar/UrlFetcher.php',
+    ligne: /\$uri->getPath\(\)/,
+    sorte: 'permanente',
+    motif: "`UriInterface::getPath()` (PSR-7) rend le chemin d'une URL tierce que le Radar lit, pas celui d'un média (TCK-2386).",
+  },
 ];
 
 const rel = (p) => relative(ROOT, p).split(sep).join('/');
