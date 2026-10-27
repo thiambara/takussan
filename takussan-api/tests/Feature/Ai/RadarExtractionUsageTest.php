@@ -145,7 +145,8 @@ class RadarExtractionUsageTest extends TestCase
             $this->assertSame(['value', 'confidence', 'evidence'], array_keys($noeud['properties']), $champ);
             $this->assertSame(['value', 'confidence', 'evidence'], $noeud['required'], $champ);
             $this->assertSame(array_column(RadarConfidence::cases(), 'value'), $this->enumOf($noeud['properties']['confidence']), $champ);
-            $this->assertTrue($this->isNullable($noeud['properties']['value']), "{$champ}.value doit admettre null");
+            // Revue M2 — la nature inconnue s'écrit `unknown`, jamais null : une seule forme.
+            $this->assertSame($champ !== 'advertiser_nature', $this->isNullable($noeud['properties']['value']), "{$champ}.value : null admis seulement hors nature");
             $this->assertTrue($this->isNullable($noeud['properties']['evidence']), "{$champ}.evidence doit admettre null");
         }
     }
@@ -221,7 +222,7 @@ class RadarExtractionUsageTest extends TestCase
     {
         $prompt = app(PromptRepository::class)->load(RadarExtractionUsage::KEY, 1);
 
-        foreach (['mot pour mot', 'null', 'low', 'invente', 'commission', 'frais de visite', 'contenu_externe'] as $attendu) {
+        foreach (['mot pour mot', 'null', 'low', 'invente', 'commission', 'frais de visite', 'contenu_externe', 'jamais `null`', 'première offre'] as $attendu) {
             $this->assertStringContainsStringIgnoringCase($attendu, $prompt);
         }
     }

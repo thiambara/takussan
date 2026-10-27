@@ -45,7 +45,8 @@ final class RadarExtraction extends SocleAgent implements HasStructuredOutput
                 ->description('Chaque numéro de téléphone de l\'annonce, recopié tel qu\'écrit ; liste vide si aucun.')
                 ->required(),
             'advertiser_name' => $this->field($schema, $schema->string()->nullable()),
-            'advertiser_nature' => $this->field($schema, $schema->string()->enum(RadarAdvertiserNature::class)->nullable()),
+            // Jamais null : sans indice, `unknown`. Une seule forme de l'inconnu (le normaliseur lit null comme `unknown`).
+            'advertiser_nature' => $this->field($schema, $schema->string()->enum(RadarAdvertiserNature::class)),
             'nature_signals' => $schema->array()->items($schema->object([
                 'signal' => $schema->string()->required(),
                 'evidence' => $schema->string()->required(),

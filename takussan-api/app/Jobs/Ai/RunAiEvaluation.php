@@ -6,7 +6,6 @@ use App\Jobs\Concerns\RunsOnLongQueue;
 use App\Models\AiEvaluationRun;
 use App\Models\Enums\AiEvaluationStatus;
 use App\Services\Ai\AiErrorCode;
-use App\Services\Ai\AiUsageRegistry;
 use App\Services\Ai\Evaluation\EvaluationRunner;
 use App\Services\Ai\ModelLink;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -54,7 +53,7 @@ class RunAiEvaluation implements ShouldQueue
         $this->onLongQueue();
     }
 
-    public function handle(EvaluationRunner $runner, AiUsageRegistry $registry): void
+    public function handle(EvaluationRunner $runner): void
     {
         $run = AiEvaluationRun::query()->findOrFail($this->runId);
         // Départ atomique : `Queued → Running` en une seule mise à jour conditionnelle. Une lecture puis un
@@ -71,19 +70,20 @@ class RunAiEvaluation implements ShouldQueue
             $link = ModelLink::fromArray($run->candidate);
             $reports = [];
             $below = false;
-            foreach ($registry->forRole($run->role) as $usage) {
-                if ($runner->cases($usage->key()) === []) {
-                    continue;
-                }
-                $report = $runner->run($usage->key(), $link);
-                $baseline = $runner->baseline($usage->key());
-                $report['baseline'] = $baseline;
+            // TCK-2386 — les usages dont un cas se joue sur ce rôle (les captures d'un usage
+            // `AttachmentsUseVision` en `vision`), et de chacun les seuls cas de ce rôle.
+            foreach ($runner->usagesForRole($run->role) as $key) {
+                $report = $runner->run($key, $link, $run->role);
+                $baseline = $runner->baseline($key);
+                // La console compare « en place / candidat » sur le même rôle : la section de ce rôle,
+                // `null` quand ce rôle n'a pas encore de référence.
+                $report['baseline'] = $baseline['roles'][$run->role->value] ?? null;
                 // Le verdict, pas la seule comparaison : un candidat dont des appels ont échoué (panne) ou
                 // dont les champs ne sont plus ceux de la référence ne passe jamais le cliquet.
                 $report['verdict'] = $runner->verdict($report, $baseline);
                 $report['below_baseline'] = $report['verdict'] !== null;
                 $below = $below || $report['below_baseline'];
-                $reports[$usage->key()] = $report;
+                $reports[$key] = $report;
             }
             $this->leave($run, [
                 'status' => AiEvaluationStatus::Done, 'report' => ['usages' => $reports],

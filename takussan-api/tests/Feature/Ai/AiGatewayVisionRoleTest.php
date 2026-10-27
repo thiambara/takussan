@@ -15,6 +15,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
+use Laravel\Ai\Exceptions\RateLimitedException;
 use Laravel\Ai\Files\Image;
 use Tests\Support\Ai\AgentDEssai;
 use Tests\Support\Ai\SocleIaDEssai;
@@ -136,5 +137,30 @@ class AiGatewayVisionRoleTest extends TestCase
         $this->assertSame([], $this->modeles);
         $call = AiCall::query()->sole();
         $this->assertSame([AiModelRole::Vision, 'ai.role_unassigned'], [$call->role, $call->error_code]);
+    }
+
+    /** Revue M5 — la bascule reste dans la chaîne vision, et chaque maillon tenté est journalisé `vision`. */
+    public function test_a_failover_inside_the_vision_chain_journals_every_link_as_vision(): void
+    {
+        config(['ai.roles.vision' => [
+            ['provider' => 'anthropic', 'model' => 'modele-v', 'max_tokens' => 2000],
+            ['provider' => 'anthropic', 'model' => 'modele-b', 'max_tokens' => 2000],
+        ]]);
+        AgentDEssai::fake(function (string $prompt, Collection $attachments, $provider, string $model) {
+            $this->modeles[] = $model;
+            if ($model === 'modele-v') {
+                throw RateLimitedException::forProvider('anthropic');
+            }
+
+            return ['titre' => 'Villa', 'prix' => 100];
+        });
+
+        app(AiGateway::class)->run($this->requete(UsageVisionDEssai::KEY, true));
+
+        $this->assertSame(['modele-v', 'modele-b'], $this->modeles);
+        $this->assertSame(
+            [[AiModelRole::Vision, 'modele-v', AiCallOutcome::FailedOver], [AiModelRole::Vision, 'modele-b', AiCallOutcome::Success]],
+            AiCall::query()->orderBy('id')->get()->map(fn (AiCall $c) => [$c->role, $c->model, $c->outcome])->all(),
+        );
     }
 }
