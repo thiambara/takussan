@@ -340,6 +340,13 @@ Les tables `lemon_squeezy_*` viennent d'un paquet, voir [`lemonsqueezy/laravel`]
 #### Relevé de gérance — l'instantané envoyé 🆕 (TCK-2321, ADR-0039 amendement du 2026-10-25)
 101. [OwnerStatementSnapshot](#101-ownerstatementsnapshot-) 🆕
 
+#### Socle IA 🆕 (TCK-2383 → TCK-2385, ADR-0076)
+102. [AiRoleAssignment](#102-airoleassignment-) 🆕
+103. [AiUsageSetting](#103-aiusagesetting-) 🆕
+104. [AiCall](#104-aicall-) 🆕
+105. [AiSuggestion](#105-aisuggestion-) 🆕
+106. [AiEvaluationRun](#106-aievaluationrun-) 🆕
+
 ### Enums
 
 - [Enums](#enums-1)
@@ -4752,6 +4759,146 @@ le calcul du jour. **Reprise** : aucune ; aucun instantané n'est écrit après 
 
 **Contraintes :** unique `owner_statement_snapshots_period_unique (agency_id, landlord_id, period)` :
 un relevé envoyé par mois, une relance n'écrit rien (`insertOrIgnore`).
+
+---
+
+### 102. AiRoleAssignment 🆕
+
+**Table :** `ai_role_assignments` (migration `2026_10_27_100000`, TCK-2383)
+**Modèle :** `App\Models\AiRoleAssignment` (`AbstractModel`) — `role` casté en `AiModelRole`, `chain` en `array`.
+**Description :** La chaîne de modèles d'un rôle (`AiModelRole`), réglée depuis la console IA. Sans
+ligne, la chaîne vient de `config/ai.php`
+([ADR-0076 §2](adr/0076-le-socle-ia.md)).
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| role | string(20) | | | `extraction`, `redaction`, `raisonnement`, `vision`, `embedding` — **unique** |
+| chain | jsonb | | | Liste ordonnée de `{provider, model, max_tokens}` ; ordre de bascule |
+| updated_by_id | FK users | oui | null | Dernier opérateur (`nullOnDelete`) |
+| created_at / updated_at | timestamp | | auto | |
+
+**Contraintes :** unique sur `role` (une chaîne par rôle).
+
+### 103. AiUsageSetting 🆕
+
+**Table :** `ai_usage_settings` (migration `2026_10_27_100010`, TCK-2383)
+**Modèle :** `App\Models\AiUsageSetting` (`AbstractModel`) — `enabled` en `boolean`, `daily_budget_xof`
+en `decimal:2` ; `forcedLink()` rend le maillon imposé quand fournisseur et modèle sont tous deux posés.
+**Description :** Réglages d'un usage du socle IA depuis la console : coupe-circuit, modèle forcé,
+plafond journalier ([ADR-0076 §4, §5](adr/0076-le-socle-ia.md)). Une table et non un drapeau : le
+catalogue `Flag` est fermé, et une clé hors catalogue y vaut faux.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| usage_key | string(80) | | | Clé de l'usage (`AiUsageRegistry`) — **unique** |
+| enabled | boolean | | true | Faux : la passerelle refuse (`kill_switch`) |
+| forced_provider | string(40) | oui | null | Fournisseur imposé à la place de la chaîne du rôle |
+| forced_model | string(80) | oui | null | Modèle imposé ; tarifé (`config('ai.pricing')`) |
+| daily_budget_xof | decimal(14,2) | oui | null | Plafond du jour ; null : celui que l'usage déclare |
+| updated_by_id | FK users | oui | null | `nullOnDelete` |
+| created_at / updated_at | timestamp | | auto | |
+
+**Contraintes :** unique sur `usage_key`.
+
+### 104. AiCall 🆕
+
+**Table :** `ai_calls` (migration `2026_10_27_100020`, TCK-2383)
+**Modèle :** `App\Models\AiCall` (`AbstractModel`, `UPDATED_AT = null`) — écrit par `AiGateway` seul ;
+`role`, `outcome` et `refusal_reason` castés en enums (`AiModelRole`, `AiCallOutcome`,
+`AiRefusalReason`), `cost_estimate` en `decimal:2`, `is_evaluation` en `boolean`.
+**Description :** Journal de chaque passage par `AiGateway` : réussite, cache, bascule, erreur ou
+refus ([ADR-0076 §5](adr/0076-le-socle-ia.md)). Aucun contenu envoyé ni reçu n'y est conservé.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| usage_key | string(80) | | | Usage appelant |
+| role | string(20) | oui | null | Rôle de l'usage |
+| provider / model | string(40) / string(80) | oui | null | Maillon joué (null sur un refus) |
+| prompt_version | unsignedSmallInteger | oui | null | Version du prompt chargé |
+| input_tokens / output_tokens | unsignedInteger | | 0 | Tokens comptés par le fournisseur |
+| cache_read_tokens / cache_write_tokens | unsignedInteger | | 0 | Sous-ensembles de l'entrée |
+| cost_estimate | decimal(14,2) | oui | null | Coût en XOF ; null quand le modèle n'a pas de tarif (`warning = model_unpriced`) |
+| duration_ms | unsignedInteger | oui | null | Durée de l'appel |
+| outcome | string(20) | | | `success`, `cache_hit`, `failed_over`, `error`, `refused` |
+| refusal_reason | string(30) | oui | null | `forbidden`, `kill_switch`, `budget`, `sensitive_data`, `data_class` |
+| error_code | string(80) | oui | null | Nom de l'exception, jamais son message |
+| warning | string(40) | oui | null | `model_unpriced` |
+| is_evaluation | boolean | | false | Appel de `ai:eval` : hors budget, hors tableau de bord |
+| agency_id | FK agencies | oui | null | Agence pour laquelle l'appel agit ; null pour un usage de plateforme (`nullOnDelete`) |
+| actor_id | FK users | oui | null | Appelant (`nullOnDelete`) |
+| subject_type / subject_id | nullableMorphs | oui | null | Objet concerné ; index `ai_calls_subject_idx` |
+| created_at | timestamp | oui | null | Pas d'`updated_at` : une ligne ne change pas |
+
+**Index :** `ai_calls_usage_created_idx (usage_key, created_at)`, `ai_calls_agency_created_idx
+(agency_id, created_at)`, `ai_calls_created_idx (created_at)`.
+
+### 105. AiSuggestion 🆕
+
+**Table :** `ai_suggestions` (migration `2026_10_27_100030`, TCK-2384)
+**Modèle :** `App\Models\AiSuggestion` (`AbstractModel`) — `proposal`, `final_value` et
+`correction_diff` en `array`, `confidence` en `decimal:3`, `decision` en `AiSuggestionDecision`,
+`decided_at` en `datetime`.
+**Description :** Une proposition de l'IA et la décision humaine qui la suit
+([ADR-0076 §7](adr/0076-le-socle-ia.md)). Le taux d'acceptation par usage mesure la qualité en
+production ; les corrections deviennent des cas d'évaluation (`ai:export-eval-cases`).
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| usage_key | string(80) | | | Usage qui a proposé |
+| ai_call_id | FK ai_calls | oui | null | Appel d'origine (`nullOnDelete`) |
+| subject_type / subject_id | nullableMorphs | oui | null | Objet que la proposition modifierait ; index `ai_suggestions_subject_idx` |
+| proposal | jsonb | | | Sortie de l'IA |
+| confidence | decimal(4,3) | oui | null | Confiance déclarée |
+| input_snapshot | text | oui | null | Contenu soumis ; effacé avec son objet (purge du Radar, TCK-2391) |
+| decision | string(20) | | pending | `pending`, `accepted`, `edited`, `rejected` ; prise une fois |
+| decided_by_id | FK users | oui | null | `nullOnDelete` |
+| decided_at | timestamp | oui | null | |
+| final_value | jsonb | oui | null | Valeur retenue |
+| correction_diff | jsonb | oui | null | `{champ: {from, to}}` entre proposition et valeur retenue |
+| created_at / updated_at | timestamp | | auto | |
+
+**Index :** `ai_suggestions_usage_decision_idx (usage_key, decision)` — le taux d'acceptation par usage.
+
+### 106. AiEvaluationRun 🆕
+
+**Table :** `ai_evaluation_runs` (migration `2026_10_27_100040`, TCK-2385)
+**Modèle :** `App\Models\AiEvaluationRun` (`AbstractModel`) — `role` en `AiModelRole`, `status` en
+`AiEvaluationStatus`, `candidate` et `report` en `array`, `below_baseline` en `boolean`, `started_at`
+et `finished_at` en `datetime`. Écrite par `App\Jobs\Ai\RunAiEvaluation` ; lue par la console IA
+(`AiEvaluationController`) et par `latestFor(role, maillon)`, la dernière évaluation **terminée** d'un
+maillon.
+**Description :** L'évaluation d'un modèle candidat pour un rôle, lancée depuis la console avant de
+l'affecter ([ADR-0076 §8](adr/0076-le-socle-ia.md)). Son verdict commande le cliquet de l'affectation.
+
+**Cycle de vie :** `queued` → `running` (départ atomique du job, `started_at` posé) → `done` ou
+`failed`. Toute écriture d'état est conditionnelle à l'état attendu : un état terminal n'est jamais
+réécrit. Une évaluation **orpheline** (worker mort) se lit `failed` avec
+`error_code = ai.eval.job_lost` : `isStale()` la détecte (`running` depuis plus de
+`STALE_AFTER_SECONDS` = délai du job + 300 s ; `queued` depuis plus de `QUEUED_STALE_AFTER_SECONDS` =
+86 400 s) et `markLostIfStale()` l'écrit, par une mise à jour conditionnelle à l'état lu, à la
+lecture (`show`) et avant de refuser un doublon (409 `ai.eval.already_running`). Un job tué ou
+relivré échoue par `failed()` : `ai.eval.job_failed` quand aucune exception n'est connue, sinon le
+nom de la classe de l'exception.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| role | string(20) | | | Rôle évalué |
+| candidate | jsonb | | | `{provider, model, max_tokens}` |
+| status | string(20) | | queued | `queued`, `running`, `done`, `failed` |
+| report | jsonb | oui | null | `{usages: {<clé>: rapport + baseline + verdict + below_baseline}}` ; `verdict` : `ai.eval.failures`, `ai.eval.baseline_stale`, `ai.eval.below_baseline`, ou null quand l'usage passe |
+| below_baseline | boolean | oui | null | Vrai si un usage du rôle a un verdict (sous sa référence, appels en échec, ou référence périmée) |
+| error_code | string(80) | oui | null | Sur `failed` : `ai.eval.job_lost`, `ai.eval.job_failed`, ou le nom d'une exception |
+| requested_by_id | FK users | oui | null | `nullOnDelete` |
+| started_at | timestamp | oui | null | Départ du job ; sert à `isStale()` |
+| finished_at | timestamp | oui | null | |
+| created_at / updated_at | timestamp | | auto | |
+
+**Index :** `ai_eval_runs_role_status_idx (role, status)`.
 
 ---
 
