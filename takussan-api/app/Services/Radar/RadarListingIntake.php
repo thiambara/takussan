@@ -6,7 +6,6 @@ use App\Jobs\Radar\ExtractRadarListing;
 use App\Models\Enums\RadarListingStage;
 use App\Models\Enums\RadarSourceKind;
 use App\Models\Enums\RadarSourceSite;
-use App\Models\RadarAdvertiser;
 use App\Models\RadarListing;
 use App\Models\User;
 use App\Support\PhoneMasker;
@@ -28,7 +27,8 @@ use Throwable;
  *   fiche existante, sans job ni appel IA (AC2). La course entre deux saisies simultanées se règle
  *   par `insertOrIgnore` puis relecture — jamais par une exception attrapée dans la transaction
  *   (piège n° 1 du CLAUDE.md de l'API).
- * - **Un numéro qui a dit STOP** (empreinte HMAC chez un annonceur `do_not_contact_at`) rend
+ * - **Un numéro qui a dit STOP** (`RadarAdvertiserDirectory::refusedAmong()`, la même lecture que le
+ *   job d'extraction : empreinte HMAC chez un annonceur `do_not_contact_at`) rend
  *   l'annonce `do_not_contact` dès la saisie, annonceur rattaché, sans job (AC6). Seul le texte
  *   collé se lit ici : une URL ou des captures n'ont pas encore de texte, le job y revient.
  * - **Les captures sont réencodées** : GD ne réécrit aucune métadonnée, l'EXIF (position GPS
@@ -43,6 +43,8 @@ final class RadarListingIntake
 
     /** Les variantes d'hôte de Facebook qui servent la même page : repliées sur le domaine nu. */
     private const FACEBOOK_HOSTS = '/^(www|m|web|mobile|mbasic)\.facebook\.com$/';
+
+    public function __construct(private readonly RadarAdvertiserDirectory $directory) {}
 
     /**
      * @param  list<string>  $urls
@@ -69,7 +71,7 @@ final class RadarListingIntake
     /** @return array{listing: RadarListing, existing: bool} */
     public function fromText(string $text, ?RadarSourceSite $site, User $by): array
     {
-        $stop = $this->stoppedAdvertiser($text);
+        $stop = $this->directory->refusedAmong(RadarPhone::fromText($text));
 
         return $this->intake(hash('sha256', 'text|'.self::foldText($text)), [
             'source_kind' => RadarSourceKind::Text,
@@ -278,20 +280,5 @@ final class RadarListingIntake
 
             return ['listing' => $listing, 'existing' => false];
         });
-    }
-
-    /** L'annonceur qui a dit STOP pour l'un des numéros du texte, s'il y en a un. */
-    private function stoppedAdvertiser(string $text): ?RadarAdvertiser
-    {
-        $hmacs = array_map(RadarPhone::hmac(...), RadarPhone::fromText($text));
-        if ($hmacs === []) {
-            return null;
-        }
-
-        return RadarAdvertiser::query()
-            ->whereIn('phone_hmac', $hmacs)
-            ->whereNotNull('do_not_contact_at')
-            ->orderBy('id')
-            ->first();
     }
 }
