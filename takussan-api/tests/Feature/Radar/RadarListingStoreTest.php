@@ -88,6 +88,96 @@ class RadarListingStoreTest extends TestCase
         $this->assertNotNull($fiche->purge_at);
     }
 
+    // --- F2 (revue finale) : une extraction en échec se relance en recollant l'annonce ----------
+
+    public function test_f2_pasting_again_a_listing_whose_extraction_failed_requeues_it(): void
+    {
+        $this->support();
+        $id = $this->postJson('/api/admin/radar/listings', ['text' => self::TEXTE])->assertCreated()->json('data.0.id');
+        RadarListing::query()->whereKey($id)->update(['stage' => RadarListingStage::ExtractionFailed->value, 'stage_reason' => 'ai.provider_auth']);
+
+        $this->postJson('/api/admin/radar/listings', ['text' => self::TEXTE])
+            ->assertCreated()
+            ->assertJsonPath('data.0.id', $id)
+            ->assertJsonPath('data.0.existing', true)
+            ->assertJsonPath('data.0.requeued', true)
+            ->assertJsonPath('data.0.stage', 'captured');
+
+        $fiche = RadarListing::query()->sole();
+        $this->assertSame(RadarListingStage::Captured, $fiche->stage);
+        $this->assertNull($fiche->stage_reason);
+        Queue::assertPushed(ExtractRadarListing::class, 2);
+
+        // Remise en file une fois : un troisième renvoi la trouve `captured`, et ne relance rien.
+        $this->postJson('/api/admin/radar/listings', ['text' => self::TEXTE])
+            ->assertCreated()
+            ->assertJsonPath('data.0.existing', true)
+            ->assertJsonPath('data.0.requeued', false);
+        Queue::assertPushed(ExtractRadarListing::class, 2);
+    }
+
+    public function test_f2_a_concurrent_paste_that_already_requeued_the_listing_dispatches_nothing_more(): void
+    {
+        $this->support();
+        $id = $this->postJson('/api/admin/radar/listings', ['text' => self::TEXTE])->assertCreated()->json('data.0.id');
+        RadarListing::query()->whereKey($id)->update(['stage' => RadarListingStage::ExtractionFailed->value, 'stage_reason' => 'ai.budget']);
+
+        // L'autre renvoi passe entre la lecture de celui-ci et son écriture.
+        $fait = false;
+        RadarListing::retrieved(function (RadarListing $fiche) use (&$fait): void {
+            if (! $fait && $fiche->stage === RadarListingStage::ExtractionFailed) {
+                $fait = true;
+                RadarListing::query()->whereKey($fiche->id)->update(['stage' => RadarListingStage::Captured->value, 'stage_reason' => null]);
+            }
+        });
+
+        $this->postJson('/api/admin/radar/listings', ['text' => self::TEXTE])
+            ->assertCreated()
+            ->assertJsonPath('data.0.existing', true)
+            ->assertJsonPath('data.0.requeued', false);
+
+        $this->assertTrue($fait);
+        Queue::assertPushed(ExtractRadarListing::class, 1);
+    }
+
+    public function test_f2_other_stages_of_a_known_listing_are_left_as_they_are(): void
+    {
+        $this->support();
+        $id = $this->postJson('/api/admin/radar/listings', ['text' => self::TEXTE])->assertCreated()->json('data.0.id');
+
+        foreach ([RadarListingStage::Extracted, RadarListingStage::Duplicate, RadarListingStage::DoNotContact, RadarListingStage::Refused, RadarListingStage::Purged, RadarListingStage::Published] as $etape) {
+            RadarListing::query()->whereKey($id)->update(['stage' => $etape->value, 'stage_reason' => 'motif.garde']);
+
+            $this->postJson('/api/admin/radar/listings', ['text' => self::TEXTE])
+                ->assertCreated()
+                ->assertJsonPath('data.0.stage', $etape->value)
+                ->assertJsonPath('data.0.requeued', false);
+            $this->assertSame([$etape, 'motif.garde'], [RadarListing::query()->sole()->stage, RadarListing::query()->sole()->stage_reason], $etape->value);
+        }
+        Queue::assertPushed(ExtractRadarListing::class, 1);
+    }
+
+    public function test_f2_failed_url_and_captures_listings_are_requeued_too(): void
+    {
+        $this->support();
+        $url = $this->postJson('/api/admin/radar/listings', ['urls' => ['https://www.coinafrique.com/annonce/42']])->assertCreated()->json('data.0.id');
+        $capture = fn () => UploadedFile::fake()->image('a.png', 40, 40);
+        $captures = $this->post('/api/admin/radar/listings', ['captures' => [$capture()]], ['Accept' => 'application/json'])->assertCreated()->json('data.0.id');
+        RadarListing::query()->whereKey([$url, $captures])->update(['stage' => RadarListingStage::ExtractionFailed->value, 'stage_reason' => 'radar.fetch.timeout']);
+
+        $this->postJson('/api/admin/radar/listings', ['urls' => ['https://www.coinafrique.com/annonce/42?utm_source=x']])
+            ->assertCreated()
+            ->assertJsonPath('data.0.id', $url)
+            ->assertJsonPath('data.0.requeued', true);
+        $this->post('/api/admin/radar/listings', ['captures' => [$capture()]], ['Accept' => 'application/json'])
+            ->assertCreated()
+            ->assertJsonPath('data.0.id', $captures)
+            ->assertJsonPath('data.0.requeued', true);
+
+        $this->assertSame(0, RadarListing::query()->where('stage', RadarListingStage::ExtractionFailed->value)->count());
+        Queue::assertPushed(ExtractRadarListing::class, 4);
+    }
+
     public function test_the_text_source_site_is_kept_when_given(): void
     {
         $this->support();
@@ -174,7 +264,9 @@ class RadarListingStoreTest extends TestCase
         foreach (['https://www.airbnb.fr/rooms/123', 'https://WWW.AIRBNB.COM./rooms/1', 'https://abnb.me/xyz', 'https://ａｉｒｂｎｂ.fr/rooms/9'] as $url) {
             $this->postJson('/api/admin/radar/listings', ['urls' => ['https://www.coinafrique.com/a/1', $url]])
                 ->assertUnprocessable()
-                ->assertJsonPath('code', 'radar.url.airbnb');
+                ->assertJsonPath('code', 'radar.url.airbnb')
+                // F7 (revue finale) : l'URL refusée d'un lot est nommée par son rang.
+                ->assertJsonPath('params.field', 'urls.1');
         }
 
         $this->assertSame(0, RadarListing::query()->count());
@@ -351,7 +443,8 @@ class RadarListingStoreTest extends TestCase
         // Un label de 64 caractères non ASCII : la règle `url` l'accepte, la conversion IDN non.
         $this->postJson('/api/admin/radar/listings', ['urls' => ['https://'.str_repeat('é', 64).'.com/annonce']])
             ->assertUnprocessable()
-            ->assertJsonPath('code', 'radar.url.invalid');
+            ->assertJsonPath('code', 'radar.url.invalid')
+            ->assertJsonPath('params.field', 'urls.0');
 
         $this->assertSame(0, RadarListing::query()->count());
     }

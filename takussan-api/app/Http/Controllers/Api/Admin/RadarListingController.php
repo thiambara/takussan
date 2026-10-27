@@ -17,7 +17,10 @@ use Illuminate\Http\Request;
  */
 class RadarListingController extends Controller
 {
-    /** 201 `{data: [{id, stage, existing}]}` — une ligne par URL, une seule pour un texte ou des captures. */
+    /**
+     * 201 `{data: [{id, stage, existing, requeued}]}` — une ligne par URL, une seule pour un texte ou
+     * des captures. `requeued` : une fiche connue dont l'extraction avait échoué, remise en file.
+     */
     public function store(StoreRadarListingRequest $request, RadarListingIntake $intake): JsonResponse
     {
         $user = $request->user();
@@ -33,6 +36,7 @@ class RadarListingController extends Controller
             'id' => $result['listing']->id,
             'stage' => $result['listing']->stage->value,
             'existing' => $result['existing'],
+            'requeued' => $result['requeued'],
         ], $results)], 201);
     }
 

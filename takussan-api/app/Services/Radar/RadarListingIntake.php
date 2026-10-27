@@ -24,7 +24,8 @@ use Throwable;
  * des captures, et rien d'autre ne se fait ici que ranger.
  *
  * - **L'empreinte du contenu est unique** (`content_fingerprint`) : une empreinte déjà connue rend la
- *   fiche existante, sans job ni appel IA (AC2). La course entre deux saisies simultanées se règle
+ *   fiche existante, sans job ni appel IA (AC2) — sauf une fiche en `extraction_failed`, remise en
+ *   file (`requeued`) : recoller une annonce est le geste qui relance son extraction. La course entre deux saisies simultanées se règle
  *   par `insertOrIgnore` puis relecture — jamais par une exception attrapée dans la transaction
  *   (piège n° 1 du CLAUDE.md de l'API).
  * - **Un numéro qui a dit STOP** (`RadarAdvertiserDirectory::refusedAmong()`, la même lecture que le
@@ -48,7 +49,7 @@ final class RadarListingIntake
 
     /**
      * @param  list<string>  $urls
-     * @return list<array{listing: RadarListing, existing: bool}>
+     * @return list<array{listing: RadarListing, existing: bool, requeued: bool}>
      */
     public function fromUrls(array $urls, User $by): array
     {
@@ -68,7 +69,7 @@ final class RadarListingIntake
         return $results;
     }
 
-    /** @return array{listing: RadarListing, existing: bool} */
+    /** @return array{listing: RadarListing, existing: bool, requeued: bool} */
     public function fromText(string $text, ?RadarSourceSite $site, User $by): array
     {
         $stop = $this->directory->refusedAmong(RadarPhone::fromText($text));
@@ -85,7 +86,7 @@ final class RadarListingIntake
 
     /**
      * @param  list<UploadedFile>  $files
-     * @return array{listing: RadarListing, existing: bool}
+     * @return array{listing: RadarListing, existing: bool, requeued: bool}
      */
     public function fromCaptures(array $files, ?RadarSourceSite $site, User $by): array
     {
@@ -98,7 +99,7 @@ final class RadarListingIntake
         // Un renvoi se reconnaît à l'empreinte des originaux, avant tout décodage.
         $existing = RadarListing::query()->where('content_fingerprint', $fingerprint)->first();
         if ($existing !== null) {
-            return ['listing' => $existing, 'existing' => true];
+            return $this->known($existing);
         }
 
         // Tout se lit et se réencode AVANT la moindre écriture : une image illisible ou démesurée
@@ -235,17 +236,17 @@ final class RadarListingIntake
 
     /**
      * La fiche de cette empreinte : créée (et mise en file si elle est `captured`), ou celle qui
-     * existait déjà, sans rien relancer.
+     * existait déjà, sans rien relancer — sauf une extraction en échec ({@see self::known()}).
      *
      * @param  array<string, mixed>  $attributes
      * @param  (callable(RadarListing): void)|null  $afterCreate
-     * @return array{listing: RadarListing, existing: bool}
+     * @return array{listing: RadarListing, existing: bool, requeued: bool}
      */
     private function intake(string $fingerprint, array $attributes, User $by, ?callable $afterCreate = null): array
     {
         $existing = RadarListing::query()->where('content_fingerprint', $fingerprint)->first();
         if ($existing !== null) {
-            return ['listing' => $existing, 'existing' => true];
+            return $this->known($existing);
         }
 
         // `insertOrIgnore` court-circuite les événements du modèle : `purge_at` est donc posé ici,
@@ -267,7 +268,7 @@ final class RadarListingIntake
 
             $listing = RadarListing::query()->where('content_fingerprint', $fingerprint)->firstOrFail();
             if ($inserted === 0) {
-                return ['listing' => $listing, 'existing' => true];
+                return ['listing' => $listing, 'existing' => true, 'requeued' => false];
             }
 
             if ($afterCreate !== null) {
@@ -278,7 +279,42 @@ final class RadarListingIntake
                 ExtractRadarListing::dispatch($listing->id)->afterCommit();
             }
 
-            return ['listing' => $listing, 'existing' => false];
+            return ['listing' => $listing, 'existing' => false, 'requeued' => false];
         });
+    }
+
+    /**
+     * Une fiche déjà connue, rendue telle quelle — sauf une extraction en échec, remise en file :
+     * retour à `captured`, motif effacé comme pour une saisie neuve, et le job relancé. Les causes
+     * d'un échec sont souvent passagères (plafond ou coupe-circuit plus de 48 h, clé du fournisseur
+     * mal posée) ; recoller l'annonce est le geste de relance.
+     *
+     * Le passage `extraction_failed` → `captured` est une mise à jour CONDITIONNELLE : deux renvois
+     * simultanés se sérialisent sur la ligne, le second n'en touche aucune, et seul celui qui l'a
+     * changée met le job en file (après le commit). Toute autre étape reste ce qu'elle est.
+     *
+     * @return array{listing: RadarListing, existing: true, requeued: bool}
+     */
+    private function known(RadarListing $listing): array
+    {
+        if ($listing->stage !== RadarListingStage::ExtractionFailed) {
+            return ['listing' => $listing, 'existing' => true, 'requeued' => false];
+        }
+
+        $requeued = DB::transaction(function () use ($listing): bool {
+            $updated = RadarListing::query()
+                ->whereKey($listing->id)
+                ->where('stage', RadarListingStage::ExtractionFailed->value)
+                ->update(['stage' => RadarListingStage::Captured->value, 'stage_reason' => null, 'updated_at' => now()]);
+            if ($updated !== 1) {
+                return false;
+            }
+
+            ExtractRadarListing::dispatch($listing->id)->afterCommit();
+
+            return true;
+        });
+
+        return ['listing' => $listing->refresh(), 'existing' => true, 'requeued' => $requeued];
     }
 }

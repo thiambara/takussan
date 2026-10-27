@@ -14,7 +14,8 @@ use Illuminate\Validation\Rule;
  * texte ou les captures : celui d'une URL se lit dans son hôte. Bornes : `config/radar.php`.
  *
  * Airbnb (et ses domaines) est refusé ici, avant toute fiche : 422 `radar.url.airbnb` ; une URL
- * dont l'hôte ne se lit pas (IDN invalide) : 422 `radar.url.invalid`.
+ * dont l'hôte ne se lit pas (IDN invalide) : 422 `radar.url.invalid`. Les deux portent l'URL en
+ * cause dans `params.field` (`urls.N`, son rang dans le lot).
  */
 class StoreRadarListingRequest extends BaseFormRequest
 {
@@ -42,11 +43,12 @@ class StoreRadarListingRequest extends BaseFormRequest
 
     protected function passedValidation(): void
     {
-        foreach ($this->validated('urls') ?? [] as $url) {
+        foreach (array_values($this->validated('urls') ?? []) as $i => $url) {
             // Un hôte illisible est refusé, pas laissé passer : le contrôle Airbnb ne juge que ce qu'il lit.
+            // `params.field` (`urls.N`) nomme l'URL refusée d'un lot : le front la montre.
             $host = RadarListingIntake::hostOf($url);
-            abort_code_if($host === null, 422, 'radar.url.invalid');
-            abort_code_if(UrlFetcher::isAirbnb($host), 422, 'radar.url.airbnb');
+            abort_code_if($host === null, 422, 'radar.url.invalid', ['field' => "urls.{$i}"]);
+            abort_code_if(UrlFetcher::isAirbnb($host), 422, 'radar.url.airbnb', ['field' => "urls.{$i}"]);
         }
     }
 }
