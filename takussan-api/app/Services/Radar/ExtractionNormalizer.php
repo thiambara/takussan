@@ -22,7 +22,8 @@ use App\Support\RadarPhone;
  *     `{neighborhood_id, suggestions}` ;
  *   - `phones` : E.164, les invalides tombent, et avec un texte source ceux qu'il ne porte pas
  *     aussi (`phones_flags` : `evidence_not_in_source`) ; ces derniers sont gardés à part dans
- *     `phones_dropped` (E.164, dédoublonnés, dans l'ordre du modèle ; `[]` pour des captures) ; `nature_signals` : `{signal, evidence}`.
+ *     `phones_dropped` (E.164, dédoublonnés, dans l'ordre du modèle ; `[]` pour des captures) ;
+ *     `nature_signals` : `{signal, evidence}`.
  *
  * Règles :
  *   - un champ rendu SANS passage cité tombe à la confiance la plus basse (AC3,

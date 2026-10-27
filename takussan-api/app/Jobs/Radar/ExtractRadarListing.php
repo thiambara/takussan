@@ -16,6 +16,7 @@ use App\Models\RadarListing;
 use App\Services\Ai\AiErrorCode;
 use App\Services\Ai\AiGateway;
 use App\Services\Ai\AiRequest;
+use App\Services\Ai\Evaluation\EvalCaseAnonymizer;
 use App\Services\Ai\Exceptions\AiRefused;
 use App\Services\Ai\Exceptions\AiUnavailable;
 use App\Services\Ai\ExternalContent;
@@ -64,9 +65,11 @@ use Throwable;
  *     n'est pas enrichi ; l'enrichissement ne lit que des champs sans drapeau.
  *  6. **la suggestion** (TCK-2387, ADR-0076 §7) : sur la branche du succès, dans la même transaction que
  *     le passage en `extracted`, UNE suggestion `radar.extraction` — la proposition est
- *     {@see RadarReviewFields::values()} (valeurs normalisées, ni téléphone ni nom), l'`input_snapshot` le
- *     texte délimité parti au modèle (`null` pour des captures). Une suggestion précédente encore en
- *     attente s'efface dans la même transaction. Une annonce lue avec des `photo_urls` met ensuite
+ *     {@see RadarReviewFields::values()} (valeurs normalisées, ni téléphone ni nom), l'`input_snapshot` l'entrée
+ *     délimitée envoyée au modèle (composée une fois), anonymisée à l'écriture par `EvalCaseAnonymizer` avec le
+ *     nom et les numéros lus (retenus et écartés) pour aiguilles ; `null` pour des captures. Son seul lecteur
+ *     est l'export des cas d'évaluation, dont les aiguilles (la proposition, la valeur retenue) n'ont ni nom ni
+ *     numéro. Une suggestion précédente encore en attente s'efface dans la même transaction. Une annonce lue avec des `photo_urls` met ensuite
  *     `FingerprintRadarSourcePhotos` en file, après le commit.
  *
  * **En attente, pas en échec** (étape `captured`, motif dans `stage_reason`) : plafond ou
@@ -176,6 +179,7 @@ final class ExtractRadarListing implements ShouldQueue
         ExtractionNormalizer $normalizer,
         RadarAdvertiserDirectory $directory,
         SuggestionRecorder $recorder,
+        EvalCaseAnonymizer $anonymizer,
     ): void {
         $listing = RadarListing::query()->find($this->listingId);
         if ($listing === null || $listing->stage !== RadarListingStage::Captured) {
@@ -207,11 +211,13 @@ final class ExtractRadarListing implements ShouldQueue
             return;
         }
 
-        // 4. L'appel, hors de toute transaction.
+        // 4. L'appel, hors de toute transaction. L'entrée délimitée se compose UNE fois : celle qui part au
+        // modèle est, par construction, celle dont la suggestion garde la trace.
+        $input = ExternalContent::wrap($listing->source_site->value, $text);
         try {
             $result = $gateway->run(new AiRequest(
                 RadarExtractionUsage::KEY,
-                ExternalContent::wrap($listing->source_site->value, $text),
+                $input,
                 [AiDataClass::Personnelle],
                 actor: $listing->capturer,
                 subject: $listing,
@@ -279,8 +285,16 @@ final class ExtractRadarListing implements ShouldQueue
             return;
         }
 
-        $extracted = false;
-        $this->settle(function (RadarListing $l) use ($normalized, $phones, $directory, $recorder, $result, $text, &$extracted): void {
+        // L'instantané garde l'entrée envoyée, anonymisée DÈS L'ÉCRITURE par le masqueur de l'export : le nom
+        // et les numéros que la lecture a trouvés (retenus et écartés) deviennent [NOM] et [TELEPHONE].
+        // L'export n'a pour aiguilles que la proposition et la valeur retenue, qui n'ont ni nom ni numéro.
+        $snapshot = $listing->source_kind === RadarSourceKind::Captures ? null : $anonymizer->anonymize($input, [
+            'advertiser_name' => $normalized['advertiser_name']['value'] ?? null,
+            'phones' => [...(array) ($normalized['phones'] ?? []), ...(array) ($normalized['phones_dropped'] ?? [])],
+        ])['input'];
+
+        $fingerprintPhotos = false;
+        $this->settle(function (RadarListing $l) use ($normalized, $phones, $directory, $recorder, $result, $snapshot, &$fingerprintPhotos): void {
             // Sous le verrou de l'annonce (encore `captured`) : aucun annonceur n'est créé pour une
             // annonce passée à autre chose. Ordre des verrous : l'annonce, puis l'annonceur.
             $advertiser = $phones !== [] ? $directory->findOrCreate($phones[0]) : null;
@@ -309,17 +323,18 @@ final class ExtractRadarListing implements ShouldQueue
             $recorder->record(
                 $result,
                 $l,
-                inputSnapshot: $l->source_kind === RadarSourceKind::Captures ? null : ExternalContent::wrap($l->source_site->value, $text),
+                inputSnapshot: $snapshot,
                 proposal: RadarReviewFields::values($normalized),
             );
             if ($locked !== null) {
                 $this->enrich($locked, $normalized);
             }
-            $extracted = ($l->photo_urls ?? []) !== [];
+            $fingerprintPhotos = ($l->photo_urls ?? []) !== [];
         });
 
-        // Après le commit, et seulement pour une fiche lue : une annonce STOP ne fait télécharger aucune photo.
-        if ($extracted) {
+        // Seulement pour une fiche lue qui a des photos, et après le commit : une annonce STOP ne fait
+        // télécharger aucune photo.
+        if ($fingerprintPhotos) {
             FingerprintRadarSourcePhotos::dispatch($this->listingId)->afterCommit();
         }
     }

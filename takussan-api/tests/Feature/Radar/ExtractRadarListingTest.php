@@ -19,6 +19,8 @@ use App\Models\RadarAdvertiser;
 use App\Models\RadarListing;
 use App\Models\User;
 use App\Services\Ai\AiUsageRegistry;
+use App\Services\Ai\Evaluation\EvalCaseAnonymizer;
+use App\Services\Ai\Evaluation\EvalCaseExporter;
 use App\Services\Ai\PromptRepository;
 use App\Services\Ai\SuggestionRecorder;
 use App\Services\Radar\HostResolver;
@@ -32,6 +34,7 @@ use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
 use Laravel\Ai\Exceptions\RateLimitedException;
 use Laravel\Ai\Files\StoredImage;
@@ -248,13 +251,20 @@ class ExtractRadarListingTest extends TestCase
         // STOP avant l'appel.
         RadarAdvertiser::factory()->doNotContact()->create(['phone_hmac' => RadarPhone::hmac(self::NUMERO)]);
         RadarExtraction::fake([$this->reponseComplete()]);
-        $this->lancer($this->annonce());
+        $stop = $this->annonce();
+        $this->lancer($stop);
         // Source vide : échec.
-        $this->lancer($this->annonce(['source_kind' => RadarSourceKind::Captures, 'raw_text' => null]));
+        $echec = $this->annonce(['source_kind' => RadarSourceKind::Captures, 'raw_text' => null]);
+        $this->lancer($echec);
         // Plafond atteint : attente.
         config(['ai.budgets.daily_global_xof' => 0]);
-        $this->lancer($this->annonce(['raw_text' => 'Une autre annonce sans numéro, villa à vendre']));
+        $attente = $this->annonce(['raw_text' => 'Une autre annonce sans numéro, villa à vendre']);
+        $this->lancer($attente);
 
+        // Chaque annonce est bien dans l'issue que le test prétend : l'absence de suggestion n'est pas un accident.
+        $this->assertSame(RadarListingStage::DoNotContact, $stop->refresh()->stage);
+        $this->assertSame([RadarListingStage::ExtractionFailed, 'radar.extraction.empty_source'], [$echec->refresh()->stage, $echec->stage_reason]);
+        $this->assertSame([RadarListingStage::Captured, 'ai.budget'], [$attente->refresh()->stage, $attente->stage_reason]);
         $this->assertSame(0, AiSuggestion::query()->count());
     }
 
@@ -268,6 +278,90 @@ class ExtractRadarListingTest extends TestCase
         $this->assertSame(RadarListingStage::DoNotContact, RadarListing::query()->sole()->stage);
         $this->assertSame($stop->id, RadarListing::query()->sole()->radar_advertiser_id);
         $this->assertSame(0, AiSuggestion::query()->count());
+    }
+
+    public function test_a_stop_said_under_the_lock_records_no_suggestion(): void
+    {
+        RadarExtraction::fake([$this->reponseComplete()]);
+        $listing = $this->annonce();
+        // Le STOP arrive après l'appel au modèle, quand le job relit l'annonceur sous verrou.
+        $fait = false;
+        RadarAdvertiser::retrieved(function (RadarAdvertiser $annonceur) use (&$fait): void {
+            if (! $fait) {
+                $fait = true;
+                RadarAdvertiser::query()->whereKey($annonceur->id)->update(['do_not_contact_at' => now()]);
+            }
+        });
+
+        $this->lancer($listing);
+
+        $this->assertSame(RadarListingStage::DoNotContact, $listing->refresh()->stage);
+        $this->assertSame(1, AiCall::query()->count(), 'Le modèle a bien été appelé : seule la suggestion est écartée.');
+        $this->assertSame(0, AiSuggestion::query()->count());
+        Bus::assertNotDispatched(FingerprintRadarSourcePhotos::class);
+    }
+
+    public function test_the_stored_snapshot_is_the_sent_input_anonymized_with_the_extracted_name_and_phones(): void
+    {
+        $texte = 'Appartement F4 à louer aux Almadies, 450.000f/mois. Contactez Moussa Diop au 77 123 45 67';
+        $recu = null;
+        RadarExtraction::fake(function (string $prompt) use (&$recu) {
+            $recu = $prompt;
+
+            return $this->reponse([
+                'property_type' => ['value' => 'apartment', 'confidence' => 'high', 'evidence' => 'Appartement F4'],
+                'advertiser_name' => ['value' => 'Moussa Diop', 'confidence' => 'medium', 'evidence' => 'Moussa Diop'],
+                'phones' => ['77 123 45 67', '78 999 88 77'],
+            ]);
+        });
+        $listing = $this->annonce(['raw_text' => 'Appartement F4 à louer aux Almadies, 450.000f/mois. Contactez Moussa Diop au 77 123 45 67']);
+
+        $this->lancer($listing);
+
+        $snapshot = (string) AiSuggestion::query()->sole()->input_snapshot;
+        $this->assertStringContainsString('Moussa', (string) $recu, 'Le modèle a bien reçu le nom.');
+        foreach (['Moussa', 'Diop', '123 45 67'] as $fuite) {
+            $this->assertStringNotContainsString($fuite, $snapshot);
+        }
+        $this->assertStringContainsString('[NOM]', $snapshot);
+        $this->assertStringContainsString('[TELEPHONE]', $snapshot);
+        // Le reste est l'entrée envoyée, octet pour octet : délimiteur et étiquette compris.
+        $this->assertSame(
+            str_replace(['Moussa Diop', '77 123 45 67'], ['[NOM]', '[TELEPHONE]'], (string) $recu),
+            $snapshot,
+        );
+    }
+
+    public function test_an_edited_radar_suggestion_is_exported_without_the_advertiser_name(): void
+    {
+        RadarExtraction::fake([$this->reponse([
+            'property_type' => ['value' => 'apartment', 'confidence' => 'high', 'evidence' => 'Appartement F4'],
+            'contract' => ['value' => 'rent', 'confidence' => 'high', 'evidence' => 'à louer'],
+            'price' => ['value' => '450.000f/mois', 'confidence' => 'high', 'evidence' => '450.000f/mois'],
+            'advertiser_name' => ['value' => 'Moussa Diop', 'confidence' => 'medium', 'evidence' => 'Moussa Diop'],
+            'phones' => ['77 123 45 67'],
+        ])]);
+        $listing = $this->annonce(['raw_text' => 'Appartement F4 à louer aux Almadies, 450.000f/mois. Contactez Moussa Diop au 77 123 45 67']);
+        $this->lancer($listing);
+        $suggestion = AiSuggestion::query()->sole();
+        // L'opérateur corrige le prix : la suggestion devient `edited`, donc un cas d'évaluation.
+        app(SuggestionRecorder::class)->edit($suggestion, [...$suggestion->proposal, 'price' => 500000], $this->operateur);
+
+        $racine = storage_path('framework/testing/radar-export-'.bin2hex(random_bytes(4)));
+        try {
+            $fichiers = (new EvalCaseExporter(new EvalCaseAnonymizer, $racine))->export('radar.extraction');
+
+            $this->assertCount(1, $fichiers);
+            $brut = (string) file_get_contents($fichiers[0]);
+            foreach (['Moussa', 'Diop', '123 45 67'] as $fuite) {
+                $this->assertStringNotContainsString($fuite, $brut);
+            }
+            $cas = json_decode($brut, true);
+            $this->assertStringContainsString('Appartement F4', $cas['input']);
+            $this->assertSame(500000, $cas['expected']['price']);
+        } finally {
+            File::deleteDirectory($racine);
+        }
     }
 
     public function test_a_second_extraction_leaves_only_one_pending_suggestion(): void
