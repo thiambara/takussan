@@ -93,6 +93,13 @@ Recherche plein texte sur Meilisearch (`config/scout.php`). Modèles `Searchable
 `Agency`, `Customer`, `Document`, `MaintenanceRequest`, `Message`, `Property`, `User`
 (la source fait foi : les classes de `app/Models` qui portent le trait — `HasQueryBuilder` importe la classe sans la porter).
 
+### `laravel/ai`
+
+Version 1.3 (`^1.3`, `v1.3.0` au verrou) : le SDK des agents du socle IA ([ADR-0076](adr/0076-le-socle-ia.md)),
+appelé par `AiGateway` seul. Le paquet publie une migration `agent_conversations` que le dépôt **n'a
+pas publiée** : aucune table de plus. Les tables du socle sont les nôtres
+([§102](#102-airoleassignment-) → [§106](#106-aievaluationrun-)).
+
 ### `laravel/sanctum` — la table `personal_access_tokens`
 
 La table et le modèle sont ceux de Sanctum (`Laravel\Sanctum\PersonalAccessToken`, non surchargé :
@@ -346,6 +353,9 @@ Les tables `lemon_squeezy_*` viennent d'un paquet, voir [`lemonsqueezy/laravel`]
 104. [AiCall](#104-aicall-) 🆕
 105. [AiSuggestion](#105-aisuggestion-) 🆕
 106. [AiEvaluationRun](#106-aievaluationrun-) 🆕
+
+#### Sorties d'argent — la reprise au bailleur 🆕 (TCK-2151, ADR-0039 amendement du 2026-10-24)
+107. [PayoutClawback](#107-payoutclawback-) 🆕
 
 ### Enums
 
@@ -635,8 +645,8 @@ pause, le réactiver les reprend (ADR-0061 §8).
 |---------|------|----------|--------|-------------|------------|
 | id | bigint PK | | auto | Identifiant unique | |
 | parent_id | FK properties | oui | null | Bien parent (ex: immeuble contenant des appartements) | |
-| user_id | FK users | | | Titulaire du bien (`restrictOnDelete`) — son propriétaire pour un particulier ; sur un bien d'agence, **le bailleur désigné à la saisie** (un bailleur actif de l'agence), ou **l'auteur** quand l'agence garde le bien en propre ou en attendant qu'un bailleur invité accepte ; un lot prend à sa création le titulaire bailleur de son parent, et la copie celui de sa source. **Ce n'est pas l'agent responsable** (le collaborateur principal, [§8](#8-propertycollaborator)) : hors création, seules trois voies le réécrivent, jamais depuis un bailleur — la passation d'un bien saisi par un partant (TCK-603), l'acceptation de l'invitation du bailleur en attente, et « changer le titulaire » par l'admin d'agence ([ADR-0036](adr/0036-l-agent-responsable-est-le-collaborateur-principal.md), amendé le 2026-10-19 ; TCK-997, TCK-999, TCK-1000). La désignation du bailleur à la saisie, le titulaire bailleur d'un lot et la copie sont faits (TCK-997, 2026-10-25), ainsi que « changer le titulaire » (TCK-999, 2026-10-25 : `PUT /api/properties/{id}/owner`, après l'aperçu `GET …/owner-transfer`) et l'invitation en attente (TCK-1000, 2026-10-25 : `pending_owner_profile_id` à la création, transfert à l'acceptation). **Aujourd'hui**, hors création, les trois voies le réécrivent : la passation (TCK-603), l'acceptation de l'invitation (TCK-1000) et « changer le titulaire » (TCK-999). Un bien saisi avant TCK-997 garde son titulaire, l'auteur de la saisie, tant que l'admin d'agence ne le change pas | ✏️ |
-| pending_owner_profile_id | FK owner_profiles | oui | null | Bailleur invité pour qui le bien a été saisi (`nullOnDelete`, TCK-1000) : un profil `draft` de l'agence du bien dont l'invitation est `sent` et non échue, jamais avec `owner_id`. Le bien lui passe quand il accepte l'invitation, si son titulaire est encore du personnel ; le lien s'efface à l'acceptation, à la révocation (effacement du compte compris) ou à l'expiration. Ajoutée sans reprise : aucun bien saisi avant n'en porte | ➕ |
+| user_id | FK users | | | Titulaire du bien (`restrictOnDelete`) — son propriétaire pour un particulier ; sur un bien d'agence, **le bailleur désigné à la saisie** (un bailleur actif de l'agence), ou **l'auteur** quand l'agence garde le bien en propre ou en attendant qu'un bailleur invité accepte ; un lot prend à sa création le titulaire bailleur de son parent, et la copie celui de sa source. **Ce n'est pas l'agent responsable** (le collaborateur principal, [§8](#8-propertycollaborator) ; [ADR-0036](adr/0036-l-agent-responsable-est-le-collaborateur-principal.md), amendé le 2026-10-19). La désignation du bailleur à la saisie, le titulaire bailleur d'un lot et la copie sont faits (TCK-997, 2026-10-25), ainsi que « changer le titulaire » (TCK-999, 2026-10-25 : `PUT /api/properties/{id}/owner`, après l'aperçu `GET …/owner-transfer`) et l'invitation en attente (TCK-1000, 2026-10-25 : `pending_owner_profile_id` à la création, transfert à l'acceptation). **Aujourd'hui**, hors création, seules trois voies le réécrivent, jamais depuis un bailleur : la passation d'un bien saisi par un partant (TCK-603), l'acceptation de l'invitation du bailleur en attente (TCK-1000) et « changer le titulaire » par l'admin d'agence (TCK-999). Un bien saisi avant TCK-997 garde son titulaire, l'auteur de la saisie, tant que l'admin d'agence ne le change pas | ✏️ |
+| pending_owner_profile_id | FK owner_profiles | oui | null | Bailleur invité pour qui le bien a été saisi (FK `properties_pending_owner_profile_fk`, `nullOnDelete`, index `properties_pending_owner_profile_idx` ; TCK-1000, `2026_10_25_120000`) : un profil `draft` de l'agence du bien dont l'invitation est `sent` et non échue, jamais avec `owner_id`. Le bien lui passe quand il accepte l'invitation, si son titulaire est encore du personnel ; le lien s'efface à l'acceptation, à la révocation (effacement du compte compris) ou à l'expiration. Ajoutée sans reprise : aucun bien saisi avant n'en porte | ➕ |
 | agency_id | FK agencies | oui | null | Agence gestionnaire (`nullOnDelete`) | |
 | title | string | | | Titre de l'annonce | |
 | slug | string | | | Identifiant URL — **unique** ; fabriqué par `Str::slug()`, donc sans variante de casse possible | |
@@ -1129,7 +1139,8 @@ intervention) et soumis à modération avant publication
 
 > Schéma mesuré le 2026-10-14 sur les trois migrations qui touchent `reviews` :
 > `2026_04_17_160031_create_reviews_table`, `2026_04_22_000001_add_moderation_workflow_to_reviews_table`,
-> `2026_10_08_100000_add_moderation_scope_to_reviews_table`.
+> `2026_10_08_100000_add_moderation_scope_to_reviews_table` ; complété le 2026-10-27 par
+> `2026_10_24_040000_widen_reviews_author_context_unique_index` (TCK-2062, l'unicité ci-dessous).
 
 | Colonne | Type | Nullable | Défaut | Description | Changement |
 |---------|------|----------|--------|-------------|------------|
@@ -1160,12 +1171,14 @@ intervention) et soumis à modération avant publication
 - `reviews_reviewable_approved_index` `(reviewable_type, reviewable_id, is_approved)` ;
 - `reviews_reviewable_status_index` `(reviewable_type, reviewable_id, status)` ;
 - `reviews_agency_status_idx` `(agency_id, status)` — la file de modération d'une agence ;
-- **`reviews_author_context_uniq`** — unique partiel `(author_id, reviewable_type, context_type,
-  context_id) WHERE context_id IS NOT NULL` : un avis par auteur, **type de cible** et preuve.
-  `reviewable_type` y est délibérément et `reviewable_id` non : un même bail rend éligible à noter le
-  bien, l'agent et l'agence, et le formulaire commun « bien + agent » ne doit pas se refuser à
-  lui-même (docblock de `2026_10_08_100000`, ADR-0043 §3). Les avis sans preuve (`context_id` nul)
-  n'y sont pas soumis.
+- **`reviews_author_subject_context_uniq`** — unique partiel `(author_id, reviewable_type,
+  reviewable_id, context_type, context_id) WHERE context_id IS NOT NULL` : un avis par auteur,
+  **sujet noté** et preuve (TCK-2062, `2026_10_24_040000`, ADR-0043 amendé le 2026-10-23). Un même
+  bail rend éligible à noter le bien, l'agence, l'agent et chaque collaborateur. Il **remplace**
+  `reviews_author_context_uniq` (`2026_10_08_100000`), qui laissait `reviewable_id` hors clé et
+  n'admettait donc qu'un avis de cible `User` par auteur et par preuve : l'agent du bail et un
+  collaborateur étant tous deux notables, le second avis rendait 500. Les avis sans preuve
+  (`context_id` nul) n'y sont pas soumis.
 
 **Reprise (`2026_10_08_100000`) :** les avis existants reçoivent `agency_id` — l'agence du bien pour
 un avis de bien, l'agence elle-même pour un avis d'agence ; un avis sur un `User` reste `null`.
@@ -1462,7 +1475,10 @@ Aucune relation `conversations()` : `Conversation.lease_id` existe, mais le mod�
 > Schéma mesuré le 2026-10-14 sur les migrations qui altèrent `lease_payments` :
 > `2026_04_17_160013` (création), `2026_04_25_120001` (pénalité), `2026_04_28_000004`
 > (rapprochement bancaire), `2026_05_07_000224` (commission plateforme), `2026_10_07_150000`
-> (pénalité réglée) ; `2026_10_07_150100` ne touche que des données (voir `status`).
+> (pénalité réglée) ; `2026_10_07_150100` ne touche que des données (voir `status`). Complété le
+> 2026-10-27 (passe 016 de `/sync-specs`) : `2026_10_22_150000` (enregistrement du paiement,
+> TCK-1342), `2026_10_24_160000` (pénalité reversée, P206.01) et `2026_10_24_160100` (pénalité
+> remboursée, P206.04).
 
 | Colonne | Type | Nullable | Défaut | Description |
 |---------|------|----------|--------|-------------|
@@ -1479,6 +1495,7 @@ Aucune relation `conversations()` : `Conversation.lease_id` existe, mais le mod�
 | period_end | date | | | Fin de la période couverte |
 | due_date | date | oui | null | Date d'échéance (nullable : un paiement hors échéancier n'en a pas) |
 | paid_at | timestamp | oui | null | Date de paiement effectif |
+| marked_paid_at | timestamp | oui | null | Moment où l'agence a **enregistré** le paiement (`LeasePaymentService::markPaid`), distinct de `paid_at`, date effective saisie qui peut être ancienne. La fenêtre de quittance du lien `/pay/{jeton}` court depuis le plus tardif des deux (`LeasePaymentLinkService::effectiveExpiry`) (TCK-1342, `2026_10_22_150000`) |
 | bank_reconciled_at | timestamp | oui | null | Rapprochement bancaire (`2026_04_28_000004`) ; scope `whereNotReconciled()` |
 | bank_statement_line_id | FK bank_statement_lines | oui | null | Ligne de relevé rapprochée (`nullOnDelete`, voir [BankStatementLine](#41-bankstatementline-)) ; unique partiel `lease_payments_bank_line_unique` `WHERE bank_statement_line_id IS NOT NULL` |
 | platform_fee_pct_at_payment | decimal(5,2) | oui | null | Taux de commission plateforme **figé** au passage à `paid` par `PaymentPlatformFeeObserver` (TCK-223, `2026_05_07_000224`) ; jamais recalculé ensuite |
@@ -1487,6 +1504,11 @@ Aucune relation `conversations()` : `Conversation.lease_id` existe, mais le mod�
 | late_fee_amount | decimal(14,2) | oui | null | Pénalité de retard appliquée — **renommée** depuis `late_fee` (`2026_04_25_120001`) |
 | late_fee_applied_at | timestamp | oui | null | Application de la pénalité ; non nulle, `LateFeeCalculator` ne la réapplique jamais (une pénalité au plus par ligne) |
 | late_fee_paid_at | timestamp | oui | null | Pénalité **réglée** (TCK-593, `2026_10_07_150000`). `status` décrit le loyer : sans cette colonne, un loyer soldé faisait disparaître la pénalité des écrans. `lateFeeOutstanding()` s'en dérive |
+| late_fee_payout_id | FK payouts | oui | null | Reversement au bailleur qui a pris la pénalité réglée, ligne propre du reversement sans pivot (`lease_payments_late_fee_payout_fk`, `nullOnDelete` ; P206.01, `2026_10_24_160000`, [ADR-0039, amendement du 2026-10-24](adr/0039-les-sorties-d-argent.md), point 6). Un reversement `cancelled` ou `failed` remet à nul cette colonne et les trois suivantes (`PayoutService`) |
+| late_fee_payout_amount | decimal(14,2) | oui | null | Copie figée du montant de pénalité pris par ce reversement, comme les pivots depuis TCK-2017 ([§28](#28-payout-)) |
+| late_fee_payout_commission_rate | decimal(5,2) | oui | null | Copie figée du taux de commission appliqué à la pénalité |
+| late_fee_payout_commission_amount | decimal(14,2) | oui | null | Copie figée de la commission retenue sur la pénalité |
+| late_fee_refund_amount | decimal(14,2) | oui | null | Part de pénalité rendue par un remboursement, qui s'impute d'abord à elle ; `refund_amount` reste plafonné au loyer. Une colonne et non `metadata` : le calcul des reversements, l'*Encaissé* et la clôture plateforme l'agrègent en SQL (P206.04, `2026_10_24_160100`, point 7) |
 | transaction_id | string | oui | null | ID transaction externe (mobile money, banque) — exclu du journal d'activité |
 | refund_amount | decimal(14,2) | oui | null | Montant remboursé, comme `booking_payments.refund_amount` : `HasPaymentAttributes::paidAmount()` en déduit le reçu d'une échéance `refunded` (TCK-873, `2026_10_18_070000`) |
 | notes | text | oui | null | Notes |
@@ -1498,7 +1520,7 @@ Aucune relation `conversations()` : `Conversation.lease_id` existe, mais le mod�
 **Traits :**
 - `HasPaymentAttributes` (`App\Models\Concerns`) — casts et scopes partagés avec BookingPayment (amount, currency, payment_method, status, transaction_id) ➕
 
-**Index :** `(due_date, status)`, `(lease_id, period_start)`, `lease_payments_transaction_id_idx (transaction_id)` (TCK-891, `2026_10_18_080000`), `lease_payments_bank_line_unique`
+**Index :** `(due_date, status)`, `(lease_id, period_start)`, `lease_payments_transaction_id_idx (transaction_id)` (TCK-891, `2026_10_18_080000`), `lease_payments_late_fee_payout_idx (late_fee_payout_id)` (P206.01, `2026_10_24_160000`), `lease_payments_bank_line_unique`
 (partiel, ci-dessus).
 
 **Relations** (`app/Models/LeasePayment.php`) :
@@ -1508,7 +1530,8 @@ Aucune relation `conversations()` : `Conversation.lease_id` existe, mais le mod�
 - `payouts()` → belongsToMany Payout (pivot `payout_lease_payment`) 🆕
 - `bankStatementLine()` → belongsTo BankStatementLine 🆕
 
-Le modèle ne déclare **ni** `invoice()` **ni** `platformPayout()` (relevé 2026-10-14) ; la facture
+Le modèle ne déclare **ni** `invoice()` **ni** `platformPayout()` (relevé 2026-10-14), **ni** de
+relation vers le reversement de la pénalité (`late_fee_payout_id`, relevé 2026-10-27) ; la facture
 d'une échéance se lit côté Invoice (`invoiceable`), le lien de paiement côté
 [LeasePaymentLink](#84-leasepaymentlink-).
 
@@ -1979,6 +2002,7 @@ Le modèle ne déclare ni `documents()` ni de relation vers les deux signataires
 | monthly_income | text (cast `encrypted`) | oui | null | Revenu mensuel déclaré (XOF) — **chiffré** (TCK-954, ADR-0070) ; le `down()` de `2026_10_19_110000` rend `numeric(14,2)` |
 | relationship_to_tenant | string | oui | null | Lien avec le locataire (parent, conjoint, employeur, autre) |
 | added_by_id | FK users | oui | null | Utilisateur ayant saisi le garant (`nullOnDelete`) |
+| agency_id | FK agencies | oui | null | Agence de la caution (`nullOnDelete`, index), posée à la création (`GuarantorController` : l'agence de l'auteur) ; nulle pour une caution ajoutée hors de toute agence. Elle ne dépend plus de la vie de l'auteur : une caution dont l'auteur efface son compte restait illisible dans l'agence (TCK-1993, `2026_10_23_230000`). **Reprise**, dans cet ordre et seulement quand la source désigne **une** agence : l'agence des baux qui portent la caution (`leases.guarantor_id` ou `lease_guarantor`), sinon celle des profils de son auteur (agent, admin d'agence, bailleur, supprimés compris) ; sinon nulle |
 | notes | text | oui | null | Notes internes |
 | metadata | jsonb | oui | null | Données complémentaires |
 | deleted_at | datetime | oui | null | Soft delete |
@@ -1990,21 +2014,23 @@ Le modèle ne déclare ni `documents()` ni de relation vers les deux signataires
 de toute sérialisation par défaut (`$hidden`). Ils ne sortent que masqués par
 `GuarantorController::format` — `id_number_masked` (les quatre derniers caractères) et
 `monthly_income_masked` (`••••` ou `null`, sans rien révéler du montant) —, et en clair par
-`GET /api/guarantors/{id}/sensitive`, réservé à l'admin de l'agence de l'auteur (`GuarantorPolicy::agencyOf`,
-par `addedBy`) et au super-admin, sous second facteur récent, consultation journalisée (surface
+`GET /api/guarantors/{id}/sensitive`, réservé à l'admin de l'agence de la caution (`GuarantorPolicy::agencyOf` :
+`agency_id`, à défaut l'agence de l'auteur) et au super-admin, sous second facteur récent, consultation journalisée (surface
 `guarantor_sensitive`).
 
-**Traits :**
-- `InteractsWithMedia` (spatie/laravel-medialibrary) — collection `id_documents` (CNI, attestations de revenus, fiches de paie)
+**Traits :** `HasFactory`, `SoftDeletes`. ⚠ Le modèle ne porte **pas** `InteractsWithMedia` (relevé
+2026-10-27) : aucune collection medialibrary ; les pièces justificatives s'attachent par `documents()`.
 
-**Accesseurs :**
-- `full_name` : concaténation de `first_name` + `last_name`
+**Accesseurs :** aucun — l'accesseur `full_name` que cette section décrivait n'existe pas (relevé 2026-10-27).
 
-**Relations :**
-- `leases()` → hasMany Lease (un même garant peut couvrir plusieurs baux)
-- `added_by()` → belongsTo User
-- `addresses()` → morphMany Address
-- `documents()` → morphMany Document
+**Relations** (mesurées sur `App\Models\Guarantor`, 2026-10-27) :
+- `addedBy()` → belongsTo User (via `added_by_id`)
+- `agency()` → belongsTo Agency (TCK-1993)
+- `leases()` → hasMany Lease, via `leases.guarantor_id` (un même garant peut couvrir plusieurs baux)
+- `leasesPivot()` → belongsToMany Lease (pivot `lease_guarantor`, `withPivot(['role'])`, horodaté)
+- `documents()` → morphMany Document (`documentable`)
+
+Le modèle ne déclare **pas** `addresses()`.
 
 ---
 
@@ -2033,6 +2059,7 @@ par `addedBy`) et au super-admin, sous second facteur récent, consultation jour
 | gross_amount | decimal(14,2) | | | Montant brut collecté |
 | commission_amount | decimal(14,2) | | 0 | Commission agence retenue |
 | fees_amount | decimal(14,2) | oui | null | Frais annexes retenus (transfert, fiscalité) |
+| clawback_amount | decimal(14,2) | oui | null | Reprise au bailleur imputée à ce reversement, à côté de `fees_amount` : `net_amount` vaut brut − commission − frais − reprise imputée (TCK-2151, `2026_10_24_050000`, voir [§107](#107-payoutclawback-)) |
 | net_amount | decimal(14,2) | | | Montant net reversé |
 | currency | Currency | | 'XOF' | Devise |
 | payment_method | PaymentMethod | oui | null | Moyen de reversement (bank_transfer, mobile_money, cash, check) |
@@ -2042,6 +2069,7 @@ par `addedBy`) et au super-admin, sous second facteur récent, consultation jour
 | processed_at | timestamp | oui | null | Date effective du reversement |
 | bank_reconciled_at | datetime | oui | null | Date du rapprochement bancaire (TCK-593, `2026_10_07_150200`) |
 | bank_statement_line_id | FK bank_statement_lines | oui | null | Ligne de relevé rapprochée (`nullOnDelete`, FK `payouts_bank_line_fk`) ; un reversement n'est rapproché qu'à une seule ligne (TCK-593) |
+| refunded_payment_type / refunded_payment_id | nullableMorphs | oui | null | Le `LeasePayment` ou le `BookingPayment` dont ce `Payout` **constate** le remboursement déjà sorti (TCK-2052, `2026_10_24_030000`, [ADR-0039, amendement du 2026-10-23](adr/0039-les-sorties-d-argent.md)). Ces colonnes sont à la fois la marque et le lien : un constaté est **exactement** un `Payout` où elles sont non nulles (`isObservedRefund()`). Il naît `completed`, `payee_role = tenant`, brut = net sans commission, sans pivot (`ObservedRefundPayout`). Nulles pour tout autre `Payout`, caution rendue comprise |
 | failed_reason | text | oui | null | Motif d'échec (si `status = failed`) |
 | notes | text | oui | null | Notes internes |
 | metadata | jsonb | oui | null | Données passerelle / complémentaires |
@@ -2049,13 +2077,15 @@ par `addedBy`) et au super-admin, sous second facteur récent, consultation jour
 | created_at | datetime | | auto | |
 | updated_at | datetime | | auto | |
 
-**Contraintes et index** (mesurés sur `2026_04_17_160025`, `2026_08_22_090000`, `2026_10_07_150200`, `2026_10_07_200200`, `2026_10_07_200400`) :
+**Contraintes et index** (mesurés sur `2026_04_17_160025`, `2026_08_22_090000`, `2026_10_07_150200`, `2026_10_07_200200`, `2026_10_07_200400`, `2026_10_24_030000`) :
 - `reference_number` unique.
 - `payouts_bank_line_unique` — unique partiel `(bank_statement_line_id) WHERE bank_statement_line_id IS NOT NULL`.
-- Index : `(landlord_id, status)`, `(lease_id, period_start)`, `(status, scheduled_at)`, `payouts_agency_id_created_at_index (agency_id, created_at)`, `payouts_agency_status_idx (agency_id, status)`, `payouts_sp_bill_idx (service_provider_bill_id)`.
+- Index : `(landlord_id, status)`, `(lease_id, period_start)`, `(status, scheduled_at)`, `payouts_agency_id_created_at_index (agency_id, created_at)`, `payouts_agency_status_idx (agency_id, status)`, `payouts_sp_bill_idx (service_provider_bill_id)`, `payouts_refunded_payment_idx (refunded_payment_type, refunded_payment_id)` (TCK-2052).
 - **Aucune contrainte CHECK ne porte sur `payouts`.** Le CHECK « `lease_id IS NOT NULL OR booking_id IS NOT NULL` » qu'écrivait cette section n'a jamais été posé, et ne le sera pas : un reversement couvre plusieurs baux d'un même bailleur, ou une facture de prestataire. L'origine se garantit à l'écriture (au moins une pièce) et se lit dans les pivots (docblock de `2026_10_07_200200`).
 
 **Pivots `payout_lease_payment` et `payout_booking_payment`** (`2026_04_17_160025`) : `payout_id` FK `cascadeOnDelete`, `lease_payment_id` / `booking_payment_id` FK `cascadeOnDelete`, clé primaire composée. **Un paiement n'est reversé qu'une fois** : unicités `payout_lp_lease_payment_unique (lease_payment_id)` et `payout_bp_booking_payment_unique (booking_payment_id)` (TCK-594, ADR-0039 §3, `2026_10_07_200400`). Avant de les poser, la migration a détaché les pièces des reversements `cancelled` ou `failed` et gardé, pour chaque paiement, le plus ancien reversement — comme le fait désormais le service.
+
+Chaque pivot porte aussi la **copie figée de la ligne** : `amount` decimal(14,2), `commission_rate` decimal(5,2) et `commission_amount` decimal(14,2), nullables (TCK-2017, `2026_10_24_010000`) — ce que le reversement a pris de la pièce, posé à sa création par `PayoutService::createLocked`. Le relevé ne suit donc plus le taux d'agence du jour. Une ligne antérieure n'a pas de copie : le relevé la lit alors au taux du jour, et elle ne donne jamais de reprise ([§107](#107-payoutclawback-)). La pénalité de retard reversée n'a pas de pivot : sa copie est sur la ligne du loyer (`lease_payments.late_fee_payout_*`, [§15](#15-leasepayment-)).
 
 **Relations** (mesurées sur `App\Models\Payout`) :
 - `lease()` → belongsTo Lease
@@ -2067,6 +2097,7 @@ par `addedBy`) et au super-admin, sous second facteur récent, consultation jour
 - `processor()` → belongsTo User (via processed_by_id) (TCK-594)
 - `payoutMethod()` → belongsTo PayoutMethod, `withTrashed` (TCK-594)
 - `serviceProviderBill()` → belongsTo ServiceProviderBill — la facture que ce reversement paie (TCK-594)
+- `refundedPayment()` → morphTo (`refunded_payment_type` / `refunded_payment_id`) — le payable dont ce `Payout` constate le remboursement (TCK-2052)
 - `imputedBills()` → hasMany ServiceProviderBill (via `imputed_payout_id`) — les factures d'intervention retenues en frais de ce reversement au bailleur
 - `leasePayments()` → belongsToMany LeasePayment (pivot `payout_lease_payment` — agrégation des paiements couverts)
 - `bookingPayments()` → belongsToMany BookingPayment (pivot `payout_booking_payment`)
@@ -2499,6 +2530,7 @@ JSON libre (`{"value": …}`), sans journal, `updated_by_id` pour seule trace. U
 | label | text | | | Libellé bancaire complet |
 | reference | string | oui | null | Référence bancaire (transaction id) |
 | counterparty | string | oui | null | Contrepartie identifiée (libre) |
+| duplicate_of_line_id | FK bank_statement_lines | oui | null | Ligne qui reprend une transaction déjà importée pour l'agence dans un autre relevé (même référence, date, montant et sens) : pointe vers la première ligne qui l'a portée. Marquée, pas ignorée (décision du porteur) ; une ligne sans référence n'est jamais marquée (`ParseBankStatementJob`). FK auto-référente `bsl_duplicate_of_line_fk`, `nullOnDelete` : supprimer l'origine efface la marque (TCK-1919, `2026_10_23_223500`) |
 | raw_payload | jsonb | | | Payload brut de la ligne tel qu'importée (CSV/OFX) — traçabilité totale |
 | match_status | BankStatementLineMatchStatus enum | | 'unmatched' | État d'appariement (unmatched, suggested, confirmed, ignored) |
 | matched_payment_type | string | oui | null | Type morph du paiement apparié (`BookingPayment` ou `LeasePayment`) |
@@ -2513,6 +2545,11 @@ JSON libre (`{"value": …}`), sans journal, `updated_by_id` pour seule trace. U
 - `(bank_statement_id, match_status)` — file de réconciliation par relevé
 - `(matched_payment_type, matched_payment_id)` — recherche inverse depuis un paiement
 - `(posted_at, amount)` — recherche d'appariement par date/montant
+- `bsl_duplicate_of_line_idx (duplicate_of_line_id)` (TCK-1919)
+
+Le virement de clôture de la plateforme (`PlatformPayout`, [§45](#45-platformpayout-)) se rapproche
+aussi d'une ligne de crédit, mais ne passe pas par `matched_payment` : il porte sa propre colonne
+`bank_statement_line_id` (TCK-1421).
 
 **Traits :**
 - `Auditable`
@@ -2637,7 +2674,7 @@ exigée pour `director_id`.
 ### 45. PlatformPayout 🆕
 
 **Table :** `platform_payouts`
-**Description :** Reversement périodique de la plateforme vers une agence — le **net** dû à l'agence après commission plateforme retenue. Distinct du `Payout` métier (#28) qui matérialise le reversement agence → bailleur.
+**Description :** Reversement périodique de la plateforme vers une agence — le **net** dû à l'agence après commission plateforme retenue. Distinct du `Payout` métier (#28) qui matérialise le reversement agence → bailleur. Le virement de clôture, une fois `paid`, se rapproche d'un **crédit** du relevé de l'agence, comme un reversement de l'agence d'un débit (TCK-1421).
 
 | Colonne | Type | Nullable | Défaut | Description |
 |---------|------|----------|--------|-------------|
@@ -2655,6 +2692,8 @@ exigée pour `director_id`.
 | approved_at | timestamp | oui | null | Date de l'approbation (TCK-594, `2026_10_07_200600`) |
 | paid_by_id | FK users | oui | null | Qui a exécuté le virement (`nullOnDelete`, FK `platform_payouts_paid_by_fk`) — **distinct de `approved_by`** (TCK-594, `2026_10_07_200600`) |
 | processed_at | timestamp | oui | null | Date d'exécution du virement |
+| bank_reconciled_at | datetime | oui | null | Date du rapprochement bancaire (TCK-1421, `2026_10_22_174000`) |
+| bank_statement_line_id | FK bank_statement_lines | oui | null | Ligne de crédit rapprochée (`nullOnDelete`, FK `platform_payouts_bank_line_fk`) ; un reversement de la plateforme n'est rapproché qu'à une seule ligne (TCK-1421). Le modèle ne déclare pas de relation vers elle |
 | payment_reference | string | oui | null | Référence du virement, écrite au paiement. Remplace le `metadata.bank_ref` facultatif d'avant (TCK-594, `2026_10_07_200600`) |
 | failure_reason | text | oui | null | |
 | metadata | jsonb | oui | null | Lot, breakdown ; `refunded_since_paid` : les lignes remboursées depuis le paiement du reversement (type, identifiant, référence, date, **sans montant**), écrites par le webhook de remboursement d'un reversement `paid` (TCK-2320, P39.07) |
@@ -2662,8 +2701,9 @@ exigée pour `director_id`.
 
 **Séparation des gestes** (TCK-594, ADR-0039 §4 ; `features.md` §1.5) : clôture, approbation et paiement sont trois colonnes pour que la base permette de comparer les acteurs. `PlatformPayoutService` refuse qu'on approuve un reversement qu'on a clôturé, ou qu'on paie un reversement qu'on a approuvé (`SegregationOfDuties::assertDistinct`), et qu'un bénéficiaire — l'administrateur principal de l'agence payée ou un membre de son équipe — approuve ou paie.
 
-**Contraintes et index** (mesurés sur `2026_05_07_000223`) :
+**Contraintes et index** (mesurés sur `2026_05_07_000223` et `2026_10_22_174000`) :
 - `platform_payouts_unique_open_period` — unique partiel `(agency_id, period_end) WHERE status <> 'cancelled'` : un reversement non annulé par agence et période — c'est ce qui rend la clôture de période idempotente en base (ré-exécution = 409).
+- `platform_payouts_bank_line_unique` — unique partiel `(bank_statement_line_id) WHERE bank_statement_line_id IS NOT NULL` (TCK-1421).
 - Index : `(agency_id, period_end)`, `(status)` — file d'approbation.
 
 **Traits :**
@@ -2749,7 +2789,8 @@ exigée pour `director_id`.
 | expires_at | datetime | | | Expiration du token (par défaut now+7j) |
 | accepted_at | datetime | oui | null | |
 | revoked_at | datetime | oui | null | |
-| last_reminded_at | datetime | oui | null | Date du dernier rappel J+2 envoyé |
+| last_reminded_at | datetime | oui | null | Date du dernier **essai** de rappel J+2 |
+| reminder_attempts | unsignedSmallInteger | | 0 | Essais du rappel automatique (`InvitationService::remindPending()`) : un SMS refusé par tous les fournisseurs se retente un jour plus tard, trois essais au plus (`MAX_REMINDER_ATTEMPTS`) ; un rappel posé épuise le compte. Défaut 0 sans réécriture : une invitation déjà rappelée reste tenue pour rappelée (TCK-2155, `2026_10_24_150000`) |
 | metadata | jsonb | oui | null | Données additionnelles propres au parcours (ex. zones d'intervention pré-sélectionnées, premier lead pré-assigné) |
 | created_at | datetime | | auto | |
 | updated_at | datetime | | auto | |
@@ -3675,6 +3716,8 @@ supprime l'ambiguïté de sous-chaîne qu'avait la recherche `LIKE` sur le JSON.
 
 **Index :**
 - `(app_notification_id, attempt)`
+- `(agency_id, created_at)` (`2026_10_25_120500`, TCK-2326) — la frontière d'isolation : PostgreSQL
+  n'indexe pas une clé étrangère, et les tentatives d'une agence se listent par date
 
 **Relations :**
 - `appNotification()` → belongsTo AppNotification
@@ -4248,7 +4291,7 @@ de `GET /api/admin/system/metrics` se lit dans la ligne de J-30, et nulle part a
 | active_subscriptions | integer | oui | null | Abonnements actifs — stock ; jamais rattrapé |
 | agencies_total, agencies_active, agencies_verified, agencies_suspended | integer | oui | null | Agences par statut courant — stocks ; jamais rattrapés |
 | users_total, users_active | integer | oui | null | Utilisateurs — stocks ; jamais rattrapés |
-| properties_published, properties_pending_review | integer | oui | null | Biens publiés / en attente de modération — stocks ; jamais rattrapés. **« Publiés » se compte par `Property::public()`**, le prédicat du catalogue de TCK-1115 (décision du porteur du 2026-10-23, P167.07) : la série **rompt à cette date**, les lignes antérieures comptant `status = published` seul. ⚠ Au 2026-10-23, `PlatformMetricsSnapshotter` compte encore `status = published` |
+| properties_published, properties_pending_review | integer | oui | null | Biens publiés / en attente de modération — stocks ; jamais rattrapés. **« Publiés » se compte par `Property::public()`**, le prédicat du catalogue de TCK-1115 (décision du porteur du 2026-10-23, P167.07) : la série **rompt à la livraison de TCK-2087** (`a065a7fe1` : `PlatformMetricsSnapshotter` compte `Property::query()->public()->count()`), les lignes antérieures comptant `status = published` seul |
 | leases_active | integer | oui | null | Baux actifs — stock ; jamais rattrapé |
 | stocks_captured_at | timestamp | oui | null | Instant de mesure des stocks, `null` sur une ligne rattrapée |
 | created_at / updated_at | timestamp | | auto | |
@@ -4353,6 +4396,7 @@ Keur Massar), ses communes d'arrondissement devenant des quartiers.
 | geo_region_id | FK geo_regions | | | `geo_cities_region_fk`, **`restrictOnDelete`** |
 | slug | string(120) | | | |
 | name | string(120) | | | |
+| former_names | jsonb (cast `array`) | oui | null | Anciens noms de la ville, ajoutés quand le rechargement du jeu de données la renomme (`GeoReferentialLoader::ville()`) ; lus par `VilleDuFiltre` : une recherche ou une alerte rangée sous l'ancien nom désigne toujours la ville. Aucune reprise (TCK-1169, `2026_10_21_224500`) |
 | latitude / longitude | decimal(10,7) | oui | null | Centre |
 | created_at / updated_at | timestamp | | auto | |
 
@@ -4391,6 +4435,7 @@ Un rejet n'efface pas l'adresse : elle garde son texte et perd son identifiant.
 | created_by_id | FK users | oui | null | Auteur de la proposition — `geo_neighborhoods_created_by_fk`, `nullOnDelete` |
 | merged_into_id | FK geo_neighborhoods | oui | null | Cible de la fusion — `geo_neighborhoods_merged_into_fk`, `nullOnDelete` |
 | renamed_at | timestamp | oui | null | Posé par un renommage en modération : le rechargement du jeu de données ne réécrit plus ce nom |
+| former_names | jsonb (cast `array`) | oui | null | Anciens noms du quartier, ajoutés par un renommage en modération (`GeoNeighborhoodModeration::renommer()`) ou par le rechargement du jeu de données (`GeoReferentialLoader`) ; lus par `QuartierDuFiltre::idsDuReferentiel()` : une recherche, une alerte ou le rapprochement CRM sous l'ancien nom désigne toujours le quartier. Aucune reprise (TCK-1080, `2026_10_20_220000`) |
 | created_at / updated_at | timestamp | | auto | |
 
 **Contraintes :** unique `geo_neighborhoods_city_slug_unique (geo_city_id, slug)` ; unique **partiel**
@@ -4737,7 +4782,7 @@ position)`, qui sert aussi d'index à la clé étrangère ; CHECK `property_boos
 
 **Table :** `owner_statement_snapshots` (migration `2026_10_25_100000`, TCK-2321)
 **Modèle :** aucun — la table se lit et s'écrit par `App\Services\Payout\OwnerStatementSnapshots`
-sur le constructeur de requêtes, comme `payout_clawbacks`. Écrite par
+sur le constructeur de requêtes, comme `payout_clawbacks` ([§107](#107-payoutclawback-)). Écrite par
 `payouts:send-owner-statements` seul, lue par `OwnerStatementController` (JSON, PDF, CSV).
 **Description :** Le relevé de gérance mensuel d'un bailleur dans une agence, **tel qu'il a été
 envoyé** : la commande l'écrit quand elle envoie l'avis du mois, et le premier reste
@@ -4802,12 +4847,19 @@ catalogue `Flag` est fermé, et une clé hors catalogue y vaut faux.
 
 **Contraintes :** unique sur `usage_key`.
 
+**Les autres plafonds ne sont pas en base.** Le plafond **global journalier** et le plafond **par
+agence** vivent en configuration (`ai.budgets.daily_global_xof`, lu de `AI_DAILY_BUDGET_XOF`, 5 000
+XOF par défaut ; `ai.budgets.daily_per_agency_xof`, nul — aucun plafond — au 2026-10-27) et ne se
+règlent pas depuis la console, qui affiche le global sans le modifier. `AiBudget` les juge, avec le
+plafond de l'usage, sur la somme de `ai_calls.cost_estimate` du jour civil, hors `is_evaluation`.
+
 ### 104. AiCall 🆕
 
 **Table :** `ai_calls` (migration `2026_10_27_100020`, TCK-2383)
 **Modèle :** `App\Models\AiCall` (`AbstractModel`, `UPDATED_AT = null`) — écrit par `AiGateway` seul ;
 `role`, `outcome` et `refusal_reason` castés en enums (`AiModelRole`, `AiCallOutcome`,
-`AiRefusalReason`), `cost_estimate` en `decimal:2`, `is_evaluation` en `boolean`.
+`AiRefusalReason`), `cost_estimate` en `decimal:2`, `is_evaluation` en `boolean` ; `stop_reason` reste
+une chaîne, sans cast.
 **Description :** Journal de chaque passage par `AiGateway` : réussite, cache, bascule, erreur ou
 refus ([ADR-0076 §5](adr/0076-le-socle-ia.md)). Aucun contenu envoyé ni reçu n'y est conservé.
 
@@ -4822,9 +4874,10 @@ refus ([ADR-0076 §5](adr/0076-le-socle-ia.md)). Aucun contenu envoyé ni reçu 
 | cache_read_tokens / cache_write_tokens | unsignedInteger | | 0 | Sous-ensembles de l'entrée |
 | cost_estimate | decimal(14,2) | oui | null | Coût en XOF ; null quand le modèle n'a pas de tarif (`warning = model_unpriced`) |
 | duration_ms | unsignedInteger | oui | null | Durée de l'appel |
-| outcome | string(20) | | | `success`, `cache_hit`, `failed_over`, `error`, `refused` |
+| outcome | string(20) | | | `success`, `cache_hit`, `failed_over`, `error`, `refused`. `failed_over` : maillon en échec basculable, **dernier compris**, ou réponse tronquée ou filtrée — payée (jetons et coût journalisés, donc comptés au budget), hors cache, et la passerelle passe au maillon suivant (TCK-2399). `error` : erreur qui interrompt la chaîne, ou rôle sans chaîne |
+| stop_reason | string(20) | oui | null | Raison de fin de la réponse (`FinishReason` du SDK : `stop`, `length`, `content_filter`, `tool_calls`, `error`, `cancelled`, `unknown`, `continue`) ; nulle pour un refus, un cache ou une exception (TCK-2399, `2026_10_27_100050`) |
 | refusal_reason | string(30) | oui | null | `forbidden`, `kill_switch`, `budget`, `sensitive_data`, `data_class` |
-| error_code | string(80) | oui | null | Nom de l'exception, jamais son message |
+| error_code | string(80) | oui | null | Code `ai.*` de l'erreur, que le front traduit (`AiErrorCode::fromThrowable`, TCK-2399), jamais un nom de classe ni un message — le nom de la classe reste au journal Laravel. Valeurs : `ai.provider_timeout`, `ai.provider_rate_limited`, `ai.provider_credits`, `ai.provider_unavailable`, `ai.provider_auth`, `ai.request_rejected`, `ai.response_invalid`, `ai.unexpected` ; le code propre d'`AiUnavailable` ou d'`AiRefused` (`ai.refused.<motif>`) ; et ceux de la passerelle : `ai.response_truncated` (`length`), `ai.response_filtered` (`content_filter`), `ai.role_unassigned` (ligne `error` sans maillon) |
 | warning | string(40) | oui | null | `model_unpriced` |
 | is_evaluation | boolean | | false | Appel de `ai:eval` : hors budget, hors tableau de bord |
 | agency_id | FK agencies | oui | null | Agence pour laquelle l'appel agit ; null pour un usage de plateforme (`nullOnDelete`) |
@@ -4853,7 +4906,7 @@ production ; les corrections deviennent des cas d'évaluation (`ai:export-eval-c
 | subject_type / subject_id | nullableMorphs | oui | null | Objet que la proposition modifierait ; index `ai_suggestions_subject_idx` |
 | proposal | jsonb | | | Sortie de l'IA |
 | confidence | decimal(4,3) | oui | null | Confiance déclarée |
-| input_snapshot | text | oui | null | Contenu soumis ; effacé avec son objet (purge du Radar, TCK-2391) |
+| input_snapshot | text | oui | null | Contenu soumis à l'IA ; anonymisé à l'export des cas d'évaluation (`EvalCaseExporter`). **À venir** (TCK-2391, `todo`) : effacé avec son objet par la purge du Radar — au 2026-10-27, aucun code ne l'efface |
 | decision | string(20) | | pending | `pending`, `accepted`, `edited`, `rejected` ; prise une fois |
 | decided_by_id | FK users | oui | null | `nullOnDelete` |
 | decided_at | timestamp | oui | null | |
@@ -4882,7 +4935,7 @@ réécrit. Une évaluation **orpheline** (worker mort) se lit `failed` avec
 86 400 s) et `markLostIfStale()` l'écrit, par une mise à jour conditionnelle à l'état lu, à la
 lecture (`show`) et avant de refuser un doublon (409 `ai.eval.already_running`). Un job tué ou
 relivré échoue par `failed()` : `ai.eval.job_failed` quand aucune exception n'est connue, sinon le
-nom de la classe de l'exception.
+code `ai.*` de l'exception (`AiErrorCode`, TCK-2399).
 
 | Colonne | Type | Nullable | Défaut | Description |
 |---------|------|----------|--------|-------------|
@@ -4892,13 +4945,72 @@ nom de la classe de l'exception.
 | status | string(20) | | queued | `queued`, `running`, `done`, `failed` |
 | report | jsonb | oui | null | `{usages: {<clé>: rapport + baseline + verdict + below_baseline}}` ; `verdict` : `ai.eval.failures`, `ai.eval.baseline_stale`, `ai.eval.below_baseline`, ou null quand l'usage passe |
 | below_baseline | boolean | oui | null | Vrai si un usage du rôle a un verdict (sous sa référence, appels en échec, ou référence périmée) |
-| error_code | string(80) | oui | null | Sur `failed` : `ai.eval.job_lost`, `ai.eval.job_failed`, ou le nom d'une exception |
+| error_code | string(80) | oui | null | Sur `failed` : `ai.eval.job_lost`, `ai.eval.job_failed`, ou le code `ai.*` de l'erreur (`AiErrorCode`, comme `ai_calls.error_code`, TCK-2399) |
 | requested_by_id | FK users | oui | null | `nullOnDelete` |
 | started_at | timestamp | oui | null | Départ du job ; sert à `isStale()` |
 | finished_at | timestamp | oui | null | |
 | created_at / updated_at | timestamp | | auto | |
 
 **Index :** `ai_eval_runs_role_status_idx (role, status)`.
+
+### 107. PayoutClawback 🆕
+
+**Tables :** `payout_clawbacks` et `payout_clawback_imputations` (migration `2026_10_24_050000`,
+TCK-2151, [ADR-0039, amendement du 2026-10-24](adr/0039-les-sorties-d-argent.md), point 2)
+**Modèle :** aucun — les deux tables se lisent et s'écrivent par `App\Services\Payout\PayoutClawbacks`
+sur le constructeur de requêtes, comme [§101](#101-ownerstatementsnapshot-).
+**Description :** La **reprise au bailleur**. Un remboursement d'une pièce portée par un reversement
+au bailleur `completed` crée une reprise au **net de commission** (`R − arrondi(R × taux / 100)`, au
+taux de la copie du pivot, [§28](#28-payout-)), datée du remboursement (`recordRefund`, appelé par le
+geste déclaré et par le webhook, quel que soit l'encaisseur). Elle s'impute au **reversement suivant
+du même bailleur dans la même agence**, à sa création (`PayoutService::createLocked`), de la plus
+ancienne à la plus récente et jusqu'au net avant reprise ; le **reliquat** passe au suivant. Un
+reversement `cancelled` ou `failed` rend ses imputations (`release()`). Pas de reprise pour une pièce
+jamais reversée, pour un reversement pas encore `completed`, ni pour un pivot sans copie (antérieur à
+TCK-2017). **Reprise de données** : aucune.
+
+`payout_clawbacks` :
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| agency_id | FK agencies | | | `cascadeOnDelete` |
+| landlord_id | FK users | | | Le bailleur qui doit la reprise, `cascadeOnDelete` |
+| refunded_payment_type / refunded_payment_id | nullableMorphs | oui | null | La pièce remboursée ; index `payout_clawbacks_refunded_payment_idx` |
+| part | string(20) | | 'payment' | Part reprise ; seule valeur écrite au 2026-10-27 : `payment` |
+| source_payout_id | FK payouts | | | Le reversement `completed` qui avait porté la pièce, `cascadeOnDelete` ; index `payout_clawbacks_source_payout_idx` |
+| refund_amount | decimal(14,2) | | | Base : la part neuve du remboursement, plafonnée à ce que le reversement a pris de la pièce moins les reprises précédentes |
+| commission_rate | decimal(5,2) | | | Taux de la copie du pivot |
+| commission_amount | decimal(14,2) | | | Commission rendue par l'agence |
+| amount | decimal(14,2) | | | La reprise, nette de commission |
+| currency | string(3) | | | |
+| refunded_at | timestamp | | | Instant du remboursement : la date de la reprise au relevé (`datedIn()`) |
+| settled_amount | decimal(14,2) | oui | null | Reste dû figé au solde à la main |
+| settled_at | timestamp | oui | null | Solde à la main ; non nulle, la reprise n'est plus imputée (`outstanding()`) |
+| settled_by_id | FK users | oui | null | `nullOnDelete` |
+| settlement_note | text | oui | null | Référence du règlement reçu hors reversement, ou motif |
+| created_at / updated_at | timestamp | | auto | |
+
+⚠ **Le solde à la main est décidé (ADR-0039, point 2.9), pas livré** : au 2026-10-27, aucun code
+n'écrit `settled_amount`, `settled_at`, `settled_by_id` ni `settlement_note`, et aucune route ne les
+expose. `outstanding()` les lit déjà.
+
+**Index :** `payout_clawbacks_agency_landlord_idx (agency_id, landlord_id)`,
+`payout_clawbacks_source_payout_idx (source_payout_id)`, `payout_clawbacks_refunded_payment_idx`.
+
+`payout_clawback_imputations` — une reprise se reporte sur plusieurs reversements :
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| payout_id | FK payouts | | | Reversement qui impute, `cascadeOnDelete` |
+| payout_clawback_id | FK payout_clawbacks | | | `cascadeOnDelete` ; index `payout_clawback_imputations_clawback_idx` |
+| amount | decimal(14,2) | | | Part de la reprise imputée à ce reversement |
+| created_at / updated_at | timestamp | | auto | |
+
+**Contraintes :** unique `payout_clawback_imputations_pair_unique (payout_id, payout_clawback_id)`.
+Le **reste dû** d'une reprise vaut `amount − imputations des reversements qui gardent leurs pièces −
+settled_amount`.
 
 ---
 
@@ -5256,8 +5368,8 @@ Tout User ayant un rôle de locataire actif doit avoir un `Customer` associé (`
 - Dès qu'un User devient locataire (signature d'un Lease en tant que `tenant`), un Customer doit être créé ou associé.
 - **Agence de la fiche d'un candidat** (P15.01, TCK-2350, 2026-10-25) : la candidature, l'offre d'achat ou la réservation d'un compte sur un bien d'agence lui donne une fiche de **l'agence du bien** (`CustomerService::findOrCreateFromUser`) — reprise si le compte en a déjà une dans cette agence, rattachée si l'agence a une fiche sans compte au téléphone ou à l'e-mail **vérifié** du compte, créée sinon. La fiche du compte dans une autre agence n'est ni reprise ni déplacée. Un compte porte donc une fiche par agence. Un bien sans agence garde l'agence du compte.
 - **Fiche saisie sans compte** (P15.01, TCK-2351, 2026-10-25) : le personnel de l'agence de la fiche invite son client à créer son compte (`POST /api/customers/{id}/invite`, rôle d'invitation `tenant`) ; le lien part à l'e-mail de la fiche, ou à son numéro si le lien par SMS est ouvert, et l'acceptation pose `customers.user_id` (`CustomerService::linkUser`). Hors de l'appariement vérifié de la candidature (ci-dessus), aucun `user_id` n'est posé autrement sur une fiche saisie par l'agence.
-- **Implémentation :** `UserObserver` ou logique dans `LeaseService` lors de la création d'un bail.
-- **Conséquence :** `MaintenanceRequest.requester_id` pointe vers User ; le Customer du demandeur se lit depuis l'utilisateur (`User::customer()`, hasOne) — aucune relation `requesterCustomer()` sur le modèle (relevé 2026-10-14).
+- **Implémentation :** `CustomerService::findOrCreateFromUser` (candidature, offre d'achat, réservation) et `CustomerService::linkUser` (invitation `tenant` acceptée, `InvitationService`). Ni `UserObserver` ni `LeaseService` ne créent de fiche (relevé 2026-10-27).
+- **Conséquence :** `MaintenanceRequest.requester_id` pointe vers User ; le Customer du demandeur se lit par `customers.user_id` **dans l'agence du bien** (`Customer::where('user_id', …)`), un compte ayant une fiche par agence — `User::customer()` a été retirée (TCK-2372, voir [§1](#1-user)), et `User::customers()` désigne les fiches que le compte a **saisies** (`added_by_id`), pas les siennes. Aucune relation `requesterCustomer()` sur le modèle.
 
 ### Règle 2 — Compteurs cache
 
@@ -5388,11 +5500,12 @@ Toute requête authentifiée résout un **profil actif** parmi les profils du us
 | payouts | `bank_statement_line_id` (`payouts_bank_line_unique`) | unique partiel | `bank_statement_line_id IS NOT NULL` (`2026_10_07_150200`) |
 | payout_lease_payment | `lease_payment_id` (`payout_lp_lease_payment_unique`) | unique | toujours — une échéance n'est retenue que par un reversement (`2026_10_07_200400`) |
 | payout_booking_payment | `booking_payment_id` (`payout_bp_booking_payment_unique`) | unique | toujours (`2026_10_07_200400`) |
+| payout_clawback_imputations | `(payout_id, payout_clawback_id)` (`payout_clawback_imputations_pair_unique`) | unique composé | toujours (`2026_10_24_050000`, TCK-2151) — voir [§107](#107-payoutclawback-) |
 | invoices | `(agency_id, reference_number)` (`invoices_agency_reference_unique`) | unique composé | si `agency_id` non null — l'unique global `invoices_reference_number_unique` a été retiré par `2026_10_07_200700` |
 | invoices | `reference_number` (`invoices_reference_no_agency_unique`) | unique partiel | `agency_id IS NULL` |
 | invoices | `(agency_id, kind, sequence_year, sequence_number)` (`invoices_agency_kind_seq_unique`) | unique composé | si `agency_id`, `sequence_year` et `sequence_number` non nuls (`2026_10_07_200700`) |
 | invoices | `bank_statement_line_id` (`invoices_bank_line_unique`) | unique partiel | `bank_statement_line_id IS NOT NULL` (`2026_04_28_000005`) |
-| reviews | `(author_id, reviewable_type, context_type, context_id)` (`reviews_author_context_uniq`) | unique partiel | `context_id IS NOT NULL` — `reviewable_id` délibérément hors clé (ADR-0043 §3) ; voir [§11](#11-review) |
+| reviews | `(author_id, reviewable_type, reviewable_id, context_type, context_id)` (`reviews_author_subject_context_uniq`) | unique partiel | `context_id IS NOT NULL` — un avis par auteur, sujet noté et preuve ; remplace `reviews_author_context_uniq` (`2026_10_24_040000`, TCK-2062) ; voir [§11](#11-review) |
 | saved_searches | `(user_id, name)` | unique composé | si `user_id` non null — une recherche d'abonné sans compte (`alert_subscriber_id`) n'est pas couverte |
 | favorites | `(user_id, property_id)` | unique composé | toujours |
 | property_collaborators | `(property_id, user_id)` | unique composé | toujours |
@@ -5410,6 +5523,7 @@ Toute requête authentifiée résout un **profil actif** parmi les profils du us
 | service_provider_profiles | `user_id` (`service_provider_profiles_user_live_unique`) | unique partiel | `user_id IS NOT NULL AND deleted_at IS NULL` (`2026_10_25_223720`, TCK-2372) — un profil de prestataire vivant par compte ; l'unicité de la création, retirée par `2026_05_10_170000` (TCK-260), ne laissait que la garde applicative, voir [§37](#37-serviceproviderprofile-) |
 | payout_methods | `user_id` (`payout_methods_user_default_unique`) | unique partiel | `is_default AND deleted_at IS NULL` (`2026_10_25_223721`, TCK-2372) — une destination vivante par défaut par compte, voir [§76](#76-payoutmethod-) |
 | platform_payouts | `(agency_id, period_end)` (`platform_payouts_unique_open_period`) | unique partiel | `status <> 'cancelled'` (`2026_05_07_000223`) |
+| platform_payouts | `bank_statement_line_id` (`platform_payouts_bank_line_unique`) | unique partiel | `bank_statement_line_id IS NOT NULL` (`2026_10_22_174000`, TCK-1421) — voir [§45](#45-platformpayout-) |
 | agency_upgrade_requests | `agency_id` (`agency_upgrade_requests_one_pending_per_agency`) | unique partiel | `status = 'pending'` (`2026_05_10_180000`) |
 | notification_templates | `(event, channel, locale)` | unique composé | toujours (`2026_05_07_000215`) |
 | bank_statements | `(agency_id, file_hash)` | unique composé | toujours 🆕 |
