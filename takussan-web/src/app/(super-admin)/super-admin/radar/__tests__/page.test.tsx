@@ -1,7 +1,9 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { PlatformAbilities } from '@/lib/platform-abilities';
+import { avecGestes } from '@/test/habilitations';
 import { fetchRadarDashboard, fetchRadarListings } from '@/lib/queries/radar';
 import { withIntl } from '@/test/intl';
 import type { RadarDashboard, RadarListingRow } from '@/types/radar';
@@ -52,14 +54,30 @@ const LIGNES: RadarListingRow[] = [
   ligne({ id: 5, stage: 'extraction_failed', stage_reason: 'radar.code.inconnu', source_kind: 'captures', source_url: null }),
 ];
 
-function renderPage() {
+/** Les gestes d'un support (`PlatformAbility::forLevel`) : le Radar en fait partie. */
+const SUPPORT: PlatformAbilities = {
+  level: 'support',
+  abilities: ['platform.console.access', 'platform.users.view', 'platform.radar.operate'],
+};
+const VIEWER: PlatformAbilities = {
+  level: 'viewer',
+  abilities: ['platform.console.access', 'platform.reports.view', 'platform.health.view', 'platform.agencies.view'],
+};
+
+function renderPage(gestes: PlatformAbilities = SUPPORT) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(withIntl(
     <QueryClientProvider client={queryClient}>
-      <SuperAdminRadarPage />
+      {avecGestes(<SuperAdminRadarPage />, gestes)}
     </QueryClientProvider>,
   ));
 }
+
+function listeDe(lignes: RadarListingRow[]) {
+  return { data: lignes, meta: { total: lignes.length, per_page: 25, current_page: 1, last_page: 1 } };
+}
+
+afterEach(() => vi.useRealTimers());
 
 beforeEach(() => {
   vi.mocked(fetchRadarDashboard).mockReset().mockResolvedValue({ data: DASHBOARD });
@@ -72,17 +90,29 @@ beforeEach(() => {
 describe('/super-admin/radar (TCK-2386)', () => {
   it('rend les compteurs de travail et le coût IA du jour rapporté au plafond', async () => {
     renderPage();
-    const compteurs = await screen.findByTestId('radar-counters');
-
-    const tuile = async (libelle: string) => (await within(compteurs).findByText(libelle)).closest('div')!.parentElement!;
-    expect(within(await tuile('À relire')).getByText('7')).toBeInTheDocument();
-    expect(within(await tuile('En attente')).getByText('1')).toBeInTheDocument();
-    expect(within(await tuile('Échouées')).getByText('5')).toBeInTheDocument();
-    expect(within(await tuile('À contacter')).getByText('4')).toBeInTheDocument();
-    expect(within(await tuile('Publiées')).getByText('2')).toBeInTheDocument();
-    const cout = await tuile('Coût IA du jour');
+    expect(await screen.findByRole('button', { name: /À relire\s*7/ })).toBeInTheDocument();
+    expect(within(screen.getByTestId('radar-counter-pending')).getByText('1')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Échouées\s*5/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /À contacter\s*4/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Publiées\s*2/ })).toBeInTheDocument();
+    const cout = screen.getByTestId('radar-counter-ai');
+    expect(cout.textContent).toMatch(/Coût IA du jour/);
     expect(cout.textContent).toMatch(/20\s*F\s*CFA/);
     expect(cout.textContent).toMatch(/sur un plafond de 2\s000\s*F\s*CFA/);
+  });
+
+  it('un compteur à filtre exact pose le filtre d’étape', async () => {
+    renderPage();
+    await screen.findByTestId('radar-listing-1');
+
+    const echouees = screen.getByRole('button', { name: /Échouées\s*5/ });
+    expect(echouees).toHaveAttribute('aria-pressed', 'false');
+    await userEvent.click(echouees);
+
+    await vi.waitFor(() => expect(fetchRadarListings).toHaveBeenLastCalledWith({ stage: 'extraction_failed', page: 1, perPage: 25 }));
+    expect(screen.getByRole('button', { name: /Échouées\s*5/ })).toHaveAttribute('aria-pressed', 'true');
+    // « En attente » n'a pas de filtre exact (`captured` mêle attente et extraction en cours) : pas un bouton.
+    expect(screen.queryByRole('button', { name: /En attente/ })).not.toBeInTheDocument();
   });
 
   it('rend la liste : étape, site, titre, prix, quartier, date', async () => {
@@ -129,5 +159,69 @@ describe('/super-admin/radar (TCK-2386)', () => {
     expect(screen.getByRole('tab', { name: 'URL' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Texte' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Captures' })).toBeInTheDocument();
+  });
+
+  it('un site inconnu s’affiche brut', async () => {
+    vi.mocked(fetchRadarListings).mockResolvedValue(listeDe([
+      ligne({ id: 8, source_site: 'site_futur' as RadarListingRow['source_site'] }),
+    ]));
+    renderPage();
+    expect(within(await screen.findByTestId('radar-listing-8')).getByText('site_futur')).toBeInTheDocument();
+  });
+
+  it('un viewer qui tape l’URL lit un seul refus, sans bouton de saisie ni appel', async () => {
+    renderPage(VIEWER);
+    expect(await screen.findByText('Le Radar est réservé aux opérateurs support et super-admin.')).toBeInTheDocument();
+    expect(screen.getAllByRole('alert')).toHaveLength(1);
+    expect(screen.queryByRole('button', { name: 'Saisir des annonces' })).not.toBeInTheDocument();
+    expect(fetchRadarDashboard).not.toHaveBeenCalled();
+    expect(fetchRadarListings).not.toHaveBeenCalled();
+  });
+});
+
+describe('/super-admin/radar — relecture tant qu’une extraction tourne (TCK-2386)', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
+  });
+
+  it('relit liste et compteurs toutes les 10 s pendant une extraction, puis s’arrête', async () => {
+    vi.mocked(fetchRadarDashboard).mockResolvedValue({
+      data: { ...DASHBOARD, stages: { ...DASHBOARD.stages, captured: 1 }, pending_extraction: 0 },
+    });
+    vi.mocked(fetchRadarListings).mockResolvedValue(listeDe([ligne({ id: 4, stage: 'captured', stage_reason: null })]));
+    renderPage();
+    await screen.findByTestId('radar-listing-4');
+    expect(fetchRadarListings).toHaveBeenCalledTimes(1);
+    expect(fetchRadarDashboard).toHaveBeenCalledTimes(1);
+
+    // L'extraction aboutit : la relecture suivante la voit, puis plus rien ne repart.
+    vi.mocked(fetchRadarDashboard).mockResolvedValue({ data: { ...DASHBOARD, stages: { ...DASHBOARD.stages, captured: 0 }, pending_extraction: 0 } });
+    vi.mocked(fetchRadarListings).mockResolvedValue(listeDe([ligne({ id: 4, stage: 'extracted', stage_reason: null })]));
+    vi.advanceTimersByTime(10_000);
+    await vi.waitFor(() => expect(fetchRadarListings).toHaveBeenCalledTimes(2));
+    await vi.waitFor(() => expect(fetchRadarDashboard).toHaveBeenCalledTimes(2));
+    await within(screen.getByTestId('radar-listing-4')).findAllByText('À relire');
+
+    vi.advanceTimersByTime(30_000);
+    await new Promise((r) => setTimeout(r, 20));
+    expect(fetchRadarListings).toHaveBeenCalledTimes(2);
+    expect(fetchRadarDashboard).toHaveBeenCalledTimes(2);
+  });
+
+  it('ne relit pas une annonce garée sur le plafond IA ou le coupe-circuit', async () => {
+    vi.mocked(fetchRadarDashboard).mockResolvedValue({
+      data: { ...DASHBOARD, stages: { ...DASHBOARD.stages, captured: 2 }, pending_extraction: 2 },
+    });
+    vi.mocked(fetchRadarListings).mockResolvedValue(listeDe([
+      ligne({ id: 3, stage: 'captured', stage_reason: 'ai.budget' }),
+      ligne({ id: 6, stage: 'captured', stage_reason: 'ai.kill_switch' }),
+    ]));
+    renderPage();
+    await screen.findByTestId('radar-listing-3');
+
+    vi.advanceTimersByTime(30_000);
+    await new Promise((r) => setTimeout(r, 20));
+    expect(fetchRadarListings).toHaveBeenCalledTimes(1);
+    expect(fetchRadarDashboard).toHaveBeenCalledTimes(1);
   });
 });

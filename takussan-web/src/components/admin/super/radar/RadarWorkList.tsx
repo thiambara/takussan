@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { AlertTriangle, CheckCircle2, Clock3, ExternalLink, Eye, PhoneOutgoing, Radar, Wallet } from 'lucide-react';
@@ -18,6 +18,7 @@ import { fetchRadarDashboard, fetchRadarListings, radarKeys, type RadarListingFi
 import type { PaginatedResponse } from '@/types/api';
 import {
   RADAR_LISTING_STAGES,
+  RADAR_SOURCE_SITES,
   type RadarDashboardResponse,
   type RadarListingRow,
   type RadarListingStage,
@@ -43,6 +44,16 @@ const STAGE_TONE: Record<RadarListingStage, StatusTone> = {
   purged: 'neutral',
 };
 
+/**
+ * Une extraction TOURNE (et vaut d'être relue) : `captured` sans motif. Avec un motif, l'annonce
+ * est garée — plafond, coupe-circuit, panne — et attend des minutes ou des heures : la relire
+ * toutes les 10 s ne montrerait rien.
+ */
+const enExtraction = (row: RadarListingRow) => row.stage === 'captured' && row.stage_reason === null;
+
+const estSiteConnu = (valeur: string): valeur is (typeof RADAR_SOURCE_SITES)[number] =>
+  (RADAR_SOURCE_SITES as readonly string[]).includes(valeur);
+
 const PERIODES = ['daily', 'weekly', 'monthly', 'yearly'] as const;
 type Periode = (typeof PERIODES)[number];
 const estPeriode = (valeur: unknown): valeur is Periode => PERIODES.includes(valeur as Periode);
@@ -52,8 +63,9 @@ const estPeriode = (valeur: unknown): valeur is Periode => PERIODES.includes(val
  * (relire, contacter, débloquer), le coût IA du jour, puis les annonces, filtrées par étape côté
  * serveur (`filter[stage]`).
  *
- * Tant qu'une annonce est `captured` (extraction en file ou en attente), la requête se relit toutes
- * les {@link RADAR_POLL_MS} ms, et s'arrête d'elle-même quand il n'y en a plus.
+ * Tant qu'une extraction tourne (`captured` sans motif — {@link enExtraction}), la liste et les
+ * compteurs se relisent toutes les {@link RADAR_POLL_MS} ms, et s'arrêtent d'eux-mêmes ensuite.
+ * Les compteurs à filtre exact (à relire, échouées, à contacter, publiées) posent le filtre d'étape.
  */
 export function RadarWorkList() {
   const t = useTranslations('superAdmin.pages.radar');
@@ -70,18 +82,39 @@ export function RadarWorkList() {
     queryKey: radarKeys.dashboard(),
     queryFn: fetchRadarDashboard,
     staleTime: 10_000,
-    refetchInterval: (query) => ((query.state.data?.data.stages.captured ?? 0) > 0 ? RADAR_POLL_MS : false),
+    refetchInterval: (query) => {
+      const d = query.state.data?.data;
+      return d && d.stages.captured - d.pending_extraction > 0 ? RADAR_POLL_MS : false;
+    },
   });
   const list = useQuery<PaginatedResponse<RadarListingRow>, ApiError>({
     queryKey: radarKeys.list(filters),
     queryFn: () => fetchRadarListings(filters),
     staleTime: 10_000,
-    refetchInterval: (query) => (query.state.data?.data.some((row) => row.stage === 'captured') ? RADAR_POLL_MS : false),
+    refetchInterval: (query) => (query.state.data?.data.some(enExtraction) ? RADAR_POLL_MS : false),
   });
 
   const compteurs = dashboard.data?.data;
   const ai = compteurs?.ai;
   const plafondAtteint = ai?.daily_budget_xof != null && ai.spent_today_xof >= ai.daily_budget_xof;
+
+  const filtrer = (suivante: RadarListingStage | '') => {
+    setStage(suivante);
+    setPage(1);
+  };
+
+  /** Une tuile qui pose le filtre de son étape : un bouton, `aria-pressed` quand le filtre est posé. */
+  const tuileFiltrante = (etape: RadarListingStage, carte: ReactNode) => (
+    <button
+      type="button"
+      onClick={() => filtrer(stage === etape ? '' : etape)}
+      aria-pressed={stage === etape}
+      className="rounded-xl text-left transition-colors hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none aria-pressed:ring-2 aria-pressed:ring-primary"
+      data-testid={`radar-counter-${etape}`}
+    >
+      {carte}
+    </button>
+  );
 
   const motif = (code: string) => (MOTIFS_RADAR[code] ? t(`reasons.${MOTIFS_RADAR[code]}`) : code);
 
@@ -103,7 +136,7 @@ export function RadarWorkList() {
       cell: (r) => (
         <>
           <span className="inline-flex items-center gap-1.5 text-foreground">
-            {t(`sites.${r.source_site}`)}
+            {estSiteConnu(r.source_site) ? t(`sites.${r.source_site}`) : r.source_site}
             {r.source_url ? (
               <a
                 href={r.source_url}
@@ -203,17 +236,29 @@ export function RadarWorkList() {
         />
       ) : (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6" data-testid="radar-counters">
-          <StatCard label={t('counters.toReview')} value={compteurs?.stages.extracted ?? 0} loading={dashboard.isLoading} icon={<Eye className="size-4" aria-hidden="true" />} />
-          <StatCard label={t('counters.pending')} value={compteurs?.pending_extraction ?? 0} loading={dashboard.isLoading} icon={<Clock3 className="size-4" aria-hidden="true" />} />
-          <StatCard
-            label={t('counters.failed')}
-            value={compteurs?.stages.extraction_failed ?? 0}
-            loading={dashboard.isLoading}
-            tone={(compteurs?.stages.extraction_failed ?? 0) > 0 ? 'danger' : 'default'}
-            icon={<AlertTriangle className="size-4" aria-hidden="true" />}
-          />
-          <StatCard label={t('counters.toContact')} value={compteurs?.stages.reviewed ?? 0} loading={dashboard.isLoading} icon={<PhoneOutgoing className="size-4" aria-hidden="true" />} />
-          <StatCard label={t('counters.published')} value={compteurs?.stages.published ?? 0} loading={dashboard.isLoading} icon={<CheckCircle2 className="size-4" aria-hidden="true" />} />
+          {tuileFiltrante('extracted', (
+            <StatCard className="h-full" label={t('counters.toReview')} value={compteurs?.stages.extracted ?? 0} loading={dashboard.isLoading} icon={<Eye className="size-4" aria-hidden="true" />} />
+          ))}
+          <div data-testid="radar-counter-pending">
+            <StatCard className="h-full" label={t('counters.pending')} value={compteurs?.pending_extraction ?? 0} loading={dashboard.isLoading} icon={<Clock3 className="size-4" aria-hidden="true" />} />
+          </div>
+          {tuileFiltrante('extraction_failed', (
+            <StatCard
+              className="h-full"
+              label={t('counters.failed')}
+              value={compteurs?.stages.extraction_failed ?? 0}
+              loading={dashboard.isLoading}
+              tone={(compteurs?.stages.extraction_failed ?? 0) > 0 ? 'danger' : 'default'}
+              icon={<AlertTriangle className="size-4" aria-hidden="true" />}
+            />
+          ))}
+          {tuileFiltrante('reviewed', (
+            <StatCard className="h-full" label={t('counters.toContact')} value={compteurs?.stages.reviewed ?? 0} loading={dashboard.isLoading} icon={<PhoneOutgoing className="size-4" aria-hidden="true" />} />
+          ))}
+          {tuileFiltrante('published', (
+            <StatCard className="h-full" label={t('counters.published')} value={compteurs?.stages.published ?? 0} loading={dashboard.isLoading} icon={<CheckCircle2 className="size-4" aria-hidden="true" />} />
+          ))}
+          <div data-testid="radar-counter-ai">
           <StatCard
             label={t('counters.aiCost')}
             value={fmt.montant(ai?.spent_today_xof ?? 0, 'XOF')}
@@ -223,23 +268,22 @@ export function RadarWorkList() {
             loading={dashboard.isLoading}
             tone={plafondAtteint ? 'danger' : 'default'}
             icon={<Wallet className="size-4" aria-hidden="true" />}
+            className="h-full"
           />
+          </div>
         </div>
       )}
 
       <FilterBar
         controlsClassName="sm:grid-cols-2 md:grid-cols-1 lg:grid-cols-3"
         resultCount={list.data ? tFiltres('results', { count: list.data.meta.total }) : undefined}
-        onReset={() => { setStage(''); setPage(1); }}
+        onReset={() => filtrer('')}
         resetLabel={tFiltres('reset')}
         resetDisabled={stage === ''}
       >
         <Select
           value={stage || ANY}
-          onValueChange={(next) => {
-            setStage(!next || next === ANY ? '' : (next as RadarListingStage));
-            setPage(1);
-          }}
+          onValueChange={(next) => filtrer(!next || next === ANY ? '' : (next as RadarListingStage))}
           items={stageOptions}
         >
           <SelectTrigger className="h-10 w-full" aria-label={t('filters.stageAria')}>

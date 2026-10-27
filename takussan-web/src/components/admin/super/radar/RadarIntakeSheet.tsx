@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { CheckCircle2, CopyCheck, Loader2, X } from 'lucide-react';
@@ -23,12 +23,17 @@ import {
   type RadarIntakeRow,
   type RadarSourceSite,
 } from '@/types/radar';
+import { CAPTURES_ACCEPT, refusCaptures, type RefusCaptures } from './captures';
 import { ERREURS_SAISIE_RADAR } from './codes-radar';
 
 type Onglet = 'urls' | 'text' | 'captures';
 
-/** Les types que l'API lit dans le contenu (`config('radar.captures.mimes')`). */
-export const CAPTURES_ACCEPT = 'image/jpeg,image/png,image/webp';
+/** Refus jugé dans le navigateur → clé sous `intake.errors`. */
+const REFUS_LOCAL: Record<RefusCaptures, string> = {
+  tooMany: 'capturesTooMany',
+  fileTooLarge: 'captureFileTooLarge',
+  totalTooLarge: 'capturesTotalTooLarge',
+};
 
 interface DernierEnvoi {
   readonly rows: readonly RadarIntakeRow[];
@@ -68,10 +73,13 @@ export function RadarIntakeSheet({ open, onOpenChange }: RadarIntakeSheetProps) 
   const [urls, setUrls] = useState('');
   const [texte, setTexte] = useState('');
   const [captures, setCaptures] = useState<File[]>([]);
-  // Une nouvelle clé remonte le champ fichier : c'est la seule façon de le vider.
-  const [cleCaptures, setCleCaptures] = useState(0);
   const [site, setSite] = useState<RadarSourceSite>('other');
   const [dernier, setDernier] = useState<DernierEnvoi | null>(null);
+  const [refusLocal, setRefusLocal] = useState<RefusCaptures | null>(null);
+  // Après un envoi réussi, le champ de l'onglet reprend le focus : on colle la suivante sans souris.
+  const champUrls = useRef<HTMLTextAreaElement>(null);
+  const champTexte = useRef<HTMLTextAreaElement>(null);
+  const champCaptures = useRef<HTMLInputElement>(null);
 
   const mutation = useMutation<RadarIntakeResponse, ApiError, RadarIntakePayload>({
     mutationFn: postRadarListings,
@@ -81,14 +89,18 @@ export function RadarIntakeSheet({ open, onOpenChange }: RadarIntakeSheetProps) 
       if (payload.kind === 'text') setTexte('');
       if (payload.kind === 'captures') {
         setCaptures([]);
-        setCleCaptures((c) => c + 1);
+        // Un champ fichier ne se vide que par sa valeur, et seulement vers la chaîne vide.
+        if (champCaptures.current) champCaptures.current.value = '';
       }
+      ({ urls: champUrls, text: champTexte, captures: champCaptures })[payload.kind].current?.focus();
       void queryClient.invalidateQueries({ queryKey: radarKeys.all });
     },
   });
 
   const messageEchec = (erreur: ApiError): string => {
     const code = codeDe(erreur);
+    // Le 413 de l'image de l'API (`post_max_size`) : la cause et le geste propres au Radar.
+    if (erreur.status === 413 || code === 'payload_too_large') return t('intake.errors.payloadTooLarge');
     if (code && ERREURS_SAISIE_RADAR[code]) return t(`intake.errors.${ERREURS_SAISIE_RADAR[code]}`);
     const validation = erreur.validationErrors;
     if (validation) {
@@ -105,6 +117,14 @@ export function RadarIntakeSheet({ open, onOpenChange }: RadarIntakeSheetProps) 
     event.preventDefault();
     if (!pret || mutation.isPending) return;
     setDernier(null);
+    if (onglet === 'captures') {
+      const refus = refusCaptures(captures);
+      setRefusLocal(refus);
+      if (refus) {
+        mutation.reset();
+        return;
+      }
+    }
     if (onglet === 'urls') mutation.mutate({ kind: 'urls', urls: lignes });
     else if (onglet === 'text') mutation.mutate({ kind: 'text', text: texte, sourceSite: site });
     else mutation.mutate({ kind: 'captures', files: captures, sourceSite: site });
@@ -140,7 +160,16 @@ export function RadarIntakeSheet({ open, onOpenChange }: RadarIntakeSheetProps) 
 
         <form onSubmit={envoyer} className="flex min-h-0 flex-1 flex-col">
           <div className="flex-1 space-y-4 overflow-y-auto p-4">
-            <Tabs value={onglet} onValueChange={(v) => { setOnglet(v as Onglet); mutation.reset(); }}>
+            <Tabs
+              value={onglet}
+              onValueChange={(v) => {
+                setOnglet(v as Onglet);
+                // Le retour et les refus parlent de l'onglet quitté : ils partent avec lui.
+                mutation.reset();
+                setDernier(null);
+                setRefusLocal(null);
+              }}
+            >
               <TabsList>
                 <TabsTrigger value="urls">{t('intake.tabs.urls')}</TabsTrigger>
                 <TabsTrigger value="text">{t('intake.tabs.text')}</TabsTrigger>
@@ -150,6 +179,7 @@ export function RadarIntakeSheet({ open, onOpenChange }: RadarIntakeSheetProps) 
               <TabsContent value="urls" className="space-y-1.5 pt-3">
                 <Label htmlFor="radar-intake-urls">{t('intake.urlsLabel')}</Label>
                 <Textarea
+                  ref={champUrls}
                   id="radar-intake-urls"
                   value={urls}
                   onChange={(e) => setUrls(e.target.value)}
@@ -166,6 +196,7 @@ export function RadarIntakeSheet({ open, onOpenChange }: RadarIntakeSheetProps) 
                 <div className="space-y-1.5">
                   <Label htmlFor="radar-intake-text">{t('intake.textLabel')}</Label>
                   <Textarea
+                    ref={champTexte}
                     id="radar-intake-text"
                     value={texte}
                     onChange={(e) => setTexte(e.target.value)}
@@ -182,14 +213,17 @@ export function RadarIntakeSheet({ open, onOpenChange }: RadarIntakeSheetProps) 
                 <div className="space-y-1.5">
                   <Label htmlFor="radar-intake-captures">{t('intake.capturesLabel')}</Label>
                   <Input
-                    key={cleCaptures}
+                    ref={champCaptures}
                     id="radar-intake-captures"
                     type="file"
                     multiple
                     accept={CAPTURES_ACCEPT}
                     className="h-10 py-1.5"
                     aria-describedby="radar-intake-captures-hint"
-                    onChange={(e) => setCaptures(Array.from(e.target.files ?? []))}
+                    onChange={(e) => {
+                      setCaptures(Array.from(e.target.files ?? []));
+                      setRefusLocal(null);
+                    }}
                   />
                   <p id="radar-intake-captures-hint" className="text-xs text-muted-foreground">
                     {t('intake.capturesHint')} {t('intake.capturesSelected', { count: captures.length })}
@@ -199,10 +233,13 @@ export function RadarIntakeSheet({ open, onOpenChange }: RadarIntakeSheetProps) 
               </TabsContent>
             </Tabs>
 
+            {refusLocal ? <ErrorState message={t(`intake.errors.${REFUS_LOCAL[refusLocal]}`)} /> : null}
             {mutation.isError ? <ErrorState message={messageEchec(mutation.error)} /> : null}
 
+            {/* Toujours montée : une région vivante insérée avec son contenu n'est pas annoncée. */}
+            <div role="status" aria-label={t('intake.resultsTitle')}>
             {dernier ? (
-              <section role="status" aria-label={t('intake.resultsTitle')} className="space-y-2 rounded-xl border border-border bg-muted/40 p-3">
+              <section className="space-y-2 rounded-xl border border-border bg-muted/40 p-3">
                 <h3 className="text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">{t('intake.resultsTitle')}</h3>
                 <ul className="space-y-1.5 text-sm">
                   {dernier.rows.map((row, index) => (
@@ -223,6 +260,7 @@ export function RadarIntakeSheet({ open, onOpenChange }: RadarIntakeSheetProps) 
                 </ul>
               </section>
             ) : null}
+            </div>
           </div>
 
           <div className="flex justify-end gap-2 border-t border-border p-4">

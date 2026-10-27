@@ -8635,7 +8635,7 @@
           "textHint": "The text as published, phone number included.",
           "sourceSiteLabel": "Source site",
           "capturesLabel": "Screenshots",
-          "capturesHint": "Up to 10 JPEG, PNG or WebP images, 8 MB each.",
+          "capturesHint": "Up to 10 JPEG, PNG or WebP images, 8 MB each, 24 MB in total.",
           "capturesSelected": "{count, plural, =0 {No image selected} one {# image selected} other {# images selected}}",
           "submit": "Save",
           "submitting": "Saving…",
@@ -8647,9 +8647,14 @@
             "urlAirbnb": "Airbnb listings are not taken: nothing was saved.",
             "urlInvalid": "One of the addresses has no readable site name: nothing was saved.",
             "capturesUnreadable": "One of the images cannot be read: nothing was saved.",
-            "capturesTooLarge": "One of the images is too large (in pixels): nothing was saved."
+            "capturesTooLarge": "One of the images is too large (in pixels): nothing was saved.",
+            "capturesTooMany": "No more than 10 images per submission. Nothing was sent.",
+            "captureFileTooLarge": "One of the images is over 8 MB. Nothing was sent.",
+            "capturesTotalTooLarge": "The images exceed 24 MB in total: send fewer at a time. Nothing was sent.",
+            "payloadTooLarge": "The submission is too heavy for the server: send fewer images at a time (24 MB at most)."
           }
-        }
+        },
+        "forbidden": "The Radar is reserved to support and super-admin operators."
       }
     },
     "featureFlags": {

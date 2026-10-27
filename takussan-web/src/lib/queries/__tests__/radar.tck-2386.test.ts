@@ -2,7 +2,13 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { CAPTURES_ACCEPT } from '@/components/admin/super/radar/RadarIntakeSheet';
+import {
+  CAPTURE_MAX_OCTETS,
+  CAPTURES_ACCEPT,
+  CAPTURES_MAX_FICHIERS,
+  CAPTURES_TOTAL_MAX_OCTETS,
+  refusCaptures,
+} from '@/components/admin/super/radar/captures';
 import { fetchRadarListings, postRadarListings } from '../radar';
 
 /**
@@ -16,6 +22,23 @@ function repondre(body: unknown, status = 201) {
 }
 
 afterEach(() => vi.unstubAllGlobals());
+
+const RACINE = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..', '..');
+
+/** `26M` → octets, comme PHP lit une taille de `php.ini`. */
+function tailleIni(nom: string): number {
+  const ini = readFileSync(join(RACINE, 'takussan-api', 'docker', 'php.ini'), 'utf8');
+  const m = ini.match(new RegExp(`^\\s*${nom}\\s*=\\s*(\\d+)([KMG]?)`, 'mi'));
+  expect(m, `${nom} introuvable dans php.ini`).not.toBeNull();
+  const facteur = { '': 1, K: 1024, M: 1024 ** 2, G: 1024 ** 3 }[m![2].toUpperCase() as '' | 'K' | 'M' | 'G'];
+  return Number(m![1]) * facteur;
+}
+
+function fichierDe(octets: number, nom = 'capture.png'): File {
+  const f = new File(['x'], nom, { type: 'image/png' });
+  Object.defineProperty(f, 'size', { value: octets });
+  return f;
+}
 
 describe('queries du Radar', () => {
   it('la liste demande ses seules colonnes, filtre l’étape côté serveur', async () => {
@@ -69,12 +92,32 @@ describe('queries du Radar', () => {
   });
 
   it('le champ des captures propose exactement les types de `config/radar.php`', () => {
-    const racine = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..', '..');
-    const php = readFileSync(join(racine, 'takussan-api', 'config', 'radar.php'), 'utf8');
+    const php = readFileSync(join(RACINE, 'takussan-api', 'config', 'radar.php'), 'utf8');
     const bloc = php.match(/'mimes'\s*=>\s*\[([^\]]*)\]/);
     expect(bloc, 'radar.captures.mimes introuvable').not.toBeNull();
     const attendus = [...bloc![1].matchAll(/'([^']+)'/g)].map((m) => m[1]).sort();
     expect(attendus.length).toBeGreaterThan(0);
     expect(CAPTURES_ACCEPT.split(',').sort()).toEqual(attendus);
+  });
+
+  it('le total d’un envoi de captures reste sous le `post_max_size` de l’image de l’API, enveloppe comprise', () => {
+    const postMax = tailleIni('post_max_size');
+    // L'enveloppe multipart : en-têtes de chaque partie et `source_site`, largement sous 64 Ko.
+    expect(CAPTURES_TOTAL_MAX_OCTETS + 64 * 1024).toBeLessThan(postMax);
+    expect(CAPTURE_MAX_OCTETS).toBeLessThanOrEqual(tailleIni('upload_max_filesize'));
+  });
+
+  it('les bornes par fichier et en nombre sont celles de `config/radar.php`', () => {
+    const php = readFileSync(join(RACINE, 'takussan-api', 'config', 'radar.php'), 'utf8');
+    expect(Number(php.match(/'max_files'\s*=>\s*(\d+)/)![1])).toBe(CAPTURES_MAX_FICHIERS);
+    expect(Number(php.match(/'max_kilobytes'\s*=>\s*([\d_]+)/)![1].replace(/_/g, '')) * 1024).toBe(CAPTURE_MAX_OCTETS);
+  });
+
+  it('juge un envoi de captures avant de le faire partir', () => {
+    const mio = 1024 * 1024;
+    expect(refusCaptures([fichierDe(8 * mio), fichierDe(8 * mio), fichierDe(8 * mio)])).toBeNull();
+    expect(refusCaptures([fichierDe(8 * mio), fichierDe(8 * mio), fichierDe(8 * mio + 1)])).toBe('fileTooLarge');
+    expect(refusCaptures([fichierDe(8 * mio), fichierDe(8 * mio), fichierDe(8 * mio), fichierDe(1)])).toBe('totalTooLarge');
+    expect(refusCaptures(Array.from({ length: 11 }, () => fichierDe(1)))).toBe('tooMany');
   });
 });

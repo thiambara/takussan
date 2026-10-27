@@ -1,4 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { useState } from 'react';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -12,16 +13,39 @@ vi.mock('@/lib/queries/radar', async (importOriginal) => ({
   postRadarListings: vi.fn(),
 }));
 
+/** Le test possède l'état d'ouverture : un panneau qui se fermerait seul le perdrait vraiment. */
+function Harnais({ onOpenChange }: { readonly onOpenChange: (open: boolean) => void }) {
+  const [open, setOpen] = useState(true);
+  return (
+    <RadarIntakeSheet
+      open={open}
+      onOpenChange={(suivant) => {
+        onOpenChange(suivant);
+        setOpen(suivant);
+      }}
+    />
+  );
+}
+
 function renderSheet() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
+  const onOpenChange = vi.fn();
   render(withIntl(
     <QueryClientProvider client={queryClient}>
-      <RadarIntakeSheet open onOpenChange={() => {}} />
+      <Harnais onOpenChange={onOpenChange} />
     </QueryClientProvider>,
   ));
-  return { invalidate };
+  return { invalidate, onOpenChange };
 }
+
+function fichierDe(octets: number, nom: string): File {
+  const f = new File(['x'], nom, { type: 'image/png' });
+  Object.defineProperty(f, 'size', { value: octets });
+  return f;
+}
+
+const MIO = 1024 * 1024;
 
 beforeEach(() => {
   vi.mocked(postRadarListings).mockReset();
@@ -35,7 +59,7 @@ describe('RadarIntakeSheet (TCK-2386)', () => {
         { id: 7, stage: 'extracted', existing: true },
       ],
     });
-    const { invalidate } = renderSheet();
+    const { invalidate, onOpenChange } = renderSheet();
 
     const champ = screen.getByLabelText('URL des annonces');
     await userEvent.type(champ, 'https://www.coinafrique.com/annonce/42{enter}{enter}  https://www.expat-dakar.com/annonce/9  ');
@@ -49,6 +73,8 @@ describe('RadarIntakeSheet (TCK-2386)', () => {
     expect(screen.getByText('Annonce n° 7 déjà saisie')).toBeInTheDocument();
     expect(screen.getByText('https://www.expat-dakar.com/annonce/9')).toBeInTheDocument();
     expect(champ).toHaveValue('');
+    expect(champ).toHaveFocus();
+    expect(onOpenChange).not.toHaveBeenCalledWith(false);
     expect(screen.getByRole('dialog', { name: 'Saisie rapide' })).toBeInTheDocument();
     expect(invalidate).toHaveBeenCalledWith({ queryKey: radarKeys.all });
   });
@@ -68,6 +94,7 @@ describe('RadarIntakeSheet (TCK-2386)', () => {
     );
     expect(await screen.findByText('Annonce n° 3 créée')).toBeInTheDocument();
     expect(champ).toHaveValue('');
+    expect(champ).toHaveFocus();
   });
 
   it('envoie plusieurs captures', async () => {
@@ -117,5 +144,52 @@ describe('RadarIntakeSheet (TCK-2386)', () => {
   it('rien à envoyer : le bouton reste inactif', () => {
     renderSheet();
     expect(screen.getByRole('button', { name: 'Enregistrer' })).toBeDisabled();
+  });
+
+  it('refuse avant l’envoi des captures de plus de 24 Mo au total, sans rien envoyer', async () => {
+    renderSheet();
+    await userEvent.click(screen.getByRole('tab', { name: 'Captures' }));
+    const lourdes = [fichierDe(8 * MIO, 'a.png'), fichierDe(8 * MIO, 'b.png'), fichierDe(8 * MIO, 'c.png'), fichierDe(MIO, 'd.png')];
+    await userEvent.upload(await screen.findByLabelText('Captures d’écran'), lourdes);
+    await userEvent.click(screen.getByRole('button', { name: 'Enregistrer' }));
+
+    expect(await screen.findByText('Les images dépassent 24 Mo au total : envoyez-en moins à la fois. Rien n’a été envoyé.')).toBeInTheDocument();
+    expect(postRadarListings).not.toHaveBeenCalled();
+  });
+
+  it('refuse avant l’envoi une image de plus de 8 Mo', async () => {
+    renderSheet();
+    await userEvent.click(screen.getByRole('tab', { name: 'Captures' }));
+    await userEvent.upload(await screen.findByLabelText('Captures d’écran'), [fichierDe(8 * MIO + 1, 'a.png')]);
+    await userEvent.click(screen.getByRole('button', { name: 'Enregistrer' }));
+
+    expect(await screen.findByText('Une des images dépasse 8 Mo. Rien n’a été envoyé.')).toBeInTheDocument();
+    expect(postRadarListings).not.toHaveBeenCalled();
+  });
+
+  it('un 413 du serveur a son libellé propre au Radar', async () => {
+    vi.mocked(postRadarListings).mockRejectedValue(new ApiError(413, { code: 'payload_too_large' }));
+    renderSheet();
+    await userEvent.click(screen.getByRole('tab', { name: 'Captures' }));
+    await userEvent.upload(await screen.findByLabelText('Captures d’écran'), [fichierDe(MIO, 'a.png')]);
+    await userEvent.click(screen.getByRole('button', { name: 'Enregistrer' }));
+
+    expect(await screen.findByText('L’envoi est trop lourd pour le serveur : envoyez moins d’images à la fois (24 Mo au plus).')).toBeInTheDocument();
+  });
+
+  it('la zone de retour reste montée, et se vide quand on change d’onglet', async () => {
+    vi.mocked(postRadarListings).mockResolvedValue({ data: [{ id: 12, stage: 'captured', existing: false }] });
+    renderSheet();
+    const zone = screen.getByRole('status');
+    expect(zone).toBeEmptyDOMElement();
+
+    await userEvent.type(screen.getByLabelText('URL des annonces'), 'https://www.coinafrique.com/annonce/42');
+    await userEvent.click(screen.getByRole('button', { name: 'Enregistrer' }));
+    expect(await screen.findByText('Annonce n° 12 créée')).toBeInTheDocument();
+    expect(screen.getByRole('status')).toBe(zone);
+
+    await userEvent.click(screen.getByRole('tab', { name: 'Texte' }));
+    expect(screen.queryByText('Annonce n° 12 créée')).not.toBeInTheDocument();
+    expect(screen.getByRole('status')).toBe(zone);
   });
 });

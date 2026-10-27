@@ -7981,7 +7981,7 @@
           "textHint": "Le texte tel que publié, numéro de téléphone compris.",
           "sourceSiteLabel": "Site d’origine",
           "capturesLabel": "Captures d’écran",
-          "capturesHint": "Jusqu’à 10 images JPEG, PNG ou WebP, 8 Mo chacune.",
+          "capturesHint": "Jusqu’à 10 images JPEG, PNG ou WebP, 8 Mo chacune, 24 Mo au total.",
           "capturesSelected": "{count, plural, =0 {Aucune image choisie} one {# image choisie} other {# images choisies}}",
           "submit": "Enregistrer",
           "submitting": "Enregistrement…",
@@ -7993,9 +7993,14 @@
             "urlAirbnb": "Les annonces Airbnb ne sont pas reprises : rien n’a été enregistré.",
             "urlInvalid": "Une des adresses n’a pas de nom de site lisible : rien n’a été enregistré.",
             "capturesUnreadable": "Une des images ne se lit pas : rien n’a été enregistré.",
-            "capturesTooLarge": "Une des images est trop grande (en pixels) : rien n’a été enregistré."
+            "capturesTooLarge": "Une des images est trop grande (en pixels) : rien n’a été enregistré.",
+            "capturesTooMany": "Pas plus de 10 images par envoi. Rien n’a été envoyé.",
+            "captureFileTooLarge": "Une des images dépasse 8 Mo. Rien n’a été envoyé.",
+            "capturesTotalTooLarge": "Les images dépassent 24 Mo au total : envoyez-en moins à la fois. Rien n’a été envoyé.",
+            "payloadTooLarge": "L’envoi est trop lourd pour le serveur : envoyez moins d’images à la fois (24 Mo au plus)."
           }
-        }
+        },
+        "forbidden": "Le Radar est réservé aux opérateurs support et super-admin."
       }
     },
     "featureFlags": {

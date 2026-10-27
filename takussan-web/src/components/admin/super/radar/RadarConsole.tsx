@@ -4,7 +4,9 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Plus } from 'lucide-react';
 
+import { usePlatformAbilities } from '@/components/admin/super/PlatformAbilitiesProvider';
 import { PageHeader } from '@/components/console';
+import { ErrorState } from '@/components/feedback';
 import { Button } from '@/components/ui/button';
 import { RadarIntakeSheet } from './RadarIntakeSheet';
 import { RadarWorkList } from './RadarWorkList';
@@ -16,7 +18,18 @@ import { RadarWorkList } from './RadarWorkList';
  */
 export function RadarConsole() {
   const t = useTranslations('superAdmin.pages.radar');
+  const { can } = usePlatformAbilities();
   const [saisie, setSaisie] = useState(false);
+
+  // Un viewer qui tape l'URL : un seul refus, aucun appel (l'API rendrait deux 403).
+  if (!can('platform.radar.operate')) {
+    return (
+      <div className="space-y-6">
+        <PageHeader title={t('title')} description={t('subtitle')} />
+        <ErrorState message={t('forbidden')} />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
