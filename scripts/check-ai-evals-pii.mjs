@@ -9,6 +9,8 @@
  *
  * **Ce qu'elle ne prouve pas.** L'absence d'un nom de personne : aucun motif ne le reconnaît. Et
  * des formats qu'elle ne connaît pas : `77/123/45/67`, des chiffres pleine chasse, `awa (at) exemple.sn`.
+ * Limites connues : un prix de 9 chiffres commençant par 70, 75, 76, 77, 78 ou 33 est un faux positif (à corriger à la
+ * main), et `221…` sans `+` n'est pas reconnu.
  *
  *   node scripts/check-ai-evals-pii.mjs
  */

@@ -50,12 +50,12 @@ class EvalCaseAnonymizerTest extends TestCase
         $this->assertSame('Appartement à Mermoz, éclairé. Contactez [NOM]', $out);
     }
 
-    public function test_a_two_letter_name_is_matched_only_in_its_capitalised_form(): void
+    public function test_a_two_letter_value_is_matched_in_every_case(): void
     {
-        // « El » en majuscule initiale est un nom possible : un mot abîmé vaut mieux qu'un nom qui fuit.
+        // La valeur entière est toujours cherchée, même si c'est un mot courant : un nom qui fuit coûte plus qu'un mot abîmé.
         $out = (new EvalCaseAnonymizer)->anonymize('Hotel et tel quel, El Hadj, el patio', ['contact_nom' => 'El'])['input'];
 
-        $this->assertSame('Hotel et tel quel, [NOM] Hadj, el patio', $out);
+        $this->assertSame('Hotel et tel quel, [NOM] Hadj, [NOM] patio', $out);
     }
 
     public function test_a_two_letter_word_of_a_longer_name_does_not_cut_longer_words(): void
@@ -84,6 +84,56 @@ class EvalCaseAnonymizerTest extends TestCase
     public function test_two_letter_surnames_do_not_leak(array $expected, string $input, string $wanted): void
     {
         $this->assertSame($wanted, (new EvalCaseAnonymizer)->anonymize($input, $expected)['input']);
+    }
+
+    /** @return array<string, array{0: array<string, string>, 1: string, 2: string}> */
+    public static function lowercaseShortNames(): array
+    {
+        return [
+            'Ba en minuscules, valeur entière' => [['contact_name' => 'Ba'], 'ba est là. m. ba.', '[NOM] est là. m. [NOM].'],
+            'Le Roux : le mot courant reste' => [['contact_name' => 'Le Roux'], 'Le prix. Le Roux appelle.', 'Le prix. [NOM] appelle.'],
+            'SA Immo : sa reste' => [['contact_name' => 'SA Immo'], 'Sa maison', 'Sa maison'],
+            'Ly en minuscules' => [['contact_name' => 'Awa Ly'], 'mme ly', 'mme [NOM]'],
+            'Baobab et Bamako intacts' => [['contact_name' => 'Ba'], 'Baobab, Bamako', 'Baobab, Bamako'],
+            'Ba dans un nom plus long' => [['contact_name' => 'Ibrahima Ba'], 'baobab et ba', 'baobab et [NOM]'],
+        ];
+    }
+
+    /** @param array<string, string> $expected */
+    #[DataProvider('lowercaseShortNames')]
+    public function test_two_letter_name_words_are_matched_in_lowercase_except_stop_words(array $expected, string $input, string $wanted): void
+    {
+        $this->assertSame($wanted, (new EvalCaseAnonymizer)->anonymize($input, $expected)['input']);
+    }
+
+    /** @return array<string, array{0: string, 1: string, 2: string}> */
+    public static function reverseApostrophes(): array
+    {
+        return [
+            "valeur sans apostrophe, texte N'Diaye" => ['Ndiaye', "N'Diaye, N’Diaye", '[NOM], [NOM]'],
+            "valeur Mbaye, texte M'Baye" => ['Mbaye', "M'Baye", '[NOM]'],
+            'valeur Diaye, texte N\'Diaye : pas de N\' qui reste' => ['Diaye', "N'Diaye", '[NOM]'],
+            'valeur Diaye, apostrophe typographique' => ['Diaye', 'Voir N’Diaye.', 'Voir [NOM].'],
+            'valeur Diaye, backtick et U+00B4' => ['Diaye', 'N`Diaye et M´Diaye', '[NOM] et [NOM]'],
+            'valeur Diaye, mot plus long avant : intact' => ['Diaye', 'Mme Diaye', 'Mme [NOM]'],
+            'valeur Mbaye, texte M’Baye en majuscules' => ['Mbaye', 'M’BAYE', '[NOM]'],
+        ];
+    }
+
+    #[DataProvider('reverseApostrophes')]
+    public function test_a_name_is_found_with_or_without_the_apostrophe_of_the_text(string $name, string $input, string $wanted): void
+    {
+        $this->assertSame($wanted, (new EvalCaseAnonymizer)->anonymize($input, ['contact_nom' => $name])['input']);
+    }
+
+    public function test_a_zero_width_character_between_two_name_words_is_a_boundary(): void
+    {
+        foreach (["Awa\u{200B}Diop", "Awa\u{200B}\u{200B}Diop", "Awa\u{200D}Diop", "Awa \u{200B}Diop"] as $input) {
+            $out = (new EvalCaseAnonymizer)->anonymize($input, ['contact_nom' => 'Awa Diop'])['input'];
+            $this->assertSame('[NOM]', $out, bin2hex($input));
+        }
+        $out = (new EvalCaseAnonymizer)->anonymize("Awa\u{200B}Diop", ['contact_nom' => 'Awa'])['input'];
+        $this->assertStringNotContainsString('Awa', $out);
     }
 
     public function test_a_one_letter_word_is_never_a_needle(): void
@@ -191,6 +241,16 @@ class EvalCaseAnonymizerTest extends TestCase
             'ville_contact' => ['ville_contact', 'Dakar', 'Dakar'],
             'zone_adresse' => ['zone_adresse', 'Almadies', 'Almadies'],
             'lieu_rendez_vous_contact' => ['lieu_rendez_vous_contact', 'Plateau', 'Plateau'],
+            'preferred_contact_name' => ['preferred_contact_name', 'Awa Diop', '[NOM]'],
+            'owner_city_name' => ['owner_city_name', 'Awa Diop', '[NOM]'],
+            'type_contact_name' => ['type_contact_name', 'Awa Diop', '[NOM]'],
+            'contact_phone_type' => ['contact_phone_type', 'mobile', '[TELEPHONE]'],
+            'type_telephone' => ['type_telephone', 'fixe', '[TELEPHONE]'],
+            'status_owner' => ['status_owner', 'actif', 'actif'],
+            'nom_ville' => ['nom_ville', 'Dakar', 'Dakar'],
+            'city_name' => ['city_name', 'Dakar', 'Dakar'],
+            'nom_zone' => ['nom_zone', 'Almadies', 'Almadies'],
+            'nom_lieu' => ['nom_lieu', 'Plateau', 'Plateau'],
         ];
     }
 

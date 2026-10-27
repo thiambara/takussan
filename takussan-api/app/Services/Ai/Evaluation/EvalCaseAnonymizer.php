@@ -23,13 +23,19 @@ use RuntimeException;
  * champ personnel.
  *
  * Les mots de deux lettres d'un nom (« Ba », « Ly », « Sy ») sont des noms de famille sénégalais
- * courants et ne sont pas des syllabes : ils sont cherchés eux aussi, mais seulement en
- * majuscule initiale (ou tout en capitales), pour ne pas abîmer « ba » ou « el » partout. Un mot
- * abîmé vaut mieux qu'un nom qui fuit. Un mot d'une lettre n'est jamais cherché. Un nom à
- * apostrophe (« N'Diaye ») est cherché entier, par parties (« Diaye ») et collé (« NDiaye »),
- * quelle que soit l'apostrophe. Les caractères invisibles (U+200B, U+200C, U+200D, U+2060, U+FEFF,
- * U+00AD) sont ignorés à la comparaison : une trouvaille les englobe, donc ils disparaissent avec
- * elle ; ceux qui entourent un texte non personnel restent tels quels.
+ * courants et ne sont pas des syllabes : ils sont cherchés comme les autres, sans égard à la casse
+ * (« mme ly »), avec des bornes de mot Unicode (« Baobab » n'est pas « Ba »). Exception : une liste
+ * fermée de petits mots français et wolof (`SHORT_STOP_WORDS`) qui ne sont jamais cherchés seuls — « Le »
+ * de « Le Roux » ou « SA » de « SA Immo » —, la valeur entière, elle, l'étant toujours. Coût accepté :
+ * un mot wolof en minuscules égal au nom de famille du cas est masqué, dans ce cas seulement. Un mot
+ * d'une lettre n'est jamais cherché.
+ *
+ * Les apostrophes (U+0027, U+2019, U+2018, U+02BC, U+0060, U+00B4, U+2032, U+FF07) et les caractères
+ * invisibles (U+200B, U+200C, U+200D, U+2060, U+FEFF, U+00AD) sont comparés de deux façons : retirés
+ * (« N'Diaye » est « NDiaye », « Aw<ZWSP>a » est « Awa ») et pris pour une espace (« N'Diaye » est
+ * « N Diaye », « Awa<ZWSP>Diop » est « Awa Diop »). Une trouvaille les englobe donc, et celle d'un nom
+ * précédé d'une lettre et d'une apostrophe (« Diaye » dans « N'Diaye ») prend aussi cette lettre ; ceux
+ * qui entourent un texte non personnel restent tels quels.
  */
 final class EvalCaseAnonymizer
 {
@@ -43,9 +49,22 @@ final class EvalCaseAnonymizer
 
     private const SPACE = '[\s\x{00A0}\x{202F}]+';
 
-    private const INVISIBLE = '/[\x{200B}\x{200C}\x{200D}\x{2060}\x{FEFF}\x{00AD}]/u';
+    private const INVISIBLE_CHARS = '\x{200B}\x{200C}\x{200D}\x{2060}\x{FEFF}\x{00AD}';
 
-    private const APOSTROPHES = ['’' => "'", 'ʼ' => "'"];
+    private const APOSTROPHE_CHARS = '\x{0027}\x{2019}\x{2018}\x{02BC}\x{0060}\x{00B4}\x{2032}\x{FF07}';
+
+    private const INVISIBLE = '/['.self::INVISIBLE_CHARS.']/u';
+
+    private const SEPARATOR = '/^['.self::INVISIBLE_CHARS.self::APOSTROPHE_CHARS.']$/u';
+
+    /** Les apostrophes autres que U+0027, ramenées à U+0027. */
+    private const APOSTROPHES = ['’' => "'", '‘' => "'", 'ʼ' => "'", '`' => "'", '´' => "'", '′' => "'", '＇' => "'"];
+
+    /** Petits mots français et wolof qui ne sont jamais cherchés seuls comme mot d'un nom (la valeur entière l'est toujours). */
+    private const SHORT_STOP_WORDS = [
+        'le', 'la', 'les', 'de', 'du', 'da', 'di', 'do', 'el', 'al', 'sa', 'se', 'si', 'en', 'an', 'au', 'et', 'ou', 'un',
+        'na', 'ne', 'ni', 'dr', 'mr', 'mm', 'me', 'ma', 'mo', 'no', 'on',
+    ];
 
     /**
      * Un mot de la clé qui dit que la valeur n'est pas une personne : un compte, un type, un statut,
@@ -55,6 +74,16 @@ final class EvalCaseAnonymizer
         'count', 'nombre', 'nb', 'type', 'preferred', 'prefere', 'statut', 'status',
         'quartier', 'neighbourhood', 'neighborhood', 'ville', 'city', 'zone', 'lieu',
     ];
+
+    /** Ceux de NOT_PERSONAL qui désignent un lieu : ils l'emportent sur « nom » / « name », jamais sur un téléphone ou un courriel. */
+    private const LOCATION_WORDS = ['quartier', 'neighbourhood', 'neighborhood', 'ville', 'city', 'zone', 'lieu'];
+
+    /** Termes forts d'un nom (sous-chaînes), et faibles : un mot de NOT_PERSONAL l'emporte sur les faibles, pas sur les forts. */
+    private const NAME_STRONG_SUB = ['prenom', 'fullname', 'firstname', 'lastname', 'surname', 'username'];
+
+    private const NAME_STRONG_WORDS = ['nom', 'name'];
+
+    private const NAME_WEAK_SUB = ['contact', 'proprietaire', 'owner', 'vendeur', 'seller', 'bailleur', 'locataire'];
 
     /**
      * Par genre, dans l'ordre d'essai : des sous-chaînes (termes assez longs pour ne rien attraper
@@ -98,34 +127,80 @@ final class EvalCaseAnonymizer
         return ['input' => $clean($input), 'expected' => $this->walk($expected, null, $clean)];
     }
 
-    /** Le genre d'une clé personnelle (`phone`, `email`, `address`, `name`), ou null si elle ne l'est pas. */
+    /**
+     * Le genre d'une clé personnelle (`phone`, `email`, `address`, `name`), ou null si elle ne l'est pas.
+     * Un mot de NOT_PERSONAL (« type », « count »…) ôte à la clé ses seuls termes faibles (« contact »,
+     * « owner ») et l'adresse ; un terme fort (nom, téléphone, courriel) reste personnel (« type_contact_name »),
+     * sauf « nom » / « name » seuls face à un lieu (« nom_quartier »).
+     */
     private function kindOf(string $key): ?string
     {
         $folded = $this->fold(preg_replace('/(?<=[a-z0-9])(?=[A-Z])/', '_', $key) ?? $key);
         $words = preg_split('/[^a-z]+/', $folded, -1, PREG_SPLIT_NO_EMPTY) ?: [];
 
-        foreach ($words as $word) {
-            if (in_array($word, self::NOT_PERSONAL, true) || (str_ends_with($word, 's') && in_array(substr($word, 0, -1), self::NOT_PERSONAL, true))) {
-                return null;
-            }
+        $kind = $this->kindByTerms($folded, $words, array_keys(self::KINDS));
+        if ($kind === null) {
+            return null;
         }
 
-        foreach (self::KINDS as $kind => $terms) {
-            foreach ($terms['sub'] as $term) {
-                if (str_contains($folded, $term)) {
-                    return $kind;
-                }
+        $stopWords = array_values(array_filter($words, fn (string $word): bool => $this->isOneOf($word, self::NOT_PERSONAL)));
+        if ($stopWords === []) {
+            return $kind;
+        }
+
+        $strong = $this->kindByTerms($folded, $words, ['phone', 'email']);
+        if ($strong !== null) {
+            return $strong;
+        }
+        $hasStrongName = $this->hasAny($folded, self::NAME_STRONG_SUB) || array_filter($words, fn (string $w): bool => $this->isOneOf($w, self::NAME_STRONG_WORDS)) !== [];
+        if (! $hasStrongName) {
+            return null;
+        }
+        $isLocation = array_filter($stopWords, fn (string $w): bool => $this->isOneOf($w, self::LOCATION_WORDS)) !== [];
+        if ($isLocation && ! $this->hasAny($folded, self::NAME_WEAK_SUB)) {
+            return null;
+        }
+
+        return 'name';
+    }
+
+    /**
+     * @param  list<string>  $words
+     * @param  list<string>  $kinds
+     */
+    private function kindByTerms(string $folded, array $words, array $kinds): ?string
+    {
+        foreach ($kinds as $kind) {
+            $terms = self::KINDS[$kind];
+            if ($this->hasAny($folded, $terms['sub'])) {
+                return $kind;
             }
             foreach ($words as $word) {
-                foreach ($terms['word'] as $term) {
-                    if ($word === $term || $word === $term.'s') {
-                        return $kind;
-                    }
+                if ($this->isOneOf($word, $terms['word'])) {
+                    return $kind;
                 }
             }
         }
 
         return null;
+    }
+
+    /** @param list<string> $terms */
+    private function hasAny(string $folded, array $terms): bool
+    {
+        foreach ($terms as $term) {
+            if (str_contains($folded, $term)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /** Le mot, ou son pluriel en « s », est l'un des termes. @param list<string> $terms */
+    private function isOneOf(string $word, array $terms): bool
+    {
+        return in_array($word, $terms, true) || (str_ends_with($word, 's') && in_array(substr($word, 0, -1), $terms, true));
     }
 
     private function tokenOf(string $kind): string
@@ -159,7 +234,7 @@ final class EvalCaseAnonymizer
         }
     }
 
-    /** @param array<string, array{needle: string|list<string>, token: string, cs: bool}> $needles */
+    /** @param array<string, array{needle: string, token: string}> $needles */
     private function addNeedles(string $value, string $kind, array &$needles): void
     {
         $token = $this->tokenOf($kind);
@@ -183,28 +258,25 @@ final class EvalCaseAnonymizer
                 $candidates[] = $glued;
             }
         }
-        foreach ($candidates as $candidate) {
+        foreach ($candidates as $index => $candidate) {
             $folded = $this->fold($candidate);
             $letters = (int) preg_match_all('/\p{L}/u', $folded);
-            // Un mot de deux lettres d'un nom est un nom de famille possible, cherché en majuscule initiale seulement.
-            if ($kind === 'name' && $letters === 2 && preg_match('/^\p{L}{2}$/u', $folded) === 1) {
-                $variants = array_values(array_unique([
-                    mb_strtoupper(mb_substr($candidate, 0, 1, 'UTF-8'), 'UTF-8').mb_strtolower(mb_substr($candidate, 1, null, 'UTF-8'), 'UTF-8'),
-                    mb_strtoupper($candidate, 'UTF-8'),
-                ]));
-                $needles['cs|'.implode('|', $variants).'|'.$token] = ['needle' => $variants, 'token' => $token, 'cs' => true];
+            // Un mot de deux lettres d'un nom est un nom de famille possible, sauf un petit mot courant ; la valeur entière l'est toujours.
+            $isTwoLetterWord = $kind === 'name' && $letters === 2 && preg_match('/^\p{L}{2}$/u', $folded) === 1;
+            if ($isTwoLetterWord && ($index === 0 || ! in_array($folded, self::SHORT_STOP_WORDS, true))) {
+                $needles[$folded.'|'.$token] = ['needle' => $folded, 'token' => $token];
 
                 continue;
             }
-            // Un seul caractère, ce n'est pas un nom ; et un nom d'une seule lettre sous trois n'est jamais cherché en minuscule.
+            // Un seul caractère, ce n'est pas un nom.
             $significant = $kind === 'name' ? $letters : preg_match_all('/[\p{L}\p{N}]/u', $folded);
             if ($significant >= 3) {
-                $needles[$folded.'|'.$token] = ['needle' => $folded, 'token' => $token, 'cs' => false];
+                $needles[$folded.'|'.$token] = ['needle' => $folded, 'token' => $token];
             }
         }
     }
 
-    /** @param array<string, array{needle: string|list<string>, token: string, cs: bool}> $needles */
+    /** @param array<string, array{needle: string, token: string}> $needles */
     private function replaceNeedles(string $text, array $needles): string
     {
         if ($text === '') {
@@ -212,18 +284,24 @@ final class EvalCaseAnonymizer
         }
 
         $chars = preg_split('//u', mb_scrub($text, 'UTF-8'), -1, PREG_SPLIT_NO_EMPTY) ?: [];
+        // Deux formes repliées : A retire apostrophes et invisibles, B les prend pour une espace.
+        // `$map*` : indice de code point replié → indice de caractère d'origine.
         $folded = '';
-        $map = []; // indice de code point replié → indice de caractère d'origine
-        $cased = ''; // même texte sans les accents mais avec sa casse, pour les mots de deux lettres
-        $casedMap = [];
+        $map = [];
+        $spaced = '';
+        $spacedMap = [];
         foreach ($chars as $index => $char) {
+            if (preg_match(self::SEPARATOR, $char) === 1) {
+                $spaced .= ' ';
+                $spacedMap[] = $index;
+
+                continue;
+            }
             foreach (preg_split('//u', $this->fold($char), -1, PREG_SPLIT_NO_EMPTY) ?: [] as $cp) {
                 $folded .= $cp;
                 $map[] = $index;
-            }
-            foreach (preg_split('//u', $this->strip($char), -1, PREG_SPLIT_NO_EMPTY) ?: [] as $cp) {
-                $cased .= $cp;
-                $casedMap[] = $index;
+                $spaced .= $cp;
+                $spacedMap[] = $index;
             }
         }
 
@@ -238,23 +316,18 @@ final class EvalCaseAnonymizer
                 $spans[] = $this->span($folded, $map, $chars, $match, $byte, $token, 1);
             }
         }
-        foreach ($needles as ['needle' => $needle, 'token' => $token, 'cs' => $cs]) {
-            if ($cs) {
-                $body = implode('|', array_map(fn (string $v): string => preg_quote($v, '/'), (array) $needle));
-                $subject = $cased;
-                $subjectMap = $casedMap;
-            } else {
-                $parts = preg_split('/'.self::SPACE.'/u', (string) $needle, -1, PREG_SPLIT_NO_EMPTY) ?: [];
-                $body = implode(self::SPACE, array_map(fn (string $p): string => preg_quote($p, '/'), $parts));
-                $subject = $folded;
-                $subjectMap = $map;
-            }
+        foreach ($needles as ['needle' => $needle, 'token' => $token]) {
+            $parts = preg_split('/'.self::SPACE.'/u', $needle, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+            $body = implode(self::SPACE, array_map(fn (string $p): string => preg_quote($p, '/'), $parts));
             $pattern = '/(?<![\p{L}\p{N}])(?:'.$body.')(?![\p{L}\p{N}])/u';
-            if (preg_match_all($pattern, $subject, $found, PREG_OFFSET_CAPTURE) === false) {
-                throw new RuntimeException('ai.eval_anonymize_failed');
-            }
-            foreach ($found[0] as [$match, $byte]) {
-                $spans[] = $this->span($subject, $subjectMap, $chars, $match, $byte, $token, 0);
+            foreach ([[$folded, $map], [$spaced, $spacedMap]] as [$subject, $subjectMap]) {
+                if (preg_match_all($pattern, $subject, $found, PREG_OFFSET_CAPTURE) === false) {
+                    throw new RuntimeException('ai.eval_anonymize_failed');
+                }
+                foreach ($found[0] as [$match, $byte]) {
+                    $span = $this->span($subject, $subjectMap, $chars, $match, $byte, $token, 0);
+                    $spans[] = $token === self::NAME_TOKEN ? $this->withElidedLetter($span, $chars) : $span;
+                }
             }
         }
 
@@ -284,6 +357,27 @@ final class EvalCaseAnonymizer
     }
 
     /**
+     * « Diaye » dans « N'Diaye » : une lettre seule et une apostrophe juste avant la trouvaille font
+     * partie du nom, sinon « N' » resterait dans le texte.
+     *
+     * @param  array{start: int, end: int, token: string, priority: int}  $span
+     * @param  list<string>  $chars
+     * @return array{start: int, end: int, token: string, priority: int}
+     */
+    private function withElidedLetter(array $span, array $chars): array
+    {
+        $start = $span['start'];
+        if ($start >= 2
+            && preg_match('/^['.self::APOSTROPHE_CHARS.']$/u', $chars[$start - 1]) === 1
+            && preg_match('/^\p{L}$/u', $chars[$start - 2]) === 1
+            && ($start === 2 || preg_match('/^[\p{L}\p{N}\p{Mn}]$/u', $chars[$start - 3]) !== 1)) {
+            $span['start'] = $start - 2;
+        }
+
+        return $span;
+    }
+
+    /**
      * Une trouvaille dans le texte replié, ramenée aux indices de caractères du texte d'origine.
      *
      * @param  list<int>  $map
@@ -304,7 +398,7 @@ final class EvalCaseAnonymizer
 
     /**
      * Sans signes diacritiques, sans caractère invisible, avec une seule apostrophe, la casse gardée.
-     * Les apostrophes (U+2019, U+02BC) sont ramenées à U+0027 : « N’Diaye » est « N'Diaye ».
+     * Les apostrophes (U+2019, U+2018, U+02BC, U+0060, U+00B4, U+2032, U+FF07) sont ramenées à U+0027.
      */
     private function strip(string $text): string
     {
@@ -319,10 +413,10 @@ final class EvalCaseAnonymizer
         return $this->stripCache[$text] = $stripped === false ? $clean : $stripped;
     }
 
-    /** Forme de comparaison : sans signes diacritiques, en minuscules. */
+    /** Forme de comparaison : sans signes diacritiques, ni apostrophe, en minuscules. */
     private function fold(string $text): string
     {
-        return $this->foldCache[$text] ??= mb_strtolower($this->strip($text), 'UTF-8');
+        return $this->foldCache[$text] ??= mb_strtolower(str_replace("'", '', $this->strip($text)), 'UTF-8');
     }
 
     /**
