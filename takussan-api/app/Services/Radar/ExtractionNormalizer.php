@@ -25,8 +25,8 @@ use App\Support\RadarPhone;
  * Règles :
  *   - un champ rendu SANS passage cité tombe à la confiance la plus basse (AC3,
  *     `evidence_missing`) ; un passage introuvable dans le texte source aussi
- *     (`evidence_not_in_source` ; repli NFC, casse, blancs, chiffres, tirets, apostrophes et
- *     guillemets ; un passage tronqué par « … » se cherche segment par segment, dans l'ordre ; à
+ *     (`evidence_not_in_source` ; repli NFC, casse, blancs, chiffres, séparateurs de milliers,
+ *     blanc avant « : ; ! ? », tirets, apostrophes et guillemets ; un passage tronqué par « … » se cherche segment par segment, dans l'ordre ; à
  *     défaut, sans accents) — sans texte source (captures), la présence n'est pas contrôlée. Un champ
  *     sans valeur (null, ou `unknown` pour la nature de l'annonceur) n'a rien à justifier : pas de
  *     drapeau, confiance `low` ;
@@ -394,7 +394,8 @@ final class ExtractionNormalizer
     /**
      * Le repli sous lequel un passage cité se cherche dans le texte source : forme NFC, chiffres
      * ASCII, invisibles retirés, apostrophes en `'`, tirets en `-`, guillemets retirés (« » “ ” "),
-     * blancs fusionnés, minuscules.
+     * blancs fusionnés, minuscules, blanc retiré avant « : ; ! ? », séparateurs de milliers (blanc,
+     * point) retirés entre les groupes de chiffres.
      */
     private static function fold(string $text): string
     {
@@ -404,7 +405,11 @@ final class ExtractionNormalizer
         $text = (string) preg_replace('/[«»“”„‟"]/u', ' ', $text);
         $text = (string) preg_replace('/[‐‑‒–—―−]/u', '-', $text);
 
-        return trim((string) preg_replace('/[\s\x{00A0}\x{202F}\x{2009}]+/u', ' ', mb_strtolower($text)));
+        $text = trim((string) preg_replace('/[\s\x{00A0}\x{202F}\x{2009}]+/u', ' ', mb_strtolower($text)));
+        // « Prix: » comme « Prix : » ; « 1.500.000 » comme « 1 500 000 » comme « 1500000 ».
+        $text = (string) preg_replace('/ ([:;!?])/u', '$1', $text);
+
+        return (string) preg_replace('/(?<=\d)[ .](?=\d{3}(?!\d))/u', '', $text);
     }
 
     private static function withoutAccents(string $folded): string

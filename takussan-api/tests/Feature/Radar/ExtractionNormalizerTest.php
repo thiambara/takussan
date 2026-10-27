@@ -134,6 +134,9 @@ class ExtractionNormalizerTest extends TestCase
             'tirets typographiques' => ['Grand-Yoff', "Villa à Grand\u{2011}Yoff"],
             'guillemets français contre droits' => ['"mon appartement"', 'Je loue « mon appartement » meublé'],
             'apostrophe typographique' => ["l'appartement", 'Je loue l’appartement du haut'],
+            'espace avant les deux-points' => ['Prix: 1.500.000 F', 'Villa. Prix : 1.500.000 F'],
+            'séparateur de milliers point contre espace' => ['Prix : 450.000', 'Prix : 450 000 F'],
+            'séparateur de milliers insécable' => ['450 000 F', "Loyer 450\u{202F}000 F"],
         ];
     }
 

@@ -22,11 +22,16 @@ use App\Support\PhoneMasker;
  * « 5 ans », « 2 mois » — une durée, pas une période : la période s'écrit « /mois », « par mois »),
  * et un nombre qui fait partie d'un numéro de téléphone ({@see PhoneMasker::PATTERN}).
  *
- * **Le choix.** Un seul candidat restant → lui. Plusieurs → le PREMIER qui porte une marque : une
- * monnaie (« F », « FCFA », « XOF », « francs »), un multiplicateur, ou une période attachée. Le
- * premier et non le plus grand : à côté d'un loyer, l'autre montant est presque toujours une
- * caution ou une avance, plus grande (« 450 000 F, caution 900 000 F »). Plusieurs candidats sans
- * marque → `null` : le code ne devine pas, l'humain tranche (`unparsed_amount`).
+ * **Le choix.**
+ *   - Une fourchette (« 350 000 - 400 000 F », « de 350 000 à 400 000 F » : un nombre sans marque,
+ *     un tiret, « à » ou « au », puis un nombre marqué) → `null` : aucun des deux n'est LE prix.
+ *   - Un candidat précédé, à deux mots près, de « caution », « avance », « dépôt » ou « garantie »
+ *     est écarté s'il en reste un autre : c'est un dépôt, pas le prix.
+ *   - Un seul candidat restant → lui. Plusieurs → le premier qui porte une période attachée, sinon
+ *     le premier qui porte une marque (monnaie « F », « FCFA », « XOF », « francs », ou un
+ *     multiplicateur). Le premier et non le plus grand : à côté d'un loyer, l'autre montant est
+ *     presque toujours une caution ou une avance, plus grande. Plusieurs candidats sans marque →
+ *     `null` : le code ne devine pas, l'humain tranche (`unparsed_amount`).
  *
  * **La période** ({@see RentPeriod}) est celle qui suit le montant retenu, après sa monnaie et/ou un
  * lien (« / », « par », « le », « la », « l' ») : « 450.000f/mois », « 25 000 la nuitée »,
@@ -70,6 +75,12 @@ final class RadarAmountParser
         .'|(?<monthly>mois|mensuel(?:le)?)'
         .'|(?<yearly>an|ann[ée]es?|annuel(?:le)?))(?![\p{L}])/u';
 
+    /** Les mots qui font d'un montant un dépôt : jusqu'à deux mots entre eux et le nombre (« avance 3 mois : »). */
+    private const DEPOSIT_BEFORE = '/(?<![\p{L}])(?:cautions?|avances?|d[ée]p[oô]ts?|garanties?)(?![\p{L}])(?:\s+\S+){0,2}?\s*[:=-]?\s*$/u';
+
+    /** Ce qui sépare les deux bornes d'une fourchette. */
+    private const RANGE_BETWEEN = '/^\s*(?:[-–—]|à|au|a)\s*$/u';
+
     /** @return array{amount: int, period: ?string}|null */
     public static function parse(string $text): ?array
     {
@@ -87,9 +98,24 @@ final class RadarAmountParser
             }
         }
 
+        for ($i = 0; $i + 1 < count($plausible); $i++) {
+            [$low, $high] = [$plausible[$i], $plausible[$i + 1]];
+            $between = substr($normalized, $low['end'], $high['start'] - $low['end']);
+            if (! $low['marked'] && $high['marked'] && preg_match(self::RANGE_BETWEEN, $between) === 1) {
+                return null;
+            }
+        }
+
+        $notDeposits = array_values(array_filter($plausible, static fn (array $c): bool => ! $c['deposit']));
+        if ($notDeposits !== []) {
+            $plausible = $notDeposits;
+        }
+
         $chosen = match (true) {
             count($plausible) === 1 => $plausible[0],
-            default => array_values(array_filter($plausible, static fn (array $c): bool => $c['marked']))[0] ?? null,
+            default => array_values(array_filter($plausible, static fn (array $c): bool => $c['period'] !== null))[0]
+                ?? array_values(array_filter($plausible, static fn (array $c): bool => $c['marked']))[0]
+                ?? null,
         };
 
         return $chosen === null ? null : ['amount' => $chosen['amount'], 'period' => $chosen['period']];
@@ -98,7 +124,7 @@ final class RadarAmountParser
     /**
      * @param  array<int|string, array{0: ?string, 1: int}>  $m
      * @param  list<array{int, int}>  $phones
-     * @return array{amount: int, period: ?string, marked: bool}|null
+     * @return array{amount: int, period: ?string, marked: bool, deposit: bool, start: int, end: int}|null
      */
     private static function candidate(array $m, string $text, array $phones): ?array
     {
@@ -132,6 +158,9 @@ final class RadarAmountParser
             'amount' => $amount,
             'period' => $period,
             'marked' => $multiplied || $period !== null || preg_match('/^\s*'.self::CURRENCY.'/u', $after) === 1,
+            'deposit' => preg_match(self::DEPOSIT_BEFORE, substr($text, max(0, $start - 60), min($start, 60))) === 1,
+            'start' => $start,
+            'end' => $end,
         ];
     }
 

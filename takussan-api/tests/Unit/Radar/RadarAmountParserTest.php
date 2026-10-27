@@ -60,6 +60,14 @@ class RadarAmountParserTest extends TestCase
             'mois entre parenthèses' => ['45 000 000 F (négociable, 2 mois)', 45_000_000, null],
             'caution puis loyer journalier' => ['caution 2 mois, 450 000 F/jour', 450_000, 'daily'],
             "l'an" => ["1 200 000 F l'an", 1_200_000, 'yearly'],
+            // Revue : la période attachée l'emporte ; une caution, une avance ne sont pas le prix.
+            'caution puis loyer mensuel' => ['Caution 900 000 F, loyer 450 000 F/mois', 450_000, 'monthly'],
+            'avance puis loyer mensuel' => ['Avance 3 mois: 1 350 000 F, loyer 450 000 F/mois', 450_000, 'monthly'],
+            'frais puis loyer mensuel' => ['Frais de dossier 100 000 F, loyer 450 000 F/mois', 450_000, 'monthly'],
+            'caution sans période écartée' => ['Caution 900 000 F, prix 450 000 F', 450_000, null],
+            'dépôt de garantie écarté' => ['Dépôt de garantie : 900 000 F. Loyer 450 000 F', 450_000, null],
+            'caution seule reste un montant' => ['Caution 900 000 F', 900_000, null],
+            'tiret qui n\'est pas une fourchette' => ['3-4 chambres, 450 000 F', 450_000, null],
         ];
     }
 
@@ -89,6 +97,10 @@ class RadarAmountParserTest extends TestCase
             'décimale nue' => ['1.5'],
             'durée seule' => ['2 ans'],
             'plusieurs nombres sans marque' => ['450 000 ou 500 000'],
+            'fourchette au tiret' => ['350 000 - 400 000 F'],
+            'fourchette collée' => ['350 000-400 000 F'],
+            'fourchette en toutes lettres' => ['de 350 000 à 400 000 F'],
+            'fourchette au' => ['350 000 au 400 000 F/mois'],
         ];
     }
 
