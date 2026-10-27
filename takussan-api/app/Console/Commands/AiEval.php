@@ -6,6 +6,7 @@ use App\Services\Ai\AiUsageRegistry;
 use App\Services\Ai\Evaluation\EvaluationRunner;
 use App\Services\Ai\ModelLink;
 use Illuminate\Console\Command;
+use Throwable;
 
 /**
  * TCK-2384 (ADR-0076 §8) — les évaluations du socle IA, contre de VRAIS modèles : elles coûtent, et
@@ -55,15 +56,24 @@ class AiEval extends Command
 
                 continue;
             }
-            $report = $runner->run($key, $candidate);
+            try {
+                $report = $runner->run($key, $candidate);
+            } catch (Throwable $e) {
+                $this->components->error($key.' : '.class_basename($e));
+                $status = self::FAILURE;
+
+                continue;
+            }
             $path = $runner->writeReport($report);
             $baseline = $runner->baseline($key);
+            $verdict = $runner->verdict($report, $baseline);
 
             $this->line(sprintf(
-                '%s — %s : %.4f (référence %s), %d cas, %d échec(s), %.2f XOF',
+                '%s — %s : %.4f (référence %s), %d cas, %d échec(s), %.2f XOF%s',
                 $key, $report['model'], $report['global'],
                 $baseline !== null ? sprintf('%.4f', $baseline['global']) : 'aucune',
                 $report['cases'], $report['failures'], $report['cost_xof'],
+                $verdict !== null ? ' — '.$verdict : '',
             ));
             foreach ($report['fields'] as $field => $score) {
                 $this->line(sprintf('  %-28s %.4f', $field, $score));
@@ -71,13 +81,19 @@ class AiEval extends Command
             $this->line('  rapport : '.$path);
 
             if ($this->option('update-baseline')) {
+                if ($report['failures'] > 0) {
+                    $this->components->error($key.' : référence non écrite, '.$report['failures'].' cas en échec.');
+                    $status = self::FAILURE;
+
+                    continue;
+                }
                 $runner->writeBaseline($key, $report);
                 $this->components->info($key.' : référence écrite.');
 
                 continue;
             }
-            if ($runner->belowBaseline($report, $baseline)) {
-                $this->components->error($key.' : sous la référence.');
+            if ($verdict !== null) {
+                $this->components->error($key.' : '.$verdict.'.');
                 $status = self::FAILURE;
             }
         }

@@ -64,22 +64,33 @@ final class EvaluationRunner
             ? json_decode((string) file_get_contents($this->dir($usageKey).'/fields.json'), true, flags: JSON_THROW_ON_ERROR)
             : [];
         $sums = [];
+        $counts = [];
         $cost = 0.0;
         $failures = 0;
         foreach ($cases as $case) {
+            $actual = null;
             try {
                 $result = $this->gateway->run(new AiRequest($usageKey, (string) $case['input'], link: $link, evaluation: true));
-                $actual = $result->structured ?? [];
+                $actual = $result->structured;
                 $cost += (float) ($result->call->cost_estimate ?? 0);
             } catch (AiUnavailable|AiRefused) {
-                $failures++;
-                $actual = [];
             }
-            foreach ($this->scorer->score($case['expected'], $actual, $fields) as $field => $score) {
+            if ($actual === null) {
+                // Un cas sans réponse ne vaut jamais 1.0, même sur un champ attendu nul ou vide.
+                $failures++;
+                $scores = array_map(fn (): float => 0.0, $case['expected']);
+            } else {
+                $scores = $this->scorer->score($case['expected'], $actual, $fields);
+            }
+            foreach ($scores as $field => $score) {
                 $sums[$field] = ($sums[$field] ?? 0.0) + $score;
+                $counts[$field] = ($counts[$field] ?? 0) + 1;
             }
         }
-        $byField = array_map(fn (float $sum): float => round($sum / count($cases), 4), $sums);
+        $byField = [];
+        foreach ($sums as $field => $sum) {
+            $byField[$field] = round($sum / $counts[$field], 4);
+        }
         ksort($byField);
 
         return [
@@ -124,6 +135,31 @@ final class EvaluationRunner
             'prompt_version' => $report['prompt_version'],
             'updated_at' => $report['ran_at'],
         ]));
+    }
+
+    /**
+     * Le verdict du cliquet : un code, ou null quand l'évaluation passe. Une panne ou une référence
+     * qui ne porte pas les champs du rapport ne passent jamais en silence.
+     *
+     * @param  array<string, mixed>  $report
+     * @param  array<string, mixed>|null  $baseline
+     */
+    public function verdict(array $report, ?array $baseline): ?string
+    {
+        if ((int) $report['failures'] > 0) {
+            return 'ai.eval.failures';
+        }
+        if ($baseline !== null) {
+            $reference = array_keys($baseline['fields'] ?? []);
+            $mesures = array_keys($report['fields']);
+            sort($reference);
+            sort($mesures);
+            if ($reference !== $mesures) {
+                return 'ai.eval.baseline_stale';
+            }
+        }
+
+        return $this->belowBaseline($report, $baseline) ? 'ai.eval.below_baseline' : null;
     }
 
     /**

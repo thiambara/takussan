@@ -10,6 +10,7 @@ use App\Services\Ai\ModelResolver;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
+use Laravel\Ai\Exceptions\RateLimitedException;
 use Tests\Support\Ai\AgentDEssai;
 use Tests\Support\Ai\SocleIaDEssai;
 use Tests\Support\Ai\UsageDEssai;
@@ -84,6 +85,69 @@ class AiEvalCommandTest extends TestCase
         $this->artisan('ai:eval', ['usage' => UsageDEssai::KEY, '--model' => 'anthropic/modele-b'])->assertSuccessful();
 
         $this->assertSame(['modele-b', 'modele-b'], $modeles);
+    }
+
+    public function test_an_outage_fails_even_without_a_baseline(): void
+    {
+        File::delete($this->racine.'/'.UsageDEssai::KEY.'/baseline.json');
+        AgentDEssai::fake(fn () => throw RateLimitedException::forProvider('anthropic'));
+
+        $this->artisan('ai:eval', ['usage' => UsageDEssai::KEY])
+            ->expectsOutputToContain('ai.eval.failures')
+            ->assertFailed();
+    }
+
+    public function test_update_baseline_is_refused_when_cases_failed(): void
+    {
+        $avant = File::get($this->racine.'/'.UsageDEssai::KEY.'/baseline.json');
+        AgentDEssai::fake(fn () => throw RateLimitedException::forProvider('anthropic'));
+
+        $this->artisan('ai:eval', ['usage' => UsageDEssai::KEY, '--update-baseline' => true])->assertFailed();
+
+        $this->assertSame($avant, File::get($this->racine.'/'.UsageDEssai::KEY.'/baseline.json'));
+    }
+
+    public function test_a_null_expected_field_scores_zero_when_the_call_failed(): void
+    {
+        File::put($this->racine.'/'.UsageDEssai::KEY.'/cases/03.json', json_encode(['input' => 'Villa', 'expected' => ['titre' => 'Villa', 'note' => null]]));
+        AgentDEssai::fake(fn () => throw RateLimitedException::forProvider('anthropic'));
+
+        $this->artisan('ai:eval', ['usage' => UsageDEssai::KEY])->assertFailed();
+
+        $rapport = json_decode(File::get(File::files($this->racine.'/rapports/'.UsageDEssai::KEY)[0]->getPathname()), true);
+        $this->assertSame(0.0, $rapport['fields']['note']);
+        $this->assertSame(3, $rapport['failures']);
+    }
+
+    public function test_a_field_is_averaged_over_the_cases_that_contain_it(): void
+    {
+        File::put($this->racine.'/'.UsageDEssai::KEY.'/cases/03.json', json_encode(['input' => 'Villa', 'expected' => ['titre' => 'Villa', 'surface' => 80]]));
+        AgentDEssai::fake(fn () => ['titre' => 'Villa', 'prix' => 100, 'surface' => 80]);
+
+        $this->artisan('ai:eval', ['usage' => UsageDEssai::KEY, '--update-baseline' => true])->assertSuccessful();
+
+        $baseline = json_decode(File::get($this->racine.'/'.UsageDEssai::KEY.'/baseline.json'), true);
+        $this->assertSame(1.0, $baseline['fields']['surface']);
+        $this->assertSame(1.0, $baseline['fields']['prix']);
+    }
+
+    public function test_a_baseline_on_other_fields_is_stale(): void
+    {
+        File::put($this->racine.'/'.UsageDEssai::KEY.'/baseline.json', json_encode(['global' => 0.5, 'fields' => ['prix' => 1.0, 'titre' => 1.0, 'surface' => 1.0]]));
+        AgentDEssai::fake(fn () => ['titre' => 'Villa', 'prix' => 100]);
+
+        $this->artisan('ai:eval', ['usage' => UsageDEssai::KEY])
+            ->expectsOutputToContain('ai.eval.baseline_stale')
+            ->assertFailed();
+    }
+
+    public function test_a_broken_usage_does_not_stop_the_others(): void
+    {
+        AgentDEssai::fake(fn () => throw new \LogicException('x'));
+
+        $this->artisan('ai:eval', ['usage' => UsageDEssai::KEY])
+            ->expectsOutputToContain('LogicException')
+            ->assertFailed();
     }
 
     public function test_without_any_provider_key_it_does_nothing(): void
