@@ -137,6 +137,7 @@
              retomber sur ses défauts (AiConfigTest). -->
         <env name="AI_USD_TO_XOF" value=""/>
         <env name="AI_DAILY_BUDGET_XOF" value=""/>
+        <env name="AI_TIMEOUT_SECONDS" value=""/>
 
         <!-- ⚠ LES URLS DES FOURNISSEURS SMS SONT ÉPINGLÉES ICI, ET CE N'EST PAS DE LA
              CONFIGURATION : c'est ce qui rend 14 tests indépendants du `.env` de la machine.

@@ -35,5 +35,6 @@ class AiConfigTest extends TestCase
     {
         $this->assertGreaterThan(0, config('ai.usd_to_xof'));
         $this->assertGreaterThan(0, config('ai.budgets.daily_global_xof'));
+        $this->assertSame(300, config('ai.timeout_seconds'));
     }
 }

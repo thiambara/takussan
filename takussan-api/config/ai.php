@@ -67,6 +67,10 @@ return [
     // `.env.example`, où la clé est vide, et une chaîne vide ne doit pas donner un taux nul.
     'usd_to_xof' => $nombre('AI_USD_TO_XOF', 600.0),
 
+    // Délai d'un appel au modèle, en secondes. Le SDK en pose 60 : trop court pour une extraction
+    // longue ou un raisonnement (`SocleAgent::timeout()`). Même garde numérique que ci-dessus.
+    'timeout_seconds' => (int) $nombre('AI_TIMEOUT_SECONDS', 300.0),
+
     // En XOF, par jour civil. `null` : pas de plafond à ce niveau. Le plafond d'un usage se règle
     // dans la console (`ai_usage_settings`), à défaut celui que l'usage déclare.
     'budgets' => [

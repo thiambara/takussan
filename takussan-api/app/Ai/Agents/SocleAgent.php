@@ -36,4 +36,15 @@ abstract class SocleAgent implements Agent
     {
         return $this->maxTokens;
     }
+
+    /**
+     * Lu par `Promptable::getTimeout()` du SDK, qui sinon retombe sur 60 s. Une valeur absente,
+     * non numérique ou nulle ne désarme jamais le délai : défaut de la configuration.
+     */
+    public function timeout(): int
+    {
+        $secondes = (int) config('ai.timeout_seconds');
+
+        return $secondes > 0 ? $secondes : 300;
+    }
 }
