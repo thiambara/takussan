@@ -1,7 +1,7 @@
 ---
 id: TCK-2397
 title: "Les jobs longs passent sur leur propre connexion de file et leur propre worker, et une garde tient leur délai de reprise au-dessus de leur timeout"
-status: doing
+status: done
 phase: P2
 family: technique
 estimate: M

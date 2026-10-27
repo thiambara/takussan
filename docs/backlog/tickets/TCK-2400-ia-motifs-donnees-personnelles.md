@@ -1,7 +1,7 @@
 ---
 id: TCK-2400
 title: "Socle IA : le masquage et la garde des jeux d'évaluation attrapent les numéros et adresses écrits autrement, sans masquer les prix"
-status: doing
+status: done
 phase: P1
 family: back
 estimate: S

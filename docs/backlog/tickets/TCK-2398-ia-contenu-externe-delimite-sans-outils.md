@@ -1,7 +1,7 @@
 ---
 id: TCK-2398
 title: "Socle IA : un contenu externe arrive au modèle dans un bloc délimité, et un usage qui en lit n'a aucun outil"
-status: doing
+status: done
 phase: P1
 family: back
 estimate: S

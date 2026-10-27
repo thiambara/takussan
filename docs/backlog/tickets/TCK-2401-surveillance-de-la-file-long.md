@@ -1,7 +1,7 @@
 ---
 id: TCK-2401
 title: "La sonde des workers surveille la file long, avec des seuils à la mesure de ses jobs"
-status: doing
+status: done
 phase: P2
 family: technique
 estimate: S

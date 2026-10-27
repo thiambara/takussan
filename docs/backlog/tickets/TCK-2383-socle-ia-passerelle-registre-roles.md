@@ -1,7 +1,7 @@
 ---
 id: TCK-2383
 title: "Socle IA : laravel/ai, rôles de modèle affectés en base, registre des usages et passerelle unique journalisée"
-status: doing
+status: done
 phase: P1
 family: back
 estimate: L
@@ -61,37 +61,37 @@ dépôt, `laravel/ai` absent de `composer.json`. Ce ticket pose la fondation ; l
 
 ## Delta à produire
 
-- [ ] `composer require laravel/ai`. Relire les migrations que le paquet publie : ne garder que
+- [x] `composer require laravel/ai`. Relire les migrations que le paquet publie : ne garder que
       celles qu'un usage exige (les conversations du SDK ne le sont pas au lot 0), le noter.
-- [ ] `config/ai.php` : fournisseurs (liste fermée), rôles et chaînes par défaut, tarifs, budgets
+- [x] `config/ai.php` : fournisseurs (liste fermée), rôles et chaînes par défaut, tarifs, budgets
       par défaut, taux de conversion USD → XOF. Clés `.env.example` et `.env.docker` (vides) :
       `ANTHROPIC_API_KEY`, `AI_DAILY_BUDGET_XOF`, `AI_USD_TO_XOF`.
-- [ ] Enum `App\Models\Enums\AiModelRole` (`extraction`, `redaction`, `raisonnement`, `vision`,
+- [x] Enum `App\Models\Enums\AiModelRole` (`extraction`, `redaction`, `raisonnement`, `vision`,
       `embedding`) et `App\Models\Enums\AiDataClass`.
-- [ ] Migration `create_ai_role_assignments_table` · modèle `AiRoleAssignment`.
-- [ ] Migration `create_ai_usage_settings_table` · modèle `AiUsageSetting`.
-- [ ] Migration `create_ai_calls_table` (usage, rôle, fournisseur, modèle, version du prompt,
+- [x] Migration `create_ai_role_assignments_table` · modèle `AiRoleAssignment`.
+- [x] Migration `create_ai_usage_settings_table` · modèle `AiUsageSetting`.
+- [x] Migration `create_ai_calls_table` (usage, rôle, fournisseur, modèle, version du prompt,
       tokens entrée/sortie/cache, `cost_estimate`, durée, issue, motif de refus, `agency_id`,
       objet polymorphe) · modèle `AiCall`.
-- [ ] `App\Services\Ai\AiUsage` (contrat) et `App\Services\Ai\AiUsageRegistry` : déclaration
+- [x] `App\Services\Ai\AiUsage` (contrat) et `App\Services\Ai\AiUsageRegistry` : déclaration
       d'un usage (clé, rôle, prompt, budget, autorité requise — `Capability` ou
       `PlatformAbility` —, classe de données).
-- [ ] `App\Services\Ai\ModelResolver` : rôle → chaîne (base, sinon configuration), modèle forcé
+- [x] `App\Services\Ai\ModelResolver` : rôle → chaîne (base, sinon configuration), modèle forcé
       d'usage prioritaire.
-- [ ] `App\Services\Ai\AiGateway` : l'unique point d'appel, dans l'ordre des contraintes.
-- [ ] `App\Services\Ai\AiBudget` (global journalier, par usage, par agence, en XOF).
-- [ ] Coupe-circuit par usage : `ai_usage_settings.enabled` (faux ⇒ refus `kill_switch`).
-- [ ] Garde `scripts/check-ai-usages.mjs` : tout agent `laravel/ai` sous `app/Ai/Agents/` est
+- [x] `App\Services\Ai\AiGateway` : l'unique point d'appel, dans l'ordre des contraintes.
+- [x] `App\Services\Ai\AiBudget` (global journalier, par usage, par agence, en XOF).
+- [x] Coupe-circuit par usage : `ai_usage_settings.enabled` (faux ⇒ refus `kill_switch`).
+- [x] Garde `scripts/check-ai-usages.mjs` : tout agent `laravel/ai` sous `app/Ai/Agents/` est
       déclaré au registre ; aucun identifiant de modèle hors de `config/ai.php`.
-- [ ] Garde `scripts/check-ai-providers-privacy.mjs` : `ai.providers` ⊆ sous-traitants de
+- [x] Garde `scripts/check-ai-providers-privacy.mjs` : `ai.providers` ⊆ sous-traitants de
       `privacy.ts`.
-- [ ] `takussan-web/src/content/legal/privacy.ts` § 4.3 (`fr` et `en`) : une puce « Intelligence
+- [x] `takussan-web/src/content/legal/privacy.ts` § 4.3 (`fr` et `en`) : une puce « Intelligence
       artificielle » qui nomme chaque fournisseur de `ai.providers`, en termes génériques (des
       contenus que certaines fonctionnalités lui soumettent ; jamais de donnée sensible) ;
       `VERSION_DOCUMENTS` avance. C'est la PR qui ajoute un fournisseur qui le déclare : la garde
       ci-dessus l'impose.
-- [ ] Sections `docs/models-spec.md` pour `AiRoleAssignment`, `AiUsageSetting` et `AiCall`.
-- [ ] Tests : `AiGatewayTest` (ordre, refus journalisés, bascule sur panne du premier maillon,
+- [x] Sections `docs/models-spec.md` pour `AiRoleAssignment`, `AiUsageSetting` et `AiCall`.
+- [x] Tests : `AiGatewayTest` (ordre, refus journalisés, bascule sur panne du premier maillon,
       cache par empreinte), `AiBudgetTest`, `ModelResolverTest` (base, repli, modèle forcé),
       `AiSensitiveDataTest`. **Tous sur les faux modèles du SDK** : aucun appel réseau.
 

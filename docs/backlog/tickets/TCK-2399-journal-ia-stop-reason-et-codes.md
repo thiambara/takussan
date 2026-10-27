@@ -1,7 +1,7 @@
 ---
 id: TCK-2399
 title: "Journal des appels IA : une réponse tronquée ou filtrée n'est plus un succès, et les erreurs portent des codes ai.* au lieu de noms de classe"
-status: doing
+status: done
 phase: P1
 family: back
 estimate: S

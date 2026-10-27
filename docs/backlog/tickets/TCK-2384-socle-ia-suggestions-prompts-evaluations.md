@@ -1,7 +1,7 @@
 ---
 id: TCK-2384
 title: "Socle IA : suggestions décidées par un humain, prompts versionnés et évaluations à cliquet (ai:eval)"
-status: doing
+status: done
 phase: P1
 family: back
 estimate: M
@@ -54,22 +54,22 @@ reprend l'esprit de celui de la couverture (`bin/coverage-gate.php`).
 
 ## Delta à produire
 
-- [ ] Migration `create_ai_suggestions_table` · modèle `AiSuggestion` · service
+- [x] Migration `create_ai_suggestions_table` · modèle `AiSuggestion` · service
       `App\Services\Ai\SuggestionRecorder` (créer depuis une réponse de la passerelle, décider,
       calculer le différentiel).
-- [ ] `App\Services\Ai\PromptRepository` : charge `resources/ai/prompts/<usage>/v<N>.md`, rend
+- [x] `App\Services\Ai\PromptRepository` : charge `resources/ai/prompts/<usage>/v<N>.md`, rend
       la version ; l'usage déclare sa version courante.
-- [ ] Commande `ai:eval {usage} {--model=} {--update-baseline}` : joue les cas, écrit le rapport
+- [x] Commande `ai:eval {usage} {--model=} {--update-baseline}` : joue les cas, écrit le rapport
       (score par champ, global, coût, modèle, version du prompt) sous `storage/ai-evals/`.
-- [ ] Commande `ai:export-eval-cases {usage} {--since=}` (forme `domaine:verbe`, `check-command-prefixes.mjs`) : transforme les suggestions corrigées
+- [x] Commande `ai:export-eval-cases {usage} {--since=}` (forme `domaine:verbe`, `check-command-prefixes.mjs`) : transforme les suggestions corrigées
       (`edited`) en cas d'évaluation **anonymisés**.
-- [ ] Garde `scripts/check-ai-evals-pii.mjs` : aucun numéro sénégalais plausible ni e-mail dans
+- [x] Garde `scripts/check-ai-evals-pii.mjs` : aucun numéro sénégalais plausible ni e-mail dans
       `resources/ai/evals/`.
-- [ ] Tâche planifiée nocturne `ai:eval --all`, inscrite au suivi des tâches planifiées, qui ne
+- [x] Tâche planifiée nocturne `ai:eval --all`, inscrite au suivi des tâches planifiées, qui ne
       fait rien si aucun fournisseur n'a de clé.
-- [ ] Taux d'acceptation par usage : requête de lecture prête pour la console (TCK-2385).
-- [ ] Section `docs/models-spec.md` pour `AiSuggestion`.
-- [ ] Tests : `SuggestionRecorderTest` (différentiel), `PromptRepositoryTest`, `AiEvalCommandTest`
+- [x] Taux d'acceptation par usage : requête de lecture prête pour la console (TCK-2385).
+- [x] Section `docs/models-spec.md` pour `AiSuggestion`.
+- [x] Tests : `SuggestionRecorderTest` (différentiel), `PromptRepositoryTest`, `AiEvalCommandTest`
       (sur faux modèles : score, cliquet, `--update-baseline`), `AiEvalExportTest` (anonymisation).
 
 ## Critères d'acceptation

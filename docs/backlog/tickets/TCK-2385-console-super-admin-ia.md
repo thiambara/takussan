@@ -1,7 +1,7 @@
 ---
 id: TCK-2385
 title: "Console /super-admin/ai : affecter les modèles aux rôles, évaluer avant d'appliquer, budgets, coupe-circuits et tableau de bord"
-status: doing
+status: done
 phase: P1
 family: full
 estimate: L
@@ -71,16 +71,16 @@ français, wolof en pause).
 
 ## Delta à produire
 
-- [ ] `PlatformAbility` : `AiView`, `AiManage` (et la matrice `forLevel`).
-- [ ] `App\Http\Controllers\Api\Admin\AiRoleController`, `AiUsageController`,
+- [x] `PlatformAbility` : `AiView`, `AiManage` (et la matrice `forLevel`).
+- [x] `App\Http\Controllers\Api\Admin\AiRoleController`, `AiUsageController`,
       `AiProviderController`, `AiEvaluationController`, `AiDashboardController`.
-- [ ] FormRequests : `UpdateAiRoleRequest`, `UpdateAiUsageRequest`, `StoreAiEvaluationRequest`.
-- [ ] Routes `routes/api/admin-ai.php`, gardées par `platform-can:` et le second facteur récent
+- [x] FormRequests : `UpdateAiRoleRequest`, `UpdateAiUsageRequest`, `StoreAiEvaluationRequest`.
+- [x] Routes `routes/api/admin-ai.php`, gardées par `platform-can:` et le second facteur récent
       sur les écritures.
-- [ ] Job `RunAiEvaluation` (file existante), état lisible par `GET evaluations/{id}`.
-- [ ] Front : pages de la console sous `/super-admin/ai`, route handler BFF, entrée de menu.
-- [ ] `NamespaceAccessGuardTest` : les nouvelles routes admin, paramètres compris.
-- [ ] Tests API : `AdminAiRolesTest`, `AdminAiUsagesTest`, `AdminAiProvidersTest` (la clé n'est
+- [x] Job `RunAiEvaluation` (file existante), état lisible par `GET evaluations/{id}`.
+- [x] Front : pages de la console sous `/super-admin/ai`, route handler BFF, entrée de menu.
+- [x] `NamespaceAccessGuardTest` : les nouvelles routes admin, paramètres compris *(couvertes par l'itération du test : leurs paramètres sont des chaînes, le repli `1` atteint la garde)*.
+- [x] Tests API : `AdminAiRolesTest`, `AdminAiUsagesTest`, `AdminAiProvidersTest` (la clé n'est
       jamais dans la réponse), `AdminAiEvaluationsTest` (cliquet, dérogation journalisée),
       `AdminAiDashboardTest`. Tests front (Vitest) des écrans.
 

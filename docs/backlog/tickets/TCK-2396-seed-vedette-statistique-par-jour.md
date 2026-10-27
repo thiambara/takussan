@@ -1,7 +1,7 @@
 ---
 id: TCK-2396
 title: "Le seed tient l'invariant « une statistique par jour pour chaque Vedette » à toute heure"
-status: doing
+status: done
 phase: P2
 family: bug
 estimate: S
