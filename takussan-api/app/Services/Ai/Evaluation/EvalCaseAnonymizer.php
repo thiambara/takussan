@@ -19,8 +19,8 @@ use RuntimeException;
  *
  * Une adresse est jetonnée dans `expected` mais n'est jamais cherchée dans l'entrée : « Mermoz » est
  * la donnée que l'extraction doit retrouver. Puis tout numéro sénégalais et tout courriel restants
- * sont masqués. `check-ai-evals-pii.mjs` garde le résultat ; aucun motif ne reconnaît un nom hors
- * champ personnel.
+ * sont masqués, y compris écrits autrement (chiffres pleine chasse, `(at)` — TCK-2400).
+ * `check-ai-evals-pii.mjs` garde le résultat ; aucun motif ne reconnaît un nom hors champ personnel.
  *
  * Les mots de deux lettres d'un nom (« Ba », « Ly », « Sy ») sont des noms de famille sénégalais
  * courants et ne sont pas des syllabes : ils sont cherchés comme les autres, sans égard à la casse
@@ -45,7 +45,12 @@ final class EvalCaseAnonymizer
 
     public const ADDRESS_TOKEN = '[ADRESSE]';
 
-    private const EMAIL = '/[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}/';
+    /**
+     * Un courriel, aussi obfusqué (TCK-2400) : `awa (at) exemple.sn`, `awa[at]exemple.sn`,
+     * `awa at exemple.sn`, `awa＠exemple.sn`, `awa @ exemple.sn`. `check-ai-evals-pii.mjs` porte le
+     * même motif (`COURRIEL`).
+     */
+    public const EMAIL = '/[a-z0-9._%+\-]+(?:[\s\x{00A0}\x{202F}]*[@\x{FF20}][\s\x{00A0}\x{202F}]*|[\s\x{00A0}\x{202F}]*[\(\[\{][\s\x{00A0}\x{202F}]*at[\s\x{00A0}\x{202F}]*[\)\]\}][\s\x{00A0}\x{202F}]*|[\s\x{00A0}\x{202F}]+at[\s\x{00A0}\x{202F}]+)[a-z0-9\-]+(?:\.[a-z0-9\-]+)*\.[a-z]{2,}(?![a-z])/iu';
 
     private const SPACE = '[\s\x{00A0}\x{202F}]+';
 
@@ -118,11 +123,11 @@ final class EvalCaseAnonymizer
         $this->collectNeedles($proposal, null, $needles);
         $this->collectNeedles($expected, null, $needles);
 
-        $clean = fn (string $text): string => (string) preg_replace(
+        $clean = fn (string $text): string => preg_replace(
             self::EMAIL,
             self::EMAIL_TOKEN,
             PhoneMasker::mask($this->replaceNeedles($text, $needles)),
-        );
+        ) ?? throw new RuntimeException('ai.eval_anonymize_failed');
 
         return ['input' => $clean($input), 'expected' => $this->walk($expected, null, $clean)];
     }
@@ -307,13 +312,15 @@ final class EvalCaseAnonymizer
 
         // Un courriel ou un numéro est un seul bloc : « awa.diop@exemple.sn » ne doit pas devenir
         // « [NOM].[NOM]@exemple.sn ». Ces blocs passent avant tout nom au départage des chevauchements.
+        // Chiffres pleine chasse et arabes-indiens ramenés à l'ASCII, un code point pour un : `$map` reste juste.
+        $scan = PhoneMasker::normalizeDigits($folded);
         $spans = [];
         foreach ([[self::EMAIL, self::EMAIL_TOKEN], [PhoneMasker::PATTERN, PhoneMasker::TOKEN]] as [$pattern, $token]) {
-            if (preg_match_all($pattern, $folded, $found, PREG_OFFSET_CAPTURE) === false) {
+            if (preg_match_all($pattern, $scan, $found, PREG_OFFSET_CAPTURE) === false) {
                 throw new RuntimeException('ai.eval_anonymize_failed');
             }
             foreach ($found[0] as [$match, $byte]) {
-                $spans[] = $this->span($folded, $map, $chars, $match, $byte, $token, 1);
+                $spans[] = $this->span($scan, $map, $chars, $match, $byte, $token, 1);
             }
         }
         foreach ($needles as ['needle' => $needle, 'token' => $token]) {

@@ -8,9 +8,14 @@
  * pas, ferait entrer une donnée personnelle dans le dépôt — d'où elle ne sort plus.
  *
  * **Ce qu'elle ne prouve pas.** L'absence d'un nom de personne : aucun motif ne le reconnaît. Et
- * des formats qu'elle ne connaît pas : `77/123/45/67`, des chiffres pleine chasse, `awa (at) exemple.sn`.
- * Limites connues : un prix de 9 chiffres commençant par 70, 75, 76, 77, 78 ou 33 est un faux positif (à corriger à la
- * main), et `221…` sans `+` n'est pas reconnu.
+ * les formats qu'elle ne connaît pas : numéros étrangers, courriel en `(dot)`.
+ *
+ * **Le même ensemble que le masqueur** (TCK-2400) : `TELEPHONE` est le motif de
+ * `App\Support\PhoneMasker::PATTERN`, `COURRIEL` celui d'`EvalCaseAnonymizer::EMAIL`, appliqués au
+ * texte normalisé de la même façon (chiffres pleine chasse et arabes-indiens en ASCII, invisibles
+ * retirés). `takussan-api/tests/fixtures/ai/donnees-personnelles.json` les éprouve des deux côtés :
+ * ses épreuves tournent ici à chaque exécution, et dans `PhoneMaskerTest`/`EvalCaseAnonymizerTest`.
+ * Un prix suivi d'une marque monétaire (`750000000 FCFA`) n'est pas un numéro.
  *
  *   node scripts/check-ai-evals-pii.mjs
  */
@@ -21,17 +26,44 @@ import { fileURLToPath } from 'node:url';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const EVALS = join(ROOT, 'takussan-api', 'resources', 'ai', 'evals');
 
-// `\s` couvre déjà U+00A0 et U+202F (espaces insécables, fréquents dans un texte collé).
-export const TELEPHONE = /(?<!\d)(?:(?:\+|00)221[\s.-]?)?(?:7[05678]|33)[\s.-]?\d{3}[\s.-]?\d{2}[\s.-]?\d{2}(?!\d)/;
-export const COURRIEL = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/;
+// Préfixes : plan de numérotage national de l'ARTP, communication du 6.IX.2022 publiée par l'UIT le
+// 3.X.2023 (cf. PhoneMasker). `\s` couvre déjà U+00A0 et U+202F (espaces insécables).
+const SEP = '[\\s.\\-/]';
+const PREFIXE = '(?:3[02369]|7[0256789]|93)';
+export const TELEPHONE = new RegExp(
+  `(?<!\\d)(?:(?:\\+|00)?221${SEP}?)?`
+  + `(?:${PREFIXE}${SEP}?(?:\\d{3}${SEP}?\\d{2}${SEP}?\\d{2}|\\d{2}${SEP}?\\d{2}${SEP}?\\d{3})`
+  + `|${PREFIXE}\\d${SEP}?\\d{2}${SEP}?\\d{2}${SEP}?\\d{2})`
+  + '(?!\\d)(?!\\s*(?:f\\s?cfa|cfa|xof|francs?|f)(?!\\p{L}))',
+  'iu',
+);
+export const COURRIEL = /[a-z0-9._%+-]+(?:\s*[@\uFF20]\s*|\s*[([{]\s*at\s*[)\]}]\s*|\s+at\s+)[a-z0-9-]+(?:\.[a-z0-9-]+)*\.[a-z]{2,}(?![a-z])/iu;
 
+const INVISIBLES = /[\u200B\u200C\u200D\u2060\uFEFF\u00AD]/g;
+const ZEROS = [0xff10, 0x0660, 0x06f0];
+
+/** Comme `PhoneMasker` : chiffres non ASCII ramenés à 0-9, caractères invisibles retirés. */
+export function normaliser(texte) {
+  let sortie = '';
+  for (const c of texte.replace(INVISIBLES, '')) {
+    const code = c.codePointAt(0);
+    const zero = ZEROS.find((z) => code >= z && code <= z + 9);
+    sortie += zero === undefined ? c : String(code - zero);
+  }
+  return sortie;
+}
+
+const FORMES = JSON.parse(readFileSync(join(ROOT, 'takussan-api', 'tests', 'fixtures', 'ai', 'donnees-personnelles.json'), 'utf8'));
 const CAS_EPREUVE = [
-  ['77 123 45 67', true], ['+221781234567', true], ['00221 70.123.45.67', true], ['33 821 00 00', true],
-  ['77 123 45 67', true], ['77 123 45 67', true],
-  ['[TELEPHONE]', false], ['150 000 000 FCFA', false], ['awa@exemple.sn', true], ['[EMAIL]', false],
+  ...Object.values(FORMES.telephones).map((t) => [t, true]),
+  ...Object.values(FORMES.courriels).map((t) => [t, true]),
+  ...Object.values(FORMES.pas_personnel).map((t) => [t, false]),
 ];
 
-const trouver = (texte) => texte.match(TELEPHONE) ?? texte.match(COURRIEL);
+const trouver = (texte) => {
+  const n = normaliser(texte);
+  return n.match(TELEPHONE) ?? n.match(COURRIEL);
+};
 
 /** Chaque texte d'un JSON décodé — valeurs, clés, nombres — avec son chemin (`cases[0].input`). */
 function textes(noeud, chemin = '') {
@@ -84,7 +116,7 @@ export function verifierTexteJson(texte) {
 }
 
 for (const [texte, attendu] of CAS_EPREUVE) {
-  if ((TELEPHONE.test(texte) || COURRIEL.test(texte)) !== attendu) {
+  if ((trouver(`Contact : ${texte}, merci`) !== null) !== attendu) {
     console.error(`✗ épreuve : « ${texte} » devait rendre ${attendu}`);
     process.exit(1);
   }
@@ -129,7 +161,7 @@ for (const fichier of lus) {
     continue;
   }
   contenu.split('\n').forEach((ligne, i) => {
-    const trouve = ligne.match(TELEPHONE) ?? ligne.match(COURRIEL);
+    const trouve = trouver(ligne);
     if (trouve) erreurs.push(`${rel}:${i + 1} — « ${trouve[0]} »`);
   });
 }

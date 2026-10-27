@@ -1,7 +1,7 @@
 ---
 id: TCK-2400
 title: "Socle IA : le masquage et la garde des jeux d'évaluation attrapent les numéros et adresses écrits autrement, sans masquer les prix"
-status: todo
+status: doing
 phase: P1
 family: back
 estimate: S
@@ -59,21 +59,21 @@ FCFA ») est pris pour un numéro par la garde — et, s'il est écrit d'un seul
 
 ## Delta à produire
 
-- [ ] `PhoneMasker::PATTERN` : préfixes confirmés, groupements, `221` nu, normalisation des
+- [x] `PhoneMasker::PATTERN` : préfixes confirmés, groupements, `221` nu, normalisation des
       chiffres pleine chasse et arabes-indiens avant le motif, exclusion des montants.
-- [ ] Masquage d'e-mail : `(at)`, `[at]`, ` at ` entre deux mots plausibles, `＠`.
-- [ ] `scripts/check-ai-evals-pii.mjs` : mêmes formes, U+200B et autres invisibles retirés avant le
+- [x] Masquage d'e-mail : `(at)`, `[at]`, ` at ` entre deux mots plausibles, `＠`.
+- [x] `scripts/check-ai-evals-pii.mjs` : mêmes formes, U+200B et autres invisibles retirés avant le
       balayage, exclusion des montants ; épreuves pour chaque forme et pour le faux positif.
-- [ ] Tests : `tests/Unit/Ai/PhoneMaskerTest.php` et `tests/Unit/Ai/EvalCaseAnonymizerTest.php` étendus
+- [x] Tests : `tests/Unit/Ai/PhoneMaskerTest.php` et `tests/Unit/Ai/EvalCaseAnonymizerTest.php` étendus
       d'un cas par forme listée ci-dessus, plus « 750000000 FCFA » non masqué.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Chaque forme du contexte est masquée par le socle et détectée par la garde (un cas de
+- [x] AC1 — Chaque forme du contexte est masquée par le socle et détectée par la garde (un cas de
       test et une épreuve par forme).
-- [ ] AC2 — « 750000000 FCFA » et « 75 000 000 F CFA » ne sont ni masqués ni signalés.
-- [ ] AC3 — `node scripts/check-ai-evals-pii.mjs` reste vert sur les jeux du dépôt.
-- [ ] AC4 — Chaque nouveau cas rougit sans sa modification du motif (ablation consignée).
+- [x] AC2 — « 750000000 FCFA » et « 75 000 000 F CFA » ne sont ni masqués ni signalés.
+- [x] AC3 — `node scripts/check-ai-evals-pii.mjs` reste vert sur les jeux du dépôt.
+- [x] AC4 — Chaque nouveau cas rougit sans sa modification du motif (ablation consignée).
 
 ## Hors périmètre
 
@@ -82,4 +82,41 @@ FCFA ») est pris pour un numéro par la garde — et, s'il est écrit d'un seul
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+2026-10-27, sur `feat/socle-ia-lot-0`.
+
+- **Préfixes, source datée** : plan de numérotage national de l'ARTP, communication du 6.IX.2022,
+  reprise dans la publication de l'UIT « Sénégal (indicatif de pays +221) » du 3.X.2023
+  (`itu.int/dms_pub/itu-t/oth/02/02/T02020000B80006PDFF.pdf`, tableau « Détails du plan de
+  numérotage ») : fixe **30** (Expresso), **32** (Free), **33** (Sonatel, 338/339), **36** (Hayo),
+  **39** (ADIE) ; mobile **70**, **72** (Hayo), **75** (MVNO), **76**, **77**, **78**, **79** (ADIE) ;
+  VoIP **93** (FAI). **34 et 71 ne sont pas des préfixes** — 71 n'apparaît que comme bloc de 70
+  (`7011`) — : écartés, et épinglés comme non masqués par le fixture. 32, 36, 39, 72 et 93 ne
+  figuraient pas dans le ticket : ajoutés parce qu'ils sont au plan.
+- **Le même ensemble des deux côtés, par construction** : `takussan-api/tests/fixtures/ai/donnees-personnelles.json`
+  liste les formes (téléphones, courriels, et ce qui n'est pas personnel). `PhoneMaskerTest`,
+  `EvalCaseAnonymizerTest` et les épreuves de `check-ai-evals-pii.mjs` le lisent tous trois : une
+  forme ajoutée là est éprouvée par le masqueur ET par la garde. Le commentaire de `repo-ci.yml`
+  le note (le chemin est couvert par `takussan-api/tests/**`).
+- **Groupements** : séparateur facultatif (espace, insécable, point, tiret, **barre oblique**) entre
+  les groupes 2-3-2-2, 2-2-2-3 ou 3-2-2-2 (`338 21 00 00`). Un groupement 3-3-3 (`750 000 000`) n'en
+  est aucun : seul le prix **collé** était un faux positif, et la marque monétaire l'exclut. Une
+  première version stricte (séparateurs exigés à des positions fixes) a été écartée : elle
+  rejetait `77<ZWNJ>123 45<ZWSP>67`, que le masqueur couvrait déjà (test existant rouge).
+- **Normalisation code point pour code point** : `PhoneMasker::mask()` ramène les chiffres pleine
+  chasse, arabes-indiens et arabes-indiens étendus à l'ASCII et retire les invisibles, puis
+  remplace dans le texte d'origine par une table d'indices — tout ce qui n'est pas un numéro reste
+  intact (`８ pièces`). `EvalCaseAnonymizer` applique `normalizeDigits()` à son texte replié, qui
+  retirait déjà les invisibles. Échec fermé conservé (UTF-8 invalide → purge puis relance, sinon
+  exception) ; le `preg_replace` du courriel lève désormais au lieu de rendre `''`.
+- **Courriels** : `(at)`, `[at]`, `{at}`, ` at ` entre deux mots, `＠`, arobase espacée. Le domaine
+  doit finir par un TLD alphabétique (`rendez-vous at home` n'est pas un courriel). Coût accepté :
+  `Villa at Mermoz.Belle` le serait.
+- **Hors masque, assumé** : un prix de 9 chiffres collé **sans** marque monétaire (`750000000`)
+  reste masqué.
+- **AC4, ablations** (chacune annulée ensuite ; rouges PHP sur `PhoneMaskerTest` +
+  `EvalCaseAnonymizerTest`, et épreuve JS en échec) : préfixes ARTP → 14 rouges ; marque
+  monétaire → 8 ; `221` nu → 4 ; 2-2-2-3 → 2 ; 3-2-2-2 → 2 ; barre oblique → 2 ; chiffres non
+  ASCII → 7 ; invisibles (masqueur) → 1 ; courriel obfusqué → 3 ; `＠` → 1. Chaque ablation de la
+  garde la fait sortir en 1 sur la forme correspondante.
+- **Vérifié** : tests IA du back 328 verts ; `node scripts/check-ai-evals-pii.mjs` vert (aucun
+  jeu versé à ce jour : 0 fichier lu) ; toutes les gardes du dépôt vertes.

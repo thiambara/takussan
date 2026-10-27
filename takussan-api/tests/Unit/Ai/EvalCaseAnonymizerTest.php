@@ -300,4 +300,31 @@ class EvalCaseAnonymizerTest extends TestCase
 
         $this->assertSame('[NOM] : [EMAIL]', $out['input']);
     }
+
+    /**
+     * TCK-2400 — les formes partagées avec `check-ai-evals-pii.mjs`, chacune avec le jeton attendu
+     * (`null` : le texte reste tel quel).
+     *
+     * @return array<string, array{string, ?string}>
+     */
+    public static function formesPartagees(): array
+    {
+        $formes = json_decode((string) file_get_contents(dirname(__DIR__, 2).'/fixtures/ai/donnees-personnelles.json'), true, flags: JSON_THROW_ON_ERROR);
+        $cas = [];
+        foreach (['telephones' => PhoneMasker::TOKEN, 'courriels' => EvalCaseAnonymizer::EMAIL_TOKEN, 'pas_personnel' => null] as $genre => $jeton) {
+            foreach ($formes[$genre] as $nom => $texte) {
+                $cas["{$genre} — {$nom}"] = [$texte, $jeton];
+            }
+        }
+
+        return $cas;
+    }
+
+    #[DataProvider('formesPartagees')]
+    public function test_every_shared_form_is_masked_and_prices_are_kept(string $texte, ?string $jeton): void
+    {
+        $out = (new EvalCaseAnonymizer)->anonymize("Contact : {$texte}, merci", ['prix' => 1])['input'];
+
+        $this->assertSame('Contact : '.($jeton ?? $texte).', merci', $out);
+    }
 }
