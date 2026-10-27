@@ -67,6 +67,7 @@ class ValeursEnListeParcoursDesRoutesTest extends ApiTestCase
     private const HORS_PARCOURS = [
         'api/admin/jobs/failed/{id}' => '{id} : sans liaison de modèle',
         'api/admin/kyc/{dossier}' => '{dossier} : KycDossier sans fabrique',
+        'api/admin/ai/evaluations/{evaluation}' => '{evaluation} : sans liaison de modèle',
         'api/admin/enums/{key}' => '{key} : sans liaison de modèle',
         'api/admin/notification-templates/{event}/{channel}' => '{event} : sans liaison de modèle',
         'api/admin/webhook-logs/{webhookLog}' => '{webhookLog} : IntegrationWebhookLog sans fabrique',

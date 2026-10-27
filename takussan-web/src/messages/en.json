@@ -225,7 +225,8 @@
         "privacyRequests": "Rights requests",
         "payments": "Payments",
         "credits": "Credits",
-        "boosts": "Promotion"
+        "boosts": "Promotion",
+        "ai": "Artificial intelligence"
       }
     },
     "notifications": {
@@ -8359,6 +8360,155 @@
       "payments": {
         "title": "Payments",
         "subtitle": "Money that does not arrive: failed or late payments, and provider webhooks."
+      },
+      "ai": {
+        "title": "Artificial intelligence",
+        "subtitle": "What runs, on which model, and what it costs today.",
+        "tabs": {
+          "roles": "Roles",
+          "usages": "Usages",
+          "providers": "Providers",
+          "dashboard": "Costs"
+        },
+        "evaluationStatus": {
+          "queued": "Queued",
+          "running": "Running",
+          "done": "Done",
+          "failed": "Failed"
+        },
+        "callErrors": {
+          "providerTimeout": "The provider did not respond in time.",
+          "providerRateLimited": "The provider is rate limiting: try again in a moment.",
+          "providerCredits": "The account credit with the provider is exhausted.",
+          "providerUnavailable": "The provider is unavailable or unreachable.",
+          "providerAuth": "The provider rejected the key: check it.",
+          "requestRejected": "The provider rejected the request.",
+          "responseInvalid": "The model response cannot be used.",
+          "responseTruncated": "The model response was cut off before the end.",
+          "responseFiltered": "The model response was blocked by the provider’s filter.",
+          "unexpected": "Unexpected error: details are in the API log."
+        },
+        "roles": {
+          "caption": "Model roles and their failover order",
+          "role": "Role",
+          "chain": "Chain (failover order)",
+          "source": "Source",
+          "sourceDatabase": "Set here",
+          "sourceConfig": "Default configuration",
+          "edit": "Edit",
+          "reset": "Back to configuration",
+          "resetFailed": "Going back to the configuration failed.",
+          "names": {
+            "extraction": "Extraction",
+            "redaction": "Writing",
+            "raisonnement": "Reasoning",
+            "vision": "Vision",
+            "embedding": "Semantic representation"
+          },
+          "emptyChain": "No model"
+        },
+        "chain": {
+          "title": "Chain of the “{role}” role",
+          "link": "Link {position}",
+          "provider": "Provider",
+          "model": "Model",
+          "maxTokens": "Token ceiling",
+          "up": "Move link {position} up",
+          "down": "Move link {position} down",
+          "remove": "Remove",
+          "add": "Add a link",
+          "evaluate": "Evaluate the first link",
+          "evaluating": "Evaluation running…",
+          "evaluationFailed": "The evaluation failed.",
+          "evaluationErrors": {
+            "jobLost": "The evaluation was lost: its worker stopped before writing a result.",
+            "jobFailed": "The evaluation was interrupted before it finished."
+          },
+          "evaluationErrorCode": "Code: {code}",
+          "comparison": "Current / candidate",
+          "field": "Field",
+          "current": "Current",
+          "candidate": "Candidate",
+          "verdictOk": "The candidate holds the baseline.",
+          "verdictBelow": "The candidate is below the baseline.",
+          "verdictFailures": "Calls failed during the evaluation: the result proves nothing.",
+          "verdictBaselineStale": "The baseline does not carry the same fields as the candidate: it is stale.",
+          "failuresCount": "{count, plural, one {# call failed} other {# calls failed}} out of {cases, plural, one {# case} other {# cases}}",
+          "overrideReason": "Reason for the override",
+          "overrideHint": "Required to apply a model below the baseline; it is logged.",
+          "save": "Apply",
+          "cancel": "Cancel",
+          "global": "Global",
+          "evaluationCost": "Evaluation cost (XOF)",
+          "noBaseline": "No baseline recorded.",
+          "evaluatedCandidate": "Evaluated candidate: {model}"
+        },
+        "usages": {
+          "caption": "Declared usages",
+          "key": "Usage",
+          "model": "Model called",
+          "forced": "forced",
+          "budget": "Spent / today’s ceiling",
+          "noBudget": "no ceiling",
+          "state": "State",
+          "enabled": "Active",
+          "disabled": "Cut off",
+          "disable": "Cut off",
+          "enable": "Restore",
+          "settings": "Settings",
+          "forcedModel": "Forced model",
+          "noForcedModel": "The role’s",
+          "dailyBudget": "Daily ceiling (XOF)",
+          "save": "Save",
+          "cancel": "Cancel",
+          "updateFailed": "The setting was not saved.",
+          "budgetDefaultHint": "Default: {default} XOF — leave empty to follow the default.",
+          "budgetNoDefaultHint": "No default ceiling — leave empty to set none.",
+          "providersLoadError": "The available models could not be loaded: {message}"
+        },
+        "providers": {
+          "caption": "Allowed providers",
+          "name": "Provider",
+          "key": "Key",
+          "keyPresent": "Present",
+          "keyMissing": "Missing",
+          "models": "Priced models",
+          "test": "Test the connection",
+          "testOk": "Connected to {model} in {duration} ms.",
+          "testFailed": "The connection failed.",
+          "testError": "The test could not be started.",
+          "testErrors": {
+            "roleUnassigned": "No model is assigned to this test’s role.",
+            "providersUnavailable": "No provider answered: try again, or check the key and the model’s price.",
+            "refusedKillSwitch": "The test usage is cut off.",
+            "refusedBudget": "The daily ceiling is reached: the test was refused.",
+            "refused": "The gateway refused the test call."
+          },
+          "testErrorCode": "Code: {code}"
+        },
+        "dashboard": {
+          "from": "From",
+          "to": "To",
+          "today": "Today: {spent} XOF spent out of {budget} XOF",
+          "todayNoBudget": "Today: {spent} XOF spent, no global ceiling",
+          "caption": "Calls per day and usage",
+          "date": "Day",
+          "usage": "Usage",
+          "calls": "Calls served",
+          "cost": "Cost (XOF)",
+          "latency": "Average latency (ms)",
+          "errors": "Errors",
+          "refusals": "Refusals",
+          "acceptanceCaption": "Suggestion acceptance rate",
+          "acceptance": "Accepted as is",
+          "decided": "Decided",
+          "emptyTitle": "No calls in this period",
+          "emptyDescription": "Calls to the AI foundation will show here, per day and usage.",
+          "baselinesCaption": "Latest evaluation score per usage",
+          "baselineGlobal": "Global score",
+          "baselineModel": "Evaluated model",
+          "baselineDate": "Measured on"
+        }
       }
     },
     "featureFlags": {

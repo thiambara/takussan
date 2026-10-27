@@ -84,6 +84,11 @@ Schedule::job(new SendPropertyVisitReminders)->everyFiveMinutes()->withoutOverla
 // their digest_send_at and dispatches per-user BuildUserDigestJob sub-jobs.
 Schedule::job(new SendNotificationDigestJob)->hourly()->withoutOverlapping(60);
 Schedule::command('media:cleanup')->dailyAt('03:00');
+// TCK-2384 (ADR-0076 §8) — les évaluations du socle IA, la nuit. Idempotente : elle lit les jeux de
+// cas et écrit un rapport NEUF sous `storage/ai-evals/` ; la référence, seul `--update-baseline` à
+// la main la réécrit. Sans clé de fournisseur, elle ne fait rien. Ses appels sont journalisés
+// `is_evaluation` et ne consomment pas le budget du jour.
+Schedule::command('ai:eval --all')->dailyAt('02:30')->withoutOverlapping(120);
 // TCK-506 (revue de PR 253) — « neuf » est figé à l'indexation : sans ceci, un
 // bien de 2025 indexé en 2026 répond encore à `q=neuf` en 2028.
 Schedule::job(new RefreshNewBuildSearchLabel)->dailyAt('04:00')->withoutOverlapping();

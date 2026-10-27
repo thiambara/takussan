@@ -68,6 +68,20 @@ return [
     'agent_handover' => [
         'member_not_staff' => 'A handover only applies to an agent or an administrator of the agency; a landlord is not handed over.',
     ],
+    'ai' => [
+        'eval' => [
+            'already_running' => 'An evaluation of this candidate is already running for this role.',
+            'job_failed' => 'The evaluation failed: the worker interrupted it before it finished.',
+            'job_lost' => 'The evaluation was lost: its worker stopped before writing a result.',
+            'no_cases' => 'This role has no evaluation case set.',
+        ],
+        'evaluation_below_baseline' => 'This model was evaluated below the baseline: give a reason to assign it anyway.',
+        'model_unpriced' => 'This model has no price: it cannot be assigned.',
+        'provider_key_missing' => 'No key is configured for this provider.',
+        'provider_unknown' => 'Unknown AI provider.',
+        'role_unknown' => 'Unknown AI role.',
+        'usage_unknown' => 'Unknown AI usage.',
+    ],
     'auth' => [
         'account_blocked' => 'This account is blocked.',
         'insufficient_privileges' => 'Insufficient privileges.',

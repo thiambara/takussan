@@ -30,7 +30,8 @@ on:
       - 'takussan-api/.env.docker'
       # Chaque garde doit être déclenchée par les DEUX côtés qu'elle compare, sinon elle
       # ne voit qu'une moitié de l'écart qu'elle existe pour trouver :
-      #   check-queues       → les `onQueue()` de takussan-api/app, deploy/takussan/compose.api.yml ET dev.sh
+      #   check-queues       → les `onQueue()` et `$timeout` de takussan-api/app, takussan-api/config/queue.php,
+      #                        deploy/takussan/compose.api.yml ET dev.sh
       #   check-pro-routes   → PRO_ROUTES et les pages, tous deux sous takussan-web/src
       #   check-backlog      → les tickets ET les specs qu'ils citent
       #   check-models-spec  → takussan-api/app/Models ET docs/models-spec.md
@@ -154,6 +155,15 @@ on:
       # `check-front-routes` (TCK-998) lit `route:list` : `bootstrap/app.php` enregistre les fichiers
       # de routes et le préfixe `api`.
       - 'takussan-api/bootstrap/**'
+      # Gardes du socle IA (TCK-2383, TCK-2384, ADR-0076) : `check-ai-providers-privacy` compare
+      # `takussan-api/config/ai.php` (couvert par `config/**`) ET `takussan-web/src/content/legal/
+      # privacy.ts` (par `takussan-web/src/**`) ; `check-ai-usages` lit `app/Ai/**` (`app/**`) et
+      # `takussan-api/resources/ai/` — le seul de ses dossiers qu'aucune ligne ci-dessus ne couvre ;
+      # `check-ai-evals-pii` lit `takussan-api/resources/ai/evals/` (couvert par la même ligne :
+      # les jeux vivent sous `resources/` et non `tests/` pour partir dans l'image, que
+      # `.dockerignore` prive de `tests`) ; ses épreuves lisent
+      # `takussan-api/tests/fixtures/ai/donnees-personnelles.json` (`tests/**`, TCK-2400).
+      - 'takussan-api/resources/ai/**'
   push:
     branches: [dev, master]
     paths:
@@ -255,6 +265,8 @@ on:
       # `check-front-routes` (TCK-998) lit `route:list` : `bootstrap/app.php` enregistre les fichiers
       # de routes et le préfixe `api`.
       - 'takussan-api/bootstrap/**'
+      # Gardes du socle IA : voir le même bloc du déclencheur `pull_request`.
+      - 'takussan-api/resources/ai/**'
 
 jobs:
   guards:
@@ -1166,3 +1178,27 @@ jobs:
         # d'ouvrir une PR d'intégration —
         #   git fetch origin dev && node scripts/check-skip-ci-marker.mjs --tete origin/dev
         run: node scripts/check-skip-ci-marker.mjs --report
+
+      - name: Tout fournisseur d'IA joignable est nommé par la politique de confidentialité
+        # TCK-2383 (ADR-0076 §3) — la console super-admin choisit le modèle de chaque rôle parmi les
+        # fournisseurs de `config/ai.php`. Ajouter un fournisseur et deux clics enverraient des
+        # contenus à un sous-traitant que `privacy.ts` ne déclare pas : la garde exige que chaque
+        # `legal_name` figure dans la puce « Intelligence artificielle » du § 4.3, en fr et en en.
+        # ⚠ Elle vérifie qu'un nom apparaît, pas que le texte décrive bien le traitement.
+        run: node scripts/check-ai-providers-privacy.mjs --report
+      - name: Aucun agent d'IA ne contourne la passerelle, aucun identifiant de modèle hors de config/ai.php
+        # TCK-2383 (ADR-0076 §4) — un agent appelé en direct contourne budget, masquage et journal ;
+        # un identifiant de modèle écrit dans un service ne se règle plus depuis la console. La
+        # garde relie chaque agent à un usage, chaque usage au registre, et cherche tout agent
+        # défini hors de `app/Ai/Agents/`.
+        run: node scripts/check-ai-usages.mjs --report
+      - name: Aucun numéro ni courriel dans les jeux d'évaluation de l'IA
+        # TCK-2384 — les cas viennent de vraies annonces corrigées (`ai:export-eval-cases`).
+        # L'export anonymise, mais un cas écrit à la main ferait entrer une donnée personnelle dans
+        # le dépôt, d'où elle ne sort plus. ⚠ Elle ne voit pas un nom de personne.
+        run: node scripts/check-ai-evals-pii.mjs
+      - name: L'API inscrit à l'acceptation la version des CGU que le front affiche
+        # `PublishReadiness::TERMS_VERSION` (couvert par `app/**`) doit désigner le même jour que
+        # `VERSION_DOCUMENTS` de `takussan-web/src/content/legal/editeur.ts` (`takussan-web/src/**`).
+        # Mesuré le 2026-10-27 : l'API inscrivait `2026-09-17` sous des textes plus récents.
+        run: node scripts/check-terms-version.mjs --report

@@ -107,6 +107,7 @@ Nous faisons appel à des prestataires qui traitent des données pour notre comp
 - **Connexion par un tiers** : Google, Meta (Facebook) et Apple, uniquement si vous choisissez ce mode de connexion.
 - **Cartographie** : OpenStreetMap, dont les serveurs reçoivent votre adresse IP lorsque la carte s’affiche.
 - **Localisation approximative** : ipapi.co, qui reçoit votre adresse IP pour en déduire votre ville.
+- **Intelligence artificielle** : Anthropic (États-Unis) — analyse automatisée de certains contenus que des fonctionnalités de la plateforme lui soumettent (le texte ou les images d’une annonce, par exemple), pour proposer une saisie ou une rédaction qu’une personne vérifie. Aucune donnée sensible (pièce d’identité, revenus) ne lui est transmise.
 
 ## 4.4 Les autorités
 
@@ -284,6 +285,7 @@ We use providers that process data on our behalf, on our instructions and under 
 - **Third-party sign-in**: Google, Meta (Facebook) and Apple, only if you choose that sign-in method.
 - **Maps**: OpenStreetMap, whose servers receive your IP address when a map is displayed.
 - **Approximate location**: ipapi.co, which receives your IP address to infer your city.
+- **Artificial intelligence**: Anthropic (United States) — automated analysis of some content that platform features submit to it (for example the text or images of a listing), to suggest an entry or a draft that a person reviews. No sensitive data (identity documents, income) is sent to it.
 
 ## 4.4 Authorities
 

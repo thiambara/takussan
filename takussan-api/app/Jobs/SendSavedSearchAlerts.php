@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Jobs\Concerns\RunsOnLongQueue;
 use App\Models\Enums\UserStatus;
 use App\Models\SavedSearch;
 use App\Notifications\SavedSearchMatchesNotification;
@@ -76,7 +77,7 @@ use Throwable;
  */
 class SendSavedSearchAlerts implements ShouldQueue
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+    use Dispatchable, InteractsWithQueue, Queueable, RunsOnLongQueue, SerializesModels;
 
     private const JOURS_PAR_SEMAINE = 7;
 
@@ -84,6 +85,11 @@ class SendSavedSearchAlerts implements ShouldQueue
     public int $timeout = 1800;
 
     public int $tries = 1;
+
+    public function __construct()
+    {
+        $this->onLongQueue();
+    }
 
     /** @return list<object> */
     public function middleware(): array

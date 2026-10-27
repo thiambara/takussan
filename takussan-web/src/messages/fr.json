@@ -225,7 +225,8 @@
         "privacyRequests": "Demandes de droits",
         "payments": "Paiements",
         "credits": "Crédits",
-        "boosts": "Mise en avant"
+        "boosts": "Mise en avant",
+        "ai": "Intelligence artificielle"
       }
     },
     "notifications": {
@@ -8359,6 +8360,155 @@
       "payments": {
         "title": "Paiements",
         "subtitle": "L'argent qui n'arrive pas : paiements en échec ou en retard, et webhooks des fournisseurs."
+      },
+      "ai": {
+        "title": "Intelligence artificielle",
+        "subtitle": "Ce qui tourne, sur quel modèle, et ce que ça coûte aujourd’hui.",
+        "tabs": {
+          "roles": "Rôles",
+          "usages": "Usages",
+          "providers": "Fournisseurs",
+          "dashboard": "Coûts"
+        },
+        "evaluationStatus": {
+          "queued": "En attente",
+          "running": "En cours",
+          "done": "Terminée",
+          "failed": "Échouée"
+        },
+        "callErrors": {
+          "providerTimeout": "Le fournisseur n’a pas répondu dans le délai.",
+          "providerRateLimited": "Le fournisseur limite le débit : réessayez dans un moment.",
+          "providerCredits": "Le crédit du compte chez le fournisseur est épuisé.",
+          "providerUnavailable": "Le fournisseur est indisponible ou injoignable.",
+          "providerAuth": "Le fournisseur a refusé la clé : vérifiez-la.",
+          "requestRejected": "Le fournisseur a rejeté la requête.",
+          "responseInvalid": "La réponse du modèle n’est pas exploitable.",
+          "responseTruncated": "La réponse du modèle a été coupée avant la fin.",
+          "responseFiltered": "La réponse du modèle a été bloquée par le filtre du fournisseur.",
+          "unexpected": "Erreur inattendue : le détail est au journal de l’API."
+        },
+        "roles": {
+          "caption": "Rôles de modèle et leur ordre de bascule",
+          "role": "Rôle",
+          "chain": "Chaîne (ordre de bascule)",
+          "source": "Source",
+          "sourceDatabase": "Réglé ici",
+          "sourceConfig": "Configuration par défaut",
+          "edit": "Modifier",
+          "reset": "Revenir à la configuration",
+          "resetFailed": "Le retour à la configuration a échoué.",
+          "names": {
+            "extraction": "Extraction",
+            "redaction": "Rédaction",
+            "raisonnement": "Raisonnement",
+            "vision": "Vision",
+            "embedding": "Représentation sémantique"
+          },
+          "emptyChain": "Aucun modèle"
+        },
+        "chain": {
+          "title": "Chaîne du rôle « {role} »",
+          "link": "Maillon {position}",
+          "provider": "Fournisseur",
+          "model": "Modèle",
+          "maxTokens": "Plafond de tokens",
+          "up": "Monter le maillon {position}",
+          "down": "Descendre le maillon {position}",
+          "remove": "Retirer",
+          "add": "Ajouter un maillon",
+          "evaluate": "Évaluer le premier maillon",
+          "evaluating": "Évaluation en cours…",
+          "evaluationFailed": "L’évaluation a échoué.",
+          "evaluationErrors": {
+            "jobLost": "L’évaluation a été perdue : son worker s’est arrêté avant d’écrire un résultat.",
+            "jobFailed": "L’évaluation a été interrompue avant la fin."
+          },
+          "evaluationErrorCode": "Code : {code}",
+          "comparison": "En place / candidat",
+          "field": "Champ",
+          "current": "En place",
+          "candidate": "Candidat",
+          "verdictOk": "Le candidat tient la référence.",
+          "verdictBelow": "Le candidat est sous la référence.",
+          "verdictFailures": "Des appels ont échoué pendant l’évaluation : le résultat ne prouve rien.",
+          "verdictBaselineStale": "La référence ne porte pas les mêmes champs que le candidat : elle est périmée.",
+          "failuresCount": "{count, plural, one {# appel a échoué} other {# appels ont échoué}} sur {cases, plural, one {# cas} other {# cas}}",
+          "overrideReason": "Motif de la dérogation",
+          "overrideHint": "Exigé pour appliquer un modèle sous la référence ; il est journalisé.",
+          "save": "Appliquer",
+          "cancel": "Annuler",
+          "global": "Global",
+          "evaluationCost": "Coût de l’évaluation (XOF)",
+          "noBaseline": "Aucune référence enregistrée.",
+          "evaluatedCandidate": "Candidat évalué : {model}"
+        },
+        "usages": {
+          "caption": "Usages déclarés",
+          "key": "Usage",
+          "model": "Modèle appelé",
+          "forced": "forcé",
+          "budget": "Dépensé / plafond du jour",
+          "noBudget": "sans plafond",
+          "state": "État",
+          "enabled": "Actif",
+          "disabled": "Coupé",
+          "disable": "Couper",
+          "enable": "Rétablir",
+          "settings": "Réglages",
+          "forcedModel": "Modèle forcé",
+          "noForcedModel": "Celui du rôle",
+          "dailyBudget": "Plafond journalier (XOF)",
+          "save": "Enregistrer",
+          "cancel": "Annuler",
+          "updateFailed": "Le réglage n’a pas été enregistré.",
+          "budgetDefaultHint": "Défaut : {default} XOF — laisser vide pour suivre le défaut.",
+          "budgetNoDefaultHint": "Aucun plafond par défaut — laisser vide pour ne pas en fixer.",
+          "providersLoadError": "Les modèles disponibles n’ont pas pu être chargés : {message}"
+        },
+        "providers": {
+          "caption": "Fournisseurs autorisés",
+          "name": "Fournisseur",
+          "key": "Clé",
+          "keyPresent": "Présente",
+          "keyMissing": "Absente",
+          "models": "Modèles tarifés",
+          "test": "Tester la connexion",
+          "testOk": "Connexion établie avec {model} en {duration} ms.",
+          "testFailed": "La connexion a échoué.",
+          "testError": "Le test n’a pas pu être lancé.",
+          "testErrors": {
+            "roleUnassigned": "Aucun modèle n’est affecté au rôle de ce test.",
+            "providersUnavailable": "Aucun fournisseur n’a répondu : réessayez, ou vérifiez la clé et le tarif du modèle.",
+            "refusedKillSwitch": "L’usage de test est coupé.",
+            "refusedBudget": "Le plafond journalier est atteint : le test a été refusé.",
+            "refused": "La passerelle a refusé l’appel de test."
+          },
+          "testErrorCode": "Code : {code}"
+        },
+        "dashboard": {
+          "from": "Du",
+          "to": "Au",
+          "today": "Aujourd’hui : {spent} XOF dépensés sur {budget} XOF",
+          "todayNoBudget": "Aujourd’hui : {spent} XOF dépensés, sans plafond global",
+          "caption": "Appels par jour et par usage",
+          "date": "Jour",
+          "usage": "Usage",
+          "calls": "Appels servis",
+          "cost": "Coût (XOF)",
+          "latency": "Latence moyenne (ms)",
+          "errors": "Erreurs",
+          "refusals": "Refus",
+          "acceptanceCaption": "Taux d’acceptation des suggestions",
+          "acceptance": "Acceptées telles quelles",
+          "decided": "Décidées",
+          "emptyTitle": "Aucun appel sur la période",
+          "emptyDescription": "Les appels au socle IA apparaîtront ici, par jour et par usage.",
+          "baselinesCaption": "Dernier score d’évaluation par usage",
+          "baselineGlobal": "Score global",
+          "baselineModel": "Modèle évalué",
+          "baselineDate": "Mesuré le"
+        }
       }
     },
     "featureFlags": {

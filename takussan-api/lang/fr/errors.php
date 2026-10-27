@@ -68,6 +68,20 @@ return [
     'agent_handover' => [
         'member_not_staff' => "La passation ne concerne qu'un agent ou un administrateur de l'agence ; un bailleur n'en fait pas l'objet.",
     ],
+    'ai' => [
+        'eval' => [
+            'already_running' => 'Une évaluation de ce candidat est déjà en cours pour ce rôle.',
+            'job_failed' => "L'évaluation a échoué : le worker l'a interrompue avant la fin.",
+            'job_lost' => "L'évaluation a été perdue : son worker s'est arrêté avant d'écrire un résultat.",
+            'no_cases' => "Ce rôle n'a aucun jeu de cas à évaluer.",
+        ],
+        'evaluation_below_baseline' => "Ce modèle a été évalué sous la référence : indiquez un motif pour l'affecter quand même.",
+        'model_unpriced' => "Ce modèle n'a pas de tarif : il ne peut pas être affecté.",
+        'provider_key_missing' => "Aucune clé n'est configurée pour ce fournisseur.",
+        'provider_unknown' => 'Fournisseur IA inconnu.',
+        'role_unknown' => 'Rôle IA inconnu.',
+        'usage_unknown' => 'Usage IA inconnu.',
+    ],
     'auth' => [
         'account_blocked' => 'Ce compte est bloqué.',
         'insufficient_privileges' => 'Droits insuffisants.',
