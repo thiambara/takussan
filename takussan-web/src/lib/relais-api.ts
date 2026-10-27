@@ -127,7 +127,13 @@ export async function relayerVersApi(
     init.body = await request.arrayBuffer();
   }
 
-  const amont = await fetchVersApi(urlApiServeur(cheminAmont), init, { requete: request });
+  // TCK-2386 — un envoi multipart transporte des fichiers (captures du Radar, preuve du registre des
+  // droits) : il attend l'API jusqu'au délai des fichiers, comme les téléversements KYC.
+  const multipart = contentType?.toLowerCase().startsWith('multipart/form-data') ?? false;
+  const amont = await fetchVersApi(urlApiServeur(cheminAmont), init, {
+    requete: request,
+    ...(multipart ? { delaiMs: DELAI_RELAIS_FICHIER_MS } : {}),
+  });
   const enTetesReponse: Record<string, string> = {};
   for (const nom of EN_TETES_DE_REPONSE) {
     const valeur = amont.headers.get(nom);

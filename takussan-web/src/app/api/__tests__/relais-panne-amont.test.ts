@@ -100,6 +100,44 @@ describe('relayerVersApi', () => {
     expect(init.signal?.aborted).toBe(true);
   });
 
+  it('TCK-2386 — un envoi multipart attend l\'API jusqu\'au délai des fichiers, pas au délai par défaut', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    fetchMock.mockImplementation(apiFigee);
+    // Un corps multipart écrit en octets : un `FormData` se sérialise par un flux que les minuteries
+    // simulées n'avancent pas.
+    const corps = '--b\r\nContent-Disposition: form-data; name="captures[]"; filename="c.png"\r\nContent-Type: image/png\r\n\r\nx\r\n--b--\r\n';
+    const requete = new NextRequest('http://localhost/api/super-admin/radar/listings', {
+      method: 'POST',
+      body: corps,
+      headers: { 'content-type': 'multipart/form-data; boundary=b' },
+    });
+    let reglee = false;
+    const relais = relayerVersApi(requete, '/admin/radar/listings').then((r) => {
+      reglee = true;
+      return r;
+    });
+
+    await vi.advanceTimersByTimeAsync(31_000);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(reglee).toBe(false);
+    await vi.advanceTimersByTimeAsync(DELAI_RELAIS_FICHIER_MS);
+    expect((await relais).status).toBe(504);
+  });
+
+  it('un envoi JSON garde le délai par défaut', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    fetchMock.mockImplementation(apiFigee);
+    const requete = new NextRequest('http://localhost/api/super-admin/radar/listings', {
+      method: 'POST',
+      body: '{"urls":["https://a.example/1"]}',
+      headers: { 'content-type': 'application/json' },
+    });
+    const relais = relayerVersApi(requete, '/admin/radar/listings');
+
+    await vi.advanceTimersByTimeAsync(31_000);
+    expect((await relais).status).toBe(504);
+  });
+
   it('l\'abandon d\'une écriture ne l\'abandonne pas', async () => {
     fetchMock.mockResolvedValueOnce(new Response('{}', { status: 200 }));
     const navigateur = new AbortController();
