@@ -158,4 +158,22 @@ class AiEvalCommandTest extends TestCase
 
         AgentDEssai::assertNeverPrompted();
     }
+
+    public function test_all_with_no_evaluation_set_succeeds_and_says_so(): void
+    {
+        File::deleteDirectory($this->racine.'/'.UsageDEssai::KEY);
+
+        $this->artisan('ai:eval', ['--all' => true])
+            ->expectsOutputToContain('jeu d\'évaluation : rien')
+            ->assertSuccessful();
+
+        AgentDEssai::assertNeverPrompted();
+    }
+
+    public function test_a_named_usage_without_cases_stays_an_error(): void
+    {
+        File::deleteDirectory($this->racine.'/'.UsageDEssai::KEY);
+
+        $this->artisan('ai:eval', ['usage' => UsageDEssai::KEY])->assertFailed();
+    }
 }

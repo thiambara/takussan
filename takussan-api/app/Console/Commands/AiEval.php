@@ -32,6 +32,12 @@ class AiEval extends Command
         }
 
         $keys = $this->option('all') ? $runner->evaluableUsages() : array_filter([(string) $this->argument('usage')]);
+        if ($keys === [] && $this->option('all')) {
+            // Le planning de nuit passe `--all` : sans aucun jeu, il n'y a rien à échouer.
+            $this->components->info('Aucun usage n\'a de jeu d\'évaluation : rien à évaluer.');
+
+            return self::SUCCESS;
+        }
         if ($keys === []) {
             $this->components->error('Nommer un usage, ou passer --all.');
 
