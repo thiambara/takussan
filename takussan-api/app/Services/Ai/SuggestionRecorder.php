@@ -69,11 +69,17 @@ final class SuggestionRecorder
         return $diff;
     }
 
-    /** @return array<string, array{decided: int, accepted: int, edited: int, rejected: int, rate: float|null}> */
-    public function acceptanceRates(CarbonInterface $since): array
+    /**
+     * `$until` est la borne haute INCLUSE (la fin du dernier jour de la période, côté appelant) ;
+     * absente, la fenêtre est ouverte.
+     *
+     * @return array<string, array{decided: int, accepted: int, edited: int, rejected: int, rate: float|null}>
+     */
+    public function acceptanceRates(CarbonInterface $since, ?CarbonInterface $until = null): array
     {
         $rows = AiSuggestion::query()
             ->where('decided_at', '>=', $since)
+            ->when($until, fn ($query) => $query->where('decided_at', '<=', $until))
             ->where('decision', '!=', AiSuggestionDecision::Pending->value)
             ->selectRaw('usage_key, decision, count(*) as total')
             ->groupBy('usage_key', 'decision')

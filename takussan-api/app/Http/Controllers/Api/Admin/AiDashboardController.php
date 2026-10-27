@@ -59,7 +59,7 @@ class AiDashboardController extends Controller
 
         return $this->json(['data' => [
             'days' => $days,
-            'acceptance' => $suggestions->acceptanceRates($from),
+            'acceptance' => $suggestions->acceptanceRates($from, $to),
             'baselines' => $baselines,
             'today' => ['spent_xof' => $budget->spentToday(), 'daily_budget_xof' => config('ai.budgets.daily_global_xof')],
         ]]);
