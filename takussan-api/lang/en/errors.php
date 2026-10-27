@@ -676,9 +676,11 @@ return [
     ],
     'radar' => [
         'captures' => [
+            'too_large' => 'A capture is too large: at most 20,000 pixels per side and 40 million pixels.',
             'unreadable' => 'A capture cannot be read as an image: send a JPEG, PNG or WebP screenshot.',
         ],
         'url' => [
+            'invalid' => 'This URL cannot be read: its host name is unreadable.',
             'airbnb' => 'Airbnb is not a Radar source: its content is not collected.',
         ],
     ],

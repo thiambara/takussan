@@ -13,7 +13,8 @@ use Illuminate\Validation\Rule;
  * liste), `text` (un texte collé) ou `captures` (des images). `source_site` ne se donne qu'avec le
  * texte ou les captures : celui d'une URL se lit dans son hôte. Bornes : `config/radar.php`.
  *
- * Airbnb (et ses domaines) est refusé ici, avant toute fiche : 422 `radar.url.airbnb`.
+ * Airbnb (et ses domaines) est refusé ici, avant toute fiche : 422 `radar.url.airbnb` ; une URL
+ * dont l'hôte ne se lit pas (IDN invalide) : 422 `radar.url.invalid`.
  */
 class StoreRadarListingRequest extends BaseFormRequest
 {
@@ -42,8 +43,10 @@ class StoreRadarListingRequest extends BaseFormRequest
     protected function passedValidation(): void
     {
         foreach ($this->validated('urls') ?? [] as $url) {
+            // Un hôte illisible est refusé, pas laissé passer : le contrôle Airbnb ne juge que ce qu'il lit.
             $host = RadarListingIntake::hostOf($url);
-            abort_code_if($host !== null && UrlFetcher::isAirbnb($host), 422, 'radar.url.airbnb');
+            abort_code_if($host === null, 422, 'radar.url.invalid');
+            abort_code_if(UrlFetcher::isAirbnb($host), 422, 'radar.url.airbnb');
         }
     }
 }

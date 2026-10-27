@@ -52,7 +52,10 @@ class RadarListing extends AbstractModel implements HasMedia
         'extracted_at', 'property_id', 'captured_by', 'purge_at', 'created_at', 'updated_at',
     ];
 
-    protected static array $requestLoadable = ['advertiser', 'capturer', 'property'];
+    // Seul l'annonceur se charge par `include=` : la ressource ne rend que lui. Sous un sparse
+    // fieldset, `fields[radar_listings]` doit alors lire `radar_advertiser_id`, sinon la relation
+    // se résout à null.
+    protected static array $requestLoadable = ['advertiser'];
 
     /** `filter[advertiser_id]` : le nom que lit la console, alias de la colonne `radar_advertiser_id`. */
     protected static function customQueryFilters(): array

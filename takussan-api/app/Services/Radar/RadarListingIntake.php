@@ -14,6 +14,7 @@ use App\Support\RadarPhone;
 use GuzzleHttp\Psr7\Uri;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Intervention\Image\Drivers\Gd\Driver as GdDriver;
 use Intervention\Image\Exceptions\ImageException;
 use Intervention\Image\ImageManager;
@@ -32,12 +33,16 @@ use Throwable;
  *   collé se lit ici : une URL ou des captures n'ont pas encore de texte, le job y revient.
  * - **Les captures sont réencodées** : GD ne réécrit aucune métadonnée, l'EXIF (position GPS
  *   comprise) ne survit donc pas ; l'empreinte SHA-256 de l'original reste en propriété `sha256`.
+ *   Leurs dimensions sont bornées sur l'en-tête AVANT le décodage (bombe de décompression).
  * - Sinon : étape `captured`, et l'extraction part en file APRÈS le commit.
  */
 final class RadarListingIntake
 {
     /** Paramètres d'URL qui ne disent rien de l'annonce, seulement d'où l'on vient. */
-    private const TRACKING_PARAMS = '/^(utm_[a-z0-9_]*|fbclid)$/i';
+    private const TRACKING_PARAMS = '/^(utm_[a-z0-9_]*|fbclid|gclid|mibextid|rdid|__cft__.*|__tn__)$/i';
+
+    /** Les variantes d'hôte de Facebook qui servent la même page : repliées sur le domaine nu. */
+    private const FACEBOOK_HOSTS = '/^(www|m|web|mobile|mbasic)\.facebook\.com$/';
 
     /**
      * @param  list<string>  $urls
@@ -50,7 +55,8 @@ final class RadarListingIntake
             $canonical = self::canonicalUrl($url) ?? $url;
             $host = self::hostOf($canonical) ?? '';
 
-            $results[] = $this->intake(hash('sha256', 'url|'.$canonical), [
+            // L'empreinte ignore le schéma : `http://` et `https://` désignent la même annonce.
+            $results[] = $this->intake(hash('sha256', 'url|'.preg_replace('#^https?://#i', '', $canonical)), [
                 'source_kind' => RadarSourceKind::Url,
                 'source_site' => RadarSourceSite::fromHost($host),
                 'source_url' => $canonical,
@@ -81,43 +87,79 @@ final class RadarListingIntake
      */
     public function fromCaptures(array $files, ?RadarSourceSite $site, User $by): array
     {
-        // Tout se lit et se réencode AVANT la moindre écriture : une image illisible refuse la
-        // saisie entière, sans fiche orpheline.
+        $originals = array_map(fn (UploadedFile $file): string => (string) file_get_contents($file->getRealPath()), $files);
+        $hashes = array_map(fn (string $bytes): string => hash('sha256', $bytes), $originals);
+        $sorted = $hashes;
+        sort($sorted);
+        $fingerprint = hash('sha256', 'captures|'.implode(',', $sorted));
+
+        // Un renvoi se reconnaît à l'empreinte des originaux, avant tout décodage.
+        $existing = RadarListing::query()->where('content_fingerprint', $fingerprint)->first();
+        if ($existing !== null) {
+            return ['listing' => $existing, 'existing' => true];
+        }
+
+        // Tout se lit et se réencode AVANT la moindre écriture : une image illisible ou démesurée
+        // refuse la saisie entière, sans fiche orpheline.
         $manager = new ImageManager(new GdDriver);
         $captures = [];
-        foreach ($files as $file) {
-            $bytes = (string) file_get_contents($file->getRealPath());
+        foreach ($files as $i => $file) {
+            $this->assertPixelBudget($originals[$i]);
+            $mime = (string) $file->getMimeType();
             try {
-                $image = $manager->decodeBinary($bytes);
-                $mime = (string) $file->getMimeType();
-                $encoded = $image->encodeUsingMediaType($mime)->toString();
+                $encoded = $manager->decodeBinary($originals[$i])->encodeUsingMediaType($mime)->toString();
             } catch (ImageException) {
                 abort_code(422, 'radar.captures.unreadable');
             }
-            $captures[] = ['sha256' => hash('sha256', $bytes), 'bytes' => $encoded, 'mime' => $mime];
+            $captures[] = ['sha256' => $hashes[$i], 'bytes' => $encoded, 'mime' => $mime];
         }
 
-        $hashes = array_column($captures, 'sha256');
-        sort($hashes);
-
-        $result = $this->intake(hash('sha256', 'captures|'.implode(',', $hashes)), [
+        return $this->intake($fingerprint, [
             'source_kind' => RadarSourceKind::Captures,
             'source_site' => $site ?? RadarSourceSite::Other,
         ], $by, function (RadarListing $listing) use ($captures): void {
-            foreach ($captures as $i => $capture) {
-                $extension = match ($capture['mime']) {
-                    'image/png' => 'png',
-                    'image/webp' => 'webp',
-                    default => 'jpg',
-                };
-                $listing->addMediaFromString($capture['bytes'])
-                    ->usingFileName(sprintf('capture-%d.%s', $i + 1, $extension))
-                    ->withCustomProperties(['sha256' => $capture['sha256']])
-                    ->toMediaCollection('radar_captures');
+            $written = [];
+            try {
+                foreach ($captures as $i => $capture) {
+                    $extension = match ($capture['mime']) {
+                        'image/png' => 'png',
+                        'image/webp' => 'webp',
+                        default => 'jpg',
+                    };
+                    $written[] = $listing->addMediaFromString($capture['bytes'])
+                        ->usingFileName(sprintf('capture-%d.%s', $i + 1, $extension))
+                        ->withCustomProperties(['sha256' => $capture['sha256']])
+                        ->toMediaCollection('radar_captures');
+                }
+            } catch (Throwable $e) {
+                // La transaction rend les lignes, jamais les fichiers : ceux déjà écrits s'effacent ici.
+                foreach ($written as $media) {
+                    Storage::disk($media->disk)->delete($media->getPathRelativeToRoot());
+                }
+
+                throw $e;
             }
         });
+    }
 
-        return $result;
+    /**
+     * Les dimensions lues dans l'EN-TÊTE seul (`getimagesizefromstring`), avant que GD n'alloue
+     * largeur × hauteur × 4 octets : 422 `radar.captures.too_large` au-delà des bornes.
+     */
+    private function assertPixelBudget(string $bytes): void
+    {
+        $size = @getimagesizefromstring($bytes);
+        if ($size === false) {
+            abort_code(422, 'radar.captures.unreadable');
+        }
+
+        [$width, $height] = $size;
+        $maxSide = (int) config('radar.captures.max_side');
+        abort_code_if(
+            $width > $maxSide || $height > $maxSide || $width * $height > (int) config('radar.captures.max_pixels'),
+            422,
+            'radar.captures.too_large',
+        );
     }
 
     /**
@@ -149,8 +191,11 @@ final class RadarListingIntake
     }
 
     /**
-     * L'URL canonique d'une annonce : hôte en minuscules (ASCII), sans fragment, sans paramètres
-     * `utm_*` ni `fbclid`, sans `/` final. Null si l'URL ne s'analyse pas.
+     * L'URL canonique d'une annonce : hôte en minuscules (ASCII), variantes de Facebook repliées sur
+     * `facebook.com`, sans identifiants, sans fragment, sans paramètres de suivi (`utm_*`, `fbclid`,
+     * `gclid`, `mibextid`, `rdid`, `__cft__*`, `__tn__`), les autres triés, sans `/` final. Null si
+     * l'URL ne s'analyse pas. Le fragment tombe : deux annonces d'un site routé par `#` se
+     * confondraient — limite assumée (brief), aucun site source connu n'en use.
      */
     public static function canonicalUrl(string $url): ?string
     {
@@ -159,16 +204,21 @@ final class RadarListingIntake
             return null;
         }
 
+        if (preg_match(self::FACEBOOK_HOSTS, $host) === 1) {
+            $host = 'facebook.com';
+        }
+
         try {
-            $uri = (new Uri($url))->withFragment('')->withHost($host);
+            $uri = (new Uri($url))->withFragment('')->withUserInfo('')->withHost($host);
         } catch (Throwable) {
             return null;
         }
 
-        $query = array_filter(
+        $query = array_values(array_filter(
             $uri->getQuery() === '' ? [] : explode('&', $uri->getQuery()),
             fn (string $pair) => $pair !== '' && preg_match(self::TRACKING_PARAMS, urldecode(explode('=', $pair, 2)[0])) !== 1,
-        );
+        ));
+        sort($query, SORT_STRING);
 
         return (string) $uri->withPath(rtrim($uri->getPath(), '/'))->withQuery(implode('&', $query));
     }

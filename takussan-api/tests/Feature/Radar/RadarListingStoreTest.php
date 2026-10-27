@@ -12,10 +12,14 @@ use App\Models\Enums\RadarSourceKind;
 use App\Models\Enums\RadarSourceSite;
 use App\Models\RadarAdvertiser;
 use App\Models\RadarListing;
+use App\Models\User;
+use App\Services\Radar\RadarListingIntake;
 use App\Support\RadarPhone;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Storage;
+use Spatie\MediaLibrary\MediaCollections\Exceptions\FileIsTooBig;
 use Tests\Support\OperateursPlateforme;
 use Tests\TestCase;
 
@@ -284,6 +288,132 @@ class RadarListingStoreTest extends TestCase
         $this->assertSame(0, RadarListing::query()->count());
     }
 
+    // --- Correctifs de revue ----------------------------------------------------------------------
+
+    public function test_an_oversized_capture_is_refused_from_its_header_before_any_decode(): void
+    {
+        $this->support();
+
+        // Un côté au-delà de la borne, puis une surface au-delà du budget (49 Mpx) : 422 par code,
+        // lu dans l'en-tête — GD n'alloue rien.
+        foreach ([[20_001, 1], [7_000, 7_000]] as [$largeur, $hauteur]) {
+            $this->post('/api/admin/radar/listings', [
+                'captures' => [UploadedFile::fake()->createWithContent('grande.png', $this->pngDeDimensions($largeur, $hauteur))],
+            ], ['Accept' => 'application/json'])->assertUnprocessable()->assertJsonPath('code', 'radar.captures.too_large');
+        }
+
+        // Une longue capture défilée (1080 × 15 000) passe la borne : elle n'échoue qu'au décodage,
+        // parce que ses pixels sont ici inventés.
+        $this->post('/api/admin/radar/listings', [
+            'captures' => [UploadedFile::fake()->createWithContent('longue.png', $this->pngDeDimensions(1_080, 15_000))],
+        ], ['Accept' => 'application/json'])->assertUnprocessable()->assertJsonPath('code', 'radar.captures.unreadable');
+
+        $this->assertSame(0, RadarListing::query()->count());
+    }
+
+    public function test_captures_already_known_are_found_before_any_decode_or_bound(): void
+    {
+        $this->support();
+        $capture = fn () => UploadedFile::fake()->image('a.png', 40, 40);
+        $premier = $this->post('/api/admin/radar/listings', ['captures' => [$capture()]], ['Accept' => 'application/json'])->assertCreated();
+
+        // Borne abaissée sous la taille de l'image : un renvoi n'est pas relu, il rend la fiche.
+        config(['radar.captures.max_pixels' => 10]);
+        $this->post('/api/admin/radar/listings', ['captures' => [$capture()]], ['Accept' => 'application/json'])
+            ->assertCreated()
+            ->assertJsonPath('data.0.id', $premier->json('data.0.id'))
+            ->assertJsonPath('data.0.existing', true);
+    }
+
+    public function test_a_failing_capture_write_leaves_neither_listing_nor_file(): void
+    {
+        $user = User::factory()->create();
+        $petite = UploadedFile::fake()->image('petite.png', 4, 4);
+        $grosse = UploadedFile::fake()->createWithContent('grosse.png', $this->pngBruite(200, 200));
+        // La bibliothèque refuse le second fichier APRÈS avoir écrit le premier.
+        config(['media-library.max_file_size' => 2_000]);
+
+        try {
+            app(RadarListingIntake::class)->fromCaptures([$petite, $grosse], null, $user);
+            $this->fail('Le second fichier aurait dû être refusé.');
+        } catch (FileIsTooBig) {
+        }
+
+        $this->assertSame(0, RadarListing::query()->count());
+        $this->assertSame([], Storage::disk(config('media-library.disk_name'))->allFiles());
+        Queue::assertNothingPushed();
+    }
+
+    public function test_a_url_whose_host_cannot_be_read_is_refused_rather_than_let_through(): void
+    {
+        $this->support();
+
+        // Un label de 64 caractères non ASCII : la règle `url` l'accepte, la conversion IDN non.
+        $this->postJson('/api/admin/radar/listings', ['urls' => ['https://'.str_repeat('é', 64).'.com/annonce']])
+            ->assertUnprocessable()
+            ->assertJsonPath('code', 'radar.url.invalid');
+
+        $this->assertSame(0, RadarListing::query()->count());
+    }
+
+    public function test_url_variants_of_one_listing_share_its_fingerprint(): void
+    {
+        $this->support();
+
+        $premier = $this->postJson('/api/admin/radar/listings', ['urls' => [
+            'http://m.facebook.com/groups/1/posts/2?mibextid=abc&rdid=x&__cft__%5B0%5D=zz&__tn__=R&b=2&a=1',
+        ]])->assertCreated()->assertJsonPath('data.0.existing', false);
+        $this->assertSame('http://facebook.com/groups/1/posts/2?a=1&b=2', RadarListing::query()->sole()->source_url);
+
+        // Autre schéma, autre sous-domaine, identifiants, ordre des paramètres, `gclid`, `/` final, fragment.
+        foreach ([
+            'https://user:secret@www.facebook.com/groups/1/posts/2/?a=1&gclid=q&b=2#commentaires',
+            'https://web.facebook.com/groups/1/posts/2?b=2&a=1',
+        ] as $variante) {
+            $this->postJson('/api/admin/radar/listings', ['urls' => [$variante]])
+                ->assertCreated()
+                ->assertJsonPath('data.0.id', $premier->json('data.0.id'))
+                ->assertJsonPath('data.0.existing', true);
+        }
+        $this->assertSame(1, RadarListing::query()->count());
+    }
+
+    public function test_png_text_and_webp_exif_metadata_do_not_survive(): void
+    {
+        $this->support();
+        $png = $this->pngAvecTexte('Comment', 'gps-14.6937N-17.4441W');
+        $webp = $this->webpAvecExif('gps-14.6937N-17.4441W');
+        $this->assertStringContainsString('gps-14.6937N', $png, 'le témoin PNG porte son texte');
+        $this->assertStringContainsString('gps-14.6937N', $webp, 'le témoin WebP porte son EXIF');
+
+        $reponse = $this->post('/api/admin/radar/listings', ['captures' => [
+            UploadedFile::fake()->createWithContent('a.png', $png),
+            UploadedFile::fake()->createWithContent('b.webp', $webp),
+        ]], ['Accept' => 'application/json'])->assertCreated();
+
+        $medias = RadarListing::query()->findOrFail($reponse->json('data.0.id'))->getMedia('radar_captures');
+        $this->assertEqualsCanonicalizing(['image/png', 'image/webp'], $medias->pluck('mime_type')->all());
+        foreach ($medias as $media) {
+            $stocke = (string) stream_get_contents($media->stream());
+            $this->assertNotSame('', $stocke);
+            $this->assertStringNotContainsString('gps-14.6937N', $stocke, $media->mime_type);
+        }
+    }
+
+    public function test_the_index_includes_the_advertiser_only(): void
+    {
+        $this->support();
+        $annonceur = RadarAdvertiser::factory()->create();
+        RadarListing::factory()->create(['radar_advertiser_id' => $annonceur->id]);
+
+        $this->getJson('/api/admin/radar/listings?include=advertiser')
+            ->assertOk()
+            ->assertJsonPath('data.0.advertiser.id', $annonceur->id);
+        $this->getJson('/api/admin/radar/listings')->assertOk()->assertJsonMissingPath('data.0.advertiser');
+        $this->getJson('/api/admin/radar/listings?include=capturer')->assertStatus(400);
+        $this->getJson('/api/admin/radar/listings?include=property')->assertStatus(400);
+    }
+
     // --- Liste et fiche -------------------------------------------------------------------------
 
     public function test_the_index_filters_by_stage_site_and_advertiser_with_sparse_fieldsets(): void
@@ -375,6 +505,61 @@ class RadarListingStoreTest extends TestCase
         $charge = "Exif\x00\x00".$tiff;
 
         return substr($jpeg, 0, 2)."\xFF\xE1".pack('n', strlen($charge) + 2).$charge.substr($jpeg, 2);
+    }
+
+    /** Un vrai PNG de 1 px dont l'en-tête IHDR annonce d'autres dimensions (CRC recalculé). */
+    private function pngDeDimensions(int $largeur, int $hauteur): string
+    {
+        $png = $this->pngBruite(1, 1);
+        $ihdr = pack('NN', $largeur, $hauteur).substr($png, 24, 5);
+
+        return substr($png, 0, 16).$ihdr.pack('N', crc32('IHDR'.$ihdr)).substr($png, 33);
+    }
+
+    /** Un PNG aux pixels pseudo-aléatoires : il ne se comprime pas, sa taille suit ses dimensions. */
+    private function pngBruite(int $largeur, int $hauteur): string
+    {
+        $image = imagecreatetruecolor($largeur, $hauteur);
+        mt_srand(2386);
+        for ($x = 0; $x < $largeur; $x++) {
+            for ($y = 0; $y < $hauteur; $y++) {
+                imagesetpixel($image, $x, $y, mt_rand(0, 0xFFFFFF));
+            }
+        }
+        ob_start();
+        imagepng($image);
+
+        return (string) ob_get_clean();
+    }
+
+    /** Un PNG qui porte un bloc `tEXt` greffé avant `IEND`. */
+    private function pngAvecTexte(string $cle, string $texte): string
+    {
+        $png = $this->pngBruite(6, 6);
+        $donnees = $cle."\0".$texte;
+        $bloc = pack('N', strlen($donnees)).'tEXt'.$donnees.pack('N', crc32('tEXt'.$donnees));
+        $iend = strrpos($png, 'IEND') - 4;
+
+        return substr($png, 0, $iend).$bloc.substr($png, $iend);
+    }
+
+    /** Un WebP étendu (VP8X, drapeau EXIF) qui porte un bloc `EXIF` après l'image de GD. */
+    private function webpAvecExif(string $texte): string
+    {
+        $image = imagecreatetruecolor(6, 6);
+        imagefill($image, 0, 0, (int) imagecolorallocate($image, 93, 110, 79));
+        ob_start();
+        imagewebp($image);
+        $simple = (string) ob_get_clean();
+        $blocs = substr($simple, 12);                                    // après « RIFF<taille>WEBP »
+
+        $vp8x = 'VP8X'.pack('V', 10).chr(0x08)."\0\0\0".substr(pack('V', 6 - 1), 0, 3).substr(pack('V', 6 - 1), 0, 3);
+        $exif = "II*\x00".pack('V', 8).pack('v', 0).pack('V', 0).$texte;
+        $exif .= strlen($exif) % 2 === 1 ? "\0" : '';
+        $blocExif = 'EXIF'.pack('V', strlen($exif)).$exif;
+        $corps = 'WEBP'.$vp8x.$blocs.$blocExif;
+
+        return 'RIFF'.pack('V', strlen($corps)).$corps;
     }
 
     /** Un vrai fichier téléversé : son type se devine dans le contenu (le faux de Laravel le lit dans le nom). */

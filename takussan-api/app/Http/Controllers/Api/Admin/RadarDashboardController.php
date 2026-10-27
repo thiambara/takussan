@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Api\Admin;
 
 use App\Ai\Usages\RadarExtractionUsage;
 use App\Http\Controllers\Base\Controller;
-use App\Models\AiCall;
 use App\Models\AiUsageSetting;
 use App\Models\Enums\RadarListingStage;
 use App\Models\RadarListing;
@@ -44,11 +43,7 @@ class RadarDashboardController extends Controller
                 ->whereNotNull('stage_reason')
                 ->count(),
             'ai' => [
-                'spent_today_xof' => round((float) AiCall::query()
-                    ->where('is_evaluation', false)
-                    ->where('created_at', '>=', now()->startOfDay())
-                    ->where('usage_key', 'like', 'radar.%')
-                    ->sum('cost_estimate'), 2),
+                'spent_today_xof' => round($budget->spentTodayForPrefix('radar.'), 2),
                 'daily_budget_xof' => $cap === null ? null : (float) $cap,
                 'global_spent_today_xof' => round($budget->spentToday(), 2),
                 'global_daily_budget_xof' => $global === null ? null : (float) $global,
