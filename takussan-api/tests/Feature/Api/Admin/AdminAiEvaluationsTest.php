@@ -12,6 +12,7 @@ use App\Services\Ai\Evaluation\FieldScorer;
 use App\Services\Ai\ModelResolver;
 use ErrorException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Exceptions;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
@@ -226,12 +227,12 @@ class AdminAiEvaluationsTest extends TestCase
         $this->evaluer();
     }
 
-    public function test_a_job_redelivered_by_the_queue_reaches_handle_and_does_not_replay_a_running_evaluation(): void
+    public function test_a_job_run_on_a_non_queued_evaluation_does_not_call_the_model(): void
     {
         $this->actingAsRole('super_admin');
-        // `retry_after` (90 s) < durée d'une évaluation : la file reprend le job avec `attempts` = 2.
-        // Il faut donc que `$tries` laisse cette reprise atteindre `handle()`, qui la rend sans effet.
-        $this->assertGreaterThanOrEqual(2, (new RunAiEvaluation(1))->tries);
+        // Un seul consommateur de `default` : un job tué (SIGKILL) est relivré après `retry_after` et doit échouer
+        // aussitôt via `failed()` ; avec `$tries` > 1 il resterait `running` jusqu'à 2100 s sans filet.
+        $this->assertSame(1, (new RunAiEvaluation(1))->tries);
         $run = $this->course(AiEvaluationStatus::Running);
         $run->forceFill(['started_at' => now()->subMinutes(2)])->save();
         $appels = 0;
@@ -246,6 +247,71 @@ class AdminAiEvaluationsTest extends TestCase
         $this->assertSame(0, $appels);
         $this->assertSame(AiEvaluationStatus::Running, $run->fresh()->status);
         $this->assertNull($run->fresh()->error_code);
+    }
+
+    public function test_the_start_is_atomic_so_two_handles_on_one_queued_run_call_the_model_for_one(): void
+    {
+        $run = $this->course(AiEvaluationStatus::Queued);
+        $appels = 0;
+        AgentDEssai::fake(function () use (&$appels) {
+            $appels++;
+
+            return ['titre' => 'Villa', 'prix' => 100];
+        });
+
+        (new RunAiEvaluation($run->id))->handle(app(EvaluationRunner::class), app(AiUsageRegistry::class));
+        $apresLePremier = $appels;
+        (new RunAiEvaluation($run->id))->handle(app(EvaluationRunner::class), app(AiUsageRegistry::class));
+
+        $this->assertGreaterThan(0, $apresLePremier);
+        $this->assertSame($apresLePremier, $appels);
+        $this->assertSame(AiEvaluationStatus::Done, $run->fresh()->status);
+        $this->assertNotNull($run->fresh()->started_at);
+    }
+
+    public function test_a_worker_that_lost_the_race_between_read_and_start_does_not_call_the_model(): void
+    {
+        $run = $this->course(AiEvaluationStatus::Queued);
+        $appels = 0;
+        AgentDEssai::fake(function () use (&$appels) {
+            $appels++;
+
+            return ['titre' => 'Villa', 'prix' => 100];
+        });
+        // Un autre worker démarre l'évaluation entre la lecture de celui-ci et sa mise à jour : la lecture
+        // de ce worker dit encore `queued`, la base dit déjà `running`.
+        AiEvaluationRun::retrieved(function (AiEvaluationRun $lu): void {
+            AiEvaluationRun::query()->whereKey($lu->id)->update(['status' => AiEvaluationStatus::Running->value]);
+        });
+
+        (new RunAiEvaluation($run->id))->handle(app(EvaluationRunner::class), app(AiUsageRegistry::class));
+
+        $this->assertSame(0, $appels);
+        $this->assertSame(AiEvaluationStatus::Running, $run->fresh()->status);
+    }
+
+    public function test_a_held_creation_lock_answers_already_running_without_creating_a_run(): void
+    {
+        $this->actingAsRole('super_admin');
+        $verrou = Cache::lock('ai-eval:extraction:anthropic:modele-b', 10);
+        $this->assertTrue($verrou->get());
+
+        $this->postJson('/api/admin/ai/evaluations', ['role' => 'extraction', 'provider' => 'anthropic', 'model' => 'modele-b'])
+            ->assertStatus(409)->assertJsonPath('code', 'ai.eval.already_running');
+        $this->assertSame(0, AiEvaluationRun::query()->count());
+
+        $verrou->release();
+        $this->evaluer();
+    }
+
+    public function test_the_creation_lock_is_released_after_a_request(): void
+    {
+        $this->actingAsRole('super_admin');
+        $this->evaluer();
+
+        $verrou = Cache::lock('ai-eval:extraction:anthropic:modele-b', 10);
+        $this->assertTrue($verrou->get());
+        $verrou->release();
     }
 
     public function test_a_running_evaluation_whose_worker_died_reads_as_lost(): void

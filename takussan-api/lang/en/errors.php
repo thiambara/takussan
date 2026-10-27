@@ -71,6 +71,7 @@ return [
     'ai' => [
         'eval' => [
             'already_running' => 'An evaluation of this candidate is already running for this role.',
+            'job_failed' => 'The evaluation failed: the worker interrupted it before it finished.',
             'job_lost' => 'The evaluation was lost: its worker stopped before writing a result.',
             'no_cases' => 'This role has no evaluation case set.',
         ],

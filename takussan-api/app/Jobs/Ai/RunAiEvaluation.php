@@ -28,17 +28,22 @@ class RunAiEvaluation implements ShouldQueue
     public const TIMEOUT_SECONDS = 1800;
 
     /**
-     * ⚠ Mesuré (2026-10-27) : `QUEUE_CONNECTION=database`, `DB_QUEUE_RETRY_AFTER` non posée, donc
-     * `retry_after` = 90 s (`config/queue.php`, docs/infra/hebergement.md). Une évaluation de plus de
-     * 90 s est reprise par la file pendant que le worker d'origine tourne encore, avec `attempts` = 2.
-     * Avec `$tries = 1`, cette reprise déclarait l'évaluation échouée (`MaxAttemptsExceededException` →
-     * `failed()`) et le verdict du worker d'origine était perdu. Avec `$tries = 3` (celui des workers de
-     * `deploy/takussan/compose.api.yml`), la reprise atteint `handle()`, dont la garde (`status !==
-     * Queued`) la rend sans effet : le doublon est supprimé et le worker d'origine écrit son issue.
-     * Un échec réel ne se rejoue pas : `handle()` attrape tout, et un job tué passe par `failed()`.
-     * Relever `retry_after` au-dessus de `$timeout` est une décision d'environnement, hors de ce code.
+     * ⚠ Hypothèse mesurée (2026-10-27) : UN SEUL consommateur de la file `default`
+     * (`deploy/takussan/compose.api.yml` : un service `worker`, sans réplicas), `QUEUE_CONNECTION=database`,
+     * `DB_QUEUE_RETRY_AFTER` non posée, donc `retry_after` = 90 s (`config/queue.php`). Un job vivant n'est
+     * alors jamais relivré à lui-même. Les vrais cas de mort sont deux :
+     *  - un dépassement de `$timeout` passe par `$failOnTimeout` puis `failed()` ;
+     *  - un SIGKILL (mémoire, redémarrage de déploiement) laisse la ligne `jobs` réservée ; la file la
+     *    relivre après `retry_after` (90 s), et avec `$tries = 1` cette relivraison échoue aussitôt
+     *    (`MaxAttemptsExceededException` → `failed()` → `Failed`). Avec `$tries = 3`, l'évaluation
+     *    resterait `running` jusqu'à `STALE_AFTER_SECONDS` (2100 s) sans `failed()`.
+     * Un échec réel ne se rejoue pas : `handle()` attrape tout.
+     *
+     * ⚠ Si un SECOND consommateur de `default` est un jour ajouté, `DB_QUEUE_RETRY_AFTER` DOIT dépasser
+     * `TIMEOUT_SECONDS` : sinon une évaluation vivante plus longue que `retry_after` est relivrée, déclarée
+     * échouée, et son résultat est perdu. `markLostIfStale()` reste le filet de dernier recours.
      */
-    public int $tries = 3;
+    public int $tries = 1;
 
     /** Le worker du Compose tourne sans `--timeout` : ce délai prévaut. */
     public int $timeout = self::TIMEOUT_SECONDS;
@@ -51,10 +56,15 @@ class RunAiEvaluation implements ShouldQueue
     public function handle(EvaluationRunner $runner, AiUsageRegistry $registry): void
     {
         $run = AiEvaluationRun::query()->findOrFail($this->runId);
-        if ($run->status !== AiEvaluationStatus::Queued) {
+        // Départ atomique : `Queued → Running` en une seule mise à jour conditionnelle. Une lecture puis un
+        // `save()` laissaient deux exécutions simultanées lire `queued` toutes deux et appeler deux fois le modèle.
+        $partis = AiEvaluationRun::query()->whereKey($run->getKey())
+            ->where('status', AiEvaluationStatus::Queued->value)
+            ->update(['status' => AiEvaluationStatus::Running->value, 'started_at' => now(), 'updated_at' => now()]);
+        if ($partis !== 1) {
             return;
         }
-        $run->forceFill(['status' => AiEvaluationStatus::Running, 'started_at' => now()])->save();
+        $run->refresh();
 
         try {
             $link = ModelLink::fromArray($run->candidate);
