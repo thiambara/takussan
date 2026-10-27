@@ -1,13 +1,13 @@
 ---
 id: TCK-2383
 title: "Socle IA : laravel/ai, rôles de modèle affectés en base, registre des usages et passerelle unique journalisée"
-status: todo
+status: doing
 phase: P1
 family: back
 estimate: L
 wave: 80
 created: 2026-10-26
-updated: 2026-10-26
+updated: 2026-10-27
 depends_on: []
 blocks: [TCK-2384, TCK-2385, TCK-2386, TCK-344]
 spec_refs:
@@ -97,22 +97,22 @@ dépôt, `laravel/ai` absent de `composer.json`. Ce ticket pose la fondation ; l
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Un usage déclaré appelle le modèle affecté à son rôle en base ; sans ligne en base,
+- [x] AC1 — Un usage déclaré appelle le modèle affecté à son rôle en base ; sans ligne en base,
       celui de `config/ai.php` ; avec un modèle forcé, celui-là.
-- [ ] AC2 — Le premier maillon en erreur fait passer au suivant, et `ai_calls` porte les deux
+- [x] AC2 — Le premier maillon en erreur fait passer au suivant, et `ai_calls` porte les deux
       lignes (l'échec et la réussite).
-- [ ] AC3 — Budget épuisé : aucun appel au fournisseur (le faux modèle n'est **pas** sollicité),
+- [x] AC3 — Budget épuisé : aucun appel au fournisseur (le faux modèle n'est **pas** sollicité),
       une ligne `ai_calls` au motif `budget`.
-- [ ] AC4 — Usage coupé (`ai_usage_settings.enabled` à faux) : même chose, au motif
+- [x] AC4 — Usage coupé (`ai_usage_settings.enabled` à faux) : même chose, au motif
       `kill_switch`, et le coupe-circuit est jugé avant le budget.
-- [ ] AC5 — Une charge marquée `sensible` est refusée avant l'appel, quel que soit l'usage.
-- [ ] AC6 — Deux appels au contenu identique : un seul appel au fournisseur, le second journalisé
+- [x] AC5 — Une charge marquée `sensible` est refusée avant l'appel, quel que soit l'usage.
+- [x] AC6 — Deux appels au contenu identique : un seul appel au fournisseur, le second journalisé
       `cache_hit`.
-- [ ] AC7 — Ajouter un agent sous `app/Ai/Agents/` sans le déclarer fait rougir
+- [x] AC7 — Ajouter un agent sous `app/Ai/Agents/` sans le déclarer fait rougir
       `check-ai-usages.mjs` ; écrire un identifiant de modèle dans un service aussi.
-- [ ] AC8 — Ajouter à `ai.providers` un fournisseur absent de `privacy.ts` fait rougir
+- [x] AC8 — Ajouter à `ai.providers` un fournisseur absent de `privacy.ts` fait rougir
       `check-ai-providers-privacy.mjs`.
-- [ ] AC9 — Chaque test ci-dessus rougit quand on retire la ligne qu'il protège (ablation).
+- [x] AC9 — Chaque test ci-dessus rougit quand on retire la ligne qu'il protège (ablation).
 
 ## Hors périmètre
 
@@ -124,4 +124,30 @@ dépôt, `laravel/ai` absent de `composer.json`. Ce ticket pose la fondation ; l
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+Livré sur `feat/socle-ia-lot-0` (non fusionné : `doing`), 2026-10-27.
+
+- `laravel/ai` v1.3.0 (+ `symfony/yaml`) ; ses migrations publiables n'ont pas été publiées (ADR-0076 §1).
+- `config/ai.php` : fournisseur `anthropic` (avec `legal_name`, gardé contre `privacy.ts` par
+  `scripts/check-ai-providers-privacy.mjs`), chaînes par rôle, grille de prix, `usd_to_xof`, budgets,
+  `timeout_seconds` (300 s, plafonné à `SocleAgent::MAX_TIMEOUT_SECONDS` = 900 ; le SDK en posait 60).
+- Registre fermé des usages (`AiUsageRegistry`), `SocleAgent`, prompts versionnés figés par
+  `versions.lock.json`, garde `scripts/check-ai-usages.mjs` (agent non déclaré, `extends SocleAgent`
+  hors du dossier, identifiant de modèle hors de `config/ai.php` et des jeux d'évaluation).
+- `ai_role_assignments`, `ai_usage_settings`, `ModelResolver` (repli sur la configuration),
+  `ai_calls` + `AiCostCalculator`, `AiBudget`, `AiDataGuard` + `PhoneMasker` (espaces insécables,
+  échec fermé sur erreur PCRE), `AiAuthority` (une capacité sans agence est refusée explicitement).
+- `AiGateway` dans l'ordre amendé d'ADR-0076 §5 ; cache réservé aux usages `publique` ; une panne du
+  cache ne perd pas une réponse payée ; un rôle sans chaîne est journalisé (`ai.role_unassigned`).
+- Écarts au plan, tous relus : température retirée (Anthropic la refuse depuis le 2026-10-21) ;
+  coupe-circuit dans `ai_usage_settings` et non un drapeau `Flag`.
+- Mesures : suite backend entière 9777 verts sur PostgreSQL (2026-10-27, 3273 s, `load` 2,99 → 2,10,
+  8 cœurs) — seuls rouges : 3 cas de `SeedingTextAndDeterminismTest`, **rouges aussi sur la base
+  de la branche** (`7dc1b8e6`, rejouée en worktree), donc antérieurs. Ablations faites tâche par
+  tâche (rapports de revue).
+- Épreuve réelle (base jetable, supprimée ensuite) : test de connexion par la passerelle →
+  `claude-haiku-5-5`, `success`, 1036 ms, 55/4 tokens. `cost_estimate` = 0,00 : ≈ 0,005 XOF arrondi à
+  deux décimales.
+- Suites à ouvrir avant le premier usage réel : aide de délimitation du contenu externe et garde
+  contre les outils (ADR-0076 §10) ; `stop_reason` (refus, troncature) journalisé ; `error_code`
+  ramené à des codes `ai.*` ; motifs de téléphone non masqués (30/34/71/79, `77 12 34 567`,
+  `77/123/45/67`, chiffres pleine chasse).

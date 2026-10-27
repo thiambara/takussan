@@ -1,13 +1,13 @@
 ---
 id: TCK-2384
 title: "Socle IA : suggestions décidées par un humain, prompts versionnés et évaluations à cliquet (ai:eval)"
-status: todo
+status: doing
 phase: P1
 family: back
 estimate: M
 wave: 80
 created: 2026-10-26
-updated: 2026-10-26
+updated: 2026-10-27
 depends_on: [TCK-2383]
 blocks: [TCK-2385, TCK-2386]
 spec_refs:
@@ -74,16 +74,16 @@ reprend l'esprit de celui de la couverture (`bin/coverage-gate.php`).
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Une suggestion corrigée enregistre le différentiel exact entre la proposition et la
+- [x] AC1 — Une suggestion corrigée enregistre le différentiel exact entre la proposition et la
       valeur retenue, et passe en `edited`.
-- [ ] AC2 — Un appel inscrit dans `ai_calls` la version du prompt réellement chargé.
-- [ ] AC3 — `ai:eval` sur un jeu de cas avec un faux modèle qui se trompe sur un champ rend un
+- [x] AC2 — Un appel inscrit dans `ai_calls` la version du prompt réellement chargé.
+- [x] AC3 — `ai:eval` sur un jeu de cas avec un faux modèle qui se trompe sur un champ rend un
       score par champ qui le montre, et sort en échec sous la référence.
-- [ ] AC4 — `--update-baseline` est le seul chemin qui modifie `baseline.json`.
-- [ ] AC5 — `ai:export-eval-cases` produit des cas sans le téléphone ni le nom d'origine (vérifié sur une
+- [x] AC4 — `--update-baseline` est le seul chemin qui modifie `baseline.json`.
+- [x] AC5 — `ai:export-eval-cases` produit des cas sans le téléphone ni le nom d'origine (vérifié sur une
       suggestion qui en contient).
-- [ ] AC6 — Un numéro `77 123 45 67` déposé dans `resources/ai/evals/` fait rougir la garde.
-- [ ] AC7 — Aucun test de la suite n'ouvre de connexion réseau vers un fournisseur.
+- [x] AC6 — Un numéro `77 123 45 67` déposé dans `resources/ai/evals/` fait rougir la garde.
+- [x] AC7 — Aucun test de la suite n'ouvre de connexion réseau vers un fournisseur.
 
 ## Hors périmètre
 
@@ -92,4 +92,26 @@ reprend l'esprit de celui de la couverture (`bin/coverage-gate.php`).
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+Livré sur `feat/socle-ia-lot-0` (non fusionné : `doing`), 2026-10-27.
+
+- `ai_suggestions` + `SuggestionRecorder` : décision prise une seule fois par un `UPDATE`
+  conditionnel en base, différentiel canonique (clés triées, entier et flottant unifiés, chaînes
+  numériques non converties) ; `acceptanceRates($since, $until)`.
+- `FieldScorer` (listes de scalaires et d'objets, ces derniers comparés par leur JSON canonique),
+  `EvaluationRunner` (un cas en échec vaut 0 sur tous ses champs ; `verdict()` rend
+  `ai.eval.failures`, `ai.eval.baseline_stale`, `ai.eval.below_baseline` ou rien), commande
+  `ai:eval` (refuse `--update-baseline` sur un échec ; `--all` sans aucun jeu sort en succès),
+  planifiée chaque nuit à 02:30.
+- Jeux d'évaluation sous `resources/ai/evals/<usage>/` (cas, `fields.json`, `baseline.json`) — **et
+  non `tests/AiEvals/`**, que l'image de l'API n'embarque pas (`.dockerignore`) ; les rapports de
+  passage vont sous `storage/ai-evals`.
+- `ai:export-eval-cases` + `EvalCaseAnonymizer` : noms partiels, en majuscules, sans accents, coupés
+  par une espace insécable ou un caractère invisible, noms de deux lettres (Ba, Ly, Sy) et à
+  apostrophe (N'Diaye ⇄ Ndiaye), courriels et téléphones ; clés personnelles en camelCase, au pluriel,
+  en liste ou numériques. Garde `scripts/check-ai-evals-pii.mjs` : elle décode le JSON (valeurs,
+  clés, nombres) et lit aussi le texte brut (clés en double).
+- AC7 tient par les faux modèles du SDK et `ANTHROPIC_API_KEY` vidée dans `phpunit.xml` ; un
+  `Http::preventStrayRequests()` le rendrait structurel (suite proposée).
+- Restes acceptés, relevés en revue : sur-masquage de clés comme `phone_count` ou `type_name` ;
+  un prix à 9 chiffres en 70/75/76/77/78/33 fait rougir la garde (à corriger à la main) ;
+  `AwaDiop` collé et double obfuscation par caractères invisibles non couverts.

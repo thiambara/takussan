@@ -1,13 +1,13 @@
 ---
 id: TCK-2385
 title: "Console /super-admin/ai : affecter les modèles aux rôles, évaluer avant d'appliquer, budgets, coupe-circuits et tableau de bord"
-status: todo
+status: doing
 phase: P1
 family: full
 estimate: L
 wave: 80
 created: 2026-10-26
-updated: 2026-10-26
+updated: 2026-10-27
 depends_on: [TCK-2383, TCK-2384]
 blocks: []
 spec_refs:
@@ -86,17 +86,17 @@ français, wolof en pause).
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Réordonner la chaîne d'un rôle change le modèle appelé au prochain appel de chacun de
+- [x] AC1 — Réordonner la chaîne d'un rôle change le modèle appelé au prochain appel de chacun de
       ses usages (vérifié sur faux modèle).
-- [ ] AC2 — Un `support` ou un `viewer` reçoit 403 sur toute route ; un `super_admin` sans second
+- [x] AC2 — Un `support` ou un `viewer` reçoit 403 sur toute route ; un `super_admin` sans second
       facteur récent reçoit le refus du second facteur sur les écritures.
-- [ ] AC3 — Aucune réponse de `/api/admin/ai/*` ne contient la valeur d'une clé (recherche de la
+- [x] AC3 — Aucune réponse de `/api/admin/ai/*` ne contient la valeur d'une clé (recherche de la
       valeur de test dans le corps).
-- [ ] AC4 — Affecter un modèle dont l'évaluation est sous le cliquet rend 422 ; avec
+- [x] AC4 — Affecter un modèle dont l'évaluation est sous le cliquet rend 422 ; avec
       `override_reason`, réussit et l'entrée de journal porte le motif.
-- [ ] AC5 — Le tableau de bord rend, pour une journée de `ai_calls` semée, le coût et le nombre
+- [x] AC5 — Le tableau de bord rend, pour une journée de `ai_calls` semée, le coût et le nombre
       d'appels par usage exacts.
-- [ ] AC6 — Lancer `npm run lint`, `npx tsc --noEmit`, `npm run check:*` et les tests front : verts.
+- [x] AC6 — Lancer `npm run lint`, `npx tsc --noEmit`, `npm run check:*` et les tests front : verts.
 
 ## Hors périmètre
 
@@ -106,4 +106,26 @@ français, wolof en pause).
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+Livré sur `feat/socle-ia-lot-0` (non fusionné : `doing`), 2026-10-27.
+
+- API `/api/admin/ai/*` (`routes/api/admin-ai.php`) : rôles (chaîne de 1 à 5 maillons, jamais vide
+  en base), usages (coupe-circuit, modèle forcé toujours avec son fournisseur, plafond — un champ
+  non touché ne fige pas le défaut), fournisseurs (présence de clé en booléen, test de connexion par
+  la passerelle, sans cache, sans jamais rendre le message du SDK), évaluations, tableau de bord
+  (agrégats SQL). Lecture `platform.ai.view`, écriture `platform.ai.manage` sous second facteur
+  récent (`ProtectedActions::STEP_UP`).
+- Évaluations : `ai_evaluation_runs` + job `RunAiEvaluation` (une tentative : un worker tué échoue
+  dès sa relivraison ; départ atomique ; écritures d'état conditionnelles ; évaluation orpheline lue
+  `ai.eval.job_lost`) ; 409 `ai.eval.already_running` sous `Cache::lock` (Redis déployé). Le cliquet
+  de `PUT roles/{role}` juge le nouveau premier maillon par `verdict()` : un candidat en panne ne passe
+  pas ; `override_reason` journalisé.
+- Front `/super-admin/ai` : rôles et dialogue de chaîne (évaluer, comparer score par champ, score
+  global et coût, motif de dérogation sur 422), usages, fournisseurs, tableau de bord (coût,
+  latence, acceptation, dernières références). `wo` = texte français (pause du wolof).
+- Mesures : suite front entière 1199 fichiers / 8562 tests verts, `lint` et `tsc` propres ;
+  `check-status-unions`, `check-status-labels` et les 63 gardes `scripts/check-*.mjs` vertes.
+- Hypothèse de déploiement écrite des deux côtés (`RunAiEvaluation`, `deploy/takussan/compose.api.yml`) :
+  un seul consommateur de `default`. En ajouter un exige `DB_QUEUE_RETRY_AFTER` > 1800.
+- Suites : file `ai` dédiée (une évaluation de 30 min occupe l'unique worker de
+  `notifications-urgent,default`) ; le cliquet ne juge que le premier maillon ; « Revenir à la
+  configuration » sans confirmation.
