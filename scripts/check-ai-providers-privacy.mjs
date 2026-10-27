@@ -49,6 +49,20 @@ export function lireFournisseurs(php) {
       if (courante) corps += c;
       continue;
     }
+    // Hors chaîne, un commentaire PHP ne se lit pas : une apostrophe française (`l'ajout`) y
+    // basculerait l'état de chaîne et ferait taire le fournisseur suivant.
+    if (c === '#' || (c === '/' && php[i + 1] === '/')) {
+      const fin = php.indexOf('\n', i);
+      if (fin < 0) break;
+      i = fin;
+      continue;
+    }
+    if (c === '/' && php[i + 1] === '*') {
+      const fin = php.indexOf('*/', i + 2);
+      if (fin < 0) break;
+      i = fin + 1;
+      continue;
+    }
     if (c === "'" || c === '"') {
       chaine = c;
       if (profondeur === 1 && courante === null) {
@@ -117,6 +131,24 @@ const CAS_EPREUVE = [
     php: "'providers' => [\n 'mistral' => ['driver' => 'mistral'],\n],",
     privacy: '- **Intelligence artificielle** : Anthropic\n- **Artificial intelligence**: Anthropic',
     erreurs: 1,
+  },
+  {
+    nom: "une apostrophe en commentaire ne fait pas taire le fournisseur suivant",
+    php: "'providers' => [\n 'anthropic' => ['legal_name' => 'Anthropic'],\n // l'ajout se fait ici\n 'openai' => ['legal_name' => 'OpenAI'],\n],",
+    privacy: '- **Intelligence artificielle** : Anthropic\n- **Artificial intelligence**: Anthropic',
+    erreurs: 2,
+  },
+  {
+    nom: 'un commentaire avant la première entrée, les deux nommés',
+    php: "'providers' => [\n # l'ordre compte\n 'anthropic' => ['legal_name' => 'Anthropic'],\n // d'autres, plus tard\n 'openai' => ['legal_name' => 'OpenAI'],\n],",
+    privacy: '- **Intelligence artificielle** : Anthropic, OpenAI\n- **Artificial intelligence**: Anthropic, OpenAI',
+    erreurs: 0,
+  },
+  {
+    nom: "un commentaire en bloc avec apostrophe n'efface pas le fournisseur",
+    php: "'providers' => [\n /* l'x\n   d'y */\n 'openai' => ['legal_name' => 'OpenAI'],\n],",
+    privacy: '- **Intelligence artificielle** : Anthropic\n- **Artificial intelligence**: Anthropic',
+    erreurs: 2,
   },
 ];
 
