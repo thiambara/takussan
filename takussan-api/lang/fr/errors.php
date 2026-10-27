@@ -71,6 +71,7 @@ return [
     'ai' => [
         'eval' => [
             'already_running' => 'Une évaluation de ce candidat est déjà en cours pour ce rôle.',
+            'job_lost' => "L'évaluation a été perdue : son worker s'est arrêté avant d'écrire un résultat.",
             'no_cases' => "Ce rôle n'a aucun jeu de cas à évaluer.",
         ],
         'evaluation_below_baseline' => "Ce modèle a été évalué sous la référence : indiquez un motif pour l'affecter quand même.",

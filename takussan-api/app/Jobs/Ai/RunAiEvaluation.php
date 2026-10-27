@@ -14,7 +14,7 @@ use Throwable;
 /**
  * TCK-2385 — joue l'évaluation d'un candidat sur chaque usage de son rôle qui a un jeu de cas.
  * Idempotent : une évaluation qui n'est plus `queued` n'est pas rejouée (un second passage du même
- * job ne rappelle pas les modèles). Une seule tentative : un échec se lit dans `error_code`.
+ * job ne rappelle pas les modèles). Un échec se lit dans `error_code` ; une reprise de la file n'est jamais rejouée.
  *
  * Toute écriture d'état est CONDITIONNELLE à l'état attendu : un état terminal n'est jamais réécrit,
  * ni par `failed()` (appelé par le worker quand le job est tué ou repris), ni par le verdict tardif
@@ -24,18 +24,24 @@ class RunAiEvaluation implements ShouldQueue
 {
     use Queueable;
 
-    public int $tries = 1;
+    /** Source unique du délai d'une évaluation : `AiEvaluationRun::STALE_AFTER_SECONDS` en dérive. */
+    public const TIMEOUT_SECONDS = 1800;
 
     /**
      * ⚠ Mesuré (2026-10-27) : `QUEUE_CONNECTION=database`, `DB_QUEUE_RETRY_AFTER` non posée, donc
-     * `retry_after` = 90 s (`config/queue.php`, docs/infra/hebergement.md) ; le `worker` du Compose
-     * tourne sans `--timeout` (le `$timeout` du job prévaut). Une évaluation de plus de 90 s est donc
-     * reprise par la file avec `attempts` = 2 > `$tries` : le worker la déclare échouée
-     * (`MaxAttemptsExceededException` → `failed()`) sans rejouer `handle()`. Les écritures
-     * conditionnelles font que ce verdict d'échec tient et que le worker d'origine ne le défait pas.
-     * Un `$timeout` > `retry_after` n'a d'effet que si `retry_after` est relevé au-dessus de lui.
+     * `retry_after` = 90 s (`config/queue.php`, docs/infra/hebergement.md). Une évaluation de plus de
+     * 90 s est reprise par la file pendant que le worker d'origine tourne encore, avec `attempts` = 2.
+     * Avec `$tries = 1`, cette reprise déclarait l'évaluation échouée (`MaxAttemptsExceededException` →
+     * `failed()`) et le verdict du worker d'origine était perdu. Avec `$tries = 3` (celui des workers de
+     * `deploy/takussan/compose.api.yml`), la reprise atteint `handle()`, dont la garde (`status !==
+     * Queued`) la rend sans effet : le doublon est supprimé et le worker d'origine écrit son issue.
+     * Un échec réel ne se rejoue pas : `handle()` attrape tout, et un job tué passe par `failed()`.
+     * Relever `retry_after` au-dessus de `$timeout` est une décision d'environnement, hors de ce code.
      */
-    public int $timeout = 1800;
+    public int $tries = 3;
+
+    /** Le worker du Compose tourne sans `--timeout` : ce délai prévaut. */
+    public int $timeout = self::TIMEOUT_SECONDS;
 
     /** Un dépassement de `$timeout` échoue le job (donc `failed()`), il ne le remet pas en file. */
     public bool $failOnTimeout = true;

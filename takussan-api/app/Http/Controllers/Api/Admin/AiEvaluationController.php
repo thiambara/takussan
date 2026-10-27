@@ -31,12 +31,14 @@ class AiEvaluationController extends Controller
         abort_code_if($evaluable === [], 422, 'ai.eval.no_cases');
 
         // Deux évaluations du même candidat sur le même rôle se doubleraient en coût et en verdicts.
+        // Une évaluation orpheline (worker mort) est déclarée perdue au passage : elle ne bloque pas.
         $enCours = AiEvaluationRun::query()
             ->where('role', $role->value)
             ->whereIn('status', [AiEvaluationStatus::Queued->value, AiEvaluationStatus::Running->value])
             ->where('candidate->provider', $link->provider)
             ->where('candidate->model', $link->model)
-            ->exists();
+            ->get()
+            ->contains(fn (AiEvaluationRun $run): bool => in_array($run->markLostIfStale()->status, [AiEvaluationStatus::Queued, AiEvaluationStatus::Running], true));
         abort_code_if($enCours, 409, 'ai.eval.already_running');
 
         $run = AiEvaluationRun::query()->create([
@@ -56,7 +58,7 @@ class AiEvaluationController extends Controller
 
     public function show(string $evaluation): JsonResponse
     {
-        return $this->json(['data' => $this->present(AiEvaluationRun::query()->findOrFail((int) $evaluation))]);
+        return $this->json(['data' => $this->present(AiEvaluationRun::query()->findOrFail((int) $evaluation)->markLostIfStale())]);
     }
 
     /** @return array<string, mixed> */

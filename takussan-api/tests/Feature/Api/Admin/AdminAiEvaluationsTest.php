@@ -226,6 +226,90 @@ class AdminAiEvaluationsTest extends TestCase
         $this->evaluer();
     }
 
+    public function test_a_job_redelivered_by_the_queue_reaches_handle_and_does_not_replay_a_running_evaluation(): void
+    {
+        $this->actingAsRole('super_admin');
+        // `retry_after` (90 s) < durée d'une évaluation : la file reprend le job avec `attempts` = 2.
+        // Il faut donc que `$tries` laisse cette reprise atteindre `handle()`, qui la rend sans effet.
+        $this->assertGreaterThanOrEqual(2, (new RunAiEvaluation(1))->tries);
+        $run = $this->course(AiEvaluationStatus::Running);
+        $run->forceFill(['started_at' => now()->subMinutes(2)])->save();
+        $appels = 0;
+        AgentDEssai::fake(function () use (&$appels) {
+            $appels++;
+
+            return ['titre' => 'Villa', 'prix' => 90];
+        });
+
+        (new RunAiEvaluation($run->id))->handle(app(EvaluationRunner::class), app(AiUsageRegistry::class));
+
+        $this->assertSame(0, $appels);
+        $this->assertSame(AiEvaluationStatus::Running, $run->fresh()->status);
+        $this->assertNull($run->fresh()->error_code);
+    }
+
+    public function test_a_running_evaluation_whose_worker_died_reads_as_lost(): void
+    {
+        $this->actingAsRole('super_admin');
+        $run = $this->course(AiEvaluationStatus::Running);
+        $run->forceFill(['started_at' => now()->subSeconds(AiEvaluationRun::STALE_AFTER_SECONDS + 1)])->save();
+
+        $this->getJson('/api/admin/ai/evaluations/'.$run->id)->assertOk()
+            ->assertJsonPath('data.status', 'failed')
+            ->assertJsonPath('data.error_code', 'ai.eval.job_lost');
+        $this->assertNotNull($run->fresh()->finished_at);
+    }
+
+    public function test_a_fresh_running_evaluation_is_not_read_as_lost(): void
+    {
+        $this->actingAsRole('super_admin');
+        $run = $this->course(AiEvaluationStatus::Running);
+        $run->forceFill(['started_at' => now()->subSeconds(AiEvaluationRun::STALE_AFTER_SECONDS - 60)])->save();
+
+        $this->getJson('/api/admin/ai/evaluations/'.$run->id)->assertOk()->assertJsonPath('data.status', 'running');
+    }
+
+    public function test_a_queued_evaluation_never_picked_up_for_a_day_reads_as_lost(): void
+    {
+        $this->actingAsRole('super_admin');
+        $run = $this->course(AiEvaluationStatus::Queued);
+        $run->forceFill(['created_at' => now()->subDays(2)])->save();
+
+        $this->getJson('/api/admin/ai/evaluations/'.$run->id)->assertOk()
+            ->assertJsonPath('data.status', 'failed')
+            ->assertJsonPath('data.error_code', 'ai.eval.job_lost');
+    }
+
+    public function test_a_lost_evaluation_does_not_block_a_new_one_but_a_fresh_one_does(): void
+    {
+        $this->actingAsRole('super_admin');
+        $corps = ['role' => 'extraction', 'provider' => 'anthropic', 'model' => 'modele-b'];
+        $perdue = $this->course(AiEvaluationStatus::Running);
+        $perdue->forceFill(['started_at' => now()->subSeconds(AiEvaluationRun::STALE_AFTER_SECONDS + 1)])->save();
+
+        $this->postJson('/api/admin/ai/evaluations', $corps)->assertStatus(202);
+
+        $this->assertSame(AiEvaluationStatus::Failed, $perdue->fresh()->status);
+        $this->assertSame('ai.eval.job_lost', $perdue->fresh()->error_code);
+        // La nouvelle évaluation a tourné (file synchrone en test) : on en recrée une en cours, récente.
+        $this->course(AiEvaluationStatus::Running)->forceFill(['started_at' => now()->subMinutes(2)])->save();
+        $this->postJson('/api/admin/ai/evaluations', $corps)->assertStatus(409)->assertJsonPath('code', 'ai.eval.already_running');
+    }
+
+    public function test_marking_lost_never_overwrites_a_run_that_finished_meanwhile(): void
+    {
+        $run = $this->course(AiEvaluationStatus::Running);
+        $run->forceFill(['started_at' => now()->subSeconds(AiEvaluationRun::STALE_AFTER_SECONDS + 1)])->save();
+        $perime = AiEvaluationRun::query()->findOrFail($run->id);
+        // Le worker d'origine écrit son verdict entre la lecture et la mise à jour.
+        AiEvaluationRun::query()->whereKey($run->id)->update(['status' => AiEvaluationStatus::Done->value]);
+
+        $perime->markLostIfStale();
+
+        $this->assertSame(AiEvaluationStatus::Done, $run->fresh()->status);
+        $this->assertNull($run->fresh()->error_code);
+    }
+
     public function test_an_unknown_evaluation_is_a_404(): void
     {
         $this->actingAsRole('super_admin');
