@@ -52,14 +52,42 @@ final class FieldScorer
     /** @param  list<mixed>  $want  @param  list<mixed>  $got */
     private function list(array $want, array $got): float
     {
-        $want = array_unique(array_map($this->normalize(...), $want));
-        $got = array_unique(array_map($this->normalize(...), $got));
+        $want = array_unique(array_map($this->element(...), $want));
+        $got = array_unique(array_map($this->element(...), $got));
         $union = array_unique([...$want, ...$got]);
         if ($union === []) {
             return 1.0;
         }
 
         return round(count(array_intersect($want, $got)) / count($union), 4);
+    }
+
+    /**
+     * La clé de comparaison d'un élément de liste : une chaîne, qu'il soit scalaire ou structuré.
+     * Un objet ou une sous-liste devient son JSON canonique (clés triées, chaînes normalisées), de
+     * sorte que l'ordre des clés ne compte pas ; `array_unique` et `array_intersect` ne savent pas
+     * comparer des tableaux (« Array to string conversion »).
+     */
+    private function element(mixed $value): string
+    {
+        if (is_array($value)) {
+            return "\0".json_encode($this->canonical($value), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PARTIAL_OUTPUT_ON_ERROR);
+        }
+
+        return (string) $this->normalize($value);
+    }
+
+    private function canonical(mixed $value): mixed
+    {
+        if (! is_array($value)) {
+            return is_string($value) ? mb_strtolower(trim($value)) : $value;
+        }
+        $value = array_map($this->canonical(...), $value);
+        if (! array_is_list($value)) {
+            ksort($value);
+        }
+
+        return $value;
     }
 
     private function normalize(mixed $value): mixed
