@@ -231,7 +231,8 @@ class ReferentialIntegrityChecker
             // Une ligne par jour, sans trou, de son premier jour à la veille (ou à sa fin) ; aucune hors de
             // sa période. Le dernier jour peut manquer : un seed qui passe minuit l'a écrit la veille, comme
             // l'application avant le versement de la nuit — mesuré le 2026-10-26, 4 Vedettes en cours.
-            // « Aujourd'hui » est celui de l'application (`now()`), comme partout ici, jamais `CURRENT_DATE` :
+            // « Aujourd'hui » est celui de l'application (`now()`), comme partout ici, jamais `CURRENT_DATE`
+            // (ni dans l'invariant suivant) :
             // sous une horloge figée, PostgreSQL rend la vraie date et le seed n'a pas pu écrire ces jours-là
             // (TCK-2396 : 16 violations au 2026-10-27 pour un seed figé au 2026-10-25).
             'vedette_sans_une_statistique_par_jour' => DB::table('property_boosts as b')
@@ -248,7 +249,7 @@ class ReferentialIntegrityChecker
                 ->count(),
             'statistique_hors_de_la_periode_de_sa_vedette' => DB::table('property_boost_daily_stats as d')
                 ->join('property_boosts as b', 'b.id', '=', 'd.property_boost_id')
-                ->where(fn ($q) => $q->whereRaw('d.date < b.starts_at::date')->orWhereRaw('d.date > COALESCE(b.ended_at::date, CURRENT_DATE)'))
+                ->where(fn ($q) => $q->whereRaw('d.date < b.starts_at::date')->orWhereRaw('d.date > COALESCE(b.ended_at::date, CAST(? AS date))', [now()->toDateString()]))
                 ->count(),
             'indisponibilite_sur_une_reservation_confirmee' => DB::table('property_unavailabilities as u')
                 ->join('bookings as b', 'b.property_id', '=', 'u.property_id')

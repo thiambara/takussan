@@ -14,8 +14,9 @@ use Tests\TestCase;
  * TCK-2396 — le vérificateur juge le jeu à l'horloge de l'application, celle qui l'a semé, et non à
  * celle de PostgreSQL : sous une horloge figée (`SeedingTextAndDeterminismTest` sème au 2026-10-25),
  * `CURRENT_DATE` rendait la vraie date, et chaque Vedette en cours manquait des jours qui, pour le
- * seed, n'avaient pas encore eu lieu. Ce test fige l'horloge à une date passée : il rougit dès que
- * l'invariant relit `CURRENT_DATE`, quel que soit le jour où il tourne.
+ * seed, n'avaient pas encore eu lieu. Ce test fige l'horloge à une date passée, puis future : il
+ * rougit dès que l'un des deux invariants des Vedettes relit `CURRENT_DATE`, quel que soit le jour
+ * où il tourne (tant que le jour réel est entre les deux dates figées).
  */
 class IntegrityCheckerClockTest extends TestCase
 {
@@ -44,6 +45,28 @@ class IntegrityCheckerClockTest extends TestCase
         $this->assertSame(1, $this->violations());
     }
 
+    /**
+     * L'invariant voisin, même défaut dans l'autre sens : sous une horloge figée APRÈS la vraie date,
+     * `CURRENT_DATE` déclarait hors période des statistiques que le seed avait écrites à son horloge.
+     */
+    public function test_une_statistique_d_hier_a_l_horloge_de_l_application_est_dans_la_periode(): void
+    {
+        CarbonImmutable::setTestNow('2027-01-10 12:00:00');
+        $this->travelTo(CarbonImmutable::now());
+        $this->vedetteDepuis('2027-01-01', '2027-01-09');
+
+        $this->assertSame(0, $this->horsPeriode());
+    }
+
+    public function test_une_statistique_apres_aujourd_hui_reste_hors_periode(): void
+    {
+        CarbonImmutable::setTestNow('2027-01-10 12:00:00');
+        $this->travelTo(CarbonImmutable::now());
+        $this->vedetteDepuis('2027-01-01', '2027-01-11');
+
+        $this->assertSame(1, $this->horsPeriode());
+    }
+
     private function vedetteDepuis(string $debut, string $derniereStatistique): PropertyBoost
     {
         $vedette = PropertyBoostTranche::factory()->create(['duration_days' => 30])->boost()->firstOrFail();
@@ -60,6 +83,11 @@ class IntegrityCheckerClockTest extends TestCase
         }
 
         return $vedette;
+    }
+
+    private function horsPeriode(): int
+    {
+        return (new ReferentialIntegrityChecker)->violations()['statistique_hors_de_la_periode_de_sa_vedette'];
     }
 
     private function violations(): int

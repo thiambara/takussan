@@ -99,9 +99,12 @@ verte sur le même arbre à une autre heure, c'est un indice fort.
   `now()` ; seuls les deux de TCK-2379 lisaient `CURRENT_DATE`. Correctif : le jour de référence
   est `now()->toDateString()`, lié en paramètre. **L'invariant n'est pas assoupli** : un test
   épingle qu'une Vedette à qui manquent les deux derniers jours reste une violation.
-- **Laissé, hors périmètre** : `statistique_hors_de_la_periode_de_sa_vedette` lit encore
-  `CURRENT_DATE`. Il ne peut rougir que si l'horloge figée est **après** la vraie date (aucun test
-  ne le fait) ; même défaut latent, même correctif d'une ligne — à reprendre si on le veut.
+- **L'invariant voisin aussi, sur décision du porteur (2026-10-27)** :
+  `statistique_hors_de_la_periode_de_sa_vedette` lisait `CURRENT_DATE` de la même façon. Il ne
+  pouvait rougir que sous une horloge figée **après** la vraie date (aucun test ne le faisait) :
+  même défaut latent, même correctif. Épinglé par deux tests à horloge figée au 2027-01-10 (une
+  statistique de la veille est dans la période ; une du lendemain ne l'est pas) ; ablation → 2
+  rouges sur 4.
 - **Test d'épinglage** : `tests/Feature/Database/Seeders/IntegrityCheckerClockTest.php`, horloge
   figée au 2026-10-25 : une Vedette semée du 20 au 24 tient l'invariant ; une Vedette semée du 20
   au 22 le viole. Il rougit dès que l'invariant relit `CURRENT_DATE`, quel que soit le jour réel
