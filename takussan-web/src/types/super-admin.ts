@@ -1043,3 +1043,73 @@ export type WebhookLogsResponse = {
   data: WebhookLog[];
   meta: { total: number; current_page: number; last_page: number; per_page: number };
 };
+
+// TCK-2385 (ADR-0076 §12) — la console IA.
+export type AiModelRole = 'extraction' | 'redaction' | 'raisonnement' | 'vision' | 'embedding';
+export type AiEvaluationStatus = 'queued' | 'running' | 'done' | 'failed';
+export type AiModelLink = { provider: string; model: string; max_tokens: number | null };
+export type AiProvider = { key: string; legal_name: string; key_present: boolean; models: string[] };
+export type AiRoleRow = { role: AiModelRole; source: 'database' | 'config'; chain: AiModelLink[]; updated_at: string | null };
+export type AdminAiRolesResponse = { data: { roles: AiRoleRow[]; providers: AiProvider[] } };
+export type AiUsageRow = {
+  key: string;
+  role: AiModelRole;
+  prompt_version: number;
+  max_data_class: 'publique' | 'personnelle' | 'sensible';
+  authority: string;
+  enabled: boolean;
+  forced: AiModelLink | null;
+  daily_budget_xof: number | null;
+  default_daily_budget_xof: number | null;
+  spent_today_xof: number;
+  chain: AiModelLink[];
+};
+export type AdminAiUsagesResponse = { data: AiUsageRow[] };
+export type AdminAiProvidersResponse = { data: AiProvider[] };
+export type AiProviderTestResponse = { data: { ok: boolean; model: string; duration_ms: number | null; error_code: string | null } };
+/** Le verdict du cliquet pour un usage : `null` quand l'évaluation passe (`EvaluationRunner::verdict`). */
+export type AiEvalVerdict = 'ai.eval.failures' | 'ai.eval.baseline_stale' | 'ai.eval.below_baseline';
+export type AiEvalReport = {
+  usage: string;
+  model: string;
+  cases: number;
+  failures: number;
+  fields: Record<string, number>;
+  global: number;
+  cost_xof: number;
+  baseline: { global: number; fields: Record<string, number>; model?: string } | null;
+  below_baseline: boolean;
+  verdict?: AiEvalVerdict | null;
+};
+export type AiEvaluationRun = {
+  id: number;
+  role: AiModelRole;
+  candidate: AiModelLink;
+  status: AiEvaluationStatus;
+  below_baseline: boolean | null;
+  report: { usages: Record<string, AiEvalReport> } | null;
+  /** Un code pointé (`ai.eval.job_lost`, `ai.eval.job_failed`) ou le nom d'une classe d'exception. */
+  error_code: string | null;
+  created_at: string | null;
+  finished_at: string | null;
+};
+export type AdminAiEvaluationResponse = { data: AiEvaluationRun };
+export type AiDashboardDay = {
+  date: string;
+  usage_key: string;
+  calls: number;
+  cost_xof: number;
+  avg_duration_ms: number | null;
+  errors: number;
+  refusals: number;
+  failovers: number;
+  cache_hits: number;
+};
+export type AdminAiDashboardResponse = {
+  data: {
+    days: AiDashboardDay[];
+    acceptance: Record<string, { decided: number; accepted: number; edited: number; rejected: number; rate: number | null }>;
+    baselines: Record<string, { global: number }>;
+    today: { spent_xof: number; daily_budget_xof: number | null };
+  };
+};

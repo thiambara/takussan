@@ -14,6 +14,7 @@ import {
   CalendarClock,
   ClipboardCheck,
   CreditCard,
+  Cpu,
   FlaskConical,
   Home,
   LayoutDashboard,
@@ -172,6 +173,8 @@ export const NAV_GROUPS: NavGroup[] = [
         // a disparu : la portée `global` s'écrit ici, au catalogue, et seulement ici.
       },
       { href: '/super-admin/integrations', labelKey: 'integrations', icon: PlugZap },
+      // TCK-2385 (ADR-0076 §12) — la console IA, au `super_admin` (geste `platform.ai.view`).
+      { href: '/super-admin/ai', labelKey: 'ai', icon: Cpu, ability: 'platform.ai.view' },
       { href: '/super-admin/feature-flags', labelKey: 'featureFlags', icon: FlaskConical },
       { href: '/super-admin/alerts', labelKey: 'alerts', icon: Siren },
       { href: '/super-admin/audit', labelKey: 'audit', icon: Activity },

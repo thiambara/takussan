@@ -215,7 +215,8 @@
         "privacyRequests": "Laaj ci sañ-sañ",
         "payments": "Fey yi",
         "credits": "Kredi",
-        "boosts": "Yokk gis-gis"
+        "boosts": "Yokk gis-gis",
+        "ai": "Intelligence artificielle"
       }
     },
     "notifications": {
@@ -7705,6 +7706,124 @@
       "payments": {
         "title": "Fey yi",
         "subtitle": "Xaalis bi agsiwul : fey yu ñàkk walla yu yéex, ak webhook yu jottalikat yi."
+      },
+      "ai": {
+        "title": "Intelligence artificielle",
+        "subtitle": "Ce qui tourne, sur quel modèle, et ce que ça coûte aujourd’hui.",
+        "tabs": {
+          "roles": "Rôles",
+          "usages": "Usages",
+          "providers": "Fournisseurs",
+          "dashboard": "Coûts"
+        },
+        "evaluationStatus": {
+          "queued": "En attente",
+          "running": "En cours",
+          "done": "Terminée",
+          "failed": "Échouée"
+        },
+        "roles": {
+          "caption": "Rôles de modèle et leur ordre de bascule",
+          "role": "Rôle",
+          "chain": "Chaîne (ordre de bascule)",
+          "source": "Source",
+          "sourceDatabase": "Réglé ici",
+          "sourceConfig": "Configuration par défaut",
+          "edit": "Modifier",
+          "reset": "Revenir à la configuration",
+          "resetFailed": "Le retour à la configuration a échoué.",
+          "names": {
+            "extraction": "Extraction",
+            "redaction": "Rédaction",
+            "raisonnement": "Raisonnement",
+            "vision": "Vision",
+            "embedding": "Représentation sémantique"
+          },
+          "emptyChain": "Aucun modèle"
+        },
+        "chain": {
+          "title": "Chaîne du rôle « {role} »",
+          "link": "Maillon {position}",
+          "provider": "Fournisseur",
+          "model": "Modèle",
+          "maxTokens": "Plafond de tokens",
+          "up": "Monter",
+          "down": "Descendre",
+          "remove": "Retirer",
+          "add": "Ajouter un maillon",
+          "evaluate": "Évaluer le premier maillon",
+          "evaluating": "Évaluation en cours…",
+          "evaluationFailed": "L’évaluation a échoué.",
+          "evaluationErrors": {
+            "jobLost": "L’évaluation a été perdue : son worker s’est arrêté avant d’écrire un résultat.",
+            "jobFailed": "L’évaluation a été interrompue avant la fin."
+          },
+          "evaluationErrorCode": "Code : {code}",
+          "comparison": "En place / candidat",
+          "field": "Champ",
+          "current": "En place",
+          "candidate": "Candidat",
+          "verdictOk": "Le candidat tient la référence.",
+          "verdictBelow": "Le candidat est sous la référence.",
+          "verdictFailures": "Des appels ont échoué pendant l’évaluation : le résultat ne prouve rien.",
+          "verdictBaselineStale": "La référence ne porte pas les mêmes champs que le candidat : elle est périmée.",
+          "failuresCount": "{count, plural, one {# appel a échoué} other {# appels ont échoué}} sur {cases, plural, one {# cas} other {# cas}}",
+          "overrideReason": "Motif de la dérogation",
+          "overrideHint": "Exigé pour appliquer un modèle sous la référence ; il est journalisé.",
+          "save": "Appliquer",
+          "cancel": "Annuler"
+        },
+        "usages": {
+          "caption": "Usages déclarés",
+          "key": "Usage",
+          "model": "Modèle appelé",
+          "forced": "forcé",
+          "budget": "Dépensé / plafond du jour",
+          "noBudget": "sans plafond",
+          "state": "État",
+          "enabled": "Actif",
+          "disabled": "Coupé",
+          "disable": "Couper",
+          "enable": "Rétablir",
+          "settings": "Réglages",
+          "forcedModel": "Modèle forcé",
+          "noForcedModel": "Celui du rôle",
+          "dailyBudget": "Plafond journalier (XOF)",
+          "save": "Enregistrer",
+          "cancel": "Annuler",
+          "updateFailed": "Le réglage n’a pas été enregistré."
+        },
+        "providers": {
+          "caption": "Fournisseurs autorisés",
+          "name": "Fournisseur",
+          "key": "Clé",
+          "keyPresent": "Présente",
+          "keyMissing": "Absente",
+          "models": "Modèles tarifés",
+          "test": "Tester la connexion",
+          "testOk": "Connexion établie avec {model} en {duration} ms.",
+          "testFailed": "Échec de la connexion ({code}).",
+          "testError": "Le test n’a pas pu être lancé."
+        },
+        "dashboard": {
+          "from": "Du",
+          "to": "Au",
+          "today": "Aujourd’hui : {spent} XOF dépensés sur {budget} XOF",
+          "todayNoBudget": "Aujourd’hui : {spent} XOF dépensés, sans plafond global",
+          "caption": "Appels par jour et par usage",
+          "date": "Jour",
+          "usage": "Usage",
+          "calls": "Appels servis",
+          "cost": "Coût (XOF)",
+          "latency": "Latence moyenne (ms)",
+          "errors": "Erreurs",
+          "refusals": "Refus",
+          "acceptanceCaption": "Taux d’acceptation des suggestions",
+          "acceptance": "Acceptées telles quelles",
+          "decided": "Décidées",
+          "emptyTitle": "Aucun appel sur la période",
+          "emptyDescription": "Les appels au socle IA apparaîtront ici, par jour et par usage."
+        }
       }
     },
     "featureFlags": {

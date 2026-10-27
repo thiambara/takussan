@@ -76,6 +76,7 @@ const LIBELLES = {
     { chemin: 'agency.upgrade.status.headings', lu: 'components/agency/UpgradeRequestStatus.tsx' },
     { chemin: 'agency.upgrade.status.badges', lu: 'components/agency/UpgradeRequestStatus.tsx' },
   ],
+  AiEvaluationStatus: [{ chemin: 'superAdmin.pages.ai.evaluationStatus', lu: 'components/admin/super/ai/AiChainDialog.tsx' }],
   BankStatementLineMatchStatus: [{ chemin: 'admin.reconciliation.lineStatus', lu: 'components/admin/reconciliation/StatementDetail.tsx' }],
   BankStatementStatus: [
     { chemin: 'admin.reconciliation.status', lu: 'components/admin/reconciliation/StatementsList.tsx' },
