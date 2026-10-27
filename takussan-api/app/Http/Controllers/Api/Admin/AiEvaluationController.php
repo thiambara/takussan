@@ -30,6 +30,15 @@ class AiEvaluationController extends Controller
         $evaluable = array_filter($this->registry->forRole($role), fn (AiUsage $usage): bool => $this->runner->cases($usage->key()) !== []);
         abort_code_if($evaluable === [], 422, 'ai.eval.no_cases');
 
+        // Deux évaluations du même candidat sur le même rôle se doubleraient en coût et en verdicts.
+        $enCours = AiEvaluationRun::query()
+            ->where('role', $role->value)
+            ->whereIn('status', [AiEvaluationStatus::Queued->value, AiEvaluationStatus::Running->value])
+            ->where('candidate->provider', $link->provider)
+            ->where('candidate->model', $link->model)
+            ->exists();
+        abort_code_if($enCours, 409, 'ai.eval.already_running');
+
         $run = AiEvaluationRun::query()->create([
             'role' => $role, 'candidate' => $link->toArray(), 'status' => AiEvaluationStatus::Queued,
             'requested_by_id' => $request->user()->id,

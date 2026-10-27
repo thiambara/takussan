@@ -2,15 +2,21 @@
 
 namespace Tests\Feature\Api\Admin;
 
+use App\Jobs\Ai\RunAiEvaluation;
+use App\Models\AiEvaluationRun;
+use App\Models\Enums\AiEvaluationStatus;
 use App\Services\Ai\AiGateway;
 use App\Services\Ai\AiUsageRegistry;
 use App\Services\Ai\Evaluation\EvaluationRunner;
 use App\Services\Ai\Evaluation\FieldScorer;
 use App\Services\Ai\ModelResolver;
+use ErrorException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Exceptions;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 use Laravel\Ai\Exceptions\ProviderOverloadedException;
+use RuntimeException;
 use Spatie\Activitylog\Models\Activity;
 use Tests\Support\Ai\AgentDEssai;
 use Tests\Support\Ai\SocleIaDEssai;
@@ -108,6 +114,116 @@ class AdminAiEvaluationsTest extends TestCase
             ->assertJsonPath('data.below_baseline', true);
         $this->assertSame('ai.eval.failures', $reponse->json('data.report.usages')[UsageDEssai::KEY]['verdict']);
         $this->putJson('/api/admin/ai/roles/extraction', $chaine)->assertStatus(422)->assertJsonPath('code', 'ai.evaluation_below_baseline');
+    }
+
+    private function course(AiEvaluationStatus $statut, string $modele = 'modele-b'): AiEvaluationRun
+    {
+        return AiEvaluationRun::query()->create([
+            'role' => 'extraction', 'candidate' => ['provider' => 'anthropic', 'model' => $modele, 'max_tokens' => null],
+            'status' => $statut,
+        ]);
+    }
+
+    public function test_a_job_killed_before_its_catch_moves_a_running_evaluation_to_failed(): void
+    {
+        $run = $this->course(AiEvaluationStatus::Running);
+
+        (new RunAiEvaluation($run->id))->failed(new RuntimeException('x'));
+
+        $run->refresh();
+        $this->assertSame(AiEvaluationStatus::Failed, $run->status);
+        $this->assertSame('RuntimeException', $run->error_code);
+        $this->assertNotNull($run->finished_at);
+    }
+
+    public function test_a_job_failed_without_exception_gets_a_generic_error_code(): void
+    {
+        $run = $this->course(AiEvaluationStatus::Queued);
+
+        (new RunAiEvaluation($run->id))->failed(null);
+
+        $this->assertSame('ai.eval.job_failed', $run->fresh()->error_code);
+        $this->assertSame(AiEvaluationStatus::Failed, $run->fresh()->status);
+    }
+
+    public function test_failed_never_overwrites_a_terminal_state(): void
+    {
+        $fait = $this->course(AiEvaluationStatus::Done);
+        $echoue = $this->course(AiEvaluationStatus::Failed);
+        $echoue->forceFill(['error_code' => 'Premiere'])->save();
+
+        (new RunAiEvaluation($fait->id))->failed(new RuntimeException('x'));
+        (new RunAiEvaluation($echoue->id))->failed(new RuntimeException('x'));
+
+        $this->assertSame(AiEvaluationStatus::Done, $fait->fresh()->status);
+        $this->assertNull($fait->fresh()->error_code);
+        $this->assertSame('Premiere', $echoue->fresh()->error_code);
+    }
+
+    public function test_an_exception_in_the_run_is_reported_and_the_run_fails(): void
+    {
+        Exceptions::fake();
+        // Un candidat sans modèle : `ModelLink::fromArray()` lève dans le `try` du job.
+        $run = $this->course(AiEvaluationStatus::Queued);
+        $run->forceFill(['candidate' => ['provider' => 'anthropic']])->save();
+
+        (new RunAiEvaluation($run->id))->handle(app(EvaluationRunner::class), app(AiUsageRegistry::class));
+
+        Exceptions::assertReported(ErrorException::class);
+        $this->assertSame(AiEvaluationStatus::Failed, $run->fresh()->status);
+        $this->assertSame('ErrorException', $run->fresh()->error_code);
+    }
+
+    public function test_a_run_already_failed_by_the_queue_is_not_turned_back_by_the_late_outcome(): void
+    {
+        $run = $this->course(AiEvaluationStatus::Queued);
+        // Le worker d'origine tourne encore quand la file déclare l'évaluation échouée (reprise après
+        // `retry_after`) : son verdict, arrivé plus tard, ne doit pas la faire repasser en `done`.
+        AgentDEssai::fake(function () use ($run) {
+            (new RunAiEvaluation($run->id))->failed(new RuntimeException('file'));
+
+            return ['titre' => 'Villa', 'prix' => 90];
+        });
+
+        (new RunAiEvaluation($run->id))->handle(app(EvaluationRunner::class), app(AiUsageRegistry::class));
+
+        $this->assertSame(AiEvaluationStatus::Failed, $run->fresh()->status);
+        $this->assertSame('RuntimeException', $run->fresh()->error_code);
+        $this->assertNull($run->fresh()->report);
+    }
+
+    public function test_the_job_fails_on_timeout(): void
+    {
+        $this->assertTrue((new RunAiEvaluation(1))->failOnTimeout);
+    }
+
+    public function test_the_same_candidate_cannot_be_evaluated_twice_at_once(): void
+    {
+        $this->actingAsRole('super_admin');
+        $this->course(AiEvaluationStatus::Running);
+        $corps = ['role' => 'extraction', 'provider' => 'anthropic', 'model' => 'modele-b'];
+
+        $this->postJson('/api/admin/ai/evaluations', $corps)->assertStatus(409)->assertJsonPath('code', 'ai.eval.already_running');
+        $this->assertSame(1, AiEvaluationRun::query()->count());
+    }
+
+    public function test_a_queued_evaluation_also_blocks_a_duplicate(): void
+    {
+        $this->actingAsRole('super_admin');
+        $this->course(AiEvaluationStatus::Queued);
+
+        $this->postJson('/api/admin/ai/evaluations', ['role' => 'extraction', 'provider' => 'anthropic', 'model' => 'modele-b'])
+            ->assertStatus(409)->assertJsonPath('code', 'ai.eval.already_running');
+    }
+
+    public function test_a_finished_or_different_candidate_does_not_block_a_new_evaluation(): void
+    {
+        $this->actingAsRole('super_admin');
+        $this->course(AiEvaluationStatus::Done);
+        $this->course(AiEvaluationStatus::Failed);
+        $this->course(AiEvaluationStatus::Running, 'modele-a');
+
+        $this->evaluer();
     }
 
     public function test_an_unknown_evaluation_is_a_404(): void
