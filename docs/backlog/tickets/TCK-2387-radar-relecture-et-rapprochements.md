@@ -1,7 +1,7 @@
 ---
 id: TCK-2387
 title: "Radar : relecture d'une annonce extraite et rapprochements avec le catalogue et les autres annonces"
-status: todo
+status: doing
 phase: P1
 family: full
 estimate: M
