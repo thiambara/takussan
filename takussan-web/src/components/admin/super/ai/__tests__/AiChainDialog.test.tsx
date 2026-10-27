@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '@/lib/api';
@@ -15,21 +15,21 @@ vi.mock('@/lib/queries/super-admin', () => ({
 }));
 
 const run: AiEvaluationRun = {
-  id: 7, role: 'extraction', candidate: { provider: 'anthropic', model: 'modele-b', max_tokens: null },
+  id: 7, role: 'extraction', candidate: { provider: 'anthropic', model: 'modele-a', max_tokens: 1000 },
   status: 'done', below_baseline: true, error_code: null, created_at: null, finished_at: null,
   report: { usages: { 'essai.extraction': {
-    usage: 'essai.extraction', model: 'anthropic/modele-b', cases: 1, failures: 0, global: 0.5, cost_xof: 1,
+    usage: 'essai.extraction', model: 'anthropic/modele-a', cases: 1, failures: 0, global: 0.5, cost_xof: 1.25,
     fields: { prix: 0, titre: 1 }, baseline: { global: 0.9, fields: { prix: 1, titre: 1 } }, below_baseline: true,
   } } },
 };
 
-function renderDialog() {
+function renderDialog(onOpenChange: (open: boolean) => void = () => {}) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(withIntl(
     <QueryClientProvider client={queryClient}>
       <AiChainDialog
         open
-        onOpenChange={() => {}}
+        onOpenChange={onOpenChange}
         row={{ role: 'extraction', source: 'config', updated_at: null, chain: [{ provider: 'anthropic', model: 'modele-a', max_tokens: 1000 }] }}
         providers={[{ key: 'anthropic', legal_name: 'Anthropic', key_present: true, models: ['modele-a', 'modele-b'] }]}
       />
@@ -113,5 +113,78 @@ describe('chaîne d’un rôle (TCK-2385)', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Appliquer' }));
 
     expect(putAdminAiRole).toHaveBeenLastCalledWith('extraction', [{ provider: 'anthropic', model: 'modele-a', max_tokens: 1000 }], 'Panne prolongée');
+  });
+
+  it('montre le score global (celui du verdict) et le coût de l’évaluation, en plus des champs', async () => {
+    vi.mocked(postAdminAiEvaluation).mockResolvedValue({ data: run });
+    vi.mocked(fetchAdminAiEvaluation).mockResolvedValue({ data: run });
+    renderDialog();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Évaluer le premier maillon' }));
+
+    const global = (await screen.findByRole('row', { name: /^Global/ })).querySelectorAll('td');
+    expect(global[0]).toHaveTextContent('0,90');
+    expect(global[1]).toHaveTextContent('0,50');
+    const cout = screen.getByRole('row', { name: /^Coût de l’évaluation \(XOF\)/ }).querySelectorAll('td');
+    expect(cout[1]).toHaveTextContent('1,25');
+    expect(screen.getByText(/Candidat évalué : anthropic · modele-a/)).toBeInTheDocument();
+  });
+
+  it('sans référence enregistrée, ne dit pas que le candidat « tient la référence »', async () => {
+    const sansReference = { ...run, below_baseline: false, report: { usages: { 'essai.extraction': { ...run.report!.usages['essai.extraction'], baseline: null, below_baseline: false } } } };
+    vi.mocked(postAdminAiEvaluation).mockResolvedValue({ data: sansReference });
+    vi.mocked(fetchAdminAiEvaluation).mockResolvedValue({ data: sansReference });
+    renderDialog();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Évaluer le premier maillon' }));
+
+    expect(await screen.findByText('Aucune référence enregistrée.')).toBeInTheDocument();
+    expect(screen.queryByText('Le candidat tient la référence.')).not.toBeInTheDocument();
+  });
+
+  it('ignore une évaluation dont le candidat n’est plus le premier maillon', async () => {
+    const autre = { ...run, candidate: { provider: 'anthropic', model: 'modele-b', max_tokens: null } };
+    vi.mocked(postAdminAiEvaluation).mockResolvedValue({ data: autre });
+    vi.mocked(fetchAdminAiEvaluation).mockResolvedValue({ data: autre });
+    renderDialog();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Évaluer le premier maillon' }));
+    await waitFor(() => expect(fetchAdminAiEvaluation).toHaveBeenCalled());
+
+    expect(screen.queryByText('Le candidat est sous la référence.')).not.toBeInTheDocument();
+    expect(screen.queryByRole('row', { name: /^Global/ })).not.toBeInTheDocument();
+  });
+
+  it('désactive « Évaluer » tant qu’une évaluation est en file ou en cours', async () => {
+    const enCours = { ...run, status: 'running' as const, below_baseline: null, report: null };
+    vi.mocked(postAdminAiEvaluation).mockResolvedValue({ data: enCours });
+    vi.mocked(fetchAdminAiEvaluation).mockResolvedValue({ data: enCours });
+    renderDialog();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Évaluer le premier maillon' }));
+
+    expect(await screen.findByText('Évaluation en cours…')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Évaluer le premier maillon' })).toBeDisabled();
+  });
+
+  it('efface l’erreur affichée dès que la chaîne est modifiée', async () => {
+    vi.mocked(putAdminAiRole).mockRejectedValue(new ApiError(500, { message: 'Boum' }));
+    renderDialog();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Appliquer' }));
+    expect(await screen.findByRole('alert')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Ajouter un maillon' }));
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('nomme la position du maillon dans les boutons monter et descendre', async () => {
+    renderDialog();
+    await userEvent.click(screen.getByRole('button', { name: 'Ajouter un maillon' }));
+
+    expect(screen.getByRole('button', { name: 'Descendre le maillon 1' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Monter le maillon 2' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Monter le maillon 1' })).toBeDisabled();
   });
 });

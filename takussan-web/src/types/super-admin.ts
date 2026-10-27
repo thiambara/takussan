@@ -1069,6 +1069,13 @@ export type AdminAiProvidersResponse = { data: AiProvider[] };
 export type AiProviderTestResponse = { data: { ok: boolean; model: string; duration_ms: number | null; error_code: string | null } };
 /** Le verdict du cliquet pour un usage : `null` quand l'évaluation passe (`EvaluationRunner::verdict`). */
 export type AiEvalVerdict = 'ai.eval.failures' | 'ai.eval.baseline_stale' | 'ai.eval.below_baseline';
+export type AiEvalBaseline = {
+  global: number;
+  fields?: Record<string, number>;
+  model?: string;
+  prompt_version?: number;
+  updated_at?: string | null;
+};
 export type AiEvalReport = {
   usage: string;
   model: string;
@@ -1109,7 +1116,8 @@ export type AdminAiDashboardResponse = {
   data: {
     days: AiDashboardDay[];
     acceptance: Record<string, { decided: number; accepted: number; edited: number; rejected: number; rate: number | null }>;
-    baselines: Record<string, { global: number }>;
+    /** `EvaluationRunner::writeBaseline` : la dernière référence d'évaluation de chaque usage qui en a une. */
+    baselines: Record<string, AiEvalBaseline>;
     today: { spent_xof: number; daily_budget_xof: number | null };
   };
 };

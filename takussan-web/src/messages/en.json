@@ -8401,8 +8401,8 @@
           "provider": "Provider",
           "model": "Model",
           "maxTokens": "Token ceiling",
-          "up": "Move up",
-          "down": "Move down",
+          "up": "Move link {position} up",
+          "down": "Move link {position} down",
           "remove": "Remove",
           "add": "Add a link",
           "evaluate": "Evaluate the first link",
@@ -8425,7 +8425,11 @@
           "overrideReason": "Reason for the override",
           "overrideHint": "Required to apply a model below the baseline; it is logged.",
           "save": "Apply",
-          "cancel": "Cancel"
+          "cancel": "Cancel",
+          "global": "Global",
+          "evaluationCost": "Evaluation cost (XOF)",
+          "noBaseline": "No baseline recorded.",
+          "evaluatedCandidate": "Evaluated candidate: {model}"
         },
         "usages": {
           "caption": "Declared usages",
@@ -8445,7 +8449,10 @@
           "dailyBudget": "Daily ceiling (XOF)",
           "save": "Save",
           "cancel": "Cancel",
-          "updateFailed": "The setting was not saved."
+          "updateFailed": "The setting was not saved.",
+          "budgetDefaultHint": "Default: {default} XOF — leave empty to follow the default.",
+          "budgetNoDefaultHint": "No default ceiling — leave empty to set none.",
+          "providersLoadError": "The available models could not be loaded: {message}"
         },
         "providers": {
           "caption": "Allowed providers",
@@ -8456,8 +8463,16 @@
           "models": "Priced models",
           "test": "Test the connection",
           "testOk": "Connected to {model} in {duration} ms.",
-          "testFailed": "Connection failed ({code}).",
-          "testError": "The test could not be started."
+          "testFailed": "The connection failed.",
+          "testError": "The test could not be started.",
+          "testErrors": {
+            "roleUnassigned": "No model is assigned to this test’s role.",
+            "providersUnavailable": "No provider answered: try again, or check the key and the model’s price.",
+            "refusedKillSwitch": "The test usage is cut off.",
+            "refusedBudget": "The daily ceiling is reached: the test was refused.",
+            "refused": "The gateway refused the test call."
+          },
+          "testErrorCode": "Code: {code}"
         },
         "dashboard": {
           "from": "From",
@@ -8476,7 +8491,11 @@
           "acceptance": "Accepted as is",
           "decided": "Decided",
           "emptyTitle": "No calls in this period",
-          "emptyDescription": "Calls to the AI foundation will show here, per day and usage."
+          "emptyDescription": "Calls to the AI foundation will show here, per day and usage.",
+          "baselinesCaption": "Latest evaluation score per usage",
+          "baselineGlobal": "Global score",
+          "baselineModel": "Evaluated model",
+          "baselineDate": "Measured on"
         }
       }
     },

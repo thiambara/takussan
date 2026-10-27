@@ -15,6 +15,17 @@ import { avecGardeDoubleFacteur } from '@/lib/double-facteur';
 import { fetchAdminAiProviders, testAdminAiProvider } from '@/lib/queries/super-admin';
 import type { AdminAiProvidersResponse, AiProvider, AiProviderTestResponse } from '@/types/super-admin';
 
+/** Les codes pointés qu'écrit `AiProviderController::test` dans `error_code` (`AiUnavailable`, `AiRefused`). */
+const ERREURS_CONNUES: Record<string, string> = {
+  'ai.role_unassigned': 'roleUnassigned',
+  'ai.providers_unavailable': 'providersUnavailable',
+  'ai.refused.kill_switch': 'refusedKillSwitch',
+  'ai.refused.budget': 'refusedBudget',
+  'ai.refused.forbidden': 'refused',
+  'ai.refused.sensitive_data': 'refused',
+  'ai.refused.data_class': 'refused',
+};
+
 /** TCK-2385 (ADR-0076 §3) — une clé est présente ou non, et se teste. Aucun champ pour la saisir. */
 export function AiProvidersPanel() {
   const t = useTranslations('superAdmin.pages.ai.providers');
@@ -60,9 +71,14 @@ export function AiProvidersPanel() {
           <div className="flex flex-col items-end gap-1">
             <Button size="sm" variant="outline" disabled={!row.key_present || test.isPending} onClick={() => test.mutate(row.key)}>{t('test')}</Button>
             {result ? (
-              <span className={result.ok ? 'text-sm text-muted-foreground' : 'text-sm text-destructive'}>
-                {result.ok ? t('testOk', { model: result.model, duration: result.duration_ms ?? 0 }) : t('testFailed', { code: result.error_code ?? '' })}
-              </span>
+              result.ok ? (
+                <span className="text-sm text-muted-foreground">{t('testOk', { model: result.model, duration: result.duration_ms ?? 0 })}</span>
+              ) : (
+                <span className="flex flex-col items-end text-sm text-destructive">
+                  <span>{result.error_code && ERREURS_CONNUES[result.error_code] ? t(`testErrors.${ERREURS_CONNUES[result.error_code]}`) : t('testFailed')}</span>
+                  {result.error_code && !ERREURS_CONNUES[result.error_code] ? <span className="text-xs text-muted-foreground">{t('testErrorCode', { code: result.error_code })}</span> : null}
+                </span>
+              )
             ) : null}
             {error ? <span className="text-sm text-destructive" role="alert">{error}</span> : null}
           </div>

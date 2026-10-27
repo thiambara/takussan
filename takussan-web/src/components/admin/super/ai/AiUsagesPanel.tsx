@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useTranslations } from 'next-intl';
+import { useFormatter, useTranslations } from 'next-intl';
 import { useGardeDoubleFacteur } from '@/components/auth/garde-double-facteur-contexte';
 import { StatusBadge } from '@/components/console';
 import { DataTable, type DataTableColumn } from '@/components/console/DataTable';
@@ -25,6 +25,7 @@ export function AiUsagesPanel() {
   const t = useTranslations('superAdmin.pages.ai.usages');
   const tShared = useTranslations('superAdmin.pages.shared');
   const tCommon = useTranslations('common');
+  const format = useFormatter();
   const messageErreur = useMessageErreurApi();
   const garde = useGardeDoubleFacteur();
   const queryClient = useQueryClient();
@@ -63,7 +64,7 @@ export function AiUsagesPanel() {
       id: 'budget',
       header: t('budget'),
       align: 'end',
-      cell: (row) => <span className="tabular-nums">{`${row.spent_today_xof.toFixed(2)} / ${row.daily_budget_xof ?? t('noBudget')}`}</span>,
+      cell: (row) => <span className="tabular-nums">{`${format.number(row.spent_today_xof, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} / ${row.daily_budget_xof ?? t('noBudget')}`}</span>,
     },
     {
       id: 'state',
@@ -94,6 +95,7 @@ export function AiUsagesPanel() {
         <UsageSettingsDialog
           row={edited}
           options={options}
+          optionsError={providers.isError ? t('providersLoadError', { message: messageErreur(providers.error) }) : null}
           pending={patch.isPending}
           error={erreur}
           onClose={() => { patch.reset(); setEdited(null); }}
@@ -104,9 +106,10 @@ export function AiUsagesPanel() {
   );
 }
 
-function UsageSettingsDialog({ row, options, pending, error, onClose, onSave }: {
+function UsageSettingsDialog({ row, options, optionsError, pending, error, onClose, onSave }: {
   row: AiUsageRow;
   options: { value: string; label: string }[];
+  optionsError: string | null;
   pending: boolean;
   error: string | null;
   onClose: () => void;
@@ -114,7 +117,12 @@ function UsageSettingsDialog({ row, options, pending, error, onClose, onSave }: 
 }) {
   const t = useTranslations('superAdmin.pages.ai.usages');
   const [forced, setForced] = useState(row.forced ? `${row.forced.provider}/${row.forced.model}` : SANS_FORCAGE);
-  const [budget, setBudget] = useState(row.daily_budget_xof === null ? '' : String(row.daily_budget_xof));
+  // `daily_budget_xof` est le plafond EFFECTIF : le défaut du code quand rien n'est posé. Pré-remplir le
+  // champ avec lui et le renvoyer à chaque enregistrement épinglerait le défaut en surcharge ; on ne
+  // montre donc que la surcharge réelle, et on n'envoie le plafond que s'il a été touché.
+  const surcharge = row.daily_budget_xof !== null && row.daily_budget_xof !== row.default_daily_budget_xof;
+  const [budget, setBudget] = useState(surcharge ? String(row.daily_budget_xof) : '');
+  const [budgetTouched, setBudgetTouched] = useState(false);
   const items = [{ value: SANS_FORCAGE, label: t('noForcedModel') }, ...options];
 
   return (
@@ -128,10 +136,22 @@ function UsageSettingsDialog({ row, options, pending, error, onClose, onSave }: 
               <SelectTrigger className="h-10 w-full" aria-labelledby="forced-model"><SelectValue /></SelectTrigger>
               <SelectContent>{items.map((o) => <SelectItem key={o.value || 'role'} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
             </Select>
+            {optionsError ? <p className="text-sm text-destructive" role="alert">{optionsError}</p> : null}
           </div>
           <div className="space-y-1">
             <Label htmlFor="daily-budget">{t('dailyBudget')}</Label>
-            <Input id="daily-budget" type="number" min={0} value={budget} onChange={(e) => setBudget(e.target.value)} />
+            <Input
+              id="daily-budget"
+              type="number"
+              min={0}
+              value={budget}
+              placeholder={row.default_daily_budget_xof === null ? undefined : String(row.default_daily_budget_xof)}
+              aria-describedby="daily-budget-hint"
+              onChange={(e) => { setBudget(e.target.value); setBudgetTouched(true); }}
+            />
+            <p id="daily-budget-hint" className="text-xs text-muted-foreground">
+              {row.default_daily_budget_xof === null ? t('budgetNoDefaultHint') : t('budgetDefaultHint', { default: row.default_daily_budget_xof })}
+            </p>
           </div>
         </div>
         {error ? <p className="text-sm text-destructive" role="alert">{error}</p> : null}
@@ -144,7 +164,7 @@ function UsageSettingsDialog({ row, options, pending, error, onClose, onSave }: 
               onSave({
                 forced_provider: forced === SANS_FORCAGE ? null : provider,
                 forced_model: forced === SANS_FORCAGE ? null : model.join('/'),
-                daily_budget_xof: budget === '' ? null : Number(budget),
+                ...(budgetTouched ? { daily_budget_xof: budget === '' ? null : Number(budget) } : {}),
               });
             }}
           >
