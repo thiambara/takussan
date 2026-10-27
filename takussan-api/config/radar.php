@@ -57,9 +57,11 @@ return [
         'mimes' => ['image/jpeg', 'image/png', 'image/webp'],
         // Bornes de PIXELS, lues dans l'en-tête avant tout décodage : un PNG uni de 20 000 × 20 000
         // pèse quelques centaines de Ko mais demanderait ~1,6 Go à GD. Une longue capture défilée
-        // de téléphone (1080 × 15 000, 16 Mpx) passe.
+        // de téléphone (1080 × 15 000, 16 Mpx) passe. 24 Mpx ≈ 96 Mo en truecolor, ×2 quand le
+        // décodeur réoriente un JPEG (balise EXIF Orientation) : sous le `memory_limit` de 256M
+        // (`docker/php.ini`), où la libgd embarquée compte ses allocations.
         'max_side' => 20_000,
-        'max_pixels' => 40_000_000,
+        'max_pixels' => 24_000_000,
     ],
 
     // ADR-0077 §5 — les bornes de vraisemblance d'une extraction, lues par
