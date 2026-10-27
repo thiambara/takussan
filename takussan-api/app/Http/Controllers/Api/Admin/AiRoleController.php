@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Api\Admin\UpdateAiRoleRequest;
+use App\Models\AiEvaluationRun;
 use App\Models\AiRoleAssignment;
 use App\Models\Enums\AiModelRole;
 use App\Services\Ai\AiProviderCatalogue;
@@ -39,12 +40,23 @@ class AiRoleController extends Controller
     {
         $aiRole = AiModelRole::tryFrom($role);
         abort_code_unless($aiRole !== null, 404, 'ai.role_unknown');
-        $chain = array_map(ModelLink::fromArray(...), $request->validated('chain'));
+        $chain = array_map(ModelLink::fromArray(...), array_values($request->validated('chain')));
         foreach ($chain as $link) {
             abort_code_unless($link->isPriced(), 422, 'ai.model_unpriced');
         }
 
         $before = $this->resolver->chainForRole($aiRole);
+        // TCK-2385 (AC4) — le cliquet : un premier maillon NEUF dont l'évaluation terminée est sous
+        // la référence ne s'affecte qu'avec un motif, journalisé. Un maillon jamais évalué passe :
+        // la console PROPOSE l'évaluation, elle ne l'impose pas (ADR-0076 §8).
+        $current = $before[0] ?? null;
+        if ($current === null || $current->provider !== $chain[0]->provider || $current->model !== $chain[0]->model) {
+            abort_code_if(
+                AiEvaluationRun::latestFor($aiRole, $chain[0])?->below_baseline === true && blank($request->validated('override_reason')),
+                422,
+                'ai.evaluation_below_baseline',
+            );
+        }
         $assignment = AiRoleAssignment::query()->updateOrCreate(
             ['role' => $aiRole->value],
             ['chain' => $this->links($chain), 'updated_by_id' => $request->user()->id],

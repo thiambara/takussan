@@ -5,6 +5,7 @@ namespace App\Support\Security;
 use App\Http\Controllers\Api\Admin\AdminBoostController;
 use App\Http\Controllers\Api\Admin\AdminBoostProductController;
 use App\Http\Controllers\Api\Admin\AdminCreditWalletController;
+use App\Http\Controllers\Api\Admin\AiEvaluationController;
 use App\Http\Controllers\Api\Admin\AiProviderController;
 use App\Http\Controllers\Api\Admin\AiRoleController;
 use App\Http\Controllers\Api\Admin\AiUsageController;
@@ -219,6 +220,7 @@ final class ProtectedActions
         AiRoleController::class.'@destroy',
         AiUsageController::class.'@update',
         AiProviderController::class.'@test',
+        AiEvaluationController::class.'@store',
         SuperAdminInvitationController::class.'@store',
         SuperAdminInvitationController::class.'@resend',
         SuperAdminInvitationController::class.'@revoke',

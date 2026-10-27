@@ -69,6 +69,10 @@ return [
         'member_not_staff' => 'Jox liggéey bi, ajaŋ walla njiitu ajaans bi rekk la jëm ; boroom kër bokkul ci.',
     ],
     'ai' => [
+        'eval' => [
+            'no_cases' => "Ce rôle n'a aucun jeu de cas à évaluer.",
+        ],
+        'evaluation_below_baseline' => "Ce modèle a été évalué sous la référence : indiquez un motif pour l'affecter quand même.",
         'model_unpriced' => "Ce modèle n'a pas de tarif : il ne peut pas être affecté.",
         'provider_key_missing' => "Aucune clé n'est configurée pour ce fournisseur.",
         'provider_unknown' => 'Fournisseur IA inconnu.',

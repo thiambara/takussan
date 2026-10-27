@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\Api\Admin\AiDashboardController;
+use App\Http\Controllers\Api\Admin\AiEvaluationController;
 use App\Http\Controllers\Api\Admin\AiProviderController;
 use App\Http\Controllers\Api\Admin\AiRoleController;
 use App\Http\Controllers\Api\Admin\AiUsageController;
@@ -20,6 +22,8 @@ Route::middleware(['auth:sanctum', 'super-admin'])->prefix('admin/ai')->group(fu
         Route::get('roles', [AiRoleController::class, 'index'])->name('admin.ai.roles.index');
         Route::get('usages', [AiUsageController::class, 'index'])->name('admin.ai.usages.index');
         Route::get('providers', [AiProviderController::class, 'index'])->name('admin.ai.providers.index');
+        Route::get('evaluations/{evaluation}', [AiEvaluationController::class, 'show'])->name('admin.ai.evaluations.show');
+        Route::get('dashboard', AiDashboardController::class)->name('admin.ai.dashboard');
     });
 
     Route::middleware('platform-can:'.PlatformAbility::AiManage->value)->group(function () {
@@ -27,5 +31,6 @@ Route::middleware(['auth:sanctum', 'super-admin'])->prefix('admin/ai')->group(fu
         Route::delete('roles/{role}', [AiRoleController::class, 'destroy'])->name('admin.ai.roles.destroy');
         Route::patch('usages/{usage}', [AiUsageController::class, 'update'])->name('admin.ai.usages.update');
         Route::post('providers/{provider}/test', [AiProviderController::class, 'test'])->name('admin.ai.providers.test');
+        Route::post('evaluations', [AiEvaluationController::class, 'store'])->name('admin.ai.evaluations.store');
     });
 });

@@ -62,6 +62,7 @@ const WEB = join(ROOT, 'takussan-web');
 
 /** Enum de l'API → unions du front (`fichier` relatif à `takussan-web/`, `nom` du type ou du tableau). */
 const CORRESPONDANCES = {
+  AiEvaluationStatus: [{ fichier: 'src/types/super-admin.ts', nom: 'AiEvaluationStatus' }],
   AgencyStatus: [{ fichier: 'src/types/agency.ts', nom: 'AgencyStatus' }],
   AgencyUpgradeRequestStatus: [{ fichier: 'src/types/agency-upgrade.ts', nom: 'AgencyUpgradeRequestStatus' }],
   BankStatementLineMatchStatus: [{ fichier: 'src/types/reconciliation.ts', nom: 'BankLineMatchStatus' }],
