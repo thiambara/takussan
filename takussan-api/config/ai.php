@@ -68,7 +68,12 @@ return [
     'usd_to_xof' => $nombre('AI_USD_TO_XOF', 600.0),
 
     // Délai d'un appel au modèle, en secondes. Le SDK en pose 60 : trop court pour une extraction
-    // longue ou un raisonnement (`SocleAgent::timeout()`). Même garde numérique que ci-dessus.
+    // longue ou un raisonnement (`SocleAgent::timeout()`, plafonné à `SocleAgent::MAX_TIMEOUT_SECONDS`).
+    // Même garde numérique que ci-dessus.
+    // ⚠ Il ne vaut que là où rien ne coupe avant lui : une requête web meurt à 60 s
+    // (`docker/php.ini`, `max_execution_time`, horloge murale sous ZTS), et un job à son `$timeout`
+    // (avec `retry_after` à 90 s sur la file `database`). Un appel qui peut dépasser 60 s part donc
+    // en job, sous un `$timeout` et un `retry_after` qui le couvrent — jamais dans une requête.
     'timeout_seconds' => (int) $nombre('AI_TIMEOUT_SECONDS', 300.0),
 
     // En XOF, par jour civil. `null` : pas de plafond à ce niveau. Le plafond d'un usage se règle

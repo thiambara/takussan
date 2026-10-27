@@ -14,6 +14,9 @@ abstract class SocleAgent implements Agent
 {
     use Promptable;
 
+    /** Au-delà, un appel bloqué occuperait son worker sans fin raisonnable. */
+    public const MAX_TIMEOUT_SECONDS = 900;
+
     private string $instructions = '';
 
     private ?int $maxTokens = null;
@@ -39,12 +42,16 @@ abstract class SocleAgent implements Agent
 
     /**
      * Lu par `Promptable::getTimeout()` du SDK, qui sinon retombe sur 60 s. Une valeur absente,
-     * non numérique ou nulle ne désarme jamais le délai : défaut de la configuration.
+     * non numérique ou nulle ne désarme jamais le délai : défaut de la configuration. Une valeur
+     * démesurée est ramenée au plafond.
+     *
+     * ⚠ Ce délai ne protège rien de ce qui coupe avant lui : une requête web (60 s, `docker/php.ini`)
+     * ou le `$timeout` du job qui porte l'appel. Voir `config/ai.php`.
      */
     public function timeout(): int
     {
         $secondes = (int) config('ai.timeout_seconds');
 
-        return $secondes > 0 ? $secondes : 300;
+        return $secondes > 0 ? min($secondes, self::MAX_TIMEOUT_SECONDS) : 300;
     }
 }

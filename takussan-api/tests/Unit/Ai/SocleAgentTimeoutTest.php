@@ -2,6 +2,7 @@
 
 namespace Tests\Unit\Ai;
 
+use App\Ai\Agents\SocleAgent;
 use ReflectionMethod;
 use Tests\Support\Ai\AgentDEssai;
 use Tests\TestCase;
@@ -34,6 +35,13 @@ class SocleAgentTimeoutTest extends TestCase
         config(['ai.timeout_seconds' => 0]);
 
         $this->assertSame(300, $this->delaiDuSdk(new AgentDEssai));
+    }
+
+    public function test_an_oversized_value_is_brought_back_to_the_ceiling(): void
+    {
+        config(['ai.timeout_seconds' => 99999]);
+
+        $this->assertSame(SocleAgent::MAX_TIMEOUT_SECONDS, $this->delaiDuSdk(new AgentDEssai));
     }
 
     public function test_an_explicit_timeout_still_wins(): void
