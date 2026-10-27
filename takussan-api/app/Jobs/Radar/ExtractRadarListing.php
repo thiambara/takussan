@@ -63,8 +63,9 @@ use Throwable;
  *
  * **En échec sans attendre** : refus de la passerelle autre que le plafond (`ai.forbidden`…),
  * erreur déterministe du fournisseur (`ai.request_rejected`, `ai.provider_auth` : la rejouer rendrait
- * la même), erreur de programmation (`radar.extraction.error`, rapportée), seconde sortie invalide
- * ou coupée, source vide.
+ * la même), erreur de programmation (`\Error` : `radar.extraction.error`, rapportée), seconde
+ * sortie invalide, illisible ou coupée, source vide. Un imprévu qui n'est pas une `\Error`
+ * (`ai.unexpected` : lecture R2, base…) est passager : il attend, espacé.
  *
  * **Une tentative** (`extraction_attempts`) = un passage où la passerelle a passé ses refus et
  * cherché un modèle : le fournisseur a été appelé (réponse, panne, erreur), ou aucun modèle n'est
@@ -72,14 +73,15 @@ use Throwable;
  * rang de la tentative espace les reprises après panne.
  *
  * **Une seule nouvelle tentative** pour une sortie invalide (structurée nulle, clé de premier niveau
- * manquante, normalisation qui lève) ou coupée sur tous les maillons (`ai.response_truncated`,
- * `ai.response_filtered`). « Déjà retentée » se lit sans colonne de plus : le motif vaut ce code à
+ * manquante, normalisation qui lève), illisible (`ai.response_invalid`, JSON du fournisseur) ou
+ * coupée sur tous les maillons (`ai.response_truncated`, `ai.response_filtered`). « Déjà retentée » se lit sans colonne de plus : le motif vaut ce code à
  * l'entrée du passage. Un autre motif posé entre-temps remet ce compte à zéro — au pire, un appel
  * de plus.
  *
  * **Délais** : `$timeout` reste sous le `retry_after` de `database` (90 s, ADR-0078). Le délai d'un
- * appel est borné par l'agent (`RadarExtraction::timeout()`) pour que TOUS les maillons de la plus
- * longue chaîne (extraction ou vision) tiennent dans {@see self::AI_CALL_BUDGET_SECONDS} : un
+ * appel est borné par l'agent (`RadarExtraction::timeout()`) pour que TOUS les maillons de la
+ * chaîne jouée, nouvelle tentative du SDK comprise, tiennent dans
+ * {@see self::AI_CALL_BUDGET_SECONDS} : un
  * fournisseur muet lève alors une erreur de connexion, la passerelle bascule sur le maillon suivant,
  * et le dernier rend `AiUnavailable` — une attente espacée, pas un job tué. Un dépassement reste
  * possible (lecture des captures, base lente) : il ne fait pas échouer le job (`$failOnTimeout`
@@ -106,7 +108,7 @@ final class ExtractRadarListing implements ShouldQueue
     public const REASON_FETCH_DEFERRED = 'radar.fetch.deferred';
 
     /** Les motifs qui n'ont droit qu'à une nouvelle tentative : la rejouer rend souvent la même. */
-    public const RETRY_ONCE_REASONS = [self::REASON_INVALID_OUTPUT, 'ai.response_truncated', 'ai.response_filtered'];
+    public const RETRY_ONCE_REASONS = [self::REASON_INVALID_OUTPUT, 'ai.response_invalid', 'ai.response_truncated', 'ai.response_filtered'];
 
     /** Erreurs du fournisseur qu'une reprise ne corrige pas : la requête ou la clé est refusée. */
     public const DETERMINISTIC_PROVIDER_ERRORS = ['ai.request_rejected', 'ai.provider_auth'];
@@ -126,7 +128,7 @@ final class ExtractRadarListing implements ShouldQueue
     /**
      * Le temps laissé à l'appel, tous maillons compris : le `$timeout` moins 10 s pour le reste du
      * passage (lecture de l'annonce et des captures, journal, écriture). `RadarExtraction::timeout()`
-     * le partage entre les maillons de la plus longue chaîne.
+     * le partage entre les maillons de la chaîne jouée.
      */
     public const AI_CALL_BUDGET_SECONDS = self::TIMEOUT_SECONDS - 10;
 
@@ -226,8 +228,9 @@ final class ExtractRadarListing implements ShouldQueue
             $attempts = $this->countAttempt();
             $code = AiErrorCode::fromThrowable($e);
             match (true) {
-                $e instanceof \Error, $code === 'ai.unexpected' => $this->markFailed(self::REASON_ERROR),
+                $e instanceof \Error => $this->markFailed(self::REASON_ERROR),
                 in_array($code, self::DETERMINISTIC_PROVIDER_ERRORS, true) => $this->markFailed($code),
+                in_array($code, self::RETRY_ONCE_REASONS, true) => $this->retryOnce($code, $enteredWith),
                 default => $this->pending($code, $this->outageDelay($attempts)),
             };
 

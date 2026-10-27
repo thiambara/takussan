@@ -3,12 +3,10 @@
 namespace App\Ai\Agents;
 
 use App\Jobs\Radar\ExtractRadarListing;
-use App\Models\Enums\AiModelRole;
 use App\Models\Enums\PropertyType;
 use App\Models\Enums\RadarAdvertiserNature;
 use App\Models\Enums\RadarConfidence;
 use App\Models\Enums\RentPeriod;
-use App\Services\Ai\ModelResolver;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\JsonSchema\Types\Type;
 use Laravel\Ai\Contracts\HasStructuredOutput;
@@ -35,20 +33,37 @@ final class RadarExtraction extends SocleAgent implements HasStructuredOutput
 
     public const CONTRACTS = ['rent', 'sale'];
 
+    /** Ce que le SDK peut ajouter à un maillon : une nouvelle tentative après au plus 10 s d'attente. */
+    public const SDK_RETRY_WAIT_SECONDS = 10;
+
+    /** En deçà, un appel n'a plus le temps de rendre une extraction : le plancher l'emporte sur le partage. */
+    public const MIN_TIMEOUT_SECONDS = 5;
+
     /**
-     * Le délai d'UN appel, borné pour que tous les maillons de la plus longue chaîne de l'usage
-     * (`extraction`, ou `vision` quand des captures sont jointes) tiennent ensemble dans
-     * `ExtractRadarListing::AI_CALL_BUDGET_SECONDS`, sous le `$timeout` du job. Sans cette borne, le
-     * délai du socle (300 s) laissait le worker tuer le job avant toute bascule : un fournisseur muet
-     * lève ici une erreur de connexion, et la passerelle passe au maillon suivant. Jamais au-delà du
-     * délai du socle ; au moins une seconde. Une évaluation de l'usage joue sous la même borne.
+     * Le délai d'UN appel, borné pour que tous les maillons de la chaîne JOUÉE (`chainLength()`, posé
+     * par la passerelle : `extraction`, `vision` pour des captures, un seul maillon pour un modèle
+     * forcé ou une évaluation) tiennent dans `ExtractRadarListing::AI_CALL_BUDGET_SECONDS`, sous le
+     * `$timeout` du job. Chaque maillon réserve aussi l'attente de la nouvelle tentative du SDK
+     * (`HandlesFailoverErrors` : une seule, après au plus 10 s, sur un 429/5xx à `Retry-After`
+     * court) : délai = (budget − 10 × maillons) ÷ maillons. Avec le budget de 75 s : 65 s pour un
+     * maillon, 27 s pour deux, 5 s pour cinq (le plus long que la console admet).
+     *
+     * Sans cette borne, le délai du socle (300 s) laissait le worker tuer le job avant toute bascule :
+     * un fournisseur muet lève ici une erreur de connexion, et la passerelle passe au maillon suivant.
+     * Jamais au-delà du délai du socle, jamais sous {@see self::MIN_TIMEOUT_SECONDS} — au-delà de cinq
+     * maillons (une chaîne écrite à la main dans la configuration), le plancher fait dépasser le
+     * budget, et le job dépassé est repris par la file, pas perdu.
+     *
+     * Reste hors de la borne : une première réponse 429/5xx LENTE (proche du délai) suivie d'une
+     * seconde tentative muette coûte jusqu'à deux délais et l'attente. Le job est alors coupé et
+     * repris, jamais terminé.
      */
     public function timeout(): int
     {
-        $resolver = app(ModelResolver::class);
-        $links = max(1, count($resolver->chainForRole(AiModelRole::Extraction)), count($resolver->chainForRole(AiModelRole::Vision)));
+        $links = $this->chainLength();
+        $share = intdiv(ExtractRadarListing::AI_CALL_BUDGET_SECONDS - self::SDK_RETRY_WAIT_SECONDS * $links, $links);
 
-        return max(1, min(parent::timeout(), intdiv(ExtractRadarListing::AI_CALL_BUDGET_SECONDS, $links)));
+        return max(self::MIN_TIMEOUT_SECONDS, min(parent::timeout(), $share));
     }
 
     /** @return array<string, Type> */

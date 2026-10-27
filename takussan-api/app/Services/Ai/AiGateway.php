@@ -85,7 +85,7 @@ final class AiGateway
             $started = hrtime(true);
             try {
                 $response = app($usage->agentClass())
-                    ->configure($instructions, $link->maxTokens)
+                    ->configure($instructions, $link->maxTokens, count($chain))
                     ->prompt($input, $request->attachments, provider: $link->provider, model: $link->model);
             } catch (FailoverableException $e) {
                 $this->journal($usage, $request, $this->linkColumns($link) + [

@@ -5,7 +5,6 @@ namespace Tests\Feature\Radar;
 use App\Ai\Agents\RadarExtraction;
 use App\Jobs\Radar\ExtractRadarListing;
 use App\Models\AiCall;
-use App\Models\AiRoleAssignment;
 use App\Models\AiUsageSetting;
 use App\Models\Enums\AiModelRole;
 use App\Models\Enums\PlatformProfileLevel;
@@ -586,21 +585,63 @@ class ExtractRadarListingTest extends TestCase
         $this->assertNull($job->maxExceptions ?? null);
     }
 
-    public function test_every_link_of_the_extraction_and_vision_chains_fits_in_the_job_timeout(): void
+    public function test_every_link_of_the_chain_in_play_fits_in_the_job_timeout_with_the_sdk_retry_reserved(): void
     {
         $job = new ExtractRadarListing(1);
-        $maillons = fn () => max(count(config('ai.roles.extraction')), count(config('ai.roles.vision')));
 
-        // La chaîne d'essai (2 maillons), puis la plus longue que la console admet (5, UpdateAiRoleRequest).
-        $this->assertSame(2, $maillons());
-        $this->assertLessThan($job->timeout, app(RadarExtraction::class)->timeout() * $maillons());
-
-        AiRoleAssignment::query()->create(['role' => AiModelRole::Vision, 'chain' => array_fill(0, 5, ['provider' => 'anthropic', 'model' => 'modele-v', 'max_tokens' => 2000])]);
-        $this->assertLessThan($job->timeout, app(RadarExtraction::class)->timeout() * 5);
+        // Pour chaque longueur que la console admet (1 à 5, UpdateAiRoleRequest) : chaque maillon, son
+        // délai plus la nouvelle tentative du SDK (attente ≤ 10 s sur un 429/5xx à Retry-After court).
+        foreach (range(1, 5) as $maillons) {
+            $delai = (new RadarExtraction)->configure('', null, $maillons)->timeout();
+            $this->assertGreaterThanOrEqual(5, $delai);
+            $this->assertLessThanOrEqual(ExtractRadarListing::AI_CALL_BUDGET_SECONDS, ($delai + 10) * $maillons, "{$maillons} maillons");
+        }
+        $this->assertLessThan($job->timeout, ExtractRadarListing::AI_CALL_BUDGET_SECONDS);
+        $this->assertSame([65, 27], [
+            (new RadarExtraction)->configure('', null, 1)->timeout(),
+            (new RadarExtraction)->configure('', null, 2)->timeout(),
+        ]);
 
         // Jamais au-delà du délai configuré du socle.
         config(['ai.timeout_seconds' => 7]);
-        $this->assertSame(7, app(RadarExtraction::class)->timeout());
+        $this->assertSame(7, (new RadarExtraction)->configure('', null, 1)->timeout());
+    }
+
+    /** L'agent que la passerelle a configuré pour l'appel, relevé à sa résolution. */
+    private function agentDeLAppel(RadarListing $listing): RadarExtraction
+    {
+        $agents = [];
+        $this->app->afterResolving(RadarExtraction::class, function (RadarExtraction $agent) use (&$agents): void {
+            $agents[] = $agent;
+        });
+        RadarExtraction::fake(fn () => $this->reponseComplete());
+
+        $this->lancer($listing);
+
+        $this->assertCount(1, $agents);
+
+        return $agents[0];
+    }
+
+    public function test_the_call_timeout_follows_the_length_of_the_chain_actually_played(): void
+    {
+        // Le texte : la chaîne `extraction` d'essai, deux maillons.
+        $this->assertSame(27, $this->agentDeLAppel($this->annonce())->timeout());
+    }
+
+    public function test_captures_play_the_single_link_vision_chain_with_its_whole_budget(): void
+    {
+        $listing = $this->annonce(['source_kind' => RadarSourceKind::Captures, 'raw_text' => null]);
+        $listing->addMediaFromString(base64_decode(self::PNG))->usingFileName('capture-1.png')->toMediaCollection('radar_captures');
+
+        $this->assertSame(65, $this->agentDeLAppel($listing)->timeout());
+    }
+
+    public function test_a_forced_model_is_a_single_link_chain(): void
+    {
+        AiUsageSetting::query()->create(['usage_key' => 'radar.extraction', 'enabled' => true, 'forced_provider' => 'anthropic', 'forced_model' => 'modele-b']);
+
+        $this->assertSame(65, $this->agentDeLAppel($this->annonce())->timeout());
     }
 
     public function test_a_stop_on_any_phone_of_the_output_marks_the_listing_do_not_contact(): void
@@ -665,14 +706,38 @@ class ExtractRadarListingTest extends TestCase
         $this->assertSame([RadarListingStage::ExtractionFailed, $code], [$listing->refresh()->stage, $listing->stage_reason]);
     }
 
-    public function test_a_transient_non_failover_error_leaves_the_listing_pending(): void
+    /** @return array<string, array{\Closure(): never, string}> */
+    public static function transientErrors(): array
     {
-        RadarExtraction::fake(fn () => throw new RequestException(new Response(new Psr7Response(503))));
+        return [
+            'indisponible (503 brut)' => [fn () => throw new RequestException(new Response(new Psr7Response(503))), 'ai.provider_unavailable'],
+            // Un imprévu qui n'est pas une erreur de programmation (lecture R2, base) : il passe.
+            'imprévu passager' => [fn () => throw new \RuntimeException('Unable to read file'), 'ai.unexpected'],
+        ];
+    }
+
+    #[DataProvider('transientErrors')]
+    public function test_a_transient_non_failover_error_leaves_the_listing_pending(\Closure $erreur, string $code): void
+    {
+        RadarExtraction::fake($erreur);
         $listing = $this->annonce();
 
         $this->lancer($listing)->assertReleased(60);
+        $this->lancer($listing)->assertReleased(300);
 
-        $this->assertSame([RadarListingStage::Captured, 'ai.provider_unavailable'], [$listing->refresh()->stage, $listing->stage_reason]);
+        $this->assertSame([RadarListingStage::Captured, $code], [$listing->refresh()->stage, $listing->stage_reason]);
+    }
+
+    public function test_an_unreadable_response_is_retried_once_then_fails(): void
+    {
+        RadarExtraction::fake(fn () => throw new \JsonException('Syntax error'));
+        $listing = $this->annonce();
+
+        $this->lancer($listing)->assertReleased(60);
+        $this->assertSame([RadarListingStage::Captured, 'ai.response_invalid'], [$listing->refresh()->stage, $listing->stage_reason]);
+
+        $this->lancer($listing)->assertNotReleased();
+        $this->assertSame([RadarListingStage::ExtractionFailed, 'ai.response_invalid'], [$listing->refresh()->stage, $listing->stage_reason]);
     }
 
     public function test_a_truncated_response_is_retried_once_then_fails(): void
