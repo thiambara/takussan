@@ -1,7 +1,7 @@
 ---
 id: TCK-2386
 title: "Radar : tables, saisie d'une annonce (URL, texte, captures) et extraction IA avec confiance et passage cité"
-status: todo
+status: doing
 phase: P1
 family: full
 estimate: L
