@@ -27,11 +27,47 @@ const CAS_EPREUVE = [
   ['77 123 45 67', true], ['77 123 45 67', true],
   ['[TELEPHONE]', false], ['150 000 000 FCFA', false], ['awa@exemple.sn', true], ['[EMAIL]', false],
 ];
+
+/** Les valeurs texte d'un JSON décodé, avec leur chemin (`cases[0].input`). */
+function valeurs(noeud, chemin = '') {
+  if (typeof noeud === 'string') return [[chemin || '(racine)', noeud]];
+  if (Array.isArray(noeud)) return noeud.flatMap((v, i) => valeurs(v, `${chemin}[${i}]`));
+  if (noeud !== null && typeof noeud === 'object') {
+    return Object.entries(noeud).flatMap(([k, v]) => valeurs(v, chemin ? `${chemin}.${k}` : k));
+  }
+  return [];
+}
+
+/**
+ * Un `.json` se lit décodé : `\u00a0`, `\u0040` ou `\/` y sont écrits en échappements que le motif
+ * ne voit pas dans le texte brut, alors que la valeur, elle, est un vrai numéro ou un vrai courriel.
+ * Rend les trouvailles `chemin — « texte »` ; un JSON illisible est lui-même une erreur.
+ */
+export function verifierTexteJson(texte) {
+  let doc;
+  try {
+    doc = JSON.parse(texte);
+  } catch (e) {
+    return [`JSON illisible : ${e.message}`];
+  }
+  return valeurs(doc).flatMap(([chemin, valeur]) => {
+    const trouve = valeur.match(TELEPHONE) ?? valeur.match(COURRIEL);
+    return trouve ? [`${chemin} — « ${trouve[0]} »`] : [];
+  });
+}
+
 for (const [texte, attendu] of CAS_EPREUVE) {
   if ((TELEPHONE.test(texte) || COURRIEL.test(texte)) !== attendu) {
     console.error(`✗ épreuve : « ${texte} » devait rendre ${attendu}`);
     process.exit(1);
   }
+}
+// Le JSON échappé : un numéro à espaces insécables et un courriel dont l'arobase est en `\u0040`.
+const ECHAPPE = '{"input":"77\\u00a0123\\u202f45 67","e":"a\\u0040b.sn"}';
+if (verifierTexteJson(ECHAPPE).length !== 2 || verifierTexteJson('{"input":"[TELEPHONE] [EMAIL]"}').length !== 0
+  || verifierTexteJson('{pas du json').length !== 1) {
+  console.error('✗ épreuve : la garde ne décode pas le JSON échappé');
+  process.exit(1);
 }
 
 function fichiers(dossier) {
@@ -45,9 +81,15 @@ function fichiers(dossier) {
 const erreurs = [];
 const lus = fichiers(EVALS);
 for (const fichier of lus) {
-  readFileSync(fichier, 'utf8').split('\n').forEach((ligne, i) => {
+  const contenu = readFileSync(fichier, 'utf8');
+  const rel = relative(ROOT, fichier);
+  if (fichier.endsWith('.json')) {
+    for (const trouve of verifierTexteJson(contenu)) erreurs.push(`${rel} → ${trouve}`);
+    continue;
+  }
+  contenu.split('\n').forEach((ligne, i) => {
     const trouve = ligne.match(TELEPHONE) ?? ligne.match(COURRIEL);
-    if (trouve) erreurs.push(`${relative(ROOT, fichier)}:${i + 1} — « ${trouve[0]} »`);
+    if (trouve) erreurs.push(`${rel}:${i + 1} — « ${trouve[0]} »`);
   });
 }
 if (erreurs.length > 0) {

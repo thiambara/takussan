@@ -4,12 +4,23 @@ namespace App\Services\Ai\Evaluation;
 
 use App\Support\PhoneMasker;
 use Closure;
+use RuntimeException;
 
 /**
- * TCK-2384 — un cas d'évaluation n'entre dans le dépôt qu'anonymisé. Les valeurs des champs
- * personnels (nom, téléphone, courriel, contact, adresse) de la proposition et de la valeur retenue
- * sont remplacées par un jeton partout où elles paraissent ; puis tout numéro sénégalais et tout
- * courriel restants. `check-ai-evals-pii.mjs` garde le résultat.
+ * TCK-2384 — un cas d'évaluation n'entre dans le dépôt qu'anonymisé, et un dépôt n'oublie pas.
+ *
+ * Les valeurs des champs personnels (nom, téléphone, courriel, contact, propriétaire, adresse…) de
+ * la proposition et de la valeur retenue sont remplacées par un jeton dans `expected`, et
+ * **recherchées dans le texte d'entrée** : la valeur entière, et — pour un nom — chacun de ses mots
+ * d'au moins trois lettres, car une annonce écrit « Awa » ou « Mme Diop ». La recherche ignore la
+ * casse et les accents, tolère toute espace (insécable, fine, retour à la ligne) entre les mots,
+ * et ne coupe jamais un mot plus long (« tel » n'est pas « El »). Les mots qui ne sont pas des noms
+ * gardent leurs accents : la comparaison se fait sur une forme repliée, le remplacement sur l'original.
+ *
+ * Une adresse est jetonnée dans `expected` mais n'est jamais cherchée dans l'entrée : « Mermoz » est
+ * la donnée que l'extraction doit retrouver. Puis tout numéro sénégalais et tout courriel restants
+ * sont masqués. `check-ai-evals-pii.mjs` garde le résultat ; aucun motif ne reconnaît un nom hors
+ * champ personnel.
  */
 final class EvalCaseAnonymizer
 {
@@ -17,9 +28,30 @@ final class EvalCaseAnonymizer
 
     public const EMAIL_TOKEN = '[EMAIL]';
 
-    private const PERSONAL_KEY = '/(^|_)(nom|name|prenom|phone|telephone|tel|email|mail|contact|adresse|address)(_|$)/i';
+    public const ADDRESS_TOKEN = '[ADRESSE]';
 
     private const EMAIL = '/[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}/';
+
+    private const SPACE = '[\s\x{00A0}\x{202F}]+';
+
+    /**
+     * Par genre, dans l'ordre d'essai : des sous-chaînes (termes assez longs pour ne rien attraper
+     * d'autre) et des mots entiers (« nom » est dans « nombre », « tel » dans « hotel »).
+     */
+    private const KINDS = [
+        'phone' => ['sub' => ['telephone', 'phone', 'whatsapp', 'mobile'], 'word' => ['tel']],
+        'email' => ['sub' => ['mail'], 'word' => []],
+        'address' => ['sub' => ['adresse', 'address'], 'word' => []],
+        'name' => [
+            'sub' => ['contact', 'proprietaire', 'owner', 'vendeur', 'seller', 'bailleur', 'locataire', 'prenom', 'fullname', 'firstname', 'lastname', 'surname'],
+            'word' => ['nom', 'name'],
+        ],
+    ];
+
+    private ?\Transliterator $folder = null;
+
+    /** @var array<string, string> */
+    private array $foldCache = [];
 
     /**
      * @param  array<string, mixed>  $expected
@@ -28,52 +60,207 @@ final class EvalCaseAnonymizer
      */
     public function anonymize(string $input, array $expected, array $proposal = []): array
     {
-        $replacements = $this->personalValues($proposal) + $this->personalValues($expected);
-        uksort($replacements, fn (string $a, string $b): int => mb_strlen($b) <=> mb_strlen($a));
+        $needles = [];
+        $this->collectNeedles($proposal, null, $needles);
+        $this->collectNeedles($expected, null, $needles);
+
         $clean = fn (string $text): string => (string) preg_replace(
             self::EMAIL,
             self::EMAIL_TOKEN,
-            PhoneMasker::mask(str_ireplace(array_keys($replacements), array_values($replacements), $text)),
+            PhoneMasker::mask($this->replaceNeedles($text, $needles)),
         );
 
-        return ['input' => $clean($input), 'expected' => $this->walk($expected, $clean)];
+        return ['input' => $clean($input), 'expected' => $this->walk($expected, null, $clean)];
     }
 
-    /**
-     * @param  array<string, mixed>  $values
-     * @return array<string, string> valeur personnelle → jeton
-     */
-    private function personalValues(array $values): array
+    /** Le genre d'une clé personnelle (`phone`, `email`, `address`, `name`), ou null si elle ne l'est pas. */
+    private function kindOf(string $key): ?string
     {
-        $found = [];
-        array_walk_recursive($values, function (mixed $value, int|string $key) use (&$found): void {
-            if (is_string($key) && is_string($value) && trim($value) !== '' && preg_match(self::PERSONAL_KEY, $key) === 1) {
-                $found[trim($value)] = $this->tokenFor($key);
+        $folded = $this->fold(preg_replace('/(?<=[a-z0-9])(?=[A-Z])/', '_', $key) ?? $key);
+        $words = preg_split('/[^a-z]+/', $folded, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+
+        foreach (self::KINDS as $kind => $terms) {
+            foreach ($terms['sub'] as $term) {
+                if (str_contains($folded, $term)) {
+                    return $kind;
+                }
             }
-        });
+            foreach ($words as $word) {
+                foreach ($terms['word'] as $term) {
+                    if ($word === $term || $word === $term.'s') {
+                        return $kind;
+                    }
+                }
+            }
+        }
 
-        return $found;
+        return null;
     }
 
-    private function tokenFor(string $key): string
+    private function tokenOf(string $kind): string
     {
-        return match (true) {
-            preg_match('/(phone|telephone|tel)/i', $key) === 1 => PhoneMasker::TOKEN,
-            preg_match('/(email|mail)/i', $key) === 1 => self::EMAIL_TOKEN,
+        return match ($kind) {
+            'phone' => PhoneMasker::TOKEN,
+            'email' => self::EMAIL_TOKEN,
+            'address' => self::ADDRESS_TOKEN,
             default => self::NAME_TOKEN,
         };
     }
 
     /**
      * @param  array<int|string, mixed>  $values
-     * @return array<int|string, mixed>
+     * @param  list<array{needle: string, token: string}>  $needles
      */
-    private function walk(array $values, Closure $clean): array
+    private function collectNeedles(array $values, ?string $inherited, array &$needles): void
     {
         foreach ($values as $key => $value) {
+            $kind = (is_string($key) ? $this->kindOf($key) : null) ?? $inherited;
+
+            if (is_array($value)) {
+                $this->collectNeedles($value, $kind, $needles);
+
+                continue;
+            }
+            if ($kind === null || $kind === 'address' || ! (is_string($value) || is_int($value) || is_float($value))) {
+                continue;
+            }
+            $this->addNeedles(trim((string) $value), $kind, $needles);
+        }
+    }
+
+    /** @param list<array{needle: string, token: string}> $needles */
+    private function addNeedles(string $value, string $kind, array &$needles): void
+    {
+        $token = $this->tokenOf($kind);
+        $candidates = [$value];
+        if ($kind === 'name') {
+            foreach (preg_split('/'.self::SPACE.'/u', $value, -1, PREG_SPLIT_NO_EMPTY) ?: [] as $word) {
+                $candidates[] = $word;
+                foreach (explode('-', $word) as $part) {
+                    $candidates[] = $part;
+                }
+            }
+        }
+        foreach ($candidates as $candidate) {
+            $folded = $this->fold($candidate);
+            // Moins de trois lettres, ce n'est plus un nom mais une syllabe : « El » est dans « tel ».
+            $significant = $kind === 'name' ? preg_match_all('/\p{L}/u', $folded) : preg_match_all('/[\p{L}\p{N}]/u', $folded);
+            if ($significant >= 3) {
+                $needles[$folded.'|'.$token] = ['needle' => $folded, 'token' => $token];
+            }
+        }
+    }
+
+    /** @param array<string, array{needle: string, token: string}> $needles */
+    private function replaceNeedles(string $text, array $needles): string
+    {
+        if ($needles === [] || $text === '') {
+            return $text;
+        }
+
+        $chars = preg_split('//u', mb_scrub($text, 'UTF-8'), -1, PREG_SPLIT_NO_EMPTY) ?: [];
+        $folded = '';
+        $map = []; // indice de code point replié → indice de caractère d'origine
+        foreach ($chars as $index => $char) {
+            $piece = $this->fold($char);
+            foreach (preg_split('//u', $piece, -1, PREG_SPLIT_NO_EMPTY) ?: [] as $cp) {
+                $folded .= $cp;
+                $map[] = $index;
+            }
+        }
+
+        // Un courriel ou un numéro est un seul bloc : « awa.diop@exemple.sn » ne doit pas devenir
+        // « [NOM].[NOM]@exemple.sn ». Ces blocs passent avant tout nom au départage des chevauchements.
+        $spans = [];
+        foreach ([[self::EMAIL, self::EMAIL_TOKEN], [PhoneMasker::PATTERN, PhoneMasker::TOKEN]] as [$pattern, $token]) {
+            if (preg_match_all($pattern, $folded, $found, PREG_OFFSET_CAPTURE) === false) {
+                throw new RuntimeException('ai.eval_anonymize_failed');
+            }
+            foreach ($found[0] as [$match, $byte]) {
+                $spans[] = $this->span($folded, $map, $chars, $match, $byte, $token, 1);
+            }
+        }
+        foreach ($needles as ['needle' => $needle, 'token' => $token]) {
+            $parts = preg_split('/'.self::SPACE.'/u', $needle, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+            $pattern = '/(?<![\p{L}\p{N}])'.implode(self::SPACE, array_map(fn (string $p): string => preg_quote($p, '/'), $parts)).'(?![\p{L}\p{N}])/u';
+            if (preg_match_all($pattern, $folded, $found, PREG_OFFSET_CAPTURE) === false) {
+                throw new RuntimeException('ai.eval_anonymize_failed');
+            }
+            foreach ($found[0] as [$match, $byte]) {
+                $spans[] = $this->span($folded, $map, $chars, $match, $byte, $token, 0);
+            }
+        }
+
+        // Le plus long d'abord : « Awa Diop » l'emporte sur « Awa » et « Diop » qu'il contient.
+        usort($spans, fn (array $a, array $b): int => $b['priority'] <=> $a['priority']
+            ?: ($b['end'] - $b['start']) <=> ($a['end'] - $a['start'])
+            ?: $a['start'] <=> $b['start']);
+        $kept = [];
+        foreach ($spans as $span) {
+            foreach ($kept as $other) {
+                if ($span['start'] <= $other['end'] && $span['end'] >= $other['start']) {
+                    continue 2;
+                }
+            }
+            $kept[] = $span;
+        }
+        usort($kept, fn (array $a, array $b): int => $a['start'] <=> $b['start']);
+
+        $out = '';
+        $cursor = 0;
+        foreach ($kept as $span) {
+            $out .= implode('', array_slice($chars, $cursor, $span['start'] - $cursor)).$span['token'];
+            $cursor = $span['end'] + 1;
+        }
+
+        return $out.implode('', array_slice($chars, $cursor));
+    }
+
+    /**
+     * Une trouvaille dans le texte replié, ramenée aux indices de caractères du texte d'origine.
+     *
+     * @param  list<int>  $map
+     * @param  list<string>  $chars
+     * @return array{start: int, end: int, token: string, priority: int}
+     */
+    private function span(string $folded, array $map, array $chars, string $match, int $byte, string $token, int $priority): array
+    {
+        $first = mb_strlen(substr($folded, 0, $byte), 'UTF-8');
+        $end = $map[$first + mb_strlen($match, 'UTF-8') - 1];
+        // Les signes combinants qui suivent (texte décomposé) font partie de la dernière lettre.
+        while (isset($chars[$end + 1]) && preg_match('/^\p{Mn}$/u', $chars[$end + 1]) === 1) {
+            $end++;
+        }
+
+        return ['start' => $map[$first], 'end' => $end, 'token' => $token, 'priority' => $priority];
+    }
+
+    /** Forme de comparaison : sans signes diacritiques, en minuscules. */
+    private function fold(string $text): string
+    {
+        if (isset($this->foldCache[$text])) {
+            return $this->foldCache[$text];
+        }
+        $this->folder ??= \Transliterator::create('NFD; [:Nonspacing Mark:] Remove; NFC')
+            ?? throw new RuntimeException('ai.eval_anonymize_needs_intl');
+        $stripped = $this->folder->transliterate($text);
+
+        return $this->foldCache[$text] = mb_strtolower($stripped === false ? $text : $stripped, 'UTF-8');
+    }
+
+    /**
+     * @param  array<int|string, mixed>  $values
+     * @return array<int|string, mixed>
+     */
+    private function walk(array $values, ?string $inherited, Closure $clean): array
+    {
+        foreach ($values as $key => $value) {
+            $kind = (is_string($key) ? $this->kindOf($key) : null) ?? $inherited;
+
             $values[$key] = match (true) {
-                is_array($value) => $this->walk($value, $clean),
-                is_string($value) && is_string($key) && preg_match(self::PERSONAL_KEY, $key) === 1 => $this->tokenFor($key),
+                is_array($value) => $this->walk($value, $kind, $clean),
+                $kind !== null && is_string($value) && trim($value) === '' => $value,
+                $kind !== null && (is_string($value) || is_int($value) || is_float($value)) => $this->tokenOf($kind),
                 is_string($value) => $clean($value),
                 default => $value,
             };
