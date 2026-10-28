@@ -7,7 +7,7 @@ import { StatusBadge, type StatusTone } from '@/components/console';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import type { RadarConsent, RadarVerdictClassification } from '@/types/radar';
 import { DISCORDANCES_RADAR } from '../codes-radar';
-import { clausesManquantes, nombreDeClauses } from './reponses';
+import { lectureDesClauses } from './reponses';
 import { useMotifRadar } from './useMessageEchecAnnonceur';
 
 interface ReponseVerdictProps {
@@ -38,7 +38,7 @@ export function ReponseVerdict({ reponse, message }: ReponseVerdictProps) {
   const fmt = useFormatteurs();
   const motif = useMotifRadar();
   const verdict = reponse.verdict;
-  const total = nombreDeClauses(message);
+  const clauses = verdict ? lectureDesClauses(verdict.clauses_found, verdict.clauses_complete, message) : null;
 
   const enAttente = reponse.verification_status === 'pending';
   const echec = reponse.verification_status === 'failed';
@@ -80,9 +80,11 @@ export function ReponseVerdict({ reponse, message }: ReponseVerdictProps) {
               ) : null}
             </li>
             <li data-testid="radar-verdict-clauses">
-              {t('reply.verdict.clauses', { found: verdict.clauses_found.length, total })}
-              {!verdict.clauses_complete && total > 0 ? (
-                <span className="text-xs text-muted-foreground"> ({t('reply.verdict.clausesMissing', { missing: clausesManquantes(verdict.clauses_found, total).join(', ') })})</span>
+              {clauses?.total != null
+                ? t('reply.verdict.clauses', { found: clauses.trouvees, total: clauses.total })
+                : t('reply.verdict.clausesIncomplete', { found: clauses?.trouvees ?? 0 })}
+              {clauses && clauses.manquantes.length > 0 ? (
+                <span className="text-xs text-muted-foreground"> ({t('reply.verdict.clausesMissing', { missing: clauses.manquantes.join(', ') })})</span>
               ) : null}
             </li>
             {verdict.counterpart_name ? <li>{t('reply.verdict.counterpart', { name: verdict.counterpart_name })}</li> : null}

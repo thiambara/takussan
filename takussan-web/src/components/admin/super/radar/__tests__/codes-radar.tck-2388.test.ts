@@ -9,6 +9,7 @@ import {
   RADAR_OUTREACH_MAX_LISTINGS,
   RADAR_OUTREACH_OUTCOMES,
   RADAR_OUTREACH_STATUSES,
+  RADAR_REASON_MAX,
   RADAR_SALUTATION_MAX,
   RADAR_SUMMARY_MAX,
   RADAR_VERDICT_CLASSIFICATIONS,
@@ -53,6 +54,11 @@ describe('codes de la fiche annonceur du Radar', () => {
     const agent = lire('takussan-api', 'app', 'Ai', 'Agents', 'RadarConsentVerification.php');
     const api = /CLASSIFICATIONS = \[([^\]]+)\]/.exec(agent)?.[1].match(/'([^']+)'/g)?.map((m) => m.slice(1, -1)).sort();
     expect([...RADAR_VERDICT_CLASSIFICATIONS].sort()).toEqual(api);
+  });
+
+  it('le plafond du motif d\'une issue est celui de l\'API', () => {
+    expect(lire('takussan-api', 'app', 'Http', 'Requests', 'Api', 'Admin', 'RecordRadarOutreachOutcomeRequest.php'))
+      .toContain(`'reason' => ['nullable', 'string', 'max:${RADAR_REASON_MAX}']`);
   });
 
   it('les plafonds du message sont ceux de l\'API', () => {

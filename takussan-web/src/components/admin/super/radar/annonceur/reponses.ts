@@ -51,6 +51,25 @@ export function nombreDeClauses(message: string): number {
   return (message.match(/^\d+\. /gm) ?? []).length;
 }
 
+/**
+ * Ce que le verdict dit des clauses — il fait autorité, pas le texte : `clauses_complete` l'emporte sur un recompte.
+ * - complet : « k sur k » (aucune manquante), même si le texte envoyé en compte un autre nombre ;
+ * - incomplet : « k sur N » avec les numéros manquants lus dans le texte ; si le texte n'en laisse aucune manquante
+ *   (le verdict contredit le recompte), `total` est `null` : l'écran dit « incomplètes » sans inventer un N.
+ */
+export function lectureDesClauses(
+  trouvees: readonly number[],
+  complet: boolean,
+  message: string,
+): { readonly trouvees: number; readonly total: number | null; readonly manquantes: number[] } {
+  if (complet) return { trouvees: trouvees.length, total: trouvees.length, manquantes: [] };
+  const total = nombreDeClauses(message);
+  const manquantes = clausesManquantes(trouvees, total);
+  return manquantes.length === 0
+    ? { trouvees: trouvees.length, total: null, manquantes: [] }
+    : { trouvees: trouvees.length, total, manquantes };
+}
+
 /** Les numéros de clauses, de 1 à `total`, que le verdict n'a pas retrouvés. */
 export function clausesManquantes(trouvees: readonly number[], total: number): number[] {
   return Array.from({ length: total }, (_, i) => i + 1).filter((n) => !trouvees.includes(n));
@@ -68,4 +87,11 @@ export function langueDeRelance(message: RadarOutreach): RadarMessageLocale {
 export function messagesEnAttente(messages: readonly RadarOutreach[]): RadarOutreach[] {
   return messages.filter((m) => m.status === 'sent'
     && !messages.some((autre) => autre.follow_up_of_id === m.id && autre.sent_at !== null));
+}
+
+/** Les écarts qu'un 422 `radar.consent.reason_required` porte (`params.discordances`), ou `no_verdict` à défaut. */
+export function ecartsDeLErreur(erreur: unknown): string[] {
+  const params = (erreur as { data?: { params?: { discordances?: unknown } } } | null)?.data?.params;
+  const ecarts = params?.discordances;
+  return Array.isArray(ecarts) && ecarts.length > 0 && ecarts.every((e) => typeof e === 'string') ? [...ecarts] : ['no_verdict'];
 }

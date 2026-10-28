@@ -8408,7 +8408,8 @@
               "discordances": "Écarts avec un accord",
               "confirmed": "Accord confirmé par {name} le {date}",
               "confirmationReason": "Motif : {reason}",
-              "revoked": "Accord révoqué le {date}"
+              "revoked": "Accord révoqué le {date}",
+              "clausesIncomplete": "Clauses retrouvées : {found} — le verdict les juge incomplètes"
             }
           },
           "outcome": {
@@ -8461,7 +8462,8 @@
           "awaiting": {
             "heading": "Messages envoyés, en attente d’une issue",
             "sentAt": "Envoyé le {date}",
-            "none": "Aucun message n’attend d’issue."
+            "none": "Aucun message n’attend d’issue.",
+            "outcomeSet": "Issue posée : {outcome}, le {date}. Une réponse déposée plus tard peut encore la changer."
           }
         },
         "advertisers": {

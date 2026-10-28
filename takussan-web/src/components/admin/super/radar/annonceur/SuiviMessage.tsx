@@ -44,6 +44,7 @@ export function SuiviMessage({
   onSansReponse,
 }: SuiviMessageProps) {
   const t = useTranslations('superAdmin.pages.radar.advertiser');
+  const tHistorique = useTranslations('superAdmin.pages.radar.advertiser.history');
   const fmt = useFormatteurs();
   const [dialogue, setDialogue] = useState(false);
   // Lu une fois à l'affichage : « due depuis » ou « prévue le » ne dépend pas de la seconde.
@@ -65,6 +66,15 @@ export function SuiviMessage({
         </p>
         <span className="text-xs text-muted-foreground uppercase">{message.locale}</span>
       </header>
+
+      {message.outcome !== null ? (
+        <p className="rounded-lg bg-muted px-3 py-2 text-sm text-foreground" data-testid="radar-suivi-issue">
+          {t('awaiting.outcomeSet', {
+            outcome: tHistorique(`outcomes.${message.outcome}`),
+            date: message.outcome_at !== null ? fmt.dateTime(message.outcome_at) : '—',
+          })}
+        </p>
+      ) : null}
 
       <section aria-label={t('reply.heading')} className="space-y-3">
         <h3 className="text-sm font-semibold text-foreground">{t('reply.heading')}</h3>
@@ -91,7 +101,7 @@ export function SuiviMessage({
           {proposeSansReponse ? (
             <>
               <p className="text-xs text-muted-foreground">{t('followUp.noAnswerHint')}</p>
-              <Button type="button" variant="outline" disabled={desactive || sansReponseEnCours} onClick={onSansReponse}>
+              <Button type="button" disabled={desactive || sansReponseEnCours} onClick={onSansReponse}>
                 {sansReponseEnCours ? t('followUp.noAnswering') : t('followUp.noAnswer')}
               </Button>
             </>

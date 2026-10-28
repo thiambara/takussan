@@ -20,6 +20,7 @@ function ligne(id: number, partiel: Partial<RadarAdvertiserRow> = {}): RadarAdve
     display_name: 'Moussa Immo',
     nature: 'probable_intermediary',
     do_not_contact_at: null,
+    claim: null,
     counts: { reviewed: 2, contacted: 1, consented: 0 },
     follow_up: null,
     ...partiel,
@@ -139,6 +140,29 @@ describe('Les files d’annonceurs (TCK-2388)', () => {
     await utilisateur.type(screen.getByRole('searchbox', { name: 'Rechercher un annonceur' }), '77 123');
     await waitFor(() => expect(urls().some((u) => u.searchParams.get('filter[search]') === '77 123')).toBe(true));
     expect(await screen.findByText('Aucun annonceur trouvé')).toBeInTheDocument();
+  });
+
+  it('une recherche nouvelle repart de la page 1, même depuis la page 3', async () => {
+    fetchMock.mockImplementation(async (url: string) => {
+      const numero = Number(new URL(String(url), 'http://localhost').searchParams.get('page') ?? '1');
+      return new Response(JSON.stringify({
+        data: [ligne(numero)],
+        meta: { total: 100, per_page: 25, current_page: numero, last_page: 4 },
+      }), { status: 200 });
+    });
+    const utilisateur = rendre();
+    await screen.findByTestId('radar-annonceur-1');
+
+    await utilisateur.click(screen.getByRole('button', { name: /Suivant/ }));
+    await screen.findByTestId('radar-annonceur-2');
+    await utilisateur.click(screen.getByRole('button', { name: /Suivant/ }));
+    await screen.findByTestId('radar-annonceur-3');
+    expect(urls().at(-1)!.searchParams.get('page')).toBe('3');
+
+    await utilisateur.type(screen.getByRole('searchbox', { name: 'Rechercher un annonceur' }), 'Moussa');
+    await waitFor(() => expect(urls().some((u) => u.searchParams.get('filter[search]') === 'Moussa')).toBe(true));
+    const recherche = urls().filter((u) => u.searchParams.get('filter[search]') === 'Moussa');
+    expect(recherche.every((u) => u.searchParams.get('page') === '1')).toBe(true);
   });
 
   it('un viewer lit un seul refus, sans aucune requête', async () => {

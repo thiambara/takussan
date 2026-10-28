@@ -189,7 +189,8 @@ export function RadarAdvertiserList() {
         </div>
         {RADAR_ADVERTISER_QUEUES.map((q) => (
           <TabsContent key={q} value={q} className="space-y-4">
-            <FileAnnonceurs file={q} recherche={recherche} />
+            {/* La clé suit la recherche : une recherche nouvelle repart de la page 1. */}
+            <FileAnnonceurs key={recherche} file={q} recherche={recherche} />
           </TabsContent>
         ))}
       </Tabs>

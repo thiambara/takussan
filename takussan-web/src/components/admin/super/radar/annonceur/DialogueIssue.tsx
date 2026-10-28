@@ -15,9 +15,9 @@ import {
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
-import { RADAR_OUTREACH_OUTCOMES, type RadarConsent, type RadarOutcomeRequest, type RadarOutreachOutcome } from '@/types/radar';
+import { RADAR_OUTREACH_OUTCOMES, RADAR_REASON_MAX, type RadarConsent, type RadarOutcomeRequest, type RadarOutreachOutcome } from '@/types/radar';
 import { DISCORDANCES_RADAR } from '../codes-radar';
-import { discordancesDe, issueProposee } from './reponses';
+import { discordancesDe, ecartsDeLErreur, issueProposee } from './reponses';
 import { codeDeLErreur } from '../fiche/useMessageEchecFiche';
 import { useMessageEchecAnnonceur } from './useMessageEchecAnnonceur';
 
@@ -74,9 +74,13 @@ function FormulaireIssue({ reponse, onConfirmer, onAnnuler }: FormulaireIssuePro
   const [etapeStop, setEtapeStop] = useState(false);
   const [enCours, setEnCours] = useState(false);
   const [erreur, setErreur] = useState<unknown>(null);
-  const [serveurExigeMotif, setServeurExigeMotif] = useState(false);
+  /** Les écarts que l'API a donnés avec son 422 « motif exigé » : `null` tant qu'elle n'a rien exigé. */
+  const [ecartsServeur, setEcartsServeur] = useState<string[] | null>(null);
 
-  const ecarts = discordancesDe(reponse);
+  const serveurExigeMotif = ecartsServeur !== null;
+  // Ce que l'écran voit d'abord ; si l'API en voit davantage (un 422), c'est elle qu'on liste.
+  const ecartsLocaux = discordancesDe(reponse);
+  const ecarts = ecartsLocaux.length > 0 ? ecartsLocaux : (ecartsServeur ?? []);
   const motifExige = issue === 'consented' && (ecarts.length > 0 || serveurExigeMotif);
   const motifManquant = motifExige && motif.trim() === '';
   const sansReponse = reponse === null;
@@ -96,7 +100,7 @@ function FormulaireIssue({ reponse, onConfirmer, onAnnuler }: FormulaireIssuePro
     } catch (e) {
       setErreur(e);
       setEtapeStop(false);
-      if (codeDeLErreur(e) === CODE_MOTIF_EXIGE) setServeurExigeMotif(true);
+      if (codeDeLErreur(e) === CODE_MOTIF_EXIGE) setEcartsServeur(ecartsDeLErreur(e));
     } finally {
       setEnCours(false);
     }
@@ -174,7 +178,7 @@ function FormulaireIssue({ reponse, onConfirmer, onAnnuler }: FormulaireIssuePro
             ref={refMotif}
             value={motif}
             onChange={(event) => setMotif(event.target.value)}
-            maxLength={1000}
+            maxLength={RADAR_REASON_MAX}
             required
             aria-invalid={serveurExigeMotif && motif.trim() === ''}
           />

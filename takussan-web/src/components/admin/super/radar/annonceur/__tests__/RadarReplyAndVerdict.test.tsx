@@ -147,6 +147,24 @@ describe('Le verdict, d’un coup d’œil (TCK-2388)', () => {
     expect(screen.getByRole('img', { name: 'Capture 1 de la réponse' })).toHaveAttribute('src', expect.stringContaining('capture-1.png'));
   });
 
+  it('le verdict fait autorité sur les clauses : complet = « k sur k », même si le texte en compte un autre nombre', async () => {
+    await rendre([messageEnvoye({
+      message: 'Bonjour\n1. Vous acceptez.\n2. Vous pouvez dire STOP.',
+      consents: [reponse({ verdict: verdict({ clauses_found: [1, 2, 3], clauses_complete: true }) })],
+    })]);
+    expect(screen.getByTestId('radar-verdict-clauses')).toHaveTextContent('Clauses retrouvées : 3 sur 3');
+    expect(screen.getByTestId('radar-verdict-clauses')).not.toHaveTextContent('manquantes');
+  });
+
+  it('un verdict qui juge les clauses incomplètes ne se lit jamais « complet », même si le texte les montre toutes trouvées', async () => {
+    await rendre([messageEnvoye({
+      consents: [reponse({ verdict: verdict({ clauses_found: [1, 2, 3, 4], clauses_complete: false, discordances: ['clauses_missing'] }) })],
+    })]);
+    const clauses = screen.getByTestId('radar-verdict-clauses');
+    expect(clauses).toHaveTextContent('le verdict les juge incomplètes');
+    expect(clauses).not.toHaveTextContent('4 sur 4');
+  });
+
   it('un numéro discordant et des clauses manquantes : les écarts sont nommés, les clauses qui manquent aussi', async () => {
     await rendre([messageEnvoye({
       consents: [reponse({
@@ -252,6 +270,37 @@ describe('Confirmer ou corriger — le dialogue d’issue (TCK-2388)', () => {
     }));
   });
 
+  it('un 422 « motif exigé » que l’écran n’avait pas vu liste les écarts que l’API donne', async () => {
+    vi.mocked(recordRadarOutcome).mockRejectedValue(
+      new ApiError(422, { code: 'radar.consent.reason_required', params: { discordances: ['number_mismatch', 'clauses_missing'] } }),
+    );
+    const utilisateur = await rendre([messageEnvoye({ consents: [reponse()] })]);
+    const dialogue = await ouvrirIssue(utilisateur);
+    expect(within(dialogue).queryByTestId('radar-issue-ecarts')).not.toBeInTheDocument();
+
+    await utilisateur.click(within(dialogue).getByRole('button', { name: 'Confirmer' }));
+
+    const ecarts = await within(dialogue).findByTestId('radar-issue-ecarts');
+    expect(ecarts).toHaveTextContent('le numéro de l’en-tête n’est pas celui de l’annonceur');
+    expect(ecarts).toHaveTextContent('une clause du message n’est pas lisible');
+  });
+
+  it('un 422 « motif exigé » sans écart dans ses paramètres retombe sur « aucun verdict »', async () => {
+    vi.mocked(recordRadarOutcome).mockRejectedValue(new ApiError(422, { code: 'radar.consent.reason_required' }));
+    const utilisateur = await rendre([messageEnvoye({ consents: [reponse()] })]);
+    const dialogue = await ouvrirIssue(utilisateur);
+    await utilisateur.click(within(dialogue).getByRole('button', { name: 'Confirmer' }));
+
+    expect(await within(dialogue).findByTestId('radar-issue-ecarts')).toHaveTextContent('aucun verdict');
+  });
+
+  it('le motif accepte autant de caractères que l’API (2000)', async () => {
+    const utilisateur = await rendre([messageEnvoye({ consents: [reponse({ verdict: verdict({ discordances: ['not_consent'] }) })] })]);
+    const dialogue = await ouvrirIssue(utilisateur);
+    await utilisateur.click(within(dialogue).getByRole('radio', { name: /Accord/ }));
+    expect(within(dialogue).getByRole('textbox', { name: 'Motif de la confirmation (obligatoire)' })).toHaveAttribute('maxlength', '2000');
+  });
+
   it('sans verdict (vérification échouée), « accord » exige aussi un motif', async () => {
     const utilisateur = await rendre([messageEnvoye({
       consents: [reponse({ verification_status: 'failed', verification_reason: 'radar.verification.error', verdict: null })],
@@ -344,10 +393,25 @@ describe('Relancer ou classer sans réponse (TCK-2388)', () => {
     ]);
 
     expect(screen.queryByRole('button', { name: 'Préparer la relance' })).not.toBeInTheDocument();
+    // « Classer sans réponse » devient le geste principal : plein, et « Saisir l’issue » passe au second plan.
+    expect(screen.getByRole('button', { name: 'Classer sans réponse' })).toHaveClass('bg-primary');
+    expect(screen.getByRole('button', { name: 'Saisir l’issue' })).not.toHaveClass('bg-primary');
     await utilisateur.click(screen.getByRole('button', { name: 'Classer sans réponse' }));
 
     await waitFor(() => expect(recordRadarOutcome).toHaveBeenCalledWith(5, { outcome: 'no_answer' }));
     expect(prepareRadarOutreach).not.toHaveBeenCalled();
+  });
+
+  it('une issue non finale (question, sans réponse) se lit sur la carte du message, pas seulement dans l’historique', async () => {
+    await rendre([messageEnvoye({ outcome: 'question', outcome_at: '2026-10-27T09:00:00+00:00', follow_up: null })]);
+
+    expect(screen.getByTestId('radar-suivi-issue')).toHaveTextContent(/Issue posée : Question de l’annonceur, le /);
+    expect(screen.getByTestId('radar-suivi-issue')).toHaveTextContent(/peut encore la changer/);
+  });
+
+  it('un message sans issue n’affiche pas de ligne d’issue', async () => {
+    await rendre([messageEnvoye()]);
+    expect(screen.queryByTestId('radar-suivi-issue')).not.toBeInTheDocument();
   });
 
   it('avant l’échéance : la date de l’API est dite, aucune relance ne s’offre', async () => {

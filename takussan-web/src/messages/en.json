@@ -9062,7 +9062,8 @@
               "discordances": "Gaps with a consent",
               "confirmed": "Consent confirmed by {name} on {date}",
               "confirmationReason": "Reason: {reason}",
-              "revoked": "Consent revoked on {date}"
+              "revoked": "Consent revoked on {date}",
+              "clausesIncomplete": "Clauses found: {found} — the verdict judges them incomplete"
             }
           },
           "outcome": {
@@ -9115,7 +9116,8 @@
           "awaiting": {
             "heading": "Messages sent, waiting for an outcome",
             "sentAt": "Sent on {date}",
-            "none": "No message is waiting for an outcome."
+            "none": "No message is waiting for an outcome.",
+            "outcomeSet": "Outcome set: {outcome}, on {date}. A reply deposited later can still change it."
           }
         },
         "advertisers": {

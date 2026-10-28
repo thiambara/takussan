@@ -326,6 +326,9 @@ export type RadarMessageLocale = (typeof RADAR_MESSAGE_LOCALES)[number];
 export const RADAR_SALUTATION_MAX = 120;
 export const RADAR_SUMMARY_MAX = 500;
 
+/** Le motif d'une issue (`RecordRadarOutreachOutcomeRequest` : `max:2000`). */
+export const RADAR_REASON_MAX = 2000;
+
 /** `StoreRadarOutreachRequest::MAX_LISTINGS` : les annonces qu'un seul message peut couvrir. */
 export const RADAR_OUTREACH_MAX_LISTINGS = 20;
 
@@ -511,9 +514,9 @@ export interface RadarAdvertiserRowFollowUp {
 }
 
 /**
- * Une ligne de file. Les colonnes de `RADAR_ADVERTISER_FIELDS` ; les comptes et `follow_up` sont calculés par l'API
- * et toujours rendus. `claim` n'est calculée que si ses colonnes sont lues, ce qu'un sparse fieldset ne permet pas
- * (elles ne sont pas dans les champs demandables) : elle est donc facultative ici.
+ * Une ligne de file. Les colonnes de `RADAR_ADVERTISER_FIELDS` ; `claim`, les comptes et `follow_up` sont calculés
+ * par l'API et toujours rendus, sparse fieldset compris (la liste lit elle-même les colonnes de la prise).
+ * `claim` vaut `null` quand personne ne tient l'annonceur, ou que sa prise est échue.
  */
 export interface RadarAdvertiserRow {
   readonly id: number;
@@ -521,7 +524,7 @@ export interface RadarAdvertiserRow {
   readonly display_name: string | null;
   readonly nature: RadarAdvertiserNature;
   readonly do_not_contact_at: string | null;
-  readonly claim?: RadarClaim | null;
+  readonly claim: RadarClaim | null;
   readonly counts?: {
     readonly reviewed?: number;
     readonly contacted?: number;

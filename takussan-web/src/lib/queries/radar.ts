@@ -48,7 +48,10 @@ export const RADAR_LISTING_FIELDS = [
 /** Tant qu'une extraction ou un calcul d'empreintes tourne, les écrans se relisent à ce rythme. */
 export const RADAR_POLL_MS = 10_000;
 
-/** Les colonnes d'une ligne de file : celles que le sparse fieldset du modèle permet (`RadarAdvertiser::$queryFields`). */
+/**
+ * Les colonnes d'une ligne de file demandées au sparse fieldset (`RadarAdvertiser::$queryFields`). La prise en charge
+ * n'en est pas une : l'API lit ses colonnes d'elle-même et rend `claim` quand même.
+ */
 export const RADAR_ADVERTISER_FIELDS = ['id', 'phone', 'display_name', 'nature', 'do_not_contact_at'] as const;
 
 export interface RadarAdvertiserFilters {
