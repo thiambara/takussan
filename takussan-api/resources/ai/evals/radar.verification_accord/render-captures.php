@@ -1,8 +1,8 @@
 <?php
 
 /**
- * TCK-2388 (décision 6, porteur 2026-10-28) — rend le jeu d'évaluation de `radar.verification_accord` : 15 captures
- * SYNTHÉTIQUES façon conversation WhatsApp (GD) et les 15 cas qui vont avec.
+ * TCK-2388 (décision 6, porteur 2026-10-28) — rend le jeu d'évaluation de `radar.verification_accord` : 16 captures
+ * SYNTHÉTIQUES façon conversation WhatsApp (GD) et les 16 cas qui vont avec.
  *
  *   php resources/ai/evals/radar.verification_accord/render-captures.php --font=/chemin/vers/Police.ttf
  *
@@ -58,9 +58,10 @@ $resume = 'vos annonces de location à Ouakam';
  * lisible ici et envoyé SANS espaces (E.164 compact, comme `$advertiser->phone` dans le job). `name` null : un
  * annonceur sans nom — l'en-tête n'affiche que le numéro, le message dit « Bonjour, » et l'entrée porte `inconnu`.
  * `message` : `full` (envoyé entier), `truncated` (capture coupée avant les clauses) ou `absent` (la capture ne montre
- * que la réponse). Attendus : ce que `fields.json` note.
+ * que la réponse). `header` : le texte SEUL que l'en-tête affiche (ni nom ni numéro lisibles : un contact en « ~ »), et
+ * `number_matches` vaut alors `null` — le numéro ne se lit pas. Attendus : ce que `fields.json` note.
  *
- * @var list<array{name: ?string, phone: string, shown?: string, message: string, reply: string, classification: string, number_matches: bool, clauses: list<int>}> $scenarios
+ * @var list<array{name: ?string, phone: string, shown?: string, header?: string, message: string, reply: string, classification: string, number_matches: ?bool, clauses: list<int>}> $scenarios
  */
 $scenarios = [
     // Accord (3)
@@ -85,6 +86,8 @@ $scenarios = [
     // Clauses absentes (2) : la capture ne montre que la réponse (« OUI » à on ne sait quoi : `ambiguous`), ou un message coupé avant les clauses (le début du message est visible : `consent`)
     ['name' => 'Binta', 'phone' => '+221 74 100 20 14', 'message' => 'absent', 'reply' => 'OUI', 'classification' => 'ambiguous', 'number_matches' => true, 'clauses' => []],
     ['name' => 'Alioune', 'phone' => '+221 74 100 20 15', 'message' => 'truncated', 'reply' => 'OUI', 'classification' => 'consent', 'number_matches' => true, 'clauses' => []],
+    // Identité non confirmée (1) : l'en-tête n'affiche ni numéro ni nom lisibles (un contact en « ~ »), la réponse est « OUI »
+    ['name' => 'Ndeye', 'phone' => '+221 74 100 20 16', 'header' => '~', 'message' => 'full', 'reply' => 'OUI', 'classification' => 'consent', 'number_matches' => null, 'clauses' => [1, 2, 3, 4]],
 ];
 
 $composer = $app->make(ConsentMessageComposer::class);
@@ -168,7 +171,9 @@ foreach ($scenarios as $i => $scenario) {
     imagefilledrectangle($image, 0, 0, WIDTH, $height, $chat);
     imagefilledrectangle($image, 0, 0, WIDTH, $header, $green);
     imagefilledellipse($image, 56, 48, 56, 56, $color(0xB0, 0xBE, 0xC5));
-    if ($first === null) {
+    if (isset($scenario['header'])) {
+        imagettftext($image, 22, 0, 96, 58, $white, $font, $scenario['header']);
+    } elseif ($first === null) {
         imagettftext($image, 22, 0, 96, 58, $white, $font, $shown);
     } else {
         imagettftext($image, 22, 0, 96, 44, $white, $font, $first);

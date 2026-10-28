@@ -226,6 +226,8 @@ class RadarConsentTest extends TestCase
     {
         return [
             'numéro discordant' => [['number_matches' => false], ['number_mismatch']],
+            'ni numéro lisible ni nom confirmé (nom faux)' => [['number_matches' => null, 'counterpart_phone' => null, 'name_matches' => false], ['identity_unverified']],
+            'ni numéro lisible ni nom confirmé (nom illisible)' => [['number_matches' => null, 'counterpart_phone' => null, 'name_matches' => null], ['identity_unverified']],
             'clauses absentes' => [['clauses_complete' => false, 'clauses_found' => [1, 2]], ['clauses_missing']],
             'classement autre qu\'un accord' => [['classification' => 'question'], ['not_consent']],
             'aucun verdict' => [null, ['no_verdict']],
@@ -295,6 +297,17 @@ class RadarConsentTest extends TestCase
 
         $this->assertNull($reponse->fresh()->confirmation_reason);
         $this->assertSame([], Activity::query()->where('event', 'radar_outreach_outcome')->sole()->properties['discordances'] ?? []);
+    }
+
+    public function test_un_numero_illisible_dont_le_nom_concorde_n_exige_pas_de_motif(): void
+    {
+        $annonce = $this->annonce();
+        $message = $this->message($annonce);
+        $this->reponse($message, $this->verdict(['number_matches' => null, 'counterpart_phone' => null, 'name_matches' => true]));
+
+        $this->issue($message, 'consented')->assertOk();
+
+        $this->assertSame('consented', $this->etape($annonce));
     }
 
     public function test_une_issue_se_pose_quelle_que_soit_l_etat_de_la_verification(): void

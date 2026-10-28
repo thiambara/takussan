@@ -8430,6 +8430,7 @@
             "discordances": {
               "noVerdict": "aucun verdict (vérification en cours ou échouée)",
               "numberMismatch": "le numéro de l’en-tête n’est pas celui de l’annonceur",
+              "identityUnverified": "ni le numéro ni le nom affichés ne confirment l’annonceur",
               "clausesMissing": "une clause du message n’est pas lisible sur les captures",
               "notConsent": "la réponse lue n’est pas un « oui »"
             },

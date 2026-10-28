@@ -9084,6 +9084,7 @@
             "discordances": {
               "noVerdict": "no verdict (check in progress or failed)",
               "numberMismatch": "the number in the header is not the advertiser's",
+              "identityUnverified": "neither the number nor the name shown confirms the advertiser",
               "clausesMissing": "a clause of the message is not readable on the captures",
               "notConsent": "the reply read is not a “yes”"
             },

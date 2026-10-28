@@ -141,7 +141,23 @@ class RadarConsentVerdictTest extends TestCase
             ['number_mismatch', 'clauses_missing', 'not_consent'],
             RadarConsentVerdict::discordances($reponse($verdict(['counterpart_phone' => '+221789998877', 'clauses_found' => [], 'classification' => 'ambiguous']))),
         );
-        // Un numéro illisible n'est pas une discordance : l'opérateur le voit sur les captures.
-        $this->assertSame([], RadarConsentVerdict::discordances($reponse($verdict(['counterpart_phone' => null, 'number_matches' => null]))));
+        // Un numéro illisible dont le nom concorde n'est pas une discordance : l'opérateur le voit sur les captures.
+        $this->assertSame([], RadarConsentVerdict::discordances($reponse($verdict(['counterpart_phone' => null, 'number_matches' => null, 'name_matches' => true]))));
+    }
+
+    public function test_ni_le_numero_ni_le_nom_ne_confirment_l_annonceur(): void
+    {
+        $verdict = fn (array $s) => RadarConsentVerdict::from(self::sortie($s + ['counterpart_phone' => null, 'number_matches' => null]), self::NUMERO, 4);
+
+        // Numéro illisible ET nom non confirmé (faux ou illisible) : `identity_unverified`.
+        $this->assertSame(['identity_unverified'], $verdict(['name_matches' => false])['discordances']);
+        $this->assertSame(['identity_unverified'], $verdict(['name_matches' => null])['discordances']);
+        // Le nom confirme : rien.
+        $this->assertSame([], $verdict(['name_matches' => true])['discordances']);
+        // Un numéro lu et différent est `number_mismatch` SEUL, quel que soit le nom ; un numéro concordant n'en donne jamais.
+        $this->assertSame(['number_mismatch'], RadarConsentVerdict::from(self::sortie(['counterpart_phone' => '+221 78 999 88 77', 'name_matches' => false]), self::NUMERO, 4)['discordances']);
+        $this->assertSame([], RadarConsentVerdict::from(self::sortie(['name_matches' => false]), self::NUMERO, 4)['discordances']);
+        // Sans numéro d'annonceur à comparer et sans booléen du modèle : le numéro est illisible.
+        $this->assertSame(['identity_unverified'], RadarConsentVerdict::from(self::sortie(['number_matches' => null, 'name_matches' => null]), null, 4)['discordances']);
     }
 }

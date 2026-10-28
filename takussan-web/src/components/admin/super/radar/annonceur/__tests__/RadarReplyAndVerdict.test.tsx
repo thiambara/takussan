@@ -280,6 +280,27 @@ describe('Confirmer ou corriger — le dialogue d’issue (TCK-2388)', () => {
     }));
   });
 
+  it('ni numéro lisible ni nom confirmé : l’écart est nommé et « accord » exige un motif', async () => {
+    const utilisateur = await rendre([messageEnvoye({
+      consents: [reponse({
+        verdict: verdict({ number_matches: null, counterpart_phone: null, name_matches: null, discordances: ['identity_unverified'] }),
+      })],
+    })]);
+    // La ligne du numéro dit déjà qu'il ne se lit pas ; l'écart dit ce que cela change.
+    expect(screen.getByTestId('radar-verdict-numero')).toHaveTextContent('Numéro illisible');
+    expect(screen.getByTestId('radar-verdict-ecarts')).toHaveTextContent('ni le numéro ni le nom affichés ne confirment l’annonceur');
+    const dialogue = await ouvrirIssue(utilisateur);
+
+    expect(within(dialogue).getByTestId('radar-issue-ecarts')).toHaveTextContent('ni le numéro ni le nom affichés ne confirment l’annonceur');
+    const confirmer = within(dialogue).getByRole('button', { name: 'Confirmer' });
+    expect(confirmer).toBeDisabled();
+    await utilisateur.type(within(dialogue).getByRole('textbox', { name: 'Motif de la confirmation (obligatoire)' }), 'Annonceur joint par téléphone');
+    expect(confirmer).toBeEnabled();
+    await utilisateur.click(confirmer);
+
+    await waitFor(() => expect(recordRadarOutcome).toHaveBeenCalledWith(5, { outcome: 'consented', reason: 'Annonceur joint par téléphone' }));
+  });
+
   it('un 422 « motif exigé » que l’écran n’avait pas vu liste les écarts que l’API donne', async () => {
     vi.mocked(recordRadarOutcome).mockRejectedValue(
       new ApiError(422, { code: 'radar.consent.reason_required', params: { discordances: ['number_mismatch', 'clauses_missing'] } }),

@@ -16,7 +16,7 @@ use InvalidArgumentException;
  */
 final class RadarConsentVerdict
 {
-    public const DISCORDANCES = ['no_verdict', 'number_mismatch', 'clauses_missing', 'not_consent'];
+    public const DISCORDANCES = ['no_verdict', 'number_mismatch', 'identity_unverified', 'clauses_missing', 'not_consent'];
 
     /** Les clés que la sortie doit porter : une clé absente n'est pas une sortie du schéma. */
     private const KEYS = [
@@ -92,8 +92,10 @@ final class RadarConsentVerdict
     /**
      * Ce qui, dans le verdict enregistré d'une réponse, ne va pas dans le sens d'un accord : `no_verdict` (aucun verdict :
      * en cours, ou échec), `number_mismatch` (un numéro lu et différent), `clauses_missing` (une clause du message
-     * envoyé n'est pas lisible sur les captures), `not_consent` (la dernière réponse n'est pas un « oui »). Un numéro
-     * illisible n'est pas une discordance : l'opérateur le voit sur les captures.
+     * envoyé n'est pas lisible sur les captures), `not_consent` (la dernière réponse n'est pas un « oui »),
+     * `identity_unverified` (le numéro ne s'est PAS lu et le nom n'est pas confirmé non plus : rien ne dit à qui
+     * appartient la conversation — décision du porteur du 2026-10-28). Un numéro illisible dont le NOM concorde n'est pas
+     * une discordance ; un numéro lu et différent est déjà `number_mismatch`, sans `identity_unverified` en plus.
      *
      * @return list<string>
      */
@@ -111,8 +113,12 @@ final class RadarConsentVerdict
     private static function judge(array $verdict): array
     {
         $out = [];
-        if (($verdict['number_matches'] ?? null) === false) {
+        $numberMatches = $verdict['number_matches'] ?? null;
+        if ($numberMatches === false) {
             $out[] = 'number_mismatch';
+        }
+        if ($numberMatches === null && ($verdict['name_matches'] ?? null) !== true) {
+            $out[] = 'identity_unverified';
         }
         if (($verdict['clauses_complete'] ?? false) !== true) {
             $out[] = 'clauses_missing';

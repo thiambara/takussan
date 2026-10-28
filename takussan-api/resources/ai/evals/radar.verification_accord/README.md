@@ -5,7 +5,7 @@ TCK-2388 (ADR-0077 §3, socle ADR-0076 §8, décision 6 du porteur, 2026-10-28).
 
 ## ⚠ Des captures SYNTHÉTIQUES, pas de vraies conversations
 
-Ces 15 captures n'ont **jamais** été prises sur une vraie conversation : elles sont dessinées par
+Ces 16 captures n'ont **jamais** été prises sur une vraie conversation : elles sont dessinées par
 `render-captures.php` (GD), façon WhatsApp — en-tête (nom et numéro), bulle sortante avec le message
 d'accord, bulle entrante avec la réponse. Elles mesurent la lecture de formes connues ; elles ne disent
 **rien** de la distribution réelle des réponses (fautes, vocaux, photos, captures recadrées, polices et thèmes
@@ -28,6 +28,9 @@ ni un numéro que `scripts/check-ai-evals-pii.mjs` signale.
 | 012-013 | numéro discordant : l'en-tête montre un autre numéro, la réponse est « OUI » (012) ou « Ok d'accord » (013) | `consent` | **discordant** | 1-4 |
 | 014 | clauses absentes : la capture ne montre que la réponse « OUI », sans le message de Takussan — un « OUI » à on ne sait quoi | `ambiguous` | concordant | aucune |
 | 015 | clauses absentes : le message est coupé avant les clauses, mais son début est visible — la réponse y répond | `consent` | concordant | aucune |
+| 016 | identité non confirmée : l'en-tête n'affiche ni numéro ni nom lisibles (un contact en « ~ »), la réponse est « OUI » | `consent` | **illisible** (`null`) | 1-4 |
+
+Le cas 016 couvre `identity_unverified` (le numéro ne se lit pas et le nom ne le confirme pas : le confirmer exige un motif écrit, décision du porteur du 2026-10-28) ; c'est aussi le cas « numéro illisible » que TCK-2403 mentionne.
 
 Un cas est `{ "input", "expected", "attachments" }`. **`input` est exactement ce que le job envoie**
 (`VerifyRadarConsentReply`) : `RadarConsentVerification::input(<message envoyé>, <numéro attendu>, <nom attendu>, 4)`,
@@ -70,6 +73,6 @@ Elle exige un **vrai** modèle : elle se fixe par un jeu complet
 pas dans ce ticket** : la référence part avec le passage payant de TCK-2403.
 
 ⚠ **Le planning de nuit jouera ce jeu contre le vrai modèle** : `routes/console.php` lance `ai:eval --all` chaque
-nuit, partout où un fournisseur a une clé (15 appels de vision, comptés `is_evaluation`, hors budget du jour).
+nuit, partout où un fournisseur a une clé (16 appels de vision, comptés `is_evaluation`, hors budget du jour).
 Sans `baseline.json`, il ne compare à rien et n'échoue que si un appel échoue. Dans les tests, la commande est
 jouée sur un FAUX modèle : jamais d'appel réel (`RadarConsentVerificationEvalSetTest`).

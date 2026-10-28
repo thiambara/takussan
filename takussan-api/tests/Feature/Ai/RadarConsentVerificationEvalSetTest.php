@@ -20,7 +20,7 @@ use Tests\Support\Ai\SocleIaDEssai;
 use Tests\TestCase;
 
 /**
- * TCK-2388 (ADR-0076 §8, décision 6) — le jeu d'évaluation livré de `radar.verification_accord` : 15 cas de captures
+ * TCK-2388 (ADR-0076 §8, décision 6) — le jeu d'évaluation livré de `radar.verification_accord` : 16 cas de captures
  * SYNTHÉTIQUES (`render-captures.php`), chacun dans la forme exacte de ce que le job envoie
  * (`RadarConsentVerification::input()`), des attendus limités aux trois champs de `fields.json`. Aucun modèle réel :
  * `RadarConsentVerification::fake()`, y compris pour `ai:eval`.
@@ -77,11 +77,11 @@ class RadarConsentVerificationEvalSetTest extends TestCase
         ];
     }
 
-    public function test_le_jeu_a_quinze_cas_chacun_avec_une_capture_png_de_moins_de_100_ko(): void
+    public function test_le_jeu_a_seize_cas_chacun_avec_une_capture_png_de_moins_de_100_ko(): void
     {
         $cases = $this->cases();
 
-        $this->assertCount(15, $cases);
+        $this->assertCount(16, $cases);
         foreach ($cases as $i => $case) {
             $this->assertNotEmpty($case['attachments'] ?? [], "cas {$i} : au moins une capture");
             foreach ($case['attachments'] as $relative) {
@@ -94,7 +94,7 @@ class RadarConsentVerificationEvalSetTest extends TestCase
             }
         }
         // Chaque capture sert un seul cas.
-        $this->assertCount(15, array_unique(array_merge(...array_column($cases, 'attachments'))));
+        $this->assertCount(16, array_unique(array_merge(...array_column($cases, 'attachments'))));
     }
 
     /**
@@ -138,7 +138,7 @@ class RadarConsentVerificationEvalSetTest extends TestCase
             $expected = $case['expected'];
             $this->assertSame(array_keys($fields), array_keys($expected), "cas {$i} : les attendus sont les champs de fields.json");
             $this->assertContains($expected['classification'], RadarConsentVerification::CLASSIFICATIONS, "cas {$i} : classification");
-            $this->assertIsBool($expected['number_matches'], "cas {$i} : number_matches");
+            $this->assertTrue($expected['number_matches'] === null || is_bool($expected['number_matches']), "cas {$i} : number_matches (booléen, ou null : le numéro ne se lit pas)");
             $this->assertTrue(array_is_list($expected['clauses_found']), "cas {$i} : clauses_found");
             foreach ($expected['clauses_found'] as $clause) {
                 $this->assertIsInt($clause);
@@ -154,7 +154,7 @@ class RadarConsentVerificationEvalSetTest extends TestCase
         }
 
         $this->assertEqualsCanonicalizing(RadarConsentVerification::CLASSIFICATIONS, array_keys($classements));
-        $this->assertEqualsCanonicalizing(['number_mismatch', 'clauses_missing', 'not_consent'], array_keys($discordances));
+        $this->assertEqualsCanonicalizing(['number_mismatch', 'identity_unverified', 'clauses_missing', 'not_consent'], array_keys($discordances));
     }
 
     /**
@@ -168,13 +168,13 @@ class RadarConsentVerificationEvalSetTest extends TestCase
 
         $report = $this->runner->run(RadarConsentVerificationUsage::KEY);
 
-        $this->assertSame(15, $report['cases']);
+        $this->assertSame(16, $report['cases']);
         $this->assertSame(0, $report['failures']);
         $this->assertSame(1.0, $report['global']);
         $this->assertSame(['classification' => 1.0, 'clauses_found' => 1.0, 'number_matches' => 1.0], array_map(fn ($s) => (float) $s, $report['fields']));
         $this->assertSame(['vision'], array_keys($report['roles']));
-        $this->assertSame(15, $report['roles']['vision']['cases']);
-        RadarConsentVerification::assertPromptedTimes(15);
+        $this->assertSame(16, $report['roles']['vision']['cases']);
+        RadarConsentVerification::assertPromptedTimes(16);
 
         $faux = $cases;
         $faux[0]['expected']['classification'] = 'refusal';
@@ -182,7 +182,7 @@ class RadarConsentVerificationEvalSetTest extends TestCase
 
         $report = $this->runner->run(RadarConsentVerificationUsage::KEY);
 
-        $this->assertSame(round(14 / 15, 4), $report['fields']['classification']);
+        $this->assertSame(round(15 / 16, 4), $report['fields']['classification']);
         $this->assertSame(1.0, (float) $report['fields']['number_matches']);
         $this->assertSame(1.0, (float) $report['fields']['clauses_found']);
     }
@@ -199,9 +199,9 @@ class RadarConsentVerificationEvalSetTest extends TestCase
             $this->artisan('ai:eval', ['usage' => RadarConsentVerificationUsage::KEY])->assertSuccessful();
 
             $rapport = json_decode((string) file_get_contents(File::files($rapports.'/'.RadarConsentVerificationUsage::KEY)[0]->getPathname()), true);
-            $this->assertSame(15, $rapport['cases']);
+            $this->assertSame(16, $rapport['cases']);
             $this->assertSame(1.0, $rapport['global']);
-            RadarConsentVerification::assertPromptedTimes(15);
+            RadarConsentVerification::assertPromptedTimes(16);
 
             RadarConsentVerification::fake(fn () => throw RateLimitedException::forProvider('anthropic'));
             $this->artisan('ai:eval', ['usage' => RadarConsentVerificationUsage::KEY])

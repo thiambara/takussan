@@ -180,6 +180,7 @@ export const MOTIFS_VERIFICATION_RADAR: Record<string, string> = {
 export const DISCORDANCES_RADAR: Record<string, string> = {
   no_verdict: 'noVerdict',
   number_mismatch: 'numberMismatch',
+  identity_unverified: 'identityUnverified',
   clauses_missing: 'clausesMissing',
   not_consent: 'notConsent',
 };
