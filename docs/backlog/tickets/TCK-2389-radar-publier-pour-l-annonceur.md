@@ -78,6 +78,15 @@ liens publics et le message prêt à envoyer.
   § 3, précision du § 4.3, § 6, § 9) aussi, en `fr` et `en`, et `VERSION_DOCUMENTS` avance. Le
   texte est celui du plan, les passages ⚠ y restent marqués pour la relecture de l'avocat.
 
+**Héritées de TCK-2388** (démarchage et preuve d'accord) :
+
+- La couverture d'une annonce se lit par `App\Services\Radar\RadarConsentCoverage`
+  (`coveredListingIds()`, `coveredAmong()`) : un accord **confirmé et non révoqué**
+  (`RadarConsent::scopeValid()`) ; c'est elle que le refus 422 ci-dessus interroge.
+- Un annonceur `do_not_contact` n'a plus d'accord valide : le STOP révoque ses accords
+  (`revoked_at`) et ferme ses annonces.
+- Le contact principal du bien est `radar_advertisers.phone` (E.164 compact).
+
 ## Delta à produire
 
 - [ ] `PlatformAbility::RadarPublish`.
