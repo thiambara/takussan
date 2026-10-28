@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '@/lib/api';
@@ -32,7 +32,8 @@ vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }));
 /** La fiche que l'« API » rend : un test la change pour que la relecture porte le nouvel état. */
 let serveur: RadarAdvertiserDetail;
 
-async function rendre(detail: RadarAdvertiserDetail = annonceur()) {
+/** Monte la fiche sans attendre : les tests à minuteurs simulés n'ont pas de `findBy` (`waitFor` ne les avance pas). */
+function monter(detail: RadarAdvertiserDetail) {
   serveur = detail;
   vi.mocked(fetchRadarAdvertiser).mockImplementation(async () => ({ data: serveur }));
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
@@ -41,6 +42,11 @@ async function rendre(detail: RadarAdvertiserDetail = annonceur()) {
       {avecGestes(<RadarAdvertiserCard id={detail.id} />)}
     </QueryClientProvider>,
   ));
+  return queryClient;
+}
+
+async function rendre(detail: RadarAdvertiserDetail = annonceur()) {
+  const queryClient = monter(detail);
   await screen.findByTestId('radar-annonceur');
   return { queryClient, utilisateur: userEvent.setup() };
 }
@@ -196,10 +202,22 @@ describe('RadarAdvertiserCard — la prise en charge (TCK-2388)', () => {
     expect(screen.getByTestId('radar-annonceur-stop')).toHaveTextContent(/a demandé à ne plus être contacté/);
     expect(screen.getByRole('checkbox', { name: /annonce n° 12/ })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Préparer le message' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Rendre' })).toBeDisabled();
+    // Restituer une prise est sans danger : « Rendre » reste ouvert sous STOP, pas « Prendre en charge ».
+    expect(screen.getByRole('button', { name: 'Rendre' })).toBeEnabled();
     expect(screen.getByRole('button', { name: 'Enregistrer' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'J’ai envoyé le message' })).toBeDisabled();
     expect(screen.queryByRole('link', { name: /WhatsApp/ })).not.toBeInTheDocument();
+  });
+
+  it('« ne pas contacter » sans prise : « Prendre en charge » reste fermé', async () => {
+    await rendre(annonceur({ do_not_contact_at: '2026-10-20T08:00:00+00:00', claim: null }));
+    expect(screen.getByRole('button', { name: 'Prendre en charge' })).toBeDisabled();
+  });
+
+  it('le bandeau n\'est pas une région vive : le renouvellement de « jusqu\'à » ne s\'annonce pas', async () => {
+    await rendre();
+    expect(screen.getByTestId('radar-annonceur-prise')).not.toHaveAttribute('role');
+    expect(within(screen.getByTestId('radar-annonceur-prise')).queryByRole('status')).not.toBeInTheDocument();
   });
 
   it('un 409 claimed_by_other s\'affiche par son libellé, avec l\'heure, et relit la fiche', async () => {
@@ -229,10 +247,12 @@ describe('RadarAdvertiserCard — la prise en charge (TCK-2388)', () => {
 
 describe('RadarAdvertiserCard — préparer le message (TCK-2388)', () => {
   it('cocher deux annonces, choisir « en », préparer → POST {listing_ids: [12, 13], locale: "en"} ; l\'aperçu vient de la relecture', async () => {
+    // L'IA n'a rien rédigé : le message enregistré a ses deux parties vides.
+    const sansParties = message({ salutation: '', summary: '', wa_me_url: null, segments: SEGMENTS.map((x) => (x.kind === 'fixed' ? x : { ...x, text: '' })) });
     vi.mocked(prepareRadarOutreach).mockImplementation(async () => {
       // L'API enregistre le message : la relecture le porte.
-      serveur = { ...serveur, outreaches: [message()] };
-      return { data: { ...message(), generated: false, ai_error: 'ai.budget' } };
+      serveur = { ...serveur, outreaches: [sansParties] };
+      return { data: { ...sansParties, generated: false, ai_error: 'ai.budget' } };
     });
     const { utilisateur } = await rendre();
 
@@ -250,6 +270,20 @@ describe('RadarAdvertiserCard — préparer le message (TCK-2388)', () => {
     expect(within(apercu).getByTestId('radar-annonceur-ia-absente')).toHaveTextContent(/plafond de dépense IA/);
     // La sélection est vidée : un message de plus ne repart pas des mêmes annonces par mégarde.
     expect(screen.getByText('Aucune annonce choisie')).toBeInTheDocument();
+  });
+
+  it('un `ai_error` sur un message dont les deux parties sont écrites n\'affiche aucun bandeau « l\'IA n\'a pas rédigé »', async () => {
+    vi.mocked(prepareRadarOutreach).mockImplementation(async () => {
+      serveur = { ...serveur, outreaches: [message()] };
+      return { data: { ...message(), generated: false, ai_error: 'ai.budget' } };
+    });
+    const { utilisateur } = await rendre();
+
+    await utilisateur.click(screen.getByRole('checkbox', { name: /annonce n° 12/ }));
+    await utilisateur.click(screen.getByRole('button', { name: 'Préparer le message' }));
+
+    const apercu = await screen.findByTestId('radar-annonceur-apercu');
+    expect(within(apercu).queryByTestId('radar-annonceur-ia-absente')).not.toBeInTheDocument();
   });
 
   it('sans annonce cochée, « Préparer » reste fermé', async () => {
@@ -307,6 +341,7 @@ describe('RadarAdvertiserCard — l\'aperçu du message (TCK-2388)', () => {
   });
 
   it('retoucher la salutation envoie PATCH avec cette seule clé ; l\'aperçu se relit depuis la réponse', async () => {
+    // L'API rogne et normalise : elle rend « Bonsoir Awa, », pas ce qui a été tapé.
     const retouche = message({
       salutation: 'Bonsoir Awa,',
       message: MESSAGE_PREPARE.replace('Bonjour Awa,', 'Bonsoir Awa,'),
@@ -323,17 +358,34 @@ describe('RadarAdvertiserCard — l\'aperçu du message (TCK-2388)', () => {
     expect(enregistrer).toBeDisabled();
     const salutation = screen.getByLabelText('Salutation');
     await utilisateur.clear(salutation);
-    await utilisateur.type(salutation, 'Bonsoir Awa,');
+    await utilisateur.type(salutation, 'Bonsoir  Awa,\n');
     expect(enregistrer).toBeEnabled();
     await utilisateur.click(enregistrer);
 
-    await waitFor(() => expect(retouchRadarOutreach).toHaveBeenCalledWith(5, { salutation: 'Bonsoir Awa,' }));
+    await waitFor(() => expect(retouchRadarOutreach).toHaveBeenCalledWith(5, { salutation: 'Bonsoir  Awa,\n' }));
     const envoye = vi.mocked(retouchRadarOutreach).mock.calls[0][1];
     expect(Object.keys(envoye)).toEqual(['salutation']);
     // Le texte vient de l'API : le lien WhatsApp est celui de la réponse, et le champ porte ce qu'elle a rendu.
     await waitFor(() => expect(screen.getByRole('link', { name: /WhatsApp/ })).toHaveAttribute('href', 'https://wa.me/221771234567?text=retouche'));
     expect(screen.getByLabelText('Salutation')).toHaveValue('Bonsoir Awa,');
     expect(screen.getByRole('button', { name: 'Enregistrer' })).toBeDisabled();
+  });
+
+  it('une retouche faite d\'espaces seuls se réaligne sur la valeur de l\'API : plus de retouche en suspens, WhatsApp se rouvre', async () => {
+    // L'API rogne l'espace final : le texte rendu est celui d'avant, la clé de l'aperçu ne change pas.
+    vi.mocked(retouchRadarOutreach).mockResolvedValue({ data: message() });
+    const { utilisateur } = await rendre(annonceur({ outreaches: [message()] }));
+
+    await utilisateur.type(screen.getByLabelText('Salutation'), ' ');
+    expect(screen.queryByRole('link', { name: /WhatsApp/ })).not.toBeInTheDocument();
+    await utilisateur.click(screen.getByRole('button', { name: 'Enregistrer' }));
+
+    await waitFor(() => expect(retouchRadarOutreach).toHaveBeenCalledWith(5, { salutation: 'Bonjour Awa, ' }));
+    await waitFor(() => expect(screen.getByLabelText('Salutation')).toHaveValue('Bonjour Awa,'));
+    expect(screen.getByRole('button', { name: 'Enregistrer' })).toBeDisabled();
+    expect(screen.queryByText(/Enregistrez vos retouches/)).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /WhatsApp/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'J’ai envoyé le message' })).toBeEnabled();
   });
 
   it('retoucher le seul résumé n\'envoie que `resume` : la salutation intacte ne part pas', async () => {
@@ -456,5 +508,91 @@ describe('RadarAdvertiserCard — l\'accès (TCK-2388)', () => {
 
     expect(await screen.findByText(/réservé aux opérateurs/)).toBeInTheDocument();
     expect(fetchRadarAdvertiser).not.toHaveBeenCalled();
+  });
+});
+
+describe('RadarAdvertiserCard — correctifs de revue (TCK-2388)', () => {
+  it('le renouvellement de la prise ne ferme aucun champ : le focus et la frappe en cours restent', async () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date('2026-10-28T10:00:00Z'));
+      Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' });
+      // Le renouvellement part et reste en vol : on regarde la fiche PENDANT l'appel.
+      let resoudre!: (reponse: Awaited<ReturnType<typeof claimRadarAdvertiser>>) => void;
+      vi.mocked(claimRadarAdvertiser).mockReset().mockImplementation(() => new Promise((resolve) => { resoudre = resolve; }));
+      monter(annonceur({ outreaches: [message()] }));
+      await act(async () => { await vi.advanceTimersByTimeAsync(50); });
+
+      const salutation = screen.getByLabelText('Salutation');
+      act(() => salutation.focus());
+      expect(salutation).toHaveFocus();
+
+      // La prise de `mocks.prise()` échoit à 10:10 : mi-durée, 5 minutes.
+      await act(async () => { await vi.advanceTimersByTimeAsync(5 * 60_000); });
+      expect(claimRadarAdvertiser).toHaveBeenCalledTimes(1);
+
+      expect(screen.getByLabelText('Salutation')).toBeEnabled();
+      expect(screen.getByLabelText('Salutation')).toHaveFocus();
+      expect(screen.getByLabelText('Résumé de l’annonce')).toBeEnabled();
+      expect(screen.getByRole('checkbox', { name: /annonce n° 12/ })).toBeEnabled();
+      expect(screen.getByRole('radio', { name: 'English' })).toBeEnabled();
+
+      await act(async () => { resoudre({ data: { claim: prise({ until: '2026-10-28T10:20:00+00:00' }) } }); });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('préparer alors qu\'un brouillon existe demande confirmation : rien ne part avant', async () => {
+    vi.mocked(prepareRadarOutreach).mockResolvedValue({ data: { ...message({ id: 6 }), generated: true, ai_error: null } });
+    const { utilisateur } = await rendre(annonceur({ outreaches: [message()] }));
+
+    await utilisateur.click(screen.getByRole('checkbox', { name: /annonce n° 13/ }));
+    await utilisateur.click(screen.getByRole('button', { name: 'Préparer le message' }));
+
+    const dialogue = await screen.findByRole('dialog');
+    expect(dialogue).toHaveTextContent(/le remplace/);
+    expect(dialogue).toHaveTextContent(/J’ai envoyé le message/);
+    expect(prepareRadarOutreach).not.toHaveBeenCalled();
+
+    // Annuler : rien n'est parti, le choix d'annonces reste.
+    await utilisateur.click(within(dialogue).getByRole('button', { name: 'Annuler' }));
+    expect(prepareRadarOutreach).not.toHaveBeenCalled();
+    expect(screen.getByText('1 annonce choisie')).toBeInTheDocument();
+
+    await utilisateur.click(screen.getByRole('button', { name: 'Préparer le message' }));
+    await utilisateur.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Remplacer le brouillon' }));
+    await waitFor(() => expect(prepareRadarOutreach).toHaveBeenCalledWith(7, { listing_ids: [13], locale: 'fr' }));
+  });
+
+  it('sans brouillon, préparer part tout de suite, sans confirmation', async () => {
+    vi.mocked(prepareRadarOutreach).mockResolvedValue({ data: { ...message({ id: 6 }), generated: true, ai_error: null } });
+    const { utilisateur } = await rendre();
+
+    await utilisateur.click(screen.getByRole('checkbox', { name: /annonce n° 12/ }));
+    await utilisateur.click(screen.getByRole('button', { name: 'Préparer le message' }));
+
+    await waitFor(() => expect(prepareRadarOutreach).toHaveBeenCalledTimes(1));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('une annonce cochée qui n\'est plus cochable après une relecture sort de la sélection', async () => {
+    vi.mocked(prepareRadarOutreach).mockRejectedValue(new ApiError(422, { code: 'radar.outreach.listing_consented', params: { listing_id: 12 } }));
+    const { utilisateur } = await rendre();
+
+    await utilisateur.click(screen.getByRole('checkbox', { name: /annonce n° 12/ }));
+    await utilisateur.click(screen.getByRole('checkbox', { name: /annonce n° 13/ }));
+    expect(screen.getByText('2 annonces choisies')).toBeInTheDocument();
+
+    // Entre-temps l'annonce 12 est couverte par un accord : le refus relit la fiche.
+    serveur = { ...serveur, listings: serveur.listings.map((a) => (a.id === 12 ? { ...a, stage: 'consented', covered_by_consent: true } : a)) };
+    await utilisateur.click(screen.getByRole('button', { name: 'Préparer le message' }));
+
+    expect(await screen.findByText('1 annonce choisie')).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: /annonce n° 12/ })).not.toBeChecked();
+
+    vi.mocked(prepareRadarOutreach).mockReset().mockResolvedValue({ data: { ...message({ id: 6 }), generated: true, ai_error: null } });
+    await utilisateur.click(screen.getByRole('button', { name: 'Préparer le message' }));
+    await waitFor(() => expect(prepareRadarOutreach).toHaveBeenCalledWith(7, { listing_ids: [13], locale: 'fr' }));
   });
 });

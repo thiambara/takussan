@@ -77,7 +77,7 @@ export function ApercuMessage({ message, erreurIa, desactive, enRetouche, enEnvo
         {t('listings', { ids: message.listing_ids.map((id) => t('number', { id })).join(', ') })}
       </p>
 
-      {!partiesEcrites || erreurIa !== null ? (
+      {!partiesEcrites ? (
         <div role="status" className="rounded-lg border border-warning/60 bg-warning/5 p-3 text-sm text-foreground" data-testid="radar-annonceur-ia-absente">
           <p>{t('aiMissing')}</p>
           {erreurIa !== null ? <p className="mt-1 text-xs text-muted-foreground">{t('aiReason', { reason: motifIa(erreurIa) })}</p> : null}

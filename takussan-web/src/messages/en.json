@@ -8921,7 +8921,13 @@
             },
             "selected": "{count, plural, =0 {No listing picked} one {# listing picked} other {# listings picked}}",
             "action": "Prepare the message",
-            "preparing": "Preparing…"
+            "preparing": "Preparing…",
+            "replace": {
+              "title": "Replace the message being prepared?",
+              "body": "A message is already being prepared: preparing a new one replaces it and its edits are lost. If it was already sent on WhatsApp, cancel and mark it “I sent the message” first, otherwise the record of the text actually sent disappears.",
+              "cancel": "Cancel",
+              "confirm": "Replace the draft"
+            }
           },
           "message": {
             "heading": "Message being prepared",

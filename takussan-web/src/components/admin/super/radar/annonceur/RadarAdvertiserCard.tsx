@@ -39,7 +39,9 @@ import type {
   RadarPreparedOutreachResponse,
 } from '@/types/radar';
 import { ApercuMessage } from './ApercuMessage';
+import { raisonNonCochable } from './annonces';
 import { BandeauPriseEnCharge } from './BandeauPriseEnCharge';
+import { ConfirmerRemplacement } from './ConfirmerRemplacement';
 import { HistoriqueMessages } from './HistoriqueMessages';
 import { ListeAnnonces } from './ListeAnnonces';
 import { PanneauIdentite } from './PanneauIdentite';
@@ -69,6 +71,10 @@ function FicheChargee({ annonceur }: { readonly annonceur: RadarAdvertiserDetail
   const [selection, setSelection] = useState<ReadonlySet<number>>(new Set());
   const [locale, setLocale] = useState<RadarMessageLocale>('fr');
   const [erreur, setErreur] = useState<unknown>(null);
+  /** La demande de préparation qui attend l'accord de l'opérateur : un brouillon existe, il serait remplacé. */
+  const [remplacement, setRemplacement] = useState<RadarPrepareRequest | null>(null);
+  /** Retouches enregistrées par message : la clé de l'aperçu en dépend, il repart de ce que l'API a rendu. */
+  const [retouches, setRetouches] = useState<Readonly<Record<number, number>>>({});
   /** `ai_error` de chaque préparation reçue pendant cette visite, par message : l'API ne le rend qu'à la préparation. */
   const [erreursIa, setErreursIa] = useState<Readonly<Record<number, string | null>>>({});
 
@@ -80,13 +86,21 @@ function FicheChargee({ annonceur }: { readonly annonceur: RadarAdvertiserDetail
     if (e instanceof ApiError && (e.status === 409 || e.status === 422)) void relire();
   };
 
+  const priseRendue = (reponse: RadarClaimResponse) => {
+    queryClient.setQueryData<RadarAdvertiserResponse>(cle, (detail) =>
+      detail ? { data: { ...detail.data, claim: reponse.data.claim } } : detail);
+    return relire();
+  };
   const prise = useMutation<RadarClaimResponse, ApiError, void>({
     mutationFn: () => claimRadarAdvertiser(annonceur.id),
-    onSuccess: (reponse) => {
-      queryClient.setQueryData<RadarAdvertiserResponse>(cle, (detail) =>
-        detail ? { data: { ...detail.data, claim: reponse.data.claim } } : detail);
-      return relire();
-    },
+    onSuccess: priseRendue,
+    onError: surEchec,
+  });
+  // Le renouvellement périodique est une mutation À PART, absente de `enCours` : s'il fermait les champs pendant
+  // son appel, l'opérateur qui écrit perdrait le focus et ses frappes, toutes les quelques minutes.
+  const renouvellement = useMutation<RadarClaimResponse, ApiError, void>({
+    mutationFn: () => claimRadarAdvertiser(annonceur.id),
+    onSuccess: priseRendue,
     onError: surEchec,
   });
   const restitution = useMutation<void, ApiError, void>({
@@ -120,6 +134,8 @@ function FicheChargee({ annonceur }: { readonly annonceur: RadarAdvertiserDetail
     mutationFn: ({ id, changes }) => retouchRadarOutreach(id, changes),
     onSuccess: (reponse) => {
       queryClient.setQueryData<RadarAdvertiserResponse>(cle, (detail) => avecMessage(detail, reponse.data));
+      // L'API peut rendre un texte autre que celui saisi (espaces rognés) sans que la clé du texte change.
+      setRetouches((courant) => ({ ...courant, [reponse.data.id]: (courant[reponse.data.id] ?? 0) + 1 }));
       return relire();
     },
     onError: surEchec,
@@ -145,7 +161,13 @@ function FicheChargee({ annonceur }: { readonly annonceur: RadarAdvertiserDetail
     geste();
   };
 
-  usePriseEnCharge({ claim: annonceur.claim, renouveler: () => prise.mutate() });
+  usePriseEnCharge({ claim: annonceur.claim, renouveler: () => renouvellement.mutate() });
+
+  // Une annonce cochée qui n'est plus cochable (la fiche relue l'a changée d'étape) sort de la sélection.
+  const choisies = new Set([...selection].filter((id) => {
+    const annonce = annonceur.listings.find((a) => a.id === id);
+    return annonce !== undefined && raisonNonCochable(annonce, annonceur.outreaches) === null;
+  }));
 
   const enPreparation = annonceur.outreaches.filter((m) => m.status === 'prepared');
   const envoyes = annonceur.outreaches.filter((m) => m.status !== 'prepared');
@@ -171,8 +193,16 @@ function FicheChargee({ annonceur }: { readonly annonceur: RadarAdvertiserDetail
   const classerSansReponse = (id: number) => {
     lancer(() => issue.mutate({ id, demande: { outcome: 'no_answer' } }, { onError: surEchec }));
   };
+  // Préparer remplace le brouillon existant (l'API le supprime avec ses retouches) : l'opérateur le confirme d'abord.
+  const preparer = (demande: RadarPrepareRequest) => {
+    if (enPreparation.length > 0) {
+      setRemplacement(demande);
+      return;
+    }
+    lancer(() => preparation.mutate(demande));
+  };
   const relancer = (message: RadarOutreach) => {
-    lancer(() => preparation.mutate({ follow_up_of_id: message.id, locale: langueDeRelance(message) }));
+    preparer({ follow_up_of_id: message.id, locale: langueDeRelance(message) });
   };
 
   const bascule = (id: number) => {
@@ -193,7 +223,8 @@ function FicheChargee({ annonceur }: { readonly annonceur: RadarAdvertiserDetail
 
       <BandeauPriseEnCharge
         claim={annonceur.claim}
-        desactive={stoppe || enCours}
+        prendreFerme={stoppe || enCours}
+        rendreFerme={enCours}
         enPrise={prise.isPending}
         enRestitution={restitution.isPending}
         onPrendre={() => lancer(() => prise.mutate())}
@@ -212,15 +243,15 @@ function FicheChargee({ annonceur }: { readonly annonceur: RadarAdvertiserDetail
           <ListeAnnonces
             annonces={annonceur.listings}
             messages={annonceur.outreaches}
-            selection={selection}
+            selection={choisies}
             onBascule={bascule}
             desactive={gestesFermes}
           />
           <PreparationMessage
-            nbAnnonces={selection.size}
+            nbAnnonces={choisies.size}
             locale={locale}
             onLocale={setLocale}
-            onPreparer={() => lancer(() => preparation.mutate({ listing_ids: [...selection].sort((a, b) => a - b), locale }))}
+            onPreparer={() => preparer({ listing_ids: [...choisies].sort((a, b) => a - b), locale })}
             desactive={gestesFermes}
             enCours={preparation.isPending}
           />
@@ -230,7 +261,7 @@ function FicheChargee({ annonceur }: { readonly annonceur: RadarAdvertiserDetail
       {enPreparation.map((message) => (
         <ApercuMessage
           // Le texte de l'API est la clé : une retouche enregistrée remonte l'aperçu avec ce que l'API a rendu.
-          key={`${message.id}:${message.salutation}:${message.summary}`}
+          key={`${message.id}:${message.salutation}:${message.summary}:${retouches[message.id] ?? 0}`}
           message={message}
           erreurIa={erreursIa[message.id] ?? null}
           desactive={gestesFermes}
@@ -261,6 +292,16 @@ function FicheChargee({ annonceur }: { readonly annonceur: RadarAdvertiserDetail
       </section>
 
       <HistoriqueMessages messages={envoyes} />
+
+      <ConfirmerRemplacement
+        open={remplacement !== null}
+        onAnnuler={() => setRemplacement(null)}
+        onConfirmer={() => {
+          const demande = remplacement;
+          setRemplacement(null);
+          if (demande !== null) lancer(() => preparation.mutate(demande));
+        }}
+      />
     </div>
   );
 }

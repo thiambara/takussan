@@ -152,11 +152,10 @@ export const ERREURS_ANNONCEUR_RADAR: Record<string, string> = {
   'radar.outreach.superseded': 'superseded',
   'radar.outreach.reply_pending': 'replyPending',
   'radar.message.generation_incomplete': 'generationIncomplete',
-  // Le dépôt de réponse et la confirmation (tâche 9) : déclarés ici pour que le sentinelle « chaque code de l'API a son
-  // libellé » (codes-radar.tck-2387) reste vrai ; l'écran qui les reçoit vient avec elle.
+  // Le dépôt de réponse et la confirmation : la fiche les reçoit (`DialogueIssue`, `SuiviMessage`).
   'radar.consent.reply_required': 'replyRequired',
   'radar.consent.reason_required': 'reasonRequired',
-  // La confirmation d'un accord exige des annonces encore « contactées » : si l'une a bougé, le 409 le dit.
+  // Un 409 de la confirmation d'un accord ET de « J'ai envoyé » : une annonce du message a changé d'étape ailleurs.
   'radar.listing.stage_conflict': 'listingStageConflict',
 };
 
@@ -184,10 +183,3 @@ export const DISCORDANCES_RADAR: Record<string, string> = {
   clauses_missing: 'clausesMissing',
   not_consent: 'notConsent',
 };
-
-/** Les 409 qui disent « la fiche n'est plus ce que l'écran croit » : elle se relit. */
-export const CODES_PRISE_PERDUE_RADAR: ReadonlySet<string> = new Set([
-  'radar.advertiser.claimed_by_other',
-  'radar.advertiser.claim_required',
-  'radar.advertiser.claim_not_held',
-]);

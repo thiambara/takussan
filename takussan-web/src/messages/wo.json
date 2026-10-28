@@ -8267,7 +8267,13 @@
             },
             "selected": "{count, plural, =0 {Aucune annonce choisie} one {# annonce choisie} other {# annonces choisies}}",
             "action": "Préparer le message",
-            "preparing": "Préparation…"
+            "preparing": "Préparation…",
+            "replace": {
+              "title": "Remplacer le message en préparation ?",
+              "body": "Un message est déjà en préparation : le préparer à nouveau le remplace, et ses retouches sont perdues. S’il a déjà été envoyé sur WhatsApp, annulez et marquez-le d’abord « J’ai envoyé le message » : sinon la trace du texte réellement envoyé disparaît.",
+              "cancel": "Annuler",
+              "confirm": "Remplacer le brouillon"
+            }
           },
           "message": {
             "heading": "Message en préparation",
