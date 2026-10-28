@@ -367,6 +367,50 @@ class RadarOutreachTest extends TestCase
         $this->assertSame('votre studio', $enregistre->fresh()->summary);
     }
 
+    public function test_retoucher_recompose_avec_la_version_de_clauses_enregistree(): void
+    {
+        // Une version ANTÉRIEURE, posée le temps du test : un message préparé avec elle ne se réécrit pas avec la version courante.
+        $fichier = resource_path('radar/clauses/accord.v0.fr.md');
+        file_put_contents($fichier, "{salutation} CLAUSES-V0 {resume} {lien_conditions}\n");
+        try {
+            $annonceur = $this->prise($this->annonceur());
+            $annonce = $this->lue($annonceur);
+            $ancien = RadarOutreach::factory()->withListings($annonce)->create([
+                'radar_advertiser_id' => $annonceur->id, 'clauses_version' => 'accord.v0', 'salutation' => '', 'summary' => '', 'message' => 'x',
+            ]);
+
+            $this->patchJson("/api/admin/radar/outreaches/{$ancien->id}", ['salutation' => 'Bonjour,', 'resume' => 'votre bien'])
+                ->assertOk()
+                ->assertJsonPath('data.clauses_version', 'accord.v0');
+
+            $enregistre = $ancien->fresh();
+            $this->assertSame('Bonjour, CLAUSES-V0 votre bien https://front.exemple.test/fr/legal/terms', $enregistre->message);
+            $this->assertSame('accord.v0', $enregistre->clauses_version);
+            $this->assertSame($enregistre->message, $this->texteDuLien($this->getJson("/api/admin/radar/advertisers/{$annonceur->id}")->json('data.outreaches.0.wa_me_url')));
+        } finally {
+            unlink($fichier);
+        }
+    }
+
+    public function test_une_partie_qui_se_reduit_a_rien_est_refusee_a_la_retouche(): void
+    {
+        $this->modeleRepond();
+        $annonceur = $this->prise($this->annonceur());
+        $annonce = $this->lue($annonceur);
+        $id = $this->preparer($annonceur, ['listing_ids' => [$annonce->id]])->assertCreated()->json('data.id');
+        $avant = RadarOutreach::query()->findOrFail($id)->getAttributes();
+
+        // Que des caractères invisibles : passe la validation (le trim du framework ne retire pas l'inversion de sens),
+        // mais tombe à rien une fois ramené à une ligne. Un U+200B seul, lui, est déjà refusé par `required`.
+        $this->patchJson("/api/admin/radar/outreaches/{$id}", ['salutation' => "\u{200B}\u{202E}"])
+            ->assertStatus(422)->assertJsonPath('code', 'radar.outreach.parts_missing')->assertJsonPath('params.fields', ['salutation']);
+        $this->patchJson("/api/admin/radar/outreaches/{$id}", ['salutation' => 'Bonjour,', 'resume' => "\u{202E}"])
+            ->assertStatus(422)->assertJsonPath('params.fields', ['resume']);
+
+        $this->assertSame($avant, RadarOutreach::query()->findOrFail($id)->getAttributes());
+        $this->assertSame(0, Activity::query()->where('event', 'radar_outreach_retouched')->count());
+    }
+
     public function test_retoucher_exige_un_message_prepare_une_prise_et_un_champ(): void
     {
         $this->modeleRepond();
@@ -506,7 +550,87 @@ class RadarOutreachTest extends TestCase
         // Déjà relancé : seule la dernière de la chaîne se relance.
         $this->preparer($annonceur, ['follow_up_of_id' => $origine->id])->assertStatus(422)->assertJsonPath('code', 'radar.outreach.follow_up_invalid');
 
-        $this->preparer($annonceur, ['follow_up_of_id' => $origine->id, 'listing_ids' => [$annonce->id]])->assertStatus(422);
+    }
+
+    public function test_les_listes_d_annonces_et_une_relance_ne_se_donnent_pas_ensemble(): void
+    {
+        RadarConsentMessage::fake();
+        $annonceur = $this->prise($this->annonceur());
+        $annonce = $this->lue($annonceur, 'contacted');
+        // Une cible VALIDE : sans la règle `prohibits`, la relance serait acceptée — le 422 ne vient que d'elle.
+        $origine = RadarOutreach::factory()->withListings($annonce)->sent()->create(['radar_advertiser_id' => $annonceur->id]);
+        $avant = $this->etat();
+
+        $this->preparer($annonceur, ['follow_up_of_id' => $origine->id, 'listing_ids' => [$annonce->id]])
+            ->assertStatus(422)->assertJsonValidationErrors(['listing_ids']);
+
+        $this->assertSame($avant, $this->etat());
+        RadarConsentMessage::assertNeverPrompted();
+    }
+
+    public function test_un_premier_message_est_refuse_sur_une_annonce_d_une_chaine_ouverte(): void
+    {
+        RadarConsentMessage::fake();
+        $annonceur = $this->prise($this->annonceur());
+        $contactee = $this->lue($annonceur, 'contacted');
+        $autre = $this->lue($annonceur);
+        RadarOutreach::factory()->withListings($contactee)->sent()->create(['radar_advertiser_id' => $annonceur->id]);
+        $avant = $this->etat();
+
+        // Envoyé, sans issue : la seule façon d'écrire de nouveau est une relance.
+        $this->preparer($annonceur, ['listing_ids' => [$autre->id, $contactee->id]])
+            ->assertStatus(422)
+            ->assertJsonPath('code', 'radar.outreach.listing_pending')
+            ->assertJsonPath('params.listing_id', $contactee->id);
+
+        $this->assertSame($avant, $this->etat());
+        RadarConsentMessage::assertNeverPrompted();
+    }
+
+    public function test_une_issue_question_ou_sans_reponse_ferme_la_chaine_et_une_relance_reste_permise(): void
+    {
+        $this->modeleRepond();
+        $annonceur = $this->prise($this->annonceur());
+
+        foreach (['question', 'no_answer'] as $issue) {
+            $annonce = $this->lue($annonceur, 'contacted');
+            RadarOutreach::factory()->withListings($annonce)->sent()->create([
+                'radar_advertiser_id' => $annonceur->id, 'outcome' => $issue, 'outcome_at' => now(),
+            ]);
+
+            $this->preparer($annonceur, ['listing_ids' => [$annonce->id]])->assertCreated()->assertJsonPath('data.follow_up_rank', 0);
+        }
+
+        // Une relance, elle, est toujours permise sur une chaîne ouverte (dans le plafond).
+        $ouverte = $this->lue($annonceur, 'contacted');
+        $origine = RadarOutreach::factory()->withListings($ouverte)->sent()->create(['radar_advertiser_id' => $annonceur->id]);
+        $this->preparer($annonceur, ['follow_up_of_id' => $origine->id])->assertCreated()->assertJsonPath('data.follow_up_rank', 1);
+
+        // Une fois la relance ENVOYÉE, c'est elle la chaîne ouverte : un premier message reste refusé.
+        $relance = RadarOutreach::query()->where('follow_up_of_id', $origine->id)->sole();
+        $this->postJson("/api/admin/radar/outreaches/{$relance->id}/sent")->assertOk();
+        $this->preparer($annonceur, ['listing_ids' => [$ouverte->id]])
+            ->assertStatus(422)->assertJsonPath('code', 'radar.outreach.listing_pending');
+    }
+
+    public function test_la_chaine_ouverte_est_rejugee_sous_verrou_apres_l_appel_au_modele(): void
+    {
+        $annonceur = $this->prise($this->annonceur());
+        $annonce = $this->lue($annonceur, 'contacted');
+        $avant = $this->etat();
+
+        // Pendant que le modèle répond, un message est envoyé pour cette annonce.
+        RadarConsentMessage::fake(function () use ($annonceur, $annonce) {
+            RadarOutreach::factory()->withListings($annonce)->sent()->create(['radar_advertiser_id' => $annonceur->id]);
+
+            return ['salutation' => 'Bonjour,', 'resume' => 'votre bien'];
+        });
+        $this->preparer($annonceur, ['listing_ids' => [$annonce->id]])
+            ->assertStatus(422)->assertJsonPath('code', 'radar.outreach.listing_pending');
+
+        $this->assertSame(1, RadarOutreach::query()->count());
+        $this->assertSame(0, AiSuggestion::query()->count());
+        $this->assertNotSame($avant, $this->etat());
     }
 
     public function test_une_relance_au_dela_du_maximum_est_refusee(): void

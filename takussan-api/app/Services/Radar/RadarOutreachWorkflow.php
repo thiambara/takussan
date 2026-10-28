@@ -132,6 +132,14 @@ final class RadarOutreachWorkflow
             if (array_key_exists('resume', $changes)) {
                 $locked->summary = ConsentMessageComposer::part($changes['resume'], ConsentMessageComposer::SUMMARY_MAX);
             }
+            // Une partie qui se réduit à rien une fois ramenée à une ligne (que des caractères invisibles) est refusée ICI :
+            // sinon l'opérateur ne l'apprendrait qu'à l'envoi.
+            $empty = array_keys(array_filter(
+                ['salutation' => $locked->salutation, 'resume' => $locked->summary],
+                fn (string $part, string $field) => array_key_exists($field, $changes) && $part === '',
+                ARRAY_FILTER_USE_BOTH,
+            ));
+            abort_code_if($empty !== [], 422, 'radar.outreach.parts_missing', ['fields' => $empty]);
             $locked->message = $this->composer->compose($locked->locale, $locked->salutation, $locked->summary, $locked->clauses_version);
             $locked->save();
 
@@ -208,8 +216,8 @@ final class RadarOutreachWorkflow
     }
 
     /**
-     * Les règles des annonces : celles de l'annonceur, validées (ou déjà contactées), pas déjà couvertes par un accord
-     * valide. Pour une relance, seules les annonces du message relancé qui sont ENCORE contactées comptent.
+     * Les règles des annonces : celles de l'annonceur, validées (ou déjà contactées), sans chaîne ouverte pour un premier
+     * message, pas déjà couvertes par un accord valide. Pour une relance, seules les annonces du message relancé qui sont ENCORE contactées comptent.
      *
      * @param  list<int>  $ids
      * @param  Collection<int, RadarListing>  $listings
@@ -230,6 +238,16 @@ final class RadarOutreachWorkflow
                 ->reject(fn (RadarListing $l) => in_array($l->stage, [RadarListingStage::Reviewed, RadarListingStage::Contacted], true))
                 ->pluck('id')->map(fn ($id) => (int) $id)->all();
             abort_code_if($notReady !== [], 422, 'radar.outreach.listing_not_ready', ['listing_ids' => $notReady]);
+
+            // Un PREMIER message n'écrase pas une chaîne OUVERTE (envoyée, sans issue — la définition de la file « à relancer »,
+            // `RadarFollowUps::constrainOpen()`) : avant une issue, la seule façon d'écrire de nouveau est une relance, qui
+            // garde le plafond de `radar.follow_ups.max`. Une issue `question` ou `no_answer` ferme la chaîne.
+            $pending = RadarListing::query()
+                ->whereIn('id', $listings->where('stage', RadarListingStage::Contacted)->pluck('id')->all())
+                ->whereHas('outreaches', fn ($q) => $this->followUps->constrainOpen($q))
+                ->orderBy('id')
+                ->value('id');
+            abort_code_if($pending !== null, 422, 'radar.outreach.listing_pending', ['listing_id' => (int) $pending]);
         }
 
         $covered = $this->coverage->coveredAmong($listings->pluck('id')->map(fn ($id) => (int) $id)->all());
