@@ -359,9 +359,45 @@ class RadarAdvertiserCardTest extends TestCase
 
         $this->assertSame($annonceur->id, $ligne['id']);
         $this->assertSame('Awa', $ligne['display_name']);
-        foreach (['phone', 'nature', 'do_not_contact_at', 'claim'] as $cle) {
+        foreach (['phone', 'nature', 'do_not_contact_at'] as $cle) {
             $this->assertArrayNotHasKey($cle, $ligne, $cle);
         }
+        // `claim` est calculé : la liste lit ses colonnes même sous un sparse fieldset, `null` quand personne ne tient l'annonceur.
+        $this->assertArrayHasKey('claim', $ligne);
+        $this->assertNull($ligne['claim']);
+    }
+
+    public function test_une_prise_d_un_autre_operateur_se_rend_sous_un_sparse_fieldset(): void
+    {
+        $autre = User::factory()->create(['first_name' => 'Fatou', 'last_name' => 'Sow']);
+        $annonceur = RadarAdvertiser::factory()->create();
+        $annonceur->forceFill(['claimed_by_id' => $autre->id, 'claimed_at' => now(), 'claim_expires_at' => now()->addMinutes(5)])->save();
+
+        $ligne = $this->getJson('/api/admin/radar/advertisers?fields[radar_advertisers]=id')->assertOk()->json('data.0');
+
+        $this->assertFalse($ligne['claim']['mine']);
+        $this->assertSame($autre->id, $ligne['claim']['by']['id']);
+        $this->assertStringContainsString('Fatou', $ligne['claim']['by']['name']);
+        $this->assertArrayNotHasKey('phone', $ligne);
+    }
+
+    public function test_ma_prise_se_rend_mine_sous_un_sparse_fieldset(): void
+    {
+        $annonceur = RadarAdvertiser::factory()->create();
+        $annonceur->forceFill(['claimed_by_id' => $this->operateur->id, 'claimed_at' => now(), 'claim_expires_at' => now()->addMinutes(5)])->save();
+
+        $this->assertTrue($this->getJson('/api/admin/radar/advertisers?fields[radar_advertisers]=id')->assertOk()->json('data.0.claim.mine'));
+    }
+
+    public function test_une_prise_expiree_n_est_a_personne_sous_un_sparse_fieldset(): void
+    {
+        $annonceur = RadarAdvertiser::factory()->create();
+        $annonceur->forceFill(['claimed_by_id' => User::factory()->create()->id, 'claimed_at' => now()->subMinutes(20), 'claim_expires_at' => now()->subMinutes(10)])->save();
+
+        $ligne = $this->getJson('/api/admin/radar/advertisers?fields[radar_advertisers]=id')->assertOk()->json('data.0');
+
+        $this->assertArrayHasKey('claim', $ligne);
+        $this->assertNull($ligne['claim']);
     }
 
     public function test_une_file_inconnue_ne_rend_rien(): void

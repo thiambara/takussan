@@ -23,7 +23,16 @@ class RadarAdvertiserController extends Controller
     /** Les files : `filter[queue]=to_contact|awaiting|follow_up`, `filter[search]`, `filter[nature]`. */
     public function index(Request $request, RadarFollowUps $followUps): JsonResponse
     {
-        $paginator = RadarAdvertiser::buildQuery(null, $request)
+        $query = RadarAdvertiser::buildQuery(null, $request);
+
+        // Les colonnes de la prise en charge ne sont pas demandables par `fields[]` (hors `$queryFields`) ; la
+        // ressource en calcule `claim`. Sous un sparse fieldset elles sont chargées ici — sans elles la colonne
+        // « prise en charge » de la file ne se calculerait jamais (même motif que TCK-601 / TCK-953).
+        if ($query->getQuery()->columns !== null) {
+            $query->addSelect(['radar_advertisers.claimed_by_id', 'radar_advertisers.claim_expires_at']);
+        }
+
+        $paginator = $query
             // Comptes aliasés : un `withCount` sans alias nomme la colonne d'après la relation (piège n° 7).
             ->withCount([
                 'listings as reviewed_count' => fn ($q) => $q->where('stage', RadarListingStage::Reviewed->value),
