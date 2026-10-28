@@ -104,7 +104,7 @@ vignette et le lien de ce qui ressemble. Valider, doublon, écarter : trois gest
 Plan : [`docs/plans/2026-10-27-radar-tck-2387.md`](../../plans/2026-10-27-radar-tck-2387.md), huit tâches,
 chacune relue (spec et qualité), puis une revue de toute la branche et un contrôle au navigateur.
 
-**Décisions** (porteur : 1a-8a ; 9-13 : recommandations appliquées, **à confirmer par le porteur**) :
+**Décisions** (porteur : 1a-8a, puis 9a-13a confirmées le 2026-10-28) :
 
 - 9a — un numéro écarté par la normalisation est gardé **en clair** dans `extracted.phones_dropped`,
   distinct de `extracted.phones` ; la fiche l'affiche à part et `PUT …/listings/{listing}/advertiser`
