@@ -68,6 +68,10 @@ class PlatformRoutesDefaultDenyTest extends TestCase
         'admin.radar.listings.store',
         'admin.radar.listings.index',
         'admin.radar.listings.show',
+        // TCK-2387 — la relecture d'une fiche.
+        'admin.radar.listings.update',
+        'admin.radar.listings.review',
+        'admin.radar.listings.matches',
     ];
 
     public function test_toute_route_de_la_console_passe_par_la_garde_plateforme(): void

@@ -3,6 +3,7 @@
 namespace App\Http\Resources\Api\Admin;
 
 use App\Http\Resources\Bases\BaseResource;
+use App\Models\GeoNeighborhood;
 use Illuminate\Http\Request;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
@@ -16,6 +17,27 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
  */
 class RadarListingResource extends BaseResource
 {
+    /** `false` : non demandé (la liste) ; `null` : demandé, aucun quartier rattaché. */
+    private array|false|null $neighborhoodLink = false;
+
+    /**
+     * TCK-2387 — le quartier rattaché (`{id, name, city}`), lu une fois, pour la fiche seule (`show`, `update`,
+     * `review`) : la liste n'en a pas besoin et ne paie aucune requête de plus. Posé avant la sérialisation.
+     */
+    public function withNeighborhoodLink(): static
+    {
+        $id = $this->resource->extracted['neighborhood']['neighborhood_id'] ?? null;
+        $neighborhood = is_int($id) ? GeoNeighborhood::query()->with('city:id,name')->find($id) : null;
+
+        $this->neighborhoodLink = $neighborhood === null ? null : [
+            'id' => $neighborhood->id,
+            'name' => $neighborhood->name,
+            'city' => $neighborhood->city?->name,
+        ];
+
+        return $this;
+    }
+
     public function toArray(Request $request): array
     {
         return [
@@ -34,10 +56,18 @@ class RadarListingResource extends BaseResource
             'extraction_attempts' => $this->whenHas('extraction_attempts'),
             'extracted_at' => $this->whenHas('extracted_at', fn () => $this->iso($this->extracted_at)),
             'property_id' => $this->whenHas('property_id'),
+            'duplicate_of_listing_id' => $this->whenHas('duplicate_of_listing_id'),
+            'duplicate_of_property_id' => $this->whenHas('duplicate_of_property_id'),
+            // Les empreintes elles-mêmes ne sortent jamais : seul l'avancement du calcul.
+            'photo_fingerprints' => $this->when(
+                $this->hasColumns('source_photo_hashes', 'photo_urls', 'source_kind'),
+                fn () => $this->photoFingerprintStatus(),
+            ),
             'captured_by' => $this->whenHas('captured_by'),
             'purge_at' => $this->whenHas('purge_at', fn () => $this->iso($this->purge_at)),
             'created_at' => $this->whenHas('created_at', fn () => $this->iso($this->created_at)),
             'updated_at' => $this->whenHas('updated_at', fn () => $this->iso($this->updated_at)),
+            'neighborhood_link' => $this->when($this->neighborhoodLink !== false, fn () => $this->neighborhoodLink),
             'advertiser' => $this->whenLoaded('advertiser', fn () => $this->advertiser === null ? null : [
                 'id' => $this->advertiser->id,
                 'phone' => $this->advertiser->phone,
@@ -55,5 +85,18 @@ class RadarListingResource extends BaseResource
                     'sha256' => $media->getCustomProperty('sha256'),
                 ])->all()),
         ];
+    }
+
+    /** Sous un sparse fieldset, l'état des empreintes ne se calcule que si les trois colonnes qu'il lit sont là. */
+    private function hasColumns(string ...$columns): bool
+    {
+        foreach ($columns as $column) {
+            // `hasAttribute()` répond aussi pour une colonne castée mais non lue : on regarde ce qui est chargé.
+            if (! array_key_exists($column, $this->resource->getAttributes())) {
+                return false;
+            }
+        }
+
+        return true;
     }
 }
