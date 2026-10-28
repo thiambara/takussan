@@ -1,0 +1,75 @@
+<?php
+
+namespace App\Models;
+
+use App\Models\Bases\AbstractModel;
+use App\Models\Enums\RadarConsentProof;
+use App\Models\Enums\RadarVerificationStatus;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Spatie\MediaLibrary\HasMedia;
+use Spatie\MediaLibrary\InteractsWithMedia;
+
+/**
+ * TCK-2388 (ADR-0077 §3) — une réponse d'annonceur déposée sur un message : sa preuve, le verdict de l'IA
+ * (qui n'ouvre rien) et la confirmation humaine, qui seule rend l'accord valide. Les captures vivent dans la
+ * collection `radar_consent_captures`, sur le disque PRIVÉ par défaut (ADR-0029), comme `radar_captures`.
+ */
+class RadarConsent extends AbstractModel implements HasMedia
+{
+    use HasFactory, InteractsWithMedia;
+
+    protected $fillable = [
+        'radar_outreach_id', 'radar_advertiser_id', 'proof', 'capture_hashes', 'provider_message_id', 'transcript',
+        'ai_verdict', 'verification_status', 'verification_reason', 'deposited_by_id',
+        'confirmed_by_id', 'confirmed_at', 'confirmation_reason', 'revoked_at',
+    ];
+
+    protected $casts = [
+        'proof' => RadarConsentProof::class,
+        'verification_status' => RadarVerificationStatus::class,
+        'capture_hashes' => 'array',
+        'ai_verdict' => 'array',
+        'confirmed_at' => 'datetime',
+        'revoked_at' => 'datetime',
+    ];
+
+    protected static array $queryFields = [
+        'id', 'radar_outreach_id', 'radar_advertiser_id', 'proof', 'capture_hashes', 'provider_message_id', 'transcript',
+        'ai_verdict', 'verification_status', 'verification_reason', 'deposited_by_id',
+        'confirmed_by_id', 'confirmed_at', 'confirmation_reason', 'revoked_at', 'created_at', 'updated_at',
+    ];
+
+    public function registerMediaCollections(): void
+    {
+        // Aucun `useDisk()` : la collection tombe sur le disque par défaut, PRIVÉ (ADR-0029 §3).
+        $this->addMediaCollection('radar_consent_captures');
+    }
+
+    public function outreach(): BelongsTo
+    {
+        return $this->belongsTo(RadarOutreach::class, 'radar_outreach_id');
+    }
+
+    public function advertiser(): BelongsTo
+    {
+        return $this->belongsTo(RadarAdvertiser::class, 'radar_advertiser_id');
+    }
+
+    public function depositor(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'deposited_by_id');
+    }
+
+    public function confirmer(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'confirmed_by_id');
+    }
+
+    /** Un accord valide : confirmé par un humain et non révoqué. La seule définition ; `RadarConsentCoverage` la lit. */
+    public function scopeValid(Builder $query): Builder
+    {
+        return $query->whereNotNull('confirmed_at')->whereNull('revoked_at');
+    }
+}

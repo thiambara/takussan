@@ -125,6 +125,7 @@ const SANS_LIBELLE = {
   AgentProfileStatus: 'aucun écran relevé ne le traduit sous un espace complet',
   ConversationStatus: 'aucun espace du dictionnaire ne porte ses cas',
   InvitationStatus: 'aucun espace du dictionnaire ne porte ses cas',
+  RadarVerificationStatus: 'TCK-2388 (données) : aucun écran ne le lit encore — l\'écran de la fiche annonceur, plus loin dans le ticket, le passe à `LIBELLES`',
   ReferentialStatus: 'aucun écran relevé ne le traduit sous un espace complet',
   RelationshipStatus: 'aucun écran relevé ne le traduit (`billing.subscription.status` porte ses cas par coïncidence)',
   TaskStatus: 'aucun espace du dictionnaire ne porte ses quatre cas (`done` manque)',

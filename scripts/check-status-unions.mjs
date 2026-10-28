@@ -111,6 +111,7 @@ const SANS_UNION = {
   BoostStatus: 'aucune union nommée au front',
   CollaborationStatus: 'aucune union nommée au front',
   InvitationStatus: 'unions anonymes seulement (`lib/queries/owners.ts`, `lib/queries/service-providers.ts`)',
+  RadarVerificationStatus: 'TCK-2388 (données) : le front ne le lit pas encore — son union arrive avec l\'écran de la fiche annonceur, plus loin dans le ticket',
   RelationshipStatus: 'union anonyme ouverte seulement (`types/customer.ts`, `… | string`)',
 };
 

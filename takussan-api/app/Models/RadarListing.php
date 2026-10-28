@@ -9,6 +9,7 @@ use App\Models\Enums\RadarSourceKind;
 use App\Models\Enums\RadarSourceSite;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 use Spatie\QueryBuilder\AllowedFilter;
@@ -91,6 +92,12 @@ class RadarListing extends AbstractModel implements HasMedia
     public function capturer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'captured_by');
+    }
+
+    /** TCK-2388 — les messages de démarchage qui couvrent cette annonce. */
+    public function outreaches(): BelongsToMany
+    {
+        return $this->belongsToMany(RadarOutreach::class, 'radar_outreach_listing');
     }
 
     public function property(): BelongsTo

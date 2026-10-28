@@ -82,6 +82,12 @@ class RadarListingFactory extends Factory
         });
     }
 
+    /** TCK-2388 — une fiche lue puis validée par l'opérateur : `extracted()`, à l'étape `reviewed`. */
+    public function reviewed(): static
+    {
+        return $this->extracted()->state(['stage' => RadarListingStage::Reviewed]);
+    }
+
     /**
      * TCK-2387 — les empreintes des photos source déjà calculées (`[]` : calculé, aucune photo).
      *
