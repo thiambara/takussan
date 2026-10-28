@@ -43,6 +43,8 @@ describe('pluriels ICU (TCK-752)', () => {
     ['fr', 'dashboard.agencyKpis.rentedHint', '1 bien loué', '2 biens loués'],
     ['fr', 'superAdmin.pages.upgradeRequests.plannedAgents', ' · 1 agent prévu', ' · 2 agents prévus'],
     ['en', 'serviceProviders.multiAgency.subtitle', 'You now collaborate with 1 agency.', 'You now collaborate with 2 agencies.'],
+    ['fr', 'superAdmin.pages.radar.listing.matches.seeMore', 'Voir l’autre', 'Voir les 2 autres'],
+    ['en', 'superAdmin.pages.radar.listing.matches.seeMore', 'Show the other one', 'Show the other 2'],
   ] as const)('%s %s : %s / %s', (locale, cle, un, deux) => {
     expect(rendre(locale, cle, { count: 1 })).toContain(un);
     expect(rendre(locale, cle, { count: 2 })).toContain(deux);

@@ -8683,7 +8683,7 @@
             "captures": "Screenshots",
             "captureAlt": "Screenshot {n}",
             "capturesHint": "Screenshots cannot be highlighted: the cited passage is shown under each field.",
-            "capturesExpire": "Screenshot links expire after 5 minutes; reload the listing to renew them.",
+            "capturesExpire": "Screenshot links expire after 30 minutes; reload the listing to renew them.",
             "cited": "Cited passage:"
           },
           "sections": {
@@ -8814,7 +8814,7 @@
             "openListing": "Open the Radar card",
             "notPublic": "Not public",
             "duplicateOfThis": "Duplicate of this one",
-            "seeMore": "Show the other {count}",
+            "seeMore": "{count, plural, one {Show the other one} other {Show the other #}}",
             "seeLess": "Show fewer",
             "duplicateClosedHint": "This listing is already a duplicate: pick its original listing instead."
           },

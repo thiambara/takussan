@@ -24,7 +24,7 @@ const estUrlWeb = (valeur: string | null | undefined): valeur is string => !!val
  * - texte ou URL : `raw_text` tel quel (préformaté, replié), le lien vers l'annonce d'origine et les
  *   photos source. Quand un champ est survolé ou focalisé, son passage cité est entouré d'un `<mark>`
  *   et ramené à l'écran dans le texte seul (jamais dans la page : cf. l'effet) ;
- * - captures : une image par capture, par son URL signée (l'original, valable 5 minutes). Une image
+ * - captures : une image par capture, par son URL signée (l'original, signée pour 30 minutes). Une image
  *   ne se surligne pas : les passages cités s'affichent sous les champs.
  *
  * Les photos source sont chargées directement depuis leur site (`<img>` simple,

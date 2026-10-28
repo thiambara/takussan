@@ -8029,7 +8029,7 @@
             "captures": "Captures d’écran",
             "captureAlt": "Capture d’écran {n}",
             "capturesHint": "Les captures ne se surlignent pas : le passage cité s’affiche sous chaque champ.",
-            "capturesExpire": "Les liens des captures expirent au bout de 5 minutes ; rechargez la fiche pour les renouveler.",
+            "capturesExpire": "Les liens des captures expirent au bout de 30 minutes ; rechargez la fiche pour les renouveler.",
             "cited": "Passage cité :"
           },
           "sections": {
@@ -8160,7 +8160,7 @@
             "openListing": "Ouvrir la fiche Radar",
             "notPublic": "Non public",
             "duplicateOfThis": "Doublon de celui-ci",
-            "seeMore": "Voir les {count} autres",
+            "seeMore": "{count, plural, one {Voir l’autre} other {Voir les # autres}}",
             "seeLess": "Voir moins",
             "duplicateClosedHint": "Cette annonce est déjà un doublon : choisissez son annonce d’origine."
           },

@@ -83,6 +83,11 @@ const REGISTRE: Readonly<Record<string, string>> = {
     'takussan-api/config/search_alerts.php:20 — confirmation_ttl_hours = 48, appliqué par PublicSearchAlertController::confirmByToken et search-alerts:purge-unconfirmed',
   'search.publicAlert.codeBody':
     'takussan-api/app/Services/Auth/PhoneVerificationService.php:34 — CODE_TTL_SECONDS = 300, via sendCodeTo(\'search_alert:…\')',
+  // TCK-2387 — les captures d'une fiche Radar : `RadarListingResource` les rend par
+  // `PrivateMediaAccess::signedUrl()` sans échéance, donc signées pour la durée par défaut. Les
+  // 5 minutes de `PRESIGNED_TTL_MINUTES` sont celles de l'URL de stockage, réémise à chaque appel.
+  'superAdmin.pages.radar.listing.source.capturesExpire':
+    'takussan-api/app/Services/Media/PrivateMediaAccess.php:45 — SIGNED_ROUTE_TTL_MINUTES = 30, appliqué par RadarListingResource.php:90',
   // Libellés de PÉRIODE (« ci 12 weer » = « sur 12 mois ») : la tournure wolof ressemble à un délai.
   'dashboard.tenant.upcoming30d': 'période affichée, pas une promesse',
   'dashboard.agent.chartTitle': 'période affichée, pas une promesse',
@@ -122,6 +127,7 @@ const CHIFFRE_TENU: Readonly<Record<string, number | readonly number[]>> = {
   'superAdmin.moderation.staleWarning': 7,
   'search.publicAlert.sentEmailBody': 48,
   'search.publicAlert.codeBody': 5,
+  'superAdmin.pages.radar.listing.source.capturesExpire': 30,
 };
 
 /**
