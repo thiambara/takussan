@@ -536,8 +536,14 @@ describe('RadarAdvertiserCard — correctifs de revue (TCK-2388)', () => {
       expect(screen.getByLabelText('Résumé de l’annonce')).toBeEnabled();
       expect(screen.getByRole('checkbox', { name: /annonce n° 12/ })).toBeEnabled();
       expect(screen.getByRole('radio', { name: 'English' })).toBeEnabled();
+      // Mais « Rendre » se ferme le temps du renouvellement : il ne doit pas croiser une restitution.
+      expect(screen.getByRole('button', { name: 'Rendre' })).toBeDisabled();
 
-      await act(async () => { resoudre({ data: { claim: prise({ until: '2026-10-28T10:20:00+00:00' }) } }); });
+      await act(async () => {
+        resoudre({ data: { claim: prise({ until: '2026-10-28T10:20:00+00:00' }) } });
+        await vi.advanceTimersByTimeAsync(50);
+      });
+      expect(screen.getByRole('button', { name: 'Rendre' })).toBeEnabled();
     } finally {
       vi.useRealTimers();
     }

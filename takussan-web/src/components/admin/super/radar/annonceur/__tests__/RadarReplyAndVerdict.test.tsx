@@ -387,6 +387,25 @@ describe('Relancer ou classer sans réponse (TCK-2388)', () => {
     await waitFor(() => expect(prepareRadarOutreach).toHaveBeenCalledWith(7, { follow_up_of_id: 5, locale: 'en' }));
   });
 
+  it('préparer une relance alors qu’un brouillon existe demande confirmation : rien ne part avant', async () => {
+    vi.mocked(prepareRadarOutreach).mockResolvedValue({ data: { ...message({ id: 7, follow_up_of_id: 5 }), generated: true, ai_error: null } });
+    const utilisateur = await rendre([
+      messageEnvoye({ follow_up: { due_at: '2026-01-01T00:00:00+00:00', propose_no_answer: false } }),
+      message({ id: 6, listing_ids: [12] }),
+    ]);
+
+    await utilisateur.click(screen.getByRole('button', { name: 'Préparer la relance' }));
+
+    const dialogue = await screen.findByRole('dialog');
+    expect(dialogue).toHaveTextContent(/le remplace/);
+    expect(prepareRadarOutreach).not.toHaveBeenCalled();
+
+    await utilisateur.click(within(dialogue).getByRole('button', { name: 'Remplacer le brouillon' }));
+
+    await waitFor(() => expect(prepareRadarOutreach).toHaveBeenCalledWith(7, { follow_up_of_id: 5, locale: 'fr' }));
+    expect(prepareRadarOutreach).toHaveBeenCalledTimes(1);
+  });
+
   it('quand la file propose « sans réponse », le bouton principal le fait et la relance n’est plus offerte', async () => {
     const utilisateur = await rendre([
       messageEnvoye({ follow_up_rank: 2, follow_up: { due_at: '2026-01-01T00:00:00+00:00', propose_no_answer: true } }),

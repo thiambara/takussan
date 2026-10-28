@@ -97,7 +97,8 @@ function FicheChargee({ annonceur }: { readonly annonceur: RadarAdvertiserDetail
     onError: surEchec,
   });
   // Le renouvellement périodique est une mutation À PART, absente de `enCours` : s'il fermait les champs pendant
-  // son appel, l'opérateur qui écrit perdrait le focus et ses frappes, toutes les quelques minutes.
+  // son appel, l'opérateur qui écrit perdrait le focus et ses frappes, toutes les quelques minutes. Il ferme pourtant
+  // « Rendre » : une restitution qui croise un renouvellement en vol laisserait la prise reprise après avoir été rendue.
   const renouvellement = useMutation<RadarClaimResponse, ApiError, void>({
     mutationFn: () => claimRadarAdvertiser(annonceur.id),
     onSuccess: priseRendue,
@@ -224,7 +225,7 @@ function FicheChargee({ annonceur }: { readonly annonceur: RadarAdvertiserDetail
       <BandeauPriseEnCharge
         claim={annonceur.claim}
         prendreFerme={stoppe || enCours}
-        rendreFerme={enCours}
+        rendreFerme={enCours || renouvellement.isPending}
         enPrise={prise.isPending}
         enRestitution={restitution.isPending}
         onPrendre={() => lancer(() => prise.mutate())}

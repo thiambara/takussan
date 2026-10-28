@@ -9005,7 +9005,7 @@
             "generationIncomplete": "The AI did not write the greeting and the summary: write them yourself.",
             "replyRequired": "No reply is filed on this message: file the advertiser’s captures before confirming the consent.",
             "reasonRequired": "The AI verdict does not point to a consent: write the reason for the confirmation.",
-            "listingStageConflict": "One of this message's listings is no longer “contacted”: the page changed in the meantime, it is reloaded."
+            "listingStageConflict": "One of this message's listings changed stage: the page changed in the meantime, it is reloaded."
           },
           "reply": {
             "heading": "Advertiser's reply",

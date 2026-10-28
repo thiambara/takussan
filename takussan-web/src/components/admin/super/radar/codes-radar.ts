@@ -129,7 +129,7 @@ export const ERREURS_FICHE_RADAR: Record<string, string> = {
  *
  * Il n'existe PAS de `radar.advertiser.not_claimed` : « pas la prise en charge » se dit `claim_required` (rien n'est
  * pris) ou `claim_not_held` (pris par un autre, au moment de rendre). Les motifs de vérification
- * (`radar.verification.*`, écrits par le job et non émis en réponse) sont ceux de la tâche suivante.
+ * (`radar.verification.*`, écrits par le job et non émis en réponse) sont dans `MOTIFS_VERIFICATION_RADAR`.
  */
 export const ERREURS_ANNONCEUR_RADAR: Record<string, string> = {
   'radar.advertiser.claim_required': 'claimRequired',

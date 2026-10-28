@@ -9005,7 +9005,7 @@
             "generationIncomplete": "L’IA n’a pas rédigé la salutation et le résumé : écrivez-les vous-même.",
             "replyRequired": "Aucune réponse n’est déposée sur ce message : déposez les captures de l’annonceur avant de confirmer l’accord.",
             "reasonRequired": "Le verdict de l’IA ne va pas dans le sens d’un accord : écrivez le motif de la confirmation.",
-            "listingStageConflict": "Une des annonces de ce message n’est plus « contactée » : la fiche a changé entre-temps, elle est relue."
+            "listingStageConflict": "Une des annonces de ce message a changé d’étape : la fiche a changé entre-temps, elle est relue."
           },
           "reply": {
             "heading": "Réponse de l’annonceur",
