@@ -7,6 +7,7 @@ use App\Ai\Usages\RadarExtractionUsage;
 use App\Exceptions\ApiError;
 use App\Jobs\Radar\ExtractRadarListing;
 use App\Jobs\Radar\FingerprintRadarSourcePhotos;
+use App\Models\Address;
 use App\Models\AiSuggestion;
 use App\Models\Enums\AiSuggestionDecision;
 use App\Models\Enums\PlatformProfileLevel;
@@ -292,6 +293,28 @@ class RadarListingReviewTest extends TestCase
             ->assertJsonPath('data.neighborhood_link.id', $autre->id)
             ->assertJsonPath('data.neighborhood_link.name', $autre->name)
             ->assertJsonPath('data.neighborhood_link.city', $autre->city->name);
+    }
+
+    public function test_un_quartier_envoye_en_chaine_est_stocke_en_entier_et_le_signal_de_lieu_le_lit(): void
+    {
+        $autre = GeoNeighborhood::factory()->create();
+        $bien = Property::factory()->published()->create(['price' => 450000, 'bedrooms' => 3, 'contract_type' => 'rent']);
+        Address::factory()->create(['addressable_type' => Property::class, 'addressable_id' => $bien->id, 'geo_neighborhood_id' => $autre->id]);
+        $listing = $this->fiche(['neighborhood' => ['neighborhood_id' => null], 'phones' => []]);
+
+        // Le matcher ne lit le lieu que si quartier, prix et chambres sont des NOMBRES JSON.
+        $this->patchJson($this->url($listing), ['neighborhood_id' => (string) $autre->id, 'price' => '450000', 'bedrooms' => '3', 'bathrooms' => '2'])->assertOk();
+
+        $extracted = $listing->fresh()->extracted;
+        $this->assertSame($autre->id, $extracted['neighborhood']['neighborhood_id']);
+        $this->assertSame(450000, $extracted['price']['value']);
+        $this->assertSame(3, $extracted['bedrooms']['value']);
+        $this->assertSame(2, $extracted['bathrooms']['value']);
+
+        $this->getJson($this->url($listing, '/matches'))
+            ->assertOk()
+            ->assertJsonPath('data.matches.0.id', $bien->id)
+            ->assertJsonPath('data.matches.0.signals.0.signal', 'neighborhood_price_bedrooms');
     }
 
     public function test_un_champ_peut_etre_efface_sauf_la_nature(): void
