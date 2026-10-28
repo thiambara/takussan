@@ -19,6 +19,7 @@ use App\Models\PlatformPayout;
 use App\Models\PrivacyRequest;
 use App\Models\Property;
 use App\Models\PropertyBoost;
+use App\Models\RadarListing;
 use App\Models\Tag;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -115,6 +116,8 @@ class NamespaceAccessGuardTest extends TestCase
         $boostProduct = BoostProduct::query()->firstOrFail();
         $neighborhood = GeoNeighborhood::factory()->create();
         $tag = Tag::factory()->create();
+        // TCK-2386 — même motif, sur la fiche du Radar (`radar/listings/{listing}`).
+        $listing = RadarListing::factory()->create();
 
         $routes = collect(Route::getRoutes())
             ->filter(fn ($r) => str_starts_with($r->uri(), 'api/admin'));
@@ -145,6 +148,7 @@ class NamespaceAccessGuardTest extends TestCase
                     '{boostProduct}' => (string) $boostProduct->id,
                     '{neighborhood}' => (string) $neighborhood->id,
                     '{tag}' => (string) $tag->id,
+                    '{listing}' => (string) $listing->id,
                 ]);
 
                 // Replace any remaining unresolved {param} with a dummy id so

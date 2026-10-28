@@ -674,6 +674,16 @@ return [
         'not_replayable' => 'This journal entry cannot be replayed: only an authenticated webhook that failed or matched nothing, with its body kept, can be.',
         'integration_unavailable' => 'The integration that validated this webhook is no longer active: it cannot be replayed.',
     ],
+    'radar' => [
+        'captures' => [
+            'too_large' => 'A capture is too large: at most 20,000 pixels per side and 40 million pixels.',
+            'unreadable' => 'A capture cannot be read as an image: send a JPEG, PNG or WebP screenshot.',
+        ],
+        'url' => [
+            'invalid' => 'This URL cannot be read: its host name is unreadable.',
+            'airbnb' => 'Airbnb is not a Radar source: its content is not collected.',
+        ],
+    ],
     'pay_link' => [
         'not_found' => 'This payment link does not exist.',
         'gone' => 'This payment link is no longer valid. Ask :agency for a new one.',

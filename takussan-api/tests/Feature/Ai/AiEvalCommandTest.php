@@ -2,18 +2,26 @@
 
 namespace Tests\Feature\Ai;
 
+use App\Ai\Usages\ConnectionTestUsage;
+use App\Models\AiCall;
+use App\Models\Enums\AiModelRole;
 use App\Services\Ai\AiGateway;
 use App\Services\Ai\AiUsageRegistry;
 use App\Services\Ai\Evaluation\EvaluationRunner;
 use App\Services\Ai\Evaluation\FieldScorer;
+use App\Services\Ai\ModelLink;
 use App\Services\Ai\ModelResolver;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
+use InvalidArgumentException;
 use Laravel\Ai\Exceptions\RateLimitedException;
+use Laravel\Ai\Files\LocalImage;
 use Tests\Support\Ai\AgentDEssai;
 use Tests\Support\Ai\SocleIaDEssai;
 use Tests\Support\Ai\UsageDEssai;
+use Tests\Support\Ai\UsageVisionDEssai;
 use Tests\TestCase;
 
 /**
@@ -175,5 +183,271 @@ class AiEvalCommandTest extends TestCase
         File::deleteDirectory($this->racine.'/'.UsageDEssai::KEY);
 
         $this->artisan('ai:eval', ['usage' => UsageDEssai::KEY])->assertFailed();
+    }
+
+    /** TCK-2386 — un jeu de cas à captures : le catalogue d'essai porte l'usage vision et son rôle. */
+    private function jeuAvecCaptures(array|string $piecesDuPremierCas): EvaluationRunner
+    {
+        config([
+            'ai.roles.vision' => [['provider' => 'anthropic', 'model' => 'modele-v', 'max_tokens' => 2000]],
+            'ai.pricing.anthropic.modele-v' => ['input' => 3.0, 'output' => 15.0, 'cache_read' => 0.3, 'cache_write' => 3.75],
+        ]);
+        $this->app->instance(AiUsageRegistry::class, new AiUsageRegistry([UsageDEssai::class, UsageVisionDEssai::class, ConnectionTestUsage::class]));
+        $dossier = $this->racine.'/'.UsageVisionDEssai::KEY;
+        File::ensureDirectoryExists($dossier.'/cases');
+        File::ensureDirectoryExists($dossier.'/captures');
+        File::put($dossier.'/captures/annonce.png', base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII='));
+        File::put($dossier.'/cases/01.json', json_encode(['input' => 'Capture d\'une annonce', 'attachments' => $piecesDuPremierCas, 'expected' => ['titre' => 'Villa', 'prix' => 100]]));
+        File::put($dossier.'/cases/02.json', json_encode(['input' => 'Villa à Ngor, 100 francs', 'expected' => ['titre' => 'Villa', 'prix' => 100]]));
+
+        return new EvaluationRunner(app(AiGateway::class), app(AiUsageRegistry::class), app(ModelResolver::class), new FieldScorer, $this->racine, $this->racine.'/rapports');
+    }
+
+    public function test_a_case_with_attachments_sends_them_as_images_on_the_vision_chain(): void
+    {
+        $runner = $this->jeuAvecCaptures(['captures/annonce.png']);
+        $appels = [];
+        AgentDEssai::fake(function (string $p, Collection $pieces, $provider, string $model) use (&$appels) {
+            $appels[] = [$model, $pieces->map(fn ($piece) => $piece instanceof LocalImage ? $piece->path : get_debug_type($piece))->all()];
+
+            return ['titre' => 'Villa', 'prix' => 100];
+        });
+
+        $rapport = $runner->run(UsageVisionDEssai::KEY);
+
+        $this->assertSame([
+            ['modele-v', [$this->racine.'/'.UsageVisionDEssai::KEY.'/captures/annonce.png']],
+            ['modele-a', []],
+        ], $appels);
+        $this->assertSame(0, $rapport['failures']);
+        // M1 — `model` reste UN modèle (celui du rôle de l'usage), `models` les nomme tous.
+        $this->assertSame('anthropic/modele-a', $rapport['model']);
+        $this->assertSame(['anthropic/modele-v', 'anthropic/modele-a'], $rapport['models']);
+        $this->assertNull($rapport['role']);
+        $this->assertSame(['vision', 'extraction'], array_keys($rapport['roles']));
+        $this->assertSame(
+            [[AiModelRole::Vision, true], [AiModelRole::Extraction, true]],
+            AiCall::query()->orderBy('id')->get()->map(fn (AiCall $c) => [$c->role, $c->is_evaluation])->all(),
+        );
+    }
+
+    /** Revue I1 — un candidat remplace le premier maillon d'UN rôle : seuls les cas de ce rôle lui sont joués. */
+    private function enregistrerAppels(array &$appels, bool $capturesFausses = false): void
+    {
+        AgentDEssai::fake(function (string $p, Collection $pieces, $provider, string $model) use (&$appels, $capturesFausses) {
+            $appels[] = [$model, $pieces->count()];
+
+            return ['titre' => 'Villa', 'prix' => $capturesFausses && $pieces->isNotEmpty() ? 90 : 100];
+        });
+    }
+
+    public function test_a_candidate_for_the_usage_role_never_sees_the_capture_cases(): void
+    {
+        $runner = $this->jeuAvecCaptures(['captures/annonce.png']);
+        $appels = [];
+        $this->enregistrerAppels($appels);
+
+        $explicite = $runner->run(UsageVisionDEssai::KEY, ModelLink::parse('anthropic/modele-b'), AiModelRole::Extraction);
+        // Sans rôle nommé, le candidat vaut pour le rôle de l'usage (`ai:eval --model=` sans `--role`).
+        $parDefaut = $runner->run(UsageVisionDEssai::KEY, ModelLink::parse('anthropic/modele-b'));
+
+        $this->assertSame([['modele-b', 0], ['modele-b', 0]], $appels);
+        foreach ([$explicite, $parDefaut] as $rapport) {
+            $this->assertSame(['extraction', 1, 'anthropic/modele-b', ['anthropic/modele-b']], [$rapport['role'], $rapport['cases'], $rapport['model'], $rapport['models']]);
+            $this->assertSame(['extraction'], array_keys($rapport['roles']));
+        }
+    }
+
+    public function test_a_vision_candidate_plays_only_the_capture_cases(): void
+    {
+        $runner = $this->jeuAvecCaptures(['captures/annonce.png']);
+        $appels = [];
+        $this->enregistrerAppels($appels);
+
+        $rapport = $runner->run(UsageVisionDEssai::KEY, ModelLink::parse('anthropic/modele-b'), AiModelRole::Vision);
+
+        $this->assertSame([['modele-b', 1]], $appels);
+        $this->assertSame(['vision', 1, 'anthropic/modele-b'], [$rapport['role'], $rapport['cases'], $rapport['model']]);
+        $this->assertSame([AiModelRole::Vision, 'modele-b'], [AiCall::query()->sole()->role, AiCall::query()->sole()->model]);
+    }
+
+    public function test_a_role_without_any_case_of_the_usage_is_refused_before_any_call(): void
+    {
+        AgentDEssai::fake();
+        $runner = $this->jeuAvecCaptures(['captures/annonce.png']);
+
+        try {
+            $runner->run(UsageDEssai::KEY, ModelLink::parse('anthropic/modele-b'), AiModelRole::Vision);
+            $this->fail('aucun cas vision : refus attendu');
+        } catch (InvalidArgumentException $e) {
+            $this->assertSame('ai.eval.no_cases', $e->getMessage());
+        }
+        AgentDEssai::assertNeverPrompted();
+    }
+
+    public function test_the_usages_of_a_role_follow_the_effective_role_of_their_cases(): void
+    {
+        $runner = $this->jeuAvecCaptures(['captures/annonce.png']);
+
+        $this->assertSame([UsageVisionDEssai::KEY], $runner->usagesForRole(AiModelRole::Vision));
+        $this->assertSame([UsageDEssai::KEY, UsageVisionDEssai::KEY], $runner->usagesForRole(AiModelRole::Extraction));
+        $this->assertSame([], $runner->usagesForRole(AiModelRole::Redaction));
+
+        File::delete($this->racine.'/'.UsageVisionDEssai::KEY.'/cases/01.json');
+        $this->assertSame([], $runner->usagesForRole(AiModelRole::Vision));
+    }
+
+    public function test_each_role_is_ratcheted_against_its_own_baseline_section(): void
+    {
+        $runner = $this->jeuAvecCaptures(['captures/annonce.png']);
+        File::put($this->racine.'/'.UsageVisionDEssai::KEY.'/baseline.json', json_encode([
+            // Un global bas : seule la section du rôle peut retenir la vision (0.5) et le jeu complet (0.75).
+            'global' => 0.4, 'fields' => ['prix' => 1.0, 'titre' => 1.0],
+            'roles' => [
+                'extraction' => ['global' => 1.0, 'fields' => ['prix' => 1.0, 'titre' => 1.0]],
+                'vision' => ['global' => 1.0, 'fields' => ['prix' => 1.0, 'titre' => 1.0]],
+            ],
+        ]));
+        $appels = [];
+        $this->enregistrerAppels($appels, capturesFausses: true);
+        $baseline = $runner->baseline(UsageVisionDEssai::KEY);
+
+        $texte = $runner->run(UsageVisionDEssai::KEY, ModelLink::parse('anthropic/modele-b'), AiModelRole::Extraction);
+        $vision = $runner->run(UsageVisionDEssai::KEY, ModelLink::parse('anthropic/modele-b'), AiModelRole::Vision);
+        $complet = $runner->run(UsageVisionDEssai::KEY);
+
+        $this->assertNull($runner->verdict($texte, $baseline));
+        $this->assertSame('ai.eval.below_baseline', $runner->verdict($vision, $baseline));
+        $this->assertSame('ai.eval.below_baseline', $runner->verdict($complet, $baseline));
+        $this->assertSame(0.5, $vision['global']);
+        $this->assertSame(1.0, $texte['global']);
+    }
+
+    public function test_a_role_section_on_other_fields_is_stale(): void
+    {
+        $runner = $this->jeuAvecCaptures(['captures/annonce.png']);
+        File::put($this->racine.'/'.UsageVisionDEssai::KEY.'/baseline.json', json_encode([
+            'roles' => ['vision' => ['global' => 0.1, 'fields' => ['prix' => 1.0, 'titre' => 1.0, 'surface' => 1.0]]],
+        ]));
+        $appels = [];
+        $this->enregistrerAppels($appels);
+
+        $vision = $runner->run(UsageVisionDEssai::KEY, ModelLink::parse('anthropic/modele-b'), AiModelRole::Vision);
+
+        $this->assertSame('ai.eval.baseline_stale', $runner->verdict($vision, $runner->baseline(UsageVisionDEssai::KEY)));
+    }
+
+    public function test_a_legacy_baseline_without_roles_only_ratchets_the_usage_role(): void
+    {
+        $runner = $this->jeuAvecCaptures(['captures/annonce.png']);
+        File::put($this->racine.'/'.UsageVisionDEssai::KEY.'/baseline.json', json_encode(['global' => 1.0, 'fields' => ['prix' => 1.0, 'titre' => 1.0]]));
+        $appels = [];
+        AgentDEssai::fake(fn () => ['titre' => 'Villa', 'prix' => 90]);
+        $baseline = $runner->baseline(UsageVisionDEssai::KEY);
+
+        $this->assertSame(['extraction'], array_keys($baseline['roles']));
+        $this->assertNull($runner->verdict($runner->run(UsageVisionDEssai::KEY, ModelLink::parse('anthropic/modele-b'), AiModelRole::Vision), $baseline));
+        $this->assertSame('ai.eval.below_baseline', $runner->verdict($runner->run(UsageVisionDEssai::KEY, ModelLink::parse('anthropic/modele-b'), AiModelRole::Extraction), $baseline));
+    }
+
+    public function test_a_role_run_rewrites_only_its_own_baseline_section(): void
+    {
+        $runner = $this->jeuAvecCaptures(['captures/annonce.png']);
+        $appels = [];
+        $this->enregistrerAppels($appels, capturesFausses: true);
+        $runner->writeBaseline(UsageVisionDEssai::KEY, $runner->run(UsageVisionDEssai::KEY));
+        $avant = $runner->baseline(UsageVisionDEssai::KEY);
+        $this->assertSame(0.75, $avant['global']);
+        $this->assertSame(['vision', 'extraction'], array_keys($avant['roles']));
+
+        $this->enregistrerAppels($appels);
+        $runner->writeBaseline(UsageVisionDEssai::KEY, $runner->run(UsageVisionDEssai::KEY, ModelLink::parse('anthropic/modele-b'), AiModelRole::Vision));
+
+        $apres = $runner->baseline(UsageVisionDEssai::KEY);
+        $this->assertSame(1.0, $apres['roles']['vision']['global']);
+        $this->assertSame('anthropic/modele-b', $apres['roles']['vision']['model']);
+        $this->assertSame($avant['roles']['extraction'], $apres['roles']['extraction']);
+        $this->assertSame([0.75, $avant['fields']], [$apres['global'], $apres['fields']]);
+    }
+
+    public function test_the_command_evaluates_a_candidate_for_the_named_role(): void
+    {
+        $this->app->instance(EvaluationRunner::class, $this->jeuAvecCaptures(['captures/annonce.png']));
+        $appels = [];
+        $this->enregistrerAppels($appels);
+
+        $this->artisan('ai:eval', ['usage' => UsageVisionDEssai::KEY, '--model' => 'anthropic/modele-b', '--role' => 'vision'])->assertSuccessful();
+        $this->artisan('ai:eval', ['usage' => UsageVisionDEssai::KEY, '--role' => 'inconnu'])->assertExitCode(2);
+
+        $this->assertSame([['modele-b', 1]], $appels);
+    }
+
+    public function test_an_attachment_outside_the_usage_folder_or_missing_is_refused(): void
+    {
+        AgentDEssai::fake(fn () => ['titre' => 'Villa', 'prix' => 100]);
+
+        foreach (['../essai.extraction/baseline.json' => 'ai.eval.attachment_invalid', '/etc/hosts' => 'ai.eval.attachment_invalid', 'captures/absente.png' => 'ai.eval.attachment_missing', 'captures/annonce.png' => 'ai.eval.attachment_invalid'] as $chemin => $code) {
+            try {
+                // Revue M4 — `"attachments": "captures/annonce.png"`, une chaîne et non une liste : refus codé, jamais un TypeError.
+                $this->jeuAvecCaptures($code === 'ai.eval.attachment_invalid' && $chemin === 'captures/annonce.png' ? $chemin : [$chemin])->run(UsageVisionDEssai::KEY);
+                $this->fail("{$chemin} devait être refusé");
+            } catch (InvalidArgumentException $e) {
+                $this->assertSame($code, $e->getMessage(), $chemin);
+            }
+        }
+        AgentDEssai::assertNeverPrompted();
+    }
+
+    /** Revue 2 — une première référence vient d'un jeu complet : celle d'un seul rôle, écrite à vide, est refusée. */
+    public function test_a_single_role_baseline_cannot_be_the_first_one(): void
+    {
+        $this->app->instance(EvaluationRunner::class, $runner = $this->jeuAvecCaptures(['captures/annonce.png']));
+        $appels = [];
+        $this->enregistrerAppels($appels);
+
+        $this->artisan('ai:eval', ['usage' => UsageVisionDEssai::KEY, '--role' => 'vision', '--update-baseline' => true])
+            ->expectsOutputToContain('ai.eval.baseline_needs_full_run')
+            ->assertFailed();
+
+        $this->assertFalse(File::exists($this->racine.'/'.UsageVisionDEssai::KEY.'/baseline.json'));
+        try {
+            $runner->writeBaseline(UsageVisionDEssai::KEY, $runner->run(UsageVisionDEssai::KEY, role: AiModelRole::Vision));
+            $this->fail('référence d\'un seul rôle sans référence complète : refus attendu');
+        } catch (InvalidArgumentException $e) {
+            $this->assertSame('ai.eval.baseline_needs_full_run', $e->getMessage());
+        }
+    }
+
+    public function test_a_baseline_with_only_role_sections_neither_crashes_nor_misprints_the_reference(): void
+    {
+        $this->app->instance(EvaluationRunner::class, $this->jeuAvecCaptures(['captures/annonce.png']));
+        File::put($this->racine.'/'.UsageVisionDEssai::KEY.'/baseline.json', json_encode(['roles' => [
+            'extraction' => ['global' => 0.25, 'fields' => ['prix' => 0.25, 'titre' => 0.25]],
+            'vision' => ['global' => 0.75, 'fields' => ['prix' => 0.75, 'titre' => 0.75]],
+        ]]));
+        $appels = [];
+        $this->enregistrerAppels($appels);
+
+        $this->artisan('ai:eval', ['usage' => UsageVisionDEssai::KEY])
+            ->expectsOutputToContain('(référence aucune)')
+            ->expectsOutputToContain('référence 0.2500')
+            ->expectsOutputToContain('référence 0.7500')
+            ->assertSuccessful();
+        // Le rôle évalué se lit contre SA section, jamais contre un global d'un autre jeu.
+        $this->artisan('ai:eval', ['usage' => UsageVisionDEssai::KEY, '--role' => 'vision'])
+            ->expectsOutputToContain('(référence 0.7500)')
+            ->assertSuccessful();
+    }
+
+    public function test_a_single_role_rewrite_says_the_full_reference_is_kept(): void
+    {
+        $this->app->instance(EvaluationRunner::class, $runner = $this->jeuAvecCaptures(['captures/annonce.png']));
+        $appels = [];
+        $this->enregistrerAppels($appels);
+        $runner->writeBaseline(UsageVisionDEssai::KEY, $runner->run(UsageVisionDEssai::KEY));
+
+        $this->artisan('ai:eval', ['usage' => UsageVisionDEssai::KEY, '--role' => 'vision', '--update-baseline' => true])
+            ->expectsOutputToContain('seul un --update-baseline complet')
+            ->assertSuccessful();
     }
 }

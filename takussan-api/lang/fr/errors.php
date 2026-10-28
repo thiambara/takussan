@@ -674,6 +674,16 @@ return [
         'not_replayable' => 'Cette ligne du journal ne se rejoue pas : seul un webhook authentifié, en échec ou non apparié, au corps conservé, peut l\'être.',
         'integration_unavailable' => 'L\'intégration qui avait validé ce webhook n\'est plus active : il ne peut pas être rejoué.',
     ],
+    'radar' => [
+        'captures' => [
+            'too_large' => 'Une capture est trop grande : 20 000 pixels de côté et 40 millions de pixels au plus.',
+            'unreadable' => 'Une capture ne se lit pas comme une image : envoyez une capture JPEG, PNG ou WebP.',
+        ],
+        'url' => [
+            'invalid' => 'Cette URL ne se lit pas : son nom d\'hôte est illisible.',
+            'airbnb' => 'Airbnb n\'est pas une source du Radar : son contenu ne se collecte pas.',
+        ],
+    ],
     'pay_link' => [
         'not_found' => 'Ce lien de paiement n\'existe pas.',
         'gone' => 'Ce lien de paiement n\'est plus valide. Demandez-en un nouveau à :agency.',

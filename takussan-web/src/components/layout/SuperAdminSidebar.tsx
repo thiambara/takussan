@@ -24,6 +24,7 @@ import {
   MapPinned,
   Megaphone,
   PlugZap,
+  Radar,
   Rocket,
   Send,
   Settings2,
@@ -127,6 +128,8 @@ export const NAV_GROUPS: NavGroup[] = [
         badgeKey: 'moderation-pending',
         ability: 'platform.moderation.view',
       },
+      // TCK-2386 (ADR-0077) — le Radar : support et au-dessus (geste `platform.radar.operate`).
+      { href: '/super-admin/radar', labelKey: 'radar', icon: Radar, ability: 'platform.radar.operate' },
     ],
   },
   {

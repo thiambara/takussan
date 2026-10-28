@@ -7,7 +7,7 @@ family: full
 estimate: L
 wave: 80
 created: 2026-10-26
-updated: 2026-10-26
+updated: 2026-10-27
 depends_on: [TCK-2386]
 blocks: [TCK-2389, TCK-2390, TCK-2395]
 spec_refs:
@@ -66,7 +66,12 @@ Les relances dues remontent d'elles-mêmes.
 - **Un verdict IA dont le numéro ne concorde pas ou dont les clauses ne sont pas retrouvées** ne
   peut être confirmé en `consented` qu'avec un motif écrit, journalisé.
 - **STOP** passe l'annonceur en `do_not_contact` (date) et enregistre l'empreinte HMAC de son numéro
-  (`App\Support\PhoneFingerprint`) : définitif.
+  (`App\Support\PhoneFingerprint`) : définitif. ⚠ TCK-2386 a livré l'empreinte sous
+  `App\Support\RadarPhone::hmac()` (et la lecture des refus sous
+  `RadarAdvertiserDirectory::refusedAmong()`) : les réutiliser, pas en écrire une seconde.
+  **Ordre des verrous** (revue finale de TCK-2386) : le job d'extraction verrouille l'annonce,
+  puis l'annonceur ; le gestionnaire de STOP qui touche les deux prend le même ordre, sous peine
+  d'interblocage.
 - **Captures** : mêmes règles que TCK-2386, empreinte SHA-256 conservée dans `radar_consents`.
 - **Prise en charge** : 10 minutes, renouvelable, un seul opérateur par annonceur (modèle
   d'ADR-0043) ; une écriture sans la prise en charge rend 409.

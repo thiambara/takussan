@@ -8,8 +8,6 @@ use App\Jobs\Ai\RunAiEvaluation;
 use App\Models\AiEvaluationRun;
 use App\Models\Enums\AiEvaluationStatus;
 use App\Models\Enums\AiModelRole;
-use App\Services\Ai\AiUsage;
-use App\Services\Ai\AiUsageRegistry;
 use App\Services\Ai\Evaluation\EvaluationRunner;
 use App\Services\Ai\ModelLink;
 use Illuminate\Http\JsonResponse;
@@ -19,7 +17,6 @@ use Illuminate\Support\Facades\Cache;
 class AiEvaluationController extends Controller
 {
     public function __construct(
-        private readonly AiUsageRegistry $registry,
         private readonly EvaluationRunner $runner,
     ) {}
 
@@ -28,8 +25,8 @@ class AiEvaluationController extends Controller
         $role = AiModelRole::from($request->validated('role'));
         $link = new ModelLink($request->validated('provider'), $request->validated('model'), $request->validated('max_tokens'));
         abort_code_unless($link->isPriced(), 422, 'ai.model_unpriced');
-        $evaluable = array_filter($this->registry->forRole($role), fn (AiUsage $usage): bool => $this->runner->cases($usage->key()) !== []);
-        abort_code_if($evaluable === [], 422, 'ai.eval.no_cases');
+        // TCK-2386 — un rôle s'évalue sur les cas qui se jouent sur lui (les captures en `vision`).
+        abort_code_if($this->runner->usagesForRole($role) === [], 422, 'ai.eval.no_cases');
 
         // Deux évaluations du même candidat sur le même rôle se doubleraient en coût et en verdicts.
         // Le contrôle et la création tiennent sous un verrou : sans lui, deux POST simultanés (double clic)

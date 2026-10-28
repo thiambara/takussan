@@ -3,18 +3,22 @@
 namespace App\Services\Ai;
 
 use App\Ai\Usages\ConnectionTestUsage;
-use App\Models\Enums\AiModelRole;
+use App\Ai\Usages\RadarExtractionUsage;
 use InvalidArgumentException;
 
 /**
  * TCK-2383 (ADR-0076 §4) — le catalogue FERMÉ des usages : un usage absent d'ici n'existe pas, et
  * `scripts/check-ai-usages.mjs` casse sur un fichier de `app/Ai/Usages/` qui n'y serait pas listé.
+ *
+ * Les usages qu'éprouve le candidat d'un rôle ne se lisent pas ici, sur le seul rôle déclaré : ils
+ * dépendent des cas (une capture se joue en `vision`) — `EvaluationRunner::usagesForRole()` (TCK-2386).
  */
 final class AiUsageRegistry
 {
     /** @var list<class-string<AiUsage>> */
     public const USAGES = [
         ConnectionTestUsage::class,
+        RadarExtractionUsage::class,
     ];
 
     /** @var array<string, AiUsage> */
@@ -43,11 +47,5 @@ final class AiUsageRegistry
     public function all(): array
     {
         return $this->usages;
-    }
-
-    /** @return list<AiUsage> */
-    public function forRole(AiModelRole $role): array
-    {
-        return array_values(array_filter($this->usages, fn (AiUsage $usage): bool => $usage->role() === $role));
     }
 }

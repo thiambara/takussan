@@ -31,6 +31,8 @@ enum PlatformAbility: string
     case UsersBlock = 'platform.users.block';
     case ModerationView = 'platform.moderation.view';
     case SearchGlobal = 'platform.search.global';
+    // TCK-2386 (ADR-0077) — le Radar : saisir une annonce, lancer son extraction, la relire.
+    case RadarOperate = 'platform.radar.operate';
 
     // `super_admin` seul.
     case UsersImpersonate = 'platform.users.impersonate';
@@ -52,7 +54,7 @@ enum PlatformAbility: string
     public static function forLevel(PlatformProfileLevel $level): array
     {
         $viewer = [self::ConsoleAccess, self::ReportsView, self::HealthView, self::AgenciesView];
-        $support = [...$viewer, self::UsersView, self::UsersSupport, self::UsersBlock, self::ModerationView, self::SearchGlobal];
+        $support = [...$viewer, self::UsersView, self::UsersSupport, self::UsersBlock, self::ModerationView, self::SearchGlobal, self::RadarOperate];
 
         return match ($level) {
             PlatformProfileLevel::Viewer => $viewer,

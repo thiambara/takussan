@@ -7,7 +7,7 @@ family: back
 estimate: M
 wave: 80
 created: 2026-10-26
-updated: 2026-10-26
+updated: 2026-10-27
 depends_on: [TCK-2389]
 blocks: []
 spec_refs:
@@ -46,6 +46,11 @@ posés par TCK-2389. Loi n° 2008-12 : la durée annoncée doit être tenue par 
 - **Les preuves d'accord ne sont pas purgées** tant qu'un bien qu'elles justifient existe ; après
   le retrait du dernier, elles le sont à la durée annoncée par `privacy.ts`.
 - La purge est idempotente et journalise ses comptes.
+- **Notes de la revue finale de TCK-2386** : « champs extraits » comprend `extracted.phones`, les
+  numéros écartés (si TCK-2387 les conserve) et **chaque passage cité** (`evidence`), qui recopie
+  la source. Une annonce purgée garde son empreinte de contenu : la recoller rend la fiche
+  `purged` (voulu, à dire dans l'écran). Une relance par recollage (`requeued`, TCK-2386) **ne
+  repousse pas** `purge_at` : la date court depuis la première saisie.
 
 ## Delta à produire
 

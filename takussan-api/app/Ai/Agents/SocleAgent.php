@@ -25,12 +25,26 @@ abstract class SocleAgent implements Agent
 
     private ?int $maxTokens = null;
 
-    public function configure(string $instructions, ?int $maxTokens): static
+    private int $chainLength = 1;
+
+    /**
+     * `$chainLength` : le nombre de maillons de la chaîne que la passerelle joue pour cet appel
+     * (TCK-2386). Un agent dont le temps d'appel est borné par celui d'un job le partage entre eux
+     * ({@see RadarExtraction::timeout()}) ; les autres l'ignorent.
+     */
+    public function configure(string $instructions, ?int $maxTokens, int $chainLength = 1): static
     {
         $this->instructions = $instructions;
         $this->maxTokens = $maxTokens;
+        $this->chainLength = max(1, $chainLength);
 
         return $this;
+    }
+
+    /** Le nombre de maillons de la chaîne jouée, au moins un. */
+    public function chainLength(): int
+    {
+        return $this->chainLength;
     }
 
     public function instructions(): string

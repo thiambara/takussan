@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Api\Admin;
 
+use App\Ai\Usages\ConnectionTestUsage;
 use App\Jobs\Ai\RunAiEvaluation;
 use App\Models\AiEvaluationRun;
 use App\Models\Enums\AiEvaluationStatus;
@@ -12,6 +13,7 @@ use App\Services\Ai\Evaluation\FieldScorer;
 use App\Services\Ai\ModelResolver;
 use ErrorException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Exceptions;
 use Illuminate\Support\Facades\File;
@@ -22,6 +24,7 @@ use Spatie\Activitylog\Models\Activity;
 use Tests\Support\Ai\AgentDEssai;
 use Tests\Support\Ai\SocleIaDEssai;
 use Tests\Support\Ai\UsageDEssai;
+use Tests\Support\Ai\UsageVisionDEssai;
 use Tests\TestCase;
 
 /** TCK-2385 (AC4) — évaluer un candidat depuis la console ; une affectation sous le cliquet est refusée, sauf dérogation motivée. */
@@ -117,6 +120,71 @@ class AdminAiEvaluationsTest extends TestCase
         $this->putJson('/api/admin/ai/roles/extraction', $chaine)->assertStatus(422)->assertJsonPath('code', 'ai.evaluation_below_baseline');
     }
 
+    /**
+     * Revue I1 (TCK-2386) — un usage à captures : un cas capture et un cas texte, une référence par rôle.
+     * Le faux modèle se trompe sur le prix des seules captures et note ce qu'il reçoit.
+     *
+     * @param  list<array{0: string, 1: int}>  $appels
+     */
+    private function usageACaptures(array &$appels): void
+    {
+        config([
+            'ai.roles.vision' => [['provider' => 'anthropic', 'model' => 'modele-a', 'max_tokens' => 2000]],
+        ]);
+        $this->app->instance(AiUsageRegistry::class, new AiUsageRegistry([UsageDEssai::class, UsageVisionDEssai::class, ConnectionTestUsage::class]));
+        $dossier = $this->racine.'/'.UsageVisionDEssai::KEY;
+        File::ensureDirectoryExists($dossier.'/cases');
+        File::ensureDirectoryExists($dossier.'/captures');
+        File::put($dossier.'/captures/annonce.png', base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII='));
+        File::put($dossier.'/cases/01.json', json_encode(['input' => 'Capture', 'attachments' => ['captures/annonce.png'], 'expected' => ['titre' => 'Villa', 'prix' => 100]]));
+        File::put($dossier.'/cases/02.json', json_encode(['input' => 'Villa, 100 francs', 'expected' => ['titre' => 'Villa', 'prix' => 100]]));
+        File::put($dossier.'/baseline.json', json_encode(['global' => 1.0, 'fields' => ['prix' => 1.0, 'titre' => 1.0], 'roles' => [
+            'extraction' => ['global' => 1.0, 'fields' => ['prix' => 1.0, 'titre' => 1.0]],
+            'vision' => ['global' => 1.0, 'fields' => ['prix' => 1.0, 'titre' => 1.0]],
+        ]]));
+        $this->app->instance(EvaluationRunner::class, new EvaluationRunner(
+            app(AiGateway::class), app(AiUsageRegistry::class), app(ModelResolver::class), new FieldScorer,
+            $this->racine, $this->racine.'/rapports',
+        ));
+        AgentDEssai::fake(function (string $p, Collection $pieces, $provider, string $model) use (&$appels) {
+            $appels[] = [$model, $pieces->count()];
+
+            return ['titre' => 'Villa', 'prix' => $pieces->isNotEmpty() ? 90 : 100];
+        });
+    }
+
+    public function test_a_vision_candidate_is_evaluated_on_the_capture_cases_and_held_by_the_ratchet(): void
+    {
+        $this->actingAsRole('super_admin');
+        $appels = [];
+        $this->usageACaptures($appels);
+
+        $id = $this->postJson('/api/admin/ai/evaluations', ['role' => 'vision', 'provider' => 'anthropic', 'model' => 'modele-b'])->assertStatus(202)->json('data.id');
+
+        $this->assertSame([['modele-b', 1]], $appels);
+        $usages = $this->getJson('/api/admin/ai/evaluations/'.$id)->assertOk()->assertJsonPath('data.below_baseline', true)->json('data.report.usages');
+        $this->assertSame([UsageVisionDEssai::KEY], array_keys($usages));
+        $this->assertSame('ai.eval.below_baseline', $usages[UsageVisionDEssai::KEY]['verdict']);
+        $this->assertEquals(['global' => 1.0, 'fields' => ['prix' => 1.0, 'titre' => 1.0]], $usages[UsageVisionDEssai::KEY]['baseline']);
+        $this->putJson('/api/admin/ai/roles/vision', ['chain' => [['provider' => 'anthropic', 'model' => 'modele-b']]])
+            ->assertStatus(422)->assertJsonPath('code', 'ai.evaluation_below_baseline');
+    }
+
+    public function test_an_extraction_candidate_never_receives_the_capture_cases(): void
+    {
+        $this->actingAsRole('super_admin');
+        $appels = [];
+        $this->usageACaptures($appels);
+
+        $id = $this->postJson('/api/admin/ai/evaluations', ['role' => 'extraction', 'provider' => 'anthropic', 'model' => 'modele-b'])->assertStatus(202)->json('data.id');
+
+        $this->assertSame([], array_filter($appels, fn (array $appel): bool => $appel[1] > 0));
+        $usages = $this->getJson('/api/admin/ai/evaluations/'.$id)->assertOk()->json('data.report.usages');
+        $this->assertEqualsCanonicalizing([UsageDEssai::KEY, UsageVisionDEssai::KEY], array_keys($usages)); // jsonb ne garde pas l'ordre des clés
+        $this->assertNull($usages[UsageVisionDEssai::KEY]['verdict']);
+        $this->assertSame(1, $usages[UsageVisionDEssai::KEY]['cases']);
+    }
+
     private function course(AiEvaluationStatus $statut, string $modele = 'modele-b'): AiEvaluationRun
     {
         return AiEvaluationRun::query()->create([
@@ -168,7 +236,7 @@ class AdminAiEvaluationsTest extends TestCase
         $run = $this->course(AiEvaluationStatus::Queued);
         $run->forceFill(['candidate' => ['provider' => 'anthropic']])->save();
 
-        (new RunAiEvaluation($run->id))->handle(app(EvaluationRunner::class), app(AiUsageRegistry::class));
+        (new RunAiEvaluation($run->id))->handle(app(EvaluationRunner::class));
 
         Exceptions::assertReported(ErrorException::class);
         $this->assertSame(AiEvaluationStatus::Failed, $run->fresh()->status);
@@ -186,7 +254,7 @@ class AdminAiEvaluationsTest extends TestCase
             return ['titre' => 'Villa', 'prix' => 90];
         });
 
-        (new RunAiEvaluation($run->id))->handle(app(EvaluationRunner::class), app(AiUsageRegistry::class));
+        (new RunAiEvaluation($run->id))->handle(app(EvaluationRunner::class));
 
         $this->assertSame(AiEvaluationStatus::Failed, $run->fresh()->status);
         $this->assertSame('ai.unexpected', $run->fresh()->error_code);
@@ -242,7 +310,7 @@ class AdminAiEvaluationsTest extends TestCase
             return ['titre' => 'Villa', 'prix' => 90];
         });
 
-        (new RunAiEvaluation($run->id))->handle(app(EvaluationRunner::class), app(AiUsageRegistry::class));
+        (new RunAiEvaluation($run->id))->handle(app(EvaluationRunner::class));
 
         $this->assertSame(0, $appels);
         $this->assertSame(AiEvaluationStatus::Running, $run->fresh()->status);
@@ -259,9 +327,9 @@ class AdminAiEvaluationsTest extends TestCase
             return ['titre' => 'Villa', 'prix' => 100];
         });
 
-        (new RunAiEvaluation($run->id))->handle(app(EvaluationRunner::class), app(AiUsageRegistry::class));
+        (new RunAiEvaluation($run->id))->handle(app(EvaluationRunner::class));
         $apresLePremier = $appels;
-        (new RunAiEvaluation($run->id))->handle(app(EvaluationRunner::class), app(AiUsageRegistry::class));
+        (new RunAiEvaluation($run->id))->handle(app(EvaluationRunner::class));
 
         $this->assertGreaterThan(0, $apresLePremier);
         $this->assertSame($apresLePremier, $appels);
@@ -284,7 +352,7 @@ class AdminAiEvaluationsTest extends TestCase
             AiEvaluationRun::query()->whereKey($lu->id)->update(['status' => AiEvaluationStatus::Running->value]);
         });
 
-        (new RunAiEvaluation($run->id))->handle(app(EvaluationRunner::class), app(AiUsageRegistry::class));
+        (new RunAiEvaluation($run->id))->handle(app(EvaluationRunner::class));
 
         $this->assertSame(0, $appels);
         $this->assertSame(AiEvaluationStatus::Running, $run->fresh()->status);

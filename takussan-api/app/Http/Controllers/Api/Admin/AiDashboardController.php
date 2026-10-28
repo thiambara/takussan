@@ -52,7 +52,16 @@ class AiDashboardController extends Controller
 
         $baselines = [];
         foreach (array_keys($registry->all()) as $key) {
-            if (($baseline = $runner->baseline($key)) !== null) {
+            if (($baseline = $runner->baseline($key)) === null) {
+                continue;
+            }
+            // TCK-2386 — une référence sans jeu complet (sections de rôle seules) se montre par la
+            // section du rôle de l'usage, à défaut la première : jamais un global absent.
+            $section = $baseline['roles'][$registry->get($key)->role()->value] ?? (is_array($baseline['roles'] ?? null) ? reset($baseline['roles']) : null);
+            if (! isset($baseline['global']) && is_array($section) && isset($section['global'])) {
+                $baseline = ['global' => $section['global'], 'model' => $section['model'] ?? null] + $baseline;
+            }
+            if (isset($baseline['global'])) {
                 $baselines[$key] = $baseline;
             }
         }

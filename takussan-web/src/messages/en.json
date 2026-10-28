@@ -226,7 +226,8 @@
         "payments": "Payments",
         "credits": "Credits",
         "boosts": "Promotion",
-        "ai": "Artificial intelligence"
+        "ai": "Artificial intelligence",
+        "radar": "Radar"
       }
     },
     "notifications": {
@@ -8509,6 +8510,153 @@
           "baselineModel": "Evaluated model",
           "baselineDate": "Measured on"
         }
+      },
+      "radar": {
+        "metaTitle": "Radar",
+        "title": "Radar",
+        "subtitle": "Listings spotted elsewhere: to review, to contact, then to publish with the advertiser’s consent.",
+        "openIntake": "Add listings",
+        "loadError": "The Radar could not be loaded.",
+        "counters": {
+          "toReview": "To review",
+          "pending": "Pending",
+          "failed": "Failed",
+          "toContact": "To contact",
+          "published": "Published",
+          "aiCost": "AI cost today",
+          "aiCostBudget": "out of a {budget} cap",
+          "aiCostNoBudget": "no cap"
+        },
+        "filters": {
+          "stageAria": "Filter by stage",
+          "anyStage": "All stages"
+        },
+        "stages": {
+          "captured": "Captured",
+          "extracted": "To review",
+          "reviewed": "Reviewed",
+          "contacted": "Contacted",
+          "consented": "Consent received",
+          "published": "Published",
+          "extraction_failed": "Extraction failed",
+          "duplicate": "Duplicate",
+          "refused": "Refused",
+          "do_not_contact": "Do not contact",
+          "purged": "Purged"
+        },
+        "sites": {
+          "coinafrique": "CoinAfrique",
+          "expat_dakar": "Expat-Dakar",
+          "facebook": "Facebook",
+          "whatsapp": "WhatsApp",
+          "other": "Other"
+        },
+        "kinds": {
+          "url": "URL",
+          "text": "Text",
+          "captures": "Screenshots"
+        },
+        "columns": {
+          "stage": "Stage",
+          "site": "Site",
+          "title": "Extracted title",
+          "price": "Price",
+          "neighborhood": "Neighbourhood",
+          "reason": "Reason",
+          "date": "Captured on"
+        },
+        "tableCaption": "Radar listings, most recent first",
+        "untitled": "No extracted title",
+        "extracting": "Extracting…",
+        "pending": "Pending: {reason}",
+        "neighborhoodUnmatched": "to match",
+        "tryTextOrCaptures": "Try the text or screenshots instead.",
+        "periods": {
+          "daily": "/ day",
+          "weekly": "/ week",
+          "monthly": "/ month",
+          "yearly": "/ year"
+        },
+        "reasons": {
+          "fetchDeferred": "The site will be read again a little later.",
+          "fetchInvalidUrl": "The address is not a readable URL.",
+          "fetchAirbnb": "Airbnb listings are not taken.",
+          "fetchPrivateAddress": "The address points to a private network: it is not read.",
+          "fetchRobots": "The site forbids automated reading.",
+          "fetchRobotsUnavailable": "The site’s reading rules could not be reached.",
+          "fetchTooManyRedirects": "The page redirects too many times.",
+          "fetchTooLarge": "The page is too heavy to be read.",
+          "fetchNotHtml": "The address does not lead to a web page.",
+          "fetchHttpError": "The site answered with an error.",
+          "fetchTimeout": "The site did not answer in time.",
+          "fetchUnresolvable": "The site name cannot be found.",
+          "aiBudget": "Today’s AI spending cap is reached: extraction will resume.",
+          "aiKillSwitch": "AI extraction is switched off from the AI console.",
+          "aiForbidden": "The operator who captured the listing may not run the extraction.",
+          "aiDataClass": "This content may not be sent to the model.",
+          "aiSensitiveData": "The content carries sensitive data: it is not sent to the model.",
+          "aiRoleUnassigned": "No model is assigned to extraction.",
+          "aiProvidersUnavailable": "Every AI provider is unavailable: extraction will retry.",
+          "aiProviderAuth": "The AI provider rejected the key.",
+          "aiRequestRejected": "The AI provider rejected the request.",
+          "aiProviderRateLimited": "The AI provider is rate limiting: extraction will retry.",
+          "aiProviderCredits": "The AI provider credit is exhausted.",
+          "aiProviderUnavailable": "The AI provider is unavailable: extraction will retry.",
+          "aiProviderTimeout": "The AI provider did not answer in time: extraction will retry.",
+          "aiResponseInvalid": "The model’s answer cannot be used.",
+          "aiResponseTruncated": "The model’s answer was cut off before the end.",
+          "aiResponseFiltered": "The model’s answer was blocked by the provider’s filter.",
+          "aiUnexpected": "Unexpected AI provider error.",
+          "extractionInvalidOutput": "The model’s output was invalid.",
+          "extractionEmptySource": "There was nothing to read: empty page or no screenshot.",
+          "extractionTimeout": "The extraction did not complete in time.",
+          "extractionError": "Unexpected error: the details are in the API log."
+        },
+        "empty": {
+          "title": "No listing yet",
+          "description": "Paste a URL, a text or listing screenshots: extraction starts on its own."
+        },
+        "emptyFiltered": {
+          "title": "No listing at this stage",
+          "description": "Pick another stage, or go back to all stages."
+        },
+        "intake": {
+          "title": "Quick entry",
+          "description": "Paste, save, repeat: the form clears and stays open.",
+          "close": "Close quick entry",
+          "tabs": {
+            "urls": "URL",
+            "text": "Text",
+            "captures": "Screenshots"
+          },
+          "urlsLabel": "Listing URLs",
+          "urlsHint": "One URL per line, 20 at most. The site is read from the address.",
+          "textLabel": "Listing text",
+          "textHint": "The text as published, phone number included.",
+          "sourceSiteLabel": "Source site",
+          "capturesLabel": "Screenshots",
+          "capturesHint": "Up to 10 JPEG, PNG or WebP images, 8 MB each, 24 MB in total.",
+          "capturesSelected": "{count, plural, =0 {No image selected} one {# image selected} other {# images selected}}",
+          "submit": "Save",
+          "submitting": "Saving…",
+          "resultsTitle": "Last submission",
+          "created": "Listing #{id} created",
+          "existing": "Listing #{id} already captured",
+          "requeued": "Listing #{id} already captured: extraction restarted",
+          "failed": "The submission failed.",
+          "errors": {
+            "refusedUrl": "Refused address: {url}",
+            "urlAirbnb": "Airbnb listings are not taken: nothing was saved.",
+            "urlInvalid": "One of the addresses has no readable site name: nothing was saved.",
+            "capturesUnreadable": "One of the images cannot be read: nothing was saved.",
+            "capturesTooLarge": "One of the images is too large (in pixels): nothing was saved.",
+            "capturesTooMany": "No more than 10 images per submission. Nothing was sent.",
+            "captureFileTooLarge": "One of the images is over 8 MB. Nothing was sent.",
+            "capturesTotalTooLarge": "The images exceed 24 MB in total: send fewer at a time. Nothing was sent.",
+            "payloadTooLarge": "The submission is too heavy for the server: send fewer images at a time (24 MB at most)."
+          }
+        },
+        "forbidden": "The Radar is reserved to support and super-admin operators."
       }
     },
     "featureFlags": {

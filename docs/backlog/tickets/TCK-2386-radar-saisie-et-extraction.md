@@ -1,7 +1,7 @@
 ---
 id: TCK-2386
 title: "Radar : tables, saisie d'une annonce (URL, texte, captures) et extraction IA avec confiance et passage cité"
-status: todo
+status: done
 phase: P1
 family: full
 estimate: L
@@ -9,7 +9,7 @@ wave: 80
 created: 2026-10-26
 updated: 2026-10-27
 depends_on: [TCK-2383, TCK-2384, TCK-2398]
-blocks: [TCK-2387, TCK-2388]
+blocks: [TCK-2387, TCK-2388, TCK-2403]
 spec_refs:
   features:
     - "docs/features.md#212-radar--acquisition-dannonces"
@@ -75,43 +75,45 @@ compteurs disent quoi faire maintenant. Une extraction en cours, en attente (bud
 
 ## Delta à produire
 
-- [ ] Migrations `create_radar_advertisers_table`, `create_radar_listings_table` · modèles
+- [x] Migrations `create_radar_advertisers_table`, `create_radar_listings_table` · modèles
       `RadarAdvertiser`, `RadarListing` · enums `RadarListingStage`, `RadarSourceKind`,
       `RadarSourceSite`, `RadarAdvertiserNature`.
-- [ ] `App\Services\Radar\UrlFetcher` (SSRF, `robots.txt`, fréquence par domaine) et
+- [x] `App\Services\Radar\UrlFetcher` (SSRF, `robots.txt`, fréquence par domaine) et
       `App\Services\Radar\HtmlCleaner`.
-- [ ] Agent `App\Ai\Agents\RadarExtraction` et son usage déclaré ; prompt
+- [x] Agent `App\Ai\Agents\RadarExtraction` et son usage déclaré ; prompt
       `resources/ai/prompts/radar.extraction/v1.md`.
-- [ ] `App\Services\Radar\ExtractionNormalizer` (bornes, confiance, quartier par
+- [x] `App\Services\Radar\ExtractionNormalizer` (bornes, confiance, quartier par
       `GeoNeighborhood`, montants « 1M5 » ou « 450.000f »).
-- [ ] Job `ExtractRadarListing` (réessais espacés, états « en attente » et « échouée »).
-- [ ] `PlatformAbility::RadarOperate`. Contrôleurs `App\Http\Controllers\Api\Admin\RadarListingController`,
+- [x] Job `ExtractRadarListing` (réessais espacés, états « en attente » et « échouée »).
+- [x] `PlatformAbility::RadarOperate`. Contrôleurs `App\Http\Controllers\Api\Admin\RadarListingController`,
       `RadarDashboardController` · FormRequest `StoreRadarListingRequest` · routes
       `routes/api/admin-radar.php`.
-- [ ] Premier jeu d'évaluation `resources/ai/evals/radar.extraction/` : 30 annonces anonymisées
-      (textes et captures) avec leurs sorties attendues, et la référence du cliquet.
-- [ ] Front : tableau de bord et saisie rapide sous `/super-admin/radar`.
-- [ ] `NamespaceAccessGuardTest`, sections `docs/models-spec.md` des deux modèles.
-- [ ] Tests : `RadarUrlFetcherTest` (SSRF : IP privée, `localhost`, métadonnées, redirection vers
+- [x] Premier jeu d'évaluation `resources/ai/evals/radar.extraction/` : 30 annonces anonymisées
+      (textes et captures) avec leurs sorties attendues. La référence du cliquet est sortie dans
+      **TCK-2403** (décision du porteur du 2026-10-27).
+- [x] Front : tableau de bord et saisie rapide sous `/super-admin/radar`.
+- [x] `NamespaceAccessGuardTest`, sections `docs/models-spec.md` des deux modèles.
+- [x] Tests : `RadarUrlFetcherTest` (SSRF : IP privée, `localhost`, métadonnées, redirection vers
       une IP privée, DNS qui résout en privé ; `robots.txt` ; Airbnb), `RadarListingStoreTest`,
       `ExtractionNormalizerTest`, `ExtractRadarListingTest` (faux modèle : champs, confiance
       forcée sans passage, budget épuisé ⇒ en attente).
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Une URL qui redirige vers `169.254.169.254` ou vers une adresse privée est refusée sans
+- [x] AC1 — Une URL qui redirige vers `169.254.169.254` ou vers une adresse privée est refusée sans
       que la cible soit jamais contactée.
-- [ ] AC2 — Coller deux fois le même texte rend la même fiche, sans second appel IA.
-- [ ] AC3 — Un champ rendu par le modèle sans passage cité est enregistré avec la confiance la plus
+- [x] AC2 — Coller deux fois le même texte rend la même fiche, sans second appel IA.
+- [x] AC3 — Un champ rendu par le modèle sans passage cité est enregistré avec la confiance la plus
       basse.
-- [ ] AC4 — « 1M5 » devient 1 500 000 XOF, « 450.000f/mois » 450 000 XOF par mois ; un loyer de
+- [x] AC4 — « 1M5 » devient 1 500 000 XOF, « 450.000f/mois » 450 000 XOF par mois ; un loyer de
       5 000 XOF est signalé hors bornes.
-- [ ] AC5 — « Liberté 6 » est rattaché au `GeoNeighborhood` correspondant ; un nom ambigu rend des
+- [x] AC5 — « Liberté 6 » est rattaché au `GeoNeighborhood` correspondant ; un nom ambigu rend des
       suggestions, pas un choix.
-- [ ] AC6 — Une annonce saisie pour un numéro qui a dit STOP est marquée `do_not_contact` dès la
+- [x] AC6 — Une annonce saisie pour un numéro qui a dit STOP est marquée `do_not_contact` dès la
       saisie, sans appel IA.
-- [ ] AC7 — Un `viewer` reçoit 403 ; un `support` saisit.
-- [ ] AC8 — `ai:eval radar.extraction` passe sur le jeu livré et en fixe la référence.
+- [x] AC7 — Un `viewer` reçoit 403 ; un `support` saisit.
+- [x] ~~AC8 — `ai:eval radar.extraction` passe sur le jeu livré et en fixe la référence.~~ Sorti dans
+      **TCK-2403** (décision du porteur du 2026-10-27), avec le passage à de vraies annonces.
 
 ## Hors périmètre
 
@@ -121,4 +123,52 @@ compteurs disent quoi faire maintenant. Une extraction en cours, en attente (bud
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+Plan : [`docs/plans/2026-10-27-radar-tck-2386.md`](../../plans/2026-10-27-radar-tck-2386.md), huit tâches, chacune revue (conformité et qualité) puis corrigée jusqu'à une revue propre.
+
+**Ce que prouve chaque critère** :
+
+| AC | Tests |
+|---|---|
+| AC1 | `RadarUrlFetcherTest::test_ac1_*` : redirection vers les métadonnées, vers un nom qui résout en privé ; la cible n'est jamais contactée (résolveur et transport doublés) |
+| AC2 | `RadarListingStoreTest::test_ac2_*`, `ExtractRadarListingTest::test_ac2_*` (un seul appel au modèle par l'API) |
+| AC3 | `ExtractionNormalizerTest::test_ac3_*`, `ExtractRadarListingTest::test_ac3_*` |
+| AC4 | `ExtractionNormalizerTest::test_ac4_*` (« 1M5 », « 450.000f/mois », 5 000 XOF hors bornes) |
+| AC5 | `ExtractionNormalizerTest::test_ac5_*` (Liberté 6, nom ambigu, homonyme dans deux villes, quartier fusionné) |
+| AC6 | `RadarListingStoreTest::test_ac6_*` (aucun job), `ExtractRadarListingTest::test_ac6_*` et les STOP relus après lecture de l'URL, des captures et sur chaque numéro de la sortie |
+| AC7 | `RadarListingStoreTest::test_ac7_*`, `RadarExtractionUsageTest::test_a_viewer_is_refused_without_reaching_the_model` |
+
+**AC8 est sorti dans TCK-2403** (décisions du porteur du 2026-10-27 : 3b puis 8a — le ticket fusionne en `done`, la dette reste visible dans son propre ticket) : `ai:eval radar.extraction --update-baseline` joue le jeu de 30 cas contre le vrai modèle (coût réel, faible). Il attend l'accord du porteur ; tant que `baseline.json` n'existe pas, le cliquet de l'usage ne garde rien. Les 30 cas sont **synthétiques** (aucune annonce réelle collectée à ce jour), ce que dit le `README.md` du jeu.
+
+**Écarts et décisions prises en route** :
+
+- **Lecture d'URL** : résolution DNS contrôlée à chaque saut, `robots.txt` compris ; connexion épinglée sur l'IP contrôlée (`CURLOPT_RESOLVE`), proxy désactivé ; plages bloquées étendues aux préfixes de transition IPv6 ; contrôle du littéral IP repris après conversion IDN. Une lecture est **sa propre passe** du job, suivie d'un `release(0)` : le délai par domaine ne consomme pas le temps de l'appel IA.
+- **Délai d'appel IA** calculé sur la longueur de la chaîne jouée : `max(5, min(socle, (75 − 10·L)/L))` sous le `$timeout` de 85 s du job — un fournisseur muet bascule au suivant au lieu de consommer le job entier.
+- **Le passage cité doit figurer dans la source** (`evidence_not_in_source`), pas seulement exister.
+- **Bombes de décompression** : bornes de pixels (`max_side`, `max_pixels` 24 Mpx) lues dans l'en-tête avant tout décodage.
+- **Évaluations par rôle** (socle) : un candidat ne joue que les cas de son rôle ; la référence porte une section par rôle ; une première référence partielle est refusée (`ai.eval.baseline_needs_full_run`). Type `text` du `FieldScorer` (blancs retirés) pour le prix recopié.
+- **Captures** : 10 fichiers de 8 Mo au plus, **24 Mo au total**, vérifiés côté client — le `post_max_size` de l'image de l'API est 26M (`docker/php.ini`) ; un test du front relit ces deux fichiers. Un 413 a son libellé Radar.
+- **Front** : relais multipart allongé à 90 s (`relayerVersApi`, comme le KYC) ; le rafraîchissement ne tourne que pendant une extraction réellement en cours (pas sur une annonce garée sur le budget ou l'arrêt d'urgence).
+
+**Revue finale de la branche, puis décisions du porteur du 2026-10-27** :
+
+- **L'annonceur ne vient que d'un numéro que la source porte** : pour un texte ou une URL, un
+  numéro rendu par le modèle sans figurer dans la source est écarté (`phones_flags:
+  [evidence_not_in_source]`, non conservé — son affichage est TCK-2387). Parmi les numéros gardés,
+  **l'ordre du modèle** désigne l'annonceur ; ceux du texte ne servent qu'à défaut. Le refus STOP
+  se juge sur l'union de tous les numéros, écartés compris. L'annonceur est créé sous le verrou de
+  l'annonce (aucun orphelin) et ne s'enrichit que de champs sans drapeau.
+- **Recoller une annonce en `extraction_failed` la relance** (`requeued: true`), au nom de
+  l'opérateur qui recolle (`captured_by`). Mise à jour conditionnelle : deux renvois simultanés
+  ne relancent qu'une fois.
+- **Lecture d'URL bornée à 45 s au total** (`radar.fetch.total_timeout_seconds`), sauts et
+  `robots.txt` compris, résolution DNS incluse ; le créneau du domaine expire à 65 s au lieu de
+  305 s.
+- Une URL Airbnb d'un lot est nommée (`params.field = urls.N`) ; le front relit pendant les
+  attentes courtes (`radar.fetch.deferred`, réessai unique).
+- Hors de ce ticket : la référence d'évaluation (**TCK-2403**), la file des appels IA (**TCK-2402**, avant la production), l'affichage des
+  numéros écartés (TCK-2387), la purge des passages cités (TCK-2391), l'ordre des verrous du
+  gestionnaire de STOP (TCK-2388).
+
+**Non vérifié** : l'écran `/super-admin/radar` au navigateur. En local, le PHP de brew borne
+l'envoi à 2 Mo par fichier et 8 Mo au total (l'image : 8 et 26) : une capture de 3 Mo y échoue
+sans libellé Radar.

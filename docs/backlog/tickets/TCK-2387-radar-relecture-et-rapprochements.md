@@ -7,7 +7,7 @@ family: full
 estimate: M
 wave: 80
 created: 2026-10-26
-updated: 2026-10-26
+updated: 2026-10-27
 depends_on: [TCK-2386]
 blocks: [TCK-2389, TCK-2392]
 spec_refs:
@@ -53,6 +53,12 @@ vignette et le lien de ce qui ressemble. Valider, doublon, écarter : trois gest
   par le `UrlFetcher` de TCK-2386 (SSRF compris).
 - La comparaison d'empreinte réutilise le seuil et l'algorithme d'ADR-0054, sans les recopier.
 - Une annonce `reviewed` exige un type, un contrat, un prix et un quartier rattaché au référentiel.
+- **Les numéros écartés se voient** (décision du porteur du 2026-10-27) : un numéro que le modèle
+  a rendu mais que la normalisation a écarté parce qu'absent de la source
+  (`extracted.phones_flags = ['evidence_not_in_source']`, TCK-2386) s'affiche dans la fiche, pour
+  que l'opérateur puisse corriger l'annonceur. Aujourd'hui ce numéro **n'est pas conservé** : le
+  ticket tranche s'il faut le garder (en clair, ou masqué) — c'est une donnée personnelle de plus,
+  soumise à la purge (TCK-2391).
 - Droits : `platform.radar.operate`.
 - Prise en charge : hors de ce ticket (elle porte sur l'annonceur, TCK-2388).
 
@@ -66,7 +72,11 @@ vignette et le lien de ce qui ressemble. Valider, doublon, écarter : trois gest
 - [ ] Actions du contrôleur `RadarListingController` (ou contrôleurs dédiés) ;
       FormRequests `UpdateRadarListingRequest`, `ReviewRadarListingRequest`,
       `MarkRadarListingDuplicateRequest`, `DiscardRadarListingRequest`.
-- [ ] Front : fiche annonce (source, champs, confiance, passages, rapprochements, trois actions).
+- [ ] Conservation des numéros écartés par la normalisation (`ExtractionNormalizer::phones()`,
+      `ExtractRadarListing`) selon la décision ci-dessus, et leur exposition dans
+      `RadarListingResource`.
+- [ ] Front : fiche annonce (source, champs, confiance, passages, rapprochements, trois actions,
+      numéros écartés).
 - [ ] Tests : `RadarMatcherTest` (chaque signal seul, contre un bien et contre une annonce),
       `SourcePhotoFingerprinterTest` (aucun fichier laissé derrière), `RadarListingReviewTest`
       (suggestion `edited` et différentiel ; refus d'une relecture incomplète).
@@ -81,6 +91,8 @@ vignette et le lien de ce qui ressemble. Valider, doublon, écarter : trois gest
 - [ ] AC4 — Après le calcul d'empreinte, aucun fichier de photo source ne subsiste (disque
       temporaire et médias vérifiés).
 - [ ] AC5 — Valider la relecture sans quartier rattaché rend 422.
+- [ ] AC6 — Un numéro que le modèle a rendu sans que la source le porte s'affiche dans la fiche,
+      distinct des numéros retenus, et l'opérateur peut en faire l'annonceur.
 
 ## Hors périmètre
 

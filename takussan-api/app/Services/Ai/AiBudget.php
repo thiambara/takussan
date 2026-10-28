@@ -37,6 +37,17 @@ final class AiBudget
         return $this->spent($usageKey === null ? null : fn (Builder $query) => $query->where('usage_key', $usageKey));
     }
 
+    /**
+     * TCK-2386 — la dépense du jour d'une famille d'usages (`radar.`), hors évaluations, à la même
+     * règle que les plafonds : le tableau de bord du Radar ne recompte pas à sa façon.
+     */
+    public function spentTodayForPrefix(string $prefix): float
+    {
+        $pattern = addcslashes($prefix, '\\%_').'%';
+
+        return $this->spent(fn (Builder $query) => $query->where('usage_key', 'like', $pattern));
+    }
+
     private function spent(?Closure $scope = null): float
     {
         return (float) AiCall::query()

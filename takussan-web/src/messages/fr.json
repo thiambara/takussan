@@ -226,7 +226,8 @@
         "payments": "Paiements",
         "credits": "Crédits",
         "boosts": "Mise en avant",
-        "ai": "Intelligence artificielle"
+        "ai": "Intelligence artificielle",
+        "radar": "Radar"
       }
     },
     "notifications": {
@@ -8509,6 +8510,153 @@
           "baselineModel": "Modèle évalué",
           "baselineDate": "Mesuré le"
         }
+      },
+      "radar": {
+        "metaTitle": "Radar",
+        "title": "Radar",
+        "subtitle": "Les annonces repérées ailleurs : à relire, à contacter, puis à publier avec l’accord de l’annonceur.",
+        "openIntake": "Saisir des annonces",
+        "loadError": "Le Radar n’a pas pu être chargé.",
+        "counters": {
+          "toReview": "À relire",
+          "pending": "En attente",
+          "failed": "Échouées",
+          "toContact": "À contacter",
+          "published": "Publiées",
+          "aiCost": "Coût IA du jour",
+          "aiCostBudget": "sur un plafond de {budget}",
+          "aiCostNoBudget": "sans plafond"
+        },
+        "filters": {
+          "stageAria": "Filtrer par étape",
+          "anyStage": "Toutes les étapes"
+        },
+        "stages": {
+          "captured": "Saisie",
+          "extracted": "À relire",
+          "reviewed": "Relue",
+          "contacted": "Contactée",
+          "consented": "Accord reçu",
+          "published": "Publiée",
+          "extraction_failed": "Extraction échouée",
+          "duplicate": "Doublon",
+          "refused": "Refusée",
+          "do_not_contact": "Ne pas contacter",
+          "purged": "Purgée"
+        },
+        "sites": {
+          "coinafrique": "CoinAfrique",
+          "expat_dakar": "Expat-Dakar",
+          "facebook": "Facebook",
+          "whatsapp": "WhatsApp",
+          "other": "Autre"
+        },
+        "kinds": {
+          "url": "URL",
+          "text": "Texte",
+          "captures": "Captures"
+        },
+        "columns": {
+          "stage": "Étape",
+          "site": "Site",
+          "title": "Titre extrait",
+          "price": "Prix",
+          "neighborhood": "Quartier",
+          "reason": "Motif",
+          "date": "Saisie le"
+        },
+        "tableCaption": "Annonces du Radar, la plus récente en tête",
+        "untitled": "Sans titre extrait",
+        "extracting": "Extraction en cours…",
+        "pending": "En attente : {reason}",
+        "neighborhoodUnmatched": "à rattacher",
+        "tryTextOrCaptures": "Essayez le texte ou les captures.",
+        "periods": {
+          "daily": "/ jour",
+          "weekly": "/ semaine",
+          "monthly": "/ mois",
+          "yearly": "/ an"
+        },
+        "reasons": {
+          "fetchDeferred": "Le site sera relu un peu plus tard.",
+          "fetchInvalidUrl": "L’adresse n’est pas une URL lisible.",
+          "fetchAirbnb": "Les annonces Airbnb ne sont pas reprises.",
+          "fetchPrivateAddress": "L’adresse pointe vers un réseau privé : elle n’est pas lue.",
+          "fetchRobots": "Le site interdit sa lecture automatique.",
+          "fetchRobotsUnavailable": "Les règles de lecture du site sont injoignables.",
+          "fetchTooManyRedirects": "La page redirige trop de fois.",
+          "fetchTooLarge": "La page est trop lourde pour être lue.",
+          "fetchNotHtml": "L’adresse ne mène pas à une page web.",
+          "fetchHttpError": "Le site a répondu par une erreur.",
+          "fetchTimeout": "Le site n’a pas répondu à temps.",
+          "fetchUnresolvable": "Le nom du site est introuvable.",
+          "aiBudget": "Le plafond de dépense IA du jour est atteint : l’extraction reprendra.",
+          "aiKillSwitch": "L’extraction IA est coupée depuis la console IA.",
+          "aiForbidden": "L’opérateur qui a saisi l’annonce n’a pas le droit de lancer l’extraction.",
+          "aiDataClass": "Ce contenu ne peut pas être confié au modèle.",
+          "aiSensitiveData": "Le contenu porte des données sensibles : il n’est pas envoyé au modèle.",
+          "aiRoleUnassigned": "Aucun modèle n’est affecté à l’extraction.",
+          "aiProvidersUnavailable": "Tous les fournisseurs IA sont indisponibles : l’extraction réessaiera.",
+          "aiProviderAuth": "Le fournisseur IA a refusé la clé.",
+          "aiRequestRejected": "Le fournisseur IA a rejeté la requête.",
+          "aiProviderRateLimited": "Le fournisseur IA limite le débit : l’extraction réessaiera.",
+          "aiProviderCredits": "Le crédit chez le fournisseur IA est épuisé.",
+          "aiProviderUnavailable": "Le fournisseur IA est indisponible : l’extraction réessaiera.",
+          "aiProviderTimeout": "Le fournisseur IA n’a pas répondu à temps : l’extraction réessaiera.",
+          "aiResponseInvalid": "La réponse du modèle n’est pas exploitable.",
+          "aiResponseTruncated": "La réponse du modèle a été coupée avant la fin.",
+          "aiResponseFiltered": "La réponse du modèle a été bloquée par le filtre du fournisseur.",
+          "aiUnexpected": "Erreur inattendue du fournisseur IA.",
+          "extractionInvalidOutput": "La sortie du modèle était invalide.",
+          "extractionEmptySource": "Il n’y avait rien à lire : page vide ou aucune capture.",
+          "extractionTimeout": "L’extraction n’a pas abouti dans les délais.",
+          "extractionError": "Erreur inattendue : le détail est au journal de l’API."
+        },
+        "empty": {
+          "title": "Aucune annonce pour l’instant",
+          "description": "Collez une URL, un texte ou des captures d’annonce : l’extraction se lance seule."
+        },
+        "emptyFiltered": {
+          "title": "Aucune annonce à cette étape",
+          "description": "Choisissez une autre étape, ou revenez à toutes les étapes."
+        },
+        "intake": {
+          "title": "Saisie rapide",
+          "description": "Collez, enregistrez, recommencez : le formulaire se vide et reste ouvert.",
+          "close": "Fermer la saisie",
+          "tabs": {
+            "urls": "URL",
+            "text": "Texte",
+            "captures": "Captures"
+          },
+          "urlsLabel": "URL des annonces",
+          "urlsHint": "Une URL par ligne, 20 au plus. Le site se déduit de l’adresse.",
+          "textLabel": "Texte de l’annonce",
+          "textHint": "Le texte tel que publié, numéro de téléphone compris.",
+          "sourceSiteLabel": "Site d’origine",
+          "capturesLabel": "Captures d’écran",
+          "capturesHint": "Jusqu’à 10 images JPEG, PNG ou WebP, 8 Mo chacune, 24 Mo au total.",
+          "capturesSelected": "{count, plural, =0 {Aucune image choisie} one {# image choisie} other {# images choisies}}",
+          "submit": "Enregistrer",
+          "submitting": "Enregistrement…",
+          "resultsTitle": "Dernier envoi",
+          "created": "Annonce n° {id} créée",
+          "existing": "Annonce n° {id} déjà saisie",
+          "requeued": "Annonce n° {id} déjà saisie : extraction relancée",
+          "failed": "L’envoi a échoué.",
+          "errors": {
+            "refusedUrl": "Adresse refusée : {url}",
+            "urlAirbnb": "Les annonces Airbnb ne sont pas reprises : rien n’a été enregistré.",
+            "urlInvalid": "Une des adresses n’a pas de nom de site lisible : rien n’a été enregistré.",
+            "capturesUnreadable": "Une des images ne se lit pas : rien n’a été enregistré.",
+            "capturesTooLarge": "Une des images est trop grande (en pixels) : rien n’a été enregistré.",
+            "capturesTooMany": "Pas plus de 10 images par envoi. Rien n’a été envoyé.",
+            "captureFileTooLarge": "Une des images dépasse 8 Mo. Rien n’a été envoyé.",
+            "capturesTotalTooLarge": "Les images dépassent 24 Mo au total : envoyez-en moins à la fois. Rien n’a été envoyé.",
+            "payloadTooLarge": "L’envoi est trop lourd pour le serveur : envoyez moins d’images à la fois (24 Mo au plus)."
+          }
+        },
+        "forbidden": "Le Radar est réservé aux opérateurs support et super-admin."
       }
     },
     "featureFlags": {
