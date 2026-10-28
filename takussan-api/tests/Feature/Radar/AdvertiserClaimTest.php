@@ -6,13 +6,16 @@ use App\Exceptions\ApiError;
 use App\Models\AiSuggestion;
 use App\Models\Enums\PlatformProfileLevel;
 use App\Models\RadarAdvertiser;
+use App\Models\RadarConsent;
 use App\Models\RadarListing;
 use App\Models\RadarOutreach;
 use App\Models\User;
 use App\Services\Radar\AdvertiserClaim;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Testing\TestResponse;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Support\OperateursPlateforme;
 use Tests\TestCase;
@@ -54,7 +57,7 @@ class AdvertiserClaimTest extends TestCase
      * AC5 — chaque route d'ÉCRITURE du démarchage exige la prise en charge : un second opérateur qui écrit sur un
      * annonceur pris en charge reçoit 409 `claimed_by_other`, et rien n'est écrit. Une ligne par route ; les tâches 5
      * et 6 ajoutent les leurs : le verbe, le chemin (`{id}` : l'annonceur, ou le message d'accord quand l'état
-     * préalable est `message`), le corps (`{annonce}` : l'annonce validée de l'annonceur), et cet état préalable.
+     * préalable est `message`), le corps (`{annonce}` : l'annonce validée de l'annonceur ; `{capture}` : une image), et cet état préalable.
      *
      * @return array<string, array{0: string, 1: string, 2: array<string, mixed>, 3: string}>
      */
@@ -65,6 +68,8 @@ class AdvertiserClaimTest extends TestCase
             'préparer un message d\'accord' => ['postJson', '/api/admin/radar/advertisers/{id}/outreaches', ['listing_ids' => ['{annonce}']], 'annonce'],
             'retoucher un message d\'accord' => ['patchJson', '/api/admin/radar/outreaches/{id}', ['salutation' => 'Bonjour'], 'message'],
             'marquer un message d\'accord envoyé' => ['postJson', '/api/admin/radar/outreaches/{id}/sent', [], 'message'],
+            // Multipart : le verbe `post` (et non `postJson`), `{capture}` devient une vraie image.
+            'déposer la réponse d\'un annonceur' => ['post', '/api/admin/radar/outreaches/{id}/reply', ['captures' => ['{capture}']], 'message'],
         ];
     }
 
@@ -76,6 +81,7 @@ class AdvertiserClaimTest extends TestCase
      */
     private function etatPrealable(string $etat, RadarAdvertiser $advertiser, array $corps): array
     {
+        $corps = $this->resoudreLesImages($corps);
         if ($etat === 'annonceur') {
             return [(string) $advertiser->id, $corps];
         }
@@ -88,6 +94,31 @@ class AdvertiserClaimTest extends TestCase
         return [(string) $message->id, $corps];
     }
 
+    /**
+     * `{capture}` → une vraie image : un envoi multipart ne passe pas par `json_encode`.
+     *
+     * @param  array<string, mixed>  $corps
+     * @return array<string, mixed>
+     */
+    private function resoudreLesImages(array $corps): array
+    {
+        array_walk_recursive($corps, function (mixed &$valeur): void {
+            if ($valeur === '{capture}') {
+                $valeur = UploadedFile::fake()->image('reponse.png', 40, 40);
+            }
+        });
+
+        return $corps;
+    }
+
+    /** @param  array<string, mixed>  $corps */
+    private function appeler(string $verbe, string $url, array $corps): TestResponse
+    {
+        return $verbe === 'post'
+            ? $this->post($url, $corps, ['Accept' => 'application/json'])
+            : $this->{$verbe}($url, $corps);
+    }
+
     /** @return array<string, mixed> ce que les routes d'écriture touchent, pour prouver qu'un refus n'a rien écrit */
     private function etatDesEcritures(): array
     {
@@ -95,6 +126,8 @@ class AdvertiserClaimTest extends TestCase
             RadarOutreach::query()->orderBy('id')->get()->map->getAttributes()->all(),
             DB::table('radar_outreach_listing')->orderBy('radar_outreach_id')->orderBy('radar_listing_id')->get()->map(fn ($ligne) => (array) $ligne)->all(),
             RadarListing::query()->orderBy('id')->get()->map->getAttributes()->all(),
+            RadarConsent::query()->orderBy('id')->get()->map->getAttributes()->all(),
+            DB::table('media')->count(),
             AiSuggestion::query()->count(),
         ];
     }
@@ -111,7 +144,7 @@ class AdvertiserClaimTest extends TestCase
         $ecritures = $this->etatDesEcritures();
 
         $this->actingAsWithStepUp($this->moussa);
-        $this->{$verbe}(str_replace('{id}', $id, $chemin), $corps)
+        $this->appeler($verbe, str_replace('{id}', $id, $chemin), $corps)
             ->assertStatus(409)
             ->assertJsonPath('code', 'radar.advertiser.claimed_by_other')
             ->assertJsonPath('params.claimed_until', $avant->claim_expires_at->utc()->format('c'));
@@ -146,7 +179,7 @@ class AdvertiserClaimTest extends TestCase
         $ecritures = $this->etatDesEcritures();
 
         $this->actingAsWithStepUp($this->awa);
-        $this->{$verbe}(str_replace('{id}', $id, $chemin), $corps)
+        $this->appeler($verbe, str_replace('{id}', $id, $chemin), $corps)
             ->assertStatus(409)
             ->assertJsonPath('code', 'radar.advertiser.claim_required');
 

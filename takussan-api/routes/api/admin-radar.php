@@ -41,4 +41,6 @@ Route::middleware(['auth:sanctum', 'super-admin', 'platform-can:'.PlatformAbilit
         Route::post('advertisers/{advertiser}/outreaches', [RadarOutreachController::class, 'store'])->name('admin.radar.advertisers.outreaches.store');
         Route::patch('outreaches/{outreach}', [RadarOutreachController::class, 'update'])->name('admin.radar.outreaches.update');
         Route::post('outreaches/{outreach}/sent', [RadarOutreachController::class, 'sent'])->name('admin.radar.outreaches.sent');
+        // La réponse de l'annonceur : des captures (multipart) ; la vérification par l'IA part en file.
+        Route::post('outreaches/{outreach}/reply', [RadarOutreachController::class, 'reply'])->name('admin.radar.outreaches.reply');
     });

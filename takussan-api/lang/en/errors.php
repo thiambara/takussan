@@ -709,6 +709,9 @@ return [
             'not_prepared' => 'This message is no longer in the prepared state: it can no longer be edited or sent.',
             'parts_missing' => 'The greeting and the summary must be written before the message is sent.',
             'nothing_to_update' => 'Nothing to update: give the greeting or the summary.',
+            'not_sent' => 'This message has not been sent: no reply can be added to it.',
+            'outcome_final' => 'This message is closed: a reply can no longer be added to it.',
+            'superseded' => 'This message has been followed up: add the reply to the latest follow-up.',
         ],
         'message' => [
             'generation_incomplete' => 'The model did not write the greeting and the summary: write them yourself.',
