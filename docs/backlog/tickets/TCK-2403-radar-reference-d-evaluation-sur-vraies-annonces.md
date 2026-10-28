@@ -46,6 +46,16 @@ ADR-0076 §8).
   référence partielle est refusée (`ai.eval.baseline_needs_full_run`).
 - **Le passage réel coûte** (appel au vrai modèle, une trentaine de cas) : il attend l'accord
   explicite du porteur, et se lance à la main, jamais depuis un test ni la CI.
+- **Risques résiduels de l'anonymisation à l'écriture** (TCK-2387, 2026-10-28) : depuis TCK-2387,
+  chaque extraction enregistre une `ai_suggestion` dont l'`input_snapshot` est anonymisé par
+  `EvalCaseAnonymizer` avec pour aiguilles le nom de l'annonceur et ses numéros. Trois trous, à
+  relire cas par cas avant de verser une annonce au jeu :
+  - un `advertiser_name` nul (le modèle n'a pas lu de nom) laisse dans l'instantané le nom que le
+    texte porte ;
+  - un nom d'agence qui contient un nom de quartier masque aussi le quartier dans le cas exporté,
+    ce qui fausse la sortie attendue ;
+  - le titre et la description libres ne sont pas des aiguilles : un nom ou un numéro écrit
+    autrement y reste.
 
 ## Delta à produire
 
