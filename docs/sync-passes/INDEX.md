@@ -24,6 +24,7 @@
 | 013 | 2026-10-14 | [`pass-013-2026-10-14-1023`](./pass-013-2026-10-14-1023/00-summary.md) | **Zéro ❌ côté modèles** — lots 1-3 de convergence appliqués, M1-M49 soldées (sauf M44, TCK-639) ; première relecture intégrale : 19 sections et la ligne push (❌) découvertes |
 | 014 | 2026-10-14 | [`pass-014-2026-10-14-2220`](./pass-014-2026-10-14-2220/00-summary.md) | **Différentielle après ADR-0064** — §96 conforme (TCK-639), unicités globales en base (TCK-640) ; la voie brute des paramètres globaux, servie par la console depuis TCK-648, contredit l.671 et §30 |
 | 015 | 2026-10-19 | [`pass-015-2026-10-19-2229`](./pass-015-2026-10-19-2229/00-summary.md) | **Différentielle après ADR-0070** — §30 conforme (TCK-651, FC1 soldée), §100 exacte ; onze migrations fusionnées sans la spec : quatre colonnes chiffrées décrites en clair (§7, §27, §34), six autres migrations absentes ; la §3 décrit TCK-997/999/1000 avant leur livraison |
+| 016 | 2026-10-27 | [`pass-016-2026-10-27-1455`](./pass-016-2026-10-27-1455/00-summary.md) | **Différentielle après le socle IA (ADR-0076)** — MD1-MD7 et C1-C5, C16 soldées, huit sections redeviennent ✅ ; §104 et §106 décrivent encore `error_code` en nom de classe et omettent `stop_reason` ; quatorze migrations de schéma sans la spec, dont deux tables de reprise au bailleur sans section ; Radar compté ⚠️ justifié |
 
 ## Tableau d'évolution
 
@@ -44,6 +45,7 @@
 | 013 | 2026-10-14 | **380** | **99** | **385** | **93** | **1** | **+42** | **−38** | **−3** |
 | 014 | 2026-10-14 | 380 | 99 | 384 | 94 | 1 | −1 | +1 | 0 |
 | 015 | 2026-10-19 | 383 | 100 | 384 | 98 | 1 | 0 | +4 | 0 |
+| 016 | 2026-10-27 | **412** | **106** | **405** | **112** | 1 | **+21** | **+14** | 0 |
 
 > **n.c. = non comparable.** La passe 011 juge la spec contre les migrations, plus contre le seul
 > catalogue, et ses unités ont changé (lignes de features : ~208 → 368 ; modèles : 39 → 87 sections
@@ -62,6 +64,12 @@
 > Les cinq sections dégradées le sont par des migrations fusionnées sans mise à jour de la spec ;
 > aucune ne l'est par une erreur de la spec.
 >
+> **Passe 016 : comparable à la 015**, différentielle elle aussi. Son Δ mêle trois causes, séparées
+> dans son `00-summary.md` : les recommandations appliquées (+11 ✅ / −11 ⚠️ : l.91, 227, 228 et
+> huit sections), les unités neuves (+17 ✅ / +18 ⚠️, dont les 14 lignes du Radar, comptées ⚠️ justifiées
+> et non ❌ tant que leurs tickets sont `todo`) et sept sections dégradées par des migrations ou un
+> « pas encore » rattrapé (−7 ✅ / +7 ⚠️).
+>
 > **Passe 013 : plus sévère que la 012 à état égal** — elle relit les 99 sections colonne à colonne
 > et compte ⚠️ une donnée rangée hors colonne sans que la spec dise où. Son Δ mêle les corrections des
 > lots 1-3 et ce que la relecture a découvert ; son `00-summary.md` sépare les deux.
@@ -78,7 +86,30 @@
 > passe 010 était honnête **le jour où elle a été écrite** ; c'est de l'avoir laissée parler au
 > présent qui a coûté.
 
-### Passe 014 (2026-10-14) — l'état courant
+### Passe 016 (2026-10-27) — l'état courant
+
+**Convergence rompue — passe différentielle**, sur `docs/sync-specs-socle-ia` (partie de `dev`
+`9b39627a0`, après #1572). Les lots de la 013 (C1-C5, C16, FA1, FA3 — TCK-1012) et de la 015 (MD1-MD7,
+FD1) sont appliqués : huit sections redeviennent ✅. Mais **quatorze migrations de schéma** sont
+fusionnées sans la spec en huit jours — la 015 en comptait sept en cinq. Parmi elles : `ai_calls.stop_reason`
+et le sens d'`error_code` (§104, §106), deux tables de reprise au bailleur sans section (§28), six colonnes de
+`lease_payments` (§15). Trois textes disent « pas encore » d'un comportement livré. Le ❌ (push, l.559) reste,
+hors lot à la demande du porteur. 19 recommandations à `features.md` (FE1-FE5 + 14 reprises), 36 actions à
+`models-spec.md` (ME1-ME15 + 21 reprises), toutes factuelles sauf FB1 et l'alternative (b) de FE1. Détail :
+[`pass-016-2026-10-27-1455/00-summary.md`](./pass-016-2026-10-27-1455/00-summary.md).
+
+> *Différentielle : 49 lignes et 38 sections re-mesurées, le reste repris de la 015 ; migrations lues dans le
+> code, pas en base.*
+
+### Passe 015 (2026-10-19)
+
+**Convergence rompue — passe différentielle** après ADR-0070 : §30 conforme, onze migrations sans la spec
+(MD1-MD7), la §3 décrivait TCK-997/999/1000 avant leur livraison. Détail :
+[`pass-015-2026-10-19-2229/00-summary.md`](./pass-015-2026-10-19-2229/00-summary.md).
+
+> *Ses recommandations ont été appliquées (`8307c7ce4`) ; la passe 016 les re-mesure.*
+
+### Passe 014 (2026-10-14)
 
 **Convergence rompue — passe différentielle**, sur la branche d'ADR-0064 (`feat/app-absorbe-admin`,
 non fusionnée). `features.md` inchangé depuis la 013 ; §96 devient conforme (TCK-639) et les deux
