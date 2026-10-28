@@ -23,8 +23,11 @@ class RadarConsent extends AbstractModel implements HasMedia
     protected $fillable = [
         'radar_outreach_id', 'radar_advertiser_id', 'proof', 'capture_hashes', 'provider_message_id', 'transcript',
         'ai_verdict', 'verification_status', 'verification_reason', 'deposited_by_id',
-        'confirmed_by_id', 'confirmed_at', 'confirmation_reason', 'revoked_at',
+        'confirmation_reason', 'revoked_at',
     ];
+
+    // `confirmed_by_id` et `confirmed_at` hors de `$fillable` : posés ensemble par `forceFill` dans
+    // `RadarConsentWorkflow::recordOutcome()`, et par lui seul (comme les colonnes de prise en charge de l'annonceur).
 
     protected $casts = [
         'proof' => RadarConsentProof::class,

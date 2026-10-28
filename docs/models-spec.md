@@ -5108,7 +5108,7 @@ sur le disque **privé** par défaut (ADR-0029).
 **Modèle :** `App\Models\RadarOutreach` (`AbstractModel`) — `channel` casté en `RadarOutreachChannel`,
 `outcome` en `RadarOutreachOutcome`, `sent_at` et `outcome_at` en `datetime`, `follow_up_rank` en `integer` ;
 `belongsTo advertiser`, `followUpOf` (colonne `follow_up_of_id`), `creator` (`created_by_id`), `sender`
-(`sent_by_id`) ; `belongsToMany listings` (table `radar_outreach_listing`, sans horodatage) ; `hasMany consents` ;
+(`sent_by_id`), `outcomeBy` (`outcome_by_id`) ; `belongsToMany listings` (table `radar_outreach_listing`, sans horodatage) ; `hasMany consents` ;
 `hasOne followUp` (sur `follow_up_of_id`). `isSent()` ; `latestReply()` rend la dernière `RadarConsent`.
 **Description :** Un message de démarchage à un annonceur ([ADR-0077 §3, §4](adr/0077-le-radar.md)) : le texte
 **exact** du lien `wa.me` (`message`, la concaténation des segments de `ConsentMessageComposer`, rien d'autre
@@ -5127,7 +5127,7 @@ les mêmes annonces (`follow_up_of_id`, `follow_up_rank`) : la chaîne est une l
 | summary | text | | | Idem pour le résumé des annonces |
 | message | text | | | Le texte EXACT du paramètre `text` du lien `wa.me` |
 | follow_up_of_id | FK radar_outreaches | oui | null | Le message dont celui-ci est la relance (`nullOnDelete`) ; **unique** |
-| follow_up_rank | smallint unsigned | | 0 | 0 : message initial ; 1, 2… : la relance (bornée par `config('radar.follow_ups.max')`) |
+| follow_up_rank | smallint | | 0 | 0 : message initial ; 1, 2… : la relance (bornée par `config('radar.follow_ups.max')`) |
 | created_by_id | FK users | oui | null | Opérateur qui a préparé le message (`nullOnDelete`) ; indexée |
 | sent_at | timestamp | oui | null | Posé à la confirmation d'envoi ; null : préparé, jamais envoyé |
 | sent_by_id | FK users | oui | null | Opérateur qui a confirmé l'envoi (`nullOnDelete`) ; indexée |
@@ -5153,7 +5153,7 @@ la file « à relancer ».
 `verification_status` en `RadarVerificationStatus`, `capture_hashes` et `ai_verdict` en `array`,
 `confirmed_at` et `revoked_at` en `datetime` ; `belongsTo outreach`, `advertiser`, `depositor`
 (`deposited_by_id`), `confirmer` (`confirmed_by_id`). `scopeValid()` : `confirmed_at` non nul et `revoked_at`
-nul. Collection média `radar_consent_captures`, sur le disque **privé** par défaut (ADR-0029).
+nul. `confirmed_by_id` et `confirmed_at` hors de `$fillable` : posés par `forceFill`, par le seul `RadarConsentWorkflow::recordOutcome()`. Collection média `radar_consent_captures`, sur le disque **privé** par défaut (ADR-0029).
 **Description :** Une réponse d'annonceur déposée sur un message ([ADR-0077 §3](adr/0077-le-radar.md)) : la
 preuve (captures d'écran et leurs SHA-256), sa transcription, le verdict de l'IA et la confirmation humaine.
 **Un verdict de l'IA n'ouvre rien** : un accord n'est valide qu'une fois confirmé par une personne

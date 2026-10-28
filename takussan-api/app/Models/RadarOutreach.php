@@ -78,6 +78,12 @@ class RadarOutreach extends AbstractModel
         return $this->belongsTo(User::class, 'sent_by_id');
     }
 
+    /** L'opérateur qui a tranché l'issue. */
+    public function outcomeBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'outcome_by_id');
+    }
+
     public function isSent(): bool
     {
         return $this->sent_at !== null;

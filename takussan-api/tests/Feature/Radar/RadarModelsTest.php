@@ -395,6 +395,9 @@ class RadarModelsTest extends TestCase
         $this->assertTrue($a->outreaches->first()->is($outreach));
         $this->assertTrue($outreach->creator->is($user));
         $this->assertTrue($outreach->sender->is($user));
+        $this->assertNull($outreach->outcomeBy);
+        $outreach->forceFill(['outcome_by_id' => $user->id])->save();
+        $this->assertTrue($outreach->fresh()->outcomeBy->is($user));
         $this->assertFalse(RadarOutreach::factory()->create()->isSent());
     }
 
@@ -500,6 +503,9 @@ class RadarModelsTest extends TestCase
         $ids = RadarConsent::query()->valid()->pluck('id')->all();
 
         $this->assertSame([$confirme->id], $ids);
+        // Un seul écrivain : la confirmation ne passe pas par l'assignation de masse.
+        $this->assertNotContains('confirmed_at', (new RadarConsent)->getFillable());
+        $this->assertNotContains('confirmed_by_id', (new RadarConsent)->getFillable());
         $this->assertNotContains($pas_confirme->id, $ids);
         $this->assertNotContains($revoque->id, $ids);
     }
