@@ -15,6 +15,7 @@ use App\Models\Enums\RadarListingStage;
 use App\Models\Enums\RadarSourceKind;
 use App\Models\Enums\RadarSourceSite;
 use App\Models\GeoNeighborhood;
+use App\Models\MediaFingerprint;
 use App\Models\Property;
 use App\Models\RadarListing;
 use App\Models\User;
@@ -22,12 +23,14 @@ use App\Services\Ai\AiUsageRegistry;
 use App\Services\Ai\PromptRepository;
 use App\Services\Radar\RadarListingReview;
 use App\Services\Radar\RadarReviewFields;
+use App\Support\PhotoFingerprint;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Spatie\Activitylog\Models\Activity;
 use Tests\Support\Ai\SocleIaDEssai;
@@ -509,6 +512,32 @@ class RadarListingReviewTest extends TestCase
         $this->assertSame($bien->id, $figee[0]['id']);
     }
 
+    public function test_des_empreintes_de_photo_arrivees_entre_la_lecture_et_le_verrou_refont_les_rapprochements(): void
+    {
+        $bien = Property::factory()->published()->create();
+        $hash = 0x5A3C_96E1_0F2B_74D8;
+        $media = DB::table('media')->insertGetId([
+            'model_type' => Property::class, 'model_id' => $bien->id, 'uuid' => (string) Str::uuid(),
+            'collection_name' => 'photos', 'name' => 'p', 'file_name' => 'p.png', 'mime_type' => 'image/png', 'disk' => 'public',
+            'size' => 1, 'manipulations' => '[]', 'custom_properties' => '[]', 'generated_conversions' => '[]', 'responsive_images' => '[]',
+        ]);
+        [$b0, $b1, $b2, $b3] = PhotoFingerprint::bands($hash);
+        MediaFingerprint::query()->create(['media_id' => $media, 'property_id' => $bien->id, 'hash' => $hash, 'band_0' => $b0, 'band_1' => $b1, 'band_2' => $b2, 'band_3' => $b3]);
+
+        $listing = $this->fiche();
+        $perimee = RadarListing::query()->findOrFail($listing->id); // lue avant le calcul des empreintes : aucun rapprochement
+
+        // Entre la lecture et le verrou, le job d'empreintes aboutit : la photo source ressemble à celle du bien.
+        $listing->forceFill(['source_photo_hashes' => [['url' => 'https://cdn.test/p.jpg', 'hash' => $hash, 'b0' => $b0, 'b1' => $b1, 'b2' => $b2, 'b3' => $b3]]])->save();
+
+        $this->app->make(RadarListingReview::class)->review($perimee, $this->operateur);
+
+        $figee = $listing->fresh()->matches;
+        $this->assertCount(1, $figee, 'la trace décrit la fiche validée, empreintes comprises');
+        $this->assertSame($bien->id, $figee[0]['id']);
+        $this->assertSame('photo', $figee[0]['signals'][0]['signal']);
+    }
+
     public function test_valider_rend_la_fiche_et_le_journal_porte_la_decision(): void
     {
         $listing = $this->fiche();
@@ -593,6 +622,48 @@ class RadarListingReviewTest extends TestCase
             ->assertStatus(422)
             ->assertJsonPath('code', 'radar.duplicate.self');
         $this->assertSame(RadarListingStage::Extracted, $listing->fresh()->stage);
+    }
+
+    public function test_doublon_d_une_annonce_deja_doublon_rend_422_chain(): void
+    {
+        $origine = RadarListing::factory()->extracted()->create();
+        $deja = RadarListing::factory()->create(['stage' => RadarListingStage::Duplicate, 'duplicate_of_listing_id' => $origine->id]);
+        $listing = $this->fiche();
+
+        $this->postJson($this->url($listing, '/duplicate'), ['of_listing_id' => $deja->id])
+            ->assertStatus(422)
+            ->assertJsonPath('code', 'radar.duplicate.chain');
+        $this->assertSame(RadarListingStage::Extracted, $listing->fresh()->stage);
+        $this->assertNull($listing->fresh()->duplicate_of_listing_id);
+
+        // L'origine, elle, reste une cible.
+        $this->postJson($this->url($listing, '/duplicate'), ['of_listing_id' => $origine->id])->assertOk();
+    }
+
+    public function test_doublon_d_une_annonce_qui_pointe_deja_vers_celle_ci_rend_422_chain(): void
+    {
+        $listing = $this->fiche();
+        // Le lien d'une autre fiche vers celle-ci, même si cette fiche a repris une autre étape depuis.
+        $autre = RadarListing::factory()->extracted()->create(['duplicate_of_listing_id' => $listing->id]);
+
+        $this->postJson($this->url($listing, '/duplicate'), ['of_listing_id' => $autre->id])
+            ->assertStatus(422)
+            ->assertJsonPath('code', 'radar.duplicate.chain');
+        $this->assertSame(RadarListingStage::Extracted, $listing->fresh()->stage);
+    }
+
+    public function test_doublon_d_un_bien_de_test_rend_422(): void
+    {
+        $bienDeTest = Property::factory()->published()->create(['is_test' => true]);
+        $bien = Property::factory()->published()->create(['is_test' => false]);
+        $listing = $this->fiche();
+
+        $this->postJson($this->url($listing, '/duplicate'), ['of_property_id' => $bienDeTest->id])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('of_property_id');
+        $this->assertSame(RadarListingStage::Extracted, $listing->fresh()->stage);
+
+        $this->postJson($this->url($listing, '/duplicate'), ['of_property_id' => $bien->id])->assertOk();
     }
 
     public function test_doublon_d_une_cible_purgee_ou_inexistante_rend_422(): void

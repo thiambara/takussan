@@ -689,6 +689,7 @@ return [
         ],
         'duplicate' => [
             'self' => 'Une annonce ne peut pas être le doublon d\'elle-même.',
+            'chain' => 'Cette annonce est déjà un doublon, ou pointe déjà vers celle-ci : choisissez l\'annonce d\'origine.',
         ],
         'advertiser' => [
             'phone_invalid' => 'Ce numéro ne se lit pas comme un numéro sénégalais.',

@@ -689,6 +689,7 @@ return [
         ],
         'duplicate' => [
             'self' => 'A listing cannot be a duplicate of itself.',
+            'chain' => 'This listing is already a duplicate, or already points to this one: pick the original listing.',
         ],
         'advertiser' => [
             'phone_invalid' => 'This number cannot be read as a Senegalese phone number.',

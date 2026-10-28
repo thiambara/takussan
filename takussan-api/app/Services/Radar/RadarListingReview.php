@@ -196,15 +196,21 @@ final class RadarListingReview
 
     /**
      * Ce que l'opérateur avait sous les yeux, figé à la décision : une trace, non un cache. Si la fiche a changé
-     * entre la lecture et le verrou (une correction, un autre annonceur), le calcul d'avant ne décrit plus ce qui
-     * est décidé : on le refait, sous verrou, pour ce cas rare.
+     * entre la lecture et le verrou (une correction, un autre annonceur, ou le calcul des empreintes de photo qui
+     * vient d'aboutir), le calcul d'avant ne décrit plus ce qui est décidé : on le refait, sous verrou, pour ce
+     * cas rare.
      *
      * @param  list<array<string, mixed>>|null  $snapshot
      * @return list<array<string, mixed>>
      */
     private function frozen(?array $snapshot, RadarListing $before, RadarListing $locked): array
     {
-        if ($snapshot === null || $locked->extracted != $before->extracted || $locked->radar_advertiser_id !== $before->radar_advertiser_id) {
+        if (
+            $snapshot === null
+            || $locked->extracted != $before->extracted
+            || $locked->radar_advertiser_id !== $before->radar_advertiser_id
+            || $locked->source_photo_hashes != $before->source_photo_hashes
+        ) {
             return $this->matcher->matchesFor($locked);
         }
 
