@@ -5043,11 +5043,15 @@ prochaine annonce et le recontacterait.
 
 ### 109. RadarListing 🆕
 
-**Table :** `radar_listings` (migration `2026_10_27_200100`, TCK-2386)
+**Table :** `radar_listings` (migration `2026_10_27_200100`, TCK-2386 ; `2026_10_27_210000` et
+`2026_10_27_210100`, TCK-2387)
 **Modèle :** `App\Models\RadarListing` (`AbstractModel`, `HasMedia`) — `stage` casté en `RadarListingStage`,
-`extracted`, `photo_urls` et `matches` en `array`, `extracted_at` et `purge_at` en `datetime` ;
-`belongsTo advertiser`, `capturer` (colonne `captured_by`), `property`. `purge_at` est posé à la
-création : collecte + 90 jours (`config('radar.purge_after_days')`).
+`extracted`, `photo_urls`, `matches` et `source_photo_hashes` en `array`, `extracted_at` et `purge_at` en
+`datetime` ; `belongsTo advertiser`, `capturer` (colonne `captured_by`), `property`, `duplicateOfListing`
+(colonne `duplicate_of_listing_id`), `duplicateOfProperty` (colonne `duplicate_of_property_id`).
+`purge_at` est posé à la création : collecte + 90 jours (`config('radar.purge_after_days')`).
+`photoFingerprintStatus()` rend `{status: none|pending|done, total, done}` (total borné par
+`config('radar.photos.max_per_listing')`).
 **Description :** Une annonce collectée hors du catalogue ([ADR-0077 §1, §9](adr/0077-le-radar.md)).
 Elle ne devient un bien que sur l'accord prouvé de son annonceur : `properties` ne reçoit aucune
 colonne, c'est `property_id` qui pointe vers le bien publié. Aucune photo n'est téléchargée : seules
@@ -5064,18 +5068,22 @@ sur le disque **privé** par défaut (ADR-0029).
 | raw_text | text | oui | null | Texte brut ; purgé à `purge_at` ou dès un STOP |
 | photo_urls | jsonb | | `[]` | URL source des photos, jamais téléchargées |
 | content_fingerprint | string(64) | | | Empreinte du contenu ; **unique** : une annonce n'entre qu'une fois |
-| extracted | jsonb | oui | null | Sortie normalisée de l'extraction |
+| extracted | jsonb | oui | null | Sortie normalisée de l'extraction : un champ = `{value, confidence, evidence, flags}`, plus `phones`, `phones_flags`, `nature_signals` et `phones_dropped` (les numéros écartés, gardés à part ; purgés avec `extracted`). Une valeur corrigée par l'opérateur porte la marque `corrected` |
 | matches | jsonb | | `[]` | Rapprochements avec le catalogue |
-| stage | string(30) | | | `captured`, `extracted`, `reviewed`, `contacted`, `consented`, `published`, `extraction_failed`, `duplicate`, `refused`, `do_not_contact`, `purged` ; indexée |
-| stage_reason | string(60) | oui | null | Code du motif de l'état, jamais de prose |
+| stage | string(30) | | | `captured`, `extracted`, `reviewed`, `contacted`, `consented`, `published`, `extraction_failed`, `duplicate`, `discarded`, `refused`, `do_not_contact`, `purged` ; indexée. `discarded` : écartée par l'opérateur (TCK-2387), distincte de `refused` (issue d'un démarchage) |
+| stage_reason | string(60) | oui | null | Code du motif de l'état, jamais de prose ; pour `discarded`, `radar.discard.<motif>` (`RadarDiscardReason` : `not_real_estate`, `out_of_scope`, `no_longer_available`, `unusable_source`, `other`) |
 | extraction_attempts | smallint | | 0 | Passages de l'extraction |
 | extracted_at | timestamp | oui | null | |
 | property_id | FK properties | oui | null | Bien publié (`nullOnDelete`) ; indexée |
 | captured_by | FK users | oui | null | Opérateur qui a saisi l'annonce (`nullOnDelete`) ; indexée |
 | purge_at | timestamp | oui | null | Collecte + 90 jours ; indexée |
+| source_photo_hashes | jsonb | oui | null | TCK-2387 (ADR-0054) : l'empreinte dHash des photos source, calculées à la volée, jamais conservées. `null` : jamais calculé ; `[]` : calculé, aucune photo. Un élément par URL tentée : `{url, hash: int\|null, b0, b1, b2, b3}` ou `{url, hash: null, error}`. Index GIN `jsonb_path_ops` (recherche par bande) |
+| duplicate_of_listing_id | FK radar_listings | oui | null | TCK-2387 : l'annonce dont celle-ci est le doublon (`nullOnDelete`) ; indexée |
+| duplicate_of_property_id | FK properties | oui | null | TCK-2387 : le bien du catalogue dont celle-ci est le doublon (`nullOnDelete`) ; indexée |
 | created_at / updated_at | timestamp | | auto | |
 
-**Contraintes :** unique `radar_listings_fingerprint_unique (content_fingerprint)`.
+**Contraintes :** unique `radar_listings_fingerprint_unique (content_fingerprint)` ; CHECK
+`radar_listings_dup_one_chk` : `duplicate_of_listing_id` et `duplicate_of_property_id` ne sont jamais posées ensemble.
 
 ---
 

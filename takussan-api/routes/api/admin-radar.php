@@ -2,6 +2,8 @@
 
 use App\Http\Controllers\Api\Admin\RadarDashboardController;
 use App\Http\Controllers\Api\Admin\RadarListingController;
+use App\Http\Controllers\Api\Admin\RadarListingMatchController;
+use App\Http\Controllers\Api\Admin\RadarListingReviewController;
 use App\Models\Enums\PlatformAbility;
 use Illuminate\Support\Facades\Route;
 
@@ -21,4 +23,11 @@ Route::middleware(['auth:sanctum', 'super-admin', 'platform-can:'.PlatformAbilit
         Route::post('listings', [RadarListingController::class, 'store'])->name('admin.radar.listings.store');
         Route::get('listings', [RadarListingController::class, 'index'])->name('admin.radar.listings.index');
         Route::get('listings/{listing}', [RadarListingController::class, 'show'])->name('admin.radar.listings.show');
+        // TCK-2387 — la relecture : corriger, valider, et les rapprochements (calculés à l'ouverture).
+        Route::patch('listings/{listing}', [RadarListingReviewController::class, 'update'])->name('admin.radar.listings.update');
+        Route::post('listings/{listing}/review', [RadarListingReviewController::class, 'review'])->name('admin.radar.listings.review');
+        Route::post('listings/{listing}/duplicate', [RadarListingReviewController::class, 'duplicate'])->name('admin.radar.listings.duplicate');
+        Route::post('listings/{listing}/discard', [RadarListingReviewController::class, 'discard'])->name('admin.radar.listings.discard');
+        Route::put('listings/{listing}/advertiser', [RadarListingReviewController::class, 'advertiser'])->name('admin.radar.listings.advertiser');
+        Route::get('listings/{listing}/matches', RadarListingMatchController::class)->name('admin.radar.listings.matches');
     });

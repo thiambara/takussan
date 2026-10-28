@@ -14,6 +14,10 @@ use Psr\Http\Message\StreamInterface;
  * envoie un corps sans fin, en `Transfer-Encoding: chunked` et sans `Content-Length`, ne fait donc
  * jamais tenir plus de `$maxBytes` octets en mémoire.
  *
+ * **En mémoire, jamais `php://temp`** (TCK-2387, AC4) : au-delà de 2 Mo, `php://temp` déborde dans un
+ * fichier du dossier temporaire. Un corps tiers — page ou photo source — ne touche jamais le disque ;
+ * la borne (`$maxBytes`) est ce qui garde la mémoire raisonnable.
+ *
  * ⚠ `Http::fake()` n'emprunte pas ce chemin : il ne prouve que les contrôles faits APRÈS lecture
  * (en-tête et taille du corps). Ce tampon a son propre test.
  */
@@ -27,7 +31,7 @@ final class BoundedSink implements StreamInterface
 
     public function __construct(private readonly int $maxBytes)
     {
-        $this->stream = Utils::streamFor(Utils::tryFopen('php://temp', 'w+'));
+        $this->stream = Utils::streamFor(Utils::tryFopen('php://memory', 'w+'));
     }
 
     public function write($string): int

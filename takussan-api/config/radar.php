@@ -67,6 +67,21 @@ return [
         'max_pixels' => 24_000_000,
     ],
 
+    // TCK-2387 (ADR-0054) — les photos source d'une annonce-URL : lues à la volée pour en calculer
+    // l'empreinte, jamais conservées. Octets et pixels bornés AVANT le décodage (bombe de
+    // décompression), selon le même raisonnement mémoire que `captures`.
+    'photos' => [
+        // Photos tentées au plus par annonce, dans l'ordre de `photo_urls`.
+        'max_per_listing' => 10,
+        // Corps lu au plus, par photo : 5 Mo.
+        'max_bytes' => 5_000_000,
+        'mimes' => ['image/jpeg', 'image/png', 'image/webp', 'image/gif'],
+        'max_side' => 12_000,
+        'max_pixels' => 24_000_000,
+        // Durée d'un passage du calcul : au-delà, il s'arrête et le reste se reprend au passage suivant.
+        'pass_budget_seconds' => 30,
+    ],
+
     // ADR-0077 §5 — les bornes de vraisemblance d'une extraction, lues par
     // `App\Services\Radar\ExtractionNormalizer`. Hors bornes : drapeau `out_of_bounds` et confiance
     // `low` ; la valeur reste, l'humain tranche. Montants en XOF, bornes incluses.

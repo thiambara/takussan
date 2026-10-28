@@ -51,6 +51,20 @@ posés par TCK-2389. Loi n° 2008-12 : la durée annoncée doit être tenue par 
   la source. Une annonce purgée garde son empreinte de contenu : la recoller rend la fiche
   `purged` (voulu, à dire dans l'écran). Une relance par recollage (`requeued`, TCK-2386) **ne
   repousse pas** `purge_at` : la date court depuis la première saisie.
+- **Ce que TCK-2387 ajoute à la purge** (relecture, 2026-10-28) :
+  - `extracted.phones_dropped` : les numéros que le modèle a rendus sans que la source les porte,
+    **conservés en clair** pour la fiche (décision 7a, option a) — un numéro halluciné peut être
+    celui d'un inconnu ;
+  - les `ai_suggestions` d'usage `radar.extraction` dont le sujet est l'annonce : `input_snapshot`
+    (anonymisé à l'écriture, mais le titre et la description libres peuvent garder un nom), et
+    `title` / `description` de `proposal`, `final_value` et `correction_diff`, qui peuvent recopier
+    un numéro ou un nom. Effacer ces champs, ou la ligne entière : à trancher ici, contre le taux
+    d'acceptation que le socle IA en calcule ;
+  - une annonce passée `do_not_contact` **après** sa lecture — STOP tardif par
+    `PUT …/advertiser` (TCK-2387), ou par TCK-2388 — garde `extracted` (numéros compris) et
+    `raw_text` : le geste ne réécrit pas la fiche. « Dès un STOP » (ADR-0077 §9) doit la couvrir,
+    contrairement au STOP vu par le job, qui ne garde pas la lecture ;
+  - `source_photo_hashes` et `matches` ne portent aucune donnée personnelle et peuvent rester.
 
 ## Delta à produire
 

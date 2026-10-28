@@ -578,6 +578,7 @@ class RadarListingStoreTest extends TestCase
         RadarListing::factory()->create(['stage' => RadarListingStage::Captured]);
         RadarListing::factory()->create(['stage' => RadarListingStage::Captured, 'stage_reason' => 'ai.budget']);
         RadarListing::factory()->create(['stage' => RadarListingStage::ExtractionFailed, 'stage_reason' => 'radar.fetch.robots']);
+        RadarListing::factory()->create(['stage' => RadarListingStage::Discarded, 'stage_reason' => 'radar.discard.other']);
 
         $appel = fn (string $usage, float $cout, array $extra = []) => AiCall::query()->create($extra + ['usage_key' => $usage, 'outcome' => 'success', 'cost_estimate' => $cout]);
         $appel('radar.extraction', 12.5);
@@ -591,6 +592,7 @@ class RadarListingStoreTest extends TestCase
         $this->assertSame(2, $data['stages']['extracted']);
         $this->assertSame(2, $data['stages']['captured']);
         $this->assertSame(1, $data['stages']['extraction_failed']);
+        $this->assertSame(1, $data['stages']['discarded']);
         $this->assertSame(0, $data['stages']['published']);
         $this->assertSame(array_column(RadarListingStage::cases(), 'value'), array_keys($data['stages']));
         $this->assertSame(1, $data['pending_extraction']);

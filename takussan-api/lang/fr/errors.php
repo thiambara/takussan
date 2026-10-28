@@ -683,6 +683,21 @@ return [
             'invalid' => 'Cette URL ne se lit pas : son nom d\'hôte est illisible.',
             'airbnb' => 'Airbnb n\'est pas une source du Radar : son contenu ne se collecte pas.',
         ],
+        'listing' => [
+            'nothing_to_update' => 'Aucun champ à corriger : envoyez au moins un champ de la fiche.',
+            'stage_conflict' => 'Cette annonce n\'est plus à cette étape : le geste n\'est pas permis.',
+        ],
+        'duplicate' => [
+            'self' => 'Une annonce ne peut pas être le doublon d\'elle-même.',
+            'chain' => 'Cette annonce est déjà un doublon, ou pointe déjà vers celle-ci : choisissez l\'annonce d\'origine.',
+        ],
+        'advertiser' => [
+            'phone_invalid' => 'Ce numéro ne se lit pas comme un numéro sénégalais.',
+            'phone_unknown' => 'Ce numéro n\'apparaît pas dans l\'annonce : on ne rattache qu\'un numéro qu\'elle a lu.',
+        ],
+        'review' => [
+            'incomplete' => 'La fiche est incomplète : le type, le contrat, le prix et un quartier du référentiel sont requis.',
+        ],
     ],
     'pay_link' => [
         'not_found' => 'Ce lien de paiement n\'existe pas.',

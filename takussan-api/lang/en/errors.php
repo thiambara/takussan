@@ -683,6 +683,21 @@ return [
             'invalid' => 'This URL cannot be read: its host name is unreadable.',
             'airbnb' => 'Airbnb is not a Radar source: its content is not collected.',
         ],
+        'listing' => [
+            'nothing_to_update' => 'Nothing to update: send at least one field of the listing.',
+            'stage_conflict' => 'This listing is no longer at that stage: the action is not allowed.',
+        ],
+        'duplicate' => [
+            'self' => 'A listing cannot be a duplicate of itself.',
+            'chain' => 'This listing is already a duplicate, or already points to this one: pick the original listing.',
+        ],
+        'advertiser' => [
+            'phone_invalid' => 'This number cannot be read as a Senegalese phone number.',
+            'phone_unknown' => 'This number does not appear in the listing: only a number it has read can be attached.',
+        ],
+        'review' => [
+            'incomplete' => 'The listing is incomplete: a property type, a contract, a price and a neighborhood from the referential are required.',
+        ],
     ],
     'pay_link' => [
         'not_found' => 'This payment link does not exist.',

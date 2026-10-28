@@ -1,3 +1,5 @@
+import type { RadarDiscardReason } from '@/types/radar';
+
 /**
  * TCK-2386 (ADR-0077) — les codes du Radar et leur libellé.
  *
@@ -6,6 +8,9 @@
  *   `superAdmin.pages.radar.reasons`.
  * - {@link ERREURS_SAISIE_RADAR} : les codes 422 de `POST /api/admin/radar/listings`. Libellés sous
  *   `superAdmin.pages.radar.intake.errors`.
+ *
+ * - {@link ERREURS_FICHE_RADAR} : les refus de la fiche (`PATCH`, relecture, gestes). Libellés sous
+ *   `superAdmin.pages.radar.listing.errors`.
  *
  * Un code absent d'ici s'affiche brut, jamais masqué.
  */
@@ -47,6 +52,28 @@ export const MOTIFS_RADAR: Record<string, string> = {
   'radar.extraction.empty_source': 'extractionEmptySource',
   'radar.extraction.timeout': 'extractionTimeout',
   'radar.extraction.error': 'extractionError',
+  // Photos source (TCK-2387) : l'image d'une annonce ne s'est pas laissée empreindre.
+  // RÉSERVÉS : l'API n'écrit pas encore ces codes en `stage_reason` (ni ailleurs, côté fiche) ; leurs
+  // libellés attendent qu'elle le fasse, et rien ici ne prouve qu'ils s'affichent aujourd'hui.
+  'radar.fetch.not_image': 'fetchNotImage',
+  'radar.photo.abandoned': 'photoAbandoned',
+  'radar.photo.too_many_pixels': 'photoTooManyPixels',
+  'radar.photo.unreadable': 'photoUnreadable',
+  // Annonce écartée (TCK-2387) : `stage_reason` = `radar.discard.<motif>`
+  'radar.discard.not_real_estate': 'discardNotRealEstate',
+  'radar.discard.out_of_scope': 'discardOutOfScope',
+  'radar.discard.no_longer_available': 'discardNoLongerAvailable',
+  'radar.discard.unusable_source': 'discardUnusableSource',
+  'radar.discard.other': 'discardOther',
+};
+
+/** Les motifs d'écart que choisit l'opérateur (`RadarDiscardReason`) : leur libellé est celui du `stage_reason` écrit. */
+export const MOTIFS_ECART_RADAR: Record<RadarDiscardReason, string> = {
+  not_real_estate: 'discardNotRealEstate',
+  out_of_scope: 'discardOutOfScope',
+  no_longer_available: 'discardNoLongerAvailable',
+  unusable_source: 'discardUnusableSource',
+  other: 'discardOther',
 };
 
 /**
@@ -80,4 +107,15 @@ export const ERREURS_SAISIE_RADAR: Record<string, string> = {
   'radar.url.invalid': 'urlInvalid',
   'radar.captures.unreadable': 'capturesUnreadable',
   'radar.captures.too_large': 'capturesTooLarge',
+};
+
+/** Les codes 409/422 de la fiche (TCK-2387) — `radar.listing.stage_conflict` : la fiche a changé d'étape ailleurs. */
+export const ERREURS_FICHE_RADAR: Record<string, string> = {
+  'radar.listing.stage_conflict': 'stageConflict',
+  'radar.listing.nothing_to_update': 'nothingToUpdate',
+  'radar.review.incomplete': 'reviewIncomplete',
+  'radar.duplicate.self': 'duplicateSelf',
+  'radar.duplicate.chain': 'duplicateChain',
+  'radar.advertiser.phone_invalid': 'advertiserPhoneInvalid',
+  'radar.advertiser.phone_unknown': 'advertiserPhoneUnknown',
 };

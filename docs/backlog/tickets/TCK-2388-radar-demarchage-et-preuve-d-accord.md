@@ -77,6 +77,14 @@ Les relances dues remontent d'elles-mêmes.
   d'ADR-0043) ; une écriture sans la prise en charge rend 409.
 - Le numéro WhatsApp des notifications n'est jamais utilisé : le lien `wa.me` ne porte que le
   numéro de l'annonceur.
+- **Ce que TCK-2387 laisse à ce ticket** (revue finale, 2026-10-28) :
+  - la nature présumée **corrigée** à la relecture (`PATCH … {advertiser_nature}`) vit dans
+    `radar_listings.extracted.advertiser_nature` et **n'est pas recopiée** dans
+    `radar_advertisers.nature` : la fiche annonceur doit la lire depuis ses annonces relues, ou ce
+    ticket décide de la propager (et de ce qui l'emporte entre deux annonces qui divergent) ;
+  - `PUT …/listings/{listing}/advertiser` (TCK-2387) rattache déjà un annonceur depuis un numéro
+    connu de l'annonce, sous le même ordre de verrous, et rend `do_not_contact` si ce numéro a dit
+    STOP : le gestionnaire de STOP de ce ticket s'y aligne.
 - Droits : `platform.radar.operate`.
 
 ## Delta à produire
