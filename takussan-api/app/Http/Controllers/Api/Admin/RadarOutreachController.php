@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\Api\Admin\RecordRadarOutreachOutcomeRequest;
 use App\Http\Requests\Api\Admin\StoreRadarConsentReplyRequest;
 use App\Http\Requests\Api\Admin\StoreRadarOutreachRequest;
 use App\Http\Requests\Api\Admin\UpdateRadarOutreachRequest;
@@ -16,7 +17,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 /**
- * TCK-2388 (ADR-0077 §4, §11) — préparer, retoucher et marquer envoyé le message d'accord d'un annonceur, et déposer la réponse qu'il a donnée. Chaque geste
+ * TCK-2388 (ADR-0077 §4, §11) — préparer, retoucher et marquer envoyé le message d'accord d'un annonceur, déposer la réponse qu'il a donnée et poser l'issue. Chaque geste
  * rend le message ; la préparation y ajoute `generated` et `ai_error`. Gardés par `super-admin` +
  * `platform-can:platform.radar.operate` (`routes/api/admin-radar.php`) ; chacun exige la prise en charge de l'annonceur.
  */
@@ -49,6 +50,12 @@ class RadarOutreachController extends Controller
         return $this->json([
             'data' => (new RadarConsentResource($consent->load(['confirmer:id,first_name,last_name,username', 'media'])))->resolve($request),
         ], 201);
+    }
+
+    /** 200 : le message, issue et réponses comprises. Le seul geste qui confirme une réponse (ADR-0077 §3). */
+    public function outcome(RecordRadarOutreachOutcomeRequest $request, RadarOutreach $outreach, RadarConsentWorkflow $workflow): JsonResponse
+    {
+        return $this->card($request, $workflow->recordOutcome($outreach, $request->outcome(), $request->reason(), $request->user()));
     }
 
     private function card(Request $request, RadarOutreach $outreach): JsonResponse

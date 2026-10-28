@@ -710,10 +710,14 @@ return [
             'not_prepared' => 'Ce message n\'est plus à l\'état préparé : il ne se modifie ni ne s\'envoie plus.',
             'parts_missing' => 'La salutation et le résumé doivent être écrits : aucun des deux ne peut être vide.',
             'nothing_to_update' => 'Aucun champ à modifier : indiquez la salutation ou le résumé.',
-            'not_sent' => 'Ce message n\'a pas été envoyé : aucune réponse ne s\'y dépose.',
-            'outcome_final' => 'Ce message est clos : une réponse ne s\'y dépose plus.',
-            'superseded' => 'Ce message a été relancé : déposez la réponse sur la dernière relance.',
+            'not_sent' => 'Ce message n\'a pas été envoyé : aucune réponse ni issue ne s\'y enregistre.',
+            'outcome_final' => 'Ce message est clos : ni réponse ni issue ne s\'y ajoute plus.',
+            'superseded' => 'Ce message a été relancé : déposez la réponse ou l\'issue sur la dernière relance.',
             'reply_pending' => 'Une réponse de ce message attend encore sa vérification : attendez son verdict avant d\'en déposer une autre.',
+        ],
+        'consent' => [
+            'reply_required' => 'Aucune réponse n\'est déposée sur ce message : déposez les captures de l\'annonceur avant de confirmer l\'accord.',
+            'reason_required' => 'Le verdict de l\'IA ne va pas dans le sens d\'un accord (:discordances) : écrivez le motif de la confirmation.',
         ],
         'message' => [
             'generation_incomplete' => 'Le modèle n\'a pas rédigé la salutation et le résumé : écrivez-les vous-même.',

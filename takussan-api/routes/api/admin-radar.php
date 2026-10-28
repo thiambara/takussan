@@ -43,4 +43,6 @@ Route::middleware(['auth:sanctum', 'super-admin', 'platform-can:'.PlatformAbilit
         Route::post('outreaches/{outreach}/sent', [RadarOutreachController::class, 'sent'])->name('admin.radar.outreaches.sent');
         // La réponse de l'annonceur : des captures (multipart) ; la vérification par l'IA part en file.
         Route::post('outreaches/{outreach}/reply', [RadarOutreachController::class, 'reply'])->name('admin.radar.outreaches.reply');
+        // L'issue : le seul geste qui confirme une réponse (accord), ou qui clôt l'échange (refus, STOP).
+        Route::post('outreaches/{outreach}/outcome', [RadarOutreachController::class, 'outcome'])->name('admin.radar.outreaches.outcome');
     });

@@ -84,6 +84,7 @@ class PlatformRoutesDefaultDenyTest extends TestCase
         'admin.radar.outreaches.update',
         'admin.radar.outreaches.sent',
         'admin.radar.outreaches.reply',
+        'admin.radar.outreaches.outcome',
     ];
 
     public function test_toute_route_de_la_console_passe_par_la_garde_plateforme(): void

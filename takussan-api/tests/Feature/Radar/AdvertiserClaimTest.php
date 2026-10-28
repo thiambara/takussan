@@ -70,6 +70,7 @@ class AdvertiserClaimTest extends TestCase
             'marquer un message d\'accord envoyé' => ['postJson', '/api/admin/radar/outreaches/{id}/sent', [], 'message'],
             // Multipart : le verbe `post` (et non `postJson`), `{capture}` devient une vraie image.
             'déposer la réponse d\'un annonceur' => ['post', '/api/admin/radar/outreaches/{id}/reply', ['captures' => ['{capture}']], 'message'],
+            'poser l\'issue d\'un message d\'accord' => ['postJson', '/api/admin/radar/outreaches/{id}/outcome', ['outcome' => 'refused'], 'message'],
         ];
     }
 

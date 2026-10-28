@@ -17,6 +17,7 @@ use App\Services\Ai\Exceptions\AiUnavailable;
 use App\Services\Ai\SuggestionRecorder;
 use App\Services\Radar\ConsentMessageComposer;
 use App\Services\Radar\RadarConsentVerdict;
+use App\Services\Radar\RadarVerificationDecision;
 use DateTimeInterface;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -110,10 +111,10 @@ final class VerifyRadarConsentReply implements ShouldQueue
         return [(new WithoutOverlapping((string) $this->replyId))->releaseAfter(30)->expireAfter($this->timeout + 30)];
     }
 
-    public function handle(AiGateway $gateway, SuggestionRecorder $recorder, ConsentMessageComposer $composer): void
+    public function handle(AiGateway $gateway, SuggestionRecorder $recorder, ConsentMessageComposer $composer, RadarVerificationDecision $decision): void
     {
         try {
-            $this->verify($gateway, $recorder, $composer);
+            $this->verify($gateway, $recorder, $composer, $decision);
         } catch (Throwable $e) {
             // Tout ce qui échappe à la classification de l'appel (médias, clauses, suggestion, base) : une erreur de
             // programmation échoue ; un imprévu attend, espacé, avec SON motif — jamais le `timeout` de la fenêtre.
@@ -124,7 +125,7 @@ final class VerifyRadarConsentReply implements ShouldQueue
         }
     }
 
-    private function verify(AiGateway $gateway, SuggestionRecorder $recorder, ConsentMessageComposer $composer): void
+    private function verify(AiGateway $gateway, SuggestionRecorder $recorder, ConsentMessageComposer $composer, RadarVerificationDecision $decision): void
     {
         $reply = RadarConsent::query()->with(['outreach', 'advertiser', 'depositor'])->find($this->replyId);
         if ($reply === null || $reply->verification_status !== RadarVerificationStatus::Pending) {
@@ -198,7 +199,7 @@ final class VerifyRadarConsentReply implements ShouldQueue
             return;
         }
 
-        $this->settle(function (RadarConsent $locked) use ($verdict, $result, $recorder): void {
+        $this->settle(function (RadarConsent $locked) use ($verdict, $result, $recorder, $decision): void {
             $locked->forceFill([
                 'ai_verdict' => $verdict,
                 'transcript' => $verdict['transcript'],
@@ -206,6 +207,9 @@ final class VerifyRadarConsentReply implements ShouldQueue
                 'verification_reason' => null,
             ]);
             $this->record($recorder, $result, $locked, $verdict);
+            // L'humain a pu trancher PENDANT l'appel : sa décision n'est jamais réécrite, mais la suggestion qu'on vient
+            // d'écrire se décide contre elle, sous le verrou de la réponse que `recordOutcome()` tient aussi.
+            $decision->decideIfOutcomeKnown($locked);
         });
     }
 

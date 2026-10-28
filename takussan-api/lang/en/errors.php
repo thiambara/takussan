@@ -710,10 +710,14 @@ return [
             'not_prepared' => 'This message is no longer in the prepared state: it can no longer be edited or sent.',
             'parts_missing' => 'The greeting and the summary must be written: neither can be empty.',
             'nothing_to_update' => 'Nothing to update: give the greeting or the summary.',
-            'not_sent' => 'This message has not been sent: no reply can be added to it.',
-            'outcome_final' => 'This message is closed: a reply can no longer be added to it.',
-            'superseded' => 'This message has been followed up: add the reply to the latest follow-up.',
+            'not_sent' => 'This message has not been sent: no reply or outcome can be recorded on it.',
+            'outcome_final' => 'This message is closed: no reply or outcome can be added to it any more.',
+            'superseded' => 'This message has been followed up: record the reply or outcome on the latest follow-up.',
             'reply_pending' => 'A reply to this message is still waiting to be verified: wait for its verdict before adding another.',
+        ],
+        'consent' => [
+            'reply_required' => 'No reply has been added to this message: add the advertiser\'s captures before confirming the consent.',
+            'reason_required' => 'The AI verdict does not point to a consent (:discordances): write the reason for confirming it.',
         ],
         'message' => [
             'generation_incomplete' => 'The model did not write the greeting and the summary: write them yourself.',
