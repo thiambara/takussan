@@ -37,6 +37,16 @@ describe('les numéros de la fiche (TCK-2387, AC6)', () => {
     expect(within(retenus).queryByText(/ne figurent pas dans le texte source/)).toBeNull();
   });
 
+  it('l\'annonceur rattaché est un lien vers sa fiche (TCK-2388)', async () => {
+    await rendreFiche(fiche({ advertiser: ANNONCEUR(RETENU), radar_advertiser_id: 5 }));
+    expect(screen.getByRole('link', { name: 'Ouvrir la fiche de l’annonceur' })).toHaveAttribute('href', '/super-admin/radar/advertisers/5');
+  });
+
+  it('une fiche sans annonceur n\'a pas de lien vers une fiche annonceur', async () => {
+    await rendreFiche(fiche());
+    expect(screen.queryByRole('link', { name: 'Ouvrir la fiche de l’annonceur' })).toBeNull();
+  });
+
   it('sans numéro écarté, le bloc d\'avertissement n\'existe pas', async () => {
     const detail = fiche();
     await rendreFiche({ ...detail, extracted: { ...detail.extracted!, phones_dropped: [] } });

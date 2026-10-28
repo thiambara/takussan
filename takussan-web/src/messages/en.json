@@ -8862,7 +8862,142 @@
             "confirm": "Attach",
             "attached": "Advertiser attached.",
             "doNotContact": "This number asked not to be contacted: the listing is closed (do not contact), actions are disabled.",
-            "makeAdvertiserFor": "Make advertiser: {phone}"
+            "makeAdvertiserFor": "Make advertiser: {phone}",
+            "openAdvertiser": "Open the advertiser’s page"
+          }
+        },
+        "advertiser": {
+          "metaTitle": "Radar advertiser",
+          "title": "Advertiser #{id}",
+          "back": "Back to Radar",
+          "forbidden": "Radar is restricted to support and super-admin operators.",
+          "loadError": "The advertiser could not be loaded.",
+          "unnamed": "Unnamed advertiser",
+          "noPhone": "Unknown number",
+          "identity": {
+            "heading": "Identity",
+            "phone": "Number",
+            "name": "Name read",
+            "nature": "Presumed nature",
+            "signals": "Signals found",
+            "noSignals": "No signals found."
+          },
+          "doNotContact": "This advertiser asked not to be contacted again (on {date}). No message is prepared or sent to them.",
+          "claim": {
+            "heading": "Ownership",
+            "none": "Nobody is handling this advertiser. Take it over to prepare a message.",
+            "mine": "You are handling this advertiser, until {until}.",
+            "other": "{name} is handling this advertiser, until {until}. You cannot prepare anything in the meantime.",
+            "take": "Take over",
+            "taking": "Taking over…",
+            "release": "Hand back",
+            "releasing": "Handing back…"
+          },
+          "listings": {
+            "heading": "Listings",
+            "none": "No listing is attached to this advertiser.",
+            "tableCaption": "The advertiser's listings, to tick for the message",
+            "select": "Pick listing #{id} for the message",
+            "open": "Open the page of listing #{id}",
+            "untitled": "Untitled listing",
+            "price": "Price",
+            "neighborhood": "Neighborhood",
+            "stage": "Stage",
+            "limit": "A message covers {max} listings at most.",
+            "why": {
+              "covered": "Already covered by a valid consent",
+              "notReviewed": "Not reviewed yet",
+              "closed": "Closed: nothing left to contact",
+              "pending": "A sent message is waiting for its answer"
+            },
+            "number": "#{id}"
+          },
+          "prepare": {
+            "heading": "New message",
+            "locale": "Message language",
+            "locales": {
+              "fr": "Français",
+              "en": "English"
+            },
+            "selected": "{count, plural, =0 {No listing picked} one {# listing picked} other {# listings picked}}",
+            "action": "Prepare the message",
+            "preparing": "Preparing…"
+          },
+          "message": {
+            "heading": "Message being prepared",
+            "listings": "Listings covered: {ids}",
+            "fixed": "Fixed text: the clauses cannot be edited",
+            "salutation": "Greeting",
+            "resume": "Listing summary",
+            "save": "Save",
+            "saving": "Saving…",
+            "aiMissing": "The AI did not write the greeting and the summary: fill in both fields.",
+            "aiReason": "Reason: {reason}",
+            "partsEmpty": "The greeting and the summary must be written before opening WhatsApp.",
+            "whatsapp": "Open WhatsApp",
+            "whatsappHint": "The link opens in a new tab, with the exact text above.",
+            "sent": "I sent the message",
+            "sentTitle": "Confirm it was sent",
+            "sentBody": "Confirm this message was really sent to the advertiser. The listings will become “contacted” and the message can no longer be edited.",
+            "sentConfirm": "Yes, I sent it",
+            "sentSending": "Saving…",
+            "cancel": "Cancel",
+            "legacy": "This message was written with another template: its text is shown as it was saved.",
+            "number": "#{id}",
+            "unsaved": "Save your edits: WhatsApp only opens the saved text."
+          },
+          "history": {
+            "heading": "Sent messages",
+            "none": "No message has been sent to this advertiser yet.",
+            "date": "Date",
+            "author": "Author",
+            "locale": "Language",
+            "clauses": "Clauses version",
+            "listings": "Listings covered",
+            "status": "Status",
+            "outcome": "Outcome",
+            "noOutcome": "No outcome yet",
+            "text": "Exact text",
+            "unknownAuthor": "Unknown author",
+            "sentAt": "Sent on {date}",
+            "statuses": {
+              "prepared": "Prepared",
+              "sent": "Sent",
+              "closed": "Closed"
+            },
+            "outcomes": {
+              "consented": "Consent confirmed",
+              "refused": "Refusal",
+              "stop": "Do not contact again",
+              "question": "Advertiser's question",
+              "no_answer": "No answer"
+            },
+            "number": "#{id}"
+          },
+          "errors": {
+            "generic": "The action failed.",
+            "claimRequired": "Take this advertiser over first: the action requires it.",
+            "claimedByOther": "This advertiser is being handled by another operator until {until}.",
+            "claimNotHeld": "This is not your claim: it cannot be handed back.",
+            "doNotContact": "This advertiser asked not to be contacted: no message is prepared or sent to them.",
+            "busy": "This advertiser is changing right now: try again in a moment.",
+            "localeUnsupported": "This language is not supported for the consent message.",
+            "listingForeign": "One of these listings does not belong to this advertiser.",
+            "listingNotReady": "One of these listings is not ready to be contacted: it must be reviewed and validated.",
+            "listingConsented": "One of these listings is already covered by a valid consent: no need to contact them again.",
+            "listingPending": "A message already sent for one of these listings is still waiting for an outcome.",
+            "followUpInvalid": "This message cannot be followed up: it must be sent, without outcome, and be the last of its chain.",
+            "followUpLimit": "The follow-up limit is reached for this message.",
+            "notPrepared": "This message is no longer in the prepared state: it can no longer be edited or sent.",
+            "partsMissing": "The greeting and the summary must be written: neither can be empty.",
+            "nothingToUpdate": "No edit to save.",
+            "notSent": "This message was not sent: no reply or outcome is recorded on it.",
+            "outcomeFinal": "This message is closed: no reply or outcome can be added.",
+            "superseded": "This message was followed up: the reply goes on the last follow-up.",
+            "replyPending": "A reply to this message is still being checked: wait for its verdict.",
+            "generationIncomplete": "The AI did not write the greeting and the summary: write them yourself.",
+            "replyRequired": "No reply is filed on this message: file the advertiser’s captures before confirming the consent.",
+            "reasonRequired": "The AI verdict does not point to a consent: write the reason for the confirmation."
           }
         }
       }

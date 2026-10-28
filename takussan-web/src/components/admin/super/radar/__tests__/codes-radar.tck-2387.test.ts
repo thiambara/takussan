@@ -12,7 +12,7 @@ import {
   RADAR_MATCH_SIGNALS,
   RADAR_PROPERTY_TYPES,
 } from '@/types/radar';
-import { ERREURS_FICHE_RADAR, ERREURS_SAISIE_RADAR, MOTIFS_ECART_RADAR } from '../codes-radar';
+import { ERREURS_ANNONCEUR_RADAR, ERREURS_FICHE_RADAR, ERREURS_SAISIE_RADAR, MOTIFS_ECART_RADAR } from '../codes-radar';
 
 const RACINE = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..', '..', '..', '..');
 const lire = (...chemin: string[]) => readFileSync(join(RACINE, ...chemin), 'utf8');
@@ -97,7 +97,11 @@ describe('codes de la fiche du Radar', () => {
     }
     expect(codes.length).toBeGreaterThanOrEqual(9);
 
-    const connus = new Set([...Object.keys(ERREURS_FICHE_RADAR), ...Object.keys(ERREURS_SAISIE_RADAR)]);
+    const connus = new Set([
+      ...Object.keys(ERREURS_FICHE_RADAR),
+      ...Object.keys(ERREURS_SAISIE_RADAR),
+      ...Object.keys(ERREURS_ANNONCEUR_RADAR),
+    ]);
     expect(codes.filter((code) => !connus.has(code))).toEqual([]);
   });
 

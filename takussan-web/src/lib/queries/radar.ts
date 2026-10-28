@@ -3,6 +3,8 @@ import { cheminApi, requete } from '@/lib/chemin-api';
 import { jsonOrThrow } from '@/lib/queries/super-admin-coque';
 import type { PaginatedResponse } from '@/types/api';
 import type {
+  RadarAdvertiserResponse,
+  RadarClaimResponse,
   RadarDashboardResponse,
   RadarIntakePayload,
   RadarIntakeResponse,
@@ -13,6 +15,10 @@ import type {
   RadarListingRow,
   RadarMatchesResponse,
   RadarListingStage,
+  RadarOutreachChanges,
+  RadarOutreachResponse,
+  RadarPrepareRequest,
+  RadarPreparedOutreachResponse,
 } from '@/types/radar';
 
 /**
@@ -53,6 +59,8 @@ export const radarKeys = {
   detail: (id: number) => [...radarKeys.details(), id] as const,
   matches: (id: number) => [...radarKeys.all, 'matches', id] as const,
   next: (excludeId: number) => [...radarKeys.all, 'next', excludeId] as const,
+  advertisers: () => [...radarKeys.all, 'advertiser'] as const,
+  advertiser: (id: number) => [...radarKeys.advertisers(), id] as const,
 };
 
 export async function fetchRadarDashboard(): Promise<RadarDashboardResponse> {
@@ -177,4 +185,72 @@ export async function fetchNextRadarListingId(excludeId: number): Promise<number
   const res = await fetch(cheminApi`/api/super-admin/radar/listings${requete(qs)}`, { credentials: 'include' });
   const liste = await jsonOrThrow<PaginatedResponse<Pick<RadarListingRow, 'id'>>>(res);
   return liste.data.find((row) => row.id !== excludeId)?.id ?? null;
+}
+
+// ─── L'annonceur et son message d'accord (TCK-2388) ──────────────────────────────────────────
+
+const JSON_ACCEPT = { 'Content-Type': 'application/json', Accept: 'application/json' } as const;
+
+/** La fiche annonceur : identité, annonces (hors purgées), messages du plus récent au plus ancien, prise en charge. */
+export async function fetchRadarAdvertiser(id: number): Promise<RadarAdvertiserResponse> {
+  const res = await fetch(cheminApi`/api/super-admin/radar/advertisers/${id}`, { credentials: 'include' });
+  return jsonOrThrow<RadarAdvertiserResponse>(res);
+}
+
+/** Prendre l'annonceur en charge : l'API refuse (409) s'il est tenu par un autre. Rend la prise. */
+export async function claimRadarAdvertiser(id: number): Promise<RadarClaimResponse> {
+  const res = await fetch(cheminApi`/api/super-admin/radar/advertisers/${id}/claim`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { Accept: 'application/json' },
+  });
+  return jsonOrThrow<RadarClaimResponse>(res);
+}
+
+/**
+ * Rendre la prise. L'API répond 204 SANS corps : `jsonOrThrow` lirait un JSON qui n'existe pas, la réponse
+ * est donc jugée ici — un échec porte son `{code, params}` comme partout.
+ */
+export async function releaseRadarAdvertiser(id: number): Promise<void> {
+  const res = await fetch(cheminApi`/api/super-admin/radar/advertisers/${id}/claim`, {
+    method: 'DELETE',
+    credentials: 'include',
+    headers: { Accept: 'application/json' },
+  });
+  if (!res.ok) await jsonOrThrow<unknown>(res);
+}
+
+/** Préparer un message : l'API compose le texte (clauses figées + salutation et résumé que l'IA rédige). */
+export async function prepareRadarOutreach(
+  advertiserId: number,
+  request: RadarPrepareRequest,
+): Promise<RadarPreparedOutreachResponse> {
+  const res = await fetch(cheminApi`/api/super-admin/radar/advertisers/${advertiserId}/outreaches`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: JSON_ACCEPT,
+    body: JSON.stringify(request),
+  });
+  return jsonOrThrow<RadarPreparedOutreachResponse>(res);
+}
+
+/** Retoucher la salutation et/ou le résumé : les seules parties modifiées. Rend le message RELU, texte compris. */
+export async function retouchRadarOutreach(id: number, changes: RadarOutreachChanges): Promise<RadarOutreachResponse> {
+  const res = await fetch(cheminApi`/api/super-admin/radar/outreaches/${id}`, {
+    method: 'PATCH',
+    credentials: 'include',
+    headers: JSON_ACCEPT,
+    body: JSON.stringify(changes),
+  });
+  return jsonOrThrow<RadarOutreachResponse>(res);
+}
+
+/** « J'ai envoyé le message » : le message passe `sent`, les annonces `contacted`. */
+export async function markRadarOutreachSent(id: number): Promise<RadarOutreachResponse> {
+  const res = await fetch(cheminApi`/api/super-admin/radar/outreaches/${id}/sent`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { Accept: 'application/json' },
+  });
+  return jsonOrThrow<RadarOutreachResponse>(res);
 }

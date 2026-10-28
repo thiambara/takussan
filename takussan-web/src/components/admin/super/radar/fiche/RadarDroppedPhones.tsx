@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { TriangleAlert } from 'lucide-react';
 
@@ -98,6 +99,16 @@ export function RadarDroppedPhones({ detail, corrections }: RadarDroppedPhonesPr
         </p>
       ) : rattache ? (
         <p role="status" className="text-sm text-muted-foreground">{t('attached')}</p>
+      ) : null}
+
+      {detail.advertiser ? (
+        <Link
+          href={`/super-admin/radar/advertisers/${detail.advertiser.id}`}
+          className="inline-block rounded-sm text-sm text-primary underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+          data-testid="radar-advertiser-link"
+        >
+          {t('openAdvertiser')}
+        </Link>
       ) : null}
 
       <div role="group" aria-label={t('kept')} className="space-y-1.5" data-testid="radar-phones-kept">

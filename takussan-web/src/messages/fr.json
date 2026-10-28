@@ -8862,7 +8862,142 @@
             "confirm": "Rattacher",
             "attached": "Annonceur rattaché.",
             "doNotContact": "Ce numéro a demandé l’arrêt des contacts : l’annonce est fermée (ne pas contacter), les gestes sont désactivés.",
-            "makeAdvertiserFor": "En faire l’annonceur : {phone}"
+            "makeAdvertiserFor": "En faire l’annonceur : {phone}",
+            "openAdvertiser": "Ouvrir la fiche de l’annonceur"
+          }
+        },
+        "advertiser": {
+          "metaTitle": "Annonceur du Radar",
+          "title": "Annonceur n° {id}",
+          "back": "Retour au Radar",
+          "forbidden": "Le Radar est réservé aux opérateurs support et super-admin.",
+          "loadError": "L’annonceur n’a pas pu être chargé.",
+          "unnamed": "Annonceur sans nom",
+          "noPhone": "Numéro inconnu",
+          "identity": {
+            "heading": "Identité",
+            "phone": "Numéro",
+            "name": "Nom lu",
+            "nature": "Nature présumée",
+            "signals": "Indices relevés",
+            "noSignals": "Aucun indice relevé."
+          },
+          "doNotContact": "Cet annonceur a demandé à ne plus être contacté (le {date}). Aucun message ne lui est préparé ni envoyé.",
+          "claim": {
+            "heading": "Prise en charge",
+            "none": "Personne ne traite cet annonceur. Prenez-le en charge pour préparer un message.",
+            "mine": "Vous traitez cet annonceur, jusqu’à {until}.",
+            "other": "{name} traite cet annonceur, jusqu’à {until}. Vous ne pouvez rien y préparer en attendant.",
+            "take": "Prendre en charge",
+            "taking": "Prise en charge…",
+            "release": "Rendre",
+            "releasing": "Restitution…"
+          },
+          "listings": {
+            "heading": "Annonces",
+            "none": "Aucune annonce n’est rattachée à cet annonceur.",
+            "tableCaption": "Les annonces de l’annonceur, à cocher pour le message",
+            "select": "Choisir l’annonce n° {id} pour le message",
+            "open": "Ouvrir la fiche de l’annonce n° {id}",
+            "untitled": "Annonce sans titre",
+            "price": "Prix",
+            "neighborhood": "Quartier",
+            "stage": "Étape",
+            "limit": "Un message couvre {max} annonces au plus.",
+            "why": {
+              "covered": "Déjà couverte par un accord valide",
+              "notReviewed": "Pas encore relue",
+              "closed": "Close : plus rien à démarcher",
+              "pending": "Un message envoyé attend sa réponse"
+            },
+            "number": "n° {id}"
+          },
+          "prepare": {
+            "heading": "Nouveau message",
+            "locale": "Langue du message",
+            "locales": {
+              "fr": "Français",
+              "en": "English"
+            },
+            "selected": "{count, plural, =0 {Aucune annonce choisie} one {# annonce choisie} other {# annonces choisies}}",
+            "action": "Préparer le message",
+            "preparing": "Préparation…"
+          },
+          "message": {
+            "heading": "Message en préparation",
+            "listings": "Annonces couvertes : {ids}",
+            "fixed": "Texte figé : les clauses ne se modifient pas",
+            "salutation": "Salutation",
+            "resume": "Résumé de l’annonce",
+            "save": "Enregistrer",
+            "saving": "Enregistrement…",
+            "aiMissing": "L’IA n’a pas rédigé la salutation et le résumé : remplissez les deux champs.",
+            "aiReason": "Motif : {reason}",
+            "partsEmpty": "La salutation et le résumé doivent être écrits avant d’ouvrir WhatsApp.",
+            "whatsapp": "Ouvrir WhatsApp",
+            "whatsappHint": "Le lien s’ouvre dans un nouvel onglet, avec le texte exact ci-dessus.",
+            "sent": "J’ai envoyé le message",
+            "sentTitle": "Confirmer l’envoi",
+            "sentBody": "Confirmez que ce message a bien été envoyé à l’annonceur. Les annonces passeront en « contactée » et le message ne se modifiera plus.",
+            "sentConfirm": "Oui, je l’ai envoyé",
+            "sentSending": "Enregistrement…",
+            "cancel": "Annuler",
+            "legacy": "Ce message a été écrit avec un autre gabarit : son texte est affiché tel qu’il a été enregistré.",
+            "number": "n° {id}",
+            "unsaved": "Enregistrez vos retouches : WhatsApp n’ouvre que le texte enregistré."
+          },
+          "history": {
+            "heading": "Messages envoyés",
+            "none": "Aucun message n’a encore été envoyé à cet annonceur.",
+            "date": "Date",
+            "author": "Auteur",
+            "locale": "Langue",
+            "clauses": "Version des clauses",
+            "listings": "Annonces couvertes",
+            "status": "Statut",
+            "outcome": "Issue",
+            "noOutcome": "Sans issue pour l’instant",
+            "text": "Texte exact",
+            "unknownAuthor": "Auteur inconnu",
+            "sentAt": "Envoyé le {date}",
+            "statuses": {
+              "prepared": "Préparé",
+              "sent": "Envoyé",
+              "closed": "Clos"
+            },
+            "outcomes": {
+              "consented": "Accord confirmé",
+              "refused": "Refus",
+              "stop": "Ne plus contacter",
+              "question": "Question de l’annonceur",
+              "no_answer": "Sans réponse"
+            },
+            "number": "n° {id}"
+          },
+          "errors": {
+            "generic": "Le geste a échoué.",
+            "claimRequired": "Prenez d’abord cet annonceur en charge : le geste l’exige.",
+            "claimedByOther": "Cet annonceur est pris en charge par un autre opérateur jusqu’à {until}.",
+            "claimNotHeld": "Cette prise en charge n’est pas la vôtre : elle ne se rend pas.",
+            "doNotContact": "Cet annonceur a demandé à ne plus être contacté : aucun message ne lui est préparé ni envoyé.",
+            "busy": "Cet annonceur change en ce moment : réessayez dans un instant.",
+            "localeUnsupported": "Cette langue n’est pas prise en charge pour le message d’accord.",
+            "listingForeign": "Une de ces annonces n’est pas celle de cet annonceur.",
+            "listingNotReady": "Une de ces annonces n’est pas prête à être démarchée : elle doit être relue et validée.",
+            "listingConsented": "Une de ces annonces est déjà couverte par un accord valide : inutile de la démarcher à nouveau.",
+            "listingPending": "Un message déjà envoyé pour l’une de ces annonces attend encore une issue.",
+            "followUpInvalid": "Ce message ne se relance pas : il doit être envoyé, sans issue, et être le dernier de sa chaîne.",
+            "followUpLimit": "Le nombre de relances est atteint pour ce message.",
+            "notPrepared": "Ce message n’est plus à l’état préparé : il ne se modifie ni ne s’envoie plus.",
+            "partsMissing": "La salutation et le résumé doivent être écrits : aucun des deux ne peut être vide.",
+            "nothingToUpdate": "Aucune retouche à enregistrer.",
+            "notSent": "Ce message n’a pas été envoyé : aucune réponse ni issue ne s’y enregistre.",
+            "outcomeFinal": "Ce message est clos : ni réponse ni issue ne s’y ajoute plus.",
+            "superseded": "Ce message a été relancé : la réponse se dépose sur la dernière relance.",
+            "replyPending": "Une réponse de ce message attend encore sa vérification : attendez son verdict.",
+            "generationIncomplete": "L’IA n’a pas rédigé la salutation et le résumé : écrivez-les vous-même.",
+            "replyRequired": "Aucune réponse n’est déposée sur ce message : déposez les captures de l’annonceur avant de confirmer l’accord.",
+            "reasonRequired": "Le verdict de l’IA ne va pas dans le sens d’un accord : écrivez le motif de la confirmation."
           }
         }
       }

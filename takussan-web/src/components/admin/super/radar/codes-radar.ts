@@ -12,6 +12,9 @@ import type { RadarDiscardReason } from '@/types/radar';
  * - {@link ERREURS_FICHE_RADAR} : les refus de la fiche (`PATCH`, relecture, gestes). Libellés sous
  *   `superAdmin.pages.radar.listing.errors`.
  *
+ * - {@link ERREURS_ANNONCEUR_RADAR} : les refus de la fiche annonceur (prise en charge, préparation, retouche,
+ *   envoi — TCK-2388). Libellés sous `superAdmin.pages.radar.advertiser.errors`.
+ *
  * Un code absent d'ici s'affiche brut, jamais masqué.
  */
 export const MOTIFS_RADAR: Record<string, string> = {
@@ -119,3 +122,45 @@ export const ERREURS_FICHE_RADAR: Record<string, string> = {
   'radar.advertiser.phone_invalid': 'advertiserPhoneInvalid',
   'radar.advertiser.phone_unknown': 'advertiserPhoneUnknown',
 };
+
+/**
+ * Les codes 409/422 de la fiche annonceur (TCK-2388). Ils vivent dans `lang/fr/errors.php`, sous `radar.*` ;
+ * `claimed_by_other` porte son paramètre `claimed_until` (l'instant, ISO), que l'écran formate.
+ *
+ * Il n'existe PAS de `radar.advertiser.not_claimed` : « pas la prise en charge » se dit `claim_required` (rien n'est
+ * pris) ou `claim_not_held` (pris par un autre, au moment de rendre). Les motifs de vérification
+ * (`radar.verification.*`, écrits par le job et non émis en réponse) sont ceux de la tâche suivante.
+ */
+export const ERREURS_ANNONCEUR_RADAR: Record<string, string> = {
+  'radar.advertiser.claim_required': 'claimRequired',
+  'radar.advertiser.claimed_by_other': 'claimedByOther',
+  'radar.advertiser.claim_not_held': 'claimNotHeld',
+  'radar.advertiser.do_not_contact': 'doNotContact',
+  'radar.advertiser.busy': 'busy',
+  'radar.outreach.locale_unsupported': 'localeUnsupported',
+  'radar.outreach.listing_foreign': 'listingForeign',
+  'radar.outreach.listing_not_ready': 'listingNotReady',
+  'radar.outreach.listing_consented': 'listingConsented',
+  'radar.outreach.listing_pending': 'listingPending',
+  'radar.outreach.follow_up_invalid': 'followUpInvalid',
+  'radar.outreach.follow_up_limit': 'followUpLimit',
+  'radar.outreach.not_prepared': 'notPrepared',
+  'radar.outreach.parts_missing': 'partsMissing',
+  'radar.outreach.nothing_to_update': 'nothingToUpdate',
+  'radar.outreach.not_sent': 'notSent',
+  'radar.outreach.outcome_final': 'outcomeFinal',
+  'radar.outreach.superseded': 'superseded',
+  'radar.outreach.reply_pending': 'replyPending',
+  'radar.message.generation_incomplete': 'generationIncomplete',
+  // Le dépôt de réponse et la confirmation (tâche 9) : déclarés ici pour que le sentinelle « chaque code de l'API a son
+  // libellé » (codes-radar.tck-2387) reste vrai ; l'écran qui les reçoit vient avec elle.
+  'radar.consent.reply_required': 'replyRequired',
+  'radar.consent.reason_required': 'reasonRequired',
+};
+
+/** Les 409 qui disent « la fiche n'est plus ce que l'écran croit » : elle se relit. */
+export const CODES_PRISE_PERDUE_RADAR: ReadonlySet<string> = new Set([
+  'radar.advertiser.claimed_by_other',
+  'radar.advertiser.claim_required',
+  'radar.advertiser.claim_not_held',
+]);
