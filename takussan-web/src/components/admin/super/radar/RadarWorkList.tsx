@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, type ReactNode } from 'react';
+import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { AlertTriangle, CheckCircle2, Clock3, ExternalLink, Eye, PhoneOutgoing, Radar, Wallet } from 'lucide-react';
@@ -13,6 +14,7 @@ import { EmptyState, ErrorState } from '@/components/feedback';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import type { ApiError } from '@/lib/api';
+import { cn } from '@/lib/utils';
 import { useFormatteurs, VALEUR_ABSENTE } from '@/lib/format/useFormatteurs';
 import { fetchRadarDashboard, fetchRadarListings, radarKeys, type RadarListingFilters } from '@/lib/queries/radar';
 import type { PaginatedResponse } from '@/types/api';
@@ -170,9 +172,18 @@ export function RadarWorkList() {
       className: 'min-w-48',
       cell: (r) => {
         const titre = r.extracted?.title?.value;
-        return titre
-          ? <span className="font-medium text-foreground">{titre}</span>
-          : <span className="text-muted-foreground">{t('untitled')}</span>;
+        // TCK-2387 — le titre ouvre la fiche : source, champs lus, corrections.
+        return (
+          <Link
+            href={`/super-admin/radar/${r.id}`}
+            className={cn(
+              'rounded-sm underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
+              titre ? 'font-medium text-foreground' : 'text-muted-foreground',
+            )}
+          >
+            {titre || t('untitled')}
+          </Link>
+        );
       },
     },
     {

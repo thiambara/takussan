@@ -6,6 +6,8 @@ import type {
   RadarDashboardResponse,
   RadarIntakePayload,
   RadarIntakeResponse,
+  RadarListingChanges,
+  RadarListingDetailResponse,
   RadarListingRow,
   RadarListingStage,
 } from '@/types/radar';
@@ -41,6 +43,8 @@ export const radarKeys = {
   dashboard: () => [...radarKeys.all, 'dashboard'] as const,
   lists: () => [...radarKeys.all, 'list'] as const,
   list: (filters: RadarListingFilters) => [...radarKeys.lists(), filters] as const,
+  details: () => [...radarKeys.all, 'detail'] as const,
+  detail: (id: number) => [...radarKeys.details(), id] as const,
 };
 
 export async function fetchRadarDashboard(): Promise<RadarDashboardResponse> {
@@ -87,4 +91,24 @@ export async function postRadarListings(payload: RadarIntakePayload): Promise<Ra
   }
   const res = await fetch('/api/super-admin/radar/listings', { ...init, credentials: 'include' });
   return jsonOrThrow<RadarIntakeResponse>(res);
+}
+
+/** TCK-2387 — la fiche complète : source, champs lus, captures (URL signées), annonceur, quartier rattaché. */
+export async function fetchRadarListing(id: number): Promise<RadarListingDetailResponse> {
+  const res = await fetch(cheminApi`/api/super-admin/radar/listings/${id}`, { credentials: 'include' });
+  return jsonOrThrow<RadarListingDetailResponse>(res);
+}
+
+/**
+ * TCK-2387 — la correction d'une fiche `extracted` : les seuls champs modifiés, pas la fiche entière
+ * (l'API refuse un corps vide, et chaque clé envoyée marque son champ « corrigé »). Rend la fiche relue.
+ */
+export async function patchRadarListing(id: number, changes: RadarListingChanges): Promise<RadarListingDetailResponse> {
+  const res = await fetch(cheminApi`/api/super-admin/radar/listings/${id}`, {
+    method: 'PATCH',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify(changes),
+  });
+  return jsonOrThrow<RadarListingDetailResponse>(res);
 }

@@ -8003,7 +8003,120 @@
             "payloadTooLarge": "L’envoi est trop lourd pour le serveur : envoyez moins d’images à la fois (24 Mo au plus)."
           }
         },
-        "forbidden": "Le Radar est réservé aux opérateurs support et super-admin."
+        "forbidden": "Le Radar est réservé aux opérateurs support et super-admin.",
+        "listing": {
+          "metaTitle": "Fiche Radar",
+          "title": "Annonce n° {id}",
+          "back": "Retour au Radar",
+          "forbidden": "Le Radar est réservé aux opérateurs support et super-admin.",
+          "loadError": "La fiche n’a pas pu être chargée.",
+          "source": {
+            "heading": "Source",
+            "rawText": "Texte de l’annonce",
+            "noText": "Aucun texte n’a été conservé pour cette annonce.",
+            "original": "Voir l’annonce d’origine",
+            "photos": "Photos de l’annonce",
+            "photoAlt": "Photo {n} de l’annonce",
+            "captures": "Captures d’écran",
+            "captureAlt": "Capture d’écran {n}",
+            "capturesHint": "Les captures ne se surlignent pas : le passage cité s’affiche sous chaque champ.",
+            "capturesExpire": "Les liens des captures expirent au bout de 5 minutes ; rechargez la fiche pour les renouveler.",
+            "cited": "Passage cité",
+            "citedNotFound": "Passage introuvable dans le texte"
+          },
+          "sections": {
+            "listing": "Le bien",
+            "place": "Le lieu",
+            "advertiser": "L’annonceur"
+          },
+          "fields": {
+            "title": "Titre",
+            "description": "Description",
+            "property_type": "Type de bien",
+            "contract": "Contrat",
+            "price": "Prix (XOF)",
+            "rent_period": "Période du loyer",
+            "bedrooms": "Chambres",
+            "bathrooms": "Salles de bain",
+            "surface_m2": "Surface (m²)",
+            "furnished": "Meublé",
+            "amenities": "Équipements",
+            "city": "Ville",
+            "neighborhood": "Quartier",
+            "advertiser_nature": "Nature présumée"
+          },
+          "hints": {
+            "amenities": "Séparés par des virgules.",
+            "priceRead": "Lu : {raw}"
+          },
+          "options": {
+            "none": "Non renseigné",
+            "contracts": {
+              "rent": "Location",
+              "sale": "Vente"
+            },
+            "furnished": {
+              "yes": "Oui",
+              "no": "Non"
+            },
+            "natures": {
+              "probable_owner": "Propriétaire probable",
+              "probable_intermediary": "Intermédiaire probable",
+              "agency": "Agence",
+              "unknown": "Inconnue"
+            }
+          },
+          "confidence": {
+            "medium": "Confiance moyenne",
+            "corrected": "corrigé",
+            "warning": "À vérifier",
+            "flags": {
+              "evidence_missing": "Aucun passage cité à l’appui",
+              "evidence_not_in_source": "Le passage cité n’est pas dans la source",
+              "out_of_bounds": "Valeur hors des bornes plausibles",
+              "invalid_value": "Valeur invalide, écartée",
+              "unparsed_amount": "Montant illisible"
+            },
+            "low": "Confiance faible"
+          },
+          "neighborhood": {
+            "read": "Lu dans l’annonce : {value}",
+            "unread": "Aucun quartier lu dans l’annonce.",
+            "linked": "Rattaché à {name} ({city})",
+            "linkedNoCity": "Rattaché à {name}",
+            "unlinked": "Aucun quartier du référentiel rattaché.",
+            "suggestions": "Propositions",
+            "pickCity": "Ville du référentiel",
+            "pickNeighborhood": "Quartier du référentiel",
+            "cityPlaceholder": "Choisir une ville",
+            "neighborhoodPlaceholder": "Choisir un quartier",
+            "noResult": "Aucun résultat",
+            "pendingChoice": "Quartier choisi, à enregistrer"
+          },
+          "nature": {
+            "heading": "Nature présumée de l’annonceur",
+            "signals": "Indices relevés",
+            "noSignals": "Aucun indice relevé.",
+            "advertiserName": "Nom lu : {name}"
+          },
+          "actions": {
+            "save": "Enregistrer",
+            "saving": "Enregistrement…",
+            "saved": "Corrections enregistrées.",
+            "dirty": "{count, plural, one {# correction non enregistrée} other {# corrections non enregistrées}}",
+            "discard": "Annuler les corrections"
+          },
+          "readOnly": "Cette fiche n’est plus à corriger (étape : {stage}).",
+          "errors": {
+            "generic": "L’enregistrement a échoué.",
+            "stageConflict": "Cette fiche a changé d’étape entre-temps ; rechargez-la.",
+            "nothingToUpdate": "Aucune correction à enregistrer.",
+            "reviewIncomplete": "La fiche est incomplète : type, contrat, prix et quartier du référentiel sont requis.",
+            "duplicateSelf": "Une annonce ne peut pas être son propre doublon.",
+            "advertiserPhoneInvalid": "Ce numéro de téléphone n’est pas valide.",
+            "advertiserPhoneUnknown": "Aucun annonceur ne porte ce numéro."
+          }
+        }
       }
     },
     "featureFlags": {

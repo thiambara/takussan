@@ -7,6 +7,9 @@
  * - {@link ERREURS_SAISIE_RADAR} : les codes 422 de `POST /api/admin/radar/listings`. Libellés sous
  *   `superAdmin.pages.radar.intake.errors`.
  *
+ * - {@link ERREURS_FICHE_RADAR} : les refus de la fiche (`PATCH`, relecture, gestes). Libellés sous
+ *   `superAdmin.pages.radar.listing.errors`.
+ *
  * Un code absent d'ici s'affiche brut, jamais masqué.
  */
 export const MOTIFS_RADAR: Record<string, string> = {
@@ -80,4 +83,14 @@ export const ERREURS_SAISIE_RADAR: Record<string, string> = {
   'radar.url.invalid': 'urlInvalid',
   'radar.captures.unreadable': 'capturesUnreadable',
   'radar.captures.too_large': 'capturesTooLarge',
+};
+
+/** Les codes 409/422 de la fiche (TCK-2387) — `radar.listing.stage_conflict` : la fiche a changé d'étape ailleurs. */
+export const ERREURS_FICHE_RADAR: Record<string, string> = {
+  'radar.listing.stage_conflict': 'stageConflict',
+  'radar.listing.nothing_to_update': 'nothingToUpdate',
+  'radar.review.incomplete': 'reviewIncomplete',
+  'radar.duplicate.self': 'duplicateSelf',
+  'radar.advertiser.phone_invalid': 'advertiserPhoneInvalid',
+  'radar.advertiser.phone_unknown': 'advertiserPhoneUnknown',
 };

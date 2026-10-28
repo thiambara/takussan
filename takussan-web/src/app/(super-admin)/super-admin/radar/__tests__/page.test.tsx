@@ -119,6 +119,15 @@ describe('/super-admin/radar (TCK-2386)', () => {
     expect(screen.queryByRole('button', { name: /En attente/ })).not.toBeInTheDocument();
   });
 
+  it('le titre de chaque annonce ouvre sa fiche, titre extrait ou non (TCK-2387)', async () => {
+    renderPage();
+    const premiere = await screen.findByTestId('radar-listing-1');
+    expect(within(premiere).getByRole('link', { name: 'Appartement F3 meublé' })).toHaveAttribute('href', '/super-admin/radar/1');
+
+    const sansTitre = screen.getByTestId('radar-listing-2');
+    expect(within(sansTitre).getByRole('link', { name: 'Sans titre extrait' })).toHaveAttribute('href', '/super-admin/radar/2');
+  });
+
   it('rend la liste : étape, site, titre, prix, quartier, date', async () => {
     renderPage();
     const premiere = await screen.findByTestId('radar-listing-1');

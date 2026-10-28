@@ -8657,7 +8657,120 @@
             "payloadTooLarge": "The submission is too heavy for the server: send fewer images at a time (24 MB at most)."
           }
         },
-        "forbidden": "The Radar is reserved to support and super-admin operators."
+        "forbidden": "The Radar is reserved to support and super-admin operators.",
+        "listing": {
+          "metaTitle": "Radar listing",
+          "title": "Listing no. {id}",
+          "back": "Back to Radar",
+          "forbidden": "Radar is restricted to support and super-admin operators.",
+          "loadError": "The listing could not be loaded.",
+          "source": {
+            "heading": "Source",
+            "rawText": "Listing text",
+            "noText": "No text was kept for this listing.",
+            "original": "View the original listing",
+            "photos": "Listing photos",
+            "photoAlt": "Listing photo {n}",
+            "captures": "Screenshots",
+            "captureAlt": "Screenshot {n}",
+            "capturesHint": "Screenshots cannot be highlighted: the cited passage is shown under each field.",
+            "capturesExpire": "Screenshot links expire after 5 minutes; reload the listing to renew them.",
+            "cited": "Cited passage",
+            "citedNotFound": "Passage not found in the text"
+          },
+          "sections": {
+            "listing": "The property",
+            "place": "The location",
+            "advertiser": "The advertiser"
+          },
+          "fields": {
+            "title": "Title",
+            "description": "Description",
+            "property_type": "Property type",
+            "contract": "Contract",
+            "price": "Price (XOF)",
+            "rent_period": "Rent period",
+            "bedrooms": "Bedrooms",
+            "bathrooms": "Bathrooms",
+            "surface_m2": "Surface (m²)",
+            "furnished": "Furnished",
+            "amenities": "Amenities",
+            "city": "City",
+            "neighborhood": "Neighborhood",
+            "advertiser_nature": "Presumed nature"
+          },
+          "hints": {
+            "amenities": "Separated by commas.",
+            "priceRead": "Read: {raw}"
+          },
+          "options": {
+            "none": "Not set",
+            "contracts": {
+              "rent": "Rental",
+              "sale": "Sale"
+            },
+            "furnished": {
+              "yes": "Yes",
+              "no": "No"
+            },
+            "natures": {
+              "probable_owner": "Probable owner",
+              "probable_intermediary": "Probable intermediary",
+              "agency": "Agency",
+              "unknown": "Unknown"
+            }
+          },
+          "confidence": {
+            "medium": "Medium confidence",
+            "corrected": "corrected",
+            "warning": "To check",
+            "flags": {
+              "evidence_missing": "No supporting passage cited",
+              "evidence_not_in_source": "The cited passage is not in the source",
+              "out_of_bounds": "Value outside plausible bounds",
+              "invalid_value": "Invalid value, discarded",
+              "unparsed_amount": "Unreadable amount"
+            },
+            "low": "Low confidence"
+          },
+          "neighborhood": {
+            "read": "Read in the listing: {value}",
+            "unread": "No neighborhood read in the listing.",
+            "linked": "Linked to {name} ({city})",
+            "linkedNoCity": "Linked to {name}",
+            "unlinked": "No neighborhood from the directory linked.",
+            "suggestions": "Suggestions",
+            "pickCity": "Directory city",
+            "pickNeighborhood": "Directory neighborhood",
+            "cityPlaceholder": "Choose a city",
+            "neighborhoodPlaceholder": "Choose a neighborhood",
+            "noResult": "No results",
+            "pendingChoice": "Neighborhood chosen, to be saved"
+          },
+          "nature": {
+            "heading": "Advertiser's presumed nature",
+            "signals": "Signals found",
+            "noSignals": "No signals found.",
+            "advertiserName": "Name read: {name}"
+          },
+          "actions": {
+            "save": "Save",
+            "saving": "Saving…",
+            "saved": "Corrections saved.",
+            "dirty": "{count, plural, one {# unsaved correction} other {# unsaved corrections}}",
+            "discard": "Discard corrections"
+          },
+          "readOnly": "This listing can no longer be corrected (stage: {stage}).",
+          "errors": {
+            "generic": "Saving failed.",
+            "stageConflict": "This listing changed stage in the meantime; reload it.",
+            "nothingToUpdate": "No corrections to save.",
+            "reviewIncomplete": "The listing is incomplete: type, contract, price and a directory neighborhood are required.",
+            "duplicateSelf": "A listing cannot be its own duplicate.",
+            "advertiserPhoneInvalid": "This phone number is not valid.",
+            "advertiserPhoneUnknown": "No advertiser has this number."
+          }
+        }
       }
     },
     "featureFlags": {
