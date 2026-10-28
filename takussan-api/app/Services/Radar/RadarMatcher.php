@@ -24,7 +24,8 @@ use Illuminate\Database\Eloquent\Builder;
  * **Même téléphone** (force `medium` : un indice, pas une surface publique ; vérifié ou non).
  *  - Contre un bien : le numéro, en forme canonique ({@see CanonicalPhone}), est le principal ou le
  *    secondaire du compte publieur (`properties.user_id`), le numéro d'un collaborateur, d'un contact sur
- *    place (`property_contacts.phone`) ou de l'agence.
+ *    place (`property_contacts.phone`) ou de l'agence. Un compte ou une agence supprimés
+ *    (`deleted_at`) ne comptent plus : leur numéro n'est plus celui d'un acteur du bien.
  *  - Contre une annonce : son annonceur a l'empreinte HMAC d'un de ces numéros (elle survit à un STOP, qui
  *    efface le numéro en clair), ou ses `extracted.phones` en contiennent un (`jsonb_exists_any`, et non
  *    l'opérateur `?|`, qui heurte les paramètres PDO).
@@ -87,6 +88,16 @@ final class RadarMatcher
         $found = [];
         $add = function (string $kind, int $id, array $signal) use (&$found): void {
             $found[$kind.':'.$id] ??= ['kind' => $kind, 'id' => $id, 'signals' => []];
+            // « Deux signaux DISTINCTS » : un même signal vu deux fois ne corrobore rien. On garde le plus fort.
+            foreach ($found[$kind.':'.$id]['signals'] as $i => $known) {
+                if ($known['signal'] === $signal['signal']) {
+                    if (self::STRENGTH_RANK[$signal['strength']] > self::STRENGTH_RANK[$known['strength']]) {
+                        $found[$kind.':'.$id]['signals'][$i] = $signal;
+                    }
+
+                    return;
+                }
+            }
             $found[$kind.':'.$id]['signals'][] = $signal;
         };
 
@@ -210,13 +221,13 @@ final class RadarMatcher
         return $this->liveProperties()
             ->where(function (Builder $q) use ($phones, $in): void {
                 // Le compte publieur : numéro principal ou secondaire.
-                $q->orWhereRaw('properties.user_id IN (SELECT id FROM users WHERE '.CanonicalPhone::sql('phone')." IN ({$in}) OR ".CanonicalPhone::sql('secondary_phone')." IN ({$in}))", [...$phones, ...$phones])
+                $q->orWhereRaw('properties.user_id IN (SELECT id FROM users WHERE deleted_at IS NULL AND ('.CanonicalPhone::sql('phone')." IN ({$in}) OR ".CanonicalPhone::sql('secondary_phone')." IN ({$in})))", [...$phones, ...$phones])
                     // Un collaborateur du bien.
-                    ->orWhereRaw('properties.id IN (SELECT pc.property_id FROM property_collaborators pc JOIN users u ON u.id = pc.user_id WHERE '.CanonicalPhone::sql('u.phone')." IN ({$in}) OR ".CanonicalPhone::sql('u.secondary_phone')." IN ({$in}))", [...$phones, ...$phones])
+                    ->orWhereRaw('properties.id IN (SELECT pc.property_id FROM property_collaborators pc JOIN users u ON u.id = pc.user_id WHERE u.deleted_at IS NULL AND ('.CanonicalPhone::sql('u.phone')." IN ({$in}) OR ".CanonicalPhone::sql('u.secondary_phone')." IN ({$in})))", [...$phones, ...$phones])
                     // Un contact sur place.
                     ->orWhereRaw('properties.id IN (SELECT property_id FROM property_contacts WHERE '.CanonicalPhone::sql('phone')." IN ({$in}))", $phones)
                     // L'agence.
-                    ->orWhereRaw('properties.agency_id IN (SELECT id FROM agencies WHERE '.CanonicalPhone::sql('phone')." IN ({$in}))", $phones);
+                    ->orWhereRaw('properties.agency_id IN (SELECT id FROM agencies WHERE deleted_at IS NULL AND '.CanonicalPhone::sql('phone')." IN ({$in}))", $phones);
             })
             ->orderByDesc('properties.id')
             ->limit(self::MAX_PER_SIGNAL)
@@ -259,11 +270,13 @@ final class RadarMatcher
     {
         $gap = 'abs(properties.price - ?::numeric) / ?::numeric';
 
+        // `addresses` n'est pas unique par bien : une jointure répéterait la ligne (et le signal) à chaque adresse
+        // du quartier, et ses doublons mangeraient les places de `MAX_PER_SIGNAL`.
         return $this->liveProperties()
-            ->join('addresses', fn ($join) => $join
-                ->on('addresses.addressable_id', '=', 'properties.id')
-                ->where('addresses.addressable_type', (new Property)->getMorphClass()))
-            ->whereRaw('addresses.geo_neighborhood_id IN ('.$this->neighborhoodFamily().')', [$place['neighborhood_id'], $place['neighborhood_id']])
+            ->whereExists(fn ($address) => $address->selectRaw('1')->from('addresses')
+                ->whereColumn('addresses.addressable_id', 'properties.id')
+                ->where('addresses.addressable_type', (new Property)->getMorphClass())
+                ->whereRaw('addresses.geo_neighborhood_id IN ('.$this->neighborhoodFamily().')', [$place['neighborhood_id'], $place['neighborhood_id']]))
             ->whereRaw('properties.price IS NOT NULL AND abs(properties.price - ?::numeric) <= ?::numeric * ?::numeric', [$place['price'], $place['price'], (string) self::PRICE_TOLERANCE])
             ->where('properties.bedrooms', $place['bedrooms'])
             ->when($place['contract'] !== null, fn (Builder $q) => $q->where('properties.contract_type', $place['contract']))

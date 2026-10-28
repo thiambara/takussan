@@ -164,6 +164,30 @@ class RadarMatcherTest extends TestCase
         $this->assertSame(['property:'.$bien->id], array_keys($this->matchesOf($listing)));
     }
 
+    public function test_un_compte_ou_une_agence_supprimes_ne_rapprochent_plus_par_leur_numero(): void
+    {
+        $listing = $this->source(['phones' => [self::NUMERO]]);
+
+        $publieur = User::factory()->create(['phone' => self::NUMERO]);
+        $secondaire = User::factory()->create(['secondary_phone' => self::NUMERO]);
+        $collaborateur = User::factory()->create(['phone' => self::NUMERO]);
+        $agence = Agency::factory()->create(['phone' => self::NUMERO]);
+        $parPublieur = $this->bien(['user_id' => $publieur->id]);
+        $parSecondaire = $this->bien(['user_id' => $secondaire->id]);
+        $parCollaborateur = $this->bien();
+        PropertyCollaborator::query()->create(['property_id' => $parCollaborateur->id, 'user_id' => $collaborateur->id, 'role' => 'agent']);
+        $parAgence = $this->bien(['agency_id' => $agence->id]);
+        $tous = ['property:'.$parPublieur->id, 'property:'.$parSecondaire->id, 'property:'.$parCollaborateur->id, 'property:'.$parAgence->id];
+
+        $this->assertEqualsCanonicalizing($tous, array_keys($this->matchesOf($listing)), 'témoin : vivants, ils rapprochent');
+
+        foreach ([$publieur, $secondaire, $collaborateur, $agence] as $supprime) {
+            $supprime->delete();
+        }
+
+        $this->assertSame([], array_keys($this->matchesOf($listing)));
+    }
+
     public function test_le_numero_de_l_annonceur_compte_et_les_numeros_ecartes_non(): void
     {
         $bienAnnonceur = $this->bien(['user_id' => User::factory()->create(['phone' => self::NUMERO])->id]);
@@ -246,6 +270,32 @@ class RadarMatcherTest extends TestCase
         $this->assertSame(0.0, (float) $matches['property:'.$memePrix->id]['signals'][0]['price_gap']);
         $this->assertEqualsWithDelta(0.1, $matches['property:'.$pile->id]['signals'][0]['price_gap'], 0.0001);
         $this->assertSame('neighborhood_price_bedrooms', $matches['property:'.$memePrix->id]['signals'][0]['signal']);
+    }
+
+    public function test_un_bien_a_deux_adresses_du_quartier_n_a_qu_un_signal_de_lieu_et_reste_medium(): void
+    {
+        $q = $this->quartier();
+        $listing = $this->source(['neighborhood' => ['neighborhood_id' => $q->id]]);
+        $bien = $this->bien(['price' => 450000], $q);
+        // `addresses` n'est pas unique par bien : la seconde ne doit pas doubler le signal (un faux `high`).
+        Address::factory()->create(['addressable_type' => Property::class, 'addressable_id' => $bien->id, 'geo_neighborhood_id' => $q->id]);
+
+        $matches = $this->matchesOf($listing);
+
+        $this->assertSame(['neighborhood_price_bedrooms'], self::signalsOf($matches['property:'.$bien->id]));
+        $this->assertSame('medium', $matches['property:'.$bien->id]['strength']);
+    }
+
+    public function test_les_adresses_en_double_d_un_bien_ne_prennent_pas_la_place_des_autres_cibles(): void
+    {
+        $q = $this->quartier();
+        $listing = $this->source(['neighborhood' => ['neighborhood_id' => $q->id]]);
+        $ancien = $this->bien(['price' => 450000], $q);
+        $recent = $this->bien(['price' => 450000], $q);
+        // Plus d'adresses que de places : une jointure remplirait tout le plafond avec le même bien.
+        Address::factory()->count(RadarMatcher::MAX_PER_SIGNAL + 1)->create(['addressable_type' => Property::class, 'addressable_id' => $recent->id, 'geo_neighborhood_id' => $q->id]);
+
+        $this->assertEqualsCanonicalizing(['property:'.$ancien->id, 'property:'.$recent->id], array_keys($this->matchesOf($listing)));
     }
 
     public function test_un_ecart_de_prix_de_trois_pour_cent_reste_medium_et_au_dela_low(): void
