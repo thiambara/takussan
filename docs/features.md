@@ -218,8 +218,9 @@ Encaissements, factures et reversements.
 | P1 | 🛡️🏢 | Générer une facture à un Customer destinataire |
 | P1 | 🛡️🏢 | Facture opposable : numérotation chronologique continue par agence et par an, attribuée à l'émission ; mentions légales de l'agence (raison sociale, NINEA, RCCM, adresse) ; TVA par défaut de l'agence ; une facture émise ne s'annule que par un avoir (TCK-594), qui reprend ses lignes et sa désignation (TCK-2316) |
 | P1 | 🏢 | Reversement au bailleur après commission (Payout) |
-| P1 | 🏢🏠 | Reversement au bailleur calculé depuis les loyers et réservations encaissés de la période (loyer, charges, pénalités, régularisations ; jamais la caution), commission du bail sinon de l'agence, frais de travaux refacturés déduits ; le brut n'est pas saisi et un paiement n'est reversé qu'une fois (TCK-594) |
+| P1 | 🏢🏠 | Reversement au bailleur calculé depuis les loyers et réservations encaissés de la période (loyer, charges, pénalités — la pénalité réglée est une ligne propre du reversement, P206.01 —, régularisations ; jamais la caution), commission du bail sinon de l'agence, frais de travaux refacturés déduits ; le brut n'est pas saisi et un paiement n'est reversé qu'une fois (TCK-594) |
 | P1 | 🏢🏠 | Un reversement ne cite que des paiements de l'agence et du bailleur concernés ; un remboursement de caution est un versement au locataire, jamais compté comme reversé au bailleur (TCK-594) |
+| P1 | 🏢🏠 | Remboursement d'une somme déjà reversée au bailleur : le remboursement est constaté comme une sortie d'argent, et la part du bailleur, au net de commission, est reprise sur son reversement suivant, reliquat reporté ; chaque ligne d'un reversement garde le montant, le taux et la commission appliqués à sa création (TCK-2017, TCK-2052, TCK-2151, [ADR-0039](adr/0039-les-sorties-d-argent.md)) |
 | P1 | 🏢🏠 | Relevé de gérance mensuel (PDF / CSV) par bien et consolidé, et attestation annuelle de revenus locatifs, envoyés au bailleur en début de mois (TCK-594) ; le relevé mensuel envoyé est conservé tel qu'il a été envoyé, et ce qui a été écrit depuis se montre en rectificatif (TCK-2321) |
 | P1 | 🏢🛡️ | Double validation des sorties d'argent : la même personne ne tient jamais deux gestes consécutifs (préparer, approuver, marquer payé) ni n'approuve un versement dont elle est bénéficiaire. Reversements plateforme : toujours. Reversements d'agence : désactivée par défaut ; l'agence l'active par un seuil, possible seulement avec deux approbateurs (TCK-594) |
 | P1 | 🛡️ | Historique des paiements par entité (bien, bail, client) |
@@ -229,8 +230,8 @@ Encaissements, factures et reversements.
 | P1 | 🏠🧑‍💼 | Le payeur (locataire, client) voit les fournisseurs de paiement en ligne que l'agence a activés — intégration plateforme comprise — et seulement ceux-là (TCK-602) |
 | P2 | 🛡️ | Supervision des paiements (console plateforme) : paiements en échec, en retard et webhooks non appariés, par fournisseur et par agence (TCK-602) |
 | P2 | 🛡️ | Rapprochement bancaire semi-automatique — relevés, lignes, mapping CSV et clôture réservés à l'admin d'agence qui détient `payments.reconcile` (son rôle système la porte, jamais celui d'agent ; l'admin principal la garde toujours) (TCK-2260) |
-| P2 | 🛡️ | Régler depuis l'écran le mapping CSV des relevés de l'agence (colonnes, format de date, séparateur décimal déclaré) et voir les lignes ignorées à l'import (TCK-593) — les préréglages Wave Business / Orange Money attendent un export réel (dette D-67) |
-| P2 | 🛡️ | Rapprocher les débits d'un relevé avec les reversements (Payout) émis (TCK-593) |
+| P2 | 🛡️ | Régler depuis l'écran le mapping CSV des relevés de l'agence (colonnes, format de date, séparateur décimal déclaré) et voir les lignes ignorées à l'import (TCK-593) ; une ligne qui reprend une transaction déjà importée est marquée en doublon de la première, pas ignorée (TCK-1919) — les préréglages Wave Business / Orange Money attendent un export réel (dette D-67) |
+| P2 | 🛡️ | Rapprocher les débits d'un relevé avec les reversements (Payout) émis (TCK-593) ; le virement de clôture de la plateforme se rapproche d'un crédit du relevé (TCK-1421) |
 | P2 | 🛡️ | Relance automatique des factures en retard |
 | P2 | 🛡️ | Reversement plateforme → agence (commission plateforme retenue à la source, payout périodique agrégé) |
 | P2 | 🛡️ | Reversement plateforme refusé vers une agence non active ; une agence `standard` non vérifiée est bloquée à l'approbation (TCK-594) |
@@ -280,7 +281,7 @@ Gestion des contacts (Customer) liés ou non à un compte utilisateur.
 | P1 | 🏠🏢 | Liste des conversations avec statut non lu — messages d'un autre postérieurs à la dernière lecture, hors avis système ; ouvrir un fil le marque lu (TCK-579) |
 | P1 | 🏠🏢 | Notification en temps réel (in-app + email) |
 | P2 | 🏢🧑‍💼 | Conversations de groupe (multi-participants) — participants choisis par leur nom ; bien et bail rattachés par recherche (titre, référence), dans le périmètre visible de l'acteur ; un bail doit concerner le bien choisi (TCK-565, TCK-576). Une demande d'intervention ne se rattache pas à un groupe créé à la main (422) : son fil naît de l'assignation (TCK-2372, P250.03) |
-| P2 | 🏢🧑‍💼 | Groupe rattaché à un bail — il ne compte que des personnes qui lisent ce bail (`LeasePolicy::view` : parties au bail, personnel actif de l'agence) ; contrôlé à la création du groupe et à l'ajout de participants. Seule exception : le prestataire assigné à une intervention de ce bail reste dans le fil de cette intervention (TCK-592, `SyncMaintenanceConversation`), qu'il ne lise pas le bail. Un autre artisan ou un tiers se joint par un groupe sans bail rattaché (décisions du porteur du 2026-10-23, P191.04). ⚠ Au 2026-10-23, la règle n'est pas appliquée : `GuardsConversationScope` ne juge face au bail que l'acteur |
+| P2 | 🏢🧑‍💼 | Groupe rattaché à un bail — il ne compte que des personnes qui lisent ce bail (`LeasePolicy::view` : parties au bail, personnel actif de l'agence) ; contrôlé à la création du groupe et à l'ajout de participants. Seule exception : le prestataire assigné à une intervention de ce bail reste dans le fil de cette intervention (TCK-592, `SyncMaintenanceConversation`), qu'il ne lise pas le bail. Un autre artisan ou un tiers se joint par un groupe sans bail rattaché (décisions du porteur du 2026-10-23, P191.04 ; TCK-2191) |
 | P2 | 🏠🏢 | Accusés de lecture individuels (si > 5 participants) — non livré : la lecture se compte par participant (dernière lecture), aucune par message (`models-spec.md` EF5, refusé pour l'instant) ; le déclencheur d'EF5, des conversations à plus de 5 participants, est désormais atteignable — un groupe compte jusqu'à 20 participants actifs |
 | P2 | 🏠🏢 | Recherche dans l'historique des messages |
 | P2 | 🧑‍💼🔧🏠 | Fil de discussion automatique par intervention, avec un message système à chaque étape (TCK-592) |
@@ -514,7 +515,7 @@ Cartographie complète des parcours d'entrée dans le système (référence : `d
 
 | Prio | Acteurs | Fonctionnalité |
 |------|---------|----------------|
-| P0 | Tous | Pattern d'invitation unifié — création par un inviteur autorisé, invitation par e-mail OU par SMS (lien court) quand l'invité n'a qu'un numéro (TCK-589), avec token signé (expiry 7j, rappel automatique J+2, renvoi self-service par l'inviteur, révocation possible avant acceptation) ; à l'acceptation, le profil cible passe en `active` et devient le profil actif |
+| P0 | Tous | Pattern d'invitation unifié — création par un inviteur autorisé, invitation par e-mail OU par SMS (lien court) quand l'invité n'a qu'un numéro (TCK-589), avec token signé (expiry 7j, rappel automatique J+2, retenté le lendemain si tous les fournisseurs SMS l'ont refusé, trois essais au plus (TCK-2155), renvoi self-service par l'inviteur, révocation possible avant acceptation) ; à l'acceptation, le profil cible passe en `active` et devient le profil actif |
 | P0 | 🛡️ | Un compte existant entre dans l'équipe d'une agence par l'invitation seule, au rôle agent ou administrateur (l'administrateur exige `team.assign_role`) ; aucun rattachement direct (`POST /api/agencies/{id}/members` retirée). Un membre retiré puis réinvité revient au rôle système, jamais à son ancien rôle personnalisé ; l'invitation ne dit pas à l'invitant si l'adresse a un compte (P242, TCK-2365, [ADR-0031](adr/0031-personnel-de-l-agence-et-cloisonnement-des-bailleurs.md)) |
 | P0 | 🛡️ | Bootstrap super-admin via commande artisan `takussan:create-super-admin` (1ère installation par environnement) — exige 2FA TOTP au premier login |
 | P0 | 👤🏠 | Onboarding wizard Customer post-signup — welcome modale (3 slides skippables) + complétion différée du profil minimal (téléphone, ville, type de recherche) au moment de la première action sensible (favoris / réservation / contact) |
@@ -680,7 +681,7 @@ cookie, ADR-0026 §5), y compris depuis ses appels serveur.
 | Prio | Acteurs | Fonctionnalité |
 |------|---------|----------------|
 | P0 | 🛡️ | Gestion des tags et amenités — dont la validation, le renommage et la fusion des équipements proposés par les annonceurs (TCK-633) |
-| P1 | 🛡️ | Référentiel géographique : validation, renommage et fusion des quartiers proposés (TCK-633, [ADR-0062](adr/0062-referentiel-geographique-region-ville-quartier.md)) |
+| P1 | 🛡️ | Référentiel géographique : validation, renommage et fusion des quartiers proposés (TCK-633, [ADR-0062](adr/0062-referentiel-geographique-region-ville-quartier.md)) ; un ancien nom continue de désigner le quartier ou la ville renommés dans la recherche, les alertes et le rapprochement CRM (TCK-1080, TCK-1169) |
 | P1 | 🛡️ | Crédits et boost : réglages (offre de bienvenue, validité, délai entre remontées, emplacements par page, places réservées en tête de la première page), catalogue des boosts, portefeuilles des espaces (octroi ou retrait motivé, sous 2FA récente, journalisé), boosts actifs (annulation avec ou sans remboursement, mise en avant offerte), statistiques (TCK-633, [ADR-0061](adr/0061-credits-d-espace-et-boost-des-annonces.md)) |
 | P0 | 🛡️ | Gestion des utilisateurs (activation, blocage) |
 | P0 | 🛡️ | Onboarding d'une agence par un super-admin (création + admin initial invité, hors auto-inscription) ; le numéro du gérant, facultatif, est cherché parmi les numéros vérifiés : s'il appartient à un compte, la création est refusée comme pour l'e-mail (409, P251.02, TCK-2365) |
@@ -748,7 +749,7 @@ en est le premier usager. Vision et lots : [plan du 2026-10-26](plans/2026-10-26
 | P1 | 🛡️ | Affecter à chaque rôle de modèle (`extraction`, `redaction`, `raisonnement`, `vision`, `embedding`) une chaîne ordonnée de modèles depuis la console super-admin, avec bascule automatique à la panne ; forcer un modèle pour un usage ; sous second facteur récent, journalisé |
 | P1 | 🛡️ | Évaluer un modèle candidat avant de l'affecter : score par champ et coût, comparés au modèle en place sur le jeu d'évaluation de chaque usage concerné ; un score sous le cliquet bloque l'affectation, sauf dérogation journalisée |
 | P1 | 🛡️ | Voir, par fournisseur, si sa clé est présente (jamais sa valeur) et tester la connexion ; seuls les fournisseurs nommés par la politique de confidentialité sont sélectionnables |
-| P1 | 🛡️ | Budgets (global journalier, par usage, par agence) et coupe-circuit par usage |
+| P1 | 🛡️ | Plafonds journaliers en XOF : par usage, réglable depuis la console avec le coupe-circuit de l'usage ; global et par agence, fixés par la configuration du déploiement et non réglables depuis la console, qui affiche le global sans le modifier. Un appel d'évaluation n'y compte pas (TCK-2383) |
 | P1 | 🛡️ | Tableau de bord IA : coût et latence par usage et par jour, erreurs, taux d'acceptation des suggestions, dernier score d'évaluation |
 
 **Règles de gestion.**
@@ -760,8 +761,9 @@ en est le premier usager. Vision et lots : [plan du 2026-10-26](plans/2026-10-26
   acceptée, corrigée ou rejetée, et la correction est conservée.
 - **Une donnée sensible** (pièce d'identité, revenu) **ne part jamais vers un fournisseur.**
 - **L'agence reste la frontière d'isolation** pour tout outil qu'un agent IA appelle.
-- **Un contenu externe est une donnée, jamais une consigne** : l'usage qui le lit n'a aucun outil
-  d'écriture.
+- **Un contenu externe est une donnée, jamais une consigne** : il arrive au modèle dans un bloc
+  délimité, dont la balise n'est pas prévisible et qu'il ne peut pas refermer, et l'usage qui le lit
+  n'a aucun outil, pas même de lecture, et ne rend qu'une sortie structurée (TCK-2398).
 - La suite de tests n'appelle jamais un vrai modèle ; les évaluations se lancent à part.
 
 ### 2.12 Radar — acquisition d'annonces
