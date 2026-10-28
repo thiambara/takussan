@@ -38,8 +38,8 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 ## Sommaire
 
 1. [👤 Visiteur anonyme (pas encore de compte)](#visiteur-anonyme-pas-encore-de-compte) — 32 fonctionnalités
-2. [🏠 Locataire / Acheteur (Customer)](#locataire-acheteur-customer) — 86 fonctionnalités
-3. [🏢 Bailleur / Propriétaire (owner)](#bailleur-propriétaire-owner) — 85 fonctionnalités
+2. [🏠 Locataire / Acheteur (Customer)](#locataire-acheteur-customer) — 87 fonctionnalités
+3. [🏢 Bailleur / Propriétaire (owner)](#bailleur-propriétaire-owner) — 86 fonctionnalités
 4. [🧑‍💼 Agent immobilier](#agent-immobilier) — 120 fonctionnalités
 5. [🔧 Prestataire de service (service provider)](#prestataire-de-service-service-provider) — 17 fonctionnalités
 6. [🛡️ Admin d'agence / Super-admin](#admin-dagence-super-admin) — 144 fonctionnalités
@@ -190,8 +190,9 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 
 | Prio | Domaine | Fonctionnalité |
 |------|---------|----------------|
-| P1 | §1.5 | Reversement au bailleur calculé depuis les loyers et réservations encaissés de la période (loyer, charges, pénalités, régularisations ; jamais la caution), commission du bail sinon de l'agence, frais de travaux refacturés déduits ; le brut n'est pas saisi et un paiement n'est reversé qu'une fois (TCK-594) |
+| P1 | §1.5 | Reversement au bailleur calculé depuis les loyers et réservations encaissés de la période (loyer, charges, pénalités — la pénalité réglée est une ligne propre du reversement, P206.01 —, régularisations ; jamais la caution), commission du bail sinon de l'agence, frais de travaux refacturés déduits ; le brut n'est pas saisi et un paiement n'est reversé qu'une fois (TCK-594) |
 | P1 | §1.5 | Un reversement ne cite que des paiements de l'agence et du bailleur concernés ; un remboursement de caution est un versement au locataire, jamais compté comme reversé au bailleur (TCK-594) |
+| P1 | §1.5 | Remboursement d'une somme déjà reversée au bailleur : le remboursement est constaté comme une sortie d'argent, et la part du bailleur, au net de commission, est reprise sur son reversement suivant, reliquat reporté ; chaque ligne d'un reversement garde le montant, le taux et la commission appliqués à sa création (TCK-2017, TCK-2052, TCK-2151, [ADR-0039](adr/0039-les-sorties-d-argent.md)) |
 | P1 | §1.5 | Relevé de gérance mensuel (PDF / CSV) par bien et consolidé, et attestation annuelle de revenus locatifs, envoyés au bailleur en début de mois (TCK-594) ; le relevé mensuel envoyé est conservé tel qu'il a été envoyé, et ce qui a été écrit depuis se montre en rectificatif (TCK-2321) |
 | P2 | §1.5 | Lien de paiement en ligne (Wave / Orange Money) par échéance de loyer, utilisable sans compte : jeton expirant et révocable envoyé au locataire, quittance remise après paiement (TCK-602) |
 | P1 | §1.5 | Le payeur (locataire, client) voit les fournisseurs de paiement en ligne que l'agence a activés — intégration plateforme comprise — et seulement ceux-là (TCK-602) |
@@ -334,8 +335,9 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P1 | §1.5 | Générer une facture à un Customer destinataire |
 | P1 | §1.5 | Facture opposable : numérotation chronologique continue par agence et par an, attribuée à l'émission ; mentions légales de l'agence (raison sociale, NINEA, RCCM, adresse) ; TVA par défaut de l'agence ; une facture émise ne s'annule que par un avoir (TCK-594), qui reprend ses lignes et sa désignation (TCK-2316) |
 | P1 | §1.5 | Reversement au bailleur après commission (Payout) |
-| P1 | §1.5 | Reversement au bailleur calculé depuis les loyers et réservations encaissés de la période (loyer, charges, pénalités, régularisations ; jamais la caution), commission du bail sinon de l'agence, frais de travaux refacturés déduits ; le brut n'est pas saisi et un paiement n'est reversé qu'une fois (TCK-594) |
+| P1 | §1.5 | Reversement au bailleur calculé depuis les loyers et réservations encaissés de la période (loyer, charges, pénalités — la pénalité réglée est une ligne propre du reversement, P206.01 —, régularisations ; jamais la caution), commission du bail sinon de l'agence, frais de travaux refacturés déduits ; le brut n'est pas saisi et un paiement n'est reversé qu'une fois (TCK-594) |
 | P1 | §1.5 | Un reversement ne cite que des paiements de l'agence et du bailleur concernés ; un remboursement de caution est un versement au locataire, jamais compté comme reversé au bailleur (TCK-594) |
+| P1 | §1.5 | Remboursement d'une somme déjà reversée au bailleur : le remboursement est constaté comme une sortie d'argent, et la part du bailleur, au net de commission, est reprise sur son reversement suivant, reliquat reporté ; chaque ligne d'un reversement garde le montant, le taux et la commission appliqués à sa création (TCK-2017, TCK-2052, TCK-2151, [ADR-0039](adr/0039-les-sorties-d-argent.md)) |
 | P1 | §1.5 | Relevé de gérance mensuel (PDF / CSV) par bien et consolidé, et attestation annuelle de revenus locatifs, envoyés au bailleur en début de mois (TCK-594) ; le relevé mensuel envoyé est conservé tel qu'il a été envoyé, et ce qui a été écrit depuis se montre en rectificatif (TCK-2321) |
 | P1 | §1.5 | Double validation des sorties d'argent : la même personne ne tient jamais deux gestes consécutifs (préparer, approuver, marquer payé) ni n'approuve un versement dont elle est bénéficiaire. Reversements plateforme : toujours. Reversements d'agence : désactivée par défaut ; l'agence l'active par un seuil, possible seulement avec deux approbateurs (TCK-594) |
 | P2 | §1.5 | Lien de paiement en ligne (Wave / Orange Money) par échéance de loyer, utilisable sans compte : jeton expirant et révocable envoyé au locataire, quittance remise après paiement (TCK-602) |
@@ -352,7 +354,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P1 | §1.7 | Liste des conversations avec statut non lu — messages d'un autre postérieurs à la dernière lecture, hors avis système ; ouvrir un fil le marque lu (TCK-579) |
 | P1 | §1.7 | Notification en temps réel (in-app + email) |
 | P2 | §1.7 | Conversations de groupe (multi-participants) — participants choisis par leur nom ; bien et bail rattachés par recherche (titre, référence), dans le périmètre visible de l'acteur ; un bail doit concerner le bien choisi (TCK-565, TCK-576). Une demande d'intervention ne se rattache pas à un groupe créé à la main (422) : son fil naît de l'assignation (TCK-2372, P250.03) |
-| P2 | §1.7 | Groupe rattaché à un bail — il ne compte que des personnes qui lisent ce bail (`LeasePolicy::view` : parties au bail, personnel actif de l'agence) ; contrôlé à la création du groupe et à l'ajout de participants. Seule exception : le prestataire assigné à une intervention de ce bail reste dans le fil de cette intervention (TCK-592, `SyncMaintenanceConversation`), qu'il ne lise pas le bail. Un autre artisan ou un tiers se joint par un groupe sans bail rattaché (décisions du porteur du 2026-10-23, P191.04). ⚠ Au 2026-10-23, la règle n'est pas appliquée : `GuardsConversationScope` ne juge face au bail que l'acteur |
+| P2 | §1.7 | Groupe rattaché à un bail — il ne compte que des personnes qui lisent ce bail (`LeasePolicy::view` : parties au bail, personnel actif de l'agence) ; contrôlé à la création du groupe et à l'ajout de participants. Seule exception : le prestataire assigné à une intervention de ce bail reste dans le fil de cette intervention (TCK-592, `SyncMaintenanceConversation`), qu'il ne lise pas le bail. Un autre artisan ou un tiers se joint par un groupe sans bail rattaché (décisions du porteur du 2026-10-23, P191.04 ; TCK-2191) |
 | P2 | §1.7 | Accusés de lecture individuels (si > 5 participants) — non livré : la lecture se compte par participant (dernière lecture), aucune par message (`models-spec.md` EF5, refusé pour l'instant) ; le déclencheur d'EF5, des conversations à plus de 5 participants, est désormais atteignable — un groupe compte jusqu'à 20 participants actifs |
 | P2 | §1.7 | Recherche dans l'historique des messages |
 | P2 | §1.7 | Notes vocales dans la messagerie (≤ 60 s) (TCK-592) |
@@ -549,7 +551,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P1 | §1.7 | Conversation privée 1↔1 entre client et agent / bailleur |
 | P1 | §1.7 | Périmètre de messagerie — qui l'on peut faire entrer dans une conversation, directe ou de groupe ; une seule règle sert le sélecteur, la création et l'ajout de participants : un correspondant (une conversation déjà partagée), un lien CRM (une même fiche client, ou le compte du client d'une fiche ; une fiche supprimée ne relie plus personne, les fils déjà ouverts restant par la règle du correspondant — TCK-2295), l'équipe active de son agence, et ses propriétaires actifs pour l'équipe seulement ; pour compléter un groupe existant, aussi l'équipe active de l'agence de son bien ou de son bail ; un profil invité pas encore accepté, suspendu ou inactif ne compte pas (TCK-565). À ne pas confondre avec le « contact joignable » qu'exige la publication (§1.1, TCK-633) |
 | P2 | §1.7 | Conversations de groupe (multi-participants) — participants choisis par leur nom ; bien et bail rattachés par recherche (titre, référence), dans le périmètre visible de l'acteur ; un bail doit concerner le bien choisi (TCK-565, TCK-576). Une demande d'intervention ne se rattache pas à un groupe créé à la main (422) : son fil naît de l'assignation (TCK-2372, P250.03) |
-| P2 | §1.7 | Groupe rattaché à un bail — il ne compte que des personnes qui lisent ce bail (`LeasePolicy::view` : parties au bail, personnel actif de l'agence) ; contrôlé à la création du groupe et à l'ajout de participants. Seule exception : le prestataire assigné à une intervention de ce bail reste dans le fil de cette intervention (TCK-592, `SyncMaintenanceConversation`), qu'il ne lise pas le bail. Un autre artisan ou un tiers se joint par un groupe sans bail rattaché (décisions du porteur du 2026-10-23, P191.04). ⚠ Au 2026-10-23, la règle n'est pas appliquée : `GuardsConversationScope` ne juge face au bail que l'acteur |
+| P2 | §1.7 | Groupe rattaché à un bail — il ne compte que des personnes qui lisent ce bail (`LeasePolicy::view` : parties au bail, personnel actif de l'agence) ; contrôlé à la création du groupe et à l'ajout de participants. Seule exception : le prestataire assigné à une intervention de ce bail reste dans le fil de cette intervention (TCK-592, `SyncMaintenanceConversation`), qu'il ne lise pas le bail. Un autre artisan ou un tiers se joint par un groupe sans bail rattaché (décisions du porteur du 2026-10-23, P191.04 ; TCK-2191) |
 | P2 | §1.7 | Fil de discussion automatique par intervention, avec un message système à chaque étape (TCK-592) |
 
 ### §1.8 Maintenance & interventions
@@ -717,8 +719,8 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P2 | §1.5 | Intégration d'une passerelle de paiement — pilotes livrés : Wave et Orange Money (XOF), Lemon Squeezy (carte, hors XOF) ; Free Money et Stripe n'ont pas de pilote (Stripe n'a qu'une fiche d'identifiants au registre des intégrations) ; une intégration de paiement n'est enregistrée qu'avec les identifiants que son pilote exige (TCK-602) |
 | P2 | §1.5 | Supervision des paiements (console plateforme) : paiements en échec, en retard et webhooks non appariés, par fournisseur et par agence (TCK-602) |
 | P2 | §1.5 | Rapprochement bancaire semi-automatique — relevés, lignes, mapping CSV et clôture réservés à l'admin d'agence qui détient `payments.reconcile` (son rôle système la porte, jamais celui d'agent ; l'admin principal la garde toujours) (TCK-2260) |
-| P2 | §1.5 | Régler depuis l'écran le mapping CSV des relevés de l'agence (colonnes, format de date, séparateur décimal déclaré) et voir les lignes ignorées à l'import (TCK-593) — les préréglages Wave Business / Orange Money attendent un export réel (dette D-67) |
-| P2 | §1.5 | Rapprocher les débits d'un relevé avec les reversements (Payout) émis (TCK-593) |
+| P2 | §1.5 | Régler depuis l'écran le mapping CSV des relevés de l'agence (colonnes, format de date, séparateur décimal déclaré) et voir les lignes ignorées à l'import (TCK-593) ; une ligne qui reprend une transaction déjà importée est marquée en doublon de la première, pas ignorée (TCK-1919) — les préréglages Wave Business / Orange Money attendent un export réel (dette D-67) |
+| P2 | §1.5 | Rapprocher les débits d'un relevé avec les reversements (Payout) émis (TCK-593) ; le virement de clôture de la plateforme se rapproche d'un crédit du relevé (TCK-1421) |
 | P2 | §1.5 | Relance automatique des factures en retard |
 | P2 | §1.5 | Reversement plateforme → agence (commission plateforme retenue à la source, payout périodique agrégé) |
 | P2 | §1.5 | Reversement plateforme refusé vers une agence non active ; une agence `standard` non vérifiée est bloquée à l'approbation (TCK-594) |
@@ -850,7 +852,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | Prio | Domaine | Fonctionnalité |
 |------|---------|----------------|
 | P0 | §2.9 | Gestion des tags et amenités — dont la validation, le renommage et la fusion des équipements proposés par les annonceurs (TCK-633) |
-| P1 | §2.9 | Référentiel géographique : validation, renommage et fusion des quartiers proposés (TCK-633, [ADR-0062](adr/0062-referentiel-geographique-region-ville-quartier.md)) |
+| P1 | §2.9 | Référentiel géographique : validation, renommage et fusion des quartiers proposés (TCK-633, [ADR-0062](adr/0062-referentiel-geographique-region-ville-quartier.md)) ; un ancien nom continue de désigner le quartier ou la ville renommés dans la recherche, les alertes et le rapprochement CRM (TCK-1080, TCK-1169) |
 | P1 | §2.9 | Crédits et boost : réglages (offre de bienvenue, validité, délai entre remontées, emplacements par page, places réservées en tête de la première page), catalogue des boosts, portefeuilles des espaces (octroi ou retrait motivé, sous 2FA récente, journalisé), boosts actifs (annulation avec ou sans remboursement, mise en avant offerte), statistiques (TCK-633, [ADR-0061](adr/0061-credits-d-espace-et-boost-des-annonces.md)) |
 | P0 | §2.9 | Gestion des utilisateurs (activation, blocage) |
 | P0 | §2.9 | Onboarding d'une agence par un super-admin (création + admin initial invité, hors auto-inscription) ; le numéro du gérant, facultatif, est cherché parmi les numéros vérifiés : s'il appartient à un compte, la création est refusée comme pour l'e-mail (409, P251.02, TCK-2365) |
@@ -877,7 +879,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P1 | §2.11 | Affecter à chaque rôle de modèle (`extraction`, `redaction`, `raisonnement`, `vision`, `embedding`) une chaîne ordonnée de modèles depuis la console super-admin, avec bascule automatique à la panne ; forcer un modèle pour un usage ; sous second facteur récent, journalisé |
 | P1 | §2.11 | Évaluer un modèle candidat avant de l'affecter : score par champ et coût, comparés au modèle en place sur le jeu d'évaluation de chaque usage concerné ; un score sous le cliquet bloque l'affectation, sauf dérogation journalisée |
 | P1 | §2.11 | Voir, par fournisseur, si sa clé est présente (jamais sa valeur) et tester la connexion ; seuls les fournisseurs nommés par la politique de confidentialité sont sélectionnables |
-| P1 | §2.11 | Budgets (global journalier, par usage, par agence) et coupe-circuit par usage |
+| P1 | §2.11 | Plafonds journaliers en XOF : par usage, réglable depuis la console avec le coupe-circuit de l'usage ; global et par agence, fixés par la configuration du déploiement et non réglables depuis la console, qui affiche le global sans le modifier. Un appel d'évaluation n'y compte pas (TCK-2383) |
 | P1 | §2.11 | Tableau de bord IA : coût et latence par usage et par jour, erreurs, taux d'acceptation des suggestions, dernier score d'évaluation |
 
 ### §2.12 Radar — acquisition d'annonces
@@ -933,7 +935,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P0 | §2.1 | Switch de profil exposé en UI (header / menu compte) — change l'agence et les permissions sans nouvelle authentification |
 | P1 | §2.1 | KYC distinct par profil (pièces d'identité, RIB, license, assurance — un dossier par profil) |
 | P2 | §2.1 | Indication visuelle de "profil actif" sur toutes les vues authentifiées |
-| P0 | §2.1 | Pattern d'invitation unifié — création par un inviteur autorisé, invitation par e-mail OU par SMS (lien court) quand l'invité n'a qu'un numéro (TCK-589), avec token signé (expiry 7j, rappel automatique J+2, renvoi self-service par l'inviteur, révocation possible avant acceptation) ; à l'acceptation, le profil cible passe en `active` et devient le profil actif |
+| P0 | §2.1 | Pattern d'invitation unifié — création par un inviteur autorisé, invitation par e-mail OU par SMS (lien court) quand l'invité n'a qu'un numéro (TCK-589), avec token signé (expiry 7j, rappel automatique J+2, retenté le lendemain si tous les fournisseurs SMS l'ont refusé, trois essais au plus (TCK-2155), renvoi self-service par l'inviteur, révocation possible avant acceptation) ; à l'acceptation, le profil cible passe en `active` et devient le profil actif |
 | P1 | §2.1 | Composant wizard reprenable — chaque step sauvegardé en `draft`, bandeau persistant "Reprenez votre publication / votre onboarding" sur dashboard, reprise depuis le menu compte |
 | P1 | §2.1 | Welcome modale générique réutilisable — composant 3 slides max, skippable, paramétrable par parcours (Customer, Host, Owner, Agent, AgencyAdmin, ServiceProvider, Tenant) |
 
@@ -1007,8 +1009,8 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 
 ## Provenance
 
-- Source : [`features.md`](./features.md) — **412** lignes de fonctionnalité lues,
-  réparties en **553** placements (une ligne multi-acteurs compte une fois par acteur).
+- Source : [`features.md`](./features.md) — **413** lignes de fonctionnalité lues,
+  réparties en **555** placements (une ligne multi-acteurs compte une fois par acteur).
 - Générateur : `docs/gen-features-by-actor.mjs`.
 - Fraîcheur vérifiée en CI par `node docs/gen-features-by-actor.mjs --check`, qui échoue si
   cette sortie ne correspond plus à sa source.
