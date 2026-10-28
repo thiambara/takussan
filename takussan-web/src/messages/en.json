@@ -8684,8 +8684,7 @@
             "captureAlt": "Screenshot {n}",
             "capturesHint": "Screenshots cannot be highlighted: the cited passage is shown under each field.",
             "capturesExpire": "Screenshot links expire after 5 minutes; reload the listing to renew them.",
-            "cited": "Cited passage",
-            "citedNotFound": "Passage not found in the text"
+            "cited": "Cited passage"
           },
           "sections": {
             "listing": "The property",

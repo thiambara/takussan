@@ -14,6 +14,16 @@
  * présent doit pouvoir se montrer.
  */
 
+/**
+ * Qui demande le passage : le survol d'un champ ou son focus. Les deux vivent ensemble (la source montre le
+ * survol, à défaut le focus) : quitter un champ survolé rend le passage du champ qui garde le focus,
+ * au lieu de tout effacer.
+ */
+export type OrigineDePassage = 'survol' | 'focus';
+
+/** Le passage cité à montrer dans la source, ou `null` pour retirer celui de cette origine. */
+export type SurPassage = (passage: string | null, origine: OrigineDePassage) => void;
+
 export interface PassageLocalise {
   /** Indice (inclus) du premier caractère du passage dans le texte d'origine. */
   readonly debut: number;

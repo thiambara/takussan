@@ -57,6 +57,12 @@ export const RADAR_FIELD_FLAGS = [
 
 export type RadarFieldFlag = (typeof RADAR_FIELD_FLAGS)[number];
 
+/** Les types de bien que la fiche propose, dans l'ordre de `App\Models\Enums\PropertyType`. */
+export const RADAR_PROPERTY_TYPES = [
+  'land', 'house', 'apartment', 'villa', 'studio', 'room', 'office', 'shop',
+  'warehouse', 'factory', 'farm', 'hotel', 'resort', 'garage', 'parking', 'other',
+] as const;
+
 export type RadarContract = 'rent' | 'sale';
 
 /** `App\Models\Enums\RadarAdvertiserNature`. */

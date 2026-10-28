@@ -15,11 +15,12 @@ export type NiveauConfiance = 'alerte' | 'discret' | 'rien';
 
 export interface EtatChamp {
   readonly niveau: NiveauConfiance;
-  readonly drapeaux: readonly RadarFieldFlag[];
+  /** Tous les drapeaux levés, connus ou non : un code inconnu s'affiche tel quel (cf. {@link estDrapeauConnu}). */
+  readonly drapeaux: readonly string[];
   readonly corrige: boolean;
 }
 
-const estDrapeauConnu = (drapeau: string): drapeau is RadarFieldFlag =>
+export const estDrapeauConnu = (drapeau: string): drapeau is RadarFieldFlag =>
   (RADAR_FIELD_FLAGS as readonly string[]).includes(drapeau);
 
 /**
@@ -36,9 +37,10 @@ export function etatDuChamp(champ: RadarExtractedField<unknown> | undefined, mod
   const corrige = modifie || champ?.corrected === true;
   if (corrige || !champ) return { niveau: 'rien', drapeaux: [], corrige };
 
-  const drapeaux = (champ.flags ?? []).filter(estDrapeauConnu);
-  // Un drapeau que ce front ne connaît pas alerte aussi : il vient de l'API, jamais masqué.
-  const alerte = (champ.confidence === 'low' && aUneValeur(champ)) || (champ.flags?.length ?? 0) > 0;
+  // Un drapeau que ce front ne connaît pas alerte aussi, et se lit par son code : il vient de l'API,
+  // jamais masqué ni rabattu sur « Confiance faible ».
+  const drapeaux = champ.flags ?? [];
+  const alerte = (champ.confidence === 'low' && aUneValeur(champ)) || drapeaux.length > 0;
   if (alerte) return { niveau: 'alerte', drapeaux, corrige };
   return { niveau: champ.confidence === 'medium' && aUneValeur(champ) ? 'discret' : 'rien', drapeaux, corrige };
 }

@@ -1,3 +1,4 @@
+import { ApiError } from '@/lib/api';
 import type { RadarListingStage } from '@/types/radar';
 
 /** Valider : la seule étape où la fiche se relit (`RadarListingStage::allowsReview`). */
@@ -39,3 +40,11 @@ export function estZoneDeSaisie(cible: EventTarget | null): boolean {
 /** Un dialogue est ouvert : les raccourcis lui appartiennent, pas à la fiche derrière. */
 export const dialogueOuvert = (): boolean =>
   document.querySelector('[role="dialog"], [role="alertdialog"]') !== null;
+
+/** 409 `radar.listing.stage_conflict` : la fiche a changé d'étape ailleurs, ce que l'écran montre est périmé. */
+export const estConflitDEtape = (erreur: unknown): boolean =>
+  erreur instanceof ApiError
+  && erreur.status === 409
+  && typeof erreur.data === 'object'
+  && erreur.data !== null
+  && (erreur.data as { code?: unknown }).code === 'radar.listing.stage_conflict';

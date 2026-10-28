@@ -25,16 +25,22 @@ interface ControleCommun {
  * quand la fiche est relue ou les corrections abandonnées.
  */
 export function ChampNombre({
-  id, decritPar, desactive, valeur, pas = 1, onChange,
-}: ControleCommun & { readonly valeur: number | null; readonly pas?: number; readonly onChange: (valeur: number | null) => void }) {
+  id, decritPar, desactive, valeur, pas = 1, min = 0, onChange,
+}: ControleCommun & {
+  readonly valeur: number | null;
+  /** `1` : entiers ; autre : décimal, sans pas imposé (`step="any"` — un pas de 0,5 refuserait 85,3 au navigateur). */
+  readonly pas?: number;
+  readonly min?: number;
+  readonly onChange: (valeur: number | null) => void;
+}) {
   const [texte, setTexte] = useState(valeur === null ? '' : String(valeur));
   return (
     <Input
       id={id}
       type="number"
       inputMode={pas === 1 ? 'numeric' : 'decimal'}
-      min={0}
-      step={pas}
+      min={min}
+      step={pas === 1 ? 1 : 'any'}
       aria-describedby={decritPar}
       disabled={desactive}
       value={texte}

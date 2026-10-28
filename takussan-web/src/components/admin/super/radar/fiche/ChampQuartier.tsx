@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { useQuartiersDuReferentiel, useVillesDuReferentiel } from '@/lib/queries/referentiel-public';
 import type { RadarExtracted, RadarListingDetail } from '@/types/radar';
 import { ChampFiche } from './ChampFiche';
+import type { SurPassage } from './passage';
 
 interface ChampQuartierProps {
   readonly detail: RadarListingDetail;
@@ -18,7 +19,7 @@ interface ChampQuartierProps {
   readonly modifie: boolean;
   readonly desactive: boolean;
   readonly onChoisir: (id: number | null) => void;
-  readonly surPassage: (passage: string | null) => void;
+  readonly surPassage: SurPassage;
 }
 
 /**
@@ -41,6 +42,8 @@ export function ChampQuartier({ detail, choisi, modifie, desactive, onChoisir, s
 
   const optionsVilles: OptionDeListe[] = (villes.data?.data ?? []).map((v) => ({ value: String(v.id), label: v.name }));
   const optionsQuartiers: OptionDeListe[] = (quartiers.data?.data ?? [])
+    // L'endpoint rend déjà les quartiers approuvés ET les propositions en attente de l'appelant : ce filtre
+    // retire les secondes, que l'API refuserait (`neighborhood_id` doit être approuvé).
     .filter((q) => q.status === 'approved')
     .map((q) => ({ value: String(q.id), label: q.name }));
 
@@ -64,7 +67,7 @@ export function ChampQuartier({ detail, choisi, modifie, desactive, onChoisir, s
       surPassage={surPassage}
       groupe
     >
-      {() => (
+      {({ decritPar }) => (
         <div className="space-y-3">
           <p className="text-sm text-foreground">
             {lu?.value ? t('neighborhood.read', { value: lu.value }) : t('neighborhood.unread')}
@@ -106,6 +109,7 @@ export function ChampQuartier({ detail, choisi, modifie, desactive, onChoisir, s
                 onChange={(option) => setVilleId(option?.value ?? null)}
                 placeholder={t('neighborhood.cityPlaceholder')}
                 aucunResultat={t('neighborhood.noResult')}
+                decritPar={decritPar}
                 chargement={villes.isLoading}
                 disabled={desactive}
               />
@@ -119,6 +123,7 @@ export function ChampQuartier({ detail, choisi, modifie, desactive, onChoisir, s
                 onChange={(option) => onChoisir(option ? Number(option.value) : null)}
                 placeholder={t('neighborhood.neighborhoodPlaceholder')}
                 aucunResultat={t('neighborhood.noResult')}
+                decritPar={decritPar}
                 chargement={quartiers.isLoading}
                 disabled={desactive || villeId === null}
               />

@@ -13,7 +13,7 @@ import {
   reviewRadarListing,
 } from '@/lib/queries/radar';
 import type { RadarDiscardReason, RadarDuplicateTarget, RadarListingDetail, RadarListingDetailResponse } from '@/types/radar';
-import { champDeLaFiche, focaliserChamp, peutFermer, peutValider } from './gestes';
+import { champDeLaFiche, estConflitDEtape, focaliserChamp, peutFermer, peutValider } from './gestes';
 import type { CorrectionsFiche } from './useCorrectionsFiche';
 
 export type Geste =
@@ -52,6 +52,9 @@ export function useGestesFiche(detail: RadarListingDetail, corrections: Correcti
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: radarKeys.all });
+    },
+    onError: (erreur) => {
+      if (estConflitDEtape(erreur)) void queryClient.invalidateQueries({ queryKey: radarKeys.detail(detail.id) });
     },
   });
 

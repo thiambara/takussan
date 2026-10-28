@@ -18,6 +18,7 @@ import { BarreDesGestes } from './BarreDesGestes';
 import { DialogueDoublon, DialogueEcart } from './DialoguesFiche';
 import { FormulaireFiche } from './FormulaireFiche';
 import { PanneauSource } from './PanneauSource';
+import type { SurPassage } from './passage';
 import { RadarMatchesPanel } from './RadarMatchesPanel';
 import { useCorrectionsFiche } from './useCorrectionsFiche';
 import { useGestesFiche } from './useGestesFiche';
@@ -38,7 +39,10 @@ type Dialogue =
  * aussi : chacun envoie d'abord les corrections en attente.
  */
 function FicheChargee({ detail }: { readonly detail: RadarListingDetail }) {
-  const [passage, setPassage] = useState<string | null>(null);
+  const [survol, setSurvol] = useState<string | null>(null);
+  const [focus, setFocus] = useState<string | null>(null);
+  const passage = survol ?? focus;
+  const surPassage: SurPassage = (cite, origine) => (origine === 'survol' ? setSurvol(cite) : setFocus(cite));
   const [dialogue, setDialogue] = useState<Dialogue | null>(null);
   const corrections = useCorrectionsFiche(detail);
   const gestes = useGestesFiche(detail, corrections);
@@ -87,7 +91,7 @@ function FicheChargee({ detail }: { readonly detail: RadarListingDetail }) {
         <FormulaireFiche
           detail={detail}
           corrections={corrections}
-          surPassage={setPassage}
+          surPassage={surPassage}
           erreurGeste={dialogue ? undefined : gestes.erreur}
           gestes={(
             <BarreDesGestes

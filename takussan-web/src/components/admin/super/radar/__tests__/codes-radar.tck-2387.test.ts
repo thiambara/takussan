@@ -5,8 +5,14 @@ import { describe, expect, it } from 'vitest';
 import en from '@/messages/en.json';
 import fr from '@/messages/fr.json';
 import wo from '@/messages/wo.json';
-import { RADAR_ADVERTISER_NATURES, RADAR_DISCARD_REASONS, RADAR_FIELD_FLAGS, RADAR_MATCH_SIGNALS } from '@/types/radar';
-import { ERREURS_FICHE_RADAR, MOTIFS_ECART_RADAR } from '../codes-radar';
+import {
+  RADAR_ADVERTISER_NATURES,
+  RADAR_DISCARD_REASONS,
+  RADAR_FIELD_FLAGS,
+  RADAR_MATCH_SIGNALS,
+  RADAR_PROPERTY_TYPES,
+} from '@/types/radar';
+import { ERREURS_FICHE_RADAR, ERREURS_SAISIE_RADAR, MOTIFS_ECART_RADAR } from '../codes-radar';
 
 const RACINE = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..', '..', '..', '..');
 const lire = (...chemin: string[]) => readFileSync(join(RACINE, ...chemin), 'utf8');
@@ -72,6 +78,33 @@ describe('codes de la fiche du Radar', () => {
   it('les signaux sont ceux du RadarMatcher', () => {
     const source = lire('takussan-api', 'app', 'Services', 'Radar', 'RadarMatcher.php');
     for (const signal of RADAR_MATCH_SIGNALS) expect(source, signal).toContain(`'${signal}'`);
+  });
+
+  it('API vers front : chaque code `radar.*` de lang/fr/errors.php a son libellé dans une table du front', () => {
+    const lignes = lire('takussan-api', 'lang', 'fr', 'errors.php').split('\n');
+    const debut = lignes.findIndex((l) => /^\s{4}'radar' => \[/.test(l));
+    expect(debut).toBeGreaterThan(-1);
+
+    // Le tableau `radar` est imbriqué sur deux niveaux : groupe => [ clé => message ].
+    const codes: string[] = [];
+    let groupe: string | null = null;
+    for (const ligne of lignes.slice(debut + 1)) {
+      if (/^\s{4}\],/.test(ligne)) break;
+      const ouvre = /^\s{8}'(\w+)' => \[/.exec(ligne);
+      if (ouvre) groupe = ouvre[1];
+      const feuille = /^\s{12}'(\w+)' =>/.exec(ligne);
+      if (feuille && groupe) codes.push(`radar.${groupe}.${feuille[1]}`);
+    }
+    expect(codes.length).toBeGreaterThanOrEqual(9);
+
+    const connus = new Set([...Object.keys(ERREURS_FICHE_RADAR), ...Object.keys(ERREURS_SAISIE_RADAR)]);
+    expect(codes.filter((code) => !connus.has(code))).toEqual([]);
+  });
+
+  it('les types de bien de la fiche sont ceux de l\'enum PropertyType', () => {
+    const source = lire('takussan-api', 'app', 'Models', 'Enums', 'PropertyType.php');
+    const api = [...source.matchAll(/case \w+ = '([^']+)'/g)].map((m) => m[1]);
+    expect([...RADAR_PROPERTY_TYPES]).toEqual(api);
   });
 });
 

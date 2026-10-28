@@ -23,7 +23,7 @@ const estUrlWeb = (valeur: string | null | undefined): valeur is string => !!val
  *
  * - texte ou URL : `raw_text` tel quel (préformaté, replié), le lien vers l'annonce d'origine et les
  *   photos source. Quand un champ est survolé ou focalisé, son passage cité est entouré d'un `<mark>`
- *   et ramené à l'écran (`scrollIntoView({block: 'nearest'})` : rien ne bouge s'il est déjà visible) ;
+ *   et ramené à l'écran dans le texte seul (jamais dans la page : cf. l'effet) ;
  * - captures : une image par capture, par son URL signée (l'original, valable 5 minutes). Une image
  *   ne se surligne pas : les passages cités s'affichent sous les champs.
  *
@@ -34,6 +34,7 @@ const estUrlWeb = (valeur: string | null | undefined): valeur is string => !!val
 export function PanneauSource({ detail, passage, className }: PanneauSourceProps) {
   const t = useTranslations('superAdmin.pages.radar.listing.source');
   const marque = useRef<HTMLElement>(null);
+  const defilement = useRef<HTMLPreElement>(null);
 
   const texte = detail.raw_text;
   const position = texte !== null && passage !== null ? localiserPassage(texte, passage) : null;
@@ -41,8 +42,17 @@ export function PanneauSource({ detail, passage, className }: PanneauSourceProps
   const fin = position?.fin;
 
   useEffect(() => {
-    // jsdom n'a pas `scrollIntoView` ; les navigateurs, si.
-    if (debut !== undefined) marque.current?.scrollIntoView?.({ block: 'nearest' });
+    // Le défilement ne touche QUE la source : `scrollIntoView` ferait aussi défiler la fenêtre, et, sous
+    // `lg`, où la source est AU-DESSUS des champs, survoler ou focaliser un champ ramènerait la page vers
+    // elle — sous le pointeur à la souris, loin du clavier virtuel au téléphone. Sémantique « nearest » à
+    // la main : rien ne bouge si le passage est déjà visible.
+    const zone = defilement.current;
+    const passageMarque = marque.current;
+    if (!zone || !passageMarque) return;
+    const haut = passageMarque.offsetTop;
+    const bas = haut + passageMarque.offsetHeight;
+    if (haut < zone.scrollTop) zone.scrollTop = haut;
+    else if (bas > zone.scrollTop + zone.clientHeight) zone.scrollTop = bas - zone.clientHeight;
   }, [debut, fin]);
 
   const captures = detail.captures ?? [];
@@ -92,7 +102,8 @@ export function PanneauSource({ detail, passage, className }: PanneauSourceProps
         <div className="space-y-1.5">
           <h3 className="text-sm font-medium text-foreground">{t('rawText')}</h3>
           <pre
-            className="max-h-[60vh] overflow-y-auto rounded-lg bg-muted/40 p-3 font-sans text-sm leading-relaxed whitespace-pre-wrap break-words text-foreground"
+            ref={defilement}
+            className="relative max-h-[60vh] overflow-y-auto rounded-lg bg-muted/40 p-3 font-sans text-sm leading-relaxed whitespace-pre-wrap break-words text-foreground"
             data-testid="radar-source-text"
           >
             {position && texte !== null ? (

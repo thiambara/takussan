@@ -7,8 +7,8 @@ import { TriangleAlert } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import type { RadarExtractedField } from '@/types/radar';
-import { etatDuChamp } from './confiance';
-import { localiserPassage } from './passage';
+import { estDrapeauConnu, etatDuChamp } from './confiance';
+import { localiserPassage, type SurPassage } from './passage';
 
 export interface ChampFicheProps {
   /** La clé du champ (`price`, `neighborhood`…) : sert d'identifiant de test et de repère. */
@@ -21,7 +21,7 @@ export interface ChampFicheProps {
   /** Le texte source, s'il y en a un (`raw_text`) : sans lui, le passage cité s'affiche sous le champ. */
   readonly texteSource: string | null;
   /** Survol ou focus : le passage cité à montrer dans la source (`null` : plus aucun). */
-  readonly surPassage: (passage: string | null) => void;
+  readonly surPassage: SurPassage;
   readonly aide?: ReactNode;
   /** Le champ porte plusieurs contrôles (le quartier) : le libellé nomme le groupe, pas un contrôle. */
   readonly groupe?: boolean;
@@ -63,10 +63,10 @@ export function ChampFiche({ nom, libelle, champ, modifie, texteSource, surPassa
       data-testid={`champ-${nom}`}
       data-confiance={champ?.confidence}
       data-alerte={etat.niveau === 'alerte' ? 'true' : undefined}
-      onMouseEnter={() => surPassage(passage)}
-      onMouseLeave={() => surPassage(null)}
-      onFocus={() => surPassage(passage)}
-      onBlur={() => surPassage(null)}
+      onMouseEnter={() => surPassage(passage, 'survol')}
+      onMouseLeave={() => surPassage(null, 'survol')}
+      onFocus={() => surPassage(passage, 'focus')}
+      onBlur={() => surPassage(null, 'focus')}
     >
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
         {groupe ? (
@@ -88,7 +88,7 @@ export function ChampFiche({ nom, libelle, champ, modifie, texteSource, surPassa
             {(etat.drapeaux.length > 0 ? etat.drapeaux : [null]).map((drapeau) => (
               <li key={drapeau ?? 'low'} className="flex items-start gap-1.5 text-xs font-medium text-warning">
                 <TriangleAlert className="mt-px size-3.5 shrink-0" aria-hidden="true" />
-                {drapeau ? t(`confidence.flags.${drapeau}`) : t('confidence.low')}
+                {drapeau === null ? t('confidence.low') : estDrapeauConnu(drapeau) ? t(`confidence.flags.${drapeau}`) : drapeau}
               </li>
             ))}
           </ul>

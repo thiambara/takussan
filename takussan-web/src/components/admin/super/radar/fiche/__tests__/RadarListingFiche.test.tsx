@@ -162,7 +162,8 @@ describe('RadarListingFiche — passage cité et confiance (TCK-2387)', () => {
     await user.hover(screen.getByLabelText('Prix (XOF)'));
     const marque = document.querySelector('mark');
     expect(marque?.textContent).toBe('Loyer : 350 000 FCFA');
-    expect(scrollIntoView).toHaveBeenCalledWith({ block: 'nearest' });
+    // La page ne bouge jamais : seule la source défile (cf. la tâche de revue).
+    expect(scrollIntoView).not.toHaveBeenCalled();
 
     await user.unhover(screen.getByLabelText('Prix (XOF)'));
     expect(document.querySelector('mark')).toBeNull();
@@ -176,7 +177,8 @@ describe('RadarListingFiche — passage cité et confiance (TCK-2387)', () => {
 
     act(() => prix.focus());
     expect(document.querySelector('mark')?.textContent).toBe('Loyer : 350 000 FCFA');
-    expect(scrollIntoView).toHaveBeenCalledWith({ block: 'nearest' });
+    // La page ne bouge jamais : seule la source défile (cf. la tâche de revue).
+    expect(scrollIntoView).not.toHaveBeenCalled();
 
     act(() => prix.blur());
     expect(document.querySelector('mark')).toBeNull();
@@ -360,3 +362,121 @@ describe('RadarListingFiche — corrections (TCK-2387)', () => {
     expect(screen.getByLabelText('Prix (XOF)')).toBeDisabled();
   });
 });
+
+describe('RadarListingFiche — correctifs de revue de la Task 7 (TCK-2387)', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  const geometrie = (offsetTop: number) => {
+    vi.spyOn(HTMLElement.prototype, 'offsetTop', 'get').mockReturnValue(offsetTop);
+    vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(20);
+    vi.spyOn(Element.prototype, 'clientHeight', 'get').mockReturnValue(100);
+  };
+
+  it('le passage cité défile la source SEULE : ni la fenêtre, ni `scrollIntoView`, sous `lg` comme au-dessus', async () => {
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => undefined);
+    const scrollBy = vi.spyOn(window, 'scrollBy').mockImplementation(() => undefined);
+    geometrie(400);
+    await rendre();
+    const user = userEvent.setup();
+    const source = screen.getByTestId('radar-source-text');
+    expect(source.scrollTop).toBe(0);
+
+    // Hors de vue (sous le bas de la zone, à 400 + 20 > 0 + 100) : la zone descend juste ce qu'il faut.
+    await user.hover(screen.getByLabelText('Prix (XOF)'));
+    expect(source.scrollTop).toBe(320);
+
+    // Au-dessus de la zone visible : elle remonte jusqu'au passage.
+    await user.unhover(screen.getByLabelText('Prix (XOF)'));
+    vi.spyOn(HTMLElement.prototype, 'offsetTop', 'get').mockReturnValue(10);
+    await user.hover(screen.getByLabelText('Prix (XOF)'));
+    expect(source.scrollTop).toBe(10);
+
+    expect(scrollIntoView).not.toHaveBeenCalled();
+    expect(scrollTo).not.toHaveBeenCalled();
+    expect(scrollBy).not.toHaveBeenCalled();
+  });
+
+  it('un passage déjà visible ne déplace rien', async () => {
+    geometrie(10);
+    await rendre();
+    const user = userEvent.setup();
+
+    await user.hover(screen.getByLabelText('Prix (XOF)'));
+    expect(screen.getByTestId('radar-source-text').scrollTop).toBe(0);
+  });
+
+  it('quitter un champ survolé rend le passage du champ qui garde le focus, au lieu de tout effacer', async () => {
+    await rendre();
+    const user = userEvent.setup();
+
+    act(() => screen.getByLabelText('Prix (XOF)').focus());
+    expect(document.querySelector('mark')?.textContent).toBe('Loyer : 350 000 FCFA');
+
+    await user.hover(screen.getByLabelText('Titre'));
+    expect(document.querySelector('mark')?.textContent).toBe('Appartement F3 à louer');
+
+    await user.unhover(screen.getByLabelText('Titre'));
+    expect(document.querySelector('mark')?.textContent).toBe('Loyer : 350 000 FCFA');
+
+    act(() => screen.getByLabelText('Prix (XOF)').blur());
+    expect(document.querySelector('mark')).toBeNull();
+  });
+
+  it('la surface accepte un décimal (`step="any"`), le prix commence à 1 comme l\'API, les entiers restent entiers', async () => {
+    await rendre();
+
+    expect(screen.getByLabelText('Surface (m²)')).toHaveAttribute('step', 'any');
+    expect(screen.getByLabelText('Prix (XOF)')).toHaveAttribute('min', '1');
+    expect(screen.getByLabelText('Prix (XOF)')).toHaveAttribute('step', '1');
+    expect(screen.getByLabelText('Chambres')).toHaveAttribute('min', '0');
+    expect(screen.getByLabelText('Chambres')).toHaveAttribute('step', '1');
+  });
+
+  it('un drapeau inconnu de ce front se lit par son code, jamais sous « Confiance faible »', async () => {
+    await rendre(fiche({
+      extracted: { ...EXTRACTED, title: { value: 'Appartement F3', confidence: 'high', evidence: null, flags: ['drapeau_neuf'] } },
+    }));
+
+    const titre = screen.getByTestId('champ-title');
+    expect(titre).toHaveAttribute('data-alerte', 'true');
+    expect(within(titre).getByText('drapeau_neuf')).toBeInTheDocument();
+    expect(within(titre).queryByText('Confiance faible')).toBeNull();
+  });
+
+  it('un 409 `stage_conflict` fait relire la fiche, la correction en attente reste', async () => {
+    vi.mocked(patchRadarListing).mockRejectedValue(new ApiError(409, { code: 'radar.listing.stage_conflict', message: 'x' }));
+    await rendre();
+    const user = userEvent.setup();
+    expect(fetchRadarListing).toHaveBeenCalledTimes(1);
+
+    await user.type(screen.getByLabelText('Prix (XOF)'), '0');
+    await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
+
+    await vi.waitFor(() => expect(fetchRadarListing).toHaveBeenCalledTimes(2));
+    expect(screen.getByLabelText('Prix (XOF)')).toHaveValue(3500000);
+  });
+
+  it('un autre refus ne relit pas la fiche', async () => {
+    vi.mocked(patchRadarListing).mockRejectedValue(new ApiError(422, { message: 'invalide', errors: { price: ['x'] } }));
+    await rendre();
+    const user = userEvent.setup();
+
+    await user.type(screen.getByLabelText('Prix (XOF)'), '0');
+    await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
+
+    await screen.findByRole('alert');
+    expect(fetchRadarListing).toHaveBeenCalledTimes(1);
+  });
+
+  it('les deux listes du quartier sont décrites par la note du champ (`aria-describedby`)', async () => {
+    await rendre();
+
+    const groupe = screen.getByTestId('champ-neighborhood');
+    const note = groupe.querySelector('[id$="-note"]');
+    expect(note).not.toBeNull();
+    for (const nom of ['Ville du référentiel', 'Quartier du référentiel']) {
+      expect(screen.getByLabelText(nom)).toHaveAttribute('aria-describedby', note!.id);
+    }
+  });
+});
+

@@ -8030,8 +8030,7 @@
             "captureAlt": "Capture d’écran {n}",
             "capturesHint": "Les captures ne se surlignent pas : le passage cité s’affiche sous chaque champ.",
             "capturesExpire": "Les liens des captures expirent au bout de 5 minutes ; rechargez la fiche pour les renouveler.",
-            "cited": "Passage cité",
-            "citedNotFound": "Passage introuvable dans le texte"
+            "cited": "Passage cité"
           },
           "sections": {
             "listing": "Le bien",

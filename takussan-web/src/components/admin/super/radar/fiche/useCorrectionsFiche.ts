@@ -6,6 +6,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { ApiError } from '@/lib/api';
 import { patchRadarListing, radarKeys } from '@/lib/queries/radar';
 import type { RadarExtracted, RadarListingChanges, RadarListingDetail, RadarListingDetailResponse } from '@/types/radar';
+import { estConflitDEtape } from './gestes';
 
 export type CleCorrigeable = keyof RadarListingChanges;
 
@@ -57,6 +58,10 @@ export function useCorrectionsFiche(detail: RadarListingDetail) {
       setCorrections({});
       setReprise((n) => n + 1);
       void queryClient.invalidateQueries({ queryKey: radarKeys.lists() });
+    },
+    // Un conflit d'étape : la fiche affichée est périmée, on la relit (les corrections en attente restent).
+    onError: (erreur) => {
+      if (estConflitDEtape(erreur)) void queryClient.invalidateQueries({ queryKey: radarKeys.detail(detail.id) });
     },
   });
 

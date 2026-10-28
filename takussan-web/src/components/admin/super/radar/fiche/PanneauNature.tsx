@@ -4,6 +4,7 @@ import { useTranslations } from 'next-intl';
 
 import { RADAR_ADVERTISER_NATURES, type RadarListingDetail } from '@/types/radar';
 import { ChampFiche } from './ChampFiche';
+import type { SurPassage } from './passage';
 import { ChampChoix } from './controles';
 import type { CorrectionsFiche } from './useCorrectionsFiche';
 
@@ -11,7 +12,7 @@ interface PanneauNatureProps {
   readonly detail: RadarListingDetail;
   readonly corrections: CorrectionsFiche;
   readonly desactive: boolean;
-  readonly surPassage: (passage: string | null) => void;
+  readonly surPassage: SurPassage;
 }
 
 /**
@@ -62,11 +63,11 @@ export function PanneauNature({ detail, corrections, desactive, surPassage }: Pa
                 <button
                   type="button"
                   className="block w-full rounded-md border bg-card px-3 py-2 text-left text-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-                  onMouseEnter={() => surPassage(s.evidence)}
-                  onMouseLeave={() => surPassage(null)}
-                  onFocus={() => surPassage(s.evidence)}
-                  onBlur={() => surPassage(null)}
-                  onClick={() => surPassage(s.evidence)}
+                  onMouseEnter={() => surPassage(s.evidence, 'survol')}
+                  onMouseLeave={() => surPassage(null, 'survol')}
+                  onFocus={() => surPassage(s.evidence, 'focus')}
+                  onBlur={() => surPassage(null, 'focus')}
+                  onClick={() => surPassage(s.evidence, 'focus')}
                 >
                   <span className="font-medium text-foreground">{s.signal}</span>
                   {s.evidence ? <q className="mt-0.5 block text-xs text-muted-foreground">{s.evidence}</q> : null}

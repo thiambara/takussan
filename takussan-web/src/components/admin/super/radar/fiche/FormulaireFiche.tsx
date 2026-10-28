@@ -6,8 +6,9 @@ import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import type { RadarExtracted, RadarListingDetail } from '@/types/radar';
+import { RADAR_PROPERTY_TYPES, type RadarExtracted, type RadarListingDetail } from '@/types/radar';
 import { ChampFiche } from './ChampFiche';
+import type { SurPassage } from './passage';
 import { ChampQuartier } from './ChampQuartier';
 import { ChampChoix, ChampListe, ChampNombre } from './controles';
 import { PanneauNature } from './PanneauNature';
@@ -15,17 +16,13 @@ import { RadarDroppedPhones } from './RadarDroppedPhones';
 import { useMessageEchecFiche } from './useMessageEchecFiche';
 import type { CleCorrigeable, CorrectionsFiche } from './useCorrectionsFiche';
 
-const TYPES_DE_BIEN = [
-  'land', 'house', 'apartment', 'villa', 'studio', 'room', 'office', 'shop',
-  'warehouse', 'factory', 'farm', 'hotel', 'resort', 'garage', 'parking', 'other',
-] as const;
 const CONTRATS = ['rent', 'sale'] as const;
 const PERIODES = ['daily', 'weekly', 'monthly', 'yearly'] as const;
 
 interface FormulaireFicheProps {
   readonly detail: RadarListingDetail;
   readonly corrections: CorrectionsFiche;
-  readonly surPassage: (passage: string | null) => void;
+  readonly surPassage: SurPassage;
   /** La barre des trois gestes (valider, doublon, écarter) : elle partage la barre d'actions collante. */
   readonly gestes: ReactNode;
   /** L'échec d'un geste : affiché avec celui de l'enregistrement. */
@@ -78,7 +75,7 @@ export function FormulaireFiche({ detail, corrections, surPassage, gestes, erreu
     />
   ));
 
-  const nombre = (cle: 'bedrooms' | 'bathrooms' | 'surface_m2' | 'price', aide?: React.ReactNode, pas = 1) =>
+  const nombre = (cle: 'bedrooms' | 'bathrooms' | 'surface_m2' | 'price', aide?: React.ReactNode, pas = 1, min = 0) =>
     champ(cle, ({ id, decritPar }) => (
       <ChampNombre
         key={corrections.reprise}
@@ -86,6 +83,7 @@ export function FormulaireFiche({ detail, corrections, surPassage, gestes, erreu
         decritPar={decritPar}
         desactive={desactive}
         pas={pas}
+        min={min}
         valeur={corrections.valeur(cle) as number | null}
         onChange={(valeur) => corrections.corriger(cle, valeur)}
       />
@@ -134,9 +132,9 @@ export function FormulaireFiche({ detail, corrections, surPassage, gestes, erreu
           />
         ))}
         <div className="grid gap-3 sm:grid-cols-2">
-          {choix('property_type', TYPES_DE_BIEN.map((v) => ({ value: v, label: tTypes(v) })))}
+          {choix('property_type', RADAR_PROPERTY_TYPES.map((v) => ({ value: v, label: tTypes(v) })))}
           {choix('contract', CONTRATS.map((v) => ({ value: v, label: t(`options.contracts.${v}`) })))}
-          {nombre('price', prixLu ? t('hints.priceRead', { raw: prixLu }) : undefined)}
+          {nombre('price', prixLu ? t('hints.priceRead', { raw: prixLu }) : undefined, 1, 1)}
           {choix('rent_period', PERIODES.map((v) => ({ value: v, label: tRadar(`periods.${v}`) })))}
           {nombre('bedrooms')}
           {nombre('bathrooms')}
