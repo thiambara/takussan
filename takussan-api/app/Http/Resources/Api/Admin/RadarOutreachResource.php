@@ -3,6 +3,7 @@
 namespace App\Http\Resources\Api\Admin;
 
 use App\Http\Resources\Bases\BaseResource;
+use App\Services\Radar\ConsentMessageComposer;
 use Illuminate\Http\Request;
 
 /**
@@ -11,8 +12,9 @@ use Illuminate\Http\Request;
  * `closed` (issue finale ; `question` et `no_answer` restent `sent` : une réponse déposée plus tard peut encore les
  * changer). `follow_up` n'est posé que par {@see self::withFollowUp()}, pour un message de la file « à relancer ».
  *
- * `segments` et `wa_me_url` viennent du composeur (`ConsentMessageComposer`, tâche 3 du ticket) : tant qu'il n'est pas
- * là, ils rendent `[]` et `null`.
+ * `segments` et `wa_me_url` viennent du composeur (`ConsentMessageComposer`), calculés depuis les colonnes enregistrées :
+ * aucune lecture ne régénère quoi que ce soit. `wa_me_url` n'existe que pour un message `prepared` dont les deux
+ * parties sont écrites et dont l'annonceur n'a pas dit STOP : on ne renvoie jamais deux fois le même lien.
  */
 class RadarOutreachResource extends BaseResource
 {
@@ -38,8 +40,8 @@ class RadarOutreachResource extends BaseResource
             'salutation' => $this->salutation,
             'summary' => $this->summary,
             'message' => $this->message,
-            'segments' => [],
-            'wa_me_url' => null,
+            'segments' => app(ConsentMessageComposer::class)->segments($this->locale, $this->salutation, $this->summary, $this->clauses_version),
+            'wa_me_url' => $this->waMeUrl(),
             'follow_up_of_id' => $this->follow_up_of_id,
             'follow_up_rank' => $this->follow_up_rank,
             'created_by' => $this->creator === null ? null : [
@@ -53,6 +55,16 @@ class RadarOutreachResource extends BaseResource
             'follow_up' => $this->followUp,
             'consents' => RadarConsentResource::collection($this->consents)->toArray($request),
         ];
+    }
+
+    private function waMeUrl(): ?string
+    {
+        $advertiser = $this->advertiser;
+        $ready = ! $this->isSent()
+            && trim($this->salutation) !== '' && trim($this->summary) !== ''
+            && $advertiser?->phone !== null && $advertiser->do_not_contact_at === null;
+
+        return $ready ? app(ConsentMessageComposer::class)->waMeUrl($advertiser->phone, $this->message) : null;
     }
 
     private function status(): string

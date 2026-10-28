@@ -10,6 +10,7 @@ use App\Models\RadarConsent;
 use App\Models\RadarListing;
 use App\Models\RadarOutreach;
 use App\Models\User;
+use App\Services\Radar\ConsentMessageComposer;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -127,6 +128,40 @@ class RadarAdvertiserCardTest extends TestCase
         $consent->forceFill(['revoked_at' => now()])->save();
         $this->assertSame([], $couvertes());
         $this->assertNotNull($autre);
+    }
+
+    public function test_un_message_prepare_porte_ses_segments_et_son_lien_wa_me_exact(): void
+    {
+        config(['app.frontend_url' => 'https://front.exemple.test']);
+        $annonceur = RadarAdvertiser::factory()->create(['phone' => '+221771234567']);
+        $composeur = $this->app->make(ConsentMessageComposer::class);
+        $message = $composeur->compose('fr', 'Bonjour Awa,', 'votre appartement à Ouakam');
+        $prepare = RadarOutreach::factory()->create([
+            'radar_advertiser_id' => $annonceur->id, 'salutation' => 'Bonjour Awa,', 'summary' => 'votre appartement à Ouakam', 'message' => $message,
+        ]);
+        $envoye = RadarOutreach::factory()->sent()->create([
+            'radar_advertiser_id' => $annonceur->id, 'salutation' => 'Bonjour Awa,', 'summary' => 'votre appartement à Ouakam', 'message' => $message,
+        ]);
+        $sansResume = RadarOutreach::factory()->create(['radar_advertiser_id' => $annonceur->id, 'salutation' => 'Bonjour,', 'summary' => '', 'message' => 'x']);
+
+        $messages = collect($this->getJson("/api/admin/radar/advertisers/{$annonceur->id}")->assertOk()->json('data.outreaches'))->keyBy('id');
+
+        $lien = $messages[$prepare->id]['wa_me_url'];
+        $this->assertSame('https://wa.me/221771234567?text='.rawurlencode($message), $lien);
+        $this->assertSame($message, $messages[$prepare->id]['message']);
+        $this->assertSame($message, implode('', array_column($messages[$prepare->id]['segments'], 'text')));
+        $this->assertSame(['salutation', 'fixed', 'resume', 'fixed'], array_slice(array_column($messages[$prepare->id]['segments'], 'kind'), 0, 4));
+        // Jamais deux fois le même lien : un message envoyé n'en a plus ; sans résumé écrit, il n'existe pas encore.
+        $this->assertNull($messages[$envoye->id]['wa_me_url']);
+        $this->assertNull($messages[$sansResume->id]['wa_me_url']);
+    }
+
+    public function test_un_annonceur_qui_a_dit_stop_n_a_aucun_lien_wa_me(): void
+    {
+        $annonceur = RadarAdvertiser::factory()->create(['phone' => '+221771234567', 'do_not_contact_at' => now()]);
+        RadarOutreach::factory()->create(['radar_advertiser_id' => $annonceur->id, 'salutation' => 'Bonjour,', 'summary' => 'votre bien']);
+
+        $this->getJson("/api/admin/radar/advertisers/{$annonceur->id}")->assertOk()->assertJsonPath('data.outreaches.0.wa_me_url', null);
     }
 
     public function test_le_statut_d_un_message_est_prepare_envoye_ou_clos(): void

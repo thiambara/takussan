@@ -130,6 +130,8 @@ class RadarAdvertiserResource extends BaseResource
             'outreaches' => $this->outreaches
                 ->sortByDesc(fn ($o) => [$o->created_at, $o->id])
                 ->values()
+                // L'annonceur est déjà là : le lien `wa.me` lit son numéro sans requête de plus.
+                ->each(fn ($outreach) => $outreach->setRelation('advertiser', $this->resource))
                 ->map(fn ($outreach) => (new RadarOutreachResource($outreach))
                     ->withFollowUp(in_array($outreach->id, $open, true) ? [
                         'due_at' => $this->iso($followUps->dueAt($outreach)),
