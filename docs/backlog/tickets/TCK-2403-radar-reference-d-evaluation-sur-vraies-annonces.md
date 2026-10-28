@@ -32,7 +32,7 @@ Aucune donnée ni route nouvelle. Le jeu vit sous `takussan-api/resources/ai/eva
 ADR-0076 §8).
 
 **Ajout de TCK-2388 (décision 6 du porteur, 2026-10-28)** : la référence du jeu
-`takussan-api/resources/ai/evals/radar.verification_accord/` (15 captures **synthétiques** d'une
+`takussan-api/resources/ai/evals/radar.verification_accord/` (16 captures **synthétiques** d'une
 réponse au message d'accord, livrées par TCK-2388, format et notation dans son `README.md`) se fixe
 dans le même passage payant. Ce jeu reste synthétique : une vraie capture de conversation WhatsApp
 porte le numéro et le nom de l'annonceur dans l'image, qu'aucune garde ne sait masquer.
@@ -55,9 +55,10 @@ porte le numéro et le nom de l'annonceur dans l'image, qu'aucune garde ne sait 
 - **Le jeu `radar.verification_accord` note un champ que le code écrase souvent** (revue de
   TCK-2388, tâche 7) : `number_matches` est la réponse brute du modèle, alors qu'en production
   `RadarConsentVerdict::from()` la remplace par la comparaison du code dès que `counterpart_phone`
-  est lisible et canonique (`number_checked_by: code`). Avant de fixer la référence, trancher :
-  noter aussi `counterpart_phone` normalisé, ou ajouter un cas au numéro illisible (le seul où le
-  booléen du modèle compte). Les numéros fictifs du jeu (`+221 74…`) sont hors de
+  est lisible et canonique (`number_checked_by: code`). Le cas 016 (en-tête sans numéro ni nom
+  lisibles, `number_matches: null`, discordance `identity_unverified`) couvre déjà le numéro
+  illisible, le seul où le booléen du modèle compte. Avant de fixer la référence, trancher s'il faut
+  aussi noter `counterpart_phone` normalisé. Les numéros fictifs du jeu (`+221 74…`) sont hors de
   `PhoneMasker::PATTERN` : `RadarPhone::canonical()` les rend `null`, donc le chemin « jugé par le
   code » n'est jamais exercé par ce jeu.
 - **Risques résiduels de l'anonymisation à l'écriture** (TCK-2387, 2026-10-28) : depuis TCK-2387,
