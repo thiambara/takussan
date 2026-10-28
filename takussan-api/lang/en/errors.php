@@ -694,6 +694,9 @@ return [
         'advertiser' => [
             'phone_invalid' => 'This number cannot be read as a Senegalese phone number.',
             'phone_unknown' => 'This number does not appear in the listing: only a number it has read can be attached.',
+            'claim_required' => 'Take this advertiser in charge first: the action requires the claim.',
+            'claimed_by_other' => 'This advertiser is claimed by another operator until :claimed_until.',
+            'claim_not_held' => 'This claim is not yours: it cannot be released.',
         ],
         'review' => [
             'incomplete' => 'The listing is incomplete: a property type, a contract, a price and a neighborhood from the referential are required.',

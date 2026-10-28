@@ -11,12 +11,14 @@ use App\Models\Address;
 use App\Models\AiSuggestion;
 use App\Models\Enums\AiSuggestionDecision;
 use App\Models\Enums\PlatformProfileLevel;
+use App\Models\Enums\RadarAdvertiserNature;
 use App\Models\Enums\RadarListingStage;
 use App\Models\Enums\RadarSourceKind;
 use App\Models\Enums\RadarSourceSite;
 use App\Models\GeoNeighborhood;
 use App\Models\MediaFingerprint;
 use App\Models\Property;
+use App\Models\RadarAdvertiser;
 use App\Models\RadarListing;
 use App\Models\User;
 use App\Services\Ai\AiUsageRegistry;
@@ -1074,5 +1076,57 @@ class RadarListingReviewTest extends TestCase
         $this->getJson($this->url($listing, '/matches'))->assertOk();
         $this->patchJson($this->url($listing), ['price' => 1])->assertOk();
         $this->postJson($this->url($listing, '/review'))->assertOk();
+    }
+
+    // --- TCK-2388, décision 3 (porteur 2026-10-28) : la nature corrigée devient celle de l'annonceur ------
+
+    public function test_une_nature_corrigee_puis_validee_passe_a_l_annonceur_sans_toucher_ses_indices(): void
+    {
+        $annonceur = RadarAdvertiser::factory()->create(['nature_signals' => [['signal' => 'x', 'evidence' => 'y']]]);
+        $listing = $this->fiche(attributes: ['radar_advertiser_id' => $annonceur->id]);
+
+        $this->patchJson($this->url($listing), ['advertiser_nature' => 'agency'])->assertOk();
+        $this->postJson($this->url($listing, '/review'))->assertOk();
+
+        $relu = $annonceur->fresh();
+        $this->assertSame(RadarAdvertiserNature::Agency, $relu->nature);
+        $this->assertSame([['signal' => 'x', 'evidence' => 'y']], $relu->nature_signals);
+        $this->assertTrue(Activity::query()->where('event', 'radar_listing_reviewed')->sole()->properties['advertiser_nature_propagated']);
+    }
+
+    public function test_une_nature_non_corrigee_ne_reecrit_rien(): void
+    {
+        $annonceur = RadarAdvertiser::factory()->create(['nature' => RadarAdvertiserNature::ProbableOwner]);
+        $listing = $this->fiche(['advertiser_nature' => ['value' => 'agency']], ['radar_advertiser_id' => $annonceur->id]);
+
+        $this->postJson($this->url($listing, '/review'))->assertOk();
+
+        $this->assertSame(RadarAdvertiserNature::ProbableOwner, $annonceur->fresh()->nature);
+        $this->assertFalse(Activity::query()->where('event', 'radar_listing_reviewed')->sole()->properties['advertiser_nature_propagated']);
+    }
+
+    public function test_une_annonce_sans_annonceur_se_valide_sans_propagation(): void
+    {
+        $listing = $this->fiche();
+        $this->patchJson($this->url($listing), ['advertiser_nature' => 'agency'])->assertOk();
+
+        $this->postJson($this->url($listing, '/review'))->assertOk();
+
+        $this->assertFalse(Activity::query()->where('event', 'radar_listing_reviewed')->sole()->properties['advertiser_nature_propagated']);
+    }
+
+    public function test_deux_annonces_relues_l_une_apres_l_autre_la_derniere_relecture_l_emporte(): void
+    {
+        $annonceur = RadarAdvertiser::factory()->create();
+        $premiere = $this->fiche(attributes: ['radar_advertiser_id' => $annonceur->id]);
+        $seconde = $this->fiche(attributes: ['radar_advertiser_id' => $annonceur->id]);
+
+        $this->patchJson($this->url($premiere), ['advertiser_nature' => 'agency'])->assertOk();
+        $this->postJson($this->url($premiere, '/review'))->assertOk();
+        $this->assertSame(RadarAdvertiserNature::Agency, $annonceur->fresh()->nature);
+
+        $this->patchJson($this->url($seconde), ['advertiser_nature' => 'probable_owner'])->assertOk();
+        $this->postJson($this->url($seconde, '/review'))->assertOk();
+        $this->assertSame(RadarAdvertiserNature::ProbableOwner, $annonceur->fresh()->nature);
     }
 }

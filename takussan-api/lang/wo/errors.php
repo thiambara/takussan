@@ -694,6 +694,9 @@ return [
         'advertiser' => [
             'phone_invalid' => 'Ce numéro ne se lit pas comme un numéro sénégalais.',
             'phone_unknown' => 'Ce numéro n\'apparaît pas dans l\'annonce : on ne rattache qu\'un numéro qu\'elle a lu.',
+            'claim_required' => 'Prenez d\'abord cet annonceur en charge : le geste exige la prise en charge.',
+            'claimed_by_other' => 'Cet annonceur est pris en charge par un autre opérateur jusqu\'à :claimed_until.',
+            'claim_not_held' => 'Cette prise en charge n\'est pas la vôtre : elle ne se rend pas.',
         ],
         'review' => [
             'incomplete' => 'La fiche est incomplète : le type, le contrat, le prix et un quartier du référentiel sont requis.',

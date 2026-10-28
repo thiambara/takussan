@@ -75,6 +75,11 @@ class PlatformRoutesDefaultDenyTest extends TestCase
         'admin.radar.listings.duplicate',
         'admin.radar.listings.discard',
         'admin.radar.listings.advertiser',
+        // TCK-2388 — la fiche annonceur, ses files et la prise en charge.
+        'admin.radar.advertisers.index',
+        'admin.radar.advertisers.show',
+        'admin.radar.advertisers.claim',
+        'admin.radar.advertisers.release',
     ];
 
     public function test_toute_route_de_la_console_passe_par_la_garde_plateforme(): void

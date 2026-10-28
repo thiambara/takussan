@@ -9,6 +9,7 @@ use App\Models\Enums\RadarListingStage;
 use App\Models\RadarListing;
 use App\Services\Ai\AiBudget;
 use App\Services\Ai\AiUsageRegistry;
+use App\Services\Radar\RadarFollowUps;
 use Illuminate\Http\JsonResponse;
 
 /**
@@ -16,11 +17,11 @@ use Illuminate\Http\JsonResponse;
  * les étapes, zéro compris), l'extraction en attente (`captured` avec un motif : budget, coupe-circuit,
  * fournisseurs en panne), et le coût IA du jour des usages `radar.*` rapporté à son plafond — celui
  * de la console (`ai_usage_settings`), à défaut celui de l'usage — et au plafond global. Évaluations
- * exclues, comme partout (`AiBudget`).
+ * exclues, comme partout (`AiBudget`). TCK-2388 : les relances dues et les messages en attente (`RadarFollowUps`).
  */
 class RadarDashboardController extends Controller
 {
-    public function __invoke(AiBudget $budget, AiUsageRegistry $registry): JsonResponse
+    public function __invoke(AiBudget $budget, AiUsageRegistry $registry, RadarFollowUps $followUps): JsonResponse
     {
         $counts = RadarListing::query()
             ->selectRaw('stage, count(*) as total')
@@ -42,6 +43,9 @@ class RadarDashboardController extends Controller
                 ->where('stage', RadarListingStage::Captured)
                 ->whereNotNull('stage_reason')
                 ->count(),
+            // TCK-2388 (décision 4) — annonceurs distincts à relancer, et messages envoyés qui attendent encore.
+            'follow_ups_due' => $followUps->due()->distinct()->count('radar_outreaches.radar_advertiser_id'),
+            'outreaches_awaiting' => $followUps->awaiting()->count(),
             'ai' => [
                 'spent_today_xof' => round($budget->spentTodayForPrefix('radar.'), 2),
                 'daily_budget_xof' => $cap === null ? null : (float) $cap,

@@ -5,6 +5,7 @@ namespace App\Services\Radar;
 use App\Ai\Usages\RadarExtractionUsage;
 use App\Models\AiSuggestion;
 use App\Models\Enums\AiSuggestionDecision;
+use App\Models\Enums\RadarAdvertiserNature;
 use App\Models\Enums\RadarDiscardReason;
 use App\Models\Enums\RadarListingStage;
 use App\Models\Enums\ReferentialStatus;
@@ -31,6 +32,10 @@ use Illuminate\Support\Facades\DB;
  *
  * **Le journal nomme les champs, jamais leurs valeurs** : une correction de téléphone ou de description
  * est une donnée personnelle, le journal est lu par plus de monde que la fiche.
+ *
+ * **La nature suit la relecture** (TCK-2388, décision 3 du porteur, 2026-10-28) : à la validation, une nature
+ * corrigée (`extracted.advertiser_nature.corrected`) devient `radar_advertisers.nature` ; le journal
+ * `radar_listing_reviewed` le dit (`advertiser_nature_propagated`).
  */
 final class RadarListingReview
 {
@@ -80,10 +85,24 @@ final class RadarListingReview
                 'matches' => $this->frozen($snapshot, $listing, $l),
             ])->save();
 
+            // TCK-2388 (décision 3) — la nature corrigée à la relecture devient celle de l'annonceur : la dernière
+            // relecture humaine l'emporte, les indices de l'IA restent. Ordre des verrous : l'annonce (déjà
+            // tenue), puis l'annonceur.
+            $nature = $l->extracted['advertiser_nature'] ?? null;
+            $propagated = false;
+            if ($l->radar_advertiser_id !== null && is_array($nature) && ($nature['corrected'] ?? false) === true
+                && ($value = RadarAdvertiserNature::tryFrom((string) ($nature['value'] ?? ''))) !== null) {
+                $advertiser = RadarAdvertiser::query()->whereKey($l->radar_advertiser_id)->lockForUpdate()->firstOrFail();
+                $advertiser->nature = $value;
+                $advertiser->save();
+                $propagated = true;
+            }
+
             $this->journal('radar_listing_reviewed', 'Annonce du Radar validée', $l, $by, [
                 'suggestion_id' => $suggestion?->id,
                 'decision' => $suggestion?->decision->value,
                 'corrected_fields' => array_keys($suggestion?->correction_diff ?? []),
+                'advertiser_nature_propagated' => $propagated,
             ]);
         });
     }

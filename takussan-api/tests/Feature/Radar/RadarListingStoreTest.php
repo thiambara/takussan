@@ -596,6 +596,9 @@ class RadarListingStoreTest extends TestCase
         $this->assertSame(0, $data['stages']['published']);
         $this->assertSame(array_column(RadarListingStage::cases(), 'value'), array_keys($data['stages']));
         $this->assertSame(1, $data['pending_extraction']);
+        // TCK-2388 : aucun message envoyé, donc rien à relancer ni en attente (le détail : RadarFollowUpsTest).
+        $this->assertSame(0, $data['follow_ups_due']);
+        $this->assertSame(0, $data['outreaches_awaiting']);
         $this->assertEquals(20.0, $data['ai']['spent_today_xof']);
         $this->assertEquals(2000.0, $data['ai']['daily_budget_xof']);
         $this->assertEquals(23.0, $data['ai']['global_spent_today_xof']);

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\Admin\RadarAdvertiserController;
 use App\Http\Controllers\Api\Admin\RadarDashboardController;
 use App\Http\Controllers\Api\Admin\RadarListingController;
 use App\Http\Controllers\Api\Admin\RadarListingMatchController;
@@ -30,4 +31,9 @@ Route::middleware(['auth:sanctum', 'super-admin', 'platform-can:'.PlatformAbilit
         Route::post('listings/{listing}/discard', [RadarListingReviewController::class, 'discard'])->name('admin.radar.listings.discard');
         Route::put('listings/{listing}/advertiser', [RadarListingReviewController::class, 'advertiser'])->name('admin.radar.listings.advertiser');
         Route::get('listings/{listing}/matches', RadarListingMatchController::class)->name('admin.radar.listings.matches');
+        // TCK-2388 — le démarchage : les files et la fiche annonceur (lecture libre), la prise en charge de 10 minutes.
+        Route::get('advertisers', [RadarAdvertiserController::class, 'index'])->name('admin.radar.advertisers.index');
+        Route::get('advertisers/{advertiser}', [RadarAdvertiserController::class, 'show'])->name('admin.radar.advertisers.show');
+        Route::post('advertisers/{advertiser}/claim', [RadarAdvertiserController::class, 'claim'])->name('admin.radar.advertisers.claim');
+        Route::delete('advertisers/{advertiser}/claim', [RadarAdvertiserController::class, 'release'])->name('admin.radar.advertisers.release');
     });
