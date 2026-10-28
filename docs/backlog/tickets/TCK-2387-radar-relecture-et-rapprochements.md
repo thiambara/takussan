@@ -1,7 +1,7 @@
 ---
 id: TCK-2387
 title: "Radar : relecture d'une annonce extraite et rapprochements avec le catalogue et les autres annonces"
-status: doing
+status: done
 phase: P1
 family: full
 estimate: M
@@ -168,3 +168,5 @@ b28113a4f. Le compte démo `super@demo.takussan.sn` porte désormais une 2FA **e
 **Tests** : ciblés en local (classes Radar de l'API, `tests/Unit`, fichiers Vitest touchés, `tsc`,
 ESLint, `check:*`, gardes racine) ; chaque correctif vérifié par ablation. Les suites entières sont
 jouées par la CI de la PR.
+
+**Fusionné sur `dev`** par la PR #1575 (`111a81bc4`, 2026-10-28), suites entières vertes en CI.
