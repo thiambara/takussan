@@ -13,7 +13,10 @@ blocks: [TCK-2389, TCK-2390, TCK-2395]
 spec_refs:
   features:
     - "docs/features.md#212-radar--acquisition-dannonces"
-  models: []
+  models:
+    - "docs/models-spec.md#108-radaradvertiser-"
+    - "docs/models-spec.md#110-radaroutreach-"
+    - "docs/models-spec.md#111-radarconsent-"
 tags: [api, front, radar, ia, whatsapp, consentement, adr-0077]
 ---
 
