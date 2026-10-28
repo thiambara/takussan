@@ -20,6 +20,7 @@
  * `*gras*` de WhatsApp sont rendus sans astérisques, comme l'écran de l'expéditeur.
  */
 
+use App\Ai\Agents\RadarConsentVerification;
 use App\Services\Radar\ConsentMessageComposer;
 use Illuminate\Contracts\Console\Kernel;
 
@@ -27,8 +28,6 @@ require __DIR__.'/../../../../vendor/autoload.php';
 $app = require __DIR__.'/../../../../bootstrap/app.php';
 $app->make(Kernel::class)->bootstrap();
 config(['app.frontend_url' => 'https://takussan.com']);
-
-use App\Ai\Agents\RadarConsentVerification;
 
 const WIDTH = 720;
 const MARGIN = 16;
@@ -55,11 +54,13 @@ if (! function_exists('imagettftext')) {
 $resume = 'vos annonces de location à Ouakam';
 
 /**
- * `shown` : le numéro que l'en-tête de la conversation affiche ; `phone` : celui que la vérification attend.
+ * `shown` : le numéro que l'en-tête de la conversation affiche ; `phone` : celui que la vérification attend, écrit
+ * lisible ici et envoyé SANS espaces (E.164 compact, comme `$advertiser->phone` dans le job). `name` null : un
+ * annonceur sans nom — l'en-tête n'affiche que le numéro, le message dit « Bonjour, » et l'entrée porte `inconnu`.
  * `message` : `full` (envoyé entier), `truncated` (capture coupée avant les clauses) ou `absent` (la capture ne montre
  * que la réponse). Attendus : ce que `fields.json` note.
  *
- * @var list<array{name: string, phone: string, shown?: string, message: string, reply: string, classification: string, number_matches: bool, clauses: list<int>}> $scenarios
+ * @var list<array{name: ?string, phone: string, shown?: string, message: string, reply: string, classification: string, number_matches: bool, clauses: list<int>}> $scenarios
  */
 $scenarios = [
     // Accord (3)
@@ -68,7 +69,7 @@ $scenarios = [
     ['name' => 'Mariama', 'phone' => '+221 74 100 20 03', 'message' => 'full', 'reply' => 'Ok vous pouvez', 'classification' => 'consent', 'number_matches' => true, 'clauses' => [1, 2, 3, 4]],
     // Refus (2)
     ['name' => 'Cheikh', 'phone' => '+221 74 100 20 04', 'message' => 'full', 'reply' => 'Non merci, je ne veux pas que mes annonces soient publiées.', 'classification' => 'refusal', 'number_matches' => true, 'clauses' => [1, 2, 3, 4]],
-    ['name' => 'Ndeye', 'phone' => '+221 74 100 20 05', 'message' => 'full', 'reply' => 'Non, je préfère garder mes annonces pour moi', 'classification' => 'refusal', 'number_matches' => true, 'clauses' => [1, 2, 3, 4]],
+    ['name' => null, 'phone' => '+221 74 100 20 05', 'message' => 'full', 'reply' => 'Non, je préfère garder mes annonces pour moi', 'classification' => 'refusal', 'number_matches' => true, 'clauses' => [1, 2, 3, 4]],
     // STOP (2)
     ['name' => 'Ousmane', 'phone' => '+221 74 100 20 06', 'message' => 'full', 'reply' => 'STOP', 'classification' => 'stop', 'number_matches' => true, 'clauses' => [1, 2, 3, 4]],
     ['name' => 'Aissatou', 'phone' => '+221 74 100 20 07', 'message' => 'full', 'reply' => 'Stop svp, ne me contactez plus', 'classification' => 'stop', 'number_matches' => true, 'clauses' => [1, 2, 3, 4]],
@@ -81,8 +82,8 @@ $scenarios = [
     // Numéro discordant (2) : l'en-tête montre un autre numéro, la réponse est « OUI »
     ['name' => 'Seynabou', 'phone' => '+221 74 100 20 12', 'shown' => '+221 74 900 30 12', 'message' => 'full', 'reply' => 'OUI', 'classification' => 'consent', 'number_matches' => false, 'clauses' => [1, 2, 3, 4]],
     ['name' => 'Pape', 'phone' => '+221 74 100 20 13', 'shown' => '+221 74 900 30 13', 'message' => 'full', 'reply' => "Ok d'accord", 'classification' => 'consent', 'number_matches' => false, 'clauses' => [1, 2, 3, 4]],
-    // Clauses absentes (2) : la capture ne montre que la réponse, ou un message coupé avant les clauses
-    ['name' => 'Binta', 'phone' => '+221 74 100 20 14', 'message' => 'absent', 'reply' => 'OUI', 'classification' => 'consent', 'number_matches' => true, 'clauses' => []],
+    // Clauses absentes (2) : la capture ne montre que la réponse (« OUI » à on ne sait quoi : `ambiguous`), ou un message coupé avant les clauses (le début du message est visible : `consent`)
+    ['name' => 'Binta', 'phone' => '+221 74 100 20 14', 'message' => 'absent', 'reply' => 'OUI', 'classification' => 'ambiguous', 'number_matches' => true, 'clauses' => []],
     ['name' => 'Alioune', 'phone' => '+221 74 100 20 15', 'message' => 'truncated', 'reply' => 'OUI', 'classification' => 'consent', 'number_matches' => true, 'clauses' => []],
 ];
 
@@ -131,7 +132,7 @@ $wrap = function (string $text, int $max) use ($width): array {
 foreach ($scenarios as $i => $scenario) {
     $n = sprintf('%03d', $i + 1);
     $first = $scenario['name'];
-    $sent = $composer->compose('fr', "Bonjour {$first},", $resume);
+    $sent = $composer->compose('fr', $first === null ? 'Bonjour,' : "Bonjour {$first},", $resume);
     $shown = $scenario['shown'] ?? $scenario['phone'];
 
     // Ce que la capture montre du message : entier, coupé avant les clauses (salutation et présentation), ou rien.
@@ -167,8 +168,12 @@ foreach ($scenarios as $i => $scenario) {
     imagefilledrectangle($image, 0, 0, WIDTH, $height, $chat);
     imagefilledrectangle($image, 0, 0, WIDTH, $header, $green);
     imagefilledellipse($image, 56, 48, 56, 56, $color(0xB0, 0xBE, 0xC5));
-    imagettftext($image, 22, 0, 96, 44, $white, $font, $scenario['name']);
-    imagettftext($image, 15, 0, 96, 74, $color(0xCF, 0xE9, 0xE5), $font, $shown);
+    if ($first === null) {
+        imagettftext($image, 22, 0, 96, 58, $white, $font, $shown);
+    } else {
+        imagettftext($image, 22, 0, 96, 44, $white, $font, $first);
+        imagettftext($image, 15, 0, 96, 74, $color(0xCF, 0xE9, 0xE5), $font, $shown);
+    }
 
     $label = "Aujourd'hui";
     imagefilledrectangle($image, (int) (WIDTH / 2 - 62), $header + 16, (int) (WIDTH / 2 + 62), $header + 46, $chip);
@@ -193,7 +198,7 @@ foreach ($scenarios as $i => $scenario) {
     imagepng($image, "{$dir}/captures/{$n}.png", 9);
 
     $case = [
-        'input' => RadarConsentVerification::input($sent, $scenario['phone'], $scenario['name'], $clauseCount),
+        'input' => RadarConsentVerification::input($sent, str_replace(' ', '', $scenario['phone']), $first, $clauseCount),
         'expected' => [
             'classification' => $scenario['classification'],
             'number_matches' => $scenario['number_matches'],

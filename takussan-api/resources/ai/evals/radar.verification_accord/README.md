@@ -21,12 +21,13 @@ ni un numéro que `scripts/check-ai-evals-pii.mjs` signale.
 | Cas | Scénario | Classement attendu | Numéro | Clauses |
 |---|---|---|---|---|
 | 001-003 | accord : « OUI », « Oui d'accord », « Ok vous pouvez » | `consent` | concordant | 1-4 |
-| 004-005 | refus | `refusal` | concordant | 1-4 |
+| 004-005 | refus (005 : annonceur sans nom, l'en-tête n'affiche que son numéro, l'entrée dit `inconnu`) | `refusal` | concordant | 1-4 |
 | 006-007 | STOP | `stop` | concordant | 1-4 |
 | 008-009 | question (« c'est gratuit ? », « qui êtes-vous ? ») | `question` | concordant | 1-4 |
 | 010-011 | ambigu (« peut-être… », « hmm, je vais voir ») | `ambiguous` | concordant | 1-4 |
-| 012-013 | numéro discordant : l'en-tête montre un autre numéro, la réponse est un « OUI » | `consent` | **discordant** | 1-4 |
-| 014-015 | clauses absentes : la capture ne montre que la réponse, ou un message coupé avant les clauses | `consent` | concordant | aucune |
+| 012-013 | numéro discordant : l'en-tête montre un autre numéro, la réponse est « OUI » (012) ou « Ok d'accord » (013) | `consent` | **discordant** | 1-4 |
+| 014 | clauses absentes : la capture ne montre que la réponse « OUI », sans le message de Takussan — un « OUI » à on ne sait quoi | `ambiguous` | concordant | aucune |
+| 015 | clauses absentes : le message est coupé avant les clauses, mais son début est visible — la réponse y répond | `consent` | concordant | aucune |
 
 Un cas est `{ "input", "expected", "attachments" }`. **`input` est exactement ce que le job envoie**
 (`VerifyRadarConsentReply`) : `RadarConsentVerification::input(<message envoyé>, <numéro attendu>, <nom attendu>, 4)`,
@@ -34,9 +35,9 @@ le message étant celui de `ConsentMessageComposer::compose('fr', …)` sur `acc
 jointes et se jouent sur le rôle `vision`, comme en production (`AttachmentsUseVision`).
 `RadarConsentVerificationEvalSetTest` le vérifie.
 
-⚠ Le job envoie le numéro attendu en E.164 sans espaces (`+22174…`) ; les cas l'écrivent `+221 74 …`, lisible, comme
-la capture l'affiche. Le modèle compare les deux, le code relit ensuite (`RadarConsentVerdict`) : ce jeu note la
-sortie BRUTE du modèle, avant cette relecture.
+Le numéro attendu est écrit comme le job l'envoie, en E.164 compact (`+22174…`, sans espaces) ; seule l'en-tête de la
+capture l'affiche espacé (`+221 74 …`), comme un téléphone. Le modèle doit donc lire l'un et le comparer à l'autre,
+comme en production. Ce jeu note la sortie BRUTE du modèle, avant la relecture du code (`RadarConsentVerdict`).
 
 ## Ce qui est noté
 

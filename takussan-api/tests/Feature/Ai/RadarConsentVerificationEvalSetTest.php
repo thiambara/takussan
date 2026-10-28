@@ -97,7 +97,11 @@ class RadarConsentVerificationEvalSetTest extends TestCase
         $this->assertCount(15, array_unique(array_merge(...array_column($cases, 'attachments'))));
     }
 
-    /** L'entrée d'un cas est exactement celle du job : le message envoyé, un numéro `+221 74`, 4 clauses, un bloc de capture vide. */
+    /**
+     * L'entrée d'un cas est exactement celle du job : le message envoyé, le numéro en E.164 COMPACT (`$advertiser->phone`,
+     * sans espaces : l'en-tête de la capture, lui, l'affiche espacé), 4 clauses, un bloc de capture vide ; un cas porte
+     * un annonceur sans nom (`inconnu`).
+     */
     public function test_chaque_input_est_ce_que_le_job_envoie_avec_les_clauses_fixes_du_message(): void
     {
         $modele = (string) file_get_contents(resource_path('radar/clauses/accord.v1.fr.md'));
@@ -108,15 +112,18 @@ class RadarConsentVerificationEvalSetTest extends TestCase
         $this->assertCount(3, $fixes, 'le gabarit a trois segments fixes entre ses marqueurs');
         $this->assertSame(self::CLAUSES, $this->app->make(ConsentMessageComposer::class)->clauseCount());
 
+        $inconnus = 0;
         foreach ($this->cases() as $i => $case) {
-            $this->assertSame(1, preg_match('#^Message envoyé par Takussan \(texte exact\) :\n<<<\n(.*)\n>>>\nNuméro attendu : (\+221 74 \d{3} \d{2} \d{2})\nNom attendu : ([^\n]+)\nClauses numérotées : 1 à 4\n#s', $case['input'], $m), "cas {$i} : forme de l'entrée");
+            $this->assertSame(1, preg_match('#^Message envoyé par Takussan \(texte exact\) :\n<<<\n(.*)\n>>>\nNuméro attendu : (\+22174\d{7})\nNom attendu : ([^\n]+)\nClauses numérotées : 1 à 4\n#s', $case['input'], $m), "cas {$i} : forme de l'entrée");
             [, $message, $numero, $nom] = $m;
+            $inconnus += $nom === 'inconnu' ? 1 : 0;
             $this->assertSame(RadarConsentVerification::input($message, $numero, $nom, self::CLAUSES), $case['input'], "cas {$i} : pas la forme de RadarConsentVerification::input()");
             foreach ($fixes as $fixe) {
                 $this->assertStringContainsString($fixe, $message, "cas {$i} : un segment fixe de accord.v1.fr.md manque");
             }
             $this->assertStringNotContainsString('{', $message, "cas {$i} : un marqueur non rempli");
         }
+        $this->assertSame(1, $inconnus, 'un seul cas porte un annonceur sans nom');
     }
 
     public function test_les_attendus_ne_nomment_que_les_champs_notes_avec_des_valeurs_legales_et_couvrent_chaque_classement_et_chaque_discordance(): void
