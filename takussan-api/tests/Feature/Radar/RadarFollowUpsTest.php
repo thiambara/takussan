@@ -78,6 +78,23 @@ class RadarFollowUpsTest extends TestCase
         $this->assertSame([$relance->id], $this->ids($this->suivis()->due()));
     }
 
+    public function test_un_brouillon_de_relance_ne_ferme_pas_la_chaine(): void
+    {
+        $premier = $this->envoye(10);
+        // La relance est préparée, jamais envoyée : le message d'origine reste le dernier de sa chaîne ENVOYÉE.
+        $brouillon = RadarOutreach::factory()->followUpOf($premier)->create();
+        $brouillon->listings()->attach($premier->listings()->pluck('radar_listings.id')->all());
+
+        $this->assertSame([$premier->id], $this->ids($this->suivis()->due()));
+        $this->assertSame([$premier->id], $this->ids($this->suivis()->open()));
+
+        // Une fois la relance envoyée, elle seule compte.
+        $brouillon->forceFill(['sent_at' => now()->subDays(1)])->save();
+
+        $this->assertSame([], $this->ids($this->suivis()->due()));
+        $this->assertSame([$brouillon->id], $this->ids($this->suivis()->open()));
+    }
+
     public function test_une_issue_posee_sort_le_message_de_la_file(): void
     {
         $outreach = $this->envoye(5);

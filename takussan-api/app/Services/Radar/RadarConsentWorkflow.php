@@ -135,7 +135,6 @@ final class RadarConsentWorkflow
     /** @return RadarOutreach|null null : les annonces de l'annonceur ont changé pendant la lecture, rien n'a été écrit (STOP seulement) */
     private function recordOnce(RadarOutreach $outreach, RadarOutreachOutcome $outcome, ?string $reason, User $by): ?RadarOutreach
     {
-
         $listings = $outcome === RadarOutreachOutcome::Stop
             ? RadarListing::query()->where('radar_advertiser_id', $outreach->radar_advertiser_id)
             : RadarListing::query()->whereIn('id', $outreach->listings()->select('radar_listings.id'));
@@ -161,7 +160,7 @@ final class RadarConsentWorkflow
         $discordances = [];
         $revoked = [];
         $moved = match ($outcome) {
-            RadarOutreachOutcome::Consented => $this->confirm($reply, $listings, $reason, $by, $discordances),
+            RadarOutreachOutcome::Consented => $this->confirm($reply, $advertiser, $listings, $reason, $by, $discordances),
             RadarOutreachOutcome::Refused => $this->move($listings, RadarListingStage::Refused),
             RadarOutreachOutcome::Stop => $this->stop($advertiser, $listings, $revoked),
             RadarOutreachOutcome::Question, RadarOutreachOutcome::NoAnswer => [],
@@ -187,7 +186,6 @@ final class RadarConsentWorkflow
             ->log('Issue d\'un message d\'accord du Radar posée');
 
         return $locked->refresh();
-
     }
 
     /** @return list<int> toutes les annonces de l'annonceur, dans l'ordre croissant (relues, jamais verrouillées ici) */
@@ -198,15 +196,20 @@ final class RadarConsentWorkflow
 
     /**
      * Confirmer la réponse : elle devient un accord valide, et toutes les annonces du message — qui doivent encore être
-     * `contacted` — passent `consented`.
+     * `contacted`, et encore à CET annonceur — passent `consented`.
      *
      * @param  Collection<int, RadarListing>  $listings
      * @param  list<string>  $discordances  rempli : ce qui, dans le verdict, ne va pas dans le sens d'un accord
      * @return list<int>
      */
-    private function confirm(?RadarConsent $reply, Collection $listings, ?string $reason, User $by, array &$discordances): array
+    private function confirm(?RadarConsent $reply, RadarAdvertiser $advertiser, Collection $listings, ?string $reason, User $by, array &$discordances): array
     {
         abort_code_if($reply === null, 422, 'radar.consent.reply_required');
+        // Une annonce du message a pu changer d'annonceur depuis l'envoi (`PUT …/listings/{listing}/advertiser`) : l'accord de
+        // CET annonceur ne couvre pas l'annonce d'un autre (`RadarConsentCoverage` passe par le pivot du message).
+        $foreign = $listings->filter(fn (RadarListing $listing) => $listing->radar_advertiser_id !== $advertiser->id)
+            ->pluck('id')->map(fn ($id) => (int) $id)->sort()->values()->all();
+        abort_code_if($foreign !== [], 409, 'radar.outreach.listing_foreign', ['listing_ids' => $foreign]);
         $discordances = RadarConsentVerdict::discordances($reply);
         abort_code_if($discordances !== [] && $reason === null, 422, 'radar.consent.reason_required', ['discordances' => $discordances]);
         foreach ($listings as $listing) {

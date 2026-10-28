@@ -347,6 +347,22 @@ class RadarConsentTest extends TestCase
         $this->assertSame(0, RadarConsent::query()->whereNotNull('confirmed_at')->count());
     }
 
+    public function test_confirmer_un_message_dont_une_annonce_est_passee_a_un_autre_annonceur_rend_409_sans_rien_ecrire(): void
+    {
+        $a = $this->annonce();
+        $b = $this->annonce();
+        $message = $this->message($a, $b);
+        $this->reponse($message, $this->verdict());
+        $autre = RadarAdvertiser::factory()->create(['phone' => '+221781112233']);
+        $b->forceFill(['radar_advertiser_id' => $autre->id])->save();
+        $avant = $this->etat();
+
+        $this->issue($message, 'consented')->assertStatus(409)->assertJsonPath('code', 'radar.outreach.listing_foreign')->assertJsonPath('params.listing_ids', [$b->id]);
+
+        $this->assertSame($avant, $this->etat());
+        $this->assertSame(0, RadarConsent::query()->whereNotNull('confirmed_at')->count());
+    }
+
     // --- AC4 : STOP --------------------------------------------------------------------------------
 
     public function test_ac4_stop_rend_l_annonceur_do_not_contact_garde_l_empreinte_et_refuse_un_nouveau_message(): void

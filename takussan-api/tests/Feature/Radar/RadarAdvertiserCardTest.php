@@ -245,6 +245,20 @@ class RadarAdvertiserCardTest extends TestCase
             ->assertJsonPath('data.0.follow_up.propose_no_answer', false);
     }
 
+    public function test_un_brouillon_de_relance_garde_l_annonceur_dans_la_file_et_le_message_d_origine_a_relancer(): void
+    {
+        $annonceur = RadarAdvertiser::factory()->create();
+        $listing = $this->lue($annonceur, ['stage' => RadarListingStage::Contacted]);
+        $origine = RadarOutreach::factory()->withListings($listing)->create(['radar_advertiser_id' => $annonceur->id, 'sent_at' => now()->subDays(4)]);
+        // La relance est préparée et pas envoyée : elle ne ferme pas la chaîne.
+        $brouillon = RadarOutreach::factory()->withListings($listing)->followUpOf($origine)->create();
+
+        $this->assertSame([$annonceur->id], $this->file('follow_up'));
+        $messages = collect($this->getJson("/api/admin/radar/advertisers/{$annonceur->id}")->assertOk()->json('data.outreaches'))->keyBy('id');
+        $this->assertNotNull($messages[$origine->id]['follow_up']);
+        $this->assertNull($messages[$brouillon->id]['follow_up']);
+    }
+
     public function test_la_fiche_ne_rend_pas_de_prise_expiree(): void
     {
         $annonceur = RadarAdvertiser::factory()->create();

@@ -169,6 +169,17 @@ final class RadarOutreachWorkflow
             $this->refuseIfDoNotContact($advertiser);
             abort_code_if($locked->isSent(), 409, 'radar.outreach.not_prepared');
             abort_code_if(trim($locked->salutation) === '' || trim($locked->summary) === '', 422, 'radar.outreach.parts_missing');
+            // Une annonce du brouillon a pu changer d'annonceur depuis sa préparation (`PUT …/listings/{listing}/advertiser`, permis
+            // tant qu'elle est `reviewed`) : l'envoyer ferait couvrir par l'accord de CET annonceur l'annonce d'un autre.
+            $foreign = $listings->filter(fn (RadarListing $listing) => $listing->radar_advertiser_id !== $advertiser->id)
+                ->pluck('id')->map(fn ($id) => (int) $id)->sort()->values()->all();
+            abort_code_if($foreign !== [], 409, 'radar.outreach.listing_foreign', ['listing_ids' => $foreign]);
+            // Une relance se juge de nouveau à l'envoi : le message relancé a pu recevoir une issue (`question`, `no_answer`)
+            // depuis la préparation du brouillon, la chaîne est alors fermée.
+            if ($locked->follow_up_of_id !== null) {
+                $target = RadarOutreach::query()->whereKey($locked->follow_up_of_id)->lockForUpdate()->first();
+                abort_code_if($target === null || $target->outcome !== null, 409, 'radar.outreach.follow_up_invalid');
+            }
             foreach ($listings as $listing) {
                 abort_code_unless(
                     in_array($listing->stage, [RadarListingStage::Reviewed, RadarListingStage::Contacted], true),

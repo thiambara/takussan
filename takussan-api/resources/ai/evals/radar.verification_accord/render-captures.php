@@ -79,7 +79,7 @@ $scenarios = [
     // Ambigu (2)
     ['name' => 'Ibrahima', 'phone' => '+221 74 100 20 10', 'message' => 'full', 'reply' => "Peut-être, je dois d'abord en parler avec mon associé", 'classification' => 'ambiguous', 'number_matches' => true, 'clauses' => [1, 2, 3, 4]],
     ['name' => 'Rokhaya', 'phone' => '+221 74 100 20 11', 'message' => 'full', 'reply' => 'Hmm, je vais voir', 'classification' => 'ambiguous', 'number_matches' => true, 'clauses' => [1, 2, 3, 4]],
-    // Numéro discordant (2) : l'en-tête montre un autre numéro, la réponse est « OUI »
+    // Numéro discordant (2) : l'en-tête montre un autre numéro, la réponse est « OUI » pour le premier, « Ok d'accord » pour le second
     ['name' => 'Seynabou', 'phone' => '+221 74 100 20 12', 'shown' => '+221 74 900 30 12', 'message' => 'full', 'reply' => 'OUI', 'classification' => 'consent', 'number_matches' => false, 'clauses' => [1, 2, 3, 4]],
     ['name' => 'Pape', 'phone' => '+221 74 100 20 13', 'shown' => '+221 74 900 30 13', 'message' => 'full', 'reply' => "Ok d'accord", 'classification' => 'consent', 'number_matches' => false, 'clauses' => [1, 2, 3, 4]],
     // Clauses absentes (2) : la capture ne montre que la réponse (« OUI » à on ne sait quoi : `ambiguous`), ou un message coupé avant les clauses (le début du message est visible : `consent`)

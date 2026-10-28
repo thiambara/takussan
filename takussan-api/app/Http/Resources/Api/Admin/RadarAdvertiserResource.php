@@ -2,7 +2,6 @@
 
 namespace App\Http\Resources\Api\Admin;
 
-use App\Http\Controllers\Api\Admin\RadarAdvertiserController;
 use App\Http\Resources\Bases\BaseResource;
 use App\Models\Enums\RadarListingStage;
 use App\Models\GeoNeighborhood;
@@ -17,7 +16,7 @@ use Illuminate\Http\Request;
  * ({@see self::asCard()}), poste de travail du démarchage. Chaque colonne passe par `whenHas` : sous un sparse
  * fieldset, une colonne non lue est omise plutôt qu'inventée nulle. La prise en charge (`claim`) est un objet
  * CALCULÉ — les colonnes de la prise ne sont pas dans `$queryFields` — et n'est rendue que si elles ont été lues
- * (la liste les ajoute à un sparse fieldset, {@see RadarAdvertiserController::index()}) ;
+ * (la liste les ajoute à un sparse fieldset : `App\Http\Controllers\Api\Admin\RadarAdvertiserController::index()`) ;
  * une prise expirée n'est à personne : `null`.
  *
  * Les captures d'une réponse portent une URL signée (voir {@see RadarConsentResource}).

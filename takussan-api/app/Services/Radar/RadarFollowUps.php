@@ -10,9 +10,10 @@ use Illuminate\Database\Eloquent\Relations\Relation;
 
 /**
  * TCK-2388 (décision 4, porteur 2026-10-28) — la file « à relancer ». Un message y entre quand il est le DERNIER de sa
- * chaîne (aucune relance ne le suit), envoyé, sans issue, depuis au moins `radar.follow_ups.after_days` jours, et
- * qu'au moins une de ses annonces est encore `contacted`. `proposesNoAnswer()` : il a déjà `radar.follow_ups.max`
- * relances derrière lui et son échéance est passée. « En attente » : les mêmes, avant l'échéance.
+ * chaîne (aucune relance ENVOYÉE ne le suit : un brouillon de relance ne ferme rien), envoyé, sans issue, depuis au
+ * moins `radar.follow_ups.after_days` jours, et qu'au moins une de ses annonces est encore `contacted`.
+ * `proposesNoAnswer()` : il a déjà `radar.follow_ups.max` relances derrière lui et son échéance est passée.
+ * « En attente » : les mêmes, avant l'échéance.
  *
  * Les seules requêtes de la file, réemployées par la liste des annonceurs, le tableau de bord et la fiche ; les deux
  * chiffres ne se lisent qu'ici (`config('radar.follow_ups')`).
@@ -35,7 +36,9 @@ final class RadarFollowUps
     {
         return $query
             ->whereNotNull('radar_outreaches.sent_at')->whereNull('radar_outreaches.outcome')
-            ->whereDoesntHave('followUp')
+            // `sent_at` NU : la relation vise la même table, la sous-requête la renomme (`laravel_reserved_N`) et un nom
+            // qualifié `radar_outreaches.sent_at` y désignerait le message d'ORIGINE, toujours envoyé.
+            ->whereDoesntHave('followUp', fn (Builder $q) => $q->whereNotNull('sent_at'))
             ->whereHas('listings', fn (Builder $q) => $q->where('radar_listings.stage', RadarListingStage::Contacted->value));
     }
 

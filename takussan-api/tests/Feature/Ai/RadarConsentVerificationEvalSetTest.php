@@ -148,7 +148,7 @@ class RadarConsentVerificationEvalSetTest extends TestCase
             $classements[$expected['classification']] = true;
 
             // Ce que la relecture par le code en dirait d'une sortie égale aux attendus : le jeu couvre chaque discordance.
-            foreach (RadarConsentVerdict::from($this->sortie($expected), '+22174100200', self::CLAUSES)['discordances'] as $discordance) {
+            foreach (RadarConsentVerdict::from($this->sortie($expected), '+221741002000', self::CLAUSES)['discordances'] as $discordance) {
                 $discordances[$discordance] = true;
             }
         }

@@ -587,6 +587,74 @@ class RadarOutreachTest extends TestCase
         RadarConsentMessage::assertNeverPrompted();
     }
 
+    public function test_un_brouillon_de_relance_ne_rouvre_pas_la_voie_d_un_premier_message(): void
+    {
+        $this->modeleRepond('Bonjour Awa, un rappel', 'votre appartement à Ouakam');
+        $annonceur = $this->prise($this->annonceur());
+        $contactee = $this->lue($annonceur, 'contacted');
+        $origine = RadarOutreach::factory()->withListings($contactee)->sent()->create(['radar_advertiser_id' => $annonceur->id]);
+        // La relance est préparée, jamais envoyée : la chaîne de l'origine reste ouverte.
+        $this->preparer($annonceur, ['follow_up_of_id' => $origine->id])->assertCreated();
+        // Le brouillon a déjà appelé le modèle : on compte les appels À PARTIR d'ici.
+        $appels = 0;
+        RadarConsentMessage::fake(function () use (&$appels) {
+            $appels++;
+
+            return ['salutation' => 'Bonjour Awa,', 'resume' => 'votre appartement à Ouakam'];
+        });
+        $avant = $this->etat();
+
+        $this->preparer($annonceur, ['listing_ids' => [$contactee->id]])
+            ->assertStatus(422)
+            ->assertJsonPath('code', 'radar.outreach.listing_pending')
+            ->assertJsonPath('params.listing_id', $contactee->id);
+
+        $this->assertSame($avant, $this->etat());
+        $this->assertSame(0, $appels);
+    }
+
+    public function test_envoyer_refuse_une_annonce_passee_a_un_autre_annonceur_depuis_la_preparation(): void
+    {
+        $this->modeleRepond();
+        $annonceur = $this->prise($this->annonceur());
+        $autre = $this->annonceur(['phone' => '+221781112233', 'display_name' => 'Moussa Ba']);
+        // Le numéro de l'autre annonceur est connu de l'annonce (écarté à l'extraction) : la fiche peut la lui donner.
+        $annonce = RadarListing::factory()->extracted(['phones' => ['+221771234567'], 'phones_dropped' => ['+221781112233']])
+            ->create(['radar_advertiser_id' => $annonceur->id, 'stage' => RadarListingStage::Reviewed]);
+        $id = $this->preparer($annonceur, ['listing_ids' => [$annonce->id]])->assertCreated()->json('data.id');
+
+        $this->putJson("/api/admin/radar/listings/{$annonce->id}/advertiser", ['phone' => '+221781112233'])->assertOk();
+        $this->assertSame($autre->id, $annonce->fresh()->radar_advertiser_id);
+        $avant = $this->etat();
+
+        $this->postJson("/api/admin/radar/outreaches/{$id}/sent")
+            ->assertStatus(409)
+            ->assertJsonPath('code', 'radar.outreach.listing_foreign')
+            ->assertJsonPath('params.listing_ids', [$annonce->id]);
+
+        $this->assertSame($avant, $this->etat());
+        $this->assertNull(RadarOutreach::query()->findOrFail($id)->sent_at);
+    }
+
+    public function test_envoyer_une_relance_dont_le_message_relance_a_recu_une_issue_est_refuse(): void
+    {
+        $this->modeleRepond('Bonjour Awa, un rappel', 'votre appartement à Ouakam');
+        $annonceur = $this->prise($this->annonceur());
+        $contactee = $this->lue($annonceur, 'contacted');
+        $origine = RadarOutreach::factory()->withListings($contactee)->sent()->create(['radar_advertiser_id' => $annonceur->id]);
+        $id = $this->preparer($annonceur, ['follow_up_of_id' => $origine->id])->assertCreated()->json('data.id');
+        // Entre la préparation et l'envoi : l'annonceur a posé une question, la chaîne est fermée.
+        $origine->forceFill(['outcome' => 'question', 'outcome_at' => now()])->save();
+        $avant = $this->etat();
+
+        $this->postJson("/api/admin/radar/outreaches/{$id}/sent")
+            ->assertStatus(409)
+            ->assertJsonPath('code', 'radar.outreach.follow_up_invalid');
+
+        $this->assertSame($avant, $this->etat());
+        $this->assertNull(RadarOutreach::query()->findOrFail($id)->sent_at);
+    }
+
     public function test_une_issue_question_ou_sans_reponse_ferme_la_chaine_et_une_relance_reste_permise(): void
     {
         $this->modeleRepond();
