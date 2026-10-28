@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { vi } from 'vitest';
 import { avecGestes } from '@/test/habilitations';
-import { withIntl } from '@/test/intl';
+import { withIntl, type LocaleDeTest } from '@/test/intl';
 import type { RadarExtracted, RadarListingDetail, RadarMatch, RadarMatchesResponse } from '@/types/radar';
 import { RadarListingFiche } from '../RadarListingFiche';
 
@@ -109,7 +109,7 @@ export function reponseMatches(matches: RadarMatch[], photos: RadarMatchesRespon
 }
 
 /** Un serveur d'essai : `fetchRadarListing` rend toujours l'état courant, que les réponses des gestes mettent à jour. */
-export async function rendreFiche(detail: RadarListingDetail) {
+export async function rendreFiche(detail: RadarListingDetail, locale: LocaleDeTest = 'fr') {
   const { fetchRadarListing } = await import('@/lib/queries/radar');
   const serveur = { courant: detail };
   vi.mocked(fetchRadarListing).mockImplementation(async () => ({ data: serveur.courant }));
@@ -118,6 +118,7 @@ export async function rendreFiche(detail: RadarListingDetail) {
     <QueryClientProvider client={queryClient}>
       {avecGestes(<RadarListingFiche id={detail.id} />)}
     </QueryClientProvider>,
+    locale,
   ));
   await screen.findByTestId('radar-fiche');
   return { serveur, user: userEvent.setup(), queryClient };

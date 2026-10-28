@@ -96,7 +96,7 @@ export function ChampFiche({ nom, libelle, champ, modifie, texteSource, surPassa
         {aide ? <p className="text-xs text-muted-foreground">{aide}</p> : null}
         {passageSousChamp ? (
           <p className="text-xs text-muted-foreground">
-            <span className="font-medium">{t('source.cited')} : </span>
+            <span className="font-medium">{t('source.cited')} </span>
             <q>{passage}</q>
           </p>
         ) : null}

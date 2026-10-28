@@ -52,7 +52,7 @@ export function ChampQuartier({ detail, choisi, modifie, desactive, onChoisir, s
     ?? optionsQuartiers.find((o) => o.value === String(choisi))?.label;
 
   const etat = modifie
-    ? (nomChoisi ? `${t('neighborhood.pendingChoice')} : ${nomChoisi}` : t('neighborhood.pendingChoice'))
+    ? (nomChoisi ? t('neighborhood.pendingChoiceNamed', { name: nomChoisi }) : t('neighborhood.pendingChoice'))
     : lien
       ? (lien.city ? t('neighborhood.linked', { name: lien.name, city: lien.city }) : t('neighborhood.linkedNoCity', { name: lien.name }))
       : t('neighborhood.unlinked');

@@ -73,7 +73,7 @@ export function RadarDroppedPhones({ detail, corrections }: RadarDroppedPhonesPr
           size="sm"
           variant="outline"
           disabled={!permis}
-          aria-label={`${t('makeAdvertiser')} : ${phone}`}
+          aria-label={t('makeAdvertiserFor', { phone })}
           onClick={() => {
             // Une erreur d'un enregistrement antérieur ne s'affiche pas dans la confirmation qui s'ouvre.
             corrections.effacerErreur();

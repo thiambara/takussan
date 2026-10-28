@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
+import { cn } from '@/lib/utils';
 import {
   RADAR_DISCARD_REASONS,
   type RadarDiscardReason,
@@ -15,25 +16,28 @@ import {
   type RadarMatch,
 } from '@/types/radar';
 import { MOTIFS_ECART_RADAR } from '../codes-radar';
+import { estDoublonDejaFerme } from './RadarMatchesPanel';
 import { useMessageEchecFiche } from './useMessageEchecFiche';
 
 const MANUEL = '__manuel__';
 const cleDe = (match: RadarMatch) => `${match.kind}:${match.id}`;
 
-function Radio({ name, value, checked, onChange, children }: {
+function Radio({ name, value, checked, onChange, children, disabled = false }: {
   readonly name: string;
   readonly value: string;
   readonly checked: boolean;
   readonly onChange: (value: string) => void;
   readonly children: ReactNode;
+  readonly disabled?: boolean;
 }) {
   return (
-    <label className="flex cursor-pointer items-start gap-2 rounded-md border px-3 py-2 text-sm has-[:checked]:border-primary has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring">
+    <label className={cn('flex items-start gap-2 rounded-md border px-3 py-2 text-sm has-[:checked]:border-primary has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring', disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer')}>
       <input
         type="radio"
         name={name}
         value={value}
         checked={checked}
+        disabled={disabled}
         onChange={() => onChange(value)}
         className="mt-0.5 accent-primary"
       />
@@ -108,8 +112,16 @@ export function DialogueDoublon({ open, onOpenChange, matches, prefill, pending,
           <fieldset className="space-y-2">
             <legend className="mb-1 text-xs font-medium text-muted-foreground">{t('dialogs.duplicate.matches')}</legend>
             {matches.map((m) => (
-              <Radio key={cleDe(m)} name={nom} value={cleDe(m)} checked={choix === cleDe(m)} onChange={setChoix}>
+              <Radio
+                key={cleDe(m)}
+                name={nom}
+                value={cleDe(m)}
+                checked={choix === cleDe(m)}
+                onChange={setChoix}
+                disabled={estDoublonDejaFerme(m)}
+              >
                 {libelle(m)}
+                {estDoublonDejaFerme(m) ? ` — ${t('dialogs.duplicate.alreadyDuplicate')}` : ''}
               </Radio>
             ))}
             <Radio name={nom} value={MANUEL} checked={choix === MANUEL} onChange={setChoix}>

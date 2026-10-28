@@ -8684,7 +8684,7 @@
             "captureAlt": "Capture d’écran {n}",
             "capturesHint": "Les captures ne se surlignent pas : le passage cité s’affiche sous chaque champ.",
             "capturesExpire": "Les liens des captures expirent au bout de 5 minutes ; rechargez la fiche pour les renouveler.",
-            "cited": "Passage cité"
+            "cited": "Passage cité :"
           },
           "sections": {
             "listing": "Le bien",
@@ -8753,7 +8753,8 @@
             "cityPlaceholder": "Choisir une ville",
             "neighborhoodPlaceholder": "Choisir un quartier",
             "noResult": "Aucun résultat",
-            "pendingChoice": "Quartier choisi, à enregistrer"
+            "pendingChoice": "Quartier choisi, à enregistrer",
+            "pendingChoiceNamed": "Quartier choisi, à enregistrer : {name}"
           },
           "nature": {
             "heading": "Nature présumée de l’annonceur",
@@ -8812,7 +8813,10 @@
             "openConsole": "Chercher dans la console",
             "openListing": "Ouvrir la fiche Radar",
             "notPublic": "Non public",
-            "duplicateOfThis": "Doublon de celui-ci"
+            "duplicateOfThis": "Doublon de celui-ci",
+            "seeMore": "Voir les {count} autres",
+            "seeLess": "Voir moins",
+            "duplicateClosedHint": "Cette annonce est déjà un doublon : choisissez son annonce d’origine."
           },
           "gestures": {
             "label": "Gestes",
@@ -8834,7 +8838,8 @@
               "kindListing": "Annonce du Radar",
               "kindProperty": "Bien du catalogue",
               "manualId": "Identifiant",
-              "confirm": "Marquer comme doublon"
+              "confirm": "Marquer comme doublon",
+              "alreadyDuplicate": "déjà un doublon"
             },
             "discard": {
               "title": "Écarter l’annonce",
@@ -8856,7 +8861,8 @@
             "confirmDropped": "{phone} ne figure pas dans la source. L’annonce sera rattachée à ce numéro ; si son titulaire a demandé l’arrêt des contacts, l’annonce sera fermée.",
             "confirm": "Rattacher",
             "attached": "Annonceur rattaché.",
-            "doNotContact": "Ce numéro a demandé l’arrêt des contacts : l’annonce est fermée (ne pas contacter), les gestes sont désactivés."
+            "doNotContact": "Ce numéro a demandé l’arrêt des contacts : l’annonce est fermée (ne pas contacter), les gestes sont désactivés.",
+            "makeAdvertiserFor": "En faire l’annonceur : {phone}"
           }
         }
       }

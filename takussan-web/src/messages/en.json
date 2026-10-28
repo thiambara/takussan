@@ -8684,7 +8684,7 @@
             "captureAlt": "Screenshot {n}",
             "capturesHint": "Screenshots cannot be highlighted: the cited passage is shown under each field.",
             "capturesExpire": "Screenshot links expire after 5 minutes; reload the listing to renew them.",
-            "cited": "Cited passage"
+            "cited": "Cited passage:"
           },
           "sections": {
             "listing": "The property",
@@ -8753,7 +8753,8 @@
             "cityPlaceholder": "Choose a city",
             "neighborhoodPlaceholder": "Choose a neighborhood",
             "noResult": "No results",
-            "pendingChoice": "Neighborhood chosen, to be saved"
+            "pendingChoice": "Neighborhood chosen, to be saved",
+            "pendingChoiceNamed": "Neighborhood chosen, to be saved: {name}"
           },
           "nature": {
             "heading": "Advertiser's presumed nature",
@@ -8812,7 +8813,10 @@
             "openConsole": "Search in the console",
             "openListing": "Open the Radar card",
             "notPublic": "Not public",
-            "duplicateOfThis": "Duplicate of this one"
+            "duplicateOfThis": "Duplicate of this one",
+            "seeMore": "Show the other {count}",
+            "seeLess": "Show fewer",
+            "duplicateClosedHint": "This listing is already a duplicate: pick its original listing instead."
           },
           "gestures": {
             "label": "Actions",
@@ -8834,7 +8838,8 @@
               "kindListing": "Radar listing",
               "kindProperty": "Catalogue property",
               "manualId": "Identifier",
-              "confirm": "Mark as duplicate"
+              "confirm": "Mark as duplicate",
+              "alreadyDuplicate": "already a duplicate"
             },
             "discard": {
               "title": "Discard the listing",
@@ -8856,7 +8861,8 @@
             "confirmDropped": "{phone} is not in the source. The listing will be attached to this number; if its owner asked not to be contacted, the listing will be closed.",
             "confirm": "Attach",
             "attached": "Advertiser attached.",
-            "doNotContact": "This number asked not to be contacted: the listing is closed (do not contact), actions are disabled."
+            "doNotContact": "This number asked not to be contacted: the listing is closed (do not contact), actions are disabled.",
+            "makeAdvertiserFor": "Make advertiser: {phone}"
           }
         }
       }

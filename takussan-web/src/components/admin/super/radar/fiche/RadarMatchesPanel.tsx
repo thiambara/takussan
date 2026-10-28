@@ -1,5 +1,6 @@
 'use client';
 
+import { useId, useState } from 'react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { ExternalLink, TriangleAlert } from 'lucide-react';
@@ -25,6 +26,16 @@ interface RadarMatchesPanelProps {
 /** Un rapprochement de force `medium` ou plus : celui qui mérite qu'on s'arrête avant de valider. */
 export const estRapprochementFort = (match: RadarMatch): boolean => match.strength === 'high' || match.strength === 'medium';
 
+/** Au-delà, la liste se replie : un annonceur au gros catalogue rend des dizaines de « même téléphone ». */
+export const RAPPROCHEMENTS_VISIBLES = 5;
+
+/**
+ * Une annonce cible déjà fermée en doublon : l'API refuse d'en faire une origine (`radar.duplicate.chain`),
+ * il faut viser l'annonce dont elle est elle-même le doublon.
+ */
+export const estDoublonDejaFerme = (match: RadarMatch): boolean =>
+  match.kind === 'listing' && match.target.stage === 'duplicate';
+
 /**
  * TCK-2387 (ADR-0077 §6) — les rapprochements de la fiche : les biens et annonces qu'elle ressemble déjà.
  *
@@ -33,10 +44,17 @@ export const estRapprochementFort = (match: RadarMatch): boolean => match.streng
  * le quartier, les signaux en libellés, la force, le lien, et le geste « doublon de celui-ci ». Aucun
  * rapprochement : une ligne discrète, pas un écran vide. Pendant le calcul des empreintes de photo, le
  * compteur dit où il en est — le signal photo peut manquer tant qu'il n'est pas fini.
+ *
+ * Les {@link RAPPROCHEMENTS_VISIBLES} plus forts (la liste arrive triée) s'affichent, le reste se déplie : l'alerte,
+ * elle, compte TOUS les rapprochements forts.
  */
 export function RadarMatchesPanel({ matches, chargement, erreur, onDoublon, desactive }: RadarMatchesPanelProps) {
   const t = useTranslations('superAdmin.pages.radar.listing.matches');
   const liste = matches?.matches ?? [];
+  const [toutes, setToutes] = useState(false);
+  const idListe = useId();
+  const reste = Math.max(0, liste.length - RAPPROCHEMENTS_VISIBLES);
+  const visibles = toutes ? liste : liste.slice(0, RAPPROCHEMENTS_VISIBLES);
   const forts = liste.filter(estRapprochementFort).length;
   const photos = matches?.photos;
 
@@ -64,11 +82,25 @@ export function RadarMatchesPanel({ matches, chargement, erreur, onDoublon, desa
         ) : chargement ? null : liste.length === 0 ? (
           <p className="text-sm text-muted-foreground">{t('none')}</p>
         ) : (
-          <ul className="space-y-2">
-            {liste.map((match) => (
-              <CarteRapprochement key={`${match.kind}:${match.id}`} match={match} onDoublon={onDoublon} desactive={desactive} />
-            ))}
-          </ul>
+          <>
+            <ul id={idListe} className="space-y-2">
+              {visibles.map((match) => (
+                <CarteRapprochement key={`${match.kind}:${match.id}`} match={match} onDoublon={onDoublon} desactive={desactive} />
+              ))}
+            </ul>
+            {reste > 0 ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                aria-expanded={toutes}
+                aria-controls={idListe}
+                onClick={() => setToutes((ouvert) => !ouvert)}
+              >
+                {toutes ? t('seeLess') : t('seeMore', { count: reste })}
+              </Button>
+            ) : null}
+          </>
         )}
       </div>
     </section>
@@ -87,6 +119,8 @@ function CarteRapprochement({ match, onDoublon, desactive }: {
   const bien = match.kind === 'property' ? match.target : null;
   const annonce = match.kind === 'listing' ? match.target : null;
   const target = match.target;
+  const dejaDoublon = estDoublonDejaFerme(match);
+  const indice = useId();
 
   const libelleSignal = (signal: RadarMatchSignal): string => {
     if (signal.signal === 'phone') return t('signals.phone');
@@ -169,10 +203,18 @@ function CarteRapprochement({ match, onDoublon, desactive }: {
         </ul>
         <div className="flex flex-wrap items-center gap-3">
           {lien}
-          <Button type="button" size="sm" variant="outline" disabled={desactive} onClick={() => onDoublon(match)}>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={desactive || dejaDoublon}
+            aria-describedby={dejaDoublon ? indice : undefined}
+            onClick={() => onDoublon(match)}
+          >
             {t('duplicateOfThis')}
           </Button>
         </div>
+        {dejaDoublon ? <p id={indice} className="text-xs text-muted-foreground">{t('duplicateClosedHint')}</p> : null}
       </div>
     </li>
   );
