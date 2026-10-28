@@ -60,6 +60,8 @@ class DateInventoryByValueTest extends TestCase
         'App\Http\Resources\Api\Admin\PlatformPayoutResource::breakdown' => '`when()` sur un `additional()` que seul '
             .'`PlatformPayoutController::presenter()` pose (TCK-1205) : `PlatformPayoutService::breakdown()`, '
             .'`{booking, lease}` × `{count, gross, fees}` — un ENTIER et deux montants, jamais une date.',
+        'App\Http\Resources\Api\Admin\RadarListingResource::neighborhood_link' => '`when()` sur `withNeighborhoodLink()`, que seuls '
+            .'les contrôleurs de la fiche posent (TCK-2387) : `{id, name, city}` — un identifiant et deux noms, jamais une date.',
         'App\Http\Resources\ConversationResource::unread_count' => "`whenHas('unread_count')` — un compteur ENTIER "
             .'(`(int)`), jamais une date. Il vient du seul `withCount` de `ConversationController::index` '
             .'(TCK-579) ; le sujet vient d\'une factory, pas de cette requête.',

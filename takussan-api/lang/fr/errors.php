@@ -683,6 +683,13 @@ return [
             'invalid' => 'Cette URL ne se lit pas : son nom d\'hôte est illisible.',
             'airbnb' => 'Airbnb n\'est pas une source du Radar : son contenu ne se collecte pas.',
         ],
+        'listing' => [
+            'nothing_to_update' => 'Aucun champ à corriger : envoyez au moins un champ de la fiche.',
+            'stage_conflict' => 'Cette annonce n\'est plus à cette étape : le geste n\'est pas permis.',
+        ],
+        'review' => [
+            'incomplete' => 'La fiche est incomplète : le type, le contrat, le prix et un quartier du référentiel sont requis.',
+        ],
     ],
     'pay_link' => [
         'not_found' => 'Ce lien de paiement n\'existe pas.',
