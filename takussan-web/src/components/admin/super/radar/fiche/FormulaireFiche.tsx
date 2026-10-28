@@ -1,18 +1,18 @@
 'use client';
 
+import type { ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
-import { ApiError } from '@/lib/api';
 import type { RadarExtracted, RadarListingDetail } from '@/types/radar';
-import { ERREURS_FICHE_RADAR } from '../codes-radar';
 import { ChampFiche } from './ChampFiche';
 import { ChampQuartier } from './ChampQuartier';
 import { ChampChoix, ChampListe, ChampNombre } from './controles';
 import { PanneauNature } from './PanneauNature';
+import { RadarDroppedPhones } from './RadarDroppedPhones';
+import { useMessageEchecFiche } from './useMessageEchecFiche';
 import type { CleCorrigeable, CorrectionsFiche } from './useCorrectionsFiche';
 
 const TYPES_DE_BIEN = [
@@ -26,13 +26,10 @@ interface FormulaireFicheProps {
   readonly detail: RadarListingDetail;
   readonly corrections: CorrectionsFiche;
   readonly surPassage: (passage: string | null) => void;
-}
-
-/** Le code d'une erreur de l'API (`{code}`), s'il y en a un. */
-function codeDe(erreur: unknown): string | undefined {
-  if (!(erreur instanceof ApiError) || !erreur.data || typeof erreur.data !== 'object') return undefined;
-  const code = (erreur.data as { code?: unknown }).code;
-  return typeof code === 'string' ? code : undefined;
+  /** La barre des trois gestes (valider, doublon, écarter) : elle partage la barre d'actions collante. */
+  readonly gestes: ReactNode;
+  /** L'échec d'un geste : affiché avec celui de l'enregistrement. */
+  readonly erreurGeste?: unknown;
 }
 
 /**
@@ -42,11 +39,11 @@ function codeDe(erreur: unknown): string | undefined {
  * « Enregistrer » — les seuls champs modifiés. Un refus se lit par son code (409 d'étape, 422), jamais
  * par une phrase de l'API.
  */
-export function FormulaireFiche({ detail, corrections, surPassage }: FormulaireFicheProps) {
+export function FormulaireFiche({ detail, corrections, surPassage, gestes, erreurGeste }: FormulaireFicheProps) {
   const t = useTranslations('superAdmin.pages.radar.listing');
   const tRadar = useTranslations('superAdmin.pages.radar');
   const tTypes = useTranslations('property.types');
-  const messageErreur = useMessageErreurApi();
+  const messageDEchec = useMessageEchecFiche();
 
   const extracted: RadarExtracted = detail.extracted ?? {};
   const editable = detail.stage === 'extracted';
@@ -105,17 +102,6 @@ export function FormulaireFiche({ detail, corrections, surPassage }: FormulaireF
         onChange={(valeur) => corrections.corriger(cle, valeur)}
       />
     ));
-
-  const messageDEchec = (erreur: unknown): string => {
-    const code = codeDe(erreur);
-    if (code && ERREURS_FICHE_RADAR[code]) return t(`errors.${ERREURS_FICHE_RADAR[code]}`);
-    const validation = erreur instanceof ApiError ? erreur.validationErrors : undefined;
-    if (validation) {
-      const messages = Object.values(validation).flat().filter(Boolean);
-      if (messages.length > 0) return messages.join(' ');
-    }
-    return messageErreur(erreur, t('errors.generic'));
-  };
 
   const prixLu = extracted.price?.raw;
 
@@ -198,28 +184,35 @@ export function FormulaireFiche({ detail, corrections, surPassage }: FormulaireF
         <legend className="mb-2 font-display text-base font-semibold text-foreground">{t('sections.advertiser')}</legend>
         <PanneauNature detail={detail} corrections={corrections} desactive={desactive} surPassage={surPassage} />
       </fieldset>
+      {/* Hors du `fieldset` : rattacher un annonceur reste permis sur une fiche relue, que le fieldset désactive. */}
+      <RadarDroppedPhones detail={detail} corrections={corrections} />
 
-      {editable ? (
-        <div className="sticky bottom-0 -mx-1 flex flex-wrap items-center gap-3 border-t bg-card px-1 py-3" data-testid="radar-fiche-actions">
-          <Button type="submit" disabled={corrections.nombre === 0 || corrections.enCours}>
-            {corrections.enCours ? t('actions.saving') : t('actions.save')}
-          </Button>
-          {corrections.nombre > 0 ? (
-            <>
-              <Button type="button" variant="ghost" disabled={corrections.enCours} onClick={corrections.abandonner}>
-                {t('actions.discard')}
-              </Button>
-              <span className="text-sm text-muted-foreground">{t('actions.dirty', { count: corrections.nombre })}</span>
-            </>
-          ) : null}
-          {corrections.erreur ? (
-            <p role="alert" className="basis-full text-sm text-destructive">{messageDEchec(corrections.erreur)}</p>
-          ) : null}
-          {corrections.enregistre && corrections.nombre === 0 ? (
-            <p role="status" className="basis-full text-sm text-muted-foreground">{t('actions.saved')}</p>
-          ) : null}
-        </div>
-      ) : null}
+      <div className="sticky bottom-0 -mx-1 flex flex-wrap items-center gap-3 border-t bg-card px-1 py-3" data-testid="radar-fiche-actions">
+        {editable ? (
+          <>
+            <Button type="submit" disabled={corrections.nombre === 0 || corrections.enCours}>
+              {corrections.enCours ? t('actions.saving') : t('actions.save')}
+            </Button>
+            {corrections.nombre > 0 ? (
+              <>
+                <Button type="button" variant="ghost" disabled={corrections.enCours} onClick={corrections.abandonner}>
+                  {t('actions.discard')}
+                </Button>
+                <span className="text-sm text-muted-foreground">{t('actions.dirty', { count: corrections.nombre })}</span>
+              </>
+            ) : null}
+          </>
+        ) : null}
+        {gestes}
+        {corrections.erreur || erreurGeste ? (
+          <p role="alert" className="basis-full text-sm text-destructive">
+            {corrections.erreur ? messageDEchec(corrections.erreur) : messageDEchec(erreurGeste, t('errors.gestureFailed'))}
+          </p>
+        ) : null}
+        {corrections.enregistre && corrections.nombre === 0 && !erreurGeste ? (
+          <p role="status" className="basis-full text-sm text-muted-foreground">{t('actions.saved')}</p>
+        ) : null}
+      </div>
     </form>
   );
 }

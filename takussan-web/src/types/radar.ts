@@ -225,3 +225,79 @@ export interface RadarListingChanges {
   readonly description?: string | null;
   readonly advertiser_nature?: RadarAdvertiserNature;
 }
+
+// ─── Rapprochements et gestes (TCK-2387, tâche 8) ────────────────────────────────────────────
+
+export type RadarMatchStrength = 'high' | 'medium' | 'low';
+
+/** `RadarMatcher::SIGNAL_*`. */
+export const RADAR_MATCH_SIGNALS = ['phone', 'neighborhood_price_bedrooms', 'photo'] as const;
+
+export type RadarMatchSignalName = (typeof RADAR_MATCH_SIGNALS)[number];
+
+export interface RadarMatchSignal {
+  readonly signal: RadarMatchSignalName | string;
+  readonly strength: RadarMatchStrength;
+  /** Photo : distance de Hamming des empreintes. */
+  readonly distance?: number;
+  /** Quartier, prix, chambres : l'écart relatif de prix. */
+  readonly price_gap?: number;
+}
+
+/** La cible d'un rapprochement vers un bien du catalogue (`RadarMatchPresenter::properties`). */
+export interface RadarPropertyTarget {
+  readonly title: string | null;
+  readonly price: number | null;
+  readonly bedrooms: number | null;
+  readonly neighborhood: string | null;
+  readonly status: string | null;
+  /** Public : une fiche publique existe (`/properties/{slug}`). */
+  readonly is_public: boolean;
+  readonly slug: string | null;
+  readonly reference_number: string | null;
+  readonly thumbnail_url: string | null;
+}
+
+/** La cible d'un rapprochement vers une autre annonce du Radar (`RadarMatchPresenter::listings`). */
+export interface RadarListingTarget {
+  readonly title: string | null;
+  readonly price: number | null;
+  readonly stage: RadarListingStage;
+  readonly source_site: RadarSourceSite | null;
+  readonly thumbnail_url: string | null;
+}
+
+interface RadarMatchBase {
+  readonly id: number;
+  readonly strength: RadarMatchStrength;
+  readonly signals: readonly RadarMatchSignal[];
+}
+
+export type RadarMatch =
+  | (RadarMatchBase & { readonly kind: 'property'; readonly target: RadarPropertyTarget })
+  | (RadarMatchBase & { readonly kind: 'listing'; readonly target: RadarListingTarget });
+
+export interface RadarMatches {
+  readonly photos: RadarPhotoFingerprints;
+  readonly matches: readonly RadarMatch[];
+}
+
+export interface RadarMatchesResponse {
+  readonly data: RadarMatches;
+}
+
+/** `App\Models\Enums\RadarDiscardReason` : la liste fermée, sans texte libre. */
+export const RADAR_DISCARD_REASONS = [
+  'not_real_estate',
+  'out_of_scope',
+  'no_longer_available',
+  'unusable_source',
+  'other',
+] as const;
+
+export type RadarDiscardReason = (typeof RADAR_DISCARD_REASONS)[number];
+
+/** « Doublon de » : une autre annonce OU un bien, jamais les deux. */
+export type RadarDuplicateTarget =
+  | { readonly of_listing_id: number; readonly of_property_id?: never }
+  | { readonly of_property_id: number; readonly of_listing_id?: never };

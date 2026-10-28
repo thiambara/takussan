@@ -8611,7 +8611,16 @@
           "extractionInvalidOutput": "The model’s output was invalid.",
           "extractionEmptySource": "There was nothing to read: empty page or no screenshot.",
           "extractionTimeout": "The extraction did not complete in time.",
-          "extractionError": "Unexpected error: the details are in the API log."
+          "extractionError": "Unexpected error: the details are in the API log.",
+          "fetchNotImage": "A photo link does not lead to an image.",
+          "photoAbandoned": "The photo fingerprint calculation was abandoned.",
+          "photoTooManyPixels": "A photo is too large to be compared.",
+          "photoUnreadable": "A photo cannot be read as an image.",
+          "discardNotRealEstate": "Not a real-estate listing",
+          "discardOutOfScope": "Out of scope (short stay, outside Senegal…)",
+          "discardNoLongerAvailable": "No longer available",
+          "discardUnusableSource": "Unusable source",
+          "discardOther": "Other reason"
         },
         "empty": {
           "title": "No listing yet",
@@ -8768,7 +8777,86 @@
             "reviewIncomplete": "The listing is incomplete: type, contract, price and a directory neighborhood are required.",
             "duplicateSelf": "A listing cannot be its own duplicate.",
             "advertiserPhoneInvalid": "This phone number is not valid.",
-            "advertiserPhoneUnknown": "No advertiser has this number."
+            "advertiserPhoneUnknown": "No advertiser has this number.",
+            "duplicateChain": "This listing is already a duplicate, or already points to this one: pick the original listing.",
+            "reviewIncompleteFields": "Fields to complete: {fields}.",
+            "gestureFailed": "The action failed."
+          },
+          "matches": {
+            "heading": "Matches",
+            "alert": "{count, plural, one {This listing looks like # property or listing already known} other {This listing looks like # properties or listings already known}}: check before validating.",
+            "none": "No match with a known property or listing.",
+            "loadError": "Matches could not be computed.",
+            "photosProgress": "Photo fingerprints: {done} / {total}",
+            "strength": {
+              "high": "Strong",
+              "medium": "Medium",
+              "low": "Weak"
+            },
+            "strengthLabel": "{strength} similarity",
+            "signals": {
+              "phone": "same phone number",
+              "neighborhood_price_bedrooms": "same neighborhood, price and bedrooms",
+              "photo_high": "identical photo",
+              "photo_medium": "similar photo",
+              "photo_low": "similar photo"
+            },
+            "kinds": {
+              "property": "Catalogue property",
+              "listing": "Radar listing"
+            },
+            "untitled": "Untitled",
+            "bedrooms": "{count, plural, one {# bedroom} other {# bedrooms}}",
+            "thumbnailAlt": "Thumbnail: {title}",
+            "openPublic": "View the public page",
+            "openConsole": "Search in the console",
+            "openListing": "Open the Radar card",
+            "notPublic": "Not public",
+            "duplicateOfThis": "Duplicate of this one"
+          },
+          "gestures": {
+            "label": "Actions",
+            "validate": "Validate",
+            "duplicate": "Duplicate",
+            "discard": "Discard",
+            "working": "Working…",
+            "doNotContact": "This number asked not to be contacted: the listing is closed, no action is allowed.",
+            "unavailable": "No action is allowed at this stage.",
+            "validateKeys": "⌘/Ctrl + Enter"
+          },
+          "dialogs": {
+            "duplicate": {
+              "title": "Mark as duplicate",
+              "description": "The listing is the same as an already collected listing or a catalogue property. It is closed, the link set.",
+              "matches": "Among the matches",
+              "manual": "Another listing or property",
+              "manualKind": "Target type",
+              "kindListing": "Radar listing",
+              "kindProperty": "Catalogue property",
+              "manualId": "Identifier",
+              "confirm": "Mark as duplicate"
+            },
+            "discard": {
+              "title": "Discard the listing",
+              "description": "Choose the reason. The listing is closed; the reason is recorded.",
+              "confirm": "Discard"
+            },
+            "cancel": "Cancel"
+          },
+          "phones": {
+            "heading": "Phone numbers",
+            "kept": "Kept numbers",
+            "keptNone": "No number kept.",
+            "dropped": "Read by the AI, absent from the source",
+            "droppedWarning": "These numbers are not in the source text: the AI may be wrong, and such a number may belong to someone else. Only attach one if you are sure.",
+            "makeAdvertiser": "Make advertiser",
+            "currentAdvertiser": "Current advertiser",
+            "confirmTitle": "Make this number the advertiser?",
+            "confirmKept": "The listing will be attached to {phone}.",
+            "confirmDropped": "{phone} is not in the source. The listing will be attached to this number; if its owner asked not to be contacted, the listing will be closed.",
+            "confirm": "Attach",
+            "attached": "Advertiser attached.",
+            "doNotContact": "This number asked not to be contacted: the listing is closed (do not contact), actions are disabled."
           }
         }
       }

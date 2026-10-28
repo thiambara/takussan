@@ -1,3 +1,5 @@
+import type { RadarDiscardReason } from '@/types/radar';
+
 /**
  * TCK-2386 (ADR-0077) — les codes du Radar et leur libellé.
  *
@@ -50,6 +52,26 @@ export const MOTIFS_RADAR: Record<string, string> = {
   'radar.extraction.empty_source': 'extractionEmptySource',
   'radar.extraction.timeout': 'extractionTimeout',
   'radar.extraction.error': 'extractionError',
+  // Photos source (TCK-2387) : l'image d'une annonce ne s'est pas laissée empreindre
+  'radar.fetch.not_image': 'fetchNotImage',
+  'radar.photo.abandoned': 'photoAbandoned',
+  'radar.photo.too_many_pixels': 'photoTooManyPixels',
+  'radar.photo.unreadable': 'photoUnreadable',
+  // Annonce écartée (TCK-2387) : `stage_reason` = `radar.discard.<motif>`
+  'radar.discard.not_real_estate': 'discardNotRealEstate',
+  'radar.discard.out_of_scope': 'discardOutOfScope',
+  'radar.discard.no_longer_available': 'discardNoLongerAvailable',
+  'radar.discard.unusable_source': 'discardUnusableSource',
+  'radar.discard.other': 'discardOther',
+};
+
+/** Les motifs d'écart que choisit l'opérateur (`RadarDiscardReason`) : leur libellé est celui du `stage_reason` écrit. */
+export const MOTIFS_ECART_RADAR: Record<RadarDiscardReason, string> = {
+  not_real_estate: 'discardNotRealEstate',
+  out_of_scope: 'discardOutOfScope',
+  no_longer_available: 'discardNoLongerAvailable',
+  unusable_source: 'discardUnusableSource',
+  other: 'discardOther',
 };
 
 /**
@@ -91,6 +113,7 @@ export const ERREURS_FICHE_RADAR: Record<string, string> = {
   'radar.listing.nothing_to_update': 'nothingToUpdate',
   'radar.review.incomplete': 'reviewIncomplete',
   'radar.duplicate.self': 'duplicateSelf',
+  'radar.duplicate.chain': 'duplicateChain',
   'radar.advertiser.phone_invalid': 'advertiserPhoneInvalid',
   'radar.advertiser.phone_unknown': 'advertiserPhoneUnknown',
 };

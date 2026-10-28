@@ -12,23 +12,62 @@ import { ErrorState } from '@/components/feedback';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import type { ApiError } from '@/lib/api';
-import { fetchRadarListing, radarKeys } from '@/lib/queries/radar';
-import type { RadarListingDetail, RadarListingDetailResponse } from '@/types/radar';
+import { fetchRadarListing, fetchRadarMatches, RADAR_POLL_MS, radarKeys } from '@/lib/queries/radar';
+import type { RadarListingDetail, RadarListingDetailResponse, RadarMatch, RadarMatchesResponse } from '@/types/radar';
+import { BarreDesGestes } from './BarreDesGestes';
+import { DialogueDoublon, DialogueEcart } from './DialoguesFiche';
 import { FormulaireFiche } from './FormulaireFiche';
 import { PanneauSource } from './PanneauSource';
+import { RadarMatchesPanel } from './RadarMatchesPanel';
 import { useCorrectionsFiche } from './useCorrectionsFiche';
+import { useGestesFiche } from './useGestesFiche';
+import { useRaccourcisFiche } from './useRaccourcisFiche';
 
 interface RadarListingFicheProps {
   readonly id: number;
 }
 
+type Dialogue =
+  | { readonly type: 'duplicate'; readonly prefill: RadarMatch | null }
+  | { readonly type: 'discard' };
+
 /**
- * La fiche chargée : la source à gauche (colonne collante à partir de `lg`), les champs lus à droite.
- * Le passage cité par le champ survolé ou focalisé descend dans la source ; il vit ici, entre les deux.
+ * La fiche chargée : la source à gauche (colonne collante à partir de `lg`), à droite les rapprochements
+ * puis les champs lus. Le passage cité par le champ survolé ou focalisé descend dans la source ; il vit
+ * ici, entre les deux. Les trois gestes (valider, doublon, écarter), leurs raccourcis et leurs dialogues
+ * aussi : chacun envoie d'abord les corrections en attente.
  */
 function FicheChargee({ detail }: { readonly detail: RadarListingDetail }) {
   const [passage, setPassage] = useState<string | null>(null);
+  const [dialogue, setDialogue] = useState<Dialogue | null>(null);
   const corrections = useCorrectionsFiche(detail);
+  const gestes = useGestesFiche(detail, corrections);
+
+  const rapprochements = useQuery<RadarMatchesResponse, ApiError>({
+    queryKey: radarKeys.matches(detail.id),
+    queryFn: () => fetchRadarMatches(detail.id),
+    staleTime: 10_000,
+    refetchInterval: (query) => (query.state.data?.data.photos.status === 'pending' ? RADAR_POLL_MS : false),
+  });
+  const matches = rapprochements.data?.data.matches ?? [];
+
+  const ouvrir = (suivant: Dialogue) => {
+    if (gestes.enCours) return;
+    gestes.effacerErreur();
+    setDialogue(suivant);
+  };
+  const ouvrirDoublon = (prefill: RadarMatch | null = null) => {
+    if (gestes.peutFermer) ouvrir({ type: 'duplicate', prefill });
+  };
+  const ouvrirEcart = () => {
+    if (gestes.peutFermer) ouvrir({ type: 'discard' });
+  };
+  const fermer = () => {
+    gestes.effacerErreur();
+    setDialogue(null);
+  };
+
+  useRaccourcisFiche({ valider: () => void gestes.valider(), doublon: () => ouvrirDoublon(), ecarter: ouvrirEcart });
 
   return (
     <div className="grid gap-6 lg:grid-cols-2 lg:items-start" data-testid="radar-fiche">
@@ -37,11 +76,50 @@ function FicheChargee({ detail }: { readonly detail: RadarListingDetail }) {
         passage={passage}
         className="lg:sticky lg:top-4 lg:max-h-[calc(100dvh-2rem)] lg:overflow-y-auto"
       />
-      <FormulaireFiche
-        detail={detail}
-        corrections={corrections}
-        surPassage={setPassage}
-      />
+      <div className="space-y-6">
+        <RadarMatchesPanel
+          matches={rapprochements.data?.data}
+          chargement={rapprochements.isLoading}
+          erreur={rapprochements.isError}
+          onDoublon={(match) => ouvrirDoublon(match)}
+          desactive={!gestes.peutFermer || gestes.enCours}
+        />
+        <FormulaireFiche
+          detail={detail}
+          corrections={corrections}
+          surPassage={setPassage}
+          erreurGeste={dialogue ? undefined : gestes.erreur}
+          gestes={(
+            <BarreDesGestes
+              gestes={gestes}
+              stoppee={detail.stage === 'do_not_contact'}
+              onDoublon={() => ouvrirDoublon()}
+              onEcarter={ouvrirEcart}
+            />
+          )}
+        />
+      </div>
+
+      {dialogue?.type === 'duplicate' ? (
+        <DialogueDoublon
+          open
+          onOpenChange={(ouvert) => { if (!ouvert) fermer(); }}
+          matches={matches}
+          prefill={dialogue.prefill}
+          pending={gestes.enCours}
+          erreur={gestes.erreur}
+          onConfirm={(cible) => void gestes.lancer({ type: 'duplicate', cible })}
+        />
+      ) : null}
+      {dialogue?.type === 'discard' ? (
+        <DialogueEcart
+          open
+          onOpenChange={(ouvert) => { if (!ouvert) fermer(); }}
+          pending={gestes.enCours}
+          erreur={gestes.erreur}
+          onConfirm={(motif) => void gestes.lancer({ type: 'discard', motif })}
+        />
+      ) : null}
     </div>
   );
 }

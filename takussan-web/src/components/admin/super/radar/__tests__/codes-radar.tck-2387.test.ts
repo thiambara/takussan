@@ -5,8 +5,8 @@ import { describe, expect, it } from 'vitest';
 import en from '@/messages/en.json';
 import fr from '@/messages/fr.json';
 import wo from '@/messages/wo.json';
-import { RADAR_ADVERTISER_NATURES, RADAR_FIELD_FLAGS } from '@/types/radar';
-import { ERREURS_FICHE_RADAR } from '../codes-radar';
+import { RADAR_ADVERTISER_NATURES, RADAR_DISCARD_REASONS, RADAR_FIELD_FLAGS, RADAR_MATCH_SIGNALS } from '@/types/radar';
+import { ERREURS_FICHE_RADAR, MOTIFS_ECART_RADAR } from '../codes-radar';
 
 const RACINE = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..', '..', '..', '..');
 const lire = (...chemin: string[]) => readFileSync(join(RACINE, ...chemin), 'utf8');
@@ -50,4 +50,28 @@ describe('codes de la fiche du Radar', () => {
     const api = [...source.matchAll(/case \w+ = '([^']+)'/g)].map((m) => m[1]).sort();
     expect([...RADAR_ADVERTISER_NATURES].sort()).toEqual(api);
   });
+
+  it('les motifs d\'écart sont ceux de l\'enum RadarDiscardReason, chacun avec son libellé en trois langues', () => {
+    const source = lire('takussan-api', 'app', 'Models', 'Enums', 'RadarDiscardReason.php');
+    const api = [...source.matchAll(/case \w+ = '([^']+)'/g)].map((m) => m[1]).sort();
+    expect([...RADAR_DISCARD_REASONS].sort()).toEqual(api);
+    expect(Object.keys(MOTIFS_ECART_RADAR).sort()).toEqual(api);
+
+    for (const messages of [fr, en, wo]) {
+      const motifs = messages.superAdmin.pages.radar.reasons as Record<string, string>;
+      for (const valeur of RADAR_DISCARD_REASONS) expect(motifs[MOTIFS_ECART_RADAR[valeur]], valeur).toBeTruthy();
+    }
+  });
+
+  it.each([['fr', fr], ['en', en], ['wo', wo]])('chaque signal de rapprochement a son libellé en %s', (_langue, messages) => {
+    const signaux = messages.superAdmin.pages.radar.listing.matches.signals as Record<string, string>;
+    for (const signal of RADAR_MATCH_SIGNALS.filter((s) => s !== 'photo')) expect(signaux[signal], signal).toBeTruthy();
+    for (const force of ['high', 'medium', 'low']) expect(signaux[`photo_${force}`], force).toBeTruthy();
+  });
+
+  it('les signaux sont ceux du RadarMatcher', () => {
+    const source = lire('takussan-api', 'app', 'Services', 'Radar', 'RadarMatcher.php');
+    for (const signal of RADAR_MATCH_SIGNALS) expect(source, signal).toContain(`'${signal}'`);
+  });
 });
+

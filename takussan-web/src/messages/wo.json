@@ -7957,7 +7957,16 @@
           "extractionInvalidOutput": "La sortie du modèle était invalide.",
           "extractionEmptySource": "Il n’y avait rien à lire : page vide ou aucune capture.",
           "extractionTimeout": "L’extraction n’a pas abouti dans les délais.",
-          "extractionError": "Erreur inattendue : le détail est au journal de l’API."
+          "extractionError": "Erreur inattendue : le détail est au journal de l’API.",
+          "fetchNotImage": "Le lien d’une photo ne mène pas à une image.",
+          "photoAbandoned": "Le calcul des empreintes de photo a été abandonné.",
+          "photoTooManyPixels": "Une photo est trop grande pour être comparée.",
+          "photoUnreadable": "Une photo ne se lit pas comme une image.",
+          "discardNotRealEstate": "Pas une annonce immobilière",
+          "discardOutOfScope": "Hors périmètre (location courte, hors Sénégal…)",
+          "discardNoLongerAvailable": "Plus disponible",
+          "discardUnusableSource": "Source inexploitable",
+          "discardOther": "Autre motif"
         },
         "empty": {
           "title": "Aucune annonce pour l’instant",
@@ -8114,7 +8123,86 @@
             "reviewIncomplete": "La fiche est incomplète : type, contrat, prix et quartier du référentiel sont requis.",
             "duplicateSelf": "Une annonce ne peut pas être son propre doublon.",
             "advertiserPhoneInvalid": "Ce numéro de téléphone n’est pas valide.",
-            "advertiserPhoneUnknown": "Aucun annonceur ne porte ce numéro."
+            "advertiserPhoneUnknown": "Aucun annonceur ne porte ce numéro.",
+            "duplicateChain": "Cette annonce est déjà un doublon, ou pointe déjà vers celle-ci : choisissez l’annonce d’origine.",
+            "reviewIncompleteFields": "Champs à compléter : {fields}.",
+            "gestureFailed": "Le geste a échoué."
+          },
+          "matches": {
+            "heading": "Rapprochements",
+            "alert": "{count, plural, one {Cette annonce ressemble à # bien ou annonce déjà connu} other {Cette annonce ressemble à # biens ou annonces déjà connus}} : vérifiez avant de valider.",
+            "none": "Aucun rapprochement avec un bien ou une annonce connus.",
+            "loadError": "Les rapprochements n’ont pas pu être calculés.",
+            "photosProgress": "Empreintes des photos : {done} / {total}",
+            "strength": {
+              "high": "Forte",
+              "medium": "Moyenne",
+              "low": "Faible"
+            },
+            "strengthLabel": "Ressemblance {strength}",
+            "signals": {
+              "phone": "même téléphone",
+              "neighborhood_price_bedrooms": "même quartier, prix et chambres",
+              "photo_high": "photo identique",
+              "photo_medium": "photo proche",
+              "photo_low": "photo proche"
+            },
+            "kinds": {
+              "property": "Bien du catalogue",
+              "listing": "Annonce du Radar"
+            },
+            "untitled": "Sans titre",
+            "bedrooms": "{count, plural, one {# chambre} other {# chambres}}",
+            "thumbnailAlt": "Vignette : {title}",
+            "openPublic": "Voir la fiche publique",
+            "openConsole": "Chercher dans la console",
+            "openListing": "Ouvrir la fiche Radar",
+            "notPublic": "Non public",
+            "duplicateOfThis": "Doublon de celui-ci"
+          },
+          "gestures": {
+            "label": "Gestes",
+            "validate": "Valider",
+            "duplicate": "Doublon",
+            "discard": "Écarter",
+            "working": "En cours…",
+            "doNotContact": "Ce numéro a demandé l’arrêt des contacts : l’annonce est fermée, aucun geste n’est permis.",
+            "unavailable": "Aucun geste n’est permis à cette étape.",
+            "validateKeys": "⌘/Ctrl + Entrée"
+          },
+          "dialogs": {
+            "duplicate": {
+              "title": "Marquer comme doublon",
+              "description": "L’annonce est la même qu’une annonce déjà collectée ou qu’un bien du catalogue. Elle est fermée, le lien posé.",
+              "matches": "Parmi les rapprochements",
+              "manual": "Une autre annonce ou un autre bien",
+              "manualKind": "Type de la cible",
+              "kindListing": "Annonce du Radar",
+              "kindProperty": "Bien du catalogue",
+              "manualId": "Identifiant",
+              "confirm": "Marquer comme doublon"
+            },
+            "discard": {
+              "title": "Écarter l’annonce",
+              "description": "Choisissez le motif. L’annonce est fermée ; le motif est enregistré.",
+              "confirm": "Écarter"
+            },
+            "cancel": "Annuler"
+          },
+          "phones": {
+            "heading": "Numéros de téléphone",
+            "kept": "Numéros retenus",
+            "keptNone": "Aucun numéro retenu.",
+            "dropped": "Lus par l’IA, absents de la source",
+            "droppedWarning": "Ces numéros ne figurent pas dans le texte source : l’IA a pu se tromper, et un tel numéro peut appartenir à quelqu’un d’autre. Ne rattachez-en un que si vous en êtes sûr.",
+            "makeAdvertiser": "En faire l’annonceur",
+            "currentAdvertiser": "Annonceur actuel",
+            "confirmTitle": "Faire de ce numéro l’annonceur ?",
+            "confirmKept": "L’annonce sera rattachée à {phone}.",
+            "confirmDropped": "{phone} ne figure pas dans la source. L’annonce sera rattachée à ce numéro ; si son titulaire a demandé l’arrêt des contacts, l’annonce sera fermée.",
+            "confirm": "Rattacher",
+            "attached": "Annonceur rattaché.",
+            "doNotContact": "Ce numéro a demandé l’arrêt des contacts : l’annonce est fermée (ne pas contacter), les gestes sont désactivés."
           }
         }
       }

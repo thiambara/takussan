@@ -3,7 +3,7 @@ import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '@/lib/api';
-import { fetchRadarListing, patchRadarListing } from '@/lib/queries/radar';
+import { fetchRadarListing, fetchRadarMatches, patchRadarListing } from '@/lib/queries/radar';
 import { avecGestes } from '@/test/habilitations';
 import { withIntl } from '@/test/intl';
 import type { RadarExtracted, RadarListingDetail } from '@/types/radar';
@@ -12,8 +12,11 @@ import { RadarListingFiche } from '../RadarListingFiche';
 vi.mock('@/lib/queries/radar', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/queries/radar')>()),
   fetchRadarListing: vi.fn(),
+  fetchRadarMatches: vi.fn(),
   patchRadarListing: vi.fn(),
 }));
+
+vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }));
 
 vi.mock('@/lib/queries/referentiel-public', () => ({
   useVillesDuReferentiel: () => ({ data: { data: [{ id: 1, region_id: 1, name: 'Dakar', slug: 'dakar', latitude: null, longitude: null }] }, isLoading: false }),
@@ -93,6 +96,7 @@ const scrollIntoView = vi.fn();
 beforeEach(() => {
   vi.mocked(fetchRadarListing).mockReset();
   vi.mocked(patchRadarListing).mockReset();
+  vi.mocked(fetchRadarMatches).mockReset().mockResolvedValue({ data: { photos: { status: 'none', total: 0, done: 0 }, matches: [] } });
   scrollIntoView.mockReset();
   Element.prototype.scrollIntoView = scrollIntoView;
 });

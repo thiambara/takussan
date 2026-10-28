@@ -59,6 +59,7 @@ export function ChampFiche({ nom, libelle, champ, modifie, texteSource, surPassa
       )}
       role={groupe ? 'group' : undefined}
       aria-labelledby={groupe ? `${id}-libelle` : undefined}
+      data-champ={nom}
       data-testid={`champ-${nom}`}
       data-confiance={champ?.confidence}
       data-alerte={etat.niveau === 'alerte' ? 'true' : undefined}
