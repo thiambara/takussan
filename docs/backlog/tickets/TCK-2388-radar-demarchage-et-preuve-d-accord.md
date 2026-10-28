@@ -1,13 +1,13 @@
 ---
 id: TCK-2388
 title: "Radar : fiche annonceur, message d'accord à clauses fixes ouvert dans WhatsApp, et preuve d'accord vérifiée par l'IA puis confirmée"
-status: todo
+status: doing
 phase: P1
 family: full
 estimate: L
 wave: 80
 created: 2026-10-26
-updated: 2026-10-27
+updated: 2026-10-28
 depends_on: [TCK-2386]
 blocks: [TCK-2389, TCK-2390, TCK-2395]
 spec_refs:
