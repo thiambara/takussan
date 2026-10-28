@@ -6,6 +6,7 @@ use App\Ai\Agents\RadarExtraction;
 use App\Http\Requests\BaseFormRequest;
 use App\Models\Enums\PropertyType;
 use App\Models\Enums\RadarAdvertiserNature;
+use App\Models\Enums\ReferentialStatus;
 use App\Models\Enums\RentPeriod;
 use App\Services\Radar\RadarReviewFields;
 use Illuminate\Validation\Rule;
@@ -38,7 +39,7 @@ class UpdateRadarListingRequest extends BaseFormRequest
             'rent_period' => ['sometimes', 'nullable', Rule::enum(RentPeriod::class)],
             'price' => ['sometimes', 'nullable', 'integer', 'min:1', 'max:'.self::MAX_PRICE],
             'neighborhood_id' => ['sometimes', 'nullable', 'integer', Rule::exists('geo_neighborhoods', 'id')
-                ->where(fn ($query) => $query->where('status', 'approved')->whereNull('merged_into_id'))],
+                ->where(fn ($query) => $query->where('status', ReferentialStatus::Approved->value)->whereNull('merged_into_id'))],
             'city' => ['sometimes', 'nullable', 'string', 'max:120'],
             'bedrooms' => ['sometimes', 'nullable', 'integer', 'min:0', 'max:99'],
             'bathrooms' => ['sometimes', 'nullable', 'integer', 'min:0', 'max:99'],

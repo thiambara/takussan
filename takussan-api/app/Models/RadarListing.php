@@ -123,8 +123,15 @@ class RadarListing extends AbstractModel implements HasMedia
 
     /**
      * TCK-2387 — où en est le calcul des empreintes des photos source. `none` : rien à calculer (pas une
-     * URL, ou pas de photo) ; `pending` : une URL de moins que prévu a été tentée (`null` : jamais
-     * calculé) ; `done` : toutes tentées, réussies ou non. Le total est borné par `max_per_listing`.
+     * URL, ou pas de photo), ou rien qui se calculera jamais (voir ci-dessous) ; `pending` : une URL de
+     * moins que prévu a été tentée (`null` : jamais calculé) ; `done` : toutes tentées, réussies ou non.
+     * Le total est borné par `max_per_listing`.
+     *
+     * Un compte incomplet n'est `pending` que si le travail peut encore se faire : une annonce `captured`
+     * (l'extraction, qui le met en file, n'a pas fini) ou une annonce lue ({@see fingerprintable()}).
+     * Échec d'extraction, STOP, écart, doublon, démarchage : plus personne n'achèvera le compte, et `pending`
+     * ferait rappeler la route des rapprochements toutes les 10 s (le matcher à chaque fois) sous un compteur
+     * qui promet un travail qui n'aura pas lieu. Un compte COMPLET reste `done`, quelle que soit l'étape.
      *
      * @return array{status: 'none'|'pending'|'done', total: int, done: int}
      */
@@ -135,6 +142,10 @@ class RadarListing extends AbstractModel implements HasMedia
         }
         $total = min(count($this->photo_urls), (int) config('radar.photos.max_per_listing'));
         $done = count($this->source_photo_hashes ?? []);
+
+        if ($done < $total && $this->stage !== RadarListingStage::Captured && ! $this->fingerprintable()) {
+            return ['status' => 'none', 'total' => 0, 'done' => 0];
+        }
 
         return ['status' => $done >= $total ? 'done' : 'pending', 'total' => $total, 'done' => min($done, $total)];
     }

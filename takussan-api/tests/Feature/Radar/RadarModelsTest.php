@@ -209,6 +209,32 @@ class RadarModelsTest extends TestCase
         $this->assertSame(['status' => 'done', 'total' => 3, 'done' => 3], $url(['source_photo_hashes' => $trois])->photoFingerprintStatus());
     }
 
+    public function test_photo_fingerprint_status_ne_promet_rien_que_personne_n_achevera(): void
+    {
+        $urls = ['https://exemple.test/1.jpg', 'https://exemple.test/2.jpg'];
+        $statut = fn (RadarListingStage $etape, ?array $hashes = null) => RadarListing::factory()
+            ->make(['source_kind' => RadarSourceKind::Url, 'photo_urls' => $urls, 'stage' => $etape, 'source_photo_hashes' => $hashes])
+            ->photoFingerprintStatus();
+        $un = [['url' => $urls[0], 'hash' => 1, 'b0' => 0, 'b1' => 0, 'b2' => 0, 'b3' => 0]];
+        $deux = [...$un, ['url' => $urls[1], 'hash' => null, 'error' => 'radar.photo.timeout']];
+
+        // Là où le travail se fait ou va se faire : pending.
+        foreach ([RadarListingStage::Captured, RadarListingStage::Extracted, RadarListingStage::Reviewed] as $etape) {
+            $this->assertSame(['status' => 'pending', 'total' => 2, 'done' => 1], $statut($etape, $un), $etape->value);
+        }
+
+        // Partout ailleurs, un compte incomplet (jamais commencé, ou coupé à moitié) ne l'est plus.
+        foreach ([
+            RadarListingStage::ExtractionFailed, RadarListingStage::DoNotContact, RadarListingStage::Discarded,
+            RadarListingStage::Duplicate, RadarListingStage::Contacted, RadarListingStage::Refused,
+        ] as $etape) {
+            $this->assertSame(['status' => 'none', 'total' => 0, 'done' => 0], $statut($etape), $etape->value);
+            $this->assertSame(['status' => 'none', 'total' => 0, 'done' => 0], $statut($etape, $un), $etape->value);
+            // Un compte complet reste complet, quelle que soit l'étape.
+            $this->assertSame(['status' => 'done', 'total' => 2, 'done' => 2], $statut($etape, $deux), $etape->value);
+        }
+    }
+
     public function test_photo_fingerprint_status_borne_le_total_a_max_per_listing(): void
     {
         config(['radar.photos.max_per_listing' => 2]);

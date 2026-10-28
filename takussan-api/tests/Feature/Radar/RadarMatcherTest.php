@@ -199,7 +199,7 @@ class RadarMatcherTest extends TestCase
         $this->assertNotContains('property:'.$bienEcarte->id, array_keys($this->matchesOf($listing)));
     }
 
-    public function test_un_numero_etranger_ou_nul_ne_rapproche_rien(): void
+    public function test_un_proprietaire_sans_numero_ne_rapproche_rien(): void
     {
         $this->bien(['user_id' => User::factory()->create(['phone' => null])->id]);
         $listing = $this->source(['phones' => []]);

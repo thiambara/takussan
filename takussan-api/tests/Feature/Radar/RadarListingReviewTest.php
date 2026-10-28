@@ -652,6 +652,36 @@ class RadarListingReviewTest extends TestCase
         $this->assertSame(RadarListingStage::Extracted, $listing->fresh()->stage);
     }
 
+    public function test_doublon_une_chaine_ne_se_forme_pas_par_les_liens_entrants(): void
+    {
+        $a = $this->fiche();
+        $b = $this->fiche();
+        $c = $this->fiche();
+
+        // B → A (A est une cible permise), puis A → C : B suit A, il ne reste pas derrière elle.
+        $this->postJson($this->url($b, '/duplicate'), ['of_listing_id' => $a->id])->assertOk();
+        $this->assertSame($a->id, $b->fresh()->duplicate_of_listing_id);
+        $this->postJson($this->url($a, '/duplicate'), ['of_listing_id' => $c->id])->assertOk();
+
+        $this->assertSame($c->id, $a->fresh()->duplicate_of_listing_id);
+        $this->assertSame($c->id, $b->fresh()->duplicate_of_listing_id);
+        $this->assertNull($b->fresh()->duplicate_of_property_id);
+        $this->assertSame(RadarListingStage::Duplicate, $b->fresh()->stage);
+    }
+
+    public function test_doublon_les_liens_entrants_suivent_aussi_une_cible_bien(): void
+    {
+        $a = $this->fiche();
+        $b = $this->fiche();
+        $bien = Property::factory()->published()->create();
+
+        $this->postJson($this->url($b, '/duplicate'), ['of_listing_id' => $a->id])->assertOk();
+        $this->postJson($this->url($a, '/duplicate'), ['of_property_id' => $bien->id])->assertOk();
+
+        $this->assertNull($b->fresh()->duplicate_of_listing_id);
+        $this->assertSame($bien->id, $b->fresh()->duplicate_of_property_id);
+    }
+
     public function test_doublon_d_un_bien_de_test_rend_422(): void
     {
         $bienDeTest = Property::factory()->published()->create(['is_test' => true]);
@@ -962,6 +992,28 @@ class RadarListingReviewTest extends TestCase
         $lue = $this->fiche([], ['stage' => RadarListingStage::Reviewed, 'source_kind' => RadarSourceKind::Url, 'photo_urls' => ['https://img.example/1.jpg']]);
         $this->getJson($this->url($lue, '/matches'))->assertOk();
         Bus::assertDispatchedTimes(FingerprintRadarSourcePhotos::class, 1);
+    }
+
+    public function test_une_annonce_fermee_dont_le_compte_est_incomplet_ne_dit_pas_pending(): void
+    {
+        foreach ([
+            RadarListingStage::ExtractionFailed, RadarListingStage::DoNotContact, RadarListingStage::Discarded,
+            RadarListingStage::Duplicate, RadarListingStage::Contacted,
+        ] as $etape) {
+            $listing = $this->fiche([], [
+                'stage' => $etape, 'source_kind' => RadarSourceKind::Url, 'photo_urls' => ['https://img.example/1.jpg', 'https://img.example/2.jpg'],
+            ]);
+
+            // `pending` ferait rappeler la route toutes les 10 s, pour un compte que rien n'achèvera.
+            $this->getJson($this->url($listing, '/matches'))
+                ->assertOk()
+                ->assertJsonPath('data.photos', ['status' => 'none', 'total' => 0, 'done' => 0]);
+            $this->getJson($this->url($listing))->assertOk()->assertJsonPath('data.photo_fingerprints.status', 'none');
+        }
+
+        // Témoin : une annonce que le job travaille encore dit `pending`.
+        $lue = $this->fiche([], ['stage' => RadarListingStage::Extracted, 'source_kind' => RadarSourceKind::Url, 'photo_urls' => ['https://img.example/1.jpg']]);
+        $this->getJson($this->url($lue, '/matches'))->assertOk()->assertJsonPath('data.photos.status', 'pending');
     }
 
     public function test_une_annonce_sans_empreinte_a_calculer_ne_met_rien_en_file(): void

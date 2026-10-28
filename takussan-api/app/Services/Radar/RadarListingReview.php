@@ -92,6 +92,9 @@ final class RadarListingReview
      * TCK-2387 — « doublon de » : la fiche est la même annonce qu'une autre fiche, ou qu'un bien du
      * catalogue. Elle ferme l'annonce (`duplicate`), le lien posé ; la suggestion reste en attente — personne
      * n'a jugé l'extraction, le taux d'acceptation n'est pas touché (décision 13a).
+     *
+     * Une chaîne ne se forme jamais : la requête refuse une cible déjà doublon, et les doublons qui pointaient
+     * vers cette annonce sont repointés vers sa nouvelle cible.
      */
     public function markDuplicate(RadarListing $listing, ?int $ofListingId, ?int $ofPropertyId, User $by): RadarListing
     {
@@ -107,6 +110,14 @@ final class RadarListingReview
                 'duplicate_of_property_id' => $ofPropertyId,
                 'matches' => $this->frozen($snapshot, $listing, $l),
             ])->save();
+
+            // Celles qui pointaient déjà vers CETTE annonce (B → A) suivent sa nouvelle cible (A → C) : sans quoi
+            // B → A → C s'enchaîne, et la profondeur n'a plus de borne. Elles sont `duplicate`, donc la cible ne
+            // peut pas être l'une d'elles (une cible `duplicate` est refusée à la validation de la requête).
+            RadarListing::query()->where('duplicate_of_listing_id', $l->id)->update([
+                'duplicate_of_listing_id' => $ofListingId,
+                'duplicate_of_property_id' => $ofPropertyId,
+            ]);
 
             $this->journal('radar_listing_marked_duplicate', 'Annonce du Radar marquée en doublon', $l, $by, [
                 'of_listing_id' => $ofListingId,
