@@ -201,6 +201,61 @@ class RadarAdvertiserCardTest extends TestCase
         $this->getJson("/api/admin/radar/advertisers/{$annonceur->id}")->assertOk()->assertJsonPath('data.outreaches.0.wa_me_url', null);
     }
 
+    /** Un brouillon complet (parties écrites, annonceur joignable) sur ces annonces, et la fiche telle que l'API la rend. */
+    private function brouillonDe(RadarAdvertiser $annonceur, array $attributes, RadarListing ...$annonces): array
+    {
+        config(['app.frontend_url' => 'https://front.exemple.test']);
+        $message = $this->app->make(ConsentMessageComposer::class)->compose('fr', 'Bonjour Awa,', 'votre appartement à Ouakam');
+        $brouillon = RadarOutreach::factory()->withListings(...$annonces)->create($attributes + [
+            'radar_advertiser_id' => $annonceur->id, 'salutation' => 'Bonjour Awa,', 'summary' => 'votre appartement à Ouakam', 'message' => $message,
+        ]);
+
+        return [$brouillon, collect($this->getJson("/api/admin/radar/advertisers/{$annonceur->id}")->assertOk()->json('data.outreaches'))->keyBy('id')[$brouillon->id]];
+    }
+
+    public function test_un_brouillon_qui_partirait_en_409_n_offre_pas_de_lien_wa_me_et_dit_pourquoi(): void
+    {
+        $annonceur = RadarAdvertiser::factory()->create(['phone' => '+221771234567']);
+        $annonce = $this->lue($annonceur, ['stage' => RadarListingStage::Reviewed]);
+
+        // Valide : le lien est là, rien n'est bloqué.
+        [$valide, $carte] = $this->brouillonDe($annonceur, [], $annonce);
+        $this->assertStringStartsWith('https://wa.me/221771234567?text=', $carte['wa_me_url']);
+        $this->assertNull($carte['send_blocked']);
+        $valide->delete();
+
+        // Une annonce passée à un autre annonceur depuis la préparation.
+        $etrangere = $this->lue(RadarAdvertiser::factory()->create(), ['stage' => RadarListingStage::Reviewed]);
+        [$brouillon, $carte] = $this->brouillonDe($annonceur, [], $annonce, $etrangere);
+        $this->assertNull($carte['wa_me_url']);
+        $this->assertSame('radar.outreach.listing_foreign', $carte['send_blocked']);
+        $brouillon->delete();
+
+        // Une annonce sortie de reviewed/contacted.
+        $ecartee = $this->lue($annonceur, ['stage' => RadarListingStage::Discarded]);
+        [$brouillon, $carte] = $this->brouillonDe($annonceur, [], $annonce, $ecartee);
+        $this->assertNull($carte['wa_me_url']);
+        $this->assertSame('radar.listing.stage_conflict', $carte['send_blocked']);
+    }
+
+    public function test_une_relance_dont_le_message_relance_a_une_issue_n_offre_pas_de_lien_wa_me(): void
+    {
+        $annonceur = RadarAdvertiser::factory()->create(['phone' => '+221771234567']);
+        $annonce = $this->lue($annonceur, ['stage' => RadarListingStage::Contacted]);
+        $origine = RadarOutreach::factory()->withListings($annonce)->sent()->create(['radar_advertiser_id' => $annonceur->id, 'outcome' => 'question', 'outcome_at' => now()]);
+
+        [$relance, $carte] = $this->brouillonDe($annonceur, ['follow_up_of_id' => $origine->id, 'follow_up_rank' => 1], $annonce);
+
+        $this->assertNull($carte['wa_me_url']);
+        $this->assertSame('radar.outreach.follow_up_invalid', $carte['send_blocked']);
+
+        // Sans issue, la même relance est envoyable.
+        $origine->forceFill(['outcome' => null, 'outcome_at' => null])->save();
+        $carte = collect($this->getJson("/api/admin/radar/advertisers/{$annonceur->id}")->json('data.outreaches'))->keyBy('id')[$relance->id];
+        $this->assertNotNull($carte['wa_me_url']);
+        $this->assertNull($carte['send_blocked']);
+    }
+
     public function test_le_statut_d_un_message_est_prepare_envoye_ou_clos(): void
     {
         $annonceur = RadarAdvertiser::factory()->create();

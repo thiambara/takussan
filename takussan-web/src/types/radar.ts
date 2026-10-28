@@ -415,8 +415,10 @@ export interface RadarOutreach {
   readonly summary: string;
   readonly message: string;
   readonly segments: readonly RadarMessageSegment[];
-  /** Absent (`null`) tant que les deux parties ne sont pas écrites, une fois envoyé, et si l'annonceur a dit STOP. */
+  /** Absent (`null`) tant que les deux parties ne sont pas écrites, une fois envoyé, si l'annonceur a dit STOP, et si `send_blocked`. */
   readonly wa_me_url: string | null;
+  /** Brouillon seulement : le code du refus qu'essuierait « J'ai envoyé » (annonce d'un autre annonceur, chaîne fermée, annonce sortie d'étape). */
+  readonly send_blocked: string | null;
   readonly follow_up_of_id: number | null;
   readonly follow_up_rank: number;
   readonly created_by: { readonly id: number; readonly name: string } | null;

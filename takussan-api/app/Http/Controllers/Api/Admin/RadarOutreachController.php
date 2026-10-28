@@ -67,7 +67,8 @@ class RadarOutreachController extends Controller
     {
         return new RadarOutreachResource($outreach->load([
             'advertiser',
-            'listings:id',
+            'listings:id,radar_advertiser_id,stage',
+            'followUpOf:id,outcome',
             'creator:id,first_name,last_name,username',
             'consents.confirmer:id,first_name,last_name,username',
             'consents.media',

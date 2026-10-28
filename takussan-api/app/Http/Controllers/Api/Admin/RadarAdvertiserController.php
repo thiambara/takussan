@@ -56,7 +56,8 @@ class RadarAdvertiserController extends Controller
         $advertiser->load([
             'claimer:id,first_name,last_name,username',
             'listings',
-            'outreaches.listings:id',
+            'outreaches.listings:id,radar_advertiser_id,stage',
+            'outreaches.followUpOf:id,outcome',
             'outreaches.creator:id,first_name,last_name,username',
             'outreaches.consents.confirmer:id,first_name,last_name,username',
             'outreaches.consents.media',

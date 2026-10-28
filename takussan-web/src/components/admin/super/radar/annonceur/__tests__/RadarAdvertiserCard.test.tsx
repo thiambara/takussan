@@ -435,6 +435,23 @@ describe('RadarAdvertiserCard — l\'aperçu du message (TCK-2388)', () => {
     await waitFor(() => expect(screen.queryByRole('link', { name: /WhatsApp/ })).not.toBeInTheDocument());
   });
 
+  it('un brouillon que « J\'ai envoyé » refuserait n\'a pas de lien WhatsApp et dit pourquoi, avec la raison de l\'API', async () => {
+    await rendre(annonceur({
+      outreaches: [message({ wa_me_url: null, send_blocked: 'radar.outreach.follow_up_invalid' })],
+    }));
+
+    expect(screen.queryByRole('link', { name: /WhatsApp/ })).not.toBeInTheDocument();
+    const bloque = screen.getByTestId('radar-message-bloque');
+    expect(bloque).toHaveTextContent(/Ce brouillon ne peut plus être envoyé/);
+    expect(bloque).toHaveTextContent(/Ce message ne se relance pas/);
+    expect(bloque).toHaveTextContent(/Préparez un nouveau message/);
+  });
+
+  it('un brouillon sans blocage n\'affiche pas de phrase de blocage', async () => {
+    await rendre(annonceur({ outreaches: [message()] }));
+    expect(screen.queryByTestId('radar-message-bloque')).not.toBeInTheDocument();
+  });
+
   it('une retouche non enregistrée ferme WhatsApp et « J\'ai envoyé » : l\'API n\'ouvre que le texte enregistré', async () => {
     const { utilisateur } = await rendre(annonceur({ outreaches: [message()] }));
     expect(screen.getByRole('link', { name: /WhatsApp/ })).toBeInTheDocument();

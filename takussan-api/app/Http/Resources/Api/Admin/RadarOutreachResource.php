@@ -3,7 +3,9 @@
 namespace App\Http\Resources\Api\Admin;
 
 use App\Http\Resources\Bases\BaseResource;
+use App\Models\RadarOutreach;
 use App\Services\Radar\ConsentMessageComposer;
+use App\Services\Radar\RadarOutreachWorkflow;
 use Illuminate\Http\Request;
 use InvalidArgumentException;
 use RuntimeException;
@@ -22,7 +24,11 @@ use RuntimeException;
  * enregistrée n'est plus servie), `segments` est un seul segment fixe qui porte le texte enregistré — la fiche ne
  * répond jamais 500 pour un message ancien. `generated` et `ai_error` ne sont posés que par {@see self::withGeneration()},
  * à la préparation : ce que le modèle a rendu n'est pas une propriété du message. `wa_me_url` n'existe que pour un message `prepared` dont les deux
- * parties sont écrites et dont l'annonceur n'a pas dit STOP : on ne renvoie jamais deux fois le même lien.
+ * parties sont écrites, dont l'annonceur n'a pas dit STOP et que « J'ai envoyé » n'est pas déjà sûr de refuser
+ * (`RadarOutreachWorkflow::sendBlock()`) : on ne renvoie jamais deux fois le même lien. Un brouillon bloqué porte alors
+ * `send_blocked`, le code de ce refus (`radar.outreach.follow_up_invalid`, `radar.outreach.listing_foreign`,
+ * `radar.listing.stage_conflict`) ; `null` sinon. Il lit les annonces (`id`, `radar_advertiser_id`, `stage`) et le message
+ * relancé (`followUpOf:id,outcome`) déjà chargés par l'appelant.
  */
 class RadarOutreachResource extends BaseResource
 {
@@ -61,6 +67,7 @@ class RadarOutreachResource extends BaseResource
             'message' => $this->message,
             'segments' => $this->segments(),
             'wa_me_url' => $this->waMeUrl(),
+            'send_blocked' => $this->sendBlocked(),
             'follow_up_of_id' => $this->follow_up_of_id,
             'follow_up_rank' => $this->follow_up_rank,
             'created_by' => $this->creator === null ? null : [
@@ -96,9 +103,23 @@ class RadarOutreachResource extends BaseResource
         $advertiser = $this->advertiser;
         $ready = ! $this->isSent()
             && trim($this->salutation) !== '' && trim($this->summary) !== ''
-            && $advertiser?->phone !== null && $advertiser->do_not_contact_at === null;
+            && $advertiser?->phone !== null && $advertiser->do_not_contact_at === null
+            && $this->sendBlocked() === null;
 
         return $ready ? app(ConsentMessageComposer::class)->waMeUrl($advertiser->phone, $this->message) : null;
+    }
+
+    /** Le code du refus qu'essuierait « J'ai envoyé » sur ce brouillon, ou `null` (un message déjà envoyé n'en a pas). */
+    private function sendBlocked(): ?string
+    {
+        if ($this->isSent() || $this->advertiser === null) {
+            return null;
+        }
+        /** @var RadarOutreach $outreach */
+        $outreach = $this->resource;
+
+        return app(RadarOutreachWorkflow::class)
+            ->sendBlock($outreach, $this->advertiser, $outreach->listings, $outreach->followUpOf)['code'] ?? null;
     }
 
     private function status(): string

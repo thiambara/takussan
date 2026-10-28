@@ -8942,6 +8942,7 @@
             "partsEmpty": "The greeting and the summary must be written before opening WhatsApp.",
             "whatsapp": "Open WhatsApp",
             "whatsappHint": "The link opens in a new tab, with the exact text above.",
+            "blocked": "This draft can no longer be sent. {reason} Prepare a new message.",
             "sent": "I sent the message",
             "sentTitle": "Confirm it was sent",
             "sentBody": "Confirm this message was really sent to the advertiser. The listings will become “contacted” and the message can no longer be edited.",

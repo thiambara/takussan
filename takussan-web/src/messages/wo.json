@@ -8288,6 +8288,7 @@
             "partsEmpty": "La salutation et le résumé doivent être écrits avant d’ouvrir WhatsApp.",
             "whatsapp": "Ouvrir WhatsApp",
             "whatsappHint": "Le lien s’ouvre dans un nouvel onglet, avec le texte exact ci-dessus.",
+            "blocked": "Ce brouillon ne peut plus être envoyé. {reason} Préparez un nouveau message.",
             "sent": "J’ai envoyé le message",
             "sentTitle": "Confirmer l’envoi",
             "sentBody": "Confirmez que ce message a bien été envoyé à l’annonceur. Les annonces passeront en « contactée » et le message ne se modifiera plus.",

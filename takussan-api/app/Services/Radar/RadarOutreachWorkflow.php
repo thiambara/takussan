@@ -169,24 +169,11 @@ final class RadarOutreachWorkflow
             $this->refuseIfDoNotContact($advertiser);
             abort_code_if($locked->isSent(), 409, 'radar.outreach.not_prepared');
             abort_code_if(trim($locked->salutation) === '' || trim($locked->summary) === '', 422, 'radar.outreach.parts_missing');
-            // Une annonce du brouillon a pu changer d'annonceur depuis sa préparation (`PUT …/listings/{listing}/advertiser`, permis
-            // tant qu'elle est `reviewed`) : l'envoyer ferait couvrir par l'accord de CET annonceur l'annonce d'un autre.
-            $foreign = $listings->filter(fn (RadarListing $listing) => $listing->radar_advertiser_id !== $advertiser->id)
-                ->pluck('id')->map(fn ($id) => (int) $id)->sort()->values()->all();
-            abort_code_if($foreign !== [], 409, 'radar.outreach.listing_foreign', ['listing_ids' => $foreign]);
-            // Une relance se juge de nouveau à l'envoi : le message relancé a pu recevoir une issue (`question`, `no_answer`)
-            // depuis la préparation du brouillon, la chaîne est alors fermée.
-            if ($locked->follow_up_of_id !== null) {
-                $target = RadarOutreach::query()->whereKey($locked->follow_up_of_id)->lockForUpdate()->first();
-                abort_code_if($target === null || $target->outcome !== null, 409, 'radar.outreach.follow_up_invalid');
-            }
-            foreach ($listings as $listing) {
-                abort_code_unless(
-                    in_array($listing->stage, [RadarListingStage::Reviewed, RadarListingStage::Contacted], true),
-                    409,
-                    'radar.listing.stage_conflict',
-                    ['stage' => $listing->stage->value, 'listing_id' => $listing->id],
-                );
+            // Les règles que la fiche relit pour cacher le lien `wa.me` d'un brouillon qui ne partirait plus : une seule source.
+            $target = $locked->follow_up_of_id === null ? null : RadarOutreach::query()->whereKey($locked->follow_up_of_id)->lockForUpdate()->first();
+            $block = $this->sendBlock($locked, $advertiser, $listings, $target);
+            if ($block !== null) {
+                abort_code(...$block);
             }
 
             $locked->forceFill(['sent_at' => now(), 'sent_by_id' => $by->id])->save();
@@ -208,6 +195,38 @@ final class RadarOutreachWorkflow
 
             return $locked;
         });
+    }
+
+    /**
+     * Ce qui, à cet instant, ferait refuser l'envoi d'un brouillon (409), ou `null` : une annonce passée à un autre
+     * annonceur depuis la préparation (`PUT …/listings/{listing}/advertiser`, permis tant qu'elle est `reviewed`), un
+     * message relancé qui a reçu une issue entre-temps, une annonce sortie de `reviewed`/`contacted`. `markSent` l'applique
+     * SOUS VERROU ; la fiche le relit sans verrou pour ne pas offrir un lien `wa.me` vers un message que « J'ai envoyé »
+     * refuserait ensuite — l'opérateur l'aurait envoyé sans que rien ne s'en souvienne. Ne lit que ce qu'on lui passe.
+     *
+     * @param  Collection<int, RadarListing>  $listings  les annonces du brouillon
+     * @param  RadarOutreach|null  $target  le message relancé (`null` : il n'existe plus, ou ce n'est pas une relance)
+     * @return array{status: int, code: string, params: array<string, mixed>}|null
+     */
+    public function sendBlock(RadarOutreach $outreach, RadarAdvertiser $advertiser, Collection $listings, ?RadarOutreach $target): ?array
+    {
+        $listings = $listings->sortBy('id')->values();
+        $foreign = $listings->filter(fn (RadarListing $listing) => $listing->radar_advertiser_id !== $advertiser->id)
+            ->pluck('id')->map(fn ($id) => (int) $id)->all();
+        if ($foreign !== []) {
+            return ['status' => 409, 'code' => 'radar.outreach.listing_foreign', 'params' => ['listing_ids' => $foreign]];
+        }
+        // Une relance se juge de nouveau à l'envoi : la chaîne est fermée si le message relancé a reçu une issue.
+        if ($outreach->follow_up_of_id !== null && ($target === null || $target->outcome !== null)) {
+            return ['status' => 409, 'code' => 'radar.outreach.follow_up_invalid', 'params' => []];
+        }
+        foreach ($listings as $listing) {
+            if (! in_array($listing->stage, [RadarListingStage::Reviewed, RadarListingStage::Contacted], true)) {
+                return ['status' => 409, 'code' => 'radar.listing.stage_conflict', 'params' => ['stage' => $listing->stage->value, 'listing_id' => $listing->id]];
+            }
+        }
+
+        return null;
     }
 
     private function refuseIfDoNotContact(RadarAdvertiser $advertiser): void

@@ -152,6 +152,9 @@ export function ApercuMessage({ message, erreurIa, desactive, enRetouche, enEnvo
         </Button>
       </div>
       {!partiesEcrites ? <p className="text-xs text-muted-foreground">{t('partsEmpty')}</p> : null}
+      {message.send_blocked !== null ? (
+        <p className="text-xs text-destructive" data-testid="radar-message-bloque">{t('blocked', { reason: motifIa(message.send_blocked) })}</p>
+      ) : null}
       {message.wa_me_url !== null ? <p className="text-xs text-muted-foreground">{t('whatsappHint')}</p> : null}
 
       <Dialog open={confirmation} onOpenChange={(ouvert) => { if (!enEnvoi) setConfirmation(ouvert); }}>
