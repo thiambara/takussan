@@ -589,6 +589,26 @@ class RadarConsentReplyTest extends TestCase
         Exceptions::assertNothingReported();
     }
 
+    public function test_un_imprevu_apres_l_appel_paye_fait_echouer_la_reponse_sans_repayer(): void
+    {
+        RadarConsentVerification::fake(fn () => $this->sortie());
+        $reponse = $this->reponseDeposee();
+        // La suggestion ne s'écrit pas : l'écriture du verdict est annulée APRÈS l'appel payé.
+        AiSuggestion::creating(fn () => throw new \RuntimeException('base indisponible'));
+
+        try {
+            $this->lancer($reponse)->assertNotReleased();
+        } finally {
+            AiSuggestion::flushEventListeners();
+        }
+
+        $reponse->refresh();
+        $this->assertSame([RadarVerificationStatus::Failed, VerifyRadarConsentReply::REASON_UNEXPECTED], [$reponse->verification_status, $reponse->verification_reason]);
+        $this->assertNull($reponse->ai_verdict);
+        $this->assertSame(0, AiSuggestion::query()->count());
+        RadarConsentVerification::assertPromptedTimes(1);
+    }
+
     public function test_un_imprevu_hors_de_l_appel_attend_sous_son_propre_motif_et_non_sous_celui_de_la_fenetre(): void
     {
         RadarConsentVerification::fake();

@@ -111,17 +111,25 @@ final class VerifyRadarConsentReply implements ShouldQueue
         return [(new WithoutOverlapping((string) $this->replyId))->releaseAfter(30)->expireAfter($this->timeout + 30)];
     }
 
+    /** Vrai dès que `AiGateway::run()` a rendu : l'appel est payé, une reprise le repaierait. Jamais sérialisé utilement : propre à CE passage. */
+    private bool $paid = false;
+
     public function handle(AiGateway $gateway, SuggestionRecorder $recorder, ConsentMessageComposer $composer, RadarVerificationDecision $decision): void
     {
+        $this->paid = false;
         try {
             $this->verify($gateway, $recorder, $composer, $decision);
         } catch (Throwable $e) {
             // Tout ce qui échappe à la classification de l'appel (médias, clauses, suggestion, base) : une erreur de
             // programmation échoue ; un imprévu attend, espacé, avec SON motif — jamais le `timeout` de la fenêtre.
+            // Mais APRÈS l'appel payé, attendre le repaierait à chaque reprise et viderait le budget du jour de l'usage
+            // pour toutes les autres vérifications : la réponse échoue, l'opérateur tranche sur les captures.
             report($e);
-            $e instanceof \Error
-                ? $this->markFailed(self::REASON_ERROR)
-                : $this->pending(self::REASON_UNEXPECTED, $this->outageDelay());
+            match (true) {
+                $e instanceof \Error => $this->markFailed(self::REASON_ERROR),
+                $this->paid => $this->markFailed(self::REASON_UNEXPECTED),
+                default => $this->pending(self::REASON_UNEXPECTED, $this->outageDelay()),
+            };
         }
     }
 
@@ -159,6 +167,7 @@ final class VerifyRadarConsentReply implements ShouldQueue
                 subject: $reply,
                 attachments: $attachments,
             ));
+            $this->paid = true;
         } catch (AiRefused $e) {
             // Refusé avant le fournisseur : le plafond et le coupe-circuit attendent, le reste échoue.
             if (in_array($e->reason, [AiRefusalReason::Budget, AiRefusalReason::KillSwitch], true)) {

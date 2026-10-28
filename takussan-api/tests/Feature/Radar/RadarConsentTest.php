@@ -272,6 +272,29 @@ class RadarConsentTest extends TestCase
         $this->assertSame([], Activity::query()->where('event', 'radar_outreach_outcome')->sole()->properties['discordances'] ?? []);
     }
 
+    public function test_une_issue_se_pose_quelle_que_soit_l_etat_de_la_verification(): void
+    {
+        // Coupe-circuit, plafond atteint : la vérification peut rester `pending` jusqu'à 24 h, l'humain n'attend pas.
+        $annonce = $this->annonce();
+        $message = $this->message($annonce);
+        $reponse = RadarConsent::factory()->create([
+            'radar_outreach_id' => $message->id, 'verification_status' => 'pending', 'verification_reason' => 'ai.kill_switch',
+        ]);
+
+        $this->issue($message, 'consented')->assertStatus(422)->assertJsonPath('params.discordances', ['no_verdict']);
+        $this->issue($message, 'consented', 'Capture lue : le « oui » est clair.')->assertOk();
+
+        $this->assertSame('consented', $this->etape($annonce));
+        $reponse->refresh();
+        $this->assertNotNull($reponse->confirmed_at);
+        $this->assertSame('pending', $reponse->verification_status->value);
+
+        $autre = $this->message($this->annonce());
+        RadarConsent::factory()->create(['radar_outreach_id' => $autre->id, 'verification_status' => 'pending']);
+        $this->issue($autre, 'refused')->assertOk();
+        $this->assertSame(RadarOutreachOutcome::Refused, $autre->fresh()->outcome);
+    }
+
     public function test_consented_sans_reponse_deposee_rend_422(): void
     {
         $annonce = $this->annonce();
