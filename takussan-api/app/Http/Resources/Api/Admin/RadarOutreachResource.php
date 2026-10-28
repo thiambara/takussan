@@ -10,7 +10,9 @@ use Illuminate\Http\Request;
  * TCK-2388 (ADR-0077 §3, §4) — un message de démarchage pour la fiche annonceur. Il rend le texte ENREGISTRÉ
  * (`message`) : aucune lecture ne régénère quoi que ce soit. `status` : `prepared` (jamais envoyé), `sent`,
  * `closed` (issue finale ; `question` et `no_answer` restent `sent` : une réponse déposée plus tard peut encore les
- * changer). `follow_up` n'est posé que par {@see self::withFollowUp()}, pour un message de la file « à relancer ».
+ * changer). `follow_up` n'est posé que par {@see self::withFollowUp()}, pour chaque message OUVERT (dernier de sa chaîne, envoyé,
+ * sans issue, une annonce encore `contacted`), échu ou non : `due_at` et `propose_no_answer` (vrai quand `max` relances
+ * sont derrière lui ET que son échéance est passée) ; `null` pour tout autre.
  *
  * `segments` et `wa_me_url` viennent du composeur (`ConsentMessageComposer`), calculés depuis les colonnes enregistrées :
  * aucune lecture ne régénère quoi que ce soit. `wa_me_url` n'existe que pour un message `prepared` dont les deux

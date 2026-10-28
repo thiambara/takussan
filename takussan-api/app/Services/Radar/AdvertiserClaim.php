@@ -2,6 +2,7 @@
 
 namespace App\Services\Radar;
 
+use App\Http\Resources\Bases\BaseResource;
 use App\Models\RadarAdvertiser;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -36,7 +37,7 @@ final class AdvertiserClaim
         DB::transaction(function () use ($advertiser, $by): void {
             $locked = RadarAdvertiser::query()->whereKey($advertiser->getKey())->lockForUpdate()->firstOrFail();
             abort_code_if($this->heldByOther($locked, $by), 409, 'radar.advertiser.claim_not_held');
-            $locked->forceFill(['claimed_by_id' => null, 'claimed_at' => null, 'claim_expires_at' => null])->save();
+            $this->persist($locked->forceFill(['claimed_by_id' => null, 'claimed_at' => null, 'claim_expires_at' => null]));
         });
     }
 
@@ -55,7 +56,7 @@ final class AdvertiserClaim
     private function refuseIfHeldByOther(RadarAdvertiser $locked, User $by): void
     {
         abort_code_if($this->heldByOther($locked, $by), 409, 'radar.advertiser.claimed_by_other', [
-            'claimed_until' => $locked->claim_expires_at?->toIso8601String(),
+            'claimed_until' => BaseResource::instantOnWire($locked->claim_expires_at),
         ]);
     }
 
@@ -67,10 +68,24 @@ final class AdvertiserClaim
     private function stamp(RadarAdvertiser $a, User $by): void
     {
         $now = now();
-        $a->forceFill([
+        $this->persist($a->forceFill([
             'claimed_by_id' => $by->id,
             'claimed_at' => $now,
             'claim_expires_at' => $now->copy()->addMinutes(self::DURATION_MINUTES),
-        ])->save();
+        ]));
+    }
+
+    /**
+     * La prise n'est pas une activité de l'annonceur : l'écrire ne touche pas `updated_at`, que la liste des
+     * annonceurs trie (`-updated_at`). Sans cela, prendre ou rendre une fiche la ferait remonter en tête.
+     */
+    private function persist(RadarAdvertiser $advertiser): void
+    {
+        $advertiser->timestamps = false;
+        try {
+            $advertiser->save();
+        } finally {
+            $advertiser->timestamps = true;
+        }
     }
 }

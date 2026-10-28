@@ -105,13 +105,21 @@ class RadarFollowUpsTest extends TestCase
         $this->assertSame([$deux->id], $this->ids($this->suivis()->due()));
     }
 
-    public function test_le_message_propose_sans_reponse_au_rang_deux_et_pas_au_rang_un(): void
+    public function test_le_message_propose_sans_reponse_au_rang_deux_echu_et_pas_au_rang_un_ni_avant_l_echeance(): void
     {
-        $this->assertFalse($this->suivis()->proposesNoAnswer(RadarOutreach::factory()->make(['follow_up_rank' => 1])));
-        $this->assertTrue($this->suivis()->proposesNoAnswer(RadarOutreach::factory()->make(['follow_up_rank' => 2])));
+        $message = fn (int $rang, float $jours) => RadarOutreach::factory()->make([
+            'follow_up_rank' => $rang, 'sent_at' => now()->subMinutes((int) round($jours * 1440)),
+        ]);
+
+        $this->assertFalse($this->suivis()->proposesNoAnswer($message(1, 10)));
+        $this->assertTrue($this->suivis()->proposesNoAnswer($message(2, 10)));
+        // L'échéance elle-même : trois jours pile, elle est atteinte ; un jour, la relance attend sa réponse.
+        $this->assertTrue($this->suivis()->proposesNoAnswer($message(2, 3)));
+        $this->assertFalse($this->suivis()->proposesNoAnswer($message(2, 1)));
+        $this->assertFalse($this->suivis()->proposesNoAnswer(RadarOutreach::factory()->make(['follow_up_rank' => 2, 'sent_at' => null])));
 
         config(['radar.follow_ups.max' => 3]);
-        $this->assertFalse($this->suivis()->proposesNoAnswer(RadarOutreach::factory()->make(['follow_up_rank' => 2])));
+        $this->assertFalse($this->suivis()->proposesNoAnswer($message(2, 10)));
     }
 
     public function test_l_echeance_se_lit_dans_la_configuration_et_nulle_part_ailleurs(): void

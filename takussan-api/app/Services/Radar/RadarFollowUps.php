@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\Relations\Relation;
  * TCK-2388 (décision 4, porteur 2026-10-28) — la file « à relancer ». Un message y entre quand il est le DERNIER de sa
  * chaîne (aucune relance ne le suit), envoyé, sans issue, depuis au moins `radar.follow_ups.after_days` jours, et
  * qu'au moins une de ses annonces est encore `contacted`. `proposesNoAnswer()` : il a déjà `radar.follow_ups.max`
- * relances derrière lui. « En attente » : les mêmes, avant l'échéance.
+ * relances derrière lui et son échéance est passée. « En attente » : les mêmes, avant l'échéance.
  *
  * Les seules requêtes de la file, réemployées par la liste des annonceurs, le tableau de bord et la fiche ; les deux
  * chiffres ne se lisent qu'ici (`config('radar.follow_ups')`).
@@ -56,9 +56,15 @@ final class RadarFollowUps
         return $outreach->sent_at->copy()->addDays($this->afterDays());
     }
 
+    /**
+     * La file propose « sans réponse » : le message a déjà `max` relances derrière lui ET son échéance est passée.
+     * Une relance de dernier rang envoyée hier attend encore sa réponse : elle ne propose rien.
+     */
     public function proposesNoAnswer(RadarOutreach $outreach): bool
     {
-        return $outreach->follow_up_rank >= (int) config('radar.follow_ups.max');
+        return $outreach->sent_at !== null
+            && $outreach->follow_up_rank >= (int) config('radar.follow_ups.max')
+            && ! $this->dueAt($outreach)->isFuture();
     }
 
     private function afterDays(): int

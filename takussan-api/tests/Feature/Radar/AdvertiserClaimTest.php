@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Services\Radar\AdvertiserClaim;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Support\OperateursPlateforme;
 use Tests\TestCase;
 
@@ -43,6 +44,40 @@ class AdvertiserClaimTest extends TestCase
     private function url(RadarAdvertiser $advertiser): string
     {
         return "/api/admin/radar/advertisers/{$advertiser->id}/claim";
+    }
+
+    /**
+     * AC5 — chaque route d'ÉCRITURE du démarchage exige la prise en charge : un second opérateur qui écrit sur un
+     * annonceur pris en charge reçoit 409 `claimed_by_other`, et rien n'est écrit. Une ligne par route ; les tâches 4
+     * à 6 ajoutent les leurs (chemin avec `{id}`, corps, et l'état préalable qu'elle exige).
+     *
+     * @return array<string, array{0: string, 1: string, 2: array<string, mixed>}>
+     */
+    public static function routesDEcriture(): array
+    {
+        return [
+            'la prise en charge elle-même' => ['postJson', '/api/admin/radar/advertisers/{id}/claim', []],
+        ];
+    }
+
+    /** @param  array<string, mixed>  $corps */
+    #[DataProvider('routesDEcriture')]
+    public function test_ac5_un_second_operateur_qui_ecrit_sur_un_annonceur_pris_en_charge_recoit_409(string $verbe, string $chemin, array $corps): void
+    {
+        $advertiser = RadarAdvertiser::factory()->create();
+        $this->actingAsWithStepUp($this->awa);
+        $this->postJson($this->url($advertiser))->assertOk();
+        $avant = $advertiser->fresh();
+
+        $this->actingAsWithStepUp($this->moussa);
+        $this->{$verbe}(str_replace('{id}', (string) $advertiser->id, $chemin), $corps)
+            ->assertStatus(409)
+            ->assertJsonPath('code', 'radar.advertiser.claimed_by_other')
+            ->assertJsonPath('params.claimed_until', $avant->claim_expires_at->utc()->format('c'));
+
+        $apres = $advertiser->fresh();
+        $this->assertSame($this->awa->id, $apres->claimed_by_id);
+        $this->assertTrue($apres->claim_expires_at->equalTo($avant->claim_expires_at));
     }
 
     public function test_prendre_en_charge_rend_ma_prise_pour_dix_minutes(): void
@@ -83,6 +118,59 @@ class AdvertiserClaimTest extends TestCase
             ->assertJsonPath('params.claimed_until', '2026-10-28T10:10:00+00:00');
 
         $this->assertSame($this->awa->id, $advertiser->fresh()->claimed_by_id);
+    }
+
+    public function test_l_echeance_du_409_est_un_instant_utc_meme_sous_un_autre_fuseau_par_defaut(): void
+    {
+        $advertiser = RadarAdvertiser::factory()->create();
+        $this->actingAsWithStepUp($this->awa);
+        $this->postJson($this->url($advertiser))->assertOk();
+
+        $this->actingAsWithStepUp($this->moussa);
+        $fuseau = date_default_timezone_get();
+        date_default_timezone_set('America/Los_Angeles');
+        try {
+            $reponse = $this->postJson($this->url($advertiser))->assertStatus(409);
+        } finally {
+            date_default_timezone_set($fuseau);
+        }
+
+        // La forme d'ADR-0018 (`BaseResource::instantOnWire()`), jamais le décalage local.
+        $this->assertMatchesRegularExpression('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+00:00$/', $reponse->json('params.claimed_until'));
+    }
+
+    public function test_la_prise_expire_pile_a_dix_minutes(): void
+    {
+        $advertiser = RadarAdvertiser::factory()->create();
+        $this->actingAsWithStepUp($this->awa);
+        $this->postJson($this->url($advertiser))->assertOk();
+
+        // 09 min 59 s : encore à Awa ; 10 min pile : libre, comme `ModerationClaim::isActive()` (échéance strictement future).
+        Carbon::setTestNow('2026-10-28 10:09:59');
+        $this->actingAsWithStepUp($this->moussa);
+        $this->postJson($this->url($advertiser))->assertStatus(409);
+
+        Carbon::setTestNow('2026-10-28 10:10:00');
+        $this->postJson($this->url($advertiser))->assertOk()->assertJsonPath('data.claim.mine', true);
+    }
+
+    public function test_prendre_et_rendre_ne_touchent_pas_updated_at(): void
+    {
+        $advertiser = RadarAdvertiser::factory()->create(['updated_at' => '2026-10-01 08:00:00']);
+        $this->actingAsWithStepUp($this->awa);
+
+        $this->postJson($this->url($advertiser))->assertOk();
+        $this->assertSame('2026-10-01 08:00:00', $advertiser->fresh()->updated_at->format('Y-m-d H:i:s'));
+        $this->assertNotNull($advertiser->fresh()->claimed_by_id);
+
+        // Le renouvellement d'un geste (`assertHeld`) non plus.
+        Carbon::setTestNow('2026-10-28 10:05:00');
+        $this->app->make(AdvertiserClaim::class)->assertHeld($advertiser->fresh(), $this->awa);
+        $this->assertSame('2026-10-01 08:00:00', $advertiser->fresh()->updated_at->format('Y-m-d H:i:s'));
+
+        $this->deleteJson($this->url($advertiser))->assertNoContent();
+        $this->assertNull($advertiser->fresh()->claimed_by_id);
+        $this->assertSame('2026-10-01 08:00:00', $advertiser->fresh()->updated_at->format('Y-m-d H:i:s'));
     }
 
     public function test_la_prise_expiree_d_un_autre_se_reprend(): void

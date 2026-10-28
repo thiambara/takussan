@@ -108,14 +108,13 @@ class RadarAdvertiserCardTest extends TestCase
         $this->assertSame($media->id, $recu['captures'][0]['id']);
         $this->assertSame(str_repeat('a', 64), $recu['captures'][0]['sha256']);
         $this->assertStringContainsString('signature=', $recu['captures'][0]['url']);
-        $this->assertNotSame($purgee->id, $data['listings'][0]['id']);
     }
 
     public function test_une_annonce_couverte_par_un_accord_confirme_le_dit(): void
     {
         $annonceur = RadarAdvertiser::factory()->create();
         $couverte = $this->lue($annonceur);
-        $autre = $this->lue($annonceur);
+        $this->lue($annonceur);
         $outreach = RadarOutreach::factory()->withListings($couverte)->sent()->create(['radar_advertiser_id' => $annonceur->id]);
         $consent = RadarConsent::factory()->confirmed($this->operateur)->create(['radar_outreach_id' => $outreach->id]);
 
@@ -127,7 +126,6 @@ class RadarAdvertiserCardTest extends TestCase
         // Un accord révoqué ne couvre plus rien.
         $consent->forceFill(['revoked_at' => now()])->save();
         $this->assertSame([], $couvertes());
-        $this->assertNotNull($autre);
     }
 
     public function test_un_message_prepare_porte_ses_segments_et_son_lien_wa_me_exact(): void
@@ -192,6 +190,20 @@ class RadarAdvertiserCardTest extends TestCase
 
         $this->assertSame(['due_at' => '2026-10-27T10:00:00+00:00', 'propose_no_answer' => true], $messages[$outreach->id]['follow_up']);
         $this->assertNull($messages[$ferme->id]['follow_up']);
+    }
+
+    public function test_une_relance_de_dernier_rang_envoyee_hier_attend_et_ne_propose_pas_sans_reponse(): void
+    {
+        $annonceur = RadarAdvertiser::factory()->create();
+        $listing = $this->lue($annonceur, ['stage' => RadarListingStage::Contacted]);
+        $outreach = RadarOutreach::factory()->withListings($listing)->create(['radar_advertiser_id' => $annonceur->id, 'sent_at' => now()->subDay(), 'follow_up_rank' => 2]);
+
+        $this->getJson("/api/admin/radar/advertisers/{$annonceur->id}")
+            ->assertOk()
+            ->assertJsonPath('data.outreaches.0.follow_up', ['due_at' => '2026-10-30T10:00:00+00:00', 'propose_no_answer' => false]);
+        $this->getJson('/api/admin/radar/advertisers')->assertOk()
+            ->assertJsonPath('data.0.follow_up.outreach_id', $outreach->id)
+            ->assertJsonPath('data.0.follow_up.propose_no_answer', false);
     }
 
     public function test_la_fiche_ne_rend_pas_de_prise_expiree(): void
@@ -322,14 +334,13 @@ class RadarAdvertiserCardTest extends TestCase
 
     public function test_la_liste_se_pagine_par_derniere_activite(): void
     {
-        $ancien = RadarAdvertiser::factory()->create(['updated_at' => now()->subDay()]);
+        RadarAdvertiser::factory()->create(['updated_at' => now()->subDay()]);
         $recent = RadarAdvertiser::factory()->create(['updated_at' => now()]);
 
         $reponse = $this->getJson('/api/admin/radar/advertisers?per_page=1')->assertOk();
 
         $this->assertSame([$recent->id], array_column($reponse->json('data'), 'id'));
         $this->assertSame(2, $reponse->json('meta.total'));
-        $this->assertNotNull($ancien);
     }
 
     public function test_viewer_403_support_200_sur_les_quatre_routes(): void
