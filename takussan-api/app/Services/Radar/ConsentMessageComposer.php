@@ -28,8 +28,8 @@ use Throwable;
  * et rien d'autre ne l'écrit : le texte enregistré, celui du lien `wa.me` et l'aperçu de la console sont la
  * même chaîne par construction.
  *
- * Les deux parties générées sont ramenées à UNE ligne (tout saut de ligne, caractère de contrôle ou séparateur
- * de paragraphe devient une espace) et bornées : elles ne peuvent ni imiter une clause numérotée en début de
+ * Les deux parties générées sont ramenées à UNE ligne (tout saut de ligne, caractère de contrôle ou de mise en forme invisible
+ * — inversion de sens RLO, espace de largeur nulle —, ou séparateur de paragraphe devient une espace) et bornées : elles ne peuvent ni imiter une clause numérotée en début de
  * ligne, ni noyer les clauses. Le gabarit est découpé une fois, en une passe : un `{lien_conditions}` écrit dans
  * un résumé reste du texte.
  */
@@ -101,7 +101,12 @@ final class ConsentMessageComposer
     /** Le lien `wa.me` : le numéro de l'ANNONCEUR seul (ADR-0077 §5), et le texte exact. */
     public function waMeUrl(string $e164, string $message): string
     {
-        return 'https://wa.me/'.ltrim($e164, '+').'?text='.rawurlencode($message);
+        $digits = ltrim($e164, '+');
+        if (preg_match('/^\d{6,15}$/', $digits) !== 1) {
+            throw new InvalidArgumentException('radar.outreach.phone_invalid');
+        }
+
+        return 'https://wa.me/'.$digits.'?text='.rawurlencode($message);
     }
 
     /** Le nombre de clauses numérotées d'une version : la vérification les cherche toutes sur la capture. */
@@ -112,7 +117,7 @@ final class ConsentMessageComposer
 
     public static function part(string $raw, int $max): string
     {
-        $line = (string) preg_replace('/[\p{Cc}\p{Zl}\p{Zp}\s]+/u', ' ', $raw);
+        $line = (string) preg_replace('/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}\s]+/u', ' ', $raw);
 
         return mb_substr(trim($line), 0, $max);
     }

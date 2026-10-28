@@ -697,6 +697,21 @@ return [
             'claim_required' => 'Prenez d\'abord cet annonceur en charge : le geste exige la prise en charge.',
             'claimed_by_other' => 'Cet annonceur est pris en charge par un autre opérateur jusqu\'à :claimed_until.',
             'claim_not_held' => 'Cette prise en charge n\'est pas la vôtre : elle ne se rend pas.',
+            'do_not_contact' => 'Cet annonceur a demandé à ne plus être contacté : aucun message ne lui est préparé ni envoyé.',
+        ],
+        'outreach' => [
+            'locale_unsupported' => 'Cette langue n\'est pas prise en charge pour le message d\'accord.',
+            'listing_foreign' => 'Une de ces annonces n\'est pas celle de cet annonceur.',
+            'listing_not_ready' => 'Une de ces annonces n\'est pas prête à être démarchée : elle doit être validée (ou déjà contactée, pour une relance).',
+            'listing_consented' => 'Une de ces annonces est déjà couverte par un accord valide : inutile de la démarcher à nouveau.',
+            'follow_up_invalid' => 'Ce message ne se relance pas : il doit être envoyé, sans issue, et être le dernier de sa chaîne.',
+            'follow_up_limit' => 'Le nombre de relances est atteint pour ce message.',
+            'not_prepared' => 'Ce message n\'est plus à l\'état préparé : il ne se modifie ni ne s\'envoie plus.',
+            'parts_missing' => 'La salutation et le résumé doivent être écrits avant d\'envoyer le message.',
+            'nothing_to_update' => 'Aucun champ à modifier : indiquez la salutation ou le résumé.',
+        ],
+        'message' => [
+            'generation_incomplete' => 'Le modèle n\'a pas rédigé la salutation et le résumé : écrivez-les vous-même.',
         ],
         'review' => [
             'incomplete' => 'La fiche est incomplète : le type, le contrat, le prix et un quartier du référentiel sont requis.',

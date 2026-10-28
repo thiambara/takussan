@@ -38,10 +38,11 @@ class RadarConsent extends AbstractModel implements HasMedia
         'revoked_at' => 'datetime',
     ];
 
+    // Seulement ce que `RadarConsentResource` expose : ni les empreintes des captures, ni l'identifiant du message du
+    // fournisseur, ni les auteurs (`*_by_id`, rendus par leur relation). Une route qui lira d'autres colonnes les ajoute ici.
     protected static array $queryFields = [
-        'id', 'radar_outreach_id', 'radar_advertiser_id', 'proof', 'capture_hashes', 'provider_message_id', 'transcript',
-        'ai_verdict', 'verification_status', 'verification_reason', 'deposited_by_id',
-        'confirmed_by_id', 'confirmed_at', 'confirmation_reason', 'revoked_at', 'created_at', 'updated_at',
+        'id', 'proof', 'transcript', 'ai_verdict', 'verification_status', 'verification_reason',
+        'confirmed_at', 'confirmation_reason', 'revoked_at', 'created_at',
     ];
 
     public function registerMediaCollections(): void
@@ -73,6 +74,6 @@ class RadarConsent extends AbstractModel implements HasMedia
     /** Un accord valide : confirmé par un humain et non révoqué. La seule définition ; `RadarConsentCoverage` la lit. */
     public function scopeValid(Builder $query): Builder
     {
-        return $query->whereNotNull('confirmed_at')->whereNull('revoked_at');
+        return $query->whereNotNull('radar_consents.confirmed_at')->whereNull('radar_consents.revoked_at');
     }
 }

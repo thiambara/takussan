@@ -3,12 +3,16 @@
 namespace Tests\Feature\Radar;
 
 use App\Exceptions\ApiError;
+use App\Models\AiSuggestion;
 use App\Models\Enums\PlatformProfileLevel;
 use App\Models\RadarAdvertiser;
+use App\Models\RadarListing;
+use App\Models\RadarOutreach;
 use App\Models\User;
 use App\Services\Radar\AdvertiserClaim;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Support\OperateursPlateforme;
 use Tests\TestCase;
@@ -48,29 +52,66 @@ class AdvertiserClaimTest extends TestCase
 
     /**
      * AC5 — chaque route d'ÉCRITURE du démarchage exige la prise en charge : un second opérateur qui écrit sur un
-     * annonceur pris en charge reçoit 409 `claimed_by_other`, et rien n'est écrit. Une ligne par route ; les tâches 4
-     * à 6 ajoutent les leurs (chemin avec `{id}`, corps, et l'état préalable qu'elle exige).
+     * annonceur pris en charge reçoit 409 `claimed_by_other`, et rien n'est écrit. Une ligne par route ; les tâches 5
+     * et 6 ajoutent les leurs : le verbe, le chemin (`{id}` : l'annonceur, ou le message d'accord quand l'état
+     * préalable est `message`), le corps (`{annonce}` : l'annonce validée de l'annonceur), et cet état préalable.
      *
-     * @return array<string, array{0: string, 1: string, 2: array<string, mixed>}>
+     * @return array<string, array{0: string, 1: string, 2: array<string, mixed>, 3: string}>
      */
     public static function routesDEcriture(): array
     {
         return [
-            'la prise en charge elle-même' => ['postJson', '/api/admin/radar/advertisers/{id}/claim', []],
+            'la prise en charge elle-même' => ['postJson', '/api/admin/radar/advertisers/{id}/claim', [], 'annonceur'],
+            'préparer un message d\'accord' => ['postJson', '/api/admin/radar/advertisers/{id}/outreaches', ['listing_ids' => ['{annonce}']], 'annonce'],
+            'retoucher un message d\'accord' => ['patchJson', '/api/admin/radar/outreaches/{id}', ['salutation' => 'Bonjour'], 'message'],
+            'marquer un message d\'accord envoyé' => ['postJson', '/api/admin/radar/outreaches/{id}/sent', [], 'message'],
+        ];
+    }
+
+    /**
+     * L'état préalable d'une ligne de {@see self::routesDEcriture()} : l'identifiant du chemin et le corps résolu.
+     *
+     * @param  array<string, mixed>  $corps
+     * @return array{0: string, 1: array<string, mixed>}
+     */
+    private function etatPrealable(string $etat, RadarAdvertiser $advertiser, array $corps): array
+    {
+        if ($etat === 'annonceur') {
+            return [(string) $advertiser->id, $corps];
+        }
+        $annonce = RadarListing::factory()->reviewed()->create(['radar_advertiser_id' => $advertiser->id]);
+        if ($etat === 'annonce') {
+            return [(string) $advertiser->id, json_decode(str_replace('"{annonce}"', (string) $annonce->id, (string) json_encode($corps)), true)];
+        }
+        $message = RadarOutreach::factory()->withListings($annonce)->create(['radar_advertiser_id' => $advertiser->id]);
+
+        return [(string) $message->id, $corps];
+    }
+
+    /** @return array<string, mixed> ce que les routes d'écriture touchent, pour prouver qu'un refus n'a rien écrit */
+    private function etatDesEcritures(): array
+    {
+        return [
+            RadarOutreach::query()->orderBy('id')->get()->map->getAttributes()->all(),
+            DB::table('radar_outreach_listing')->orderBy('radar_outreach_id')->orderBy('radar_listing_id')->get()->map(fn ($ligne) => (array) $ligne)->all(),
+            RadarListing::query()->orderBy('id')->get()->map->getAttributes()->all(),
+            AiSuggestion::query()->count(),
         ];
     }
 
     /** @param  array<string, mixed>  $corps */
     #[DataProvider('routesDEcriture')]
-    public function test_ac5_un_second_operateur_qui_ecrit_sur_un_annonceur_pris_en_charge_recoit_409(string $verbe, string $chemin, array $corps): void
+    public function test_ac5_un_second_operateur_qui_ecrit_sur_un_annonceur_pris_en_charge_recoit_409(string $verbe, string $chemin, array $corps, string $etat): void
     {
         $advertiser = RadarAdvertiser::factory()->create();
+        [$id, $corps] = $this->etatPrealable($etat, $advertiser, $corps);
         $this->actingAsWithStepUp($this->awa);
         $this->postJson($this->url($advertiser))->assertOk();
         $avant = $advertiser->fresh();
+        $ecritures = $this->etatDesEcritures();
 
         $this->actingAsWithStepUp($this->moussa);
-        $this->{$verbe}(str_replace('{id}', (string) $advertiser->id, $chemin), $corps)
+        $this->{$verbe}(str_replace('{id}', $id, $chemin), $corps)
             ->assertStatus(409)
             ->assertJsonPath('code', 'radar.advertiser.claimed_by_other')
             ->assertJsonPath('params.claimed_until', $avant->claim_expires_at->utc()->format('c'));
@@ -78,6 +119,39 @@ class AdvertiserClaimTest extends TestCase
         $apres = $advertiser->fresh();
         $this->assertSame($this->awa->id, $apres->claimed_by_id);
         $this->assertTrue($apres->claim_expires_at->equalTo($avant->claim_expires_at));
+        $this->assertSame($ecritures, $this->etatDesEcritures());
+    }
+
+    /**
+     * Les routes d'écriture qui EXIGENT une prise : toutes, sauf celle qui la pose.
+     *
+     * @return array<string, array{0: string, 1: string, 2: array<string, mixed>, 3: string}>
+     */
+    public static function routesExigeantUnePrise(): array
+    {
+        return array_filter(self::routesDEcriture(), fn (array $ligne) => $ligne[3] !== 'annonceur');
+    }
+
+    /**
+     * AC5, l'autre moitié — sans AUCUNE prise en charge, chaque route d'écriture rend 409 `claim_required` (la prise
+     * elle-même exceptée : c'est elle qui la pose, {@see self::routesExigeantUnePrise()}), et rien n'est écrit.
+     *
+     * @param  array<string, mixed>  $corps
+     */
+    #[DataProvider('routesExigeantUnePrise')]
+    public function test_ac5_sans_prise_en_charge_une_ecriture_recoit_409_claim_required(string $verbe, string $chemin, array $corps, string $etat): void
+    {
+        $advertiser = RadarAdvertiser::factory()->create();
+        [$id, $corps] = $this->etatPrealable($etat, $advertiser, $corps);
+        $ecritures = $this->etatDesEcritures();
+
+        $this->actingAsWithStepUp($this->awa);
+        $this->{$verbe}(str_replace('{id}', $id, $chemin), $corps)
+            ->assertStatus(409)
+            ->assertJsonPath('code', 'radar.advertiser.claim_required');
+
+        $this->assertNull($advertiser->fresh()->claimed_by_id);
+        $this->assertSame($ecritures, $this->etatDesEcritures());
     }
 
     public function test_prendre_en_charge_rend_ma_prise_pour_dix_minutes(): void

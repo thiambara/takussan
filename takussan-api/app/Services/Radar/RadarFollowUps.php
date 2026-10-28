@@ -63,8 +63,14 @@ final class RadarFollowUps
     public function proposesNoAnswer(RadarOutreach $outreach): bool
     {
         return $outreach->sent_at !== null
-            && $outreach->follow_up_rank >= (int) config('radar.follow_ups.max')
+            && $this->atLimit($outreach)
             && ! $this->dueAt($outreach)->isFuture();
+    }
+
+    /** Ce message a déjà `max` relances derrière lui : on n'en prépare pas une de plus. */
+    public function atLimit(RadarOutreach $outreach): bool
+    {
+        return $outreach->follow_up_rank >= (int) config('radar.follow_ups.max');
     }
 
     private function afterDays(): int

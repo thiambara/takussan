@@ -154,6 +154,45 @@ class RadarAdvertiserCardTest extends TestCase
         $this->assertNull($messages[$sansResume->id]['wa_me_url']);
     }
 
+    public function test_le_texte_enregistre_fait_foi_quand_le_gabarit_d_aujourd_hui_ne_le_redonne_plus(): void
+    {
+        config(['app.frontend_url' => 'https://front.exemple.test']);
+        $annonceur = RadarAdvertiser::factory()->create(['phone' => '+221771234567']);
+        $message = $this->app->make(ConsentMessageComposer::class)->compose('fr', 'Bonjour Awa,', 'votre bien');
+        RadarOutreach::factory()->create([
+            'radar_advertiser_id' => $annonceur->id, 'salutation' => 'Bonjour Awa,', 'summary' => 'votre bien', 'message' => $message,
+        ]);
+        $carte = fn () => $this->getJson("/api/admin/radar/advertisers/{$annonceur->id}")->assertOk()->json('data.outreaches.0');
+
+        // Tant que le gabarit redonne le texte : les segments typés.
+        $this->assertSame($message, implode('', array_column($carte()['segments'], 'text')));
+        $this->assertContains('salutation', array_column($carte()['segments'], 'kind'));
+
+        // L'origine du front change après la préparation : le lien des conditions d'aujourd'hui n'est plus celui du texte.
+        config(['app.frontend_url' => 'https://autre.exemple.test']);
+        $apres = $carte();
+        $this->assertSame([['kind' => 'fixed', 'text' => $message]], $apres['segments']);
+        $this->assertSame($message, $apres['message']);
+        $this->assertSame('https://wa.me/221771234567?text='.rawurlencode($message), $apres['wa_me_url']);
+    }
+
+    public function test_une_langue_ou_des_clauses_qui_ne_se_servent_plus_ne_font_pas_tomber_la_fiche(): void
+    {
+        $annonceur = RadarAdvertiser::factory()->create(['phone' => '+221771234567']);
+        $mauvaiseLangue = RadarOutreach::factory()->create([
+            'radar_advertiser_id' => $annonceur->id, 'locale' => 'wo', 'message' => 'Texte enregistré en wolof',
+        ]);
+        $sansFichier = RadarOutreach::factory()->create([
+            'radar_advertiser_id' => $annonceur->id, 'clauses_version' => 'accord.v99', 'message' => 'Texte d\'une version disparue',
+        ]);
+
+        $messages = collect($this->getJson("/api/admin/radar/advertisers/{$annonceur->id}")->assertOk()->json('data.outreaches'))->keyBy('id');
+
+        $this->assertSame([['kind' => 'fixed', 'text' => 'Texte enregistré en wolof']], $messages[$mauvaiseLangue->id]['segments']);
+        $this->assertSame([['kind' => 'fixed', 'text' => 'Texte d\'une version disparue']], $messages[$sansFichier->id]['segments']);
+        $this->assertSame('https://wa.me/221771234567?text='.rawurlencode('Texte enregistré en wolof'), $messages[$mauvaiseLangue->id]['wa_me_url']);
+    }
+
     public function test_un_annonceur_qui_a_dit_stop_n_a_aucun_lien_wa_me(): void
     {
         $annonceur = RadarAdvertiser::factory()->create(['phone' => '+221771234567', 'do_not_contact_at' => now()]);

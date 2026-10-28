@@ -697,6 +697,21 @@ return [
             'claim_required' => 'Take this advertiser in charge first: the action requires the claim.',
             'claimed_by_other' => 'This advertiser is claimed by another operator until :claimed_until.',
             'claim_not_held' => 'This claim is not yours: it cannot be released.',
+            'do_not_contact' => 'This advertiser asked not to be contacted again: no message is prepared or sent to them.',
+        ],
+        'outreach' => [
+            'locale_unsupported' => 'This language is not supported for the consent message.',
+            'listing_foreign' => 'One of these listings does not belong to this advertiser.',
+            'listing_not_ready' => 'One of these listings is not ready to be contacted: it must be reviewed (or already contacted, for a follow-up).',
+            'listing_consented' => 'One of these listings is already covered by a valid consent: no need to contact it again.',
+            'follow_up_invalid' => 'This message cannot be followed up: it must be sent, without an outcome, and be the last of its chain.',
+            'follow_up_limit' => 'The follow-up limit is reached for this message.',
+            'not_prepared' => 'This message is no longer in the prepared state: it can no longer be edited or sent.',
+            'parts_missing' => 'The greeting and the summary must be written before the message is sent.',
+            'nothing_to_update' => 'Nothing to update: give the greeting or the summary.',
+        ],
+        'message' => [
+            'generation_incomplete' => 'The model did not write the greeting and the summary: write them yourself.',
         ],
         'review' => [
             'incomplete' => 'The listing is incomplete: a property type, a contract, a price and a neighborhood from the referential are required.',

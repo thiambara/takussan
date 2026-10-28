@@ -5,6 +5,8 @@ namespace App\Http\Resources\Api\Admin;
 use App\Http\Resources\Bases\BaseResource;
 use App\Services\Radar\ConsentMessageComposer;
 use Illuminate\Http\Request;
+use InvalidArgumentException;
+use RuntimeException;
 
 /**
  * TCK-2388 (ADR-0077 §3, §4) — un message de démarchage pour la fiche annonceur. Il rend le texte ENREGISTRÉ
@@ -15,7 +17,11 @@ use Illuminate\Http\Request;
  * sont derrière lui ET que son échéance est passée) ; `null` pour tout autre.
  *
  * `segments` et `wa_me_url` viennent du composeur (`ConsentMessageComposer`), calculés depuis les colonnes enregistrées :
- * aucune lecture ne régénère quoi que ce soit. `wa_me_url` n'existe que pour un message `prepared` dont les deux
+ * aucune lecture ne régénère quoi que ce soit. **Le texte enregistré fait foi** : si le découpage du gabarit actuel ne
+ * redonne pas exactement `message` (l'origine du front a changé depuis, un fichier de clauses manque, la langue
+ * enregistrée n'est plus servie), `segments` est un seul segment fixe qui porte le texte enregistré — la fiche ne
+ * répond jamais 500 pour un message ancien. `generated` et `ai_error` ne sont posés que par {@see self::withGeneration()},
+ * à la préparation : ce que le modèle a rendu n'est pas une propriété du message. `wa_me_url` n'existe que pour un message `prepared` dont les deux
  * parties sont écrites et dont l'annonceur n'a pas dit STOP : on ne renvoie jamais deux fois le même lien.
  */
 class RadarOutreachResource extends BaseResource
@@ -31,6 +37,17 @@ class RadarOutreachResource extends BaseResource
         return $this;
     }
 
+    /** @var array{generated: bool, ai_error: string|null}|null */
+    private ?array $generation = null;
+
+    /** Pour la réponse de la préparation seule : le modèle a-t-il rédigé les deux parties, et sinon pourquoi. */
+    public function withGeneration(bool $generated, ?string $aiError): static
+    {
+        $this->generation = ['generated' => $generated, 'ai_error' => $aiError];
+
+        return $this;
+    }
+
     public function toArray(Request $request): array
     {
         return [
@@ -42,7 +59,7 @@ class RadarOutreachResource extends BaseResource
             'salutation' => $this->salutation,
             'summary' => $this->summary,
             'message' => $this->message,
-            'segments' => app(ConsentMessageComposer::class)->segments($this->locale, $this->salutation, $this->summary, $this->clauses_version),
+            'segments' => $this->segments(),
             'wa_me_url' => $this->waMeUrl(),
             'follow_up_of_id' => $this->follow_up_of_id,
             'follow_up_rank' => $this->follow_up_rank,
@@ -56,7 +73,22 @@ class RadarOutreachResource extends BaseResource
             'outcome_at' => $this->iso($this->outcome_at),
             'follow_up' => $this->followUp,
             'consents' => RadarConsentResource::collection($this->consents)->toArray($request),
-        ];
+        ] + ($this->generation ?? []);
+    }
+
+    /** @return list<array{kind: string, text: string}> */
+    private function segments(): array
+    {
+        try {
+            $segments = app(ConsentMessageComposer::class)->segments($this->locale, $this->salutation, $this->summary, $this->clauses_version);
+            if (implode('', array_column($segments, 'text')) === $this->message) {
+                return $segments;
+            }
+        } catch (InvalidArgumentException|RuntimeException) {
+            // Langue ou fichier de clauses qui ne se servent plus : le texte enregistré fait foi.
+        }
+
+        return [['kind' => 'fixed', 'text' => $this->message]];
     }
 
     private function waMeUrl(): ?string

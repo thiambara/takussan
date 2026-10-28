@@ -35,10 +35,11 @@ class RadarOutreach extends AbstractModel
         'follow_up_rank' => 'integer',
     ];
 
+    // Aucune liste de messages : la fiche annonceur les rend par `RadarOutreachResource`. Seules les colonnes que cette
+    // ressource expose sont lisibles par un sparse fieldset ; les auteurs (`*_by_id`) et l'annonceur n'en font pas partie.
     protected static array $queryFields = [
-        'id', 'radar_advertiser_id', 'channel', 'locale', 'clauses_version', 'salutation', 'summary', 'message',
-        'follow_up_of_id', 'follow_up_rank', 'created_by_id', 'sent_at', 'sent_by_id',
-        'outcome', 'outcome_at', 'outcome_by_id', 'created_at', 'updated_at',
+        'id', 'locale', 'clauses_version', 'salutation', 'summary', 'message', 'follow_up_of_id', 'follow_up_rank',
+        'sent_at', 'outcome', 'outcome_at', 'created_at',
     ];
 
     public function advertiser(): BelongsTo

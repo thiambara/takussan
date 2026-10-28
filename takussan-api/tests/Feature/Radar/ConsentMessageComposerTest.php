@@ -159,6 +159,54 @@ class ConsentMessageComposerTest extends TestCase
         $this->assertSame(500, mb_strlen(ConsentMessageComposer::part(str_repeat('é', 900), ConsentMessageComposer::SUMMARY_MAX)));
     }
 
+    public function test_part_retire_les_caracteres_de_mise_en_forme_invisibles(): void
+    {
+        // Inversion de sens (RLO, U+202E), espace de largeur nulle (U+200B), joiner (U+200D), BOM (U+FEFF) : jamais dans un message.
+        $this->assertSame('Bonjour Awa', ConsentMessageComposer::part("Bonjour\u{202E} Awa", 100));
+        $this->assertSame('a b c d', ConsentMessageComposer::part("a\u{200B}b\u{200D}c\u{FEFF}d", 100));
+        $this->assertSame('', ConsentMessageComposer::part("\u{202E}\u{200B}", 100));
+        $this->assertStringNotContainsString("\u{202E}", $this->composeur()->compose('fr', "Bonjour\u{202E}", "votre\u{200B}bien"));
+    }
+
+    public function test_le_lien_wa_me_refuse_un_numero_qui_n_est_pas_que_des_chiffres(): void
+    {
+        foreach (['+22177123456a', '+221 77 123 45 67', '+221771234567&text=x', '+221771234567/../x', '', '+', '+12345'] as $mauvais) {
+            try {
+                $this->composeur()->waMeUrl($mauvais, 'Bonjour');
+                $this->fail("« {$mauvais} » aurait dû être refusé.");
+            } catch (InvalidArgumentException $e) {
+                $this->assertSame('radar.outreach.phone_invalid', $e->getMessage());
+            }
+        }
+        $this->assertSame('https://wa.me/221771234567?text=Bonjour', $this->composeur()->waMeUrl('+221771234567', 'Bonjour'));
+    }
+
+    public function test_ac1_le_fichier_de_clauses_anglais_est_repris_mot_pour_mot_et_rien_d_autre_ne_s_y_ajoute(): void
+    {
+        $texte = $this->composeur()->compose('en', 'Hello Awa,', 'your flat in Ouakam');
+
+        $curseur = 0;
+        foreach ($this->segmentsFixesDuFichier('en') as $fixe) {
+            $this->assertSame(1, substr_count($texte, $fixe), $fixe);
+            $position = strpos($texte, $fixe, $curseur);
+            $this->assertNotFalse($position, $fixe);
+            $curseur = $position + strlen($fixe);
+        }
+        $reste = $texte;
+        foreach ($this->segmentsFixesDuFichier('en') as $fixe) {
+            $reste = str_replace($fixe, '|', $reste);
+        }
+        $this->assertSame(
+            ['Hello Awa,', 'your flat in Ouakam', 'https://front.exemple.test/en/legal/terms'],
+            array_values(array_filter(explode('|', $reste), fn (string $s) => $s !== '')),
+        );
+        // Le même nombre de clauses numérotées que le français : la vérification les cherche toutes sur la capture.
+        $this->assertSame(
+            preg_match_all('/^\d+\. /m', $this->composeur()->template('fr')),
+            preg_match_all('/^\d+\. /m', $texte),
+        );
+    }
+
     public function test_une_panne_rend_deux_parties_vides_et_le_code(): void
     {
         RadarConsentMessage::fake(fn () => throw RateLimitedException::forProvider('anthropic'));

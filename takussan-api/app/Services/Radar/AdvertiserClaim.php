@@ -44,13 +44,22 @@ final class AdvertiserClaim
     /** Sur un annonceur DÉJÀ verrouillé par l'appelant : tenue par lui, sinon 409 ; renouvelée. */
     public function assertHeld(RadarAdvertiser $locked, User $by): void
     {
-        $this->refuseIfHeldByOther($locked, $by);
+        $this->check($locked, $by);
+        $this->stamp($locked, $by);
+    }
+
+    /**
+     * Le même jugement que {@see self::assertHeld()}, sans rien écrire : pour échouer vite, avant un travail coûteux
+     * (l'appel au modèle), sur une lecture non verrouillée. Le jugement qui compte reste celui de `assertHeld()`.
+     */
+    public function check(RadarAdvertiser $advertiser, User $by): void
+    {
+        $this->refuseIfHeldByOther($advertiser, $by);
         abort_code_unless(
-            $locked->claimed_by_id === $by->id && $locked->claim_expires_at?->isFuture() === true,
+            $advertiser->claimed_by_id === $by->id && $advertiser->claim_expires_at?->isFuture() === true,
             409,
             'radar.advertiser.claim_required',
         );
-        $this->stamp($locked, $by);
     }
 
     private function refuseIfHeldByOther(RadarAdvertiser $locked, User $by): void

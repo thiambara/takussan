@@ -21,6 +21,7 @@ use App\Models\Property;
 use App\Models\PropertyBoost;
 use App\Models\RadarAdvertiser;
 use App\Models\RadarListing;
+use App\Models\RadarOutreach;
 use App\Models\Tag;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -121,6 +122,8 @@ class NamespaceAccessGuardTest extends TestCase
         $listing = RadarListing::factory()->create();
         // TCK-2388 — même motif, sur la fiche annonceur (`radar/advertisers/{advertiser}`).
         $advertiser = RadarAdvertiser::factory()->create();
+        // Idem, sur le message d'accord (`radar/outreaches/{outreach}`).
+        $outreach = RadarOutreach::factory()->create();
 
         $routes = collect(Route::getRoutes())
             ->filter(fn ($r) => str_starts_with($r->uri(), 'api/admin'));
@@ -134,6 +137,7 @@ class NamespaceAccessGuardTest extends TestCase
                 }
 
                 $resolved = '/'.strtr($route->uri(), [
+                    '{outreach}' => (string) $outreach->id,
                     '{agency}' => (string) $agency->id,
                     '{alertRule}' => (string) $alertRule->id,
                     '{integration}' => (string) $integration->id,
