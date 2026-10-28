@@ -4,6 +4,7 @@ namespace App\Http\Resources\Api\Admin;
 
 use App\Http\Resources\Bases\BaseResource;
 use App\Models\GeoNeighborhood;
+use App\Services\Media\PrivateMediaAccess;
 use Illuminate\Http\Request;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
@@ -12,8 +13,11 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
  * sous un sparse fieldset (`fields[radar_listings]=…`), une colonne non lue est omise plutôt
  * qu'inventée nulle. `stage_reason` est un code (`radar.*`, `ai.*`), jamais une phrase.
  *
- * Les captures (fiche seule, `captures`) ne rendent que leurs métadonnées : un fichier privé ne
- * sort que par `PrivateMediaAccess`, après autorisation (ADR-0029), et aucune route ne l'expose ici.
+ * Les captures (fiche seule, `captures`) rendent leurs métadonnées et une URL signée
+ * (`PrivateMediaAccess::signedUrl()`, ADR-0029) : la signature EST l'autorisation, émise ici parce que la
+ * ressource n'est rendue que derrière `platform.radar.operate`. Le fichier lui-même est servi par la route
+ * signée existante `media.private.show` (redirection) ; aucune route n'est propre au Radar. L'URL expire
+ * (5 minutes) : le front la redemande en rouvrant la fiche.
  */
 class RadarListingResource extends BaseResource
 {
@@ -83,6 +87,7 @@ class RadarListingResource extends BaseResource
                     'mime_type' => $media->mime_type,
                     'size' => $media->size,
                     'sha256' => $media->getCustomProperty('sha256'),
+                    'url' => app(PrivateMediaAccess::class)->signedUrl($media),
                 ])->all()),
         ];
     }

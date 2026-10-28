@@ -72,6 +72,9 @@ class PlatformRoutesDefaultDenyTest extends TestCase
         'admin.radar.listings.update',
         'admin.radar.listings.review',
         'admin.radar.listings.matches',
+        'admin.radar.listings.duplicate',
+        'admin.radar.listings.discard',
+        'admin.radar.listings.advertiser',
     ];
 
     public function test_toute_route_de_la_console_passe_par_la_garde_plateforme(): void

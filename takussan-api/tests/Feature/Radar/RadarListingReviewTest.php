@@ -137,7 +137,8 @@ class RadarListingReviewTest extends TestCase
         $this->assertSame(AiSuggestionDecision::Accepted, AiSuggestion::query()->sole()->decision);
     }
 
-    public function test_ac1_de_bout_en_bout_par_le_job(): void
+    /** Joue le job d'extraction d'une annonce `captured` avec un faux agent qui lit un appartement sans quartier connu. */
+    private function lancerLeJob(RadarListing $listing, ?\Closure $pendantLAppel = null): void
     {
         $this->installerSocleDEssai();
         $this->app->instance(AiUsageRegistry::class, new AiUsageRegistry);
@@ -153,14 +154,31 @@ class RadarListingReviewTest extends TestCase
         $reponse['contract'] = ['value' => 'rent', 'confidence' => 'high', 'evidence' => 'à louer'];
         $reponse['price'] = ['value' => '450.000f/mois', 'confidence' => 'high', 'evidence' => '450.000f/mois'];
         $reponse['neighborhood'] = ['value' => 'Quartier introuvable', 'confidence' => 'medium', 'evidence' => 'Quartier introuvable'];
-        RadarExtraction::fake([$reponse]);
+        // `$pendantLAppel` : ce qui arrive pendant que le modèle répond, hors de toute transaction du job.
+        RadarExtraction::fake(function () use ($reponse, $pendantLAppel) {
+            if ($pendantLAppel !== null) {
+                $pendantLAppel();
+            }
 
-        $listing = RadarListing::factory()->create([
+            return $reponse;
+        });
+
+        $job = (new ExtractRadarListing($listing->id))->withFakeQueueInteractions();
+        $this->app->call([$job, 'handle']);
+    }
+
+    private function annonceCapturee(): RadarListing
+    {
+        return RadarListing::factory()->create([
             'raw_text' => 'Appartement à louer, Quartier introuvable, 450.000f/mois',
             'captured_by' => $this->operateur->id,
         ]);
-        $job = (new ExtractRadarListing($listing->id))->withFakeQueueInteractions();
-        $this->app->call([$job, 'handle']);
+    }
+
+    public function test_ac1_de_bout_en_bout_par_le_job(): void
+    {
+        $listing = $this->annonceCapturee();
+        $this->lancerLeJob($listing);
 
         $this->assertSame(RadarListingStage::Extracted, $listing->fresh()->stage);
         $this->assertNull($listing->fresh()->extracted['neighborhood']['neighborhood_id']);
@@ -515,6 +533,202 @@ class RadarListingReviewTest extends TestCase
 
             $this->postJson($this->url($listing, '/review'))->assertStatus(409)->assertJsonPath('params.stage', $etape->value);
         }
+    }
+
+    // --- Doublon -------------------------------------------------------------------------------
+
+    public function test_doublon_d_une_annonce_pose_le_lien_ferme_l_etape_et_laisse_la_suggestion_en_attente(): void
+    {
+        $autre = RadarListing::factory()->extracted()->create();
+        $listing = $this->fiche(attributes: ['stage_reason' => 'ai.timeout']);
+
+        $this->postJson($this->url($listing, '/duplicate'), ['of_listing_id' => $autre->id])
+            ->assertOk()
+            ->assertJsonPath('data.stage', 'duplicate')
+            ->assertJsonPath('data.duplicate_of_listing_id', $autre->id)
+            ->assertJsonPath('data.duplicate_of_property_id', null)
+            ->assertJsonPath('data.stage_reason', null);
+
+        $this->assertIsArray($listing->fresh()->matches);
+        // Personne n'a jugé l'extraction : le taux d'acceptation n'est pas touché.
+        $this->assertSame(AiSuggestionDecision::Pending, AiSuggestion::query()->sole()->decision);
+        $journal = Activity::query()->where('event', 'radar_listing_marked_duplicate')->sole();
+        $this->assertSame($autre->id, $journal->properties['of_listing_id']);
+        $this->assertNull($journal->properties['of_property_id']);
+    }
+
+    public function test_doublon_d_un_bien_pose_le_lien_et_fige_les_rapprochements(): void
+    {
+        $bien = Property::factory()->published()->create(['user_id' => User::factory()->create(['phone' => self::NUMERO])->id]);
+        $listing = $this->fiche(['phones' => [self::NUMERO]]);
+
+        $this->postJson($this->url($listing, '/duplicate'), ['of_property_id' => $bien->id])
+            ->assertOk()
+            ->assertJsonPath('data.stage', 'duplicate')
+            ->assertJsonPath('data.duplicate_of_property_id', $bien->id)
+            ->assertJsonPath('data.duplicate_of_listing_id', null);
+
+        $figee = $listing->fresh()->matches;
+        $this->assertCount(1, $figee);
+        $this->assertSame($bien->id, $figee[0]['id']);
+        $this->assertSame(AiSuggestionDecision::Pending, AiSuggestion::query()->sole()->decision);
+    }
+
+    public function test_doublon_les_deux_cibles_ensemble_ou_aucune_rendent_422(): void
+    {
+        $autre = RadarListing::factory()->extracted()->create();
+        $bien = Property::factory()->published()->create();
+        $listing = $this->fiche();
+
+        $this->postJson($this->url($listing, '/duplicate'), ['of_listing_id' => $autre->id, 'of_property_id' => $bien->id])->assertStatus(422);
+        $this->postJson($this->url($listing, '/duplicate'), [])->assertStatus(422);
+        $this->assertSame(RadarListingStage::Extracted, $listing->fresh()->stage);
+    }
+
+    public function test_doublon_de_soi_meme_rend_422(): void
+    {
+        $listing = $this->fiche();
+
+        $this->postJson($this->url($listing, '/duplicate'), ['of_listing_id' => $listing->id])
+            ->assertStatus(422)
+            ->assertJsonPath('code', 'radar.duplicate.self');
+        $this->assertSame(RadarListingStage::Extracted, $listing->fresh()->stage);
+    }
+
+    public function test_doublon_d_une_cible_purgee_ou_inexistante_rend_422(): void
+    {
+        $purgee = RadarListing::factory()->create(['stage' => RadarListingStage::Purged]);
+        $supprime = Property::factory()->published()->create();
+        $supprime->delete();
+        $listing = $this->fiche();
+
+        $this->postJson($this->url($listing, '/duplicate'), ['of_listing_id' => $purgee->id])->assertStatus(422)->assertJsonValidationErrors('of_listing_id');
+        $this->postJson($this->url($listing, '/duplicate'), ['of_listing_id' => 999999999])->assertStatus(422);
+        $this->postJson($this->url($listing, '/duplicate'), ['of_property_id' => $supprime->id])->assertStatus(422)->assertJsonValidationErrors('of_property_id');
+        $this->assertSame(RadarListingStage::Extracted, $listing->fresh()->stage);
+    }
+
+    public function test_doublon_depuis_une_etape_qui_ne_le_permet_pas_rend_409(): void
+    {
+        $autre = RadarListing::factory()->extracted()->create();
+
+        foreach ([RadarListingStage::Contacted, RadarListingStage::Published, RadarListingStage::Duplicate, RadarListingStage::DoNotContact] as $etape) {
+            $listing = $this->fiche(attributes: ['stage' => $etape]);
+
+            $this->postJson($this->url($listing, '/duplicate'), ['of_listing_id' => $autre->id])
+                ->assertStatus(409)->assertJsonPath('code', 'radar.listing.stage_conflict')->assertJsonPath('params.stage', $etape->value);
+            $this->assertSame($etape, $listing->fresh()->stage);
+        }
+    }
+
+    public function test_doublon_permis_depuis_captured_extraction_failed_extracted_et_reviewed(): void
+    {
+        $autre = RadarListing::factory()->extracted()->create();
+
+        foreach ([RadarListingStage::Captured, RadarListingStage::ExtractionFailed, RadarListingStage::Extracted, RadarListingStage::Reviewed] as $etape) {
+            $listing = RadarListing::factory()->create(['stage' => $etape]);
+
+            $this->postJson($this->url($listing, '/duplicate'), ['of_listing_id' => $autre->id])->assertOk()->assertJsonPath('data.stage', 'duplicate');
+        }
+    }
+
+    // --- Écart ---------------------------------------------------------------------------------
+
+    /** @return array<string, array{0: string}> */
+    public static function motifsDEcart(): array
+    {
+        return [
+            'pas un bien' => ['not_real_estate'], 'hors périmètre' => ['out_of_scope'], 'plus disponible' => ['no_longer_available'],
+            'source inexploitable' => ['unusable_source'], 'autre' => ['other'],
+        ];
+    }
+
+    #[DataProvider('motifsDEcart')]
+    public function test_ecarter_pose_le_motif_code_et_fige_les_rapprochements(string $motif): void
+    {
+        $listing = $this->fiche();
+
+        $this->postJson($this->url($listing, '/discard'), ['reason' => $motif])
+            ->assertOk()
+            ->assertJsonPath('data.stage', 'discarded')
+            ->assertJsonPath('data.stage_reason', 'radar.discard.'.$motif);
+
+        $this->assertIsArray($listing->fresh()->matches);
+        $this->assertSame(AiSuggestionDecision::Pending, AiSuggestion::query()->sole()->decision);
+        $this->assertSame($motif, Activity::query()->where('event', 'radar_listing_discarded')->sole()->properties['reason']);
+    }
+
+    public function test_ecarter_un_motif_inconnu_ou_absent_rend_422(): void
+    {
+        $listing = $this->fiche();
+
+        $this->postJson($this->url($listing, '/discard'), ['reason' => 'je ne sais pas'])->assertStatus(422);
+        $this->postJson($this->url($listing, '/discard'), [])->assertStatus(422);
+        $this->assertSame(RadarListingStage::Extracted, $listing->fresh()->stage);
+    }
+
+    public function test_ecarter_depuis_une_etape_qui_ne_le_permet_pas_rend_409(): void
+    {
+        foreach ([RadarListingStage::Contacted, RadarListingStage::Discarded, RadarListingStage::Refused] as $etape) {
+            $listing = $this->fiche(attributes: ['stage' => $etape]);
+
+            $this->postJson($this->url($listing, '/discard'), ['reason' => 'other'])->assertStatus(409)->assertJsonPath('params.stage', $etape->value);
+        }
+    }
+
+    public function test_une_annonce_captured_ecartee_avant_le_job_n_est_pas_reecrite(): void
+    {
+        $listing = $this->annonceCapturee();
+
+        $this->postJson($this->url($listing, '/discard'), ['reason' => 'not_real_estate'])->assertOk();
+        $this->lancerLeJob($listing);
+
+        $apres = $listing->fresh();
+        $this->assertSame(RadarListingStage::Discarded, $apres->stage);
+        $this->assertSame('radar.discard.not_real_estate', $apres->stage_reason);
+        $this->assertNull($apres->extracted);
+        $this->assertSame(0, AiSuggestion::query()->count());
+    }
+
+    public function test_une_annonce_captured_ecartee_pendant_l_appel_du_modele_n_est_pas_reecrite_par_le_job(): void
+    {
+        $listing = $this->annonceCapturee();
+
+        // L'extraction TOURNE : l'opérateur écarte pendant que le modèle répond ; le `settle()` du job ne doit rien écrire.
+        $this->lancerLeJob($listing, fn () => $this->postJson($this->url($listing, '/discard'), ['reason' => 'out_of_scope'])->assertOk());
+
+        $apres = $listing->fresh();
+        $this->assertSame(RadarListingStage::Discarded, $apres->stage);
+        $this->assertSame('radar.discard.out_of_scope', $apres->stage_reason);
+        $this->assertNull($apres->extracted);
+        $this->assertNull($apres->extracted_at);
+        $this->assertSame(0, AiSuggestion::query()->count());
+    }
+
+    public function test_ecarter_fige_les_rapprochements_vus(): void
+    {
+        $bien = Property::factory()->published()->create(['user_id' => User::factory()->create(['phone' => self::NUMERO])->id]);
+        $listing = $this->fiche(['phones' => [self::NUMERO]]);
+
+        $this->postJson($this->url($listing, '/discard'), ['reason' => 'other'])->assertOk();
+
+        $this->assertSame([$bien->id], array_column($listing->fresh()->matches, 'id'));
+    }
+
+    // --- Captures ------------------------------------------------------------------------------
+
+    public function test_les_captures_de_la_fiche_portent_une_url_signee_qui_sert_le_fichier(): void
+    {
+        $listing = $this->fiche();
+        $listing->addMedia(UploadedFile::fake()->image('capture.png', 20, 20))->toMediaCollection('radar_captures');
+
+        $capture = $this->getJson($this->url($listing))->assertOk()->json('data.captures.0');
+
+        $this->assertStringContainsString('signature=', $capture['url']);
+        $this->assertStringNotContainsString('/storage/', $capture['url']);
+        $this->assertContains($this->get($capture['url'])->getStatusCode(), [200, 302]);
+        // Sans la signature, le fichier ne sort pas.
+        $this->get(strtok($capture['url'], '?'))->assertForbidden();
     }
 
     // --- AC2 : les rapprochements -------------------------------------------------------------

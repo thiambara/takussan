@@ -26,5 +26,8 @@ Route::middleware(['auth:sanctum', 'super-admin', 'platform-can:'.PlatformAbilit
         // TCK-2387 — la relecture : corriger, valider, et les rapprochements (calculés à l'ouverture).
         Route::patch('listings/{listing}', [RadarListingReviewController::class, 'update'])->name('admin.radar.listings.update');
         Route::post('listings/{listing}/review', [RadarListingReviewController::class, 'review'])->name('admin.radar.listings.review');
+        Route::post('listings/{listing}/duplicate', [RadarListingReviewController::class, 'duplicate'])->name('admin.radar.listings.duplicate');
+        Route::post('listings/{listing}/discard', [RadarListingReviewController::class, 'discard'])->name('admin.radar.listings.discard');
+        Route::put('listings/{listing}/advertiser', [RadarListingReviewController::class, 'advertiser'])->name('admin.radar.listings.advertiser');
         Route::get('listings/{listing}/matches', RadarListingMatchController::class)->name('admin.radar.listings.matches');
     });

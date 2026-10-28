@@ -5,16 +5,20 @@ namespace App\Services\Radar;
 use App\Ai\Usages\RadarExtractionUsage;
 use App\Models\AiSuggestion;
 use App\Models\Enums\AiSuggestionDecision;
+use App\Models\Enums\RadarDiscardReason;
 use App\Models\Enums\RadarListingStage;
 use App\Models\Enums\ReferentialStatus;
 use App\Models\GeoNeighborhood;
+use App\Models\RadarAdvertiser;
 use App\Models\RadarListing;
 use App\Models\User;
 use App\Services\Ai\SuggestionRecorder;
+use App\Support\RadarPhone;
 use Illuminate\Support\Facades\DB;
 
 /**
- * TCK-2387 (ADR-0077 §5) — la relecture d'une fiche extraite : corriger un champ, puis valider.
+ * TCK-2387 (ADR-0077 §5) — la relecture d'une fiche extraite : corriger un champ, puis valider ; et les gestes qui
+ * la ferment ou la rattachent (doublon, écart, annonceur).
  *
  * **Corriger ne décide rien.** Le geste réécrit `extracted` (valeur, `corrected: true`, drapeaux levés) et
  * laisse la suggestion en attente : l'opérateur peut corriger dix fois, la décision (ADR-0076 §7) se prend
@@ -33,6 +37,7 @@ final class RadarListingReview
     public function __construct(
         private readonly SuggestionRecorder $recorder,
         private readonly RadarMatcher $matcher,
+        private readonly RadarAdvertiserDirectory $directory,
     ) {}
 
     /**
@@ -52,11 +57,9 @@ final class RadarListingReview
 
     public function review(RadarListing $listing, User $by): RadarListing
     {
-        // Les rapprochements se calculent AVANT le verrou : le matcher fait une douzaine de requêtes, dont des
-        // recherches jsonb, et la ligne verrouillée ferait attendre tout autre geste sur la fiche pendant ce temps.
-        $snapshot = $listing->stage->allowsReview() ? $this->matcher->matchesFor($listing) : null;
+        $snapshot = $this->snapshotBefore($listing, $listing->stage->allowsReview());
 
-        return $this->locked($listing, function (RadarListing $l) use ($by, $listing, &$snapshot): void {
+        return $this->locked($listing, function (RadarListing $l) use ($by, $listing, $snapshot): void {
             abort_code_unless($l->stage->allowsReview(), 409, 'radar.listing.stage_conflict', ['stage' => $l->stage->value]);
 
             $values = RadarReviewFields::values($l->extracted ?? []);
@@ -71,16 +74,10 @@ final class RadarListingReview
                 $suggestion = $this->recorder->edit($suggestion, $values, $by);
             }
 
-            // Ce que l'opérateur avait sous les yeux, figé à la décision : une trace, non un cache. Si la fiche a
-            // changé entre la lecture et le verrou (une correction, un autre annonceur), le calcul d'avant ne
-            // décrit plus ce qui est validé : on le refait, sous verrou, pour ce cas rare.
-            if ($snapshot === null || $l->extracted != $listing->extracted || $l->radar_advertiser_id !== $listing->radar_advertiser_id) {
-                $snapshot = $this->matcher->matchesFor($l);
-            }
             $l->fill([
                 'stage' => RadarListingStage::Reviewed,
                 'stage_reason' => null,
-                'matches' => $snapshot,
+                'matches' => $this->frozen($snapshot, $listing, $l),
             ])->save();
 
             $this->journal('radar_listing_reviewed', 'Annonce du Radar validée', $l, $by, [
@@ -89,6 +86,146 @@ final class RadarListingReview
                 'corrected_fields' => array_keys($suggestion?->correction_diff ?? []),
             ]);
         });
+    }
+
+    /**
+     * TCK-2387 — « doublon de » : la fiche est la même annonce qu'une autre fiche, ou qu'un bien du
+     * catalogue. Elle ferme l'annonce (`duplicate`), le lien posé ; la suggestion reste en attente — personne
+     * n'a jugé l'extraction, le taux d'acceptation n'est pas touché (décision 13a).
+     */
+    public function markDuplicate(RadarListing $listing, ?int $ofListingId, ?int $ofPropertyId, User $by): RadarListing
+    {
+        $snapshot = $this->snapshotBefore($listing, $listing->stage->allowsClosing());
+
+        return $this->locked($listing, function (RadarListing $l) use ($ofListingId, $ofPropertyId, $by, $listing, $snapshot): void {
+            abort_code_unless($l->stage->allowsClosing(), 409, 'radar.listing.stage_conflict', ['stage' => $l->stage->value]);
+
+            $l->fill([
+                'stage' => RadarListingStage::Duplicate,
+                'stage_reason' => null,
+                'duplicate_of_listing_id' => $ofListingId,
+                'duplicate_of_property_id' => $ofPropertyId,
+                'matches' => $this->frozen($snapshot, $listing, $l),
+            ])->save();
+
+            $this->journal('radar_listing_marked_duplicate', 'Annonce du Radar marquée en doublon', $l, $by, [
+                'of_listing_id' => $ofListingId,
+                'of_property_id' => $ofPropertyId,
+            ]);
+        });
+    }
+
+    /**
+     * TCK-2387 — écarter une annonce, pour un motif de la liste fermée. Une annonce `captured` dont l'extraction
+     * tourne encore s'écarte aussi : le `settle()` du job n'écrit rien d'une annonce qui n'est plus `captured`.
+     */
+    public function discard(RadarListing $listing, RadarDiscardReason $reason, User $by): RadarListing
+    {
+        $snapshot = $this->snapshotBefore($listing, $listing->stage->allowsClosing());
+
+        return $this->locked($listing, function (RadarListing $l) use ($reason, $by, $listing, $snapshot): void {
+            abort_code_unless($l->stage->allowsClosing(), 409, 'radar.listing.stage_conflict', ['stage' => $l->stage->value]);
+
+            $l->fill([
+                'stage' => RadarListingStage::Discarded,
+                'stage_reason' => $reason->code(),
+                'matches' => $this->frozen($snapshot, $listing, $l),
+            ])->save();
+
+            $this->journal('radar_listing_discarded', 'Annonce du Radar écartée', $l, $by, ['reason' => $reason->value]);
+        });
+    }
+
+    /**
+     * TCK-2387 (AC6) — rattacher l'annonce à un numéro qu'elle a lu sans le retenir (écarté d'ordinaire : trois
+     * numéros ou plus, ou un numéro de service). Le numéro doit être CONNU de l'annonce : on ne fabrique pas un
+     * annonceur à partir d'un numéro venu d'ailleurs.
+     *
+     * Dans le verrou de l'annonce, puis de l'annonceur (TCK-2386) : un STOP dit pour ce numéro l'emporte, y
+     * compris entre la lecture du refus et le verrou de l'annonceur — l'annonce passe alors `do_not_contact`,
+     * issue (200) et non erreur, comme dans le job d'extraction. `extracted` n'est pas réécrit.
+     * Le journal ne porte jamais le numéro.
+     */
+    public function setAdvertiser(RadarListing $listing, string $e164, User $by): RadarListing
+    {
+        return $this->locked($listing, function (RadarListing $l) use ($e164, $by): void {
+            abort_code_unless($l->stage->allowsAdvertiserChange(), 409, 'radar.listing.stage_conflict', ['stage' => $l->stage->value]);
+
+            $dropped = $this->canonicalAll((array) ($l->extracted['phones_dropped'] ?? []));
+            $known = [
+                ...$this->canonicalAll((array) ($l->extracted['phones'] ?? [])),
+                ...$dropped,
+                ...RadarPhone::fromText((string) $l->raw_text),
+            ];
+            abort_code_unless(in_array($e164, $known, true), 422, 'radar.advertiser.phone_unknown');
+
+            $stop = $this->directory->refusedAmong([$e164]);
+            if ($stop !== null) {
+                $advertiser = $stop;
+                $refused = true;
+            } else {
+                // Créé s'il n'existe pas (`insertOrIgnore`), puis relu SOUS SON VERROU : un STOP dit depuis la
+                // lecture du refus l'emporte.
+                $created = $this->directory->findOrCreate($e164);
+                $advertiser = RadarAdvertiser::query()->whereKey($created->id)->lockForUpdate()->firstOrFail();
+                $refused = $advertiser->do_not_contact_at !== null;
+            }
+
+            $l->fill($refused
+                ? ['stage' => RadarListingStage::DoNotContact, 'stage_reason' => null, 'radar_advertiser_id' => $advertiser->id]
+                : ['radar_advertiser_id' => $advertiser->id])->save();
+
+            $this->journal('radar_listing_advertiser_set', 'Annonceur de l\'annonce du Radar posé', $l, $by, [
+                'advertiser_id' => $advertiser->id,
+                'from_dropped' => in_array($e164, $dropped, true),
+                'do_not_contact' => $refused,
+            ]);
+        });
+    }
+
+    /**
+     * Les rapprochements se calculent AVANT le verrou : le matcher fait une douzaine de requêtes, dont des
+     * recherches jsonb, et la ligne verrouillée ferait attendre tout autre geste sur la fiche pendant ce temps.
+     *
+     * @return list<array<string, mixed>>|null null : le geste ne sera pas permis, inutile de calculer
+     */
+    private function snapshotBefore(RadarListing $listing, bool $allowed): ?array
+    {
+        return $allowed ? $this->matcher->matchesFor($listing) : null;
+    }
+
+    /**
+     * Ce que l'opérateur avait sous les yeux, figé à la décision : une trace, non un cache. Si la fiche a changé
+     * entre la lecture et le verrou (une correction, un autre annonceur), le calcul d'avant ne décrit plus ce qui
+     * est décidé : on le refait, sous verrou, pour ce cas rare.
+     *
+     * @param  list<array<string, mixed>>|null  $snapshot
+     * @return list<array<string, mixed>>
+     */
+    private function frozen(?array $snapshot, RadarListing $before, RadarListing $locked): array
+    {
+        if ($snapshot === null || $locked->extracted != $before->extracted || $locked->radar_advertiser_id !== $before->radar_advertiser_id) {
+            return $this->matcher->matchesFor($locked);
+        }
+
+        return $snapshot;
+    }
+
+    /**
+     * @param  list<mixed>  $phones
+     * @return list<string>
+     */
+    private function canonicalAll(array $phones): array
+    {
+        $out = [];
+        foreach ($phones as $phone) {
+            $e164 = is_string($phone) ? RadarPhone::canonical($phone) : null;
+            if ($e164 !== null) {
+                $out[] = $e164;
+            }
+        }
+
+        return $out;
     }
 
     /**
