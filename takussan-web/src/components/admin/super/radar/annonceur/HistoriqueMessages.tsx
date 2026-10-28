@@ -6,6 +6,8 @@ import { useTranslations } from 'next-intl';
 import { StatusBadge } from '@/components/console';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import type { RadarOutreach } from '@/types/radar';
+import { ReponseVerdict } from './ReponseVerdict';
+import { reponsesRecentesDabord } from './reponses';
 
 interface HistoriqueMessagesProps {
   /** Du plus récent au plus ancien, tels que l'API les rend. */
@@ -69,6 +71,19 @@ export function HistoriqueMessages({ messages }: HistoriqueMessagesProps) {
                 </summary>
                 <pre className="mt-2 rounded-md bg-muted p-3 font-sans text-sm whitespace-pre-wrap text-foreground">{message.message}</pre>
               </details>
+              {/* Un message clos garde ses réponses, en lecture : un message ouvert les montre dans son suivi. */}
+              {message.status === 'closed' && message.consents.length > 0 ? (
+                <details className="text-sm">
+                  <summary className="cursor-pointer rounded-sm text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none">
+                    {t('replies')}
+                  </summary>
+                  <div className="mt-2 space-y-3">
+                    {reponsesRecentesDabord(message.consents).map((reponse) => (
+                      <ReponseVerdict key={reponse.id} reponse={reponse} message={message.message} />
+                    ))}
+                  </div>
+                </details>
+              ) : null}
             </li>
           ))}
         </ul>

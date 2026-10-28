@@ -2,10 +2,13 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '@/lib/api';
 import {
   claimRadarAdvertiser,
+  depositRadarReply,
   fetchRadarAdvertiser,
+  fetchRadarAdvertisers,
   markRadarOutreachSent,
   prepareRadarOutreach,
   radarKeys,
+  recordRadarOutcome,
   releaseRadarAdvertiser,
   retouchRadarOutreach,
 } from '../radar';
@@ -117,5 +120,60 @@ describe('queries de la fiche annonceur du Radar', () => {
     expect(radarKeys.advertiser(7)).toEqual(['super-admin', 'radar', 'advertiser', 7]);
     expect(radarKeys.advertiser(7).slice(0, radarKeys.all.length)).toEqual([...radarKeys.all]);
     expect(radarKeys.advertiser(7).slice(0, radarKeys.advertisers().length)).toEqual([...radarKeys.advertisers()]);
+  });
+});
+
+describe('queries des réponses et des files d\'annonceurs (TCK-2388, tâche 9)', () => {
+  it('déposer la réponse est un multipart dont chaque capture part sous « captures[] »', async () => {
+    const fetchMock = repondre({ data: { id: 31 } }, 201);
+    const a = new File(['a'], 'a.png', { type: 'image/png' });
+    const b = new File(['b'], 'b.png', { type: 'image/png' });
+    await depositRadarReply(5, [a, b]);
+
+    const [url, init] = appel(fetchMock);
+    expect(url).toBe('/api/super-admin/radar/outreaches/5/reply');
+    expect(init.method).toBe('POST');
+    expect(init.credentials).toBe('include');
+    expect(init.body).toBeInstanceOf(FormData);
+    const form = init.body as FormData;
+    expect(form.getAll('captures[]')).toEqual([a, b]);
+    // Le navigateur pose la frontière multipart : un Content-Type écrit à la main la casserait.
+    expect(new Headers(init.headers).has('Content-Type')).toBe(false);
+  });
+
+  it('l\'issue est un POST JSON {outcome} ; le motif n\'y est que s\'il est écrit', async () => {
+    const fetchMock = repondre({ data: { id: 5 } });
+    fetchMock.mockImplementation(async () => new Response(JSON.stringify({ data: { id: 5 } }), { status: 200 }));
+    await recordRadarOutcome(5, { outcome: 'consented', reason: '  Vérifié par appel  ' });
+    await recordRadarOutcome(5, { outcome: 'refused', reason: '   ' });
+
+    const [url, init] = appel(fetchMock);
+    expect(url).toBe('/api/super-admin/radar/outreaches/5/outcome');
+    expect(init.method).toBe('POST');
+    expect(JSON.parse(init.body as string)).toEqual({ outcome: 'consented', reason: 'Vérifié par appel' });
+    expect(JSON.parse(fetchMock.mock.calls[1][1].body as string)).toEqual({ outcome: 'refused' });
+  });
+
+  it('la file « à relancer » demande filter[queue]=follow_up avec un sparse fieldset et per_page', async () => {
+    const fetchMock = repondre({ data: [], meta: { total: 0, per_page: 25, current_page: 1, last_page: 1 } });
+    await fetchRadarAdvertisers({ queue: 'follow_up', search: ' Moussa ', page: 2 });
+
+    const [url, init] = appel(fetchMock);
+    const parametres = new URL(url, 'http://localhost').searchParams;
+    expect(url.startsWith('/api/super-admin/radar/advertisers?')).toBe(true);
+    expect(parametres.get('filter[queue]')).toBe('follow_up');
+    expect(parametres.get('filter[search]')).toBe('Moussa');
+    expect(parametres.get('fields[radar_advertisers]')).toBe('id,phone,display_name,nature,do_not_contact_at');
+    expect(parametres.get('page')).toBe('2');
+    expect(parametres.get('per_page')).toBe('25');
+    expect(init.credentials).toBe('include');
+  });
+
+  it('sans recherche, aucun filter[search] ne part', async () => {
+    const fetchMock = repondre({ data: [], meta: { total: 0, per_page: 25, current_page: 1, last_page: 1 } });
+    await fetchRadarAdvertisers({ queue: 'to_contact', search: '   ' });
+
+    const parametres = new URL(appel(fetchMock)[0], 'http://localhost').searchParams;
+    expect(parametres.has('filter[search]')).toBe(false);
   });
 });

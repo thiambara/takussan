@@ -8972,7 +8972,8 @@
               "question": "Question de l’annonceur",
               "no_answer": "Sans réponse"
             },
-            "number": "n° {id}"
+            "number": "n° {id}",
+            "replies": "Réponses déposées"
           },
           "errors": {
             "generic": "Le geste a échoué.",
@@ -8997,9 +8998,178 @@
             "replyPending": "Une réponse de ce message attend encore sa vérification : attendez son verdict.",
             "generationIncomplete": "L’IA n’a pas rédigé la salutation et le résumé : écrivez-les vous-même.",
             "replyRequired": "Aucune réponse n’est déposée sur ce message : déposez les captures de l’annonceur avant de confirmer l’accord.",
-            "reasonRequired": "Le verdict de l’IA ne va pas dans le sens d’un accord : écrivez le motif de la confirmation."
+            "reasonRequired": "Le verdict de l’IA ne va pas dans le sens d’un accord : écrivez le motif de la confirmation.",
+            "listingStageConflict": "Une des annonces de ce message n’est plus « contactée » : la fiche a changé entre-temps, elle est relue."
+          },
+          "reply": {
+            "heading": "Réponse de l’annonceur",
+            "none": "Aucune réponse déposée pour l’instant.",
+            "depositLabel": "Captures de la réponse",
+            "deposit": "Déposer la réponse",
+            "depositing": "Envoi…",
+            "selected": "{count, plural, =0 {Aucune capture choisie} one {# capture choisie} other {# captures choisies}}",
+            "depositHint": "Des captures de la conversation WhatsApp : le message envoyé et la réponse, avec le numéro de l’en-tête.",
+            "waitVerdict": "Une réponse attend encore sa vérification : attendez son verdict avant d’en déposer une autre.",
+            "depositedAt": "Déposée le {date}",
+            "pending": "Vérification en cours…",
+            "pendingReason": "Vérification en attente : {reason}",
+            "failed": "La vérification a échoué : {reason}. Lisez les captures vous-même.",
+            "failedNoReason": "La vérification a échoué. Lisez les captures vous-même.",
+            "captures": "Captures",
+            "captureAlt": "Capture {n} de la réponse",
+            "reasons": {
+              "error": "erreur interne de la vérification",
+              "invalidOutput": "l’IA a rendu une réponse inexploitable",
+              "timeout": "l’IA n’a pas répondu à temps",
+              "noCapture": "aucune capture lisible",
+              "noNumber": "l’annonceur n’a pas de numéro à comparer",
+              "unexpected": "erreur imprévue"
+            },
+            "verdict": {
+              "heading": "Verdict de l’IA",
+              "confidence": "Confiance : {level}",
+              "levels": {
+                "high": "élevée",
+                "medium": "moyenne",
+                "low": "faible"
+              },
+              "classifications": {
+                "consent": "Accord",
+                "refusal": "Refus",
+                "stop": "STOP",
+                "question": "Question",
+                "ambiguous": "Ambigu"
+              },
+              "numberMatches": "Numéro concordant",
+              "numberMismatch": "Numéro discordant : l’en-tête affiche {phone}",
+              "numberMismatchUnknown": "Numéro discordant",
+              "numberUnreadable": "Numéro illisible : vérifiez-le sur les captures",
+              "checkedByCode": "jugé par le code",
+              "checkedByModel": "jugé par l’IA",
+              "clauses": "Clauses retrouvées : {found} sur {total}",
+              "clausesMissing": "manquantes : {missing}",
+              "replyText": "Réponse lue",
+              "noReplyText": "Aucune réponse lisible",
+              "counterpart": "Interlocuteur : {name}",
+              "transcript": "Transcription",
+              "noTranscript": "Aucune transcription.",
+              "discordances": "Écarts avec un accord",
+              "confirmed": "Accord confirmé par {name} le {date}",
+              "confirmationReason": "Motif : {reason}",
+              "revoked": "Accord révoqué le {date}"
+            }
+          },
+          "outcome": {
+            "open": "Saisir l’issue",
+            "title": "Issue du message",
+            "description": "Dites ce que l’annonceur a répondu. Seule cette confirmation rend un accord valide.",
+            "legend": "Issue",
+            "hints": {
+              "consented": "Il accepte : la réponse devient un accord confirmé et les annonces passent en « accord reçu ».",
+              "refused": "Il refuse : les annonces sont closes.",
+              "stop": "Il ne veut plus être contacté, définitivement.",
+              "question": "Il pose une question : le message reste ouvert.",
+              "no_answer": "Il n’a pas répondu : le message est classé sans réponse."
+            },
+            "noReply": "« Accord » n’est possible qu’avec une réponse déposée.",
+            "discordancesHeading": "Le verdict de l’IA ne va pas dans le sens d’un accord :",
+            "discordances": {
+              "noVerdict": "aucun verdict (vérification en cours ou échouée)",
+              "numberMismatch": "le numéro de l’en-tête n’est pas celui de l’annonceur",
+              "clausesMissing": "une clause du message n’est pas lisible sur les captures",
+              "notConsent": "la réponse lue n’est pas un « oui »"
+            },
+            "reasonRequiredLabel": "Motif de la confirmation (obligatoire)",
+            "reasonRequiredHint": "Expliquez pourquoi vous confirmez l’accord malgré ces écarts : le motif est conservé avec l’accord.",
+            "stopWarning": "STOP est définitif : les accords de cet annonceur sont révoqués, ses annonces ne sont plus démarchées et plus aucun message ne lui est préparé.",
+            "stopContinue": "Continuer",
+            "stopConfirm": "Oui, c’est définitif",
+            "back": "Retour",
+            "confirm": "Confirmer",
+            "saving": "Enregistrement…",
+            "cancel": "Annuler",
+            "options": {
+              "consented": "Accord",
+              "refused": "Refus",
+              "stop": "STOP",
+              "question": "Question",
+              "no_answer": "Sans réponse"
+            }
+          },
+          "followUp": {
+            "heading": "Relance",
+            "dueSince": "Relance due depuis le {date}.",
+            "dueOn": "Relance prévue le {date}.",
+            "prepare": "Préparer la relance",
+            "preparing": "Préparation…",
+            "noAnswer": "Classer sans réponse",
+            "noAnswering": "Enregistrement…",
+            "noAnswerHint": "Les relances sont épuisées et l’échéance est passée : classez ce message sans réponse."
+          },
+          "awaiting": {
+            "heading": "Messages envoyés, en attente d’une issue",
+            "sentAt": "Envoyé le {date}",
+            "none": "Aucun message n’attend d’issue."
           }
-        }
+        },
+        "advertisers": {
+          "metaTitle": "Annonceurs du Radar",
+          "title": "Annonceurs",
+          "subtitle": "Les files du démarchage : qui contacter, qui attend une réponse, qui relancer.",
+          "back": "Retour au Radar",
+          "forbidden": "Le Radar est réservé aux opérateurs support et super-admin.",
+          "loadError": "Les annonceurs n’ont pas pu être chargés.",
+          "tabsAria": "File d’annonceurs",
+          "tabs": {
+            "to_contact": "À contacter",
+            "awaiting": "En attente",
+            "follow_up": "À relancer"
+          },
+          "search": {
+            "label": "Rechercher un annonceur",
+            "placeholder": "Nom ou numéro"
+          },
+          "columns": {
+            "name": "Annonceur",
+            "phone": "Numéro",
+            "nature": "Nature",
+            "counts": "Annonces",
+            "due": "Échéance de relance",
+            "claim": "Prise en charge"
+          },
+          "tableCaption": "Les annonceurs de la file",
+          "unnamed": "Annonceur sans nom",
+          "noPhone": "Numéro inconnu",
+          "doNotContact": "Ne pas contacter",
+          "claimedBy": "Pris en charge par {name}",
+          "claimedByMe": "Pris en charge par vous",
+          "proposeNoAnswer": "Proposer « sans réponse »",
+          "empty": {
+            "to_contact": {
+              "title": "Personne à contacter",
+              "description": "Les annonceurs dont une annonce est relue et pas encore démarchée apparaissent ici."
+            },
+            "awaiting": {
+              "title": "Aucun message en attente",
+              "description": "Un message envoyé attend ici que son échéance de relance arrive."
+            },
+            "follow_up": {
+              "title": "Rien à relancer",
+              "description": "Les messages restés sans réponse après leur échéance apparaissent ici."
+            },
+            "search": {
+              "title": "Aucun annonceur trouvé",
+              "description": "Essayez un autre nom, ou le numéro écrit comme vous l’avez."
+            }
+          },
+          "counts": {
+            "reviewed": "À contacter",
+            "contacted": "Contactées",
+            "consented": "Accord"
+          }
+        },
+        "advertisersLink": "Annonceurs",
+        "followUpsDue": "{count, plural, =0 {Aucune relance due} one {# relance due} other {# relances dues}}"
       }
     },
     "featureFlags": {

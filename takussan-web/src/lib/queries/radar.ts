@@ -3,8 +3,12 @@ import { cheminApi, requete } from '@/lib/chemin-api';
 import { jsonOrThrow } from '@/lib/queries/super-admin-coque';
 import type { PaginatedResponse } from '@/types/api';
 import type {
+  RadarAdvertiserQueue,
   RadarAdvertiserResponse,
+  RadarAdvertiserRow,
   RadarClaimResponse,
+  RadarConsent,
+  RadarOutcomeRequest,
   RadarDashboardResponse,
   RadarIntakePayload,
   RadarIntakeResponse,
@@ -44,6 +48,16 @@ export const RADAR_LISTING_FIELDS = [
 /** Tant qu'une extraction ou un calcul d'empreintes tourne, les écrans se relisent à ce rythme. */
 export const RADAR_POLL_MS = 10_000;
 
+/** Les colonnes d'une ligne de file : celles que le sparse fieldset du modèle permet (`RadarAdvertiser::$queryFields`). */
+export const RADAR_ADVERTISER_FIELDS = ['id', 'phone', 'display_name', 'nature', 'do_not_contact_at'] as const;
+
+export interface RadarAdvertiserFilters {
+  readonly queue: RadarAdvertiserQueue;
+  readonly search?: string;
+  readonly page?: number;
+  readonly perPage?: number;
+}
+
 export interface RadarListingFilters {
   readonly stage?: RadarListingStage;
   readonly page?: number;
@@ -61,6 +75,8 @@ export const radarKeys = {
   next: (excludeId: number) => [...radarKeys.all, 'next', excludeId] as const,
   advertisers: () => [...radarKeys.all, 'advertiser'] as const,
   advertiser: (id: number) => [...radarKeys.advertisers(), id] as const,
+  advertiserLists: () => [...radarKeys.advertisers(), 'list'] as const,
+  advertiserList: (filters: RadarAdvertiserFilters) => [...radarKeys.advertiserLists(), filters] as const,
 };
 
 export async function fetchRadarDashboard(): Promise<RadarDashboardResponse> {
@@ -251,6 +267,54 @@ export async function markRadarOutreachSent(id: number): Promise<RadarOutreachRe
     method: 'POST',
     credentials: 'include',
     headers: { Accept: 'application/json' },
+  });
+  return jsonOrThrow<RadarOutreachResponse>(res);
+}
+
+/**
+ * Les files du démarchage : `filter[queue]` (à contacter, en attente, à relancer), `filter[search]` (nom ou numéro,
+ * écrit comme on veut). Le message ouvert (`follow_up`, avec son échéance `due_at`) et les comptes par étape sont
+ * calculés par l'API.
+ */
+export async function fetchRadarAdvertisers(filters: RadarAdvertiserFilters): Promise<PaginatedResponse<RadarAdvertiserRow>> {
+  const search = filters.search?.trim();
+  const qs = buildQueryString({
+    fields: { radar_advertisers: RADAR_ADVERTISER_FIELDS },
+    filter: { queue: filters.queue, search: search || undefined },
+    page: filters.page ?? 1,
+    per_page: filters.perPage ?? 25,
+  });
+  const res = await fetch(cheminApi`/api/super-admin/radar/advertisers${requete(qs)}`, { credentials: 'include' });
+  return jsonOrThrow<PaginatedResponse<RadarAdvertiserRow>>(res);
+}
+
+/**
+ * Déposer la réponse d'un annonceur : les captures de la conversation, en multipart (`captures[]`, comme la saisie ;
+ * le relais transporte les octets). L'API rend la réponse (201), vérifiée en file : `verification_status` vaut `pending`.
+ */
+export async function depositRadarReply(outreachId: number, files: readonly File[]): Promise<{ readonly data: RadarConsent }> {
+  const form = new FormData();
+  for (const file of files) form.append('captures[]', file);
+  const res = await fetch(cheminApi`/api/super-admin/radar/outreaches/${outreachId}/reply`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { Accept: 'application/json' },
+    body: form,
+  });
+  return jsonOrThrow<{ readonly data: RadarConsent }>(res);
+}
+
+/**
+ * L'issue d'un message : le seul geste qui CONFIRME une réponse. Le motif n'est envoyé que s'il est écrit ; l'API
+ * l'exige (422 `radar.consent.reason_required`) pour un accord que le verdict ne soutient pas. Rend le message relu.
+ */
+export async function recordRadarOutcome(outreachId: number, request: RadarOutcomeRequest): Promise<RadarOutreachResponse> {
+  const reason = request.reason?.trim();
+  const res = await fetch(cheminApi`/api/super-admin/radar/outreaches/${outreachId}/outcome`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: JSON_ACCEPT,
+    body: JSON.stringify({ outcome: request.outcome, ...(reason ? { reason } : {}) }),
   });
   return jsonOrThrow<RadarOutreachResponse>(res);
 }

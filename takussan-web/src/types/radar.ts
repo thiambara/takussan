@@ -127,6 +127,10 @@ export interface RadarDashboard {
   readonly stages: Record<RadarListingStage, number>;
   /** `captured` avec un motif : compté aussi dans `stages.captured`. */
   readonly pending_extraction: number;
+  /** TCK-2388 : annonceurs distincts à relancer (message envoyé, sans issue, échéance passée). */
+  readonly follow_ups_due: number;
+  /** TCK-2388 : messages envoyés qui attendent encore leur échéance de relance. */
+  readonly outreaches_awaiting: number;
   readonly ai: {
     readonly spent_today_xof: number;
     readonly daily_budget_xof: number | null;
@@ -488,4 +492,46 @@ export type RadarPrepareRequest =
 export interface RadarOutreachChanges {
   readonly salutation?: string;
   readonly resume?: string;
+}
+
+// ─── Les files d'annonceurs (TCK-2388) ───────────────────────────────────────────────────────
+
+/** `filter[queue]` de `GET /api/admin/radar/advertisers` : une file inconnue ne rend rien. */
+export const RADAR_ADVERTISER_QUEUES = ['to_contact', 'awaiting', 'follow_up'] as const;
+
+export type RadarAdvertiserQueue = (typeof RADAR_ADVERTISER_QUEUES)[number];
+
+/** Le message ouvert d'une ligne de file (`RadarAdvertiserResource::rowPart`) : le plus récemment envoyé. */
+export interface RadarAdvertiserRowFollowUp {
+  readonly outreach_id: number;
+  readonly sent_at: string | null;
+  readonly due_at: string | null;
+  readonly rank: number;
+  readonly propose_no_answer: boolean;
+}
+
+/**
+ * Une ligne de file. Les colonnes de `RADAR_ADVERTISER_FIELDS` ; les comptes et `follow_up` sont calculés par l'API
+ * et toujours rendus. `claim` n'est calculée que si ses colonnes sont lues, ce qu'un sparse fieldset ne permet pas
+ * (elles ne sont pas dans les champs demandables) : elle est donc facultative ici.
+ */
+export interface RadarAdvertiserRow {
+  readonly id: number;
+  readonly phone: string | null;
+  readonly display_name: string | null;
+  readonly nature: RadarAdvertiserNature;
+  readonly do_not_contact_at: string | null;
+  readonly claim?: RadarClaim | null;
+  readonly counts?: {
+    readonly reviewed?: number;
+    readonly contacted?: number;
+    readonly consented?: number;
+  };
+  readonly follow_up?: RadarAdvertiserRowFollowUp | null;
+}
+
+/** Le corps d'une issue (`POST outreaches/{id}/outcome`) : le motif n'est exigé que pour confirmer un accord discordant. */
+export interface RadarOutcomeRequest {
+  readonly outcome: RadarOutreachOutcome;
+  readonly reason?: string;
 }

@@ -156,6 +156,33 @@ export const ERREURS_ANNONCEUR_RADAR: Record<string, string> = {
   // libellé » (codes-radar.tck-2387) reste vrai ; l'écran qui les reçoit vient avec elle.
   'radar.consent.reply_required': 'replyRequired',
   'radar.consent.reason_required': 'reasonRequired',
+  // La confirmation d'un accord exige des annonces encore « contactées » : si l'une a bougé, le 409 le dit.
+  'radar.listing.stage_conflict': 'listingStageConflict',
+};
+
+/**
+ * Les motifs que `VerifyRadarConsentReply` écrit dans `verification_reason` (`REASON_*`) — sans les codes `ai.*` de la
+ * passerelle, déjà dans {@link MOTIFS_RADAR}. Libellés sous `superAdmin.pages.radar.advertiser.reply.reasons`. Une
+ * attente (`pending` + motif) et un échec (`failed` + motif) se lisent par la même table ; un code inconnu s'affiche brut.
+ */
+export const MOTIFS_VERIFICATION_RADAR: Record<string, string> = {
+  'radar.verification.error': 'error',
+  'radar.verification.invalid_output': 'invalidOutput',
+  'radar.verification.timeout': 'timeout',
+  'radar.verification.no_capture': 'noCapture',
+  'radar.verification.no_number': 'noNumber',
+  'radar.verification.unexpected': 'unexpected',
+};
+
+/**
+ * Ce qui, dans le verdict enregistré, ne va pas dans le sens d'un accord (`RadarConsentVerdict::discordances`) :
+ * l'API en liste les codes, jamais la prose. Libellés sous `superAdmin.pages.radar.advertiser.outcome.discordances`.
+ */
+export const DISCORDANCES_RADAR: Record<string, string> = {
+  no_verdict: 'noVerdict',
+  number_mismatch: 'numberMismatch',
+  clauses_missing: 'clausesMissing',
+  not_consent: 'notConsent',
 };
 
 /** Les 409 qui disent « la fiche n'est plus ce que l'écran croit » : elle se relit. */

@@ -15,7 +15,7 @@ import {
   type RadarOutreach,
   type RadarOutreachChanges,
 } from '@/types/radar';
-import { useMotifIaAbsente } from './useMessageEchecAnnonceur';
+import { useMotifRadar } from './useMessageEchecAnnonceur';
 
 interface ApercuMessageProps {
   readonly message: RadarOutreach;
@@ -44,7 +44,7 @@ const texteDe = (segments: readonly RadarMessageSegment[], kind: RadarMessageSeg
  */
 export function ApercuMessage({ message, erreurIa, desactive, enRetouche, enEnvoi, onRetoucher, onEnvoye }: ApercuMessageProps) {
   const t = useTranslations('superAdmin.pages.radar.advertiser.message');
-  const motifIa = useMotifIaAbsente();
+  const motifIa = useMotifRadar();
   const [confirmation, setConfirmation] = useState(false);
 
   const salutationApi = texteDe(message.segments, 'salutation');

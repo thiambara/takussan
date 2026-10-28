@@ -2,8 +2,10 @@ import type {
   RadarAdvertiserDetail,
   RadarAdvertiserListing,
   RadarClaim,
+  RadarConsent,
   RadarMessageSegment,
   RadarOutreach,
+  RadarVerdict,
 } from '@/types/radar';
 
 /** Les fiches de test de la fiche annonceur (TCK-2388) : la forme exacte de `RadarAdvertiserResource::asCard`. */
@@ -86,4 +88,64 @@ export function annonceur(partiel: Partial<RadarAdvertiserDetail> = {}): RadarAd
     outreaches: [],
     ...partiel,
   };
+}
+
+/** Un message d'accord à quatre clauses numérotées : `nombreDeClauses` en lit quatre. */
+export const MESSAGE_QUATRE_CLAUSES = [
+  'Bonjour Awa, je suis de Takussan.',
+  '1. Vous acceptez d’être contacté.',
+  '2. Vous pouvez dire STOP.',
+  '3. Vos données restent chez nous.',
+  '4. Vous pouvez demander leur effacement.',
+].join('\n');
+
+/** Le verdict d'un accord net : concordant, quatre clauses sur quatre, aucun écart. */
+export function verdict(partiel: Partial<RadarVerdict> = {}): RadarVerdict {
+  return {
+    classification: 'consent',
+    confidence: 'high',
+    transcript: 'Moi : Bonjour\nLui : Oui d’accord',
+    reply_text: 'Oui d’accord',
+    counterpart_phone: '+221771234567',
+    counterpart_name: 'Moussa',
+    number_matches: true,
+    number_checked_by: 'code',
+    name_matches: true,
+    clauses_found: [1, 2, 3, 4],
+    clauses_complete: true,
+    discordances: [],
+    ...partiel,
+  };
+}
+
+/** Une réponse déposée et vérifiée. */
+export function reponse(partiel: Partial<RadarConsent> = {}): RadarConsent {
+  return {
+    id: 31,
+    proof: 'screenshot',
+    captures: [{ id: 1, url: 'https://media.takussan.test/capture-1.png?signature=abc', sha256: null }],
+    verification_status: 'done',
+    verification_reason: null,
+    verdict: verdict(),
+    transcript: 'Moi : Bonjour\nLui : Oui d’accord',
+    confirmed_by: null,
+    confirmed_at: null,
+    confirmation_reason: null,
+    revoked_at: null,
+    created_at: '2026-10-28T11:00:00+00:00',
+    ...partiel,
+  };
+}
+
+/** Un message envoyé, sans issue, qui attend une réponse. */
+export function messageEnvoye(partiel: Partial<RadarOutreach> = {}): RadarOutreach {
+  return message({
+    id: 5,
+    status: 'sent',
+    sent_at: '2026-10-20T10:00:00+00:00',
+    wa_me_url: null,
+    message: MESSAGE_QUATRE_CLAUSES,
+    follow_up: { due_at: '2026-12-31T00:00:00+00:00', propose_no_answer: false },
+    ...partiel,
+  });
 }

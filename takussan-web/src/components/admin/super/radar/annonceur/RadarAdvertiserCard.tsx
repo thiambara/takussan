@@ -15,10 +15,13 @@ import { ApiError } from '@/lib/api';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import {
   claimRadarAdvertiser,
+  depositRadarReply,
   fetchRadarAdvertiser,
   markRadarOutreachSent,
   prepareRadarOutreach,
   radarKeys,
+  RADAR_POLL_MS,
+  recordRadarOutcome,
   releaseRadarAdvertiser,
   retouchRadarOutreach,
 } from '@/lib/queries/radar';
@@ -26,10 +29,13 @@ import type {
   RadarAdvertiserDetail,
   RadarAdvertiserResponse,
   RadarClaimResponse,
+  RadarConsent,
   RadarMessageLocale,
+  RadarOutcomeRequest,
   RadarOutreach,
   RadarOutreachChanges,
   RadarOutreachResponse,
+  RadarPrepareRequest,
   RadarPreparedOutreachResponse,
 } from '@/types/radar';
 import { ApercuMessage } from './ApercuMessage';
@@ -38,6 +44,8 @@ import { HistoriqueMessages } from './HistoriqueMessages';
 import { ListeAnnonces } from './ListeAnnonces';
 import { PanneauIdentite } from './PanneauIdentite';
 import { PreparationMessage } from './PreparationMessage';
+import { langueDeRelance, messagesEnAttente, verificationEnCours } from './reponses';
+import { SuiviMessage } from './SuiviMessage';
 import { useMessageEchecAnnonceur } from './useMessageEchecAnnonceur';
 import { usePriseEnCharge } from './usePriseEnCharge';
 
@@ -86,14 +94,27 @@ function FicheChargee({ annonceur }: { readonly annonceur: RadarAdvertiserDetail
     onSuccess: relire,
     onError: surEchec,
   });
-  const preparation = useMutation<RadarPreparedOutreachResponse, ApiError, void>({
-    mutationFn: () => prepareRadarOutreach(annonceur.id, { listing_ids: [...selection].sort((a, b) => a - b), locale }),
+  const preparation = useMutation<RadarPreparedOutreachResponse, ApiError, RadarPrepareRequest>({
+    mutationFn: (demande) => prepareRadarOutreach(annonceur.id, demande),
     onSuccess: (reponse) => {
       setErreursIa((courant) => ({ ...courant, [reponse.data.id]: reponse.data.ai_error }));
       setSelection(new Set());
       return relire();
     },
     onError: surEchec,
+  });
+  // Le dépôt rend la réponse, vérifiée en file : la fiche se relit, et se relira tant qu'elle est « en cours ».
+  const reponse = useMutation<{ readonly data: RadarConsent }, ApiError, { id: number; fichiers: readonly File[] }>({
+    mutationFn: ({ id, fichiers }) => depositRadarReply(id, fichiers),
+    onSuccess: relire,
+    onError: surEchec,
+  });
+  const issue = useMutation<RadarOutreachResponse, ApiError, { id: number; demande: RadarOutcomeRequest }>({
+    mutationFn: ({ id, demande }) => recordRadarOutcome(id, demande),
+    onSuccess: (resultat) => {
+      queryClient.setQueryData<RadarAdvertiserResponse>(cle, (detail) => avecMessage(detail, resultat.data));
+      return relire();
+    },
   });
   const retouche = useMutation<RadarOutreachResponse, ApiError, { id: number; changes: RadarOutreachChanges }>({
     mutationFn: ({ id, changes }) => retouchRadarOutreach(id, changes),
@@ -114,7 +135,8 @@ function FicheChargee({ annonceur }: { readonly annonceur: RadarAdvertiserDetail
 
   const stoppe = annonceur.do_not_contact_at !== null;
   const mienne = annonceur.claim?.mine === true;
-  const enCours = prise.isPending || restitution.isPending || preparation.isPending || retouche.isPending || envoi.isPending;
+  const enCours = prise.isPending || restitution.isPending || preparation.isPending || retouche.isPending || envoi.isPending
+    || reponse.isPending || issue.isPending;
   // On ne prépare que sur une prise à soi, et jamais pour un annonceur qui a dit STOP.
   const gestesFermes = stoppe || !mienne || enCours;
 
@@ -127,6 +149,31 @@ function FicheChargee({ annonceur }: { readonly annonceur: RadarAdvertiserDetail
 
   const enPreparation = annonceur.outreaches.filter((m) => m.status === 'prepared');
   const envoyes = annonceur.outreaches.filter((m) => m.status !== 'prepared');
+  const ouverts = messagesEnAttente(annonceur.outreaches);
+
+  const deposer = async (id: number, fichiers: readonly File[]): Promise<boolean> => {
+    setErreur(null);
+    try {
+      await reponse.mutateAsync({ id, fichiers });
+      return true;
+    } catch {
+      return false; // `onError` a déjà posé l'erreur et relu la fiche
+    }
+  };
+  // Le dialogue d'issue porte ses propres erreurs : il reste ouvert sur un refus, et la fiche ne les double pas.
+  const trancher = (id: number, demande: RadarOutcomeRequest) => {
+    setErreur(null);
+    return issue.mutateAsync({ id, demande }).catch((e: unknown) => {
+      if (e instanceof ApiError && e.status === 409) void relire();
+      throw e;
+    });
+  };
+  const classerSansReponse = (id: number) => {
+    lancer(() => issue.mutate({ id, demande: { outcome: 'no_answer' } }, { onError: surEchec }));
+  };
+  const relancer = (message: RadarOutreach) => {
+    lancer(() => preparation.mutate({ follow_up_of_id: message.id, locale: langueDeRelance(message) }));
+  };
 
   const bascule = (id: number) => {
     setSelection((courant) => {
@@ -173,7 +220,7 @@ function FicheChargee({ annonceur }: { readonly annonceur: RadarAdvertiserDetail
             nbAnnonces={selection.size}
             locale={locale}
             onLocale={setLocale}
-            onPreparer={() => lancer(() => preparation.mutate())}
+            onPreparer={() => lancer(() => preparation.mutate({ listing_ids: [...selection].sort((a, b) => a - b), locale }))}
             desactive={gestesFermes}
             enCours={preparation.isPending}
           />
@@ -193,6 +240,25 @@ function FicheChargee({ annonceur }: { readonly annonceur: RadarAdvertiserDetail
           onEnvoye={() => lancer(() => envoi.mutate(message.id))}
         />
       ))}
+
+      <section aria-label={t('awaiting.heading')} className="space-y-3" data-testid="radar-annonceur-suivi">
+        <h2 className="font-display text-base font-semibold text-foreground">{t('awaiting.heading')}</h2>
+        {ouverts.length === 0 ? <p className="text-sm text-muted-foreground">{t('awaiting.none')}</p> : null}
+        {ouverts.map((message) => (
+          <SuiviMessage
+            key={message.id}
+            message={message}
+            desactive={gestesFermes}
+            depotEnCours={reponse.isPending}
+            relanceEnCours={preparation.isPending}
+            sansReponseEnCours={issue.isPending}
+            onDeposer={(fichiers) => deposer(message.id, fichiers)}
+            onIssue={(demande) => trancher(message.id, demande)}
+            onRelancer={() => relancer(message)}
+            onSansReponse={() => classerSansReponse(message.id)}
+          />
+        ))}
+      </section>
 
       <HistoriqueMessages messages={envoyes} />
     </div>
@@ -216,6 +282,8 @@ export function RadarAdvertiserCard({ id }: RadarAdvertiserCardProps) {
     queryFn: () => fetchRadarAdvertiser(id),
     enabled: autorise,
     staleTime: 10_000,
+    // Une réponse se vérifie en file : la fiche se relit tant qu'une vérification tourne, puis s'arrête.
+    refetchInterval: (requete) => (requete.state.data?.data.outreaches.some((m) => verificationEnCours(m.consents)) ? RADAR_POLL_MS : false),
   });
 
   const retour = (

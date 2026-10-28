@@ -13,7 +13,7 @@ import {
   RADAR_SUMMARY_MAX,
   RADAR_VERDICT_CLASSIFICATIONS,
 } from '@/types/radar';
-import { ERREURS_ANNONCEUR_RADAR } from '../codes-radar';
+import { DISCORDANCES_RADAR, ERREURS_ANNONCEUR_RADAR, MOTIFS_VERIFICATION_RADAR } from '../codes-radar';
 
 const RACINE = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..', '..', '..', '..');
 const lire = (...chemin: string[]) => readFileSync(join(RACINE, ...chemin), 'utf8');
@@ -61,5 +61,29 @@ describe('codes de la fiche annonceur du Radar', () => {
     expect(composeur).toContain(`SUMMARY_MAX = ${RADAR_SUMMARY_MAX};`);
     expect(lire('takussan-api', 'app', 'Http', 'Requests', 'Api', 'Admin', 'StoreRadarOutreachRequest.php'))
       .toContain(`MAX_LISTINGS = ${RADAR_OUTREACH_MAX_LISTINGS};`);
+  });
+
+  it.each([['fr', fr], ['en', en], ['wo', wo]])('chaque motif de vérification, écart du verdict et issue du dialogue a son libellé en %s', (_langue, messages) => {
+    const fiche = messages.superAdmin.pages.radar.advertiser;
+    const motifs = fiche.reply.reasons as Record<string, string>;
+    for (const cle of Object.values(MOTIFS_VERIFICATION_RADAR)) expect(motifs[cle], cle).toBeTruthy();
+    const ecarts = fiche.outcome.discordances as Record<string, string>;
+    for (const cle of Object.values(DISCORDANCES_RADAR)) expect(ecarts[cle], cle).toBeTruthy();
+    const options = fiche.outcome.options as Record<string, string>;
+    const conseils = fiche.outcome.hints as Record<string, string>;
+    for (const issue of RADAR_OUTREACH_OUTCOMES) {
+      expect(options[issue], issue).toBeTruthy();
+      expect(conseils[issue], issue).toBeTruthy();
+    }
+  });
+
+  it('les motifs de vérification sont ceux que le job écrit, les écarts ceux que le verdict calcule', () => {
+    const job = lire('takussan-api', 'app', 'Jobs', 'Radar', 'VerifyRadarConsentReply.php');
+    const emis = [...job.matchAll(/const REASON_\w+ = '(radar\.verification\.[^']+)'/g)].map((m) => m[1]).sort();
+    expect(Object.keys(MOTIFS_VERIFICATION_RADAR).sort()).toEqual(emis);
+
+    const verdict = lire('takussan-api', 'app', 'Services', 'Radar', 'RadarConsentVerdict.php');
+    const api = /DISCORDANCES = \[([^\]]+)\]/.exec(verdict)?.[1].match(/'([^']+)'/g)?.map((m) => m.slice(1, -1)).sort();
+    expect(Object.keys(DISCORDANCES_RADAR).sort()).toEqual(api);
   });
 });
