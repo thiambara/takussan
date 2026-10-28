@@ -14,7 +14,7 @@ use App\Services\Ai\SuggestionRecorder;
  * TCK-2388 (ADR-0076 §7, ADR-0077 §3) — la suggestion `radar.verification_accord` d'une réponse se décide AVEC l'issue
  * que l'humain a tranchée : `accepted` quand l'issue est celle du classement du modèle (`consent` ↔ `consented`,
  * `refusal` ↔ `refused`, `stop`, `question`), `edited` avec `{classification: <issue humaine>}` sinon — `ambiguous`
- * est donc toujours `edited`. C'est la mesure de ce que vaut la vérification.
+ * est donc toujours `edited` ; `no_answer`, hors du vocabulaire du modèle, la `rejected`. C'est la mesure de ce que vaut la vérification.
  *
  * Deux écrivains, une seule fonction : `recordOutcome()` décide la suggestion que le job a laissée en attente, et le
  * job décide celle qu'il vient d'écrire quand l'issue a été posée PENDANT son appel. Chacun tient le verrou de la
@@ -28,7 +28,6 @@ final class RadarVerificationDecision
         'refused' => 'refusal',
         'stop' => 'stop',
         'question' => 'question',
-        'no_answer' => 'no_answer',
     ];
 
     public function __construct(private readonly SuggestionRecorder $recorder) {}
@@ -45,6 +44,12 @@ final class RadarVerificationDecision
             ->first();
         if ($suggestion === null) {
             return null;
+        }
+
+        // « Sans réponse » n'a pas d'équivalent dans le vocabulaire du modèle : la suggestion est REJETÉE (aucune valeur finale),
+        // l'humain dit que la réponse déposée n'en est pas une.
+        if ($outcome === RadarOutreachOutcome::NoAnswer) {
+            return $this->recorder->reject($suggestion, $by);
         }
 
         return $this->recorder->edit($suggestion, ['classification' => self::CLASSIFICATION_OF[$outcome->value]] + $suggestion->proposal, $by);

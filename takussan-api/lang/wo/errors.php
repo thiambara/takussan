@@ -698,6 +698,7 @@ return [
             'claimed_by_other' => 'Cet annonceur est pris en charge par un autre opérateur jusqu\'à :claimed_until.',
             'claim_not_held' => 'Cette prise en charge n\'est pas la vôtre : elle ne se rend pas.',
             'do_not_contact' => 'Cet annonceur a demandé à ne plus être contacté : aucun message ne lui est préparé ni envoyé.',
+            'busy' => 'Cet annonceur change en ce moment : réessayez dans un instant.',
         ],
         'outreach' => [
             'locale_unsupported' => 'Cette langue n\'est pas prise en charge pour le message d\'accord.',

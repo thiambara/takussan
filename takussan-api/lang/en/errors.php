@@ -698,6 +698,7 @@ return [
             'claimed_by_other' => 'This advertiser is claimed by another operator until :claimed_until.',
             'claim_not_held' => 'This claim is not yours: it cannot be released.',
             'do_not_contact' => 'This advertiser asked not to be contacted again: no message is prepared or sent to them.',
+            'busy' => 'This advertiser is being changed right now: try again in a moment.',
         ],
         'outreach' => [
             'locale_unsupported' => 'This language is not supported for the consent message.',

@@ -25,10 +25,15 @@ use Illuminate\Support\Facades\DB;
  * **Déposer une réponse n'accorde rien** : la ligne naît `pending`, la vérification par l'IA part en file APRÈS le
  * commit (`VerifyRadarConsentReply`), et seul un humain confirme. Aucune annonce ne change d'étape ici.
  *
- * **Le journal nomme les gestes et les identifiants, jamais le texte ni un numéro.**
+ * **Le journal nomme les gestes et les identifiants, jamais la transcription ni un numéro.** Seule exception : le motif
+ * écrit par l'opérateur quand il confirme un accord contre un verdict discordant (ADR-0077 §3), texte d'opérateur qu'il
+ * lui appartient de garder sans numéro.
  */
 final class RadarConsentWorkflow
 {
+    /** Combien de fois un STOP reprend quand une annonce rejoint l'annonceur pendant sa lecture. */
+    private const STOP_ATTEMPTS = 3;
+
     public function __construct(
         private readonly AdvertiserClaim $claim,
         private readonly RadarCaptureReader $captures,
@@ -114,54 +119,81 @@ final class RadarConsentWorkflow
     {
         $reason = self::written($reason);
 
-        return DB::transaction(function () use ($outreach, $outcome, $reason, $by): RadarOutreach {
-            $listings = $outcome === RadarOutreachOutcome::Stop
-                ? RadarListing::query()->where('radar_advertiser_id', $outreach->radar_advertiser_id)
-                : RadarListing::query()->whereIn('id', $outreach->listings()->select('radar_listings.id'));
-            $listings = $listings->orderBy('id')->lockForUpdate()->get();
+        // Un STOP lit les annonces de l'annonceur AVANT de verrouiller l'annonceur (annonces → annonceur) : une annonce qui
+        // le rejoint entre les deux (`ExtractRadarListing`, `PUT …/advertiser`) échappe à son ensemble. Il le voit sous le
+        // verrou de l'annonceur et REPREND, sans renverser l'ordre des verrous — rien n'est écrit avant la dernière vérification.
+        for ($attempt = 1; $attempt <= self::STOP_ATTEMPTS; $attempt++) {
+            $recorded = DB::transaction(fn (): ?RadarOutreach => $this->recordOnce($outreach, $outcome, $reason, $by));
+            if ($recorded !== null) {
+                return $recorded;
+            }
+        }
 
-            $advertiser = RadarAdvertiser::query()->whereKey($outreach->radar_advertiser_id)->lockForUpdate()->firstOrFail();
-            $this->claim->assertHeld($advertiser, $by);
-            abort_code_if($advertiser->do_not_contact_at !== null, 422, 'radar.advertiser.do_not_contact');
+        abort_code(409, 'radar.advertiser.busy');
+    }
 
-            $locked = RadarOutreach::query()->whereKey($outreach->getKey())->lockForUpdate()->firstOrFail();
-            abort_code_unless($locked->isSent(), 409, 'radar.outreach.not_sent');
-            abort_code_if($locked->outcome?->isFinal() === true, 409, 'radar.outreach.outcome_final', ['outcome' => $locked->outcome?->value]);
-            abort_code_if(
-                RadarOutreach::query()->where('follow_up_of_id', $locked->id)->whereNotNull('sent_at')->exists(),
-                409,
-                'radar.outreach.superseded',
-            );
-            $reply = $locked->consents()->orderByDesc('id')->lockForUpdate()->first();
+    /** @return RadarOutreach|null null : les annonces de l'annonceur ont changé pendant la lecture, rien n'a été écrit (STOP seulement) */
+    private function recordOnce(RadarOutreach $outreach, RadarOutreachOutcome $outcome, ?string $reason, User $by): ?RadarOutreach
+    {
 
-            $discordances = [];
-            $moved = match ($outcome) {
-                RadarOutreachOutcome::Consented => $this->confirm($reply, $listings, $reason, $by, $discordances),
-                RadarOutreachOutcome::Refused => $this->move($listings, RadarListingStage::Refused),
-                RadarOutreachOutcome::Stop => $this->stop($advertiser, $listings),
-                RadarOutreachOutcome::Question, RadarOutreachOutcome::NoAnswer => [],
-            };
+        $listings = $outcome === RadarOutreachOutcome::Stop
+            ? RadarListing::query()->where('radar_advertiser_id', $outreach->radar_advertiser_id)
+            : RadarListing::query()->whereIn('id', $outreach->listings()->select('radar_listings.id'));
+        $listings = $listings->orderBy('id')->lockForUpdate()->get();
 
-            $locked->forceFill(['outcome' => $outcome, 'outcome_at' => now(), 'outcome_by_id' => $by->id])->save();
-            $suggestion = $reply === null ? null : $this->verification->decide($reply, $outcome, $by);
+        $advertiser = RadarAdvertiser::query()->whereKey($outreach->radar_advertiser_id)->lockForUpdate()->firstOrFail();
+        if ($outcome === RadarOutreachOutcome::Stop && $this->advertiserListingIds($advertiser) !== $listings->pluck('id')->map(fn ($id) => (int) $id)->sort()->values()->all()) {
+            return null;
+        }
+        $this->claim->assertHeld($advertiser, $by);
+        abort_code_if($advertiser->do_not_contact_at !== null, 422, 'radar.advertiser.do_not_contact');
 
-            activity('Admin')
-                ->causedBy($by)
-                ->performedOn($locked)
-                ->withProperties(array_filter([
-                    'outreach_id' => $locked->id,
-                    'outcome' => $outcome->value,
-                    'consent_id' => $reply?->id,
-                    'listing_ids' => $moved,
-                    'discordances' => $discordances,
-                    'reason' => $reason,
-                    'suggestion_decision' => $suggestion?->decision->value,
-                ], fn (mixed $value) => $value !== null && $value !== []))
-                ->event('radar_outreach_outcome')
-                ->log('Issue d\'un message d\'accord du Radar posée');
+        $locked = RadarOutreach::query()->whereKey($outreach->getKey())->lockForUpdate()->firstOrFail();
+        abort_code_unless($locked->isSent(), 409, 'radar.outreach.not_sent');
+        abort_code_if($locked->outcome?->isFinal() === true, 409, 'radar.outreach.outcome_final', ['outcome' => $locked->outcome?->value]);
+        abort_code_if(
+            RadarOutreach::query()->where('follow_up_of_id', $locked->id)->whereNotNull('sent_at')->exists(),
+            409,
+            'radar.outreach.superseded',
+        );
+        $reply = $locked->consents()->orderByDesc('id')->lockForUpdate()->first();
 
-            return $locked->refresh();
-        });
+        $discordances = [];
+        $revoked = [];
+        $moved = match ($outcome) {
+            RadarOutreachOutcome::Consented => $this->confirm($reply, $listings, $reason, $by, $discordances),
+            RadarOutreachOutcome::Refused => $this->move($listings, RadarListingStage::Refused),
+            RadarOutreachOutcome::Stop => $this->stop($advertiser, $listings, $revoked),
+            RadarOutreachOutcome::Question, RadarOutreachOutcome::NoAnswer => [],
+        };
+
+        $locked->forceFill(['outcome' => $outcome, 'outcome_at' => now(), 'outcome_by_id' => $by->id])->save();
+        $suggestion = $reply === null ? null : $this->verification->decide($reply, $outcome, $by);
+
+        activity('Admin')
+            ->causedBy($by)
+            ->performedOn($locked)
+            ->withProperties(array_filter([
+                'outreach_id' => $locked->id,
+                'outcome' => $outcome->value,
+                'consent_id' => $reply?->id,
+                'listing_ids' => $moved,
+                'revoked_consent_ids' => $revoked,
+                'discordances' => $discordances,
+                'reason' => $reason,
+                'suggestion_decision' => $suggestion?->decision->value,
+            ], fn (mixed $value) => $value !== null && $value !== []))
+            ->event('radar_outreach_outcome')
+            ->log('Issue d\'un message d\'accord du Radar posée');
+
+        return $locked->refresh();
+
+    }
+
+    /** @return list<int> toutes les annonces de l'annonceur, dans l'ordre croissant (relues, jamais verrouillées ici) */
+    private function advertiserListingIds(RadarAdvertiser $advertiser): array
+    {
+        return RadarListing::query()->where('radar_advertiser_id', $advertiser->id)->orderBy('id')->pluck('id')->map(fn ($id) => (int) $id)->all();
     }
 
     /**
@@ -221,9 +253,10 @@ final class RadarConsentWorkflow
      * TCK-2391, qui lira `do_not_contact_at`.
      *
      * @param  Collection<int, RadarListing>  $listings  toutes les annonces de l'annonceur, verrouillées
+     * @param  list<int>  $revoked  rempli : les accords retirés
      * @return list<int> les annonces fermées
      */
-    private function stop(RadarAdvertiser $advertiser, Collection $listings): array
+    private function stop(RadarAdvertiser $advertiser, Collection $listings, array &$revoked): array
     {
         $advertiser->do_not_contact_at = now();
         if ($advertiser->phone !== null && $advertiser->phone_hmac !== RadarPhone::hmac($advertiser->phone)) {
@@ -238,14 +271,21 @@ final class RadarConsentWorkflow
             $closed[] = (int) $listing->id;
         }
 
-        RadarConsent::query()->valid()->where('radar_advertiser_id', $advertiser->id)->update(['revoked_at' => now()]);
+        $consents = RadarConsent::query()->valid()->where('radar_advertiser_id', $advertiser->id);
+        $revoked = (clone $consents)->orderBy('id')->pluck('id')->map(fn ($id) => (int) $id)->all();
+        $consents->update(['revoked_at' => now()]);
 
         return $closed;
     }
 
-    /** Le motif écrit, ou null : une chaîne qui ne porte que des espaces et des caractères invisibles n'est pas un motif. */
+    /**
+     * Le motif écrit, rogné aux deux bouts (espaces, contrôles et caractères de format invisibles, comme
+     * {@see ConsentMessageComposer::part()}), ou null : une chaîne qui n'en garde rien n'est pas un motif.
+     */
     private static function written(?string $reason): ?string
     {
-        return $reason === null || preg_replace('/[\p{Cc}\p{Cf}\p{Z}\s]+/u', '', $reason) === '' ? null : trim($reason);
+        $trimmed = $reason === null ? '' : (string) preg_replace('/^[\p{Cc}\p{Cf}\p{Z}\s]+|[\p{Cc}\p{Cf}\p{Z}\s]+$/u', '', $reason);
+
+        return $trimmed === '' ? null : $trimmed;
     }
 }

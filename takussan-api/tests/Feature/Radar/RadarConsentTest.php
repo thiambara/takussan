@@ -261,6 +261,31 @@ class RadarConsentTest extends TestCase
         $this->assertSame($reponse->id, $ligne->properties['consent_id']);
     }
 
+    public function test_une_verification_echouee_vaut_aucun_verdict_et_exige_un_motif(): void
+    {
+        $annonce = $this->annonce();
+        $message = $this->message($annonce);
+        RadarConsent::factory()->create([
+            'radar_outreach_id' => $message->id, 'verification_status' => 'failed', 'verification_reason' => 'radar.verification.timeout',
+        ]);
+
+        $this->issue($message, 'consented')->assertStatus(422)->assertJsonPath('params.discordances', ['no_verdict']);
+        $this->issue($message, 'consented', 'Lu sur la capture.')->assertOk();
+
+        $this->assertSame('consented', $this->etape($annonce));
+    }
+
+    public function test_le_motif_est_rogne_des_caracteres_invisibles_aux_deux_bouts(): void
+    {
+        $message = $this->message();
+        $reponse = $this->reponse($message, $this->verdict(['number_matches' => false]));
+
+        $this->issue($message, 'consented', "\u{200B}\u{202E}  Le « oui » est clair.\u{200B} \n")->assertOk();
+
+        $this->assertSame('Le « oui » est clair.', $reponse->fresh()->confirmation_reason);
+        $this->assertSame('Le « oui » est clair.', Activity::query()->where('event', 'radar_outreach_outcome')->sole()->properties['reason']);
+    }
+
     public function test_une_confirmation_concordante_n_exige_pas_de_motif_et_n_en_garde_pas(): void
     {
         $message = $this->message();
@@ -349,6 +374,7 @@ class RadarConsentTest extends TestCase
         $this->assertSame('discarded', $this->etape($ecartee));
         // Le STOP retire l'accord ; il ne purge rien ici (TCK-2391).
         $this->assertNotNull($valide->fresh()->revoked_at);
+        $this->assertSame([$valide->id], Activity::query()->where('event', 'radar_outreach_outcome')->sole()->properties['revoked_consent_ids']);
         $this->assertSame([], app(RadarConsentCoverage::class)->coveredListingIds($annonceur));
         $this->assertSame(self::NUMERO, $annonceur->phone);
         $this->assertNotNull($ouverte->fresh()->raw_text);
@@ -376,6 +402,7 @@ class RadarConsentTest extends TestCase
         $this->assertSame('do_not_contact', $this->etape($autre));
         $ligne = Activity::query()->where('event', 'radar_outreach_outcome')->sole();
         $this->assertEqualsCanonicalizing([$couverte->id, $autre->id], $ligne->properties['listing_ids']);
+        $this->assertArrayNotHasKey('revoked_consent_ids', $ligne->properties->all());
         $this->assertStringNotContainsString('771234567', $ligne->toJson());
     }
 
@@ -483,6 +510,7 @@ class RadarConsentTest extends TestCase
             'refusal suivi par refused' => ['refusal', 'refused', AiSuggestionDecision::Accepted, []],
             'stop suivi par stop' => ['stop', 'stop', AiSuggestionDecision::Accepted, []],
             'question suivi par question' => ['question', 'question', AiSuggestionDecision::Accepted, []],
+            'no_answer rejette la suggestion' => ['consent', 'no_answer', AiSuggestionDecision::Rejected, []],
             'ambiguous est toujours édité' => ['ambiguous', 'question', AiSuggestionDecision::Edited, ['classification' => 'question']],
         ];
     }
@@ -504,7 +532,10 @@ class RadarConsentTest extends TestCase
         $this->assertSame($attendue, $suggestion->decision);
         $this->assertSame($this->operateur->id, $suggestion->decided_by_id);
         $this->assertNotNull($suggestion->decided_at);
-        if ($attendue === AiSuggestionDecision::Accepted) {
+        if ($attendue === AiSuggestionDecision::Rejected) {
+            // « Sans réponse » n'est pas dans le vocabulaire du modèle : aucune valeur finale n'est écrite.
+            $this->assertNull($suggestion->final_value);
+        } elseif ($attendue === AiSuggestionDecision::Accepted) {
             $this->assertEquals($suggestion->proposal, $suggestion->final_value);
             $this->assertSame([], $suggestion->correction_diff);
         } else {
@@ -601,5 +632,52 @@ class RadarConsentTest extends TestCase
         $fiche = RadarListing::factory()->extracted(['phones' => [self::NUMERO]])->create(['raw_text' => 'Contact 77 123 45 67']);
         $this->putJson("/api/admin/radar/listings/{$fiche->id}/advertiser", ['phone' => self::NUMERO])
             ->assertOk()->assertJsonPath('data.stage', 'do_not_contact');
+    }
+
+    /** Une annonce neuve de cet annonceur, créée juste après la première requête verrouillante qui porte ce motif (ou après chacune). */
+    private function annonceArriveeApres(string $motifSql, bool $chaqueFois = false): void
+    {
+        $arrivees = 0;
+        $enCours = false;
+        DB::listen(function ($requete) use ($motifSql, $chaqueFois, &$arrivees, &$enCours): void {
+            if ($enCours || ($arrivees > 0 && ! $chaqueFois) || ! str_contains($requete->sql, 'for update') || ! str_contains($requete->sql, $motifSql)) {
+                return;
+            }
+            $enCours = true;
+            $arrivees++;
+            $this->annonce(['stage' => RadarListingStage::Reviewed]);
+            $enCours = false;
+        });
+    }
+
+    public function test_une_annonce_qui_rejoint_l_annonceur_pendant_un_stop_est_fermee_elle_aussi(): void
+    {
+        $message = $this->message();
+        // Entre la lecture-verrou des annonces et le verrou de l'annonceur : `ExtractRadarListing` valide une annonce sous cet annonceur.
+        $this->annonceArriveeApres('from "radar_listings"');
+
+        $this->issue($message, 'stop')->assertOk();
+
+        $this->assertSame(2, RadarListing::query()->count());
+        $this->assertSame([], RadarListing::query()->where('stage', '!=', RadarListingStage::DoNotContact->value)->pluck('id')->all());
+        $this->assertEqualsCanonicalizing(
+            RadarListing::query()->pluck('id')->all(),
+            Activity::query()->where('event', 'radar_outreach_outcome')->sole()->properties['listing_ids'],
+        );
+    }
+
+    public function test_un_stop_dont_les_annonces_changent_a_chaque_lecture_rend_409_sans_rien_ecrire(): void
+    {
+        $message = $this->message();
+        $this->annonceArriveeApres('from "radar_listings"', chaqueFois: true);
+        $reponse = $this->reponse($message, $this->verdict());
+
+        $this->issue($message, 'stop')->assertStatus(409)->assertJsonPath('code', 'radar.advertiser.busy');
+
+        $this->assertNull($this->annonceur->fresh()->do_not_contact_at);
+        $this->assertNull($message->fresh()->outcome);
+        $this->assertSame(0, Activity::query()->where('event', 'radar_outreach_outcome')->count());
+        $this->assertSame([], RadarListing::query()->where('stage', RadarListingStage::DoNotContact->value)->pluck('id')->all());
+        $this->assertNull($reponse->fresh()->revoked_at);
     }
 }
