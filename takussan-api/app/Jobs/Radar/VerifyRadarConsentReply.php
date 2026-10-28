@@ -69,6 +69,9 @@ final class VerifyRadarConsentReply implements ShouldQueue
 
     public const REASON_NO_NUMBER = 'radar.verification.no_number';
 
+    /** Un imprévu hors de l'appel (lecture des captures, des clauses, base) : passager, il attend comme une panne. */
+    public const REASON_UNEXPECTED = 'radar.verification.unexpected';
+
     /** Erreurs du fournisseur qu'une reprise ne corrige pas : la requête ou la clé est refusée. */
     public const DETERMINISTIC_PROVIDER_ERRORS = ['ai.request_rejected', 'ai.provider_auth'];
 
@@ -109,6 +112,20 @@ final class VerifyRadarConsentReply implements ShouldQueue
 
     public function handle(AiGateway $gateway, SuggestionRecorder $recorder, ConsentMessageComposer $composer): void
     {
+        try {
+            $this->verify($gateway, $recorder, $composer);
+        } catch (Throwable $e) {
+            // Tout ce qui échappe à la classification de l'appel (médias, clauses, suggestion, base) : une erreur de
+            // programmation échoue ; un imprévu attend, espacé, avec SON motif — jamais le `timeout` de la fenêtre.
+            report($e);
+            $e instanceof \Error
+                ? $this->markFailed(self::REASON_ERROR)
+                : $this->pending(self::REASON_UNEXPECTED, $this->outageDelay());
+        }
+    }
+
+    private function verify(AiGateway $gateway, SuggestionRecorder $recorder, ConsentMessageComposer $composer): void
+    {
         $reply = RadarConsent::query()->with(['outreach', 'advertiser', 'depositor'])->find($this->replyId);
         if ($reply === null || $reply->verification_status !== RadarVerificationStatus::Pending) {
             return;
@@ -130,12 +147,8 @@ final class VerifyRadarConsentReply implements ShouldQueue
             return;
         }
 
-        $input = RadarConsentVerification::input(
-            $reply->outreach->message,
-            $advertiser->phone,
-            $advertiser->display_name,
-            $composer->clauseCount($reply->outreach->clauses_version),
-        );
+        $clauseCount = $composer->clauseCount($reply->outreach->clauses_version);
+        $input = RadarConsentVerification::input($reply->outreach->message, $advertiser->phone, $advertiser->display_name, $clauseCount);
         try {
             $result = $gateway->run(new AiRequest(
                 RadarConsentVerificationUsage::KEY,
@@ -159,8 +172,11 @@ final class VerifyRadarConsentReply implements ShouldQueue
 
             return;
         } catch (Throwable $e) {
-            // Une erreur que la passerelle ne bascule pas : journalisée par elle, rangée ici.
-            report($e);
+            // Une erreur que la passerelle ne bascule pas : journalisée par elle. Seule une `\Error` est un bug à rapporter ;
+            // une panne passagère du fournisseur n'en est pas un.
+            if ($e instanceof \Error) {
+                report($e);
+            }
             $code = AiErrorCode::fromThrowable($e);
             match (true) {
                 $e instanceof \Error => $this->markFailed(self::REASON_ERROR),
@@ -175,7 +191,7 @@ final class VerifyRadarConsentReply implements ShouldQueue
             if (! is_array($result->structured)) {
                 throw new InvalidArgumentException('sortie non structurée');
             }
-            $verdict = RadarConsentVerdict::from($result->structured, $advertiser->phone, $composer->clauseCount($reply->outreach->clauses_version));
+            $verdict = RadarConsentVerdict::from($result->structured, $advertiser->phone, $clauseCount);
         } catch (InvalidArgumentException) {
             $this->markFailed(self::REASON_INVALID_OUTPUT);
 

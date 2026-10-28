@@ -713,6 +713,7 @@ return [
             'not_sent' => 'Ce message n\'a pas été envoyé : aucune réponse ne s\'y dépose.',
             'outcome_final' => 'Ce message est clos : une réponse ne s\'y dépose plus.',
             'superseded' => 'Ce message a été relancé : déposez la réponse sur la dernière relance.',
+            'reply_pending' => 'Une réponse de ce message attend encore sa vérification : attendez son verdict avant d\'en déposer une autre.',
         ],
         'message' => [
             'generation_incomplete' => 'Le modèle n\'a pas rédigé la salutation et le résumé : écrivez-les vous-même.',

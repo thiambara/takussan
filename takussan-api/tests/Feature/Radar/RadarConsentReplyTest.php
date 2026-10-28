@@ -28,6 +28,8 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Exceptions;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Testing\TestResponse;
 use Laravel\Ai\Exceptions\RateLimitedException;
 use Laravel\Ai\Files\StoredImage;
@@ -121,6 +123,10 @@ class RadarConsentReplyTest extends TestCase
     private function reponseDeposee(): RadarConsent
     {
         Bus::fake([VerifyRadarConsentReply::class]);
+        // Un message n'accepte qu'une réponse en attente de vérification : celles que les tests ont déjà déposées sur lui
+        // sont réglées d'office, pour qu'on puisse en déposer d'autres.
+        RadarConsent::query()->where('verification_status', RadarVerificationStatus::Pending->value)
+            ->update(['verification_status' => RadarVerificationStatus::Failed->value, 'verification_reason' => 'radar.verification.timeout']);
         $id = $this->deposer([$this->png()])->assertCreated()->json('data.id');
 
         return RadarConsent::query()->findOrFail($id);
@@ -204,8 +210,28 @@ class RadarConsentReplyTest extends TestCase
         }
 
         $this->assertSame($avant, $this->etat());
+        // La transaction rend les lignes, jamais les fichiers : aucune capture orpheline ne doit rester sur le disque privé.
+        $this->assertSame([], Storage::disk(config('media-library.disk_name'))->allFiles());
         RadarConsentVerification::assertNeverPrompted();
         $this->assertSame(0, AiCall::query()->count());
+    }
+
+    public function test_un_second_depot_est_refuse_tant_que_la_premiere_reponse_attend_sa_verification(): void
+    {
+        Bus::fake([VerifyRadarConsentReply::class]);
+        $this->deposer([$this->png()])->assertCreated();
+        $avant = $this->etat();
+
+        $this->deposer([$this->png('b.png')])->assertStatus(409)->assertJsonPath('code', 'radar.outreach.reply_pending');
+
+        $this->assertSame($avant, $this->etat());
+        Bus::assertDispatchedTimes(VerifyRadarConsentReply::class, 1);
+        $this->assertCount(1, Storage::disk(config('media-library.disk_name'))->allFiles());
+
+        // Une fois la vérification réglée (réussie ou non), un nouveau dépôt redevient possible.
+        RadarConsent::query()->sole()->forceFill(['verification_status' => RadarVerificationStatus::Failed])->save();
+        $this->deposer([$this->png('c.png')])->assertCreated();
+        $this->assertSame(2, RadarConsent::query()->count());
     }
 
     public function test_le_journal_nomme_le_depot_sans_texte_ni_numero(): void
@@ -224,6 +250,7 @@ class RadarConsentReplyTest extends TestCase
         Bus::fake([VerifyRadarConsentReply::class]);
         $original = $this->jpegAvecExif();
         $this->assertSame('TakussanCam', $this->exif($original)['Make'] ?? null, 'le témoin doit porter un EXIF lisible');
+        $this->assertArrayHasKey('GPSLatitude', $this->exif($original), 'le témoin doit porter une position GPS lisible');
 
         $this->deposer([UploadedFile::fake()->createWithContent('reponse.jpg', $original)])->assertCreated();
 
@@ -541,10 +568,45 @@ class RadarConsentReplyTest extends TestCase
     {
         RadarConsentVerification::fake(fn () => throw new \Error('boom'));
         $reponse = $this->reponseDeposee();
+        Exceptions::fake();
 
         $this->lancer($reponse)->assertNotReleased();
 
+        Exceptions::assertReported(fn (\Error $e) => $e->getMessage() === 'boom');
+
         $this->assertSame([RadarVerificationStatus::Failed, 'radar.verification.error'], [$reponse->fresh()->verification_status, $reponse->fresh()->verification_reason]);
+    }
+
+    public function test_une_panne_du_fournisseur_n_est_pas_un_bug_et_ne_se_rapporte_pas(): void
+    {
+        // Une exception que la passerelle ne range pas elle-même (ni limite, ni refus) : elle attend, sans bruit de bug.
+        RadarConsentVerification::fake(fn () => throw new \RuntimeException('connexion coupée'));
+        $reponse = $this->reponseDeposee();
+        Exceptions::fake();
+
+        $this->lancer($reponse)->assertReleased(60);
+
+        Exceptions::assertNothingReported();
+    }
+
+    public function test_un_imprevu_hors_de_l_appel_attend_sous_son_propre_motif_et_non_sous_celui_de_la_fenetre(): void
+    {
+        RadarConsentVerification::fake();
+        $reponse = $this->reponseDeposee();
+        // Une version de clauses dont le fichier manque : la lecture des clauses échoue (RuntimeException) HORS de l'appel.
+        $this->message->forceFill(['clauses_version' => 'v999'])->save();
+
+        $this->lancer($reponse)->assertReleased(60);
+
+        $reponse->refresh();
+        $this->assertSame(RadarVerificationStatus::Pending, $reponse->verification_status);
+        $this->assertSame(VerifyRadarConsentReply::REASON_UNEXPECTED, $reponse->verification_reason);
+        $this->assertSame('radar.verification.unexpected', $reponse->verification_reason);
+        RadarConsentVerification::assertNeverPrompted();
+
+        // Fenêtre épuisée : la réponse passe en échec avec CE motif, pas avec `timeout`.
+        (new VerifyRadarConsentReply($reponse->id))->failed(null);
+        $this->assertSame('radar.verification.unexpected', $reponse->fresh()->verification_reason);
     }
 
     public function test_une_reponse_sans_capture_ou_sans_numero_attendu_echoue_sans_appeler_le_modele(): void
@@ -597,7 +659,7 @@ class RadarConsentReplyTest extends TestCase
 
     // --- Outils ------------------------------------------------------------------------------------
 
-    /** Un JPEG de 8×8 px auquel on greffe à la main un segment APP1 « Exif » (IFD0 : `Make`). */
+    /** Un JPEG de 8×8 px auquel on greffe à la main un segment APP1 « Exif » (IFD0 : `Make` + un IFD GPS : `GPSLatitude`). */
     private function jpegAvecExif(): string
     {
         $image = imagecreatetruecolor(8, 8);
@@ -606,12 +668,20 @@ class RadarConsentReplyTest extends TestCase
         imagejpeg($image);
         $jpeg = (string) ob_get_clean();
 
+        // Disposition : IFD0 en 8 (2 entrées, 30 octets) · `Make` en 38 (12 octets) · IFD GPS en 50 (2 entrées, 30 octets)
+        // · trois rationnels de latitude en 80 (24 octets).
         $make = "TakussanCam\0";
         $tiff = "II*\x00".pack('V', 8)
-            .pack('v', 1)
-            .pack('vvVV', 0x010F, 2, strlen($make), 8 + 2 + 12 + 4)
+            .pack('v', 2)
+            .pack('vvVV', 0x010F, 2, strlen($make), 38)
+            .pack('vvVV', 0x8825, 4, 1, 50)
             .pack('V', 0)
-            .$make;
+            .$make
+            .pack('v', 2)
+            .pack('vvV', 0x0001, 2, 2)."N\0\0\0"
+            .pack('vvVV', 0x0002, 5, 3, 80)
+            .pack('V', 0)
+            .pack('VVVVVV', 14, 1, 40, 1, 0, 1);
         $charge = "Exif\x00\x00".$tiff;
 
         return substr($jpeg, 0, 2)."\xFF\xE1".pack('n', strlen($charge) + 2).$charge.substr($jpeg, 2);

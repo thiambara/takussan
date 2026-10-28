@@ -58,6 +58,13 @@ final class RadarConsentWorkflow
                 409,
                 'radar.outreach.superseded',
             );
+            // Un dépôt = un appel payant : tant qu'une réponse de ce message attend sa vérification, on n'en dépose pas
+            // une seconde (le double envoi d'un formulaire). Le message est verrouillé : deux dépôts se sérialisent ici.
+            abort_code_if(
+                RadarConsent::query()->where('radar_outreach_id', $locked->id)->where('verification_status', RadarVerificationStatus::Pending->value)->exists(),
+                409,
+                'radar.outreach.reply_pending',
+            );
 
             $consent = RadarConsent::query()->create([
                 'radar_outreach_id' => $locked->id,
@@ -67,7 +74,6 @@ final class RadarConsentWorkflow
                 'deposited_by_id' => $by->id,
                 'verification_status' => RadarVerificationStatus::Pending,
             ]);
-            $this->captures->attach($consent, 'radar_consent_captures', $captures, 'reponse');
 
             VerifyRadarConsentReply::dispatch($consent->id)->afterCommit();
 
@@ -77,6 +83,11 @@ final class RadarConsentWorkflow
                 ->withProperties(['outreach_id' => $locked->id, 'consent_id' => $consent->id, 'captures' => count($captures)])
                 ->event('radar_consent_reply_deposited')
                 ->log('Réponse d\'annonceur déposée sur un message d\'accord du Radar');
+
+            // Le DERNIER geste avant le commit : la transaction rend les lignes, jamais les fichiers. Si une écriture
+            // suivait, son échec laisserait sur le disque privé des captures (des numéros de téléphone) que rien ne
+            // référence et que la purge ne trouverait pas. `attach()` efface lui-même ce qu'il a déjà écrit s'il échoue.
+            $this->captures->attach($consent, 'radar_consent_captures', $captures, 'reponse');
 
             return $consent;
         });

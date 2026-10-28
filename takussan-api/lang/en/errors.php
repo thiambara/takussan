@@ -713,6 +713,7 @@ return [
             'not_sent' => 'This message has not been sent: no reply can be added to it.',
             'outcome_final' => 'This message is closed: a reply can no longer be added to it.',
             'superseded' => 'This message has been followed up: add the reply to the latest follow-up.',
+            'reply_pending' => 'A reply to this message is still waiting to be verified: wait for its verdict before adding another.',
         ],
         'message' => [
             'generation_incomplete' => 'The model did not write the greeting and the summary: write them yourself.',
