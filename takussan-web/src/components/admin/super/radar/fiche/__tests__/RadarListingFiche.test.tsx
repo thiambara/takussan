@@ -238,10 +238,11 @@ describe('RadarListingFiche — passage cité et confiance (TCK-2387)', () => {
 
 describe('RadarListingFiche — corrections (TCK-2387)', () => {
   it('corriger le prix puis « Enregistrer » envoie un PATCH à une seule clé', async () => {
-    vi.mocked(patchRadarListing).mockResolvedValue({
-      data: fiche({ extracted: { ...EXTRACTED, price: { ...EXTRACTED.price!, value: 400000, corrected: true } } }),
-    });
+    const apres = fiche({ extracted: { ...EXTRACTED, price: { ...EXTRACTED.price!, value: 400000, corrected: true } } });
+    vi.mocked(patchRadarListing).mockResolvedValue({ data: apres });
     await rendre();
+    // Le serveur suit l'écriture : l'enregistrement invalide tout le Radar, la fiche est relue.
+    vi.mocked(fetchRadarListing).mockResolvedValue({ data: apres });
     const user = userEvent.setup();
     const enregistrer = screen.getByRole('button', { name: 'Enregistrer' });
     expect(enregistrer).toBeDisabled();
@@ -255,6 +256,8 @@ describe('RadarListingFiche — corrections (TCK-2387)', () => {
     expect(patchRadarListing).toHaveBeenCalledTimes(1);
     expect(patchRadarListing).toHaveBeenCalledWith(42, { price: 400000 });
     expect(await screen.findByText('Corrections enregistrées.')).toBeInTheDocument();
+    // Les rapprochements suivent : un prix corrigé peut en faire apparaître un.
+    await vi.waitFor(() => expect(fetchRadarMatches).toHaveBeenCalledTimes(2));
     // La fiche relue remplace la lecture : le champ est « corrigé », plus rien en attente.
     expect(screen.getByRole('button', { name: 'Enregistrer' })).toBeDisabled();
     expect(screen.getByLabelText('Prix (XOF)')).toHaveValue(400000);
@@ -286,10 +289,10 @@ describe('RadarListingFiche — corrections (TCK-2387)', () => {
   });
 
   it('choisir une proposition de quartier envoie `{neighborhood_id}`', async () => {
-    vi.mocked(patchRadarListing).mockResolvedValue({
-      data: fiche({ neighborhood_link: { id: 12, name: 'Almadies', city: 'Dakar' } }),
-    });
+    const apres = fiche({ neighborhood_link: { id: 12, name: 'Almadies', city: 'Dakar' } });
+    vi.mocked(patchRadarListing).mockResolvedValue({ data: apres });
     await rendre();
+    vi.mocked(fetchRadarListing).mockResolvedValue({ data: apres });
     const user = userEvent.setup();
     const proposition = screen.getByRole('button', { name: /Almadies \(Dakar\)/ });
     expect(proposition).toHaveAttribute('aria-pressed', 'false');

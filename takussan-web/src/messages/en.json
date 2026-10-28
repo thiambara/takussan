@@ -8779,7 +8779,8 @@
             "advertiserPhoneUnknown": "No advertiser has this number.",
             "duplicateChain": "This listing is already a duplicate, or already points to this one: pick the original listing.",
             "reviewIncompleteFields": "Fields to complete: {fields}.",
-            "gestureFailed": "The action failed."
+            "gestureFailed": "The action failed.",
+            "newMatches": "New matches appeared: check them, then validate again."
           },
           "matches": {
             "heading": "Matches",

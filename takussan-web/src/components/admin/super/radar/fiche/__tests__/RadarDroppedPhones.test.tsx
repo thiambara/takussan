@@ -128,4 +128,19 @@ describe('les numéros de la fiche (TCK-2387, AC6)', () => {
 
     expect(screen.getByRole('button', { name: `En faire l’annonceur : ${RETENU}` })).toBeDisabled();
   });
+
+  it('une erreur d\'enregistrement antérieure ne s\'affiche pas dans la confirmation qui s\'ouvre', async () => {
+    vi.mocked(patchRadarListing).mockRejectedValue(new ApiError(409, { code: 'radar.listing.stage_conflict', message: 'x' }));
+    const { user } = await rendreFiche(fiche());
+    await user.type(screen.getByLabelText('Prix (XOF)'), '0');
+    await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
+    expect(await screen.findByText('Cette fiche a changé d’étape entre-temps ; rechargez-la.')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: `En faire l’annonceur : ${RETENU}` }));
+    const dialogue = await screen.findByRole('dialog');
+
+    expect(within(dialogue).queryByRole('alert')).toBeNull();
+    expect(within(dialogue).queryByText(/changé d’étape/)).toBeNull();
+  });
 });
+

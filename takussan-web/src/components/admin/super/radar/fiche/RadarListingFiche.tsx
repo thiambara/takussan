@@ -39,6 +39,7 @@ type Dialogue =
  * aussi : chacun envoie d'abord les corrections en attente.
  */
 function FicheChargee({ detail }: { readonly detail: RadarListingDetail }) {
+  const tFiche = useTranslations('superAdmin.pages.radar.listing');
   const [survol, setSurvol] = useState<string | null>(null);
   const [focus, setFocus] = useState<string | null>(null);
   const passage = survol ?? focus;
@@ -58,6 +59,7 @@ function FicheChargee({ detail }: { readonly detail: RadarListingDetail }) {
   const ouvrir = (suivant: Dialogue) => {
     if (gestes.enCours) return;
     gestes.effacerErreur();
+    corrections.effacerErreur();
     setDialogue(suivant);
   };
   const ouvrirDoublon = (prefill: RadarMatch | null = null) => {
@@ -68,6 +70,7 @@ function FicheChargee({ detail }: { readonly detail: RadarListingDetail }) {
   };
   const fermer = () => {
     gestes.effacerErreur();
+    corrections.effacerErreur();
     setDialogue(null);
   };
 
@@ -93,6 +96,7 @@ function FicheChargee({ detail }: { readonly detail: RadarListingDetail }) {
           corrections={corrections}
           surPassage={surPassage}
           erreurGeste={dialogue ? undefined : gestes.erreur}
+          avertissementGeste={!dialogue && gestes.nouveauxRapprochements ? tFiche('errors.newMatches') : undefined}
           gestes={(
             <BarreDesGestes
               gestes={gestes}
@@ -111,7 +115,7 @@ function FicheChargee({ detail }: { readonly detail: RadarListingDetail }) {
           matches={matches}
           prefill={dialogue.prefill}
           pending={gestes.enCours}
-          erreur={gestes.erreur}
+          erreur={corrections.erreur ?? gestes.erreur}
           onConfirm={(cible) => void gestes.lancer({ type: 'duplicate', cible })}
         />
       ) : null}
@@ -120,7 +124,7 @@ function FicheChargee({ detail }: { readonly detail: RadarListingDetail }) {
           open
           onOpenChange={(ouvert) => { if (!ouvert) fermer(); }}
           pending={gestes.enCours}
-          erreur={gestes.erreur}
+          erreur={corrections.erreur ?? gestes.erreur}
           onConfirm={(motif) => void gestes.lancer({ type: 'discard', motif })}
         />
       ) : null}

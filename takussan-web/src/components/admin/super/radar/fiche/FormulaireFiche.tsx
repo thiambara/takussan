@@ -27,6 +27,8 @@ interface FormulaireFicheProps {
   readonly gestes: ReactNode;
   /** L'échec d'un geste : affiché avec celui de l'enregistrement. */
   readonly erreurGeste?: unknown;
+  /** Un geste s'est arrêté sans être refusé (de nouveaux rapprochements sont apparus) : dit à côté des boutons. */
+  readonly avertissementGeste?: string;
 }
 
 /**
@@ -36,7 +38,7 @@ interface FormulaireFicheProps {
  * « Enregistrer » — les seuls champs modifiés. Un refus se lit par son code (409 d'étape, 422), jamais
  * par une phrase de l'API.
  */
-export function FormulaireFiche({ detail, corrections, surPassage, gestes, erreurGeste }: FormulaireFicheProps) {
+export function FormulaireFiche({ detail, corrections, surPassage, gestes, erreurGeste, avertissementGeste }: FormulaireFicheProps) {
   const t = useTranslations('superAdmin.pages.radar.listing');
   const tRadar = useTranslations('superAdmin.pages.radar');
   const tTypes = useTranslations('property.types');
@@ -205,6 +207,11 @@ export function FormulaireFiche({ detail, corrections, surPassage, gestes, erreu
         {corrections.erreur || erreurGeste ? (
           <p role="alert" className="basis-full text-sm text-destructive">
             {corrections.erreur ? messageDEchec(corrections.erreur) : messageDEchec(erreurGeste, t('errors.gestureFailed'))}
+          </p>
+        ) : null}
+        {avertissementGeste ? (
+          <p role="status" className="basis-full text-sm font-medium text-warning" data-testid="radar-geste-avertissement">
+            {avertissementGeste}
           </p>
         ) : null}
         {corrections.enregistre && corrections.nombre === 0 && !erreurGeste ? (

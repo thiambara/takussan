@@ -16,17 +16,19 @@ interface Raccourcis {
  * - `⌘/Ctrl + Entrée` valide, même depuis un champ : c'est le geste de qui vient de taper ;
  * - `D` (doublon) et `E` (écarter) ne partent PAS d'une zone de saisie — champ, zone de texte, liste
  *   déroulante, contenu éditable — ni avec une touche de modification, ni en répétition ;
- * - un dialogue ouvert garde tous les raccourcis : la fiche derrière ne réagit pas.
+ * - un dialogue modal ouvert garde tous les raccourcis : la fiche derrière ne réagit pas ;
+ * - une touche maintenue n'envoie qu'une fois (`⌘/Ctrl + Entrée` compris).
  */
 export function useRaccourcisFiche({ valider, doublon, ecarter }: Raccourcis) {
   useEffect(() => {
     const surTouche = (event: KeyboardEvent) => {
       if (event.defaultPrevented || event.isComposing) return;
-      if (dialogueOuvert()) return;
+      if (dialogueOuvert(event.target)) return;
 
       if (event.key === 'Enter' && (event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey) {
         event.preventDefault();
-        valider();
+        // Une touche maintenue répète le keydown : un seul envoi.
+        if (!event.repeat) valider();
         return;
       }
 

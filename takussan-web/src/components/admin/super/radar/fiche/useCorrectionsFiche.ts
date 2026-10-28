@@ -57,7 +57,9 @@ export function useCorrectionsFiche(detail: RadarListingDetail) {
       queryClient.setQueryData(radarKeys.detail(detail.id), reponse);
       setCorrections({});
       setReprise((n) => n + 1);
-      void queryClient.invalidateQueries({ queryKey: radarKeys.lists() });
+      // Tout le Radar, rapprochements compris : un quartier rattaché ou un prix corrigé change ce que la fiche
+      // ressemble déjà (sinon l'alerte n'apparaît qu'après un rechargement de la page).
+      void queryClient.invalidateQueries({ queryKey: radarKeys.all });
     },
     // Un conflit d'étape : la fiche affichée est périmée, on la relit (les corrections en attente restent).
     onError: (erreur) => {
@@ -102,6 +104,7 @@ export function useCorrectionsFiche(detail: RadarListingDetail) {
       setReprise((n) => n + 1);
     },
     reprise: `${reprise}|${JSON.stringify(lues)}`,
+    effacerErreur: () => mutation.reset(),
     enCours: mutation.isPending,
     enregistre: mutation.isSuccess,
     erreur: mutation.error,

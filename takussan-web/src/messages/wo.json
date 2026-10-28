@@ -8125,7 +8125,8 @@
             "advertiserPhoneUnknown": "Aucun annonceur ne porte ce numéro.",
             "duplicateChain": "Cette annonce est déjà un doublon, ou pointe déjà vers celle-ci : choisissez l’annonce d’origine.",
             "reviewIncompleteFields": "Champs à compléter : {fields}.",
-            "gestureFailed": "Le geste a échoué."
+            "gestureFailed": "Le geste a échoué.",
+            "newMatches": "De nouveaux rapprochements sont apparus : vérifiez-les, puis validez de nouveau."
           },
           "matches": {
             "heading": "Rapprochements",

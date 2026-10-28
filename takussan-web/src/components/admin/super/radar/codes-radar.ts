@@ -52,7 +52,9 @@ export const MOTIFS_RADAR: Record<string, string> = {
   'radar.extraction.empty_source': 'extractionEmptySource',
   'radar.extraction.timeout': 'extractionTimeout',
   'radar.extraction.error': 'extractionError',
-  // Photos source (TCK-2387) : l'image d'une annonce ne s'est pas laissée empreindre
+  // Photos source (TCK-2387) : l'image d'une annonce ne s'est pas laissée empreindre.
+  // RÉSERVÉS : l'API n'écrit pas encore ces codes en `stage_reason` (ni ailleurs, côté fiche) ; leurs
+  // libellés attendent qu'elle le fasse, et rien ici ne prouve qu'ils s'affichent aujourd'hui.
   'radar.fetch.not_image': 'fetchNotImage',
   'radar.photo.abandoned': 'photoAbandoned',
   'radar.photo.too_many_pixels': 'photoTooManyPixels',

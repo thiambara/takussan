@@ -37,9 +37,16 @@ export function estZoneDeSaisie(cible: EventTarget | null): boolean {
   ) !== null;
 }
 
-/** Un dialogue est ouvert : les raccourcis lui appartiennent, pas à la fiche derrière. */
-export const dialogueOuvert = (): boolean =>
-  document.querySelector('[role="dialog"], [role="alertdialog"]') !== null;
+/**
+ * Un dialogue MODAL est ouvert, ou la touche part de l'intérieur d'un dialogue : les raccourcis lui
+ * appartiennent, pas à la fiche derrière. Est modal : un `alertdialog`, un `aria-modal="true"`, et le
+ * `DialogContent` de l'interface (`data-slot="dialog-content"` — Base UI ne pose pas `aria-modal`, et le focus
+ * n'est pas encore dedans à l'instant de l'ouverture). Un `role="dialog"` non modal (un widget de discussion
+ * posé sur la page) ne coupe rien tant que la touche ne part pas de lui.
+ */
+export const dialogueOuvert = (cible: EventTarget | null = null): boolean =>
+  document.querySelector('[role="dialog"][aria-modal="true"], [role="dialog"][data-slot="dialog-content"], [role="alertdialog"]') !== null
+  || (cible instanceof Element && cible.closest('[role="dialog"]') !== null);
 
 /** 409 `radar.listing.stage_conflict` : la fiche a changé d'étape ailleurs, ce que l'écran montre est périmé. */
 export const estConflitDEtape = (erreur: unknown): boolean =>
