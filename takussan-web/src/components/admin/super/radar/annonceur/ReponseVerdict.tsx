@@ -7,7 +7,7 @@ import { StatusBadge, type StatusTone } from '@/components/console';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import type { RadarConsent, RadarVerdictClassification } from '@/types/radar';
 import { DISCORDANCES_RADAR } from '../codes-radar';
-import { lectureDesClauses } from './reponses';
+import { discordancesDe, lectureDesClauses } from './reponses';
 import { useMotifRadar } from './useMessageEchecAnnonceur';
 
 interface ReponseVerdictProps {
@@ -38,7 +38,12 @@ export function ReponseVerdict({ reponse, message }: ReponseVerdictProps) {
   const fmt = useFormatteurs();
   const motif = useMotifRadar();
   const verdict = reponse.verdict;
-  const clauses = verdict ? lectureDesClauses(verdict.clauses_found, verdict.clauses_complete, message) : null;
+  // L'API écrit toujours `clauses_found` et `discordances` (`RadarConsentVerdict::from`) : une ligne mal formée ne fait pas
+  // tomber la fiche — sans écarts lisibles, le verdict se lit comme « pas de verdict exploitable » (`discordancesDe`).
+  const clauses = verdict
+    ? lectureDesClauses(Array.isArray(verdict.clauses_found) ? verdict.clauses_found : [], verdict.clauses_complete === true, message)
+    : null;
+  const ecarts = discordancesDe(reponse);
 
   const enAttente = reponse.verification_status === 'pending';
   const echec = reponse.verification_status === 'failed';
@@ -97,11 +102,11 @@ export function ReponseVerdict({ reponse, message }: ReponseVerdictProps) {
               <p className="text-sm text-muted-foreground">{t('reply.verdict.noReplyText')}</p>
             )}
           </div>
-          {verdict.discordances.length > 0 ? (
+          {ecarts.length > 0 ? (
             <div className="rounded-lg border border-warning/60 bg-warning/5 p-3" data-testid="radar-verdict-ecarts">
               <p className="text-xs font-medium text-foreground">{t('reply.verdict.discordances')}</p>
               <ul className="mt-1 list-disc space-y-0.5 pl-5 text-sm text-foreground">
-                {verdict.discordances.map((code) => (
+                {ecarts.map((code) => (
                   <li key={code}>{DISCORDANCES_RADAR[code] ? tOutcome(`discordances.${DISCORDANCES_RADAR[code]}`) : code}</li>
                 ))}
               </ul>

@@ -38,12 +38,13 @@ let fetchMock: ReturnType<typeof vi.fn>;
 
 const urls = () => fetchMock.mock.calls.map(([url]) => new URL(String(url), 'http://localhost'));
 
-function rendre(gestes?: PlatformAbilities) {
+function rendre(gestes?: PlatformAbilities, locale?: 'fr' | 'en') {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(withIntl(
     <QueryClientProvider client={queryClient}>
       {avecGestes(<RadarAdvertiserList />, gestes)}
     </QueryClientProvider>,
+    locale,
   ));
   return userEvent.setup();
 }
@@ -79,6 +80,14 @@ describe('Les files d’annonceurs (TCK-2388)', () => {
     rendre();
     await screen.findByTestId('radar-annonceurs-vide');
     expect(urls().map((u) => u.searchParams.get('filter[queue]'))).toEqual(['to_contact']);
+  });
+
+  it('en anglais, les comptes n’ont pas l’espace avant les deux-points du français : « To contact: 2 »', async () => {
+    parFile.to_contact = [ligne(7)];
+    rendre(undefined, 'en');
+    const rangee = await screen.findByTestId('radar-annonceur-7');
+
+    expect(within(rangee).getByText(/To contact:/).textContent).toBe('To contact: 2');
   });
 
   it('une ligne : nom, numéro, nature, comptes par étape ; le nom mène à la fiche', async () => {

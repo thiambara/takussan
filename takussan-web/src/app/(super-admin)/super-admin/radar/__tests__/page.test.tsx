@@ -149,7 +149,7 @@ describe('/super-admin/radar (TCK-2386)', () => {
     expect(within(echec).getByText('Essayez le texte ou les captures.')).toBeInTheDocument();
 
     const attente = screen.getByTestId('radar-listing-3');
-    expect(within(attente).getByText('En attente : Le plafond de dépense IA du jour est atteint : l’extraction reprendra.')).toBeInTheDocument();
+    expect(within(attente).getByText('En attente : Le plafond de dépense IA du jour est atteint.')).toBeInTheDocument();
     expect(within(attente).queryByText('Essayez le texte ou les captures.')).not.toBeInTheDocument();
 
     expect(within(screen.getByTestId('radar-listing-4')).getByText('Extraction en cours…')).toBeInTheDocument();

@@ -83,7 +83,11 @@ function FileAnnonceurs({ file, recherche }: { readonly file: RadarAdvertiserQue
         <ul className="space-y-0.5 text-xs">
           {(['reviewed', 'contacted', 'consented'] as const).map((etape) => (
             <li key={etape} className="text-muted-foreground">
-              {t(`counts.${etape}`)} : <span className="font-medium text-foreground">{r.counts?.[etape] ?? 0}</span>
+              {t.rich('countLine', {
+                label: t(`counts.${etape}`),
+                count: r.counts?.[etape] ?? 0,
+                n: (chunks) => <span className="font-medium text-foreground">{chunks}</span>,
+              })}
             </li>
           ))}
         </ul>

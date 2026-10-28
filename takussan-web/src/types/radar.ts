@@ -363,10 +363,11 @@ export interface RadarVerdict {
   readonly number_matches: boolean | null;
   readonly number_checked_by: 'code' | 'model';
   readonly name_matches: boolean | null;
+  /** L'API l'écrit toujours ; l'écran se défend d'une ligne mal formée (`Array.isArray`). */
   readonly clauses_found: readonly number[];
   readonly clauses_complete: boolean;
-  /** Des codes, jamais de prose. */
-  readonly discordances: readonly string[];
+  /** Des codes, jamais de prose. L'API l'écrit toujours ; absent, `discordancesDe` lit « pas de verdict exploitable ». */
+  readonly discordances?: readonly string[];
 }
 
 export interface RadarConsentCapture {

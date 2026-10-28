@@ -188,6 +188,16 @@ describe('Le verdict, d’un coup d’œil (TCK-2388)', () => {
     expect(ecarts).toHaveTextContent('une clause du message n’est pas lisible');
   });
 
+  it('un verdict sans `discordances` ni `clauses_found` ne fait pas tomber la fiche : il se lit « pas de verdict exploitable »', async () => {
+    const malforme = { ...verdict(), discordances: undefined, clauses_found: undefined } as unknown as ReturnType<typeof verdict>;
+
+    await rendre([messageEnvoye({ consents: [reponse({ verdict: malforme })] })]);
+
+    expect(screen.getByTestId('radar-verdict')).toBeInTheDocument();
+    expect(screen.getByTestId('radar-verdict-clauses')).toHaveTextContent('Clauses retrouvées : 0');
+    expect(screen.getByTestId('radar-verdict-ecarts')).toBeInTheDocument();
+  });
+
   it('chaque classement a sa pastille, STOP comprise', async () => {
     await rendre([messageEnvoye({
       consents: [

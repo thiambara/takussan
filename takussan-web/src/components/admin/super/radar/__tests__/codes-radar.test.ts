@@ -19,6 +19,17 @@ describe('codes du Radar', () => {
     for (const cle of Object.values(ERREURS_SAISIE_RADAR)) expect(erreurs[cle], cle).toBeTruthy();
   });
 
+  // Les motifs `ai.*` servent l'extraction d'une annonce ET la rédaction d'un message d'annonceur : ils ne parlent d'aucun des deux.
+  it.each([['fr', fr, /extraction|annonce/i], ['en', en, /extraction|listing/i]])(
+    'aucun libellé `ai.*` ne nomme l\'extraction ni l\'annonce en %s',
+    (_langue, messages, motInterdit) => {
+      const motifs = messages.superAdmin.pages.radar.reasons as Record<string, string>;
+      const cles = Object.entries(MOTIFS_RADAR).filter(([code]) => code.startsWith('ai.')).map(([, cle]) => cle);
+      expect(cles.length).toBeGreaterThan(10);
+      for (const cle of cles) expect(motifs[cle], cle).not.toMatch(motInterdit);
+    },
+  );
+
   it('les codes que le job écrit sont tous nommés (tâche 6 et ses correctifs)', () => {
     for (const code of [
       'radar.fetch.deferred', 'radar.fetch.invalid_url', 'radar.fetch.airbnb', 'radar.fetch.private_address',
