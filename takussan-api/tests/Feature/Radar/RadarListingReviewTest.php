@@ -26,6 +26,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Spatie\Activitylog\Models\Activity;
@@ -453,6 +454,43 @@ class RadarListingReviewTest extends TestCase
         $this->assertStringNotContainsString('771234567', json_encode($figee));
     }
 
+    public function test_valider_calcule_les_rapprochements_avant_de_verrouiller_la_fiche(): void
+    {
+        Property::factory()->published()->create(['user_id' => User::factory()->create(['phone' => self::NUMERO])->id]);
+        $listing = $this->fiche(['phones' => [self::NUMERO]]);
+
+        $requetes = [];
+        DB::listen(function ($requete) use (&$requetes): void {
+            $requetes[] = $requete->sql;
+        });
+        $this->postJson($this->url($listing, '/review'))->assertOk();
+
+        $verrou = collect($requetes)->search(fn (string $sql) => str_contains($sql, 'radar_listings') && str_contains($sql, 'for update'));
+        $matcher = collect($requetes)->search(fn (string $sql) => str_contains($sql, 'from "properties"'));
+        $this->assertNotFalse($verrou);
+        $this->assertNotFalse($matcher);
+        $this->assertLessThan($verrou, $matcher, 'le matcher ne tourne pas sous FOR UPDATE');
+        $this->assertCount(1, $listing->fresh()->matches);
+    }
+
+    public function test_une_fiche_changee_entre_la_lecture_et_le_verrou_refait_ses_rapprochements(): void
+    {
+        $bien = Property::factory()->published()->create(['user_id' => User::factory()->create(['phone' => self::NUMERO])->id]);
+        $listing = $this->fiche(['phones' => []]);
+        $perimee = RadarListing::query()->findOrFail($listing->id); // lue sans téléphone : aucun rapprochement
+
+        // Entre la lecture et le verrou, la fiche gagne un numéro (un autre geste a écrit).
+        $extracted = $listing->extracted;
+        $extracted['phones'] = [self::NUMERO];
+        $listing->forceFill(['extracted' => $extracted])->save();
+
+        $this->app->make(RadarListingReview::class)->review($perimee, $this->operateur);
+
+        $figee = $listing->fresh()->matches;
+        $this->assertCount(1, $figee, 'la trace décrit la fiche validée, pas celle qui a été lue avant le verrou');
+        $this->assertSame($bien->id, $figee[0]['id']);
+    }
+
     public function test_valider_rend_la_fiche_et_le_journal_porte_la_decision(): void
     {
         $listing = $this->fiche();
@@ -618,6 +656,27 @@ class RadarListingReviewTest extends TestCase
         $sept = $compter();
 
         $this->assertSame($une, $sept);
+    }
+
+    public function test_ouvrir_une_fiche_que_le_job_refuse_ne_met_rien_en_file(): void
+    {
+        foreach ([
+            RadarListingStage::Captured, RadarListingStage::ExtractionFailed, RadarListingStage::Discarded,
+            RadarListingStage::Duplicate, RadarListingStage::DoNotContact,
+        ] as $etape) {
+            $listing = $this->fiche([], [
+                'stage' => $etape, 'source_kind' => RadarSourceKind::Url, 'photo_urls' => ['https://img.example/1.jpg'],
+            ]);
+
+            $this->getJson($this->url($listing, '/matches'))->assertOk();
+        }
+
+        Bus::assertNotDispatched(FingerprintRadarSourcePhotos::class);
+
+        // Témoin : `reviewed` est une étape que le job travaille.
+        $lue = $this->fiche([], ['stage' => RadarListingStage::Reviewed, 'source_kind' => RadarSourceKind::Url, 'photo_urls' => ['https://img.example/1.jpg']]);
+        $this->getJson($this->url($lue, '/matches'))->assertOk();
+        Bus::assertDispatchedTimes(FingerprintRadarSourcePhotos::class, 1);
     }
 
     public function test_une_annonce_sans_empreinte_a_calculer_ne_met_rien_en_file(): void

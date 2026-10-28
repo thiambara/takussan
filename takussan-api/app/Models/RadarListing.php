@@ -111,6 +111,17 @@ class RadarListing extends AbstractModel implements HasMedia
     }
 
     /**
+     * TCK-2387 — le calcul des empreintes des photos source a-t-il lieu d'être : une annonce-URL lue
+     * (`extracted` ou `reviewed`). Le job la teste, et tout ce qui le met en file : un job refusé rend
+     * son verrou d'unicité sans rien écrire, et chaque ouverture de la fiche en remettrait un autre.
+     */
+    public function fingerprintable(): bool
+    {
+        return $this->source_kind === RadarSourceKind::Url
+            && in_array($this->stage, [RadarListingStage::Extracted, RadarListingStage::Reviewed], true);
+    }
+
+    /**
      * TCK-2387 — où en est le calcul des empreintes des photos source. `none` : rien à calculer (pas une
      * URL, ou pas de photo) ; `pending` : une URL de moins que prévu a été tentée (`null` : jamais
      * calculé) ; `done` : toutes tentées, réussies ou non. Le total est borné par `max_per_listing`.

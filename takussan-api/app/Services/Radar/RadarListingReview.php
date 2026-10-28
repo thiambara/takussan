@@ -52,7 +52,11 @@ final class RadarListingReview
 
     public function review(RadarListing $listing, User $by): RadarListing
     {
-        return $this->locked($listing, function (RadarListing $l) use ($by): void {
+        // Les rapprochements se calculent AVANT le verrou : le matcher fait une douzaine de requêtes, dont des
+        // recherches jsonb, et la ligne verrouillée ferait attendre tout autre geste sur la fiche pendant ce temps.
+        $snapshot = $listing->stage->allowsReview() ? $this->matcher->matchesFor($listing) : null;
+
+        return $this->locked($listing, function (RadarListing $l) use ($by, $listing, &$snapshot): void {
             abort_code_unless($l->stage->allowsReview(), 409, 'radar.listing.stage_conflict', ['stage' => $l->stage->value]);
 
             $values = RadarReviewFields::values($l->extracted ?? []);
@@ -67,11 +71,16 @@ final class RadarListingReview
                 $suggestion = $this->recorder->edit($suggestion, $values, $by);
             }
 
-            // Ce que l'opérateur avait sous les yeux, figé à la décision : une trace, non un cache.
+            // Ce que l'opérateur avait sous les yeux, figé à la décision : une trace, non un cache. Si la fiche a
+            // changé entre la lecture et le verrou (une correction, un autre annonceur), le calcul d'avant ne
+            // décrit plus ce qui est validé : on le refait, sous verrou, pour ce cas rare.
+            if ($snapshot === null || $l->extracted != $listing->extracted || $l->radar_advertiser_id !== $listing->radar_advertiser_id) {
+                $snapshot = $this->matcher->matchesFor($l);
+            }
             $l->fill([
                 'stage' => RadarListingStage::Reviewed,
                 'stage_reason' => null,
-                'matches' => $this->matcher->matchesFor($l),
+                'matches' => $snapshot,
             ])->save();
 
             $this->journal('radar_listing_reviewed', 'Annonce du Radar validée', $l, $by, [

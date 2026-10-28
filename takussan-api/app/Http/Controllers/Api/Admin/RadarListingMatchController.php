@@ -25,8 +25,9 @@ class RadarListingMatchController extends Controller
     {
         $photos = $listing->photoFingerprintStatus();
 
-        // Jamais calculées : on met le calcul en file (unique, il ne part qu'une fois par annonce).
-        if ($listing->source_photo_hashes === null && $photos['status'] !== 'none') {
+        // Jamais calculées : on met le calcul en file (unique, une fois par annonce) — mais seulement là où le job
+        // travaille, sinon il rend son verrou sans rien écrire et chaque ouverture en remettrait un autre.
+        if ($listing->source_photo_hashes === null && $photos['status'] !== 'none' && $listing->fingerprintable()) {
             FingerprintRadarSourcePhotos::dispatch($listing->id);
         }
 

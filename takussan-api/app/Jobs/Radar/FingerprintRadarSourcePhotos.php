@@ -2,8 +2,6 @@
 
 namespace App\Jobs\Radar;
 
-use App\Models\Enums\RadarListingStage;
-use App\Models\Enums\RadarSourceKind;
 use App\Models\RadarListing;
 use App\Services\Radar\Exceptions\RadarFetchDeferred;
 use App\Services\Radar\SourcePhotoFingerprinter;
@@ -91,7 +89,7 @@ final class FingerprintRadarSourcePhotos implements ShouldBeUnique, ShouldQueue
     public function handle(SourcePhotoFingerprinter $fingerprinter): void
     {
         $listing = RadarListing::query()->find($this->listingId);
-        if ($listing === null || ! $this->eligible($listing)) {
+        if ($listing === null || ! $listing->fingerprintable()) {
             return;
         }
 
@@ -131,7 +129,7 @@ final class FingerprintRadarSourcePhotos implements ShouldBeUnique, ShouldQueue
     {
         DB::transaction(function (): void {
             $listing = RadarListing::query()->whereKey($this->listingId)->lockForUpdate()->first();
-            if ($listing === null || ! $this->eligible($listing)) {
+            if ($listing === null || ! $listing->fingerprintable()) {
                 return;
             }
             $entries = $listing->source_photo_hashes ?? [];
@@ -141,13 +139,6 @@ final class FingerprintRadarSourcePhotos implements ShouldBeUnique, ShouldQueue
             $listing->source_photo_hashes = $entries;
             $listing->save();
         });
-    }
-
-    /** Une annonce-URL lue : `extracted` ou `reviewed`. */
-    private function eligible(RadarListing $listing): bool
-    {
-        return $listing->source_kind === RadarSourceKind::Url
-            && in_array($listing->stage, [RadarListingStage::Extracted, RadarListingStage::Reviewed], true);
     }
 
     /**
@@ -172,7 +163,7 @@ final class FingerprintRadarSourcePhotos implements ShouldBeUnique, ShouldQueue
     {
         return DB::transaction(function () use ($index, $entry): bool {
             $listing = RadarListing::query()->whereKey($this->listingId)->lockForUpdate()->first();
-            if ($listing === null || ! $this->eligible($listing)) {
+            if ($listing === null || ! $listing->fingerprintable()) {
                 return false;
             }
             $existing = $listing->source_photo_hashes;

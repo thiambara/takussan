@@ -329,7 +329,7 @@ final class ExtractRadarListing implements ShouldQueue
             if ($locked !== null) {
                 $this->enrich($locked, $normalized);
             }
-            $fingerprintPhotos = ($l->photo_urls ?? []) !== [];
+            $fingerprintPhotos = $l->fingerprintable() && ($l->photo_urls ?? []) !== [];
         });
 
         // Seulement pour une fiche lue qui a des photos, et après le commit : une annonce STOP ne fait
