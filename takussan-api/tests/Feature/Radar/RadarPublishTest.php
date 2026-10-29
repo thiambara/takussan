@@ -5,6 +5,7 @@ namespace Tests\Feature\Radar;
 use App\Models\Agency;
 use App\Models\CreditWelcomeGrant;
 use App\Models\Enums\AgencyKind;
+use App\Models\Enums\AgencyStatus;
 use App\Models\Enums\ContractType;
 use App\Models\Enums\Currency;
 use App\Models\Enums\PlatformProfileLevel;
@@ -423,6 +424,22 @@ class RadarPublishTest extends TestCase
         $this->publier([$b->id])->assertStatus(422)->assertJsonPath('code', 'radar.advertiser.account_unavailable');
 
         $this->assertSame($avant['properties'], $this->compte()['properties']);
+        $this->assertSame(RadarListingStage::Consented, $b->fresh()->stage);
+    }
+
+    public function test_un_espace_suspendu_ne_recoit_pas_les_biens_du_radar(): void
+    {
+        $a = $this->annonceConsentie();
+        $b = $this->annonceConsentie();
+        $premier = $this->publier([$a->id])->assertCreated();
+        Agency::query()->findOrFail($premier->json('data.agency.id'))->forceFill(['status' => AgencyStatus::Suspended])->save();
+        $avant = $this->compte();
+
+        $this->getJson("/api/admin/radar/advertisers/{$this->annonceur->id}/publication-preview")->assertOk()
+            ->assertJsonPath('data.blocking', ['radar.advertiser.account_unavailable']);
+        $this->publier([$b->id])->assertStatus(422)->assertJsonPath('code', 'radar.advertiser.account_unavailable');
+
+        $this->assertSame($avant, $this->compte());
         $this->assertSame(RadarListingStage::Consented, $b->fresh()->stage);
     }
 

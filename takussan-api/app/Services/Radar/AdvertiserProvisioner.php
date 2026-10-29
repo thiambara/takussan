@@ -3,6 +3,7 @@
 namespace App\Services\Radar;
 
 use App\Models\Agency;
+use App\Models\Enums\AgencyStatus;
 use App\Models\Enums\UserStatus;
 use App\Models\RadarAdvertiser;
 use App\Models\User;
@@ -28,7 +29,7 @@ use Illuminate\Support\Str;
  */
 final class AdvertiserProvisioner
 {
-    /** Le compte rattaché à l'annonceur par une publication précédente est supprimé ou bloqué. */
+    /** Le compte rattaché à l'annonceur par une publication précédente est supprimé ou bloqué, ou son espace est suspendu. */
     public const ACCOUNT_UNAVAILABLE = 'radar.advertiser.account_unavailable';
 
     public function __construct(private readonly HostIndividualOnboardingService $onboarding) {}
@@ -45,7 +46,7 @@ final class AdvertiserProvisioner
             // Le compte peut avoir été supprimé (soft-delete, `user_id` reste posé) ou bloqué depuis : la publication ne le
             // rouvre pas — `autoOnboard()` réactiverait ses profils — et ne le laisse pas non plus en 404 opaque.
             $user = User::withTrashed()->find($lockedAdvertiser->user_id);
-            abort_code_if($user === null || ! $user->canOpenSession(), 422, self::ACCOUNT_UNAVAILABLE);
+            abort_code_if($user === null || ! $user->canOpenSession() || $this->spaceSuspended($user), 422, self::ACCOUNT_UNAVAILABLE);
 
             return ['created' => false, 'user' => $user, 'agency' => $this->onboarding->autoOnboard($user)['agency']];
         }
@@ -63,7 +64,8 @@ final class AdvertiserProvisioner
     }
 
     /**
-     * Le compte déjà rattaché est supprimé ou bloqué : même refus que {@see self::provision()}, pour l'aperçu.
+     * Le compte déjà rattaché est supprimé ou bloqué, ou son espace suspendu : même refus que {@see self::provision()}, pour
+     * l'aperçu.
      */
     public function accountUnavailable(RadarAdvertiser $advertiser): bool
     {
@@ -72,7 +74,19 @@ final class AdvertiserProvisioner
         }
         $user = User::withTrashed()->find($advertiser->user_id);
 
-        return $user === null || ! $user->canOpenSession();
+        return $user === null || ! $user->canOpenSession() || $this->spaceSuspended($user);
+    }
+
+    /**
+     * L'espace que `autoOnboard()` reprendrait (le premier dont il est l'administrateur principal, quel que soit son statut) est
+     * suspendu : ses écritures sont fermées (ADR-0048, `EnsureAgencyWritable`), la publication du Radar n'y entre pas.
+     */
+    private function spaceSuspended(User $user): bool
+    {
+        return Agency::query()
+            ->where('primary_admin_id', $user->id)
+            ->orderBy('id')
+            ->first()?->status === AgencyStatus::Suspended;
     }
 
     /**
