@@ -409,6 +409,7 @@ class RadarPublishTest extends TestCase
         $this->assertSame(['radar.publish.missing_field'], $par[$sansPrix->id]['blocking']);
         $this->assertArrayNotHasKey($horsAccord->id, $par->all(), 'une annonce sans accord ne se présente pas à la publication');
         $this->assertSame($this->quartier->id, $par[$prete->id]['neighborhood_id']);
+        $this->assertSame($this->quartier->name, $par[$prete->id]['neighborhood']);
         $this->assertSame(450000, $par[$prete->id]['price']);
     }
 

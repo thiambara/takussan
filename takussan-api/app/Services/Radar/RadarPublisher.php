@@ -271,6 +271,8 @@ final class RadarPublisher
             'contract' => $values['contract'],
             'property_type' => $values['property_type'],
             'neighborhood_id' => $values['neighborhood_id'],
+            // Le nom du quartier : l'écran dit où le bien sera publié.
+            'neighborhood' => $values['neighborhood_id'] === null ? null : GeoNeighborhood::query()->find((int) $values['neighborhood_id'])?->name,
             'photo_preparation' => $status,
             'photos' => $photos->map(fn (Media $media) => [
                 'id' => $media->id,
