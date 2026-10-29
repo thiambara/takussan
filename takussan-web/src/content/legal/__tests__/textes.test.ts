@@ -119,6 +119,11 @@ describe('Radar — l’article 6.3 et les ajouts de la politique de confidentia
     expect(terms.en).toContain('your listings are then removed from the platform without delay');
   });
 
+  it('la puce IA du § 4.3 garde la vérification par une personne et l’absence de donnée sensible', () => {
+    expect(privacy.fr).toContain('une rédaction qu’une personne vérifie. Aucune donnée sensible (pièce d’identité, revenus) ne lui est transmise.');
+    expect(privacy.en).toContain('a draft that a person reviews. No sensitive data (identity documents, income) is sent to it.');
+  });
+
   it('la politique dit la collecte, la finalité, les deux durées et le STOP, dans les deux langues', () => {
     for (const fragment of [
       '(article 6.3 des Conditions)',
