@@ -39,9 +39,6 @@ final class PhoneMasker
     /** Un séparateur : une espace, un point, une barre oblique ou un tiret (`-`, demi-cadratin `–`, moins `−`…). */
     private const SEP = '['.self::WSI.'.\-\/\x{2010}-\x{2015}\x{2212}]';
 
-    /** Un séparateur sans le point : `87.79` est une décimale (une charge machine, une valeur), pas deux groupes. */
-    private const SEP_NO_DOT = '['.self::WSI.'\-\/\x{2010}-\x{2015}\x{2212}]';
-
     private const PREFIX = '(?:3[02369]|7[0-25-9]|93)';
 
     /** Le préfixe d'un numéro sénégalais dont les deux chiffres peuvent être séparés : `7 7 1 2 3 …`. */
@@ -63,15 +60,19 @@ final class PhoneMasker
         .self::PREFIX_SPACED.'(?:'.self::SEP.'?[0-9]){7}(?![0-9])';
 
     /**
-     * Le numéro sénégalais SANS indicatif, à groupement libre (`77 1234567`, `77 1 23 45 67`, `77 12 345 67`,
-     * `7 7 1 2 3 4 5 6 7`). Pas un groupement 3-3-3 (`750 000 000` est un prix), ni une date `30/12/2026`, ni de
-     * points : `44.07 87.79 75.17` (une charge machine) n'en est pas un. Avec des points, seuls les neuf chiffres
-     * un à un (`7.7.1.2.3.4.5.6.7`) ; les groupements à points d'un seul tenant (`77.123.45.67`) sont dans `SENEGAL`.
+     * Le numéro sénégalais SANS indicatif, à groupement libre, séparé par des espaces : le préfixe d'un seul tenant,
+     * puis sept chiffres groupés comme on veut (`77 1234567`, `77 1 23 45 67`, `77 12 345 67`, `33 8 21 00 00`) ;
+     * ou, le préfixe espacé (`7 7 …`), la forme stricte « neuf chiffres un à un » (`7 7 1 2 3 4 5 6 7`).
+     * Pas un groupement 3-3-3 (`750 000 000` est un prix), ni une date `30/12/2026`, ni trois zéros d'affilée
+     * (`750000 000`), ni deux groupes de mille en fin (`33 3 333 333`), ni un chiffre isolé derrière la forme
+     * stricte (`7 1 2 3 4 5 6 7 8 9`, une liste). Pas de tiret ni de barre : `30-31-32-33-4`, `30-20-15-10-5` sont
+     * des listes. Limites : `3 2 1 0 9 8 7 6 5` (une liste décroissante) et `7 7 5 0 0 0 0 0 0` sont masqués.
      */
     private const SENEGAL_LOOSE = '(?<![0-9])(?![0-9]{3}'.self::SEP.'[0-9]{3}'.self::SEP.'[0-9]{3}(?![0-9]))'
         .'(?![0-9]{2}'.self::SEP.'[0-9]{2}'.self::SEP.'[0-9]{4}(?![0-9]))'
-        .'(?:(?:3'.self::SEP_NO_DOT.'?[02369]|7'.self::SEP_NO_DOT.'?[0-25-9]|9'.self::SEP_NO_DOT.'?3)(?:'.self::SEP_NO_DOT.'?[0-9]){7}'
-        .'|(?:3\.[02369]|7\.[0-25-9]|9\.3)(?:\.[0-9]){7})';
+        .'(?!(?:[0-9]'.self::SEP.'?){0,8}000)'
+        .'(?:'.self::PREFIX.'(?:'.self::WS.'?[0-9]){7}(?<!'.self::WS.'[0-9]{3}'.self::WS.'[0-9]{3})'
+        .'|(?:3'.self::WS.'[02369]|7'.self::WS.'[0-25-9]|9'.self::WS.'3)(?:'.self::WS.'[0-9]){7}(?!'.self::WS.'[0-9](?![0-9])))';
 
     /**
      * Indicatifs ITU (E.164) par longueur : le `+` ou `00` qui les précède ne suffit pas, `+ 1 000 000`
@@ -90,8 +91,14 @@ final class PhoneMasker
 
     private const CC3 = '(?:21[1-368]|22[02-9]|2[34][0-9]|25[0-8]|26[0-9]|29[01789]|35[0-9]|37[0-9]|38[0-35-79]|42[013]|50[0-9]|59[0-9]|6[78][0-9]|69[0-2]|85[02356]|880|886|96[0-8]|97[0-7]|99[2-8])';
 
-    /** Après l'indicatif : le `)` de `(+33)`, puis le `(0)` de trunk. */
-    private const AFTER_CC = '\)?(?:'.self::WS.'?\(0\))?';
+    /**
+     * Après l'indicatif : le `)` de `(+33)`, puis le `(0)` de trunk — et pas la forme d'un montant. Collé au
+     * `+`, deux groupes `000` à la fin, tous les groupes de trois chiffres (`frais +225 000 000`,
+     * `+45 000 000 000 F`) ; `+224 622 000 000` en a la forme : limite, et `+225 27 20 000 000` ou
+     * `+212 522 123 000` non. Espacé du `+` (`+ 250 000 000`, `+ 223 500 000`), un seul groupe `000` suffit :
+     * c'est le `(?!…)` du `+`, dans `FOREIGN`.
+     */
+    private const AFTER_CC = '\)?(?:'.self::WS.'?\(0\))?(?!'.self::SEP.'?[0-9]{0,3}(?:'.self::SEP.'[0-9]{3})*'.self::SEP.'000'.self::SEP.'000(?![0-9]))';
 
     /**
      * Un numéro étranger (TCK-2410) : `+` (une espace tolérée derrière) ou `00`, un indicatif ITU, puis
@@ -99,8 +106,8 @@ final class PhoneMasker
      * l'indicatif, trois parenthèses seulement : `(+33) 6 …`, le `(0)` de `+33 (0)6 …` (il compte pour
      * un chiffre), et la zone de `+1 (202) 555 0123`. Ailleurs `(` coupe le numéro : `ADR-0064 (2026-10-14)`
      * n'est pas un `00` + indicatif 64. Il ne finit jamais sur un chiffre seul séparé du reste
-     * (`… 56 78 3 chambres` : le `3` n'est pas au numéro), ni sur un groupe `000` séparé : `+ 250 000 000`,
-     * `frais +225 000 000` sont des sommes, pas des numéros.
+     * (`… 56 78 3 chambres` : le `3` n'est pas au numéro) ; `+ 250 000 000`, `frais +225 000 000` sont
+     * des sommes, pas des numéros (voir `AFTER_CC`).
      *
      * Ou, sans indicatif, la forme nationale française et ivoirienne `0X XX XX XX XX`, collée ou séparée
      * à chaque paire **par le même caractère** : `01.05.2026 12 h`, ou `load averages: 44.07 87.79 75.17`,
@@ -109,12 +116,12 @@ final class PhoneMasker
      * Pas d'exclusion « marque monétaire » ici, contrairement au numéro sénégalais : elle ferait reculer le
      * motif d'un groupe (`+33 6 12 34 56 78 F. Dupont` laisserait `78 F.`).
      */
-    private const FOREIGN = '(?:(?<![0-9+])(?<![0-9][.,])(?:\+'.self::WS.'{0,2}|00'.self::SEP.'?)(?:'
+    private const FOREIGN = '(?:(?<![0-9+])(?<![0-9][.,])(?:\+(?!'.self::WS.'{1,2}[0-9]{1,3}(?:'.self::SEP.'[0-9]{3})*'.self::SEP.'000(?![0-9]))'.self::WS.'{0,2}|00'.self::SEP.'?)(?:'
         .'33'.self::AFTER_CC.'(?:'.self::SEP.'{0,3}[0-9]){9}'
         .'|'.self::CC1.self::AFTER_CC.'(?:'.self::SEP.'?\([0-9]{3}\)(?:'.self::SEP.'{0,3}[0-9]){7}|(?:'.self::SEP.'{0,3}[0-9]){10})'
         .'|'.self::CC2.self::AFTER_CC.'(?:'.self::SEP.'{0,3}[0-9]){7,11}'
         .'|'.self::CC3.self::AFTER_CC.'(?:'.self::SEP.'{0,3}[0-9]){6,10}'
-        .')(?<!'.self::SEP.'[0-9])(?<!'.self::SEP.'000)'
+        .')(?<!'.self::SEP.'[0-9])'
         .'|(?<![0-9])0[1-9](?:[0-9]{8}|(?<sep>'.self::SEP.')[0-9]{2}(?:\k<sep>[0-9]{2}){3}))(?![0-9])';
 
     /**

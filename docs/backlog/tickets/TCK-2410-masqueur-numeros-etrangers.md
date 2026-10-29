@@ -47,8 +47,8 @@ document poussé. Le défaut du masqueur ne l'a pas causée ; la **règle** manq
 ## Contrat de données
 
 - Aucun endpoint, aucune migration. Classes touchées : `App\Support\PhoneMasker` (nouvelle constante
-  de masquage, `PATTERN` reste le motif **sénégalais**, dont `RadarPhone` et `RadarAmountParser`
-  dépendent), `scripts/check-ai-evals-pii.mjs`, `tests/fixtures/ai/donnees-personnelles.json`.
+  de masquage ; `PATTERN` reste le motif **sénégalais**, mais ses séparateurs, ses chiffres et sa fin
+  s'élargissent — `RadarPhone` et `RadarAmountParser` le lisent), `scripts/check-ai-evals-pii.mjs`, `tests/fixtures/ai/donnees-personnelles.json`.
 
 ## Contraintes strictes (métier)
 
@@ -68,7 +68,8 @@ document poussé. Le défaut du masqueur ne l'a pas causée ; la **règle** manq
 ## Delta à produire
 
 - [x] `PhoneMasker::MASK_PATTERN` = numéro sénégalais (`PATTERN`) OU numéro étranger ; `mask()` et
-      `EvalCaseAnonymizer` l'utilisent ; `PATTERN` ne change pas.
+      `EvalCaseAnonymizer` l'utilisent ; `PATTERN` reste sénégalais seul (il s'élargit seulement aux séparateurs Unicode et aux autres
+      écritures de chiffres, voir les notes).
 - [x] `scripts/check-ai-evals-pii.mjs` : le même motif étendu.
 - [x] Fixture partagé : une forme par ligne ci-dessus, et les non-cas (prix, surface, date, référence).
 - [x] Tests : `PhoneMaskerTest`, `EvalCaseAnonymizerTest` ; appelants re-mesurés.
@@ -102,7 +103,12 @@ document poussé. Le défaut du masqueur ne l'a pas causée ; la **règle** manq
 
 2026-10-29, sur `fix/masqueur-numeros-etrangers`.
 
-- **`PATTERN` ne change pas, `MASK_PATTERN` s'y ajoute.** `RadarPhone::fromText()` et `canonical()` lisent
+- **`PATTERN` reste le numéro sénégalais seul, mais il s'élargit ; `MASK_PATTERN` s'y ajoute.** Ce que dit la
+  version précédente de cette note (« `PATTERN` ne change pas ») était inexact : ses séparateurs (`SEP`, avec
+  l'espace NEL, les tirets U+2010 à U+2015 et le moins), ses chiffres (`[0-9]` pour `\d`) et sa fin (`END`)
+  ont changé, et `normalizeDigits()` ramène désormais d'autres écritures de chiffres à l'ASCII. Le Radar en
+  profite (`RadarPhone`, `RadarAmountParser`, `ExtractionNormalizer`, `RadarListingIntake`), sans que son code
+  bouge. `RadarPhone::fromText()` et `canonical()` lisent
   `PATTERN` comme « le numéro sénégalais » (leur `FOREIGN_PREFIX` écarte même la fin d'un numéro
   étranger), `RadarAmountParser::phoneSpans()` aussi. Élargir `PATTERN` aurait fait lire `+33 6 …` au Radar
   comme un contact. Le test `test_the_senegalese_pattern_does_not_read_a_foreign_number` l'épingle.
@@ -139,9 +145,10 @@ document poussé. Le défaut du masqueur ne l'a pas causée ; la **règle** manq
   chiffres) dépasse la longueur admise pour deux chiffres d'indicatif.
 - **Les appelants, re-mesurés** : profitent du correctif `AiDataGuard::mask()` (usage `publique`, donc
   `ai_suggestions.input_snapshot` et le texte envoyé au modèle), `EvalCaseAnonymizer` (entrée, `expected`,
-  clés personnelles) et `ConsentMessageComposer` (nom d'affichage et faits). Ne changent pas : `RadarPhone`,
-  `RadarAmountParser`, `ExtractionNormalizer`, `RadarListingIntake` et `ExternalContent` (qui ne lisent que
-  `normalizeDigits()`, `INVISIBLE` ou `PATTERN`). **Suite à ouvrir** : `RadarAmountParser::parse()` lit encore
+  clés personnelles) et `ConsentMessageComposer` (nom d'affichage et faits). Leur code ne change pas, mais ils
+  lisent `PATTERN`, `normalizeDigits()` ou `INVISIBLE` : `RadarPhone`, `RadarAmountParser`,
+  `ExtractionNormalizer`, `RadarListingIntake` et `ExternalContent` profitent de l'élargissement des
+  séparateurs et des écritures de chiffres. **Suite à ouvrir** : `RadarAmountParser::parse()` lit encore
   un numéro étranger collé comme un montant (`Appelez le 00 33 …` donne un « prix » de onze chiffres) ; lui
   faire lire `MASK_PATTERN` pour `phoneSpans()` le corrigerait, mais c'est le territoire du Radar.
 - **La règle des numéros réels n'est pas portée par une garde, par une mesure** (2026-10-29) : balayé sur
@@ -163,7 +170,7 @@ document poussé. Le défaut du masqueur ne l'a pas causée ; la **règle** manq
 
 ### Reprise de la vérification adverse (2026-10-29)
 
-- **I1, sommes de prix** : un numéro étranger ne finit jamais sur un groupe `000` séparé
+- **I1, sommes de prix** (resserré dans la seconde reprise ci-dessous) : un numéro étranger ne finit jamais sur un groupe `000` séparé
   (`(?<!SEP000)`). `+ 250 000 000`, `frais +225 000 000`, `+45 000 000 000 F`, `+33 000 000 000 F`,
   `+ 30 000 000 000`, `+ 500 000 000 F CFA` ne sont plus des numéros. Écarté : le lookbehind « N + M »
   (il aurait laissé passer `+221 77 … +33 6 …`, deux numéros séparés d'une espace) ; l'exclusion de la marque
@@ -186,7 +193,7 @@ document poussé. Le défaut du masqueur ne l'a pas causée ; la **règle** manq
   n'est donc masqué que derrière l'indicatif. Sans indicatif : groupement libre (`77 1234567`, `77 1 23 45 67`,
   `77 12 345 67`, `33 8 21 00 00`, `7 7 1 2 3 4 5 6 7`), mais ni 3-3-3 (`750 000 000`), ni date
   (`30/12/2026 5 pièces`), ni point (`44.07 87.79 75.17`, une charge machine ; `70 1.23 4.56 7.8`) — sauf les
-  neuf chiffres à points un à un. Une première version à séparateurs libres masquait 45 lignes de documents et de
+  neuf chiffres à points un à un (cette exception est retirée, voir la seconde reprise). Une première version à séparateurs libres masquait 45 lignes de documents et de
   code du dépôt (charges, valeurs `oklch`) ; elle en masque 4, toutes des numéros ou des commandes.
   Suite possible, hors de ce ticket : `RadarPhone::fromText()` ne lit pas ces écritures.
 - **M1** : `[0-9]` partout côté PHP (`\d` couvre le devanagari sous `/u`, pas JavaScript) ; espaces
@@ -208,5 +215,37 @@ document poussé. Le défaut du masqueur ne l'a pas causée ; la **règle** manq
   de `CC2` et `CC3` : rouge.
 - **Parité PHP/JS** : bancs du vérificateur rejoués (`v2410/run.php`, `run.mjs`) : 0 écart sur 5 jeux de 40 000
   chaînes aléatoires, sur les cas à la main, et sur 42 823 lignes de fichiers suivis.
-- **Vérifié** : 533 tests de `PhoneMaskerTest` et `EvalCaseAnonymizerTest` ; appelants (voir ci-dessus) verts ;
+- **Vérifié** : 723 tests de `PhoneMaskerTest` et `EvalCaseAnonymizerTest` ; appelants (voir ci-dessus) verts ;
   gardes `scripts/check-*.mjs` vertes.
+
+### Seconde reprise (2026-10-29) : R1, R2, I1 resserré
+
+- **R1, le sénégalais sans indicatif ne lit plus les dates, les listes ni les fourchettes.** Il n'accepte plus
+  que des **espaces** (plus de tiret ni de barre : `30-31-32-33-4`, `30-20-15-10-5` sont des listes) ; le
+  préfixe espacé (`7 7 …`) n'est admis que dans la forme stricte « neuf chiffres un à un », séparateur
+  partout, et jamais suivi d'un chiffre isolé (`7 1 2 3 4 5 6 7 8 9`) ; la forme à préfixe d'un tenant
+  refuse deux groupes de mille en fin (`33 3 333 333`) et trois zéros d'affilée (`75 000 000 3 chambres`).
+  Les points un à un disparaissent (`7.7.1.2.3.4.5.6.7` ne se distingue pas de `version 7.1.2.3.4.5.6.7.8`) :
+  c'est maintenant une limite. Restent masqués : `77 1 23 45 67`, `7 7 1 2 3 4 5 6 7`, `77 12 345 67`,
+  `33 8 21 00 00`, `77 1234567`, les formes derrière `+221`, `77–123–45–67`.
+- **Écrit comme limites** : `3 2 1 0 9 8 7 6 5` (liste décroissante) et `7 7 5 0 0 0 0 0 0` sont masqués ;
+  `750000 000`, `75 0000 000` et `7712-34-567` le sont aussi, **déjà avant ce ticket** (la forme sénégalaise
+  d'origine, partagée avec `PATTERN`, qui sert le Radar : `77 000 00 99` y est un numéro fictif légitime).
+- **I1 resserré** : la garde « montant » ne vaut plus que pour la forme d'une somme. Collé au `+`, il faut
+  tous les groupes de trois chiffres et **deux** groupes `000` à la fin (`frais +225 000 000`,
+  `+45 000 000 000 F`) ; espacé du `+` (`+ 250 000 000`, `+ 223 500 000`), un groupe `000` final suffit.
+  `+225 27 20 000 000`, `+225 07 07 000 000`, `+237 6 99 000 000`, `+33 1 40 000 000` et `+212 522 123 000` sont
+  de nouveau masqués ; `+224 622 000 000` reste une limite (indiscernable de `frais +225 000 000`).
+- **R2** : voir la note sur `PATTERN` plus haut. **Suite à ouvrir, hors de ce ticket** : `PATTERN` lit
+  `77–123–45–67` (demi-cadratin) mais `RadarPhone::canonical()` le rejette, son `SEPARATORS` ignorant le caractère ;
+  `RadarPhone` n'est pas touché ici.
+- **Garde JS** : `INVISIBLES` redevient écrit en échappements `\u` (il portait les caractères invisibles bruts).
+- **Ablations** (restauration prouvée par `cmp`), PHP et JS, une rouge chacune : sans la garde du chiffre isolé,
+  sans le lookbehind des deux groupes de mille, séparateurs libres dans le libre (tiret), sans l'exclusion des trois
+  zéros (`75 000 000 3 chambres`, fixture ajoutée car aucune ligne ne l'éprouvait), sans la garde « montant »,
+  garde « montant » à un seul `000` collé (trop large), à groupes de deux chiffres (trop large), sans la garde du
+  `+` espacé (`+ 223 500 000`).
+- **Parité PHP/JS** rejouée : 0 écart sur les cinq jeux de cas (`cases1` à `cases5`), six jeux aléatoires et
+  42 823 lignes de fichiers suivis. Contre le commit précédent, le corpus ne perd qu'un masquage (une ligne de
+  fourchette `320-767`) et n'en gagne aucun ; `cases5` : toutes les listes, dates et fourchettes deviennent non
+  masquées, les quatre positifs I1 le redeviennent.

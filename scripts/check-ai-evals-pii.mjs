@@ -50,7 +50,7 @@ const SEP = String.raw`[${WSI}.\-/\u{2010}-\u{2015}\u{2212}]`;
 // Préfixes : plan de numérotage national de l'ARTP, communication du 6.IX.2022 publiée par l'UIT le
 // 3.X.2023, plus 71 sur décision du porteur (cf. PhoneMasker).
 // Après l'indicatif : le `)` de `(+33)`, puis le `(0)` de trunk.
-const APRES_CC = String.raw`\)?(?:${WS}?\(0\))?`;
+const APRES_CC = String.raw`\)?(?:${WS}?\(0\))?(?!${SEP}?[0-9]{0,3}(?:${SEP}[0-9]{3})*${SEP}000${SEP}000(?![0-9]))`;
 const PREFIXE = '(?:3[02369]|7[0-25-9]|93)';
 const PREFIXE_ESPACE = `(?:3${SEP}?[02369]|7${SEP}?[0-25-9]|9${SEP}?3)`;
 const FIN = String.raw`(?![0-9])(?!${WS}*(?:f${WS}?cfa|cfa|xof|francs?|f)(?!\p{L}))`;
@@ -59,13 +59,15 @@ const SENEGAL = String.raw`(?<![0-9])(?:(?:\+|00)?221${SEP}?)?`
   + `|${PREFIXE}[0-9]${SEP}?[0-9]{2}${SEP}?[0-9]{2}${SEP}?[0-9]{2})`;
 // Avec `+221` ou `00221` : neuf chiffres à groupement libre, et un `F` derrière n'en fait pas un prix.
 const SENEGAL_AVEC_INDICATIF = String.raw`(?<![0-9])(?:\+${WS}{0,2}|00${WS}?)221${APRES_CC}${SEP}?${PREFIXE_ESPACE}(?:${SEP}?[0-9]){7}(?![0-9])`;
-// Sans indicatif : groupement libre, mais ni un 3-3-3 (un prix), ni une date, ni de points (`44.07 87.79 75.17`,
-// une charge machine) — sauf les neuf chiffres un à un, `7.7.1.2.3.4.5.6.7`.
-const SEP_SANS_POINT = String.raw`[${WSI}\-/\u{2010}-\u{2015}\u{2212}]`;
+// Sans indicatif, séparé par des espaces : le préfixe d'un seul tenant et sept chiffres groupés comme on veut, ou,
+// le préfixe espacé, les neuf chiffres un à un. Ni un 3-3-3 (un prix), ni une date, ni trois zéros d'affilée
+// (`750000 000`), ni deux groupes de mille en fin (`33 3 333 333`), ni un chiffre isolé derrière la forme stricte
+// (`7 1 2 3 4 5 6 7 8 9`), ni de tiret ni de barre (`30-31-32-33-4`, une liste).
 const SENEGAL_LIBRE = `(?<![0-9])(?![0-9]{3}${SEP}[0-9]{3}${SEP}[0-9]{3}(?![0-9]))`
   + `(?![0-9]{2}${SEP}[0-9]{2}${SEP}[0-9]{4}(?![0-9]))`
-  + `(?:(?:3${SEP_SANS_POINT}?[02369]|7${SEP_SANS_POINT}?[0-25-9]|9${SEP_SANS_POINT}?3)(?:${SEP_SANS_POINT}?[0-9]){7}`
-  + String.raw`|(?:3\.[02369]|7\.[0-25-9]|9\.3)(?:\.[0-9]){7})`;
+  + `(?!(?:[0-9]${SEP}?){0,8}000)`
+  + `(?:${PREFIXE}(?:${WS}?[0-9]){7}(?<!${WS}[0-9]{3}${WS}[0-9]{3})`
+  + `|(?:3${WS}[02369]|7${WS}[0-25-9]|9${WS}3)(?:${WS}[0-9]){7}(?!${WS}[0-9](?![0-9])))`;
 // Numéros étrangers (TCK-2410) : `+` ou `00`, un indicatif ITU et le nombre de chiffres de son plan (la France
 // à longueur exacte, d'abord), ou la forme nationale `0X XX XX XX XX`, collée ou séparée à chaque paire par le
 // MÊME caractère (une date suivie d'une heure, `load averages: 44.07 87.79 75.17`, n'en sont pas). Les
@@ -76,12 +78,12 @@ const CC1 = '[17]';
 const CC2 = '(?:2[07]|3[0-469]|4[013-9]|5[1-8]|6[0-6]|8[1246]|9[0-58])';
 const CC3 = '(?:21[1-368]|22[02-9]|2[34][0-9]|25[0-8]|26[0-9]|29[01789]|35[0-9]|37[0-9]|38[0-35-79]|42[013]|50[0-9]|59[0-9]|6[78][0-9]|69[0-2]|85[02356]|880|886|96[0-8]|97[0-7]|99[2-8])';
 const CHIFFRES = (n) => `(?:${SEP}{0,3}[0-9]){${n}}`;
-const ETRANGER = String.raw`(?:(?<![0-9+])(?<![0-9][.,])(?:\+${WS}{0,2}|00${SEP}?)(?:`
+const ETRANGER = String.raw`(?:(?<![0-9+])(?<![0-9][.,])(?:\+(?!${WS}{1,2}[0-9]{1,3}(?:${SEP}[0-9]{3})*${SEP}000(?![0-9]))${WS}{0,2}|00${SEP}?)(?:`
   + `33${APRES_CC}${CHIFFRES(9)}`
   + String.raw`|${CC1}${APRES_CC}(?:${SEP}?\([0-9]{3}\)${CHIFFRES(7)}|${CHIFFRES(10)})`
   + `|${CC2}${APRES_CC}${CHIFFRES('7,11')}`
   + `|${CC3}${APRES_CC}${CHIFFRES('6,10')}`
-  + `)(?<!${SEP}[0-9])(?<!${SEP}000)`
+  + `)(?<!${SEP}[0-9])`
   + String.raw`|(?<![0-9])0[1-9](?:[0-9]{8}|(?<sep>${SEP})[0-9]{2}(?:\k<sep>[0-9]{2}){3}))(?![0-9])`;
 // Le lien WhatsApp canonique écrit le numéro sans `+` : `wa.me/…`, `…?phone=…`.
 const LIEN = String.raw`(?<=wa\.me/|[?&]phone=)(?:33[0-9]{9}|${CC1}[0-9]{10}|${CC2}[0-9]{7,11}|${CC3}[0-9]{6,10})(?![0-9])`;
@@ -91,7 +93,7 @@ export const TELEPHONE = new RegExp(
 );
 export const COURRIEL = /[a-z0-9._%+-]+(?:\s*[@\uFF20]\s*|\s*[([{]\s*at\s*[)\]}]\s*|\s+at\s+)[a-z0-9-]+(?:\.[a-z0-9-]+)*\.[a-z]{2,}(?![a-z])/iu;
 
-const INVISIBLES = /[​‌‍⁠﻿­]/g;
+const INVISIBLES = /[\u200B\u200C\u200D\u2060\uFEFF\u00AD]/g;
 const ZEROS = [
   0xff10, 0x0660, 0x06f0, 0x07c0, 0x0966, 0x09e6, 0x0a66, 0x0ae6, 0x0b66, 0x0be6, 0x0c66, 0x0ce6,
   0x0d66, 0x0e50, 0x0ed0, 0x0f20, 0x1040, 0x17e0, 0x1810, 0x1d7ce, 0x1d7d8, 0x1d7e2, 0x1d7ec, 0x1d7f6,
