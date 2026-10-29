@@ -89,6 +89,8 @@ return [
     // défaire des fichiers déjà écrits. `max_photos` borne la SOMME des réserves des annonces demandées en une requête ;
     // au-delà, 422 `radar.publish.too_many_photos` avant la moindre écriture, et l'aperçu annonce le plafond.
     // 30 photos : ~1 annonce bien garnie ×1,5 — à resserrer ou relâcher sur une mesure de la préproduction.
+    // ⚠ Invariant : `max_photos` >= `photos.reserve_max` (20), sinon une annonce à réserve pleine ne se publierait jamais seule ;
+    // tenu par `RadarPublisherPhotosTest::test_le_plafond_de_publication_laisse_passer_une_reserve_pleine`.
     'publish' => [
         'max_photos' => 30,
     ],

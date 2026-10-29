@@ -95,6 +95,19 @@ class RadarPublisherPhotosTest extends TestCase
         );
     }
 
+    /**
+     * Le plafond d'une publication doit laisser passer une annonce à réserve pleine : sinon une annonce que la réserve accepte
+     * (jusqu'à `radar.photos.reserve_max`) ne se publierait jamais, seule, sans que rien ne le dise avant la confirmation.
+     */
+    public function test_le_plafond_de_publication_laisse_passer_une_reserve_pleine(): void
+    {
+        $this->assertGreaterThanOrEqual(
+            (int) config('radar.photos.reserve_max'),
+            (int) config('radar.publish.max_photos'),
+            '`radar.publish.max_photos` doit être >= `radar.photos.reserve_max` (config/radar.php)',
+        );
+    }
+
     public function test_une_reserve_vide_refuse_la_publication(): void
     {
         $annonce = $this->annonceConsentie(photos: 0);
