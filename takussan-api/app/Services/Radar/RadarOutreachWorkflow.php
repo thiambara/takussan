@@ -86,11 +86,16 @@ final class RadarOutreachWorkflow
                 'clauses_version' => ConsentMessageComposer::CLAUSES_VERSION,
                 'salutation' => $generated['salutation'],
                 'summary' => $generated['summary'],
-                'message' => $this->composer->compose($locale, $generated['salutation'], $generated['summary']),
+                // Le texte se compose une fois le message créé : son lien de réclamation est émis à son `created_at`.
+                'message' => '',
                 'follow_up_of_id' => $target?->id,
                 'follow_up_rank' => $rank,
                 'created_by_id' => $by->id,
             ]);
+            $outreach->setRelation('advertiser', $lockedAdvertiser);
+            $outreach->forceFill(['message' => $this->composer->compose(
+                $locale, $generated['salutation'], $generated['summary'], $outreach->clauses_version, $this->composer->claimUrlFor($outreach),
+            )])->save();
             $outreach->listings()->attach($judged->pluck('id')->all());
 
             if ($generated['result'] !== null) {
@@ -140,7 +145,8 @@ final class RadarOutreachWorkflow
                 ARRAY_FILTER_USE_BOTH,
             ));
             abort_code_if($empty !== [], 422, 'radar.outreach.parts_missing', ['fields' => $empty]);
-            $locked->message = $this->composer->compose($locked->locale, $locked->salutation, $locked->summary, $locked->clauses_version);
+            $locked->setRelation('advertiser', $advertiser);
+            $locked->message = $this->composer->compose($locked->locale, $locked->salutation, $locked->summary, $locked->clauses_version, $this->composer->claimUrlFor($locked));
             $locked->save();
 
             $this->journal('radar_outreach_retouched', 'Message d\'accord du Radar retouché', $locked, $by, [

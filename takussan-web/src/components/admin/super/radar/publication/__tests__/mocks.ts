@@ -61,7 +61,7 @@ export function messagePublie(partiel: Partial<RadarPublishedMessage> = {}): Rad
   return {
     text: 'Bonjour Moussa, vos annonces sont en ligne sur Takussan :\nhttps://takussan.test/fr/properties/appartement-12\nRépondez STOP pour ne plus être contacté.',
     wa_me: WA_ME_PUBLIE,
-    version: 'publie.v1',
+    version: 'publie.v2',
     ...partiel,
   };
 }

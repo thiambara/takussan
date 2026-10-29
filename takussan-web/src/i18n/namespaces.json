@@ -124,6 +124,10 @@
       "property",
       "serviceProviders"
     ],
+    "[locale]/(public)/claim": [
+      "auth",
+      "radarClaim"
+    ],
     "[locale]/(public)/legal": [],
     "[locale]/(public)/share": [
       "shareReception"
@@ -269,6 +273,7 @@
     "(dashboard)/app/account": 32,
     "(dashboard)/app/credits": 33,
     "(dashboard)/app/profile": 46,
+    "[locale]/(public)/claim": 28,
     "[locale]/(public)/legal": 26,
     "[locale]/(public)/share": 26,
     "(dashboard)/app/bookings": 38,

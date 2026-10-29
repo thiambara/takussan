@@ -79,7 +79,7 @@ class RadarConsentReplyTest extends TestCase
         $this->operateur = $this->agirEnOperateur(PlatformProfileLevel::Support);
         $this->annonceur = RadarAdvertiser::factory()->create(['phone' => self::NUMERO, 'display_name' => 'Awa Fall']);
         $this->annonce = RadarListing::factory()->reviewed()->create(['radar_advertiser_id' => $this->annonceur->id, 'stage' => RadarListingStage::Contacted]);
-        $texte = $this->app->make(ConsentMessageComposer::class)->compose('fr', 'Bonjour Awa,', 'votre appartement à Ouakam');
+        $texte = $this->app->make(ConsentMessageComposer::class)->compose('fr', 'Bonjour Awa,', 'votre appartement à Ouakam', 'accord.v1');
         $this->message = RadarOutreach::factory()->withListings($this->annonce)->sent()->create([
             'radar_advertiser_id' => $this->annonceur->id, 'salutation' => 'Bonjour Awa,', 'summary' => 'votre appartement à Ouakam',
             'message' => $texte, 'created_by_id' => $this->operateur->id, 'sent_by_id' => $this->operateur->id,

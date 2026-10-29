@@ -91,7 +91,7 @@ class RadarConsentTest extends TestCase
     private function message(RadarListing ...$annonces): RadarOutreach
     {
         $annonces = $annonces === [] ? [$this->annonce()] : $annonces;
-        $texte = $this->app->make(ConsentMessageComposer::class)->compose('fr', 'Bonjour Awa,', 'vos annonces à Ouakam');
+        $texte = $this->app->make(ConsentMessageComposer::class)->compose('fr', 'Bonjour Awa,', 'vos annonces à Ouakam', 'accord.v1');
 
         return RadarOutreach::factory()->withListings(...$annonces)->sent()->create([
             'radar_advertiser_id' => $this->annonceur->id, 'salutation' => 'Bonjour Awa,', 'summary' => 'vos annonces à Ouakam',

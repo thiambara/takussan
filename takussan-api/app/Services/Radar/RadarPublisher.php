@@ -3,6 +3,7 @@
 namespace App\Services\Radar;
 
 use App\Models\Agency;
+use App\Models\Enums\AgencyStatus;
 use App\Models\Enums\ContractType;
 use App\Models\Enums\Currency;
 use App\Models\Enums\PropertyStatus;
@@ -19,6 +20,7 @@ use App\Services\Auth\OtpPreview;
 use App\Services\Billing\QuotaResolver;
 use App\Services\Media\PrivateMediaAccess;
 use App\Support\LienFront;
+use App\Support\PhoneMasker;
 use App\Support\RadarWaMe;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -47,7 +49,8 @@ final class RadarPublisher
      */
     public const REQUIRED = RadarReviewFields::REQUIRED_FOR_REVIEW;
 
-    public const MESSAGE_VERSION = 'publie.v1';
+    /** TCK-2390 — `publie.v2` : le lien d'activation est le lien de réclamation signé ({@see ClaimLinks}), plus `/auth/login`. */
+    public const MESSAGE_VERSION = 'publie.v2';
 
     /**
      * La connexion par téléphone est éteinte (`auth.phone_login.enabled`) : le compte créé n'a ni mot de passe ni e-mail, et
@@ -70,6 +73,7 @@ final class RadarPublisher
         private readonly RadarConsentCoverage $coverage,
         private readonly RadarPhotoReserve $reserve,
         private readonly QuotaResolver $quotas,
+        private readonly ClaimLinks $claimLinks,
     ) {}
 
     /**
@@ -172,10 +176,48 @@ final class RadarPublisher
      */
     public function publish(RadarAdvertiser $advertiser, array $listingIds, User $by): array
     {
+        return $this->publishLocked($advertiser, $listingIds, $by, fn (RadarAdvertiser $locked) => $this->claim->assertHeld($locked, $by), null);
+    }
+
+    /**
+     * TCK-2390 (ADR-0077 §3) — l'annonceur publie lui-même ses annonces, réclamées par le lien du message : dans SON espace
+     * (`$agency`, choisi par la réclamation), sans prise en charge d'opérateur. Toutes les autres gardes sont celles de
+     * {@see self::publish()} — accord relu sous verrou, étape, photos, champs, plafond — et le compte rattaché à l'annonceur
+     * doit encore être `$owner`.
+     *
+     * @param  list<int>  $listingIds
+     * @return array{user: User, agency: Agency, properties: list<Property>, created: bool}
+     */
+    public function publishClaimed(RadarAdvertiser $advertiser, array $listingIds, User $owner, Agency $agency): array
+    {
+        return $this->publishLocked($advertiser, $listingIds, $owner, function (RadarAdvertiser $locked) use ($owner, $agency, $listingIds): void {
+            abort_code_unless($locked->user_id === $owner->id, 409, 'radar.claim.account_changed');
+            // Décision 2a : jamais sans l'accord `otp` de l'annonceur, relu ICI, sous verrou, au moment de publier — un STOP ou
+            // une révocation depuis la réclamation arrête tout, même si un autre accord (capture) couvre encore l'annonce.
+            $ids = array_values(array_unique(array_map('intval', $listingIds)));
+            $missing = array_values(array_diff($ids, $this->coverage->coveredByOtpAmong($ids, $owner)));
+            abort_code_if($missing !== [], 422, 'radar.publish.not_covered', ['listing_ids' => $missing]);
+            $space = Agency::query()->whereKey($agency->getKey())->first();
+            abort_code_if(
+                $space === null || $space->primary_admin_id !== $owner->id || $space->status === AgencyStatus::Suspended,
+                422,
+                AdvertiserProvisioner::ACCOUNT_UNAVAILABLE,
+            );
+        }, $agency);
+    }
+
+    /**
+     * @param  list<int>  $listingIds
+     * @param  callable(RadarAdvertiser): void  $authorize  sous le verrou de l'annonceur : qui a le droit de publier
+     * @param  Agency|null  $agency  l'espace de l'annonceur qui réclame ; `null` : celui du compte créé ou retrouvé par l'opérateur
+     * @return array{user: User, agency: Agency, properties: list<Property>, created: bool}
+     */
+    private function publishLocked(RadarAdvertiser $advertiser, array $listingIds, User $by, callable $authorize, ?Agency $agency): array
+    {
         $ids = array_values(array_unique(array_map('intval', $listingIds)));
         sort($ids);
 
-        $published = DB::transaction(function () use ($advertiser, $ids, $by): array {
+        $published = DB::transaction(function () use ($advertiser, $ids, $by, $authorize, $agency): array {
             $listings = RadarListing::query()->whereIn('id', $ids)->orderBy('id')->lockForUpdate()->get();
             $foreign = array_values(array_merge(
                 array_diff($ids, $listings->pluck('id')->map(fn ($id) => (int) $id)->all()),
@@ -184,7 +226,7 @@ final class RadarPublisher
             abort_code_if($foreign !== [], 422, 'radar.publish.listing_foreign', ['listing_ids' => $foreign]);
 
             $locked = RadarAdvertiser::query()->whereKey($advertiser->getKey())->lockForUpdate()->firstOrFail();
-            $this->claim->assertHeld($locked, $by);
+            $authorize($locked);
             abort_code_if($locked->do_not_contact_at !== null, 422, 'radar.advertiser.do_not_contact');
             abort_code_unless(self::activationAvailable(), 422, self::ACTIVATION_UNAVAILABLE);
             abort_code_if(self::otpPreviewActive(), 422, self::OTP_PREVIEW_ACTIVE);
@@ -224,7 +266,9 @@ final class RadarPublisher
             $maxPhotos = (int) config('radar.publish.max_photos');
             abort_code_if($photoCount > $maxPhotos, 422, 'radar.publish.too_many_photos', ['count' => $photoCount, 'max' => $maxPhotos]);
 
-            ['created' => $created, 'user' => $user, 'agency' => $agency] = $this->provisioner->provision($locked);
+            ['created' => $created, 'user' => $user, 'agency' => $agency] = $agency === null
+                ? $this->provisioner->provision($locked)
+                : ['created' => false, 'user' => $by, 'agency' => $agency];
 
             $properties = [];
             $copied = [];
@@ -254,6 +298,8 @@ final class RadarPublisher
                         'created_account' => $created,
                         'listing_ids' => $ids,
                         'property_ids' => array_map(fn (Property $property) => $property->id, $properties),
+                        // TCK-2390 — publié par l'annonceur lui-même, depuis le lien du message.
+                        'claimed' => $user->is($by),
                     ])
                     ->event('radar_published')
                     ->log('Annonces du Radar publiées pour l\'annonceur');
@@ -277,7 +323,8 @@ final class RadarPublisher
 
     /**
      * Le second message, celui qui annonce les biens en ligne : un texte fixe versionné
-     * (`resources/radar/messages/publie.v1.<locale>.md`), jamais généré, et son lien `wa.me`.
+     * (`resources/radar/messages/publie.v2.<locale>.md`), jamais généré, et son lien `wa.me`. Il n'est pas enregistré : son
+     * lien de réclamation est émis à sa composition, et sert `radar.claim.link_ttl_days` jours.
      *
      * @return array{text: string, wa_me: string, version: string}
      */
@@ -309,7 +356,7 @@ final class RadarPublisher
             ' {prenom}' => $firstName === '' ? '' : ' '.$firstName,
             '{prenom}' => $firstName,
             '{liens}' => $slugs->map(fn (string $slug) => self::publicUrl($slug, $locale))->implode("\n"),
-            '{lien_activation}' => LienFront::vers('/auth/login'),
+            '{lien_reclamation}' => $this->claimLinks->url($advertiser, now(), $locale),
         ]);
 
         return ['text' => $text, 'wa_me' => RadarWaMe::url($advertiser->phone, $text), 'version' => self::MESSAGE_VERSION];
@@ -364,7 +411,7 @@ final class RadarPublisher
     }
 
     /** @return list<string> */
-    private static function missingFields(RadarListing $listing): array
+    public static function missingFields(RadarListing $listing): array
     {
         $values = RadarReviewFields::values((array) $listing->extracted);
 
@@ -379,18 +426,18 @@ final class RadarPublisher
         return $missing;
     }
 
-    private static function otpPreviewActive(): bool
+    public static function otpPreviewActive(): bool
     {
         return OtpPreview::enabled() && ! app()->environment('local');
     }
 
-    private static function activationAvailable(): bool
+    public static function activationAvailable(): bool
     {
         return (bool) config('auth.phone_login.enabled');
     }
 
     /** Le nom du quartier canonique, `null` sans quartier ou pour un quartier refusé. */
-    private static function neighborhoodName(mixed $id): ?string
+    public static function neighborhoodName(mixed $id): ?string
     {
         return $id === null ? null : GeoNeighborhood::query()->find((int) $id)?->canonique()?->name;
     }
@@ -456,15 +503,27 @@ final class RadarPublisher
         }
     }
 
-    /** @return array{0: string, 1: string} prénom (premier mot) et reste, vides sans nom */
-    private static function nameOf(RadarAdvertiser $advertiser): array
+    /**
+     * TCK-2390 (vérification adverse I-1) — le `display_name` sans aucun numéro : il vient de la signature d'une annonce ou
+     * du profil WhatsApp, et peut porter le numéro (« Awa 77 123 45 67 »), comme le sait déjà le message d'accord. Le nom du
+     * compte, celui de l'espace PUBLIC et la page de réclamation en dérivent : le numéro est retiré, pas remplacé.
+     */
+    public static function displayNameWithoutPhone(RadarAdvertiser $advertiser): string
     {
-        $parts = preg_split('/\s+/', trim((string) $advertiser->display_name), 2) ?: [];
+        $masked = str_replace(PhoneMasker::TOKEN, ' ', PhoneMasker::mask((string) $advertiser->display_name));
+
+        return trim((string) preg_replace('/\s+/u', ' ', $masked));
+    }
+
+    /** @return array{0: string, 1: string} prénom (premier mot) et reste, vides sans nom */
+    public static function nameOf(RadarAdvertiser $advertiser): array
+    {
+        $parts = preg_split('/\s+/', self::displayNameWithoutPhone($advertiser), 2) ?: [];
 
         return [$parts[0] ?? '', $parts[1] ?? ''];
     }
 
-    private static function spaceName(string $firstName): string
+    public static function spaceName(string $firstName): string
     {
         return $firstName !== ''
             ? (string) __('onboarding.auto_space.name_with_first_name', ['first_name' => $firstName], 'fr')

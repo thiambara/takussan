@@ -97,6 +97,12 @@ export const ROUTES_DYNAMIQUES_PUBLIQUES: Readonly<
     source: null,
     exclue: 'TCK-602',
   },
+  // TCK-2390 (ADR-0077 §3) — la réclamation de ses annonces par l'annonceur du Radar : un lien
+  // signé, propre à lui, `noindex` et `no-referrer`.
+  '/claim/[token]': {
+    source: null,
+    exclue: 'TCK-2390',
+  },
 };
 
 /**
