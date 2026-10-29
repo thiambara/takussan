@@ -1,7 +1,7 @@
 ---
 id: TCK-2402
 title: "Les appels IA quittent la file des notifications : une file et un consommateur à eux, avant la production"
-status: review
+status: done
 phase: P1
 family: technique
 estimate: M
@@ -73,7 +73,7 @@ et le processus qui la consomme.
       par la garde sur le fichier Compose).
 - [x] AC3 — Un nouveau job qui appelle `AiGateway` sans déclarer la file IA fait rougir
       `scripts/check-queues.mjs` (épreuve par ablation dans le test de la garde).
-- [ ] AC4 — `smoke-api.sh pile` vérifie que le consommateur de la file IA tourne.
+- [x] AC4 — `smoke-api.sh pile` vérifie que le consommateur de la file IA tourne.
 
 ## Hors périmètre
 
@@ -84,10 +84,9 @@ et le processus qui la consomme.
 
 ## Notes d'implémentation
 
-- **Statut `review`, pas `done`** : AC4 est câblé (`smoke-api.sh pile` boucle sur `worker-ia` à trois
-  endroits : démarrage, release en échec, aucun redémarrage), mais la commande n'a pas été jouée
-  (elle construit l'image et lance la pile Docker ; plus de 10 minutes, donc pour la session
-  déléguante). À jouer une fois avant la fusion : `deploy/takussan/smoke-api.sh pile`.
+- **AC4 joué par la session déléguante** (2026-10-29, après les correctifs de la vérification
+  adverse, images reconstruites) : `smoke-api.sh pile` vert, dont « les cinq files de la connexion
+  database sont consommées (dont ai) » ; `worker-ia` ~50 Mio au repos, aucun redémarrage.
 - **Amendement d'ADR-0078, pas un ADR neuf** : même règle (délai de reprise > `$timeout`), même
   garde, même fichier Compose. Consommateur retenu : un `worker-ia` à part (option a) ; `worker-long`
   et `worker-media` écartés, chiffres dans l'ADR.
