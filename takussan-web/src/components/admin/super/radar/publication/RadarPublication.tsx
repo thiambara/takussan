@@ -38,6 +38,7 @@ import { useGestesDePrise } from '../annonceur/useGestesDePrise';
 import { useLibelleCodePublication, useMessageEchecAnnonceur } from '../annonceur/useMessageEchecAnnonceur';
 import { usePriseEnCharge } from '../annonceur/usePriseEnCharge';
 import { CartePublication } from './CartePublication';
+import { CODES_SANS_SECOND_MESSAGE } from './codes-publication';
 import { CompteACreer } from './CompteACreer';
 import { DejaPubliees } from './DejaPubliees';
 import { ConfirmerPublication } from './ConfirmerPublication';
@@ -106,6 +107,8 @@ function ApercuCharge({ id, apercu, claim }: ApercuChargeProps) {
   usePriseEnCharge({ claim, renouveler: () => renouvellement.mutate() });
   const mienne = claim?.mine === true;
   const stoppe = apercu.advertiser.do_not_contact_at !== null;
+  // Ce que l'API refuse de composer en 422 pour l'environnement : le second message promet l'activation par SMS.
+  const messageRefuse = apercu.blocking.some((code) => CODES_SANS_SECOND_MESSAGE.has(code));
   /** Une prise expirée entre deux lectures : le refus se rattrape ici (on reprend, on rejoue) au lieu d'envoyer à la fiche. */
   const avecPrise = async <T,>(appel: () => Promise<T>): Promise<T> => {
     try {
@@ -253,7 +256,7 @@ function ApercuCharge({ id, apercu, claim }: ApercuChargeProps) {
         onConfirmer={() => publication.mutate(cochees.map((annonce) => annonce.id))}
       />
 
-      {apercu.published.length > 0 ? <DejaPubliees advertiserId={id} biens={apercu.published} stoppe={stoppe} /> : null}
+      {apercu.published.length > 0 ? <DejaPubliees advertiserId={id} biens={apercu.published} stoppe={stoppe} messageRefuse={messageRefuse} /> : null}
     </div>
   );
 }

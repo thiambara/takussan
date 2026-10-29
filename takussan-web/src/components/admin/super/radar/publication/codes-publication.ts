@@ -49,3 +49,9 @@ export const BLOCAGES_GLOBAUX_RADAR: ReadonlySet<string> = new Set([
   'radar.publish.activation_unavailable',
   'radar.publish.otp_preview_active',
 ]);
+
+/** Les blocages globaux qui font aussi refuser le second message (422 de `published-message`) : on ne le demande pas. */
+export const CODES_SANS_SECOND_MESSAGE: ReadonlySet<string> = new Set([
+  'radar.publish.activation_unavailable',
+  'radar.publish.otp_preview_active',
+]);

@@ -11,7 +11,7 @@ import {
   ERREURS_SAISIE_RADAR,
   MOTIFS_RADAR,
 } from '../../codes-radar';
-import { BLOCAGES_GLOBAUX_RADAR, ERREURS_PUBLICATION_RADAR } from '../codes-publication';
+import { BLOCAGES_GLOBAUX_RADAR, CODES_SANS_SECOND_MESSAGE, ERREURS_PUBLICATION_RADAR } from '../codes-publication';
 
 const RACINE = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..', '..', '..', '..', '..');
 const lire = (...chemin: string[]) => readFileSync(join(RACINE, ...chemin), 'utf8');
@@ -86,6 +86,18 @@ describe('codes de « Publier pour lui »', () => {
   it('les blocages qui ferment tout l\'écran sont des codes connus', () => {
     const connus = new Set([...Object.keys(ERREURS_PUBLICATION_RADAR), ...Object.keys(ERREURS_ANNONCEUR_RADAR)]);
     for (const code of BLOCAGES_GLOBAUX_RADAR) expect(connus.has(code), code).toBe(true);
+  });
+
+  it('les codes qui font taire le second message sont des blocages globaux, refusés par l\'API à published-message', () => {
+    const publisher = lire('takussan-api', 'app', 'Services', 'Radar', 'RadarPublisher.php');
+    const corps = publisher.slice(publisher.indexOf('public function publishedMessage'));
+    expect(CODES_SANS_SECOND_MESSAGE.size).toBeGreaterThan(0);
+    for (const code of CODES_SANS_SECOND_MESSAGE) {
+      expect(BLOCAGES_GLOBAUX_RADAR.has(code), code).toBe(true);
+      const constante = publisher.match(new RegExp(`const (\\w+) = '${code.replaceAll('.', '\\.')}'`))?.[1];
+      expect(constante, `constante de ${code}`).toBeDefined();
+      expect(corps.slice(0, corps.indexOf('$template')), code).toContain(`self::${constante}`);
+    }
   });
 
   it('les plafonds de la réserve sont ceux de l\'API', async () => {

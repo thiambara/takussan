@@ -714,6 +714,20 @@ describe('RadarPublication — le second message ne se perd pas (TCK-2389)', () 
     expect(fetchRadarPublishedMessage).not.toHaveBeenCalled();
   });
 
+  it.each(['radar.publish.activation_unavailable', 'radar.publish.otp_preview_active'])(
+    'avec le blocage %s : les liens restent, le message n\'est pas demandé, une phrase fixe remplace « Réessayer »',
+    async (blocage) => {
+      await rendre(apercu({ listings: [], blocking: [blocage], published: publiee().properties }));
+
+      const section = screen.getByTestId('radar-publication-deja');
+      expect(within(section).getByRole('link', { name: 'Appartement 12' })).toBeInTheDocument();
+      expect(within(section).getByTestId('radar-publication-deja-indisponible')).toHaveTextContent(/Le second message ne peut pas être composé dans cet environnement/);
+      expect(within(section).queryByTestId('radar-publication-message')).not.toBeInTheDocument();
+      expect(within(section).queryByRole('button', { name: /Réessayer/ })).not.toBeInTheDocument();
+      expect(fetchRadarPublishedMessage).not.toHaveBeenCalled();
+    },
+  );
+
   it('rien n\'est déjà en ligne : aucune section, et le message n\'est pas lu', async () => {
     await rendre();
 
