@@ -1,13 +1,13 @@
 ---
 id: TCK-2389
 title: "Radar : « Publier pour lui » crée l'espace individuel de l'annonceur et publie ses annonces sur un accord confirmé — et les textes juridiques le disent"
-status: todo
+status: doing
 phase: P1
 family: full
 estimate: L
 wave: 80
 created: 2026-10-26
-updated: 2026-10-26
+updated: 2026-10-29
 depends_on: [TCK-2387, TCK-2388]
 blocks: [TCK-2390, TCK-2391, TCK-2394]
 spec_refs:
@@ -35,6 +35,23 @@ compte est l'espace individuel du bouton « Publier » (`features.md` § 1.12,
 [plan](../../plans/2026-10-26-radar-et-socle-ia.md#les-textes-juridiques--clauses-à-poser) : la
 règle du dossier `content/legal` veut qu'elles entrent avec le code qu'elles décrivent.
 
+## Décisions du porteur (2026-10-29)
+
+1. **a** — La connexion par code SMS ouvre le compte créé par le Radar : amendement étroit
+   d'[ADR-0033](../../adr/0033-le-telephone-verifie-est-un-identifiant-de-connexion.md) §3, écrit
+   avant le code. Sans lui, la contrainte 2 d'ADR-0033 ouvrait un compte neuf et vide à
+   l'annonceur, et ses annonces restaient hors de portée.
+2. **a** — Les textes juridiques entrent en entier ; ce qu'ils promettent et que ce ticket ne
+   fait pas encore (retrait sans délai sur STOP, durées de conservation : TCK-2391 ; conditions
+   présentées à l'activation : TCK-2390) est porté par ces tickets et inscrit à « Avant la mise en
+   production » du `README` de `content/legal`.
+3. **a** — Les photos se préparent avant la publication : l'accord confirmé met en file leur
+   téléchargement dans une réserve privée de l'annonce (`radar_photos`, `photo_preparation`) ;
+   l'opérateur peut en retirer, en déposer, ou relancer. `publish` ne fait aucun appel réseau :
+   il copie la réserve dans `photos` (empreintes d'ADR-0054). Spec : PR #1580.
+4. **a** — Un contact sur place qui répète un numéro déjà servi n'est pas servi deux fois
+   (`PropertyContactNumbers`). Spec : PR #1580.
+
 ## Contrat de données
 
 - `GET /api/admin/radar/advertisers/{advertiser}/publication-preview` — compte à créer (nom,
@@ -42,6 +59,9 @@ règle du dossier `content/legal` veut qu'elles entrent avec le code qu'elles d�
   par annonce, rapprochements, et le motif de blocage éventuel.
 - `POST /api/admin/radar/advertisers/{advertiser}/publish` — `{listing_ids[]}`, sous
   `Idempotency-Key` (ADR-0072) ; rend l'utilisateur, l'espace et les biens créés.
+- La réserve de photos d'une annonce (décision 3) : `POST /api/admin/radar/listings/{listing}/photos/fetch`
+  (relance le téléchargement), `POST …/listings/{listing}/photos` (dépôt multipart),
+  `DELETE …/listings/{listing}/photos/{media}` ; l'aperçu de publication la rend.
 - `GET /api/admin/radar/advertisers/{advertiser}/published-message` — le second message `wa.me`
   (« vos annonces sont en ligne : …, activez votre compte : … »).
 
@@ -89,6 +109,12 @@ liens publics et le message prêt à envoyer.
 
 ## Delta à produire
 
+- [ ] Amendement d'ADR-0033 §3 (décision 1), et `PhoneLoginService` qui ouvre le compte créé par le
+      Radar · `PhoneLoginRadarAccountTest`.
+- [ ] La réserve de photos (décision 3) : migration `photo_preparation`, collection `radar_photos`,
+      job `PrepareRadarListingPhotos` mis en file par l'accord confirmé, routes de relance, dépôt
+      et retrait · `RadarPhotoReserveTest`.
+- [ ] `PropertyContactNumbers` : un numéro servi une seule fois (décision 4).
 - [ ] `PlatformAbility::RadarPublish`.
 - [ ] `App\Services\Radar\AdvertiserProvisioner` (refus d'un numéro inscrit, utilisateur sans mot
       de passe, appel de `HostIndividualOnboardingService`).
@@ -97,7 +123,8 @@ liens publics et le message prêt à envoyer.
 - [ ] Contrôleur `RadarPublicationController` · FormRequest `PublishRadarListingsRequest` · route
       sous le middleware d'idempotence.
 - [ ] `takussan-web/src/content/legal/terms.ts` (article 6.3, `fr` et `en`), `privacy.ts`
-      (ajouts), `editeur.ts` (`VERSION_DOCUMENTS`) ; `__tests__/textes.test.ts` vert.
+      (ajouts), `editeur.ts` (`VERSION_DOCUMENTS`) ; `__tests__/textes.test.ts` vert ;
+      `PublishReadiness::TERMS_VERSION` suit ; `README.md` (« Avant la mise en production »).
 - [ ] Front : écran de vérification, confirmation, récapitulatif et second message.
 - [ ] Tests : `RadarPublishTest` (sans accord ⇒ 422 ; accord révoqué ⇒ 422 ; annonce hors du
       message ⇒ 422 ; numéro inscrit ⇒ 422 ; `support` ⇒ 403 ; rejeu idempotent ⇒ un seul

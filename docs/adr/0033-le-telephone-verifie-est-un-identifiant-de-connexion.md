@@ -4,7 +4,9 @@
 - **Date** : 2026-10-07
 - **Tickets** : [TCK-589](../backlog/tickets/TCK-589-entree-telephone-2fa-sessions-onboarding.md)
 - **Amendé** : §6 par [TCK-622](../backlog/tickets/TCK-622-borne-sms-compte-les-envois.md) (2026-10-10) — la
-  borne par numéro compte les codes **envoyés**, plus les requêtes.
+  borne par numéro compte les codes **envoyés**, plus les requêtes. §3 par
+  [TCK-2389](../backlog/tickets/TCK-2389-radar-publier-pour-l-annonceur.md) (2026-10-29) — le compte
+  créé par le Radar pour un numéro s'ouvre par ce numéro ([ADR-0077](0077-le-radar.md) §6).
 - **Précise** : [ADR-0010](0010-auth-token-sanctum-en-cookie.md) (le jeton Sanctum porté par cookie
   reste le seul transport de session ; ce qui change est **comment on l'obtient** et **combien de
   temps il vit**).
@@ -101,6 +103,36 @@ compte ne l'a vérifié — même si un ou plusieurs comptes le portent sans l'a
 un compte neuf** au premier code valide (`phone_verified_at` posé, `email` nul, mot de passe aléatoire,
 `password_set_at` nul). **Aucune fusion automatique.** L'ancien compte qui tente ensuite de vérifier ce
 numéro reçoit 409 `phone_taken`.
+
+**Amendement du 2026-10-29 (TCK-2389, décision 1a du porteur) : une seule exception, le compte que
+le Radar a créé pour ce numéro.** « Publier pour lui » ([ADR-0077](0077-le-radar.md) §6) crée un
+compte sans mot de passe dont le numéro n'est **pas** vérifié, et promet que l'annonceur l'active par
+un code SMS. Sans exception, la règle ci-dessus lui ouvrait un compte neuf et vide, et ses annonces
+restaient dans un compte que personne ne pouvait plus ouvrir.
+
+- **Quand aucun compte n'a vérifié le numéro**, la connexion par code ouvre le compte qui remplit
+  **toutes** ces conditions, et lui seul :
+  - un `radar_advertisers` le désigne (`user_id`) : c'est le Radar qui l'a créé ;
+  - son `phone` est ce numéro (forme canonique, `CanonicalPhone`) — le numéro **du compte**, pas
+    celui de l'annonceur, que la purge efface après un STOP (ADR-0077 §9) ;
+  - `phone_verified_at` nul, `password_set_at` nul, `email` nul, compte non supprimé : il n'a
+    jamais eu d'autre facteur que ce numéro.
+
+  S'il y en a plus d'un, aucun n'est ouvert : la règle générale s'applique (compte neuf).
+- **Le code arrivé vérifie le numéro** par `PhoneVerificationService::markVerified()`, le seul
+  écrivain ; `PhoneVerified` attribue alors les crédits de bienvenue, comme pour tout le monde
+  (TCK-2389, AC3). La réponse dit `is_new_account: false`.
+- **Pourquoi ce n'est pas l'alternative écartée** (« rattacher au compte qui porte le numéro, même
+  non vérifié ») : celle-ci livrait un compte **à qui le numéro a été saisi par un tiers**, avec ce
+  qu'il contient. Ici, le compte a été créé **pour le titulaire du numéro**, sur la réponse venue de
+  ce numéro (la capture vérifiée montre le numéro, ADR-0077 §3), et il ne contient que ce que ce
+  titulaire a accepté de publier. Le livrer au porteur du numéro est son objet.
+- **Le risque qui reste, accepté** : un numéro mal rattaché à l'annonceur, ou réattribué par
+  l'opérateur entre la réponse et l'activation, livre ce compte et ses annonces au nouveau porteur.
+  Il ne contient ni paiement, ni pièce, ni donnée d'un tiers ; le support le retire.
+- **L'activation suit le drapeau du §1** : drapeau éteint, aucune connexion par téléphone n'existe,
+  et le compte créé par le Radar reste fermé. Un environnement qui publie pour des annonceurs a donc
+  besoin du drapeau allumé pour tenir la promesse du message « activez votre compte ».
 
 ### 4. L'e-mail facultatif, et ce qui en dépendait
 
@@ -303,4 +335,4 @@ ticket les trouve en partant de la liste.
   `OnboardingFixedCodeRemovedTest`, `PhoneLoginTest`, `PhoneLoginFlagTest`,
   `PhoneLoginEnumerationTest`, `PhoneLoginRateLimitTest`, `PhoneNumberUniquenessTest`,
   `PasswordLoginLockTest`, `AccountWithoutEmailTest`, `PhoneChangeProofTest`,
-  `PhoneChangeNoticeTest`.
+  `PhoneChangeNoticeTest` ; et `PhoneLoginRadarAccountTest` (amendement du §3, TCK-2389).

@@ -7,7 +7,7 @@ family: full
 estimate: M
 wave: 80
 created: 2026-10-26
-updated: 2026-10-26
+updated: 2026-10-29
 depends_on: [TCK-2388, TCK-2389]
 blocks: [TCK-2394]
 spec_refs:
@@ -73,6 +73,13 @@ jargon de plateforme. Si le compte existe déjà (publié pour lui), la même pa
   l'enum), confirmée par la connexion elle-même — sans capture ni vérification IA.
 
 ## Delta à produire
+
+- [ ] Héritée de TCK-2389 : l'annonceur dont les annonces ont été publiées pour lui a déjà un compte
+      (`radar_advertisers.user_id`, sans mot de passe, numéro non vérifié), que la connexion par code
+      SMS ouvre (amendement d'ADR-0033 §3). La page l'active : elle lui **présente les conditions
+      d'utilisation pour acceptation**, comme l'article 6.3 de `terms.ts` le promet depuis
+      TCK-2389 (décision 2a du porteur, 2026-10-29), puis retire cette ligne de « Avant la mise en
+      production » du `README` de `content/legal`.
 
 - [ ] `App\Services\Radar\ClaimLinks` (signature, expiration, révocation).
 - [ ] Contrôleur public `App\Http\Controllers\Public\RadarClaimController` · FormRequests
