@@ -222,6 +222,17 @@ describe('<RadarClaimReception> (TCK-2390)', () => {
     expect(auth.logout).toHaveBeenCalled();
   });
 
+  it('deux comptes pour ce numéro : la page renvoie au support, sans formulaire ni code', async () => {
+    auth.token = 'jeton-titulaire';
+    bouchonner(reponse(200, reclamation({ account: { state: 'support', viewer_is_other: true } })));
+    render(withIntl(<RadarClaimReception token={JETON} />));
+
+    const bloc = await screen.findByTestId('claim-support');
+    expect(bloc).toHaveTextContent('contact@takussan.com');
+    expect(screen.queryByRole('button', { name: T.sendCode })).toBeNull();
+    expect(screen.queryByRole('button', { name: T.logout })).toBeNull();
+  });
+
   it('compte préparé par le Radar sans annonce restante : le code active le compte seul', async () => {
     bouchonner(reponse(200, reclamation({ account: { state: 'activation' }, listings: [] })));
     render(withIntl(<RadarClaimReception token={JETON} />));

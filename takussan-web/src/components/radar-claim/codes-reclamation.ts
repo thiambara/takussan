@@ -18,6 +18,7 @@ export const ERREURS_RECLAMATION_RADAR: Readonly<Record<string, string>> = {
   'radar.claim.login_required': 'loginRequired',
   'radar.claim.wrong_account': 'wrongAccount',
   'radar.claim.account_changed': 'accountChanged',
+  'radar.claim.support_required': 'supportRequired',
 };
 
 export const REFUS_DU_CODE: Readonly<Record<string, string>> = {

@@ -24,7 +24,9 @@ la plateforme fait réellement**, relevé dans le code le même jour.
 2. **Déclarer les traitements à la CDP** et reporter le numéro du récépissé dans `privacy.ts` et
    `notice.ts`.
 3. **Créer les trois boîtes** `contact@`, `privacy@` et `legal@takussan.com` — les textes les citent.
-4. **Faire relire par un avocat inscrit au barreau du Sénégal.**
+4. **Faire relire par un avocat inscrit au barreau du Sénégal.** ⚠ Y compris les clauses du message
+   d'accord du Radar (`takussan-api/resources/radar/clauses/accord.v2.*.md`) : leur formulation
+   neutre « votre ou vos annonces » (TCK-2390, décision 6a du porteur) n'a pas été relue.
 5. **Fermer TCK-537** : trois engagements de la politique ne sont pas encore tenus par le code.
 6. **Fermer TCK-2391** (révocation et purge du Radar) : il rend vrais « retirées sans délai » après un
    STOP (article 6.3 des CGU) et les deux durées ajoutées au § 6 de la politique (annonces relevées et

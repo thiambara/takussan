@@ -189,8 +189,13 @@ final class RadarPublisher
      */
     public function publishClaimed(RadarAdvertiser $advertiser, array $listingIds, User $owner, Agency $agency): array
     {
-        return $this->publishLocked($advertiser, $listingIds, $owner, function (RadarAdvertiser $locked) use ($owner, $agency): void {
+        return $this->publishLocked($advertiser, $listingIds, $owner, function (RadarAdvertiser $locked) use ($owner, $agency, $listingIds): void {
             abort_code_unless($locked->user_id === $owner->id, 409, 'radar.claim.account_changed');
+            // Décision 2a : jamais sans l'accord `otp` de l'annonceur, relu ICI, sous verrou, au moment de publier — un STOP ou
+            // une révocation depuis la réclamation arrête tout, même si un autre accord (capture) couvre encore l'annonce.
+            $ids = array_values(array_unique(array_map('intval', $listingIds)));
+            $missing = array_values(array_diff($ids, $this->coverage->coveredByOtpAmong($ids, $owner)));
+            abort_code_if($missing !== [], 422, 'radar.publish.not_covered', ['listing_ids' => $missing]);
             $space = Agency::query()->whereKey($agency->getKey())->first();
             abort_code_if(
                 $space === null || $space->primary_admin_id !== $owner->id || $space->status === AgencyStatus::Suspended,

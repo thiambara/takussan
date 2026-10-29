@@ -12,6 +12,7 @@ import { FormGlobalError } from '@/components/forms/FormError';
 import { LienLocalise } from '@/components/shared/LienLocalise';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { EDITEUR } from '@/content/legal/editeur';
 import { useAuth } from '@/context/AuthContext';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import type { Locale } from '@/i18n/config';
@@ -220,10 +221,13 @@ export function RadarClaimReception({ token: jeton }: RadarClaimReceptionProps) 
   // Rien à publier ne se confirme que pour ouvrir le compte que le Radar a préparé (l'API refuse sinon).
   const confirmable = retenues.length > 0 || account.state === 'activation';
 
-  // Les cas où la page ne peut pas confirmer : un autre compte connecté, le compte du numéro à
-  // ouvrir d'abord par la connexion, ou un compte que la page ne peut pas ouvrir du tout.
+  // Les cas où la page ne peut pas confirmer : deux comptes pour ce numéro, que seul le support
+  // réunit (décision 5a) ; un compte que la page ne peut pas ouvrir ; un autre compte connecté ; le
+  // compte du numéro à ouvrir d'abord par la connexion.
   const blocage =
-    account.state === 'unavailable'
+    account.state === 'support'
+      ? 'support'
+      : account.state === 'unavailable'
       ? 'unavailableAccount'
       : account.viewer_is_other
         ? 'otherAccount'
@@ -335,7 +339,7 @@ export function RadarClaimReception({ token: jeton }: RadarClaimReceptionProps) 
       {blocage ? (
         <div className="space-y-3 rounded-xl border border-border bg-muted p-4" data-testid={`claim-${blocage}`}>
           <h2 className="font-display text-base font-semibold text-foreground">{t(`${blocage}Title`)}</h2>
-          <p className="bg-muted text-sm text-muted-foreground text-pretty">{t(`${blocage}Body`, { phone: telephone })}</p>
+          <p className="bg-muted text-sm text-muted-foreground text-pretty">{t(`${blocage}Body`, { phone: telephone, email: EDITEUR.courriels.contact })}</p>
           {blocage === 'existingLogin' ? (
             <Link
               href={hrefConnexion(`/${locale}/claim/${encodeURIComponent(jeton)}`)}

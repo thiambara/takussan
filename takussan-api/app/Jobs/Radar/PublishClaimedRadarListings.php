@@ -8,6 +8,7 @@ use App\Models\Enums\RadarListingStage;
 use App\Models\RadarAdvertiser;
 use App\Models\RadarListing;
 use App\Models\User;
+use App\Services\Radar\ClaimLinks;
 use App\Services\Radar\RadarClaims;
 use App\Services\Radar\RadarPhotoReserve;
 use App\Services\Radar\RadarPublisher;
@@ -22,6 +23,11 @@ use Illuminate\Support\Facades\Log;
  * espace, par {@see RadarPublisher::publishClaimed()}. Mis en file APRÈS le commit de la réclamation : les photos d'une
  * annonce-URL ne se lisent qu'une fois l'accord donné ({@see PrepareRadarListingPhotos}, décision 3a), le job attend donc la
  * fin de leur préparation en se relâchant.
+ *
+ * **Idempotent** : seules les annonces encore `consented` se lisent, l'étape se rejuge sous verrou dans
+ * {@see RadarPublisher::publishClaimed()}, et deux exécutions ne se chevauchent pas pour un annonceur — rejoué, le job ne publie
+ * rien deux fois. **Jamais sans l'accord `otp`** valide de l'annonceur au moment où il s'exécute (décision 2a) : un STOP ou une
+ * révocation arrête tout.
  *
  * Publie ce qui est prêt — `consented`, une photo en réserve au moins, aucun champ requis manquant —, par lots sous
  * `radar.publish.max_photos`. Ce qui ne l'est pas (aucune photo à la source, un champ effacé) reste `consented` : le
@@ -75,7 +81,8 @@ final class PublishClaimedRadarListings implements ShouldQueue
         $advertiser = RadarAdvertiser::query()->find($this->advertiserId);
         $user = User::query()->find($this->userId);
         $agency = Agency::query()->find($this->agencyId);
-        if ($listings->isEmpty() || $advertiser === null || $user === null || $agency === null) {
+        // Un STOP, un accord retiré ou un numéro purgé depuis la réclamation : plus rien ne s'attend ni ne se publie (décision 2a).
+        if ($listings->isEmpty() || $advertiser === null || $user === null || $agency === null || ClaimLinks::revoked($advertiser)) {
             return;
         }
 

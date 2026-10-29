@@ -9,6 +9,11 @@ use App\Models\Enums\RadarConsentProof;
 use App\Models\Enums\RadarListingStage;
 use App\Models\Enums\RadarOutreachOutcome;
 use App\Models\Enums\RadarVerificationStatus;
+use App\Models\Profiles\AgencyAdminProfile;
+use App\Models\Profiles\AgentProfile;
+use App\Models\Profiles\OwnerProfile;
+use App\Models\Profiles\PlatformProfile;
+use App\Models\Profiles\ServiceProviderProfile;
 use App\Models\Property;
 use App\Models\RadarAdvertiser;
 use App\Models\RadarConsent;
@@ -37,6 +42,8 @@ use Illuminate\Support\Facades\DB;
  *  - `activation` — le compte créé par le Radar, jamais activé : le code le vérifie (crédit de bienvenue) ;
  *  - `existing` — un compte a VÉRIFIÉ ce numéro : connexion exigée (la page de connexion, 2FA comprise), puis un code frais ;
  *  - `unavailable` — le compte rattaché est supprimé, bloqué, suspendu, ou ne s'ouvrirait plus par ce numéro : rien.
+ *  - `support` — un compte a vérifié ce numéro, mais le compte que le Radar avait créé pour lui a servi (connexion, mot de
+ *    passe, e-mail, numéro vérifié, autre bien ou autre espace) : rien ne se réunit sans le support (décision 5a du porteur).
  *
  * **Rien de ce que la page lit ne vient du Radar interne** : ni le numéro (masqué), ni la nature, ni ses indices, ni un
  * verdict, ni la source de l'annonce. Seulement les valeurs de l'annonce, ses photos déjà en réserve, et les biens en ligne.
@@ -56,6 +63,9 @@ final class RadarClaims
     public const STATE_EXISTING = 'existing';
 
     public const STATE_UNAVAILABLE = 'unavailable';
+
+    /** Deux comptes pour un numéro, dont le compte du Radar a servi : le support tranche, la page ne réunit rien. */
+    public const STATE_SUPPORT = 'support';
 
     /** Le motif d'une annonce que l'annonceur a décochée : il ne veut pas la publier. */
     public const DECLINED = 'radar.claim.declined';
@@ -118,6 +128,7 @@ final class RadarClaims
         $phone = (string) $advertiser->phone;
         $state = $this->state($advertiser);
         abort_code_if($state['state'] === self::STATE_UNAVAILABLE, 422, 'radar.claim.account_unavailable');
+        abort_code_if($state['state'] === self::STATE_SUPPORT, 409, 'radar.claim.support_required');
         // Un numéro vérifié sur un compte : la connexion d'abord, le code ensuite — un SMS ne se dépense pas pour rien.
         abort_code_if($state['state'] === self::STATE_EXISTING && ! $viewer?->is($state['user']), 409, 'radar.claim.login_required');
         abort_code_unless(PhoneVerificationService::countryAllowed($phone), 422, 'radar.claim.account_unavailable');
@@ -139,6 +150,7 @@ final class RadarClaims
         $phone = (string) $advertiser->phone;
         $state = $this->state($advertiser);
         abort_code_if($state['state'] === self::STATE_UNAVAILABLE, 422, 'radar.claim.account_unavailable');
+        abort_code_if($state['state'] === self::STATE_SUPPORT, 409, 'radar.claim.support_required');
         abort_code_if($input['terms_version'] !== PublishReadiness::TERMS_VERSION, 422, 'radar.claim.terms_outdated');
 
         $selection = collect($input['listings'])->keyBy(fn (array $row) => (int) $row['id']);
@@ -228,8 +240,11 @@ final class RadarClaims
         }
 
         $moved = [];
-        if ($previous !== null && $previous !== $user->id) {
-            $moved = $this->moveOrphanProperties($locked, $previous, $user, $agency);
+        $orphan = $this->orphanOf($locked, $user);
+        if ($orphan !== null) {
+            // Rejugé sous verrou : le compte du Radar a pu servir entre la lecture de la page et le code.
+            abort_code_unless($this->orphanAbsorbable($locked, $orphan), 409, 'radar.claim.support_required');
+            $moved = $this->absorbOrphan($locked, $orphan, $user, $agency);
         }
         if ($locked->user_id === null || (int) $locked->user_id !== $user->id) {
             $locked->forceFill(['user_id' => $user->id])->save();
@@ -330,16 +345,66 @@ final class RadarClaims
     }
 
     /**
-     * Le compte orphelin (revue finale de TCK-2389) : le Radar a créé A pour ce numéro, A n'a jamais été activé, et le
-     * titulaire l'a vérifié sur B. Ses biens publiés par le Radar suivent l'annonceur dans l'espace de B.
-     *
-     * @return list<int>
+     * Le compte orphelin (revue finale de TCK-2389) : le Radar a créé A pour ce numéro, puis le titulaire l'a vérifié sur un
+     * autre compte B. `null` quand il n'y en a pas (ou plus : A déjà supprimé).
      */
-    private function moveOrphanProperties(RadarAdvertiser $advertiser, int $previous, User $user, Agency $agency): array
+    private function orphanOf(RadarAdvertiser $advertiser, User $user): ?User
     {
+        if ($advertiser->user_id === null || (int) $advertiser->user_id === (int) $user->id) {
+            return null;
+        }
+
+        return User::query()->find($advertiser->user_id);
+    }
+
+    /**
+     * Décision 5a du porteur (2026-10-29) : A se réunit à B **seulement s'il n'a jamais servi** — ni numéro vérifié, ni
+     * connexion, ni jeton, ni mot de passe, ni e-mail, ni bien ou espace autre que ceux que le Radar lui a faits, ni profil
+     * ailleurs, et personne d'autre dans son espace. Sinon rien ne se déplace : la page dit « écrivez-nous » (`support`).
+     */
+    private function orphanAbsorbable(RadarAdvertiser $advertiser, User $orphan): bool
+    {
+        if ($orphan->phone_verified_at !== null || $orphan->last_login_at !== null || $orphan->password_set_at !== null
+            || $orphan->email !== null || $orphan->tokens()->exists()) {
+            return false;
+        }
+
+        $spaces = Agency::withTrashed()->where('primary_admin_id', $orphan->id)->pluck('id')->map(fn ($id) => (int) $id)->all();
+        if (count($spaces) > 1) {
+            return false;
+        }
+        $radarProperties = RadarListing::query()->where('radar_advertiser_id', $advertiser->id)->whereNotNull('property_id')->select('property_id');
+        $foreignProperty = Property::withTrashed()
+            ->where(fn ($query) => $query->where('user_id', $orphan->id)->orWhereIn('agency_id', $spaces))
+            ->whereNotIn('id', $radarProperties)
+            ->exists();
+        if ($foreignProperty) {
+            return false;
+        }
+        foreach ([AgencyAdminProfile::class, OwnerProfile::class, AgentProfile::class] as $profile) {
+            $elsewhere = $profile::withTrashed()->where('user_id', $orphan->id)->whereNotIn('agency_id', $spaces)->exists();
+            $someoneElse = $profile::withTrashed()->whereIn('agency_id', $spaces)->where('user_id', '!=', $orphan->id)->exists();
+            if ($elsewhere || $someoneElse) {
+                return false;
+            }
+        }
+
+        return ! ServiceProviderProfile::query()->where('user_id', $orphan->id)->exists()
+            && ! PlatformProfile::withTrashed()->where('user_id', $orphan->id)->exists();
+    }
+
+    /**
+     * A n'a jamais servi : ses biens publiés par le Radar suivent l'annonceur dans l'espace de B, avec ce que les visiteurs y
+     * ont laissé — demandes de contact et prospects de son espace, visites, réservations, empreintes de photos, collaborations
+     * et conversations (B y prend la place de A). Puis A, ses profils et son espace se suppriment (suppression douce).
+     *
+     * @return list<int> les biens déplacés
+     */
+    private function absorbOrphan(RadarAdvertiser $advertiser, User $orphan, User $user, Agency $agency): array
+    {
+        $spaces = Agency::query()->where('primary_admin_id', $orphan->id)->pluck('id')->map(fn ($id) => (int) $id)->all();
         $ids = Property::query()
-            ->where('user_id', $previous)
-            ->whereIn('id', RadarListing::query()->where('radar_advertiser_id', $advertiser->id)->whereNotNull('property_id')->select('property_id'))
+            ->where(fn ($query) => $query->where('user_id', $orphan->id)->orWhereIn('agency_id', $spaces))
             ->orderBy('id')
             ->lockForUpdate()
             ->pluck('id')
@@ -349,6 +414,28 @@ final class RadarClaims
         foreach (Property::query()->whereIn('id', $ids)->get() as $property) {
             $property->forceFill(['agency_id' => $agency->id, 'user_id' => $user->id])->save();
         }
+
+        $leads = DB::table('property_contact_leads')->where(fn ($query) => $query->whereIn('property_id', $ids)->orWhereIn('agency_id', $spaces));
+        (clone $leads)->update(['agency_id' => $agency->id]);
+        (clone $leads)->where('recipient_user_id', $orphan->id)->update(['recipient_user_id' => $user->id]);
+        (clone $leads)->where('handled_by_id', $orphan->id)->update(['handled_by_id' => $user->id]);
+        DB::table('customers')->whereIn('agency_id', $spaces)->update(['agency_id' => $agency->id]);
+        DB::table('customers')->where('added_by_id', $orphan->id)->update(['added_by_id' => $user->id]);
+        DB::table('property_visits')->whereIn('property_id', $ids)->where('agent_id', $orphan->id)->update(['agent_id' => $user->id]);
+        DB::table('bookings')->whereIn('agency_id', $spaces)->update(['agency_id' => $agency->id]);
+        DB::table('media_fingerprints')->whereIn('property_id', $ids)->update(['agency_id' => $agency->id]);
+        DB::table('property_collaborators')->whereIn('property_id', $ids)->where('user_id', $orphan->id)->update(['user_id' => $user->id]);
+
+        // Une conversation où B est déjà : A s'en retire ; ailleurs, B prend sa place (unique par conversation et compte).
+        $joined = DB::table('conversation_participants')->where('user_id', $user->id)->select('conversation_id');
+        DB::table('conversation_participants')->where('user_id', $orphan->id)->whereIn('conversation_id', $joined)->delete();
+        DB::table('conversation_participants')->where('user_id', $orphan->id)->update(['user_id' => $user->id]);
+
+        foreach ([AgencyAdminProfile::class, OwnerProfile::class, AgentProfile::class] as $profile) {
+            $profile::query()->where('user_id', $orphan->id)->get()->each->delete();
+        }
+        Agency::query()->whereIn('id', $spaces)->get()->each->delete();
+        $orphan->delete();
 
         return $ids;
     }
@@ -363,7 +450,14 @@ final class RadarClaims
         ['user' => $user, 'verified' => $verified] = $this->login->accountFor((string) $advertiser->phone);
 
         if ($verified) {
-            return $user->canOpenSession() ? ['state' => self::STATE_EXISTING, 'user' => $user] : ['state' => self::STATE_UNAVAILABLE, 'user' => null];
+            if (! $user->canOpenSession()) {
+                return ['state' => self::STATE_UNAVAILABLE, 'user' => null];
+            }
+            $orphan = $this->orphanOf($advertiser, $user);
+
+            return $orphan !== null && ! $this->orphanAbsorbable($advertiser, $orphan)
+                ? ['state' => self::STATE_SUPPORT, 'user' => null]
+                : ['state' => self::STATE_EXISTING, 'user' => $user];
         }
         if ($advertiser->user_id === null) {
             return ['state' => self::STATE_NEW, 'user' => null];

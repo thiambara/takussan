@@ -759,6 +759,7 @@ return [
             'login_required' => 'Ce numéro a déjà un compte Takussan : connectez-vous d\'abord.',
             'wrong_account' => 'Vous êtes connecté avec un autre compte : déconnectez-vous, puis rouvrez ce lien.',
             'account_changed' => 'Ce compte a changé entre-temps : rechargez la page.',
+            'support_required' => 'Ce numéro est lié à deux comptes Takussan : écrivez-nous, nous les réunirons.',
         ],
     ],
     'pay_link' => [

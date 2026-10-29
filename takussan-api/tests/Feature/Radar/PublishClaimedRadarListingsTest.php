@@ -38,6 +38,8 @@ class PublishClaimedRadarListingsTest extends TestCase
 
     private GeoNeighborhood $quartier;
 
+    private RadarConsent $accordOtp;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -47,7 +49,7 @@ class PublishClaimedRadarListingsTest extends TestCase
         $this->annonceur = RadarAdvertiser::factory()->create(['phone' => '+221771234567', 'user_id' => $this->compte->id]);
         $this->quartier = GeoNeighborhood::factory()->create();
         $this->message = RadarOutreach::factory()->sent()->create(['radar_advertiser_id' => $this->annonceur->id]);
-        RadarConsent::factory()->confirmed($this->compte)->create(['radar_outreach_id' => $this->message->id, 'proof' => 'otp']);
+        $this->accordOtp = RadarConsent::factory()->confirmed($this->compte)->create(['radar_outreach_id' => $this->message->id, 'proof' => 'otp']);
     }
 
     private function annonce(int $photos = 1, array $attributs = []): RadarListing
@@ -151,5 +153,50 @@ class PublishClaimedRadarListingsTest extends TestCase
 
         $this->assertSame(RadarListingStage::Consented, $annonce->fresh()->stage);
         Log::shouldHaveReceived('warning')->withArgs(fn (string $message, array $contexte) => $contexte['code'] === 'radar.claim.account_changed');
+    }
+
+    /** Décision 2a : rejoué, le job ne publie rien deux fois. */
+    public function test_rejoue_le_job_ne_publie_pas_deux_fois(): void
+    {
+        $annonce = $this->annonce();
+
+        $this->lancer([$annonce->id]);
+        $this->lancer([$annonce->id]);
+
+        $this->assertSame(1, Property::query()->count());
+        $this->assertSame(1, Activity::query()->where('event', 'radar_published')->count());
+        $this->assertSame(RadarListingStage::Published, $annonce->fresh()->stage);
+    }
+
+    /** Décision 2a : un STOP entre la réclamation et le job arrête tout — ni attente, ni publication. */
+    public function test_un_stop_depuis_la_reclamation_arrete_tout(): void
+    {
+        $annonce = $this->annonce();
+        $attente = $this->annonce(photos: 0, attributs: [
+            'source_kind' => RadarSourceKind::Url, 'source_url' => 'https://sn.coinafrique.com/annonce/10', 'photo_urls' => ['https://a.cdn.test/p/2.jpg'],
+        ]);
+        $this->annonceur->forceFill(['do_not_contact_at' => now()])->save();
+
+        $this->lancer([$annonce->id, $attente->id])->assertNotReleased();
+
+        $this->assertSame(0, Property::query()->count());
+        $this->assertSame(RadarListingStage::Consented, $annonce->fresh()->stage);
+    }
+
+    /** Décision 2a : sans l'accord `otp` valide de l'annonceur, rien ne se publie, même couvert par un autre accord. */
+    public function test_sans_accord_otp_valide_rien_ne_se_publie_meme_couvert_par_une_capture(): void
+    {
+        $annonce = $this->annonce();
+        // L'annonce reste couverte par un accord confirmé par un opérateur (capture), sans aucune révocation — mais l'accord de
+        // l'annonceur n'est plus un `otp` confirmé par lui : la garde est celle de la publication, pas celle du lien.
+        RadarConsent::factory()->confirmed(User::factory()->create())->create(['radar_outreach_id' => $this->message->id]);
+        $this->accordOtp->forceFill(['proof' => 'screenshot'])->save();
+        Log::spy();
+
+        $this->lancer([$annonce->id]);
+
+        $this->assertSame(RadarListingStage::Consented, $annonce->fresh()->stage);
+        $this->assertSame(0, Property::query()->count());
+        Log::shouldHaveReceived('warning')->withArgs(fn (string $message, array $contexte) => $contexte['code'] === 'radar.publish.not_covered');
     }
 }

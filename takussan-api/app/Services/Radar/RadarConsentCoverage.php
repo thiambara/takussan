@@ -2,8 +2,10 @@
 
 namespace App\Services\Radar;
 
+use App\Models\Enums\RadarConsentProof;
 use App\Models\RadarAdvertiser;
 use App\Models\RadarConsent;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 
 /**
@@ -28,6 +30,30 @@ final class RadarConsentCoverage
         }
 
         return $this->valid()
+            ->whereIn('ol.radar_listing_id', $listingIds)
+            ->distinct()
+            ->orderBy('ol.radar_listing_id')
+            ->pluck('ol.radar_listing_id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+    }
+
+    /**
+     * TCK-2390 (décision 2a du porteur) — ceux des identifiants donnés qu'un accord valide de preuve `otp`, confirmé par ce
+     * compte, couvre : la publication d'une réclamation ne s'appuie que sur l'accord que l'annonceur a donné lui-même.
+     *
+     * @param  list<int>  $listingIds
+     * @return list<int>
+     */
+    public function coveredByOtpAmong(array $listingIds, User $confirmedBy): array
+    {
+        if ($listingIds === []) {
+            return [];
+        }
+
+        return $this->valid()
+            ->where('radar_consents.proof', RadarConsentProof::Otp->value)
+            ->where('radar_consents.confirmed_by_id', $confirmedBy->getKey())
             ->whereIn('ol.radar_listing_id', $listingIds)
             ->distinct()
             ->orderBy('ol.radar_listing_id')

@@ -5,14 +5,18 @@ namespace Tests\Feature\Radar;
 use App\Jobs\Radar\PrepareRadarListingPhotos;
 use App\Jobs\Radar\PublishClaimedRadarListings;
 use App\Models\Agency;
+use App\Models\Conversation;
 use App\Models\CreditWelcomeGrant;
+use App\Models\Customer;
 use App\Models\Enums\PropertyVisibility;
 use App\Models\Enums\RadarConsentProof;
 use App\Models\Enums\RadarListingStage;
 use App\Models\Enums\RadarOutreachOutcome;
 use App\Models\Enums\RadarSourceKind;
 use App\Models\GeoNeighborhood;
+use App\Models\Profiles\AgentProfile;
 use App\Models\Property;
+use App\Models\PropertyContactLead;
 use App\Models\RadarAdvertiser;
 use App\Models\RadarConsent;
 use App\Models\RadarListing;
@@ -25,6 +29,7 @@ use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Testing\TestResponse;
 use Laravel\Sanctum\Sanctum;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Spatie\Activitylog\Models\Activity;
 use Tests\Support\FakeSmsRouter;
 use Tests\TestCase;
@@ -451,9 +456,15 @@ class RadarClaimTest extends TestCase
         $this->assertSame(RadarListingStage::Contacted, $annonce->fresh()->stage);
     }
 
-    public function test_le_compte_orphelin_suit_l_annonceur_dans_l_espace_du_titulaire(): void
+    public function test_le_compte_orphelin_jamais_active_suit_l_annonceur_puis_se_supprime(): void
     {
         [$compteRadar, $espaceRadar, $bien] = $this->publiePourLui();
+        // Ce que les visiteurs ont laissé au bien publié par le Radar : une demande de contact, un prospect, une conversation.
+        $demande = PropertyContactLead::factory()->create(['property_id' => $bien->id, 'recipient_user_id' => $compteRadar->id]);
+        $prospect = Customer::factory()->create(['agency_id' => $espaceRadar->id]);
+        $visiteur = User::factory()->create();
+        $conversation = Conversation::factory()->create(['property_id' => $bien->id, 'created_by' => $visiteur->id]);
+        $conversation->participants()->attach([$visiteur->id => ['role' => 'member'], $compteRadar->id => ['role' => 'member']]);
         // Le titulaire a vérifié le numéro sur un autre compte : la connexion par code ouvre celui-là.
         $titulaire = User::factory()->create(['phone' => self::NUMERO, 'phone_verified_at' => now()]);
         $nouvelle = $this->annonce();
@@ -468,6 +479,48 @@ class RadarClaimTest extends TestCase
         $this->assertSame([$espace->id, $titulaire->id], [$bien->fresh()->agency_id, $bien->fresh()->user_id]);
         $this->assertSame($espace->id, Property::query()->findOrFail($nouvelle->fresh()->property_id)->agency_id);
         $this->assertSame($titulaire->id, $this->annonceur->fresh()->user_id);
+        // Rien n'est laissé derrière : la demande, le prospect et la conversation suivent le bien.
+        $this->assertSame([$espace->id, $titulaire->id], [$demande->fresh()->agency_id, $demande->fresh()->recipient_user_id]);
+        $this->assertSame($espace->id, $prospect->fresh()->agency_id);
+        $this->assertEqualsCanonicalizing([$visiteur->id, $titulaire->id], $conversation->participants()->pluck('users.id')->all());
+        // Puis A et son espace se suppriment (suppression douce).
+        $this->assertSoftDeleted($compteRadar);
+        $this->assertSoftDeleted($espaceRadar);
+    }
+
+    /** @return array<string, array{\Closure(User, Agency): void}> */
+    public static function comptesRadarQuiOntServi(): array
+    {
+        return [
+            'une connexion' => [fn (User $compte) => $compte->forceFill(['last_login_at' => now()])->save()],
+            'un mot de passe choisi' => [fn (User $compte) => $compte->forceFill(['password_set_at' => now()])->save()],
+            'une adresse e-mail' => [fn (User $compte) => $compte->forceFill(['email' => 'awa@example.test'])->save()],
+            'un jeton de session' => [fn (User $compte) => $compte->createToken('x')],
+            'un autre bien dans son espace' => [fn (User $compte, Agency $espace) => Property::factory()->create(['agency_id' => $espace->id, 'user_id' => $compte->id])],
+            'un profil dans une autre agence' => [fn (User $compte) => AgentProfile::factory()->create(['user_id' => $compte->id, 'agency_id' => Agency::factory()->create()->id])],
+        ];
+    }
+
+    /** Décision 5a : un compte du Radar qui a servi ne se réunit pas — rien ne bouge, la page renvoie au support. */
+    #[DataProvider('comptesRadarQuiOntServi')]
+    public function test_le_compte_orphelin_qui_a_servi_ne_bouge_pas_et_renvoie_au_support(\Closure $servir): void
+    {
+        [$compteRadar, $espaceRadar, $bien] = $this->publiePourLui();
+        $servir($compteRadar, $espaceRadar);
+        $titulaire = User::factory()->create(['phone' => self::NUMERO, 'phone_verified_at' => now()]);
+        $nouvelle = $this->annonce();
+        Sanctum::actingAs($titulaire);
+
+        $this->lire()->assertOk()->assertJsonPath('data.account.state', 'support');
+        $this->demanderLeCode()->assertStatus(409)->assertJsonPath('code', 'radar.claim.support_required');
+        $this->assertSame([], $this->sms->sent);
+        $this->confirmer([['id' => $nouvelle->id]], code: '123456')->assertStatus(409)->assertJsonPath('code', 'radar.claim.support_required');
+
+        $this->assertSame([$espaceRadar->id, $compteRadar->id], [$bien->fresh()->agency_id, $bien->fresh()->user_id]);
+        $this->assertSame($compteRadar->id, $this->annonceur->fresh()->user_id);
+        $this->assertSame(RadarListingStage::Contacted, $nouvelle->fresh()->stage);
+        $this->assertNotSoftDeleted($compteRadar);
+        $this->assertNotSoftDeleted($espaceRadar);
     }
 
     public function test_connecte_avec_un_autre_compte_la_page_refuse(): void

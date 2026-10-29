@@ -12280,6 +12280,8 @@
     "logout": "Me déconnecter",
     "unavailableAccountTitle": "Ce compte ne peut pas être ouvert ici",
     "unavailableAccountBody": "Contactez-nous pour publier vos annonces.",
+    "supportTitle": "Ce numéro est lié à deux comptes",
+    "supportBody": "Écrivez-nous à {email} : nous réunirons vos comptes, puis vos annonces pourront être publiées.",
     "terms": "J'accepte les <terms>conditions d'utilisation</terms> de Takussan.",
     "sendCode": "Recevoir le code par SMS",
     "sending": "Envoi…",
@@ -12317,6 +12319,7 @@
       "loginRequired": "Connectez-vous au compte de ce numéro pour continuer.",
       "wrongAccount": "Vous êtes connecté avec un autre compte : déconnectez-vous pour continuer.",
       "accountChanged": "Le compte de ce numéro a changé : rechargez la page.",
+      "supportRequired": "Ce numéro est lié à deux comptes Takussan : écrivez-nous, nous les réunirons.",
       "accountUnavailable": "Ce compte ne peut pas être ouvert ici. Contactez-nous.",
       "phoneToken": "Retirez « [TELEPHONE] » du texte : les numéros ne s'affichent pas sur une annonce.",
       "price": "Indiquez un prix valide."

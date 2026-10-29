@@ -41,6 +41,9 @@ final class ConsentMessageComposer
      * (décision 1, porteur 2026-10-28) — TCK-2390 : `accord.v2` = `accord.v1` + la ligne de réclamation (`{lien_reclamation}`),
      * et une formulation qui vaut pour une annonce comme pour plusieurs. Chaque message garde la sienne
      * (`radar_outreaches.clauses_version`) : un message préparé en `accord.v1` se recompose en `accord.v1`, sans lien.
+     *
+     * ⚠ La formulation neutre (« votre ou vos annonces », décision 6a du porteur, 2026-10-29) attend la relecture de
+     * l'avocat — ligne 4 de « Avant la mise en production » dans `takussan-web/src/content/legal/README.md`.
      */
     public const CLAUSES_VERSION = 'accord.v2';
 

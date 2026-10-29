@@ -759,6 +759,7 @@ return [
             'login_required' => 'This number already has a Takussan account: sign in first.',
             'wrong_account' => 'You are signed in with another account: sign out, then open this link again.',
             'account_changed' => 'This account changed in the meantime: reload the page.',
+            'support_required' => 'This number is linked to two Takussan accounts: write to us and we will merge them.',
         ],
     ],
     'pay_link' => [

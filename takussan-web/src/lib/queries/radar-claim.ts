@@ -15,7 +15,7 @@ import { codeApercu } from '@/lib/otp-preview';
  * L'API ne rend jamais le numéro en clair (`phone_masked`), ni rien du Radar (nature, source,
  * verdict) : la page n'en reçoit pas, elle ne peut pas en afficher.
  */
-export type RadarClaimAccountState = 'new' | 'activation' | 'existing' | 'unavailable';
+export type RadarClaimAccountState = 'new' | 'activation' | 'existing' | 'unavailable' | 'support';
 
 export interface RadarClaimListing {
   readonly id: number;
