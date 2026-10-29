@@ -51,6 +51,10 @@ règle du dossier `content/legal` veut qu'elles entrent avec le code qu'elles d�
    il copie la réserve dans `photos` (empreintes d'ADR-0054). Spec : PR #1580.
 4. **a** — Un contact sur place qui répète un numéro déjà servi n'est pas servi deux fois
    (`PropertyContactNumbers`). Spec : PR #1580.
+5. **a** — Une annonce relue sans titre se publie quand même : le titre se construit des champs
+   structurés (type, chambres, contrat, quartier — « Appartement 3 chambres à louer — Almadies »)
+   et l'aperçu le montre avant la confirmation. Sans cela, la relecture (qui n'exige pas le titre)
+   menait à une impasse au moment de publier.
 
 ## Contrat de données
 
