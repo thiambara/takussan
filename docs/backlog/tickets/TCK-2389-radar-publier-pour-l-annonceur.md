@@ -1,7 +1,7 @@
 ---
 id: TCK-2389
 title: "Radar : « Publier pour lui » crée l'espace individuel de l'annonceur et publie ses annonces sur un accord confirmé — et les textes juridiques le disent"
-status: doing
+status: done
 phase: P1
 family: full
 estimate: L
@@ -113,24 +113,24 @@ liens publics et le message prêt à envoyer.
 
 ## Delta à produire
 
-- [ ] Amendement d'ADR-0033 §3 (décision 1), et `PhoneLoginService` qui ouvre le compte créé par le
+- [x] Amendement d'ADR-0033 §3 (décision 1), et `PhoneLoginService` qui ouvre le compte créé par le
       Radar · `PhoneLoginRadarAccountTest`.
-- [ ] La réserve de photos (décision 3) : migration `photo_preparation`, collection `radar_photos`,
+- [x] La réserve de photos (décision 3) : migration `photo_preparation`, collection `radar_photos`,
       job `PrepareRadarListingPhotos` mis en file par l'accord confirmé, routes de relance, dépôt
       et retrait · `RadarPhotoReserveTest`.
-- [ ] `PropertyContactNumbers` : un numéro servi une seule fois (décision 4).
-- [ ] `PlatformAbility::RadarPublish`.
-- [ ] `App\Services\Radar\AdvertiserProvisioner` (refus d'un numéro inscrit, utilisateur sans mot
+- [x] `PropertyContactNumbers` : un numéro servi une seule fois (décision 4).
+- [x] `PlatformAbility::RadarPublish`.
+- [x] `App\Services\Radar\AdvertiserProvisioner` (refus d'un numéro inscrit, utilisateur sans mot
       de passe, appel de `HostIndividualOnboardingService`).
-- [ ] `App\Services\Radar\RadarPublisher` (contrôle des accords, photos d'abord, transaction,
+- [x] `App\Services\Radar\RadarPublisher` (contrôle des accords, photos d'abord, transaction,
       biens, contact principal, liens Radar).
-- [ ] Contrôleur `RadarPublicationController` · FormRequest `PublishRadarListingsRequest` · route
+- [x] Contrôleur `RadarPublicationController` · FormRequest `PublishRadarListingsRequest` · route
       sous le middleware d'idempotence.
-- [ ] `takussan-web/src/content/legal/terms.ts` (article 6.3, `fr` et `en`), `privacy.ts`
+- [x] `takussan-web/src/content/legal/terms.ts` (article 6.3, `fr` et `en`), `privacy.ts`
       (ajouts), `editeur.ts` (`VERSION_DOCUMENTS`) ; `__tests__/textes.test.ts` vert ;
       `PublishReadiness::TERMS_VERSION` suit ; `README.md` (« Avant la mise en production »).
-- [ ] Front : écran de vérification, confirmation, récapitulatif et second message.
-- [ ] Tests : `RadarPublishTest` (sans accord ⇒ 422 ; accord révoqué ⇒ 422 ; annonce hors du
+- [x] Front : écran de vérification, confirmation, récapitulatif et second message.
+- [x] Tests : `RadarPublishTest` (sans accord ⇒ 422 ; accord révoqué ⇒ 422 ; annonce hors du
       message ⇒ 422 ; numéro inscrit ⇒ 422 ; `support` ⇒ 403 ; rejeu idempotent ⇒ un seul
       compte), `AdvertiserProvisionerTest` (sans mot de passe, numéro non vérifié, espace
       `individual`, présenté `owner` par `PublicProfileFacts::rolesPublics`, aucun
@@ -139,15 +139,15 @@ liens publics et le message prêt à envoyer.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Sans accord confirmé couvrant chaque annonce demandée, `publish` rend 422 et rien n'est
+- [x] AC1 — Sans accord confirmé couvrant chaque annonce demandée, `publish` rend 422 et rien n'est
       créé.
-- [ ] AC2 — Avec accord : un utilisateur sans mot de passe, un espace `individual`, un bien publié
+- [x] AC2 — Avec accord : un utilisateur sans mot de passe, un espace `individual`, un bien publié
       par annonce, chacun avec le numéro de l'annonceur pour contact principal.
-- [ ] AC3 — Aucun `CreditWelcomeGrant` n'existe après la publication ; il apparaît à la première
+- [x] AC3 — Aucun `CreditWelcomeGrant` n'existe après la publication ; il apparaît à la première
       vérification du numéro.
-- [ ] AC4 — Deux requêtes sous la même `Idempotency-Key` créent un seul compte.
-- [ ] AC5 — Un numéro déjà porté par un utilisateur rend 422 sans rien modifier de ce compte.
-- [ ] AC6 — La page `/fr/legal/terms` affiche l'article 6.3 et la date de version avancée.
+- [x] AC4 — Deux requêtes sous la même `Idempotency-Key` créent un seul compte.
+- [x] AC5 — Un numéro déjà porté par un utilisateur rend 422 sans rien modifier de ce compte.
+- [x] AC6 — La page `/fr/legal/terms` affiche l'article 6.3 et la date de version avancée.
 
 ## Hors périmètre
 
@@ -156,4 +156,43 @@ liens publics et le message prêt à envoyer.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- **Deux portes fermées à la publication, et pourquoi.** `RadarPublisher` refuse (bloquant de
+  l'aperçu, 422 de `publish`, et refus du second message) quand :
+  - la connexion par téléphone est éteinte (`radar.publish.activation_unavailable`) : le compte créé
+    n'a ni mot de passe ni e-mail, donc personne ne pourrait l'ouvrir ;
+  - l'aperçu des codes OTP est actif hors de `APP_ENV=local` (`radar.publish.otp_preview_active`,
+    décision du porteur du 2026-10-29) : quiconque connaît le numéro public de l'annonceur ouvrirait
+    son compte.
+
+  En préproduction, `OTP_PREVIEW_ENABLED` doit donc être éteint pour publier.
+- **Le plafond de photos est une borne d'horloge, pas de goût.** `publish` copie la réserve et
+  génère les vignettes dans sa transaction ; `docker/php.ini` fixe `max_execution_time = 60`, et
+  l'image ZTS le compte en temps réel. Au-delà, l'erreur fatale saute `catch` et `finally` et
+  laisse des fichiers. `radar.publish.max_photos` (30, somme des annonces d'une requête) est vérifié
+  avant la première écriture (`radar.publish.too_many_photos`). La valeur n'est pas encore mesurée
+  sur la préproduction.
+- **Le titre construit (décision 5)** a une seule source, `RadarListingTitle::resolve()`, que
+  l'aperçu et `createProperty()` appellent tous deux. Il est construit en français (c'est une donnée
+  du bien) et n'est pas dédoublonné : deux annonces de même type, chambres, contrat et quartier
+  portent le même titre, et seuls leurs slugs les distinguent.
+- **Annonces acceptées avant le déploiement** : elles n'ont pas de réserve préparée
+  (`photo_preparation` nul). L'écran offre « Récupérer les photos » ; aucune commande de rattrapage.
+  La relance libère le verrou d'unicité du job (6 h) avant de le remettre en file : sans cela, une
+  ligne de file détruite à la main la ferait ignorer sans le dire. C'est sûr, car
+  `WithoutOverlapping` et le rang attendu sous verrou empêchent une double passe.
+- **Front.** Le relais BFF attend 90 s pour la seule route `publish`. Un 409
+  `idempotency.in_progress` est rejoué 8 × 3 s, ce qui peut tenir la confirmation ouverte environ
+  21 s.
+- **`PublishReadiness::TERMS_VERSION` avance** avec les textes : chaque hôte réaccepte les conditions
+  à sa prochaine publication. C'est voulu.
+- **Restes acceptés** (revue finale) :
+  - une connexion par code simultanée à la transaction de publication peut créer un second compte
+    au même numéro. La fenêtre est étroite ; un `pg_advisory_xact_lock` sur la forme canonique du
+    numéro, pris des deux côtés, la fermerait ;
+  - aucun test ne fixe qu'un compte supprimé (doux) portant le numéro n'empêche pas la publication
+    (la portée `SoftDeletes` le garantit aujourd'hui).
+- **Suites écrites ailleurs** :
+  - dans TCK-2390 : le compte orphelin quand le titulaire vérifie son numéro sur un autre compte,
+    et le nom d'espace tiré du `display_name` ;
+  - dans TCK-2391 : les fichiers sans ligne `media` (de la réserve et des copies), et « retirer un
+    compte Radar = le supprimer, pas le bloquer ».
