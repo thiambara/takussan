@@ -4,6 +4,7 @@ namespace App\Jobs\Radar;
 
 use App\Ai\Agents\RadarConsentVerification;
 use App\Ai\Usages\RadarConsentVerificationUsage;
+use App\Jobs\Concerns\RunsOnAiQueue;
 use App\Models\Enums\AiDataClass;
 use App\Models\Enums\AiRefusalReason;
 use App\Models\Enums\RadarVerificationStatus;
@@ -58,7 +59,7 @@ use Throwable;
  */
 final class VerifyRadarConsentReply implements ShouldQueue
 {
-    use Queueable;
+    use Queueable, RunsOnAiQueue;
 
     public const REASON_ERROR = 'radar.verification.error';
 
@@ -92,7 +93,10 @@ final class VerifyRadarConsentReply implements ShouldQueue
 
     public bool $failOnTimeout = false;
 
-    public function __construct(public readonly int $replyId) {}
+    public function __construct(public readonly int $replyId)
+    {
+        $this->onAiQueue();
+    }
 
     public function retryUntil(): DateTimeInterface
     {

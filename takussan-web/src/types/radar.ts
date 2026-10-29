@@ -647,7 +647,7 @@ export interface RadarPublicationResponse {
   readonly data: RadarPublication;
 }
 
-/** Le second message : un texte fixe versionné (`publie.v1`) et son lien `wa.me`. */
+/** Le second message : un texte fixe versionné (`publie.v2`, qui porte le lien de réclamation — TCK-2390) et son lien `wa.me`. */
 export interface RadarPublishedMessage {
   readonly text: string;
   readonly wa_me: string;

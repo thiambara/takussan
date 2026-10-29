@@ -3,7 +3,8 @@
     "expected": {
         "classification": "ambiguous",
         "number_matches": true,
-        "clauses_found": []
+        "clauses_found": [],
+        "counterpart_phone": "+221741002014"
     },
     "attachments": [
         "captures/014.png"

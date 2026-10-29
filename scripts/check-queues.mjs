@@ -23,6 +23,14 @@
  *  - aucun `$timeout` de `app/` n'atteint, à `MARGE_SECONDES` près, le `retry_after` par défaut de
  *    sa connexion dans `config/queue.php`.
  *
+ * **Et deux règles de plus depuis TCK-2402 (amendement d'ADR-0078)**, parce qu'un appel au modèle
+ * (jusqu'à 85 s) retenait une notification urgente sur `default` :
+ *  - un job de `app/Jobs` (ou un listener en file) qui mène au modèle — par `AiGateway`, `SocleAgent`, le
+ *    SDK, ou une classe qui les enveloppe, fermeture transitive — déclare `RunsOnAiQueue` (file
+ *    `ai`) — ou `RunsOnLongQueue`, pour un appel qui dépasse le délai de reprise de `database` ;
+ *  - la file `ai` n'est lue QUE par un worker qui ne lit rien d'autre : ni `notifications-urgent`,
+ *    ni `default`, ni `media`. Sinon l'appel retient de nouveau ce qui partageait le processus.
+ *
  * Usage :
  *   node scripts/check-queues.mjs            # garde, sort en 1 au moindre écart
  *   node scripts/check-queues.mjs --report   # + l'inventaire
@@ -332,6 +340,74 @@ export function connexionDeLaClasse(source) {
   return /^[ \t]+use\s+[^;]*\bRunsOnLongQueue\b/m.test(source) ? 'database-long' : CONNEXION_PAR_DEFAUT;
 }
 
+/**
+ * Les files qu'un worker lit SEULES (TCK-2402) : son consommateur ne partage son processus avec aucune
+ * autre. L'ordre des files d'un `--queue=a,b` ne joue qu'entre deux jobs — un job de `a` en cours
+ * retient tout `b` —, donc « `ai` derrière `notifications-urgent` » ne protège rien.
+ */
+const FILES_ISOLEES = ['ai'];
+
+/**
+ * Ce qui appelle le modèle sans passer par la passerelle : le SDK
+ * (`Laravel\Ai\agent()`, la façade `Ai`, `Promptable`, les générateurs d'image, de voix, d'embeddings…).
+ * Un `use Laravel\Ai\Files\Image` — une pièce jointe — n'appelle rien : le motif exige le nom
+ * juste après `Laravel\Ai\`.
+ */
+const SDK_MODELE = /\bLaravel\\Ai\\(?:agent|Ai|Promptable|Audio|Image|Embeddings|Reranking|Classification|Transcription)\b/;
+
+/** Où vit un CONSOMMATEUR de la passerelle, jamais un intermédiaire : un job qui en nomme un n'appelle pas le modèle « à travers » lui. */
+const HORS_FERMETURE = /^takussan-api\/app\/(?:Jobs|Http|Console|Listeners)\//;
+
+/**
+ * La FERMETURE des classes qui mènent au modèle (TCK-2402, vérification adverse I1).
+ *
+ * Une première version ne cherchait que `AiGateway` et `SocleAgent` dans le job : `RunAiEvaluation`
+ * (qui passe par `EvaluationRunner`) lui échappait, et trois formes de plus — un job qui appelle
+ * `ConsentMessageComposer::generate()`, `(new RadarExtraction)->prompt()`, ou le helper
+ * `Laravel\Ai\agent()` — restaient vertes. *Une garde qui lit le nom de la passerelle atteste du
+ * nom, pas de l'appel.*
+ *
+ * Une classe d'`app/` entre dans l'ensemble quand elle (a) touche le SDK ou la passerelle, (b) étend
+ * un membre, ou (c) en nomme un ET appelle quelque chose (`->run(`, `->prompt(`, `->generate(`,
+ * `->stream(`) : un simple type-hint ne suffit pas. On itère jusqu'à stabilité. Les jobs, contrôleurs,
+ * commandes et listeners n'entrent jamais dans l'ensemble : mettre un job en file n'appelle pas le
+ * modèle, et sans cette borne tout appelant de `ExtractRadarListing::dispatch()` en deviendrait un.
+ *
+ * @param {Map<string, {rel: string, src: string}>} classes nom de classe → fichier et source sans commentaires
+ */
+export function fermetureModele(classes) {
+  const membres = new Set(['AiGateway', 'SocleAgent']);
+  const nomme = (src, nom) => new RegExp(`\\b${nom}\\b`).test(src);
+  let change = true;
+  while (change) {
+    change = false;
+    for (const [nom, { rel, src }] of classes) {
+      if (membres.has(nom) || HORS_FERMETURE.test(rel)) continue;
+      const etend = src.match(/\bextends\s+\\?(?:[\w\\]*\\)?(\w+)/)?.[1];
+      const vers = [...membres].some((m) => nomme(src, m));
+      if (SDK_MODELE.test(src) || (etend && membres.has(etend)) || (vers && /->(?:run|prompt|generate|stream)\(/.test(src))) {
+        membres.add(nom);
+        change = true;
+      }
+    }
+  }
+  return membres;
+}
+
+/** Une classe (job, listener) qui mène au modèle : elle le touche, ou nomme un membre de la fermeture. */
+export function appelleLeModele(source, membres, soi = null) {
+  return SDK_MODELE.test(source) || [...membres].some((m) => m !== soi && new RegExp(`\\b${m}\\b`).test(source));
+}
+
+/**
+ * Le `use` DANS la classe (indenté), comme `connexionDeLaClasse` : l'import en tête de fichier ne
+ * déclare rien. `RunsOnLongQueue` vaut déclaration — un appel plus long que 85 s ne peut pas vivre sur
+ * `ai`, dont la connexion rend un job après 90 s.
+ */
+export function declareUneFileHorsDefault(source) {
+  return /^[ \t]+use\s+[^;]*\b(?:RunsOnAiQueue|RunsOnLongQueue)\b/m.test(source);
+}
+
 const EPREUVES = [
   ['worker sans connexion', connexionDuWorker('    command: php artisan queue:work --queue=a,b --tries=3'), 'database'],
   ['worker de database-long', connexionDuWorker('    command: php artisan queue:work database-long --queue=long'), 'database-long'],
@@ -342,6 +418,22 @@ const EPREUVES = [
   ['classe longue', connexionDeLaClasse('use App\\Jobs\\Concerns\\RunsOnLongQueue;\nclass A {\n    use Queueable, RunsOnLongQueue;\n}'), 'database-long'],
   ['import seul', connexionDeLaClasse('use App\\Jobs\\Concerns\\RunsOnLongQueue;\nclass A {\n    use Queueable;\n}'), 'database'],
   ['import seul après une ligne vide', connexionDeLaClasse('<?php\n\nnamespace App\\Jobs;\n\nuse App\\Jobs\\Concerns\\RunsOnLongQueue;\nclass A {\n    use Queueable;\n}'), 'database'],
+  ['appel au modèle par la passerelle', appelleLeModele('use App\\Services\\Ai\\AiGateway;\nclass A {}', new Set(['AiGateway'])), true],
+  ['appel au modèle par un agent', appelleLeModele('final class B extends SocleAgent {}', new Set(['SocleAgent'])), true],
+  ['job sans appel au modèle', appelleLeModele('class C { use Queueable; }', new Set(['AiGateway', 'SocleAgent'])), false],
+  ['appel par le helper du SDK', appelleLeModele('use function Laravel\\Ai\\agent;\nclass J {}', new Set()), true],
+  ['une pièce jointe n\'appelle rien', appelleLeModele('use Laravel\\Ai\\Files\\Image;\nclass J {}', new Set()), false],
+  ['fermeture : un service qui enveloppe la passerelle', fermetureModele(new Map([
+    ['EvaluationRunner', { rel: 'takussan-api/app/Services/Ai/EvaluationRunner.php', src: 'class EvaluationRunner { function __construct(AiGateway $g) {} function go() { $this->gateway->run(1); } }' }],
+    ['Composer', { rel: 'takussan-api/app/Services/Composer.php', src: 'class Composer { function __construct(EvaluationRunner $r) {} function generate() { $this->r->run(1); } }' }],
+  ])).has('Composer'), true],
+  ['fermeture : un agent concret', fermetureModele(new Map([['RadarX', { rel: 'takussan-api/app/Ai/Agents/RadarX.php', src: 'final class RadarX extends SocleAgent {}' }]])).has('RadarX'), true],
+  ['fermeture : un type-hint seul ne suffit pas', fermetureModele(new Map([['Mapper', { rel: 'takussan-api/app/Services/Mapper.php', src: 'class Mapper { function __construct(AiGateway $g) {} }' }]])).has('Mapper'), false],
+  ['fermeture : un job n\'entre pas dans l\'ensemble', fermetureModele(new Map([['Job', { rel: 'takussan-api/app/Jobs/Job.php', src: 'class Job { function h(AiGateway $g) { $g->run(1); } }' }]])).has('Job'), false],
+  ['file IA déclarée', declareUneFileHorsDefault('class A {\n    use Queueable, RunsOnAiQueue;\n}'), true],
+  ['file longue déclarée', declareUneFileHorsDefault('class A {\n    use Queueable, RunsOnLongQueue;\n}'), true],
+  ['import seul de la file IA', declareUneFileHorsDefault('use App\\Jobs\\Concerns\\RunsOnAiQueue;\nclass A {\n    use Queueable;\n}'), false],
+  ['import seul après une ligne vide (file IA)', declareUneFileHorsDefault('<?php\n\nuse App\\Jobs\\Concerns\\RunsOnAiQueue;\nclass A {\n    use Queueable;\n}'), false],
   ['propriétaire de long', proprietaires(lireConnexions("'connections' => [\n 'database' => ['driver' => 'database', 'queue' => env('DB_QUEUE', 'default'), 'retry_after' => (int) env('DB_QUEUE_RETRY_AFTER', 90)],\n 'database-long' => ['driver' => 'database', 'queue' => 'long', 'retry_after' => (int) env('DB_LONG_QUEUE_RETRY_AFTER', 1900)],\n]")).get('long'), 'database-long'],
 ];
 for (const [nom, obtenu, attendu] of EPREUVES) {
@@ -366,6 +458,13 @@ for (const c of lus) {
       const attendue = proprio.get(q) ?? CONNEXION_PAR_DEFAUT;
       if (w.connexion !== attendue) {
         fautes.push(`« ${c.ou} » lit la file \`${q}\` par la connexion \`${w.connexion}\`, au lieu de \`${attendue}\` : son délai de reprise n'est pas celui des jobs de cette file`);
+      }
+    }
+    // TCK-2402 : une file isolée n'est lue que SEULE, jamais derrière ou devant une autre.
+    for (const iso of FILES_ISOLEES) {
+      const autres = w.files.filter((q) => q !== iso);
+      if (w.files.includes(iso) && autres.length > 0) {
+        fautes.push(`« ${c.ou} » lit la file \`${iso}\` avec \`${autres.join(', ')}\` : un appel au modèle en cours (85 s) retiendrait ces files — la file \`${iso}\` n'a de sens que sur un worker à elle (ADR-0078, amendement)`);
       }
     }
   }
@@ -400,6 +499,28 @@ for (const f of fichiersPhp) {
     else if (t + MARGE_SECONDES > retry) {
       fautes.push(`${rel} : \`$timeout\` ${t} s sur \`${conn}\` (retry_after ${retry} s) — un worker de plus le relivrerait vivant. Prendre \`RunsOnLongQueue\` (ADR-0078)`);
     }
+  }
+}
+// TCK-2402 : tout job (et tout listener en file) qui mène au modèle, directement ou par une classe
+// intermédiaire, déclare sa file.
+const classesApp = new Map(); // nom → { rel, src }
+for (const f of fichiersPhp) {
+  const src = sansCommentairesPhp(readFileSync(f, 'utf8'));
+  const nom = src.match(/^(?:final\s+|abstract\s+|readonly\s+)*(?:class|interface|trait|enum)\s+(\w+)/m)?.[1];
+  if (nom && !classesApp.has(nom)) classesApp.set(nom, { rel: f.slice(ROOT.length + 1), src });
+}
+const membresModele = fermetureModele(classesApp);
+const appelsIA = [];
+for (const [nom, { rel, src }] of classesApp) {
+  const job = rel.startsWith(`${join('takussan-api', 'app', 'Jobs')}/`);
+  const ecouteur = rel.startsWith(`${join('takussan-api', 'app', 'Listeners')}/`) && /implements[^{]*ShouldQueue/.test(src);
+  if (!job && !ecouteur) continue;
+  if (!appelleLeModele(src, membresModele, nom)) continue;
+  // Un listener déclare sa file par le trait ou par sa propre `$queue` / `viaQueue()`.
+  const declare = declareUneFileHorsDefault(src) || (ecouteur && /\$queue\s*=|function\s+viaQueue\b/.test(src));
+  appelsIA.push({ rel, declare });
+  if (!declare) {
+    fautes.push(`${rel} : mène au modèle (\`AiGateway\`, \`SocleAgent\` ou le SDK, directement ou par une classe intermédiaire) sans déclarer sa file — il tournerait sur \`default\`, derrière les notifications urgentes. Prendre \`RunsOnAiQueue\` (ADR-0078, amendement) ; \`RunsOnLongQueue\` si l'appel dépasse 85 s`);
   }
 }
 if (delais.length === 0) fautes.push('aucun `$timeout` trouvé dans takussan-api/app : le motif ne lit plus rien');
@@ -445,6 +566,8 @@ if (REPORT) {
   for (const d of [...delais].sort((a, b) => (b.t ?? 0) - (a.t ?? 0))) {
     console.log(`  ${String(d.t ?? '?').padStart(5)} s / ${String(d.retry ?? '?').padStart(4)} s  ${d.conn.padEnd(14)} ${d.rel}`);
   }
+  console.log(`\nJobs et listeners qui mènent au modèle (${appelsIA.length}) :`);
+  for (const a of appelsIA) console.log(`  ${a.declare ? 'file déclarée' : '⚠ SANS FILE  '}  ${a.rel}`);
   if (opaques.length) {
     console.log(`\nFiles nommées par une expression (${opaques.length}) — non lisibles ici :`);
     for (const [f, expr] of opaques) console.log(`  ${expr.padEnd(28)} ${f}`);

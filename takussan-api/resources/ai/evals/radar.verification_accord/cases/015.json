@@ -3,7 +3,8 @@
     "expected": {
         "classification": "consent",
         "number_matches": true,
-        "clauses_found": []
+        "clauses_found": [],
+        "counterpart_phone": "+221741002015"
     },
     "attachments": [
         "captures/015.png"

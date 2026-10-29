@@ -133,7 +133,7 @@ class RadarAdvertiserCardTest extends TestCase
         config(['app.frontend_url' => 'https://front.exemple.test']);
         $annonceur = RadarAdvertiser::factory()->create(['phone' => '+221771234567']);
         $composeur = $this->app->make(ConsentMessageComposer::class);
-        $message = $composeur->compose('fr', 'Bonjour Awa,', 'votre appartement à Ouakam');
+        $message = $composeur->compose('fr', 'Bonjour Awa,', 'votre appartement à Ouakam', 'accord.v1');
         $prepare = RadarOutreach::factory()->create([
             'radar_advertiser_id' => $annonceur->id, 'salutation' => 'Bonjour Awa,', 'summary' => 'votre appartement à Ouakam', 'message' => $message,
         ]);
@@ -158,7 +158,7 @@ class RadarAdvertiserCardTest extends TestCase
     {
         config(['app.frontend_url' => 'https://front.exemple.test']);
         $annonceur = RadarAdvertiser::factory()->create(['phone' => '+221771234567']);
-        $message = $this->app->make(ConsentMessageComposer::class)->compose('fr', 'Bonjour Awa,', 'votre bien');
+        $message = $this->app->make(ConsentMessageComposer::class)->compose('fr', 'Bonjour Awa,', 'votre bien', 'accord.v1');
         RadarOutreach::factory()->create([
             'radar_advertiser_id' => $annonceur->id, 'salutation' => 'Bonjour Awa,', 'summary' => 'votre bien', 'message' => $message,
         ]);
@@ -205,7 +205,7 @@ class RadarAdvertiserCardTest extends TestCase
     private function brouillonDe(RadarAdvertiser $annonceur, array $attributes, RadarListing ...$annonces): array
     {
         config(['app.frontend_url' => 'https://front.exemple.test']);
-        $message = $this->app->make(ConsentMessageComposer::class)->compose('fr', 'Bonjour Awa,', 'votre appartement à Ouakam');
+        $message = $this->app->make(ConsentMessageComposer::class)->compose('fr', 'Bonjour Awa,', 'votre appartement à Ouakam', 'accord.v1');
         $brouillon = RadarOutreach::factory()->withListings(...$annonces)->create($attributes + [
             'radar_advertiser_id' => $annonceur->id, 'salutation' => 'Bonjour Awa,', 'summary' => 'votre appartement à Ouakam', 'message' => $message,
         ]);

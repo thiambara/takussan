@@ -156,6 +156,11 @@ const DETTES: readonly (readonly [string, number, string])[] = [
   ['components/search/SearchToolbar.tsx · hover:text-destructive sur hover:bg-destructive/10 sur un sous-jacent inconnu (pire pixel 95)', 1.01, 'idem, état survolé'],
   ['components/favorites/FavoritesPopover.tsx · hover:text-destructive sur hover:bg-destructive/10 sur un sous-jacent inconnu (pire pixel 95)', 1.01, 'idem, état survolé de la croix « retirer » (2026-09-16, conversion `red` → `destructive`) — le fond réel est le `--card` du popover, que `check-destructive-contrast.mjs` mesure ≥ 4,55:1'],
   ['components/ui/destructive-banner.tsx · text-destructive sur bg-destructive/10 sur un sous-jacent inconnu (pire pixel 95)', 1.01, 'idem'],
+  // TCK-2390 — `ui/warning-banner.tsx` entre dans la surface par `auth/CodeDePreproduction.tsx`, que la page de
+  // réclamation du Radar (`/claim/[token]`) affiche HORS PRODUCTION seulement (ADR-0060). Même motif que la bannière
+  // destructive : l'aplat de sa propre encre sur un fond que le fichier ne pose pas. Mesuré sur les fonds réels :
+  // `--warning` sur 10 % de lui-même au-dessus de `--background` 5,17:1, de `--card` 5,42:1.
+  ['components/ui/warning-banner.tsx · text-warning sur bg-warning/10 sur un sous-jacent inconnu (pire pixel 97)', 1.00, 'aplat de sa propre couleur, sous-jacent invisible au lecteur statique — 5,17:1 sur `--background` réel'],
 ];
 
 /**

@@ -66,7 +66,7 @@ describe('queries de « Publier pour lui »', () => {
   });
 
   it('le second message se lit dans la langue demandée', async () => {
-    const fetchMock = repondre({ data: { text: 'Bonjour', wa_me: 'https://wa.me/x', version: 'publie.v1' } });
+    const fetchMock = repondre({ data: { text: 'Bonjour', wa_me: 'https://wa.me/x', version: 'publie.v2' } });
     await fetchRadarPublishedMessage(7, 'en');
 
     const [url] = appel(fetchMock);

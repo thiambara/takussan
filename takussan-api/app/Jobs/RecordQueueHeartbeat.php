@@ -23,9 +23,11 @@ class RecordQueueHeartbeat implements ShouldQueue
     /**
      * Les files que `deploy/takussan/compose.api.yml` consomme. `long` (TCK-2401, ADR-0078) : le
      * battement planifié y part sur la connexion par défaut ; `database-long` partage la table
-     * `jobs`, et c'est le délai de reprise du worker qui dépile (`worker-long`) qui compte.
+     * `jobs`, et c'est le délai de reprise du worker qui dépile (`worker-long`) qui compte. `ai`
+     * (TCK-2402, ADR-0078) : `worker-ia` est le seul à la lire ; un appel au modèle dure 85 s au plus,
+     * sous le seuil `degraded` du battement (180 s) : les seuils des files courtes lui conviennent.
      */
-    public const QUEUES = ['default', 'media', 'notifications-urgent', 'reconciliation', 'long'];
+    public const QUEUES = ['default', 'media', 'notifications-urgent', 'reconciliation', 'long', 'ai'];
 
     public function __construct(public readonly string $fileSurveillee)
     {
