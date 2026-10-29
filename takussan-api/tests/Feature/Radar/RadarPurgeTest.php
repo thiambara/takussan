@@ -511,16 +511,34 @@ class RadarPurgeTest extends TestCase
         $this->assertNull($accord->fresh()->offline_since);
     }
 
-    public function test_la_date_de_retrait_d_un_accord_revoque_est_celle_de_la_revocation(): void
+    public function test_les_trois_ans_courent_du_dernier_retrait_pas_d_une_revocation_anterieure_a_une_republication(): void
     {
         [, , $bien, $accord] = $this->publie();
+        // T0 : révocation, le bien sort ; le premier passage date le retrait.
         $this->retirer($bien);
-        $revoque = now()->subDays(10);
-        $accord->forceFill(['revoked_at' => $revoque])->save();
-
+        $accord->forceFill(['revoked_at' => now()])->save();
         $this->purger();
+        $this->assertTrue(now()->equalTo($accord->fresh()->offline_since));
 
-        $this->assertTrue($revoque->equalTo($accord->fresh()->offline_since));
+        // T0 + 1 an : l'hôte republie, le passage suivant efface la date.
+        $this->jours(365);
+        $bien->forceFill(['status' => PropertyStatus::Available, 'visibility' => PropertyVisibility::Public, 'published_at' => now(), 'archived_at' => null])->save();
+        $this->assertSame(1, $this->purger()['retention_reset']);
+
+        // T0 + 2,5 ans : le bien ressort. La date est celle de CE retrait, non la révocation de T0.
+        $this->jours(550);
+        $this->retirer($bien);
+        $this->purger();
+        $retrait = now()->copy();
+        $this->assertTrue($retrait->equalTo($accord->fresh()->offline_since));
+
+        // 200 jours plus tard (3,05 ans après T0) : la preuve est encore là, elle ne partira que trois ans après le dernier retrait.
+        $this->jours(200);
+        $this->assertSame(0, $this->purger()['proofs']);
+        $this->assertNull($accord->fresh()->purged_at);
+
+        $this->jours(365 * 3 - 200 + 1);
+        $this->assertSame(1, $this->purger()['proofs']);
     }
 
     public function test_un_accord_confirme_dont_l_annonce_attend_sa_publication_n_est_pas_encore_hors_ligne(): void
@@ -614,6 +632,21 @@ class RadarPurgeTest extends TestCase
         $this->assertSame(0, $this->purger()['orphan_dirs']);
 
         $this->assertEqualsCanonicalizing($avant, Storage::disk($this->disque)->allFiles());
+    }
+
+    public function test_un_dossier_numerique_vide_est_date_comme_un_fichier(): void
+    {
+        // Le `mkdir` d'une écriture dont le fichier n'est pas encore posé : aussi jeune que lui, il ne se balaie pas.
+        $disque = Storage::disk($this->disque);
+        $disque->makeDirectory('987660');
+        $disque->makeDirectory('987661');
+        touch($disque->path('987660'), now()->subMinutes(5)->getTimestamp());
+        touch($disque->path('987661'), now()->subMinutes(61)->getTimestamp());
+
+        $this->assertSame(1, $this->purger()['orphan_dirs']);
+
+        $this->assertTrue($disque->exists('987660'));
+        $this->assertFalse($disque->exists('987661'));
     }
 
     public function test_le_passage_d_un_seul_annonceur_ne_balaie_pas_le_disque(): void

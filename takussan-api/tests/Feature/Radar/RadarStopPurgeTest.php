@@ -6,6 +6,7 @@ use App\Models\Enums\RadarListingStage;
 use App\Models\Property;
 use App\Models\RadarListing;
 use App\Models\RadarOutreach;
+use App\Services\Radar\RadarPurger;
 use App\Support\RadarPhone;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
@@ -74,5 +75,43 @@ class RadarStopPurgeTest extends TestCase
         $this->assertSame(RadarPhone::hmac(self::NUMERO_ANNONCEUR), $this->annonceur->fresh()->phone_hmac);
         // Il lui reste une annonce : son numéro en clair reste aussi.
         $this->assertSame(self::NUMERO_ANNONCEUR, $this->annonceur->fresh()->phone);
+    }
+
+    // --- Une annonce qui arrive APRÈS le STOP : elle ne garde pas sa matière jusqu'au passage quotidien -------------
+
+    /** L'annonceur qui a dit STOP, sans plus aucune annonce (celui d'une purge déjà faite). */
+    private function refus(): void
+    {
+        $this->annonceur->forceFill(['do_not_contact_at' => now()])->save();
+        RadarOutreach::factory()->create(['radar_advertiser_id' => $this->annonceur->id, 'salutation' => '', 'summary' => '', 'message' => '']);
+        $this->assertSame(0, app(RadarPurger::class)->run($this->annonceur->id)['listings']);
+    }
+
+    public function test_une_annonce_saisie_en_texte_apres_un_stop_est_purgee_aussitot(): void
+    {
+        $this->refus();
+
+        $this->postJson('/api/admin/radar/listings', ['text' => "Villa à vendre à Almadies, 85 000 000 FCFA, 4 chambres. Contact : 77 123 45 67\nVisite sur rendez-vous."])
+            ->assertCreated();
+
+        $annonce = RadarListing::query()->sole();
+        $this->assertSame(RadarListingStage::Purged, $annonce->stage);
+        $this->assertNull($annonce->raw_text);
+        $this->assertSame($this->annonceur->id, $annonce->radar_advertiser_id);
+        $this->assertNull($this->annonceur->fresh()->phone);
+    }
+
+    public function test_un_numero_rattache_a_la_main_apres_un_stop_purge_l_annonce_aussitot(): void
+    {
+        $this->refus();
+        $annonce = RadarListing::factory()->extracted(['phones' => ['+221789998877'], 'phones_dropped' => [self::NUMERO_ANNONCEUR]])
+            ->create(['raw_text' => 'Appartement à louer, contact 77 123 45 67', 'stage' => RadarListingStage::Extracted, 'radar_advertiser_id' => null]);
+
+        $this->putJson("/api/admin/radar/listings/{$annonce->id}/advertiser", ['phone' => self::NUMERO_ANNONCEUR])->assertOk();
+
+        $apres = $annonce->fresh();
+        $this->assertSame(RadarListingStage::Purged, $apres->stage);
+        $this->assertNull($apres->raw_text);
+        $this->assertNull($apres->extracted);
     }
 }

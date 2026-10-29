@@ -195,8 +195,10 @@ final class RadarPurger
     /**
      * « Tant que les annonces concernées sont en ligne, puis 3 ans » : une preuve est VIVANTE quand une annonce qu'elle couvre
      * attend sa publication (`consented`) ou est publiée sur un bien public. Le retrait n'a pas de date en base : la première
-     * observation « plus rien en ligne » la pose (`offline_since` : le jour de la révocation s'il y en a une), et un bien qui
-     * revient en ligne l'efface.
+     * observation « plus rien en ligne » la pose (`offline_since` : la date de CETTE observation, à un jour près du retrait), et un
+     * bien qui revient en ligne l'efface : les trois ans courent du DERNIER retrait, jamais d'une révocation antérieure à une
+     * republication (`revoked_at` ne dit que le premier retrait). Limite : une remise en ligne qui n'a pas duré jusqu'au passage
+     * quotidien suivant n'est pas vue, et la date du retrait précédent reste.
      *
      * @param  array<string, int>  $counts
      */
@@ -216,7 +218,7 @@ final class RadarPurger
         $counts['retention_started'] += RadarConsent::query()
             ->whereNotNull('confirmed_at')->whereNull('purged_at')->whereNull('offline_since')
             ->whereNotExists($live())
-            ->update(['offline_since' => DB::raw("coalesce(radar_consents.revoked_at, '{$stamp}')")]);
+            ->update(['offline_since' => $stamp]);
         $counts['retention_reset'] += RadarConsent::query()
             ->whereNotNull('confirmed_at')->whereNull('purged_at')->whereNotNull('offline_since')
             ->whereExists($live())

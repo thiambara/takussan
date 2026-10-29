@@ -49,8 +49,11 @@ final class RadarAdvertiserDirectory
      * TCK-2391 — un annonceur purgé SANS refus (ses annonces effacées, son numéro avec) qui revient récupère son numéro : la
      * publication et le lien `wa.me` partent de `phone`. Celui qui a dit STOP ne le récupère jamais : son annonce naît
      * `do_not_contact` et seule l'empreinte lui sert.
+     *
+     * Public pour l'appelant qui relit l'annonceur SOUS VERROU après `findOrCreate()` : une purge qui a pris le verrou entre les deux
+     * ne voyait pas encore l'annonce, et a effacé le numéro que `findOrCreate()` venait de rendre.
      */
-    private function restorePhone(RadarAdvertiser $advertiser, string $e164): RadarAdvertiser
+    public function restorePhone(RadarAdvertiser $advertiser, string $e164): RadarAdvertiser
     {
         if ($advertiser->phone === null && $advertiser->do_not_contact_at === null) {
             $advertiser->forceFill(['phone' => $e164])->save();

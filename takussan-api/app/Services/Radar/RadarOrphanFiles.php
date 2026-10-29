@@ -54,7 +54,10 @@ final class RadarOrphanFiles
         return $swept;
     }
 
-    /** L'horodatage du fichier le plus récent du dossier, 0 s'il est vide. */
+    /**
+     * L'horodatage du fichier le plus récent du dossier ; celui du dossier lui-même s'il est vide : un `mkdir` dont le fichier n'est
+     * pas encore écrit est aussi jeune que lui.
+     */
     private function newest(Filesystem $disk, string $directory): int
     {
         $newest = 0;
@@ -62,6 +65,17 @@ final class RadarOrphanFiles
             $newest = max($newest, $disk->lastModified($file));
         }
 
-        return $newest;
+        return $newest > 0 ? $newest : $this->ageOf($disk, $directory);
+    }
+
+    /** L'horodatage du dossier ; `PHP_INT_MAX` (donc jamais balayé) quand le disque ne le dit pas. */
+    private function ageOf(Filesystem $disk, string $directory): int
+    {
+        // Un dossier vide n'existe pas sur un seau objet : rien à y balayer, rien à y retenir.
+        try {
+            return $disk->lastModified($directory);
+        } catch (\Throwable) {
+            return PHP_INT_MAX;
+        }
     }
 }

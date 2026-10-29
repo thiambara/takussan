@@ -4,6 +4,7 @@ namespace Tests\Feature\Radar;
 
 use App\Ai\Agents\RadarExtraction;
 use App\Jobs\Radar\ExtractRadarListing;
+use App\Jobs\Radar\PurgeRadarAdvertiser;
 use App\Models\AiCall;
 use App\Models\AiUsageSetting;
 use App\Models\Enums\PlatformProfileLevel;
@@ -227,7 +228,9 @@ class RadarListingStoreTest extends TestCase
         $fiche = RadarListing::query()->sole();
         $this->assertSame(RadarListingStage::DoNotContact, $fiche->stage);
         $this->assertSame($stop->id, $fiche->radar_advertiser_id);
-        Queue::assertNothingPushed();
+        // Pas d'extraction ; la matière du numéro qui a refusé part, elle, tout de suite (TCK-2391).
+        Queue::assertNotPushed(ExtractRadarListing::class);
+        Queue::assertPushed(PurgeRadarAdvertiser::class, fn (PurgeRadarAdvertiser $job) => $job->advertiserId === $stop->id);
         RadarExtraction::assertNeverPrompted();
     }
 

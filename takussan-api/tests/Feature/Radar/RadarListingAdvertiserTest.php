@@ -3,13 +3,17 @@
 namespace Tests\Feature\Radar;
 
 use App\Exceptions\ApiError;
+use App\Jobs\Radar\PurgeRadarAdvertiser;
 use App\Models\Enums\PlatformProfileLevel;
 use App\Models\Enums\RadarListingStage;
 use App\Models\RadarAdvertiser;
 use App\Models\RadarListing;
+use App\Models\RadarOutreach;
 use App\Services\Radar\RadarListingReview;
+use App\Services\Radar\RadarPurger;
 use App\Support\RadarPhone;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Testing\TestResponse;
 use Spatie\Activitylog\Models\Activity;
@@ -36,6 +40,8 @@ class RadarListingAdvertiserTest extends TestCase
     {
         parent::setUp();
         $this->agirEnOperateur(PlatformProfileLevel::Support);
+        // TCK-2391 : un STOP tardif lance la purge de l'annonceur ; elle s'éprouve dans RadarStopPurgeTest.
+        Bus::fake([PurgeRadarAdvertiser::class]);
     }
 
     /** @param  array<string, mixed>  $attributes */
@@ -113,8 +119,32 @@ class RadarListingAdvertiserTest extends TestCase
             ->assertJsonPath('data.radar_advertiser_id', $stop->id);
 
         $this->assertSame(RadarListingStage::DoNotContact, $listing->fresh()->stage);
+
+        Bus::assertDispatched(PurgeRadarAdvertiser::class, fn (PurgeRadarAdvertiser $job) => $job->advertiserId === RadarListing::query()->sole()->radar_advertiser_id);
         $this->assertSame(1, RadarAdvertiser::query()->count());
         $this->assertTrue(Activity::query()->where('event', 'radar_listing_advertiser_set')->sole()->properties['do_not_contact']);
+    }
+
+    public function test_une_purge_entre_la_recherche_et_le_verrou_de_l_annonceur_ne_lui_prend_pas_son_numero(): void
+    {
+        // Un annonceur déjà purgé sans refus : numéro parti, un message gardé.
+        $annonceur = RadarAdvertiser::factory()->create(['phone' => null, 'phone_hmac' => RadarPhone::hmac(self::ECARTE)]);
+        RadarOutreach::factory()->create(['radar_advertiser_id' => $annonceur->id, 'salutation' => '', 'summary' => '', 'message' => '']);
+        $listing = $this->fiche();
+        // `findOrCreate()` lui rend son numéro, puis une purge passe avant le verrou : elle ne voit pas encore l'annonce rattachée.
+        $faite = false;
+        RadarAdvertiser::updated(function (RadarAdvertiser $a) use (&$faite): void {
+            if (! $faite) {
+                $faite = true;
+                app(RadarPurger::class)->run($a->id);
+            }
+        });
+
+        $this->promouvoir($listing, self::ECARTE)->assertOk();
+
+        $this->assertTrue($faite, 'La purge devait passer entre la recherche et le verrou.');
+        $this->assertSame($annonceur->id, $listing->fresh()->radar_advertiser_id);
+        $this->assertSame(self::ECARTE, $annonceur->fresh()->phone);
     }
 
     public function test_un_stop_dit_entre_la_lecture_et_le_verrou_de_l_annonceur_l_emporte(): void
@@ -136,6 +166,7 @@ class RadarListingAdvertiserTest extends TestCase
         $this->assertTrue($dit, 'le STOP tardif a bien été simulé');
         $apres = $listing->fresh();
         $this->assertSame(RadarListingStage::DoNotContact, $apres->stage);
+        Bus::assertDispatched(PurgeRadarAdvertiser::class, fn (PurgeRadarAdvertiser $job) => $job->advertiserId === RadarListing::query()->sole()->radar_advertiser_id);
         $this->assertSame($annonceur->id, $apres->radar_advertiser_id);
     }
 

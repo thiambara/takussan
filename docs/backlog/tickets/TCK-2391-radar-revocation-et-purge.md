@@ -182,6 +182,25 @@ posés par TCK-2389. Loi n° 2008-12 : la durée annoncée doit être tenue par 
 - `README` de `content/legal` : la ligne 6 de « Avant la mise en production » est retirée, les suivantes ne sont pas renumérotées (TCK-2390 retire la 7e :
   pas de conflit de lignes).
 
+**Corrections de la vérification adverse (2026-10-29).**
+
+- **Les trois ans partent du DERNIER retrait.** `offline_since` prenait `coalesce(revoked_at, maintenant)` : une preuve révoquée à T0, republiée par l'hôte puis
+  retirée à T0 + 2,5 ans s'effaçait 200 jours après le dernier retrait. Il prend la date de l'observation (un jour de précision) et se remet à null
+  quand un bien revient ; `revoked_at` ne dit que le premier retrait. Limite : une remise en ligne qui ne dure pas jusqu'au passage quotidien suivant
+  n'est pas vue, et la date du retrait précédent reste.
+- **« Dès un STOP » vaut aussi pour ce qui arrive après.** Une annonce saisie en texte sur un numéro qui a refusé, un STOP trouvé par l'extraction
+  (sous verrou, ou avant l'appel) et un numéro rattaché à la main lancent `PurgeRadarAdvertiser` après commit : plus un jour de texte brut. La saisie par URL
+  ou par captures n'a pas de numéro à la saisie ; elle passe par l'extraction.
+- **Le balayage date un dossier vide par le dossier lui-même** (jamais balayé s'il a moins d'1 h ; sur un seau objet, un dossier vide n'existe pas).
+- **Course purge d'annonceur / rattachement : réelle, corrigée.** `findOrCreate()` rend le numéro, puis le job (ou `setAdvertiser`) prend le verrou de
+  l'annonceur ; une purge entre les deux ne voit pas encore l'annonce, efface le numéro et valide. Reproduite par un crochet `updated` qui lance la purge
+  à cet instant (un test dans `ExtractRadarListingTest`, un dans `RadarListingAdvertiserTest`) ; corrigée par `RadarAdvertiserDirectory::restorePhone()`
+  rappelé sous verrou. Un annonceur dont la ligne a été supprimée entre-temps (ni refus, ni message, ni accord) est simplement non rattaché : l'opérateur
+  le pose à la main.
+- **L'empreinte des refus dépend de `app.key`** (`config/radar.php`) : le numéro en clair étant purgé, une rotation d'`APP_KEY` perd sans retour l'empreinte de tous
+  les refus déjà purgés, et le Radar pourrait recontacter ces numéros. À poser avant la production : une clé dédiée (`radar.phone_hmac_key`), jamais tournée à la légère.
+- **Copie nocturne du seau privé** : les fichiers purgés survivent dans `vps-sauvegardes` (jamais `sync`). Hors du diff : TCK-2407.
+
 **Décisions du porteur (2026-10-29).** Les quatre recommandations de l'implémentation sont retenues, ainsi que les choix techniques ci-dessus.
 
 1. `ai_suggestions` du sujet purgé : les champs s'effacent, la ligne reste.
