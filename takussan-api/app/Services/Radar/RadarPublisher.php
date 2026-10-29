@@ -57,7 +57,10 @@ final class RadarPublisher
      * Ce que la publication ferait, sans rien écrire : les annonces `consented` couvertes par un accord valide, ce qui
      * bloque chacune, et ce qui bloque l'ensemble.
      *
-     * @return array{advertiser: array<string, mixed>, account: array<string, mixed>, listings: list<array<string, mixed>>, blocking: list<string>}
+     * `published` : les biens que le Radar a déjà publiés pour cet annonceur, dont le second message se compose sans
+     * dépendre de la réponse d'un `publish` (perdue, coupée par un délai, ou page rechargée).
+     *
+     * @return array{advertiser: array<string, mixed>, account: array<string, mixed>, listings: list<array<string, mixed>>, published: list<array<string, mixed>>, blocking: list<string>}
      */
     public function preview(RadarAdvertiser $advertiser): array
     {
@@ -101,8 +104,37 @@ final class RadarPublisher
                 'space_name' => self::spaceName($firstName),
             ],
             'listings' => $listings->map(fn (RadarListing $listing) => $this->previewOf($listing))->values()->all(),
+            'published' => $this->publishedProperties($advertiser),
             'blocking' => $blocking,
         ];
+    }
+
+    /**
+     * Les biens déjà publiés par le Radar pour l'annonceur, du plus ancien au plus récent : ce que le second message liste.
+     *
+     * @return list<array{id: int, slug: string, title: string|null, radar_listing_id: int, public_url: string}>
+     */
+    private function publishedProperties(RadarAdvertiser $advertiser): array
+    {
+        $listingOf = RadarListing::query()
+            ->where('radar_advertiser_id', $advertiser->id)
+            ->where('stage', RadarListingStage::Published->value)
+            ->whereNotNull('property_id')
+            ->pluck('id', 'property_id');
+
+        return Property::query()
+            ->whereIn('id', $listingOf->keys())
+            ->orderBy('id')
+            ->get(['id', 'slug', 'title'])
+            ->map(fn (Property $property): array => [
+                'id' => $property->id,
+                'slug' => $property->slug,
+                'title' => $property->title,
+                'radar_listing_id' => (int) $listingOf[$property->id],
+                'public_url' => self::publicUrl($property->slug),
+            ])
+            ->values()
+            ->all();
     }
 
     /**
@@ -271,8 +303,8 @@ final class RadarPublisher
             'contract' => $values['contract'],
             'property_type' => $values['property_type'],
             'neighborhood_id' => $values['neighborhood_id'],
-            // Le nom du quartier : l'écran dit où le bien sera publié.
-            'neighborhood' => $values['neighborhood_id'] === null ? null : GeoNeighborhood::query()->find((int) $values['neighborhood_id'])?->name,
+            // Le nom du quartier CANONIQUE (une fusion se suit jusqu'à sa cible) : l'écran dit où le bien sera publié.
+            'neighborhood' => $values['neighborhood_id'] === null ? null : GeoNeighborhood::query()->find((int) $values['neighborhood_id'])?->canonique()?->name,
             'photo_preparation' => $status,
             'photos' => $photos->map(fn (Media $media) => [
                 'id' => $media->id,

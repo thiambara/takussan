@@ -529,6 +529,49 @@ class RadarPublishTest extends TestCase
         $this->assertSame($cible->geo_city_id, $adresse->geo_city_id);
     }
 
+    /** Le quartier annoncé est celui où le bien sera publié : la ligne canonique, pas celle que la relecture a stockée. */
+    public function test_l_apercu_nomme_le_quartier_canonique_d_un_quartier_fusionne(): void
+    {
+        $this->annonceConsentie();
+        $cible = GeoNeighborhood::factory()->create();
+        $this->quartier->forceFill(['merged_into_id' => $cible->id])->save();
+
+        $this->getJson("/api/admin/radar/advertisers/{$this->annonceur->id}/publication-preview")->assertOk()
+            ->assertJsonPath('data.listings.0.neighborhood_id', $this->quartier->id)
+            ->assertJsonPath('data.listings.0.neighborhood', $cible->name);
+    }
+
+    /** Le second message ne dépend pas de la réponse de `publish` : l'aperçu dit ce qui est déjà en ligne, pour qu'un écran le propose. */
+    public function test_l_apercu_rend_les_biens_deja_publies_pour_composer_le_second_message(): void
+    {
+        $a = $this->annonceConsentie();
+        $b = $this->annonceConsentie();
+        $this->getJson("/api/admin/radar/advertisers/{$this->annonceur->id}/publication-preview")->assertOk()
+            ->assertJsonPath('data.published', []);
+
+        $bien = $this->publier([$a->id])->assertCreated()->json('data.properties.0');
+
+        $apercu = $this->getJson("/api/admin/radar/advertisers/{$this->annonceur->id}/publication-preview")->assertOk();
+        $apercu->assertJsonCount(1, 'data.published')
+            ->assertJsonPath('data.published.0', [
+                'id' => $bien['id'],
+                'slug' => $bien['slug'],
+                'title' => $bien['title'],
+                'radar_listing_id' => $a->id,
+                'public_url' => $bien['public_url'],
+            ]);
+        $this->assertSame([$b->id], array_column($apercu->json('data.listings'), 'id'), 'l\'annonce publiée sort des annonces à publier');
+    }
+
+    public function test_les_biens_publies_d_un_autre_annonceur_ne_figurent_pas_a_l_apercu(): void
+    {
+        $this->publier([$this->annonceConsentie()->id])->assertCreated();
+        $autre = RadarAdvertiser::factory()->create();
+
+        $this->getJson("/api/admin/radar/advertisers/{$autre->id}/publication-preview")->assertOk()
+            ->assertJsonPath('data.published', []);
+    }
+
     public function test_le_message_d_un_annonceur_qui_a_dit_stop_n_est_pas_compose(): void
     {
         $this->publier([$this->annonceConsentie()->id])->assertCreated();
