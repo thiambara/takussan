@@ -713,7 +713,7 @@ if (perimees.length > 0) {
 const ecart = Math.abs(compteurs.conteneurs - CONTENEURS_ATTENDUS) / CONTENEURS_ATTENDUS;
 if (ecart > TOLERANCE_CONTENEURS) {
   console.error(
-    `✗ CLIQUET — ${compteurs.conteneurs} conteneur(s) lus, alors que le relevé du 2026-08-30 en`
+    `✗ CLIQUET — ${compteurs.conteneurs} conteneur(s) lus, alors que le dernier relevé (2026-10-29) en`
     + ` donnait ${CONTENEURS_ATTENDUS} (±${Math.round(TOLERANCE_CONTENEURS * 100)} %).`,
   );
   console.error('  Ce chiffre échoue dans LES DEUX SENS, et c’est le sens descendant qui compte :');

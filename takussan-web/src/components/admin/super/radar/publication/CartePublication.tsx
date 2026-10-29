@@ -36,9 +36,22 @@ export function CartePublication({
 }: CartePublicationProps) {
   const t = useTranslations('superAdmin.pages.radar.publication.listings');
   const fmt = useFormatteurs();
-  const libelle = useLibelleCodePublication();
+  const tBlocage = useTranslations('superAdmin.pages.radar.publication.listings.blocking');
+  const libelleDuCode = useLibelleCodePublication();
   const bloquee = annonce.blocking.length > 0;
   const idCase = `radar-publication-annonce-${annonce.id}`;
+
+  // Une carte ne parle que d'UNE annonce : « Cette annonce… », pas le « Une annonce… » du refus d'un envoi qui en porte plusieurs.
+  // Sans photo à la source, rien à « récupérer » : le texte ne propose que le dépôt.
+  const sansPhotoSource = annonce.photo_preparation.total === 0;
+  const libelle = (code: string): string => {
+    switch (code) {
+      case 'radar.publish.no_photo': return tBlocage(sansPhotoSource ? 'noPhotoNoSource' : 'noPhoto');
+      case 'radar.publish.photos_pending': return tBlocage('photosPending');
+      case 'radar.publish.missing_field': return tBlocage('missingField');
+      default: return libelleDuCode(code);
+    }
+  };
 
   const rapprochements = annonce.matches.map((match) =>
     match.kind === 'property' ? t('matchProperty', { id: match.id }) : t('matchListing', { id: match.id }));
@@ -81,7 +94,6 @@ export function CartePublication({
 
       {rapprochements.length > 0 || doublons.length > 0 ? (
         <div
-          role="alert"
           className="flex items-start gap-2 rounded-md border border-warning/60 bg-warning/5 p-2 text-xs text-foreground"
           data-testid={`radar-publication-alerte-${annonce.id}`}
         >

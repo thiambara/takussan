@@ -119,8 +119,10 @@ describe('RadarPublication — la vérification (TCK-2389)', () => {
     expect(case13).not.toBeChecked();
     expect(case13).toBeDisabled();
     const blocages = within(carte).getByTestId('radar-publication-blocages-13');
-    expect(within(blocages).getByText(/n’a aucune photo dans sa réserve/)).toBeInTheDocument();
-    expect(within(blocages).getByText(/est incomplète/)).toBeInTheDocument();
+    // La carte ne parle que d'une annonce : « Cette annonce… », jamais le « Une annonce… » du refus d'un envoi.
+    expect(within(blocages).getByText(/^Cette annonce n’a aucune photo dans sa réserve : récupérez-en à la source/)).toBeInTheDocument();
+    expect(within(blocages).getByText(/^Cette annonce est incomplète/)).toBeInTheDocument();
+    expect(within(blocages).queryByText(/^Une annonce/)).not.toBeInTheDocument();
     await utilisateur.click(case13);
     expect(case13).not.toBeChecked();
     expect(publier()).toHaveTextContent('Publier 1 annonce');
@@ -162,7 +164,8 @@ describe('RadarPublication — la vérification (TCK-2389)', () => {
     }));
 
     const alerte = screen.getByTestId('radar-publication-alerte-12');
-    expect(alerte).toHaveAttribute('role', 'alert');
+    // Un contenu statique : le rôle « alert » s'annoncerait à chaque relecture de l'aperçu, pour toutes les cartes à la fois.
+    expect(alerte).not.toHaveAttribute('role');
     expect(within(alerte).getByText('Ressemble déjà à : le bien n° 88, l’annonce n° 15.')).toBeInTheDocument();
     expect(within(alerte).getByText('Marquée comme doublon du bien n° 88.')).toBeInTheDocument();
   });
@@ -229,6 +232,37 @@ describe('RadarPublication — la réserve de photos (TCK-2389)', () => {
     const carte = screen.getByTestId('radar-publication-carte-13');
     expect(within(carte).getByRole('button', { name: 'Récupérer les photos de la source' })).toBeDisabled();
     expect(within(carte).getByTestId('radar-publication-preparation-13')).toHaveTextContent('Lecture des photos de la source : 1 sur 3.');
+  });
+
+  it('une annonce sans photo à la source ne propose que le dépôt : ni texte ni bouton ne parlent de « récupérer »', async () => {
+    await rendre(apercu({
+      listings: [annonce(13, {
+        photos: [],
+        photo_preparation: { status: 'none', total: 0, done: 0 },
+        blocking: ['radar.publish.no_photo'],
+      })],
+    }));
+
+    const carte = screen.getByTestId('radar-publication-carte-13');
+    expect(within(carte).getAllByText('Cette annonce n’a aucune photo à la source : déposez-en à la main.')).toHaveLength(1);
+    expect(within(carte).getByText('Aucune photo à la source : déposez-en à la main.')).toBeInTheDocument();
+    expect(within(carte).queryByText(/récupérez/i)).not.toBeInTheDocument();
+    expect(within(carte).queryByRole('button', { name: 'Récupérer les photos de la source' })).not.toBeInTheDocument();
+    expect(within(carte).getByRole('button', { name: 'Déposer des photos' })).toBeEnabled();
+  });
+
+  it('une annonce dont la source a des photos, mais dont la réserve est vide, propose de les récupérer', async () => {
+    await rendre(apercu({
+      listings: [annonce(13, {
+        photos: [],
+        photo_preparation: { status: 'done', total: 3, done: 0 },
+        blocking: ['radar.publish.no_photo'],
+      })],
+    }));
+
+    const carte = screen.getByTestId('radar-publication-carte-13');
+    expect(within(carte).getByText('Aucune photo : récupérez celles de la source, ou déposez-en à la main.')).toBeInTheDocument();
+    expect(within(carte).getByRole('button', { name: 'Récupérer les photos de la source' })).toBeEnabled();
   });
 
   it('une réserve pleine ferme le dépôt', async () => {
@@ -523,14 +557,6 @@ describe('RadarPublication — la prise en charge (TCK-2389)', () => {
 
 describe('RadarPublication — le second message ne se perd pas (TCK-2389)', () => {
   const enCours = () => new ApiError(409, { code: 'idempotency.in_progress' });
-
-  async function confirmer(detail?: RadarPublicationPreview) {
-    const rendu = await rendre(detail);
-    await rendu.utilisateur.click(publier());
-    const dialogue = await screen.findByRole('dialog');
-    await rendu.utilisateur.click(within(dialogue).getByRole('button', { name: 'Publier' }));
-    return { ...rendu, dialogue };
-  }
 
   it('un envoi « encore en cours » se rejoue sous la MÊME clé jusqu\'à la réponse enregistrée, sans relire l\'aperçu', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });

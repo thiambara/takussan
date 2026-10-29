@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { ImagePlus, RefreshCw, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
@@ -21,6 +21,24 @@ interface PhotosReserveProps {
 }
 
 /**
+ * Les URL à afficher : chaque relecture de l'aperçu rend des URL SIGNÉES neuves (`PrivateMediaAccess`), donc changer le `src`
+ * de toutes les vignettes toutes les 10 s pendant une préparation les ferait recharger sans fin. Une photo garde l'URL
+ * qu'on lui a vue première tant que son `id` reste ; si le navigateur n'arrive plus à la charger (signature échue), elle
+ * prend l'URL courante.
+ */
+function useUrlsStables(photos: RadarPublicationListing['photos']) {
+  const [vues, setVues] = useState<Readonly<Record<number, string>>>({});
+  if (photos.some((photo) => vues[photo.id] === undefined)) {
+    // Dérivé du rendu, et seulement quand une photo est nouvelle : une mise à jour d'état pendant le rendu est permise.
+    setVues((courant) => Object.fromEntries(photos.map((photo) => [photo.id, courant[photo.id] ?? photo.url])));
+  }
+  return {
+    src: (photo: { readonly id: number; readonly url: string }) => vues[photo.id] ?? photo.url,
+    perimee: (photo: { readonly id: number; readonly url: string }) => setVues((courant) => ({ ...courant, [photo.id]: photo.url })),
+  };
+}
+
+/**
  * TCK-2389 (décision 3a) — la réserve de photos d'une annonce : ce que `publish` copiera sur le bien, dans cet
  * ordre. Chaque vignette se retire ; l'opérateur dépose des photos à la main, ou relance la lecture de la source
  * (une annonce-URL : `photo_preparation.total` > 0). Tant que la préparation tourne, l'écran le dit et se relit.
@@ -32,6 +50,7 @@ export function PhotosReserve({ annonce, desactive, onRetirer, onDeposer, onRecu
   const { photos, photo_preparation: preparation } = annonce;
   const pleine = photos.length >= RADAR_RESERVE_PHOTOS_MAX;
   const enPreparation = preparation.status === 'pending';
+  const urls = useUrlsStables(photos);
 
   return (
     <div className="space-y-2" data-testid={`radar-publication-photos-${annonce.id}`}>
@@ -49,14 +68,15 @@ export function PhotosReserve({ annonce, desactive, onRetirer, onDeposer, onRecu
       </div>
 
       {photos.length === 0 ? (
-        <p className="text-xs text-muted-foreground">{t('none')}</p>
+        <p className="text-xs text-muted-foreground">{preparation.total > 0 ? t('none') : t('noneNoSource')}</p>
       ) : (
         <ul className="flex flex-wrap gap-2" aria-label={t('list', { id: annonce.id })}>
           {photos.map((photo, rang) => (
             <li key={photo.id} className="relative">
               {/* eslint-disable-next-line @next/next/no-img-element -- URL signée de l'original privé (5 min) : rien à optimiser ni à mettre en cache. */}
               <img
-                src={photo.url}
+                src={urls.src(photo)}
+                onError={() => urls.perimee(photo)}
                 alt={t('alt', { rank: rang + 1, id: annonce.id })}
                 loading="lazy"
                 className="size-20 rounded-md border object-cover"

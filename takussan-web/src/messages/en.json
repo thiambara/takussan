@@ -9223,13 +9223,20 @@
             "matchProperty": "property no. {id}",
             "matchListing": "listing no. {id}",
             "duplicateOfListing": "Marked as a duplicate of listing no. {id}.",
-            "duplicateOfProperty": "Marked as a duplicate of property no. {id}."
+            "duplicateOfProperty": "Marked as a duplicate of property no. {id}.",
+            "blocking": {
+              "noPhoto": "This listing has no photo in its reserve: collect some from the source, or upload some.",
+              "noPhotoNoSource": "This listing has no photo at the source: upload some by hand.",
+              "photosPending": "The photos of this listing are still being prepared: wait for them to finish, or restart the collection.",
+              "missingField": "This listing is incomplete: the type, the contract, the price, a neighbourhood from the reference list and the title are required."
+            }
           },
           "photos": {
             "heading": "Reserve photos ({taken}/{max})",
             "preparing": "Reading the source photos: {done} of {total}.",
             "prepared": "Source photos read: {done} of {total}.",
             "none": "No photo: collect the source’s photos, or upload some by hand.",
+            "noneNoSource": "No photo at the source: upload some by hand.",
             "list": "Photos of listing no. {id}, in publication order",
             "alt": "Photo {rank} of listing no. {id}",
             "remove": "Remove photo {rank} of listing no. {id}",

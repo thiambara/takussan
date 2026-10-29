@@ -9223,13 +9223,20 @@
             "matchProperty": "le bien n° {id}",
             "matchListing": "l’annonce n° {id}",
             "duplicateOfListing": "Marquée comme doublon de l’annonce n° {id}.",
-            "duplicateOfProperty": "Marquée comme doublon du bien n° {id}."
+            "duplicateOfProperty": "Marquée comme doublon du bien n° {id}.",
+            "blocking": {
+              "noPhoto": "Cette annonce n’a aucune photo dans sa réserve : récupérez-en à la source, ou déposez-en.",
+              "noPhotoNoSource": "Cette annonce n’a aucune photo à la source : déposez-en à la main.",
+              "photosPending": "Les photos de cette annonce sont encore en préparation : attendez la fin, ou relancez la lecture.",
+              "missingField": "Cette annonce est incomplète : le type, le contrat, le prix, un quartier du référentiel et le titre sont requis."
+            }
           },
           "photos": {
             "heading": "Photos de la réserve ({taken}/{max})",
             "preparing": "Lecture des photos de la source : {done} sur {total}.",
             "prepared": "Photos de la source lues : {done} sur {total}.",
             "none": "Aucune photo : récupérez celles de la source, ou déposez-en à la main.",
+            "noneNoSource": "Aucune photo à la source : déposez-en à la main.",
             "list": "Photos de l’annonce n° {id}, dans l’ordre de publication",
             "alt": "Photo {rank} de l’annonce n° {id}",
             "remove": "Retirer la photo {rank} de l’annonce n° {id}",

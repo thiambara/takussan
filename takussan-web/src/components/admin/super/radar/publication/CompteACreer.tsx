@@ -2,6 +2,7 @@
 
 import { useTranslations } from 'next-intl';
 
+import { nomCompletDe } from '@/lib/identite';
 import type { RadarPublicationAccount } from '@/types/radar';
 
 interface CompteACreerProps {
@@ -16,7 +17,6 @@ interface CompteACreerProps {
  */
 export function CompteACreer({ nom, compte }: CompteACreerProps) {
   const t = useTranslations('superAdmin.pages.radar.publication.account');
-  const nomComplet = [compte.first_name, compte.last_name].filter(Boolean).join(' ');
   const titre = nom ? t('heading', { name: nom }) : t('headingUnnamed');
 
   return (
@@ -26,7 +26,7 @@ export function CompteACreer({ nom, compte }: CompteACreerProps) {
         <dt className="text-muted-foreground">{t('account')}</dt>
         <dd className="text-foreground">{compte.exists ? t('existing') : t('new')}</dd>
         <dt className="text-muted-foreground">{t('name')}</dt>
-        <dd className="text-foreground">{nomComplet || t('noName')}</dd>
+        <dd className="text-foreground">{nomCompletDe(compte) ?? t('noName')}</dd>
         <dt className="text-muted-foreground">{t('phone')}</dt>
         <dd className="font-mono text-foreground">{compte.phone}</dd>
         <dt className="text-muted-foreground">{t('space')}</dt>
