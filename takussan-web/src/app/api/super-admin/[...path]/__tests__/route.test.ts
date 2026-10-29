@@ -52,6 +52,37 @@ describe('BFF /api/super-admin/[...path]', () => {
     expect(Array.from(relaye)).toEqual(Array.from(corps));
   });
 
+  it('l\'en-tête Idempotency-Key part avec l\'écriture, et rien d\'autre du navigateur', async () => {
+    const requete = new NextRequest('http://localhost/api/super-admin/radar/advertisers/7/publish', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        cookie: 'auth_token=1|abc',
+        'idempotency-key': '8f14e45f-ceea-4e67-9d2a-1c2f3b4a5d6e',
+        'x-autre': 'ne-passe-pas',
+      },
+      body: JSON.stringify({ listing_ids: [1] }),
+    });
+    await POST(requete, ctx(['radar', 'advertisers', '7', 'publish']));
+
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toMatch(/\/api\/admin\/radar\/advertisers\/7\/publish$/);
+    const en = init.headers as Record<string, string>;
+    expect(en['Idempotency-Key']).toBe('8f14e45f-ceea-4e67-9d2a-1c2f3b4a5d6e');
+    expect(en['x-autre']).toBeUndefined();
+  });
+
+  it('sans Idempotency-Key, aucune clé n\'est inventée par le relais', async () => {
+    const requete = new NextRequest('http://localhost/api/super-admin/radar/advertisers/7/claim', {
+      method: 'POST',
+      headers: { cookie: 'auth_token=1|abc' },
+    });
+    await POST(requete, ctx(['radar', 'advertisers', '7', 'claim']));
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect((init.headers as Record<string, string>)['Idempotency-Key']).toBeUndefined();
+  });
+
   it('un corps JSON reste relayé tel quel', async () => {
     const requete = new NextRequest('http://localhost/api/super-admin/privacy-requests/3', {
       method: 'PATCH',

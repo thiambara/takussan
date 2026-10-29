@@ -130,9 +130,11 @@ const TOLERES = new Set([]);
  * ⚠ **Cliquet à DEUX sens, et c'est le sens descendant qui compte.** Une garde à lecture de texte
  * ne meurt pas en rougissant, elle meurt en ne trouvant plus rien : si un changement de forme
  * d'écriture rendait la lecture aveugle, le script sortirait en 0 avec un message d'apparence
- * saine. Relevé le 2026-08-30 ; s'il bouge pour de bon, corriger ICI, avec la date.
+ * saine. Relevé le 2026-08-30 (299), puis le 2026-10-29 (405, TCK-2389 : la page « Publier pour lui »
+ * porte sept conteneurs de plus sur 398 ; le dépôt avait déjà crû de 299 à 398 sans que le chiffre
+ * bouge). S'il bouge pour de bon, corriger ICI, avec la date.
  */
-const CONTENEURS_ATTENDUS = 299;
+const CONTENEURS_ATTENDUS = 405;
 /** Marge de respiration : le dépôt bouge, la lecture non. En dehors, il faut regarder. */
 const TOLERANCE_CONTENEURS = 0.35;
 

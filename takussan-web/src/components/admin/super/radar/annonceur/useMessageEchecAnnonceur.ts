@@ -6,6 +6,7 @@ import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import { ApiError } from '@/lib/api';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { ERREURS_ANNONCEUR_RADAR, ERREURS_SAISIE_RADAR, MOTIFS_RADAR, MOTIFS_VERIFICATION_RADAR } from '../codes-radar';
+import { ERREURS_PUBLICATION_RADAR } from '../publication/codes-publication';
 import { codeDeLErreur } from '../fiche/useMessageEchecFiche';
 
 /** Le paramètre `claimed_until` d'un 409 `claimed_by_other` : l'instant jusqu'où l'autre opérateur tient la prise. */
@@ -27,9 +28,12 @@ export function useMessageEchecAnnonceur() {
   const tSaisie = useTranslations('superAdmin.pages.radar.intake');
   const fmt = useFormatteurs();
   const messageErreur = useMessageErreurApi();
+  const libelleCode = useLibelleCodePublication();
 
   return (erreur: unknown, repli: string = t('errors.generic')): string => {
     const code = codeDeLErreur(erreur);
+    // TCK-2389 — la publication et la réserve de photos : leurs codes ont leur libellé sous `publication.errors`.
+    if (code && ERREURS_PUBLICATION_RADAR[code]) return libelleCode(code, erreur);
     if (code && ERREURS_ANNONCEUR_RADAR[code]) {
       const cle = ERREURS_ANNONCEUR_RADAR[code];
       if (code === 'radar.advertiser.claimed_by_other') {
@@ -46,6 +50,31 @@ export function useMessageEchecAnnonceur() {
       if (messages.length > 0) return messages.join(' ');
     }
     return messageErreur(erreur, repli);
+  };
+}
+
+/** Le paramètre `max` d'un 422 `radar.photo.reserve_full` : la taille de la réserve. */
+function maxDeLaReserve(erreur: unknown): number | null {
+  if (!(erreur instanceof ApiError) || !erreur.data || typeof erreur.data !== 'object') return null;
+  const params = (erreur.data as { params?: unknown }).params;
+  const max = params && typeof params === 'object' ? (params as { max?: unknown }).max : undefined;
+  return typeof max === 'number' ? max : null;
+}
+
+/**
+ * TCK-2389 — le libellé d'un CODE de la publication ou de la réserve de photos (refus de l'API ou `blocking` de l'aperçu),
+ * ou `null` s'il n'en est pas un. Le code d'une annonce ou de l'annonceur déjà connu de la fiche passe par
+ * {@link useMessageEchecAnnonceur}.
+ */
+export function useLibelleCodePublication() {
+  const t = useTranslations('superAdmin.pages.radar.publication.errors');
+  const tFiche = useTranslations('superAdmin.pages.radar.advertiser');
+
+  return (code: string, erreur?: unknown): string => {
+    const cle = ERREURS_PUBLICATION_RADAR[code];
+    if (cle) return cle === 'reserveFull' ? t(cle, { max: maxDeLaReserve(erreur) ?? 20 }) : t(cle);
+    const annonceur = ERREURS_ANNONCEUR_RADAR[code];
+    return annonceur ? tFiche(`errors.${annonceur}`) : code;
   };
 }
 

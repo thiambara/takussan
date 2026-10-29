@@ -58,6 +58,8 @@ export const EXCEPTIONS = {
   },
   'takussan-web/src/app/(super-admin)/super-admin/super-admins/page.tsx': { max: 1, motif: 'console plateforme, hors angle 220' },
   'takussan-web/src/app/(super-admin)/super-admin/users/page.tsx': { max: 1, motif: 'console plateforme, hors angle 220' },
+  // Le compte que « Publier pour lui » va créer n'existe pas encore : ni id ni e-mail où se replier, et le libellé « sans nom » est traduit.
+  'takussan-web/src/components/admin/super/radar/publication/CompteACreer.tsx': { max: 1, motif: 'compte pas encore créé : aucun id de repli (TCK-2389)' },
 };
 
 const OBJET = String.raw`[\w$\]\[?.]*?\??\.`;

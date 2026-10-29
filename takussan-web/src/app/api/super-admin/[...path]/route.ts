@@ -25,8 +25,15 @@ async function forward(request: NextRequest, segments: string[]): Promise<NextRe
 
   // TCK-601 — le corps part en OCTETS (la preuve de réponse du registre des droits est un envoi
   // multipart) ; TCK-893 — le relais commun s'en charge, comme du 204 et des en-têtes de réponse.
+  // TCK-2389 (ADR-0072) — une écriture idempotente de la console (« Publier pour lui ») pose `Idempotency-Key` : sans ce
+  // relais, la clé s'arrêterait ici et l'API ne rejouerait rien. Le relais ne transmet que ce qu'il nomme.
+  const enTetes: Record<string, string> = {};
+  const cleIdempotence = request.headers.get('idempotency-key');
+  if (cleIdempotence) enTetes['Idempotency-Key'] = cleIdempotence;
+
   return relayerVersApi(request, `/admin/${chemin}${request.nextUrl.search}`, {
     jeton: token,
+    enTetes,
     accepteDeLaRequete: true,
   });
 }

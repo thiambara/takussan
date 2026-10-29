@@ -1,0 +1,50 @@
+import type { RadarPublicationListing, RadarPublicationPreview } from '@/types/radar';
+
+/** Le choix explicite de l'opérateur, par annonce ; une annonce sans choix est cochée si rien ne la bloque. */
+export type ChoixAnnonces = Readonly<Record<number, boolean>>;
+
+/**
+ * TCK-2389 — une annonce se publie si l'aperçu ne la bloque pas ET que l'opérateur ne l'a pas décochée. Une annonce
+ * bloquée n'est jamais cochée, quel qu'ait été son choix : si l'aperçu relu la bloque, elle sort de la sélection.
+ * L'API juge de nouveau (`RadarPublisher::publish`) : cet écran n'est pas la garde.
+ */
+export function estCochee(annonce: RadarPublicationListing, choix: ChoixAnnonces): boolean {
+  return annonce.blocking.length === 0 && (choix[annonce.id] ?? true);
+}
+
+/** Les annonces à publier, par identifiant croissant. */
+export function annoncesCochees(annonces: readonly RadarPublicationListing[], choix: ChoixAnnonces): RadarPublicationListing[] {
+  return annonces.filter((annonce) => estCochee(annonce, choix)).sort((a, b) => a.id - b.id);
+}
+
+export interface ResumePublication {
+  /** Annonces cochées : autant de biens publiés. */
+  readonly biens: number;
+  /** Photos de la réserve des annonces cochées : celles qui passent sur les biens. */
+  readonly photos: number;
+  /** Un compte et un espace sont créés ; faux si le compte de l'annonceur existe déjà. */
+  readonly creeLeCompte: boolean;
+}
+
+/** Ce que la confirmation récapitule : « 1 compte, 1 espace, N biens publiés avec M photos ». */
+export function resumeDeLaPublication(
+  apercu: RadarPublicationPreview,
+  choix: ChoixAnnonces,
+): ResumePublication {
+  const cochees = annoncesCochees(apercu.listings, choix);
+  return {
+    biens: cochees.length,
+    photos: cochees.reduce((total, annonce) => total + annonce.photos.length, 0),
+    creeLeCompte: !apercu.account.exists,
+  };
+}
+
+/** Une préparation de photos tourne encore : l'aperçu se relit à son rythme tant que c'est vrai. */
+export function preparationEnCours(apercu: RadarPublicationPreview | undefined): boolean {
+  return apercu?.listings.some((annonce) => annonce.photo_preparation.status === 'pending') ?? false;
+}
+
+/** Un blocage qui ferme tout l'écran : il n'y a rien à cocher, et la raison se lit avant le reste. */
+export function publicationFermee(apercu: RadarPublicationPreview): boolean {
+  return apercu.blocking.length > 0;
+}

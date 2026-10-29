@@ -541,3 +541,112 @@ export interface RadarOutcomeRequest {
   readonly outcome: RadarOutreachOutcome;
   readonly reason?: string;
 }
+
+// ─── « Publier pour lui » (TCK-2389) ─────────────────────────────────────────────────────────
+
+/** Les bornes de la réserve de photos : `radar.photos.reserve_max`, et `StoreRadarListingPhotosRequest` (10 par envoi). */
+export const RADAR_RESERVE_PHOTOS_MAX = 20;
+export const RADAR_PHOTOS_PAR_ENVOI_MAX = 10;
+
+/** La préparation des photos d'une annonce (`RadarListing::photoPreparationStatus`) : `none` = rien à lire à la source. */
+export type RadarPhotoPreparationStatus = 'none' | 'pending' | 'done';
+
+export interface RadarPhotoPreparation {
+  readonly status: RadarPhotoPreparationStatus;
+  readonly total: number;
+  readonly done: number;
+}
+
+/** Une photo de la réserve : une URL signée de l'original (privé). */
+export interface RadarReservePhoto {
+  readonly id: number;
+  readonly url: string;
+}
+
+/** Un rapprochement tel qu'il est gelé sur l'annonce (`RadarMatcher::matchesFor`) : l'identifiant de la cible et ses signaux. */
+export interface RadarFrozenMatch {
+  readonly kind: 'property' | 'listing';
+  readonly id: number;
+  readonly signals: readonly RadarMatchSignal[];
+}
+
+/** Une annonce couverte par un accord valide, telle que l'aperçu la présente (`RadarPublisher::previewOf`). */
+export interface RadarPublicationListing {
+  readonly id: number;
+  readonly title: string | null;
+  readonly price: number | null;
+  readonly contract: RadarContract | null;
+  readonly property_type: string | null;
+  readonly neighborhood_id: number | null;
+  /** Le nom du quartier du référentiel, pour que l'écran dise où le bien sera publié. */
+  readonly neighborhood: string | null;
+  readonly photo_preparation: RadarPhotoPreparation;
+  readonly photos: readonly RadarReservePhoto[];
+  readonly matches: readonly RadarFrozenMatch[];
+  readonly duplicate_of_listing_id: number | null;
+  readonly duplicate_of_property_id: number | null;
+  /** Les codes qui bloquent CETTE annonce (`radar.publish.no_photo`, `photos_pending`, `missing_field`). */
+  readonly blocking: readonly string[];
+}
+
+export interface RadarPublicationAccount {
+  /** Un compte est déjà rattaché à l'annonceur (une publication précédente) : il est repris tel quel. */
+  readonly exists: boolean;
+  readonly first_name: string;
+  readonly last_name: string;
+  readonly phone: string;
+  readonly space_name: string;
+}
+
+export interface RadarPublicationPreview {
+  readonly advertiser: {
+    readonly id: number;
+    readonly display_name: string | null;
+    readonly nature: RadarAdvertiserNature;
+    readonly do_not_contact_at: string | null;
+  };
+  readonly account: RadarPublicationAccount;
+  readonly listings: readonly RadarPublicationListing[];
+  /** Les codes qui bloquent l'ensemble (`radar.advertiser.phone_registered`, `account_unavailable`, `do_not_contact`, `radar.publish.nothing_covered`). */
+  readonly blocking: readonly string[];
+}
+
+export interface RadarPublicationPreviewResponse {
+  readonly data: RadarPublicationPreview;
+}
+
+export interface RadarPublishedProperty {
+  readonly id: number;
+  readonly slug: string;
+  readonly title: string | null;
+  readonly radar_listing_id: number | null;
+  /** L'adresse publique en français (`RadarPublisher::publicUrl`). */
+  readonly public_url: string;
+}
+
+export interface RadarPublication {
+  readonly user: {
+    readonly id: number;
+    readonly first_name: string;
+    readonly last_name: string;
+    readonly phone: string;
+  };
+  readonly agency: { readonly id: number; readonly name: string; readonly slug: string };
+  readonly created_account: boolean;
+  readonly properties: readonly RadarPublishedProperty[];
+}
+
+export interface RadarPublicationResponse {
+  readonly data: RadarPublication;
+}
+
+/** Le second message : un texte fixe versionné (`publie.v1`) et son lien `wa.me`. */
+export interface RadarPublishedMessage {
+  readonly text: string;
+  readonly wa_me: string;
+  readonly version: string;
+}
+
+export interface RadarPublishedMessageResponse {
+  readonly data: RadarPublishedMessage;
+}
