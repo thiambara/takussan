@@ -26,6 +26,12 @@ la plateforme fait réellement**, relevé dans le code le même jour.
 3. **Créer les trois boîtes** `contact@`, `privacy@` et `legal@takussan.com` — les textes les citent.
 4. **Faire relire par un avocat inscrit au barreau du Sénégal.**
 5. **Fermer TCK-537** : trois engagements de la politique ne sont pas encore tenus par le code.
+6. **Fermer TCK-2391** (révocation et purge du Radar) : il rend vrais « retirées sans délai » après un
+   STOP (article 6.3 des CGU) et les deux durées ajoutées au § 6 de la politique (annonces relevées et
+   jamais publiées : 90 jours ; preuve de l'accord : la durée des annonces en ligne, puis 3 ans).
+7. **Fermer TCK-2390** (réclamation par l'annonceur) : il présente les Conditions à l'activation du
+   compte créé par le Radar (article 6.3 des CGU : « les présentes Conditions vous sont alors
+   présentées pour acceptation »).
 
 ## Tenir les textes à jour
 
