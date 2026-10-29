@@ -4347,7 +4347,9 @@ toutes les lignes du même contact. Aucune réponse de l'API ne dit si un contac
 vérifié** — trois au plus par bien (TCK-633, lot C). Jamais dans `PropertyResource` : il ne sort au
 public que par l'endpoint de contact limité `GET /public/properties/{slug}/contact`. Le plafond de 3
 est une règle applicative (`ReplacePropertyContactsRequest`, verrou sur la ligne du bien), pas une
-contrainte de base.
+contrainte de base. Un contact sur place dont le numéro répète un numéro déjà servi pour le bien (principal ou second du
+contact principal) n'est pas servi une seconde fois (`PropertyContactNumbers`, TCK-2389) : c'est le cas
+d'un bien publié par le Radar, dont l'annonceur active ensuite son compte.
 
 | Colonne | Type | Nullable | Défaut | Description |
 |---------|------|----------|--------|-------------|
@@ -5064,17 +5066,21 @@ de plus. Écrites par `forceFill` dans `AdvertiserClaim` seul : hors de `$fillab
 **Table :** `radar_listings` (migration `2026_10_27_200100`, TCK-2386 ; `2026_10_27_210000` et
 `2026_10_27_210100`, TCK-2387)
 **Modèle :** `App\Models\RadarListing` (`AbstractModel`, `HasMedia`) — `stage` casté en `RadarListingStage`,
-`extracted`, `photo_urls`, `matches` et `source_photo_hashes` en `array`, `extracted_at` et `purge_at` en
+`extracted`, `photo_urls`, `matches`, `source_photo_hashes` et `photo_preparation` en `array`, `extracted_at` et `purge_at` en
 `datetime` ; `belongsTo advertiser`, `capturer` (colonne `captured_by`), `property`, `duplicateOfListing`
 (colonne `duplicate_of_listing_id`), `duplicateOfProperty` (colonne `duplicate_of_property_id`).
 `purge_at` est posé à la création : collecte + 90 jours (`config('radar.purge_after_days')`).
 `photoFingerprintStatus()` rend `{status: none|pending|done, total, done}` (total borné par
-`config('radar.photos.max_per_listing')`).
+`config('radar.photos.max_per_listing')`). `photoPreparationStatus()` rend la même forme pour la réserve
+de photos (TCK-2389).
 **Description :** Une annonce collectée hors du catalogue ([ADR-0077 §1, §9](adr/0077-le-radar.md)).
 Elle ne devient un bien que sur l'accord prouvé de son annonceur : `properties` ne reçoit aucune
-colonne, c'est `property_id` qui pointe vers le bien publié. Aucune photo n'est téléchargée : seules
-les URL source sont gardées. Les captures d'écran vivent dans la collection média `radar_captures`,
-sur le disque **privé** par défaut (ADR-0029).
+colonne, c'est `property_id` qui pointe vers le bien publié. Avant l'accord confirmé, aucune photo
+n'est conservée : seules les URL source sont gardées. Les captures d'écran vivent dans la collection
+média `radar_captures`, et la **réserve de photos** préparée pour la publication (téléchargées après
+l'accord confirmé, ou déposées par l'opérateur, TCK-2389) dans `radar_photos` ; les deux sur le disque
+**privé** par défaut (ADR-0029). La publication copie `radar_photos` dans la collection `photos` du
+bien ; la réserve d'une annonce jamais publiée est purgée avec elle (**à venir**, TCK-2391).
 
 | Colonne | Type | Nullable | Défaut | Description |
 |---------|------|----------|--------|-------------|
@@ -5084,7 +5090,7 @@ sur le disque **privé** par défaut (ADR-0029).
 | source_site | string(30) | | | `coinafrique`, `expat_dakar`, `facebook`, `whatsapp`, `other` (`RadarSourceSite::fromHost`) |
 | source_url | text | oui | null | URL collectée |
 | raw_text | text | oui | null | Texte brut ; purgé à `purge_at` ou dès un STOP (**à venir**, TCK-2391 : au 2026-10-29, aucun code ne lit `purge_at`) |
-| photo_urls | jsonb | | `[]` | URL source des photos, jamais téléchargées |
+| photo_urls | jsonb | | `[]` | URL source des photos ; téléchargées seulement après l'accord confirmé, dans `radar_photos` (TCK-2389) |
 | content_fingerprint | string(64) | | | Empreinte du contenu ; **unique** : une annonce n'entre qu'une fois |
 | extracted | jsonb | oui | null | Sortie normalisée de l'extraction : un champ = `{value, confidence, evidence, flags}`, plus `phones`, `phones_flags`, `nature_signals` et `phones_dropped` (les numéros écartés, gardés à part ; purgés avec `extracted`, **à venir**, TCK-2391). Une valeur corrigée par l'opérateur porte la marque `corrected` |
 | matches | jsonb | | `[]` | Rapprochements avec le catalogue |
@@ -5096,6 +5102,7 @@ sur le disque **privé** par défaut (ADR-0029).
 | captured_by | FK users | oui | null | Opérateur qui a saisi l'annonce (`nullOnDelete`) ; indexée |
 | purge_at | timestamp | oui | null | Collecte + 90 jours ; indexée |
 | source_photo_hashes | jsonb | oui | null | TCK-2387 (ADR-0054) : l'empreinte dHash des photos source, calculées à la volée, jamais conservées. `null` : jamais calculé ; `[]` : calculé, aucune photo. Un élément par URL tentée : `{url, hash: int\|null, b0, b1, b2, b3}` ou `{url, hash: null, error}`. Index GIN `jsonb_path_ops` (recherche par bande) |
+| photo_preparation | jsonb | oui | null | TCK-2389 : la réserve de photos téléchargée après l'accord confirmé. `null` : jamais préparée ; `[]` : préparée, aucune URL. Un élément par URL tentée, dans l'ordre de `photo_urls` : `{url, media_id}` ou `{url, media_id: null, error}` |
 | duplicate_of_listing_id | FK radar_listings | oui | null | TCK-2387 : l'annonce dont celle-ci est le doublon (`nullOnDelete`) ; indexée |
 | duplicate_of_property_id | FK properties | oui | null | TCK-2387 : le bien du catalogue dont celle-ci est le doublon (`nullOnDelete`) ; indexée |
 | created_at / updated_at | timestamp | | auto | |
