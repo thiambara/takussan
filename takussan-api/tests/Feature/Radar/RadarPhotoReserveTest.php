@@ -301,6 +301,39 @@ class RadarPhotoReserveTest extends TestCase
         $this->assertSame([$media->id], $ligne->properties['media_ids']);
     }
 
+    public function test_le_retrait_sans_prise_en_charge_409(): void
+    {
+        $annonce = $this->annonce();
+        $media = $annonce->addMediaFromString(self::gif())->usingFileName('p.gif')->toMediaCollection('radar_photos');
+        $this->deleteJson("/api/admin/radar/advertisers/{$this->annonceur->id}/claim")->assertNoContent();
+
+        $this->deleteJson("/api/admin/radar/listings/{$annonce->id}/photos/{$media->id}")
+            ->assertStatus(409)->assertJsonPath('code', 'radar.advertiser.claim_required');
+
+        $this->assertNotNull($media->fresh());
+    }
+
+    /** Le journal échoue : la transaction se défait, la ligne du média revient — avec son fichier. */
+    public function test_un_retrait_defait_ne_laisse_pas_une_ligne_sans_son_fichier(): void
+    {
+        $annonce = $this->annonce();
+        $this->deposer($annonce, [UploadedFile::fake()->image('a.png', 20, 20)])->assertCreated();
+        $media = $annonce->fresh()->getFirstMedia('radar_photos');
+        $chemin = $media->getPathRelativeToRoot();
+        \App\Models\Activity::creating(fn () => throw new \RuntimeException('journal indisponible'));
+
+        $this->withoutExceptionHandling();
+        try {
+            $this->deleteJson("/api/admin/radar/listings/{$annonce->id}/photos/{$media->id}");
+            $this->fail('Le journal aurait dû échouer.');
+        } catch (\RuntimeException $e) {
+            $this->assertSame('journal indisponible', $e->getMessage());
+        }
+
+        $this->assertNotNull($media->fresh());
+        $this->assertTrue(Storage::disk($media->disk)->exists($chemin));
+    }
+
     public function test_retirer_le_media_d_une_autre_annonce_ou_d_une_autre_collection_rend_404(): void
     {
         $annonce = $this->annonce();

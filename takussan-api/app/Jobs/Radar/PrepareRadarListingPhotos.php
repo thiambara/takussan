@@ -28,7 +28,9 @@ use Throwable;
  *
  * Seule une annonce `consented` dont la source est une URL est écrite, relue sous `lockForUpdate` ; l'élément écrit est
  * celui attendu à son rang, pour qu'une reprise ne range jamais deux fois la même photo. Les URL restantes sont celles sans
- * élément : après une relance, qui retire les éléments en erreur, les rangs restent ceux du nombre d'éléments présents.
+ * élément ; le rang attendu est le NOMBRE d'éléments présents (une relance retire les éléments en erreur, puis les URL
+ * retentées reprennent leur place dans l'ordre de `photo_urls`, {@see RadarListing::inSourceOrder()}). Un rang qui ne
+ * correspond plus (passe en double, relance pendant la lecture) relâche la passe : la suivante recalcule les URL restantes.
  *
  * `failed()` complète les URL restantes avec `radar.photo.abandoned` : l'état finit `done`.
  *
@@ -45,6 +47,13 @@ final class PrepareRadarListingPhotos implements ShouldBeUnique, ShouldQueue
 
     /** Reprises après une exception que la passe ne rattrape pas (base, disque en panne), en secondes. */
     public const BACKOFF_SECONDS = [10, 60, 300];
+
+    /** Résultats de {@see self::append()} : écrit, l'annonce n'autorise plus rien, ou le rang attendu n'est plus le bon. */
+    private const WRITTEN = 'written';
+
+    private const STOP = 'stop';
+
+    private const STALE = 'stale';
 
     public int $timeout = 85;
 
@@ -122,7 +131,17 @@ final class PrepareRadarListingPhotos implements ShouldBeUnique, ShouldQueue
                 return;
             }
 
-            if (! $this->append($index + $i, $url, $photo, $reserve)) {
+            $written = $this->append($index + $i, $url, $photo, $reserve);
+            if ($written === self::STALE) {
+                // Le rang attendu n'est plus le bon : une passe en double a écrit, ou une relance a retiré des éléments en
+                // erreur pendant la lecture. Les URL restantes se recalculent par URL : se relâcher ne range jamais deux
+                // fois une photo, et sans cela l'annonce resterait `pending` sans qu'aucun job n'existe (le `dispatch` de la
+                // relance a été ignoré par l'unicité).
+                $this->release(0);
+
+                return;
+            }
+            if ($written === self::STOP) {
                 return;
             }
         }
@@ -140,7 +159,7 @@ final class PrepareRadarListingPhotos implements ShouldBeUnique, ShouldQueue
             foreach ($this->remaining($listing) as $url) {
                 $entries[] = ['url' => $url, 'media_id' => null, 'error' => self::ERROR_ABANDONED];
             }
-            $listing->photo_preparation = $entries;
+            $listing->photo_preparation = $listing->inSourceOrder($entries);
             $listing->save();
         });
     }
@@ -176,16 +195,16 @@ final class PrepareRadarListingPhotos implements ShouldBeUnique, ShouldQueue
      *
      * @param  array{bytes: string, mime: string}|array{error: string}  $photo
      */
-    private function append(int $index, string $url, array $photo, RadarPhotoReserve $reserve): bool
+    private function append(int $index, string $url, array $photo, RadarPhotoReserve $reserve): string
     {
-        return DB::transaction(function () use ($index, $url, $photo, $reserve): bool {
+        return DB::transaction(function () use ($index, $url, $photo, $reserve): string {
             $listing = RadarListing::query()->whereKey($this->listingId)->lockForUpdate()->first();
             if ($listing === null || ! $listing->photoPreparable()) {
-                return false;
+                return self::STOP;
             }
             $existing = $listing->photo_preparation ?? [];
             if (count($existing) !== $index) {
-                return false;
+                return self::STALE;
             }
 
             if (! isset($photo['error']) && $reserve->count($listing) >= (int) config('radar.photos.reserve_max')) {
@@ -194,9 +213,10 @@ final class PrepareRadarListingPhotos implements ShouldBeUnique, ShouldQueue
             $media = isset($photo['error']) ? null : $reserve->store($listing, $photo['bytes'], $photo['mime'], 'fetched', $url);
 
             try {
-                $listing->photo_preparation = [...$existing, $media === null
+                // Toujours dans l'ordre de `photo_urls` : une URL retentée après une relance reprend sa place, pas la dernière.
+                $listing->photo_preparation = $listing->inSourceOrder([...$existing, $media === null
                     ? ['url' => $url, 'media_id' => null, 'error' => $photo['error']]
-                    : ['url' => $url, 'media_id' => $media->id]];
+                    : ['url' => $url, 'media_id' => $media->id]]);
                 $listing->save();
             } catch (Throwable $e) {
                 if ($media !== null) {
@@ -206,7 +226,7 @@ final class PrepareRadarListingPhotos implements ShouldBeUnique, ShouldQueue
                 throw $e;
             }
 
-            return true;
+            return self::WRITTEN;
         });
     }
 }

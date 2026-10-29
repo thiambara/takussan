@@ -218,8 +218,10 @@ final class RadarPhotoReserve
 
         DB::transaction(function () use ($listing, $media, $by): void {
             $this->lockHeld($listing, $by);
-            $media->delete();
             $this->journal($listing, $by, 'delete', [$media->id]);
+            // Le fichier part avec la ligne (observateur de Spatie), APRÈS le commit : si la transaction se défait, la ligne
+            // revient avec son fichier, jamais sans lui.
+            DB::afterCommit(fn () => $media->delete());
         });
     }
 

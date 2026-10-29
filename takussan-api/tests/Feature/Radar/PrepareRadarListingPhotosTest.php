@@ -204,12 +204,80 @@ class PrepareRadarListingPhotosTest extends TestCase
             },
         ]);
 
-        $this->lancer($listing);
+        $this->lancer($listing)->assertReleased(0);
 
         $listing->refresh();
         $this->assertEquals([$dejaLa], $listing->photo_preparation);
         $this->assertSame(0, $listing->media()->count());
         $this->assertSame([], Storage::disk(config('media-library.disk_name'))->allFiles());
+    }
+
+    /**
+     * Une relance retire les éléments en erreur PENDANT qu'une passe lit : son `dispatch` est ignoré (l'unicité), et le rang de
+     * la passe ne correspond plus. Elle doit se relâcher : sinon l'annonce reste `pending` sans qu'aucun job n'existe.
+     */
+    public function test_une_relance_pendant_une_passe_la_relache_et_la_suivante_acheve(): void
+    {
+        $urls = self::urls(3);
+        $listing = $this->annonce($urls, ['photo_preparation' => [['url' => $urls[0], 'media_id' => null, 'error' => 'radar.fetch.timeout']]]);
+        $relancee = false;
+        Http::fake([
+            '*/robots.txt' => Http::response('', 404),
+            '*' => function () use ($listing, &$relancee) {
+                if (! $relancee) {
+                    $relancee = true;
+                    // La relance de l'opérateur : l'élément en erreur est retiré pour être retenté.
+                    RadarListing::query()->whereKey($listing->id)->update(['photo_preparation' => json_encode([])]);
+                }
+
+                return Http::response(self::png(1), 200, ['Content-Type' => 'image/png']);
+            },
+        ]);
+
+        $this->lancer($listing)->assertReleased(0);
+
+        $listing->refresh();
+        $this->assertSame([], $listing->photo_preparation, 'la passe périmée n\'a rien écrit');
+        $this->assertSame(0, $listing->media()->count());
+        $this->assertSame('pending', $listing->photoPreparationStatus()['status']);
+
+        Cache::flush();
+        $this->lancer($listing)->assertNotReleased();
+
+        $listing->refresh();
+        $this->assertSame($urls, array_column($listing->photo_preparation, 'url'));
+        $this->assertCount(3, $listing->getMedia('radar_photos'));
+        $this->assertSame('done', $listing->photoPreparationStatus()['status']);
+    }
+
+    /** Une URL retentée après une relance reprend sa place dans l'ordre de `photo_urls`, pas la dernière. */
+    public function test_une_url_retentee_apres_une_relance_reprend_sa_place(): void
+    {
+        $urls = self::urls(3);
+        $listing = $this->annonce($urls);
+        $sourceRepond = false;
+        Http::fake([
+            '*/robots.txt' => Http::response('', 404),
+            $urls[1] => function () use (&$sourceRepond) {
+                return $sourceRepond
+                    ? Http::response(self::png(2), 200, ['Content-Type' => 'image/png'])
+                    : Http::response('', 500);
+            },
+            '*' => Http::response(self::png(1), 200, ['Content-Type' => 'image/png']),
+        ]);
+        $this->lancer($listing);
+        $this->assertSame('radar.fetch.http_error', $listing->refresh()->photo_preparation[1]['error']);
+
+        // La relance : l'élément en erreur est retiré ; la source répond maintenant.
+        $listing->photo_preparation = array_values(array_filter($listing->photo_preparation, fn (array $e) => ! isset($e['error'])));
+        $listing->save();
+        Cache::flush();
+        $sourceRepond = true;
+        $this->lancer($listing)->assertNotReleased();
+
+        $listing->refresh();
+        $this->assertSame($urls, array_column($listing->photo_preparation, 'url'));
+        $this->assertCount(3, $listing->getMedia('radar_photos'));
     }
 
     public function test_une_passe_s_arrete_et_se_relache_au_budget_en_gardant_la_premiere_photo(): void
@@ -295,8 +363,7 @@ class PrepareRadarListingPhotosTest extends TestCase
         $this->lancer($listing);
 
         $listing->refresh();
-        $this->assertEqualsCanonicalizing($urls, array_column($listing->photo_preparation, 'url'));
-        $this->assertCount(3, $listing->photo_preparation);
+        $this->assertSame($urls, array_column($listing->photo_preparation, 'url'), 'dans l\'ordre de photo_urls');
         $this->assertCount(2, $listing->getMedia('radar_photos'));
         Http::assertNotSent(fn ($request) => $request->url() === $urls[1]);
     }

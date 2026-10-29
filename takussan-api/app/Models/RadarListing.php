@@ -184,6 +184,23 @@ class RadarListing extends AbstractModel implements HasMedia
     }
 
     /**
+     * TCK-2389 — les éléments de `photo_preparation` dans l'ordre de {@see preparableUrls()} (celui de `photo_urls`, la première
+     * photo de la source en tête), à chaque écriture : une URL retentée après une relance reprend sa place. Un élément dont
+     * l'URL n'y est plus passe en dernier, dans son ordre d'arrivée.
+     *
+     * @param  list<array<string, mixed>>  $elements
+     * @return list<array<string, mixed>>
+     */
+    public function inSourceOrder(array $elements): array
+    {
+        $rank = array_flip($this->preparableUrls());
+        $indexed = array_map(null, array_keys($elements), $elements);
+        usort($indexed, fn (array $a, array $b) => [$rank[$a[1]['url'] ?? null] ?? PHP_INT_MAX, $a[0]] <=> [$rank[$b[1]['url'] ?? null] ?? PHP_INT_MAX, $b[0]]);
+
+        return array_values(array_column($indexed, 1));
+    }
+
+    /**
      * TCK-2389 — où en est la préparation de la réserve. `none` : rien à préparer (pas une URL, pas de photo), ou
      * rien qui se préparera (l'annonce n'est pas — ou plus — `consented` et le compte est incomplet) ; `pending` :
      * annonce `consented` et il reste des URL à tenter ; `done` : toutes tentées, réussies ou non. Un compte COMPLET
