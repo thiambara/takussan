@@ -307,6 +307,14 @@ class EvalCaseAnonymizerTest extends TestCase
         $this->assertSame('[TELEPHONE]', $out['expected']['contact_telephone']);
     }
 
+    public function test_a_whatsapp_link_is_masked_in_the_input_and_in_expected(): void
+    {
+        $out = (new EvalCaseAnonymizer)->anonymize('Écrire à https://wa.me/33612345678', ['notes' => 'api.whatsapp.com/send?phone=2250712345678']);
+
+        $this->assertSame('Écrire à https://wa.me/[TELEPHONE]', $out['input']);
+        $this->assertSame('api.whatsapp.com/send?phone=[TELEPHONE]', $out['expected']['notes']);
+    }
+
     public function test_an_email_containing_the_name_becomes_one_token(): void
     {
         $out = (new EvalCaseAnonymizer)->anonymize('Awa Diop : awa.diop@exemple.sn', ['contact_nom' => 'Awa Diop']);

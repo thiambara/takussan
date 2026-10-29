@@ -41,53 +41,81 @@ import { fileURLToPath } from 'node:url';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const EVALS = join(ROOT, 'takussan-api', 'resources', 'ai', 'evals');
 
+// Les motifs sont ceux de `App\Support\PhoneMasker`, constante par constante : `[0-9]` et non `\d`, espaces
+// énumérées et non `\s` (U+0085 : PCRE le compte, JavaScript non), pour que les deux lisent le même ensemble.
+const WSI = String.raw`\u{09}-\u{0D}\u{20}\u{85}\u{A0}\u{1680}\u{2000}-\u{200A}\u{2028}\u{2029}\u{202F}\u{205F}\u{3000}`;
+const WS = `[${WSI}]`;
+// Un séparateur : espace, point, barre oblique, tiret (`-`, demi-cadratin `–`, moins `−`…).
+const SEP = String.raw`[${WSI}.\-/\u{2010}-\u{2015}\u{2212}]`;
 // Préfixes : plan de numérotage national de l'ARTP, communication du 6.IX.2022 publiée par l'UIT le
-// 3.X.2023, plus 71 sur décision du porteur (cf. PhoneMasker). `\s` couvre déjà U+00A0 et U+202F
-// (espaces insécables).
-const SEP = '[\\s.\\-/]';
+// 3.X.2023, plus 71 sur décision du porteur (cf. PhoneMasker).
+// Après l'indicatif : le `)` de `(+33)`, puis le `(0)` de trunk.
+const APRES_CC = String.raw`\)?(?:${WS}?\(0\))?`;
 const PREFIXE = '(?:3[02369]|7[0-25-9]|93)';
-const FIN = '(?!\\d)(?!\\s*(?:f\\s?cfa|cfa|xof|francs?|f)(?!\\p{L}))';
-const SENEGAL = `(?<!\\d)(?:(?:\\+|00)?221${SEP}?)?`
-  + `(?:${PREFIXE}${SEP}?(?:\\d{3}${SEP}?\\d{2}${SEP}?\\d{2}|\\d{2}${SEP}?\\d{2}${SEP}?\\d{3})`
-  + `|${PREFIXE}\\d${SEP}?\\d{2}${SEP}?\\d{2}${SEP}?\\d{2})`;
-// Numéros étrangers (TCK-2410) : mêmes alternatives que `PhoneMasker::FOREIGN` — `+` ou `00`, un indicatif
-// ITU et le nombre de chiffres de son plan (la France à longueur exacte, d'abord), ou la
-// forme nationale `0X XX XX XX XX`, collée ou séparée à chaque paire par le MÊME caractère (une date suivie
-// d'une heure, `load averages: 44.07 87.79 75.17`, n'en sont pas). Les parenthèses ne sont admises qu'après
-// l'indicatif : `(+33)`, `(0)`, `+1 (202)` ; `ADR-0064 (2026-10-14)` n'est pas un `00` + indicatif 64.
-// `+221` reste au motif sénégalais : `+221 74 …`, préfixe hors du plan, est le numéro fictif des jeux d'évaluation.
-const APRES_CC = '\\)?(?:\\s?\\(0\\))?';
+const PREFIXE_ESPACE = `(?:3${SEP}?[02369]|7${SEP}?[0-25-9]|9${SEP}?3)`;
+const FIN = String.raw`(?![0-9])(?!${WS}*(?:f${WS}?cfa|cfa|xof|francs?|f)(?!\p{L}))`;
+const SENEGAL = String.raw`(?<![0-9])(?:(?:\+|00)?221${SEP}?)?`
+  + `(?:${PREFIXE}${SEP}?(?:[0-9]{3}${SEP}?[0-9]{2}${SEP}?[0-9]{2}|[0-9]{2}${SEP}?[0-9]{2}${SEP}?[0-9]{3})`
+  + `|${PREFIXE}[0-9]${SEP}?[0-9]{2}${SEP}?[0-9]{2}${SEP}?[0-9]{2})`;
+// Avec `+221` ou `00221` : neuf chiffres à groupement libre, et un `F` derrière n'en fait pas un prix.
+const SENEGAL_AVEC_INDICATIF = String.raw`(?<![0-9])(?:\+${WS}{0,2}|00${WS}?)221${APRES_CC}${SEP}?${PREFIXE_ESPACE}(?:${SEP}?[0-9]){7}(?![0-9])`;
+// Sans indicatif : groupement libre, mais ni un 3-3-3 (un prix), ni une date, ni de points (`44.07 87.79 75.17`,
+// une charge machine) — sauf les neuf chiffres un à un, `7.7.1.2.3.4.5.6.7`.
+const SEP_SANS_POINT = String.raw`[${WSI}\-/\u{2010}-\u{2015}\u{2212}]`;
+const SENEGAL_LIBRE = `(?<![0-9])(?![0-9]{3}${SEP}[0-9]{3}${SEP}[0-9]{3}(?![0-9]))`
+  + `(?![0-9]{2}${SEP}[0-9]{2}${SEP}[0-9]{4}(?![0-9]))`
+  + `(?:(?:3${SEP_SANS_POINT}?[02369]|7${SEP_SANS_POINT}?[0-25-9]|9${SEP_SANS_POINT}?3)(?:${SEP_SANS_POINT}?[0-9]){7}`
+  + String.raw`|(?:3\.[02369]|7\.[0-25-9]|9\.3)(?:\.[0-9]){7})`;
+// Numéros étrangers (TCK-2410) : `+` ou `00`, un indicatif ITU et le nombre de chiffres de son plan (la France
+// à longueur exacte, d'abord), ou la forme nationale `0X XX XX XX XX`, collée ou séparée à chaque paire par le
+// MÊME caractère (une date suivie d'une heure, `load averages: 44.07 87.79 75.17`, n'en sont pas). Les
+// parenthèses ne sont admises qu'après l'indicatif : `(+33)`, `(0)`, `+1 (202)` ; `ADR-0064 (2026-10-14)`
+// n'est pas un `00` + indicatif 64. Jamais un numéro qui finit par un groupe `000` séparé : `+ 250 000 000`
+// est une somme. `+221` reste au motif sénégalais : `+221 74 …`, préfixe hors du plan, est le fictif d'évaluation.
 const CC1 = '[17]';
 const CC2 = '(?:2[07]|3[0-469]|4[013-9]|5[1-8]|6[0-6]|8[1246]|9[0-58])';
-const CC3 = '(?:21[1-368]|22[02-9]|23\\d|24\\d|25[0-8]|26\\d|29[01789]|35\\d|37\\d|38[0-35-79]|42[013]|50\\d|59\\d|6[78]\\d|69[0-2]|85[02356]|880|886|96[0-8]|97[0-7]|99[2-8])';
-const CHIFFRES = (n) => `(?:${SEP}{0,2}\\d){${n}}`;
-const ETRANGER = `(?:(?<![\\d+])(?:\\+\\s?|00${SEP}?)(?:`
+const CC3 = '(?:21[1-368]|22[02-9]|2[34][0-9]|25[0-8]|26[0-9]|29[01789]|35[0-9]|37[0-9]|38[0-35-79]|42[013]|50[0-9]|59[0-9]|6[78][0-9]|69[0-2]|85[02356]|880|886|96[0-8]|97[0-7]|99[2-8])';
+const CHIFFRES = (n) => `(?:${SEP}{0,3}[0-9]){${n}}`;
+const ETRANGER = String.raw`(?:(?<![0-9+])(?<![0-9][.,])(?:\+${WS}{0,2}|00${SEP}?)(?:`
   + `33${APRES_CC}${CHIFFRES(9)}`
-  + `|${CC1}${APRES_CC}(?:${SEP}?\\(\\d{3}\\)${CHIFFRES(7)}|${CHIFFRES(10)})`
+  + String.raw`|${CC1}${APRES_CC}(?:${SEP}?\([0-9]{3}\)${CHIFFRES(7)}|${CHIFFRES(10)})`
   + `|${CC2}${APRES_CC}${CHIFFRES('7,11')}`
   + `|${CC3}${APRES_CC}${CHIFFRES('6,10')}`
-  + `)(?<!${SEP}\\d)`
-  + `|(?<!\\d)0[1-9](?:\\d{8}|(?<sep>${SEP})\\d{2}(?:\\k<sep>\\d{2}){3}))(?!\\d)`;
-export const TELEPHONE = new RegExp(`(?:${SENEGAL}${FIN}|${ETRANGER})`, 'iu');
+  + `)(?<!${SEP}[0-9])(?<!${SEP}000)`
+  + String.raw`|(?<![0-9])0[1-9](?:[0-9]{8}|(?<sep>${SEP})[0-9]{2}(?:\k<sep>[0-9]{2}){3}))(?![0-9])`;
+// Le lien WhatsApp canonique écrit le numéro sans `+` : `wa.me/…`, `…?phone=…`.
+const LIEN = String.raw`(?<=wa\.me/|[?&]phone=)(?:33[0-9]{9}|${CC1}[0-9]{10}|${CC2}[0-9]{7,11}|${CC3}[0-9]{6,10})(?![0-9])`;
+export const TELEPHONE = new RegExp(
+  `(?:${SENEGAL_AVEC_INDICATIF}|${SENEGAL}${FIN}|${SENEGAL_LIBRE}${FIN}|${ETRANGER}|${LIEN})`,
+  'iu',
+);
 export const COURRIEL = /[a-z0-9._%+-]+(?:\s*[@\uFF20]\s*|\s*[([{]\s*at\s*[)\]}]\s*|\s+at\s+)[a-z0-9-]+(?:\.[a-z0-9-]+)*\.[a-z]{2,}(?![a-z])/iu;
 
-const INVISIBLES = /[\u200B\u200C\u200D\u2060\uFEFF\u00AD]/g;
-const ZEROS = [0xff10, 0x0660, 0x06f0];
+const INVISIBLES = /[​‌‍⁠﻿­]/g;
+const ZEROS = [
+  0xff10, 0x0660, 0x06f0, 0x07c0, 0x0966, 0x09e6, 0x0a66, 0x0ae6, 0x0b66, 0x0be6, 0x0c66, 0x0ce6,
+  0x0d66, 0x0e50, 0x0ed0, 0x0f20, 0x1040, 0x17e0, 0x1810, 0x1d7ce, 0x1d7d8, 0x1d7e2, 0x1d7ec, 0x1d7f6,
+];
+// Le `+` et les séparateurs en pleine chasse ou en forme de petite capitale, un code point pour un.
+const PONCTUATION = new Map([[0xff0b, '+'], [0xfe62, '+'], [0xff0d, '-'], [0xff0e, '.'], [0xff0f, '/']]);
 
-/** Comme `PhoneMasker` : chiffres non ASCII ramenés à 0-9, caractères invisibles retirés. */
+/** Comme `PhoneMasker` : chiffres non ASCII et `+` pleine chasse ramenés à l'ASCII, caractères invisibles retirés. */
 export function normaliser(texte) {
   let sortie = '';
   for (const c of texte.replace(INVISIBLES, '')) {
     const code = c.codePointAt(0);
     const zero = ZEROS.find((z) => code >= z && code <= z + 9);
-    sortie += zero === undefined ? c : String(code - zero);
+    sortie += zero !== undefined ? String(code - zero) : (PONCTUATION.get(code) ?? c);
   }
   return sortie;
 }
 
 const FORMES = JSON.parse(readFileSync(join(ROOT, 'takussan-api', 'tests', 'fixtures', 'ai', 'donnees-personnelles.json'), 'utf8'));
 const CAS_EPREUVE = [
-  ...Object.values(FORMES.telephones).map((t) => [t, true]),
+  // Le troisième terme : le texte une fois le numéro remplacé par le jeton, comme le fait le masqueur
+  // (un numéro qui n'est reconnu qu'en partie laisse des chiffres derrière lui).
+  ...Object.values(FORMES.telephones).map((t) => [t, true, '[TELEPHONE]']),
+  ...Object.values(FORMES.avec_contexte).map(([texte, masque]) => [texte, true, masque]),
   ...Object.values(FORMES.courriels).map((t) => [t, true]),
   ...Object.values(FORMES.pas_personnel).map((t) => [t, false]),
 ];
@@ -147,7 +175,12 @@ export function verifierTexteJson(texte) {
   return trouvailles;
 }
 
-for (const [texte, attendu] of CAS_EPREUVE) {
+const MASQUE = new RegExp(TELEPHONE.source, 'giu');
+for (const [texte, attendu, masque] of CAS_EPREUVE) {
+  if (masque !== undefined && normaliser(`Contact : ${texte}, merci`).replace(MASQUE, '[TELEPHONE]') !== `Contact : ${masque}, merci`) {
+    console.error(`✗ épreuve : « ${texte} » devait être reconnu en entier (${masque})`);
+    process.exit(1);
+  }
   if ((trouver(`Contact : ${texte}, merci`) !== null) !== attendu) {
     console.error(`✗ épreuve : « ${texte} » devait rendre ${attendu}`);
     process.exit(1);

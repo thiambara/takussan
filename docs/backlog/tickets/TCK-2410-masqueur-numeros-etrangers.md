@@ -86,6 +86,10 @@ document poussé. Le défaut du masqueur ne l'a pas causée ; la **règle** manq
       tests existants.
 - [x] AC5 — Chaque nouveau cas rougit sans sa modification du motif (ablation consignée).
 - [x] AC6 — La règle des numéros réels est écrite là où elle s'applique.
+- [x] AC7 (vérification adverse) — Les sommes de prix (`150 000 000 F + 250 000 000 F`, `frais +225 000 000`,
+      `+ 30 000 000 000`…) restent intactes ; un lien `wa.me/…` / `…?phone=…` perd son numéro ; les écritures
+      sénégalaises à groupement libre derrière `+221` ou à neuf chiffres espacés sont masquées sans toucher un prix.
+- [x] AC8 — Chaque indicatif du motif est éprouvé par une ligne de fixture (ablation de chacun : rouge).
 
 ## Hors périmètre
 
@@ -126,7 +130,13 @@ document poussé. Le défaut du masqueur ne l'a pas causée ; la **règle** manq
   `(+33) 6 …` laisse la parenthèse ouvrante (`([TELEPHONE]`) ; un groupe de deux chiffres ou plus qui suit
   un numéro d'un autre pays que la France (`+44 7700 900123 15 chambres`) peut être pris dans le masque
   tant que le total tient dans la longueur admise ; une référence numérique de dix chiffres commençant par 0
-  est masquée (`0123456789`).
+  est masquée (`0123456789`) ; un lot de cinq paires (`01 02 03 04 05`, `08 09 10 11 12 h`) l'est aussi ;
+  une coordonnée GPS signée (`+14.7166772 -17.4676861`) est masquée à moitié (`+14.7166772 -17` : indicatif 1
+  et dix chiffres) — l'en exclure ferait échapper les numéros au format EPP `+33.612345678` ; un nombre
+  commençant par `00` + indicatif (`RIB 0012 0034 5678 9012`) est masqué ; les groupements libres des numéros étrangers sans indicatif (`06 1234 5678`, `1-202-555-0123`,
+  `06 12.34 56 78`) restent hors périmètre ; un numéro étranger dont le dernier groupe est `000`, séparé
+  (`+33 6 12 34 5 000`), n'est pas masqué (c'est le prix de l'exclusion des sommes) ; `+49 30 1234567890` (12
+  chiffres) dépasse la longueur admise pour deux chiffres d'indicatif.
 - **Les appelants, re-mesurés** : profitent du correctif `AiDataGuard::mask()` (usage `publique`, donc
   `ai_suggestions.input_snapshot` et le texte envoyé au modèle), `EvalCaseAnonymizer` (entrée, `expected`,
   clés personnelles) et `ConsentMessageComposer` (nom d'affichage et faits). Ne changent pas : `RadarPhone`,
@@ -145,14 +155,58 @@ document poussé. Le défaut du masqueur ne l'a pas causée ; la **règle** manq
   `scripts/check-ai-evals-pii.mjs`, et la garde reste bornée aux jeux d'évaluation, où elle est exacte.
 - **Parité PHP/JS mesurée hors fixture** : `MASK_PATTERN` et `TELEPHONE` rendent les mêmes correspondances
   sur 42 823 lignes distinctes de fichiers suivis (1 704 avec au moins un numéro), 0 écart.
-- **Ablations** (chacune annulée ensuite, restauration prouvée par `cmp`) — PHP, `PhoneMaskerTest` +
-  `EvalCaseAnonymizerTest` : sans motif étranger 45 rouges ; sans le national 11 ; sans `00` 6 ;
-  indicatif à deux chiffres quelconque 4, à trois chiffres 3, à un chiffre à longueur libre 4 ; sans
-  `(0)`/`)` 4 ; sans espace après `+` 2 ; `+221` dans les indicatifs 3 ; national à séparateurs libres 3,
-  à séparateurs mêlés 3 ; France sans longueur exacte 2 ; sans garde du chiffre seul final 1 ; zone
-  entre parenthèses 1 ; sans le `(?<![\d+])` initial 1 ; `EvalCaseAnonymizer` revenu à `PATTERN` 1.
-  Garde JS : chacune des neuf ablations équivalentes la fait sortir en 1 sur la forme correspondante.
+- **Ablations** : voir « Reprise de la vérification adverse » ci-dessous (le motif a changé depuis la première série).
 - **Vérifié** : 268 tests de `PhoneMaskerTest` et `EvalCaseAnonymizerTest` ; tests des appelants
   (`tests/Unit/Ai`, `RadarAmountParserTest`, `RadarPhoneTest`, `ConsentMessageComposerTest`, les épreuves
   du Radar et de l'IA) verts ; `node scripts/check-ai-evals-pii.mjs` vert sur les 73 fichiers des jeux ;
   toutes les gardes `scripts/check-*.mjs` vertes.
+
+### Reprise de la vérification adverse (2026-10-29)
+
+- **I1, sommes de prix** : un numéro étranger ne finit jamais sur un groupe `000` séparé
+  (`(?<!SEP000)`). `+ 250 000 000`, `frais +225 000 000`, `+45 000 000 000 F`, `+33 000 000 000 F`,
+  `+ 30 000 000 000`, `+ 500 000 000 F CFA` ne sont plus des numéros. Écarté : le lookbehind « N + M »
+  (il aurait laissé passer `+221 77 … +33 6 …`, deux numéros séparés d'une espace) ; l'exclusion de la marque
+  monétaire dans un groupe atomique (ni PCRE ni JavaScript ne l'ont sous la même forme) ; le groupement strict
+  en milliers (`+250 788 123 456`, Rwanda, est groupé par trois). Le prix de la règle : un vrai numéro dont le
+  dernier groupe est `000` séparé n'est pas masqué.
+- **I2, chaque indicatif éprouvé** : une ligne de fixture par pays (une centaine au total : France, Côte d'Ivoire,
+  Mali, Mauritanie, Gambie, Guinée, Burkina Faso, Niger, Togo, Bénin, Maroc, Algérie, Tunisie, Espagne, Italie,
+  Belgique, Allemagne, Suisse, Royaume-Uni, Amérique du Nord, Russie, Chine, Inde, etc.). **Ablation de chaque
+  alternative des deux listes d'indicatifs : rouge**, côté PHP et côté JS (deux survivantes au premier passage,
+  `37x` et `69[0-2]`, ont reçu leur pays). Formes nationales `01…`, `05…`, `09…` en fixture.
+- **La garde JS compare désormais le texte masqué**, comme le masqueur, et plus seulement « quelque chose a été
+  trouvé » : un numéro reconnu en partie (`+ 33 6 12 34 56 78` dont seule la fin était vue) faisait passer son épreuve.
+  Trois ablations survivaient à ce défaut.
+- **I3, liens WhatsApp** : `wa.me/…` et `…?phone=…` (indicatif ITU et bonne longueur, sans `+`) ; section
+  `avec_contexte` du fixture, qui porte `[texte, texte masqué]` pour ce qui n'est pas tout le texte.
+- **I4/I5, numéros sénégalais** (dans `MASK_PATTERN` seulement : `PATTERN`, donc `RadarPhone` et
+  `RadarAmountParser`, ne change pas). Derrière `+221` ou `00221` (espacés, `(0)`, `)` admis) : neuf chiffres à
+  groupement libre, préfixes de l'ARTP seulement (`+221 74 …` reste le fictif), sans l'exclusion « F » ; le 3-3-3
+  n'est donc masqué que derrière l'indicatif. Sans indicatif : groupement libre (`77 1234567`, `77 1 23 45 67`,
+  `77 12 345 67`, `33 8 21 00 00`, `7 7 1 2 3 4 5 6 7`), mais ni 3-3-3 (`750 000 000`), ni date
+  (`30/12/2026 5 pièces`), ni point (`44.07 87.79 75.17`, une charge machine ; `70 1.23 4.56 7.8`) — sauf les
+  neuf chiffres à points un à un. Une première version à séparateurs libres masquait 45 lignes de documents et de
+  code du dépôt (charges, valeurs `oklch`) ; elle en masque 4, toutes des numéros ou des commandes.
+  Suite possible, hors de ce ticket : `RadarPhone::fromText()` ne lit pas ces écritures.
+- **M1** : `[0-9]` partout côté PHP (`\d` couvre le devanagari sous `/u`, pas JavaScript) ; espaces
+  énumérées (`\s` contient U+0085 sous PCRE, pas en JavaScript) et U+0085 tenu pour une espace ; les séries de
+  chiffres d'Asie du Sud, d'Asie du Sud-Est, N'Ko et mathématiques sont ramenées à l'ASCII par
+  `normalizeDigits()`, des deux côtés.
+- **M2** : le demi-cadratin `–`, le tiret cadratin, le moins `−` sont des séparateurs (jusqu'à trois caractères entre
+  deux chiffres d'un numéro étranger : ` – ` en compte trois) ; `＋` et `﹢` sont ramenés à `+`, et les points,
+  tirets et barres pleine chasse à leur forme ASCII.
+- **M3** : coordonnées GPS et lots de paires : limites écrites ci-dessus. Une décimale ou une virgule suivie d'un
+  `00` + indicatif (`0.0033612345678`) n'est plus un numéro.
+- **Ablations** (chacune annulée, restauration prouvée par `cmp` d'une copie du scratchpad). PHP, `PhoneMaskerTest`
+  + `EvalCaseAnonymizerTest` : sans `SENEGAL_WITH_CODE` 11 rouges ; sans `SENEGAL_LOOSE` 10 ; préfixe non espacé 2 ;
+  sans exclusion 3-3-3 7 ; sans exclusion date 2 ; points tolérés dans le libre 2 ; sans chiffres à points un à un 2 ;
+  sans `LINK` 5 ; sans `(?<!SEP000)` 16 ; sans NEL 2 ; sans demi-cadratin 6 ; sans `＋`/`﹢` 4 ; sans devanagari 2 ;
+  sans espaces après `+` 2 ; sans `00 ` espacé 2 ; sans `)`/`(0)` derrière `+221` 3 ; sans lookbehind décimal 4 ;
+  séparateurs à deux caractères 2 ; `\d` pour `[0-9]` 1 ; sans 71 3 ; national `0[1-9]` → `0[67]` 6 ; chaque
+  alternative de `CC2` et `CC3` : rouge. Garde JS : mêmes ablations (21), chacune sort en 1 ; chaque alternative
+  de `CC2` et `CC3` : rouge.
+- **Parité PHP/JS** : bancs du vérificateur rejoués (`v2410/run.php`, `run.mjs`) : 0 écart sur 5 jeux de 40 000
+  chaînes aléatoires, sur les cas à la main, et sur 42 823 lignes de fichiers suivis.
+- **Vérifié** : 533 tests de `PhoneMaskerTest` et `EvalCaseAnonymizerTest` ; appelants (voir ci-dessus) verts ;
+  gardes `scripts/check-*.mjs` vertes.

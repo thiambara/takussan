@@ -33,6 +33,20 @@ class PhoneMaskerTest extends TestCase
         return self::formes('pas_personnel');
     }
 
+    /** @return array<string, array{string, string}> */
+    public static function avecContexte(): array
+    {
+        $formes = json_decode((string) file_get_contents(dirname(__DIR__, 2).'/fixtures/ai/donnees-personnelles.json'), true, flags: JSON_THROW_ON_ERROR);
+
+        return $formes['avec_contexte'];
+    }
+
+    #[DataProvider('avecContexte')]
+    public function test_only_the_number_is_replaced_in_its_context(string $texte, string $masque): void
+    {
+        $this->assertSame("Écrivez via {$masque} svp", PhoneMasker::mask("Écrivez via {$texte} svp"));
+    }
+
     #[DataProvider('numeros')]
     public function test_a_phone_number_is_masked(string $numero): void
     {
@@ -72,6 +86,9 @@ class PhoneMaskerTest extends TestCase
             'entre parenthèses' => ['(+33) 6 12 34 56 78', '([TELEPHONE]'],
             'indicatif d\'un chiffre, zone entre parenthèses' => ['+1 (202) 555 0123', '[TELEPHONE]'],
             'deux numéros de formes différentes' => ['+2250712345678 puis 0033612345678', '[TELEPHONE] puis [TELEPHONE]'],
+            'deux numéros séparés d\'une seule espace, le sénégalais d\'abord' => ['+221 77 123 45 67 +33 6 12 34 56 78', '[TELEPHONE] [TELEPHONE]'],
+            'deux numéros séparés d\'une seule espace, l\'étranger d\'abord' => ['+33 6 12 34 56 78 +221 77 123 45 67', '[TELEPHONE] [TELEPHONE]'],
+            'somme de prix entre deux numéros' => ['+33 6 12 34 56 78 puis 150 000 000 F + 250 000 000 F puis +221 77 123 45 67', '[TELEPHONE] puis 150 000 000 F + 250 000 000 F puis [TELEPHONE]'],
             'national : deux numéros' => ['06 12 34 56 78 ou 07 12 34 56 78', '[TELEPHONE] ou [TELEPHONE]'],
         ];
     }
