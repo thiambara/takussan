@@ -25,6 +25,7 @@ export const PLATFORM_ABILITIES = [
   'platform.agencies.suspend',
   'platform.kyc.view',
   'platform.settings.manage',
+  'platform.radar.publish',
   'platform.ai.view',
   'platform.ai.manage',
 ] as const;

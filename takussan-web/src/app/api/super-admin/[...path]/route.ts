@@ -2,7 +2,16 @@ import { AUTH_COOKIE_NAME } from '@/lib/constants';
 import { cheminReserveAuxRouteHandlers } from '@/lib/impersonation';
 import { cheminAmont, reponseSegmentInvalide } from '@/lib/segments-amont';
 import { NextRequest, NextResponse } from 'next/server';
-import { relayerVersApi } from '@/lib/relais-api';
+import { DELAI_RELAIS_FICHIER_MS, relayerVersApi } from '@/lib/relais-api';
+
+/**
+ * TCK-2389 — « Publier pour lui » copie chaque photo de la réserve et encode sa vignette DANS sa transaction : quelques
+ * annonces garnies dépassent les 30 s du relais, dont la réponse se perdrait alors que l'API commite. Cette route seule
+ * attend jusqu'au délai des fichiers (90 s, sous les 100 s de Cloudflare). La vraie borne est celle de l'API :
+ * `max_execution_time` = 60 s en temps d'horloge (image ZTS) — au-delà PHP meurt sans rien défaire des fichiers écrits ;
+ * `radar.publish.max_photos` borne donc le travail avant la transaction, et un envoi encore en cours se rejoue côté écran.
+ */
+const PUBLICATION_DU_RADAR = /^radar\/advertisers\/\d+\/publish$/;
 
 /**
  * TCK-145 — Same-origin proxy for the super-admin namespace. Forwards every
@@ -25,9 +34,17 @@ async function forward(request: NextRequest, segments: string[]): Promise<NextRe
 
   // TCK-601 — le corps part en OCTETS (la preuve de réponse du registre des droits est un envoi
   // multipart) ; TCK-893 — le relais commun s'en charge, comme du 204 et des en-têtes de réponse.
+  // TCK-2389 (ADR-0072) — une écriture idempotente de la console (« Publier pour lui ») pose `Idempotency-Key` : sans ce
+  // relais, la clé s'arrêterait ici et l'API ne rejouerait rien. Le relais ne transmet que ce qu'il nomme.
+  const enTetes: Record<string, string> = {};
+  const cleIdempotence = request.headers.get('idempotency-key');
+  if (cleIdempotence) enTetes['Idempotency-Key'] = cleIdempotence;
+
   return relayerVersApi(request, `/admin/${chemin}${request.nextUrl.search}`, {
     jeton: token,
+    enTetes,
     accepteDeLaRequete: true,
+    ...(request.method === 'POST' && PUBLICATION_DU_RADAR.test(chemin) ? { delaiMs: DELAI_RELAIS_FICHIER_MS } : {}),
   });
 }
 

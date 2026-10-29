@@ -91,6 +91,23 @@ Les photos peuvent être redimensionnées, converties et marquées du nom de l�
 
 **Le contrôle que nous exerçons est limité** : il ne constitue ni une vérification du droit de propriété, ni une expertise du bien, ni une garantie de l’exactitude de l’annonce.
 
+## 6.3 Annonces reprises sur votre accord
+
+L’équipe ${EDITEUR.marque} peut repérer une annonce que vous avez publiée ailleurs (site d’annonces, réseau social, groupe de messagerie) et vous proposer, par un message, de la publier aussi sur la plateforme.
+
+Si vous acceptez, en répondant favorablement à ce message ou en suivant le lien qu’il contient :
+
+- vous nous autorisez à publier sur la plateforme les annonces que ce message énumère, avec leurs textes et leurs photos, après mise en forme ;
+- vous déclarez être propriétaire de ces biens ou disposer d’un mandat ou d’une autorisation qui vous permet de les proposer, et détenir les droits nécessaires à la diffusion de leurs photos : les garanties de l’article 6.1 s’appliquent ;
+- vous acceptez qu’un compte soit créé à votre nom, rattaché au numéro de téléphone depuis lequel vous avez répondu, avec un espace individuel où ces annonces sont publiées ;
+- vous acceptez que les visiteurs vous contactent directement à ce numéro au sujet de ces annonces.
+
+Votre réponse et le message auquel elle répond sont conservés comme preuve de votre accord.
+
+Le compte ainsi créé n’a pas de mot de passe. Vous l’activez en vous connectant avec un code reçu par SMS à ce numéro ; les présentes Conditions vous sont alors présentées pour acceptation. ⚠ Jusqu’à cette activation, votre accord vaut autorisation de publier les seules annonces énumérées, et aucun autre engagement de votre part.
+
+Vous pouvez retirer votre accord à tout moment, en répondant « STOP » ou en nous écrivant à ${EDITEUR.courriels.contact} : vos annonces sont alors retirées de la plateforme sans délai, et nous ne vous recontactons plus. Vous pouvez aussi demander la suppression de votre compte (article 17.1).
+
 # 7. Professionnels et agences
 
 ## 7.1 Vérification
@@ -327,6 +344,23 @@ By publishing a listing, the advertiser warrants that they own the property or h
 Each listing receives a unique reference. We may, without being obliged to, review a listing before or after publication, request supporting documents, correct its form, suspend it or remove it if it breaches these Terms or the law. Photos may be resized, converted and watermarked with the agency’s name.
 
 **Our review is limited**: it is neither a check of title, nor a survey of the property, nor a guarantee that the listing is accurate.
+
+## 6.3 Listings taken over with your agreement
+
+The ${EDITEUR.marque} team may spot a listing you have published elsewhere (a classifieds site, a social network, a messaging group) and offer, by message, to publish it on the platform as well.
+
+If you agree, by replying favourably to that message or by following the link it contains:
+
+- you authorise us to publish on the platform the listings that message lists, with their texts and photos, after formatting;
+- you declare that you own those properties or hold a mandate or authorisation allowing you to offer them, and that you hold the rights needed to publish their photos: the warranties of article 6.1 apply;
+- you agree that an account will be created in your name, linked to the phone number from which you replied, with an individual space where those listings are published;
+- you agree that visitors may contact you directly at that number about those listings.
+
+Your reply and the message it answers are kept as evidence of your agreement.
+
+The account created in this way has no password. You activate it by signing in with a code received by SMS at that number; these Terms are then presented to you for acceptance. ⚠ Until that activation, your agreement is an authorisation to publish only the listings listed, and no other commitment on your part.
+
+You may withdraw your agreement at any time, by replying “STOP” or by writing to ${EDITEUR.courriels.contact}: your listings are then removed from the platform without delay, and we do not contact you again. You may also ask for your account to be deleted (article 17.1).
 
 # 7. Professionals and agencies
 

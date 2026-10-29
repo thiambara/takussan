@@ -9120,6 +9120,11 @@
             "sentAt": "Envoyé le {date}",
             "none": "Aucun message n’attend d’issue.",
             "outcomeSet": "Issue posée : {outcome}, le {date}. Une réponse déposée plus tard peut encore la changer."
+          },
+          "publish": {
+            "heading": "Publier pour lui",
+            "hint": "Des annonces de cet annonceur sont couvertes par un accord valide : vous pouvez les publier à son nom.",
+            "cta": "Publier pour lui"
           }
         },
         "advertisers": {
@@ -9180,7 +9185,133 @@
           }
         },
         "advertisersLink": "Annonceurs",
-        "followUpsDue": "{count, plural, =0 {Aucune relance due} one {# relance due} other {# relances dues}}"
+        "followUpsDue": "{count, plural, =0 {Aucune relance due} one {# relance due} other {# relances dues}}",
+        "publication": {
+          "metaTitle": "Publier pour l’annonceur",
+          "title": "Publier pour {name}",
+          "titleUnnamed": "Publier pour l’annonceur n° {id}",
+          "back": "Retour à la fiche de l’annonceur",
+          "forbidden": "Publier pour un annonceur est réservé aux super-administrateurs.",
+          "loadError": "Impossible de charger l’aperçu de la publication.",
+          "intro": "Vérifiez ce qui sera créé au nom de l’annonceur, puis confirmez. Rien n’est écrit avant la confirmation.",
+          "claimNone": "Personne ne traite cet annonceur. Prenez-le en charge pour déposer des photos et publier.",
+          "blocking": {
+            "heading": "La publication est impossible pour l’instant :"
+          },
+          "account": {
+            "heading": "Ce qui sera créé au nom de {name}",
+            "headingUnnamed": "Ce qui sera créé au nom de l’annonceur",
+            "account": "Compte",
+            "new": "Un compte sans mot de passe, créé pour l’occasion",
+            "existing": "Compte existant, repris tel quel",
+            "name": "Nom",
+            "noName": "Sans nom",
+            "phone": "Numéro",
+            "space": "Espace",
+            "existingSpace": "Son espace actuel",
+            "noteNew": "Le numéro n’est pas vérifié : l’annonceur active le compte en se connectant avec un code reçu par SMS. Les visiteurs joignent directement ce numéro, par WhatsApp, au sujet de chaque annonce.",
+            "noteExisting": "Aucun compte n’est créé : les biens rejoignent l’espace déjà ouvert pour cet annonceur."
+          },
+          "listings": {
+            "heading": "Annonces couvertes par un accord",
+            "none": "Aucune annonce n’est couverte par un accord valide : il n’y a rien à publier.",
+            "select": "Publier l’annonce n° {id}",
+            "untitled": "Annonce sans titre",
+            "titleBuilt": "Titre construit",
+            "titleBuiltHint": "Cette annonce n’a pas de titre : celui-ci est construit du type, des chambres, du contrat et du quartier, et sera publié tel quel.",
+            "number": "n° {id}",
+            "open": "Ouvrir la fiche de l’annonce n° {id}",
+            "matches": "Ressemble déjà à : {list}.",
+            "matchProperty": "le bien n° {id}",
+            "matchListing": "l’annonce n° {id}",
+            "duplicateOfListing": "Marquée comme doublon de l’annonce n° {id}.",
+            "duplicateOfProperty": "Marquée comme doublon du bien n° {id}.",
+            "blocking": {
+              "noPhoto": "Cette annonce n’a aucune photo dans sa réserve : récupérez-en à la source, ou déposez-en.",
+              "noPhotoNoSource": "Cette annonce n’a aucune photo à la source : déposez-en à la main.",
+              "photosPending": "Les photos de cette annonce sont encore en préparation : attendez la fin, ou relancez la lecture.",
+              "missingField": "Cette annonce est incomplète : le type, le contrat, le prix et un quartier du référentiel sont requis."
+            }
+          },
+          "photos": {
+            "heading": "Photos de la réserve ({taken}/{max})",
+            "preparing": "Lecture des photos de la source : {done} sur {total}.",
+            "prepared": "Photos de la source lues : {done} sur {total}.",
+            "none": "Aucune photo : récupérez celles de la source, ou déposez-en à la main.",
+            "noneNoSource": "Aucune photo à la source : déposez-en à la main.",
+            "list": "Photos de l’annonce n° {id}, dans l’ordre de publication",
+            "alt": "Photo {rank} de l’annonce n° {id}",
+            "remove": "Retirer la photo {rank} de l’annonce n° {id}",
+            "input": "Déposer des photos pour l’annonce n° {id}",
+            "upload": "Déposer des photos",
+            "fetch": "Récupérer les photos de la source",
+            "full": "La réserve est pleine : {max} photos au plus.",
+            "hint": "JPEG, PNG ou WebP, {max} photos par envoi. La première est la couverture."
+          },
+          "publish": "{count, plural, =0 {Publier} one {Publier # annonce} other {Publier # annonces}}",
+          "nothingChecked": "Cochez au moins une annonce à publier.",
+          "overPhotoLimit": "La sélection compte {count, plural, one {# photo} other {# photos}} : une publication en accepte {max} au plus. Décochez des annonces, puis publiez-les en plusieurs fois.",
+          "confirm": {
+            "title": "Publier pour {name} ?",
+            "titleUnnamed": "Publier pour cet annonceur ?",
+            "body": "Cette publication crée un compte au nom de l’annonceur et met ses annonces en ligne. Elle ne se défait pas d’un clic.",
+            "summaryNew": "1 compte, 1 espace, {biens, plural, one {# bien publié} other {# biens publiés}} avec {photos, plural, =0 {aucune photo} one {# photo} other {# photos}}.",
+            "summaryExisting": "Compte existant repris, {biens, plural, one {# bien publié} other {# biens publiés}} avec {photos, plural, =0 {aucune photo} one {# photo} other {# photos}}.",
+            "cancel": "Annuler",
+            "publish": "Publier",
+            "publishing": "Publication…"
+          },
+          "recap": {
+            "created": "Ce qui existe désormais",
+            "accountCreated": "Compte créé pour {name}, avec l’espace « {space} ».",
+            "accountExisting": "Compte existant de {name} repris, espace « {space} ».",
+            "links": "Liens publics des biens publiés",
+            "untitled": "Bien n° {id}",
+            "message": {
+              "heading": "Le message « vos annonces sont en ligne »",
+              "hint": "Un texte fixe : il porte les liens publics, le lien pour activer le compte et la ligne STOP. Envoyez-le tel quel.",
+              "locale": "Langue du message",
+              "locales": {
+                "fr": "Français",
+                "en": "Anglais"
+              },
+              "loadError": "Impossible de composer le message.",
+              "retry": "Réessayer",
+              "whatsapp": "Ouvrir WhatsApp",
+              "copy": "Copier le message",
+              "copied": "Message copié.",
+              "copyFailed": "La copie a échoué : sélectionnez le texte à la main."
+            }
+          },
+          "alreadyPublished": {
+            "heading": "Déjà en ligne pour cet annonceur",
+            "hint": "Ces biens sont publiés. Le message ci-dessous liste tous les biens que le Radar a publiés pour lui ; il se recompose à tout moment, même si la réponse d’une publication s’est perdue.",
+            "stopped": "L’annonceur a demandé à ne plus être contacté : aucun message ne lui est envoyé.",
+            "unavailable": "Le second message ne peut pas être composé dans cet environnement (voir le blocage ci-dessus) : les liens publics ci-dessus restent valables."
+          },
+          "errors": {
+            "listingForeign": "Une de ces annonces n’est pas celle de cet annonceur, ou n’existe pas.",
+            "notCovered": "Une de ces annonces n’est pas couverte par un accord confirmé et non révoqué : elle ne se publie pas.",
+            "photosPending": "Les photos d’une annonce sont encore en préparation : attendez la fin, ou relancez la lecture.",
+            "noPhoto": "Une annonce n’a aucune photo dans sa réserve : récupérez-en à la source, ou déposez-en.",
+            "missingField": "Une annonce est incomplète : le type, le contrat, le prix et un quartier du référentiel sont requis.",
+            "nothingCovered": "Aucune annonce de cet annonceur n’est couverte par un accord valide.",
+            "activationUnavailable": "La connexion par téléphone est éteinte dans cet environnement : le compte créé pour l’annonceur ne pourrait pas s’ouvrir par code SMS. Rien ne se publie tant qu’elle ne l’est pas.",
+            "otpPreviewActive": "L’aperçu des codes SMS est actif dans cet environnement : le code d’activation reviendrait dans la réponse, et quiconque connaît le numéro de l’annonceur pourrait ouvrir son compte. Rien ne se publie tant qu’il l’est.",
+            "nothingPublished": "Aucun bien n’est publié pour cet annonceur : il n’y a pas de message à composer.",
+            "phoneRegistered": "Ce numéro est déjà celui d’un compte : le Radar ne publie pas dans un compte existant, seule la réclamation est proposée à son titulaire.",
+            "accountUnavailable": "Le compte rattaché à cet annonceur est supprimé ou bloqué, ou son espace est suspendu : rien n’y est publié.",
+            "noSourcePhotos": "Cette annonce n’a aucune photo à récupérer à la source : déposez-en à la main.",
+            "photoNotFound": "Cette photo n’est pas dans la réserve de cette annonce.",
+            "reserveFull": "La réserve de photos est pleine : {max} photos au plus.",
+            "tooManyPhotos": "Ces annonces ont {count, plural, one {# photo} other {# photos}} en tout, et une publication en accepte {max} au plus : publiez-les en plusieurs fois.",
+            "photoTooLarge": "Une photo est trop grande : ses dimensions dépassent les bornes acceptées.",
+            "photoUnreadable": "Une photo ne se lit pas comme une image : envoyez un JPEG, un PNG ou un WebP.",
+            "quotaExceeded": "L’espace de cet annonceur a atteint son quota d’annonces actives : rien n’a été publié.",
+            "keyReused": "La sélection a changé depuis un premier envoi : relancez la publication.",
+            "inProgress": "Une publication est déjà en cours pour cet annonceur : réessayez dans un instant."
+          }
+        }
       }
     },
     "featureFlags": {

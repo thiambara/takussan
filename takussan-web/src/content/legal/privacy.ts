@@ -60,6 +60,7 @@ Les agences, propriétaires et professionnels qui utilisent la plateforme traite
 
 - Un professionnel peut enregistrer vos coordonnées lorsque vous êtes son client, son locataire, un garant ou un prestataire, ou vous inviter à rejoindre son espace.
 - Un visiteur anonyme qui contacte un annonceur nous transmet son nom, son adresse électronique, son téléphone et son message ; nous enregistrons alors aussi son adresse IP et son navigateur pour prévenir les abus.
+- Si vous avez publié une annonce immobilière sur un autre site, un réseau social ou un groupe de messagerie, nous pouvons en relever le contenu public — texte, prix, localisation, photos, nom affiché et numéro de téléphone — pour vous proposer de la publier sur la plateforme (article 6.3 des Conditions).
 
 ## 2.4 Données sensibles
 
@@ -69,6 +70,7 @@ Nous ne demandons **aucune donnée sensible** au sens de la loi (origine raciale
 
 - **Créer et gérer votre compte, vous authentifier, sécuriser l’accès** — exécution du contrat (conditions générales d’utilisation).
 - **Publier les annonces, permettre la recherche, les contacts, les visites, les réservations et la messagerie** — exécution du contrat.
+- **Proposer à un annonceur de publier sur la plateforme une annonce qu’il a publiée ailleurs**, et conserver la preuve de son accord. ⚠ Fondement : notre intérêt légitime à développer l’offre de la plateforme pour le relevé et le premier contact ; votre consentement pour la publication et la création du compte.
 - **Fournir aux professionnels les outils de gestion** (baux, échéanciers, quittances, factures, états des lieux, maintenance, documents, tableaux de bord) — exécution du contrat conclu avec le professionnel.
 - **Traiter les paiements, encaisser pour le compte des agences, calculer la commission et effectuer les reversements** — exécution du contrat et respect de nos obligations comptables et fiscales.
 - **Vérifier l’identité et les justificatifs des professionnels et des propriétaires** — exécution du contrat, prévention de la fraude et respect de la réglementation relative à la lutte contre le blanchiment de capitaux.
@@ -107,7 +109,7 @@ Nous faisons appel à des prestataires qui traitent des données pour notre comp
 - **Connexion par un tiers** : Google, Meta (Facebook) et Apple, uniquement si vous choisissez ce mode de connexion.
 - **Cartographie** : OpenStreetMap, dont les serveurs reçoivent votre adresse IP lorsque la carte s’affiche.
 - **Localisation approximative** : ipapi.co, qui reçoit votre adresse IP pour en déduire votre ville.
-- **Intelligence artificielle** : Anthropic (États-Unis) — analyse automatisée de certains contenus que des fonctionnalités de la plateforme lui soumettent (le texte ou les images d’une annonce, par exemple), pour proposer une saisie ou une rédaction qu’une personne vérifie. Aucune donnée sensible (pièce d’identité, revenus) ne lui est transmise.
+- **Intelligence artificielle** : Anthropic (États-Unis) ⚠ [et tout autre fournisseur retenu] — analyse du texte et des images d’une annonce pour en extraire les caractéristiques, rédaction de messages, vérification d’une preuve d’accord, pour proposer une saisie, une rédaction ou un avis qu’une personne vérifie. Aucune donnée sensible (pièce d’identité, revenus) ne leur est transmise. ⚠ Ces prestataires n’utilisent pas les données transmises pour entraîner leurs modèles : à vérifier sur leurs conditions en vigueur.
 
 ## 4.4 Les autorités
 
@@ -134,6 +136,8 @@ Certains de nos prestataires sont établis ou stockent des données hors du Sén
 - **Journaux d’accès des serveurs** : quelques jours, par rotation automatique.
 - **Archive d’export de vos données** : 7 jours, puis suppression automatique.
 - **Brouillons d’annonce non publiés** : 90 jours sans modification.
+- **Annonces relevées ailleurs et jamais publiées** : 90 jours à compter du relevé, et effacées dès que vous demandez à ne plus être contacté. Ne subsiste alors qu’une empreinte chiffrée de votre numéro, qui sert seulement à ne jamais vous recontacter.
+- **Preuve de votre accord à la publication** : tant que les annonces concernées sont en ligne, puis ⚠ 3 ans.
 - **Sauvegardes** : conservées au plus 14 jours, puis écrasées.
 - **Consentements** : le temps du consentement, puis 5 ans pour pouvoir en justifier.
 
@@ -172,6 +176,8 @@ La loi n° 2008-12 vous reconnaît les droits suivants :
 - **droit de rectification** et, lorsque les données sont inexactes, incomplètes, équivoques, périmées ou dont la conservation est interdite, **droit d’effacement** ;
 - **droit d’opposition**, pour des motifs légitimes, à ce que vos données fassent l’objet d’un traitement, et sans frais ni justification à leur utilisation à des fins de prospection ;
 - **droit de retirer votre consentement** à tout moment, pour les traitements qui en dépendent, sans remettre en cause ceux déjà réalisés.
+
+Le droit d’opposition s’exerce aussi en répondant « STOP » au message reçu.
 
 Depuis votre compte, vous pouvez dès maintenant :
 
@@ -242,6 +248,7 @@ Agencies, owners and professionals using the platform also process personal data
 
 - A professional may record your details when you are their client, tenant, guarantor or service provider, or invite you to join their space.
 - An anonymous visitor contacting an advertiser gives us their name, email, phone and message; we then also record their IP address and browser to prevent abuse.
+- If you have published a property listing on another site, a social network or a messaging group, we may collect its public content — text, price, location, photos, displayed name and phone number — to offer to publish it on the platform (article 6.3 of the Terms).
 
 ## 2.4 Sensitive data
 
@@ -251,6 +258,7 @@ We ask for **no sensitive data** within the meaning of the law (racial or ethnic
 
 - **Creating and managing your account, authenticating you, securing access** — performance of the contract (terms of use).
 - **Publishing listings; enabling search, contacts, visits, bookings and messaging** — performance of the contract.
+- **Offering an advertiser to publish on the platform a listing they have published elsewhere**, and keeping evidence of their agreement. ⚠ Basis: our legitimate interest in developing the platform’s offer for the collection and the first contact; your consent for the publication and the creation of the account.
 - **Providing management tools to professionals** — performance of the contract with the professional.
 - **Processing payments, collecting on behalf of agencies, calculating commission and paying out** — performance of the contract and our accounting and tax obligations.
 - **Verifying the identity and documents of professionals and owners** — performance of the contract, fraud prevention and anti-money-laundering rules.
@@ -285,7 +293,7 @@ We use providers that process data on our behalf, on our instructions and under 
 - **Third-party sign-in**: Google, Meta (Facebook) and Apple, only if you choose that sign-in method.
 - **Maps**: OpenStreetMap, whose servers receive your IP address when a map is displayed.
 - **Approximate location**: ipapi.co, which receives your IP address to infer your city.
-- **Artificial intelligence**: Anthropic (United States) — automated analysis of some content that platform features submit to it (for example the text or images of a listing), to suggest an entry or a draft that a person reviews. No sensitive data (identity documents, income) is sent to it.
+- **Artificial intelligence**: Anthropic (United States) ⚠ [and any other provider retained] — analysis of the text and images of a listing to extract its characteristics, drafting of messages, checking of a proof of agreement, to suggest an entry, a draft or an assessment that a person reviews. No sensitive data (identity documents, income) is sent to them. ⚠ These providers do not use the data sent to train their models: to be verified against their current terms.
 
 ## 4.4 Authorities
 
@@ -312,6 +320,8 @@ Some providers are established or store data outside Senegal, notably in the Eur
 - **Server access logs**: a few days, by automatic rotation.
 - **Data export archive**: 7 days, then automatically deleted.
 - **Unpublished listing drafts**: 90 days without changes.
+- **Listings collected elsewhere and never published**: 90 days from collection, and erased as soon as you ask not to be contacted. All that remains is an encrypted fingerprint of your number, used only to never contact you again.
+- **Proof of your agreement to publication**: for as long as the listings concerned are online, then ⚠ 3 years.
 - **Backups**: kept for at most 14 days, then overwritten.
 - **Consents**: for as long as the consent applies, then 5 years so that it can be evidenced.
 
@@ -333,7 +343,7 @@ You can clear these items at any time in your browser settings; some features, i
 
 # 9. Your rights
 
-Law No. 2008-12 gives you the right to be **informed** (this policy); to **access** your data and obtain a copy; to have it **corrected** and, where it is inaccurate, incomplete, ambiguous, outdated or unlawfully kept, **erased**; to **object**, on legitimate grounds, to its processing, and at no cost and without reason to its use for marketing; and to **withdraw your consent** at any time for processing based on it, without affecting processing already carried out.
+Law No. 2008-12 gives you the right to be **informed** (this policy); to **access** your data and obtain a copy; to have it **corrected** and, where it is inaccurate, incomplete, ambiguous, outdated or unlawfully kept, **erased**; to **object**, on legitimate grounds, to its processing, and at no cost and without reason to its use for marketing; and to **withdraw your consent** at any time for processing based on it, without affecting processing already carried out. The right to object can also be exercised by replying “STOP” to the message received.
 
 From your account you can already edit your profile, **download an archive of your data** from the Privacy section, manage notification preferences and turn off SMS and WhatsApp, and **delete your account** from the Security section.
 

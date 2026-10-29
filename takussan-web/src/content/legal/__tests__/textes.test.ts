@@ -99,3 +99,51 @@ describe('politique de confidentialité — durées du journal d’activité par
     );
   });
 });
+
+/**
+ * TCK-2389 (ADR-0077 §6) — les clauses du Radar entrent avec le code qu'elles décrivent : l'article 6.3 des CGU (annonces
+ * reprises sur l'accord de l'annonceur), la finalité, le prestataire d'IA précisé, les deux durées et le « STOP » de la
+ * politique. Les passages ⚠ y restent marqués : ils sont à trancher avec l'avocat avant la production.
+ */
+describe('Radar — l’article 6.3 et les ajouts de la politique de confidentialité', () => {
+  it('l’article 6.3 existe en français et en anglais, après le 6.2 et avant l’article 7', () => {
+    for (const [texte, suivant, precedent] of [
+      [terms.fr, '# 7. Professionnels et agences', '## 6.2 Rôle de'],
+      [terms.en, '# 7. Professionals and agencies', '## 6.2 Our role'],
+    ] as const) {
+      const i = texte.indexOf('## 6.3 ');
+      expect(i).toBeGreaterThan(texte.indexOf(precedent));
+      expect(i).toBeLessThan(texte.indexOf(suivant));
+    }
+    expect(terms.fr).toContain('vos annonces sont alors retirées de la plateforme sans délai');
+    expect(terms.en).toContain('your listings are then removed from the platform without delay');
+  });
+
+  it('la puce IA du § 4.3 garde la vérification par une personne et l’absence de donnée sensible', () => {
+    expect(privacy.fr).toContain('une rédaction ou un avis qu’une personne vérifie. Aucune donnée sensible (pièce d’identité, revenus) ne leur est transmise.');
+    expect(privacy.en).toContain('a draft or an assessment that a person reviews. No sensitive data (identity documents, income) is sent to them.');
+  });
+
+  it('la politique dit la collecte, la finalité, les deux durées et le STOP, dans les deux langues', () => {
+    for (const fragment of [
+      '(article 6.3 des Conditions)',
+      '**Proposer à un annonceur de publier sur la plateforme une annonce qu’il a publiée ailleurs**',
+      '- **Annonces relevées ailleurs et jamais publiées** : 90 jours à compter du relevé',
+      '- **Preuve de votre accord à la publication** : tant que les annonces concernées sont en ligne, puis ⚠ 3 ans.',
+      'Le droit d’opposition s’exerce aussi en répondant « STOP » au message reçu.',
+      'vérification d’une preuve d’accord',
+    ]) {
+      expect(privacy.fr).toContain(fragment);
+    }
+    for (const fragment of [
+      '(article 6.3 of the Terms)',
+      '**Offering an advertiser to publish on the platform a listing they have published elsewhere**',
+      '- **Listings collected elsewhere and never published**: 90 days from collection',
+      '- **Proof of your agreement to publication**: for as long as the listings concerned are online, then ⚠ 3 years.',
+      'The right to object can also be exercised by replying “STOP” to the message received.',
+      'checking of a proof of agreement',
+    ]) {
+      expect(privacy.en).toContain(fragment);
+    }
+  });
+});

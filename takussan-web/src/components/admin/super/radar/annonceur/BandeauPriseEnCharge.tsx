@@ -14,6 +14,8 @@ interface BandeauPriseEnChargeProps {
   readonly rendreFerme: boolean;
   readonly enPrise: boolean;
   readonly enRestitution: boolean;
+  /** TCK-2389 — le texte « à personne » propre à l'écran qui l'affiche (la fiche prépare un message, la publication dépose des photos et publie). */
+  readonly texteLibre?: string;
   readonly onPrendre: () => void;
   readonly onRendre: () => void;
 }
@@ -27,7 +29,7 @@ interface BandeauPriseEnChargeProps {
  * « jusqu'à HH:MM » — un lecteur d'écran l'annoncerait toutes les quelques minutes à qui écrit. Les refus
  * (prise perdue, prise d'un autre) s'annoncent par l'alerte de la fiche.
  */
-export function BandeauPriseEnCharge({ claim, prendreFerme, rendreFerme, enPrise, enRestitution, onPrendre, onRendre }: BandeauPriseEnChargeProps) {
+export function BandeauPriseEnCharge({ claim, prendreFerme, rendreFerme, enPrise, enRestitution, texteLibre, onPrendre, onRendre }: BandeauPriseEnChargeProps) {
   const t = useTranslations('superAdmin.pages.radar.advertiser.claim');
   const fmt = useFormatteurs();
 
@@ -40,7 +42,7 @@ export function BandeauPriseEnCharge({ claim, prendreFerme, rendreFerme, enPrise
     >
       <p className="min-w-0 text-foreground">
         {claim === null
-          ? t('none')
+          ? (texteLibre ?? t('none'))
           : claim.mine
             ? t('mine', { until: fmt.dateTime(claim.until) })
             : t('other', { name: claim.by.name, until: fmt.dateTime(claim.until) })}

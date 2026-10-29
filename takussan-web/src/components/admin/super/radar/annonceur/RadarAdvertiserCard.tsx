@@ -9,12 +9,12 @@ import Link from 'next/link';
 import { usePlatformAbilities } from '@/components/admin/super/PlatformAbilitiesProvider';
 import { PageHeader } from '@/components/console';
 import { ErrorState } from '@/components/feedback';
+import { buttonVariants } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import { ApiError } from '@/lib/api';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import {
-  claimRadarAdvertiser,
   depositRadarReply,
   fetchRadarAdvertiser,
   markRadarOutreachSent,
@@ -22,13 +22,11 @@ import {
   radarKeys,
   RADAR_POLL_MS,
   recordRadarOutcome,
-  releaseRadarAdvertiser,
   retouchRadarOutreach,
 } from '@/lib/queries/radar';
 import type {
   RadarAdvertiserDetail,
   RadarAdvertiserResponse,
-  RadarClaimResponse,
   RadarConsent,
   RadarMessageLocale,
   RadarOutcomeRequest,
@@ -48,6 +46,7 @@ import { PanneauIdentite } from './PanneauIdentite';
 import { PreparationMessage } from './PreparationMessage';
 import { langueDeRelance, messagesEnAttente, verificationEnCours } from './reponses';
 import { SuiviMessage } from './SuiviMessage';
+import { useGestesDePrise } from './useGestesDePrise';
 import { useMessageEchecAnnonceur } from './useMessageEchecAnnonceur';
 import { usePriseEnCharge } from './usePriseEnCharge';
 
@@ -66,6 +65,7 @@ function FicheChargee({ annonceur }: { readonly annonceur: RadarAdvertiserDetail
   const fmt = useFormatteurs();
   const queryClient = useQueryClient();
   const messageEchec = useMessageEchecAnnonceur();
+  const { can } = usePlatformAbilities();
   const cle = radarKeys.advertiser(annonceur.id);
 
   const [selection, setSelection] = useState<ReadonlySet<number>>(new Set());
@@ -86,29 +86,8 @@ function FicheChargee({ annonceur }: { readonly annonceur: RadarAdvertiserDetail
     if (e instanceof ApiError && (e.status === 409 || e.status === 422)) void relire();
   };
 
-  const priseRendue = (reponse: RadarClaimResponse) => {
-    queryClient.setQueryData<RadarAdvertiserResponse>(cle, (detail) =>
-      detail ? { data: { ...detail.data, claim: reponse.data.claim } } : detail);
-    return relire();
-  };
-  const prise = useMutation<RadarClaimResponse, ApiError, void>({
-    mutationFn: () => claimRadarAdvertiser(annonceur.id),
-    onSuccess: priseRendue,
-    onError: surEchec,
-  });
-  // Le renouvellement périodique est une mutation À PART, absente de `enCours` : s'il fermait les champs pendant
-  // son appel, l'opérateur qui écrit perdrait le focus et ses frappes, toutes les quelques minutes. Il ferme pourtant
-  // « Rendre » : une restitution qui croise un renouvellement en vol laisserait la prise reprise après avoir été rendue.
-  const renouvellement = useMutation<RadarClaimResponse, ApiError, void>({
-    mutationFn: () => claimRadarAdvertiser(annonceur.id),
-    onSuccess: priseRendue,
-    onError: surEchec,
-  });
-  const restitution = useMutation<void, ApiError, void>({
-    mutationFn: () => releaseRadarAdvertiser(annonceur.id),
-    onSuccess: relire,
-    onError: surEchec,
-  });
+  // TCK-2389 — les gestes de la prise sont ceux de l'écran « Publier pour lui » aussi : un seul code les porte.
+  const { prise, renouvellement, restitution } = useGestesDePrise(annonceur.id, surEchec);
   const preparation = useMutation<RadarPreparedOutreachResponse, ApiError, RadarPrepareRequest>({
     mutationFn: (demande) => prepareRadarOutreach(annonceur.id, demande),
     onSuccess: (reponse) => {
@@ -151,6 +130,8 @@ function FicheChargee({ annonceur }: { readonly annonceur: RadarAdvertiserDetail
   });
 
   const stoppe = annonceur.do_not_contact_at !== null;
+  // TCK-2389 — « Publier pour lui » : le geste du `super_admin`, offert dès qu'une annonce est couverte par un accord valide.
+  const publiable = can('platform.radar.publish') && !stoppe && annonceur.listings.some((a) => a.covered_by_consent);
   const mienne = annonceur.claim?.mine === true;
   const enCours = prise.isPending || restitution.isPending || preparation.isPending || retouche.isPending || envoi.isPending
     || reponse.isPending || issue.isPending;
@@ -231,6 +212,19 @@ function FicheChargee({ annonceur }: { readonly annonceur: RadarAdvertiserDetail
         onPrendre={() => lancer(() => prise.mutate())}
         onRendre={() => lancer(() => restitution.mutate())}
       />
+
+      {publiable ? (
+        <section
+          aria-label={t('publish.heading')}
+          className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-card px-4 py-3 text-sm"
+          data-testid="radar-annonceur-publier"
+        >
+          <p className="min-w-0 text-foreground">{t('publish.hint')}</p>
+          <Link href={`/super-admin/radar/advertisers/${annonceur.id}/publish`} className={buttonVariants({ size: 'sm' })}>
+            {t('publish.cta')}
+          </Link>
+        </section>
+      ) : null}
 
       {erreur ? (
         <p role="alert" className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive" data-testid="radar-annonceur-erreur">

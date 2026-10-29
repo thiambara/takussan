@@ -18,7 +18,8 @@ use Spatie\QueryBuilder\AllowedFilter;
  * TCK-2386 (ADR-0077 §1, §9) — une annonce collectée hors du catalogue. Elle ne devient un bien que
  * sur l'accord prouvé de son annonceur (`property_id`). Les captures d'écran vivent dans la
  * collection `radar_captures`, sur le disque PRIVÉ par défaut (ADR-0029) : elles portent des
- * données personnelles et s'effacent avec l'annonce, à `purge_at`.
+ * données personnelles et s'effacent avec l'annonce, à `purge_at`. La réserve de photos de la
+ * publication (`radar_photos`, TCK-2389) est sur le même disque.
  */
 class RadarListing extends AbstractModel implements HasMedia
 {
@@ -28,7 +29,7 @@ class RadarListing extends AbstractModel implements HasMedia
         'radar_advertiser_id', 'source_kind', 'source_site', 'source_url', 'raw_text', 'photo_urls',
         'content_fingerprint', 'extracted', 'matches', 'stage', 'stage_reason', 'extraction_attempts',
         'extracted_at', 'property_id', 'captured_by', 'purge_at',
-        'source_photo_hashes', 'duplicate_of_listing_id', 'duplicate_of_property_id',
+        'source_photo_hashes', 'duplicate_of_listing_id', 'duplicate_of_property_id', 'photo_preparation',
     ];
 
     protected $casts = [
@@ -39,6 +40,7 @@ class RadarListing extends AbstractModel implements HasMedia
         'photo_urls' => 'array',
         'matches' => 'array',
         'source_photo_hashes' => 'array',
+        'photo_preparation' => 'array',
         'duplicate_of_listing_id' => 'integer',
         'duplicate_of_property_id' => 'integer',
         'extraction_attempts' => 'integer',
@@ -55,7 +57,7 @@ class RadarListing extends AbstractModel implements HasMedia
         'id', 'radar_advertiser_id', 'source_kind', 'source_site', 'source_url', 'raw_text', 'photo_urls',
         'content_fingerprint', 'extracted', 'matches', 'stage', 'stage_reason', 'extraction_attempts',
         'extracted_at', 'property_id', 'captured_by', 'purge_at', 'source_photo_hashes', 'duplicate_of_listing_id',
-        'duplicate_of_property_id', 'created_at', 'updated_at',
+        'duplicate_of_property_id', 'photo_preparation', 'created_at', 'updated_at',
     ];
 
     // Seul l'annonceur se charge par `include=` : la ressource ne rend que lui. Sous un sparse
@@ -81,6 +83,8 @@ class RadarListing extends AbstractModel implements HasMedia
     {
         // Aucun `useDisk()` : la collection tombe sur le disque par défaut, PRIVÉ (ADR-0029 §3).
         $this->addMediaCollection('radar_captures');
+        // TCK-2389 — la réserve de photos de la publication : lues après l'accord ou déposées, réencodées.
+        $this->addMediaCollection('radar_photos');
     }
 
     public function advertiser(): BelongsTo
@@ -155,5 +159,68 @@ class RadarListing extends AbstractModel implements HasMedia
         }
 
         return ['status' => $done >= $total ? 'done' : 'pending', 'total' => $total, 'done' => min($done, $total)];
+    }
+
+    /**
+     * TCK-2389 — la préparation de la réserve de photos a-t-elle lieu d'être : une annonce-URL dont l'accord
+     * est confirmé (`consented`). Le job la teste, et tout ce qui le met en file.
+     */
+    public function photoPreparable(): bool
+    {
+        return $this->source_kind === RadarSourceKind::Url && $this->stage === RadarListingStage::Consented;
+    }
+
+    /**
+     * TCK-2389 — les URL de photo à tenter : celles de `photo_urls`, sans doublon, les
+     * `radar.photos.max_per_listing` premières. Le total de {@see photoPreparationStatus()} et ce que le job lit.
+     *
+     * @return list<string>
+     */
+    public function preparableUrls(): array
+    {
+        $urls = array_values(array_unique(array_filter((array) ($this->photo_urls ?? []), 'is_string')));
+
+        return array_slice($urls, 0, (int) config('radar.photos.max_per_listing'));
+    }
+
+    /**
+     * TCK-2389 — les éléments de `photo_preparation` dans l'ordre de {@see preparableUrls()} (celui de `photo_urls`, la première
+     * photo de la source en tête), à chaque écriture : une URL retentée après une relance reprend sa place. Un élément dont
+     * l'URL n'y est plus passe en dernier, dans son ordre d'arrivée.
+     *
+     * @param  list<array<string, mixed>>  $elements
+     * @return list<array<string, mixed>>
+     */
+    public function inSourceOrder(array $elements): array
+    {
+        $rank = array_flip($this->preparableUrls());
+        $indexed = array_map(null, array_keys($elements), $elements);
+        usort($indexed, fn (array $a, array $b) => [$rank[$a[1]['url'] ?? null] ?? PHP_INT_MAX, $a[0]] <=> [$rank[$b[1]['url'] ?? null] ?? PHP_INT_MAX, $b[0]]);
+
+        return array_values(array_column($indexed, 1));
+    }
+
+    /**
+     * TCK-2389 — où en est la préparation de la réserve. `none` : rien à préparer (pas une URL, pas de photo), ou
+     * rien qui se préparera (l'annonce n'est pas — ou plus — `consented` et le compte est incomplet) ; `pending` :
+     * annonce `consented` et il reste des URL à tenter ; `done` : toutes tentées, réussies ou non. Un compte COMPLET
+     * reste `done`, quelle que soit l'étape. Seules comptent les URL encore dans {@see preparableUrls()}.
+     *
+     * @return array{status: 'none'|'pending'|'done', total: int, done: int}
+     */
+    public function photoPreparationStatus(): array
+    {
+        $urls = $this->preparableUrls();
+        if ($this->source_kind !== RadarSourceKind::Url || $urls === []) {
+            return ['status' => 'none', 'total' => 0, 'done' => 0];
+        }
+        $total = count($urls);
+        $done = count(array_intersect($urls, array_column((array) ($this->photo_preparation ?? []), 'url')));
+
+        if ($done < $total && ! $this->photoPreparable()) {
+            return ['status' => 'none', 'total' => 0, 'done' => 0];
+        }
+
+        return ['status' => $done >= $total ? 'done' : 'pending', 'total' => $total, 'done' => $done];
     }
 }

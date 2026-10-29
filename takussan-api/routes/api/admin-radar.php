@@ -4,8 +4,10 @@ use App\Http\Controllers\Api\Admin\RadarAdvertiserController;
 use App\Http\Controllers\Api\Admin\RadarDashboardController;
 use App\Http\Controllers\Api\Admin\RadarListingController;
 use App\Http\Controllers\Api\Admin\RadarListingMatchController;
+use App\Http\Controllers\Api\Admin\RadarListingPhotoController;
 use App\Http\Controllers\Api\Admin\RadarListingReviewController;
 use App\Http\Controllers\Api\Admin\RadarOutreachController;
+use App\Http\Controllers\Api\Admin\RadarPublicationController;
 use App\Models\Enums\PlatformAbility;
 use Illuminate\Support\Facades\Route;
 
@@ -32,6 +34,10 @@ Route::middleware(['auth:sanctum', 'super-admin', 'platform-can:'.PlatformAbilit
         Route::post('listings/{listing}/discard', [RadarListingReviewController::class, 'discard'])->name('admin.radar.listings.discard');
         Route::put('listings/{listing}/advertiser', [RadarListingReviewController::class, 'advertiser'])->name('admin.radar.listings.advertiser');
         Route::get('listings/{listing}/matches', RadarListingMatchController::class)->name('admin.radar.listings.matches');
+        // TCK-2389 — la réserve de photos d'une annonce `consented` : relancer la lecture, déposer, retirer.
+        Route::post('listings/{listing}/photos/fetch', [RadarListingPhotoController::class, 'fetch'])->name('admin.radar.listings.photos.fetch');
+        Route::post('listings/{listing}/photos', [RadarListingPhotoController::class, 'store'])->name('admin.radar.listings.photos.store');
+        Route::delete('listings/{listing}/photos/{media}', [RadarListingPhotoController::class, 'destroy'])->name('admin.radar.listings.photos.destroy');
         // TCK-2388 — le démarchage : les files et la fiche annonceur (lecture libre), la prise en charge de 10 minutes.
         Route::get('advertisers', [RadarAdvertiserController::class, 'index'])->name('admin.radar.advertisers.index');
         Route::get('advertisers/{advertiser}', [RadarAdvertiserController::class, 'show'])->name('admin.radar.advertisers.show');
@@ -45,4 +51,16 @@ Route::middleware(['auth:sanctum', 'super-admin', 'platform-can:'.PlatformAbilit
         Route::post('outreaches/{outreach}/reply', [RadarOutreachController::class, 'reply'])->name('admin.radar.outreaches.reply');
         // L'issue : le seul geste qui confirme une réponse (accord), ou qui clôt l'échange (refus, STOP).
         Route::post('outreaches/{outreach}/outcome', [RadarOutreachController::class, 'outcome'])->name('admin.radar.outreaches.outcome');
+    });
+
+/*
+| TCK-2389 (ADR-0077 §6, §11) — publier pour l'annonceur : `platform.radar.publish`, `super_admin` seul. Le `support`
+| prépare (groupe ci-dessus), il ne publie pas : l'aperçu et le message sont aussi réservés, ils portent le compte à créer.
+*/
+Route::middleware(['auth:sanctum', 'super-admin', 'platform-can:'.PlatformAbility::RadarPublish->value])
+    ->prefix('admin/radar')
+    ->group(function () {
+        Route::get('advertisers/{advertiser}/publication-preview', [RadarPublicationController::class, 'preview'])->name('admin.radar.advertisers.publication-preview');
+        Route::post('advertisers/{advertiser}/publish', [RadarPublicationController::class, 'publish'])->middleware('idempotent')->name('admin.radar.advertisers.publish');
+        Route::get('advertisers/{advertiser}/published-message', [RadarPublicationController::class, 'publishedMessage'])->name('admin.radar.advertisers.published-message');
     });

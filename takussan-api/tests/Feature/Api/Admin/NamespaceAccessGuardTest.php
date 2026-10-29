@@ -120,6 +120,8 @@ class NamespaceAccessGuardTest extends TestCase
         $tag = Tag::factory()->create();
         // TCK-2386 — même motif, sur la fiche du Radar (`radar/listings/{listing}`).
         $listing = RadarListing::factory()->create();
+        // TCK-2389 — idem, sur une photo de la réserve (`radar/listings/{listing}/photos/{media}`).
+        $photo = $listing->addMediaFromString('x')->usingFileName('p.jpg')->toMediaCollection('radar_photos');
         // TCK-2388 — même motif, sur la fiche annonceur (`radar/advertisers/{advertiser}`).
         $advertiser = RadarAdvertiser::factory()->create();
         // Idem, sur le message d'accord (`radar/outreaches/{outreach}`).
@@ -156,6 +158,7 @@ class NamespaceAccessGuardTest extends TestCase
                     '{neighborhood}' => (string) $neighborhood->id,
                     '{tag}' => (string) $tag->id,
                     '{listing}' => (string) $listing->id,
+                    '{media}' => (string) $photo->id,
                     '{advertiser}' => (string) $advertiser->id,
                 ]);
 

@@ -686,6 +686,7 @@ return [
         'listing' => [
             'nothing_to_update' => 'Nothing to update: send at least one field of the listing.',
             'stage_conflict' => 'This listing is no longer at that stage: the action is not allowed.',
+            'no_source_photos' => 'This listing has no photo to collect from its source: upload some by hand.',
         ],
         'duplicate' => [
             'self' => 'A listing cannot be a duplicate of itself.',
@@ -699,6 +700,8 @@ return [
             'claim_not_held' => 'This claim is not yours: it cannot be released.',
             'do_not_contact' => 'This advertiser asked not to be contacted again: no message is prepared or sent to them.',
             'busy' => 'This advertiser is being changed right now: try again in a moment.',
+            'phone_registered' => 'This number already belongs to an account: the Radar does not publish into an existing account; only the claim is offered to its holder.',
+            'account_unavailable' => 'The account linked to this advertiser is deleted or blocked, or its space is suspended: nothing is published there.',
         ],
         'outreach' => [
             'locale_unsupported' => 'This language is not supported for the consent message.',
@@ -725,6 +728,23 @@ return [
         ],
         'review' => [
             'incomplete' => 'The listing is incomplete: a property type, a contract, a price and a neighborhood from the referential are required.',
+        ],
+        'photo' => [
+            'not_found' => 'This photo is not in this listing\'s reserve.',
+            'reserve_full' => 'The photo reserve is full: :max photos at most.',
+            'too_large' => 'A photo is too large: its dimensions exceed the accepted limits.',
+            'unreadable' => 'A photo cannot be read as an image: send a JPEG, PNG or WebP.',
+        ],
+        'publish' => [
+            'listing_foreign' => 'One of these listings is not this advertiser\'s, or does not exist.',
+            'not_covered' => 'One of these listings is not covered by a confirmed, unrevoked agreement: it cannot be published.',
+            'photos_pending' => 'The photos of one of these listings are still being prepared: wait for them to finish, or restart the collection.',
+            'no_photo' => 'One of these listings has no photo in its reserve: collect some from the source, or upload some.',
+            'missing_field' => 'One of these listings is incomplete: the type, contract, price and a neighbourhood from the reference list are required.',
+            'too_many_photos' => 'These listings have :count photos in all, and one publication accepts :max at most: publish them in several batches.',
+            'activation_unavailable' => 'Phone login is off in this environment: the account created for the advertiser could not be opened with an SMS code. Nothing is published until it is on.',
+            'otp_preview_active' => "The SMS code preview is active in this environment: the activation code would come back in the response, and anyone who knows the advertiser's number could open their account. Nothing is published while it is.",
+            'nothing_published' => 'No property is published for this advertiser: there is no message to compose.',
         ],
     ],
     'pay_link' => [

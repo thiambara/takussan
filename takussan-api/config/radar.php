@@ -80,6 +80,19 @@ return [
         'max_pixels' => 24_000_000,
         // Durée d'un passage du calcul : au-delà, il s'arrête et le reste se reprend au passage suivant.
         'pass_budget_seconds' => 30,
+        // TCK-2389 — la réserve de photos d'une annonce après l'accord (lues ou déposées) : au plus 20.
+        'reserve_max' => 20,
+    ],
+
+    // TCK-2389 (revue finale, I2) — « Publier pour lui » copie chaque photo de la réserve et encode sa vignette DANS sa
+    // transaction, sous le `max_execution_time` de 60 s (temps d'horloge, image ZTS) : un travail non borné meurt sans rien
+    // défaire des fichiers déjà écrits. `max_photos` borne la SOMME des réserves des annonces demandées en une requête ;
+    // au-delà, 422 `radar.publish.too_many_photos` avant la moindre écriture, et l'aperçu annonce le plafond.
+    // 30 photos : ~1 annonce bien garnie ×1,5 — à resserrer ou relâcher sur une mesure de la préproduction.
+    // ⚠ Invariant : `max_photos` >= `photos.reserve_max` (20), sinon une annonce à réserve pleine ne se publierait jamais seule ;
+    // tenu par `RadarPublisherPhotosTest::test_le_plafond_de_publication_laisse_passer_une_reserve_pleine`.
+    'publish' => [
+        'max_photos' => 30,
     ],
 
     // ADR-0077 §5 — les bornes de vraisemblance d'une extraction, lues par

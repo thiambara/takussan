@@ -7,7 +7,7 @@ family: full
 estimate: M
 wave: 80
 created: 2026-10-26
-updated: 2026-10-26
+updated: 2026-10-29
 depends_on: [TCK-2388, TCK-2389]
 blocks: [TCK-2394]
 spec_refs:
@@ -73,6 +73,29 @@ jargon de plateforme. Si le compte existe déjà (publié pour lui), la même pa
   l'enum), confirmée par la connexion elle-même — sans capture ni vérification IA.
 
 ## Delta à produire
+
+- [ ] Héritée de TCK-2389 : l'annonceur dont les annonces ont été publiées pour lui a déjà un compte
+      (`radar_advertisers.user_id`, sans mot de passe, numéro non vérifié), que la connexion par code
+      SMS ouvre (amendement d'ADR-0033 §3). La page l'active : elle lui **présente les conditions
+      d'utilisation pour acceptation**, comme l'article 6.3 de `terms.ts` le promet depuis
+      TCK-2389 (décision 2a du porteur, 2026-10-29). Le même article promet que l'on peut aussi
+      accepter **« en suivant le lien qu'il contient »** : le message d'accord en vigueur (`accord.v1`)
+      ne porte que le lien des conditions, qui n'accepte rien ; ce ticket rend cette phrase vraie par le
+      lien de réclamation signé (`{lien_reclamation}`). Il retire ensuite cette ligne de « Avant la mise
+      en production » du `README` de `content/legal`.
+- [ ] Héritée de la revue finale de TCK-2389, **le compte Radar orphelin** : le compte A créé pour
+      l'annonceur n'a jamais été activé, puis le vrai titulaire du numéro le vérifie sur un **autre**
+      compte B (inscription par e-mail, puis numéro vérifié au profil ; l'index partiel
+      `users_phone_verified_unique` ne voit pas A, non vérifié). La connexion par code ouvre alors B,
+      A et ses biens deviennent inaccessibles, et une seconde publication verse encore dans A
+      (`AdvertiserProvisioner::phoneRegistered()` rend `false` dès que `user_id` est posé). La
+      réclamation doit voir ce cas, comme le « numéro déjà inscrit » : connexion exigée, puis rattacher
+      à B les biens de A (ou le proposer).
+- [ ] Héritée de la revue finale de TCK-2389, **le nom de l'espace** : « Espace de {prénom} » prend
+      le premier mot du `display_name` (profil WhatsApp ou signature d'annonce : « Agence Immo
+      Dakar » ⇒ « Espace de Agence »), servi publiquement. L'aperçu de publication le montre sans
+      permettre de le corriger. L'activation propose à l'annonceur de corriger son prénom et le nom
+      de son espace.
 
 - [ ] `App\Services\Radar\ClaimLinks` (signature, expiration, révocation).
 - [ ] Contrôleur public `App\Http\Controllers\Public\RadarClaimController` · FormRequests

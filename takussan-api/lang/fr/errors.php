@@ -686,6 +686,7 @@ return [
         'listing' => [
             'nothing_to_update' => 'Aucun champ à corriger : envoyez au moins un champ de la fiche.',
             'stage_conflict' => 'Cette annonce n\'est plus à cette étape : le geste n\'est pas permis.',
+            'no_source_photos' => 'Cette annonce n\'a aucune photo à récupérer à la source : déposez-en à la main.',
         ],
         'duplicate' => [
             'self' => 'Une annonce ne peut pas être le doublon d\'elle-même.',
@@ -699,6 +700,8 @@ return [
             'claim_not_held' => 'Cette prise en charge n\'est pas la vôtre : elle ne se rend pas.',
             'do_not_contact' => 'Cet annonceur a demandé à ne plus être contacté : aucun message ne lui est préparé ni envoyé.',
             'busy' => 'Cet annonceur change en ce moment : réessayez dans un instant.',
+            'phone_registered' => 'Ce numéro est déjà celui d\'un compte : le Radar ne publie pas dans un compte existant, seule la réclamation est proposée à son titulaire.',
+            'account_unavailable' => 'Le compte rattaché à cet annonceur est supprimé ou bloqué, ou son espace est suspendu : rien n\'y est publié.',
         ],
         'outreach' => [
             'locale_unsupported' => 'Cette langue n\'est pas prise en charge pour le message d\'accord.',
@@ -725,6 +728,23 @@ return [
         ],
         'review' => [
             'incomplete' => 'La fiche est incomplète : le type, le contrat, le prix et un quartier du référentiel sont requis.',
+        ],
+        'photo' => [
+            'not_found' => 'Cette photo n\'est pas dans la réserve de cette annonce.',
+            'reserve_full' => 'La réserve de photos est pleine : :max photos au plus.',
+            'too_large' => 'Une photo est trop grande : ses dimensions dépassent les bornes acceptées.',
+            'unreadable' => 'Une photo ne se lit pas comme une image : envoyez un JPEG, un PNG ou un WebP.',
+        ],
+        'publish' => [
+            'listing_foreign' => 'Une de ces annonces n\'est pas celle de cet annonceur, ou n\'existe pas.',
+            'not_covered' => 'Une de ces annonces n\'est pas couverte par un accord confirmé et non révoqué : elle ne se publie pas.',
+            'photos_pending' => 'Les photos d\'une de ces annonces sont encore en préparation : attendez la fin, ou relancez la lecture.',
+            'no_photo' => 'Une de ces annonces n\'a aucune photo dans sa réserve : récupérez-en à la source, ou déposez-en.',
+            'missing_field' => 'Une de ces annonces est incomplète : le type, le contrat, le prix et un quartier du référentiel sont requis.',
+            'too_many_photos' => 'Ces annonces ont :count photos en tout, et une publication en accepte :max au plus : publiez-les en plusieurs fois.',
+            'activation_unavailable' => "La connexion par téléphone est éteinte dans cet environnement : le compte créé pour l'annonceur ne pourrait pas s'ouvrir par code SMS. Rien ne se publie tant qu'elle ne l'est pas.",
+            'otp_preview_active' => "L'aperçu des codes SMS est actif dans cet environnement : le code d'activation reviendrait dans la réponse, et quiconque connaît le numéro de l'annonceur pourrait ouvrir son compte. Rien ne se publie tant qu'il l'est.",
+            'nothing_published' => 'Aucun bien n\'est publié pour cet annonceur : il n\'y a pas de message à composer.',
         ],
     ],
     'pay_link' => [

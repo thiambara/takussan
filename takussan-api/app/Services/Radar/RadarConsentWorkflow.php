@@ -2,6 +2,7 @@
 
 namespace App\Services\Radar;
 
+use App\Jobs\Radar\PrepareRadarListingPhotos;
 use App\Jobs\Radar\VerifyRadarConsentReply;
 use App\Models\Enums\RadarConsentProof;
 use App\Models\Enums\RadarListingStage;
@@ -227,7 +228,15 @@ final class RadarConsentWorkflow
             'confirmation_reason' => $discordances === [] ? null : $reason,
         ])->save();
 
-        return $this->move($listings, RadarListingStage::Consented);
+        $moved = $this->move($listings, RadarListingStage::Consented);
+
+        // TCK-2389 — l'accord ouvre la lecture des photos : seule une annonce-URL en a (texte et captures : la réserve
+        // se remplit à la main). Mis en file après le commit par la connexion.
+        foreach ($listings->whereIn('id', $moved)->filter(fn (RadarListing $listing) => $listing->photoPreparable()) as $listing) {
+            PrepareRadarListingPhotos::dispatch($listing->id);
+        }
+
+        return $moved;
     }
 
     /**

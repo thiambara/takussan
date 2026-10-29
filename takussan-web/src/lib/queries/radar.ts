@@ -21,8 +21,12 @@ import type {
   RadarListingStage,
   RadarOutreachChanges,
   RadarOutreachResponse,
+  RadarMessageLocale,
   RadarPrepareRequest,
   RadarPreparedOutreachResponse,
+  RadarPublicationPreviewResponse,
+  RadarPublicationResponse,
+  RadarPublishedMessageResponse,
 } from '@/types/radar';
 
 /**
@@ -80,6 +84,7 @@ export const radarKeys = {
   advertiser: (id: number) => [...radarKeys.advertisers(), id] as const,
   advertiserLists: () => [...radarKeys.advertisers(), 'list'] as const,
   advertiserList: (filters: RadarAdvertiserFilters) => [...radarKeys.advertiserLists(), filters] as const,
+  publication: (advertiserId: number) => [...radarKeys.all, 'publication', advertiserId] as const,
 };
 
 export async function fetchRadarDashboard(): Promise<RadarDashboardResponse> {
@@ -320,4 +325,80 @@ export async function recordRadarOutcome(outreachId: number, request: RadarOutco
     body: JSON.stringify({ outcome: request.outcome, ...(reason ? { reason } : {}) }),
   });
   return jsonOrThrow<RadarOutreachResponse>(res);
+}
+
+// ─── « Publier pour lui » (TCK-2389) ─────────────────────────────────────────────────────────
+// Le geste de publier est `platform.radar.publish` (`super_admin`) ; la réserve de photos reste `platform.radar.operate`.
+
+/**
+ * L'aperçu de la publication : le compte qui serait créé, les annonces couvertes par un accord valide, leurs photos,
+ * ce qui bloque. Il n'écrit rien ; il se relit tant qu'une préparation de photos tourne.
+ */
+export async function fetchRadarPublicationPreview(advertiserId: number): Promise<RadarPublicationPreviewResponse> {
+  const res = await fetch(cheminApi`/api/super-admin/radar/advertisers/${advertiserId}/publication-preview`, { credentials: 'include' });
+  return jsonOrThrow<RadarPublicationPreviewResponse>(res);
+}
+
+/**
+ * Publier les annonces cochées. `cleIdempotence` part dans `Idempotency-Key` (ADR-0072) : l'appelant en garde UNE par
+ * ouverture de la confirmation et la réutilise sur réessai ; rejouée, la requête rend le résultat de la première
+ * (un seul compte, un seul bien par annonce). Le relais BFF transmet l'en-tête.
+ */
+export async function publishRadarAdvertiser(
+  advertiserId: number,
+  listingIds: readonly number[],
+  cleIdempotence: string,
+): Promise<RadarPublicationResponse> {
+  const res = await fetch(cheminApi`/api/super-admin/radar/advertisers/${advertiserId}/publish`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { ...JSON_ACCEPT, 'Idempotency-Key': cleIdempotence },
+    body: JSON.stringify({ listing_ids: [...listingIds] }),
+  });
+  return jsonOrThrow<RadarPublicationResponse>(res);
+}
+
+/** Le second message (« vos annonces sont en ligne… ») et son lien `wa.me`, dans la langue demandée. */
+export async function fetchRadarPublishedMessage(
+  advertiserId: number,
+  locale: RadarMessageLocale,
+): Promise<RadarPublishedMessageResponse> {
+  const qs = new URLSearchParams({ locale });
+  const res = await fetch(cheminApi`/api/super-admin/radar/advertisers/${advertiserId}/published-message${requete(qs)}`, {
+    credentials: 'include',
+  });
+  return jsonOrThrow<RadarPublishedMessageResponse>(res);
+}
+
+/** « Récupérer les photos de la source » : remet la lecture en file (202). La fiche se relit ensuite. */
+export async function refetchRadarListingPhotos(listingId: number): Promise<RadarListingDetailResponse> {
+  const res = await fetch(cheminApi`/api/super-admin/radar/listings/${listingId}/photos/fetch`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { Accept: 'application/json' },
+  });
+  return jsonOrThrow<RadarListingDetailResponse>(res);
+}
+
+/** Déposer des photos à la main dans la réserve : multipart (`photos[]`), au plus `RADAR_PHOTOS_PAR_ENVOI_MAX` par envoi. */
+export async function uploadRadarListingPhotos(listingId: number, files: readonly File[]): Promise<RadarListingDetailResponse> {
+  const form = new FormData();
+  for (const file of files) form.append('photos[]', file);
+  const res = await fetch(cheminApi`/api/super-admin/radar/listings/${listingId}/photos`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { Accept: 'application/json' },
+    body: form,
+  });
+  return jsonOrThrow<RadarListingDetailResponse>(res);
+}
+
+/** Retirer une photo de la réserve. L'API répond 204 SANS corps : un échec porte son `{code, params}`. */
+export async function deleteRadarListingPhoto(listingId: number, mediaId: number): Promise<void> {
+  const res = await fetch(cheminApi`/api/super-admin/radar/listings/${listingId}/photos/${mediaId}`, {
+    method: 'DELETE',
+    credentials: 'include',
+    headers: { Accept: 'application/json' },
+  });
+  if (!res.ok) await jsonOrThrow<unknown>(res);
 }

@@ -5,6 +5,7 @@ namespace App\Http\Resources\Api\Admin;
 use App\Http\Resources\Bases\BaseResource;
 use App\Models\GeoNeighborhood;
 use App\Services\Media\PrivateMediaAccess;
+use App\Services\Radar\RadarPhotoReserve;
 use Illuminate\Http\Request;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
@@ -67,6 +68,11 @@ class RadarListingResource extends BaseResource
                 $this->hasColumns('source_photo_hashes', 'photo_urls', 'source_kind'),
                 fn () => $this->photoFingerprintStatus(),
             ),
+            // TCK-2389 — l'avancement de la réserve de photos de la publication (jamais les éléments eux-mêmes).
+            'photo_preparation' => $this->when(
+                $this->hasColumns('photo_preparation', 'photo_urls', 'source_kind', 'stage'),
+                fn () => $this->photoPreparationStatus(),
+            ),
             'captured_by' => $this->whenHas('captured_by'),
             'purge_at' => $this->whenHas('purge_at', fn () => $this->iso($this->purge_at)),
             'created_at' => $this->whenHas('created_at', fn () => $this->iso($this->created_at)),
@@ -79,14 +85,23 @@ class RadarListingResource extends BaseResource
                 'nature' => $this->enumValue($this->advertiser->nature),
                 'do_not_contact_at' => $this->iso($this->advertiser->do_not_contact_at),
             ]),
+            // La relation `media` n'a pas d'`ORDER BY` : l'ordre d'un `SELECT` libre n'est pas celui des captures.
             'captures' => $this->whenLoaded('media', fn () => $this->media
                 ->where('collection_name', 'radar_captures')
+                ->sortBy('order_column')
                 ->values()
                 ->map(fn (Media $media): array => [
                     'id' => $media->id,
                     'mime_type' => $media->mime_type,
                     'size' => $media->size,
                     'sha256' => $media->getCustomProperty('sha256'),
+                    'url' => app(PrivateMediaAccess::class)->signedUrl($media),
+                ])->all()),
+            // TCK-2389 — la réserve de photos : une URL signée par photo, comme les captures.
+            // Dans l'ordre que la publication copie et que l'aperçu affiche : la relation `media` n'a pas d'`ORDER BY`.
+            'reserve_photos' => $this->whenLoaded('media', fn () => app(RadarPhotoReserve::class)->ordered($this->resource)
+                ->map(fn (Media $media): array => [
+                    'id' => $media->id,
                     'url' => app(PrivateMediaAccess::class)->signedUrl($media),
                 ])->all()),
         ];

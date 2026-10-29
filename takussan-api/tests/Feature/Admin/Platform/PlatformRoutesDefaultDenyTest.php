@@ -85,6 +85,10 @@ class PlatformRoutesDefaultDenyTest extends TestCase
         'admin.radar.outreaches.sent',
         'admin.radar.outreaches.reply',
         'admin.radar.outreaches.outcome',
+        // TCK-2389 — la réserve de photos d'une annonce (relancer, déposer, retirer).
+        'admin.radar.listings.photos.fetch',
+        'admin.radar.listings.photos.store',
+        'admin.radar.listings.photos.destroy',
     ];
 
     public function test_toute_route_de_la_console_passe_par_la_garde_plateforme(): void

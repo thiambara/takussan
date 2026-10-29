@@ -5,6 +5,7 @@ namespace App\Services\Property;
 use App\Models\Property;
 use App\Models\PropertyContact;
 use App\Models\User;
+use App\Support\CanonicalPhone;
 
 /**
  * TCK-633 (lot C) — les numéros qu'un visiteur peut appeler pour un bien, dans l'ordre :
@@ -17,6 +18,9 @@ use App\Models\User;
  * visiteur — le numéro affiché est vérifié — tient donc ici, à l'émission, et non à la publication :
  * un numéro principal non vérifié ne sort ni par `…/contact`, ni comme WhatsApp, ni comme
  * « Appeler ». Les contacts sur place, saisis par l'annonceur pour ce bien, restent servis.
+ *
+ * TCK-2389 — un numéro n'est servi qu'une fois : un contact sur place qui porte le numéro d'un contact déjà listé
+ * (forme canonique) n'est pas répété.
  *
  * Une seule définition pour l'endpoint limité (`GET …/contact`) et pour le drapeau
  * `has_whatsapp` de la fiche, qui doivent dire la même chose.
@@ -41,10 +45,34 @@ final class PropertyContactNumbers
         }
         foreach ($property->contacts as $surPlace) {
             /** @var PropertyContact $surPlace */
+            // TCK-2389 — un numéro servi une seule fois : un contact sur place dont le numéro est déjà dans la liste
+            // (celui de l'annonceur, une fois son numéro vérifié) n'y est pas ajouté ; sa case WhatsApp rejoint
+            // l'entrée existante, pour que la liste dise la même chose que `hasWhatsApp()`.
+            $dejaServi = self::indexDuNumero($numeros, $surPlace->phone);
+            if ($dejaServi !== null) {
+                $numeros[$dejaServi]['whatsapp'] = $numeros[$dejaServi]['whatsapp'] || (bool) $surPlace->has_whatsapp;
+
+                continue;
+            }
             $numeros[] = ['phone' => $surPlace->phone, 'whatsapp' => $surPlace->has_whatsapp, 'label' => $surPlace->label, 'kind' => 'on_site'];
         }
 
         return $numeros;
+    }
+
+    /**
+     * @param  list<array{phone: string, whatsapp: bool, label: ?string, kind: string}>  $numeros
+     */
+    private static function indexDuNumero(array $numeros, string $phone): ?int
+    {
+        $canonique = CanonicalPhone::fold($phone);
+        foreach ($numeros as $i => $numero) {
+            if (CanonicalPhone::fold($numero['phone']) === $canonique) {
+                return $i;
+            }
+        }
+
+        return null;
     }
 
     /**

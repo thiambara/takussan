@@ -9120,6 +9120,11 @@
             "sentAt": "Sent on {date}",
             "none": "No message is waiting for an outcome.",
             "outcomeSet": "Outcome set: {outcome}, on {date}. A reply deposited later can still change it."
+          },
+          "publish": {
+            "heading": "Publish for them",
+            "hint": "Some of this advertiser’s listings are covered by a valid agreement: you can publish them in their name.",
+            "cta": "Publish for them"
           }
         },
         "advertisers": {
@@ -9180,7 +9185,133 @@
           }
         },
         "advertisersLink": "Advertisers",
-        "followUpsDue": "{count, plural, =0 {No follow-up due} one {# follow-up due} other {# follow-ups due}}"
+        "followUpsDue": "{count, plural, =0 {No follow-up due} one {# follow-up due} other {# follow-ups due}}",
+        "publication": {
+          "metaTitle": "Publish for the advertiser",
+          "title": "Publish for {name}",
+          "titleUnnamed": "Publish for advertiser no. {id}",
+          "back": "Back to the advertiser’s record",
+          "forbidden": "Publishing for an advertiser is reserved to super administrators.",
+          "loadError": "The publication preview could not be loaded.",
+          "intro": "Check what will be created in the advertiser’s name, then confirm. Nothing is written before you confirm.",
+          "claimNone": "Nobody is handling this advertiser. Take them over to upload photos and publish.",
+          "blocking": {
+            "heading": "Publishing is not possible for now:"
+          },
+          "account": {
+            "heading": "What will be created in {name}’s name",
+            "headingUnnamed": "What will be created in the advertiser’s name",
+            "account": "Account",
+            "new": "A passwordless account, created for the occasion",
+            "existing": "Existing account, reused as is",
+            "name": "Name",
+            "noName": "No name",
+            "phone": "Number",
+            "space": "Space",
+            "existingSpace": "Their current space",
+            "noteNew": "The number is not verified: the advertiser activates the account by signing in with a code received by SMS. Visitors reach this number directly, by WhatsApp, about each listing.",
+            "noteExisting": "No account is created: the properties join the space already opened for this advertiser."
+          },
+          "listings": {
+            "heading": "Listings covered by an agreement",
+            "none": "No listing is covered by a valid agreement: there is nothing to publish.",
+            "select": "Publish listing no. {id}",
+            "untitled": "Untitled listing",
+            "titleBuilt": "Built title",
+            "titleBuiltHint": "This listing has no title: this one is built from the type, bedrooms, contract and neighbourhood, and will be published as is.",
+            "number": "no. {id}",
+            "open": "Open the record of listing no. {id}",
+            "matches": "Already looks like: {list}.",
+            "matchProperty": "property no. {id}",
+            "matchListing": "listing no. {id}",
+            "duplicateOfListing": "Marked as a duplicate of listing no. {id}.",
+            "duplicateOfProperty": "Marked as a duplicate of property no. {id}.",
+            "blocking": {
+              "noPhoto": "This listing has no photo in its reserve: collect some from the source, or upload some.",
+              "noPhotoNoSource": "This listing has no photo at the source: upload some by hand.",
+              "photosPending": "The photos of this listing are still being prepared: wait for them to finish, or restart the collection.",
+              "missingField": "This listing is incomplete: the type, the contract, the price and a neighbourhood from the reference list are required."
+            }
+          },
+          "photos": {
+            "heading": "Reserve photos ({taken}/{max})",
+            "preparing": "Reading the source photos: {done} of {total}.",
+            "prepared": "Source photos read: {done} of {total}.",
+            "none": "No photo: collect the source’s photos, or upload some by hand.",
+            "noneNoSource": "No photo at the source: upload some by hand.",
+            "list": "Photos of listing no. {id}, in publication order",
+            "alt": "Photo {rank} of listing no. {id}",
+            "remove": "Remove photo {rank} of listing no. {id}",
+            "input": "Upload photos for listing no. {id}",
+            "upload": "Upload photos",
+            "fetch": "Collect the source’s photos",
+            "full": "The reserve is full: {max} photos at most.",
+            "hint": "JPEG, PNG or WebP, {max} photos per upload. The first one is the cover."
+          },
+          "publish": "{count, plural, =0 {Publish} one {Publish # listing} other {Publish # listings}}",
+          "nothingChecked": "Tick at least one listing to publish.",
+          "overPhotoLimit": "The selection has {count, plural, one {# photo} other {# photos}}: one publication accepts {max} at most. Uncheck some listings, then publish them in several batches.",
+          "confirm": {
+            "title": "Publish for {name}?",
+            "titleUnnamed": "Publish for this advertiser?",
+            "body": "This publication creates an account in the advertiser’s name and puts their listings online. It cannot be undone with one click.",
+            "summaryNew": "1 account, 1 space, {biens, plural, one {# property published} other {# properties published}} with {photos, plural, =0 {no photo} one {# photo} other {# photos}}.",
+            "summaryExisting": "Existing account reused, {biens, plural, one {# property published} other {# properties published}} with {photos, plural, =0 {no photo} one {# photo} other {# photos}}.",
+            "cancel": "Cancel",
+            "publish": "Publish",
+            "publishing": "Publishing…"
+          },
+          "recap": {
+            "created": "What now exists",
+            "accountCreated": "Account created for {name}, with the space “{space}”.",
+            "accountExisting": "{name}’s existing account reused, space “{space}”.",
+            "links": "Public links of the published properties",
+            "untitled": "Property no. {id}",
+            "message": {
+              "heading": "The “your listings are online” message",
+              "hint": "A fixed text: it carries the public links, the link to activate the account and the STOP line. Send it as is.",
+              "locale": "Message language",
+              "locales": {
+                "fr": "French",
+                "en": "English"
+              },
+              "loadError": "The message could not be composed.",
+              "retry": "Try again",
+              "whatsapp": "Open WhatsApp",
+              "copy": "Copy the message",
+              "copied": "Message copied.",
+              "copyFailed": "Copying failed: select the text by hand."
+            }
+          },
+          "alreadyPublished": {
+            "heading": "Already online for this advertiser",
+            "hint": "These properties are published. The message below lists every property the Radar has published for them; it can be composed at any time, even if the response to a publication was lost.",
+            "stopped": "The advertiser has asked not to be contacted again: no message is sent to them.",
+            "unavailable": "The second message cannot be composed in this environment (see the block above): the public links above remain valid."
+          },
+          "errors": {
+            "listingForeign": "One of these listings is not this advertiser’s, or does not exist.",
+            "notCovered": "One of these listings is not covered by a confirmed, unrevoked agreement: it cannot be published.",
+            "photosPending": "The photos of a listing are still being prepared: wait for them to finish, or restart the collection.",
+            "noPhoto": "A listing has no photo in its reserve: collect some from the source, or upload some.",
+            "missingField": "A listing is incomplete: the type, contract, price and a neighbourhood from the reference list are required.",
+            "nothingCovered": "No listing of this advertiser is covered by a valid agreement.",
+            "activationUnavailable": "Phone login is off in this environment: the account created for the advertiser could not be opened with an SMS code. Nothing is published until it is on.",
+            "otpPreviewActive": "The SMS code preview is on in this environment: the activation code would come back in the response, and anyone who knows the advertiser’s number could open their account. Nothing is published while it is.",
+            "nothingPublished": "No property is published for this advertiser: there is no message to compose.",
+            "phoneRegistered": "This number already belongs to an account: the Radar does not publish into an existing account; only the claim is offered to its holder.",
+            "accountUnavailable": "The account linked to this advertiser is deleted or blocked, or its space is suspended: nothing is published there.",
+            "noSourcePhotos": "This listing has no photo to collect from its source: upload some by hand.",
+            "photoNotFound": "This photo is not in this listing’s reserve.",
+            "reserveFull": "The photo reserve is full: {max} photos at most.",
+            "tooManyPhotos": "These listings have {count, plural, one {# photo} other {# photos}} in all, and one publication accepts {max} at most: publish them in several batches.",
+            "photoTooLarge": "A photo is too large: its dimensions exceed the accepted limits.",
+            "photoUnreadable": "A photo cannot be read as an image: send a JPEG, PNG or WebP.",
+            "quotaExceeded": "This advertiser’s space has reached its quota of active listings: nothing was published.",
+            "keyReused": "The selection changed since a first submission: publish again.",
+            "inProgress": "A publication is already running for this advertiser: try again in a moment."
+          }
+        }
       }
     },
     "featureFlags": {

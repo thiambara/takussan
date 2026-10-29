@@ -619,3 +619,49 @@ describe('RadarAdvertiserCard — correctifs de revue (TCK-2388)', () => {
     await waitFor(() => expect(prepareRadarOutreach).toHaveBeenCalledWith(7, { listing_ids: [13], locale: 'fr' }));
   });
 });
+
+describe('RadarAdvertiserCard — « Publier pour lui » (TCK-2389)', () => {
+  const couverte = () => annonceur({ listings: [annonce(12, { covered_by_consent: true }), annonce(13)] });
+
+  it('une annonce couverte et le geste « publier » : le lien mène à l\'écran de publication', async () => {
+    await rendre(couverte());
+
+    const bloc = screen.getByTestId('radar-annonceur-publier');
+    expect(within(bloc).getByRole('link', { name: 'Publier pour lui' })).toHaveAttribute('href', '/super-admin/radar/advertisers/7/publish');
+  });
+
+  it.each([
+    ['sans prise en charge', null],
+    ['sous la prise d\'un autre', prise({ mine: false })],
+  ])('le lien reste offert %s : l\'écran de publication propose la prise, la fiche ne la juge pas', async (_nom, claim) => {
+    await rendre(annonceur({ claim, listings: [annonce(12, { covered_by_consent: true })] }));
+
+    expect(within(screen.getByTestId('radar-annonceur-publier')).getByRole('link', { name: 'Publier pour lui' })).toBeInTheDocument();
+  });
+
+  it('aucune annonce couverte : pas de lien (l\'API refuserait de toute façon)', async () => {
+    await rendre(annonceur({ listings: [annonce(12), annonce(13)] }));
+
+    expect(screen.queryByTestId('radar-annonceur-publier')).not.toBeInTheDocument();
+  });
+
+  it('un annonceur qui a dit STOP n\'offre plus de publier, même avec une annonce couverte', async () => {
+    await rendre(annonceur({ do_not_contact_at: '2026-10-28T09:00:00+00:00', listings: [annonce(12, { covered_by_consent: true })] }));
+
+    expect(screen.queryByTestId('radar-annonceur-publier')).not.toBeInTheDocument();
+  });
+
+  it('sans le geste platform.radar.publish (un opérateur qui ne fait que démarcher), pas de lien', async () => {
+    const detail = couverte();
+    vi.mocked(fetchRadarAdvertiser).mockResolvedValue({ data: detail });
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(withIntl(
+      <QueryClientProvider client={queryClient}>
+        {avecGestes(<RadarAdvertiserCard id={7} />, { level: 'support', abilities: ['platform.radar.operate'] })}
+      </QueryClientProvider>,
+    ));
+
+    await screen.findByTestId('radar-annonceur');
+    expect(screen.queryByTestId('radar-annonceur-publier')).not.toBeInTheDocument();
+  });
+});

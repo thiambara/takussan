@@ -834,6 +834,24 @@ class RadarListingReviewTest extends TestCase
         $this->get(strtok($capture['url'], '?'))->assertForbidden();
     }
 
+    /** La relation `media` n'a pas d'`ORDER BY` : la fiche range les captures par `order_column`, pas dans l'ordre d'un `SELECT` libre. */
+    public function test_les_captures_de_la_fiche_sont_rendues_par_order_column(): void
+    {
+        $listing = $this->fiche();
+        $m = [];
+        foreach ([1, 2, 3] as $i) {
+            $m[$i] = $listing->addMedia(UploadedFile::fake()->image("c{$i}.png", 20, 20))->toMediaCollection('radar_captures');
+        }
+        // Les mises à jour déplacent les lignes : l'ordre physique devient m1, m2, m3 — l'ordre voulu est m2, m3, m1.
+        foreach ([1 => 3, 2 => 1, 3 => 2] as $i => $rang) {
+            $m[$i]->forceFill(['order_column' => $rang])->save();
+        }
+
+        $ids = array_column($this->getJson($this->url($listing))->assertOk()->json('data.captures'), 'id');
+
+        $this->assertSame([$m[2]->id, $m[3]->id, $m[1]->id], $ids);
+    }
+
     // --- AC2 : les rapprochements -------------------------------------------------------------
 
     public function test_ac2_la_route_des_rapprochements_rend_signal_et_force(): void
