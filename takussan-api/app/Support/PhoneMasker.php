@@ -75,6 +75,21 @@ final class PhoneMasker
         .'|(?:3'.self::WS.'[02369]|7'.self::WS.'[0-25-9]|9'.self::WS.'3)(?:'.self::WS.'[0-9]){7}(?!'.self::WS.'[0-9](?![0-9])))';
 
     /**
+     * Le numéro sénégalais sans indicatif écrit avec un `_` ou une `,` (`77_123_45_67`, `77,123,45,67`), ou avec
+     * le préfixe entre parenthèses (`(77)1234567`, `(77) 123 45 67`). Le séparateur est le même partout et le
+     * groupement n'est jamais en milliers (3-2-2, 2-3-2, 2-2-3 derrière le préfixe) : `1,500,000`, `75,000,000`
+     * et `7,5 millions` ne sont pas ces formes. La virgule ne vaut que si un groupe de trois chiffres est en deuxième
+     * ou troisième place : `30,59,80,102` et `72,73,74,814` sont des listes de lignes (le 2-2-2-3 n'est lu qu'avec `_`).
+     * Pas de chiffre derrière (`77,123,45,67,89` est une liste), ni
+     * de décimale ou de liste devant. Limite : un séparateur mêlé (`77_123 45,67`).
+     */
+    private const SENEGAL_SEPARATED = '(?<![0-9])(?<![0-9][.,_])(?:'
+        .self::PREFIX.'(?:(?<sep2>[_,])(?:[0-9]{3}\k<sep2>[0-9]{2}\k<sep2>[0-9]{2}|[0-9]{2}\k<sep2>[0-9]{3}\k<sep2>[0-9]{2})'
+        .'|_[0-9]{2}_[0-9]{2}_[0-9]{3})(?![0-9])(?![,._][0-9])'
+        .'|\('.self::PREFIX.'\)'.self::WS.'?(?:[0-9]{7}|[0-9]{3}'.self::WS.'?[0-9]{2}'.self::WS.'?[0-9]{2}'
+        .'|[0-9]{2}'.self::WS.'?[0-9]{3}'.self::WS.'?[0-9]{2}|[0-9]{2}'.self::WS.'?[0-9]{2}'.self::WS.'?[0-9]{3})(?![0-9]))';
+
+    /**
      * Indicatifs ITU (E.164) par longueur : le `+` ou `00` qui les précède ne suffit pas, `+ 1 000 000`
      * n'est pas un numéro. Chaque jeu est suivi du nombre de chiffres que son plan de numérotation
      * admet (neuf à treize chiffres au total) : un indicatif à un chiffre veut 10 chiffres derrière
@@ -151,6 +166,7 @@ final class PhoneMasker
     public const MASK_PATTERN = '/(?:'.self::SENEGAL_WITH_CODE
         .'|'.self::SENEGAL.self::END
         .'|'.self::SENEGAL_LOOSE.self::END
+        .'|'.self::SENEGAL_SEPARATED
         .'|'.self::FOREIGN
         .'|'.self::LINK.')/iu';
 

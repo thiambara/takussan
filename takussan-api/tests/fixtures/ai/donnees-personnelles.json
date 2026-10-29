@@ -151,7 +151,18 @@
     "R1/I1 TCK-2410 — +49 30 123 45 000": "+49 30 123 45 000",
     "R1/I1 TCK-2410 — +33 6 12 34 56 000": "+33 6 12 34 56 000",
     "R1/I1 TCK-2410 — +237 6 99 000 000": "+237 6 99 000 000",
-    "R1/I1 TCK-2410 — +225 07 07 000 000": "+225 07 07 000 000"
+    "R1/I1 TCK-2410 — +225 07 07 000 000": "+225 07 07 000 000",
+    "séparateurs TCK-2410 — souligné, 3-2-2": "77_123_45_67",
+    "séparateurs TCK-2410 — virgule, 3-2-2": "77,123,45,67",
+    "séparateurs TCK-2410 — souligné, 2-2-3-2": "77_12_345_67",
+    "séparateurs TCK-2410 — virgule, 2-3-2-2": "77,12,345,67",
+    "séparateurs TCK-2410 — souligné, 2-2-2-3": "77_12_34_567",
+    "séparateurs TCK-2410 — virgule, fixe Sonatel": "33,821,00,00",
+    "séparateurs TCK-2410 — préfixe entre parenthèses, collé": "(77)1234567",
+    "séparateurs TCK-2410 — préfixe entre parenthèses, espacé": "(77) 123 45 67",
+    "séparateurs TCK-2410 — préfixe entre parenthèses, 2-3-2": "(70) 12 345 67",
+    "séparateurs TCK-2410 — préfixe entre parenthèses, fixe": "(33) 821 00 00",
+    "séparateurs TCK-2410 — préfixe entre parenthèses, 7 chiffres espacés": "(77) 1234567"
   },
   "avec_contexte": {
     "wa.me, France": ["wa.me/33612345678", "wa.me/[TELEPHONE]"],
@@ -162,7 +173,10 @@
     "chiffre javanais devant : ni ASCII ni normalisé, il ne colle pas le numéro": ["\ua9d077 123 45 67", "\ua9d0[TELEPHONE]"],
     "indicatif entre parenthèses : la parenthèse ouvrante reste": ["(+221) 77 123 45 67", "([TELEPHONE]"],
     "wa.me, Sénégal": ["wa.me/221771234567", "wa.me/[TELEPHONE]"],
-    "deux numéros collés, sénégalais puis étranger": ["77 123 45 67 +33 6 12 34 56 78", "[TELEPHONE] [TELEPHONE]"]
+    "deux numéros collés, sénégalais puis étranger": ["77 123 45 67 +33 6 12 34 56 78", "[TELEPHONE] [TELEPHONE]"],
+    "nom affiché, souligné": ["Awa 77_123_45_67", "Awa [TELEPHONE]"],
+    "nom affiché, virgule": ["77,123,45,67 Awa", "[TELEPHONE] Awa"],
+    "nom affiché, parenthèses": ["(77)1234567 Awa", "[TELEPHONE] Awa"]
   },
   "courriels": {
     "simple": "awa@exemple.sn",
@@ -314,6 +328,32 @@
     "R1 TCK-2410 — un prix suivi du nombre de pièces": "Prix 75 000 000 3 chambres",
     "R1 TCK-2410 — un loyer suivi du nombre de salons": "Loyer 30 000 000 2 salons",
     "I1 TCK-2410 — somme à un `+` espacé, un seul groupe 000": "+ 223 500 000",
-    "I1 TCK-2410 — somme ajoutée, `+` espacé": "terrain 150 000 000 + 223 500 000 F CFA"
+    "I1 TCK-2410 — somme ajoutée, `+` espacé": "terrain 150 000 000 + 223 500 000 F CFA",
+    "séparateurs TCK-2410 — 1,500,000": "1,500,000",
+    "séparateurs TCK-2410 — 75,000,000": "75,000,000",
+    "séparateurs TCK-2410 — 7,5 millions": "7,5 millions",
+    "séparateurs TCK-2410 — Prix 75,000,000 F": "Prix 75,000,000 F",
+    "séparateurs TCK-2410 — Loyer 77,000,000": "Loyer 77,000,000",
+    "séparateurs TCK-2410 — Prix 77,500,000": "Prix 77,500,000",
+    "séparateurs TCK-2410 — 33,3,333,333": "33,3,333,333",
+    "séparateurs TCK-2410 — 30,12,2026": "30,12,2026",
+    "séparateurs TCK-2410 — 30,12,2026,5": "30,12,2026,5",
+    "séparateurs TCK-2410 — 77,123,45,67,89": "77,123,45,67,89",
+    "séparateurs TCK-2410 — 3,5,7,9": "3,5,7,9",
+    "séparateurs TCK-2410 — 77,5 m2": "77,5 m2",
+    "séparateurs TCK-2410 — 1,77,123,45,67": "1,77,123,45,67",
+    "séparateurs TCK-2410 — (77) 2026": "(77) 2026",
+    "séparateurs TCK-2410 — (30) 12 2026": "(30) 12 2026",
+    "séparateurs TCK-2410 — (75) 000 000": "(75) 000 000",
+    "séparateurs TCK-2410 — (75)000 000": "(75)000 000",
+    "séparateurs TCK-2410 — x 77,123,456": "x 77,123,456",
+    "séparateurs TCK-2410 — 77_123_456_7": "77_123_456_7",
+    "séparateurs TCK-2410 — (77)123456": "(77)123456",
+    "séparateurs TCK-2410 — (74)1234567": "(74)1234567",
+    "séparateurs TCK-2410 — 74_123_45_67": "74_123_45_67",
+    "séparateurs TCK-2410 — coord 14,7166,17,4676": "coord 14,7166,17,4676",
+    "séparateurs TCK-2410 — parenthèses, huit chiffres derrière": "(77)12345678",
+    "séparateurs TCK-2410 — numéros de lignes à la virgule": "MaintenanceQuoteController:30,59,80,102",
+    "séparateurs TCK-2410 — numéros de lignes, deuxième liste": "72,73,74,814"
   }
 }

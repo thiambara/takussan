@@ -215,7 +215,7 @@ document poussé. Le défaut du masqueur ne l'a pas causée ; la **règle** manq
   de `CC2` et `CC3` : rouge.
 - **Parité PHP/JS** : bancs du vérificateur rejoués (`v2410/run.php`, `run.mjs`) : 0 écart sur 5 jeux de 40 000
   chaînes aléatoires, sur les cas à la main, et sur 42 823 lignes de fichiers suivis.
-- **Vérifié** : 723 tests de `PhoneMaskerTest` et `EvalCaseAnonymizerTest` ; appelants (voir ci-dessus) verts ;
+- **Vérifié** : 800 tests de `PhoneMaskerTest` et `EvalCaseAnonymizerTest` ; appelants (voir ci-dessus) verts ;
   gardes `scripts/check-*.mjs` vertes.
 
 ### Seconde reprise (2026-10-29) : R1, R2, I1 resserré
@@ -249,3 +249,30 @@ document poussé. Le défaut du masqueur ne l'a pas causée ; la **règle** manq
   42 823 lignes de fichiers suivis. Contre le commit précédent, le corpus ne perd qu'un masquage (une ligne de
   fourchette `320-767`) et n'en gagne aucun ; `cases5` : toutes les listes, dates et fourchettes deviennent non
   masquées, les quatre positifs I1 le redeviennent.
+
+### Troisième reprise (2026-10-29) : `_`, `,` et préfixe entre parenthèses
+
+Venu de la contre-vérification de TCK-2390 : le nom affiché d'un annonceur peut porter `77_123_45_67 Awa`,
+`77,123,45,67 Awa` ou `(77)1234567 Awa`.
+
+- **Nouvelle branche de `MASK_PATTERN` seulement** (`SENEGAL_SEPARATED`, `SENEGAL_SEPARE` côté JS ; `PATTERN`
+  n'y touche pas). Préfixe ARTP, puis un séparateur `_` ou `,` **le même partout** ; groupement jamais en milliers
+  (`77_123_45_67`, `77_12_345_67`, `77_12_34_567`, `77,123,45,67`, `77,12,345,67`, `33,821,00,00`). Préfixe entre
+  parenthèses : `(77)1234567`, `(77) 123 45 67`, `(70) 12 345 67`, `(33) 821 00 00`.
+- **La virgule est la dangereuse, et elle est bornée** : elle ne vaut que si un groupe de trois chiffres est en
+  deuxième ou troisième place. Le 2-2-2-3 n'est lu qu'avec `_` : le premier essai masquait deux lignes du dépôt,
+  `MaintenanceQuoteController:30,59,80,102` et `72,73,74,814`, des listes de numéros de lignes (corpus : zéro
+  masquage gagné après resserrement). Intacts, en fixture : `1,500,000`, `75,000,000`, `7,5 millions`,
+  `Prix 75,000,000 F`, `Loyer 77,000,000`, `33,3,333,333`, `30,12,2026`, `77,5 m2`, `3,5,7,9`.
+- **Gardes de bord** : rien derrière (`77,123,45,67,89` est une liste, `(77)12345678` n'est pas un numéro), ni
+  décimale ou liste devant (`1,77,123,45,67`).
+- **Limites** : séparateur mêlé (`77_123 45,67`) ; la virgule en 2-2-2-3 (`77,12,34,567`) ; `_` collé à un
+  identifiant (`ref_77_123_45_67` est lu).
+- **Fixture** : 11 positifs, 3 formes avec contexte (`Awa 77_123_45_67`…), 28 non-cas, des deux côtés. **Ablations**
+  PHP et JS, chacune rouge : sans la branche, `_` seul, `,` seul, sans garde de fin, sans garde de tête, sans
+  parenthèses, sans garde de fin des parenthèses (`(77)12345678` ajouté pour elle), 2-3-2 retiré, groupement en
+  milliers admis, 2-2-2-3 à la virgule, `_` 2-2-2-3 retiré. Non éprouvée : l'égalité du séparateur
+  (`\k<sep2>` → `[_,]`) ; seule une forme mêlée la ferait rougir, et c'est une limite.
+- **Parité** : 0 écart sur `cases1` à `cases6`, six jeux aléatoires, le corpus ; corpus contre le commit
+  précédent : aucune différence. `tests/Unit/Ai` + `tests/Unit/Radar` : 997 verts ; gardes `check-*.mjs` vertes ; Pint.
+

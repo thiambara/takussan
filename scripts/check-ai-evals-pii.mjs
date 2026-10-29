@@ -68,6 +68,14 @@ const SENEGAL_LIBRE = `(?<![0-9])(?![0-9]{3}${SEP}[0-9]{3}${SEP}[0-9]{3}(?![0-9]
   + `(?!(?:[0-9]${SEP}?){0,8}000)`
   + `(?:${PREFIXE}(?:${WS}?[0-9]){7}(?<!${WS}[0-9]{3}${WS}[0-9]{3})`
   + `|(?:3${WS}[02369]|7${WS}[0-25-9]|9${WS}3)(?:${WS}[0-9]){7}(?!${WS}[0-9](?![0-9])))`;
+// Avec `_` ou `,` (`77_123_45_67`, `77,123,45,67`) ou le préfixe entre parenthèses (`(77)1234567`) : le même
+// séparateur partout, un groupement jamais en milliers (`75,000,000` n'en est pas un), rien derrière ni devant ;
+// la virgule ne lit pas le 2-2-2-3 (`30,59,80,102`, des numéros de lignes).
+const SENEGAL_SEPARE = String.raw`(?<![0-9])(?<![0-9][.,_])(?:`
+  + String.raw`${PREFIXE}(?:(?<sep2>[_,])(?:[0-9]{3}\k<sep2>[0-9]{2}\k<sep2>[0-9]{2}|[0-9]{2}\k<sep2>[0-9]{3}\k<sep2>[0-9]{2})`
+  + String.raw`|_[0-9]{2}_[0-9]{2}_[0-9]{3})(?![0-9])(?![,._][0-9])`
+  + String.raw`|\(${PREFIXE}\)${WS}?(?:[0-9]{7}|[0-9]{3}${WS}?[0-9]{2}${WS}?[0-9]{2}`
+  + String.raw`|[0-9]{2}${WS}?[0-9]{3}${WS}?[0-9]{2}|[0-9]{2}${WS}?[0-9]{2}${WS}?[0-9]{3})(?![0-9]))`;
 // Numéros étrangers (TCK-2410) : `+` ou `00`, un indicatif ITU et le nombre de chiffres de son plan (la France
 // à longueur exacte, d'abord), ou la forme nationale `0X XX XX XX XX`, collée ou séparée à chaque paire par le
 // MÊME caractère (une date suivie d'une heure, `load averages: 44.07 87.79 75.17`, n'en sont pas). Les
@@ -88,7 +96,7 @@ const ETRANGER = String.raw`(?:(?<![0-9+])(?<![0-9][.,])(?:\+(?!${WS}{1,2}[0-9]{
 // Le lien WhatsApp canonique écrit le numéro sans `+` : `wa.me/…`, `…?phone=…`.
 const LIEN = String.raw`(?<=wa\.me/|[?&]phone=)(?:33[0-9]{9}|${CC1}[0-9]{10}|${CC2}[0-9]{7,11}|${CC3}[0-9]{6,10})(?![0-9])`;
 export const TELEPHONE = new RegExp(
-  `(?:${SENEGAL_AVEC_INDICATIF}|${SENEGAL}${FIN}|${SENEGAL_LIBRE}${FIN}|${ETRANGER}|${LIEN})`,
+  `(?:${SENEGAL_AVEC_INDICATIF}|${SENEGAL}${FIN}|${SENEGAL_LIBRE}${FIN}|${SENEGAL_SEPARE}|${ETRANGER}|${LIEN})`,
   'iu',
 );
 export const COURRIEL = /[a-z0-9._%+-]+(?:\s*[@\uFF20]\s*|\s*[([{]\s*at\s*[)\]}]\s*|\s+at\s+)[a-z0-9-]+(?:\.[a-z0-9-]+)*\.[a-z]{2,}(?![a-z])/iu;
