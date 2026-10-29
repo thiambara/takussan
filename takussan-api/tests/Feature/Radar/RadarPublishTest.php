@@ -572,6 +572,50 @@ class RadarPublishTest extends TestCase
             ->assertJsonPath('data.published', []);
     }
 
+    // --- Décision 5 : le titre manquant se construit -------------------------------------------------------
+
+    public function test_une_annonce_sans_titre_se_publie_sous_un_titre_construit_que_l_apercu_montre(): void
+    {
+        $sansTitre = $this->annonceConsentie(extracted: ['title' => ['value' => null], 'bedrooms' => ['value' => 3]]);
+        $avecTitre = $this->annonceConsentie(extracted: ['title' => ['value' => 'Studio à Ouakam']]);
+        $attendu = "Appartement 3 chambres à louer — {$this->quartier->name}";
+
+        $apercu = collect($this->getJson("/api/admin/radar/advertisers/{$this->annonceur->id}/publication-preview")->assertOk()
+            ->assertJsonPath('data.blocking', [])->json('data.listings'))->keyBy('id');
+        $this->assertSame([], $apercu[$sansTitre->id]['blocking'], 'le titre n\'est plus un champ requis');
+        $this->assertSame($attendu, $apercu[$sansTitre->id]['title']);
+        $this->assertTrue($apercu[$sansTitre->id]['title_built']);
+        $this->assertSame('Studio à Ouakam', $apercu[$avecTitre->id]['title'], 'le titre extrait reste prioritaire');
+        $this->assertFalse($apercu[$avecTitre->id]['title_built']);
+
+        $biens = collect($this->publier([$sansTitre->id, $avecTitre->id])->assertCreated()->json('data.properties'));
+
+        $this->assertSame($attendu, $biens->firstWhere('radar_listing_id', $sansTitre->id)['title']);
+        $this->assertSame($attendu, Property::query()->findOrFail($biens->firstWhere('radar_listing_id', $sansTitre->id)['id'])->title);
+        $this->assertSame('Studio à Ouakam', $biens->firstWhere('radar_listing_id', $avecTitre->id)['title']);
+    }
+
+    public function test_le_titre_construit_dit_le_quartier_canonique_d_un_quartier_fusionne(): void
+    {
+        $annonce = $this->annonceConsentie(extracted: ['title' => ['value' => null]]);
+        $cible = GeoNeighborhood::factory()->create();
+        $this->quartier->forceFill(['merged_into_id' => $cible->id])->save();
+        $attendu = "Appartement 3 chambres à louer — {$cible->name}";
+
+        $this->getJson("/api/admin/radar/advertisers/{$this->annonceur->id}/publication-preview")->assertOk()
+            ->assertJsonPath('data.listings.0.title', $attendu);
+
+        $this->publier([$annonce->id])->assertCreated()->assertJsonPath('data.properties.0.title', $attendu);
+    }
+
+    public function test_le_titre_construit_n_ecrit_pas_de_chambres_pour_un_terrain(): void
+    {
+        $this->annonceConsentie(extracted: ['title' => ['value' => null], 'property_type' => ['value' => 'land'], 'bedrooms' => ['value' => 3]]);
+
+        $this->getJson("/api/admin/radar/advertisers/{$this->annonceur->id}/publication-preview")->assertOk()
+            ->assertJsonPath('data.listings.0.title', "Terrain à louer — {$this->quartier->name}");
+    }
+
     public function test_le_message_d_un_annonceur_qui_a_dit_stop_n_est_pas_compose(): void
     {
         $this->publier([$this->annonceConsentie()->id])->assertCreated();

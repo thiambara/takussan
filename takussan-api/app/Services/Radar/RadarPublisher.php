@@ -40,8 +40,11 @@ use Throwable;
  */
 final class RadarPublisher
 {
-    /** Champs sans lesquels un bien ne se publie pas : ceux de la relecture, et le titre (affiché au public). */
-    public const REQUIRED = [...RadarReviewFields::REQUIRED_FOR_REVIEW, 'title'];
+    /**
+     * Champs sans lesquels un bien ne se publie pas : ceux de la relecture. Le titre n'en est plus un (décision 5 du porteur) :
+     * sans titre extrait, il se construit des champs structurés ({@see RadarListingTitle}).
+     */
+    public const REQUIRED = RadarReviewFields::REQUIRED_FOR_REVIEW;
 
     public const MESSAGE_VERSION = 'publie.v1';
 
@@ -284,6 +287,8 @@ final class RadarPublisher
         $values = RadarReviewFields::values((array) $listing->extracted);
         $status = $listing->photoPreparationStatus();
         $photos = $this->reserve->ordered($listing);
+        $neighborhood = self::neighborhoodName($values['neighborhood_id']);
+        $title = RadarListingTitle::resolve($values, $neighborhood);
 
         $blocking = [];
         if ($photos->isEmpty()) {
@@ -298,13 +303,15 @@ final class RadarPublisher
 
         return [
             'id' => $listing->id,
-            'title' => $values['title'],
+            // Le titre qui sera PUBLIÉ : celui de l'annonce, sinon le titre construit (`title_built`).
+            'title' => $title['title'],
+            'title_built' => $title['built'],
             'price' => $values['price'],
             'contract' => $values['contract'],
             'property_type' => $values['property_type'],
             'neighborhood_id' => $values['neighborhood_id'],
             // Le nom du quartier CANONIQUE (une fusion se suit jusqu'à sa cible) : l'écran dit où le bien sera publié.
-            'neighborhood' => $values['neighborhood_id'] === null ? null : GeoNeighborhood::query()->find((int) $values['neighborhood_id'])?->canonique()?->name,
+            'neighborhood' => $neighborhood,
             'photo_preparation' => $status,
             'photos' => $photos->map(fn (Media $media) => [
                 'id' => $media->id,
@@ -333,6 +340,12 @@ final class RadarPublisher
         return $missing;
     }
 
+    /** Le nom du quartier canonique, `null` sans quartier ou pour un quartier refusé. */
+    private static function neighborhoodName(mixed $id): ?string
+    {
+        return $id === null ? null : GeoNeighborhood::query()->find((int) $id)?->canonique()?->name;
+    }
+
     /** La ligne qui fait foi (`canonique()` suit les fusions, rend `null` pour un refusé) est approuvée. */
     private static function neighborhoodIsLive(int $id): bool
     {
@@ -347,7 +360,7 @@ final class RadarPublisher
         $property = Property::query()->create([
             'agency_id' => $agency->id,
             'user_id' => $user->id,
-            'title' => $values['title'],
+            'title' => RadarListingTitle::resolve($values, self::neighborhoodName($values['neighborhood_id']))['title'],
             'description' => $values['description'],
             'type' => $values['property_type'],
             'contract_type' => $values['contract'],
