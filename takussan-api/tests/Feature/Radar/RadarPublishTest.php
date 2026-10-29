@@ -409,6 +409,22 @@ class RadarPublishTest extends TestCase
         $this->assertSame(450000, $par[$prete->id]['price']);
     }
 
+    public function test_un_compte_rattache_supprime_bloque_l_apercu_et_la_publication(): void
+    {
+        $a = $this->annonceConsentie();
+        $b = $this->annonceConsentie();
+        $premier = $this->publier([$a->id])->assertCreated();
+        User::query()->findOrFail($premier->json('data.user.id'))->delete();
+        $avant = $this->compte();
+
+        $this->getJson("/api/admin/radar/advertisers/{$this->annonceur->id}/publication-preview")->assertOk()
+            ->assertJsonPath('data.blocking', ['radar.advertiser.account_unavailable']);
+        $this->publier([$b->id])->assertStatus(422)->assertJsonPath('code', 'radar.advertiser.account_unavailable');
+
+        $this->assertSame($avant['properties'], $this->compte()['properties']);
+        $this->assertSame(RadarListingStage::Consented, $b->fresh()->stage);
+    }
+
     public function test_l_apercu_signale_un_numero_inscrit_et_l_absence_d_accord(): void
     {
         User::factory()->create(['phone' => '77 123 45 67']);

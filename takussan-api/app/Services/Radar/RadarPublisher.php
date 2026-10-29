@@ -72,6 +72,9 @@ final class RadarPublisher
         if ($this->provisioner->phoneRegistered($advertiser)) {
             $blocking[] = 'radar.advertiser.phone_registered';
         }
+        if ($this->provisioner->accountUnavailable($advertiser)) {
+            $blocking[] = AdvertiserProvisioner::ACCOUNT_UNAVAILABLE;
+        }
         if ($advertiser->do_not_contact_at !== null) {
             $blocking[] = 'radar.advertiser.do_not_contact';
         }

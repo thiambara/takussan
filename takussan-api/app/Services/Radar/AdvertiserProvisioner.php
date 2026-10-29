@@ -28,6 +28,9 @@ use Illuminate\Support\Str;
  */
 final class AdvertiserProvisioner
 {
+    /** Le compte rattaché à l'annonceur par une publication précédente est supprimé ou bloqué. */
+    public const ACCOUNT_UNAVAILABLE = 'radar.advertiser.account_unavailable';
+
     public function __construct(private readonly HostIndividualOnboardingService $onboarding) {}
 
     /**
@@ -39,13 +42,17 @@ final class AdvertiserProvisioner
     public function provision(RadarAdvertiser $lockedAdvertiser): array
     {
         if ($lockedAdvertiser->user_id !== null) {
-            $user = User::query()->findOrFail($lockedAdvertiser->user_id);
+            // Le compte peut avoir été supprimé (soft-delete, `user_id` reste posé) ou bloqué depuis : la publication ne le
+            // rouvre pas — `autoOnboard()` réactiverait ses profils — et ne le laisse pas non plus en 404 opaque.
+            $user = User::withTrashed()->find($lockedAdvertiser->user_id);
+            abort_code_if($user === null || ! $user->canOpenSession(), 422, self::ACCOUNT_UNAVAILABLE);
 
             return ['created' => false, 'user' => $user, 'agency' => $this->onboarding->autoOnboard($user)['agency']];
         }
 
-        // Un STOP purge le numéro (ADR-0077 §9) : sans numéro, il n'y a ni compte à créer ni personne à qui publier.
-        abort_code_if($lockedAdvertiser->phone === null, 422, 'radar.advertiser.do_not_contact');
+        // Un STOP pose `do_not_contact_at` (le numéro n'est purgé que plus tard, TCK-2391) : l'annonceur ne se contacte plus, on ne
+        // lui crée rien. Sans numéro (déjà purgé), il n'y a de toute façon ni compte à créer ni personne à qui publier.
+        abort_code_if($lockedAdvertiser->do_not_contact_at !== null || $lockedAdvertiser->phone === null, 422, 'radar.advertiser.do_not_contact');
         abort_code_if($this->phoneRegistered($lockedAdvertiser), 422, 'radar.advertiser.phone_registered');
 
         $user = $this->createUser($lockedAdvertiser);
@@ -53,6 +60,19 @@ final class AdvertiserProvisioner
         $lockedAdvertiser->forceFill(['user_id' => $user->id])->save();
 
         return ['created' => true, 'user' => $user, 'agency' => $agency];
+    }
+
+    /**
+     * Le compte déjà rattaché est supprimé ou bloqué : même refus que {@see self::provision()}, pour l'aperçu.
+     */
+    public function accountUnavailable(RadarAdvertiser $advertiser): bool
+    {
+        if ($advertiser->user_id === null) {
+            return false;
+        }
+        $user = User::withTrashed()->find($advertiser->user_id);
+
+        return $user === null || ! $user->canOpenSession();
     }
 
     /**

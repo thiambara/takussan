@@ -6,10 +6,12 @@ use App\Exceptions\ApiError;
 use App\Models\Agency;
 use App\Models\CreditLot;
 use App\Models\CreditWelcomeGrant;
+use App\Models\Enums\AgencyAdminProfileStatus;
 use App\Models\Enums\AgencyKind;
 use App\Models\Enums\PlatformAbility;
 use App\Models\Enums\PlatformProfileLevel;
 use App\Models\Enums\UserStatus;
+use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\RadarAdvertiser;
 use App\Models\User;
 use App\Services\Onboarding\HostIndividualOnboardingService;
@@ -191,6 +193,64 @@ class AdvertiserProvisionerTest extends TestCase
         User::factory()->create(['phone' => self::NUMERO]);
         $this->assertTrue($provisioner->phoneRegistered($annonceur));
         $this->assertNull($annonceur->fresh()->user_id);
+    }
+
+    public function test_un_stop_ferme_la_creation_meme_quand_le_numero_n_est_pas_encore_purge(): void
+    {
+        // `RadarConsentWorkflow::stop()` ne purge rien : le numéro reste, `do_not_contact_at` dit tout.
+        $annonceur = $this->annonceur(['do_not_contact_at' => now()]);
+        $comptes = User::query()->count();
+
+        try {
+            $this->provisionner($annonceur);
+            $this->fail('Un annonceur qui a dit STOP n\'a pas de compte à créer.');
+        } catch (ApiError $e) {
+            $this->assertSame('radar.advertiser.do_not_contact', $e->errorCode);
+        }
+
+        $this->assertSame($comptes, User::query()->count());
+        $this->assertNull($annonceur->fresh()->user_id);
+    }
+
+    public function test_un_compte_rattache_supprime_n_est_ni_rouvert_ni_un_404(): void
+    {
+        $annonceur = $this->annonceur();
+        $premier = $this->provisionner($annonceur);
+        $premier['user']->delete();
+        $avant = [User::query()->count(), Agency::query()->count()];
+
+        $this->assertSame(true, app(AdvertiserProvisioner::class)->accountUnavailable($annonceur->fresh()));
+        try {
+            $this->provisionner($annonceur->fresh());
+            $this->fail('Un compte supprimé ne reçoit pas de publication.');
+        } catch (ApiError $e) {
+            $this->assertSame(422, $e->getStatusCode());
+            $this->assertSame('radar.advertiser.account_unavailable', $e->errorCode);
+        }
+
+        $this->assertSame($avant, [User::query()->count(), Agency::query()->count()]);
+        $this->assertTrue($premier['user']->fresh()->trashed(), 'le compte supprimé reste supprimé');
+    }
+
+    public function test_un_compte_rattache_bloque_n_est_pas_reactive_par_la_publication(): void
+    {
+        $annonceur = $this->annonceur();
+        $premier = $this->provisionner($annonceur);
+        $premier['user']->forceFill(['status' => UserStatus::Blocked])->save();
+        // Le profil d'administration de l'espace est suspendu avec le compte : `autoOnboard()` le réactiverait.
+        AgencyAdminProfile::query()->where('user_id', $premier['user']->id)->update(['status' => AgencyAdminProfileStatus::Suspended->value]);
+        $profils = AgencyAdminProfile::query()->where('user_id', $premier['user']->id)->get()->map->getAttributes()->all();
+
+        $this->assertTrue(app(AdvertiserProvisioner::class)->accountUnavailable($annonceur->fresh()));
+        try {
+            $this->provisionner($annonceur->fresh());
+            $this->fail('Un compte bloqué ne reçoit pas de publication.');
+        } catch (ApiError $e) {
+            $this->assertSame('radar.advertiser.account_unavailable', $e->errorCode);
+        }
+
+        $this->assertSame(UserStatus::Blocked, $premier['user']->fresh()->status);
+        $this->assertEquals($profils, AgencyAdminProfile::query()->where('user_id', $premier['user']->id)->get()->map->getAttributes()->all());
     }
 
     public function test_un_annonceur_sans_numero_purge_apres_un_stop_n_a_pas_de_compte(): void
