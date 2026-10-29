@@ -1,7 +1,7 @@
 ---
 id: TCK-2391
 title: "Radar : la révocation retire du public sur-le-champ, et la purge efface les annonces jamais publiées en gardant l'empreinte des refus"
-status: todo
+status: doing
 phase: P1
 family: back
 estimate: M
