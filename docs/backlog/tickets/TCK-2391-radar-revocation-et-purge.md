@@ -7,7 +7,7 @@ family: back
 estimate: M
 wave: 80
 created: 2026-10-26
-updated: 2026-10-27
+updated: 2026-10-29
 depends_on: [TCK-2389]
 blocks: []
 spec_refs:
@@ -91,6 +91,9 @@ posés par TCK-2389. Loi n° 2008-12 : la durée annoncée doit être tenue par 
       empreinte enregistrée), `RadarPurgeTest` (89 jours ⇒ intact, 91 ⇒ purgé ; STOP ⇒ purgé tout
       de suite ; preuve conservée tant que le bien existe ; empreinte de refus conservée ; une
       nouvelle saisie du même numéro est marquée `do_not_contact`).
+- [ ] Spécifications : lever les réserves « **à venir** (TCK-2391) » de `models-spec.md` §105
+      (`input_snapshot`), §108 (`phone`, description) et §109 (`raw_text`, `phones_dropped`,
+      `stage = purged`), posées par la passe 017 de `/sync-specs` (MF1).
 
 ## Critères d'acceptation
 
