@@ -5,6 +5,7 @@ namespace App\Http\Resources\Api\Admin;
 use App\Http\Resources\Bases\BaseResource;
 use App\Models\GeoNeighborhood;
 use App\Services\Media\PrivateMediaAccess;
+use App\Services\Radar\RadarPhotoReserve;
 use Illuminate\Http\Request;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
@@ -95,9 +96,8 @@ class RadarListingResource extends BaseResource
                     'url' => app(PrivateMediaAccess::class)->signedUrl($media),
                 ])->all()),
             // TCK-2389 — la réserve de photos : une URL signée par photo, comme les captures.
-            'reserve_photos' => $this->whenLoaded('media', fn () => $this->media
-                ->where('collection_name', 'radar_photos')
-                ->values()
+            // Dans l'ordre que la publication copie et que l'aperçu affiche : la relation `media` n'a pas d'`ORDER BY`.
+            'reserve_photos' => $this->whenLoaded('media', fn () => app(RadarPhotoReserve::class)->ordered($this->resource)
                 ->map(fn (Media $media): array => [
                     'id' => $media->id,
                     'url' => app(PrivateMediaAccess::class)->signedUrl($media),

@@ -14,6 +14,7 @@ use App\Models\Enums\PropertyType;
 use App\Models\Enums\PropertyVisibility;
 use App\Models\Enums\RadarListingStage;
 use App\Models\Enums\ReferentialStatus;
+use App\Models\GeoNeighborhood;
 use App\Models\Property;
 use App\Models\PropertyContact;
 use App\Models\RadarAdvertiser;
@@ -507,6 +508,24 @@ class RadarPublishTest extends TestCase
         $this->publier([$annonce->id])->assertStatus(422)->assertJsonPath('code', 'radar.publish.missing_field')
             ->assertJsonPath('params.listing_id', $annonce->id)->assertJsonPath('params.fields', ['neighborhood_id']);
         $this->assertRienDeCree($avant);
+    }
+
+    /** Un quartier fusionné depuis la relecture n'est pas un quartier perdu : l'adresse suit la fusion jusqu'à la cible. */
+    public function test_un_quartier_fusionne_apres_la_relecture_se_publie_sur_sa_cible(): void
+    {
+        $annonce = $this->annonceConsentie();
+        $cible = GeoNeighborhood::factory()->create();
+        $this->quartier->forceFill(['merged_into_id' => $cible->id])->save();
+
+        $this->getJson("/api/admin/radar/advertisers/{$this->annonceur->id}/publication-preview")->assertOk()
+            ->assertJsonPath('data.blocking', [])
+            ->assertJsonPath('data.listings.0.blocking', []);
+
+        $id = $this->publier([$annonce->id])->assertCreated()->json('data.properties.0.id');
+
+        $adresse = Property::query()->findOrFail($id)->address;
+        $this->assertSame($cible->id, $adresse->geo_neighborhood_id, 'l\'adresse porte le quartier canonique');
+        $this->assertSame($cible->geo_city_id, $adresse->geo_city_id);
     }
 
     public function test_le_message_d_un_annonceur_qui_a_dit_stop_n_est_pas_compose(): void

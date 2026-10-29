@@ -290,8 +290,8 @@ final class RadarPublisher
 
         $missing = array_values(array_filter(self::REQUIRED, fn (string $field) => $values[$field] === null || $values[$field] === ''));
 
-        // Refusé ou fusionné depuis la relecture : le canonicaliseur de l'adresse le laisserait tomber, et le bien sortirait
-        // public sans ville ni quartier.
+        // Refusé (ou non approuvé) depuis la relecture : le canonicaliseur de l'adresse le laisserait tomber, et le bien sortirait
+        // public sans ville ni quartier. Un quartier FUSIONNÉ, lui, se publie : l'adresse suit la fusion jusqu'à sa cible.
         if (! in_array('neighborhood_id', $missing, true) && ! self::neighborhoodIsLive((int) $values['neighborhood_id'])) {
             $missing[] = 'neighborhood_id';
         }
@@ -299,13 +299,10 @@ final class RadarPublisher
         return $missing;
     }
 
+    /** La ligne qui fait foi (`canonique()` suit les fusions, rend `null` pour un refusé) est approuvée. */
     private static function neighborhoodIsLive(int $id): bool
     {
-        return GeoNeighborhood::query()
-            ->whereKey($id)
-            ->where('status', ReferentialStatus::Approved->value)
-            ->whereNull('merged_into_id')
-            ->exists();
+        return GeoNeighborhood::query()->find($id)?->canonique()?->status === ReferentialStatus::Approved;
     }
 
     private function createProperty(RadarListing $listing, RadarAdvertiser $advertiser, User $user, Agency $agency): Property

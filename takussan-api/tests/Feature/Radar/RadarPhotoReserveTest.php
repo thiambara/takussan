@@ -181,7 +181,8 @@ class RadarPhotoReserveTest extends TestCase
             UploadedFile::fake()->image('b.png', 20, 20),
         ])->assertCreated()
             ->assertJsonCount(2, 'data.reserve_photos')
-            ->assertJsonPath('data.reserve_photos.0.id', $annonce->getMedia('radar_photos')->first()->id);
+            ->assertJsonPath('data.reserve_photos.0.id', $annonce->getMedia('radar_photos')->first()->id)
+            ->assertJsonPath('data.reserve_photos.1.id', $annonce->getMedia('radar_photos')->last()->id);
 
         $medias = $annonce->fresh()->getMedia('radar_photos');
         $this->assertCount(2, $medias);
@@ -196,6 +197,36 @@ class RadarPhotoReserveTest extends TestCase
         $this->assertSame($annonce->id, $ligne->subject_id);
         $this->assertSame('upload', $ligne->properties['action']);
         $this->assertSame($medias->pluck('id')->all(), $ligne->properties['media_ids']);
+    }
+
+    /**
+     * La console montre la réserve dans l'ordre que la publication copiera (`RadarPhotoReserve::ordered()`), pas dans celui
+     * d'un `SELECT` sans `ORDER BY` : ici l'ordre voulu (`order_column`) n'est ni celui des identifiants ni celui des
+     * dernières mises à jour, et la photo déposée suit les autres.
+     */
+    public function test_la_carte_rend_la_reserve_dans_l_ordre_de_la_publication(): void
+    {
+        $annonce = $this->annonce();
+        $m = [];
+        foreach ([1, 2, 3] as $i) {
+            $m[$i] = $annonce->addMediaFromString(UploadedFile::fake()->image("r{$i}.png", 20, 20)->getContent())
+                ->usingFileName("r{$i}.png")->toMediaCollection('radar_photos');
+        }
+        // Les mises à jour déplacent les lignes : l'ordre physique devient m1, m2, m3 — l'ordre voulu est m2, m3, m1.
+        foreach ([1 => 3, 2 => 1, 3 => 2] as $i => $rang) {
+            $m[$i]->forceFill(['order_column' => $rang])->save();
+        }
+
+        $reponse = $this->deposer($annonce, [UploadedFile::fake()->image('d.png', 20, 20)])->assertCreated();
+
+        $ids = array_column($reponse->json('data.reserve_photos'), 'id');
+        $this->assertCount(4, $ids);
+        $this->assertSame([$m[2]->id, $m[3]->id, $m[1]->id], array_slice($ids, 0, 3));
+        $this->assertSame(
+            app(RadarPhotoReserve::class)->ordered($annonce->fresh())->pluck('id')->all(),
+            $ids,
+            'la même suite que celle que la publication copie',
+        );
     }
 
     public function test_une_image_illisible_refuse_tout_l_envoi_sans_rien_ecrire(): void
