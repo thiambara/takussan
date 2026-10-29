@@ -99,6 +99,10 @@ posés par TCK-2389. Loi n° 2008-12 : la durée annoncée doit être tenue par 
       du `README` de `content/legal`. ⚠ Le § 6 dit que la preuve de l'accord est conservée « tant que
       les annonces concernées sont en ligne, puis 3 ans » : la règle de purge doit suivre CE texte (un
       bien retiré du public mais non supprimé fait courir les 3 ans), ou le texte change, avec l'avocat.
+      ⚠ La réserve peut laisser des **fichiers sans ligne `media`** : un échec du commit, ou un
+      worker coupé (`$timeout`) entre l'écriture du fichier et le commit, dans
+      `PrepareRadarListingPhotos` ou le dépôt manuel. Une purge qui part des lignes `media` ne les
+      verrait jamais : balayer le préfixe de stockage des médias de l'annonce, pas ses seules lignes.
 - [ ] Spécifications : lever les réserves « **à venir** (TCK-2391) » de `models-spec.md` §105
       (`input_snapshot`), §108 (`phone`, description) et §109 (`raw_text`, `phones_dropped`,
       `stage = purged`), posées par la passe 017 de `/sync-specs` (MF1).
