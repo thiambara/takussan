@@ -85,8 +85,10 @@ class RadarListingResource extends BaseResource
                 'nature' => $this->enumValue($this->advertiser->nature),
                 'do_not_contact_at' => $this->iso($this->advertiser->do_not_contact_at),
             ]),
+            // La relation `media` n'a pas d'`ORDER BY` : l'ordre d'un `SELECT` libre n'est pas celui des captures.
             'captures' => $this->whenLoaded('media', fn () => $this->media
                 ->where('collection_name', 'radar_captures')
+                ->sortBy('order_column')
                 ->values()
                 ->map(fn (Media $media): array => [
                     'id' => $media->id,
