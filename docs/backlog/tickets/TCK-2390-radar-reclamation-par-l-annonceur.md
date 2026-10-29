@@ -1,7 +1,7 @@
 ---
 id: TCK-2390
 title: "Radar : l'annonceur réclame ses annonces depuis le lien du message, par code SMS à son numéro"
-status: doing
+status: done
 phase: P1
 family: full
 estimate: M
@@ -74,7 +74,7 @@ jargon de plateforme. Si le compte existe déjà (publié pour lui), la même pa
 
 ## Delta à produire
 
-- [ ] Héritée de TCK-2389 : l'annonceur dont les annonces ont été publiées pour lui a déjà un compte
+- [x] Héritée de TCK-2389 : l'annonceur dont les annonces ont été publiées pour lui a déjà un compte
       (`radar_advertisers.user_id`, sans mot de passe, numéro non vérifié), que la connexion par code
       SMS ouvre (amendement d'ADR-0033 §3). La page l'active : elle lui **présente les conditions
       d'utilisation pour acceptation**, comme l'article 6.3 de `terms.ts` le promet depuis
@@ -83,7 +83,7 @@ jargon de plateforme. Si le compte existe déjà (publié pour lui), la même pa
       ne porte que le lien des conditions, qui n'accepte rien ; ce ticket rend cette phrase vraie par le
       lien de réclamation signé (`{lien_reclamation}`). Il retire ensuite cette ligne de « Avant la mise
       en production » du `README` de `content/legal`.
-- [ ] Héritée de la revue finale de TCK-2389, **le compte Radar orphelin** : le compte A créé pour
+- [x] Héritée de la revue finale de TCK-2389, **le compte Radar orphelin** : le compte A créé pour
       l'annonceur n'a jamais été activé, puis le vrai titulaire du numéro le vérifie sur un **autre**
       compte B (inscription par e-mail, puis numéro vérifié au profil ; l'index partiel
       `users_phone_verified_unique` ne voit pas A, non vérifié). La connexion par code ouvre alors B,
@@ -91,29 +91,29 @@ jargon de plateforme. Si le compte existe déjà (publié pour lui), la même pa
       (`AdvertiserProvisioner::phoneRegistered()` rend `false` dès que `user_id` est posé). La
       réclamation doit voir ce cas, comme le « numéro déjà inscrit » : connexion exigée, puis rattacher
       à B les biens de A (ou le proposer).
-- [ ] Héritée de la revue finale de TCK-2389, **le nom de l'espace** : « Espace de {prénom} » prend
+- [x] Héritée de la revue finale de TCK-2389, **le nom de l'espace** : « Espace de {prénom} » prend
       le premier mot du `display_name` (profil WhatsApp ou signature d'annonce : « Agence Immo
       Dakar » ⇒ « Espace de Agence »), servi publiquement. L'aperçu de publication le montre sans
       permettre de le corriger. L'activation propose à l'annonceur de corriger son prénom et le nom
       de son espace.
 
-- [ ] `App\Services\Radar\ClaimLinks` (signature, expiration, révocation).
-- [ ] Contrôleur public `App\Http\Controllers\Public\RadarClaimController` · FormRequests
+- [x] `App\Services\Radar\ClaimLinks` (signature, expiration, révocation).
+- [x] Contrôleur public `App\Http\Controllers\Public\RadarClaimController` · FormRequests
       `RequestRadarClaimOtpRequest`, `ConfirmRadarClaimRequest` · routes publiques limitées en
       fréquence.
-- [ ] Front : page publique de réclamation, localisée (`/[locale]/…`), `noindex`.
-- [ ] Tests : `RadarClaimTest` (lien expiré, révoqué, après STOP ⇒ refus ; la réponse ne contient
+- [x] Front : page publique de réclamation, localisée (`/[locale]/…`), `noindex`.
+- [x] Tests : `RadarClaimTest` (lien expiré, révoqué, après STOP ⇒ refus ; la réponse ne contient
       ni le numéro complet ni la nature ; le code part au numéro de l'annonceur ; confirmation ⇒
       preuve `otp` + conditions acceptées ; numéro inscrit ⇒ connexion exigée).
 
 ## Critères d'acceptation
 
-- [ ] AC1 — `GET /api/radar/claims/{token}` ne contient ni le numéro en clair ni aucun champ de
+- [x] AC1 — `GET /api/radar/claims/{token}` ne contient ni le numéro en clair ni aucun champ de
       nature ou de verdict.
-- [ ] AC2 — Après STOP, le lien rend 410.
-- [ ] AC3 — Une confirmation réussie publie les annonces retenues, enregistre une preuve `otp` et
+- [x] AC2 — Après STOP, le lien rend 410.
+- [x] AC3 — Une confirmation réussie publie les annonces retenues, enregistre une preuve `otp` et
       l'acceptation des conditions avec leur version.
-- [ ] AC4 — Pour un annonceur déjà publié pour lui, la confirmation active le compte (numéro
+- [x] AC4 — Pour un annonceur déjà publié pour lui, la confirmation active le compte (numéro
       vérifié) et le crédit de bienvenue est attribué.
 
 ## Hors périmètre
@@ -122,4 +122,48 @@ jargon de plateforme. Si le compte existe déjà (publié pour lui), la même pa
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- **Le jeton n'est stocké nulle part** (`ClaimLinks`) : `{annonceur}.{émis_à}.{HMAC-SHA256 tronqué à
+  128 bits}`, clé dérivée d'`app.key`. L'expiration se calcule à la lecture
+  (`radar.claim.link_ttl_days`, 30 jours) ; la révocation se lit dans l'état existant —
+  `do_not_contact_at`, un `radar_consents.revoked_at`, ou le numéro purgé —, sans rien supposer du
+  code de TCK-2391. `émis_à` est le `created_at` du message : le texte enregistré, son lien `wa.me` et
+  l'aperçu de la console se recomposent donc sur la même chaîne. Jeton faux, annonceur inconnu ou
+  émission dans le futur : 404 `radar.claim.invalid` indistinct (rien ne s'énumère).
+- **`publie.v2` remplace `{lien_activation}` par `{lien_reclamation}`** : la page de réclamation
+  active aussi le compte préparé par le Radar (état `activation`, sélection vide admise). `accord.v2`
+  passe au neutre (« votre ou vos annonces »). Les messages déjà envoyés gardent leur version ; les
+  tests qui fabriquent un message v1 l'épinglent.
+- **Limites de fréquence** : un seau par jeton et par route, ET les seaux de la connexion par
+  téléphone pour le numéro de l'annonceur (`auth-phone-send`, `auth-phone-verify` ;
+  `AppServiceProvider::phoneRateLimitKey` lit le numéro par `ClaimLinks::phoneOf()`). Un même numéro
+  ne gagne aucun essai en passant par la page plutôt que par `/auth/login`.
+- **Qui confirme** : un numéro vérifié sur un compte (`existing`) se confirme CONNECTÉ à ce compte
+  — `PhoneLoginService::checkCode()` prouve le numéro sans émettre de jeton ; le mot de passe et le
+  second facteur ne se contournent pas par la page. Compte neuf ou compte du Radar : visiteur anonyme
+  seulement (une autre session ⇒ 403 `wrong_account`), `PhoneLoginService::authenticate()` ouvre la
+  session. Dans la transaction, l'API rejuge que le compte ouvert est celui que la page annonçait
+  (409 `account_changed`).
+- **« Espace neuf ou existant, à son choix » n'est pas tenu** : l'invariant « un espace par
+  administrateur principal » de `HostIndividualOnboardingService::autoOnboard()` ne laisse pas de
+  choix. La page nomme l'espace existant ; le nom proposé d'un espace neuf (et le prénom) se
+  corrigent sur la page, et renomment l'espace s'il vient d'être créé ou en état `activation`.
+- **Compte orphelin** : `AdvertiserProvisioner` refuse de publier encore dans le compte A dès qu'un
+  autre compte B a vérifié le numéro (422 `radar.advertiser.phone_registered`) ; la réclamation par B
+  (état `existing`) déplace les biens de A dans l'espace de B et repointe `radar_advertisers.user_id`.
+  A reste en base (suppression douce non faite, décision posée au porteur).
+- **La publication passe par un job** (`PublishClaimedRadarListings`, `afterCommit`) : les photos
+  d'une annonce-URL ne se téléchargent qu'après l'accord (`PrepareRadarListingPhotos`, décision 3a),
+  le job attend leur préparation en se relâchant, publie ce qui est prêt par lots sous
+  `radar.publish.max_photos`, laisse le reste `consented` à l'opérateur, journalise un refus par son
+  code. Une annonce décochée passe `refused` (`stage_reason` `radar.claim.declined`).
+- **Preuve `otp`** : une ligne `radar_consents` par dernier message ENVOYÉ couvrant les annonces
+  retenues (la couverture est par message, `RadarConsentCoverage`) ; sans annonce retenue
+  (activation), le dernier message envoyé. Les conditions passent par `PublishReadiness::recordTerms`
+  — l'inscription ne les enregistre pas, c'est le mécanisme existant.
+- **Front** : `apiRequest` (préfixe `/api` écrit) avec le jeton de `useAuth()`, pour que le titulaire
+  connecté compte ; seules les corrections partent (un texte laissé tel quel garde côté serveur le
+  numéro que la page ne voit que masqué), et une correction qui garde `[TELEPHONE]` est arrêtée avant
+  l'appel. Chaque code `radar.claim.*` a son libellé (`ERREURS_RECLAMATION_RADAR`, gardée par
+  `codes-radar.tck-2387.test.ts`).
+- **Reste ouvert** : la connexion ordinaire active aussi le compte du Radar sans présenter les
+  conditions — TCK-2404, et la ligne du `README` de `content/legal` pointe désormais vers lui.
