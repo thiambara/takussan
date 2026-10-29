@@ -44,11 +44,26 @@ comme en production. Ce jeu note la sortie BRUTE du modèle, avant la relecture 
 
 ## Ce qui est noté
 
-Trois champs (`fields.json`), jamais la transcription ni le nom :
+Quatre champs (`fields.json`), jamais la transcription ni le nom :
 
 - `classification` : égalité (`consent`, `refusal`, `stop`, `question`, `ambiguous`) ;
 - `number_matches` : égalité (le numéro de l'en-tête est-il celui attendu) ;
-- `clauses_found` : recouvrement de listes (Jaccard) des numéros de clauses lisibles sur la capture.
+- `clauses_found` : recouvrement de listes (Jaccard) des numéros de clauses lisibles sur la capture ;
+- `counterpart_phone` (TCK-2403) : le numéro que l'en-tête montre, égalité **sans les blancs** (`text` :
+  « +221 74 100 20 01 » vaut « +221741002001 ») ; `null` quand l'en-tête n'en montre aucun (cas 016). Les cas
+  discordants (012, 013) attendent le numéro AFFICHÉ, pas le numéro attendu. ⚠ Ce n'est **pas** la forme canonique
+  de `RadarPhone::canonical()` : un séparateur (« +221 74.100.20.01 ») ou une forme nationale (« 74 100 20 01 »)
+  vaut 0 ici, alors que le code les ramènerait à E.164. Le `FieldScorer` n'a pas de type « téléphone » et
+  `text` ne retire que les blancs ; noter la forme canonique demanderait un type de plus dans le scorer (code
+  applicatif), hors de ce ticket. L'effet est faible : les numéros fictifs du jeu s'écrivent tous avec des espaces.
+
+**Pourquoi `counterpart_phone` s'ajoute à `number_matches` plutôt que de le remplacer** : en production,
+`RadarConsentVerdict::from()` écrase `number_matches` par la comparaison du code dès que `counterpart_phone` se lit en
+E.164 (`number_checked_by: code`). Le booléen du modèle ne compte donc que si le numéro est illisible (cas 016, et le
+chemin `identity_unverified`) ; ce que le code compare, c'est le numéro **transcrit**. Noter les deux, c'est mesurer
+ce que le modèle voit et ce que le code en fera. Les numéros fictifs du jeu (`+221 74 …`) sont hors de
+`PhoneMasker::PATTERN` : `RadarPhone::canonical()` les rend `null`, de sorte que ce jeu n'exerce jamais le chemin
+« jugé par le code » — il note la lecture du numéro, pas la décision.
 
 ## Rendre les captures
 
@@ -66,11 +81,12 @@ fixé à `https://takussan.com` dans le script, pas lu de l'environnement. Les `
 astérisques, comme l'écran de l'expéditeur. Les scénarios sont dans le tableau `$scenarios` du script : en ajouter
 un, c'est ajouter une ligne et re-rendre — puis ajuster le compte de cas de `RadarConsentVerificationEvalSetTest`.
 
-## Pas de référence (`baseline.json`)
+## La référence (`baseline.json`)
 
 Elle exige un **vrai** modèle : elle se fixe par un jeu complet
-(`php artisan ai:eval radar.verification_accord --update-baseline`, sans `--role` ni `--model`). **Elle n'est
-pas dans ce ticket** : la référence part avec le passage payant de TCK-2403.
+(`php artisan ai:eval radar.verification_accord --update-baseline`, sans `--role` ni `--model`). Elle part avec le
+passage payant de TCK-2403 (à lancer à la main par le porteur) : tant qu'elle n'existe pas, ce jeu est joué sans rien
+comparer.
 
 ⚠ **Le planning de nuit jouera ce jeu contre le vrai modèle** : `routes/console.php` lance `ai:eval --all` chaque
 nuit, partout où un fournisseur a une clé (16 appels de vision, comptés `is_evaluation`, hors budget du jour).

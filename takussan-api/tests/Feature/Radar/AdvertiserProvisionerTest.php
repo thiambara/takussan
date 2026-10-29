@@ -99,6 +99,15 @@ class AdvertiserProvisionerTest extends TestCase
         $this->assertSame(['', ''], [$sans->first_name, $sans->last_name]);
     }
 
+    /** TCK-2390, vérification adverse I-1 — le nom du compte et de l'espace public ne recopient pas un numéro du nom affiché. */
+    public function test_le_numero_d_un_nom_affiche_n_entre_ni_dans_le_compte_ni_dans_l_espace(): void
+    {
+        ['user' => $user, 'agency' => $agency] = $this->provisionner($this->annonceur(['display_name' => '771234567 Awa Diop 77 123 45 67']));
+
+        $this->assertSame(['Awa', 'Diop'], [$user->first_name, $user->last_name]);
+        $this->assertSame('Espace de Awa', $agency->name);
+    }
+
     public function test_l_espace_est_individuel_nomme_d_apres_le_prenom_et_l_annonceur_y_est_proprietaire(): void
     {
         ['user' => $user, 'agency' => $agency] = $this->provisionner($this->annonceur());
@@ -274,5 +283,32 @@ class AdvertiserProvisionerTest extends TestCase
         $this->assertFalse(PlatformAbility::RadarPublish->grantedTo(PlatformProfileLevel::Support));
         $this->assertTrue(PlatformAbility::RadarPublish->grantedTo(PlatformProfileLevel::SuperAdmin));
         $this->assertSame('platform.radar.publish', PlatformAbility::RadarPublish->value);
+    }
+
+    /**
+     * TCK-2390 — le compte orphelin (revue finale de TCK-2389) : le titulaire a vérifié le numéro sur un AUTRE compte. Une
+     * seconde publication ne verse plus rien dans le compte du Radar, que la connexion par code n'ouvre plus.
+     */
+    public function test_tck2390_un_numero_verifie_ailleurs_depuis_refuse_la_seconde_publication(): void
+    {
+        $annonceur = $this->annonceur();
+        ['user' => $compteRadar] = $this->provisionner($annonceur);
+        $this->assertFalse(app(AdvertiserProvisioner::class)->phoneRegistered($annonceur->fresh()));
+
+        // Le compte du Radar lui-même, même vérifié, n'est pas « un autre compte ».
+        $compteRadar->forceFill(['phone_verified_at' => now()])->save();
+        $this->assertFalse(app(AdvertiserProvisioner::class)->phoneRegistered($annonceur->fresh()));
+        $compteRadar->forceFill(['phone_verified_at' => null])->save();
+
+        User::factory()->create(['phone' => '77 123 45 67', 'phone_verified_at' => now()]);
+        $this->assertTrue(app(AdvertiserProvisioner::class)->phoneRegistered($annonceur->fresh()));
+
+        try {
+            $this->provisionner($annonceur->fresh());
+            $this->fail('La seconde publication aurait dû être refusée.');
+        } catch (ApiError $e) {
+            $this->assertSame([422, 'radar.advertiser.phone_registered'], [$e->getStatusCode(), $e->errorCode]);
+        }
+        $this->assertSame($compteRadar->id, $annonceur->fresh()->user_id);
     }
 }

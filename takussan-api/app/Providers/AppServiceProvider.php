@@ -126,6 +126,7 @@ use App\Services\Notifications\Whatsapp\ServiceWindow;
 use App\Services\Notifications\Whatsapp\WhatsappDriverInterface;
 use App\Services\Payout\Disbursement\ManualDisbursementDriver;
 use App\Services\Pdf\DomPdfPageTotalDriver;
+use App\Services\Radar\ClaimLinks;
 use App\Services\Radar\DnsHostResolver;
 use App\Services\Radar\HostResolver;
 use App\Services\Reporting\PlatformReportingService;
@@ -625,6 +626,15 @@ class AppServiceProvider extends ServiceProvider
      */
     private function phoneRateLimitKey(Request $request): string
     {
+        // TCK-2390 — la réclamation du Radar vérifie un code du numéro de l'annonceur, que le jeton désigne : le même seau que
+        // la connexion par téléphone pour ce numéro (M1 c : la somme des deux entrées reste sous la moitié du verrou). Un
+        // jeton mal signé a son propre seau, sans numéro.
+        if ($request->routeIs('radar.claims.confirm')) {
+            $token = (string) $request->route('token');
+
+            return ClaimLinks::phoneOf($token) ?? 'radar-claim:'.hash('sha256', $token);
+        }
+
         // TCK-589 p3-1 — le code de preuve part TOUJOURS au numéro du compte : la clé aussi. Un
         // `phone` glissé dans le corps aurait ouvert un seau neuf à chaque appel.
         $phone = $request->routeIs('auth.phone.change-code') ? '' : (string) $request->input('phone');

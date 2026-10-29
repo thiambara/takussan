@@ -208,6 +208,8 @@ foreach ($scenarios as $i => $scenario) {
             'classification' => $scenario['classification'],
             'number_matches' => $scenario['number_matches'],
             'clauses_found' => $scenario['clauses'],
+            // Le numéro que l'en-tête montre, compact comme le job le compare ; null quand il n'en montre aucun (« ~ »).
+            'counterpart_phone' => isset($scenario['header']) ? null : str_replace(' ', '', $shown),
         ],
         'attachments' => ["captures/{$n}.png"],
     ];

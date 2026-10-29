@@ -12,6 +12,7 @@ import {
   RADAR_MATCH_SIGNALS,
   RADAR_PROPERTY_TYPES,
 } from '@/types/radar';
+import { ERREURS_RECLAMATION_RADAR, REFUS_DU_CODE } from '@/components/radar-claim/codes-reclamation';
 import { ERREURS_PUBLICATION_RADAR } from '../publication/codes-publication';
 import { ERREURS_ANNONCEUR_RADAR, ERREURS_FICHE_RADAR, ERREURS_SAISIE_RADAR, MOTIFS_ECART_RADAR } from '../codes-radar';
 
@@ -103,8 +104,16 @@ describe('codes de la fiche du Radar', () => {
       ...Object.keys(ERREURS_SAISIE_RADAR),
       ...Object.keys(ERREURS_ANNONCEUR_RADAR),
       ...Object.keys(ERREURS_PUBLICATION_RADAR),
+      ...Object.keys(ERREURS_RECLAMATION_RADAR),
     ]);
     expect(codes.filter((code) => !connus.has(code))).toEqual([]);
+  });
+
+  it.each([['fr', fr], ['en', en], ['wo', wo]])('TCK-2390 — chaque code de la réclamation publique a son libellé en %s', (_langue, messages) => {
+    const erreurs = messages.radarClaim.errors as Record<string, string>;
+    for (const cle of [...Object.values(ERREURS_RECLAMATION_RADAR), ...Object.values(REFUS_DU_CODE)]) {
+      expect(erreurs[cle], cle).toBeTruthy();
+    }
   });
 
   it('les types de bien de la fiche sont ceux de l\'enum PropertyType', () => {

@@ -79,6 +79,8 @@ class RadarListingStoreTest extends TestCase
         $this->assertSame(1, RadarListing::query()->count());
         Queue::assertPushed(ExtractRadarListing::class, 1);
         Queue::assertPushed(ExtractRadarListing::class, fn (ExtractRadarListing $job) => $job->listingId === $premier->json('data.0.id'));
+        // TCK-2402 : au VRAI site de dispatch, la file des appels IA — ni `default`, ni les notifications.
+        $this->assertSame(['ai'], Queue::pushed(ExtractRadarListing::class)->map(fn (ExtractRadarListing $job) => $job->queue)->all());
         RadarExtraction::assertNeverPrompted();
 
         $fiche = RadarListing::query()->sole();
@@ -108,6 +110,8 @@ class RadarListingStoreTest extends TestCase
         $this->assertSame(RadarListingStage::Captured, $fiche->stage);
         $this->assertNull($fiche->stage_reason);
         Queue::assertPushed(ExtractRadarListing::class, 2);
+        // TCK-2402 : la saisie ET la remise en file (les deux sites de dispatch) vont sur la file des appels IA.
+        $this->assertSame(['ai', 'ai'], Queue::pushed(ExtractRadarListing::class)->map(fn (ExtractRadarListing $job) => $job->queue)->all());
 
         // Remise en file une fois : un troisième renvoi la trouve `captured`, et ne relance rien.
         $this->postJson('/api/admin/radar/listings', ['text' => self::TEXTE])

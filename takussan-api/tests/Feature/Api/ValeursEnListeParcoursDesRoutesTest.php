@@ -83,6 +83,7 @@ class ValeursEnListeParcoursDesRoutesTest extends ApiTestCase
         'api/documents/{document}/versions/{versionId}/download' => '{versionId} : sans liaison de modèle',
         'api/invitations/{token}/prefill' => '{token} : sans liaison de modèle',
         'api/share/{token}' => '{token} : sans liaison de modèle',
+        'api/radar/claims/{token}' => '{token} : sans liaison de modèle',
         'api/share/{token}/download' => '{token} : sans liaison de modèle',
         'api/enums/{key}' => '{key} : sans liaison de modèle',
         'api/export/{entity}' => '{entity} : sans liaison de modèle',

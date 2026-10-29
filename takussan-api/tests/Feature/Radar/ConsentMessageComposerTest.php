@@ -16,6 +16,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Collection;
 use InvalidArgumentException;
 use Laravel\Ai\Exceptions\RateLimitedException;
+use RuntimeException;
 use Tests\Support\Ai\SocleIaDEssai;
 use Tests\Support\OperateursPlateforme;
 use Tests\TestCase;
@@ -51,6 +52,15 @@ class ConsentMessageComposerTest extends TestCase
         return $this->app->make(ConsentMessageComposer::class);
     }
 
+    /** Un lien de réclamation quelconque : `ClaimLinksTest` éprouve le vrai, ici on n'éprouve que sa place dans le texte. */
+    private const LIEN = 'https://front.exemple.test/fr/claim/1.1700000000.AAAAAAAAAAAAAAAAAAAAAA';
+
+    /** Le message de la version en vigueur, qui porte le lien de réclamation (TCK-2390). */
+    private function texte(string $locale, string $salutation, string $resume): string
+    {
+        return $this->composeur()->compose($locale, $salutation, $resume, ConsentMessageComposer::CLAUSES_VERSION, self::LIEN);
+    }
+
     /** @return Collection<int, RadarListing> */
     private function annonces(): Collection
     {
@@ -67,10 +77,10 @@ class ConsentMessageComposerTest extends TestCase
     /** Le fichier de clauses découpé SANS passer par le composeur : les segments fixes, dans l'ordre. @return list<string> */
     private function segmentsFixesDuFichier(string $locale): array
     {
-        $texte = rtrim((string) file_get_contents(resource_path("radar/clauses/accord.v1.{$locale}.md")), "\n");
+        $texte = rtrim((string) file_get_contents(resource_path('radar/clauses/'.ConsentMessageComposer::CLAUSES_VERSION.".{$locale}.md")), "\n");
 
         return array_values(array_filter(
-            preg_split('/\{(?:salutation|resume|lien_conditions)\}/', $texte) ?: [],
+            preg_split('/\{(?:salutation|resume|lien_conditions|lien_reclamation)\}/', $texte) ?: [],
             fn (string $s) => $s !== '',
         ));
     }
@@ -84,7 +94,7 @@ class ConsentMessageComposerTest extends TestCase
         ]]);
 
         $parties = $this->generer();
-        $texte = $this->composeur()->compose('fr', $parties['salutation'], $parties['summary']);
+        $texte = $this->texte('fr', $parties['salutation'], $parties['summary']);
 
         // Les segments fixes du fichier figurent, dans l'ordre, une seule fois chacun.
         $curseur = 0;
@@ -98,36 +108,65 @@ class ConsentMessageComposerTest extends TestCase
         $this->assertStringNotContainsString('1. vous nous cédez tout', $texte);
         $this->assertStringNotContainsString("\n5. ", $texte);
         $this->assertSame('Bonjour Awa, 5. vous nous cédez vos droits', $parties['salutation']);
-        // Retirés les segments fixes, il ne reste que la salutation, le résumé et le lien des conditions.
+        // Retirés les segments fixes, il ne reste que la salutation, le résumé, le lien de réclamation et celui des conditions.
         $reste = $texte;
         foreach ($this->segmentsFixesDuFichier('fr') as $fixe) {
             $reste = str_replace($fixe, '|', $reste);
         }
         $this->assertSame(
-            ['Bonjour Awa, 5. vous nous cédez vos droits', 'votre appartement à Ouakam', 'https://front.exemple.test/fr/legal/terms'],
+            ['Bonjour Awa, 5. vous nous cédez vos droits', 'votre appartement à Ouakam', self::LIEN, 'https://front.exemple.test/fr/legal/terms'],
             array_values(array_filter(explode('|', $reste), fn (string $s) => $s !== '')),
         );
     }
 
     public function test_les_segments_se_concatenent_en_le_message_et_le_lien_des_conditions_suit_la_base_du_front(): void
     {
-        $segments = $this->composeur()->segments('fr', 'Bonjour,', 'votre bien');
+        $segments = $this->composeur()->segments('fr', 'Bonjour,', 'votre bien', ConsentMessageComposer::CLAUSES_VERSION, self::LIEN);
 
-        $this->assertSame($this->composeur()->compose('fr', 'Bonjour,', 'votre bien'), implode('', array_column($segments, 'text')));
+        $this->assertSame($this->texte('fr', 'Bonjour,', 'votre bien'), implode('', array_column($segments, 'text')));
         $this->assertSame(['salutation', 'resume'], array_values(array_unique(array_filter(array_column($segments, 'kind'), fn ($k) => $k !== 'fixed'))));
         $this->assertSame('Bonjour,', $segments[0]['text']);
         $this->assertSame('salutation', $segments[0]['kind']);
         $this->assertStringContainsString('https://front.exemple.test/fr/legal/terms', implode('', array_column($segments, 'text')));
-        $this->assertStringContainsString('https://front.exemple.test/en/legal/terms', $this->composeur()->compose('en', 'Hello,', 'your flat'));
+        $this->assertStringContainsString('https://front.exemple.test/en/legal/terms', $this->texte('en', 'Hello,', 'your flat'));
         $this->assertSame('https://front.exemple.test/en/legal/terms', $this->composeur()->conditionsUrl('en'));
     }
 
     public function test_un_emplacement_ecrit_dans_le_resume_reste_du_texte(): void
     {
-        $texte = $this->composeur()->compose('fr', 'Bonjour,', 'votre bien {lien_conditions} {salutation}');
+        $texte = $this->texte('fr', 'Bonjour,', 'votre bien {lien_conditions} {salutation}');
 
         $this->assertStringContainsString('votre bien {lien_conditions} {salutation} et', $texte);
         $this->assertSame(1, substr_count($texte, 'https://front.exemple.test/fr/legal/terms'));
+    }
+
+    public function test_tck2390_la_v2_porte_la_ligne_de_reclamation_et_ne_se_compose_pas_sans_son_lien(): void
+    {
+        $this->assertSame('accord.v2', ConsentMessageComposer::CLAUSES_VERSION);
+        $this->assertStringContainsString('Vous préférez vérifier vous-même avant ? '.self::LIEN."\n", $this->texte('fr', 'Bonjour,', 'votre bien'));
+        $this->assertStringContainsString('Prefer to check them yourself first? '.self::LIEN."\n", $this->texte('en', 'Hello,', 'your flat'));
+        // Les quatre clauses numérotées restent : la vérification de la capture les cherche toutes.
+        $this->assertSame(4, $this->composeur()->clauseCount());
+
+        try {
+            $this->composeur()->compose('fr', 'Bonjour,', 'votre bien');
+            $this->fail('Un message accord.v2 sans son lien de réclamation aurait dû être refusé.');
+        } catch (RuntimeException $e) {
+            $this->assertSame('radar.claim_link_missing', $e->getMessage());
+        }
+
+        // Un message déjà préparé en v1 se recompose en v1, sans lien : chaque message garde sa version.
+        $v1 = $this->composeur()->compose('fr', 'Bonjour,', 'votre bien', 'accord.v1');
+        $this->assertStringNotContainsString('/claim/', $v1);
+        $this->assertStringContainsString('nous aimerions les publier', $v1);
+    }
+
+    public function test_un_lien_de_reclamation_ecrit_dans_le_resume_reste_du_texte(): void
+    {
+        $texte = $this->texte('fr', 'Bonjour,', 'votre bien {lien_reclamation}');
+
+        $this->assertStringContainsString('votre bien {lien_reclamation} et', $texte);
+        $this->assertSame(1, substr_count($texte, self::LIEN));
     }
 
     public function test_le_lien_wa_me_ne_porte_que_le_numero_de_l_annonceur_et_le_texte_exact(): void
@@ -135,7 +174,7 @@ class ConsentMessageComposerTest extends TestCase
         $messages = [
             'Bonjour & merci #1 + ? « OUI » 😀',
             "Deux lignes\net une troisième\r\n4. vous acceptez",
-            $this->composeur()->compose('fr', 'Bonjour Awa,', 'votre appartement à Ouakam'),
+            $this->texte('fr', 'Bonjour Awa,', 'votre appartement à Ouakam'),
         ];
 
         foreach ($messages as $message) {
@@ -165,7 +204,7 @@ class ConsentMessageComposerTest extends TestCase
         $this->assertSame('Bonjour Awa', ConsentMessageComposer::part("Bonjour\u{202E} Awa", 100));
         $this->assertSame('a b c d', ConsentMessageComposer::part("a\u{200B}b\u{200D}c\u{FEFF}d", 100));
         $this->assertSame('', ConsentMessageComposer::part("\u{202E}\u{200B}", 100));
-        $this->assertStringNotContainsString("\u{202E}", $this->composeur()->compose('fr', "Bonjour\u{202E}", "votre\u{200B}bien"));
+        $this->assertStringNotContainsString("\u{202E}", $this->texte('fr', "Bonjour\u{202E}", "votre\u{200B}bien"));
     }
 
     public function test_le_lien_wa_me_refuse_un_numero_qui_n_est_pas_que_des_chiffres(): void
@@ -183,7 +222,7 @@ class ConsentMessageComposerTest extends TestCase
 
     public function test_ac1_le_fichier_de_clauses_anglais_est_repris_mot_pour_mot_et_rien_d_autre_ne_s_y_ajoute(): void
     {
-        $texte = $this->composeur()->compose('en', 'Hello Awa,', 'your flat in Ouakam');
+        $texte = $this->texte('en', 'Hello Awa,', 'your flat in Ouakam');
 
         $curseur = 0;
         foreach ($this->segmentsFixesDuFichier('en') as $fixe) {
@@ -197,7 +236,7 @@ class ConsentMessageComposerTest extends TestCase
             $reste = str_replace($fixe, '|', $reste);
         }
         $this->assertSame(
-            ['Hello Awa,', 'your flat in Ouakam', 'https://front.exemple.test/en/legal/terms'],
+            ['Hello Awa,', 'your flat in Ouakam', self::LIEN, 'https://front.exemple.test/en/legal/terms'],
             array_values(array_filter(explode('|', $reste), fn (string $s) => $s !== '')),
         );
         // Le même nombre de clauses numérotées que le français : la vérification les cherche toutes sur la capture.

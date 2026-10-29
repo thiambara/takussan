@@ -341,12 +341,15 @@ class HealthcheckProbesTest extends TestCase
         $this->assertNotNull($this->getJson('/api/health')->json('checked_at'));
     }
 
-    public function test_le_battement_et_la_sonde_sont_planifies_chaque_minute_sur_les_cinq_files(): void
+    public function test_le_battement_et_la_sonde_sont_planifies_chaque_minute_sur_chaque_file_surveillee(): void
     {
         $evenements = collect(app(Schedule::class)->events());
 
         $battements = $evenements->filter(fn ($e) => $e->description === RecordQueueHeartbeat::class);
-        $this->assertCount(5, $battements);
+        // Les six files du compose, `ai` comprise (TCK-2402) : un compte écrit en dur laisserait passer une file retirée.
+        $this->assertCount(6, RecordQueueHeartbeat::QUEUES);
+        $this->assertContains('ai', RecordQueueHeartbeat::QUEUES);
+        $this->assertCount(count(RecordQueueHeartbeat::QUEUES), $battements);
         $battements->each(fn ($e) => $this->assertSame('* * * * *', $e->expression));
         $this->assertTrue($evenements->contains(fn ($e) => str_contains((string) $e->command, 'health:probe') && $e->expression === '* * * * *'));
     }

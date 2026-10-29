@@ -125,4 +125,11 @@ return [
         'max' => 2,
     ],
 
+    // TCK-2390 (ADR-0077 §3) — le lien de réclamation des messages (`App\Services\Radar\ClaimLinks`) : il sert
+    // `link_ttl_days` jours depuis son émission (le `created_at` du message d'accord, l'heure de composition du second
+    // message), puis rend 410. Un STOP ou une révocation le tue avant, quelle que soit sa date.
+    'claim' => [
+        'link_ttl_days' => 30,
+    ],
+
 ];

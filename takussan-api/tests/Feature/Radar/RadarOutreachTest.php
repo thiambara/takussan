@@ -14,6 +14,7 @@ use App\Models\RadarOutreach;
 use App\Models\User;
 use App\Services\Ai\AiUsageRegistry;
 use App\Services\Ai\PromptRepository;
+use App\Services\Radar\ClaimLinks;
 use App\Services\Radar\ConsentMessageComposer;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -123,12 +124,17 @@ class RadarOutreachTest extends TestCase
         $this->assertSame($enregistre->message, $this->texteDuLien($lien));
         $this->assertSame($enregistre->message, $reponse->json('data.message'));
         $this->assertSame($enregistre->message, implode('', array_column($reponse->json('data.segments'), 'text')));
+        $composeur = $this->app->make(ConsentMessageComposer::class);
         $this->assertSame(
-            $this->app->make(ConsentMessageComposer::class)->compose('fr', 'Bonjour Awa, 5. vous nous cédez vos droits', 'votre appartement à Ouakam'),
+            $composeur->compose('fr', 'Bonjour Awa, 5. vous nous cédez vos droits', 'votre appartement à Ouakam', 'accord.v2', $composeur->claimUrlFor($enregistre)),
             $enregistre->message,
         );
         $this->assertStringNotContainsString('1. vous nous cédez tout', $enregistre->message);
-        $this->assertSame('accord.v1', $enregistre->clauses_version);
+        $this->assertSame('accord.v2', $enregistre->clauses_version);
+        // TCK-2390 — le lien de réclamation du message est celui de CET annonceur, émis à la création du message.
+        preg_match('#https://front\.exemple\.test/fr/claim/(\S+)#', $enregistre->message, $lienReclamation);
+        $this->assertTrue(app(ClaimLinks::class)->resolve($lienReclamation[1])->is($annonceur));
+        $this->assertSame(app(ClaimLinks::class)->token($annonceur, $enregistre->created_at), $lienReclamation[1]);
         $this->assertSame('fr', $enregistre->locale);
 
         // La fiche, relue plus tard, rend le même lien octet pour octet.
@@ -354,7 +360,7 @@ class RadarOutreachTest extends TestCase
         $this->assertSame('Bonsoir Madame Fall,', $enregistre->salutation);
         $this->assertSame('votre F3 à Mermoz', $enregistre->summary);
         $this->assertSame(
-            $this->app->make(ConsentMessageComposer::class)->compose('fr', 'Bonsoir Madame Fall,', 'votre F3 à Mermoz', 'accord.v1'),
+            $this->app->make(ConsentMessageComposer::class)->compose('fr', 'Bonsoir Madame Fall,', 'votre F3 à Mermoz', 'accord.v2', $this->app->make(ConsentMessageComposer::class)->claimUrlFor($enregistre)),
             $enregistre->message,
         );
         $this->assertSame($enregistre->message, $this->texteDuLien($reponse->json('data.wa_me_url')));
@@ -742,7 +748,7 @@ class RadarOutreachTest extends TestCase
         $this->assertSame('en', $reponse->json('data.locale'));
         $this->assertStringContainsString('https://front.exemple.test/en/legal/terms', $message->message);
         $this->assertSame(
-            $this->app->make(ConsentMessageComposer::class)->compose('en', 'Hello Awa,', 'your flat in Ouakam'),
+            $this->app->make(ConsentMessageComposer::class)->compose('en', 'Hello Awa,', 'your flat in Ouakam', 'accord.v2', $this->app->make(ConsentMessageComposer::class)->claimUrlFor($message)),
             $message->message,
         );
     }

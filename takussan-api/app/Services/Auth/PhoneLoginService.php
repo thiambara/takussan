@@ -89,6 +89,20 @@ class PhoneLoginService
      */
     public function verify(string $phone, string $code, array $proof, ?string $locale): JsonResponse
     {
+        $outcome = $this->authenticate($phone, $code, $proof, $locale);
+
+        return $outcome instanceof JsonResponse ? $outcome : $outcome['response'];
+    }
+
+    /**
+     * {@see self::verify()}, qui rend aussi le compte ouvert : la réclamation du Radar (TCK-2390) y publie avant de rendre la
+     * réponse. Un refus (verrou, code faux, compte bloqué, 2FA attendue) est rendu tel quel, en `JsonResponse`.
+     *
+     * @param  array{two_factor_code?: ?string, recovery_code?: ?string, device_name?: ?string}  $proof
+     * @return JsonResponse|array{user: User, is_new_account: bool, response: JsonResponse}
+     */
+    public function authenticate(string $phone, string $code, array $proof, ?string $locale): JsonResponse|array
+    {
         $user = $this->verifiedAccount($phone);
         $radarAccount = false;
         if ($user === null) {
@@ -146,14 +160,50 @@ class PhoneLoginService
             twoFactorJustVerified: (bool) $user->two_factor_enabled,
         );
 
-        return new JsonResponse([
+        return ['user' => $user, 'is_new_account' => $isNewAccount, 'response' => new JsonResponse([
             'token' => $issued['token'],
             'expires_at' => $issued['expires_at']->toIso8601String(),
             // TCK-633 (lot C, tour 3) — `pourSoi` : la réponse porte les clés « pour soi » comme
             // `/api/auth/me` (`$request->user()` est nul ici), et le front la pose telle quelle.
             'user' => UserResource::pourSoi($user->fresh()),
             'is_new_account' => $isNewAccount,
-        ], 200);
+        ], 200)];
+    }
+
+    /**
+     * TCK-2390 — le code saisi pour ce numéro, jugé et CONSOMMÉ comme à la connexion (verrou du numéro lu d'abord, 422 sans
+     * code en cours et sans écriture, un échec compté contre le numéro), sans ouvrir de session : pour un compte déjà
+     * connecté qui doit encore prouver le numéro. `null` : le code est bon.
+     */
+    public function checkCode(string $phone, string $code): ?JsonResponse
+    {
+        if ($this->lock->isNumberLocked($phone)) {
+            return AuthRefusal::response(423, 'account_locked', 'auth.account.locked');
+        }
+        if (! $this->codes->hasCodeFor(self::SCOPE, $phone)) {
+            return AuthRefusal::response(422, 'phone_code_invalid', 'auth.phone.code_invalid');
+        }
+        if (! $this->codes->verifyCodeFor(self::SCOPE, $phone, $code)) {
+            $this->lock->recordNumberFailure($phone);
+
+            return AuthRefusal::response(422, 'phone_code_invalid', 'auth.phone.code_invalid');
+        }
+        $this->lock->clearNumber($phone);
+
+        return null;
+    }
+
+    /**
+     * TCK-2390 — le compte qu'un code valide pour ce numéro ouvrirait, sans rien écrire : celui qui l'a vérifié, sinon le
+     * compte du Radar ({@see self::radarProvisionedAccount()}), sinon aucun (un compte neuf serait créé).
+     *
+     * @return array{user: ?User, verified: bool}
+     */
+    public function accountFor(string $phone): array
+    {
+        $verified = $this->verifiedAccount($phone);
+
+        return ['user' => $verified ?? $this->radarProvisionedAccount($phone), 'verified' => $verified !== null];
     }
 
     /** Le compte qui a VÉRIFIÉ ce numéro — un numéro seulement saisi ne prouve rien. */

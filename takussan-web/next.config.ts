@@ -187,6 +187,21 @@ const nextConfig: NextConfig = {
         source,
         headers: [{ key: 'Referrer-Policy', value: 'no-referrer' }],
       })),
+      // TCK-2390 (ADR-0077 §3) — même nature : le jeton signé de la page de réclamation est le
+      // droit de recevoir le code et de publier les annonces de l'annonceur.
+      ...['/claim/:path*', '/:locale/claim/:path*'].map((source) => ({
+        source,
+        headers: [{ key: 'Referrer-Policy', value: 'no-referrer' }],
+      })),
+      // Le bouton « Se connecter » de cette page emporte le jeton dans `?redirect=` : les pages de
+      // connexion qui le portent ne le transmettent pas non plus (vérification adverse M-5). La
+      // politique des autres pages de connexion ne change pas. `value` est une expression régulière
+      // ancrée, jugée sur la valeur décodée du paramètre.
+      {
+        source: '/auth/:path*',
+        has: [{ type: 'query' as const, key: 'redirect', value: '(?:/[^/?#]+)?/claim/.*' }],
+        headers: [{ key: 'Referrer-Policy', value: 'no-referrer' }],
+      },
     ];
   },
 };

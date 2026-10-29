@@ -4,6 +4,7 @@ namespace App\Jobs\Radar;
 
 use App\Ai\Agents\RadarExtraction;
 use App\Ai\Usages\RadarExtractionUsage;
+use App\Jobs\Concerns\RunsOnAiQueue;
 use App\Models\AiSuggestion;
 use App\Models\Enums\AiDataClass;
 use App\Models\Enums\AiRefusalReason;
@@ -112,7 +113,7 @@ use Throwable;
  */
 final class ExtractRadarListing implements ShouldQueue
 {
-    use Queueable;
+    use Queueable, RunsOnAiQueue;
 
     public const REASON_INVALID_OUTPUT = 'radar.extraction.invalid_output';
 
@@ -153,7 +154,10 @@ final class ExtractRadarListing implements ShouldQueue
 
     public bool $failOnTimeout = false;
 
-    public function __construct(public readonly int $listingId) {}
+    public function __construct(public readonly int $listingId)
+    {
+        $this->onAiQueue();
+    }
 
     public function retryUntil(): DateTimeInterface
     {

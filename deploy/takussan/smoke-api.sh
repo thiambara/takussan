@@ -319,7 +319,7 @@ verifier_release_en_echec() {
   [ "$(sonde -o /dev/null -w '%{http_code}' "$api/up")" = 200 ] || echec "release en échec : /up ne rend plus 200"
   grep -qix 'x-build-sha: smoke' <<<"$(sonde -D - -o /dev/null "$api/up" | tr -d '\r')" \
     || echec "release en échec : X-Build-Sha a changé"
-  for s in worker worker-long worker-media scheduler; do
+  for s in worker worker-long worker-ia worker-media scheduler; do
     [ "$(docker inspect -f '{{.State.Status}}' "$PROJET-$s-1")" = running ] \
       || echec "release en échec : $s ne tourne plus"
   done
@@ -372,7 +372,7 @@ verifier_pile() {
   [ "$(docker inspect -f '{{.State.ExitCode}}' "$PROJET-release-1")" = 0 ] \
     || { "${COMPOSE[@]}" logs release; echec "release a échoué"; }
   attendre_api_saine
-  for s in worker worker-long worker-media scheduler; do
+  for s in worker worker-long worker-ia worker-media scheduler; do
     [ "$(docker inspect -f '{{.State.Status}}' "$PROJET-$s-1")" = running ] \
       || { "${COMPOSE[@]}" logs "$s"; echec "$s ne tourne pas"; }
   done
@@ -397,7 +397,10 @@ verifier_pile() {
   # Une sonde par file que la production doit consommer — les files de check-queues.mjs. Un job
   # SÉRIALISABLE : une closure écrite dans tinker ne l'est pas (laravel/serializable-closure relit
   # le fichier source, et du code eval() n'en a pas). `inspire` vit dans routes/console.php.
-  for q in default notifications-urgent media reconciliation; do
+  # `ai` (TCK-2402) : lue par le seul `worker-ia`. Un `worker-ia` qui lirait autre chose, ou absent, laisse
+  # la sonde en table et fait échouer l'attente plus bas. (`long` est sur la connexion `database-long` : une
+  # sonde `onQueue('long')` partirait sur `database` et ne dirait rien de `worker-long`.)
+  for q in default notifications-urgent media reconciliation ai; do
     tinker "Artisan::queue('inspire')->onQueue('$q');" >/dev/null
   done
   for _ in $(seq 30); do
@@ -406,7 +409,7 @@ verifier_pile() {
   done
   [ "$n" = 0 ] || echec "$n job(s) jamais consommé(s) : $(tinker 'echo DB::table("jobs")->pluck("queue")->implode(",");')"
   [ "$(tinker 'echo DB::table("failed_jobs")->count();' | tr -dc '0-9')" = 0 ] || echec "des jobs sonde ont échoué"
-  ok "les quatre files sont consommées"
+  ok "les cinq files de la connexion database sont consommées (dont ai)"
 
   "${COMPOSE[@]}" exec -T api sh -c 'echo sonde > /app/storage/app/public/sonde.txt'
   grep -qix 'cache-control: public, max-age=604800, stale-while-revalidate=86400' \
@@ -435,7 +438,7 @@ verifier_pile() {
   ok "limite de corps à 25 Mio, comme nginx"
 
   sleep 30
-  for s in api worker worker-long worker-media scheduler; do
+  for s in api worker worker-long worker-ia worker-media scheduler; do
     [ "$(docker inspect -f '{{.RestartCount}}' "$PROJET-$s-1")" = 0 ] || echec "$s redémarre en boucle"
   done
   ok "aucun service ne redémarre"

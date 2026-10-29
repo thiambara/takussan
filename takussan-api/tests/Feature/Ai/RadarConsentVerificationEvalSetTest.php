@@ -129,7 +129,8 @@ class RadarConsentVerificationEvalSetTest extends TestCase
     public function test_les_attendus_ne_nomment_que_les_champs_notes_avec_des_valeurs_legales_et_couvrent_chaque_classement_et_chaque_discordance(): void
     {
         $fields = json_decode((string) file_get_contents($this->dir().'/fields.json'), true, flags: JSON_THROW_ON_ERROR);
-        $this->assertSame(['classification', 'clauses_found', 'number_matches'], collect(array_keys($fields))->sort()->values()->all());
+        $this->assertSame(['classification', 'clauses_found', 'counterpart_phone', 'number_matches'], collect(array_keys($fields))->sort()->values()->all());
+        $this->assertSame('text', $fields['counterpart_phone']['type'], 'le numéro se note sans les blancs : « +221 74 100 20 01 » vaut « +221741002001 »');
         $this->assertNotContains('transcript', array_keys($fields));
 
         $classements = [];
@@ -139,6 +140,15 @@ class RadarConsentVerificationEvalSetTest extends TestCase
             $this->assertSame(array_keys($fields), array_keys($expected), "cas {$i} : les attendus sont les champs de fields.json");
             $this->assertContains($expected['classification'], RadarConsentVerification::CLASSIFICATIONS, "cas {$i} : classification");
             $this->assertTrue($expected['number_matches'] === null || is_bool($expected['number_matches']), "cas {$i} : number_matches (booléen, ou null : le numéro ne se lit pas)");
+            // TCK-2403 : le numéro que l'en-tête montre est ce que le code compare ensuite. Il est cohérent avec le reste du cas :
+            // concordant → le numéro attendu du job ; discordant → un AUTRE numéro de la même forme ; illisible → null.
+            preg_match('#\nNuméro attendu : (\+22174\d{7})\n#', $case['input'], $attendu);
+            $lu = $expected['counterpart_phone'];
+            match ($expected['number_matches']) {
+                true => $this->assertSame($attendu[1], $lu, "cas {$i} : numéro concordant"),
+                false => $this->assertTrue(is_string($lu) && preg_match('/^\+22174\d{7}$/', $lu) === 1 && $lu !== $attendu[1], "cas {$i} : numéro discordant, un autre numéro"),
+                null => $this->assertNull($lu, "cas {$i} : numéro illisible"),
+            };
             $this->assertTrue(array_is_list($expected['clauses_found']), "cas {$i} : clauses_found");
             foreach ($expected['clauses_found'] as $clause) {
                 $this->assertIsInt($clause);
@@ -171,7 +181,7 @@ class RadarConsentVerificationEvalSetTest extends TestCase
         $this->assertSame(16, $report['cases']);
         $this->assertSame(0, $report['failures']);
         $this->assertSame(1.0, $report['global']);
-        $this->assertSame(['classification' => 1.0, 'clauses_found' => 1.0, 'number_matches' => 1.0], array_map(fn ($s) => (float) $s, $report['fields']));
+        $this->assertSame(['classification' => 1.0, 'clauses_found' => 1.0, 'counterpart_phone' => 1.0, 'number_matches' => 1.0], array_map(fn ($s) => (float) $s, $report['fields']));
         $this->assertSame(['vision'], array_keys($report['roles']));
         $this->assertSame(16, $report['roles']['vision']['cases']);
         RadarConsentVerification::assertPromptedTimes(16);
@@ -185,6 +195,22 @@ class RadarConsentVerificationEvalSetTest extends TestCase
         $this->assertSame(round(15 / 16, 4), $report['fields']['classification']);
         $this->assertSame(1.0, (float) $report['fields']['number_matches']);
         $this->assertSame(1.0, (float) $report['fields']['clauses_found']);
+        $this->assertSame(1.0, (float) $report['fields']['counterpart_phone']);
+
+        // Un numéro mal lu ne baisse que le sien, et un numéro rendu avec des espaces vaut le numéro compact.
+        $mal = $cases;
+        $mal[1]['expected']['counterpart_phone'] = '+221749999999';
+        RadarConsentVerification::fake(array_map(function (array $case): array {
+            $sortie = $this->sortie($case['expected']);
+            $sortie['counterpart_phone'] = $sortie['counterpart_phone'] === null ? null : preg_replace('/^(\+221)(\d{2})(\d{3})(\d{2})(\d{2})$/', '$1 $2 $3 $4 $5', $sortie['counterpart_phone']);
+
+            return $sortie;
+        }, $mal));
+
+        $report = $this->runner->run(RadarConsentVerificationUsage::KEY);
+
+        $this->assertSame(round(15 / 16, 4), $report['fields']['counterpart_phone']);
+        $this->assertSame(1.0, (float) $report['fields']['number_matches']);
     }
 
     public function test_ac6_ai_eval_joue_le_jeu_livre_en_succes_et_echoue_si_le_modele_leve(): void
