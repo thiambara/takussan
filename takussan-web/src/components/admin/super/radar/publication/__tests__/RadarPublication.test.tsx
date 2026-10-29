@@ -237,18 +237,26 @@ describe('RadarPublication — la réserve de photos (TCK-2389)', () => {
     await waitFor(() => expect(refetchRadarListingPhotos).toHaveBeenCalledWith(12));
   });
 
-  it('sans photo à lire à la source, la relance n\'est pas offerte ; pendant la préparation, elle est fermée', async () => {
-    await rendre(apercu({
-      listings: [
-        annonce(12, { photo_preparation: { status: 'none', total: 0, done: 0 } }),
-        annonce(13, { photos: [], photo_preparation: { status: 'pending', total: 3, done: 1 }, blocking: ['radar.publish.photos_pending'] }),
-      ],
-    }));
+  it('sans photo à lire à la source, la relance n\'est pas offerte', async () => {
+    await rendre(apercu({ listings: [annonce(12, { photo_preparation: { status: 'none', total: 0, done: 0 } })] }));
 
     expect(within(screen.getByTestId('radar-publication-carte-12')).queryByRole('button', { name: 'Récupérer les photos de la source' })).not.toBeInTheDocument();
+  });
+
+  it('pendant la préparation, la relance reste active : un `pending` sans job n\'a pas d\'autre issue', async () => {
+    vi.mocked(refetchRadarListingPhotos).mockResolvedValue({ data: {} } as never);
+    const { utilisateur } = await rendre(apercu({
+      listings: [annonce(13, { photos: [], photo_preparation: { status: 'pending', total: 3, done: 1 }, blocking: ['radar.publish.photos_pending'] })],
+    }));
+
     const carte = screen.getByTestId('radar-publication-carte-13');
-    expect(within(carte).getByRole('button', { name: 'Récupérer les photos de la source' })).toBeDisabled();
     expect(within(carte).getByTestId('radar-publication-preparation-13')).toHaveTextContent('Lecture des photos de la source : 1 sur 3.');
+    const relance = within(carte).getByRole('button', { name: 'Récupérer les photos de la source' });
+    expect(relance).toBeEnabled();
+
+    await utilisateur.click(relance);
+
+    await waitFor(() => expect(refetchRadarListingPhotos).toHaveBeenCalledWith(13));
   });
 
   it('une annonce sans photo à la source ne propose que le dépôt : ni texte ni bouton ne parlent de « récupérer »', async () => {

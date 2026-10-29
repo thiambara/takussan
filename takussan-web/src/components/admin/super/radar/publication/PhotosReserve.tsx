@@ -41,7 +41,9 @@ function useUrlsStables(photos: RadarPublicationListing['photos']) {
 /**
  * TCK-2389 (décision 3a) — la réserve de photos d'une annonce : ce que `publish` copiera sur le bien, dans cet
  * ordre. Chaque vignette se retire ; l'opérateur dépose des photos à la main, ou relance la lecture de la source
- * (une annonce-URL : `photo_preparation.total` > 0). Tant que la préparation tourne, l'écran le dit et se relit.
+ * (une annonce-URL : `photo_preparation.total` > 0). Tant que la préparation tourne, l'écran le dit et se relit ; la relance
+ * reste offerte pendant ce temps — un `pending` sans job (annonce acceptée avant le déploiement, job perdu) n'a pas d'autre
+ * issue, et relancer est sans danger : l'unicité du job dédoublonne, et un job qui lit déjà relâche sur un rang périmé.
  * Les vignettes sont des URL signées de l'original privé (`PrivateMediaAccess`, 5 min).
  */
 export function PhotosReserve({ annonce, desactive, onRetirer, onDeposer, onRecuperer }: PhotosReserveProps) {
@@ -115,7 +117,7 @@ export function PhotosReserve({ annonce, desactive, onRetirer, onDeposer, onRecu
           {t('upload')}
         </Button>
         {preparation.total > 0 ? (
-          <Button type="button" size="sm" variant="outline" disabled={desactive || enPreparation} onClick={onRecuperer}>
+          <Button type="button" size="sm" variant="outline" disabled={desactive} onClick={onRecuperer}>
             <RefreshCw className="size-3.5" aria-hidden="true" />
             {t('fetch')}
           </Button>

@@ -12,10 +12,12 @@ use App\Models\RadarConsent;
 use App\Models\RadarListing;
 use App\Models\RadarOutreach;
 use App\Models\User;
+use App\Services\Radar\HostResolver;
 use App\Services\Radar\RadarConsentWorkflow;
 use App\Services\Radar\RadarPhotoReserve;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Testing\TestResponse;
@@ -399,6 +401,52 @@ class RadarPhotoReserveTest extends TestCase
         Queue::assertPushed(PrepareRadarListingPhotos::class, fn (PrepareRadarListingPhotos $job) => $job->listingId === $annonce->id);
         $ligne = Activity::query()->where('event', 'radar_listing_photos')->sole();
         $this->assertSame('fetch', $ligne->properties['action']);
+    }
+
+    /**
+     * Un état que la production produit vraiment (revue finale, I1) : une annonce-URL acceptée AVANT le déploiement n'a ni
+     * `photo_preparation` ni job. Elle se lit `pending` — donc la publication la refuse — et seule la relance la débloque :
+     * rien de la réserve n'est écrit à la main ici, le job lit, réencode et range les photos.
+     */
+    public function test_une_annonce_consented_a_preparation_nulle_est_pending_et_la_relance_la_debloque(): void
+    {
+        Http::preventStrayRequests();
+        $this->app->instance(HostResolver::class, new class implements HostResolver
+        {
+            public function resolve(string $host): array
+            {
+                return str_ends_with($host, '.cdn.test') ? ['93.184.216.34'] : [];
+            }
+        });
+        $png = (function (): string {
+            $image = imagecreatetruecolor(30, 20);
+            ob_start();
+            imagepng($image);
+
+            return (string) ob_get_clean();
+        })();
+        Http::fake([
+            '*/robots.txt' => Http::response('', 404),
+            'https://a.cdn.test/p/1.png' => Http::response($png, 200, ['Content-Type' => 'image/png']),
+            'https://b.cdn.test/p/2.png' => Http::response($png, 200, ['Content-Type' => 'image/png']),
+        ]);
+        Queue::fake();
+        $annonce = $this->annonce();
+        $this->assertNull($annonce->photo_preparation, 'aucune préparation jamais écrite, aucun job : l\'état d\'avant le déploiement');
+        $this->assertSame(['status' => 'pending', 'total' => 2, 'done' => 0], $annonce->photoPreparationStatus());
+
+        $this->postJson("/api/admin/radar/listings/{$annonce->id}/photos/fetch")
+            ->assertStatus(202)
+            ->assertJsonPath('data.photo_preparation.status', 'pending');
+        Queue::assertPushed(PrepareRadarListingPhotos::class, fn (PrepareRadarListingPhotos $job) => $job->listingId === $annonce->id);
+
+        // Le job que la relance a mis en file s'exécute : l'annonce n'est plus `pending`, la réserve porte les deux photos.
+        $job = (new PrepareRadarListingPhotos($annonce->id))->withFakeQueueInteractions();
+        $this->app->call([$job, 'handle']);
+        $job->assertNotReleased();
+        $annonce->refresh();
+        $this->assertSame(['status' => 'done', 'total' => 2, 'done' => 2], $annonce->photoPreparationStatus());
+        $this->assertCount(2, $annonce->getMedia('radar_photos'));
     }
 
     public function test_la_relance_d_une_annonce_sans_url_de_photo_rend_422(): void
