@@ -26,6 +26,7 @@ use App\Services\Property\PublishReadiness;
 use App\Services\Radar\ClaimLinks;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Routing\Middleware\ThrottleRequests;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Testing\TestResponse;
 use Laravel\Sanctum\Sanctum;
@@ -486,6 +487,10 @@ class RadarClaimTest extends TestCase
         // Puis A et son espace se suppriment (suppression douce).
         $this->assertSoftDeleted($compteRadar);
         $this->assertSoftDeleted($espaceRadar);
+        $journal = Activity::query()->where('event', 'radar_orphan_absorbed')->sole();
+        $this->assertSame([$titulaire->id, $compteRadar->id], [$journal->causer_id, $journal->subject_id]);
+        $this->assertSame([$espaceRadar->id], $journal->properties['deleted_agency_ids']);
+        $this->assertSame([$bien->id], $journal->properties['moved_property_ids']);
     }
 
     /** @return array<string, array{\Closure(User, Agency): void}> */
@@ -496,6 +501,9 @@ class RadarClaimTest extends TestCase
             'un mot de passe choisi' => [fn (User $compte) => $compte->forceFill(['password_set_at' => now()])->save()],
             'une adresse e-mail' => [fn (User $compte) => $compte->forceFill(['email' => 'awa@example.test'])->save()],
             'un jeton de session' => [fn (User $compte) => $compte->createToken('x')],
+            'une session de navigateur' => [fn (User $compte) => DB::table('sessions')->insert([
+                'id' => 'session-a', 'user_id' => $compte->id, 'payload' => '', 'last_activity' => now()->getTimestamp(),
+            ])],
             'un autre bien dans son espace' => [fn (User $compte, Agency $espace) => Property::factory()->create(['agency_id' => $espace->id, 'user_id' => $compte->id])],
             'un profil dans une autre agence' => [fn (User $compte) => AgentProfile::factory()->create(['user_id' => $compte->id, 'agency_id' => Agency::factory()->create()->id])],
         ];
@@ -521,6 +529,7 @@ class RadarClaimTest extends TestCase
         $this->assertSame(RadarListingStage::Contacted, $nouvelle->fresh()->stage);
         $this->assertNotSoftDeleted($compteRadar);
         $this->assertNotSoftDeleted($espaceRadar);
+        $this->assertSame(0, Activity::query()->where('event', 'radar_orphan_absorbed')->count());
     }
 
     public function test_connecte_avec_un_autre_compte_la_page_refuse(): void

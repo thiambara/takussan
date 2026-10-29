@@ -359,13 +359,13 @@ final class RadarClaims
 
     /**
      * Décision 5a du porteur (2026-10-29) : A se réunit à B **seulement s'il n'a jamais servi** — ni numéro vérifié, ni
-     * connexion, ni jeton, ni mot de passe, ni e-mail, ni bien ou espace autre que ceux que le Radar lui a faits, ni profil
+     * connexion (`last_login_at`, jeton Sanctum, session), ni mot de passe, ni e-mail, ni bien ou espace autre que ceux que le Radar lui a faits, ni profil
      * ailleurs, et personne d'autre dans son espace. Sinon rien ne se déplace : la page dit « écrivez-nous » (`support`).
      */
     private function orphanAbsorbable(RadarAdvertiser $advertiser, User $orphan): bool
     {
         if ($orphan->phone_verified_at !== null || $orphan->last_login_at !== null || $orphan->password_set_at !== null
-            || $orphan->email !== null || $orphan->tokens()->exists()) {
+            || $orphan->email !== null || $orphan->tokens()->exists() || DB::table('sessions')->where('user_id', $orphan->id)->exists()) {
             return false;
         }
 
@@ -436,6 +436,21 @@ final class RadarClaims
         }
         Agency::query()->whereIn('id', $spaces)->get()->each->delete();
         $orphan->delete();
+
+        // Dans la transaction de la réclamation : la réunion et les suppressions se journalisent ensemble, ou rien.
+        activity('Radar')
+            ->causedBy($user)
+            ->performedOn($orphan)
+            ->withProperties([
+                'advertiser_id' => $advertiser->id,
+                'orphan_user_id' => $orphan->id,
+                'user_id' => $user->id,
+                'deleted_agency_ids' => $spaces,
+                'moved_property_ids' => $ids,
+                'agency_id' => $agency->id,
+            ])
+            ->event('radar_orphan_absorbed')
+            ->log('Compte du Radar jamais activé réuni au titulaire du numéro, puis supprimé');
 
         return $ids;
     }

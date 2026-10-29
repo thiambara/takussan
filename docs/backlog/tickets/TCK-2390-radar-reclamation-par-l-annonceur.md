@@ -1,7 +1,7 @@
 ---
 id: TCK-2390
 title: "Radar : l'annonceur réclame ses annonces depuis le lien du message, par code SMS à son numéro"
-status: done
+status: review
 phase: P1
 family: full
 estimate: M
@@ -133,10 +133,12 @@ Posées en réponse aux sept points de l'implémentation ; les recommandations s
 4. **a** — Pas de choix d'espace : l'espace existant, ou un neuf nommé sur la page. **Corrige « un espace individuel neuf
    ou existant de cet utilisateur, à son choix »** des contraintes ci-dessus : l'invariant « un espace par administrateur
    principal » de `HostIndividualOnboardingService::autoOnboard()` ne laisse pas de choix.
-5. **a, sous condition** — Les biens du compte orphelin A passent au compte B, puis A se supprime (suppression douce),
-   **seulement si A n'a jamais été activé** : `phone_verified_at` nul, aucune connexion, aucun mot de passe, aucun autre
-   bien ni espace que ceux du Radar. Sinon rien ne se déplace, la page signale le cas et le support tranche. Les deux
-   branches sont testées, et ce que le déplacement laisse derrière lui (prospects, conversations) est vérifié.
+5. **a, sous condition** — Les biens du compte orphelin A passent au compte B, puis A et son espace vide se suppriment
+   (suppression douce, dans la même transaction, journalisée), **seulement si A n'a jamais été activé** :
+   `phone_verified_at` nul ; aucune connexion (ni jeton Sanctum, ni session) ; pas de mot de passe ; aucun bien, espace
+   ou adhésion autre que ceux du Radar. Sinon rien ne se déplace, la page signale le cas et le support tranche. Les
+   deux branches sont testées, avec l'ablation de la condition, et ce que le déplacement laisse derrière lui
+   (prospects, conversations) est vérifié.
 6. **a** — Formulation neutre « votre ou vos annonces », marquée ⚠ pour la relecture de l'avocat.
 7. **a** — Se corrigent : le titre, le prix et la description de chaque annonce, le prénom et le nom de l'espace.
 
@@ -173,13 +175,14 @@ portée `login` des codes.
 - **Compte orphelin (décision 5a)** : `AdvertiserProvisioner` refuse de publier encore dans le compte A
   dès qu'un autre compte B a vérifié le numéro (422 `radar.advertiser.phone_registered`). A « n'a
   jamais servi » se juge sur plus que les quatre critères de la décision, parce que chacun est une
-  trace d'usage : ni numéro vérifié, ni `last_login_at`, ni jeton Sanctum, ni `password_set_at`, ni
+  trace d'usage : ni numéro vérifié, ni `last_login_at`, ni jeton Sanctum, ni session (`sessions`), ni `password_set_at`, ni
   e-mail, ni bien hors de ceux du Radar pour cet annonceur, ni second espace, ni profil dans une autre
   agence, ni autre membre dans son espace, ni profil de prestataire ou de plateforme. Alors la
   réclamation par B déplace les biens de A et ce que les visiteurs y ont laissé — demandes de contact
   (agence, destinataire), prospects de son espace, visites, réservations, empreintes de photos,
   collaborations, conversations (B prend la place de A, ou A se retire où B est déjà) —, puis supprime
-  (doucement) les profils de A, son espace et A. Sinon : état `support`, 409
+  (doucement) les profils de A, son espace et A, dans la transaction de la réclamation, journalisé
+  (`radar_orphan_absorbed`). Sinon : état `support`, 409
   `radar.claim.support_required` à l'envoi du code comme à la confirmation, rien ne bouge. Rejugé
   sous le verrou de l'annonceur. *Non déplacé* : baux et demandes de maintenance (impossibles sans
   connexion), notifications de A (restent sur le compte supprimé).
