@@ -319,7 +319,7 @@ verifier_release_en_echec() {
   [ "$(sonde -o /dev/null -w '%{http_code}' "$api/up")" = 200 ] || echec "release en échec : /up ne rend plus 200"
   grep -qix 'x-build-sha: smoke' <<<"$(sonde -D - -o /dev/null "$api/up" | tr -d '\r')" \
     || echec "release en échec : X-Build-Sha a changé"
-  for s in worker worker-long worker-media scheduler; do
+  for s in worker worker-long worker-ia worker-media scheduler; do
     [ "$(docker inspect -f '{{.State.Status}}' "$PROJET-$s-1")" = running ] \
       || echec "release en échec : $s ne tourne plus"
   done
@@ -372,7 +372,7 @@ verifier_pile() {
   [ "$(docker inspect -f '{{.State.ExitCode}}' "$PROJET-release-1")" = 0 ] \
     || { "${COMPOSE[@]}" logs release; echec "release a échoué"; }
   attendre_api_saine
-  for s in worker worker-long worker-media scheduler; do
+  for s in worker worker-long worker-ia worker-media scheduler; do
     [ "$(docker inspect -f '{{.State.Status}}' "$PROJET-$s-1")" = running ] \
       || { "${COMPOSE[@]}" logs "$s"; echec "$s ne tourne pas"; }
   done
@@ -435,7 +435,7 @@ verifier_pile() {
   ok "limite de corps à 25 Mio, comme nginx"
 
   sleep 30
-  for s in api worker worker-long worker-media scheduler; do
+  for s in api worker worker-long worker-ia worker-media scheduler; do
     [ "$(docker inspect -f '{{.RestartCount}}' "$PROJET-$s-1")" = 0 ] || echec "$s redémarre en boucle"
   done
   ok "aucun service ne redémarre"

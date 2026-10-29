@@ -23,6 +23,13 @@
  *  - aucun `$timeout` de `app/` n'atteint, à `MARGE_SECONDES` près, le `retry_after` par défaut de
  *    sa connexion dans `config/queue.php`.
  *
+ * **Et deux règles de plus depuis TCK-2402 (amendement d'ADR-0078)**, parce qu'un appel au modèle
+ * (jusqu'à 85 s) retenait une notification urgente sur `default` :
+ *  - un job de `app/Jobs` qui référence `AiGateway` ou `SocleAgent` déclare `RunsOnAiQueue` (file
+ *    `ai`) — ou `RunsOnLongQueue`, pour un appel qui dépasse le délai de reprise de `database` ;
+ *  - la file `ai` n'est lue QUE par un worker qui ne lit rien d'autre : ni `notifications-urgent`,
+ *    ni `default`, ni `media`. Sinon l'appel retient de nouveau ce qui partageait le processus.
+ *
  * Usage :
  *   node scripts/check-queues.mjs            # garde, sort en 1 au moindre écart
  *   node scripts/check-queues.mjs --report   # + l'inventaire
@@ -332,6 +339,27 @@ export function connexionDeLaClasse(source) {
   return /^[ \t]+use\s+[^;]*\bRunsOnLongQueue\b/m.test(source) ? 'database-long' : CONNEXION_PAR_DEFAUT;
 }
 
+/**
+ * Les files qu'un worker lit SEULES (TCK-2402) : son consommateur ne partage son processus avec aucune
+ * autre. L'ordre des files d'un `--queue=a,b` ne joue qu'entre deux jobs — un job de `a` en cours
+ * retient tout `b` —, donc « `ai` derrière `notifications-urgent` » ne protège rien.
+ */
+const FILES_ISOLEES = ['ai'];
+
+/** Un job qui appelle le modèle : la passerelle ou un agent du socle, comptés dans le code, pas dans la prose. */
+export function appelleLeModele(source) {
+  return /\b(?:AiGateway|SocleAgent)\b/.test(source);
+}
+
+/**
+ * Le `use` DANS la classe (indenté), comme `connexionDeLaClasse` : l'import en tête de fichier ne
+ * déclare rien. `RunsOnLongQueue` vaut déclaration — un appel plus long que 85 s ne peut pas vivre sur
+ * `ai`, dont la connexion rend un job après 90 s.
+ */
+export function declareUneFileHorsDefault(source) {
+  return /^[ \t]+use\s+[^;]*\b(?:RunsOnAiQueue|RunsOnLongQueue)\b/m.test(source);
+}
+
 const EPREUVES = [
   ['worker sans connexion', connexionDuWorker('    command: php artisan queue:work --queue=a,b --tries=3'), 'database'],
   ['worker de database-long', connexionDuWorker('    command: php artisan queue:work database-long --queue=long'), 'database-long'],
@@ -342,6 +370,13 @@ const EPREUVES = [
   ['classe longue', connexionDeLaClasse('use App\\Jobs\\Concerns\\RunsOnLongQueue;\nclass A {\n    use Queueable, RunsOnLongQueue;\n}'), 'database-long'],
   ['import seul', connexionDeLaClasse('use App\\Jobs\\Concerns\\RunsOnLongQueue;\nclass A {\n    use Queueable;\n}'), 'database'],
   ['import seul après une ligne vide', connexionDeLaClasse('<?php\n\nnamespace App\\Jobs;\n\nuse App\\Jobs\\Concerns\\RunsOnLongQueue;\nclass A {\n    use Queueable;\n}'), 'database'],
+  ['appel au modèle par la passerelle', appelleLeModele('use App\\Services\\Ai\\AiGateway;\nclass A {}'), true],
+  ['appel au modèle par un agent', appelleLeModele('final class B extends SocleAgent {}'), true],
+  ['job sans appel au modèle', appelleLeModele('class C { use Queueable; }'), false],
+  ['file IA déclarée', declareUneFileHorsDefault('class A {\n    use Queueable, RunsOnAiQueue;\n}'), true],
+  ['file longue déclarée', declareUneFileHorsDefault('class A {\n    use Queueable, RunsOnLongQueue;\n}'), true],
+  ['import seul de la file IA', declareUneFileHorsDefault('use App\\Jobs\\Concerns\\RunsOnAiQueue;\nclass A {\n    use Queueable;\n}'), false],
+  ['import seul après une ligne vide (file IA)', declareUneFileHorsDefault('<?php\n\nuse App\\Jobs\\Concerns\\RunsOnAiQueue;\nclass A {\n    use Queueable;\n}'), false],
   ['propriétaire de long', proprietaires(lireConnexions("'connections' => [\n 'database' => ['driver' => 'database', 'queue' => env('DB_QUEUE', 'default'), 'retry_after' => (int) env('DB_QUEUE_RETRY_AFTER', 90)],\n 'database-long' => ['driver' => 'database', 'queue' => 'long', 'retry_after' => (int) env('DB_LONG_QUEUE_RETRY_AFTER', 1900)],\n]")).get('long'), 'database-long'],
 ];
 for (const [nom, obtenu, attendu] of EPREUVES) {
@@ -366,6 +401,13 @@ for (const c of lus) {
       const attendue = proprio.get(q) ?? CONNEXION_PAR_DEFAUT;
       if (w.connexion !== attendue) {
         fautes.push(`« ${c.ou} » lit la file \`${q}\` par la connexion \`${w.connexion}\`, au lieu de \`${attendue}\` : son délai de reprise n'est pas celui des jobs de cette file`);
+      }
+    }
+    // TCK-2402 : une file isolée n'est lue que SEULE, jamais derrière ou devant une autre.
+    for (const iso of FILES_ISOLEES) {
+      const autres = w.files.filter((q) => q !== iso);
+      if (w.files.includes(iso) && autres.length > 0) {
+        fautes.push(`« ${c.ou} » lit la file \`${iso}\` avec \`${autres.join(', ')}\` : un appel au modèle en cours (85 s) retiendrait ces files — la file \`${iso}\` n'a de sens que sur un worker à elle (ADR-0078, amendement)`);
       }
     }
   }
@@ -400,6 +442,19 @@ for (const f of fichiersPhp) {
     else if (t + MARGE_SECONDES > retry) {
       fautes.push(`${rel} : \`$timeout\` ${t} s sur \`${conn}\` (retry_after ${retry} s) — un worker de plus le relivrerait vivant. Prendre \`RunsOnLongQueue\` (ADR-0078)`);
     }
+  }
+}
+// TCK-2402 : tout job qui appelle le modèle déclare sa file.
+const appelsIA = [];
+for (const f of fichiersPhp) {
+  if (!f.includes(`${join('takussan-api', 'app', 'Jobs')}/`)) continue;
+  const src = sansCommentairesPhp(readFileSync(f, 'utf8'));
+  if (!appelleLeModele(src)) continue;
+  const rel = f.slice(ROOT.length + 1);
+  const declare = declareUneFileHorsDefault(src);
+  appelsIA.push({ rel, declare });
+  if (!declare) {
+    fautes.push(`${rel} : appelle le modèle (\`AiGateway\` / \`SocleAgent\`) sans déclarer sa file — il tournerait sur \`default\`, derrière les notifications urgentes. Prendre \`RunsOnAiQueue\` (ADR-0078, amendement) ; \`RunsOnLongQueue\` si l'appel dépasse 85 s`);
   }
 }
 if (delais.length === 0) fautes.push('aucun `$timeout` trouvé dans takussan-api/app : le motif ne lit plus rien');
@@ -445,6 +500,8 @@ if (REPORT) {
   for (const d of [...delais].sort((a, b) => (b.t ?? 0) - (a.t ?? 0))) {
     console.log(`  ${String(d.t ?? '?').padStart(5)} s / ${String(d.retry ?? '?').padStart(4)} s  ${d.conn.padEnd(14)} ${d.rel}`);
   }
+  console.log(`\nJobs qui appellent le modèle (${appelsIA.length}) :`);
+  for (const a of appelsIA) console.log(`  ${a.declare ? 'file déclarée' : '⚠ SANS FILE  '}  ${a.rel}`);
   if (opaques.length) {
     console.log(`\nFiles nommées par une expression (${opaques.length}) — non lisibles ici :`);
     for (const [f, expr] of opaques) console.log(`  ${expr.padEnd(28)} ${f}`);
