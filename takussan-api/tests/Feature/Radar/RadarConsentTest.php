@@ -4,6 +4,7 @@ namespace Tests\Feature\Radar;
 
 use App\Ai\Agents\RadarConsentMessage;
 use App\Ai\Agents\RadarConsentVerification;
+use App\Jobs\Radar\PurgeRadarAdvertiser;
 use App\Jobs\Radar\VerifyRadarConsentReply;
 use App\Models\AiSuggestion;
 use App\Models\Enums\AiSuggestionDecision;
@@ -56,6 +57,8 @@ class RadarConsentTest extends TestCase
         parent::setUp();
         Carbon::setTestNow('2026-10-28 10:00:00');
         $this->installerSocleDEssai();
+        // TCK-2391 — la purge de l'annonceur part en file après un STOP ; ici on éprouve le STOP, `RadarStopPurgeTest` la purge.
+        Bus::fake([PurgeRadarAdvertiser::class]);
         config([
             'ai.roles.vision' => [['provider' => 'anthropic', 'model' => 'modele-v', 'max_tokens' => 2000]],
             'ai.roles.raisonnement' => [['provider' => 'anthropic', 'model' => 'modele-r', 'max_tokens' => 2000]],
@@ -401,7 +404,8 @@ class RadarConsentTest extends TestCase
             $this->assertSame('do_not_contact', $this->etape($annonce));
         }
         $this->assertSame('discarded', $this->etape($ecartee));
-        // Le STOP retire l'accord ; il ne purge rien ici (TCK-2391).
+        // Le STOP retire l'accord ; il ne purge rien lui-même : la purge part en file après le commit (TCK-2391).
+        Bus::assertDispatched(PurgeRadarAdvertiser::class, fn (PurgeRadarAdvertiser $job) => $job->advertiserId === $annonceur->id);
         $this->assertNotNull($valide->fresh()->revoked_at);
         $this->assertSame([$valide->id], Activity::query()->where('event', 'radar_outreach_outcome')->sole()->properties['revoked_consent_ids']);
         $this->assertSame([], app(RadarConsentCoverage::class)->coveredListingIds($annonceur));

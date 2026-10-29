@@ -28,7 +28,7 @@ final class RadarAdvertiserDirectory
         $hmac = RadarPhone::hmac($e164);
         $existing = RadarAdvertiser::query()->where('phone_hmac', $hmac)->first();
         if ($existing !== null) {
-            return $existing;
+            return $this->restorePhone($existing, $e164);
         }
 
         $now = now();
@@ -43,6 +43,20 @@ final class RadarAdvertiserDirectory
         // empreinte (clé changée) a fait ignorer l'insertion par l'unicité de `phone`.
         return RadarAdvertiser::query()->where('phone_hmac', $hmac)->first()
             ?? RadarAdvertiser::query()->where('phone', $e164)->firstOrFail();
+    }
+
+    /**
+     * TCK-2391 — un annonceur purgé SANS refus (ses annonces effacées, son numéro avec) qui revient récupère son numéro : la
+     * publication et le lien `wa.me` partent de `phone`. Celui qui a dit STOP ne le récupère jamais : son annonce naît
+     * `do_not_contact` et seule l'empreinte lui sert.
+     */
+    private function restorePhone(RadarAdvertiser $advertiser, string $e164): RadarAdvertiser
+    {
+        if ($advertiser->phone === null && $advertiser->do_not_contact_at === null) {
+            $advertiser->forceFill(['phone' => $e164])->save();
+        }
+
+        return $advertiser;
     }
 
     /**
