@@ -12250,6 +12250,8 @@
     "greetingAnonymous": "Bonjour,",
     "intro": "Takussan propose de publier gratuitement les annonces que vous avez diffusées. Vérifiez-les, corrigez ce qui doit l'être, puis confirmez avec le code envoyé par SMS au {phone}.",
     "publishedTitle": "Déjà en ligne",
+    "publishingTitle": "En cours de publication",
+    "publishingHint": "Vous les avez confirmées : elles seront en ligne dans quelques minutes.",
     "listingsTitle": "Vos annonces",
     "listingsHint": "Décochez celles que vous ne voulez pas publier.",
     "keep": "Publier cette annonce",
@@ -12322,7 +12324,10 @@
       "supportRequired": "Ce numéro est lié à deux comptes Takussan : écrivez-nous, nous les réunirons.",
       "accountUnavailable": "Ce compte ne peut pas être ouvert ici. Contactez-nous.",
       "phoneToken": "Retirez « [TELEPHONE] » du texte : les numéros ne s'affichent pas sur une annonce.",
-      "price": "Indiquez un prix valide."
+      "price": "Indiquez un prix valide.",
+      "nameContainsPhone": "Le prénom et le nom de l'espace ne peuvent pas contenir de numéro de téléphone.",
+      "firstNameContainsPhone": "Votre prénom ne peut pas contenir de numéro de téléphone.",
+      "spaceNameContainsPhone": "Le nom de votre espace ne peut pas contenir de numéro de téléphone."
     }
   }
 }

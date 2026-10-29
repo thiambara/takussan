@@ -62,6 +62,24 @@ final class RadarConsentCoverage
             ->all();
     }
 
+    /**
+     * TCK-2390 — les annonces de cet annonceur qu'une preuve `otp` valide couvre : celles qu'il a déjà réclamées. Tant que le job
+     * ne les a pas publiées, la page les montre « en cours de publication », et elles ne se réclament pas une seconde fois.
+     *
+     * @return list<int>
+     */
+    public function coveredByOtpOf(RadarAdvertiser $advertiser): array
+    {
+        return $this->valid()
+            ->where('radar_consents.radar_advertiser_id', $advertiser->getKey())
+            ->where('radar_consents.proof', RadarConsentProof::Otp->value)
+            ->distinct()
+            ->orderBy('ol.radar_listing_id')
+            ->pluck('ol.radar_listing_id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+    }
+
     /** @return list<int> les annonces de cet annonceur qu'un accord valide couvre, dans l'ordre croissant */
     public function coveredListingIds(RadarAdvertiser $advertiser): array
     {

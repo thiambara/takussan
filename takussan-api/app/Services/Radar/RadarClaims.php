@@ -2,6 +2,7 @@
 
 namespace App\Services\Radar;
 
+use App\Exceptions\ApiError;
 use App\Jobs\Radar\PrepareRadarListingPhotos;
 use App\Jobs\Radar\PublishClaimedRadarListings;
 use App\Models\Agency;
@@ -28,6 +29,7 @@ use App\Services\Onboarding\HostIndividualOnboardingService;
 use App\Services\Property\PublishReadiness;
 use App\Support\CanonicalPhone;
 use App\Support\PhoneMasker;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -78,6 +80,7 @@ final class RadarClaims
         private readonly HostIndividualOnboardingService $onboarding,
         private readonly PublishReadiness $readiness,
         private readonly RadarPhotoReserve $reserve,
+        private readonly RadarConsentCoverage $coverage,
     ) {}
 
     /** Les deux portes de la publication pour lui (TCK-2389) : le code ouvre un compte, la réclamation en dépend autant. */
@@ -114,6 +117,8 @@ final class RadarClaims
                 'space' => $isOwner ? $this->spaceOf($state['user']) : null,
             ],
             'listings' => $this->claimable($advertiser)->map(fn (RadarListing $listing) => $this->listingOf($listing))->values()->all(),
+            // Réclamées, en attente du job : ni case ni bouton, une seconde confirmation ne les reprend pas.
+            'publishing' => $this->publishing($advertiser)->map(fn (RadarListing $listing) => $this->listingOf($listing))->values()->all(),
             'published' => $this->published($advertiser),
             'terms_version' => PublishReadiness::TERMS_VERSION,
         ];
@@ -156,6 +161,15 @@ final class RadarClaims
         abort_code_if($state['state'] === self::STATE_UNAVAILABLE, 422, 'radar.claim.account_unavailable');
         abort_code_if($state['state'] === self::STATE_SUPPORT, 409, 'radar.claim.support_required');
         abort_code_if($input['terms_version'] !== PublishReadiness::TERMS_VERSION, 422, 'radar.claim.terms_outdated');
+        // Le prénom et le nom de l'espace deviennent publics : aucun numéro, sous aucune forme que le masqueur reconnaît
+        // (vérification adverse I-1). Un code, et les champs en cause, que la page affiche sous chacun (le front possède le texte).
+        $withPhone = array_values(array_filter(
+            ['first_name', 'space_name'],
+            fn (string $field) => is_string($input[$field] ?? null) && PhoneMasker::mask($input[$field]) !== $input[$field],
+        ));
+        if ($withPhone !== []) {
+            throw (new ApiError(422, 'radar.claim.name_contains_phone'))->with(['fields' => $withPhone]);
+        }
 
         $selection = collect($input['listings'])->keyBy(fn (array $row) => (int) $row['id']);
         $claimable = $this->claimable($advertiser)->pluck('id')->map(fn ($id) => (int) $id)->all();
@@ -498,11 +512,31 @@ final class RadarClaims
 
     /**
      * Les annonces que la page propose : celles de l'annonceur qu'un message ENVOYÉ lui a présentées, encore `contacted` ou
-     * `consented`, jamais publiées.
+     * `consented`, jamais publiées — ni déjà réclamées (preuve `otp`) : une seconde confirmation ne les reprend pas.
      *
      * @return Collection<int, RadarListing>
      */
     private function claimable(RadarAdvertiser $advertiser): Collection
+    {
+        return $this->offered($advertiser)->whereNotIn('id', $this->coverage->coveredByOtpOf($advertiser))->get();
+    }
+
+    /**
+     * Les annonces que l'annonceur a déjà réclamées (preuve `otp`) et que le job n'a pas encore publiées : celles qu'il a
+     * confirmées et qu'il retrouve en rechargeant la page (vérification au navigateur de TCK-2390).
+     *
+     * @return Collection<int, RadarListing>
+     */
+    private function publishing(RadarAdvertiser $advertiser): Collection
+    {
+        return $this->offered($advertiser)
+            ->where('stage', RadarListingStage::Consented->value)
+            ->whereIn('id', $this->coverage->coveredByOtpOf($advertiser))
+            ->get();
+    }
+
+    /** @return Builder<RadarListing> les annonces d'un message envoyé, encore ouvertes et sans bien */
+    private function offered(RadarAdvertiser $advertiser): Builder
     {
         return RadarListing::query()
             ->where('radar_advertiser_id', $advertiser->id)
@@ -514,8 +548,7 @@ final class RadarClaims
                 ->whereNotNull('radar_outreaches.sent_at')
                 ->select('radar_outreach_listing.radar_listing_id'))
             ->with('media')
-            ->orderBy('id')
-            ->get();
+            ->orderBy('id');
     }
 
     /**

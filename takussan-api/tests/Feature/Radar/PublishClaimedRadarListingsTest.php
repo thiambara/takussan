@@ -15,6 +15,7 @@ use App\Models\RadarListing;
 use App\Models\RadarOutreach;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Spatie\Activitylog\Models\Activity;
 use Tests\TestCase;
@@ -163,6 +164,31 @@ class PublishClaimedRadarListingsTest extends TestCase
         $this->lancer([$annonce->id]);
         $this->lancer([$annonce->id]);
 
+        $this->assertSame(1, Property::query()->count());
+        $this->assertSame(1, Activity::query()->where('event', 'radar_published')->count());
+        $this->assertSame(RadarListingStage::Published, $annonce->fresh()->stage);
+    }
+
+    /**
+     * Deux jobs pour la même annonce (une double confirmation, un rejeu de la file) qui la lisent `consented` tous deux : le
+     * premier publie, le second s'arrête sous le verrou (`radar.listing.stage_conflict`) — un seul bien.
+     */
+    public function test_deux_jobs_concurrents_ne_publient_qu_un_bien(): void
+    {
+        $annonce = $this->annonce();
+        $fait = false;
+        DB::listen(function ($requete) use (&$fait, $annonce): void {
+            // Le second job vient de lire l'annonce `consented`, hors verrou : le premier passe et publie à ce moment.
+            if (! $fait && str_contains($requete->sql, '"radar_listings"') && ! str_contains($requete->sql, 'for update')
+                && str_contains($requete->sql, '"stage"')) {
+                $fait = true;
+                $this->lancer([$annonce->id]);
+            }
+        });
+
+        $this->lancer([$annonce->id]);
+
+        $this->assertTrue($fait);
         $this->assertSame(1, Property::query()->count());
         $this->assertSame(1, Activity::query()->where('event', 'radar_published')->count());
         $this->assertSame(RadarListingStage::Published, $annonce->fresh()->stage);

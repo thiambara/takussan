@@ -216,14 +216,29 @@ class RadarClaimTest extends TestCase
         }
     }
 
-    public function test_un_prenom_ou_un_nom_d_espace_qui_porte_un_numero_est_refuse(): void
+    /** @return array<string, array{array<string, string>, list<string>}> */
+    public static function nomsAvecNumero(): array
+    {
+        return [
+            'les deux' => [['first_name' => 'Awa 77 123 45 67', 'space_name' => 'Location 771234567'], ['first_name', 'space_name']],
+            'le nom de l\'espace seul' => [['space_name' => 'Location 771234567'], ['space_name']],
+        ];
+    }
+
+    /** Un code et les champs en cause, que la page affiche sous chacun : pas le message brut de la validation. */
+    #[DataProvider('nomsAvecNumero')]
+    public function test_un_prenom_ou_un_nom_d_espace_qui_porte_un_numero_est_refuse(array $noms, array $champs): void
     {
         $annonce = $this->annonce();
         $this->demanderLeCode()->assertStatus(202);
 
-        $this->confirmer([['id' => $annonce->id]], ['first_name' => 'Awa 77 123 45 67', 'space_name' => 'Location 771234567'])
-            ->assertStatus(422)->assertJsonValidationErrors(['first_name', 'space_name']);
+        $this->confirmer([['id' => $annonce->id]], $noms)
+            ->assertStatus(422)
+            ->assertJsonPath('code', 'radar.claim.name_contains_phone')
+            ->assertJsonPath('fields', $champs)
+            ->assertJsonMissingPath('errors');
         $this->assertSame(RadarListingStage::Contacted, $annonce->fresh()->stage);
+        $this->assertSame(0, User::query()->where('phone', self::NUMERO)->count());
     }
 
     /** Vérification adverse M-3 — le titre passe au masque comme la description. */
@@ -584,6 +599,55 @@ class RadarClaimTest extends TestCase
         $this->assertNotSoftDeleted($compteRadar);
         $this->assertNotSoftDeleted($espaceRadar);
         $this->assertSame(0, Activity::query()->where('event', 'radar_orphan_absorbed')->count());
+    }
+
+    /** B6 — un compte du Radar supprimé (par le support) n'est pas « jamais servi » : rien ne se réunit sans le support. */
+    public function test_le_compte_orphelin_supprime_renvoie_au_support(): void
+    {
+        [$compteRadar, $espaceRadar, $bien] = $this->publiePourLui();
+        $compteRadar->delete();
+        $titulaire = User::factory()->create(['phone' => self::NUMERO, 'phone_verified_at' => now()]);
+        $nouvelle = $this->annonce();
+        Sanctum::actingAs($titulaire);
+
+        $this->lire()->assertOk()->assertJsonPath('data.account.state', 'support');
+        $this->demanderLeCode()->assertStatus(409)->assertJsonPath('code', 'radar.claim.support_required');
+        $this->assertSame([], $this->sms->sent);
+
+        $this->assertSame([$espaceRadar->id, $compteRadar->id], [$bien->fresh()->agency_id, $bien->fresh()->user_id]);
+        $this->assertSame($compteRadar->id, $this->annonceur->fresh()->user_id);
+        $this->assertSame(RadarListingStage::Contacted, $nouvelle->fresh()->stage);
+    }
+
+    /**
+     * Confirmée, l'annonce attend le job : la page rechargée la montre « en cours de publication », sans case ni bouton, et une
+     * seconde confirmation ne la reprend pas — ni second job, ni seconde preuve (contrôle au navigateur de TCK-2390).
+     */
+    public function test_une_annonce_reclamee_en_attente_du_job_ne_se_reclame_pas_deux_fois(): void
+    {
+        Queue::fake();
+        $reclamee = $this->annonce();
+        $autre = $this->annonce();
+        $this->demanderLeCode()->assertStatus(202);
+        $compte = User::query()->findOrFail($this->confirmer([['id' => $reclamee->id], ['id' => $autre->id]])->assertOk()->json('user.id'));
+        $this->assertSame(RadarListingStage::Consented, $reclamee->fresh()->stage);
+
+        $this->app['auth']->forgetGuards();
+        Sanctum::actingAs($compte);
+        $this->lire()->assertOk()
+            ->assertJsonPath('data.account.state', 'existing')
+            ->assertJsonPath('data.listings', [])
+            ->assertJsonPath('data.publishing.0.id', $reclamee->id)
+            ->assertJsonPath('data.publishing.1.id', $autre->id)
+            ->assertJsonMissingPath('data.publishing.0.nature');
+
+        $this->demanderLeCode()->assertStatus(202);
+        $this->confirmer([['id' => $reclamee->id]])->assertStatus(422)
+            ->assertJsonPath('code', 'radar.claim.listing_unavailable')
+            ->assertJsonPath('params.listing_ids', [$reclamee->id]);
+
+        Queue::assertPushed(PublishClaimedRadarListings::class, 1);
+        $this->assertSame(1, RadarConsent::query()->where('proof', 'otp')->count());
     }
 
     public function test_connecte_avec_un_autre_compte_la_page_refuse(): void

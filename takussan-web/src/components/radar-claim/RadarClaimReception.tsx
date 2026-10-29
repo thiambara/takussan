@@ -47,6 +47,23 @@ interface Fait {
 /** Le jeton que l'API remplace par `[TELEPHONE]` : une correction qui le garde est refusée (422). */
 const JETON_MASQUE = '[TELEPHONE]';
 
+type ChampDeNom = 'first_name' | 'space_name';
+
+/**
+ * Huit chiffres d'affilée, séparés au plus d'un espace, d'un point ou d'un tiret : un numéro, à
+ * coup sûr (un numéro sénégalais en compte neuf). L'avertissement avant le SMS seulement — le
+ * masqueur de l'API juge (`radar.claim.name_contains_phone`), et ce motif ne prétend pas l'égaler.
+ */
+const NUMERO_PROBABLE = /(?:\d[\s.-]?){7}\d/;
+
+/** Les champs que l'API nomme dans un refus `radar.claim.name_contains_phone`. */
+function champsDuRefus(err: unknown): ChampDeNom[] {
+  if (codeDe(err) !== 'radar.claim.name_contains_phone') return [];
+  const champs = (err as ApiError).data as { fields?: unknown } | null;
+  const liste = Array.isArray(champs?.fields) ? champs.fields : [];
+  return liste.filter((c): c is ChampDeNom => c === 'first_name' || c === 'space_name');
+}
+
 function codeDe(err: unknown): string | null {
   if (!(err instanceof ApiError)) return null;
   const code = (err.data as { code?: unknown } | null)?.code;
@@ -97,6 +114,7 @@ export function RadarClaimReception({ token: jeton }: RadarClaimReceptionProps) 
   const [attente, setAttente] = useState(0);
   const [envoi, setEnvoi] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
+  const [nomsRefuses, setNomsRefuses] = useState<readonly ChampDeNom[]>([]);
   const [fait, setFait] = useState<Fait | null>(null);
   const champCode = useRef<HTMLInputElement>(null);
 
@@ -218,6 +236,7 @@ export function RadarClaimReception({ token: jeton }: RadarClaimReceptionProps) 
   const telephone = claim.advertiser.phone_masked;
   const compteNeuf = account.state === 'new' || account.state === 'activation';
   const retenues = claim.listings.filter((l) => brouillons[l.id]?.retenue);
+  const enCours = claim.publishing;
   // Rien à publier ne se confirme que pour ouvrir le compte que le Radar a préparé (l'API refuse sinon).
   const confirmable = retenues.length > 0 || account.state === 'activation';
 
@@ -256,7 +275,19 @@ export function RadarClaimReception({ token: jeton }: RadarClaimReceptionProps) 
     return lignes;
   }
 
+  /** Prévient avant le SMS : un nom qui porte un numéro serait refusé à la confirmation. */
+  function nomsAvecNumero(): ChampDeNom[] {
+    if (!compteNeuf) return [];
+    const champs: ChampDeNom[] = [];
+    if (NUMERO_PROBABLE.test(prenom)) champs.push('first_name');
+    if (NUMERO_PROBABLE.test(nomEspace)) champs.push('space_name');
+    return champs;
+  }
+
   async function envoyerCode(): Promise<void> {
+    const refuses = nomsAvecNumero();
+    setNomsRefuses(refuses);
+    if (refuses.length > 0) return;
     setEnvoi(true);
     setErreur(null);
     try {
@@ -282,6 +313,7 @@ export function RadarClaimReception({ token: jeton }: RadarClaimReceptionProps) 
     }
     setEnvoi(true);
     setErreur(null);
+    setNomsRefuses([]);
     try {
       const resultat = await confirmRadarClaim(
         jeton,
@@ -299,7 +331,9 @@ export function RadarClaimReception({ token: jeton }: RadarClaimReceptionProps) 
       }
     } catch (err) {
       const nomme = etatDeLErreur(err);
+      const champs = champsDuRefus(err);
       if (nomme) setEtat(nomme);
+      else if (champs.length > 0 && compteNeuf) setNomsRefuses(champs);
       else setErreur(messageDuRefus(err));
     } finally {
       setEnvoi(false);
@@ -307,6 +341,8 @@ export function RadarClaimReception({ token: jeton }: RadarClaimReceptionProps) 
   }
 
   const nom = claim.advertiser.first_name;
+  const prenomRefuse = nomsRefuses.includes('first_name');
+  const espaceRefuse = nomsRefuses.includes('space_name');
 
   return (
     <div className="space-y-8" data-testid="claim-ready">
@@ -330,6 +366,23 @@ export function RadarClaimReception({ token: jeton }: RadarClaimReceptionProps) 
                 <a href={p.public_url} className="font-medium text-primary underline-offset-4 hover:underline">
                   {p.title ?? t('untitled')}
                 </a>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      {enCours.length > 0 ? (
+        <section className="space-y-2" aria-labelledby="claim-publishing" data-testid="claim-publishing">
+          <h2 id="claim-publishing" className="font-display text-base font-semibold text-foreground">
+            {t('publishingTitle')}
+          </h2>
+          <p className="bg-background text-sm text-muted-foreground text-pretty">{t('publishingHint')}</p>
+          <ul className="space-y-1 text-sm">
+            {enCours.map((l) => (
+              <li key={l.id} className="flex items-center gap-2 bg-background text-foreground">
+                <Clock className="size-4 shrink-0" aria-hidden="true" />
+                <span className="min-w-0 truncate">{l.title ?? t('untitled')}</span>
               </li>
             ))}
           </ul>
@@ -376,7 +429,7 @@ export function RadarClaimReception({ token: jeton }: RadarClaimReceptionProps) 
             ))}
           </ul>
         </section>
-      ) : account.state !== 'activation' ? (
+      ) : account.state !== 'activation' && enCours.length === 0 ? (
         <p className="rounded-xl border border-border bg-card p-4 text-sm text-muted-foreground" data-testid="claim-empty">
           {t('noListings')}
         </p>
@@ -406,9 +459,19 @@ export function RadarClaimReception({ token: jeton }: RadarClaimReceptionProps) 
                   maxLength={60}
                   autoComplete="given-name"
                   disabled={envoi}
-                  onChange={(e) => setPrenom(e.target.value)}
+                  aria-invalid={prenomRefuse || undefined}
+                  aria-describedby={prenomRefuse ? 'claim-first-name-error' : undefined}
+                  onChange={(e) => {
+                    setPrenom(e.target.value);
+                    setNomsRefuses((c) => c.filter((x) => x !== 'first_name'));
+                  }}
                   className="h-11"
                 />
+                {prenomRefuse ? (
+                  <p id="claim-first-name-error" role="alert" className="bg-background text-xs font-medium text-destructive">
+                    {t('errors.firstNameContainsPhone')}
+                  </p>
+                ) : null}
               </div>
               <div className="space-y-1.5">
                 <label htmlFor="claim-space-name" className="block text-sm font-medium">
@@ -418,11 +481,20 @@ export function RadarClaimReception({ token: jeton }: RadarClaimReceptionProps) 
                   id="claim-space-name"
                   value={nomEspace}
                   maxLength={120}
-                  aria-describedby="claim-space-name-hint"
+                  aria-describedby={[espaceRefuse ? 'claim-space-name-error' : null, 'claim-space-name-hint'].filter(Boolean).join(' ')}
+                  aria-invalid={espaceRefuse || undefined}
                   disabled={envoi}
-                  onChange={(e) => setNomEspace(e.target.value)}
+                  onChange={(e) => {
+                    setNomEspace(e.target.value);
+                    setNomsRefuses((c) => c.filter((x) => x !== 'space_name'));
+                  }}
                   className="h-11"
                 />
+                {espaceRefuse ? (
+                  <p id="claim-space-name-error" role="alert" className="bg-background text-xs font-medium text-destructive">
+                    {t('errors.spaceNameContainsPhone')}
+                  </p>
+                ) : null}
                 <p id="claim-space-name-hint" className="bg-background text-xs text-muted-foreground">
                   {t('spaceHint')}
                 </p>

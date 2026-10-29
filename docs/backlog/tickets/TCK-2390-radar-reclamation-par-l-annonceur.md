@@ -181,7 +181,17 @@ portée `login` des codes.
   `RadarPublisher::displayNameWithoutPhone()` retire du `display_name` ce que `PhoneMasker` reconnaît,
   pour la page (`first_name`, `space_name` ; `last_name` n'est plus rendu), le compte créé par
   « Publier pour lui » et le nom de son espace ; la confirmation refuse un prénom ou un nom d'espace
-  qui porte un numéro. Même limite que le masqueur (M-1, TCK-2410).
+  qui porte un numéro : 422 `radar.claim.name_contains_phone` avec les champs en cause (`fields`), que
+  la page affiche sous chacun (le front possède le texte) ; elle prévient avant le SMS dès huit
+  chiffres d'affilée, le masqueur de l'API restant le juge. Même limite que le masqueur (M-1, TCK-2410).
+- **Une annonce réclamée attend le job sans se reproposer** (contrôle au navigateur) : couverte par une
+  preuve `otp` valide et encore `consented`, elle sort des annonces proposées (`listings`) pour
+  `publishing` — « en cours de publication », sans case ni bouton —, et une seconde confirmation qui la
+  nomme rend 422 `radar.claim.listing_unavailable`, sans second job ni seconde preuve. Le job était
+  déjà idempotent au rejeu ; deux jobs qui lisent l'annonce `consented` en même temps n'en publient
+  qu'un : le second s'arrête sous le verrou (`radar.listing.stage_conflict`, testé). Une annonce que le
+  job laisse à l'opérateur (photos ou champs manquants) reste affichée « en cours de publication »
+  jusqu'à ce que l'opérateur la publie ou la close.
 - **Le jeton dans `?redirect=`** (vérification adverse M-5) : `/auth/*` sert aussi
   `Referrer-Policy: no-referrer` quand `redirect` vise `/claim/…` (`has` de `next.config.ts`), sans
   changer la politique des autres pages de connexion.
@@ -232,3 +242,14 @@ portée `login` des codes.
   `codes-radar.tck-2387.test.ts`).
 - **Reste ouvert** : la connexion ordinaire active aussi le compte du Radar sans présenter les
   conditions — TCK-2404, et la ligne du `README` de `content/legal` pointe désormais vers lui.
+
+## Suites
+
+- **Compte du Radar supprimé** : tant que `radar_advertisers.user_id` vise un compte A supprimé
+  (doucement), la page rend `support` (B6, voulu : un compte supprimé par le support n'est pas
+  « jamais servi ») et B ne peut plus rien réclamer — or **aucun outil du support ne remet ce champ à
+  zéro**. Il faut un geste (console Radar, ou la suppression du compte qui libère l'annonceur).
+- **Séparateurs du nom affiché** : `_`, `,` et `( )` entre les chiffres d'un numéro échappent au
+  masqueur dans le `display_name` comme dans la description — à traiter avec le masqueur (TCK-2410).
+- **L'annonce que le job laisse à l'opérateur** reste « en cours de publication » sur la page sans
+  dire qu'elle attend l'opérateur.

@@ -41,7 +41,7 @@ function annonce(over: Record<string, unknown> = {}) {
   };
 }
 
-function reclamation(over: { account?: Record<string, unknown>; listings?: unknown[] } = {}) {
+function reclamation(over: { account?: Record<string, unknown>; listings?: unknown[]; publishing?: unknown[] } = {}) {
   return {
     data: {
       advertiser: { first_name: 'Awa', phone_masked: '+221 •• ••• •• 67' },
@@ -54,6 +54,7 @@ function reclamation(over: { account?: Record<string, unknown>; listings?: unkno
         ...over.account,
       },
       listings: over.listings ?? [annonce(), annonce({ id: 2, title: 'Studio aux Almadies', description: null, price: 150000 })],
+      publishing: over.publishing ?? [],
       published: [],
       terms_version: '2026-10-29',
     },
@@ -166,6 +167,70 @@ describe('<RadarClaimReception> (TCK-2390)', () => {
 
     expect(await screen.findByText(T.errors.phoneToken)).toBeInTheDocument();
     expect(appels).toHaveLength(2);
+  });
+
+  it('un nom refusé par l’API pour un numéro se dit sous son champ, traduit, pas dans le bandeau', async () => {
+    bouchonner(
+      reponse(200, reclamation({ listings: [annonce()] })),
+      reponse(202, { data: { retry_after: 60 } }),
+      reponse(422, { code: 'radar.claim.name_contains_phone', message: 'brut', fields: ['space_name'] }),
+    );
+    const user = userEvent.setup();
+    render(withIntl(<RadarClaimReception token={JETON} />));
+
+    await user.click(await screen.findByRole('checkbox', { name: /conditions d'utilisation/ }));
+    await user.click(screen.getByRole('button', { name: T.sendCode }));
+    await user.type(await screen.findByLabelText(T.codeLabel), '123456');
+    await user.click(screen.getByRole('button', { name: 'Publier mon annonce' }));
+
+    const alerte = await screen.findByText(T.errors.spaceNameContainsPhone);
+    const champ = screen.getByLabelText(T.fieldSpaceName);
+    expect(champ).toHaveAttribute('aria-invalid', 'true');
+    expect(champ.getAttribute('aria-describedby')).toContain(alerte.id);
+    expect(screen.getByLabelText(T.fieldFirstName)).not.toHaveAttribute('aria-invalid');
+    expect(screen.queryByText('brut')).not.toBeInTheDocument();
+    expect(screen.queryByText(T.errors.nameContainsPhone)).not.toBeInTheDocument();
+  });
+
+  it('un numéro dans le prénom ou le nom de l’espace est signalé avant tout SMS', async () => {
+    bouchonner(reponse(200, reclamation({ listings: [annonce()] })));
+    const user = userEvent.setup();
+    render(withIntl(<RadarClaimReception token={JETON} />));
+
+    const espace = await screen.findByLabelText(T.fieldSpaceName);
+    await user.clear(espace);
+    await user.type(espace, 'Location 77 123 45 67');
+    await user.click(screen.getByRole('checkbox', { name: /conditions d'utilisation/ }));
+    await user.click(screen.getByRole('button', { name: T.sendCode }));
+
+    expect(await screen.findByText(T.errors.spaceNameContainsPhone)).toBeInTheDocument();
+    expect(screen.queryByText(T.errors.firstNameContainsPhone)).not.toBeInTheDocument();
+    expect(appels).toHaveLength(1);
+
+    // Corrigé, le message s'efface et le code part.
+    await user.clear(espace);
+    await user.type(espace, 'Location Awa');
+    expect(screen.queryByText(T.errors.spaceNameContainsPhone)).not.toBeInTheDocument();
+  });
+
+  it('une annonce déjà confirmée, en attente de publication, se montre sans case ni bouton', async () => {
+    bouchonner(
+      reponse(200, reclamation({
+        account: { state: 'existing', viewer_is_owner: true, space: { name: 'Chez Awa' } },
+        listings: [],
+        publishing: [annonce({ id: 5, title: 'Villa à Ngor' })],
+      })),
+    );
+    auth.token = 'jeton-session';
+    render(withIntl(<RadarClaimReception token={JETON} />));
+
+    const section = await screen.findByTestId('claim-publishing');
+    expect(within(section).getByRole('heading', { name: T.publishingTitle })).toBeInTheDocument();
+    expect(section).toHaveTextContent('Villa à Ngor');
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: T.sendCode })).not.toBeInTheDocument();
+    expect(screen.queryByTestId('claim-empty')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('claim-listing')).not.toBeInTheDocument();
   });
 
   it('un code refusé se dit par la page, et la saisie reste ouverte', async () => {

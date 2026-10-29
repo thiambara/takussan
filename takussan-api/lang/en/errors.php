@@ -760,6 +760,7 @@ return [
             'wrong_account' => 'You are signed in with another account: sign out, then open this link again.',
             'account_changed' => 'This account changed in the meantime: reload the page.',
             'support_required' => 'This number is linked to two Takussan accounts: write to us and we will merge them.',
+            'name_contains_phone' => 'The first name and the space name cannot contain a phone number.',
         ],
     ],
     'pay_link' => [

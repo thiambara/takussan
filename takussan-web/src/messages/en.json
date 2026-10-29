@@ -12250,6 +12250,8 @@
     "greetingAnonymous": "Hello,",
     "intro": "Takussan offers to publish the listings you shared, free of charge. Check them, fix what needs fixing, then confirm with the code sent by SMS to {phone}.",
     "publishedTitle": "Already online",
+    "publishingTitle": "Being published",
+    "publishingHint": "You confirmed them: they will be online in a few minutes.",
     "listingsTitle": "Your listings",
     "listingsHint": "Untick the ones you don't want to publish.",
     "keep": "Publish this listing",
@@ -12322,7 +12324,10 @@
       "supportRequired": "This number is linked to two Takussan accounts: write to us and we will merge them.",
       "accountUnavailable": "This account can't be opened here. Contact us.",
       "phoneToken": "Remove “[TELEPHONE]” from the text: numbers are not shown on a listing.",
-      "price": "Enter a valid price."
+      "price": "Enter a valid price.",
+      "nameContainsPhone": "The first name and the space name cannot contain a phone number.",
+      "firstNameContainsPhone": "Your first name cannot contain a phone number.",
+      "spaceNameContainsPhone": "Your space name cannot contain a phone number."
     }
   }
 }

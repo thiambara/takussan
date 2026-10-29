@@ -19,6 +19,8 @@ export const ERREURS_RECLAMATION_RADAR: Readonly<Record<string, string>> = {
   'radar.claim.wrong_account': 'wrongAccount',
   'radar.claim.account_changed': 'accountChanged',
   'radar.claim.support_required': 'supportRequired',
+  // Sous le champ en cause (`fields` du corps) ; ce libellé ne sert que sans champ nommé.
+  'radar.claim.name_contains_phone': 'nameContainsPhone',
 };
 
 export const REFUS_DU_CODE: Readonly<Record<string, string>> = {

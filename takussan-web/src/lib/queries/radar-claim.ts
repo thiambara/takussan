@@ -46,6 +46,8 @@ export interface RadarClaim {
     readonly space: { readonly name: string } | null;
   };
   readonly listings: readonly RadarClaimListing[];
+  /** Déjà confirmées par l'annonceur, en attente de la publication : ni case ni bouton. */
+  readonly publishing: readonly RadarClaimListing[];
   readonly published: readonly { readonly title: string | null; readonly public_url: string }[];
   readonly terms_version: string;
 }
