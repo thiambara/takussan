@@ -44,7 +44,7 @@ function annonce(over: Record<string, unknown> = {}) {
 function reclamation(over: { account?: Record<string, unknown>; listings?: unknown[] } = {}) {
   return {
     data: {
-      advertiser: { first_name: 'Awa', last_name: 'Ndiaye', phone_masked: '+221 •• ••• •• 67' },
+      advertiser: { first_name: 'Awa', phone_masked: '+221 •• ••• •• 67' },
       account: {
         state: 'new',
         space_name: 'Espace de Awa',

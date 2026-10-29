@@ -20,6 +20,7 @@ use App\Services\Auth\OtpPreview;
 use App\Services\Billing\QuotaResolver;
 use App\Services\Media\PrivateMediaAccess;
 use App\Support\LienFront;
+use App\Support\PhoneMasker;
 use App\Support\RadarWaMe;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -502,10 +503,22 @@ final class RadarPublisher
         }
     }
 
+    /**
+     * TCK-2390 (vérification adverse I-1) — le `display_name` sans aucun numéro : il vient de la signature d'une annonce ou
+     * du profil WhatsApp, et peut porter le numéro (« Awa 77 123 45 67 »), comme le sait déjà le message d'accord. Le nom du
+     * compte, celui de l'espace PUBLIC et la page de réclamation en dérivent : le numéro est retiré, pas remplacé.
+     */
+    public static function displayNameWithoutPhone(RadarAdvertiser $advertiser): string
+    {
+        $masked = str_replace(PhoneMasker::TOKEN, ' ', PhoneMasker::mask((string) $advertiser->display_name));
+
+        return trim((string) preg_replace('/\s+/u', ' ', $masked));
+    }
+
     /** @return array{0: string, 1: string} prénom (premier mot) et reste, vides sans nom */
     public static function nameOf(RadarAdvertiser $advertiser): array
     {
-        $parts = preg_split('/\s+/', trim((string) $advertiser->display_name), 2) ?: [];
+        $parts = preg_split('/\s+/', self::displayNameWithoutPhone($advertiser), 2) ?: [];
 
         return [$parts[0] ?? '', $parts[1] ?? ''];
     }

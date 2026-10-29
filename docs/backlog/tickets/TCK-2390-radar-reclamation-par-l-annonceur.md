@@ -158,14 +158,38 @@ portée `login` des codes.
   active aussi le compte préparé par le Radar (état `activation`, sélection vide admise). `accord.v2`
   passe au neutre (« votre ou vos annonces »). Les messages déjà envoyés gardent leur version ; les
   tests qui fabriquent un message v1 l'épinglent.
-- **Limites de fréquence** : un seau par jeton et par route, ET les seaux de la connexion par
-  téléphone pour le numéro de l'annonceur (`auth-phone-send`, `auth-phone-verify` ;
-  `AppServiceProvider::phoneRateLimitKey` lit le numéro par `ClaimLinks::phoneOf()`). Un même numéro
-  ne gagne aucun essai en passant par la page plutôt que par `/auth/login`.
+- **Limites de fréquence — comme la connexion par téléphone, et en plus d'elle** (corrigé après la
+  vérification adverse M-4 : la première version de cette note annonçait à tort « un seau par
+  jeton ») : chaque route a un seau **par IP** (`throttle:30,1` la lecture, `6,1` l'envoi, `10,1`
+  la confirmation), ET les seaux de la connexion par téléphone — `auth-phone-send` par réseau client
+  à l'envoi, `auth-phone-verify` **par numéro** de l'annonceur à la confirmation
+  (`AppServiceProvider::phoneRateLimitKey` lit le numéro par `ClaimLinks::phoneOf()`). C'est la
+  limitation de `/auth/phone/*` (envoi par réseau, vérification par numéro), plus une borne par
+  route : un même numéro ne gagne aucun essai en passant par la page plutôt que par `/auth/login`.
+  Choix assumé : pas de seau par jeton — un jeton est signé, rien ne s'énumère, et un seau par jeton
+  ne bornerait pas celui qui en détient plusieurs. Le prix : des annonceurs derrière le même CGNAT
+  mobile partagent les 30 lectures par minute.
+- **Courses** (vérification adverse M-2) : les trois gardes qui ne servent qu'en cas de course ont
+  chacune un test déterministe, sans parallélisme réel. Un `DB::listen` joue le geste concurrent
+  juste après une requête `… for update` de `claim()` : le rejugement de l'orphelin (un profil
+  ailleurs, l'espace suspendu, le compte bloqué, après le verrou de l'annonceur) et le STOP relu sous
+  verrou (`do_not_contact_at` posé après le verrou des annonces, donc AVANT celui de l'annonceur, dont
+  la ligne est déjà lue quand le crochet s'exécute). `account_changed` se teste au début de la
+  transaction de la confirmation (`TransactionBeginning`) : un compte vérifie le numéro entre la
+  lecture de l'état `new` et l'ouverture de session.
+- **Le nom affiché ne fait pas sortir le numéro** (vérification adverse I-1) :
+  `RadarPublisher::displayNameWithoutPhone()` retire du `display_name` ce que `PhoneMasker` reconnaît,
+  pour la page (`first_name`, `space_name` ; `last_name` n'est plus rendu), le compte créé par
+  « Publier pour lui » et le nom de son espace ; la confirmation refuse un prénom ou un nom d'espace
+  qui porte un numéro. Même limite que le masqueur (M-1, TCK-2410).
+- **Le jeton dans `?redirect=`** (vérification adverse M-5) : `/auth/*` sert aussi
+  `Referrer-Policy: no-referrer` quand `redirect` vise `/claim/…` (`has` de `next.config.ts`), sans
+  changer la politique des autres pages de connexion.
 - **Qui confirme** : un numéro vérifié sur un compte (`existing`) se confirme CONNECTÉ à ce compte
   — `PhoneLoginService::checkCode()` prouve le numéro sans émettre de jeton ; le mot de passe et le
   second facteur ne se contournent pas par la page. Compte neuf ou compte du Radar : visiteur anonyme
-  seulement (une autre session ⇒ 403 `wrong_account`), `PhoneLoginService::authenticate()` ouvre la
+  seulement (une autre session ⇒ 403 `wrong_account`, dès l'envoi du code : aucun SMS ne part pour une
+  confirmation qui serait refusée), `PhoneLoginService::authenticate()` ouvre la
   session. Dans la transaction, l'API rejuge que le compte ouvert est celui que la page annonçait
   (409 `account_changed`).
 - **« Espace neuf ou existant, à son choix » n'est pas tenu** : l'invariant « un espace par
@@ -182,7 +206,9 @@ portée `login` des codes.
   (agence, destinataire), prospects de son espace, visites, réservations, empreintes de photos,
   collaborations, conversations (B prend la place de A, ou A se retire où B est déjà) —, puis supprime
   (doucement) les profils de A, son espace et A, dans la transaction de la réclamation, journalisé
-  (`radar_orphan_absorbed`). Sinon : état `support`, 409
+  (`radar_orphan_absorbed`). Un compte A bloqué, supprimé, ou dont un espace est suspendu ne se
+  réunit pas non plus (vérification adverse I-2 : ses biens modérés reviendraient en ligne dans
+  l'espace de B) — la règle d'`AdvertiserProvisioner::accountUnavailable()`. Sinon : état `support`, 409
   `radar.claim.support_required` à l'envoi du code comme à la confirmation, rien ne bouge. Rejugé
   sous le verrou de l'annonceur. *Non déplacé* : baux et demandes de maintenance (impossibles sans
   connexion), notifications de A (restent sur le compte supprimé).

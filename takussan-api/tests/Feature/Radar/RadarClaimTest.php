@@ -8,11 +8,13 @@ use App\Models\Agency;
 use App\Models\Conversation;
 use App\Models\CreditWelcomeGrant;
 use App\Models\Customer;
+use App\Models\Enums\AgencyStatus;
 use App\Models\Enums\PropertyVisibility;
 use App\Models\Enums\RadarConsentProof;
 use App\Models\Enums\RadarListingStage;
 use App\Models\Enums\RadarOutreachOutcome;
 use App\Models\Enums\RadarSourceKind;
+use App\Models\Enums\UserStatus;
 use App\Models\GeoNeighborhood;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Property;
@@ -22,11 +24,14 @@ use App\Models\RadarConsent;
 use App\Models\RadarListing;
 use App\Models\RadarOutreach;
 use App\Models\User;
+use App\Services\Auth\PhoneLoginService;
 use App\Services\Property\PublishReadiness;
 use App\Services\Radar\ClaimLinks;
+use Illuminate\Database\Events\TransactionBeginning;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Testing\TestResponse;
 use Laravel\Sanctum\Sanctum;
@@ -181,6 +186,55 @@ class RadarClaimTest extends TestCase
             ['id', 'title', 'description', 'price', 'contract', 'rent_period', 'property_type', 'bedrooms', 'bathrooms', 'surface_m2', 'furnished', 'neighborhood', 'photo_url'],
             array_keys($reponse->json('data.listings.0')),
         );
+    }
+
+    /** @return array<string, array{string, string}> le nom d'affichage, et le prénom qu'il doit donner */
+    public static function nomsQuiPortentLeNumero(): array
+    {
+        return [
+            'numéro après le prénom' => ['Awa 77 123 45 67', 'Awa'],
+            'numéro avant le prénom' => ['771234567 Awa', 'Awa'],
+            'numéro international seul' => ['+221 77 123 45 67', ''],
+        ];
+    }
+
+    /** Vérification adverse I-1 — le nom d'affichage vient d'une signature ou du profil WhatsApp, et peut porter le numéro. */
+    #[DataProvider('nomsQuiPortentLeNumero')]
+    public function test_ac1_le_nom_d_affichage_ne_fait_pas_sortir_le_numero(string $nom, string $prenom): void
+    {
+        $this->annonceur->forceFill(['display_name' => $nom])->save();
+        $this->annonce();
+
+        $reponse = $this->lire()->assertOk()
+            ->assertJsonPath('data.advertiser.first_name', $prenom)
+            ->assertJsonMissingPath('data.advertiser.last_name')
+            ->assertJsonPath('data.account.space_name', $prenom === '' ? 'Mon espace' : "Espace de {$prenom}");
+
+        $corps = (string) $reponse->getContent();
+        foreach (['771234567', '77 123 45 67', '123 45'] as $interdit) {
+            $this->assertStringNotContainsString($interdit, $corps, $interdit);
+        }
+    }
+
+    public function test_un_prenom_ou_un_nom_d_espace_qui_porte_un_numero_est_refuse(): void
+    {
+        $annonce = $this->annonce();
+        $this->demanderLeCode()->assertStatus(202);
+
+        $this->confirmer([['id' => $annonce->id]], ['first_name' => 'Awa 77 123 45 67', 'space_name' => 'Location 771234567'])
+            ->assertStatus(422)->assertJsonValidationErrors(['first_name', 'space_name']);
+        $this->assertSame(RadarListingStage::Contacted, $annonce->fresh()->stage);
+    }
+
+    /** Vérification adverse M-3 — le titre passe au masque comme la description. */
+    public function test_ac1_le_titre_ne_fait_pas_sortir_le_numero(): void
+    {
+        $this->annonce(['title' => ['value' => 'Villa à Ngor, appelez le 77 123 45 67']]);
+
+        $reponse = $this->lire()->assertOk();
+
+        $this->assertStringContainsString('[TELEPHONE]', (string) $reponse->json('data.listings.0.title'));
+        $this->assertStringNotContainsString('77 123 45 67', (string) $reponse->getContent());
     }
 
     public function test_seules_les_annonces_d_un_message_envoye_encore_ouvertes_sont_proposees(): void
@@ -538,9 +592,168 @@ class RadarClaimTest extends TestCase
         Sanctum::actingAs(User::factory()->create());
 
         $this->lire()->assertOk()->assertJsonPath('data.account.viewer_is_other', true);
-        $this->demanderLeCode()->assertStatus(202);
+        // La confirmation refuserait : aucun SMS ne part (vérification adverse M-6), le refus a le code de la confirmation.
+        $this->demanderLeCode()->assertStatus(403)->assertJsonPath('code', 'radar.claim.wrong_account');
+        $this->assertSame([], $this->sms->sent);
+        app(PhoneLoginService::class)->requestCode(self::NUMERO, 'fr');
         $this->confirmer([['id' => $annonce->id]])->assertStatus(403)->assertJsonPath('code', 'radar.claim.wrong_account');
         $this->assertNull($this->annonceur->fresh()->user_id);
+    }
+
+    public function test_connecte_avec_un_autre_compte_l_activation_n_envoie_aucun_sms(): void
+    {
+        [$compteRadar] = $this->publiePourLui();
+        Sanctum::actingAs(User::factory()->create());
+
+        $this->lire()->assertOk()->assertJsonPath('data.account.state', 'activation');
+        $this->demanderLeCode()->assertStatus(403)->assertJsonPath('code', 'radar.claim.wrong_account');
+        $this->assertSame([], $this->sms->sent);
+        $this->assertNull($compteRadar->fresh()->phone_verified_at);
+    }
+
+    /** Vérification adverse I-3 — C, connecté, connaît un code du numéro (téléphone partagé) : il ne réunit pas A chez lui. */
+    public function test_un_autre_compte_connecte_avec_un_code_valide_ne_reunit_pas_l_orphelin(): void
+    {
+        [$compteRadar, $espaceRadar, $bien] = $this->publiePourLui();
+        User::factory()->create(['phone' => self::NUMERO, 'phone_verified_at' => now()]);
+        $nouvelle = $this->annonce();
+        $intrus = User::factory()->create();
+        Sanctum::actingAs($intrus);
+        // Le code demandé par la connexion ordinaire, qui est publique : il est valide pour le numéro.
+        app(PhoneLoginService::class)->requestCode(self::NUMERO, 'fr');
+
+        $this->lire()->assertOk()->assertJsonPath('data.account.state', 'existing')->assertJsonPath('data.account.viewer_is_owner', false);
+        $this->confirmer([['id' => $nouvelle->id]])->assertStatus(403)->assertJsonPath('code', 'radar.claim.wrong_account');
+
+        $this->assertSame([$espaceRadar->id, $compteRadar->id], [$bien->fresh()->agency_id, $bien->fresh()->user_id]);
+        $this->assertSame($compteRadar->id, $this->annonceur->fresh()->user_id);
+        $this->assertNotSoftDeleted($compteRadar);
+        $this->assertSame(0, Agency::query()->where('primary_admin_id', $intrus->id)->count());
+        $this->assertSame(RadarListingStage::Contacted, $nouvelle->fresh()->stage);
+        $this->assertSame(0, Activity::query()->where('event', 'radar_orphan_absorbed')->count());
+    }
+
+    /** @return array<string, array{\Closure(User, Agency): void, bool}> le geste de modération, et si le bien était public avant */
+    public static function comptesRadarModeres(): array
+    {
+        return [
+            'compte bloqué' => [fn (User $compte) => $compte->forceFill(['status' => UserStatus::Blocked])->save(), true],
+            'espace suspendu' => [fn (User $compte, Agency $espace) => $espace->forceFill(['status' => AgencyStatus::Suspended])->save(), false],
+        ];
+    }
+
+    /**
+     * Vérification adverse I-2 — un compte du Radar modéré ne se réunit pas : ses biens ne quittent pas la modération pour
+     * l'espace actif de B. La même règle que le chemin de l'opérateur et l'état `activation` ; la page renvoie au support.
+     */
+    #[DataProvider('comptesRadarModeres')]
+    public function test_le_compte_orphelin_modere_ne_se_reunit_pas(\Closure $moderer, bool $publicAvant): void
+    {
+        [$compteRadar, $espaceRadar, $bien] = $this->publiePourLui();
+        $moderer($compteRadar, $espaceRadar);
+        $this->assertSame($publicAvant, Property::query()->public()->whereKey($bien->id)->exists());
+        $titulaire = User::factory()->create(['phone' => self::NUMERO, 'phone_verified_at' => now()]);
+        $nouvelle = $this->annonce();
+        Sanctum::actingAs($titulaire);
+
+        $this->lire()->assertOk()->assertJsonPath('data.account.state', 'support');
+        $this->demanderLeCode()->assertStatus(409)->assertJsonPath('code', 'radar.claim.support_required');
+        $this->assertSame([], $this->sms->sent);
+        app(PhoneLoginService::class)->requestCode(self::NUMERO, 'fr');
+        $this->confirmer([['id' => $nouvelle->id]])->assertStatus(409)->assertJsonPath('code', 'radar.claim.support_required');
+
+        $this->assertSame([$espaceRadar->id, $compteRadar->id], [$bien->fresh()->agency_id, $bien->fresh()->user_id]);
+        $this->assertSame($publicAvant, Property::query()->public()->whereKey($bien->id)->exists());
+        $this->assertNotSoftDeleted($compteRadar);
+        $this->assertNotSoftDeleted($espaceRadar);
+        $this->assertSame(RadarListingStage::Contacted, $nouvelle->fresh()->stage);
+        $this->assertSame(0, Activity::query()->where('event', 'radar_orphan_absorbed')->count());
+    }
+
+    // --- Les courses : ce qui change entre la lecture de l'état et le verrou (vérification adverse M-2) -----------------------
+
+    /**
+     * Joue `$geste` une fois, juste après la première requête `… for update` sur `$table` dans `claim()` — un geste commité
+     * juste avant le verrou suivant. `radar_listings` précède le verrou de l'annonceur, que la ligne lue sous lui voie le geste.
+     */
+    private function auVerrou(string $table, \Closure $geste): void
+    {
+        $fait = false;
+        DB::listen(function ($requete) use (&$fait, $table, $geste): void {
+            if (! $fait && str_contains($requete->sql, '"'.$table.'"') && str_contains($requete->sql, 'for update')) {
+                $fait = true;
+                $geste();
+            }
+        });
+    }
+
+    /** @return array<string, array{\Closure(User, Agency): void}> */
+    public static function gestesDeLAdministrateur(): array
+    {
+        return [
+            'un profil dans une autre agence' => [fn (User $compte) => AgentProfile::factory()->create(['user_id' => $compte->id, 'agency_id' => Agency::factory()->create()->id])],
+            'l\'espace suspendu' => [fn (User $compte, Agency $espace) => $espace->forceFill(['status' => AgencyStatus::Suspended])->save()],
+            'le compte bloqué' => [fn (User $compte) => $compte->forceFill(['status' => UserStatus::Blocked])->save()],
+        ];
+    }
+
+    /** A7 — l'orphelin se rejuge sous verrou : la page a lu « jamais servi », un administrateur a agi depuis. */
+    #[DataProvider('gestesDeLAdministrateur')]
+    public function test_l_orphelin_se_rejuge_sous_le_verrou(\Closure $geste): void
+    {
+        [$compteRadar, $espaceRadar, $bien] = $this->publiePourLui();
+        $titulaire = User::factory()->create(['phone' => self::NUMERO, 'phone_verified_at' => now()]);
+        $nouvelle = $this->annonce();
+        Sanctum::actingAs($titulaire);
+        $this->lire()->assertOk()->assertJsonPath('data.account.state', 'existing');
+        $this->demanderLeCode()->assertStatus(202);
+
+        $this->auVerrou('radar_advertisers', fn () => $geste($compteRadar, $espaceRadar));
+        $this->confirmer([['id' => $nouvelle->id]])->assertStatus(409)->assertJsonPath('code', 'radar.claim.support_required');
+
+        $this->assertSame([$espaceRadar->id, $compteRadar->id], [$bien->fresh()->agency_id, $bien->fresh()->user_id]);
+        $this->assertNotSoftDeleted($compteRadar);
+        $this->assertSame(RadarListingStage::Contacted, $nouvelle->fresh()->stage);
+    }
+
+    /** A8 — un STOP enregistré entre la lecture et le verrou : rien ne se publie, rien ne s'écrit. */
+    public function test_un_stop_arrive_pendant_la_confirmation_ne_publie_rien(): void
+    {
+        $annonce = $this->annonce();
+        $this->demanderLeCode()->assertStatus(202);
+
+        $this->auVerrou('radar_listings', fn () => RadarAdvertiser::query()->whereKey($this->annonceur->id)->update(['do_not_contact_at' => now()]));
+        $this->confirmer([['id' => $annonce->id]])->assertStatus(410)->assertJsonPath('code', 'radar.claim.revoked');
+
+        $this->assertSame(RadarListingStage::Contacted, $annonce->fresh()->stage);
+        $this->assertNull($annonce->fresh()->property_id);
+        $this->assertSame(0, RadarConsent::query()->where('proof', 'otp')->count());
+        $this->assertSame(0, Property::query()->count());
+    }
+
+    /**
+     * A13 — la page a lu `new`, puis un compte a vérifié ce numéro avant l'ouverture de session : le code ouvre CE compte,
+     * qui n'est pas celui que la page annonçait. Le geste est joué au début de la transaction de la confirmation.
+     */
+    public function test_un_compte_verifie_entre_la_lecture_et_le_code_arrete_la_confirmation(): void
+    {
+        $annonce = $this->annonce();
+        $this->demanderLeCode()->assertStatus(202);
+        $fait = false;
+        Event::listen(TransactionBeginning::class, function () use (&$fait): void {
+            if (! $fait) {
+                $fait = true;
+                User::factory()->create(['phone' => self::NUMERO, 'phone_verified_at' => now(), 'email' => 'autre@example.test']);
+            }
+        });
+
+        $this->confirmer([['id' => $annonce->id]])->assertStatus(409)->assertJsonPath('code', 'radar.claim.account_changed');
+
+        $this->assertTrue($fait);
+        $this->assertSame(RadarListingStage::Contacted, $annonce->fresh()->stage);
+        $this->assertNull($this->annonceur->fresh()->user_id);
+        $this->assertSame(0, Agency::query()->count());
+        $this->assertSame(0, RadarConsent::query()->where('proof', 'otp')->count());
     }
 
     // --- Les portes de la publication pour lui ----------------------------------------------------------------------------

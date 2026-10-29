@@ -99,6 +99,15 @@ class AdvertiserProvisionerTest extends TestCase
         $this->assertSame(['', ''], [$sans->first_name, $sans->last_name]);
     }
 
+    /** TCK-2390, vérification adverse I-1 — le nom du compte et de l'espace public ne recopient pas un numéro du nom affiché. */
+    public function test_le_numero_d_un_nom_affiche_n_entre_ni_dans_le_compte_ni_dans_l_espace(): void
+    {
+        ['user' => $user, 'agency' => $agency] = $this->provisionner($this->annonceur(['display_name' => '771234567 Awa Diop 77 123 45 67']));
+
+        $this->assertSame(['Awa', 'Diop'], [$user->first_name, $user->last_name]);
+        $this->assertSame('Espace de Awa', $agency->name);
+    }
+
     public function test_l_espace_est_individuel_nomme_d_apres_le_prenom_et_l_annonceur_y_est_proprietaire(): void
     {
         ['user' => $user, 'agency' => $agency] = $this->provisionner($this->annonceur());

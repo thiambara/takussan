@@ -36,7 +36,6 @@ export interface RadarClaimListing {
 export interface RadarClaim {
   readonly advertiser: {
     readonly first_name: string | null;
-    readonly last_name: string | null;
     readonly phone_masked: string;
   };
   readonly account: {

@@ -5,6 +5,7 @@ namespace App\Services\Radar;
 use App\Jobs\Radar\PrepareRadarListingPhotos;
 use App\Jobs\Radar\PublishClaimedRadarListings;
 use App\Models\Agency;
+use App\Models\Enums\AgencyStatus;
 use App\Models\Enums\RadarConsentProof;
 use App\Models\Enums\RadarListingStage;
 use App\Models\Enums\RadarOutreachOutcome;
@@ -43,7 +44,8 @@ use Illuminate\Support\Facades\DB;
  *  - `existing` — un compte a VÉRIFIÉ ce numéro : connexion exigée (la page de connexion, 2FA comprise), puis un code frais ;
  *  - `unavailable` — le compte rattaché est supprimé, bloqué, suspendu, ou ne s'ouvrirait plus par ce numéro : rien.
  *  - `support` — un compte a vérifié ce numéro, mais le compte que le Radar avait créé pour lui a servi (connexion, mot de
- *    passe, e-mail, numéro vérifié, autre bien ou autre espace) : rien ne se réunit sans le support (décision 5a du porteur).
+ *    passe, e-mail, numéro vérifié, autre bien ou autre espace), ou est bloqué, supprimé, ou son espace suspendu : rien ne se
+ *    réunit sans le support (décision 5a du porteur).
  *
  * **Rien de ce que la page lit ne vient du Radar interne** : ni le numéro (masqué), ni la nature, ni ses indices, ni un
  * verdict, ni la source de l'annonce. Seulement les valeurs de l'annonce, ses photos déjà en réserve, et les biens en ligne.
@@ -93,13 +95,13 @@ final class RadarClaims
     public function show(RadarAdvertiser $advertiser, ?User $viewer): array
     {
         $state = $this->state($advertiser);
-        [$firstName, $lastName] = RadarPublisher::nameOf($advertiser);
+        // Ni le nom de famille ni rien du `display_name` brut : le prénom et le nom proposé de l'espace sont SANS numéro.
+        [$firstName] = RadarPublisher::nameOf($advertiser);
         $isOwner = $state['state'] === self::STATE_EXISTING && $viewer !== null && $viewer->is($state['user']);
 
         return [
             'advertiser' => [
                 'first_name' => $firstName,
-                'last_name' => $lastName,
                 'phone_masked' => self::masked((string) $advertiser->phone),
             ],
             'account' => [
@@ -131,6 +133,8 @@ final class RadarClaims
         abort_code_if($state['state'] === self::STATE_SUPPORT, 409, 'radar.claim.support_required');
         // Un numéro vérifié sur un compte : la connexion d'abord, le code ensuite — un SMS ne se dépense pas pour rien.
         abort_code_if($state['state'] === self::STATE_EXISTING && ! $viewer?->is($state['user']), 409, 'radar.claim.login_required');
+        // Connecté à un autre compte, la confirmation refusera : le SMS est refusé avant de partir, avec le même code.
+        abort_code_if($state['state'] !== self::STATE_EXISTING && $viewer !== null, 403, 'radar.claim.wrong_account');
         abort_code_unless(PhoneVerificationService::countryAllowed($phone), 422, 'radar.claim.account_unavailable');
 
         $this->login->requestCode($phone, $locale);
@@ -354,7 +358,8 @@ final class RadarClaims
             return null;
         }
 
-        return User::query()->find($advertiser->user_id);
+        // Supprimé compris : un compte du Radar supprimé par le support n'est pas « jamais servi » (il renvoie au support).
+        return User::withTrashed()->find($advertiser->user_id);
     }
 
     /**
@@ -364,6 +369,13 @@ final class RadarClaims
      */
     private function orphanAbsorbable(RadarAdvertiser $advertiser, User $orphan): bool
     {
+        // La règle du chemin de l'opérateur et de l'état `activation` (`AdvertiserProvisioner::accountUnavailable()`) : un
+        // compte bloqué, supprimé, ou dont l'espace est suspendu ne se réunit pas — ses biens modérés resteraient en ligne
+        // dans l'espace de B (vérification adverse I-2).
+        $suspended = Agency::withTrashed()->where('primary_admin_id', $orphan->id)->where('status', AgencyStatus::Suspended->value)->exists();
+        if (! $orphan->canOpenSession() || $suspended) {
+            return false;
+        }
         if ($orphan->phone_verified_at !== null || $orphan->last_login_at !== null || $orphan->password_set_at !== null
             || $orphan->email !== null || $orphan->tokens()->exists() || DB::table('sessions')->where('user_id', $orphan->id)->exists()) {
             return false;

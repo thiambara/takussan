@@ -121,12 +121,13 @@ final class AdvertiserProvisioner
 
     private function createUser(RadarAdvertiser $advertiser): User
     {
-        $parts = preg_split('/\s+/', trim((string) $advertiser->display_name), 2) ?: [];
+        // Sans le numéro qu'un nom d'affichage porterait (vérification adverse I-1 de TCK-2390) : il deviendrait public.
+        [$first, $last] = RadarPublisher::nameOf($advertiser);
 
         $user = new User;
         $user->forceFill([
-            'first_name' => $parts[0] ?? '',
-            'last_name' => $parts[1] ?? '',
+            'first_name' => $first,
+            'last_name' => $last,
             'email' => null,
             // Aucun mot de passe connu : la valeur machine fait échouer `Hash::check`, et `password_set_at` nul le dit.
             'password' => Hash::make(Str::random(40)),
