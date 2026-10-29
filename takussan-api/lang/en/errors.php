@@ -742,6 +742,7 @@ return [
             'no_photo' => 'One of these listings has no photo in its reserve: collect some from the source, or upload some.',
             'missing_field' => 'One of these listings is incomplete: the type, contract, price and a neighbourhood from the reference list are required.',
             'too_many_photos' => 'These listings have :count photos in all, and one publication accepts :max at most: publish them in several batches.',
+            'activation_unavailable' => 'Phone login is off in this environment: the account created for the advertiser could not be opened with an SMS code. Nothing is published until it is on.',
             'nothing_published' => 'No property is published for this advertiser: there is no message to compose.',
         ],
     ],

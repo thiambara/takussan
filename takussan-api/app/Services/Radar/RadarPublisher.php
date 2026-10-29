@@ -48,6 +48,13 @@ final class RadarPublisher
 
     public const MESSAGE_VERSION = 'publie.v1';
 
+    /**
+     * La connexion par téléphone est éteinte (`auth.phone_login.enabled`) : le compte créé n'a ni mot de passe ni e-mail, et
+     * personne ne peut l'ouvrir ; le second message promet pourtant une activation par code SMS (amendement d'ADR-0033 §3).
+     * Un environnement qui publie pour des annonceurs a besoin du drapeau allumé : sans lui, rien ne se publie.
+     */
+    public const ACTIVATION_UNAVAILABLE = 'radar.publish.activation_unavailable';
+
     public function __construct(
         private readonly AdvertiserClaim $claim,
         private readonly AdvertiserProvisioner $provisioner,
@@ -85,6 +92,9 @@ final class RadarPublisher
         }
         if ($advertiser->do_not_contact_at !== null) {
             $blocking[] = 'radar.advertiser.do_not_contact';
+        }
+        if (! self::activationAvailable()) {
+            $blocking[] = self::ACTIVATION_UNAVAILABLE;
         }
         if ($listings->isEmpty()) {
             $blocking[] = 'radar.publish.nothing_covered';
@@ -162,6 +172,7 @@ final class RadarPublisher
             $locked = RadarAdvertiser::query()->whereKey($advertiser->getKey())->lockForUpdate()->firstOrFail();
             $this->claim->assertHeld($locked, $by);
             abort_code_if($locked->do_not_contact_at !== null, 422, 'radar.advertiser.do_not_contact');
+            abort_code_unless(self::activationAvailable(), 422, self::ACTIVATION_UNAVAILABLE);
 
             // L'écran n'est pas la garde : l'accord se relit ICI, sous verrou.
             $missing = array_values(array_diff($ids, $this->coverage->coveredAmong($ids)));
@@ -260,6 +271,8 @@ final class RadarPublisher
         abort_code_unless(in_array($locale, ConsentMessageComposer::LOCALES, true), 422, 'radar.outreach.locale_unsupported');
         // Un STOP est définitif (ADR-0077 §8) : tant que le retrait de ses biens n'a pas purgé son numéro, aucun lien `wa.me` vers lui.
         abort_code_if($advertiser->do_not_contact_at !== null, 422, 'radar.advertiser.do_not_contact');
+        // Le message promet l'activation par SMS : sans connexion par téléphone, la promesse ne se tient pas.
+        abort_code_unless(self::activationAvailable(), 422, self::ACTIVATION_UNAVAILABLE);
 
         $slugs = Property::query()
             ->whereIn('id', RadarListing::query()
@@ -346,6 +359,11 @@ final class RadarPublisher
         }
 
         return $missing;
+    }
+
+    private static function activationAvailable(): bool
+    {
+        return (bool) config('auth.phone_login.enabled');
     }
 
     /** Le nom du quartier canonique, `null` sans quartier ou pour un quartier refusé. */

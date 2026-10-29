@@ -32,6 +32,8 @@ trait FixturesDePublicationRadar
 
     protected function installerLaPublication(PlatformProfileLevel $niveau = PlatformProfileLevel::SuperAdmin): void
     {
+        // La publication exige la connexion par téléphone (le compte créé s'ouvre par code SMS) : allumée, comme en production.
+        config(['auth.phone_login.enabled' => true]);
         $this->operateur = $this->agirEnOperateur($niveau);
         $this->quartier = GeoNeighborhood::factory()->create();
         $this->annonceur = RadarAdvertiser::factory()->create(['phone' => self::NUMERO_ANNONCEUR, 'display_name' => 'Awa Diop']);

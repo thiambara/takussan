@@ -9295,6 +9295,7 @@
             "noPhoto": "A listing has no photo in its reserve: collect some from the source, or upload some.",
             "missingField": "A listing is incomplete: the type, contract, price and a neighbourhood from the reference list are required.",
             "nothingCovered": "No listing of this advertiser is covered by a valid agreement.",
+            "activationUnavailable": "Phone login is off in this environment: the account created for the advertiser could not be opened with an SMS code. Nothing is published until it is on.",
             "nothingPublished": "No property is published for this advertiser: there is no message to compose.",
             "phoneRegistered": "This number already belongs to an account: the Radar does not publish into an existing account; only the claim is offered to its holder.",
             "accountUnavailable": "The account linked to this advertiser is deleted or blocked, or its space is suspended: nothing is published there.",

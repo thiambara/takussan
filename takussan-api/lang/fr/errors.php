@@ -742,6 +742,7 @@ return [
             'no_photo' => 'Une de ces annonces n\'a aucune photo dans sa réserve : récupérez-en à la source, ou déposez-en.',
             'missing_field' => 'Une de ces annonces est incomplète : le type, le contrat, le prix et un quartier du référentiel sont requis.',
             'too_many_photos' => 'Ces annonces ont :count photos en tout, et une publication en accepte :max au plus : publiez-les en plusieurs fois.',
+            'activation_unavailable' => "La connexion par téléphone est éteinte dans cet environnement : le compte créé pour l'annonceur ne pourrait pas s'ouvrir par code SMS. Rien ne se publie tant qu'elle ne l'est pas.",
             'nothing_published' => 'Aucun bien n\'est publié pour cet annonceur : il n\'y a pas de message à composer.',
         ],
     ],

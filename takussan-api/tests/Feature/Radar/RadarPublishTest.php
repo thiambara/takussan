@@ -608,6 +608,38 @@ class RadarPublishTest extends TestCase
         $this->publier([$a->id, $b->id])->assertCreated();
     }
 
+    // --- Revue finale, I3a : sans connexion par téléphone, le compte créé ne s'ouvrirait pas -----------------
+
+    public function test_sans_connexion_par_telephone_l_apercu_ferme_la_publication(): void
+    {
+        $this->annonceConsentie();
+        config(['auth.phone_login.enabled' => false]);
+
+        $this->getJson("/api/admin/radar/advertisers/{$this->annonceur->id}/publication-preview")->assertOk()
+            ->assertJsonPath('data.blocking', ['radar.publish.activation_unavailable']);
+    }
+
+    public function test_sans_connexion_par_telephone_la_publication_rend_422_et_ne_cree_rien(): void
+    {
+        $annonce = $this->annonceConsentie();
+        $avant = $this->compte();
+        config(['auth.phone_login.enabled' => false]);
+
+        $this->publier([$annonce->id])->assertStatus(422)->assertJsonPath('code', 'radar.publish.activation_unavailable');
+
+        $this->assertRienDeCree($avant);
+        $this->assertSame(RadarListingStage::Consented, $annonce->fresh()->stage);
+    }
+
+    public function test_sans_connexion_par_telephone_le_second_message_n_est_pas_compose(): void
+    {
+        $this->publier([$this->annonceConsentie()->id])->assertCreated();
+        config(['auth.phone_login.enabled' => false]);
+
+        $this->getJson("/api/admin/radar/advertisers/{$this->annonceur->id}/published-message?locale=fr")
+            ->assertStatus(422)->assertJsonPath('code', 'radar.publish.activation_unavailable');
+    }
+
     // --- Décision 5 : le titre manquant se construit -------------------------------------------------------
 
     public function test_une_annonce_sans_titre_se_publie_sous_un_titre_construit_que_l_apercu_montre(): void
