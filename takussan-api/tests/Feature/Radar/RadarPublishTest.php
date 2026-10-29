@@ -572,6 +572,31 @@ class RadarPublishTest extends TestCase
             ->assertJsonPath('data.published', []);
     }
 
+    // --- Revue finale, m2 : un bien retiré du public ne figure pas dans le second message ----------------------
+
+    public function test_un_bien_retire_du_public_ne_figure_ni_au_message_ni_a_l_apercu(): void
+    {
+        config(['app.frontend_url' => 'https://front.exemple.test']);
+        $a = $this->annonceConsentie();
+        $b = $this->annonceConsentie();
+        $biens = collect($this->publier([$a->id, $b->id])->assertCreated()->json('data.properties'))->keyBy('radar_listing_id');
+        $this->assertCount(2, $biens, 'le Radar publie ses biens dans le public : le filtre ne les écarte pas par défaut');
+
+        Property::query()->whereKey($biens[$b->id]['id'])->update(['status' => PropertyStatus::Archived]);
+
+        $texte = $this->getJson("/api/admin/radar/advertisers/{$this->annonceur->id}/published-message?locale=fr")->assertOk()->json('data.text');
+        $this->assertStringContainsString("/fr/properties/{$biens[$a->id]['slug']}", $texte);
+        $this->assertStringNotContainsString($biens[$b->id]['slug'], $texte);
+        $this->getJson("/api/admin/radar/advertisers/{$this->annonceur->id}/publication-preview")->assertOk()
+            ->assertJsonCount(1, 'data.published')
+            ->assertJsonPath('data.published.0.id', $biens[$a->id]['id']);
+
+        Property::query()->whereKey($biens[$a->id]['id'])->update(['visibility' => PropertyVisibility::Private]);
+
+        $this->getJson("/api/admin/radar/advertisers/{$this->annonceur->id}/published-message?locale=fr")->assertStatus(422)
+            ->assertJsonPath('code', 'radar.publish.nothing_published');
+    }
+
     // --- Revue finale, I2 : le travail de la copie est borné avant la transaction -----------------------------
 
     public function test_l_apercu_annonce_le_plafond_de_photos_d_une_publication(): void

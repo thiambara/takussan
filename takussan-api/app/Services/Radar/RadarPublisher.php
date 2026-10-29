@@ -149,7 +149,9 @@ final class RadarPublisher
             ->whereNotNull('property_id')
             ->pluck('id', 'property_id');
 
+        // `public()` : un bien que l'annonceur a retiré ou qu'une modération a fermé n'est plus un lien à lui envoyer.
         return Property::query()
+            ->public()
             ->whereIn('id', $listingOf->keys())
             ->orderBy('id')
             ->get(['id', 'slug', 'title'])
@@ -288,7 +290,9 @@ final class RadarPublisher
         abort_code_unless(self::activationAvailable(), 422, self::ACTIVATION_UNAVAILABLE);
         abort_code_if(self::otpPreviewActive(), 422, self::OTP_PREVIEW_ACTIVE);
 
+        // `public()` : le message ne promet « en ligne » que ce qui l'est (un bien retiré ou fermé depuis la publication n'y figure plus).
         $slugs = Property::query()
+            ->public()
             ->whereIn('id', RadarListing::query()
                 ->where('radar_advertiser_id', $advertiser->id)
                 ->where('stage', RadarListingStage::Published->value)
