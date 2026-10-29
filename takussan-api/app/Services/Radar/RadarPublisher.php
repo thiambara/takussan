@@ -63,7 +63,7 @@ final class RadarPublisher
      * `published` : les biens que le Radar a déjà publiés pour cet annonceur, dont le second message se compose sans
      * dépendre de la réponse d'un `publish` (perdue, coupée par un délai, ou page rechargée).
      *
-     * @return array{advertiser: array<string, mixed>, account: array<string, mixed>, listings: list<array<string, mixed>>, published: list<array<string, mixed>>, blocking: list<string>}
+     * @return array{advertiser: array<string, mixed>, account: array<string, mixed>, listings: list<array<string, mixed>>, published: list<array<string, mixed>>, max_photos: int, blocking: list<string>}
      */
     public function preview(RadarAdvertiser $advertiser): array
     {
@@ -108,6 +108,8 @@ final class RadarPublisher
             ],
             'listings' => $listings->map(fn (RadarListing $listing) => $this->previewOf($listing))->values()->all(),
             'published' => $this->publishedProperties($advertiser),
+            // Le plafond de photos d'UNE publication : l'écran refuse la confirmation d'une sélection qui le dépasse.
+            'max_photos' => (int) config('radar.publish.max_photos'),
             'blocking' => $blocking,
         ];
     }
@@ -189,6 +191,12 @@ final class RadarPublisher
                     ['listing_id' => $listing->id, 'fields' => self::missingFields($listing)],
                 );
             }
+
+            // Le travail de la copie se borne AVANT la première écriture : une publication qui dépasserait le temps d'horloge de PHP
+            // (60 s) mourrait sans que le `catch` ne passe, et laisserait ses copies sans ligne `media`.
+            $photoCount = $listings->sum(fn (RadarListing $listing): int => $this->reserve->count($listing));
+            $maxPhotos = (int) config('radar.publish.max_photos');
+            abort_code_if($photoCount > $maxPhotos, 422, 'radar.publish.too_many_photos', ['count' => $photoCount, 'max' => $maxPhotos]);
 
             ['created' => $created, 'user' => $user, 'agency' => $agency] = $this->provisioner->provision($locked);
 

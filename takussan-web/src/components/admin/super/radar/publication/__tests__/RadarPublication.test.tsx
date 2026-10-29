@@ -145,6 +145,27 @@ describe('RadarPublication — la vérification (TCK-2389)', () => {
     expect(publier()).toHaveTextContent('Publier 1 annonce');
   });
 
+  it('une sélection au-delà du plafond de photos refuse la confirmation, dit le nombre, et se rouvre en décochant', async () => {
+    const { utilisateur } = await rendre(apercu({ max_photos: 3 }));
+
+    expect(publier()).toBeDisabled();
+    expect(screen.getByTestId('radar-publication-plafond')).toHaveTextContent(
+      'La sélection compte 4 photos : une publication en accepte 3 au plus. Décochez des annonces, puis publiez-les en plusieurs fois.',
+    );
+
+    await utilisateur.click(screen.getByRole('checkbox', { name: 'Publier l’annonce n° 13' }));
+
+    expect(screen.queryByTestId('radar-publication-plafond')).not.toBeInTheDocument();
+    expect(publier()).toBeEnabled();
+  });
+
+  it('au plafond exactement, « Publier » reste ouvert', async () => {
+    await rendre(apercu({ max_photos: 4 }));
+
+    expect(screen.queryByTestId('radar-publication-plafond')).not.toBeInTheDocument();
+    expect(publier()).toBeEnabled();
+  });
+
   it('décocher la dernière annonce désactive « Publier »', async () => {
     const { utilisateur } = await rendre(apercu({ listings: [annonce(12)] }));
 
@@ -406,6 +427,15 @@ describe('RadarPublication — la confirmation et le récapitulatif (TCK-2389)',
     expect(erreur).toHaveTextContent(/n’est pas couverte par un accord confirmé et non révoqué/);
     expect(screen.queryByTestId('radar-publication-recap')).not.toBeInTheDocument();
     await waitFor(() => expect(vi.mocked(fetchRadarPublicationPreview).mock.calls.length).toBeGreaterThan(lectures));
+  });
+
+  it('un 422 `too_many_photos` de l\'API se dit avec le nombre et le plafond de ses paramètres', async () => {
+    vi.mocked(publishRadarAdvertiser).mockRejectedValue(new ApiError(422, { code: 'radar.publish.too_many_photos', params: { count: 40, max: 30 } }));
+    const { utilisateur, dialogue } = await ouvrirLaConfirmation();
+
+    await utilisateur.click(within(dialogue).getByRole('button', { name: 'Publier' }));
+
+    expect(await within(dialogue).findByText('Ces annonces ont 40 photos en tout, et une publication en accepte 30 au plus : publiez-les en plusieurs fois.')).toBeInTheDocument();
   });
 
   it('le quota de l\'espace se dit par son code', async () => {

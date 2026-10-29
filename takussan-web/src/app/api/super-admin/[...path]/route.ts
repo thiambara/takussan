@@ -6,8 +6,10 @@ import { DELAI_RELAIS_FICHIER_MS, relayerVersApi } from '@/lib/relais-api';
 
 /**
  * TCK-2389 — « Publier pour lui » copie chaque photo de la réserve et encode sa vignette DANS sa transaction : quelques
- * annonces bien garnies dépassent les 30 s du relais, dont la réponse se perdrait alors que l'API commite. Cette route seule
- * attend jusqu'au délai des fichiers (sous les 100 s de Cloudflare) ; un envoi encore en cours se rejoue côté écran.
+ * annonces garnies dépassent les 30 s du relais, dont la réponse se perdrait alors que l'API commite. Cette route seule
+ * attend jusqu'au délai des fichiers (90 s, sous les 100 s de Cloudflare). La vraie borne est celle de l'API :
+ * `max_execution_time` = 60 s en temps d'horloge (image ZTS) — au-delà PHP meurt sans rien défaire des fichiers écrits ;
+ * `radar.publish.max_photos` borne donc le travail avant la transaction, et un envoi encore en cours se rejoue côté écran.
  */
 const PUBLICATION_DU_RADAR = /^radar\/advertisers\/\d+\/publish$/;
 

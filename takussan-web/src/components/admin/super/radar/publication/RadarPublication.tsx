@@ -44,6 +44,7 @@ import { ConfirmerPublication } from './ConfirmerPublication';
 import {
   annoncesCochees,
   CODE_EN_COURS,
+  depassePlafondDePhotos,
   estCochee,
   preparationEnCours,
   publicationFermee,
@@ -163,6 +164,8 @@ function ApercuCharge({ id, apercu, claim }: ApercuChargeProps) {
   const cochees = annoncesCochees(apercu.listings, choix);
   const resume = resumeDeLaPublication(apercu, choix);
   const nom = apercu.advertiser.display_name || null;
+  // Le plafond de photos d'UNE publication : au-delà l'API refuse (422), l'écran ne laisse pas confirmer.
+  const tropDePhotos = depassePlafondDePhotos(resume, apercu);
 
   const lancer = (geste: () => void) => {
     setErreur(null);
@@ -229,10 +232,15 @@ function ApercuCharge({ id, apercu, claim }: ApercuChargeProps) {
       </section>
 
       <div className="flex flex-wrap items-center gap-3 border-t pt-4">
-        <Button type="button" disabled={gestesFermes || fermee || cochees.length === 0} onClick={() => { setErreurPublication(null); setConfirmation(true); }}>
+        <Button type="button" disabled={gestesFermes || fermee || cochees.length === 0 || tropDePhotos} onClick={() => { setErreurPublication(null); setConfirmation(true); }}>
           {t('publish', { count: cochees.length })}
         </Button>
         {cochees.length === 0 && !fermee ? <p className="text-xs text-muted-foreground">{t('nothingChecked')}</p> : null}
+        {tropDePhotos ? (
+          <p className="text-xs text-destructive" data-testid="radar-publication-plafond">
+            {t('overPhotoLimit', { count: resume.photos, max: apercu.max_photos })}
+          </p>
+        ) : null}
       </div>
 
       <ConfirmerPublication

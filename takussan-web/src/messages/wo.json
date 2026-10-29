@@ -8596,6 +8596,7 @@
           },
           "publish": "{count, plural, =0 {Publier} one {Publier # annonce} other {Publier # annonces}}",
           "nothingChecked": "Cochez au moins une annonce à publier.",
+          "overPhotoLimit": "La sélection compte {count, plural, one {# photo} other {# photos}} : une publication en accepte {max} au plus. Décochez des annonces, puis publiez-les en plusieurs fois.",
           "confirm": {
             "title": "Publier pour {name} ?",
             "titleUnnamed": "Publier pour cet annonceur ?",
@@ -8646,6 +8647,7 @@
             "noSourcePhotos": "Cette annonce n’a aucune photo à récupérer à la source : déposez-en à la main.",
             "photoNotFound": "Cette photo n’est pas dans la réserve de cette annonce.",
             "reserveFull": "La réserve de photos est pleine : {max} photos au plus.",
+            "tooManyPhotos": "Ces annonces ont {count, plural, one {# photo} other {# photos}} en tout, et une publication en accepte {max} au plus : publiez-les en plusieurs fois.",
             "photoTooLarge": "Une photo est trop grande : ses dimensions dépassent les bornes acceptées.",
             "photoUnreadable": "Une photo ne se lit pas comme une image : envoyez un JPEG, un PNG ou un WebP.",
             "quotaExceeded": "L’espace de cet annonceur a atteint son quota d’annonces actives : rien n’a été publié.",

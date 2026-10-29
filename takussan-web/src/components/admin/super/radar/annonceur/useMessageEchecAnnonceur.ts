@@ -53,12 +53,12 @@ export function useMessageEchecAnnonceur() {
   };
 }
 
-/** Le paramètre `max` d'un 422 `radar.photo.reserve_full` : la taille de la réserve. */
-function maxDeLaReserve(erreur: unknown): number | null {
+/** Un paramètre numérique d'un refus de l'API (`params.max`, `params.count`), `null` s'il manque. */
+function paramNumerique(erreur: unknown, nom: string): number | null {
   if (!(erreur instanceof ApiError) || !erreur.data || typeof erreur.data !== 'object') return null;
   const params = (erreur.data as { params?: unknown }).params;
-  const max = params && typeof params === 'object' ? (params as { max?: unknown }).max : undefined;
-  return typeof max === 'number' ? max : null;
+  const valeur = params && typeof params === 'object' ? (params as Record<string, unknown>)[nom] : undefined;
+  return typeof valeur === 'number' ? valeur : null;
 }
 
 /**
@@ -72,7 +72,9 @@ export function useLibelleCodePublication() {
 
   return (code: string, erreur?: unknown): string => {
     const cle = ERREURS_PUBLICATION_RADAR[code];
-    if (cle) return cle === 'reserveFull' ? t(cle, { max: maxDeLaReserve(erreur) ?? 20 }) : t(cle);
+    if (cle === 'reserveFull') return t(cle, { max: paramNumerique(erreur, 'max') ?? 20 });
+    if (cle === 'tooManyPhotos') return t(cle, { max: paramNumerique(erreur, 'max') ?? 30, count: paramNumerique(erreur, 'count') ?? 0 });
+    if (cle) return t(cle);
     const annonceur = ERREURS_ANNONCEUR_RADAR[code];
     return annonceur ? tFiche(`errors.${annonceur}`) : code;
   };

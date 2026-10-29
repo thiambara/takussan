@@ -17,6 +17,7 @@ export const ERREURS_PUBLICATION_RADAR: Record<string, string> = {
   'radar.publish.photos_pending': 'photosPending',
   'radar.publish.no_photo': 'noPhoto',
   'radar.publish.missing_field': 'missingField',
+  'radar.publish.too_many_photos': 'tooManyPhotos',
   'radar.publish.nothing_covered': 'nothingCovered',
   'radar.publish.nothing_published': 'nothingPublished',
   // `AdvertiserProvisioner`

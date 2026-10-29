@@ -84,6 +84,15 @@ return [
         'reserve_max' => 20,
     ],
 
+    // TCK-2389 (revue finale, I2) — « Publier pour lui » copie chaque photo de la réserve et encode sa vignette DANS sa
+    // transaction, sous le `max_execution_time` de 60 s (temps d'horloge, image ZTS) : un travail non borné meurt sans rien
+    // défaire des fichiers déjà écrits. `max_photos` borne la SOMME des réserves des annonces demandées en une requête ;
+    // au-delà, 422 `radar.publish.too_many_photos` avant la moindre écriture, et l'aperçu annonce le plafond.
+    // 30 photos : ~1 annonce bien garnie ×1,5 — à resserrer ou relâcher sur une mesure de la préproduction.
+    'publish' => [
+        'max_photos' => 30,
+    ],
+
     // ADR-0077 §5 — les bornes de vraisemblance d'une extraction, lues par
     // `App\Services\Radar\ExtractionNormalizer`. Hors bornes : drapeau `out_of_bounds` et confiance
     // `low` ; la valeur reste, l'humain tranche. Montants en XOF, bornes incluses.

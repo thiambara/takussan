@@ -612,6 +612,8 @@ export interface RadarPublicationPreview {
   readonly listings: readonly RadarPublicationListing[];
   /** Les biens que le Radar a DÉJÀ publiés pour cet annonceur : de quoi composer le second message sans la réponse d'un `publish`. */
   readonly published: readonly RadarPublishedProperty[];
+  /** Le plafond de photos d'UNE publication (somme des réserves des annonces cochées) : au-delà, l'API refuse en 422. */
+  readonly max_photos: number;
   /** Les codes qui bloquent l'ensemble (`radar.advertiser.phone_registered`, `account_unavailable`, `do_not_contact`, `radar.publish.nothing_covered`). */
   readonly blocking: readonly string[];
 }

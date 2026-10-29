@@ -9250,6 +9250,7 @@
           },
           "publish": "{count, plural, =0 {Publish} one {Publish # listing} other {Publish # listings}}",
           "nothingChecked": "Tick at least one listing to publish.",
+          "overPhotoLimit": "The selection has {count, plural, one {# photo} other {# photos}}: one publication accepts {max} at most. Uncheck some listings, then publish them in several batches.",
           "confirm": {
             "title": "Publish for {name}?",
             "titleUnnamed": "Publish for this advertiser?",
@@ -9300,6 +9301,7 @@
             "noSourcePhotos": "This listing has no photo to collect from its source: upload some by hand.",
             "photoNotFound": "This photo is not in this listing’s reserve.",
             "reserveFull": "The photo reserve is full: {max} photos at most.",
+            "tooManyPhotos": "These listings have {count, plural, one {# photo} other {# photos}} in all, and one publication accepts {max} at most: publish them in several batches.",
             "photoTooLarge": "A photo is too large: its dimensions exceed the accepted limits.",
             "photoUnreadable": "A photo cannot be read as an image: send a JPEG, PNG or WebP.",
             "quotaExceeded": "This advertiser’s space has reached its quota of active listings: nothing was published.",

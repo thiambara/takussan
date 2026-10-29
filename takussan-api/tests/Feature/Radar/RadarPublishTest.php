@@ -572,6 +572,42 @@ class RadarPublishTest extends TestCase
             ->assertJsonPath('data.published', []);
     }
 
+    // --- Revue finale, I2 : le travail de la copie est borné avant la transaction -----------------------------
+
+    public function test_l_apercu_annonce_le_plafond_de_photos_d_une_publication(): void
+    {
+        config(['radar.publish.max_photos' => 7]);
+
+        $this->getJson("/api/admin/radar/advertisers/{$this->annonceur->id}/publication-preview")->assertOk()
+            ->assertJsonPath('data.max_photos', 7);
+    }
+
+    public function test_au_dessus_du_plafond_de_photos_la_publication_rend_422_et_ne_cree_rien(): void
+    {
+        config(['radar.publish.max_photos' => 3]);
+        $a = $this->annonceConsentie(photos: 2);
+        $b = $this->annonceConsentie(photos: 2);
+        $avant = $this->compte();
+
+        $this->publier([$a->id, $b->id])->assertStatus(422)
+            ->assertJsonPath('code', 'radar.publish.too_many_photos')
+            ->assertJsonPath('params', ['count' => 4, 'max' => 3]);
+
+        $this->assertRienDeCree($avant);
+        $this->assertSame(RadarListingStage::Consented, $a->fresh()->stage);
+        $this->assertSame(RadarListingStage::Consented, $b->fresh()->stage);
+    }
+
+    public function test_au_plafond_de_photos_la_publication_passe_et_la_somme_se_fait_sur_les_annonces_demandees(): void
+    {
+        config(['radar.publish.max_photos' => 4]);
+        $a = $this->annonceConsentie(photos: 2);
+        $b = $this->annonceConsentie(photos: 2);
+        $this->annonceConsentie(photos: 5); // hors de la requête : ne compte pas
+
+        $this->publier([$a->id, $b->id])->assertCreated();
+    }
+
     // --- Décision 5 : le titre manquant se construit -------------------------------------------------------
 
     public function test_une_annonce_sans_titre_se_publie_sous_un_titre_construit_que_l_apercu_montre(): void

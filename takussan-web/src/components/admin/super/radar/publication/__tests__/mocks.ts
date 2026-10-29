@@ -49,6 +49,7 @@ export function apercu(partiel: Partial<RadarPublicationPreview> = {}): RadarPub
     account: compte(),
     listings: [annonce(12), annonce(13)],
     published: [],
+    max_photos: 30,
     blocking: [],
     ...partiel,
   };

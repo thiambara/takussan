@@ -50,6 +50,11 @@ export function publicationFermee(apercu: RadarPublicationPreview): boolean {
   return apercu.blocking.length > 0;
 }
 
+/** Le plafond de photos d'une publication : dépasse-t-il celui que l'API annonce ? Les photos des annonces cochées s'additionnent. */
+export function depassePlafondDePhotos(resume: ResumePublication, apercu: RadarPublicationPreview): boolean {
+  return resume.photos > apercu.max_photos;
+}
+
 /** Le code de l'intergiciel d'idempotence quand la même clé travaille encore (ADR-0072 § 5) : 409, sans rien écrire. */
 export const CODE_EN_COURS = 'idempotency.in_progress';
 
@@ -60,8 +65,9 @@ export const REJEU_EN_COURS_MS = 3_000;
 const pause = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 /**
- * TCK-2389 (ADR-0072) — une publication longue dépasse le délai du relais alors que l'API va au bout et commite ; le réessai
- * sous la MÊME clé rend alors 409 `idempotency.in_progress` tant qu'elle tourne, puis la réponse enregistrée. On le rejoue
+ * TCK-2389 (ADR-0072) — une publication un peu longue dépasse le délai du relais alors que l'API va au bout et commite (la
+ * vraie borne de l'API est `max_execution_time` = 60 s, en temps d'horloge, image ZTS : `radar.publish.max_photos` borne le
+ * travail pour rester dessous) ; le réessai sous la MÊME clé rend alors 409 `idempotency.in_progress` tant qu'elle tourne, puis la réponse enregistrée. On le rejoue
  * donc, à court délai et de façon bornée, au lieu de relire l'aperçu — qui, une fois les biens publiés, ne les montrerait
  * plus — ; passé la borne, le refus remonte tel quel et la clé reste, pour que l'opérateur réessaie sous elle.
  */

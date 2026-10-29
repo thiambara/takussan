@@ -741,6 +741,7 @@ return [
             'photos_pending' => 'Les photos d\'une de ces annonces sont encore en préparation : attendez la fin, ou relancez la lecture.',
             'no_photo' => 'Une de ces annonces n\'a aucune photo dans sa réserve : récupérez-en à la source, ou déposez-en.',
             'missing_field' => 'Une de ces annonces est incomplète : le type, le contrat, le prix et un quartier du référentiel sont requis.',
+            'too_many_photos' => 'Ces annonces ont :count photos en tout, et une publication en accepte :max au plus : publiez-les en plusieurs fois.',
             'nothing_published' => 'Aucun bien n\'est publié pour cet annonceur : il n\'y a pas de message à composer.',
         ],
     ],
