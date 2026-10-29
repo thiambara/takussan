@@ -34,6 +34,8 @@ use Illuminate\Support\Facades\DB;
  *    numéro reste s'il a dit STOP** : sans elle, le Radar le retrouverait sur la prochaine annonce. Sans refus ni message, la
  *    ligne elle-même s'en va.
  *
+ * 5. **Les fichiers sans ligne** que la réserve ou une réponse a pu laisser sur le disque privé ({@see RadarOrphanFiles}).
+ *
  * **Idempotente** : chaque étape ne choisit que ce qui est encore dû, relu sous verrou. Ordre des verrous : annonces →
  * annonceur (celui de tout le Radar). Les fichiers partent avec leur ligne, en DERNIER geste de la transaction : une
  * transaction défaite les rend à la reprise suivante, jamais sans eux.
@@ -43,8 +45,10 @@ final class RadarPurger
     /** @var list<string> les compteurs rendus par {@see self::run()}, dans l'ordre */
     private const COUNTERS = [
         'listings', 'media', 'suggestions', 'outreaches', 'replies', 'proofs', 'advertisers_cleared', 'advertisers_deleted',
-        'retention_started', 'retention_reset',
+        'retention_started', 'retention_reset', 'orphan_dirs',
     ];
+
+    public function __construct(private readonly RadarOrphanFiles $orphans) {}
 
     /**
      * @param  int|null  $advertiserId  null : toute la table (la commande planifiée) ; sinon un seul annonceur, sans la rétention
@@ -59,6 +63,7 @@ final class RadarPurger
         if ($advertiserId === null) {
             $this->observeRetention($now, $counts);
             $this->purgeExpiredProofs($now, $counts);
+            $counts['orphan_dirs'] += $this->orphans->sweep($now);
         }
         $this->purgeUnconfirmedReplies($advertiserId, $counts);
         $this->purgeOutreaches($advertiserId, $counts);

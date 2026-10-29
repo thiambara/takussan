@@ -552,6 +552,79 @@ class RadarPurgeTest extends TestCase
         $this->assertNull($accord->fresh()->purged_at);
     }
 
+    public function test_les_routes_de_lecture_rendent_une_fiche_purgee_sans_planter(): void
+    {
+        $annonceur = $this->annonceur(['do_not_contact_at' => now()]);
+        $annonce = $this->annonce($annonceur, ['stage' => RadarListingStage::DoNotContact]);
+        $message = RadarOutreach::factory()->withListings($annonce)->sent()->create(['radar_advertiser_id' => $annonceur->id]);
+        $reponse = RadarConsent::factory()->create(['radar_outreach_id' => $message->id]);
+        $this->purger();
+        $this->actingAsWithStepUp($this->operateur);
+
+        $this->getJson("/api/admin/radar/listings/{$annonce->id}")->assertOk()
+            ->assertJsonPath('data.stage', 'purged')->assertJsonPath('data.raw_text', null);
+        $this->getJson('/api/admin/radar/listings')->assertOk()->assertJsonPath('data.0.stage', 'purged');
+        $fiche = $this->getJson("/api/admin/radar/advertisers/{$annonceur->id}")->assertOk();
+        $fiche->assertJsonPath('data.phone', null)->assertJsonPath('data.display_name', null);
+        $this->assertNotNull($reponse->fresh()->purged_at);
+    }
+
+    // --- Les fichiers sans ligne -------------------------------------------------------------------
+
+    /** Un fichier posé sous un dossier numérique, daté de `$minutes` minutes avant l'instant simulé. */
+    private function fichierOrphelin(string $chemin, int $minutes): void
+    {
+        $disque = Storage::disk($this->disque);
+        $disque->put($chemin, self::jpeg(33));
+        touch($disque->path($chemin), now()->subMinutes($minutes)->getTimestamp());
+    }
+
+    public function test_un_fichier_sans_ligne_media_est_balaye_apres_une_heure_pas_avant(): void
+    {
+        // Le fichier d'un commit défait ou d'un worker coupé : son identifiant de média est brûlé, aucune ligne ne le référence.
+        $this->fichierOrphelin('987654/photo-abc.jpg', 61);
+        $this->fichierOrphelin('987654/conversions/photo-abc-thumb.jpg', 61);
+        $this->fichierOrphelin('987655/photo-def.jpg', 30);
+
+        $comptes = $this->purger();
+
+        $this->assertSame(1, $comptes['orphan_dirs']);
+        $this->assertFalse(Storage::disk($this->disque)->exists('987654/photo-abc.jpg'));
+        $this->assertFalse(Storage::disk($this->disque)->exists('987654/conversions/photo-abc-thumb.jpg'));
+        // Moins d'une heure : une transaction vivante peut encore y écrire sa ligne.
+        $this->assertTrue(Storage::disk($this->disque)->exists('987655/photo-def.jpg'));
+
+        $this->jours(1);
+        $this->assertSame(1, $this->purger()['orphan_dirs']);
+        $this->assertFalse(Storage::disk($this->disque)->exists('987655/photo-def.jpg'));
+    }
+
+    public function test_le_balayage_garde_ce_qu_une_ligne_media_reference_et_ce_qui_n_est_pas_un_dossier_de_media(): void
+    {
+        $annonce = $this->annonce($this->annonceur());
+        $this->retenir($annonce->advertiser);
+        $this->fichierOrphelin('exports/archive.zip', 600);
+        $this->fichierOrphelin('erasure-ledger/2026-10-29/12-20261029T100000Z.json', 600);
+        // Les fichiers de l'annonce ont une ligne `media` : ils restent, quel que soit leur âge ; les autres préfixes du disque ne sont pas des dossiers de média.
+        foreach (Storage::disk($this->disque)->allFiles() as $fichier) {
+            touch(Storage::disk($this->disque)->path($fichier), now()->subYears(2)->getTimestamp());
+        }
+        $avant = Storage::disk($this->disque)->allFiles();
+
+        $this->assertSame(0, $this->purger()['orphan_dirs']);
+
+        $this->assertEqualsCanonicalizing($avant, Storage::disk($this->disque)->allFiles());
+    }
+
+    public function test_le_passage_d_un_seul_annonceur_ne_balaie_pas_le_disque(): void
+    {
+        $annonceur = $this->annonceur();
+        $this->fichierOrphelin('987654/photo-abc.jpg', 600);
+
+        $this->assertSame(0, $this->purger($annonceur->id)['orphan_dirs']);
+        $this->assertTrue(Storage::disk($this->disque)->exists('987654/photo-abc.jpg'));
+    }
+
     // --- Idempotence, journal, planification -------------------------------------------------------
 
     public function test_la_purge_est_idempotente_et_journalise_ses_comptes_sans_numero(): void
