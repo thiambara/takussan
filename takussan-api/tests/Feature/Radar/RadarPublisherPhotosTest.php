@@ -64,4 +64,29 @@ class RadarPublisherPhotosTest extends TestCase
         // La réserve garde ses photos : la copie ne les déplace pas.
         $this->assertCount(2, $annonce->fresh()->getMedia('radar_photos'));
     }
+
+    /**
+     * La couverture suit l'annonce source : les photos lues passent dans l'ordre des éléments de `photo_preparation` (celui de
+     * `photo_urls`), même si l'une d'elles a été retentée après coup et rangée en dernier ; les photos déposées suivent.
+     */
+    public function test_les_photos_lues_passent_dans_l_ordre_des_elements_puis_les_deposees(): void
+    {
+        $annonce = $this->annonceConsentie(photos: 3);
+        [$m0, $m1, $m2] = $annonce->getMedia('radar_photos')->all();
+        // Rangées dans l'ordre m0, m1 ; mais la première URL de la source est celle de m1 (retentée après coup). m2 est déposée.
+        $annonce->forceFill(['photo_preparation' => [
+            ['url' => 'https://a.cdn.test/p/premiere.jpg', 'media_id' => $m1->id],
+            ['url' => 'https://a.cdn.test/p/seconde.jpg', 'media_id' => $m0->id],
+        ], 'photo_urls' => ['https://a.cdn.test/p/premiere.jpg', 'https://a.cdn.test/p/seconde.jpg']])->save();
+
+        $apercu = $this->getJson("/api/admin/radar/advertisers/{$this->annonceur->id}/publication-preview")->assertOk()->json('data.listings.0.photos');
+        $this->assertSame([$m1->id, $m0->id, $m2->id], array_column($apercu, 'id'));
+
+        $id = $this->publier([$annonce->id])->assertCreated()->json('data.properties.0.id');
+
+        $this->assertSame(
+            [$m1->file_name, $m0->file_name, $m2->file_name],
+            Property::query()->findOrFail($id)->getMedia('photos')->pluck('file_name')->all(),
+        );
+    }
 }

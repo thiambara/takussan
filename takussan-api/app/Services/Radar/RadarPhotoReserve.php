@@ -9,6 +9,7 @@ use App\Models\RadarAdvertiser;
 use App\Models\RadarListing;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Intervention\Image\Drivers\Gd\Driver as GdDriver;
@@ -102,6 +103,28 @@ final class RadarPhotoReserve
         foreach ($medias as $media) {
             Storage::disk($media->disk)->delete($media->getPathRelativeToRoot());
         }
+    }
+
+    /**
+     * La réserve dans l'ordre de la publication : d'abord les photos LUES, dans l'ordre des éléments de `photo_preparation`
+     * (celui de `photo_urls` : la première photo de l'annonce source reste la couverture, même retentée après coup), puis les
+     * photos déposées, dans l'ordre des médias.
+     *
+     * @return Collection<int, Media>
+     */
+    public function ordered(RadarListing $listing): Collection
+    {
+        $medias = $listing->getMedia(self::COLLECTION)->keyBy('id');
+        $first = new Collection;
+        foreach ((array) ($listing->photo_preparation ?? []) as $element) {
+            $media = $medias->get($element['media_id'] ?? null);
+            if ($media !== null) {
+                $first->push($media);
+                $medias->forget($media->id);
+            }
+        }
+
+        return $first->merge($medias->values())->values();
     }
 
     public function count(RadarListing $listing): int

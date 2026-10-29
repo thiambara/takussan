@@ -20,6 +20,7 @@ use App\Support\RadarWaMe;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Spatie\MediaLibrary\MediaCollections\FileAdder;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use Throwable;
 
@@ -149,8 +150,9 @@ final class RadarPublisher
                 foreach ($listings as $listing) {
                     $this->quotas->assertCanCreateActiveListing($agency->id);
                     $property = $this->createProperty($listing, $locked, $user, $agency);
-                    foreach ($listing->getMedia(RadarPhotoReserve::COLLECTION) as $media) {
-                        $copied[] = $media->copy($property, 'photos');
+                    // `copy()` garde l'`order_column` de la réserve : le rang se pose ici, pour que la couverture suive l'ordre voulu.
+                    foreach ($this->reserve->ordered($listing)->values() as $rank => $media) {
+                        $copied[] = $media->copy($property, 'photos', fileAdderCallback: fn (FileAdder $adder) => $adder->setOrder($rank + 1));
                     }
                     $listing->forceFill(['property_id' => $property->id, 'stage' => RadarListingStage::Published, 'stage_reason' => null])->save();
                     $properties[] = $property;
@@ -230,7 +232,7 @@ final class RadarPublisher
     {
         $values = RadarReviewFields::values((array) $listing->extracted);
         $status = $listing->photoPreparationStatus();
-        $photos = $listing->media->where('collection_name', RadarPhotoReserve::COLLECTION)->values();
+        $photos = $this->reserve->ordered($listing);
 
         $blocking = [];
         if ($photos->isEmpty()) {
