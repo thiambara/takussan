@@ -84,7 +84,7 @@ Gestion du cycle de vie d'un bien immobilier, de sa création à sa sortie du po
 | P1 | 🧑‍💼 | Associer des tags / amenités (piscine, climatisation, meublé…) — une seule liste d'équipements, traduite, en sélection multiple avec recherche ; un équipement absent s'ajoute à l'annonce tel que saisi, sans traduction, et n'est proposé aux autres qu'après validation super-admin (TCK-633) |
 | P1 | 🏢🧑‍💼 | Le prix d'un bien se saisit en franc CFA (XOF), seule devise proposée tant que la plateforme ne sert que le Sénégal (TCK-633) |
 | P1 | 🏢🧑‍💼 | Chambres, salles de bain, étage, places de parking et année de construction se choisissent dans des listes (TCK-633) |
-| P1 | 🏢🧑‍💼 | Contacts sur place : jusqu'à 3 numéros par annonce, sans vérification, chacun avec un titre facultatif (« Gardien »…) et l'indication WhatsApp ; révélés au même geste que le numéro principal (TCK-633) |
+| P1 | 🏢🧑‍💼 | Contacts sur place : jusqu'à 3 numéros par annonce, sans vérification, chacun avec un titre facultatif (« Gardien »…) et l'indication WhatsApp ; révélés au même geste que le numéro principal (TCK-633) ; un contact sur place qui répète un numéro déjà servi (principal ou second) n'est pas servi deux fois (TCK-2389) |
 | P1 | 🏢🧑‍💼 | Publier exige un contact joignable : prénom et numéro vérifié de la personne que les visiteurs appelleront — l'agent principal du bien, à défaut son titulaire — ; ce qui manque se complète au moment de publier (nom, numéro avec code SMS, WhatsApp) ; les CGU sont acceptées par le publieur, et sa première publication vaut acceptation, datée (TCK-633) |
 | P1 | 🏢🧑‍💼 | Booster une annonce avec les crédits de l'espace : **Remontée** (le bien repasse en tête du tri par récence, au plus une fois par délai réglé), **En vedette** (emplacements « Sponsorisé » pour une durée), **Badge** (« Urgent », « Prix en baisse ») ; un boost se met en pause quand le bien quitte la surface publique, et ses jours restants sont rendus quand le bien est loué, vendu ou supprimé par l'annonceur (TCK-633, [ADR-0061](adr/0061-credits-d-espace-et-boost-des-annonces.md)) |
 | P1 | 🏢🧑‍💼 | Historique de prix automatique à chaque changement |
@@ -811,7 +811,7 @@ catalogue tant que cet accord n'existe pas. Vision et lots : [plan du 2026-10-26
   du numéro ; un numéro déjà inscrit n'autorise que la réclamation.
 - **La nature de l'annonceur reste dans le Radar**, jamais dans les profils.
 - **Le numéro WhatsApp des notifications ne sert jamais à prospecter.**
-- **Les photos ne sont conservées qu'à la publication** : avant, seule leur empreinte (dHash, calculée à la volée sur la photo source, qui n'est jamais écrite) est gardée pour les rapprochements (TCK-2387).
+- **Les photos ne sont conservées qu'à partir de l'accord confirmé** : avant, seule leur empreinte (dHash, calculée à la volée sur la photo source, qui n'est jamais écrite) est gardée pour les rapprochements (TCK-2387). L'accord confirmé, qui autorise la publication avec les photos, fait télécharger les photos source dans une réserve **privée** de l'annonce ; l'opérateur peut y en retirer ou y en déposer à la main. La publication verse cette réserve au bien, sans appel réseau ; une annonce sans aucune photo en réserve ne se publie pas (TCK-2389). La réserve d'une annonce jamais publiée est purgée avec elle (TCK-2391).
 - **La lecture d'une URL refuse les adresses privées et de métadonnées**, respecte le `robots.txt`
   et limite sa fréquence par domaine. Airbnb est hors périmètre.
 - Droits : `support` saisit, relit, démarche et dépose les preuves ; seul `super_admin` publie pour
