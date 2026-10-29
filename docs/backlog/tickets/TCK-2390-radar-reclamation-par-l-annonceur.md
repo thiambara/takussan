@@ -1,7 +1,7 @@
 ---
 id: TCK-2390
 title: "Radar : l'annonceur réclame ses annonces depuis le lien du message, par code SMS à son numéro"
-status: todo
+status: doing
 phase: P1
 family: full
 estimate: M
