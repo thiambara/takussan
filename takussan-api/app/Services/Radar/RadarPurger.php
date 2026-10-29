@@ -2,9 +2,11 @@
 
 namespace App\Services\Radar;
 
+use App\Jobs\Radar\VerifyRadarConsentReply;
 use App\Models\AiSuggestion;
 use App\Models\Enums\RadarAdvertiserNature;
 use App\Models\Enums\RadarListingStage;
+use App\Models\Enums\RadarVerificationStatus;
 use App\Models\Property;
 use App\Models\RadarAdvertiser;
 use App\Models\RadarConsent;
@@ -256,7 +258,13 @@ final class RadarPurger
                 return;
             }
 
-            $reply->forceFill(['transcript' => null, 'ai_verdict' => null, 'purged_at' => now()])->save();
+            $reply->forceFill(['transcript' => null, 'ai_verdict' => null, 'purged_at' => now()]);
+            // Une vérification encore en cours ne doit pas reprendre cette réponse : `failed` est l'état terminal que le front lit déjà
+            // (`done` dirait qu'un verdict existe, `pending` que le job doit revenir). Une réponse `done` ou `failed` garde son statut.
+            if ($reply->verification_status === RadarVerificationStatus::Pending) {
+                $reply->forceFill(['verification_status' => RadarVerificationStatus::Failed, 'verification_reason' => VerifyRadarConsentReply::REASON_PURGED]);
+            }
+            $reply->save();
             $counts['suggestions'] += $this->eraseSuggestions('radar.verification_accord', $reply);
 
             $counts['media'] += $this->deleteMedia($reply);

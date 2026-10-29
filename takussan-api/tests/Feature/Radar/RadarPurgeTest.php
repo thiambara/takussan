@@ -496,6 +496,25 @@ class RadarPurgeTest extends TestCase
         $this->assertSame(self::NUMERO, $annonceur->fresh()->phone);
     }
 
+    public function test_purger_une_reponse_en_cours_de_verification_la_sort_de_pending_et_laisse_les_autres_statuts(): void
+    {
+        $annonceur = $this->annonceur(['do_not_contact_at' => now()]);
+        $annonce = $this->annonce($annonceur, ['stage' => RadarListingStage::DoNotContact]);
+        $message = RadarOutreach::factory()->withListings($annonce)->sent()->create(['radar_advertiser_id' => $annonceur->id]);
+        $enCours = RadarConsent::factory()->create(['radar_outreach_id' => $message->id, 'verification_status' => 'pending']);
+        $faite = RadarConsent::factory()->verified(['transcript' => 'OUI'])->create(['radar_outreach_id' => $message->id]);
+
+        $this->purger();
+
+        $enCours->refresh();
+        $this->assertNotNull($enCours->purged_at);
+        $this->assertSame(['failed', 'radar.verification.purged'], [$enCours->verification_status->value, $enCours->verification_reason]);
+        // Une vérification terminée garde son statut : `done` dit seulement qu'elle a eu lieu.
+        $faite->refresh();
+        $this->assertNotNull($faite->purged_at);
+        $this->assertSame('done', $faite->verification_status->value);
+    }
+
     public function test_un_bien_qui_revient_en_ligne_efface_la_date_de_retrait_de_la_preuve(): void
     {
         [, , $bien, $accord] = $this->publie();

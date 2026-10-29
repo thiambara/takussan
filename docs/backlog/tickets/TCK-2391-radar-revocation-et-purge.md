@@ -201,6 +201,14 @@ posés par TCK-2389. Loi n° 2008-12 : la durée annoncée doit être tenue par 
   les refus déjà purgés, et le Radar pourrait recontacter ces numéros. À poser avant la production : une clé dédiée (`radar.phone_hmac_key`), jamais tournée à la légère.
 - **Copie nocturne du seau privé** : les fichiers purgés survivent dans `vps-sauvegardes` (jamais `sync`). Hors du diff : TCK-2407.
 
+- **Une réponse purgée pendant la vérification n'est plus réécrite (I-4).** `VerifyRadarConsentReply` lit les captures, appelle le modèle (plusieurs secondes),
+  puis écrit : un STOP posé pendant l'appel faisait revenir transcription, verdict et suggestion sur une réponse déjà purgée, que la purge quotidienne
+  ne revoyait jamais (`purged_at` posé). Deux gardes : le `settle()` du job relit la réponse sous verrou et n'écrit rien si `purged_at` est posé (il journalise
+  `radar.verification.abandoned_purged`, identifiant seulement) ; la purge sort une réponse `pending` vers `failed` avec le motif `radar.verification.purged`
+  (`done` dirait qu'un verdict existe, `pending` que le job doit revenir ; une réponse déjà `done` ou `failed` garde son statut). Le motif a son libellé dans
+  le front (`codes-radar.ts`, trois langues). La ligne `ai_calls` de l'appel ne garde pas la sortie du modèle (jetons, issue, motif, rattachement à la réponse :
+  aucun numéro ni nom) et la passerelle ne met pas en cache un usage `personnelle` avec pièces jointes : rien à purger de ce côté.
+
 **Décisions du porteur (2026-10-29).** Les quatre recommandations de l'implémentation sont retenues, ainsi que les choix techniques ci-dessus.
 
 1. `ai_suggestions` du sujet purgé : les champs s'effacent, la ligne reste.

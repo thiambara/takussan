@@ -9030,7 +9030,8 @@
               "timeout": "the AI did not answer in time",
               "noCapture": "no readable capture",
               "noNumber": "the advertiser has no number to compare",
-              "unexpected": "unexpected error"
+              "unexpected": "unexpected error",
+              "purged": "the reply was erased (STOP or advertiser withdrawal)"
             },
             "verdict": {
               "heading": "AI verdict",

@@ -77,6 +77,8 @@ class RadarListingAdvertiserTest extends TestCase
         $this->assertSame(self::ECARTE, $annonceur->phone);
         $this->assertSame(RadarPhone::hmac(self::ECARTE), $annonceur->phone_hmac);
         $this->assertSame($annonceur->id, $listing->fresh()->radar_advertiser_id);
+        // Chemin nominal : aucun STOP, donc aucune purge (TCK-2391).
+        Bus::assertNotDispatched(PurgeRadarAdvertiser::class);
 
         $journal = Activity::query()->where('event', 'radar_listing_advertiser_set')->sole();
         $this->assertSame($annonceur->id, $journal->properties['advertiser_id']);

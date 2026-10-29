@@ -206,6 +206,8 @@ class ExtractRadarListingTest extends TestCase
         $this->assertSame(self::NUMERO, $annonceur->phone);
         $this->assertSame(RadarPhone::hmac(self::NUMERO), $annonceur->phone_hmac);
         $this->assertSame('Moussa', $annonceur->display_name);
+        // Chemin nominal : aucun STOP, donc aucune purge (TCK-2391).
+        Bus::assertNotDispatched(PurgeRadarAdvertiser::class);
     }
 
     // --- La suggestion de l'extraction (TCK-2387, ADR-0076 §7) --------------------------------

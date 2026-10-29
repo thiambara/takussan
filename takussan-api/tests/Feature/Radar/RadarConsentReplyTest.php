@@ -22,6 +22,7 @@ use App\Services\Ai\AiUsageRegistry;
 use App\Services\Ai\PromptRepository;
 use App\Services\Radar\ConsentMessageComposer;
 use App\Services\Radar\RadarConsentWorkflow;
+use App\Services\Radar\RadarPurger;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -29,6 +30,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Exceptions;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Testing\TestResponse;
 use Laravel\Ai\Exceptions\RateLimitedException;
@@ -456,6 +458,57 @@ class RadarConsentReplyTest extends TestCase
         $reponse->refresh();
         $this->assertSame([RadarVerificationStatus::Failed, 'radar.verification.timeout'], [$reponse->verification_status, $reponse->verification_reason]);
         $this->assertNull($reponse->ai_verdict);
+        $this->assertSame(0, AiSuggestion::query()->count());
+    }
+
+    public function test_une_reponse_purgee_pendant_l_appel_ne_recoit_ni_verdict_ni_transcription_ni_suggestion(): void
+    {
+        $reponse = null;
+        RadarConsentVerification::fake(function () use (&$reponse) {
+            // Pendant que le modèle répond, la purge a effacé la réponse (`purged_at` posé) : ce que le modèle a lu ne doit pas revenir.
+            RadarConsent::query()->whereKey($reponse->id)->update(['transcript' => null, 'ai_verdict' => null, 'purged_at' => now()]);
+
+            return $this->sortie();
+        });
+        $reponse = $this->reponseDeposee();
+        Log::spy();
+
+        $this->lancer($reponse);
+
+        $reponse->refresh();
+        $this->assertNull($reponse->ai_verdict);
+        $this->assertNull($reponse->transcript);
+        $this->assertSame(RadarVerificationStatus::Pending, $reponse->verification_status);
+        $this->assertNotNull($reponse->purged_at);
+        $this->assertSame(0, AiSuggestion::query()->count());
+        // L'abandon est journalisé par l'identifiant de la réponse, sans le moindre contenu.
+        Log::shouldHaveReceived('info')->with('radar.verification.abandoned_purged', ['reply_id' => $reponse->id])->once();
+    }
+
+    public function test_un_stop_dit_pendant_l_appel_purge_la_reponse_et_rien_ne_revient_ensuite(): void
+    {
+        $reponse = null;
+        RadarConsentVerification::fake(function () use (&$reponse) {
+            // Le geste naturel : la capture dit « STOP », l'opérateur pose l'issue, la purge part pendant que le modèle lit.
+            $this->annonceur->forceFill(['do_not_contact_at' => now()])->save();
+            app(RadarPurger::class)->run($this->annonceur->id);
+
+            return $this->sortie();
+        });
+        $reponse = $this->reponseDeposee();
+
+        $this->lancer($reponse);
+
+        $reponse->refresh();
+        $this->assertSame([RadarVerificationStatus::Failed, VerifyRadarConsentReply::REASON_PURGED], [$reponse->verification_status, $reponse->verification_reason]);
+        $this->assertNull($reponse->transcript);
+        $this->assertNull($reponse->ai_verdict);
+        $this->assertSame(0, AiSuggestion::query()->count());
+
+        // Aucun autre chemin ne la reprend : un nouveau passage du job ne fait rien, la purge quotidienne n'a plus rien à effacer.
+        $this->lancer($reponse);
+        $this->assertSame(0, app(RadarPurger::class)->run()['replies']);
+        $this->assertNull($reponse->fresh()->transcript);
         $this->assertSame(0, AiSuggestion::query()->count());
     }
 
