@@ -105,4 +105,10 @@ et le processus qui la consomme.
   (`EPREUVES`), plus cinq ablations jouées à la main sur l'arbre (trait ôté d'un job, `ai` ajoutée au
   `--queue=` de `worker`, `worker-ia` retiré du compose, retiré de `dev.sh`, job neuf qui appelle
   `AiGateway`) : toutes rouges, tout restauré par `cmp`.
-- **Surveillance** : `ai` n'est pas dans `RecordQueueHeartbeat::QUEUES` — suite dans TCK-2408.
+- **Surveillance** : `ai` rejoint `RecordQueueHeartbeat::QUEUES` (une ligne : le battement planifié, la
+  sonde `workers` et les tests qui bouclent sur la liste la suivent) ; un `worker-ia` arrêté est `failed`
+  à 300 s. Un appel de 85 s au plus reste sous le seuil `degraded` du battement (180 s). ⚠ Non traité :
+  la sonde `queue` (âge du plus ancien job disponible, 600 s `degraded`) garde les seuils des files
+  courtes ; une rafale d'une dizaine d'extractions lentes (le battement planifié attend derrière elles)
+  peut la lever sans que le worker soit en cause — à seuiller, comme TCK-2401 l'a fait pour `long`, si
+  la durée réelle d'une extraction le justifie (non mesurée ici).
