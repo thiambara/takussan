@@ -181,8 +181,9 @@ function FormulaireIssue({ reponse, onConfirmer, onAnnuler }: FormulaireIssuePro
             maxLength={RADAR_REASON_MAX}
             required
             aria-invalid={serveurExigeMotif && motif.trim() === ''}
+            aria-describedby={`${champMotif}-aide`}
           />
-          <p className="text-xs text-muted-foreground">{t('reasonRequiredHint')}</p>
+          <p id={`${champMotif}-aide`} className="text-xs text-muted-foreground">{t('reasonRequiredHint')}</p>
         </div>
       ) : null}
 
