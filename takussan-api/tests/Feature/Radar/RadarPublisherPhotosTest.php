@@ -3,10 +3,16 @@
 namespace Tests\Feature\Radar;
 
 use App\Models\Enums\RadarListingStage;
+use App\Models\Enums\RadarSourceKind;
 use App\Models\MediaFingerprint;
 use App\Models\Property;
+use App\Models\RadarConsent;
+use App\Models\RadarListing;
+use App\Models\RadarOutreach;
 use App\Services\Billing\QuotaResolver;
+use App\Services\Radar\HostResolver;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use Tests\Support\FixturesDePublicationRadar;
@@ -32,6 +38,61 @@ class RadarPublisherPhotosTest extends TestCase
     private function publier(array $ids)
     {
         return $this->postJson("/api/admin/radar/advertisers/{$this->annonceur->id}/publish", ['listing_ids' => $ids]);
+    }
+
+    /**
+     * Le chemin entier, sans rien écrire à la main dans la réserve : l'accord confirmé met la lecture des photos en file
+     * (file synchrone : le job tourne), la réserve se remplit, la publication copie ce que le job a rangé. Chaque pièce a son
+     * test ; celui-ci tient que les trois se recollent (revue finale, m3).
+     */
+    public function test_de_l_accord_confirme_a_la_publication_les_photos_lues_deviennent_celles_du_bien(): void
+    {
+        Http::preventStrayRequests();
+        $this->app->instance(HostResolver::class, new class implements HostResolver
+        {
+            public function resolve(string $host): array
+            {
+                return str_ends_with($host, '.cdn.test') ? ['93.184.216.34'] : [];
+            }
+        });
+        Http::fake([
+            '*/robots.txt' => Http::response('', 404),
+            'https://a.cdn.test/p/1.jpg' => Http::response(self::jpeg(100), 200, ['Content-Type' => 'image/jpeg']),
+            'https://b.cdn.test/p/2.jpg' => Http::response(self::jpeg(140), 200, ['Content-Type' => 'image/jpeg']),
+        ]);
+        $annonce = RadarListing::factory()
+            ->extracted(['neighborhood' => ['neighborhood_id' => $this->quartier->id]])
+            ->create([
+                'radar_advertiser_id' => $this->annonceur->id,
+                'stage' => RadarListingStage::Contacted,
+                'source_kind' => RadarSourceKind::Url,
+                'source_url' => 'https://sn.coinafrique.com/annonce/4242',
+                'photo_urls' => ['https://a.cdn.test/p/1.jpg', 'https://b.cdn.test/p/2.jpg'],
+            ]);
+        $message = RadarOutreach::factory()->withListings($annonce)->sent()->create([
+            'radar_advertiser_id' => $this->annonceur->id, 'created_by_id' => $this->operateur->id, 'sent_by_id' => $this->operateur->id,
+        ]);
+        RadarConsent::factory()->verified([
+            'classification' => 'consent', 'confidence' => 'high', 'transcript' => 'Annonceur : OUI', 'reply_text' => 'OUI',
+            'counterpart_phone' => self::NUMERO_ANNONCEUR, 'counterpart_name' => 'Awa Diop', 'number_matches' => true,
+            'number_checked_by' => 'code', 'name_matches' => true, 'clauses_found' => [1, 2, 3, 4], 'clauses_complete' => true,
+        ])->create(['radar_outreach_id' => $message->id]);
+        $this->assertNull($annonce->photo_preparation);
+
+        $this->postJson("/api/admin/radar/outreaches/{$message->id}/outcome", ['outcome' => 'consented'])->assertOk();
+
+        $annonce->refresh();
+        $this->assertSame(RadarListingStage::Consented, $annonce->stage);
+        $this->assertSame(['status' => 'done', 'total' => 2, 'done' => 2], $annonce->photoPreparationStatus(), 'le job a rempli la réserve');
+
+        $id = $this->publier([$annonce->id])->assertCreated()->json('data.properties.0.id');
+
+        $photos = Property::query()->findOrFail($id)->getMedia('photos');
+        $this->assertCount(2, $photos);
+        $this->assertSame(
+            $annonce->getMedia('radar_photos')->pluck('file_name')->all(),
+            $photos->pluck('file_name')->all(),
+        );
     }
 
     public function test_une_reserve_vide_refuse_la_publication(): void
