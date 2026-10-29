@@ -8,6 +8,8 @@ use App\Models\Enums\RadarSourceKind;
 use App\Models\RadarAdvertiser;
 use App\Models\RadarListing;
 use App\Models\User;
+use Illuminate\Bus\UniqueLock;
+use Illuminate\Contracts\Cache\Repository as Cache;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -154,6 +156,10 @@ final class RadarPhotoReserve
             $locked->save();
             $this->journal($locked, $by, 'fetch', []);
 
+            // Le verrou d'unicité du job tient 6 h : une ligne de file détruite sans que le job se termine le laisserait en
+            // cache, et cette relance serait ignorée sans le dire. L'unicité n'est qu'une déduplication ici — deux passes ne se
+            // chevauchent pas (`WithoutOverlapping` par annonce) et un rang périmé relâche la passe en double.
+            (new UniqueLock(app(Cache::class)))->release(new PrepareRadarListingPhotos($locked->id));
             PrepareRadarListingPhotos::dispatch($locked->id);
 
             return $locked;

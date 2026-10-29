@@ -15,6 +15,8 @@ use App\Models\User;
 use App\Services\Radar\HostResolver;
 use App\Services\Radar\RadarConsentWorkflow;
 use App\Services\Radar\RadarPhotoReserve;
+use Illuminate\Bus\UniqueLock;
+use Illuminate\Contracts\Cache\Repository as Cache;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
@@ -447,6 +449,23 @@ class RadarPhotoReserveTest extends TestCase
         $annonce->refresh();
         $this->assertSame(['status' => 'done', 'total' => 2, 'done' => 2], $annonce->photoPreparationStatus());
         $this->assertCount(2, $annonce->getMedia('radar_photos'));
+    }
+
+    /**
+     * Le verrou d'unicité du job tient 6 h : une ligne de file détruite (`queue:clear`, purge de la table `jobs`) sans que le
+     * job se termine le laisse en cache, et la relance serait ignorée sans le dire. La relance le libère avant de mettre en file.
+     */
+    public function test_la_relance_libere_un_verrou_d_unicite_orphelin_et_met_le_job_en_file(): void
+    {
+        Queue::fake();
+        $annonce = $this->annonce();
+        $verrou = new UniqueLock($this->app->make(Cache::class));
+        $this->assertTrue($verrou->acquire(new PrepareRadarListingPhotos($annonce->id)), 'le verrou orphelin, posé à la main');
+        $this->assertFalse($verrou->acquire(new PrepareRadarListingPhotos($annonce->id)), 'un second exemplaire est bien ignoré');
+
+        $this->postJson("/api/admin/radar/listings/{$annonce->id}/photos/fetch")->assertStatus(202);
+
+        Queue::assertPushed(PrepareRadarListingPhotos::class, fn (PrepareRadarListingPhotos $job) => $job->listingId === $annonce->id);
     }
 
     public function test_la_relance_d_une_annonce_sans_url_de_photo_rend_422(): void
