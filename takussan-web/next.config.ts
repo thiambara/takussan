@@ -187,6 +187,12 @@ const nextConfig: NextConfig = {
         source,
         headers: [{ key: 'Referrer-Policy', value: 'no-referrer' }],
       })),
+      // TCK-2390 (ADR-0077 §3) — même nature : le jeton signé de la page de réclamation est le
+      // droit de recevoir le code et de publier les annonces de l'annonceur.
+      ...['/claim/:path*', '/:locale/claim/:path*'].map((source) => ({
+        source,
+        headers: [{ key: 'Referrer-Policy', value: 'no-referrer' }],
+      })),
     ];
   },
 };
