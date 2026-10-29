@@ -25,6 +25,7 @@
 | 014 | 2026-10-14 | [`pass-014-2026-10-14-2220`](./pass-014-2026-10-14-2220/00-summary.md) | **Différentielle après ADR-0064** — §96 conforme (TCK-639), unicités globales en base (TCK-640) ; la voie brute des paramètres globaux, servie par la console depuis TCK-648, contredit l.671 et §30 |
 | 015 | 2026-10-19 | [`pass-015-2026-10-19-2229`](./pass-015-2026-10-19-2229/00-summary.md) | **Différentielle après ADR-0070** — §30 conforme (TCK-651, FC1 soldée), §100 exacte ; onze migrations fusionnées sans la spec : quatre colonnes chiffrées décrites en clair (§7, §27, §34), six autres migrations absentes ; la §3 décrit TCK-997/999/1000 avant leur livraison |
 | 016 | 2026-10-27 | [`pass-016-2026-10-27-1455`](./pass-016-2026-10-27-1455/00-summary.md) | **Différentielle après le socle IA (ADR-0076)** — MD1-MD7 et C1-C5, C16 soldées, huit sections redeviennent ✅ ; §104 et §106 décrivent encore `error_code` en nom de classe et omettent `stop_reason` ; quatorze migrations de schéma sans la spec, dont deux tables de reprise au bailleur sans section ; Radar compté ⚠️ justifié |
+| 017 | 2026-10-29 | [`pass-017-2026-10-29-0657`](./pass-017-2026-10-29-0657/00-summary.md) | **Différentielle après le Radar, lots 1-3 (ADR-0077)** — FE1-FE5, ME1-ME15 et C10 soldées, treize sections redeviennent ✅ ; 8 migrations sur 8 tracées ; six lignes du Radar ✅, huit ⚠️ justifiées (TCK-2389 → 2395) ; §108-§109 disent au présent une purge à venir (TCK-2391), douze enums absents de l'inventaire |
 
 ## Tableau d'évolution
 
@@ -46,6 +47,7 @@
 | 014 | 2026-10-14 | 380 | 99 | 384 | 94 | 1 | −1 | +1 | 0 |
 | 015 | 2026-10-19 | 383 | 100 | 384 | 98 | 1 | 0 | +4 | 0 |
 | 016 | 2026-10-27 | **412** | **106** | **405** | **112** | 1 | **+21** | **+14** | 0 |
+| 017 | 2026-10-29 | 413 | **111** | **428** | **95** | 1 | **+23** | **−17** | 0 |
 
 > **n.c. = non comparable.** La passe 011 juge la spec contre les migrations, plus contre le seul
 > catalogue, et ses unités ont changé (lignes de features : ~208 → 368 ; modèles : 39 → 87 sections
@@ -70,6 +72,10 @@
 > et non ❌ tant que leurs tickets sont `todo`) et sept sections dégradées par des migrations ou un
 > « pas encore » rattrapé (−7 ✅ / +7 ⚠️).
 >
+> **Passe 017 : comparable à la 016**, différentielle elle aussi. Son Δ n'a pas de terme négatif :
+> recommandations appliquées (+14 ✅ / −14 ⚠️ : l.752 et treize sections), lignes du Radar livrées
+> (+6 ✅ / −6 ⚠️), unités neuves (+3 ✅ / +3 ⚠️ : l.223, §107 → §111). Aucune section ne se dégrade.
+>
 > **Passe 013 : plus sévère que la 012 à état égal** — elle relit les 99 sections colonne à colonne
 > et compte ⚠️ une donnée rangée hors colonne sans que la spec dise où. Son Δ mêle les corrections des
 > lots 1-3 et ce que la relecture a découvert ; son `00-summary.md` sépare les deux.
@@ -86,7 +92,24 @@
 > passe 010 était honnête **le jour où elle a été écrite** ; c'est de l'avoir laissée parler au
 > présent qui a coûté.
 
-### Passe 016 (2026-10-27) — l'état courant
+### Passe 017 (2026-10-29) — l'état courant
+
+**Convergence rompue — passe différentielle**, sur `docs/sync-specs-radar` (partie de `dev`
+`544bf34d4`, après #1577). Les recommandations de la 016 sont toutes appliquées (`0e6e3dd12` : FE1-FE5,
+ME1-ME15, et C10 avec ME6) : treize sections redeviennent ✅, aucune ne se dégrade. **Les 8 migrations
+du Radar ont toutes leur trace dans la spec**, y compris les trois qui ajoutent une colonne : le défaut
+mesuré par la 015 et la 016 ne s'est pas reproduit. Six lignes du Radar passent ✅ (TCK-2386 → 2388) ;
+huit restent ⚠️ justifiées (TCK-2389 → 2395 `todo`). Ce qui reste neuf : §108 et §109 disent au présent
+la purge de TCK-2391 (MF1, données personnelles), une règle de §2.12 sur les photos est démentie à la
+lettre par TCK-2387 (FF1), douze enums manquent à l'inventaire (MF4). Le ❌ (push, l.560) reste.
+15 recommandations à `features.md` (FF1 + 14 reprises), 25 actions à `models-spec.md` (MF1-MF5 + 20
+reprises), toutes factuelles sauf FB1. Détail :
+[`pass-017-2026-10-29-0657/00-summary.md`](./pass-017-2026-10-29-0657/00-summary.md).
+
+> *Différentielle : 22 lignes et 21 sections re-mesurées, le reste repris de la 016 ; migrations lues dans le
+> code, pas en base.*
+
+### Passe 016 (2026-10-27)
 
 **Convergence rompue — passe différentielle**, sur `docs/sync-specs-socle-ia` (partie de `dev`
 `9b39627a0`, après #1572). Les lots de la 013 (C1-C5, C16, FA1, FA3 — TCK-1012) et de la 015 (MD1-MD7,
@@ -99,7 +122,7 @@ hors lot à la demande du porteur. 19 recommandations à `features.md` (FE1-FE5 
 [`pass-016-2026-10-27-1455/00-summary.md`](./pass-016-2026-10-27-1455/00-summary.md).
 
 > *Différentielle : 49 lignes et 38 sections re-mesurées, le reste repris de la 015 ; migrations lues dans le
-> code, pas en base.*
+> code, pas en base. Ses recommandations ont été appliquées (`0e6e3dd12`) ; la passe 017 les re-mesure.*
 
 ### Passe 015 (2026-10-19)
 
