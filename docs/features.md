@@ -811,7 +811,7 @@ catalogue tant que cet accord n'existe pas. Vision et lots : [plan du 2026-10-26
   du numéro ; un numéro déjà inscrit n'autorise que la réclamation.
 - **La nature de l'annonceur reste dans le Radar**, jamais dans les profils.
 - **Le numéro WhatsApp des notifications ne sert jamais à prospecter.**
-- **Les photos ne sont téléchargées qu'à la publication.**
+- **Les photos ne sont conservées qu'à la publication** : avant, seule leur empreinte (dHash, calculée à la volée sur la photo source, qui n'est jamais écrite) est gardée pour les rapprochements (TCK-2387).
 - **La lecture d'une URL refuse les adresses privées et de métadonnées**, respecte le `robots.txt`
   et limite sa fréquence par domaine. Airbnb est hors périmètre.
 - Droits : `support` saisit, relit, démarche et dépose les preuves ; seul `super_admin` publie pour

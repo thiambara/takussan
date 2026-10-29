@@ -5026,9 +5026,11 @@ settled_amount`.
 `hasMany listings`, `outreaches`, `consents`, `belongsTo user`, `claimer` (colonne `claimed_by_id`).
 **Description :** L'annonceur d'une ou plusieurs annonces collectées, identifié par son numéro de
 téléphone ([ADR-0077 §1, §7, §9](adr/0077-le-radar.md)). Sa nature présumée et ses indices restent
-ici, jamais dans les profils. Après un STOP, `phone` est purgé et `phone_hmac` — l'empreinte à clé du
-numéro (`App\Support\RadarPhone::hmac`) — reste : sans elle le Radar le retrouverait sur une
-prochaine annonce et le recontacterait.
+ici, jamais dans les profils. Après un STOP, `phone_hmac` — l'empreinte à clé du numéro
+(`App\Support\RadarPhone::hmac`) — reste : sans elle le Radar le retrouverait sur une prochaine
+annonce et le recontacterait. **À venir** (TCK-2391, `todo`) : la purge de `phone`. Au 2026-10-29, un
+STOP pose `do_not_contact_at`, révoque les accords et ferme les annonces ouvertes, sans rien effacer
+(`RadarConsentWorkflow::stop()`).
 
 **Nature (TCK-2388, décision 3 du porteur, 2026-10-28).** À la validation d'une annonce
 (`RadarListingReview::review()`), si l'opérateur a corrigé `extracted.advertiser_nature` (marque
@@ -5043,7 +5045,7 @@ de plus. Écrites par `forceFill` dans `AdvertiserClaim` seul : hors de `$fillab
 | Colonne | Type | Nullable | Défaut | Description |
 |---------|------|----------|--------|-------------|
 | id | bigint PK | | auto | |
-| phone | string(20) | oui | null | Numéro E.164 (`+221…`) ; **unique** ; null une fois purgé (STOP) |
+| phone | string(20) | oui | null | Numéro E.164 (`+221…`) ; **unique** ; null une fois purgé (STOP, **à venir**, TCK-2391) |
 | phone_hmac | string(64) | | | HMAC-SHA256 du numéro E.164 ; **unique** ; seule trace d'un refus |
 | display_name | string(120) | oui | null | Nom lu dans l'annonce |
 | nature | string(30) | | unknown | `probable_owner`, `probable_intermediary`, `agency`, `unknown` |
@@ -5081,12 +5083,12 @@ sur le disque **privé** par défaut (ADR-0029).
 | source_kind | string(20) | | | `url`, `text`, `captures` (`RadarSourceKind`) |
 | source_site | string(30) | | | `coinafrique`, `expat_dakar`, `facebook`, `whatsapp`, `other` (`RadarSourceSite::fromHost`) |
 | source_url | text | oui | null | URL collectée |
-| raw_text | text | oui | null | Texte brut ; purgé à `purge_at` ou dès un STOP |
+| raw_text | text | oui | null | Texte brut ; purgé à `purge_at` ou dès un STOP (**à venir**, TCK-2391 : au 2026-10-29, aucun code ne lit `purge_at`) |
 | photo_urls | jsonb | | `[]` | URL source des photos, jamais téléchargées |
 | content_fingerprint | string(64) | | | Empreinte du contenu ; **unique** : une annonce n'entre qu'une fois |
-| extracted | jsonb | oui | null | Sortie normalisée de l'extraction : un champ = `{value, confidence, evidence, flags}`, plus `phones`, `phones_flags`, `nature_signals` et `phones_dropped` (les numéros écartés, gardés à part ; purgés avec `extracted`). Une valeur corrigée par l'opérateur porte la marque `corrected` |
+| extracted | jsonb | oui | null | Sortie normalisée de l'extraction : un champ = `{value, confidence, evidence, flags}`, plus `phones`, `phones_flags`, `nature_signals` et `phones_dropped` (les numéros écartés, gardés à part ; purgés avec `extracted`, **à venir**, TCK-2391). Une valeur corrigée par l'opérateur porte la marque `corrected` |
 | matches | jsonb | | `[]` | Rapprochements avec le catalogue |
-| stage | string(30) | | | `captured`, `extracted`, `reviewed`, `contacted`, `consented`, `published`, `extraction_failed`, `duplicate`, `discarded`, `refused`, `do_not_contact`, `purged` ; indexée. `discarded` : écartée par l'opérateur (TCK-2387), distincte de `refused` (issue d'un démarchage) |
+| stage | string(30) | | | `captured`, `extracted`, `reviewed`, `contacted`, `consented`, `published`, `extraction_failed`, `duplicate`, `discarded`, `refused`, `do_not_contact`, `purged` ; indexée. `purged` : écrit par la purge (TCK-2391, **à venir** : aucun code ne l'écrit au 2026-10-29). `discarded` : écartée par l'opérateur (TCK-2387), distincte de `refused` (issue d'un démarchage) |
 | stage_reason | string(60) | oui | null | Code du motif de l'état, jamais de prose ; pour `discarded`, `radar.discard.<motif>` (`RadarDiscardReason` : `not_real_estate`, `out_of_scope`, `no_longer_available`, `unusable_source`, `other`) |
 | extraction_attempts | smallint | | 0 | Passages de l'extraction |
 | extracted_at | timestamp | oui | null | |
