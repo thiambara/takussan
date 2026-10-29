@@ -47,7 +47,8 @@ final class RadarPublisher
      */
     public const REQUIRED = RadarReviewFields::REQUIRED_FOR_REVIEW;
 
-    public const MESSAGE_VERSION = 'publie.v1';
+    /** TCK-2390 — `publie.v2` : le lien d'activation est le lien de réclamation signé ({@see ClaimLinks}), plus `/auth/login`. */
+    public const MESSAGE_VERSION = 'publie.v2';
 
     /**
      * La connexion par téléphone est éteinte (`auth.phone_login.enabled`) : le compte créé n'a ni mot de passe ni e-mail, et
@@ -70,6 +71,7 @@ final class RadarPublisher
         private readonly RadarConsentCoverage $coverage,
         private readonly RadarPhotoReserve $reserve,
         private readonly QuotaResolver $quotas,
+        private readonly ClaimLinks $claimLinks,
     ) {}
 
     /**
@@ -277,7 +279,8 @@ final class RadarPublisher
 
     /**
      * Le second message, celui qui annonce les biens en ligne : un texte fixe versionné
-     * (`resources/radar/messages/publie.v1.<locale>.md`), jamais généré, et son lien `wa.me`.
+     * (`resources/radar/messages/publie.v2.<locale>.md`), jamais généré, et son lien `wa.me`. Il n'est pas enregistré : son
+     * lien de réclamation est émis à sa composition, et sert `radar.claim.link_ttl_days` jours.
      *
      * @return array{text: string, wa_me: string, version: string}
      */
@@ -309,7 +312,7 @@ final class RadarPublisher
             ' {prenom}' => $firstName === '' ? '' : ' '.$firstName,
             '{prenom}' => $firstName,
             '{liens}' => $slugs->map(fn (string $slug) => self::publicUrl($slug, $locale))->implode("\n"),
-            '{lien_activation}' => LienFront::vers('/auth/login'),
+            '{lien_reclamation}' => $this->claimLinks->url($advertiser, now(), $locale),
         ]);
 
         return ['text' => $text, 'wa_me' => RadarWaMe::url($advertiser->phone, $text), 'version' => self::MESSAGE_VERSION];

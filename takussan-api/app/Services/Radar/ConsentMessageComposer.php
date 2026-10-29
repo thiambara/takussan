@@ -7,6 +7,7 @@ use App\Ai\Usages\RadarConsentMessageUsage;
 use App\Models\Enums\AiDataClass;
 use App\Models\RadarAdvertiser;
 use App\Models\RadarListing;
+use App\Models\RadarOutreach;
 use App\Models\User;
 use App\Services\Ai\AiErrorCode;
 use App\Services\Ai\AiGateway;
@@ -36,8 +37,12 @@ use Throwable;
  */
 final class ConsentMessageComposer
 {
-    /** (décision 1, porteur 2026-10-28) — sans la ligne de réclamation : TCK-2390 l'ajoute en `accord.v2`. */
-    public const CLAUSES_VERSION = 'accord.v1';
+    /**
+     * (décision 1, porteur 2026-10-28) — TCK-2390 : `accord.v2` = `accord.v1` + la ligne de réclamation (`{lien_reclamation}`),
+     * et une formulation qui vaut pour une annonce comme pour plusieurs. Chaque message garde la sienne
+     * (`radar_outreaches.clauses_version`) : un message préparé en `accord.v1` se recompose en `accord.v1`, sans lien.
+     */
+    public const CLAUSES_VERSION = 'accord.v2';
 
     /** (décision 5, porteur 2026-10-28) — pas de wolof tant qu'il est en pause. */
     public const LOCALES = ['fr', 'en'];
@@ -48,9 +53,9 @@ final class ConsentMessageComposer
 
     public const SUMMARY_MAX = 500;
 
-    private const PLACEHOLDER = '/\{(salutation|resume|lien_conditions)\}/';
+    private const PLACEHOLDER = '/\{(salutation|resume|lien_conditions|lien_reclamation)\}/';
 
-    public function __construct(private readonly AiGateway $gateway) {}
+    public function __construct(private readonly AiGateway $gateway, private readonly ClaimLinks $claimLinks) {}
 
     public function template(string $locale, string $version = self::CLAUSES_VERSION): string
     {
@@ -65,8 +70,12 @@ final class ConsentMessageComposer
         return rtrim((string) file_get_contents($path), "\n");
     }
 
-    /** @return list<array{kind: 'fixed'|'salutation'|'resume', text: string}> */
-    public function segments(string $locale, string $salutation, string $summary, string $version = self::CLAUSES_VERSION): array
+    /**
+     * `$claimUrl` : le lien de réclamation du message ({@see self::claimUrlFor()}), exigé par une version qui le porte.
+     *
+     * @return list<array{kind: 'fixed'|'salutation'|'resume', text: string}>
+     */
+    public function segments(string $locale, string $salutation, string $summary, string $version = self::CLAUSES_VERSION, ?string $claimUrl = null): array
     {
         $parts = preg_split(self::PLACEHOLDER, $this->template($locale, $version), -1, PREG_SPLIT_DELIM_CAPTURE) ?: [];
         $segments = [];
@@ -82,15 +91,26 @@ final class ConsentMessageComposer
                 'salutation' => ['kind' => 'salutation', 'text' => self::part($salutation, self::SALUTATION_MAX)],
                 'resume' => ['kind' => 'resume', 'text' => self::part($summary, self::SUMMARY_MAX)],
                 'lien_conditions' => ['kind' => 'fixed', 'text' => $this->conditionsUrl($locale)],
+                // Un message sans son lien promettrait une vérification que rien ne permet : on échoue plutôt.
+                'lien_reclamation' => ['kind' => 'fixed', 'text' => $claimUrl ?? throw new RuntimeException('radar.claim_link_missing')],
             };
         }
 
         return $segments;
     }
 
-    public function compose(string $locale, string $salutation, string $summary, string $version = self::CLAUSES_VERSION): string
+    public function compose(string $locale, string $salutation, string $summary, string $version = self::CLAUSES_VERSION, ?string $claimUrl = null): string
     {
-        return implode('', array_column($this->segments($locale, $salutation, $summary, $version), 'text'));
+        return implode('', array_column($this->segments($locale, $salutation, $summary, $version, $claimUrl), 'text'));
+    }
+
+    /**
+     * TCK-2390 — le lien de réclamation que porte ce message : émis à son `created_at`, il se recompose à l'identique (le texte
+     * enregistré, celui du lien `wa.me` et l'aperçu de la console restent une seule chaîne), et expire avec lui.
+     */
+    public function claimUrlFor(RadarOutreach $outreach): string
+    {
+        return $this->claimLinks->url($outreach->advertiser, $outreach->created_at, $outreach->locale);
     }
 
     /** (décision 2, porteur 2026-10-28) — la page des conditions du front, dans la langue du message. */

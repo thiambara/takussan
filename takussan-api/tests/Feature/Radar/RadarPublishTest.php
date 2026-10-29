@@ -20,6 +20,7 @@ use App\Models\PropertyContact;
 use App\Models\RadarAdvertiser;
 use App\Models\RadarConsent;
 use App\Models\User;
+use App\Services\Radar\ClaimLinks;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Testing\TestResponse;
@@ -454,7 +455,7 @@ class RadarPublishTest extends TestCase
         $this->assertSame(0, Property::query()->count());
     }
 
-    public function test_le_message_porte_chaque_lien_public_et_le_lien_d_activation(): void
+    public function test_le_message_porte_chaque_lien_public_et_le_lien_de_reclamation(): void
     {
         config(['app.frontend_url' => 'https://front.exemple.test']);
         $a = $this->annonceConsentie();
@@ -462,14 +463,17 @@ class RadarPublishTest extends TestCase
         $slugs = collect($this->publier([$a->id, $b->id])->assertCreated()->json('data.properties'))->pluck('slug');
 
         $message = $this->getJson("/api/admin/radar/advertisers/{$this->annonceur->id}/published-message?locale=fr")->assertOk()
-            ->assertJsonPath('data.version', 'publie.v1');
+            ->assertJsonPath('data.version', 'publie.v2');
         $texte = $message->json('data.text');
 
         $this->assertStringStartsWith('Bonjour Awa, vos annonces sont en ligne sur Takussan :', $texte);
         foreach ($slugs as $slug) {
             $this->assertStringContainsString("https://front.exemple.test/fr/properties/{$slug}", $texte);
         }
-        $this->assertStringContainsString('https://front.exemple.test/auth/login', $texte);
+        // TCK-2390 — le lien d'activation est le lien de réclamation signé de CET annonceur, dans la langue du message.
+        $this->assertSame(1, preg_match('#https://front\.exemple\.test/fr/claim/(\S+)#', $texte, $lien));
+        $this->assertTrue(app(ClaimLinks::class)->resolve($lien[1])->is($this->annonceur));
+        $this->assertStringNotContainsString('/auth/login', $texte);
         $this->assertStringContainsString('Répondez STOP', $texte);
         $this->assertStringNotContainsString('{', $texte);
         $this->assertSame('https://wa.me/221771234567?text='.rawurlencode($texte), $message->json('data.wa_me'));

@@ -87,7 +87,8 @@ class RadarOutreachResource extends BaseResource
     private function segments(): array
     {
         try {
-            $segments = app(ConsentMessageComposer::class)->segments($this->locale, $this->salutation, $this->summary, $this->clauses_version);
+            $composer = app(ConsentMessageComposer::class);
+            $segments = $composer->segments($this->locale, $this->salutation, $this->summary, $this->clauses_version, $composer->claimUrlFor($this->resource));
             if (implode('', array_column($segments, 'text')) === $this->message) {
                 return $segments;
             }
