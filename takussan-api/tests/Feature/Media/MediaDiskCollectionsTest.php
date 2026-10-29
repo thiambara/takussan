@@ -69,7 +69,7 @@ class MediaDiskCollectionsTest extends TestCase
         Property::class => ['photos' => 'private, conversions public', 'videos' => 'public', 'plans' => 'public'],
         // TCK-2386 (ADR-0077 §9) — les captures d'écran d'une annonce collectée : données personnelles, privées.
         RadarConsent::class => ['radar_consent_captures' => 'private'],
-        RadarListing::class => ['radar_captures' => 'private'],
+        RadarListing::class => ['radar_captures' => 'private', 'radar_photos' => 'private'],
         User::class => ['avatar' => 'public', 'avatars' => 'public', 'photos' => 'private', 'documents' => 'private'],
     ];
 

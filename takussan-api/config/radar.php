@@ -80,6 +80,8 @@ return [
         'max_pixels' => 24_000_000,
         // Durée d'un passage du calcul : au-delà, il s'arrête et le reste se reprend au passage suivant.
         'pass_budget_seconds' => 30,
+        // TCK-2389 — la réserve de photos d'une annonce après l'accord (lues ou déposées) : au plus 20.
+        'reserve_max' => 20,
     ],
 
     // ADR-0077 §5 — les bornes de vraisemblance d'une extraction, lues par

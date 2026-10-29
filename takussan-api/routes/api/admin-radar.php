@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\Admin\RadarAdvertiserController;
 use App\Http\Controllers\Api\Admin\RadarDashboardController;
 use App\Http\Controllers\Api\Admin\RadarListingController;
 use App\Http\Controllers\Api\Admin\RadarListingMatchController;
+use App\Http\Controllers\Api\Admin\RadarListingPhotoController;
 use App\Http\Controllers\Api\Admin\RadarListingReviewController;
 use App\Http\Controllers\Api\Admin\RadarOutreachController;
 use App\Models\Enums\PlatformAbility;
@@ -32,6 +33,10 @@ Route::middleware(['auth:sanctum', 'super-admin', 'platform-can:'.PlatformAbilit
         Route::post('listings/{listing}/discard', [RadarListingReviewController::class, 'discard'])->name('admin.radar.listings.discard');
         Route::put('listings/{listing}/advertiser', [RadarListingReviewController::class, 'advertiser'])->name('admin.radar.listings.advertiser');
         Route::get('listings/{listing}/matches', RadarListingMatchController::class)->name('admin.radar.listings.matches');
+        // TCK-2389 — la réserve de photos d'une annonce `consented` : relancer la lecture, déposer, retirer.
+        Route::post('listings/{listing}/photos/fetch', [RadarListingPhotoController::class, 'fetch'])->name('admin.radar.listings.photos.fetch');
+        Route::post('listings/{listing}/photos', [RadarListingPhotoController::class, 'store'])->name('admin.radar.listings.photos.store');
+        Route::delete('listings/{listing}/photos/{media}', [RadarListingPhotoController::class, 'destroy'])->name('admin.radar.listings.photos.destroy');
         // TCK-2388 — le démarchage : les files et la fiche annonceur (lecture libre), la prise en charge de 10 minutes.
         Route::get('advertisers', [RadarAdvertiserController::class, 'index'])->name('admin.radar.advertisers.index');
         Route::get('advertisers/{advertiser}', [RadarAdvertiserController::class, 'show'])->name('admin.radar.advertisers.show');
