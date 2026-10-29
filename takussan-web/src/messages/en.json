@@ -9194,6 +9194,7 @@
           "forbidden": "Publishing for an advertiser is reserved to super administrators.",
           "loadError": "The publication preview could not be loaded.",
           "intro": "Check what will be created in the advertiser’s name, then confirm. Nothing is written before you confirm.",
+          "claimNeeded": "Take this advertiser over to upload photos or publish: every action on this screen requires it.",
           "blocking": {
             "heading": "Publishing is not possible for now:"
           },

@@ -630,6 +630,15 @@ describe('RadarAdvertiserCard — « Publier pour lui » (TCK-2389)', () => {
     expect(within(bloc).getByRole('link', { name: 'Publier pour lui' })).toHaveAttribute('href', '/super-admin/radar/advertisers/7/publish');
   });
 
+  it.each([
+    ['sans prise en charge', null],
+    ['sous la prise d\'un autre', prise({ mine: false })],
+  ])('le lien reste offert %s : l\'écran de publication propose la prise, la fiche ne la juge pas', async (_nom, claim) => {
+    await rendre(annonceur({ claim, listings: [annonce(12, { covered_by_consent: true })] }));
+
+    expect(within(screen.getByTestId('radar-annonceur-publier')).getByRole('link', { name: 'Publier pour lui' })).toBeInTheDocument();
+  });
+
   it('aucune annonce couverte : pas de lien (l\'API refuserait de toute façon)', async () => {
     await rendre(annonceur({ listings: [annonce(12), annonce(13)] }));
 

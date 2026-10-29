@@ -47,6 +47,7 @@ export function apercu(partiel: Partial<RadarPublicationPreview> = {}): RadarPub
     advertiser: { id: 7, display_name: 'Moussa Immo', nature: 'probable_owner', do_not_contact_at: null },
     account: compte(),
     listings: [annonce(12), annonce(13)],
+    published: [],
     blocking: [],
     ...partiel,
   };

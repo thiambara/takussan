@@ -607,6 +607,8 @@ export interface RadarPublicationPreview {
   };
   readonly account: RadarPublicationAccount;
   readonly listings: readonly RadarPublicationListing[];
+  /** Les biens que le Radar a DÉJÀ publiés pour cet annonceur : de quoi composer le second message sans la réponse d'un `publish`. */
+  readonly published: readonly RadarPublishedProperty[];
   /** Les codes qui bloquent l'ensemble (`radar.advertiser.phone_registered`, `account_unavailable`, `do_not_contact`, `radar.publish.nothing_covered`). */
   readonly blocking: readonly string[];
 }

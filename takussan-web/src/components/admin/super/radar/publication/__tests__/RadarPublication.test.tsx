@@ -4,22 +4,29 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '@/lib/api';
 import {
+  claimRadarAdvertiser,
   deleteRadarListingPhoto,
+  fetchRadarAdvertiser,
   fetchRadarPublicationPreview,
   fetchRadarPublishedMessage,
   publishRadarAdvertiser,
   refetchRadarListingPhotos,
+  releaseRadarAdvertiser,
   uploadRadarListingPhotos,
 } from '@/lib/queries/radar';
 import { PLATFORM_ABILITIES } from '@/lib/platform-abilities';
 import { avecGestes } from '@/test/habilitations';
 import { withIntl } from '@/test/intl';
-import type { RadarPublicationPreview } from '@/types/radar';
+import type { RadarAdvertiserDetail, RadarPublicationPreview } from '@/types/radar';
+import { annonceur, prise } from '../../annonceur/__tests__/mocks';
 import { RadarPublication } from '../RadarPublication';
 import { annonce, apercu, messagePublie, publiee, WA_ME_PUBLIE } from './mocks';
 
 vi.mock('@/lib/queries/radar', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/queries/radar')>()),
+  fetchRadarAdvertiser: vi.fn(),
+  claimRadarAdvertiser: vi.fn(),
+  releaseRadarAdvertiser: vi.fn(),
   fetchRadarPublicationPreview: vi.fn(),
   publishRadarAdvertiser: vi.fn(),
   fetchRadarPublishedMessage: vi.fn(),
@@ -30,10 +37,18 @@ vi.mock('@/lib/queries/radar', async (importOriginal) => ({
 
 /** L'aperçu que l'« API » rend : un test le change pour que la relecture porte le nouvel état. */
 let serveur: RadarPublicationPreview;
+/** La fiche de l'annonceur que l'« API » rend : elle porte la prise en charge (à soi par défaut). */
+let fiche: RadarAdvertiserDetail;
 
-async function rendre(detail: RadarPublicationPreview = apercu(), gestes?: Parameters<typeof avecGestes>[1]) {
+async function rendre(
+  detail: RadarPublicationPreview = apercu(),
+  gestes?: Parameters<typeof avecGestes>[1],
+  ficheDeLAnnonceur: RadarAdvertiserDetail = annonceur(),
+) {
   serveur = detail;
+  fiche = ficheDeLAnnonceur;
   vi.mocked(fetchRadarPublicationPreview).mockImplementation(async () => ({ data: serveur }));
+  vi.mocked(fetchRadarAdvertiser).mockImplementation(async () => ({ data: fiche }));
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
   render(withIntl(
     <QueryClientProvider client={queryClient}>
@@ -47,6 +62,9 @@ async function rendre(detail: RadarPublicationPreview = apercu(), gestes?: Param
 const publier = () => screen.getByRole('button', { name: /^Publier \d+ annonces?$|^Publier$/ });
 
 beforeEach(() => {
+  vi.mocked(fetchRadarAdvertiser).mockReset();
+  vi.mocked(claimRadarAdvertiser).mockReset();
+  vi.mocked(releaseRadarAdvertiser).mockReset();
   vi.mocked(fetchRadarPublicationPreview).mockReset();
   vi.mocked(publishRadarAdvertiser).mockReset();
   vi.mocked(fetchRadarPublishedMessage).mockReset();
@@ -157,6 +175,7 @@ describe('RadarPublication — la vérification (TCK-2389)', () => {
   });
 
   it('un aperçu illisible se dit, et se relit', async () => {
+    vi.mocked(fetchRadarAdvertiser).mockResolvedValue({ data: annonceur() });
     vi.mocked(fetchRadarPublicationPreview).mockRejectedValue(new ApiError(500, { code: 'server_error' }));
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(withIntl(<QueryClientProvider client={queryClient}>{avecGestes(<RadarPublication id={7} />)}</QueryClientProvider>));
@@ -221,13 +240,13 @@ describe('RadarPublication — la réserve de photos (TCK-2389)', () => {
   });
 
   it('un refus de la réserve se dit par son code, et l\'aperçu se relit sur un 422', async () => {
-    vi.mocked(deleteRadarListingPhoto).mockRejectedValue(new ApiError(409, { code: 'radar.advertiser.claim_required' }));
+    vi.mocked(deleteRadarListingPhoto).mockRejectedValue(new ApiError(422, { code: 'radar.photo.not_found' }));
     const { utilisateur } = await rendre();
     const lectures = vi.mocked(fetchRadarPublicationPreview).mock.calls.length;
 
     await utilisateur.click(screen.getByRole('button', { name: 'Retirer la photo 1 de l’annonce n° 12' }));
 
-    expect(await screen.findByText(/Prenez d’abord cet annonceur en charge/)).toBeInTheDocument();
+    expect(await screen.findByText('Cette photo n’est pas dans la réserve de cette annonce.')).toBeInTheDocument();
     await waitFor(() => expect(vi.mocked(fetchRadarPublicationPreview).mock.calls.length).toBeGreaterThan(lectures));
   });
 
@@ -381,5 +400,123 @@ describe('RadarPublication — la confirmation et le récapitulatif (TCK-2389)',
     expect(publishRadarAdvertiser).toHaveBeenCalledTimes(1);
     finir({ data: publiee() });
     await screen.findByTestId('radar-publication-recap');
+  });
+});
+
+describe('RadarPublication — la prise en charge (TCK-2389)', () => {
+  const libre = () => annonceur({ claim: null });
+  const prisePar = () => annonceur({ claim: prise({ mine: false, by: { id: 9, name: 'Ibou Fall' } }) });
+
+  it('à soi : le bandeau le dit, les gestes sont ouverts, aucune consigne de prise', async () => {
+    await rendre();
+
+    expect(screen.getByTestId('radar-annonceur-prise')).toHaveAttribute('data-etat', 'moi');
+    expect(screen.queryByTestId('radar-publication-prise-requise')).not.toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: 'Publier l’annonce n° 12' })).toBeEnabled();
+    expect(publier()).toBeEnabled();
+  });
+
+  it('à personne : on peut la prendre, tout le reste est fermé jusque-là, puis s\'ouvre', async () => {
+    vi.mocked(claimRadarAdvertiser).mockImplementation(async () => {
+      fiche = annonceur({ claim: prise() });
+      return { data: { claim: prise() } };
+    });
+    const { utilisateur } = await rendre(apercu(), undefined, libre());
+
+    expect(screen.getByTestId('radar-annonceur-prise')).toHaveAttribute('data-etat', 'libre');
+    expect(screen.getByTestId('radar-publication-prise-requise')).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: 'Publier l’annonce n° 12' })).toBeDisabled();
+    expect(publier()).toBeDisabled();
+    expect(within(screen.getByTestId('radar-publication-carte-12')).getByRole('button', { name: 'Retirer la photo 1 de l’annonce n° 12' })).toBeDisabled();
+
+    await utilisateur.click(screen.getByRole('button', { name: 'Prendre en charge' }));
+
+    await waitFor(() => expect(claimRadarAdvertiser).toHaveBeenCalledWith(7));
+    await waitFor(() => expect(screen.getByRole('checkbox', { name: 'Publier l’annonce n° 12' })).toBeEnabled());
+    expect(publier()).toBeEnabled();
+  });
+
+  it('prise par un autre : le bandeau le nomme, rien ne se prend, tout reste fermé', async () => {
+    await rendre(apercu(), undefined, prisePar());
+
+    expect(screen.getByTestId('radar-annonceur-prise')).toHaveAttribute('data-etat', 'autre');
+    expect(screen.getByTestId('radar-annonceur-prise')).toHaveTextContent('Ibou Fall');
+    expect(screen.queryByRole('button', { name: 'Prendre en charge' })).not.toBeInTheDocument();
+    expect(publier()).toBeDisabled();
+    expect(screen.getByRole('checkbox', { name: 'Publier l’annonce n° 12' })).toBeDisabled();
+  });
+
+  it('sous STOP : « Prendre en charge » reste fermé, et aucune consigne ne promet une prise', async () => {
+    await rendre(
+      apercu({ advertiser: { ...apercu().advertiser, do_not_contact_at: '2026-10-28T09:00:00+00:00' }, blocking: ['radar.advertiser.do_not_contact'] }),
+      undefined,
+      annonceur({ claim: null, do_not_contact_at: '2026-10-28T09:00:00+00:00' }),
+    );
+
+    expect(screen.getByRole('button', { name: 'Prendre en charge' })).toBeDisabled();
+    expect(screen.queryByTestId('radar-publication-prise-requise')).not.toBeInTheDocument();
+  });
+
+  it('la prise se renouvelle d\'elle-même pendant que l\'opérateur travaille sur cet écran', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.mocked(claimRadarAdvertiser).mockResolvedValue({ data: { claim: prise() } });
+    await rendre(apercu(), undefined, annonceur({ claim: prise({ until: new Date(Date.now() + 20_000).toISOString() }) }));
+    expect(claimRadarAdvertiser).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(10_500);
+
+    await waitFor(() => expect(claimRadarAdvertiser).toHaveBeenCalledWith(7));
+  });
+
+  it('une prise qui n\'est pas à soi ne se renouvelle pas', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    await rendre(apercu(), undefined, annonceur({ claim: prise({ mine: false, until: new Date(Date.now() + 20_000).toISOString() }) }));
+
+    await vi.advanceTimersByTimeAsync(15_000);
+
+    expect(claimRadarAdvertiser).not.toHaveBeenCalled();
+  });
+
+  it('un 409 `claim_required` sur un geste de la réserve : on reprend la prise, puis on rejoue le geste', async () => {
+    vi.mocked(deleteRadarListingPhoto)
+      .mockRejectedValueOnce(new ApiError(409, { code: 'radar.advertiser.claim_required' }))
+      .mockResolvedValueOnce(undefined);
+    vi.mocked(claimRadarAdvertiser).mockResolvedValue({ data: { claim: prise() } });
+    const { utilisateur } = await rendre();
+
+    await utilisateur.click(screen.getByRole('button', { name: 'Retirer la photo 1 de l’annonce n° 12' }));
+
+    await waitFor(() => expect(deleteRadarListingPhoto).toHaveBeenCalledTimes(2));
+    expect(claimRadarAdvertiser).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(deleteRadarListingPhoto).mock.calls[1]).toEqual([12, 121]);
+    expect(screen.queryByTestId('radar-publication-erreur')).not.toBeInTheDocument();
+  });
+
+  it('un 409 `claim_required` sur « Publier » : reprise, puis même envoi sous la MÊME clé', async () => {
+    vi.mocked(publishRadarAdvertiser)
+      .mockRejectedValueOnce(new ApiError(409, { code: 'radar.advertiser.claim_required' }))
+      .mockResolvedValueOnce({ data: publiee() });
+    vi.mocked(claimRadarAdvertiser).mockResolvedValue({ data: { claim: prise() } });
+    const { utilisateur } = await rendre();
+    await utilisateur.click(publier());
+
+    await utilisateur.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Publier' }));
+
+    await screen.findByTestId('radar-publication-recap');
+    expect(claimRadarAdvertiser).toHaveBeenCalledTimes(1);
+    const appels = vi.mocked(publishRadarAdvertiser).mock.calls;
+    expect(appels).toHaveLength(2);
+    expect(appels[0][2]).toBe(appels[1][2]);
+  });
+
+  it('une prise reprise par un autre entre-temps : le refus se dit, rien n\'est rejoué', async () => {
+    vi.mocked(deleteRadarListingPhoto).mockRejectedValue(new ApiError(409, { code: 'radar.advertiser.claim_required' }));
+    vi.mocked(claimRadarAdvertiser).mockRejectedValue(new ApiError(409, { code: 'radar.advertiser.claimed_by_other', params: { claimed_until: '2026-10-29T10:00:00+00:00' } }));
+    const { utilisateur } = await rendre();
+
+    await utilisateur.click(screen.getByRole('button', { name: 'Retirer la photo 1 de l’annonce n° 12' }));
+
+    expect(await screen.findByTestId('radar-publication-erreur')).toHaveTextContent(/un autre opérateur/i);
+    expect(deleteRadarListingPhoto).toHaveBeenCalledTimes(1);
   });
 });

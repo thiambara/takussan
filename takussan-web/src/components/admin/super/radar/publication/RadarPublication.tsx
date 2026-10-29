@@ -16,6 +16,7 @@ import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import { ApiError } from '@/lib/api';
 import {
   deleteRadarListingPhoto,
+  fetchRadarAdvertiser,
   fetchRadarPublicationPreview,
   publishRadarAdvertiser,
   radarKeys,
@@ -25,12 +26,17 @@ import {
 } from '@/lib/queries/radar';
 import {
   RADAR_PHOTOS_PAR_ENVOI_MAX,
+  type RadarAdvertiserResponse,
+  type RadarClaim,
   type RadarPublication as RadarPublicationResultat,
   type RadarPublicationPreviewResponse,
   type RadarPublicationResponse,
 } from '@/types/radar';
 import { codeDeLErreur } from '../fiche/useMessageEchecFiche';
+import { BandeauPriseEnCharge } from '../annonceur/BandeauPriseEnCharge';
+import { useGestesDePrise } from '../annonceur/useGestesDePrise';
 import { useLibelleCodePublication, useMessageEchecAnnonceur } from '../annonceur/useMessageEchecAnnonceur';
+import { usePriseEnCharge } from '../annonceur/usePriseEnCharge';
 import { CartePublication } from './CartePublication';
 import { CompteACreer } from './CompteACreer';
 import { ConfirmerPublication } from './ConfirmerPublication';
@@ -55,7 +61,17 @@ function parLots<T>(elements: readonly T[], taille: number): T[][] {
   return lots;
 }
 
-function ApercuCharge({ id, apercu }: { readonly id: number; readonly apercu: RadarPublicationPreviewResponse['data'] }) {
+/** Le refus qui dit que la prise n'est plus tenue : on la reprend sur place, puis on rejoue le geste. */
+const PRISE_REQUISE = 'radar.advertiser.claim_required';
+
+interface ApercuChargeProps {
+  readonly id: number;
+  readonly apercu: RadarPublicationPreviewResponse['data'];
+  /** La prise en charge de l'annonceur, lue sur sa fiche : chaque geste de cet écran en exige une tenue par l'opérateur. */
+  readonly claim: RadarClaim | null;
+}
+
+function ApercuCharge({ id, apercu, claim }: ApercuChargeProps) {
   const t = useTranslations('superAdmin.pages.radar.publication');
   const queryClient = useQueryClient();
   const messageEchec = useMessageEchecAnnonceur();
@@ -78,28 +94,45 @@ function ApercuCharge({ id, apercu }: { readonly id: number; readonly apercu: Ra
     relireSurRefus(e);
   };
 
+  // TCK-2389 — la prise en charge se tient sur cet écran comme sur la fiche (mêmes gestes, même renouvellement) : sans
+  // elle, le dépôt, le retrait, la relance et « Publier » rendent tous 409 `radar.advertiser.claim_required`.
+  const { prise, renouvellement, restitution } = useGestesDePrise(id, surEchec);
+  usePriseEnCharge({ claim, renouveler: () => renouvellement.mutate() });
+  const mienne = claim?.mine === true;
+  const stoppe = apercu.advertiser.do_not_contact_at !== null;
+  /** Une prise expirée entre deux lectures : le refus se rattrape ici (on reprend, on rejoue) au lieu d'envoyer à la fiche. */
+  const avecPrise = async <T,>(appel: () => Promise<T>): Promise<T> => {
+    try {
+      return await appel();
+    } catch (e) {
+      if (codeDeLErreur(e) !== PRISE_REQUISE) throw e;
+      await prise.mutateAsync();
+      return appel();
+    }
+  };
+
   const retrait = useMutation<void, ApiError, { annonce: number; media: number }>({
-    mutationFn: ({ annonce, media }) => deleteRadarListingPhoto(annonce, media),
+    mutationFn: ({ annonce, media }) => avecPrise(() => deleteRadarListingPhoto(annonce, media)),
     onSuccess: relire,
     onError: surEchec,
   });
   const depot = useMutation<void, ApiError, { annonce: number; fichiers: readonly File[] }>({
     mutationFn: async ({ annonce, fichiers }) => {
-      for (const lot of parLots(fichiers, RADAR_PHOTOS_PAR_ENVOI_MAX)) await uploadRadarListingPhotos(annonce, lot);
+      for (const lot of parLots(fichiers, RADAR_PHOTOS_PAR_ENVOI_MAX)) await avecPrise(() => uploadRadarListingPhotos(annonce, lot));
     },
     // Un lot déjà rangé reste rangé même si le suivant échoue : l'aperçu se relit dans les deux cas.
     onSettled: relire,
     onError: surEchec,
   });
   const relance = useMutation<unknown, ApiError, number>({
-    mutationFn: (annonce) => refetchRadarListingPhotos(annonce),
+    mutationFn: (annonce) => avecPrise(() => refetchRadarListingPhotos(annonce)),
     onSuccess: relire,
     onError: surEchec,
   });
   const publication = useMutation<RadarPublicationResponse, ApiError, readonly number[]>({
     // Une clé d'idempotence par ouverture de la confirmation : la même sur réessai (ADR-0072), renouvelée au succès
     // ou si la saisie a changé depuis un premier envoi arrivé (422 `idempotency.key_reused`).
-    mutationFn: (ids) => publishRadarAdvertiser(id, ids, idempotence.cle()),
+    mutationFn: (ids) => avecPrise(() => publishRadarAdvertiser(id, ids, idempotence.cle())),
     onSuccess: (reponse) => {
       idempotence.apres({ ok: true });
       setConfirmation(false);
@@ -115,7 +148,9 @@ function ApercuCharge({ id, apercu }: { readonly id: number; readonly apercu: Ra
     },
   });
 
-  const enCours = retrait.isPending || depot.isPending || relance.isPending || publication.isPending;
+  const enCours = retrait.isPending || depot.isPending || relance.isPending || publication.isPending || prise.isPending || restitution.isPending;
+  // Sans prise à soi, ou sous STOP : on regarde, on ne touche à rien.
+  const gestesFermes = enCours || !mienne || stoppe;
 
   if (resultat !== null) return <RecapitulatifPublication advertiserId={id} publication={resultat} />;
 
@@ -153,6 +188,17 @@ function ApercuCharge({ id, apercu }: { readonly id: number; readonly apercu: Ra
         </p>
       ) : null}
 
+      <BandeauPriseEnCharge
+        claim={claim}
+        prendreFerme={stoppe || enCours}
+        rendreFerme={enCours || renouvellement.isPending}
+        enPrise={prise.isPending}
+        enRestitution={restitution.isPending}
+        onPrendre={() => lancer(() => prise.mutate())}
+        onRendre={() => lancer(() => restitution.mutate())}
+      />
+      {!mienne && !stoppe ? <p className="-mt-3 text-xs text-muted-foreground" data-testid="radar-publication-prise-requise">{t('claimNeeded')}</p> : null}
+
       <CompteACreer nom={nom} compte={apercu.account} />
 
       <section aria-label={t('listings.heading')} className="space-y-3" data-testid="radar-publication-annonces">
@@ -166,7 +212,7 @@ function ApercuCharge({ id, apercu }: { readonly id: number; readonly apercu: Ra
                 key={annonce.id}
                 annonce={annonce}
                 cochee={estCochee(annonce, choix)}
-                desactive={enCours || fermee}
+                desactive={gestesFermes || fermee}
                 onBascule={() => bascule(annonce.id)}
                 onRetirerPhoto={(media) => lancer(() => retrait.mutate({ annonce: annonce.id, media }))}
                 onDeposerPhotos={(fichiers) => lancer(() => depot.mutate({ annonce: annonce.id, fichiers }))}
@@ -178,7 +224,7 @@ function ApercuCharge({ id, apercu }: { readonly id: number; readonly apercu: Ra
       </section>
 
       <div className="flex flex-wrap items-center gap-3 border-t pt-4">
-        <Button type="button" disabled={enCours || fermee || cochees.length === 0} onClick={() => { setErreurPublication(null); setConfirmation(true); }}>
+        <Button type="button" disabled={gestesFermes || fermee || cochees.length === 0} onClick={() => { setErreurPublication(null); setConfirmation(true); }}>
           {t('publish', { count: cochees.length })}
         </Button>
         {cochees.length === 0 && !fermee ? <p className="text-xs text-muted-foreground">{t('nothingChecked')}</p> : null}
@@ -218,6 +264,14 @@ export function RadarPublication({ id }: RadarPublicationProps) {
     refetchInterval: (requete) => (preparationEnCours(requete.state.data?.data) ? RADAR_POLL_MS : false),
   });
 
+  // La prise en charge est portée par la fiche de l'annonceur : la même lecture que la sienne, donc le même cache.
+  const fiche = useQuery<RadarAdvertiserResponse, ApiError>({
+    queryKey: radarKeys.advertiser(id),
+    queryFn: () => fetchRadarAdvertiser(id),
+    enabled: autorise,
+    staleTime: 10_000,
+  });
+
   const retour = (
     <Link
       href={`/super-admin/radar/advertisers/${id}`}
@@ -244,14 +298,14 @@ export function RadarPublication({ id }: RadarPublicationProps) {
     <div className="space-y-6">
       {retour}
       <PageHeader title={donnees?.advertiser.display_name ? t('title', { name: donnees.advertiser.display_name }) : t('titleUnnamed', { id })} />
-      {apercu.isError ? (
+      {apercu.isError || fiche.isError ? (
         <ErrorState
-          message={`${t('loadError')} ${messageErreur(apercu.error)}`}
-          onRetry={() => void apercu.refetch()}
+          message={`${t('loadError')} ${messageErreur(apercu.isError ? apercu.error : fiche.error)}`}
+          onRetry={() => void (apercu.isError ? apercu.refetch() : fiche.refetch())}
           retryLabel={tCommon('actions.retry')}
         />
-      ) : donnees ? (
-        <ApercuCharge id={id} apercu={donnees} />
+      ) : donnees && fiche.data ? (
+        <ApercuCharge id={id} apercu={donnees} claim={fiche.data.data.claim} />
       ) : (
         <div className="space-y-4" aria-busy="true">
           <Skeleton className="h-32 w-full" />
