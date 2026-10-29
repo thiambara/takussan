@@ -12,6 +12,7 @@ use App\Models\Enums\PropertyStatus;
 use App\Models\Enums\PropertyType;
 use App\Models\Enums\PropertyVisibility;
 use App\Models\Enums\RadarListingStage;
+use App\Models\Enums\ReferentialStatus;
 use App\Models\Property;
 use App\Models\PropertyContact;
 use App\Models\RadarAdvertiser;
@@ -463,5 +464,40 @@ class RadarPublishTest extends TestCase
     {
         $this->getJson("/api/admin/radar/advertisers/{$this->annonceur->id}/published-message")->assertStatus(422)
             ->assertJsonPath('code', 'radar.publish.nothing_published');
+    }
+
+    public function test_une_publication_pendant_la_preparation_des_photos_est_refusee(): void
+    {
+        $annonce = $this->annonceConsentie(photos: 1);
+        // Une seconde URL de la source n'est pas encore rangée : la préparation n'est pas finie.
+        $annonce->forceFill(['photo_urls' => [...$annonce->photo_urls, 'https://a.cdn.test/p/pas-encore.jpg']])->save();
+        $avant = $this->compte();
+
+        $this->publier([$annonce->id])->assertStatus(422)->assertJsonPath('code', 'radar.publish.photos_pending');
+
+        $this->assertRienDeCree($avant);
+    }
+
+    public function test_un_quartier_qui_ne_resout_plus_refuse_la_publication(): void
+    {
+        $annonce = $this->annonceConsentie();
+        $this->quartier->forceFill(['status' => ReferentialStatus::Rejected])->save();
+        $avant = $this->compte();
+
+        $apercu = $this->getJson("/api/admin/radar/advertisers/{$this->annonceur->id}/publication-preview")->assertOk()->json('data.listings.0.blocking');
+        $this->assertContains('radar.publish.missing_field', $apercu);
+
+        $this->publier([$annonce->id])->assertStatus(422)->assertJsonPath('code', 'radar.publish.missing_field')
+            ->assertJsonPath('params.listing_id', $annonce->id)->assertJsonPath('params.fields', ['neighborhood_id']);
+        $this->assertRienDeCree($avant);
+    }
+
+    public function test_le_message_d_un_annonceur_qui_a_dit_stop_n_est_pas_compose(): void
+    {
+        $this->publier([$this->annonceConsentie()->id])->assertCreated();
+        $this->annonceur->forceFill(['do_not_contact_at' => now()])->save();
+
+        $this->getJson("/api/admin/radar/advertisers/{$this->annonceur->id}/published-message")->assertStatus(422)
+            ->assertJsonPath('code', 'radar.advertiser.do_not_contact');
     }
 }

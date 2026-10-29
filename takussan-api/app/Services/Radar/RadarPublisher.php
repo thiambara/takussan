@@ -8,6 +8,8 @@ use App\Models\Enums\Currency;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Enums\PropertyVisibility;
 use App\Models\Enums\RadarListingStage;
+use App\Models\Enums\ReferentialStatus;
+use App\Models\GeoNeighborhood;
 use App\Models\Property;
 use App\Models\PropertyContact;
 use App\Models\RadarAdvertiser;
@@ -19,8 +21,8 @@ use App\Support\LienFront;
 use App\Support\RadarWaMe;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 use Spatie\MediaLibrary\MediaCollections\FileAdder;
+use Spatie\MediaLibrary\MediaCollections\Filesystem;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use Throwable;
 
@@ -136,6 +138,14 @@ final class RadarPublisher
                 );
             }
             foreach ($listings as $listing) {
+                // L'écran n'est pas la garde : une réserve encore en préparation serait copiée partielle, et les photos lues
+                // ensuite ne la rejoindraient jamais (le job s'arrête dès que l'annonce n'est plus `consented`).
+                abort_code_if(
+                    $listing->photoPreparationStatus()['status'] === 'pending',
+                    422,
+                    'radar.publish.photos_pending',
+                    ['listing_id' => $listing->id],
+                );
                 abort_code_if($this->reserve->count($listing) === 0, 422, 'radar.publish.no_photo', ['listing_id' => $listing->id]);
                 abort_code_if(
                     self::missingFields($listing) !== [],
@@ -154,8 +164,12 @@ final class RadarPublisher
                     $this->quotas->assertCanCreateActiveListing($agency->id);
                     $property = $this->createProperty($listing, $locked, $user, $agency);
                     // `copy()` garde l'`order_column` de la réserve : le rang se pose ici, pour que la couverture suive l'ordre voulu.
+                    // Il garde aussi ses propriétés (`source_url`, `origin`, `sha256`) : elles restent dans la réserve, que le
+                    // Radar purge (ADR-0077 §9), et ne suivent pas la photo publique.
                     foreach ($this->reserve->ordered($listing)->values() as $rank => $media) {
-                        $copied[] = $media->copy($property, 'photos', fileAdderCallback: fn (FileAdder $adder) => $adder->setOrder($rank + 1));
+                        $copied[] = $media->copy($property, 'photos', fileAdderCallback: fn (FileAdder $adder) => $adder
+                            ->setOrder($rank + 1)
+                            ->withCustomProperties([]));
                     }
                     $listing->forceFill(['property_id' => $property->id, 'stage' => RadarListingStage::Published, 'stage_reason' => null])->save();
                     $properties[] = $property;
@@ -175,7 +189,7 @@ final class RadarPublisher
                     ->event('radar_published')
                     ->log('Annonces du Radar publiées pour l\'annonceur');
             } catch (Throwable $e) {
-                // La transaction rend les lignes, jamais les fichiers : les originaux déjà copiés s'effacent ici.
+                // La transaction rend les lignes, jamais les fichiers : tout ce que les copies ont écrit s'efface ici.
                 $this->discardFiles($copied);
 
                 throw $e;
@@ -201,6 +215,8 @@ final class RadarPublisher
     public function publishedMessage(RadarAdvertiser $advertiser, string $locale): array
     {
         abort_code_unless(in_array($locale, ConsentMessageComposer::LOCALES, true), 422, 'radar.outreach.locale_unsupported');
+        // Un STOP est définitif (ADR-0077 §8) : tant que le retrait de ses biens n'a pas purgé son numéro, aucun lien `wa.me` vers lui.
+        abort_code_if($advertiser->do_not_contact_at !== null, 422, 'radar.advertiser.do_not_contact');
 
         $slugs = Property::query()
             ->whereIn('id', RadarListing::query()
@@ -272,7 +288,24 @@ final class RadarPublisher
     {
         $values = RadarReviewFields::values((array) $listing->extracted);
 
-        return array_values(array_filter(self::REQUIRED, fn (string $field) => $values[$field] === null || $values[$field] === ''));
+        $missing = array_values(array_filter(self::REQUIRED, fn (string $field) => $values[$field] === null || $values[$field] === ''));
+
+        // Refusé ou fusionné depuis la relecture : le canonicaliseur de l'adresse le laisserait tomber, et le bien sortirait
+        // public sans ville ni quartier.
+        if (! in_array('neighborhood_id', $missing, true) && ! self::neighborhoodIsLive((int) $values['neighborhood_id'])) {
+            $missing[] = 'neighborhood_id';
+        }
+
+        return $missing;
+    }
+
+    private static function neighborhoodIsLive(int $id): bool
+    {
+        return GeoNeighborhood::query()
+            ->whereKey($id)
+            ->where('status', ReferentialStatus::Approved->value)
+            ->whereNull('merged_into_id')
+            ->exists();
     }
 
     private function createProperty(RadarListing $listing, RadarAdvertiser $advertiser, User $user, Agency $agency): Property
@@ -316,11 +349,17 @@ final class RadarPublisher
         return $property;
     }
 
-    /** @param  list<Media>  $medias */
+    /**
+     * Original ET conversions : `thumbnail` est synchrone et se range sur le disque PUBLIC des conversions, sous un chemin sans
+     * ligne `media` après le retour arrière — rien ne la purgerait plus.
+     *
+     * @param  list<Media>  $medias
+     */
     private function discardFiles(array $medias): void
     {
+        $filesystem = app(Filesystem::class);
         foreach ($medias as $media) {
-            Storage::disk($media->disk)->delete($media->getPathRelativeToRoot());
+            $filesystem->removeAllFiles($media);
         }
     }
 

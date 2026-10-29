@@ -2,10 +2,13 @@
 
 namespace Tests\Feature\Radar;
 
+use App\Models\Enums\RadarListingStage;
 use App\Models\MediaFingerprint;
 use App\Models\Property;
+use App\Services\Billing\QuotaResolver;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use Tests\Support\FixturesDePublicationRadar;
 use Tests\Support\OperateursPlateforme;
 use Tests\TestCase;
@@ -88,5 +91,76 @@ class RadarPublisherPhotosTest extends TestCase
             [$m1->file_name, $m0->file_name, $m2->file_name],
             Property::query()->findOrFail($id)->getMedia('photos')->pluck('file_name')->all(),
         );
+    }
+
+    /** @return array{prive: list<string>, public: list<string>} tous les fichiers des deux disques de médias */
+    private function fichiers(): array
+    {
+        return [
+            'prive' => Storage::disk(config('media-library.disk_name'))->allFiles(),
+            'public' => Storage::disk(config('media-library.public_disk_name'))->allFiles(),
+        ];
+    }
+
+    /**
+     * Une publication défaite ne laisse AUCUN fichier : ni l'original, ni la vignette synchrone (disque public) des photos déjà
+     * copiées. La transaction rend les lignes, jamais les fichiers.
+     */
+    public function test_une_copie_qui_echoue_au_milieu_ne_laisse_aucun_fichier_ni_ligne(): void
+    {
+        $annonce = $this->annonceConsentie(photos: 2);
+        [, $seconde] = $annonce->getMedia('radar_photos')->all();
+        Storage::disk($seconde->disk)->delete($seconde->getPathRelativeToRoot());
+        $avant = $this->fichiers();
+        $biens = Property::query()->count();
+        $medias = Media::query()->where('collection_name', 'photos')->count();
+
+        // Le fichier de la réserve a disparu du disque : la seconde copie lève, la transaction se défait.
+        $reponse = $this->publier([$annonce->id]);
+        $this->assertGreaterThanOrEqual(400, $reponse->getStatusCode(), $reponse->getContent());
+
+        $this->assertSame($avant, $this->fichiers(), 'ni original, ni vignette, sur aucun des deux disques');
+        $this->assertSame($biens, Property::query()->count());
+        $this->assertSame($medias, Media::query()->where('collection_name', 'photos')->count());
+        $this->assertSame(RadarListingStage::Consented, $annonce->fresh()->stage);
+    }
+
+    /** Le quota se juge avant chaque bien : la seconde annonce refusée défait la première, vignette comprise. */
+    public function test_le_quota_de_la_seconde_annonce_defait_la_premiere_et_ses_fichiers(): void
+    {
+        $a = $this->annonceConsentie();
+        $b = $this->annonceConsentie();
+        $appels = 0;
+        $this->partialMock(QuotaResolver::class, function ($mock) use (&$appels) {
+            $mock->shouldReceive('assertCanCreateActiveListing')->andReturnUsing(function () use (&$appels) {
+                if (++$appels > 1) {
+                    abort_code(422, 'quota.listings_exceeded');
+                }
+            });
+        });
+        $avant = $this->fichiers();
+        $biens = Property::query()->count();
+
+        $this->publier([$a->id, $b->id])->assertStatus(422)->assertJsonPath('code', 'quota.listings_exceeded');
+
+        $this->assertSame(2, $appels, 'le quota est lu avant chaque bien');
+        $this->assertSame($avant, $this->fichiers());
+        $this->assertSame($biens, Property::query()->count());
+        $this->assertSame(RadarListingStage::Consented, $a->fresh()->stage);
+    }
+
+    /** Les propriétés de la réserve (URL du site tiers, origine, empreinte) ne passent pas sur la photo publique (ADR-0077 §9). */
+    public function test_les_proprietes_de_la_reserve_ne_passent_pas_sur_la_photo_publique(): void
+    {
+        $annonce = $this->annonceConsentie(photos: 1);
+        $annonce->getMedia('radar_photos')->first()
+            ->setCustomProperty('source_url', 'https://sn.coinafrique.com/x')->setCustomProperty('origin', 'fetched')->setCustomProperty('sha256', 'abc')->save();
+
+        $id = $this->publier([$annonce->id])->assertCreated()->json('data.properties.0.id');
+
+        $photo = Property::query()->findOrFail($id)->getMedia('photos')->first();
+        foreach (['source_url', 'origin', 'sha256'] as $cle) {
+            $this->assertFalse($photo->hasCustomProperty($cle), "{$cle} reste dans la réserve");
+        }
     }
 }
