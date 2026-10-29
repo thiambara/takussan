@@ -21,7 +21,7 @@ class RadarRevocationController extends Controller
 
         return $this->json(['data' => [
             'advertiser_id' => $done['advertiser']->id,
-            'do_not_contact_at' => $done['advertiser']->do_not_contact_at?->toIso8601String(),
+            'do_not_contact_at' => $this->instant($done['advertiser']->do_not_contact_at),
             'closed_listing_ids' => $done['closed'],
             'revoked_consent_ids' => $done['revoked_consents'],
             'retired_property_ids' => $done['retired_properties'],
