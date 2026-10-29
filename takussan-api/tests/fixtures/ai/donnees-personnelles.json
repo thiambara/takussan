@@ -354,6 +354,7 @@
     "séparateurs TCK-2410 — coord 14,7166,17,4676": "coord 14,7166,17,4676",
     "séparateurs TCK-2410 — parenthèses, huit chiffres derrière": "(77)12345678",
     "séparateurs TCK-2410 — numéros de lignes à la virgule": "MaintenanceQuoteController:30,59,80,102",
-    "séparateurs TCK-2410 — numéros de lignes, deuxième liste": "72,73,74,814"
+    "séparateurs TCK-2410 — numéros de lignes, deuxième liste": "72,73,74,814",
+    "séparateurs TCK-2410 — surface à la virgule": "terrain de 2,5 ha"
   }
 }
