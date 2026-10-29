@@ -245,7 +245,7 @@ function ApercuCharge({ id, apercu, claim }: ApercuChargeProps) {
         onConfirmer={() => publication.mutate(cochees.map((annonce) => annonce.id))}
       />
 
-      {apercu.published.length > 0 ? <DejaPubliees advertiserId={id} biens={apercu.published} /> : null}
+      {apercu.published.length > 0 ? <DejaPubliees advertiserId={id} biens={apercu.published} stoppe={stoppe} /> : null}
     </div>
   );
 }

@@ -8,15 +8,17 @@ import { LiensPublics, SecondMessage } from './RecapitulatifPublication';
 interface DejapublieesProps {
   readonly advertiserId: number;
   readonly biens: readonly RadarPublishedProperty[];
+  /** L'annonceur a dit STOP : l'API refuse de composer le message (422 `do_not_contact`), on ne le demande pas. */
+  readonly stoppe: boolean;
 }
 
 /**
  * TCK-2389 — ce que le Radar a DÉJÀ publié pour cet annonceur, et le second message qui s'en compose. Il vit ici, hors de
  * la réponse d'un `publish`, parce qu'une réponse se perd (délai du relais, onglet fermé ou rechargé) alors que les biens,
  * eux, sont en ligne : sans cette section, plus aucun écran ne dirait à l'annonceur où sont ses annonces ni comment ouvrir
- * son compte.
+ * son compte. Sous STOP (ADR-0077 §8), la liste des liens reste, le message ne se compose plus : une phrase le dit.
  */
-export function DejaPubliees({ advertiserId, biens }: DejapublieesProps) {
+export function DejaPubliees({ advertiserId, biens, stoppe }: DejapublieesProps) {
   const t = useTranslations('superAdmin.pages.radar.publication.alreadyPublished');
 
   return (
@@ -26,7 +28,11 @@ export function DejaPubliees({ advertiserId, biens }: DejapublieesProps) {
         <p className="text-xs text-muted-foreground">{t('hint')}</p>
         <LiensPublics biens={biens} />
       </section>
-      <SecondMessage advertiserId={advertiserId} />
+      {stoppe ? (
+        <p className="rounded-xl border bg-card p-4 text-sm text-muted-foreground" data-testid="radar-publication-deja-stop">{t('stopped')}</p>
+      ) : (
+        <SecondMessage advertiserId={advertiserId} />
+      )}
     </div>
   );
 }

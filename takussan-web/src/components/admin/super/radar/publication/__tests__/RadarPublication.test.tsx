@@ -638,6 +638,26 @@ describe('RadarPublication — le second message ne se perd pas (TCK-2389)', () 
     expect(within(section).getByRole('link', { name: 'Ouvrir WhatsApp' })).toHaveAttribute('href', WA_ME_PUBLIE);
   });
 
+  it('sous STOP : les liens restent, le message n\'est pas demandé, une phrase fixe le dit (pas d\'erreur à réessayer)', async () => {
+    await rendre(
+      apercu({
+        advertiser: { ...apercu().advertiser, do_not_contact_at: '2026-10-28T09:00:00+00:00' },
+        listings: [],
+        blocking: ['radar.advertiser.do_not_contact', 'radar.publish.nothing_covered'],
+        published: publiee().properties,
+      }),
+      undefined,
+      annonceur({ do_not_contact_at: '2026-10-28T09:00:00+00:00' }),
+    );
+
+    const section = screen.getByTestId('radar-publication-deja');
+    expect(within(section).getByRole('link', { name: 'Appartement 12' })).toBeInTheDocument();
+    expect(within(section).getByTestId('radar-publication-deja-stop')).toHaveTextContent('L’annonceur a demandé à ne plus être contacté : aucun message ne lui est envoyé.');
+    expect(within(section).queryByTestId('radar-publication-message')).not.toBeInTheDocument();
+    expect(within(section).queryByRole('button', { name: /Réessayer/ })).not.toBeInTheDocument();
+    expect(fetchRadarPublishedMessage).not.toHaveBeenCalled();
+  });
+
   it('rien n\'est déjà en ligne : aucune section, et le message n\'est pas lu', async () => {
     await rendre();
 

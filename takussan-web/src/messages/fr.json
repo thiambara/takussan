@@ -9284,7 +9284,8 @@
           },
           "alreadyPublished": {
             "heading": "Déjà en ligne pour cet annonceur",
-            "hint": "Ces biens sont publiés. Le message ci-dessous liste tous les biens que le Radar a publiés pour lui ; il se recompose à tout moment, même si la réponse d’une publication s’est perdue."
+            "hint": "Ces biens sont publiés. Le message ci-dessous liste tous les biens que le Radar a publiés pour lui ; il se recompose à tout moment, même si la réponse d’une publication s’est perdue.",
+            "stopped": "L’annonceur a demandé à ne plus être contacté : aucun message ne lui est envoyé."
           },
           "errors": {
             "listingForeign": "Une de ces annonces n’est pas celle de cet annonceur, ou n’existe pas.",

@@ -9284,7 +9284,8 @@
           },
           "alreadyPublished": {
             "heading": "Already online for this advertiser",
-            "hint": "These properties are published. The message below lists every property the Radar has published for them; it can be composed at any time, even if the response to a publication was lost."
+            "hint": "These properties are published. The message below lists every property the Radar has published for them; it can be composed at any time, even if the response to a publication was lost.",
+            "stopped": "The advertiser has asked not to be contacted again: no message is sent to them."
           },
           "errors": {
             "listingForeign": "One of these listings is not this advertiser’s, or does not exist.",
