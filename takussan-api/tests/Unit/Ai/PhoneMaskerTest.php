@@ -6,7 +6,7 @@ use App\Support\PhoneMasker;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
-/** TCK-2383, TCK-2400 (ADR-0076 §5) — un usage `publique` n'envoie aucun numéro sénégalais au fournisseur, et garde ses prix. */
+/** TCK-2383, TCK-2400, TCK-2410 (ADR-0076 §5) — un usage `publique` n'envoie aucun numéro au fournisseur, et garde ses prix. */
 class PhoneMaskerTest extends TestCase
 {
     /**
@@ -34,7 +34,7 @@ class PhoneMaskerTest extends TestCase
     }
 
     #[DataProvider('numeros')]
-    public function test_a_senegalese_number_is_masked(string $numero): void
+    public function test_a_phone_number_is_masked(string $numero): void
     {
         $this->assertSame('Appelez le '.PhoneMasker::TOKEN.' ce soir', PhoneMasker::mask("Appelez le {$numero} ce soir"));
     }
@@ -56,5 +56,66 @@ class PhoneMaskerTest extends TestCase
     public function test_only_the_number_is_replaced_around_invisible_and_wide_characters(): void
     {
         $this->assertSame("Awa\u{200B} : [TELEPHONE], ８ pièces", PhoneMasker::mask("Awa\u{200B} : ７７ １２３ ４５ ６７, ８ pièces"));
+    }
+
+    /** @return array<string, array{string, string}> */
+    public static function autourDUnNumeroEtranger(): array
+    {
+        return [
+            'un chiffre seul derrière' => ['Tel +33 6 12 34 56 78 3 chambres', 'Tel [TELEPHONE] 3 chambres'],
+            'un groupe de deux chiffres derrière' => ['Tel +33 6 12 34 56 78 15 chambres', 'Tel [TELEPHONE] 15 chambres'],
+            'le (0) de trunk, un groupe derrière' => ['Tel +33 (0)6 12 34 56 78 15 chambres', 'Tel [TELEPHONE] 15 chambres'],
+            'un autre indicatif, un chiffre seul derrière' => ['Tel +44 7700 900123 3 chambres', 'Tel [TELEPHONE] 3 chambres'],
+            'une surface derrière' => ['+33 6 12 34 56 78 120 m²', '[TELEPHONE] 120 m²'],
+            'une initiale derrière : rien ne reste du numéro' => ['+33 6 12 34 56 78 F. Dupont', '[TELEPHONE] F. Dupont'],
+            'une marque monétaire derrière' => ['+33 6 12 34 56 78 FCFA', '[TELEPHONE] FCFA'],
+            'entre parenthèses' => ['(+33) 6 12 34 56 78', '([TELEPHONE]'],
+            'indicatif d\'un chiffre, zone entre parenthèses' => ['+1 (202) 555 0123', '[TELEPHONE]'],
+            'deux numéros de formes différentes' => ['+2250712345678 puis 0033612345678', '[TELEPHONE] puis [TELEPHONE]'],
+            'national : deux numéros' => ['06 12 34 56 78 ou 07 12 34 56 78', '[TELEPHONE] ou [TELEPHONE]'],
+        ];
+    }
+
+    #[DataProvider('autourDUnNumeroEtranger')]
+    public function test_a_foreign_number_is_masked_whole_and_what_follows_it_is_kept(string $texte, string $attendu): void
+    {
+        $this->assertSame($attendu, PhoneMasker::mask($texte));
+    }
+
+    /** @return array<string, array{string}> */
+    public static function pasUnNumeroEtranger(): array
+    {
+        return [
+            'plus puis un million, sans marque' => ['Loyer 500 000 + 1 000 000 de caution'],
+            'plus puis un milliard' => ['+1 500 000 000 de dette'],
+            'indicatif inconnu' => ['+22 12 34 56 78 90'],
+            'indicatif trop court pour les chiffres' => ['Total 12 + 33 6 12'],
+            'chiffres sans plus ni zéro initial' => ['1234567890123'],
+            'jour, mois, année à espaces' => ['rendez-vous le 06 12 2026'],
+            'date à points et heure' => ['à 14h30 le 06.12.2026'],
+            'date à points suivie d\'une heure à deux chiffres' => ['le 01.05.2026 12 h 30'],
+            'prix à points' => ['Terrain 600 m2 prix 35.000.000'],
+            'millésime et référence' => ['TK-2026-AB12CD, construit en 2026'],
+            'décimales à séparateurs mêlés' => ['load averages: 44.07 87.79 75.17'],
+            'zéros d\'un nombre suivis d\'un indicatif' => ['Réf 4500 331 234 567'],
+            'trois paires' => ['Chambres : 01 02 03'],
+            'numéro sénégalais à préfixe hors du plan, avec indicatif' => ['+221 74 123 45 67'],
+        ];
+    }
+
+    #[DataProvider('pasUnNumeroEtranger')]
+    public function test_what_is_not_a_foreign_number_is_left_alone(string $texte): void
+    {
+        $this->assertSame($texte, PhoneMasker::mask($texte));
+    }
+
+    /** `RadarPhone` et `RadarAmountParser` lisent `PATTERN` : il reste le numéro sénégalais, sans le numéro étranger. */
+    public function test_the_senegalese_pattern_does_not_read_a_foreign_number(): void
+    {
+        $this->assertSame(1, preg_match(PhoneMasker::PATTERN, '+221 77 123 45 67'));
+        foreach (['+33 6 12 34 56 78', '+2250712345678', '0033612345678', '06.12.34.56.78', '+1 202 555 0123'] as $etranger) {
+            $this->assertSame(0, preg_match(PhoneMasker::PATTERN, $etranger), $etranger);
+            $this->assertSame(1, preg_match(PhoneMasker::MASK_PATTERN, $etranger), $etranger);
+        }
     }
 }

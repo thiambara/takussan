@@ -294,6 +294,19 @@ class EvalCaseAnonymizerTest extends TestCase
         $this->assertSame('Appelez le [TELEPHONE] ou [EMAIL]', $out['input']);
     }
 
+    /** TCK-2410 — un numéro étranger est masqué dans l'entrée, dans `expected` et sous une clé personnelle. */
+    public function test_a_foreign_number_is_masked_in_the_input_and_in_expected(): void
+    {
+        $out = (new EvalCaseAnonymizer)->anonymize(
+            'Appelez le +33 6 12 34 56 78 ou le 06.12.34.56.78',
+            ['notes' => 'rappeler +2250712345678', 'contact_telephone' => '+33612345678'],
+        );
+
+        $this->assertSame('Appelez le [TELEPHONE] ou le [TELEPHONE]', $out['input']);
+        $this->assertSame('rappeler [TELEPHONE]', $out['expected']['notes']);
+        $this->assertSame('[TELEPHONE]', $out['expected']['contact_telephone']);
+    }
+
     public function test_an_email_containing_the_name_becomes_one_token(): void
     {
         $out = (new EvalCaseAnonymizer)->anonymize('Awa Diop : awa.diop@exemple.sn', ['contact_nom' => 'Awa Diop']);

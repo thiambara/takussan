@@ -1,21 +1,36 @@
 #!/usr/bin/env node
 /**
- * Garde : aucun numéro sénégalais plausible ni courriel dans les jeux d'évaluation du socle IA
- * (`takussan-api/resources/ai/evals/`) — TCK-2384.
+ * Garde : aucun numéro de téléphone plausible ni courriel dans les jeux d'évaluation du socle IA
+ * (`takussan-api/resources/ai/evals/`) — TCK-2384, étendue aux numéros étrangers par TCK-2410.
  *
  * **Pourquoi.** Les cas viennent de vraies annonces corrigées (`ai:export-eval-cases`). L'export
  * anonymise, mais un cas écrit à la main, ou un format de numéro que l'anonymisation ne connaît
  * pas, ferait entrer une donnée personnelle dans le dépôt — d'où elle ne sort plus.
  *
- * **Ce qu'elle ne prouve pas.** L'absence d'un nom de personne : aucun motif ne le reconnaît. Et
- * les formats qu'elle ne connaît pas : numéros étrangers, courriel en `(dot)`.
+ * **Ce qu'elle ne prouve pas.** L'absence d'un nom de personne : aucun motif ne le reconnaît. Un
+ * courriel en `(dot)`. Un numéro étranger écrit sans indicatif ni zéro initial (`612345678`) : il ne se
+ * distingue pas d'un nombre. Et **elle ne lit que les jeux d'évaluation**.
  *
- * **Le même ensemble que le masqueur** (TCK-2400) : `TELEPHONE` est le motif de
- * `App\Support\PhoneMasker::PATTERN`, `COURRIEL` celui d'`EvalCaseAnonymizer::EMAIL`, appliqués au
- * texte normalisé de la même façon (chiffres pleine chasse et arabes-indiens en ASCII, invisibles
- * retirés). `takussan-api/tests/fixtures/ai/donnees-personnelles.json` les éprouve des deux côtés :
- * ses épreuves tournent ici à chaque exécution, et dans `PhoneMaskerTest`/`EvalCaseAnonymizerTest`.
- * Un prix suivi d'une marque monétaire (`750000000 FCFA`) n'est pas un numéro.
+ * **RÈGLE (TCK-2410) : aucun document du dépôt — ticket, plan, ADR, journal, commentaire, test, fixture,
+ * jeu d'évaluation — ne cite un numéro relevé dans la réalité, même comme exemple d'un défaut.** Les
+ * exemples sont des numéros manifestement fictifs : `+33612345678`, `+221771234567`, `06 12 34 56 78`,
+ * `+1 202 555 0123`, `+44 7700 900123`. Une annonce réelle ne se cite pas : elle se décrit.
+ * *Aucune garde ne la porte, et c'est un jugement mesuré, pas une paresse* (2026-10-29) : balayé sur
+ * tout le dépôt, ce motif trouve 455 chaînes distinctes, presque toutes des numéros fictifs de tests ; ce
+ * qui distingue un numéro fictif d'un numéro réel (`77 123 45 67`, `77 666 00 02`, `+221 78 000 11 22`) est
+ * un jugement que ni le motif ni une heuristique (chiffres répétés, suite croissante) ne rendent sans
+ * faux positif ni faux négatif — et le dépôt compte des centaines de numéros fictifs sénégalais sans
+ * marque. Restreinte aux numéros étrangers, une heuristique passerait aujourd'hui, mais un numéro réel
+ * contenant « 1234 » passerait aussi : une garde qui rassure sans prouver est pire que pas de garde. La
+ * relecture d'un diff qui cite un numéro est donc humaine ; cette garde ne couvre que les jeux d'évaluation.
+ *
+ * **Le même ensemble que le masqueur** (TCK-2400, TCK-2410) : `TELEPHONE` est le motif de
+ * `App\Support\PhoneMasker::MASK_PATTERN` (numéro sénégalais ou étranger), `COURRIEL` celui
+ * d'`EvalCaseAnonymizer::EMAIL`, appliqués au texte normalisé de la même façon (chiffres pleine chasse
+ * et arabes-indiens en ASCII, invisibles retirés). `takussan-api/tests/fixtures/ai/donnees-personnelles.json`
+ * les éprouve des deux côtés : ses épreuves tournent ici à chaque exécution, et dans
+ * `PhoneMaskerTest`/`EvalCaseAnonymizerTest`. Un prix suivi d'une marque monétaire (`750000000 FCFA`)
+ * n'est pas un numéro sénégalais.
  *
  *   node scripts/check-ai-evals-pii.mjs
  */
@@ -31,13 +46,29 @@ const EVALS = join(ROOT, 'takussan-api', 'resources', 'ai', 'evals');
 // (espaces insécables).
 const SEP = '[\\s.\\-/]';
 const PREFIXE = '(?:3[02369]|7[0-25-9]|93)';
-export const TELEPHONE = new RegExp(
-  `(?<!\\d)(?:(?:\\+|00)?221${SEP}?)?`
+const FIN = '(?!\\d)(?!\\s*(?:f\\s?cfa|cfa|xof|francs?|f)(?!\\p{L}))';
+const SENEGAL = `(?<!\\d)(?:(?:\\+|00)?221${SEP}?)?`
   + `(?:${PREFIXE}${SEP}?(?:\\d{3}${SEP}?\\d{2}${SEP}?\\d{2}|\\d{2}${SEP}?\\d{2}${SEP}?\\d{3})`
-  + `|${PREFIXE}\\d${SEP}?\\d{2}${SEP}?\\d{2}${SEP}?\\d{2})`
-  + '(?!\\d)(?!\\s*(?:f\\s?cfa|cfa|xof|francs?|f)(?!\\p{L}))',
-  'iu',
-);
+  + `|${PREFIXE}\\d${SEP}?\\d{2}${SEP}?\\d{2}${SEP}?\\d{2})`;
+// Numéros étrangers (TCK-2410) : mêmes alternatives que `PhoneMasker::FOREIGN` — `+` ou `00`, un indicatif
+// ITU et le nombre de chiffres de son plan (la France à longueur exacte, d'abord), ou la
+// forme nationale `0X XX XX XX XX`, collée ou séparée à chaque paire par le MÊME caractère (une date suivie
+// d'une heure, `load averages: 44.07 87.79 75.17`, n'en sont pas). Les parenthèses ne sont admises qu'après
+// l'indicatif : `(+33)`, `(0)`, `+1 (202)` ; `ADR-0064 (2026-10-14)` n'est pas un `00` + indicatif 64.
+// `+221` reste au motif sénégalais : `+221 74 …`, préfixe hors du plan, est le numéro fictif des jeux d'évaluation.
+const APRES_CC = '\\)?(?:\\s?\\(0\\))?';
+const CC1 = '[17]';
+const CC2 = '(?:2[07]|3[0-469]|4[013-9]|5[1-8]|6[0-6]|8[1246]|9[0-58])';
+const CC3 = '(?:21[1-368]|22[02-9]|23\\d|24\\d|25[0-8]|26\\d|29[01789]|35\\d|37\\d|38[0-35-79]|42[013]|50\\d|59\\d|6[78]\\d|69[0-2]|85[02356]|880|886|96[0-8]|97[0-7]|99[2-8])';
+const CHIFFRES = (n) => `(?:${SEP}{0,2}\\d){${n}}`;
+const ETRANGER = `(?:(?<![\\d+])(?:\\+\\s?|00${SEP}?)(?:`
+  + `33${APRES_CC}${CHIFFRES(9)}`
+  + `|${CC1}${APRES_CC}(?:${SEP}?\\(\\d{3}\\)${CHIFFRES(7)}|${CHIFFRES(10)})`
+  + `|${CC2}${APRES_CC}${CHIFFRES('7,11')}`
+  + `|${CC3}${APRES_CC}${CHIFFRES('6,10')}`
+  + `)(?<!${SEP}\\d)`
+  + `|(?<!\\d)0[1-9](?:\\d{8}|(?<sep>${SEP})\\d{2}(?:\\k<sep>\\d{2}){3}))(?!\\d)`;
+export const TELEPHONE = new RegExp(`(?:${SENEGAL}${FIN}|${ETRANGER})`, 'iu');
 export const COURRIEL = /[a-z0-9._%+-]+(?:\s*[@\uFF20]\s*|\s*[([{]\s*at\s*[)\]}]\s*|\s+at\s+)[a-z0-9-]+(?:\.[a-z0-9-]+)*\.[a-z]{2,}(?![a-z])/iu;
 
 const INVISIBLES = /[\u200B\u200C\u200D\u2060\uFEFF\u00AD]/g;
@@ -132,6 +163,10 @@ if (verifierTexteJson(ECHAPPE).length !== 2 || verifierTexteJson('{"input":"[TEL
 // Un nombre, une clé, un tableau de nombres, une clé en double : chacun doit être signalé, une fois.
 const JSON_A_SIGNALER = [
   '{"expected":{"telephone":771234567}}', '{"x":[771234567]}', '{"x":"77 123 45 67","x":"ok"}', '{"a@b.sn":"x"}',
+  // Un numéro étranger dans `expected` (TCK-2410), sous une clé personnelle ou dans un texte libre.
+  '{"cases":[{"input":"x","expected":{"contact_telephone":"+33612345678"}}]}',
+  '{"cases":[{"input":"x","expected":{"notes":"rappeler le 06.12.34.56.78"}}]}',
+  '{"cases":[{"input":"x","expected":{"notes":"WhatsApp + 225 07 12 34 56 78"}}]}',
 ];
 for (const doc of JSON_A_SIGNALER) {
   if (verifierTexteJson(doc).length !== 1) {
@@ -139,7 +174,8 @@ for (const doc of JSON_A_SIGNALER) {
     process.exit(1);
   }
 }
-if (verifierTexteJson('{"expected":{"prix":150000000,"n":3,"k":[1,2.5]}}').length !== 0) {
+if (verifierTexteJson('{"expected":{"prix":150000000,"n":3,"k":[1,2.5]}}').length !== 0
+  || verifierTexteJson('{"expected":{"jour":"le 01/05/2026","ref":"TK-2026-AB12CD","somme":"250 000 + 1 000 000"}}').length !== 0) {
   console.error('✗ épreuve : un nombre qui n\'est pas un numéro ne doit pas être signalé');
   process.exit(1);
 }
