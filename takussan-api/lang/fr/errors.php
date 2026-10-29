@@ -746,6 +746,20 @@ return [
             'otp_preview_active' => "L'aperçu des codes SMS est actif dans cet environnement : le code d'activation reviendrait dans la réponse, et quiconque connaît le numéro de l'annonceur pourrait ouvrir son compte. Rien ne se publie tant qu'il l'est.",
             'nothing_published' => 'Aucun bien n\'est publié pour cet annonceur : il n\'y a pas de message à composer.',
         ],
+        // TCK-2390 — la réclamation par l'annonceur, page publique : aucun mot du Radar.
+        'claim' => [
+            'invalid' => 'Ce lien n\'existe pas.',
+            'expired' => 'Ce lien a expiré. Répondez au message reçu pour en demander un nouveau.',
+            'revoked' => 'Ce lien n\'est plus valable.',
+            'unavailable' => 'Cette page n\'est pas disponible pour le moment. Réessayez plus tard.',
+            'account_unavailable' => 'Le compte lié à ce numéro ne peut pas être ouvert ici. Écrivez-nous pour le retrouver.',
+            'terms_outdated' => 'Les conditions d\'utilisation ont changé depuis l\'ouverture de cette page : rechargez-la pour lire la version en vigueur.',
+            'listing_unavailable' => 'Une de ces annonces n\'est plus proposée : rechargez la page.',
+            'nothing_selected' => 'Choisissez au moins une annonce à publier.',
+            'login_required' => 'Ce numéro a déjà un compte Takussan : connectez-vous d\'abord.',
+            'wrong_account' => 'Vous êtes connecté avec un autre compte : déconnectez-vous, puis rouvrez ce lien.',
+            'account_changed' => 'Ce compte a changé entre-temps : rechargez la page.',
+        ],
     ],
     'pay_link' => [
         'not_found' => 'Ce lien de paiement n\'existe pas.',

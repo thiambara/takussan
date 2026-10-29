@@ -47,6 +47,9 @@ final class AdvertiserProvisioner
             // rouvre pas — `autoOnboard()` réactiverait ses profils — et ne le laisse pas non plus en 404 opaque.
             $user = User::withTrashed()->find($lockedAdvertiser->user_id);
             abort_code_if($user === null || ! $user->canOpenSession() || $this->spaceSuspended($user), 422, self::ACCOUNT_UNAVAILABLE);
+            // TCK-2390 — le compte orphelin : un autre compte a vérifié ce numéro depuis, la connexion par code ouvre celui-là.
+            // Publier encore dans le compte du Radar verserait des biens dans un compte que plus personne n'ouvre.
+            abort_code_if($this->phoneRegistered($lockedAdvertiser), 422, 'radar.advertiser.phone_registered');
 
             return ['created' => false, 'user' => $user, 'agency' => $this->onboarding->autoOnboard($user)['agency']];
         }
@@ -90,16 +93,24 @@ final class AdvertiserProvisioner
     }
 
     /**
-     * Le même refus, sans rien écrire : pour l'aperçu. Un annonceur déjà rattaché n'est jamais « porté » : son compte,
-     * qui porte le numéro, est le sien.
+     * Le même refus, sans rien écrire : pour l'aperçu. Un annonceur déjà rattaché n'est « porté » que si un AUTRE compte a
+     * VÉRIFIÉ son numéro depuis (le compte orphelin, revue finale de TCK-2389) : son compte, qui porte le numéro sans l'avoir
+     * vérifié, ne s'ouvre plus par code (ADR-0033 §3), et seule la réclamation le rattache au titulaire (TCK-2390).
      */
     public function phoneRegistered(RadarAdvertiser $advertiser): bool
     {
-        if ($advertiser->user_id !== null || $advertiser->phone === null) {
+        if ($advertiser->phone === null) {
             return false;
         }
 
         $phone = CanonicalPhone::fold($advertiser->phone);
+        if ($advertiser->user_id !== null) {
+            return User::query()
+                ->whereKeyNot($advertiser->user_id)
+                ->whereNotNull('phone_verified_at')
+                ->whereRaw(CanonicalPhone::sql('phone').' = ?', [$phone])
+                ->exists();
+        }
 
         return User::query()
             ->where(fn ($query) => $query

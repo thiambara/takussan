@@ -746,6 +746,20 @@ return [
             'otp_preview_active' => "The SMS code preview is active in this environment: the activation code would come back in the response, and anyone who knows the advertiser's number could open their account. Nothing is published while it is.",
             'nothing_published' => 'No property is published for this advertiser: there is no message to compose.',
         ],
+        // TCK-2390 — the advertiser's claim, public page: no Radar wording.
+        'claim' => [
+            'invalid' => 'This link does not exist.',
+            'expired' => 'This link has expired. Reply to the message you received to ask for a new one.',
+            'revoked' => 'This link is no longer valid.',
+            'unavailable' => 'This page is not available right now. Please try again later.',
+            'account_unavailable' => 'The account linked to this number cannot be opened here. Write to us to recover it.',
+            'terms_outdated' => 'The terms of use have changed since this page was opened: reload it to read the current version.',
+            'listing_unavailable' => 'One of these listings is no longer offered: reload the page.',
+            'nothing_selected' => 'Choose at least one listing to publish.',
+            'login_required' => 'This number already has a Takussan account: sign in first.',
+            'wrong_account' => 'You are signed in with another account: sign out, then open this link again.',
+            'account_changed' => 'This account changed in the meantime: reload the page.',
+        ],
     ],
     'pay_link' => [
         'not_found' => 'This payment link does not exist.',

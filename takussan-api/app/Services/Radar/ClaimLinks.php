@@ -54,13 +54,8 @@ final class ClaimLinks
     /** L'annonceur du lien, s'il sert encore ; 404 ou 410 sinon. */
     public function resolve(string $token): RadarAdvertiser
     {
-        $parts = explode('.', $token);
-        abort_code_unless(
-            count($parts) === 3 && ctype_digit($parts[0]) && ctype_digit($parts[1])
-                && hash_equals(self::sign($parts[0].'.'.$parts[1]), $parts[2]),
-            404,
-            'radar.claim.invalid',
-        );
+        $parts = self::signedParts($token);
+        abort_code_if($parts === null, 404, 'radar.claim.invalid');
 
         $advertiser = RadarAdvertiser::query()->find((int) $parts[0]);
         abort_code_if($advertiser === null, 404, 'radar.claim.invalid');
@@ -82,6 +77,28 @@ final class ClaimLinks
         return $advertiser->do_not_contact_at !== null
             || $advertiser->phone === null
             || RadarConsent::query()->where('radar_advertiser_id', $advertiser->getKey())->whereNotNull('revoked_at')->exists();
+    }
+
+    /**
+     * Le numéro de l'annonceur d'un jeton bien signé, quelle que soit sa date, sans rien lever : la clé du limiteur de la
+     * confirmation, qui doit être celle de `auth-phone-verify` pour ce numéro (un seul seau par numéro, ADR-0033 §6, M1 c).
+     */
+    public static function phoneOf(string $token): ?string
+    {
+        $parts = self::signedParts($token);
+
+        return $parts === null ? null : RadarAdvertiser::query()->whereKey((int) $parts[0])->value('phone');
+    }
+
+    /** @return array{0: string, 1: string}|null l'annonceur et l'émission, si la forme et la signature tiennent */
+    private static function signedParts(string $token): ?array
+    {
+        $parts = explode('.', $token);
+
+        return count($parts) === 3 && ctype_digit($parts[0]) && ctype_digit($parts[1])
+            && hash_equals(self::sign($parts[0].'.'.$parts[1]), $parts[2])
+            ? [$parts[0], $parts[1]]
+            : null;
     }
 
     private static function sign(string $payload): string
