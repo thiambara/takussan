@@ -141,6 +141,20 @@ services:
     stop_grace_period: 60s
     mem_limit: 384m
 
+  # ── `worker-ia` : les appels au modèle, seuls (TCK-2402, ADR-0078 amendement) ──────────────────────
+  #
+  # `ExtractRadarListing` et `VerifyRadarConsentReply` (`$timeout` 85 s, `RunsOnAiQueue`) passent par la
+  # file `ai` de la connexion `database` : son délai de reprise (90 s) les couvre, il n'y a donc pas de
+  # connexion de plus. `worker-ia` est le SEUL à la lire et ne lit rien d'autre — sur `worker`, derrière
+  # `notifications-urgent`, un appel de 85 s retiendrait de nouveau une notification urgente, parce que
+  # l'ordre des files ne joue qu'entre deux jobs. `stop_grace_period` 90 s : de quoi finir un appel.
+  # `scripts/check-queues.mjs` refuse `ai` sur un worker qui lit autre chose.
+  worker-ia:
+    <<: [*api, *apres-release]
+    command: php artisan queue:work --queue=ai --sleep=3 --tries=3 --max-time=3600
+    stop_grace_period: 90s
+    mem_limit: 384m
+
   worker-media:
     <<: [*api, *apres-release]
     command: php artisan queue:work --queue=media,reconciliation --sleep=3 --tries=3 --max-time=3600
