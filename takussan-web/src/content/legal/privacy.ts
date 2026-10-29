@@ -109,7 +109,7 @@ Nous faisons appel à des prestataires qui traitent des données pour notre comp
 - **Connexion par un tiers** : Google, Meta (Facebook) et Apple, uniquement si vous choisissez ce mode de connexion.
 - **Cartographie** : OpenStreetMap, dont les serveurs reçoivent votre adresse IP lorsque la carte s’affiche.
 - **Localisation approximative** : ipapi.co, qui reçoit votre adresse IP pour en déduire votre ville.
-- **Intelligence artificielle** : Anthropic (États-Unis) ⚠ [et tout autre fournisseur retenu] — analyse du texte et des images d’une annonce pour en extraire les caractéristiques, rédaction de messages, vérification d’une preuve d’accord, pour proposer une saisie ou une rédaction qu’une personne vérifie. Aucune donnée sensible (pièce d’identité, revenus) ne lui est transmise. ⚠ Ces prestataires n’utilisent pas les données transmises pour entraîner leurs modèles : à vérifier sur leurs conditions en vigueur.
+- **Intelligence artificielle** : Anthropic (États-Unis) ⚠ [et tout autre fournisseur retenu] — analyse du texte et des images d’une annonce pour en extraire les caractéristiques, rédaction de messages, vérification d’une preuve d’accord, pour proposer une saisie, une rédaction ou un avis qu’une personne vérifie. Aucune donnée sensible (pièce d’identité, revenus) ne leur est transmise. ⚠ Ces prestataires n’utilisent pas les données transmises pour entraîner leurs modèles : à vérifier sur leurs conditions en vigueur.
 
 ## 4.4 Les autorités
 
@@ -293,7 +293,7 @@ We use providers that process data on our behalf, on our instructions and under 
 - **Third-party sign-in**: Google, Meta (Facebook) and Apple, only if you choose that sign-in method.
 - **Maps**: OpenStreetMap, whose servers receive your IP address when a map is displayed.
 - **Approximate location**: ipapi.co, which receives your IP address to infer your city.
-- **Artificial intelligence**: Anthropic (United States) ⚠ [and any other provider retained] — analysis of the text and images of a listing to extract its characteristics, drafting of messages, checking of a proof of agreement, to suggest an entry or a draft that a person reviews. No sensitive data (identity documents, income) is sent to it. ⚠ These providers do not use the data sent to train their models: to be verified against their current terms.
+- **Artificial intelligence**: Anthropic (United States) ⚠ [and any other provider retained] — analysis of the text and images of a listing to extract its characteristics, drafting of messages, checking of a proof of agreement, to suggest an entry, a draft or an assessment that a person reviews. No sensitive data (identity documents, income) is sent to them. ⚠ These providers do not use the data sent to train their models: to be verified against their current terms.
 
 ## 4.4 Authorities
 
