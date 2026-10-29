@@ -740,7 +740,7 @@ return [
             'not_covered' => 'One of these listings is not covered by a confirmed, unrevoked agreement: it cannot be published.',
             'photos_pending' => 'The photos of one of these listings are still being prepared: wait for them to finish, or restart the collection.',
             'no_photo' => 'One of these listings has no photo in its reserve: collect some from the source, or upload some.',
-            'missing_field' => 'One of these listings is incomplete: the type, contract, price, a neighbourhood from the reference list and the title are required.',
+            'missing_field' => 'One of these listings is incomplete: the type, contract, price and a neighbourhood from the reference list are required.',
             'nothing_published' => 'No property is published for this advertiser: there is no message to compose.',
         ],
     ],
