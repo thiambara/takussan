@@ -182,5 +182,11 @@ posés par TCK-2389. Loi n° 2008-12 : la durée annoncée doit être tenue par 
 - `README` de `content/legal` : la ligne 6 de « Avant la mise en production » est retirée, les suivantes ne sont pas renumérotées (TCK-2390 retire la 7e :
   pas de conflit de lignes).
 
-**Reste avant `done`** : la PR de spec (`models-spec.md` §105, §108, §109, §111 ; `features.md` § 2.12), la confirmation du porteur sur les points 1 à 4 de la liste
-ci-dessus (envoyés à la session déléguante), et TCK-2406.
+**Décisions du porteur (2026-10-29).** Les quatre recommandations de l'implémentation sont retenues, ainsi que les choix techniques ci-dessus.
+
+1. `ai_suggestions` du sujet purgé : les champs s'effacent, la ligne reste.
+2. Durée de la preuve : règle de `privacy.ts` § 6 avec `radar_consents.offline_since` et `purged_at`, durée en configuration à 3 ans (`radar.consent_retention_years`).
+3. Matière collectée des annonces publiées : la lettre d'ADR-0077 § 9 (« jamais publiée »). TCK-2406 porte l'éventuelle purge de cette matière 3 ans après le retrait.
+4. Orphelins : balayage des répertoires numériques du disque privé sans ligne `media` et de plus d'1 h ; l'écart des copies publiques est noté dans TCK-2406.
+
+**Reste avant `done`** : la PR de spec (`models-spec.md` §105, §108, §109, §111 ; `features.md` § 2.12), faite par la session déléguante à partir du rapport.

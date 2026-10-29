@@ -30,12 +30,12 @@ Deux écarts relevés par TCK-2391, mesurés le 2026-10-29 sur `feat/radar-revoc
 
 ## Contraintes strictes (métier)
 
-- Rien ne se décide ici sans le porteur : (2) change l'ADR-0077 §9 et le texte légal (avocat).
+- Le porteur a retenu le 2026-10-29 la lettre d'ADR-0077 §9 pour TCK-2391 et demande l'éventuelle purge de la matière d'une annonce publiée **3 ans après le retrait**, avec la preuve. Elle change l'ADR-0077 §9 et le texte légal (avocat) : rien ne s'implémente sans cet accord.
 
 ## Delta à produire
 
 - [ ] (1) Choisir : un marqueur d'écriture avant la copie (une ligne qui nomme les identifiants de média attendus, effacée au commit), ou un chemin par bien pour la collection `photos` des biens du Radar, puis un balayage qui n'en dépend que.
-- [ ] (2) Trancher avec le porteur : purger la matière collectée d'une annonce publiée à la révocation, ou 3 ans après le retrait avec la preuve, ou ne pas la purger ; en tirer l'ADR, `privacy.ts` § 6 et la règle de `RadarPurger`.
+- [ ] (2) Purger la matière collectée d'une annonce publiée 3 ans après le retrait (`offline_since`, TCK-2391), avec la preuve ; en tirer l'ADR, `privacy.ts` § 6 et la règle de `RadarPurger`.
 
 ## Critères d'acceptation
 
