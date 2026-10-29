@@ -56,22 +56,22 @@ final class PhoneMasker
      * se grouper comme on veut (`+221 771 234 567`, `+221 77 12 345 67`, `+221 7 7 1 2 3 4 5 6 7`), et une
      * lettre `F` derrière n'en fait pas un prix. Préfixes de l'ARTP seulement : `+221 74 …` reste le fictif.
      */
-    private const SENEGAL_WITH_CODE = '(?<![0-9])(?:\+'.self::WS.'{0,2}|00'.self::WS.'?)221'.self::AFTER_CC.self::SEP.'?'
-        .self::PREFIX_SPACED.'(?:'.self::SEP.'?[0-9]){7}(?![0-9])';
+    private const SENEGAL_WITH_CODE = '(?<![0-9])(?:\+'.self::WS.'{0,2}|00'.self::WS.'?)221'.self::AFTER_CC.self::SEP.'{0,3}'
+        .self::PREFIX_SPACED.'(?:'.self::SEP.'{0,3}[0-9]){7}(?![0-9])';
 
     /**
      * Le numéro sénégalais SANS indicatif, à groupement libre, séparé par des espaces : le préfixe d'un seul tenant,
      * puis sept chiffres groupés comme on veut (`77 1234567`, `77 1 23 45 67`, `77 12 345 67`, `33 8 21 00 00`) ;
      * ou, le préfixe espacé (`7 7 …`), la forme stricte « neuf chiffres un à un » (`7 7 1 2 3 4 5 6 7`).
-     * Pas un groupement 3-3-3 (`750 000 000` est un prix), ni une date `30/12/2026`, ni trois zéros d'affilée
-     * (`750000 000`), ni deux groupes de mille en fin (`33 3 333 333`), ni un chiffre isolé derrière la forme
+     * Ni une date `30/12/2026` ou `30 1 2026`, ni trois zéros d'affilée (`750000 000`), ni deux groupes de
+     * mille en fin, écartés d'une ou deux espaces (`750 000 000`, `33 3 333 333` : le 3-3-3 y est compris), ni un chiffre isolé derrière la forme
      * stricte (`7 1 2 3 4 5 6 7 8 9`, une liste). Pas de tiret ni de barre : `30-31-32-33-4`, `30-20-15-10-5` sont
      * des listes. Limites : `3 2 1 0 9 8 7 6 5` (une liste décroissante) et `7 7 5 0 0 0 0 0 0` sont masqués.
      */
-    private const SENEGAL_LOOSE = '(?<![0-9])(?![0-9]{3}'.self::SEP.'[0-9]{3}'.self::SEP.'[0-9]{3}(?![0-9]))'
-        .'(?![0-9]{2}'.self::SEP.'[0-9]{2}'.self::SEP.'[0-9]{4}(?![0-9]))'
+    private const SENEGAL_LOOSE = '(?<![0-9])'
+        .'(?![0-9]{2}'.self::SEP.'[0-9]{1,2}'.self::SEP.'[0-9]{4}(?![0-9]))'
         .'(?!(?:[0-9]'.self::SEP.'?){0,8}000)'
-        .'(?:'.self::PREFIX.'(?:'.self::WS.'?[0-9]){7}(?<!'.self::WS.'[0-9]{3}'.self::WS.'[0-9]{3})'
+        .'(?:'.self::PREFIX.'(?:'.self::WS.'{0,2}[0-9]){7}(?<!'.self::WS.'[0-9]{3}'.self::WS.'{1,2}[0-9]{3})'
         .'|(?:3'.self::WS.'[02369]|7'.self::WS.'[0-25-9]|9'.self::WS.'3)(?:'.self::WS.'[0-9]){7}(?!'.self::WS.'[0-9](?![0-9])))';
 
     /**

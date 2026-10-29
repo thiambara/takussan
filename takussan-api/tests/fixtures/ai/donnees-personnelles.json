@@ -162,7 +162,10 @@
     "séparateurs TCK-2410 — préfixe entre parenthèses, espacé": "(77) 123 45 67",
     "séparateurs TCK-2410 — préfixe entre parenthèses, 2-3-2": "(70) 12 345 67",
     "séparateurs TCK-2410 — préfixe entre parenthèses, fixe": "(33) 821 00 00",
-    "séparateurs TCK-2410 — préfixe entre parenthèses, 7 chiffres espacés": "(77) 1234567"
+    "séparateurs TCK-2410 — préfixe entre parenthèses, 7 chiffres espacés": "(77) 1234567",
+    "espaces doubles TCK-2410 — sans indicatif": "77  123  45  67",
+    "espaces doubles TCK-2410 — derrière +221": "+221 77  123  45  67",
+    "séparateurs espacés TCK-2410 — derrière +221": "+221 - 77 - 123 - 45 - 67"
   },
   "avec_contexte": {
     "wa.me, France": ["wa.me/33612345678", "wa.me/[TELEPHONE]"],
@@ -355,6 +358,10 @@
     "séparateurs TCK-2410 — parenthèses, huit chiffres derrière": "(77)12345678",
     "séparateurs TCK-2410 — numéros de lignes à la virgule": "MaintenanceQuoteController:30,59,80,102",
     "séparateurs TCK-2410 — numéros de lignes, deuxième liste": "72,73,74,814",
-    "séparateurs TCK-2410 — surface à la virgule": "terrain de 2,5 ha"
+    "séparateurs TCK-2410 — surface à la virgule": "terrain de 2,5 ha",
+    "date TCK-2410 — jour, mois, année espacés": "le 30 12 2026 9h",
+    "date TCK-2410 — mois à un chiffre": "le 30 1 2026 10h",
+    "date TCK-2410 — mois à un chiffre, minutes": "le 30 1 2026 9h30",
+    "groupes de mille TCK-2410 — dernière espace double": "Prix 33 3 333  333"
   }
 }

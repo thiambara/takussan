@@ -58,15 +58,15 @@ const SENEGAL = String.raw`(?<![0-9])(?:(?:\+|00)?221${SEP}?)?`
   + `(?:${PREFIXE}${SEP}?(?:[0-9]{3}${SEP}?[0-9]{2}${SEP}?[0-9]{2}|[0-9]{2}${SEP}?[0-9]{2}${SEP}?[0-9]{3})`
   + `|${PREFIXE}[0-9]${SEP}?[0-9]{2}${SEP}?[0-9]{2}${SEP}?[0-9]{2})`;
 // Avec `+221` ou `00221` : neuf chiffres à groupement libre, et un `F` derrière n'en fait pas un prix.
-const SENEGAL_AVEC_INDICATIF = String.raw`(?<![0-9])(?:\+${WS}{0,2}|00${WS}?)221${APRES_CC}${SEP}?${PREFIXE_ESPACE}(?:${SEP}?[0-9]){7}(?![0-9])`;
+const SENEGAL_AVEC_INDICATIF = String.raw`(?<![0-9])(?:\+${WS}{0,2}|00${WS}?)221${APRES_CC}${SEP}{0,3}${PREFIXE_ESPACE}(?:${SEP}{0,3}[0-9]){7}(?![0-9])`;
 // Sans indicatif, séparé par des espaces : le préfixe d'un seul tenant et sept chiffres groupés comme on veut, ou,
-// le préfixe espacé, les neuf chiffres un à un. Ni un 3-3-3 (un prix), ni une date, ni trois zéros d'affilée
-// (`750000 000`), ni deux groupes de mille en fin (`33 3 333 333`), ni un chiffre isolé derrière la forme stricte
+// le préfixe espacé, les neuf chiffres un à un. Ni une date, ni trois zéros d'affilée (`750000 000`), ni
+// deux groupes de mille en fin (`750 000 000`, `33 3 333 333` : le 3-3-3 y est compris), ni un chiffre isolé derrière la forme stricte
 // (`7 1 2 3 4 5 6 7 8 9`), ni de tiret ni de barre (`30-31-32-33-4`, une liste).
-const SENEGAL_LIBRE = `(?<![0-9])(?![0-9]{3}${SEP}[0-9]{3}${SEP}[0-9]{3}(?![0-9]))`
-  + `(?![0-9]{2}${SEP}[0-9]{2}${SEP}[0-9]{4}(?![0-9]))`
+const SENEGAL_LIBRE = `(?<![0-9])`
+  + `(?![0-9]{2}${SEP}[0-9]{1,2}${SEP}[0-9]{4}(?![0-9]))`
   + `(?!(?:[0-9]${SEP}?){0,8}000)`
-  + `(?:${PREFIXE}(?:${WS}?[0-9]){7}(?<!${WS}[0-9]{3}${WS}[0-9]{3})`
+  + `(?:${PREFIXE}(?:${WS}{0,2}[0-9]){7}(?<!${WS}[0-9]{3}${WS}{1,2}[0-9]{3})`
   + `|(?:3${WS}[02369]|7${WS}[0-25-9]|9${WS}3)(?:${WS}[0-9]){7}(?!${WS}[0-9](?![0-9])))`;
 // Avec `_` ou `,` (`77_123_45_67`, `77,123,45,67`) ou le préfixe entre parenthèses (`(77)1234567`) : le même
 // séparateur partout, un groupement jamais en milliers (`75,000,000` n'en est pas un), rien derrière ni devant ;

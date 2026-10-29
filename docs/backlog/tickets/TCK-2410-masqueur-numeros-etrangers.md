@@ -276,3 +276,21 @@ Venu de la contre-vérification de TCK-2390 : le nom affiché d'un annonceur peu
 - **Parité** : 0 écart sur `cases1` à `cases6`, six jeux aléatoires, le corpus ; corpus contre le commit
   précédent : aucune différence. `tests/Unit/Ai` + `tests/Unit/Radar` : 997 verts ; gardes `check-*.mjs` vertes ; Pint.
 
+### Quatrième reprise (2026-10-29) : espaces doubles, date à mois d'un chiffre, code mort
+
+- **Espaces doubles et séparateurs espacés** : derrière `+221`, `SEP?` devient `SEP{0,3}` avant le préfixe et entre
+  les chiffres (`+221 77  123  45  67`, `+221 - 77 - 123 - 45 - 67`) ; sans indicatif, `WS?` devient `WS{0,2}` entre les
+  chiffres (`77  123  45  67`), et la queue « deux groupes de mille » accepte une ou deux espaces
+  (`Prix 33 3 333  333` reste intact, fixture). Ablations rouges des quatre jonctions, PHP et JS.
+- **Date à mois d'un chiffre** : l'exclusion de date lit `dd SEP d{1,2} SEP dddd` (`le 30 1 2026 10h`, corrigé ; `le 30 12 2026 9h` en
+  fixture aussi). Ablation rouge.
+- **Code mort retiré** : l'exclusion 3-3-3 de `SENEGAL_LOOSE` (PHP et JS). Ablation : verte, car la queue
+  « deux groupes de mille » couvre tout 3-3-3 que ces séparateurs (des espaces) permettent. Commentaires mis à jour.
+- **Limites écrites** : séparateurs espacés sans indicatif (`77 - 123 - 45 - 67`, `77 / 123 / 45 / 67`,
+  `77. 123. 45. 67`) ; `+221 (77) 123 45 67` ne masque que `(77) 123 45 67`, `+221` reste ;
+  `221 771 234 567` (indicatif sans `+`) ; `Contact 77 123 45 67 F. Ndiaye` ; séparateur mêlé `77,123 45 67`,
+  `77_123 45 67`. **Tableaux d'entiers compacts à virgule** (`[70,100,25,50]`, `margin:30,120,45,60`) : masqués ;
+  l'échec est sûr (une CI rouge sur la garde du jeu d'évaluation, pas une fuite).
+- **Vérifié** : parité PHP/JS 0 écart sur `cases1` à `cases8`, six jeux aléatoires, corpus ; contre le commit précédent,
+  seules changent les lignes visées. Tests ciblés, `tests/Feature/Radar`, gardes, Pint : voir le rapport.
+
