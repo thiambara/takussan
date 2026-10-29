@@ -56,8 +56,8 @@ jargon de plateforme. Si le compte existe déjà (publié pour lui), la même pa
 - La confirmation enregistre l'acceptation des conditions avec leur version et l'horodatage
   (même mécanisme que l'inscription), et une preuve `radar_consents` de type `otp`.
 - **Numéro déjà inscrit** : la page invite à se connecter au compte existant, et la publication se
-  fait dans **un espace individuel neuf ou existant de cet utilisateur, à son choix** ; jamais
-  sans sa connexion.
+  fait dans **l'espace individuel de cet utilisateur — l'existant, ou un neuf nommé sur la page** ;
+  jamais sans sa connexion. *(« à son choix » retiré : décision 4a ci-dessous.)*
 - Création de l'espace par `HostIndividualOnboardingService`, publication par le `RadarPublisher`
   de TCK-2389.
 
@@ -120,6 +120,29 @@ jargon de plateforme. Si le compte existe déjà (publié pour lui), la même pa
 
 - La relance d'activation (TCK-2394).
 
+## Décisions du porteur (2026-10-29)
+
+Posées en réponse aux sept points de l'implémentation ; les recommandations sont retenues, la 5 sous condition.
+
+1. **a** — Le lien vit 30 jours (`radar.claim.link_ttl_days`), réutilisable jusqu'à son expiration.
+2. **a** — La confirmation ouvre le compte, crée l'espace, date les conditions, enregistre la preuve `otp` et passe les
+   annonces à `consented` ; un job publie ensuite, une fois les photos prêtes, et une annonce bloquée revient au
+   super-admin. Le job est **idempotent** (rejoué, il ne publie pas deux fois) et ne publie **jamais sans un accord `otp`
+   valide au moment où il s'exécute** : un STOP entre-temps arrête tout.
+3. **a** — Les annonces décochées passent `refused` (`radar.claim.declined`).
+4. **a** — Pas de choix d'espace : l'espace existant, ou un neuf nommé sur la page. **Corrige « un espace individuel neuf
+   ou existant de cet utilisateur, à son choix »** des contraintes ci-dessus : l'invariant « un espace par administrateur
+   principal » de `HostIndividualOnboardingService::autoOnboard()` ne laisse pas de choix.
+5. **a, sous condition** — Les biens du compte orphelin A passent au compte B, puis A se supprime (suppression douce),
+   **seulement si A n'a jamais été activé** : `phone_verified_at` nul, aucune connexion, aucun mot de passe, aucun autre
+   bien ni espace que ceux du Radar. Sinon rien ne se déplace, la page signale le cas et le support tranche. Les deux
+   branches sont testées, et ce que le déplacement laisse derrière lui (prospects, conversations) est vérifié.
+6. **a** — Formulation neutre « votre ou vos annonces », marquée ⚠ pour la relecture de l'avocat.
+7. **a** — Se corrigent : le titre, le prix et la description de chaque annonce, le prénom et le nom de l'espace.
+
+Choix techniques acceptés : les deux portes de la publication, `publie.v2`, le lien réutilisable jusqu'à expiration, la
+portée `login` des codes.
+
 ## Notes d'implémentation
 
 - **Le jeton n'est stocké nulle part** (`ClaimLinks`) : `{annonceur}.{émis_à}.{HMAC-SHA256 tronqué à
@@ -147,10 +170,23 @@ jargon de plateforme. Si le compte existe déjà (publié pour lui), la même pa
   administrateur principal » de `HostIndividualOnboardingService::autoOnboard()` ne laisse pas de
   choix. La page nomme l'espace existant ; le nom proposé d'un espace neuf (et le prénom) se
   corrigent sur la page, et renomment l'espace s'il vient d'être créé ou en état `activation`.
-- **Compte orphelin** : `AdvertiserProvisioner` refuse de publier encore dans le compte A dès qu'un
-  autre compte B a vérifié le numéro (422 `radar.advertiser.phone_registered`) ; la réclamation par B
-  (état `existing`) déplace les biens de A dans l'espace de B et repointe `radar_advertisers.user_id`.
-  A reste en base (suppression douce non faite, décision posée au porteur).
+- **Compte orphelin (décision 5a)** : `AdvertiserProvisioner` refuse de publier encore dans le compte A
+  dès qu'un autre compte B a vérifié le numéro (422 `radar.advertiser.phone_registered`). A « n'a
+  jamais servi » se juge sur plus que les quatre critères de la décision, parce que chacun est une
+  trace d'usage : ni numéro vérifié, ni `last_login_at`, ni jeton Sanctum, ni `password_set_at`, ni
+  e-mail, ni bien hors de ceux du Radar pour cet annonceur, ni second espace, ni profil dans une autre
+  agence, ni autre membre dans son espace, ni profil de prestataire ou de plateforme. Alors la
+  réclamation par B déplace les biens de A et ce que les visiteurs y ont laissé — demandes de contact
+  (agence, destinataire), prospects de son espace, visites, réservations, empreintes de photos,
+  collaborations, conversations (B prend la place de A, ou A se retire où B est déjà) —, puis supprime
+  (doucement) les profils de A, son espace et A. Sinon : état `support`, 409
+  `radar.claim.support_required` à l'envoi du code comme à la confirmation, rien ne bouge. Rejugé
+  sous le verrou de l'annonceur. *Non déplacé* : baux et demandes de maintenance (impossibles sans
+  connexion), notifications de A (restent sur le compte supprimé).
+- **Le job ne publie que sur l'accord `otp` de l'annonceur** (décision 2a) :
+  `RadarConsentCoverage::coveredByOtpAmong()` relu sous verrou dans `publishClaimed` — un accord par
+  capture qui couvrirait encore l'annonce ne suffit pas — et le job s'arrête net (sans attendre les
+  photos) dès que `ClaimLinks::revoked()` est vrai.
 - **La publication passe par un job** (`PublishClaimedRadarListings`, `afterCommit`) : les photos
   d'une annonce-URL ne se téléchargent qu'après l'accord (`PrepareRadarListingPhotos`, décision 3a),
   le job attend leur préparation en se relâchant, publie ce qui est prêt par lots sous
