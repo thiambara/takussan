@@ -375,6 +375,8 @@ describe('RadarPublication — la confirmation et le récapitulatif (TCK-2389)',
     expect(await within(message).findByTestId('radar-publication-message-texte')).toHaveTextContent(/vos annonces sont en ligne/);
     expect(fetchRadarPublishedMessage).toHaveBeenCalledWith(7, 'fr');
     expect(within(message).getByRole('link', { name: 'Ouvrir WhatsApp' })).toHaveAttribute('href', WA_ME_PUBLIE);
+    // Une URL longue ne se coupe pas à droite du cadre : le texte fixe se replie n'importe où.
+    expect(within(message).getByTestId('radar-publication-message-texte').className).toMatch(/break-words.*overflow-wrap:anywhere/);
 
     await utilisateur.click(within(message).getByRole('button', { name: 'Copier le message' }));
     await waitFor(() => expect(ecrire).toHaveBeenCalledWith(messagePublie().text));
@@ -462,7 +464,7 @@ describe('RadarPublication — la prise en charge (TCK-2389)', () => {
     await rendre();
 
     expect(screen.getByTestId('radar-annonceur-prise')).toHaveAttribute('data-etat', 'moi');
-    expect(screen.queryByTestId('radar-publication-prise-requise')).not.toBeInTheDocument();
+    expect(screen.getByTestId('radar-annonceur-prise')).toHaveTextContent('Vous traitez cet annonceur');
     expect(screen.getByRole('checkbox', { name: 'Publier l’annonce n° 12' })).toBeEnabled();
     expect(publier()).toBeEnabled();
   });
@@ -475,7 +477,10 @@ describe('RadarPublication — la prise en charge (TCK-2389)', () => {
     const { utilisateur } = await rendre(apercu(), undefined, libre());
 
     expect(screen.getByTestId('radar-annonceur-prise')).toHaveAttribute('data-etat', 'libre');
-    expect(screen.getByTestId('radar-publication-prise-requise')).toBeInTheDocument();
+    // Un seul texte, celui du bandeau, propre à la publication : pas celui de la fiche (« préparer un message »).
+    expect(screen.getByTestId('radar-annonceur-prise')).toHaveTextContent('Personne ne traite cet annonceur. Prenez-le en charge pour déposer des photos et publier.');
+    expect(screen.getByTestId('radar-annonceur-prise')).not.toHaveTextContent('préparer un message');
+    expect(screen.queryByText(/chaque geste de cet écran l’exige/)).not.toBeInTheDocument();
     expect(screen.getByRole('checkbox', { name: 'Publier l’annonce n° 12' })).toBeDisabled();
     expect(publier()).toBeDisabled();
     expect(within(screen.getByTestId('radar-publication-carte-12')).getByRole('button', { name: 'Retirer la photo 1 de l’annonce n° 12' })).toBeDisabled();
@@ -497,7 +502,7 @@ describe('RadarPublication — la prise en charge (TCK-2389)', () => {
     expect(screen.getByRole('checkbox', { name: 'Publier l’annonce n° 12' })).toBeDisabled();
   });
 
-  it('sous STOP : « Prendre en charge » reste fermé, et aucune consigne ne promet une prise', async () => {
+  it('sous STOP : « Prendre en charge » reste fermé', async () => {
     await rendre(
       apercu({ advertiser: { ...apercu().advertiser, do_not_contact_at: '2026-10-28T09:00:00+00:00' }, blocking: ['radar.advertiser.do_not_contact'] }),
       undefined,
@@ -505,7 +510,6 @@ describe('RadarPublication — la prise en charge (TCK-2389)', () => {
     );
 
     expect(screen.getByRole('button', { name: 'Prendre en charge' })).toBeDisabled();
-    expect(screen.queryByTestId('radar-publication-prise-requise')).not.toBeInTheDocument();
   });
 
   it('la prise se renouvelle d\'elle-même pendant que l\'opérateur travaille sur cet écran', async () => {

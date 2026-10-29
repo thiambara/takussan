@@ -8540,7 +8540,7 @@
           "forbidden": "Publier pour un annonceur est réservé aux super-administrateurs.",
           "loadError": "Impossible de charger l’aperçu de la publication.",
           "intro": "Vérifiez ce qui sera créé au nom de l’annonceur, puis confirmez. Rien n’est écrit avant la confirmation.",
-          "claimNeeded": "Prenez cet annonceur en charge pour déposer des photos ou publier : chaque geste de cet écran l’exige.",
+          "claimNone": "Personne ne traite cet annonceur. Prenez-le en charge pour déposer des photos et publier.",
           "blocking": {
             "heading": "La publication est impossible pour l’instant :"
           },

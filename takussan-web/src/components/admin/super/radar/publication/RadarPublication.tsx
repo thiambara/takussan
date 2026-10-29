@@ -199,10 +199,10 @@ function ApercuCharge({ id, apercu, claim }: ApercuChargeProps) {
         rendreFerme={enCours || renouvellement.isPending}
         enPrise={prise.isPending}
         enRestitution={restitution.isPending}
+        texteLibre={t('claimNone')}
         onPrendre={() => lancer(() => prise.mutate())}
         onRendre={() => lancer(() => restitution.mutate())}
       />
-      {!mienne && !stoppe ? <p className="-mt-3 text-xs text-muted-foreground" data-testid="radar-publication-prise-requise">{t('claimNeeded')}</p> : null}
 
       <CompteACreer nom={nom} compte={apercu.account} />
 

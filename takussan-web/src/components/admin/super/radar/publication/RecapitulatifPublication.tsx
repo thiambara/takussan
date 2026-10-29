@@ -96,7 +96,7 @@ export function SecondMessage({ advertiserId }: { readonly advertiserId: number 
       ) : texte ? (
         <>
           <pre
-            className="max-h-80 overflow-auto rounded-md bg-muted px-3 py-2 font-sans text-sm whitespace-pre-wrap text-foreground"
+            className="max-h-80 overflow-auto rounded-md bg-muted px-3 py-2 font-sans text-sm break-words whitespace-pre-wrap [overflow-wrap:anywhere] text-foreground"
             data-testid="radar-publication-message-texte"
           >
             {texte.text}
