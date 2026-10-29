@@ -15,6 +15,7 @@ use App\Models\PropertyContact;
 use App\Models\RadarAdvertiser;
 use App\Models\RadarListing;
 use App\Models\User;
+use App\Services\Auth\OtpPreview;
 use App\Services\Billing\QuotaResolver;
 use App\Services\Media\PrivateMediaAccess;
 use App\Support\LienFront;
@@ -54,6 +55,14 @@ final class RadarPublisher
      * Un environnement qui publie pour des annonceurs a besoin du drapeau allumé : sans lui, rien ne se publie.
      */
     public const ACTIVATION_UNAVAILABLE = 'radar.publish.activation_unavailable';
+
+    /**
+     * L'aperçu des codes OTP est actif ({@see OtpPreview::enabled()} : drapeau ET `APP_ENV` autorisé — la même condition que celle
+     * qui l'active vraiment) : le code SMS revient dans la réponse de `request-code`, donc, avec l'exception d'ADR-0033 §3,
+     * quiconque connaît le numéro de l'annonceur — public par construction — ouvrirait le compte créé pour lui. Le Radar est un
+     * flux de données réelles de tiers : il se ferme, sauf en `local`, où il n'y a que des données de démonstration.
+     */
+    public const OTP_PREVIEW_ACTIVE = 'radar.publish.otp_preview_active';
 
     public function __construct(
         private readonly AdvertiserClaim $claim,
@@ -95,6 +104,9 @@ final class RadarPublisher
         }
         if (! self::activationAvailable()) {
             $blocking[] = self::ACTIVATION_UNAVAILABLE;
+        }
+        if (self::otpPreviewActive()) {
+            $blocking[] = self::OTP_PREVIEW_ACTIVE;
         }
         if ($listings->isEmpty()) {
             $blocking[] = 'radar.publish.nothing_covered';
@@ -173,6 +185,7 @@ final class RadarPublisher
             $this->claim->assertHeld($locked, $by);
             abort_code_if($locked->do_not_contact_at !== null, 422, 'radar.advertiser.do_not_contact');
             abort_code_unless(self::activationAvailable(), 422, self::ACTIVATION_UNAVAILABLE);
+            abort_code_if(self::otpPreviewActive(), 422, self::OTP_PREVIEW_ACTIVE);
 
             // L'écran n'est pas la garde : l'accord se relit ICI, sous verrou.
             $missing = array_values(array_diff($ids, $this->coverage->coveredAmong($ids)));
@@ -273,6 +286,7 @@ final class RadarPublisher
         abort_code_if($advertiser->do_not_contact_at !== null, 422, 'radar.advertiser.do_not_contact');
         // Le message promet l'activation par SMS : sans connexion par téléphone, la promesse ne se tient pas.
         abort_code_unless(self::activationAvailable(), 422, self::ACTIVATION_UNAVAILABLE);
+        abort_code_if(self::otpPreviewActive(), 422, self::OTP_PREVIEW_ACTIVE);
 
         $slugs = Property::query()
             ->whereIn('id', RadarListing::query()
@@ -359,6 +373,11 @@ final class RadarPublisher
         }
 
         return $missing;
+    }
+
+    private static function otpPreviewActive(): bool
+    {
+        return OtpPreview::enabled() && ! app()->environment('local');
     }
 
     private static function activationAvailable(): bool

@@ -20,6 +20,7 @@ export const ERREURS_PUBLICATION_RADAR: Record<string, string> = {
   'radar.publish.too_many_photos': 'tooManyPhotos',
   'radar.publish.nothing_covered': 'nothingCovered',
   'radar.publish.activation_unavailable': 'activationUnavailable',
+  'radar.publish.otp_preview_active': 'otpPreviewActive',
   'radar.publish.nothing_published': 'nothingPublished',
   // `AdvertiserProvisioner`
   'radar.advertiser.phone_registered': 'phoneRegistered',
@@ -46,4 +47,5 @@ export const BLOCAGES_GLOBAUX_RADAR: ReadonlySet<string> = new Set([
   'radar.advertiser.do_not_contact',
   'radar.publish.nothing_covered',
   'radar.publish.activation_unavailable',
+  'radar.publish.otp_preview_active',
 ]);

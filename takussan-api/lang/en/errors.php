@@ -743,6 +743,7 @@ return [
             'missing_field' => 'One of these listings is incomplete: the type, contract, price and a neighbourhood from the reference list are required.',
             'too_many_photos' => 'These listings have :count photos in all, and one publication accepts :max at most: publish them in several batches.',
             'activation_unavailable' => 'Phone login is off in this environment: the account created for the advertiser could not be opened with an SMS code. Nothing is published until it is on.',
+            'otp_preview_active' => "The SMS code preview is active in this environment: the activation code would come back in the response, and anyone who knows the advertiser's number could open their account. Nothing is published while it is.",
             'nothing_published' => 'No property is published for this advertiser: there is no message to compose.',
         ],
     ],

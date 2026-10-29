@@ -194,6 +194,15 @@ describe('RadarPublication — la vérification (TCK-2389)', () => {
     expect(screen.getByRole('checkbox', { name: 'Publier l’annonce n° 12' })).toBeDisabled();
   });
 
+  it('avec l’aperçu des codes SMS actif, le blocage global le dit et ferme tout', async () => {
+    await rendre(apercu({ blocking: ['radar.publish.otp_preview_active'] }));
+
+    const alerte = screen.getByTestId('radar-publication-blocage');
+    expect(within(alerte).getByText(/L’aperçu des codes SMS est actif dans cet environnement/)).toBeInTheDocument();
+    expect(publier()).toBeDisabled();
+    expect(screen.getByRole('checkbox', { name: 'Publier l’annonce n° 12' })).toBeDisabled();
+  });
+
   it('aucune annonce couverte : rien à publier, et le blocage le dit', async () => {
     await rendre(apercu({ listings: [], blocking: ['radar.publish.nothing_covered'] }));
 

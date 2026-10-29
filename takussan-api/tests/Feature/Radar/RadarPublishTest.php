@@ -640,6 +640,56 @@ class RadarPublishTest extends TestCase
             ->assertStatus(422)->assertJsonPath('code', 'radar.publish.activation_unavailable');
     }
 
+    // --- Revue finale, I3b : l'aperçu des codes OTP ouvrirait le compte du Radar à qui connaît le numéro ----------
+
+    private function apercuDesCodes(string $environnement, bool $actif): void
+    {
+        app()->detectEnvironment(fn () => $environnement);
+        config(['auth.otp_preview.enabled' => $actif]);
+    }
+
+    public function test_en_staging_avec_l_apercu_des_codes_actif_la_publication_est_fermee(): void
+    {
+        $annonce = $this->annonceConsentie();
+        $avant = $this->compte();
+        $this->apercuDesCodes('staging', true);
+
+        $this->getJson("/api/admin/radar/advertisers/{$this->annonceur->id}/publication-preview")->assertOk()
+            ->assertJsonPath('data.blocking', ['radar.publish.otp_preview_active']);
+        $this->publier([$annonce->id])->assertStatus(422)->assertJsonPath('code', 'radar.publish.otp_preview_active');
+        $this->assertRienDeCree($avant);
+        $this->assertSame(RadarListingStage::Consented, $annonce->fresh()->stage);
+    }
+
+    public function test_en_staging_avec_l_apercu_des_codes_actif_le_second_message_n_est_pas_compose(): void
+    {
+        $this->publier([$this->annonceConsentie()->id])->assertCreated();
+        $this->apercuDesCodes('staging', true);
+
+        $this->getJson("/api/admin/radar/advertisers/{$this->annonceur->id}/published-message?locale=fr")
+            ->assertStatus(422)->assertJsonPath('code', 'radar.publish.otp_preview_active');
+    }
+
+    public function test_en_local_avec_l_apercu_des_codes_actif_la_publication_est_permise(): void
+    {
+        $annonce = $this->annonceConsentie();
+        $this->apercuDesCodes('local', true);
+
+        $this->getJson("/api/admin/radar/advertisers/{$this->annonceur->id}/publication-preview")->assertOk()
+            ->assertJsonPath('data.blocking', []);
+        $this->publier([$annonce->id])->assertCreated();
+    }
+
+    public function test_en_staging_avec_l_apercu_des_codes_inactif_la_publication_est_permise(): void
+    {
+        $annonce = $this->annonceConsentie();
+        $this->apercuDesCodes('staging', false);
+
+        $this->getJson("/api/admin/radar/advertisers/{$this->annonceur->id}/publication-preview")->assertOk()
+            ->assertJsonPath('data.blocking', []);
+        $this->publier([$annonce->id])->assertCreated();
+    }
+
     // --- Décision 5 : le titre manquant se construit -------------------------------------------------------
 
     public function test_une_annonce_sans_titre_se_publie_sous_un_titre_construit_que_l_apercu_montre(): void
