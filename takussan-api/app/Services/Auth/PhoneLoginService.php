@@ -5,6 +5,7 @@ namespace App\Services\Auth;
 use App\Exceptions\SmsCodeUndelivered;
 use App\Http\Resources\UserResource;
 use App\Models\Enums\UserStatus;
+use App\Models\RadarAdvertiser;
 use App\Models\User;
 use App\Support\CanonicalPhone;
 use Illuminate\Http\JsonResponse;
@@ -21,7 +22,10 @@ use Illuminate\Support\Str;
  *  - Un numéro ne connecte que le compte qui l'a VÉRIFIÉ (contrainte 2). Sinon le
  *    premier code valide crée un compte neuf — `phone_verified_at` posé par
  *    `markVerified`, mot de passe aléatoire, `password_set_at` nul, e-mail nul —
- *    même si un compte non vérifié porte ce numéro : aucune fusion.
+ *    même si un compte non vérifié porte ce numéro : aucune fusion. UNE exception
+ *    (amendement du 2026-10-29, TCK-2389) : le compte que le Radar a créé pour ce
+ *    numéro et qui n'a jamais eu d'autre facteur ({@see self::radarProvisionedAccount()}) —
+ *    le code arrivé le vérifie, il ne s'en crée pas un second.
  *  - Verrou : celui du NUMÉRO (`LoginLock`, canal téléphone), avec ou sans compte —
  *    jamais celui du mot de passe (vérification adverse M1 : un tiers qui connaît le
  *    numéro fermait la porte du mot de passe). Lu AVANT le code : le bon code n'y
@@ -86,6 +90,11 @@ class PhoneLoginService
     public function verify(string $phone, string $code, array $proof, ?string $locale): JsonResponse
     {
         $user = $this->verifiedAccount($phone);
+        $radarAccount = false;
+        if ($user === null) {
+            $user = $this->radarProvisionedAccount($phone);
+            $radarAccount = $user !== null;
+        }
 
         if ($this->lock->isNumberLocked($phone)) {
             return AuthRefusal::response(423, 'account_locked', 'auth.account.locked');
@@ -121,6 +130,11 @@ class PhoneLoginService
 
         $isNewAccount = $user === null;
         $user ??= $this->createAccount($phone, $locale);
+        if ($radarAccount) {
+            // Le code vient d'arriver sur ce numéro : c'est lui qui le vérifie, après les contrôles
+            // de code, de 2FA et de session (409 si un autre compte l'a vérifié entre-temps).
+            DB::transaction(fn () => $this->codes->markVerified($user, $phone));
+        }
 
         // Le verrou du mot de passe n'est PAS levé : un canal ne solde pas l'autre (M1 b).
         $this->lock->clearNumber($phone);
@@ -151,6 +165,25 @@ class PhoneLoginService
             ->whereRaw(CanonicalPhone::sql('phone').' = ?', [CanonicalPhone::fold($phone)])
             ->whereNotNull('phone_verified_at')
             ->first();
+    }
+
+    /**
+     * ADR-0033 §3, amendement du 2026-10-29 (TCK-2389) — le compte que le Radar a créé pour ce numéro,
+     * s'il n'a jamais eu d'autre facteur : désigné par un `radar_advertisers`, ce `phone` (forme
+     * canonique), ni numéro vérifié, ni mot de passe choisi, ni e-mail. Plus d'un candidat : aucun.
+     */
+    private function radarProvisionedAccount(string $phone): ?User
+    {
+        $candidates = User::query()
+            ->whereRaw(CanonicalPhone::sql('phone').' = ?', [CanonicalPhone::fold($phone)])
+            ->whereNull('phone_verified_at')
+            ->whereNull('password_set_at')
+            ->whereNull('email')
+            ->whereIn('id', RadarAdvertiser::query()->whereNotNull('user_id')->select('user_id'))
+            ->limit(2)
+            ->get();
+
+        return $candidates->count() === 1 ? $candidates->first() : null;
     }
 
     /** @param  array{two_factor_code?: ?string, recovery_code?: ?string}  $proof */
