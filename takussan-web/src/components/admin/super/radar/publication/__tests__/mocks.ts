@@ -16,6 +16,7 @@ export function annonce(id: number, partiel: Partial<RadarPublicationListing> = 
   return {
     id,
     title: `Appartement ${id}`,
+    title_built: false,
     price: 350000,
     contract: 'rent',
     property_type: 'apartment',

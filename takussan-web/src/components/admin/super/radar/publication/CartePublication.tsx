@@ -76,7 +76,18 @@ export function CartePublication({
           onChange={onBascule}
         />
         <div className="min-w-0 flex-1 space-y-0.5">
-          <p className="text-sm font-medium text-foreground">{annonce.title || t('untitled')}</p>
+          <p className="text-sm font-medium text-foreground">
+            {annonce.title || t('untitled')}
+            {annonce.title_built ? (
+              <span
+                className="ml-2 inline-block rounded-full border px-2 py-0.5 align-middle text-xs font-normal text-muted-foreground"
+                data-testid={`radar-publication-titre-construit-${annonce.id}`}
+              >
+                {t('titleBuilt')}
+              </span>
+            ) : null}
+          </p>
+          {annonce.title_built ? <p className="text-xs text-muted-foreground">{t('titleBuiltHint')}</p> : null}
           <p className="text-xs text-muted-foreground">
             {[annonce.price === null ? null : fmt.montant(annonce.price, 'XOF'), annonce.neighborhood]
               .filter(Boolean)

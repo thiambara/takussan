@@ -9217,6 +9217,8 @@
             "none": "No listing is covered by a valid agreement: there is nothing to publish.",
             "select": "Publish listing no. {id}",
             "untitled": "Untitled listing",
+            "titleBuilt": "Built title",
+            "titleBuiltHint": "This listing has no title: this one is built from the type, bedrooms, contract and neighbourhood, and will be published as is.",
             "number": "no. {id}",
             "open": "Open the record of listing no. {id}",
             "matches": "Already looks like: {list}.",
@@ -9228,7 +9230,7 @@
               "noPhoto": "This listing has no photo in its reserve: collect some from the source, or upload some.",
               "noPhotoNoSource": "This listing has no photo at the source: upload some by hand.",
               "photosPending": "The photos of this listing are still being prepared: wait for them to finish, or restart the collection.",
-              "missingField": "This listing is incomplete: the type, the contract, the price, a neighbourhood from the reference list and the title are required."
+              "missingField": "This listing is incomplete: the type, the contract, the price and a neighbourhood from the reference list are required."
             }
           },
           "photos": {
@@ -9289,7 +9291,7 @@
             "notCovered": "One of these listings is not covered by a confirmed, unrevoked agreement: it cannot be published.",
             "photosPending": "The photos of a listing are still being prepared: wait for them to finish, or restart the collection.",
             "noPhoto": "A listing has no photo in its reserve: collect some from the source, or upload some.",
-            "missingField": "A listing is incomplete: the type, contract, price, a neighbourhood from the reference list and the title are required.",
+            "missingField": "A listing is incomplete: the type, contract, price and a neighbourhood from the reference list are required.",
             "nothingCovered": "No listing of this advertiser is covered by a valid agreement.",
             "nothingPublished": "No property is published for this advertiser: there is no message to compose.",
             "phoneRegistered": "This number already belongs to an account: the Radar does not publish into an existing account; only the claim is offered to its holder.",

@@ -573,7 +573,10 @@ export interface RadarFrozenMatch {
 /** Une annonce couverte par un accord valide, telle que l'aperçu la présente (`RadarPublisher::previewOf`). */
 export interface RadarPublicationListing {
   readonly id: number;
+  /** Le titre qui sera PUBLIÉ : celui de l'annonce, sinon le titre construit des champs (`title_built`). */
   readonly title: string | null;
+  /** Le titre n'est pas celui de l'annonce : il se construit du type, des chambres, du contrat et du quartier (décision 5). */
+  readonly title_built: boolean;
   readonly price: number | null;
   readonly contract: RadarContract | null;
   readonly property_type: string | null;

@@ -109,6 +109,23 @@ describe('RadarPublication — la vérification (TCK-2389)', () => {
     expect(publier()).toHaveTextContent('Publier 2 annonces');
   });
 
+  it('une annonce sans titre montre le titre construit qui sera publié, et le signale ; un titre d\'annonce ne porte aucun signe', async () => {
+    await rendre(apercu({
+      listings: [
+        annonce(12, { title: 'Appartement 3 chambres à louer — Almadies', title_built: true }),
+        annonce(13),
+      ],
+    }));
+
+    const construite = screen.getByTestId('radar-publication-carte-12');
+    expect(within(construite).getByText(/Appartement 3 chambres à louer — Almadies/)).toBeInTheDocument();
+    expect(within(construite).getByTestId('radar-publication-titre-construit-12')).toHaveTextContent('Titre construit');
+    expect(within(construite).getByText(/Cette annonce n’a pas de titre : celui-ci est construit/)).toBeInTheDocument();
+    const propre = screen.getByTestId('radar-publication-carte-13');
+    expect(within(propre).queryByTestId('radar-publication-titre-construit-13')).not.toBeInTheDocument();
+    expect(within(propre).queryByText(/n’a pas de titre/)).not.toBeInTheDocument();
+  });
+
   it('une annonce bloquée n\'est pas cochée, ne se coche pas, et dit pourquoi', async () => {
     const { utilisateur } = await rendre(apercu({
       listings: [annonce(12), annonce(13, { photos: [], blocking: ['radar.publish.no_photo', 'radar.publish.missing_field'] })],
