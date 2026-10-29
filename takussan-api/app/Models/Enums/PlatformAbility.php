@@ -41,6 +41,8 @@ enum PlatformAbility: string
     case AgenciesSuspend = 'platform.agencies.suspend';
     case KycView = 'platform.kyc.view';
     case SettingsManage = 'platform.settings.manage';
+    // TCK-2389 (ADR-0077 §6, §11) — publier pour l'annonceur.
+    case RadarPublish = 'platform.radar.publish';
 
     // TCK-2385 (ADR-0076 §12) — la console IA : lire, puis régler rôles, usages, évaluations.
     case AiView = 'platform.ai.view';
