@@ -1,13 +1,13 @@
 ---
 id: TCK-2402
 title: "Les appels IA quittent la file des notifications : une file et un consommateur à eux, avant la production"
-status: todo
+status: doing
 phase: P1
 family: technique
 estimate: M
 wave: 80
 created: 2026-10-27
-updated: 2026-10-27
+updated: 2026-10-29
 depends_on: [TCK-2386, TCK-2397]
 blocks: []
 spec_refs:
