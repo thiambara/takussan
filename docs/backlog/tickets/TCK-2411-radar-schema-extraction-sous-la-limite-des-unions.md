@@ -1,7 +1,7 @@
 ---
 id: TCK-2411
 title: "Radar : le schéma de l'extraction repasse sous la limite d'Anthropic (16 paramètres à union), et une garde compte les unions de chaque agent"
-status: doing
+status: done
 phase: P1
 family: bug
 estimate: S
@@ -58,22 +58,22 @@ Les 29 unions viennent de `App\Ai\Agents\RadarExtraction::schema()` : les 13 `PR
 
 ## Delta à produire
 
-- [ ] `RadarExtraction::field()` : `evidence` en `string` non nullable, description qui dit `""`.
-- [ ] Prompt `resources/ai/prompts/radar.extraction/v2.md` (le passage absent s'écrit `""`), inscrit
+- [x] `RadarExtraction::field()` : `evidence` en `string` non nullable, description qui dit `""`.
+- [x] Prompt `resources/ai/prompts/radar.extraction/v2.md` (le passage absent s'écrit `""`), inscrit
       dans `versions.lock.json` ; `RadarExtractionUsage::promptVersion()` à 2.
-- [ ] Lecteurs de `evidence` re-mesurés ; `""` lu comme l'absence de passage, à l'entrée du normaliseur.
-- [ ] Garde de test : chaque agent à sortie structurée de `app/Ai/Agents/` compte au plus 16 paramètres
+- [x] Lecteurs de `evidence` re-mesurés ; `""` lu comme l'absence de passage, à l'entrée du normaliseur.
+- [x] Garde de test : chaque agent à sortie structurée de `app/Ai/Agents/` compte au plus 16 paramètres
       à union dans son schéma sérialisé pour Anthropic.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Le schéma de `RadarExtraction`, sérialisé comme laravel/ai l'envoie à Anthropic, compte au
+- [x] AC1 — Le schéma de `RadarExtraction`, sérialisé comme laravel/ai l'envoie à Anthropic, compte au
       plus 16 paramètres à union ; le même décompte rend **29** sur le code d'origine (celui de l'API).
-- [ ] AC2 — La garde découvre seule les agents de `app/Ai/Agents/` ; remettre `evidence` nullable la
+- [x] AC2 — La garde découvre seule les agents de `app/Ai/Agents/` ; remettre `evidence` nullable la
       fait rougir (ablation).
-- [ ] AC3 — Un champ présent rendu avec `evidence: ""` est relu en `evidence: null`, drapeau
+- [x] AC3 — Un champ présent rendu avec `evidence: ""` est relu en `evidence: null`, drapeau
       `evidence_missing`, confiance `low` — avec un texte source et sans (captures).
-- [ ] AC4 — Le prompt joué dit que le passage absent s'écrit `""`, et la version publiée `v1` reste
+- [x] AC4 — Le prompt joué dit que le passage absent s'écrit `""`, et la version publiée `v1` reste
       intacte.
 
 ## Hors périmètre
@@ -82,3 +82,35 @@ Les 29 unions viennent de `App\Ai\Agents\RadarExtraction::schema()` : les 13 `PR
   lance après la fusion.
 - Les schémas des outils (`input_schema`) : aucun agent du socle n'a d'outil (ADR-0076 §10,
   `ExternalContentPolicy`).
+
+## Notes d'implémentation
+
+2026-10-29, sur `fix/radar-extraction-schema-unions`.
+
+- **Le décompte rend le chiffre de l'API.** Schéma de chaque agent sérialisé comme
+  `Gateway\Anthropic\Concerns\BuildsTextRequests::buildTextRequestBody()` l'envoie (sortie structurée
+  native, le défaut : `AnthropicSchemaSanitizer::sanitize((new ObjectSchema($schema))->toSchema())`), puis
+  compte des nœuds à `type` multiple ou à `anyOf`, à toute profondeur. Code d'origine : `RadarExtraction`
+  **29** (le chiffre du refus), `RadarConsentVerification` 5, `RadarConsentMessage` 0. Après : **14**, 5, 0.
+  Le sanitizer réécrit chaque `type: [x, "null"]` en `anyOf` : sans lui, le décompte serait le même (les
+  deux formes comptent), mais la garde lit ce qui part réellement.
+- **14 sur 16 : la marge est de deux.** Chaque nouveau champ nullable de l'extraction la consomme. Au-delà,
+  la même technique s'applique à `value` (chaîne vide, ou une sentinelle par type) — mais elle change la
+  sémantique de `null`, que le normaliseur et le jeu d'évaluation lisent : à trancher le jour venu.
+- **La forme stockée ne change pas.** `ExtractionNormalizer::field()` relisait déjà un passage sans segment
+  (`""`, blanc, « … » seuls) en `null` : seul l'en-tête le dit désormais, et un test l'épingle avec et sans
+  texte source. Les lecteurs en aval (`RadarReviewFields`, le front de relecture, `PanneauIdentite`,
+  `PanneauNature`) lisent la sortie normalisée et ne voient jamais `""`. `FieldScorer` ne lit que
+  `<champ>.value` (`fields.json`). `nature_signals[].evidence` était déjà une chaîne non nullable.
+- **Prompt en `v2`, pas `v1` réécrit** (`PromptVersionsAreFrozenTest`, ADR-0076 §6) : `v1` disait
+  « `evidence` vaut `null` » en trois endroits, ce que le schéma n'admet plus.
+- **La garde découvre les agents par le système de fichiers** (`app/Ai/Agents/`, récursif) et instancie sans
+  constructeur : un agent neuf à sortie structurée est couvert sans inscription. Elle ne compte pas les
+  `input_schema` d'outils : aucun agent du socle n'en a (`ExternalContentPolicy`).
+- **Ablations** (restauration prouvée par `cmp` d'une copie du scratchpad) : `evidence` remis nullable →
+  garde rouge (29) et `RadarExtractionUsageTest` rouge ; agent d'essai à 17 champs nullables déposé dans
+  `app/Ai/Agents/` sans inscription → garde rouge (17), fichier retiré ; normaliseur sans le contrôle des
+  segments → 2 rouges dans `ExtractionNormalizerTest` (dont le nouveau test) ; usage ramené à la version 1
+  → 2 rouges dans `RadarExtractionUsageTest`.
+- **Reste, hors de ce ticket** : `php artisan ai:eval radar.extraction --update-baseline` (vrai modèle),
+  lancé par la session après la fusion.
