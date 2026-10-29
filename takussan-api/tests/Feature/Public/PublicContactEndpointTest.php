@@ -37,6 +37,25 @@ class PublicContactEndpointTest extends TestCase
         ]]);
     }
 
+    /**
+     * TCK-2389 — un numéro servi une seule fois : le contact sur place que « Publier pour lui » a créé porte le numéro de
+     * l'annonceur ; une fois ce numéro vérifié, il est aussi le principal du bien, et ne sort pas deux fois.
+     */
+    public function test_un_numero_n_est_servi_qu_une_fois_sous_une_autre_ecriture(): void
+    {
+        $owner = User::factory()->create(['phone' => '+221771234567', 'phone_verified_at' => now(), 'phone_whatsapp' => false]);
+        $bien = $this->bienDe($owner);
+        $bien->contacts()->create(['label' => null, 'phone' => '77 123 45 67', 'has_whatsapp' => true, 'position' => 0]);
+        $bien->contacts()->create(['label' => 'Gardien', 'phone' => '+221770000899', 'has_whatsapp' => false, 'position' => 1]);
+
+        // La case WhatsApp du doublon rejoint l'entrée servie : la liste dit la même chose que le drapeau de la fiche.
+        $this->getJson("/api/public/properties/{$bien->slug}/contact")->assertOk()->assertExactJson(['data' => [
+            ['phone' => '+221771234567', 'whatsapp' => true, 'label' => null, 'kind' => 'primary'],
+            ['phone' => '+221770000899', 'whatsapp' => false, 'label' => 'Gardien', 'kind' => 'on_site'],
+        ]]);
+        $this->getJson("/api/public/properties/{$bien->slug}")->assertOk()->assertJsonPath('data.primary_contact.has_whatsapp', true);
+    }
+
     public function test_un_second_numero_non_verifie_ne_sort_pas(): void
     {
         $owner = User::factory()->create(['phone' => '+221770000811', 'phone_verified_at' => now()]);

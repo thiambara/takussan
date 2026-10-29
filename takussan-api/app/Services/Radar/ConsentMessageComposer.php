@@ -16,6 +16,7 @@ use App\Services\Ai\Exceptions\AiRefused;
 use App\Services\Ai\Exceptions\AiUnavailable;
 use App\Support\LienFront;
 use App\Support\PhoneMasker;
+use App\Support\RadarWaMe;
 use Illuminate\Support\Collection;
 use InvalidArgumentException;
 use RuntimeException;
@@ -101,12 +102,7 @@ final class ConsentMessageComposer
     /** Le lien `wa.me` : le numéro de l'ANNONCEUR seul (ADR-0077 §5), et le texte exact. */
     public function waMeUrl(string $e164, string $message): string
     {
-        $digits = ltrim($e164, '+');
-        if (preg_match('/^\d{6,15}$/', $digits) !== 1) {
-            throw new InvalidArgumentException('radar.outreach.phone_invalid');
-        }
-
-        return 'https://wa.me/'.$digits.'?text='.rawurlencode($message);
+        return RadarWaMe::url($e164, $message);
     }
 
     /** Le nombre de clauses numérotées d'une version : la vérification les cherche toutes sur la capture. */
