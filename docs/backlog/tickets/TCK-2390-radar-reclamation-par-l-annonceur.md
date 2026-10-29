@@ -78,8 +78,11 @@ jargon de plateforme. Si le compte existe déjà (publié pour lui), la même pa
       (`radar_advertisers.user_id`, sans mot de passe, numéro non vérifié), que la connexion par code
       SMS ouvre (amendement d'ADR-0033 §3). La page l'active : elle lui **présente les conditions
       d'utilisation pour acceptation**, comme l'article 6.3 de `terms.ts` le promet depuis
-      TCK-2389 (décision 2a du porteur, 2026-10-29), puis retire cette ligne de « Avant la mise en
-      production » du `README` de `content/legal`.
+      TCK-2389 (décision 2a du porteur, 2026-10-29). Le même article promet que l'on peut aussi
+      accepter **« en suivant le lien qu'il contient »** : le message d'accord en vigueur (`accord.v1`)
+      ne porte que le lien des conditions, qui n'accepte rien ; ce ticket rend cette phrase vraie par le
+      lien de réclamation signé (`{lien_reclamation}`). Il retire ensuite cette ligne de « Avant la mise
+      en production » du `README` de `content/legal`.
 
 - [ ] `App\Services\Radar\ClaimLinks` (signature, expiration, révocation).
 - [ ] Contrôleur public `App\Http\Controllers\Public\RadarClaimController` · FormRequests

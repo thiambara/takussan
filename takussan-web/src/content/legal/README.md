@@ -31,7 +31,13 @@ la plateforme fait réellement**, relevé dans le code le même jour.
    jamais publiées : 90 jours ; preuve de l'accord : la durée des annonces en ligne, puis 3 ans).
 7. **Fermer TCK-2390** (réclamation par l'annonceur) : il présente les Conditions à l'activation du
    compte créé par le Radar (article 6.3 des CGU : « les présentes Conditions vous sont alors
-   présentées pour acceptation »).
+   présentées pour acceptation »), et rend vraie l'acceptation « en suivant le lien qu'il contient »
+   (même article) : le message d'accord en vigueur (`accord.v1`) ne porte que le lien des conditions, qui
+   n'accepte rien ; le lien qui accepte (`{lien_reclamation}`) arrive avec ce ticket.
+8. **Retirer les `⚠` du corps des textes**, avec la relecture de l'avocat (ligne 4), sans ticket : ceux de
+   l'article 6.3 des CGU et des § 3, § 4.3 et § 6 de la politique s'affichent tels quels sur la page
+   publique, comme les `[⚠ à compléter : …]` de la ligne 1, mais le test des marqueurs ne les voit pas.
+   Prérequis du porteur (ADR-0077, Conséquences).
 
 ## Tenir les textes à jour
 

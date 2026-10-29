@@ -96,7 +96,9 @@ posés par TCK-2389. Loi n° 2008-12 : la durée annoncée doit être tenue par 
       les promesses que TCK-2389 a écrites dans les textes juridiques (décision 2a du porteur,
       2026-10-29) : biens retirés « sans délai » après un STOP (`terms.ts` 6.3) et durées de
       conservation (`privacy.ts` § 6), puis retire leur ligne de « Avant la mise en production »
-      du `README` de `content/legal`.
+      du `README` de `content/legal`. ⚠ Le § 6 dit que la preuve de l'accord est conservée « tant que
+      les annonces concernées sont en ligne, puis 3 ans » : la règle de purge doit suivre CE texte (un
+      bien retiré du public mais non supprimé fait courir les 3 ans), ou le texte change, avec l'avocat.
 - [ ] Spécifications : lever les réserves « **à venir** (TCK-2391) » de `models-spec.md` §105
       (`input_snapshot`), §108 (`phone`, description) et §109 (`raw_text`, `phones_dropped`,
       `stage = purged`), posées par la passe 017 de `/sync-specs` (MF1).
