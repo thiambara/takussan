@@ -796,6 +796,16 @@ catalogue tant que cet accord n'existe pas. Vision et lots : [plan du 2026-10-26
   seulement l'écran.
 - **Un accord couvre toutes les annonces que le message listait**, et se rattache à l'annonceur.
 - **Les clauses du message d'accord sont un texte fixe**, jamais une génération.
+- **Chaque message garde la version de ses clauses** (`accord.v1`…) : une version nouvelle ne réécrit
+  jamais un message déjà envoyé.
+- **Écrire sur un annonceur exige d'en tenir la prise en charge** (10 minutes, renouvelée tant que
+  la fiche est ouverte) ; un second opérateur est refusé.
+- **Une réponse classée par l'IA n'est jamais un accord** tant qu'un opérateur ne l'a pas confirmée ;
+  confirmer un accord contre un verdict discordant (numéro, clauses) ou absent exige un motif écrit.
+- **STOP est définitif** : l'annonceur passe « ne plus contacter », ses accords sont révoqués, ses
+  annonces fermées, et aucun message ne peut plus lui être préparé.
+- **Relances** : après un délai sans réponse (3 jours par défaut, en configuration), deux au plus ;
+  ensuite l'outil propose de classer « sans réponse ».
 - **Le compte créé pour un annonceur est l'espace individuel de [§1.12](#112-agence--équipe)** : pas
   de mot de passe, première connexion par code SMS, aucun crédit de bienvenue avant la vérification
   du numéro ; un numéro déjà inscrit n'autorise que la réclamation.

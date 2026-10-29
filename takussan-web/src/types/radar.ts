@@ -127,6 +127,10 @@ export interface RadarDashboard {
   readonly stages: Record<RadarListingStage, number>;
   /** `captured` avec un motif : compté aussi dans `stages.captured`. */
   readonly pending_extraction: number;
+  /** TCK-2388 : annonceurs distincts à relancer (message envoyé, sans issue, échéance passée). */
+  readonly follow_ups_due: number;
+  /** TCK-2388 : messages envoyés qui attendent encore leur échéance de relance. */
+  readonly outreaches_awaiting: number;
   readonly ai: {
     readonly spent_today_xof: number;
     readonly daily_budget_xof: number | null;
@@ -307,3 +311,233 @@ export type RadarDiscardReason = (typeof RADAR_DISCARD_REASONS)[number];
 export type RadarDuplicateTarget =
   | { readonly of_listing_id: number; readonly of_property_id?: never }
   | { readonly of_property_id: number; readonly of_listing_id?: never };
+
+// ─── L'annonceur et son message d'accord (TCK-2388) ──────────────────────────────────────────
+
+/**
+ * Les langues du message (`RADAR_MESSAGE_LOCALES`, décision du porteur du 2026-10-28) : le français et
+ * l'anglais. Le wolof est en pause : l'API rend 422 `radar.outreach.locale_unsupported` pour tout autre code.
+ */
+export const RADAR_MESSAGE_LOCALES = ['fr', 'en'] as const;
+
+export type RadarMessageLocale = (typeof RADAR_MESSAGE_LOCALES)[number];
+
+/** `ConsentMessageComposer::SALUTATION_MAX` et `SUMMARY_MAX` : au-delà, le composeur rogne — le champ s'arrête donc là. */
+export const RADAR_SALUTATION_MAX = 120;
+export const RADAR_SUMMARY_MAX = 500;
+
+/** Le motif d'une issue (`RecordRadarOutreachOutcomeRequest` : `max:2000`). */
+export const RADAR_REASON_MAX = 2000;
+
+/** `StoreRadarOutreachRequest::MAX_LISTINGS` : les annonces qu'un seul message peut couvrir. */
+export const RADAR_OUTREACH_MAX_LISTINGS = 20;
+
+/** L'état d'un message (`RadarOutreachResource::status`) : `closed` = une issue finale est posée. */
+export const RADAR_OUTREACH_STATUSES = ['prepared', 'sent', 'closed'] as const;
+
+export type RadarOutreachStatus = (typeof RADAR_OUTREACH_STATUSES)[number];
+
+/** `App\Models\Enums\RadarOutreachOutcome`. */
+export const RADAR_OUTREACH_OUTCOMES = ['consented', 'refused', 'stop', 'question', 'no_answer'] as const;
+
+export type RadarOutreachOutcome = (typeof RADAR_OUTREACH_OUTCOMES)[number];
+
+/** Ce que l'IA a lu dans une réponse (`classification` du verdict). Un verdict n'ouvre rien : seul l'humain confirme. */
+export const RADAR_VERDICT_CLASSIFICATIONS = ['consent', 'refusal', 'stop', 'question', 'ambiguous'] as const;
+
+export type RadarVerdictClassification = (typeof RADAR_VERDICT_CLASSIFICATIONS)[number];
+
+/** `App\Models\Enums\RadarConsentProof`. */
+export type RadarConsentProof = 'screenshot' | 'provider_message' | 'otp';
+
+export type RadarVerificationStatus = 'pending' | 'done' | 'failed';
+
+/** `RadarConsentVerdict::from` : la sortie de l'agent, relue par le code (numéro, clauses). */
+export interface RadarVerdict {
+  readonly classification: RadarVerdictClassification;
+  readonly confidence: RadarConfidence;
+  readonly transcript: string;
+  readonly reply_text: string | null;
+  readonly counterpart_phone: string | null;
+  readonly counterpart_name: string | null;
+  readonly number_matches: boolean | null;
+  readonly number_checked_by: 'code' | 'model';
+  readonly name_matches: boolean | null;
+  /** L'API l'écrit toujours ; l'écran se défend d'une ligne mal formée (`Array.isArray`). */
+  readonly clauses_found: readonly number[];
+  readonly clauses_complete: boolean;
+  /** Des codes, jamais de prose. L'API l'écrit toujours ; absent, `discordancesDe` lit « pas de verdict exploitable ». */
+  readonly discordances?: readonly string[];
+}
+
+export interface RadarConsentCapture {
+  readonly id: number;
+  /** Signée : elle expire, la fiche se relit pour la renouveler. */
+  readonly url: string;
+  readonly sha256: string | null;
+}
+
+/** Une réponse d'annonceur déposée (`RadarConsentResource`). */
+export interface RadarConsent {
+  readonly id: number;
+  readonly proof: RadarConsentProof;
+  readonly captures: readonly RadarConsentCapture[];
+  readonly verification_status: RadarVerificationStatus;
+  /** Un code `radar.verification.*` quand la vérification a échoué ou n'a rien pu lire. */
+  readonly verification_reason: string | null;
+  readonly verdict: RadarVerdict | null;
+  readonly transcript: string | null;
+  readonly confirmed_by: { readonly id: number; readonly name: string } | null;
+  readonly confirmed_at: string | null;
+  readonly confirmation_reason: string | null;
+  readonly revoked_at: string | null;
+  readonly created_at: string;
+}
+
+/** Un morceau du message : `fixed` est le gabarit des clauses (figé), `salutation` et `resume` se retouchent. */
+export interface RadarMessageSegment {
+  readonly kind: 'fixed' | 'salutation' | 'resume';
+  readonly text: string;
+}
+
+export interface RadarOutreachFollowUp {
+  readonly due_at: string | null;
+  readonly propose_no_answer: boolean;
+}
+
+/** Un message de démarchage (`RadarOutreachResource`) — le texte (`message`, `segments`) est TOUJOURS celui de l'API. */
+export interface RadarOutreach {
+  readonly id: number;
+  readonly locale: string;
+  readonly clauses_version: string;
+  readonly status: RadarOutreachStatus;
+  readonly listing_ids: readonly number[];
+  readonly salutation: string;
+  readonly summary: string;
+  readonly message: string;
+  readonly segments: readonly RadarMessageSegment[];
+  /** Absent (`null`) tant que les deux parties ne sont pas écrites, une fois envoyé, si l'annonceur a dit STOP, et si `send_blocked`. */
+  readonly wa_me_url: string | null;
+  /** Brouillon seulement : le code du refus qu'essuierait « J'ai envoyé » (annonce d'un autre annonceur, chaîne fermée, annonce sortie d'étape). */
+  readonly send_blocked: string | null;
+  readonly follow_up_of_id: number | null;
+  readonly follow_up_rank: number;
+  readonly created_by: { readonly id: number; readonly name: string } | null;
+  readonly created_at: string;
+  readonly sent_at: string | null;
+  readonly outcome: RadarOutreachOutcome | null;
+  readonly outcome_at: string | null;
+  readonly follow_up: RadarOutreachFollowUp | null;
+  readonly consents: readonly RadarConsent[];
+}
+
+/** La réponse de la préparation : le message, plus ce que l'IA a rendu (`ai_error` : un code, jamais de prose). */
+export interface RadarPreparedOutreach extends RadarOutreach {
+  readonly generated: boolean;
+  readonly ai_error: string | null;
+}
+
+/** La prise en charge d'un annonceur : à qui, jusqu'à quand, et si c'est à l'utilisateur courant. */
+export interface RadarClaim {
+  readonly by: { readonly id: number; readonly name: string };
+  readonly until: string;
+  readonly mine: boolean;
+}
+
+/** Une annonce de la fiche annonceur (`RadarAdvertiserResource::cardPart`). */
+export interface RadarAdvertiserListing {
+  readonly id: number;
+  readonly stage: RadarListingStage;
+  readonly source_site: RadarSourceSite;
+  readonly title: string | null;
+  readonly price: number | null;
+  readonly property_type: string | null;
+  readonly contract: RadarContract | null;
+  readonly neighborhood: string | null;
+  readonly bedrooms: number | null;
+  readonly covered_by_consent: boolean;
+  readonly created_at: string;
+}
+
+/** `GET /api/admin/radar/advertisers/{id}` : la fiche annonceur. */
+export interface RadarAdvertiserDetail {
+  readonly id: number;
+  readonly phone: string | null;
+  readonly display_name: string | null;
+  readonly nature: RadarAdvertiserNature;
+  readonly do_not_contact_at: string | null;
+  readonly claim: RadarClaim | null;
+  readonly nature_signals: readonly RadarNatureSignal[];
+  readonly listings: readonly RadarAdvertiserListing[];
+  /** Du plus récent au plus ancien. */
+  readonly outreaches: readonly RadarOutreach[];
+}
+
+export interface RadarAdvertiserResponse {
+  readonly data: RadarAdvertiserDetail;
+}
+
+export interface RadarClaimResponse {
+  readonly data: { readonly claim: RadarClaim };
+}
+
+export interface RadarOutreachResponse {
+  readonly data: RadarOutreach;
+}
+
+export interface RadarPreparedOutreachResponse {
+  readonly data: RadarPreparedOutreach;
+}
+
+/** Un nouveau message : sur des annonces relues, OU la relance d'un message envoyé — jamais les deux. */
+export type RadarPrepareRequest =
+  | { readonly listing_ids: readonly number[]; readonly locale: RadarMessageLocale }
+  | { readonly follow_up_of_id: number; readonly locale: RadarMessageLocale };
+
+/** Les retouches d'un message : seulement les parties modifiées (l'API refuse un corps vide). */
+export interface RadarOutreachChanges {
+  readonly salutation?: string;
+  readonly resume?: string;
+}
+
+// ─── Les files d'annonceurs (TCK-2388) ───────────────────────────────────────────────────────
+
+/** `filter[queue]` de `GET /api/admin/radar/advertisers` : une file inconnue ne rend rien. */
+export const RADAR_ADVERTISER_QUEUES = ['to_contact', 'awaiting', 'follow_up'] as const;
+
+export type RadarAdvertiserQueue = (typeof RADAR_ADVERTISER_QUEUES)[number];
+
+/** Le message ouvert d'une ligne de file (`RadarAdvertiserResource::rowPart`) : le plus récemment envoyé. */
+export interface RadarAdvertiserRowFollowUp {
+  readonly outreach_id: number;
+  readonly sent_at: string | null;
+  readonly due_at: string | null;
+  readonly rank: number;
+  readonly propose_no_answer: boolean;
+}
+
+/**
+ * Une ligne de file. Les colonnes de `RADAR_ADVERTISER_FIELDS` ; `claim`, les comptes et `follow_up` sont calculés
+ * par l'API et toujours rendus, sparse fieldset compris (la liste lit elle-même les colonnes de la prise).
+ * `claim` vaut `null` quand personne ne tient l'annonceur, ou que sa prise est échue.
+ */
+export interface RadarAdvertiserRow {
+  readonly id: number;
+  readonly phone: string | null;
+  readonly display_name: string | null;
+  readonly nature: RadarAdvertiserNature;
+  readonly do_not_contact_at: string | null;
+  readonly claim: RadarClaim | null;
+  readonly counts?: {
+    readonly reviewed?: number;
+    readonly contacted?: number;
+    readonly consented?: number;
+  };
+  readonly follow_up?: RadarAdvertiserRowFollowUp | null;
+}
+
+/** Le corps d'une issue (`POST outreaches/{id}/outcome`) : le motif n'est exigé que pour confirmer un accord discordant. */
+export interface RadarOutcomeRequest {
+  readonly outcome: RadarOutreachOutcome;
+  readonly reason?: string;
+}

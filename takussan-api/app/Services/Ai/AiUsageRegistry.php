@@ -3,6 +3,8 @@
 namespace App\Services\Ai;
 
 use App\Ai\Usages\ConnectionTestUsage;
+use App\Ai\Usages\RadarConsentMessageUsage;
+use App\Ai\Usages\RadarConsentVerificationUsage;
 use App\Ai\Usages\RadarExtractionUsage;
 use InvalidArgumentException;
 
@@ -19,6 +21,8 @@ final class AiUsageRegistry
     public const USAGES = [
         ConnectionTestUsage::class,
         RadarExtractionUsage::class,
+        RadarConsentMessageUsage::class,
+        RadarConsentVerificationUsage::class,
     ];
 
     /** @var array<string, AiUsage> */

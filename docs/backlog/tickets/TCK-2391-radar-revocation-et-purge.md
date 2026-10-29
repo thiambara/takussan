@@ -66,6 +66,21 @@ posés par TCK-2389. Loi n° 2008-12 : la durée annoncée doit être tenue par 
     contrairement au STOP vu par le job, qui ne garde pas la lecture ;
   - `source_photo_hashes` et `matches` ne portent aucune donnée personnelle et peuvent rester.
 
+**Héritées de TCK-2388** (démarchage et preuve d'accord) — ce que la purge efface en plus :
+
+- `radar_outreaches.salutation`, `summary` et `message` d'un annonceur jamais publié : le nom
+  affiché et le résumé de l'annonce y sont recopiés.
+- Pour les réponses **non confirmées** (`radar_consents` sans `confirmed_at`) : les captures (médias
+  de la collection `radar_consent_captures`, disque privé), `transcript` et `ai_verdict` (numéro et
+  nom lus par le modèle).
+- Les `ai_suggestions` d'usage `radar.message_accord` et `radar.verification_accord` dont le sujet
+  s'efface.
+- **Jamais** une réponse confirmée tant qu'un bien qu'elle justifie existe (ADR-0077 §3).
+- Le STOP de TCK-2388 ne purge rien : « dès un STOP » reste à ce ticket. La partie « ne plus
+  contacter » de la révocation peut réemployer le STOP de `RadarConsentWorkflow` (aujourd'hui une
+  méthode privée, appelée par `recordOutcome` sous les verrous annonces → annonceur, avec reprise
+  bornée si une annonce rejoint l'annonceur pendant la lecture).
+
 ## Delta à produire
 
 - [ ] `App\Services\Radar\AdvertiserRevocation`.

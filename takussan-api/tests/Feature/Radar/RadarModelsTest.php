@@ -5,18 +5,26 @@ namespace Tests\Feature\Radar;
 use App\Ai\Agents\RadarExtraction;
 use App\Models\Enums\RadarAdvertiserNature;
 use App\Models\Enums\RadarConfidence;
+use App\Models\Enums\RadarConsentProof;
 use App\Models\Enums\RadarDiscardReason;
 use App\Models\Enums\RadarListingStage;
+use App\Models\Enums\RadarOutreachChannel;
+use App\Models\Enums\RadarOutreachOutcome;
 use App\Models\Enums\RadarSourceKind;
 use App\Models\Enums\RadarSourceSite;
+use App\Models\Enums\RadarVerificationStatus;
 use App\Models\Property;
 use App\Models\RadarAdvertiser;
+use App\Models\RadarConsent;
 use App\Models\RadarListing;
+use App\Models\RadarOutreach;
 use App\Models\User;
+use Carbon\CarbonInterface;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
@@ -323,6 +331,218 @@ class RadarModelsTest extends TestCase
         $this->assertSame(['stage', 'source_site', 'radar_advertiser_id'], $this->prop(RadarListing::class, 'requestFilterable'));
         $this->assertSame(['created_at', 'stage'], $this->prop(RadarListing::class, 'requestSortable'));
         $this->assertContains('raw_text', RadarListing::getOwnQueryFields());
+    }
+
+    // ---- TCK-2388 : le démarchage et la preuve d'accord ----
+
+    public function test_les_enums_du_demarchage_portent_leurs_valeurs(): void
+    {
+        $valeurs = fn (string $enum) => array_map(fn ($c) => $c->value, $enum::cases());
+
+        $this->assertSame(['consented', 'refused', 'stop', 'question', 'no_answer'], $valeurs(RadarOutreachOutcome::class));
+        $this->assertSame(['screenshot', 'provider_message', 'otp'], $valeurs(RadarConsentProof::class));
+        $this->assertSame(['whatsapp_manual'], $valeurs(RadarOutreachChannel::class));
+        $this->assertSame(['pending', 'done', 'failed'], $valeurs(RadarVerificationStatus::class));
+    }
+
+    public function test_une_issue_est_finale_pour_accord_refus_et_stop_seulement(): void
+    {
+        $this->assertTrue(RadarOutreachOutcome::Consented->isFinal());
+        $this->assertTrue(RadarOutreachOutcome::Refused->isFinal());
+        $this->assertTrue(RadarOutreachOutcome::Stop->isFinal());
+        $this->assertFalse(RadarOutreachOutcome::Question->isFinal());
+        $this->assertFalse(RadarOutreachOutcome::NoAnswer->isFinal());
+    }
+
+    public function test_la_config_des_relances(): void
+    {
+        $this->assertSame(['after_days' => 3, 'max' => 2], config('radar.follow_ups'));
+    }
+
+    public function test_la_prise_en_charge_vit_sur_la_ligne_de_l_annonceur(): void
+    {
+        $user = User::factory()->create();
+        $advertiser = RadarAdvertiser::factory()->create();
+        $this->assertNull($advertiser->fresh()->claimed_by_id);
+
+        $advertiser->forceFill(['claimed_by_id' => $user->id, 'claimed_at' => now(), 'claim_expires_at' => now()->addMinutes(10)])->save();
+        $relu = $advertiser->fresh();
+
+        $this->assertTrue($relu->claimer->is($user));
+        $this->assertInstanceOf(CarbonInterface::class, $relu->claimed_at);
+        $this->assertInstanceOf(CarbonInterface::class, $relu->claim_expires_at);
+        $this->assertNotContains('claimed_by_id', (new RadarAdvertiser)->getFillable());
+        $this->assertNotContains('claim_expires_at', RadarAdvertiser::getOwnQueryFields());
+
+        $user->forceDelete();
+        $this->assertNull($advertiser->fresh()->claimed_by_id);
+    }
+
+    public function test_un_message_lit_ses_relations_et_ses_casts(): void
+    {
+        $user = User::factory()->create();
+        $a = RadarListing::factory()->reviewed()->create();
+        $b = RadarListing::factory()->reviewed()->create();
+
+        $outreach = RadarOutreach::factory()->withListings($a, $b)->sent()->create(['created_by_id' => $user->id, 'sent_by_id' => $user->id])->fresh();
+
+        $this->assertSame(RadarOutreachChannel::WhatsappManual, $outreach->channel);
+        $this->assertNull($outreach->outcome);
+        $this->assertSame(0, $outreach->follow_up_rank);
+        $this->assertTrue($outreach->isSent());
+        $this->assertTrue($outreach->advertiser->is(RadarAdvertiser::query()->findOrFail($outreach->radar_advertiser_id)));
+        $this->assertEqualsCanonicalizing([$a->id, $b->id], $outreach->listings->pluck('id')->all());
+        $this->assertTrue($a->outreaches->first()->is($outreach));
+        $this->assertTrue($outreach->creator->is($user));
+        $this->assertTrue($outreach->sender->is($user));
+        $this->assertNull($outreach->outcomeBy);
+        $outreach->forceFill(['outcome_by_id' => $user->id])->save();
+        $this->assertTrue($outreach->fresh()->outcomeBy->is($user));
+        $this->assertFalse(RadarOutreach::factory()->create()->isSent());
+    }
+
+    public function test_une_relance_est_unique_par_message(): void
+    {
+        $premier = RadarOutreach::factory()->sent()->create();
+        $relance = RadarOutreach::factory()->followUpOf($premier)->create();
+
+        $this->assertTrue($premier->fresh()->followUp->is($relance));
+        $this->assertTrue($relance->fresh()->followUpOf->is($premier));
+        $this->assertSame(1, $relance->follow_up_rank);
+
+        $this->expectException(QueryException::class);
+        $this->expectExceptionMessage('radar_outreaches_follow_up_unique');
+        RadarOutreach::factory()->followUpOf($premier)->create();
+    }
+
+    public function test_supprimer_un_annonceur_qui_a_un_message_est_refuse(): void
+    {
+        $outreach = RadarOutreach::factory()->create();
+
+        try {
+            $outreach->advertiser->delete();
+            $this->fail('La suppression aurait dû être refusée.');
+        } catch (QueryException $e) {
+            $this->assertStringContainsString('radar_outreaches_advertiser_fk', $e->getMessage());
+        }
+    }
+
+    public function test_supprimer_un_message_efface_ses_lignes_de_liaison_pas_ses_annonces(): void
+    {
+        $listing = RadarListing::factory()->reviewed()->create();
+        $outreach = RadarOutreach::factory()->withListings($listing)->create();
+        $this->assertSame(1, DB::table('radar_outreach_listing')->where('radar_outreach_id', $outreach->id)->count());
+
+        $outreach->delete();
+
+        $this->assertSame(0, DB::table('radar_outreach_listing')->where('radar_listing_id', $listing->id)->count());
+        $this->assertNotNull(RadarListing::query()->find($listing->id));
+    }
+
+    public function test_une_annonce_couverte_par_un_message_ne_se_supprime_pas(): void
+    {
+        $listing = RadarListing::factory()->reviewed()->create();
+        RadarOutreach::factory()->withListings($listing)->create();
+
+        $this->expectException(QueryException::class);
+        $this->expectExceptionMessage('radar_outreach_listing_listing_fk');
+        $listing->delete();
+    }
+
+    public function test_une_annonce_ne_figure_qu_une_fois_dans_un_message(): void
+    {
+        $listing = RadarListing::factory()->reviewed()->create();
+        $outreach = RadarOutreach::factory()->withListings($listing)->create();
+
+        $this->expectException(QueryException::class);
+        $this->expectExceptionMessage('radar_outreach_listing_pk');
+        $outreach->listings()->attach($listing->id);
+    }
+
+    public function test_une_reponse_deposee_garde_son_message_et_son_annonceur(): void
+    {
+        $consent = RadarConsent::factory()->create()->fresh();
+
+        $this->assertSame(RadarConsentProof::Screenshot, $consent->proof);
+        $this->assertSame(RadarVerificationStatus::Pending, $consent->verification_status);
+        $this->assertCount(1, $consent->capture_hashes);
+        $this->assertSame(64, strlen($consent->capture_hashes[0]));
+        $this->assertTrue($consent->outreach->advertiser->is($consent->advertiser));
+        $this->assertTrue($consent->outreach->consents->first()->is($consent));
+        $this->assertTrue($consent->advertiser->consents->first()->is($consent));
+        $this->assertTrue($consent->advertiser->outreaches->first()->is($consent->outreach));
+
+        try {
+            $consent->outreach->delete();
+            $this->fail('La suppression aurait dû être refusée.');
+        } catch (QueryException $e) {
+            $this->assertStringContainsString('radar_consents_outreach_fk', $e->getMessage());
+        }
+    }
+
+    public function test_les_etats_verified_et_confirmed_de_la_factory(): void
+    {
+        $user = User::factory()->create();
+        $verdict = ['number_matches' => true, 'clauses_visible' => true, 'reply' => 'consented'];
+
+        $consent = RadarConsent::factory()->verified($verdict)->confirmed($user)->create()->fresh();
+
+        $this->assertSame(RadarVerificationStatus::Done, $consent->verification_status);
+        $this->assertEquals($verdict, $consent->ai_verdict);
+        $this->assertTrue($consent->confirmer->is($user));
+        $this->assertNotNull($consent->confirmed_at);
+    }
+
+    public function test_un_accord_valide_est_confirme_et_non_revoque(): void
+    {
+        $user = User::factory()->create();
+        $pas_confirme = RadarConsent::factory()->create();
+        $confirme = RadarConsent::factory()->confirmed($user)->create();
+        $revoque = RadarConsent::factory()->confirmed($user)->create(['revoked_at' => now()]);
+
+        $ids = RadarConsent::query()->valid()->pluck('id')->all();
+
+        $this->assertSame([$confirme->id], $ids);
+        // Un seul écrivain : la confirmation ne passe pas par l'assignation de masse.
+        $this->assertNotContains('confirmed_at', (new RadarConsent)->getFillable());
+        $this->assertNotContains('confirmed_by_id', (new RadarConsent)->getFillable());
+        $this->assertNotContains($pas_confirme->id, $ids);
+        $this->assertNotContains($revoque->id, $ids);
+    }
+
+    public function test_les_captures_d_une_reponse_vont_sur_le_disque_prive(): void
+    {
+        $private = config('media-library.disk_name');
+        $public = config('media-library.public_disk_name');
+        Storage::fake($private);
+        Storage::fake($public);
+
+        $media = RadarConsent::factory()->create()
+            ->addMedia(UploadedFile::fake()->image('reponse.jpg'))
+            ->toMediaCollection('radar_consent_captures');
+
+        $this->assertSame($private, $media->disk);
+        Storage::disk($private)->assertExists($media->getPathRelativeToRoot());
+        Storage::disk($public)->assertMissing($media->getPathRelativeToRoot());
+    }
+
+    public function test_la_factory_reviewed_pose_l_etape_lue(): void
+    {
+        $listing = RadarListing::factory()->reviewed()->create()->fresh();
+
+        $this->assertSame(RadarListingStage::Reviewed, $listing->stage);
+        $this->assertNotNull($listing->extracted);
+    }
+
+    public function test_les_migrations_du_demarchage_posent_leurs_objets(): void
+    {
+        $tables = ['radar_outreaches', 'radar_outreach_listing', 'radar_consents'];
+        foreach ($tables as $table) {
+            $this->assertTrue(Schema::hasTable($table), $table);
+        }
+        $this->assertTrue(Schema::hasColumns('radar_advertisers', ['claimed_by_id', 'claimed_at', 'claim_expires_at']));
+        $this->assertSame(1, DB::table('pg_indexes')->where('indexname', 'radar_outreaches_awaiting_idx')
+            ->where('indexdef', 'like', '%WHERE%outcome IS NULL%sent_at IS NOT NULL%')->count());
     }
 
     private function prop(string $class, string $name): array

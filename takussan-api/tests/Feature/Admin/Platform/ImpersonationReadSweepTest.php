@@ -98,6 +98,8 @@ class ImpersonationReadSweepTest extends TestCase
         'evaluation',
         // TCK-2386 — le Radar, console des opérateurs de la plateforme : même motif.
         'listing',
+        // TCK-2388 — la fiche annonceur du Radar : même motif.
+        'advertiser',
     ];
 
     private User $cible;

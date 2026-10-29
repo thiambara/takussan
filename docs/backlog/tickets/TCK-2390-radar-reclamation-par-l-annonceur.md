@@ -61,6 +61,17 @@ jargon de plateforme. Si le compte existe déjà (publié pour lui), la même pa
 - Création de l'espace par `HostIndividualOnboardingService`, publication par le `RadarPublisher`
   de TCK-2389.
 
+**Héritées de TCK-2388** (démarchage et preuve d'accord) :
+
+- `accord.v2.<locale>.md` = `accord.v1` + la ligne « Vous préférez vérifier vous-même avant ?
+  {lien_reclamation} » (décision 1 de TCK-2388). `ConsentMessageComposer::CLAUSES_VERSION` avance
+  à `accord.v2` ; chaque message garde sa version (`radar_outreaches.clauses_version`), donc les
+  messages déjà envoyés restent `accord.v1`.
+- La v1 dit « ces annonces » même pour une annonce seule : à reprendre en v2, avec la relecture de
+  l'avocat.
+- La preuve `otp` est une ligne `radar_consents` (`proof = otp`, `RadarConsentProof::Otp`, déjà dans
+  l'enum), confirmée par la connexion elle-même — sans capture ni vérification IA.
+
 ## Delta à produire
 
 - [ ] `App\Services\Radar\ClaimLinks` (signature, expiration, révocation).

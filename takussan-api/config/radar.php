@@ -98,4 +98,13 @@ return [
         'bathrooms' => ['min' => 0, 'max' => 20],
     ],
 
+    // TCK-2388 (ADR-0077 §4, plan écran 4) — les relances (décision 4, porteur 2026-10-28). Un message envoyé sans issue
+    // depuis `after_days` jours entre dans la file « à relancer » ; une relance est un nouveau message sur les
+    // mêmes annonces ; après `max` relances sans réponse, la file propose « sans réponse » et une relance de
+    // plus est refusée. Lu par `RadarFollowUps` et `RadarOutreachWorkflow`, et nulle part ailleurs.
+    'follow_ups' => [
+        'after_days' => 3,
+        'max' => 2,
+    ],
+
 ];

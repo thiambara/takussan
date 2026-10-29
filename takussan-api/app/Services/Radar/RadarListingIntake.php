@@ -13,10 +13,6 @@ use App\Support\RadarPhone;
 use GuzzleHttp\Psr7\Uri;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
-use Intervention\Image\Drivers\Gd\Driver as GdDriver;
-use Intervention\Image\Exceptions\ImageException;
-use Intervention\Image\ImageManager;
 use Throwable;
 
 /**
@@ -32,9 +28,9 @@ use Throwable;
  *   job d'extraction : empreinte HMAC chez un annonceur `do_not_contact_at`) rend
  *   l'annonce `do_not_contact` dès la saisie, annonceur rattaché, sans job (AC6). Seul le texte
  *   collé se lit ici : une URL ou des captures n'ont pas encore de texte, le job y revient.
- * - **Les captures sont réencodées** : GD ne réécrit aucune métadonnée, l'EXIF (position GPS
- *   comprise) ne survit donc pas ; l'empreinte SHA-256 de l'original reste en propriété `sha256`.
- *   Leurs dimensions sont bornées sur l'en-tête AVANT le décodage (bombe de décompression).
+ * - **Les captures sont lues par {@see RadarCaptureReader}** (réencodées : l'EXIF, position GPS comprise, ne survit
+ *   pas ; dimensions bornées sur l'en-tête avant le décodage ; SHA-256 de l'original en propriété `sha256`). L'empreinte
+ *   du contenu (`captures|…`), elle, se calcule ici, sur les octets d'origine, avant tout décodage.
  * - Sinon : étape `captured`, et l'extraction part en file APRÈS le commit.
  */
 final class RadarListingIntake
@@ -45,7 +41,10 @@ final class RadarListingIntake
     /** Les variantes d'hôte de Facebook qui servent la même page : repliées sur le domaine nu. */
     private const FACEBOOK_HOSTS = '/^(www|m|web|mobile|mbasic)\.facebook\.com$/';
 
-    public function __construct(private readonly RadarAdvertiserDirectory $directory) {}
+    public function __construct(
+        private readonly RadarAdvertiserDirectory $directory,
+        private readonly RadarCaptureReader $reader,
+    ) {}
 
     /**
      * @param  list<string>  $urls
@@ -104,65 +103,12 @@ final class RadarListingIntake
 
         // Tout se lit et se réencode AVANT la moindre écriture : une image illisible ou démesurée
         // refuse la saisie entière, sans fiche orpheline.
-        $manager = new ImageManager(new GdDriver);
-        $captures = [];
-        foreach ($files as $i => $file) {
-            $this->assertPixelBudget($originals[$i]);
-            $mime = (string) $file->getMimeType();
-            try {
-                $encoded = $manager->decodeBinary($originals[$i])->encodeUsingMediaType($mime)->toString();
-            } catch (ImageException) {
-                abort_code(422, 'radar.captures.unreadable');
-            }
-            $captures[] = ['sha256' => $hashes[$i], 'bytes' => $encoded, 'mime' => $mime];
-        }
+        $captures = $this->reader->prepare($files);
 
         return $this->intake($fingerprint, [
             'source_kind' => RadarSourceKind::Captures,
             'source_site' => $site ?? RadarSourceSite::Other,
-        ], $by, function (RadarListing $listing) use ($captures): void {
-            $written = [];
-            try {
-                foreach ($captures as $i => $capture) {
-                    $extension = match ($capture['mime']) {
-                        'image/png' => 'png',
-                        'image/webp' => 'webp',
-                        default => 'jpg',
-                    };
-                    $written[] = $listing->addMediaFromString($capture['bytes'])
-                        ->usingFileName(sprintf('capture-%d.%s', $i + 1, $extension))
-                        ->withCustomProperties(['sha256' => $capture['sha256']])
-                        ->toMediaCollection('radar_captures');
-                }
-            } catch (Throwable $e) {
-                // La transaction rend les lignes, jamais les fichiers : ceux déjà écrits s'effacent ici.
-                foreach ($written as $media) {
-                    Storage::disk($media->disk)->delete($media->getPathRelativeToRoot());
-                }
-
-                throw $e;
-            }
-        });
-    }
-
-    /**
-     * Les dimensions lues dans l'EN-TÊTE seul (`getimagesizefromstring`), avant que GD n'alloue
-     * largeur × hauteur × 4 octets : 422 `radar.captures.too_large` au-delà des bornes.
-     */
-    private function assertPixelBudget(string $bytes): void
-    {
-        $size = @getimagesizefromstring($bytes);
-        if ($size === false) {
-            abort_code(422, 'radar.captures.unreadable');
-        }
-
-        [$width, $height] = $size;
-        $maxSide = (int) config('radar.captures.max_side');
-        abort_code_if(
-            $width > $maxSide || $height > $maxSide || $width * $height > (int) config('radar.captures.max_pixels'),
-            422,
-            'radar.captures.too_large',
-        );
+        ], $by, fn (RadarListing $listing) => $this->reader->attach($listing, 'radar_captures', $captures));
     }
 
     /**

@@ -357,9 +357,11 @@ Les tables `lemon_squeezy_*` viennent d'un paquet, voir [`lemonsqueezy/laravel`]
 #### Sorties d'argent — la reprise au bailleur 🆕 (TCK-2151, ADR-0039 amendement du 2026-10-24)
 107. [PayoutClawback](#107-payoutclawback-) 🆕
 
-#### Radar 🆕 (TCK-2386, ADR-0077)
+#### Radar 🆕 (TCK-2386, TCK-2388, ADR-0077)
 108. [RadarAdvertiser](#108-radaradvertiser-) 🆕
 109. [RadarListing](#109-radarlisting-) 🆕
+110. [RadarOutreach](#110-radaroutreach-) 🆕
+111. [RadarConsent](#111-radarconsent-) 🆕
 
 ### Enums
 
@@ -5018,14 +5020,25 @@ settled_amount`.
 
 ### 108. RadarAdvertiser 🆕
 
-**Table :** `radar_advertisers` (migration `2026_10_27_200000`, TCK-2386)
+**Table :** `radar_advertisers` (migration `2026_10_27_200000`, TCK-2386 ; `2026_10_28_100000`, TCK-2388)
 **Modèle :** `App\Models\RadarAdvertiser` (`AbstractModel`) — `nature` casté en `RadarAdvertiserNature`,
-`nature_signals` en `array`, `do_not_contact_at` en `datetime` ; `hasMany listings`, `belongsTo user`.
+`nature_signals` en `array`, `do_not_contact_at`, `claimed_at` et `claim_expires_at` en `datetime` ;
+`hasMany listings`, `outreaches`, `consents`, `belongsTo user`, `claimer` (colonne `claimed_by_id`).
 **Description :** L'annonceur d'une ou plusieurs annonces collectées, identifié par son numéro de
 téléphone ([ADR-0077 §1, §7, §9](adr/0077-le-radar.md)). Sa nature présumée et ses indices restent
 ici, jamais dans les profils. Après un STOP, `phone` est purgé et `phone_hmac` — l'empreinte à clé du
 numéro (`App\Support\RadarPhone::hmac`) — reste : sans elle le Radar le retrouverait sur une
 prochaine annonce et le recontacterait.
+
+**Nature (TCK-2388, décision 3 du porteur, 2026-10-28).** À la validation d'une annonce
+(`RadarListingReview::review()`), si l'opérateur a corrigé `extracted.advertiser_nature` (marque
+`corrected`), la valeur devient `radar_advertisers.nature` : la dernière relecture humaine l'emporte.
+Les indices de l'IA (`nature_signals`) restent.
+
+**Prise en charge (TCK-2388, ADR-0077 §11, modèle d'[ADR-0043 §7](adr/0043-avis-cible-eligibilite-moderation-et-verrou-plateforme.md)).**
+Trois colonnes sur la ligne : elle est le point de sérialisation de tout geste de démarchage, sans table
+de plus. Écrites par `forceFill` dans `AdvertiserClaim` seul : hors de `$fillable`, hors de
+`$queryFields` (la ressource rend un objet `claim` calculé).
 
 | Colonne | Type | Nullable | Défaut | Description |
 |---------|------|----------|--------|-------------|
@@ -5037,6 +5050,9 @@ prochaine annonce et le recontacterait.
 | nature_signals | jsonb | | `[]` | Indices de la nature |
 | do_not_contact_at | timestamp | oui | null | « Ne plus contacter » : définitif |
 | user_id | FK users | oui | null | Compte lié une fois réclamé ou publié (`nullOnDelete`) ; indexée |
+| claimed_by_id | FK users | oui | null | TCK-2388 : l'opérateur qui tient la prise en charge (`nullOnDelete`, `radar_advertisers_claimed_by_fk`) ; indexée |
+| claimed_at | timestamp | oui | null | TCK-2388 : début de la prise en charge |
+| claim_expires_at | timestamp | oui | null | TCK-2388 : fin de la prise en charge — 10 minutes, renouvelées par chaque écriture (`AdvertiserClaim::DURATION_MINUTES`) ; passée, la prise en charge est libre |
 | created_at / updated_at | timestamp | | auto | |
 
 **Contraintes :** uniques `radar_advertisers_phone_unique (phone)` et `radar_advertisers_phone_hmac_unique (phone_hmac)`.
@@ -5084,6 +5100,87 @@ sur le disque **privé** par défaut (ADR-0029).
 
 **Contraintes :** unique `radar_listings_fingerprint_unique (content_fingerprint)` ; CHECK
 `radar_listings_dup_one_chk` : `duplicate_of_listing_id` et `duplicate_of_property_id` ne sont jamais posées ensemble.
+
+### 110. RadarOutreach 🆕
+
+**Tables :** `radar_outreaches` (migration `2026_10_28_100100`, TCK-2388) et sa table de liaison
+`radar_outreach_listing` (`2026_10_28_100200`)
+**Modèle :** `App\Models\RadarOutreach` (`AbstractModel`) — `channel` casté en `RadarOutreachChannel`,
+`outcome` en `RadarOutreachOutcome`, `sent_at` et `outcome_at` en `datetime`, `follow_up_rank` en `integer` ;
+`belongsTo advertiser`, `followUpOf` (colonne `follow_up_of_id`), `creator` (`created_by_id`), `sender`
+(`sent_by_id`), `outcomeBy` (`outcome_by_id`) ; `belongsToMany listings` (table `radar_outreach_listing`, sans horodatage) ; `hasMany consents` ;
+`hasOne followUp` (sur `follow_up_of_id`). `isSent()` ; `latestReply()` rend la dernière `RadarConsent`.
+**Description :** Un message de démarchage à un annonceur ([ADR-0077 §3, §4](adr/0077-le-radar.md)) : le texte
+**exact** du lien `wa.me` (`message`, la concaténation des segments de `ConsentMessageComposer`, rien d'autre
+ne l'écrit), la version des clauses qu'il a employée, son envoi, son issue et sa chaîne de relances. Un message
+couvre une ou plusieurs annonces ; un accord confirmé les couvre toutes. Une relance est un nouveau message sur
+les mêmes annonces (`follow_up_of_id`, `follow_up_rank`) : la chaîne est une liste, jamais un arbre.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| radar_advertiser_id | FK radar_advertisers | | | `restrictOnDelete` : une preuve d'accord ne disparaît pas avec son annonceur ; indexée |
+| channel | string(30) | | whatsapp_manual | `whatsapp_manual` (`RadarOutreachChannel` ; `whatsapp_cloud` arrivera avec TCK-2395) |
+| locale | string(5) | | | Langue du message : `fr` ou `en` (pas de `wo`, décision 5) |
+| clauses_version | string(30) | | | Version des clauses employée (`accord.v1`) : chaque message garde la sienne |
+| salutation | text | | | La partie écrite par l'IA, retouchable ; ramenée à une ligne |
+| summary | text | | | Idem pour le résumé des annonces |
+| message | text | | | Le texte EXACT du paramètre `text` du lien `wa.me` |
+| follow_up_of_id | FK radar_outreaches | oui | null | Le message dont celui-ci est la relance (`nullOnDelete`) ; **unique** |
+| follow_up_rank | smallint | | 0 | 0 : message initial ; 1, 2… : la relance (bornée par `config('radar.follow_ups.max')`) |
+| created_by_id | FK users | oui | null | Opérateur qui a préparé le message (`nullOnDelete`) ; indexée |
+| sent_at | timestamp | oui | null | Posé à la confirmation d'envoi ; null : préparé, jamais envoyé |
+| sent_by_id | FK users | oui | null | Opérateur qui a confirmé l'envoi (`nullOnDelete`) ; indexée |
+| outcome | string(20) | oui | null | `consented`, `refused`, `stop`, `question`, `no_answer` (`RadarOutreachOutcome::isFinal()` : vrai pour les trois premiers) |
+| outcome_at | timestamp | oui | null | |
+| outcome_by_id | FK users | oui | null | Opérateur qui a tranché l'issue (`nullOnDelete`) ; indexée |
+| created_at / updated_at | timestamp | | auto | |
+
+**`radar_outreach_listing`** (sans `id` ni horodatage) : clé primaire composite
+`radar_outreach_listing_pk (radar_outreach_id, radar_listing_id)` ; `radar_outreach_id` FK
+`radar_outreaches` en `cascadeOnDelete` (un message préparé puis remplacé s'efface avec ses lignes) ;
+`radar_listing_id` FK `radar_listings` en `restrictOnDelete` (une annonce ne s'efface jamais : la purge vide
+ses champs, TCK-2391), indexée.
+
+**Contraintes :** unique `radar_outreaches_follow_up_unique (follow_up_of_id)` : une relance au plus par
+message. Index partiel `radar_outreaches_awaiting_idx (sent_at) WHERE outcome IS NULL AND sent_at IS NOT NULL` :
+la file « à relancer ».
+
+### 111. RadarConsent 🆕
+
+**Table :** `radar_consents` (migration `2026_10_28_100300`, TCK-2388)
+**Modèle :** `App\Models\RadarConsent` (`AbstractModel`, `HasMedia`) — `proof` casté en `RadarConsentProof`,
+`verification_status` en `RadarVerificationStatus`, `capture_hashes` et `ai_verdict` en `array`,
+`confirmed_at` et `revoked_at` en `datetime` ; `belongsTo outreach`, `advertiser`, `depositor`
+(`deposited_by_id`), `confirmer` (`confirmed_by_id`). `scopeValid()` : `confirmed_at` non nul et `revoked_at`
+nul. `confirmed_by_id` et `confirmed_at` hors de `$fillable` : posés par `forceFill`, par le seul `RadarConsentWorkflow::recordOutcome()`. Collection média `radar_consent_captures`, sur le disque **privé** par défaut (ADR-0029).
+**Description :** Une réponse d'annonceur déposée sur un message ([ADR-0077 §3](adr/0077-le-radar.md)) : la
+preuve (captures d'écran et leurs SHA-256), sa transcription, le verdict de l'IA et la confirmation humaine.
+**Un verdict de l'IA n'ouvre rien** : un accord n'est valide qu'une fois confirmé par une personne
+(`confirmed_by_id` et `confirmed_at`, posés ensemble par `RadarConsentWorkflow::recordOutcome()` et par lui
+seul) et tant qu'il n'est pas révoqué. `valid()` est LA définition ; `RadarConsentCoverage` la lit.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| radar_outreach_id | FK radar_outreaches | | | `restrictOnDelete` ; indexée |
+| radar_advertiser_id | FK radar_advertisers | | | `restrictOnDelete` ; dénormalisé : « les accords de l'annonceur » (fiche, TCK-2389) sans passer par les messages ; indexée |
+| proof | string(30) | | | `screenshot`, `provider_message` (TCK-2395), `otp` (TCK-2390) (`RadarConsentProof`) |
+| capture_hashes | jsonb | | `[]` | SHA-256 des originaux des captures (aussi en propriété du média) |
+| provider_message_id | string(120) | oui | null | Identifiant du message reçu par l'API du fournisseur (TCK-2395) |
+| transcript | text | oui | null | Transcription de la réponse par l'IA |
+| ai_verdict | jsonb | oui | null | Verdict de la vérification (numéro, clauses, classement de la réponse), relu par `RadarConsentVerdict` |
+| verification_status | string(20) | | pending | `pending`, `done`, `failed` (`RadarVerificationStatus`) |
+| verification_reason | string(60) | oui | null | Code du motif d'un échec de vérification, jamais de prose |
+| deposited_by_id | FK users | oui | null | Opérateur qui a déposé la réponse (`nullOnDelete`) ; indexée |
+| confirmed_by_id | FK users | oui | null | Opérateur qui a confirmé l'accord (`nullOnDelete`) ; indexée |
+| confirmed_at | timestamp | oui | null | Posé avec `confirmed_by_id` ; null : l'accord n'est pas valide |
+| confirmation_reason | text | oui | null | Motif écrit exigé pour confirmer contre un verdict discordant ou absent |
+| revoked_at | timestamp | oui | null | Révocation : l'accord cesse d'être valide |
+| created_at / updated_at | timestamp | | auto | |
+
+**Contraintes :** aucune unicité (plusieurs réponses peuvent être déposées sur un même message) ; quatre
+index, un par clé étrangère.
 
 ---
 
@@ -5205,6 +5302,10 @@ sur le disque **privé** par défaut (ADR-0029).
 | **PrivacyRequestStatus** (relevé 2026-10-14) | received, in_progress, answered, rejected, withdrawn | [PrivacyRequest.status](#79-privacyrequest-) (TCK-601, ADR-0044 §4) |
 | **ScheduledTaskRunStatus** (relevé 2026-10-14) | finished, failed, skipped, running | [ScheduledTaskRun.status](#61-scheduledtaskrun-) (TCK-383) |
 | **WatermarkPosition** (relevé 2026-10-14) | bottom_right, bottom_left, bottom_center | Pas de cast : réglage d'agence `settings.watermark_position` (`AgencyUpdateRequest`), lu par `AgencyWatermarkContext` (TCK-319) |
+| **RadarOutreachOutcome** 🆕 (TCK-2388) | consented, refused, stop, question, no_answer — `isFinal()` vrai pour les trois premiers | [RadarOutreach.outcome](#110-radaroutreach-) |
+| **RadarConsentProof** 🆕 (TCK-2388) | screenshot, provider_message (TCK-2395), otp (TCK-2390) | [RadarConsent.proof](#111-radarconsent-) |
+| **RadarOutreachChannel** 🆕 (TCK-2388) | whatsapp_manual — `whatsapp_cloud` arrivera avec TCK-2395 | [RadarOutreach.channel](#110-radaroutreach-) |
+| **RadarVerificationStatus** 🆕 (TCK-2388) | pending, done, failed | [RadarConsent.verification_status](#111-radarconsent-) |
 
 #### Catalogue `Capability` (TCK-278 → TCK-279)
 

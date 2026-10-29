@@ -3,6 +3,12 @@ import { cheminApi, requete } from '@/lib/chemin-api';
 import { jsonOrThrow } from '@/lib/queries/super-admin-coque';
 import type { PaginatedResponse } from '@/types/api';
 import type {
+  RadarAdvertiserQueue,
+  RadarAdvertiserResponse,
+  RadarAdvertiserRow,
+  RadarClaimResponse,
+  RadarConsent,
+  RadarOutcomeRequest,
   RadarDashboardResponse,
   RadarIntakePayload,
   RadarIntakeResponse,
@@ -13,6 +19,10 @@ import type {
   RadarListingRow,
   RadarMatchesResponse,
   RadarListingStage,
+  RadarOutreachChanges,
+  RadarOutreachResponse,
+  RadarPrepareRequest,
+  RadarPreparedOutreachResponse,
 } from '@/types/radar';
 
 /**
@@ -38,6 +48,19 @@ export const RADAR_LISTING_FIELDS = [
 /** Tant qu'une extraction ou un calcul d'empreintes tourne, les écrans se relisent à ce rythme. */
 export const RADAR_POLL_MS = 10_000;
 
+/**
+ * Les colonnes d'une ligne de file demandées au sparse fieldset (`RadarAdvertiser::$queryFields`). La prise en charge
+ * n'en est pas une : l'API lit ses colonnes d'elle-même et rend `claim` quand même.
+ */
+export const RADAR_ADVERTISER_FIELDS = ['id', 'phone', 'display_name', 'nature', 'do_not_contact_at'] as const;
+
+export interface RadarAdvertiserFilters {
+  readonly queue: RadarAdvertiserQueue;
+  readonly search?: string;
+  readonly page?: number;
+  readonly perPage?: number;
+}
+
 export interface RadarListingFilters {
   readonly stage?: RadarListingStage;
   readonly page?: number;
@@ -53,6 +76,10 @@ export const radarKeys = {
   detail: (id: number) => [...radarKeys.details(), id] as const,
   matches: (id: number) => [...radarKeys.all, 'matches', id] as const,
   next: (excludeId: number) => [...radarKeys.all, 'next', excludeId] as const,
+  advertisers: () => [...radarKeys.all, 'advertiser'] as const,
+  advertiser: (id: number) => [...radarKeys.advertisers(), id] as const,
+  advertiserLists: () => [...radarKeys.advertisers(), 'list'] as const,
+  advertiserList: (filters: RadarAdvertiserFilters) => [...radarKeys.advertiserLists(), filters] as const,
 };
 
 export async function fetchRadarDashboard(): Promise<RadarDashboardResponse> {
@@ -177,4 +204,120 @@ export async function fetchNextRadarListingId(excludeId: number): Promise<number
   const res = await fetch(cheminApi`/api/super-admin/radar/listings${requete(qs)}`, { credentials: 'include' });
   const liste = await jsonOrThrow<PaginatedResponse<Pick<RadarListingRow, 'id'>>>(res);
   return liste.data.find((row) => row.id !== excludeId)?.id ?? null;
+}
+
+// ─── L'annonceur et son message d'accord (TCK-2388) ──────────────────────────────────────────
+
+const JSON_ACCEPT = { 'Content-Type': 'application/json', Accept: 'application/json' } as const;
+
+/** La fiche annonceur : identité, annonces (hors purgées), messages du plus récent au plus ancien, prise en charge. */
+export async function fetchRadarAdvertiser(id: number): Promise<RadarAdvertiserResponse> {
+  const res = await fetch(cheminApi`/api/super-admin/radar/advertisers/${id}`, { credentials: 'include' });
+  return jsonOrThrow<RadarAdvertiserResponse>(res);
+}
+
+/** Prendre l'annonceur en charge : l'API refuse (409) s'il est tenu par un autre. Rend la prise. */
+export async function claimRadarAdvertiser(id: number): Promise<RadarClaimResponse> {
+  const res = await fetch(cheminApi`/api/super-admin/radar/advertisers/${id}/claim`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { Accept: 'application/json' },
+  });
+  return jsonOrThrow<RadarClaimResponse>(res);
+}
+
+/**
+ * Rendre la prise. L'API répond 204 SANS corps : `jsonOrThrow` lirait un JSON qui n'existe pas, la réponse
+ * est donc jugée ici — un échec porte son `{code, params}` comme partout.
+ */
+export async function releaseRadarAdvertiser(id: number): Promise<void> {
+  const res = await fetch(cheminApi`/api/super-admin/radar/advertisers/${id}/claim`, {
+    method: 'DELETE',
+    credentials: 'include',
+    headers: { Accept: 'application/json' },
+  });
+  if (!res.ok) await jsonOrThrow<unknown>(res);
+}
+
+/** Préparer un message : l'API compose le texte (clauses figées + salutation et résumé que l'IA rédige). */
+export async function prepareRadarOutreach(
+  advertiserId: number,
+  request: RadarPrepareRequest,
+): Promise<RadarPreparedOutreachResponse> {
+  const res = await fetch(cheminApi`/api/super-admin/radar/advertisers/${advertiserId}/outreaches`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: JSON_ACCEPT,
+    body: JSON.stringify(request),
+  });
+  return jsonOrThrow<RadarPreparedOutreachResponse>(res);
+}
+
+/** Retoucher la salutation et/ou le résumé : les seules parties modifiées. Rend le message RELU, texte compris. */
+export async function retouchRadarOutreach(id: number, changes: RadarOutreachChanges): Promise<RadarOutreachResponse> {
+  const res = await fetch(cheminApi`/api/super-admin/radar/outreaches/${id}`, {
+    method: 'PATCH',
+    credentials: 'include',
+    headers: JSON_ACCEPT,
+    body: JSON.stringify(changes),
+  });
+  return jsonOrThrow<RadarOutreachResponse>(res);
+}
+
+/** « J'ai envoyé le message » : le message passe `sent`, les annonces `contacted`. */
+export async function markRadarOutreachSent(id: number): Promise<RadarOutreachResponse> {
+  const res = await fetch(cheminApi`/api/super-admin/radar/outreaches/${id}/sent`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { Accept: 'application/json' },
+  });
+  return jsonOrThrow<RadarOutreachResponse>(res);
+}
+
+/**
+ * Les files du démarchage : `filter[queue]` (à contacter, en attente, à relancer), `filter[search]` (nom ou numéro,
+ * écrit comme on veut). Le message ouvert (`follow_up`, avec son échéance `due_at`) et les comptes par étape sont
+ * calculés par l'API.
+ */
+export async function fetchRadarAdvertisers(filters: RadarAdvertiserFilters): Promise<PaginatedResponse<RadarAdvertiserRow>> {
+  const search = filters.search?.trim();
+  const qs = buildQueryString({
+    fields: { radar_advertisers: RADAR_ADVERTISER_FIELDS },
+    filter: { queue: filters.queue, search: search || undefined },
+    page: filters.page ?? 1,
+    per_page: filters.perPage ?? 25,
+  });
+  const res = await fetch(cheminApi`/api/super-admin/radar/advertisers${requete(qs)}`, { credentials: 'include' });
+  return jsonOrThrow<PaginatedResponse<RadarAdvertiserRow>>(res);
+}
+
+/**
+ * Déposer la réponse d'un annonceur : les captures de la conversation, en multipart (`captures[]`, comme la saisie ;
+ * le relais transporte les octets). L'API rend la réponse (201), vérifiée en file : `verification_status` vaut `pending`.
+ */
+export async function depositRadarReply(outreachId: number, files: readonly File[]): Promise<{ readonly data: RadarConsent }> {
+  const form = new FormData();
+  for (const file of files) form.append('captures[]', file);
+  const res = await fetch(cheminApi`/api/super-admin/radar/outreaches/${outreachId}/reply`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { Accept: 'application/json' },
+    body: form,
+  });
+  return jsonOrThrow<{ readonly data: RadarConsent }>(res);
+}
+
+/**
+ * L'issue d'un message : le seul geste qui CONFIRME une réponse. Le motif n'est envoyé que s'il est écrit ; l'API
+ * l'exige (422 `radar.consent.reason_required`) pour un accord que le verdict ne soutient pas. Rend le message relu.
+ */
+export async function recordRadarOutcome(outreachId: number, request: RadarOutcomeRequest): Promise<RadarOutreachResponse> {
+  const reason = request.reason?.trim();
+  const res = await fetch(cheminApi`/api/super-admin/radar/outreaches/${outreachId}/outcome`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: JSON_ACCEPT,
+    body: JSON.stringify({ outcome: request.outcome, ...(reason ? { reason } : {}) }),
+  });
+  return jsonOrThrow<RadarOutreachResponse>(res);
 }

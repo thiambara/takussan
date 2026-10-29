@@ -125,6 +125,7 @@ const SANS_LIBELLE = {
   AgentProfileStatus: 'aucun écran relevé ne le traduit sous un espace complet',
   ConversationStatus: 'aucun espace du dictionnaire ne porte ses cas',
   InvitationStatus: 'aucun espace du dictionnaire ne porte ses cas',
+  RadarVerificationStatus: 'TCK-2388 : `ReponseVerdict` le lit en comparaison (`pending`, `failed`) et dit chaque état par une phrase (`superAdmin.pages.radar.advertiser.reply.pending`, `.failed`) — pas par une table à un cas par clé que `LIBELLES` puisse relever',
   ReferentialStatus: 'aucun écran relevé ne le traduit sous un espace complet',
   RelationshipStatus: 'aucun écran relevé ne le traduit (`billing.subscription.status` porte ses cas par coïncidence)',
   TaskStatus: 'aucun espace du dictionnaire ne porte ses quatre cas (`done` manque)',

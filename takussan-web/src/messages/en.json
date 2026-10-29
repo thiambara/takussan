@@ -8591,19 +8591,19 @@
           "fetchHttpError": "The site answered with an error.",
           "fetchTimeout": "The site did not answer in time.",
           "fetchUnresolvable": "The site name cannot be found.",
-          "aiBudget": "Today’s AI spending cap is reached: extraction will resume.",
-          "aiKillSwitch": "AI extraction is switched off from the AI console.",
-          "aiForbidden": "The operator who captured the listing may not run the extraction.",
+          "aiBudget": "Today’s AI spending cap is reached.",
+          "aiKillSwitch": "AI is switched off for this use from the AI console.",
+          "aiForbidden": "The operator may not run this AI operation.",
           "aiDataClass": "This content may not be sent to the model.",
           "aiSensitiveData": "The content carries sensitive data: it is not sent to the model.",
-          "aiRoleUnassigned": "No model is assigned to extraction.",
-          "aiProvidersUnavailable": "Every AI provider is unavailable: extraction will retry.",
+          "aiRoleUnassigned": "No model is assigned to this use.",
+          "aiProvidersUnavailable": "Every AI provider is unavailable.",
           "aiProviderAuth": "The AI provider rejected the key.",
           "aiRequestRejected": "The AI provider rejected the request.",
-          "aiProviderRateLimited": "The AI provider is rate limiting: extraction will retry.",
+          "aiProviderRateLimited": "The AI provider is rate limiting.",
           "aiProviderCredits": "The AI provider credit is exhausted.",
-          "aiProviderUnavailable": "The AI provider is unavailable: extraction will retry.",
-          "aiProviderTimeout": "The AI provider did not answer in time: extraction will retry.",
+          "aiProviderUnavailable": "The AI provider is unavailable.",
+          "aiProviderTimeout": "The AI provider did not answer in time.",
           "aiResponseInvalid": "The model’s answer cannot be used.",
           "aiResponseTruncated": "The model’s answer was cut off before the end.",
           "aiResponseFiltered": "The model’s answer was blocked by the provider’s filter.",
@@ -8862,9 +8862,325 @@
             "confirm": "Attach",
             "attached": "Advertiser attached.",
             "doNotContact": "This number asked not to be contacted: the listing is closed (do not contact), actions are disabled.",
-            "makeAdvertiserFor": "Make advertiser: {phone}"
+            "makeAdvertiserFor": "Make advertiser: {phone}",
+            "openAdvertiser": "Open the advertiser’s page"
           }
-        }
+        },
+        "advertiser": {
+          "metaTitle": "Radar advertiser",
+          "title": "Advertiser #{id}",
+          "back": "Back to Radar",
+          "forbidden": "Radar is restricted to support and super-admin operators.",
+          "loadError": "The advertiser could not be loaded.",
+          "unnamed": "Unnamed advertiser",
+          "noPhone": "Unknown number",
+          "identity": {
+            "heading": "Identity",
+            "phone": "Number",
+            "name": "Name read",
+            "nature": "Presumed nature",
+            "signals": "Signals found",
+            "noSignals": "No signals found."
+          },
+          "doNotContact": "This advertiser asked not to be contacted again (on {date}). No message is prepared or sent to them.",
+          "claim": {
+            "heading": "Ownership",
+            "none": "Nobody is handling this advertiser. Take it over to prepare a message.",
+            "mine": "You are handling this advertiser, until {until}.",
+            "other": "{name} is handling this advertiser, until {until}. You cannot prepare anything in the meantime.",
+            "take": "Take over",
+            "taking": "Taking over…",
+            "release": "Hand back",
+            "releasing": "Handing back…"
+          },
+          "listings": {
+            "heading": "Listings",
+            "none": "No listing is attached to this advertiser.",
+            "tableCaption": "The advertiser's listings, to tick for the message",
+            "select": "Pick listing #{id} for the message",
+            "open": "Open the page of listing #{id}",
+            "untitled": "Untitled listing",
+            "price": "Price",
+            "neighborhood": "Neighborhood",
+            "stage": "Stage",
+            "limit": "A message covers {max} listings at most.",
+            "why": {
+              "covered": "Already covered by a valid consent",
+              "notReviewed": "Not reviewed yet",
+              "closed": "Closed: nothing left to contact",
+              "pending": "A sent message is waiting for its answer"
+            },
+            "number": "#{id}"
+          },
+          "prepare": {
+            "heading": "New message",
+            "locale": "Message language",
+            "locales": {
+              "fr": "Français",
+              "en": "English"
+            },
+            "selected": "{count, plural, =0 {No listing picked} one {# listing picked} other {# listings picked}}",
+            "action": "Prepare the message",
+            "preparing": "Preparing…",
+            "replace": {
+              "title": "Replace the message being prepared?",
+              "body": "A message is already being prepared: preparing a new one replaces it and its edits are lost. If it was already sent on WhatsApp, cancel and mark it “I sent the message” first, otherwise the record of the text actually sent disappears.",
+              "cancel": "Cancel",
+              "confirm": "Replace the draft"
+            }
+          },
+          "message": {
+            "heading": "Message being prepared",
+            "listings": "Listings covered: {ids}",
+            "fixed": "Fixed text: the clauses cannot be edited",
+            "salutation": "Greeting",
+            "resume": "Listing summary",
+            "save": "Save",
+            "saving": "Saving…",
+            "aiMissing": "The AI did not write the greeting and the summary: fill in both fields.",
+            "aiReason": "Reason: {reason}",
+            "partsEmpty": "The greeting and the summary must be written before opening WhatsApp.",
+            "whatsapp": "Open WhatsApp",
+            "whatsappHint": "The link opens in a new tab, with the exact text above.",
+            "blocked": "This draft can no longer be sent. {reason} Prepare a new message.",
+            "sent": "I sent the message",
+            "sentTitle": "Confirm it was sent",
+            "sentBody": "Confirm this message was really sent to the advertiser. The listings will become “contacted” and the message can no longer be edited.",
+            "sentConfirm": "Yes, I sent it",
+            "sentSending": "Saving…",
+            "cancel": "Cancel",
+            "legacy": "This message was written with another template: its text is shown as it was saved.",
+            "number": "#{id}",
+            "unsaved": "Save your edits: WhatsApp only opens the saved text."
+          },
+          "history": {
+            "heading": "Sent messages",
+            "none": "No message has been sent to this advertiser yet.",
+            "date": "Date",
+            "author": "Author",
+            "locale": "Language",
+            "clauses": "Clauses version",
+            "listings": "Listings covered",
+            "status": "Status",
+            "outcome": "Outcome",
+            "noOutcome": "No outcome yet",
+            "text": "Exact text",
+            "unknownAuthor": "Unknown author",
+            "sentAt": "Sent on {date}",
+            "statuses": {
+              "prepared": "Prepared",
+              "sent": "Sent",
+              "closed": "Closed"
+            },
+            "outcomes": {
+              "consented": "Consent confirmed",
+              "refused": "Refusal",
+              "stop": "Do not contact again",
+              "question": "Advertiser's question",
+              "no_answer": "No answer"
+            },
+            "number": "#{id}",
+            "replies": "Replies deposited"
+          },
+          "errors": {
+            "generic": "The action failed.",
+            "claimRequired": "Take this advertiser over first: the action requires it.",
+            "claimedByOther": "This advertiser is being handled by another operator until {until}.",
+            "claimNotHeld": "This is not your claim: it cannot be handed back.",
+            "doNotContact": "This advertiser asked not to be contacted: no message is prepared or sent to them.",
+            "busy": "This advertiser is changing right now: try again in a moment.",
+            "localeUnsupported": "This language is not supported for the consent message.",
+            "listingForeign": "One of these listings does not belong to this advertiser.",
+            "listingNotReady": "One of these listings is not ready to be contacted: it must be reviewed and validated.",
+            "listingConsented": "One of these listings is already covered by a valid consent: no need to contact them again.",
+            "listingPending": "A message already sent for one of these listings is still waiting for an outcome.",
+            "followUpInvalid": "This message cannot be followed up: it must be sent, without outcome, and be the last of its chain.",
+            "followUpLimit": "The follow-up limit is reached for this message.",
+            "notPrepared": "This message is no longer in the prepared state: it can no longer be edited or sent.",
+            "partsMissing": "The greeting and the summary must be written: neither can be empty.",
+            "nothingToUpdate": "No edit to save.",
+            "notSent": "This message was not sent: no reply or outcome is recorded on it.",
+            "outcomeFinal": "This message is closed: no reply or outcome can be added.",
+            "superseded": "This message was followed up: the reply goes on the last follow-up.",
+            "replyPending": "A reply to this message is still being checked: wait for its verdict.",
+            "generationIncomplete": "The AI did not write the greeting and the summary: write them yourself.",
+            "replyRequired": "No reply is filed on this message: file the advertiser’s captures before confirming the consent.",
+            "reasonRequired": "The AI verdict does not point to a consent: write the reason for the confirmation.",
+            "listingStageConflict": "One of this message's listings changed stage: the page changed in the meantime, it is reloaded."
+          },
+          "reply": {
+            "heading": "Advertiser's reply",
+            "none": "No reply filed yet.",
+            "depositLabel": "Captures of the reply",
+            "deposit": "File the reply",
+            "depositing": "Sending…",
+            "selected": "{count, plural, =0 {No capture picked} one {# capture picked} other {# captures picked}}",
+            "depositHint": "Captures of the WhatsApp conversation: the message sent and the reply, with the number in the header.",
+            "waitVerdict": "A reply is still being checked: wait for its verdict before filing another.",
+            "depositedAt": "Filed on {date}",
+            "pending": "Checking…",
+            "pendingReason": "Check on hold: {reason}",
+            "failed": "The check failed: {reason}. Read the captures yourself.",
+            "failedNoReason": "The check failed. Read the captures yourself.",
+            "captures": "Captures",
+            "captureAlt": "Capture {n} of the reply",
+            "reasons": {
+              "error": "internal error in the check",
+              "invalidOutput": "the AI returned an unusable answer",
+              "timeout": "the AI did not answer in time",
+              "noCapture": "no readable capture",
+              "noNumber": "the advertiser has no number to compare",
+              "unexpected": "unexpected error"
+            },
+            "verdict": {
+              "heading": "AI verdict",
+              "confidence": "Confidence: {level}",
+              "levels": {
+                "high": "high",
+                "medium": "medium",
+                "low": "low"
+              },
+              "classifications": {
+                "consent": "Consent",
+                "refusal": "Refusal",
+                "stop": "STOP",
+                "question": "Question",
+                "ambiguous": "Ambiguous"
+              },
+              "numberMatches": "Number matches",
+              "numberMismatch": "Number mismatch: the header shows {phone}",
+              "numberMismatchUnknown": "Number mismatch",
+              "numberUnreadable": "Number unreadable: check it on the captures",
+              "checkedByCode": "judged by the code",
+              "checkedByModel": "judged by the AI",
+              "clauses": "Clauses found: {found} of {total}",
+              "clausesMissing": "missing: {missing}",
+              "replyText": "Reply read",
+              "noReplyText": "No readable reply",
+              "counterpart": "Counterpart: {name}",
+              "transcript": "Transcript",
+              "noTranscript": "No transcript.",
+              "discordances": "Gaps with a consent",
+              "confirmed": "Consent confirmed by {name} on {date}",
+              "confirmationReason": "Reason: {reason}",
+              "revoked": "Consent revoked on {date}",
+              "clausesIncomplete": "Clauses found: {found} — the verdict judges them incomplete"
+            }
+          },
+          "outcome": {
+            "open": "Record the outcome",
+            "title": "Message outcome",
+            "description": "Say what the advertiser answered. Only this confirmation makes a consent valid.",
+            "legend": "Outcome",
+            "hints": {
+              "consented": "They agree: the reply becomes a confirmed consent and the listings move to “consent received”.",
+              "refused": "They refuse: the listings are closed.",
+              "stop": "They no longer want to be contacted, for good.",
+              "question": "They asked a question: the message stays open.",
+              "no_answer": "They did not answer: the message is closed with no answer."
+            },
+            "noReply": "“Consent” is only possible with a reply filed.",
+            "discordancesHeading": "The AI verdict does not point to a consent:",
+            "discordances": {
+              "noVerdict": "no verdict (check in progress or failed)",
+              "numberMismatch": "the number in the header is not the advertiser's",
+              "identityUnverified": "neither the number nor the name shown confirms the advertiser",
+              "clausesMissing": "a clause of the message is not readable on the captures",
+              "notConsent": "the reply read is not a “yes”"
+            },
+            "reasonRequiredLabel": "Reason for the confirmation (required)",
+            "reasonRequiredHint": "Explain why you confirm the consent despite these gaps: the reason is kept with the consent.",
+            "stopWarning": "STOP is final: this advertiser's consents are revoked, their listings are no longer contacted and no message is prepared for them anymore.",
+            "stopContinue": "Continue",
+            "stopConfirm": "Yes, it is final",
+            "back": "Back",
+            "confirm": "Confirm",
+            "saving": "Saving…",
+            "cancel": "Cancel",
+            "options": {
+              "consented": "Consent",
+              "refused": "Refusal",
+              "stop": "STOP",
+              "question": "Question",
+              "no_answer": "No answer"
+            }
+          },
+          "followUp": {
+            "heading": "Follow-up",
+            "dueSince": "Follow-up due since {date}.",
+            "dueOn": "Follow-up planned for {date}.",
+            "prepare": "Prepare the follow-up",
+            "preparing": "Preparing…",
+            "noAnswer": "Close with no answer",
+            "noAnswering": "Saving…",
+            "noAnswerHint": "Follow-ups are used up and the due date has passed: close this message with no answer."
+          },
+          "awaiting": {
+            "heading": "Messages sent, waiting for an outcome",
+            "sentAt": "Sent on {date}",
+            "none": "No message is waiting for an outcome.",
+            "outcomeSet": "Outcome set: {outcome}, on {date}. A reply deposited later can still change it."
+          }
+        },
+        "advertisers": {
+          "metaTitle": "Radar advertisers",
+          "title": "Advertisers",
+          "subtitle": "The outreach queues: who to contact, who is waiting for a reply, who to follow up.",
+          "back": "Back to Radar",
+          "forbidden": "Radar is restricted to support and super-admin operators.",
+          "loadError": "The advertisers could not be loaded.",
+          "tabsAria": "Advertiser queue",
+          "tabs": {
+            "to_contact": "To contact",
+            "awaiting": "Waiting",
+            "follow_up": "To follow up"
+          },
+          "search": {
+            "label": "Search an advertiser",
+            "placeholder": "Name or number"
+          },
+          "columns": {
+            "name": "Advertiser",
+            "phone": "Number",
+            "nature": "Nature",
+            "counts": "Listings",
+            "due": "Follow-up due",
+            "claim": "Ownership"
+          },
+          "tableCaption": "The advertisers in the queue",
+          "unnamed": "Unnamed advertiser",
+          "noPhone": "Unknown number",
+          "doNotContact": "Do not contact",
+          "claimedBy": "Handled by {name}",
+          "claimedByMe": "Handled by you",
+          "proposeNoAnswer": "Suggest “no answer”",
+          "empty": {
+            "to_contact": {
+              "title": "Nobody to contact",
+              "description": "Advertisers with a reviewed listing not yet contacted appear here."
+            },
+            "awaiting": {
+              "title": "No message waiting",
+              "description": "A sent message waits here until its follow-up date comes."
+            },
+            "follow_up": {
+              "title": "Nothing to follow up",
+              "description": "Messages left unanswered past their due date appear here."
+            },
+            "search": {
+              "title": "No advertiser found",
+              "description": "Try another name, or the number written as you have it."
+            }
+          },
+          "countLine": "{label}: <n>{count}</n>",
+          "counts": {
+            "reviewed": "To contact",
+            "contacted": "Contacted",
+            "consented": "Consented"
+          }
+        },
+        "advertisersLink": "Advertisers",
+        "followUpsDue": "{count, plural, =0 {No follow-up due} one {# follow-up due} other {# follow-ups due}}"
       }
     },
     "featureFlags": {

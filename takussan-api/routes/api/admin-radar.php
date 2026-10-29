@@ -1,9 +1,11 @@
 <?php
 
+use App\Http\Controllers\Api\Admin\RadarAdvertiserController;
 use App\Http\Controllers\Api\Admin\RadarDashboardController;
 use App\Http\Controllers\Api\Admin\RadarListingController;
 use App\Http\Controllers\Api\Admin\RadarListingMatchController;
 use App\Http\Controllers\Api\Admin\RadarListingReviewController;
+use App\Http\Controllers\Api\Admin\RadarOutreachController;
 use App\Models\Enums\PlatformAbility;
 use Illuminate\Support\Facades\Route;
 
@@ -30,4 +32,17 @@ Route::middleware(['auth:sanctum', 'super-admin', 'platform-can:'.PlatformAbilit
         Route::post('listings/{listing}/discard', [RadarListingReviewController::class, 'discard'])->name('admin.radar.listings.discard');
         Route::put('listings/{listing}/advertiser', [RadarListingReviewController::class, 'advertiser'])->name('admin.radar.listings.advertiser');
         Route::get('listings/{listing}/matches', RadarListingMatchController::class)->name('admin.radar.listings.matches');
+        // TCK-2388 — le démarchage : les files et la fiche annonceur (lecture libre), la prise en charge de 10 minutes.
+        Route::get('advertisers', [RadarAdvertiserController::class, 'index'])->name('admin.radar.advertisers.index');
+        Route::get('advertisers/{advertiser}', [RadarAdvertiserController::class, 'show'])->name('admin.radar.advertisers.show');
+        Route::post('advertisers/{advertiser}/claim', [RadarAdvertiserController::class, 'claim'])->name('admin.radar.advertisers.claim');
+        Route::delete('advertisers/{advertiser}/claim', [RadarAdvertiserController::class, 'release'])->name('admin.radar.advertisers.release');
+        // Le message d'accord : préparé (ou relance), retouché, marqué envoyé. Chacun exige la prise en charge.
+        Route::post('advertisers/{advertiser}/outreaches', [RadarOutreachController::class, 'store'])->name('admin.radar.advertisers.outreaches.store');
+        Route::patch('outreaches/{outreach}', [RadarOutreachController::class, 'update'])->name('admin.radar.outreaches.update');
+        Route::post('outreaches/{outreach}/sent', [RadarOutreachController::class, 'sent'])->name('admin.radar.outreaches.sent');
+        // La réponse de l'annonceur : des captures (multipart) ; la vérification par l'IA part en file.
+        Route::post('outreaches/{outreach}/reply', [RadarOutreachController::class, 'reply'])->name('admin.radar.outreaches.reply');
+        // L'issue : le seul geste qui confirme une réponse (accord), ou qui clôt l'échange (refus, STOP).
+        Route::post('outreaches/{outreach}/outcome', [RadarOutreachController::class, 'outcome'])->name('admin.radar.outreaches.outcome');
     });

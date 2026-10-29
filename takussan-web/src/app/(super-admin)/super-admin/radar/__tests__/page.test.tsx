@@ -22,6 +22,8 @@ const DASHBOARD: RadarDashboard = {
     extraction_failed: 5, duplicate: 0, discarded: 0, refused: 0, do_not_contact: 1, purged: 0,
   },
   pending_extraction: 1,
+  follow_ups_due: 0,
+  outreaches_awaiting: 0,
   ai: { spent_today_xof: 20, daily_budget_xof: 2000, global_spent_today_xof: 23, global_daily_budget_xof: 5000 },
 };
 
@@ -147,7 +149,7 @@ describe('/super-admin/radar (TCK-2386)', () => {
     expect(within(echec).getByText('Essayez le texte ou les captures.')).toBeInTheDocument();
 
     const attente = screen.getByTestId('radar-listing-3');
-    expect(within(attente).getByText('En attente : Le plafond de dépense IA du jour est atteint : l’extraction reprendra.')).toBeInTheDocument();
+    expect(within(attente).getByText('En attente : Le plafond de dépense IA du jour est atteint.')).toBeInTheDocument();
     expect(within(attente).queryByText('Essayez le texte ou les captures.')).not.toBeInTheDocument();
 
     expect(within(screen.getByTestId('radar-listing-4')).getByText('Extraction en cours…')).toBeInTheDocument();
@@ -189,6 +191,29 @@ describe('/super-admin/radar (TCK-2386)', () => {
     expect(screen.queryByRole('button', { name: 'Saisir des annonces' })).not.toBeInTheDocument();
     expect(fetchRadarDashboard).not.toHaveBeenCalled();
     expect(fetchRadarListings).not.toHaveBeenCalled();
+  });
+});
+
+describe('/super-admin/radar — le lien « Annonceurs » (TCK-2388)', () => {
+  it('mène aux files d’annonceurs, sans pastille tant qu’aucune relance n’est due', async () => {
+    renderPage();
+    await screen.findByTestId('radar-listing-1');
+    expect(screen.getByRole('link', { name: /Annonceurs/ })).toHaveAttribute('href', '/super-admin/radar/advertisers');
+    expect(screen.queryByTestId('radar-relances-dues')).not.toBeInTheDocument();
+  });
+
+  it('porte le nombre de relances dues en pastille quand il n’est pas nul', async () => {
+    vi.mocked(fetchRadarDashboard).mockResolvedValue({ data: { ...DASHBOARD, follow_ups_due: 3 } });
+    renderPage();
+    const pastille = await screen.findByTestId('radar-relances-dues');
+    expect(pastille).toHaveTextContent('3');
+    expect(screen.getByRole('link', { name: /Annonceurs.*3 relances dues/ })).toBeInTheDocument();
+  });
+
+  it('un viewer ne voit pas le lien et ne déclenche aucune lecture', async () => {
+    renderPage(VIEWER);
+    expect(screen.queryByRole('link', { name: /Annonceurs/ })).not.toBeInTheDocument();
+    expect(fetchRadarDashboard).not.toHaveBeenCalled();
   });
 });
 

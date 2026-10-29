@@ -1,0 +1,11 @@
+{
+    "classification": {
+        "type": "exact"
+    },
+    "number_matches": {
+        "type": "exact"
+    },
+    "clauses_found": {
+        "type": "list"
+    }
+}
