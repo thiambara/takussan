@@ -184,6 +184,8 @@ class RadarConsentReplyTest extends TestCase
         // La vérification part en file UNE fois, après le commit ; le dépôt n'appelle jamais le modèle.
         Bus::assertDispatchedTimes(VerifyRadarConsentReply::class, 1);
         Bus::assertDispatched(VerifyRadarConsentReply::class, fn (VerifyRadarConsentReply $job) => $job->replyId === $consent->id);
+        // TCK-2402 : au VRAI site de dispatch (`RadarConsentWorkflow`), la file des appels IA.
+        $this->assertSame(['ai'], Bus::dispatched(VerifyRadarConsentReply::class)->map(fn (VerifyRadarConsentReply $job) => $job->queue)->all());
         RadarConsentVerification::assertNeverPrompted();
         $this->assertSame(0, AiCall::query()->count());
         // Déposer ne confirme rien et ne déplace aucune annonce.

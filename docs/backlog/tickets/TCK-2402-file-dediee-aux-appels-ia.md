@@ -105,6 +105,18 @@ et le processus qui la consomme.
   (`EPREUVES`), plus cinq ablations jouées à la main sur l'arbre (trait ôté d'un job, `ai` ajoutée au
   `--queue=` de `worker`, `worker-ia` retiré du compose, retiré de `dev.sh`, job neuf qui appelle
   `AiGateway`) : toutes rouges, tout restauré par `cmp`.
+- **La garde lit une fermeture, pas un nom** (vérification adverse I1) : `fermetureModele()` calcule les classes
+  d'`app/` qui mènent au modèle (SDK `Laravel\Ai\…`, `AiGateway`, `SocleAgent`, ce qui en étend ou en
+  enveloppe un et appelle `->run/prompt/generate/stream(`) ; jobs, contrôleurs, commandes et listeners n'y
+  entrent jamais (mettre un job en file n'appelle pas le modèle). Sur l'arbre : exactement 3 jobs
+  (`RunAiEvaluation`, `ExtractRadarListing`, `VerifyRadarConsentReply`), tous déclarés. Les listeners en
+  file sont jugés de même. Quatre ablations (service enveloppant, agent concret, helper `agent()`,
+  listener en file) rouges ; limite connue : une classe qui obtient le modèle par résolution du
+  conteneur sans jamais nommer un membre échappe à toute lecture de texte.
+- **Les vrais sites de dispatch sont testés** (I2) : `RadarListingStoreTest` (saisie et remise en file) et
+  `RadarConsentReplyTest` (dépôt d'un accord) exigent la file `ai` ; l'ablation `->onQueue('default')` aux
+  deux sites d'`RadarListingIntake` et `->onQueue('notifications-urgent')` dans `RadarConsentWorkflow` rougit.
+- **Smoke** : la boucle de sondes envoie aussi un job sur `ai` ; `long` n'y est pas (autre connexion).
 - **Surveillance** : `ai` rejoint `RecordQueueHeartbeat::QUEUES` (une ligne : le battement planifié, la
   sonde `workers` et les tests qui bouclent sur la liste la suivent) ; un `worker-ia` arrêté est `failed`
   à 300 s. Un appel de 85 s au plus reste sous le seuil `degraded` du battement (180 s). ⚠ Non traité :

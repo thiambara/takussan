@@ -1,5 +1,5 @@
 #!/bin/sh
-# Point d'entrée d'api, worker, worker-media et scheduler (ADR-0028 §3).
+# Point d'entrée d'api, worker, worker-long, worker-ia, worker-media et scheduler (ADR-0028 §3).
 #
 # La configuration se met en cache AU DÉMARRAGE, jamais au build : elle vient de l'environnement
 # du conteneur, que l'image ne connaît pas. Un `config:cache` au build figerait des valeurs vides
