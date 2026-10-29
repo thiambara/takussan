@@ -1,4 +1,5 @@
 import type { RadarPublicationListing, RadarPublicationPreview } from '@/types/radar';
+import { codeDeLErreur } from '../fiche/useMessageEchecFiche';
 
 /** Le choix explicite de l'opérateur, par annonce ; une annonce sans choix est cochée si rien ne la bloque. */
 export type ChoixAnnonces = Readonly<Record<number, boolean>>;
@@ -47,4 +48,37 @@ export function preparationEnCours(apercu: RadarPublicationPreview | undefined):
 /** Un blocage qui ferme tout l'écran : il n'y a rien à cocher, et la raison se lit avant le reste. */
 export function publicationFermee(apercu: RadarPublicationPreview): boolean {
   return apercu.blocking.length > 0;
+}
+
+/** Le code de l'intergiciel d'idempotence quand la même clé travaille encore (ADR-0072 § 5) : 409, sans rien écrire. */
+export const CODE_EN_COURS = 'idempotency.in_progress';
+
+/** Combien de fois on rejoue un envoi « encore en cours », et à quel rythme : 8 × 3 s, de quoi attendre une publication lente. */
+export const REJEUX_EN_COURS_MAX = 8;
+export const REJEU_EN_COURS_MS = 3_000;
+
+const pause = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+/**
+ * TCK-2389 (ADR-0072) — une publication longue dépasse le délai du relais alors que l'API va au bout et commite ; le réessai
+ * sous la MÊME clé rend alors 409 `idempotency.in_progress` tant qu'elle tourne, puis la réponse enregistrée. On le rejoue
+ * donc, à court délai et de façon bornée, au lieu de relire l'aperçu — qui, une fois les biens publiés, ne les montrerait
+ * plus — ; passé la borne, le refus remonte tel quel et la clé reste, pour que l'opérateur réessaie sous elle.
+ */
+export async function rejouerSiEnCours<T>(
+  appel: () => Promise<T>,
+  { essais = REJEUX_EN_COURS_MAX, delaiMs = REJEU_EN_COURS_MS, attendre = pause }: {
+    readonly essais?: number;
+    readonly delaiMs?: number;
+    readonly attendre?: (ms: number) => Promise<void>;
+  } = {},
+): Promise<T> {
+  for (let essai = 1; ; essai += 1) {
+    try {
+      return await appel();
+    } catch (e) {
+      if (codeDeLErreur(e) !== CODE_EN_COURS || essai >= essais) throw e;
+      await attendre(delaiMs);
+    }
+  }
 }

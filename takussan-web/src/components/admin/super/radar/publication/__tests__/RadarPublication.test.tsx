@@ -520,3 +520,81 @@ describe('RadarPublication — la prise en charge (TCK-2389)', () => {
     expect(deleteRadarListingPhoto).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('RadarPublication — le second message ne se perd pas (TCK-2389)', () => {
+  const enCours = () => new ApiError(409, { code: 'idempotency.in_progress' });
+
+  async function confirmer(detail?: RadarPublicationPreview) {
+    const rendu = await rendre(detail);
+    await rendu.utilisateur.click(publier());
+    const dialogue = await screen.findByRole('dialog');
+    await rendu.utilisateur.click(within(dialogue).getByRole('button', { name: 'Publier' }));
+    return { ...rendu, dialogue };
+  }
+
+  it('un envoi « encore en cours » se rejoue sous la MÊME clé jusqu\'à la réponse enregistrée, sans relire l\'aperçu', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.mocked(publishRadarAdvertiser)
+      .mockRejectedValueOnce(enCours())
+      .mockRejectedValueOnce(enCours())
+      .mockResolvedValueOnce({ data: publiee() });
+    const rendu = await rendre();
+    const lectures = vi.mocked(fetchRadarPublicationPreview).mock.calls.length;
+    await rendu.utilisateur.click(publier());
+    await rendu.utilisateur.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Publier' }));
+
+    await waitFor(() => expect(publishRadarAdvertiser).toHaveBeenCalledTimes(1));
+    expect(screen.queryByTestId('radar-publication-recap')).not.toBeInTheDocument();
+    await vi.advanceTimersByTimeAsync(3_100);
+    await waitFor(() => expect(publishRadarAdvertiser).toHaveBeenCalledTimes(2));
+    await vi.advanceTimersByTimeAsync(3_100);
+
+    expect(await screen.findByTestId('radar-publication-recap')).toBeInTheDocument();
+    const cles = vi.mocked(publishRadarAdvertiser).mock.calls.map((appel) => appel[2]);
+    expect(new Set(cles).size).toBe(1);
+    expect(cles).toHaveLength(3);
+    // Les refus « en cours » n'ont pas relu l'aperçu : une seule relecture, celle du succès.
+    expect(vi.mocked(fetchRadarPublicationPreview).mock.calls.length - lectures).toBeLessThanOrEqual(1);
+  });
+
+  it('un envoi qui reste « en cours » passé la borne le dit, garde le dialogue et la clé, et ne relit pas l\'aperçu', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.mocked(publishRadarAdvertiser).mockRejectedValue(enCours());
+    const rendu = await rendre();
+    const lectures = vi.mocked(fetchRadarPublicationPreview).mock.calls.length;
+    await rendu.utilisateur.click(publier());
+    const dialogue = await screen.findByRole('dialog');
+    await rendu.utilisateur.click(within(dialogue).getByRole('button', { name: 'Publier' }));
+
+    await vi.advanceTimersByTimeAsync(30_000);
+
+    expect(await within(dialogue).findByText(/Une publication est déjà en cours pour cet annonceur/)).toBeInTheDocument();
+    expect(publishRadarAdvertiser).toHaveBeenCalledTimes(8);
+    expect(new Set(vi.mocked(publishRadarAdvertiser).mock.calls.map((appel) => appel[2])).size).toBe(1);
+    expect(vi.mocked(fetchRadarPublicationPreview).mock.calls.length).toBe(lectures);
+  });
+
+  it('sans rien à publier mais des biens déjà en ligne (réponse perdue, page rechargée) : les liens et le second message se lisent', async () => {
+    await rendre(apercu({
+      listings: [],
+      blocking: ['radar.publish.nothing_covered'],
+      published: publiee().properties,
+    }));
+
+    const section = screen.getByTestId('radar-publication-deja');
+    expect(within(section).getByRole('heading', { name: 'Déjà en ligne pour cet annonceur' })).toBeInTheDocument();
+    const liens = within(section).getByRole('list', { name: 'Liens publics des biens publiés' });
+    expect(within(liens).getByRole('link', { name: 'Appartement 12' })).toHaveAttribute('href', 'https://takussan.test/fr/properties/appartement-12');
+    expect(within(liens).getByRole('link', { name: 'Appartement 13' })).toBeInTheDocument();
+    expect(await within(section).findByTestId('radar-publication-message-texte')).toHaveTextContent(/vos annonces sont en ligne/);
+    expect(fetchRadarPublishedMessage).toHaveBeenCalledWith(7, 'fr');
+    expect(within(section).getByRole('link', { name: 'Ouvrir WhatsApp' })).toHaveAttribute('href', WA_ME_PUBLIE);
+  });
+
+  it('rien n\'est déjà en ligne : aucune section, et le message n\'est pas lu', async () => {
+    await rendre();
+
+    expect(screen.queryByTestId('radar-publication-deja')).not.toBeInTheDocument();
+    expect(fetchRadarPublishedMessage).not.toHaveBeenCalled();
+  });
+});

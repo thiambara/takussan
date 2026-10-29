@@ -138,6 +138,36 @@ describe('relayerVersApi', () => {
     expect((await relais).status).toBe(504);
   });
 
+  it('TCK-2389 — la publication du Radar attend l\'API jusqu\'au délai long ; une autre écriture JSON du même relais garde le défaut', async () => {
+    // L'import d'un module passe par des minuteries : il se fait avant de les simuler.
+    const { POST } = await import('../super-admin/[...path]/route');
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    fetchMock.mockImplementation(apiFigee);
+    const appeler = (path: string[]) => POST(
+      new NextRequest(`http://localhost/api/super-admin/${path.join('/')}`, {
+        method: 'POST',
+        body: '{"listing_ids":[1]}',
+        headers: { 'content-type': 'application/json', cookie: 'auth_token=1|abc' },
+      }),
+      { params: Promise.resolve({ path }) },
+    );
+    // L'une après l'autre : la lecture d'un corps est une E/S que les minuteries simulées n'avancent pas deux fois de front.
+    const autre = appeler(['radar', 'advertisers', '7', 'claim']);
+    await vi.advanceTimersByTimeAsync(31_000);
+    expect((await autre).status).toBe(504);
+
+    let publieeReglee = false;
+    const publication = appeler(['radar', 'advertisers', '7', 'publish']).then((r) => {
+      publieeReglee = true;
+      return r;
+    });
+    await vi.advanceTimersByTimeAsync(31_000);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(publieeReglee).toBe(false);
+    await vi.advanceTimersByTimeAsync(DELAI_RELAIS_FICHIER_MS);
+    expect((await publication).status).toBe(504);
+  });
+
   it('l\'abandon d\'une écriture ne l\'abandonne pas', async () => {
     fetchMock.mockResolvedValueOnce(new Response('{}', { status: 200 }));
     const navigateur = new AbortController();

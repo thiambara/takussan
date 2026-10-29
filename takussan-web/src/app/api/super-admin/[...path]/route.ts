@@ -2,7 +2,14 @@ import { AUTH_COOKIE_NAME } from '@/lib/constants';
 import { cheminReserveAuxRouteHandlers } from '@/lib/impersonation';
 import { cheminAmont, reponseSegmentInvalide } from '@/lib/segments-amont';
 import { NextRequest, NextResponse } from 'next/server';
-import { relayerVersApi } from '@/lib/relais-api';
+import { DELAI_RELAIS_FICHIER_MS, relayerVersApi } from '@/lib/relais-api';
+
+/**
+ * TCK-2389 — « Publier pour lui » copie chaque photo de la réserve et encode sa vignette DANS sa transaction : quelques
+ * annonces bien garnies dépassent les 30 s du relais, dont la réponse se perdrait alors que l'API commite. Cette route seule
+ * attend jusqu'au délai des fichiers (sous les 100 s de Cloudflare) ; un envoi encore en cours se rejoue côté écran.
+ */
+const PUBLICATION_DU_RADAR = /^radar\/advertisers\/\d+\/publish$/;
 
 /**
  * TCK-145 — Same-origin proxy for the super-admin namespace. Forwards every
@@ -35,6 +42,7 @@ async function forward(request: NextRequest, segments: string[]): Promise<NextRe
     jeton: token,
     enTetes,
     accepteDeLaRequete: true,
+    ...(request.method === 'POST' && PUBLICATION_DU_RADAR.test(chemin) ? { delaiMs: DELAI_RELAIS_FICHIER_MS } : {}),
   });
 }
 

@@ -39,12 +39,15 @@ import { useLibelleCodePublication, useMessageEchecAnnonceur } from '../annonceu
 import { usePriseEnCharge } from '../annonceur/usePriseEnCharge';
 import { CartePublication } from './CartePublication';
 import { CompteACreer } from './CompteACreer';
+import { DejaPubliees } from './DejaPubliees';
 import { ConfirmerPublication } from './ConfirmerPublication';
 import {
   annoncesCochees,
+  CODE_EN_COURS,
   estCochee,
   preparationEnCours,
   publicationFermee,
+  rejouerSiEnCours,
   resumeDeLaPublication,
   type ChoixAnnonces,
 } from './publication';
@@ -86,7 +89,9 @@ function ApercuCharge({ id, apercu, claim }: ApercuChargeProps) {
 
   const relire = () => queryClient.invalidateQueries({ queryKey: radarKeys.publication(id) });
   // Un refus 409/422 dit que l'aperçu n'est plus ce que l'écran croit (accord révoqué, annonce changée d'étape) : il se relit.
+  // Sauf `idempotency.in_progress` : l'envoi tourne encore, et relu, l'aperçu ne montrerait plus les biens qu'il vient de publier.
   const relireSurRefus = (e: unknown) => {
+    if (codeDeLErreur(e) === CODE_EN_COURS) return;
     if (e instanceof ApiError && (e.status === 409 || e.status === 422)) void relire();
   };
   const surEchec = (e: unknown) => {
@@ -132,7 +137,7 @@ function ApercuCharge({ id, apercu, claim }: ApercuChargeProps) {
   const publication = useMutation<RadarPublicationResponse, ApiError, readonly number[]>({
     // Une clé d'idempotence par ouverture de la confirmation : la même sur réessai (ADR-0072), renouvelée au succès
     // ou si la saisie a changé depuis un premier envoi arrivé (422 `idempotency.key_reused`).
-    mutationFn: (ids) => avecPrise(() => publishRadarAdvertiser(id, ids, idempotence.cle())),
+    mutationFn: (ids) => avecPrise(() => rejouerSiEnCours(() => publishRadarAdvertiser(id, ids, idempotence.cle()))),
     onSuccess: (reponse) => {
       idempotence.apres({ ok: true });
       setConfirmation(false);
@@ -239,6 +244,8 @@ function ApercuCharge({ id, apercu, claim }: ApercuChargeProps) {
         onAnnuler={() => setConfirmation(false)}
         onConfirmer={() => publication.mutate(cochees.map((annonce) => annonce.id))}
       />
+
+      {apercu.published.length > 0 ? <DejaPubliees advertiserId={id} biens={apercu.published} /> : null}
     </div>
   );
 }

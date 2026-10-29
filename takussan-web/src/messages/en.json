@@ -9273,6 +9273,10 @@
               "copyFailed": "Copying failed: select the text by hand."
             }
           },
+          "alreadyPublished": {
+            "heading": "Already online for this advertiser",
+            "hint": "These properties are published. The message below lists every property the Radar has published for them; it can be composed at any time, even if the response to a publication was lost."
+          },
           "errors": {
             "listingForeign": "One of these listings is not this advertiser’s, or does not exist.",
             "notCovered": "One of these listings is not covered by a confirmed, unrevoked agreement: it cannot be published.",
