@@ -14,7 +14,7 @@ import {
 } from '@/types/radar';
 import { ERREURS_RECLAMATION_RADAR, REFUS_DU_CODE } from '@/components/radar-claim/codes-reclamation';
 import { ERREURS_PUBLICATION_RADAR } from '../publication/codes-publication';
-import { ERREURS_ANNONCEUR_RADAR, ERREURS_FICHE_RADAR, ERREURS_SAISIE_RADAR, MOTIFS_ECART_RADAR } from '../codes-radar';
+import { ERREURS_ANNONCEUR_RADAR, ERREURS_COLLECTE_RADAR, ERREURS_FICHE_RADAR, ERREURS_SAISIE_RADAR, MOTIFS_ECART_RADAR } from '../codes-radar';
 
 const RACINE = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..', '..', '..', '..');
 const lire = (...chemin: string[]) => readFileSync(join(RACINE, ...chemin), 'utf8');
@@ -73,8 +73,10 @@ describe('codes de la fiche du Radar', () => {
 
   it.each([['fr', fr], ['en', en], ['wo', wo]])('chaque signal de rapprochement a son libellé en %s', (_langue, messages) => {
     const signaux = messages.superAdmin.pages.radar.listing.matches.signals as Record<string, string>;
-    for (const signal of RADAR_MATCH_SIGNALS.filter((s) => s !== 'photo')) expect(signaux[signal], signal).toBeTruthy();
+    for (const signal of RADAR_MATCH_SIGNALS.filter((s) => s !== 'photo' && s !== 'text')) expect(signaux[signal], signal).toBeTruthy();
     for (const force of ['high', 'medium', 'low']) expect(signaux[`photo_${force}`], force).toBeTruthy();
+    // TCK-2392 — le texte se dit proche ou ressemblant, jamais fort à lui seul.
+    for (const cle of ['text_close', 'text_low']) expect(signaux[cle], cle).toBeTruthy();
   });
 
   it('les signaux sont ceux du RadarMatcher', () => {
@@ -105,6 +107,7 @@ describe('codes de la fiche du Radar', () => {
       ...Object.keys(ERREURS_ANNONCEUR_RADAR),
       ...Object.keys(ERREURS_PUBLICATION_RADAR),
       ...Object.keys(ERREURS_RECLAMATION_RADAR),
+      ...Object.keys(ERREURS_COLLECTE_RADAR),
     ]);
     expect(codes.filter((code) => !connus.has(code))).toEqual([]);
   });

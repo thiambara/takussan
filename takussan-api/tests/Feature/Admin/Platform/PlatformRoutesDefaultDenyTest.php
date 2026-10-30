@@ -89,6 +89,11 @@ class PlatformRoutesDefaultDenyTest extends TestCase
         'admin.radar.listings.photos.fetch',
         'admin.radar.listings.photos.store',
         'admin.radar.listings.photos.destroy',
+        // TCK-2392 (ADR-0080) — la collecte : lire les sites et leurs passages, séparer une fusion automatique
+        // (`platform.radar.operate`). Les régler et lancer un passage reste au `super_admin` (`platform.radar.publish`).
+        'admin.radar.crawl.sources.index',
+        'admin.radar.crawl.runs.index',
+        'admin.radar.listings.unmerge',
         // TCK-2395 (ADR-0081) — l'envoi d'un message préparé par l'API WhatsApp du Radar (`platform.radar.operate`).
         'admin.radar.outreaches.send',
     ];

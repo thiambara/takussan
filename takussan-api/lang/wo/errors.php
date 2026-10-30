@@ -772,6 +772,14 @@ return [
             'support_required' => 'Ce numéro est lié à deux comptes Takussan : écrivez-nous, nous les réunirons.',
             'name_contains_phone' => 'Le prénom et le nom de l\'espace ne peuvent pas contenir de numéro de téléphone.',
         ],
+        // TCK-2392 — la collecte automatique et la fusion des doublons entre sites.
+        'merge' => [
+            'not_automatic' => 'Cette annonce n\'a pas été fusionnée automatiquement : seule une fusion automatique se sépare ici.',
+        ],
+        'crawl' => [
+            'active' => 'Un passage est déjà en cours sur ce site : attendez sa fin.',
+            'unknown_site' => 'Ce site n\'est pas collecté : aucun adaptateur ne le lit.',
+        ],
     ],
     'pay_link' => [
         'not_found' => 'Lien fey bii amul.',

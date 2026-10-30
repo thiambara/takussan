@@ -209,6 +209,12 @@ export interface RadarListingDetail extends RadarListingRow {
   readonly advertiser: RadarAdvertiser | null;
   /** Présent pour une annonce saisie par captures. */
   readonly captures?: readonly RadarCapture[];
+  /** TCK-2392 — la fiche et ses doublons, chacun avec sa source et sa présence relevée par la collecte. */
+  readonly provenances?: readonly RadarProvenance[];
+  /** TCK-2392 — l'instant d'une fusion automatique ; `null` pour un doublon posé à la main. */
+  readonly merged_at?: string | null;
+  /** TCK-2392 — le passage de collecte qui a trouvé l'annonce ; `null` pour une saisie d'opérateur. */
+  readonly discovered_by_run_id?: number | null;
 }
 
 export interface RadarListingDetailResponse {
@@ -241,7 +247,7 @@ export interface RadarListingChanges {
 export type RadarMatchStrength = 'high' | 'medium' | 'low';
 
 /** `RadarMatcher::SIGNAL_*`. */
-export const RADAR_MATCH_SIGNALS = ['phone', 'neighborhood_price_bedrooms', 'photo'] as const;
+export const RADAR_MATCH_SIGNALS = ['phone', 'neighborhood_price_bedrooms', 'photo', 'text'] as const;
 
 export type RadarMatchSignalName = (typeof RADAR_MATCH_SIGNALS)[number];
 
@@ -252,6 +258,8 @@ export interface RadarMatchSignal {
   readonly distance?: number;
   /** Quartier, prix, chambres : l'écart relatif de prix. */
   readonly price_gap?: number;
+  /** TCK-2392 — texte : la similarité des deux descriptions, de 0 à 1. */
+  readonly similarity?: number;
 }
 
 /** La cible d'un rapprochement vers un bien du catalogue (`RadarMatchPresenter::properties`). */
@@ -683,3 +691,85 @@ export interface RadarPublishedMessage {
 export interface RadarPublishedMessageResponse {
   readonly data: RadarPublishedMessage;
 }
+
+// ─── Collecte automatique (TCK-2392) ─────────────────────────────────────────────────────────
+
+/** Une provenance de la fiche (`RadarListingResource::withProvenances`). */
+export interface RadarProvenance {
+  readonly listing_id: number;
+  /** L'annonce qui fait foi ; les autres en sont les doublons. */
+  readonly is_root: boolean;
+  readonly source_kind: RadarSourceKind;
+  readonly source_site: RadarSourceSite;
+  readonly source_url: string | null;
+  readonly stage: RadarListingStage;
+  /** Fusionnée automatiquement : l'opérateur peut la séparer. */
+  readonly merged_at: string | null;
+  /** Trouvée par la collecte, et non saisie. */
+  readonly crawled: boolean;
+  /** Premier et dernier passage qui l'ont vue — `null` sans instantané. */
+  readonly first_seen_at: string | null;
+  readonly last_seen_at: string | null;
+  readonly last_price: number | null;
+}
+
+/** `RadarCrawlStatus`. */
+export const RADAR_CRAWL_STATUSES = ['queued', 'running', 'finished', 'failed'] as const;
+
+export type RadarCrawlStatus = (typeof RADAR_CRAWL_STATUSES)[number];
+
+export type RadarCrawlTrigger = 'schedule' | 'manual';
+
+/** Un site collecté (`GET /api/admin/radar/crawl/sources`). */
+export interface RadarCrawlSource {
+  readonly id: number;
+  readonly site: RadarSourceSite;
+  readonly enabled: boolean;
+  readonly frequency_minutes: number;
+  readonly max_pages: number;
+  readonly enabled_at: string | null;
+  /** `include=operator` : celui au nom duquel les annonces trouvées sont extraites. */
+  readonly operator?: { readonly id: number; readonly name: string } | null;
+}
+
+export interface RadarCrawlSourcesResponse {
+  readonly data: readonly RadarCrawlSource[];
+}
+
+export interface RadarCrawlSourceResponse {
+  readonly data: RadarCrawlSource;
+}
+
+export interface RadarCrawlSourceChanges {
+  readonly enabled?: boolean;
+  readonly frequency_minutes?: number;
+  readonly max_pages?: number;
+}
+
+/** Un passage de collecte (`GET /api/admin/radar/crawl/runs`). */
+export interface RadarCrawlRun {
+  readonly id: number;
+  readonly site: RadarSourceSite;
+  readonly trigger: RadarCrawlTrigger;
+  readonly status: RadarCrawlStatus;
+  readonly started_at: string | null;
+  readonly finished_at: string | null;
+  readonly pages_read: number;
+  readonly cards_seen: number;
+  readonly listings_created: number;
+  readonly listings_known: number;
+  readonly snapshots_opened: number;
+  readonly reached_end: boolean;
+  /** Un code `radar.crawl.*` ou `radar.fetch.*`. */
+  readonly stop_reason: string | null;
+  readonly created_at: string;
+}
+
+export interface RadarCrawlRunResponse {
+  readonly data: RadarCrawlRun;
+}
+
+/** Les bornes de `config/radar.php` (`radar.crawl`) : le formulaire les respecte, l'API les impose. */
+export const RADAR_CRAWL_FREQUENCY_MIN = 60;
+export const RADAR_CRAWL_FREQUENCY_MAX = 10_080;
+export const RADAR_CRAWL_MAX_PAGES_LIMIT = 20;

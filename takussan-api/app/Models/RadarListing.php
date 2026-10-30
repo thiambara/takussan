@@ -7,9 +7,11 @@ use App\Models\Bases\AbstractModel;
 use App\Models\Enums\RadarListingStage;
 use App\Models\Enums\RadarSourceKind;
 use App\Models\Enums\RadarSourceSite;
+use App\Support\RadarSimilarityText;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 use Spatie\QueryBuilder\AllowedFilter;
@@ -30,6 +32,8 @@ class RadarListing extends AbstractModel implements HasMedia
         'content_fingerprint', 'extracted', 'matches', 'stage', 'stage_reason', 'extraction_attempts',
         'extracted_at', 'property_id', 'captured_by', 'purge_at',
         'source_photo_hashes', 'duplicate_of_listing_id', 'duplicate_of_property_id', 'photo_preparation',
+        // TCK-2392 — la collecte et la fusion automatique.
+        'discovered_by_run_id', 'merged_at', 'merge_checked_at', 'similarity_text',
     ];
 
     protected $casts = [
@@ -46,6 +50,9 @@ class RadarListing extends AbstractModel implements HasMedia
         'extraction_attempts' => 'integer',
         'extracted_at' => 'datetime',
         'purge_at' => 'datetime',
+        'discovered_by_run_id' => 'integer',
+        'merged_at' => 'datetime',
+        'merge_checked_at' => 'datetime',
     ];
 
     protected static array $requestFilterable = ['stage', 'source_site', 'radar_advertiser_id'];
@@ -58,6 +65,8 @@ class RadarListing extends AbstractModel implements HasMedia
         'content_fingerprint', 'extracted', 'matches', 'stage', 'stage_reason', 'extraction_attempts',
         'extracted_at', 'property_id', 'captured_by', 'purge_at', 'source_photo_hashes', 'duplicate_of_listing_id',
         'duplicate_of_property_id', 'photo_preparation', 'created_at', 'updated_at',
+        // TCK-2392 — `similarity_text` n'est pas lisible : c'est une donnée de calcul, pas d'affichage.
+        'discovered_by_run_id', 'merged_at',
     ];
 
     // Seul l'annonceur se charge par `include=` : la ressource ne rend que lui. Sous un sparse
@@ -76,6 +85,12 @@ class RadarListing extends AbstractModel implements HasMedia
     {
         static::creating(function (self $listing): void {
             $listing->purge_at ??= now()->addDays((int) config('radar.purge_after_days', 90));
+        });
+        // TCK-2392 — le texte du quatrième signal suit la lecture : recalculé quand elle change, vidé avec elle (purge).
+        static::saving(function (self $listing): void {
+            if ($listing->isDirty(['extracted', 'raw_text'])) {
+                $listing->similarity_text = RadarSimilarityText::of($listing->extracted, $listing->raw_text);
+            }
         });
     }
 
@@ -107,6 +122,24 @@ class RadarListing extends AbstractModel implements HasMedia
     public function property(): BelongsTo
     {
         return $this->belongsTo(Property::class);
+    }
+
+    /** TCK-2392 — les instantanés datés de cette annonce, du plus ancien au plus récent. */
+    public function snapshots(): HasMany
+    {
+        return $this->hasMany(RadarListingSnapshot::class)->orderBy('first_seen_at')->orderBy('id');
+    }
+
+    /** TCK-2392 — le passage de collecte qui l'a trouvée ; null pour une saisie d'opérateur. */
+    public function discoveredBy(): BelongsTo
+    {
+        return $this->belongsTo(RadarCrawlRun::class, 'discovered_by_run_id');
+    }
+
+    /** TCK-2392 — les annonces marquées doublon de celle-ci : avec elle, les provenances de la fiche. */
+    public function duplicates(): HasMany
+    {
+        return $this->hasMany(self::class, 'duplicate_of_listing_id');
     }
 
     /** TCK-2387 — l'annonce collectée dont celle-ci est le doublon. */
