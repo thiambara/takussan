@@ -1,7 +1,7 @@
 ---
 id: TCK-2432
 title: "Radar : bien publié dont l'annonce source a disparu — demander au titulaire si le bien est toujours disponible"
-status: todo
+status: doing
 phase: P3
 family: full
 estimate: M
