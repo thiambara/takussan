@@ -5065,8 +5065,8 @@ réglage `radar.mandate_agency_id`, auteur son administrateur principal.
 `super_admin`) remet `user_id` à null quand le compte lié est supprimé, sous le verrou de l'annonceur, et
 journalise `radar_account_released` (`previous_user_id`, motif facultatif). Refusé (409) sur un annonceur révoqué
 (`radar.advertiser.do_not_contact`) ou sans compte supprimé (`radar.advertiser.account_not_deleted`). La liste
-`filter[queue]=left_to_operator` rend les annonceurs dont une annonce `consented` porte une raison laissée par la
-publication de la réclamation, avec `left_purge_at`, l'échéance de purge de la première d'entre elles (calculée,
+`filter[queue]=left_to_operator` rend les annonceurs non révoqués (`do_not_contact_at` nul) dont une annonce
+`consented` porte une raison laissée par la publication de la réclamation, avec `left_purge_at`, l'échéance de purge de la première d'entre elles (calculée,
 pas une colonne).
 
 **Prise en charge (TCK-2388, ADR-0077 §11, modèle d'[ADR-0043 §7](adr/0043-avis-cible-eligibilite-moderation-et-verrou-plateforme.md)).**
@@ -5139,10 +5139,13 @@ instantanés), daté du passage qui confirme ; une annonce sans instantané, ou 
 
 **Question au titulaire (TCK-2432, ADR-0083 amendé).** Quand la disparition emporte la dernière source en ligne d'un
 bien que le Radar a publié, encore en vitrine, `RadarAvailabilityCheck::ask()` pose `availability_asked_at` (une fois
-par disparition) et notifie le titulaire (`property.source_listing_gone`) ; la réponse
+par disparition) et notifie le titulaire (`property.source_listing_gone`) ; elle pose la colonne **sans notifier**
+quand une question est déjà ouverte sur le bien (pour une autre de ses sources : la réponse vaudra pour les deux) ou
+que le bien n'a pas de titulaire ; la réponse
 (`POST /api/properties/{property}/availability-check`) écrit `availability_answer` et l'activité
 `radar_availability_answered`. Sans réponse après `radar.observe.owner_answer_days` (7) jours,
-`withdrawal_proposed_at` est posé et l'événement alertable `radar_withdrawal_proposed` part. Le retour de l'annonce
+`withdrawal_proposed_at` est posé et l'événement alertable `radar_withdrawal_proposed` part ; il se pose aussi **sans
+proposition** quand le bien a été supprimé ou n'est plus en vitrine, pour que la question ne soit plus relue. Le retour de l'annonce
 remet les cinq colonnes à null, avec `source_gone_at`.
 
 | Colonne | Type | Nullable | Défaut | Description |

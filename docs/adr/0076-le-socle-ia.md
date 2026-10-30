@@ -113,9 +113,7 @@ socle choisit le modèle, contrôle le budget et les données, journalise l'appe
 10. **Un contenu externe est une donnée, jamais une consigne.** Un usage qui lit un contenu venu de
     l'extérieur (une annonce collectée, une capture, un message) n'a **aucun outil d'écriture**,
     ne produit que sa sortie structurée, et reçoit ce contenu dans un bloc délimité, présenté au
-    modèle comme une donnée à analyser. La sortie structurée peut passer par l'outil de sortie du
-    SDK (`output_structured_data`, non strict) : c'est un canal de réponse, que le SDK n'exécute
-    pas, pas un outil au sens de ce point (TCK-2433).
+    modèle comme une donnée à analyser.
 
 11. **Le socle sémantique est une seule table**, `embeddings` (objet polymorphe, modèle, dimension,
     vecteur pgvector, empreinte du contenu). Elle est **conçue ici et créée par son premier

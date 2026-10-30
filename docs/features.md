@@ -768,20 +768,24 @@ en est le premier usager. Vision et lots : [plan du 2026-10-26](plans/2026-10-26
   (`wa.me/…`, `?phone=…`) : le socle le masque (`+221`, `00221`, `+33`, `+225`, `00…`, forme nationale
   `0X XX XX XX XX`), et la garde des jeux d'évaluation le signale (TCK-2400, TCK-2410). Le préfixe
   `+221 74`, qu'aucun opérateur n'attribue, est celui des numéros fictifs des jeux d'évaluation : il
-  n'est pas masqué. Le `+` d'un étage (`R+1` à `R+19`, derrière un `R` isolé) n'est pas un
+  n'est pas masqué. Le `+` d'un étage (`R+0` à `R+19`, derrière un `R` isolé) n'est pas un
   indicatif : le prix ou le numéro qui le suit reste lu (TCK-2428).
-- **Les jeux d'évaluation du Radar partent de vraies annonces, réécrites** : celui de l'extraction
-  compte 20 annonces relevées le 2026-10-29 sur Expat-Dakar et CoinAfrique, anonymisées puis
-  réécrites (titres reformulés, prix et surfaces décalés, adresses ramenées au quartier), et 10 cas
-  synthétiques (4 messages, 6 captures) ; aucune capture réelle, qui porte l'identité de
-  l'annonceur dans l'image. Celui de la vérification d'une réponse note le classement, la
-  concordance du numéro, le numéro transcrit et les clauses lisibles, sur 16 captures et 14 réponses
-  reçues en texte (TCK-2403, TCK-2427).
+- **Seul le jeu d'évaluation de l'extraction du Radar part de vraies annonces** : 20 annonces
+  relevées le 2026-10-29 sur Expat-Dakar et CoinAfrique, anonymisées puis réécrites (titres
+  reformulés, prix et surfaces décalés, adresses ramenées au quartier ; provenance dans
+  `provenance.json`), et 10 cas synthétiques (4 messages, 6 captures) ; aucune capture réelle, qui
+  porte l'identité de l'annonceur dans l'image (TCK-2403). **Celui de la vérification d'une réponse
+  est entièrement synthétique** : 16 captures dessinées par `render-captures.php`, jamais prises sur
+  une vraie conversation, et 14 réponses texte inventées (`text-cases.php`) ; il mesure la lecture de formes
+  connues et ne dit rien de la distribution réelle des réponses. Il note le classement, la
+  concordance du numéro, le numéro transcrit et les clauses lisibles (TCK-2388, TCK-2427).
 - **Le schéma de sortie d'un usage tient sous les limites publiées du fournisseur** (16 paramètres à
   union, 24 optionnels) ; un test le vérifie pour chaque agent. Une sortie stricte (grammaire du
-  fournisseur) ne dépasse pas la taille de schéma qu'un vrai appel a attestée ; au-delà, l'usage
-  passe par l'outil de sortie non strict, dont le normaliseur et la relecture humaine valident la
-  forme (TCK-2411, TCK-2433).
+  fournisseur) ne dépasse pas la taille de schéma qu'un vrai appel a attestée. Un usage dont le
+  schéma la dépasse (aujourd'hui l'extraction du Radar) le déclare dans son agent
+  (`SocleAgent::usesStrictSchema()` faux) et passe par l'outil de sortie non strict, dont le
+  normaliseur et la relecture humaine valident la forme : c'est un choix par agent, pas un repli à
+  l'exécution (TCK-2411, TCK-2433).
 - **Tout job qui appelle le modèle hors d'une requête HTTP déclare la file des appels IA** (`ai`) ;
   un appel plus long que le délai de reprise de la file par défaut (85 s au plus) prend la file des
   jobs longs. Une règle de CI le vérifie (`scripts/check-queues.mjs`, TCK-2402).
@@ -789,8 +793,8 @@ en est le premier usager. Vision et lots : [plan du 2026-10-26](plans/2026-10-26
 - **Un contenu externe est une donnée, jamais une consigne** : il arrive au modèle dans un bloc
   délimité, dont la balise n'est pas prévisible et qu'il ne peut pas refermer, et l'usage qui le lit
   n'a aucun outil, pas même de lecture, et ne rend qu'une sortie structurée (TCK-2398) — stricte
-  (grammaire du fournisseur) par défaut, ou par l'outil de sortie non strict du SDK quand le
-  fournisseur refuse la grammaire du schéma ; ce canal n'est pas un outil : rien ne s'y exécute
+  (grammaire du fournisseur) par défaut, ou par l'outil de sortie non strict du SDK pour un agent qui
+  le déclare ; ce canal n'est pas un outil : rien ne s'y exécute
   (TCK-2433).
 - La suite de tests n'appelle jamais un vrai modèle ; les évaluations se lancent à part.
 
@@ -810,14 +814,14 @@ catalogue tant que cet accord n'existe pas. Vision et lots : [plan du 2026-10-26
 | P1 | 🛡️ | Préparer le message d'accord pour une ou plusieurs annonces d'un annonceur (clauses fixes, salutation et résumé personnalisés par l'IA) et l'ouvrir dans WhatsApp ; relances après un délai sans réponse |
 | P1 | 🛡️ | Déposer la capture de la réponse : l'IA la transcrit, vérifie le numéro et les clauses et classe la réponse (accord, refus, STOP, question, ambigu) ; un opérateur confirme ; refus et STOP s'enregistrent aussi sans capture |
 | P1 | 🛡️ | « Publier pour lui » (`super_admin` seulement) : sur un accord confirmé, crée l'espace individuel de l'annonceur (compte sans mot de passe à son numéro) et y publie les annonces couvertes, après un écran de vérification (compte, biens, photos, doublons) ; une annonce relue sans titre se publie sous un titre construit de ses champs (type, chambres, contrat, quartier), que l'écran de vérification montre (TCK-2389) |
-| P1 | 👤🏢 | Réclamer ses annonces depuis le lien signé du message (`/claim/{jeton}`, 30 jours, mort après un STOP ou une révocation) : annonces en cartes à cocher et à corriger (titre, prix, description), prénom et nom de l'espace, acceptation des conditions avec leur version, code SMS envoyé au seul numéro de l'annonceur (affiché masqué), publication dans son espace individuel dès les photos prêtes ; un numéro déjà inscrit se connecte d'abord à son compte ; la même page active le compte créé par « publier pour lui » (TCK-2390) ; une annonce que la publication automatique ne peut pas mettre en ligne (photo, champ, refus) attend la vérification de l'équipe, et l'opérateur la reprend depuis la file « À reprendre », qui montre l'échéance de purge (TCK-2413) |
+| P1 | 👤🏢 | Réclamer ses annonces depuis le lien signé du message (`/claim/{jeton}`, 30 jours, mort après un STOP ou une révocation, refusé sous mandat jusqu'à la reprise, TCK-2421) : annonces en cartes à cocher et à corriger (titre, prix, description), prénom et nom de l'espace, acceptation des conditions avec leur version, code SMS envoyé au seul numéro de l'annonceur (affiché masqué), publication dans son espace individuel dès les photos prêtes ; un numéro déjà inscrit se connecte d'abord à son compte ; la même page active le compte créé par « publier pour lui » (TCK-2390) ; une annonce que la publication automatique ne peut pas mettre en ligne (photo, champ, refus) attend la vérification de l'équipe, et l'opérateur la reprend depuis la file « À reprendre », qui montre l'échéance de purge (TCK-2413) |
 | P1 | 🛡️ | Retrait de l'accord (STOP, ou révocation par la plateforme, `POST /api/admin/radar/advertisers/{id}/revoke`, `super_admin` seulement, motif obligatoire) : les biens publiés quittent la surface publique et l'index de recherche sur-le-champ, l'annonceur n'est plus jamais contacté (TCK-2391) |
 | P1 | 🛡️ | Purge des annonces jamais publiées à 90 jours ou dès un STOP, en conservant l'empreinte du numéro qui a refusé ; purge quotidienne (`radar:purge`, 04:15 Dakar), doublée d'un job lancé dès la révocation (TCK-2391) |
-| P2 | 🛡️ | Collecte automatique planifiée sur Expat-Dakar et CoinAfrique, **éteinte par défaut** : le `super_admin` allume chaque site, règle sa fréquence et ses pages, lance un passage (`/super-admin/radar/collecte`) ; chaque passage lit la liste (`robots.txt` respecté, un site à la fois), saisit les annonces nouvelles et date leurs instantanés (prix, surface, quartier, présence) ; la même annonce vue sur deux sites peut être fusionnée d'office en une fiche à deux provenances, que l'opérateur peut séparer — fusion **éteinte par défaut** (`RADAR_MERGE_AUTO`) (TCK-2392, [ADR-0080](adr/0080-la-collecte-automatique-du-radar.md)) |
+| P2 | 🛡️ | Collecte automatique planifiée sur Expat-Dakar et CoinAfrique, **éteinte par défaut** : le `super_admin` allume chaque site, règle sa fréquence et ses pages, lance un passage (`/super-admin/radar/collecte`) ; chaque passage lit la liste (`robots.txt` respecté, un seul passage actif par site), saisit les annonces nouvelles et date leurs instantanés (prix, surface, quartier, présence) ; la même annonce vue sur deux sites peut être fusionnée d'office en une fiche à deux provenances, que l'opérateur peut séparer — fusion **éteinte par défaut** (`RADAR_MERGE_AUTO`) (TCK-2392, [ADR-0080](adr/0080-la-collecte-automatique-du-radar.md)) |
 | P2 | 🛡️ | Annonceurs et observatoire du marché (`/super-admin/radar/observatory`) : classement des annonceurs par volume d'annonces vivantes (quartiers principaux, gammes de prix, sites, nature présumée, piste commerciale jusqu'à la demande de passage en agence) ; prix au m² par quartier, type et contrat ; temps de mise sur le marché ; quartiers où Takussan manque d'annonces ; part d'intermédiaires probables ; alerte quand l'annonce source d'un bien publié disparaît (TCK-2393, [ADR-0083](adr/0083-l-observatoire-du-marche.md)) |
 | P2 | 🛡️ | Relance d'activation d'un compte créé par « publier pour lui » et jamais activé : texte fixe versionné (`activation.v1`) avec les chiffres réels de la période — vues, demandes de contact et de visite, crédits offerts à l'activation —, ouvert dans WhatsApp puis marqué envoyé ; une relance par semaine au plus (`radar.activation.min_interval_days`) (TCK-2394) |
 | P2 | 🛡️ | Publication sous mandat Takussan (`super_admin`, drapeau `radar_mandate`, [ADR-0079](adr/0079-la-publication-sous-mandat-takussan.md) proposé) : sur un accord confirmé, l'annonceur qui ne veut pas de compte voit ses annonces publiées dans l'espace des mandats (réglage `radar.mandate_agency_id`), son numéro en contact, sans compte créé ; second message `mandat.v1`, sans lien d'activation (TCK-2394) |
-| P3 | 🛡️ | Démarchage par l'API WhatsApp Cloud sur un numéro dédié au Radar, réception des réponses par webhook signé et preuve par identifiant de message (TCK-2395, [ADR-0081](adr/0081-le-radar-prospecte-par-l-api-whatsapp-sur-son-propre-numero.md)) ; depuis la fiche annonceur, envoi confirmé, canal de chaque message, réponse reçue lue en texte (TCK-2426) ; état de remise suivi par les accusés de WhatsApp (TCK-2427) |
+| P3 | 🛡️ | Démarchage par l'API WhatsApp Cloud sur un numéro dédié au Radar, réception des réponses par webhook signé et preuve par identifiant de message (TCK-2395, [ADR-0081](adr/0081-le-radar-prospecte-par-l-api-whatsapp-sur-son-propre-numero.md)) ; depuis la fiche annonceur, envoi confirmé, canal de chaque message, réponse reçue lue en texte (TCK-2426) ; état de remise suivi par les accusés de WhatsApp et journalisé, pas encore affiché (TCK-2427, TCK-2437) |
 
 **Règles de gestion.**
 
@@ -868,20 +872,28 @@ catalogue tant que cet accord n'existe pas. Vision et lots : [plan du 2026-10-26
   sinon depuis la mise en ligne. Les vues dépassent la ligne de base posée à l'envoi précédent
   (`views_count` n'est pas daté) ; les demandes sont datées de la période ; les crédits sont ceux que
   l'activation accordera encore. Aucune relance pour un annonceur STOP, révoqué, purgé, déjà activé,
-  au compte indisponible, sans bien en ligne ou sous mandat ; l'envoi rejuge sous verrou et
+  au compte indisponible, sans bien en ligne ou sous mandat, ni tant que la connexion par téléphone
+  est éteinte (`radar.publish.activation_unavailable`) ou que l'aperçu des codes est actif hors
+  `local` (`radar.publish.otp_preview_active`) — donc aucune en préproduction, où `OTP_PREVIEW_ENABLED`
+  est allumé en `staging` ([hébergement](infra/hebergement.md)) ; l'envoi rejuge sous verrou et
   journalise les chiffres cités (`radar_activation_reminder_sent`) (TCK-2394).
 - **Un annonceur est publié pour lui OU sous mandat, jamais les deux** : le mandat refuse un
   annonceur rattaché à un compte (`radar.mandate.account_exists`), « publier pour lui » refuse un
   annonceur sous mandat (`radar.publish.under_mandate`). Le mandat garde les gardes de « publier pour
   lui » sauf celles du compte ; il est refusé drapeau `radar_mandate` éteint (`radar.mandate.disabled`)
-  ou sans espace des mandats (`radar.mandate.space_missing`) (TCK-2394, [ADR-0079](adr/0079-la-publication-sous-mandat-takussan.md)).
+  ou sans espace des mandats (`radar.mandate.space_missing`). **Sous mandat, la réclamation par le
+  lien est refusée** (409, `radar.claim.under_mandate`) : avant l'envoi du code SMS, puis sous le
+  verrou de l'annonceur à la confirmation, et la publication d'une réclamation aussi ; un lien encore
+  valide cesse donc de servir dès le mandat, jusqu'à la reprise des biens sous mandat (TCK-2421)
+  (TCK-2394, [ADR-0079](adr/0079-la-publication-sous-mandat-takussan.md)).
 - **La nature de l'annonceur reste dans le Radar**, jamais dans les profils.
 - **Le numéro WhatsApp des notifications ne sert jamais à prospecter.**
 - **Le démarchage par l'API part d'un numéro WhatsApp dédié au Radar, configuré à part** : le code
   refuse le numéro et le jeton des notifications (`radar.whatsapp.same_number`). Le message envoyé
   par l'API est le texte enregistré, ou rien ; son résumé ne dépasse pas 120 caractères. Une réponse
   reçue devient une preuve à confirmer, identifiée par l'identifiant du message, jamais un accord ;
-  une réponse qui vaut exactement « STOP » révoque l'annonceur dès sa réception
+  une réponse qui vaut « STOP », aux espaces, à la casse et à la ponctuation finale près, révoque
+  l'annonceur dès sa réception
   (`RADAR_WHATSAPP_AUTO_STOP`, allumé par défaut). Tant qu'une réponse
   reçue par l'API d'un annonceur n'est pas tranchée, sur n'importe laquelle de ses annonces, rien ne
   se prépare ni ne part vers lui, par l'API ou à la main (`radar.outreach.reply_pending`) ; l'issue
@@ -896,15 +908,19 @@ catalogue tant que cet accord n'existe pas. Vision et lots : [plan du 2026-10-26
   lu, ou non remis. Il n'avance que dans cet ordre, quels que soient l'ordre et le nombre des accusés
   reçus, et un message remis ne devient jamais « non remis ». Un accusé n'est jamais une preuve
   d'accord : il ne change ni l'envoi, ni l'issue, ni les annonces. Un message non remis est
-  journalisé avec le code de WhatsApp, sans texte ni numéro ; il reste envoyé, et l'opérateur juge de
-  la suite. Un accusé d'identifiant inconnu est ignoré, jamais rattaché par inférence (TCK-2427).
+  journalisé avec le code de WhatsApp (`radar_whatsapp_delivery_failed`), sans texte ni numéro ; il
+  reste envoyé, et l'opérateur juge de la suite. Un accusé d'identifiant inconnu est ignoré, jamais
+  rattaché par inférence (TCK-2427). **La console n'affiche pas encore cet état** : la fiche
+  annonceur ne distingue que le canal (à la main, par l'API, par l'API sans confirmation de Meta), si
+  bien qu'un message non remis s'y lit « par l'API », comme un message remis (TCK-2437).
 - **Les photos ne sont conservées qu'à partir de l'accord confirmé** : avant, seule leur empreinte (dHash, calculée à la volée sur la photo source, qui n'est jamais écrite) est gardée pour les rapprochements (TCK-2387). L'accord confirmé, qui autorise la publication avec les photos, fait télécharger les photos source dans une réserve **privée** de l'annonce ; l'opérateur peut y en retirer ou y en déposer à la main. La publication verse cette réserve au bien, sans appel réseau ; une annonce sans aucune photo en réserve ne se publie pas (TCK-2389). La réserve d'une annonce jamais publiée est purgée avec elle (TCK-2391).
 - **Révocation et purge** (TCK-2391, [ADR-0077 §8, §9](adr/0077-le-radar.md)). Une purge quotidienne
   (`radar:purge`, 04:15 Dakar), doublée d'un job lancé dès la révocation (`PurgeRadarAdvertiser`),
   efface le texte brut, l'URL, l'extraction, la réserve de photos et les captures des annonces
   jamais publiées, à 90 jours ou dès un STOP ; l'annonce passe « purgée », et ses instantanés de
   collecte sont supprimés (TCK-2392). Une annonce publiée ne l'est qu'avec la dernière preuve qui la
-  couvre, et seulement drapeau `radar.purge_published_material` allumé (voir plus bas). Les suggestions de l'IA qui portaient sur elle perdent leurs champs, pas leur ligne :
+  couvre, une fois son bien hors vitrine (ou supprimé), et seulement drapeau
+  `radar.purge_published_material` allumé (voir plus bas). Les suggestions de l'IA qui portaient sur elle perdent leurs champs, pas leur ligne :
   le taux d'acceptation ne bouge pas. Un message dont toutes les annonces sont purgées perd son
   texte, sauf s'il porte une preuve conservée ; une réponse non confirmée, ses captures, sa transcription et son verdict — une
   vérification encore en cours finit en échec, motif `radar.verification.purged`. Un annonceur sans
@@ -914,7 +930,7 @@ catalogue tant que cet accord n'existe pas. Vision et lots : [plan du 2026-10-26
   purge de la matière d'une annonce publiée, avec la preuve de l'accord trois ans après le retrait du
   dernier bien qu'il couvre, est codée et éteinte (`radar.purge_published_material`) : elle attend la
   décision du porteur et la relecture du texte légal (TCK-2406).
-- **Clé de l'empreinte des refus** (TCK-2414, [ADR-0082](adr/0082-l-empreinte-des-refus-du-radar-a-sa-propre-cle.md)).
+- **Clé de l'empreinte des refus** (TCK-2414, [ADR-0082](adr/0082-l-empreinte-des-refus-du-radar-a-sa-propre-cle.md) proposé).
   L'empreinte du numéro d'un annonceur qui a dit STOP se calcule sous une clé dédiée
   (`RADAR_PHONE_HMAC_KEY`), indépendante de la clé de l'application : faire tourner celle-ci ne fait
   oublier aucun refus. Les anciennes clés restent reconnues (`RADAR_PHONE_HMAC_PREVIOUS_KEYS`, repli
@@ -954,9 +970,13 @@ catalogue tant que cet accord n'existe pas. Vision et lots : [plan du 2026-10-26
 - **Quatrième signal de rapprochement, le texte** : similarité des descriptions par trigrammes
   (`pg_trgm`), sans aucun chiffre ; il ne rend jamais un rapprochement fort à lui seul. Un pilote
   d'embeddings le remplacera (TCK-2423).
-- **L'observatoire ne lit que des données anonymes** (instantanés, site, rattachement au catalogue,
-  disparition) ; une annonce vue sur plusieurs sites compte une fois
-  ([ADR-0083](adr/0083-l-observatoire-du-marche.md)). Ses chiffres portent sur les annonces
+- **Les agrégats de marché de l'observatoire ne lisent que des données anonymes** (prix au m²,
+  temps de mise sur le marché, écart d'offre, sources disparues : instantanés, site, rattachement au
+  catalogue, disparition) ; une annonce vue sur plusieurs sites compte une fois
+  ([ADR-0083](adr/0083-l-observatoire-du-marche.md)). Deux lectures ne le sont pas : la part
+  d'intermédiaires lit la nature présumée de l'annonceur (`radar_advertisers.nature`), et le
+  classement des annonceurs, outil commercial du démarchage, ne prétend pas être anonyme
+  (ADR-0083 § 5). Ses chiffres portent sur les annonces
   conservées : une annonce purgée n'y est plus, et la période couverte ne remonte pas au-delà de la
   rétention de 90 jours. La part d'intermédiaires ne porte que sur les annonceurs encore porteurs
   d'annonces non purgées (TCK-2393).
