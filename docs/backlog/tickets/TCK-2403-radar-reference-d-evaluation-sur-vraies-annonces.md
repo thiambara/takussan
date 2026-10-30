@@ -1,13 +1,13 @@
 ---
 id: TCK-2403
 title: "Radar : le jeu d'évaluation de l'extraction passe à de vraies annonces anonymisées, et sa référence est fixée"
-status: review
+status: done
 phase: P1
 family: technique
 estimate: S
 wave: 80
 created: 2026-10-27
-updated: 2026-10-29
+updated: 2026-10-30
 depends_on: [TCK-2386, TCK-2388]
 blocks: []
 spec_refs:
@@ -77,20 +77,20 @@ porte le numéro et le nom de l'annonceur dans l'image, qu'aucune garde ne sait 
 - [x] Remplacer ou compléter les cas synthétiques par des annonces réelles anonymisées (au moins
       la moitié du jeu, textes et captures), sorties attendues relues ; `README.md` mis à jour.
       *(20 cas réels sur 30, tous des textes : aucune capture réelle ne s'anonymise — voir les notes.)*
-- [ ] Passage complet `php artisan ai:eval radar.extraction --update-baseline` (accord du
+- [x] Passage complet `php artisan ai:eval radar.extraction --update-baseline` (accord du
       porteur), `baseline.json` versionné.
 - [x] `RadarExtractionEvalSetTest` : vert sur le jeu nouveau.
 - [x] `radar.verification_accord` : décider de la notation de `number_matches` (contrainte
-      ci-dessus) — *`counterpart_phone` noté en plus, voir les notes* ; [ ] passage complet `php artisan ai:eval radar.verification_accord
+      ci-dessus) — *`counterpart_phone` noté en plus, voir les notes* ; [x] passage complet `php artisan ai:eval radar.verification_accord
       --update-baseline` (accord du porteur, même passage payant), `baseline.json` versionné.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — `ai:eval radar.extraction` passe sur le jeu livré et en fixe la référence (ex-AC8 de
+- [x] AC1 — `ai:eval radar.extraction` passe sur le jeu livré et en fixe la référence (ex-AC8 de
       TCK-2386).
 - [x] AC2 — Au moins la moitié des cas viennent d'annonces réelles, et aucun ne porte de numéro, de
       courriel ou de nom réel (garde verte, relecture notée dans le `README.md`).
-- [ ] AC3 — `ai:eval radar.verification_accord` passe sur le jeu de TCK-2388 et en fixe la
+- [x] AC3 — `ai:eval radar.verification_accord` passe sur le jeu de TCK-2388 et en fixe la
       référence (AC6 de TCK-2388, partie « référence réelle »).
 
 ## Hors périmètre
@@ -100,18 +100,14 @@ porte le numéro et le nom de l'annonceur dans l'image, qu'aucune garde ne sait 
 - Des captures réelles pour `radar.verification_accord` (voir le contrat de données).
 - Un changement du prompt ou du modèle de l'extraction.
 
-## Reste sur dev
-
-Le code et les trente cas sont sur `dev` (PR #1584). Il reste le passage payant, à lancer par le porteur à
-la main depuis l'arbre principal (`takussan-api/`) : `php artisan ai:eval radar.extraction --update-baseline`
-puis `php artisan ai:eval radar.verification_accord --update-baseline`. Les deux `baseline.json` versionnés
-ferment AC1 et AC3, et le ticket passe à `done`.
-
 ## Notes d'implémentation
 
-**Reste pour le porteur** : AC1 et AC3 attendent le passage payant (les deux `--update-baseline`, à lancer à la
-main depuis l'arbre principal, après sa relecture des cas). Le ticket passe à `done` quand les deux
-`baseline.json` sont versionnés.
+**Passages de référence réels faits, les deux `baseline.json` versionnés** :
+- `radar.verification_accord` (2026-10-29, `anthropic/claude-sonnet-5-5`) : **0,9844** ; versionné par TCK-2411.
+- `radar.extraction` (2026-10-30, `anthropic/claude-sonnet-5-5`, prompt `v3`) : **0,9560 sur 30 cas, 0 échec**,
+  420,81 XOF ; rôle `extraction` 0,9450 (24 cas), rôle `vision` 1,0000 (6 cas) ; champ le plus faible
+  `amenities`, 0,7718. Il n'a pu se jouer qu'après TCK-2411 et TCK-2433, qui ont levé trois refus d'Anthropic
+  (unions, grammaire compilée, outil forcé) ; versionné par TCK-2433.
 
 - **Les cas réels sont relevés sur Expat-Dakar (14) et CoinAfrique (6) le 2026-10-29, puis réécrits** : titres
   reformulés, prix et surfaces décalés d'un petit écart (texte ET attendu), date d'inscription, nombre d'annonces et

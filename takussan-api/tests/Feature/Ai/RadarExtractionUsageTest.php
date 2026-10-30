@@ -109,7 +109,7 @@ class RadarExtractionUsageTest extends TestCase
         $this->assertInstanceOf(AttachmentsUseVision::class, $usage);
         $this->assertSame(AiModelRole::Extraction, $usage->role());
         $this->assertSame(RadarExtraction::class, $usage->agentClass());
-        $this->assertSame(2, $usage->promptVersion());
+        $this->assertSame(3, $usage->promptVersion());
         $this->assertSame(AiDataClass::Personnelle, $usage->maxDataClass());
         $this->assertSame(PlatformAbility::RadarOperate, $usage->authority());
         $this->assertSame(2000.0, $usage->dailyBudgetXof());
@@ -225,7 +225,7 @@ class RadarExtractionUsageTest extends TestCase
     {
         $prompt = app(PromptRepository::class)->load(RadarExtractionUsage::KEY, (new RadarExtractionUsage)->promptVersion());
 
-        foreach (['mot pour mot', 'null', 'low', 'invente', 'commission', 'frais de visite', 'contenu_externe', 'jamais `null`', 'première offre', '`evidence` vaut la chaîne vide `""`'] as $attendu) {
+        foreach (['mot pour mot', 'null', 'low', 'invente', 'commission', 'frais de visite', 'contenu_externe', 'jamais `null`', 'première offre', '`evidence` vaut la chaîne vide `""`', 'outil de sortie', 'une seule fois'] as $attendu) {
             $this->assertStringContainsStringIgnoringCase($attendu, $prompt);
         }
         // TCK-2411 — le schéma n'admet plus `evidence: null` : le prompt joué ne doit plus le demander.

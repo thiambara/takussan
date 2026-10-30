@@ -894,7 +894,9 @@ class ExtractRadarListingTest extends TestCase
 
     public function test_an_invalid_output_is_retried_once_then_fails_keeping_the_source(): void
     {
-        RadarExtraction::fake([['phones' => []], []]);
+        // TCK-2433 — une sortie vide (`[]`) n'arrive plus au job : la passerelle en fait un échec du maillon
+        // (`ai.response_invalid`, épreuve dans `StructuredOutputModeTest`). L'invalide ici est une sortie incomplète.
+        RadarExtraction::fake([['phones' => []], ['phones' => []]]);
         $listing = $this->annonce();
 
         $this->lancer($listing)->assertReleased(60);
@@ -911,7 +913,7 @@ class ExtractRadarListingTest extends TestCase
 
     public function test_an_invalid_output_followed_by_a_valid_one_is_extracted(): void
     {
-        RadarExtraction::fake([[], $this->reponseComplete()]);
+        RadarExtraction::fake([['phones' => []], $this->reponseComplete()]);
         $listing = $this->annonce();
 
         $this->lancer($listing)->assertReleased(60);
@@ -1128,6 +1130,20 @@ class ExtractRadarListingTest extends TestCase
 
         $this->lancer($listing)->assertNotReleased();
         $this->assertSame([RadarListingStage::ExtractionFailed, 'ai.response_invalid'], [$listing->refresh()->stage, $listing->stage_reason]);
+    }
+
+    /** TCK-2433 — une réponse sans sortie (l'outil de sortie n'est plus forcé) bascule, puis se retente une fois. */
+    public function test_a_response_without_output_fails_over_then_is_retried_once(): void
+    {
+        RadarExtraction::fake([[], [], [], []]);
+        $listing = $this->annonce();
+
+        $this->lancer($listing)->assertReleased(60);
+        $this->assertSame([RadarListingStage::Captured, 'ai.response_invalid'], [$listing->refresh()->stage, $listing->stage_reason]);
+
+        $this->lancer($listing)->assertNotReleased();
+        $this->assertSame([RadarListingStage::ExtractionFailed, 'ai.response_invalid'], [$listing->refresh()->stage, $listing->stage_reason]);
+        RadarExtraction::assertPromptedTimes(4);
     }
 
     public function test_a_truncated_response_is_retried_once_then_fails(): void
