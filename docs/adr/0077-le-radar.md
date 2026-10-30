@@ -107,6 +107,7 @@ espace individuel ordinaire.**
    - pour un annonceur qui a demandé à ne plus être contacté, une **empreinte à clé (HMAC) de son
      numéro**, et rien d'autre. Sans elle, le Radar le retrouverait sur une prochaine annonce et
      le recontacterait : effacer son numéro en clair ne doit pas effacer son refus.
+     Voir [ADR-0082](0082-l-empreinte-des-refus-du-radar-a-sa-propre-cle.md) (TCK-2414) : la clé de cette empreinte.
 
    Après le retrait du dernier bien qu'elle couvre, une preuve d'accord est conservée pendant la
    durée fixée par la politique de confidentialité, puis effacée.

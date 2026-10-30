@@ -65,6 +65,7 @@ trace conservée cinq ans.**
   l'égalité). **Pas d'empreinte HMAC** : aucun écran ne cherche un RIB, et une empreinte est une
   seconde copie dérivée à gouverner. Si le besoin naît, ce sera une colonne `<col>_hmac`
   (HMAC-SHA256 sous une clé **distincte** d'`APP_KEY`), par ADR.
+  Voir [ADR-0082](0082-l-empreinte-des-refus-du-radar-a-sa-propre-cle.md) (TCK-2414) : premier cas, l'empreinte des refus du Radar.
 - **Masquage** : une seule fonction, `App\Support\Masking` — `iban()` (forme `SN•• •••• ••34`) et
   `tail()` (quatre derniers caractères). Les autres masqueurs s'y ramènent.
 - **Écarté** : chiffrement au niveau de PostgreSQL (`pgcrypto`) — la clé voyagerait dans chaque

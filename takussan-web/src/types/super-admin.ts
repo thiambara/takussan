@@ -752,7 +752,8 @@ export type HealthReason =
   | 'unreachable'
   | 'not_meilisearch'
   | 'wildcard_trusts_nobody'
-  | 'signing_secret_missing';
+  | 'signing_secret_missing'
+  | 'radar_phone_key_missing';
 
 export type HealthcheckStatus = {
   status: HealthLevel;
@@ -787,6 +788,8 @@ export type PlatformHealth = {
   scheduler?: HealthcheckStatus & { last_run_at?: string | null };
   proxies?: HealthcheckStatus;
   lemon_squeezy_webhook?: HealthcheckStatus;
+  /** TCK-2414 — `degraded` hors local tant que `RADAR_PHONE_HMAC_KEY` n'est pas posée. */
+  radar_phone_key?: HealthcheckStatus;
   status?: HealthLevel;
   generated_at: string;
 };

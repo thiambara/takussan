@@ -7789,7 +7789,8 @@
         "whatsapp": "WhatsApp",
         "scheduler": "Planificateur",
         "proxies": "Mandataires de confiance",
-        "lemon_squeezy_webhook": "Webhook Lemon Squeezy"
+        "lemon_squeezy_webhook": "Webhook Lemon Squeezy",
+        "radar_phone_key": "Clé des refus du Radar"
       },
       "hint": {
         "error": "Erreur : {message}",
@@ -7802,7 +7803,8 @@
           "unreachable": "Serveur injoignable",
           "not_meilisearch": "Recherche hors Meilisearch",
           "wildcard_trusts_nobody": "« * » ne fait confiance à aucun mandataire",
-          "signing_secret_missing": "Secret de signature absent de la configuration"
+          "signing_secret_missing": "Secret de signature absent de la configuration",
+          "radar_phone_key_missing": "Clé dédiée absente : l’empreinte des refus dépend d’APP_KEY"
         }
       },
       "status": {

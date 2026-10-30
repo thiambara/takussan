@@ -320,4 +320,70 @@ class RadarPhoneTest extends TestCase
         $this->assertSame(hash_hmac('sha256', '+221771234567', 'cle-dediee'), RadarPhone::hmac('+221771234567'));
         $this->assertNotSame($derivee, RadarPhone::hmac('+221771234567'));
     }
+
+    public function test_ac1_sans_cle_dediee_l_empreinte_reste_celle_d_avant_tck_2414(): void
+    {
+        $appKey = 'base64:'.base64_encode(str_repeat('k', 32));
+        $avant = hash_hmac('sha256', '+221771234567', 'radar-phone|'.$appKey);
+
+        foreach ([null, ''] as $vide) {
+            config(['app.key' => $appKey, 'radar.phone_hmac_key' => $vide]);
+            $this->assertSame($avant, RadarPhone::hmac('+221771234567'));
+            $this->assertFalse(RadarPhone::hasDedicatedKey());
+        }
+
+        config(['radar.phone_hmac_key' => 'cle-dediee']);
+        $this->assertTrue(RadarPhone::hasDedicatedKey());
+    }
+
+    public function test_les_empreintes_reconnues_couvrent_la_cle_courante_les_anciennes_et_le_repli_sur_app_key(): void
+    {
+        config([
+            'radar.phone_hmac_key' => 'cle-deux',
+            'radar.phone_hmac_previous_keys' => ['cle-une'],
+            'app.key' => 'base64:courante',
+            'app.previous_keys' => ['base64:ancienne'],
+        ]);
+        $h = fn (string $key): string => hash_hmac('sha256', '+221771234567', $key);
+
+        $this->assertSame(
+            [$h('cle-deux'), $h('cle-une'), $h('radar-phone|base64:courante'), $h('radar-phone|base64:ancienne')],
+            RadarPhone::hmacs('+221771234567'),
+        );
+        $this->assertSame(RadarPhone::hmac('+221771234567'), RadarPhone::hmacs('+221771234567')[0], 'la clé courante d\'abord');
+    }
+
+    public function test_sans_cle_dediee_l_empreinte_courante_n_est_pas_doublee(): void
+    {
+        config(['radar.phone_hmac_key' => null, 'radar.phone_hmac_previous_keys' => [], 'app.key' => 'base64:courante', 'app.previous_keys' => []]);
+
+        $this->assertSame([RadarPhone::hmac('+221771234567')], RadarPhone::hmacs('+221771234567'));
+    }
+
+    public function test_la_configuration_lit_la_cle_et_les_anciennes_cles_dans_l_environnement(): void
+    {
+        $variables = ['RADAR_PHONE_HMAC_KEY' => 'cle-deux', 'RADAR_PHONE_HMAC_PREVIOUS_KEYS' => 'cle-une, cle-zero,'];
+        $avant = [];
+        foreach ($variables as $nom => $valeur) {
+            $avant[$nom] = [$_SERVER[$nom] ?? null, $_ENV[$nom] ?? null];
+            $_SERVER[$nom] = $_ENV[$nom] = $valeur;
+        }
+
+        try {
+            $radar = require config_path('radar.php');
+        } finally {
+            foreach ($avant as $nom => [$server, $env]) {
+                unset($_SERVER[$nom], $_ENV[$nom]);
+                if ($server !== null) {
+                    $_SERVER[$nom] = $server;
+                }
+                if ($env !== null) {
+                    $_ENV[$nom] = $env;
+                }
+            }
+        }
+
+        $this->assertSame('cle-deux', $radar['phone_hmac_key']);
+        $this->assertSame(['cle-une', 'cle-zero'], $radar['phone_hmac_previous_keys']);
+    }
 }

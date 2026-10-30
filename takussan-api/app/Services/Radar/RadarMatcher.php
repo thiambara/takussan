@@ -263,7 +263,8 @@ final class RadarMatcher
      */
     private function listingsByPhone(RadarListing $listing, array $phones): array
     {
-        $hmacs = array_map(RadarPhone::hmac(...), $phones);
+        // TCK-2414 — l'empreinte d'un refus purgé peut dater d'une ancienne clé.
+        $hmacs = $phones === [] ? [] : array_merge(...array_map(RadarPhone::hmacs(...), $phones));
         if ($listing->advertiser?->phone_hmac !== null) {
             $hmacs[] = $listing->advertiser->phone_hmac;
         }
