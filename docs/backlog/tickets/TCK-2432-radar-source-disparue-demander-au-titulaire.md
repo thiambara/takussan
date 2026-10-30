@@ -105,12 +105,16 @@ rien, et le bien reste public.
 
 Plus rien ne dépend d'une autre fusion : TCK-2392 et TCK-2393 sont sur `dev`, et chaque case du delta et l'AC1 sont
 prouvés par des tests exécutés (`RadarAvailabilityCheckTest`, `QuestionDeDisponibilite.tck-2432.test.tsx`,
-`question-de-disponibilite.tck-2432.test.tsx`), chacun vérifié par ablation. Restent, hors de ce ticket :
+`question-de-disponibilite.tck-2432.test.tsx`), chacun vérifié par ablation.
+
+Sous mandat (TCK-2394, ADR-0079), `RadarAvailabilityCheckSousMandatTest` fige le comportement : la question part à
+l'administrateur principal de l'espace des mandats, auteur du bien, dans la cloche et par courriel, sans aucun envoi
+vers un numéro ; si ce compte n'a pas d'`AgencyAdminProfile` dans l'espace, la proposition de retrait à 7 jours alerte
+l'équipe.
+
+Reste, hors de ce ticket :
 
 - **La PR de spec commune** (ce ticket ne touche ni `docs/features.md` ni `docs/models-spec.md`) : le paragraphe de
   `features.md` § 2.12 sur la question au titulaire, l'interrupteur `property_availability_check` dans les préférences de
   notification, et les cinq colonnes `availability_*` / `withdrawal_proposed_at` de `radar_listings` dans
   `models-spec.md`. Texte exact dans le rapport d'implémentation.
-- **TCK-2394** (mandat Takussan, `todo`) : sous mandat, la question partira au `user_id` que la publication sous mandat
-  pose sur le bien (l'espace des mandats), sans changement de code ici ; à vérifier par un test quand TCK-2394 sera
-  implémenté.
