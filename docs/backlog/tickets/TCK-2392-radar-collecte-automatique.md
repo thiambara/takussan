@@ -1,7 +1,7 @@
 ---
 id: TCK-2392
 title: "Radar lot 2 : collecte automatique planifiée (Expat-Dakar, CoinAfrique), instantanés datés et fusion des doublons entre sources"
-status: doing
+status: done
 phase: P2
 family: full
 estimate: XL
@@ -46,53 +46,53 @@ annonces. Le service de collecte séparé (Playwright) n'est envisagé que si la
 
 ## Delta à produire
 
-- [ ] **Adaptateurs** (`App\Services\Radar\Crawl\`) : un par site, Expat-Dakar et CoinAfrique. Une
+- [x] **Adaptateurs** (`App\Services\Radar\Crawl\`) : un par site, Expat-Dakar et CoinAfrique. Une
       page de liste → des cartes (URL d'annonce, titre, prix affiché, lieu affiché, et ce que la carte
       montre de plus : chambres, surface, catégorie) + l'URL de la page suivante. Rien d'autre : ils
       fournissent des URL à `RadarListingIntake` et des observations aux instantanés.
-- [ ] **Sources** `radar_crawl_sources` : une ligne par site, **éteinte par défaut** (`enabled` faux),
+- [x] **Sources** `radar_crawl_sources` : une ligne par site, **éteinte par défaut** (`enabled` faux),
       fréquence en minutes, pages lues au plus par passage, l'opérateur qui l'a allumée (au nom duquel
       l'extraction est jugée).
-- [ ] **Passages** `radar_crawl_runs` : déclencheur (planifié ou manuel), statut, pages lues, cartes
+- [x] **Passages** `radar_crawl_runs` : déclencheur (planifié ou manuel), statut, pages lues, cartes
       vues, annonces créées, connues, instantanés écrits, fin de liste atteinte, motif d'arrêt.
       `radar:crawl` (toutes les 15 min) met en file le passage de chaque source allumée et due ; un seul
       passage en cours par source (index unique partiel). Le job du passage est sur la **file longue**
       (`RunsOnLongQueue`) ; il lit les pages par `UrlFetcher` (SSRF, `robots.txt`, créneau par domaine)
       et attend le créneau quand il est pris.
-- [ ] **Instantanés** `radar_listing_snapshots` : un état observé d'une annonce collectée (prix XOF,
+- [x] **Instantanés** `radar_listing_snapshots` : un état observé d'une annonce collectée (prix XOF,
       période, contrat, type, surface, chambres, quartier lu et quartier du référentiel, ville,
       empreinte du titre), avec sa plage de présence (`first_seen_at`, `last_seen_at`, `observations`).
       Un prix ou un titre changé ouvre un nouvel instantané ; sinon le passage prolonge le dernier, et
       comble ses champs vides (valeurs extraites).
-- [ ] **Quatrième signal** de `RadarMatcher` : similarité de texte. Pilote remplaçable
+- [x] **Quatrième signal** de `RadarMatcher` : similarité de texte. Pilote remplaçable
       (`radar.similarity.driver`), défaut `trigram` : `pg_trgm` sur `radar_listings.similarity_text`
       (description extraite, sinon texte brut, replié, sans chiffres, 1 000 caractères au plus), index GIN.
       Purgé avec l'annonce.
-- [ ] **Fusion** : une annonce collectée, extraite, dont un rapprochement `high` désigne une annonce plus
+- [x] **Fusion** : une annonce collectée, extraite, dont un rapprochement `high` désigne une annonce plus
       ancienne d'un **autre site** avec au moins un signal du bien (photo ou lieu), devient son doublon
       automatiquement (`merged_at`, `stage_reason = radar.merge.auto`). La fiche porte ses provenances
       (elle-même et ses doublons : site, URL, première et dernière présence). Une fusion automatique se
       **défait** (`POST …/unmerge`) et n'est plus retentée.
-- [ ] **Écran super-admin** : un onglet « Collecte » (sources, interrupteur et fréquence pour
+- [x] **Écran super-admin** : un onglet « Collecte » (sources, interrupteur et fréquence pour
       `super_admin`, lancement manuel, derniers passages) ; la fiche annonce montre ses provenances et
       le bouton « Séparer » d'une fusion automatique.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Un passage sur une page de liste semée crée une annonce par URL nouvelle, aucune pour une
+- [x] AC1 — Un passage sur une page de liste semée crée une annonce par URL nouvelle, aucune pour une
       URL déjà connue.
-- [ ] AC2 — Un prix changé entre deux passages laisse deux instantanés ; un prix inchangé prolonge le
+- [x] AC2 — Un prix changé entre deux passages laisse deux instantanés ; un prix inchangé prolonge le
       premier (`last_seen_at`, `observations`).
-- [ ] AC3 — La même annonce vue sur deux sites devient une fiche à deux provenances.
-- [ ] AC4 — Sans geste du porteur, aucun passage ne part : `radar:crawl` ne met rien en file tant
+- [x] AC3 — La même annonce vue sur deux sites devient une fiche à deux provenances.
+- [x] AC4 — Sans geste du porteur, aucun passage ne part : `radar:crawl` ne met rien en file tant
       qu'aucune source n'est allumée ; une source allumée n'est relue qu'une fois sa fréquence écoulée.
-- [ ] AC5 — Une page que le `robots.txt` interdit n'est pas lue ; le passage s'arrête avec le motif
+- [x] AC5 — Une page que le `robots.txt` interdit n'est pas lue ; le passage s'arrête avec le motif
       `radar.fetch.robots`.
-- [ ] AC6 — Deux annonces au même texte se rapprochent par le signal `text`, sans fournisseur
+- [x] AC6 — Deux annonces au même texte se rapprochent par le signal `text`, sans fournisseur
       d'embeddings ; un texte différent ne rapproche rien.
-- [ ] AC7 — Une fusion automatique se sépare : l'annonce revient à `extracted`, sans lien, et la
+- [x] AC7 — Une fusion automatique se sépare : l'annonce revient à `extracted`, sans lien, et la
       fusion n'est plus retentée ; une fusion posée à la main ne se sépare pas par cette route.
-- [ ] AC8 — Le job du passage atterrit sur la file longue, et `scripts/check-queues.mjs` est vert.
+- [x] AC8 — Le job du passage atterrit sur la file longue, et `scripts/check-queues.mjs` est vert.
 
 ## Découpé en suites
 
@@ -108,4 +108,44 @@ annonces. Le service de collecte séparé (Playwright) n'est envisagé que si la
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+Livré sur `feat/radar-collecte-automatique` : schéma (`c3c3d638b`), services de collecte (`c96387947`), console API
+(`cb3684cd6`), écran (`ec825bd9f`), tests nés des ablations (`e0aa79129`).
+
+- **Les passages comptent les URL connues par leur empreinte** (`RadarListingIntake::urlFingerprint` sur l'URL
+  canonique) et ne passent jamais par `fromUrls` pour elles : `fromUrls` remet en file une annonce en échec, ce que la
+  saisie d'un opérateur veut et qu'un passage nocturne ne doit pas faire (un site qui refuse serait relu en boucle).
+- **Les instantanés naissent des cartes de liste**, enrichis des valeurs extraites quand l'annonce l'est. Le titre n'y
+  est qu'une empreinte (`title_fingerprint`) : l'instantané ne garde aucun texte de l'annonceur.
+- **Une absence n'est pas une disparition** : `last_seen_at` d'une annonce non revue ne dit rien tant que le passage
+  n'a pas atteint la fin de la liste (`reached_end`). `max_pages` borne la couverture — l'observatoire (TCK-2393) doit
+  lire `reached_end` avant de conclure qu'une annonce a quitté le marché.
+- **CoinAfrique** : la page suivante vient de `ul.pagination`, pas du `link[rel=next]`, qui pointe vers la racine
+  (`/?page=2`) que son `robots.txt` interdit.
+- **Le texte comparé** (`similarity_text`) est recalculé par le modèle dès que `extracted` ou `raw_text` change : la
+  purge, qui les vide, le vide aussi.
+- **`scripts/check-models-spec.mjs`** : les trois modèles neufs sont dans `EXCLUS_JUSTIFIES` en attendant la PR de
+  spec commune (ce ticket ne touche pas `docs/models-spec.md`). Cette PR retire les trois exclusions dans le même commit.
+
+### Décisions prises en autonomie, à revoir
+
+1. **Interrupteur par site en base** (`radar_crawl_sources.enabled`, faux à la création), plutôt qu'un drapeau de
+   configuration ou une variable d'environnement : se règle sans déploiement, porte la fréquence par domaine et
+   l'opérateur. Écarté : `RADAR_CRAWL_ENABLED` (un redéploiement par geste, aucune fréquence par site).
+2. **Celui qui allume une source en devient l'opérateur** (`operator_id`), au nom duquel l'extraction est jugée :
+   `AiAuthority` refuse un acteur absent. Écarté : un compte de service (un compte de plus à gouverner, et aucune
+   personne derrière la dépense d'IA).
+3. **Le réglage de la collecte réutilise `platform.radar.publish`** (`super_admin` seul) plutôt qu'un geste neuf :
+   c'est le geste « porteur » du Radar, et un geste neuf demandait une ligne de plus à la table du front. Écarté :
+   `platform.radar.collect` (à créer si le support doit un jour régler la collecte).
+4. **Un passage manuel part même d'une source éteinte**, au nom de celui qui le lance : c'est un geste humain
+   explicite, d'un `super_admin`. Écarté : l'exiger allumée (deux gestes pour un essai ponctuel).
+5. **Pas d'embeddings dans ce lot** : aucun fournisseur d'embeddings n'est configuré (`config/ai.php`), et l'extension
+   `vector` n'est pas *trusted* (création réservée au superutilisateur, non vérifiée en préproduction). Pilote
+   remplaçable `radar.similarity.driver`, défaut `trigram` (`pg_trgm`, *trusted*, créée par la migration). Écarté :
+   la table `embeddings` d'ADR-0076 § 11 dès maintenant — elle va à TCK-2423.
+6. **Fusion d'office restreinte** : seulement une annonce trouvée par la collecte, encore `extracted`, vers une annonce
+   plus ancienne d'un **autre** site, sur un rapprochement fort dont un signal désigne le **bien** (photo ou lieu). Le
+   téléphone et le texte désignent l'annonceur, qui porte plusieurs biens. Réversible (`unmerge`), jamais retentée,
+   éteignable (`radar.merge.auto`). Écarté : fusionner aussi les saisies d'opérateur, ou les doublons d'un même site.
+7. **Seuils du texte** : `pg_trgm` ≥ 0,5 rapproche (`low`), ≥ 0,8 est « presque identique » (`medium`) ; le texte
+   n'est jamais `high` seul. Mesuré : 300 paires de paragraphes Faker plafonnent à 0,38.
