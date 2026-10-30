@@ -32,6 +32,9 @@ use Tests\TestCase;
  * - B2 : un message étranger au Radar, sur le même `phone_number_id` (coexistence, envoi de test). Adopté, il faisait
  *   passer A, jamais parti, à `read`, et un « Oui » qui lui répondait se rattachait au message d'accord A.
  *
+ * - B3 (TCK-2436) : B1 encore, mais l'accusé de B porte le jeton opaque posé à l'envoi de B. Le jeton de B n'est sur
+ *   aucune ligne envoyée tant que la reprise ne l'a pas écrit : il n'apparie rien, et surtout pas A.
+ *
  * Numéro fictif en `+221 77 123 45 67`, le fictif conventionnel du dépôt : un préfixe attribué, que `PhoneMasker`
  * reconnaît comme un numéro (il refuse `74`). Aucun réseau : `Http::fake()`.
  */
@@ -176,5 +179,38 @@ class RadarWhatsappReceiptGuardTest extends TestCase
             'type' => 'text', 'text' => ['body' => 'Oui'], 'context' => ['from' => '221770000000', 'id' => 'wamid.ETRANGER']]]));
 
         $this->assertSame($b->id, RadarConsent::query()->sole()->radar_outreach_id);
+    }
+
+    public function test_b3_l_accuse_au_jeton_d_une_relance_dont_l_ecriture_est_defaite_n_apparie_ni_a_ni_b(): void
+    {
+        $a = $this->ambiguSansIdentifiant(3);
+        $a->forceFill(['provider_callback_token' => str_repeat('a', 40)])->save();
+        $b = $this->prepare(['follow_up_of_id' => $a->id, 'follow_up_rank' => 1]);
+        Http::fake(['graph.exemple.test/*' => Http::response(['messages' => [['id' => 'wamid.B']]])]);
+
+        $panne = true;
+        RadarListing::saving(function () use (&$panne): void {
+            if ($panne) {
+                $panne = false;
+                throw new RuntimeException('connexion perdue');
+            }
+        });
+        // L'accusé de B, au jeton que l'envoi de B a transmis à Meta, arrive entre l'écriture défaite et la reprise.
+        Event::listen(MessageLogged::class, function (MessageLogged $evenement): void {
+            if (str_contains($evenement->message, 'écriture défaite')) {
+                $jeton = Http::recorded()[0][0]['biz_opaque_callback_data'];
+                app(RadarWhatsappReceipts::class)->receive($this->corps([['biz_opaque_callback_data' => $jeton] + $this->accuse('wamid.B-INCONNU', 'sent')])['entry']);
+            }
+        });
+
+        $this->postJson("/api/admin/radar/outreaches/{$b->id}/send")->assertOk();
+
+        $b->refresh();
+        $this->assertSame('wamid.B', $b->provider_message_id);
+        $this->assertSame('ambiguous', $b->provider_status);
+        $this->assertSame(Http::recorded()[0][0]['biz_opaque_callback_data'], $b->provider_callback_token);
+        $this->assertNull($a->fresh()->provider_message_id);
+        $this->assertSame('ambiguous', $a->fresh()->provider_status);
+        Http::assertSentCount(1);
     }
 }

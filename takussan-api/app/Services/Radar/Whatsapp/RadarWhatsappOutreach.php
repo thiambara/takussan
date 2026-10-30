@@ -23,6 +23,9 @@ use Throwable;
  * - **Une écriture qui échoue APRÈS l'envoi** (base, verrou) ne laisse pas le message « préparé » : il est marqué envoyé,
  *   ambigu, avec l'identifiant de Meta, journalisé avant toute écriture (ADR-0081).
  * - **Le journal nomme le message, l'identifiant de Meta et le motif, jamais le texte ni le numéro.**
+ * - **Chaque envoi porte un jeton opaque aléatoire** (`biz_opaque_callback_data`, TCK-2436), gardé sur la ligne avec les
+ *   colonnes du canal, reprise comprise : Meta le rend dans ses accusés, et {@see RadarWhatsappReceipts} apparie par lui,
+ *   exactement, un envoi resté ambigu sans identifiant. Aucune donnée personnelle, et jamais journalisé.
  */
 final class RadarWhatsappOutreach
 {
@@ -47,18 +50,19 @@ final class RadarWhatsappOutreach
             return $this->workflow->markSent($outreach, $by, function (RadarOutreach $locked, RadarAdvertiser $advertiser) use (&$accepted): array {
                 // Un annonceur purgé n'a plus de numéro ; il a aussi dit STOP, que `markSent` refuse déjà.
                 abort_code_if($advertiser->phone === null, 422, 'radar.advertiser.do_not_contact');
-                $result = $this->driver->sendTemplate($advertiser->phone, $this->template->for($locked));
+                $token = bin2hex(random_bytes(20));
+                $result = $this->driver->sendTemplate($advertiser->phone, $this->template->for($locked), $token);
 
                 if ($result->isTerminalSuccess()) {
                     // Journalisé AVANT les écritures : si elles échouent, il reste la trace de ce que l'annonceur a reçu.
                     Log::info('[radar.whatsapp] message accepté par Meta', ['outreach_id' => $locked->id, 'provider_message_id' => $result->providerMessageId]);
 
-                    return $accepted = ['channel' => RadarOutreachChannel::WhatsappCloud, 'provider_message_id' => $result->providerMessageId, 'provider_status' => self::STATUS_ACCEPTED];
+                    return $accepted = ['channel' => RadarOutreachChannel::WhatsappCloud, 'provider_message_id' => $result->providerMessageId, 'provider_status' => self::STATUS_ACCEPTED, 'provider_callback_token' => $token];
                 }
                 if ($result->ambiguous) {
                     Log::warning('[radar.whatsapp] envoi ambigu, marqué envoyé', ['outreach_id' => $locked->id, 'reason' => $result->failureReason]);
 
-                    return $accepted = ['channel' => RadarOutreachChannel::WhatsappCloud, 'provider_message_id' => null, 'provider_status' => self::STATUS_AMBIGUOUS];
+                    return $accepted = ['channel' => RadarOutreachChannel::WhatsappCloud, 'provider_message_id' => null, 'provider_status' => self::STATUS_AMBIGUOUS, 'provider_callback_token' => $token];
                 }
 
                 Log::warning('[radar.whatsapp] envoi refusé', ['outreach_id' => $locked->id, 'reason' => $result->failureReason]);

@@ -19,6 +19,8 @@ interface RadarWhatsappDriver
      * Envoie un gabarit approuvé, seul message qu'une entreprise peut écrire en premier (politique de Meta).
      *
      * @param  string  $to  le numéro de l'annonceur, en E.164
+     * @param  string  $callbackData  TCK-2436 — le jeton opaque de la ligne (`biz_opaque_callback_data`, 512 caractères au
+     *                                plus), que Meta rend dans les accusés : aucune donnée personnelle
      */
-    public function sendTemplate(string $to, WhatsappTemplateRef $template): WhatsappResult;
+    public function sendTemplate(string $to, WhatsappTemplateRef $template, string $callbackData): WhatsappResult;
 }

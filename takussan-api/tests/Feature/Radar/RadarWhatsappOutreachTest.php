@@ -547,4 +547,56 @@ class RadarWhatsappOutreachTest extends TestCase
         Log::shouldHaveReceived('info')->withArgs(fn (string $ligne, array $contexte): bool => $contexte === ['outreach_id' => $this->message->id, 'provider_message_id' => 'wamid.RADAR-9'])->once();
         Log::shouldHaveReceived('error')->withArgs(fn (string $ligne, array $contexte): bool => ($contexte['provider_message_id'] ?? null) === 'wamid.RADAR-9')->once();
     }
+
+    /**
+     * TCK-2436 (AC3) — chaque envoi par l'API porte un jeton opaque aléatoire (`biz_opaque_callback_data`), propre à la
+     * ligne et gardé sur elle : Meta le rend dans les accusés, ce qui apparie exactement un envoi resté ambigu. Ni le
+     * numéro ni aucune donnée de l'annonceur : 40 caractères hexadécimaux tirés au hasard. Jamais exposé par l'API.
+     */
+    public function test_ac3_chaque_envoi_par_l_api_porte_un_jeton_opaque_aleatoire_garde_sur_la_ligne(): void
+    {
+        $this->configurerLeRadar();
+        $this->metaAccepte();
+
+        $this->envoyer()->assertOk()->assertJsonMissingPath('data.provider_callback_token');
+
+        $jeton = (string) $this->message->fresh()->provider_callback_token;
+        $this->assertMatchesRegularExpression('/^[0-9a-f]{40}$/', $jeton);
+        Http::assertSent(fn (Request $request): bool => $request['biz_opaque_callback_data'] === $jeton);
+    }
+
+    /** AC3 — l'envoi ambigu (5xx) garde le jeton qu'il a transmis : c'est par lui que ses accusés le retrouveront. */
+    public function test_ac3_un_envoi_ambigu_garde_le_jeton_transmis_a_meta(): void
+    {
+        $this->configurerLeRadar();
+        Http::fake(['graph.exemple.test/*' => Http::response(['error' => ['code' => 2]], 503)]);
+
+        $this->envoyer()->assertOk()->assertJsonPath('data.provider_status', 'ambiguous');
+
+        $frais = $this->message->fresh();
+        $this->assertNull($frais->provider_message_id);
+        $this->assertNotNull($frais->provider_callback_token);
+        Http::assertSent(fn (Request $request): bool => $request['biz_opaque_callback_data'] === $frais->provider_callback_token);
+    }
+
+    /** AC3 — la reprise après une écriture défaite (m-3) écrit le jeton de l'envoi accepté, sans rappeler Meta. */
+    public function test_ac3_la_reprise_apres_une_ecriture_defaite_garde_le_jeton_transmis(): void
+    {
+        $this->configurerLeRadar();
+        $this->metaAccepte('wamid.RADAR-9');
+        $panne = true;
+        RadarListing::saving(function () use (&$panne): void {
+            if ($panne) {
+                $panne = false;
+                throw new RuntimeException('connexion perdue');
+            }
+        });
+
+        $this->envoyer()->assertOk()->assertJsonPath('data.provider_status', 'ambiguous');
+
+        Http::assertSentCount(1);
+        $frais = $this->message->fresh();
+        $this->assertNotNull($frais->provider_callback_token);
+        Http::assertSent(fn (Request $request): bool => $request['biz_opaque_callback_data'] === $frais->provider_callback_token);
+    }
 }
