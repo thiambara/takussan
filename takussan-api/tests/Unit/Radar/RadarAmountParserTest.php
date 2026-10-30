@@ -110,6 +110,33 @@ class RadarAmountParserTest extends TestCase
         $this->assertNull(RadarAmountParser::parse($text));
     }
 
+    /** @return array<string, array{string}> */
+    public static function telephones(): array
+    {
+        $formes = json_decode((string) file_get_contents(dirname(__DIR__, 2).'/fixtures/ai/donnees-personnelles.json'), true, flags: JSON_THROW_ON_ERROR);
+
+        return array_map(fn (string $forme): array => [$forme], $formes['telephones']);
+    }
+
+    /**
+     * TCK-2412 (AC1) — un nombre que le masqueur lit comme un numéro (sénégalais, étranger) n'est pas un montant,
+     * et le prix voisin reste lu.
+     */
+    #[DataProvider('telephones')]
+    public function test_un_numero_du_fixture_n_est_jamais_un_prix(string $forme): void
+    {
+        $this->assertNull(RadarAmountParser::parse("Appelez le {$forme} pour la villa"));
+        $this->assertSame(['amount' => 450_000, 'period' => 'monthly'], RadarAmountParser::parse("Appelez le {$forme}, loyer 450 000 F/mois"));
+    }
+
+    public function test_un_numero_etranger_ou_un_lien_whatsapp_n_est_pas_un_prix(): void
+    {
+        // TCK-2412 : le « prix » de onze chiffres d'un numéro étranger collé.
+        $this->assertNull(RadarAmountParser::parse('Appelez le 0033612345678 pour la villa'));
+        $this->assertSame(['amount' => 450_000, 'period' => null], RadarAmountParser::parse('Appelez le +44 7700 900123, loyer 450 000'));
+        $this->assertSame(['amount' => 450_000, 'period' => null], RadarAmountParser::parse('wa.me/33612345678 loyer 450 000'));
+    }
+
     public function test_sejour_n_est_pas_une_periode_journaliere(): void
     {
         $this->assertSame(['amount' => 200_000, 'period' => null], RadarAmountParser::parse('200 000 F le séjour'));

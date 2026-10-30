@@ -6,9 +6,10 @@ namespace App\Support;
  * TCK-2386 (ADR-0077 §1, §9) — les numéros sénégalais d'une annonce, en E.164, et l'empreinte à clé
  * qui retrouve un annonceur sans garder son numéro.
  *
- * `fromText()` lit les MÊMES formes que le masquage ({@see PhoneMasker::PATTERN}, préfixe 71
- * compris, chiffres arabes et pleine chasse, invisibles retirés) : ce que la passerelle IA
- * masquerait pour un usage public, le Radar le lit comme un numéro. Un prix (`450.000f`) n'en est pas un.
+ * `fromText()` lit les MÊMES formes que le masquage ({@see PhoneMasker::MASK_PATTERN}, préfixe 71
+ * compris, chiffres arabes et pleine chasse, invisibles retirés, `_`, `,`, `(77)`, espaces doubles —
+ * TCK-2412) et n'en garde que les sénégalaises : ce que la passerelle IA masquerait pour un usage
+ * public, le Radar le lit comme un numéro, sauf un numéro étranger. Un prix (`450.000f`) n'en est pas un.
  *
  * `hmac()` est ce qui survit à un STOP (ADR-0077 §9) : le numéro en clair s'efface, pas le refus.
  * Clé : `config('radar.phone_hmac_key')`, à défaut dérivée de `app.key` — aucune variable
@@ -16,16 +17,22 @@ namespace App\Support;
  */
 final class RadarPhone
 {
-    /** Séparateurs tolérés entre les groupes d'un numéro isolé, parenthèses comprises. */
-    private const SEPARATORS = '/[\s\x{00A0}\x{202F}.\-\/()]/u';
+    /**
+     * Séparateurs tolérés entre les groupes d'un numéro isolé : tous ceux que le masquage admet (TCK-2412),
+     * tirets Unicode (`–`, `−`…), `_` et `,` compris. Les parenthèses se retirent après le `(0)` de trunk.
+     */
+    private const SEPARATORS = '/[\s\x{00A0}\x{202F}.,_\-\/\x{2010}-\x{2015}\x{2212}]/u';
+
+    /** Le `(0)` de trunk derrière l'indicatif (`+221 (0)77 …`) : il n'est pas un chiffre du numéro. */
+    private const TRUNK = '/^((?:\+|00)?221)\(0\)/';
 
     /**
      * Un indicatif de pays (`+33`, `0033`) juste avant le motif, au plus un séparateur entre eux :
      * ce que le motif a trouvé est la suite d'un numéro étranger. `221` excepté. Un indicatif ne
      * commence jamais par 0 : sans `[1-9]`, le `000` d'un prix (`450 000 77 123 45 67`) se lisait
-     * `00` + indicatif `0`.
+     * `00` + indicatif `0`. Le séparateur est l'un de `SEPARATORS`, après un `)` éventuel (`(+1) 77 …`).
      */
-    private const FOREIGN_PREFIX = '/(?<![\d+])(?:\+|00)([1-9]\d{0,2})[\s\x{00A0}\x{202F}.\-\/]?$/u';
+    private const FOREIGN_PREFIX = '/(?<![\d+])(?:\+|00)([1-9]\d{0,2})\)?[\s\x{00A0}\x{202F}.,_\-\/\x{2010}-\x{2015}\x{2212}]?$/u';
 
     /**
      * Les numéros du texte, en `+221XXXXXXXXX`, dédoublonnés, dans l'ordre d'apparition.
@@ -35,7 +42,8 @@ final class RadarPhone
     public static function fromText(string $text): array
     {
         $normalized = PhoneMasker::normalizeDigits((string) preg_replace(PhoneMasker::INVISIBLE, '', $text));
-        if (preg_match_all(PhoneMasker::PATTERN, $normalized, $found, PREG_OFFSET_CAPTURE) === false) {
+        // Le motif du masquage, sénégalais ou étranger : `canonical()` écarte ensuite tout ce qui n'est pas `+221…`.
+        if (preg_match_all(PhoneMasker::MASK_PATTERN, $normalized, $found, PREG_OFFSET_CAPTURE) === false) {
             return [];
         }
 
@@ -60,6 +68,7 @@ final class RadarPhone
     {
         $clean = PhoneMasker::normalizeDigits((string) preg_replace(PhoneMasker::INVISIBLE, '', $raw));
         $clean = (string) preg_replace(self::SEPARATORS, '', $clean);
+        $clean = str_replace(['(', ')'], '', (string) preg_replace(self::TRUNK, '$1', $clean));
         if (preg_match('/^\+?\d+$/', $clean) !== 1) {
             return null;
         }

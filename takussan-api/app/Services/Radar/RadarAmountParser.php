@@ -20,7 +20,8 @@ use App\Support\PhoneMasker;
  *
  * **Les écartés.** Un nombre suivi d'une unité qui n'est pas une monnaie (« 300 m² », « 3 chambres »,
  * « 5 ans », « 2 mois » — une durée, pas une période : la période s'écrit « /mois », « par mois »),
- * et un nombre qui fait partie d'un numéro de téléphone ({@see PhoneMasker::PATTERN}).
+ * et un nombre qui fait partie d'un numéro de téléphone que le masquage voit, sénégalais, étranger ou
+ * lien WhatsApp ({@see PhoneMasker::MASK_PATTERN}, TCK-2412 : `0033612345678` n'est pas un prix).
  *
  * **Le choix.**
  *   - Une fourchette (« 350 000 - 400 000 F », « de 350 000 à 400 000 F » : un nombre sans marque,
@@ -167,7 +168,7 @@ final class RadarAmountParser
     /** @return list<array{int, int}> les plages d'octets des numéros de téléphone du texte */
     private static function phoneSpans(string $text): array
     {
-        if (preg_match_all(PhoneMasker::PATTERN, $text, $found, PREG_OFFSET_CAPTURE) < 1) {
+        if (preg_match_all(PhoneMasker::MASK_PATTERN, $text, $found, PREG_OFFSET_CAPTURE) < 1) {
             return [];
         }
 
