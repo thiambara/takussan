@@ -220,6 +220,30 @@ class RadarPhoneTest extends TestCase
         }
     }
 
+    /** TCK-2435 — `RDC+1` et `R + 1` (espacé) devant le numéro ne sont pas un indicatif non plus ; `R + 33 …` en reste un. */
+    public function test_un_etage_rdc_ou_espace_devant_le_numero_ne_le_fait_pas_perdre(): void
+    {
+        foreach (['Villa RDC+1 77 123 45 67', 'Villa Rdc+2 77 123 45 67', 'Villa R + 1 77 123 45 67', 'Villa R +1 77 123 45 67',
+            'Villa R+ 1 77 123 45 67', 'Immeuble RDC + 10 77 123 45 67', 'Villa (RDC+1) 77 123 45 67'] as $texte) {
+            $this->assertSame(['+221771234567'], RadarPhone::fromText($texte), $texte);
+            $this->assertSame(['+221771234567'], RadarPhone::contactsFromText($texte), $texte);
+        }
+
+        // Un vrai numéro étranger derrière ces écritures n'est ni lu comme un étage, ni comme un contact sénégalais.
+        foreach (['Villa RDC+33 6 12 34 56 78', 'Villa R + 33 6 12 34 56 78', 'Villa R +33 6 12 34 56 78', 'Villa RDC+33612345678'] as $texte) {
+            $this->assertSame([], RadarPhone::fromText($texte), $texte);
+        }
+
+        // Vérification 2 : un `+1` / `+7` suivi d'un numéro complet garde son `+`, la fin n'est pas un contact sénégalais.
+        foreach (['RDC +1 70 123 45 67 8', 'RDC +1 77 012 34 56 7', 'R+1 70 123 45 67 8'] as $texte) {
+            $this->assertSame([], RadarPhone::contactsFromText($texte), $texte);
+        }
+        // `R+17`, `RDC+17` : l'étage 17, pas `+1` suivi de dix chiffres.
+        foreach (['Immeuble R+17 77 012 34 56', 'Immeuble RDC+17 77 012 34 56'] as $texte) {
+            $this->assertSame(['+221770123456'], RadarPhone::contactsFromText($texte), $texte);
+        }
+    }
+
     /**
      * Vérification adverse M2 — les limites connues du masqueur sont lues (le refus STOP s'y juge), mais ne désignent
      * pas d'office un contact : une unité derrière, un mot de prix ou de liste devant, des crochets.
