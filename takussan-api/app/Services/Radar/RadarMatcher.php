@@ -7,6 +7,7 @@ use App\Models\Property;
 use App\Models\RadarAdvertiser;
 use App\Models\RadarListing;
 use App\Services\Moderation\DuplicateListingDetector;
+use App\Services\Radar\Similarity\RadarTextSimilarity;
 use App\Support\CanonicalPhone;
 use App\Support\PhotoFingerprint;
 use App\Support\RadarPhone;
@@ -14,7 +15,8 @@ use Illuminate\Database\Eloquent\Builder;
 
 /**
  * TCK-2387 (ADR-0054, ADR-0077 §6) — les rapprochements d'une annonce lue avec le catalogue et avec les
- * autres annonces collectées : trois signaux, chacun contre les deux sortes de cibles. Calculé à la demande
+ * autres annonces collectées : trois signaux, chacun contre les deux sortes de cibles, et un quatrième (TCK-2392), le texte,
+ * contre les autres annonces seulement. Calculé à la demande
  * (un bien publié après la relecture apparaît, aucun cache à invalider) ; ne renvoie aucun numéro.
  *
  * **Les entrées de l'annonce** sont ses valeurs relues, corrections comprises ({@see RadarReviewFields::values()}).
@@ -43,6 +45,11 @@ use Illuminate\Database\Eloquent\Builder;
  * d'ADR-0054 ; au plus {@see DuplicateListingDetector::MAX_CANDIDATES}, distance en PHP). `high` à
  * distance ≤ 1, `medium` à 2 ou 3.
  *
+ * **Même texte** (TCK-2392). Le texte replié de l'annonce (`similarity_text`, sans chiffres) comparé à celui des autres
+ * annonces par le pilote de `radar.similarity.driver` ({@see RadarTextSimilarity} ; `trigram` par défaut, sans fournisseur).
+ * `medium` au-delà de `radar.similarity.close`, `low` en deçà ; jamais `high` seul : un texte type se recopie d'une annonce à
+ * l'autre. Pas contre les biens : le catalogue n'a pas de texte replié.
+ *
  * **Cibles exclues** : l'annonce elle-même, les annonces `purged`, les biens de test et supprimés. Les
  * biens de TOUT statut sont comparés (brouillon, archivé…) : l'opérateur voit alors qu'un bien existe, et
  * dans quel état ; le statut est porté par la présentation, pas ici (décision 4 du plan).
@@ -61,6 +68,9 @@ final class RadarMatcher
 
     public const SIGNAL_PHOTO = 'photo';
 
+    /** TCK-2392 — le quatrième signal : la similarité de texte. */
+    public const SIGNAL_TEXT = 'text';
+
     /** L'écart de prix toléré, en proportion du prix de l'annonce. */
     public const PRICE_TOLERANCE = 0.10;
 
@@ -71,11 +81,14 @@ final class RadarMatcher
 
     private const STRENGTH_RANK = ['low' => 1, 'medium' => 2, 'high' => 3];
 
-    public function __construct(private readonly DuplicateListingDetector $detector) {}
+    public function __construct(
+        private readonly DuplicateListingDetector $detector,
+        private readonly RadarTextSimilarity $similarity,
+    ) {}
 
     /**
      * @return list<array{kind: 'property'|'listing', id: int, strength: 'high'|'medium'|'low',
-     *                    signals: list<array{signal: string, strength: string, distance?: int, price_gap?: float}>}>
+     *                    signals: list<array{signal: string, strength: string, distance?: int, price_gap?: float, similarity?: float}>}>
      */
     public function matchesFor(RadarListing $listing): array
     {
@@ -125,6 +138,14 @@ final class RadarMatcher
             }
             foreach ($this->listingsByPhoto($listing, $hashes) as ['id' => $id, 'distance' => $distance]) {
                 $add('listing', $id, ['signal' => self::SIGNAL_PHOTO, 'strength' => self::photoStrength($distance), 'distance' => $distance]);
+            }
+        }
+
+        $text = $listing->similarity_text;
+        if (is_string($text) && $text !== '') {
+            $close = (float) config('radar.similarity.close', 0.8);
+            foreach ($this->similarity->similar($this->otherListings($listing), $text, self::MAX_PER_SIGNAL) as ['id' => $id, 'score' => $score]) {
+                $add('listing', $id, ['signal' => self::SIGNAL_TEXT, 'strength' => $score >= $close ? 'medium' : 'low', 'similarity' => $score]);
             }
         }
 

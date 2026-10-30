@@ -14,6 +14,7 @@ export function mockRadarQueries<T extends object>(original: T) {
     discardRadarListing: vi.fn(),
     setRadarListingAdvertiser: vi.fn(),
     fetchNextRadarListingId: vi.fn(),
+    unmergeRadarListing: vi.fn(),
   };
 }
 
