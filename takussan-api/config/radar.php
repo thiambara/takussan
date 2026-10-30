@@ -1,5 +1,9 @@
 <?php
 
+use App\Services\Radar\Crawl\CoinafriqueAdapter;
+use App\Services\Radar\Crawl\ExpatDakarAdapter;
+use App\Services\Radar\Similarity\TrigramTextSimilarity;
+
 /*
 |--------------------------------------------------------------------------
 | Radar — ADR-0077
@@ -130,6 +134,51 @@ return [
     // message), puis rend 410. Un STOP ou une révocation le tue avant, quelle que soit sa date.
     'claim' => [
         'link_ttl_days' => 30,
+    ],
+
+    // TCK-2392 (ADR-0077 §10) — la collecte automatique. ÉTEINTE par défaut : chaque site a sa ligne dans
+    // `radar_crawl_sources` (créée `enabled = false`), que le porteur allume depuis la console. Ici, les adaptateurs et les
+    // bornes ; la fréquence et le nombre de pages de chaque site vivent dans sa ligne (défauts ci-dessous). Lu par
+    // `App\Services\Radar\Crawl\RadarCrawlSources`, `RadarCrawler` et `RadarCrawlScheduler`.
+    'crawl' => [
+        'sites' => [
+            'expat_dakar' => ['adapter' => ExpatDakarAdapter::class, 'start_url' => 'https://www.expat-dakar.com/immobilier'],
+            'coinafrique' => ['adapter' => CoinafriqueAdapter::class, 'start_url' => 'https://sn.coinafrique.com/categorie/immobilier'],
+        ],
+        'default_frequency_minutes' => 360,
+        // Bornes de la console : pas plus d'un passage par heure, pas plus de 20 pages par passage (le job vit sur la file
+        // longue, `$timeout` 1500 s : 20 pages à 45 s de lecture au pire, plus le créneau de 5 s entre deux, tiennent dedans).
+        'min_frequency_minutes' => 60,
+        'max_frequency_minutes' => 10_080,
+        'default_max_pages' => 5,
+        'max_pages_limit' => 20,
+        // Le créneau du domaine pris (une extraction lit la page d'une annonce du même site) : le passage attend, au plus
+        // ce nombre de fois par page, puis s'arrête (`radar.crawl.domain_busy`).
+        'busy_waits' => 6,
+        // Temps de travail d'un passage : au-delà, il s'arrête proprement (`radar.crawl.time_budget`), sous le `$timeout`.
+        'time_budget_seconds' => 1200,
+        // Un passage encore `queued` ou `running` après ce délai est perdu (worker tué, file arrêtée) : `radar:crawl` le
+        // clôt en `failed`, sinon il bloquerait le site pour toujours (un seul passage actif par site).
+        'stale_after_minutes' => 60,
+    ],
+
+    // TCK-2392 — le quatrième signal de rapprochement, la similarité de texte (`RadarMatcher::SIGNAL_TEXT`). Un pilote
+    // remplaçable ; `trigram` (`pg_trgm`) ne demande aucun fournisseur. Un pilote d'embeddings viendra avec TCK-2423.
+    // `threshold` ≥ 0,3 : le préfiltre `%` de `pg_trgm` (seuil par défaut 0,3) ne rend rien en dessous.
+    'similarity' => [
+        'driver' => 'trigram',
+        'drivers' => [
+            'trigram' => TrigramTextSimilarity::class,
+        ],
+        'threshold' => 0.5,
+        // Au-delà, le signal est `medium` ; en deçà, `low`. Jamais `high` seul : un texte type se recopie d'une annonce à l'autre.
+        'close' => 0.8,
+    ],
+
+    // TCK-2392 — la fusion automatique des doublons entre sites (`RadarAutoMerge`). Faux : les rapprochements restent
+    // montrés, rien n'est fusionné sans l'opérateur.
+    'merge' => [
+        'auto' => true,
     ],
 
 ];

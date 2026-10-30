@@ -4,9 +4,12 @@ namespace App\Http\Resources\Api\Admin;
 
 use App\Http\Resources\Bases\BaseResource;
 use App\Models\GeoNeighborhood;
+use App\Models\RadarListing;
+use App\Models\RadarListingSnapshot;
 use App\Services\Media\PrivateMediaAccess;
 use App\Services\Radar\RadarPhotoReserve;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 /**
@@ -41,6 +44,57 @@ class RadarListingResource extends BaseResource
         ];
 
         return $this;
+    }
+
+    /** `false` : non demandé (la liste). */
+    private array|false $provenances = false;
+
+    /**
+     * TCK-2392 (AC3) — les provenances de la fiche : l'annonce qui fait foi (elle-même, ou celle dont elle est le doublon) et
+     * chacun de ses doublons, avec le site, l'URL, la fusion automatique (`merged_at`) et la présence relevée par la collecte
+     * (premier et dernier passage qui l'ont vue, dernier prix observé). Fiche seule, comme le quartier : deux requêtes.
+     */
+    public function withProvenances(): static
+    {
+        $rootId = $this->resource->duplicate_of_listing_id ?? $this->resource->id;
+        $listings = RadarListing::query()
+            ->where(fn ($q) => $q->whereKey($rootId)->orWhere('duplicate_of_listing_id', $rootId))
+            ->orderBy('id')
+            ->get(['id', 'source_kind', 'source_site', 'source_url', 'stage', 'stage_reason', 'merged_at', 'discovered_by_run_id', 'created_at']);
+
+        $presence = RadarListingSnapshot::query()
+            ->whereIn('radar_listing_id', $listings->modelKeys())
+            ->selectRaw('radar_listing_id, min(first_seen_at) as first_seen_at, max(last_seen_at) as last_seen_at')
+            ->groupBy('radar_listing_id')
+            ->get()
+            ->keyBy('radar_listing_id');
+        $lastPrice = RadarListingSnapshot::query()
+            ->whereIn('radar_listing_id', $listings->modelKeys())
+            ->orderBy('radar_listing_id')->orderByDesc('first_seen_at')->orderByDesc('id')
+            ->get(['radar_listing_id', 'price'])
+            ->unique('radar_listing_id')
+            ->keyBy('radar_listing_id');
+
+        $this->provenances = $listings->map(fn (RadarListing $listing): array => [
+            'listing_id' => $listing->id,
+            'is_root' => $listing->id === $rootId,
+            'source_kind' => $this->enumValue($listing->source_kind),
+            'source_site' => $this->enumValue($listing->source_site),
+            'source_url' => $listing->source_url,
+            'stage' => $this->enumValue($listing->stage),
+            'merged_at' => $this->iso($listing->merged_at),
+            'crawled' => $listing->discovered_by_run_id !== null,
+            'first_seen_at' => $this->iso(self::date($presence->get($listing->id)?->first_seen_at)),
+            'last_seen_at' => $this->iso(self::date($presence->get($listing->id)?->last_seen_at)),
+            'last_price' => ($price = $lastPrice->get($listing->id)?->price) === null ? null : (float) $price,
+        ])->all();
+
+        return $this;
+    }
+
+    private static function date(mixed $value): ?\DateTimeInterface
+    {
+        return $value === null ? null : ($value instanceof \DateTimeInterface ? $value : Carbon::parse($value));
     }
 
     public function toArray(Request $request): array
@@ -78,6 +132,9 @@ class RadarListingResource extends BaseResource
             'created_at' => $this->whenHas('created_at', fn () => $this->iso($this->created_at)),
             'updated_at' => $this->whenHas('updated_at', fn () => $this->iso($this->updated_at)),
             'neighborhood_link' => $this->when($this->neighborhoodLink !== false, fn () => $this->neighborhoodLink),
+            'provenances' => $this->when($this->provenances !== false, fn () => $this->provenances),
+            'merged_at' => $this->whenHas('merged_at', fn () => $this->iso($this->merged_at)),
+            'discovered_by_run_id' => $this->whenHas('discovered_by_run_id'),
             'advertiser' => $this->whenLoaded('advertiser', fn () => $this->advertiser === null ? null : [
                 'id' => $this->advertiser->id,
                 'phone' => $this->advertiser->phone,

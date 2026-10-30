@@ -8620,7 +8620,8 @@
           "discardOutOfScope": "Out of scope (short stay, outside Senegal…)",
           "discardNoLongerAvailable": "No longer available",
           "discardUnusableSource": "Unusable source",
-          "discardOther": "Other reason"
+          "discardOther": "Other reason",
+          "mergeAuto": "Merged automatically: the same property seen on another site"
         },
         "empty": {
           "title": "No listing yet",
@@ -8781,7 +8782,8 @@
             "duplicateChain": "This listing is already a duplicate, or already points to this one: pick the original listing.",
             "reviewIncompleteFields": "Fields to complete: {fields}.",
             "gestureFailed": "The action failed.",
-            "newMatches": "New matches appeared: check them, then validate again."
+            "newMatches": "New matches appeared: check them, then validate again.",
+            "mergeNotAutomatic": "This listing was not merged automatically: only an automatic merge can be split here."
           },
           "matches": {
             "heading": "Matches",
@@ -8800,7 +8802,9 @@
               "neighborhood_price_bedrooms": "same neighborhood, price and bedrooms",
               "photo_high": "identical photo",
               "photo_medium": "similar photo",
-              "photo_low": "similar photo"
+              "photo_low": "similar photo",
+              "text_close": "nearly identical text",
+              "text_low": "similar text"
             },
             "kinds": {
               "property": "Catalogue property",
@@ -8864,6 +8868,21 @@
             "doNotContact": "This number asked not to be contacted: the listing is closed (do not contact), actions are disabled.",
             "makeAdvertiserFor": "Make advertiser: {phone}",
             "openAdvertiser": "Open the advertiser’s page"
+          },
+          "provenances": {
+            "heading": "Sources",
+            "intro": "The same property seen on several sites: the main record prevails, the others are its duplicates.",
+            "root": "Main record",
+            "duplicate": "Duplicate",
+            "automatic": "Automatic merge",
+            "crawled": "Found by collection",
+            "seen": "Seen from {first} to {last}",
+            "lastPrice": "Last observed price: {price}",
+            "current": "This listing",
+            "open": "Open listing #{id}",
+            "source": "View source",
+            "unmerge": "Split",
+            "unmergeHint": "The listing goes back to review, unlinked; it will not be merged again."
           }
         },
         "advertiser": {
@@ -9436,6 +9455,72 @@
             "keyReused": "The selection changed since a first submission: publish again.",
             "inProgress": "A publication is already running for this advertiser: try again in a moment."
           }
+        },
+        "crawlLink": "Collection",
+        "crawl": {
+          "metaTitle": "Collection — Radar",
+          "title": "Automatic collection",
+          "subtitle": "The sites read automatically, and each of their passes.",
+          "back": "Back to Radar",
+          "offNote": "Collection is off by default: no site is read until the super administrator turns it on. Turning a site on makes you its operator: listings found are extracted on your behalf, on the AI budget.",
+          "readOnly": "Only the super administrator turns a site on, sets its frequency or starts a pass.",
+          "sourcesHeading": "Sites",
+          "runsHeading": "Latest passes",
+          "enabled": "On",
+          "disabled": "Off",
+          "enable": "Turn on",
+          "disable": "Turn off",
+          "operator": "On behalf of {name}",
+          "noOperator": "No operator",
+          "frequency": "Frequency (minutes)",
+          "frequencyHint": "Between {min} and {max} minutes.",
+          "maxPages": "Pages at most",
+          "maxPagesHint": "1 to {max} list pages per pass.",
+          "save": "Save",
+          "saved": "Setting saved.",
+          "runNow": "Start a pass",
+          "runQueued": "Pass queued.",
+          "loadError": "Collection could not be loaded.",
+          "emptyRuns": "No pass yet.",
+          "reachedEnd": "end of list reached",
+          "columns": {
+            "site": "Site",
+            "started": "Started",
+            "status": "Status",
+            "pages": "Pages",
+            "cards": "Cards",
+            "created": "New",
+            "known": "Known",
+            "snapshots": "Snapshots",
+            "stop": "Stop"
+          },
+          "tableCaption": "Latest collection passes, most recent first.",
+          "status": {
+            "queued": "Queued",
+            "running": "Running",
+            "finished": "Finished",
+            "failed": "Failed"
+          },
+          "triggers": {
+            "schedule": "Scheduled",
+            "manual": "Manual"
+          },
+          "stops": {
+            "end": "End of list",
+            "maxPages": "Page limit reached",
+            "noCards": "Page without listings",
+            "domainBusy": "Site busy: reading postponed",
+            "timeBudget": "Maximum duration reached",
+            "noOperator": "No operator",
+            "error": "Pass error",
+            "lost": "Lost pass (queue stopped)"
+          },
+          "errors": {
+            "active": "A pass is already running on this site: wait for it to finish.",
+            "unknownSite": "This site is not collected.",
+            "generic": "The setting failed."
+          },
+          "summary": "Every {frequency} min · {pages} pages at most"
         }
       }
     },
