@@ -337,7 +337,9 @@ que l'identifiant du compte et l'instant — ni courriel, ni nom, ni téléphone
 
 - **Pourquoi ce support** : le seau privé vit hors du serveur ; il est copié chaque nuit dans
   `vps-sauvegardes/takussan-preview-private/` par `rclone copy`, qui ne supprime jamais
-  (`deploy/server/sauvegarde-seau-prive.sh`), et `vps-sauvegardes` porte un verrou de rétention de
+  (`deploy/server/sauvegarde-seau-prive.sh` ; en instantanés datés gardés 14 jours depuis
+  TCK-2407, [ADR-0029 amendé](0029-medias-sur-r2-servis-par-cloudflare-transformations.md), où
+  un objet vivant comme cette liste est dans chacun), et `vps-sauvegardes` porte un verrou de rétention de
   7 jours ([ADR-0069](0069-deux-environnements-dokploy-configuration-hors-de-github.md)). Aucun
   jeton ni variable d'environnement de plus. L'export nocturne vers le seau des sauvegardes,
   envisagé d'abord, aurait demandé à l'application une écriture sur `vps-sauvegardes`, qu'elle n'a
