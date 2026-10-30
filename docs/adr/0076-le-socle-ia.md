@@ -174,6 +174,11 @@ sa sortie structurée ») pouvait sembler l'interdire.
 - **`output_structured_data` est un canal de réponse, pas un outil.** Le SDK n'exécute rien quand le
   modèle l'appelle : il en lit les arguments comme la sortie. Le point 10 reste entier, et l'usage
   qui lit un contenu externe n'a toujours aucun outil, pas même de lecture.
+- **L'outil forcé est le défaut du SDK, et la passerelle le neutralise.** Sans mode strict,
+  `laravel/ai` force l'outil de sortie (`tool_choice` `tool`), qu'Opus 5.5, Sonnet 5.5, Fable 5.1 et
+  Mythos 5.1 refusent en HTTP 400. Pour Anthropic, `SocleAgent::providerOptions()` pose donc
+  `tool_choice: auto` : le modèle choisit, guidé par le prompt et le seul outil proposé, et la
+  passerelle tient une réponse sans sortie pour un échec (`ai.response_invalid`).
 - **Le mode non strict est un choix déclaré par agent** (`SocleAgent::usesStrictSchema()`, faux pour
   `RadarExtraction`), jamais un repli à l'exécution. Le normaliseur de l'usage valide chaque valeur
   (type, énumération, bornes, passage cité) et rabat à `low` ce qui ne passe pas. La relecture

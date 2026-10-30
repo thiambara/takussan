@@ -20,9 +20,12 @@ tags: [api, radar, collecte, adr-0077]
 ## Décision du porteur (2026-10-30)
 
 Ordre des sites voulu : **Expat-Dakar et CoinAfrique d'abord** (déjà adaptés par TCK-2392, à éprouver en premier),
-**puis Facebook**. Facebook exigerait un navigateur sans tête (TCK-2425 : connexion, rendu côté client), et ses
-conditions d'utilisation interdisent la collecte automatisée : **à trancher par le porteur avant tout travail** sur
-Facebook.
+**puis Facebook**. **Configurable dans les paramètres** : ce qui est encore figé dans `config/radar.php` (l'URL de
+départ de chaque site) se réglera dans la console (TCK-2438, en cours).
+
+> **Constat de la session (non vérifié juridiquement)**, à vérifier par le porteur avant tout travail sur Facebook :
+> Facebook exigerait un navigateur sans tête (TCK-2425 : connexion, rendu côté client), et ses conditions
+> d'utilisation interdiraient la collecte automatisée.
 
 ## Objectif utilisateur
 

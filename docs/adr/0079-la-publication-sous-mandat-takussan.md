@@ -1,6 +1,6 @@
 # ADR-0079 — Un annonceur d'accord qui ne veut pas de compte peut confier la diffusion de ses biens à Takussan, derrière un drapeau éteint
 
-- **Statut** : Accepté (principe) le 2026-10-30 par le porteur — `radar_mandate` reste éteint jusqu'à l'avis de l'avocat et la livraison de TCK-2421
+- **Statut** : Accepté (principe) le 2026-10-30 par le porteur — `radar_mandate` reste éteint jusqu'à l'avis de l'avocat, la livraison de TCK-2421 et celle de TCK-2422 (article des CGU et mention publique)
 - **Date** : 2026-10-30
 - **Tickets** : TCK-2394 (mise en œuvre, drapeau éteint) ; suites : TCK-2421 (reprise des biens par
   l'annonceur), TCK-2422 (article des CGU et mention publique, avec l'acceptation)
@@ -9,8 +9,9 @@
 > ⚠ **Accepté sur le principe, pas allumé.** Rédigé de nuit par un agent, sur la consigne du porteur de
 > choisir la forme la moins restrictive, documentée, réversible et derrière une configuration ; accepté
 > sur le principe par le porteur le 2026-10-30. Le code existe, **éteint** : rien ne se publie sous
-> mandat tant que le drapeau `radar_mandate` n'est pas allumé, ce qui attend l'avis de l'avocat et la
-> livraison de TCK-2421 (reprise des biens par l'annonceur).
+> mandat tant que le drapeau `radar_mandate` n'est pas allumé, ce qui attend l'avis de l'avocat (dont
+> la relecture de `mandat.v1`), la livraison de TCK-2421 (reprise des biens par l'annonceur) et celle
+> de TCK-2422 (article des CGU et mention publique).
 
 ## Contexte
 
@@ -101,7 +102,7 @@ publication sous mandat. Rien d'autre ne change dans le Radar.**
 7. **La révocation et la purge ne changent pas** (ADR-0077 § 8, § 9) : un STOP retire les biens
    sous mandat du public sur-le-champ.
 
-## Les textes, à poser avec l'acceptation (TCK-2422)
+## Les textes, à poser avant l'allumage, après l'avis de l'avocat (TCK-2422)
 
 **CGU, nouvel article 6.4 — rédaction de départ, ⚠ à relire par l'avocat :**
 
@@ -145,6 +146,6 @@ son annonceur ». C'est la « mention expresse contraire » de l'article 1.
   l'administrateur de l'espace des mandats, 409 sans lui » ; « sous mandat, la réclamation par le
   lien est refusée, avant le SMS et sous le verrou » (`RadarClaimTest`,
   `PublishClaimedRadarListingsTest`).
-- Prérequis du porteur avant d'allumer : accepter cet ADR, faire **TCK-2421** (qui lève la fermeture
+- Prérequis du porteur avant d'allumer : accepter cet ADR (fait sur le principe le 2026-10-30), faire **TCK-2421** (qui lève la fermeture
   de la réclamation) et **TCK-2422**, faire relire `mandat.v1` par l'avocat, créer l'espace des
   mandats avec un administrateur principal et le désigner dans la console.

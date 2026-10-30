@@ -58,10 +58,11 @@ message, l'échec se distingue nettement (ton destructif de la charte), sans ala
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Un message en échec (`failed`) ne s'affiche jamais comme envoyé ni comme remis.
-- [ ] AC2 — Un message `delivered` ou `read` s'affiche remis ou lu ; un message `ambiguous` garde son libellé « par
+- [ ] AC1 — Un message `failed` ne s'affiche jamais comme remis, ni sans mention d'échec.
+- [ ] AC2 — Un message `sent` ou `accepted` (pas encore d'accusé) s'affiche envoyé, jamais remis.
+- [ ] AC3 — Un message `delivered` ou `read` s'affiche remis ou lu ; un message `ambiguous` garde son libellé « par
       l'API sans confirmation de Meta ».
-- [ ] AC3 — Un message envoyé à la main n'affiche aucun état de remise.
+- [ ] AC4 — Un message envoyé à la main n'affiche aucun état de remise.
 
 ## Hors périmètre
 

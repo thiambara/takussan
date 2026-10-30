@@ -19,10 +19,12 @@ tags: [api, infra, radar, collecte, adr-0077]
 
 ## Décision du porteur (2026-10-30)
 
-**Pas de navigateur sans tête tant qu'aucun site retenu n'exige JavaScript** (recommandation conservée par le porteur).
-Facebook, cité comme site suivant (TCK-2424), l'exigerait (connexion, rendu côté client), et ses conditions
-d'utilisation interdisent la collecte automatisée : **à trancher par le porteur avant tout travail** sur ce ticket
-pour Facebook.
+**Pas de navigateur sans tête tant qu'aucun site retenu n'exige JavaScript** : sans réponse du porteur sur ce point,
+la recommandation tient.
+
+> **Constat de la session (non vérifié juridiquement)**, à vérifier par le porteur avant tout travail sur ce ticket
+> pour Facebook : Facebook, cité comme site suivant (TCK-2424), exigerait un navigateur sans tête (connexion, rendu
+> côté client), et ses conditions d'utilisation interdiraient la collecte automatisée.
 
 ## Objectif utilisateur
 
