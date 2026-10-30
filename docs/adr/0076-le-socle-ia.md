@@ -155,3 +155,33 @@ socle choisit le modèle, contrôle le budget et les données, journalise l'appe
 - test « une donnée `sensible` ne quitte pas la passerelle » ;
 - tests de la passerelle (budget, coupe-circuit, cache, journal) sur les faux modèles du SDK ;
 - route `/super-admin/ai` inscrite dans `NamespaceAccessGuardTest`.
+
+## Amendement du 2026-10-30 — l'outil de sortie non strict n'est pas un outil au sens du point 10 (TCK-2411, TCK-2433)
+
+Précise le point 10, sans le changer.
+
+### Pourquoi
+
+L'extraction du Radar ne peut pas rendre sa sortie en mode strict : Anthropic refuse la grammaire
+compilée de son schéma (« The compiled grammar is too large », HTTP 400), alors que ce schéma tient
+sous les limites publiées (16 paramètres à union, 24 optionnels ; test par agent, TCK-2411). Sans
+mode strict, le SDK `laravel/ai` fait passer la sortie structurée par un outil forcé,
+`output_structured_data`. Lu à la lettre, le point 10 (« aucun outil d'écriture », « ne produit que
+sa sortie structurée ») pouvait sembler l'interdire.
+
+### Décision
+
+- **`output_structured_data` est un canal de réponse, pas un outil.** Le SDK n'exécute rien quand le
+  modèle l'appelle : il en lit les arguments comme la sortie. Le point 10 reste entier, et l'usage
+  qui lit un contenu externe n'a toujours aucun outil, pas même de lecture.
+- **L'outil forcé est le défaut du SDK, et la passerelle le neutralise.** Sans mode strict,
+  `laravel/ai` force l'outil de sortie (`tool_choice` `tool`), qu'Opus 5.5, Sonnet 5.5, Fable 5.1 et
+  Mythos 5.1 refusent en HTTP 400. Pour Anthropic, `SocleAgent::providerOptions()` pose donc
+  `tool_choice: auto` : le modèle choisit, guidé par le prompt et le seul outil proposé, et la
+  passerelle tient une réponse sans sortie pour un échec (`ai.response_invalid`).
+- **Le mode non strict est un choix déclaré par agent** (`SocleAgent::usesStrictSchema()`, faux pour
+  `RadarExtraction`), jamais un repli à l'exécution. Le normaliseur de l'usage valide chaque valeur
+  (type, énumération, bornes, passage cité) et rabat à `low` ce qui ne passe pas. La relecture
+  humaine reste la garde finale.
+- **Repasser un agent en strict exige une attestation par un vrai appel**, sur la taille de schéma
+  concernée.
