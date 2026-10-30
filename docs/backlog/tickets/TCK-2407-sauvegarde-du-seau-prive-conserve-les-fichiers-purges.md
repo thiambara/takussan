@@ -1,7 +1,7 @@
 ---
 id: TCK-2407
 title: "La copie nocturne du seau privé garde pour toujours les fichiers que le Radar purge"
-status: doing
+status: review
 phase: P1
 family: technique
 estimate: S
@@ -49,25 +49,85 @@ Relevé le 2026-10-29 par la vérification adverse de TCK-2391, sur `feat/radar-
 
 ## Delta à produire
 
-- [ ] Choisir : (a) une règle de cycle de vie R2 sur `vps-sauvegardes` qui expire les objets après 14 jours *depuis leur copie* — sans effet sur
+- [x] Choisir : (a) une règle de cycle de vie R2 sur `vps-sauvegardes` qui expire les objets après 14 jours *depuis leur copie* — sans effet sur
       un objet vivant, que la copie nocturne ne retransfère pas ; ou (b) une copie datée par jour (`vps-sauvegardes/<seau>/AAAA-MM-JJ/`) avec
       rotation à 14 jours ; ou (c) `rclone sync` plus une copie datée, si le porteur accepte d'abandonner « jamais `sync` ». Écrire l'ADR avant.
       Vérifier d'abord si (a) tient : un objet vivant et inchangé n'est plus recopié, donc il vieillirait puis disparaîtrait — (a) seul est faux.
-- [ ] Appliquer le choix dans `deploy/server/sauvegarde-seau-prive.sh` et `bootstrap.sh` § 8, puis le relever sur le serveur de préproduction.
-- [ ] Mettre à jour `docs/infra/hebergement.md` (ligne « Copie du seau privé des médias ») avec la durée réellement mesurée.
+- [x] Appliquer le choix dans `deploy/server/sauvegarde-seau-prive.sh` et `bootstrap.sh` § 8, puis le relever sur le serveur de préproduction.
+- [x] Mettre à jour `docs/infra/hebergement.md` (ligne « Copie du seau privé des médias ») avec la durée réellement mesurée.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Un objet effacé du seau privé n'existe plus dans la sauvegarde 14 jours plus tard (mesuré sur la préproduction : un fichier
+- [x] AC1 — Un objet effacé du seau privé n'existe plus dans la sauvegarde 14 jours plus tard (mesuré sur la préproduction : un fichier
       d'essai posé, copié, effacé du seau, puis absent de la copie à J+14 ou à la date simulée par le mécanisme retenu).
-- [ ] AC2 — Un objet vivant et inchangé depuis plus de 14 jours est toujours dans la sauvegarde et se restaure (même md5).
-- [ ] AC3 — Le passage nocturne signale toujours son échec sur Telegram.
+- [x] AC2 — Un objet vivant et inchangé depuis plus de 14 jours est toujours dans la sauvegarde et se restaure (même md5).
+- [x] AC3 — Le passage nocturne signale toujours son échec sur Telegram.
 
 ## Hors périmètre
 
 - Le seau public (conversions régénérables, avatars, logos), non copié.
 - La sauvegarde de la base PostgreSQL (WAL-G) et sa rétention.
 
+## Reste sur dev
+
+Le code, le harnais et le runbook sont sur la branche `fix/sauvegarde-seau-prive-purge`. Les trois AC sont
+prouvés par `scripts/test-sauvegarde-seau-prive.sh`, qui joue le vrai script sur un R2 simulé, à des dates
+simulées (la seconde voie que l'AC1 admet). Il reste le **relevé sur la préproduction**, qui revient au
+porteur : le dépôt ne touche ni au VPS ni à R2. Runbook : `docs/infra/hebergement.md`, « Passer la copie du
+seau privé en instantanés ».
+
+Prérequis du porteur, sur l'infrastructure :
+
+1. **Redéploiement du script** : `scp deploy/server/sauvegarde-seau-prive.sh
+   root@178.18.247.62:/usr/local/sbin/sauvegarde-seau-prive`. Les unités systemd de `bootstrap.sh` § 8 ne
+   changent pas.
+2. **Variable d'environnement** : aucune n'est requise. `RETENTION_JOURS` est facultative dans
+   `/etc/default/sauvegarde-seau-prive` : 14 par défaut, à garder entre 8 et 14. Sous 8, le verrou de
+   7 jours refuse la rotation. Au-delà de 14, `privacy.ts` § 6 ne tient plus.
+3. **Règle de cycle de vie R2** : **aucune à poser**, et c'est voulu (ADR-0029, amendement du 2026-10-30,
+   point 3). Le jeton et le verrou de 7 jours ne changent pas non plus.
+4. **Relevé** : un premier passage, puis le second `--essai` du même jour, qui doit rendre « nothing to
+   transfer ». Ensuite AC2 (md5 d'un objet de plus de 14 jours) et AC3 (`SOURCE=takussan-seau-inexistant`,
+   alerte Telegram). AC1 se mesure en temps réel : un objet d'essai posé, copié, effacé, puis absent 14 jours
+   plus tard.
+5. **Au moins 8 jours après le premier passage** : `sauvegarde-seau-prive --retirer-copie-plate`. Il retire
+   l'ancienne copie unique, qui garde tout ce qui a été effacé depuis le 2026-09-22. **Tant que cette étape
+   n'est pas faite, la promesse de `privacy.ts` § 6 reste fausse pour ce qui a été effacé avant le
+   déploiement.**
+6. Porter la date et les comptes dans la ligne « Copie du seau privé des médias » du relevé, retirer son
+   avertissement, puis passer ce ticket à `done`.
+
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- **(b) retenue, avec la rotation dans le script.** (a) seule est fausse : un objet vivant n'est jamais
+  recopié, donc il vieillirait puis disparaîtrait. (c) se heurte au verrou de 7 jours : un STOP le lendemain
+  d'une capture ferait échouer la copie, et alerter, chaque nuit pendant une semaine.
+- **La rotation suit une copie réussie, jamais l'inverse.** Une règle de cycle de vie effacerait aussi VPS
+  arrêté : la sauvegarde du seau privé disparaîtrait 14 jours après une panne, au moment où on en a besoin.
+- **Bornes** : la rotation retire les instantanés de `RETENTION_JOURS` jours ou plus. Un objet effacé entre le
+  passage de J−1 et celui de J quitte la sauvegarde au passage de J+13, soit 14 jours au plus après. Seuls les
+  préfixes exactement `AAAA-MM-JJ` sont retirés : `2026-10-01-1` (un nom qui commence par une date sans en
+  être une) et une date future restent.
+- **Le compte des jours se fait en bash seul.** `date -d` n'existe pas hors de GNU, et le harnais doit
+  tourner sur le poste (bash 3.2) comme en CI.
+- **L'ancienne copie plate n'est retirée qu'à la demande** (`--retirer-copie-plate`), après un passage complet.
+  C'est un effacement irréversible : il revient au porteur.
+
+### Décisions prises en autonomie, à revoir
+
+- **Mécanisme.** Retenu : un instantané complet par jour, et 14 gardés. Écarté : (c) `sync` avec un
+  `--backup-dir` daté. Raison : (c) heurte le verrou de 7 jours, et le lever rouvrirait le risque du VPS
+  compromis.
+- **Qui fait la rotation.** Retenu : le script, après une copie réussie. Écarté : une règle de cycle de vie
+  R2. Raison : la règle effacerait aussi pendant une panne, et le script garde toujours les 14 derniers
+  instantanés écrits.
+- **Rétention.** Retenu : `RETENTION_JOURS`, réglable, 14 par défaut. Écarté : 14 en dur. Raison : c'est
+  l'option la moins restrictive, et on revient en arrière sans redéployer.
+- **Forme de la décision.** Retenu : un amendement d'ADR-0029. Écarté : un nouvel ADR. Raison : le point 8
+  d'ADR-0029 portait la copie, et un numéro neuf risquait une collision avec les autres agents de la nuit.
+- **Ancienne copie.** Retenu : un retrait à la demande du porteur, au moins 8 jours après. Écarté : un
+  retrait automatique au premier passage. Raison : l'effacement est irréversible, et le verrou refuserait
+  les objets récents.
+- **Coût.** Retenu : un stockage multiplié par 14 (environ 2,8 Go et 100 000 opérations de classe A par
+  mois, dans la gratuité de R2). Écarté : l'option (c), plus économe. Raison : c'est le prix de la
+  compatibilité avec le verrou. Le seuil payant tombe vers 70 000 objets, à relire avant la production.
