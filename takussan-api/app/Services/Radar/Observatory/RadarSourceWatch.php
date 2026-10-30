@@ -120,7 +120,9 @@ final class RadarSourceWatch
      * site actif à cette présence (`started_at <= présence <= finished_at`, ou pas encore fini) : ceux qui ont pu la voir.
      * Les dates sont à la seconde : un passage lancé dans la seconde de la dernière observation est actif à cette présence,
      * et le passage qui l'a vraiment vue l'est aussi (vérification adverse M1 — avec le seul « dernier passage commencé
-     * avant », il passait pour celui qui l'avait vue). Élargir les URL de départ ne coupe donc pas la détection ; les
+     * avant », il passait pour celui qui l'avait vue). Et le dernier passage commencé avant la présence, même déjà clos :
+     * un passage déclaré perdu (`failStale()` pose `finished_at`) dont le worker observe encore n'est actif à rien, et le
+     * `not exists` serait vrai par vacuité (vérification adverse N1). Élargir les URL de départ ne coupe donc pas la détection ; les
      * restreindre, si : un passage qui n'a pas relu la liste où elle était ne dit rien d'elle, et elle n'est jugée de
      * nouveau qu'une fois revue. Un passage antérieur à TCK-2438 (`start_urls` nulle) se lit comme l'URL ACTUELLE de la
      * configuration du site (liée deux fois, après le site : {@see RadarStartUrls::legacyPerimeterJson()}). L'inclusion est
@@ -135,7 +137,9 @@ final class RadarSourceWatch
             .' and r.started_at > ('.$this->lastSeenSql().')'
             .' and not exists (select 1 from '.$table.' r2 where r2.site = r.site'
             .' and r2.started_at <= ('.$this->lastSeenSql().')'
-            ." and coalesce(r2.finished_at, 'infinity'::timestamp) >= (".$this->lastSeenSql().')'
+            ." and (coalesce(r2.finished_at, 'infinity'::timestamp) >= (".$this->lastSeenSql().')'
+            .' or r2.id = (select r3.id from '.$table.' r3 where r3.site = r.site and r3.started_at <= ('.$this->lastSeenSql().')'
+            .' order by r3.started_at desc, r3.id desc limit 1))'
             .' and not coalesce(r.start_urls, ?::jsonb) @> coalesce(r2.start_urls, ?::jsonb))';
     }
 

@@ -196,6 +196,11 @@ class RadarCrawlStartUrlsTest extends TestCase
             'javascript' => [['javascript:alert(1)'], 'radar.crawl.start_url_invalid'],
             'adresse IP' => [['https://93.184.216.34/immobilier'], 'radar.crawl.start_url_host'],
             'trop longue' => [[$long], 'radar.crawl.start_url_too_long'],
+            // 428 octets bruts, mais 1 228 caractères une fois encodée : c'est la forme enregistrée qui est bornée.
+            // 501 caractères écrits, 500 une fois canonique (le « ? » vide disparaît) : la chaîne écrite est bornée
+            // aussi, avant toute analyse.
+            'trop longue telle qu\'écrite' => [['https://www.expat-dakar.com/'.str_repeat('a', 472).'?'], 'radar.crawl.start_url_too_long'],
+            'trop longue une fois canonique' => [['https://www.expat-dakar.com/'.str_repeat('é', 200)], 'radar.crawl.start_url_too_long'],
             'doublon' => [[self::APPARTEMENTS, self::TERRAINS, self::APPARTEMENTS], 'radar.crawl.start_url_duplicate'],
             'trop nombreuses' => [array_map(fn (int $i) => self::LIST.'?page='.$i, range(1, 11)), 'radar.crawl.start_urls_too_many'],
         ];

@@ -67,6 +67,11 @@ final class RadarStartUrls
         if ($uri->getScheme() !== 'https' || $uri->getUserInfo() !== '' || $uri->getPort() !== null || $uri->getHost() === '') {
             return self::REFUSED_INVALID;
         }
+        // La forme canonique est celle qu'on enregistre et qu'on lit : sa longueur aussi est bornée (vérification adverse
+        // N2 — 200 « é » en font 1 200 caractères encodés, qu'un passage refuserait ensuite).
+        if (strlen((string) $uri) > self::maxLength()) {
+            return self::REFUSED_TOO_LONG;
+        }
 
         $hosts = array_map('strtolower', $adapter->startHosts());
 
@@ -153,6 +158,6 @@ final class RadarStartUrls
         $sources = app(RadarCrawlSources::class);
         $case = RadarSourceSite::tryFrom($site);
 
-        return json_encode($case !== null && $sources->has($site) ? [$sources->adapter($case)->startUrl()] : [], JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
+        return json_encode($case !== null && $sources->has($site) ? [self::canonical($sources->adapter($case)->startUrl())] : [], JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
     }
 }

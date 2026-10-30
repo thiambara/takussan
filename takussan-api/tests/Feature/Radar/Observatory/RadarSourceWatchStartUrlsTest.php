@@ -176,6 +176,27 @@ class RadarSourceWatchStartUrlsTest extends TestCase
         $this->assertNull($studio->availability_asked_at, 'Aucune question au titulaire.');
     }
 
+    public function test_une_observation_d_un_passage_deja_clos_comme_perdu_garde_son_perimetre(): void
+    {
+        // Vérification adverse N1 (banc V6) : le passage a été clos `lost` (`finished_at` posé à +20 min) alors que son
+        // worker observait encore le studio (+30 min). Aucun passage n'est actif à cette présence : son périmètre reste
+        // pourtant celui à contenir.
+        $premier = $this->crawl();
+        $studio = $this->publier(self::STUDIO);
+        $debut = $premier->started_at->toImmutable();
+        RadarCrawlRun::query()->whereKey($premier->id)->update(['finished_at' => $debut->addMinutes(20)]);
+        RadarListingSnapshot::query()->where('radar_listing_id', $studio->id)->update(['last_seen_at' => $debut->addMinutes(30)]);
+
+        $this->regler([self::APPARTEMENTS]);
+        $this->crawl();
+        $this->crawl();
+
+        $this->assertSame(0, app(RadarSourceWatch::class)->observe()['gone']);
+        $studio->refresh();
+        $this->assertNull($studio->source_gone_at);
+        $this->assertNull($studio->availability_asked_at, 'Aucune question au titulaire.');
+    }
+
     public function test_changer_l_url_de_la_configuration_est_un_changement_de_perimetre(): void
     {
         $this->assertTrue($this->crawl()->reached_end);
