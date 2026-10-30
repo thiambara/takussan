@@ -100,6 +100,13 @@ porte le numéro et le nom de l'annonceur dans l'image, qu'aucune garde ne sait 
 - Des captures réelles pour `radar.verification_accord` (voir le contrat de données).
 - Un changement du prompt ou du modèle de l'extraction.
 
+## Reste sur dev
+
+Le code et les trente cas sont sur `dev` (PR #1584). Il reste le passage payant, à lancer par le porteur à
+la main depuis l'arbre principal (`takussan-api/`) : `php artisan ai:eval radar.extraction --update-baseline`
+puis `php artisan ai:eval radar.verification_accord --update-baseline`. Les deux `baseline.json` versionnés
+ferment AC1 et AC3, et le ticket passe à `done`.
+
 ## Notes d'implémentation
 
 **Reste pour le porteur** : AC1 et AC3 attendent le passage payant (les deux `--update-baseline`, à lancer à la

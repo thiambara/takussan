@@ -9030,7 +9030,8 @@
               "timeout": "l’IA n’a pas répondu à temps",
               "noCapture": "aucune capture lisible",
               "noNumber": "l’annonceur n’a pas de numéro à comparer",
-              "unexpected": "erreur imprévue"
+              "unexpected": "erreur imprévue",
+              "purged": "la réponse a été effacée (STOP ou retrait de l’annonceur)"
             },
             "verdict": {
               "heading": "Verdict de l’IA",

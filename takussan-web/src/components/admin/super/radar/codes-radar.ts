@@ -171,6 +171,7 @@ export const MOTIFS_VERIFICATION_RADAR: Record<string, string> = {
   'radar.verification.no_capture': 'noCapture',
   'radar.verification.no_number': 'noNumber',
   'radar.verification.unexpected': 'unexpected',
+  'radar.verification.purged': 'purged',
 };
 
 /**

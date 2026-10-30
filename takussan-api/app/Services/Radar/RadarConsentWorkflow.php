@@ -3,6 +3,7 @@
 namespace App\Services\Radar;
 
 use App\Jobs\Radar\PrepareRadarListingPhotos;
+use App\Jobs\Radar\PurgeRadarAdvertiser;
 use App\Jobs\Radar\VerifyRadarConsentReply;
 use App\Models\Enums\RadarConsentProof;
 use App\Models\Enums\RadarListingStage;
@@ -13,7 +14,6 @@ use App\Models\RadarConsent;
 use App\Models\RadarListing;
 use App\Models\RadarOutreach;
 use App\Models\User;
-use App\Support\RadarPhone;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -21,7 +21,7 @@ use Illuminate\Support\Facades\DB;
 /**
  * TCK-2388 (ADR-0077 §3, §11) — les gestes qui font vivre la preuve d'un accord : déposer la réponse d'un annonceur
  * puis poser l'issue du message, qui seule confirme un accord. Chaque geste exige la prise en charge de l'annonceur et
- * relit ses règles sous verrou. Ordre des verrous : annonces → annonceur → message → réponse.
+ * relit ses règles sous verrou. Ordre des verrous : annonces → annonceur → message → réponse (et, pour un STOP, les biens publiés : {@see AdvertiserRevocation}).
  *
  * **Déposer une réponse n'accorde rien** : la ligne naît `pending`, la vérification par l'IA part en file APRÈS le
  * commit (`VerifyRadarConsentReply`), et seul un humain confirme. Aucune annonce ne change d'étape ici.
@@ -39,6 +39,7 @@ final class RadarConsentWorkflow
         private readonly AdvertiserClaim $claim,
         private readonly RadarCaptureReader $captures,
         private readonly RadarVerificationDecision $verification,
+        private readonly AdvertiserRevocation $revocation,
     ) {}
 
     /**
@@ -142,7 +143,7 @@ final class RadarConsentWorkflow
         $listings = $listings->orderBy('id')->lockForUpdate()->get();
 
         $advertiser = RadarAdvertiser::query()->whereKey($outreach->radar_advertiser_id)->lockForUpdate()->firstOrFail();
-        if ($outcome === RadarOutreachOutcome::Stop && $this->advertiserListingIds($advertiser) !== $listings->pluck('id')->map(fn ($id) => (int) $id)->sort()->values()->all()) {
+        if ($outcome === RadarOutreachOutcome::Stop && $this->revocation->listingIds($advertiser) !== $listings->pluck('id')->map(fn ($id) => (int) $id)->sort()->values()->all()) {
             return null;
         }
         $this->claim->assertHeld($advertiser, $by);
@@ -160,10 +161,11 @@ final class RadarConsentWorkflow
 
         $discordances = [];
         $revoked = [];
+        $retired = [];
         $moved = match ($outcome) {
             RadarOutreachOutcome::Consented => $this->confirm($reply, $advertiser, $listings, $reason, $by, $discordances),
             RadarOutreachOutcome::Refused => $this->move($listings, RadarListingStage::Refused),
-            RadarOutreachOutcome::Stop => $this->stop($advertiser, $listings, $revoked),
+            RadarOutreachOutcome::Stop => $this->stop($advertiser, $listings, $revoked, $retired),
             RadarOutreachOutcome::Question, RadarOutreachOutcome::NoAnswer => [],
         };
 
@@ -179,6 +181,7 @@ final class RadarConsentWorkflow
                 'consent_id' => $reply?->id,
                 'listing_ids' => $moved,
                 'revoked_consent_ids' => $revoked,
+                'property_ids' => $retired,
                 'discordances' => $discordances,
                 'reason' => $reason,
                 'suggestion_decision' => $suggestion?->decision->value,
@@ -187,12 +190,6 @@ final class RadarConsentWorkflow
             ->log('Issue d\'un message d\'accord du Radar posée');
 
         return $locked->refresh();
-    }
-
-    /** @return list<int> toutes les annonces de l'annonceur, dans l'ordre croissant (relues, jamais verrouillées ici) */
-    private function advertiserListingIds(RadarAdvertiser $advertiser): array
-    {
-        return RadarListing::query()->where('radar_advertiser_id', $advertiser->id)->orderBy('id')->pluck('id')->map(fn ($id) => (int) $id)->all();
     }
 
     /**
@@ -258,36 +255,24 @@ final class RadarConsentWorkflow
     }
 
     /**
-     * STOP : l'annonceur ne se contacte plus (`do_not_contact_at`), son empreinte retrouve le numéro même purgé
-     * (relue contre `RadarPhone::hmac()` : réécrite seulement si la clé a changé depuis la création), ses annonces
-     * ouvertes passent `do_not_contact` et ses accords valides sont retirés. Les annonces closes (doublon, écartée,
-     * refusée, purgée) restent telles quelles. **Rien n'est purgé ici** : le numéro et le texte brut partent avec
-     * TCK-2391, qui lira `do_not_contact_at`.
+     * STOP : la révocation ({@see AdvertiserRevocation::apply()}, qui réunit ce que le STOP et le geste de l'opérateur font
+     * tous deux) : l'annonceur ne se contacte plus (`do_not_contact_at`, avec l'empreinte de son numéro), ses annonces
+     * ouvertes passent `do_not_contact`, ses accords valides sont retirés et ses biens publiés quittent le public. Les annonces
+     * closes (doublon, écartée, refusée, purgée) restent telles quelles. **La purge part en file après le commit**
+     * ({@see PurgeRadarAdvertiser}) : « dès un STOP » (ADR-0077 §9).
      *
      * @param  Collection<int, RadarListing>  $listings  toutes les annonces de l'annonceur, verrouillées
      * @param  list<int>  $revoked  rempli : les accords retirés
+     * @param  list<int>  $retired  rempli : les biens retirés du public
      * @return list<int> les annonces fermées
      */
-    private function stop(RadarAdvertiser $advertiser, Collection $listings, array &$revoked): array
+    private function stop(RadarAdvertiser $advertiser, Collection $listings, array &$revoked, array &$retired): array
     {
-        $advertiser->do_not_contact_at = now();
-        if ($advertiser->phone !== null && $advertiser->phone_hmac !== RadarPhone::hmac($advertiser->phone)) {
-            $advertiser->phone_hmac = RadarPhone::hmac($advertiser->phone);
-        }
-        $advertiser->save();
+        $applied = $this->revocation->apply($advertiser, $listings);
+        $revoked = $applied['revoked_consents'];
+        $retired = $applied['retired_properties'];
 
-        $closed = [];
-        $open = [RadarListingStage::Extracted, RadarListingStage::Reviewed, RadarListingStage::Contacted, RadarListingStage::Consented];
-        foreach ($listings->whereIn('stage', $open) as $listing) {
-            $listing->fill(['stage' => RadarListingStage::DoNotContact, 'stage_reason' => null])->save();
-            $closed[] = (int) $listing->id;
-        }
-
-        $consents = RadarConsent::query()->valid()->where('radar_advertiser_id', $advertiser->id);
-        $revoked = (clone $consents)->orderBy('id')->pluck('id')->map(fn ($id) => (int) $id)->all();
-        $consents->update(['revoked_at' => now()]);
-
-        return $closed;
+        return $applied['closed'];
     }
 
     /**
