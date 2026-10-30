@@ -1065,20 +1065,24 @@ catalogue tant que cet accord n'existe pas. Vision et lots : [plan du 2026-10-26
   au-delà de 19, il se lit encore comme le début du prix (`R+ 20 450 000 F` vaut 20 450 000) (TCK-2445).
   Derrière un `R+` collé, un numéro étranger complet garde son indicatif : `Villa R+33 6 12 34 56 78`
   ne donne aucun contact. En retour, un étage collé de 20 ou plus perd le numéro sénégalais qui le
-  suit quand l'étage et ce numéro, lus ensemble derrière le `+`, forment un numéro étranger complet
-  (un indicatif suivi du nombre de chiffres de son plan) : un étage qui est lui-même un indicatif
-  (`R+20`, `R+30`), un étage qui commence par `7` ou `1` suivi de dix chiffres en tout (`R+75`,
-  `R+105`), un étage de trois chiffres dont le début est un indicatif (`R+200`, `R+350`) ; devant
+  suit quand l'étage commence par un indicatif, écrit d'un seul tenant dans l'étage, et que la fin
+  de l'étage puis ce numéro complètent son plan : un étage qui est lui-même un indicatif (`R+20`,
+  `R+30`), un étage qui commence par `7` ou `1` suivi de dix chiffres en tout (`R+75`, `R+105`), un
+  étage de trois chiffres dont le début est un indicatif (`R+200`, `R+350`) ; devant
   `77 123 45 67`, ces étages ne donnent aucun contact, quand `Immeuble R+25 77 123 45 67` et
-  `Immeuble R+999 77 123 45 67` gardent le leur. La perte vaut aussi quand le numéro porte un indicatif
+  `Immeuble R+999 77 123 45 67` gardent le leur, comme `Immeuble R+35 77 123 45 67` (l'indicatif
+  `357` serait à cheval sur l'espace). La perte vaut aussi quand le numéro porte un indicatif
   `00221` ou `221` nu (`Immeuble R+20 00221 77 123 45 67`, `Immeuble R+30 221 77 123 45 67`), ou qu'un
   tiret, court ou long, un point ou une barre l'en sépare (`Immeuble R+20 - 77 123 45 67`). Elle ne vaut ni avec
   `+221` ou `(221)` (`Immeuble R+20 +221 77 123 45 67`, `Immeuble R+20 (221) 77 123 45 67`), ni
   derrière une virgule, un deux-points, un point-virgule ou une parenthèse
-  (`Immeuble R+20, 77 123 45 67`). De même, le prix qui suit un étage collé est perdu quand l'étage
-  et le prix, lus ensemble, forment un numéro étranger complet (`Immeuble R+30 2 500 000 F`,
-  `Immeuble R+150 25 000 000 F`), quand `Immeuble R+105 2 500 000 F` garde le sien ; le masquage le
-  lit déjà ainsi (TCK-2441). Derrière l'étage `1` ou `7`, `(221)` suivi d'un numéro sénégalais groupé comme au
+  (`Immeuble R+20, 77 123 45 67`). De même, le prix qui suit un étage collé est perdu quand
+  l'indicatif du début de l'étage, la fin de l'étage et le prix complètent son plan
+  (`Immeuble R+30 2 500 000 F`, `Immeuble R+150 25 000 000 F`), sauf quand ce qui suit l'indicatif
+  a la forme d'un montant : au plus trois chiffres, puis des groupes de trois chiffres finissant par
+  `000 000` (`Immeuble R+20 450 000 000 F`, `Immeuble R+30 25 000 000 F` gardent leur prix ; derrière
+  le `1` de `R+150`, `50 25 000 000` n'a pas cette forme). `Immeuble R+105 2 500 000 F` garde le sien,
+  trop court pour le plan du `1`. Le masquage le lit déjà ainsi (TCK-2441). Derrière l'étage `1` ou `7`, `(221)` suivi d'un numéro sénégalais groupé comme au
   [§2.11](#211-socle-ia) n'est pas une zone : `Villa R+1 (221) 77 012 34 56` donne `+221770123456`. Le
   `221` qui touche le numéro, nu ou entre parenthèses, au plus trois espaces, points, tirets `-` ou
   barres `/` entre eux, n'est pas un prix : `Villa (221) 77 012 34 56` et `Villa 221 / 77 012 34 56`
