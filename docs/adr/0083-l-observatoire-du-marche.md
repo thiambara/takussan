@@ -107,3 +107,26 @@ l'équipe, **le titulaire du bien est en plus questionné**, et **rien n'est jam
    commencé depuis `radar.observe.online_horizon_days` (3 jours ; la fréquence du site × `confirm_runs` si elle est plus
    longue). Jamais jugées, elles comptaient en ligne pour toujours et retenaient la question indéfiniment. Une question se tait quand le bien quitte la vitrine ; celle d'un bien supprimé se règle sans
    proposition.
+
+## Amendement — les compteurs anonymes par nature (2026-10-30, TCK-2431)
+
+Le §1 (« aucune table d'agrégats ») vaut pour le marché. **La part par nature fait exception** : la nature vit sur
+l'annonceur, que la purge remet à `unknown`, et aucune requête ne la relit après coup. Elle se fige donc chaque jour dans
+`radar_nature_counts` : le jour (Dakar), la nature présumée, le nombre d'annonceurs porteurs d'au moins une annonce non
+purgée et non doublon, et le nombre de ces annonces — la définition de la section vivante `natures`
+(`RadarNatureCounter::live()`, partagée).
+
+- **Avant la purge** : `radar:count-natures` à 04:13, `radar:purge` à 04:15, et la purge pose le compte elle-même en
+  premier si le passage a manqué. `insertOrIgnore` sur (jour, nature) : une écriture rejouée garde le premier compte.
+- **Sans clé, pas anonyme pour autant** : ni identifiant, ni lieu, ni prix, ni site, ni horodatation de ligne ; jamais
+  purgée. Une ligne seule ne nomme personne, mais **la différence entre deux jours** rend la nature présumée d'un annonceur
+  qui a dit STOP : le compte de J l'incluait, celui de J+1 non, et `do_not_contact_at` (gardé) donne le jour ; de même pour
+  un annonceur lié à un compte, par les dates des fiches purgées. Un seuil k ne la ferme pas ; un grain plus gros (la
+  semaine), un arrondi ou un bruit le pourraient, au prix de la justesse — à trancher avec l'avis juridique de
+  [TCK-2434](../backlog/tickets/TCK-2434-radar-compteurs-anonymes-de-marche.md), qui décide aussi de toute colonne de plus
+  (site, ville).
+- **Éteint par défaut** (`radar.nature_counts.enabled`, `RADAR_NATURE_COUNTS=false`) : ni la commande ni la purge
+  n'écrivent rien, et l'observatoire le dit. Le porteur ne l'allume qu'après l'avis juridique. Une panne du compteur ne
+  fait jamais tomber la purge : signalée (`report()`), puis la purge continue.
+- **La part d'une période se lit en annonceurs-jours** (section `nature_history`, `filter[since|until]`) : sans
+  identifiant, les jours ne se dédoublonnent pas, et un annonceur présent dix jours compte dix fois.

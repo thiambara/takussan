@@ -222,6 +222,11 @@ Schedule::command('notifications:prune-read')->dailyAt('04:05')->timezone('Afric
 // étape ne choisit que ce qui est encore dû, relu sous verrou. Le job `PurgeRadarAdvertiser` la rejoue aussitôt après un STOP.
 Schedule::command('radar:purge')->dailyAt('04:15')->timezone('Africa/Dakar')->withoutOverlapping();
 
+// TCK-2431 (ADR-0077 §9, ADR-0083) — le compteur anonyme du jour des annonceurs par nature, AVANT la purge de 04:15 (qui remet
+// la nature à `unknown`) : le jour, la nature, deux nombres. Idempotent (`insertOrIgnore` sur jour et nature) ; la purge le
+// pose elle-même en premier si ce passage a manqué.
+Schedule::command('radar:count-natures')->dailyAt('04:13')->timezone('Africa/Dakar')->withoutOverlapping();
+
 // TCK-2393 (ADR-0083 §3) — les annonces collectées disparues de leur site, d'après le dernier passage qui a lu toute la liste ;
 // une disparition rattachée à un bien publié écrit `radar_source_listing_gone` (alertable). Idempotente : chaque disparition
 // se réclame une fois. Sans passage de collecte, elle ne trouve rien.

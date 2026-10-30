@@ -140,8 +140,9 @@ Livré sur `feat/radar-collecte-automatique` : schéma (`c3c3d638b`), services d
 - **Une séparation ne rend pas les doublons redirigés** : quand une fusion d'office a rattaché à l'annonce B des doublons
   qui pointaient vers A, séparer B ne les rend pas à A. L'opérateur les reprend à la main ; le cas demande deux fusions
   d'office successives sur la même grappe, rare tant que la fusion est éteinte.
-- **`scripts/check-models-spec.mjs`** : les trois modèles neufs sont dans `EXCLUS_JUSTIFIES` en attendant la PR de
-  spec commune (ce ticket ne touche pas `docs/models-spec.md`). Cette PR retire les trois exclusions dans le même commit.
+- **`scripts/check-models-spec.mjs`** : les trois modèles neufs étaient dans `EXCLUS_JUSTIFIES` en attendant la PR de
+  spec commune (ce ticket ne touchait pas `docs/models-spec.md`). Cette PR (lot 2 de la spec du Radar, 2026-10-30) les a
+  décrits (§112 à §114) et a retiré les trois exclusions.
 
 ### Décisions prises en autonomie, à revoir
 
