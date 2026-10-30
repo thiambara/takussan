@@ -17,6 +17,7 @@ import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import type { ApiError } from '@/lib/api';
 import { useFormatteurs, VALEUR_ABSENTE } from '@/lib/format/useFormatteurs';
 import { fetchRadarObservatory, radarObservatoireKeys } from '@/lib/queries/radar-observatoire';
+import { PartParNature } from './PartParNature';
 import { RADAR_ADVERTISER_NATURES, RADAR_PROPERTY_TYPES, RADAR_SOURCE_SITES, type RadarContract, type RadarSourceSite } from '@/types/radar';
 import type {
   RadarGoneSource,
@@ -257,6 +258,11 @@ export function MarcheRadar() {
           </Section>
         </div>
       </DataState>
+
+      {/* TCK-2431 — sa propre période et sa propre requête : les compteurs figés avant la purge, indépendants du marché. */}
+      <Section titre={t('natureHistory.title')} description={t('natureHistory.description')}>
+        <PartParNature />
+      </Section>
     </div>
   );
 }
