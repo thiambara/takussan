@@ -17,6 +17,7 @@ import type { RadarListingDetail, RadarListingDetailResponse, RadarMatch, RadarM
 import { BarreDesGestes } from './BarreDesGestes';
 import { DialogueDoublon, DialogueEcart } from './DialoguesFiche';
 import { FormulaireFiche } from './FormulaireFiche';
+import { PanneauProvenances } from './PanneauProvenances';
 import { PanneauSource } from './PanneauSource';
 import type { SurPassage } from './passage';
 import { RadarMatchesPanel } from './RadarMatchesPanel';
@@ -84,6 +85,7 @@ function FicheChargee({ detail }: { readonly detail: RadarListingDetail }) {
         className="lg:sticky lg:top-4 lg:max-h-[calc(100dvh-2rem)] lg:overflow-y-auto"
       />
       <div className="space-y-6">
+        <PanneauProvenances detail={detail} />
         <RadarMatchesPanel
           matches={rapprochements.data?.data}
           chargement={rapprochements.isLoading}

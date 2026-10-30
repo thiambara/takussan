@@ -7,6 +7,11 @@ import type {
   RadarAdvertiserResponse,
   RadarAdvertiserRow,
   RadarClaimResponse,
+  RadarCrawlRun,
+  RadarCrawlRunResponse,
+  RadarCrawlSourceChanges,
+  RadarCrawlSourceResponse,
+  RadarCrawlSourcesResponse,
   RadarConsent,
   RadarOutcomeRequest,
   RadarDashboardResponse,
@@ -85,6 +90,8 @@ export const radarKeys = {
   advertiserLists: () => [...radarKeys.advertisers(), 'list'] as const,
   advertiserList: (filters: RadarAdvertiserFilters) => [...radarKeys.advertiserLists(), filters] as const,
   publication: (advertiserId: number) => [...radarKeys.all, 'publication', advertiserId] as const,
+  crawlSources: () => [...radarKeys.all, 'crawl', 'sources'] as const,
+  crawlRuns: (page: number) => [...radarKeys.all, 'crawl', 'runs', page] as const,
 };
 
 export async function fetchRadarDashboard(): Promise<RadarDashboardResponse> {
@@ -401,4 +408,75 @@ export async function deleteRadarListingPhoto(listingId: number, mediaId: number
     headers: { Accept: 'application/json' },
   });
   if (!res.ok) await jsonOrThrow<unknown>(res);
+}
+
+// ─── Collecte automatique (TCK-2392) ─────────────────────────────────────────────────────────
+
+/** Les colonnes d'un site collecté (`RadarCrawlSource::$queryFields`), et son opérateur (`include=operator`). */
+export const RADAR_CRAWL_SOURCE_FIELDS = ['id', 'site', 'enabled', 'frequency_minutes', 'max_pages', 'operator_id', 'enabled_at'] as const;
+
+/** Les colonnes d'un passage (`RadarCrawlRun::$queryFields`). */
+export const RADAR_CRAWL_RUN_FIELDS = [
+  'id',
+  'site',
+  'trigger',
+  'status',
+  'started_at',
+  'finished_at',
+  'pages_read',
+  'cards_seen',
+  'listings_created',
+  'listings_known',
+  'snapshots_opened',
+  'reached_end',
+  'stop_reason',
+  'created_at',
+] as const;
+
+export async function fetchRadarCrawlSources(): Promise<RadarCrawlSourcesResponse> {
+  const qs = buildQueryString({
+    fields: { radar_crawl_sources: RADAR_CRAWL_SOURCE_FIELDS, users: ['id', 'first_name', 'last_name', 'username'] },
+    include: 'operator',
+  });
+  const res = await fetch(cheminApi`/api/super-admin/radar/crawl/sources${requete(qs)}`, { credentials: 'include' });
+  return jsonOrThrow<RadarCrawlSourcesResponse>(res);
+}
+
+/** `sort=-created_at` : le dernier passage en tête. */
+export async function fetchRadarCrawlRuns(page = 1, perPage = 20): Promise<PaginatedResponse<RadarCrawlRun>> {
+  const qs = buildQueryString({
+    fields: { radar_crawl_runs: RADAR_CRAWL_RUN_FIELDS },
+    sort: '-created_at',
+    page,
+    per_page: perPage,
+  });
+  const res = await fetch(cheminApi`/api/super-admin/radar/crawl/runs${requete(qs)}`, { credentials: 'include' });
+  return jsonOrThrow<PaginatedResponse<RadarCrawlRun>>(res);
+}
+
+/** Allumer, éteindre, régler un site (`super_admin`). Allumer en fait l'opérateur de celui qui l'allume. */
+export async function patchRadarCrawlSource(site: string, changes: RadarCrawlSourceChanges): Promise<RadarCrawlSourceResponse> {
+  const qs = buildQueryString({ include: 'operator' });
+  const res = await fetch(cheminApi`/api/super-admin/radar/crawl/sources/${site}${requete(qs)}`, {
+    method: 'PATCH',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify(changes),
+  });
+  return jsonOrThrow<RadarCrawlSourceResponse>(res);
+}
+
+/** Lancer un passage maintenant (202) ; 409 `radar.crawl.active` si un passage tourne déjà sur ce site. */
+export async function startRadarCrawlRun(site: string): Promise<RadarCrawlRunResponse> {
+  const res = await fetch(cheminApi`/api/super-admin/radar/crawl/sources/${site}/run`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { Accept: 'application/json' },
+  });
+  return jsonOrThrow<RadarCrawlRunResponse>(res);
+}
+
+/** Séparer une fusion AUTOMATIQUE : l'annonce revient à relire ; 409 `radar.merge.not_automatic` pour un doublon posé à la main. */
+export function unmergeRadarListing(id: number): Promise<RadarListingDetailResponse> {
+  return envoyer(cheminApi`/api/super-admin/radar/listings/${id}/unmerge`, 'POST');
 }

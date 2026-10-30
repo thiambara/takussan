@@ -126,6 +126,8 @@ function CarteRapprochement({ match, onDoublon, desactive }: {
     if (signal.signal === 'phone') return t('signals.phone');
     if (signal.signal === 'neighborhood_price_bedrooms') return t('signals.neighborhood_price_bedrooms');
     if (signal.signal === 'photo') return t(`signals.photo_${signal.strength}`);
+    // TCK-2392 — le texte n'est jamais un signal fort à lui seul : proche (≥ `radar.similarity.close`) ou ressemblant.
+    if (signal.signal === 'text') return t(signal.strength === 'low' ? 'signals.text_low' : 'signals.text_close');
     return signal.signal;
   };
 
