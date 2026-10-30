@@ -106,7 +106,11 @@ partagé `tests/fixtures/ai/donnees-personnelles.json`, `RadarPhone::FLOOR_PLUS`
   `R+ 1M5` comme l'étage 1. Aucun prix ne commence par 0 ; les deux textes rendent de nouveau leur prix.
 - **Limite (effet de bord de m11, accepté par la session)** : l'étage espacé ne compte plus comme un second nombre. Un
   texte dont l'autre nombre est seul en fait son prix, ce que la forme collée faisait déjà (`Villa R + 2 4 chambres 2435`
-  rend 2435, comme `Villa R+2 4 chambres 2435` ; `null` sur `dev`).
+  rend 2435, comme `Villa R+2 4 chambres 2435` ; `null` sur `dev`). De même, `R+ 1 33 821 00 00 F` rend 33 821 (`null` sur
+  `dev`), comme `R+1 33 821 00 00 F` et `33 821 00 00 F` sans étage, sur `dev` comme sur 908d62321 : un fixe suivi d'une
+  marque n'est pas masqué (marque monétaire), et le parseur lit `33 821` comme un nombre groupé par milliers. Défaut du
+  parseur antérieur à ce ticket ; pas de correctif trivial (refuser un groupe suivi d'une paire ferait lire `450` dans
+  `450 000 2 chambres`).
 - **Suite** : `Villa R+1 (221) 77 012 34 56` perd son contact sénégalais sur `dev` comme ici, et `(221)` devant un
   contact se lit comme un prix de 221 : défauts antérieurs, → TCK-2447.
 - **Épreuve** (487 534 lignes : les lignes suivies du dépôt qui portent un chiffre, plus une grille écrite à la main
