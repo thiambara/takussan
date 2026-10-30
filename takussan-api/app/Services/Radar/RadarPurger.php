@@ -27,7 +27,9 @@ use Illuminate\Support\Facades\DB;
  *    Restent l'étape (`purged`), le site d'origine, les dates, l'empreinte du contenu (la recoller rend la fiche `purged`),
  *    celles des photos et les rapprochements. Les suggestions de l'IA qui portent sur elle perdent leurs champs
  *    (`proposal`, `input_snapshot`, `final_value`, `correction_diff`), pas leur ligne : le taux d'acceptation lit
- *    `usage_key`, `decision` et `decided_at`.
+ *    `usage_key`, `decision` et `decided_at`. Ses instantanés de collecte (TCK-2392, ADR-0080) sont supprimés si elle tombe
+ *    pour un STOP, une révocation ou `do_not_contact`, détachés et ramenés au jour sinon ; la fiche oublie le passage qui
+ *    l'a trouvée (`discovered_by_run_id`).
  * 2. **Un message** dont toutes les annonces sont purgées perd sa salutation, son résumé et son texte ; **une réponse non
  *    confirmée**, ses captures, sa transcription et son verdict. Une réponse CONFIRMÉE est la preuve de l'accord : elle reste
  *    avec le message qu'elle prouve (3).
@@ -48,7 +50,7 @@ final class RadarPurger
     /** @var list<string> les compteurs rendus par {@see self::run()}, dans l'ordre */
     private const COUNTERS = [
         'listings', 'media', 'suggestions', 'outreaches', 'replies', 'proofs', 'advertisers_cleared', 'advertisers_deleted',
-        'retention_started', 'retention_reset', 'orphan_dirs', 'snapshots_detached',
+        'retention_started', 'retention_reset', 'orphan_dirs', 'snapshots_detached', 'snapshots_deleted',
     ];
 
     public function __construct(private readonly RadarOrphanFiles $orphans) {}
@@ -98,6 +100,7 @@ final class RadarPurger
                     return;
                 }
 
+                $silenced = $this->silencedByItsAdvertiser($listing);
                 $listing->forceFill([
                     'raw_text' => null,
                     'source_url' => null,
@@ -106,9 +109,14 @@ final class RadarPurger
                     'photo_preparation' => null,
                     'stage' => RadarListingStage::Purged,
                     'stage_reason' => null,
+                    'discovered_by_run_id' => null,
                 ])->save();
                 $counts['suggestions'] += $this->eraseSuggestions('radar.extraction', $listing);
-                $counts['snapshots_detached'] += $this->detachSnapshots($listing);
+                if ($silenced) {
+                    $counts['snapshots_deleted'] += RadarListingSnapshot::query()->where('radar_listing_id', $listing->id)->delete();
+                } else {
+                    $counts['snapshots_detached'] += $this->detachSnapshots($listing);
+                }
 
                 // Le dernier geste : les fichiers partent avec leurs lignes.
                 $counts['media'] += $this->deleteMedia($listing);
@@ -118,18 +126,34 @@ final class RadarPurger
     }
 
     /**
-     * TCK-2392 (ADR-0080) — les instantanés de la collecte quittent l'annonce : plus de lien vers elle (donc vers son
-     * annonceur), ni l'empreinte du titre, ni le lieu tel qu'il l'a écrit. Restent le prix, le quartier du référentiel,
-     * la ville, le type, les chambres, la surface, les dates et le passage (son site et son heure) : une observation de
-     * marché anonyme, que l'observatoire garde dans ses séries (« compteurs anonymes », ADR-0077 §9).
+     * TCK-2392 (ADR-0080) — tombée pour un STOP, une révocation ou `do_not_contact` : ses instantanés sont SUPPRIMÉS.
+     * La promesse est « une empreinte, et rien d'autre » : une observation détachée reste celle de cet annonceur pour
+     * qui sait quand il a dit STOP.
+     */
+    private function silencedByItsAdvertiser(RadarListing $listing): bool
+    {
+        return $listing->stage === RadarListingStage::DoNotContact || ($listing->radar_advertiser_id !== null
+            && RadarAdvertiser::query()->whereKey($listing->radar_advertiser_id)->whereNotNull('do_not_contact_at')->exists());
+    }
+
+    /**
+     * TCK-2392 (ADR-0080) — échue sans refus : les instantanés quittent l'annonce. Plus de lien vers elle (donc vers son
+     * annonceur), ni l'empreinte du titre, ni le lieu tel qu'il l'a écrit, ni le passage, et des dates au JOUR : le
+     * passage et la seconde de création, ou l'instant de la purge dans `updated_at`, rejoignaient la fiche purgée (banc
+     * B1-bis). Restent le prix, le quartier du référentiel, la ville, le type, les chambres, la surface, les observations
+     * et la plage de présence au jour : une observation de marché anonyme (« compteurs anonymes », ADR-0077 §9).
      */
     private function detachSnapshots(RadarListing $listing): int
     {
-        return RadarListingSnapshot::query()->where('radar_listing_id', $listing->id)->update([
+        return RadarListingSnapshot::query()->where('radar_listing_id', $listing->id)->toBase()->update([
             'radar_listing_id' => null,
+            'crawl_run_id' => null,
             'title_fingerprint' => null,
             'neighborhood_label' => null,
-            'updated_at' => now(),
+            'first_seen_at' => DB::raw("date_trunc('day', first_seen_at)"),
+            'last_seen_at' => DB::raw("date_trunc('day', last_seen_at)"),
+            'created_at' => DB::raw("date_trunc('day', created_at)"),
+            'updated_at' => DB::raw("date_trunc('day', last_seen_at)"),
         ]);
     }
 
