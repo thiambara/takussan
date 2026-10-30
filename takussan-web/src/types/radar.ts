@@ -361,8 +361,12 @@ export type RadarVerdictClassification = (typeof RADAR_VERDICT_CLASSIFICATIONS)[
 /** `App\Models\Enums\RadarOutreachChannel` (TCK-2395) : par où le message est parti. */
 export type RadarOutreachChannel = 'whatsapp_manual' | 'whatsapp_cloud';
 
-/** L'état d'un envoi par l'API (TCK-2395) : `accepted` (Meta a rendu un identifiant) ou `ambiguous` (délai, 5xx : il a pu partir). */
-export type RadarOutreachProviderStatus = 'accepted' | 'ambiguous';
+/**
+ * L'état d'un envoi par l'API : `accepted` (Meta a rendu un identifiant) ou `ambiguous` (délai, 5xx : il a pu partir) à
+ * l'envoi (TCK-2395), puis les accusés de Meta qui le font avancer (TCK-2427, `RadarWhatsappReceipts`) : `sent`,
+ * `delivered`, `read`, ou `failed` (non remis).
+ */
+export type RadarOutreachProviderStatus = 'accepted' | 'ambiguous' | 'sent' | 'delivered' | 'read' | 'failed';
 
 /** `App\Models\Enums\RadarConsentProof`. */
 export type RadarConsentProof = 'screenshot' | 'provider_message' | 'otp';
