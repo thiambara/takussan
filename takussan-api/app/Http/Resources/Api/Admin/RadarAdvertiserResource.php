@@ -10,6 +10,7 @@ use App\Services\Radar\AdvertiserAccountRelease;
 use App\Services\Radar\RadarConsentCoverage;
 use App\Services\Radar\RadarFollowUps;
 use App\Services\Radar\RadarReviewFields;
+use App\Services\Radar\Whatsapp\RadarWhatsappNumber;
 use Illuminate\Http\Request;
 
 /**
@@ -115,6 +116,9 @@ class RadarAdvertiserResource extends BaseResource
         $open = $followUps->open()->where('radar_outreaches.radar_advertiser_id', $this->id)->pluck('radar_outreaches.id')->all();
 
         return [
+            // TCK-2395 — l'envoi par l'API du numéro du Radar est-il possible ici (le bouton de TCK-2426) : la configuration
+            // seule ; la garde du numéro des notifications se juge à l'envoi.
+            'whatsapp_api_available' => app(RadarWhatsappNumber::class)->available(),
             'nature_signals' => $this->whenHas('nature_signals', fn () => $this->nature_signals ?? []),
             'listings' => $listings->map(function ($listing) use ($covered, $neighborhoods): array {
                 $values = RadarReviewFields::values($listing->extracted ?? []);

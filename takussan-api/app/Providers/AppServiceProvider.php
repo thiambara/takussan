@@ -131,6 +131,9 @@ use App\Services\Radar\DnsHostResolver;
 use App\Services\Radar\HostResolver;
 use App\Services\Radar\Similarity\RadarTextSimilarity;
 use App\Services\Radar\Similarity\TrigramTextSimilarity;
+use App\Services\Radar\Whatsapp\RadarCloudWhatsappDriver;
+use App\Services\Radar\Whatsapp\RadarLogWhatsappDriver;
+use App\Services\Radar\Whatsapp\RadarWhatsappDriver;
 use App\Services\Reporting\PlatformReportingService;
 use App\Services\Review\ReviewModerationScope;
 use App\Services\Webhooks\WebhookJournal;
@@ -403,6 +406,15 @@ class AppServiceProvider extends ServiceProvider
                 default => $app->make(CloudApiWhatsappDriver::class),
             };
         });
+
+        // TCK-2395 (ADR-0077 §5) — le numéro du Radar, distinct de celui des notifications : un pilote à lui, qui ne lit que
+        // `config/radar_whatsapp.php`. `log` par défaut : rien ne part tant que le porteur n'a pas posé `cloud`.
+        $this->app->bind(RadarWhatsappDriver::class, function ($app): RadarWhatsappDriver {
+            return match ((string) $app['config']->get('radar_whatsapp.driver', 'log')) {
+                'cloud' => $app->make(RadarCloudWhatsappDriver::class),
+                default => $app->make(RadarLogWhatsappDriver::class),
+            };
+        });
     }
 
     // -----------------------------------------------------------------
@@ -535,7 +547,7 @@ class AppServiceProvider extends ServiceProvider
         // freine le forçage du jeton d'URL. Un refus se journalise ici, puisque le journal des
         // webhooks vient après le débit et n'en garde aucune ligne ; la réponse reste celle de
         // `ThrottleRequestsException`, que l'enveloppe globale rend en 429.
-        foreach (['webhook-sms-orange', 'webhook-sms-mtarget', 'webhook-sms-lafricamobile', 'webhook-whatsapp'] as $limiter) {
+        foreach (['webhook-sms-orange', 'webhook-sms-mtarget', 'webhook-sms-lafricamobile', 'webhook-whatsapp', 'webhook-whatsapp-radar'] as $limiter) {
             RateLimiter::for($limiter, fn (Request $request) => Limit::perMinute(600)
                 ->by('ip:'.$this->clientNetwork($request))
                 ->response(function (Request $request, array $headers) use ($limiter): never {

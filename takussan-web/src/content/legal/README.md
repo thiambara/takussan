@@ -25,8 +25,10 @@ la plateforme fait réellement**, relevé dans le code le même jour.
    `notice.ts`.
 3. **Créer les trois boîtes** `contact@`, `privacy@` et `legal@takussan.com` — les textes les citent.
 4. **Faire relire par un avocat inscrit au barreau du Sénégal.** ⚠ Y compris les clauses du message
-   d'accord du Radar (`takussan-api/resources/radar/clauses/accord.v2.*.md`) : leur formulation
-   neutre « votre ou vos annonces » (TCK-2390, décision 6a du porteur) n'a pas été relue.
+   d'accord du Radar (`takussan-api/resources/radar/clauses/accord.v3.*.md`) : leur formulation
+   neutre « votre ou vos annonces » (TCK-2390, décision 6a du porteur) n'a pas été relue, ni
+   l'ouverture « Takussan — » d'`accord.v3` (TCK-2395 : Meta refuse un gabarit qui commence par une
+   variable ; clauses identiques à `accord.v2` mot pour mot).
 5. **Fermer TCK-537** : trois engagements de la politique ne sont pas encore tenus par le code.
 8. **Retirer les `⚠` du corps des textes**, avec la relecture de l'avocat (ligne 4), sans ticket : ceux de
    l'article 6.3 des CGU et des § 3, § 4.3 et § 6 de la politique s'affichent tels quels sur la page

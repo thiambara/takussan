@@ -160,4 +160,42 @@ class RadarConsentVerdictTest extends TestCase
         // Sans numéro d'annonceur à comparer et sans booléen du modèle : le numéro est illisible.
         $this->assertSame(['identity_unverified'], RadarConsentVerdict::from(self::sortie(['number_matches' => null, 'name_matches' => null]), null, 4)['discordances']);
     }
+
+    /**
+     * TCK-2395 — une réponse reçue par l'API : le modèle ne garde que le classement et la confiance ; ce qu'il dirait du numéro,
+     * du nom ou des clauses est écarté, le code les juge (l'expéditeur authentifié par Meta, les clauses parties dans le gabarit).
+     */
+    public function test_une_reponse_recue_par_l_api_ne_prend_du_modele_que_le_classement(): void
+    {
+        $verdict = RadarConsentVerdict::fromProviderMessage(
+            self::sortie(['number_matches' => false, 'name_matches' => false, 'clauses_found' => [], 'counterpart_phone' => '77 000 00 00', 'transcript' => 'inventé']),
+            'Annonceur : OUI', 'OUI', 4,
+        );
+
+        $this->assertSame('consent', $verdict['classification']);
+        $this->assertTrue($verdict['number_matches']);
+        $this->assertSame('code', $verdict['number_checked_by']);
+        $this->assertNull($verdict['counterpart_phone']);
+        $this->assertNull($verdict['name_matches']);
+        $this->assertSame([1, 2, 3, 4], $verdict['clauses_found']);
+        $this->assertTrue($verdict['clauses_complete']);
+        $this->assertSame('code', $verdict['clauses_checked_by']);
+        $this->assertSame('Annonceur : OUI', $verdict['transcript']);
+        $this->assertSame('OUI', $verdict['reply_text']);
+        $this->assertSame([], $verdict['discordances']);
+
+        $this->assertSame(['not_consent'], RadarConsentVerdict::fromProviderMessage(self::sortie(['classification' => 'stop']), 'Annonceur : STOP', 'STOP', 4)['discordances']);
+    }
+
+    public function test_une_reponse_recue_hors_schema_leve(): void
+    {
+        foreach ([['classification' => 'oui'], ['confidence' => 'certaine'], ['classification' => null]] as $surcharge) {
+            try {
+                RadarConsentVerdict::fromProviderMessage(self::sortie($surcharge), 'Annonceur : OUI', 'OUI', 4);
+                $this->fail('Une sortie hors schéma aurait dû lever : '.json_encode($surcharge));
+            } catch (InvalidArgumentException) {
+                $this->addToAssertionCount(1);
+            }
+        }
+    }
 }

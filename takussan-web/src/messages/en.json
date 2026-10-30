@@ -9041,11 +9041,17 @@
             "notSent": "This message was not sent: no reply or outcome is recorded on it.",
             "outcomeFinal": "This message is closed: no reply or outcome can be added.",
             "superseded": "This message was followed up: the reply goes on the last follow-up.",
-            "replyPending": "A reply to this message is still being checked: wait for its verdict.",
+            "replyPending": "A reply to this message is still waiting for its verification or its outcome: wait for its verdict, or record its outcome.",
             "generationIncomplete": "The AI did not write the greeting and the summary: write them yourself.",
             "replyRequired": "No reply is filed on this message: file the advertiser’s captures before confirming the consent.",
             "reasonRequired": "The AI verdict does not point to a consent: write the reason for the confirmation.",
             "listingStageConflict": "One of this message's listings changed stage: the page changed in the meantime, it is reloaded.",
+            "whatsappNotConfigured": "The Radar WhatsApp number is not configured: send this message through WhatsApp by hand.",
+            "whatsappSameNumber": "The number or token configured for the Radar is the notifications one: nothing was sent.",
+            "whatsappTemplateMissing": "No approved Meta template for this clauses version or this language: send this message by hand.",
+            "whatsappMessageMismatch": "The Meta template would not render the exact saved text: prepare a new message.",
+            "whatsappSummaryTooLong": "The summary is too long to send through the API: shorten it.",
+            "whatsappSendFailed": "Meta refused to send it: nothing was recorded, the message is still prepared.",
             "accountNotDeleted": "This advertiser’s account is not deleted: only a deleted account can be unlinked."
           },
           "reply": {
@@ -9071,7 +9077,8 @@
               "noCapture": "no readable capture",
               "noNumber": "the advertiser has no number to compare",
               "unexpected": "unexpected error",
-              "purged": "the reply was erased (STOP or advertiser withdrawal)"
+              "purged": "the reply was erased (STOP or advertiser withdrawal)",
+              "noText": "reply without text (voice note, image)"
             },
             "verdict": {
               "heading": "AI verdict",
