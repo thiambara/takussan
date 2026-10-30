@@ -187,7 +187,11 @@
     "étage TCK-2428 — un plus suivi d'une espace n'est pas un étage": ["Villa R+ 33 6 12 34 56 78", "Villa R[TELEPHONE]"],
     "étage TCK-2428 — un numéro collé derrière R+ n'est pas un étage, +33": ["R+33612345678", "R[TELEPHONE]"],
     "étage TCK-2428 — un numéro collé derrière R+ n'est pas un étage, +44": ["Contact R+447712345678", "Contact R[TELEPHONE]"],
-    "étage TCK-2428 — un numéro collé derrière R+ n'est pas un étage, +1": ["R+12025550123", "R[TELEPHONE]"]
+    "étage TCK-2428 — un numéro collé derrière R+ n'est pas un étage, +1": ["R+12025550123", "R[TELEPHONE]"],
+    "étage TCK-2428 — un indicatif à deux chiffres derrière R+ n'est pas un étage, +44": ["R+44 7700 900123", "R[TELEPHONE]"],
+    "étage TCK-2428 — un indicatif à deux chiffres derrière R+ n'est pas un étage, +49": ["R+49 151 2345 6789", "R[TELEPHONE]"],
+    "étage TCK-2428 — un indicatif à deux chiffres derrière R+ n'est pas un étage, +34": ["R+34 612 34 56 78", "R[TELEPHONE]"],
+    "étage TCK-2428 — un indicatif à deux chiffres derrière R+ n'est pas un étage, +27": ["R+27 82 123 4567", "R[TELEPHONE]"]
   },
   "courriels": {
     "simple": "awa@exemple.sn",

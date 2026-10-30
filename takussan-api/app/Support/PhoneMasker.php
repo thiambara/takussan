@@ -119,11 +119,13 @@ final class PhoneMasker
     /**
      * TCK-2428 — le `+` de l'étage d'une annonce (`R+1`, `R+10` : rez-de-chaussée plus un, plus dix) n'est pas un
      * indicatif : `Immeuble R+1 1 250 500 750 F` perdait son prix (`+1` et dix chiffres), `Immeuble R+10 77 123 45 67`
-     * se lisait `+10…`. Un `R` isolé, le `+`, un ou deux chiffres que rien ne colle derrière : un étage. Collé à un mot
-     * (`Tel+33 …`, `Mr+33 …`), suivi d'une espace (`R+ 33 …`) ou d'un numéro collé (`R+33612345678`), le `+` reste un
-     * indicatif — plus étroit que `RadarPhone::withoutFloorPlus()`, qui n'a pas de numéro étranger à rendre.
+     * se lisait `+10…`. Un `R` isolé, le `+`, un étage de 0 à 19 que rien ne colle derrière : aucun indicatif à deux ou
+     * trois chiffres ne commence par 1, donc `R+44 7700 900123` reste un numéro. Collé à un mot (`Tel+33 …`, `Mr+33 …`),
+     * suivi d'une espace (`R+ 33 …`) ou d'un numéro collé (`R+33612345678`), le `+` reste un indicatif — plus étroit que
+     * `RadarPhone::withoutFloorPlus()`, qui n'a pas de numéro étranger à rendre. Limite assumée : `R+1 202 555 0123`
+     * et `R+7 912 345 67 89` (indicatif d'un chiffre derrière un `R`) s'écrivent comme un étage.
      */
-    private const NOT_A_FLOOR = '(?!(?<=(?<!\p{L})r)\+[0-9]{1,2}(?![0-9]))';
+    private const NOT_A_FLOOR = '(?!(?<=(?<!\p{L})r)\+(?:[0-9]|1[0-9])(?![0-9]))';
 
     /**
      * Un numéro étranger (TCK-2410) : `+` (une espace tolérée derrière) ou `00`, un indicatif ITU, puis
