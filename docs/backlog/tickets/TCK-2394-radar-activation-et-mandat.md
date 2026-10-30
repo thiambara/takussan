@@ -1,7 +1,7 @@
 ---
 id: TCK-2394
 title: "Radar lot 4 : relance d'activation des comptes créés pour un annonceur, et publication sous mandat Takussan"
-status: doing
+status: done
 phase: P2
 family: full
 estimate: M
@@ -65,42 +65,42 @@ diffuseur pour le compte d'un tiers, ce qui touche les conditions d'utilisation 
 
 ## Delta à produire
 
-- [ ] **Relance d'activation** (message `wa.me` préparé ; l'envoi automatique est TCK-2395) :
+- [x] **Relance d'activation** (message `wa.me` préparé ; l'envoi automatique est TCK-2395) :
       vues, demandes de contact, demandes de visite, crédits offerts à l'activation.
-  - [ ] chiffres d'une **période** : depuis la dernière relance envoyée, sinon depuis la mise en
+  - [x] chiffres d'une **période** : depuis la dernière relance envoyée, sinon depuis la mise en
         ligne ; vues = `views_count` moins la ligne de base posée au dernier envoi (un bien du
         Radar naît à 0) ; demandes = lignes datées de la période ; crédits = montant de bienvenue
         s'il n'a encore été accordé ni à ce numéro ni à cet espace ;
-  - [ ] une relance ne part qu'une fois la période longue de `radar.activation.min_interval_days`
+  - [x] une relance ne part qu'une fois la période longue de `radar.activation.min_interval_days`
         (7) jours : chaque relance couvre au moins une semaine ;
-  - [ ] gardes : STOP / `do_not_contact`, accord révoqué ou numéro purgé (`ClaimLinks::revoked`),
+  - [x] gardes : STOP / `do_not_contact`, accord révoqué ou numéro purgé (`ClaimLinks::revoked`),
         compte activé ou indisponible (`RadarClaims::state()`), connexion par téléphone éteinte,
         aperçu des codes actif, aucun bien en ligne ; l'envoi passe au journal ;
-  - [ ] texte fixe versionné `resources/radar/messages/activation.v1.{fr,en}.md`, jamais généré ;
-  - [ ] panneau « Relance d'activation » sur la fiche annonceur.
-- [ ] **ADR-0079 du mandat** (Proposé), puis sa mise en œuvre derrière le drapeau :
-  - [ ] publication sous mandat dans l'espace désigné, sans compte créé, numéro de l'annonceur en
+  - [x] texte fixe versionné `resources/radar/messages/activation.v1.{fr,en}.md`, jamais généré ;
+  - [x] panneau « Relance d'activation » sur la fiche annonceur.
+- [x] **ADR-0079 du mandat** (Proposé), puis sa mise en œuvre derrière le drapeau :
+  - [x] publication sous mandat dans l'espace désigné, sans compte créé, numéro de l'annonceur en
         contact, mêmes gardes que « publier pour lui » (accord relu sous verrou, étape, photos,
         champs, plafond, quota de l'espace, STOP, prise en charge) ;
-  - [ ] refusée pour un annonceur déjà rattaché à un compte ; « publier pour lui » refusé pour un
+  - [x] refusée pour un annonceur déjà rattaché à un compte ; « publier pour lui » refusé pour un
         annonceur sous mandat ;
-  - [ ] second message `mandat.v1` (en ligne, STOP), sans lien d'activation ;
-  - [ ] bouton « Publier sous mandat » sur l'écran de publication, seulement drapeau allumé ;
-  - [ ] réglage `radar.mandate_agency_id` dans la console des paramètres.
+  - [x] second message `mandat.v1` (en ligne, STOP), sans lien d'activation ;
+  - [x] bouton « Publier sous mandat » sur l'écran de publication, seulement drapeau allumé ;
+  - [x] réglage `radar.mandate_agency_id` dans la console des paramètres.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — La relance d'un annonceur cite ses chiffres réels de la période (au moins une semaine) :
+- [x] AC1 — La relance d'un annonceur cite ses chiffres réels de la période (au moins une semaine) :
       vues depuis la ligne de base, demandes de contact et de visite datées de la période, crédits
       de bienvenue encore à accorder — et rien d'autre que ces chiffres.
-- [ ] AC1b — Aucune relance (ni texte, ni lien `wa.me`, ni envoi enregistré) pour un annonceur
+- [x] AC1b — Aucune relance (ni texte, ni lien `wa.me`, ni envoi enregistré) pour un annonceur
       STOP, révoqué, purgé, déjà activé, dont le compte est indisponible, sans bien en ligne, ou
       dont la période n'a pas encore une semaine ; l'envoi rejuge ces gardes sous verrou et
       journalise les chiffres cités.
-- [ ] AC2 — Aucune publication sous mandat avant l'acceptation de son ADR : drapeau
+- [x] AC2 — Aucune publication sous mandat avant l'acceptation de son ADR : drapeau
       `radar_mandate` éteint par défaut, et tant qu'il l'est, `publish-mandate` refuse sans rien
       écrire et l'aperçu ne propose rien.
-- [ ] AC2b — Drapeau allumé, la publication sous mandat ne crée aucun compte, publie dans
+- [x] AC2b — Drapeau allumé, la publication sous mandat ne crée aucun compte, publie dans
       l'espace désigné avec le numéro de l'annonceur en contact, et garde toutes les gardes de
       « publier pour lui » ; la révocation retire ces biens du public.
 
@@ -113,4 +113,34 @@ diffuseur pour le compte d'un tiers, ce qui touche les conditions d'utilisation 
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- **Aucun modèle neuf** : l'état de la relance (`activation_*`) et du mandat (`mandate_*`) vit sur
+  `radar_advertisers`. Une table de relances aurait exigé une entrée de `docs/models-spec.md`, que ce
+  lot ne touche pas (texte proposé au porteur dans le rapport de nuit).
+- **La ligne de base des vues est posée À L'ENVOI**, jamais à la lecture : un aperçu relu ne
+  déplace pas la période. Un compteur repassé sous sa ligne de base rend 0, jamais un négatif.
+- **Le journal garde les chiffres cités, pas le texte** : le texte porte le lien d'activation, dont
+  la signature dépend de l'instant ; les chiffres, la langue, la version et le rang suffisent à le
+  recomposer.
+- **`relance` sous mandat** : `radar.activation.under_mandate` ne joue que pour un annonceur sous
+  mandat ET rattaché depuis à un compte (la reprise, TCK-2421) ; sans compte, l'état est `none`.
+- **Front** : le panneau de relance lit l'aperçu à chaque ouverture de la fiche et ne rend rien
+  pour `none` ; sur « Publier pour lui », un blocage du compte laisse cocher si le mandat est
+  ouvert (c'est le cas où il sert), et le mandat a sa propre clé d'idempotence.
+- **Le quota de l'espace des mandats** s'applique comme à tout espace : il porte tous les biens
+  sous mandat, son plan doit le permettre (prérequis du porteur).
+- **Pas de contrôle au navigateur** cette nuit (machine à `load average` 45-106) : les écrans sont
+  éprouvés par Vitest seulement.
+
+### Décisions prises en autonomie, à revoir
+
+| Décision | Retenu | Écarté | Pourquoi |
+|---|---|---|---|
+| Vues de la période | ligne de base `activation_baseline` posée à chaque envoi | table de vues datées | changer le chemin chaud de `PropertyViewCounter` pour un panneau de console |
+| Période minimale | `radar.activation.min_interval_days` = 7, 0 permis | intervalle en dur | la semaine du plan, réglable sans code |
+| Où vit l'état | colonnes sur `radar_advertisers` | modèle `RadarActivationReminder` | un modèle neuf casse `check-models-spec` sans toucher `models-spec.md` |
+| Capacité de la relance | `platform.radar.operate` (support compris), prise exigée à l'envoi | `platform.radar.publish` | relancer est du démarchage (ADR-0077 §11) |
+| Ce que le mandat est | l'accord `accord.v2` (clauses 1, 2, 4) exercé dans un espace Takussan | un accord neuf `accord.v3` | le moins restrictif ; ADR-0079 le pose, l'avocat le relit |
+| Interrupteurs du mandat | drapeau `radar_mandate` (console) + réglage `radar.mandate_agency_id` | variables d'environnement | réversible sans déploiement ni parité `.env` |
+| Garde du compte sous mandat | ni numéro inscrit ni connexion par téléphone exigés | les exiger comme « pour lui » | aucun compte n'est créé ni promis |
+| Compte rattaché | `account_exists` refuse le mandat ; `under_mandate` refuse « pour lui » | mêler les deux états | ADR-0079 § 4 ; la reprise est TCK-2421 |
+| Mention publique et CGU | reportées à TCK-2422 | les poser ici | règle du README juridique : un texte public attend l'acceptation de l'ADR |

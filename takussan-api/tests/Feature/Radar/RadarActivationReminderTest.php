@@ -262,6 +262,20 @@ class RadarActivationReminderTest extends TestCase
         $this->assertRienEnvoye();
     }
 
+    /** Un numéro purgé (ADR-0077 §9) : personne à qui écrire, le lien d'activation rendrait 410. */
+    public function test_ac1b_un_numero_purge_ne_se_relance_pas(): void
+    {
+        $this->travelTo(Carbon::parse(self::T0)->addDays(8));
+        $this->annonceur->forceFill(['phone' => null])->save();
+
+        $this->relance()->assertOk()
+            ->assertJsonPath('data.blocking', ['radar.activation.revoked'])
+            ->assertJsonPath('data.text', null)
+            ->assertJsonPath('data.wa_me', null);
+        $this->envoyer()->assertStatus(422)->assertJsonPath('code', 'radar.activation.revoked');
+        $this->assertRienEnvoye();
+    }
+
     public function test_ac1b_un_compte_deja_active_ne_se_relance_pas(): void
     {
         $this->travelTo(Carbon::parse(self::T0)->addDays(8));
