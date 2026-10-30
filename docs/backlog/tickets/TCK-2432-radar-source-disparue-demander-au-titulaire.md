@@ -81,6 +81,9 @@ rien, et le bien reste public.
    `withdrawal_proposed_at`.
 9. **Délai** `radar.observe.owner_answer_days` = 7, en config sans variable d'environnement. Écarté : une clé `.env`. Raison :
    la CI prend `.env.example` comme environnement de test, une clé vide y écraserait le défaut.
+10. **Réponse sans question ouverte** : 200 ; loué ou vendu s'appliquent quand même (le geste vaut `PUT …/status`),
+    « toujours disponible » ne note rien. Écarté : 409. Raison : un geste en retard (annonce revenue entre-temps) ne doit
+    pas afficher d'erreur.
 
 ## Reste sur dev
 
