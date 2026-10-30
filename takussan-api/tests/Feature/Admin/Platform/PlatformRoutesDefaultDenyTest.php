@@ -89,6 +89,9 @@ class PlatformRoutesDefaultDenyTest extends TestCase
         'admin.radar.listings.photos.fetch',
         'admin.radar.listings.photos.store',
         'admin.radar.listings.photos.destroy',
+        // TCK-2393 (ADR-0083) — l'observatoire du marché et le classement des annonceurs (`platform.radar.operate`).
+        'admin.radar.observatory',
+        'admin.radar.observatory.advertisers',
     ];
 
     public function test_toute_route_de_la_console_passe_par_la_garde_plateforme(): void
