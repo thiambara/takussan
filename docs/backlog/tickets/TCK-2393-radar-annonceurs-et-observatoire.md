@@ -47,12 +47,12 @@ réelle d'intermédiaires** que le porteur estime à plus de 90 % : l'argument d
 ## Delta à produire
 
 - [x] **Disparition d'une annonce source** : `radar_listings.source_gone_at` et `source_gone_run_id`.
-      `radar:observe-sources` (toutes les 15 min) prend, par site, le DERNIER passage `finished` dont
-      `reached_end` est vrai ; une annonce de ce site, avec instantanés, jamais revue depuis le début de ce
-      passage (`max(last_seen_at) < started_at`) est disparue. Une annonce revue ensuite redevient présente.
+      `radar:observe-sources` (toutes les 15 min) marque disparue une annonce de son site, avec instantanés,
+      lorsque `radar.observe.confirm_runs` (2) passages `finished` dont `reached_end` est vrai ont commencé
+      après sa dernière présence (`max(last_seen_at) < started_at`). Une annonce revue ensuite redevient présente.
 - [x] **Alerte** : une annonce disparue rattachée à un bien (son `property_id`, ou celui de l'annonce dont
-      elle est le doublon) écrit l'activité `radar_source_listing_gone` sur le bien — alertable, donc livrée
-      par les règles d'alerte existantes.
+      elle est le doublon) écrit l'activité `radar_source_listing_gone` — sujet : l'annonce collectée, bien dans
+      `properties.property_id`, sans agence — alertable, donc livrée par les règles d'alerte existantes.
 - [x] **Observatoire** `GET /api/admin/radar/observatory` (`platform.radar.operate`) : prix au m² par
       quartier, type, contrat et période ; temps de mise sur le marché des annonces disparues ; écart d'offre
       Radar / catalogue par quartier ; annonceurs par nature ; sources disparues de biens publiés. Filtres
@@ -72,10 +72,12 @@ réelle d'intermédiaires** que le porteur estime à plus de 90 % : l'argument d
       annonceur STOP vidé) sont identiques après. Aucune requête de l'observatoire ne lit
       `raw_text`, `extracted`, `source_url`, `phone`, `display_name` ni `similarity_text`.
 - [x] AC2 — Une annonce source disparue lève une alerte sur le bien publié correspondant : une règle active
-      sur `radar_source_listing_gone` met en file `SendAdminAlert` avec le bien pour sujet ; une seule fois
-      par disparition (un second passage de la commande n'alerte pas).
-- [x] AC3 — « Disparue » ne se conclut que d'un passage `finished` dont `reached_end` est vrai : un passage
-      arrêté au plafond de pages, ou échoué, ne marque rien.
+      sur `radar_source_listing_gone` met en file `SendAdminAlert`, le bien dans `properties.property_id` (le
+      sujet est l'annonce collectée : journal de plateforme, qu'aucune agence ne lit) ; une seule fois par
+      disparition (un second passage de la commande n'alerte pas).
+- [x] AC3 — « Disparue » ne se conclut que de passages `finished` dont `reached_end` est vrai, deux d'affilée
+      depuis la dernière présence (`radar.observe.confirm_runs`) : un passage arrêté au plafond de pages, ou
+      échoué, ne compte pas ; un seul passage complet ne conclut pas (glissement de pagination).
 - [x] AC4 — Une annonce revue par un passage postérieur redevient présente (`source_gone_at` à null) et
       pourra de nouveau alerter.
 - [x] AC5 — Le classement trie par volume, ne compte pas les doublons, et rend la piste commerciale
@@ -109,8 +111,14 @@ la PR de TCK-2392 puis celle-ci le bascule, dans le même geste que TCK-2392.
 
 - **Le vrai passage de collecte est éprouvé** (`RadarSourceWatchCrawlTest`, sur les pages écrites à la main de
   TCK-2392) : `started_at` est posé au début du passage, chaque carte revue écrit `last_seen_at = now()`, et
-  `reached_end` n'est vrai que sans page suivante. La règle « `max(last_seen_at) < started_at` du dernier passage
-  complet » repose sur ces trois faits.
+  `reached_end` n'est vrai que sans page suivante. La règle « `max(last_seen_at) < started_at` de deux passages
+  complets » repose sur ces trois faits.
+- **Deux passages complets, pas un** (correction après la vérification adverse) : un passage complet manque une
+  annonce toujours en ligne dès que la liste glisse pendant sa lecture. `RadarSourceWatchCrawlTest` rejoue ce
+  glissement sur le vrai passage ; aucun compteur n'est stocké, le compte se dérive des passages postérieurs à la
+  dernière présence, ce qui remet le compte à zéro à chaque retour.
+- **Le sujet de `radar_source_listing_gone` est l'annonce collectée** (correction après la vérification adverse) :
+  avec le bien pour sujet, l'agence du bien lisait l'événement dans `GET /api/activity-log`.
 - **Confirmé par n2392 (TCK-2392)** : `started_at` est posé au passage `queued` → `running`, `last_seen_at = now()`
   ensuite (colonnes à la seconde, inégalité tenue) ; `reached_end` n'est écrit qu'avant `STOP_END`. Deux conséquences,
   dites à l'écran : avec `max_pages` à 5 (défaut), une liste plus longue n'atteint jamais `reached_end` et rien n'est
@@ -149,3 +157,10 @@ la PR de TCK-2392 puis celle-ci le bascule, dans le même geste que TCK-2392.
    disparues au plus. Écarté : pagination par tableau, plus lourde pour un premier écran.
 9. **Durées** : médiane et moyenne en jours décimaux, censure à gauche assumée et dite à l'écran. Écarté : exclure
    les annonces vues au premier passage d'un site, qui viderait l'indicateur les premières semaines.
+10. **Confirmation d'une disparition** : deux passages complets d'affilée (`radar.observe.confirm_runs`, réglable,
+    1 rend l'ancien comportement), compte dérivé des passages. Écarté : un délai minimal en heures, qui dépend de
+    la fréquence de chaque site ; une colonne compteur, qu'il faudrait tenir à jour à chaque passage.
+11. **Journal de l'alerte** : sujet = l'annonce collectée, sans agence. Écarté : faire rendre `null` à
+    `AuditAgencyResolver` pour le journal `Radar`, qui changerait une règle commune pour un seul écrivain.
+12. **Le classement rend `phone` et `display_name`** (ADR-0083 § 5, écran super-admin) : décision de la session,
+    notée pour le porteur, qui peut demander un classement sans eux.

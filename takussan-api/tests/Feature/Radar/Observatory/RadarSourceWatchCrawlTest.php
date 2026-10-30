@@ -29,7 +29,8 @@ use Tests\TestCase;
 /**
  * TCK-2393 (AC2, AC3) — de bout en bout, sur le VRAI passage de collecte de TCK-2392 : ses horodatages (`started_at`,
  * `last_seen_at`) et son `reached_end` sont ceux que `RadarSourceWatch` suppose. Pages de liste écrites à la main
- * (`tests/fixtures/radar/crawl/`, données inventées), aucun réseau.
+ * (`tests/fixtures/radar/crawl/`, données inventées), aucun réseau. La disparition se conclut de deux passages complets
+ * d'affilée (`radar.observe.confirm_runs`).
  */
 class RadarSourceWatchCrawlTest extends TestCase
 {
@@ -112,28 +113,75 @@ class RadarSourceWatchCrawlTest extends TestCase
         return $studio;
     }
 
-    /** AC2 — après un passage qui a lu toute la liste sans le revoir, le studio publié a disparu, et le bien alerte. */
-    public function test_un_passage_complet_sans_l_annonce_publiee_alerte_sur_son_bien(): void
+    /** AC2 — après deux passages qui ont lu toute la liste sans le revoir, le studio publié a disparu, et le bien alerte. */
+    public function test_deux_passages_complets_sans_l_annonce_publiee_alertent_sur_son_bien(): void
     {
         $studio = $this->publierLeStudioPuisLeRetirerDeLaListe();
-        $second = $this->crawl();
-        $this->assertTrue($second->reached_end);
+        $this->assertTrue($this->crawl()->reached_end);
+        $this->assertSame(['gone' => 0, 'back' => 0, 'alerts' => 0], app(RadarSourceWatch::class)->observe());
+
+        $this->travel(1)->hours();
+        $troisieme = $this->crawl();
+        $this->assertTrue($troisieme->reached_end);
 
         $this->assertSame(['gone' => 1, 'back' => 0, 'alerts' => 1], app(RadarSourceWatch::class)->observe());
-        $this->assertSame($second->id, $studio->refresh()->source_gone_run_id);
-        Bus::assertDispatched(SendAdminAlert::class, fn (SendAdminAlert $job) => (int) $job->alert['subject_id'] === $studio->property_id);
+        $this->assertSame($troisieme->id, $studio->refresh()->source_gone_run_id);
+        Bus::assertDispatched(SendAdminAlert::class, fn (SendAdminAlert $job) => (int) $job->alert['subject_id'] === $studio->id);
     }
 
-    /** AC3 — un passage arrêté au plafond de pages n'a pas lu la page du studio : rien n'est conclu. */
+    /** AC3 — un passage arrêté au plafond de pages n'a pas lu la page du studio : il n'est pas le second passage complet. */
     public function test_un_passage_arrete_au_plafond_ne_conclut_rien(): void
     {
         $studio = $this->publierLeStudioPuisLeRetirerDeLaListe();
+        $this->assertTrue($this->crawl()->reached_end);
+
+        $this->travel(1)->hours();
         $this->app->make(RadarCrawlSources::class)->find(RadarSourceSite::ExpatDakar->value)->fill(['max_pages' => 1])->save();
-        $second = $this->crawl();
-        $this->assertFalse($second->reached_end);
+        $plafonne = $this->crawl();
+        $this->assertFalse($plafonne->reached_end);
 
         $this->assertSame(['gone' => 0, 'back' => 0, 'alerts' => 0], app(RadarSourceWatch::class)->observe());
         $this->assertNull($studio->refresh()->source_gone_at);
         Bus::assertNotDispatched(SendAdminAlert::class);
+    }
+
+    /**
+     * I1 (vérification adverse, son banc) — le glissement de pagination. Entre la lecture de la page 1 et celle de la page 2,
+     * une annonce de la page 1 est retirée : le studio remonte en page 1, déjà lue, et le passage atteint la fin sans l'avoir
+     * vu. Le studio n'a jamais quitté le site : trois glissements alternés avec des passages stables n'alertent jamais.
+     */
+    public function test_un_glissement_de_pagination_n_alerte_pas(): void
+    {
+        $studio = $this->carte('studio-fictif-plateau-9000004', 'Studio fictif au Plateau');
+        $chambre = $this->carte('chambre-fictive-fann-9000005', 'Chambre fictive à Fann');
+        $this->pages[self::LIST.'?page=2'] = $this->page2([$studio, $chambre]);
+        $this->assertTrue($this->crawl()->reached_end);
+        $annonce = RadarListing::query()->where('content_fingerprint', RadarListingIntake::urlFingerprint(self::STUDIO))->sole();
+        $annonce->forceFill(['stage' => RadarListingStage::Published, 'property_id' => Property::factory()->published()->create()->id])->save();
+
+        foreach ([[$chambre], [$studio, $chambre], [$chambre], [$studio, $chambre], [$chambre]] as $page2) {
+            $this->travel(1)->hours();
+            $this->pages[self::LIST.'?page=2'] = $this->page2($page2);
+            $this->assertTrue($this->crawl()->reached_end);
+            $this->assertSame(0, app(RadarSourceWatch::class)->observe()['gone']);
+        }
+
+        $this->assertNull($annonce->refresh()->source_gone_at);
+        Bus::assertNotDispatched(SendAdminAlert::class);
+    }
+
+    private function carte(string $slug, string $titre): string
+    {
+        return '<div class="tw-sr-results__item"><article class="tw-sr-card tw-sr-card--default"><div class="tw-sr-card__body">'
+            .'<h2 class="tw-sr-card__title"><a href="https://www.expat-dakar.com/annonce/'.$slug.'" class="tw-sr-card__title-link"'
+            .' data-t-listing_category_slug="appartements-a-louer" data-t-listing_price="200000.00" data-t-listing_currency="XOF"'
+            .' data-t-listing_location_title="Plateau, Dakar">'.$titre.'</a></h2></div></article></div>';
+    }
+
+    /** @param  list<string>  $cartes */
+    private function page2(array $cartes): string
+    {
+        return '<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>p2</title><link rel="prev" href="'.self::LIST.'"></head>'
+            .'<body><div class="tw-sr-results">'.implode('', $cartes).'</div></body></html>';
     }
 }

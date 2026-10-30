@@ -9320,12 +9320,12 @@
             },
             "time": {
               "title": "Time on market",
-              "description": "Time between the first and last sighting of listings whose disappearance was confirmed. A listing already online before the first collection looks newer than it is. A disappearance is only confirmed by a run that read the whole list: if a site’s list exceeds its collection page cap (5 by default), raise that cap in the Collection tab.",
+              "description": "Time between the first and last sighting of listings whose disappearance was confirmed. A listing already online before the first collection looks newer than it is. A disappearance is only confirmed after two consecutive runs that read the whole list without seeing it: if a site’s list exceeds its collection page cap (5 by default), raise that cap in the Collection tab.",
               "empty": "No confirmed disappearance"
             },
             "goneSources": {
               "title": "Gone sources of published properties",
-              "description": "The original listing of a published property is no longer online: the property may be rented or sold. A disappearance is only confirmed by a run that read the whole list: if a site’s list exceeds its collection page cap (5 by default), raise that cap in the Collection tab.",
+              "description": "The original listing of a published property is no longer online: the property may be rented or sold. A disappearance is only confirmed after two consecutive runs that read the whole list without seeing it: if a site’s list exceeds its collection page cap (5 by default), raise that cap in the Collection tab.",
               "empty": "No gone source"
             }
           }

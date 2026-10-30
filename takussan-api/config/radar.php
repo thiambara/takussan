@@ -181,4 +181,11 @@ return [
         'auto' => true,
     ],
 
+    // TCK-2393 (ADR-0083 §4) — la disparition d'une annonce source (`RadarSourceWatch`). Elle se conclut de ce nombre de
+    // passages complets (`reached_end`) d'affilée sans la revoir : un seul ne suffit pas, la liste glisse pendant la lecture.
+    // 1 rend le comportement d'un seul passage ; plus haut, la détection est plus lente et plus sûre.
+    'observe' => [
+        'confirm_runs' => 2,
+    ],
+
 ];

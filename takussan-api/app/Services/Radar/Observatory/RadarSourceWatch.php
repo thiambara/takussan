@@ -13,18 +13,23 @@ use Illuminate\Support\Facades\DB;
 /**
  * TCK-2393 (ADR-0083 §3, §4) — la disparition d'une annonce collectée, et l'alerte sur le bien qu'elle a fait publier.
  *
- * **Disparue** : le DERNIER passage `finished` de son site dont `reached_end` est vrai — il a lu toute la liste — ne l'a pas
- * revue (`max(last_seen_at)` de ses instantanés antérieur au début du passage). Un passage arrêté au plafond de pages, refusé
- * ou échoué ne dit rien d'une annonce qu'il n'a pas vue : elle peut être plus loin dans la liste. Une annonce sans instantané
- * (saisie à la main) n'est jamais jugée.
+ * **Disparue** : les `radar.observe.confirm_runs` (2) derniers passages `finished` de son site dont `reached_end` est vrai
+ * — ils ont lu toute la liste — ne l'ont pas revue : au moins ce nombre de passages complets a commencé après
+ * `max(last_seen_at)` de ses instantanés. Un seul ne suffit pas : une liste triée par date glisse pendant qu'on la lit (une
+ * annonce retirée ou remontée en page 1 fait passer la première de la page 2 dans une page déjà lue), et le passage atteint
+ * la fin sans l'avoir vue. Une présence remet le compte à zéro d'elle-même : seuls comptent les passages postérieurs à la
+ * dernière. Un passage arrêté au plafond de pages, refusé ou échoué ne compte pas. Une annonce sans instantané (saisie à la
+ * main) n'est jamais jugée.
  *
  * **Revenue** : un passage postérieur à la disparition l'a revue (`max(last_seen_at)` après `source_gone_at`) ; elle
  * redevient présente, et pourra de nouveau alerter.
  *
  * **L'alerte** : une disparition rattachée à un bien — le sien (`property_id`), celui de l'annonce dont elle est le doublon,
- * ou le bien du catalogue dont elle est le doublon — écrit {@see self::EVENT} sur ce bien. L'événement est alertable
- * (`AlertableEvents`) : les règles de la console le livrent. Une fois par disparition : la transition se réclame par un
- * `UPDATE … WHERE source_gone_at IS NULL`, et l'activité s'écrit dans la même transaction.
+ * ou le bien du catalogue dont elle est le doublon — écrit {@see self::EVENT}. Son sujet est l'annonce collectée, et le bien
+ * est dans `properties.property_id` : un journal de plateforme, sans agence (`AuditAgencyResolver` lirait celle du bien, et
+ * l'agence d'un bien dont une annonce collectée n'est que le doublon lirait que la plateforme surveille ses annonces
+ * ailleurs). L'événement est alertable (`AlertableEvents`) : les règles de la console le livrent. Une fois par disparition :
+ * la transition se réclame par un `UPDATE … WHERE source_gone_at IS NULL`, et l'activité s'écrit dans la même transaction.
  */
 final class RadarSourceWatch
 {
@@ -42,11 +47,13 @@ final class RadarSourceWatch
             ->whereRaw('('.$this->lastSeenSql().') > radar_listings.source_gone_at')
             ->update(['source_gone_at' => null, 'source_gone_run_id' => null]);
 
+        $confirm = max(1, (int) config('radar.observe.confirm_runs', 2));
         foreach ($this->decisiveRuns() as $run) {
             $ids = RadarListing::query()
                 ->where('source_site', $run->site->value)
                 ->whereNull('source_gone_at')
                 ->whereRaw('('.$this->lastSeenSql().') < ?', [$run->started_at])
+                ->whereRaw('('.$this->completeRunsSinceSql().') >= ?', [$run->site->value, $confirm])
                 ->orderBy('id')
                 ->pluck('id');
 
@@ -84,6 +91,16 @@ final class RadarSourceWatch
             ->all();
     }
 
+    /** Les passages complets du site commencés après la dernière présence de l'annonce (lié : le site). */
+    private function completeRunsSinceSql(): string
+    {
+        $table = (new RadarCrawlRun)->getTable();
+        $finished = RadarCrawlStatus::Finished->value;
+
+        return "select count(*) from {$table} r where r.site = ? and r.status = '{$finished}' and r.reached_end = true"
+            .' and r.started_at > ('.$this->lastSeenSql().')';
+    }
+
     /** La dernière présence d'une annonce : `null` sans instantané (la comparaison est alors fausse, l'annonce n'est pas jugée). */
     private function lastSeenSql(): string
     {
@@ -103,11 +120,12 @@ final class RadarSourceWatch
 
         $lastSeen = DB::table((new RadarListingSnapshot)->getTable())->where('radar_listing_id', $listing->id)->max('last_seen_at');
 
-        // Des identifiants, un site et des dates : ni numéro, ni nom, ni texte de l'annonce.
+        // Des identifiants, un site et des dates : ni numéro, ni nom, ni texte de l'annonce. Sujet : l'annonce (sans agence).
         activity('Radar')
-            ->performedOn($property)
+            ->performedOn($listing)
             ->event(self::EVENT)
             ->withProperties([
+                'property_id' => $property->id,
                 'radar_listing_id' => $listing->id,
                 'source_site' => $listing->source_site->value,
                 'link' => $link,

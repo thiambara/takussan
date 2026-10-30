@@ -8666,12 +8666,12 @@
             },
             "time": {
               "title": "Temps de mise sur le marché",
-              "description": "Durée entre la première et la dernière présence des annonces dont la disparition est constatée. Une annonce déjà en ligne avant la première collecte paraît plus récente qu’elle ne l’est. Une disparition ne se constate que sur un passage qui a lu toute la liste : si la liste d’un site dépasse le plafond de pages de sa collecte (5 par défaut), montez ce plafond dans l’onglet Collecte.",
+              "description": "Durée entre la première et la dernière présence des annonces dont la disparition est constatée. Une annonce déjà en ligne avant la première collecte paraît plus récente qu’elle ne l’est. Une disparition ne se constate qu’après deux passages d’affilée qui ont lu toute la liste sans la revoir : si la liste d’un site dépasse le plafond de pages de sa collecte (5 par défaut), montez ce plafond dans l’onglet Collecte.",
               "empty": "Aucune disparition constatée"
             },
             "goneSources": {
               "title": "Sources disparues de biens publiés",
-              "description": "L’annonce d’origine d’un bien publié n’est plus en ligne : le bien est peut-être loué ou vendu. Une disparition ne se constate que sur un passage qui a lu toute la liste : si la liste d’un site dépasse le plafond de pages de sa collecte (5 par défaut), montez ce plafond dans l’onglet Collecte.",
+              "description": "L’annonce d’origine d’un bien publié n’est plus en ligne : le bien est peut-être loué ou vendu. Une disparition ne se constate qu’après deux passages d’affilée qui ont lu toute la liste sans la revoir : si la liste d’un site dépasse le plafond de pages de sa collecte (5 par défaut), montez ce plafond dans l’onglet Collecte.",
               "empty": "Aucune source disparue"
             }
           }
