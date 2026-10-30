@@ -1,7 +1,7 @@
 ---
 id: TCK-2435
 title: "Socle IA : le masqueur ne lit plus `RDC+1` ni `R + 1` d'une annonce comme un indicatif"
-status: todo
+status: doing
 phase: P1
 family: technique
 estimate: S
