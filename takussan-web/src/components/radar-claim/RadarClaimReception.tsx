@@ -41,6 +41,8 @@ type Etat =
 
 interface Fait {
   readonly publiees: number;
+  /** TCK-2421 — les biens sous mandat repris dans son espace. */
+  readonly reprises: number;
   readonly espace: string;
 }
 
@@ -95,6 +97,9 @@ interface RadarClaimReceptionProps {
  * Le code ouvre le compte (neuf, ou celui que le Radar a préparé) et la session de ce navigateur.
  * Un numéro déjà vérifié sur un compte ne s'ouvre pas ici : la page envoie se connecter d'abord
  * (mot de passe, second facteur), puis revenir — l'API refuse de toute façon (409).
+ *
+ * TCK-2421 (ADR-0079) — sous mandat, Takussan diffuse déjà ses biens pour son compte : la page le
+ * dit, et le même code les lui fait reprendre dans son espace, sans annonce à cocher.
  */
 export function RadarClaimReception({ token: jeton }: RadarClaimReceptionProps) {
   const t = useTranslations('radarClaim');
@@ -175,9 +180,16 @@ export function RadarClaimReception({ token: jeton }: RadarClaimReceptionProps) 
         <h2 className="font-display text-xl font-semibold text-foreground" role="status">
           {t('doneTitle')}
         </h2>
-        <p className="bg-card text-sm leading-relaxed text-muted-foreground text-pretty">
-          {t('doneBody', { count: fait.publiees, space: fait.espace })}
-        </p>
+        {fait.publiees > 0 || fait.reprises === 0 ? (
+          <p className="bg-card text-sm leading-relaxed text-muted-foreground text-pretty">
+            {t('doneBody', { count: fait.publiees, space: fait.espace })}
+          </p>
+        ) : null}
+        {fait.reprises > 0 ? (
+          <p className="bg-card text-sm leading-relaxed text-muted-foreground text-pretty" data-testid="claim-done-take-back">
+            {t('doneTakeBack', { count: fait.reprises, space: fait.espace })}
+          </p>
+        ) : null}
         <Link href="/app" className={cn(buttonVariants(), 'h-11 w-full rounded-full text-base font-semibold')}>
           {t('openSpace')}
         </Link>
@@ -237,8 +249,12 @@ export function RadarClaimReception({ token: jeton }: RadarClaimReceptionProps) 
   const compteNeuf = account.state === 'new' || account.state === 'activation';
   const retenues = claim.listings.filter((l) => brouillons[l.id]?.retenue);
   const enCours = claim.publishing;
-  // Rien à publier ne se confirme que pour ouvrir le compte que le Radar a préparé (l'API refuse sinon).
-  const confirmable = retenues.length > 0 || account.state === 'activation';
+  // TCK-2421 — sous mandat, des biens en ligne à reprendre dans son espace.
+  const mandat = claim.mandate;
+  const reprise = mandat !== null && mandat.properties_count > 0;
+  // Rien à publier ne se confirme que pour ouvrir le compte que le Radar a préparé, ou pour reprendre ses biens sous
+  // mandat (l'API refuse sinon).
+  const confirmable = retenues.length > 0 || account.state === 'activation' || reprise;
 
   // Les cas où la page ne peut pas confirmer : deux comptes pour ce numéro, que seul le support
   // réunit (décision 5a) ; un compte que la page ne peut pas ouvrir ; un autre compte connecté ; le
@@ -246,6 +262,8 @@ export function RadarClaimReception({ token: jeton }: RadarClaimReceptionProps) 
   const blocage =
     account.state === 'support'
       ? 'support'
+      : account.state === 'mandate_support'
+      ? 'mandateSupport'
       : account.state === 'unavailable'
       ? 'unavailableAccount'
       : account.viewer_is_other
@@ -325,7 +343,11 @@ export function RadarClaimReception({ token: jeton }: RadarClaimReceptionProps) 
         },
         token,
       );
-      setFait({ publiees: resultat.claim.listing_ids.length, espace: resultat.claim.agency.name });
+      setFait({
+        publiees: resultat.claim.listing_ids.length,
+        reprises: resultat.claim.taken_back_property_ids.length,
+        espace: resultat.claim.agency.name,
+      });
       if (resultat.session) {
         await openSession(resultat.session.token, resultat.session.user, resultat.session.expires_at).catch(() => undefined);
       }
@@ -351,9 +373,20 @@ export function RadarClaimReception({ token: jeton }: RadarClaimReceptionProps) 
           {nom ? t('greeting', { name: nom }) : t('greetingAnonymous')}
         </p>
         <p className="bg-background text-sm leading-relaxed text-muted-foreground text-pretty">
-          {t('intro', { phone: telephone })}
+          {reprise ? t('introMandate', { phone: telephone }) : t('intro', { phone: telephone })}
         </p>
       </div>
+
+      {reprise ? (
+        <section className="space-y-2 rounded-xl border border-border bg-card p-4" aria-labelledby="claim-mandate" data-testid="claim-mandate">
+          <h2 id="claim-mandate" className="font-display text-base font-semibold text-foreground">
+            {t('mandateTitle')}
+          </h2>
+          <p className="bg-card text-sm leading-relaxed text-muted-foreground text-pretty">
+            {t('mandateBody', { count: mandat.properties_count })}
+          </p>
+        </section>
+      ) : null}
 
       {claim.published.length > 0 ? (
         <section className="space-y-2" aria-labelledby="claim-published">
@@ -447,7 +480,7 @@ export function RadarClaimReception({ token: jeton }: RadarClaimReceptionProps) 
             ))}
           </ul>
         </section>
-      ) : account.state !== 'activation' && enCours.length === 0 && claim.awaiting_review.length === 0 ? (
+      ) : account.state !== 'activation' && !reprise && enCours.length === 0 && claim.awaiting_review.length === 0 ? (
         <p className="rounded-xl border border-border bg-card p-4 text-sm text-muted-foreground" data-testid="claim-empty">
           {t('noListings')}
         </p>
@@ -584,6 +617,8 @@ export function RadarClaimReception({ token: jeton }: RadarClaimReceptionProps) 
                     <Loader2 className="size-4 animate-spin" aria-hidden="true" />
                     {t('confirming')}
                   </>
+                ) : reprise ? (
+                  t('confirmTakeBack', { count: retenues.length })
                 ) : (
                   t('confirm', { count: retenues.length })
                 )}

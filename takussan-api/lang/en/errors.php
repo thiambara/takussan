@@ -772,9 +772,13 @@ return [
             'wrong_account' => 'You are signed in with another account: sign out, then open this link again.',
             'account_changed' => 'This account changed in the meantime: reload the page.',
             'support_required' => 'This number is linked to two Takussan accounts: write to us and we will merge them.',
-            // TCK-2394 (ADR-0079) — sous mandat, la réclamation attend la reprise (TCK-2421).
-            'under_mandate' => 'Your listings are already published by Takussan on your behalf: write to us to move them into your own space.',
+            // TCK-2394 (ADR-0079) — un mandat posé après la reprise, sur un annonceur délié de son compte (TCK-2421).
+            'under_mandate' => 'Your listings are published by Takussan on your behalf again: reload the page to take them back into your own space.',
             'name_contains_phone' => 'The first name and the space name cannot contain a phone number.',
+            // TCK-2421 — un bien sous mandat porte de la gestion : la reprise passe par le support.
+            'mandate_support_required' => 'Your listings published by Takussan cannot be taken back from this page: write to us and we will move them into your space.',
+            // TCK-2421 — l'espace de l'annonceur n'est pas actif (suspendu ou inactif) : ses biens restent sous mandat, en ligne.
+            'space_suspended' => 'Your Takussan space is not active: your listings stay published by Takussan on your behalf, and you can take them back once your space is restored.',
         ],
         // TCK-2392 — automatic collection and cross-site duplicate merging.
         'merge' => [

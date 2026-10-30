@@ -245,6 +245,22 @@ class PublishClaimedRadarListingsTest extends TestCase
             && ! str_contains(json_encode($contexte), '771234567'));
     }
 
+    /**
+     * TCK-2421 (vérification adverse N2) — un espace inactif (« non vérifié » par le super-admin, administrateur effacé) ne rend
+     * pas ses biens au public (`Property::agencyIsPublic()`) : rien ne s'y publie, comme dans un espace suspendu.
+     */
+    public function test_un_espace_inactif_ne_recoit_aucune_publication(): void
+    {
+        $annonce = $this->annonce();
+        $this->espace->forceFill(['status' => AgencyStatus::Inactive])->save();
+
+        $this->lancer([$annonce->id]);
+
+        $this->assertSame(RadarListingStage::Consented, $annonce->fresh()->stage);
+        $this->assertSame('radar.advertiser.account_unavailable', $annonce->fresh()->stage_reason);
+        $this->assertSame(0, Property::query()->count());
+    }
+
     /** TCK-2394 (ADR-0079) — un annonceur passé sous mandat depuis sa réclamation : rien ne se publie dans son compte. */
     public function test_sous_mandat_rien_ne_se_publie_dans_le_compte(): void
     {
