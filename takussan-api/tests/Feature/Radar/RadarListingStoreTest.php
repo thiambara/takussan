@@ -20,6 +20,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Spatie\MediaLibrary\MediaCollections\Exceptions\FileIsTooBig;
 use Tests\Support\OperateursPlateforme;
 use Tests\TestCase;
@@ -236,6 +237,31 @@ class RadarListingStoreTest extends TestCase
         Queue::assertNotPushed(ExtractRadarListing::class);
         Queue::assertPushed(PurgeRadarAdvertiser::class, fn (PurgeRadarAdvertiser $job) => $job->advertiserId === $stop->id);
         RadarExtraction::assertNeverPrompted();
+    }
+
+    /** @return array<string, array{string}> */
+    public static function plusEntreDeuxNumeros(): array
+    {
+        return [
+            'plus entre deux numéros' => ['Appartement F4 à louer aux Almadies, 450.000f/mois. Contact : 78 765 43 21 + 77 123 45 67'],
+            'plus collé au second' => ['Appartement F4 à louer aux Almadies, 450.000f/mois. Tel 78 765 43 21 +77 123 45 67'],
+            'plus derrière un mot' => ['Appartement F4 à louer aux Almadies, 450.000f/mois. WhatsApp + 77 123 45 67'],
+        ];
+    }
+
+    /** TCK-2412, contre-vérification C1 — le numéro qui a dit STOP, derrière un `+`, est refusé dès l'entrée. */
+    #[DataProvider('plusEntreDeuxNumeros')]
+    public function test_tck_2412_a_stop_behind_a_plus_is_do_not_contact_at_intake(string $texte): void
+    {
+        $this->support();
+        $stop = RadarAdvertiser::factory()->doNotContact()->create(['phone_hmac' => RadarPhone::hmac('+221771234567')]);
+
+        $this->postJson('/api/admin/radar/listings', ['text' => $texte])
+            ->assertCreated()
+            ->assertJsonPath('data.0.stage', 'do_not_contact');
+
+        $this->assertSame($stop->id, RadarListing::query()->sole()->radar_advertiser_id);
+        Queue::assertNotPushed(ExtractRadarListing::class);
     }
 
     public function test_a_known_number_that_did_not_say_stop_goes_to_extraction(): void

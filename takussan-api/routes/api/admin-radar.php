@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\Admin\RadarAdvertiserAccountController;
 use App\Http\Controllers\Api\Admin\RadarAdvertiserController;
 use App\Http\Controllers\Api\Admin\RadarCrawlController;
 use App\Http\Controllers\Api\Admin\RadarDashboardController;
@@ -94,4 +95,15 @@ Route::middleware(['auth:sanctum', 'super-admin', 'platform-can:'.PlatformAbilit
     ->group(function () {
         Route::patch('crawl/sources/{site}', [RadarCrawlController::class, 'update'])->name('admin.radar.crawl.sources.update');
         Route::post('crawl/sources/{site}/run', [RadarCrawlController::class, 'run'])->name('admin.radar.crawl.sources.run');
+    });
+
+/*
+| TCK-2413 (ADR-0077 §3, §11) — délier l'annonceur du compte supprimé que le Radar avait créé : la réclamation reprend.
+| `platform.radar.publish`, `super_admin` seul : le compte délié est celui que « Publier pour lui » avait créé. Refusé sur un
+| annonceur révoqué (STOP, accord retiré, numéro purgé).
+*/
+Route::middleware(['auth:sanctum', 'super-admin', 'platform-can:'.PlatformAbility::RadarPublish->value])
+    ->prefix('admin/radar')
+    ->group(function () {
+        Route::post('advertisers/{advertiser}/release-account', [RadarAdvertiserAccountController::class, 'release'])->name('admin.radar.advertisers.release-account');
     });

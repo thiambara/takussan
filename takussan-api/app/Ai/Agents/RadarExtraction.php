@@ -66,6 +66,17 @@ final class RadarExtraction extends SocleAgent implements HasStructuredOutput
         return max(self::MIN_TIMEOUT_SECONDS, min(parent::timeout(), $share));
     }
 
+    /**
+     * TCK-2433 — pas de mode strict : Anthropic refuse la grammaire compilée de ce schéma (« The compiled
+     * grammar is too large », HTTP 400, sous la limite des 16 unions pourtant). La sortie part par l'outil
+     * forcé non strict ; `ExtractionNormalizer` valide déjà chaque valeur (type, enum, bornes, passage
+     * cité) et rabat à `low` ce qui ne passe pas. Remettre `true` exige une attestation par un vrai appel.
+     */
+    public function usesStrictSchema(): bool
+    {
+        return false;
+    }
+
     /** @return array<string, Type> */
     public function schema(JsonSchema $schema): array
     {
