@@ -920,13 +920,20 @@ catalogue tant que cet accord n'existe pas. Vision et lots : [plan du 2026-10-26
   réclamation ni sa publication, et son abandon est signalé
   (`radar.take_back.conversations_not_transmitted`). `mandate_at` reste comme trace,
   `mandate_taken_back_at` clôt la période et l'évènement `radar_mandate_taken_back` est journalisé.
-  Un mandat posé après la reprise, sur un annonceur délié de son compte, ouvre une période neuve ;
-  la publication d'une réclamation refuse alors (409 `radar.claim.under_mandate`).
+  Un mandat posé après la reprise, sur un annonceur délié de son compte, ouvre une période neuve :
+  une nouvelle réclamation reprend les biens de cette période, puis publie ; seule une publication
+  réclamée encore en file, d'avant ce mandat, refuse (409 `radar.claim.under_mandate`).
 - **Les biens du Radar n'entrent pas dans l'espace d'un annonceur qui n'est pas actif** (suspendu
   ou inactif), qui ne les rendrait pas au public : la reprise sous mandat
-  (`radar.claim.space_suspended`), la publication d'une réclamation et « publier pour lui », aperçu
-  compris (`radar.advertiser.account_unavailable`), le refusent ; sans espace, la réclamation et
-  « publier pour lui » en ouvrent un (TCK-2421).
+  (`radar.claim.space_suspended`), la publication réclamée (le job `PublishClaimedRadarListings` qui
+  suit la réclamation) et « publier pour lui », aperçu compris (`radar.advertiser.account_unavailable`),
+  le refusent ; sans espace, la réclamation et « publier pour lui » en ouvrent un (TCK-2421). Sous
+  mandat, le refus vient avant l'envoi du code. **Hors mandat, il vient après la réclamation** :
+  ni l'envoi du code ni la confirmation ne jugent l'espace, la réclamation est commitée (accord
+  `otp`, compte rattaché) et la page la dit confirmée ; c'est le job de publication qui refuse
+  ensuite, et les annonces, restées `consented` avec ce code pour raison, reviennent à l'opérateur
+  dans la file « À reprendre » (TCK-2413). Refuser avant la confirmation hors mandat aussi :
+  TCK-2446.
 - **La nature de l'annonceur reste dans le Radar**, jamais dans les profils.
 - **Le numéro WhatsApp des notifications ne sert jamais à prospecter.**
 - **Le démarchage par l'API part d'un numéro WhatsApp dédié au Radar, configuré à part** : le code

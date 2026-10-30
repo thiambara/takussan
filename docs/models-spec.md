@@ -556,7 +556,7 @@ d'écrire (piège PostgreSQL n°1 — une violation abandonne la transaction ent
 | is_verified | boolean | | false | Agence vérifiée par l'admin Takussan | ➕ |
 | verified_at | datetime | oui | null | Date de vérification | ➕ |
 | primary_admin_id | FK users | oui | null | Responsable principal de l'agence | ➕ |
-| properties_count | integer | | 0 | Compteur biens (cache) : `PropertyObserver` l'incrémente à la création d'un bien et le décrémente à sa suppression ; seule la reprise sous mandat du Radar reporte un changement d'espace, sur les deux espaces (TCK-2421) — tout autre changement d'`agency_id` d'un bien le laisse dériver. La ressource publique le rend tel quel ; la console de modération lit le compte réel (`live_properties_count`) | ➕ |
+| properties_count | integer | | 0 | Compteur biens (cache) : `PropertyObserver` l'incrémente à la création d'un bien et le décrémente à sa suppression ; seule la reprise sous mandat du Radar reporte un changement d'espace, sur les deux espaces (TCK-2421) — tout autre changement d'`agency_id` d'un bien le laisse dériver. La ressource publique le rend tel quel, comme la réponse d'une action de modération ; seule la liste de la console de modération lit le compte réel (`live_properties_count`) | ➕ |
 | active_leases_count | integer | | 0 | Compteur baux actifs (cache) | ➕ |
 | average_rating | decimal(3,2) | oui | null | Note moyenne des avis **publiés** (`is_approved = true`) — cache | ➕ |
 | reviews_count | unsigned integer | | 0 | Nombre d'avis publiés — cache, recompté avec la moyenne (`2026_10_08_100400`, TCK-597, ADR-0043 §6) | ➕ |
@@ -5076,7 +5076,8 @@ Les indices de l'IA (`nature_signals`) restent.
 
 **Relance d'activation et mandat (TCK-2394, [ADR-0079](adr/0079-la-publication-sous-mandat-takussan.md)).**
 Écrits par `forceFill` dans `RadarActivationReminders::markSent()` et `RadarPublisher::publishUnderMandate()`
-seuls, et `mandate_taken_back_at` dans `RadarMandateTakeBack::takeBack()` (TCK-2421). Un bien publié sous mandat porte
+seuls ; `mandate_taken_back_at` est posé par `RadarMandateTakeBack::takeBack()` et remis à nul par
+`publishUnderMandate()` à l'ouverture d'une période neuve, avec `mandate_at` et `mandate_by_id` (TCK-2421). Un bien publié sous mandat porte
 `metadata.radar_mandate = true` et naît dans l'espace désigné par le réglage `radar.mandate_agency_id`, auteur son
 administrateur principal.
 
@@ -5126,7 +5127,7 @@ de plus. Écrites par `forceFill` dans `AdvertiserClaim` seul : hors de `$fillab
 | activation_reminder_count | smallint | | 0 | TCK-2394 : relances d'activation envoyées |
 | activation_baseline | jsonb | oui | null | TCK-2394 : `{bien: views_count}` au dernier envoi — les vues de la période suivante la dépassent |
 | mandate_at | timestamp | oui | null | TCK-2394 (ADR-0079) : première publication de la période de mandat ; reste comme trace après la reprise (TCK-2421) ; un nouveau mandat après une reprise date une période neuve |
-| mandate_by_id | FK users | oui | null | TCK-2394 : l'opérateur de la première publication sous mandat (`nullOnDelete`, `radar_advertisers_mandate_by_fk`, index `radar_advertisers_mandate_by_idx`) |
+| mandate_by_id | FK users | oui | null | TCK-2394 : l'opérateur de la première publication de la période de mandat, réécrit avec `mandate_at` à chaque période neuve (TCK-2421) (`nullOnDelete`, `radar_advertisers_mandate_by_fk`, index `radar_advertisers_mandate_by_idx`) |
 | mandate_taken_back_at | timestamp | oui | null | TCK-2421 (ADR-0079, amendement « la reprise ») : l'annonceur a repris ses biens sous mandat dans son espace par le code de la réclamation ; clôt la période de mandat (sous mandat = `mandate_at` posé et cette colonne nulle). Remise à nul par un nouveau mandat |
 | created_at / updated_at | timestamp | | auto | |
 
