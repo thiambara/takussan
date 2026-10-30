@@ -1734,6 +1734,15 @@
       "searchCity": "Voir les biens à {city}",
       "searchAll": "Voir tous les biens",
       "metaDescription": "Cette annonce Takussan n'est plus disponible. Découvrez des biens similaires."
+    },
+    "availabilityCheck": {
+      "title": "Ce bien est-il toujours disponible ?",
+      "body": "Son annonce d’origine n’est plus en ligne depuis le {date}. Dites-nous où il en est : un bien loué ou vendu quitte la vitrine, un bien disponible y reste.",
+      "rented": "Il est loué",
+      "sold": "Il est vendu",
+      "available": "Toujours disponible",
+      "done": "Merci, votre réponse est enregistrée.",
+      "error": "Votre réponse n’a pas pu être enregistrée. Réessayez."
     }
   },
   "dashboard": {
@@ -9593,7 +9602,8 @@
         "ops_queue_stalled": "File de jobs à l’arrêt",
         "ops_health_degraded": "Santé de la plateforme dégradée",
         "ops_critical_job_failed": "Échec d’un job d’argent ou de bail",
-        "radar_source_listing_gone": "Annonce source d’un bien disparue"
+        "radar_source_listing_gone": "Annonce source d’un bien disparue",
+        "radar_withdrawal_proposed": "Retrait proposé : le titulaire n’a pas répondu"
       },
       "channels": {
         "email": "E-mail",
@@ -10700,7 +10710,8 @@
         "favorite_unavailable": "Favori — plus disponible",
         "visit_reminder": "Rappel de visite",
         "threshold_alert": "Alerte seuil KPI",
-        "lease_payment_received": "Loyer — paiement reçu"
+        "lease_payment_received": "Loyer — paiement reçu",
+        "property_availability_check": "Disponibilité de mes biens publiés"
       },
       "channels": {
         "inapp": "In-app",
@@ -10715,7 +10726,8 @@
         "leases": "Baux",
         "maintenance": "Maintenance",
         "reviews": "Avis",
-        "alerts": "Alertes"
+        "alerts": "Alertes",
+        "properties": "Biens"
       },
       "reasons": {
         "inappAlwaysOn": "Toujours actif pour ne rien manquer.",
@@ -12113,6 +12125,10 @@
         "unpublished_contact_erased": {
           "title": "Annonce retirée : {property}",
           "body": "L'annonce {property} ({reference}) a été retirée du site : son seul contact a effacé son compte. Attribuez-lui un agent puis republiez-la : {url}"
+        },
+        "source_listing_gone": {
+          "title": "Votre bien est-il toujours disponible ? {property}",
+          "body": "L’annonce d’origine de « {property} » n’est plus en ligne. Ouvrez le bien pour nous dire s’il est loué, vendu ou toujours disponible."
         }
       },
       "lease": {

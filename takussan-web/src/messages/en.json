@@ -1763,6 +1763,15 @@
       "searchCity": "See properties in {city}",
       "searchAll": "See all properties",
       "metaDescription": "This Takussan listing is no longer available. Discover similar properties."
+    },
+    "availabilityCheck": {
+      "title": "Is this property still available?",
+      "body": "Its original listing has been offline since {date}. Tell us where it stands: a rented or sold property leaves the listings, an available one stays.",
+      "rented": "It is rented",
+      "sold": "It is sold",
+      "available": "Still available",
+      "done": "Thank you, your answer has been saved.",
+      "error": "Your answer could not be saved. Please try again."
     }
   },
   "dashboard": {
@@ -9593,7 +9602,8 @@
         "ops_queue_stalled": "Job queue stalled",
         "ops_health_degraded": "Platform health degraded",
         "ops_critical_job_failed": "Money or lease job failed",
-        "radar_source_listing_gone": "Source listing of a property gone"
+        "radar_source_listing_gone": "Source listing of a property gone",
+        "radar_withdrawal_proposed": "Removal suggested: the holder did not answer"
       },
       "channels": {
         "email": "Email",
@@ -10700,7 +10710,8 @@
         "favorite_unavailable": "Favorite — no longer available",
         "visit_reminder": "Visit reminder",
         "threshold_alert": "KPI threshold alert",
-        "lease_payment_received": "Rent — payment received"
+        "lease_payment_received": "Rent — payment received",
+        "property_availability_check": "Availability of my published properties"
       },
       "channels": {
         "inapp": "In-app",
@@ -10715,7 +10726,8 @@
         "leases": "Leases",
         "maintenance": "Maintenance",
         "reviews": "Reviews",
-        "alerts": "Alerts"
+        "alerts": "Alerts",
+        "properties": "Properties"
       },
       "reasons": {
         "inappAlwaysOn": "Always on so you miss nothing.",
@@ -12113,6 +12125,10 @@
         "unpublished_contact_erased": {
           "title": "Listing removed: {property}",
           "body": "The listing {property} ({reference}) has been removed from the site: its only contact erased their account. Assign an agent, then publish it again: {url}"
+        },
+        "source_listing_gone": {
+          "title": "Is your property still available? {property}",
+          "body": "The original listing for “{property}” is no longer online. Open the property to tell us whether it is rented, sold or still available."
         }
       },
       "lease": {
