@@ -702,6 +702,7 @@ return [
             'busy' => 'This advertiser is being changed right now: try again in a moment.',
             'phone_registered' => 'This number already belongs to an account: the Radar does not publish into an existing account; only the claim is offered to its holder.',
             'account_unavailable' => 'The account linked to this advertiser is deleted or blocked, or its space is suspended: nothing is published there.',
+            'account_not_deleted' => 'The account linked to this advertiser is not deleted: only a deleted account can be unlinked.',
         ],
         'outreach' => [
             'locale_unsupported' => 'This language is not supported for the consent message.',

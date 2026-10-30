@@ -93,7 +93,20 @@ function FileAnnonceurs({ file, recherche }: { readonly file: RadarAdvertiserQue
         </ul>
       ),
     },
-    {
+    // TCK-2413 — « À reprendre » n'a pas de relance : son échéance est celle de la purge de la première annonce laissée.
+    file === 'left_to_operator' ? {
+      id: 'purge',
+      header: t('columns.purge'),
+      className: 'whitespace-nowrap tabular-nums',
+      cell: (r) => (r.left_purge_at
+        ? (
+          <>
+            {fmt.date(r.left_purge_at)}
+            <p className="text-xs text-muted-foreground">{t('purgeHint')}</p>
+          </>
+        )
+        : VALEUR_ABSENTE),
+    } : {
       id: 'due',
       header: t('columns.due'),
       className: 'whitespace-nowrap tabular-nums',

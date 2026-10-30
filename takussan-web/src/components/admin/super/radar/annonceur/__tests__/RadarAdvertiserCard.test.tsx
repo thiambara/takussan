@@ -9,6 +9,7 @@ import {
   markRadarOutreachSent,
   prepareRadarOutreach,
   releaseRadarAdvertiser,
+  releaseRadarAdvertiserAccount,
   retouchRadarOutreach,
 } from '@/lib/queries/radar';
 import { avecGestes } from '@/test/habilitations';
@@ -25,6 +26,7 @@ vi.mock('@/lib/queries/radar', async (importOriginal) => ({
   prepareRadarOutreach: vi.fn(),
   retouchRadarOutreach: vi.fn(),
   markRadarOutreachSent: vi.fn(),
+  releaseRadarAdvertiserAccount: vi.fn(),
   // TCK-2394 — la relance d'activation : aucun compte créé par le Radar, le panneau ne se montre pas.
   fetchRadarActivationReminder: vi.fn(async () => ({ data: (await import('./mocks')).SANS_RELANCE })),
 }));
@@ -62,6 +64,7 @@ beforeEach(() => {
   vi.mocked(prepareRadarOutreach).mockReset();
   vi.mocked(retouchRadarOutreach).mockReset();
   vi.mocked(markRadarOutreachSent).mockReset();
+  vi.mocked(releaseRadarAdvertiserAccount).mockReset();
 });
 
 describe('RadarAdvertiserCard — ce que la fiche rend (TCK-2388)', () => {
@@ -665,5 +668,95 @@ describe('RadarAdvertiserCard — « Publier pour lui » (TCK-2389)', () => {
 
     await screen.findByTestId('radar-annonceur');
     expect(screen.queryByTestId('radar-annonceur-publier')).not.toBeInTheDocument();
+  });
+});
+
+describe('RadarAdvertiserCard — le compte supprimé et l\'annonce laissée (TCK-2413)', () => {
+  const supprime = { user_id: 41, deleted: true, releasable: true, claimed: false } as const;
+
+  it('un compte supprimé se délie, motif compris, puis la fiche se relit et le dit', async () => {
+    const { utilisateur } = await rendre(annonceur({ account: supprime }));
+    vi.mocked(releaseRadarAdvertiserAccount).mockImplementation(async () => {
+      serveur = { ...serveur, account: null };
+      return { data: { advertiser_id: 7, previous_user_id: 41 } };
+    });
+
+    const bloc = screen.getByTestId('radar-annonceur-compte-supprime');
+    expect(bloc).toHaveTextContent('Le compte que le Radar a créé pour cet annonceur a été supprimé');
+    await utilisateur.click(within(bloc).getByRole('button', { name: 'Délier le compte' }));
+    await utilisateur.type(await screen.findByLabelText('Motif (facultatif)'), 'Compte supprimé à sa demande');
+    await utilisateur.click(screen.getByTestId('radar-delier-confirmer'));
+
+    expect(releaseRadarAdvertiserAccount).toHaveBeenCalledWith(7, 'Compte supprimé à sa demande');
+    expect(await screen.findByTestId('radar-annonceur-compte-delie')).toHaveTextContent('Compte délié');
+    await waitFor(() => expect(screen.queryByTestId('radar-annonceur-compte-supprime')).not.toBeInTheDocument());
+  });
+
+  it('le compte de la réclamation (celui du titulaire) ne se dit pas créé par le Radar (vérification adverse M4)', async () => {
+    await rendre(annonceur({ account: { ...supprime, claimed: true } }));
+
+    const bloc = screen.getByTestId('radar-annonceur-compte-supprime');
+    expect(bloc).toHaveTextContent('Le compte avec lequel l’annonceur a réclamé ses annonces a été supprimé');
+    expect(bloc).not.toHaveTextContent('créé pour cet annonceur');
+  });
+
+  it('un refus de l\'API (STOP survenu depuis) se dit dans le dialogue, par son code', async () => {
+    const { utilisateur } = await rendre(annonceur({ account: supprime }));
+    vi.mocked(releaseRadarAdvertiserAccount).mockRejectedValue(erreur409('radar.advertiser.do_not_contact'));
+
+    await utilisateur.click(screen.getByRole('button', { name: 'Délier le compte' }));
+    await utilisateur.click(await screen.findByTestId('radar-delier-confirmer'));
+
+    expect(await screen.findByTestId('radar-delier-erreur')).toHaveTextContent('ne plus être contacté');
+  });
+
+  it.each([
+    ['un compte actif', { user_id: 41, deleted: false, releasable: false, claimed: false }],
+    ['un compte supprimé d\'un annonceur révoqué', { user_id: 41, deleted: true, releasable: false, claimed: false }],
+    ['aucun compte', null],
+  ])('%s : rien à délier', async (_nom, account) => {
+    await rendre(annonceur({ account }));
+
+    expect(screen.queryByTestId('radar-annonceur-compte-supprime')).not.toBeInTheDocument();
+  });
+
+  it('sans le geste platform.radar.publish, le geste n\'est pas offert', async () => {
+    vi.mocked(fetchRadarAdvertiser).mockResolvedValue({ data: annonceur({ account: supprime }) });
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(withIntl(
+      <QueryClientProvider client={queryClient}>
+        {avecGestes(<RadarAdvertiserCard id={7} />, { level: 'support', abilities: ['platform.radar.operate'] })}
+      </QueryClientProvider>,
+    ));
+
+    await screen.findByTestId('radar-annonceur');
+    expect(screen.queryByTestId('radar-annonceur-compte-supprime')).not.toBeInTheDocument();
+  });
+
+  it('une annonce réclamée que la publication a laissée dit pourquoi', async () => {
+    await rendre(annonceur({
+      listings: [
+        annonce(12, { stage: 'consented', covered_by_consent: true, stage_reason: 'radar.publish.no_photo' }),
+        annonce(13, { stage: 'consented', covered_by_consent: true, stage_reason: 'radar.listing.stage_conflict' }),
+        annonce(14, { stage: 'consented', covered_by_consent: true, stage_reason: 'radar.code.inconnu' }),
+      ],
+    }));
+
+    expect(screen.getByTestId('radar-annonce-laissee-12')).toHaveTextContent('aucune photo en réserve');
+    // Vérification adverse M5 : un refus de la publication se traduit ; un code qu'aucune ligne ne nomme prend le repli,
+    // jamais le code brut (qui reste au survol).
+    expect(screen.getByTestId('radar-annonce-laissee-13')).toHaveTextContent('une annonce du lot a changé d’étape entre-temps');
+    expect(screen.getByTestId('radar-annonce-laissee-13')).not.toHaveTextContent('radar.listing');
+    expect(screen.getByTestId('radar-annonce-laissee-14')).toHaveTextContent('la publication a été refusée');
+    expect(screen.getByTestId('radar-annonce-laissee-14')).toHaveAttribute('title', 'radar.code.inconnu');
+    // Vérification adverse M6 : l'échéance de purge de chaque annonce laissée.
+    expect(screen.getByTestId('radar-annonce-purge-12')).toHaveTextContent(/S’efface le .*2027 si personne ne la publie/);
+  });
+
+  it('une annonce sans motif ne dit ni raison ni échéance de purge', async () => {
+    await rendre(annonceur({ listings: [annonce(12, { stage: 'consented', covered_by_consent: true })] }));
+
+    expect(screen.queryByTestId('radar-annonce-laissee-12')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('radar-annonce-purge-12')).not.toBeInTheDocument();
   });
 });

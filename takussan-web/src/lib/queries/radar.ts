@@ -3,6 +3,7 @@ import { cheminApi, requete } from '@/lib/chemin-api';
 import { jsonOrThrow } from '@/lib/queries/super-admin-coque';
 import type { PaginatedResponse } from '@/types/api';
 import type {
+  RadarAccountReleaseResponse,
   RadarActivationReminderResponse,
   RadarAdvertiserQueue,
   RadarAdvertiserResponse,
@@ -244,6 +245,24 @@ export async function releaseRadarAdvertiser(id: number): Promise<void> {
     headers: { Accept: 'application/json' },
   });
   if (!res.ok) await jsonOrThrow<unknown>(res);
+}
+
+/**
+ * TCK-2413 — délier l'annonceur du compte supprimé que le Radar avait créé : il peut de nouveau réclamer ses annonces.
+ * `platform.radar.publish` ; refusé (409) sur un annonceur révoqué ou dont le compte n'est pas supprimé. Le motif part s'il est écrit.
+ */
+export async function releaseRadarAdvertiserAccount(
+  id: number,
+  reason: string,
+): Promise<RadarAccountReleaseResponse> {
+  const motif = reason.trim();
+  const res = await fetch(cheminApi`/api/super-admin/radar/advertisers/${id}/release-account`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: JSON_ACCEPT,
+    body: JSON.stringify(motif ? { reason: motif } : {}),
+  });
+  return jsonOrThrow<RadarAccountReleaseResponse>(res);
 }
 
 /** Préparer un message : l'API compose le texte (clauses figées + salutation et résumé que l'IA rédige). */
