@@ -7,6 +7,7 @@ use App\Http\Resources\UserResource;
 use App\Models\Enums\UserStatus;
 use App\Models\RadarAdvertiser;
 use App\Models\User;
+use App\Services\Property\PublishReadiness;
 use App\Support\CanonicalPhone;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
@@ -33,6 +34,11 @@ use Illuminate\Support\Str;
  *    écrire : il ne prouve rien, il ne compte contre personne.
  *  - 2FA : le code SMS est d'abord vérifié SANS être consommé, la réponse
  *    `requires_2fa` invite à reposer le même code avec le TOTP.
+ *  - Conditions (TCK-2404, article 6.3 des CGU) : le compte que le Radar désigne et qui ne les a
+ *    jamais acceptées ({@see self::termsRequired()}) reçoit `requires_terms` et leur version, sur le
+ *    même modèle — code non consommé, rien d'écrit — et c'est le même code reposé avec
+ *    `terms_version` qui ouvre la session et date l'acceptation. Avant le second facteur : un TOTP ne
+ *    survit pas à la lecture des conditions.
  *
  * Exposé sans `User` : TCK-596 / TCK-599 réutilisent `sendCodeTo` de
  * {@see PhoneVerificationService} sous leur propre portée.
@@ -47,6 +53,7 @@ class PhoneLoginService
         private readonly TwoFactorService $twoFactor,
         private readonly SessionTokenIssuer $tokens,
         private readonly PhoneSendQuota $quota,
+        private readonly PublishReadiness $readiness,
     ) {}
 
     /**
@@ -85,7 +92,7 @@ class PhoneLoginService
     }
 
     /**
-     * @param  array{two_factor_code?: ?string, recovery_code?: ?string, device_name?: ?string}  $proof
+     * @param  array{two_factor_code?: ?string, recovery_code?: ?string, device_name?: ?string, terms_version?: ?string}  $proof
      */
     public function verify(string $phone, string $code, array $proof, ?string $locale): JsonResponse
     {
@@ -98,7 +105,7 @@ class PhoneLoginService
      * {@see self::verify()}, qui rend aussi le compte ouvert : la réclamation du Radar (TCK-2390) y publie avant de rendre la
      * réponse. Un refus (verrou, code faux, compte bloqué, 2FA attendue) est rendu tel quel, en `JsonResponse`.
      *
-     * @param  array{two_factor_code?: ?string, recovery_code?: ?string, device_name?: ?string}  $proof
+     * @param  array{two_factor_code?: ?string, recovery_code?: ?string, device_name?: ?string, terms_version?: ?string}  $proof
      * @return JsonResponse|array{user: User, is_new_account: bool, response: JsonResponse}
      */
     public function authenticate(string $phone, string $code, array $proof, ?string $locale): JsonResponse|array
@@ -119,10 +126,12 @@ class PhoneLoginService
             return AuthRefusal::response(422, 'phone_code_invalid', 'auth.phone.code_invalid');
         }
 
+        $termsRequired = $user !== null && $this->termsRequired($user);
+        $termsPending = $termsRequired && ($proof['terms_version'] ?? null) !== PublishReadiness::TERMS_VERSION;
         $twoFactorPending = $user !== null && $user->two_factor_enabled
             && empty($proof['two_factor_code']) && empty($proof['recovery_code']);
 
-        if (! $this->codes->verifyCodeFor(self::SCOPE, $phone, $code, consume: ! $twoFactorPending)) {
+        if (! $this->codes->verifyCodeFor(self::SCOPE, $phone, $code, consume: ! $twoFactorPending && ! $termsPending)) {
             $this->lock->recordNumberFailure($phone);
 
             return AuthRefusal::response(422, 'phone_code_invalid', 'auth.phone.code_invalid');
@@ -130,6 +139,14 @@ class PhoneLoginService
 
         if ($user !== null && ! $user->canOpenSession()) {
             return AuthRefusal::response(403, 'account_blocked', 'auth.account.blocked');
+        }
+
+        if ($termsPending) {
+            return new JsonResponse([
+                'requires_terms' => true,
+                'terms_version' => PublishReadiness::TERMS_VERSION,
+                'message' => __('auth.terms_required'),
+            ], 200);
         }
 
         if ($twoFactorPending) {
@@ -148,6 +165,10 @@ class PhoneLoginService
             // Le code vient d'arriver sur ce numéro : c'est lui qui le vérifie, après les contrôles
             // de code, de 2FA et de session (409 si un autre compte l'a vérifié entre-temps).
             DB::transaction(fn () => $this->codes->markVerified($user, $phone));
+        }
+        if ($termsRequired) {
+            // La version reposée est celle que la réponse `requires_terms` désignait : l'acceptation la date.
+            $this->readiness->recordTerms($user, true);
         }
 
         // Le verrou du mot de passe n'est PAS levé : un canal ne solde pas l'autre (M1 b).
@@ -234,6 +255,17 @@ class PhoneLoginService
             ->get();
 
         return $candidates->count() === 1 ? $candidates->first() : null;
+    }
+
+    /**
+     * TCK-2404 — l'article 6.3 des CGU : le compte qu'un `radar_advertisers` désigne s'active par ce code, et les Conditions
+     * lui sont alors présentées. Jugé sur le compte, activé ou non : un compte du Radar activé avant ce ticket n'a rien
+     * accepté. Une acceptation déjà datée (réclamation, publication), quelle que soit sa version, ne se redemande pas.
+     */
+    private function termsRequired(User $user): bool
+    {
+        return $user->terms_accepted_at === null
+            && RadarAdvertiser::query()->where('user_id', $user->id)->exists();
     }
 
     /** @param  array{two_factor_code?: ?string, recovery_code?: ?string}  $proof */

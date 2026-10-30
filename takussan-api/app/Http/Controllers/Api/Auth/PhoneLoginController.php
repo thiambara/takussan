@@ -47,7 +47,7 @@ class PhoneLoginController extends Controller
         return $this->login->verify(
             (string) $request->validated('phone'),
             (string) $request->validated('code'),
-            $request->only(['two_factor_code', 'recovery_code', 'device_name']),
+            $request->only(['two_factor_code', 'recovery_code', 'device_name', 'terms_version']),
             app()->getLocale(),
         );
     }
