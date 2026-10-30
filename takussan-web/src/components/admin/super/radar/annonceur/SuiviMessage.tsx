@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import type { RadarOutcomeRequest, RadarOutreach } from '@/types/radar';
+import { CanalMessage } from './CanalMessage';
 import { DeposerReponse } from './DeposerReponse';
 import { DialogueIssue } from './DialogueIssue';
 import { ReponseVerdict } from './ReponseVerdict';
@@ -17,6 +18,8 @@ interface SuiviMessageProps {
   readonly desactive: boolean;
   readonly depotEnCours: boolean;
   readonly relanceEnCours: boolean;
+  /** TCK-2426 — une réponse reçue par l'API de l'annonceur attend son issue : l'API refuserait la préparation de la relance. */
+  readonly relanceFermee: boolean;
   readonly sansReponseEnCours: boolean;
   readonly onDeposer: (fichiers: readonly File[]) => Promise<boolean>;
   readonly onIssue: (demande: RadarOutcomeRequest) => Promise<unknown>;
@@ -37,6 +40,7 @@ export function SuiviMessage({
   desactive,
   depotEnCours,
   relanceEnCours,
+  relanceFermee,
   sansReponseEnCours,
   onDeposer,
   onIssue,
@@ -60,10 +64,14 @@ export function SuiviMessage({
 
   return (
     <article className="space-y-4 rounded-xl border bg-card p-4" data-testid="radar-suivi-message" data-outreach={message.id}>
-      <header className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm font-medium text-foreground">
-          {message.sent_at !== null ? t('awaiting.sentAt', { date: fmt.dateTime(message.sent_at) }) : null}
-        </p>
+      <header className="flex flex-wrap items-start justify-between gap-2">
+        <div className="min-w-0 space-y-0.5">
+          <p className="text-sm font-medium text-foreground">
+            {message.sent_at !== null ? t('awaiting.sentAt', { date: fmt.dateTime(message.sent_at) }) : null}
+          </p>
+          {/* TCK-2426 — par où il est parti : une réponse par l'API n'arrive que sur un message envoyé par l'API. */}
+          <p className="text-xs text-muted-foreground"><CanalMessage message={message} avecExplication /></p>
+        </div>
         <span className="text-xs text-muted-foreground uppercase">{message.locale}</span>
       </header>
 
@@ -106,7 +114,7 @@ export function SuiviMessage({
               </Button>
             </>
           ) : due ? (
-            <Button type="button" variant="outline" disabled={desactive || relanceEnCours} onClick={onRelancer}>
+            <Button type="button" variant="outline" disabled={desactive || relanceFermee || relanceEnCours} onClick={onRelancer}>
               {relanceEnCours ? t('followUp.preparing') : t('followUp.prepare')}
             </Button>
           ) : null}
