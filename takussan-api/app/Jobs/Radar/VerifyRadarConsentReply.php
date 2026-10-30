@@ -24,6 +24,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
 use Laravel\Ai\Files\Image;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
@@ -41,6 +42,10 @@ use Throwable;
  * **Idempotent** : rien si la réponse n'est plus `pending` ; toute écriture d'issue relit la réponse sous
  * `lockForUpdate` dans une transaction courte, et n'écrit que si elle est encore `pending`. Deux exécutions ne se
  * chevauchent pas (`WithoutOverlapping` par réponse).
+ *
+ * **Une réponse purgée n'est plus écrite** (TCK-2391) : le modèle répond après plusieurs secondes, et un STOP ou une révocation a pu effacer
+ * la réponse entre-temps. Relue sous verrou, une réponse dont `purged_at` est posé ne reçoit ni verdict, ni transcription, ni suggestion, ni
+ * motif : le job le journalise (identifiant seulement) et s'arrête. La purge la sort aussi de `pending` ({@see self::REASON_PURGED}).
  *
  * **Jamais de « pending » éternel** (le front interroge l'état) : le verdict, un échec (`failed`, motif dans
  * `verification_reason`), ou une attente dont le motif est lu (`pending` + code, reprise espacée) dans la fenêtre de
@@ -73,6 +78,9 @@ final class VerifyRadarConsentReply implements ShouldQueue
 
     /** Un imprévu hors de l'appel (lecture des captures, des clauses, base) : passager, il attend comme une panne. */
     public const REASON_UNEXPECTED = 'radar.verification.unexpected';
+
+    /** TCK-2391 : la réponse a été purgée (STOP, retrait) pendant ou avant la vérification ; la purge la sort de `pending` avec ce motif. */
+    public const REASON_PURGED = 'radar.verification.purged';
 
     /** Erreurs du fournisseur qu'une reprise ne corrige pas : la requête ou la clé est refusée. */
     public const DETERMINISTIC_PROVIDER_ERRORS = ['ai.request_rejected', 'ai.provider_auth'];
@@ -140,7 +148,7 @@ final class VerifyRadarConsentReply implements ShouldQueue
     private function verify(AiGateway $gateway, SuggestionRecorder $recorder, ConsentMessageComposer $composer, RadarVerificationDecision $decision): void
     {
         $reply = RadarConsent::query()->with(['outreach', 'advertiser', 'depositor'])->find($this->replyId);
-        if ($reply === null || $reply->verification_status !== RadarVerificationStatus::Pending) {
+        if ($reply === null || $reply->verification_status !== RadarVerificationStatus::Pending || $reply->purged_at !== null) {
             return;
         }
 
@@ -279,7 +287,7 @@ final class VerifyRadarConsentReply implements ShouldQueue
     }
 
     /**
-     * Écrit une issue SEULEMENT si la réponse est encore `pending` : relue sous verrou, dans une transaction courte
+     * Écrit une issue SEULEMENT si la réponse est encore `pending` et n'a pas été purgée : relue sous verrou, dans une transaction courte
      * (la réponse seule : aucun autre verrou). Rend faux si elle a changé d'état entre-temps (rien n'est écrit).
      *
      * @param  callable(RadarConsent): mixed  $apply
@@ -289,6 +297,12 @@ final class VerifyRadarConsentReply implements ShouldQueue
         return DB::transaction(function () use ($apply): bool {
             $fresh = RadarConsent::query()->whereKey($this->replyId)->lockForUpdate()->first();
             if ($fresh === null || $fresh->verification_status !== RadarVerificationStatus::Pending) {
+                return false;
+            }
+            if ($fresh->purged_at !== null) {
+                // Aucune donnée de la réponse dans le journal : son identifiant seulement.
+                Log::info('radar.verification.abandoned_purged', ['reply_id' => $fresh->id]);
+
                 return false;
             }
             $apply($fresh);

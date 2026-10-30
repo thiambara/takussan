@@ -3,6 +3,7 @@
 namespace App\Services\Radar;
 
 use App\Jobs\Radar\ExtractRadarListing;
+use App\Jobs\Radar\PurgeRadarAdvertiser;
 use App\Models\Enums\RadarListingStage;
 use App\Models\Enums\RadarSourceKind;
 use App\Models\Enums\RadarSourceSite;
@@ -223,6 +224,9 @@ final class RadarListingIntake
 
             if ($listing->stage === RadarListingStage::Captured) {
                 ExtractRadarListing::dispatch($listing->id)->afterCommit();
+            } elseif ($listing->stage === RadarListingStage::DoNotContact && $listing->radar_advertiser_id !== null) {
+                // TCK-2391 : saisie d'un numéro qui a dit STOP, la matière ne reste pas jusqu'au passage quotidien.
+                PurgeRadarAdvertiser::dispatch($listing->radar_advertiser_id)->afterCommit();
             }
 
             return ['listing' => $listing, 'existing' => false, 'requeued' => false];
