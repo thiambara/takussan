@@ -165,6 +165,47 @@ class RadarAmountParserTest extends TestCase
         }
     }
 
+    public function test_un_numero_sept_a_zone_entre_parentheses_derriere_un_etage_n_est_pas_un_prix(): void
+    {
+        // TCK-2445 : sans la zone entre parenthèses dans `PhoneMasker::CC7_REST`, le `7` était lu comme un étage et un bout
+        // du numéro devenait le prix (`1234567`, `495`, `67`, `34567`).
+        foreach (['RDC +7 (495) 123-45-67 F', 'R + 7 (495) 123-45-67 F', 'R +7 (812) 123-45-67 XOF', 'RDC +7 (912) 345-67-89 F',
+            'RDC+7 (495)1234567 F', 'R+7 (495) 123-45-67 F', 'RDC +7 (495).123.45.67 F', 'RDC +7 (495)/123/45/67 F',
+            "RDC\u{00A0}+7\u{00A0}(495)\u{00A0}123\u{00A0}45\u{00A0}67\u{00A0}FCFA", 'RDC +7 (770) 12 34 567 F',
+            'RDC +7 (295).123.45.67 F', 'RDC +1 (495).123.45.67 F', 'RDC +7 (3452) 12 34 56 F', 'Contact +7 (34922) 1 23 45 F'] as $texte) {
+            $this->assertNull(RadarAmountParser::parse($texte), $texte);
+        }
+    }
+
+    public function test_un_etage_espace_de_son_plus_ne_se_colle_pas_au_prix(): void
+    {
+        // TCK-2445 (m11) : `R+ 2 450 000 F` rendait 2 450 000, le chiffre de l'étage lu comme le premier groupe du prix.
+        // La forme collée (`R+2 450 000 F`) rendait déjà 450 000. Défaut antérieur à TCK-2435.
+        foreach (['Villa R+ 2 450 000 F', 'Villa RDC + 2 450 000 F', 'Villa R + 2 450 000 F', 'Villa Rdc+ 2 450 000 F',
+            'Villa R+2 450 000 F', 'Villa R+ 12 450 000 F', 'Villa R  +  2 450 000 F'] as $texte) {
+            $this->assertSame(['amount' => 450_000, 'period' => null], RadarAmountParser::parse($texte), $texte);
+        }
+        // Sans étage derrière le `+`, ou un étage suivi d'un prix qui commence par 1, le prix est lu en entier.
+        $this->assertSame(['amount' => 450_000, 'period' => null], RadarAmountParser::parse('Villa R+ 450 000 F'));
+        $this->assertSame(['amount' => 1_250_500_750, 'period' => null], RadarAmountParser::parse('Immeuble R+ 1 1 250 500 750 F'));
+        $this->assertSame(['amount' => 2_450_000, 'period' => null], RadarAmountParser::parse('Villa T4 2 450 000 F'));
+        // Vérification M2 : l'étage n'en est un que suivi d'un chiffre de 1 à 9 (aucun prix ne commence par 0), comme sur `dev`.
+        $this->assertSame(['amount' => 15_000_000, 'period' => null], RadarAmountParser::parse('Villa R+ 15 000 000 F'));
+        $this->assertSame(['amount' => 2_000_000, 'period' => null], RadarAmountParser::parse('Villa R+ 2 000 000 F'));
+        $this->assertSame(['amount' => 1_500_000, 'period' => null], RadarAmountParser::parse('Villa R+ 1M5'));
+        $this->assertNull(RadarAmountParser::parse('Villa R + 2 (221) 77 012 34 56'));
+    }
+
+    public function test_une_annee_entre_parentheses_derriere_r_plus_sept_n_est_pas_une_zone(): void
+    {
+        // TCK-2445 (vérification I1) : la zone longue de `+7` commence par 3 à 9 ; une année n'en est pas une.
+        $this->assertSame(['amount' => 450_000_000, 'period' => null], RadarAmountParser::parse('Immeuble R+7 (2024) 450 000 000 F'));
+        $this->assertSame(['amount' => 850_000_000, 'period' => null], RadarAmountParser::parse('Immeuble R+7 (2019) 850 000 000 FCFA'));
+        $this->assertSame(['amount' => 450_000, 'period' => 'monthly'], RadarAmountParser::parse('Appartement R+7 (2023) 450 000 F/mois'));
+        // Une vraie zone longue reste un numéro.
+        $this->assertNull(RadarAmountParser::parse('RDC +7 (7172) 12-34-56 F'));
+    }
+
     /**
      * TCK-2428 (contre-vérification C3 de TCK-2412) — la plage du masqueur s'arrête avant un dernier groupe isolé :
      * ce reste, ou un horaire `H24/7`, n'est pas un candidat. Un nombre nu de moins de 100 n'est jamais choisi.

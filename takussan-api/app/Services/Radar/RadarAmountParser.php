@@ -11,7 +11,7 @@ use App\Support\RadarPhone;
  * recopie « 1M5 » ou « 450.000f/mois », ce parseur rend 1 500 000 XOF ou 450 000 XOF par mois.
  *
  * **Les candidats.** Chaque nombre du texte qui n'est pas collé à une lettre ni à un `+` (« T3 »,
- * « F4 », « R+1 » ne sont pas des montants), sous l'une de ces formes :
+ * « F4 », « R+1 » ne sont pas des montants), ni l'étage d'un « R+ 2 » espacé, sous l'une de ces formes :
  *   - million abrégé à la sénégalaise : « 1M5 », « 1 M 5 » = 1,5 million, « 2M250 » = 2,25 millions
  *     — sauf « m2 »/« m3 » à un chiffre, qui sont une surface ou un volume (« 300m2 ») ;
  *   - nombre (décimale `.` ou `,`, ou groupé par milliers) suivi d'un multiplicateur : « 1,5M »,
@@ -68,8 +68,17 @@ final class RadarAmountParser
         'mille' => 3, 'k' => 3,
     ];
 
-    /** Pas collé à une lettre, à un `+` ni au milieu d'un nombre. */
-    private const CANDIDATE = '/(?<![\p{L}\d+])(?<!\d[.,])(?:'
+    /**
+     * TCK-2445 — l'étage de 0 à 19 espacé de son `+` (`R+ 2`, `RDC + 2`, `R + 12`) n'est pas un candidat : `R+ 2 450 000 F`
+     * se lisait 2 450 000, l'étage collé au prix. Le texte est normalisé (minuscules, une espace) ; collé au `+`, l'étage
+     * est déjà écarté. Une branche de longueur fixe par écriture, comme `PhoneMasker::FLOOR_WORD`. L'étage n'en est un que
+     * suivi d'une espace et d'un chiffre de 1 à 9 : aucun prix ne commence par 0 (`R+ 15 000 000 F` vaut 15 000 000), et
+     * `R+ 1M5` est un million et demi.
+     */
+    private const SPACED_FLOOR = '(?!(?<=(?<!\p{L})r\+ |(?<!\p{L})rdc\+ |(?<!\p{L})r \+ |(?<!\p{L})rdc \+ )1?\d(?= [1-9]))';
+
+    /** Pas collé à une lettre, à un `+` ni au milieu d'un nombre, ni l'étage d'un `R+ 2` espacé. */
+    private const CANDIDATE = '/(?<![\p{L}\d+])(?<!\d[.,])'.self::SPACED_FLOOR.'(?:'
         .'(?<mshort>(?<mint>\d+)\s?m\s?(?![23](?!\d))(?<mfrac>\d{1,3})(?!\d))'
         .'|(?<mult>(?<num>\d{1,3}(?:[ .]\d{3})+|\d+(?:[.,]\d+)?)\s*(?<unit>milliards?|mrds?|mds?|millions?|mille|m|k)(?![\p{L}\d²³]))'
         .'|(?<grouped>\d{1,3}(?:[ .,]\d{3})+(?![.,]?\d))'
