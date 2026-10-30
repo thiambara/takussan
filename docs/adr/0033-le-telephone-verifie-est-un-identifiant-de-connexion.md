@@ -130,7 +130,11 @@ restaient dans un compte que personne ne pouvait plus ouvrir.
   consommé, rien d'écrit, aucun jeton. Le même code reposé avec cette `terms_version` ouvre la
   session et date l'acceptation (`PublishReadiness::recordTerms`). Les conditions passent **avant**
   le second facteur : un TOTP ne survit pas à leur lecture. Une acceptation déjà datée (réclamation,
-  publication), quelle que soit sa version, ne se redemande pas.
+  publication), quelle que soit sa version, ne se redemande pas. La réponse `requires_terms` **ne coûte
+  pas d'essai** au limiteur `auth-phone-verify` du §6 : elle suit un code juste, et l'essai compté
+  avant la requête est rendu après (`AppServiceProvider::refundPhoneVerify`). Un mauvais code compte
+  toujours ; la borne M1 (c) sur les échecs reste entière. L'acceptation laisse une trace d'audit
+  (`radar_terms_accepted`, journal `Radar`).
 - **Pourquoi ce n'est pas l'alternative écartée** (« rattacher au compte qui porte le numéro, même
   non vérifié ») : celle-ci livrait un compte **à qui le numéro a été saisi par un tiers**, avec ce
   qu'il contient. Ici, le compte a été créé **pour le titulaire du numéro**, sur la réponse venue de

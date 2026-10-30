@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Auth;
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Auth\RequestPhoneLoginCodeRequest;
 use App\Http\Requests\Auth\VerifyPhoneLoginCodeRequest;
+use App\Providers\AppServiceProvider;
 use App\Services\Auth\AuthRefusal;
 use App\Services\Auth\PhoneLoginService;
 use App\Services\Auth\PhoneVerificationService;
@@ -44,11 +45,18 @@ class PhoneLoginController extends Controller
 
     public function verifyCode(VerifyPhoneLoginCodeRequest $request): JsonResponse
     {
-        return $this->login->verify(
+        $response = $this->login->verify(
             (string) $request->validated('phone'),
             (string) $request->validated('code'),
             $request->only(['two_factor_code', 'recovery_code', 'device_name', 'terms_version']),
             app()->getLocale(),
         );
+
+        // TCK-2404 (vérification adverse I1) — les conditions présentées suivent un code juste : l'essai est rendu.
+        if (PhoneLoginService::presentsTerms($response)) {
+            AppServiceProvider::refundPhoneVerify($request);
+        }
+
+        return $response;
     }
 }

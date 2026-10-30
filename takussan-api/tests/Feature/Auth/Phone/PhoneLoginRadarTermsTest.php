@@ -4,11 +4,14 @@ namespace Tests\Feature\Auth\Phone;
 
 use App\Models\RadarAdvertiser;
 use App\Models\User;
+use App\Providers\AppServiceProvider;
 use App\Services\Property\PublishReadiness;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Routing\Middleware\ThrottleRequests;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Testing\TestResponse;
 use PragmaRX\Google2FA\Google2FA;
+use Spatie\Activitylog\Models\Activity;
 use Tests\Support\FakeSmsRouter;
 use Tests\TestCase;
 
@@ -67,6 +70,15 @@ class PhoneLoginRadarTermsTest extends TestCase
         $this->assertSame(PublishReadiness::TERMS_VERSION, $compte->terms_version);
         $this->assertNotNull($compte->phone_verified_at);
 
+        // Vérification adverse m2 — la trace d'audit, comme la réclamation : qui, quelle version, par quel chemin.
+        $journal = Activity::query()->where('event', 'radar_terms_accepted')->sole();
+        $this->assertSame('Radar', $journal->log_name);
+        $this->assertSame($compte->id, $journal->causer_id);
+        $this->assertSame($compte->id, $journal->subject_id);
+        $this->assertSame(PublishReadiness::TERMS_VERSION, $journal->properties['terms_version']);
+        $this->assertSame('auth.phone.verify-code', $journal->properties['via']);
+        $this->assertStringNotContainsString('741234567', json_encode($journal->properties));
+
         // Et le code est désormais consommé.
         $this->verifier($code, ['terms_version' => PublishReadiness::TERMS_VERSION])
             ->assertStatus(422)
@@ -84,6 +96,7 @@ class PhoneLoginRadarTermsTest extends TestCase
             ->assertJsonMissingPath('token');
 
         $this->assertNull($compte->fresh()->terms_accepted_at);
+        $this->assertFalse(Activity::query()->where('event', 'radar_terms_accepted')->exists());
     }
 
     public function test_un_code_faux_ne_presente_pas_les_conditions(): void
@@ -124,6 +137,7 @@ class PhoneLoginRadarTermsTest extends TestCase
         $compte->refresh();
         $this->assertSame('2026-10-01', $compte->terms_version);
         $this->assertTrue($compte->terms_accepted_at->equalTo(now()->subDay()));
+        $this->assertFalse(Activity::query()->where('event', 'radar_terms_accepted')->exists());
     }
 
     public function test_un_compte_que_le_radar_ne_designe_pas_n_est_pas_interroge(): void
@@ -171,7 +185,48 @@ class PhoneLoginRadarTermsTest extends TestCase
         $this->assertSame(PublishReadiness::TERMS_VERSION, $compte->fresh()->terms_version);
     }
 
-    /** Le compte que « Publier pour lui » crée : un numéro, ni mot de passe, ni e-mail, jamais vérifié, aucune acceptation. */
+    /**
+     * Vérification adverse I1 — la présentation des conditions ne coûte pas d'essai au limiteur `auth-phone-verify`
+     * (4 par numéro et par 15 min) : le code expire pendant la lecture, une faute de frappe sur le code suivant, et
+     * l'annonceur entre quand même. Mesuré AVEC le limiteur, que `setUp` éteint ailleurs.
+     */
+    public function test_la_presentation_des_conditions_ne_coute_pas_d_essai_au_limiteur(): void
+    {
+        $this->avecLimiteur();
+        $compte = $this->compteRadar();
+
+        $this->verifier($this->demanderCode())->assertOk()->assertJsonPath('requires_terms', true);
+        $this->travel(6)->minutes();
+        $this->verifier($this->sms->lastCodeFor(self::NUMERO), ['terms_version' => PublishReadiness::TERMS_VERSION])
+            ->assertStatus(422)->assertJsonPath('code', 'phone_code_invalid');
+
+        $this->travel(61)->seconds();
+        $code = $this->demanderCode();
+        $this->verifier('000000')->assertStatus(422);
+        $this->verifier($code)->assertOk()->assertJsonPath('requires_terms', true);
+        $this->verifier($code, ['terms_version' => PublishReadiness::TERMS_VERSION])
+            ->assertOk()
+            ->assertJsonPath('user.id', $compte->id);
+    }
+
+    /** Un mauvais code compte toujours : des présentations répétées ne rendent pas d'essais en réserve. */
+    public function test_les_conditions_n_ouvrent_pas_de_contournement_du_limiteur(): void
+    {
+        $this->avecLimiteur();
+        $this->compteRadar();
+        $code = $this->demanderCode();
+
+        for ($i = 0; $i < 6; $i++) {
+            $this->verifier($code)->assertOk()->assertJsonPath('requires_terms', true);
+        }
+        for ($i = 0; $i < AppServiceProvider::PHONE_VERIFY_PER_WINDOW; $i++) {
+            $this->verifier('000000')->assertStatus(422);
+        }
+
+        $this->verifier($code, ['terms_version' => PublishReadiness::TERMS_VERSION])->assertStatus(429);
+    }
+
+    /** Le compte que « Publier pour lui » crée    /** Le compte que « Publier pour lui » crée : un numéro, ni mot de passe, ni e-mail, jamais vérifié, aucune acceptation. */
     private function compteRadar(array $attributs = []): User
     {
         $compte = User::factory()->create($attributs + [
@@ -184,6 +239,13 @@ class PhoneLoginRadarTermsTest extends TestCase
         RadarAdvertiser::factory()->create(['user_id' => $compte->id]);
 
         return $compte;
+    }
+
+    /** Le limiteur de la route rallumé (le conteneur lie `ThrottleRequests` à `ThrottleRequestsByNetwork`), sur un cache vide. */
+    private function avecLimiteur(): void
+    {
+        $this->withMiddleware(ThrottleRequests::class);
+        Cache::flush();
     }
 
     private function demanderCode(): string

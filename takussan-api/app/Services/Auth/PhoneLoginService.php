@@ -169,6 +169,18 @@ class PhoneLoginService
         if ($termsRequired) {
             // La version reposée est celle que la réponse `requires_terms` désignait : l'acceptation la date.
             $this->readiness->recordTerms($user, true);
+            // Vérification adverse m2 — la trace, comme `radar_claimed` : qui, quelle version, par quel chemin (la
+            // connexion, ou la réclamation qui passe par ici). Ni numéro ni adresse IP.
+            activity('Radar')
+                ->causedBy($user)
+                ->performedOn($user)
+                ->withProperties([
+                    'user_id' => $user->id,
+                    'terms_version' => $user->terms_version,
+                    'via' => request()->route()?->getName(),
+                ])
+                ->event('radar_terms_accepted')
+                ->log('Conditions acceptées à l\'activation du compte créé par le Radar');
         }
 
         // Le verrou du mot de passe n'est PAS levé : un canal ne solde pas l'autre (M1 b).
@@ -189,6 +201,12 @@ class PhoneLoginService
             'user' => UserResource::pourSoi($user->fresh()),
             'is_new_account' => $isNewAccount,
         ], 200)];
+    }
+
+    /** TCK-2404 — la réponse présente-t-elle les conditions (`requires_terms`) ? Elle ne suit qu'un code juste. */
+    public static function presentsTerms(JsonResponse $response): bool
+    {
+        return $response->getStatusCode() === 200 && ($response->getData(true)['requires_terms'] ?? false) === true;
     }
 
     /**
