@@ -3,6 +3,7 @@
 #
 #   deploy/takussan/smoke-api.sh image   # l'image seule
 #   deploy/takussan/smoke-api.sh pile    # la pile entière, contre les services de docker-compose.yml
+#   deploy/takussan/smoke-api.sh masqueur  # le masqueur seul, sans BUILD_SHA=smoke (joué par api-ci.yml)
 #
 # Prérequis : l'image construite sous le tag `local` (et `local-seed` pour la pile) :
 #   docker build --build-arg BUILD_SHA=smoke --target runtime -t ghcr.io/thiambara/takussan-api:local takussan-api
@@ -477,6 +478,7 @@ verifier_pile() {
 
 case "${1:-}" in
   image) verifier_image ;;
+  masqueur) verifier_masqueur_compile ;;   # la seule sonde que la CI joue (api-ci.yml, job image)
   pile) verifier_pile ;;
-  *) echo "usage : $0 image|pile" >&2; exit 2 ;;
+  *) echo "usage : $0 image|pile|masqueur" >&2; exit 2 ;;
 esac

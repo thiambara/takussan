@@ -122,6 +122,7 @@ Aucun endpoint, aucune migration. `App\Support\PhoneMasker` et son miroir `scrip
 6. **Un petit nombre suivi d'un mot n'est pas au numéro** (`NOTHING_GLUED`), sauf s'il commence par 0. Écarté : l'admettre
    aussi (`… 34 56 000 F` se masquait en entier mais `77 012 3 / 450 000 F` perdait son prix de 450 000 F). Coût : `… 34 56 000 F`
    reste lu comme sur `dev` (`34 56` en clair, prix 56 000).
-7. **Le job CI « Image de l'API (construite, pas poussée) » ne joue pas `smoke-api.sh`** : il construit l'image sans la charger.
-   La sonde du masqueur n'y tourne donc pas ; elle tourne à chaque `smoke-api.sh image` lancé à la main. Pas ajoutée à la CI dans
-   ce ticket (le porteur décide).
+7. **La sonde du masqueur tourne en CI** (revue du porteur) : le job « Image de l'API (construite, pas poussée) »
+   d'`api-ci.yml` charge l'image (`load: true`, tag `local`, toujours `push: false` et `cache-from` seul) et lance
+   `deploy/takussan/smoke-api.sh masqueur`. Écarté : `smoke-api.sh image` en entier, qui exige `BUILD_SHA=smoke` alors que
+   l'image de la CI porte le SHA du commit. Le mode `masqueur` ne joue que `verifier_masqueur_compile`, sans service ni `.env`.
