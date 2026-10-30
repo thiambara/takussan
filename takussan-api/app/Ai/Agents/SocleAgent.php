@@ -52,6 +52,18 @@ abstract class SocleAgent implements Agent
         return $this->instructions;
     }
 
+    /**
+     * TCK-2433 — la sortie structurée passe-t-elle par le mode STRICT du fournisseur (Anthropic :
+     * `output_config.format`, une grammaire compilée qui contraint le décodage) ? Faux : la passerelle
+     * la demande par un outil forcé non strict (`output_structured_data`), sans grammaire — le modèle
+     * suit le schéma sans garantie, et le code qui lit la sortie doit tout valider. Anthropic refuse une
+     * grammaire trop grosse sans en publier le seuil (`AgentSchemasStayUnderTheUnionLimitTest`).
+     */
+    public function usesStrictSchema(): bool
+    {
+        return true;
+    }
+
     /** Lu par `TextGenerationOptions` du SDK. */
     public function maxTokens(): ?int
     {
