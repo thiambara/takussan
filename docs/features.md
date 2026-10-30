@@ -783,11 +783,12 @@ en est le premier usager. Vision et lots : [plan du 2026-10-26](plans/2026-10-26
   9 derrière `7`, et une zone de trois chiffres quelconques entre parenthèses suivie de sept chiffres
   derrière l'un comme l'autre (`RDC +7 (495) 123-45-67 F`, `RDC +1 (495) 123-45-67 F`) :
   `au RDC +1 514 555 0199` est masqué (TCK-2435, TCK-2445). Derrière l'étage `1` ou `7`, `(221)`
-  suivi d'un numéro sénégalais groupé 2-3-2-2, 2-2-2-3 ou 3-2-2-2, ou d'un seul tenant, et qu'aucune
+  suivi d'un numéro sénégalais groupé 2-3-2-2, 2-2-2-3 ou 3-2-2-2, chaque séparateur pouvant manquer
+  (`77 0123 456`, ou d'un seul tenant), et qu'aucune
   marque monétaire ne suit, n'est pas une zone : `Villa R+1 (221) 77 012 34 56` reste un étage, et
   seul le numéro est masqué (`Villa R+1 (221) [TELEPHONE]`) ; sans étage, `Contact +1 (221) 77 012 34
   56` est lu comme un numéro `+1` (`Contact [TELEPHONE] 56`) (TCK-2447). Limites connues : derrière
-  l'étage `1` ou `7`, un autre groupement (`Villa R+1 (221) 77 01 234 56`), une marque
+  l'étage `1` ou `7`, un groupement qui ne s'y ramène pas (`Villa R+1 (221) 77 01 234 56`), une marque
   (`Villa R+1 (221) 77 012 34 56 F`), ou l'indicatif écrit `00221` ou `221` nu
   (`Villa R+1 00221 77 012 34 56`, `Villa R+1 221 77 012 34 56`) se lisent encore comme un numéro
   `+1` / `+7`, et en laissent la fin en clair (`Villa R[TELEPHONE] 34 56`) (TCK-2447 ; TCK-2451).
@@ -950,19 +951,20 @@ catalogue tant que cet accord n'existe pas. Vision et lots : [plan du 2026-10-26
   publication réclamée (le job `PublishClaimedRadarListings` qui suit la réclamation) et « publier
   pour lui », aperçu compris (`radar.advertiser.account_unavailable`), le refusent ; sans espace, la
   réclamation et « publier pour lui » en ouvrent un (TCK-2421). L'espace jugé est celui où iraient
-  les annonces : le premier dont le compte que le code ouvrirait est l'administrateur principal.
+  les annonces : le premier dont le compte qui les recevrait est l'administrateur principal.
   Sous mandat comme hors mandat, la réclamation refuse l'envoi du code (409), sans SMS, avant même
   la connexion exigée d'un numéro déjà inscrit. Elle refuse encore à la confirmation, avant la
   vérification du code, qui n'est pas consommé, puis le rejuge sous le verrou de l'annonceur : un
   espace qui a cessé d'être actif pendant la confirmation ne reçoit ni accord `otp` ni compte
-  rattaché, la confirmation se défaisant entière (le code, vérifié, est alors consommé). Hors
+  rattaché, la confirmation se défaisant entière, sauf ce que le code lui-même compte : il est alors
+  consommé, et le verrou du numéro est levé. Hors
   mandat, la page le dit d'avance (« Votre espace n'est pas actif », sans formulaire de code, les
   annonces affichées sans pouvoir être cochées ni corrigées), avec un texte qui ne parle pas de
   mandat ; sous mandat, le refus se dit à l'envoi du code. Le compte préparé par « publier pour
   lui » dont l'espace n'est pas actif est refusé comme indisponible
   (`radar.claim.account_unavailable`). La garde du job reste : un espace qui cesse d'être actif
   (suspendu ou inactif) entre la confirmation et la publication laisse les annonces `consented`,
-  avec ce code pour raison, à l'opérateur dans la file « À reprendre » (TCK-2413, TCK-2446).
+  avec `radar.advertiser.account_unavailable` pour raison, à l'opérateur dans la file « À reprendre » (TCK-2413, TCK-2446).
 - **La nature de l'annonceur reste dans le Radar**, jamais dans les profils.
 - **Le numéro WhatsApp des notifications ne sert jamais à prospecter.**
 - **Le démarchage par l'API part d'un numéro WhatsApp dédié au Radar, configuré à part** : le code
@@ -998,8 +1000,7 @@ catalogue tant que cet accord n'existe pas. Vision et lots : [plan du 2026-10-26
   libelle, liste fermée : destinataire injoignable sur WhatsApp (131026), limité par Meta (131049),
   refus des messages marketing (131050), trop de messages à ce destinataire en peu de temps (131056),
   envois limités sur le numéro du Radar, peut-être après des signalements (131048), retenu par une
-  expérience de Meta (130472). Tout autre code, ou pas de code, n'affiche que « Non remis » ; aucun
-  geste n'est proposé. L'API rend le code seul, jamais le texte de l'erreur (TCK-2444).
+  expérience de Meta (130472). Tout autre code, ou pas de code, n'affiche que « Non remis ». L'API rend le code seul, jamais le texte de l'erreur (TCK-2444).
 - **Un envoi par l'API resté sans confirmation de Meta est rattaché à ses accusés par un jeton
   opaque** (TCK-2436, [ADR-0081](adr/0081-le-radar-prospecte-par-l-api-whatsapp-sur-son-propre-numero.md),
   amendement du 2026-10-30). Chaque envoi par l'API porte un jeton aléatoire, sans donnée
@@ -1064,24 +1065,27 @@ catalogue tant que cet accord n'existe pas. Vision et lots : [plan du 2026-10-26
   au-delà de 19, il se lit encore comme le début du prix (`R+ 20 450 000 F` vaut 20 450 000) (TCK-2445).
   Derrière un `R+` collé, un numéro étranger complet garde son indicatif : `Villa R+33 6 12 34 56 78`
   ne donne aucun contact. En retour, un étage collé de 20 ou plus perd le numéro sénégalais qui le
-  suit dans deux cas : quand l'étage est lui-même un indicatif (`20`, `27`, `30` à `34`, `36`, `39`,
-  `40`…), ou quand il va de 100 à 199 (le `1` suivi de dix chiffres). Ainsi
-  `Immeuble R+20 77 123 45 67` et `Immeuble R+105 77 123 45 67` ne donnent aucun contact, mais
-  `Immeuble R+25 77 123 45 67` garde le sien. La perte vaut aussi quand le numéro porte un indicatif
+  suit quand l'étage et ce numéro, lus ensemble derrière le `+`, forment un numéro étranger complet
+  (un indicatif suivi du nombre de chiffres de son plan) : un étage qui est lui-même un indicatif
+  (`R+20`, `R+30`), un étage qui commence par `7` ou `1` suivi de dix chiffres en tout (`R+75`,
+  `R+105`), un étage de trois chiffres dont le début est un indicatif (`R+200`, `R+350`) ; devant
+  `77 123 45 67`, ces étages ne donnent aucun contact, quand `Immeuble R+25 77 123 45 67` et
+  `Immeuble R+999 77 123 45 67` gardent le leur. La perte vaut aussi quand le numéro porte un indicatif
   `00221` ou `221` nu (`Immeuble R+20 00221 77 123 45 67`, `Immeuble R+30 221 77 123 45 67`), ou qu'un
   tiret, court ou long, un point ou une barre l'en sépare (`Immeuble R+20 - 77 123 45 67`). Elle ne vaut ni avec
   `+221` ou `(221)` (`Immeuble R+20 +221 77 123 45 67`, `Immeuble R+20 (221) 77 123 45 67`), ni
   derrière une virgule, un deux-points, un point-virgule ou une parenthèse
-  (`Immeuble R+20, 77 123 45 67`). Le prix qui suit un étage qui est un indicatif est perdu quand il
-  a la forme d'un numéro de ce plan (`Immeuble R+30 2 500 000 F`) ; le masquage le lit déjà ainsi
-  (TCK-2441). Derrière l'étage `1` ou `7`, `(221)` suivi d'un numéro sénégalais groupé comme au
+  (`Immeuble R+20, 77 123 45 67`). De même, le prix qui suit un étage collé est perdu quand l'étage
+  et le prix, lus ensemble, forment un numéro étranger complet (`Immeuble R+30 2 500 000 F`,
+  `Immeuble R+150 25 000 000 F`), quand `Immeuble R+105 2 500 000 F` garde le sien ; le masquage le
+  lit déjà ainsi (TCK-2441). Derrière l'étage `1` ou `7`, `(221)` suivi d'un numéro sénégalais groupé comme au
   [§2.11](#211-socle-ia) n'est pas une zone : `Villa R+1 (221) 77 012 34 56` donne `+221770123456`. Le
   `221` qui touche le numéro, nu ou entre parenthèses, au plus trois espaces, points, tirets `-` ou
   barres `/` entre eux, n'est pas un prix : `Villa (221) 77 012 34 56` et `Villa 221 / 77 012 34 56`
   ne rendent aucun prix (TCK-2447). Limites connues : `Villa ( 221 ) 77 012 34 56`, un tiret long
   (`Villa (221) – 77 012 34 56`), un `:`, une `,` ou des crochets (`Villa [221] 77 012 34 56`)
-  laissent encore un prix de 221 (TCK-2447) ; derrière l'étage `1` ou `7`, un autre groupement
-  (`Villa R+1 (221) 77 01 234 56`) et l'indicatif `00221` ou `221` nu
+  laissent encore un prix de 221 (TCK-2447) ; derrière l'étage `1` ou `7`, un groupement qui ne se
+  ramène pas à ceux du §2.11 (`Villa R+1 (221) 77 01 234 56`) et l'indicatif `00221` ou `221` nu
   (`Villa R+1 00221 77 012 34 56`) ne donnent aucun contact (TCK-2447 ; TCK-2451) ;
   `Villa R+1 (221) 77 012 34 56 F`, un numéro suivi d'une marque, ne donne aucun contact et rend 56
   comme prix (TCK-2447). Un nombre nu de moins de 100, sans monnaie, période ni multiplicateur, n'est jamais
