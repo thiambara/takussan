@@ -85,9 +85,10 @@ const SENEGAL_SEPARE = String.raw`(?<![0-9])(?<![0-9][.,_])(?:`
 const CC1 = '[17]';
 const CC2 = '(?:2[07]|3[0-469]|4[013-9]|5[1-8]|6[0-6]|8[1246]|9[0-58])';
 const CC3 = '(?:21[1-368]|22[02-9]|2[34][0-9]|25[0-8]|26[0-9]|29[01789]|35[0-9]|37[0-9]|38[0-35-79]|42[013]|50[0-9]|59[0-9]|6[78][0-9]|69[0-2]|85[02356]|880|886|96[0-8]|97[0-7]|99[2-8])';
-// Le `+` d'un étage (`R+1`, `R+10`) n'est pas un indicatif (TCK-2428) : un `R` isolé, le `+`, un chiffre, comme
-// `RadarPhone::withoutFloorPlus()`. Collé à un mot (`Tel+33`, `Mr+33`) ou suivi d'une espace, il en reste un.
-const PAS_UN_ETAGE = String.raw`(?!(?<=(?<!\p{L})r)\+[0-9])`;
+// Le `+` d'un étage (`R+1`, `R+10`) n'est pas un indicatif (TCK-2428) : un `R` isolé, le `+`, un ou deux chiffres que
+// rien ne colle derrière. Collé à un mot (`Tel+33`, `Mr+33`), suivi d'une espace ou d'un numéro collé (`R+33612345678`),
+// il en reste un.
+const PAS_UN_ETAGE = String.raw`(?!(?<=(?<!\p{L})r)\+[0-9]{1,2}(?![0-9]))`;
 const CHIFFRES = (n) => `(?:${SEP}{0,3}[0-9]){${n}}`;
 const ETRANGER = String.raw`(?:(?<![0-9+])(?<![0-9][.,])${PAS_UN_ETAGE}(?:\+(?!${WS}{1,2}[0-9]{1,3}(?:${SEP}[0-9]{3})*${SEP}000(?![0-9]))${WS}{0,2}|00${SEP}?)(?:`
   + `33${APRES_CC}${CHIFFRES(9)}`
