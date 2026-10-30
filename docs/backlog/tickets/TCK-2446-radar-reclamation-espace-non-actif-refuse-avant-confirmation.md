@@ -103,3 +103,6 @@ une publication qui ne peut pas avoir lieu, et l'annonceur l'apprend après coup
    `otp` et un rattachement dans la fenêtre de course.
 5. **« Écrivez-nous »** plutôt que « Contactez-nous », comme les textes voisins (`supportRequired`,
    `mandateSupportBody`). Aucun délai promis.
+6. **Factorisation limitée à `RadarClaims`** (`refuseInactiveSpace()`, `spaceInactive()`) : le doublon privé
+   `AdvertiserProvisioner::spaceSuspended()` reste. Écarté : le fusionner avec `RadarMandateTakeBack::spaceSuspended()`,
+   hors périmètre et sans effet sur le comportement.
