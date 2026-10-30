@@ -1,7 +1,7 @@
 ---
 id: TCK-2421
 title: "Radar : l'annonceur publié sous mandat qui ouvre un compte reprend ses biens dans son espace"
-status: todo
+status: doing
 phase: P3
 family: full
 estimate: M
