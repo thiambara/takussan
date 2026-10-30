@@ -44,8 +44,10 @@ Deux suites de [TCK-2390](TCK-2390-radar-reclamation-par-l-annonceur.md) (§ « 
   rattaché est supprimé ; 409 sinon, ou si l'annonceur est révoqué (STOP, `do_not_contact`, accord
   retiré, numéro purgé). Journalisé (`radar_account_released`).
 - Fiche annonceur (`GET /api/admin/radar/advertisers/{advertiser}`) : `account` (le compte rattaché,
-  supprimé ou non, et si le geste est offert) et le `stage_reason` de chaque annonce.
-- `filter[queue]=left_to_operator` sur `GET /api/admin/radar/advertisers`.
+  supprimé ou non, si le geste est offert, et `claimed` : l'annonceur a réclamé avec ce compte, sinon le
+  Radar l'a créé), le `stage_reason` et le `purge_at` de chaque annonce.
+- `filter[queue]=left_to_operator` sur `GET /api/admin/radar/advertisers` ; chaque ligne de la liste
+  porte `left_purge_at`, l'échéance de purge de sa première annonce laissée (`null` : aucune).
 - `GET /api/radar/claims/{token}` : `awaiting_review`, les annonces réclamées que la publication a
   laissées à l'équipe, sorties de `publishing`.
 
@@ -97,6 +99,27 @@ Deux suites de [TCK-2390](TCK-2390-radar-reclamation-par-l-annonceur.md) (§ « 
   annonce publiée entre-temps n'en garde aucun (testé par un `DB::listen`).
 - **Rien n'est posé après un STOP ou une révocation** : l'annonce s'y ferme.
 - **Le geste laisse le compte supprimé tel quel**, ses biens compris : il ne rouvre ni ne réunit rien.
+- **Vérification adverse (2026-10-30, « prêt », six mineurs)** — traités :
+  - **M1** : `origin/dev` fusionnée (#1585 et la spec #1588), sans conflit.
+  - **M2** : rapport écrit sous `.superpowers/rapport-TCK-2413.md`.
+  - **M4** : la fiche disait « le compte créé pour cet annonceur » même quand c'était celui du titulaire
+    qui avait réclamé. `account.claimed` le distingue, et le texte suit le cas. La source est l'accord
+    `otp` déposé par ce compte (`RadarClaims::recordProof`) : seuls deux chemins écrivent `user_id`, la
+    réclamation et « Publier pour lui ». La purge efface le contenu d'un accord, jamais sa ligne ni son
+    déposant. Le journal d'activité n'a pas été retenu, parce qu'il se purge à 12 mois.
+  - **M5** : les huit refus que la publication de la réclamation peut rendre sont traduits. Un code
+    qu'aucune ligne ne nomme prend un libellé de repli (« la publication a été refusée »), et le code
+    reste visible au survol. Un test relit `RadarPublisher::publishClaimed()` / `publishLocked()` et les
+    `leave()` du job, et casse sur tout code non nommé.
+  - **M6** : chaque annonce laissée affiche sur la fiche son échéance de purge. Dans la file « À reprendre »,
+    la colonne de relance devient « Échéance de purge » (celle de la première annonce laissée). La purge
+    elle-même n'est pas modifiée (`privacy.ts` § 6).
+  - **M3 (noté, non codé)** : si le compte A est délié puis **restauré hors de l'application**,
+    l'annonceur réclame avec un compte neuf N. A reste à part, avec ses biens du Radar, et deux comptes
+    portent le même numéro (A non vérifié, N vérifié). Aucune route ne restaure un `User` (relevé :
+    `grep -rn "restore()" app routes`), donc le cas n'existe que par un geste en base. Si le porteur veut
+    le fermer, deux pistes : retenir `previous_user_id` sur l'annonceur, ou refuser le geste tant que A
+    reste restaurable. Suite possible sous TCK-2429 (réservé).
 - **Contrôle au navigateur non fait** : la machine était à une charge de 50 à 120 pendant la session ;
   les trois écrans sont couverts par des tests de composants (avec ablation).
 
@@ -120,3 +143,8 @@ Deux suites de [TCK-2390](TCK-2390-radar-reclamation-par-l-annonceur.md) (§ « 
 7. **La file** : retenue une file étroite `left_to_operator` (motif posé par le job) ; écartée une
    file « à publier » qui compterait aussi les accords par capture — ceux-là, l'opérateur vient de
    les confirmer sur la fiche, où le bouton « Publier pour lui » l'attend.
+8. **L'origine du compte (M4)** : la source retenue est l'accord `otp` déposé par le compte, qui n'est
+   jamais purgé. Écartés : le journal `radar_published` (`created_account`), purgé à 12 mois ; et une
+   colonne neuve, qui demanderait une migration pour une distinction de libellé.
+9. **L'échéance de purge (M6)** : retenu l'affichage seul, sans changer la purge. Écarté : suspendre la
+   purge d'une annonce laissée, ce qui contredirait la promesse des 90 jours (`privacy.ts` § 6).
