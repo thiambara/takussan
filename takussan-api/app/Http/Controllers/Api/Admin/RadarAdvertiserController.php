@@ -39,6 +39,11 @@ class RadarAdvertiserController extends Controller
                 'listings as contacted_count' => fn ($q) => $q->where('stage', RadarListingStage::Contacted->value),
                 'listings as consented_count' => fn ($q) => $q->where('stage', RadarListingStage::Consented->value),
             ])
+            // TCK-2413 — la file « À reprendre » : la première annonce laissée par la publication s'efface à cette date
+            // (`purge_at`, 90 jours après la saisie, ADR-0077 §9) si personne ne la publie.
+            ->withMin([
+                'listings as left_purge_at' => fn ($q) => $q->where('stage', RadarListingStage::Consented->value)->whereNotNull('stage_reason'),
+            ], 'purge_at')
             ->with([
                 'claimer:id,first_name,last_name,username',
                 // Le message ouvert : celui de la file « à relancer », jamais un second calcul de la définition.

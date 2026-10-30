@@ -2,12 +2,14 @@
 
 namespace App\Services\Radar;
 
+use App\Models\Enums\RadarConsentProof;
 use App\Models\RadarAdvertiser;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
 /**
- * TCK-2413 (ADR-0077 §3, §11) — délier l'annonceur du compte que le Radar avait créé pour lui, une fois ce compte supprimé.
+ * TCK-2413 (ADR-0077 §3, §11) — délier l'annonceur du compte qui lui est rattaché, une fois ce compte supprimé : celui que
+ * le Radar a créé pour lui (« Publier pour lui »), ou celui avec lequel il a réclamé ses annonces ({@see self::claimedWith()}).
  * Tant que `user_id` vise un compte supprimé, la réclamation rend `support` (un autre compte a vérifié le numéro : le compte
  * supprimé n'est pas « jamais servi », {@see RadarClaims::state()}) ou `unavailable` (personne d'autre) — et rien ne le remet
  * à zéro. Délié, l'annonceur réclame comme s'il n'avait jamais eu de compte : par le compte qui a vérifié son numéro, ou par
@@ -52,6 +54,20 @@ final class AdvertiserAccountRelease
     {
         return $advertiser->user_id !== null
             && User::onlyTrashed()->whereKey($advertiser->user_id)->exists();
+    }
+
+    /**
+     * Le compte rattaché est celui avec lequel l'annonceur a réclamé ses annonces : un accord `otp` qu'il a déposé
+     * ({@see RadarClaims::recordProof()}). Sinon, c'est le compte que le Radar a créé ({@see AdvertiserProvisioner}) : seuls
+     * ces deux chemins écrivent `user_id`. La purge efface le contenu d'un accord, jamais sa ligne ni son déposant ({@see RadarPurger}).
+     */
+    public static function claimedWith(RadarAdvertiser $advertiser): bool
+    {
+        return $advertiser->user_id !== null
+            && $advertiser->consents()
+                ->where('proof', RadarConsentProof::Otp->value)
+                ->where('deposited_by_id', $advertiser->user_id)
+                ->exists();
     }
 
     /** Ce que la fiche offre : un compte supprimé, sur un annonceur qu'aucun retrait ne ferme. */

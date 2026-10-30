@@ -169,6 +169,13 @@ class RadarClaimSupportTest extends TestCase
         // Le compte supprimé reste supprimé : le geste ne le rouvre ni ne le réunit.
         $this->assertSoftDeleted($supprime);
         $this->assertSame(0, Activity::query()->where('event', 'radar_orphan_absorbed')->count());
+
+        // Vérification adverse M4 : le titulaire supprime à son tour son compte — la fiche dit que c'est celui de la
+        // réclamation, pas un compte que le Radar aurait créé.
+        $titulaire->delete();
+        $this->agirEnOperateur(PlatformProfileLevel::Support);
+        $this->getJson("/api/admin/radar/advertisers/{$this->annonceur->id}")->assertOk()
+            ->assertJsonPath('data.account', ['user_id' => $titulaire->id, 'deleted' => true, 'releasable' => true, 'claimed' => true]);
     }
 
     public function test_ac1_sans_titulaire_la_reclamation_ouvre_un_compte_neuf_une_fois_le_compte_supprime_delie(): void
@@ -270,7 +277,7 @@ class RadarClaimSupportTest extends TestCase
         $this->agirEnOperateur(PlatformProfileLevel::Support);
 
         $this->getJson("/api/admin/radar/advertisers/{$this->annonceur->id}")->assertOk()
-            ->assertJsonPath('data.account', ['user_id' => $supprime->id, 'deleted' => true, 'releasable' => true]);
+            ->assertJsonPath('data.account', ['user_id' => $supprime->id, 'deleted' => true, 'releasable' => true, 'claimed' => false]);
 
         $this->annonceur->forceFill(['do_not_contact_at' => now()])->save();
         $this->getJson("/api/admin/radar/advertisers/{$this->annonceur->id}")->assertOk()
@@ -278,7 +285,7 @@ class RadarClaimSupportTest extends TestCase
 
         $supprime->restore();
         $this->getJson("/api/admin/radar/advertisers/{$this->annonceur->id}")->assertOk()
-            ->assertJsonPath('data.account', ['user_id' => $supprime->id, 'deleted' => false, 'releasable' => false]);
+            ->assertJsonPath('data.account', ['user_id' => $supprime->id, 'deleted' => false, 'releasable' => false, 'claimed' => false]);
 
         $this->annonceur->forceFill(['user_id' => null])->save();
         $this->getJson("/api/admin/radar/advertisers/{$this->annonceur->id}")->assertOk()->assertJsonPath('data.account', null);
@@ -343,6 +350,30 @@ class RadarClaimSupportTest extends TestCase
 
         $this->assertSame([$this->annonceur->id], array_column($file->json('data'), 'id'));
         $this->getJson("/api/admin/radar/advertisers/{$this->annonceur->id}")->assertOk()
-            ->assertJsonPath('data.listings.0.stage_reason', 'radar.publish.no_photo');
+            ->assertJsonPath('data.listings.0.stage_reason', 'radar.publish.no_photo')
+            ->assertJsonPath('data.listings.0.purge_at', $laissee->purge_at->utc()->format(DATE_ATOM));
+    }
+
+    /** Vérification adverse M6 : la file dit quand la première annonce laissée s'efface, si personne ne la publie. */
+    public function test_la_file_dit_l_echeance_de_purge_de_la_premiere_annonce_laissee(): void
+    {
+        $tard = $this->annonce(etape: RadarListingStage::Consented);
+        $tard->forceFill(['stage_reason' => 'radar.publish.no_photo', 'purge_at' => now()->addDays(80)])->save();
+        $tot = $this->annonce(etape: RadarListingStage::Consented);
+        $tot->forceFill(['stage_reason' => 'radar.publish.missing_field', 'purge_at' => now()->addDays(12)])->save();
+        // Plus proche encore, mais pas laissée par la publication (en vol, ou démarchée) : elle ne compte pas.
+        $this->annonce(etape: RadarListingStage::Consented)->forceFill(['purge_at' => now()->addDays(2)])->save();
+        $this->annonce()->forceFill(['purge_at' => now()->addDay()])->save();
+        $sansLaissee = RadarAdvertiser::factory()->create(['phone' => '+221741234568']);
+        $this->annonce(annonceur: $sansLaissee, etape: RadarListingStage::Reviewed);
+        $this->agirEnOperateur(PlatformProfileLevel::Support);
+
+        $lignes = collect($this->getJson('/api/admin/radar/advertisers')->assertOk()->json('data'))->keyBy('id');
+
+        $this->assertSame(now()->addDays(12)->utc()->format(DATE_ATOM), $lignes[$this->annonceur->id]['left_purge_at']);
+        $this->assertNull($lignes[$sansLaissee->id]['left_purge_at']);
+        // Sous le sparse fieldset de la console aussi.
+        $this->getJson('/api/admin/radar/advertisers?filter[queue]=left_to_operator&fields[radar_advertisers]=id,display_name')->assertOk()
+            ->assertJsonPath('data.0.left_purge_at', now()->addDays(12)->utc()->format(DATE_ATOM));
     }
 }
