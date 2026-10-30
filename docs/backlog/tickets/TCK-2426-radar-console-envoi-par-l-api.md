@@ -85,7 +85,5 @@ le lien `wa.me` et les captures.
 
 ## Reste sur dev
 
-- La règle de `docs/features.md` § 2.12 (envoi par l'API depuis la console, canal, réponse reçue en texte, démarchage
-  fermé tant qu'une réponse reçue de l'annonceur n'est pas tranchée) : écrite par la PR de spec commune.
 - Le porteur : un premier envoi réel depuis la console en préproduction, une fois le pilote `cloud` configuré
   (prérequis de TCK-2395), et la relecture des décisions ci-dessus.

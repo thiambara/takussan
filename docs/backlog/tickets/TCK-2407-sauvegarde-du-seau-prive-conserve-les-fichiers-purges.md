@@ -104,6 +104,18 @@ Prérequis du porteur, sur l'infrastructure :
 6. Porter la date et les comptes dans la ligne « Copie du seau privé des médias » du relevé, retirer son
    avertissement, puis passer ce ticket à `done`.
 
+**Fait sur le serveur le 2026-10-30** (relevé porté dans `hebergement.md` par la PR de spec commune du Radar,
+lot 2) : étapes 1 et 2, le premier passage et le second `--essai` de l'étape 4, AC3, et AC2 en partie (aucun
+objet de plus de 15 jours dans le seau ce jour-là ; md5 identique dans la source et l'instantané). Objet témoin
+`essai-tck-2407/x.txt` posé le 2026-10-30. **Restent, datés :**
+
+- **après le passage de 02:30 du 2026-10-31** : effacer `essai-tck-2407/x.txt` du seau privé (commande de
+  l'étape 5 du runbook) ;
+- **le 2026-11-14 ou après** (14 jours après l'effacement) : vérifier que l'objet témoin a quitté la liste
+  récursive des instantanés — c'est la mesure d'AC1 ;
+- **le 2026-11-07 au plus tôt** (8 jours après le premier passage) : `sauvegarde-seau-prive
+  --retirer-copie-plate`, puis l'étape 6.
+
 ## Notes d'implémentation
 
 - **(b) retenue, avec la rotation dans le script.** (a) seule est fausse : un objet vivant n'est jamais
