@@ -5,12 +5,15 @@ namespace Tests\Support;
 use App\Http\Resources\Accounting\MatchCandidateResource;
 use App\Http\Resources\Api\Admin\AgencyProvisioningResource;
 use App\Http\Resources\Api\Admin\ModerationItemResource;
+use App\Http\Resources\Api\Admin\RadarListingResource;
 use App\Http\Resources\CustomerResource;
 use App\Http\Resources\DocumentVersionResource;
 use App\Http\Resources\MediaResource;
 use App\Http\Resources\PayoutMethodResource;
 use App\Models\Agency;
 use App\Models\Document;
+use App\Models\RadarListing;
+use App\Models\RadarListingSnapshot;
 use App\Models\User;
 use App\Services\Accounting\MatchCandidate;
 use Carbon\Carbon;
@@ -22,6 +25,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphOne;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\Relations\Relation;
+use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\Schema;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use Throwable;
@@ -95,7 +99,42 @@ final class ResourceSubjects
             }
         }
 
+        if ($resource === RadarListingResource::class) {
+            foreach ($sujets as $sujet) {
+                self::provenancesDatees($sujet);
+            }
+        }
+
         return $sujets;
+    }
+
+    /**
+     * Les branches qu'un contrôleur ouvre par un appel `with*()` APRÈS la construction de la ressource : sans lui, elles
+     * restent filtrées dans toutes les résolutions, et le parcours ne saurait rien des dates qu'elles portent. Le parcours
+     * les ouvre exactement comme la couche HTTP — mêmes appels, même ordre.
+     */
+    public static function commeLeControleur(JsonResource $instance): JsonResource
+    {
+        // TCK-2392 — `RadarListingController::show` (et les deux autres contrôleurs de la fiche).
+        if ($instance instanceof RadarListingResource) {
+            return $instance->withNeighborhoodLink()->withProvenances();
+        }
+
+        return $instance;
+    }
+
+    /**
+     * TCK-2392 — `withProvenances()` lit la BASE, pas le sujet hydraté : la fusion (`merged_at`) et la présence relevée par
+     * la collecte (un instantané) y sont posées à l'instant de référence, pour que ses trois dates sortent non nulles.
+     */
+    private static function provenancesDatees(Model $annonce): void
+    {
+        $instant = Carbon::parse(self::INSTANT, 'UTC');
+        RadarListing::query()->whereKey($annonce->getKey())->toBase()->update(['merged_at' => $instant]);
+        RadarListingSnapshot::query()->create([
+            'radar_listing_id' => $annonce->getKey(), 'price' => 450000, 'first_seen_at' => $instant,
+            'last_seen_at' => $instant, 'observations' => 1,
+        ]);
     }
 
     /**
