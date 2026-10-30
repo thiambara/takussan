@@ -126,7 +126,7 @@ class PhoneMaskerTest extends TestCase
         $this->assertSame($texte, PhoneMasker::mask($texte));
     }
 
-    /** `RadarPhone` et `RadarAmountParser` lisent `PATTERN` : il reste le numéro sénégalais, sans le numéro étranger. */
+    /** `RadarPhone::canonical()` lit `PATTERN` : il reste le numéro sénégalais, sans le numéro étranger. */
     public function test_the_senegalese_pattern_does_not_read_a_foreign_number(): void
     {
         $this->assertSame(1, preg_match(PhoneMasker::PATTERN, '+221 77 123 45 67'));

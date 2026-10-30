@@ -3,6 +3,8 @@
 namespace App\Ai\Agents;
 
 use Laravel\Ai\Contracts\Agent;
+use Laravel\Ai\Contracts\HasProviderOptions;
+use Laravel\Ai\Enums\Lab;
 use Laravel\Ai\Promptable;
 
 /**
@@ -14,7 +16,7 @@ use Laravel\Ai\Promptable;
  * `HasSkills` et rend une sortie structurée ; il reçoit ce contenu par `ExternalContent::wrap()`.
  * `ExternalContentPolicy` le tient.
  */
-abstract class SocleAgent implements Agent
+abstract class SocleAgent implements Agent, HasProviderOptions
 {
     use Promptable;
 
@@ -50,6 +52,37 @@ abstract class SocleAgent implements Agent
     public function instructions(): string
     {
         return $this->instructions;
+    }
+
+    /**
+     * TCK-2433 — la sortie structurée passe-t-elle par le mode STRICT du fournisseur (Anthropic :
+     * `output_config.format`, une grammaire compilée qui contraint le décodage) ? Faux : la passerelle
+     * la demande par l'outil non strict `output_structured_data`, sans grammaire et jamais forcé
+     * ({@see self::providerOptions()}) — le modèle suit le schéma sans garantie, le code qui lit la
+     * sortie doit tout valider, et une réponse sans sortie est un échec du maillon. Anthropic refuse une
+     * grammaire trop grosse sans en publier le seuil (`StrictSchemasStayWithinTheAttestedSizeTest`).
+     */
+    public function usesStrictSchema(): bool
+    {
+        return true;
+    }
+
+    /**
+     * TCK-2433 — lu par `TextGenerationOptions` du SDK, et fusionné en dernier dans le corps de la requête.
+     * Sans mode strict, laravel/ai force l'outil de sortie (`tool_choice` `tool`), qu'Opus 5.5, Sonnet 5.5,
+     * Fable 5.1 et Mythos 5.1 refusent en HTTP 400 quels que soient les réglages de réflexion, comme la
+     * réflexion manuelle sur tout modèle (documentation d'Anthropic, « Forcing tool use »). `auto`, accepté
+     * partout, rend le choix au modèle : le prompt et l'outil seul proposé l'y mènent, et la passerelle
+     * tient une réponse sans sortie pour un échec (`ai.response_invalid`). Un agent strict n'ajoute rien :
+     * sa requête n'a pas d'outil.
+     *
+     * @return array<string, mixed>
+     */
+    public function providerOptions(Lab|string $provider): array
+    {
+        $anthropic = ($provider instanceof Lab ? $provider->value : $provider) === Lab::Anthropic->value;
+
+        return $anthropic && ! $this->usesStrictSchema() ? ['tool_choice' => ['type' => 'auto']] : [];
     }
 
     /** Lu par `TextGenerationOptions` du SDK. */

@@ -464,6 +464,44 @@ class ExtractRadarListingTest extends TestCase
         $this->assertSame(0, RadarAdvertiser::query()->count());
     }
 
+    public function test_tck_2412_a_list_the_masker_reads_as_a_phone_creates_no_advertiser(): void
+    {
+        RadarExtraction::fake([$this->reponse()]);
+        $listing = $this->annonce(['raw_text' => 'Villa à vendre aux Almadies. Horaires de visite 30 20 5 20 10 min, contact en message privé.']);
+
+        $this->lancer($listing);
+
+        $listing->refresh();
+        $this->assertSame(RadarListingStage::Extracted, $listing->stage);
+        $this->assertNull($listing->radar_advertiser_id);
+        $this->assertSame(0, RadarAdvertiser::query()->count());
+    }
+
+    /** @return array<string, array{string}> */
+    public static function plusEntreDeuxNumeros(): array
+    {
+        return [
+            'plus entre deux numéros' => ['Villa F4 aux Almadies. Contact : 78 765 43 21 + 77 123 45 67'],
+            'plus collé au second' => ['Villa F4 aux Almadies. Tel 78 765 43 21 +77 123 45 67'],
+            'plus derrière un mot' => ['Villa F4 aux Almadies. WhatsApp + 77 123 45 67'],
+        ];
+    }
+
+    /** Contre-vérification C1 — le numéro qui a dit STOP, derrière un `+`, arrête l'annonce avant tout appel au modèle. */
+    #[DataProvider('plusEntreDeuxNumeros')]
+    public function test_tck_2412_a_stop_behind_a_plus_is_refused_without_calling_the_model(string $texte): void
+    {
+        RadarExtraction::fake();
+        $listing = $this->annonce(['raw_text' => $texte]);
+        $stop = RadarAdvertiser::factory()->doNotContact()->create(['phone_hmac' => RadarPhone::hmac(self::NUMERO)]);
+
+        $this->lancer($listing);
+
+        $this->assertSame(RadarListingStage::DoNotContact, $listing->refresh()->stage);
+        $this->assertSame($stop->id, $listing->radar_advertiser_id);
+        RadarExtraction::assertNeverPrompted();
+    }
+
     public function test_the_phone_of_the_text_is_used_when_the_agent_returns_none(): void
     {
         RadarExtraction::fake([$this->reponse()]);
@@ -894,7 +932,9 @@ class ExtractRadarListingTest extends TestCase
 
     public function test_an_invalid_output_is_retried_once_then_fails_keeping_the_source(): void
     {
-        RadarExtraction::fake([['phones' => []], []]);
+        // TCK-2433 — une sortie vide (`[]`) n'arrive plus au job : la passerelle en fait un échec du maillon
+        // (`ai.response_invalid`, épreuve dans `StructuredOutputModeTest`). L'invalide ici est une sortie incomplète.
+        RadarExtraction::fake([['phones' => []], ['phones' => []]]);
         $listing = $this->annonce();
 
         $this->lancer($listing)->assertReleased(60);
@@ -911,7 +951,7 @@ class ExtractRadarListingTest extends TestCase
 
     public function test_an_invalid_output_followed_by_a_valid_one_is_extracted(): void
     {
-        RadarExtraction::fake([[], $this->reponseComplete()]);
+        RadarExtraction::fake([['phones' => []], $this->reponseComplete()]);
         $listing = $this->annonce();
 
         $this->lancer($listing)->assertReleased(60);
@@ -1128,6 +1168,20 @@ class ExtractRadarListingTest extends TestCase
 
         $this->lancer($listing)->assertNotReleased();
         $this->assertSame([RadarListingStage::ExtractionFailed, 'ai.response_invalid'], [$listing->refresh()->stage, $listing->stage_reason]);
+    }
+
+    /** TCK-2433 — une réponse sans sortie (l'outil de sortie n'est plus forcé) bascule, puis se retente une fois. */
+    public function test_a_response_without_output_fails_over_then_is_retried_once(): void
+    {
+        RadarExtraction::fake([[], [], [], []]);
+        $listing = $this->annonce();
+
+        $this->lancer($listing)->assertReleased(60);
+        $this->assertSame([RadarListingStage::Captured, 'ai.response_invalid'], [$listing->refresh()->stage, $listing->stage_reason]);
+
+        $this->lancer($listing)->assertNotReleased();
+        $this->assertSame([RadarListingStage::ExtractionFailed, 'ai.response_invalid'], [$listing->refresh()->stage, $listing->stage_reason]);
+        RadarExtraction::assertPromptedTimes(4);
     }
 
     public function test_a_truncated_response_is_retried_once_then_fails(): void

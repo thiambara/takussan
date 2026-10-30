@@ -46,6 +46,8 @@ export function annonce(id: number, partiel: Partial<RadarAdvertiserListing> = {
     bedrooms: 3,
     covered_by_consent: false,
     created_at: '2026-10-27T10:00:00+00:00',
+    stage_reason: null,
+    purge_at: '2027-01-25T10:00:00+00:00',
     ...partiel,
   };
 }
@@ -87,6 +89,7 @@ export function annonceur(partiel: Partial<RadarAdvertiserDetail> = {}): RadarAd
     nature_signals: [{ signal: 'Plusieurs biens en location', evidence: 'Nos biens disponibles' }],
     listings: [annonce(12), annonce(13), annonce(14, { stage: 'extracted', title: 'Villa 14' })],
     outreaches: [],
+    account: null,
     ...partiel,
   };
 }
