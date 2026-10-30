@@ -1,7 +1,7 @@
 ---
 id: TCK-2431
 title: "Radar : figer chaque jour des compteurs anonymes par nature d'annonceur, pour mesurer la part d'intermédiaires au-delà de la purge"
-status: review
+status: done
 phase: P3
 family: back
 estimate: S
@@ -128,8 +128,13 @@ rien, et l'observatoire dit que le comptage n'est pas activé. Le porteur ne l'a
 
 ## Reste sur dev
 
-Le code de ce ticket est construit sur `feat/radar-observatoire` (TCK-2393, lot 3), lui-même sur
-`feat/radar-collecte-automatique` (TCK-2392, PR #1595), et dépend de l'un et de l'autre. Il passe à done à la fusion de
-TCK-2392 puis TCK-2393, puis de cette branche sur `dev`. La section `RadarNatureCount` de `docs/models-spec.md` est écrite
-par la PR de spec commune, qui retire en même temps la ligne `RadarNatureCount` d'`EXCLUS_JUSTIFIES`
-(`scripts/check-models-spec.mjs`).
+Plus aucune dépendance de fusion : TCK-2392 et TCK-2393 sont `done` sur `dev`, et la fusion de cette branche livre tout le
+code du ticket (AC1 prouvé par `RadarNatureCountsTest`). Restent, hors de ce code :
+
+- **La PR de spec commune** : la ligne P2 « Annonceurs et observatoire du marché » de `docs/features.md` § 2.12 (part par
+  nature sur une période, compteurs anonymes, éteints par défaut), la section `RadarNatureCount` (`radar_nature_counts`)
+  de `docs/models-spec.md`, et, dans le même commit, le retrait de la ligne `RadarNatureCount` d'`EXCLUS_JUSTIFIES`
+  (`scripts/check-models-spec.mjs`).
+- **L'allumage par le porteur** (`RADAR_NATURE_COUNTS=true`), seulement après l'avis juridique de
+  [TCK-2434](TCK-2434-radar-compteurs-anonymes-de-marche.md) sur la menace de la différence entre deux jours et son
+  remède (semaine, arrondi ou bruit).
