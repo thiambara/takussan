@@ -47,7 +47,7 @@ export function LiensPublics({ biens }: LiensPublicsProps) {
  * Radar a publiés pour l'annonceur, son lien WhatsApp et la copie. Il ne dépend pas de la réponse d'un `publish` : le
  * récapitulatif et la section « déjà en ligne » le lisent de la même façon. Le français par défaut ; la langue se change.
  */
-export function SecondMessage({ advertiserId }: { readonly advertiserId: number }) {
+export function SecondMessage({ advertiserId, sousMandat = false }: { readonly advertiserId: number; readonly sousMandat?: boolean }) {
   const t = useTranslations('superAdmin.pages.radar.publication.recap');
   const messageEchec = useMessageEchecAnnonceur();
   const [locale, setLocale] = useState<RadarMessageLocale>('fr');
@@ -73,7 +73,7 @@ export function SecondMessage({ advertiserId }: { readonly advertiserId: number 
   return (
     <section aria-label={t('message.heading')} className="space-y-3 rounded-xl border bg-card p-4" data-testid="radar-publication-message">
       <h2 className="font-display text-base font-semibold text-foreground">{t('message.heading')}</h2>
-      <p className="text-xs text-muted-foreground">{t('message.hint')}</p>
+      <p className="text-xs text-muted-foreground">{sousMandat ? t('message.hintMandate') : t('message.hint')}</p>
 
       <fieldset className="flex flex-wrap items-center gap-3">
         <legend className="sr-only">{t('message.locale')}</legend>
@@ -137,21 +137,25 @@ interface RecapitulatifPublicationProps {
  */
 export function RecapitulatifPublication({ advertiserId, publication }: RecapitulatifPublicationProps) {
   const t = useTranslations('superAdmin.pages.radar.publication.recap');
-  const nom = nomAffichable(publication.user);
+  // TCK-2394 — sous mandat, aucun compte : la phrase nomme l'espace des mandats.
+  const nom = publication.user ? nomAffichable(publication.user) : '';
+  const phrase = publication.mandate === true || publication.user === null
+    ? t('mandatePublished', { space: publication.agency.name })
+    : publication.created_account
+      ? t('accountCreated', { name: nom, space: publication.agency.name })
+      : t('accountExisting', { name: nom, space: publication.agency.name });
 
   return (
     <div className="space-y-6" data-testid="radar-publication-recap">
       <section aria-label={t('created')} className="space-y-3 rounded-xl border bg-card p-4">
         <h2 className="font-display text-base font-semibold text-foreground">{t('created')}</h2>
         <p role="status" className="text-sm text-foreground" data-testid="radar-publication-recap-compte">
-          {publication.created_account
-            ? t('accountCreated', { name: nom, space: publication.agency.name })
-            : t('accountExisting', { name: nom, space: publication.agency.name })}
+          {phrase}
         </p>
         <LiensPublics biens={publication.properties} />
       </section>
 
-      <SecondMessage advertiserId={advertiserId} />
+      <SecondMessage advertiserId={advertiserId} sousMandat={publication.mandate === true} />
     </div>
   );
 }

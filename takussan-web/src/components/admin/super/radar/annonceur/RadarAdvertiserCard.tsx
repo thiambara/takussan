@@ -44,6 +44,7 @@ import { HistoriqueMessages } from './HistoriqueMessages';
 import { ListeAnnonces } from './ListeAnnonces';
 import { PanneauIdentite } from './PanneauIdentite';
 import { PreparationMessage } from './PreparationMessage';
+import { RelanceActivation } from './RelanceActivation';
 import { langueDeRelance, messagesEnAttente, verificationEnCours } from './reponses';
 import { SuiviMessage } from './SuiviMessage';
 import { useGestesDePrise } from './useGestesDePrise';
@@ -225,6 +226,9 @@ function FicheChargee({ annonceur }: { readonly annonceur: RadarAdvertiserDetail
           </Link>
         </section>
       ) : null}
+
+      {/* TCK-2394 — la relance d'activation : le panneau ne se montre que si le Radar a créé un compte pour l'annonceur. */}
+      <RelanceActivation advertiserId={annonceur.id} mienne={mienne} desactive={stoppe || enCours} />
 
       {erreur ? (
         <p role="alert" className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive" data-testid="radar-annonceur-erreur">

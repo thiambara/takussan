@@ -25,6 +25,8 @@ vi.mock('@/lib/queries/radar', async (importOriginal) => ({
   prepareRadarOutreach: vi.fn(),
   retouchRadarOutreach: vi.fn(),
   markRadarOutreachSent: vi.fn(),
+  // TCK-2394 — la relance d'activation : aucun compte créé par le Radar, le panneau ne se montre pas.
+  fetchRadarActivationReminder: vi.fn(async () => ({ data: (await import('./mocks')).SANS_RELANCE })),
 }));
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }));

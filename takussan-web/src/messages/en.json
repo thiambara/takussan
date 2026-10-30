@@ -9126,6 +9126,33 @@
             "heading": "Publish for them",
             "hint": "Some of this advertiser’s listings are covered by a valid agreement: you can publish them in their name.",
             "cta": "Publish for them"
+          },
+          "activation": {
+            "heading": "Activation reminder",
+            "hint": "The account created for the advertiser is not activated yet. Send them what their listings are bringing in: a fixed text, with the real figures of the period.",
+            "period": "From {since} to {until}",
+            "views": "Views",
+            "contacts": "Contact requests",
+            "visits": "Visit requests",
+            "credits": "Credits offered on activation",
+            "figuresCaption": "What each property brought in over the period",
+            "property": "Property",
+            "untitled": "Property #{id}",
+            "reminders": "{count, plural, =0 {No reminder sent.} one {# reminder sent, the last on {date}.} other {# reminders sent, the last on {date}.}}",
+            "blocking": "The reminder is not possible right now:",
+            "availableAt": "Next reminder possible on {date}.",
+            "locale": "Message language",
+            "locales": {
+              "fr": "French",
+              "en": "English"
+            },
+            "whatsapp": "Open WhatsApp",
+            "markSent": "Mark as sent",
+            "marking": "Saving…",
+            "claimHint": "Take charge of the advertiser to mark the reminder as sent.",
+            "sent": "Reminder recorded.",
+            "loadError": "Unable to load the activation reminder.",
+            "retry": "Retry"
           }
         },
         "advertisers": {
@@ -9197,7 +9224,8 @@
           "intro": "Check what will be created in the advertiser’s name, then confirm. Nothing is written before you confirm.",
           "claimNone": "Nobody is handling this advertiser. Take them over to upload photos and publish.",
           "blocking": {
-            "heading": "Publishing is not possible for now:"
+            "heading": "Publishing is not possible for now:",
+            "headingAccount": "Publishing for their account is not possible right now:"
           },
           "account": {
             "heading": "What will be created in {name}’s name",
@@ -9260,7 +9288,11 @@
             "summaryExisting": "Existing account reused, {biens, plural, one {# property published} other {# properties published}} with {photos, plural, =0 {no photo} one {# photo} other {# photos}}.",
             "cancel": "Cancel",
             "publish": "Publish",
-            "publishing": "Publishing…"
+            "publishing": "Publishing…",
+            "mandateTitle": "Publish under mandate for {name}?",
+            "mandateTitleUnnamed": "Publish under mandate for this advertiser?",
+            "mandateBody": "No account is created: the listings are created in the Takussan space, with the advertiser’s number as contact. It cannot be undone in one click.",
+            "mandateSummary": "No account, {biens, plural, one {# property published} other {# properties published}} in the “{space}” space with {photos, plural, =0 {no photo} one {# photo} other {# photos}}."
           },
           "recap": {
             "created": "What now exists",
@@ -9281,8 +9313,10 @@
               "whatsapp": "Open WhatsApp",
               "copy": "Copy the message",
               "copied": "Message copied.",
-              "copyFailed": "Copying failed: select the text by hand."
-            }
+              "copyFailed": "Copying failed: select the text by hand.",
+              "hintMandate": "A fixed text: it carries the public links and the STOP line, without an activation link. Send it as is."
+            },
+            "mandatePublished": "Published under mandate in the “{space}” space: no account was created."
           },
           "alreadyPublished": {
             "heading": "Already online for this advertiser",
@@ -9310,7 +9344,24 @@
             "photoUnreadable": "A photo cannot be read as an image: send a JPEG, PNG or WebP.",
             "quotaExceeded": "This advertiser’s space has reached its quota of active listings: nothing was published.",
             "keyReused": "The selection changed since a first submission: publish again.",
-            "inProgress": "A publication is already running for this advertiser: try again in a moment."
+            "inProgress": "A publication is already running for this advertiser: try again in a moment.",
+            "underMandate": "This advertiser is published under a Takussan mandate: their listings are published under mandate, not in an account.",
+            "mandateDisabled": "Publishing under mandate is turned off in this environment.",
+            "mandateSpaceMissing": "No mandate space is set, or it is suspended or has no primary admin: nothing is published under mandate.",
+            "mandateAccountExists": "An account is already linked to this advertiser: their listings are published in their space, not under mandate.",
+            "activationAlreadyActive": "The advertiser’s account is already activated: there is nothing to remind.",
+            "activationRevoked": "The advertiser’s consent was withdrawn or their number purged: no reminder is sent.",
+            "activationNothingPublished": "No property published by the Radar is live for this advertiser: the reminder would have nothing to say.",
+            "activationTooSoon": "The last reminder is too recent: wait for the period to end.",
+            "activationUnderMandate": "This advertiser is published under mandate: their properties are not in an account, the activation reminder does not apply."
+          },
+          "mandate": {
+            "heading": "Publish under a Takussan mandate",
+            "body": "The advertiser agreed but does not want an account: Takussan publishes their listings in its own space, “{space}”. No account is created; visitors contact the advertiser’s number directly, and a STOP reply removes their properties.",
+            "bodyNoSpace": "The advertiser agreed but does not want an account: Takussan can publish their listings in its own space, once it is set in the platform settings (“Radar mandate space”).",
+            "already": "Already published under mandate since {date}.",
+            "blocking": "Publishing under mandate is not possible:",
+            "cta": "{count, plural, =0 {Publish under mandate} one {Publish # listing under mandate} other {Publish # listings under mandate}}"
           }
         }
       }
@@ -9474,7 +9525,8 @@
         "currency": "Currencies",
         "limits": "Technical limits",
         "boost": "Credits and promotion",
-        "rentals": "Rentals"
+        "rentals": "Rentals",
+        "radar": "Radar"
       },
       "keys": {
         "currency": {
@@ -9545,6 +9597,12 @@
           "cap_percent": {
             "label": "Late fee cap",
             "description": "As a percentage of the instalment amount, from 0 to 100. Empty: no cap. An agency with its own setting keeps it."
+          }
+        },
+        "radar": {
+          "mandate_agency_id": {
+            "label": "Radar mandate space",
+            "description": "ID of the Takussan space where properties published under mandate are created. 0: none. The “radar_mandate” flag must also be on."
           }
         }
       },

@@ -35,6 +35,17 @@ export const ERREURS_PUBLICATION_RADAR: Record<string, string> = {
   'quota.listings_exceeded': 'quotaExceeded',
   'idempotency.key_reused': 'keyReused',
   'idempotency.in_progress': 'inProgress',
+  // TCK-2394 (ADR-0079) — la publication sous mandat, et l'annonceur qui l'est déjà
+  'radar.publish.under_mandate': 'underMandate',
+  'radar.mandate.disabled': 'mandateDisabled',
+  'radar.mandate.space_missing': 'mandateSpaceMissing',
+  'radar.mandate.account_exists': 'mandateAccountExists',
+  // TCK-2394 — la relance d'activation (`RadarActivationReminders`)
+  'radar.activation.already_active': 'activationAlreadyActive',
+  'radar.activation.revoked': 'activationRevoked',
+  'radar.activation.nothing_published': 'activationNothingPublished',
+  'radar.activation.too_soon': 'activationTooSoon',
+  'radar.activation.under_mandate': 'activationUnderMandate',
 };
 
 /**
@@ -48,6 +59,7 @@ export const BLOCAGES_GLOBAUX_RADAR: ReadonlySet<string> = new Set([
   'radar.publish.nothing_covered',
   'radar.publish.activation_unavailable',
   'radar.publish.otp_preview_active',
+  'radar.publish.under_mandate',
 ]);
 
 /** Les blocages globaux qui font aussi refuser le second message (422 de `published-message`) : on ne le demande pas. */
