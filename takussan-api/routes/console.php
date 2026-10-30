@@ -225,7 +225,7 @@ Schedule::command('radar:purge')->dailyAt('04:15')->timezone('Africa/Dakar')->wi
 // TCK-2393 (ADR-0083 §3) — les annonces collectées disparues de leur site, d'après le dernier passage qui a lu toute la liste ;
 // une disparition rattachée à un bien publié écrit `radar_source_listing_gone` (alertable). Idempotente : chaque disparition
 // se réclame une fois. Sans passage de collecte, elle ne trouve rien.
-Schedule::command('radar:observe-sources')->everyFifteenMinutes()->withoutOverlapping();
+Schedule::command('radar:observe-sources')->everyFifteenMinutes()->withoutOverlapping(15);
 
 // TCK-2342 (P19.04, ADR-0044 amendement du 2026-10-25) — le journal d'activité par famille : 12 mois
 // par défaut, 5 ans pour les journaux de preuve, 10 ans pour les pièces comptables
@@ -240,4 +240,4 @@ Schedule::command('boosts:tick')->everyFiveMinutes()->withoutOverlapping(5);
 // TCK-2392 (ADR-0077 §10) — la collecte automatique du Radar : passages perdus clos, passages dus mis en file (file longue,
 // `CrawlRadarSource`), fusion des doublons entre sites. Rien ne part tant qu'aucune source n'est allumée par le porteur.
 // Idempotente : un seul passage actif par site (index unique partiel), une fusion jugée une fois (`merge_checked_at`).
-Schedule::command('radar:crawl')->everyFifteenMinutes()->withoutOverlapping();
+Schedule::command('radar:crawl')->everyFifteenMinutes()->withoutOverlapping(15);
