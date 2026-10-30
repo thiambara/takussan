@@ -1,7 +1,7 @@
 ---
 id: TCK-2431
 title: "Radar : figer chaque jour des compteurs anonymes par nature d'annonceur, pour mesurer la part d'intermédiaires au-delà de la purge"
-status: todo
+status: doing
 phase: P3
 family: back
 estimate: S
