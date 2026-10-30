@@ -92,6 +92,7 @@ const CORRESPONDANCES = {
     { fichier: 'src/types/geo.ts', nom: 'GeoNeighborhoodStatus' },
   ],
   ReviewStatus: [{ fichier: 'src/lib/queries/reviews.ts', nom: 'ReviewStatus' }],
+  RadarCrawlStatus: [{ fichier: 'src/types/radar.ts', nom: 'RadarCrawlStatus' }],
   RadarVerificationStatus: [{ fichier: 'src/types/radar.ts', nom: 'RadarVerificationStatus' }],
   RoleDelegationStatus: [{ fichier: 'src/types/role-delegation.ts', nom: 'RoleDelegationStatus' }],
   ScheduledTaskRunStatus: [{ fichier: 'src/types/super-admin.ts', nom: 'ScheduledTaskStatus' }],

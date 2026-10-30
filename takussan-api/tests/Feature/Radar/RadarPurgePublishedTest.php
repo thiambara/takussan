@@ -12,7 +12,9 @@ use App\Models\Enums\RadarSourceKind;
 use App\Models\Property;
 use App\Models\RadarAdvertiser;
 use App\Models\RadarConsent;
+use App\Models\RadarCrawlRun;
 use App\Models\RadarListing;
+use App\Models\RadarListingSnapshot;
 use App\Models\RadarOutreach;
 use App\Models\User;
 use App\Services\Radar\RadarPurger;
@@ -216,6 +218,28 @@ class RadarPurgePublishedTest extends TestCase
         $this->assertSame(RadarPhone::hmac(self::NUMERO), $annonceur->phone_hmac);
 
         $this->assertSame(0, $this->purger()['published_listings'], 'idempotente');
+    }
+
+    public function test_tck_2392_la_matiere_d_une_annonce_publiee_part_avec_ses_instantanes(): void
+    {
+        $this->allumer();
+        $annonceur = $this->annonceur();
+        $bien = $this->bien();
+        $passage = RadarCrawlRun::query()->create(['site' => 'coinafrique', 'trigger' => 'schedule', 'status' => 'finished', 'operator_id' => $this->operateur->id]);
+        $annonce = $this->annoncePubliee($annonceur, $bien);
+        $annonce->forceFill(['discovered_by_run_id' => $passage->id])->save();
+        $instantane = RadarListingSnapshot::query()->create([
+            'radar_listing_id' => $annonce->id, 'crawl_run_id' => $passage->id, 'price' => 450000, 'bedrooms' => 3,
+            'title_fingerprint' => hash('sha256', 'titre'), 'first_seen_at' => now(), 'last_seen_at' => now(), 'observations' => 1,
+        ]);
+        $this->accord($annonceur, $annonce);
+
+        $comptes = $this->troisAnsApresLeRetrait($bien);
+
+        $this->assertSame(1, $comptes['published_listings']);
+        $this->assertSame(1, $comptes['snapshots_deleted']);
+        $this->assertNull($annonce->fresh()->discovered_by_run_id);
+        $this->assertNull($instantane->fresh());
     }
 
     public function test_une_annonce_dont_le_bien_a_ete_supprime_part_aussi(): void

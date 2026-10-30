@@ -48,25 +48,37 @@ final class RadarListingIntake
     ) {}
 
     /**
+     * `$crawlRunId` (TCK-2392) : le passage de collecte qui a trouvé ces URL, posé sur une fiche NEUVE seulement
+     * (`discovered_by_run_id`) ; null pour une saisie d'opérateur.
+     *
      * @param  list<string>  $urls
      * @return list<array{listing: RadarListing, existing: bool, requeued: bool}>
      */
-    public function fromUrls(array $urls, User $by): array
+    public function fromUrls(array $urls, User $by, ?int $crawlRunId = null): array
     {
         $results = [];
         foreach ($urls as $url) {
             $canonical = self::canonicalUrl($url) ?? $url;
             $host = self::hostOf($canonical) ?? '';
 
-            // L'empreinte ignore le schéma : `http://` et `https://` désignent la même annonce.
-            $results[] = $this->intake(hash('sha256', 'url|'.preg_replace('#^https?://#i', '', $canonical)), [
+            $results[] = $this->intake(self::urlFingerprint($canonical), [
                 'source_kind' => RadarSourceKind::Url,
                 'source_site' => RadarSourceSite::fromHost($host),
                 'source_url' => $canonical,
-            ], $by);
+            ] + ($crawlRunId === null ? [] : ['discovered_by_run_id' => $crawlRunId]), $by);
         }
 
         return $results;
+    }
+
+    /**
+     * L'empreinte de contenu d'une annonce-URL, sur son URL CANONIQUE ({@see self::canonicalUrl()}). Elle ignore le
+     * schéma : `http://` et `https://` désignent la même annonce. Publique (TCK-2392) : la collecte reconnaît une URL déjà
+     * connue sans passer par la saisie, qui relancerait une extraction en échec à chaque passage.
+     */
+    public static function urlFingerprint(string $canonical): string
+    {
+        return hash('sha256', 'url|'.preg_replace('#^https?://#i', '', $canonical));
     }
 
     /** @return array{listing: RadarListing, existing: bool, requeued: bool} */

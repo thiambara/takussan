@@ -765,6 +765,14 @@ return [
             'support_required' => 'Ce numéro est lié à deux comptes Takussan : écrivez-nous, nous les réunirons.',
             'name_contains_phone' => 'Le prénom et le nom de l\'espace ne peuvent pas contenir de numéro de téléphone.',
         ],
+        // TCK-2392 — la collecte automatique et la fusion des doublons entre sites.
+        'merge' => [
+            'not_automatic' => 'Cette annonce n\'a pas été fusionnée automatiquement : seule une fusion automatique se sépare ici.',
+        ],
+        'crawl' => [
+            'active' => 'Un passage est déjà en cours sur ce site : attendez sa fin.',
+            'unknown_site' => 'Ce site n\'est pas collecté : aucun adaptateur ne le lit.',
+        ],
         // TCK-2394 (ADR-0077, lot 4) — la relance d'activation ; (ADR-0079) la publication sous mandat.
         'activation' => [
             'already_active' => 'Le compte de cet annonceur est déjà activé : il n\'y a plus rien à relancer.',

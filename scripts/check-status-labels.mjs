@@ -108,6 +108,7 @@ const LIBELLES = {
   PlatformPayoutStatus: [{ chemin: 'billing.platformPayouts.status', lu: 'components/admin/reconciliation/PayableStatusBadge.tsx' }],
   PrivacyRequestStatus: [{ chemin: 'superAdmin.privacyRequests.status', lu: 'components/admin/super/PrivacyRequestsConsole.tsx' }],
   PropertyStatus: [{ chemin: 'property.status', lu: 'components/admin/super/SuperAdminPropertiesTable.tsx' }],
+  RadarCrawlStatus: [{ chemin: 'superAdmin.pages.radar.crawl.status', lu: 'components/admin/super/radar/collecte/RadarCollecte.tsx' }],
   ReviewStatus: [
     { chemin: 'profile.reviews.status', lu: 'components/profile/ProfileReviewsList.tsx' },
     { chemin: 'admin.moderation.status', lu: 'components/admin/ModerationQueueList.tsx' },
