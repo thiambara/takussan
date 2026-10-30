@@ -1,7 +1,7 @@
 ---
 id: TCK-2428
 title: "Socle IA : le masqueur ne lit plus l'étage `R+10` d'une annonce comme un indicatif nord-américain"
-status: todo
+status: doing
 phase: P1
 family: technique
 estimate: S
