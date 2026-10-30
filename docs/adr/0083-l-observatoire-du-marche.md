@@ -78,3 +78,19 @@ toute la liste, ne l'ont pas revue.**
   commande `radar:observe-sources` inscrite au planificateur (`routes/console.php`).
 - `tests/Feature/Radar/Observatory/` : purge qui retire ses lignes et requêtes sans colonne personnelle (AC1),
   alerte (AC2), passage incomplet (AC3), réapparition (AC4).
+
+## Amendement — les compteurs anonymes par nature (2026-10-30, TCK-2431)
+
+Le §1 (« aucune table d'agrégats ») vaut pour le marché. **La part par nature fait exception** : la nature vit sur
+l'annonceur, que la purge remet à `unknown`, et aucune requête ne la relit après coup. Elle se fige donc chaque jour dans
+`radar_nature_counts` : le jour (Dakar), la nature présumée, le nombre d'annonceurs porteurs d'au moins une annonce non
+purgée et non doublon, et le nombre de ces annonces — la définition de la section vivante `natures`
+(`RadarNatureCounter::live()`, partagée).
+
+- **Avant la purge** : `radar:count-natures` à 04:13, `radar:purge` à 04:15, et la purge pose le compte elle-même en
+  premier si le passage a manqué. `insertOrIgnore` sur (jour, nature) : une écriture rejouée garde le premier compte.
+- **Anonyme par construction** : ni identifiant, ni lieu, ni prix, ni site, ni horodatation de ligne ; jamais purgée.
+  Une colonne de plus (site, ville) se décide avec [TCK-2434](../backlog/tickets/TCK-2434-radar-compteurs-anonymes-de-marche.md),
+  avis juridique et seuil k compris.
+- **La part d'une période se lit en annonceurs-jours** (section `nature_history`, `filter[since|until]`) : sans
+  identifiant, les jours ne se dédoublonnent pas, et un annonceur présent dix jours compte dix fois.
