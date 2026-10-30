@@ -57,7 +57,8 @@ class PhoneMaskerTest extends TestCase
     public function test_a_floor_price_ending_with_f_dot_is_kept_but_an_initial_is_not_a_currency(): void
     {
         $this->assertSame('Immeuble R+1 1 250 500 750 F.', PhoneMasker::mask('Immeuble R+1 1 250 500 750 F.'));
-        $this->assertSame('RDC [TELEPHONE] F. Diop', PhoneMasker::mask('RDC +1 514 555 0199 F. Diop'));
+        // Un fixe `+7` (hors forme mobile) : seule la règle du `F.` le garde masqué.
+        $this->assertSame('RDC [TELEPHONE] F. Diop', PhoneMasker::mask('RDC +7 495 123 45 67 F. Diop'));
     }
 
     public function test_invalid_utf8_is_scrubbed_then_masked_instead_of_returned_as_is(): void

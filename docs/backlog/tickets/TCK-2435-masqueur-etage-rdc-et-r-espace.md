@@ -79,14 +79,23 @@ suivre.
   d'un point puis d'une lettre (`… 0199 F. Diop`) est une initiale, pas une marque ; `… 750 F.` en fin de texte en est
   une. La limite de TCK-2428 (`R+1 202 555 0123`, `R+7 912 345 67 89` en clair) se ferme du même coup : ces deux
   textes sont masqués.
+- **Formes fortes, marque ou non** (revérification) : un `+1` nord-américain suivi d'une marque restait en clair
+  (`au RDC +1 514 555 0199 F Diop`, de même avec `F`, `F.`, `FCFA`, `F CFA`, `francs` ou `XOF` derrière). Il est masqué
+  désormais. Derrière `1`, la forme `[2-9]XX [2-9]XX XXXX` (`NANP_REST`) est un numéro quelle que soit la marque ;
+  derrière `7`, un mobile `9XX` ou `7XX` (`MOBILE_7_REST`) aussi. `PhoneMasker::CC1_NUMBER` réunit les deux formes, et
+  `RadarPhone::FLOOR_PLUS` le lit sur sa première branche. Un prix d'étage n'a pas ces formes : il commence par 1, porte
+  un 0 en quatrième chiffre, ou, derrière `R+7`, ne commence ni par 7 ni par 9.
+- **Limite assumée, dans le sens sûr** : un prix de dix chiffres dont la forme est celle d'un numéro, même marqué, est
+  masqué. Exemples : `Immeuble R+1 2 345 678 900 F`, et `Immeuble R+7 9 250 500 750 F` (de 7 à 9,99 milliards). Le
+  prix est perdu, l'humain tranche. Aucun numéro masqué sur `dev` ne sort en clair.
 - **Radar** : `RadarPhone::FLOOR_PLUS` gagne une seconde branche, de forme étroite (`RDC`, espaces, étage 0-19,
   `PhoneMasker::FLOOR_AFTER_PLUS`, borne comprise). La première branche (`R+` collé, large) prend la borne : un `+1` ou
   un `+7` suivi d'un numéro complet garde son `+`, et `RDC +1 5145550199` n'est plus lu comme un prix. Sans la seconde
   branche, `Villa RDC+1 77 123 45 67` et `Villa R + 1 77 123 45 67` perdaient leur contact, parce que
   `FOREIGN_PREFIX` lisait `+1` devant le numéro.
-- **Parité PHP/JS hors fixture** : 0 écart sur 217 598 lignes distinctes. Ce sont les fichiers suivis qui portent un
+- **Parité PHP/JS hors fixture** : 0 écart sur 217 664 lignes distinctes. Ce sont les fichiers suivis qui portent un
   chiffre, plus les cas d'étage écrits à la main, dont les onze fuites de la vérification. Par rapport au masqueur de
-  `dev`, 23 lignes gagnent un texte non masqué : ce sont toutes des écritures d'étage suivies d'un prix. Aucune ligne
+  `dev`, 24 lignes gagnent un texte non masqué : ce sont toutes des écritures d'étage suivies d'un prix. Aucune ligne
   ne perd le masquage d'un numéro.
 - **Suite** : `R+33 6 12 34 56 78` est lu par le Radar comme un fixe sénégalais `+221 33…`, à cause de la première
   branche, large, de `FLOOR_PLUS`. Le défaut existait avant ce ticket, qui ne l'a pas créé → TCK-2441.

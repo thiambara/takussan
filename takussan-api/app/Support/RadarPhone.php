@@ -54,11 +54,11 @@ final class RadarPhone
      *
      * TCK-2435 — aussi `RDC+1` et `R + 1`, `R +1`, `R+ 1` (au plus deux espaces de chaque côté), mais seulement pour un
      * étage de 0 à 19 que rien ne colle derrière, comme `PhoneMasker::NOT_A_FLOOR` : `R + 33 6 12 34 56 78` garde son `+`.
-     * Des deux côtés, un `1` ou un `7` suivi d'un numéro complet de cet indicatif (`PhoneMasker::CC1_REST`) garde son `+` :
+     * Des deux côtés, un `1` ou un `7` suivi d'un numéro complet de cet indicatif (`PhoneMasker::CC1_NUMBER`) garde son `+` :
      * `RDC +1 5145550199` n'est ni un prix, ni un contact sénégalais. `R+17 77 123 45 67`, que la première branche
      * laisse, reste un étage par la seconde.
      */
-    private const FLOOR_PLUS = '/(?<!\p{L})([Rr])\+(?=[0-9])(?![17]'.PhoneMasker::CC1_REST.')'
+    private const FLOOR_PLUS = '/(?<!\p{L})([Rr])\+(?=[0-9])(?!'.PhoneMasker::CC1_NUMBER.')'
         .'|(?<!\p{L})((?:r|rdc)[\s\x{00A0}\x{202F}]{0,2})\+(?='.PhoneMasker::FLOOR_AFTER_PLUS.')/iu';
 
     /**

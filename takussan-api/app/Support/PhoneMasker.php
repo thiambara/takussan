@@ -143,8 +143,23 @@ final class PhoneMasker
     public const CC1_REST = '(?:'.self::SEP.'?\([0-9]{3}\)(?:'.self::SEP.'{0,3}[0-9]){7}|(?:'.self::SEP.'{0,3}[0-9]){10})(?![0-9])'
         .'(?!'.self::WS.'*(?:(?:f'.self::WS.'?cfa|cfa|xof|francs?)(?!\p{L})|f(?!\p{L}|\.'.self::WS.'*\p{L})))';
 
+    /**
+     * TCK-2435 (vérification adverse 2) — derrière l'indicatif `1`, la forme nord-américaine `[2-9]XX [2-9]XX XXXX` est un
+     * numéro QUELLE QUE SOIT la marque qui suit (`au RDC +1 514 555 0199 F Diop`, `F` initiale sans point). Un prix
+     * d'étage n'a pas cette forme : il commence par 1 (`R+1 1 250 500 750 F`) ou porte un 0 en quatrième chiffre
+     * (`RDC +1 2 500 500 750 F`).
+     */
+    private const NANP_REST = '(?:'.self::SEP.'?\([2-9][0-9]{2}\)|'.self::SEP.'{0,3}[2-9](?:'.self::SEP.'{0,3}[0-9]){2})'
+        .self::SEP.'{0,3}[2-9](?:'.self::SEP.'{0,3}[0-9]){6}(?![0-9])';
+
+    /** Derrière l'indicatif `7`, un mobile russe (`9XX`) ou kazakh (`7XX`) est un numéro quelle que soit la marque qui suit. */
+    private const MOBILE_7_REST = self::SEP.'{0,3}[79](?:'.self::SEP.'{0,3}[0-9]){9}(?![0-9])';
+
+    /** L'indicatif `1` ou `7` et le numéro complet qui le suit : ce qui, derrière un `+` d'étage, n'est pas un étage. */
+    public const CC1_NUMBER = '(?:1(?:'.self::CC1_REST.'|'.self::NANP_REST.')|7(?:'.self::CC1_REST.'|'.self::MOBILE_7_REST.'))';
+
     /** Ce qui suit le `+` d'un étage : un étage de 0 à 19, sauf `1` ou `7` suivi d'un numéro complet. */
-    public const FLOOR_AFTER_PLUS = self::WS.'{0,2}(?:[02-689]|[17](?!'.self::CC1_REST.')|1[0-9])(?![0-9])';
+    public const FLOOR_AFTER_PLUS = self::WS.'{0,2}(?:[02-689]|(?!'.self::CC1_NUMBER.')[17]|1[0-9])(?![0-9])';
 
     private const NOT_A_FLOOR = '(?!'.self::FLOOR_WORD.'\+'.self::FLOOR_AFTER_PLUS.')';
 

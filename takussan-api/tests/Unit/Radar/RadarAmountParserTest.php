@@ -158,7 +158,9 @@ class RadarAmountParserTest extends TestCase
     public function test_un_numero_un_ou_sept_complet_derriere_un_etage_n_est_pas_un_prix(): void
     {
         // TCK-2435 (vérification 2) : derrière `RDC +1`, `R+1`, `RDC+7`, un numéro complet de l'indicatif garde son `+`.
-        foreach (['RDC +1 5145550199', 'RDC+7 7701234567', 'Appartement au RDC +1 514 555 0199', 'R+1 5145550199'] as $texte) {
+        // Revérification : un `+1` nord-américain ou un mobile `+7`, même suivi d'une marque, n'est pas un prix.
+        foreach (['RDC +1 5145550199', 'RDC+7 7701234567', 'Appartement au RDC +1 514 555 0199', 'R+1 5145550199',
+            'R+1 514 555 0199 F', 'R+7 912 345 67 89 FCFA'] as $texte) {
             $this->assertNull(RadarAmountParser::parse($texte), $texte);
         }
     }

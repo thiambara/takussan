@@ -97,7 +97,13 @@ const MOT_ETAGE = String.raw`(?<=(?<!\p{L})r|(?<!\p{L})rdc`
 // marque monétaire derrière (`F. Diop` : un `F` suivi d'un point et d'une lettre est une initiale) : `au RDC\n+1 514 555 0199`, `R+1 202 555 0123` sont des numéros.
 const RESTE_CC1 = String.raw`(?:${SEP}?\([0-9]{3}\)(?:${SEP}{0,3}[0-9]){7}|(?:${SEP}{0,3}[0-9]){10})(?![0-9])`
   + String.raw`(?!${WS}*(?:(?:f${WS}?cfa|cfa|xof|francs?)(?!\p{L})|f(?!\p{L}|\.${WS}*\p{L})))`;
-const APRES_PLUS_ETAGE = String.raw`${WS}{0,2}(?:[02-689]|[17](?!${RESTE_CC1})|1[0-9])(?![0-9])`;
+// Derrière `1`, la forme nord-américaine `[2-9]XX [2-9]XX XXXX`, et derrière `7` un mobile `9XX` ou `7XX`, sont des
+// numéros quelle que soit la marque qui suit (`au RDC +1 514 555 0199 F Diop`) ; un prix d'étage n'a pas ces formes.
+const RESTE_NANP = String.raw`(?:${SEP}?\([2-9][0-9]{2}\)|${SEP}{0,3}[2-9](?:${SEP}{0,3}[0-9]){2})`
+  + String.raw`${SEP}{0,3}[2-9](?:${SEP}{0,3}[0-9]){6}(?![0-9])`;
+const RESTE_MOBILE_7 = String.raw`${SEP}{0,3}[79](?:${SEP}{0,3}[0-9]){9}(?![0-9])`;
+const NUMERO_CC1 = `(?:1(?:${RESTE_CC1}|${RESTE_NANP})|7(?:${RESTE_CC1}|${RESTE_MOBILE_7}))`;
+const APRES_PLUS_ETAGE = String.raw`${WS}{0,2}(?:[02-689]|(?!${NUMERO_CC1})[17]|1[0-9])(?![0-9])`;
 const PAS_UN_ETAGE = String.raw`(?!${MOT_ETAGE}\+${APRES_PLUS_ETAGE})`;
 const CHIFFRES = (n) => `(?:${SEP}{0,3}[0-9]){${n}}`;
 const ETRANGER = String.raw`(?:(?<![0-9+])(?<![0-9][.,])${PAS_UN_ETAGE}(?:\+(?!${WS}{1,2}[0-9]{1,3}(?:${SEP}[0-9]{3})*${SEP}000(?![0-9]))${WS}{0,2}|00${SEP}?)(?:`
@@ -211,7 +217,7 @@ for (const [texte, attendu, masque] of CAS_EPREUVE) {
   }
 }
 // TCK-2435 : `F.` en fin de texte est la marque d'un prix derrière un étage ; suivi d'un nom, c'est une initiale.
-if (trouver('Immeuble R+1 1 250 500 750 F.') !== null || trouver('RDC +1 514 555 0199 F. Diop') === null) {
+if (trouver('Immeuble R+1 1 250 500 750 F.') !== null || trouver('RDC +7 495 123 45 67 F. Diop') === null) {
   console.error('✗ épreuve : un étage suivi d\'un prix en « F. » ou d\'un numéro suivi d\'une initiale');
   process.exit(1);
 }

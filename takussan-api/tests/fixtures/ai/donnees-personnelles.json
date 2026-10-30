@@ -218,7 +218,22 @@
     "étage TCK-2435 vérification 1 — RDC +1 puis un numéro sénégalais": ["Appel au RDC +1 514 555 0199 ou +221 77 012 34 56", "Appel au RDC [TELEPHONE] ou [TELEPHONE]"],
     "étage TCK-2435 vérification 1 — R+1 collé, numéro +1 complet (limite de TCK-2428 refermée)": ["R+1 202 555 0123", "R[TELEPHONE]"],
     "étage TCK-2435 vérification 1 — R+7 collé, numéro +7 complet (limite de TCK-2428 refermée)": ["R+7 912 345 67 89", "R[TELEPHONE]"],
-    "étage TCK-2435 vérification 4 — un F. suivi d'un nom est une initiale, pas un prix": ["RDC +1 514 555 0199 F. Diop", "RDC [TELEPHONE] F. Diop"]
+    "étage TCK-2435 vérification 4 — un F. suivi d'un nom est une initiale, pas un prix": ["RDC +1 514 555 0199 F. Diop", "RDC [TELEPHONE] F. Diop"],
+    "étage TCK-2435 revérification — +1 nord-américain suivi de « F sans point, une initiale » reste un numéro": ["au RDC +1 514 555 0199 F Diop", "au RDC [TELEPHONE] F Diop"],
+    "étage TCK-2435 revérification — +1 nord-américain suivi de « F » reste un numéro": ["au RDC +1 514 555 0199 F", "au RDC [TELEPHONE] F"],
+    "étage TCK-2435 revérification — +1 nord-américain suivi de « f minuscule » reste un numéro": ["au RDC +1 514 555 0199 f", "au RDC [TELEPHONE] f"],
+    "étage TCK-2435 revérification — +1 nord-américain suivi de « F. » reste un numéro": ["au RDC +1 514 555 0199 F.", "au RDC [TELEPHONE] F."],
+    "étage TCK-2435 revérification — +1 nord-américain suivi de « FCFA » reste un numéro": ["au RDC +1 514 555 0199 FCFA", "au RDC [TELEPHONE] FCFA"],
+    "étage TCK-2435 revérification — +1 nord-américain suivi de « F CFA » reste un numéro": ["au RDC +1 514 555 0199 F CFA", "au RDC [TELEPHONE] F CFA"],
+    "étage TCK-2435 revérification — +1 nord-américain suivi de « francs » reste un numéro": ["au RDC +1 514 555 0199 francs", "au RDC [TELEPHONE] francs"],
+    "étage TCK-2435 revérification — +1 nord-américain suivi de « XOF » reste un numéro": ["au RDC +1 514 555 0199 XOF", "au RDC [TELEPHONE] XOF"],
+    "étage TCK-2435 revérification — +1 à zone entre parenthèses suivi de F": ["au RDC +1 (514) 555-0199 F", "au RDC [TELEPHONE] F"],
+    "étage TCK-2435 revérification — R+1 collé, nord-américain suivi de F": ["R+1 202 555 0123 F", "R[TELEPHONE] F"],
+    "étage TCK-2435 revérification — +7 mobile russe suivi de F": ["au RDC +7 912 345 67 89 F", "au RDC [TELEPHONE] F"],
+    "étage TCK-2435 revérification — +7 mobile kazakh suivi de FCFA": ["au RDC +7 701 234 56 78 FCFA", "au RDC [TELEPHONE] FCFA"],
+    "étage TCK-2435 revérification — R+7 collé, mobile russe suivi de F": ["R+7 912 345 67 89 F", "R[TELEPHONE] F"],
+    "étage TCK-2435 revérification — +7 fixe suivi d'une initiale F. : pas une marque": ["au RDC +7 495 123 45 67 F. Diop", "au RDC [TELEPHONE] F. Diop"],
+    "étage TCK-2435 revérification — +1 à zone entre parenthèses hors forme nord-américaine": ["au RDC +1 (514) 155-0199", "au RDC [TELEPHONE]"]
   },
   "courriels": {
     "simple": "awa@exemple.sn",
@@ -417,6 +432,8 @@
     "étage TCK-2435 — (RDC+1) entre parenthèses devant un prix": "Villa (RDC+1) 1 250 500 750 F",
     "étage TCK-2435 — RDC +1 devant un prix de dix chiffres marqué F": "Immeuble RDC +1 2 500 500 750 F",
     "étage TCK-2435 — R+1 devant un prix de dix chiffres marqué FCFA": "Immeuble R+1 1 250 500 750 FCFA",
-    "étage TCK-2435 — R+17 devant un prix : 17 est un étage, pas 1 suivi de dix chiffres": "Immeuble R+17 1 250 500 750 F"
+    "étage TCK-2435 — R+17 devant un prix : 17 est un étage, pas 1 suivi de dix chiffres": "Immeuble R+17 1 250 500 750 F",
+    "étage TCK-2435 — R+1 devant un prix qui commence par 1 : pas nord-américain": "Immeuble R+1 1 255 500 750 F",
+    "étage TCK-2435 — R+7 devant un prix qui ne commence ni par 7 ni par 9": "Immeuble R+7 3 250 500 750 F"
   }
 }
