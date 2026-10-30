@@ -759,6 +759,12 @@ export interface RadarCrawlSource {
   readonly enabled_at: string | null;
   /** `include=operator` : celui au nom duquel les annonces trouvées sont extraites. */
   readonly operator?: { readonly id: number; readonly name: string } | null;
+  /** TCK-2438 — les URL de départ réglées, dans l'ordre ; null : celle de la configuration (`default_start_url`). */
+  readonly start_urls: readonly string[] | null;
+  /** L'URL de départ de la configuration, lue quand `start_urls` est nulle. */
+  readonly default_start_url: string | null;
+  /** Les hôtes d'où une URL de départ peut partir (déclarés par l'adaptateur du site). */
+  readonly start_hosts: readonly string[];
 }
 
 export interface RadarCrawlSourcesResponse {
@@ -773,6 +779,8 @@ export interface RadarCrawlSourceChanges {
   readonly enabled?: boolean;
   readonly frequency_minutes?: number;
   readonly max_pages?: number;
+  /** Vide : retour à l'URL de la configuration. */
+  readonly start_urls?: readonly string[];
 }
 
 /** Un passage de collecte (`GET /api/admin/radar/crawl/runs`). */
@@ -802,6 +810,8 @@ export interface RadarCrawlRunResponse {
 export const RADAR_CRAWL_FREQUENCY_MIN = 60;
 export const RADAR_CRAWL_FREQUENCY_MAX = 10_080;
 export const RADAR_CRAWL_MAX_PAGES_LIMIT = 20;
+/** TCK-2438 — `radar.crawl.max_start_urls`. */
+export const RADAR_CRAWL_MAX_START_URLS = 10;
 
 // ─── La relance d'activation (TCK-2394) ──────────────────────────────────────────────────────
 

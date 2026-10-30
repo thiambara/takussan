@@ -9645,15 +9645,25 @@
             "noOperator": "Aucun opérateur",
             "error": "Erreur du passage",
             "lost": "Passage perdu (file arrêtée)",
-            "loop": "La pagination renvoie vers une page déjà lue"
+            "loop": "La pagination renvoie vers une page déjà lue",
+            "noStartUrl": "Aucune URL de départ valable"
           },
           "errors": {
             "active": "Un passage est déjà en cours sur ce site : attendez sa fin.",
             "unknownSite": "Ce site n’est pas collecté.",
-            "generic": "Le réglage a échoué."
+            "generic": "Le réglage a échoué.",
+            "startUrlsTooMany": "Trop d’URL de départ : {max} au plus par site.",
+            "startUrlTooLong": "L’URL n° {rank} est trop longue : {max} caractères au plus.",
+            "startUrlInvalid": "L’URL n° {rank} n’est pas acceptée : une adresse https, sans identifiants ni port.",
+            "startUrlHost": "L’URL n° {rank} n’est pas sur le site : elle doit partir de {hosts}.",
+            "startUrlDuplicate": "L’URL n° {rank} est déjà dans la liste."
           },
           "summary": "Tous les {frequency} min · {pages} pages au plus",
-          "enabledWithoutOperator": "Allumée sans opérateur : aucun passage ne part. Éteignez-la puis rallumez-la pour en devenir l'opérateur."
+          "enabledWithoutOperator": "Allumée sans opérateur : aucun passage ne part. Éteignez-la puis rallumez-la pour en devenir l'opérateur.",
+          "startUrls": "URL de départ (une par ligne)",
+          "startUrlsHint": "Les pages de liste lues par chaque passage, dans l’ordre, sur {hosts} ; {max} au plus. Vide : {fallback}.",
+          "startUrlsDefault": "Page de départ : {url} (configuration)",
+          "startUrlsSummary": "Pages de départ :"
         }
       }
     },

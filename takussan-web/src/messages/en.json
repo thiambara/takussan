@@ -9645,15 +9645,25 @@
             "noOperator": "No operator",
             "error": "Pass error",
             "lost": "Lost pass (queue stopped)",
-            "loop": "Pagination loops back to a page already read"
+            "loop": "Pagination loops back to a page already read",
+            "noStartUrl": "No valid start URL"
           },
           "errors": {
             "active": "A pass is already running on this site: wait for it to finish.",
             "unknownSite": "This site is not collected.",
-            "generic": "The setting failed."
+            "generic": "The setting failed.",
+            "startUrlsTooMany": "Too many start URLs: {max} at most per site.",
+            "startUrlTooLong": "URL no. {rank} is too long: {max} characters at most.",
+            "startUrlInvalid": "URL no. {rank} is not accepted: an https address, without credentials or port.",
+            "startUrlHost": "URL no. {rank} is not on the site: it must start from {hosts}.",
+            "startUrlDuplicate": "URL no. {rank} is already in the list."
           },
           "summary": "Every {frequency} min · {pages} pages at most",
-          "enabledWithoutOperator": "Enabled without an operator: no run starts. Disable and re-enable it to become its operator."
+          "enabledWithoutOperator": "Enabled without an operator: no run starts. Disable and re-enable it to become its operator.",
+          "startUrls": "Start URLs (one per line)",
+          "startUrlsHint": "The list pages each run reads, in order, on {hosts}; {max} at most. Empty: {fallback}.",
+          "startUrlsDefault": "Start page: {url} (configuration)",
+          "startUrlsSummary": "Start pages:"
         }
       }
     },

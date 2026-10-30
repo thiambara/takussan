@@ -481,7 +481,17 @@ export async function deleteRadarListingPhoto(listingId: number, mediaId: number
 // ─── Collecte automatique (TCK-2392) ─────────────────────────────────────────────────────────
 
 /** Les colonnes d'un site collecté (`RadarCrawlSource::$queryFields`), et son opérateur (`include=operator`). */
-export const RADAR_CRAWL_SOURCE_FIELDS = ['id', 'site', 'enabled', 'frequency_minutes', 'max_pages', 'operator_id', 'enabled_at'] as const;
+export const RADAR_CRAWL_SOURCE_FIELDS = [
+  'id',
+  'site',
+  'enabled',
+  'frequency_minutes',
+  'max_pages',
+  'operator_id',
+  'enabled_at',
+  // TCK-2438 — avec `site`, la ressource rend aussi `default_start_url` et `start_hosts`.
+  'start_urls',
+] as const;
 
 /** Les colonnes d'un passage (`RadarCrawlRun::$queryFields`). */
 export const RADAR_CRAWL_RUN_FIELDS = [
