@@ -74,6 +74,13 @@ final class RadarClaims
     /** Le motif d'une annonce que l'annonceur a décochée : il ne veut pas la publier. */
     public const DECLINED = 'radar.claim.declined';
 
+    /**
+     * TCK-2394 (ADR-0079) — un annonceur publié sous mandat ne réclame pas par le lien : ses biens vivent dans l'espace des
+     * mandats, et la réclamation lui ouvrirait un compte à côté (l'état mêlé compte + mandat). La reprise (TCK-2421) lèvera ce
+     * refus. Jugé avant le SMS, puis sous le verrou de l'annonceur à la confirmation.
+     */
+    public const UNDER_MANDATE = 'radar.claim.under_mandate';
+
     public function __construct(
         private readonly PhoneLoginService $login,
         private readonly AdvertiserProvisioner $provisioner,
@@ -138,6 +145,8 @@ final class RadarClaims
     public function sendCode(RadarAdvertiser $advertiser, ?User $viewer, ?string $locale): array
     {
         $phone = (string) $advertiser->phone;
+        // Sous mandat, aucun SMS ne part : la confirmation le refuserait (TCK-2394).
+        abort_code_if($advertiser->mandate_at !== null, 409, self::UNDER_MANDATE);
         $state = $this->state($advertiser);
         abort_code_if($state['state'] === self::STATE_UNAVAILABLE, 422, 'radar.claim.account_unavailable');
         abort_code_if($state['state'] === self::STATE_SUPPORT, 409, 'radar.claim.support_required');
@@ -162,6 +171,8 @@ final class RadarClaims
     public function confirm(RadarAdvertiser $advertiser, array $input, ?User $viewer, ?string $locale): JsonResponse
     {
         $phone = (string) $advertiser->phone;
+        // Avant le code : un compte ne s'ouvre pas pour rien. La garde qui fait foi est sous verrou ({@see self::claim()}).
+        abort_code_if($advertiser->mandate_at !== null, 409, self::UNDER_MANDATE);
         $state = $this->state($advertiser);
         abort_code_if($state['state'] === self::STATE_UNAVAILABLE, 422, 'radar.claim.account_unavailable');
         abort_code_if($state['state'] === self::STATE_SUPPORT, 409, 'radar.claim.support_required');
@@ -241,6 +252,9 @@ final class RadarClaims
         $listings = RadarListing::query()->whereIn('id', $listings)->orderBy('id')->lockForUpdate()->get();
         $locked = RadarAdvertiser::query()->whereKey($advertiser->getKey())->lockForUpdate()->firstOrFail();
         abort_code_if(ClaimLinks::revoked($locked), 410, 'radar.claim.revoked');
+        // TCK-2394 — relu sous verrou : une publication sous mandat a pu passer depuis la lecture. Le refus défait la transaction,
+        // compte ouvert par le code compris.
+        abort_code_if($locked->mandate_at !== null, 409, self::UNDER_MANDATE);
 
         // Relu sous verrou : une annonce retenue a pu être publiée, close ou réattribuée depuis la lecture.
         $gone = array_values(array_diff($selection->keys()->all(), $listings->pluck('id')->map(fn ($id) => (int) $id)->all()));

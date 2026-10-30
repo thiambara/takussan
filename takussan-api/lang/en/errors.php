@@ -772,6 +772,8 @@ return [
             'wrong_account' => 'You are signed in with another account: sign out, then open this link again.',
             'account_changed' => 'This account changed in the meantime: reload the page.',
             'support_required' => 'This number is linked to two Takussan accounts: write to us and we will merge them.',
+            // TCK-2394 (ADR-0079) — sous mandat, la réclamation attend la reprise (TCK-2421).
+            'under_mandate' => 'Your listings are already published by Takussan on your behalf: write to us to move them into your own space.',
             'name_contains_phone' => 'The first name and the space name cannot contain a phone number.',
         ],
         // TCK-2392 — automatic collection and cross-site duplicate merging.
@@ -789,6 +791,7 @@ return [
             'nothing_published' => 'None of the properties published for this advertiser is online: the reminder would have nothing to say.',
             'too_soon' => 'The last reminder, or the publication, is less than a period old: the next reminder can go from :available_at.',
             'under_mandate' => 'This advertiser\'s properties are published under mandate: they have no account to activate.',
+            'just_sent' => 'This reminder was just marked as sent: a second marking would not count as another reminder.',
         ],
         'mandate' => [
             'disabled' => 'Publication under mandate is switched off (ADR-0079 proposed): nothing is published under mandate.',

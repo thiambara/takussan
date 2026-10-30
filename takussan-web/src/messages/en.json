@@ -8640,7 +8640,8 @@
           "claimLeftActivationUnavailable": "Left by the automatic publication: sending the login code is unavailable",
           "claimLeftOtpPreview": "Left by the automatic publication: code login is in trial mode",
           "claimLeftTooManyPhotos": "Left by the automatic publication: too many photos to copy at once",
-          "claimLeftRefused": "Left by the automatic publication: the publication was refused"
+          "claimLeftRefused": "Left by the automatic publication: the publication was refused",
+          "claimLeftUnderMandate": "Left by the automatic publication: the advertiser is published under Takussan mandate"
         },
         "empty": {
           "title": "No listing yet",
@@ -9377,7 +9378,7 @@
             "publishing": "Publishing…",
             "mandateTitle": "Publish under mandate for {name}?",
             "mandateTitleUnnamed": "Publish under mandate for this advertiser?",
-            "mandateBody": "No account is created: the listings are created in the Takussan space, with the advertiser’s number as contact. It cannot be undone in one click.",
+            "mandateBody": "No account is created: the listings are created in the Takussan space. The phone number and WhatsApp shown are the advertiser’s; requests left through the form go to Takussan, which forwards them. It cannot be undone in one click.",
             "mandateSummary": "No account, {biens, plural, one {# property published} other {# properties published}} in the “{space}” space with {photos, plural, =0 {no photo} one {# photo} other {# photos}}."
           },
           "recap": {
@@ -9439,11 +9440,12 @@
             "activationRevoked": "The advertiser’s consent was withdrawn or their number purged: no reminder is sent.",
             "activationNothingPublished": "No property published by the Radar is live for this advertiser: the reminder would have nothing to say.",
             "activationTooSoon": "The last reminder is too recent: wait for the period to end.",
-            "activationUnderMandate": "This advertiser is published under mandate: their properties are not in an account, the activation reminder does not apply."
+            "activationUnderMandate": "This advertiser is published under mandate: their properties are not in an account, the activation reminder does not apply.",
+            "activationJustSent": "This reminder was just marked as sent: a second marking would not count as another reminder."
           },
           "mandate": {
             "heading": "Publish under a Takussan mandate",
-            "body": "The advertiser agreed but does not want an account: Takussan publishes their listings in its own space, “{space}”. No account is created; visitors contact the advertiser’s number directly, and a STOP reply removes their properties.",
+            "body": "The advertiser agreed but does not want an account: Takussan publishes their listings in its own space, “{space}”. No account is created. The phone number and WhatsApp shown are the advertiser’s: visitors reach them directly. Requests left through the form go to the administrator of “{space}”, who forwards them. A STOP reply removes their properties.",
             "bodyNoSpace": "The advertiser agreed but does not want an account: Takussan can publish their listings in its own space, once it is set in the platform settings (“Radar mandate space”).",
             "already": "Already published under mandate since {date}.",
             "blocking": "Publishing under mandate is not possible:",
@@ -12540,7 +12542,8 @@
       "price": "Enter a valid price.",
       "nameContainsPhone": "The first name and the space name cannot contain a phone number.",
       "firstNameContainsPhone": "Your first name cannot contain a phone number.",
-      "spaceNameContainsPhone": "Your space name cannot contain a phone number."
+      "spaceNameContainsPhone": "Your space name cannot contain a phone number.",
+      "underMandate": "Your listings are already published by Takussan on your behalf: write to us to move them into your own space."
     },
     "awaitingReviewTitle": "Awaiting review",
     "awaitingReviewHint": "Our team still needs to check them before putting them online: they are not visible yet."

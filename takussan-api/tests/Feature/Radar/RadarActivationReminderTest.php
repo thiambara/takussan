@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Radar;
 
+use App\Models\Agency;
 use App\Models\CreditWelcomeGrant;
 use App\Models\Enums\ContactLeadChannel;
 use App\Models\Enums\PlatformProfileLevel;
@@ -188,6 +189,18 @@ class RadarActivationReminderTest extends TestCase
         $this->assertStringContainsString("- demandes de visite : 0\n\nActivez votre compte", $reponse->json('data.text'));
     }
 
+    /** Les crédits se jugent aussi par ESPACE : un espace déjà crédité, sous un autre numéro, n'en recevra plus. */
+    public function test_ac1_un_espace_deja_credite_sous_un_autre_numero_n_offre_plus_de_credits(): void
+    {
+        $this->travelTo(Carbon::parse(self::T0)->addDays(7));
+        $espace = Agency::query()->where('primary_admin_id', $this->compte()->id)->orderBy('id')->value('id');
+        CreditWelcomeGrant::query()->create([
+            'phone_hash' => PhoneFingerprint::of('+221700000001'), 'agency_id' => $espace, 'user_id' => null, 'granted_at' => now(),
+        ]);
+
+        $this->relance()->assertOk()->assertJsonPath('data.figures.welcome_credits', 0);
+    }
+
     public function test_l_envoi_pose_la_ligne_de_base_et_journalise_les_chiffres_cites(): void
     {
         [$b1, $b2] = $this->biens;
@@ -214,6 +227,45 @@ class RadarActivationReminderTest extends TestCase
         $this->assertSame(5, $ligne->properties['figures']['views']);
         $this->assertSame(1, $ligne->properties['figures']['contact_requests']);
         $this->assertSame(500, $ligne->properties['figures']['welcome_credits']);
+    }
+
+    /** L'intervalle à 0 jour ne fait pas compter deux relances à un double clic : un second marquage à moins d'une minute refuse. */
+    public function test_deux_marquages_de_suite_ne_comptent_qu_une_relance(): void
+    {
+        $this->travelTo(Carbon::parse(self::T0)->addDays(7));
+        config(['radar.activation.min_interval_days' => 0]);
+
+        $this->envoyer()->assertOk()->assertJsonPath('data.reminders.count', 1);
+        $this->envoyer(reprendre: false)->assertStatus(409)->assertJsonPath('code', 'radar.activation.just_sent');
+        $this->assertSame(1, $this->annonceur->fresh()->activation_reminder_count);
+        $this->assertSame(1, Activity::query()->where('event', 'radar_activation_reminder_sent')->count());
+
+        $this->travel(61)->seconds();
+        $this->envoyer()->assertOk()->assertJsonPath('data.reminders.count', 2);
+    }
+
+    /**
+     * Deux opérateurs qui marquent en même temps : le compte et la ligne de base se lisent SOUS VERROU, avant d'être écrits.
+     * Une seule connexion ne rejoue pas la course : le test fixe que la lecture qui précède l'écriture est `for update`.
+     */
+    public function test_le_marquage_relit_l_annonceur_sous_verrou_avant_d_ecrire(): void
+    {
+        $this->travelTo(Carbon::parse(self::T0)->addDays(7));
+        $this->postJson("/api/admin/radar/advertisers/{$this->annonceur->id}/claim")->assertOk();
+        $requetes = [];
+        DB::listen(function ($requete) use (&$requetes): void {
+            if (str_contains($requete->sql, '"radar_advertisers"')) {
+                $requetes[] = $requete->sql;
+            }
+        });
+
+        $this->envoyer(reprendre: false)->assertOk();
+
+        $verrou = array_key_first(array_filter($requetes, fn (string $sql) => str_starts_with($sql, 'select') && str_contains($sql, 'for update')));
+        $ecriture = array_key_first(array_filter($requetes, fn (string $sql) => str_starts_with($sql, 'update') && str_contains($sql, '"activation_reminded_at"')));
+        $this->assertNotNull($verrou, 'aucune lecture verrouillée de l\'annonceur');
+        $this->assertNotNull($ecriture);
+        $this->assertLessThan($ecriture, $verrou);
     }
 
     // --- AC1b : les gardes -----------------------------------------------------------------------------------------------

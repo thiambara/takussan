@@ -223,6 +223,8 @@ final class RadarPublisher
     {
         return $this->publishLocked($advertiser, $listingIds, $owner, function (RadarAdvertiser $locked) use ($owner, $agency, $listingIds): void {
             abort_code_unless($locked->user_id === $owner->id, 409, 'radar.claim.account_changed');
+            // TCK-2394 (ADR-0079) — sous mandat, rien ne se publie dans un compte : la reprise (TCK-2421) en décidera.
+            abort_code_if($locked->mandate_at !== null, 409, RadarClaims::UNDER_MANDATE);
             // Décision 2a : jamais sans l'accord `otp` de l'annonceur, relu ICI, sous verrou, au moment de publier — un STOP ou
             // une révocation depuis la réclamation arrête tout, même si un autre accord (capture) couvre encore l'annonce.
             $ids = array_values(array_unique(array_map('intval', $listingIds)));

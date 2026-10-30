@@ -46,6 +46,7 @@ export const ERREURS_PUBLICATION_RADAR: Record<string, string> = {
   'radar.activation.nothing_published': 'activationNothingPublished',
   'radar.activation.too_soon': 'activationTooSoon',
   'radar.activation.under_mandate': 'activationUnderMandate',
+  'radar.activation.just_sent': 'activationJustSent',
 };
 
 /**

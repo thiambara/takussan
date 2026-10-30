@@ -62,6 +62,9 @@ final class RadarActivationReminders
 
     public const UNDER_MANDATE = 'radar.activation.under_mandate';
 
+    /** Un second marquage à moins d'une minute du premier : un double envoi, que l'intervalle à 0 jour laisserait compter deux fois. */
+    public const JUST_SENT = 'radar.activation.just_sent';
+
     /** La ligne du gabarit qui ne vaut que si l'activation offre des crédits. */
     private const CREDITS_LINE = '[credits] ';
 
@@ -127,6 +130,8 @@ final class RadarActivationReminders
             if ($blocking !== []) {
                 abort_code(422, $blocking[0], $blocking[0] === self::TOO_SOON ? ['available_at' => BaseResource::instantOnWire($availableAt)] : []);
             }
+            // Sous le verrou : deux marquages qui se suivent ne comptent qu'une relance, même quand l'intervalle minimal vaut 0.
+            abort_code_if($locked->activation_reminded_at?->gt(now()->subMinute()), 409, self::JUST_SENT);
 
             $locked->forceFill([
                 'activation_reminded_at' => now(),

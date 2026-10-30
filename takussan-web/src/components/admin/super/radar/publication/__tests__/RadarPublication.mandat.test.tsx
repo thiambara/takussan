@@ -76,7 +76,10 @@ describe('RadarPublication — sous mandat (TCK-2394)', () => {
     expect(publierPourLui()).toBeDisabled();
     expect(screen.getByRole('checkbox', { name: 'Publier l’annonce n° 12' })).toBeEnabled();
     const section = screen.getByTestId('radar-publication-mandat');
-    expect(within(section).getByText(/dans son propre espace, « Takussan Mandats »/)).toBeInTheDocument();
+    const texte = within(section).getByText(/dans son propre espace, « Takussan Mandats »/);
+    // ADR-0079 § 5 — le numéro affiché est celui de l'annonceur ; le formulaire, lui, va à l'administrateur de l'espace.
+    expect(texte).toHaveTextContent('Le téléphone et le WhatsApp affichés sont ceux de l’annonceur');
+    expect(texte).toHaveTextContent('Les demandes laissées par formulaire arrivent à l’administrateur de « Takussan Mandats », qui les lui transmet.');
     expect(publierSousMandat()).toHaveTextContent('Publier 2 annonces sous mandat');
     expect(publierSousMandat()).toBeEnabled();
   });

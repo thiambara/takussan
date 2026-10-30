@@ -20,11 +20,13 @@ premiers existent (TCK-2389, TCK-2390). Le troisième n'est défini nulle part.
 
 Mesuré sur `dev` + TCK-2391 le 2026-10-30 :
 
-- **Le message d'accord couvre déjà une publication par Takussan.** `accord.v2` fait dire à
-  l'annonceur qu'il autorise Takussan « à publier ces annonces sur takussan.com, avec leurs textes
-  et leurs photos » (clause 1), qu'il est autorisé à les proposer (clause 2) et que les visiteurs le
-  contactent directement (clause 4). La clause 3 — « un compte créé à votre nom » — est la seule
-  dont le mandat se passe.
+- **Le message d'accord couvre déjà une publication par Takussan.** Le texte en vigueur est
+  `accord.v3` (TCK-2395 : `accord.v2` précédé de « Takussan — », clauses identiques mot pour mot ;
+  `ConsentMessageComposer::CLAUSES_VERSION`) ; les accords déjà recueillis portent `accord.v2`. Les
+  deux font dire à l'annonceur qu'il autorise Takussan « à publier votre ou vos annonces sur
+  takussan.com, avec leurs textes et leurs photos » (clause 1), qu'il est autorisé à les proposer
+  (clause 2) et que les visiteurs le contactent directement à ce numéro (clause 4). La clause 3 —
+  « un compte soit créé à votre nom » — est la seule dont le mandat se passe.
 - **« Publier pour lui » crée toujours un compte** (ADR-0077 § 6) et le refuse sur un numéro déjà
   inscrit. L'annonceur qui dit « oui, publiez, mais je ne veux pas de compte » n'a aucune voie.
 - **Les CGU disent le contraire d'un mandat.** Article 1 : « ${marque} agit comme un intermédiaire
@@ -55,6 +57,17 @@ publication sous mandat. Rien d'autre ne change dans le Radar.**
    est le contact sur place** (`property_contacts`), comme pour « publier pour lui ». Le quota
    d'annonces de cet espace s'applique.
 
+   **Qui reçoit quoi** (vérification adverse I3, mesuré) : le téléphone et le WhatsApp affichés
+   sur la fiche sont **ceux de l'annonceur** — le visiteur le joint directement. Une demande laissée
+   par **formulaire** (`contact-lead`) va, elle, à l'**administrateur de l'espace des mandats**
+   (`ContactLeadService::forProperty()` : le contact principal, sinon les lecteurs de l'agence) :
+   Takussan la reçoit et la transmet à l'annonceur. **Aucun relais automatique n'est construit** :
+   la transmission est un geste humain. Sans profil d'administrateur dans l'espace des mandats, le
+   formulaire refuse (409 `lead.contact_unavailable`) : l'espace des mandats **doit avoir un
+   administrateur principal**, ce qui est déjà un prérequis de sa désignation. ⚠ À faire confirmer
+   par l'avocat : la clause 4 (« directement à ce numéro ») suffit-elle quand le formulaire passe par
+   Takussan ?
+
 3. **Les gardes sont celles de « publier pour lui »** — accord valide couvrant chaque annonce,
    étape `consented`, réserve de photos prête, champs requis, plafond de photos, STOP, prise en
    charge, `super_admin` seul, transaction unique, idempotence — **moins celles du compte** : ni
@@ -65,8 +78,19 @@ publication sous mandat. Rien d'autre ne change dans le Radar.**
    mandat (`radar.mandate.account_exists`) ; un annonceur sous mandat ne se publie plus « pour lui »
    (`radar.publish.under_mandate`). Passer de l'un à l'autre est TCK-2421.
 
-5. **Le second message est `mandat.v1`** : les biens sont en ligne, STOP pour les retirer. Il ne
-   porte aucun lien d'activation, puisqu'il n'y a pas de compte.
+   **La réclamation par le lien est fermée sous mandat** (vérification adverse I1) : le lien du
+   message d'accord ne publie rien dans un compte pour un annonceur sous mandat — ni code SMS
+   (`sendCode`), ni confirmation, ni publication réclamée par le job — et répond 409
+   `radar.claim.under_mandate`. Le jugement qui fait foi est rendu **sous le même verrou** que les
+   autres gardes de la réclamation (`RadarClaims::claim()`, `RadarPublisher::publishClaimed()`).
+   Sans cette fermeture, l'annonceur se retrouverait avec ses biens à la fois sous mandat et dans son
+   compte. **TCK-2421 lève ce blocage** en organisant la reprise ; **TCK-2421 est donc un prérequis
+   de l'allumage de `radar_mandate`**.
+
+5. **Le second message est `mandat.v1`** : les biens sont en ligne ; le numéro affiché est le sien,
+   on l'appelle ou lui écrit sur WhatsApp directement ; les demandes du formulaire arrivent à
+   Takussan, qui les lui transmet ; STOP pour les retirer. Il ne porte aucun lien d'activation,
+   puisqu'il n'y a pas de compte. ⚠ Texte à faire relire par l'avocat avant l'allumage.
 
 6. **Le drapeau est l'interrupteur, et il est éteint.** Aucune migration ne l'allume. Éteint, l'API
    refuse `publish-mandate` (`radar.mandate.disabled`) sans rien écrire, et l'aperçu ne propose
@@ -86,7 +110,8 @@ publication sous mandat. Rien d'autre ne change dans le Radar.**
 > ${EDITEUR.marque} peut les diffuser elle-même, pour votre compte, depuis son propre espace. Elle
 > agit alors comme diffuseur des annonces que vous lui avez confiées, et seulement de celles-là : vous
 > restez seul responsable de leur contenu (article 6.1) et seul partie à tout contrat conclu avec un
-> visiteur, qui vous contacte directement à votre numéro. Vous pouvez y mettre fin à tout moment, en
+> visiteur, qui vous contacte directement à votre numéro ; les demandes laissées par le formulaire du
+> site nous parviennent, et nous vous les transmettons. Vous pouvez y mettre fin à tout moment, en
 > répondant « STOP » ou en nous écrivant : vos annonces sont retirées sans délai.
 
 **Fiche publique** d'un bien sous mandat : « Annonce diffusée par ${EDITEUR.marque} pour le compte de
@@ -98,19 +123,27 @@ son annonceur ». C'est la « mention expresse contraire » de l'article 1.
   console par environnement, l'éteindre aussi.
 - **Takussan devient diffuseur pour le compte d'un tiers** pour ces seuls biens. C'est un
   changement de posture juridique : il ne s'allume qu'avec l'article 6.4, la mention publique et la
-  relecture de l'avocat (TCK-2422). `takussan-web/src/content/legal/README.md` le rappelle.
+  relecture de l'avocat (TCK-2422).
 - **Le compte ne naît pas** : le mandat ne fait pas d'utilisateurs. ADR-0077 voyait dans chaque
   publication « un compte à activer » ; le mandat assume de ne pas en créer, pour ne pas perdre
   l'annonce.
 - **Les biens sous mandat comptent dans le quota de l'espace des mandats** : son offre doit le
   permettre, sinon `quota.listings_exceeded`.
-- **Un annonceur sous mandat qui veut ensuite un compte** n'a pas encore de voie propre (TCK-2421).
+- **Un annonceur sous mandat qui veut ensuite un compte** n'a pas encore de voie propre (TCK-2421) :
+  le lien de réclamation lui répond « écrivez-nous » (`radar.claim.under_mandate`).
+- **Takussan reçoit les demandes par formulaire** de ces biens et doit les transmettre à la main :
+  une charge d'exploitation, que le volume rendra visible.
 
 ## Application
 
 - `App\Services\Radar\RadarMandate` (drapeau, espace, ce qui bloque) ;
   `RadarPublisher::publishUnderMandate()` ; route `POST /api/admin/radar/advertisers/{id}/publish-mandate`.
 - Tests : « drapeau éteint, `publish-mandate` refuse et n'écrit rien » (AC2 de TCK-2394) ; « aucun
-  compte créé, contact = numéro de l'annonceur » ; « la révocation retire les biens sous mandat ».
-- Prérequis du porteur avant d'allumer : accepter cet ADR, faire TCK-2422, créer l'espace des mandats
-  et le désigner dans la console.
+  compte créé, contact = numéro de l'annonceur » ; « la révocation retire les biens sous mandat » ;
+  les gardes de « publier pour lui » une à une sous mandat ; « la demande par formulaire va à
+  l'administrateur de l'espace des mandats, 409 sans lui » ; « sous mandat, la réclamation par le
+  lien est refusée, avant le SMS et sous le verrou » (`RadarClaimTest`,
+  `PublishClaimedRadarListingsTest`).
+- Prérequis du porteur avant d'allumer : accepter cet ADR, faire **TCK-2421** (qui lève la fermeture
+  de la réclamation) et **TCK-2422**, faire relire `mandat.v1` par l'avocat, créer l'espace des
+  mandats avec un administrateur principal et le désigner dans la console.

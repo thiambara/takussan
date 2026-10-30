@@ -128,6 +128,19 @@ diffuseur pour le compte d'un tiers, ce qui touche les conditions d'utilisation 
   ouvert (c'est le cas où il sert), et le mandat a sa propre clé d'idempotence.
 - **Le quota de l'espace des mandats** s'applique comme à tout espace : il porte tous les biens
   sous mandat, son plan doit le permettre (prérequis du porteur).
+- **Vérification adverse (v2394), corrigée** : la réclamation par le lien est fermée sous mandat
+  (`radar.claim.under_mandate`, avant le SMS et sous le verrou, job compris) jusqu'à TCK-2421 ; les
+  gardes de « publier pour lui » ont chacune un test sous mandat (plafond de photos, quota de
+  l'espace des mandats, photo et champs, étape) ; le destinataire réel du formulaire est fixé par
+  test (l'administrateur de l'espace des mandats ; 409 `lead.contact_unavailable` sans lui) ; deux
+  marquages de relance à moins d'une minute n'en comptent qu'un (`radar.activation.just_sent`) ;
+  le verrou de `markSent` et la branche « espace déjà crédité » sont prouvés par test. Chaque garde
+  rougit sous son ablation.
+- ⚠ **`mandat.v1` est à faire relire par l'avocat** avant l'allumage : il dit que le numéro affiché
+  est celui de l'annonceur et que les demandes du formulaire arrivent à Takussan, qui les transmet.
+- **Prérequis du porteur avant d'allumer `radar_mandate`** (ADR-0079 § Application) : accepter
+  ADR-0079 ; livrer **TCK-2421** (qui lève la fermeture de la réclamation) et TCK-2422 ; faire
+  relire `mandat.v1` ; créer l'espace des mandats avec un administrateur principal et le désigner.
 - **Pas de contrôle au navigateur** cette nuit (machine à `load average` 45-106) : les écrans sont
   éprouvés par Vitest seulement.
 
@@ -139,7 +152,10 @@ diffuseur pour le compte d'un tiers, ce qui touche les conditions d'utilisation 
 | Période minimale | `radar.activation.min_interval_days` = 7, 0 permis | intervalle en dur | la semaine du plan, réglable sans code |
 | Où vit l'état | colonnes sur `radar_advertisers` | modèle `RadarActivationReminder` | un modèle neuf casse `check-models-spec` sans toucher `models-spec.md` |
 | Capacité de la relance | `platform.radar.operate` (support compris), prise exigée à l'envoi | `platform.radar.publish` | relancer est du démarchage (ADR-0077 §11) |
-| Ce que le mandat est | l'accord `accord.v2` (clauses 1, 2, 4) exercé dans un espace Takussan | un accord neuf `accord.v3` | le moins restrictif ; ADR-0079 le pose, l'avocat le relit |
+| Ce que le mandat est | l'accord en vigueur (`accord.v3` = `accord.v2` précédé de « Takussan — », clauses 1, 2, 4) exercé dans un espace Takussan | une clause de mandat neuve | le moins restrictif ; ADR-0079 le pose, l'avocat le relit |
+| Réclamation par le lien sous mandat | fermée, 409 `radar.claim.under_mandate`, jusqu'à TCK-2421 | laisser créer un compte à côté des biens sous mandat | deux états mêlés ; décision du porteur après la vérification adverse I1 |
+| Demandes par formulaire sous mandat | à l'administrateur de l'espace des mandats, qui transmet ; aucun relais construit | un relais automatique vers l'annonceur | décision du porteur après la vérification adverse I3 ; les textes le disent |
+| Double marquage de la relance | refusé à moins d'une minute (`radar.activation.just_sent`), sous verrou | rien (l'intervalle à 0 comptait deux relances) | décision du porteur après la vérification adverse |
 | Interrupteurs du mandat | drapeau `radar_mandate` (console) + réglage `radar.mandate_agency_id` | variables d'environnement | réversible sans déploiement ni parité `.env` |
 | Garde du compte sous mandat | ni numéro inscrit ni connexion par téléphone exigés | les exiger comme « pour lui » | aucun compte n'est créé ni promis |
 | Compte rattaché | `account_exists` refuse le mandat ; `under_mandate` refuse « pour lui » | mêler les deux états | ADR-0079 § 4 ; la reprise est TCK-2421 |

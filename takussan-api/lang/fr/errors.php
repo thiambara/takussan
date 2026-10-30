@@ -772,6 +772,8 @@ return [
             'wrong_account' => 'Vous êtes connecté avec un autre compte : déconnectez-vous, puis rouvrez ce lien.',
             'account_changed' => 'Ce compte a changé entre-temps : rechargez la page.',
             'support_required' => 'Ce numéro est lié à deux comptes Takussan : écrivez-nous, nous les réunirons.',
+            // TCK-2394 (ADR-0079) — sous mandat, la réclamation attend la reprise (TCK-2421).
+            'under_mandate' => 'Vos annonces sont déjà diffusées par Takussan pour votre compte : écrivez-nous pour les reprendre dans votre propre espace.',
             'name_contains_phone' => 'Le prénom et le nom de l\'espace ne peuvent pas contenir de numéro de téléphone.',
         ],
         // TCK-2392 — la collecte automatique et la fusion des doublons entre sites.
@@ -789,6 +791,7 @@ return [
             'nothing_published' => 'Aucun bien publié pour cet annonceur n\'est en ligne : la relance n\'aurait rien à dire.',
             'too_soon' => 'La dernière relance, ou la mise en ligne, date de moins d\'une période : la prochaine relance part à partir de :available_at.',
             'under_mandate' => 'Les biens de cet annonceur sont publiés sous mandat : il n\'a pas de compte à activer.',
+            'just_sent' => 'Cette relance vient d\'être marquée envoyée : un second marquage ne compterait pas une relance de plus.',
         ],
         'mandate' => [
             'disabled' => 'La publication sous mandat est éteinte (ADR-0079 proposé) : rien ne se publie sous mandat.',

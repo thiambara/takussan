@@ -780,6 +780,42 @@ class RadarClaimTest extends TestCase
         $this->assertSame(RadarListingStage::Contacted, $nouvelle->fresh()->stage);
     }
 
+    /**
+     * TCK-2394 (ADR-0079, vérification adverse I1) — publié sous mandat, l'annonceur ne réclame pas par le lien de son accord :
+     * la réclamation lui ouvrirait un compte à côté de l'espace des mandats (l'état mêlé). Aucun SMS ne part. La reprise
+     * (TCK-2421) lèvera ce refus.
+     */
+    public function test_sous_mandat_la_reclamation_par_le_lien_est_refusee_avant_le_sms(): void
+    {
+        $annonce = $this->annonce();
+        $this->annonceur->forceFill(['mandate_at' => now(), 'mandate_by_id' => $this->operateur->id])->save();
+
+        $this->demanderLeCode()->assertStatus(409)->assertJsonPath('code', 'radar.claim.under_mandate');
+        $this->assertSame([], $this->sms->sentTo(self::NUMERO));
+        $this->confirmer([['id' => $annonce->id]], code: '123456')->assertStatus(409)->assertJsonPath('code', 'radar.claim.under_mandate');
+
+        $this->assertNull($this->annonceur->fresh()->user_id);
+        $this->assertSame(RadarListingStage::Contacted, $annonce->fresh()->stage);
+        $this->assertSame(0, Agency::query()->count());
+    }
+
+    /** TCK-2394 — une publication sous mandat passée entre le code et le verrou : la confirmation refuse, le compte ouvert est défait. */
+    public function test_sous_mandat_la_reclamation_se_rejuge_sous_le_verrou(): void
+    {
+        $annonce = $this->annonce();
+        $this->demanderLeCode()->assertStatus(202);
+        $comptes = User::query()->count();
+
+        $this->auVerrou('radar_listings', fn () => RadarAdvertiser::query()->whereKey($this->annonceur->id)->update(['mandate_at' => now()]));
+        $this->confirmer([['id' => $annonce->id]])->assertStatus(409)->assertJsonPath('code', 'radar.claim.under_mandate');
+
+        $this->assertNull($this->annonceur->fresh()->user_id);
+        $this->assertSame($comptes, User::query()->count());
+        $this->assertSame(RadarListingStage::Contacted, $annonce->fresh()->stage);
+        $this->assertSame(0, RadarConsent::query()->where('proof', 'otp')->count());
+        $this->assertSame(0, Agency::query()->count());
+    }
+
     /** A8 — un STOP enregistré entre la lecture et le verrou : rien ne se publie, rien ne s'écrit. */
     public function test_un_stop_arrive_pendant_la_confirmation_ne_publie_rien(): void
     {

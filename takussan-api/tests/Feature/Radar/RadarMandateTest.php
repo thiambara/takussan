@@ -8,11 +8,14 @@ use App\Models\Enums\PlatformProfileLevel;
 use App\Models\Enums\PropertyVisibility;
 use App\Models\Enums\RadarListingStage;
 use App\Models\FeatureFlag;
+use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Property;
 use App\Models\PropertyContact;
+use App\Models\PropertyContactLead;
 use App\Models\RadarAdvertiser;
 use App\Models\User;
 use App\Services\Admin\PlatformSettingService;
+use App\Services\Billing\QuotaResolver;
 use App\Services\Radar\RadarMandate;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Testing\TestResponse;
@@ -280,5 +283,90 @@ class RadarMandateTest extends TestCase
         $this->assertStringContainsString("/fr/properties/{$slug}", $message);
         $this->assertStringNotContainsString('/claim/', $message);
         $this->assertStringNotContainsString('Activez', $message);
+        // ADR-0079 § 5 : le numéro affiché est le sien ; le formulaire arrive à Takussan, qui transmet.
+        $this->assertStringContainsString('Les demandes laissées par le formulaire du site arrivent à Takussan, qui vous les transmet.', $message);
+    }
+
+    // --- AC2b : les gardes de « publier pour lui », une à une sous mandat (vérification adverse I2) -------------------
+
+    public function test_ac2b_sous_mandat_le_plafond_de_photos_refuse_sans_rien_ecrire(): void
+    {
+        $this->allumer();
+        config(['radar.publish.max_photos' => 3]);
+        $a = $this->annonceConsentie();
+        $b = $this->annonceConsentie();
+        $avant = $this->compte();
+
+        $this->sousMandat([$a->id, $b->id])->assertStatus(422)->assertJsonPath('code', 'radar.publish.too_many_photos');
+        $this->assertSame($avant, $this->compte());
+    }
+
+    /** Le quota se juge sur l'ESPACE DES MANDATS : c'est lui qui porte tous les biens sous mandat. */
+    public function test_ac2b_sous_mandat_le_quota_de_l_espace_des_mandats_refuse_sans_rien_ecrire(): void
+    {
+        $this->allumer();
+        $annonce = $this->annonceConsentie();
+        $espaces = [];
+        $this->partialMock(QuotaResolver::class, function ($mock) use (&$espaces) {
+            $mock->shouldReceive('assertCanCreateActiveListing')->andReturnUsing(function (int $agencyId) use (&$espaces) {
+                $espaces[] = $agencyId;
+                abort_code(422, 'quota.listings_exceeded');
+            });
+        });
+        $avant = $this->compte();
+
+        $this->sousMandat([$annonce->id])->assertStatus(422)->assertJsonPath('code', 'quota.listings_exceeded');
+        $this->assertSame([$this->espace->id], $espaces);
+        $this->assertSame($avant, $this->compte());
+    }
+
+    public function test_ac2b_sous_mandat_une_annonce_sans_photo_ou_incomplete_refuse(): void
+    {
+        $this->allumer();
+        $sansPhoto = $this->annonceConsentie(photos: 0);
+        $incomplete = $this->annonceConsentie();
+        $incomplete->forceFill(['extracted' => array_replace((array) $incomplete->extracted, ['price' => ['value' => null]])])->save();
+        $avant = $this->compte();
+
+        $this->sousMandat([$sansPhoto->id])->assertStatus(422)->assertJsonPath('code', 'radar.publish.no_photo');
+        $this->sousMandat([$incomplete->id])->assertStatus(422)->assertJsonPath('code', 'radar.publish.missing_field');
+        $this->assertSame($avant, $this->compte());
+    }
+
+    public function test_ac2b_sous_mandat_une_annonce_qui_n_est_pas_consentie_refuse(): void
+    {
+        $this->allumer();
+        $annonce = $this->annonceConsentie();
+        $annonce->forceFill(['stage' => RadarListingStage::Contacted])->save();
+        $avant = $this->compte();
+
+        $this->sousMandat([$annonce->id])->assertStatus(409)->assertJsonPath('code', 'radar.listing.stage_conflict');
+        $this->assertSame($avant, $this->compte());
+    }
+
+    // --- Le destinataire réel des demandes par formulaire (vérification adverse I3) -----------------------------------
+
+    /**
+     * ADR-0079 § 5 — sous mandat, le téléphone et le WhatsApp affichés sont ceux de l'annonceur ; une demande laissée par
+     * FORMULAIRE va à l'administrateur de l'espace des mandats, qui la transmet. Sans profil d'administrateur, le formulaire
+     * refuse (409) : l'espace des mandats doit en avoir un.
+     */
+    public function test_sous_mandat_la_demande_par_formulaire_va_a_l_administrateur_de_l_espace_des_mandats(): void
+    {
+        $this->allumer();
+        $annonce = $this->annonceConsentie();
+        $slug = $this->sousMandat([$annonce->id])->assertCreated()->json('data.properties.0.slug');
+        $demande = ['name' => 'Visiteur', 'phone' => '+221741112233', 'message' => 'Bonjour, toujours disponible ?'];
+        $this->app['auth']->forgetGuards();
+
+        $this->postJson("/api/public/properties/{$slug}/contact-lead", $demande)->assertStatus(409)->assertJsonPath('code', 'lead.contact_unavailable');
+
+        AgencyAdminProfile::factory()->create(['user_id' => $this->gerant->id, 'agency_id' => $this->espace->id]);
+        $this->postJson("/api/public/properties/{$slug}/contact-lead", $demande)->assertCreated();
+
+        $piste = PropertyContactLead::query()->sole();
+        $this->assertSame([$this->espace->id, $this->gerant->id], [(int) $piste->agency_id, (int) $piste->recipient_user_id]);
+        // Le contact affiché, lui, est le numéro de l'annonceur.
+        $this->assertSame('+221771234567', PropertyContact::query()->where('property_id', $piste->property_id)->value('phone'));
     }
 }
