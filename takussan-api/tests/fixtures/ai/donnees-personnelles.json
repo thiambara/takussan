@@ -273,7 +273,15 @@
     "étage TCK-2445 — 00 7 à zone de quatre chiffres": ["Tel 007 (3452) 12 34 56", "Tel [TELEPHONE]"],
     "étage TCK-2445 — RDC, +7 à zone de quatre chiffres suivi de F": ["RDC +7 (3452) 12-34-56 F", "RDC [TELEPHONE] F"],
     "étage TCK-2445 — +7 à zone de cinq chiffres, sans étage": ["Contact +7 (34922) 1-23-45", "Contact [TELEPHONE]"],
-    "étage TCK-2445 — R + 7 espacé, zone de cinq chiffres suivi de F": ["R + 7 (34922) 1 23 45 F", "R [TELEPHONE] F"]
+    "étage TCK-2445 — R + 7 espacé, zone de cinq chiffres suivi de F": ["R + 7 (34922) 1 23 45 F", "R [TELEPHONE] F"],
+    "étage TCK-2445 vérification B1 — RDC, +7 et (0) de trunk": ["RDC +7 (0)495 123-45-67", "RDC [TELEPHONE]"],
+    "étage TCK-2445 vérification B1 — R espacé, +7 et (0) de trunk": ["R +7 (0)495 123-45-67", "R [TELEPHONE]"],
+    "étage TCK-2445 vérification B1 — RDC, +1 et (0) de trunk": ["RDC +1 (0)202 555 0123", "RDC [TELEPHONE]"],
+    "étage TCK-2445 vérification B1 — R + 1 espacé, (0) de trunk espacé": ["R + 1 (0) 202 555 0123", "R [TELEPHONE]"],
+    "étage TCK-2445 vérification B1 — au RDC, +7, (0) de trunk et zone entre parenthèses": ["au RDC +7 (0)(495) 123-45-67", "au RDC [TELEPHONE]"],
+    "étage TCK-2445 vérification B1 — RDC, +7, (0) de trunk et zone entre parenthèses, suivi de F": ["RDC +7 (0)(495) 123-45-67 F", "RDC [TELEPHONE] F"],
+    "étage TCK-2445 vérification B1 — R+7 collé et (0) de trunk": ["R+7 (0)495 123-45-67", "R[TELEPHONE]"],
+    "étage TCK-2445 vérification I1 — RDC, +7 kazakh à zone de quatre chiffres suivi de F": ["RDC +7 (7172) 12-34-56 F", "RDC [TELEPHONE] F"]
   },
   "courriels": {
     "simple": "awa@exemple.sn",
@@ -474,6 +482,9 @@
     "étage TCK-2435 — R+1 devant un prix de dix chiffres marqué FCFA": "Immeuble R+1 1 250 500 750 FCFA",
     "étage TCK-2435 — R+17 devant un prix : 17 est un étage, pas 1 suivi de dix chiffres": "Immeuble R+17 1 250 500 750 F",
     "étage TCK-2435 — R+1 devant un prix qui commence par 1 : pas nord-américain": "Immeuble R+1 1 255 500 750 F",
-    "étage TCK-2435 — R+7 devant un prix qui commence par 2 : pas un numéro +7": "Immeuble R+7 2 250 500 750 F"
+    "étage TCK-2435 — R+7 devant un prix qui commence par 2 : pas un numéro +7": "Immeuble R+7 2 250 500 750 F",
+    "étage TCK-2445 vérification I1 — une année entre parenthèses derrière R+7 n'est pas une zone": "Immeuble R+7 (2024) 450 000 000 F",
+    "étage TCK-2445 vérification I1 — année 2019 entre parenthèses, prix en FCFA": "Immeuble R+7 (2019) 850 000 000 FCFA",
+    "étage TCK-2445 vérification I1 — année 2023 entre parenthèses, loyer mensuel": "Appartement R+7 (2023) 450 000 F/mois"
   }
 }

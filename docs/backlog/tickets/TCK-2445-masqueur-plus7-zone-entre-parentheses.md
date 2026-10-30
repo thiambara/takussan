@@ -63,7 +63,9 @@ partagé `tests/fixtures/ai/donnees-personnelles.json`, `RadarPhone::FLOOR_PLUS`
       les zones longues sont masqués des deux côtés (PHP et JS), éprouvés par le fixture partagé.
 - [x] AC2 — `RadarAmountParser` ne rend aucun prix et `RadarPhone` aucun contact pour ces textes.
 - [x] AC3 — Parité PHP/JS : 0 écart ; face à `dev`, aucune ligne démasquée ; face au masqueur de 908d62321, aucune
-      ligne masquée ne sort en clair hors des écritures d'étage (liste dans le rapport).
+      ligne masquée ne sort en clair hors des écritures d'étage et des formes que TCK-2435 a décidé de lire comme un
+      étage suivi d'un prix (`+7` dont le premier chiffre est de 0 à 2, `+1` hors forme nord-américaine, suivis d'une
+      marque, avec ou sans `(0)`) ; liste dans le rapport.
 - [x] AC4 — Ablation de chaque correctif : rouge.
 
 ## Hors périmètre
@@ -75,26 +77,41 @@ partagé `tests/fixtures/ai/donnees-personnelles.json`, `RadarPhone::FLOOR_PLUS`
 
 - **Zone entre parenthèses** : `PhoneMasker::ZONE_REST` (miroir `RESTE_ZONE`), soit une zone de trois chiffres quels
   qu'ils soient entre parenthèses puis sept chiffres, est un numéro derrière `1` comme derrière `7`, quelle que soit la
-  marque qui suit (`CC1_NUMBER`). Aucun prix ne s'écrit entre parenthèses : la règle ne coûte aucun prix d'étage, à la
-  différence de la forme sans parenthèses (`[3-9]` derrière `7`, forme nord-américaine derrière `1`).
+  marque qui suit (`CC1_NUMBER`). Sans parenthèses, rien ne change (`[3-9]` derrière `7`, forme nord-américaine derrière
+  `1`).
+- **Limite assumée de la zone entre parenthèses, dans le sens sûr** (vérification M1) : un nombre de trois chiffres entre
+  parenthèses derrière un étage, suivi d'un prix dont les sept premiers chiffres finissent un groupe, est masqué et le prix
+  perdu (`Villa R+1 (150) 2 500 000 F`, `Villa R+7 (150) 2 500 000 F` ; ils rendaient 2 500 000 sur `dev`).
+- **`(0)` de trunk** (vérification B1) : `CC1_NUMBER` admet derrière `1` et `7` le `(0)` que `FOREIGN` admet par
+  `AFTER_CC` (`TRUNK_ZERO`, miroir `ZERO_TRUNK`). Sans lui, `RDC +7 (0)495 123-45-67`, `RDC +1 (0)202 555 0123` ou
+  `au RDC +7 (0)(495) …` partaient en clair derrière `RDC` ou un `R` espacé, même sans marque (masqués sur 908d62321,
+  défaut venu de TCK-2435). `R+7 (0)495 …` collé, en clair depuis TCK-2428, est masqué du même coup.
 - **Zone longue** (décision de la session) : `CC7_LONG_ZONE` (miroir `ZONE_LONGUE_7`), une zone de quatre chiffres puis
   six, ou de cinq puis cinq, derrière `7`. `FOREIGN` ne la lisait nulle part : `Contact +7 (3452) 12-34-56` partait en
-  clair, avec ou sans étage, sur 908d62321 comme sur `dev`. Elle est lue par `FOREIGN` et par `CC7_REST`.
+  clair, avec ou sans étage, sur 908d62321 comme sur `dev`. Elle est lue par `FOREIGN` et par `CC7_REST`. Elle commence
+  par 3 à 9 (vérification I1) : une année entre parenthèses (`Immeuble R+7 (2024) 450 000 000 F`) garde son prix.
   `RadarPhone::FLOOR_PLUS` lit `PhoneMasker::CC1_NUMBER` sur ses deux branches : il suit sans autre changement.
 - **`R+7 (495) 123-45-67 F`** (collé) partait en clair depuis TCK-2428 déjà, sur 908d62321 comme sur `dev` : il est
   masqué du même coup, et gardé dans le fixture.
 - **m11, mesuré sur 908d62321 (`git archive`)** : `R+ 2 450 000 F`, `RDC + 2 450 000 F`, `R + 2 450 000 F` rendaient déjà
   2 450 000 avant TCK-2435, et `R+ 12 450 000 F` 12 450 000. Défaut antérieur, corrigé ici parce que simple :
   `RadarAmountParser::SPACED_FLOOR` écarte des candidats un étage de 0 à 19 qui suit `r+ `, `rdc+ `, `r + ` ou
-  `rdc + ` dans le texte normalisé (minuscules, une espace). L'étage collé (`R+2`) l'était déjà par le `+`.
+  `rdc + ` dans le texte normalisé (minuscules, une espace), **suivi d'une espace et d'un chiffre de 1 à 9**. L'étage
+  collé (`R+2`) l'était déjà par le `+`. La borne vient de la vérification M2 : bornée par `(?!\d)`, la garde lisait
+  `R+ 15 000 000 F` comme l'étage 15 suivi de `000 000` (`null`, contre 15 000 000 sur `dev` et sur 908d62321), et
+  `R+ 1M5` comme l'étage 1. Aucun prix ne commence par 0 ; les deux textes rendent de nouveau leur prix.
 - **Limite (effet de bord de m11, accepté par la session)** : l'étage espacé ne compte plus comme un second nombre. Un
-  texte dont l'autre nombre est seul en fait son prix, ce que la forme collée faisait déjà (`R + 1 … TCK-2435` rend 2435,
-  comme `R+1 … 2435`).
-- **Épreuve** (476 306 lignes : les lignes suivies du dépôt qui portent un chiffre, plus une grille écrite à la main
-  d'étages × `+7`/`+1`/`+33` × zones entre parenthèses de deux à cinq chiffres × séparateurs × marques) : 0 écart PHP/JS.
-  Face à `dev`, aucune ligne démasquée. Face à 908d62321, seules sont démasquées des écritures d'étage suivies d'un prix
-  (voulues par TCK-2435) ou d'un numéro sénégalais qui reste masqué. Les lignes réelles du dépôt qui gagnent un masque sont
-  toutes des exemples fictifs écrits par ce ticket.
+  texte dont l'autre nombre est seul en fait son prix, ce que la forme collée faisait déjà (`Villa R + 2 4 chambres 2435`
+  rend 2435, comme `Villa R+2 4 chambres 2435` ; `null` sur `dev`).
+- **Suite** : `Villa R+1 (221) 77 012 34 56` perd son contact sénégalais sur `dev` comme ici, et `(221)` devant un
+  contact se lit comme un prix de 221 : défauts antérieurs, → TCK-2447.
+- **Épreuve** (487 534 lignes : les lignes suivies du dépôt qui portent un chiffre, plus une grille écrite à la main
+  d'étages × `+7`/`+1`/`+33` × zones entre parenthèses de deux à cinq chiffres × `(0)` de trunk × séparateurs × marques,
+  années 1980-2030 entre parenthèses) : 0 écart PHP/JS. Face à `dev`, aucune ligne démasquée. Face à 908d62321, les lignes
+  démasquées sont des écritures d'étage (suivies d'un prix, ou d'un numéro sénégalais qui reste masqué), et des suites
+  `+7 (0)2XX …` et `+1 (0)` hors forme nord-américaine suivies d'une marque, qui se lisent exactement comme leur forme
+  sans `(0)` (`RDC +7 202 555 0123 F`, en clair sur `dev` par la décision `[3-9]` de TCK-2435). Les lignes réelles du dépôt
+  qui gagnent un masque sont toutes des exemples fictifs écrits par ce ticket.
 
 ### Décisions prises en autonomie, à revoir
 

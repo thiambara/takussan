@@ -189,6 +189,21 @@ class RadarAmountParserTest extends TestCase
         $this->assertSame(['amount' => 450_000, 'period' => null], RadarAmountParser::parse('Villa R+ 450 000 F'));
         $this->assertSame(['amount' => 1_250_500_750, 'period' => null], RadarAmountParser::parse('Immeuble R+ 1 1 250 500 750 F'));
         $this->assertSame(['amount' => 2_450_000, 'period' => null], RadarAmountParser::parse('Villa T4 2 450 000 F'));
+        // Vérification M2 : l'étage n'en est un que suivi d'un chiffre de 1 à 9 (aucun prix ne commence par 0), comme sur `dev`.
+        $this->assertSame(['amount' => 15_000_000, 'period' => null], RadarAmountParser::parse('Villa R+ 15 000 000 F'));
+        $this->assertSame(['amount' => 2_000_000, 'period' => null], RadarAmountParser::parse('Villa R+ 2 000 000 F'));
+        $this->assertSame(['amount' => 1_500_000, 'period' => null], RadarAmountParser::parse('Villa R+ 1M5'));
+        $this->assertNull(RadarAmountParser::parse('Villa R + 2 (221) 77 012 34 56'));
+    }
+
+    public function test_une_annee_entre_parentheses_derriere_r_plus_sept_n_est_pas_une_zone(): void
+    {
+        // TCK-2445 (vérification I1) : la zone longue de `+7` commence par 3 à 9 ; une année n'en est pas une.
+        $this->assertSame(['amount' => 450_000_000, 'period' => null], RadarAmountParser::parse('Immeuble R+7 (2024) 450 000 000 F'));
+        $this->assertSame(['amount' => 850_000_000, 'period' => null], RadarAmountParser::parse('Immeuble R+7 (2019) 850 000 000 FCFA'));
+        $this->assertSame(['amount' => 450_000, 'period' => 'monthly'], RadarAmountParser::parse('Appartement R+7 (2023) 450 000 F/mois'));
+        // Une vraie zone longue reste un numéro.
+        $this->assertNull(RadarAmountParser::parse('RDC +7 (7172) 12-34-56 F'));
     }
 
     /**

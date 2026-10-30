@@ -166,20 +166,29 @@ final class PhoneMasker
     /**
      * TCK-2445 — derrière `1` ou `7`, une zone de trois chiffres entre parenthèses (quels qu'ils soient) et sept chiffres sont
      * un numéro quelle que soit la marque qui suit : sans elle, `RDC +7 (495) 123-45-67 F` partait en clair derrière `RDC` ou
-     * un `R` espacé, puisque `CC1_REST` refuse une marque derrière. Aucun prix ne s'écrit entre parenthèses : la zone ne
-     * coûte aucun prix d'étage.
+     * un `R` espacé, puisque `CC1_REST` refuse une marque derrière. Limite assumée, dans le sens sûr : un nombre de trois
+     * chiffres entre parenthèses derrière un étage, suivi d'un prix dont les sept premiers chiffres finissent un groupe, est
+     * masqué et le prix perdu (`Villa R+1 (150) 2 500 000 F`).
      */
     private const ZONE_REST = self::SEP.'?\([0-9]{3}\)(?:'.self::SEP.'{0,3}[0-9]){7}(?![0-9])';
 
     /**
      * TCK-2445 — derrière `7`, une zone de quatre ou cinq chiffres entre parenthèses, puis le reste des dix chiffres
      * (`+7 (3452) 12-34-56`, `+7 (34922) 1-23-45`) : `FOREIGN` n'admettait que la zone de trois, et ce numéro partait en
-     * clair partout. Lu aussi par `CC7_REST` : derrière un étage, il garde son `+`.
+     * clair partout. Lu aussi par `CC7_REST` : derrière un étage, il garde son `+`. La zone commence par 3 à 9 (Russie : 3, 4,
+     * 8 ; Kazakhstan : 7) : une année entre parenthèses (`Immeuble R+7 (2024) 450 000 000 F`) n'en est pas une.
      */
-    private const CC7_LONG_ZONE = self::SEP.'?\((?:[0-9]{4}\)(?:'.self::SEP.'{0,3}[0-9]){6}|[0-9]{5}\)(?:'.self::SEP.'{0,3}[0-9]){5})';
+    private const CC7_LONG_ZONE = self::SEP.'?\((?=[3-9])(?:[0-9]{4}\)(?:'.self::SEP.'{0,3}[0-9]){6}|[0-9]{5}\)(?:'.self::SEP.'{0,3}[0-9]){5})';
 
-    /** L'indicatif `1` ou `7` et le numéro complet qui le suit : ce qui, derrière un `+` d'étage, n'est pas un étage. */
-    public const CC1_NUMBER = '(?:1(?:'.self::CC1_REST.'|'.self::NANP_REST.'|'.self::ZONE_REST.')|7(?:'.self::CC1_REST.'|'.self::CC7_REST.'))';
+    /**
+     * L'indicatif `1` ou `7` et le numéro complet qui le suit : ce qui, derrière un `+` d'étage, n'est pas un étage. Le `(0)`
+     * de trunk, que `FOREIGN` admet par `AFTER_CC`, aussi (TCK-2445 : `RDC +7 (0)495 123-45-67` partait en clair).
+     */
+    public const CC1_NUMBER = '(?:1'.self::TRUNK_ZERO.'(?:'.self::CC1_REST.'|'.self::NANP_REST.'|'.self::ZONE_REST.')'
+        .'|7'.self::TRUNK_ZERO.'(?:'.self::CC1_REST.'|'.self::CC7_REST.'))';
+
+    /** Le `(0)` de trunk facultatif derrière l'indicatif, comme dans `AFTER_CC`. */
+    private const TRUNK_ZERO = '(?:'.self::WS.'?\(0\))?';
 
     /** Ce qui suit le `+` d'un étage : un étage de 0 à 19, sauf `1` ou `7` suivi d'un numéro complet. */
     public const FLOOR_AFTER_PLUS = self::WS.'{0,2}(?:[02-689]|(?!'.self::CC1_NUMBER.')[17]|1[0-9])(?![0-9])';

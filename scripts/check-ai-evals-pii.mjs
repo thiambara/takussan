@@ -104,11 +104,14 @@ const RESTE_CC1 = String.raw`(?:${SEP}?\([0-9]{3}\)(?:${SEP}{0,3}[0-9]){7}|(?:${
 // une zone de quatre ou cinq (`ZONE_LONGUE_7`, que `ETRANGER` lit aussi : `+7 (3452) 12-34-56`).
 const RESTE_NANP = String.raw`(?:${SEP}?\([2-9][0-9]{2}\)|${SEP}{0,3}[2-9](?:${SEP}{0,3}[0-9]){2})`
   + String.raw`${SEP}{0,3}[2-9](?:${SEP}{0,3}[0-9]){6}(?![0-9])`;
-const ZONE_LONGUE_7 = String.raw`${SEP}?\((?:[0-9]{4}\)(?:${SEP}{0,3}[0-9]){6}|[0-9]{5}\)(?:${SEP}{0,3}[0-9]){5})`;
+// La zone longue commence par 3 à 9 : une année entre parenthèses (`R+7 (2024) 450 000 000 F`) n'en est pas une.
+const ZONE_LONGUE_7 = String.raw`${SEP}?\((?=[3-9])(?:[0-9]{4}\)(?:${SEP}{0,3}[0-9]){6}|[0-9]{5}\)(?:${SEP}{0,3}[0-9]){5})`;
 const RESTE_ZONE = String.raw`${SEP}?\([0-9]{3}\)(?:${SEP}{0,3}[0-9]){7}(?![0-9])`;
 const RESTE_CC7 = String.raw`(?:${RESTE_ZONE}|${ZONE_LONGUE_7}`
   + String.raw`|${SEP}{0,3}[3-9](?:${SEP}{0,3}[0-9]){9})(?![0-9])`;
-const NUMERO_CC1 = `(?:1(?:${RESTE_CC1}|${RESTE_NANP}|${RESTE_ZONE})|7(?:${RESTE_CC1}|${RESTE_CC7}))`;
+// Le `(0)` de trunk derrière l'indicatif, comme `APRES_CC` (`RDC +7 (0)495 123-45-67`).
+const ZERO_TRUNK = String.raw`(?:${WS}?\(0\))?`;
+const NUMERO_CC1 = `(?:1${ZERO_TRUNK}(?:${RESTE_CC1}|${RESTE_NANP}|${RESTE_ZONE})|7${ZERO_TRUNK}(?:${RESTE_CC1}|${RESTE_CC7}))`;
 const APRES_PLUS_ETAGE = String.raw`${WS}{0,2}(?:[02-689]|(?!${NUMERO_CC1})[17]|1[0-9])(?![0-9])`;
 const PAS_UN_ETAGE = String.raw`(?!${MOT_ETAGE}\+${APRES_PLUS_ETAGE})`;
 const CHIFFRES = (n) => `(?:${SEP}{0,3}[0-9]){${n}}`;
