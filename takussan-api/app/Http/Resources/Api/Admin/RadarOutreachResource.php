@@ -6,6 +6,7 @@ use App\Http\Resources\Bases\BaseResource;
 use App\Models\RadarOutreach;
 use App\Services\Radar\ConsentMessageComposer;
 use App\Services\Radar\RadarOutreachWorkflow;
+use App\Services\Radar\Whatsapp\RadarWhatsappReceipts;
 use Illuminate\Http\Request;
 use InvalidArgumentException;
 use RuntimeException;
@@ -82,9 +83,12 @@ class RadarOutreachResource extends BaseResource
             'consents' => RadarConsentResource::collection($this->consents)->toArray($request),
             // TCK-2395 — par où il est parti (`whatsapp_manual`, `whatsapp_cloud`), et l'état de l'envoi par l'API
             // (`accepted`, `ambiguous`, puis les accusés de TCK-2427 : `sent`, `delivered`, `read`, `failed` ; null pour
-            // un message manuel). L'identifiant de Meta n'est pas rendu, ni le code d'un échec (journal d'activité).
+            // un message manuel). L'identifiant de Meta n'est pas rendu.
             'channel' => $this->enumValue($this->channel),
             'provider_status' => $this->provider_status,
+            // TCK-2444 — le code de Meta d'un échec (`131026`…), dont le front dérive le motif ; null hors `failed` ou
+            // sans code. Jamais le texte de l'erreur.
+            'provider_error_code' => $this->provider_status === RadarWhatsappReceipts::STATUS_FAILED ? $this->provider_error_code : null,
         ] + ($this->generation ?? []);
     }
 
