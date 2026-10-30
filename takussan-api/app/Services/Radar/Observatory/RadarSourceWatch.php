@@ -22,8 +22,8 @@ use Illuminate\Support\Facades\DB;
  * la fin sans l'avoir vue. Une présence remet le compte à zéro d'elle-même : seuls comptent les passages postérieurs à la
  * dernière. Un passage arrêté au plafond de pages, refusé ou échoué ne compte pas. Une annonce sans instantané (saisie à la
  * main) n'est jamais jugée, ni une annonce que la collecte ne suit plus (TCK-2392, `RadarSnapshots::silenced()`) : purgée,
- * `do_not_contact`, ou d'un annonceur qui a dit STOP — ne plus la voir ne dit rien d'elle. La purge d'une annonce jamais
- * publiée détache en plus ses instantanés : elle n'en a plus.
+ * `do_not_contact`, ou d'un annonceur qui a dit STOP — ne plus la voir ne dit rien d'elle. La purge supprime en plus ses
+ * instantanés : elle n'en a plus.
  *
  * **Revenue** : un passage postérieur à la disparition l'a revue (`max(last_seen_at)` après `source_gone_at`) ; elle
  * redevient présente, et pourra de nouveau alerter.
@@ -51,7 +51,7 @@ final class RadarSourceWatch
             ->whereRaw('('.$this->lastSeenSql().') > radar_listings.source_gone_at')
             ->update(['source_gone_at' => null, 'source_gone_run_id' => null]);
 
-        $confirm = max(1, (int) config('radar.observe.confirm_runs', 2));
+        $confirm = self::confirmRuns();
         foreach ($this->decisiveRuns() as $run) {
             $ids = RadarListing::query()
                 ->where('source_site', $run->site->value)
@@ -78,6 +78,12 @@ final class RadarSourceWatch
         }
 
         return $counts;
+    }
+
+    /** Le nombre de passages complets d'affilée qui constate une disparition (`radar.observe.confirm_runs`, 1 au moins). */
+    public static function confirmRuns(): int
+    {
+        return max(1, (int) config('radar.observe.confirm_runs', 2));
     }
 
     /**

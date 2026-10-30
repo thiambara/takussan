@@ -62,7 +62,7 @@ beforeEach(() => {
     const u = new URL(String(url), 'http://localhost');
     const corps = u.pathname.endsWith('/observatory/advertisers')
       ? { data: classement, meta: { total: classement.length, per_page: 25, current_page: 1, last_page: 1 } }
-      : { data: MARCHE };
+      : { data: MARCHE, meta: { confirm_runs: 3 } };
     return new Response(JSON.stringify(corps), { status: 200 });
   });
   vi.stubGlobal('fetch', fetchMock);
@@ -109,6 +109,17 @@ describe('L’observatoire du Radar (TCK-2393)', () => {
     expect(screen.getByText('Villa fictive')).toBeInTheDocument();
     expect(screen.getByText('75 %')).toBeInTheDocument();
     expect(screen.getByText('12,5 jours')).toBeInTheDocument();
+  });
+
+  it('dit le nombre réel de passages qui constate une disparition, lu sur l’API (meta.confirm_runs)', async () => {
+    const utilisateur = rendre();
+    await screen.findByTestId('radar-classement-vide');
+
+    await utilisateur.click(screen.getByRole('tab', { name: 'Marché' }));
+
+    expect(await screen.findByText(/qu’après 3 passages d’affilée qui ont lu toute la liste/)).toBeInTheDocument();
+    expect(screen.getByText(/absente de la liste lue par la collecte, 3 passages de suite/)).toBeInTheDocument();
+    expect(screen.queryByText(/deux passages/)).not.toBeInTheDocument();
   });
 
   it('le filtre de date part à l’API (filter[since])', async () => {

@@ -11,6 +11,7 @@ use App\Models\Enums\RadarSourceSite;
 use App\Models\Property;
 use App\Models\RadarAdvertiser;
 use App\Models\RadarListing;
+use App\Services\Radar\Crawl\RadarSnapshots;
 use App\Services\Radar\Observatory\RadarSourceWatch;
 use App\Services\Radar\RadarPurger;
 use App\Support\RadarPhone;
@@ -335,6 +336,44 @@ class RadarSourceWatchTest extends TestCase
             $this->assertNull($annonce->refresh()->source_gone_at);
         }
         Queue::assertNothingPushed();
+    }
+
+    /**
+     * Vérification adverse, mineur n° 3 — la règle « la collecte ne la suit plus » est écrite deux fois : en PHP
+     * (`RadarSnapshots::silenced()`, TCK-2392) et en SQL dans la veille. Sur les mêmes annonces — chaque étape, plus un
+     * annonceur STOP —, la veille juge exactement celles que la collecte suit. Une étape ou un motif ajouté d'un seul côté
+     * rougit ici.
+     */
+    public function test_la_veille_et_la_collecte_taisent_les_memes_annonces(): void
+    {
+        $stop = RadarAdvertiser::query()->create([
+            'phone' => '+221740000010',
+            'phone_hmac' => RadarPhone::hmac('+221740000010'),
+            'do_not_contact_at' => '2026-10-28 09:00:00',
+        ]);
+        $libre = RadarAdvertiser::query()->create(['phone' => '+221740000011', 'phone_hmac' => RadarPhone::hmac('+221740000011')]);
+        $cas = [];
+        foreach (RadarListingStage::cases() as $etape) {
+            $cas[$etape->value] = $this->annonceCollectee(['stage' => $etape, 'radar_advertiser_id' => $libre->id]);
+        }
+        $cas['annonceur STOP'] = $this->annonceCollectee(['radar_advertiser_id' => $stop->id]);
+        $cas['sans annonceur'] = $this->annonceCollectee(['radar_advertiser_id' => null]);
+        foreach ($cas as $annonce) {
+            $this->instantane($annonce, '2026-10-20 08:00:00', '2026-10-28 08:05:00');
+        }
+        $this->passage('2026-10-28 20:00:00');
+        $this->passage('2026-10-29 08:00:00');
+
+        $this->observer();
+
+        $ecarts = [];
+        foreach ($cas as $nom => $annonce) {
+            $juge = $annonce->refresh()->source_gone_at !== null;
+            if ($juge === RadarSnapshots::silenced($annonce)) {
+                $ecarts[] = $nom.($juge ? ' : jugée par la veille, tue par la collecte' : ' : ni jugée, ni tue');
+            }
+        }
+        $this->assertSame([], $ecarts);
     }
 
     /** La commande est planifiée toutes les quinze minutes, sans chevauchement. */

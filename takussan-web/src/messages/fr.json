@@ -9324,12 +9324,12 @@
             },
             "time": {
               "title": "Temps de mise sur le marché",
-              "description": "Durée entre la première et la dernière présence des annonces dont la disparition est constatée. Une annonce déjà en ligne avant la première collecte paraît plus récente qu’elle ne l’est. Une disparition ne se constate qu’après deux passages d’affilée qui ont lu toute la liste sans la revoir. Si la liste d’un site dépasse le plafond de pages de sa collecte (5 par défaut), montez ce plafond dans l’onglet Collecte : il est borné à 20 pages, et au-delà aucune disparition n’est constatée sur ce site.",
+              "description": "Durée entre la première et la dernière présence des annonces dont la disparition est constatée. Une annonce déjà en ligne avant la première collecte paraît plus récente qu’elle ne l’est. Une disparition ne se constate {runs, plural, one {qu’après un passage qui a lu toute la liste sans la revoir} other {qu’après # passages d’affilée qui ont lu toute la liste sans la revoir}}. Si la liste d’un site dépasse le plafond de pages de sa collecte (5 par défaut), montez ce plafond dans l’onglet Collecte : il est borné à 20 pages, et au-delà aucune disparition n’est constatée sur ce site.",
               "empty": "Aucune disparition constatée"
             },
             "goneSources": {
               "title": "Sources disparues de biens publiés",
-              "description": "L’annonce d’origine d’un bien publié est absente de la liste lue par la collecte, deux passages de suite : elle a peut-être été retirée (bien loué ou vendu), ou déplacée. Si la liste d’un site dépasse le plafond de pages de sa collecte (5 par défaut), montez ce plafond dans l’onglet Collecte : il est borné à 20 pages, et au-delà aucune disparition n’est constatée sur ce site. Une annonce purgée, ou dont l’annonceur a dit STOP, n’est plus suivie : sa disparition n’est plus constatée.",
+              "description": "L’annonce d’origine d’un bien publié est absente de la liste lue par la collecte, {runs, plural, one {au dernier passage} other {# passages de suite}} : elle a peut-être été retirée (bien loué ou vendu), ou déplacée. Si la liste d’un site dépasse le plafond de pages de sa collecte (5 par défaut), montez ce plafond dans l’onglet Collecte : il est borné à 20 pages, et au-delà aucune disparition n’est constatée sur ce site. Une annonce purgée, ou dont l’annonceur a dit STOP, n’est plus suivie : sa disparition n’est plus constatée.",
               "empty": "Aucune source disparue"
             }
           }

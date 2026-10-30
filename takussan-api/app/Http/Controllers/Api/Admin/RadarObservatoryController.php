@@ -9,6 +9,7 @@ use App\Models\RadarAdvertiser;
 use App\Models\RadarListing;
 use App\Services\Radar\Observatory\RadarAdvertiserRanking;
 use App\Services\Radar\Observatory\RadarObservatory;
+use App\Services\Radar\Observatory\RadarSourceWatch;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -22,7 +23,11 @@ class RadarObservatoryController extends Controller
     /** Les sections du marché : `fields[radar_observatory]`, filtres `filter[since|contract|property_type|source_site|neighborhood_id]`. */
     public function market(RadarObservatoryRequest $request, RadarObservatory $observatory): JsonResponse
     {
-        return $this->json(['data' => $observatory->compute($request->sections(), $request->filters())]);
+        // `confirm_runs` : l'écran dit combien de passages complets il faut pour constater une disparition (réglable).
+        return $this->json([
+            'data' => $observatory->compute($request->sections(), $request->filters()),
+            'meta' => ['confirm_runs' => RadarSourceWatch::confirmRuns()],
+        ]);
     }
 
     /** Le classement : `fields[radar_advertisers]`, `filter[nature|search]`, `sort` (défaut `-listings_count`). */

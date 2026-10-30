@@ -46,7 +46,7 @@ class RadarObservatoryTest extends TestCase
 
     private RadarAdvertiser $annonceur;
 
-    /** @var array<string, int> les passages qui ont écrit les instantanés, par site (un instantané détaché garde le sien) */
+    /** @var array<string, int> les passages qui ont écrit les instantanés, par site */
     private array $passages = [];
 
     protected function setUp(): void
@@ -245,6 +245,10 @@ class RadarObservatoryTest extends TestCase
 
         $this->assertSame(['summary', 'supply_gap'], array_keys($reponse->json('data')));
         $this->assertSame(4, $reponse->json('data.summary.listings'));
+        // L'écran dit le nombre réel de passages qui constate une disparition.
+        $this->assertSame(2, $reponse->json('meta.confirm_runs'));
+        config(['radar.observe.confirm_runs' => 3]);
+        $this->getJson('/api/admin/radar/observatory?fields[radar_observatory]=summary')->assertJsonPath('meta.confirm_runs', 3);
 
         // Une valeur en liste vaut absente (ADR-0075) ; une valeur unique invalide est refusée.
         $this->getJson('/api/admin/radar/observatory?fields[radar_observatory]=summary&filter[contract][]=sale')

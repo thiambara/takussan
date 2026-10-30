@@ -66,6 +66,8 @@ export interface RadarObservatory {
 
 export interface RadarObservatoryResponse {
   readonly data: RadarObservatory;
+  /** `confirm_runs` : passages complets d'affilée qui constatent une disparition (`radar.observe.confirm_runs`). */
+  readonly meta: { readonly confirm_runs: number };
 }
 
 export interface RadarObservatoryFilters {

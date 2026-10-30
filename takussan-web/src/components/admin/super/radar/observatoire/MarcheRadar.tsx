@@ -72,6 +72,8 @@ export function MarcheRadar() {
     staleTime: 60_000,
   });
   const data = marche.data?.data;
+  // Le nombre de passages complets qui constate une disparition est réglable côté API : l'écran le lit, jamais en dur.
+  const passages = { runs: marche.data?.meta.confirm_runs ?? 2 };
 
   const quartier = (n: RadarNeighborhoodRef | null) => (n ? (n.name ?? t('unknownNeighborhood')) : t('unmatchedNeighborhood'));
   const type = (v: string | null) => (v && estType(v) ? tTypes(v) : VALEUR_ABSENTE);
@@ -234,7 +236,7 @@ export function MarcheRadar() {
               : vide(t('price.empty'))}
           </Section>
 
-          <Section titre={t('time.title')} description={t('time.description')}>
+          <Section titre={t('time.title')} description={t('time.description', passages)}>
             {data?.time_on_market?.length
               ? (
                 <DataTable
@@ -248,7 +250,7 @@ export function MarcheRadar() {
               : vide(t('time.empty'))}
           </Section>
 
-          <Section titre={t('goneSources.title')} description={t('goneSources.description')}>
+          <Section titre={t('goneSources.title')} description={t('goneSources.description', passages)}>
             {data?.gone_sources?.length
               ? <DataTable caption={t('goneSources.title')} columns={colonnesDisparues} rows={data.gone_sources} rowKey={(r) => r.listing_id} density="compact" />
               : vide(t('goneSources.empty'))}
