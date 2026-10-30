@@ -240,4 +240,4 @@ Schedule::command('boosts:tick')->everyFiveMinutes()->withoutOverlapping(5);
 // TCK-2392 (ADR-0077 §10) — la collecte automatique du Radar : passages perdus clos, passages dus mis en file (file longue,
 // `CrawlRadarSource`), fusion des doublons entre sites. Rien ne part tant qu'aucune source n'est allumée par le porteur.
 // Idempotente : un seul passage actif par site (index unique partiel), une fusion jugée une fois (`merge_checked_at`).
-Schedule::command('radar:crawl')->everyFifteenMinutes()->withoutOverlapping();
+Schedule::command('radar:crawl')->everyFifteenMinutes()->withoutOverlapping(15);
