@@ -562,6 +562,29 @@ class RadarClaimTest extends TestCase
         $this->assertSame([$bien->id], $journal->properties['moved_property_ids']);
     }
 
+    /**
+     * TCK-2439 (ADR-0059 § 4) — le déplacement des biens de l'orphelin s'écrit journal du modèle coupé : une entrée `updated`
+     * qui porte `user_id` serait relue par `properties:repair-reassigned-owners` comme une réattribution, et le bien listé
+     * `original_missing` (A est supprimé). Le déplacement est journalisé sous `radar_orphan_absorbed`, et là seulement.
+     */
+    public function test_le_deplacement_des_biens_de_l_orphelin_n_est_pas_lu_comme_une_reattribution(): void
+    {
+        [, , $bien] = $this->publiePourLui();
+        $titulaire = User::factory()->create(['phone' => self::NUMERO, 'phone_verified_at' => now()]);
+        $nouvelle = $this->annonce();
+        Sanctum::actingAs($titulaire);
+
+        $this->demanderLeCode()->assertStatus(202);
+        $this->confirmer([['id' => $nouvelle->id]])->assertOk()->assertJsonPath('claim.moved_property_ids', [$bien->id]);
+
+        $this->assertSame($titulaire->id, $bien->fresh()->user_id);
+        $this->assertSame(0, Activity::query()->where('subject_type', Property::class)->where('subject_id', $bien->id)->where('event', 'updated')->count());
+        $this->artisan('properties:repair-reassigned-owners', ['--dry-run' => true])
+            ->doesntExpectOutputToContain("property={$bien->id}")
+            ->expectsOutputToContain('owners_to_review=0')
+            ->assertSuccessful();
+    }
+
     /** @return array<string, array{\Closure(User, Agency): void}> */
     public static function comptesRadarQuiOntServi(): array
     {

@@ -477,7 +477,9 @@ final class RadarClaims
             ->all();
 
         foreach (Property::query()->whereIn('id', $ids)->get() as $property) {
-            $property->forceFill(['agency_id' => $agency->id, 'user_id' => $user->id])->save();
+            // ADR-0059 § 4 (TCK-2439) : journal du modèle coupé — un `updated` portant `user_id` serait relu par
+            // `properties:repair-reassigned-owners` comme une réattribution. Le déplacement se journalise plus bas.
+            $property->disableLogging()->forceFill(['agency_id' => $agency->id, 'user_id' => $user->id])->save();
         }
 
         $leads = DB::table('property_contact_leads')->where(fn ($query) => $query->whereIn('property_id', $ids)->orWhereIn('agency_id', $spaces));
