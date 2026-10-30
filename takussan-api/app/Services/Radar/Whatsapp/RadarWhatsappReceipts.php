@@ -140,8 +140,9 @@ final class RadarWhatsappReceipts
 
     /**
      * TCK-2436 — l'envoi sans identifiant que désigne EXACTEMENT ce jeton, ou null : il doit être de cet annonceur,
-     * adressé à son numéro (un annonceur purgé n'en a plus), et l'identifiant de Meta libre. Un envoi par l'API sans
-     * identifiant est toujours `ambiguous` : le jeton n'est écrit qu'avec les colonnes du canal.
+     * adressé à son numéro (un annonceur purgé n'en a plus), envoyé par l'API (un jeton resté sur une ligne préparée,
+     * refusée ou envoyée à la main n'apparie rien), et l'identifiant de Meta libre. Un envoi par l'API, envoyé, sans
+     * identifiant, est toujours `ambiguous`.
      *
      * @param  array<string, mixed>  $status
      */
