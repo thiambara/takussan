@@ -70,6 +70,8 @@ export interface RadarObservatory {
  * sont des « annonceurs-jours » : sans identifiant, un annonceur présent dix jours compte dix fois.
  */
 export interface RadarNatureHistory {
+  /** `radar.nature_counts.enabled` : éteint par défaut, rien ne s'écrit tant que le porteur ne l'allume pas. */
+  readonly enabled: boolean;
   readonly days: number;
   /** `YYYY-MM-DD`, jour de Dakar ; null sans aucun jour compté. */
   readonly first_day: string | null;

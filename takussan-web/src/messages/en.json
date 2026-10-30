@@ -9377,7 +9377,11 @@
               "empty": "No day counted in this period",
               "emptyHint": "The count is frozen every night, just before the purge.",
               "span": "{days, plural, one {# day counted} other {# days counted}}, from {from} to {to}",
-              "counts": "{advertisers, plural, one {# advertiser-day} other {# advertiser-days}} · {listings, plural, one {# listing-day} other {# listing-days}}"
+              "counts": "{advertisers, plural, one {# advertiser-day} other {# advertiser-days}} · {listings, plural, one {# listing-day} other {# listing-days}}",
+              "disabled": "Counting is not enabled",
+              "disabledHint": "It stays off until the legal opinion: the difference between two days could reveal the type of an advertiser who asked not to be contacted again.",
+              "disabledSince": "Counting is off: no more days are added.",
+              "zeroAdvertisers": "Days counted, no advertiser"
             }
           }
         },

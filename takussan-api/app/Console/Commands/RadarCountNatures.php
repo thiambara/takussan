@@ -17,6 +17,11 @@ class RadarCountNatures extends Command
 
     public function handle(RadarNatureCounter $counter): int
     {
+        if (! RadarNatureCounter::enabled()) {
+            $this->info('radar:count-natures — comptage éteint (radar.nature_counts.enabled), rien d\'écrit.');
+
+            return self::SUCCESS;
+        }
         $written = $counter->record();
 
         $this->info("radar:count-natures — {$written} ligne(s) écrite(s).");

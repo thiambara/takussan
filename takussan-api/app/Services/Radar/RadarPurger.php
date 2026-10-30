@@ -75,9 +75,15 @@ final class RadarPurger
         $counts = array_fill_keys(self::COUNTERS, 0);
 
         // TCK-2431 — le compteur anonyme du jour, AVANT d'effacer : planifié à part (`radar:count-natures`), il est posé ici si
-        // ce passage a manqué. Idempotent : déjà écrit, il ne change rien.
+        // ce passage a manqué. Idempotent : déjà écrit, il ne change rien ; éteint par défaut, il n'écrit rien. Une panne du
+        // compteur ne fait JAMAIS tomber la purge légale : signalée, puis la purge continue. Sa propre transaction (un point de
+        // sauvegarde si un appelant en tient une) : une erreur SQL n'abandonne qu'elle, jamais la transaction englobante.
         if ($advertiserId === null) {
-            $this->natureCounter->record($now);
+            try {
+                DB::transaction(fn () => $this->natureCounter->record($now));
+            } catch (\Throwable $e) {
+                report($e);
+            }
         }
 
         $this->purgeListings($advertiserId, $now, $counts);

@@ -17,6 +17,10 @@ use Illuminate\Support\Facades\DB;
  * **Le périmètre est celui de la lecture vivante** ({@see self::live()}, que `RadarObservatory::natures()` lit aussi) :
  * annonceurs porteurs d'au moins une annonce non purgée et non doublon, et ces annonces.
  *
+ * **Éteint par défaut** (`radar.nature_counts.enabled`, `RADAR_NATURE_COUNTS`) : la différence entre deux jours, avec la date
+ * du STOP gardée, rend la nature présumée d'un annonceur qui a dit STOP (vérification adverse de TCK-2431). Éteint, rien ne
+ * s'écrit ; le porteur l'allume après l'avis juridique de TCK-2434.
+ *
  * **Idempotent** : `insertOrIgnore` sur (jour, nature). Une écriture rejouée le même jour ne double rien et garde le PREMIER
  * compte — celui d'avant la purge, même si `radar:count-natures` est relancé après elle.
  */
@@ -25,9 +29,18 @@ final class RadarNatureCounter
     /** Le fuseau du jour compté : celui du planificateur. */
     public const TIMEZONE = 'Africa/Dakar';
 
-    /** @return int les lignes écrites (4 la première fois du jour, 0 ensuite) */
+    public static function enabled(): bool
+    {
+        return config('radar.nature_counts.enabled') === true;
+    }
+
+    /** @return int les lignes écrites (4 la première fois du jour, 0 ensuite, 0 toujours si le comptage est éteint) */
     public function record(?CarbonInterface $now = null): int
     {
+        if (! self::enabled()) {
+            return 0;
+        }
+
         $day = ($now ?? now())->copy()->setTimezone(self::TIMEZONE)->toDateString();
         $live = self::live();
 

@@ -243,9 +243,10 @@ final class RadarObservatory
      * La part par nature sur une période, depuis les compteurs anonymes quotidiens (TCK-2431) : par nature, la somme des
      * annonceurs comptés chaque jour (des « annonceurs-jours » : sans identifiant, un annonceur présent dix jours compte dix
      * fois) et celle des annonces. `since` et `until` bornent les jours (inclus) ; `days` dit combien de jours ont été comptés.
+     * `enabled` dit si le comptage est allumé (`radar.nature_counts.enabled`, éteint par défaut) : l'écran le dit.
      *
      * @param  array<string, mixed>  $filters
-     * @return array{days: int, first_day: string|null, last_day: string|null, advertisers: array<string, int>, listings: array<string, int>}
+     * @return array{enabled: bool, days: int, first_day: string|null, last_day: string|null, advertisers: array<string, int>, listings: array<string, int>}
      */
     private function natureHistory(array $filters): array
     {
@@ -263,6 +264,7 @@ final class RadarObservatory
         }
 
         return [
+            'enabled' => RadarNatureCounter::enabled(),
             'days' => (int) $span->days,
             'first_day' => $span->first_day === null ? null : Carbon::parse($span->first_day)->toDateString(),
             'last_day' => $span->last_day === null ? null : Carbon::parse($span->last_day)->toDateString(),

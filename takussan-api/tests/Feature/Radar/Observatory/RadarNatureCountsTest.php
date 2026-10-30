@@ -12,7 +12,9 @@ use App\Services\Radar\Observatory\RadarNatureCounter;
 use App\Services\Radar\Observatory\RadarObservatory;
 use App\Support\RadarPhone;
 use Illuminate\Console\Scheduling\Schedule;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Exceptions;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Schema;
 use Tests\Support\OperateursPlateforme;
@@ -35,6 +37,8 @@ class RadarNatureCountsTest extends TestCase
         Queue::fake();
         $this->freezeTime();
         $this->travelTo('2026-10-01 10:00:00');
+        // Éteint par défaut (avis juridique de TCK-2434) : ces tests décrivent le comptage ALLUMÉ, sauf ceux qui l'éteignent.
+        config(['radar.nature_counts.enabled' => true]);
     }
 
     /** Un annonceur de cette nature, porteur de `$annonces` annonces jamais publiées (échéance de purge : 90 jours). */
@@ -112,6 +116,64 @@ class RadarNatureCountsTest extends TestCase
         $this->assertSame(1, RadarNatureCount::query()->whereDate('day', '2027-01-05')->where('nature', 'agency')->value('advertisers'));
         $this->assertSame(2, RadarNatureCount::query()->whereDate('day', '2027-01-05')->where('nature', 'agency')->value('listings'));
         $this->assertSame(2, RadarListing::query()->where('stage', RadarListingStage::Purged)->count());
+    }
+
+    /**
+     * Éteint par défaut : ni la commande ni la purge n'écrivent une ligne, et l'observatoire dit que le comptage est éteint.
+     * La différence entre deux jours, avec la date du STOP gardée, rend la nature d'un annonceur qui a dit STOP : le porteur
+     * ne l'allume qu'après l'avis juridique de TCK-2434.
+     */
+    public function test_eteint_par_defaut_rien_ne_s_ecrit(): void
+    {
+        // Le défaut du fichier de configuration, variable d'environnement ABSENTE (un `.env` qui la déclare ne prouve rien).
+        $sauve = [$_ENV['RADAR_NATURE_COUNTS'] ?? null, $_SERVER['RADAR_NATURE_COUNTS'] ?? null, getenv('RADAR_NATURE_COUNTS')];
+        unset($_ENV['RADAR_NATURE_COUNTS'], $_SERVER['RADAR_NATURE_COUNTS']);
+        putenv('RADAR_NATURE_COUNTS');
+        try {
+            $defaut = (require config_path('radar.php'))['nature_counts']['enabled'];
+        } finally {
+            [$env, $server, $getenv] = $sauve;
+            if ($env !== null) {
+                $_ENV['RADAR_NATURE_COUNTS'] = $env;
+            }
+            if ($server !== null) {
+                $_SERVER['RADAR_NATURE_COUNTS'] = $server;
+            }
+            if ($getenv !== false) {
+                putenv('RADAR_NATURE_COUNTS='.$getenv);
+            }
+        }
+        $this->assertFalse($defaut);
+        config(['radar.nature_counts.enabled' => $defaut]);
+        $this->annonceur(RadarAdvertiserNature::ProbableIntermediary, 2);
+
+        $this->artisan('radar:count-natures')->assertSuccessful();
+        $this->travelTo('2027-01-05 04:15:00');
+        $this->artisan('radar:purge')->assertSuccessful();
+
+        $this->assertSame(0, RadarNatureCount::query()->count());
+        $this->assertSame(2, RadarListing::query()->where('stage', RadarListingStage::Purged)->count());
+        $this->assertFalse($this->historique()['enabled']);
+        config(['radar.nature_counts.enabled' => true]);
+        $this->assertTrue($this->historique()['enabled']);
+    }
+
+    /**
+     * Une panne du compteur ne fait jamais tomber la purge légale : elle est signalée, puis la purge efface. La panne est réelle
+     * (table absente, comme après un déploiement partiel) : une erreur SQL, qui sans point de sauvegarde abandonnerait aussi la
+     * transaction englobante.
+     */
+    public function test_une_panne_du_compteur_ne_bloque_pas_la_purge(): void
+    {
+        Exceptions::fake();
+        $this->annonceur(RadarAdvertiserNature::Agency, 2);
+        Schema::drop('radar_nature_counts');
+
+        $this->travelTo('2027-01-05 04:15:00');
+        $this->artisan('radar:purge')->assertSuccessful();
+
+        $this->assertSame(2, RadarListing::query()->where('stage', RadarListingStage::Purged)->count());
+        Exceptions::assertReported(fn (QueryException $e) => str_contains($e->getMessage(), 'radar_nature_counts'));
     }
 
     /** Le planificateur compte avant de purger, à l'heure de Dakar, sans chevauchement. */

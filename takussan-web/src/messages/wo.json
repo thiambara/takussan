@@ -8723,7 +8723,11 @@
               "empty": "Aucun jour compté sur cette période",
               "emptyHint": "Le compte se fige chaque nuit, juste avant la purge.",
               "span": "{days, plural, one {# jour compté} other {# jours comptés}}, du {from} au {to}",
-              "counts": "{advertisers, plural, one {# annonceur-jour} other {# annonceurs-jours}} · {listings, plural, one {# annonce-jour} other {# annonces-jours}}"
+              "counts": "{advertisers, plural, one {# annonceur-jour} other {# annonceurs-jours}} · {listings, plural, one {# annonce-jour} other {# annonces-jours}}",
+              "disabled": "Le comptage n’est pas activé",
+              "disabledHint": "Il reste éteint jusqu’à l’avis juridique : la différence entre deux jours pourrait révéler la nature d’un annonceur qui a demandé à ne plus être contacté.",
+              "disabledSince": "Le comptage est éteint : plus aucun jour ne s’ajoute.",
+              "zeroAdvertisers": "Jours comptés, aucun annonceur"
             }
           }
         },

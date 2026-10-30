@@ -89,8 +89,15 @@ purgée et non doublon, et le nombre de ces annonces — la définition de la se
 
 - **Avant la purge** : `radar:count-natures` à 04:13, `radar:purge` à 04:15, et la purge pose le compte elle-même en
   premier si le passage a manqué. `insertOrIgnore` sur (jour, nature) : une écriture rejouée garde le premier compte.
-- **Anonyme par construction** : ni identifiant, ni lieu, ni prix, ni site, ni horodatation de ligne ; jamais purgée.
-  Une colonne de plus (site, ville) se décide avec [TCK-2434](../backlog/tickets/TCK-2434-radar-compteurs-anonymes-de-marche.md),
-  avis juridique et seuil k compris.
+- **Sans clé, pas anonyme pour autant** : ni identifiant, ni lieu, ni prix, ni site, ni horodatation de ligne ; jamais
+  purgée. Une ligne seule ne nomme personne, mais **la différence entre deux jours** rend la nature présumée d'un annonceur
+  qui a dit STOP : le compte de J l'incluait, celui de J+1 non, et `do_not_contact_at` (gardé) donne le jour ; de même pour
+  un annonceur lié à un compte, par les dates des fiches purgées. Un seuil k ne la ferme pas ; un grain plus gros (la
+  semaine), un arrondi ou un bruit le pourraient, au prix de la justesse — à trancher avec l'avis juridique de
+  [TCK-2434](../backlog/tickets/TCK-2434-radar-compteurs-anonymes-de-marche.md), qui décide aussi de toute colonne de plus
+  (site, ville).
+- **Éteint par défaut** (`radar.nature_counts.enabled`, `RADAR_NATURE_COUNTS=false`) : ni la commande ni la purge
+  n'écrivent rien, et l'observatoire le dit. Le porteur ne l'allume qu'après l'avis juridique. Une panne du compteur ne
+  fait jamais tomber la purge : signalée (`report()`), puis la purge continue.
 - **La part d'une période se lit en annonceurs-jours** (section `nature_history`, `filter[since|until]`) : sans
   identifiant, les jours ne se dédoublonnent pas, et un annonceur présent dix jours compte dix fois.

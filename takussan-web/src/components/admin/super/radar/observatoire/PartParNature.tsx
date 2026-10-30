@@ -46,6 +46,16 @@ export function PartParNature() {
   });
   const historique = requete.data?.data.nature_history;
   const total = historique ? RADAR_ADVERTISER_NATURES.reduce((somme, n) => somme + (historique.advertisers[n] ?? 0), 0) : 0;
+  const etendue = historique
+    ? t('span', { days: historique.days, from: fmt.date(historique.first_day), to: fmt.date(historique.last_day) })
+    : '';
+  // Trois vides distincts : comptage éteint (rien ne s'écrit, avis juridique attendu), aucun jour compté sur la période, et
+  // des jours comptés sans aucun annonceur (le démarrage du Radar) — ce dernier n'est pas « aucun jour ».
+  const etatVide = !historique || historique.days === 0
+    ? historique?.enabled === false
+      ? <EmptyState title={t('disabled')} description={t('disabledHint')} />
+      : <EmptyState title={t('empty')} description={t('emptyHint')} />
+    : <EmptyState title={t('zeroAdvertisers')} description={etendue} />;
 
   return (
     <div className="space-y-4">
@@ -79,14 +89,13 @@ export function PartParNature() {
         onRetry={() => void requete.refetch()}
         retryLabel={tCommon('actions.retry')}
         isEmpty={!historique || historique.days === 0 || total === 0}
-        emptyState={<EmptyState title={t('empty')} description={t('emptyHint')} />}
+        emptyState={etatVide}
         skeletonRows={4}
       >
         {historique ? (
           <div className="space-y-3">
-            <p className="text-sm text-muted-foreground">
-              {t('span', { days: historique.days, from: fmt.date(historique.first_day), to: fmt.date(historique.last_day) })}
-            </p>
+            <p className="text-sm text-muted-foreground">{etendue}</p>
+            {historique.enabled ? null : <p className="text-sm text-muted-foreground">{t('disabledSince')}</p>}
             <ul className="space-y-3">
               {RADAR_ADVERTISER_NATURES.map((n) => {
                 const annonceurs = historique.advertisers[n] ?? 0;

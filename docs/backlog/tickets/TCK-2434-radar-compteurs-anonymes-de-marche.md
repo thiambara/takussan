@@ -53,9 +53,24 @@ ADR-0077 § 9 ne laisse subsister que « des compteurs anonymes ». Ce ticket le
 - [ ] AC3 — L'observatoire (TCK-2393) lit les agrégats au-delà de la rétention, et les instantanés en
       deçà.
 
+## Menaces
+
+- **La différence entre deux périodes** (relevée par la vérification adverse de TCK-2431, 2026-10-30, reproduite sur
+  `radar_nature_counts`). Un annonceur dit STOP le jour J ; sa ligne reste avec `do_not_contact_at` et l'empreinte HMAC,
+  ses annonces sont purgées. Le compte de J l'incluait, celui de J+1 non : la différence rend ce qui le décrivait (sa
+  nature pour TCK-2431 ; pour ce ticket, le quartier, le type, la tranche de prix de ses annonces), et `do_not_contact_at`
+  donne le jour exact. Même recoupement pour un annonceur lié à un compte, par les dates des fiches purgées. D'autres
+  mouvements le même jour brouillent le calcul ; un jour calme le rend exact.
+  - **Un seuil k ne la ferme pas** : la vérification l'a reproduite sur des cellules de 3.
+  - **Remèdes à trancher avec l'avis juridique** : un grain plus gros (la semaine, le mois), un arrondi ou un bruit sur
+    les comptes. Effacer `do_not_contact_at` jusqu'au jour seul ne suffit pas.
+  - Les compteurs par nature de TCK-2431 sont **éteints par défaut** (`RADAR_NATURE_COUNTS`) jusqu'à cet avis ; le même
+    avis dit s'ils peuvent être allumés, et sous quel remède.
+
 ## Prérequis hors code
 
-- **Avis juridique** (avocat, CDP) sur la qualification d'anonymat des agrégats et sur la valeur de k.
+- **Avis juridique** (avocat, CDP) sur la qualification d'anonymat des agrégats, sur la valeur de k, et sur le remède à
+  la différence entre deux périodes (§ Menaces), qui vaut aussi pour les compteurs par nature de TCK-2431.
 
 ## Hors périmètre
 

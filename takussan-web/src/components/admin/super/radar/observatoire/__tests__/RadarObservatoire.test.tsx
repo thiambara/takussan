@@ -47,7 +47,9 @@ const MARCHE: RadarObservatory = {
 };
 
 /** TCK-2431 — trois jours comptés avant la purge : 8 annonceurs-jours intermédiaires, 2 propriétaires. */
+let historique: RadarNatureHistory;
 const HISTORIQUE: RadarNatureHistory = {
+  enabled: true,
   days: 3,
   first_day: '2026-10-01',
   last_day: '2026-10-03',
@@ -67,12 +69,13 @@ function rendre(gestes?: PlatformAbilities) {
 
 beforeEach(() => {
   classement = [];
+  historique = HISTORIQUE;
   fetchMock = vi.fn(async (url: string) => {
     const u = new URL(String(url), 'http://localhost');
     const corps = u.pathname.endsWith('/observatory/advertisers')
       ? { data: classement, meta: { total: classement.length, per_page: 25, current_page: 1, last_page: 1 } }
       : u.searchParams.get('fields[radar_observatory]') === 'nature_history'
-        ? { data: { nature_history: HISTORIQUE }, meta: { confirm_runs: 3 } }
+        ? { data: { nature_history: historique }, meta: { confirm_runs: 3 } }
         : { data: MARCHE, meta: { confirm_runs: 3 } };
     return new Response(JSON.stringify(corps), { status: 200 });
   });
@@ -163,6 +166,27 @@ describe('L’observatoire du Radar (TCK-2393)', () => {
     await utilisateur.type(screen.getByLabelText('Au'), '2026-10-03');
 
     await waitFor(() => expect(historique().some((u) => u.searchParams.get('filter[since]') === '2026-10-02' && u.searchParams.get('filter[until]') === '2026-10-03')).toBe(true));
+  });
+
+  it('dit que le comptage par nature est éteint (défaut), distinct d’une période sans jour compté', async () => {
+    historique = { ...HISTORIQUE, enabled: false, days: 0, first_day: null, last_day: null, advertisers: { probable_owner: 0, probable_intermediary: 0, agency: 0, unknown: 0 } };
+    const utilisateur = rendre();
+    await screen.findByTestId('radar-classement-vide');
+    await utilisateur.click(screen.getByRole('tab', { name: 'Marché' }));
+
+    expect(await screen.findByText('Le comptage n’est pas activé')).toBeInTheDocument();
+    expect(screen.queryByText('Aucun jour compté sur cette période')).not.toBeInTheDocument();
+  });
+
+  it('des jours comptés à zéro annonceur ne se disent pas « aucun jour compté »', async () => {
+    historique = { ...HISTORIQUE, advertisers: { probable_owner: 0, probable_intermediary: 0, agency: 0, unknown: 0 } };
+    const utilisateur = rendre();
+    await screen.findByTestId('radar-classement-vide');
+    await utilisateur.click(screen.getByRole('tab', { name: 'Marché' }));
+
+    expect(await screen.findByText('Jours comptés, aucun annonceur')).toBeInTheDocument();
+    expect(screen.getByText(/3 jours comptés, du/)).toBeInTheDocument();
+    expect(screen.queryByText('Aucun jour compté sur cette période')).not.toBeInTheDocument();
   });
 
   it('sans le geste du Radar, un refus et aucun appel', () => {
