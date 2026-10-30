@@ -132,6 +132,15 @@ final class AiGateway
             }
 
             $structured = $response instanceof StructuredAgentResponse ? $response->toArray() : null;
+            // TCK-2433 — un agent non strict choisit librement d'appeler l'outil de sortie (`tool_choice`
+            // `auto`) : une réponse qui n'en rend rien (ni appel d'outil, ni JSON dans le texte) est
+            // inexploitable, payée, et le maillon a échoué.
+            if (! $agent->usesStrictSchema() && $response instanceof StructuredAgentResponse && $structured === []) {
+                $this->journal($usage, $request, $spent + ['outcome' => AiCallOutcome::FailedOver, 'error_code' => 'ai.response_invalid']);
+                $last = new AiUnavailable('ai.response_invalid');
+
+                continue;
+            }
             $call = $this->journal($usage, $request, $spent + ['outcome' => AiCallOutcome::Success]);
             if ($cacheable) {
                 $this->cachePut($usage, $cacheKey, [

@@ -10,6 +10,7 @@ use App\Models\Enums\AiDataClass;
 use App\Services\Ai\AiGateway;
 use App\Services\Ai\AiRequest;
 use App\Services\Ai\AiUsageRegistry;
+use App\Services\Ai\Exceptions\AiUnavailable;
 use App\Services\Ai\ExternalContent;
 use App\Services\Ai\ModelLink;
 use App\Services\Ai\PromptRepository;
@@ -22,8 +23,10 @@ use Tests\TestCase;
 /**
  * TCK-2433 — Anthropic refuse la grammaire compilée du schéma strict de `radar.extraction` (« The
  * compiled grammar is too large », HTTP 400, après TCK-2411). L'agent quitte la sortie structurée
- * stricte (`output_config.format`) pour l'outil forcé non strict de laravel/ai : rien à compiler, et
- * `ExtractionNormalizer` valide déjà chaque valeur. Les autres agents restent stricts.
+ * stricte (`output_config.format`) pour l'outil non strict de laravel/ai : rien à compiler, et
+ * `ExtractionNormalizer` valide déjà chaque valeur. L'outil n'est jamais forcé (`tool_choice` `auto`) :
+ * Sonnet 5.5 et Opus 5.5 refusent `tool` et `any`. Une réponse sans sortie est un échec du maillon.
+ * Les autres agents restent stricts.
  *
  * Éprouvé au niveau du fil, sans réseau : `Http::fake` reçoit la requête que laravel/ai enverrait.
  */
@@ -79,7 +82,8 @@ class StructuredOutputModeTest extends TestCase
         $this->assertCount(1, $this->envoyes);
         $corps = $this->envoyes[0];
         $this->assertArrayNotHasKey('output_config', $corps, 'aucune grammaire à compiler');
-        $this->assertSame(['type' => 'tool', 'name' => 'output_structured_data'], $corps['tool_choice']);
+        // Jamais forcé : Sonnet 5.5 et Opus 5.5 refusent `tool` et `any` (HTTP 400, req_011CgXdugoVPAgD4WoamUxvx).
+        $this->assertSame(['type' => 'auto'], $corps['tool_choice']);
         $this->assertSame(['output_structured_data'], array_column($corps['tools'], 'name'));
         $this->assertArrayNotHasKey('strict', $corps['tools'][0]);
         // Le schéma envoyé reste celui de l'agent, entier.
@@ -88,6 +92,31 @@ class StructuredOutputModeTest extends TestCase
         $this->assertSame($sortie, $resultat->structured);
         $this->assertSame(['anthropic', 'modele-a', AiCallOutcome::Success, 'stop'], [$resultat->call->provider, $resultat->call->model, $resultat->call->outcome, $resultat->call->stop_reason]);
         $this->assertSame(1, AiCall::query()->count());
+    }
+
+    public function test_une_extraction_rendue_en_json_dans_le_texte_est_relue(): void
+    {
+        $this->repondre(['type' => 'text', 'text' => '{"title": {"value": null, "confidence": "low", "evidence": ""}}'], 'end_turn');
+
+        $resultat = $this->lancer(RadarExtractionUsage::KEY);
+
+        $this->assertSame(['title' => ['value' => null, 'confidence' => 'low', 'evidence' => '']], $resultat->structured);
+        $this->assertSame(AiCallOutcome::Success, $resultat->call->outcome);
+    }
+
+    public function test_une_reponse_sans_sortie_est_un_echec_du_maillon(): void
+    {
+        $this->repondre(['type' => 'text', 'text' => 'Voici les informations de l\'annonce.'], 'end_turn');
+
+        try {
+            $this->lancer(RadarExtractionUsage::KEY);
+            $this->fail('une réponse sans sortie structurée ne doit pas réussir');
+        } catch (AiUnavailable $e) {
+            $this->assertSame('ai.providers_unavailable', $e->getMessage());
+            $this->assertSame('ai.response_invalid', $e->getPrevious()?->getMessage());
+        }
+        $appel = AiCall::query()->sole();
+        $this->assertSame([AiCallOutcome::FailedOver, 'ai.response_invalid', 100], [$appel->outcome, $appel->error_code, $appel->input_tokens]);
     }
 
     public function test_un_agent_strict_garde_la_sortie_structuree_native(): void
@@ -99,6 +128,7 @@ class StructuredOutputModeTest extends TestCase
         $corps = $this->envoyes[0];
         $this->assertSame('json_schema', $corps['output_config']['format']['type']);
         $this->assertArrayNotHasKey('tools', $corps);
+        $this->assertArrayNotHasKey('tool_choice', $corps);
         $this->assertSame(['classification' => 'consent'], $resultat->structured);
         $this->assertSame('anthropic', $resultat->call->provider);
     }
