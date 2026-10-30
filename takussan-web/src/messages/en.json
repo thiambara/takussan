@@ -9513,7 +9513,7 @@
             "publishing": "Publishing…",
             "mandateTitle": "Publish under mandate for {name}?",
             "mandateTitleUnnamed": "Publish under mandate for this advertiser?",
-            "mandateBody": "No account is created: the listings are created in the Takussan space. The phone number and WhatsApp shown are the advertiser’s; requests left through the form go to Takussan, which forwards them. It cannot be undone in one click.",
+            "mandateBody": "No account is created: the listings are created in the Takussan space. The phone number and WhatsApp shown are the advertiser’s; requests left through the form go to Takussan, which forwards them. It cannot be undone in one click; the advertiser can later take their listings back into their own space by verifying their number.",
             "mandateSummary": "No account, {biens, plural, one {# property published} other {# properties published}} in the “{space}” space with {photos, plural, =0 {no photo} one {# photo} other {# photos}}."
           },
           "recap": {
@@ -9536,7 +9536,8 @@
               "copy": "Copy the message",
               "copied": "Message copied.",
               "copyFailed": "Copying failed: select the text by hand.",
-              "hintMandate": "A fixed text: it carries the public links and the STOP line, without an activation link. Send it as is."
+              "hintMandate": "A fixed text: it carries the public links and the STOP line, without an activation link. Send it as is.",
+              "hintMandateTakeBack": "A fixed text: it carries the public links, the link through which the advertiser takes their listings back into their own space with an SMS code, and the STOP line. Send it as is."
             },
             "mandatePublished": "Published under mandate in the “{space}” space: no account was created."
           },
@@ -9584,7 +9585,8 @@
             "bodyNoSpace": "The advertiser agreed but does not want an account: Takussan can publish their listings in its own space, once it is set in the platform settings (“Radar mandate space”).",
             "already": "Already published under mandate since {date}.",
             "blocking": "Publishing under mandate is not possible:",
-            "cta": "{count, plural, =0 {Publish under mandate} one {Publish # listing under mandate} other {Publish # listings under mandate}}"
+            "cta": "{count, plural, =0 {Publish under mandate} one {Publish # listing under mandate} other {Publish # listings under mandate}}",
+            "takenBack": "Taken back by the advertiser into their own space on {date}: the publication under mandate is closed."
           }
         },
         "crawlLink": "Collection",
@@ -12686,9 +12688,17 @@
       "nameContainsPhone": "The first name and the space name cannot contain a phone number.",
       "firstNameContainsPhone": "Your first name cannot contain a phone number.",
       "spaceNameContainsPhone": "Your space name cannot contain a phone number.",
-      "underMandate": "Your listings are already published by Takussan on your behalf: write to us to move them into your own space."
+      "underMandate": "Your listings are published by Takussan on your behalf again: reload the page to take them back into your own space.",
+      "mandateSupportRequired": "Your listings published by Takussan cannot be taken back from this page: write to us and we will move them into your space."
     },
     "awaitingReviewTitle": "Awaiting review",
-    "awaitingReviewHint": "Our team still needs to check them before putting them online: they are not visible yet."
+    "awaitingReviewHint": "Our team still needs to check them before putting them online: they are not visible yet.",
+    "introMandate": "Takussan currently publishes your listings on your behalf. You can take them back into your own space: confirm with the code sent by SMS to {phone}.",
+    "mandateTitle": "Your listings published by Takussan",
+    "mandateBody": "{count, plural, one {Takussan publishes # listing on your behalf.} other {Takussan publishes # listings on your behalf.}} By confirming with the code, you take them back into your own space: they stay online, with their views and the requests already received, and you manage them yourself.",
+    "mandateSupportTitle": "Your listings cannot be taken back here",
+    "mandateSupportBody": "Write to us at {email}: we will move your listings into your own space.",
+    "confirmTakeBack": "{count, plural, =0 {Take back my listings} one {Take back my listings and publish the new one} other {Take back my listings and publish the # new ones}}",
+    "doneTakeBack": "{count, plural, one {Your listing is now in your space “{space}”, still online.} other {Your # listings are now in your space “{space}”, still online.}}"
   }
 }

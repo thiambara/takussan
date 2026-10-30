@@ -15,7 +15,7 @@ import { codeApercu } from '@/lib/otp-preview';
  * L'API ne rend jamais le numéro en clair (`phone_masked`), ni rien du Radar (nature, source,
  * verdict) : la page n'en reçoit pas, elle ne peut pas en afficher.
  */
-export type RadarClaimAccountState = 'new' | 'activation' | 'existing' | 'unavailable' | 'support';
+export type RadarClaimAccountState = 'new' | 'activation' | 'existing' | 'unavailable' | 'support' | 'mandate_support';
 
 export interface RadarClaimListing {
   readonly id: number;
@@ -52,6 +52,11 @@ export interface RadarClaim {
   readonly awaiting_review: readonly RadarClaimListing[];
   readonly published: readonly { readonly title: string | null; readonly public_url: string }[];
   readonly terms_version: string;
+  /**
+   * TCK-2421 (ADR-0079) — sous mandat : Takussan diffuse ses biens pour son compte, et le code les lui fait reprendre dans son
+   * espace (la confirmation n'exige alors aucune annonce à publier). `null` hors mandat.
+   */
+  readonly mandate: { readonly properties_count: number } | null;
 }
 
 export interface RadarClaimCodeRequest {
@@ -84,6 +89,8 @@ export interface RadarClaimResult {
     readonly agency: { readonly id: number; readonly name: string };
     readonly listing_ids: readonly number[];
     readonly declined_ids: readonly number[];
+    /** TCK-2421 — les biens sous mandat repris dans son espace. */
+    readonly taken_back_property_ids: readonly number[];
   };
   /** Présente quand le code vient d'ouvrir la session (compte neuf ou compte du Radar). */
   readonly session: AuthResponse | null;

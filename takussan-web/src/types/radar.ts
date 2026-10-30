@@ -653,8 +653,10 @@ export interface RadarPublicationPreview {
     readonly display_name: string | null;
     readonly nature: RadarAdvertiserNature;
     readonly do_not_contact_at: string | null;
-    /** TCK-2394 (ADR-0079) — la première publication sous mandat ; `null` : jamais publié sous mandat. */
+    /** TCK-2394 (ADR-0079) — la première publication de la période de mandat ; `null` : jamais publié sous mandat. */
     readonly mandate_at: string | null;
+    /** TCK-2421 — repris par l'annonceur dans son espace : la période de mandat est close (`mandate_at` en reste la trace). */
+    readonly mandate_taken_back_at: string | null;
   };
   readonly account: RadarPublicationAccount;
   readonly listings: readonly RadarPublicationListing[];

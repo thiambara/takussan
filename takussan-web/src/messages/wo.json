@@ -8859,7 +8859,7 @@
             "publishing": "Publication…",
             "mandateTitle": "Publier sous mandat pour {name} ?",
             "mandateTitleUnnamed": "Publier sous mandat pour cet annonceur ?",
-            "mandateBody": "Aucun compte n’est créé : les annonces naissent dans l’espace Takussan. Le téléphone et le WhatsApp affichés sont ceux de l’annonceur ; les demandes par formulaire arrivent à Takussan, qui les lui transmet. Elle ne se défait pas d’un clic.",
+            "mandateBody": "Aucun compte n’est créé : les annonces naissent dans l’espace Takussan. Le téléphone et le WhatsApp affichés sont ceux de l’annonceur ; les demandes par formulaire arrivent à Takussan, qui les lui transmet. Elle ne se défait pas d’un clic ; l’annonceur peut ensuite reprendre ses annonces dans son propre espace en vérifiant son numéro.",
             "mandateSummary": "Aucun compte, {biens, plural, one {# bien publié} other {# biens publiés}} dans l’espace « {space} » avec {photos, plural, =0 {aucune photo} one {# photo} other {# photos}}."
           },
           "recap": {
@@ -8882,7 +8882,8 @@
               "copy": "Copier le message",
               "copied": "Message copié.",
               "copyFailed": "La copie a échoué : sélectionnez le texte à la main.",
-              "hintMandate": "Un texte fixe : il porte les liens publics et la ligne STOP, sans lien d’activation. Envoyez-le tel quel."
+              "hintMandate": "Un texte fixe : il porte les liens publics et la ligne STOP, sans lien d’activation. Envoyez-le tel quel.",
+              "hintMandateTakeBack": "Un texte fixe : il porte les liens publics, le lien par lequel l’annonceur reprend ses annonces dans son propre espace avec un code SMS, et la ligne STOP. Envoyez-le tel quel."
             },
             "mandatePublished": "Publié sous mandat dans l’espace « {space} » : aucun compte n’a été créé."
           },
@@ -8930,7 +8931,8 @@
             "bodyNoSpace": "L’annonceur a donné son accord mais ne veut pas de compte : Takussan peut publier ses annonces dans son propre espace, une fois celui-ci désigné dans les paramètres de la plateforme (« Espace des mandats du Radar »).",
             "already": "Déjà publié sous mandat depuis le {date}.",
             "blocking": "La publication sous mandat est impossible :",
-            "cta": "{count, plural, =0 {Publier sous mandat} one {Publier # annonce sous mandat} other {Publier # annonces sous mandat}}"
+            "cta": "{count, plural, =0 {Publier sous mandat} one {Publier # annonce sous mandat} other {Publier # annonces sous mandat}}",
+            "takenBack": "Repris par l’annonceur dans son propre espace le {date} : la publication sous mandat est close."
           }
         },
         "crawlLink": "Collecte",
@@ -12686,9 +12688,17 @@
       "nameContainsPhone": "Le prénom et le nom de l'espace ne peuvent pas contenir de numéro de téléphone.",
       "firstNameContainsPhone": "Votre prénom ne peut pas contenir de numéro de téléphone.",
       "spaceNameContainsPhone": "Le nom de votre espace ne peut pas contenir de numéro de téléphone.",
-      "underMandate": "Vos annonces sont déjà diffusées par Takussan pour votre compte : écrivez-nous pour les reprendre dans votre propre espace."
+      "underMandate": "Vos annonces sont de nouveau diffusées par Takussan pour votre compte : rechargez la page pour les reprendre dans votre propre espace.",
+      "mandateSupportRequired": "Vos annonces diffusées par Takussan ne peuvent pas être reprises depuis cette page : écrivez-nous, nous les déplacerons dans votre espace."
     },
     "awaitingReviewTitle": "En attente de vérification",
-    "awaitingReviewHint": "Notre équipe doit encore les vérifier avant de les mettre en ligne : elles ne sont pas encore visibles."
+    "awaitingReviewHint": "Notre équipe doit encore les vérifier avant de les mettre en ligne : elles ne sont pas encore visibles.",
+    "introMandate": "Takussan diffuse aujourd'hui vos annonces pour votre compte. Vous pouvez les reprendre dans votre propre espace : confirmez avec le code envoyé par SMS au {phone}.",
+    "mandateTitle": "Vos annonces diffusées par Takussan",
+    "mandateBody": "{count, plural, one {Takussan diffuse # annonce pour votre compte.} other {Takussan diffuse # annonces pour votre compte.}} En confirmant avec le code, vous les reprenez dans votre propre espace : elles restent en ligne, avec leurs vues et les demandes déjà reçues, et vous les gérez vous-même.",
+    "mandateSupportTitle": "Vos annonces ne peuvent pas être reprises ici",
+    "mandateSupportBody": "Écrivez-nous à {email} : nous déplacerons vos annonces dans votre propre espace.",
+    "confirmTakeBack": "{count, plural, =0 {Reprendre mes annonces} one {Reprendre mes annonces et publier la nouvelle} other {Reprendre mes annonces et publier les # nouvelles}}",
+    "doneTakeBack": "{count, plural, one {Votre annonce est maintenant dans votre espace « {space} », toujours en ligne.} other {Vos # annonces sont maintenant dans votre espace « {space} », toujours en ligne.}}"
   }
 }

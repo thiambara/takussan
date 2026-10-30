@@ -19,10 +19,12 @@ export const ERREURS_RECLAMATION_RADAR: Readonly<Record<string, string>> = {
   'radar.claim.wrong_account': 'wrongAccount',
   'radar.claim.account_changed': 'accountChanged',
   'radar.claim.support_required': 'supportRequired',
-  // TCK-2394 (ADR-0079) — un annonceur sous mandat ne réclame pas par le lien, jusqu'à TCK-2421.
+  // TCK-2394 (ADR-0079) — un mandat posé après la reprise (TCK-2421), sur un annonceur délié de son compte.
   'radar.claim.under_mandate': 'underMandate',
   // Sous le champ en cause (`fields` du corps) ; ce libellé ne sert que sans champ nommé.
   'radar.claim.name_contains_phone': 'nameContainsPhone',
+  // TCK-2421 — un bien sous mandat porte de la gestion : la reprise passe par le support.
+  'radar.claim.mandate_support_required': 'mandateSupportRequired',
 };
 
 export const REFUS_DU_CODE: Readonly<Record<string, string>> = {
