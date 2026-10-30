@@ -67,7 +67,7 @@ final class AdvertiserProvisioner
     }
 
     /**
-     * Le compte déjà rattaché est supprimé ou bloqué, ou son espace suspendu : même refus que {@see self::provision()}, pour
+     * Le compte déjà rattaché est supprimé ou bloqué, ou son espace n'est pas actif : même refus que {@see self::provision()}, pour
      * l'aperçu.
      */
     public function accountUnavailable(RadarAdvertiser $advertiser): bool
@@ -81,15 +81,19 @@ final class AdvertiserProvisioner
     }
 
     /**
-     * L'espace que `autoOnboard()` reprendrait (le premier dont il est l'administrateur principal, quel que soit son statut) est
-     * suspendu : ses écritures sont fermées (ADR-0048, `EnsureAgencyWritable`), la publication du Radar n'y entre pas.
+     * L'espace que `autoOnboard()` reprendrait (le premier dont il est l'administrateur principal, quel que soit son statut) existe
+     * et n'est pas actif : suspendu, ses écritures sont fermées (ADR-0048, `EnsureAgencyWritable`) ; inactif (« non vérifié »,
+     * administrateur effacé), ses biens ne sont pas publics (`Property::agencyIsPublic()`). La publication du Radar n'y entre
+     * pas — même règle que la réclamation et la reprise sous mandat (TCK-2421).
      */
     private function spaceSuspended(User $user): bool
     {
-        return Agency::query()
+        $space = Agency::query()
             ->where('primary_admin_id', $user->id)
             ->orderBy('id')
-            ->first()?->status === AgencyStatus::Suspended;
+            ->first(['id', 'status']);
+
+        return $space !== null && $space->status !== AgencyStatus::Active;
     }
 
     /**

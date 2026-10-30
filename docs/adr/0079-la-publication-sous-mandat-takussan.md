@@ -191,7 +191,8 @@ jusqu'à l'avis de l'avocat et la livraison de TCK-2421. Cet amendement lève la
    relire par l'avocat avec `mandat.v1`.
 7. **Un espace qui n'est pas actif refuse la reprise** — suspendu, ou inactif (« non vérifié » par le
    super-admin, administrateur effacé) —, comme la publication d'une réclamation
-   (`RadarPublisher::publishClaimed()`, qui refuse désormais aussi l'espace inactif) : ses biens y
+   (`RadarPublisher::publishClaimed()`) et « publier pour lui » (`AdvertiserProvisioner`), qui refusent
+   désormais aussi l'espace inactif — les trois portes disent la même chose : ses biens y
    quitteraient le public (`Property::agencyIsPublic()` exige `active`). Refus 409
    `radar.claim.space_suspended` à l'envoi du code, à la confirmation, et rejugé sous verrou dans la
    reprise ; les biens restent sous mandat, en ligne, jusqu'au rétablissement de l'espace.

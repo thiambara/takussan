@@ -105,7 +105,8 @@ ticket en fait une seule règle, `RadarAdvertiser::underMandate()`.
 7. **Sous mandat, une confirmation sans annonce cochée est permise** quand il y a des biens à reprendre.
    Écarté : exiger une annonce à publier.
 8. **À revoir — un espace qui n'est pas actif (suspendu ou inactif) refuse la reprise** (vérification
-   adverse I2 et N2), comme `publishClaimed()`, qui refuse désormais aussi l'espace inactif : 409
+   adverse I2 et N2), comme `publishClaimed()` et « publier pour lui » (`AdvertiserProvisioner`), qui
+   refusent désormais aussi l'espace inactif : 409
    `radar.claim.space_suspended` à l'envoi du code, à la confirmation et sous
    le verrou de la reprise ; les biens restent sous mandat, en ligne. Écarté : reprendre quand même, ce
    qui sortirait les biens du public (`Property::agencyIsPublic()`) sans que l'annonceur le voie.
