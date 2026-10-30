@@ -74,24 +74,28 @@ fixture partagé `tests/fixtures/ai/donnees-personnelles.json`.
 ## Notes d'implémentation
 
 - **Étage** : `PhoneMasker::NOT_A_FLOOR` et son miroir `PAS_UN_ETAGE`, en tête de la branche étrangère :
-  `(?!(?<=(?<!\p{L})r)\+[0-9])`, la condition exacte de `RadarPhone::FLOOR_PLUS`. Seule la branche `FOREIGN` la
-  porte : `R+221 …` n'est pas une écriture d'étage.
-- **Parité PHP/JS mesurée hors fixture**, comme TCK-2410 : 214 332 lignes distinctes des fichiers suivis (celles qui
-  portent un chiffre, ≤ 4 000 caractères), 2 090 avec au moins un numéro : 0 écart, avant comme après. Avant/après
-  côté PHP : 19 lignes changent, toutes une écriture d'étage (`R+1 …`, `R+10 …`, `R＋10 …`).
-- **Limites mesurées, acceptées** : `R+1 202 555 0123` n'est plus masqué (un numéro nord-américain écrit collé à un
-  `R` isolé) ; `R+33 6 12 34 56 78` rend `R+[TELEPHONE] 78` (le reste lu comme un numéro sénégalais libre, deux
-  chiffres laissés). Le Radar lit déjà ces textes ainsi depuis TCK-2412.
-- **Hors périmètre, mesuré** : `Immeuble RDC+1 1 250 500 750 F` et `Immeuble R + 1 1 250 500 750 F` restent masqués
-  en `RDC[TELEPHONE] F` et `R [TELEPHONE] F`, et `RadarAmountParser` n'en tire aucun prix. Suite possible, à ticketer.
+  `(?!(?<=(?<!\p{L})r)\+[0-9]{1,2}(?![0-9]))`. Un `R` isolé, le `+`, un ou deux chiffres que rien ne colle derrière.
+  C'est plus étroit que `RadarPhone::FLOOR_PLUS`, à la demande de la vérification (B1) : `R+33612345678` restait en
+  clair. Côté Radar, rétrécir `FLOOR_PLUS` ne changerait rien d'observable, parce qu'un numéro étranger n'y est pas un
+  contact et qu'un nombre collé à un `+` n'est pas un prix : il reste donc tel quel. Seule la branche `FOREIGN` porte
+  l'exemption : `R+221 …` n'est pas une écriture d'étage.
+- **Parité PHP/JS mesurée hors fixture**, comme TCK-2410 : 214 346 lignes distinctes (les fichiers suivis qui portent
+  un chiffre, ≤ 4 000 caractères, plus des cas d'étage écrits à la main), 2 102 avec au moins un numéro : 0 écart
+  après la correction de B1.
+- **Limites mesurées, acceptées** : `R+1 202 555 0123` et `R+7 912 345 67 89` ne sont plus masqués, car un indicatif
+  d'un chiffre suivi d'une espace s'écrit comme un étage. `R+33 6 12 34 56 78` rend `R+[TELEPHONE] 78`.
+- **Prix (C3)** : un nombre nu de moins de 100 (`MIN_UNMARKED`), sans monnaie, période ni multiplicateur, n'est jamais
+  **choisi**, mais il reste un candidat : la garde des fourchettes (`Prix 85 à 90 millions`), le filtre des cautions
+  (`Loyer 75, caution 150 000`) et l'ambiguïté (`Prix 85, réf 4521`) le voient, et rendent `null` comme avant. Il ne
+  quitte l'ensemble que s'il touche une plage de numéro (au plus trois séparateurs) ou s'il suit un `/` (`H24/7`).
+- **Suite** : `RDC+1` et `R + 1` restent masqués → TCK-2435.
 
 ### Décisions prises en autonomie, à revoir
 
 - **`RadarPhone::withoutFloorPlus()` reste.** Écarté : le retirer. Mesuré par ablation : `FOREIGN_PREFIX` en dépend
   encore (`Villa R+1 77 123 45 67` lirait `+1` devant le numéro, donc étranger : `RadarPhoneTest` rougit).
-- **C3 se corrige dans `RadarAmountParser`** : un nombre nu de moins de 100 (`MIN_UNMARKED`), sans monnaie, période ni
-  multiplicateur, n'est pas un montant. Écarté, côté masqueur : allonger la plage contredirait la règle « un chiffre
-  seul derrière n'est pas au numéro » (`+33 6 12 34 56 78 3 chambres`), et `H24/7` n'a rien d'un numéro. Écarté, la
-  règle étroite « un chiffre collé à une plage de numéro » : deux règles au lieu d'une, et `Joignable 7j/7, 450 000`
-  restait illisible. Effet de bord voulu : `Prix 85` rend `null` (`unparsed_amount`, l'humain tranche) au lieu de
-  85 F. Pour revenir en arrière, il suffit de passer la constante à 1.
+- **C3 se corrige dans `RadarAmountParser`, pas dans le masqueur.** Allonger la plage contredirait la règle « un
+  chiffre seul derrière n'est pas au numéro » (`+33 6 12 34 56 78 3 chambres`), et `H24/7` n'a rien d'un numéro.
+  Effet voulu : `Prix 85` rend `null` (`unparsed_amount`, l'humain tranche) au lieu de 85 F. La première version
+  retirait le petit nombre de l'ensemble des candidats, ce qui défaisait la garde des fourchettes et des cautions
+  (vérification I1, I2) : corrigé.
