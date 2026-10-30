@@ -109,6 +109,8 @@ class RadarSourceWatchTest extends TestCase
         $bien = Property::factory()->published()->create();
         $publiee = $this->annonceCollectee(['stage' => RadarListingStage::Published, 'property_id' => $bien->id], RadarSourceSite::Coinafrique);
         $this->instantane($publiee, '2026-10-20 08:00:00', '2026-10-29 09:00:00');
+        // TCK-2432 — « en ligne » ne compte que ce que la veille juge : une annonce d'un site qui a un passage complet.
+        $this->passage('2026-10-29 08:30:00', site: RadarSourceSite::Coinafrique);
         $doublon = $this->annonceCollectee(['stage' => RadarListingStage::Duplicate, 'duplicate_of_listing_id' => $publiee->id]);
         $this->instantane($doublon, '2026-10-20 08:00:00', '2026-10-28 08:05:00');
         $this->passage('2026-10-28 20:00:00');

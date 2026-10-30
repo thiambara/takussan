@@ -187,6 +187,15 @@ return [
     // 1 rend le comportement d'un seul passage ; plus haut, la détection est plus lente et plus sûre.
     'observe' => [
         'confirm_runs' => 2,
+        // TCK-2432 — le délai, en jours, laissé au titulaire d'un bien publié pour dire s'il est toujours disponible, après
+        // quoi l'équipe reçoit une PROPOSITION de retrait (`radar_withdrawal_proposed`). Jamais de retrait automatique.
+        'owner_answer_days' => 7,
+        // TCK-2432 — un site ne compte ses annonces « en ligne » (et ne retient la question au titulaire) que s'il est allumé et
+        // qu'un passage complet y a commencé depuis ce nombre de jours, ou depuis sa fréquence × `confirm_runs` si elle est
+        // plus longue. 3 jours : la fréquence par défaut (`crawl.default_frequency_minutes`, 6 h) × `confirm_runs` (2) fait
+        // 12 h ; 3 jours absorbent six passages complets manqués d'affilée. Trop court, la question part plus tôt — sans
+        // dommage ; trop long, un site éteint retient la question d'autant.
+        'online_horizon_days' => 3,
     ],
 
     // TCK-2406 (décision du porteur à prendre, avec l'avocat) — la matière collectée d'une annonce PUBLIÉE (texte brut, adresse

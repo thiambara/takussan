@@ -8,6 +8,7 @@ use App\Models\Enums\RadarListingStage;
 use App\Models\Enums\RadarSourceKind;
 use App\Models\Enums\RadarSourceSite;
 use App\Models\RadarCrawlRun;
+use App\Models\RadarCrawlSource;
 use App\Models\RadarListing;
 use App\Models\RadarListingSnapshot;
 use Carbon\CarbonInterface;
@@ -21,6 +22,9 @@ trait ConstruitLeMarche
     /** @param  array<string, mixed>  $surcharge */
     protected function passage(string $debut, bool $finDeListe = true, array $surcharge = [], RadarSourceSite $site = RadarSourceSite::ExpatDakar): RadarCrawlRun
     {
+        // TCK-2432 — un site qui passe est un site allumé (sauf à l'éteindre ensuite) : la veille ne compte « en ligne » que lui.
+        RadarCrawlSource::query()->firstOrCreate(['site' => $site->value], ['enabled' => true, 'frequency_minutes' => 360, 'max_pages' => 5]);
+
         return RadarCrawlRun::query()->create($surcharge + [
             'site' => $site,
             'trigger' => RadarCrawlTrigger::Schedule,
