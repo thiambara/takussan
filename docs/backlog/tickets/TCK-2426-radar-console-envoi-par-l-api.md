@@ -1,7 +1,7 @@
 ---
 id: TCK-2426
 title: "Radar : la console envoie un message d'accord par l'API WhatsApp et montre la réponse reçue en texte"
-status: todo
+status: doing
 phase: P3
 family: front
 estimate: S
