@@ -6,6 +6,7 @@ use App\Http\Resources\Bases\BaseResource;
 use App\Models\Enums\RadarListingStage;
 use App\Models\GeoNeighborhood;
 use App\Models\RadarAdvertiser;
+use App\Services\Radar\AdvertiserAccountRelease;
 use App\Services\Radar\RadarConsentCoverage;
 use App\Services\Radar\RadarFollowUps;
 use App\Services\Radar\RadarReviewFields;
@@ -126,6 +127,8 @@ class RadarAdvertiserResource extends BaseResource
                     'bedrooms' => $values['bedrooms'],
                     'covered_by_consent' => in_array($listing->id, $covered, true),
                     'created_at' => $this->iso($listing->created_at),
+                    // TCK-2413 — un code : pourquoi la publication de la réclamation a laissé l'annonce à l'opérateur.
+                    'stage_reason' => $listing->stage_reason,
                 ];
             })->all(),
             'outreaches' => $this->outreaches
@@ -140,6 +143,26 @@ class RadarAdvertiserResource extends BaseResource
                     ] : null)
                     ->resolve($request))
                 ->all(),
+            'account' => $this->accountPart(),
+        ];
+    }
+
+    /**
+     * TCK-2413 — le compte que le Radar a créé pour l'annonceur : supprimé, il bloque la réclamation tant que le super-admin
+     * ne l'a pas délié (`releasable`, {@see AdvertiserAccountRelease}). `null` : aucun compte rattaché.
+     *
+     * @return array{user_id: int, deleted: bool, releasable: bool}|null
+     */
+    private function accountPart(): ?array
+    {
+        if ($this->resource->user_id === null) {
+            return null;
+        }
+
+        return [
+            'user_id' => (int) $this->resource->user_id,
+            'deleted' => AdvertiserAccountRelease::deletedAccount($this->resource),
+            'releasable' => AdvertiserAccountRelease::releasable($this->resource),
         ];
     }
 }

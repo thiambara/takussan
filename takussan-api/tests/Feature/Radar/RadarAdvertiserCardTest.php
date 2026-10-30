@@ -84,7 +84,7 @@ class RadarAdvertiserCardTest extends TestCase
         $this->assertSame(
             ['id' => $lue->id, 'stage' => 'reviewed', 'source_site' => 'other', 'title' => 'Appartement 3 chambres à Mermoz', 'price' => 450000,
                 'property_type' => 'apartment', 'contract' => 'rent', 'neighborhood' => 'Ouakam', 'bedrooms' => 2,
-                'covered_by_consent' => false, 'created_at' => '2026-10-28T10:00:00+00:00'],
+                'covered_by_consent' => false, 'created_at' => '2026-10-28T10:00:00+00:00', 'stage_reason' => null],
             $data['listings'][0],
         );
 

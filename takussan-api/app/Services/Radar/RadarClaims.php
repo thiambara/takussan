@@ -101,6 +101,8 @@ final class RadarClaims
         // Ni le nom de famille ni rien du `display_name` brut : le prénom et le nom proposé de l'espace sont SANS numéro.
         [$firstName] = RadarPublisher::nameOf($advertiser);
         $isOwner = $state['state'] === self::STATE_EXISTING && $viewer !== null && $viewer->is($state['user']);
+        // TCK-2413 — le job pose un code sur ce qu'il laisse à l'opérateur ; sans code, l'annonce l'attend encore.
+        [$awaiting, $publishing] = $this->publishing($advertiser)->partition(fn (RadarListing $listing) => $listing->stage_reason !== null);
 
         return [
             'advertiser' => [
@@ -118,7 +120,10 @@ final class RadarClaims
             ],
             'listings' => $this->claimable($advertiser)->map(fn (RadarListing $listing) => $this->listingOf($listing))->values()->all(),
             // Réclamées, en attente du job : ni case ni bouton, une seconde confirmation ne les reprend pas.
-            'publishing' => $this->publishing($advertiser)->map(fn (RadarListing $listing) => $this->listingOf($listing))->values()->all(),
+            'publishing' => $publishing->map(fn (RadarListing $listing) => $this->listingOf($listing))->values()->all(),
+            // TCK-2413 — réclamées, mais la publication les a laissées à l'équipe (photo, champ, refus) : la page le dit, sans
+            // dire pourquoi (le code reste à la console).
+            'awaiting_review' => $awaiting->map(fn (RadarListing $listing) => $this->listingOf($listing))->values()->all(),
             'published' => $this->published($advertiser),
             'terms_version' => PublishReadiness::TERMS_VERSION,
         ];

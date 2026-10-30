@@ -8,6 +8,7 @@ use App\Models\Enums\RadarListingStage;
 use App\Models\RadarAdvertiser;
 use App\Models\RadarListing;
 use App\Models\User;
+use App\Services\Radar\AdvertiserProvisioner;
 use App\Services\Radar\ClaimLinks;
 use App\Services\Radar\RadarClaims;
 use App\Services\Radar\RadarPhotoReserve;
@@ -17,6 +18,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Support\Facades\Log;
+use Throwable;
 
 /**
  * TCK-2390 (ADR-0077 §3, §6) — la publication des annonces qu'un annonceur vient de réclamer ({@see RadarClaims}), dans son
@@ -35,6 +37,11 @@ use Illuminate\Support\Facades\Log;
  * indisponible, STOP entre-temps) se journalise par son code, jamais par un numéro, et n'est pas rejoué : l'état de départ
  * reste lisible par l'opérateur.
  *
+ * TCK-2413 — **ce qu'il laisse porte sa raison** dans `stage_reason` (un code : `radar.publish.no_photo`,
+ * `radar.publish.missing_field`, le code du refus, ou {@see self::FAILED} quand le job abandonne) : la page de réclamation
+ * cesse de la dire « en cours de publication », et la file `left_to_operator` de la console la montre. La publication par
+ * l'opérateur remet le motif à `null`. Rien n'est posé après un STOP ou une révocation : l'annonce s'y ferme.
+ *
  * ADR-0078 : `$timeout` + 5 s ≤ `retry_after` de `database` (90 s) ; `$failOnTimeout` faux.
  */
 final class PublishClaimedRadarListings implements ShouldQueue
@@ -46,6 +53,9 @@ final class PublishClaimedRadarListings implements ShouldQueue
 
     /** Au-delà de la fenêtre de la préparation des photos (qui finit `done`, abandon compris), plus rien n'est attendu. */
     public const WINDOW_SECONDS = PrepareRadarListingPhotos::WINDOW_SECONDS + 3600;
+
+    /** TCK-2413 — le job a abandonné (fenêtre écoulée, échec) sans pouvoir dire mieux : l'annonce revient à l'opérateur. */
+    public const FAILED = 'radar.claim.publish_failed';
 
     public int $timeout = 85;
 
@@ -82,7 +92,13 @@ final class PublishClaimedRadarListings implements ShouldQueue
         $user = User::query()->find($this->userId);
         $agency = Agency::query()->find($this->agencyId);
         // Un STOP, un accord retiré ou un numéro purgé depuis la réclamation : plus rien ne s'attend ni ne se publie (décision 2a).
-        if ($listings->isEmpty() || $advertiser === null || $user === null || $agency === null || ClaimLinks::revoked($advertiser)) {
+        if ($listings->isEmpty() || $advertiser === null || ClaimLinks::revoked($advertiser)) {
+            return;
+        }
+        // Le compte ou l'espace de la réclamation a disparu depuis : rien ne s'y publie, l'opérateur reprend.
+        if ($user === null || $agency === null) {
+            $this->leave($listings->pluck('id')->all(), AdvertiserProvisioner::ACCOUNT_UNAVAILABLE);
+
             return;
         }
 
@@ -93,6 +109,9 @@ final class PublishClaimedRadarListings implements ShouldQueue
         }
 
         $ready = $listings->filter(fn (RadarListing $listing) => $reserve->count($listing) > 0 && RadarPublisher::missingFields($listing) === []);
+        foreach ($listings->diff($ready) as $listing) {
+            $this->leave([$listing->id], $reserve->count($listing) === 0 ? 'radar.publish.no_photo' : 'radar.publish.missing_field');
+        }
 
         $max = (int) config('radar.publish.max_photos');
         $batch = [];
@@ -122,6 +141,43 @@ final class PublishClaimedRadarListings implements ShouldQueue
                 'listing_ids' => $ids,
                 'code' => $e->errorCode,
             ]);
+            $this->leave($ids, $e->errorCode);
         }
+    }
+
+    /**
+     * TCK-2413 — le job abandonne (sa fenêtre s'écoule pendant que des photos se préparent encore, ou une erreur) : ce qu'il
+     * n'a ni publié ni déjà laissé revient à l'opérateur, sauf après un STOP ou une révocation.
+     */
+    public function failed(?Throwable $exception = null): void
+    {
+        $advertiser = RadarAdvertiser::query()->find($this->advertiserId);
+        if ($advertiser === null || ClaimLinks::revoked($advertiser)) {
+            return;
+        }
+
+        $left = RadarListing::query()
+            ->whereIn('id', $this->listingIds)
+            ->where('radar_advertiser_id', $this->advertiserId)
+            ->where('stage', RadarListingStage::Consented->value)
+            ->whereNull('stage_reason')
+            ->get();
+        foreach ($left as $listing) {
+            $this->leave([$listing->id], $listing->photoPreparationStatus()['status'] === 'pending' ? 'radar.publish.photos_pending' : self::FAILED);
+        }
+    }
+
+    /**
+     * Laisse ces annonces à l'opérateur avec la raison : seulement si elles sont encore `consented` (une publication par
+     * l'opérateur entre-temps les a fait passer `published`, motif effacé).
+     *
+     * @param  list<int>  $ids
+     */
+    private function leave(array $ids, string $reason): void
+    {
+        RadarListing::query()
+            ->whereIn('id', $ids)
+            ->where('stage', RadarListingStage::Consented->value)
+            ->update(['stage_reason' => $reason]);
     }
 }

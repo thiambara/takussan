@@ -20,7 +20,7 @@ use Illuminate\Http\Response;
  */
 class RadarAdvertiserController extends Controller
 {
-    /** Les files : `filter[queue]=to_contact|awaiting|follow_up`, `filter[search]`, `filter[nature]`. */
+    /** Les files : `filter[queue]=to_contact|awaiting|follow_up|left_to_operator`, `filter[search]`, `filter[nature]`. */
     public function index(Request $request, RadarFollowUps $followUps): JsonResponse
     {
         $query = RadarAdvertiser::buildQuery(null, $request);

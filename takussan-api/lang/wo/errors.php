@@ -702,6 +702,7 @@ return [
             'busy' => 'Cet annonceur change en ce moment : réessayez dans un instant.',
             'phone_registered' => 'Ce numéro est déjà celui d\'un compte : le Radar ne publie pas dans un compte existant, seule la réclamation est proposée à son titulaire.',
             'account_unavailable' => 'Le compte rattaché à cet annonceur est supprimé ou bloqué, ou son espace est suspendu : rien n\'y est publié.',
+            'account_not_deleted' => 'Le compte rattaché à cet annonceur n\'est pas supprimé : seul un compte supprimé se délie.',
         ],
         'outreach' => [
             'locale_unsupported' => 'Cette langue n\'est pas prise en charge pour le message d\'accord.',

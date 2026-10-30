@@ -63,6 +63,10 @@ class RadarAdvertiser extends AbstractModel
                         ->whereHas('listings', fn (Builder $q) => $q->where('stage', RadarListingStage::Reviewed->value)),
                     'awaiting' => $query->whereIn('radar_advertisers.id', $followUps->awaiting()->select('radar_outreaches.radar_advertiser_id')),
                     'follow_up' => $query->whereIn('radar_advertisers.id', $followUps->due()->select('radar_outreaches.radar_advertiser_id')),
+                    // TCK-2413 — une annonce réclamée que la publication a laissée à l'opérateur : `consented`, avec le code
+                    // de la raison (`PublishClaimedRadarListings`) ; celle que le job n'a pas encore vue n'en a pas.
+                    'left_to_operator' => $query->whereNull('radar_advertisers.do_not_contact_at')
+                        ->whereHas('listings', fn (Builder $q) => $q->where('stage', RadarListingStage::Consented->value)->whereNotNull('stage_reason')),
                     default => $query->whereRaw('1 = 0'),
                 };
             })->delimiter(''),
