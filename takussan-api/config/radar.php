@@ -217,6 +217,16 @@ return [
     // Lu par `App\Services\Radar\RadarPurger`, et nulle part ailleurs.
     'purge_published_material' => false,
 
+    // TCK-2431 (ADR-0083, amendement) — les compteurs anonymes quotidiens par nature (`radar_nature_counts`). ÉTEINTS par
+    // défaut : la différence entre le compte d'un jour et celui du lendemain, avec la date du STOP gardée
+    // (`do_not_contact_at`), rend la nature présumée d'un annonceur qui a dit STOP — ce que `privacy.ts` § 6 ne promet pas
+    // (« ne subsiste qu'une empreinte »). Le porteur ne l'allume qu'après l'avis juridique de TCK-2434 (grain, arrondi ou
+    // bruit). Éteints, `radar:count-natures` et la purge n'écrivent rien ; l'observatoire le dit. Lu par
+    // `App\Services\Radar\Observatory\RadarNatureCounter`.
+    'nature_counts' => [
+        'enabled' => (bool) env('RADAR_NATURE_COUNTS', false),
+    ],
+
     // TCK-2394 (ADR-0077, lot 4) — la relance d'activation d'un compte créé pour l'annonceur
     // (`App\Services\Radar\RadarActivationReminders`, et nulle part ailleurs). Elle cite les chiffres d'une période :
     // depuis la dernière relance envoyée, sinon depuis la mise en ligne ; elle ne part qu'une fois cette période longue de

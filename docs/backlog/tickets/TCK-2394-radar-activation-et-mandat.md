@@ -78,7 +78,7 @@ diffuseur pour le compte d'un tiers, ce qui touche les conditions d'utilisation 
         aperçu des codes actif, aucun bien en ligne ; l'envoi passe au journal ;
   - [x] texte fixe versionné `resources/radar/messages/activation.v1.{fr,en}.md`, jamais généré ;
   - [x] panneau « Relance d'activation » sur la fiche annonceur.
-- [x] **ADR-0079 du mandat** (Proposé), puis sa mise en œuvre derrière le drapeau :
+- [x] **ADR-0079 du mandat** (Proposé, accepté sur le principe le 2026-10-30), puis sa mise en œuvre derrière le drapeau :
   - [x] publication sous mandat dans l'espace désigné, sans compte créé, numéro de l'annonceur en
         contact, mêmes gardes que « publier pour lui » (accord relu sous verrou, étape, photos,
         champs, plafond, quota de l'espace, STOP, prise en charge) ;
