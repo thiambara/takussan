@@ -14,13 +14,17 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  *
  * **Détaché à la purge** de son annonce (`RadarPurger`, ADR-0080) : `radar_listing_id`, `title_fingerprint` et
  * `neighborhood_label` passent à null. Un instantané sans annonce est une observation de marché anonyme.
+ *
+ * TCK-2393 (ADR-0083 §2) — la purge n'en laisse qu'UN par annonce (le dernier, étendu à toute la présence), aucun pour le
+ * doublon d'une autre annonce, et y recopie l'état de marché que l'observatoire lisait sur l'annonce :
+ * `detached_gone_at` (disparition constatée) et `detached_in_catalog` (doublon d'un bien du catalogue).
  */
 class RadarListingSnapshot extends AbstractModel
 {
     protected $fillable = [
         'radar_listing_id', 'crawl_run_id', 'price', 'rent_period', 'contract', 'property_type', 'surface_m2',
         'bedrooms', 'neighborhood_label', 'geo_neighborhood_id', 'city', 'title_fingerprint', 'first_seen_at',
-        'last_seen_at', 'observations',
+        'last_seen_at', 'observations', 'detached_gone_at', 'detached_in_catalog',
     ];
 
     protected $casts = [
@@ -31,12 +35,14 @@ class RadarListingSnapshot extends AbstractModel
         'observations' => 'integer',
         'first_seen_at' => 'datetime',
         'last_seen_at' => 'datetime',
+        'detached_gone_at' => 'datetime',
+        'detached_in_catalog' => 'boolean',
     ];
 
     protected static array $queryFields = [
         'id', 'radar_listing_id', 'crawl_run_id', 'price', 'rent_period', 'contract', 'property_type', 'surface_m2',
         'bedrooms', 'neighborhood_label', 'geo_neighborhood_id', 'city', 'first_seen_at', 'last_seen_at', 'observations',
-        'created_at', 'updated_at',
+        'detached_gone_at', 'detached_in_catalog', 'created_at', 'updated_at',
     ];
 
     public function listing(): BelongsTo

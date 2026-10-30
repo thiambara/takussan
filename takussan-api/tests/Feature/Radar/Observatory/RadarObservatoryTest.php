@@ -11,6 +11,7 @@ use App\Models\GeoNeighborhood;
 use App\Models\Property;
 use App\Models\RadarAdvertiser;
 use App\Models\RadarListing;
+use App\Models\RadarListingSnapshot;
 use App\Services\Radar\Observatory\RadarObservatory;
 use App\Services\Radar\RadarPurger;
 use App\Support\RadarPhone;
@@ -45,6 +46,9 @@ class RadarObservatoryTest extends TestCase
 
     private RadarAdvertiser $annonceur;
 
+    /** @var array<string, int> les passages qui ont écrit les instantanés, par site (un instantané détaché garde le sien) */
+    private array $passages = [];
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -75,7 +79,12 @@ class RadarObservatoryTest extends TestCase
             'display_name' => 'Annonceur fictif',
             'nature' => RadarAdvertiserNature::ProbableIntermediary,
         ]);
-        $almadies = ['geo_neighborhood_id' => $this->almadies->id];
+        // Un passage par site, incomplet : il n'est là que parce qu'un instantané est toujours écrit par un passage.
+        $this->passages = [
+            'expat_dakar' => $this->passage('2026-09-30 08:00:00', finDeListe: false)->id,
+            'coinafrique' => $this->passage('2026-09-30 08:00:00', finDeListe: false, site: RadarSourceSite::Coinafrique)->id,
+        ];
+        $almadies = ['geo_neighborhood_id' => $this->almadies->id, 'crawl_run_id' => $this->passages['expat_dakar']];
 
         $a = $this->annonceCollectee(['radar_advertiser_id' => $this->annonceur->id, 'raw_text' => 'Texte fictif A']);
         $this->instantane($a, '2026-10-01 08:00:00', '2026-10-29 08:00:00', $almadies + ['price' => 500000, 'surface_m2' => 100]);
@@ -89,11 +98,11 @@ class RadarObservatoryTest extends TestCase
         $disparue->forceFill(['source_gone_at' => '2026-10-19 08:00:00'])->save();
 
         $doublon = $this->annonceCollectee(['stage' => RadarListingStage::Duplicate, 'duplicate_of_listing_id' => $a->id], RadarSourceSite::Coinafrique);
-        $this->instantane($doublon, '2026-10-01 08:00:00', '2026-10-29 08:00:00', $almadies + ['price' => 2000000, 'surface_m2' => 100]);
+        $this->instantane($doublon, '2026-10-01 08:00:00', '2026-10-29 08:00:00', ['crawl_run_id' => $this->passages['coinafrique']] + $almadies + ['price' => 2000000, 'surface_m2' => 100]);
 
         $this->bienPublie = $this->bienPublicA($this->mermoz);
         $publiee = $this->annonceCollectee(['stage' => RadarListingStage::Published, 'property_id' => $this->bienPublie->id]);
-        $this->instantane($publiee, '2026-10-05 08:00:00', '2026-10-29 08:00:00', ['geo_neighborhood_id' => $this->mermoz->id, 'price' => 400000, 'surface_m2' => 80]);
+        $this->instantane($publiee, '2026-10-05 08:00:00', '2026-10-29 08:00:00', ['geo_neighborhood_id' => $this->mermoz->id, 'crawl_run_id' => $this->passages['expat_dakar'], 'price' => 400000, 'surface_m2' => 80]);
 
         $this->bienPublicA($this->almadies);
         // Un bien privé ne compte pas au catalogue.
@@ -164,7 +173,10 @@ class RadarObservatoryTest extends TestCase
         $this->assertSame(0, $this->observer(['summary'], ['source_site' => 'coinafrique'])['summary']['listings']);
     }
 
-    /** AC1 — les agrégats du marché calculés avant la purge sont identiques après : ils ne lisent rien de ce qu'elle efface. */
+    /**
+     * AC1 — les agrégats du marché calculés avant la purge sont identiques après : ils ne lisent rien de ce qu'elle efface.
+     * La purge DÉTACHE les instantanés (TCK-2392) : le marché compte ces lignes sans annonce, une par annonce purgée.
+     */
     public function test_les_agregats_du_marche_survivent_a_la_purge(): void
     {
         $this->semerLeMarche();
@@ -178,7 +190,50 @@ class RadarObservatoryTest extends TestCase
         $this->assertGreaterThanOrEqual(3, $comptes['listings']);
         $this->assertSame(0, RadarListing::query()->whereNotNull('raw_text')->where('stage', RadarListingStage::Purged->value)->count());
         $this->assertNull($this->annonceur->refresh()->phone);
+        // Trois annonces purgées hors doublon, une ligne détachée chacune ; le doublon n'en laisse aucune.
+        $this->assertSame(3, RadarListingSnapshot::query()->whereNull('radar_listing_id')->count());
         $this->assertSame($avant, $this->observer(self::SECTIONS_ANONYMES));
+    }
+
+    /**
+     * Une annonce purgée laisse au marché son dernier état connu, en une ligne : son dernier prix, toute sa présence, sa
+     * disparition si elle était constatée, et le catalogue si elle était le doublon d'un bien. Le doublon d'une autre
+     * annonce ne laisse rien : le marché ne le comptait pas.
+     */
+    public function test_une_annonce_purgee_laisse_une_ligne_au_dernier_etat_connu(): void
+    {
+        $run = $this->passage('2026-09-30 08:00:00', finDeListe: false)->id;
+        $quartier = ['geo_neighborhood_id' => $this->almadies->id, 'crawl_run_id' => $run, 'surface_m2' => 100];
+        $bien = $this->bienPublicA($this->mermoz);
+
+        $disparue = $this->annonceCollectee(['purge_at' => '2026-10-29 00:00:00']);
+        $this->instantane($disparue, '2026-10-10 08:00:00', '2026-10-14 08:00:00', $quartier + ['price' => 600000, 'observations' => 2]);
+        $this->instantane($disparue, '2026-10-14 08:00:00', '2026-10-18 08:00:00', $quartier + ['price' => 700000, 'observations' => 3]);
+        $disparue->forceFill(['source_gone_at' => '2026-10-19 08:00:00'])->save();
+        $auCatalogue = $this->annonceCollectee(['purge_at' => '2026-10-29 00:00:00', 'stage' => RadarListingStage::Duplicate, 'duplicate_of_property_id' => $bien->id]);
+        $this->instantane($auCatalogue, '2026-10-12 08:00:00', '2026-10-28 08:00:00', $quartier + ['price' => 800000]);
+        $doublon = $this->annonceCollectee(['purge_at' => '2026-10-29 00:00:00', 'stage' => RadarListingStage::Duplicate, 'duplicate_of_listing_id' => $disparue->id]);
+        $this->instantane($doublon, '2026-10-10 08:00:00', '2026-10-18 08:00:00', $quartier + ['price' => 2000000]);
+        $avant = $this->observer(self::SECTIONS_ANONYMES);
+
+        $comptes = app(RadarPurger::class)->run();
+
+        $this->assertSame(3, $comptes['listings']);
+        $this->assertSame(2, $comptes['snapshots_detached']);
+        $lignes = RadarListingSnapshot::query()->whereNull('radar_listing_id')->orderBy('first_seen_at')->get();
+        $this->assertCount(2, $lignes);
+        $this->assertEquals(700000, $lignes[0]->price);
+        $this->assertTrue($lignes[0]->first_seen_at->equalTo($this->instant('2026-10-10 08:00:00')));
+        $this->assertTrue($lignes[0]->last_seen_at->equalTo($this->instant('2026-10-18 08:00:00')));
+        $this->assertSame(5, $lignes[0]->observations);
+        $this->assertTrue($lignes[0]->detached_gone_at->equalTo($this->instant('2026-10-19 08:00:00')));
+        $this->assertFalse($lignes[0]->detached_in_catalog);
+        $this->assertNull($lignes[1]->detached_gone_at);
+        $this->assertTrue($lignes[1]->detached_in_catalog);
+        $this->assertSame(0, RadarListingSnapshot::query()->whereNotNull('radar_listing_id')->count());
+
+        $this->assertSame($avant, $this->observer(self::SECTIONS_ANONYMES));
+        $this->assertSame(['listings' => 2, 'online' => 1, 'gone' => 1, 'in_catalog' => 1, 'sites' => ['expat_dakar']], $this->observer(['summary'])['summary']);
     }
 
     /** AC1 — aucune requête des sections du marché ne nomme une colonne personnelle. */

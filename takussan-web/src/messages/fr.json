@@ -9315,7 +9315,7 @@
             },
             "price": {
               "title": "Prix au mètre carré",
-              "description": "Médiane du dernier prix affiché de chaque annonce, rapporté à sa surface. Le nombre d’annonces dit ce que vaut la médiane.",
+              "description": "Médiane du dernier prix affiché de chaque annonce, rapporté à sa surface. Le nombre d’annonces dit ce que vaut la médiane. Une annonce purgée reste comptée, à son dernier état connu.",
               "empty": "Aucune annonce avec prix et surface"
             },
             "time": {
@@ -9325,7 +9325,7 @@
             },
             "goneSources": {
               "title": "Sources disparues de biens publiés",
-              "description": "L’annonce d’origine d’un bien publié est absente de la liste lue par la collecte, deux passages de suite : elle a peut-être été retirée (bien loué ou vendu), ou déplacée. Si la liste d’un site dépasse le plafond de pages de sa collecte (5 par défaut), montez ce plafond dans l’onglet Collecte : il est borné à 20 pages, et au-delà aucune disparition n’est constatée sur ce site.",
+              "description": "L’annonce d’origine d’un bien publié est absente de la liste lue par la collecte, deux passages de suite : elle a peut-être été retirée (bien loué ou vendu), ou déplacée. Si la liste d’un site dépasse le plafond de pages de sa collecte (5 par défaut), montez ce plafond dans l’onglet Collecte : il est borné à 20 pages, et au-delà aucune disparition n’est constatée sur ce site. Une annonce purgée n’est plus suivie : sa disparition n’est plus constatée.",
               "empty": "Aucune source disparue"
             }
           }

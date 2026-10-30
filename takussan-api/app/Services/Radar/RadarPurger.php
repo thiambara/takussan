@@ -122,13 +122,37 @@ final class RadarPurger
      * annonceur), ni l'empreinte du titre, ni le lieu tel qu'il l'a écrit. Restent le prix, le quartier du référentiel,
      * la ville, le type, les chambres, la surface, les dates et le passage (son site et son heure) : une observation de
      * marché anonyme, que l'observatoire garde dans ses séries (« compteurs anonymes », ADR-0077 §9).
+     *
+     * TCK-2393 (ADR-0083 §2) — l'observatoire compte une ligne par annonce, au dernier état connu : la purge n'en garde
+     * donc qu'une, la dernière, étendue à toute la présence (sans lien, plusieurs lignes compteraient plusieurs annonces),
+     * et y recopie la disparition et le catalogue. Le doublon d'une autre annonce n'en garde aucune : le marché ne le
+     * comptait pas, et détaché il ne pourrait plus l'exclure.
      */
     private function detachSnapshots(RadarListing $listing): int
     {
-        return RadarListingSnapshot::query()->where('radar_listing_id', $listing->id)->update([
+        $snapshots = RadarListingSnapshot::query()->where('radar_listing_id', $listing->id);
+        if ($listing->duplicate_of_listing_id !== null) {
+            $snapshots->delete();
+
+            return 0;
+        }
+
+        $rows = (clone $snapshots)->orderByDesc('first_seen_at')->orderByDesc('id')->get(['id', 'first_seen_at', 'last_seen_at', 'observations']);
+        if ($rows->isEmpty()) {
+            return 0;
+        }
+        $kept = $rows->first();
+        (clone $snapshots)->whereKeyNot($kept->id)->delete();
+
+        return RadarListingSnapshot::query()->whereKey($kept->id)->update([
             'radar_listing_id' => null,
             'title_fingerprint' => null,
             'neighborhood_label' => null,
+            'first_seen_at' => $rows->min('first_seen_at'),
+            'last_seen_at' => $rows->max('last_seen_at'),
+            'observations' => (int) $rows->sum('observations'),
+            'detached_gone_at' => $listing->source_gone_at,
+            'detached_in_catalog' => $listing->duplicate_of_property_id !== null,
             'updated_at' => now(),
         ]);
     }

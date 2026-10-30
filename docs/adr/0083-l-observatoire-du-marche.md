@@ -32,7 +32,13 @@ toute la liste, ne l'ont pas revue.**
    autre refuse toute requête de l'observatoire qui nommerait `raw_text`, `extracted`, `source_url`,
    `phone`, `display_name` ou `similarity_text`.
 2. **L'état courant d'une annonce est son dernier instantané.** Un doublon (`duplicate_of_listing_id`) ne
-   compte pas : la même maison vue sur trois sites est une annonce.
+   compte pas : la même maison vue sur trois sites est une annonce. **Une annonce purgée reste au marché par
+   une seule ligne détachée** : la purge (TCK-2392, ADR-0080) met `radar_listing_id` à null ; elle ne garde
+   que le dernier instantané, étendu à toute la présence, et y recopie la disparition (`detached_gone_at`) et
+   le catalogue (`detached_in_catalog`, doublon d'un bien). Le doublon d'une autre annonce ne laisse aucune
+   ligne : le marché ne le comptait pas, et détaché il ne pourrait plus l'exclure. Son site se lit par le
+   passage qui a écrit l'instantané. Elle n'est plus observée : en ligne à la purge, elle le reste ici,
+   jusqu'à ce que `since` la fasse sortir.
 3. **La disparition se constate, elle ne se déduit pas d'une absence.** `radar:observe-sources` marque
    disparue (`radar_listings.source_gone_at`, `source_gone_run_id`) une annonce de son site lorsque
    `radar.observe.confirm_runs` (2 par défaut) passages `finished` dont `reached_end` est vrai ont commencé
@@ -41,7 +47,8 @@ toute la liste, ne l'ont pas revue.**
    lue —, et le passage atteint la fin sans l'avoir vue (relevé par la vérification adverse, reproduit sur
    le vrai passage de collecte). Une présence remet le compte à zéro : seuls comptent les passages
    postérieurs à la dernière. Un passage incomplet ne compte pas. Une annonce revue plus tard redevient
-   présente.
+   présente. **Une annonce purgée n'est plus jugée et n'alerte plus** : ses instantanés ne sont plus à elle,
+   et la collecte ne l'observe plus (TCK-2392), même doublure d'un bien publié.
 4. **L'alerte passe par le journal, un journal de plateforme.** Une disparition rattachée à un bien
    (directement, ou par l'annonce dont elle est le doublon) écrit `radar_source_listing_gone`, événement
    alertable : les règles d'alerte existantes la livrent, rien de neuf n'envoie quoi que ce soit. **Son sujet

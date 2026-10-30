@@ -69,7 +69,8 @@ réelle d'intermédiaires** que le porteur estime à plus de 90 % : l'argument d
 
 - [x] AC1 — Les agrégats survivent à la purge : les sections du marché (`summary`, `price_per_m2`,
       `time_on_market`, `supply_gap`, `gone_sources`) calculées avant `RadarPurger::run()` (90 jours échus,
-      annonceur STOP vidé) sont identiques après. Aucune requête de l'observatoire ne lit
+      annonceur STOP vidé) sont identiques après — les instantanés détachés par la purge y comptent, une ligne par
+      annonce purgée. Aucune requête de l'observatoire ne lit
       `raw_text`, `extracted`, `source_url`, `phone`, `display_name` ni `similarity_text`.
 - [x] AC2 — Une annonce source disparue lève une alerte sur le bien publié correspondant : une règle active
       sur `radar_source_listing_gone` met en file `SendAdminAlert`, le bien dans `properties.property_id` (le
@@ -124,13 +125,18 @@ la PR de TCK-2392 puis celle-ci le bascule, dans le même geste que TCK-2392.
   dites à l'écran : avec `max_pages` à 5 (défaut), une liste plus longue n'atteint jamais `reached_end` et rien n'est
   constaté sur ce site tant que le plafond n'est pas monté (20 au plus) ; « disparue » veut dire absente de la liste de
   départ de l'adaptateur, pas forcément supprimée du site. Une annonce purgée revue par la collecte reçoit des
-  instantanés : elle peut être marquée disparue (donnée anonyme, aucune alerte sans bien) ; doublure d'un bien, elle
-  alerte sur lui (`test_une_annonce_purgee_est_jugee_comme_les_autres`). L'écran dit « absente de la liste lue par la
+  instantanés — **remplacé par la correction de TCK-2392** : la purge détache les instantanés et la collecte n'observe plus
+  une annonce purgée ni STOP ; une purgée n'est donc plus jugée et n'alerte plus, même doublure d'un bien
+  (`test_une_annonce_purgee_n_est_plus_jugee_ni_n_alerte`). L'écran dit « absente de la liste lue par la
   collecte, deux passages de suite », jamais « n'est plus en ligne », et que le plafond de pages est borné à 20.
 - **`natures` n'est pas anonyme** et ne survit pas à la purge (elle remet la nature à `unknown`) : c'est pourquoi
   AC1 porte sur les sections du marché, et pourquoi TCK-2431 existe. Le garde de colonnes (`raw_text`,
   `extracted`, `source_url`, `phone`, `display_name`, `similarity_text`, `nature_signals`) couvre toutes les
   sections, `natures` comprise.
+- **Les instantanés détachés par la purge restent au marché** (AC1) : `RadarObservatory` réunit (`UNION ALL`) les
+  annonces suivies et une ligne par annonce purgée. Pour qu'une ligne vaille une annonce, la purge (`RadarPurger`,
+  méthode de TCK-2392 étendue ici) ne garde que le dernier instantané, étendu à toute la présence, supprime ceux d'un
+  doublon d'annonce, et recopie `detached_gone_at` et `detached_in_catalog` (migration `2026_10_30_393100`).
 - **`fields[radar_observatory]`** n'est pas un sparse fieldset de table : il choisit les sections calculées. Le garde
   du front TCK-1184 le range parmi les `fields` sans `$queryFields` (`HORS_BUILD_QUERY`).
 - **Le classement ajoute toujours `id`, `user_id` et `do_not_contact_at` au sparse fieldset** : la piste commerciale
@@ -166,3 +172,6 @@ la PR de TCK-2392 puis celle-ci le bascule, dans le même geste que TCK-2392.
     `AuditAgencyResolver` pour le journal `Radar`, qui changerait une règle commune pour un seul écrivain.
 12. **Le classement rend `phone` et `display_name`** (ADR-0083 § 5, écran super-admin) : décision de la session,
     notée pour le porteur, qui peut demander un classement sans eux.
+13. **Une annonce purgée au marché** : une ligne détachée, au dernier état connu (prix, présence, disparition,
+    catalogue). Écarté : compter chaque instantané détaché, qui compterait plusieurs fois une annonce dont le prix a
+    changé et compterait les doublons ; écarté aussi : effacer les instantanés à la purge, qui viderait les séries.

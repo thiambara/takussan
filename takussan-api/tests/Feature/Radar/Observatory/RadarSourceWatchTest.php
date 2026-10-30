@@ -11,6 +11,7 @@ use App\Models\Enums\RadarSourceSite;
 use App\Models\Property;
 use App\Models\RadarListing;
 use App\Services\Radar\Observatory\RadarSourceWatch;
+use App\Services\Radar\RadarPurger;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
@@ -274,33 +275,30 @@ class RadarSourceWatchTest extends TestCase
     }
 
     /**
-     * Réserve n° 3 de TCK-2392 (vérification adverse) — une annonce purgée garde ses instantanés, et la collecte peut la
-     * revoir : la purge ne change ni le marquage ni l'alerte. Purgée et doublon d'une annonce publiée, elle alerte sur le
-     * bien ; purgée sans bien, elle est marquée sans alerte (le temps de mise sur le marché la lit).
+     * Réserve n° 3 de TCK-2392, puis sa correction — la purge DÉTACHE les instantanés d'une annonce, et la collecte
+     * n'observe plus une annonce purgée : elle n'est plus jugée, et n'alerte plus, même doublure d'un bien publié. Ses
+     * instantanés restent au marché sans elle (`RadarObservatoryTest`).
      */
-    public function test_une_annonce_purgee_est_jugee_comme_les_autres(): void
+    public function test_une_annonce_purgee_n_est_plus_jugee_ni_n_alerte(): void
     {
         $this->regle();
         $bien = Property::factory()->published()->create();
         $publiee = $this->annonceCollectee(['stage' => RadarListingStage::Published, 'property_id' => $bien->id], RadarSourceSite::Coinafrique);
         $this->instantane($publiee, '2026-10-20 08:00:00', '2026-10-29 09:00:00');
-        $doublure = $this->annonceCollectee(['stage' => RadarListingStage::Purged, 'raw_text' => null, 'source_url' => null, 'duplicate_of_listing_id' => $publiee->id]);
+        $doublure = $this->annonceCollectee(['purge_at' => '2026-10-29 00:00:00', 'stage' => RadarListingStage::Duplicate, 'duplicate_of_listing_id' => $publiee->id]);
         $this->instantane($doublure, '2026-10-20 08:00:00', '2026-10-28 08:05:00');
-        $sansBien = $this->annonceCollectee(['stage' => RadarListingStage::Purged, 'raw_text' => null, 'source_url' => null]);
+        $sansBien = $this->annonceCollectee(['purge_at' => '2026-10-29 00:00:00']);
         $this->instantane($sansBien, '2026-10-20 08:00:00', '2026-10-28 08:05:00');
-        $this->passage('2026-10-28 20:00:00');
-        $this->passage('2026-10-29 08:00:00');
 
-        $this->assertSame(['gone' => 2, 'back' => 0, 'alerts' => 1], $this->observer());
+        $this->assertSame(2, app(RadarPurger::class)->run()['listings']);
+        $this->passage('2026-10-29 20:00:00');
+        $this->passage('2026-10-30 08:00:00');
 
-        $this->assertNotNull($doublure->refresh()->source_gone_at);
-        $this->assertNotNull($sansBien->refresh()->source_gone_at);
+        $this->assertSame(['gone' => 0, 'back' => 0, 'alerts' => 0], $this->observer());
+        $this->assertNull($doublure->refresh()->source_gone_at);
+        $this->assertNull($sansBien->refresh()->source_gone_at);
         $this->assertSame(RadarListingStage::Purged, $doublure->stage);
-        Queue::assertPushed(SendAdminAlert::class, 1);
-        $activite = Activity::query()->where('event', RadarSourceWatch::EVENT)->sole();
-        $this->assertSame($doublure->id, (int) $activite->subject_id);
-        $this->assertSame($bien->id, $activite->properties['property_id']);
-        $this->assertSame('duplicate_of_listing', $activite->properties['link']);
+        Queue::assertNothingPushed();
     }
 
     /** La commande est planifiée toutes les quinze minutes, sans chevauchement. */
