@@ -54,6 +54,15 @@ donc aucune clé ne peut jamais quitter `APP_PREVIOUS_KEYS`. Aucune commande n'e
 (`ls app/Console/Commands | grep -i -E "encrypt|key"` : rien). `docs/infra/hebergement.md` cite
 `APP_KEY` à la création de l'environnement (`:123`), jamais sa sauvegarde ni sa rotation.
 
+**Mise à jour du 2026-10-30 ([TCK-2430](TCK-2430-empreintes-sous-app-key-hors-radar.md),
+[ADR-0084](../../adr/0084-les-empreintes-sous-app-key-se-lisent-sous-ses-anciennes-cles.md))** — les empreintes sous
+`APP_KEY` passent toutes par `App\Support\AppKeyHmac` (le point unique de la contrainte 2), et les lectures qui
+décident d'un droit cherchent aussi sous `APP_PREVIOUS_KEYS` : alertes (désinscription, rattachement, suppression de
+compte, plafonds), crédit de bienvenue (`PhoneFingerprint`, absent du tableau ci-dessus) et versement approuvé. Une
+rotation avec l'ancienne clé gardée ne perd donc plus rien ; reste à ce ticket ce qui permet de **retirer** une ancienne
+clé : la clé distincte, la réécriture des empreintes et le ré-chiffrement. Les octrois de bienvenue des comptes
+anonymisés ne se réécrivent pas (numéro effacé) : la contrainte 3 doit les compter.
+
 ## Contraintes strictes (métier)
 
 1. **Une clé d'empreinte distincte** (`APP_HMAC_KEY`, clé serveur, jamais `NEXT_PUBLIC_*`) sert
