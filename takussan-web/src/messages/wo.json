@@ -8387,11 +8387,17 @@
             "notSent": "Ce message n’a pas été envoyé : aucune réponse ni issue ne s’y enregistre.",
             "outcomeFinal": "Ce message est clos : ni réponse ni issue ne s’y ajoute plus.",
             "superseded": "Ce message a été relancé : la réponse se dépose sur la dernière relance.",
-            "replyPending": "Une réponse de ce message attend encore sa vérification : attendez son verdict.",
+            "replyPending": "Une réponse de ce message attend encore sa vérification ou son issue : attendez son verdict, ou posez son issue.",
             "generationIncomplete": "L’IA n’a pas rédigé la salutation et le résumé : écrivez-les vous-même.",
             "replyRequired": "Aucune réponse n’est déposée sur ce message : déposez les captures de l’annonceur avant de confirmer l’accord.",
             "reasonRequired": "Le verdict de l’IA ne va pas dans le sens d’un accord : écrivez le motif de la confirmation.",
             "listingStageConflict": "Une des annonces de ce message a changé d’étape : la fiche a changé entre-temps, elle est relue.",
+            "whatsappNotConfigured": "Le numéro WhatsApp du Radar n’est pas configuré : envoyez ce message par WhatsApp, à la main.",
+            "whatsappSameNumber": "Le numéro ou le jeton configuré pour le Radar est celui des notifications : rien n’est envoyé.",
+            "whatsappTemplateMissing": "Aucun modèle Meta approuvé pour cette version des clauses ou cette langue : envoyez ce message à la main.",
+            "whatsappMessageMismatch": "Le modèle Meta ne redonnerait pas exactement le texte enregistré : préparez un nouveau message.",
+            "whatsappSummaryTooLong": "Le résumé est trop long pour un envoi par l’API : raccourcissez-le.",
+            "whatsappSendFailed": "Meta a refusé l’envoi : rien n’est enregistré, le message reste préparé.",
             "accountNotDeleted": "Le compte de cet annonceur n’est pas supprimé : seul un compte supprimé se délie."
           },
           "reply": {
@@ -8417,7 +8423,8 @@
               "noCapture": "aucune capture lisible",
               "noNumber": "l’annonceur n’a pas de numéro à comparer",
               "unexpected": "erreur imprévue",
-              "purged": "la réponse a été effacée (STOP ou retrait de l’annonceur)"
+              "purged": "la réponse a été effacée (STOP ou retrait de l’annonceur)",
+              "noText": "réponse sans texte (vocal, image)"
             },
             "verdict": {
               "heading": "Verdict de l’IA",

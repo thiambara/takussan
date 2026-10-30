@@ -22,6 +22,6 @@
             "model": "anthropic/claude-sonnet-5-5"
         }
     },
-    "prompt_version": 1,
-    "updated_at": "2026-10-29T23:23:40+00:00"
+    "prompt_version": 2,
+    "updated_at": "2026-10-30T05:28:12+00:00"
 }

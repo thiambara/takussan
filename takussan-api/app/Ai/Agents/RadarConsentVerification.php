@@ -46,6 +46,18 @@ final class RadarConsentVerification extends SocleAgent implements HasStructured
             .ExternalContent::wrap('capture', '');
     }
 
+    /**
+     * TCK-2395 — une réponse reçue par l'API WhatsApp du Radar : le texte exact envoyé, puis le texte reçu, délimité comme
+     * un contenu externe (ADR-0076 §10). Ni numéro ni nom attendus : le code les a jugés (l'expéditeur est authentifié par
+     * Meta, et les clauses sont parties dans le gabarit) ; le modèle ne classe que la réponse (prompt `v2`).
+     */
+    public static function textInput(string $sentMessage, string $replyText): string
+    {
+        return "Message envoyé par Takussan (texte exact) :\n<<<\n{$sentMessage}\n>>>\n"
+            ."Réponse reçue par l'API WhatsApp, depuis le numéro de l'annonceur :\n"
+            .ExternalContent::wrap('message', $replyText);
+    }
+
     /** @return array<string, Type> */
     public function schema(JsonSchema $schema): array
     {

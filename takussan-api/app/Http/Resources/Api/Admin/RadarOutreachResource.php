@@ -80,6 +80,10 @@ class RadarOutreachResource extends BaseResource
             'outcome_at' => $this->iso($this->outcome_at),
             'follow_up' => $this->followUp,
             'consents' => RadarConsentResource::collection($this->consents)->toArray($request),
+            // TCK-2395 — par où il est parti (`whatsapp_manual`, `whatsapp_cloud`), et l'état de l'envoi par l'API
+            // (`accepted`, `ambiguous`, null pour un message manuel). L'identifiant de Meta n'est pas rendu.
+            'channel' => $this->enumValue($this->channel),
+            'provider_status' => $this->provider_status,
         ] + ($this->generation ?? []);
     }
 

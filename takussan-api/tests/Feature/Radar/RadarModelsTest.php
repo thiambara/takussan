@@ -341,7 +341,7 @@ class RadarModelsTest extends TestCase
 
         $this->assertSame(['consented', 'refused', 'stop', 'question', 'no_answer'], $valeurs(RadarOutreachOutcome::class));
         $this->assertSame(['screenshot', 'provider_message', 'otp'], $valeurs(RadarConsentProof::class));
-        $this->assertSame(['whatsapp_manual'], $valeurs(RadarOutreachChannel::class));
+        $this->assertSame(['whatsapp_manual', 'whatsapp_cloud'], $valeurs(RadarOutreachChannel::class));
         $this->assertSame(['pending', 'done', 'failed'], $valeurs(RadarVerificationStatus::class));
     }
 
