@@ -118,10 +118,10 @@ un, c'est ajouter une ligne et re-rendre — puis ajuster le compte de cas de `R
 
 ## La référence (`baseline.json`)
 
-⚠ **La référence du 2026-10-30 (0,9844, prompt `v2`) ne porte que les 16 cas de captures** (`roles.vision`). Les cas
-texte ajoutés par TCK-2427 n'y ont pas de section : un jeu complet compare son score GLOBAL, captures et texte mêlés, au
-0,9844 des seules captures, et rougit (`ai.eval.below_baseline`) dès que les cas texte font moins bien que les
-captures. Elle est à refixer par un jeu complet payant (`--update-baseline`), joué par le porteur.
+**La référence porte les deux rôles depuis le 2026-10-30** (TCK-2427, prompt `v2`, jeu complet de 30 cas) : 0,9917 au
+global, `roles.vision` 0,9844 sur les 16 captures, `roles.raisonnement` 1,0 sur les 14 cas texte. Un jeu complet compare
+son global au global, et chaque rôle à sa section : un cas ajouté à un seul rôle change le global, et demande de refixer
+la référence par un jeu complet.
 
 Elle exige un **vrai** modèle : elle se fixe par un jeu complet
 (`php artisan ai:eval radar.verification_accord --update-baseline`, sans `--role` ni `--model`). Elle part avec le
