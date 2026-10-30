@@ -1032,12 +1032,14 @@ catalogue tant que cet accord n'existe pas. Vision et lots : [plan du 2026-10-26
   ([§2.11](#211-socle-ia)) : un numéro sénégalais qui les suit reste le contact de l'annonce, et un
   numéro étranger complet écrit derrière (`RDC+33 6 12 34 56 78`, `R + 1 514 555 0199`) n'en
   devient jamais un (TCK-2435), pas plus qu'un `+7` ou un `+1` écrit avec sa zone entre parenthèses
-  (`Villa RDC +7 (495) 123-45-67 F` ne donne ni contact ni prix) (TCK-2445). L'étage espacé de son `+`
-  (`R+ 2`, `RDC + 2`, `R + 12`) n'est pas lu comme le début du prix qui le suit (`R+ 2 450 000 F` vaut
-  450 000), sauf quand ce qui suit commence par 0 (`R+ 15 000 000 F` vaut 15 000 000) ; comme l'étage
-  collé, il ne compte pas non plus comme un second nombre, et un nombre resté seul devient le prix
+  (`Villa RDC +7 (495) 123-45-67 F` ne donne ni contact ni prix) (TCK-2445). L'étage espacé de son `+`, de 0
+  à 19 (`R+ 2`, `RDC + 2`, `R + 12`), suivi d'une espace et d'un chiffre de 1 à 9, n'est pas lu comme
+  le début du prix qui le suit (`R+ 2 450 000 F` vaut 450 000 ; `R+ 15 000 000 F` vaut 15 000 000) et,
+  comme l'étage collé, ne compte pas comme un second nombre : un nombre resté seul devient le prix
   (`Villa R + 2 4 chambres 2435` rend 2435 ; `R+ 1 33 821 00 00 F` rend 33 821, un fixe suivi d'une
-  marque n'étant pas masqué) (TCK-2445). Limites connues : derrière un `R+` collé, un indicatif étranger
+  marque n'étant pas masqué). Suivi d'une lettre ou d'une ponctuation, il reste un nombre et le prix
+  est perdu (`Villa R+ 2 à vendre 2435` ne rend aucun prix, quand `Villa R+2 à vendre 2435` rend 2435) ;
+  au-delà de 19, il se lit encore comme le début du prix (`R+ 20 450 000 F` vaut 20 450 000) (TCK-2445). Limites connues : derrière un `R+` collé, un indicatif étranger
   (`R+33 6 12 34 56 78`) peut encore donner un contact `+221 33…` (TCK-2441) ; `Villa R+1 (221) 77 012 34 56`
   ne donne aucun contact, et `(221)` devant un contact se lit comme un prix de 221
   (`Villa (221) 77 012 34 56`) (TCK-2447). Un nombre nu de moins de 100, sans monnaie, période ni multiplicateur, n'est jamais
