@@ -256,6 +256,23 @@ en préproduction compris. Les clés vivent ici, les drivers là-bas, les valeur
   dans `RADAR_PHONE_HMAC_PREVIOUS_KEYS`, puis `radar:rehash-phones`. **Une ancienne clé ne se retire jamais** : un refus
   purgé ne dit pas sous quelle clé il a été écrit ([ADR-0082](../adr/0082-l-empreinte-des-refus-du-radar-a-sa-propre-cle.md)).
 
+**Rotation d'`APP_KEY` — ce qu'on garde dans `APP_PREVIOUS_KEYS`, et combien de temps** (TCK-2430,
+[ADR-0084](../adr/0084-les-empreintes-sous-app-key-se-lisent-sous-ses-anciennes-cles.md)) :
+
+- on ne la fait tourner qu'après une fuite ou le départ de quelqu'un qui l'a lue. La neuve (`php artisan key:generate --show`)
+  va dans `APP_KEY`, l'ancienne **en tête** d'`APP_PREVIOUS_KEYS` (séparées par des virgules, sans espace), les plus
+  anciennes derrière. **Chaque valeur se recopie à l'identique, `base64:` et `=` final compris** : les empreintes du Radar
+  (`RadarPhone`, `ClaimLinks`) se calculent sur la chaîne, et une clé tronquée qui déchiffre encore ne les retrouve plus.
+  On redéploie, et rien d'autre ne se lance : les colonnes chiffrées se relisent sous l'ancienne clé, et les empreintes
+  HMAC des alertes, du crédit de bienvenue et des versements approuvés y sont aussi reconnues ;
+- **une ancienne `APP_KEY` ne quitte jamais `APP_PREVIOUS_KEYS` tant que TCK-614 n'est pas livré** (ré-chiffrement et
+  réécriture des empreintes). Retirée trop tôt, elle rend illisibles les colonnes chiffrées sous elle (ADR-0044), rend
+  partielle une désinscription d'alerte, et laisse un numéro déjà crédité recevoir une seconde bienvenue ;
+- même après TCK-614, l'octroi de bienvenue d'un compte anonymisé ne se réécrit pas, faute de numéro. Retirer la clé qui
+  l'a écrit rend une bienvenue à chacun de ces numéros : une perte bornée, à peser à ce moment-là ;
+- l'ancienne valeur reste rangée hors du serveur, comme la courante. Une clé gardée dans `APP_PREVIOUS_KEYS` sert encore à
+  déchiffrer et à vérifier une URL signée : après une fuite, c'est le prix de ne rien perdre, jusqu'à TCK-614.
+
 **À poser par le porteur — TCK-598, ADR-0052** (ni Dokploy ni Vercel ne les portaient au 2026-10-08 ; re-mesuré le 2026-10-18 : seule `API_INTERNAL_URL` est posée, sur `takussan-web-preview`) :
 
 - `takussan-api-preview` : `PUBLIC_CACHE_REVALIDATE_URL`

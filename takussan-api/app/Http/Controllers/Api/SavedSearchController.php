@@ -54,17 +54,18 @@ class SavedSearchController extends Controller
      * TCK-599 (ADR-0050 §4, contrainte 7) — rattache au compte les alertes sans compte de SON
      * contact, et seulement s'il est VÉRIFIÉ : l'e-mail (`email_verified_at`, repli ADR-0025) ou le
      * téléphone (`phone_verified_at`, E.164). Jamais par déclaration. Les demandes rattachées
-     * quittent `alert_subscribers` : le compte porte désormais le contact.
+     * quittent `alert_subscribers` : le compte porte désormais le contact. TCK-2430 : sous toutes les clés
+     * reconnues, une alerte écrite avant une rotation d'`APP_KEY` comprise.
      */
     public function claim(Request $request): JsonResponse
     {
         $user = $request->user();
         $hashes = [];
         if ($user->email && $user->email_verified_at) {
-            $hashes[] = AlertSubscriber::contactHash(AlertSubscriber::CHANNEL_EMAIL, (string) $user->email);
+            $hashes = [...$hashes, ...AlertSubscriber::contactHashes(AlertSubscriber::CHANNEL_EMAIL, (string) $user->email)];
         }
         if ($user->phone && $user->phone_verified_at && PhoneNumber::isValid(preg_replace('/\s+/', '', (string) $user->phone) ?? '')) {
-            $hashes[] = AlertSubscriber::contactHash(AlertSubscriber::CHANNEL_WHATSAPP, (string) $user->phone);
+            $hashes = [...$hashes, ...AlertSubscriber::contactHashes(AlertSubscriber::CHANNEL_WHATSAPP, (string) $user->phone)];
         }
         if ($hashes === []) {
             return $this->json(['data' => ['claimed' => 0]]);
