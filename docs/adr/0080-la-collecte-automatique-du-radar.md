@@ -2,7 +2,7 @@
 
 - **Statut** : Accepté
 - **Date** : 2026-10-30
-- **Tickets** : [TCK-2392](../backlog/tickets/TCK-2392-radar-collecte-automatique.md) (lot 2 du [plan Radar et socle IA](../plans/2026-10-26-radar-et-socle-ia.md)) ; suites : [TCK-2423](../backlog/tickets/TCK-2423-radar-pilote-d-embeddings.md), [TCK-2424](../backlog/tickets/TCK-2424-radar-adaptateurs-supplementaires.md), [TCK-2425](../backlog/tickets/TCK-2425-radar-collecteur-navigateur.md), [TCK-2434](../backlog/tickets/TCK-2434-radar-compteurs-anonymes-de-marche.md)
+- **Tickets** : [TCK-2392](../backlog/tickets/TCK-2392-radar-collecte-automatique.md) (lot 2 du [plan Radar et socle IA](../plans/2026-10-26-radar-et-socle-ia.md)) ; suites : [TCK-2423](../backlog/tickets/TCK-2423-radar-pilote-d-embeddings.md), [TCK-2424](../backlog/tickets/TCK-2424-radar-adaptateurs-supplementaires.md), [TCK-2425](../backlog/tickets/TCK-2425-radar-collecteur-navigateur.md), [TCK-2434](../backlog/tickets/TCK-2434-radar-compteurs-anonymes-de-marche.md) ; amendement : [TCK-2438](../backlog/tickets/TCK-2438-radar-urls-de-depart-en-console.md)
 - **Amende** : [ADR-0077](0077-le-radar.md) (§ 9 la purge, § 10 la collecte, et la conséquence « la décision reste humaine » sur les doublons)
 - **Dépend de** : [ADR-0076](0076-le-socle-ia.md) (le socle IA), [ADR-0078](0078-une-connexion-de-file-pour-les-jobs-longs.md) (la file longue)
 
@@ -115,3 +115,47 @@ réversible et éteinte par défaut. La purge supprime les instantanés de l'ann
   (éteinte par défaut, deux biens du même annonceur ne fusionnent pas, séparation).
 - Droits : `platform.radar.operate` lit, `platform.radar.publish` règle —
   `PlatformRoutesDefaultDenyTest`.
+
+## Amendement — les URL de départ se règlent dans la console (TCK-2438, 2026-10-30)
+
+[TCK-2438](../backlog/tickets/TCK-2438-radar-urls-de-depart-en-console.md) applique la décision A7 du porteur (« configurable
+dans les paramètres »). Il prolonge le §2. Jusque-là, chaque site partait d'**une** URL figée dans
+`config('radar.crawl.sites.<site>.start_url')`.
+
+1. **Plusieurs URL de départ par site, réglées dans la console.** `radar_crawl_sources.start_urls` (jsonb) contient les
+   pages de liste qu'un passage lit, dans l'ordre : une page par ville ou par catégorie, par exemple. Elles se règlent par
+   la même route et avec la même capacité que les autres réglages : `PATCH …/crawl/sources/{site}`,
+   `platform.radar.publish`. Une liste vide ou nulle rend l'URL de la configuration, qui reste le défaut.
+2. **Le serveur lit lui-même ces pages : des garde-fous, jugés deux fois.** Ils sont jugés à l'enregistrement (422 codé,
+   rien n'est enregistré) ET au passage. Une valeur écrite en base hors de la console n'est donc jamais lue. Une source
+   dont aucune URL ne passe ne lit rien (`radar.crawl.no_start_url`) : elle ne retombe pas en silence sur la configuration.
+   Les garde-fous (`RadarStartUrls`) :
+   - `https` seulement ;
+   - un hôte de la liste **exacte** que déclare l'adaptateur (`RadarSiteAdapter::startHosts()`, dans le code, que la
+     console ne peut pas élargir) : `www.expat-dakar.com` et `expat-dakar.com` pour Expat-Dakar, `sn.coinafrique.com`
+     seul pour CoinAfrique ;
+   - ni identifiants, ni port, ni espace, ni barre oblique inverse ;
+   - au plus `radar.crawl.max_start_urls` URL (10), chacune d'au plus `radar.crawl.start_url_max_length` caractères (500) ;
+   - pas de doublon.
+
+   La lecture garde ses propres contrôles (`UrlFetcher` : SSRF à chaque saut, `robots.txt`, créneau par domaine). Une
+   page suivante reste cherchée sur le domaine du site par l'adaptateur.
+3. **Le budget reste celui du passage.** Le plafond de pages (`max_pages`) et le budget de temps valent pour le passage
+   entier, toutes listes comprises. Le plafond, le budget et le créneau pris arrêtent le passage. Une liste qui s'arrête
+   avant sa fin laisse lire la suivante : page sans carte, lecture refusée ou boucle. **`reached_end` n'est vrai que si
+   chaque liste est allée jusqu'au bout.**
+4. **Changer de périmètre ne fait disparaître aucune annonce.** Le passage note les listes qu'il a lues
+   (`radar_crawl_runs.start_urls`, nulle pour l'URL de la configuration). La veille de l'observatoire (ADR-0083 §3) ne
+   compte un passage complet contre une annonce que s'il a lu les mêmes listes que le passage qui l'a vue en dernier.
+   - Pourquoi : restreindre les URL (« tout l'immobilier » → « appartements à louer ») déclarait disparue chaque annonce
+     sortie du périmètre. Cela déclenchait une alerte et, pour un bien publié, la question à son titulaire (TCK-2432).
+   - Conséquence : après un changement de périmètre, une annonce n'est jugée de nouveau qu'une fois revue sous le nouveau
+     périmètre. Une annonce retirée du site au moment même du changement n'est plus jugée. On rate alors une alerte, mais
+     on n'en déclenche aucune à tort.
+   - Écarté : couper la détection de disparition pour toute source dont les URL sont réglées. C'était plus simple, mais
+     cela retirait l'observatoire au porteur dès qu'il se servait du réglage.
+
+Application : `RadarStartUrls`, `UpdateRadarCrawlSourceRequest`, `RadarCrawler`, `RadarSourceWatch::completeRunsSinceSql()`.
+Tests : `tests/Feature/Radar/RadarCrawlStartUrlsTest.php` (garde-fous, budget du passage, valeur écrite hors de la console)
+et `tests/Feature/Radar/Observatory/RadarSourceWatchStartUrlsTest.php` (restreindre le périmètre n'alerte pas ; sous le
+même périmètre, la disparition se conclut).
