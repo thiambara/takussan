@@ -821,11 +821,11 @@ catalogue tant que cet accord n'existe pas. Vision et lots : [plan du 2026-10-26
 | P1 | 👤🏢 | Réclamer ses annonces depuis le lien signé du message (`/claim/{jeton}`, 30 jours, mort après un STOP ou une révocation, refusé sous mandat jusqu'à la reprise, TCK-2421) : annonces en cartes à cocher et à corriger (titre, prix, description), prénom et nom de l'espace, acceptation des conditions avec leur version, code SMS envoyé au seul numéro de l'annonceur (affiché masqué), publication dans son espace individuel dès les photos prêtes ; un numéro déjà inscrit se connecte d'abord à son compte ; la même page active le compte créé par « publier pour lui » (TCK-2390) ; une annonce que la publication automatique ne peut pas mettre en ligne (photo, champ, refus) attend la vérification de l'équipe, et l'opérateur la reprend depuis la file « À reprendre », qui montre l'échéance de purge (TCK-2413) |
 | P1 | 🛡️ | Retrait de l'accord (STOP, ou révocation par la plateforme, `POST /api/admin/radar/advertisers/{id}/revoke`, `super_admin` seulement, motif obligatoire) : les biens publiés quittent la surface publique et l'index de recherche sur-le-champ, l'annonceur n'est plus jamais contacté (TCK-2391) |
 | P1 | 🛡️ | Purge des annonces jamais publiées à 90 jours ou dès un STOP, en conservant l'empreinte du numéro qui a refusé ; purge quotidienne (`radar:purge`, 04:15 Dakar), doublée d'un job lancé dès la révocation (TCK-2391) |
-| P2 | 🛡️ | Collecte automatique planifiée sur Expat-Dakar et CoinAfrique, **éteinte par défaut** : le `super_admin` allume chaque site, règle sa fréquence et ses pages, lance un passage (`/super-admin/radar/collecte`) ; chaque passage lit la liste (`robots.txt` respecté, un seul passage actif par site), saisit les annonces nouvelles et date leurs instantanés (prix, surface, quartier, présence) ; la même annonce vue sur deux sites peut être fusionnée d'office en une fiche à deux provenances, que l'opérateur peut séparer — fusion **éteinte par défaut** (`RADAR_MERGE_AUTO`) (TCK-2392, [ADR-0080](adr/0080-la-collecte-automatique-du-radar.md)) |
+| P2 | 🛡️ | Collecte automatique planifiée sur Expat-Dakar et CoinAfrique, **éteinte par défaut** : le `super_admin` allume chaque site, règle sa fréquence, ses pages et ses URL de départ (plusieurs par site, une page par ville ou par catégorie ; `https` sur un hôte que l'adaptateur du site déclare ; vides : l'URL de la configuration), lance un passage (`/super-admin/radar/collecte`) ; chaque passage lit chacune de ses listes dans un plafond de pages et un budget de temps communs (`robots.txt` respecté, un seul passage actif par site), saisit les annonces nouvelles et date leurs instantanés (prix, surface, quartier, présence) ; la même annonce vue sur deux sites peut être fusionnée d'office en une fiche à deux provenances, que l'opérateur peut séparer — fusion **éteinte par défaut** (`RADAR_MERGE_AUTO`) (TCK-2392, TCK-2438, [ADR-0080](adr/0080-la-collecte-automatique-du-radar.md)) |
 | P2 | 🛡️ | Annonceurs et observatoire du marché (`/super-admin/radar/observatory`) : classement des annonceurs par volume d'annonces vivantes (quartiers principaux, gammes de prix, sites, nature présumée, piste commerciale jusqu'à la demande de passage en agence) ; prix au m² par quartier, type et contrat ; temps de mise sur le marché ; quartiers où Takussan manque d'annonces ; part d'intermédiaires probables ; alerte quand l'annonce source d'un bien publié disparaît (TCK-2393, [ADR-0083](adr/0083-l-observatoire-du-marche.md)) ; part par nature sur une période, en annonceurs-jours, lue sur des compteurs anonymes quotidiens qui survivent à la purge — **éteints par défaut** (`RADAR_NATURE_COUNTS`), jusqu'à l'avis juridique de TCK-2434 (TCK-2431) |
 | P2 | 🛡️ | Relance d'activation d'un compte créé par « publier pour lui » et jamais activé : texte fixe versionné (`activation.v1`) avec les chiffres réels de la période — vues, demandes de contact et de visite, crédits offerts à l'activation —, ouvert dans WhatsApp puis marqué envoyé ; une relance par semaine au plus (`radar.activation.min_interval_days`) (TCK-2394) |
 | P2 | 🛡️ | Publication sous mandat Takussan (`super_admin`, drapeau `radar_mandate`, [ADR-0079](adr/0079-la-publication-sous-mandat-takussan.md), accepté sur le principe ; drapeau éteint jusqu'à l'avis de l'avocat, la livraison de TCK-2421 et celle de TCK-2422) : sur un accord confirmé, l'annonceur qui ne veut pas de compte voit ses annonces publiées dans l'espace des mandats (réglage `radar.mandate_agency_id`), son numéro en contact, sans compte créé ; second message `mandat.v1`, sans lien d'activation (TCK-2394) |
-| P3 | 🛡️ | Démarchage par l'API WhatsApp Cloud sur un numéro dédié au Radar, réception des réponses par webhook signé et preuve par identifiant de message (TCK-2395, [ADR-0081](adr/0081-le-radar-prospecte-par-l-api-whatsapp-sur-son-propre-numero.md)) ; depuis la fiche annonceur, envoi confirmé, canal de chaque message, réponse reçue lue en texte (TCK-2426) ; état de remise suivi par les accusés de WhatsApp et journalisé, pas encore affiché (TCK-2427, TCK-2437) |
+| P3 | 🛡️ | Démarchage par l'API WhatsApp Cloud sur un numéro dédié au Radar, réception des réponses par webhook signé et preuve par identifiant de message (TCK-2395, [ADR-0081](adr/0081-le-radar-prospecte-par-l-api-whatsapp-sur-son-propre-numero.md)) ; depuis la fiche annonceur, envoi confirmé, canal de chaque message, réponse reçue lue en texte (TCK-2426) ; état de remise suivi par les accusés de WhatsApp, journalisé (TCK-2427) et affiché à côté du canal (TCK-2437) ; un envoi resté sans confirmation de Meta rattaché à ses accusés par un jeton opaque posé à l'envoi (TCK-2436) |
 
 **Règles de gestion.**
 
@@ -914,9 +914,24 @@ catalogue tant que cet accord n'existe pas. Vision et lots : [plan du 2026-10-26
   d'accord : il ne change ni l'envoi, ni l'issue, ni les annonces. Un message non remis est
   journalisé avec le code de WhatsApp (`radar_whatsapp_delivery_failed`), sans texte ni numéro ; il
   reste envoyé, et l'opérateur juge de la suite. Un accusé d'identifiant inconnu est ignoré, jamais
-  rattaché par inférence (TCK-2427). **La console n'affiche pas encore cet état** : la fiche
-  annonceur ne distingue que le canal (à la main, par l'API, par l'API sans confirmation de Meta), si
-  bien qu'un message non remis s'y lit « par l'API », comme un message remis (TCK-2437).
+  rattaché par inférence (TCK-2427), sauf par le jeton opaque de l'envoi (voir la règle suivante).
+  La fiche annonceur affiche cet état à côté du canal, sur la carte du suivi comme dans
+  l'historique : « Envoyé » tant qu'aucun accusé de remise n'est arrivé, « Remis », « Lu », ou
+  « Non remis » en ton destructif. Sur la carte du suivi, un message non remis dit qu'il reste compté
+  comme envoyé et que l'opérateur juge de la suite ; aucun geste n'est proposé. Un envoi sans
+  confirmation de Meta garde son seul libellé de canal, et un message envoyé à la main n'a pas d'état
+  de remise. Le code de l'échec n'est pas affiché (TCK-2437 ; son affichage : TCK-2444).
+- **Un envoi par l'API resté sans confirmation de Meta est rattaché à ses accusés par un jeton
+  opaque** (TCK-2436, [ADR-0081](adr/0081-le-radar-prospecte-par-l-api-whatsapp-sur-son-propre-numero.md),
+  amendement du 2026-10-30). Chaque envoi par l'API porte un jeton aléatoire, sans donnée
+  personnelle (`biz_opaque_callback_data`), écrit sur le message avant l'appel à Meta ; Meta le rend
+  dans ses accusés. Un accusé d'identifiant inconnu qui porte le jeton d'un envoi par l'API, envoyé,
+  sans identifiant, et qui est adressé au numéro de l'annonceur, donne à cet envoi l'identifiant de
+  Meta et fait avancer son état de remise selon la règle précédente. Tout autre cas reste ignoré :
+  sans jeton, jeton inconnu, envoi déjà identifié ou jamais parti, autre destinataire, annonceur
+  purgé, identifiant déjà porté par un autre message. Meta ne documente le renvoi du jeton que pour
+  envoyé, remis et lu : un « non remis » qui ne le porte pas laisse l'envoi sans confirmation, et
+  l'opérateur juge. Le jeton n'est ni journalisé, ni rendu par l'API.
 - **Les photos ne sont conservées qu'à partir de l'accord confirmé** : avant, seule leur empreinte (dHash, calculée à la volée sur la photo source, qui n'est jamais écrite) est gardée pour les rapprochements (TCK-2387). L'accord confirmé, qui autorise la publication avec les photos, fait télécharger les photos source dans une réserve **privée** de l'annonce ; l'opérateur peut y en retirer ou y en déposer à la main. La publication verse cette réserve au bien, sans appel réseau ; une annonce sans aucune photo en réserve ne se publie pas (TCK-2389). La réserve d'une annonce jamais publiée est purgée avec elle (TCK-2391).
 - **Révocation et purge** (TCK-2391, [ADR-0077 §8, §9](adr/0077-le-radar.md)). Une purge quotidienne
   (`radar:purge`, 04:15 Dakar), doublée d'un job lancé dès la révocation (`PurgeRadarAdvertiser`),
@@ -961,6 +976,24 @@ catalogue tant que cet accord n'existe pas. Vision et lots : [plan du 2026-10-26
 - **La collecte ne part que d'un geste du porteur** : une source naît éteinte ; celui qui l'allume en
   devient l'opérateur, au nom duquel l'extraction est jugée et comptée sur le budget d'IA. Une
   annonce déjà connue n'est jamais relancée par un passage (TCK-2392).
+- **Les URL de départ d'un site se règlent dans la console, sous garde-fous** (TCK-2438,
+  [ADR-0080](adr/0080-la-collecte-automatique-du-radar.md) amendé) : `https` seulement, sur un hôte
+  de la liste exacte que déclare l'adaptateur du site (`www.expat-dakar.com` et `expat-dakar.com` ;
+  `sn.coinafrique.com`), sans identifiants, port explicite (même `:443`), fragment, espace ni
+  caractère de contrôle ; au plus `radar.crawl.max_start_urls` URL (10) d'au plus
+  `radar.crawl.start_url_max_length` caractères (500), telles qu'écrites et une fois canoniques ;
+  sans doublon, jugé sur la forme canonique (schéma et hôte en minuscules), qui est celle
+  enregistrée. Ces garde-fous se jugent à l'enregistrement (422 codé, rien n'est enregistré, pas
+  même les autres réglages de la requête : `radar.crawl.start_urls_too_many`,
+  `radar.crawl.start_url_too_long`, `radar.crawl.start_url_invalid`, `radar.crawl.start_url_host`,
+  `radar.crawl.start_url_duplicate`) et de nouveau au passage : une URL écrite hors de la console
+  n'est jamais lue. Une source sans URL réglée part de l'URL de la configuration ; une source dont
+  aucune URL réglée ne passe ne lit rien (`radar.crawl.no_start_url`), sans repli sur la
+  configuration. Le plafond de pages et le budget de temps valent pour le passage entier : eux, comme
+  le créneau du domaine déjà pris, arrêtent le passage ; la fin d'une liste, une page sans carte, une
+  lecture refusée ou une boucle n'arrêtent que la liste en cours, et la suivante est lue — mais le
+  passage n'a alors pas « lu toute la liste ». Une liste qui rejoint une page lue par une liste
+  précédente s'arrête sur sa fin : le verdict ne dépend pas de l'ordre des URL.
 - **Une fusion d'office désigne le bien, jamais l'annonceur, et elle est éteinte par défaut**
   (`RADAR_MERGE_AUTO`, [ADR-0080](adr/0080-la-collecte-automatique-du-radar.md)) : allumée,
   seulement une annonce trouvée par la collecte, vers une annonce plus ancienne d'un autre site, sur
@@ -995,7 +1028,11 @@ catalogue tant que cet accord n'existe pas. Vision et lots : [plan du 2026-10-26
   [ADR-0083](adr/0083-l-observatoire-du-marche.md), amendement du 2026-10-30).
 - **Une annonce collectée n'a disparu qu'après deux passages complets d'affilée de son site** (qui
   ont lu toute la liste) **sans l'avoir revue** (`radar.observe.confirm_runs`) : un seul ne suffit
-  pas, la liste glisse pendant la lecture. Revue plus tard, elle redevient présente. Une annonce que
+  pas, la liste glisse pendant la lecture. Revue plus tard, elle redevient présente. Un passage ne
+  compte contre une annonce que si ses URL de départ contiennent celles de chaque passage actif à sa
+  dernière présence, et celles du dernier passage commencé avant elle : élargir les URL de départ ne
+  coupe pas la détection ; les restreindre ne fait disparaître aucune annonce, qui n'est jugée de
+  nouveau qu'une fois revue (TCK-2438). Une annonce que
   la collecte ne suit plus (purgée, `do_not_contact`, annonceur STOP) n'est plus jugée. La disparition
   de la source d'un bien lève l'alerte `radar_source_listing_gone`, que les règles d'alerte de la
   console livrent : un journal de plateforme, dont le sujet est l'annonce collectée et le bien dans
