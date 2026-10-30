@@ -9053,7 +9053,15 @@
               "read": "Read",
               "failed": "Not delivered"
             },
-            "deliveryFailedHint": "WhatsApp did not deliver this message. It still counts as sent: the next step is your call."
+            "deliveryFailedHint": "WhatsApp did not deliver this message. It still counts as sent: the next step is your call.",
+            "deliveryFailure": {
+              "code131026": "Recipient unreachable on WhatsApp",
+              "code131049": "Limited by Meta",
+              "code131050": "The recipient opted out of marketing messages",
+              "code131056": "Too many messages to this recipient in a short time",
+              "code131048": "Sending number restricted (messages flagged as spam)",
+              "code130472": "Held back by a Meta experiment"
+            }
           },
           "errors": {
             "generic": "The action failed.",

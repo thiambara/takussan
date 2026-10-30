@@ -165,3 +165,23 @@ export function remiseDuMessage(message: RadarOutreach): RemiseDuMessage | null 
   if (message.channel !== 'whatsapp_cloud' || statut === null || !Object.hasOwn(REMISE_DU_STATUT, statut)) return null;
   return REMISE_DU_STATUT[statut];
 }
+
+/**
+ * TCK-2444 — les codes d'échec de Meta dont la documentation de la Cloud API (« Error codes ») donne le sens, et dont la
+ * fiche dit le motif près de « Non remis ». Tout autre code, ou pas de code, n'affiche que « Non remis » : aucun motif
+ * inventé. Chaque code a sa clé `deliveryFailure.code<code>` dans les dictionnaires.
+ */
+export const CODES_D_ECHEC_LIBELLES = [131026, 131049, 131050, 131056, 131048, 130472] as const;
+
+export type MotifDEchec = `code${(typeof CODES_D_ECHEC_LIBELLES)[number]}`;
+
+const MOTIF_DU_CODE: Readonly<Record<string, MotifDEchec>> = Object.fromEntries(
+  CODES_D_ECHEC_LIBELLES.map((code) => [String(code), `code${code}` as MotifDEchec]),
+);
+
+/** La clé du motif d'un message non remis, ou `null` : hors échec, sans code, code non libellé, message manuel. */
+export function motifDeLEchec(message: RadarOutreach): MotifDEchec | null {
+  const code = message.provider_error_code;
+  if (remiseDuMessage(message) !== 'failed' || code === null || !Object.hasOwn(MOTIF_DU_CODE, String(code))) return null;
+  return MOTIF_DU_CODE[String(code)];
+}

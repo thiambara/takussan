@@ -9053,7 +9053,15 @@
               "read": "Lu",
               "failed": "Non remis"
             },
-            "deliveryFailedHint": "WhatsApp n’a pas remis ce message. Il reste compté comme envoyé : à vous de juger de la suite."
+            "deliveryFailedHint": "WhatsApp n’a pas remis ce message. Il reste compté comme envoyé : à vous de juger de la suite.",
+            "deliveryFailure": {
+              "code131026": "Destinataire injoignable sur WhatsApp",
+              "code131049": "Limité par Meta",
+              "code131050": "Le destinataire a refusé les messages marketing",
+              "code131056": "Trop de messages à ce destinataire en peu de temps",
+              "code131048": "Numéro d’envoi limité (messages signalés comme spam)",
+              "code130472": "Retenu par une expérience de Meta"
+            }
           },
           "errors": {
             "generic": "Le geste a échoué.",
