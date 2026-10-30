@@ -5,6 +5,7 @@ namespace Tests\Feature\Queue;
 use App\Jobs\Ai\RunAiEvaluation;
 use App\Jobs\Booking\ExpirePendingBookingsJob;
 use App\Jobs\Concerns\RunsOnLongQueue;
+use App\Jobs\Radar\CrawlRadarSource;
 use App\Jobs\SendFavoriteChangeAlerts;
 use App\Jobs\SendSavedSearchAlerts;
 use App\Jobs\SyncPropertyCalendarFeedJob;
@@ -36,6 +37,8 @@ class LongJobsConnectionTest extends TestCase
             RunAiEvaluation::class => fn () => new RunAiEvaluation(1),
             SyncPropertyCalendarFeedsJob::class => fn () => new SyncPropertyCalendarFeedsJob,
             ExpirePendingBookingsJob::class => fn () => new ExpirePendingBookingsJob,
+            // TCK-2392 — un passage de collecte du Radar : plusieurs pages, chacune jusqu'à 45 s.
+            CrawlRadarSource::class => fn () => new CrawlRadarSource(1),
         ];
     }
 
