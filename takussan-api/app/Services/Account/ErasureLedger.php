@@ -20,9 +20,10 @@ use Throwable;
  * et en production), sous `effacements/AAAA-MM-JJ/<user_id>-<AAAAMMJJTHHMMSSZ>.json`.
  *
  * Pourquoi ce disque : le seau privé vit hors du serveur, il est copié chaque nuit dans
- * `vps-sauvegardes/takussan-preview-private/` par `rclone copy` (qui ne supprime jamais,
- * `deploy/server/sauvegarde-seau-prive.sh`), et `vps-sauvegardes` porte un verrou de rétention. Ni
- * jeton ni variable d'environnement de plus. Un objet PAR effacement : un objet S3 ne s'allonge pas.
+ * `vps-sauvegardes/takussan-preview-private/` (`deploy/server/sauvegarde-seau-prive.sh`) : en
+ * instantanés gardés 14 jours depuis TCK-2407, et CE préfixe dans une copie jamais tournée,
+ * `…/effacements/`, qui survit à sa disparition du seau (ADR-0044 § B amendé le 2026-10-30).
+ * `vps-sauvegardes` porte un verrou de rétention. Ni jeton ni variable d'environnement de plus. Un objet PAR effacement : un objet S3 ne s'allonge pas.
  *
  * Le contenu : l'identifiant et l'instant, RIEN d'autre — ni courriel, ni nom, ni téléphone. C'est
  * tout ce qu'il faut pour ré-effacer un compte restauré (`account:list-erasures --execute`).
