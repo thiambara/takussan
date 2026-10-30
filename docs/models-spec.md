@@ -4914,7 +4914,7 @@ production ; les corrections deviennent des cas d'évaluation (`ai:export-eval-c
 | subject_type / subject_id | nullableMorphs | oui | null | Objet que la proposition modifierait ; index `ai_suggestions_subject_idx` |
 | proposal | jsonb | | | Sortie de l'IA |
 | confidence | decimal(4,3) | oui | null | Confiance déclarée |
-| input_snapshot | text | oui | null | Contenu soumis à l'IA ; anonymisé à l'export des cas d'évaluation (`EvalCaseExporter`). **À venir** (TCK-2391, `todo`) : effacé avec son objet par la purge du Radar — au 2026-10-27, aucun code ne l'efface |
+| input_snapshot | text | oui | null | Contenu soumis à l'IA ; anonymisé à l'export des cas d'évaluation (`EvalCaseExporter`). Effacé, avec `final_value` et `correction_diff` (`proposal` remis à `[]`), quand le Radar purge son sujet (annonce, message, réponse : `RadarPurger`) ; la ligne reste, le taux d'acceptation ne bouge pas (TCK-2391) |
 | decision | string(20) | | pending | `pending`, `accepted`, `edited`, `rejected` ; prise une fois |
 | decided_by_id | FK users | oui | null | `nullOnDelete` |
 | decided_at | timestamp | oui | null | |
@@ -5030,9 +5030,16 @@ settled_amount`.
 téléphone ([ADR-0077 §1, §7, §9](adr/0077-le-radar.md)). Sa nature présumée et ses indices restent
 ici, jamais dans les profils. Après un STOP, `phone_hmac` — l'empreinte à clé du numéro
 (`App\Support\RadarPhone::hmac`) — reste : sans elle le Radar le retrouverait sur une prochaine
-annonce et le recontacterait. **À venir** (TCK-2391, `todo`) : la purge de `phone`. Au 2026-10-29, un
-STOP pose `do_not_contact_at`, révoque les accords et ferme les annonces ouvertes, sans rien effacer
-(`RadarConsentWorkflow::stop()`).
+annonce et le recontacterait.
+
+**Révocation et purge (TCK-2391, ADR-0077 §8, §9).** La révocation (`App\Services\Radar\AdvertiserRevocation::apply()`,
+partagée par le STOP d'un message et par le geste de l'opérateur, `POST /api/admin/radar/advertisers/{id}/revoke`)
+pose `do_not_contact_at` (la première date reste), ferme les annonces ouvertes, révoque les accords valides, retire
+du public les biens publiés par le Radar et met la purge en file après le commit (`PurgeRadarAdvertiser`). Elle
+laisse le compte lié (`user_id`). Un annonceur sans annonce restante (`RadarPurger`) perd `phone`, `display_name` et
+ses indices (`nature` remise à `unknown`, `nature_signals` à `[]`) ; sa ligne est supprimée s'il n'a ni refus, ni
+message, ni accord, ni compte lié. Un annonceur purgé sans refus qui revient récupère son numéro
+(`RadarAdvertiserDirectory::restorePhone()`) ; celui qui a dit STOP, jamais.
 
 **Nature (TCK-2388, décision 3 du porteur, 2026-10-28).** À la validation d'une annonce
 (`RadarListingReview::review()`), si l'opérateur a corrigé `extracted.advertiser_nature` (marque
@@ -5047,7 +5054,7 @@ de plus. Écrites par `forceFill` dans `AdvertiserClaim` seul : hors de `$fillab
 | Colonne | Type | Nullable | Défaut | Description |
 |---------|------|----------|--------|-------------|
 | id | bigint PK | | auto | |
-| phone | string(20) | oui | null | Numéro E.164 (`+221…`) ; **unique** ; null une fois purgé (STOP, **à venir**, TCK-2391) |
+| phone | string(20) | oui | null | Numéro E.164 (`+221…`) ; **unique** ; null quand l'annonceur n'a plus d'annonce (purge, TCK-2391) ; l'HMAC reste. Rendu si l'annonceur revient sans refus |
 | phone_hmac | string(64) | | | HMAC-SHA256 du numéro E.164 ; **unique** ; seule trace d'un refus |
 | display_name | string(120) | oui | null | Nom lu dans l'annonce |
 | nature | string(30) | | unknown | `probable_owner`, `probable_intermediary`, `agency`, `unknown` |
@@ -5080,7 +5087,9 @@ n'est conservée : seules les URL source sont gardées. Les captures d'écran vi
 média `radar_captures`, et la **réserve de photos** préparée pour la publication (téléchargées après
 l'accord confirmé, ou déposées par l'opérateur, TCK-2389) dans `radar_photos` ; les deux sur le disque
 **privé** par défaut (ADR-0029). La publication copie `radar_photos` dans la collection `photos` du
-bien ; la réserve d'une annonce jamais publiée est purgée avec elle (**à venir**, TCK-2391).
+bien ; la réserve d'une annonce jamais publiée est purgée avec elle (`RadarPurger`, TCK-2391). Une annonce
+publiée (`published` ou `property_id` posé) n'est jamais purgée ; la matière d'une annonce publiée puis révoquée
+relève de TCK-2406.
 
 | Colonne | Type | Nullable | Défaut | Description |
 |---------|------|----------|--------|-------------|
@@ -5089,12 +5098,12 @@ bien ; la réserve d'une annonce jamais publiée est purgée avec elle (**à ven
 | source_kind | string(20) | | | `url`, `text`, `captures` (`RadarSourceKind`) |
 | source_site | string(30) | | | `coinafrique`, `expat_dakar`, `facebook`, `whatsapp`, `other` (`RadarSourceSite::fromHost`) |
 | source_url | text | oui | null | URL collectée |
-| raw_text | text | oui | null | Texte brut ; purgé à `purge_at` ou dès un STOP (**à venir**, TCK-2391 : au 2026-10-29, aucun code ne lit `purge_at`) |
+| raw_text | text | oui | null | Texte brut ; effacé à `purge_at` (collecte + 90 jours) ou dès un STOP, tant que l'annonce n'est pas publiée (`RadarPurger`, TCK-2391) |
 | photo_urls | jsonb | | `[]` | URL source des photos ; téléchargées seulement après l'accord confirmé, dans `radar_photos` (TCK-2389) |
 | content_fingerprint | string(64) | | | Empreinte du contenu ; **unique** : une annonce n'entre qu'une fois |
-| extracted | jsonb | oui | null | Sortie normalisée de l'extraction : un champ = `{value, confidence, evidence, flags}`, plus `phones`, `phones_flags`, `nature_signals` et `phones_dropped` (les numéros écartés, gardés à part ; purgés avec `extracted`, **à venir**, TCK-2391). Une valeur corrigée par l'opérateur porte la marque `corrected` |
+| extracted | jsonb | oui | null | Sortie normalisée de l'extraction : un champ = `{value, confidence, evidence, flags}`, plus `phones`, `phones_flags`, `nature_signals` et `phones_dropped` (les numéros écartés, gardés à part ; effacés avec `extracted` par la purge, TCK-2391). Une valeur corrigée par l'opérateur porte la marque `corrected` |
 | matches | jsonb | | `[]` | Rapprochements avec le catalogue |
-| stage | string(30) | | | `captured`, `extracted`, `reviewed`, `contacted`, `consented`, `published`, `extraction_failed`, `duplicate`, `discarded`, `refused`, `do_not_contact`, `purged` ; indexée. `purged` : écrit par la purge (TCK-2391, **à venir** : aucun code ne l'écrit au 2026-10-29). `discarded` : écartée par l'opérateur (TCK-2387), distincte de `refused` (issue d'un démarchage) |
+| stage | string(30) | | | `captured`, `extracted`, `reviewed`, `contacted`, `consented`, `published`, `extraction_failed`, `duplicate`, `discarded`, `refused`, `do_not_contact`, `purged` ; indexée. `purged` : écrit par `RadarPurger` (TCK-2391) — `raw_text`, `source_url`, `extracted` et `photo_preparation` à null, `photo_urls` à `[]`, médias supprimés ; restent le site d'origine, les dates, `content_fingerprint`, `source_photo_hashes` et `matches`. `discarded` : écartée par l'opérateur (TCK-2387), distincte de `refused` (issue d'un démarchage) |
 | stage_reason | string(60) | oui | null | Code du motif de l'état, jamais de prose ; pour `discarded`, `radar.discard.<motif>` (`RadarDiscardReason` : `not_real_estate`, `out_of_scope`, `no_longer_available`, `unusable_source`, `other`) |
 | extraction_attempts | smallint | | 0 | Passages de l'extraction |
 | extracted_at | timestamp | oui | null | |
@@ -5131,7 +5140,7 @@ les mêmes annonces (`follow_up_of_id`, `follow_up_rank`) : la chaîne est une l
 | radar_advertiser_id | FK radar_advertisers | | | `restrictOnDelete` : une preuve d'accord ne disparaît pas avec son annonceur ; indexée |
 | channel | string(30) | | whatsapp_manual | `whatsapp_manual` (`RadarOutreachChannel` ; `whatsapp_cloud` arrivera avec TCK-2395) |
 | locale | string(5) | | | Langue du message : `fr` ou `en` (pas de `wo`, décision 5) |
-| clauses_version | string(30) | | | Version des clauses employée (`accord.v1`) : chaque message garde la sienne |
+| clauses_version | string(30) | | | Version des clauses employée (`accord.v1`, `accord.v2` depuis TCK-2390 : la ligne du lien de réclamation) : chaque message garde la sienne |
 | salutation | text | | | La partie écrite par l'IA, retouchable ; ramenée à une ligne |
 | summary | text | | | Idem pour le résumé des annonces |
 | message | text | | | Le texte EXACT du paramètre `text` du lien `wa.me` |
@@ -5157,10 +5166,10 @@ la file « à relancer ».
 
 ### 111. RadarConsent 🆕
 
-**Table :** `radar_consents` (migration `2026_10_28_100300`, TCK-2388)
+**Table :** `radar_consents` (migration `2026_10_28_100300`, TCK-2388 ; `2026_10_29_200000`, TCK-2391)
 **Modèle :** `App\Models\RadarConsent` (`AbstractModel`, `HasMedia`) — `proof` casté en `RadarConsentProof`,
 `verification_status` en `RadarVerificationStatus`, `capture_hashes` et `ai_verdict` en `array`,
-`confirmed_at` et `revoked_at` en `datetime` ; `belongsTo outreach`, `advertiser`, `depositor`
+`confirmed_at`, `revoked_at`, `offline_since` et `purged_at` en `datetime` ; `belongsTo outreach`, `advertiser`, `depositor`
 (`deposited_by_id`), `confirmer` (`confirmed_by_id`). `scopeValid()` : `confirmed_at` non nul et `revoked_at`
 nul. `confirmed_by_id` et `confirmed_at` hors de `$fillable` : posés par `forceFill`, par le seul `RadarConsentWorkflow::recordOutcome()`. Collection média `radar_consent_captures`, sur le disque **privé** par défaut (ADR-0029).
 **Description :** Une réponse d'annonceur déposée sur un message ([ADR-0077 §3](adr/0077-le-radar.md)) : la
@@ -5168,6 +5177,11 @@ preuve (captures d'écran et leurs SHA-256), sa transcription, le verdict de l'I
 **Un verdict de l'IA n'ouvre rien** : un accord n'est valide qu'une fois confirmé par une personne
 (`confirmed_by_id` et `confirmed_at`, posés ensemble par `RadarConsentWorkflow::recordOutcome()` et par lui
 seul) et tant qu'il n'est pas révoqué. `valid()` est LA définition ; `RadarConsentCoverage` la lit.
+
+**Rétention (TCK-2391, `privacy.ts` § 6).** Un accord confirmé est conservé tant qu'une annonce qu'il couvre est en
+ligne (publiée sur un bien public) ou attend sa publication (`consented`), puis trois ans
+(`radar.consent_retention_years`) à compter du dernier retrait. Une réponse non confirmée est effacée avec l'annonce.
+`offline_since` et `purged_at` hors de `$fillable` : posés par `RadarPurger` seul.
 
 | Colonne | Type | Nullable | Défaut | Description |
 |---------|------|----------|--------|-------------|
@@ -5180,12 +5194,14 @@ seul) et tant qu'il n'est pas révoqué. `valid()` est LA définition ; `RadarCo
 | transcript | text | oui | null | Transcription de la réponse par l'IA |
 | ai_verdict | jsonb | oui | null | Verdict de la vérification (numéro, clauses, classement de la réponse), relu par `RadarConsentVerdict` |
 | verification_status | string(20) | | pending | `pending`, `done`, `failed` (`RadarVerificationStatus`) |
-| verification_reason | string(60) | oui | null | Code du motif d'un échec de vérification, jamais de prose |
+| verification_reason | string(60) | oui | null | Code du motif d'un échec de vérification, jamais de prose ; `radar.verification.purged` quand la purge efface une réponse encore `pending` (TCK-2391) |
 | deposited_by_id | FK users | oui | null | Opérateur qui a déposé la réponse (`nullOnDelete`) ; indexée |
 | confirmed_by_id | FK users | oui | null | Opérateur qui a confirmé l'accord (`nullOnDelete`) ; indexée |
 | confirmed_at | timestamp | oui | null | Posé avec `confirmed_by_id` ; null : l'accord n'est pas valide |
 | confirmation_reason | text | oui | null | Motif écrit exigé pour confirmer contre un verdict discordant ou absent |
 | revoked_at | timestamp | oui | null | Révocation : l'accord cesse d'être valide |
+| offline_since | timestamp | oui | null | TCK-2391 : depuis quand plus aucune annonce couverte n'est en ligne (`consented`, ou publiée sur un bien public). Posée par `radar:purge` à la date où il observe le retrait ; remise à null si un bien revient en ligne. Les trois ans courent donc du dernier retrait, à un jour près |
+| purged_at | timestamp | oui | null | TCK-2391 : la réponse est effacée (transcription, verdict, captures) ; la ligne garde `capture_hashes`, le statut et les dates |
 | created_at / updated_at | timestamp | | auto | |
 
 **Contraintes :** aucune unicité (plusieurs réponses peuvent être déposées sur un même message) ; quatre
