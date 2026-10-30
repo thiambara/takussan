@@ -73,11 +73,11 @@ final class RadarCrawler
         $deadline = now()->addSeconds((int) config('radar.crawl.time_budget_seconds', 1200));
 
         // TCK-2438 — les listes de la console, rejugées ici (une valeur écrite hors de la console n'est jamais lue), ou
-        // l'URL de la configuration. Le passage note celles qu'il lit : c'est son périmètre, pour l'observatoire.
+        // l'URL de la configuration. Le passage note l'ensemble qu'il suit, trié : c'est son périmètre, pour l'observatoire.
         $starts = $this->startUrls->forRun($source, $adapter);
-        $run->start_urls = $starts['configured'] ? $starts['urls'] : null;
+        $run->start_urls = RadarStartUrls::perimeter($starts);
         $run->save();
-        if ($starts['urls'] === []) {
+        if ($starts === []) {
             return $this->finish($run, RadarCrawlRun::STOP_NO_START_URL);
         }
 
@@ -85,7 +85,7 @@ final class RadarCrawler
         /** @var string|null $listStop le premier arrêt d'une liste avant sa fin ; null tant que chaque liste est allée au bout */
         $listStop = null;
 
-        foreach ($starts['urls'] as $start) {
+        foreach ($starts as $start) {
             if (isset($walk->visited[$start])) {
                 // Déjà lue par la pagination d'une liste précédente : sa suite l'a été aussi.
                 continue;

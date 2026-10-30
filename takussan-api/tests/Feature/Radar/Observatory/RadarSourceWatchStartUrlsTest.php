@@ -27,11 +27,11 @@ use Tests\Support\OperateursPlateforme;
 use Tests\TestCase;
 
 /**
- * TCK-2438 (AC6) — changer les URL de départ dans la console ne fait disparaître aucune annonce. La veille
- * (`RadarSourceWatch`) ne compte un passage complet contre une annonce que s'il a lu les mêmes listes que le passage qui
- * l'a vue en dernier. Sans cela, restreindre le périmètre (« tout l'immobilier » → « appartements à louer ») déclarerait
- * disparue chaque annonce sortie du périmètre, avec une alerte et, pour un bien publié, la question à son titulaire
- * (TCK-2432).
+ * TCK-2438 (AC6) — changer les URL de départ ne fait disparaître aucune annonce à tort. La veille (`RadarSourceWatch`) ne
+ * compte un passage complet contre une annonce que si son périmètre (l'ensemble trié des listes suivies) CONTIENT celui du
+ * passage qui l'a vue en dernier. Sans cela, restreindre le périmètre (« tout l'immobilier » → « appartements à louer »)
+ * déclarerait disparue chaque annonce sortie du périmètre, avec une alerte et, pour un bien publié, la question à son
+ * titulaire (TCK-2432). Élargir, en revanche, ne coupe pas la détection.
  *
  * Sur le vrai passage de TCK-2392, pages de liste écrites à la main, aucun réseau.
  */
@@ -133,7 +133,7 @@ class RadarSourceWatchStartUrlsTest extends TestCase
         return $listing;
     }
 
-    public function test_restreindre_les_urls_de_depart_ne_fait_disparaitre_aucune_annonce_sortie_du_perimetre(): void
+    public function test_restreindre_les_urls_de_depart_ne_fait_disparaitre_aucune_annonce_ni_ne_questionne_le_titulaire(): void
     {
         $this->assertTrue($this->crawl()->reached_end);
         $studio = $this->publier(self::STUDIO);
@@ -145,8 +145,57 @@ class RadarSourceWatchStartUrlsTest extends TestCase
         $this->assertTrue($this->crawl()->reached_end);
 
         $this->assertSame(0, app(RadarSourceWatch::class)->observe()['gone']);
-        $this->assertNull($studio->refresh()->source_gone_at);
+        $studio->refresh();
+        $this->assertNull($studio->source_gone_at);
+        $this->assertNull($studio->availability_asked_at, 'Aucune question au titulaire (TCK-2432).');
         Bus::assertNotDispatched(SendAdminAlert::class);
+    }
+
+    public function test_changer_l_url_de_la_configuration_est_un_changement_de_perimetre(): void
+    {
+        $this->assertTrue($this->crawl()->reached_end);
+        $studio = $this->publier(self::STUDIO);
+
+        // Le code (et non la console) change l'URL par défaut : le périmètre effectif noté par le passage change avec.
+        config()->set('radar.crawl.sites.expat_dakar.start_url', self::APPARTEMENTS);
+        $this->assertSame([self::APPARTEMENTS], $this->crawl()->start_urls);
+        $this->crawl();
+
+        $this->assertSame(0, app(RadarSourceWatch::class)->observe()['gone']);
+        $this->assertNull($studio->refresh()->availability_asked_at);
+    }
+
+    public function test_elargir_les_urls_de_depart_laisse_detecter_la_disparition_d_une_annonce_de_l_ancien_perimetre(): void
+    {
+        $this->assertTrue($this->crawl()->reached_end);
+        $studio = $this->publier(self::STUDIO);
+
+        // Le porteur ajoute les appartements à la liste par défaut : l'ancien périmètre est contenu dans le nouveau.
+        $this->regler([self::LIST, self::APPARTEMENTS]);
+        $this->pages[self::LIST.'?page=2'] = str_replace('studio-fictif-plateau-9000004', 'studio-fictif-fann-9000099', $this->pages[self::LIST.'?page=2']);
+        $this->assertTrue($this->crawl()->reached_end);
+        $this->assertSame(0, app(RadarSourceWatch::class)->observe()['gone']);
+        $deuxieme = $this->crawl();
+
+        $this->assertSame(['gone' => 1, 'back' => 0, 'alerts' => 1], app(RadarSourceWatch::class)->observe());
+        $studio->refresh();
+        $this->assertSame($deuxieme->id, $studio->source_gone_run_id);
+        $this->assertNotNull($studio->availability_asked_at, 'La question au titulaire part, comme sans réglage.');
+    }
+
+    public function test_un_passage_anterieur_a_la_colonne_se_lit_comme_l_url_actuelle_de_la_configuration(): void
+    {
+        $premier = $this->crawl();
+        $studio = $this->publier(self::STUDIO);
+        // Un passage d'avant la migration : sa colonne est nulle.
+        RadarCrawlRun::query()->whereKey($premier->id)->update(['start_urls' => null]);
+
+        $this->pages[self::LIST.'?page=2'] = str_replace('studio-fictif-plateau-9000004', 'studio-fictif-fann-9000099', $this->pages[self::LIST.'?page=2']);
+        $this->crawl();
+        $this->crawl();
+
+        $this->assertSame(1, app(RadarSourceWatch::class)->observe()['gone']);
+        $this->assertNotNull($studio->refresh()->source_gone_at);
     }
 
     public function test_sous_le_meme_perimetre_regle_la_disparition_se_conclut_toujours(): void

@@ -2,6 +2,7 @@
 
 namespace App\Services\Radar\Crawl;
 
+use App\Models\Enums\RadarSourceSite;
 use App\Models\RadarCrawlRun;
 use App\Models\RadarCrawlSource;
 use GuzzleHttp\Psr7\Uri;
@@ -89,7 +90,7 @@ final class RadarStartUrls
      * mais dont aucune ne passe, rend une liste vide : le passage ne lit rien
      * ({@see RadarCrawlRun::STOP_NO_START_URL}). Il ne retombe jamais en silence sur la configuration.
      *
-     * @return array{urls: list<string>, configured: bool} `configured` : les URL viennent de la console
+     * @return list<string>
      */
     public function forRun(?RadarCrawlSource $source, RadarSiteAdapter $adapter): array
     {
@@ -97,7 +98,7 @@ final class RadarStartUrls
         if (! is_array($stored) || $stored === []) {
             $default = $adapter->startUrl();
 
-            return ['urls' => $this->refusal($adapter, $default) === null ? [$default] : [], 'configured' => false];
+            return $this->refusal($adapter, $default) === null ? [$default] : [];
         }
 
         $urls = [];
@@ -107,6 +108,36 @@ final class RadarStartUrls
             }
         }
 
-        return ['urls' => array_slice($urls, 0, self::maxCount()), 'configured' => true];
+        return array_slice($urls, 0, self::maxCount());
+    }
+
+    /**
+     * Le périmètre d'un passage, tel que `radar_crawl_runs.start_urls` le garde : l'ensemble EFFECTIF des listes lues (l'URL
+     * de la configuration résolue comprise), trié et sans doublon. Jamais nul pour un passage de TCK-2438 : un changement de
+     * l'URL dans `config/radar.php` change le périmètre, et la veille le voit. Les passages antérieurs (colonne nulle) se
+     * lisent comme l'URL ACTUELLE de la configuration du site ({@see self::legacyPerimeterJson()}).
+     *
+     * @param  list<string>  $urls
+     * @return list<string>
+     */
+    public static function perimeter(array $urls): array
+    {
+        $urls = array_values(array_unique($urls));
+        sort($urls, SORT_STRING);
+
+        return $urls;
+    }
+
+    /**
+     * Le périmètre, en jsonb, d'un passage antérieur à TCK-2438 (`start_urls` nulle) sur ce site : l'URL actuelle de la
+     * configuration. C'est une supposition : si l'URL de la configuration a changé depuis, un ancien passage est jugé sur la
+     * nouvelle. Un site que la configuration ne collecte plus : un périmètre vide.
+     */
+    public static function legacyPerimeterJson(string $site): string
+    {
+        $sources = app(RadarCrawlSources::class);
+        $case = RadarSourceSite::tryFrom($site);
+
+        return json_encode($case !== null && $sources->has($site) ? [$sources->adapter($case)->startUrl()] : [], JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
     }
 }

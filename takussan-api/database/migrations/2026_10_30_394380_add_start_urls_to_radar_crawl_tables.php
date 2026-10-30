@@ -10,11 +10,13 @@ use Illuminate\Support\Facades\Schema;
  * `radar_crawl_sources.start_urls` : les pages de liste qu'un passage lit sur ce site, dans l'ordre. Nulle (jamais une
  * liste vide) : l'URL de `config('radar.crawl.sites.<site>.start_url')`, comme avant ce ticket.
  *
- * `radar_crawl_runs.start_urls` : celles qu'un passage a lues, nulle s'il a lu l'URL de la configuration. La veille de
- * l'observatoire (`RadarSourceWatch`) ne compte un passage complet contre une annonce que s'il a lu les mêmes listes que
- * le passage qui l'a vue en dernier : restreindre les URL de départ ne fait disparaître aucune annonce.
+ * `radar_crawl_runs.start_urls` : le périmètre d'un passage, l'ensemble trié des listes qu'il a suivies (l'URL de la
+ * configuration résolue comprise). La veille de l'observatoire (`RadarSourceWatch`) ne compte un passage complet contre
+ * une annonce que si son périmètre contient celui du passage qui l'a vue en dernier : restreindre les URL de départ ne
+ * fait disparaître aucune annonce, les élargir ne coupe pas la détection.
  *
- * Les deux colonnes naissent nulles : les sources et les passages existants gardent le sens qu'ils avaient.
+ * Les deux colonnes naissent nulles. Une source nulle garde l'URL de la configuration ; un passage antérieur (nul) se lit
+ * comme l'URL ACTUELLE de la configuration de son site (`RadarStartUrls::legacyPerimeterJson()`).
  */
 return new class extends Migration
 {

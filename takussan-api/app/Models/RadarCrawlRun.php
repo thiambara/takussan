@@ -15,8 +15,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * `radar.crawl.*` ou `radar.fetch.*`). `reached_end` : il a lu la dernière page — sans lui, une annonce non revue n'a
  * pas forcément disparu.
  *
- * TCK-2438 — `start_urls` : les listes qu'il a lues, chacune jusqu'au bout pour que `reached_end` soit vrai ; nulle s'il a
- * lu l'URL de la configuration. Le périmètre du passage, pour l'observatoire (`RadarSourceWatch`).
+ * TCK-2438 — `start_urls` : son périmètre, l'ensemble trié des listes qu'il a suivies (l'URL de la configuration résolue
+ * comprise), chacune jusqu'au bout pour que `reached_end` soit vrai. Nulle seulement pour un passage antérieur à
+ * TCK-2438, lu comme l'URL actuelle de la configuration. Pour l'observatoire (`RadarSourceWatch`).
  */
 class RadarCrawlRun extends AbstractModel
 {

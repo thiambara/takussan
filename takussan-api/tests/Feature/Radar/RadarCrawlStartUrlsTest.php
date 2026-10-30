@@ -231,7 +231,7 @@ class RadarCrawlStartUrlsTest extends TestCase
         $this->assertTrue($run->reached_end, 'Chaque liste est allée jusqu\'au bout.');
         $this->assertSame(3, $run->pages_read);
         $this->assertSame(3, $run->listings_created);
-        $this->assertSame([self::APPARTEMENTS, self::TERRAINS], $run->start_urls, 'Le passage note les listes qu\'il a lues.');
+        $this->assertSame([self::TERRAINS, self::APPARTEMENTS], $run->start_urls, 'Le passage note l\'ensemble trié des listes qu\'il a suivies.');
         foreach (['appartement-fictif-ouakam-9100001', 'appartement-fictif-yoff-9100002', 'terrain-fictif-diamniadio-9100003'] as $slug) {
             $this->assertNotNull($this->annonce($slug), $slug);
         }
@@ -283,7 +283,7 @@ class RadarCrawlStartUrlsTest extends TestCase
         $run = $this->crawl();
 
         $this->assertTrue($run->reached_end);
-        $this->assertNull($run->start_urls, 'Nulle : le passage a lu l\'URL de la configuration.');
+        $this->assertSame([self::LIST], $run->start_urls, 'Le périmètre effectif : l\'URL de la configuration résolue, jamais nulle.');
         $this->assertTrue($this->lue(self::LIST));
         $this->assertFalse($this->lue(self::APPARTEMENTS));
     }

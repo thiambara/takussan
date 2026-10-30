@@ -10,6 +10,7 @@ use App\Models\RadarCrawlRun;
 use App\Models\RadarCrawlSource;
 use App\Models\RadarListing;
 use App\Models\RadarListingSnapshot;
+use App\Services\Radar\Crawl\RadarStartUrls;
 use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
@@ -25,8 +26,8 @@ use Illuminate\Support\Facades\DB;
  * dernière. Un passage arrêté au plafond de pages, refusé ou échoué ne compte pas. Une annonce sans instantané (saisie à la
  * main) n'est jamais jugée, ni une annonce que la collecte ne suit plus (TCK-2392, `RadarSnapshots::silenced()`) : purgée,
  * `do_not_contact`, ou d'un annonceur qui a dit STOP — ne plus la voir ne dit rien d'elle. La purge supprime en plus ses
- * instantanés : elle n'en a plus. Un passage ne compte que s'il a lu les mêmes listes que celui qui l'a vue en dernier
- * (TCK-2438, {@see self::completeRunsSinceSql()}).
+ * instantanés : elle n'en a plus. Un passage ne compte que si ses listes contiennent celles du passage qui l'a vue en
+ * dernier (TCK-2438, {@see self::completeRunsSinceSql()}).
  *
  * **Revenue** : un passage postérieur à la disparition l'a revue (`max(last_seen_at)` après `source_gone_at`) ; elle
  * redevient présente, et pourra de nouveau alerter.
@@ -62,12 +63,13 @@ final class RadarSourceWatch
 
         $confirm = self::confirmRuns();
         foreach ($this->decisiveRuns() as $run) {
+            $legacy = RadarStartUrls::legacyPerimeterJson($run->site->value);
             $ids = RadarListing::query()
                 ->where('source_site', $run->site->value)
                 ->whereNull('source_gone_at')
                 ->where(fn ($q) => $this->followed($q))
                 ->whereRaw('('.$this->lastSeenSql().') < ?', [$run->started_at])
-                ->whereRaw('('.$this->completeRunsSinceSql().') >= ?', [$run->site->value, $confirm])
+                ->whereRaw('('.$this->completeRunsSinceSql().') >= ?', [$run->site->value, $legacy, $legacy, $confirm])
                 ->orderBy('id')
                 ->pluck('id');
 
@@ -114,10 +116,13 @@ final class RadarSourceWatch
     /**
      * Les passages complets du site commencés après la dernière présence de l'annonce (lié : le site).
      *
-     * TCK-2438 — et qui ont lu les mêmes listes (`start_urls`, nulle pour l'URL de la configuration) que le passage qui
-     * l'a vue en dernier : le dernier passage du site commencé avant cette présence (un seul passage actif par site). Un
-     * passage d'un autre périmètre ne dit rien d'elle : restreindre les URL de départ dans la console ne la fait pas
-     * disparaître. Elle n'est jugée de nouveau qu'une fois revue par un passage du périmètre courant.
+     * TCK-2438 — et dont le périmètre (`start_urls`, l'ensemble trié des listes lues) CONTIENT celui du passage qui l'a vue
+     * en dernier : le dernier passage du site commencé avant cette présence (un seul passage actif par site). Élargir les
+     * URL de départ ne coupe donc pas la détection ; les restreindre, si : un passage qui n'a pas relu la liste où elle était
+     * ne dit rien d'elle, et elle n'est jugée de nouveau qu'une fois revue. Un passage antérieur à TCK-2438 (`start_urls`
+     * nulle) se lit comme l'URL ACTUELLE de la configuration du site (liée deux fois, après le site :
+     * {@see RadarStartUrls::legacyPerimeterJson()}). L'inclusion est l'opérateur `@>` de jsonb sur deux tableaux de
+     * chaînes.
      */
     private function completeRunsSinceSql(): string
     {
@@ -126,8 +131,8 @@ final class RadarSourceWatch
 
         return "select count(*) from {$table} r where r.site = ? and r.status = '{$finished}' and r.reached_end = true"
             .' and r.started_at > ('.$this->lastSeenSql().')'
-            ." and r.start_urls is not distinct from (select r2.start_urls from {$table} r2 where r2.site = r.site"
-            .' and r2.started_at <= ('.$this->lastSeenSql().') order by r2.started_at desc, r2.id desc limit 1)';
+            .' and coalesce(r.start_urls, ?::jsonb) @> coalesce((select r2.start_urls from '.$table.' r2 where r2.site = r.site'
+            .' and r2.started_at <= ('.$this->lastSeenSql().') order by r2.started_at desc, r2.id desc limit 1), ?::jsonb)';
     }
 
     /** La dernière présence d'une annonce : `null` sans instantané (la comparaison est alors fausse, l'annonce n'est pas jugée). */
