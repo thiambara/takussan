@@ -187,15 +187,37 @@ final class PhoneMasker
      * L'indicatif `1` ou `7` et le numéro complet qui le suit : ce qui, derrière un `+` d'étage, n'est pas un étage. Le `(0)`
      * de trunk, que `FOREIGN` admet par `AFTER_CC`, aussi (TCK-2445 : `RDC +7 (0)495 123-45-67` partait en clair).
      */
-    public const CC1_NUMBER = '(?:1'.self::TRUNK_ZERO.self::NOT_SENEGAL_ZONE.'(?:'.self::CC1_REST.'|'.self::NANP_REST.'|'.self::ZONE_REST.')'
-        .'|7'.self::TRUNK_ZERO.self::NOT_SENEGAL_ZONE.'(?:'.self::CC1_REST.'|'.self::CC7_REST.'))';
+    public const CC1_NUMBER = '[17]'.self::NOT_SENEGAL_ZONE.'(?:(?<=1)'.self::TRUNK_ZERO.'(?:'.self::CC1_REST.'|'.self::NANP_REST.'|'.self::ZONE_REST.')'
+        .'|(?<=7)'.self::TRUNK_ZERO.'(?:'.self::CC1_REST.'|'.self::CC7_REST.'))';
 
     /**
      * TCK-2447 — derrière le `1` ou le `7` d'un étage, `(221)` suivi d'un numéro sénégalais (`PATTERN`) est l'indicatif du
      * Sénégal entre parenthèses, pas une zone : `Villa R+1 (221) 77 012 34 56` se lisait `+1 (221) 77 012 34`, un numéro
      * complet, et le contact se perdait. Hors d'un étage, `FOREIGN` le lit toujours (`Contact +1 (221) 77 012 34 56`).
+     *
+     * TCK-2451 — de même `(221)` devant un numéro à groupement libre (`SENEGAL_LOOSE` : `R+1 (221) 77 01 234 56`), et `00221`
+     * ou `221` nu devant un numéro de `PATTERN` (`R+1 00221 77 012 34 56`, `R+1 221 77 012 34 56`) : `R+1 00221 77 012 34 56`
+     * se lisait `+1 0022177012`, et `34 56` partait en clair. Chaque branche lit ce que le masque lira ensuite en entier
+     * (`SENEGAL_WITH_CODE` derrière `00221` prend les mêmes neuf chiffres que `PATTERN`), sans chiffre derrière à trois
+     * séparateurs près (un numéro tronqué suivi d'un autre, `R+1 00221 77 012 34 / 78 123 45 67`, se lirait jusqu'au `78`) :
+     * l'étage ne reste un étage que si le numéro est masqué en entier. Les autres écritures restent lues par `FOREIGN`, qui
+     * englobe alors le numéro (`CODED_SENEGAL`).
+     *
+     * Placée derrière le `1` ou le `7` et devant le `(0)` de trunk (qu'elle lit) : un seul exemplaire pour les deux indicatifs,
+     * le motif en contient trois (PCRE plafonne la taille d'un motif compilé).
      */
-    private const NOT_SENEGAL_ZONE = '(?!'.self::SEP.'?\(221\)'.self::SEP.'{0,3}'.self::SENEGAL.self::END.')';
+    private const NOT_SENEGAL_ZONE = '(?!'.self::TRUNK_ZERO.self::SEP.'{0,3}(?:\(221\)'.self::SEP.'{0,3}'.self::SENEGAL.self::END
+        .'|(?:\(221\)'.self::SEP.'{0,3}'.self::SENEGAL_LOOSE.self::END.'|(?=00)'.self::SENEGAL.'(?![0-9])|(?=221)'.self::SENEGAL.self::END.')'
+        .'(?!'.self::SEP.'{0,3}[0-9])))';
+
+    /**
+     * TCK-2451 — la fin d'un numéro sénégalais lu derrière un indicatif étranger (`CODED_SENEGAL`) : aucun chiffre ne le prolonge
+     * à trois séparateurs près, sauf le début d'un autre numéro entier (`… 34 56 / 78 123 45 67`). Sans elle, un numéro tronqué
+     * suivi d'un autre (`+1 00221 77 012 34 / 78 123 45 67`) se lisait jusqu'au `78`, et `123 45 67` partait en clair.
+     * `NOT_SENEGAL_ZONE` s'en tient à « aucun chiffre » : elle figure trois fois dans le motif, et PCRE plafonne sa taille.
+     */
+    private const WHOLE_NUMBER_END = '(?![0-9])(?:(?!'.self::SEP.'{0,3}[0-9])|(?='.self::SEP.'{0,3}(?:'.self::SENEGAL_WITH_CODE
+        .'|'.self::SENEGAL.self::END.'|'.self::SENEGAL_LOOSE.self::END.')))';
 
     /** Le `(0)` de trunk facultatif derrière l'indicatif, comme dans `AFTER_CC`. */
     private const TRUNK_ZERO = '(?:'.self::WS.'?\(0\))?';
@@ -222,7 +244,7 @@ final class PhoneMasker
      * motif d'un groupe (`+33 6 12 34 56 78 F. Dupont` laisserait `78 F.`).
      */
     private const FOREIGN = '(?:(?<![0-9+])(?<![0-9][.,])'.self::NOT_A_FLOOR.'(?:\+(?!'.self::WS.'{1,2}[0-9]{1,3}(?:'.self::SEP.'[0-9]{3})*'.self::SEP.'000(?![0-9]))'.self::WS.'{0,2}|00'.self::SEP.'?)'
-        .self::FOREIGN_NUMBER.'(?<!'.self::SEP.'[0-9])'
+        .'(?:(?='.self::FOREIGN_NUMBER.'(?<!'.self::SEP.'[0-9])(?![0-9]))'.self::CODED_SENEGAL.'|'.self::FOREIGN_NUMBER.'(?<!'.self::SEP.'[0-9]))'
         .'|(?<![0-9])0[1-9](?:[0-9]{8}|(?<sep>'.self::SEP.')[0-9]{2}(?:\k<sep>[0-9]{2}){3}))(?![0-9])';
 
     /**
@@ -235,6 +257,18 @@ final class PhoneMasker
         .'|7'.self::AFTER_CC.self::CC7_LONG_ZONE
         .'|'.self::CC2.self::AFTER_CC.'(?:'.self::SEP.'{0,3}[0-9]){7,11}'
         .'|'.self::CC3.self::AFTER_CC.'(?:'.self::SEP.'{0,3}[0-9]){6,10})';
+
+    /**
+     * TCK-2451 — un indicatif étranger suivi d'un numéro sénégalais écrit avec son indicatif (`00221`, `221` nu, et `(221)`
+     * derrière `1` ou `7`, la zone que `FOREIGN_NUMBER` lit) : `FOREIGN` le lisait jusqu'à la longueur de son plan et
+     * laissait la fin en clair (`Immeuble R+20 00221 77 123 45 67` → `[TELEPHONE] 45 67`). Il englobe désormais le numéro
+     * entier, à groupement libre et quelle que soit la marque qui suit : `Immeuble R[TELEPHONE]`, `Contact [TELEPHONE]`.
+     * Seulement là où `FOREIGN` lisait déjà un numéro, bornes comprises (le lookahead de `FOREIGN`) : `Immeuble R+20 221 7 7 1 2
+     * 3 4 5 6 7` et `Contact +1 (221) 770123456`, que `FOREIGN` ne lisait pas, gardent leur contact. Ce n'est pas un contact du
+     * Radar (l'indicatif étranger reste devant), comme avant.
+     */
+    private const CODED_SENEGAL = '(?:'.self::CC1.self::AFTER_CC.self::SEP.'?\(221\)|(?:'.self::CC1.'|'.self::CC2.'|'.self::CC3.')'
+        .self::AFTER_CC.self::SEP.'{0,3}(?:00'.self::WS.'?)?221)'.self::SEP.'{0,3}'.self::PREFIX_SPACED.'(?:'.self::SEP.'{0,3}[0-9]){7}'.self::WHOLE_NUMBER_END;
 
     /**
      * Le lien WhatsApp canonique, qui écrit le numéro sans `+` : `wa.me/33612345678`,
