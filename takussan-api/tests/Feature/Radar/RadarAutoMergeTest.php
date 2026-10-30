@@ -9,11 +9,13 @@ use App\Models\Enums\RadarListingStage;
 use App\Models\Enums\RadarSourceKind;
 use App\Models\Enums\RadarSourceSite;
 use App\Models\GeoNeighborhood;
+use App\Models\RadarAdvertiser;
 use App\Models\RadarCrawlRun;
 use App\Models\RadarListing;
 use App\Models\RadarListingSnapshot;
 use App\Models\User;
 use App\Services\Radar\RadarAutoMerge;
+use App\Services\Radar\RadarMatcher;
 use App\Support\PhotoFingerprint;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Support\OperateursPlateforme;
@@ -158,16 +160,22 @@ class RadarAutoMergeTest extends TestCase
         $this->assertSame($fiche->id, $vue->fresh()->duplicate_of_listing_id);
     }
 
-    public function test_le_texte_seul_ne_fusionne_pas_il_designe_l_annonceur(): void
+    public function test_le_telephone_et_le_texte_ne_fusionnent_pas_ils_designent_l_annonceur(): void
     {
+        // Deux signaux, donc un rapprochement fort — mais aucun ne désigne le bien : un annonceur porte plusieurs biens.
+        $annonceur = RadarAdvertiser::factory()->create();
         $texte = ['description' => ['value' => self::DESCRIPTION]];
-        $this->annonce(RadarSourceSite::ExpatDakar, $texte);
-        $vue = $this->annonce(RadarSourceSite::Coinafrique, $texte, $this->trouveeParLaCollecte());
+        $this->annonce(RadarSourceSite::ExpatDakar, $texte, ['radar_advertiser_id' => $annonceur->id]);
+        $vue = $this->annonce(RadarSourceSite::Coinafrique, $texte, $this->trouveeParLaCollecte(['radar_advertiser_id' => $annonceur->id]));
 
         $this->assertSame(0, $this->merge()->sweep(now()));
         $vue->refresh();
         $this->assertSame(RadarListingStage::Extracted, $vue->stage);
         $this->assertNotNull($vue->merge_checked_at, 'Une annonce n\'est jugée qu\'une fois.');
+        // Le rapprochement EST fort : seule la règle du signal de bien l'a écarté.
+        $match = $this->app->make(RadarMatcher::class)->matchesFor($vue)[0];
+        $this->assertSame('high', $match['strength']);
+        $this->assertEqualsCanonicalizing([RadarMatcher::SIGNAL_PHONE, RadarMatcher::SIGNAL_TEXT], array_column($match['signals'], 'signal'));
     }
 
     public function test_deux_annonces_du_meme_site_restent_a_l_operateur(): void
