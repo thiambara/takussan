@@ -1,7 +1,7 @@
 ---
 id: TCK-2441
 title: "Radar : `R+33 6 12 34 56 78` n'est plus lu comme un numéro sénégalais `+221 33…`"
-status: todo
+status: doing
 phase: P3
 family: back
 estimate: S

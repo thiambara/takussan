@@ -1,7 +1,7 @@
 ---
 id: TCK-2447
 title: "Radar : `R+1 (221) 77 …` garde son contact sénégalais, et `(221)` n'est pas un prix"
-status: todo
+status: doing
 phase: P3
 family: back
 estimate: S
