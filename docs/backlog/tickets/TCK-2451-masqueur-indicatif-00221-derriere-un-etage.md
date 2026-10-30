@@ -1,7 +1,7 @@
 ---
 id: TCK-2451
 title: "Socle IA : `R+1 00221 77 …` ne laisse plus de chiffres d'un numéro en clair, et garde son contact au Radar"
-status: todo
+status: doing
 phase: P2
 family: back
 estimate: S
