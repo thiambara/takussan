@@ -214,14 +214,20 @@ final class PhoneMasker
      * Pas d'exclusion « marque monétaire » ici, contrairement au numéro sénégalais : elle ferait reculer le
      * motif d'un groupe (`+33 6 12 34 56 78 F. Dupont` laisserait `78 F.`).
      */
-    private const FOREIGN = '(?:(?<![0-9+])(?<![0-9][.,])'.self::NOT_A_FLOOR.'(?:\+(?!'.self::WS.'{1,2}[0-9]{1,3}(?:'.self::SEP.'[0-9]{3})*'.self::SEP.'000(?![0-9]))'.self::WS.'{0,2}|00'.self::SEP.'?)(?:'
+    private const FOREIGN = '(?:(?<![0-9+])(?<![0-9][.,])'.self::NOT_A_FLOOR.'(?:\+(?!'.self::WS.'{1,2}[0-9]{1,3}(?:'.self::SEP.'[0-9]{3})*'.self::SEP.'000(?![0-9]))'.self::WS.'{0,2}|00'.self::SEP.'?)'
+        .self::FOREIGN_NUMBER.'(?<!'.self::SEP.'[0-9])'
+        .'|(?<![0-9])0[1-9](?:[0-9]{8}|(?<sep>'.self::SEP.')[0-9]{2}(?:\k<sep>[0-9]{2}){3}))(?![0-9])';
+
+    /**
+     * TCK-2441 — ce que `FOREIGN` lit derrière le `+` ou le `00` : un indicatif ITU et le nombre de chiffres de son plan.
+     * Lu aussi par `RadarPhone::FLOOR_PLUS` : derrière `R+` collé, un numéro étranger complet garde son `+`.
+     */
+    public const FOREIGN_NUMBER = '(?:'
         .'33'.self::AFTER_CC.'(?:'.self::SEP.'{0,3}[0-9]){9}'
         .'|'.self::CC1.self::AFTER_CC.'(?:'.self::SEP.'?\([0-9]{3}\)(?:'.self::SEP.'{0,3}[0-9]){7}|(?:'.self::SEP.'{0,3}[0-9]){10})'
         .'|7'.self::AFTER_CC.self::CC7_LONG_ZONE
         .'|'.self::CC2.self::AFTER_CC.'(?:'.self::SEP.'{0,3}[0-9]){7,11}'
-        .'|'.self::CC3.self::AFTER_CC.'(?:'.self::SEP.'{0,3}[0-9]){6,10}'
-        .')(?<!'.self::SEP.'[0-9])'
-        .'|(?<![0-9])0[1-9](?:[0-9]{8}|(?<sep>'.self::SEP.')[0-9]{2}(?:\k<sep>[0-9]{2}){3}))(?![0-9])';
+        .'|'.self::CC3.self::AFTER_CC.'(?:'.self::SEP.'{0,3}[0-9]){6,10})';
 
     /**
      * Le lien WhatsApp canonique, qui écrit le numéro sans `+` : `wa.me/33612345678`,

@@ -57,8 +57,13 @@ final class RadarPhone
      * Des deux côtés, un `1` ou un `7` suivi d'un numéro complet de cet indicatif (`PhoneMasker::CC1_NUMBER`) garde son `+` :
      * `RDC +1 5145550199` n'est ni un prix, ni un contact sénégalais. `R+17 77 123 45 67`, que la première branche
      * laisse, reste un étage par la seconde.
+     *
+     * TCK-2441 — la première branche laisse aussi son `+` à un numéro étranger complet (`PhoneMasker::FOREIGN_NUMBER`,
+     * sans la borne de fin de `FOREIGN` : chiffre à chiffre compris) : `Villa R+33 6 12 34 56 78` se lisait `33 6 12 34 56`,
+     * un fixe sénégalais. Un étage de 20 ou plus qui est un indicatif suivi d'un numéro (`R+20 77 123 45 67`, l'Égypte)
+     * perd son contact plutôt que d'en inventer un : le masqueur y lit déjà un numéro égyptien. `R+25 77 …` le garde.
      */
-    private const FLOOR_PLUS = '/(?<!\p{L})([Rr])\+(?=[0-9])(?!'.PhoneMasker::CC1_NUMBER.')'
+    private const FLOOR_PLUS = '/(?<!\p{L})([Rr])\+(?=[0-9])(?!'.PhoneMasker::CC1_NUMBER.')(?!'.PhoneMasker::FOREIGN_NUMBER.')'
         .'|(?<!\p{L})((?:r|rdc)[\s\x{00A0}\x{202F}]{0,2})\+(?='.PhoneMasker::FLOOR_AFTER_PLUS.')/iu';
 
     /**

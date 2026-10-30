@@ -165,6 +165,15 @@ class RadarAmountParserTest extends TestCase
         }
     }
 
+    public function test_un_numero_etranger_colle_derriere_r_n_est_pas_un_prix(): void
+    {
+        // TCK-2441 : le `+` neutralisé faisait de `33612345678` un nombre nu, et laissait le dernier groupe devant `F`.
+        $this->assertNull(RadarAmountParser::parse('Villa R+33 612345678'));
+        $this->assertNull(RadarAmountParser::parse('Villa R+33 6 12 34 56 78 F'));
+        // Un étage de 20 ou plus qui n'est pas un indicatif reste un étage devant son prix.
+        $this->assertSame(['amount' => 450_000, 'period' => null], RadarAmountParser::parse('Immeuble R+25 450 000 F'));
+    }
+
     public function test_un_numero_sept_a_zone_entre_parentheses_derriere_un_etage_n_est_pas_un_prix(): void
     {
         // TCK-2445 : sans la zone entre parenthèses dans `PhoneMasker::CC7_REST`, le `7` était lu comme un étage et un bout
