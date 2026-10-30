@@ -143,5 +143,5 @@ diffuseur pour le compte d'un tiers, ce qui touche les conditions d'utilisation 
 | Interrupteurs du mandat | drapeau `radar_mandate` (console) + réglage `radar.mandate_agency_id` | variables d'environnement | réversible sans déploiement ni parité `.env` |
 | Garde du compte sous mandat | ni numéro inscrit ni connexion par téléphone exigés | les exiger comme « pour lui » | aucun compte n'est créé ni promis |
 | Compte rattaché | `account_exists` refuse le mandat ; `under_mandate` refuse « pour lui » | mêler les deux états | ADR-0079 § 4 ; la reprise est TCK-2421 |
-| Cliquet i18n de `(super-admin)/super-admin` | plafond relevé d'UN point (52 → 53), lui seul | `--update` de toute la table | la part passe à 52,1 % à la fusion de `dev` (collecte TCK-2392 + ces libellés de console) ; aucun espace n'entre, l'espace `superAdmin` grossit ; `--update` aurait resserré 38 autres frontières hors périmètre |
+| Cliquet i18n de `(super-admin)/super-admin` | plafond relevé d'un point (52 → 53) à la fusion de `dev`, puis remplacé par celui de `dev` (57) à la fusion suivante | `--update` de toute la table | aucun espace n'entrait ; `--update` aurait resserré 38 autres frontières hors périmètre |
 | Mention publique et CGU | reportées à TCK-2422 | les poser ici | règle du README juridique : un texte public attend l'acceptation de l'ADR |
