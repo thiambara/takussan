@@ -21,7 +21,9 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
  * Tout dossier de premier niveau à nom numérique du disque privé est présumé de la médiathèque : les autres écrivains de ce disque
  * (`erasure-ledger/`, `exports/`…) rangent sous un préfixe nommé.
  *
- * Ce qu'il ne voit pas : les copies de la publication sous les biens (disque PUBLIC, des milliers de dossiers numériques légitimes).
+ * TCK-2406 — les copies de la publication ({@see RadarCopyPathGenerator}) : l'original sur le disque privé, la vignette synchrone sur
+ * le PUBLIC, où des milliers de dossiers numériques légitimes vivent à la racine. Elles se rangent sous leur préfixe à elles, et
+ * {@see self::sweepPublicationCopies()} ne balaie que lui, sur les deux disques, selon la même règle.
  */
 final class RadarOrphanFiles
 {
@@ -31,11 +33,28 @@ final class RadarOrphanFiles
     /** @return int les dossiers effacés */
     public function sweep(CarbonInterface $now): int
     {
-        $disk = Storage::disk((string) config('media-library.disk_name'));
+        return $this->sweepUnder(Storage::disk((string) config('media-library.disk_name')), '', $now);
+    }
+
+    /** @return int les dossiers de copies effacés, les deux disques ensemble (un média coupé en laisse un sur chacun) */
+    public function sweepPublicationCopies(CarbonInterface $now): int
+    {
+        $disks = array_unique([(string) config('media-library.disk_name'), (string) config('media-library.public_disk_name')]);
+
+        return array_sum(array_map(
+            fn (string $disk): int => $this->sweepUnder(Storage::disk($disk), RadarCopyPathGenerator::root(), $now),
+            $disks,
+        ));
+    }
+
+    /** Les dossiers à nom numérique de `$root` (la racine : `''`) sans ligne `media` et plus vieux que le délai de grâce. */
+    private function sweepUnder(Filesystem $disk, string $root, CarbonInterface $now): int
+    {
         $limit = $now->copy()->subMinutes(self::GRACE_MINUTES)->getTimestamp();
+        $prefix = $root === '' ? '' : $root.'/';
 
         $numeric = array_values(array_filter(
-            array_map(fn (string $dir): string => basename($dir), $disk->directories('')),
+            array_map(fn (string $dir): string => basename($dir), $disk->directories($root)),
             fn (string $name): bool => ctype_digit($name),
         ));
 
@@ -43,10 +62,10 @@ final class RadarOrphanFiles
         foreach (array_chunk($numeric, 500) as $names) {
             $known = array_flip(array_map('strval', Media::query()->whereIn('id', array_map('intval', $names))->pluck('id')->all()));
             foreach ($names as $name) {
-                if (isset($known[$name]) || $this->newest($disk, $name) > $limit) {
+                if (isset($known[$name]) || $this->newest($disk, $prefix.$name) > $limit) {
                     continue;
                 }
-                $disk->deleteDirectory($name);
+                $disk->deleteDirectory($prefix.$name);
                 $swept++;
             }
         }

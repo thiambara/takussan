@@ -21,6 +21,7 @@ return [
     'logout_successful' => 'Déconnexion réussie.',
     'two_factor_required' => 'Authentification à deux facteurs requise.',
     'two_factor_invalid' => 'Code à deux facteurs ou code de récupération invalide.',
+    'terms_required' => 'Acceptez les conditions d\'utilisation pour activer votre compte.',
     // TCK-589 — entrée par téléphone, verrou, sessions, 2FA exigée (ajouts seulement).
     'phone' => [
         'sms_code' => 'Takussan : votre code est :code. Il expire dans :minutes min. Ne le communiquez à personne.',

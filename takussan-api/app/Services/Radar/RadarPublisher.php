@@ -261,7 +261,7 @@ final class RadarPublisher
             }
 
             // Le travail de la copie se borne AVANT la première écriture : une publication qui dépasserait le temps d'horloge de PHP
-            // (60 s) mourrait sans que le `catch` ne passe, et laisserait ses copies sans ligne `media`.
+            // (60 s) mourrait sans que le `catch` ne passe, et laisserait ses copies sans ligne `media` (que la purge balaie, TCK-2406).
             $photoCount = $listings->sum(fn (RadarListing $listing): int => $this->reserve->count($listing));
             $maxPhotos = (int) config('radar.publish.max_photos');
             abort_code_if($photoCount > $maxPhotos, 422, 'radar.publish.too_many_photos', ['count' => $photoCount, 'max' => $maxPhotos]);
@@ -278,11 +278,12 @@ final class RadarPublisher
                     $property = $this->createProperty($listing, $locked, $user, $agency);
                     // `copy()` garde l'`order_column` de la réserve : le rang se pose ici, pour que la couverture suive l'ordre voulu.
                     // Il garde aussi ses propriétés (`source_url`, `origin`, `sha256`) : elles restent dans la réserve, que le
-                    // Radar purge (ADR-0077 §9), et ne suivent pas la photo publique.
+                    // Radar purge (ADR-0077 §9), et ne suivent pas la photo publique. Seul le marqueur de TCK-2406 la suit : il range
+                    // la copie sous le préfixe que la purge balaie, si cette requête meurt avant son commit.
                     foreach ($this->reserve->ordered($listing)->values() as $rank => $media) {
                         $copied[] = $media->copy($property, 'photos', fileAdderCallback: fn (FileAdder $adder) => $adder
                             ->setOrder($rank + 1)
-                            ->withCustomProperties([]));
+                            ->withCustomProperties([RadarCopyPathGenerator::MARKER => true]));
                     }
                     $listing->forceFill(['property_id' => $property->id, 'stage' => RadarListingStage::Published, 'stage_reason' => null])->save();
                     $properties[] = $property;
