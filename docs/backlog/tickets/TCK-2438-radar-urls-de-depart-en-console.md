@@ -78,9 +78,10 @@ quelqu'un. ADR-0080 est amendé.
   passage ce que la requête a jugé à l'enregistrement.
 - **Une seconde colonne, `radar_crawl_runs.start_urls`, en plus de celle du brief.** La veille de TCK-2393 conclut à la
   disparition d'une annonce après deux passages complets sans elle. Restreindre les URL aurait donc déclaré disparue chaque
-  annonce sortie du périmètre, avec une alerte et la question au titulaire (TCK-2432). Le passage note son périmètre,
-  et la veille ne compte que les passages du même périmètre que celui qui a vu l'annonce en dernier. Nulle vaut « l'URL de
-  la configuration » : les passages antérieurs gardent leur sens, sans reprise de données.
+  annonce sortie du périmètre, avec une alerte et la question au titulaire (TCK-2432). Le passage note son périmètre
+  EFFECTIF (l'URL de la configuration résolue comprise), trié et sans doublon. Un passage ne compte contre une annonce
+  que si son périmètre CONTIENT celui du passage qui l'a vue en dernier (jsonb `@>`). Un passage antérieur à la colonne
+  (nulle) se lit comme l'URL actuelle de la configuration du site (`RadarStartUrls::legacyPerimeterJson()`).
 - **Les arrêts** :
   - Le plafond de pages, le budget de temps et le créneau pris arrêtent le PASSAGE.
   - Une boucle, une page sans carte ou une lecture refusée n'arrêtent que la LISTE : la suivante est lue, mais
@@ -106,7 +107,13 @@ quelqu'un. ADR-0080 est amendé.
 5. **Seconde colonne `radar_crawl_runs.start_urls`, au-delà du brief** (« une seule colonne neuve sur
    `radar_crawl_sources` », qui est respecté). Écarté : couper la détection de disparition pour les sources réglées.
    Raison : cela retirait l'observatoire dès qu'on se sert du réglage. La session en a été avertie.
-6. **Changer de périmètre suspend le jugement d'une annonce jusqu'à ce qu'elle soit revue.** C'est vrai même quand on
-   élargit le périmètre : une annonce retirée au moment même du changement n'est plus jugée. Écarté : retenir le dernier
-   passage de chaque URL pour juger par liste (une colonne de plus par instantané). Raison : on rate au pire une alerte,
-   on n'en déclenche jamais une à tort.
+6. **Règle d'inclusion (consigne de la session, à revoir)** : un passage compte si son périmètre contient celui du
+   passage qui a vu l'annonce en dernier. Élargir ne coupe donc pas la détection. Restreindre suspend le jugement d'une
+   annonce jusqu'à ce qu'elle soit revue ; une annonce retirée du site au moment même de la restriction n'est plus
+   jugée. Écarté : l'égalité stricte, qui coupait aussi la détection à l'élargissement (l'inclusion ne coûte qu'un
+   opérateur `@>`).
+7. **Périmètre effectif, jamais nul (consigne de la session, à revoir)** : le passage note l'URL de la configuration
+   résolue, triée et sans doublon. Un changement de l'URL dans `config/radar.php` change ainsi le périmètre. Les passages
+   antérieurs à la colonne se lisent comme l'URL ACTUELLE de la configuration. C'est une supposition : si cette URL a
+   changé depuis, un ancien passage est jugé sur la nouvelle. Écarté : nul pour « la configuration », car « nul = nul »
+   aurait caché un changement de l'URL dans le code.

@@ -144,18 +144,24 @@ dans les paramètres »). Il prolonge le §2. Jusque-là, chaque site partait d'
    entier, toutes listes comprises. Le plafond, le budget et le créneau pris arrêtent le passage. Une liste qui s'arrête
    avant sa fin laisse lire la suivante : page sans carte, lecture refusée ou boucle. **`reached_end` n'est vrai que si
    chaque liste est allée jusqu'au bout.**
-4. **Changer de périmètre ne fait disparaître aucune annonce.** Le passage note les listes qu'il a lues
-   (`radar_crawl_runs.start_urls`, nulle pour l'URL de la configuration). La veille de l'observatoire (ADR-0083 §3) ne
-   compte un passage complet contre une annonce que s'il a lu les mêmes listes que le passage qui l'a vue en dernier.
+4. **Changer de périmètre ne fait disparaître aucune annonce à tort.** Le passage note son périmètre EFFECTIF dans
+   `radar_crawl_runs.start_urls` : l'ensemble trié et sans doublon des listes suivies, l'URL de la configuration résolue
+   comprise. La veille de l'observatoire (ADR-0083 §3) ne compte un passage complet contre une annonce que si son
+   périmètre **contient** celui du passage qui l'a vue en dernier (jsonb `@>`).
    - Pourquoi : restreindre les URL (« tout l'immobilier » → « appartements à louer ») déclarait disparue chaque annonce
      sortie du périmètre. Cela déclenchait une alerte et, pour un bien publié, la question à son titulaire (TCK-2432).
-   - Conséquence : après un changement de périmètre, une annonce n'est jugée de nouveau qu'une fois revue sous le nouveau
-     périmètre. Une annonce retirée du site au moment même du changement n'est plus jugée. On rate alors une alerte, mais
+   - Élargir les URL ne coupe pas la détection. Restreindre suspend le jugement d'une annonce jusqu'à ce qu'elle soit
+     revue : une annonce retirée du site au moment même de la restriction n'est plus jugée. On rate alors une alerte, mais
      on n'en déclenche aucune à tort.
-   - Écarté : couper la détection de disparition pour toute source dont les URL sont réglées. C'était plus simple, mais
-     cela retirait l'observatoire au porteur dès qu'il se servait du réglage.
+   - Changer l'URL dans `config/radar.php` change le périmètre, comme un réglage de la console : il n'est jamais noté nul.
+     Les passages antérieurs à la colonne (nulle) se lisent comme l'URL **actuelle** de la configuration de leur site.
+     C'est une supposition : si cette URL a changé depuis, un ancien passage est jugé sur la nouvelle.
+   - **À revoir** (consigne de la session, 2026-10-30) : inclusion plutôt qu'égalité, et périmètre effectif plutôt que nul.
+   - Écarté : l'égalité stricte des périmètres, qui coupait aussi la détection à l'élargissement ; couper la détection pour
+     toute source réglée, qui retirait l'observatoire au porteur dès qu'il se servait du réglage.
 
 Application : `RadarStartUrls`, `UpdateRadarCrawlSourceRequest`, `RadarCrawler`, `RadarSourceWatch::completeRunsSinceSql()`.
 Tests : `tests/Feature/Radar/RadarCrawlStartUrlsTest.php` (garde-fous, budget du passage, valeur écrite hors de la console)
-et `tests/Feature/Radar/Observatory/RadarSourceWatchStartUrlsTest.php` (restreindre le périmètre n'alerte pas ; sous le
-même périmètre, la disparition se conclut).
+et `tests/Feature/Radar/Observatory/RadarSourceWatchStartUrlsTest.php` (restreindre, dans la console ou dans la
+configuration, n'alerte ni ne questionne ; élargir laisse détecter ; un passage antérieur se lit comme l'URL de la
+configuration).
