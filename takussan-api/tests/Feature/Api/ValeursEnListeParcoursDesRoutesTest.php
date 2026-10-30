@@ -113,6 +113,7 @@ class ValeursEnListeParcoursDesRoutesTest extends ApiTestCase
         'api/service-provider-bills/{bill}' => '{bill} : sans liaison de modèle',
         'api/webhooks/sms/lafricamobile/status/{token}/{notification}' => '{token} : sans liaison de modèle',
         'api/webhooks/whatsapp/status/{token}' => '{token} : sans liaison de modèle',
+        'api/webhooks/whatsapp/radar/{token}' => '{token} : sans liaison de modèle',
     ];
 
     public function test_aucune_route_get_ne_rend_5xx_sur_une_valeur_en_liste(): void

@@ -161,12 +161,18 @@ final class RadarOutreachWorkflow
     /**
      * L'opérateur a envoyé le message : ses annonces passent `reviewed` → `contacted`, et la suggestion du modèle est
      * décidée UNE fois — acceptée telle quelle, ou éditée avec le différentiel exact (ADR-0076 §7).
+     *
+     * TCK-2395 — `$dispatch` est l'envoi par l'API du numéro du Radar (`RadarWhatsappOutreach`) : appelé SOUS les verrous,
+     * toutes les règles rejugées et avant toute écriture, il lève sur un refus franc de Meta (rien n'est écrit) et rend
+     * sinon les colonnes du canal (`channel`, `provider_message_id`, `provider_status`). Un appel HTTP borné, jamais le modèle.
+     *
+     * @param  (callable(RadarOutreach, RadarAdvertiser): array<string, mixed>)|null  $dispatch
      */
-    public function markSent(RadarOutreach $outreach, User $by): RadarOutreach
+    public function markSent(RadarOutreach $outreach, User $by, ?callable $dispatch = null): RadarOutreach
     {
         $ids = $outreach->listings()->pluck('radar_listings.id')->map(fn ($id) => (int) $id)->sort()->values()->all();
 
-        return DB::transaction(function () use ($outreach, $ids, $by): RadarOutreach {
+        return DB::transaction(function () use ($outreach, $ids, $by, $dispatch): RadarOutreach {
             $listings = $this->fetch($ids, lock: true);
             $advertiser = RadarAdvertiser::query()->whereKey($outreach->radar_advertiser_id)->lockForUpdate()->firstOrFail();
             $this->claim->assertHeld($advertiser, $by);
@@ -182,7 +188,8 @@ final class RadarOutreachWorkflow
                 abort_code(...$block);
             }
 
-            $locked->forceFill(['sent_at' => now(), 'sent_by_id' => $by->id])->save();
+            $channel = $dispatch === null ? [] : $dispatch($locked, $advertiser);
+            $locked->forceFill(['sent_at' => now(), 'sent_by_id' => $by->id] + $channel)->save();
             foreach ($listings->where('stage', RadarListingStage::Reviewed) as $listing) {
                 $listing->stage = RadarListingStage::Contacted;
                 $listing->save();
@@ -197,7 +204,7 @@ final class RadarOutreachWorkflow
                 'outreach_id' => $locked->id,
                 'listing_ids' => $ids,
                 'suggestion_decision' => $suggestion?->decision->value,
-            ]);
+            ] + ($channel === [] ? [] : ['channel' => $locked->channel->value, 'provider_status' => $locked->provider_status]));
 
             return $locked;
         });

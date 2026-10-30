@@ -746,6 +746,14 @@ return [
             'otp_preview_active' => "The SMS code preview is active in this environment: the activation code would come back in the response, and anyone who knows the advertiser's number could open their account. Nothing is published while it is.",
             'nothing_published' => 'No property is published for this advertiser: there is no message to compose.',
         ],
+        // TCK-2395 — outreach through the API, from the WhatsApp number dedicated to the Radar.
+        'whatsapp' => [
+            'not_configured' => 'The Radar WhatsApp number is not configured: send this message through WhatsApp by hand.',
+            'same_number' => 'The number configured for the Radar is the notifications number: it is never used for outreach. Nothing was sent.',
+            'template_missing' => 'No approved Meta template for this clauses version or this language: send this message through WhatsApp by hand.',
+            'message_mismatch' => 'The Meta template would not render the exact saved text of this message: prepare a new one.',
+            'send_failed' => 'Meta refused to send it (:reason): nothing was recorded, the message is still prepared.',
+        ],
         // TCK-2390 — the advertiser's claim, public page: no Radar wording.
         'claim' => [
             'invalid' => 'This link does not exist.',

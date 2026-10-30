@@ -56,7 +56,8 @@ final class ConsentMessageComposer
 
     public const SUMMARY_MAX = 500;
 
-    private const PLACEHOLDER = '/\{(salutation|resume|lien_conditions|lien_reclamation)\}/';
+    /** Les marqueurs d'un fichier de clauses. TCK-2395 : le gabarit Meta les numérote dans cet ordre (`RadarWhatsappTemplate`). */
+    public const PLACEHOLDER = '/\{(salutation|resume|lien_conditions|lien_reclamation)\}/';
 
     public function __construct(private readonly AiGateway $gateway, private readonly ClaimLinks $claimLinks) {}
 

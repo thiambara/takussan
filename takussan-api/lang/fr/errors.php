@@ -746,6 +746,14 @@ return [
             'otp_preview_active' => "L'aperçu des codes SMS est actif dans cet environnement : le code d'activation reviendrait dans la réponse, et quiconque connaît le numéro de l'annonceur pourrait ouvrir son compte. Rien ne se publie tant qu'il l'est.",
             'nothing_published' => 'Aucun bien n\'est publié pour cet annonceur : il n\'y a pas de message à composer.',
         ],
+        // TCK-2395 — le démarchage par l'API, depuis le numéro WhatsApp dédié au Radar.
+        'whatsapp' => [
+            'not_configured' => 'Le numéro WhatsApp du Radar n\'est pas configuré : envoyez ce message par WhatsApp, à la main.',
+            'same_number' => 'Le numéro configuré pour le Radar est celui des notifications : il ne sert jamais à prospecter. Rien n\'est envoyé.',
+            'template_missing' => 'Aucun modèle Meta approuvé pour cette version des clauses ou cette langue : envoyez ce message par WhatsApp, à la main.',
+            'message_mismatch' => 'Le modèle Meta ne redonnerait pas exactement le texte enregistré de ce message : préparez-en un nouveau.',
+            'send_failed' => 'Meta a refusé l\'envoi (:reason) : rien n\'est enregistré, le message reste préparé.',
+        ],
         // TCK-2390 — la réclamation par l'annonceur, page publique : aucun mot du Radar.
         'claim' => [
             'invalid' => 'Ce lien n\'existe pas.',
