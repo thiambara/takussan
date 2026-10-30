@@ -781,39 +781,33 @@ class RadarClaimTest extends TestCase
     }
 
     /**
-     * TCK-2394 (ADR-0079, vérification adverse I1) — publié sous mandat, l'annonceur ne réclame pas par le lien de son accord :
-     * la réclamation lui ouvrirait un compte à côté de l'espace des mandats (l'état mêlé). Aucun SMS ne part. La reprise
-     * (TCK-2421) lèvera ce refus.
+     * TCK-2421 (ADR-0079) — une publication sous mandat passée entre la lecture et le verrou : relue sous le verrou, la
+     * confirmation reprend aussi ce bien dans l'espace de l'annonceur. Jamais un compte à côté de biens restés sous mandat.
      */
-    public function test_sous_mandat_la_reclamation_par_le_lien_est_refusee_avant_le_sms(): void
-    {
-        $annonce = $this->annonce();
-        $this->annonceur->forceFill(['mandate_at' => now(), 'mandate_by_id' => $this->operateur->id])->save();
-
-        $this->demanderLeCode()->assertStatus(409)->assertJsonPath('code', 'radar.claim.under_mandate');
-        $this->assertSame([], $this->sms->sentTo(self::NUMERO));
-        $this->confirmer([['id' => $annonce->id]], code: '123456')->assertStatus(409)->assertJsonPath('code', 'radar.claim.under_mandate');
-
-        $this->assertNull($this->annonceur->fresh()->user_id);
-        $this->assertSame(RadarListingStage::Contacted, $annonce->fresh()->stage);
-        $this->assertSame(0, Agency::query()->count());
-    }
-
-    /** TCK-2394 — une publication sous mandat passée entre le code et le verrou : la confirmation refuse, le compte ouvert est défait. */
     public function test_sous_mandat_la_reclamation_se_rejuge_sous_le_verrou(): void
     {
         $annonce = $this->annonce();
+        $publiee = $this->annonce(etape: RadarListingStage::Published);
+        $gerant = User::factory()->create();
+        $espaceDesMandats = Agency::factory()->create(['primary_admin_id' => $gerant->id]);
+        $bien = Property::factory()->create([
+            'agency_id' => $espaceDesMandats->id, 'user_id' => $gerant->id, 'metadata' => ['radar_listing_id' => $publiee->id, 'radar_mandate' => true],
+            'visibility' => PropertyVisibility::Public, 'published_at' => now(), 'status' => 'available',
+        ]);
+        $this->lire()->assertOk()->assertJsonPath('data.mandate', null);
         $this->demanderLeCode()->assertStatus(202);
-        $comptes = User::query()->count();
 
-        $this->auVerrou('radar_listings', fn () => RadarAdvertiser::query()->whereKey($this->annonceur->id)->update(['mandate_at' => now()]));
-        $this->confirmer([['id' => $annonce->id]])->assertStatus(409)->assertJsonPath('code', 'radar.claim.under_mandate');
+        $this->auVerrou('radar_listings', function () use ($publiee, $bien): void {
+            RadarListing::query()->whereKey($publiee->id)->update(['property_id' => $bien->id]);
+            RadarAdvertiser::query()->whereKey($this->annonceur->id)->update(['mandate_at' => now()]);
+        });
+        $reponse = $this->confirmer([['id' => $annonce->id]])->assertOk()
+            ->assertJsonPath('claim.listing_ids', [$annonce->id])
+            ->assertJsonPath('claim.taken_back_property_ids', [$bien->id]);
 
-        $this->assertNull($this->annonceur->fresh()->user_id);
-        $this->assertSame($comptes, User::query()->count());
-        $this->assertSame(RadarListingStage::Contacted, $annonce->fresh()->stage);
-        $this->assertSame(0, RadarConsent::query()->where('proof', 'otp')->count());
-        $this->assertSame(0, Agency::query()->count());
+        $compte = $this->annonceur->fresh()->user_id;
+        $this->assertSame([$reponse->json('claim.agency.id'), $compte], [$bien->fresh()->agency_id, $bien->fresh()->user_id]);
+        $this->assertFalse($this->annonceur->fresh()->underMandate());
     }
 
     /** A8 — un STOP enregistré entre la lecture et le verrou : rien ne se publie, rien ne s'écrit. */

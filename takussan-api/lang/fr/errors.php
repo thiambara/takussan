@@ -772,9 +772,11 @@ return [
             'wrong_account' => 'Vous êtes connecté avec un autre compte : déconnectez-vous, puis rouvrez ce lien.',
             'account_changed' => 'Ce compte a changé entre-temps : rechargez la page.',
             'support_required' => 'Ce numéro est lié à deux comptes Takussan : écrivez-nous, nous les réunirons.',
-            // TCK-2394 (ADR-0079) — sous mandat, la réclamation attend la reprise (TCK-2421).
-            'under_mandate' => 'Vos annonces sont déjà diffusées par Takussan pour votre compte : écrivez-nous pour les reprendre dans votre propre espace.',
+            // TCK-2394 (ADR-0079) — un mandat posé après la reprise, sur un annonceur délié de son compte (TCK-2421).
+            'under_mandate' => 'Vos annonces sont de nouveau diffusées par Takussan pour votre compte : rechargez la page pour les reprendre dans votre propre espace.',
             'name_contains_phone' => 'Le prénom et le nom de l\'espace ne peuvent pas contenir de numéro de téléphone.',
+            // TCK-2421 — un bien sous mandat porte de la gestion : la reprise passe par le support.
+            'mandate_support_required' => 'Vos annonces diffusées par Takussan ne peuvent pas être reprises depuis cette page : écrivez-nous, nous les déplacerons dans votre espace.',
         ],
         // TCK-2392 — la collecte automatique et la fusion des doublons entre sites.
         'merge' => [
