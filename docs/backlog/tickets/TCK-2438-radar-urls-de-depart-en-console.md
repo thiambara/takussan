@@ -1,7 +1,7 @@
 ---
 id: TCK-2438
 title: "Radar : les URL de départ de la collecte se règlent dans la console, plusieurs par site"
-status: todo
+status: doing
 phase: P2
 family: full
 estimate: M
