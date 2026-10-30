@@ -6,6 +6,7 @@ use App\Http\Resources\Bases\BaseResource;
 use App\Models\Enums\RadarListingStage;
 use App\Models\GeoNeighborhood;
 use App\Models\RadarAdvertiser;
+use App\Services\Radar\AdvertiserAccountRelease;
 use App\Services\Radar\RadarConsentCoverage;
 use App\Services\Radar\RadarFollowUps;
 use App\Services\Radar\RadarReviewFields;
@@ -80,6 +81,11 @@ class RadarAdvertiserResource extends BaseResource
 
         return [
             'counts' => $this->when($counts !== [], $counts),
+            // TCK-2413 — l'échéance de purge de la première annonce que la publication a laissée (`null` : aucune).
+            'left_purge_at' => $this->when(
+                array_key_exists('left_purge_at', $this->resource->getAttributes()),
+                fn () => $this->iso($this->resource->left_purge_at),
+            ),
             'follow_up' => $this->whenLoaded('outreaches', function () {
                 $followUps = app(RadarFollowUps::class);
                 // La relation est contrainte aux messages ouverts : le plus récemment envoyé.
@@ -126,6 +132,10 @@ class RadarAdvertiserResource extends BaseResource
                     'bedrooms' => $values['bedrooms'],
                     'covered_by_consent' => in_array($listing->id, $covered, true),
                     'created_at' => $this->iso($listing->created_at),
+                    // TCK-2413 — un code : pourquoi la publication de la réclamation a laissé l'annonce à l'opérateur.
+                    'stage_reason' => $listing->stage_reason,
+                    // L'échéance de purge d'une annonce jamais publiée (ADR-0077 §9) : la console la montre sur l'annonce laissée.
+                    'purge_at' => $this->iso($listing->purge_at),
                 ];
             })->all(),
             'outreaches' => $this->outreaches
@@ -140,6 +150,28 @@ class RadarAdvertiserResource extends BaseResource
                     ] : null)
                     ->resolve($request))
                 ->all(),
+            'account' => $this->accountPart(),
+        ];
+    }
+
+    /**
+     * TCK-2413 — le compte rattaché à l'annonceur : supprimé, il bloque la réclamation tant que le super-admin ne l'a pas
+     * délié (`releasable`, {@see AdvertiserAccountRelease}). `claimed` : l'annonceur a réclamé avec ce compte ; sinon le Radar
+     * l'a créé pour lui. `null` : aucun compte rattaché.
+     *
+     * @return array{user_id: int, deleted: bool, releasable: bool, claimed: bool}|null
+     */
+    private function accountPart(): ?array
+    {
+        if ($this->resource->user_id === null) {
+            return null;
+        }
+
+        return [
+            'user_id' => (int) $this->resource->user_id,
+            'deleted' => AdvertiserAccountRelease::deletedAccount($this->resource),
+            'releasable' => AdvertiserAccountRelease::releasable($this->resource),
+            'claimed' => AdvertiserAccountRelease::claimedWith($this->resource),
         ];
     }
 }

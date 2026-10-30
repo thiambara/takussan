@@ -113,8 +113,108 @@ class PublishClaimedRadarListingsTest extends TestCase
         $this->lancer([$prete->id, $sansPhoto->id]);
 
         $this->assertSame(RadarListingStage::Published, $prete->fresh()->stage);
+        $this->assertNull($prete->fresh()->stage_reason);
         $this->assertSame(RadarListingStage::Consented, $sansPhoto->fresh()->stage);
         $this->assertNull($sansPhoto->fresh()->property_id);
+        // TCK-2413 — la raison reste sur l'annonce : la page et la file de l'opérateur la lisent.
+        $this->assertSame('radar.publish.no_photo', $sansPhoto->fresh()->stage_reason);
+    }
+
+    /** TCK-2413 — un champ requis effacé : laissée à l'opérateur, avec sa raison. */
+    public function test_un_champ_manquant_laisse_l_annonce_a_l_operateur_avec_sa_raison(): void
+    {
+        $incomplete = $this->annonce();
+        $incomplete->forceFill(['extracted' => array_replace((array) $incomplete->extracted, ['price' => ['value' => null]])])->save();
+
+        $this->lancer([$incomplete->id]);
+
+        $this->assertSame(RadarListingStage::Consented, $incomplete->fresh()->stage);
+        $this->assertSame('radar.publish.missing_field', $incomplete->fresh()->stage_reason);
+    }
+
+    /** TCK-2413 — laissée puis reprise : rejoué une fois l'annonce prête, le job la publie et efface la raison. */
+    public function test_une_annonce_laissee_puis_prete_se_publie_et_perd_sa_raison(): void
+    {
+        $annonce = $this->annonce(photos: 0);
+        $this->lancer([$annonce->id]);
+        $this->assertSame('radar.publish.no_photo', $annonce->fresh()->stage_reason);
+
+        $annonce->addMediaFromString(self::jpeg(3))->usingFileName('deposee.jpg')->toMediaCollection('radar_photos');
+        $this->lancer([$annonce->id]);
+
+        $this->assertSame(RadarListingStage::Published, $annonce->fresh()->stage);
+        $this->assertNull($annonce->fresh()->stage_reason);
+    }
+
+    /** TCK-2413 — le compte de la réclamation supprimé depuis : rien ne se publie, l'opérateur reprend. */
+    public function test_un_compte_supprime_depuis_la_reclamation_laisse_l_annonce_a_l_operateur(): void
+    {
+        $annonce = $this->annonce();
+        $this->compte->delete();
+
+        $this->lancer([$annonce->id]);
+
+        $this->assertSame(RadarListingStage::Consented, $annonce->fresh()->stage);
+        $this->assertSame('radar.advertiser.account_unavailable', $annonce->fresh()->stage_reason);
+    }
+
+    /**
+     * TCK-2413 — le job abandonne (fenêtre écoulée, photos encore en préparation ; ou une erreur) : ce qu'il n'a ni publié ni
+     * déjà laissé revient à l'opérateur. Après un STOP, rien n'est posé.
+     */
+    public function test_quand_le_job_abandonne_ce_qui_reste_revient_a_l_operateur(): void
+    {
+        $enPreparation = $this->annonce(photos: 0, attributs: [
+            'source_kind' => RadarSourceKind::Url, 'source_url' => 'https://sn.coinafrique.com/annonce/11', 'photo_urls' => ['https://a.cdn.test/p/3.jpg'],
+        ]);
+        $prete = $this->annonce();
+        $dejaLaissee = $this->annonce(photos: 0);
+        $dejaLaissee->forceFill(['stage_reason' => 'radar.publish.no_photo'])->save();
+        $publiee = $this->annonce();
+        $publiee->forceFill(['stage' => RadarListingStage::Published])->save();
+        $job = new PublishClaimedRadarListings($this->annonceur->id, $this->compte->id, $this->espace->id, [$enPreparation->id, $prete->id, $dejaLaissee->id, $publiee->id]);
+
+        $job->failed(new \RuntimeException('fenêtre écoulée'));
+
+        $this->assertSame('radar.publish.photos_pending', $enPreparation->fresh()->stage_reason);
+        $this->assertSame(PublishClaimedRadarListings::FAILED, $prete->fresh()->stage_reason);
+        $this->assertSame('radar.publish.no_photo', $dejaLaissee->fresh()->stage_reason);
+        $this->assertNull($publiee->fresh()->stage_reason);
+    }
+
+    /**
+     * TCK-2413 — l'opérateur publie l'une des annonces pendant que le job les lit : le lot est refusé sous le verrou
+     * (`stage_conflict`), et seule celle qui est encore `consented` porte la raison — une annonce publiée n'en garde aucune.
+     */
+    public function test_le_motif_ne_se_pose_pas_sur_une_annonce_publiee_entre_temps(): void
+    {
+        $a = $this->annonce();
+        $b = $this->annonce();
+        $fait = false;
+        DB::listen(function ($requete) use (&$fait, $b): void {
+            if (! $fait && str_contains($requete->sql, '"radar_listings"') && ! str_contains($requete->sql, 'for update')
+                && str_contains($requete->sql, '"stage"')) {
+                $fait = true;
+                DB::table('radar_listings')->where('id', $b->id)->update(['stage' => RadarListingStage::Published->value]);
+            }
+        });
+
+        $this->lancer([$a->id, $b->id]);
+
+        $this->assertTrue($fait);
+        $this->assertSame('radar.listing.stage_conflict', $a->fresh()->stage_reason);
+        $this->assertSame(RadarListingStage::Published, $b->fresh()->stage);
+        $this->assertNull($b->fresh()->stage_reason);
+    }
+
+    public function test_apres_un_stop_l_abandon_ne_pose_rien(): void
+    {
+        $annonce = $this->annonce();
+        $this->annonceur->forceFill(['do_not_contact_at' => now()])->save();
+
+        (new PublishClaimedRadarListings($this->annonceur->id, $this->compte->id, $this->espace->id, [$annonce->id]))->failed(null);
+
+        $this->assertNull($annonce->fresh()->stage_reason);
     }
 
     public function test_les_lots_restent_sous_le_plafond_de_photos(): void
@@ -138,6 +238,7 @@ class PublishClaimedRadarListingsTest extends TestCase
         $this->lancer([$annonce->id]);
 
         $this->assertSame(RadarListingStage::Consented, $annonce->fresh()->stage);
+        $this->assertSame('radar.advertiser.account_unavailable', $annonce->fresh()->stage_reason);
         $this->assertSame(0, Property::query()->count());
         Log::shouldHaveReceived('warning')->withArgs(fn (string $message, array $contexte) => $message === 'radar.claim.publish_refused'
             && $contexte['code'] === 'radar.advertiser.account_unavailable'
@@ -207,6 +308,8 @@ class PublishClaimedRadarListingsTest extends TestCase
 
         $this->assertSame(0, Property::query()->count());
         $this->assertSame(RadarListingStage::Consented, $annonce->fresh()->stage);
+        // TCK-2413 — rien n'est laissé à l'opérateur : l'annonce se ferme avec le STOP.
+        $this->assertNull($annonce->fresh()->stage_reason);
     }
 
     /** Décision 2a : sans l'accord `otp` valide de l'annonceur, rien ne se publie, même couvert par un autre accord. */
