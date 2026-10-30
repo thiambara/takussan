@@ -88,7 +88,12 @@ const CC3 = '(?:21[1-368]|22[02-9]|2[34][0-9]|25[0-8]|26[0-9]|29[01789]|35[0-9]|
 // Le `+` d'un étage (`R+1`, `R+10`) n'est pas un indicatif (TCK-2428) : un `R` isolé, le `+`, un étage de 0 à 19 que
 // rien ne colle derrière (aucun indicatif à deux ou trois chiffres ne commence par 1 : `R+44 7700 900123` est un numéro).
 // Collé à un mot (`Tel+33`, `Mr+33`), suivi d'une espace ou d'un numéro collé (`R+33612345678`), il en reste un.
-const PAS_UN_ETAGE = String.raw`(?!(?<=(?<!\p{L})r)\+(?:[0-9]|1[0-9])(?![0-9]))`;
+// TCK-2435 : aussi `RDC+1` et `R + 1`, `R +1`, `R+ 1` (au plus deux espaces de chaque côté du `+`), même étage de 0 à 19 ;
+// `R + 33 6 12 34 56 78` et `RDC+33612345678` restent des numéros. Branches énumérées comme le lookbehind PCRE.
+const MOT_ETAGE = String.raw`(?<=(?<!\p{L})r|(?<!\p{L})rdc`
+  + String.raw`|(?<!\p{L})r${WS}|(?<!\p{L})rdc${WS}`
+  + String.raw`|(?<!\p{L})r${WS}${WS}|(?<!\p{L})rdc${WS}${WS})`;
+const PAS_UN_ETAGE = String.raw`(?!${MOT_ETAGE}\+${WS}{0,2}(?:[0-9]|1[0-9])(?![0-9]))`;
 const CHIFFRES = (n) => `(?:${SEP}{0,3}[0-9]){${n}}`;
 const ETRANGER = String.raw`(?:(?<![0-9+])(?<![0-9][.,])${PAS_UN_ETAGE}(?:\+(?!${WS}{1,2}[0-9]{1,3}(?:${SEP}[0-9]{3})*${SEP}000(?![0-9]))${WS}{0,2}|00${SEP}?)(?:`
   + `33${APRES_CC}${CHIFFRES(9)}`

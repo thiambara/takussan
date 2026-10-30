@@ -220,6 +220,21 @@ class RadarPhoneTest extends TestCase
         }
     }
 
+    /** TCK-2435 — `RDC+1` et `R + 1` (espacé) devant le numéro ne sont pas un indicatif non plus ; `R + 33 …` en reste un. */
+    public function test_un_etage_rdc_ou_espace_devant_le_numero_ne_le_fait_pas_perdre(): void
+    {
+        foreach (['Villa RDC+1 77 123 45 67', 'Villa Rdc+2 77 123 45 67', 'Villa R + 1 77 123 45 67', 'Villa R +1 77 123 45 67',
+            'Villa R+ 1 77 123 45 67', 'Immeuble RDC + 10 77 123 45 67', 'Villa (RDC+1) 77 123 45 67'] as $texte) {
+            $this->assertSame(['+221771234567'], RadarPhone::fromText($texte), $texte);
+            $this->assertSame(['+221771234567'], RadarPhone::contactsFromText($texte), $texte);
+        }
+
+        // Un vrai numéro étranger derrière ces écritures n'est ni lu comme un étage, ni comme un contact sénégalais.
+        foreach (['Villa RDC+33 6 12 34 56 78', 'Villa R + 33 6 12 34 56 78', 'Villa R +33 6 12 34 56 78', 'Villa RDC+33612345678'] as $texte) {
+            $this->assertSame([], RadarPhone::fromText($texte), $texte);
+        }
+    }
+
     /**
      * Vérification adverse M2 — les limites connues du masqueur sont lues (le refus STOP s'y juge), mais ne désignent
      * pas d'office un contact : une unité derrière, un mot de prix ou de liste devant, des crochets.

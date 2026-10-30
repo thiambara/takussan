@@ -124,8 +124,17 @@ final class PhoneMasker
      * suivi d'une espace (`R+ 33 …`) ou d'un numéro collé (`R+33612345678`), le `+` reste un indicatif — plus étroit que
      * `RadarPhone::withoutFloorPlus()`, qui n'a pas de numéro étranger à rendre. Limite assumée : `R+1 202 555 0123`
      * et `R+7 912 345 67 89` (indicatif d'un chiffre derrière un `R`) s'écrivent comme un étage.
+     *
+     * TCK-2435 — l'étage s'écrit aussi `RDC+1` (rez-de-chaussée plus un) et `R + 1`, `R +1`, `R+ 1` : au plus deux espaces
+     * de chaque côté du `+`, le même étage de 0 à 19. `R + 33 6 12 34 56 78`, `RDC+33612345678`, `RDC+44 7700 900123`
+     * restent des numéros ; la limite d'un indicatif d'un chiffre s'étend à ces écritures (`RDC+1 202 555 0123`).
+     * Le mot de l'étage est énuméré branche par branche : un lookbehind PCRE n'admet que des branches de longueur fixe.
      */
-    private const NOT_A_FLOOR = '(?!(?<=(?<!\p{L})r)\+(?:[0-9]|1[0-9])(?![0-9]))';
+    private const FLOOR_WORD = '(?<=(?<!\p{L})r|(?<!\p{L})rdc'
+        .'|(?<!\p{L})r'.self::WS.'|(?<!\p{L})rdc'.self::WS
+        .'|(?<!\p{L})r'.self::WS.self::WS.'|(?<!\p{L})rdc'.self::WS.self::WS.')';
+
+    private const NOT_A_FLOOR = '(?!'.self::FLOOR_WORD.'\+'.self::WS.'{0,2}(?:[0-9]|1[0-9])(?![0-9]))';
 
     /**
      * Un numéro étranger (TCK-2410) : `+` (une espace tolérée derrière) ou `00`, un indicatif ITU, puis

@@ -145,6 +145,15 @@ class RadarAmountParserTest extends TestCase
         $this->assertSame(['amount' => 450_000, 'period' => null], RadarAmountParser::parse('Tel +1 202 555 0123, loyer 450 000 F'));
     }
 
+    public function test_un_etage_rdc_ou_espace_devant_un_prix_n_en_fait_pas_un_numero(): void
+    {
+        // TCK-2435 : `RDC+1` et `R + 1` sont des étages comme `R+1`, le prix qui suit est lu.
+        foreach (['Immeuble RDC+1 1 250 500 750 F', 'Immeuble R + 1 1 250 500 750 F', 'Immeuble R +1 1 250 500 750 F',
+            'Immeuble R+ 1 1 250 500 750 F', 'Immeuble Rdc + 2 1 250 500 750 F'] as $texte) {
+            $this->assertSame(['amount' => 1_250_500_750, 'period' => null], RadarAmountParser::parse($texte), $texte);
+        }
+    }
+
     /**
      * TCK-2428 (contre-vérification C3 de TCK-2412) — la plage du masqueur s'arrête avant un dernier groupe isolé :
      * ce reste, ou un horaire `H24/7`, n'est pas un candidat. Un nombre nu de moins de 100 n'est jamais choisi.
