@@ -3,8 +3,6 @@
 namespace App\Services\Radar\Crawl;
 
 use App\Models\Enums\RadarCrawlStatus;
-use App\Models\Enums\RadarListingStage;
-use App\Models\RadarAdvertiser;
 use App\Models\RadarCrawlRun;
 use App\Models\RadarListing;
 use App\Models\User;
@@ -144,14 +142,14 @@ final class RadarCrawler
 
     /**
      * L'annonce de cette carte : la fiche connue (rien n'est relancé), ou une fiche neuve saisie au nom de l'opérateur ;
-     * null pour une fiche réduite au silence ({@see self::silenced()}), qui n'est ni observée ni comptée.
+     * null pour une fiche réduite au silence ({@see RadarSnapshots::silenced()}), qui n'est ni observée ni comptée.
      */
     private function listingFor(ListCard $card, RadarCrawlRun $run, User $operator): ?RadarListing
     {
         $canonical = RadarListingIntake::canonicalUrl($card->url) ?? $card->url;
         $known = RadarListing::query()->where('content_fingerprint', RadarListingIntake::urlFingerprint($canonical))->first();
         if ($known !== null) {
-            if ($this->silenced($known)) {
+            if (RadarSnapshots::silenced($known)) {
                 return null;
             }
             $run->listings_known++;
@@ -163,19 +161,6 @@ final class RadarCrawler
         $result['existing'] ? $run->listings_known++ : $run->listings_created++;
 
         return $result['listing'];
-    }
-
-    /** Purgée, `do_not_contact`, ou d'un annonceur qui a dit STOP : la collecte ne la suit plus. */
-    private function silenced(RadarListing $listing): bool
-    {
-        if (in_array($listing->stage, [RadarListingStage::Purged, RadarListingStage::DoNotContact], true)) {
-            return true;
-        }
-
-        return $listing->radar_advertiser_id !== null && RadarAdvertiser::query()
-            ->whereKey($listing->radar_advertiser_id)
-            ->whereNotNull('do_not_contact_at')
-            ->exists();
     }
 
     private function finish(RadarCrawlRun $run, string $reason): RadarCrawlRun

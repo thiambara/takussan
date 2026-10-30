@@ -13,7 +13,9 @@ use App\Models\RadarCrawlRun;
 use App\Models\RadarListing;
 use App\Models\RadarListingSnapshot;
 use App\Models\User;
+use App\Services\Radar\Crawl\ListCard;
 use App\Services\Radar\Crawl\RadarCrawlScheduler;
+use App\Services\Radar\Crawl\RadarSnapshots;
 use App\Services\Radar\HostResolver;
 use App\Services\Radar\RadarListingIntake;
 use App\Services\Radar\RadarPurger;
@@ -138,6 +140,40 @@ class RadarSnapshotPrivacyTest extends TestCase
 
         $this->assertSame(1, RadarListingSnapshot::query()->where('radar_listing_id', $villa->id)->count());
         $this->assertSame(1, $run->listings_known);
+    }
+
+    // ── La course : une purge validée entre la lecture de la carte et l'observation (M6) ──────────
+
+    public function test_m6_une_purge_validee_avant_l_observation_ne_recoit_aucun_instantane(): void
+    {
+        $this->crawl();
+        $villa = $this->villa(); // lue par le passage, AVANT la purge : l'objet en mémoire n'en sait rien
+        $villa->forceFill(['purge_at' => now()->subDay()])->save();
+        $this->app->make(RadarPurger::class)->run();
+        $card = new ListCard(url: self::VILLA, title: 'Villa fictive à Ngor', price: 150000000);
+        $run = RadarCrawlRun::query()->latest('id')->firstOrFail();
+
+        $ouvert = $this->app->make(RadarSnapshots::class)->observe($villa, $card, $run, now());
+
+        $this->assertFalse($ouvert);
+        $this->assertSame(0, RadarListingSnapshot::query()->where('radar_listing_id', $villa->id)->count());
+    }
+
+    public function test_m6_un_stop_valide_avant_l_observation_ne_prolonge_rien(): void
+    {
+        $this->crawl();
+        $villa = RadarListing::query()->where('content_fingerprint', RadarListingIntake::urlFingerprint(self::VILLA))->firstOrFail();
+        $avant = RadarListingSnapshot::query()->where('radar_listing_id', $villa->id)->sole();
+        $stop = RadarAdvertiser::factory()->create(['do_not_contact_at' => now()]);
+        RadarListing::query()->whereKey($villa->id)->update(['radar_advertiser_id' => $stop->id]);
+        $card = new ListCard(url: self::VILLA, title: 'Villa fictive à Ngor', price: 140000000);
+        $this->travel(1)->hours();
+
+        $ouvert = $this->app->make(RadarSnapshots::class)->observe($villa, $card, RadarCrawlRun::query()->latest('id')->firstOrFail(), now());
+
+        $this->assertFalse($ouvert);
+        $this->assertSame([$avant->id], RadarListingSnapshot::query()->where('radar_listing_id', $villa->id)->pluck('id')->all());
+        $this->assertSame(1, $avant->fresh()->observations);
     }
 
     // ── La purge supprime les instantanés, quelle qu'en soit la raison ──────────────────────────
