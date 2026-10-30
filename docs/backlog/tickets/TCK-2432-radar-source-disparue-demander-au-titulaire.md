@@ -1,7 +1,7 @@
 ---
 id: TCK-2432
 title: "Radar : bien publié dont l'annonce source a disparu — demander au titulaire si le bien est toujours disponible"
-status: review
+status: done
 phase: P3
 family: full
 estimate: M
@@ -103,6 +103,14 @@ rien, et le bien reste public.
 
 ## Reste sur dev
 
-- Passe à `done` à la fusion de TCK-2392 (PR #1595) puis de TCK-2393 (`feat/radar-observatoire`) sur `dev` : cette branche
-  en part. Tous les AC sont prouvés par des tests exécutés. Le porteur (ou la session) bascule le statut à la fusion.
-- La PR de spec commune reporte le texte proposé dans le rapport (`features.md` § 2.12, préférences de notification).
+Plus rien ne dépend d'une autre fusion : TCK-2392 et TCK-2393 sont sur `dev`, et chaque case du delta et l'AC1 sont
+prouvés par des tests exécutés (`RadarAvailabilityCheckTest`, `QuestionDeDisponibilite.tck-2432.test.tsx`,
+`question-de-disponibilite.tck-2432.test.tsx`), chacun vérifié par ablation. Restent, hors de ce ticket :
+
+- **La PR de spec commune** (ce ticket ne touche ni `docs/features.md` ni `docs/models-spec.md`) : le paragraphe de
+  `features.md` § 2.12 sur la question au titulaire, l'interrupteur `property_availability_check` dans les préférences de
+  notification, et les cinq colonnes `availability_*` / `withdrawal_proposed_at` de `radar_listings` dans
+  `models-spec.md`. Texte exact dans le rapport d'implémentation.
+- **TCK-2394** (mandat Takussan, `todo`) : sous mandat, la question partira au `user_id` que la publication sous mandat
+  pose sur le bien (l'espace des mandats), sans changement de code ici ; à vérifier par un test quand TCK-2394 sera
+  implémenté.
