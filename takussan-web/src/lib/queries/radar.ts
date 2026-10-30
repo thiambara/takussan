@@ -4,6 +4,7 @@ import { jsonOrThrow } from '@/lib/queries/super-admin-coque';
 import type { PaginatedResponse } from '@/types/api';
 import type {
   RadarAccountReleaseResponse,
+  RadarActivationReminderResponse,
   RadarAdvertiserQueue,
   RadarAdvertiserResponse,
   RadarAdvertiserRow,
@@ -107,6 +108,7 @@ export const radarKeys = {
   publication: (advertiserId: number) => [...radarKeys.all, 'publication', advertiserId] as const,
   crawlSources: () => [...radarKeys.all, 'crawl', 'sources'] as const,
   crawlRuns: (page: number) => [...radarKeys.all, 'crawl', 'runs', page] as const,
+  activation: (advertiserId: number, locale: RadarMessageLocale) => [...radarKeys.advertiser(advertiserId), 'activation', locale] as const,
 };
 
 export async function fetchRadarDashboard(): Promise<RadarDashboardResponse> {
@@ -412,6 +414,25 @@ export async function publishRadarAdvertiser(
   return jsonOrThrow<RadarPublicationResponse>(res);
 }
 
+/**
+ * TCK-2394 (ADR-0079, proposé) — publier sous mandat Takussan : les mêmes annonces, la même clé d'idempotence par
+ * ouverture de la confirmation, mais aucun compte : les biens naissent dans l'espace des mandats. Refusé (422
+ * `radar.mandate.disabled`) tant que le drapeau `radar_mandate` est éteint.
+ */
+export async function publishRadarAdvertiserUnderMandate(
+  advertiserId: number,
+  listingIds: readonly number[],
+  cleIdempotence: string,
+): Promise<RadarPublicationResponse> {
+  const res = await fetch(cheminApi`/api/super-admin/radar/advertisers/${advertiserId}/publish-mandate`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { ...JSON_ACCEPT, 'Idempotency-Key': cleIdempotence },
+    body: JSON.stringify({ listing_ids: [...listingIds] }),
+  });
+  return jsonOrThrow<RadarPublicationResponse>(res);
+}
+
 /** Le second message (« vos annonces sont en ligne… ») et son lien `wa.me`, dans la langue demandée. */
 export async function fetchRadarPublishedMessage(
   advertiserId: number,
@@ -526,4 +547,36 @@ export async function startRadarCrawlRun(site: string): Promise<RadarCrawlRunRes
 /** Séparer une fusion AUTOMATIQUE : l'annonce revient à relire ; 409 `radar.merge.not_automatic` pour un doublon posé à la main. */
 export function unmergeRadarListing(id: number): Promise<RadarListingDetailResponse> {
   return envoyer(cheminApi`/api/super-admin/radar/listings/${id}/unmerge`, 'POST');
+}
+
+// ─── La relance d'activation (TCK-2394) ──────────────────────────────────────────────────────
+// Geste `platform.radar.operate` : relancer est du démarchage. Marquer envoyée exige la prise en charge.
+
+/** L'aperçu de la relance : chiffres de la période, blocages, texte fixe et lien `wa.me`. Il n'écrit rien. */
+export async function fetchRadarActivationReminder(
+  advertiserId: number,
+  locale: RadarMessageLocale,
+): Promise<RadarActivationReminderResponse> {
+  const qs = new URLSearchParams({ locale });
+  const res = await fetch(cheminApi`/api/super-admin/radar/advertisers/${advertiserId}/activation-reminder${requete(qs)}`, {
+    credentials: 'include',
+  });
+  return jsonOrThrow<RadarActivationReminderResponse>(res);
+}
+
+/**
+ * L'opérateur a envoyé la relance par WhatsApp : l'API rejuge tout sous verrou (STOP, activation, intervalle), pose la
+ * ligne de base des vues, journalise les chiffres cités et rend l'aperçu relu.
+ */
+export async function markRadarActivationReminderSent(
+  advertiserId: number,
+  locale: RadarMessageLocale,
+): Promise<RadarActivationReminderResponse> {
+  const res = await fetch(cheminApi`/api/super-admin/radar/advertisers/${advertiserId}/activation-reminder/sent`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: JSON_ACCEPT,
+    body: JSON.stringify({ locale }),
+  });
+  return jsonOrThrow<RadarActivationReminderResponse>(res);
 }

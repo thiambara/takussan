@@ -6,6 +6,7 @@ use App\Models\Bases\AbstractModel;
 use App\Models\Enums\RadarAdvertiserNature;
 use App\Models\Enums\RadarListingStage;
 use App\Services\Radar\RadarFollowUps;
+use App\Sorts\RadarAdvertiserListingsSort;
 use App\Support\CaseInsensitive;
 use App\Support\Http\ParametreUnique;
 use App\Support\RadarPhone;
@@ -14,6 +15,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Spatie\QueryBuilder\AllowedFilter;
+use Spatie\QueryBuilder\AllowedSort;
 
 /**
  * TCK-2386 (ADR-0077 §1, §7, §9) — l'annonceur d'une ou plusieurs annonces collectées, identifié par
@@ -40,6 +42,12 @@ class RadarAdvertiser extends AbstractModel
         // TCK-2413 — pas une colonne : l'agrégat `withMin` de la liste (`RadarAdvertiserController::index`), l'échéance de
         // purge de la première annonce laissée. Casté ici, il arrive en instant à la ressource, quel que soit le pilote.
         'left_purge_at' => 'datetime',
+        // TCK-2394 — la relance d'activation et le mandat (ADR-0079), écrits par `forceFill` (hors `$fillable`, hors
+        // `$queryFields`) : `RadarActivationReminders` et `RadarPublisher::publishUnderMandate()`.
+        'activation_reminded_at' => 'datetime',
+        'activation_reminder_count' => 'integer',
+        'activation_baseline' => 'array',
+        'mandate_at' => 'datetime',
     ];
 
     protected static array $queryFields = [
@@ -89,6 +97,12 @@ class RadarAdvertiser extends AbstractModel
                 });
             })->delimiter(''),
         ];
+    }
+
+    /** TCK-2393 — `sort=listings_count` : le volume du classement des annonceurs (`RadarAdvertiserRanking`). */
+    protected static function customQuerySorts(): array
+    {
+        return [AllowedSort::custom('listings_count', new RadarAdvertiserListingsSort)];
     }
 
     public function listings(): HasMany

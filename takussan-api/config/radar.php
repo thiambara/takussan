@@ -188,11 +188,27 @@ return [
         'auto' => (bool) env('RADAR_MERGE_AUTO', false),
     ],
 
+    // TCK-2393 (ADR-0083 §4) — la disparition d'une annonce source (`RadarSourceWatch`). Elle se conclut de ce nombre de
+    // passages complets (`reached_end`) d'affilée sans la revoir : un seul ne suffit pas, la liste glisse pendant la lecture.
+    // 1 rend le comportement d'un seul passage ; plus haut, la détection est plus lente et plus sûre.
+    'observe' => [
+        'confirm_runs' => 2,
+    ],
+
     // TCK-2406 (décision du porteur à prendre, avec l'avocat) — la matière collectée d'une annonce PUBLIÉE (texte brut, adresse
     // de la source, extraction, réserve, captures), puis le numéro en clair de son annonceur, s'effacent avec la preuve de
     // l'accord : `consent_retention_years` après le retrait du dernier bien. Éteint : la lettre d'ADR-0077 §9 et de `privacy.ts`
     // § 6 ne purge que l'annonce jamais publiée. L'allumer change l'une et l'autre, dans la même PR (VERSION_DOCUMENTS avance).
     // Lu par `App\Services\Radar\RadarPurger`, et nulle part ailleurs.
     'purge_published_material' => false,
+
+    // TCK-2394 (ADR-0077, lot 4) — la relance d'activation d'un compte créé pour l'annonceur
+    // (`App\Services\Radar\RadarActivationReminders`, et nulle part ailleurs). Elle cite les chiffres d'une période :
+    // depuis la dernière relance envoyée, sinon depuis la mise en ligne ; elle ne part qu'une fois cette période longue de
+    // `min_interval_days` jours — chaque relance couvre ainsi au moins une semaine. 0 : dès la mise en ligne (décision
+    // autonome, à revoir avec le porteur).
+    'activation' => [
+        'min_interval_days' => 7,
+    ],
 
 ];

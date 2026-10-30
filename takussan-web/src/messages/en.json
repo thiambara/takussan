@@ -8642,7 +8642,8 @@
           "claimLeftActivationUnavailable": "Left by the automatic publication: sending the login code is unavailable",
           "claimLeftOtpPreview": "Left by the automatic publication: code login is in trial mode",
           "claimLeftTooManyPhotos": "Left by the automatic publication: too many photos to copy at once",
-          "claimLeftRefused": "Left by the automatic publication: the publication was refused"
+          "claimLeftRefused": "Left by the automatic publication: the publication was refused",
+          "claimLeftUnderMandate": "Left by the automatic publication: the advertiser is published under Takussan mandate"
         },
         "empty": {
           "title": "No listing yet",
@@ -9207,6 +9208,33 @@
             "cancel": "Cancel",
             "confirm": "Unlink",
             "done": "Account unlinked: the advertiser can claim their listings again."
+          },
+          "activation": {
+            "heading": "Activation reminder",
+            "hint": "The account created for the advertiser is not activated yet. Send them what their listings are bringing in: a fixed text, with the real figures of the period.",
+            "period": "From {since} to {until}",
+            "views": "Views",
+            "contacts": "Contact requests",
+            "visits": "Visit requests",
+            "credits": "Credits offered on activation",
+            "figuresCaption": "What each property brought in over the period",
+            "property": "Property",
+            "untitled": "Property #{id}",
+            "reminders": "{count, plural, =0 {No reminder sent.} one {# reminder sent, the last on {date}.} other {# reminders sent, the last on {date}.}}",
+            "blocking": "The reminder is not possible right now:",
+            "availableAt": "Next reminder possible on {date}.",
+            "locale": "Message language",
+            "locales": {
+              "fr": "French",
+              "en": "English"
+            },
+            "whatsapp": "Open WhatsApp",
+            "markSent": "Mark as sent",
+            "marking": "Saving…",
+            "claimHint": "Take charge of the advertiser to mark the reminder as sent.",
+            "sent": "Reminder recorded.",
+            "loadError": "Unable to load the activation reminder.",
+            "retry": "Retry"
           }
         },
         "advertisers": {
@@ -9275,6 +9303,130 @@
         },
         "advertisersLink": "Advertisers",
         "followUpsDue": "{count, plural, =0 {No follow-up due} one {# follow-up due} other {# follow-ups due}}",
+        "observatoryLink": "Observatory",
+        "observatory": {
+          "metaTitle": "Radar observatory",
+          "title": "Observatory",
+          "subtitle": "Who weighs on the market, what a square metre is worth, how long a property stays online, and where Takussan lacks listings.",
+          "back": "Back to the Radar",
+          "forbidden": "The Radar is reserved for support and super-admin operators.",
+          "tabsAria": "Observatory view",
+          "tabs": {
+            "advertisers": "Advertisers",
+            "market": "Market"
+          },
+          "ranking": {
+            "columns": {
+              "rank": "Rank",
+              "name": "Advertiser",
+              "nature": "Nature",
+              "listings": "Listings",
+              "neighborhoods": "Neighbourhoods",
+              "prices": "Asking prices",
+              "sites": "Sites",
+              "pipeline": "Sales pipeline"
+            },
+            "tableCaption": "Radar advertisers, by number of listings",
+            "unnamed": "Unnamed advertiser",
+            "noPhone": "Unknown number",
+            "unknownNeighborhood": "Unknown neighbourhood",
+            "moreNeighborhoods": "{count, plural, one {and # other} other {and # others}}",
+            "published": "{count, plural, one {# published} other {# published}}",
+            "unknownContract": "Unknown contract",
+            "range": "{min} to {max}",
+            "results": "{count, plural, =0 {No advertiser} one {# advertiser} other {# advertisers}}",
+            "proposeUpgrade": "To offer: upgrade to agency",
+            "pipeline": {
+              "prospect": "To contact",
+              "contacted": "Contacted",
+              "account": "Account created",
+              "upgrade_pending": "Agency upgrade requested",
+              "agency": "Agency",
+              "do_not_contact": "Do not contact"
+            },
+            "filters": {
+              "searchLabel": "Search an advertiser",
+              "searchPlaceholder": "Name or number",
+              "natureAria": "Presumed nature",
+              "anyNature": "All natures",
+              "reset": "Reset"
+            },
+            "loadError": "The ranking could not be loaded.",
+            "empty": {
+              "title": "No ranked advertiser",
+              "description": "Advertisers appear here as soon as one of their listings is collected."
+            }
+          },
+          "market": {
+            "loadError": "The market could not be loaded.",
+            "emptyHint": "The figures fill up with automatic collection.",
+            "unknownNeighborhood": "Unknown neighbourhood",
+            "unmatchedNeighborhood": "Unmatched neighbourhood",
+            "untitledProperty": "Untitled property",
+            "days": "{count, plural, one {# day} other {# days}}",
+            "range": "{min} to {max}",
+            "natureLine": "{nature}: {count}",
+            "stillPublic": "Still online",
+            "notPublic": "Offline",
+            "filters": {
+              "since": "Seen since",
+              "contractAria": "Contract",
+              "anyContract": "All contracts",
+              "typeAria": "Property type",
+              "anyType": "All types",
+              "siteAria": "Site",
+              "anySite": "All sites",
+              "reset": "Reset"
+            },
+            "stats": {
+              "listings": "Tracked listings",
+              "listingsHint": "A listing seen on several sites counts once",
+              "online": "Online",
+              "gone": "Gone",
+              "inCatalog": "Already in the catalogue",
+              "intermediaries": "Probable intermediaries",
+              "intermediariesHint": "{count, plural, one {out of # advertiser} other {out of # advertisers}}"
+            },
+            "columns": {
+              "neighborhood": "Neighbourhood",
+              "radarOnline": "Online elsewhere",
+              "catalogPublic": "On Takussan",
+              "gap": "Gap",
+              "type": "Type",
+              "contract": "Contract",
+              "listings": "Listings",
+              "median": "Median per m²",
+              "spread": "Middle half",
+              "gone": "Gone",
+              "online": "Online",
+              "medianDays": "Median duration",
+              "property": "Property",
+              "site": "Source site",
+              "goneAt": "Gone on",
+              "propertyStatus": "On Takussan"
+            },
+            "gap": {
+              "title": "Neighbourhoods where Takussan lacks listings",
+              "description": "Listings online elsewhere and not yet on Takussan, against public properties in the same neighbourhood.",
+              "empty": "No neighbourhood to compare"
+            },
+            "price": {
+              "title": "Price per square metre",
+              "description": "Median of each listing’s latest asking price divided by its surface. The number of listings tells how much the median is worth. Figures cover retained listings only: a purged listing no longer counts, and the period covered goes back no further than the 90-day retention.",
+              "empty": "No listing with price and surface"
+            },
+            "time": {
+              "title": "Time on market",
+              "description": "Time between the first and last sighting of listings whose disappearance was confirmed. A listing already online before the first collection looks newer than it is. A disappearance is only confirmed after {runs, plural, one {a run that read the whole list without seeing it} other {# consecutive runs that read the whole list without seeing it}}. If a site’s list exceeds its collection page cap (5 by default), raise that cap in the Collection tab: it is limited to 20 pages, and beyond that no disappearance is ever recorded on that site.",
+              "empty": "No confirmed disappearance"
+            },
+            "goneSources": {
+              "title": "Gone sources of published properties",
+              "description": "The original listing of a published property has been absent from the list read by the collection, {runs, plural, one {in the last run} other {# runs in a row}}: it may have been removed (property rented or sold), or moved. If a site’s list exceeds its collection page cap (5 by default), raise that cap in the Collection tab: it is limited to 20 pages, and beyond that no disappearance is ever recorded on that site. A listing that was purged, or whose advertiser said STOP, is no longer tracked: its disappearance is no longer recorded.",
+              "empty": "No gone source"
+            }
+          }
+        },
         "publication": {
           "metaTitle": "Publish for the advertiser",
           "title": "Publish for {name}",
@@ -9285,7 +9437,8 @@
           "intro": "Check what will be created in the advertiser’s name, then confirm. Nothing is written before you confirm.",
           "claimNone": "Nobody is handling this advertiser. Take them over to upload photos and publish.",
           "blocking": {
-            "heading": "Publishing is not possible for now:"
+            "heading": "Publishing is not possible for now:",
+            "headingAccount": "Publishing for their account is not possible right now:"
           },
           "account": {
             "heading": "What will be created in {name}’s name",
@@ -9348,7 +9501,11 @@
             "summaryExisting": "Existing account reused, {biens, plural, one {# property published} other {# properties published}} with {photos, plural, =0 {no photo} one {# photo} other {# photos}}.",
             "cancel": "Cancel",
             "publish": "Publish",
-            "publishing": "Publishing…"
+            "publishing": "Publishing…",
+            "mandateTitle": "Publish under mandate for {name}?",
+            "mandateTitleUnnamed": "Publish under mandate for this advertiser?",
+            "mandateBody": "No account is created: the listings are created in the Takussan space. The phone number and WhatsApp shown are the advertiser’s; requests left through the form go to Takussan, which forwards them. It cannot be undone in one click.",
+            "mandateSummary": "No account, {biens, plural, one {# property published} other {# properties published}} in the “{space}” space with {photos, plural, =0 {no photo} one {# photo} other {# photos}}."
           },
           "recap": {
             "created": "What now exists",
@@ -9369,8 +9526,10 @@
               "whatsapp": "Open WhatsApp",
               "copy": "Copy the message",
               "copied": "Message copied.",
-              "copyFailed": "Copying failed: select the text by hand."
-            }
+              "copyFailed": "Copying failed: select the text by hand.",
+              "hintMandate": "A fixed text: it carries the public links and the STOP line, without an activation link. Send it as is."
+            },
+            "mandatePublished": "Published under mandate in the “{space}” space: no account was created."
           },
           "alreadyPublished": {
             "heading": "Already online for this advertiser",
@@ -9398,7 +9557,25 @@
             "photoUnreadable": "A photo cannot be read as an image: send a JPEG, PNG or WebP.",
             "quotaExceeded": "This advertiser’s space has reached its quota of active listings: nothing was published.",
             "keyReused": "The selection changed since a first submission: publish again.",
-            "inProgress": "A publication is already running for this advertiser: try again in a moment."
+            "inProgress": "A publication is already running for this advertiser: try again in a moment.",
+            "underMandate": "This advertiser is published under a Takussan mandate: their listings are published under mandate, not in an account.",
+            "mandateDisabled": "Publishing under mandate is turned off in this environment.",
+            "mandateSpaceMissing": "No mandate space is set, or it is suspended or has no primary admin: nothing is published under mandate.",
+            "mandateAccountExists": "An account is already linked to this advertiser: their listings are published in their space, not under mandate.",
+            "activationAlreadyActive": "The advertiser’s account is already activated: there is nothing to remind.",
+            "activationRevoked": "The advertiser’s consent was withdrawn or their number purged: no reminder is sent.",
+            "activationNothingPublished": "No property published by the Radar is live for this advertiser: the reminder would have nothing to say.",
+            "activationTooSoon": "The last reminder is too recent: wait for the period to end.",
+            "activationUnderMandate": "This advertiser is published under mandate: their properties are not in an account, the activation reminder does not apply.",
+            "activationJustSent": "This reminder was just marked as sent: a second marking would not count as another reminder."
+          },
+          "mandate": {
+            "heading": "Publish under a Takussan mandate",
+            "body": "The advertiser agreed but does not want an account: Takussan publishes their listings in its own space, “{space}”. No account is created. The phone number and WhatsApp shown are the advertiser’s: visitors reach them directly. Requests left through the form go to the administrator of “{space}”, who forwards them. A STOP reply removes their properties.",
+            "bodyNoSpace": "The advertiser agreed but does not want an account: Takussan can publish their listings in its own space, once it is set in the platform settings (“Radar mandate space”).",
+            "already": "Already published under mandate since {date}.",
+            "blocking": "Publishing under mandate is not possible:",
+            "cta": "{count, plural, =0 {Publish under mandate} one {Publish # listing under mandate} other {Publish # listings under mandate}}"
           }
         },
         "crawlLink": "Collection",
@@ -9533,7 +9710,8 @@
         "ops_failed_jobs_spike": "Spike of failed jobs",
         "ops_queue_stalled": "Job queue stalled",
         "ops_health_degraded": "Platform health degraded",
-        "ops_critical_job_failed": "Money or lease job failed"
+        "ops_critical_job_failed": "Money or lease job failed",
+        "radar_source_listing_gone": "Source listing of a property gone"
       },
       "channels": {
         "email": "Email",
@@ -9630,7 +9808,8 @@
         "currency": "Currencies",
         "limits": "Technical limits",
         "boost": "Credits and promotion",
-        "rentals": "Rentals"
+        "rentals": "Rentals",
+        "radar": "Radar"
       },
       "keys": {
         "currency": {
@@ -9701,6 +9880,12 @@
           "cap_percent": {
             "label": "Late fee cap",
             "description": "As a percentage of the instalment amount, from 0 to 100. Empty: no cap. An agency with its own setting keeps it."
+          }
+        },
+        "radar": {
+          "mandate_agency_id": {
+            "label": "Radar mandate space",
+            "description": "ID of the Takussan space where properties published under mandate are created. 0: none. The “radar_mandate” flag must also be on."
           }
         }
       },
@@ -12484,7 +12669,8 @@
       "price": "Enter a valid price.",
       "nameContainsPhone": "The first name and the space name cannot contain a phone number.",
       "firstNameContainsPhone": "Your first name cannot contain a phone number.",
-      "spaceNameContainsPhone": "Your space name cannot contain a phone number."
+      "spaceNameContainsPhone": "Your space name cannot contain a phone number.",
+      "underMandate": "Your listings are already published by Takussan on your behalf: write to us to move them into your own space."
     },
     "awaitingReviewTitle": "Awaiting review",
     "awaitingReviewHint": "Our team still needs to check them before putting them online: they are not visible yet."

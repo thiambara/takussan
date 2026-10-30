@@ -52,6 +52,8 @@ class AlertableEvents
             'ops_health_degraded',
             // TCK-772 — écrit par `failed()` des jobs d'argent et de bail (`AlertsOnFirstFailure`).
             'ops_critical_job_failed',
+            // TCK-2393 (ADR-0083 §4) — l'annonce source d'un bien publié a disparu de son site (`RadarSourceWatch`).
+            'radar_source_listing_gone',
         ];
     }
 

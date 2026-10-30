@@ -12,6 +12,8 @@ interface DejapublieesProps {
   readonly stoppe: boolean;
   /** L'environnement refuse le second message (connexion par téléphone éteinte, aperçu des codes actif : 422 de l'API) : idem. */
   readonly messageRefuse: boolean;
+  /** TCK-2394 — publié sous mandat, sans compte : le message ne porte aucun lien d'activation. */
+  readonly sousMandat?: boolean;
 }
 
 /**
@@ -21,7 +23,7 @@ interface DejapublieesProps {
  * son compte. Sous STOP (ADR-0077 §8), ou quand l'environnement refuse le message, la liste des liens reste, le message ne se
  * compose plus : une phrase fixe le dit, au lieu d'une erreur à réessayer.
  */
-export function DejaPubliees({ advertiserId, biens, stoppe, messageRefuse }: DejapublieesProps) {
+export function DejaPubliees({ advertiserId, biens, stoppe, messageRefuse, sousMandat = false }: DejapublieesProps) {
   const t = useTranslations('superAdmin.pages.radar.publication.alreadyPublished');
 
   return (
@@ -36,7 +38,7 @@ export function DejaPubliees({ advertiserId, biens, stoppe, messageRefuse }: Dej
       ) : messageRefuse ? (
         <p className="rounded-xl border bg-card p-4 text-sm text-muted-foreground" data-testid="radar-publication-deja-indisponible">{t('unavailable')}</p>
       ) : (
-        <SecondMessage advertiserId={advertiserId} />
+        <SecondMessage advertiserId={advertiserId} sousMandat={sousMandat} />
       )}
     </div>
   );

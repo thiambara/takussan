@@ -1,4 +1,5 @@
 import type {
+  RadarActivationReminder,
   RadarAdvertiserDetail,
   RadarAdvertiserListing,
   RadarClaim,
@@ -156,3 +157,43 @@ export function messageEnvoye(partiel: Partial<RadarOutreach> = {}): RadarOutrea
     ...partiel,
   });
 }
+
+/** TCK-2394 — l'aperçu de la relance d'activation, tel que `RadarActivationReminders::preview()` le rend. */
+export const TEXTE_ACTIVATION = 'Bonjour Moussa, depuis le 20 octobre, vos annonces sur Takussan ont été vues 42 fois.\nRépondez STOP pour ne plus être contacté.';
+
+export function relance(partiel: Partial<RadarActivationReminder> = {}): RadarActivationReminder {
+  return {
+    state: 'activation',
+    blocking: [],
+    available_at: '2026-10-27T10:00:00+00:00',
+    reminders: { count: 0, last_at: null },
+    figures: {
+      since: '2026-10-20T10:00:00+00:00',
+      until: '2026-10-28T10:00:00+00:00',
+      views: 42,
+      contact_requests: 3,
+      visit_requests: 1,
+      welcome_credits: 500,
+      properties: [
+        { id: 501, title: 'Appartement 12', public_url: 'https://takussan.test/fr/properties/appartement-12', views: 30, contact_requests: 2, visit_requests: 1 },
+        { id: 502, title: null, public_url: 'https://takussan.test/fr/properties/appartement-13', views: 12, contact_requests: 1, visit_requests: 0 },
+      ],
+    },
+    text: TEXTE_ACTIVATION,
+    wa_me: `https://wa.me/221741234567?text=${encodeURIComponent(TEXTE_ACTIVATION)}`,
+    version: 'activation.v1',
+    ...partiel,
+  };
+}
+
+/** Le Radar n'a créé aucun compte pour l'annonceur : rien à relancer, le panneau ne se montre pas. */
+export const SANS_RELANCE: RadarActivationReminder = {
+  state: 'none',
+  blocking: [],
+  available_at: null,
+  reminders: { count: 0, last_at: null },
+  figures: null,
+  text: null,
+  wa_me: null,
+  version: 'activation.v1',
+};

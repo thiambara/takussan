@@ -83,6 +83,7 @@ export const MOTIFS_RADAR: Record<string, string> = {
   'radar.publish.not_covered': 'claimLeftNotCovered',
   'radar.claim.account_changed': 'claimLeftAccountChanged',
   'radar.publish.listing_foreign': 'claimLeftForeign',
+  'radar.claim.under_mandate': 'claimLeftUnderMandate',
   'radar.advertiser.do_not_contact': 'claimLeftDoNotContact',
   'radar.publish.activation_unavailable': 'claimLeftActivationUnavailable',
   'radar.publish.otp_preview_active': 'claimLeftOtpPreview',

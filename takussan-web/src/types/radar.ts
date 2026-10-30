@@ -653,6 +653,8 @@ export interface RadarPublicationPreview {
     readonly display_name: string | null;
     readonly nature: RadarAdvertiserNature;
     readonly do_not_contact_at: string | null;
+    /** TCK-2394 (ADR-0079) — la première publication sous mandat ; `null` : jamais publié sous mandat. */
+    readonly mandate_at: string | null;
   };
   readonly account: RadarPublicationAccount;
   readonly listings: readonly RadarPublicationListing[];
@@ -661,6 +663,17 @@ export interface RadarPublicationPreview {
   /** Le plafond de photos d'UNE publication (somme des réserves des annonces cochées) : au-delà, l'API refuse en 422. */
   readonly max_photos: number;
   /** Les codes qui bloquent l'ensemble (`radar.advertiser.phone_registered`, `account_unavailable`, `do_not_contact`, `radar.publish.nothing_covered`). */
+  readonly blocking: readonly string[];
+  /** TCK-2394 — la publication sous mandat Takussan : drapeau `radar_mandate` éteint, `enabled` faux et rien d'autre. */
+  readonly mandate: RadarMandatePreview;
+}
+
+/** TCK-2394 (ADR-0079, proposé) — ce que l'aperçu dit du mandat (`RadarMandate::preview`). */
+export interface RadarMandatePreview {
+  readonly enabled: boolean;
+  /** L'espace des mandats (réglage `radar.mandate_agency_id`), s'il est désigné et ouvert ; `null` sinon. */
+  readonly space: { readonly id: number; readonly name: string } | null;
+  /** Ce qui empêche la publication sous mandat (`radar.mandate.space_missing`, `account_exists`, `do_not_contact`, `nothing_covered`). */
   readonly blocking: readonly string[];
 }
 
@@ -678,14 +691,18 @@ export interface RadarPublishedProperty {
 }
 
 export interface RadarPublication {
+  /** `null` sous mandat (TCK-2394) : aucun compte n'est créé ni rattaché. */
   readonly user: {
     readonly id: number;
     readonly first_name: string;
     readonly last_name: string;
     readonly phone: string;
-  };
+  } | null;
+  /** L'espace où les biens sont nés : celui de l'annonceur, ou l'espace des mandats. */
   readonly agency: { readonly id: number; readonly name: string; readonly slug: string };
   readonly created_account: boolean;
+  /** TCK-2394 — publié sous mandat Takussan (ADR-0079) ; absent d'une publication « pour lui ». */
+  readonly mandate?: boolean;
   readonly properties: readonly RadarPublishedProperty[];
 }
 
@@ -785,3 +802,47 @@ export interface RadarCrawlRunResponse {
 export const RADAR_CRAWL_FREQUENCY_MIN = 60;
 export const RADAR_CRAWL_FREQUENCY_MAX = 10_080;
 export const RADAR_CRAWL_MAX_PAGES_LIMIT = 20;
+
+// ─── La relance d'activation (TCK-2394) ──────────────────────────────────────────────────────
+
+/** Un bien publié par le Radar et ce qu'il a rapporté sur la période. */
+export interface RadarActivationProperty {
+  readonly id: number;
+  readonly title: string | null;
+  readonly public_url: string;
+  readonly views: number;
+  readonly contact_requests: number;
+  readonly visit_requests: number;
+}
+
+/** Les chiffres réels de la période : depuis la dernière relance envoyée, sinon depuis la mise en ligne. */
+export interface RadarActivationFigures {
+  readonly since: string;
+  readonly until: string;
+  readonly views: number;
+  readonly contact_requests: number;
+  readonly visit_requests: number;
+  /** Les crédits que l'activation offrira ; 0 s'ils ont déjà été accordés (la ligne sort du texte). */
+  readonly welcome_credits: number;
+  readonly properties: readonly RadarActivationProperty[];
+}
+
+/**
+ * L'aperçu de la relance (`RadarActivationReminders::preview`) : `none` quand le Radar n'a créé aucun compte pour
+ * l'annonceur ; sinon les chiffres, ce qui bloque et, sans blocage, le texte fixe versionné et son lien `wa.me`.
+ */
+export interface RadarActivationReminder {
+  readonly state: 'none' | 'activation';
+  readonly blocking: readonly string[];
+  /** La date où la période atteint l'intervalle minimal (`radar.activation.min_interval_days`). */
+  readonly available_at: string | null;
+  readonly reminders: { readonly count: number; readonly last_at: string | null };
+  readonly figures: RadarActivationFigures | null;
+  readonly text: string | null;
+  readonly wa_me: string | null;
+  readonly version: string;
+}
+
+export interface RadarActivationReminderResponse {
+  readonly data: RadarActivationReminder;
+}

@@ -245,6 +245,21 @@ class PublishClaimedRadarListingsTest extends TestCase
             && ! str_contains(json_encode($contexte), '771234567'));
     }
 
+    /** TCK-2394 (ADR-0079) — un annonceur passé sous mandat depuis sa réclamation : rien ne se publie dans son compte. */
+    public function test_sous_mandat_rien_ne_se_publie_dans_le_compte(): void
+    {
+        $annonce = $this->annonce();
+        $this->annonceur->forceFill(['mandate_at' => now()])->save();
+        Log::spy();
+
+        $this->lancer([$annonce->id]);
+
+        $this->assertSame(RadarListingStage::Consented, $annonce->fresh()->stage);
+        $this->assertSame('radar.claim.under_mandate', $annonce->fresh()->stage_reason);
+        $this->assertSame(0, Property::query()->count());
+        Log::shouldHaveReceived('warning')->withArgs(fn (string $message, array $contexte) => $contexte['code'] === 'radar.claim.under_mandate');
+    }
+
     public function test_un_compte_qui_n_est_plus_celui_de_l_annonceur_ne_recoit_rien(): void
     {
         $annonce = $this->annonce();

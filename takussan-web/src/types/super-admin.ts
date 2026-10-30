@@ -517,7 +517,7 @@ export type NotificationTemplatePreviewResponse = {
 };
 
 /** TCK-600 — le catalogue se réduit aux clés qu'un code lit : `format.*` et `transaction.*` sont partis. */
-export type PlatformSettingCategory = 'currency' | 'limits' | 'boost' | 'rentals';
+export type PlatformSettingCategory = 'currency' | 'limits' | 'boost' | 'rentals' | 'radar';
 /** TCK-651 (ADR-0065) — `boolean`, `decimal` et `integer_list` servent les réglages métier `rentals`. */
 export type PlatformSettingType = 'select' | 'multi_select' | 'integer' | 'decimal' | 'boolean' | 'integer_list';
 export type PlatformSettingValue = string | number | boolean | null | string[] | number[];

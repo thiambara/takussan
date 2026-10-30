@@ -53,6 +53,9 @@ class RadarListing extends AbstractModel implements HasMedia
         'discovered_by_run_id' => 'integer',
         'merged_at' => 'datetime',
         'merge_checked_at' => 'datetime',
+        // TCK-2393 — la disparition constatée de la source (`RadarSourceWatch`).
+        'source_gone_at' => 'datetime',
+        'source_gone_run_id' => 'integer',
     ];
 
     protected static array $requestFilterable = ['stage', 'source_site', 'radar_advertiser_id'];
@@ -67,6 +70,8 @@ class RadarListing extends AbstractModel implements HasMedia
         'duplicate_of_property_id', 'photo_preparation', 'created_at', 'updated_at',
         // TCK-2392 — `similarity_text` n'est pas lisible : c'est une donnée de calcul, pas d'affichage.
         'discovered_by_run_id', 'merged_at',
+        // TCK-2393 — la disparition constatée de la source.
+        'source_gone_at', 'source_gone_run_id',
     ];
 
     // Seul l'annonceur se charge par `include=` : la ressource ne rend que lui. Sous un sparse

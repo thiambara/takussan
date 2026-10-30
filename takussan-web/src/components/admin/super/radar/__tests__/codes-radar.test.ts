@@ -54,6 +54,8 @@ describe('codes du Radar', () => {
     const lire = (...chemin: string[]) => readFileSync(join(RACINE, 'takussan-api', 'app', ...chemin), 'utf8');
     const sources: Record<string, string> = {
       RadarPublisher: lire('Services', 'Radar', 'RadarPublisher.php'),
+      // TCK-2394 — `publishClaimed()` refuse un annonceur sous mandat par `RadarClaims::UNDER_MANDATE`.
+      RadarClaims: lire('Services', 'Radar', 'RadarClaims.php'),
       AdvertiserProvisioner: lire('Services', 'Radar', 'AdvertiserProvisioner.php'),
       PublishClaimedRadarListings: lire('Jobs', 'Radar', 'PublishClaimedRadarListings.php'),
     };
