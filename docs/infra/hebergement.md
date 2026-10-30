@@ -251,9 +251,8 @@ en préproduction compris. Les clés vivent ici, les drivers là-bas, les valeur
   `APP_PREVIOUS_KEYS` ; ne **pas** recopier `APP_KEY` dans `RADAR_PHONE_HMAC_PREVIOUS_KEYS` ;
 - production (TCK-517, phase F) : la même clé, valeur distincte, **avant le premier démarchage** ;
 - les deux : une copie hors du VPS, comme `APP_KEY`. Une rotation (après une fuite seulement) passe l'ancienne valeur
-  dans `RADAR_PHONE_HMAC_PREVIOUS_KEYS`, puis `radar:rehash-phones`. **Une ancienne clé ne se retire que si la commande
-  rend `refusals_without_number=0` et `without_number=0`**, ce qui n'arrive pas sur un parc qui a connu un refus : en
-  pratique, jamais.
+  dans `RADAR_PHONE_HMAC_PREVIOUS_KEYS`, puis `radar:rehash-phones`. **Une ancienne clé ne se retire jamais** : un refus
+  purgé ne dit pas sous quelle clé il a été écrit ([ADR-0082](../adr/0082-l-empreinte-des-refus-du-radar-a-sa-propre-cle.md)).
 
 **À poser par le porteur — TCK-598, ADR-0052** (ni Dokploy ni Vercel ne les portaient au 2026-10-08 ; re-mesuré le 2026-10-18 : seule `API_INTERNAL_URL` est posée, sur `takussan-web-preview`) :
 

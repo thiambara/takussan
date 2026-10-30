@@ -85,7 +85,7 @@ un annonceur neuf, sans refus, et le Radar redémarche quelqu'un qui a dit STOP.
 4. **Rotation** (fuite seulement) : l'ancienne valeur passe dans `RADAR_PHONE_HMAC_PREVIOUS_KEYS` (virgules), la neuve
    dans `RADAR_PHONE_HMAC_KEY`, puis `php artisan radar:rehash-phones`. **Une ancienne clé ne se retire jamais** : un refus
    est définitif et ne dit pas sous quelle clé il a été écrit, donc `refusals_without_number` ne redescend pas à 0. Le
-   seul cas où une clé pourrait partir — la commande rend `refusals_without_number=0` et `without_number=0` — n'arrive
+   seul cas où une clé pourrait partir — la commande rend `refusals_without_number=0`, `without_number=0` et `conflicts=0` — n'arrive
    pas sur un parc qui a connu un refus.
 5. Le runbook est dans `docs/infra/hebergement.md` (« À poser par le porteur — TCK-2414 ») ; la production a sa case dans
    TCK-517.
