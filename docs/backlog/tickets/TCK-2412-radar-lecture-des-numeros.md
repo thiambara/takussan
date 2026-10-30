@@ -41,9 +41,10 @@ Radar. Re-mesurés le 2026-10-30 sur la base de cette branche (TCK-2391 + TCK-24
 ## Contrat de données
 
 Aucun endpoint, aucune migration. Classes touchées : `App\Support\RadarPhone` (nouvelle méthode publique
-`contactsFromText()`), `App\Services\Radar\RadarAmountParser`, et deux appelants qui choisissent un contact d'office :
-`ExtractRadarListing` (le numéro du texte quand le modèle n'en rend aucun) et `ExtractionNormalizer` (la preuve
-qu'un numéro rendu par le modèle est dans la source). `PhoneMasker` ne change pas de comportement (commentaires seulement).
+`contactsFromText()`), `App\Services\Radar\RadarAmountParser`, et l'appelant qui choisit un contact d'office :
+`ExtractRadarListing` (le numéro du texte quand le modèle n'en rend aucun). `ExtractionNormalizer` (la preuve
+qu'un numéro rendu par le modèle est dans la source) garde `fromText()`. `PhoneMasker` ne change pas de
+comportement (commentaires seulement).
 
 ## Contraintes strictes (métier)
 
@@ -52,9 +53,10 @@ qu'un numéro rendu par le modèle est dans la source). `PhoneMasker` ne change 
   (`test_the_senegalese_pattern_does_not_read_a_foreign_number` reste vert).
 - Les non-cas du fixture partagé `tests/fixtures/ai/donnees-personnelles.json` (prix, dates, listes, versions,
   références, `+221 74 …` fictif) ne deviennent pas des contacts.
-- Un numéro sénégalais que `fromText()` lisait avant ce ticket est toujours lu, sauf quand un `+` / `00` est
-  écrit juste devant lui sans être `+221` (voir « Décisions ») : la plateforme refuse déjà cette saisie.
-- Un numéro étranger écrit chiffre à chiffre ne devient pas un numéro sénégalais recollé (`+33 7 7 1 2 …`).
+- Un numéro sénégalais que `fromText()` lisait avant ce ticket est toujours lu, sauf quand un indicatif étranger
+  (`+33`, `0033`) est écrit juste devant lui. Un `+` / `00` nu devant lui (`+77 …`, `77 … + 78 …`) l'écarte du
+  seul contact d'office (voir « Décisions »).
+- Un numéro étranger écrit chiffre à chiffre ne devient pas un contact d'office sénégalais recollé (`+33 7 7 1 2 …`).
 - Le refus STOP se juge sur la lecture la plus large (`fromText()`) ; un contact choisi d'office, sur la plus
   prudente (`contactsFromText()`).
 - Aucun numéro réel dans un document (règle de TCK-2410) : préfixe fictif `+221 74 …` ou numéros manifestement fictifs.
@@ -68,8 +70,10 @@ qu'un numéro rendu par le modèle est dans la source). `PhoneMasker` ne change 
       espaces Unicode) et le `(0)` de trunk derrière `221`.
 - [x] Tests : `RadarPhoneTest`, `RadarAmountParserTest`, sur les formes et les non-cas du fixture partagé.
 - [x] Vérification adverse : `+` / `00` nu devant le motif, indicatif espacé, étage `R+1` neutralisé ;
-      `contactsFromText()` (unité derrière, mot de prix ou de liste devant, crochet) aux deux appelants qui
-      choisissent un contact ; la plage d'un numéro dans le parseur s'étend à l'indicatif écrit devant.
+      `contactsFromText()` (`+` / `00` nu, unité derrière, mot de prix ou de liste devant, crochet) au repli
+      d'`ExtractRadarListing` ; la plage d'un numéro dans le parseur s'étend à l'indicatif écrit devant.
+- [x] Contre-vérification : le `+` / `00` nu ne vaut que pour le contact d'office (C1) ; `ExtractionNormalizer`
+      revient à `fromText()`, une unité d'une lettre ne compte que suivie d'une espace ou de la fin du texte (C2).
 
 ## Critères d'acceptation
 
@@ -83,13 +87,18 @@ qu'un numéro rendu par le modèle est dans la source). `PhoneMasker` ne change 
 - [x] AC5 — Les tests existants de `RadarPhone`, `RadarAmountParser` et `PhoneMasker` restent verts.
 - [x] AC6 — Chaque nouveau test rougit sans sa modification (ablation consignée).
 - [x] AC7 (vérification adverse B1) — `+`, `+ `, `00`, `00 ` devant tout indicatif de 1 à 999 puis un numéro
-      sénégalais (en groupes, collé, à espaces doubles, chiffre à chiffre) ne donnent aucun numéro ; `221`, si.
+      sénégalais (en groupes, collé, à espaces doubles, chiffre à chiffre) ne donnent aucun contact d'office ; `221`, si.
 - [x] AC8 (I1) — `(R+1) 77 …`, `R+1,77 …`, `R+1_77 …`, `R+10 77 …`, `F3+1 77 …` gardent leur contact ;
       `Tel+33 7 7 1 …` n'en donne pas.
 - [x] AC9 (M1) — `Immeuble R+1 1 250 500 750 F` rend 1 250 500 750 ; `0033 7 7 1 2 3 4 5 6 7` ne rend aucun prix.
 - [x] AC10 (M2) — Les limites mesurées du masqueur (`Horaires 30 20 5 20 10 min`, `… 5 % par an`,
-      `Lots 3 0 1 2 …`, `Prix (75) 500 00 00`, `[70,100,25,50]`) ne créent pas d'annonceur et ne prouvent pas
-      un numéro rendu par le modèle ; le refus STOP les lit toujours.
+      `Lots 3 0 1 2 …`, `Prix (75) 500 00 00`, `[70,100,25,50]`) ne créent pas d'annonceur d'office ; le refus
+      STOP et la preuve de présence les lisent toujours.
+- [x] AC11 (contre-vérification C1) — `77 … + 78 …`, `77 … +78 …`, `WhatsApp + 77 …` : chaque numéro est lu par
+      `fromText()`, et un STOP sur le numéro qui suit le `+` arrête l'annonce à l'entrée (`RadarListingIntake`) et
+      avant l'appel au modèle (`ExtractRadarListing`).
+- [x] AC12 (C2) — `Infos et prix : 77 …` reste une preuve de présence pour le normaliseur ; `… M. Diallo`, `… h24`,
+      `… H24/7` derrière un numéro le laissent un contact d'office.
 
 ## Hors périmètre
 
@@ -119,9 +128,10 @@ qu'un numéro rendu par le modèle est dans la source). `PhoneMasker` ne change 
 - **L'étage `R+1` est neutralisé** (`withoutFloorPlus()`, `+` → `#`, un octet pour un) avant le motif, dans
   `RadarPhone` et dans le parseur : un seul mécanisme pour `(R+1) 77 …`, `R+10 77 …` (que le masqueur avale
   comme `+10` suivi de dix chiffres) et `R+1 1 250 500 750 F`. Seul `R`/`r` : `à+33 …` reste un indicatif.
-- **Deux lectures** : `fromText()` (tout ce que le masqueur voit, moins l'étranger) sert le refus STOP
-  (`refuseIfStopped`, `RadarListingIntake`) et la saisie manuelle (`setAdvertiser`, où l'opérateur choisit) ;
-  `contactsFromText()` sert les deux choix faits sans humain (`ExtractRadarListing`, `ExtractionNormalizer`).
+- **Deux lectures** : `fromText()` (tout ce que le masqueur voit, moins ce qu'un indicatif étranger précède) sert
+  le refus STOP (`refuseIfStopped`, `RadarListingIntake`), la preuve de présence (`ExtractionNormalizer`) et la
+  saisie manuelle (`setAdvertiser`, où l'opérateur choisit) ; `contactsFromText()` (moins, en plus, un `+` / `00`
+  nu devant et les limites du masqueur) sert le seul choix fait sans humain, le repli d'`ExtractRadarListing`.
 - **Balayage des séparateurs** (`test_chaque_separateur_que_le_masqueur_lit_est_lu_par_le_radar`) : tout code
   point de U+0020 à U+33FF et de U+FE00 à U+FFFF avec lequel `MASK_PATTERN` lit `77?123?45?67` en entier doit
   donner `+221771234567`. C'est la garde contre une prochaine dérive entre le masqueur et `SEPARATORS`.
@@ -139,6 +149,9 @@ qu'un numéro rendu par le modèle est dans la source). `PhoneMasker` ne change 
   étage non neutralisé (2), filtre de contact coupé (1), sans unité (1), sans mot devant (1), sans crochet (1),
   indicatif explicite filtré (1), plage du parseur sans indicatif (1), parseur sur `PATTERN` (19), `fromText()`
   sur `PATTERN` (28), job sur `fromText()` (1), normaliseur sur `fromText()` (1).
+- **Ablations, après la contre-vérification** (trois, rouges, restaurées par `cmp`) : `+` nu aussi pour la
+  lecture large (2 rouges unitaires, 6 rouges sur les refus STOP du job et de l'entrée), unités d'une lettre sans
+  condition (1), normaliseur sur `contactsFromText()` (1).
 - **Mesure différentielle rejouée** (même corpus, plus les 196 phrases de la vérification adverse) : sur le corpus,
   `fromText()` gagne 55 lignes, toutes des contacts, et en perd 10, toutes un `+` / `00` devant un numéro national
   (dont les saisies que `TelephoneSaisiTest` et m6 refusent déjà) ou un numéro étranger ; `parse()` change sur 81
@@ -147,19 +160,23 @@ qu'un numéro rendu par le modèle est dans la source). `PhoneMasker` ne change 
 
 ### Décisions prises en autonomie, à revoir
 
-- **Un `+` / `00` écrit juste devant un numéro national, sans `221`, l'écarte** : `+33 820 12 34`,
-  `+30 123 45 67`, et désormais `+77 123 45 67`, `00 77 123 45 67` (révisé après la vérification adverse B1).
-  Retenu : tout préfixe sénégalais commence par un indicatif ITU (3x, 7, 93), donc un `+` nu devant lui fait
-  d'un numéro étranger un numéro sénégalais recollé (`+33 7 7 1 2 …` → `+221 33 77 12 345`) ; la plateforme
-  refuse déjà ces saisies comme un indicatif manquant (`TelephoneSaisiTest`, m6). Écarté : garder `+77 …` lu, ou
-  n'écarter que 3x et 93. Raison : un contact manqué se rattrape à la main (`setAdvertiser`), un faux numéro
-  démarché non ; une règle sans exception est plus simple à défaire.
+- **Un `+` / `00` nu écrit juste devant un numéro national, sans `221`, l'écarte du seul contact d'office** :
+  `+33 820 12 34`, `+30 123 45 67`, `+77 123 45 67`, `00 77 123 45 67`, `77 … + 78 …` (révisé après la
+  vérification adverse B1, puis la contre-vérification C1). Retenu : tout préfixe sénégalais commence par un
+  indicatif ITU (3x, 7, 93), donc un `+` nu devant lui peut faire d'un numéro étranger un numéro sénégalais
+  recollé (`+33 7 7 1 2 …` → `+221 33 77 12 345`) ; la plateforme refuse déjà ces saisies (`TelephoneSaisiTest`,
+  m6). Le refus STOP, la preuve de présence et l'opérateur les lisent toujours (`fromText()`) : le numéro
+  recollé n'y coûte qu'un refus par excès, et un `+` qui joint deux numéros ne cache plus le second au STOP.
+  Écarté : l'appliquer aussi à `fromText()` (un STOP raté, et le texte part chez le fournisseur), ou garder
+  `+77 …` comme contact d'office. Raison : un contact manqué se rattrape à la main, un faux numéro démarché non.
 - **Un second filtre propre au Radar, pour le seul contact choisi d'office** (révisé après la vérification
-  adverse M2). L'annonceur se crée à l'extraction (`findOrCreate($phones[0])`), avant toute validation humaine :
+  adverse M2, resserré après la contre-vérification C2 : il ne sert plus à la preuve de présence du normaliseur,
+  et une unité d'une lettre ne compte que suivie d'une espace ou de la fin du texte). L'annonceur se crée à l'extraction (`findOrCreate($phones[0])`), avant toute validation humaine :
   la première motivation (« le porteur valide chaque annonce ») ne couvrait pas ce cas. Retenu :
   `contactsFromText()` écarte une forme sans indicatif qu'une unité suit (`min`, `km`, `h`, `%`, `m²`, `F`…),
   qu'un mot de prix ou de liste précède (`Prix`, `Loyer`, `Lots`, `Horaires`, `Distances`, `Charges`…), ou qu'un
-  crochet ouvre. Le refus STOP garde la lecture large. Écarté : filtrer `fromText()` lui-même (un STOP raté
+  crochet ouvre. Le refus STOP et la preuve de présence gardent la lecture large ; `Infos et prix : 77 …` n'est
+  donc pas un contact d'office quand le modèle ne rend aucun numéro, mais le numéro que le modèle rend reste prouvé. Écarté : filtrer `fromText()` lui-même (un STOP raté
   est pire qu'un contact raté), ou ne rien filtrer. Limites restantes : une liste sans unité ni mot autour
   (`3 2 1 0 9 8 7 6 5`, `30 20 5 20 10 120`) reste un contact possible ; un vrai numéro écrit `Prix 77 123 45 67`
   n'en est plus un.

@@ -49,10 +49,12 @@ final class RadarPhone
 
     /**
      * TCK-2412 — ce qui, derrière un numéro écrit sans indicatif, en fait une mesure, une durée ou un montant
-     * (`30 20 5 20 10 min`, `… 5 % par an`, `(75) 500 00 00 F`) : les limites connues du masqueur.
+     * (`30 20 5 20 10 min`, `… 5 % par an`, `(75) 500 00 00 F`) : les limites connues du masqueur. Une unité d'une
+     * lettre (`h`, `m`, `f`) ne compte que suivie d'une espace ou de la fin du texte : `M. Diallo`, `h24`, `H24/7`
+     * derrière un numéro ne sont pas des unités (contre-vérification C2).
      */
-    private const NOT_A_CONTACT_AFTER = '/^[\s\x{00A0}\x{202F}]*(?:%|min|mn|h|km|m²|m2|m|ml|cm|ha|ans?|mois|jours?'
-        .'|f\s?cfa|cfa|xof|francs?|f|chambres?|pi[eè]ces?)(?!\p{L})/iu';
+    private const NOT_A_CONTACT_AFTER = '/^[\s\x{00A0}\x{202F}]*(?:(?:%|min|mn|km|m²|m2|ml|cm|ha|ans?|mois|jours?'
+        .'|f\s?cfa|cfa|xof|francs?|chambres?|pi[eè]ces?)(?!\p{L})|[hmf](?=[\s\x{00A0}\x{202F}]|$))/iu';
 
     /** TCK-2412 — le mot qui, juste devant, fait du nombre un prix, une mesure ou une liste (`Lots 3 0 1 2 …`). */
     private const NOT_A_CONTACT_BEFORE = '/(?<!\p{L})(?:prix|loyer|montant|total|caution|avance|frais|charges?|surface|superficie'
@@ -70,7 +72,8 @@ final class RadarPhone
 
     /**
      * TCK-2412 — les numéros du texte qui peuvent désigner d'office le contact d'une annonce : ceux de
-     * `fromText()`, moins une forme écrite sans indicatif qu'une unité suit (`min`, `km`, `%`, `F`…), qu'un mot
+     * `fromText()`, moins une forme précédée d'un `+` / `00` nu (`+77 …`, `+33 7 7 1 2 …`), moins une forme écrite
+     * sans indicatif qu'une unité suit (`min`, `km`, `%`, `F`…), qu'un mot
      * de prix ou de liste précède (`Prix`, `Lots`, `Horaires`…), ou qu'ouvre un crochet. Un contact manqué se
      * rattrape à la main ; un faux numéro démarché, non.
      *
@@ -112,7 +115,9 @@ final class RadarPhone
             // La fin d'un numéro étranger (`+1 77 123 45 67 89`, `0033 771234567`, `+33 7 7 1 2 …`) n'est pas un
             // numéro sénégalais : le masquage la masque quand même, le Radar ne la lit pas.
             $code = preg_match(self::FOREIGN_PREFIX, $before, $prefix) === 1 ? (string) preg_replace('/[^0-9]/', '', $prefix[1] ?? '') : null;
-            if ($code !== null && ($code === '' ? ! str_starts_with($match, '221') : $code !== '221')) {
+            // Un `+` / `00` nu ne compte que pour le contact d'office (contre-vérification C1) : `77 … + 78 …` ou `+77 …`
+            // restent lus pour le refus STOP et pour l'opérateur ; le numéro recollé de B1 n'y coûte qu'un refus par excès.
+            if ($code !== null && ($code === '' ? $contactsOnly && ! str_starts_with($match, '221') : $code !== '221')) {
                 continue;
             }
             if ($contactsOnly && preg_match('/^(?:\+|00|221)/', $match) !== 1

@@ -34,6 +34,12 @@ Le Radar (TCK-2412) neutralise déjà ce `+` de son côté (`RadarPhone::without
 `RadarPhone` et `RadarAmountParser`). Le texte envoyé au modèle et les jeux d'évaluation, eux, perdent le prix
 ou gardent un numéro mal découpé.
 
+Même famille, relevé par la contre-vérification de TCK-2412 (C3) : la plage du masqueur s'arrête avant un
+dernier chiffre isolé, que le parseur de prix prend alors pour le seul montant : `+33 7 7 12 34 56 7` rend 7,
+`+44 (0)77 123 45 67 89 12` rend 12, `+1 (77) 123 45 67 89` rend 89, `Joignable 77 123 45 67 H24/7` rend 7.
+À mesurer avec le reste : le corriger côté masqueur, ou côté `RadarAmountParser` (un chiffre isolé collé à une
+plage de numéro n'est pas un montant).
+
 ## Contrat de données
 
 Aucun endpoint, aucune migration. `App\Support\PhoneMasker` et son miroir `scripts/check-ai-evals-pii.mjs`, le

@@ -320,7 +320,7 @@ final class ExtractionNormalizer
 
     /**
      * Les numéros rendus, en E.164. Avec un texte source, seuls restent ceux que ce texte porte
-     * ({@see RadarPhone::contactsFromText()} : mêmes neuf chiffres, quelle que soit l'écriture) ; un numéro
+     * ({@see RadarPhone::fromText()} : mêmes neuf chiffres, quelle que soit l'écriture) ; un numéro
      * absent tombe de `phones` et pose `evidence_not_in_source` sur les numéros — c'est lui qui
      * désignerait la personne à contacter. Il n'est pas perdu pour autant : il est rendu à part
      * (TCK-2387, décision 1), en clair, pour que l'opérateur le voie ; jamais l'annonceur d'office.
@@ -333,8 +333,7 @@ final class ExtractionNormalizer
         if (! is_array($phones)) {
             return [[], [], []];
         }
-        // TCK-2412 : la source doit le porter comme un contact, pas comme une liste ou une mesure que le masqueur lit.
-        $inSource = $sourceText === null ? null : array_flip(RadarPhone::contactsFromText($sourceText));
+        $inSource = $sourceText === null ? null : array_flip(RadarPhone::fromText($sourceText));
         $out = [];
         $dropped = [];
         $flags = [];

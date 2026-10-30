@@ -148,48 +148,63 @@ class RadarPhoneTest extends TestCase
         $this->assertSame([], RadarPhone::fromText('WhatsApp (+1) 77 123 45 67 89'));
     }
 
-    public function test_un_plus_devant_un_numero_national_qui_forme_un_indicatif_n_est_pas_lu(): void
+    public function test_un_plus_devant_un_numero_national_n_en_fait_pas_un_contact_d_office(): void
     {
         // TCK-2412 : le masqueur lit `+33 820 12 34` et `+30 123 45 67` comme des numéros étrangers ; la plateforme
-        // les refuse déjà comme un indicatif manquant (`TelephoneSaisiTest`), `+77 …` et `00 77 …` compris.
-        // Le Radar ne les lit plus comme sénégalais : tout préfixe sénégalais commence par un indicatif (3x, 7, 93).
+        // refuse déjà ces saisies comme un indicatif manquant (`TelephoneSaisiTest`), `+77 …` et `00 77 …` compris.
+        // Aucun n'est un contact d'office : tout préfixe sénégalais commence par un indicatif (3x, 7, 93).
         foreach (['Tel +33 820 12 34', 'Tel +30 123 45 67', 'Tel +77 123 45 67', 'Tel 00 77 123 45 67'] as $texte) {
-            $this->assertSame([], RadarPhone::fromText($texte), $texte);
+            $this->assertSame([], RadarPhone::contactsFromText($texte), $texte);
         }
-        // L'indicatif sénégalais, même écarté du `+` de trois espaces, reste lu.
-        $this->assertSame(['+221771234567'], RadarPhone::fromText('Tel +   221 77 123 45 67'));
-        $this->assertSame(['+221771234567'], RadarPhone::fromText('Tel +2 2 1 7 7 1 2 3 4 5 6 7'));
+        // Contre-vérification C1 : le refus STOP et l'opérateur, eux, les lisent (`fromText()`).
+        $this->assertSame(['+221771234567'], RadarPhone::fromText('Tel +77 123 45 67'));
+        $this->assertSame(['+221771234567'], RadarPhone::fromText('Tel 00 77 123 45 67'));
+        // L'indicatif sénégalais, même écarté du `+` de trois espaces, reste un contact.
+        $this->assertSame(['+221771234567'], RadarPhone::contactsFromText('Tel +   221 77 123 45 67'));
+        $this->assertSame(['+221771234567'], RadarPhone::contactsFromText('Tel +2 2 1 7 7 1 2 3 4 5 6 7'));
         // Une décimale ou un millier devant n'est pas un `00` d'indicatif.
-        $this->assertSame(['+221771234567'], RadarPhone::fromText('Note 1.00 7 77 123 45 67'));
+        $this->assertSame(['+221771234567'], RadarPhone::contactsFromText('Note 1.00 7 77 123 45 67'));
     }
 
-    /** Vérification adverse B1 — un numéro étranger écrit chiffre à chiffre ne devient pas un numéro sénégalais recollé. */
+    /** Contre-vérification C1 — un `+` qui joint deux numéros, ou qui suit un mot, ne cache pas le second au refus STOP. */
+    public function test_un_plus_entre_deux_numeros_ne_cache_pas_le_second_a_la_lecture_large(): void
+    {
+        $this->assertSame(['+221771234567', '+221787654321'], RadarPhone::fromText('Contact : 77 123 45 67 + 78 765 43 21'));
+        $this->assertSame(['+221771234567', '+221787654321'], RadarPhone::fromText('Tel 77 123 45 67 +78 765 43 21'));
+        $this->assertSame(['+221771234567'], RadarPhone::fromText('WhatsApp + 77 123 45 67'));
+    }
+
+    /**
+     * Vérification adverse B1 — un numéro étranger écrit chiffre à chiffre ne devient pas un contact d'office. La lecture
+     * large (`fromText()`) peut en tirer un numéro recollé : il ne coûte au pire qu'un refus STOP par excès (C1).
+     */
     public function test_un_numero_etranger_ecrit_chiffre_a_chiffre_ne_devient_pas_un_contact(): void
     {
         foreach (['+33 7 7 1 2 3 4 5 6 7', 'Tel +33 7 7 1 2 3 4 5 6 7 villa à louer 450 000', '00 33 7 7 1 2 3 4 5 6 7',
             '+39 3 3 3 1 2 3 4 5 6 7', '+32 4 7 0 1 2 3 4 5 6', '+30 6 9 1 2 3 4 5 6 7 8', '+36 2 0 1 2 3 4 5 6 7',
             '+93 7 0 1 2 3 4 5 6 7', '+   33 77 123 45 67', 'Tel+33 7 7 1 2 3 4 5 6 7', '+3 3 7 7 1 2 3 4 5 6 7'] as $texte) {
-            $this->assertSame([], RadarPhone::fromText($texte), $texte);
+            $this->assertSame([], RadarPhone::contactsFromText($texte), $texte);
         }
     }
 
     /**
      * B1 — balayage : `+`, `+ `, `00`, `00 ` devant tout indicatif de 1 à 999 (ceux du masqueur compris), puis un
-     * numéro sénégalais en groupes, collé, à espaces doubles ou chiffre à chiffre : jamais un contact. `221` seul l'est.
+     * numéro sénégalais en groupes, collé, à espaces doubles ou chiffre à chiffre : jamais un contact d'office.
+     * `221` seul l'est.
      */
     public function test_aucun_indicatif_devant_un_numero_n_en_fait_un_contact_senegalais(): void
     {
         $suites = ['77 123 45 67', '7 7 1 2 3 4 5 6 7', '77  123  45  67', '771234567'];
         foreach (['+', '+ ', '00', '00 '] as $avant) {
             foreach ($suites as $suite) {
-                $this->assertSame(['+221771234567'], RadarPhone::fromText("Tel {$avant}221 {$suite} villa"), "{$avant}221 {$suite}");
+                $this->assertSame(['+221771234567'], RadarPhone::contactsFromText("Tel {$avant}221 {$suite} villa"), "{$avant}221 {$suite}");
             }
             for ($indicatif = 1; $indicatif <= 999; $indicatif++) {
                 if ($indicatif === 221) {
                     continue;
                 }
                 foreach ([...array_map(fn (string $suite): string => "{$indicatif} {$suite}", $suites), "{$indicatif}771234567"] as $numero) {
-                    $this->assertSame([], RadarPhone::fromText("Tel {$avant}{$numero} villa"), "{$avant}{$numero}");
+                    $this->assertSame([], RadarPhone::contactsFromText("Tel {$avant}{$numero} villa"), "{$avant}{$numero}");
                 }
             }
         }
@@ -223,6 +238,25 @@ class RadarPhoneTest extends TestCase
         $this->assertSame(['+221771234567'], RadarPhone::contactsFromText('Prix 85 000 000 F. Tel : (77) 123 45 67'));
         // L'indicatif explicite n'est jamais filtré : `+221 … F`, le F est une initiale.
         $this->assertSame(['+221771234567'], RadarPhone::contactsFromText('Prix : +221 77 123 45 67 F. Diop'));
+    }
+
+    /**
+     * Contre-vérification C2 — une unité d'une lettre (`h`, `m`, `f`) ne compte que suivie d'une espace ou d'une fin de
+     * phrase : `M. Diallo`, `m. Ndiaye`, `h24`, `H24/7` derrière le numéro le laissent un contact. Un mot de prix ou de
+     * liste juste devant, ou un crochet, l'écarte toujours du contact d'office (pas de la lecture large).
+     */
+    public function test_les_ecritures_banales_de_la_contre_verification(): void
+    {
+        foreach (['Contact : 77 123 45 67 M. Diallo', 'Tel 77 123 45 67 m. Ndiaye', 'Contact 77 123 45 67 h24',
+            'Joignable 77 123 45 67 H24/7', 'Appelez le 77 123 45 67 h, merci'] as $texte) {
+            $this->assertSame(['+221771234567'], RadarPhone::contactsFromText($texte), $texte);
+        }
+        foreach (['Infos et prix : 77 123 45 67', 'Contact pour prix 77 123 45 67', 'Prix : 77 123 45 67',
+            'Visite et frais : 77 123 45 67', 'Caution - 77 123 45 67', 'Pour les horaires 77 123 45 67',
+            '77 123 45 67 chambres disponibles', '[77 123 45 67]', 'Visite 30 20 5 20 10 h par jour'] as $texte) {
+            $this->assertSame([], RadarPhone::contactsFromText($texte), $texte);
+            $this->assertNotSame([], RadarPhone::fromText($texte), $texte);
+        }
     }
 
     public function test_canonical_lit_les_separateurs_du_masqueur(): void

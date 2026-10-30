@@ -319,14 +319,14 @@ class ExtractionNormalizerTest extends TestCase
         $this->assertSame(['+221789998877'], $out['phones_dropped']);
     }
 
-    public function test_tck_2412_un_numero_que_la_source_ne_porte_que_comme_une_liste_est_garde_a_part(): void
+    public function test_tck_2412_un_numero_que_la_source_porte_derriere_un_mot_de_prix_est_present(): void
     {
-        // Le masqueur lit `30 20 5 20 10` ; derrière « Horaires » et devant « min », ce n'est pas un contact.
-        $out = $this->normalizer->normalize(self::raw(['phones' => ['30 205 20 10']]), 'Visites possibles. Horaires 30 20 5 20 10 min.');
+        // Contre-vérification C2 : la preuve de présence lit tout le texte (`fromText()`), pas le seul contact d'office.
+        $out = $this->normalizer->normalize(self::raw(['phones' => ['+221771234567']]), 'Villa aux Almadies. Infos et prix : 77 123 45 67');
 
-        $this->assertSame([], $out['phones']);
-        $this->assertSame(['+221302052010'], $out['phones_dropped']);
-        $this->assertSame(['evidence_not_in_source'], $out['phones_flags']);
+        $this->assertSame(['+221771234567'], $out['phones']);
+        $this->assertSame([], $out['phones_dropped']);
+        $this->assertSame([], $out['phones_flags']);
     }
 
     public function test_ac6_un_numero_absent_de_la_source_est_garde_a_part(): void

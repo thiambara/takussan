@@ -477,6 +477,31 @@ class ExtractRadarListingTest extends TestCase
         $this->assertSame(0, RadarAdvertiser::query()->count());
     }
 
+    /** @return array<string, array{string}> */
+    public static function plusEntreDeuxNumeros(): array
+    {
+        return [
+            'plus entre deux numéros' => ['Villa F4 aux Almadies. Contact : 78 765 43 21 + 77 123 45 67'],
+            'plus collé au second' => ['Villa F4 aux Almadies. Tel 78 765 43 21 +77 123 45 67'],
+            'plus derrière un mot' => ['Villa F4 aux Almadies. WhatsApp + 77 123 45 67'],
+        ];
+    }
+
+    /** Contre-vérification C1 — le numéro qui a dit STOP, derrière un `+`, arrête l'annonce avant tout appel au modèle. */
+    #[DataProvider('plusEntreDeuxNumeros')]
+    public function test_tck_2412_a_stop_behind_a_plus_is_refused_without_calling_the_model(string $texte): void
+    {
+        RadarExtraction::fake();
+        $listing = $this->annonce(['raw_text' => $texte]);
+        $stop = RadarAdvertiser::factory()->doNotContact()->create(['phone_hmac' => RadarPhone::hmac(self::NUMERO)]);
+
+        $this->lancer($listing);
+
+        $this->assertSame(RadarListingStage::DoNotContact, $listing->refresh()->stage);
+        $this->assertSame($stop->id, $listing->radar_advertiser_id);
+        RadarExtraction::assertNeverPrompted();
+    }
+
     public function test_the_phone_of_the_text_is_used_when_the_agent_returns_none(): void
     {
         RadarExtraction::fake([$this->reponse()]);
