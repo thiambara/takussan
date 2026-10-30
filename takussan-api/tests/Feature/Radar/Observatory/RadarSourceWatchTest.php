@@ -304,7 +304,7 @@ class RadarSourceWatchTest extends TestCase
     }
 
     /**
-     * La collecte ne suit plus une annonce réduite au silence (TCK-2392, `RadarCrawler::silenced()`) : `do_not_contact`, d'un
+     * La collecte ne suit plus une annonce réduite au silence (TCK-2392, `RadarSnapshots::silenced()`) : `do_not_contact`, d'un
      * annonceur qui a dit STOP, ou purgée avec ses instantanés encore attachés (la purge d'une annonce publiée, TCK-2406). Ne
      * plus la voir ne dit donc rien d'elle : elle n'est pas jugée, et le bien qu'elle a publié n'alerte pas.
      */

@@ -21,7 +21,7 @@ use Illuminate\Support\Facades\DB;
  * annonce retirée ou remontée en page 1 fait passer la première de la page 2 dans une page déjà lue), et le passage atteint
  * la fin sans l'avoir vue. Une présence remet le compte à zéro d'elle-même : seuls comptent les passages postérieurs à la
  * dernière. Un passage arrêté au plafond de pages, refusé ou échoué ne compte pas. Une annonce sans instantané (saisie à la
- * main) n'est jamais jugée, ni une annonce que la collecte ne suit plus (TCK-2392, `RadarCrawler::silenced()`) : purgée,
+ * main) n'est jamais jugée, ni une annonce que la collecte ne suit plus (TCK-2392, `RadarSnapshots::silenced()`) : purgée,
  * `do_not_contact`, ou d'un annonceur qui a dit STOP — ne plus la voir ne dit rien d'elle. La purge d'une annonce jamais
  * publiée détache en plus ses instantanés : elle n'en a plus.
  *
