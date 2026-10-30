@@ -233,7 +233,20 @@
     "étage TCK-2435 revérification — +7 mobile kazakh suivi de FCFA": ["au RDC +7 701 234 56 78 FCFA", "au RDC [TELEPHONE] FCFA"],
     "étage TCK-2435 revérification — R+7 collé, mobile russe suivi de F": ["R+7 912 345 67 89 F", "R[TELEPHONE] F"],
     "étage TCK-2435 revérification — +7 fixe suivi d'une initiale F. : pas une marque": ["au RDC +7 495 123 45 67 F. Diop", "au RDC [TELEPHONE] F. Diop"],
-    "étage TCK-2435 revérification — +1 à zone entre parenthèses hors forme nord-américaine": ["au RDC +1 (514) 155-0199", "au RDC [TELEPHONE]"]
+    "étage TCK-2435 revérification — +1 à zone entre parenthèses hors forme nord-américaine": ["au RDC +1 (514) 155-0199", "au RDC [TELEPHONE]"],
+    "étage TCK-2435 fixe +7 495 derrière RDC suivi de « F »": ["au RDC +7 495 123 45 67 F", "au RDC [TELEPHONE] F"],
+    "étage TCK-2435 fixe +7 495 derrière RDC suivi de « F Diop »": ["au RDC +7 495 123 45 67 F Diop", "au RDC [TELEPHONE] F Diop"],
+    "étage TCK-2435 fixe +7 495 derrière un R espacé suivi de « F »": ["Contact R +7 495 123 45 67 F", "Contact R [TELEPHONE] F"],
+    "étage TCK-2435 fixe +7 495 derrière un R espacé suivi de « F Diop »": ["Contact R +7 495 123 45 67 F Diop", "Contact R [TELEPHONE] F Diop"],
+    "étage TCK-2435 fixe +7 812 derrière RDC suivi de « F »": ["au RDC +7 812 123 45 67 F", "au RDC [TELEPHONE] F"],
+    "étage TCK-2435 fixe +7 812 derrière RDC suivi de « F Diop »": ["au RDC +7 812 123 45 67 F Diop", "au RDC [TELEPHONE] F Diop"],
+    "étage TCK-2435 fixe +7 812 derrière un R espacé suivi de « F »": ["Contact R +7 812 123 45 67 F", "Contact R [TELEPHONE] F"],
+    "étage TCK-2435 fixe +7 812 derrière un R espacé suivi de « F Diop »": ["Contact R +7 812 123 45 67 F Diop", "Contact R [TELEPHONE] F Diop"],
+    "étage TCK-2435 fixe +7 343 derrière RDC suivi de « F »": ["au RDC +7 343 123 45 67 F", "au RDC [TELEPHONE] F"],
+    "étage TCK-2435 fixe +7 343 derrière RDC suivi de « F Diop »": ["au RDC +7 343 123 45 67 F Diop", "au RDC [TELEPHONE] F Diop"],
+    "étage TCK-2435 fixe +7 343 derrière un R espacé suivi de « F »": ["Contact R +7 343 123 45 67 F", "Contact R [TELEPHONE] F"],
+    "étage TCK-2435 fixe +7 343 derrière un R espacé suivi de « F Diop »": ["Contact R +7 343 123 45 67 F Diop", "Contact R [TELEPHONE] F Diop"],
+    "étage TCK-2435 limite assumée — R+7 devant un prix qui a la forme d'un numéro +7 : masqué": ["Immeuble R+7 3 250 500 750 F", "Immeuble R[TELEPHONE] F"]
   },
   "courriels": {
     "simple": "awa@exemple.sn",
@@ -434,6 +447,6 @@
     "étage TCK-2435 — R+1 devant un prix de dix chiffres marqué FCFA": "Immeuble R+1 1 250 500 750 FCFA",
     "étage TCK-2435 — R+17 devant un prix : 17 est un étage, pas 1 suivi de dix chiffres": "Immeuble R+17 1 250 500 750 F",
     "étage TCK-2435 — R+1 devant un prix qui commence par 1 : pas nord-américain": "Immeuble R+1 1 255 500 750 F",
-    "étage TCK-2435 — R+7 devant un prix qui ne commence ni par 7 ni par 9": "Immeuble R+7 3 250 500 750 F"
+    "étage TCK-2435 — R+7 devant un prix qui commence par 2 : pas un numéro +7": "Immeuble R+7 2 250 500 750 F"
   }
 }

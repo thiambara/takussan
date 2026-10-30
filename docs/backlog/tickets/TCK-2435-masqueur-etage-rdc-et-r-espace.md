@@ -82,18 +82,19 @@ suivre.
 - **Formes fortes, marque ou non** (revérification) : un `+1` nord-américain suivi d'une marque restait en clair
   (`au RDC +1 514 555 0199 F Diop`, de même avec `F`, `F.`, `FCFA`, `F CFA`, `francs` ou `XOF` derrière). Il est masqué
   désormais. Derrière `1`, la forme `[2-9]XX [2-9]XX XXXX` (`NANP_REST`) est un numéro quelle que soit la marque ;
-  derrière `7`, un mobile `9XX` ou `7XX` (`MOBILE_7_REST`) aussi. `PhoneMasker::CC1_NUMBER` réunit les deux formes, et
-  `RadarPhone::FLOOR_PLUS` le lit sur sa première branche. Un prix d'étage n'a pas ces formes : il commence par 1, porte
-  un 0 en quatrième chiffre, ou, derrière `R+7`, ne commence ni par 7 ni par 9.
-- **Limite assumée, dans le sens sûr** : un prix de dix chiffres dont la forme est celle d'un numéro, même marqué, est
-  masqué. Exemples : `Immeuble R+1 2 345 678 900 F`, et `Immeuble R+7 9 250 500 750 F` (de 7 à 9,99 milliards). Le
-  prix est perdu, l'humain tranche. Aucun numéro masqué sur `dev` ne sort en clair.
+  derrière `7`, dix chiffres dont le premier va de 3 à 9 (`CC7_REST`) aussi : ce sont les mobiles `9XX` et `7XX`, et
+  les fixes `495`, `812`, `343`. `PhoneMasker::CC1_NUMBER` réunit les deux formes, et `RadarPhone::FLOOR_PLUS` le lit
+  sur sa première branche. Un prix d'étage marqué reste lu derrière `R+1` s'il commence par 1 ou porte un 0 en
+  quatrième chiffre, et derrière `R+7` s'il commence par 0, 1 ou 2.
+- **Limite assumée, dans le sens sûr** : un prix de dix chiffres qui a la forme d'un numéro est masqué, même marqué.
+  Exemples : `Immeuble R+1 2 345 678 900 F`, et `Immeuble R+7 3 250 500 750 F` (de 3 à 9,99 milliards derrière
+  `R+7`). Le prix est perdu, l'humain tranche. Aucun numéro masqué sur `dev` ne sort en clair.
 - **Radar** : `RadarPhone::FLOOR_PLUS` gagne une seconde branche, de forme étroite (`RDC`, espaces, étage 0-19,
   `PhoneMasker::FLOOR_AFTER_PLUS`, borne comprise). La première branche (`R+` collé, large) prend la borne : un `+1` ou
   un `+7` suivi d'un numéro complet garde son `+`, et `RDC +1 5145550199` n'est plus lu comme un prix. Sans la seconde
   branche, `Villa RDC+1 77 123 45 67` et `Villa R + 1 77 123 45 67` perdaient leur contact, parce que
   `FOREIGN_PREFIX` lisait `+1` devant le numéro.
-- **Parité PHP/JS hors fixture** : 0 écart sur 217 664 lignes distinctes. Ce sont les fichiers suivis qui portent un
+- **Parité PHP/JS hors fixture** : 0 écart sur 217 716 lignes distinctes. Ce sont les fichiers suivis qui portent un
   chiffre, plus les cas d'étage écrits à la main, dont les onze fuites de la vérification. Par rapport au masqueur de
   `dev`, 24 lignes gagnent un texte non masqué : ce sont toutes des écritures d'étage suivies d'un prix. Aucune ligne
   ne perd le masquage d'un numéro.
@@ -113,3 +114,6 @@ suivre.
 - **La borne vaut pour `1` et `7` seulement, et un prix marqué la lève.** Écarté : retirer `+1` et `+7` des étages.
   Raison : `R+1` est l'étage le plus écrit. Un numéro complet sans marque monétaire derrière se masque, et un prix de
   dix chiffres non marqué derrière `R+1` est perdu : l'humain tranche.
+- **Derrière `+7`, `[3-9]` plutôt que les seuls mobiles `[79]`** (décision de la session, à revoir). Écarté : `[79]`,
+  qui gardait le prix `R+7 3 250 500 750 F`. Raison : avec `[79]`, un fixe `+7 495 …` ou `+7 812 …` suivi de `F`,
+  masqué sur `dev`, partait en clair derrière `RDC`. Aucun numéro masqué sur `dev` ne doit sortir en clair.
