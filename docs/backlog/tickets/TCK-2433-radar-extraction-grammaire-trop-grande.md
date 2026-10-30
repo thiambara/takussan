@@ -69,6 +69,9 @@ objets imbriqués, paramètres optionnels et outils interagissent, sans seuil pu
 - [x] AC3 — La garde rougit sur un agent strict plus gros que le plus gros schéma attesté (dont le
       schéma de `RadarExtraction` s'il redevenait strict), et laisse passer les agents livrés.
 - [x] AC4 — Chaque AC rougit sans son correctif (ablation consignée).
+- [x] AC5 — L'outil de sortie n'est jamais forcé (`tool_choice` `auto`, ni `tool` ni `any`), et un agent
+      strict n'envoie aucun `tool_choice` ; une réponse sans sortie est un échec du maillon
+      (`ai.response_invalid`), que `ExtractRadarListing` retente une fois.
 
 ## Reste sur dev
 
@@ -115,6 +118,24 @@ objets imbriqués, paramètres optionnels et outils interagissent, sans seuil pu
   garde (96 nœuds) et le test au fil rougissent ; la passerelle sans `providerFor()` → le test au fil de
   l'extraction rougit ; le double servi à tous les agents → le test de l'agent strict rougit.
 
+- **Second refus réel (2026-10-30, `req_011CgXdugoVPAgD4WoamUxvx`)** : « tool_choice: type "tool" and
+  "any" are not supported for this model ». Documentation d'Anthropic, « Forcing tool use » : Opus 5.5,
+  Sonnet 5.5, Fable 5.1 et Mythos 5.1 refusent l'outil forcé quels que soient les réglages de réflexion ;
+  la réflexion manuelle le refuse sur tout modèle, l'adaptative non. Le rôle `extraction` joue
+  `claude-sonnet-5-5` puis `claude-haiku-5-5`. `SocleAgent` implémente donc `HasProviderOptions` : un agent
+  non strict envoie `tool_choice` `auto` (fusionné en dernier dans le corps par laravel/ai), un agent
+  strict rien. laravel/ai relit la sortie dans l'appel d'outil, ou à défaut dans un JSON du texte ; une
+  réponse qui n'en porte aucune devient, dans la passerelle, un échec du maillon `ai.response_invalid`
+  (bascule, puis retentative unique du job, déjà prévue pour ce code). Prompt `v3` : la réponse est
+  l'objet du schéma, rendue par l'outil de sortie quand il est proposé. Avec `auto`, le modèle peut
+  réfléchir avant d'appeler l'outil (un appel forcé sautait la réflexion) : ses jetons comptent dans
+  `max_tokens` (8 000), une réponse coupée bascule (`ai.response_truncated`).
+- **Ablations du second correctif** (restauration prouvée par `cmp`) : sans `tool_choice` `auto` → le test au
+  fil de l'extraction rougit ; `auto` pour tous les agents → le test de l'agent strict rougit ; sans l'échec
+  sur sortie vide → le test au fil et `test_a_response_without_output_fails_over_then_is_retried_once`
+  rougissent. Deux épreuves du job (`an invalid output …`) prennent une sortie incomplète au lieu de `[]`,
+  qui n'arrive plus au job.
+
 ### Décisions prises en autonomie, à revoir
 
 - **Retenu** : sortie par outil non strict pour `RadarExtraction` seul, réglable par agent en une ligne.
@@ -124,5 +145,9 @@ objets imbriqués, paramètres optionnels et outils interagissent, sans seuil pu
 - **Retenu** : le réglage sur l'agent (`usesStrictSchema()`). **Écarté** : `use_native_structured_output`
   faux pour tout le fournisseur, qui aurait retiré le strict à `radar.verification_accord`, dont la
   référence réelle vient d'être fixée en strict.
+- **Retenu** : `tool_choice` `auto` + prompt `v3` + échec sur sortie vide (piste a). **Écarté** : retirer la
+  réflexion (piste b), sans effet sur Sonnet 5.5, qui refuse l'outil forcé de toute façon ; un schéma strict
+  réduit (piste c), au seuil de grammaire non publié et payé d'un appel par essai ; `auto` seulement pour les
+  modèles qui refusent le forcé, qui exigerait une liste de modèles à tenir à jour.
 - **Retenu** : `review` avec « Reste sur dev ». **Écarté** : `done`, parce que seul un vrai appel prouve
   que l'extraction repasse.
