@@ -9046,7 +9046,14 @@
               "cloud": "WhatsApp API",
               "ambiguous": "WhatsApp API, send unconfirmed"
             },
-            "ambiguousHint": "Meta did not confirm the send: the message may have gone out."
+            "ambiguousHint": "Meta did not confirm the send: the message may have gone out.",
+            "delivery": {
+              "sent": "Sent",
+              "delivered": "Delivered",
+              "read": "Read",
+              "failed": "Not delivered"
+            },
+            "deliveryFailedHint": "WhatsApp did not deliver this message. It still counts as sent: the next step is your call."
           },
           "errors": {
             "generic": "The action failed.",

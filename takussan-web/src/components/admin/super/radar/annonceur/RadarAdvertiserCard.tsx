@@ -37,7 +37,6 @@ import type {
   RadarOutreachChanges,
   RadarOutreachResponse,
   RadarPrepareRequest,
-  RadarOutreachProviderStatus,
   RadarPreparedOutreachResponse,
 } from '@/types/radar';
 import { codeDeLErreur } from '../fiche/useMessageEchecFiche';
@@ -51,7 +50,14 @@ import { ListeAnnonces } from './ListeAnnonces';
 import { PanneauIdentite } from './PanneauIdentite';
 import { PreparationMessage } from './PreparationMessage';
 import { RelanceActivation } from './RelanceActivation';
-import { attendUneReponseParLApi, langueDeRelance, messagesEnAttente, reponseRecueEnAttente, verificationEnCours } from './reponses';
+import {
+  attendUneReponseParLApi,
+  langueDeRelance,
+  messagesEnAttente,
+  remiseDuMessage,
+  reponseRecueEnAttente,
+  verificationEnCours,
+} from './reponses';
 import { SuiviMessage } from './SuiviMessage';
 import { useGestesDePrise } from './useGestesDePrise';
 import { useMessageEchecAnnonceur } from './useMessageEchecAnnonceur';
@@ -94,8 +100,8 @@ function FicheChargee({ annonceur, onEnvoiApi }: FicheChargeeProps) {
   const [delie, setDelie] = useState(false);
   /** TCK-2426 — l'erreur affichée vient d'une préparation ou d'un envoi : un 409 `reply_pending` s'y dit à l'échelle de l'annonceur, pas du dépôt. */
   const [erreurDeDemarchage, setErreurDeDemarchage] = useState(false);
-  /** TCK-2426 — l'issue du dernier envoi par l'API de cette visite : le brouillon a quitté l'écran, la fiche le dit. */
-  const [envoiApiFait, setEnvoiApiFait] = useState<RadarOutreachProviderStatus | null>(null);
+  /** TCK-2426 — le dernier message envoyé par l'API pendant cette visite, tel que l'envoi l'a rendu : le brouillon a quitté l'écran, la fiche le dit. */
+  const [envoiApiFait, setEnvoiApiFait] = useState<RadarOutreach | null>(null);
 
   const relire = () => queryClient.invalidateQueries({ queryKey: radarKeys.all });
 
@@ -157,12 +163,19 @@ function FicheChargee({ annonceur, onEnvoiApi }: FicheChargeeProps) {
     mutationFn: (id) => sendRadarOutreach(id),
     onSuccess: (reponse) => {
       queryClient.setQueryData<RadarAdvertiserResponse>(cle, (detail) => avecMessage(detail, reponse.data));
-      setEnvoiApiFait(reponse.data.provider_status ?? 'accepted');
+      setEnvoiApiFait(reponse.data);
       onEnvoiApi();
       return relire();
     },
     onError: surEchecDemarchage,
   });
+
+  // TCK-2437 — le bandeau lit le message tel que la fiche le porte après relecture, comme sa pastille de remise : un
+  // accusé `failed` arrivé depuis le fait tomber (la carte dit alors « Non remis »), sans jamais contredire la carte.
+  const envoyeParLApi = envoiApiFait === null ? null : (annonceur.outreaches.find((m) => m.id === envoiApiFait.id) ?? envoiApiFait);
+  const bandeauEnvoiApi = envoyeParLApi === null || remiseDuMessage(envoyeParLApi) === 'failed'
+    ? null
+    : (envoyeParLApi.provider_status === 'ambiguous' ? 'ambiguous' : 'accepted');
 
   const stoppe = annonceur.do_not_contact_at !== null;
   // TCK-2389 — « Publier pour lui » : le geste du `super_admin`, offert dès qu'une annonce est couverte par un accord valide.
@@ -287,15 +300,15 @@ function FicheChargee({ annonceur, onEnvoiApi }: FicheChargeeProps) {
           {t('message.replyPending')}
         </p>
       ) : null}
-      {envoiApiFait !== null ? (
+      {bandeauEnvoiApi !== null ? (
         <p
           role="status"
-          className={envoiApiFait === 'ambiguous'
+          className={bandeauEnvoiApi === 'ambiguous'
             ? 'rounded-lg border border-warning/60 bg-warning/5 px-4 py-3 text-sm text-foreground'
             : 'rounded-lg bg-muted px-4 py-3 text-sm text-foreground'}
           data-testid="radar-annonceur-envoi-api"
         >
-          {envoiApiFait === 'ambiguous' ? t('message.apiAmbiguous') : t('message.apiSent')}
+          {bandeauEnvoiApi === 'ambiguous' ? t('message.apiAmbiguous') : t('message.apiSent')}
         </p>
       ) : null}
 

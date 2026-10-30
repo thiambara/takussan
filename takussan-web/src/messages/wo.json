@@ -8392,7 +8392,14 @@
               "cloud": "API WhatsApp",
               "ambiguous": "API WhatsApp, envoi non confirmé"
             },
-            "ambiguousHint": "Meta n’a pas confirmé l’envoi : le message a pu partir."
+            "ambiguousHint": "Meta n’a pas confirmé l’envoi : le message a pu partir.",
+            "delivery": {
+              "sent": "Envoyé",
+              "delivered": "Remis",
+              "read": "Lu",
+              "failed": "Non remis"
+            },
+            "deliveryFailedHint": "WhatsApp n’a pas remis ce message. Il reste compté comme envoyé : à vous de juger de la suite."
           },
           "errors": {
             "generic": "Le geste a échoué.",

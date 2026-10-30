@@ -1,7 +1,7 @@
 ---
 id: TCK-2437
 title: "Radar : afficher dans la fiche annonceur l'état de remise d'un message WhatsApp (remis, lu, échec)"
-status: todo
+status: done
 phase: P3
 family: front
 estimate: S
@@ -51,18 +51,18 @@ message, l'échec se distingue nettement (ton destructif de la charte), sans ala
 
 ## Delta à produire
 
-- [ ] Type front de `provider_status` aligné sur les valeurs de l'API (`accepted`, `ambiguous`, `sent`, `delivered`,
+- [x] Type front de `provider_status` aligné sur les valeurs de l'API (`accepted`, `ambiguous`, `sent`, `delivered`,
       `read`, `failed`).
-- [ ] Fiche annonceur : état de remise affiché pour tout message envoyé par l'API.
-- [ ] Tests Vitest de la fiche, dont un message `failed`.
+- [x] Fiche annonceur : état de remise affiché pour tout message envoyé par l'API.
+- [x] Tests Vitest de la fiche, dont un message `failed`.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Un message `failed` ne s'affiche jamais comme remis, ni sans mention d'échec.
-- [ ] AC2 — Un message `sent` ou `accepted` (pas encore d'accusé) s'affiche envoyé, jamais remis.
-- [ ] AC3 — Un message `delivered` ou `read` s'affiche remis ou lu ; un message `ambiguous` garde son libellé « par
+- [x] AC1 — Un message `failed` ne s'affiche jamais comme remis, ni sans mention d'échec.
+- [x] AC2 — Un message `sent` ou `accepted` (pas encore d'accusé) s'affiche envoyé, jamais remis.
+- [x] AC3 — Un message `delivered` ou `read` s'affiche remis ou lu ; un message `ambiguous` garde son libellé « par
       l'API sans confirmation de Meta ».
-- [ ] AC4 — Un message envoyé à la main n'affiche aucun état de remise.
+- [x] AC4 — Un message envoyé à la main n'affiche aucun état de remise.
 
 ## Hors périmètre
 
@@ -71,4 +71,28 @@ message, l'échec se distingue nettement (ton destructif de la charte), sans ala
 
 ## Notes d'implémentation
 
-_(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, PR liée, etc.)_
+- **L'API rendait déjà les six valeurs** : `RadarOutreachResource` rend `provider_status` tel qu'en base, et
+  `RadarWhatsappReceipts` y écrit `sent`, `delivered`, `read`, `failed`. Seul son commentaire disait encore
+  « `accepted`, `ambiguous` » : corrigé, sans changement de forme.
+- `remiseDuMessage()` (`reponses.ts`) dérive l'état de remise ; `CanalMessage` le pose en pastille à côté du canal, sur
+  la carte du suivi et dans l'historique. La table est un `Record` complet : une valeur ajoutée au type sans libellé ne
+  compile pas, et une valeur que l'API rendrait sans que le front la connaisse n'affiche rien (jamais « Remis »).
+- Un `failed` sur un envoi d'abord `ambiguous` se lit « API WhatsApp » + « Non remis » : l'accusé a remplacé `ambiguous`
+  en base, et l'écran lit ce qui y est. Il y arrive par l'identifiant de Meta (écriture défaite après l'envoi) et, avec
+  TCK-2436 (appariement par jeton opaque, pas encore sur `dev`), aussi sur un envoi ambigu sans identifiant, dès que
+  l'accusé porte le jeton. L'affichage reste juste dans les deux cas : la pastille suit l'état réel.
+- Le bandeau de l'envoi par l'API (`RadarAdvertiserCard`) lit le message tel que la fiche le porte après relecture,
+  comme la pastille : un accusé `failed` arrivé depuis le fait tomber, au lieu de garder « Ne le renvoyez pas à la
+  main » à côté d'un « Non remis » (relevé par la vérification adverse).
+
+### Décisions prises en autonomie, à revoir
+
+- **Code de l'échec de Meta** : non affiché, aucune lecture neuve côté API. Écarté : une colonne ou une lecture du
+  journal dans ce ticket. Raison : le contrat de données demandait de le signaler d'abord ; la suite est proposée en
+  TCK-2444 (`todo`), qui laisse le choix de la forme au porteur.
+- **Envoi `ambiguous`** : aucune pastille de remise, le canal dit déjà « envoi non confirmé ». Écarté : une pastille
+  « Non confirmé » qui redirait la même chose.
+- **Tons** : `sent` neutre, `delivered`/`read` succès, `failed` destructif. Écarté : `sent` en `info`, qui attire l'œil
+  sur l'état le plus courant ; une ligne de `TON_DE_LA_REMISE` à changer.
+- **Explication de l'échec** sur la carte du suivi seulement (comme celle de l'envoi ambigu) ; l'historique garde la
+  pastille seule.
