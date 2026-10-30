@@ -11,8 +11,13 @@ namespace App\Support;
  * masquerait pour un usage public, le Radar le lit comme un numéro. Un prix (`450.000f`) n'en est pas un.
  *
  * `hmac()` est ce qui survit à un STOP (ADR-0077 §9) : le numéro en clair s'efface, pas le refus.
- * Clé : `config('radar.phone_hmac_key')`, à défaut dérivée de `app.key` — aucune variable
- * d'environnement de plus dans ce ticket.
+ * Clé : `RADAR_PHONE_HMAC_KEY` (`config('radar.phone_hmac_key')`), à défaut dérivée de `app.key`.
+ *
+ * TCK-2414 — le numéro d'un refus étant purgé, son empreinte ne se recalcule pas sous une clé neuve :
+ * une rotation la rendrait méconnaissable, et le Radar redémarcherait qui a dit STOP. `hmac()` écrit
+ * sous la clé courante ; `hmacs()` est ce qu'une LECTURE cherche : la clé courante, les anciennes
+ * (`RADAR_PHONE_HMAC_PREVIOUS_KEYS`) et le repli sur `app.key` et `APP_PREVIOUS_KEYS`, qui garde les
+ * empreintes écrites avant la pose de la clé dédiée tant qu'`APP_KEY` n'a pas tourné sans eux.
  */
 final class RadarPhone
 {
@@ -84,10 +89,38 @@ final class RadarPhone
         return hash_hmac('sha256', $e164, self::key());
     }
 
-    private static function key(): string
+    /**
+     * Les empreintes sous lesquelles ce numéro a pu être écrit, la clé courante d'abord, sans doublon.
+     *
+     * @return list<string>
+     */
+    public static function hmacs(string $e164): array
+    {
+        $keys = [self::key(), ...(array) config('radar.phone_hmac_previous_keys', [])];
+        foreach ([config('app.key'), ...(array) config('app.previous_keys', [])] as $appKey) {
+            $keys[] = self::fallback($appKey);
+        }
+        $keys = array_filter($keys, fn (mixed $key): bool => is_string($key) && $key !== '');
+
+        return array_values(array_unique(array_map(fn (string $key): string => hash_hmac('sha256', $e164, $key), $keys)));
+    }
+
+    /** La clé dédiée est posée : `app.key` peut tourner sans toucher aux refus (TCK-2414, sonde de santé). */
+    public static function hasDedicatedKey(): bool
     {
         $key = config('radar.phone_hmac_key');
 
-        return is_string($key) && $key !== '' ? $key : 'radar-phone|'.config('app.key');
+        return is_string($key) && $key !== '';
+    }
+
+    private static function key(): string
+    {
+        return self::hasDedicatedKey() ? (string) config('radar.phone_hmac_key') : self::fallback(config('app.key'));
+    }
+
+    /** Le repli d'avant la clé dédiée : à ne jamais changer, les empreintes écrites sous lui en dépendent. */
+    private static function fallback(mixed $appKey): string
+    {
+        return 'radar-phone|'.$appKey;
     }
 }

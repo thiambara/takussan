@@ -14,13 +14,15 @@
     "cdn",
     "scheduler",
     "proxies",
-    "lemon_squeezy_webhook"
+    "lemon_squeezy_webhook",
+    "radar_phone_key"
   ],
   "motifs": [
     "no_delivery",
     "unreachable",
     "not_meilisearch",
     "wildcard_trusts_nobody",
-    "signing_secret_missing"
+    "signing_secret_missing",
+    "radar_phone_key_missing"
   ]
 }

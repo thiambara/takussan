@@ -7776,7 +7776,8 @@
         "whatsapp": "WhatsApp",
         "scheduler": "Scheduler",
         "proxies": "Trusted proxies",
-        "lemon_squeezy_webhook": "Lemon Squeezy webhook"
+        "lemon_squeezy_webhook": "Lemon Squeezy webhook",
+        "radar_phone_key": "Radar refusal key"
       },
       "hint": {
         "error": "Error: {message}",
@@ -7789,7 +7790,8 @@
           "unreachable": "Server unreachable",
           "not_meilisearch": "Search not on Meilisearch",
           "wildcard_trusts_nobody": "“*” trusts no proxy",
-          "signing_secret_missing": "Signing secret missing from configuration"
+          "signing_secret_missing": "Signing secret missing from configuration",
+          "radar_phone_key_missing": "Dedicated key missing: refusal fingerprints depend on APP_KEY"
         }
       },
       "status": {

@@ -123,4 +123,23 @@ class ClaimLinksTest extends TestCase
         $accord->forceFill(['revoked_at' => now()])->save();
         $this->assertSame('radar.claim.revoked', $this->refus($jeton)->errorCode);
     }
+
+    public function test_une_rotation_d_app_key_tue_le_lien_sauf_si_l_ancienne_cle_est_dans_app_previous_keys(): void
+    {
+        // TCK-2414 — le lien reste signé sous `app.key`, pas sous la clé dédiée des refus : une rotation peut le tuer.
+        config(['app.key' => 'base64:YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE=', 'app.previous_keys' => []]);
+        $annonceur = RadarAdvertiser::factory()->create();
+        $jeton = $this->links->token($annonceur, now());
+
+        config(['app.key' => 'base64:YmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmI=']);
+        $this->assertSame('radar.claim.invalid', $this->refus($jeton)->errorCode);
+        $this->assertNull(ClaimLinks::phoneOf($jeton));
+
+        config(['app.previous_keys' => ['base64:YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE=']]);
+        $this->assertTrue($this->links->resolve($jeton)->is($annonceur));
+        $this->assertNotSame($jeton, $this->links->token($annonceur, now()->setTimestamp((int) explode('.', $jeton)[1])), 'un jeton neuf se signe sous la clé courante');
+
+        config(['radar.phone_hmac_key' => 'cle-dediee-radar']);
+        $this->assertTrue($this->links->resolve($jeton)->is($annonceur), 'la clé dédiée des refus ne signe pas les liens');
+    }
 }

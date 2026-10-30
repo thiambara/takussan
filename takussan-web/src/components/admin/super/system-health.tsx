@@ -10,6 +10,7 @@ import {
   Database,
   HardDrive,
   Images,
+  KeyRound,
   ListChecks,
   Mail,
   MessageCircle,
@@ -47,7 +48,8 @@ type CheckKey =
   | 'cdn'
   | 'scheduler'
   | 'proxies'
-  | 'lemon_squeezy_webhook';
+  | 'lemon_squeezy_webhook'
+  | 'radar_phone_key';
 
 /**
  * TCK-600 — médias (R2), recherche, files, workers et CDN rejoignent les cinq sondes d'origine.
@@ -72,6 +74,7 @@ const CHECKS: Array<{ key: CheckKey; icon: typeof Database }> = [
   { key: 'scheduler', icon: CalendarClock },
   { key: 'proxies', icon: Network },
   { key: 'lemon_squeezy_webhook', icon: Webhook },
+  { key: 'radar_phone_key', icon: KeyRound },
 ];
 
 const TONE: Record<HealthLevel, 'success' | 'attention' | 'danger'> = {

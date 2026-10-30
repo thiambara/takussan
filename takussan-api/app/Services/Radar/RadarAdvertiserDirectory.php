@@ -26,7 +26,7 @@ final class RadarAdvertiserDirectory
     public function findOrCreate(string $e164): RadarAdvertiser
     {
         $hmac = RadarPhone::hmac($e164);
-        $existing = RadarAdvertiser::query()->where('phone_hmac', $hmac)->first();
+        $existing = RadarAdvertiser::query()->where('phone_hmac', $hmac)->first() ?? $this->underPreviousKey($e164);
         if ($existing !== null) {
             return $this->restorePhone($existing, $e164);
         }
@@ -74,9 +74,22 @@ final class RadarAdvertiserDirectory
         }
 
         return RadarAdvertiser::query()
-            ->whereIn('phone_hmac', array_map(RadarPhone::hmac(...), $e164))
+            ->whereIn('phone_hmac', array_merge(...array_map(RadarPhone::hmacs(...), $e164)))
             ->whereNotNull('do_not_contact_at')
             ->orderBy('id')
             ->first();
+    }
+
+    /**
+     * TCK-2414 — l'annonceur de ce numéro sous une ANCIENNE clé ({@see RadarPhone::hmacs()}) : un refus purgé écrit avant la
+     * pose ou la rotation de la clé. Retrouvé, son empreinte passe sous la clé courante — le numéro est là pour la calculer.
+     */
+    private function underPreviousKey(string $e164): ?RadarAdvertiser
+    {
+        $previous = array_slice(RadarPhone::hmacs($e164), 1);
+        $advertiser = $previous === [] ? null : RadarAdvertiser::query()->whereIn('phone_hmac', $previous)->orderBy('id')->first();
+        $advertiser?->forceFill(['phone_hmac' => RadarPhone::hmac($e164)])->save();
+
+        return $advertiser;
     }
 }
