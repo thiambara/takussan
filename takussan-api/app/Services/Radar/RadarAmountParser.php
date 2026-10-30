@@ -17,7 +17,8 @@ use App\Support\RadarPhone;
  *   - nombre (décimale `.` ou `,`, ou groupé par milliers) suivi d'un multiplicateur : « 1,5M »,
  *     « 1.5 million(s) », « 45 millions », « 350K », « 350 mille », « 1 000 K », « 2 milliards » ;
  *   - nombre groupé par milliers (espace, point, virgule) : « 450.000 », « 25 000 000 » ;
- *   - nombre nu : « 5000 ». Une décimale sans multiplicateur (« 1.5 ») n'est pas un montant.
+ *   - nombre nu : « 5000 ». Une décimale sans multiplicateur (« 1.5 ») n'est pas un montant, ni un nombre
+ *     nu de moins de 100 (« 7 », « 89 » : un compte, un horaire, le reste d'un numéro — TCK-2428).
  *
  * **Les écartés.** Un nombre suivi d'une unité qui n'est pas une monnaie (« 300 m² », « 3 chambres »,
  * « 5 ans », « 2 mois » — une durée, pas une période : la période s'écrit « /mois », « par mois »),
@@ -47,6 +48,13 @@ final class RadarAmountParser
 {
     /** Au-delà, ce n'est plus un prix immobilier mais du bruit (et `int` déborderait vers 19). */
     private const MAX_DIGITS = 15;
+
+    /**
+     * TCK-2428 — en dessous, un nombre nu (sans monnaie, période ni multiplicateur) n'est pas un prix : XOF n'a pas de
+     * sous-unité, et c'est un compte, un horaire (`H24/7`, `7j/7`) ou le reste d'un numéro que le masqueur n'a pas pris
+     * (`+33 7 7 12 34 56 7`, `+44 (0)77 123 45 67 89 12` : contre-vérification C3 de TCK-2412).
+     */
+    private const MIN_UNMARKED = 100;
 
     /** Puissance de dix de chaque multiplicateur. */
     private const MULTIPLIERS = [
@@ -155,11 +163,15 @@ final class RadarAmountParser
         }
 
         $period = self::period($after);
+        $marked = $multiplied || $period !== null || preg_match('/^\s*'.self::CURRENCY.'/u', $after) === 1;
+        if (! $marked && $amount < self::MIN_UNMARKED) {
+            return null;
+        }
 
         return [
             'amount' => $amount,
             'period' => $period,
-            'marked' => $multiplied || $period !== null || preg_match('/^\s*'.self::CURRENCY.'/u', $after) === 1,
+            'marked' => $marked,
             'deposit' => preg_match(self::DEPOSIT_BEFORE, substr($text, max(0, $start - 60), min($start, 60))) === 1,
             'start' => $start,
             'end' => $end,
