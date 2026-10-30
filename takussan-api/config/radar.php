@@ -166,6 +166,12 @@ return [
         // Un passage encore `queued` ou `running` après ce délai est perdu (worker tué, file arrêtée) : `radar:crawl` le
         // clôt en `failed`, sinon il bloquerait le site pour toujours (un seul passage actif par site).
         'stale_after_minutes' => 60,
+        // TCK-2438 (ADR-0080, amendement) — les URL de départ réglées dans la console (`radar_crawl_sources.start_urls`), à
+        // la place du `start_url` de chaque site ci-dessus, qui reste le défaut d'une source qui n'en règle aucune. Au plus ce
+        // nombre par site, chacune au plus de cette longueur ; https, sur un hôte que l'adaptateur déclare
+        // (`RadarSiteAdapter::startHosts()`). Le plafond de pages et le budget de temps restent ceux du passage entier.
+        'max_start_urls' => 10,
+        'start_url_max_length' => 500,
     ],
 
     // TCK-2392 — le quatrième signal de rapprochement, la similarité de texte (`RadarMatcher::SIGNAL_TEXT`). Un pilote

@@ -34,6 +34,12 @@ final class CoinafriqueAdapter implements RadarSiteAdapter
         return (string) config('radar.crawl.sites.coinafrique.start_url');
     }
 
+    /** TCK-2438 — Le seul site sénégalais : les autres pays de CoinAfrique sont hors du Radar. */
+    public function startHosts(): array
+    {
+        return ['sn.coinafrique.com'];
+    }
+
     public function parse(string $html, string $pageUrl): ListPage
     {
         $xpath = $this->xpath($html);

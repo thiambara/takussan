@@ -226,6 +226,12 @@ export const DISCORDANCES_RADAR: Record<string, string> = {
 export const ERREURS_COLLECTE_RADAR: Record<string, string> = {
   'radar.crawl.active': 'active',
   'radar.crawl.unknown_site': 'unknownSite',
+  // TCK-2438 — les URL de départ refusées ; `params.field` (`start_urls.N`) nomme laquelle.
+  'radar.crawl.start_urls_too_many': 'startUrlsTooMany',
+  'radar.crawl.start_url_too_long': 'startUrlTooLong',
+  'radar.crawl.start_url_invalid': 'startUrlInvalid',
+  'radar.crawl.start_url_host': 'startUrlHost',
+  'radar.crawl.start_url_duplicate': 'startUrlDuplicate',
 };
 
 /**
@@ -242,4 +248,5 @@ export const ARRETS_COLLECTE_RADAR: Record<string, string> = {
   'radar.crawl.error': 'error',
   'radar.crawl.lost': 'lost',
   'radar.crawl.loop': 'loop',
+  'radar.crawl.no_start_url': 'noStartUrl',
 };

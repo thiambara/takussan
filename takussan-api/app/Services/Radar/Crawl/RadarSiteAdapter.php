@@ -17,8 +17,16 @@ interface RadarSiteAdapter
 {
     public function site(): RadarSourceSite;
 
-    /** La première page de liste lue par un passage. */
+    /** La page de liste lue par un passage quand la console n'en règle aucune (`radar.crawl.sites.<site>.start_url`). */
     public function startUrl(): string;
+
+    /**
+     * TCK-2438 — les hôtes EXACTS d'où une URL de départ réglée dans la console peut partir (`RadarStartUrls`). Déclarés
+     * ici, dans le code : la console ne peut pas les élargir.
+     *
+     * @return list<string>
+     */
+    public function startHosts(): array;
 
     public function parse(string $html, string $pageUrl): ListPage;
 }

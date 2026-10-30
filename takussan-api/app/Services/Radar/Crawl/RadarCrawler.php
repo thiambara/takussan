@@ -16,7 +16,9 @@ use Illuminate\Support\Sleep;
 /**
  * TCK-2392 (ADR-0077 §10, AC1, AC5) — un passage de collecte sur un site.
  *
- * Page après page, à partir de `startUrl()` de l'adaptateur, au plus `max_pages` de la source :
+ * Liste après liste, à partir de chaque URL de départ de la source (TCK-2438, `RadarStartUrls::forRun()` : celles de la
+ * console qui passent ses garde-fous, à défaut `startUrl()` de l'adaptateur), et page après page dans chaque liste, au plus
+ * `max_pages` de la source pour le passage ENTIER :
  *  1. **la page est lue par `UrlFetcher`**, comme une URL saisie : SSRF contrôlée à chaque saut, `robots.txt` respecté,
  *     créneau par domaine. Le créneau pris (une extraction lit une annonce du même site) → le passage attend ce qu'il
  *     faut, au plus `radar.crawl.busy_waits` fois, puis s'arrête (`radar.crawl.domain_busy`). Une lecture refusée arrête
@@ -31,10 +33,14 @@ use Illuminate\Support\Sleep;
  *     comptée. La promesse de `privacy.ts` § 6 (« ne subsiste qu'une empreinte chiffrée de votre numéro ») vaut aussi
  *     pour ce qu'un passage relirait après coup (ADR-0077 §9, ADR-0080).
  *
- * Les compteurs sont écrits après chaque page : un passage interrompu laisse ce qu'il a fait. Le passage s'arrête aussi
- * sur la fin de la liste (`reached_end`), le plafond de pages, son budget de temps, ou une pagination qui renvoie vers une
- * page déjà lue (`radar.crawl.loop`). Un passage que le planificateur a clos entre-temps (`radar.crawl.lost`) le reste :
- * la fin ne réécrit qu'un passage encore `running`.
+ * Les compteurs sont écrits après chaque page : un passage interrompu laisse ce qu'il a fait. Le plafond de pages, le
+ * budget de temps et le créneau du domaine pris arrêtent le PASSAGE. La fin d'une liste, une page sans carte, une lecture
+ * refusée ou une pagination qui renvoie vers une page déjà lue (`radar.crawl.loop`) n'arrêtent que la LISTE : la suivante
+ * est lue. Une liste qui rejoint une page déjà lue par une liste précédente s'arrête là, sur sa fin : la suite a été lue,
+ * et l'arrêt de l'autre liste compte. `reached_end` n'est vrai que si chaque liste est allée jusqu'au bout, quel que soit
+ * l'ordre des URL ; sinon l'arrêt du passage est celui de la première liste qui ne l'a pas fait (une boucle se lit dans
+ * la console : `radar.crawl.loop`). Un passage que le planificateur a clos entre-temps (`radar.crawl.lost`) le
+ * reste : la fin ne réécrit qu'un passage encore `running`.
  */
 final class RadarCrawler
 {
@@ -45,6 +51,7 @@ final class RadarCrawler
         private readonly UrlFetcher $fetcher,
         private readonly RadarListingIntake $intake,
         private readonly RadarSnapshots $snapshots,
+        private readonly RadarStartUrls $startUrls,
     ) {}
 
     public function run(RadarCrawlRun $run): RadarCrawlRun
@@ -67,45 +74,91 @@ final class RadarCrawler
         $maxPages = max(1, min((int) ($source->max_pages ?? config('radar.crawl.default_max_pages', 5)), (int) config('radar.crawl.max_pages_limit', 20)));
         $deadline = now()->addSeconds((int) config('radar.crawl.time_budget_seconds', 1200));
 
-        $url = $adapter->startUrl();
-        /** @var array<int, true> $seen les annonces déjà observées par ce passage */
-        $seen = [];
-        /** @var array<string, true> $visited les pages déjà lues par ce passage, demandées ou atteintes par redirection */
-        $visited = [];
+        // TCK-2438 — les listes de la console, rejugées ici (une valeur écrite hors de la console n'est jamais lue), ou
+        // l'URL de la configuration. Le passage note l'ensemble qu'il suit, trié : c'est son périmètre, pour l'observatoire.
+        $starts = $this->startUrls->forRun($source, $adapter);
+        $run->start_urls = RadarStartUrls::perimeter($starts);
+        $run->save();
+        if ($starts === []) {
+            return $this->finish($run, RadarCrawlRun::STOP_NO_START_URL);
+        }
 
+        $walk = new CrawlWalk($maxPages, $deadline);
+        /** @var string|null $listStop le premier arrêt d'une liste avant sa fin ; null tant que chaque liste est allée au bout */
+        $listStop = null;
+
+        foreach ($starts as $start) {
+            if (isset($walk->visited[$start])) {
+                // Déjà lue par la pagination d'une liste précédente : sa suite l'a été aussi.
+                continue;
+            }
+
+            $stop = $this->walk($start, $run, $operator, $adapter, $walk);
+            if (in_array($stop, [RadarCrawlRun::STOP_MAX_PAGES, self::STOP_TIME_BUDGET, RadarCrawlRun::STOP_BUSY], true)) {
+                // Le budget du passage est épuisé, ou le domaine est pris : aucune liste suivante n'est lue.
+                return $this->finish($run, $stop);
+            }
+            if ($stop !== RadarCrawlRun::STOP_END) {
+                $listStop ??= $stop;
+            }
+        }
+
+        if ($listStop !== null) {
+            return $this->finish($run, $listStop);
+        }
+        $run->reached_end = true;
+        $run->save();
+
+        return $this->finish($run, RadarCrawlRun::STOP_END);
+    }
+
+    /**
+     * Une liste, de sa page de départ à sa fin, dans le budget du passage. Rend le code qui l'arrête : la fin
+     * (`STOP_END`), un arrêt de la liste (boucle, page sans carte, lecture refusée), ou un arrêt du passage (plafond de
+     * pages, budget de temps, domaine pris).
+     */
+    private function walk(string $url, RadarCrawlRun $run, User $operator, RadarSiteAdapter $adapter, CrawlWalk $walk): string
+    {
+        /** @var array<string, true> $own les pages lues par CETTE liste */
+        $own = [];
         while (true) {
-            if ($run->pages_read >= $maxPages) {
-                return $this->finish($run, RadarCrawlRun::STOP_MAX_PAGES);
+            if ($run->pages_read >= $walk->maxPages) {
+                return RadarCrawlRun::STOP_MAX_PAGES;
             }
-            if (now()->greaterThanOrEqualTo($deadline)) {
-                return $this->finish($run, self::STOP_TIME_BUDGET);
+            if (now()->greaterThanOrEqualTo($walk->deadline)) {
+                return self::STOP_TIME_BUDGET;
             }
-            if (isset($visited[$url])) {
-                return $this->finish($run, RadarCrawlRun::STOP_LOOP);
+            if (isset($own[$url])) {
+                return RadarCrawlRun::STOP_LOOP;
+            }
+            if (isset($walk->visited[$url])) {
+                // TCK-2438 (M2) — la suite d'une liste PRÉCÉDENTE : elle a été lue par elle, et son arrêt compte déjà. Ce
+                // n'est pas une boucle ; sans cela, `reached_end` dépendait de l'ordre des URL d'un même périmètre.
+                return RadarCrawlRun::STOP_END;
             }
 
             $page = $this->read($url);
             if (is_string($page)) {
-                return $this->finish($run, $page);
+                return $page;
             }
-            $visited[$url] = true;
-            $visited[$page->url] = true;
+            $walk->visited[$url] = $walk->visited[$page->url] = true;
+            $own[$url] = $own[$page->url] = true;
 
             $list = $adapter->parse($page->body, $page->url);
             $run->pages_read++;
             if ($list->cards === []) {
                 $run->save();
 
-                return $this->finish($run, RadarCrawlRun::STOP_NO_CARDS);
+                return RadarCrawlRun::STOP_NO_CARDS;
             }
 
             foreach ($list->cards as $card) {
                 $run->cards_seen++;
                 $listing = $this->listingFor($card, $run, $operator);
-                if ($listing === null || isset($seen[$listing->id])) {
+                if ($listing === null || isset($walk->seen[$listing->id])) {
                     continue;
                 }
-                $seen[$listing->id] = true;
+                $walk->seen[$listing->id] = true;
                 if ($this->snapshots->observe($listing, $card, $run, now())) {
                     $run->snapshots_opened++;
                 }
@@ -113,10 +166,7 @@ final class RadarCrawler
             $run->save();
 
             if ($list->nextUrl === null) {
-                $run->reached_end = true;
-                $run->save();
-
-                return $this->finish($run, RadarCrawlRun::STOP_END);
+                return RadarCrawlRun::STOP_END;
             }
             $url = $list->nextUrl;
         }

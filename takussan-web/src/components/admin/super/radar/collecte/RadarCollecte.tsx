@@ -14,9 +14,10 @@ import { EmptyState, ErrorState } from '@/components/feedback';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { WarningBanner } from '@/components/ui/warning-banner';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
-import type { ApiError } from '@/lib/api';
+import { ApiError } from '@/lib/api';
 import { useFormatteurs, VALEUR_ABSENTE } from '@/lib/format/useFormatteurs';
 import {
   fetchRadarCrawlRuns,
@@ -31,6 +32,7 @@ import {
   RADAR_CRAWL_FREQUENCY_MAX,
   RADAR_CRAWL_FREQUENCY_MIN,
   RADAR_CRAWL_MAX_PAGES_LIMIT,
+  RADAR_CRAWL_MAX_START_URLS,
   type RadarCrawlRun,
   type RadarCrawlSource,
   type RadarCrawlSourceChanges,
@@ -49,16 +51,41 @@ const TON_STATUT: Record<RadarCrawlStatus, StatusTone> = {
 
 const enCours = (run: RadarCrawlRun) => run.status === 'queued' || run.status === 'running';
 
-/** Le libellé d'un refus de l'onglet, lu par son code ; à défaut, le libellé générique de l'API. */
+/** Les paramètres d'un refus codé (`params`), pour son libellé. */
+function parametresDeLErreur(erreur: unknown): Record<string, unknown> {
+  if (!(erreur instanceof ApiError) || !erreur.data || typeof erreur.data !== 'object') return {};
+  const params = (erreur.data as { params?: unknown }).params;
+  return params && typeof params === 'object' ? (params as Record<string, unknown>) : {};
+}
+
+/**
+ * Le libellé d'un refus de l'onglet, lu par son code ; à défaut, le libellé générique de l'API. TCK-2438 : une URL de
+ * départ refusée est nommée par son rang (`params.field`, `start_urls.N`), avec les bornes et les hôtes que l'API rend.
+ */
 function useMessageEchecCollecte() {
   const t = useTranslations('superAdmin.pages.radar.crawl');
   const messageErreur = useMessageErreurApi();
   return (erreur: unknown): string => {
     const code = codeDeLErreur(erreur);
-    if (code && ERREURS_COLLECTE_RADAR[code]) return t(`errors.${ERREURS_COLLECTE_RADAR[code]}`);
+    if (code && ERREURS_COLLECTE_RADAR[code]) {
+      const params = parametresDeLErreur(erreur);
+      const rang = /^start_urls\.(\d+)$/.exec(String(params.field ?? ''));
+      return t(`errors.${ERREURS_COLLECTE_RADAR[code]}`, {
+        rank: rang ? Number(rang[1]) + 1 : '',
+        max: typeof params.max === 'number' ? params.max : '',
+        hosts: Array.isArray(params.hosts) ? params.hosts.join(', ') : '',
+      });
+    }
     return messageErreur(erreur, t('errors.generic'));
   };
 }
+
+/** Les lignes non vides d'un champ, sans leurs espaces de bord : ce que l'API enregistre. */
+const lignes = (texte: string): string[] =>
+  texte
+    .split('\n')
+    .map((ligne) => ligne.trim())
+    .filter((ligne) => ligne !== '');
 
 /**
  * Un site collecté : allumé ou non, au nom de qui, sa fréquence et ses pages. Le `super_admin` (`platform.radar.publish`)
@@ -71,6 +98,7 @@ function CarteSource({ source, regle }: { readonly source: RadarCrawlSource; rea
   const queryClient = useQueryClient();
   const [frequence, setFrequence] = useState(String(source.frequency_minutes));
   const [pages, setPages] = useState(String(source.max_pages));
+  const [urls, setUrls] = useState((source.start_urls ?? []).join('\n'));
   const [retour, setRetour] = useState<string | null>(null);
 
   const regler = useMutation<unknown, ApiError, RadarCrawlSourceChanges>({
@@ -93,6 +121,7 @@ function CarteSource({ source, regle }: { readonly source: RadarCrawlSource; rea
   const occupe = regler.isPending || lancer.isPending;
   const idFrequence = `radar-collecte-frequence-${source.site}`;
   const idPages = `radar-collecte-pages-${source.site}`;
+  const idUrls = `radar-collecte-urls-${source.site}`;
 
   return (
     <li className="space-y-3 rounded-lg border bg-card p-4" data-testid={`radar-collecte-source-${source.site}`}>
@@ -115,10 +144,10 @@ function CarteSource({ source, regle }: { readonly source: RadarCrawlSource; rea
 
       {regle ? (
         <form
-          className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end"
+          className="grid gap-3 sm:grid-cols-2 sm:items-start"
           onSubmit={(event) => {
             event.preventDefault();
-            regler.mutate({ frequency_minutes: Number(frequence), max_pages: Number(pages) });
+            regler.mutate({ frequency_minutes: Number(frequence), max_pages: Number(pages), start_urls: lignes(urls) });
           }}
         >
           <div className="space-y-1">
@@ -153,12 +182,52 @@ function CarteSource({ source, regle }: { readonly source: RadarCrawlSource; rea
               {t('maxPagesHint', { max: RADAR_CRAWL_MAX_PAGES_LIMIT })}
             </p>
           </div>
-          <Button type="submit" variant="outline" disabled={occupe} className="sm:mb-5">{t('save')}</Button>
+          <div className="space-y-1 sm:col-span-2">
+            <Label htmlFor={idUrls}>{t('startUrls')}</Label>
+            <Textarea
+              id={idUrls}
+              rows={3}
+              spellCheck={false}
+              autoCapitalize="off"
+              autoCorrect="off"
+              inputMode="url"
+              placeholder={source.default_start_url ?? undefined}
+              value={urls}
+              onChange={(event) => setUrls(event.target.value)}
+              aria-describedby={`${idUrls}-aide`}
+              className="font-mono text-xs md:text-xs"
+              data-testid={`radar-collecte-urls-${source.site}`}
+            />
+            <p id={`${idUrls}-aide`} className="text-xs text-muted-foreground">
+              {t('startUrlsHint', {
+                hosts: source.start_hosts.join(', '),
+                max: RADAR_CRAWL_MAX_START_URLS,
+                fallback: source.default_start_url ?? VALEUR_ABSENTE,
+              })}
+            </p>
+          </div>
+          <div className="sm:col-span-2">
+            <Button type="submit" variant="outline" disabled={occupe}>{t('save')}</Button>
+          </div>
         </form>
       ) : (
-        <p className="text-sm text-muted-foreground">
-          {t('summary', { frequency: source.frequency_minutes, pages: source.max_pages })}
-        </p>
+        <div className="space-y-1 text-sm text-muted-foreground">
+          <p>{t('summary', { frequency: source.frequency_minutes, pages: source.max_pages })}</p>
+          {source.start_urls && source.start_urls.length > 0 ? (
+            <div data-testid={`radar-collecte-urls-lues-${source.site}`}>
+              <p>{t('startUrlsSummary')}</p>
+              <ul className="list-inside list-disc text-xs break-all">
+                {source.start_urls.map((url) => (
+                  <li key={url}>{url}</li>
+                ))}
+              </ul>
+            </div>
+          ) : source.default_start_url ? (
+            <p className="text-xs break-all" data-testid={`radar-collecte-urls-lues-${source.site}`}>
+              {t('startUrlsDefault', { url: source.default_start_url })}
+            </p>
+          ) : null}
+        </div>
       )}
 
       {regle ? (
@@ -308,7 +377,7 @@ export function RadarCollecte() {
             {(sources.data?.data ?? []).map((source) => (
               <CarteSource
                 // Les champs du formulaire repartent de la valeur enregistrée quand elle change.
-                key={`${source.site}:${source.frequency_minutes}:${source.max_pages}`}
+                key={`${source.site}:${source.frequency_minutes}:${source.max_pages}:${(source.start_urls ?? []).join(' ')}`}
                 source={source}
                 regle={regle}
               />

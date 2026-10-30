@@ -11,10 +11,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * (`App\Services\Radar\Crawl\RadarCrawlSources`), créée éteinte. Le porteur l'allume depuis la console ; il devient son
  * opérateur (`operator_id`), au nom duquel l'extraction des annonces trouvées est jugée. Un passage ne repart qu'une fois
  * `frequency_minutes` écoulées depuis le précédent, et lit au plus `max_pages` pages de la liste.
+ *
+ * TCK-2438 — `start_urls` : les pages de liste d'où part un passage, réglées dans la console et contrôlées par
+ * `RadarStartUrls` ; nulle, l'URL de la configuration.
  */
 class RadarCrawlSource extends AbstractModel
 {
-    protected $fillable = ['site', 'enabled', 'frequency_minutes', 'max_pages', 'operator_id', 'enabled_at'];
+    protected $fillable = ['site', 'enabled', 'frequency_minutes', 'max_pages', 'operator_id', 'enabled_at', 'start_urls'];
 
     protected $casts = [
         'site' => RadarSourceSite::class,
@@ -22,12 +25,14 @@ class RadarCrawlSource extends AbstractModel
         'frequency_minutes' => 'integer',
         'max_pages' => 'integer',
         'enabled_at' => 'datetime',
+        'start_urls' => 'array',
     ];
 
     protected static array $requestLoadable = ['operator'];
 
     protected static array $queryFields = [
         'id', 'site', 'enabled', 'frequency_minutes', 'max_pages', 'operator_id', 'enabled_at', 'created_at', 'updated_at',
+        'start_urls',
     ];
 
     public function operator(): BelongsTo

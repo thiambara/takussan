@@ -22,10 +22,12 @@ const SUPPORT: PlatformAbilities = { level: 'support', abilities: ['platform.con
 
 const ETEINTE: RadarCrawlSource = {
   id: 1, site: 'expat_dakar', enabled: false, frequency_minutes: 360, max_pages: 5, enabled_at: null, operator: null,
+  start_urls: null, default_start_url: 'https://www.expat-dakar.com/immobilier', start_hosts: ['www.expat-dakar.com', 'expat-dakar.com'],
 };
 const ALLUMEE: RadarCrawlSource = {
   id: 2, site: 'coinafrique', enabled: true, frequency_minutes: 720, max_pages: 3, enabled_at: '2026-10-30T08:00:00Z',
   operator: { id: 9, name: 'Awa Fictive' },
+  start_urls: null, default_start_url: 'https://sn.coinafrique.com/categorie/immobilier', start_hosts: ['sn.coinafrique.com'],
 };
 
 const PASSAGE: RadarCrawlRun = {
