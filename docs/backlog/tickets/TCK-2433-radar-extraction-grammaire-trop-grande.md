@@ -1,7 +1,7 @@
 ---
 id: TCK-2433
 title: "Radar : l'extraction quitte la sortie structurée stricte, dont la grammaire compilée dépasse la limite d'Anthropic, et une garde borne les schémas stricts"
-status: review
+status: done
 phase: P1
 family: bug
 estimate: S
@@ -73,17 +73,16 @@ objets imbriqués, paramètres optionnels et outils interagissent, sans seuil pu
       strict n'envoie aucun `tool_choice` ; une réponse sans sortie est un échec du maillon
       (`ai.response_invalid`), que `ExtractRadarListing` retente une fois.
 
-## Reste sur dev
-
-- **L'évaluation de référence réelle** `php artisan ai:eval radar.extraction --update-baseline`, que
-  la session lance après la fusion (vrai modèle, payante). C'est la seule preuve que l'extraction
-  repasse en production : la suite ne joint aucun modèle, et la grammaire d'Anthropic ne se compile
-  pas en local. Si elle réussit, le ticket passe `done` ; si Anthropic refuse encore la requête,
-  le message dira quoi (l'outil non strict ne compile aucune grammaire, selon la documentation).
-
 ## Notes d'implémentation
 
 2026-10-30, sur `fix/ia-grammaire-trop-grande`.
+
+- **Vérifié par l'évaluation réelle (2026-10-30, sur `2c35c0164`)** : `radar.extraction`,
+  `anthropic/claude-sonnet-5-5`, **0,9560 sur 30 cas, 0 échec**, 420,81 XOF ; rôle `extraction` 0,9450
+  (24 cas), rôle `vision` 1,0000 (6 cas) ; champ le plus faible `amenities`, 0,7718. La référence est
+  versionnée (`resources/ai/evals/radar.extraction/baseline.json`, prompt `v3`). Refus précédents :
+  grammaire compilée trop grosse (`req_011CgXcoW2oogB57WsCGbQkH`), puis outil forcé refusé
+  (`req_011CgXdugoVPAgD4WoamUxvx`).
 
 - **Ce qui gonfle la grammaire ne se mesure pas en local.** La documentation d'Anthropic (sorties
   structurées, « Schema complexity limits ») publie 20 outils stricts, 24 optionnels et 16 unions, puis
@@ -149,5 +148,5 @@ objets imbriqués, paramètres optionnels et outils interagissent, sans seuil pu
   réflexion (piste b), sans effet sur Sonnet 5.5, qui refuse l'outil forcé de toute façon ; un schéma strict
   réduit (piste c), au seuil de grammaire non publié et payé d'un appel par essai ; `auto` seulement pour les
   modèles qui refusent le forcé, qui exigerait une liste de modèles à tenir à jour.
-- **Retenu** : `review` avec « Reste sur dev ». **Écarté** : `done`, parce que seul un vrai appel prouve
-  que l'extraction repasse.
+- **Retenu** : attendre l'évaluation réelle avant `done`. **Écarté** : `done` sur les seuls tests, qui ne
+  joignent aucun modèle — le second refus (outil forcé) l'a justifié.
