@@ -1,7 +1,7 @@
 ---
 id: TCK-2427
 title: "Radar : accusés de livraison du numéro WhatsApp du Radar, et cas d'évaluation des réponses reçues en texte"
-status: todo
+status: doing
 phase: P3
 family: back
 estimate: S
