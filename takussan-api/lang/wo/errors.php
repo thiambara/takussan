@@ -718,7 +718,7 @@ return [
             'not_sent' => 'Ce message n\'a pas été envoyé : aucune réponse ni issue ne s\'y enregistre.',
             'outcome_final' => 'Ce message est clos : ni réponse ni issue ne s\'y ajoute plus.',
             'superseded' => 'Ce message a été relancé : déposez la réponse ou l\'issue sur la dernière relance.',
-            'reply_pending' => 'Une réponse de ce message attend encore sa vérification : attendez son verdict avant d\'en déposer une autre.',
+            'reply_pending' => 'Une réponse de ce message attend encore sa vérification ou son issue : attendez son verdict, ou posez son issue, avant d\'aller plus loin.',
         ],
         'consent' => [
             'reply_required' => 'Aucune réponse n\'est déposée sur ce message : déposez les captures de l\'annonceur avant de confirmer l\'accord.',
@@ -746,6 +746,15 @@ return [
             'activation_unavailable' => "La connexion par téléphone est éteinte dans cet environnement : le compte créé pour l'annonceur ne pourrait pas s'ouvrir par code SMS. Rien ne se publie tant qu'elle ne l'est pas.",
             'otp_preview_active' => "L'aperçu des codes SMS est actif dans cet environnement : le code d'activation reviendrait dans la réponse, et quiconque connaît le numéro de l'annonceur pourrait ouvrir son compte. Rien ne se publie tant qu'il l'est.",
             'nothing_published' => 'Aucun bien n\'est publié pour cet annonceur : il n\'y a pas de message à composer.',
+        ],
+        // TCK-2395 — le démarchage par l'API, depuis le numéro WhatsApp dédié au Radar.
+        'whatsapp' => [
+            'not_configured' => 'Le numéro WhatsApp du Radar n\'est pas configuré : envoyez ce message par WhatsApp, à la main.',
+            'same_number' => 'Le numéro ou le jeton configuré pour le Radar est celui des notifications : il ne sert jamais à prospecter. Rien n\'est envoyé.',
+            'template_missing' => 'Aucun modèle Meta approuvé pour cette version des clauses ou cette langue : envoyez ce message par WhatsApp, à la main.',
+            'message_mismatch' => 'Le modèle Meta ne redonnerait pas exactement le texte enregistré de ce message : préparez-en un nouveau.',
+            'send_failed' => 'Meta a refusé l\'envoi (:reason) : rien n\'est enregistré, le message reste préparé.',
+            'summary_too_long' => 'Pour un envoi par l\'API, le résumé ne doit pas dépasser :max caractères : raccourcissez-le, ou envoyez ce message par WhatsApp, à la main.',
         ],
         // TCK-2390 — la réclamation par l'annonceur, page publique : aucun mot du Radar.
         'claim' => [

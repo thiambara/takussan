@@ -7,6 +7,7 @@ use App\Ai\Usages\RadarConsentVerificationUsage;
 use App\Jobs\Concerns\RunsOnAiQueue;
 use App\Models\Enums\AiDataClass;
 use App\Models\Enums\AiRefusalReason;
+use App\Models\Enums\RadarConsentProof;
 use App\Models\Enums\RadarVerificationStatus;
 use App\Models\RadarConsent;
 use App\Services\Ai\AiErrorCode;
@@ -19,6 +20,7 @@ use App\Services\Ai\SuggestionRecorder;
 use App\Services\Radar\ConsentMessageComposer;
 use App\Services\Radar\RadarConsentVerdict;
 use App\Services\Radar\RadarVerificationDecision;
+use App\Services\Radar\Whatsapp\RadarWhatsappInbox;
 use DateTimeInterface;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -55,7 +57,11 @@ use Throwable;
  *    (`AiUnavailable` et erreurs passagères du fournisseur, reprises à 1, 5, 15 puis 60 min selon le rang du passage).
  *  - **En échec** : tout autre refus de la passerelle (`ai.forbidden`…), erreur déterministe du fournisseur,
  *    `\Error` (`radar.verification.error`, rapportée), sortie invalide (`radar.verification.invalid_output`),
- *    réponse sans capture ou sans numéro attendu.
+ *    réponse sans capture ou sans numéro attendu, réponse reçue sans texte.
+ *
+ * **TCK-2395 — une réponse reçue par l'API** (`proof = provider_message`) se vérifie sans capture, sur le rôle
+ * `raisonnement` : le modèle classe son texte (`RadarConsentVerification::textInput()`), le code juge le numéro et
+ * les clauses (`RadarConsentVerdict::fromProviderMessage()`). L'appel se fait au nom de l'opérateur qui a envoyé le message.
  *
  * **Délais** (ADR-0078) : `$timeout` sous le `retry_after` de `database` (90 s) ; le délai d'un appel est borné par
  * l'agent (`RadarConsentVerification::timeout()`) pour que tous les maillons tiennent dans
@@ -81,6 +87,9 @@ final class VerifyRadarConsentReply implements ShouldQueue
 
     /** TCK-2391 : la réponse a été purgée (STOP, retrait) pendant ou avant la vérification ; la purge la sort de `pending` avec ce motif. */
     public const REASON_PURGED = 'radar.verification.purged';
+
+    /** TCK-2395 : une réponse reçue par l'API sans texte (vocal, image) ; posé dès la réception, rien n'est vérifié. */
+    public const REASON_NO_TEXT = 'radar.verification.no_text';
 
     /** Erreurs du fournisseur qu'une reprise ne corrige pas : la requête ou la clé est refusée. */
     public const DETERMINISTIC_PROVIDER_ERRORS = ['ai.request_rejected', 'ai.provider_auth'];
@@ -147,15 +156,23 @@ final class VerifyRadarConsentReply implements ShouldQueue
 
     private function verify(AiGateway $gateway, SuggestionRecorder $recorder, ConsentMessageComposer $composer, RadarVerificationDecision $decision): void
     {
-        $reply = RadarConsent::query()->with(['outreach', 'advertiser', 'depositor'])->find($this->replyId);
+        $reply = RadarConsent::query()->with(['outreach.sender', 'advertiser', 'depositor'])->find($this->replyId);
         if ($reply === null || $reply->verification_status !== RadarVerificationStatus::Pending || $reply->purged_at !== null) {
             return;
         }
 
-        $attachments = $reply->getMedia('radar_consent_captures')
+        // TCK-2395 — une réponse reçue par l'API est un texte, pas des captures : le modèle ne fait que la classer.
+        $received = $reply->proof === RadarConsentProof::ProviderMessage;
+        $replyText = $received ? RadarWhatsappInbox::replyText($reply->transcript) : null;
+        if ($received && $replyText === null) {
+            $this->markFailed(self::REASON_NO_TEXT);
+
+            return;
+        }
+        $attachments = $received ? [] : $reply->getMedia('radar_consent_captures')
             ->map(fn (Media $media) => Image::fromStorage($media->getPathRelativeToRoot(), $media->disk)->withMimeType((string) $media->mime_type))
             ->values()->all();
-        if ($attachments === []) {
+        if (! $received && $attachments === []) {
             $this->markFailed(self::REASON_NO_CAPTURE);
 
             return;
@@ -169,13 +186,16 @@ final class VerifyRadarConsentReply implements ShouldQueue
         }
 
         $clauseCount = $composer->clauseCount($reply->outreach->clauses_version);
-        $input = RadarConsentVerification::input($reply->outreach->message, $advertiser->phone, $advertiser->display_name, $clauseCount);
+        $input = $received
+            ? RadarConsentVerification::textInput($reply->outreach->message, $replyText)
+            : RadarConsentVerification::input($reply->outreach->message, $advertiser->phone, $advertiser->display_name, $clauseCount);
         try {
             $result = $gateway->run(new AiRequest(
                 RadarConsentVerificationUsage::KEY,
                 $input,
                 [AiDataClass::Personnelle],
-                actor: $reply->depositor,
+                // Une réponse reçue n'a pas de déposant : l'appel se fait au nom de l'opérateur qui a envoyé le message.
+                actor: $reply->depositor ?? $reply->outreach->sender,
                 subject: $reply,
                 attachments: $attachments,
             ));
@@ -213,7 +233,9 @@ final class VerifyRadarConsentReply implements ShouldQueue
             if (! is_array($result->structured)) {
                 throw new InvalidArgumentException('sortie non structurée');
             }
-            $verdict = RadarConsentVerdict::from($result->structured, $advertiser->phone, $clauseCount);
+            $verdict = $received
+                ? RadarConsentVerdict::fromProviderMessage($result->structured, (string) $reply->transcript, $replyText, $clauseCount)
+                : RadarConsentVerdict::from($result->structured, $advertiser->phone, $clauseCount);
         } catch (InvalidArgumentException) {
             $this->markFailed(self::REASON_INVALID_OUTPUT);
 

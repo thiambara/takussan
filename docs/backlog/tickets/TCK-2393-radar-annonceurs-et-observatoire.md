@@ -1,7 +1,7 @@
 ---
 id: TCK-2393
 title: "Radar lot 3 : annonceurs classés et observatoire du marché (prix au m², temps de mise sur le marché, quartiers en manque)"
-status: review
+status: done
 phase: P2
 family: full
 estimate: XL
@@ -99,13 +99,6 @@ réelle d'intermédiaires** que le porteur estime à plus de 90 % : l'argument d
 - Une offre « pro solo » et tout retour du courtier dans le code (ADR-0030) : le vocabulaire reste celui
   d'ADR-0077 § 7 (« intermédiaire probable »).
 - Une carte géographique des manques : l'écart se lit en tableau.
-
-## Reste sur dev
-
-Rien côté code : chaque AC est prouvé par un test exécuté (`tests/Feature/Radar/Observatory/`, ablations faites).
-Le ticket reste `review` pour la seule règle n° 2 du backlog : sa dépendance TCK-2392 (collecte automatique) n'est
-pas encore fusionnée sur `dev` (le statut vaut pour ce qui est sur `dev`). **TCK-2393 passe à `done` dès la fusion de TCK-2392** : la session qui fusionne
-la PR de TCK-2392 puis celle-ci le bascule, dans le même geste que TCK-2392.
 
 ## Notes d'implémentation
 

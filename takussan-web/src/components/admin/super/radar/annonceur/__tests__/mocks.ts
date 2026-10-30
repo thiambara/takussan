@@ -74,6 +74,8 @@ export function message(partiel: Partial<RadarOutreach> = {}): RadarOutreach {
     outcome_at: null,
     follow_up: null,
     consents: [],
+    channel: 'whatsapp_manual',
+    provider_status: null,
     ...partiel,
   };
 }
@@ -90,6 +92,7 @@ export function annonceur(partiel: Partial<RadarAdvertiserDetail> = {}): RadarAd
     listings: [annonce(12), annonce(13), annonce(14, { stage: 'extracted', title: 'Villa 14' })],
     outreaches: [],
     account: null,
+    whatsapp_api_available: false,
     ...partiel,
   };
 }

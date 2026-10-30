@@ -16,7 +16,7 @@ use App\Services\Ai\AttachmentsUseVision;
  * - Classe `personnelle` : la passerelle ne masque pas les numéros, la vérification doit lire celui de l'interlocuteur.
  * - Contenu externe (ADR-0076 §10) : les captures, reçues en pièces jointes, agent sans outil.
  * - Des captures jointes jouent la chaîne `vision` (`AttachmentsUseVision`), comme l'extraction ; une réponse sans
- *   capture (le message du fournisseur, TCK-2395) jouera `raisonnement`.
+ *   capture (le message reçu par l'API du Radar, TCK-2395) joue `raisonnement`.
  * - Le verdict n'ouvre rien : un humain confirme, et seule sa confirmation rend l'accord valide.
  * - Aucun cache : un usage non public n'y entre jamais.
  */
@@ -39,9 +39,10 @@ final class RadarConsentVerificationUsage implements AiUsage, AttachmentsUseVisi
         return RadarConsentVerification::class;
     }
 
+    /** TCK-2395 : `v2` = `v1` + la réponse reçue en texte par l'API (la partie « captures » est inchangée, mot pour mot). */
     public function promptVersion(): int
     {
-        return 1;
+        return 2;
     }
 
     public function maxDataClass(): AiDataClass

@@ -90,6 +90,46 @@ final class RadarConsentVerdict
     }
 
     /**
+     * TCK-2395 — le verdict d'une réponse reçue par l'API (`proof = provider_message`). Le modèle n'y a voix que pour le
+     * classement et sa confiance ; le reste est jugé par le code : le numéro est celui de l'expéditeur, authentifié par la
+     * signature de Meta et rattaché à l'annonceur par ce numéro (`number_matches`, `code`), les clauses sont parties dans
+     * le gabarit approuvé (`clauses_checked_by`, `code`), la transcription et le texte sont ceux reçus.
+     *
+     * @param  array<string, mixed>  $structured  la sortie de l'agent
+     * @return array<string, mixed>
+     *
+     * @throws InvalidArgumentException une classification ou une confiance hors du schéma
+     */
+    public static function fromProviderMessage(array $structured, string $transcript, string $replyText, int $clauseCount): array
+    {
+        $classification = $structured['classification'] ?? null;
+        if (! is_string($classification) || ! in_array($classification, RadarConsentVerification::CLASSIFICATIONS, true)) {
+            throw new InvalidArgumentException('classification inconnue');
+        }
+        $confidence = is_string($structured['confidence'] ?? null) ? RadarConfidence::tryFrom($structured['confidence']) : null;
+        if ($confidence === null) {
+            throw new InvalidArgumentException('confiance inconnue');
+        }
+
+        $verdict = [
+            'classification' => $classification,
+            'confidence' => $confidence->value,
+            'transcript' => $transcript,
+            'reply_text' => $replyText,
+            'counterpart_phone' => null,
+            'counterpart_name' => null,
+            'number_matches' => true,
+            'number_checked_by' => 'code',
+            'name_matches' => null,
+            'clauses_found' => $clauseCount > 0 ? range(1, $clauseCount) : [],
+            'clauses_complete' => $clauseCount > 0,
+            'clauses_checked_by' => 'code',
+        ];
+
+        return $verdict + ['discordances' => self::judge($verdict)];
+    }
+
+    /**
      * Ce qui, dans le verdict enregistré d'une réponse, ne va pas dans le sens d'un accord : `no_verdict` (aucun verdict :
      * en cours, ou échec), `number_mismatch` (un numéro lu et différent), `clauses_missing` (une clause du message
      * envoyé n'est pas lisible sur les captures), `not_consent` (la dernière réponse n'est pas un « oui »),
