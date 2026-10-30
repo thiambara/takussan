@@ -1,0 +1,188 @@
+<?php
+
+namespace Tests\Feature\Radar\Observatory;
+
+use App\Jobs\SendAdminAlert;
+use App\Models\AlertRule;
+use App\Models\Enums\RadarCrawlStatus;
+use App\Models\Enums\RadarListingStage;
+use App\Models\Enums\RadarSourceSite;
+use App\Models\Property;
+use App\Services\Radar\Observatory\RadarSourceWatch;
+use Illuminate\Console\Scheduling\Schedule;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Queue;
+use Spatie\Activitylog\Models\Activity;
+use Tests\TestCase;
+
+/**
+ * TCK-2393 (ADR-0083 §3, §4) — AC2 à AC4 : une annonce source disparue alerte sur le bien publié, une fois ; « disparue »
+ * ne se conclut que d'un passage terminé qui a lu toute la liste ; une annonce revue redevient présente.
+ */
+class RadarSourceWatchTest extends TestCase
+{
+    use ConstruitLeMarche;
+    use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->freezeTime();
+        $this->travelTo('2026-10-30 12:00:00');
+        Queue::fake();
+    }
+
+    private function regle(): AlertRule
+    {
+        return AlertRule::create([
+            'event' => RadarSourceWatch::EVENT,
+            'channels_json' => ['email'],
+            'recipients_json' => ['emails' => ['ops@example.test']],
+            'is_active' => true,
+        ]);
+    }
+
+    private function observer(): array
+    {
+        return app(RadarSourceWatch::class)->observe();
+    }
+
+    /** AC2 — la source d'un bien publié n'est plus dans la liste lue jusqu'au bout : une alerte, avec le bien pour sujet. */
+    public function test_une_source_disparue_alerte_sur_le_bien_publie(): void
+    {
+        $regle = $this->regle();
+        $bien = Property::factory()->published()->create();
+        $annonce = $this->annonceCollectee(['stage' => RadarListingStage::Published, 'property_id' => $bien->id]);
+        $this->instantane($annonce, '2026-10-20 08:00:00', '2026-10-28 08:05:00');
+        $passage = $this->passage('2026-10-29 08:00:00');
+
+        $this->assertSame(['gone' => 1, 'back' => 0, 'alerts' => 1], $this->observer());
+
+        $annonce->refresh();
+        $this->assertTrue($annonce->source_gone_at->eq($passage->finished_at));
+        $this->assertSame($passage->id, $annonce->source_gone_run_id);
+        Queue::assertPushed(SendAdminAlert::class, 1);
+        Queue::assertPushed(SendAdminAlert::class, fn (SendAdminAlert $job) => $job->ruleId === $regle->id
+            && $job->alert['event'] === RadarSourceWatch::EVENT
+            && (int) $job->alert['subject_id'] === $bien->id);
+
+        $activite = Activity::query()->where('event', RadarSourceWatch::EVENT)->sole();
+        $this->assertSame($bien->getMorphClass(), $activite->subject_type);
+        $this->assertSame('published', $activite->properties['link']);
+        $this->assertTrue($activite->properties['property_public']);
+        $this->assertSame(0, $activite->properties['other_sources_online']);
+    }
+
+    /** AC2 — une fois par disparition : la commande rejouée ne réalerte pas. */
+    public function test_une_seule_alerte_par_disparition(): void
+    {
+        $this->regle();
+        $bien = Property::factory()->published()->create();
+        $annonce = $this->annonceCollectee(['stage' => RadarListingStage::Published, 'property_id' => $bien->id]);
+        $this->instantane($annonce, '2026-10-20 08:00:00', '2026-10-28 08:05:00');
+        $this->passage('2026-10-29 08:00:00');
+
+        $this->artisan('radar:observe-sources')->expectsOutputToContain('gone=1')->assertSuccessful();
+        $this->artisan('radar:observe-sources')->expectsOutputToContain('gone=0')->assertSuccessful();
+
+        Queue::assertPushed(SendAdminAlert::class, 1);
+    }
+
+    /** AC2 — le doublon d'une annonce publiée est aussi une source du bien ; l'alerte dit que l'autre est encore en ligne. */
+    public function test_le_doublon_d_une_annonce_publiee_alerte_sur_son_bien(): void
+    {
+        $this->regle();
+        $bien = Property::factory()->published()->create();
+        $publiee = $this->annonceCollectee(['stage' => RadarListingStage::Published, 'property_id' => $bien->id], RadarSourceSite::Coinafrique);
+        $this->instantane($publiee, '2026-10-20 08:00:00', '2026-10-29 09:00:00');
+        $doublon = $this->annonceCollectee(['stage' => RadarListingStage::Duplicate, 'duplicate_of_listing_id' => $publiee->id]);
+        $this->instantane($doublon, '2026-10-20 08:00:00', '2026-10-28 08:05:00');
+        $this->passage('2026-10-29 08:00:00');
+
+        $this->observer();
+
+        $activite = Activity::query()->where('event', RadarSourceWatch::EVENT)->sole();
+        $this->assertSame($bien->id, (int) $activite->subject_id);
+        $this->assertSame('duplicate_of_listing', $activite->properties['link']);
+        $this->assertSame(1, $activite->properties['other_sources_online']);
+    }
+
+    /** Une annonce disparue sans bien est marquée, sans alerte : le temps de mise sur le marché la lit. */
+    public function test_une_annonce_sans_bien_est_marquee_sans_alerte(): void
+    {
+        $this->regle();
+        $annonce = $this->annonceCollectee();
+        $this->instantane($annonce, '2026-10-20 08:00:00', '2026-10-28 08:05:00');
+        $this->passage('2026-10-29 08:00:00');
+
+        $this->assertSame(['gone' => 1, 'back' => 0, 'alerts' => 0], $this->observer());
+        $this->assertNotNull($annonce->refresh()->source_gone_at);
+        Queue::assertNothingPushed();
+    }
+
+    /** AC3 — un passage arrêté au plafond de pages, ou échoué, ne conclut rien ; seul le dernier passage complet juge. */
+    public function test_seul_un_passage_termine_qui_a_lu_toute_la_liste_conclut(): void
+    {
+        $this->regle();
+        $bien = Property::factory()->published()->create();
+        $annonce = $this->annonceCollectee(['stage' => RadarListingStage::Published, 'property_id' => $bien->id]);
+        $this->instantane($annonce, '2026-10-20 08:00:00', '2026-10-28 08:05:00');
+
+        // Un passage complet ANTÉRIEUR à la dernière présence ne dit rien d'elle.
+        $this->passage('2026-10-27 08:00:00');
+        $this->passage('2026-10-29 08:00:00', finDeListe: false);
+        $this->passage('2026-10-29 14:00:00', finDeListe: true, surcharge: ['status' => RadarCrawlStatus::Failed]);
+        $this->passage('2026-10-29 16:00:00', finDeListe: true, surcharge: ['status' => RadarCrawlStatus::Running, 'finished_at' => null]);
+        // Un passage complet d'un AUTRE site ne juge pas les annonces de celui-ci.
+        $this->passage('2026-10-29 18:00:00', site: RadarSourceSite::Coinafrique);
+
+        $this->assertSame(['gone' => 0, 'back' => 0, 'alerts' => 0], $this->observer());
+        $this->assertNull($annonce->refresh()->source_gone_at);
+        Queue::assertNothingPushed();
+    }
+
+    /** Une annonce saisie à la main, sans instantané, n'est jamais jugée. */
+    public function test_une_annonce_sans_instantane_n_est_pas_jugee(): void
+    {
+        $annonce = $this->annonceCollectee();
+        $this->passage('2026-10-29 08:00:00');
+
+        $this->observer();
+
+        $this->assertNull($annonce->refresh()->source_gone_at);
+    }
+
+    /** AC4 — revue par un passage postérieur, elle redevient présente, et une nouvelle disparition réalerte. */
+    public function test_une_annonce_revue_redevient_presente_et_peut_realerter(): void
+    {
+        $this->regle();
+        $bien = Property::factory()->published()->create();
+        $annonce = $this->annonceCollectee(['stage' => RadarListingStage::Published, 'property_id' => $bien->id]);
+        $instantane = $this->instantane($annonce, '2026-10-20 08:00:00', '2026-10-28 08:05:00');
+        $this->passage('2026-10-29 08:00:00');
+        $this->observer();
+        $this->assertNotNull($annonce->refresh()->source_gone_at);
+
+        // Un passage incomplet la revoit : elle est de retour.
+        $this->passage('2026-10-30 08:00:00', finDeListe: false);
+        $instantane->update(['last_seen_at' => '2026-10-30 08:03:00']);
+        $this->assertSame(['gone' => 0, 'back' => 1, 'alerts' => 0], $this->observer());
+        $this->assertNull($annonce->refresh()->source_gone_at);
+        $this->assertNull($annonce->source_gone_run_id);
+
+        // Puis un passage complet ne la revoit plus : seconde disparition, seconde alerte.
+        $this->passage('2026-10-30 10:00:00');
+        $this->assertSame(['gone' => 1, 'back' => 0, 'alerts' => 1], $this->observer());
+        Queue::assertPushed(SendAdminAlert::class, 2);
+    }
+
+    /** La commande est planifiée toutes les quinze minutes, sans chevauchement. */
+    public function test_la_commande_est_planifiee(): void
+    {
+        $evenements = collect(app(Schedule::class)->events())->filter(fn ($e) => str_contains((string) $e->command, 'radar:observe-sources'));
+
+        $this->assertCount(1, $evenements);
+        $this->assertSame('*/15 * * * *', $evenements->first()->expression);
+        $this->assertTrue($evenements->first()->withoutOverlapping);
+    }
+}
