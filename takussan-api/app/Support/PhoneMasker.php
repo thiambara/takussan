@@ -19,8 +19,9 @@ namespace App\Support;
  *
  * **Les numéros étrangers** (TCK-2410, `MASK_PATTERN`) : `+` ou `00` et un indicatif ITU (`+33 6 12 34 56 78`,
  * `+225 07 12 34 56 78`, `+ 33 …`, `(0)`), ou la forme nationale `0X XX XX XX XX`. `PATTERN` reste le numéro
- * sénégalais seul : `RadarPhone` et `RadarAmountParser` le lisent, et un numéro étranger n'est pas un contact
- * du Radar. Un numéro réel ne s'écrit dans aucun document du dépôt : voir `scripts/check-ai-evals-pii.mjs`.
+ * sénégalais seul : `RadarPhone::canonical()` s'y fie, et un numéro étranger n'est pas un contact du Radar
+ * (TCK-2412 : `fromText()` et `RadarAmountParser` lisent `MASK_PATTERN`, puis écartent ou excluent).
+ * Un numéro réel ne s'écrit dans aucun document du dépôt : voir `scripts/check-ai-evals-pii.mjs`.
  *
  * `scripts/check-ai-evals-pii.mjs` reconnaît le même ensemble : `tests/fixtures/ai/donnees-personnelles.json`
  * éprouve les deux. Le jeton n'est pas un numéro plausible.
@@ -151,8 +152,8 @@ final class PhoneMasker
         .')(?![0-9])';
 
     /**
-     * Le numéro SÉNÉGALAIS, rien d'autre : `RadarPhone` et `RadarAmountParser` s'y fient (un numéro
-     * étranger n'est pas un contact du Radar). S'applique au texte normalisé (`normalizeDigits()`, sans
+     * Le numéro SÉNÉGALAIS, rien d'autre : `RadarPhone::canonical()` s'y fie (un numéro étranger n'est
+     * pas un contact du Radar). S'applique au texte normalisé (`normalizeDigits()`, sans
      * invisibles). Un séparateur facultatif entre les groupes 2-3-2-2, 2-2-2-3 ou 3-2-2-2 :
      * `750 000 000` (3-3-3) n'en est aucun.
      */

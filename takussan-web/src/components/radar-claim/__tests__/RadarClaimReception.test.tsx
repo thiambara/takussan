@@ -41,7 +41,9 @@ function annonce(over: Record<string, unknown> = {}) {
   };
 }
 
-function reclamation(over: { account?: Record<string, unknown>; listings?: unknown[]; publishing?: unknown[] } = {}) {
+function reclamation(
+  over: { account?: Record<string, unknown>; listings?: unknown[]; publishing?: unknown[]; awaiting_review?: unknown[] } = {},
+) {
   return {
     data: {
       advertiser: { first_name: 'Awa', phone_masked: '+221 •• ••• •• 67' },
@@ -55,6 +57,7 @@ function reclamation(over: { account?: Record<string, unknown>; listings?: unkno
       },
       listings: over.listings ?? [annonce(), annonce({ id: 2, title: 'Studio aux Almadies', description: null, price: 150000 })],
       publishing: over.publishing ?? [],
+      awaiting_review: over.awaiting_review ?? [],
       published: [],
       terms_version: '2026-10-29',
     },
@@ -231,6 +234,28 @@ describe('<RadarClaimReception> (TCK-2390)', () => {
     expect(screen.queryByRole('button', { name: T.sendCode })).not.toBeInTheDocument();
     expect(screen.queryByTestId('claim-empty')).not.toBeInTheDocument();
     expect(screen.queryByTestId('claim-listing')).not.toBeInTheDocument();
+  });
+
+  // TCK-2413 — la publication l'a laissée à l'équipe : ni « en cours de publication », ni « quelques minutes », ni la raison.
+  it('une annonce laissée à l\'équipe attend sa vérification, sans se dire en cours de publication', async () => {
+    bouchonner(
+      reponse(200, reclamation({
+        account: { state: 'existing', viewer_is_owner: true, space: { name: 'Chez Awa' } },
+        listings: [],
+        awaiting_review: [annonce({ id: 6, title: 'Maison à Yoff' })],
+      })),
+    );
+    auth.token = 'jeton-session';
+    render(withIntl(<RadarClaimReception token={JETON} />));
+
+    const section = await screen.findByTestId('claim-awaiting-review');
+    expect(within(section).getByRole('heading', { name: T.awaitingReviewTitle })).toBeInTheDocument();
+    expect(section).toHaveTextContent('Maison à Yoff');
+    expect(section).toHaveTextContent(T.awaitingReviewHint);
+    expect(screen.queryByTestId('claim-publishing')).not.toBeInTheDocument();
+    expect(screen.queryByText(T.publishingHint)).not.toBeInTheDocument();
+    expect(screen.queryByTestId('claim-empty')).not.toBeInTheDocument();
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
   });
 
   it('un code refusé se dit par la page, et la saisie reste ouverte', async () => {

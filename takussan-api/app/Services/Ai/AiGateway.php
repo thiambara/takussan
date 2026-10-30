@@ -2,6 +2,7 @@
 
 namespace App\Services\Ai;
 
+use App\Ai\Agents\SocleAgent;
 use App\Models\AiCall;
 use App\Models\AiUsageSetting;
 use App\Models\Enums\AiCallOutcome;
@@ -29,6 +30,9 @@ use Throwable;
  */
 final class AiGateway
 {
+    /** Le suffixe du double, sortie par outil, d'un fournisseur ({@see self::providerFor()}). */
+    public const TOOL_OUTPUT_SUFFIX = '-sortie-par-outil';
+
     public function __construct(
         private readonly AiUsageRegistry $registry,
         private readonly ModelResolver $resolver,
@@ -84,9 +88,8 @@ final class AiGateway
         foreach ($chain as $link) {
             $started = hrtime(true);
             try {
-                $response = app($usage->agentClass())
-                    ->configure($instructions, $link->maxTokens, count($chain))
-                    ->prompt($input, $request->attachments, provider: $link->provider, model: $link->model);
+                $agent = app($usage->agentClass())->configure($instructions, $link->maxTokens, count($chain));
+                $response = $agent->prompt($input, $request->attachments, provider: $this->providerFor($agent, $link), model: $link->model);
             } catch (FailoverableException $e) {
                 $this->journal($usage, $request, $this->linkColumns($link) + [
                     'outcome' => AiCallOutcome::FailedOver, 'error_code' => AiErrorCode::fromThrowable($e), 'duration_ms' => $this->elapsed($started),
@@ -129,6 +132,15 @@ final class AiGateway
             }
 
             $structured = $response instanceof StructuredAgentResponse ? $response->toArray() : null;
+            // TCK-2433 — un agent non strict choisit librement d'appeler l'outil de sortie (`tool_choice`
+            // `auto`) : une réponse qui n'en rend rien (ni appel d'outil, ni JSON dans le texte) est
+            // inexploitable, payée, et le maillon a échoué.
+            if (! $agent->usesStrictSchema() && $response instanceof StructuredAgentResponse && $structured === []) {
+                $this->journal($usage, $request, $spent + ['outcome' => AiCallOutcome::FailedOver, 'error_code' => 'ai.response_invalid']);
+                $last = new AiUnavailable('ai.response_invalid');
+
+                continue;
+            }
             $call = $this->journal($usage, $request, $spent + ['outcome' => AiCallOutcome::Success]);
             if ($cacheable) {
                 $this->cachePut($usage, $cacheKey, [
@@ -191,6 +203,25 @@ final class AiGateway
     private function roleFor(AiUsage $usage, AiRequest $request): AiModelRole
     {
         return $request->attachments !== [] && $usage instanceof AttachmentsUseVision ? AiModelRole::Vision : $usage->role();
+    }
+
+    /**
+     * TCK-2433 — le fournisseur que laravel/ai doit jouer pour ce maillon. Un agent non strict
+     * ({@see SocleAgent::usesStrictSchema()}) reçoit un double du fournisseur configuré, à
+     * `use_native_structured_output` faux : laravel/ai y demande la sortie par un outil forcé non strict
+     * au lieu d'`output_config` (il ne le règle que par fournisseur). Le double n'existe qu'à l'exécution,
+     * hors de la liste fermée de `config/ai.php` ; le journal, le coût et la chaîne gardent le nom réel.
+     */
+    private function providerFor(SocleAgent $agent, ModelLink $link): string
+    {
+        $base = config("ai.providers.{$link->provider}");
+        if ($agent->usesStrictSchema() || ! is_array($base)) {
+            return $link->provider;
+        }
+        $alias = $link->provider.self::TOOL_OUTPUT_SUFFIX;
+        config(["ai.providers.{$alias}" => ['use_native_structured_output' => false] + $base]);
+
+        return $alias;
     }
 
     /** @return array{provider: string, model: string} */
