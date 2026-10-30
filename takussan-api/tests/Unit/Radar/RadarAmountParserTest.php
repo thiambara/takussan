@@ -137,6 +137,23 @@ class RadarAmountParserTest extends TestCase
         $this->assertSame(['amount' => 450_000, 'period' => null], RadarAmountParser::parse('wa.me/33612345678 loyer 450 000'));
     }
 
+    public function test_un_etage_r_plus_un_devant_un_prix_n_en_fait_pas_un_numero(): void
+    {
+        // Vérification adverse M1 : `+1` suivi de dix chiffres se lit comme un numéro nord-américain, sauf collé à `R`.
+        $this->assertSame(['amount' => 1_250_500_750, 'period' => null], RadarAmountParser::parse('Immeuble R+1 1 250 500 750 F'));
+        $this->assertSame(['amount' => 1_250_500_750, 'period' => null], RadarAmountParser::parse('Immeuble R+7 1 250 500 750 F'));
+        $this->assertSame(['amount' => 450_000, 'period' => null], RadarAmountParser::parse('Tel +1 202 555 0123, loyer 450 000 F'));
+    }
+
+    public function test_l_indicatif_devant_un_numero_ne_laisse_pas_un_prix(): void
+    {
+        // TCK-2412 : la plage du numéro s'étend à l'indicatif écrit devant elle.
+        foreach (['0033 7 7 1 2 3 4 5 6 7', '+3 3 7 7 1 2 3 4 5 6 7', '0033 (77) 123 45 67', '+33 7 7 1 2 3 4 5 6 7'] as $texte) {
+            $this->assertNull(RadarAmountParser::parse($texte), $texte);
+        }
+        $this->assertSame(['amount' => 450_000, 'period' => null], RadarAmountParser::parse('0033 7 7 1 2 3 4 5 6 7, loyer 450 000 F'));
+    }
+
     public function test_sejour_n_est_pas_une_periode_journaliere(): void
     {
         $this->assertSame(['amount' => 200_000, 'period' => null], RadarAmountParser::parse('200 000 F le séjour'));

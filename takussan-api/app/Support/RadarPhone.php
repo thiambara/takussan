@@ -10,6 +10,8 @@ namespace App\Support;
  * compris, chiffres arabes et pleine chasse, invisibles retirés, `_`, `,`, `(77)`, espaces doubles —
  * TCK-2412) et n'en garde que les sénégalaises : ce que la passerelle IA masquerait pour un usage
  * public, le Radar le lit comme un numéro, sauf un numéro étranger. Un prix (`450.000f`) n'en est pas un.
+ * Le refus STOP se juge sur `fromText()`, le plus large ; le contact choisi d'office sur `contactsFromText()`,
+ * qui écarte en plus les limites connues du masqueur (une liste, une mesure, un prix).
  *
  * `hmac()` est ce qui survit à un STOP (ADR-0077 §9) : le numéro en clair s'efface, pas le refus.
  * Clé : `config('radar.phone_hmac_key')`, à défaut dérivée de `app.key` — aucune variable
@@ -27,12 +29,34 @@ final class RadarPhone
     private const TRUNK = '/^((?:\+|00)?221)\(0\)/';
 
     /**
-     * Un indicatif de pays (`+33`, `0033`) juste avant le motif, au plus un séparateur entre eux :
-     * ce que le motif a trouvé est la suite d'un numéro étranger. `221` excepté. Un indicatif ne
-     * commence jamais par 0 : sans `[1-9]`, le `000` d'un prix (`450 000 77 123 45 67`) se lisait
-     * `00` + indicatif `0`. Le séparateur est l'un de `SEPARATORS`, après un `)` éventuel (`(+1) 77 …`).
+     * Juste avant le motif, un indicatif de pays (`+33`, `0033`, au plus un séparateur derrière lui) ou un
+     * `+` / `00` nu (au plus trois séparateurs) : ce que le motif a trouvé est la suite d'un numéro étranger.
+     * Un `+` nu devant le motif, c'est le motif qui commence par l'indicatif (`+33 7 7 1 2 …` lu `33 7 7 1 2 …`,
+     * TCK-2412 B1) : tout préfixe sénégalais commence par un indicatif (3x, 7, 93). `221` excepté.
+     * Un indicatif ne commence jamais par 0 : sans `[1-9]`, le `000` d'un prix (`450 000 77 123 45 67`) se
+     * lisait `00` + indicatif `0`. Le séparateur est l'un de `SEPARATORS`, après un `)` éventuel (`(+1) 77 …`).
+     * Une ou deux espaces sont admises entre le `+` et l'indicatif, comme pour le masquage (`+ 1 77 …`), et
+     * l'indicatif peut être écrit chiffre à chiffre (`+3 3 7 7 1 …`). Ni une décimale (`1.00 7 …`) ni un millier.
      */
-    private const FOREIGN_PREFIX = '/(?<![\d+])(?:\+|00)([1-9]\d{0,2})\)?[\s\x{00A0}\x{202F}.,_\-\/\x{2010}-\x{2015}\x{2212}]?$/u';
+    private const FOREIGN_PREFIX = '/(?<![\d+.,])(?:\+|00)'
+        .'(?:[\s\x{00A0}\x{202F}]{0,2}([1-9](?:[\s\x{00A0}\x{202F}.\-]?[0-9]){0,2})\)?[\s\x{00A0}\x{202F}.,_\-\/\x{2010}-\x{2015}\x{2212}]?|[\s\x{00A0}\x{202F}.\-\/\x{2010}-\x{2015}\x{2212}]{0,3})$/u';
+
+    /**
+     * TCK-2412 (I1) — le `+` de l'étage d'une annonce (`R+1`, `R+10` : rez-de-chaussée plus un, plus dix) n'est pas
+     * un indicatif : `Immeuble R+10 77 123 45 67` se lisait `+10` suivi de dix chiffres. Collé à un mot (`Tel+33 …`), si.
+     */
+    private const FLOOR_PLUS = '/(?<!\p{L})([Rr])\+(?=[0-9])/u';
+
+    /**
+     * TCK-2412 — ce qui, derrière un numéro écrit sans indicatif, en fait une mesure, une durée ou un montant
+     * (`30 20 5 20 10 min`, `… 5 % par an`, `(75) 500 00 00 F`) : les limites connues du masqueur.
+     */
+    private const NOT_A_CONTACT_AFTER = '/^[\s\x{00A0}\x{202F}]*(?:%|min|mn|h|km|m²|m2|m|ml|cm|ha|ans?|mois|jours?'
+        .'|f\s?cfa|cfa|xof|francs?|f|chambres?|pi[eè]ces?)(?!\p{L})/iu';
+
+    /** TCK-2412 — le mot qui, juste devant, fait du nombre un prix, une mesure ou une liste (`Lots 3 0 1 2 …`). */
+    private const NOT_A_CONTACT_BEFORE = '/(?<!\p{L})(?:prix|loyer|montant|total|caution|avance|frais|charges?|surface|superficie'
+        .'|lots?|horaires?|distances?|dimensions?|mensualit[ée]s?)[\s\x{00A0}\x{202F}]*[:=-]?[\s\x{00A0}\x{202F}]*$|[\[{]$/iu';
 
     /**
      * Les numéros du texte, en `+221XXXXXXXXX`, dédoublonnés, dans l'ordre d'apparition.
@@ -41,7 +65,42 @@ final class RadarPhone
      */
     public static function fromText(string $text): array
     {
-        $normalized = PhoneMasker::normalizeDigits((string) preg_replace(PhoneMasker::INVISIBLE, '', $text));
+        return self::read($text, false);
+    }
+
+    /**
+     * TCK-2412 — les numéros du texte qui peuvent désigner d'office le contact d'une annonce : ceux de
+     * `fromText()`, moins une forme écrite sans indicatif qu'une unité suit (`min`, `km`, `%`, `F`…), qu'un mot
+     * de prix ou de liste précède (`Prix`, `Lots`, `Horaires`…), ou qu'ouvre un crochet. Un contact manqué se
+     * rattrape à la main ; un faux numéro démarché, non.
+     *
+     * @return list<string>
+     */
+    public static function contactsFromText(string $text): array
+    {
+        return self::read($text, true);
+    }
+
+    /** Le `+` d'un étage (`R+1`) remplacé par `#`, un octet pour un octet : les positions du texte restent justes. */
+    public static function withoutFloorPlus(string $text): string
+    {
+        return (string) preg_replace(self::FLOOR_PLUS, '$1#', $text);
+    }
+
+    /**
+     * TCK-2412 — l'octet où commence le `+` / `00` d'un indicatif écrit à la fin de `$before` (voir
+     * `FOREIGN_PREFIX`), ou null : `RadarAmountParser` étend la plage d'un numéro jusque-là (`0033 7 7 1 …`
+     * ne laisse pas un « prix » de 33).
+     */
+    public static function prefixStart(string $before): ?int
+    {
+        return preg_match(self::FOREIGN_PREFIX, $before, $prefix, PREG_OFFSET_CAPTURE) === 1 ? $prefix[0][1] : null;
+    }
+
+    /** @return list<string> */
+    private static function read(string $text, bool $contactsOnly): array
+    {
+        $normalized = self::withoutFloorPlus(PhoneMasker::normalizeDigits((string) preg_replace(PhoneMasker::INVISIBLE, '', $text)));
         // Le motif du masquage, sénégalais ou étranger : `canonical()` écarte ensuite tout ce qui n'est pas `+221…`.
         if (preg_match_all(PhoneMasker::MASK_PATTERN, $normalized, $found, PREG_OFFSET_CAPTURE) === false) {
             return [];
@@ -49,9 +108,16 @@ final class RadarPhone
 
         $numbers = [];
         foreach ($found[0] as [$match, $offset]) {
-            // La fin d'un numéro étranger (`+1 77 123 45 67 89`, `0033 771234567`) n'est pas un numéro
-            // sénégalais : le masquage la masque quand même, le Radar ne la lit pas.
-            if (preg_match(self::FOREIGN_PREFIX, substr($normalized, 0, $offset), $prefix) === 1 && $prefix[1] !== '221') {
+            $before = substr($normalized, 0, $offset);
+            // La fin d'un numéro étranger (`+1 77 123 45 67 89`, `0033 771234567`, `+33 7 7 1 2 …`) n'est pas un
+            // numéro sénégalais : le masquage la masque quand même, le Radar ne la lit pas.
+            $code = preg_match(self::FOREIGN_PREFIX, $before, $prefix) === 1 ? (string) preg_replace('/[^0-9]/', '', $prefix[1] ?? '') : null;
+            if ($code !== null && ($code === '' ? ! str_starts_with($match, '221') : $code !== '221')) {
+                continue;
+            }
+            if ($contactsOnly && preg_match('/^(?:\+|00|221)/', $match) !== 1
+                && (preg_match(self::NOT_A_CONTACT_BEFORE, $before) === 1
+                    || preg_match(self::NOT_A_CONTACT_AFTER, substr($normalized, $offset + strlen($match))) === 1)) {
                 continue;
             }
             $e164 = self::canonical($match);

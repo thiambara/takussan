@@ -4,6 +4,7 @@ namespace App\Services\Radar;
 
 use App\Models\Enums\RentPeriod;
 use App\Support\PhoneMasker;
+use App\Support\RadarPhone;
 
 /**
  * TCK-2386 (ADR-0077 §5, AC4) — le prix d'une annonce tel qu'écrit, lu par du code : le modèle
@@ -168,11 +169,14 @@ final class RadarAmountParser
     /** @return list<array{int, int}> les plages d'octets des numéros de téléphone du texte */
     private static function phoneSpans(string $text): array
     {
+        // Le `+` d'un étage (`R+1 1 250 500 750 F`) n'est pas un indicatif (TCK-2412) ; un octet pour un, les plages restent justes.
+        $text = RadarPhone::withoutFloorPlus($text);
         if (preg_match_all(PhoneMasker::MASK_PATTERN, $text, $found, PREG_OFFSET_CAPTURE) < 1) {
             return [];
         }
 
-        return array_map(static fn (array $f): array => [$f[1], $f[1] + strlen($f[0])], $found[0]);
+        // L'indicatif écrit devant la plage en fait partie : `0033 7 7 1 2 …` ne laisse pas un « prix » de 33.
+        return array_map(static fn (array $f): array => [RadarPhone::prefixStart(substr($text, 0, $f[1])) ?? $f[1], $f[1] + strlen($f[0])], $found[0]);
     }
 
     private static function normalize(string $text): string

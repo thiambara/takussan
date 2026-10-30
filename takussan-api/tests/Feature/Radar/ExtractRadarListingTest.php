@@ -464,6 +464,19 @@ class ExtractRadarListingTest extends TestCase
         $this->assertSame(0, RadarAdvertiser::query()->count());
     }
 
+    public function test_tck_2412_a_list_the_masker_reads_as_a_phone_creates_no_advertiser(): void
+    {
+        RadarExtraction::fake([$this->reponse()]);
+        $listing = $this->annonce(['raw_text' => 'Villa à vendre aux Almadies. Horaires de visite 30 20 5 20 10 min, contact en message privé.']);
+
+        $this->lancer($listing);
+
+        $listing->refresh();
+        $this->assertSame(RadarListingStage::Extracted, $listing->stage);
+        $this->assertNull($listing->radar_advertiser_id);
+        $this->assertSame(0, RadarAdvertiser::query()->count());
+    }
+
     public function test_the_phone_of_the_text_is_used_when_the_agent_returns_none(): void
     {
         RadarExtraction::fake([$this->reponse()]);
