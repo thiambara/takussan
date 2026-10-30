@@ -17,6 +17,13 @@ spec_refs:
 tags: [api, radar, collecte, adr-0077]
 ---
 
+## Décision du porteur (2026-10-30)
+
+Ordre des sites voulu : **Expat-Dakar et CoinAfrique d'abord** (déjà adaptés par TCK-2392, à éprouver en premier),
+**puis Facebook**. Facebook exigerait un navigateur sans tête (TCK-2425 : connexion, rendu côté client), et ses
+conditions d'utilisation interdisent la collecte automatisée : **à trancher par le porteur avant tout travail** sur
+Facebook.
+
 ## Objectif utilisateur
 
 Le Radar relève aussi les annonces des autres sites où les annonceurs publient.

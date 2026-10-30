@@ -1,15 +1,16 @@
 # ADR-0079 — Un annonceur d'accord qui ne veut pas de compte peut confier la diffusion de ses biens à Takussan, derrière un drapeau éteint
 
-- **Statut** : Proposé
+- **Statut** : Accepté (principe) le 2026-10-30 par le porteur — `radar_mandate` reste éteint jusqu'à l'avis de l'avocat et la livraison de TCK-2421
 - **Date** : 2026-10-30
 - **Tickets** : TCK-2394 (mise en œuvre, drapeau éteint) ; suites : TCK-2421 (reprise des biens par
   l'annonceur), TCK-2422 (article des CGU et mention publique, avec l'acceptation)
 - **Dépend de** : [ADR-0077](0077-le-radar.md) (le Radar)
 
-> ⚠ **Proposé, pas accepté.** Rédigé de nuit par un agent, sur la consigne du porteur de choisir la
-> forme la moins restrictive, documentée, réversible et derrière une configuration. Le code existe,
-> **éteint** : rien ne se publie sous mandat tant que le porteur n'a pas accepté cet ADR et allumé
-> le drapeau `radar_mandate`.
+> ⚠ **Accepté sur le principe, pas allumé.** Rédigé de nuit par un agent, sur la consigne du porteur de
+> choisir la forme la moins restrictive, documentée, réversible et derrière une configuration ; accepté
+> sur le principe par le porteur le 2026-10-30. Le code existe, **éteint** : rien ne se publie sous
+> mandat tant que le drapeau `radar_mandate` n'est pas allumé, ce qui attend l'avis de l'avocat et la
+> livraison de TCK-2421 (reprise des biens par l'annonceur).
 
 ## Contexte
 

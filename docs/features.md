@@ -768,7 +768,9 @@ en est le premier usager. Vision et lots : [plan du 2026-10-26](plans/2026-10-26
   (`wa.me/…`, `?phone=…`) : le socle le masque (`+221`, `00221`, `+33`, `+225`, `00…`, forme nationale
   `0X XX XX XX XX`), et la garde des jeux d'évaluation le signale (TCK-2400, TCK-2410). Le préfixe
   `+221 74`, qu'aucun opérateur n'attribue, est celui des numéros fictifs des jeux d'évaluation : il
-  n'est pas masqué. Le `+` d'un étage (`R+0` à `R+19`, derrière un `R` isolé) n'est pas un
+  n'est pas masqué. Un test qui a besoin d'un numéro lu comme réel (masqué, extrait, apparié) prend
+  un numéro en `+221 77` — dans les tests du Radar, le plus souvent `+221 77 123 45 67` (décision du
+  porteur du 2026-10-30). Le `+` d'un étage (`R+0` à `R+19`, derrière un `R` isolé) n'est pas un
   indicatif : le prix ou le numéro qui le suit reste lu (TCK-2428).
 - **Seul le jeu d'évaluation de l'extraction du Radar part de vraies annonces** : 20 annonces
   relevées le 2026-10-29 sur Expat-Dakar et CoinAfrique, anonymisées puis réécrites (titres
@@ -820,7 +822,7 @@ catalogue tant que cet accord n'existe pas. Vision et lots : [plan du 2026-10-26
 | P2 | 🛡️ | Collecte automatique planifiée sur Expat-Dakar et CoinAfrique, **éteinte par défaut** : le `super_admin` allume chaque site, règle sa fréquence et ses pages, lance un passage (`/super-admin/radar/collecte`) ; chaque passage lit la liste (`robots.txt` respecté, un seul passage actif par site), saisit les annonces nouvelles et date leurs instantanés (prix, surface, quartier, présence) ; la même annonce vue sur deux sites peut être fusionnée d'office en une fiche à deux provenances, que l'opérateur peut séparer — fusion **éteinte par défaut** (`RADAR_MERGE_AUTO`) (TCK-2392, [ADR-0080](adr/0080-la-collecte-automatique-du-radar.md)) |
 | P2 | 🛡️ | Annonceurs et observatoire du marché (`/super-admin/radar/observatory`) : classement des annonceurs par volume d'annonces vivantes (quartiers principaux, gammes de prix, sites, nature présumée, piste commerciale jusqu'à la demande de passage en agence) ; prix au m² par quartier, type et contrat ; temps de mise sur le marché ; quartiers où Takussan manque d'annonces ; part d'intermédiaires probables ; alerte quand l'annonce source d'un bien publié disparaît (TCK-2393, [ADR-0083](adr/0083-l-observatoire-du-marche.md)) |
 | P2 | 🛡️ | Relance d'activation d'un compte créé par « publier pour lui » et jamais activé : texte fixe versionné (`activation.v1`) avec les chiffres réels de la période — vues, demandes de contact et de visite, crédits offerts à l'activation —, ouvert dans WhatsApp puis marqué envoyé ; une relance par semaine au plus (`radar.activation.min_interval_days`) (TCK-2394) |
-| P2 | 🛡️ | Publication sous mandat Takussan (`super_admin`, drapeau `radar_mandate`, [ADR-0079](adr/0079-la-publication-sous-mandat-takussan.md) proposé) : sur un accord confirmé, l'annonceur qui ne veut pas de compte voit ses annonces publiées dans l'espace des mandats (réglage `radar.mandate_agency_id`), son numéro en contact, sans compte créé ; second message `mandat.v1`, sans lien d'activation (TCK-2394) |
+| P2 | 🛡️ | Publication sous mandat Takussan (`super_admin`, drapeau `radar_mandate`, [ADR-0079](adr/0079-la-publication-sous-mandat-takussan.md), accepté sur le principe ; drapeau éteint jusqu'à l'avis de l'avocat et la livraison de TCK-2421) : sur un accord confirmé, l'annonceur qui ne veut pas de compte voit ses annonces publiées dans l'espace des mandats (réglage `radar.mandate_agency_id`), son numéro en contact, sans compte créé ; second message `mandat.v1`, sans lien d'activation (TCK-2394) |
 | P3 | 🛡️ | Démarchage par l'API WhatsApp Cloud sur un numéro dédié au Radar, réception des réponses par webhook signé et preuve par identifiant de message (TCK-2395, [ADR-0081](adr/0081-le-radar-prospecte-par-l-api-whatsapp-sur-son-propre-numero.md)) ; depuis la fiche annonceur, envoi confirmé, canal de chaque message, réponse reçue lue en texte (TCK-2426) ; état de remise suivi par les accusés de WhatsApp et journalisé, pas encore affiché (TCK-2427, TCK-2437) |
 
 **Règles de gestion.**
@@ -930,7 +932,7 @@ catalogue tant que cet accord n'existe pas. Vision et lots : [plan du 2026-10-26
   purge de la matière d'une annonce publiée, avec la preuve de l'accord trois ans après le retrait du
   dernier bien qu'il couvre, est codée et éteinte (`radar.purge_published_material`) : elle attend la
   décision du porteur et la relecture du texte légal (TCK-2406).
-- **Clé de l'empreinte des refus** (TCK-2414, [ADR-0082](adr/0082-l-empreinte-des-refus-du-radar-a-sa-propre-cle.md) proposé).
+- **Clé de l'empreinte des refus** (TCK-2414, [ADR-0082](adr/0082-l-empreinte-des-refus-du-radar-a-sa-propre-cle.md)).
   L'empreinte du numéro d'un annonceur qui a dit STOP se calcule sous une clé dédiée
   (`RADAR_PHONE_HMAC_KEY`), indépendante de la clé de l'application : faire tourner celle-ci ne fait
   oublier aucun refus. Les anciennes clés restent reconnues (`RADAR_PHONE_HMAC_PREVIOUS_KEYS`, repli
