@@ -1,7 +1,7 @@
 ---
 id: TCK-2430
 title: "Les empreintes HMAC hors du Radar dépendent d'APP_KEY : une rotation rouvre des désinscriptions et des crédits de bienvenue"
-status: todo
+status: doing
 phase: P1
 family: back
 estimate: S
