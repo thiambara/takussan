@@ -113,7 +113,8 @@ espace individuel ordinaire.**
    **Amendement proposé (TCK-2406, 2026-10-30), non en vigueur.** La matière collectée d'une
    annonce **publiée** (texte brut, adresse de la source, extraction, réserve de photos, captures),
    puis le numéro en clair de son annonceur, s'effaceraient avec la dernière preuve qui la couvre :
-   trois ans après le retrait du bien, s'il n'est pas revenu en ligne. Le code existe derrière
+   trois ans après le retrait du dernier bien que couvre l'accord, si le sien n'est pas revenu en
+   ligne. Le code existe derrière
    `radar.purge_published_material`, **éteint**. L'allumer revient au porteur, après relecture par
    l'avocat, dans la PR qui modifie `privacy.ts` § 6 et fait avancer `VERSION_DOCUMENTS`.
 

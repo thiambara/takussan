@@ -290,6 +290,41 @@ class RadarPurgePublishedTest extends TestCase
         $this->assertIntacte($annonce);
     }
 
+    /**
+     * Vérification adverse, I-1 — une seule preuve couvre deux annonces : les trois ans courent du retrait du DERNIER bien que
+     * couvre l'accord, pas de celui de chaque annonce. La matière de la première reste tant que la seconde est en ligne.
+     */
+    public function test_une_preuve_qui_couvre_deux_annonces_court_du_retrait_du_dernier_bien(): void
+    {
+        $this->allumer();
+        $annonceur = $this->annonceur();
+        $premier = $this->bien();
+        $second = $this->bien();
+        $a = $this->annoncePubliee($annonceur, $premier);
+        $b = $this->annoncePubliee($annonceur, $second);
+        $accord = $this->accord($annonceur, $a, $b);
+
+        $this->retirer($premier);
+        $this->assertSame(0, $this->purger()['retention_started'], 'le second bien est en ligne : la preuve vit');
+        $this->jours(365 * 3 + 1);
+        $this->assertSame(0, $this->purger()['published_listings']);
+        $this->assertIntacte($a);
+
+        $this->retirer($second);
+        $this->assertSame(1, $this->purger()['retention_started']);
+        $this->jours(365 * 3 - 1);
+        $this->assertSame(0, $this->purger()['published_listings']);
+        $this->assertIntacte($a);
+
+        $this->jours(2);
+        $comptes = $this->purger();
+
+        $this->assertNotNull($accord->fresh()->purged_at);
+        $this->assertSame(2, $comptes['published_listings']);
+        $this->assertSame(RadarListingStage::Purged, $a->fresh()->stage);
+        $this->assertSame(RadarListingStage::Purged, $b->fresh()->stage);
+    }
+
     public function test_une_annonce_d_un_autre_annonceur_toujours_en_ligne_garde_son_numero(): void
     {
         $this->allumer();

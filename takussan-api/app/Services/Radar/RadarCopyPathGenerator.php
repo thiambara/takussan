@@ -15,8 +15,14 @@ use Spatie\MediaLibrary\Support\PathGenerator\DefaultPathGenerator;
  * balaie ce seul préfixe.
  *
  * Le marqueur est une propriété du média, posée à la copie : le chemin se recalcule à chaque lecture (URL, conversions,
- * suppression), il doit donc vivre avec la ligne. Un média sans marqueur — toute autre photo de bien, et les copies d'avant
- * TCK-2406 — garde le chemin par défaut. Le préfixe est neutre : il paraît dans l'URL publique de la photo.
+ * suppression), il doit donc vivre avec la ligne. Un média sans marqueur — les photos déposées sur un bien, et les copies
+ * d'avant TCK-2406 — garde le chemin par défaut. `Media::copy()` recopie les propriétés : la duplication d'un bien publié par
+ * le Radar (`PropertyDuplicationService`) range donc aussi les photos du clone sous le préfixe. C'est sans danger : leurs
+ * lignes existent, et une duplication coupée y serait balayée de même. Le préfixe est neutre : il paraît dans l'URL publique.
+ *
+ * ⚠ `MARKER`, `DIRECTORY` et l'enregistrement dans `media-library.custom_path_generators` sont PORTEURS tant qu'une copie existe :
+ * en changer un recalcule les chemins des copies vers un endroit où il n'y a aucun fichier. Un retour arrière déplace d'abord
+ * les fichiers.
  */
 final class RadarCopyPathGenerator extends DefaultPathGenerator
 {

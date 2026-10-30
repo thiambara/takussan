@@ -63,7 +63,9 @@ Deux écarts relevés par TCK-2391, mesurés le 2026-10-29 sur `feat/radar-revoc
   que perd une annonce jamais publiée et passe `purged` ; `property_id` reste. L'annonceur sans autre annonce perd ensuite son
   numéro par la règle existante (4). Compteur `published_listings`. Limite : un bien remis en ligne par le compte APRÈS
   l'effacement de la preuve retient la matière jusqu'à son prochain retrait, puis elle part au passage suivant, sans nouveau
-  délai de trois ans (la preuve qui portait le délai n'existe plus).
+  délai de trois ans (la preuve qui portait le délai n'existe plus). Le délai court du retrait du **dernier** bien que couvre
+  l'accord : une preuve qui couvre deux annonces retient la matière de la première tant que la seconde est en ligne
+  (vérification adverse, I-1 ; testé).
 - ADR-0077 §9 : amendement proposé, marqué non en vigueur. `privacy.ts` § 6 n'est pas modifié : il reste vrai tant que le
   drapeau est éteint.
 
@@ -71,7 +73,11 @@ Deux écarts relevés par TCK-2391, mesurés le 2026-10-29 sur `feat/radar-revoc
 
 - **Copies orphelines : un préfixe de chemin** plutôt qu'une ligne témoin écrite avant la copie. Écartée : la ligne témoin, car
   l'identifiant du média n'existe qu'à l'insertion, dans la transaction, et il faudrait une écriture hors transaction. Le
-  préfixe ne demande ni table ni migration, et se défait en retirant une ligne de config.
+  préfixe ne demande ni table ni migration. **Il ne se défait pas en retirant la ligne de config** (vérification adverse,
+  I-2) : les copies déjà publiées verraient leur chemin recalculé vers `{id}/`, où il n'y a aucun fichier (404, et une
+  suppression laisserait les fichiers sous `publications/`). La ligne de `config/media-library.php`, `MARKER` et `DIRECTORY`
+  sont porteurs tant qu'une copie existe ; un retour arrière demande une commande qui déplace les fichiers et retire le
+  marqueur.
 - **Nom du préfixe : `publications/`**, neutre. Écarté : `radar/`, car le préfixe paraît dans l'URL publique de la vignette et
   dirait l'origine du bien à tout visiteur.
 - **Matière d'une annonce publiée : codée, mais éteinte par défaut.** Écarté : l'allumer, car l'effacement est irréversible,
@@ -85,5 +91,5 @@ Deux écarts relevés par TCK-2391, mesurés le 2026-10-29 sur `feat/radar-revoc
 
 - Décider d'allumer `radar.purge_published_material`. Si oui, dans la même PR : faire relire par l'avocat, modifier
   `privacy.ts` § 6 (ligne proposée : « **Annonces relevées ailleurs puis publiées** : le contenu relevé est effacé avec la preuve
-  de votre accord, 3 ans après le retrait du bien »), faire avancer `VERSION_DOCUMENTS`, et passer l'amendement d'ADR-0077 §9
+  de votre accord, au plus tard 3 ans après le retrait du dernier des biens que couvre votre accord »), faire avancer `VERSION_DOCUMENTS`, et passer l'amendement d'ADR-0077 §9
   « en vigueur ».

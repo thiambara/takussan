@@ -37,7 +37,8 @@ use Illuminate\Support\Facades\DB;
  *    ligne elle-même s'en va.
  *
  * 3 bis. **La matière collectée d'une annonce PUBLIÉE** (TCK-2406, `radar.purge_published_material`, éteint par défaut) part
- *    avec la dernière preuve qui la couvre, trois ans après le retrait de son bien, et seulement si ce bien n'est pas revenu en
+ *    avec la dernière preuve qui la couvre, trois ans après le retrait du DERNIER bien que couvre l'accord (une preuve qui
+ *    couvre deux annonces vit tant que l'une est en ligne), et seulement si son propre bien n'est pas revenu en
  *    ligne ({@see self::purgePublishedListings()}). Le numéro de l'annonceur suit par (4).
  *
  * 5. **Les fichiers sans ligne** que la réserve ou une réponse a pu laisser sur le disque privé, et ceux qu'une publication
@@ -267,7 +268,7 @@ final class RadarPurger
 
     /**
      * Une annonce publiée est due quand une preuve confirmée qui la couvre a été effacée ({@see self::purgeExpiredProofs()} : trois
-     * ans après le retrait) et qu'aucune autre ne vit encore, et que son bien n'est pas public (ou n'existe plus). Un bien que le
+     * ans après le retrait du dernier bien que couvre l'accord, pas forcément le sien) et qu'aucune autre ne vit encore, et que son bien n'est pas public (ou n'existe plus). Un bien que le
      * compte a remis en ligne après coup retient la matière jusqu'à son prochain retrait — sans nouveau délai : la preuve qui le
      * portait n'est plus.
      *
