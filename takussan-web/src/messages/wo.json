@@ -8735,14 +8735,16 @@
             "timeBudget": "Durée maximale atteinte",
             "noOperator": "Aucun opérateur",
             "error": "Erreur du passage",
-            "lost": "Passage perdu (file arrêtée)"
+            "lost": "Passage perdu (file arrêtée)",
+            "loop": "La pagination renvoie vers une page déjà lue"
           },
           "errors": {
             "active": "Un passage est déjà en cours sur ce site : attendez sa fin.",
             "unknownSite": "Ce site n’est pas collecté.",
             "generic": "Le réglage a échoué."
           },
-          "summary": "Tous les {frequency} min · {pages} pages au plus"
+          "summary": "Tous les {frequency} min · {pages} pages au plus",
+          "enabledWithoutOperator": "Allumée sans opérateur : aucun passage ne part. Éteignez-la puis rallumez-la pour en devenir l'opérateur."
         }
       }
     },

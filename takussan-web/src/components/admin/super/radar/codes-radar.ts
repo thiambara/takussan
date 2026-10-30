@@ -209,4 +209,5 @@ export const ARRETS_COLLECTE_RADAR: Record<string, string> = {
   'radar.crawl.no_operator': 'noOperator',
   'radar.crawl.error': 'error',
   'radar.crawl.lost': 'lost',
+  'radar.crawl.loop': 'loop',
 };

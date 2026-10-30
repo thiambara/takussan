@@ -9389,14 +9389,16 @@
             "timeBudget": "Maximum duration reached",
             "noOperator": "No operator",
             "error": "Pass error",
-            "lost": "Lost pass (queue stopped)"
+            "lost": "Lost pass (queue stopped)",
+            "loop": "Pagination loops back to a page already read"
           },
           "errors": {
             "active": "A pass is already running on this site: wait for it to finish.",
             "unknownSite": "This site is not collected.",
             "generic": "The setting failed."
           },
-          "summary": "Every {frequency} min · {pages} pages at most"
+          "summary": "Every {frequency} min · {pages} pages at most",
+          "enabledWithoutOperator": "Enabled without an operator: no run starts. Disable and re-enable it to become its operator."
         }
       }
     },

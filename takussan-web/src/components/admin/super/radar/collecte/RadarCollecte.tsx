@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
-import { ArrowLeft, Play, Radar } from 'lucide-react';
+import { ArrowLeft, Play, Radar, TriangleAlert } from 'lucide-react';
 
 import { usePlatformAbilities } from '@/components/admin/super/PlatformAbilitiesProvider';
 import { DataState, PageHeader, StatusBadge, type StatusTone } from '@/components/console';
@@ -14,6 +14,7 @@ import { EmptyState, ErrorState } from '@/components/feedback';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { WarningBanner } from '@/components/ui/warning-banner';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import type { ApiError } from '@/lib/api';
 import { useFormatteurs, VALEUR_ABSENTE } from '@/lib/format/useFormatteurs';
@@ -102,6 +103,15 @@ function CarteSource({ source, regle }: { readonly source: RadarCrawlSource; rea
           {source.operator ? t('operator', { name: source.operator.name }) : t('noOperator')}
         </span>
       </div>
+
+      {source.enabled && !source.operator ? (
+        <WarningBanner
+          icon={<TriangleAlert className="size-4" aria-hidden="true" />}
+          data-testid={`radar-collecte-sans-operateur-${source.site}`}
+        >
+          {t('enabledWithoutOperator')}
+        </WarningBanner>
+      ) : null}
 
       {regle ? (
         <form
