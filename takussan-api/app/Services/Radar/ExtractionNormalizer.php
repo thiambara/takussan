@@ -27,7 +27,8 @@ use App\Support\RadarPhone;
  *
  * Règles :
  *   - un champ rendu SANS passage cité tombe à la confiance la plus basse (AC3,
- *     `evidence_missing`) ; un passage introuvable dans le texte source aussi
+ *     `evidence_missing`) — le modèle écrit l'absence `""` (TCK-2411 : le schéma n'admet plus
+ *     `null`), relue ici en `null`, comme un passage blanc ou fait de seuls « … » ; un passage introuvable dans le texte source aussi
  *     (`evidence_not_in_source` ; repli NFC, casse, blancs, chiffres, séparateurs de milliers,
  *     blanc avant « : ; ! ? », tirets, apostrophes et guillemets ; un passage tronqué par « … » se cherche segment par segment, dans l'ordre ; à
  *     défaut, sans accents) — sans texte source (captures), la présence n'est pas contrôlée. Un champ
@@ -103,6 +104,7 @@ final class ExtractionNormalizer
     {
         $entry = is_array($entry) ? $entry : [];
         $rawValue = $entry['value'] ?? null;
+        // `""` (l'absence selon le schéma, TCK-2411), un blanc ou des « … » seuls : aucun passage, `null`.
         $evidence = is_string($entry['evidence'] ?? null) && self::segments($entry['evidence']) !== [] ? trim($entry['evidence']) : null;
         $confidence = RadarConfidence::tryFrom(is_string($entry['confidence'] ?? null) ? $entry['confidence'] : '') ?? RadarConfidence::lowest();
 

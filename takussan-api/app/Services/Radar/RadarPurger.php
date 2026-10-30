@@ -37,7 +37,13 @@ use Illuminate\Support\Facades\DB;
  *    numéro reste s'il a dit STOP** : sans elle, le Radar le retrouverait sur la prochaine annonce. Sans refus ni message, la
  *    ligne elle-même s'en va.
  *
- * 5. **Les fichiers sans ligne** que la réserve ou une réponse a pu laisser sur le disque privé ({@see RadarOrphanFiles}).
+ * 3 bis. **La matière collectée d'une annonce PUBLIÉE** (TCK-2406, `radar.purge_published_material`, éteint par défaut) part
+ *    avec la dernière preuve qui la couvre, trois ans après le retrait du DERNIER bien que couvre l'accord (une preuve qui
+ *    couvre deux annonces vit tant que l'une est en ligne), et seulement si son propre bien n'est pas revenu en
+ *    ligne ({@see self::purgePublishedListings()}). Le numéro de l'annonceur suit par (4).
+ *
+ * 5. **Les fichiers sans ligne** que la réserve ou une réponse a pu laisser sur le disque privé, et ceux qu'une publication
+ *    coupée a laissés sous le préfixe des copies, sur les deux disques ({@see RadarOrphanFiles}, TCK-2406).
  *
  * **Idempotente** : chaque étape ne choisit que ce qui est encore dû, relu sous verrou. Ordre des verrous : annonces →
  * annonceur (celui de tout le Radar). Les fichiers partent avec leur ligne, en DERNIER geste de la transaction : une
@@ -48,7 +54,7 @@ final class RadarPurger
     /** @var list<string> les compteurs rendus par {@see self::run()}, dans l'ordre */
     private const COUNTERS = [
         'listings', 'media', 'suggestions', 'outreaches', 'replies', 'proofs', 'advertisers_cleared', 'advertisers_deleted',
-        'retention_started', 'retention_reset', 'orphan_dirs', 'snapshots_detached',
+        'retention_started', 'retention_reset', 'orphan_dirs', 'orphan_copies', 'published_listings', 'snapshots_detached',
     ];
 
     public function __construct(private readonly RadarOrphanFiles $orphans) {}
@@ -66,7 +72,11 @@ final class RadarPurger
         if ($advertiserId === null) {
             $this->observeRetention($now, $counts);
             $this->purgeExpiredProofs($now, $counts);
+            if (config('radar.purge_published_material') === true) {
+                $this->purgePublishedListings($counts);
+            }
             $counts['orphan_dirs'] += $this->orphans->sweep($now);
+            $counts['orphan_copies'] += $this->orphans->sweepPublicationCopies($now);
         }
         $this->purgeUnconfirmedReplies($advertiserId, $counts);
         $this->purgeOutreaches($advertiserId, $counts);
@@ -98,20 +108,8 @@ final class RadarPurger
                     return;
                 }
 
-                $listing->forceFill([
-                    'raw_text' => null,
-                    'source_url' => null,
-                    'photo_urls' => [],
-                    'extracted' => null,
-                    'photo_preparation' => null,
-                    'stage' => RadarListingStage::Purged,
-                    'stage_reason' => null,
-                ])->save();
-                $counts['suggestions'] += $this->eraseSuggestions('radar.extraction', $listing);
+                $this->eraseListing($listing, $counts);
                 $counts['snapshots_detached'] += $this->detachSnapshots($listing);
-
-                // Le dernier geste : les fichiers partent avec leurs lignes.
-                $counts['media'] += $this->deleteMedia($listing);
                 $counts['listings']++;
             });
         }
@@ -155,6 +153,29 @@ final class RadarPurger
             'detached_in_catalog' => $listing->duplicate_of_property_id !== null,
             'updated_at' => now(),
         ]);
+    }
+
+    /**
+     * Texte brut, adresse de la source, extraction, réserve et captures ; l'étape devient `purged`. Le lien au bien (`property_id`)
+     * reste : il n'est pas une donnée collectée.
+     *
+     * @param  array<string, int>  $counts
+     */
+    private function eraseListing(RadarListing $listing, array &$counts): void
+    {
+        $listing->forceFill([
+            'raw_text' => null,
+            'source_url' => null,
+            'photo_urls' => [],
+            'extracted' => null,
+            'photo_preparation' => null,
+            'stage' => RadarListingStage::Purged,
+            'stage_reason' => null,
+        ])->save();
+        $counts['suggestions'] += $this->eraseSuggestions('radar.extraction', $listing);
+
+        // Le dernier geste : les fichiers partent avec leurs lignes.
+        $counts['media'] += $this->deleteMedia($listing);
     }
 
     /**
@@ -283,6 +304,51 @@ final class RadarPurger
         foreach ($ids as $id) {
             $this->eraseReply($id, $counts, 'proofs', fn (RadarConsent $reply): bool => $reply->offline_since !== null && $reply->offline_since->lte($cutoff));
         }
+    }
+
+    // --- 3 bis. La matière d'une annonce publiée (TCK-2406) ----------------------------------------
+
+    /**
+     * Une annonce publiée est due quand une preuve confirmée qui la couvre a été effacée ({@see self::purgeExpiredProofs()} : trois
+     * ans après le retrait du dernier bien que couvre l'accord, pas forcément le sien) et qu'aucune autre ne vit encore, et que son bien n'est pas public (ou n'existe plus). Un bien que le
+     * compte a remis en ligne après coup retient la matière jusqu'à son prochain retrait — sans nouveau délai : la preuve qui le
+     * portait n'est plus.
+     *
+     * @param  array<string, int>  $counts
+     */
+    private function purgePublishedListings(array &$counts): void
+    {
+        $ids = $this->duePublishedListings()->orderBy('id')->pluck('id');
+
+        foreach ($ids as $id) {
+            DB::transaction(function () use ($id, &$counts): void {
+                $listing = RadarListing::query()->whereKey($id)->lockForUpdate()->first();
+                if ($listing === null || ! $this->duePublishedListings()->whereKey($id)->exists()) {
+                    return;
+                }
+
+                $this->eraseListing($listing, $counts);
+                $counts['published_listings']++;
+            });
+        }
+    }
+
+    /** @return Builder<RadarListing> */
+    private function duePublishedListings()
+    {
+        $proofs = fn (): \Illuminate\Database\Query\Builder => DB::table('radar_outreach_listing as ol')
+            ->join('radar_consents as c', 'c.radar_outreach_id', '=', 'ol.radar_outreach_id')
+            ->select(DB::raw(1))
+            ->whereColumn('ol.radar_listing_id', 'radar_listings.id')
+            ->whereNotNull('c.confirmed_at');
+
+        return RadarListing::query()
+            ->where('stage', RadarListingStage::Published->value)
+            ->where(fn ($query) => $query
+                ->whereNull('property_id')
+                ->orWhereNotIn('property_id', Property::query()->public()->select('properties.id')))
+            ->whereExists($proofs()->whereNotNull('c.purged_at'))
+            ->whereNotExists($proofs()->whereNull('c.purged_at'));
     }
 
     /**

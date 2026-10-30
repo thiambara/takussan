@@ -315,7 +315,7 @@ final class EvalCaseAnonymizer
         // Chiffres pleine chasse et arabes-indiens ramenés à l'ASCII, un code point pour un : `$map` reste juste.
         $scan = PhoneMasker::normalizeDigits($folded);
         $spans = [];
-        foreach ([[self::EMAIL, self::EMAIL_TOKEN], [PhoneMasker::PATTERN, PhoneMasker::TOKEN]] as [$pattern, $token]) {
+        foreach ([[self::EMAIL, self::EMAIL_TOKEN], [PhoneMasker::MASK_PATTERN, PhoneMasker::TOKEN]] as [$pattern, $token]) {
             if (preg_match_all($pattern, $scan, $found, PREG_OFFSET_CAPTURE) === false) {
                 throw new RuntimeException('ai.eval_anonymize_failed');
             }

@@ -189,4 +189,11 @@ return [
         'confirm_runs' => 2,
     ],
 
+    // TCK-2406 (décision du porteur à prendre, avec l'avocat) — la matière collectée d'une annonce PUBLIÉE (texte brut, adresse
+    // de la source, extraction, réserve, captures), puis le numéro en clair de son annonceur, s'effacent avec la preuve de
+    // l'accord : `consent_retention_years` après le retrait du dernier bien. Éteint : la lettre d'ADR-0077 §9 et de `privacy.ts`
+    // § 6 ne purge que l'annonce jamais publiée. L'allumer change l'une et l'autre, dans la même PR (VERSION_DOCUMENTS avance).
+    // Lu par `App\Services\Radar\RadarPurger`, et nulle part ailleurs.
+    'purge_published_material' => false,
+
 ];
