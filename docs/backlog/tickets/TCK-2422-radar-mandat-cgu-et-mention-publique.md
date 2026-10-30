@@ -25,12 +25,12 @@ les conditions d'utilisation disent ce que Takussan fait alors.
 
 ## Contexte
 
-[ADR-0079](../../adr/0079-la-publication-sous-mandat-takussan.md) est **Proposé** : la publication
+[ADR-0079](../../adr/0079-la-publication-sous-mandat-takussan.md) est **accepté sur le principe le 2026-10-30** : la publication
 sous mandat existe derrière le drapeau `radar_mandate`, éteint (TCK-2394). L'article 1 des CGU dit
 « sauf mention expresse contraire, nous ne sommes ni […] mandataire immobilier des biens
 présentés » : la mention expresse est ce ticket. La règle du dossier juridique
 (`takussan-web/src/content/legal/README.md`) veut qu'un texte n'entre qu'avec le code qui le
-tient : ce ticket se fait **dans la PR qui accepte l'ADR**, avant d'allumer le drapeau.
+tient : ce ticket se fait **avant l'allumage du drapeau, après l'avis de l'avocat**.
 
 ## Delta à produire
 

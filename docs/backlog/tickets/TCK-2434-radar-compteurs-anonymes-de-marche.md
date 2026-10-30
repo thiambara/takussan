@@ -17,6 +17,11 @@ spec_refs:
 tags: [api, radar, observatoire, confidentialite, adr-0077, adr-0080]
 ---
 
+## Décision du porteur (2026-10-30)
+
+**`RADAR_NATURE_COUNTS` reste éteint jusqu'à l'avis juridique** (le drapeau `radar.nature_counts.enabled`, éteint par
+défaut, livré par TCK-2431).
+
 ## Objectif utilisateur
 
 L'observatoire garde une mémoire du marché (prix par quartier, type et nombre de chambres) au-delà
