@@ -20,6 +20,11 @@ return [
     // publiée s'effacent 90 jours après la collecte.
     'purge_after_days' => 90,
 
+    // TCK-2391 (ADR-0077 §9, `privacy.ts` § 6) — la preuve d'un accord confirmé est conservée tant que les annonces
+    // qu'elle couvre sont en ligne, puis ce nombre d'années à compter de leur retrait (`radar_consents.offline_since`).
+    // Lu par `App\Services\Radar\RadarPurger`, et nulle part ailleurs.
+    'consent_retention_years' => 3,
+
     // ADR-0077 §10 — la lecture d'une URL : polie (délai par domaine, `robots.txt`, User-Agent qui
     // se nomme) et protégée (SSRF, redirections suivies à la main, corps et délais bornés). Lue par
     // `App\Services\Radar\UrlFetcher` et `HtmlCleaner`.

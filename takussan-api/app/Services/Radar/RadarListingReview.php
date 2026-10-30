@@ -3,6 +3,7 @@
 namespace App\Services\Radar;
 
 use App\Ai\Usages\RadarExtractionUsage;
+use App\Jobs\Radar\PurgeRadarAdvertiser;
 use App\Models\AiSuggestion;
 use App\Models\Enums\AiSuggestionDecision;
 use App\Models\Enums\RadarAdvertiserNature;
@@ -199,11 +200,17 @@ final class RadarListingReview
                 $created = $this->directory->findOrCreate($e164);
                 $advertiser = RadarAdvertiser::query()->whereKey($created->id)->lockForUpdate()->firstOrFail();
                 $refused = $advertiser->do_not_contact_at !== null;
+                // Une purge entre `findOrCreate()` et le verrou ne voyait pas encore cette annonce : elle a pu effacer le numéro rendu.
+                $this->directory->restorePhone($advertiser, $e164);
             }
 
             $l->fill($refused
                 ? ['stage' => RadarListingStage::DoNotContact, 'stage_reason' => null, 'radar_advertiser_id' => $advertiser->id]
                 : ['radar_advertiser_id' => $advertiser->id])->save();
+            if ($refused) {
+                // TCK-2391 : un STOP tardif purge l'annonce tout de suite.
+                PurgeRadarAdvertiser::dispatch($advertiser->id)->afterCommit();
+            }
 
             $this->journal('radar_listing_advertiser_set', 'Annonceur de l\'annonce du Radar posé', $l, $by, [
                 'advertiser_id' => $advertiser->id,

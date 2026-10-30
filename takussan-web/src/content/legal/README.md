@@ -28,9 +28,6 @@ la plateforme fait réellement**, relevé dans le code le même jour.
    d'accord du Radar (`takussan-api/resources/radar/clauses/accord.v2.*.md`) : leur formulation
    neutre « votre ou vos annonces » (TCK-2390, décision 6a du porteur) n'a pas été relue.
 5. **Fermer TCK-537** : trois engagements de la politique ne sont pas encore tenus par le code.
-6. **Fermer TCK-2391** (révocation et purge du Radar) : il rend vrais « retirées sans délai » après un
-   STOP (article 6.3 des CGU) et les deux durées ajoutées au § 6 de la politique (annonces relevées et
-   jamais publiées : 90 jours ; preuve de l'accord : la durée des annonces en ligne, puis 3 ans).
 7. **Fermer TCK-2404** : la page de réclamation du Radar (TCK-2390) présente les Conditions à
    l'activation et rend vraie l'acceptation « en suivant le lien qu'il contient » (article 6.3 des
    CGU, `accord.v2` et `{lien_reclamation}`) ; mais le même compte s'active aussi par la connexion

@@ -306,8 +306,14 @@ final class ExtractRadarListing implements ShouldQueue
             $locked = $advertiser !== null ? RadarAdvertiser::query()->whereKey($advertiser->id)->lockForUpdate()->first() : null;
             if ($locked?->do_not_contact_at !== null) {
                 $l->fill(['stage' => RadarListingStage::DoNotContact, 'stage_reason' => null, 'radar_advertiser_id' => $locked->id]);
+                // TCK-2391 : un numéro qui a dit STOP ne garde pas la matière de l'annonce jusqu'au passage quotidien.
+                PurgeRadarAdvertiser::dispatch($locked->id)->afterCommit();
 
                 return;
+            }
+            // Une purge entre `findOrCreate()` et le verrou ne voyait pas encore cette annonce : elle a pu effacer le numéro rendu.
+            if ($locked !== null) {
+                $directory->restorePhone($locked, $phones[0]);
             }
 
             $l->fill([
@@ -410,9 +416,11 @@ final class ExtractRadarListing implements ShouldQueue
             return false;
         }
 
-        $this->settle(fn (RadarListing $l) => $l->fill([
-            'stage' => RadarListingStage::DoNotContact, 'stage_reason' => null, 'radar_advertiser_id' => $stop->id,
-        ]));
+        $this->settle(function (RadarListing $l) use ($stop): void {
+            $l->fill(['stage' => RadarListingStage::DoNotContact, 'stage_reason' => null, 'radar_advertiser_id' => $stop->id]);
+            // TCK-2391 : la matière de l'annonce part « dès un STOP », pas au passage quotidien.
+            PurgeRadarAdvertiser::dispatch($stop->id)->afterCommit();
+        });
 
         return true;
     }

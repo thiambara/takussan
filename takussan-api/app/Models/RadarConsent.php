@@ -28,6 +28,7 @@ class RadarConsent extends AbstractModel implements HasMedia
 
     // `confirmed_by_id` et `confirmed_at` hors de `$fillable` : posés ensemble par `forceFill` dans
     // `RadarConsentWorkflow::recordOutcome()`, et par lui seul (comme les colonnes de prise en charge de l'annonceur).
+    // TCK-2391 : `offline_since` et `purged_at` le sont de même, par `RadarPurger` seul.
 
     protected $casts = [
         'proof' => RadarConsentProof::class,
@@ -36,6 +37,8 @@ class RadarConsent extends AbstractModel implements HasMedia
         'ai_verdict' => 'array',
         'confirmed_at' => 'datetime',
         'revoked_at' => 'datetime',
+        'offline_since' => 'datetime',
+        'purged_at' => 'datetime',
     ];
 
     // Seulement ce que `RadarConsentResource` expose : ni les empreintes des captures, ni l'identifiant du message du
