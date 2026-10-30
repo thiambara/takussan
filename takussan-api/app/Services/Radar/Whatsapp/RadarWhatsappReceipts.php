@@ -21,6 +21,8 @@ use Illuminate\Support\Facades\Log;
  * - **Un `failed` est journalisé** (`radar_whatsapp_delivery_failed`) avec le code de Meta, seule partie stable de
  *   l'erreur ; ni son texte (`title`, `message`, `error_data` peuvent citer le numéro), ni le numéro. Sur un envoi
  *   `ambiguous`, il dit que le message n'est pas parti ; le message reste envoyé (`sent_at`) : l'opérateur juge.
+ *   TCK-2444 : ce code est aussi écrit sur la ligne (`provider_error_code`, null sans code), que la fiche annonceur
+ *   rend ; tout autre statut écrit la remet à null.
  * - **Un accusé d'identifiant inconnu est ignoré**, compté (`received`) et journalisé par son identifiant et son statut
  *   seuls, **jamais rattaché par inférence**. Le rattacher « au seul envoi ambigu de ce numéro » rouvrait le double envoi
  *   de la reprise de {@see RadarWhatsappOutreach} (l'accusé d'une relance pris par un ancien ambigu, puis l'index unique
@@ -44,6 +46,9 @@ final class RadarWhatsappReceipts
     public const STATUS_READ = 'read';
 
     public const STATUS_FAILED = 'failed';
+
+    /** Le plus grand code que tient `radar_outreaches.provider_error_code` (`integer` de PostgreSQL). */
+    private const MAX_ERROR_CODE = 2147483647;
 
     /** Le rang d'un statut : un accusé n'écrit que s'il avance. `failed` a ses propres règles ({@see self::advances()}). */
     private const RANKS = [
@@ -116,10 +121,10 @@ final class RadarWhatsappReceipts
             }
 
             $previous = $outreach->provider_status;
-            $outreach->forceFill(['provider_status' => $new, 'provider_message_id' => $id])->save();
+            $code = $new === self::STATUS_FAILED ? self::errorCode($status) : null;
+            $outreach->forceFill(['provider_status' => $new, 'provider_message_id' => $id, 'provider_error_code' => $code])->save();
 
             if ($new === self::STATUS_FAILED) {
-                $code = self::errorCode($status);
                 Log::warning('[radar.whatsapp] message non remis', ['outreach_id' => $outreach->id, 'provider_message_id' => $id, 'code' => $code]);
                 activity('Admin')
                     ->performedOn($outreach)
@@ -201,13 +206,18 @@ final class RadarWhatsappReceipts
 
     /**
      * Le code de la première erreur d'un `failed` (`131026` : non remis, `131049` : limité par Meta…) ; null sans code.
+     * TCK-2444 : null aussi hors de l'entier de `provider_error_code` (`integer`), pour qu'un code aberrant n'empêche
+     * jamais d'écrire `failed`.
      *
      * @param  array<string, mixed>  $status
      */
     private static function errorCode(array $status): ?int
     {
         $code = $status['errors'][0]['code'] ?? null;
+        if (is_string($code) && ctype_digit($code)) {
+            $code = (int) $code;
+        }
 
-        return is_int($code) || (is_string($code) && ctype_digit($code)) ? (int) $code : null;
+        return is_int($code) && $code >= 0 && $code <= self::MAX_ERROR_CODE ? $code : null;
     }
 }

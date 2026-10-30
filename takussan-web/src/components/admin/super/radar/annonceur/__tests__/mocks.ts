@@ -77,6 +77,7 @@ export function message(partiel: Partial<RadarOutreach> = {}): RadarOutreach {
     consents: [],
     channel: 'whatsapp_manual',
     provider_status: null,
+    provider_error_code: null,
     ...partiel,
   };
 }

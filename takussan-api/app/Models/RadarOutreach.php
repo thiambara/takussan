@@ -33,6 +33,7 @@ class RadarOutreach extends AbstractModel
         'sent_at' => 'datetime',
         'outcome_at' => 'datetime',
         'follow_up_rank' => 'integer',
+        'provider_error_code' => 'integer',
     ];
 
     // Aucune liste de messages : la fiche annonceur les rend par `RadarOutreachResource`. Seules les colonnes que cette

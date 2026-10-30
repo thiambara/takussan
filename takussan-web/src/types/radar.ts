@@ -454,6 +454,8 @@ export interface RadarOutreach {
   readonly channel: RadarOutreachChannel;
   /** TCK-2395 — `null` pour un message manuel ou un brouillon. */
   readonly provider_status: RadarOutreachProviderStatus | null;
+  /** TCK-2444 — le code de Meta d'un échec de remise (`131026`…) ; `null` hors `failed` ou sans code. Jamais son texte. */
+  readonly provider_error_code: number | null;
 }
 
 /** La réponse de la préparation : le message, plus ce que l'IA a rendu (`ai_error` : un code, jamais de prose). */
