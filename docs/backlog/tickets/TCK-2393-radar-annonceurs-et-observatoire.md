@@ -111,6 +111,12 @@ la PR de TCK-2392 puis celle-ci le bascule, dans le même geste que TCK-2392.
   TCK-2392) : `started_at` est posé au début du passage, chaque carte revue écrit `last_seen_at = now()`, et
   `reached_end` n'est vrai que sans page suivante. La règle « `max(last_seen_at) < started_at` du dernier passage
   complet » repose sur ces trois faits.
+- **Confirmé par n2392 (TCK-2392)** : `started_at` est posé au passage `queued` → `running`, `last_seen_at = now()`
+  ensuite (colonnes à la seconde, inégalité tenue) ; `reached_end` n'est écrit qu'avant `STOP_END`. Deux conséquences,
+  dites à l'écran : avec `max_pages` à 5 (défaut), une liste plus longue n'atteint jamais `reached_end` et rien n'est
+  constaté sur ce site tant que le plafond n'est pas monté (20 au plus) ; « disparue » veut dire absente de la liste de
+  départ de l'adaptateur, pas forcément supprimée du site. Une annonce purgée revue par la collecte reçoit des
+  instantanés : elle peut être marquée disparue (donnée anonyme, aucune alerte sans bien).
 - **`natures` n'est pas anonyme** et ne survit pas à la purge (elle remet la nature à `unknown`) : c'est pourquoi
   AC1 porte sur les sections du marché, et pourquoi TCK-2431 existe. Le garde de colonnes (`raw_text`,
   `extracted`, `source_url`, `phone`, `display_name`, `similarity_text`, `nature_signals`) couvre toutes les
