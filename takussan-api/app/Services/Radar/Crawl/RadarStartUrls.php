@@ -18,9 +18,11 @@ use Throwable;
  *  - `https` seulement ;
  *  - un hôte de la liste EXACTE que déclare l'adaptateur (`RadarSiteAdapter::startHosts()`, dans le code, jamais en
  *    configuration) ;
- *  - ni identifiants, ni port, ni espace, ni barre oblique inverse, ni caractère de contrôle ;
+ *  - ni identifiants, ni port (pas même `:443`, lu sur la chaîne brute : Guzzle efface le port par défaut), ni fragment
+ *    (`#`), ni espace, ni barre oblique inverse, ni caractère de contrôle ;
  *  - au plus `radar.crawl.start_url_max_length` caractères, au plus `radar.crawl.max_start_urls` URL par site ;
- *  - pas de doublon.
+ *  - pas de doublon, jugé sur la forme canonique ({@see self::canonical()} : schéma et hôte en minuscules), qui est
+ *    aussi celle qu'on enregistre et qu'on lit.
  *
  * L'hôte se lit avec l'analyseur de Guzzle, celui d'`UrlFetcher`. La lecture qui suit garde ses propres contrôles
  * (SSRF à chaque saut, `robots.txt`, créneau par domaine).
@@ -52,6 +54,10 @@ final class RadarStartUrls
         if (strlen($url) > self::maxLength()) {
             return self::REFUSED_TOO_LONG;
         }
+        // Un port explicite (même vide ou `:443`) ou un fragment, lus sur la chaîne brute.
+        if (str_contains($url, '#') || preg_match('#^[a-z][a-z0-9+.-]*://[^/?]*:#i', $url) === 1) {
+            return self::REFUSED_INVALID;
+        }
 
         try {
             $uri = new Uri($url);
@@ -65,6 +71,15 @@ final class RadarStartUrls
         $hosts = array_map('strtolower', $adapter->startHosts());
 
         return in_array(strtolower($uri->getHost()), $hosts, true) ? null : self::REFUSED_HOST;
+    }
+
+    /**
+     * La forme canonique d'une URL acceptée par {@see self::refusal()} : celle de Guzzle (schéma et hôte en minuscules),
+     * que la lecture emploie aussi. Deux variantes de casse de l'hôte sont donc la même URL de départ.
+     */
+    public static function canonical(string $url): string
+    {
+        return (string) new Uri($url);
     }
 
     /**
@@ -98,13 +113,13 @@ final class RadarStartUrls
         if (! is_array($stored) || $stored === []) {
             $default = $adapter->startUrl();
 
-            return $this->refusal($adapter, $default) === null ? [$default] : [];
+            return $this->refusal($adapter, $default) === null ? [self::canonical($default)] : [];
         }
 
         $urls = [];
         foreach ($stored as $url) {
-            if ($this->refusal($adapter, $url) === null && ! in_array($url, $urls, true)) {
-                $urls[] = $url;
+            if ($this->refusal($adapter, $url) === null && ! in_array(self::canonical($url), $urls, true)) {
+                $urls[] = self::canonical($url);
             }
         }
 

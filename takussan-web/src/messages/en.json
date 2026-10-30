@@ -9669,7 +9669,7 @@
             "generic": "The setting failed.",
             "startUrlsTooMany": "Too many start URLs: {max} at most per site.",
             "startUrlTooLong": "URL no. {rank} is too long: {max} characters at most.",
-            "startUrlInvalid": "URL no. {rank} is not accepted: an https address, without credentials or port.",
+            "startUrlInvalid": "URL no. {rank} is not accepted: an https address, without credentials, port or fragment (#).",
             "startUrlHost": "URL no. {rank} is not on the site: it must start from {hosts}.",
             "startUrlDuplicate": "URL no. {rank} is already in the list."
           },

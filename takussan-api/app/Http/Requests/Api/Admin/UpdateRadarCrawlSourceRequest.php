@@ -58,6 +58,7 @@ class UpdateRadarCrawlSourceRequest extends BaseFormRequest
 
         $adapter = $sources->adapter($site);
         $checker = app(RadarStartUrls::class);
+        $seen = [];
         foreach ($urls as $i => $url) {
             $field = "start_urls.{$i}";
             match ($checker->refusal($adapter, $url)) {
@@ -66,7 +67,10 @@ class UpdateRadarCrawlSourceRequest extends BaseFormRequest
                 RadarStartUrls::REFUSED_HOST => abort_code(422, 'radar.crawl.start_url_host', ['field' => $field, 'hosts' => $adapter->startHosts()]),
                 default => abort_code(422, 'radar.crawl.start_url_invalid', ['field' => $field]),
             };
-            abort_code_if(array_search($url, $urls, true) !== $i, 422, 'radar.crawl.start_url_duplicate', ['field' => $field]);
+            // Le doublon se juge sur la forme canonique : `WWW.expat-dakar.com` est `www.expat-dakar.com`.
+            $canonical = RadarStartUrls::canonical($url);
+            abort_code_if(in_array($canonical, $seen, true), 422, 'radar.crawl.start_url_duplicate', ['field' => $field]);
+            $seen[] = $canonical;
         }
     }
 
@@ -83,7 +87,9 @@ class UpdateRadarCrawlSourceRequest extends BaseFormRequest
             }
         }
         if ($this->has('start_urls')) {
-            $changes['start_urls'] = RadarStartUrls::normalize($this->validated('start_urls'));
+            // Chaque URL a passé `passedValidation()` : on enregistre sa forme canonique, celle que le passage lit.
+            $urls = RadarStartUrls::normalize($this->validated('start_urls'));
+            $changes['start_urls'] = $urls === null ? null : array_map(RadarStartUrls::canonical(...), $urls);
         }
 
         return $changes;

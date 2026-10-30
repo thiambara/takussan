@@ -36,8 +36,10 @@ use Illuminate\Support\Sleep;
  * Les compteurs sont écrits après chaque page : un passage interrompu laisse ce qu'il a fait. Le plafond de pages, le
  * budget de temps et le créneau du domaine pris arrêtent le PASSAGE. La fin d'une liste, une page sans carte, une lecture
  * refusée ou une pagination qui renvoie vers une page déjà lue (`radar.crawl.loop`) n'arrêtent que la LISTE : la suivante
- * est lue. `reached_end` n'est vrai que si chaque liste est allée jusqu'au bout ; sinon l'arrêt du passage est celui de
- * la première liste qui ne l'a pas fait. Un passage que le planificateur a clos entre-temps (`radar.crawl.lost`) le
+ * est lue. Une liste qui rejoint une page déjà lue par une liste précédente s'arrête là, sur sa fin : la suite a été lue,
+ * et l'arrêt de l'autre liste compte. `reached_end` n'est vrai que si chaque liste est allée jusqu'au bout, quel que soit
+ * l'ordre des URL ; sinon l'arrêt du passage est celui de la première liste qui ne l'a pas fait (une boucle se lit dans
+ * la console : `radar.crawl.loop`). Un passage que le planificateur a clos entre-temps (`radar.crawl.lost`) le
  * reste : la fin ne réécrit qu'un passage encore `running`.
  */
 final class RadarCrawler
@@ -117,6 +119,8 @@ final class RadarCrawler
      */
     private function walk(string $url, RadarCrawlRun $run, User $operator, RadarSiteAdapter $adapter, CrawlWalk $walk): string
     {
+        /** @var array<string, true> $own les pages lues par CETTE liste */
+        $own = [];
         while (true) {
             if ($run->pages_read >= $walk->maxPages) {
                 return RadarCrawlRun::STOP_MAX_PAGES;
@@ -124,16 +128,21 @@ final class RadarCrawler
             if (now()->greaterThanOrEqualTo($walk->deadline)) {
                 return self::STOP_TIME_BUDGET;
             }
-            if (isset($walk->visited[$url])) {
+            if (isset($own[$url])) {
                 return RadarCrawlRun::STOP_LOOP;
+            }
+            if (isset($walk->visited[$url])) {
+                // TCK-2438 (M2) — la suite d'une liste PRÉCÉDENTE : elle a été lue par elle, et son arrêt compte déjà. Ce
+                // n'est pas une boucle ; sans cela, `reached_end` dépendait de l'ordre des URL d'un même périmètre.
+                return RadarCrawlRun::STOP_END;
             }
 
             $page = $this->read($url);
             if (is_string($page)) {
                 return $page;
             }
-            $walk->visited[$url] = true;
-            $walk->visited[$page->url] = true;
+            $walk->visited[$url] = $walk->visited[$page->url] = true;
+            $own[$url] = $own[$page->url] = true;
 
             $list = $adapter->parse($page->body, $page->url);
             $run->pages_read++;

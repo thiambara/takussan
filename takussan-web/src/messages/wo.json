@@ -9015,7 +9015,7 @@
             "generic": "Le réglage a échoué.",
             "startUrlsTooMany": "Trop d’URL de départ : {max} au plus par site.",
             "startUrlTooLong": "L’URL n° {rank} est trop longue : {max} caractères au plus.",
-            "startUrlInvalid": "L’URL n° {rank} n’est pas acceptée : une adresse https, sans identifiants ni port.",
+            "startUrlInvalid": "L’URL n° {rank} n’est pas acceptée : une adresse https, sans identifiants, port ni fragment (#).",
             "startUrlHost": "L’URL n° {rank} n’est pas sur le site : elle doit partir de {hosts}.",
             "startUrlDuplicate": "L’URL n° {rank} est déjà dans la liste."
           },

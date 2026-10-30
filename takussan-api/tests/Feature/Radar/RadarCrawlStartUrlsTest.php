@@ -188,6 +188,10 @@ class RadarCrawlStartUrlsTest extends TestCase
             'identifiants sur le bon hôte' => [['https://user:pw@www.expat-dakar.com/immobilier'], 'radar.crawl.start_url_invalid'],
             'barre inverse' => [['https://www.expat-dakar.com\\@evil.example/'], 'radar.crawl.start_url_invalid'],
             'port' => [['https://www.expat-dakar.com:8443/immobilier'], 'radar.crawl.start_url_invalid'],
+            'port par défaut explicite' => [['https://www.expat-dakar.com:443/immobilier'], 'radar.crawl.start_url_invalid'],
+            'port vide' => [['https://www.expat-dakar.com:/immobilier'], 'radar.crawl.start_url_invalid'],
+            'fragment' => [['https://www.expat-dakar.com/immobilier#haut'], 'radar.crawl.start_url_invalid'],
+            'doublon par la casse de l\'hôte' => [[self::APPARTEMENTS, 'https://WWW.Expat-Dakar.com/appartements-a-louer?ville=dakar'], 'radar.crawl.start_url_duplicate'],
             'espace' => [['https://www.expat-dakar.com/immo bilier'], 'radar.crawl.start_url_invalid'],
             'javascript' => [['javascript:alert(1)'], 'radar.crawl.start_url_invalid'],
             'adresse IP' => [['https://93.184.216.34/immobilier'], 'radar.crawl.start_url_host'],
@@ -202,7 +206,8 @@ class RadarCrawlStartUrlsTest extends TestCase
                 ->assertUnprocessable()
                 ->assertJsonPath('code', $code);
             if ($code !== 'radar.crawl.start_urls_too_many') {
-                $this->assertSame('start_urls.'.($nom === 'doublon' ? 2 : 0), $reponse->json('params.field'), $nom);
+                $rang = ['doublon' => 2, 'doublon par la casse de l\'hôte' => 1][$nom] ?? 0;
+                $this->assertSame('start_urls.'.$rang, $reponse->json('params.field'), $nom);
             }
 
             $source = RadarCrawlSource::query()->where('site', $site)->firstOrFail();
@@ -217,6 +222,15 @@ class RadarCrawlStartUrlsTest extends TestCase
             'start_urls' => [...array_map(fn (int $i) => self::LIST.'?page='.$i, range(1, 9)), substr($long, 0, 500)],
         ])->assertOk();
         $this->assertCount(10, $this->source()->start_urls);
+    }
+
+    public function test_l_url_s_enregistre_sous_sa_forme_canonique_hote_en_minuscules(): void
+    {
+        $this->agirEnOperateur(PlatformProfileLevel::SuperAdmin);
+
+        $this->patchJson('/api/admin/radar/crawl/sources/expat_dakar', ['start_urls' => ['HTTPS://WWW.Expat-Dakar.com/appartements-a-louer?ville=dakar']])
+            ->assertOk()
+            ->assertJsonPath('data.start_urls', [self::APPARTEMENTS]);
     }
 
     // ── Le passage (AC1, AC2, AC4) ────────────────────────────────────────────────────────────
@@ -274,6 +288,42 @@ class RadarCrawlStartUrlsTest extends TestCase
         $this->assertTrue($run->reached_end);
         $this->assertSame(2, $run->pages_read);
         $this->assertCount(1, Http::recorded(fn (Request $request) => $request->url() === self::LIST.'?page=2'));
+    }
+
+    public function test_la_fin_de_la_liste_ne_depend_pas_de_l_ordre_des_urls(): void
+    {
+        // Vérification adverse M2 : la page 2 en premier, puis la page 1 dont la pagination y mène. Même périmètre que
+        // l'ordre inverse, même verdict : la liste rejoint une page lue par la précédente, ce n'est pas une boucle.
+        $this->regler([self::LIST.'?page=2', self::LIST]);
+
+        $run = $this->crawl();
+
+        $this->assertSame(RadarCrawlRun::STOP_END, $run->stop_reason);
+        $this->assertTrue($run->reached_end);
+        $this->assertSame(2, $run->pages_read);
+        $this->assertCount(1, Http::recorded(fn (Request $request) => $request->url() === self::LIST.'?page=2'));
+    }
+
+    public function test_une_variante_de_casse_ecrite_en_base_n_est_lue_qu_une_fois(): void
+    {
+        $this->regler([self::LIST, 'https://WWW.expat-dakar.com/immobilier']);
+
+        $run = $this->crawl();
+
+        $this->assertSame([self::LIST], $run->start_urls);
+        $this->assertTrue($run->reached_end);
+        $this->assertCount(1, Http::recorded(fn (Request $request) => $request->url() === self::LIST));
+    }
+
+    public function test_une_vraie_boucle_reste_une_boucle_et_se_lit_dans_le_passage(): void
+    {
+        $this->pages[self::TERRAINS] = $this->page([$this->carte('terrain-fictif-diamniadio-9100003')], self::TERRAINS);
+        $this->regler([self::LIST, self::TERRAINS]);
+
+        $run = $this->crawl();
+
+        $this->assertSame(RadarCrawlRun::STOP_LOOP, $run->stop_reason, 'La console le dit : « la pagination renvoie vers une page déjà lue ».');
+        $this->assertFalse($run->reached_end);
     }
 
     public function test_sans_url_reglee_le_passage_lit_l_url_de_la_configuration(): void

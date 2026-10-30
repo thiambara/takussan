@@ -116,13 +116,15 @@ final class RadarSourceWatch
     /**
      * Les passages complets du site commencés après la dernière présence de l'annonce (lié : le site).
      *
-     * TCK-2438 — et dont le périmètre (`start_urls`, l'ensemble trié des listes lues) CONTIENT celui du passage qui l'a vue
-     * en dernier : le dernier passage du site commencé avant cette présence (un seul passage actif par site). Élargir les
-     * URL de départ ne coupe donc pas la détection ; les restreindre, si : un passage qui n'a pas relu la liste où elle était
-     * ne dit rien d'elle, et elle n'est jugée de nouveau qu'une fois revue. Un passage antérieur à TCK-2438 (`start_urls`
-     * nulle) se lit comme l'URL ACTUELLE de la configuration du site (liée deux fois, après le site :
-     * {@see RadarStartUrls::legacyPerimeterJson()}). L'inclusion est l'opérateur `@>` de jsonb sur deux tableaux de
-     * chaînes.
+     * TCK-2438 — et dont le périmètre (`start_urls`, l'ensemble trié des listes lues) CONTIENT celui de CHAQUE passage du
+     * site actif à cette présence (`started_at <= présence <= finished_at`, ou pas encore fini) : ceux qui ont pu la voir.
+     * Les dates sont à la seconde : un passage lancé dans la seconde de la dernière observation est actif à cette présence,
+     * et le passage qui l'a vraiment vue l'est aussi (vérification adverse M1 — avec le seul « dernier passage commencé
+     * avant », il passait pour celui qui l'avait vue). Élargir les URL de départ ne coupe donc pas la détection ; les
+     * restreindre, si : un passage qui n'a pas relu la liste où elle était ne dit rien d'elle, et elle n'est jugée de
+     * nouveau qu'une fois revue. Un passage antérieur à TCK-2438 (`start_urls` nulle) se lit comme l'URL ACTUELLE de la
+     * configuration du site (liée deux fois, après le site : {@see RadarStartUrls::legacyPerimeterJson()}). L'inclusion est
+     * l'opérateur `@>` de jsonb sur deux tableaux de chaînes.
      */
     private function completeRunsSinceSql(): string
     {
@@ -131,8 +133,10 @@ final class RadarSourceWatch
 
         return "select count(*) from {$table} r where r.site = ? and r.status = '{$finished}' and r.reached_end = true"
             .' and r.started_at > ('.$this->lastSeenSql().')'
-            .' and coalesce(r.start_urls, ?::jsonb) @> coalesce((select r2.start_urls from '.$table.' r2 where r2.site = r.site'
-            .' and r2.started_at <= ('.$this->lastSeenSql().') order by r2.started_at desc, r2.id desc limit 1), ?::jsonb)';
+            .' and not exists (select 1 from '.$table.' r2 where r2.site = r.site'
+            .' and r2.started_at <= ('.$this->lastSeenSql().')'
+            ." and coalesce(r2.finished_at, 'infinity'::timestamp) >= (".$this->lastSeenSql().')'
+            .' and not coalesce(r.start_urls, ?::jsonb) @> coalesce(r2.start_urls, ?::jsonb))';
     }
 
     /** La dernière présence d'une annonce : `null` sans instantané (la comparaison est alors fausse, l'annonce n'est pas jugée). */

@@ -786,7 +786,7 @@ return [
             // TCK-2438 — start URLs set from the console.
             'start_urls_too_many' => 'Too many start URLs: :max at most per site.',
             'start_url_too_long' => 'This start URL is too long: :max characters at most.',
-            'start_url_invalid' => 'This start URL is not accepted: an https address, without credentials or port.',
+            'start_url_invalid' => 'This start URL is not accepted: an https address, without credentials, port or fragment (#).',
             'start_url_host' => 'This start URL is not on the site: it must start from :hosts.',
             'start_url_duplicate' => 'This start URL is already in the list.',
         ],

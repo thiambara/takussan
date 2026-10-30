@@ -11,6 +11,7 @@ use App\Models\Enums\RadarSourceSite;
 use App\Models\Property;
 use App\Models\RadarCrawlRun;
 use App\Models\RadarListing;
+use App\Models\RadarListingSnapshot;
 use App\Models\User;
 use App\Services\Radar\Crawl\RadarCrawlScheduler;
 use App\Services\Radar\Crawl\RadarCrawlSources;
@@ -116,9 +117,11 @@ class RadarSourceWatchStartUrlsTest extends TestCase
         $this->app->make(RadarCrawlSources::class)->find(RadarSourceSite::ExpatDakar->value)->forceFill(['start_urls' => $urls])->save();
     }
 
-    private function crawl(): RadarCrawlRun
+    private function crawl(bool $uneHeureApres = true): RadarCrawlRun
     {
-        $this->travel(1)->hours();
+        if ($uneHeureApres) {
+            $this->travel(1)->hours();
+        }
         $run = $this->app->make(RadarCrawlScheduler::class)->startManually(RadarSourceSite::ExpatDakar, $this->operator);
         $this->assertNotNull($run);
 
@@ -149,6 +152,28 @@ class RadarSourceWatchStartUrlsTest extends TestCase
         $this->assertNull($studio->source_gone_at);
         $this->assertNull($studio->availability_asked_at, 'Aucune question au titulaire (TCK-2432).');
         Bus::assertNotDispatched(SendAdminAlert::class);
+    }
+
+    public function test_un_passage_lance_dans_la_seconde_de_la_derniere_observation_ne_fait_pas_disparaitre_l_annonce(): void
+    {
+        // Vérification adverse M1 : les dates sont à la seconde. Le premier passage voit le studio puis finit ; le porteur
+        // restreint le périmètre et relance aussitôt, dans la même seconde. Ce passage-là n'a pas vu le studio : il ne doit
+        // pas passer pour celui qui l'a vu en dernier.
+        $premier = $this->crawl();
+        $studio = $this->publier(self::STUDIO);
+        $this->regler([self::APPARTEMENTS]);
+        $relance = $this->crawl(uneHeureApres: false);
+        $vu = RadarListingSnapshot::query()->where('radar_listing_id', $studio->id)->max('last_seen_at');
+        $this->assertSame((string) $vu, $relance->started_at->format('Y-m-d H:i:s'), 'La relance démarre dans la seconde de la dernière observation.');
+        $this->assertSame($vu, $premier->finished_at->format('Y-m-d H:i:s'));
+
+        $this->crawl();
+        $this->crawl();
+
+        $this->assertSame(0, app(RadarSourceWatch::class)->observe()['gone']);
+        $studio->refresh();
+        $this->assertNull($studio->source_gone_at);
+        $this->assertNull($studio->availability_asked_at, 'Aucune question au titulaire.');
     }
 
     public function test_changer_l_url_de_la_configuration_est_un_changement_de_perimetre(): void
