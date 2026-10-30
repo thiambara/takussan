@@ -42,10 +42,14 @@ final class ConsentMessageComposer
      * et une formulation qui vaut pour une annonce comme pour plusieurs. Chaque message garde la sienne
      * (`radar_outreaches.clauses_version`) : un message préparé en `accord.v1` se recompose en `accord.v1`, sans lien.
      *
-     * ⚠ La formulation neutre (« votre ou vos annonces », décision 6a du porteur, 2026-10-29) attend la relecture de
-     * l'avocat — ligne 4 de « Avant la mise en production » dans `takussan-web/src/content/legal/README.md`.
+     * TCK-2395 : `accord.v3` = `accord.v2` précédé de « Takussan — » sur la ligne de la salutation, clauses identiques mot pour
+     * mot. Meta refuse un gabarit dont le corps commence par une variable (`{salutation}`) ; le canal manuel et l'API
+     * partagent ainsi le même texte. `accord.v2` reste lisible pour les messages préparés avant.
+     *
+     * ⚠ La formulation neutre (« votre ou vos annonces », décision 6a du porteur, 2026-10-29) et l'ouverture d'`accord.v3`
+     * attendent la relecture de l'avocat — ligne 4 de « Avant la mise en production » dans `takussan-web/src/content/legal/README.md`.
      */
-    public const CLAUSES_VERSION = 'accord.v2';
+    public const CLAUSES_VERSION = 'accord.v3';
 
     /** (décision 5, porteur 2026-10-28) — pas de wolof tant qu'il est en pause. */
     public const LOCALES = ['fr', 'en'];

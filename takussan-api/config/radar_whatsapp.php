@@ -38,13 +38,20 @@ return [
     'webhook_verify_token' => env('RADAR_WHATSAPP_WEBHOOK_VERIFY_TOKEN', ''),
 
     /**
+     * Un texte reçu qui vaut exactement STOP (aux espaces, à la casse et à la ponctuation finale près) révoque l'annonceur
+     * dès la réception (ADR-0081). `false` : il reste une réponse que l'opérateur tranche.
+     */
+    'auto_stop' => (bool) env('RADAR_WHATSAPP_AUTO_STOP', true),
+
+    /**
      * Le gabarit Meta approuvé de chaque version de clauses (`radar_outreaches.clauses_version`). Son corps
      * est le fichier de clauses où chaque marqueur devient `{{1}}`, `{{2}}`… dans l'ordre :
      * `php artisan radar:whatsapp-template <langue>` l'imprime. Une version absente ne s'envoie pas par
-     * l'API (`radar.whatsapp.template_missing`) : `accord.v1` n'a jamais été soumise.
+     * l'API (`radar.whatsapp.template_missing`) : ni `accord.v1` ni `accord.v2` — leur corps s'ouvre sur `{{1}}`, ce que
+     * Meta refuse ; `accord.v3` s'ouvre sur un texte fixe.
      */
     'templates' => [
-        'accord.v2' => 'takussan_radar_accord_v2',
+        'accord.v3' => 'takussan_radar_accord_v3',
     ],
 
     /** La langue Meta du gabarit, par langue du message. */

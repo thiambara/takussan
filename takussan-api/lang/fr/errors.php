@@ -717,7 +717,7 @@ return [
             'not_sent' => 'Ce message n\'a pas été envoyé : aucune réponse ni issue ne s\'y enregistre.',
             'outcome_final' => 'Ce message est clos : ni réponse ni issue ne s\'y ajoute plus.',
             'superseded' => 'Ce message a été relancé : déposez la réponse ou l\'issue sur la dernière relance.',
-            'reply_pending' => 'Une réponse de ce message attend encore sa vérification : attendez son verdict avant d\'en déposer une autre.',
+            'reply_pending' => 'Une réponse de ce message attend encore sa vérification ou son issue : attendez son verdict, ou posez son issue, avant d\'aller plus loin.',
         ],
         'consent' => [
             'reply_required' => 'Aucune réponse n\'est déposée sur ce message : déposez les captures de l\'annonceur avant de confirmer l\'accord.',
@@ -749,10 +749,11 @@ return [
         // TCK-2395 — le démarchage par l'API, depuis le numéro WhatsApp dédié au Radar.
         'whatsapp' => [
             'not_configured' => 'Le numéro WhatsApp du Radar n\'est pas configuré : envoyez ce message par WhatsApp, à la main.',
-            'same_number' => 'Le numéro configuré pour le Radar est celui des notifications : il ne sert jamais à prospecter. Rien n\'est envoyé.',
+            'same_number' => 'Le numéro ou le jeton configuré pour le Radar est celui des notifications : il ne sert jamais à prospecter. Rien n\'est envoyé.',
             'template_missing' => 'Aucun modèle Meta approuvé pour cette version des clauses ou cette langue : envoyez ce message par WhatsApp, à la main.',
             'message_mismatch' => 'Le modèle Meta ne redonnerait pas exactement le texte enregistré de ce message : préparez-en un nouveau.',
             'send_failed' => 'Meta a refusé l\'envoi (:reason) : rien n\'est enregistré, le message reste préparé.',
+            'summary_too_long' => 'Pour un envoi par l\'API, le résumé ne doit pas dépasser :max caractères : raccourcissez-le, ou envoyez ce message par WhatsApp, à la main.',
         ],
         // TCK-2390 — la réclamation par l'annonceur, page publique : aucun mot du Radar.
         'claim' => [

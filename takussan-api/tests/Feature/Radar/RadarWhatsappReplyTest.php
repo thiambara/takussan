@@ -3,6 +3,8 @@
 namespace Tests\Feature\Radar;
 
 use App\Ai\Agents\RadarConsentVerification;
+use App\Exceptions\ApiError;
+use App\Jobs\Radar\PurgeRadarAdvertiser;
 use App\Jobs\Radar\VerifyRadarConsentReply;
 use App\Models\AiCall;
 use App\Models\Enums\AiModelRole;
@@ -10,6 +12,7 @@ use App\Models\Enums\PlatformProfileLevel;
 use App\Models\Enums\RadarConsentProof;
 use App\Models\Enums\RadarListingStage;
 use App\Models\Enums\RadarOutreachChannel;
+use App\Models\Enums\RadarOutreachOutcome;
 use App\Models\Enums\RadarVerificationStatus;
 use App\Models\IntegrationWebhookLog;
 use App\Models\RadarAdvertiser;
@@ -20,12 +23,18 @@ use App\Models\User;
 use App\Services\Ai\AiUsageRegistry;
 use App\Services\Ai\PromptRepository;
 use App\Services\Radar\ConsentMessageComposer;
+use App\Services\Radar\RadarFollowUps;
+use App\Services\Radar\Whatsapp\RadarWhatsappInbox;
 use App\Services\Webhooks\WebhookReplayer;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Testing\TestResponse;
+use RuntimeException;
+use Spatie\Activitylog\Models\Activity;
 use Tests\Support\Ai\SocleIaDEssai;
 use Tests\Support\OperateursPlateforme;
 use Tests\TestCase;
@@ -240,6 +249,85 @@ class RadarWhatsappReplyTest extends TestCase
         Bus::assertNotDispatched(VerifyRadarConsentReply::class);
     }
 
+    // --- I-1 : le STOP reçu --------------------------------------------------------------------------
+
+    /** I-1 (a) — le droit d'opposition « en répondant STOP » n'attend pas qu'un opérateur lise la réponse. */
+    public function test_un_stop_recu_revoque_l_annonceur_des_la_reception(): void
+    {
+        Bus::fake([VerifyRadarConsentReply::class, PurgeRadarAdvertiser::class]);
+
+        $this->recevoir($this->corps([$this->texte(' Stop. ', 'wamid.STOP-1')]))->assertOk();
+
+        $this->assertNotNull($this->annonceur->fresh()->do_not_contact_at);
+        $this->assertSame(RadarListingStage::DoNotContact, $this->annonce->fresh()->stage);
+        $message = $this->message->fresh();
+        $this->assertSame(RadarOutreachOutcome::Stop, $message->outcome);
+        $this->assertNull($message->outcome_by_id);
+        $this->assertSame(0, RadarConsent::query()->count());
+        Bus::assertNotDispatched(VerifyRadarConsentReply::class);
+        Bus::assertDispatched(PurgeRadarAdvertiser::class, fn (PurgeRadarAdvertiser $job): bool => $job->advertiserId === $this->annonceur->id);
+        $journal = Activity::query()->where('event', 'radar_stop_received')->sole();
+        $this->assertSame('wamid.STOP-1', $journal->properties['provider_message_id']);
+        $this->assertSame(1, IntegrationWebhookLog::query()->sole()->matched_count);
+
+        // Rejoué par Meta : rien de plus, la première date reste.
+        $date = $this->annonceur->fresh()->do_not_contact_at;
+        $this->recevoir($this->corps([$this->texte('STOP', 'wamid.STOP-1')]))->assertOk();
+        $this->assertEquals($date, $this->annonceur->fresh()->do_not_contact_at);
+        $this->assertSame(1, Activity::query()->where('event', 'radar_stop_received')->count());
+    }
+
+    /** Exactement STOP, aux espaces, à la casse et à la ponctuation finale près ; tout autre texte reste une réponse à trancher. */
+    public function test_seul_un_texte_qui_vaut_exactement_stop_est_un_stop(): void
+    {
+        foreach (['STOP', 'Stop.', 'stop !', '  sToP  ', 'STOP!!', 'Stop…'] as $texte) {
+            $this->assertTrue(RadarWhatsappInbox::isStop($texte), $texte);
+        }
+        foreach (['STOP svp', 'Non merci, stop', 'stopper', 'Arrêtez', 'S T O P', '.stop', 'OUI'] as $texte) {
+            $this->assertFalse(RadarWhatsappInbox::isStop($texte), $texte);
+        }
+
+        Bus::fake([VerifyRadarConsentReply::class, PurgeRadarAdvertiser::class]);
+        $this->recevoir($this->corps([$this->texte('Non merci, stop', 'wamid.NON-1')]))->assertOk();
+
+        $this->assertNull($this->annonceur->fresh()->do_not_contact_at);
+        $this->assertSame(RadarVerificationStatus::Pending, RadarConsent::query()->sole()->verification_status);
+        Bus::assertNotDispatched(PurgeRadarAdvertiser::class);
+    }
+
+    /** `radar_whatsapp.auto_stop = false` : le STOP redevient une réponse que l'opérateur tranche. */
+    public function test_sans_auto_stop_un_stop_reste_une_reponse_a_trancher(): void
+    {
+        Bus::fake([VerifyRadarConsentReply::class, PurgeRadarAdvertiser::class]);
+        config(['radar_whatsapp.auto_stop' => false]);
+
+        $this->recevoir($this->corps([$this->texte('STOP', 'wamid.STOP-2')]))->assertOk();
+
+        $this->assertNull($this->annonceur->fresh()->do_not_contact_at);
+        $this->assertSame('Annonceur : STOP', RadarConsent::query()->sole()->transcript);
+        Bus::assertNotDispatched(PurgeRadarAdvertiser::class);
+    }
+
+    /** Banc de la vérification (B1) : après un STOP reçu, aucune relance ne part par l'API. */
+    public function test_apres_un_stop_recu_aucune_relance_ne_part_par_l_api(): void
+    {
+        Bus::fake([VerifyRadarConsentReply::class, PurgeRadarAdvertiser::class]);
+        config(['radar_whatsapp.driver' => 'cloud', 'radar_whatsapp.access_token' => 'jeton-radar', 'whatsapp.base_uri' => 'https://graph.exemple.test/v21.0']);
+        $this->recevoir($this->corps([$this->texte('STOP', 'wamid.STOP-3')]))->assertOk();
+
+        Carbon::setTestNow('2026-11-15 10:00:00');
+        $this->assertSame([], $this->app->make(RadarFollowUps::class)->due()->pluck('id')->all());
+        $relance = RadarOutreach::factory()->followUpOf($this->message)->withListings($this->annonce)->create([
+            'clauses_version' => ConsentMessageComposer::CLAUSES_VERSION, 'salutation' => 'Bonjour Awa,', 'summary' => 'votre appartement à Ouakam', 'message' => 'x',
+            'created_by_id' => $this->operateur->id,
+        ]);
+        Http::fake();
+        $this->postJson("/api/admin/radar/advertisers/{$this->annonceur->id}/claim");
+
+        $this->postJson("/api/admin/radar/outreaches/{$relance->id}/send")->assertStatus(422)->assertJsonPath('code', 'radar.advertiser.do_not_contact');
+        Http::assertNothingSent();
+    }
+
     // --- AC3 : le webhook -------------------------------------------------------------------------
 
     public function test_ac3_un_jeton_d_url_faux_rend_404_et_laisse_une_ligne_rejetee_sans_corps(): void
@@ -311,22 +399,36 @@ class RadarWhatsappReplyTest extends TestCase
         $this->assertSame(0, RadarConsent::query()->count());
     }
 
-    public function test_ac3_une_ligne_non_appariee_se_rejoue_par_le_meme_chemin_signature_comprise(): void
+    /**
+     * I-2 — le corps chiffré d'une ligne du Radar garde le texte, le numéro et le nom de profil de quiconque écrit, tiers
+     * inconnus compris : il est effacé à la clôture, quelle que soit l'issue (appariée, non appariée, échouée), et la
+     * ligne ne se rejoue pas. Le contrôle porte sur `body`, pas seulement sur la vue expurgée.
+     */
+    public function test_ac3_le_corps_d_une_ligne_du_radar_est_efface_a_la_cloture_quelle_que_soit_l_issue(): void
     {
         Bus::fake([VerifyRadarConsentReply::class]);
-        // La réponse arrive avant que le message ne soit connu comme envoyé par l'API : rien ne s'apparie.
-        $this->message->forceFill(['channel' => RadarOutreachChannel::WhatsappManual])->save();
-        $this->recevoir($this->corps([$this->texte('OUI')]))->assertOk();
-        $ligne = IntegrationWebhookLog::query()->sole();
-        $this->assertSame(0, $ligne->matched_count);
-        $this->assertTrue($ligne->isReplayable());
 
-        $this->message->forceFill(['channel' => RadarOutreachChannel::WhatsappCloud])->save();
-        $rejouee = app(WebhookReplayer::class)->replay($ligne, $this->operateur);
+        $this->recevoir($this->corps([$this->texte('OUI je suis d accord')]))->assertOk();
+        $this->recevoir($this->corps([$this->texte('Mon secret personnel', 'wamid.TIERS-1', null, '221749998877')]))->assertOk();
+        // Une panne pendant le traitement : la ligne échoue, son corps part quand même.
+        RadarConsent::creating(fn () => throw new RuntimeException('panne'));
+        $this->recevoir($this->corps([$this->texte('OUI', 'wamid.RECU-3')]))->assertServerError();
 
-        $this->assertSame(IntegrationWebhookLog::STATUS_PROCESSED, $rejouee->status);
-        $this->assertSame(1, $rejouee->matched_count);
-        $this->assertSame('wamid.RECU-1', RadarConsent::query()->sole()->provider_message_id);
+        $lignes = IntegrationWebhookLog::query()->orderBy('id')->get();
+        $this->assertSame([IntegrationWebhookLog::STATUS_PROCESSED, IntegrationWebhookLog::STATUS_PROCESSED, IntegrationWebhookLog::STATUS_FAILED], $lignes->pluck('status')->all());
+        $this->assertSame([1, 0], $lignes->take(2)->pluck('matched_count')->all());
+        foreach ($lignes as $ligne) {
+            $this->assertNotNull($ligne->authenticated_at);
+            $this->assertNull(DB::table('integration_webhook_logs')->where('id', $ligne->id)->value('body'));
+            $this->assertFalse($ligne->isReplayable());
+            $this->assertFalse(IntegrationWebhookLog::query()->select(['id', 'provider', 'status', 'matched_count', 'authenticated_at', 'body_truncated'])->find($ligne->id)->isReplayable());
+        }
+        try {
+            app(WebhookReplayer::class)->replay($lignes[1], $this->operateur);
+            $this->fail('Une ligne du Radar ne se rejoue pas.');
+        } catch (ApiError $refus) {
+            $this->assertSame('webhook_log.not_replayable', $refus->errorCode);
+        }
     }
 
     public function test_ac3_la_verification_d_abonnement_rend_le_defi_sous_le_jeton_du_radar_seul(): void

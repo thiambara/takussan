@@ -14,10 +14,22 @@ use App\Services\Radar\ConsentMessageComposer;
  *
  * **Ce que l'annonceur reçoit est le texte enregistré, ou rien** : {@see self::for()} recompose le corps avec ses
  * paramètres et refuse (409 `radar.whatsapp.message_mismatch`) s'il ne redonne pas exactement `message` — un message
- * préparé quand l'origine du front était une autre, par exemple.
+ * préparé quand l'origine du front était une autre, par exemple. Il refuse aussi (422 `radar.whatsapp.summary_too_long`)
+ * un résumé plus long que {@see self::SUMMARY_MAX} ou un corps hydraté plus long que {@see self::BODY_MAX}.
+ *
+ * Meta refuse un corps qui COMMENCE ou FINIT par une variable : `accord.v3` s'ouvre sur « Takussan — » (TCK-2395, I-4).
  */
 final class RadarWhatsappTemplate
 {
+    /** La longueur que Meta accepte pour le corps hydraté d'un gabarit (au-delà : refus 132005). */
+    public const BODY_MAX = 1024;
+
+    /**
+     * La borne du résumé pour le canal API (celle du composeur, 500, est celle du lien `wa.me`) : avec le texte fixe
+     * d'`accord.v3`, la salutation la plus longue et les deux liens, le corps hydraté reste sous {@see self::BODY_MAX}.
+     */
+    public const SUMMARY_MAX = 120;
+
     public function __construct(private readonly ConsentMessageComposer $composer) {}
 
     /** Le corps à soumettre à Meta pour cette langue et cette version de clauses. */
@@ -58,7 +70,15 @@ final class RadarWhatsappTemplate
             'lien_reclamation' => $this->composer->claimUrlFor($outreach),
         }, $found[1]);
 
-        abort_code_if(self::render($this->body($outreach->locale, $outreach->clauses_version), $params) !== $outreach->message, 409, 'radar.whatsapp.message_mismatch');
+        $rendered = self::render($this->body($outreach->locale, $outreach->clauses_version), $params);
+        abort_code_if($rendered !== $outreach->message, 409, 'radar.whatsapp.message_mismatch');
+        // Le résumé se raccourcit à la retouche ; le corps entier se juge aussi, pour une origine du front plus longue.
+        abort_code_if(
+            mb_strlen(ConsentMessageComposer::part($outreach->summary, ConsentMessageComposer::SUMMARY_MAX)) > self::SUMMARY_MAX || mb_strlen($rendered) > self::BODY_MAX,
+            422,
+            'radar.whatsapp.summary_too_long',
+            ['max' => self::SUMMARY_MAX],
+        );
 
         return new WhatsappTemplateRef($name, $language, $params);
     }

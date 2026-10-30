@@ -5,14 +5,12 @@ namespace App\Services\Webhooks;
 use App\Http\Controllers\Webhook\LAfricaMobileSmsStatusController;
 use App\Http\Controllers\Webhook\MtargetSmsStatusController;
 use App\Http\Controllers\Webhook\OrangeSmsStatusController;
-use App\Http\Controllers\Webhook\RadarWhatsappWebhookController;
 use App\Http\Controllers\Webhook\WhatsappStatusController;
 use App\Models\Integration;
 use App\Models\IntegrationWebhookLog;
 use App\Models\User;
 use App\Services\Notifications\Sms\DeliveryAttemptUpdater;
 use App\Services\Payments\PaymentGatewayService;
-use App\Services\Radar\Whatsapp\RadarWhatsappInbox;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpFoundation\Response;
@@ -88,7 +86,6 @@ class WebhookReplayer
             'sms.webhook.mtarget' => app(MtargetSmsStatusController::class)->process($request, app(DeliveryAttemptUpdater::class), $this->journal),
             'sms.webhook.lafricamobile' => app(LAfricaMobileSmsStatusController::class)->process($request, app(DeliveryAttemptUpdater::class), $this->journal),
             'whatsapp.webhook.status' => app(WhatsappStatusController::class)->process($request, $this->journal),
-            'whatsapp.webhook.radar' => app(RadarWhatsappWebhookController::class)->process($request, $this->journal, app(RadarWhatsappInbox::class)),
             default => abort_code(422, 'webhook_log.not_replayable'),
         };
     }

@@ -89,6 +89,8 @@ class PlatformRoutesDefaultDenyTest extends TestCase
         'admin.radar.listings.photos.fetch',
         'admin.radar.listings.photos.store',
         'admin.radar.listings.photos.destroy',
+        // TCK-2395 (ADR-0081) — l'envoi d'un message préparé par l'API WhatsApp du Radar (`platform.radar.operate`).
+        'admin.radar.outreaches.send',
     ];
 
     public function test_toute_route_de_la_console_passe_par_la_garde_plateforme(): void

@@ -717,7 +717,7 @@ return [
             'not_sent' => 'This message has not been sent: no reply or outcome can be recorded on it.',
             'outcome_final' => 'This message is closed: no reply or outcome can be added to it any more.',
             'superseded' => 'This message has been followed up: record the reply or outcome on the latest follow-up.',
-            'reply_pending' => 'A reply to this message is still waiting to be verified: wait for its verdict before adding another.',
+            'reply_pending' => 'A reply to this message is still waiting for its verification or its outcome: wait for its verdict, or record its outcome, before going further.',
         ],
         'consent' => [
             'reply_required' => 'No reply has been added to this message: add the advertiser\'s captures before confirming the consent.',
@@ -749,10 +749,11 @@ return [
         // TCK-2395 — outreach through the API, from the WhatsApp number dedicated to the Radar.
         'whatsapp' => [
             'not_configured' => 'The Radar WhatsApp number is not configured: send this message through WhatsApp by hand.',
-            'same_number' => 'The number configured for the Radar is the notifications number: it is never used for outreach. Nothing was sent.',
+            'same_number' => 'The number or token configured for the Radar is the notifications one: it is never used for outreach. Nothing was sent.',
             'template_missing' => 'No approved Meta template for this clauses version or this language: send this message through WhatsApp by hand.',
             'message_mismatch' => 'The Meta template would not render the exact saved text of this message: prepare a new one.',
             'send_failed' => 'Meta refused to send it (:reason): nothing was recorded, the message is still prepared.',
+            'summary_too_long' => 'To send through the API, the summary must not exceed :max characters: shorten it, or send this message through WhatsApp by hand.',
         ],
         // TCK-2390 — the advertiser's claim, public page: no Radar wording.
         'claim' => [

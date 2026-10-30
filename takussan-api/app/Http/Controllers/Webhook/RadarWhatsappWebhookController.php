@@ -15,7 +15,9 @@ use Illuminate\Support\Facades\Log;
  * celui des notifications ({@see WhatsappStatusController}), mais par les secrets du Radar (`config/radar_whatsapp.php`) :
  * jeton d'URL (404), signature `X-Hub-Signature-256` sous le secret de l'application Meta du Radar (403, et 403 aussi
  * sans secret configuré, quel que soit l'environnement). Le journal des webhooks (`webhook.journal`) a écrit sa ligne
- * avant ce contrôleur ; elle n'est authentifiée, donc rejouable, qu'après la signature.
+ * avant ce contrôleur ; elle n'est authentifiée qu'après la signature, et son corps est effacé à la clôture
+ * (`IntegrationWebhookLog::BODY_DROPPED_AT_CLOSE`) : une ligne du Radar ne se rejoue pas, Meta rejoue lui-même ce qu'il
+ * n'a pas vu accepté (ADR-0081).
  *
  * Les accusés de livraison des messages du Radar arrivent aussi ici ; ils ne sont pas lus (TCK-2427). Meta reçoit 200
  * dès que les messages sont rangés : il rejoue sur toute autre réponse.
@@ -43,8 +45,8 @@ class RadarWhatsappWebhookController extends Controller
         return new Response((string) $request->query('hub_challenge', ''), 200, ['Content-Type' => 'text/plain; charset=UTF-8']);
     }
 
-    /** La signature puis le traitement, partagés avec le rejeu (`WebhookReplayer`), qui repasse par la MÊME signature. */
-    public function process(Request $request, WebhookJournal $journal, RadarWhatsappInbox $inbox): JsonResponse
+    /** La signature, puis le traitement. */
+    private function process(Request $request, WebhookJournal $journal, RadarWhatsappInbox $inbox): JsonResponse
     {
         $this->verifySignature($request);
         $journal->authenticated();

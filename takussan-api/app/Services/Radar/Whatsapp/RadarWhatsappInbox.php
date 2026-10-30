@@ -5,10 +5,13 @@ namespace App\Services\Radar\Whatsapp;
 use App\Jobs\Radar\VerifyRadarConsentReply;
 use App\Models\Enums\RadarConsentProof;
 use App\Models\Enums\RadarOutreachChannel;
+use App\Models\Enums\RadarOutreachOutcome;
 use App\Models\Enums\RadarVerificationStatus;
 use App\Models\RadarAdvertiser;
 use App\Models\RadarConsent;
+use App\Models\RadarListing;
 use App\Models\RadarOutreach;
+use App\Services\Radar\AdvertiserRevocation;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -22,18 +25,27 @@ use Illuminate\Support\Facades\DB;
  * - **Le rattachement** : le message que cite `context.id` (l'annonceur a répondu à ce message, ou touché un bouton du
  *   gabarit), à défaut le dernier envoyé par l'API à ce numéro ; puis, comme pour un dépôt, la dernière relance envoyée
  *   de sa chaîne. Un message manuel (`wa.me`) n'est jamais candidat : il est parti d'un autre téléphone.
- * - **Ignorés** : un numéro inconnu du Radar (rien n'est gardé de lui), un annonceur qui a dit STOP, un identifiant déjà
- *   reçu (Meta rejoue ses webhooks : sous le verrou de l'annonceur, et l'index unique partiel en dernier recours).
+ * - **Ignorés** : un numéro inconnu du Radar (aucune réponse n'est créée ; le corps de la requête, gardé chiffré au journal
+ *   des webhooks le temps du traitement, y est effacé à sa clôture — `WebhookJournal::close()`), un annonceur qui a dit
+ *   STOP, un identifiant déjà reçu (Meta rejoue ses webhooks : sous le verrou de l'annonceur, et l'index unique partiel en
+ *   dernier recours).
  * - **Un message sans texte** (vocal, image, autocollant) est gardé comme réponse, son type en transcription, mais sa
  *   vérification est d'emblée en échec (`radar.verification.no_text`) : rien n'est téléchargé, l'opérateur tranche.
- * - **Un STOP n'est pas appliqué ici** : le modèle le classe, l'opérateur le pose (ADR-0077 §8, confirmation humaine).
+ * - **Un texte qui vaut exactement STOP** (aux espaces, à la casse et à la ponctuation finale près) **révoque l'annonceur
+ *   dès la réception** ({@see AdvertiserRevocation::apply()}, comme le STOP posé par l'opérateur) quand
+ *   `radar_whatsapp.auto_stop` est vrai (défaut) : le droit d'opposition « en répondant STOP » n'attend pas qu'un
+ *   opérateur lise la réponse (ADR-0081). Le message auquel il répond prend l'issue `stop`, sans auteur ; aucune réponse
+ *   n'est créée, la purge part en file. Tout autre texte, refus compris, reste une réponse que l'opérateur tranche.
  */
 final class RadarWhatsappInbox
 {
     /** La transcription d'une réponse reçue : le texte de l'annonceur, préfixé comme celles des captures. */
     public const TRANSCRIPT_PREFIX = 'Annonceur : ';
 
-    public function __construct(private readonly RadarWhatsappNumber $number) {}
+    /** Combien de fois le STOP reprend quand une annonce rejoint l'annonceur pendant sa lecture. */
+    private const STOP_ATTEMPTS = 3;
+
+    public function __construct(private readonly RadarWhatsappNumber $number, private readonly AdvertiserRevocation $revocation) {}
 
     /**
      * @param  array<array-key, mixed>  $entries  `entry` du webhook de Meta
@@ -57,7 +69,7 @@ final class RadarWhatsappInbox
                     }
                     $received++;
                     $firstId ??= is_string($message['id'] ?? null) ? $message['id'] : null;
-                    $recorded += $this->record($message) === null ? 0 : 1;
+                    $recorded += $this->record($message) ? 1 : 0;
                 }
             }
         }
@@ -76,21 +88,33 @@ final class RadarWhatsappInbox
         return $text === '' ? null : $text;
     }
 
-    /** @param  array<string, mixed>  $message */
-    private function record(array $message): ?RadarConsent
+    /** Le texte vaut-il exactement STOP, aux espaces, à la casse et à la ponctuation finale près. */
+    public static function isStop(string $text): bool
+    {
+        return preg_match('/^\s*stop\s*[.!?…]*\s*$/iu', $text) === 1;
+    }
+
+    /**
+     * @param  array<string, mixed>  $message
+     * @return bool le message a été rangé (une réponse créée, ou un STOP appliqué)
+     */
+    private function record(array $message): bool
     {
         $id = trim((string) ($message['id'] ?? ''));
         $from = preg_replace('/\D+/', '', (string) ($message['from'] ?? '')) ?? '';
         if ($id === '' || $from === '' || mb_strlen($id) > 120) {
-            return null;
+            return false;
         }
         // Meta écrit le numéro sans `+` ; le Radar le garde en E.164.
         $advertiser = RadarAdvertiser::query()->where('phone', '+'.$from)->first();
         if ($advertiser === null || $advertiser->do_not_contact_at !== null) {
-            return null;
+            return false;
         }
         $text = self::text($message);
         $contextId = is_string($message['context']['id'] ?? null) ? $message['context']['id'] : null;
+        if ($text !== null && self::isStop($text) && (bool) config('radar_whatsapp.auto_stop', true)) {
+            return $this->stop($advertiser, $id, $contextId);
+        }
 
         return DB::transaction(function () use ($advertiser, $id, $text, $contextId, $message): ?RadarConsent {
             $locked = RadarAdvertiser::query()->whereKey($advertiser->getKey())->lockForUpdate()->first();
@@ -122,7 +146,53 @@ final class RadarWhatsappInbox
                 ->log('Réponse d\'annonceur reçue par l\'API WhatsApp du Radar');
 
             return $consent;
-        });
+        }) !== null;
+    }
+
+    /**
+     * Le STOP reçu : la révocation, sous l'ordre des verrous du Radar — toutes les annonces de l'annonceur (par id), puis
+     * l'annonceur, puis le message. Une annonce qui le rejoint entre les deux fait REPRENDRE, comme la révocation.
+     */
+    private function stop(RadarAdvertiser $advertiser, string $id, ?string $contextId): bool
+    {
+        for ($attempt = 1; $attempt <= self::STOP_ATTEMPTS; $attempt++) {
+            $done = DB::transaction(function () use ($advertiser, $id, $contextId): ?bool {
+                $listings = RadarListing::query()->where('radar_advertiser_id', $advertiser->getKey())->orderBy('id')->lockForUpdate()->get();
+                $locked = RadarAdvertiser::query()->whereKey($advertiser->getKey())->lockForUpdate()->first();
+                if ($locked === null || $locked->do_not_contact_at !== null) {
+                    return false;
+                }
+                if ($this->revocation->listingIds($locked) !== $listings->pluck('id')->map(fn ($listing) => (int) $listing)->sort()->values()->all()) {
+                    return null;
+                }
+                $outreach = $this->target($locked, $contextId);
+                $applied = $this->revocation->apply($locked, $listings);
+                if ($outreach !== null && $outreach->outcome?->isFinal() !== true) {
+                    $outreach->forceFill(['outcome' => RadarOutreachOutcome::Stop, 'outcome_at' => now(), 'outcome_by_id' => null])->save();
+                }
+
+                activity('Admin')
+                    ->performedOn($outreach ?? $locked)
+                    ->withProperties(array_filter([
+                        'advertiser_id' => $locked->id,
+                        'outreach_id' => $outreach?->id,
+                        'provider_message_id' => $id,
+                        'channel' => RadarOutreachChannel::WhatsappCloud->value,
+                        'listing_ids' => $applied['closed'],
+                        'revoked_consent_ids' => $applied['revoked_consents'],
+                        'property_ids' => $applied['retired_properties'],
+                    ], fn (mixed $value) => $value !== null && $value !== []))
+                    ->event('radar_stop_received')
+                    ->log('STOP reçu par l\'API WhatsApp du Radar : annonceur révoqué');
+
+                return true;
+            });
+            if ($done !== null) {
+                return $done;
+            }
+        }
+
+        abort_code(409, 'radar.advertiser.busy');
     }
 
     /** Le message auquel la réponse se rattache, verrouillé ; null s'il n'y en a pas. */

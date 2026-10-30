@@ -5,8 +5,10 @@ namespace App\Services\Radar;
 use App\Ai\Usages\RadarConsentMessageUsage;
 use App\Models\AiSuggestion;
 use App\Models\Enums\AiSuggestionDecision;
+use App\Models\Enums\RadarConsentProof;
 use App\Models\Enums\RadarListingStage;
 use App\Models\RadarAdvertiser;
+use App\Models\RadarConsent;
 use App\Models\RadarListing;
 use App\Models\RadarOutreach;
 use App\Models\User;
@@ -188,6 +190,10 @@ final class RadarOutreachWorkflow
                 abort_code(...$block);
             }
 
+            // TCK-2395 (I-1) — l'API envoie sans que l'opérateur ait relu ce que l'annonceur a répondu : tant qu'une réponse
+            // reçue sur la chaîne n'est pas tranchée (un STOP, une question), aucune relance ne part par elle.
+            abort_code_if($dispatch !== null && $this->hasUnresolvedReply($locked), 409, 'radar.outreach.reply_pending');
+
             $channel = $dispatch === null ? [] : $dispatch($locked, $advertiser);
             $locked->forceFill(['sent_at' => now(), 'sent_by_id' => $by->id] + $channel)->save();
             foreach ($listings->where('stage', RadarListingStage::Reviewed) as $listing) {
@@ -208,6 +214,24 @@ final class RadarOutreachWorkflow
 
             return $locked;
         });
+    }
+
+    /**
+     * TCK-2395 — une réponse reçue par l'API (`provider_message`), non confirmée, sur un message de la chaîne de celui-ci
+     * (lui-même et les messages qu'il relance) resté sans issue : elle attend que l'opérateur la tranche.
+     */
+    private function hasUnresolvedReply(RadarOutreach $outreach): bool
+    {
+        $chain = [];
+        for ($id = $outreach->id; $id !== null && ! in_array($id, $chain, true); $id = RadarOutreach::query()->whereKey($id)->value('follow_up_of_id')) {
+            $chain[] = (int) $id;
+        }
+
+        return RadarConsent::query()
+            ->whereIn('radar_outreach_id', RadarOutreach::query()->whereIn('id', $chain)->whereNull('outcome')->select('id'))
+            ->where('proof', RadarConsentProof::ProviderMessage->value)
+            ->whereNull('confirmed_at')
+            ->exists();
     }
 
     /**
