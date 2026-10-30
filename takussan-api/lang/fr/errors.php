@@ -779,6 +779,8 @@ return [
             'mandate_support_required' => 'Vos annonces diffusées par Takussan ne peuvent pas être reprises depuis cette page : écrivez-nous, nous les déplacerons dans votre espace.',
             // TCK-2421 — l'espace de l'annonceur n'est pas actif (suspendu ou inactif) : ses biens restent sous mandat, en ligne.
             'space_suspended' => 'Votre espace Takussan n\'est pas actif : vos annonces restent diffusées par Takussan pour votre compte, et vous pourrez les reprendre une fois votre espace rétabli.',
+            // TCK-2446 — hors mandat, l'espace du compte n'est pas actif : rien ne s'y publie, la réclamation est refusée.
+            'space_unavailable' => 'Votre espace Takussan n\'est pas actif : vos annonces ne peuvent pas y être publiées pour l\'instant. Écrivez-nous pour le réactiver.',
         ],
         // TCK-2392 — la collecte automatique et la fusion des doublons entre sites.
         'merge' => [

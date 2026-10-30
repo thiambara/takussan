@@ -44,6 +44,11 @@ export interface RadarClaim {
     readonly viewer_is_owner: boolean;
     readonly viewer_is_other: boolean;
     readonly space: { readonly name: string } | null;
+    /**
+     * TCK-2446 — hors mandat, le compte de ce numéro a un espace qui n'est pas actif (suspendu ou inactif) : l'envoi du code
+     * sera refusé (`radar.claim.space_unavailable`). Toujours faux sous mandat, qui garde son propre refus.
+     */
+    readonly space_unavailable: boolean;
   };
   readonly listings: readonly RadarClaimListing[];
   /** Déjà confirmées par l'annonceur, en attente de la publication : ni case ni bouton. */

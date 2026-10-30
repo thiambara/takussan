@@ -933,4 +933,125 @@ class RadarClaimTest extends TestCase
         $this->confirmer([['id' => $annonce->id]], code: $bon)->assertStatus(429);
         $this->assertSame(RadarListingStage::Contacted, $annonce->fresh()->stage);
     }
+
+    // --- TCK-2446 : hors mandat, un espace non actif refuse avant la confirmation ----------------------------------------
+
+    /** @return array<string, array{AgencyStatus}> les statuts où l'espace ne recevrait pas les annonces (`publishClaimed()`) */
+    public static function espacesNonActifs(): array
+    {
+        return [
+            'suspendu' => [AgencyStatus::Suspended],
+            'inactif' => [AgencyStatus::Inactive],
+        ];
+    }
+
+    /** Ce qu'une confirmation refusée ne doit pas avoir écrit : ni accord `otp`, ni rattachement, ni annonce `consented`. */
+    private function assertRienNEstReclame(RadarListing $annonce, ?int $compteAvant = null): void
+    {
+        $this->assertSame(0, RadarConsent::query()->where('proof', RadarConsentProof::Otp->value)->count());
+        $this->assertSame($compteAvant, $this->annonceur->fresh()->user_id);
+        $this->assertSame(RadarListingStage::Contacted, $annonce->fresh()->stage);
+        $this->assertSame(0, RadarListing::query()->where('stage', RadarListingStage::Consented->value)->count());
+        $this->assertNull($annonce->fresh()->property_id);
+    }
+
+    /**
+     * AC1 et AC4 — le titulaire vérifié du numéro dont l'espace n'est pas actif : la page le dit d'avance, et l'envoi du code
+     * le refuse avant le SMS, connecté ou non (le refus vient avant `login_required` : la page n'en révèle pas plus que lui).
+     */
+    #[DataProvider('espacesNonActifs')]
+    public function test_tck2446_hors_mandat_un_espace_non_actif_refuse_avant_le_sms(AgencyStatus $statut): void
+    {
+        $annonce = $this->annonce();
+        $titulaire = User::factory()->create(['phone' => self::NUMERO, 'phone_verified_at' => now()]);
+        Agency::factory()->create(['primary_admin_id' => $titulaire->id, 'kind' => 'individual', 'status' => $statut]);
+
+        $this->lire()->assertOk()->assertJsonPath('data.account.state', 'existing')->assertJsonPath('data.account.space_unavailable', true);
+        $refus = $this->demanderLeCode()->assertStatus(409)->assertJsonPath('code', 'radar.claim.space_unavailable');
+        // AC4 — un texte qui ne parle pas de mandat (celui de `space_suspended` ne vaut que sous mandat).
+        $this->assertSame(__('errors.radar.claim.space_unavailable'), $refus->json('message'));
+        foreach (['fr', 'en', 'wo'] as $langue) {
+            $this->assertStringNotContainsStringIgnoringCase('mandat', __('errors.radar.claim.space_unavailable', [], $langue));
+            $this->assertStringNotContainsStringIgnoringCase('Takussan pour votre compte', __('errors.radar.claim.space_unavailable', [], $langue));
+        }
+
+        Sanctum::actingAs($titulaire);
+        $this->lire()->assertOk()->assertJsonPath('data.account.space_unavailable', true)->assertJsonPath('data.mandate', null);
+        $this->demanderLeCode()->assertStatus(409)->assertJsonPath('code', 'radar.claim.space_unavailable');
+        $this->assertSame([], $this->sms->sent);
+        $this->confirmer([['id' => $annonce->id]], code: '123456')->assertStatus(409)->assertJsonPath('code', 'radar.claim.space_unavailable');
+
+        $this->assertRienNEstReclame($annonce);
+    }
+
+    /** AC2 — l'espace cesse d'être actif entre l'envoi du code et la confirmation : la confirmation le rejuge avant le code. */
+    #[DataProvider('espacesNonActifs')]
+    public function test_tck2446_un_espace_devenu_non_actif_apres_le_code_refuse_la_confirmation(AgencyStatus $statut): void
+    {
+        $annonce = $this->annonce();
+        $titulaire = User::factory()->create(['phone' => self::NUMERO, 'phone_verified_at' => now()]);
+        $espace = Agency::factory()->create(['primary_admin_id' => $titulaire->id, 'kind' => 'individual']);
+        Sanctum::actingAs($titulaire);
+        $this->demanderLeCode()->assertStatus(202);
+
+        $espace->forceFill(['status' => $statut])->save();
+        $this->confirmer([['id' => $annonce->id]])->assertStatus(409)->assertJsonPath('code', 'radar.claim.space_unavailable');
+
+        $this->assertRienNEstReclame($annonce);
+        // Refusé AVANT le code : il n'est pas consommé, et sert encore une fois l'espace rétabli.
+        $espace->forceFill(['status' => AgencyStatus::Active])->save();
+        $this->confirmer([['id' => $annonce->id]])->assertOk()->assertJsonPath('claim.agency.id', $espace->id);
+    }
+
+    /** AC2, la course — l'espace cesse d'être actif juste avant le verrou de l'annonceur : rejugé sous lui, tout se défait. */
+    #[DataProvider('espacesNonActifs')]
+    public function test_tck2446_un_espace_devenu_non_actif_sous_le_verrou_defait_la_confirmation(AgencyStatus $statut): void
+    {
+        $annonce = $this->annonce();
+        $titulaire = User::factory()->create(['phone' => self::NUMERO, 'phone_verified_at' => now()]);
+        $espace = Agency::factory()->create(['primary_admin_id' => $titulaire->id, 'kind' => 'individual']);
+        Sanctum::actingAs($titulaire);
+        $this->demanderLeCode()->assertStatus(202);
+
+        $this->auVerrou('radar_advertisers', fn () => Agency::query()->whereKey($espace->id)->update(['status' => $statut->value]));
+        $this->confirmer([['id' => $annonce->id]])->assertStatus(409)->assertJsonPath('code', 'radar.claim.space_unavailable');
+
+        $this->assertRienNEstReclame($annonce);
+        $this->assertSame(0, Activity::query()->where('event', 'radar_claimed')->count());
+    }
+
+    /** @return array<string, array{bool}> le titulaire a-t-il déjà un espace (actif) */
+    public static function espacesActifsOuAbsents(): array
+    {
+        return ['espace actif' => [true], 'aucun espace' => [false]];
+    }
+
+    /** AC3 — un espace actif, ou aucun espace (la réclamation en ouvre un, actif) : le parcours ne change pas. */
+    #[DataProvider('espacesActifsOuAbsents')]
+    public function test_tck2446_un_espace_actif_ou_absent_ne_change_rien(bool $avecEspace): void
+    {
+        $annonce = $this->annonce();
+        $titulaire = User::factory()->create(['phone' => self::NUMERO, 'phone_verified_at' => now()]);
+        if ($avecEspace) {
+            Agency::factory()->create(['primary_admin_id' => $titulaire->id, 'kind' => 'individual']);
+        }
+        Sanctum::actingAs($titulaire);
+
+        $this->lire()->assertOk()->assertJsonPath('data.account.space_unavailable', false);
+        $this->demanderLeCode()->assertStatus(202);
+        $agence = $this->confirmer([['id' => $annonce->id]])->assertOk()->json('claim.agency.id');
+
+        $this->assertSame(AgencyStatus::Active, Agency::query()->findOrFail($agence)->status);
+        $this->assertSame($titulaire->id, $this->annonceur->fresh()->user_id);
+        $this->assertSame(1, RadarConsent::query()->where('proof', RadarConsentProof::Otp->value)->count());
+        $this->assertSame($agence, Property::query()->findOrFail($annonce->fresh()->property_id)->agency_id);
+    }
+
+    /** AC3 — un compte neuf : rien à juger, la page ne dit rien d'un espace. */
+    public function test_tck2446_un_compte_neuf_n_a_pas_d_espace_non_actif(): void
+    {
+        $this->annonce();
+
+        $this->lire()->assertOk()->assertJsonPath('data.account.state', 'new')->assertJsonPath('data.account.space_unavailable', false);
+    }
 }
