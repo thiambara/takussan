@@ -8336,7 +8336,15 @@
             "cancel": "Annuler",
             "legacy": "Ce message a été écrit avec un autre gabarit : son texte est affiché tel qu’il a été enregistré.",
             "number": "n° {id}",
-            "unsaved": "Enregistrez vos retouches : WhatsApp n’ouvre que le texte enregistré."
+            "unsaved": "Enregistrez vos retouches : WhatsApp n’ouvre que le texte enregistré.",
+            "apiSend": "Envoyer par l’API WhatsApp",
+            "apiSending": "Envoi…",
+            "apiTitle": "Envoyer par l’API WhatsApp",
+            "apiBody": "Le message part tout de suite du numéro WhatsApp du Radar, avec le texte exact ci-dessus. Les annonces passeront en « contactée » et le message ne se modifiera plus.",
+            "apiConfirm": "Oui, l’envoyer",
+            "apiSent": "Message envoyé par l’API WhatsApp : Meta l’a accepté.",
+            "apiAmbiguous": "Meta n’a pas confirmé l’envoi : le message a pu partir. Il est compté comme envoyé pour ne jamais écrire deux fois à l’annonceur. Ne le renvoyez pas à la main.",
+            "replyPending": "L’annonceur a répondu par WhatsApp, et sa réponse n’est pas tranchée. Lisez-la plus bas, dans « Messages envoyés, en attente d’une issue », et posez son issue : d’ici là, rien ne se prépare ni ne part vers lui, quelle que soit l’annonce."
           },
           "history": {
             "heading": "Messages envoyés",
@@ -8365,7 +8373,14 @@
               "no_answer": "Sans réponse"
             },
             "number": "n° {id}",
-            "replies": "Réponses déposées"
+            "replies": "Réponses déposées",
+            "channel": "Canal",
+            "channels": {
+              "manual": "WhatsApp, à la main",
+              "cloud": "API WhatsApp",
+              "ambiguous": "API WhatsApp, envoi non confirmé"
+            },
+            "ambiguousHint": "Meta n’a pas confirmé l’envoi : le message a pu partir."
           },
           "errors": {
             "generic": "Le geste a échoué.",
@@ -8387,11 +8402,17 @@
             "notSent": "Ce message n’a pas été envoyé : aucune réponse ni issue ne s’y enregistre.",
             "outcomeFinal": "Ce message est clos : ni réponse ni issue ne s’y ajoute plus.",
             "superseded": "Ce message a été relancé : la réponse se dépose sur la dernière relance.",
-            "replyPending": "Une réponse de ce message attend encore sa vérification : attendez son verdict.",
+            "replyPending": "Une réponse de ce message attend encore sa vérification ou son issue : attendez son verdict, ou posez son issue.",
             "generationIncomplete": "L’IA n’a pas rédigé la salutation et le résumé : écrivez-les vous-même.",
             "replyRequired": "Aucune réponse n’est déposée sur ce message : déposez les captures de l’annonceur avant de confirmer l’accord.",
             "reasonRequired": "Le verdict de l’IA ne va pas dans le sens d’un accord : écrivez le motif de la confirmation.",
             "listingStageConflict": "Une des annonces de ce message a changé d’étape : la fiche a changé entre-temps, elle est relue.",
+            "whatsappNotConfigured": "Le numéro WhatsApp du Radar n’est pas configuré : envoyez ce message par WhatsApp, à la main.",
+            "whatsappSameNumber": "Le numéro ou le jeton configuré pour le Radar est celui des notifications : rien n’est envoyé.",
+            "whatsappTemplateMissing": "Aucun modèle Meta approuvé pour cette version des clauses ou cette langue : envoyez ce message à la main.",
+            "whatsappMessageMismatch": "Le modèle Meta ne redonnerait pas exactement le texte enregistré : préparez un nouveau message.",
+            "whatsappSummaryTooLong": "Le résumé est trop long pour un envoi par l’API : raccourcissez-le.",
+            "whatsappSendFailed": "Meta a refusé l’envoi : rien n’est enregistré, le message reste préparé.",
             "accountNotDeleted": "Le compte de cet annonceur n’est pas supprimé : seul un compte supprimé se délie."
           },
           "reply": {
@@ -8417,7 +8438,8 @@
               "noCapture": "aucune capture lisible",
               "noNumber": "l’annonceur n’a pas de numéro à comparer",
               "unexpected": "erreur imprévue",
-              "purged": "la réponse a été effacée (STOP ou retrait de l’annonceur)"
+              "purged": "la réponse a été effacée (STOP ou retrait de l’annonceur)",
+              "noText": "réponse sans texte (vocal, image)"
             },
             "verdict": {
               "heading": "Verdict de l’IA",
@@ -8452,7 +8474,12 @@
               "confirmationReason": "Motif : {reason}",
               "revoked": "Accord révoqué le {date}",
               "clausesIncomplete": "Clauses retrouvées : {found} — le verdict les juge incomplètes"
-            }
+            },
+            "receivedAt": "Reçue par l’API WhatsApp le {date}",
+            "receivedText": "Texte reçu",
+            "noText": "Cette réponse n’a pas de texte (message vocal, image) : elle n’est pas lisible ici. Écoutez-la ou regardez-la dans WhatsApp, sur le numéro du Radar, puis posez son issue.",
+            "failedReceived": "La vérification a échoué : {reason}. Lisez le texte reçu vous-même.",
+            "failedReceivedNoReason": "La vérification a échoué. Lisez le texte reçu vous-même."
           },
           "outcome": {
             "open": "Saisir l’issue",

@@ -8990,7 +8990,15 @@
             "cancel": "Cancel",
             "legacy": "This message was written with another template: its text is shown as it was saved.",
             "number": "#{id}",
-            "unsaved": "Save your edits: WhatsApp only opens the saved text."
+            "unsaved": "Save your edits: WhatsApp only opens the saved text.",
+            "apiSend": "Send through the WhatsApp API",
+            "apiSending": "Sending…",
+            "apiTitle": "Send through the WhatsApp API",
+            "apiBody": "The message leaves the Radar WhatsApp number right away, with the exact text above. The listings will move to “contacted” and the message can no longer be edited.",
+            "apiConfirm": "Yes, send it",
+            "apiSent": "Message sent through the WhatsApp API: Meta accepted it.",
+            "apiAmbiguous": "Meta did not confirm the send: the message may have gone out. It counts as sent so the advertiser is never written to twice. Do not send it again by hand.",
+            "replyPending": "The advertiser replied on WhatsApp, and the reply has not been settled. Read it below, under “Messages sent, waiting for an outcome”, and record its outcome: until then, nothing can be prepared for or sent to them, whatever the listing."
           },
           "history": {
             "heading": "Sent messages",
@@ -9019,7 +9027,14 @@
               "no_answer": "No answer"
             },
             "number": "#{id}",
-            "replies": "Replies deposited"
+            "replies": "Replies deposited",
+            "channel": "Channel",
+            "channels": {
+              "manual": "WhatsApp, by hand",
+              "cloud": "WhatsApp API",
+              "ambiguous": "WhatsApp API, send unconfirmed"
+            },
+            "ambiguousHint": "Meta did not confirm the send: the message may have gone out."
           },
           "errors": {
             "generic": "The action failed.",
@@ -9041,11 +9056,17 @@
             "notSent": "This message was not sent: no reply or outcome is recorded on it.",
             "outcomeFinal": "This message is closed: no reply or outcome can be added.",
             "superseded": "This message was followed up: the reply goes on the last follow-up.",
-            "replyPending": "A reply to this message is still being checked: wait for its verdict.",
+            "replyPending": "A reply to this message is still waiting for its verification or its outcome: wait for its verdict, or record its outcome.",
             "generationIncomplete": "The AI did not write the greeting and the summary: write them yourself.",
             "replyRequired": "No reply is filed on this message: file the advertiser’s captures before confirming the consent.",
             "reasonRequired": "The AI verdict does not point to a consent: write the reason for the confirmation.",
             "listingStageConflict": "One of this message's listings changed stage: the page changed in the meantime, it is reloaded.",
+            "whatsappNotConfigured": "The Radar WhatsApp number is not configured: send this message through WhatsApp by hand.",
+            "whatsappSameNumber": "The number or token configured for the Radar is the notifications one: nothing was sent.",
+            "whatsappTemplateMissing": "No approved Meta template for this clauses version or this language: send this message by hand.",
+            "whatsappMessageMismatch": "The Meta template would not render the exact saved text: prepare a new message.",
+            "whatsappSummaryTooLong": "The summary is too long to send through the API: shorten it.",
+            "whatsappSendFailed": "Meta refused to send it: nothing was recorded, the message is still prepared.",
             "accountNotDeleted": "This advertiser’s account is not deleted: only a deleted account can be unlinked."
           },
           "reply": {
@@ -9071,7 +9092,8 @@
               "noCapture": "no readable capture",
               "noNumber": "the advertiser has no number to compare",
               "unexpected": "unexpected error",
-              "purged": "the reply was erased (STOP or advertiser withdrawal)"
+              "purged": "the reply was erased (STOP or advertiser withdrawal)",
+              "noText": "reply without text (voice note, image)"
             },
             "verdict": {
               "heading": "AI verdict",
@@ -9106,7 +9128,12 @@
               "confirmationReason": "Reason: {reason}",
               "revoked": "Consent revoked on {date}",
               "clausesIncomplete": "Clauses found: {found} — the verdict judges them incomplete"
-            }
+            },
+            "receivedAt": "Received through the WhatsApp API on {date}",
+            "receivedText": "Text received",
+            "noText": "This reply has no text (voice note, image): it cannot be read here. Listen to it or view it in WhatsApp, on the Radar number, then record its outcome.",
+            "failedReceived": "Verification failed: {reason}. Read the received text yourself.",
+            "failedReceivedNoReason": "Verification failed. Read the received text yourself."
           },
           "outcome": {
             "open": "Record the outcome",

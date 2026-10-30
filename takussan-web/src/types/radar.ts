@@ -358,6 +358,12 @@ export const RADAR_VERDICT_CLASSIFICATIONS = ['consent', 'refusal', 'stop', 'que
 
 export type RadarVerdictClassification = (typeof RADAR_VERDICT_CLASSIFICATIONS)[number];
 
+/** `App\Models\Enums\RadarOutreachChannel` (TCK-2395) : par où le message est parti. */
+export type RadarOutreachChannel = 'whatsapp_manual' | 'whatsapp_cloud';
+
+/** L'état d'un envoi par l'API (TCK-2395) : `accepted` (Meta a rendu un identifiant) ou `ambiguous` (délai, 5xx : il a pu partir). */
+export type RadarOutreachProviderStatus = 'accepted' | 'ambiguous';
+
 /** `App\Models\Enums\RadarConsentProof`. */
 export type RadarConsentProof = 'screenshot' | 'provider_message' | 'otp';
 
@@ -440,6 +446,10 @@ export interface RadarOutreach {
   readonly outcome_at: string | null;
   readonly follow_up: RadarOutreachFollowUp | null;
   readonly consents: readonly RadarConsent[];
+  /** TCK-2395 — `whatsapp_manual` (lien `wa.me`, valeur par défaut, brouillon compris) ou `whatsapp_cloud` (l'API). */
+  readonly channel: RadarOutreachChannel;
+  /** TCK-2395 — `null` pour un message manuel ou un brouillon. */
+  readonly provider_status: RadarOutreachProviderStatus | null;
 }
 
 /** La réponse de la préparation : le message, plus ce que l'IA a rendu (`ai_error` : un code, jamais de prose). */
@@ -503,6 +513,8 @@ export interface RadarAdvertiserDetail {
   readonly outreaches: readonly RadarOutreach[];
   /** `null` : aucun compte rattaché. */
   readonly account: RadarAdvertiserAccount | null;
+  /** TCK-2395 — l'envoi par l'API du numéro du Radar est configuré : le bouton « Envoyer par l'API » s'offre (TCK-2426). */
+  readonly whatsapp_api_available: boolean;
 }
 
 export interface RadarAdvertiserResponse {

@@ -4,6 +4,7 @@ namespace Tests\Feature\Ai;
 
 use App\Ai\Agents\RadarConsentVerification;
 use App\Ai\Usages\RadarConsentVerificationUsage;
+use App\Models\Enums\AiModelRole;
 use App\Services\Ai\AiGateway;
 use App\Services\Ai\AiUsageRegistry;
 use App\Services\Ai\Evaluation\EvaluationRunner;
@@ -12,6 +13,7 @@ use App\Services\Ai\ModelResolver;
 use App\Services\Ai\PromptRepository;
 use App\Services\Radar\ConsentMessageComposer;
 use App\Services\Radar\RadarConsentVerdict;
+use App\Services\Radar\Whatsapp\RadarWhatsappInbox;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
@@ -22,8 +24,9 @@ use Tests\TestCase;
 /**
  * TCK-2388 (ADR-0076 §8, décision 6) — le jeu d'évaluation livré de `radar.verification_accord` : 16 cas de captures
  * SYNTHÉTIQUES (`render-captures.php`), chacun dans la forme exacte de ce que le job envoie
- * (`RadarConsentVerification::input()`), des attendus limités aux trois champs de `fields.json`. Aucun modèle réel :
- * `RadarConsentVerification::fake()`, y compris pour `ai:eval`.
+ * (`RadarConsentVerification::input()`), des attendus limités aux champs de `fields.json`. TCK-2427 : 14 cas TEXTE
+ * (`text-cases.php`), la réponse reçue par l'API WhatsApp du Radar (`RadarConsentVerification::textInput()`), joués sur
+ * le rôle `raisonnement`. Aucun modèle réel : `RadarConsentVerification::fake()`, y compris pour `ai:eval`.
  */
 class RadarConsentVerificationEvalSetTest extends TestCase
 {
@@ -33,6 +36,10 @@ class RadarConsentVerificationEvalSetTest extends TestCase
     private const CAPTURE_MAX_BYTES = 100 * 1024;
 
     private const CLAUSES = 4;
+
+    private const CAPTURES = 16;
+
+    private const TEXTES = 14;
 
     private EvaluationRunner $runner;
 
@@ -63,6 +70,18 @@ class RadarConsentVerificationEvalSetTest extends TestCase
         return $this->runner->cases(RadarConsentVerificationUsage::KEY);
     }
 
+    /** Les cas de captures (les 16 premiers), clés d'origine gardées. */
+    private function captureCases(): array
+    {
+        return array_filter($this->cases(), fn (array $case): bool => ! empty($case['attachments']));
+    }
+
+    /** Les cas texte (TCK-2427), clés d'origine gardées. */
+    private function textCases(): array
+    {
+        return array_filter($this->cases(), fn (array $case): bool => empty($case['attachments']));
+    }
+
     /**
      * Une sortie complète du schéma de l'agent dont les trois champs notés sont les attendus.
      *
@@ -77,11 +96,13 @@ class RadarConsentVerificationEvalSetTest extends TestCase
         ];
     }
 
-    public function test_le_jeu_a_seize_cas_chacun_avec_une_capture_png_de_moins_de_100_ko(): void
+    public function test_le_jeu_a_seize_cas_de_captures_png_de_moins_de_100_ko_puis_quatorze_cas_texte(): void
     {
-        $cases = $this->cases();
+        $cases = $this->captureCases();
 
-        $this->assertCount(16, $cases);
+        $this->assertCount(self::CAPTURES + self::TEXTES, $this->cases());
+        $this->assertSame(range(0, self::CAPTURES - 1), array_keys($cases), 'les captures d\'abord, les cas texte ensuite');
+        $this->assertCount(self::TEXTES, $this->textCases());
         foreach ($cases as $i => $case) {
             $this->assertNotEmpty($case['attachments'] ?? [], "cas {$i} : au moins une capture");
             foreach ($case['attachments'] as $relative) {
@@ -94,7 +115,7 @@ class RadarConsentVerificationEvalSetTest extends TestCase
             }
         }
         // Chaque capture sert un seul cas.
-        $this->assertCount(16, array_unique(array_merge(...array_column($cases, 'attachments'))));
+        $this->assertCount(self::CAPTURES, array_unique(array_merge(...array_column($cases, 'attachments'))));
     }
 
     /**
@@ -113,7 +134,7 @@ class RadarConsentVerificationEvalSetTest extends TestCase
         $this->assertSame(self::CLAUSES, $this->app->make(ConsentMessageComposer::class)->clauseCount());
 
         $inconnus = 0;
-        foreach ($this->cases() as $i => $case) {
+        foreach ($this->captureCases() as $i => $case) {
             $this->assertSame(1, preg_match('#^Message envoyé par Takussan \(texte exact\) :\n<<<\n(.*)\n>>>\nNuméro attendu : (\+22174\d{7})\nNom attendu : ([^\n]+)\nClauses numérotées : 1 à 4\n#s', $case['input'], $m), "cas {$i} : forme de l'entrée");
             [, $message, $numero, $nom] = $m;
             $inconnus += $nom === 'inconnu' ? 1 : 0;
@@ -124,6 +145,47 @@ class RadarConsentVerificationEvalSetTest extends TestCase
             $this->assertStringNotContainsString('{', $message, "cas {$i} : un marqueur non rempli");
         }
         $this->assertSame(1, $inconnus, 'un seul cas porte un annonceur sans nom');
+    }
+
+    /**
+     * TCK-2427 — l'entrée d'un cas texte est exactement celle du job pour une réponse reçue par l'API : le message que
+     * l'API envoie (`accord.v3.fr.md`, la seule version du gabarit Meta), puis le texte reçu délimité ; ni numéro ni nom
+     * attendus, ni capture.
+     */
+    public function test_chaque_cas_texte_est_ce_que_le_job_envoie_pour_une_reponse_recue_par_l_api(): void
+    {
+        $modele = (string) file_get_contents(resource_path('radar/clauses/accord.v3.fr.md'));
+        $fixes = array_values(array_filter(array_map(
+            'trim',
+            (array) preg_split(ConsentMessageComposer::PLACEHOLDER, $modele),
+        ), fn (string $morceau) => $morceau !== ''));
+        $this->assertCount(5, $fixes, 'accord.v3 a cinq segments fixes entre ses marqueurs');
+        $this->assertSame(self::CLAUSES, $this->app->make(ConsentMessageComposer::class)->clauseCount('accord.v3'));
+
+        $reponses = [];
+        foreach ($this->textCases() as $i => $case) {
+            $this->assertSame(1, preg_match('#^Message envoyé par Takussan \(texte exact\) :\n<<<\n(.*)\n>>>\nRéponse reçue par l\'API WhatsApp, depuis le numéro de l\'annonceur :\n.*<(contenu_externe_[a-p]{16}) source="message">\n(.*)\n</\2>$#s', $case['input'], $m), "cas {$i} : forme de l'entrée");
+            [, $message, , $reponse] = $m;
+            $this->assertSame(RadarConsentVerification::textInput($message, $reponse), $case['input'], "cas {$i} : pas la forme de RadarConsentVerification::textInput()");
+            $this->assertStringStartsWith('Takussan — Bonjour ', $message, "cas {$i} : l'ouverture d'accord.v3");
+            foreach ($fixes as $fixe) {
+                $this->assertStringContainsString($fixe, $message, "cas {$i} : un segment fixe de accord.v3.fr.md manque");
+            }
+            $this->assertStringNotContainsString('{', $message, "cas {$i} : un marqueur non rempli");
+            $this->assertStringNotContainsString('Numéro attendu', $case['input'], "cas {$i} : en texte, le code juge le numéro");
+            $this->assertSame(['classification', 'number_matches', 'clauses_found', 'counterpart_phone'], array_keys($case['expected']));
+            $this->assertNull($case['expected']['number_matches'], "cas {$i} : ni numéro…");
+            $this->assertNull($case['expected']['counterpart_phone'], "cas {$i} : … ni numéro lu…");
+            $this->assertSame([], $case['expected']['clauses_found'], "cas {$i} : … ni clause en texte (prompt v2)");
+            // Un STOP exact n'arrive jamais au modèle : la réception le révoque d'emblée.
+            $this->assertFalse(RadarWhatsappInbox::isStop($reponse), "cas {$i} : un STOP exact ne se vérifie pas");
+            $reponses[$case['expected']['classification']][] = $reponse;
+        }
+
+        // Accord, refus, STOP, question, ambigu, et une réponse en wolof dans chaque sens.
+        $this->assertEqualsCanonicalizing(RadarConsentVerification::CLASSIFICATIONS, array_keys($reponses));
+        $this->assertContains('Waaw, mën ngeen ko def', $reponses['consent']);
+        $this->assertContains('Déedéet, bëgguma', $reponses['refusal']);
     }
 
     public function test_les_attendus_ne_nomment_que_les_champs_notes_avec_des_valeurs_legales_et_couvrent_chaque_classement_et_chaque_discordance(): void
@@ -168,8 +230,8 @@ class RadarConsentVerificationEvalSetTest extends TestCase
     }
 
     /**
-     * Le jeu se joue de bout en bout sur faux modèle : une sortie égale aux attendus vaut 1.0 partout, sur le rôle
-     * `vision` (des captures), et un champ faux ne baisse que le sien.
+     * Le jeu se joue de bout en bout sur faux modèle : une sortie égale aux attendus vaut 1.0 partout, les captures sur
+     * le rôle `vision`, les cas texte sur `raisonnement` (TCK-2427, AC2), et un champ faux ne baisse que le sien.
      */
     public function test_un_jeu_a_blanc_sur_des_sorties_egales_aux_attendus_vaut_un(): void
     {
@@ -178,13 +240,25 @@ class RadarConsentVerificationEvalSetTest extends TestCase
 
         $report = $this->runner->run(RadarConsentVerificationUsage::KEY);
 
-        $this->assertSame(16, $report['cases']);
+        $total = self::CAPTURES + self::TEXTES;
+        $this->assertSame($total, $report['cases']);
         $this->assertSame(0, $report['failures']);
         $this->assertSame(1.0, $report['global']);
         $this->assertSame(['classification' => 1.0, 'clauses_found' => 1.0, 'counterpart_phone' => 1.0, 'number_matches' => 1.0], array_map(fn ($s) => (float) $s, $report['fields']));
-        $this->assertSame(['vision'], array_keys($report['roles']));
-        $this->assertSame(16, $report['roles']['vision']['cases']);
-        RadarConsentVerification::assertPromptedTimes(16);
+        $this->assertEqualsCanonicalizing(['vision', 'raisonnement'], array_keys($report['roles']));
+        $this->assertSame(self::CAPTURES, $report['roles']['vision']['cases']);
+        $this->assertSame(self::TEXTES, $report['roles']['raisonnement']['cases']);
+        $this->assertSame('anthropic/modele-r', $report['roles']['raisonnement']['model']);
+        foreach ($this->textCases() as $case) {
+            $this->assertSame(AiModelRole::Raisonnement, $this->runner->roleOf(app(AiUsageRegistry::class)->get(RadarConsentVerificationUsage::KEY), $case));
+        }
+        RadarConsentVerification::assertPromptedTimes($total);
+
+        // Le rôle `raisonnement` seul : les seuls cas texte.
+        RadarConsentVerification::fake(array_map(fn (array $case): array => $this->sortie($case['expected']), array_values($this->textCases())));
+        $report = $this->runner->run(RadarConsentVerificationUsage::KEY, role: AiModelRole::Raisonnement);
+        $this->assertSame(self::TEXTES, $report['cases']);
+        $this->assertSame(['raisonnement'], array_keys($report['roles']));
 
         $faux = $cases;
         $faux[0]['expected']['classification'] = 'refusal';
@@ -192,7 +266,7 @@ class RadarConsentVerificationEvalSetTest extends TestCase
 
         $report = $this->runner->run(RadarConsentVerificationUsage::KEY);
 
-        $this->assertSame(round(15 / 16, 4), $report['fields']['classification']);
+        $this->assertSame(round(($total - 1) / $total, 4), $report['fields']['classification']);
         $this->assertSame(1.0, (float) $report['fields']['number_matches']);
         $this->assertSame(1.0, (float) $report['fields']['clauses_found']);
         $this->assertSame(1.0, (float) $report['fields']['counterpart_phone']);
@@ -209,7 +283,7 @@ class RadarConsentVerificationEvalSetTest extends TestCase
 
         $report = $this->runner->run(RadarConsentVerificationUsage::KEY);
 
-        $this->assertSame(round(15 / 16, 4), $report['fields']['counterpart_phone']);
+        $this->assertSame(round(($total - 1) / $total, 4), $report['fields']['counterpart_phone']);
         $this->assertSame(1.0, (float) $report['fields']['number_matches']);
     }
 
@@ -225,9 +299,9 @@ class RadarConsentVerificationEvalSetTest extends TestCase
             $this->artisan('ai:eval', ['usage' => RadarConsentVerificationUsage::KEY])->assertSuccessful();
 
             $rapport = json_decode((string) file_get_contents(File::files($rapports.'/'.RadarConsentVerificationUsage::KEY)[0]->getPathname()), true);
-            $this->assertSame(16, $rapport['cases']);
+            $this->assertSame(self::CAPTURES + self::TEXTES, $rapport['cases']);
             $this->assertSame(1.0, $rapport['global']);
-            RadarConsentVerification::assertPromptedTimes(16);
+            RadarConsentVerification::assertPromptedTimes(self::CAPTURES + self::TEXTES);
 
             RadarConsentVerification::fake(fn () => throw RateLimitedException::forProvider('anthropic'));
             $this->artisan('ai:eval', ['usage' => RadarConsentVerificationUsage::KEY])

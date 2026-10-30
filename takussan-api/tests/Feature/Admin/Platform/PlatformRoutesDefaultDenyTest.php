@@ -94,6 +94,8 @@ class PlatformRoutesDefaultDenyTest extends TestCase
         'admin.radar.crawl.sources.index',
         'admin.radar.crawl.runs.index',
         'admin.radar.listings.unmerge',
+        // TCK-2395 (ADR-0081) — l'envoi d'un message préparé par l'API WhatsApp du Radar (`platform.radar.operate`).
+        'admin.radar.outreaches.send',
         // TCK-2394 — la relance d'activation (lire, marquer envoyée) : du démarchage.
         'admin.radar.advertisers.activation-reminder',
         'admin.radar.advertisers.activation-reminder.sent',
