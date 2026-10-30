@@ -423,8 +423,8 @@ class RadarWhatsappOutreachTest extends TestCase
     }
 
     /**
-     * I-1 (b) — une réponse reçue par l'API et non tranchée (un STOP mal écrit, une question) arrête l'envoi d'une relance
-     * par l'API ; « J'ai envoyé », geste d'un opérateur qui a la réponse sous les yeux, reste permis.
+     * I-1 (b), I-5 — une réponse reçue par l'API et non tranchée (un STOP mal écrit, une question) arrête l'envoi d'une
+     * relance, par l'API comme par « J'ai envoyé » : l'écran ne la montre pas encore (TCK-2426).
      */
     public function test_une_reponse_recue_non_tranchee_arrete_la_relance_par_l_api(): void
     {
@@ -445,6 +445,27 @@ class RadarWhatsappOutreachTest extends TestCase
 
         Http::assertNothingSent();
         $this->assertNull($relance->fresh()->sent_at);
+    }
+
+    /** I-5 — « J'ai envoyé » est arrêté de même par une réponse reçue non tranchée ; tranchée, la relance repart. */
+    public function test_une_reponse_recue_non_tranchee_arrete_aussi_j_ai_envoye(): void
+    {
+        $this->message->forceFill(['sent_at' => now(), 'sent_by_id' => $this->operateur->id, 'channel' => RadarOutreachChannel::WhatsappCloud, 'provider_message_id' => 'wamid.ENVOYE-1'])->save();
+        $this->annonce->forceFill(['stage' => RadarListingStage::Contacted])->save();
+        $reponse = RadarConsent::query()->create([
+            'radar_outreach_id' => $this->message->id, 'radar_advertiser_id' => $this->annonceur->id,
+            'proof' => RadarConsentProof::ProviderMessage, 'provider_message_id' => 'wamid.REPONSE-1',
+            'transcript' => 'Annonceur : Stop svp', 'verification_status' => RadarVerificationStatus::Pending,
+        ]);
+        Carbon::setTestNow('2026-11-15 10:00:00');
+        $relance = $this->prepare('Bonjour Awa,', 'votre appartement à Ouakam', 'fr', ['follow_up_of_id' => $this->message->id, 'follow_up_rank' => 1]);
+        $this->postJson("/api/admin/radar/advertisers/{$this->annonceur->id}/claim")->assertOk();
+
+        $this->postJson("/api/admin/radar/outreaches/{$relance->id}/sent")->assertStatus(409)->assertJsonPath('code', 'radar.outreach.reply_pending');
+        $this->assertNull($relance->fresh()->sent_at);
+
+        // Une réponse confirmée n'attend plus rien : la garde ne la compte pas.
+        $reponse->forceFill(['confirmed_at' => now(), 'confirmed_by_id' => $this->operateur->id])->save();
         $this->postJson("/api/admin/radar/outreaches/{$relance->id}/sent")->assertOk();
     }
 

@@ -105,8 +105,9 @@ Re-mesuré le 2026-10-30 sur `feat/radar-revocation-purge` (`dev` + TCK-2391) :
       `whatsapp_api_available` (I-3).
 - [x] AC7 — **Corrections de la vérification adverse** (tests, une ablation chacune) :
       (a) un texte qui vaut exactement STOP révoque l'annonceur dès la réception
-      (`radar_whatsapp.auto_stop`, vrai par défaut) ; (b) une relance ne part pas par l'API tant
-      qu'une réponse reçue sur sa chaîne n'est pas tranchée (409 `radar.outreach.reply_pending`) ;
+      (`radar_whatsapp.auto_stop`, vrai par défaut) ; (b) une relance ne part ni par l'API ni par
+      « J'ai envoyé » tant qu'une réponse reçue sur sa chaîne n'est pas tranchée (409
+      `radar.outreach.reply_pending`, I-5) ;
       (c) `accord.v3` s'ouvre sur « Takussan — », clauses identiques à `accord.v2`, version
       courante, et un résumé de plus de 120 caractères est refusé par l'API (422
       `radar.whatsapp.summary_too_long`) pour que le corps hydraté reste sous 1024 caractères ;
@@ -161,15 +162,15 @@ Re-mesuré le 2026-10-30 sur `feat/radar-revocation-purge` (`dev` + TCK-2391) :
 |---|---|---|---|
 | Où vit le numéro du Radar | `config/radar_whatsapp.php`, variables `RADAR_WHATSAPP_*`, vides | une ligne `Integration` d'un nouveau fournisseur | Une config à part ne peut pas être confondue avec l'intégration des notifications ; le brief la demandait vide par défaut. |
 | Pilote par défaut | `log` (aucun réseau, identifiant fictif) | `cloud` | Rien ne part tant que le porteur n'a pas posé `cloud` ; même patron que les SMS. |
-| Numéro des notifications saisi pour le Radar | refusé (422 `radar.whatsapp.same_number`), intégration active ou non, supprimée comprise, de toute agence, identifiant **ou jeton** | laisser passer | La contrainte du ticket ; une erreur de saisie ne doit pas suffire. Un même jeton = la même application Meta (décision du porteur après vérification, m-1, m-2). |
-| Pilote `log` hors `local`/`testing` | refusé (422 `not_configured`) | « réussir » sans rien envoyer | Le message marqué envoyé ne pourrait plus partir (décision du porteur, I-3). |
+| Numéro des notifications saisi pour le Radar | refusé (422 `radar.whatsapp.same_number`), intégration active ou non, supprimée comprise, de toute agence, identifiant **ou jeton** | laisser passer | La contrainte du ticket ; une erreur de saisie ne doit pas suffire. Un même jeton = la même application Meta (décision de la session, prise en autonomie, à revoir par le porteur ; vérification adverse m-1, m-2). |
+| Pilote `log` hors `local`/`testing` | refusé (422 `not_configured`) | « réussir » sans rien envoyer | Le message marqué envoyé ne pourrait plus partir (décision de la session, prise en autonomie, à revoir par le porteur ; vérification adverse I-3). |
 | Envoi synchrone ou en file | synchrone, sous verrou, 10 s au plus | un job après le commit | Pas d'état « en cours d'envoi » à rattraper ; l'opérateur voit tout de suite le refus de Meta. Un job reste possible pour l'envoi en lot. |
 | Échec ambigu | marqué envoyé, sans identifiant | laisser préparé (renvoi possible) | Écrire deux fois au même annonceur coûte plus cher (signalements) qu'une relance. |
 | Rattachement d'une réponse | `context.id`, sinon le dernier message envoyé par l'API à ce numéro, puis sa dernière relance envoyée | le dernier message, tous canaux | Un message `wa.me` est parti d'un autre téléphone : une réponse au numéro du Radar ne peut pas lui répondre. |
 | Plusieurs messages de l'annonceur | une réponse par message reçu, chacune vérifiée | une seule réponse en attente par message (règle du dépôt de captures) | Le « oui » qui suit un « bonjour » ne doit pas se perdre ; la confirmation lit la dernière réponse. |
 | Réponse sur un message clos | gardée | ignorée | Un STOP après un accord est une révocation : l'opérateur doit la voir. |
-| STOP reçu par l'API | un texte qui vaut exactement STOP révoque à la réception (`RADAR_WHATSAPP_AUTO_STOP`, vrai) ; tout autre texte reste à trancher et bloque la relance par l'API | classé par le modèle, posé par l'opérateur (première version) | La promesse « en répondant STOP » n'attend pas un écran (décision du porteur après vérification, I-1). |
-| Journal du webhook du Radar | corps vidé à la clôture, ligne non rejouable | corps chiffré 30 jours, rejouable (première version) | Il porte texte, numéro et nom de profil de tiers ; après un STOP seule l'empreinte doit rester (décision du porteur, I-2). |
+| STOP reçu par l'API | un texte qui vaut exactement STOP révoque à la réception (`RADAR_WHATSAPP_AUTO_STOP`, vrai) ; tout autre texte reste à trancher et bloque la relance, par l'API comme par « J'ai envoyé » | classé par le modèle, posé par l'opérateur (première version) | La promesse « en répondant STOP » n'attend pas un écran (décision de la session, prise en autonomie, à revoir par le porteur ; vérification adverse I-1, I-5). |
+| Journal du webhook du Radar | corps vidé à la clôture, ligne non rejouable | corps chiffré 30 jours, rejouable (première version) | Il porte texte, numéro et nom de profil de tiers ; après un STOP seule l'empreinte doit rester (décision de la session, prise en autonomie, à revoir par le porteur ; vérification adverse I-2). |
 | Vocal, image | gardé comme réponse (`[audio]`), vérification en échec `radar.verification.no_text`, rien téléchargé | ignoré | L'opérateur sait qu'une réponse existe ; le téléchargement des médias est un autre sujet. |
 | Acteur de l'appel IA d'une réponse reçue | l'opérateur qui a envoyé le message | aucun (appel refusé) | La passerelle exige un acteur qui détient `platform.radar.operate`. |
 | Webhook : traitement | synchrone dans la requête | un job | Quelques écritures ; aucune donnée personnelle dans la table des jobs. |

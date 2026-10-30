@@ -190,9 +190,10 @@ final class RadarOutreachWorkflow
                 abort_code(...$block);
             }
 
-            // TCK-2395 (I-1) — l'API envoie sans que l'opérateur ait relu ce que l'annonceur a répondu : tant qu'une réponse
-            // reçue sur la chaîne n'est pas tranchée (un STOP, une question), aucune relance ne part par elle.
-            abort_code_if($dispatch !== null && $this->hasUnresolvedReply($locked), 409, 'radar.outreach.reply_pending');
+            // TCK-2395 (I-1, I-5) — tant qu'une réponse reçue par l'API sur la chaîne n'est pas tranchée (un « Stop svp », une
+            // question), aucune relance ne part, ni par l'API ni par « J'ai envoyé » : l'écran ne la montre pas encore
+            // (TCK-2426). Seules les réponses `provider_message` comptent : le canal manuel pur reste libre.
+            abort_code_if($this->hasUnresolvedReply($locked), 409, 'radar.outreach.reply_pending');
 
             $channel = $dispatch === null ? [] : $dispatch($locked, $advertiser);
             $locked->forceFill(['sent_at' => now(), 'sent_by_id' => $by->id] + $channel)->save();

@@ -41,7 +41,7 @@ réception.**
 
 2. **L'envoi est synchrone, sous les verrous de « J'ai envoyé ».** `markSent` reçoit l'envoi en fermeture,
    l'appelle après avoir rejugé toutes les règles et avant toute écriture. Un refus franc de Meta lève et
-   n'écrit rien (502 `radar.whatsapp.send_failed`). Une relance ne part pas par l'API tant qu'une réponse
+   n'écrit rien (502 `radar.whatsapp.send_failed`). Une relance ne part ni par l'API ni par « J'ai envoyé » tant qu'une réponse
    reçue sur sa chaîne n'est pas tranchée (409 `radar.outreach.reply_pending`). Le texte envoyé est le texte
    enregistré, ou rien : le gabarit est le fichier de clauses, ses marqueurs numérotés, et le rendu doit
    redonner `message` (409 `radar.whatsapp.message_mismatch`).
