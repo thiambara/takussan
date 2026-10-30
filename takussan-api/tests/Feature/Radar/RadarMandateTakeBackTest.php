@@ -37,6 +37,7 @@ use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Testing\Fakes\QueueFake;
 use Illuminate\Testing\TestResponse;
 use Laravel\Sanctum\Sanctum;
 use Mockery;
@@ -299,7 +300,7 @@ class RadarMandateTakeBackTest extends TestCase
      */
     public function test_une_transmission_qui_leve_ne_retient_ni_la_reponse_ni_la_publication(): void
     {
-        Queue::fake([PublishClaimedRadarListings::class, TransmitTakenBackConversations::class]);
+        $file = $this->fileQuiNoteLOrdre([PublishClaimedRadarListings::class, TransmitTakenBackConversations::class]);
         $this->instance(PropertyConversationResolver::class, Mockery::mock(PropertyConversationResolver::class, function ($double): void {
             $double->shouldReceive('transmitForProperty')->andThrow(new RuntimeException('transmission en panne'));
         }));
@@ -316,6 +317,34 @@ class RadarMandateTakeBackTest extends TestCase
         $this->assertSame(array_fill_keys($this->biens, [$sien->id, $compte->id]), $this->ouSontLesBiens());
         Queue::assertPushed(PublishClaimedRadarListings::class, fn (PublishClaimedRadarListings $job) => $job->listingIds === [$nouvelle->id]);
         Queue::assertPushed(TransmitTakenBackConversations::class, fn (TransmitTakenBackConversations $job) => $job->propertyIds === $this->biens);
+        // La publication part AVANT la transmission : sur une file `sync`, une transmission qui lève ne la retient pas.
+        $this->assertSame([PublishClaimedRadarListings::class, TransmitTakenBackConversations::class], $file->ordre);
+    }
+
+    /**
+     * Une file factice qui note l'ordre des mises en file des jobs donnés (`QueueFake` les range par classe).
+     *
+     * @param  list<class-string>  $jobs
+     */
+    private function fileQuiNoteLOrdre(array $jobs): QueueFake
+    {
+        $file = new class(app(), $jobs, Queue::getFacadeRoot()) extends QueueFake
+        {
+            /** @var list<class-string> */
+            public array $ordre = [];
+
+            public function push($job, $data = '', $queue = null)
+            {
+                if (is_object($job) && $this->shouldFakeJob($job)) {
+                    $this->ordre[] = $job::class;
+                }
+
+                return parent::push($job, $data, $queue);
+            }
+        };
+        Queue::swap($file);
+
+        return $file;
     }
 
     /** N1 — le job lève pour être rejoué, sans laisser un bien en panne retenir les suivants ; son abandon se signale. */

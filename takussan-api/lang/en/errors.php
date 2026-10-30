@@ -777,7 +777,7 @@ return [
             'name_contains_phone' => 'The first name and the space name cannot contain a phone number.',
             // TCK-2421 — un bien sous mandat porte de la gestion : la reprise passe par le support.
             'mandate_support_required' => 'Your listings published by Takussan cannot be taken back from this page: write to us and we will move them into your space.',
-            // TCK-2421 — l'espace de l'annonceur est suspendu : ses biens restent sous mandat, en ligne.
+            // TCK-2421 — l'espace de l'annonceur n'est pas actif (suspendu ou inactif) : ses biens restent sous mandat, en ligne.
             'space_suspended' => 'Your Takussan space is not active: your listings stay published by Takussan on your behalf, and you can take them back once your space is restored.',
         ],
         // TCK-2392 — automatic collection and cross-site duplicate merging.
