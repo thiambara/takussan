@@ -45,6 +45,30 @@ class RadarPublicationController extends Controller
         ]], 201);
     }
 
+    /**
+     * TCK-2394 (ADR-0079, proposé) — publier sous mandat : aucun compte créé, les biens dans l'espace des mandats. Refusé
+     * (422 `radar.mandate.disabled`) tant que le drapeau `radar_mandate` est éteint.
+     */
+    public function publishUnderMandate(PublishRadarListingsRequest $request, RadarAdvertiser $advertiser, RadarPublisher $publisher): JsonResponse
+    {
+        $result = $publisher->publishUnderMandate($advertiser, $request->listingIds(), $request->user());
+
+        return $this->json(['data' => [
+            // Aucun compte : l'auteur des biens est l'administrateur de l'espace des mandats, qui n'est pas l'annonceur.
+            'user' => null,
+            'agency' => ['id' => $result['agency']->id, 'name' => $result['agency']->name, 'slug' => $result['agency']->slug],
+            'created_account' => false,
+            'mandate' => true,
+            'properties' => array_map(fn (Property $property): array => [
+                'id' => $property->id,
+                'slug' => $property->slug,
+                'title' => $property->title,
+                'radar_listing_id' => $property->metadata['radar_listing_id'] ?? null,
+                'public_url' => RadarPublisher::publicUrl($property->slug),
+            ], $result['properties']),
+        ]], 201);
+    }
+
     public function publishedMessage(RadarPublicationReadRequest $request, RadarAdvertiser $advertiser, RadarPublisher $publisher): JsonResponse
     {
         return $this->json(['data' => $publisher->publishedMessage($advertiser, $request->locale())]);

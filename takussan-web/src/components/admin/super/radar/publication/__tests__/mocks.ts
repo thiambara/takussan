@@ -45,12 +45,14 @@ export function compte(partiel: Partial<RadarPublicationAccount> = {}): RadarPub
 
 export function apercu(partiel: Partial<RadarPublicationPreview> = {}): RadarPublicationPreview {
   return {
-    advertiser: { id: 7, display_name: 'Moussa Immo', nature: 'probable_owner', do_not_contact_at: null },
+    advertiser: { id: 7, display_name: 'Moussa Immo', nature: 'probable_owner', do_not_contact_at: null, mandate_at: null },
     account: compte(),
     listings: [annonce(12), annonce(13)],
     published: [],
     max_photos: 30,
     blocking: [],
+    // TCK-2394 — drapeau `radar_mandate` éteint : ce que l'API rend par défaut.
+    mandate: { enabled: false, space: null, blocking: [] },
     ...partiel,
   };
 }

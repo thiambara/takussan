@@ -7986,7 +7986,8 @@
           "claimLeftActivationUnavailable": "Laissée par la publication automatique : l’envoi du code de connexion est indisponible",
           "claimLeftOtpPreview": "Laissée par la publication automatique : la connexion par code est en mode d’essai",
           "claimLeftTooManyPhotos": "Laissée par la publication automatique : trop de photos à copier en une fois",
-          "claimLeftRefused": "Laissée par la publication automatique : la publication a été refusée"
+          "claimLeftRefused": "Laissée par la publication automatique : la publication a été refusée",
+          "claimLeftUnderMandate": "Laissée par la publication automatique : l’annonceur est publié sous mandat Takussan"
         },
         "empty": {
           "title": "Aucune annonce pour l’instant",
@@ -8551,6 +8552,33 @@
             "cancel": "Annuler",
             "confirm": "Délier",
             "done": "Compte délié : l’annonceur peut de nouveau réclamer ses annonces."
+          },
+          "activation": {
+            "heading": "Relance d’activation",
+            "hint": "Le compte créé pour l’annonceur n’est pas encore activé. Envoyez-lui ce que ses annonces lui rapportent : un texte fixe, avec les chiffres réels de la période.",
+            "period": "Du {since} au {until}",
+            "views": "Vues",
+            "contacts": "Demandes de contact",
+            "visits": "Demandes de visite",
+            "credits": "Crédits offerts à l’activation",
+            "figuresCaption": "Ce que chaque bien a rapporté sur la période",
+            "property": "Bien",
+            "untitled": "Bien n° {id}",
+            "reminders": "{count, plural, =0 {Aucune relance envoyée.} one {# relance envoyée, la dernière le {date}.} other {# relances envoyées, la dernière le {date}.}}",
+            "blocking": "La relance est impossible pour l’instant :",
+            "availableAt": "Prochaine relance possible le {date}.",
+            "locale": "Langue du message",
+            "locales": {
+              "fr": "Français",
+              "en": "Anglais"
+            },
+            "whatsapp": "Ouvrir WhatsApp",
+            "markSent": "Marquer envoyée",
+            "marking": "Enregistrement…",
+            "claimHint": "Prenez l’annonceur en charge pour marquer la relance envoyée.",
+            "sent": "Relance enregistrée.",
+            "loadError": "Impossible de charger la relance d’activation.",
+            "retry": "Réessayer"
           }
         },
         "advertisers": {
@@ -8768,7 +8796,8 @@
           "intro": "Vérifiez ce qui sera créé au nom de l’annonceur, puis confirmez. Rien n’est écrit avant la confirmation.",
           "claimNone": "Personne ne traite cet annonceur. Prenez-le en charge pour déposer des photos et publier.",
           "blocking": {
-            "heading": "La publication est impossible pour l’instant :"
+            "heading": "La publication est impossible pour l’instant :",
+            "headingAccount": "La publication pour son compte est impossible pour l’instant :"
           },
           "account": {
             "heading": "Ce qui sera créé au nom de {name}",
@@ -8831,7 +8860,11 @@
             "summaryExisting": "Compte existant repris, {biens, plural, one {# bien publié} other {# biens publiés}} avec {photos, plural, =0 {aucune photo} one {# photo} other {# photos}}.",
             "cancel": "Annuler",
             "publish": "Publier",
-            "publishing": "Publication…"
+            "publishing": "Publication…",
+            "mandateTitle": "Publier sous mandat pour {name} ?",
+            "mandateTitleUnnamed": "Publier sous mandat pour cet annonceur ?",
+            "mandateBody": "Aucun compte n’est créé : les annonces naissent dans l’espace Takussan. Le téléphone et le WhatsApp affichés sont ceux de l’annonceur ; les demandes par formulaire arrivent à Takussan, qui les lui transmet. Elle ne se défait pas d’un clic.",
+            "mandateSummary": "Aucun compte, {biens, plural, one {# bien publié} other {# biens publiés}} dans l’espace « {space} » avec {photos, plural, =0 {aucune photo} one {# photo} other {# photos}}."
           },
           "recap": {
             "created": "Ce qui existe désormais",
@@ -8852,8 +8885,10 @@
               "whatsapp": "Ouvrir WhatsApp",
               "copy": "Copier le message",
               "copied": "Message copié.",
-              "copyFailed": "La copie a échoué : sélectionnez le texte à la main."
-            }
+              "copyFailed": "La copie a échoué : sélectionnez le texte à la main.",
+              "hintMandate": "Un texte fixe : il porte les liens publics et la ligne STOP, sans lien d’activation. Envoyez-le tel quel."
+            },
+            "mandatePublished": "Publié sous mandat dans l’espace « {space} » : aucun compte n’a été créé."
           },
           "alreadyPublished": {
             "heading": "Déjà en ligne pour cet annonceur",
@@ -8881,7 +8916,25 @@
             "photoUnreadable": "Une photo ne se lit pas comme une image : envoyez un JPEG, un PNG ou un WebP.",
             "quotaExceeded": "L’espace de cet annonceur a atteint son quota d’annonces actives : rien n’a été publié.",
             "keyReused": "La sélection a changé depuis un premier envoi : relancez la publication.",
-            "inProgress": "Une publication est déjà en cours pour cet annonceur : réessayez dans un instant."
+            "inProgress": "Une publication est déjà en cours pour cet annonceur : réessayez dans un instant.",
+            "underMandate": "Cet annonceur est publié sous mandat Takussan : ses annonces se publient sous mandat, pas dans un compte.",
+            "mandateDisabled": "La publication sous mandat est éteinte dans cet environnement.",
+            "mandateSpaceMissing": "Aucun espace des mandats n’est désigné, ou il est suspendu ou sans administrateur principal : rien ne se publie sous mandat.",
+            "mandateAccountExists": "Un compte est déjà rattaché à cet annonceur : ses annonces se publient dans son espace, pas sous mandat.",
+            "activationAlreadyActive": "Le compte de l’annonceur est déjà activé : il n’y a rien à relancer.",
+            "activationRevoked": "L’accord de l’annonceur a été retiré ou son numéro purgé : aucune relance ne part.",
+            "activationNothingPublished": "Aucun bien publié par le Radar n’est en ligne pour cet annonceur : la relance n’aurait rien à dire.",
+            "activationTooSoon": "La dernière relance est trop récente : attendez la fin de la période.",
+            "activationUnderMandate": "Cet annonceur est publié sous mandat : ses biens ne sont pas dans un compte, la relance d’activation ne s’applique pas.",
+            "activationJustSent": "Cette relance vient d’être marquée envoyée : un second marquage ne compterait pas une relance de plus."
+          },
+          "mandate": {
+            "heading": "Publier sous mandat Takussan",
+            "body": "L’annonceur a donné son accord mais ne veut pas de compte : Takussan publie ses annonces dans son propre espace, « {space} ». Aucun compte n’est créé. Le téléphone et le WhatsApp affichés sont ceux de l’annonceur : les visiteurs le joignent directement. Les demandes laissées par formulaire arrivent à l’administrateur de « {space} », qui les lui transmet. Sa réponse STOP retire ses biens.",
+            "bodyNoSpace": "L’annonceur a donné son accord mais ne veut pas de compte : Takussan peut publier ses annonces dans son propre espace, une fois celui-ci désigné dans les paramètres de la plateforme (« Espace des mandats du Radar »).",
+            "already": "Déjà publié sous mandat depuis le {date}.",
+            "blocking": "La publication sous mandat est impossible :",
+            "cta": "{count, plural, =0 {Publier sous mandat} one {Publier # annonce sous mandat} other {Publier # annonces sous mandat}}"
           }
         },
         "crawlLink": "Collecte",
@@ -9114,7 +9167,8 @@
         "currency": "Xaalis yi",
         "limits": "Dig yu teknik",
         "boost": "Kredi ak yokk gis-gis",
-        "rentals": "Luwaas"
+        "rentals": "Luwaas",
+        "radar": "Radar"
       },
       "keys": {
         "currency": {
@@ -9185,6 +9239,12 @@
           "cap_percent": {
             "label": "Dig bu alamaanu yéex",
             "description": "Ci téeméeru xaalisu fey bi, 0 ba 100. Bu deñ: amul dig. Ajaans bu am tànneefam dina ko denc."
+          }
+        },
+        "radar": {
+          "mandate_agency_id": {
+            "label": "Espace des mandats du Radar",
+            "description": "Identifiant de l’espace Takussan où naissent les biens publiés sous mandat. 0 : aucun. Le drapeau « radar_mandate » doit aussi être allumé."
           }
         }
       },
@@ -12622,7 +12682,8 @@
       "price": "Indiquez un prix valide.",
       "nameContainsPhone": "Le prénom et le nom de l'espace ne peuvent pas contenir de numéro de téléphone.",
       "firstNameContainsPhone": "Votre prénom ne peut pas contenir de numéro de téléphone.",
-      "spaceNameContainsPhone": "Le nom de votre espace ne peut pas contenir de numéro de téléphone."
+      "spaceNameContainsPhone": "Le nom de votre espace ne peut pas contenir de numéro de téléphone.",
+      "underMandate": "Vos annonces sont déjà diffusées par Takussan pour votre compte : écrivez-nous pour les reprendre dans votre propre espace."
     },
     "awaitingReviewTitle": "En attente de vérification",
     "awaitingReviewHint": "Notre équipe doit encore les vérifier avant de les mettre en ligne : elles ne sont pas encore visibles."

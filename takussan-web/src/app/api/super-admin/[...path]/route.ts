@@ -10,8 +10,9 @@ import { DELAI_RELAIS_FICHIER_MS, relayerVersApi } from '@/lib/relais-api';
  * attend jusqu'au délai des fichiers (90 s, sous les 100 s de Cloudflare). La vraie borne est celle de l'API :
  * `max_execution_time` = 60 s en temps d'horloge (image ZTS) — au-delà PHP meurt sans rien défaire des fichiers écrits ;
  * `radar.publish.max_photos` borne donc le travail avant la transaction, et un envoi encore en cours se rejoue côté écran.
+ * TCK-2394 — la publication sous mandat (`publish-mandate`) fait le même travail : même délai.
  */
-const PUBLICATION_DU_RADAR = /^radar\/advertisers\/\d+\/publish$/;
+const PUBLICATION_DU_RADAR = /^radar\/advertisers\/\d+\/publish(-mandate)?$/;
 
 /**
  * TCK-145 — Same-origin proxy for the super-admin namespace. Forwards every
