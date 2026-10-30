@@ -51,8 +51,15 @@ final class RadarPhone
      * un indicatif : `Immeuble R+10 77 123 45 67` se lisait `+10` suivi de dix chiffres. Collé à un mot (`Tel+33 …`), si.
      * Le masqueur l'exempte aussi depuis TCK-2428 (`PhoneMasker::NOT_A_FLOOR`), mais `FOREIGN_PREFIX` en dépend encore :
      * sans lui, `Villa R+1 77 123 45 67` lit `+1` devant le numéro, qui devient étranger.
+     *
+     * TCK-2435 — aussi `RDC+1` et `R + 1`, `R +1`, `R+ 1` (au plus deux espaces de chaque côté), mais seulement pour un
+     * étage de 0 à 19 que rien ne colle derrière, comme `PhoneMasker::NOT_A_FLOOR` : `R + 33 6 12 34 56 78` garde son `+`.
+     * Des deux côtés, un `1` ou un `7` suivi d'un numéro complet de cet indicatif (`PhoneMasker::CC1_NUMBER`) garde son `+` :
+     * `RDC +1 5145550199` n'est ni un prix, ni un contact sénégalais. `R+17 77 123 45 67`, que la première branche
+     * laisse, reste un étage par la seconde.
      */
-    private const FLOOR_PLUS = '/(?<!\p{L})([Rr])\+(?=[0-9])/u';
+    private const FLOOR_PLUS = '/(?<!\p{L})([Rr])\+(?=[0-9])(?!'.PhoneMasker::CC1_NUMBER.')'
+        .'|(?<!\p{L})((?:r|rdc)[\s\x{00A0}\x{202F}]{0,2})\+(?='.PhoneMasker::FLOOR_AFTER_PLUS.')/iu';
 
     /**
      * TCK-2412 — ce qui, derrière un numéro écrit sans indicatif, en fait une mesure, une durée ou un montant
@@ -94,7 +101,7 @@ final class RadarPhone
     /** Le `+` d'un étage (`R+1`) remplacé par `#`, un octet pour un octet : les positions du texte restent justes. */
     public static function withoutFloorPlus(string $text): string
     {
-        return (string) preg_replace(self::FLOOR_PLUS, '$1#', $text);
+        return (string) preg_replace(self::FLOOR_PLUS, '$1$2#', $text);
     }
 
     /**
