@@ -96,8 +96,8 @@ annonces. Le service de collecte séparé (Playwright) n'est envisagé que si la
       fusion n'est plus retentée ; une fusion posée à la main ne se sépare pas par cette route.
 - [x] AC8 — Le job du passage atterrit sur la file longue, et `scripts/check-queues.mjs` est vert.
 - [x] AC9 — Une annonce purgée, `do_not_contact`, ou d'un annonceur qui a dit STOP n'est ni observée ni
-      comptée par un passage. Purgée pour un refus, elle perd ses instantanés ; purgée à l'échéance, ils sont
-      détachés, sans passage, dates au jour, et aucune jointure ne les relie à la fiche ni à l'annonceur.
+      comptée par un passage. Toute purge (refus ou échéance) supprime ses instantanés, et la fiche purgée oublie
+      le passage qui l'a trouvée.
 - [x] AC10 — Sans `RADAR_MERGE_AUTO`, rien ne fusionne d'office ; allumée, deux biens du même annonceur
       dans le même quartier à prix voisin ne fusionnent pas.
 
@@ -108,6 +108,7 @@ annonces. Le service de collecte séparé (Playwright) n'est envisagé que si la
 - **TCK-2424** — les adaptateurs suivants (autres sites d'annonces), sur le même contrat.
 - **TCK-2425** — le service de collecte séparé (navigateur sans tête), si la lecture depuis l'API
   échoue face aux protections des sites.
+- **TCK-2434** — les compteurs anonymes de marché au-delà de la rétention (agrégats, k-anonymat, avis juridique).
 
 ## Hors périmètre
 
@@ -130,13 +131,12 @@ Livré sur `feat/radar-collecte-automatique` : schéma (`c3c3d638b`), services d
   (`/?page=2`) que son `robots.txt` interdit.
 - **Le texte comparé** (`similarity_text`) est recalculé par le modèle dès que `extracted` ou `raw_text` change : la
   purge, qui les vide, le vide aussi.
-- **Corrections de la vérification adverse** (`.superpowers/verif-TCK-2392.md`, 2026-10-30) : routes inscrites à
-  `PlatformRoutesDefaultDenyTest` ; la collecte ne relit plus une annonce purgée ou STOP, et la purge détache ses
-  instantanés (`radar_listing_id` nullable, migration `392300`) ; fusion d'office éteinte par défaut et règle
-  resserrée ; ADR-0080 ; boucle de pagination (`radar.crawl.loop`) ; passage perdu jugé depuis `started_at`, fin
-  conditionnelle ; `radar:backfill-similarity` ; avis « allumée sans opérateur ».
-  Contre-vérification (B1-bis) : un STOP supprime les instantanés ; l'échéance les détache sans passage et au jour ;
-  les deux jointures du banc sont un test.
+- **Corrections des vérifications adverses** (`.superpowers/verif-TCK-2392.md`, 2026-10-30) : routes inscrites à
+  `PlatformRoutesDefaultDenyTest` ; la collecte ne relit plus une annonce purgée ou STOP ; fusion d'office éteinte par
+  défaut et règle resserrée ; ADR-0080 ; boucle de pagination (`radar.crawl.loop`) ; passage perdu jugé depuis
+  `started_at`, fin conditionnelle ; `radar:backfill-similarity` ; avis « allumée sans opérateur ». **Les instantanés
+  sont supprimés à toute purge** : le détachement (migration `392300`, retirée avant d'atteindre `dev`) laissait une
+  ligne qui se rejoignait à sa fiche (B1-bis, puis I3 : rang des `id`, dates).
 - **Une séparation ne rend pas les doublons redirigés** : quand une fusion d'office a rattaché à l'annonce B des doublons
   qui pointaient vers A, séparer B ne les rend pas à A. L'opérateur les reprend à la main ; le cas demande deux fusions
   d'office successives sur la même grappe, rare tant que la fusion est éteinte.
@@ -169,12 +169,10 @@ Livré sur `feat/radar-collecte-automatique` : schéma (`c3c3d638b`), services d
    fusion allumée par défaut (le porteur l'allume après l'avoir mesurée sur de vraies annonces).
 7. **Seuils du texte** : `pg_trgm` ≥ 0,5 rapproche (`low`), ≥ 0,8 est « presque identique » (`medium`) ; le texte
    n'est jamais `high` seul. Mesuré : 300 paires de paragraphes Faker plafonnent à 0,38.
-8. **La purge supprime les instantanés d'un refus, et détache les autres** (décision de la session après la
-   contre-vérification B1-bis, à confirmer par le porteur, ADR-0080 § 4) : STOP, révocation ou `do_not_contact` →
-   supprimés ; échéance des 90 jours → `radar_listing_id`, `crawl_run_id`, `title_fingerprint` et le lieu écrit à nul,
-   dates au jour, `updated_at` sans l'instant de la purge, et la fiche purgée oublie `discovered_by_run_id`. Écarté :
-   détacher aussi pour un refus (deux jointures rendaient l'empreinte du numéro de l'annonceur STOP) ; tout supprimer
-   (l'observatoire perdrait des séries que plus rien ne rattache à une personne).
+8. **Toute purge supprime les instantanés de l'annonce** (décision de la session après la troisième vérification, I3,
+   ADR-0080 § 4) : STOP, révocation, `do_not_contact` ou 90 jours. Un historique de marché au-delà de la rétention
+   passera par des compteurs anonymes agrégés (TCK-2434, à valider juridiquement). Écarté : détacher (même sans passage
+   et au jour, une ligne se rejoignait à sa fiche purgée par le rang des `id` et les dates).
 9. **Une source allumée sans opérateur est signalée, pas éteinte d'office** : l'écran le dit et dit comment la
    reprendre. Écarté : l'éteindre automatiquement (un geste du porteur défait sans lui).
 
