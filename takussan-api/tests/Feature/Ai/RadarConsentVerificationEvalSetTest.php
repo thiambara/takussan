@@ -24,7 +24,7 @@ use Tests\TestCase;
 /**
  * TCK-2388 (ADR-0076 §8, décision 6) — le jeu d'évaluation livré de `radar.verification_accord` : 16 cas de captures
  * SYNTHÉTIQUES (`render-captures.php`), chacun dans la forme exacte de ce que le job envoie
- * (`RadarConsentVerification::input()`), des attendus limités aux champs de `fields.json`. TCK-2427 : 13 cas TEXTE
+ * (`RadarConsentVerification::input()`), des attendus limités aux champs de `fields.json`. TCK-2427 : 14 cas TEXTE
  * (`text-cases.php`), la réponse reçue par l'API WhatsApp du Radar (`RadarConsentVerification::textInput()`), joués sur
  * le rôle `raisonnement`. Aucun modèle réel : `RadarConsentVerification::fake()`, y compris pour `ai:eval`.
  */
@@ -39,7 +39,7 @@ class RadarConsentVerificationEvalSetTest extends TestCase
 
     private const CAPTURES = 16;
 
-    private const TEXTES = 13;
+    private const TEXTES = 14;
 
     private EvaluationRunner $runner;
 
@@ -96,7 +96,7 @@ class RadarConsentVerificationEvalSetTest extends TestCase
         ];
     }
 
-    public function test_le_jeu_a_seize_cas_de_captures_png_de_moins_de_100_ko_puis_treize_cas_texte(): void
+    public function test_le_jeu_a_seize_cas_de_captures_png_de_moins_de_100_ko_puis_quatorze_cas_texte(): void
     {
         $cases = $this->captureCases();
 
