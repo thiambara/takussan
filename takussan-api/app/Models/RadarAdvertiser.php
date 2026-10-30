@@ -37,6 +37,9 @@ class RadarAdvertiser extends AbstractModel
         'do_not_contact_at' => 'datetime',
         'claimed_at' => 'datetime',
         'claim_expires_at' => 'datetime',
+        // TCK-2413 — pas une colonne : l'agrégat `withMin` de la liste (`RadarAdvertiserController::index`), l'échéance de
+        // purge de la première annonce laissée. Casté ici, il arrive en instant à la ressource, quel que soit le pilote.
+        'left_purge_at' => 'datetime',
     ];
 
     protected static array $queryFields = [

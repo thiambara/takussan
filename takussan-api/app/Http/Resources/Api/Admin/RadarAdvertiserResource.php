@@ -11,7 +11,6 @@ use App\Services\Radar\RadarConsentCoverage;
 use App\Services\Radar\RadarFollowUps;
 use App\Services\Radar\RadarReviewFields;
 use Illuminate\Http\Request;
-use Illuminate\Support\Carbon;
 
 /**
  * TCK-2388 (ADR-0077 §3, §4, §11) — un annonceur du Radar pour la console : une LIGNE de file (liste) ou la FICHE
@@ -85,7 +84,7 @@ class RadarAdvertiserResource extends BaseResource
             // TCK-2413 — l'échéance de purge de la première annonce que la publication a laissée (`null` : aucune).
             'left_purge_at' => $this->when(
                 array_key_exists('left_purge_at', $this->resource->getAttributes()),
-                fn () => $this->iso($this->resource->left_purge_at === null ? null : Carbon::parse($this->resource->left_purge_at)),
+                fn () => $this->iso($this->resource->left_purge_at),
             ),
             'follow_up' => $this->whenLoaded('outreaches', function () {
                 $followUps = app(RadarFollowUps::class);
