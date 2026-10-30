@@ -33,6 +33,12 @@ final class ExpatDakarAdapter implements RadarSiteAdapter
         return (string) config('radar.crawl.sites.expat_dakar.start_url');
     }
 
+    /** TCK-2438 — Le site, avec ou sans `www`. */
+    public function startHosts(): array
+    {
+        return ['www.expat-dakar.com', 'expat-dakar.com'];
+    }
+
     public function parse(string $html, string $pageUrl): ListPage
     {
         $xpath = $this->xpath($html);

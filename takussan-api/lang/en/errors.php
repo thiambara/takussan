@@ -783,6 +783,12 @@ return [
         'crawl' => [
             'active' => 'A pass is already running on this site: wait for it to finish.',
             'unknown_site' => 'This site is not collected: no adapter reads it.',
+            // TCK-2438 — start URLs set from the console.
+            'start_urls_too_many' => 'Too many start URLs: :max at most per site.',
+            'start_url_too_long' => 'This start URL is too long: :max characters at most.',
+            'start_url_invalid' => 'This start URL is not accepted: an https address, without credentials or port.',
+            'start_url_host' => 'This start URL is not on the site: it must start from :hosts.',
+            'start_url_duplicate' => 'This start URL is already in the list.',
         ],
         // TCK-2394 (ADR-0077, lot 4) — activation reminder; (ADR-0079) publication under mandate.
         'activation' => [

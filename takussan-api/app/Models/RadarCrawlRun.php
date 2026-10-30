@@ -14,6 +14,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * trouvé (`listings_created`, `listings_known`, `snapshots_opened`), et pourquoi il s'est arrêté (`stop_reason`, un code
  * `radar.crawl.*` ou `radar.fetch.*`). `reached_end` : il a lu la dernière page — sans lui, une annonce non revue n'a
  * pas forcément disparu.
+ *
+ * TCK-2438 — `start_urls` : les listes qu'il a lues, chacune jusqu'au bout pour que `reached_end` soit vrai ; nulle s'il a
+ * lu l'URL de la configuration. Le périmètre du passage, pour l'observatoire (`RadarSourceWatch`).
  */
 class RadarCrawlRun extends AbstractModel
 {
@@ -32,9 +35,12 @@ class RadarCrawlRun extends AbstractModel
     /** La pagination renvoie vers une page déjà lue par ce passage. */
     public const STOP_LOOP = 'radar.crawl.loop';
 
+    /** TCK-2438 — aucune URL de départ réglée ne passe les garde-fous de `RadarStartUrls` : le passage ne lit rien. */
+    public const STOP_NO_START_URL = 'radar.crawl.no_start_url';
+
     protected $fillable = [
         'site', 'trigger', 'status', 'operator_id', 'started_at', 'finished_at', 'pages_read', 'cards_seen',
-        'listings_created', 'listings_known', 'snapshots_opened', 'reached_end', 'stop_reason',
+        'listings_created', 'listings_known', 'snapshots_opened', 'reached_end', 'stop_reason', 'start_urls',
     ];
 
     protected $casts = [
@@ -49,6 +55,7 @@ class RadarCrawlRun extends AbstractModel
         'listings_known' => 'integer',
         'snapshots_opened' => 'integer',
         'reached_end' => 'boolean',
+        'start_urls' => 'array',
     ];
 
     protected static array $requestFilterable = ['site', 'status'];

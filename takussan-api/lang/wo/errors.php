@@ -783,6 +783,12 @@ return [
         'crawl' => [
             'active' => 'Un passage est déjà en cours sur ce site : attendez sa fin.',
             'unknown_site' => 'Ce site n\'est pas collecté : aucun adaptateur ne le lit.',
+            // TCK-2438 — les URL de départ réglées dans la console.
+            'start_urls_too_many' => 'Trop d\'URL de départ : :max au plus par site.',
+            'start_url_too_long' => 'Cette URL de départ est trop longue : :max caractères au plus.',
+            'start_url_invalid' => 'Cette URL de départ n\'est pas acceptée : une adresse https, sans identifiants ni port.',
+            'start_url_host' => 'Cette URL de départ n\'est pas sur le site : elle doit partir de :hosts.',
+            'start_url_duplicate' => 'Cette URL de départ est déjà dans la liste.',
         ],
         // TCK-2394 (ADR-0077, lot 4) — la relance d'activation ; (ADR-0079) la publication sous mandat.
         'activation' => [
