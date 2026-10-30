@@ -80,11 +80,12 @@ le lien `wa.me` et les captures.
 | Arrivée d'une réponse par le webhook | relecture de la fiche toutes les 30 s (`RADAR_REPLY_POLL_MS`) tant que la chaîne d'un message ouvert contient un envoi par l'API sans issue (une réponse se rattache à la relance, même envoyée à la main), dans une fenêtre de 15 min (`RADAR_REPLY_WINDOW_MS`) rouverte à l'arrivée, au retour sur l'onglet et à chaque envoi par l'API | aucune relecture (seulement au retour sur l'onglet), ou une relecture sans fin | rien d'autre ne signale la réponse ; jamais en arrière-plan (défaut de TanStack Query) ; deux constantes à changer |
 | Libellé du 409 `reply_pending` d'un envoi | clé `message.replyPending`, propre au brouillon | le libellé commun du dépôt | « une réponse de ce message » désigne le mauvais message pour une relance |
 | Réponse sans texte (vocal, image) | « écoutez-la ou regardez-la dans WhatsApp, sur le numéro du Radar » | « sur le téléphone du Radar » | un numéro de l'API Cloud ne s'ouvre pas forcément dans un téléphone (hors coexistence) |
+| Cliquet `check:i18n-namespaces` après la fusion de `dev` | plafond de `(super-admin)/super-admin` porté de 52 à 57 %, la valeur que `--update` calcule (part 52,0 % + 5 points), seule ligne changée | `--update` complet (resserre aussi 37 autres frontières) ; raccourcir les textes | aucun espace de noms n'est entré (18 servis, comme sur `dev` à 51,8 %) : la part monte par les seules clés neuves de `superAdmin` ; ne pas resserrer les autres frontières sous les branches en vol |
 | Échec de vérification d'une réponse reçue | « Lisez le texte reçu vous-même » (`failedReceived`) | « Lisez les captures » | il n'y a pas de captures |
 
 ## Reste sur dev
 
-La branche `feat/radar-console-envoi-api` part de `feat/radar-whatsapp-automatise` (TCK-2395, PR #1598), **non
-fusionnée** : ce statut ne vaut qu'une fois #1598 puis cette branche fusionnées sur `dev`. Chaque AC est prouvé par
-`RadarEnvoiApi.tck-2426.test.tsx`, ablations comprises. Le porteur : relire les décisions ci-dessus, et, en
-préproduction, un premier envoi réel une fois le pilote `cloud` configuré (prérequis de TCK-2395).
+- La règle de `docs/features.md` § 2.12 (envoi par l'API depuis la console, canal, réponse reçue en texte, démarchage
+  fermé tant qu'une réponse reçue de l'annonceur n'est pas tranchée) : écrite par la PR de spec commune.
+- Le porteur : un premier envoi réel depuis la console en préproduction, une fois le pilote `cloud` configuré
+  (prérequis de TCK-2395), et la relecture des décisions ci-dessus.
