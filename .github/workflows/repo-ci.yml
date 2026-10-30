@@ -11,10 +11,12 @@
 # Aucune de ces gardes ne compile. Elles tiennent la documentation au même niveau d'exigence que
 # le code, et c'est tout leur objet.
 #
-# UNE exception, et elle est assumée : `test-release-reindex.sh` est un vrai test. Il vit
-# ici parce que son sujet — la décision de réindexation de `release.sh` — n'a pas d'autre maison :
-# ni PHPUnit ni vitest ne lisent du bash. Cette phrase disait « ni ne teste quoi que ce soit »
-# avant que le test n'existe ; la corriger était moins cher que de laisser l'en-tête mentir.
+# DEUX exceptions, et elles sont assumées : `test-release-reindex.sh` et
+# `test-sauvegarde-seau-prive.sh` (TCK-2407) sont de vrais tests. Ils vivent ici parce que leur
+# sujet — la décision de réindexation de `release.sh`, la rotation de la copie du seau privé — n'a
+# pas d'autre maison : ni PHPUnit ni vitest ne lisent du bash. Cette phrase disait « ni ne teste
+# quoi que ce soit » avant que le premier n'existe, puis « UNE exception » avant le second ; la
+# corriger était moins cher que de laisser l'en-tête mentir.
 name: Repo CI
 
 on:
@@ -410,6 +412,14 @@ jobs:
         # laisse la recherche répondre sur un index périmé. Le harnais joue le VRAI release.sh
         # dans un APP_ROOT jetable, talonne `php`, et finit par une ablation qui échoue exprès.
         run: ./scripts/test-release-reindex.sh
+
+      - name: La copie du seau privé garde 14 jours, et jamais moins qu'un objet vivant (TCK-2407)
+        # privacy.ts § 6 promet que les sauvegardes ne gardent rien plus de 14 jours ; la copie
+        # nocturne gardait pour toujours ce que la purge du Radar efface. Le harnais joue le VRAI
+        # `deploy/server/sauvegarde-seau-prive.sh` sur un R2 simulé, jours simulés par `JOUR` :
+        # l'objet effacé part au plus tard à J+13, l'objet vivant reste (même md5), un échec alerte
+        # et ne retire rien. Il finit par une ablation (sans la rotation) qui échoue exprès.
+        run: ./scripts/test-sauvegarde-seau-prive.sh
 
       - name: Le banc d'essai tourne sur le moteur de base de la production
         # `docker-compose.yml` et le job `migrations-mysql` tournaient sur `mariadb:11.4`, sur la

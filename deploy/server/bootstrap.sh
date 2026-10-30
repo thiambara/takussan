@@ -205,6 +205,8 @@ systemctl enable --now seuils.timer
 # Dokploy. Les unités attendent /usr/local/sbin/sauvegarde-seau-prive — deploy/server/
 # sauvegarde-seau-prive.sh, copié là par le runbook — et /etc/default/sauvegarde-seau-prive (le
 # jeton `takussan-preview-backup`, mode 600). Tant que le script manque, le timer ne fait rien.
+# Depuis TCK-2407 (ADR-0029 amendé le 2026-10-30), chaque passage écrit un instantané daté et retire
+# ceux de RETENTION_JOURS jours ou plus (14) : seul le script change, les unités ci-dessous non.
 cat > /etc/systemd/system/sauvegarde-seau-prive.service <<'UNIT'
 [Unit]
 Description=Copie du seau privé des médias vers vps-sauvegardes (TCK-541)
