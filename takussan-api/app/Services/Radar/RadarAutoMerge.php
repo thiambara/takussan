@@ -18,7 +18,8 @@ use Illuminate\Support\Facades\DB;
  *
  * **Avec qui** : le premier rapprochement de `RadarMatcher` qui est une annonce
  *  - `high` (deux signaux distincts, ou une photo à distance ≤ 1),
- *  - dont l'un des signaux désigne le BIEN — la photo ou le lieu (quartier, prix, chambres) : un même numéro et un même
+ *  - dont l'un des signaux désigne le BIEN — la photo, ou le lieu (quartier, prix, chambres) au moins `medium` et
+ *    corroboré par un autre signal que le téléphone ({@see self::designatesTheProperty()}) : un même numéro et un même
  *    texte type désignent l'annonceur, et un annonceur porte plusieurs biens ;
  *  - plus ancienne (la fiche est la première vue), d'un AUTRE site (les doublons d'un même site restent à l'opérateur),
  *  - à une étape où elle fait foi : ni capturée, ni en échec, ni écartée, ni purgée, ni elle-même doublon.
@@ -26,7 +27,8 @@ use Illuminate\Support\Facades\DB;
  * **Ce qui est écrit** : l'annonce passe `duplicate` de la fiche (`duplicate_of_listing_id`), `stage_reason`
  * `radar.merge.auto`, `merged_at`, les rapprochements figés comme pour un « doublon de » manuel. Dans tous les cas
  * `merge_checked_at` : une fusion n'est jugée qu'une fois — séparée par l'opérateur ({@see self::unmerge()}), elle n'est
- * pas retentée. `radar.merge.auto` à faux éteint la fusion, sans rien défaire.
+ * pas retentée. **Éteinte par défaut** (`radar.merge.auto`, `RADAR_MERGE_AUTO`, ADR-0080) : faux, rien n'est fusionné,
+ * rien n'est défait.
  */
 final class RadarAutoMerge
 {
@@ -34,9 +36,6 @@ final class RadarAutoMerge
 
     /** Annonces jugées au plus par balayage : le matcher fait une douzaine de requêtes par annonce. */
     public const BATCH = 50;
-
-    /** Les signaux qui désignent le bien, et non l'annonceur. */
-    private const PROPERTY_SIGNALS = [RadarMatcher::SIGNAL_PHOTO, RadarMatcher::SIGNAL_PLACE];
 
     /** Les étapes où une annonce peut être la fiche d'une fusion. */
     private const TARGET_STAGES = [
@@ -50,7 +49,7 @@ final class RadarAutoMerge
     /** @return int le nombre d'annonces fusionnées */
     public function sweep(CarbonInterface $now): int
     {
-        if (! config('radar.merge.auto', true)) {
+        if (! config('radar.merge.auto', false)) {
             return 0;
         }
 
@@ -153,9 +152,8 @@ final class RadarAutoMerge
     {
         $eligible = [];
         foreach ($matches as $match) {
-            $signals = array_column($match['signals'], 'signal');
             if ($match['kind'] === 'listing' && $match['strength'] === 'high' && $match['id'] < $candidate->id
-                && array_intersect($signals, self::PROPERTY_SIGNALS) !== []) {
+                && self::designatesTheProperty($match['signals'])) {
                 $eligible[] = $match['id'];
             }
         }
@@ -176,6 +174,33 @@ final class RadarAutoMerge
         }
 
         return null;
+    }
+
+    /**
+     * Un signal désigne le bien : la photo ; ou le lieu, s'il est au moins `medium` (prix à `RadarMatcher::PRICE_CLOSE`
+     * près) ET corroboré par un signal qui n'est pas le téléphone. Un même annonceur publie souvent plusieurs lots du même
+     * immeuble : son numéro plus un lieu lâche (±10 %, quartier et famille) ne disent pas que c'est le même bien.
+     *
+     * @param  list<array{signal: string, strength: string}>  $signals
+     */
+    private static function designatesTheProperty(array $signals): bool
+    {
+        $names = array_column($signals, 'signal');
+        if (in_array(RadarMatcher::SIGNAL_PHOTO, $names, true)) {
+            return true;
+        }
+
+        $place = null;
+        foreach ($signals as $signal) {
+            if ($signal['signal'] === RadarMatcher::SIGNAL_PLACE) {
+                $place = $signal;
+            }
+        }
+        if ($place === null || $place['strength'] === 'low') {
+            return false;
+        }
+
+        return array_diff($names, [RadarMatcher::SIGNAL_PLACE, RadarMatcher::SIGNAL_PHONE]) !== [];
     }
 
     /**
