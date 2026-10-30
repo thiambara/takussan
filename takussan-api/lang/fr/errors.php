@@ -746,6 +746,8 @@ return [
             'activation_unavailable' => "La connexion par téléphone est éteinte dans cet environnement : le compte créé pour l'annonceur ne pourrait pas s'ouvrir par code SMS. Rien ne se publie tant qu'elle ne l'est pas.",
             'otp_preview_active' => "L'aperçu des codes SMS est actif dans cet environnement : le code d'activation reviendrait dans la réponse, et quiconque connaît le numéro de l'annonceur pourrait ouvrir son compte. Rien ne se publie tant qu'il l'est.",
             'nothing_published' => 'Aucun bien n\'est publié pour cet annonceur : il n\'y a pas de message à composer.',
+            // TCK-2394 (ADR-0079)
+            'under_mandate' => 'Les biens de cet annonceur sont publiés sous mandat : il ne se publie plus pour lui dans un compte.',
         ],
         // TCK-2395 — le démarchage par l'API, depuis le numéro WhatsApp dédié au Radar.
         'whatsapp' => [
@@ -770,6 +772,8 @@ return [
             'wrong_account' => 'Vous êtes connecté avec un autre compte : déconnectez-vous, puis rouvrez ce lien.',
             'account_changed' => 'Ce compte a changé entre-temps : rechargez la page.',
             'support_required' => 'Ce numéro est lié à deux comptes Takussan : écrivez-nous, nous les réunirons.',
+            // TCK-2394 (ADR-0079) — sous mandat, la réclamation attend la reprise (TCK-2421).
+            'under_mandate' => 'Vos annonces sont déjà diffusées par Takussan pour votre compte : écrivez-nous pour les reprendre dans votre propre espace.',
             'name_contains_phone' => 'Le prénom et le nom de l\'espace ne peuvent pas contenir de numéro de téléphone.',
         ],
         // TCK-2392 — la collecte automatique et la fusion des doublons entre sites.
@@ -779,6 +783,20 @@ return [
         'crawl' => [
             'active' => 'Un passage est déjà en cours sur ce site : attendez sa fin.',
             'unknown_site' => 'Ce site n\'est pas collecté : aucun adaptateur ne le lit.',
+        ],
+        // TCK-2394 (ADR-0077, lot 4) — la relance d'activation ; (ADR-0079) la publication sous mandat.
+        'activation' => [
+            'already_active' => 'Le compte de cet annonceur est déjà activé : il n\'y a plus rien à relancer.',
+            'revoked' => 'Un accord de cet annonceur est retiré, ou son numéro est effacé : aucune relance ne lui est préparée.',
+            'nothing_published' => 'Aucun bien publié pour cet annonceur n\'est en ligne : la relance n\'aurait rien à dire.',
+            'too_soon' => 'La dernière relance, ou la mise en ligne, date de moins d\'une période : la prochaine relance part à partir de :available_at.',
+            'under_mandate' => 'Les biens de cet annonceur sont publiés sous mandat : il n\'a pas de compte à activer.',
+            'just_sent' => 'Cette relance vient d\'être marquée envoyée : un second marquage ne compterait pas une relance de plus.',
+        ],
+        'mandate' => [
+            'disabled' => 'La publication sous mandat est éteinte (ADR-0079 proposé) : rien ne se publie sous mandat.',
+            'space_missing' => 'Aucun espace des mandats n\'est désigné, ou il est suspendu : désignez-en un dans les paramètres de la plateforme.',
+            'account_exists' => 'Un compte est déjà rattaché à cet annonceur : publiez pour lui dans son espace, pas sous mandat.',
         ],
     ],
     'pay_link' => [

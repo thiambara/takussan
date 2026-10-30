@@ -166,6 +166,17 @@ describe('relayerVersApi', () => {
     expect(publieeReglee).toBe(false);
     await vi.advanceTimersByTimeAsync(DELAI_RELAIS_FICHIER_MS);
     expect((await publication).status).toBe(504);
+
+    // TCK-2394 — la publication sous mandat fait le même travail (photos copiées dans la transaction) : même délai.
+    let mandatRegle = false;
+    const mandat = appeler(['radar', 'advertisers', '7', 'publish-mandate']).then((r) => {
+      mandatRegle = true;
+      return r;
+    });
+    await vi.advanceTimersByTimeAsync(31_000);
+    expect(mandatRegle).toBe(false);
+    await vi.advanceTimersByTimeAsync(DELAI_RELAIS_FICHIER_MS);
+    expect((await mandat).status).toBe(504);
   });
 
   it('l\'abandon d\'une écriture ne l\'abandonne pas', async () => {

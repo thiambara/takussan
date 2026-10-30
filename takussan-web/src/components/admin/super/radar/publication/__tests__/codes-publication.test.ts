@@ -24,11 +24,14 @@ function fichiersPhp(dossier: string): string[] {
   });
 }
 
-/** Tous les codes `radar.(publish|photo|advertiser|listing).x` que l'API écrit en littéral — hors clés de `config()` (`radar.publish.max_photos`). */
+/**
+ * Tous les codes `radar.(publish|photo|advertiser|listing|mandate|activation).x` que l'API écrit en littéral — hors clés de
+ * `config()` (`radar.publish.max_photos`). TCK-2394 : le mandat et la relance d'activation y entrent.
+ */
 const CODES_API = (() => {
   const trouves = new Set<string>();
   for (const fichier of fichiersPhp(join(RACINE, 'takussan-api', 'app'))) {
-    for (const m of readFileSync(fichier, 'utf8').matchAll(/(?<!config\()'(radar\.(?:publish|photo|advertiser|listing)\.[a-z_]+)'/g)) trouves.add(m[1]);
+    for (const m of readFileSync(fichier, 'utf8').matchAll(/(?<!config\()'(radar\.(?:publish|photo|advertiser|listing|mandate|activation)\.[a-z_]+)'/g)) trouves.add(m[1]);
   }
   return [...trouves].sort();
 })();

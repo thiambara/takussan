@@ -42,6 +42,12 @@ class RadarAdvertiser extends AbstractModel
         // TCK-2413 — pas une colonne : l'agrégat `withMin` de la liste (`RadarAdvertiserController::index`), l'échéance de
         // purge de la première annonce laissée. Casté ici, il arrive en instant à la ressource, quel que soit le pilote.
         'left_purge_at' => 'datetime',
+        // TCK-2394 — la relance d'activation et le mandat (ADR-0079), écrits par `forceFill` (hors `$fillable`, hors
+        // `$queryFields`) : `RadarActivationReminders` et `RadarPublisher::publishUnderMandate()`.
+        'activation_reminded_at' => 'datetime',
+        'activation_reminder_count' => 'integer',
+        'activation_baseline' => 'array',
+        'mandate_at' => 'datetime',
     ];
 
     protected static array $queryFields = [

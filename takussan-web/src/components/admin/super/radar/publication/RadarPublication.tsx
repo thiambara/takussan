@@ -19,6 +19,7 @@ import {
   fetchRadarAdvertiser,
   fetchRadarPublicationPreview,
   publishRadarAdvertiser,
+  publishRadarAdvertiserUnderMandate,
   radarKeys,
   RADAR_POLL_MS,
   refetchRadarListingPhotos,
@@ -42,6 +43,7 @@ import { CODES_SANS_SECOND_MESSAGE } from './codes-publication';
 import { CompteACreer } from './CompteACreer';
 import { DejaPubliees } from './DejaPubliees';
 import { ConfirmerPublication } from './ConfirmerPublication';
+import { PublierSousMandat } from './PublierSousMandat';
 import {
   annoncesCochees,
   CODE_EN_COURS,
@@ -82,10 +84,13 @@ function ApercuCharge({ id, apercu, claim }: ApercuChargeProps) {
   const messageEchec = useMessageEchecAnnonceur();
   const libelle = useLibelleCodePublication();
   const idempotence = useCleIdempotence();
+  // TCK-2394 — la publication sous mandat est un autre geste : sa propre clé, pour qu'un réessai ne rejoue pas l'autre.
+  const idempotenceMandat = useCleIdempotence();
 
   const [choix, setChoix] = useState<ChoixAnnonces>({});
   const [erreur, setErreur] = useState<unknown>(null);
-  const [confirmation, setConfirmation] = useState(false);
+  /** La confirmation ouverte : publier pour son compte, ou sous mandat Takussan (TCK-2394). */
+  const [confirmation, setConfirmation] = useState<'compte' | 'mandat' | null>(null);
   const [erreurPublication, setErreurPublication] = useState<unknown>(null);
   const [resultat, setResultat] = useState<RadarPublicationResultat | null>(null);
 
@@ -107,8 +112,10 @@ function ApercuCharge({ id, apercu, claim }: ApercuChargeProps) {
   usePriseEnCharge({ claim, renouveler: () => renouvellement.mutate() });
   const mienne = claim?.mine === true;
   const stoppe = apercu.advertiser.do_not_contact_at !== null;
+  // TCK-2394 (ADR-0079) — publié sous mandat, sans compte : le second message ne promet aucune activation.
+  const sousMandat = apercu.advertiser.mandate_at !== null && !apercu.account.exists;
   // Ce que l'API refuse de composer en 422 pour l'environnement : le second message promet l'activation par SMS.
-  const messageRefuse = apercu.blocking.some((code) => CODES_SANS_SECOND_MESSAGE.has(code));
+  const messageRefuse = !sousMandat && apercu.blocking.some((code) => CODES_SANS_SECOND_MESSAGE.has(code));
   /** Une prise expirée entre deux lectures : le refus se rattrape ici (on reprend, on rejoue) au lieu d'envoyer à la fiche. */
   const avecPrise = async <T,>(appel: () => Promise<T>): Promise<T> => {
     try {
@@ -144,7 +151,7 @@ function ApercuCharge({ id, apercu, claim }: ApercuChargeProps) {
     mutationFn: (ids) => avecPrise(() => rejouerSiEnCours(() => publishRadarAdvertiser(id, ids, idempotence.cle()))),
     onSuccess: (reponse) => {
       idempotence.apres({ ok: true });
-      setConfirmation(false);
+      setConfirmation(null);
       setErreurPublication(null);
       setResultat(reponse.data);
       void queryClient.invalidateQueries({ queryKey: radarKeys.advertiser(id) });
@@ -156,14 +163,35 @@ function ApercuCharge({ id, apercu, claim }: ApercuChargeProps) {
       relireSurRefus(e);
     },
   });
+  const publicationMandat = useMutation<RadarPublicationResponse, ApiError, readonly number[]>({
+    mutationFn: (ids) => avecPrise(() => rejouerSiEnCours(() => publishRadarAdvertiserUnderMandate(id, ids, idempotenceMandat.cle()))),
+    onSuccess: (reponse) => {
+      idempotenceMandat.apres({ ok: true });
+      setConfirmation(null);
+      setErreurPublication(null);
+      setResultat(reponse.data);
+      void queryClient.invalidateQueries({ queryKey: radarKeys.advertiser(id) });
+      return relire();
+    },
+    onError: (e) => {
+      idempotenceMandat.apres({ ok: false, code: codeDeLErreur(e) });
+      setErreurPublication(e);
+      relireSurRefus(e);
+    },
+  });
 
-  const enCours = retrait.isPending || depot.isPending || relance.isPending || publication.isPending || prise.isPending || restitution.isPending;
+  const enCours = retrait.isPending || depot.isPending || relance.isPending || publication.isPending || publicationMandat.isPending
+    || prise.isPending || restitution.isPending;
   // Sans prise à soi, ou sous STOP : on regarde, on ne touche à rien.
   const gestesFermes = enCours || !mienne || stoppe;
 
   if (resultat !== null) return <RecapitulatifPublication advertiserId={id} publication={resultat} />;
 
   const fermee = publicationFermee(apercu);
+  // TCK-2394 — un blocage du compte (numéro inscrit, connexion par téléphone éteinte, déjà sous mandat) n'empêche pas de
+  // cocher si le mandat reste ouvert : c'est précisément le cas où il sert.
+  const mandatOuvert = apercu.mandate.enabled && apercu.mandate.blocking.length === 0;
+  const cochageFerme = fermee && !mandatOuvert;
   const cochees = annoncesCochees(apercu.listings, choix);
   const resume = resumeDeLaPublication(apercu, choix);
   const nom = apercu.advertiser.display_name || null;
@@ -186,7 +214,7 @@ function ApercuCharge({ id, apercu, claim }: ApercuChargeProps) {
 
       {apercu.blocking.length > 0 ? (
         <div role="alert" className="space-y-1 rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive" data-testid="radar-publication-blocage">
-          <p className="font-medium">{t('blocking.heading')}</p>
+          <p className="font-medium">{mandatOuvert ? t('blocking.headingAccount') : t('blocking.heading')}</p>
           <ul className="list-inside list-disc">
             {apercu.blocking.map((code) => <li key={code}>{libelle(code)}</li>)}
           </ul>
@@ -223,7 +251,7 @@ function ApercuCharge({ id, apercu, claim }: ApercuChargeProps) {
                 key={annonce.id}
                 annonce={annonce}
                 cochee={estCochee(annonce, choix)}
-                desactive={gestesFermes || fermee}
+                desactive={gestesFermes || cochageFerme}
                 onBascule={() => bascule(annonce.id)}
                 onRetirerPhoto={(media) => lancer(() => retrait.mutate({ annonce: annonce.id, media }))}
                 onDeposerPhotos={(fichiers) => lancer(() => depot.mutate({ annonce: annonce.id, fichiers }))}
@@ -235,10 +263,10 @@ function ApercuCharge({ id, apercu, claim }: ApercuChargeProps) {
       </section>
 
       <div className="flex flex-wrap items-center gap-3 border-t pt-4">
-        <Button type="button" disabled={gestesFermes || fermee || cochees.length === 0 || tropDePhotos} onClick={() => { setErreurPublication(null); setConfirmation(true); }}>
+        <Button type="button" disabled={gestesFermes || fermee || cochees.length === 0 || tropDePhotos} onClick={() => { setErreurPublication(null); setConfirmation('compte'); }}>
           {t('publish', { count: cochees.length })}
         </Button>
-        {cochees.length === 0 && !fermee ? <p className="text-xs text-muted-foreground">{t('nothingChecked')}</p> : null}
+        {cochees.length === 0 && !cochageFerme ? <p className="text-xs text-muted-foreground">{t('nothingChecked')}</p> : null}
         {tropDePhotos ? (
           <p className="text-xs text-destructive" data-testid="radar-publication-plafond">
             {t('overPhotoLimit', { count: resume.photos, max: apercu.max_photos })}
@@ -246,17 +274,34 @@ function ApercuCharge({ id, apercu, claim }: ApercuChargeProps) {
         ) : null}
       </div>
 
+      {apercu.mandate.enabled ? (
+        <PublierSousMandat
+          mandat={apercu.mandate}
+          depuis={apercu.advertiser.mandate_at}
+          nbCochees={cochees.length}
+          desactive={gestesFermes || tropDePhotos}
+          onPublier={() => { setErreurPublication(null); setConfirmation('mandat'); }}
+        />
+      ) : null}
+
       <ConfirmerPublication
-        open={confirmation}
+        open={confirmation !== null}
         nom={nom}
         resume={resume}
-        enCours={publication.isPending}
+        mandat={confirmation === 'mandat' ? (apercu.mandate.space?.name ?? '') : null}
+        enCours={publication.isPending || publicationMandat.isPending}
         erreur={erreurPublication ? messageEchec(erreurPublication) : null}
-        onAnnuler={() => setConfirmation(false)}
-        onConfirmer={() => publication.mutate(cochees.map((annonce) => annonce.id))}
+        onAnnuler={() => setConfirmation(null)}
+        onConfirmer={() => {
+          const ids = cochees.map((annonce) => annonce.id);
+          if (confirmation === 'mandat') publicationMandat.mutate(ids);
+          else publication.mutate(ids);
+        }}
       />
 
-      {apercu.published.length > 0 ? <DejaPubliees advertiserId={id} biens={apercu.published} stoppe={stoppe} messageRefuse={messageRefuse} /> : null}
+      {apercu.published.length > 0 ? (
+        <DejaPubliees advertiserId={id} biens={apercu.published} stoppe={stoppe} messageRefuse={messageRefuse} sousMandat={sousMandat} />
+      ) : null}
     </div>
   );
 }

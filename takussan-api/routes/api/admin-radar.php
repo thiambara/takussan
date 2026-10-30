@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\Admin\RadarActivationReminderController;
 use App\Http\Controllers\Api\Admin\RadarAdvertiserAccountController;
 use App\Http\Controllers\Api\Admin\RadarAdvertiserController;
 use App\Http\Controllers\Api\Admin\RadarCrawlController;
@@ -123,4 +124,25 @@ Route::middleware(['auth:sanctum', 'super-admin', 'platform-can:'.PlatformAbilit
     ->prefix('admin/radar')
     ->group(function () {
         Route::post('advertisers/{advertiser}/release-account', [RadarAdvertiserAccountController::class, 'release'])->name('admin.radar.advertisers.release-account');
+    });
+
+/*
+| TCK-2394 (ADR-0077, lot 4) — la relance d'activation d'un compte créé pour l'annonceur : `platform.radar.operate`, du
+| `support` au `super_admin` (relancer est du démarchage, ADR-0077 §11). L'envoi exige la prise en charge.
+*/
+Route::middleware(['auth:sanctum', 'super-admin', 'platform-can:'.PlatformAbility::RadarOperate->value])
+    ->prefix('admin/radar')
+    ->group(function () {
+        Route::get('advertisers/{advertiser}/activation-reminder', [RadarActivationReminderController::class, 'show'])->name('admin.radar.advertisers.activation-reminder');
+        Route::post('advertisers/{advertiser}/activation-reminder/sent', [RadarActivationReminderController::class, 'sent'])->name('admin.radar.advertisers.activation-reminder.sent');
+    });
+
+/*
+| TCK-2394 (ADR-0079, proposé) — publier sous mandat : `platform.radar.publish`, `super_admin` seul, comme « publier pour lui ».
+| Refusé tant que le drapeau `radar_mandate` est éteint.
+*/
+Route::middleware(['auth:sanctum', 'super-admin', 'platform-can:'.PlatformAbility::RadarPublish->value])
+    ->prefix('admin/radar')
+    ->group(function () {
+        Route::post('advertisers/{advertiser}/publish-mandate', [RadarPublicationController::class, 'publishUnderMandate'])->middleware('idempotent')->name('admin.radar.advertisers.publish-mandate');
     });
