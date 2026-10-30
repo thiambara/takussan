@@ -28,10 +28,6 @@ la plateforme fait réellement**, relevé dans le code le même jour.
    d'accord du Radar (`takussan-api/resources/radar/clauses/accord.v2.*.md`) : leur formulation
    neutre « votre ou vos annonces » (TCK-2390, décision 6a du porteur) n'a pas été relue.
 5. **Fermer TCK-537** : trois engagements de la politique ne sont pas encore tenus par le code.
-7. **Fermer TCK-2404** : la page de réclamation du Radar (TCK-2390) présente les Conditions à
-   l'activation et rend vraie l'acceptation « en suivant le lien qu'il contient » (article 6.3 des
-   CGU, `accord.v2` et `{lien_reclamation}`) ; mais le même compte s'active aussi par la connexion
-   ordinaire (`/auth/login`, code SMS), qui ne les présente pas encore.
 8. **Retirer les `⚠` du corps des textes**, avec la relecture de l'avocat (ligne 4), sans ticket : ceux de
    l'article 6.3 des CGU et des § 3, § 4.3 et § 6 de la politique s'affichent tels quels sur la page
    publique, comme les `[⚠ à compléter : …]` de la ligne 1, mais le test des marqueurs ne les voit pas.
