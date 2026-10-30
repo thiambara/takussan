@@ -101,3 +101,8 @@ l'équipe, **le titulaire du bien est en plus questionné**, et **rien n'est jam
 5. **Sans réponse, une proposition.** Après `radar.observe.owner_answer_days` (7) jours, `radar:observe-sources` écrit
    `radar_withdrawal_proposed`, événement alertable, journal de plateforme (sujet l'annonce, bien en propriétés), une fois
    par bien. L'équipe décide ; le bien reste en ligne tant qu'elle n'a rien fait.
+6. **« En ligne » ne compte que ce que la veille juge.** `other_sources_online` (le champ de `radar_source_listing_gone`
+   et la garde de la question) exclut les annonces que la collecte ne suit plus (§3 : purgées, `do_not_contact`, annonceur
+   STOP) et celles d'un site sans passage complet : jamais jugées, elles comptaient en ligne pour toujours et retenaient la
+   question indéfiniment. Une question se tait quand le bien quitte la vitrine ; celle d'un bien supprimé se règle sans
+   proposition.

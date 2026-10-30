@@ -4,6 +4,7 @@ namespace Tests\Feature\Radar\Observatory;
 
 use App\Domain\Notifications\NotificationCode;
 use App\Jobs\SendAdminAlert;
+use App\Models\Agency;
 use App\Models\AlertRule;
 use App\Models\AppNotification;
 use App\Models\Enums\PropertyStatus;
@@ -15,6 +16,7 @@ use App\Models\RadarAdvertiser;
 use App\Models\RadarListing;
 use App\Models\User;
 use App\Notifications\CodedNotification;
+use App\Services\Property\PropertyPublication;
 use App\Services\Radar\Observatory\RadarAvailabilityCheck;
 use App\Services\Radar\Observatory\RadarSourceWatch;
 use App\Support\RadarPhone;
@@ -130,6 +132,8 @@ class RadarAvailabilityCheckTest extends TestCase
         $titulaire = User::query()->findOrFail($property->user_id);
         $publiee = $this->annonceCollectee(['stage' => RadarListingStage::Published, 'property_id' => $property->id], RadarSourceSite::Coinafrique);
         $this->instantane($publiee, '2026-10-20 08:00:00', '2026-10-29 09:00:00');
+        // Le site de la publication a un passage complet qui l'a vue : la veille la juge, elle compte « en ligne ».
+        $this->passage('2026-10-29 08:30:00', site: RadarSourceSite::Coinafrique);
         $doublon = $this->annonceCollectee(['stage' => RadarListingStage::Duplicate, 'duplicate_of_listing_id' => $publiee->id]);
         $this->instantane($doublon, '2026-10-20 08:00:00', '2026-10-28 08:05:00');
         $this->passage('2026-10-28 20:00:00');
@@ -380,5 +384,124 @@ class RadarAvailabilityCheckTest extends TestCase
         $this->assertTrue($operateur->can('update', $property));
         $this->getJson("/api/properties/{$property->id}/availability-check")->assertOk()->assertJsonPath('data.open', true);
         $this->actingAs(User::factory()->create())->getJson("/api/properties/{$property->id}/availability-check")->assertForbidden();
+    }
+
+    /**
+     * I1 (vérification adverse) — un doublon que la veille ne juge jamais (annonceur STOP, stade `do_not_contact` ou purgé)
+     * ne compte pas « en ligne » : sa dernière vraie source disparue, le titulaire est questionné.
+     */
+    public function test_un_doublon_jamais_juge_ne_retient_pas_la_question(): void
+    {
+        $stop = RadarAdvertiser::query()->create([
+            'phone' => '+221740000012',
+            'phone_hmac' => RadarPhone::hmac('+221740000012'),
+            'do_not_contact_at' => '2026-10-27 09:00:00',
+        ]);
+        [$property, $annonce] = $this->bienDontLaSourceDisparait();
+        foreach ([
+            ['radar_advertiser_id' => $stop->id, 'stage' => RadarListingStage::Duplicate],
+            ['stage' => RadarListingStage::DoNotContact],
+            ['stage' => RadarListingStage::Purged],
+        ] as $surcharge) {
+            $doublon = $this->annonceCollectee($surcharge + ['duplicate_of_listing_id' => $annonce->id], RadarSourceSite::Coinafrique);
+            $this->instantane($doublon, '2026-10-20 08:00:00', '2026-10-29 09:00:00');
+        }
+        $this->passage('2026-10-29 10:00:00', site: RadarSourceSite::Coinafrique);
+
+        $this->assertSame(1, $this->observer()['alerts']);
+
+        $this->assertSame(1, $this->questions(User::query()->findOrFail($property->user_id)));
+    }
+
+    /** I1 — une source d'un site qui n'a aucun passage complet n'est jamais jugée : elle ne compte pas « en ligne » non plus. */
+    public function test_une_source_d_un_site_sans_passage_complet_ne_retient_pas_la_question(): void
+    {
+        [$property, $annonce] = $this->bienDontLaSourceDisparait();
+        $doublon = $this->annonceCollectee(['stage' => RadarListingStage::Duplicate, 'duplicate_of_listing_id' => $annonce->id], RadarSourceSite::Coinafrique);
+        $this->instantane($doublon, '2026-10-20 08:00:00', '2026-10-29 09:00:00');
+
+        $this->observer();
+
+        $this->assertSame(1, $this->questions(User::query()->findOrFail($property->user_id)));
+    }
+
+    /** M1 (vérification adverse) — le bien quitte la vitrine après la question : la fiche ne la pose plus. */
+    public function test_la_question_se_tait_quand_le_bien_quitte_la_vitrine(): void
+    {
+        [$property] = $this->bienDontLaSourceDisparait();
+        $titulaire = User::query()->findOrFail($property->user_id);
+        $this->observer();
+        $this->actingAs($titulaire)->getJson("/api/properties/{$property->id}/availability-check")->assertJsonPath('data.open', true);
+
+        $property->update(app(PropertyPublication::class)->archivedAttributes());
+
+        $this->actingAs($titulaire)->getJson("/api/properties/{$property->id}/availability-check")
+            ->assertOk()
+            ->assertJsonPath('data.open', false)
+            ->assertJsonPath('data.asked_at', null);
+    }
+
+    /** M2 (vérification adverse) — un bien supprimé règle sa question sans proposition : elle n'est plus relue à chaque passage. */
+    public function test_un_bien_supprime_n_est_plus_relu(): void
+    {
+        [$property, $annonce] = $this->bienDontLaSourceDisparait();
+        $this->observer();
+        $property->delete();
+
+        $this->travelTo('2026-11-07 12:00:00');
+
+        $this->assertSame(0, app(RadarAvailabilityCheck::class)->proposeWithdrawals());
+        $this->assertNotNull($annonce->refresh()->withdrawal_proposed_at);
+        $this->assertSame(0, Activity::query()->where('event', RadarAvailabilityCheck::PROPOSAL_EVENT)->count());
+    }
+
+    /** M3 — décision 5 : « loué » sur un bien déjà archivé note la réponse sans le désarchiver. */
+    public function test_loue_sur_un_bien_archive_ne_le_desarchive_pas(): void
+    {
+        [$property, $annonce] = $this->bienDontLaSourceDisparait();
+        $this->observer();
+        $property->update(app(PropertyPublication::class)->archivedAttributes());
+
+        $this->actingAs(User::query()->findOrFail($property->user_id))
+            ->postJson("/api/properties/{$property->id}/availability-check", ['answer' => 'rented'])
+            ->assertOk()
+            ->assertJsonPath('data.status', 'archived');
+
+        $property->refresh();
+        $this->assertSame(PropertyStatus::Archived, $property->status);
+        $this->assertNotNull($property->archived_at);
+        $this->assertSame('rented', $annonce->refresh()->availability_answer);
+    }
+
+    /** M3 — qui lit le bien sans pouvoir le modifier (un agent de l'agence, sans `properties.update_any`) ne voit pas la question. */
+    public function test_la_question_n_est_ouverte_qu_a_qui_peut_repondre(): void
+    {
+        $agence = Agency::factory()->create();
+        [$property] = $this->bienDontLaSourceDisparait(['agency_id' => $agence->id]);
+        $this->observer();
+        $this->assertSame(1, $this->questions(User::query()->findOrFail($property->user_id)));
+        $agent = $this->actingAsRole('agent', ['agency' => $agence]);
+
+        $this->assertTrue($agent->can('view', $property));
+        $this->assertFalse($agent->can('update', $property));
+        $this->getJson("/api/properties/{$property->id}/availability-check")->assertOk()->assertJsonPath('data.open', false);
+    }
+
+    /** M3 — une question déjà ouverte pour le bien couvre la disparition d'une source collectée après elle : pas de seconde notification. */
+    public function test_une_question_ouverte_couvre_une_source_collectee_apres_elle(): void
+    {
+        [$property, $annonce] = $this->bienDontLaSourceDisparait();
+        $titulaire = User::query()->findOrFail($property->user_id);
+        $this->observer();
+        $this->assertSame(1, $this->questions($titulaire));
+
+        $tardive = $this->annonceCollectee(['stage' => RadarListingStage::Duplicate, 'duplicate_of_listing_id' => $annonce->id]);
+        $this->instantane($tardive, '2026-10-29 09:00:00', '2026-10-30 09:00:00');
+        $this->passage('2026-10-30 10:00:00');
+        $this->passage('2026-10-30 11:00:00');
+        $this->observer();
+
+        $this->assertNotNull($tardive->refresh()->availability_asked_at);
+        $this->assertSame(1, $this->questions($titulaire));
     }
 }

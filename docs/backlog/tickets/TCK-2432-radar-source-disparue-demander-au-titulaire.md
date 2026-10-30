@@ -84,6 +84,16 @@ rien, et le bien reste public.
 10. **Réponse sans question ouverte** : 200 ; loué ou vendu s'appliquent quand même (le geste vaut `PUT …/status`),
     « toujours disponible » ne note rien. Écarté : 409. Raison : un geste en retard (annonce revenue entre-temps) ne doit
     pas afficher d'erreur.
+11. **Le POST est une seconde voie vers loué ou vendu** (vérification adverse M4) : il passe n'importe quel bien en vitrine
+    à `rented` ou `sold`, même jamais vu par le Radar, avec la même autorisation que `PUT …/status` (policy `update`,
+    `UpdateStatusPropertyRequest` n'exige pas `publish` pour un statut qui ne publie pas). Aucune élévation, réversible.
+    Écarté : le réserver aux biens questionnés. Raison : décision 10. À revoir au point du matin.
+12. **« En ligne » ne compte que ce que la veille juge** (vérification adverse I1) : `other_sources_online` exclut les
+    annonces non suivies (purgées, `do_not_contact`, annonceur STOP) et celles d'un site sans passage complet. Le champ du
+    journal `radar_source_listing_gone` (TCK-2393) change de sens avec. Reste : une annonce d'un site éteint APRÈS avoir eu
+    des passages complets compte encore en ligne (plus aucun passage ne la juge) ; l'alerte de l'équipe la rattrape.
+13. **Bien sorti de la vitrine** (M1) : la question se tait (`open` faux) ; **bien supprimé** (M2) : la question se règle
+    (`withdrawal_proposed_at` posé, sans proposition) et n'est plus relue.
 
 ## Reste sur dev
 

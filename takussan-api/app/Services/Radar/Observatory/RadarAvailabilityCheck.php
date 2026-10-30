@@ -137,9 +137,15 @@ final class RadarAvailabilityCheck
         });
     }
 
-    /** La question ouverte la plus ancienne du bien, `null` sans question ouverte. */
+    /**
+     * La question ouverte la plus ancienne du bien, `null` sans question ouverte — ou quand le bien a quitté la vitrine
+     * depuis (vérification adverse M1) : il n'y a plus rien à retirer, la question se tait.
+     */
     public function openSince(Property $property): ?\DateTimeInterface
     {
+        if (! Property::query()->public()->whereKey($property->id)->exists()) {
+            return null;
+        }
         $askedAt = $this->openChecks($property->id)->min('availability_asked_at');
 
         return $askedAt === null ? null : now()->parse($askedAt);
@@ -165,12 +171,13 @@ final class RadarAvailabilityCheck
         $proposals = 0;
         foreach ($candidates as $candidate) {
             $propertyId = $this->propertyOf($candidate);
-            if ($propertyId === null) {
-                continue;
-            }
             $proposals += DB::transaction(function () use ($candidate, $propertyId): int {
-                $locked = Property::query()->whereKey($propertyId)->lockForUpdate()->first();
+                $locked = $propertyId === null ? null : Property::query()->whereKey($propertyId)->lockForUpdate()->first();
+                // Bien supprimé (vérification adverse M2) : la question se règle sans proposition, pour ne plus être relue
+                // à chaque passage.
                 if ($locked === null) {
+                    RadarListing::query()->whereKey($candidate->id)->whereNull('withdrawal_proposed_at')->update(['withdrawal_proposed_at' => now()]);
+
                     return 0;
                 }
                 // Une proposition par bien : elle règle toutes ses questions ouvertes. Réclamée sous condition, une fois.

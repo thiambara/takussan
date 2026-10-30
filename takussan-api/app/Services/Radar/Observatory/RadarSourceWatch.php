@@ -9,6 +9,7 @@ use App\Models\RadarAdvertiser;
 use App\Models\RadarCrawlRun;
 use App\Models\RadarListing;
 use App\Models\RadarListingSnapshot;
+use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 
@@ -62,9 +63,7 @@ final class RadarSourceWatch
             $ids = RadarListing::query()
                 ->where('source_site', $run->site->value)
                 ->whereNull('source_gone_at')
-                ->whereNotIn('stage', [RadarListingStage::Purged->value, RadarListingStage::DoNotContact->value])
-                ->where(fn ($q) => $q->whereNull('radar_advertiser_id')
-                    ->orWhereNotIn('radar_advertiser_id', RadarAdvertiser::query()->whereNotNull('do_not_contact_at')->select('id')))
+                ->where(fn ($q) => $this->followed($q))
                 ->whereRaw('('.$this->lastSeenSql().') < ?', [$run->started_at])
                 ->whereRaw('('.$this->completeRunsSinceSql().') >= ?', [$run->site->value, $confirm])
                 ->orderBy('id')
@@ -187,12 +186,32 @@ final class RadarSourceWatch
         return [null, 'none'];
     }
 
-    /** Les autres annonces collectées du même bien encore en ligne (avec instantanés, non disparues). */
+    /**
+     * Les annonces que la collecte suit encore, donc que la veille peut juger : ni purgées, ni `do_not_contact`, ni d'un
+     * annonceur qui a dit STOP (TCK-2392, `RadarSnapshots::silenced()`).
+     */
+    private function followed(EloquentBuilder $q): EloquentBuilder
+    {
+        return $q->whereNotIn('stage', [RadarListingStage::Purged->value, RadarListingStage::DoNotContact->value])
+            ->where(fn ($q) => $q->whereNull('radar_advertiser_id')
+                ->orWhereNotIn('radar_advertiser_id', RadarAdvertiser::query()->whereNotNull('do_not_contact_at')->select('id')));
+    }
+
+    /**
+     * Les autres annonces collectées du même bien encore en ligne : avec instantanés, non disparues, et que la veille juge
+     * réellement — suivies par la collecte ({@see self::followed()}), d'un site qui a au moins un passage décisif. TCK-2432
+     * (vérification adverse I1) : un doublon jamais jugé (annonceur STOP, purgé, site sans passage complet) gardait son
+     * `source_gone_at` nul pour toujours et comptait « en ligne » indéfiniment ; la question au titulaire ne partait jamais.
+     */
     private function otherSourcesOnline(int $propertyId, int $exceptId): int
     {
+        $runs = (new RadarCrawlRun)->getTable();
+
         return RadarListing::query()
             ->whereKeyNot($exceptId)
             ->whereNull('source_gone_at')
+            ->where(fn ($q) => $this->followed($q))
+            ->whereIn('source_site', DB::table($runs)->where('status', RadarCrawlStatus::Finished->value)->where('reached_end', true)->select('site'))
             ->whereExists(fn (Builder $q) => $q->select(DB::raw(1))->from((new RadarListingSnapshot)->getTable().' as s')->whereColumn('s.radar_listing_id', 'radar_listings.id'))
             ->where(fn ($q) => $q
                 ->where('property_id', $propertyId)
