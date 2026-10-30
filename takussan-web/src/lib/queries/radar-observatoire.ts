@@ -4,6 +4,7 @@ import { radarKeys } from '@/lib/queries/radar';
 import { jsonOrThrow } from '@/lib/queries/super-admin-coque';
 import type { PaginatedResponse } from '@/types/api';
 import type {
+  RadarNatureHistoryFilters,
   RadarObservatoryFilters,
   RadarObservatoryResponse,
   RadarObservatorySection,
@@ -32,6 +33,7 @@ export const radarObservatoireKeys = {
   all: () => [...radarKeys.all, 'observatory'] as const,
   market: (filters: RadarObservatoryFilters) => [...radarObservatoireKeys.all(), 'market', filters] as const,
   ranking: (filters: RadarRankingFilters) => [...radarObservatoireKeys.all(), 'ranking', filters] as const,
+  natureHistory: (filters: RadarNatureHistoryFilters) => [...radarObservatoireKeys.all(), 'nature-history', filters] as const,
 };
 
 export async function fetchRadarObservatory(filters: RadarObservatoryFilters = {}): Promise<RadarObservatoryResponse> {
@@ -43,6 +45,19 @@ export async function fetchRadarObservatory(filters: RadarObservatoryFilters = {
       property_type: filters.propertyType,
       source_site: filters.sourceSite,
     },
+  });
+  const res = await fetch(cheminApi`/api/super-admin/radar/observatory${requete(qs)}`, { credentials: 'include' });
+  return jsonOrThrow<RadarObservatoryResponse>(res);
+}
+
+/**
+ * TCK-2431 — la part par nature sur une période : la seule section `nature_history`, bornée par `filter[since]` et
+ * `filter[until]` (que les autres sections ignorent). Une requête à part : changer la période ne recalcule pas le marché.
+ */
+export async function fetchRadarNatureHistory(filters: RadarNatureHistoryFilters = {}): Promise<RadarObservatoryResponse> {
+  const qs = buildQueryString({
+    fields: { radar_observatory: ['nature_history'] },
+    filter: { since: filters.since, until: filters.until },
   });
   const res = await fetch(cheminApi`/api/super-admin/radar/observatory${requete(qs)}`, { credentials: 'include' });
   return jsonOrThrow<RadarObservatoryResponse>(res);

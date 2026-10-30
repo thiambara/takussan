@@ -112,9 +112,6 @@ l'administrateur principal de l'espace des mandats, auteur du bien, dans la cloc
 vers un numéro ; si ce compte n'a pas d'`AgencyAdminProfile` dans l'espace, la proposition de retrait à 7 jours alerte
 l'équipe.
 
-Reste, hors de ce ticket :
+Le texte de spec est porté par la PR de spec commune du Radar, lot 2 (`features.md` § 2.3 et § 2.12, `models-spec.md`
+§109) : plus rien ne reste sur `dev`.
 
-- **La PR de spec commune** (ce ticket ne touche ni `docs/features.md` ni `docs/models-spec.md`) : le paragraphe de
-  `features.md` § 2.12 sur la question au titulaire, l'interrupteur `property_availability_check` dans les préférences de
-  notification, et les cinq colonnes `availability_*` / `withdrawal_proposed_at` de `radar_listings` dans
-  `models-spec.md`. Texte exact dans le rapport d'implémentation.
