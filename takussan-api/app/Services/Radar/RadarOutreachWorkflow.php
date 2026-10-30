@@ -53,6 +53,7 @@ final class RadarOutreachWorkflow
     {
         // 1. Lectures libres, aucun verrou : on échoue avant de payer l'appel au modèle.
         $this->refuseIfDoNotContact($advertiser);
+        $this->refuseIfReplyPending($advertiser);
         $this->claim->check($advertiser, $by);
         $target = $followUpOfId === null ? null : RadarOutreach::query()->findOrFail($followUpOfId);
         if ($target !== null) {
@@ -72,6 +73,7 @@ final class RadarOutreachWorkflow
             $lockedAdvertiser = RadarAdvertiser::query()->whereKey($advertiser->getKey())->lockForUpdate()->firstOrFail();
             $this->claim->assertHeld($lockedAdvertiser, $by);
             $this->refuseIfDoNotContact($lockedAdvertiser);
+            $this->refuseIfReplyPending($lockedAdvertiser);
 
             // Le message relancé se verrouille et se juge AVANT le nettoyage : un brouillon ne se relance pas.
             $target = $followUpOfId === null ? null : RadarOutreach::query()->whereKey($followUpOfId)->lockForUpdate()->first();
@@ -190,10 +192,7 @@ final class RadarOutreachWorkflow
                 abort_code(...$block);
             }
 
-            // TCK-2395 (I-1, I-5) — tant qu'une réponse reçue par l'API sur la chaîne n'est pas tranchée (un « Stop svp », une
-            // question), aucune relance ne part, ni par l'API ni par « J'ai envoyé » : l'écran ne la montre pas encore
-            // (TCK-2426). Seules les réponses `provider_message` comptent : le canal manuel pur reste libre.
-            abort_code_if($this->hasUnresolvedReply($locked), 409, 'radar.outreach.reply_pending');
+            $this->refuseIfReplyPending($advertiser);
 
             $channel = $dispatch === null ? [] : $dispatch($locked, $advertiser);
             $locked->forceFill(['sent_at' => now(), 'sent_by_id' => $by->id] + $channel)->save();
@@ -218,21 +217,22 @@ final class RadarOutreachWorkflow
     }
 
     /**
-     * TCK-2395 — une réponse reçue par l'API (`provider_message`), non confirmée, sur un message de la chaîne de celui-ci
-     * (lui-même et les messages qu'il relance) resté sans issue : elle attend que l'opérateur la tranche.
+     * TCK-2395 (I-1, I-5, ADR-0081) — tant qu'une réponse reçue par l'API (`provider_message`) de cet annonceur, sur
+     * n'importe lequel de ses messages, n'est pas tranchée (ni confirmée, ni son message pourvu d'une issue) — un « Stop
+     * svp », une question —, rien ne part vers lui : ni préparation, ni envoi par l'API, ni « J'ai envoyé ». Une
+     * opposition probable vaut pour l'annonceur, pas pour une annonce. Jugée sous le verrou de l'annonceur par les
+     * appelants qui écrivent (409 `radar.outreach.reply_pending`) ; le canal manuel pur, sans réponse reçue, reste libre.
      */
-    private function hasUnresolvedReply(RadarOutreach $outreach): bool
+    private function refuseIfReplyPending(RadarAdvertiser $advertiser): void
     {
-        $chain = [];
-        for ($id = $outreach->id; $id !== null && ! in_array($id, $chain, true); $id = RadarOutreach::query()->whereKey($id)->value('follow_up_of_id')) {
-            $chain[] = (int) $id;
-        }
-
-        return RadarConsent::query()
-            ->whereIn('radar_outreach_id', RadarOutreach::query()->whereIn('id', $chain)->whereNull('outcome')->select('id'))
+        $pending = RadarConsent::query()
+            ->where('radar_advertiser_id', $advertiser->id)
             ->where('proof', RadarConsentProof::ProviderMessage->value)
             ->whereNull('confirmed_at')
+            ->whereIn('radar_outreach_id', RadarOutreach::query()->where('radar_advertiser_id', $advertiser->id)->whereNull('outcome')->select('id'))
             ->exists();
+
+        abort_code_if($pending, 409, 'radar.outreach.reply_pending');
     }
 
     /**

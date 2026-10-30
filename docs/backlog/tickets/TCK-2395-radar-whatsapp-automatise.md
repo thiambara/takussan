@@ -105,9 +105,10 @@ Re-mesuré le 2026-10-30 sur `feat/radar-revocation-purge` (`dev` + TCK-2391) :
       `whatsapp_api_available` (I-3).
 - [x] AC7 — **Corrections de la vérification adverse** (tests, une ablation chacune) :
       (a) un texte qui vaut exactement STOP révoque l'annonceur dès la réception
-      (`radar_whatsapp.auto_stop`, vrai par défaut) ; (b) une relance ne part ni par l'API ni par
-      « J'ai envoyé » tant qu'une réponse reçue sur sa chaîne n'est pas tranchée (409
-      `radar.outreach.reply_pending`, I-5) ;
+      (`radar_whatsapp.auto_stop`, vrai par défaut) ; (b) rien ne part vers un annonceur — ni
+      préparation, ni envoi par l'API, ni « J'ai envoyé », quelle que soit l'annonce — tant qu'une
+      de ses réponses reçues par l'API n'est pas tranchée (409 `radar.outreach.reply_pending`,
+      I-5, et vérification de TCK-2426, I-1) ;
       (c) `accord.v3` s'ouvre sur « Takussan — », clauses identiques à `accord.v2`, version
       courante, et un résumé de plus de 120 caractères est refusé par l'API (422
       `radar.whatsapp.summary_too_long`) pour que le corps hydraté reste sous 1024 caractères ;
@@ -171,6 +172,7 @@ Re-mesuré le 2026-10-30 sur `feat/radar-revocation-purge` (`dev` + TCK-2391) :
 | Réponse sur un message clos | gardée | ignorée | Un STOP après un accord est une révocation : l'opérateur doit la voir. |
 | STOP reçu par l'API | un texte qui vaut exactement STOP révoque à la réception (`RADAR_WHATSAPP_AUTO_STOP`, vrai) ; tout autre texte reste à trancher et bloque la relance, par l'API comme par « J'ai envoyé » | classé par le modèle, posé par l'opérateur (première version) | La promesse « en répondant STOP » n'attend pas un écran (décision de la session, prise en autonomie, à revoir par le porteur ; vérification adverse I-1, I-5). |
 | Journal du webhook du Radar | corps vidé à la clôture, ligne non rejouable | corps chiffré 30 jours, rejouable (première version) | Il porte texte, numéro et nom de profil de tiers ; après un STOP seule l'empreinte doit rester (décision de la session, prise en autonomie, à revoir par le porteur ; vérification adverse I-2). |
+| Portée d'une réponse non tranchée | l'annonceur entier : préparation, envoi par l'API et « J'ai envoyé » refusés (409 `radar.outreach.reply_pending`) tant qu'une de ses réponses `provider_message` n'est ni confirmée ni pourvue d'une issue, jugé sous le verrou de l'annonceur ; une réponse par capture ne compte pas | la seule chaîne de la relance (première correction) | Une opposition probable (« Stop svp ») vaut pour l'annonceur, pas pour une annonce : un premier message sur une autre annonce partait (décision de la session, prise en autonomie, à revoir par le porteur ; vérification de TCK-2426, I-1). |
 | Vocal, image | gardé comme réponse (`[audio]`), vérification en échec `radar.verification.no_text`, rien téléchargé | ignoré | L'opérateur sait qu'une réponse existe ; le téléchargement des médias est un autre sujet. |
 | Acteur de l'appel IA d'une réponse reçue | l'opérateur qui a envoyé le message | aucun (appel refusé) | La passerelle exige un acteur qui détient `platform.radar.operate`. |
 | Webhook : traitement | synchrone dans la requête | un job | Quelques écritures ; aucune donnée personnelle dans la table des jobs. |
