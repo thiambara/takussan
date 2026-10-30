@@ -124,7 +124,9 @@ la PR de TCK-2392 puis celle-ci le bascule, dans le même geste que TCK-2392.
   dites à l'écran : avec `max_pages` à 5 (défaut), une liste plus longue n'atteint jamais `reached_end` et rien n'est
   constaté sur ce site tant que le plafond n'est pas monté (20 au plus) ; « disparue » veut dire absente de la liste de
   départ de l'adaptateur, pas forcément supprimée du site. Une annonce purgée revue par la collecte reçoit des
-  instantanés : elle peut être marquée disparue (donnée anonyme, aucune alerte sans bien).
+  instantanés : elle peut être marquée disparue (donnée anonyme, aucune alerte sans bien) ; doublure d'un bien, elle
+  alerte sur lui (`test_une_annonce_purgee_est_jugee_comme_les_autres`). L'écran dit « absente de la liste lue par la
+  collecte, deux passages de suite », jamais « n'est plus en ligne », et que le plafond de pages est borné à 20.
 - **`natures` n'est pas anonyme** et ne survit pas à la purge (elle remet la nature à `unknown`) : c'est pourquoi
   AC1 porte sur les sections du marché, et pourquoi TCK-2431 existe. Le garde de colonnes (`raw_text`,
   `extracted`, `source_url`, `phone`, `display_name`, `similarity_text`, `nature_signals`) couvre toutes les

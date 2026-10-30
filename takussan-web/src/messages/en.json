@@ -9320,12 +9320,12 @@
             },
             "time": {
               "title": "Time on market",
-              "description": "Time between the first and last sighting of listings whose disappearance was confirmed. A listing already online before the first collection looks newer than it is. A disappearance is only confirmed after two consecutive runs that read the whole list without seeing it: if a site’s list exceeds its collection page cap (5 by default), raise that cap in the Collection tab.",
+              "description": "Time between the first and last sighting of listings whose disappearance was confirmed. A listing already online before the first collection looks newer than it is. A disappearance is only confirmed after two consecutive runs that read the whole list without seeing it. If a site’s list exceeds its collection page cap (5 by default), raise that cap in the Collection tab: it is limited to 20 pages, and beyond that no disappearance is ever recorded on that site.",
               "empty": "No confirmed disappearance"
             },
             "goneSources": {
               "title": "Gone sources of published properties",
-              "description": "The original listing of a published property is no longer online: the property may be rented or sold. A disappearance is only confirmed after two consecutive runs that read the whole list without seeing it: if a site’s list exceeds its collection page cap (5 by default), raise that cap in the Collection tab.",
+              "description": "The original listing of a published property has been absent from the list read by the collection, two runs in a row: it may have been removed (property rented or sold), or moved. If a site’s list exceeds its collection page cap (5 by default), raise that cap in the Collection tab: it is limited to 20 pages, and beyond that no disappearance is ever recorded on that site.",
               "empty": "No gone source"
             }
           }
