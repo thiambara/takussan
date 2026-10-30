@@ -80,13 +80,18 @@ quelqu'un. ADR-0080 est amendé.
   disparition d'une annonce après deux passages complets sans elle. Restreindre les URL aurait donc déclaré disparue chaque
   annonce sortie du périmètre, avec une alerte et la question au titulaire (TCK-2432). Le passage note son périmètre
   EFFECTIF (l'URL de la configuration résolue comprise), trié et sans doublon. Un passage ne compte contre une annonce
-  que si son périmètre CONTIENT celui du passage qui l'a vue en dernier (jsonb `@>`). Un passage antérieur à la colonne
+  que si son périmètre CONTIENT celui de CHAQUE passage actif à sa dernière présence (jsonb `@>`) : à la seconde près,
+  une relance immédiate passait pour celui qui l'avait vue (vérification adverse M1). Un passage antérieur à la colonne
   (nulle) se lit comme l'URL actuelle de la configuration du site (`RadarStartUrls::legacyPerimeterJson()`).
 - **Les arrêts** :
   - Le plafond de pages, le budget de temps et le créneau pris arrêtent le PASSAGE.
   - Une boucle, une page sans carte ou une lecture refusée n'arrêtent que la LISTE : la suivante est lue, mais
     `reached_end` reste faux. L'arrêt du passage est alors celui de la première liste qui n'a pas atteint sa fin.
+  - Une liste qui rejoint une page lue par une liste précédente s'arrête sur sa fin, pas en boucle : `reached_end` ne
+    dépend pas de l'ordre des URL (M2). Une vraie boucle reste `radar.crawl.loop`, visible dans la console.
   - Avec une seule liste, le comportement de TCK-2392 est inchangé : ses tests passent tels quels.
+- **Forme canonique** (M2) : celle de Guzzle, avec schéma et hôte en minuscules. Elle est enregistrée, lue et sert au
+  dédoublonnage. Un port explicite (`:443` compris) et un fragment sont refusés, lus sur la chaîne brute (M3).
 - **Codes de refus** (422) : `radar.crawl.start_urls_too_many`, `start_url_too_long`, `start_url_invalid`,
   `start_url_host` (avec `params.hosts`), `start_url_duplicate`. Chacun porte `params.field` (`start_urls.N`).
   Arrêt de passage neuf : `radar.crawl.no_start_url`.

@@ -134,20 +134,25 @@ dans les paramètres »). Il prolonge le §2. Jusque-là, chaque site partait d'
    - un hôte de la liste **exacte** que déclare l'adaptateur (`RadarSiteAdapter::startHosts()`, dans le code, que la
      console ne peut pas élargir) : `www.expat-dakar.com` et `expat-dakar.com` pour Expat-Dakar, `sn.coinafrique.com`
      seul pour CoinAfrique ;
-   - ni identifiants, ni port, ni espace, ni barre oblique inverse ;
+   - ni identifiants, ni port explicite (pas même `:443`), ni fragment (`#`), ni espace, ni barre oblique inverse ;
    - au plus `radar.crawl.max_start_urls` URL (10), chacune d'au plus `radar.crawl.start_url_max_length` caractères (500) ;
-   - pas de doublon.
+   - pas de doublon, jugé sur la forme canonique (schéma et hôte en minuscules), qui est aussi celle qu'on enregistre et
+     qu'on lit.
 
    La lecture garde ses propres contrôles (`UrlFetcher` : SSRF à chaque saut, `robots.txt`, créneau par domaine). Une
    page suivante reste cherchée sur le domaine du site par l'adaptateur.
 3. **Le budget reste celui du passage.** Le plafond de pages (`max_pages`) et le budget de temps valent pour le passage
    entier, toutes listes comprises. Le plafond, le budget et le créneau pris arrêtent le passage. Une liste qui s'arrête
-   avant sa fin laisse lire la suivante : page sans carte, lecture refusée ou boucle. **`reached_end` n'est vrai que si
-   chaque liste est allée jusqu'au bout.**
+   avant sa fin laisse lire la suivante : page sans carte, lecture refusée ou boucle. Une liste qui rejoint une page déjà
+   lue par une liste précédente s'arrête là, sur sa fin : ce n'est pas une boucle. **`reached_end` n'est vrai que si
+   chaque liste est allée jusqu'au bout, quel que soit l'ordre des URL.** Une vraie boucle se lit dans la console
+   (`radar.crawl.loop`).
 4. **Changer de périmètre ne fait disparaître aucune annonce à tort.** Le passage note son périmètre EFFECTIF dans
    `radar_crawl_runs.start_urls` : l'ensemble trié et sans doublon des listes suivies, l'URL de la configuration résolue
    comprise. La veille de l'observatoire (ADR-0083 §3) ne compte un passage complet contre une annonce que si son
-   périmètre **contient** celui du passage qui l'a vue en dernier (jsonb `@>`).
+   périmètre **contient** celui de **chaque** passage du site actif à sa dernière présence (jsonb `@>`) : commencé avant,
+   et pas fini avant. Les dates sont à la seconde. Un passage relancé dans la seconde de la dernière observation passait
+   pour celui qui l'avait vue (vérification adverse M1) ; il faut maintenant contenir aussi le périmètre du vrai.
    - Pourquoi : restreindre les URL (« tout l'immobilier » → « appartements à louer ») déclarait disparue chaque annonce
      sortie du périmètre. Cela déclenchait une alerte et, pour un bien publié, la question à son titulaire (TCK-2432).
    - Élargir les URL ne coupe pas la détection. Restreindre suspend le jugement d'une annonce jusqu'à ce qu'elle soit
