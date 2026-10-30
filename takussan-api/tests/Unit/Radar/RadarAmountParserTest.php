@@ -178,7 +178,7 @@ class RadarAmountParserTest extends TestCase
     {
         // TCK-2447 : la plage d'un numéro sénégalais s'étend au `(221)` ou au `221` écrit devant, comme au `+` d'un indicatif.
         foreach (['Villa R+1 (221) 77 012 34 56', 'Villa R+2 (221) 77 012 34 56', 'Villa (221) 77 012 34 56',
-            'Villa RDC +1 (221) 77 012 34 56', 'Villa 221 / 77 012 34 56', 'Villa (221)77 012 34 56'] as $texte) {
+            'Villa RDC +1 (221) 77 012 34 56', 'Villa 221 / 77 012 34 56', 'Villa (221)77 012 34 56', 'Villa R+1(221) 77 012 34 56'] as $texte) {
             $this->assertNull(RadarAmountParser::parse($texte), $texte);
         }
         $this->assertSame(['amount' => 450_000, 'period' => 'monthly'], RadarAmountParser::parse('Villa R+1 (221) 33 821 00 00, 450 000 F/mois'));

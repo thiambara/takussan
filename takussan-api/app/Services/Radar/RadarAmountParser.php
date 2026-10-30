@@ -63,7 +63,7 @@ final class RadarAmountParser
     private const TOUCHING = '/^[\s.\-\/]{0,3}$/u';
 
     /** TCK-2447 — l'indicatif sénégalais nu ou entre parenthèses juste devant un numéro, au plus trois séparateurs entre eux. */
-    private const SENEGAL_CODE_BEFORE = '/(?<![0-9])(?:\(221\)|221)[\s.\-\/]{0,3}$/u';
+    private const SENEGAL_CODE_BEFORE = '/(?:\(221\)|(?<![0-9])221)[\s.\-\/]{0,3}$/u';
 
     /** Puissance de dix de chaque multiplicateur. */
     private const MULTIPLIERS = [
