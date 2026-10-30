@@ -37,9 +37,10 @@ final class RadarExtractionUsage implements AiUsage, AttachmentsUseVision
         return RadarExtraction::class;
     }
 
+    /** `v2` (TCK-2411) : le passage absent s'écrit `""`, plus `null` — le schéma ne l'admet plus. */
     public function promptVersion(): int
     {
-        return 1;
+        return 2;
     }
 
     public function maxDataClass(): AiDataClass

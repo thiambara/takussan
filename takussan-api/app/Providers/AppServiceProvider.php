@@ -169,6 +169,8 @@ class AppServiceProvider extends ServiceProvider
     /** Vérification adverse M1 (c) — codes SMS vérifiables par numéro et par 15 min. */
     public const PHONE_VERIFY_PER_WINDOW = 4;
 
+    public const PHONE_VERIFY_WINDOW_MINUTES = 15;
+
     /** Vérification adverse m1 — bornes des invitations (un SMS sous l'expéditeur Takussan). */
     public const INVITATIONS_PER_INVITER_PER_HOUR = 20;
 
@@ -603,8 +605,8 @@ class AppServiceProvider extends ServiceProvider
             return $limits;
         });
 
-        RateLimiter::for('auth-phone-verify', fn (Request $request) => Limit::perMinutes(15, self::PHONE_VERIFY_PER_WINDOW)
-            ->by('phone:'.$this->phoneRateLimitKey($request)));
+        RateLimiter::for('auth-phone-verify', fn (Request $request) => Limit::perMinutes(self::PHONE_VERIFY_WINDOW_MINUTES, self::PHONE_VERIFY_PER_WINDOW)
+            ->by('phone:'.self::phoneRateLimitKey($request)));
 
         // TCK-272 — émission du code e-mail de step-up pour la suppression
         // de compte. Route authentifiée : la clé est l'utilisateur, pas
@@ -630,13 +632,28 @@ class AppServiceProvider extends ServiceProvider
             ->by($request->user() !== null ? 'user:'.$request->user()->id : $this->visitorRateLimitKey($request)));
     }
 
+    /**
+     * TCK-2404 (vérification adverse I1) — rend l'essai que `auth-phone-verify` a compté AVANT la requête, quand elle n'a
+     * rien réfuté : la présentation des conditions au compte du Radar suit un code JUSTE (non consommé). Sans ce rendu,
+     * l'étape de plus d'un compte du Radar coûtait un essai sur quatre, et un code expiré pendant la lecture suivi d'une
+     * faute de frappe finissait en 429 pour 15 min. Le compte reste pris avant la requête, comme pour toutes : un mauvais
+     * code compte toujours, et une rafale ne passe pas entre la lecture et l'écriture du seau. Jamais sous zéro.
+     */
+    public static function refundPhoneVerify(Request $request): void
+    {
+        $key = ThrottleRequestsByNetwork::namedLimiterKey('auth-phone-verify', 'phone:'.self::phoneRateLimitKey($request));
+        if ((int) RateLimiter::attempts($key) > 0) {
+            RateLimiter::decrement($key, self::PHONE_VERIFY_WINDOW_MINUTES * 60);
+        }
+    }
+
     /** TCK-589 — la clé d'un limiteur par numéro : le numéro saisi, espaces retirés. */
     /**
      * Le numéro DESTINATAIRE : celui du corps, sinon (M3) celui du compte — `phone/send-otp`
      * sans corps vise le numéro déjà enregistré, et une clé vide aurait mis tous ces envois
      * dans un même seau.
      */
-    private function phoneRateLimitKey(Request $request): string
+    private static function phoneRateLimitKey(Request $request): string
     {
         // TCK-2390 — la réclamation du Radar vérifie un code du numéro de l'annonceur, que le jeton désigne : le même seau que
         // la connexion par téléphone pour ce numéro (M1 c : la somme des deux entrées reste sous la moitié du verrou). Un

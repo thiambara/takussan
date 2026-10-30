@@ -103,13 +103,19 @@ final class RadarExtraction extends SocleAgent implements HasStructuredOutput
         })->nullable();
     }
 
+    /**
+     * TCK-2411 — `evidence` n'est pas nullable : sans passage, la chaîne vide. Anthropic refuse un schéma
+     * à plus de 16 paramètres à union, et un `evidence` nullable par champ en portait 15 de plus que les
+     * 14 `value` (29, HTTP 400 sur chaque extraction). `ExtractionNormalizer` lit `""` comme l'absence
+     * de passage ; `AgentSchemasStayUnderTheUnionLimitTest` compte les unions.
+     */
     private function field(JsonSchema $schema, Type $value): Type
     {
         return $schema->object([
             'value' => $value->required(),
             'confidence' => $schema->string()->enum(RadarConfidence::class)->required(),
-            'evidence' => $schema->string()->nullable()
-                ->description('Le passage de l\'annonce recopié mot pour mot qui justifie la valeur ; null sinon.')
+            'evidence' => $schema->string()
+                ->description('Le passage de l\'annonce recopié mot pour mot qui justifie la valeur ; chaîne vide "" sinon.')
                 ->required(),
         ])->required();
     }

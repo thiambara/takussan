@@ -20,6 +20,7 @@ use App\Models\PropertyContact;
 use App\Models\RadarAdvertiser;
 use App\Models\RadarConsent;
 use App\Models\User;
+use App\Services\Property\PublishReadiness;
 use App\Services\Radar\ClaimLinks;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Routing\Middleware\ThrottleRequests;
@@ -169,7 +170,12 @@ class RadarPublishTest extends TestCase
         $comptes = User::query()->count();
 
         $this->postJson('/api/auth/phone/request-code', ['phone' => self::NUMERO_ANNONCEUR])->assertStatus(202);
-        $this->postJson('/api/auth/phone/verify-code', ['phone' => self::NUMERO_ANNONCEUR, 'code' => $sms->lastCodeFor(self::NUMERO_ANNONCEUR)])
+        $code = $sms->lastCodeFor(self::NUMERO_ANNONCEUR);
+        // TCK-2404 — le compte que la publication a créé se voit d'abord présenter les conditions.
+        $this->postJson('/api/auth/phone/verify-code', ['phone' => self::NUMERO_ANNONCEUR, 'code' => $code])
+            ->assertOk()->assertJsonPath('requires_terms', true)->assertJsonMissingPath('token');
+        $this->assertSame(0, CreditWelcomeGrant::query()->count());
+        $this->postJson('/api/auth/phone/verify-code', ['phone' => self::NUMERO_ANNONCEUR, 'code' => $code, 'terms_version' => PublishReadiness::TERMS_VERSION])
             ->assertOk()->assertJsonPath('is_new_account', false);
 
         $this->assertSame($comptes, User::query()->count());

@@ -109,7 +109,7 @@ class RadarExtractionUsageTest extends TestCase
         $this->assertInstanceOf(AttachmentsUseVision::class, $usage);
         $this->assertSame(AiModelRole::Extraction, $usage->role());
         $this->assertSame(RadarExtraction::class, $usage->agentClass());
-        $this->assertSame(1, $usage->promptVersion());
+        $this->assertSame(2, $usage->promptVersion());
         $this->assertSame(AiDataClass::Personnelle, $usage->maxDataClass());
         $this->assertSame(PlatformAbility::RadarOperate, $usage->authority());
         $this->assertSame(2000.0, $usage->dailyBudgetXof());
@@ -147,7 +147,10 @@ class RadarExtractionUsageTest extends TestCase
             $this->assertSame(array_column(RadarConfidence::cases(), 'value'), $this->enumOf($noeud['properties']['confidence']), $champ);
             // Revue M2 — la nature inconnue s'écrit `unknown`, jamais null : une seule forme.
             $this->assertSame($champ !== 'advertiser_nature', $this->isNullable($noeud['properties']['value']), "{$champ}.value : null admis seulement hors nature");
-            $this->assertTrue($this->isNullable($noeud['properties']['evidence']), "{$champ}.evidence doit admettre null");
+            // TCK-2411 — jamais null : la chaîne vide dit « aucun passage ». Nullable, chaque champ ajoutait une union
+            // de plus, et Anthropic en refuse plus de 16 (`AgentSchemasStayUnderTheUnionLimitTest`).
+            $this->assertFalse($this->isNullable($noeud['properties']['evidence']), "{$champ}.evidence ne doit pas admettre null");
+            $this->assertSame('string', $noeud['properties']['evidence']['type'], $champ);
         }
     }
 
@@ -220,10 +223,13 @@ class RadarExtractionUsageTest extends TestCase
 
     public function test_the_prompt_carries_the_quoted_passage_rule_and_the_data_block_reminder(): void
     {
-        $prompt = app(PromptRepository::class)->load(RadarExtractionUsage::KEY, 1);
+        $prompt = app(PromptRepository::class)->load(RadarExtractionUsage::KEY, (new RadarExtractionUsage)->promptVersion());
 
-        foreach (['mot pour mot', 'null', 'low', 'invente', 'commission', 'frais de visite', 'contenu_externe', 'jamais `null`', 'première offre'] as $attendu) {
+        foreach (['mot pour mot', 'null', 'low', 'invente', 'commission', 'frais de visite', 'contenu_externe', 'jamais `null`', 'première offre', '`evidence` vaut la chaîne vide `""`'] as $attendu) {
             $this->assertStringContainsStringIgnoringCase($attendu, $prompt);
         }
+        // TCK-2411 — le schéma n'admet plus `evidence: null` : le prompt joué ne doit plus le demander.
+        $this->assertStringNotContainsString('`evidence` vaut `null`', $prompt);
+        $this->assertStringNotContainsString('`evidence` à `null`', $prompt);
     }
 }
