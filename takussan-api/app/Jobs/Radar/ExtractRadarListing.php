@@ -281,8 +281,8 @@ final class ExtractRadarListing implements ShouldQueue
         // L'annonceur se choisit d'abord parmi les numéros que le modèle a rendus ET que la
         // normalisation a gardés (présents dans le texte, sauf pour des captures), dans son ordre :
         // le choix du contact principal lui revient (décision du porteur, 2026-10-27). Les numéros
-        // du texte suivent, pour le cas où il n'en a gardé aucun.
-        $phones = self::canonicalPhones([...(array) ($normalized['phones'] ?? []), ...RadarPhone::fromText($text)]);
+        // du texte suivent, pour le cas où il n'en a gardé aucun : ceux qui peuvent être un contact (TCK-2412).
+        $phones = self::canonicalPhones([...(array) ($normalized['phones'] ?? []), ...RadarPhone::contactsFromText($text)]);
         // Le refus se juge sur chaque numéro, pas sur le seul premier — y compris ceux du modèle
         // que la normalisation a écartés : prudence.
         if ($this->refuseIfStopped($directory, self::canonicalPhones([...$phones, ...(array) ($result->structured['phones'] ?? [])]))) {

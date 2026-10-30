@@ -7,6 +7,7 @@ import { StatusBadge } from '@/components/console';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { cn } from '@/lib/utils';
 import { RADAR_OUTREACH_MAX_LISTINGS, type RadarAdvertiserListing, type RadarOutreach } from '@/types/radar';
+import { MOTIF_LAISSEE_REPLI, MOTIFS_RADAR } from '../codes-radar';
 import { raisonNonCochable } from './annonces';
 
 interface ListeAnnoncesProps {
@@ -61,6 +62,20 @@ export function ListeAnnonces({ annonces, messages, selection, onBascule, desact
                     ].filter(Boolean).join(' · ')}
                   </p>
                   {raison !== null ? <p className="text-xs text-muted-foreground">{t(`why.${raison}`)}</p> : null}
+                  {/* TCK-2413 — réclamée, laissée par la publication automatique : la raison, pour la reprendre, et quand elle
+                      s'efface si personne ne la publie (ADR-0077 §9). Un code inconnu prend le repli, le code reste au survol. */}
+                  {annonce.stage === 'consented' && annonce.stage_reason ? (
+                    <>
+                      <p className="text-xs font-medium text-foreground" title={annonce.stage_reason} data-testid={`radar-annonce-laissee-${annonce.id}`}>
+                        {tRadar(`reasons.${MOTIFS_RADAR[annonce.stage_reason] ?? MOTIF_LAISSEE_REPLI}`)}
+                      </p>
+                      {annonce.purge_at ? (
+                        <p className="text-xs text-muted-foreground" data-testid={`radar-annonce-purge-${annonce.id}`}>
+                          {t('purgeOn', { date: fmt.date(annonce.purge_at) })}
+                        </p>
+                      ) : null}
+                    </>
+                  ) : null}
                 </div>
                 <StatusBadge tone="neutral" label={tRadar(`stages.${annonce.stage}`)} />
                 <Link

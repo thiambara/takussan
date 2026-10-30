@@ -68,7 +68,27 @@ export const MOTIFS_RADAR: Record<string, string> = {
   'radar.discard.no_longer_available': 'discardNoLongerAvailable',
   'radar.discard.unusable_source': 'discardUnusableSource',
   'radar.discard.other': 'discardOther',
+  // Annonce réclamée que la publication automatique laisse à l'opérateur (TCK-2413, `PublishClaimedRadarListings`) : la
+  // raison, ou le code du refus de la publication (`RadarPublisher::publishClaimed()`). Un code qu'aucune ligne ne nomme
+  // s'affiche par le repli `claimLeftRefused` ({@link MOTIF_LAISSEE_REPLI}), jamais brut.
+  'radar.publish.no_photo': 'claimLeftNoPhoto',
+  'radar.publish.missing_field': 'claimLeftMissingField',
+  'radar.publish.photos_pending': 'claimLeftPhotosPending',
+  'radar.claim.publish_failed': 'claimLeftFailed',
+  'radar.advertiser.account_unavailable': 'claimLeftAccountUnavailable',
+  'quota.listings_exceeded': 'claimLeftQuota',
+  'radar.listing.stage_conflict': 'claimLeftStageConflict',
+  'radar.publish.not_covered': 'claimLeftNotCovered',
+  'radar.claim.account_changed': 'claimLeftAccountChanged',
+  'radar.publish.listing_foreign': 'claimLeftForeign',
+  'radar.advertiser.do_not_contact': 'claimLeftDoNotContact',
+  'radar.publish.activation_unavailable': 'claimLeftActivationUnavailable',
+  'radar.publish.otp_preview_active': 'claimLeftOtpPreview',
+  'radar.publish.too_many_photos': 'claimLeftTooManyPhotos',
 };
+
+/** TCK-2413 — le libellé d'une annonce laissée par la publication sur un code qu'aucune ligne de {@link MOTIFS_RADAR} ne nomme. */
+export const MOTIF_LAISSEE_REPLI = 'claimLeftRefused';
 
 /** Les motifs d'écart que choisit l'opérateur (`RadarDiscardReason`) : leur libellé est celui du `stage_reason` écrit. */
 export const MOTIFS_ECART_RADAR: Record<RadarDiscardReason, string> = {
@@ -164,6 +184,8 @@ export const ERREURS_ANNONCEUR_RADAR: Record<string, string> = {
   'radar.consent.reason_required': 'reasonRequired',
   // Un 409 de la confirmation d'un accord ET de « J'ai envoyé » : une annonce du message a changé d'étape ailleurs.
   'radar.listing.stage_conflict': 'listingStageConflict',
+  // TCK-2413 — délier le compte supprimé : le compte rattaché ne l'est pas (un STOP rend `do_not_contact`, déjà nommé).
+  'radar.advertiser.account_not_deleted': 'accountNotDeleted',
 };
 
 /**

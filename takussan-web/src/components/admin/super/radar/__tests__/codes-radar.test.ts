@@ -48,6 +48,39 @@ describe('codes du Radar', () => {
     }
   });
 
+  // TCK-2413 (vérification adverse M5) — chaque code que `PublishClaimedRadarListings` peut écrire en `stage_reason` a son
+  // libellé : les siens, et tout refus de `RadarPublisher::publishClaimed()` / `publishLocked()`, relus dans les sources.
+  it('chaque code que la publication de la réclamation peut laisser est nommé', () => {
+    const lire = (...chemin: string[]) => readFileSync(join(RACINE, 'takussan-api', 'app', ...chemin), 'utf8');
+    const sources: Record<string, string> = {
+      RadarPublisher: lire('Services', 'Radar', 'RadarPublisher.php'),
+      AdvertiserProvisioner: lire('Services', 'Radar', 'AdvertiserProvisioner.php'),
+      PublishClaimedRadarListings: lire('Jobs', 'Radar', 'PublishClaimedRadarListings.php'),
+    };
+    const constante = (classe: string, nom: string) => new RegExp(`const ${nom} = '([^']+)'`).exec(sources[classe])?.[1];
+    const resoudre = (classe: string, expr: string) => {
+      const ref = /^(self|static|(\w+))::(\w+)$/.exec(expr.trim());
+      return ref ? constante(ref[2] ?? classe, ref[3]) : expr.trim().replace(/^'|'$/g, '');
+    };
+
+    const publisher = sources.RadarPublisher;
+    const tranche = publisher.slice(publisher.indexOf('function publishClaimed('), publisher.indexOf('function publishedMessage('));
+    const refus = [...tranche.matchAll(/abort_code(?:_if|_unless)?\([\s\S]*?,\s*\d{3},\s*([^,)\n]+)/g)]
+      .map((m) => resoudre('RadarPublisher', m[1]));
+    const job = sources.PublishClaimedRadarListings;
+    // Les codes écrits par le job lui-même : chaque chaîne et chaque constante passées à `leave()` (le refus, `$e->errorCode`,
+    // est l'un de ceux de la tranche ci-dessus).
+    const laisses = [...job.matchAll(/->leave\(([^;]*)\);/g)]
+      .flatMap((m) => [...m[1].matchAll(/'([a-z_]+\.[a-z_.]+)'|\b(\w+::[A-Z_]+)\b/g)].map((t) => t[1] ?? resoudre('PublishClaimedRadarListings', t[2])));
+
+    expect(refus.length).toBeGreaterThan(8);
+    expect(laisses.length).toBeGreaterThan(3);
+    for (const code of [...refus, ...laisses, 'quota.listings_exceeded']) {
+      expect(code, 'un code non résolu').toMatch(/^[a-z_]+(\.[a-z_]+)+$/);
+      expect(MOTIFS_RADAR[code as string], code).toBeTruthy();
+    }
+  });
+
   it('les attentes courtes sont la lecture différée et les motifs à une seule nouvelle tentative du job', () => {
     const job = readFileSync(join(RACINE, 'takussan-api', 'app', 'Jobs', 'Radar', 'ExtractRadarListing.php'), 'utf8');
     const constante = (nom: string) => new RegExp(`const ${nom} = '([^']+)'`).exec(job)?.[1];
