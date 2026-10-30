@@ -225,6 +225,17 @@ class RadarCrawlTest extends TestCase
         $this->assertFalse($sources->contains(fn (RadarCrawlSource $s) => $s->enabled), 'Les sources naissent éteintes.');
     }
 
+    public function test_une_source_eteinte_par_le_porteur_ne_repart_plus_meme_avec_son_operateur(): void
+    {
+        Queue::fake();
+        $this->source(['enabled' => false, 'operator_id' => $this->operator->id]);
+
+        $this->artisan('radar:crawl')->assertSuccessful();
+
+        Queue::assertNothingPushed();
+        $this->assertSame(0, RadarCrawlRun::query()->count());
+    }
+
     public function test_une_source_allumee_part_une_fois_puis_attend_sa_frequence(): void
     {
         Queue::fake();

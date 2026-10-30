@@ -37,14 +37,17 @@ const FUSIONNEE: RadarProvenance = {
   last_price: 450000,
 };
 
+/** Un doublon posé à la main : aucune fusion automatique, rien à séparer d'ici. */
+const A_LA_MAIN: RadarProvenance = { ...FUSIONNEE, listing_id: 3, merged_at: null, crawled: false, first_seen_at: null, last_seen_at: null, last_price: null };
+
 beforeEach(() => {
   vi.mocked(fetchRadarMatches).mockReset().mockResolvedValue(reponseMatches([]));
   vi.mocked(unmergeRadarListing).mockReset();
 });
 
 describe('PanneauProvenances (TCK-2392)', () => {
-  it('AC3 — la fiche montre ses deux provenances : site, rôle, fusion automatique, présence et dernier prix', async () => {
-    await rendreFiche(fiche({ id: 1, provenances: [RACINE, FUSIONNEE] }));
+  it('AC3 — la fiche montre ses provenances : site, rôle, fusion automatique, présence et dernier prix', async () => {
+    await rendreFiche(fiche({ id: 1, provenances: [RACINE, FUSIONNEE, A_LA_MAIN] }));
 
     const panneau = await screen.findByTestId('radar-provenances');
     const racine = within(panneau).getByTestId('radar-provenance-1');
@@ -63,6 +66,11 @@ describe('PanneauProvenances (TCK-2392)', () => {
     const source = within(doublon).getByRole('link', { name: /Voir la source/ });
     expect(source).toHaveAttribute('href', 'https://annonces.test/coinafrique/2');
     expect(source).toHaveAttribute('rel', expect.stringContaining('noopener'));
+
+    const aLaMain = within(panneau).getByTestId('radar-provenance-3');
+    expect(aLaMain).toHaveTextContent('Doublon');
+    expect(aLaMain).not.toHaveTextContent('Fusion automatique');
+    expect(within(aLaMain).queryByRole('button', { name: 'Séparer' })).toBeNull();
   });
 
   it('AC7 — « Séparer » sépare la fusion automatique ; un refus se dit par son code', async () => {
