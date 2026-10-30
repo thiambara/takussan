@@ -1,7 +1,7 @@
 ---
 id: TCK-2436
 title: "Radar : appariement exact des accusés d'un envoi WhatsApp ambigu, par biz_opaque_callback_data"
-status: doing
+status: done
 phase: P3
 family: back
 estimate: S
@@ -40,17 +40,29 @@ est vérifié** : ni l'existence du champ pour un message de gabarit, ni sa pré
 
 ## Delta à produire
 
-- [ ] Vérifier dans la documentation de Meta, avant toute écriture, que `biz_opaque_callback_data` est accepté pour un
-      message de gabarit et renvoyé dans les `statuses` (`sent`, `delivered`, `read`, `failed`). Si ce n'est pas le
-      cas, clore ce ticket comme caduc, avec la référence lue.
-- [ ] Sinon : poser un jeton aléatoire par message avant l'envoi (`RadarCloudWhatsappDriver`), le garder sur la ligne,
-      et apparier par lui un accusé dont l'identifiant est inconnu ; l'identifiant de Meta est alors écrit sur la ligne.
-- [ ] `RadarWhatsappReceiptGuardTest` reste vert : jamais d'appariement par inférence.
+- [x] Vérifier dans la documentation de Meta, avant toute écriture, que `biz_opaque_callback_data` est accepté pour un
+      message de gabarit et renvoyé dans les `statuses`. Fait : garanti pour `sent`/`delivered`/`read`, pas pour
+      `failed` (« Constat du 2026-10-30 » ci-dessous).
+- [x] Poser un jeton aléatoire par message avant l'envoi (`RadarCloudWhatsappDriver`), le garder sur la ligne
+      (`provider_callback_token`), et apparier par lui un accusé dont l'identifiant est inconnu ; l'identifiant de Meta
+      est alors écrit sur la ligne.
+- [x] `RadarWhatsappReceiptGuardTest` reste vert : jamais d'appariement par inférence (et B3 ajouté).
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Un accusé `failed` portant le jeton d'un envoi `ambiguous` sans identifiant le passe à `failed`.
-- [ ] AC2 — Un accusé sans jeton, ou au jeton inconnu, n'est rattaché à rien.
+AC1 réécrit le 2026-10-30 (décision de la session, à revoir par le porteur) sur les statuts que la documentation de
+Meta garantit ; l'original portait sur `failed` seul.
+
+- [x] AC1 — Un accusé `sent`, `delivered` ou `read` portant le jeton d'un envoi `ambiguous` sans identifiant, adressé
+      au numéro de son annonceur, le rattache exactement : l'identifiant de Meta est écrit sur la ligne et le statut
+      avance. Un `failed` qui porte le jeton fait de même (passe à `failed`) ; sans jeton, il reste ignoré.
+      — `RadarWhatsappReceiptCallbackTest::test_ac1_*`
+- [x] AC2 — Un accusé sans jeton, au jeton inconnu, au jeton d'un envoi déjà identifié, manuel ou jamais parti, d'un
+      autre destinataire ou d'un annonceur purgé n'est rattaché à rien ; rejouer un jeton ne rattache rien.
+      — `RadarWhatsappReceiptCallbackTest::test_ac2_*`, `RadarWhatsappReceiptGuardTest::test_b3_*`
+- [x] AC3 — Chaque envoi par l'API transmet un jeton aléatoire de 40 caractères hexadécimaux, sans donnée
+      personnelle, gardé sur la ligne, y compris sur un envoi ambigu et sur la reprise d'une écriture défaite.
+      — `RadarWhatsappOutreachTest::test_ac3_*`
 
 ## Hors périmètre
 
@@ -59,7 +71,8 @@ est vérifié** : ni l'existence du champ pour un message de gabarit, ni sa pré
 ## Constat du 2026-10-30
 
 Vérification préalable (décision A5 du porteur) faite dans la documentation de Meta **avant toute écriture** : elle ne
-garantit pas ce dont AC1 dépend. **Rien n'est implémenté** ; le ticket reste `todo`.
+garantit pas ce dont l'AC1 d'origine (`failed`) dépendait. Premier rendu : rien implémenté, ticket `todo`. La session a
+ensuite décidé d'implémenter sur ce que la documentation garantit (AC1 réécrit, voir « Notes d'implémentation »).
 
 Ce que dit la documentation, relevée le 2026-10-30 :
 
@@ -85,15 +98,34 @@ Ce que dit la documentation, relevée le 2026-10-30 :
 ambigu qu'il est parti, jamais (sur la foi de la documentation) qu'il a échoué — or AC1 porte sur `failed`. Écrire le
 code sur l'inférence du point 2, c'est le pari que B3 refuse, déplacé de l'appariement vers la documentation.
 
-**Pour reprendre ce ticket** (prérequis hors code du porteur, compte Meta du Radar) : envoyer un gabarit avec
-`biz_opaque_callback_data` vers un destinataire qui échoue (numéro hors WhatsApp, par exemple), et relever si l'accusé
-`failed` reçu porte le champ. S'il le porte, AC1 tient sur une mesure ; sinon, réécrire AC1 sur `delivered`/`read`
-seulement (un envoi ambigu dont l'arrivée est prouvée), ou clore le ticket comme caduc. Le jeton, quand il sera posé,
-sera un identifiant aléatoire non devinable propre à la ligne : jamais un numéro ni une donnée personnelle.
+## Notes d'implémentation
+
+- **Le jeton** : `bin2hex(random_bytes(20))`, tiré par `RadarWhatsappOutreach` sous les verrous de « J'ai envoyé »,
+  transmis par le pilote, écrit sur `radar_outreaches.provider_callback_token` (index unique partiel) **avec** les
+  colonnes du canal — donc seulement pour un envoi accepté ou ambigu, reprise comprise. Jamais journalisé ni exposé ;
+  la liste blanche de `WebhookPayloadRedactor` ne le garde pas dans la vue expurgée.
+- **L'appariement** (`RadarWhatsappReceipts::ambiguousByToken()`) : l'identifiant d'abord, relu sous le verrou de
+  l'annonceur ; puis le jeton, seulement pour un envoi de l'API, envoyé, sans identifiant, dont l'annonceur a pour
+  numéro le `recipient_id` de l'accusé, et si l'identifiant de Meta n'est porté par aucune ligne.
+- **Amendement daté d'ADR-0081** (2026-10-30) : la règle « jamais rattaché » de TCK-2427 admet l'appariement exact.
+
+## Prérequis du porteur
+
+- Sur le compte Meta du Radar : envoyer un gabarit (il porte désormais `biz_opaque_callback_data`) vers un destinataire
+  qui échoue (numéro hors WhatsApp, par exemple) et relever si l'accusé `failed` porte le champ. **S'il le porte, rien
+  à changer dans le code** ; sinon, un `failed` d'envoi ambigu reste ignoré, comme avant ce ticket.
+- Vérifier sur un vrai accusé que `recipient_id` est bien le numéro (et non un identifiant propre à l'entreprise,
+  « business-scoped user ID », que Meta introduit) : sinon l'appariement ne se fait pas, sans rien rattacher à tort.
 
 ### Décisions prises en autonomie, à revoir
 
-- **Retenu** : ne rien implémenter, ticket `todo` avec ce constat. **Écarté** : implémenter sur la référence actuelle
-  des accusés (point 2). **Raison** : la consigne A5 exige une garantie pour `failed`, que seule une inférence donne.
+- **Retenu** : implémenter sur `sent`/`delivered`/`read` (garantis) et apparier un `failed` s'il porte le jeton.
+  **Écarté** : ne rien implémenter (premier rendu). **Raison** : décision de la session, moins restrictive ; aucune
+  perte par rapport à TCK-2427.
+- **Retenu** : jeton aléatoire gardé en colonne. **Écarté** : jeton signé dérivé de l'id (sans migration).
+  **Raison** : ne dépend pas d'`APP_KEY`, dont la rotation rendrait muets les accusés en vol.
+- **Retenu** : exiger que `recipient_id` soit le numéro de l'annonceur. **Écarté** : le jeton seul. **Raison** :
+  consigne de la session (un jeton rejoué ou d'un autre destinataire ne rattache rien) ; le coût est un appariement
+  manqué si Meta rend un identifiant d'utilisateur à la place du numéro.
 - **Retenu** : pas de ticket de suite (TCK-2442 reste libre). **Écarté** : un ticket « mesurer l'accusé `failed` ».
-  **Raison** : cette mesure est la condition de reprise de ce ticket même ; un second ticket dupliquerait le delta.
+  **Raison** : la mesure est un prérequis du porteur sans code à écrire si elle confirme.

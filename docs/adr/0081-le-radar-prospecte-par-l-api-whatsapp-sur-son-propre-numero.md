@@ -105,3 +105,44 @@ réception.**
 - Tests : `tests/Feature/Radar/RadarWhatsappOutreachTest`, `tests/Feature/Radar/RadarWhatsappReplyTest`.
 - Clés : `.env.example`, `.env.docker` (parité gardée par `scripts/check-env-parity.mjs` et
   `scripts/check-webhook-env-keys.mjs`), `docs/infra/hebergement.md`.
+
+## Amendement du 2026-10-30 — l'appariement exact d'un envoi ambigu par jeton opaque (TCK-2436)
+
+**Contexte.** Un envoi ambigu par délai ou 5xx (§ 3) n'a pas d'identifiant : ses accusés, s'il est parti, arrivent
+sous un identifiant inconnu, et TCK-2427 les ignore — jamais de rattachement par déduction (décision B3 du porteur,
+scénarios gardés par `RadarWhatsappReceiptGuardTest`). L'API Cloud accepte à l'envoi un champ
+`biz_opaque_callback_data` (512 caractères au plus) et le rend dans les `statuses`. Relevé le 2026-10-30 :
+l'ancienne référence de l'objet message le dit rendu « *as part of sent/delivered/read message webhooks* » — `failed`
+n'y figure pas ; la [référence actuelle des accusés](https://developers.facebook.com/documentation/business-messaging/whatsapp/webhooks/reference/messages/status)
+le place dans la syntaxe commune de `statuses` (« *Only included if message sent with biz_opaque_callback_data* »),
+sans restriction de statut mais sans l'étendre explicitement à `failed`. Constat complet dans TCK-2436.
+
+**Décision.** Chaque envoi par l'API porte un **jeton aléatoire** (`provider_callback_token`, 40 caractères
+hexadécimaux, unique), transmis en `biz_opaque_callback_data` et écrit sur la ligne **avec** les colonnes du canal
+(reprise de la § 3 comprise) : aucune donnée personnelle, jamais journalisé, jamais exposé par l'API, absent de la vue
+expurgée du journal des webhooks (liste blanche). Un accusé dont l'identifiant est inconnu **et** qui porte ce jeton
+rattache son envoi si, et seulement si, cet envoi est de l'API, envoyé, **sans identifiant**, et que le destinataire
+de l'accusé (`recipient_id`) est le numéro de son annonceur ; l'identifiant de Meta est alors écrit sur la ligne et le
+statut avance selon les règles de TCK-2427. Tout autre accusé reste ignoré, comme avant : sans jeton, jeton inconnu,
+envoi déjà identifié ou jamais parti, autre destinataire, annonceur purgé, identifiant déjà porté par une autre ligne.
+
+Ce n'est pas une déduction : le jeton désigne une ligne, et une seule. B3 tient.
+
+**Ce que la documentation ne garantit pas.** Un `failed` est apparié de même **s'il porte le jeton** ; sinon il reste
+ignoré et l'envoi `ambiguous` — aucune perte par rapport à TCK-2427. Le porteur mesure sur le compte Meta du Radar si
+un accusé `failed` porte le champ ; si oui, rien ne change dans le code.
+
+**Options écartées.**
+
+- **Un jeton signé dérivé de l'identifiant de la ligne** (sans colonne) : il lie l'appariement à `APP_KEY`, dont la
+  rotation rendrait muets les accusés en vol ; un jeton tiré au hasard et gardé ne dépend de rien.
+- **Écrire le jeton avant l'appel, hors de la transaction** : une écriture de plus, et la ligne d'un envoi refusé
+  garderait un jeton que Meta n'a jamais accepté ; écrit avec les colonnes du canal, il ne survit qu'à un envoi
+  accepté ou ambigu.
+- **Se fier au jeton seul, sans le destinataire** : un message étranger au Radar sur le même numéro, ou un jeton
+  rejoué, n'a pas à pouvoir désigner un envoi d'accord.
+
+**Application.** `database/migrations/2026_10_30_396360_add_provider_callback_token_to_radar_outreaches.php`,
+`RadarWhatsappDriver::sendTemplate($to, $template, $callbackData)`, `RadarWhatsappOutreach`,
+`RadarWhatsappReceipts::ambiguousByToken()`. Tests : `tests/Feature/Radar/RadarWhatsappReceiptCallbackTest`,
+`RadarWhatsappReceiptGuardTest` (B3), `RadarWhatsappOutreachTest` (AC3).
