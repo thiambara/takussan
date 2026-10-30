@@ -1,0 +1,27 @@
+{
+    "global": 0.9844,
+    "fields": {
+        "classification": 0.9375,
+        "clauses_found": 1.0,
+        "counterpart_phone": 1.0,
+        "number_matches": 1.0
+    },
+    "model": "anthropic/claude-sonnet-5-5",
+    "models": [
+        "anthropic/claude-sonnet-5-5"
+    ],
+    "roles": {
+        "vision": {
+            "global": 0.9844,
+            "fields": {
+                "classification": 0.9375,
+                "clauses_found": 1.0,
+                "counterpart_phone": 1.0,
+                "number_matches": 1.0
+            },
+            "model": "anthropic/claude-sonnet-5-5"
+        }
+    },
+    "prompt_version": 1,
+    "updated_at": "2026-10-29T23:23:40+00:00"
+}

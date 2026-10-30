@@ -7,6 +7,7 @@ use App\Models\Enums\UserStatus;
 use App\Models\RadarAdvertiser;
 use App\Models\User;
 use App\Services\Credits\CreditLedger;
+use App\Services\Property\PublishReadiness;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Testing\TestResponse;
@@ -165,6 +166,7 @@ class PhoneLoginRadarAccountTest extends TestCase
         $this->assertNull($compteRadar->fresh()->phone_verified_at);
     }
 
+    /** Les conditions présentées au compte du Radar sont acceptées (TCK-2404, {@see PhoneLoginRadarTermsTest}) : ici, on juge quel compte s'ouvre. */
     private function entrer(string $numero): TestResponse
     {
         $this->postJson('/api/auth/phone/request-code', ['phone' => $numero])->assertStatus(202);
@@ -172,6 +174,7 @@ class PhoneLoginRadarAccountTest extends TestCase
         return $this->postJson('/api/auth/phone/verify-code', [
             'phone' => $numero,
             'code' => $this->sms->lastCodeFor($numero),
+            'terms_version' => PublishReadiness::TERMS_VERSION,
         ]);
     }
 }

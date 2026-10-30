@@ -132,6 +132,13 @@ return [
         'link_ttl_days' => 30,
     ],
 
+    // TCK-2406 (décision du porteur à prendre, avec l'avocat) — la matière collectée d'une annonce PUBLIÉE (texte brut, adresse
+    // de la source, extraction, réserve, captures), puis le numéro en clair de son annonceur, s'effacent avec la preuve de
+    // l'accord : `consent_retention_years` après le retrait du dernier bien. Éteint : la lettre d'ADR-0077 §9 et de `privacy.ts`
+    // § 6 ne purge que l'annonce jamais publiée. L'allumer change l'une et l'autre, dans la même PR (VERSION_DOCUMENTS avance).
+    // Lu par `App\Services\Radar\RadarPurger`, et nulle part ailleurs.
+    'purge_published_material' => false,
+
     // TCK-2394 (ADR-0077, lot 4) — la relance d'activation d'un compte créé pour l'annonceur
     // (`App\Services\Radar\RadarActivationReminders`, et nulle part ailleurs). Elle cite les chiffres d'une période :
     // depuis la dernière relance envoyée, sinon depuis la mise en ligne ; elle ne part qu'une fois cette période longue de
