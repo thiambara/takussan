@@ -1,7 +1,7 @@
 ---
 id: TCK-2436
 title: "Radar : appariement exact des accusés d'un envoi WhatsApp ambigu, par biz_opaque_callback_data"
-status: todo
+status: doing
 phase: P3
 family: back
 estimate: S
