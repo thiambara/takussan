@@ -106,8 +106,7 @@ TCK-2395 envoie par l'API du numéro du Radar et lit les messages reçus sur son
 ## Reste sur dev
 
 - **La branche dépend de #1598 (TCK-2395), non fusionnée** : ce ticket arrive sur `dev` avec elle.
-- **L'évaluation payante** `php artisan ai:eval radar.verification_accord --update-baseline` (jeu complet), à jouer par
-  le porteur : la référence du 2026-10-30 (0,9844, 16 cas de captures) n'a pas de section `raisonnement`, et un jeu
-  complet compare son global (30 cas) au global des seules captures. Le planning de nuit (`ai:eval --all`, 02:30)
-  rougira `ai.eval.below_baseline` dès que les cas texte feront moins bien que les captures.
+- **L'évaluation payante est jouée** (2026-10-30, par la session sur cette branche, commit de la référence) :
+  0,9917 sur 30 cas, 0 échec, 237,90 XOF — vision 0,9844 sur 16 cas (`claude-sonnet-5-5`), raisonnement
+  1,0000 sur 14 cas texte (`claude-opus-5-5`). La référence porte désormais les deux rôles.
 - Le texte de spec (`features.md` § 2.12, `models-spec.md` `RadarOutreach.provider_status`) : PR de spec commune.
