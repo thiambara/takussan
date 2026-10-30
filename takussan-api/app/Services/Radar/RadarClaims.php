@@ -161,6 +161,7 @@ final class RadarClaims
         abort_code_if($state['state'] === self::STATE_UNAVAILABLE, 422, 'radar.claim.account_unavailable');
         abort_code_if($state['state'] === self::STATE_SUPPORT, 409, 'radar.claim.support_required');
         abort_code_if($state['state'] === self::STATE_MANDATE_SUPPORT, 409, RadarMandateTakeBack::SUPPORT_REQUIRED);
+        $this->refuseSuspendedTakeBack($advertiser, $state);
         // Un numéro vérifié sur un compte : la connexion d'abord, le code ensuite — un SMS ne se dépense pas pour rien.
         abort_code_if($state['state'] === self::STATE_EXISTING && ! $viewer?->is($state['user']), 409, 'radar.claim.login_required');
         // Connecté à un autre compte, la confirmation refusera : le SMS est refusé avant de partir, avec le même code.
@@ -186,6 +187,7 @@ final class RadarClaims
         abort_code_if($state['state'] === self::STATE_UNAVAILABLE, 422, 'radar.claim.account_unavailable');
         abort_code_if($state['state'] === self::STATE_SUPPORT, 409, 'radar.claim.support_required');
         abort_code_if($state['state'] === self::STATE_MANDATE_SUPPORT, 409, RadarMandateTakeBack::SUPPORT_REQUIRED);
+        $this->refuseSuspendedTakeBack($advertiser, $state);
         abort_code_if($input['terms_version'] !== PublishReadiness::TERMS_VERSION, 422, 'radar.claim.terms_outdated');
         // Le prénom et le nom de l'espace deviennent publics : aucun numéro, sous aucune forme que le masqueur reconnaît
         // (vérification adverse I-1). Un code, et les champs en cause, que la page affiche sous chacun (le front possède le texte).
@@ -516,6 +518,21 @@ final class RadarClaims
             ->log('Compte du Radar jamais activé réuni au titulaire du numéro, puis supprimé');
 
         return $ids;
+    }
+
+    /**
+     * TCK-2421 — sous mandat, le compte vérifié du numéro dont l'espace est suspendu : ses biens y quitteraient le public. Refusé
+     * avant le SMS (la reprise le rejuge sous verrou, {@see RadarMandateTakeBack::takeBack()}) ; ils restent sous mandat.
+     *
+     * @param  array{state: string, user: ?User}  $state
+     */
+    private function refuseSuspendedTakeBack(RadarAdvertiser $advertiser, array $state): void
+    {
+        abort_code_if(
+            $advertiser->underMandate() && $state['user'] !== null && $this->takeBack->spaceSuspended($state['user']),
+            409,
+            RadarMandateTakeBack::SPACE_SUSPENDED,
+        );
     }
 
     /**

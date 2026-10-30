@@ -7,12 +7,23 @@ use App\Models\Agency;
 use App\Models\Booking;
 use App\Models\Conversation;
 use App\Models\Customer;
+use App\Models\Enums\AgencyStatus;
+use App\Models\Enums\BoostKind;
+use App\Models\Enums\BoostStatus;
 use App\Models\Enums\PropertyVisibility;
+use App\Models\Enums\RadarListingStage;
 use App\Models\FeatureFlag;
+use App\Models\Inventory;
+use App\Models\Lease;
+use App\Models\MaintenanceRequest;
+use App\Models\Profiles\AgentProfile;
 use App\Models\Property;
+use App\Models\PropertyBoost;
 use App\Models\PropertyContact;
 use App\Models\PropertyContactLead;
 use App\Models\PropertyVisit;
+use App\Models\RadarListing;
+use App\Models\ServiceProviderBill;
 use App\Models\User;
 use App\Services\Admin\PlatformSettingService;
 use App\Services\Auth\PhoneLoginService;
@@ -23,6 +34,7 @@ use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Testing\TestResponse;
 use Laravel\Sanctum\Sanctum;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Spatie\Activitylog\Models\Activity;
 use Tests\Support\FakeSmsRouter;
 use Tests\Support\FixturesDePublicationRadar;
@@ -218,7 +230,7 @@ class RadarMandateTakeBackTest extends TestCase
         $collegue = User::factory()->create();
         DB::table('property_collaborators')->insert(['property_id' => $premier, 'user_id' => $collegue->id, 'role' => 'agent', 'is_primary' => false, 'created_at' => now(), 'updated_at' => now()]);
         $visiteurInscrit = User::factory()->create();
-        $fil = Conversation::factory()->create(['property_id' => $premier, 'created_by' => $visiteurInscrit->id]);
+        $fil = Conversation::factory()->create(['property_id' => $premier, 'created_by' => $visiteurInscrit->id, 'type' => 'direct']);
         foreach ([$visiteurInscrit, $this->gerant] as $participant) {
             DB::table('conversation_participants')->insert(['conversation_id' => $fil->id, 'user_id' => $participant->id, 'role' => 'member', 'joined_at' => now(), 'is_muted' => false]);
         }
@@ -231,10 +243,79 @@ class RadarMandateTakeBackTest extends TestCase
         $this->assertSame($this->espace->id, (int) $prospect->fresh()->agency_id);
         $this->assertSame([$compte->id, null], [(int) $visite->fresh()->agent_id, $visite->fresh()->customer_id]);
         $this->assertFalse(DB::table('property_collaborators')->where('property_id', $premier)->exists());
+        // Transmis au contact principal actuel (lui) : le gérant quitte le fil (`left_at`), le visiteur reste.
         $this->assertEqualsCanonicalizing(
             [$visiteurInscrit->id, $compte->id],
-            DB::table('conversation_participants')->where('conversation_id', $fil->id)->pluck('user_id')->map(fn ($id) => (int) $id)->all(),
+            DB::table('conversation_participants')->where('conversation_id', $fil->id)->whereNull('left_at')->pluck('user_id')->map(fn ($id) => (int) $id)->all(),
         );
+    }
+
+    /**
+     * Vérification adverse I1 — le contact principal du bien est un agent de l'espace des mandats (ADR-0068) : après la reprise,
+     * le fil du visiteur passe au nouveau titulaire, qui le lit et y répond ; l'agent le perd ; la réponse du visiteur arrive.
+     */
+    public function test_ac1_le_fil_d_un_collaborateur_contact_principal_passe_au_nouveau_titulaire(): void
+    {
+        $premier = $this->biens[0];
+        $agent = User::factory()->create();
+        AgentProfile::factory()->create(['user_id' => $agent->id, 'agency_id' => $this->espace->id]);
+        DB::table('property_collaborators')->insert(['property_id' => $premier, 'user_id' => $agent->id, 'role' => 'agent', 'is_primary' => true, 'created_at' => now(), 'updated_at' => now()]);
+        $visiteur = User::factory()->create();
+        $fil = Conversation::factory()->create(['property_id' => $premier, 'created_by' => $visiteur->id, 'type' => 'direct']);
+        foreach ([$visiteur, $agent] as $participant) {
+            DB::table('conversation_participants')->insert(['conversation_id' => $fil->id, 'user_id' => $participant->id, 'role' => 'member', 'joined_at' => now(), 'is_muted' => false]);
+        }
+
+        $this->demanderLeCode()->assertStatus(202);
+        $this->confirmer()->assertOk();
+        $compte = User::query()->where('phone', self::NUMERO_ANNONCEUR)->sole();
+
+        $this->enTantQue($agent)->getJson("/api/conversations/{$fil->id}")->assertForbidden();
+        $this->enTantQue($compte)->getJson("/api/conversations/{$fil->id}")->assertOk();
+        $this->postJson("/api/conversations/{$fil->id}/messages", ['content' => 'Oui, toujours disponible.'])->assertCreated();
+        $this->enTantQue($visiteur)->postJson("/api/conversations/{$fil->id}/messages", ['content' => 'Je peux visiter samedi ?'])->assertCreated();
+        $contenus = $this->enTantQue($compte)->getJson("/api/conversations/{$fil->id}/messages")->assertOk()->json('data.*.content');
+        $this->assertContains('Je peux visiter samedi ?', $contenus);
+    }
+
+    private function enTantQue(User $user): static
+    {
+        $this->app['auth']->forgetGuards();
+        Sanctum::actingAs($user);
+
+        return $this;
+    }
+
+    /** Vérification adverse m2 — `agencies.properties_count` suit les biens : le changement d'espace s'y reporte des deux côtés. */
+    public function test_ac1_le_compteur_de_biens_des_deux_espaces_suit_la_reprise(): void
+    {
+        $avant = (int) $this->espace->fresh()->properties_count;
+
+        $this->demanderLeCode()->assertStatus(202);
+        $this->confirmer()->assertOk();
+
+        $sien = Agency::query()->where('primary_admin_id', User::query()->where('phone', self::NUMERO_ANNONCEUR)->value('id'))->sole();
+        $this->assertSame($avant - 2, (int) $this->espace->fresh()->properties_count);
+        $this->assertSame(Property::query()->where('agency_id', $sien->id)->count(), (int) $sien->fresh()->properties_count);
+        $this->assertSame(2, (int) $sien->fresh()->properties_count);
+    }
+
+    /**
+     * Vérification adverse I3 — seuls les biens publiés SOUS MANDAT se reprennent : un bien publié « pour lui » dans un compte A
+     * depuis délié (`AdvertiserAccountRelease`) reste dans l'espace de A.
+     */
+    public function test_ac2_un_bien_d_un_autre_compte_publie_pour_lui_ne_suit_pas(): void
+    {
+        $a = User::factory()->create();
+        $espaceA = Agency::factory()->create(['primary_admin_id' => $a->id]);
+        $ancien = Property::factory()->create(['agency_id' => $espaceA->id, 'user_id' => $a->id, 'metadata' => ['radar_listing_id' => 1]]);
+        RadarListing::factory()->create(['radar_advertiser_id' => $this->annonceur->id, 'stage' => RadarListingStage::Published, 'property_id' => $ancien->id]);
+
+        $this->lire()->assertOk()->assertJsonPath('data.mandate.properties_count', 2);
+        $this->demanderLeCode()->assertStatus(202);
+        $this->confirmer()->assertOk()->assertJsonPath('claim.taken_back_property_ids', $this->biens);
+
+        $this->assertSame([$espaceA->id, $a->id], [(int) $ancien->fresh()->agency_id, (int) $ancien->fresh()->user_id]);
     }
 
     public function test_ac1_apres_la_reprise_le_second_message_suit_le_nouvel_etat(): void
@@ -325,6 +406,78 @@ class RadarMandateTakeBackTest extends TestCase
         $this->assertSame([], $this->sms->sentTo(self::NUMERO_ANNONCEUR));
 
         $this->assertSame($this->sousMandat(), $this->ouSontLesBiens());
+    }
+
+    /** @return array<string, array{\Closure(int, Agency): void}> une gestion par table, et le lot */
+    public static function gestions(): array
+    {
+        return [
+            'réservation' => [fn (int $bien, Agency $espace) => Booking::factory()->create(['property_id' => $bien, 'agency_id' => $espace->id])],
+            'bail' => [fn (int $bien, Agency $espace) => Lease::factory()->create(['property_id' => $bien, 'agency_id' => $espace->id])],
+            'facture de prestataire' => [fn (int $bien) => DB::table('service_provider_bills')->where('id', ServiceProviderBill::factory()->create()->id)->update(['property_id' => $bien])],
+            'mise en avant' => [fn (int $bien, Agency $espace) => PropertyBoost::query()->create([
+                'property_id' => $bien, 'agency_id' => $espace->id, 'kind' => BoostKind::Featured, 'price_credits' => 20, 'duration_days' => 7,
+                'starts_at' => now(), 'ends_at' => now()->addDays(7), 'status' => BoostStatus::Active, 'offered' => false,
+            ])],
+            'maintenance' => [fn (int $bien) => MaintenanceRequest::factory()->create(['property_id' => $bien])],
+            'état des lieux' => [fn (int $bien) => Inventory::factory()->create(['property_id' => $bien])],
+            'flux de calendrier' => [fn (int $bien) => DB::table('property_calendar_feeds')->insert([
+                'property_id' => $bien, 'url' => 'https://calendrier.test/flux.ics', 'url_host' => 'calendrier.test', 'created_at' => now(), 'updated_at' => now(),
+            ])],
+            'lot' => [fn (int $bien, Agency $espace) => Property::factory()->create(['parent_id' => $bien, 'agency_id' => $espace->id])],
+        ];
+    }
+
+    /** Vérification adverse m1 — chaque gestion que `transferable()` nomme renvoie au support, sans rien transférer. */
+    #[DataProvider('gestions')]
+    public function test_chaque_gestion_renvoie_au_support(\Closure $gestion): void
+    {
+        $gestion($this->biens[1], $this->espace);
+
+        $this->lire()->assertOk()->assertJsonPath('data.account.state', 'mandate_support');
+        $this->demanderLeCode()->assertStatus(409)->assertJsonPath('code', 'radar.claim.mandate_support_required');
+        $this->assertSame($this->sousMandat(), $this->ouSontLesBiens());
+    }
+
+    /**
+     * Vérification adverse I2 (décision de la session, à revoir) — le titulaire du numéro dont l'espace est suspendu : la reprise
+     * est refusée avant le SMS, comme `publishClaimed()` ; ses biens restent sous mandat, en ligne.
+     */
+    public function test_un_espace_suspendu_refuse_la_reprise_et_les_biens_restent_sous_mandat_en_ligne(): void
+    {
+        $titulaire = User::factory()->create(['phone' => self::NUMERO_ANNONCEUR, 'phone_verified_at' => now()]);
+        Agency::factory()->create(['primary_admin_id' => $titulaire->id, 'kind' => 'individual', 'status' => AgencyStatus::Suspended]);
+        Sanctum::actingAs($titulaire);
+
+        $this->demanderLeCode()->assertStatus(409)->assertJsonPath('code', 'radar.claim.space_suspended');
+        $this->assertSame([], $this->sms->sentTo(self::NUMERO_ANNONCEUR));
+        $this->confirmer(code: '123456')->assertStatus(409)->assertJsonPath('code', 'radar.claim.space_suspended');
+
+        $this->assertSame($this->sousMandat(), $this->ouSontLesBiens());
+        $this->assertTrue($this->annonceur->fresh()->underMandate());
+        $this->assertSame(2, Property::query()->whereIn('id', $this->biens)->public()->count());
+    }
+
+    /** I2 rejugé sous le verrou : l'espace suspendu entre le code et la confirmation défait tout. */
+    public function test_un_espace_suspendu_pendant_la_confirmation_se_rejuge_sous_le_verrou(): void
+    {
+        $titulaire = User::factory()->create(['phone' => self::NUMERO_ANNONCEUR, 'phone_verified_at' => now()]);
+        $sien = Agency::factory()->create(['primary_admin_id' => $titulaire->id, 'kind' => 'individual']);
+        Sanctum::actingAs($titulaire);
+        $this->demanderLeCode()->assertStatus(202);
+        $fait = false;
+        DB::listen(function ($requete) use (&$fait, $sien): void {
+            if (! $fait && str_contains($requete->sql, '"radar_advertisers"') && str_contains($requete->sql, 'for update')) {
+                $fait = true;
+                Agency::query()->whereKey($sien->id)->update(['status' => AgencyStatus::Suspended->value]);
+            }
+        });
+
+        $this->confirmer()->assertStatus(409)->assertJsonPath('code', 'radar.claim.space_suspended');
+
+        $this->assertSame($this->sousMandat(), $this->ouSontLesBiens());
+        $this->assertTrue($this->annonceur->fresh()->underMandate());
+        $this->assertNull($this->annonceur->fresh()->user_id);
     }
 
     /** Rejugé sous le verrou : une réservation arrivée entre le code et la confirmation défait tout, compte ouvert compris. */

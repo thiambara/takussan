@@ -143,7 +143,8 @@ final class RadarPublisher
                 'display_name' => $advertiser->display_name,
                 'nature' => $advertiser->nature->value,
                 'do_not_contact_at' => $advertiser->do_not_contact_at?->toIso8601String(),
-                // TCK-2394 (ADR-0079) — publié sous mandat : le second message est `mandat.v1`, sans activation.
+                // TCK-2394 (ADR-0079) — publié sous mandat : le second message est `mandat.v2` (le lien de la reprise, TCK-2421), ou
+                // `mandat.v1` sans lien quand ce lien ne s'ouvrirait pas ; aucun ne promet d'activation.
                 'mandate_at' => $advertiser->mandate_at?->toIso8601String(),
                 // TCK-2421 — repris par l'annonceur dans son espace : la période de mandat est close, `mandate_at` en reste la trace.
                 'mandate_taken_back_at' => $advertiser->mandate_taken_back_at?->toIso8601String(),
@@ -384,8 +385,8 @@ final class RadarPublisher
 
     /**
      * Le second message, celui qui annonce les biens en ligne : un texte fixe versionné
-     * (`resources/radar/messages/publie.v2.<locale>.md`), jamais généré, et son lien `wa.me`. Il n'est pas enregistré : son
-     * lien de réclamation est émis à sa composition, et sert `radar.claim.link_ttl_days` jours.
+     * (`resources/radar/messages/publie.v2.<locale>.md` ; sous mandat, `mandat.v2` ou `mandat.v1`), jamais généré, et son
+     * lien `wa.me`. Il n'est pas enregistré : son lien de réclamation est émis à sa composition, et sert `radar.claim.link_ttl_days` jours.
      *
      * @return array{text: string, wa_me: string, version: string}
      */

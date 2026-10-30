@@ -3,10 +3,13 @@
 namespace App\Services\Radar;
 
 use App\Models\Agency;
+use App\Models\Enums\AgencyStatus;
 use App\Models\Property;
 use App\Models\RadarAdvertiser;
 use App\Models\RadarListing;
 use App\Models\User;
+use App\Services\Messaging\PropertyConversationResolver;
+use App\Services\Onboarding\HostIndividualOnboardingService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 
@@ -18,15 +21,19 @@ use Illuminate\Support\Facades\DB;
  *
  * **Ce qui suit le bien** : l'espace et le titulaire (journal du modèle coupé, ADR-0059 § 4 : la réparation
  * `properties:repair-reassigned-owners` déferait une écriture de `user_id` journalisée en `updated`) ; ses demandes et ses clics
- * (l'espace, et lui pour destinataire) ; ses visites (lui pour agent) ; ses conversations (il prend la place du titulaire
- * précédent) ; ses empreintes de photos. Le contact sur place est déjà son numéro.
+ * (l'espace, et lui pour destinataire) ; ses visites (lui pour agent) ; ses conversations, transmises après le commit à son
+ * nouveau contact principal, lui (TCK-888, ADR-0068 § 3 : l'ancien répondant, titulaire ou collaborateur, quitte le fil) ;
+ * ses empreintes de photos ; le compteur `properties_count` des deux espaces. Le contact sur place est déjà son numéro.
  *
  * **Ce qui reste dans l'espace des mandats** : ses prospects (`customers`) — une demande ou une visite reprise ne vise plus
  * un prospect d'un autre espace — et ses collaborateurs, retirés du bien.
  *
  * **Ce qui renvoie au support** ({@see self::transferable()}) : un bien qui porte de la gestion — réservation, bail, facture
- * de prestataire, mise en avant, demande de maintenance, état des lieux — ou un lot. Rien de cela ne naît d'une publication
- * sous mandat ; si l'équipe en a créé, le déplacer d'un espace à l'autre est une décision humaine.
+ * de prestataire, mise en avant, demande de maintenance, état des lieux, flux de calendrier — ou un lot. Rien de cela ne naît
+ * d'une publication sous mandat ; si l'équipe en a créé, le déplacer d'un espace à l'autre est une décision humaine.
+ *
+ * **Un espace cible suspendu refuse la reprise** ({@see self::SPACE_SUSPENDED}), comme `RadarPublisher::publishClaimed()` :
+ * ses biens y quitteraient le public (`Property::agencyIsPublic()`). Ils restent sous mandat, en ligne, jusqu'au rétablissement.
  *
  * Aucun quota n'est rejugé : les biens existent et sont déjà en ligne ; la reprise ne les crée pas.
  */
@@ -37,8 +44,11 @@ final class RadarMandateTakeBack
     /** Un bien sous mandat porte de la gestion ({@see self::transferable()}) : la reprise passe par le support. */
     public const SUPPORT_REQUIRED = 'radar.claim.mandate_support_required';
 
+    /** L'espace de l'annonceur est suspendu : ses biens y quitteraient le public ; ils restent sous mandat. */
+    public const SPACE_SUSPENDED = 'radar.claim.space_suspended';
+
     /** La gestion qu'un bien peut porter et qui ne le suit pas sans le support. */
-    private const MANAGEMENT_TABLES = ['bookings', 'leases', 'service_provider_bills', 'property_boosts', 'maintenance_requests', 'inventories'];
+    public const MANAGEMENT_TABLES = ['bookings', 'leases', 'service_provider_bills', 'property_boosts', 'maintenance_requests', 'inventories', 'property_calendar_feeds'];
 
     /** @return Builder<Property> les biens encore vivants que le Radar a publiés sous mandat pour cet annonceur */
     public function properties(RadarAdvertiser $advertiser): Builder
@@ -67,6 +77,12 @@ final class RadarMandateTakeBack
         return ! Property::withTrashed()->whereIn('parent_id', $ids)->exists();
     }
 
+    /** L'espace où la réclamation mettrait les biens de ce compte ({@see HostIndividualOnboardingService::autoOnboard()}) est suspendu. */
+    public function spaceSuspended(User $user): bool
+    {
+        return Agency::query()->where('primary_admin_id', $user->id)->orderBy('id')->first()?->status === AgencyStatus::Suspended;
+    }
+
     /**
      * Sur l'annonceur DÉJÀ verrouillé par la réclamation, dans sa transaction, après la vérification du code : ses biens sous
      * mandat passent à `$user`, dans `$agency`, et la période de mandat se clôt (`mandate_taken_back_at`). Rejugé ici : un bien
@@ -78,10 +94,14 @@ final class RadarMandateTakeBack
     {
         $properties = $this->properties($locked)->orderBy('id')->lockForUpdate()->get();
         abort_code_unless($this->transferable($locked), 409, self::SUPPORT_REQUIRED);
+        // Relu sous verrou : une suspension a pu passer depuis la lecture de la page.
+        $space = Agency::query()->whereKey($agency->getKey())->lockForUpdate()->first(['id', 'status']);
+        abort_code_if($space?->status === AgencyStatus::Suspended, 409, self::SPACE_SUSPENDED);
 
         $ids = $properties->pluck('id')->map(fn ($id) => (int) $id)->all();
         $holders = $properties->pluck('user_id')->filter()->map(fn ($id) => (int) $id)->unique()->values()->all();
         $fromAgencies = $properties->pluck('agency_id')->filter()->map(fn ($id) => (int) $id)->unique()->values()->all();
+        $countsByAgency = $properties->filter(fn (Property $property) => $property->agency_id !== null)->countBy('agency_id');
 
         foreach ($properties as $property) {
             // La trace reste sur le bien (`radar_mandate` faux, pas effacé) : la mention publique (TCK-2422) ne le lit plus.
@@ -90,6 +110,14 @@ final class RadarMandateTakeBack
                 'user_id' => $user->id,
                 'metadata' => ['radar_mandate' => false] + (array) $property->metadata,
             ])->save();
+        }
+
+        // `PropertyObserver` ne tient `properties_count` qu'à la création et à la suppression : un changement d'espace s'y reporte ici.
+        foreach ($countsByAgency as $from => $count) {
+            Agency::query()->whereKey($from)->decrement('properties_count', $count);
+        }
+        if ($ids !== []) {
+            Agency::query()->whereKey($agency->getKey())->increment('properties_count', count($ids));
         }
 
         $leads = DB::table('property_contact_leads')->whereIn('property_id', $ids);
@@ -103,13 +131,11 @@ final class RadarMandateTakeBack
         $collaborators = DB::table('property_collaborators')->whereIn('property_id', $ids)->orderBy('id')->pluck('id')->map(fn ($id) => (int) $id)->all();
         DB::table('property_collaborators')->whereIn('id', $collaborators)->delete();
 
-        // Un titulaire à la fois : unique par conversation et compte, `$user` déjà présent garde sa ligne, l'autre s'en va.
+        // Le chemin de TCK-888 (ADR-0068 § 3), comme `PrimaryAgentDesignator` : après le commit, chaque fil de prospect passe au
+        // contact principal actuel — lui, ses collaborateurs retirés — et l'ancien répondant le quitte (`left_at`).
         $conversations = DB::table('conversations')->whereIn('property_id', $ids)->orderBy('id')->pluck('id')->map(fn ($id) => (int) $id)->all();
-        foreach (array_diff($holders, [$user->id]) as $holder) {
-            $participants = DB::table('conversation_participants')->whereIn('conversation_id', $conversations)->where('user_id', $holder);
-            $joined = DB::table('conversation_participants')->where('user_id', $user->id)->select('conversation_id');
-            (clone $participants)->whereIn('conversation_id', $joined)->delete();
-            (clone $participants)->update(['user_id' => $user->id]);
+        foreach ($ids as $id) {
+            DB::afterCommit(fn () => app(PropertyConversationResolver::class)->transmitForProperty($id));
         }
 
         $locked->forceFill(['mandate_taken_back_at' => now()])->save();

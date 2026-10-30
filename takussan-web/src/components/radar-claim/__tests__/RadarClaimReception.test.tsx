@@ -393,6 +393,21 @@ describe('<RadarClaimReception> (TCK-2390)', () => {
     expect(screen.queryByRole('button', { name: T.sendCode })).toBeNull();
   });
 
+  it('sous mandat, son espace suspendu : le refus du code se dit, ses annonces restent diffusées', async () => {
+    auth.token = 'jeton-titulaire';
+    bouchonner(
+      reponse(200, reclamation({ account: { state: 'existing', viewer_is_owner: true, space: { name: 'Fatou Location' } }, listings: [], mandate: { properties_count: 2 } })),
+      reponse(409, { code: 'radar.claim.space_suspended', message: 'brut' }),
+    );
+    const user = userEvent.setup();
+    render(withIntl(<RadarClaimReception token={JETON} />));
+
+    await user.click(await screen.findByRole('checkbox', { name: /conditions d'utilisation/ }));
+    await user.click(screen.getByRole('button', { name: T.sendCode }));
+    expect(await screen.findByText(T.errors.spaceSuspended)).toBeInTheDocument();
+    expect(screen.queryByLabelText(T.codeLabel)).toBeNull();
+  });
+
   it('compte préparé par le Radar sans annonce restante : le code active le compte seul', async () => {
     bouchonner(reponse(200, reclamation({ account: { state: 'activation' }, listings: [] })));
     render(withIntl(<RadarClaimReception token={JETON} />));
