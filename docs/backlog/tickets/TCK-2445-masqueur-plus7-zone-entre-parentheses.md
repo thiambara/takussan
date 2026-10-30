@@ -90,6 +90,10 @@ partagé `tests/fixtures/ai/donnees-personnelles.json`, `RadarPhone::FLOOR_PLUS`
   six, ou de cinq puis cinq, derrière `7`. `FOREIGN` ne la lisait nulle part : `Contact +7 (3452) 12-34-56` partait en
   clair, avec ou sans étage, sur 908d62321 comme sur `dev`. Elle est lue par `FOREIGN` et par `CC7_REST`. Elle commence
   par 3 à 9 (vérification I1) : une année entre parenthèses (`Immeuble R+7 (2024) 450 000 000 F`) garde son prix.
+- **Limite assumée de la zone longue, dans le sens sûr** (vérification M3) : un nombre nu de quatre ou cinq chiffres
+  commençant par 3 à 9 entre parenthèses, suivi de six ou cinq chiffres, est masqué et le prix perdu
+  (`R+7 (3500) 450 000 000 F`, `R+7 (8000) 650 000 F`, un code postal `(32000) 45 000 F`). Suivi d'une unité, il reste
+  intact (`Immeuble R+7 (3500 m²) 450 000 000 F`). Le fixture garde ces limites (et celle de M1) en `avec_contexte`.
   `RadarPhone::FLOOR_PLUS` lit `PhoneMasker::CC1_NUMBER` sur ses deux branches : il suit sans autre changement.
 - **`R+7 (495) 123-45-67 F`** (collé) partait en clair depuis TCK-2428 déjà, sur 908d62321 comme sur `dev` : il est
   masqué du même coup, et gardé dans le fixture.

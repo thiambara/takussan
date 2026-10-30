@@ -281,7 +281,10 @@
     "étage TCK-2445 vérification B1 — au RDC, +7, (0) de trunk et zone entre parenthèses": ["au RDC +7 (0)(495) 123-45-67", "au RDC [TELEPHONE]"],
     "étage TCK-2445 vérification B1 — RDC, +7, (0) de trunk et zone entre parenthèses, suivi de F": ["RDC +7 (0)(495) 123-45-67 F", "RDC [TELEPHONE] F"],
     "étage TCK-2445 vérification B1 — R+7 collé et (0) de trunk": ["R+7 (0)495 123-45-67", "R[TELEPHONE]"],
-    "étage TCK-2445 vérification I1 — RDC, +7 kazakh à zone de quatre chiffres suivi de F": ["RDC +7 (7172) 12-34-56 F", "RDC [TELEPHONE] F"]
+    "étage TCK-2445 vérification I1 — RDC, +7 kazakh à zone de quatre chiffres suivi de F": ["RDC +7 (7172) 12-34-56 F", "RDC [TELEPHONE] F"],
+    "étage TCK-2445 limite assumée (M1) — un nombre de trois chiffres entre parenthèses derrière R+1, puis un prix : masqué": ["Villa R+1 (150) 2 500 000 F", "Villa R[TELEPHONE] F"],
+    "étage TCK-2445 limite assumée (M3) — un nombre de quatre chiffres entre parenthèses derrière R+7, puis un prix : masqué": ["Villa R+7 (8000) 650 000 F", "Villa R[TELEPHONE] F"],
+    "étage TCK-2445 limite assumée (M3) — un code postal entre parenthèses derrière R+7, puis un prix : masqué": ["Studio R+7 (32000) 45 000 F", "Studio R[TELEPHONE] F"]
   },
   "courriels": {
     "simple": "awa@exemple.sn",
@@ -485,6 +488,7 @@
     "étage TCK-2435 — R+7 devant un prix qui commence par 2 : pas un numéro +7": "Immeuble R+7 2 250 500 750 F",
     "étage TCK-2445 vérification I1 — une année entre parenthèses derrière R+7 n'est pas une zone": "Immeuble R+7 (2024) 450 000 000 F",
     "étage TCK-2445 vérification I1 — année 2019 entre parenthèses, prix en FCFA": "Immeuble R+7 (2019) 850 000 000 FCFA",
-    "étage TCK-2445 vérification I1 — année 2023 entre parenthèses, loyer mensuel": "Appartement R+7 (2023) 450 000 F/mois"
+    "étage TCK-2445 vérification I1 — année 2023 entre parenthèses, loyer mensuel": "Appartement R+7 (2023) 450 000 F/mois",
+    "étage TCK-2445 vérification M3 — une surface entre parenthèses derrière R+7 n'est pas une zone": "Immeuble R+7 (3500 m²) 450 000 000 F"
   }
 }

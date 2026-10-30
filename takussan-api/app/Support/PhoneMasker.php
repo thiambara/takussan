@@ -176,7 +176,10 @@ final class PhoneMasker
      * TCK-2445 — derrière `7`, une zone de quatre ou cinq chiffres entre parenthèses, puis le reste des dix chiffres
      * (`+7 (3452) 12-34-56`, `+7 (34922) 1-23-45`) : `FOREIGN` n'admettait que la zone de trois, et ce numéro partait en
      * clair partout. Lu aussi par `CC7_REST` : derrière un étage, il garde son `+`. La zone commence par 3 à 9 (Russie : 3, 4,
-     * 8 ; Kazakhstan : 7) : une année entre parenthèses (`Immeuble R+7 (2024) 450 000 000 F`) n'en est pas une.
+     * 8 ; Kazakhstan : 7) : une année entre parenthèses (`Immeuble R+7 (2024) 450 000 000 F`) n'en est pas une. Limite
+     * assumée, dans le sens sûr : un nombre nu de quatre ou cinq chiffres commençant par 3 à 9 entre parenthèses, suivi de
+     * six ou cinq chiffres, est masqué et le prix perdu (`R+7 (3500) 450 000 000 F`, `R+7 (8000) 650 000 F`, un code postal
+     * `(32000) 45 000 F`) ; suivi d'une unité, il reste intact (`(3500 m²)`).
      */
     private const CC7_LONG_ZONE = self::SEP.'?\((?=[3-9])(?:[0-9]{4}\)(?:'.self::SEP.'{0,3}[0-9]){6}|[0-9]{5}\)(?:'.self::SEP.'{0,3}[0-9]){5})';
 
