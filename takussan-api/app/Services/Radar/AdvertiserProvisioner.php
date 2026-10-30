@@ -54,8 +54,8 @@ final class AdvertiserProvisioner
             return ['created' => false, 'user' => $user, 'agency' => $this->onboarding->autoOnboard($user)['agency']];
         }
 
-        // Un STOP pose `do_not_contact_at` (le numéro n'est purgé que plus tard, TCK-2391) : l'annonceur ne se contacte plus, on ne
-        // lui crée rien. Sans numéro (déjà purgé), il n'y a de toute façon ni compte à créer ni personne à qui publier.
+        // Un STOP pose `do_not_contact_at`, et la purge (TCK-2391) efface son numéro dès qu'il ne lui reste aucune annonce : l'annonceur ne se
+        // contacte plus, on ne lui crée rien. Sans numéro (déjà purgé), il n'y a de toute façon ni compte à créer ni personne à qui publier.
         abort_code_if($lockedAdvertiser->do_not_contact_at !== null || $lockedAdvertiser->phone === null, 422, 'radar.advertiser.do_not_contact');
         abort_code_if($this->phoneRegistered($lockedAdvertiser), 422, 'radar.advertiser.phone_registered');
 

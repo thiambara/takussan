@@ -5,6 +5,7 @@ namespace Tests\Feature\Radar;
 use App\Ai\Agents\RadarExtraction;
 use App\Jobs\Radar\ExtractRadarListing;
 use App\Jobs\Radar\FingerprintRadarSourcePhotos;
+use App\Jobs\Radar\PurgeRadarAdvertiser;
 use App\Models\AiCall;
 use App\Models\AiSuggestion;
 use App\Models\AiUsageSetting;
@@ -17,6 +18,7 @@ use App\Models\Enums\RadarSourceKind;
 use App\Models\Enums\RadarSourceSite;
 use App\Models\RadarAdvertiser;
 use App\Models\RadarListing;
+use App\Models\RadarOutreach;
 use App\Models\User;
 use App\Services\Ai\AiUsageRegistry;
 use App\Services\Ai\Evaluation\EvalCaseAnonymizer;
@@ -24,6 +26,7 @@ use App\Services\Ai\Evaluation\EvalCaseExporter;
 use App\Services\Ai\PromptRepository;
 use App\Services\Ai\SuggestionRecorder;
 use App\Services\Radar\HostResolver;
+use App\Services\Radar\RadarPurger;
 use App\Services\Radar\RadarReviewFields;
 use App\Support\RadarPhone;
 use GuzzleHttp\Psr7\Response as Psr7Response;
@@ -87,7 +90,8 @@ class ExtractRadarListingTest extends TestCase
 
         Http::preventStrayRequests();
         // Sous `sync`, le calcul des empreintes de photos partirait sur le réseau (TCK-2387).
-        Bus::fake([FingerprintRadarSourcePhotos::class]);
+        // TCK-2391 : un STOP lance la purge de l'annonceur ; elle s'éprouve dans RadarStopPurgeTest, ici on constate qu'elle part.
+        Bus::fake([FingerprintRadarSourcePhotos::class, PurgeRadarAdvertiser::class]);
         Cache::flush();
         $this->app->instance(HostResolver::class, new class implements HostResolver
         {
@@ -202,6 +206,8 @@ class ExtractRadarListingTest extends TestCase
         $this->assertSame(self::NUMERO, $annonceur->phone);
         $this->assertSame(RadarPhone::hmac(self::NUMERO), $annonceur->phone_hmac);
         $this->assertSame('Moussa', $annonceur->display_name);
+        // Chemin nominal : aucun STOP, donc aucune purge (TCK-2391).
+        Bus::assertNotDispatched(PurgeRadarAdvertiser::class);
     }
 
     // --- La suggestion de l'extraction (TCK-2387, ADR-0076 §7) --------------------------------
@@ -263,6 +269,7 @@ class ExtractRadarListingTest extends TestCase
 
         // Chaque annonce est bien dans l'issue que le test prétend : l'absence de suggestion n'est pas un accident.
         $this->assertSame(RadarListingStage::DoNotContact, $stop->refresh()->stage);
+        Bus::assertDispatched(PurgeRadarAdvertiser::class);
         $this->assertSame([RadarListingStage::ExtractionFailed, 'radar.extraction.empty_source'], [$echec->refresh()->stage, $echec->stage_reason]);
         $this->assertSame([RadarListingStage::Captured, 'ai.budget'], [$attente->refresh()->stage, $attente->stage_reason]);
         $this->assertSame(0, AiSuggestion::query()->count());
@@ -276,6 +283,8 @@ class ExtractRadarListingTest extends TestCase
         $this->lancer($this->annonce());
 
         $this->assertSame(RadarListingStage::DoNotContact, RadarListing::query()->sole()->stage);
+
+        Bus::assertDispatched(PurgeRadarAdvertiser::class);
         $this->assertSame($stop->id, RadarListing::query()->sole()->radar_advertiser_id);
         $this->assertSame(0, AiSuggestion::query()->count());
     }
@@ -296,6 +305,8 @@ class ExtractRadarListingTest extends TestCase
         $this->lancer($listing);
 
         $this->assertSame(RadarListingStage::DoNotContact, $listing->refresh()->stage);
+
+        Bus::assertDispatched(PurgeRadarAdvertiser::class);
         $this->assertSame(1, AiCall::query()->count(), 'Le modèle a bien été appelé : seule la suggestion est écartée.');
         $this->assertSame(0, AiSuggestion::query()->count());
         Bus::assertNotDispatched(FingerprintRadarSourcePhotos::class);
@@ -565,6 +576,7 @@ class ExtractRadarListingTest extends TestCase
 
         $listing->refresh();
         $this->assertSame(RadarListingStage::DoNotContact, $listing->stage);
+        Bus::assertDispatched(PurgeRadarAdvertiser::class);
         $this->assertSame($stop->id, $listing->radar_advertiser_id);
         $this->assertNull($listing->extracted);
     }
@@ -650,6 +662,7 @@ class ExtractRadarListingTest extends TestCase
 
         $listing->refresh();
         $this->assertSame(RadarListingStage::DoNotContact, $listing->stage);
+        Bus::assertDispatched(PurgeRadarAdvertiser::class);
         $this->assertSame($stop->id, $listing->radar_advertiser_id);
         $this->assertNull($listing->extracted);
         // Rien de ce que l'annonce disait n'enrichit un annonceur qui a dit STOP.
@@ -681,9 +694,40 @@ class ExtractRadarListingTest extends TestCase
 
         $listing->refresh();
         $this->assertSame(RadarListingStage::DoNotContact, $listing->stage);
+        Bus::assertDispatched(PurgeRadarAdvertiser::class, fn (PurgeRadarAdvertiser $job) => $job->advertiserId === $stop->id);
         $this->assertSame($stop->id, $listing->radar_advertiser_id);
         RadarExtraction::assertNeverPrompted();
         $this->assertSame(0, AiCall::query()->count());
+
+        // TCK-2391 : le job mis en file efface la matière de l'annonce, sans attendre `radar:purge`.
+        Bus::dispatched(PurgeRadarAdvertiser::class)->first()->handle(app(RadarPurger::class));
+        $this->assertSame(RadarListingStage::Purged, $listing->fresh()->stage);
+        $this->assertNull($listing->fresh()->raw_text);
+    }
+
+    public function test_une_purge_entre_la_recherche_et_le_verrou_de_l_annonceur_ne_lui_prend_pas_son_numero(): void
+    {
+        RadarExtraction::fake([$this->reponseComplete()]);
+        // Un annonceur déjà purgé sans refus : ses annonces et son numéro sont partis, mais il garde un message.
+        $annonceur = RadarAdvertiser::factory()->create(['phone' => null, 'phone_hmac' => RadarPhone::hmac(self::NUMERO)]);
+        RadarOutreach::factory()->create(['radar_advertiser_id' => $annonceur->id, 'salutation' => '', 'summary' => '', 'message' => '']);
+        $listing = $this->annonce();
+        // `findOrCreate()` lui rend son numéro ; une purge passe alors, avant que le job ne prenne le verrou : elle ne voit pas
+        // encore l'annonce rattachée à personne, et efface le numéro.
+        $faite = false;
+        RadarAdvertiser::updated(function (RadarAdvertiser $a) use (&$faite): void {
+            if (! $faite) {
+                $faite = true;
+                app(RadarPurger::class)->run($a->id);
+            }
+        });
+
+        $this->lancer($listing);
+
+        $this->assertTrue($faite, 'La purge devait passer entre la recherche et le verrou.');
+        $this->assertSame(RadarListingStage::Extracted, $listing->fresh()->stage);
+        $this->assertSame($annonceur->id, $listing->fresh()->radar_advertiser_id);
+        $this->assertSame(self::NUMERO, $annonceur->fresh()->phone);
     }
 
     public function test_a_stop_found_after_reading_the_url_marks_the_listing_do_not_contact_without_calling_the_model(): void
@@ -697,6 +741,7 @@ class ExtractRadarListingTest extends TestCase
 
         $listing->refresh();
         $this->assertSame(RadarListingStage::DoNotContact, $listing->stage);
+        Bus::assertDispatched(PurgeRadarAdvertiser::class);
         $this->assertSame($stop->id, $listing->radar_advertiser_id);
         $this->assertStringContainsString('77 123 45 67', (string) $listing->raw_text);
         RadarExtraction::assertNeverPrompted();
@@ -1001,6 +1046,7 @@ class ExtractRadarListingTest extends TestCase
 
         $listing->refresh();
         $this->assertSame(RadarListingStage::DoNotContact, $listing->stage);
+        Bus::assertDispatched(PurgeRadarAdvertiser::class);
         $this->assertSame($stop->id, $listing->radar_advertiser_id);
         $this->assertNull($listing->extracted);
         // Le premier numéro n'est ni créé ni enrichi.
@@ -1024,6 +1070,7 @@ class ExtractRadarListingTest extends TestCase
 
         $listing->refresh();
         $this->assertSame(RadarListingStage::DoNotContact, $listing->stage);
+        Bus::assertDispatched(PurgeRadarAdvertiser::class);
         $this->assertNull($listing->extracted);
         $this->assertNull(RadarAdvertiser::query()->sole()->display_name);
     }

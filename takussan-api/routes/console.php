@@ -217,6 +217,11 @@ Schedule::command('queue:prune-batches')->dailyAt('03:57')->timezone('Africa/Dak
 // disparaît avec ses tentatives d'envoi. Idempotente : une suppression par date.
 Schedule::command('notifications:prune-read')->dailyAt('04:05')->timezone('Africa/Dakar')->withoutOverlapping();
 
+// TCK-2391 (ADR-0077 §9) — la purge du Radar : annonces jamais publiées à 90 jours ou dès un STOP, réponses non confirmées,
+// preuves échues (3 ans après le retrait du dernier bien), numéro d'un annonceur sans annonce restante. Idempotente : chaque
+// étape ne choisit que ce qui est encore dû, relu sous verrou. Le job `PurgeRadarAdvertiser` la rejoue aussitôt après un STOP.
+Schedule::command('radar:purge')->dailyAt('04:15')->timezone('Africa/Dakar')->withoutOverlapping();
+
 // TCK-2342 (P19.04, ADR-0044 amendement du 2026-10-25) — le journal d'activité par famille : 12 mois
 // par défaut, 5 ans pour les journaux de preuve, 10 ans pour les pièces comptables
 // (`PruneActivityLog`). Idempotente : une suppression par date, par lots.
