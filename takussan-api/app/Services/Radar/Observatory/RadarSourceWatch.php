@@ -7,6 +7,7 @@ use App\Models\Enums\RadarListingStage;
 use App\Models\Property;
 use App\Models\RadarAdvertiser;
 use App\Models\RadarCrawlRun;
+use App\Models\RadarCrawlSource;
 use App\Models\RadarListing;
 use App\Models\RadarListingSnapshot;
 use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
@@ -198,20 +199,48 @@ final class RadarSourceWatch
     }
 
     /**
+     * Les sites que la veille juge encore : allumés (`radar_crawl_sources.enabled`), et dont un passage complet a commencé dans
+     * l'horizon — `radar.observe.online_horizon_days`, ou la fréquence du site multipliée par `confirm_runs` si elle est plus
+     * longue (un site réglé à la semaine juge ses annonces deux semaines plus tard). Un site éteint, ou qui n'a plus lu sa
+     * liste jusqu'au bout depuis l'horizon, ne juge plus rien : ses annonces ne comptent plus « en ligne ».
+     */
+    private function liveSites(): Builder
+    {
+        $runs = (new RadarCrawlRun)->getTable();
+        $horizonMinutes = self::onlineHorizonDays() * 24 * 60;
+
+        return DB::table((new RadarCrawlSource)->getTable().' as cs')
+            ->select('cs.site')
+            ->where('cs.enabled', true)
+            ->whereExists(fn (Builder $q) => $q->select(DB::raw(1))->from($runs.' as r')
+                ->whereColumn('r.site', 'cs.site')
+                ->where('r.status', RadarCrawlStatus::Finished->value)
+                ->where('r.reached_end', true)
+                ->whereRaw('r.started_at >= ?::timestamp - make_interval(mins => greatest(?, cs.frequency_minutes * ?))', [
+                    now()->utc()->format('Y-m-d H:i:s'), $horizonMinutes, self::confirmRuns(),
+                ]));
+    }
+
+    /** L'horizon au-delà duquel un site sans passage complet ne juge plus ses annonces (`radar.observe.online_horizon_days`). */
+    public static function onlineHorizonDays(): int
+    {
+        return max(1, (int) config('radar.observe.online_horizon_days', 3));
+    }
+
+    /**
      * Les autres annonces collectées du même bien encore en ligne : avec instantanés, non disparues, et que la veille juge
-     * réellement — suivies par la collecte ({@see self::followed()}), d'un site qui a au moins un passage décisif. TCK-2432
-     * (vérification adverse I1) : un doublon jamais jugé (annonceur STOP, purgé, site sans passage complet) gardait son
-     * `source_gone_at` nul pour toujours et comptait « en ligne » indéfiniment ; la question au titulaire ne partait jamais.
+     * réellement — suivies par la collecte ({@see self::followed()}), d'un site vivant ({@see self::liveSites()}). TCK-2432
+     * (vérification adverse I1) : un doublon jamais jugé (annonceur STOP, purgé, site éteint ou sans passage complet récent)
+     * gardait son `source_gone_at` nul pour toujours et comptait « en ligne » indéfiniment ; la question au titulaire ne
+     * partait jamais.
      */
     private function otherSourcesOnline(int $propertyId, int $exceptId): int
     {
-        $runs = (new RadarCrawlRun)->getTable();
-
         return RadarListing::query()
             ->whereKeyNot($exceptId)
             ->whereNull('source_gone_at')
             ->where(fn ($q) => $this->followed($q))
-            ->whereIn('source_site', DB::table($runs)->where('status', RadarCrawlStatus::Finished->value)->where('reached_end', true)->select('site'))
+            ->whereIn('source_site', $this->liveSites())
             ->whereExists(fn (Builder $q) => $q->select(DB::raw(1))->from((new RadarListingSnapshot)->getTable().' as s')->whereColumn('s.radar_listing_id', 'radar_listings.id'))
             ->where(fn ($q) => $q
                 ->where('property_id', $propertyId)

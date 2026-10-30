@@ -13,6 +13,7 @@ use App\Models\Enums\RadarSourceSite;
 use App\Models\NotificationPreference;
 use App\Models\Property;
 use App\Models\RadarAdvertiser;
+use App\Models\RadarCrawlSource;
 use App\Models\RadarListing;
 use App\Models\User;
 use App\Notifications\CodedNotification;
@@ -503,5 +504,58 @@ class RadarAvailabilityCheckTest extends TestCase
 
         $this->assertNotNull($tardive->refresh()->availability_asked_at);
         $this->assertSame(1, $this->questions($titulaire));
+    }
+
+    /** Décision 12 — une source d'un site ÉTEINT n'est plus jugée : elle ne retient plus la question. */
+    public function test_une_source_d_un_site_eteint_ne_retient_pas_la_question(): void
+    {
+        [$property, $annonce] = $this->bienDontLaSourceDisparait();
+        $doublon = $this->annonceCollectee(['stage' => RadarListingStage::Duplicate, 'duplicate_of_listing_id' => $annonce->id], RadarSourceSite::Coinafrique);
+        $this->instantane($doublon, '2026-10-20 08:00:00', '2026-10-29 09:03:00');
+        $this->passage('2026-10-29 09:00:00', site: RadarSourceSite::Coinafrique);
+        RadarCrawlSource::query()->where('site', RadarSourceSite::Coinafrique->value)->update(['enabled' => false]);
+
+        $this->observer();
+
+        $this->assertSame(1, $this->questions(User::query()->findOrFail($property->user_id)));
+    }
+
+    /**
+     * Décision 12 — le dernier passage complet du site est plus vieux que `radar.observe.online_horizon_days` (3) : le
+     * doublon vu pour la dernière fois à ce passage n'est plus jugé, il ne retient plus la question. Dans l'horizon, il la
+     * retient.
+     */
+    public function test_une_source_dont_le_site_n_a_plus_de_passage_complet_recent_ne_retient_pas_la_question(): void
+    {
+        [$property, $annonce] = $this->bienDontLaSourceDisparait();
+        $doublon = $this->annonceCollectee(['stage' => RadarListingStage::Duplicate, 'duplicate_of_listing_id' => $annonce->id], RadarSourceSite::Coinafrique);
+        $this->instantane($doublon, '2026-10-20 08:00:00', '2026-10-27 11:03:00');
+        $this->passage('2026-10-27 11:00:00', site: RadarSourceSite::Coinafrique);
+        $titulaire = User::query()->findOrFail($property->user_id);
+
+        config(['radar.observe.online_horizon_days' => 4]);
+        $this->observer();
+        $this->assertSame(0, $this->questions($titulaire));
+
+        // Un retour efface la disparition ; à l'horizon par défaut (3 jours), le passage du 27 à 11 h est trop ancien.
+        RadarListing::query()->whereKey($annonce->id)->update(['source_gone_at' => null, 'source_gone_run_id' => null]);
+        config(['radar.observe.online_horizon_days' => 3]);
+        $this->observer();
+
+        $this->assertSame(1, $this->questions($titulaire));
+    }
+
+    /** Décision 12 — un site réglé à la semaine juge ses annonces deux semaines plus tard : l'horizon suit sa fréquence × `confirm_runs`. */
+    public function test_l_horizon_suit_la_frequence_d_un_site_lent(): void
+    {
+        [$property, $annonce] = $this->bienDontLaSourceDisparait();
+        $doublon = $this->annonceCollectee(['stage' => RadarListingStage::Duplicate, 'duplicate_of_listing_id' => $annonce->id], RadarSourceSite::Coinafrique);
+        $this->instantane($doublon, '2026-10-20 08:00:00', '2026-10-25 08:03:00');
+        $this->passage('2026-10-25 08:00:00', site: RadarSourceSite::Coinafrique);
+        RadarCrawlSource::query()->where('site', RadarSourceSite::Coinafrique->value)->update(['frequency_minutes' => 10_080]);
+
+        $this->observer();
+
+        $this->assertSame(0, $this->questions(User::query()->findOrFail($property->user_id)));
     }
 }

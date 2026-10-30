@@ -103,6 +103,7 @@ l'équipe, **le titulaire du bien est en plus questionné**, et **rien n'est jam
    par bien. L'équipe décide ; le bien reste en ligne tant qu'elle n'a rien fait.
 6. **« En ligne » ne compte que ce que la veille juge.** `other_sources_online` (le champ de `radar_source_listing_gone`
    et la garde de la question) exclut les annonces que la collecte ne suit plus (§3 : purgées, `do_not_contact`, annonceur
-   STOP) et celles d'un site sans passage complet : jamais jugées, elles comptaient en ligne pour toujours et retenaient la
-   question indéfiniment. Une question se tait quand le bien quitte la vitrine ; celle d'un bien supprimé se règle sans
+   STOP) et celles d'un site qui ne juge plus : éteint (`radar_crawl_sources.enabled` faux), ou sans passage complet
+   commencé depuis `radar.observe.online_horizon_days` (3 jours ; la fréquence du site × `confirm_runs` si elle est plus
+   longue). Jamais jugées, elles comptaient en ligne pour toujours et retenaient la question indéfiniment. Une question se tait quand le bien quitte la vitrine ; celle d'un bien supprimé se règle sans
    proposition.

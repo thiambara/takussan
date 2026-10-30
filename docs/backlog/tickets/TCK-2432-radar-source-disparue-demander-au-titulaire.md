@@ -88,10 +88,16 @@ rien, et le bien reste public.
     à `rented` ou `sold`, même jamais vu par le Radar, avec la même autorisation que `PUT …/status` (policy `update`,
     `UpdateStatusPropertyRequest` n'exige pas `publish` pour un statut qui ne publie pas). Aucune élévation, réversible.
     Écarté : le réserver aux biens questionnés. Raison : décision 10. À revoir au point du matin.
-12. **« En ligne » ne compte que ce que la veille juge** (vérification adverse I1) : `other_sources_online` exclut les
-    annonces non suivies (purgées, `do_not_contact`, annonceur STOP) et celles d'un site sans passage complet. Le champ du
-    journal `radar_source_listing_gone` (TCK-2393) change de sens avec. Reste : une annonce d'un site éteint APRÈS avoir eu
-    des passages complets compte encore en ligne (plus aucun passage ne la juge) ; l'alerte de l'équipe la rattrape.
+12. **« En ligne » ne compte que ce que la veille juge** (vérification adverse I1, puis contre-vérification) :
+    `other_sources_online` exclut les annonces non suivies (purgées, `do_not_contact`, annonceur STOP) et celles d'un site
+    qui n'est pas vivant — éteint (`radar_crawl_sources.enabled` faux), ou sans passage complet commencé depuis
+    `radar.observe.online_horizon_days` (3 jours), ou depuis sa fréquence × `confirm_runs` si elle est plus longue. Le champ
+    du journal `radar_source_listing_gone` (TCK-2393) change de sens avec. **Pourquoi 3 jours** : la fréquence réelle par
+    défaut (`crawl.default_frequency_minutes`, 6 h) × `confirm_runs` (2) fait 12 h ; 3 jours absorbent six passages complets
+    manqués d'affilée. Un site réglé plus lent (jusqu'à la borne de 7 jours) a son propre horizon (fréquence × 2), sans
+    allonger celui des autres. Trop court, la question part plus tôt, sans dommage ; trop long, un site éteint la retient
+    d'autant. Écarté : un horizon fixe de 15 jours (borne × 2), qui retiendrait deux semaines la question derrière tout site
+    éteint.
 13. **Bien sorti de la vitrine** (M1) : la question se tait (`open` faux) ; **bien supprimé** (M2) : la question se règle
     (`withdrawal_proposed_at` posé, sans proposition) et n'est plus relue.
 
