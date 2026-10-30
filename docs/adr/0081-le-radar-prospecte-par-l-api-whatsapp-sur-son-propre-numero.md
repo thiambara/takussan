@@ -41,10 +41,15 @@ réception.**
 
 2. **L'envoi est synchrone, sous les verrous de « J'ai envoyé ».** `markSent` reçoit l'envoi en fermeture,
    l'appelle après avoir rejugé toutes les règles et avant toute écriture. Un refus franc de Meta lève et
-   n'écrit rien (502 `radar.whatsapp.send_failed`). Une relance ne part ni par l'API ni par « J'ai envoyé » tant qu'une réponse
-   reçue sur sa chaîne n'est pas tranchée (409 `radar.outreach.reply_pending`). Le texte envoyé est le texte
-   enregistré, ou rien : le gabarit est le fichier de clauses, ses marqueurs numérotés, et le rendu doit
-   redonner `message` (409 `radar.whatsapp.message_mismatch`).
+   n'écrit rien (502 `radar.whatsapp.send_failed`). Le texte envoyé est le texte enregistré, ou rien : le
+   gabarit est le fichier de clauses, ses marqueurs numérotés, et le rendu doit redonner `message` (409
+   `radar.whatsapp.message_mismatch`).
+
+   **Une réponse non tranchée arrête tout envoi vers l'annonceur.** Rien ne part vers lui — ni préparation, ni
+   envoi par l'API, ni « J'ai envoyé », quelle que soit l'annonce — tant qu'une de ses réponses reçues par l'API
+   (`provider_message`) n'est ni confirmée ni pourvue d'une issue (409 `radar.outreach.reply_pending`, jugé sous
+   le verrou de l'annonceur, dans l'ordre de verrous existant) : une opposition probable (« Stop svp ») vaut pour
+   l'annonceur, pas pour une annonce. Une réponse par capture ne compte pas ; le canal manuel pur reste libre.
 
 3. **Ambigu vaut envoyé.** Un délai dépassé ou un 5xx marque le message envoyé, sans identifiant
    (`provider_status = ambiguous`) : Meta a pu le remettre, et écrire deux fois au même annonceur expose le
@@ -86,7 +91,7 @@ réception.**
 - **Une ligne du Radar au journal ne se rejoue pas.** Un échec de traitement se rattrape par le rejeu de Meta,
   pas par la console.
 - **Un STOP mal écrit (« stop svp ») n'est pas automatique** : il reste une réponse à trancher, et arrête
-  toute relance par l'API (règle 2) en attendant.
+  tout envoi vers cet annonceur, quelle que soit l'annonce (règle 2), en attendant.
 - **Le porteur doit** créer le numéro et l'application Meta du Radar, faire approuver le gabarit
   `takussan_radar_accord_v3` (clauses `accord.v3`, relues par l'avocat), abonner le webhook, poser les
   `RADAR_WHATSAPP_*` sur Dokploy et, en dernier, `RADAR_WHATSAPP_DRIVER=cloud`.
