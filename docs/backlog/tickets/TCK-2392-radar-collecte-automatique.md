@@ -14,7 +14,7 @@ spec_refs:
   features:
     - "docs/features.md#212-radar--acquisition-dannonces"
   models: []
-tags: [api, front, radar, collecte, pgvector, adr-0077, adr-0076]
+tags: [api, front, radar, collecte, pgvector, adr-0077, adr-0076, adr-0080]
 ---
 
 ## Objectif utilisateur
@@ -68,9 +68,11 @@ annonces. Le service de collecte séparé (Playwright) n'est envisagé que si la
       (`radar.similarity.driver`), défaut `trigram` : `pg_trgm` sur `radar_listings.similarity_text`
       (description extraite, sinon texte brut, replié, sans chiffres, 1 000 caractères au plus), index GIN.
       Purgé avec l'annonce.
-- [x] **Fusion** : une annonce collectée, extraite, dont un rapprochement `high` désigne une annonce plus
-      ancienne d'un **autre site** avec au moins un signal du bien (photo ou lieu), devient son doublon
-      automatiquement (`merged_at`, `stage_reason = radar.merge.auto`). La fiche porte ses provenances
+- [x] **Fusion** ([ADR-0080](../../adr/0080-la-collecte-automatique-du-radar.md), **éteinte par défaut**,
+      `RADAR_MERGE_AUTO`) : une annonce collectée, extraite, dont un rapprochement `high` désigne une annonce
+      plus ancienne d'un **autre site** avec un signal du bien (la photo, ou le lieu au moins `medium` corroboré
+      par un autre signal que le téléphone), devient son doublon automatiquement (`merged_at`,
+      `stage_reason = radar.merge.auto`). La fiche porte ses provenances
       (elle-même et ses doublons : site, URL, première et dernière présence). Une fusion automatique se
       **défait** (`POST …/unmerge`) et n'est plus retentée.
 - [x] **Écran super-admin** : un onglet « Collecte » (sources, interrupteur et fréquence pour
@@ -93,6 +95,10 @@ annonces. Le service de collecte séparé (Playwright) n'est envisagé que si la
 - [x] AC7 — Une fusion automatique se sépare : l'annonce revient à `extracted`, sans lien, et la
       fusion n'est plus retentée ; une fusion posée à la main ne se sépare pas par cette route.
 - [x] AC8 — Le job du passage atterrit sur la file longue, et `scripts/check-queues.mjs` est vert.
+- [x] AC9 — Une annonce purgée, `do_not_contact`, ou d'un annonceur qui a dit STOP n'est ni observée ni
+      comptée par un passage ; la purge détache ses instantanés, qui ne gardent que l'observation de marché.
+- [x] AC10 — Sans `RADAR_MERGE_AUTO`, rien ne fusionne d'office ; allumée, deux biens du même annonceur
+      dans le même quartier à prix voisin ne fusionnent pas.
 
 ## Découpé en suites
 
@@ -123,6 +129,14 @@ Livré sur `feat/radar-collecte-automatique` : schéma (`c3c3d638b`), services d
   (`/?page=2`) que son `robots.txt` interdit.
 - **Le texte comparé** (`similarity_text`) est recalculé par le modèle dès que `extracted` ou `raw_text` change : la
   purge, qui les vide, le vide aussi.
+- **Corrections de la vérification adverse** (`.superpowers/verif-TCK-2392.md`, 2026-10-30) : routes inscrites à
+  `PlatformRoutesDefaultDenyTest` ; la collecte ne relit plus une annonce purgée ou STOP, et la purge détache ses
+  instantanés (`radar_listing_id` nullable, migration `392300`) ; fusion d'office éteinte par défaut et règle
+  resserrée ; ADR-0080 ; boucle de pagination (`radar.crawl.loop`) ; passage perdu jugé depuis `started_at`, fin
+  conditionnelle ; `radar:backfill-similarity` ; avis « allumée sans opérateur ».
+- **Une séparation ne rend pas les doublons redirigés** : quand une fusion d'office a rattaché à l'annonce B des doublons
+  qui pointaient vers A, séparer B ne les rend pas à A. L'opérateur les reprend à la main ; le cas demande deux fusions
+  d'office successives sur la même grappe, rare tant que la fusion est éteinte.
 - **`scripts/check-models-spec.mjs`** : les trois modèles neufs sont dans `EXCLUS_JUSTIFIES` en attendant la PR de
   spec commune (ce ticket ne touche pas `docs/models-spec.md`). Cette PR retire les trois exclusions dans le même commit.
 
@@ -146,6 +160,22 @@ Livré sur `feat/radar-collecte-automatique` : schéma (`c3c3d638b`), services d
 6. **Fusion d'office restreinte** : seulement une annonce trouvée par la collecte, encore `extracted`, vers une annonce
    plus ancienne d'un **autre** site, sur un rapprochement fort dont un signal désigne le **bien** (photo ou lieu). Le
    téléphone et le texte désignent l'annonceur, qui porte plusieurs biens. Réversible (`unmerge`), jamais retentée,
-   éteignable (`radar.merge.auto`). Écarté : fusionner aussi les saisies d'opérateur, ou les doublons d'un même site.
+   **éteinte par défaut** (`RADAR_MERGE_AUTO=false`, ADR-0080 amende ADR-0077). Le lieu ne compte que `medium` (prix à
+   3 % près) et corroboré par un autre signal que le téléphone : le banc de la vérification adverse fusionnait deux
+   lots du même annonceur. Écarté : fusionner aussi les saisies d'opérateur, ou les doublons d'un même site ; et une
+   fusion allumée par défaut (le porteur l'allume après l'avoir mesurée sur de vraies annonces).
 7. **Seuils du texte** : `pg_trgm` ≥ 0,5 rapproche (`low`), ≥ 0,8 est « presque identique » (`medium`) ; le texte
    n'est jamais `high` seul. Mesuré : 300 paires de paragraphes Faker plafonnent à 0,38.
+8. **La purge détache les instantanés au lieu de les supprimer** (décision de la session, à confirmer par le porteur) :
+   `radar_listing_id`, `title_fingerprint` et le lieu écrit passent à nul ; prix, quartier du référentiel, chambres,
+   surface, dates et passage restent en observation de marché anonyme. Écarté : les supprimer (l'observatoire perdrait
+   des séries que plus rien ne rattache à une personne).
+9. **Une source allumée sans opérateur est signalée, pas éteinte d'office** : l'écran le dit et dit comment la
+   reprendre. Écarté : l'éteindre automatiquement (un geste du porteur défait sans lui).
+
+## Actions du porteur après déploiement
+
+- Lancer une fois `php artisan radar:backfill-similarity` : les annonces saisies avant la colonne `similarity_text`
+  n'ont pas de texte comparé, et le quatrième signal ne les voit pas tant que leur lecture ne change pas.
+- Allumer les sources voulues depuis l'onglet Collecte (`super_admin`).
+- Allumer la fusion d'office (`RADAR_MERGE_AUTO=true`) seulement après l'avoir mesurée sur de vraies annonces.
