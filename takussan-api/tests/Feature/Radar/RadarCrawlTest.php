@@ -51,6 +51,9 @@ class RadarCrawlTest extends TestCase
 
     private string $robots = "User-agent: *\nDisallow: /compte/\n";
 
+    /** Appelé à chaque page servie, avant la réponse : ce qui se passe ailleurs pendant le passage. */
+    private ?\Closure $onPage = null;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -77,6 +80,10 @@ class RadarCrawlTest extends TestCase
         Http::fake(function (Request $request) {
             if (str_ends_with(parse_url($request->url(), PHP_URL_PATH) ?? '', '/robots.txt')) {
                 return Http::response($this->robots, 200, ['Content-Type' => 'text/plain']);
+            }
+
+            if ($this->onPage !== null) {
+                ($this->onPage)($request->url());
             }
 
             return isset($this->pages[$request->url()])
@@ -317,6 +324,73 @@ class RadarCrawlTest extends TestCase
 
         $this->assertSame(RadarCrawlRun::STOP_NO_CARDS, $run->stop_reason);
         $this->assertSame(1, $run->pages_read);
+    }
+
+    public function test_une_pagination_qui_boucle_arrete_le_passage_sans_relire_ni_recompter(): void
+    {
+        // La page 2 renvoie vers la page 1 (le banc M1 de la vérification adverse) : le plafond de pages bornait la boucle,
+        // mais chaque tour relisait la page 1 et recomptait ses annonces comme « connues ».
+        $this->pages[self::LIST.'?page=2'] = str_replace('<link rel="prev"', '<link rel="next" href="'.self::LIST.'"><link rel="prev"', $this->pages[self::LIST.'?page=2']);
+        $this->source(['max_pages' => 6]);
+
+        $run = $this->crawl();
+
+        $this->assertSame(RadarCrawlRun::STOP_LOOP, $run->stop_reason);
+        $this->assertSame(2, $run->pages_read);
+        $this->assertSame(4, $run->cards_seen);
+        $this->assertSame(4, $run->listings_created);
+        $this->assertSame(0, $run->listings_known);
+        $this->assertFalse($run->reached_end, 'Une boucle n\'est pas la fin de la liste.');
+        $this->assertCount(1, Http::recorded(fn (Request $request) => $request->url() === self::LIST));
+        $this->assertSame([1], RadarListingSnapshot::query()->pluck('observations')->unique()->values()->all());
+    }
+
+    // ── Passage perdu ─────────────────────────────────────────────────────────────────────────
+
+    public function test_un_passage_reste_longtemps_en_file_n_est_pas_perdu_des_qu_il_demarre(): void
+    {
+        Queue::fake();
+        $scheduler = $this->app->make(RadarCrawlScheduler::class);
+        $run = $scheduler->startManually(RadarSourceSite::ExpatDakar, $this->operator);
+
+        // La file longue était engorgée : le worker le prend 45 minutes après sa mise en file.
+        $this->travel(45)->minutes();
+        $run->forceFill(['status' => RadarCrawlStatus::Running, 'started_at' => now()])->save();
+
+        $this->travel(16)->minutes();
+        $this->assertSame(0, $scheduler->failStale(now()), 'Démarré il y a 16 minutes : il travaille, il n\'est pas perdu.');
+        $this->assertSame(RadarCrawlStatus::Running, $run->fresh()->status);
+
+        $this->travel(45)->minutes();
+        $this->assertSame(1, $scheduler->failStale(now()));
+    }
+
+    public function test_un_passage_jamais_demarre_est_perdu_depuis_sa_mise_en_file(): void
+    {
+        Queue::fake();
+        $scheduler = $this->app->make(RadarCrawlScheduler::class);
+        $scheduler->startManually(RadarSourceSite::ExpatDakar, $this->operator);
+
+        $this->travel(59)->minutes();
+        $this->assertSame(0, $scheduler->failStale(now()));
+        $this->travel(1)->minutes();
+        $this->assertSame(1, $scheduler->failStale(now()));
+    }
+
+    public function test_un_passage_clos_comme_perdu_pendant_qu_il_tourne_le_reste(): void
+    {
+        // Pendant la lecture de la page 2, le planificateur le juge perdu : la fin du passage ne réécrit pas ce verdict.
+        $this->onPage = function (string $url) {
+            if ($url === self::LIST.'?page=2') {
+                RadarCrawlRun::query()->update(['status' => RadarCrawlStatus::Failed->value, 'stop_reason' => RadarCrawlScheduler::STOP_LOST]);
+            }
+        };
+
+        $run = $this->crawl();
+
+        $this->assertSame(RadarCrawlStatus::Failed, $run->status);
+        $this->assertSame(RadarCrawlScheduler::STOP_LOST, $run->stop_reason);
+        $this->assertSame(2, $run->pages_read, 'Les compteurs de ce qu\'il a fait restent écrits.');
     }
 
     // ── AC8 ───────────────────────────────────────────────────────────────────────────────────

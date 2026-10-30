@@ -34,7 +34,9 @@ use Illuminate\Support\Sleep;
  *     pour ce qu'un passage relirait après coup (ADR-0077 §9, ADR-0080).
  *
  * Les compteurs sont écrits après chaque page : un passage interrompu laisse ce qu'il a fait. Le passage s'arrête aussi
- * sur la fin de la liste (`reached_end`), le plafond de pages ou son budget de temps.
+ * sur la fin de la liste (`reached_end`), le plafond de pages, son budget de temps, ou une pagination qui renvoie vers une
+ * page déjà lue (`radar.crawl.loop`). Un passage que le planificateur a clos entre-temps (`radar.crawl.lost`) le reste :
+ * la fin ne réécrit qu'un passage encore `running`.
  */
 final class RadarCrawler
 {
@@ -70,6 +72,8 @@ final class RadarCrawler
         $url = $adapter->startUrl();
         /** @var array<int, true> $seen les annonces déjà observées par ce passage */
         $seen = [];
+        /** @var array<string, true> $visited les pages déjà lues par ce passage, demandées ou atteintes par redirection */
+        $visited = [];
 
         while (true) {
             if ($run->pages_read >= $maxPages) {
@@ -78,11 +82,16 @@ final class RadarCrawler
             if (now()->greaterThanOrEqualTo($deadline)) {
                 return $this->finish($run, self::STOP_TIME_BUDGET);
             }
+            if (isset($visited[$url])) {
+                return $this->finish($run, RadarCrawlRun::STOP_LOOP);
+            }
 
             $page = $this->read($url);
             if (is_string($page)) {
                 return $this->finish($run, $page);
             }
+            $visited[$url] = true;
+            $visited[$page->url] = true;
 
             $list = $adapter->parse($page->body, $page->url);
             $run->pages_read++;
@@ -107,6 +116,7 @@ final class RadarCrawler
 
             if ($list->nextUrl === null) {
                 $run->reached_end = true;
+                $run->save();
 
                 return $this->finish($run, RadarCrawlRun::STOP_END);
             }
@@ -170,12 +180,13 @@ final class RadarCrawler
 
     private function finish(RadarCrawlRun $run, string $reason): RadarCrawlRun
     {
-        $run->fill([
-            'status' => RadarCrawlStatus::Finished,
+        RadarCrawlRun::query()->whereKey($run->id)->where('status', RadarCrawlStatus::Running->value)->update([
+            'status' => RadarCrawlStatus::Finished->value,
             'finished_at' => now(),
             'stop_reason' => $reason,
-        ])->save();
+            'updated_at' => now(),
+        ]);
 
-        return $run;
+        return $run->refresh();
     }
 }
