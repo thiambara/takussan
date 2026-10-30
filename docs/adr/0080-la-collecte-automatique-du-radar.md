@@ -50,12 +50,23 @@ réversible et éteinte par défaut. La purge détache les instantanés au lieu 
 3. **La collecte ne relit pas ce que la purge a fait taire.** Une annonce purgée, `do_not_contact`,
    ou d'un annonceur qui a dit STOP n'est ni observée ni comptée par un passage (ADR-0077 § 9).
 
-4. **La purge détache les instantanés.** `radar_listing_snapshots.radar_listing_id` devient nul, avec
-   l'empreinte du titre et le lieu écrit par l'annonceur. Restent le prix, la période, le contrat, le
-   type, la surface, les chambres, le quartier du référentiel, la ville, les dates et le passage : une
-   **observation de marché anonyme**, qui ne relie plus à l'annonce ni à l'annonceur. Écarté : les
-   supprimer, ce qui ôtait à l'observatoire (TCK-2393) des séries que rien ne rattache plus à une
-   personne.
+4. **La purge supprime les instantanés d'un refus, et détache les autres** (décision du 2026-10-30,
+   après la contre-vérification B1-bis) :
+   - **STOP, révocation ou `do_not_contact`** : les instantanés de l'annonce sont **supprimés**. La
+     promesse de `privacy.ts` § 6 est « une empreinte, et rien d'autre » : une observation détachée
+     reste celle de cet annonceur pour qui sait quand il a dit STOP — la purge d'un annonceur traite
+     toutes ses annonces au même instant.
+   - **Échéance des 90 jours, sans refus** : ils sont **détachés**. `radar_listing_id`, `crawl_run_id`,
+     l'empreinte du titre et le lieu écrit passent à nul ; `first_seen_at`, `last_seen_at` et
+     `created_at` sont ramenés au jour, et `updated_at` prend le jour de `last_seen_at`, jamais
+     l'instant de la purge. La fiche purgée oublie `discovered_by_run_id`. Restent le prix, la période,
+     le contrat, le type, la surface, les chambres, le quartier du référentiel, la ville, les
+     observations et la plage de présence au jour : une **observation de marché anonyme**.
+   - Mesuré par la contre-vérification : sans ces deux mesures, deux jointures
+     (`updated_at` = instant de la purge ; passage + seconde de création) rendaient l'empreinte du
+     numéro de l'annonceur STOP. Écarté : tout supprimer, y compris à l'échéance (l'observatoire,
+     TCK-2393, perdrait des séries que rien ne rattache plus à une personne) ; garder le passage
+     (il dit le site, mais rejoint la fiche découverte). L'observation détachée ne dit plus son site.
 
 5. **Le texte rapproche par `pg_trgm`, derrière un pilote.** Quatrième signal de `RadarMatcher` :
    `radar.similarity.driver`, défaut `trigram`, sur `radar_listings.similarity_text` (description
@@ -88,9 +99,12 @@ réversible et éteinte par défaut. La purge détache les instantanés au lieu 
   peut se tromper sur deux lots du même immeuble à photos communes ; la séparation le répare.
 - **Une séparation ne rend pas les doublons qu'une fusion avait redirigés vers l'annonce séparée** :
   l'opérateur les reprend à la main.
-- **Les instantanés détachés survivent à la purge.** Ils ne portent ni texte, ni numéro, ni URL, ni
-  lien ; la politique de confidentialité n'a rien à en dire de plus que « des compteurs anonymes »
-  (ADR-0077 § 9).
+- **Les instantanés détachés survivent à la purge des 90 jours**, jamais à celle d'un refus. Ils ne
+  portent ni texte, ni numéro, ni URL, ni passage, ni instant plus fin que le jour ; la politique de
+  confidentialité n'a rien à en dire de plus que « des compteurs anonymes » (ADR-0077 § 9). Reste un
+  indice faible : l'ordre des `id`, que rien ne relie à une fiche purgée sans autre colonne.
+- **L'observatoire ne sait plus le site d'une observation détachée**, ni son heure : il lit les
+  séries détachées au jour, tous sites confondus.
 - **Prérequis du porteur après déploiement** : lancer une fois `php artisan radar:backfill-similarity`
   (texte comparé des annonces antérieures), puis allumer les sources voulues.
 
@@ -99,8 +113,11 @@ réversible et éteinte par défaut. La purge détache les instantanés au lieu 
 - Collecte : `RadarCrawler`, `RadarCrawlScheduler`, `CrawlRadarSource` (`RunsOnLongQueue`),
   `radar:crawl` toutes les 15 minutes — `tests/Feature/Radar/RadarCrawlTest.php` (rien ne part sans
   geste, un passage par site, robots, boucle de pagination, passage perdu).
-- Silence et détachement : `RadarCrawler::silenced()`, `RadarPurger::detachSnapshots()` —
-  `tests/Feature/Radar/RadarSnapshotPrivacyTest.php`.
+- Silence, suppression et détachement : `RadarCrawler::silenced()`,
+  `RadarPurger::silencedByItsAdvertiser()`, `RadarPurger::detachSnapshots()` —
+  `tests/Feature/Radar/RadarSnapshotPrivacyTest.php` (les deux jointures de B1-bis rendent `[]`, pour un
+  STOP comme à l'échéance) ; le `down()` de la migration `392300` —
+  `tests/Feature/Radar/RadarSnapshotDetachMigrationTest.php`.
 - Texte : `TrigramTextSimilarity`, `RadarSimilarityText`, `radar:backfill-similarity` —
   `RadarMatcherTest`, `RadarBackfillSimilarityTest`.
 - Fusion : `RadarAutoMerge` (`designatesTheProperty()`) — `tests/Feature/Radar/RadarAutoMergeTest.php`
