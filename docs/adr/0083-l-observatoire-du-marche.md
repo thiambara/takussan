@@ -79,6 +79,35 @@ toute la liste, ne l'ont pas revue.**
 - `tests/Feature/Radar/Observatory/` : purge qui retire ses lignes et requêtes sans colonne personnelle (AC1),
   alerte (AC2), passage incomplet (AC3), réapparition (AC4).
 
+## Amendement — la question au titulaire (TCK-2432, 2026-10-30)
+
+[TCK-2432](../backlog/tickets/TCK-2432-radar-source-disparue-demander-au-titulaire.md) prolonge le §4 : l'alerte prévient
+l'équipe, **le titulaire du bien est en plus questionné**, et **rien n'est jamais retiré automatiquement**.
+
+1. **Qui, et quand.** Quand une disparition emporte la **dernière** source en ligne (`other_sources_online` à 0) d'un bien
+   **que le Radar a publié** (une annonce collectée porte son `property_id`) et **encore en vitrine** (`Property::public()`),
+   `RadarAvailabilityCheck::ask()` notifie le titulaire du bien (`properties.user_id`) par le code
+   `property.source_listing_gone`. Le titulaire d'un bien du catalogue dont une annonce collectée n'est que le doublon n'est
+   pas questionné, pour la raison du §4 : il apprendrait que la plateforme surveille ses annonces ailleurs.
+2. **Un compte, jamais un numéro.** Le code n'est ni `mobile()` ni `reachesContacts()` : il ne part qu'à un compte, dans la
+   cloche et selon ses préférences (`property_availability_check`), comme toute notification produit. Un annonceur qui a dit
+   STOP n'est donc jamais joint par là ; s'il a réclamé son compte et en est le titulaire, il reçoit la question selon les
+   préférences de ce compte.
+3. **Une fois par disparition.** Le marqueur `radar_listings.availability_asked_at` se pose par un
+   `UPDATE … WHERE availability_asked_at IS NULL`, sous le verrou de la ligne du bien (une question ouverte par bien). Le
+   retour de l'annonce l'efface avec la réponse : une nouvelle disparition repose la question.
+4. **La réponse réutilise les statuts existants.** `rented` et `sold` passent le bien à `rented` ou `sold` (hors vitrine,
+   l'écriture de `PUT …/status`) ; `available` ne fait que noter la réponse. Qui peut modifier le bien répond.
+5. **Sans réponse, une proposition.** Après `radar.observe.owner_answer_days` (7) jours, `radar:observe-sources` écrit
+   `radar_withdrawal_proposed`, événement alertable, journal de plateforme (sujet l'annonce, bien en propriétés), une fois
+   par bien. L'équipe décide ; le bien reste en ligne tant qu'elle n'a rien fait.
+6. **« En ligne » ne compte que ce que la veille juge.** `other_sources_online` (le champ de `radar_source_listing_gone`
+   et la garde de la question) exclut les annonces que la collecte ne suit plus (§3 : purgées, `do_not_contact`, annonceur
+   STOP) et celles d'un site qui ne juge plus : éteint (`radar_crawl_sources.enabled` faux), ou sans passage complet
+   commencé depuis `radar.observe.online_horizon_days` (3 jours ; la fréquence du site × `confirm_runs` si elle est plus
+   longue). Jamais jugées, elles comptaient en ligne pour toujours et retenaient la question indéfiniment. Une question se tait quand le bien quitte la vitrine ; celle d'un bien supprimé se règle sans
+   proposition.
+
 ## Amendement — les compteurs anonymes par nature (2026-10-30, TCK-2431)
 
 Le §1 (« aucune table d'agrégats ») vaut pour le marché. **La part par nature fait exception** : la nature vit sur

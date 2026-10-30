@@ -7,8 +7,10 @@ use App\Models\Enums\RadarListingStage;
 use App\Models\Property;
 use App\Models\RadarAdvertiser;
 use App\Models\RadarCrawlRun;
+use App\Models\RadarCrawlSource;
 use App\Models\RadarListing;
 use App\Models\RadarListingSnapshot;
+use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 
@@ -34,10 +36,15 @@ use Illuminate\Support\Facades\DB;
  * l'agence d'un bien dont une annonce collectée n'est que le doublon lirait que la plateforme surveille ses annonces
  * ailleurs). L'événement est alertable (`AlertableEvents`) : les règles de la console le livrent. Une fois par disparition :
  * la transition se réclame par un `UPDATE … WHERE source_gone_at IS NULL`, et l'activité s'écrit dans la même transaction.
+ *
+ * **La question au titulaire** (TCK-2432) : quand la disparition emporte la dernière source en ligne d'un bien que le Radar a
+ * publié, {@see RadarAvailabilityCheck::ask()} demande à son titulaire s'il est toujours disponible, dans la même transaction.
  */
 final class RadarSourceWatch
 {
     public const EVENT = 'radar_source_listing_gone';
+
+    public function __construct(private readonly RadarAvailabilityCheck $checks) {}
 
     /**
      * @return array{gone: int, back: int, alerts: int}
@@ -49,16 +56,15 @@ final class RadarSourceWatch
         $counts['back'] = RadarListing::query()
             ->whereNotNull('source_gone_at')
             ->whereRaw('('.$this->lastSeenSql().') > radar_listings.source_gone_at')
-            ->update(['source_gone_at' => null, 'source_gone_run_id' => null]);
+            // TCK-2432 — la question au titulaire s'efface avec : une nouvelle disparition la reposera.
+            ->update(['source_gone_at' => null, 'source_gone_run_id' => null, ...RadarAvailabilityCheck::resetColumns()]);
 
         $confirm = self::confirmRuns();
         foreach ($this->decisiveRuns() as $run) {
             $ids = RadarListing::query()
                 ->where('source_site', $run->site->value)
                 ->whereNull('source_gone_at')
-                ->whereNotIn('stage', [RadarListingStage::Purged->value, RadarListingStage::DoNotContact->value])
-                ->where(fn ($q) => $q->whereNull('radar_advertiser_id')
-                    ->orWhereNotIn('radar_advertiser_id', RadarAdvertiser::query()->whereNotNull('do_not_contact_at')->select('id')))
+                ->where(fn ($q) => $this->followed($q))
                 ->whereRaw('('.$this->lastSeenSql().') < ?', [$run->started_at])
                 ->whereRaw('('.$this->completeRunsSinceSql().') >= ?', [$run->site->value, $confirm])
                 ->orderBy('id')
@@ -132,6 +138,7 @@ final class RadarSourceWatch
         }
 
         $lastSeen = DB::table((new RadarListingSnapshot)->getTable())->where('radar_listing_id', $listing->id)->max('last_seen_at');
+        $othersOnline = $this->otherSourcesOnline($property->id, $listing->id);
 
         // Des identifiants, un site et des dates : ni numéro, ni nom, ni texte de l'annonce. Sujet : l'annonce (sans agence).
         activity('Radar')
@@ -145,9 +152,14 @@ final class RadarSourceWatch
                 'crawl_run_id' => $run->id,
                 'last_seen_at' => $lastSeen === null ? null : (string) $lastSeen,
                 'property_public' => Property::query()->public()->whereKey($property->id)->exists(),
-                'other_sources_online' => $this->otherSourcesOnline($property->id, $listing->id),
+                'other_sources_online' => $othersOnline,
             ])
             ->log('Annonce source disparue');
+
+        // TCK-2432 — la dernière source en ligne du bien s'en va : son titulaire est prié de dire s'il est toujours disponible.
+        if ($othersOnline === 0) {
+            $this->checks->ask($listing, $property);
+        }
 
         return 1;
     }
@@ -175,12 +187,60 @@ final class RadarSourceWatch
         return [null, 'none'];
     }
 
-    /** Les autres annonces collectées du même bien encore en ligne (avec instantanés, non disparues). */
+    /**
+     * Les annonces que la collecte suit encore, donc que la veille peut juger : ni purgées, ni `do_not_contact`, ni d'un
+     * annonceur qui a dit STOP (TCK-2392, `RadarSnapshots::silenced()`).
+     */
+    private function followed(EloquentBuilder $q): EloquentBuilder
+    {
+        return $q->whereNotIn('stage', [RadarListingStage::Purged->value, RadarListingStage::DoNotContact->value])
+            ->where(fn ($q) => $q->whereNull('radar_advertiser_id')
+                ->orWhereNotIn('radar_advertiser_id', RadarAdvertiser::query()->whereNotNull('do_not_contact_at')->select('id')));
+    }
+
+    /**
+     * Les sites que la veille juge encore : allumés (`radar_crawl_sources.enabled`), et dont un passage complet a commencé dans
+     * l'horizon — `radar.observe.online_horizon_days`, ou la fréquence du site multipliée par `confirm_runs` si elle est plus
+     * longue (un site réglé à la semaine juge ses annonces deux semaines plus tard). Un site éteint, ou qui n'a plus lu sa
+     * liste jusqu'au bout depuis l'horizon, ne juge plus rien : ses annonces ne comptent plus « en ligne ».
+     */
+    private function liveSites(): Builder
+    {
+        $runs = (new RadarCrawlRun)->getTable();
+        $horizonMinutes = self::onlineHorizonDays() * 24 * 60;
+
+        return DB::table((new RadarCrawlSource)->getTable().' as cs')
+            ->select('cs.site')
+            ->where('cs.enabled', true)
+            ->whereExists(fn (Builder $q) => $q->select(DB::raw(1))->from($runs.' as r')
+                ->whereColumn('r.site', 'cs.site')
+                ->where('r.status', RadarCrawlStatus::Finished->value)
+                ->where('r.reached_end', true)
+                ->whereRaw('r.started_at >= ?::timestamp - make_interval(mins => greatest(?, cs.frequency_minutes * ?))', [
+                    now()->utc()->format('Y-m-d H:i:s'), $horizonMinutes, self::confirmRuns(),
+                ]));
+    }
+
+    /** L'horizon au-delà duquel un site sans passage complet ne juge plus ses annonces (`radar.observe.online_horizon_days`). */
+    public static function onlineHorizonDays(): int
+    {
+        return max(1, (int) config('radar.observe.online_horizon_days', 3));
+    }
+
+    /**
+     * Les autres annonces collectées du même bien encore en ligne : avec instantanés, non disparues, et que la veille juge
+     * réellement — suivies par la collecte ({@see self::followed()}), d'un site vivant ({@see self::liveSites()}). TCK-2432
+     * (vérification adverse I1) : un doublon jamais jugé (annonceur STOP, purgé, site éteint ou sans passage complet récent)
+     * gardait son `source_gone_at` nul pour toujours et comptait « en ligne » indéfiniment ; la question au titulaire ne
+     * partait jamais.
+     */
     private function otherSourcesOnline(int $propertyId, int $exceptId): int
     {
         return RadarListing::query()
             ->whereKeyNot($exceptId)
             ->whereNull('source_gone_at')
+            ->where(fn ($q) => $this->followed($q))
+            ->whereIn('source_site', $this->liveSites())
             ->whereExists(fn (Builder $q) => $q->select(DB::raw(1))->from((new RadarListingSnapshot)->getTable().' as s')->whereColumn('s.radar_listing_id', 'radar_listings.id'))
             ->where(fn ($q) => $q
                 ->where('property_id', $propertyId)

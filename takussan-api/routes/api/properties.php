@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\Admin\PropertyModerationController;
 use App\Http\Controllers\Api\FavoriteController;
 use App\Http\Controllers\Api\PropertyAncestorsController;
+use App\Http\Controllers\Api\PropertyAvailabilityCheckController;
 use App\Http\Controllers\Api\PropertyChildrenController;
 use App\Http\Controllers\Api\PropertyCollaboratorController;
 use App\Http\Controllers\Api\PropertyContactController;
@@ -103,4 +104,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('reviews/received', [ReviewController::class, 'received'])->name('reviews.received');
     Route::patch('reviews/{review}/moderate', [ReviewController::class, 'moderate'])->name('reviews.moderate');
     Route::get('reviews/{review}/reports', [ReviewController::class, 'reports'])->name('reviews.reports');
+
+    // TCK-2432 — la source d'un bien publié par le Radar a disparu : la question au titulaire, et sa réponse.
+    Route::get('properties/{property}/availability-check', [PropertyAvailabilityCheckController::class, 'show'])->name('properties.availability-check.show');
+    Route::post('properties/{property}/availability-check', [PropertyAvailabilityCheckController::class, 'answer'])->name('properties.availability-check.answer');
 });

@@ -787,6 +787,12 @@ return [
                 'body' => 'Calendrier « :feed » bu :property mënul a synchroniser ñetti yoon yu toftalloo. Xoolal lien bi.',
                 'sms' => 'Takussan : calendrier « :feed » mënatul a synchroniser.',
             ],
+            // TCK-2432 — au titulaire d'un bien publié par le Radar, quand sa dernière annonce source a disparu.
+            'source_listing_gone' => [
+                'title' => 'Votre bien est-il toujours disponible ? :property',
+                'body' => 'L\'annonce d\'origine de « :property » n\'est plus en ligne. Ouvrez le bien pour nous dire s\'il est loué, vendu ou toujours disponible.',
+                'sms' => 'Takussan : « :property » est-il toujours disponible ?',
+            ],
         ],
         // TCK-594 (ADR-0039) — les sorties d'argent.
         'payout' => [

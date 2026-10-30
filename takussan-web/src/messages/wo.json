@@ -6097,6 +6097,15 @@
       "searchCity": "Xool kër yi nekk {city}",
       "searchAll": "Xool kër yépp",
       "metaDescription": "Yéenéb Takussan bii amatul. Gisal kër yu ni mel."
+    },
+    "availabilityCheck": {
+      "title": "Ce bien est-il toujours disponible ?",
+      "body": "Son annonce d’origine n’est plus en ligne depuis le {date}. Dites-nous où il en est : un bien loué ou vendu quitte la vitrine, un bien disponible y reste.",
+      "rented": "Il est loué",
+      "sold": "Il est vendu",
+      "available": "Toujours disponible",
+      "done": "Merci, votre réponse est enregistrée.",
+      "error": "Votre réponse n’a pas pu être enregistrée. Réessayez."
     }
   },
   "documents": {
@@ -9070,7 +9079,8 @@
         "ops_queue_stalled": "Toggu liggéey taxaw na",
         "ops_health_degraded": "Wérgi platform bi wàññiku na",
         "ops_critical_job_failed": "Échec d’un job d’argent ou de bail",
-        "radar_source_listing_gone": "Annonce source d’un bien disparue"
+        "radar_source_listing_gone": "Annonce source d’un bien disparue",
+        "radar_withdrawal_proposed": "Retrait proposé : le titulaire n’a pas répondu"
       },
       "channels": {
         "email": "Imeel",
@@ -10184,7 +10194,8 @@
         "favorite_unavailable": "Bëgg-bëgg — amatul",
         "visit_reminder": "Fàttali gis-gis",
         "threshold_alert": "Yégle ci dig KPI",
-        "lease_payment_received": "Loyer — fey bi agsi na"
+        "lease_payment_received": "Loyer — fey bi agsi na",
+        "property_availability_check": "Disponibilité de mes biens publiés"
       },
       "channels": {
         "inapp": "Ci appli bi",
@@ -10199,7 +10210,8 @@
         "leases": "Bail yi",
         "maintenance": "Defaraat",
         "reviews": "Xalaat yi",
-        "alerts": "Yégle yi"
+        "alerts": "Yégle yi",
+        "properties": "Biens"
       },
       "reasons": {
         "inappAlwaysOn": "Mu ngi dox saa su nekk ngir nga bañ a réer dara.",
@@ -12251,6 +12263,10 @@
         "unpublished_contact_erased": {
           "title": "Yéenekaay bi dindi nañu ko : {property}",
           "body": "Yéenekaay {property} ({reference}) dindi nañu ko ci site bi : ki ñuy jokkoo ak moom far na kontam. Joxal ko benn ajaŋ te ngay ko siiwal ci kaw : {url}"
+        },
+        "source_listing_gone": {
+          "title": "Votre bien est-il toujours disponible ? {property}",
+          "body": "L’annonce d’origine de « {property} » n’est plus en ligne. Ouvrez le bien pour nous dire s’il est loué, vendu ou toujours disponible."
         }
       },
       "lease": {
