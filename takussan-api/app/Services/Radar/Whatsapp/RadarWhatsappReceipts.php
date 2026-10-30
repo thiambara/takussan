@@ -47,6 +47,9 @@ final class RadarWhatsappReceipts
 
     public const STATUS_FAILED = 'failed';
 
+    /** Le plus grand code que tient `radar_outreaches.provider_error_code` (`integer` de PostgreSQL). */
+    private const MAX_ERROR_CODE = 2147483647;
+
     /** Le rang d'un statut : un accusé n'écrit que s'il avance. `failed` a ses propres règles ({@see self::advances()}). */
     private const RANKS = [
         RadarWhatsappOutreach::STATUS_ACCEPTED => 0,
@@ -203,13 +206,18 @@ final class RadarWhatsappReceipts
 
     /**
      * Le code de la première erreur d'un `failed` (`131026` : non remis, `131049` : limité par Meta…) ; null sans code.
+     * TCK-2444 : null aussi hors de l'entier de `provider_error_code` (`integer`), pour qu'un code aberrant n'empêche
+     * jamais d'écrire `failed`.
      *
      * @param  array<string, mixed>  $status
      */
     private static function errorCode(array $status): ?int
     {
         $code = $status['errors'][0]['code'] ?? null;
+        if (is_string($code) && ctype_digit($code)) {
+            $code = (int) $code;
+        }
 
-        return is_int($code) || (is_string($code) && ctype_digit($code)) ? (int) $code : null;
+        return is_int($code) && $code >= 0 && $code <= self::MAX_ERROR_CODE ? $code : null;
     }
 }

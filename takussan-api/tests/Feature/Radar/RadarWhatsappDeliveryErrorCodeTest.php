@@ -121,6 +121,25 @@ class RadarWhatsappDeliveryErrorCodeTest extends TestCase
         $this->assertSame(131049, $this->messageDeLaFiche($this->fiche())['provider_error_code']);
     }
 
+    /**
+     * Vérification adverse, mineur 1 — un code hors de l'entier de la colonne (`integer`) n'est pas tenu : le message
+     * passe à `failed` sans code et le webhook répond 200, comme avant la colonne (sinon l'`UPDATE` tombait : 500).
+     */
+    public function test_un_code_hors_borne_laisse_le_message_failed_sans_code(): void
+    {
+        foreach ([3000000000, '99999999999999999999', -5] as $i => $code) {
+            // Relu d'abord : sans quoi le modèle en mémoire, resté `accepted`, ne sauverait rien.
+            $this->message->refresh()->forceFill(['provider_status' => 'accepted', 'provider_error_code' => null])->save();
+            $this->assertSame('accepted', $this->message->fresh()->provider_status);
+
+            $this->recevoir($this->accuse('failed', $code));
+
+            $this->assertSame('failed', $this->message->fresh()->provider_status, "code n° {$i}");
+            $this->assertNull($this->message->fresh()->provider_error_code, "code n° {$i}");
+        }
+        $this->assertNull($this->messageDeLaFiche($this->fiche())['provider_error_code']);
+    }
+
     public function test_ac2_un_failed_sans_code_rend_null(): void
     {
         $this->recevoir($this->accuse('failed'));
