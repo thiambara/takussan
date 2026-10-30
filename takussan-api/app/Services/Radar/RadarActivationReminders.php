@@ -279,7 +279,7 @@ final class RadarActivationReminders
             return 0;
         }
         $granted = CreditWelcomeGrant::query()
-            ->where(fn ($query) => $query->where('phone_hash', PhoneFingerprint::of($user->phone))->orWhere('agency_id', $space))
+            ->where(fn ($query) => $query->whereIn('phone_hash', PhoneFingerprint::all($user->phone))->orWhere('agency_id', $space))
             ->exists();
 
         return $granted ? 0 : $amount;

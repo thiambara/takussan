@@ -21,6 +21,7 @@ use Illuminate\Testing\TestResponse;
 use Spatie\Activitylog\Models\Activity;
 use Tests\Support\FixturesDePublicationRadar;
 use Tests\Support\OperateursPlateforme;
+use Tests\Support\RotationDAppKey;
 use Tests\TestCase;
 
 /**
@@ -33,6 +34,7 @@ class RadarActivationReminderTest extends TestCase
     use FixturesDePublicationRadar;
     use OperateursPlateforme;
     use RefreshDatabase;
+    use RotationDAppKey;
 
     private const T0 = '2026-10-01 09:00:00';
 
@@ -187,6 +189,18 @@ class RadarActivationReminderTest extends TestCase
 
         $this->assertStringNotContainsString('crédits', $reponse->json('data.text'));
         $this->assertStringContainsString("- demandes de visite : 0\n\nActivez votre compte", $reponse->json('data.text'));
+    }
+
+    /** TCK-2430 — un octroi écrit sous l'`APP_KEY` d'avant une rotation compte encore : la relance n'offre pas ce qui ne viendra pas. */
+    public function test_un_numero_credite_avant_une_rotation_d_app_key_n_offre_plus_de_credits(): void
+    {
+        $this->travelTo(Carbon::parse(self::T0)->addDays(7));
+        CreditWelcomeGrant::query()->create([
+            'phone_hash' => PhoneFingerprint::of(self::NUMERO_ANNONCEUR), 'agency_id' => null, 'user_id' => null, 'granted_at' => now(),
+        ]);
+        $this->tournerAppKey();
+
+        $this->relance()->assertOk()->assertJsonPath('data.figures.welcome_credits', 0);
     }
 
     /** Les crédits se jugent aussi par ESPACE : un espace déjà crédité, sous un autre numéro, n'en recevra plus. */
