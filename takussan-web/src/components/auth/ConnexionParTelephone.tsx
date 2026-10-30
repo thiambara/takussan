@@ -147,11 +147,44 @@ export function ConnexionParTelephone({ variante, onConnecte, onEmail }: Connexi
       await openSession(reponse.token, reponse.user, reponse.expires_at);
       onConnecte(reponse.is_new_account === true);
     } catch (err) {
+      // TCK-2404 (vérification adverse I2) — un code expiré pendant la lecture des conditions : retour à l'étape du code,
+      // vidée, où se trouve le renvoi. La version acceptée reste, et accompagnera le code suivant.
+      if (etape === 'conditions' && err instanceof ApiError && err.status === 422) {
+        setCode('');
+        setEtape('code');
+      }
       setErreur(messageVerification(err));
     } finally {
       setEnvoi(false);
     }
   }
+
+  // Le renvoi du code et le changement de numéro : à l'étape du code, et à celle des conditions (TCK-2404, I2), où un
+  // code peut expirer pendant la lecture.
+  const liensDuCode = (
+    <div className="flex flex-wrap items-center justify-between gap-2">
+      <button
+        type="button"
+        className={`-ml-2 ${CLASSE_LIEN_SECONDAIRE}`}
+        disabled={envoi || attente > 0}
+        onClick={() => void envoyerCode()}
+      >
+        {attente > 0 ? t('resendIn', { seconds: attente }) : t('resend')}
+      </button>
+      <button
+        type="button"
+        className={`-mr-2 ${CLASSE_LIEN_SECONDAIRE} text-muted-foreground`}
+        onClick={() => {
+          setEtape('numero');
+          setCode('');
+          setErreur(null);
+          setVersionAcceptee(null);
+        }}
+      >
+        {t('changeNumber')}
+      </button>
+    </div>
+  );
 
   const titre = variante === 'register' ? t('registerTitle') : t('loginTitle');
   const sousTitre = variante === 'register' ? t('registerSubtitle') : t('loginSubtitle');
@@ -272,28 +305,7 @@ export function ConnexionParTelephone({ variante, onConnecte, onEmail }: Connexi
               t('verify')
             )}
           </Button>
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <button
-              type="button"
-              className={`-ml-2 ${CLASSE_LIEN_SECONDAIRE}`}
-              disabled={envoi || attente > 0}
-              onClick={() => void envoyerCode()}
-            >
-              {attente > 0 ? t('resendIn', { seconds: attente }) : t('resend')}
-            </button>
-            <button
-              type="button"
-              className={`-mr-2 ${CLASSE_LIEN_SECONDAIRE} text-muted-foreground`}
-              onClick={() => {
-                setEtape('numero');
-                setCode('');
-                setErreur(null);
-                setVersionAcceptee(null);
-              }}
-            >
-              {t('changeNumber')}
-            </button>
-          </div>
+          {liensDuCode}
         </form>
       ) : null}
 
@@ -344,6 +356,7 @@ export function ConnexionParTelephone({ variante, onConnecte, onEmail }: Connexi
               t('termsContinue')
             )}
           </Button>
+          {liensDuCode}
         </form>
       ) : null}
 
