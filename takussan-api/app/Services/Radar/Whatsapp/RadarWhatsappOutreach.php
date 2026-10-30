@@ -23,6 +23,12 @@ use Throwable;
  * - **Une écriture qui échoue APRÈS l'envoi** (base, verrou) ne laisse pas le message « préparé » : il est marqué envoyé,
  *   ambigu, avec l'identifiant de Meta, journalisé avant toute écriture (ADR-0081).
  * - **Le journal nomme le message, l'identifiant de Meta et le motif, jamais le texte ni le numéro.**
+ * - **Chaque envoi porte un jeton opaque aléatoire** (`biz_opaque_callback_data`, TCK-2436) : Meta le rend dans ses
+ *   accusés, et {@see RadarWhatsappReceipts} apparie par lui, exactement, un envoi resté ambigu sans identifiant. Il est
+ *   écrit et COMMITÉ sur la ligne préparée AVANT les verrous et l'appel : un accusé reçu pendant l'appel (jusqu'au délai
+ *   dépassé) trouve ainsi son annonceur, attend sur son verrou la fin de l'envoi, puis voit le message envoyé. Un jeton
+ *   resté sur une ligne refusée ou envoyée à la main est inerte (l'appariement exige l'API et `sent_at`) et resservira
+ *   à l'essai suivant. Aucune donnée personnelle, et jamais journalisé.
  */
 final class RadarWhatsappOutreach
 {
@@ -40,6 +46,7 @@ final class RadarWhatsappOutreach
     public function send(RadarOutreach $outreach, User $by): RadarOutreach
     {
         $this->number->assertUsable();
+        $this->assignCallbackToken($outreach);
 
         /** @var array<string, mixed>|null $accepted les colonnes du canal, dès que Meta a accepté (ou a pu remettre) le message */
         $accepted = null;
@@ -47,7 +54,7 @@ final class RadarWhatsappOutreach
             return $this->workflow->markSent($outreach, $by, function (RadarOutreach $locked, RadarAdvertiser $advertiser) use (&$accepted): array {
                 // Un annonceur purgé n'a plus de numéro ; il a aussi dit STOP, que `markSent` refuse déjà.
                 abort_code_if($advertiser->phone === null, 422, 'radar.advertiser.do_not_contact');
-                $result = $this->driver->sendTemplate($advertiser->phone, $this->template->for($locked));
+                $result = $this->driver->sendTemplate($advertiser->phone, $this->template->for($locked), (string) $locked->provider_callback_token);
 
                 if ($result->isTerminalSuccess()) {
                     // Journalisé AVANT les écritures : si elles échouent, il reste la trace de ce que l'annonceur a reçu.
@@ -80,5 +87,19 @@ final class RadarWhatsappOutreach
 
             return $this->workflow->markSent($outreach, $by, fn (): array => $columns);
         }
+    }
+
+    /**
+     * Le jeton opaque de la ligne, écrit hors de toute transaction de l'envoi (une écriture isolée, commitée aussitôt) si
+     * elle est encore préparée et n'en a pas : celui d'un essai refusé est repris. Une ligne déjà envoyée n'est pas
+     * touchée — `markSent` la refusera.
+     */
+    private function assignCallbackToken(RadarOutreach $outreach): void
+    {
+        RadarOutreach::query()
+            ->whereKey($outreach->getKey())
+            ->whereNull('sent_at')
+            ->whereNull('provider_callback_token')
+            ->update(['provider_callback_token' => bin2hex(random_bytes(20))]);
     }
 }

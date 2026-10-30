@@ -24,7 +24,7 @@ final class RadarCloudWhatsappDriver implements RadarWhatsappDriver
         private readonly RadarWhatsappNumber $number,
     ) {}
 
-    public function sendTemplate(string $to, WhatsappTemplateRef $template): WhatsappResult
+    public function sendTemplate(string $to, WhatsappTemplateRef $template, string $callbackData): WhatsappResult
     {
         $this->number->assertUsable();
         $url = rtrim((string) config('whatsapp.base_uri'), '/').'/'.$this->number->phoneNumberId().'/messages';
@@ -34,7 +34,7 @@ final class RadarCloudWhatsappDriver implements RadarWhatsappDriver
                 ->withToken($this->number->accessToken())
                 ->acceptJson()
                 ->timeout(10)
-                ->post($url, $this->payload($to, $template));
+                ->post($url, $this->payload($to, $template, $callbackData));
         } catch (\Throwable $e) {
             Log::warning('[radar.whatsapp] HTTP exception', ['error' => class_basename($e)]);
 
@@ -53,7 +53,7 @@ final class RadarCloudWhatsappDriver implements RadarWhatsappDriver
     }
 
     /** @return array<string, mixed> */
-    private function payload(string $to, WhatsappTemplateRef $template): array
+    private function payload(string $to, WhatsappTemplateRef $template, string $callbackData): array
     {
         $payload = [
             'messaging_product' => 'whatsapp',
@@ -61,6 +61,8 @@ final class RadarCloudWhatsappDriver implements RadarWhatsappDriver
             'to' => ltrim($to, '+'),
             'type' => 'template',
             'template' => ['name' => $template->name, 'language' => ['code' => $template->language]],
+            // TCK-2436 — rendu tel quel dans les accusés (`statuses`), dont ceux d'un envoi resté ambigu.
+            'biz_opaque_callback_data' => $callbackData,
         ];
         if ($template->params !== []) {
             $payload['template']['components'] = [[

@@ -13,9 +13,13 @@ use App\Models\User;
 use App\Services\Radar\ConsentMessageComposer;
 use App\Services\Radar\Whatsapp\RadarWhatsappReceipts;
 use Carbon\Carbon;
+use Fiber;
+use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\Request;
 use Illuminate\Log\Events\MessageLogged;
 use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Http;
 use RuntimeException;
@@ -31,6 +35,12 @@ use Tests\TestCase;
  *   l'index unique, B restait préparé, et un second clic rappelait Meta — un double envoi.
  * - B2 : un message étranger au Radar, sur le même `phone_number_id` (coexistence, envoi de test). Adopté, il faisait
  *   passer A, jamais parti, à `read`, et un « Oui » qui lui répondait se rattachait au message d'accord A.
+ *
+ * - B3 (TCK-2436) : B1 encore, mais l'accusé de B porte le jeton opaque de B. B n'est pas envoyé (`sent_at` nul) tant
+ *   que la reprise ne l'a pas écrit : l'accusé n'apparie rien — ni B, ni surtout A, dont le jeton est autre.
+ * - I-1 (vérification de TCK-2436) : l'accusé d'un envoi qui arrive PENDANT l'appel à Meta (jusqu'au délai dépassé) n'est
+ *   pas perdu : le jeton, commité avant l'appel, lui fait trouver l'annonceur, et le verrou de celui-ci le fait attendre
+ *   la fin de l'envoi.
  *
  * Numéro fictif en `+221 77 123 45 67`, le fictif conventionnel du dépôt : un préfixe attribué, que `PhoneMasker`
  * reconnaît comme un numéro (il refuse `74`). Aucun réseau : `Http::fake()`.
@@ -176,5 +186,78 @@ class RadarWhatsappReceiptGuardTest extends TestCase
             'type' => 'text', 'text' => ['body' => 'Oui'], 'context' => ['from' => '221770000000', 'id' => 'wamid.ETRANGER']]]));
 
         $this->assertSame($b->id, RadarConsent::query()->sole()->radar_outreach_id);
+    }
+
+    public function test_b3_l_accuse_au_jeton_d_une_relance_dont_l_ecriture_est_defaite_n_apparie_ni_a_ni_b(): void
+    {
+        $a = $this->ambiguSansIdentifiant(3);
+        $a->forceFill(['provider_callback_token' => str_repeat('a', 40)])->save();
+        $b = $this->prepare(['follow_up_of_id' => $a->id, 'follow_up_rank' => 1]);
+        Http::fake(['graph.exemple.test/*' => Http::response(['messages' => [['id' => 'wamid.B']]])]);
+
+        $panne = true;
+        RadarListing::saving(function () use (&$panne): void {
+            if ($panne) {
+                $panne = false;
+                throw new RuntimeException('connexion perdue');
+            }
+        });
+        // L'accusé de B, au jeton que l'envoi de B a transmis à Meta, arrive entre l'écriture défaite et la reprise.
+        Event::listen(MessageLogged::class, function (MessageLogged $evenement): void {
+            if (str_contains($evenement->message, 'écriture défaite')) {
+                $jeton = Http::recorded()[0][0]['biz_opaque_callback_data'];
+                app(RadarWhatsappReceipts::class)->receive($this->corps([['biz_opaque_callback_data' => $jeton] + $this->accuse('wamid.B-INCONNU', 'sent')])['entry']);
+            }
+        });
+
+        $this->postJson("/api/admin/radar/outreaches/{$b->id}/send")->assertOk();
+
+        $b->refresh();
+        $this->assertSame('wamid.B', $b->provider_message_id);
+        $this->assertSame('ambiguous', $b->provider_status);
+        $this->assertSame(Http::recorded()[0][0]['biz_opaque_callback_data'], $b->provider_callback_token);
+        $this->assertNull($a->fresh()->provider_message_id);
+        $this->assertSame('ambiguous', $a->fresh()->provider_status);
+        Http::assertSentCount(1);
+    }
+
+    /**
+     * I-1 — Meta remet le message, mais sa réponse dépasse le délai (ici un 503) ; `sent` puis `delivered`, au jeton de
+     * l'envoi, arrivent pendant l'appel. La course entre deux connexions ne se rejoue pas sur la connexion unique du test :
+     * une fibre la reproduit. Le traitement de l'accusé commence pendant l'appel (sa recherche hors verrou, qui lit le
+     * jeton commité), puis est suspendu là où, en production, le verrou de l'annonceur le ferait attendre la fin de
+     * l'envoi ; il reprend une fois l'envoi écrit.
+     */
+    public function test_i1_les_accuses_recus_pendant_l_appel_apparient_l_envoi_ambigu_une_fois_ecrit(): void
+    {
+        $message = $this->prepare();
+        $suspendu = false;
+        DB::listen(function (QueryExecuted $requete) use (&$suspendu): void {
+            if (! $suspendu && Fiber::getCurrent() !== null && str_starts_with($requete->sql, 'select') && str_contains($requete->sql, 'provider_callback_token')) {
+                $suspendu = true;
+                Fiber::suspend();
+            }
+        });
+        $fibre = null;
+        Http::fake(function (Request $request) use (&$fibre) {
+            $jeton = $request['biz_opaque_callback_data'];
+            $fibre = new Fiber(fn () => app(RadarWhatsappReceipts::class)->receive($this->corps([
+                ['biz_opaque_callback_data' => $jeton] + $this->accuse('wamid.TARDIF', 'sent'),
+                ['biz_opaque_callback_data' => $jeton] + $this->accuse('wamid.TARDIF', 'delivered'),
+            ])['entry']));
+            $fibre->start();
+
+            return Http::response(['error' => ['code' => 2]], 503);
+        });
+
+        $this->postJson("/api/admin/radar/outreaches/{$message->id}/send")->assertOk()->assertJsonPath('data.provider_status', 'ambiguous');
+        $this->assertTrue($suspendu);
+        $fibre->resume();
+
+        $this->assertTrue($fibre->isTerminated());
+        $this->assertSame(['received' => 2, 'applied' => 2, 'first_id' => 'wamid.TARDIF'], $fibre->getReturn());
+        $frais = $message->fresh();
+        $this->assertSame('wamid.TARDIF', $frais->provider_message_id);
+        $this->assertSame('delivered', $frais->provider_status);
     }
 }

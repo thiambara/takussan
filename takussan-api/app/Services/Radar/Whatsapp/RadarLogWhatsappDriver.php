@@ -14,7 +14,7 @@ use Illuminate\Support\Str;
  */
 final class RadarLogWhatsappDriver implements RadarWhatsappDriver
 {
-    public function sendTemplate(string $to, WhatsappTemplateRef $template): WhatsappResult
+    public function sendTemplate(string $to, WhatsappTemplateRef $template, string $callbackData): WhatsappResult
     {
         $messageId = 'wamid.log_'.Str::uuid()->toString();
         Log::info('[radar.whatsapp-log-driver] dispatched', [

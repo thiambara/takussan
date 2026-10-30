@@ -22,11 +22,16 @@ use Illuminate\Support\Facades\Log;
  *   l'erreur ; ni son texte (`title`, `message`, `error_data` peuvent citer le numéro), ni le numéro. Sur un envoi
  *   `ambiguous`, il dit que le message n'est pas parti ; le message reste envoyé (`sent_at`) : l'opérateur juge.
  * - **Un accusé d'identifiant inconnu est ignoré**, compté (`received`) et journalisé par son identifiant et son statut
- *   seuls, **jamais rattaché par inférence**. Un envoi ambigu sans identifiant (délai, 5xx) reste `ambiguous` :
- *   l'opérateur juge. Le rattacher « au seul envoi ambigu de ce numéro » rouvrait le double envoi de la reprise de
- *   {@see RadarWhatsappOutreach} (l'accusé d'une relance pris par un ancien ambigu, puis l'index unique heurté), et
- *   faisait d'un message étranger au Radar, sur le même numéro, la remise d'un message d'accord (vérification de TCK-2427,
- *   I-1). Un appariement exact passerait par `biz_opaque_callback_data` (TCK-2436).
+ *   seuls, **jamais rattaché par inférence**. Le rattacher « au seul envoi ambigu de ce numéro » rouvrait le double envoi
+ *   de la reprise de {@see RadarWhatsappOutreach} (l'accusé d'une relance pris par un ancien ambigu, puis l'index unique
+ *   heurté), et faisait d'un message étranger au Radar, sur le même numéro, la remise d'un message d'accord (vérification
+ *   de TCK-2427, I-1).
+ * - **Sauf appariement EXACT par le jeton opaque** (TCK-2436, amendement d'ADR-0081) : un accusé d'identifiant inconnu
+ *   qui porte le `biz_opaque_callback_data` d'un envoi par l'API, `ambiguous` et sans identifiant, adressé au numéro de
+ *   son annonceur (`recipient_id`), le rattache : l'identifiant de Meta est écrit sur la ligne, le statut avance. Tout
+ *   autre cas — sans jeton, jeton inconnu, envoi déjà identifié ou jamais parti, autre destinataire, annonceur purgé —
+ *   reste ignoré. Meta ne documente le renvoi du jeton que pour `sent`, `delivered` et `read` : un `failed` sans jeton
+ *   laisse l'envoi `ambiguous`, et l'opérateur juge.
  * - **Les verrous suivent l'ordre du Radar** — l'annonceur, puis le message (un sous-ensemble de « annonces, annonceur,
  *   message ») : deux accusés du même message se sérialisent, et le second relit le statut écrit par le premier.
  */
@@ -89,24 +94,29 @@ final class RadarWhatsappReceipts
         if ($id === '' || mb_strlen($id) > 120 || ! in_array($new, [self::STATUS_SENT, self::STATUS_DELIVERED, self::STATUS_READ, self::STATUS_FAILED], true)) {
             return false;
         }
-        $advertiserId = RadarOutreach::query()->where('provider_message_id', $id)->value('radar_advertiser_id');
+        $token = self::callbackToken($status);
+        $advertiserId = RadarOutreach::query()->where('provider_message_id', $id)->value('radar_advertiser_id')
+            ?? ($token === null ? null : RadarOutreach::query()->where('provider_callback_token', $token)->value('radar_advertiser_id'));
         if ($advertiserId === null) {
             Log::info('[radar.whatsapp] accusé d\'un identifiant inconnu, ignoré', ['provider_message_id' => $id, 'status' => $new]);
 
             return false;
         }
 
-        return DB::transaction(function () use ($id, $new, $advertiserId, $status): bool {
-            if (RadarAdvertiser::query()->whereKey($advertiserId)->lockForUpdate()->first() === null) {
+        return DB::transaction(function () use ($id, $new, $advertiserId, $status, $token): bool {
+            $advertiser = RadarAdvertiser::query()->whereKey($advertiserId)->lockForUpdate()->first();
+            if ($advertiser === null) {
                 return false;
             }
-            $outreach = $this->cloud((int) $advertiserId)->where('provider_message_id', $id)->lockForUpdate()->first();
+            // L'identifiant d'abord, relu sous le verrou : un accusé concurrent a pu l'écrire par le jeton entre-temps.
+            $outreach = $this->cloud($advertiser->id)->where('provider_message_id', $id)->lockForUpdate()->first()
+                ?? ($token === null ? null : $this->ambiguousByToken($advertiser, $token, $id, $status));
             if ($outreach === null || ! self::advances($outreach->provider_status, $new)) {
                 return false;
             }
 
             $previous = $outreach->provider_status;
-            $outreach->forceFill(['provider_status' => $new])->save();
+            $outreach->forceFill(['provider_status' => $new, 'provider_message_id' => $id])->save();
 
             if ($new === self::STATUS_FAILED) {
                 $code = self::errorCode($status);
@@ -126,6 +136,42 @@ final class RadarWhatsappReceipts
 
             return true;
         });
+    }
+
+    /**
+     * TCK-2436 — l'envoi sans identifiant que désigne EXACTEMENT ce jeton, ou null : il doit être de cet annonceur,
+     * adressé à son numéro (un annonceur purgé n'en a plus), envoyé par l'API (un jeton resté sur une ligne préparée,
+     * refusée ou envoyée à la main n'apparie rien), et l'identifiant de Meta libre. Un envoi par l'API, envoyé, sans
+     * identifiant, est toujours `ambiguous`.
+     *
+     * @param  array<string, mixed>  $status
+     */
+    private function ambiguousByToken(RadarAdvertiser $advertiser, string $token, string $id, array $status): ?RadarOutreach
+    {
+        if ($advertiser->phone === null || (string) ($status['recipient_id'] ?? '') !== ltrim($advertiser->phone, '+')) {
+            return null;
+        }
+        if (RadarOutreach::query()->where('provider_message_id', $id)->exists()) {
+            return null;
+        }
+
+        return $this->cloud($advertiser->id)
+            ->where('provider_callback_token', $token)
+            ->whereNull('provider_message_id')
+            ->lockForUpdate()
+            ->first();
+    }
+
+    /**
+     * Le jeton opaque rendu par Meta, ou null.
+     *
+     * @param  array<string, mixed>  $status
+     */
+    private static function callbackToken(array $status): ?string
+    {
+        $token = $status['biz_opaque_callback_data'] ?? null;
+
+        return is_string($token) && $token !== '' ? $token : null;
     }
 
     /** Le statut avance-t-il ? Jamais en arrière, jamais après `failed` ni `read`, jamais `failed` après une remise. */
