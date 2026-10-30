@@ -577,10 +577,17 @@ class RadarMatcherTest extends TestCase
             $this->empreinte($bien, self::HASH ^ 1);
             $this->annonceLue($q, 450000, 3, ['phones' => [self::NUMERO]], ['source_photo_hashes' => [self::photoSource(self::HASH ^ 1)]]);
         }
+        // Le texte brut est FIXÉ : celui de la fabrique est un paragraphe tiré au hasard, et un tirage de moins de
+        // `RadarSimilarityText::MIN_CHARS` caractères (≈ 0,3 % des tirages) laisse `similarity_text` nul, donc saute la
+        // requête du signal de texte — une requête de moins sur un seul des deux appels (CI de #1602 : 9 contre 8).
         $listing = $this->source(
             ['phones' => [self::NUMERO], 'neighborhood' => ['neighborhood_id' => $q->id]],
-            ['source_photo_hashes' => [self::photoSource(self::HASH), self::photoSource(self::HASH ^ 0b1000_0000, 'https://cdn.test/2.jpg')]],
+            [
+                'raw_text' => 'Appartement de trois chambres à louer à Mermoz, lumineux, proche des commerces et des écoles.',
+                'source_photo_hashes' => [self::photoSource(self::HASH), self::photoSource(self::HASH ^ 0b1000_0000, 'https://cdn.test/2.jpg')],
+            ],
         )->fresh();
+        $this->assertNotNull($listing->similarity_text, 'le signal de texte est interrogé aux deux appels');
 
         DB::flushQueryLog();
         DB::enableQueryLog();

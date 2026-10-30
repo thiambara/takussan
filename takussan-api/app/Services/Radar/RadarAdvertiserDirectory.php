@@ -26,7 +26,7 @@ final class RadarAdvertiserDirectory
     public function findOrCreate(string $e164): RadarAdvertiser
     {
         $hmac = RadarPhone::hmac($e164);
-        $existing = RadarAdvertiser::query()->where('phone_hmac', $hmac)->first();
+        $existing = $this->existing($e164, $hmac);
         if ($existing !== null) {
             return $this->restorePhone($existing, $e164);
         }
@@ -74,9 +74,35 @@ final class RadarAdvertiserDirectory
         }
 
         return RadarAdvertiser::query()
-            ->whereIn('phone_hmac', array_map(RadarPhone::hmac(...), $e164))
+            ->whereIn('phone_hmac', array_merge(...array_map(RadarPhone::hmacs(...), $e164)))
             ->whereNotNull('do_not_contact_at')
             ->orderBy('id')
             ->first();
+    }
+
+    /**
+     * TCK-2414 — l'annonceur déjà connu de ce numéro. Sous la seule clé courante, l'unicité de `phone_hmac` n'en laisse qu'un.
+     * Avec d'anciennes clés ({@see RadarPhone::hmacs()}), plusieurs lignes peuvent répondre (une ancienne clé oubliée pendant
+     * une rotation, puis relistée) : **un refus gagne toujours**, puis la clé courante, puis la plus ancienne ligne. Retrouvée
+     * sous une ancienne clé, la ligne passe sous la courante — le numéro est là pour la calculer —, sauf si une autre ligne la
+     * porte déjà (unicité : `radar:rehash-phones` le compte en conflit).
+     */
+    private function existing(string $e164, string $hmac): ?RadarAdvertiser
+    {
+        $hmacs = RadarPhone::hmacs($e164);
+        if (count($hmacs) === 1) {
+            return RadarAdvertiser::query()->where('phone_hmac', $hmac)->first();
+        }
+
+        $advertiser = RadarAdvertiser::query()->whereIn('phone_hmac', $hmacs)
+            ->orderByRaw('do_not_contact_at is null')
+            ->orderByRaw('phone_hmac = ? desc', [$hmac])
+            ->orderBy('id')
+            ->first();
+        if ($advertiser !== null && $advertiser->phone_hmac !== $hmac && ! RadarAdvertiser::query()->where('phone_hmac', $hmac)->exists()) {
+            $advertiser->forceFill(['phone_hmac' => $hmac])->save();
+        }
+
+        return $advertiser;
     }
 }

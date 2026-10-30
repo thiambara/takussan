@@ -118,6 +118,7 @@ certification de Debian) pour les deux images de l'API, rien pour le front. Aucu
 | Restauration à blanc | PostgreSQL : diff des comptes **vide**, 92 tables, 86 927 lignes (préproduction arrêtée) ; volume de médias : 17 629 fichiers, **même** `sha256` | 2026-09-14 | plan, tâche D6, étapes 2 et 3 ; ticket TCK-515 |
 | Restauration à blanc, **lue** | Sur le serveur, la dernière sauvegarde (2026-10-18, 03:00 Z, 3 086 349 o) est restaurée dans un conteneur jetable `pgvector/pgvector:pg17`, joint à `dokploy-network` avec un mot de passe tiré au hasard. Restauration en 11 s, sans erreur, 116 tables sur 116. Les comptes sont égaux, sauf `jobs`, `scheduled_task_runs` et `property_boost_daily_stats` : la préproduction n'était pas arrêtée et a eu de l'activité depuis 03:00. `backup:verify-encryption --connexion=restau`, lancé dans `takussan-api-preview-4iza80-api-1` (image `b2804272`), **sort en 0** : 39 valeurs chiffrées relues dans 20 colonnes, toutes déchiffrées. Avec `--cle-fausse`, **il sort en 1** : 39 sur 39 illisibles. Le conteneur et le dossier ont été retirés après | 2026-10-18 | TCK-882, AC2 |
 | `APP_KEY` hors du serveur | préproduction : empreinte **`e3227fc80eb0`** (12 premiers caractères du `sha256`). Une copie hors du VPS existe, avec la **même** empreinte : le fichier de secrets du poste du porteur. À ranger dans son gestionnaire de mots de passe (décision du 2026-10-18, ADR-0044 amendement C, P42.02). Production : clé créée et rangée en F3, avant le premier déploiement | 2026-10-18 | `docker exec takussan-api-preview-4iza80-api-1 sh -c 'printf %s "$APP_KEY" \| sha256sum \| cut -c1-12'` — n'imprime qu'une empreinte |
+| `RADAR_PHONE_HMAC_KEY` hors du serveur | **Pas encore posée** au 2026-10-30 (TCK-2414, [ADR-0082](../adr/0082-l-empreinte-des-refus-du-radar-a-sa-propre-cle.md)) : la préproduction calcule l'empreinte des refus du Radar sous le repli sur `APP_KEY`, et sa sonde `radar_phone_key` est `degraded`. Une fois posée, relever son empreinte comme celle d'`APP_KEY` (12 premiers caractères du `sha256`) et vérifier qu'une copie hors du VPS porte la même. Perdue, elle rend méconnaissables les numéros qui ont dit STOP | 2026-10-30 | `docker exec takussan-api-preview-4iza80-api-1 sh -c 'printf %s "$RADAR_PHONE_HMAC_KEY" \| sha256sum \| cut -c1-12'` — n'imprime qu'une empreinte |
 
 Projets Dokploy :
 
@@ -240,6 +241,18 @@ même `composer.lock`, n'en envoyait pas davantage. Décision du porteur, le mê
 `QUEUE_CONNECTION`, `MAIL_MAILER`, …) tels que Dokploy les déclare, **régénéré depuis ce relevé le
 2026-09-14** (TCK-527) — il décrivait jusque-là les `.env` de l'ancien serveur, `MAIL_MAILER=resend`
 en préproduction compris. Les clés vivent ici, les drivers là-bas, les valeurs secrètes nulle part.
+
+**À poser par le porteur — TCK-2414, [ADR-0082](../adr/0082-l-empreinte-des-refus-du-radar-a-sa-propre-cle.md)** (absente de Dokploy au 2026-10-30) :
+
+- `takussan-api-preview` : `RADAR_PHONE_HMAC_KEY`, une valeur neuve (`openssl rand -base64 48`), jamais celle de la
+  production. Redéployer, puis lancer `php artisan radar:rehash-phones` dans le conteneur `api` : la tuile « Clé des
+  refus du Radar » de la page Santé repasse `ok`. `RADAR_PHONE_HMAC_PREVIOUS_KEYS` reste vide. Les refus déjà écrits
+  sous le repli restent reconnus tant que l'`APP_KEY` qui les a écrits est la courante ou figure dans
+  `APP_PREVIOUS_KEYS` ; ne **pas** recopier `APP_KEY` dans `RADAR_PHONE_HMAC_PREVIOUS_KEYS` ;
+- production (TCK-517, phase F) : la même clé, valeur distincte, **avant le premier démarchage** ;
+- les deux : une copie hors du VPS, comme `APP_KEY`. Une rotation (après une fuite seulement) passe l'ancienne valeur
+  dans `RADAR_PHONE_HMAC_PREVIOUS_KEYS`, puis `radar:rehash-phones`. **Une ancienne clé ne se retire jamais** : un refus
+  purgé ne dit pas sous quelle clé il a été écrit ([ADR-0082](../adr/0082-l-empreinte-des-refus-du-radar-a-sa-propre-cle.md)).
 
 **À poser par le porteur — TCK-598, ADR-0052** (ni Dokploy ni Vercel ne les portaient au 2026-10-08 ; re-mesuré le 2026-10-18 : seule `API_INTERNAL_URL` est posée, sur `takussan-web-preview`) :
 

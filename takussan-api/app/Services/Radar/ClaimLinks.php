@@ -13,8 +13,10 @@ use Carbon\CarbonInterface;
  * TCK-2390 (ADR-0077 §3) — le lien de réclamation : propre à l'annonceur, signé, à durée limitée, et mort après un STOP
  * ou une révocation. Le message d'accord (`accord.v2`, `{lien_reclamation}`) et le second message (`publie.v2`) le portent.
  *
- * Le jeton est `{annonceur}.{émis_à}.{signature}` : HMAC-SHA256 tronqué à 128 bits, clé dérivée de `app.key` (comme
- * {@see RadarPhone::hmac()}). **Rien n'est stocké** : l'expiration se calcule à la lecture
+ * Le jeton est `{annonceur}.{émis_à}.{signature}` : HMAC-SHA256 tronqué à 128 bits, clé dérivée de `app.key`, et
+ * reconnue sous `APP_PREVIOUS_KEYS` comme les URL signées de Laravel. TCK-2414 : PAS sous la clé dédiée des refus
+ * ({@see RadarPhone::hmac()}) — une rotation d'`APP_KEY` peut tuer un lien (le suivant en porte un neuf), elle ne doit
+ * jamais faire oublier un refus. **Rien n'est stocké** : l'expiration se calcule à la lecture
  * (`émis_à` + `radar.claim.link_ttl_days`), et la révocation se lit dans l'état de l'annonceur. Un jeton se recompose
  * donc à l'identique depuis `émis_à` — c'est ce qui garde le texte enregistré d'un message, celui de son lien `wa.me` et
  * l'aperçu de la console sur une seule chaîne, quand `émis_à` est le `created_at` du message.
@@ -95,21 +97,23 @@ final class ClaimLinks
     {
         $parts = explode('.', $token);
 
-        return count($parts) === 3 && ctype_digit($parts[0]) && ctype_digit($parts[1])
-            && hash_equals(self::sign($parts[0].'.'.$parts[1]), $parts[2])
-            ? [$parts[0], $parts[1]]
-            : null;
+        if (count($parts) !== 3 || ! ctype_digit($parts[0]) || ! ctype_digit($parts[1])) {
+            return null;
+        }
+        foreach ([config('app.key'), ...(array) config('app.previous_keys', [])] as $appKey) {
+            if (hash_equals(self::sign($parts[0].'.'.$parts[1], $appKey), $parts[2])) {
+                return [$parts[0], $parts[1]];
+            }
+        }
+
+        return null;
     }
 
-    private static function sign(string $payload): string
+    private static function sign(string $payload, mixed $appKey = null): string
     {
-        $raw = substr(hash_hmac('sha256', 'radar-claim|'.$payload, self::key(), true), 0, self::SIGNATURE_BYTES);
+        $key = 'radar-claim|'.($appKey ?? config('app.key'));
+        $raw = substr(hash_hmac('sha256', 'radar-claim|'.$payload, $key, true), 0, self::SIGNATURE_BYTES);
 
         return rtrim(strtr(base64_encode($raw), '+/', '-_'), '=');
-    }
-
-    private static function key(): string
-    {
-        return 'radar-claim|'.config('app.key');
     }
 }

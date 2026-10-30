@@ -7,7 +7,7 @@ family: technique
 estimate: M
 wave: 64
 created: 2026-09-13
-updated: 2026-10-20
+updated: 2026-10-30
 depends_on: [TCK-516, TCK-518, TCK-519, TCK-520, TCK-522, TCK-523, TCK-524, TCK-526]
 blocks: []
 spec_refs:
@@ -57,6 +57,8 @@ tâches F1 à F5. **Ne s'ouvre que sur la décision du porteur** — pas avant t
   - P74.05 : `REVOKE CONNECT ON DATABASE postgres FROM PUBLIC` aux étapes A4 et F1, et la note sur
     l'authentification basique ;
   - P73.03 : relever ce que Traefik journalise de la chaîne de requête.
+- [ ] Poser `RADAR_PHONE_HMAC_KEY`, valeur distincte de la préproduction, avant le premier démarchage (TCK-2414,
+  ADR-0082) ; la ranger hors du VPS comme `APP_KEY`.
 
 ## Critères d'acceptation
 

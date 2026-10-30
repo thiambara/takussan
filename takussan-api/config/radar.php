@@ -9,16 +9,22 @@ use App\Services\Radar\Similarity\TrigramTextSimilarity;
 | Radar — ADR-0077
 |--------------------------------------------------------------------------
 | Squelette posé par TCK-2386 (les données) ; la lecture d'URL, les bornes et les captures s'y
-| ajoutent avec leurs tâches. Aucune clé ne se lit dans l'environnement : ce lot n'ajoute aucune
-| variable (`scripts/check-env-parity.mjs`).
+| ajoutent avec leurs tâches. Seules les clés de l'empreinte se lisent dans l'environnement
+| (TCK-2414), déclarées dans `.env.example` et `.env.docker` (`scripts/check-env-parity.mjs`).
 */
 
 return [
 
-    // ADR-0077 §9 — la clé de l'empreinte (HMAC) du numéro d'un annonceur qui a dit STOP. Null :
-    // `RadarPhone` la dérive de `app.key`. Une clé dédiée se pose ici le jour où l'on veut pouvoir
-    // faire tourner `app.key` sans perdre les refus.
-    'phone_hmac_key' => null,
+    // ADR-0077 §9, TCK-2414 — la clé de l'empreinte (HMAC) du numéro d'un annonceur qui a dit STOP.
+    // Vide : `RadarPhone` la dérive de `app.key`, et une rotation d'`APP_KEY` sans `APP_PREVIOUS_KEYS`
+    // rend les refus méconnaissables (le numéro en clair est purgé). À poser avant la production ;
+    // la sonde de santé `radar_phone_key` la réclame hors `local`. Elle ne tourne qu'avec l'ancienne
+    // valeur gardée dans `phone_hmac_previous_keys`, puis `php artisan radar:rehash-phones`.
+    'phone_hmac_key' => env('RADAR_PHONE_HMAC_KEY'),
+
+    // TCK-2414 — les clés précédentes, séparées par des virgules : une lecture y reconnaît encore un
+    // refus. Une ancienne clé ne se retire JAMAIS : un refus purgé ne dit pas sous quelle clé il a été écrit (ADR-0082).
+    'phone_hmac_previous_keys' => array_values(array_filter(array_map('trim', explode(',', (string) env('RADAR_PHONE_HMAC_PREVIOUS_KEYS', ''))))),
 
     // ADR-0077 §9 — la purge : le texte brut, les captures et le téléphone d'une annonce jamais
     // publiée s'effacent 90 jours après la collecte.

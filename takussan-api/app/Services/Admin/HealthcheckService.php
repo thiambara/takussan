@@ -8,6 +8,7 @@ use App\Models\Enums\PaymentProvider;
 use App\Models\Integration;
 use App\Models\Property;
 use App\Services\Media\Cdn\CdnProviderContract;
+use App\Support\RadarPhone;
 use App\Support\TrustedProxyList;
 use GuzzleHttp\Client as HttpClient;
 use Illuminate\Contracts\Filesystem\Filesystem;
@@ -156,6 +157,7 @@ class HealthcheckService
             'scheduler' => $this->check(fn (): array => $this->scheduler()),
             'proxies' => $this->check(fn (): array => $this->proxies()),
             'lemon_squeezy_webhook' => $this->check(fn (): array => $this->lemonSqueezyWebhook()),
+            'radar_phone_key' => $this->check(fn (): array => $this->radarPhoneKey()),
         ];
 
         $snapshot = [
@@ -482,6 +484,22 @@ class HealthcheckService
             ->exists();
 
         return $active ? ['status' => 'degraded', 'reason' => 'signing_secret_missing'] : [];
+    }
+
+    /**
+     * TCK-2414 (ADR-0077 §9) — hors `local` et `testing`, la clé dédiée de l'empreinte des refus du Radar
+     * (`RADAR_PHONE_HMAC_KEY`). Sans elle, l'empreinte dérive d'`APP_KEY` : une rotation sans `APP_PREVIOUS_KEYS`
+     * rendrait méconnaissables les numéros qui ont dit STOP, purgés en clair. `degraded` : rien ne casse aujourd'hui.
+     *
+     * @return array<string,mixed>
+     */
+    private function radarPhoneKey(): array
+    {
+        if (RadarPhone::hasDedicatedKey() || app()->environment(['local', 'testing'])) {
+            return [];
+        }
+
+        return ['status' => 'degraded', 'reason' => 'radar_phone_key_missing'];
     }
 
     /**
