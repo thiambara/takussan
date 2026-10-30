@@ -89,11 +89,19 @@ Aucun endpoint, aucune migration. `App\Support\PhoneMasker` et son miroir `scrip
   - `PhoneMasker::CODED_SENEGAL` (miroir `SENEGAL_A_INDICATIF`), dans `FOREIGN` : ailleurs, là où `FOREIGN` lisait déjà un
     numéro étranger (garde par lookahead, bornes comprises), un indicatif suivi d'un numéro sénégalais à indicatif l'englobe en
     entier, à groupement libre, sans s'étendre sur un numéro tronqué suivi d'un autre (`WHOLE_NUMBER_END`). Pas de contact.
-- **`NOT_SENEGAL_ZONE` n'a plus qu'un exemplaire dans `CC1_NUMBER`** (devant le `(0)` de trunk, qu'elle lit) : PCRE refusait le
-  motif (« regular expression is too large »). Marge mesurée après coup : `MASK_PATTERN` (36 368 octets de source) casse si on lui
-  ajoute 4 copies de `SENEGAL_LOOSE` (~5,5 ko) ; `RadarPhone::FLOOR_PLUS`, 8 copies.
-- **Limites, identiques à `dev`** : `Villa R+1 00221 77 012 34 56 78` (un groupe de plus derrière) laisse `34 56 78` en clair ;
-  `Villa R+1 00221 77 012 34 / 78 123 45 67` (numéro tronqué) laisse `34`. Épinglées dans le fixture.
+- **`NOT_SENEGAL_ZONE` n'a plus qu'un exemplaire dans `CC1_NUMBER`** (devant le `(0)` de trunk, qu'elle lit).
+- **Les sous-motifs lus par plusieurs branches sont définis une fois** dans `PhoneMasker::DEFINITIONS` (`(?(DEFINE)…)` en fin de
+  motif, appelés par `(?&pm_…)`) : `SENEGAL`, `SENEGAL_LOOSE`, `SENEGAL_WITH_CODE`, `AFTER_CC`, `END`, `FOREIGN_NUMBER`,
+  `CC1_NUMBER`. `RadarPhone::FLOOR_PLUS` les reprend. Raison : un motif de 36 ko compilait avec le PCRE2 10.49 du poste et
+  levait « regular expression is too large » avec la 10.44 de l'image de production (`dunglas/frankenphp:1.13.2`). Mesuré dans
+  l'image : `MASK_PATTERN` 16 546 octets de source (20 468 sur `dev`), marge de 7 copies de `SENEGAL_LOOSE` (~67 ko), comme
+  `dev` ; `FLOOR_PLUS` 11 458 octets, marge de 9 (6 sur `dev`). Le miroir JS garde sa forme : la parité se juge au comportement.
+  `deploy/takussan/smoke-api.sh image` appelle désormais `mask()` et `contactsFromText()` dans l'image.
+- **« Sans chiffre derrière » admet un nombre d'un à trois chiffres, sans 0 en tête, suivi d'un mot** (`NOTHING_GLUED`, miroir
+  `RIEN_COLLE`) : `… 34 56 3 chambres`, une ligne suivante `2 salons`, `1er étage`. Pas `000 F`, la fin d'un montant.
+- **Limites, identiques à `dev`** : un numéro suivi d'un groupe de chiffres que ne suit pas un mot (`… 34 56 78 90`,
+  `… 34 56 1234 m2`, `… 34 56 000 F`, `… 34 56 12 500 F`) laisse sa fin en clair ; un numéro tronqué suivi d'un autre
+  (`Villa R+1 00221 77 012 34 / 78 123 45 67`) laisse `34`. Épinglées dans le fixture ; suite : TCK-2454.
 
 ### Décisions prises en autonomie, à revoir
 
@@ -111,3 +119,9 @@ Aucun endpoint, aucune migration. `App\Support\PhoneMasker` et son miroir `scrip
    `Villa R+1 00221 77 012 34 56 / 78 123 45 67` est masqué en entier, mais ne donne que le second contact, comme sur `dev`.
 5. **`CODED_SENEGAL` seulement là où `FOREIGN` lisait déjà un numéro.** Écarté : sans garde. Raison : sans elle,
    `Immeuble R+20 221 7 7 1 2 3 4 5 6 7` et `Contact +1 (221) 770123456` perdaient un contact sans qu'aucune fuite ne soit fermée.
+6. **Un petit nombre suivi d'un mot n'est pas au numéro** (`NOTHING_GLUED`), sauf s'il commence par 0. Écarté : l'admettre
+   aussi (`… 34 56 000 F` se masquait en entier mais `77 012 3 / 450 000 F` perdait son prix de 450 000 F). Coût : `… 34 56 000 F`
+   reste lu comme sur `dev` (`34 56` en clair, prix 56 000).
+7. **Le job CI « Image de l'API (construite, pas poussée) » ne joue pas `smoke-api.sh`** : il construit l'image sans la charger.
+   La sonde du masqueur n'y tourne donc pas ; elle tourne à chaque `smoke-api.sh image` lancé à la main. Pas ajoutée à la CI dans
+   ce ticket (le porteur décide).

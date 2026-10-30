@@ -64,10 +64,34 @@ verifier_image() {
   dans test -w /config/psysh || echec "/config/psysh n'est pas inscriptible : artisan tinker meurt sous www-data"
   ok "artisan tinker utilisable"
 
+  verifier_masqueur_compile
   verifier_delai_d_execution
   verifier_exif_retire
   verifier_journal_des_exceptions
   verifier_refus_trop_gros_lisible
+}
+
+# TCK-2451 — le motif du masqueur (`PhoneMasker::MASK_PATTERN`) et celui des étages du Radar (`RadarPhone`)
+# compilent avec le PCRE2 de l'IMAGE, pas seulement celui du poste. PCRE2 plafonne la taille d'un motif
+# compilé, et le plafond change d'une version à l'autre : un motif de 36 ko compilait avec PCRE2 10.49
+# (brew) et levait « regular expression is too large » avec la 10.44 de l'image — tout masquage levait
+# alors `ai.phone_mask_failed`, et le Radar ne lisait plus aucun numéro (`[]`), sans qu'aucun test le
+# voie. Mesuré le 2026-10-30 : sur le motif de 36 ko, cette sonde sort en 1.
+verifier_masqueur_compile() {
+  # shellcheck disable=SC2016 # du PHP, évalué dans le conteneur.
+  dans php -r '
+    require "/app/vendor/autoload.php";
+    $attendus = [
+        "Tel 77 123 45 67" => "Tel [TELEPHONE]",
+        "Villa R+1 00221 77 012 34 56 3 chambres" => "Villa R+1 [TELEPHONE] 3 chambres",
+    ];
+    foreach ($attendus as $texte => $masque) {
+        if (App\Support\PhoneMasker::mask($texte) !== $masque) { fwrite(STDERR, "masque faux : $texte\n"); exit(1); }
+    }
+    if (App\Support\RadarPhone::contactsFromText("Villa R+1 00221 77 012 34 56") !== ["+221770123456"]) {
+        fwrite(STDERR, "contact du Radar perdu\n"); exit(1);
+    }' || echec "le masqueur ne compile pas avec le PCRE2 de l'image (ou masque faux) : PhoneMasker::mask lève, le Radar ne lit plus rien"
+  ok "le masqueur et les étages du Radar compilent avec le PCRE2 de l'image"
 }
 
 # TCK-2370 (P236.01) — le 413 que Caddy rend avant `php_server` (corps de plus de 25 Mio) porte les

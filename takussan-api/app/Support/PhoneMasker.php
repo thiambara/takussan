@@ -57,7 +57,7 @@ final class PhoneMasker
      * se grouper comme on veut (`+221 771 234 567`, `+221 77 12 345 67`, `+221 7 7 1 2 3 4 5 6 7`), et une
      * lettre `F` derrière n'en fait pas un prix. Préfixes de l'ARTP seulement : `+221 74 …` reste le fictif.
      */
-    private const SENEGAL_WITH_CODE = '(?<![0-9])(?:\+'.self::WS.'{0,2}|00'.self::WS.'?)221'.self::AFTER_CC.self::SEP.'{0,3}'
+    private const SENEGAL_WITH_CODE = '(?<![0-9])(?:\+'.self::WS.'{0,2}|00'.self::WS.'?)221'.self::CALL_AFTER_CC.self::SEP.'{0,3}'
         .self::PREFIX_SPACED.'(?:'.self::SEP.'{0,3}[0-9]){7}(?![0-9])';
 
     /**
@@ -187,7 +187,10 @@ final class PhoneMasker
      * L'indicatif `1` ou `7` et le numéro complet qui le suit : ce qui, derrière un `+` d'étage, n'est pas un étage. Le `(0)`
      * de trunk, que `FOREIGN` admet par `AFTER_CC`, aussi (TCK-2445 : `RDC +7 (0)495 123-45-67` partait en clair).
      */
-    public const CC1_NUMBER = '[17]'.self::NOT_SENEGAL_ZONE.'(?:(?<=1)'.self::TRUNK_ZERO.'(?:'.self::CC1_REST.'|'.self::NANP_REST.'|'.self::ZONE_REST.')'
+    public const CC1_NUMBER = '(?&pm_n1)';
+
+    /** Le corps de `CC1_NUMBER`, défini une fois dans `DEFINITIONS`. */
+    private const CC1_NUMBER_BODY = '[17]'.self::NOT_SENEGAL_ZONE.'(?:(?<=1)'.self::TRUNK_ZERO.'(?:'.self::CC1_REST.'|'.self::NANP_REST.'|'.self::ZONE_REST.')'
         .'|(?<=7)'.self::TRUNK_ZERO.'(?:'.self::CC1_REST.'|'.self::CC7_REST.'))';
 
     /**
@@ -203,21 +206,29 @@ final class PhoneMasker
      * l'étage ne reste un étage que si le numéro est masqué en entier. Les autres écritures restent lues par `FOREIGN`, qui
      * englobe alors le numéro (`CODED_SENEGAL`).
      *
-     * Placée derrière le `1` ou le `7` et devant le `(0)` de trunk (qu'elle lit) : un seul exemplaire pour les deux indicatifs,
-     * le motif en contient trois (PCRE plafonne la taille d'un motif compilé).
+     * « Sans chiffre derrière » admet un petit nombre suivi d'un mot (`NOTHING_GLUED`) : `… 34 56 3 chambres`, une ligne suivante
+     * `2 salons`. Placée derrière le `1` ou le `7` et devant le `(0)` de trunk (qu'elle lit) : un seul exemplaire pour les deux
+     * indicatifs.
      */
-    private const NOT_SENEGAL_ZONE = '(?!'.self::TRUNK_ZERO.self::SEP.'{0,3}(?:\(221\)'.self::SEP.'{0,3}'.self::SENEGAL.self::END
-        .'|(?:\(221\)'.self::SEP.'{0,3}'.self::SENEGAL_LOOSE.self::END.'|(?=00)'.self::SENEGAL.'(?![0-9])|(?=221)'.self::SENEGAL.self::END.')'
-        .'(?!'.self::SEP.'{0,3}[0-9])))';
+    private const NOT_SENEGAL_ZONE = '(?!'.self::TRUNK_ZERO.self::SEP.'{0,3}(?:\(221\)'.self::SEP.'{0,3}'.self::CALL_SENEGAL.self::CALL_END
+        .'|(?:\(221\)'.self::SEP.'{0,3}'.self::CALL_LOOSE.self::CALL_END.'|(?=00)'.self::CALL_SENEGAL.'(?![0-9])|(?=221)'.self::CALL_SENEGAL.self::CALL_END.')'
+        .self::NOTHING_GLUED.'))';
+
+    /**
+     * TCK-2451 — derrière un numéro, aucun chiffre à trois séparateurs près, sauf un nombre d'un à trois chiffres suivi d'un mot
+     * (`3 chambres`, `1er étage`, `\n2 salons`) : la règle de `FOREIGN` (« `… 56 78 3 chambres` : le `3` n'est pas au numéro »).
+     * Pas un nombre qui commence par 0 : `000 F` est la fin d'un montant (`77 012 3 / 450 000 F`), pas un compte.
+     */
+    private const NOTHING_GLUED = '(?:(?!'.self::SEP.'{0,3}[0-9])|(?='.self::SEP.'{1,3}[1-9][0-9]{0,2}'.self::WS.'*\p{L}))';
 
     /**
      * TCK-2451 — la fin d'un numéro sénégalais lu derrière un indicatif étranger (`CODED_SENEGAL`) : aucun chiffre ne le prolonge
      * à trois séparateurs près, sauf le début d'un autre numéro entier (`… 34 56 / 78 123 45 67`). Sans elle, un numéro tronqué
      * suivi d'un autre (`+1 00221 77 012 34 / 78 123 45 67`) se lisait jusqu'au `78`, et `123 45 67` partait en clair.
-     * `NOT_SENEGAL_ZONE` s'en tient à « aucun chiffre » : elle figure trois fois dans le motif, et PCRE plafonne sa taille.
+     * Un petit nombre suivi d'un mot est admis aussi (`NOTHING_GLUED`).
      */
-    private const WHOLE_NUMBER_END = '(?![0-9])(?:(?!'.self::SEP.'{0,3}[0-9])|(?='.self::SEP.'{0,3}(?:'.self::SENEGAL_WITH_CODE
-        .'|'.self::SENEGAL.self::END.'|'.self::SENEGAL_LOOSE.self::END.')))';
+    private const WHOLE_NUMBER_END = '(?![0-9])(?:'.self::NOTHING_GLUED.'|(?='.self::SEP.'{0,3}(?:'.self::CALL_WITH_CODE
+        .'|'.self::CALL_SENEGAL.self::CALL_END.'|'.self::CALL_LOOSE.self::CALL_END.')))';
 
     /** Le `(0)` de trunk facultatif derrière l'indicatif, comme dans `AFTER_CC`. */
     private const TRUNK_ZERO = '(?:'.self::WS.'?\(0\))?';
@@ -251,12 +262,15 @@ final class PhoneMasker
      * TCK-2441 — ce que `FOREIGN` lit derrière le `+` ou le `00` : un indicatif ITU et le nombre de chiffres de son plan.
      * Lu aussi par `RadarPhone::FLOOR_PLUS` : derrière `R+` collé, un numéro étranger complet garde son `+`.
      */
-    public const FOREIGN_NUMBER = '(?:'
-        .'33'.self::AFTER_CC.'(?:'.self::SEP.'{0,3}[0-9]){9}'
-        .'|'.self::CC1.self::AFTER_CC.'(?:'.self::SEP.'?\([0-9]{3}\)(?:'.self::SEP.'{0,3}[0-9]){7}|(?:'.self::SEP.'{0,3}[0-9]){10})'
-        .'|7'.self::AFTER_CC.self::CC7_LONG_ZONE
-        .'|'.self::CC2.self::AFTER_CC.'(?:'.self::SEP.'{0,3}[0-9]){7,11}'
-        .'|'.self::CC3.self::AFTER_CC.'(?:'.self::SEP.'{0,3}[0-9]){6,10})';
+    public const FOREIGN_NUMBER = '(?&pm_fn)';
+
+    /** Le corps de `FOREIGN_NUMBER`, défini une fois dans `DEFINITIONS`. */
+    private const FOREIGN_NUMBER_BODY = '(?:'
+        .'33'.self::CALL_AFTER_CC.'(?:'.self::SEP.'{0,3}[0-9]){9}'
+        .'|'.self::CC1.self::CALL_AFTER_CC.'(?:'.self::SEP.'?\([0-9]{3}\)(?:'.self::SEP.'{0,3}[0-9]){7}|(?:'.self::SEP.'{0,3}[0-9]){10})'
+        .'|7'.self::CALL_AFTER_CC.self::CC7_LONG_ZONE
+        .'|'.self::CC2.self::CALL_AFTER_CC.'(?:'.self::SEP.'{0,3}[0-9]){7,11}'
+        .'|'.self::CC3.self::CALL_AFTER_CC.'(?:'.self::SEP.'{0,3}[0-9]){6,10})';
 
     /**
      * TCK-2451 — un indicatif étranger suivi d'un numéro sénégalais écrit avec son indicatif (`00221`, `221` nu, et `(221)`
@@ -267,8 +281,8 @@ final class PhoneMasker
      * 3 4 5 6 7` et `Contact +1 (221) 770123456`, que `FOREIGN` ne lisait pas, gardent leur contact. Ce n'est pas un contact du
      * Radar (l'indicatif étranger reste devant), comme avant.
      */
-    private const CODED_SENEGAL = '(?:'.self::CC1.self::AFTER_CC.self::SEP.'?\(221\)|(?:'.self::CC1.'|'.self::CC2.'|'.self::CC3.')'
-        .self::AFTER_CC.self::SEP.'{0,3}(?:00'.self::WS.'?)?221)'.self::SEP.'{0,3}'.self::PREFIX_SPACED.'(?:'.self::SEP.'{0,3}[0-9]){7}'.self::WHOLE_NUMBER_END;
+    private const CODED_SENEGAL = '(?:'.self::CC1.self::CALL_AFTER_CC.self::SEP.'?\(221\)|(?:'.self::CC1.'|'.self::CC2.'|'.self::CC3.')'
+        .self::CALL_AFTER_CC.self::SEP.'{0,3}(?:00'.self::WS.'?)?221)'.self::SEP.'{0,3}'.self::PREFIX_SPACED.'(?:'.self::SEP.'{0,3}[0-9]){7}'.self::WHOLE_NUMBER_END;
 
     /**
      * Le lien WhatsApp canonique, qui écrit le numéro sans `+` : `wa.me/33612345678`,
@@ -294,12 +308,34 @@ final class PhoneMasker
      * plus son indicatif explicite et ses groupements libres), un numéro étranger, un lien WhatsApp
      * (TCK-2410). L'indicatif explicite passe en premier : `+221 77 …` est un seul numéro.
      */
-    public const MASK_PATTERN = '/(?:'.self::SENEGAL_WITH_CODE
-        .'|'.self::SENEGAL.self::END
-        .'|'.self::SENEGAL_LOOSE.self::END
+    public const MASK_PATTERN = '/(?:'.self::CALL_WITH_CODE
+        .'|'.self::CALL_SENEGAL.self::CALL_END
+        .'|'.self::CALL_LOOSE.self::CALL_END
         .'|'.self::SENEGAL_SEPARATED
         .'|'.self::FOREIGN
-        .'|'.self::LINK.')/iu';
+        .'|'.self::LINK.')'.self::DEFINITIONS.'/iu';
+
+    /**
+     * TCK-2451 — les sous-motifs que plusieurs branches lisent, définis UNE fois et appelés par `(?&pm_…)` : recopiés à chaque
+     * usage, ils portaient `MASK_PATTERN` à 36 ko de source, et PCRE2 10.44 (celle de l'image de production,
+     * `dunglas/frankenphp`) le refusait (« regular expression is too large ») quand 10.49 l'acceptait. Placé en fin de motif :
+     * les groupes numérotés qui le précèdent gardent leur numéro (`$1`, `$2` de `RadarPhone::FLOOR_PLUS`). Tout motif qui lit
+     * `CC1_NUMBER`, `FOREIGN_NUMBER` ou `FLOOR_AFTER_PLUS` doit le porter. Le miroir JS
+     * (`scripts/check-ai-evals-pii.mjs`) garde la forme recopiée : sa parité se juge sur le comportement (fixture partagé).
+     * Le smoke de l'image (`deploy/takussan/smoke-api.sh image`) éprouve la compilation sur la PCRE de production.
+     */
+    public const DEFINITIONS = '(?(DEFINE)(?<pm_sn>'.self::SENEGAL.')(?<pm_sl>'.self::SENEGAL_LOOSE.')(?<pm_sc>'.self::SENEGAL_WITH_CODE.')'
+        .'(?<pm_ac>'.self::AFTER_CC.')(?<pm_end>'.self::END.')(?<pm_fn>'.self::FOREIGN_NUMBER_BODY.')(?<pm_n1>'.self::CC1_NUMBER_BODY.'))';
+
+    private const CALL_SENEGAL = '(?&pm_sn)';
+
+    private const CALL_LOOSE = '(?&pm_sl)';
+
+    private const CALL_WITH_CODE = '(?&pm_sc)';
+
+    private const CALL_AFTER_CC = '(?&pm_ac)';
+
+    private const CALL_END = '(?&pm_end)';
 
     public const TOKEN = '[TELEPHONE]';
 

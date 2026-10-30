@@ -301,16 +301,20 @@ class RadarPhoneTest extends TestCase
     {
         foreach (['Villa R+1 00221 77 012 34 56', 'Villa R+7 00221 77 012 34 56', 'Villa RDC +1 00221 77 012 34 56',
             'Villa R+1  00221 77 012 34 56', 'Villa R+1 00221 77 012 34 56 F', 'Villa R+1 221 77 012 34 56',
-            'Villa R+7 221 77 012 34 56', 'Villa R+1 (221) 77 01 234 56', 'Villa R+7 (221) 77 01 234 56'] as $texte) {
+            'Villa R+7 221 77 012 34 56', 'Villa R+1 (221) 77 01 234 56', 'Villa R+7 (221) 77 01 234 56',
+            // Un petit nombre suivi d'un mot, ou une ligne suivante qui commence par un chiffre, n'est pas au numéro.
+            'Villa R+1 00221 77 012 34 56 3 chambres', "Villa R+1 00221 77 012 34 56\n2 salons",
+            'Villa R+7 221 77 012 34 56 3 chambres', 'Villa R+1 (221) 77 01 234 56 3 chambres'] as $texte) {
             $this->assertSame(['+221770123456'], RadarPhone::fromText($texte), $texte);
             $this->assertSame(['+221770123456'], RadarPhone::contactsFromText($texte), $texte);
         }
 
         // Décisions : un `221` nu devant un autre groupement, ou devant un numéro que suit une marque, et un étage de 20 ou
         // plus qui est un indicatif, restent lus comme un numéro étranger qui englobe le numéro sénégalais : contact perdu,
-        // plutôt qu'inventé, et rien en clair (fixture partagé).
+        // plutôt qu'inventé, et rien en clair (fixture partagé). Un groupe de chiffres sans mot derrière le numéro (`… 56 78`),
+        // ou qui commence par 0 (`… 56 000 F`), le laisse lu comme sur dev : contact perdu, limite connue du masqueur.
         foreach (['Villa R+1 221 77 01 234 56', 'Villa R+1 221 77 012 34 56 F', 'Immeuble R+20 00221 77 123 45 67',
-            'Immeuble R+30 221 77 123 45 67'] as $texte) {
+            'Immeuble R+30 221 77 123 45 67', 'Villa R+1 00221 77 012 34 56 78', 'Villa R+1 00221 77 012 34 56 000 F'] as $texte) {
             $this->assertSame([], RadarPhone::contactsFromText($texte), $texte);
         }
 

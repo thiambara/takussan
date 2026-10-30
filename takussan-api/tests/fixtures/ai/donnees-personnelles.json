@@ -311,6 +311,16 @@
     "étage TCK-2451 — hors d'un étage, +1 00221 puis un numéro suivi d'un autre": ["Contact +1 00221 77 012 34 56 / 78 123 45 67", "Contact [TELEPHONE] / [TELEPHONE]"],
     "étage TCK-2451 limite assumée — R+1, 00221 puis un numéro tronqué suivi d'un autre : lu comme sur dev, la lecture ne déborde pas sur le second": ["Villa R+1 00221 77 012 34 / 78 123 45 67", "Villa R[TELEPHONE] 34 / [TELEPHONE]"],
     "étage TCK-2451 limite assumée — hors d'un étage, +1 00221 puis un numéro tronqué suivi d'un autre": ["Contact +1 00221 77 012 34 / 78 123 45 67", "Contact [TELEPHONE] 34 / [TELEPHONE]"],
+    "étage TCK-2451 — R+1, 00221 puis un numéro suivi d'un petit nombre et d'un mot : le nombre n'est pas au numéro, l'étage reste": ["Villa R+1 00221 77 012 34 56 3 chambres", "Villa R+1 [TELEPHONE] 3 chambres"],
+    "étage TCK-2451 — R+1, 00221 puis un numéro, la ligne suivante commence par un chiffre": ["Villa R+1 00221 77 012 34 56\n2 salons", "Villa R+1 [TELEPHONE]\n2 salons"],
+    "étage TCK-2451 — R+1, 00221 puis un numéro suivi de « 1er étage »": ["Villa R+1 00221 77 012 34 56 1er étage", "Villa R+1 [TELEPHONE] 1er étage"],
+    "étage TCK-2451 — R+1, 00221 puis un numéro, une virgule, un petit nombre et un prix": ["Villa R+1 00221 77 012 34 56, 4 pièces 450 000 F", "Villa R+1 [TELEPHONE], 4 pièces 450 000 F"],
+    "étage TCK-2451 — R+7, 221 nu puis un numéro suivi d'un petit nombre et d'un mot": ["Villa R+7 221 77 012 34 56 3 chambres", "Villa R+7 [TELEPHONE] 3 chambres"],
+    "étage TCK-2451 — R+1, (221) puis un numéro à groupement libre suivi d'un petit nombre et d'un mot": ["Villa R+1 (221) 77 01 234 56 3 chambres", "Villa R+1 (221) [TELEPHONE] 3 chambres"],
+    "étage TCK-2451 — hors d'un étage, +1 00221 puis un numéro suivi d'un petit nombre et d'un mot : englobé en entier": ["Contact +1 00221 77 012 34 56 3 chambres", "Contact [TELEPHONE] 3 chambres"],
+    "étage TCK-2451 limite assumée — R+1, 00221 puis un numéro suivi d'un groupe qui commence par 0 (fin de montant) : lu comme sur dev": ["Villa R+1 00221 77 012 34 56 000 F", "Villa R[TELEPHONE] 34 56 000 F"],
+    "étage TCK-2451 limite assumée — R+1, 00221 puis un numéro suivi de groupes de chiffres sans mot : lu comme sur dev": ["Villa R+1 00221 77 012 34 56 78 90", "Villa R[TELEPHONE] 34 56 78 90"],
+    "étage TCK-2451 limite assumée — R+1, 00221 puis un numéro suivi d'un nombre de quatre chiffres : lu comme sur dev": ["Villa R+1 00221 77 012 34 56 1234 m2", "Villa R[TELEPHONE] 34 56 1234 m2"],
     "étage TCK-2451 — +1 (221) puis neuf chiffres collés, que le numéro +1 ne lit pas : inchangé": ["Contact +1 (221) 770123456", "Contact +1 (221) [TELEPHONE]"]
   },
   "courriels": {
