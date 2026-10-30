@@ -779,6 +779,8 @@ return [
             'mandate_support_required' => 'Your listings published by Takussan cannot be taken back from this page: write to us and we will move them into your space.',
             // TCK-2421 — l'espace de l'annonceur n'est pas actif (suspendu ou inactif) : ses biens restent sous mandat, en ligne.
             'space_suspended' => 'Your Takussan space is not active: your listings stay published by Takussan on your behalf, and you can take them back once your space is restored.',
+            // TCK-2446 — hors mandat, l'espace du compte n'est pas actif : rien ne s'y publie, la réclamation est refusée.
+            'space_unavailable' => 'Your Takussan space is not active: your listings cannot be published there for now. Write to us to reactivate it.',
         ],
         // TCK-2392 — automatic collection and cross-site duplicate merging.
         'merge' => [

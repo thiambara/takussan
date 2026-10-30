@@ -91,6 +91,13 @@ final class RadarClaims
      */
     public const UNDER_MANDATE = 'radar.claim.under_mandate';
 
+    /**
+     * TCK-2446 — hors mandat, le compte que le code ouvrirait a un espace qui n'est pas actif (suspendu ou inactif) : la publication
+     * réclamée n'y entrerait pas ({@see RadarPublisher::publishClaimed()}). Refusé avant le SMS et rejugé à la confirmation, sous le
+     * verrou de l'annonceur. Sous mandat, c'est {@see RadarMandateTakeBack::SPACE_SUSPENDED}, dont le texte parle du mandat.
+     */
+    public const SPACE_UNAVAILABLE = 'radar.claim.space_unavailable';
+
     public function __construct(
         private readonly PhoneLoginService $login,
         private readonly AdvertiserProvisioner $provisioner,
@@ -135,6 +142,9 @@ final class RadarClaims
                 // Connecté avec un AUTRE compte : la page le dit plutôt que de publier ailleurs.
                 'viewer_is_other' => $viewer !== null && ! $isOwner,
                 'space' => $isOwner ? $this->spaceOf($state['user']) : null,
+                // TCK-2446 — hors mandat, l'envoi du code sera refusé (`space_unavailable`) : la page le dit d'avance. Rien de plus
+                // que ce refus, qui vient avant la connexion exigée : le porteur du lien l'apprend par lui de toute façon.
+                'space_unavailable' => ! $advertiser->underMandate() && $this->spaceInactive($state),
             ],
             'listings' => $this->claimable($advertiser)->map(fn (RadarListing $listing) => $this->listingOf($listing))->values()->all(),
             // Réclamées, en attente du job : ni case ni bouton, une seconde confirmation ne les reprend pas.
@@ -162,7 +172,7 @@ final class RadarClaims
         abort_code_if($state['state'] === self::STATE_UNAVAILABLE, 422, 'radar.claim.account_unavailable');
         abort_code_if($state['state'] === self::STATE_SUPPORT, 409, 'radar.claim.support_required');
         abort_code_if($state['state'] === self::STATE_MANDATE_SUPPORT, 409, RadarMandateTakeBack::SUPPORT_REQUIRED);
-        $this->refuseSuspendedTakeBack($advertiser, $state);
+        $this->refuseInactiveSpace($advertiser, $state);
         // Un numéro vérifié sur un compte : la connexion d'abord, le code ensuite — un SMS ne se dépense pas pour rien.
         abort_code_if($state['state'] === self::STATE_EXISTING && ! $viewer?->is($state['user']), 409, 'radar.claim.login_required');
         // Connecté à un autre compte, la confirmation refusera : le SMS est refusé avant de partir, avec le même code.
@@ -188,7 +198,7 @@ final class RadarClaims
         abort_code_if($state['state'] === self::STATE_UNAVAILABLE, 422, 'radar.claim.account_unavailable');
         abort_code_if($state['state'] === self::STATE_SUPPORT, 409, 'radar.claim.support_required');
         abort_code_if($state['state'] === self::STATE_MANDATE_SUPPORT, 409, RadarMandateTakeBack::SUPPORT_REQUIRED);
-        $this->refuseSuspendedTakeBack($advertiser, $state);
+        $this->refuseInactiveSpace($advertiser, $state);
         abort_code_if($input['terms_version'] !== PublishReadiness::TERMS_VERSION, 422, 'radar.claim.terms_outdated');
         // Le prénom et le nom de l'espace deviennent publics : aucun numéro, sous aucune forme que le masqueur reconnaît
         // (vérification adverse I-1). Un code, et les champs en cause, que la page affiche sous chacun (le front possède le texte).
@@ -286,6 +296,12 @@ final class RadarClaims
 
         $space = $this->onboarding->autoOnboard($user);
         $agency = $space['agency'];
+        // TCK-2446 — hors mandat, relu sous verrou : l'espace a pu cesser d'être actif depuis la lecture. Sous mandat, la reprise le
+        // rejuge avec son propre code ({@see RadarMandateTakeBack::takeBack()}).
+        if (! $locked->underMandate()) {
+            $status = Agency::query()->whereKey($agency->getKey())->lockForUpdate()->first(['id', 'status'])?->status;
+            abort_code_if($status !== AgencyStatus::Active, 409, self::SPACE_UNAVAILABLE);
+        }
         $spaceName = trim((string) ($input['space_name'] ?? ''));
         // L'annonceur nomme l'espace que le Radar ou la réclamation lui a fait, jamais un espace qu'il avait déjà.
         if ($spaceName !== '' && ($space['created'] || $state === self::STATE_ACTIVATION)) {
@@ -528,18 +544,33 @@ final class RadarClaims
     }
 
     /**
-     * TCK-2421 — sous mandat, le compte vérifié du numéro dont l'espace n'est pas actif : ses biens y quitteraient le public. Refusé
-     * avant le SMS (la reprise le rejuge sous verrou, {@see RadarMandateTakeBack::takeBack()}) ; ils restent sous mandat.
+     * Le compte que le code ouvrirait a un espace qui n'est pas actif : refusé avant le SMS et à la confirmation, avant le code.
+     *  - TCK-2421 — sous mandat, ses biens y quitteraient le public ; ils restent sous mandat (la reprise le rejuge sous verrou,
+     *    {@see RadarMandateTakeBack::takeBack()}).
+     *  - TCK-2446 — hors mandat, la publication réclamée n'y entrerait pas : ni accord `otp` ni rattachement pour rien (rejugé
+     *    sous verrou dans {@see self::claim()}).
      *
      * @param  array{state: string, user: ?User}  $state
      */
-    private function refuseSuspendedTakeBack(RadarAdvertiser $advertiser, array $state): void
+    private function refuseInactiveSpace(RadarAdvertiser $advertiser, array $state): void
     {
         abort_code_if(
-            $advertiser->underMandate() && $state['user'] !== null && $this->takeBack->spaceSuspended($state['user']),
+            $this->spaceInactive($state),
             409,
-            RadarMandateTakeBack::SPACE_SUSPENDED,
+            $advertiser->underMandate() ? RadarMandateTakeBack::SPACE_SUSPENDED : self::SPACE_UNAVAILABLE,
         );
+    }
+
+    /**
+     * Le compte que le code ouvrirait a un espace qui n'est pas actif — la définition des trois autres portes
+     * ({@see RadarMandateTakeBack::spaceSuspended()}). Sans compte (`new`, ou un état sans compte), rien à juger ; le compte du
+     * Radar dont l'espace n'est pas actif est déjà `unavailable` ({@see AdvertiserProvisioner::accountUnavailable()}).
+     *
+     * @param  array{state: string, user: ?User}  $state
+     */
+    private function spaceInactive(array $state): bool
+    {
+        return $state['user'] !== null && $this->takeBack->spaceSuspended($state['user']);
     }
 
     /**

@@ -556,6 +556,8 @@ class RadarMandateTakeBackTest extends TestCase
         $titulaire = User::factory()->create(['phone' => self::NUMERO_ANNONCEUR, 'phone_verified_at' => now()]);
         Agency::factory()->create(['primary_admin_id' => $titulaire->id, 'kind' => 'individual', 'status' => $statut]);
         Sanctum::actingAs($titulaire);
+        // TCK-2446 (AC5) — l'annonce d'avance de la page vaut hors mandat seulement : sous mandat, rien ne change.
+        $this->lire()->assertOk()->assertJsonPath('data.account.space_unavailable', false);
 
         $this->demanderLeCode()->assertStatus(409)->assertJsonPath('code', 'radar.claim.space_suspended');
         $this->assertSame([], $this->sms->sentTo(self::NUMERO_ANNONCEUR));
