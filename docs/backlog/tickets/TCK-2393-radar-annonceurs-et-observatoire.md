@@ -127,7 +127,9 @@ la PR de TCK-2392 puis celle-ci le bascule, dans le même geste que TCK-2392.
   départ de l'adaptateur, pas forcément supprimée du site. Une annonce purgée revue par la collecte reçoit des
   instantanés — **remplacé par la correction de TCK-2392** : la purge détache les instantanés et la collecte n'observe plus
   une annonce purgée ni STOP ; une purgée n'est donc plus jugée et n'alerte plus, même doublure d'un bien
-  (`test_une_annonce_purgee_n_est_plus_jugee_ni_n_alerte`). L'écran dit « absente de la liste lue par la
+  (`test_une_annonce_purgee_n_est_plus_jugee_ni_n_alerte`). La veille exclut, comme la collecte, toute annonce
+  réduite au silence — purgée, `do_not_contact`, annonceur STOP — sans quoi un bien publié dont l'annonceur dit STOP
+  alerterait deux passages plus tard (`test_une_annonce_que_la_collecte_ne_suit_plus_n_est_pas_jugee`). L'écran dit « absente de la liste lue par la
   collecte, deux passages de suite », jamais « n'est plus en ligne », et que le plafond de pages est borné à 20.
 - **`natures` n'est pas anonyme** et ne survit pas à la purge (elle remet la nature à `unknown`) : c'est pourquoi
   AC1 porte sur les sections du marché, et pourquoi TCK-2431 existe. Le garde de colonnes (`raw_text`,

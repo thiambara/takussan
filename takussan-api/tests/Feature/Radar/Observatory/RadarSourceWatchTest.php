@@ -9,9 +9,11 @@ use App\Models\Enums\RadarCrawlStatus;
 use App\Models\Enums\RadarListingStage;
 use App\Models\Enums\RadarSourceSite;
 use App\Models\Property;
+use App\Models\RadarAdvertiser;
 use App\Models\RadarListing;
 use App\Services\Radar\Observatory\RadarSourceWatch;
 use App\Services\Radar\RadarPurger;
+use App\Support\RadarPhone;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
@@ -298,6 +300,40 @@ class RadarSourceWatchTest extends TestCase
         $this->assertNull($doublure->refresh()->source_gone_at);
         $this->assertNull($sansBien->refresh()->source_gone_at);
         $this->assertSame(RadarListingStage::Purged, $doublure->stage);
+        Queue::assertNothingPushed();
+    }
+
+    /**
+     * La collecte ne suit plus une annonce réduite au silence (TCK-2392, `RadarCrawler::silenced()`) : `do_not_contact`, d'un
+     * annonceur qui a dit STOP, ou purgée avec ses instantanés encore attachés (la purge d'une annonce publiée, TCK-2406). Ne
+     * plus la voir ne dit donc rien d'elle : elle n'est pas jugée, et le bien qu'elle a publié n'alerte pas.
+     */
+    public function test_une_annonce_que_la_collecte_ne_suit_plus_n_est_pas_jugee(): void
+    {
+        $this->regle();
+        $stop = RadarAdvertiser::query()->create([
+            'phone' => '+221740000009',
+            'phone_hmac' => RadarPhone::hmac('+221740000009'),
+            'do_not_contact_at' => '2026-10-28 09:00:00',
+        ]);
+        $silencieuses = [
+            $this->annonceCollectee(['stage' => RadarListingStage::Published, 'property_id' => Property::factory()->published()->create()->id, 'radar_advertiser_id' => $stop->id]),
+            $this->annonceCollectee(['stage' => RadarListingStage::DoNotContact, 'duplicate_of_property_id' => Property::factory()->published()->create()->id]),
+            $this->annonceCollectee(['stage' => RadarListingStage::Purged, 'property_id' => Property::factory()->published()->create()->id]),
+        ];
+        foreach ($silencieuses as $annonce) {
+            $this->instantane($annonce, '2026-10-20 08:00:00', '2026-10-28 08:05:00');
+        }
+        $suivie = $this->annonceCollectee();
+        $this->instantane($suivie, '2026-10-20 08:00:00', '2026-10-28 08:05:00');
+        $this->passage('2026-10-28 20:00:00');
+        $this->passage('2026-10-29 08:00:00');
+
+        $this->assertSame(['gone' => 1, 'back' => 0, 'alerts' => 0], $this->observer());
+        $this->assertNotNull($suivie->refresh()->source_gone_at);
+        foreach ($silencieuses as $annonce) {
+            $this->assertNull($annonce->refresh()->source_gone_at);
+        }
         Queue::assertNothingPushed();
     }
 

@@ -9329,7 +9329,7 @@
             },
             "goneSources": {
               "title": "Sources disparues de biens publiés",
-              "description": "L’annonce d’origine d’un bien publié est absente de la liste lue par la collecte, deux passages de suite : elle a peut-être été retirée (bien loué ou vendu), ou déplacée. Si la liste d’un site dépasse le plafond de pages de sa collecte (5 par défaut), montez ce plafond dans l’onglet Collecte : il est borné à 20 pages, et au-delà aucune disparition n’est constatée sur ce site. Une annonce purgée n’est plus suivie : sa disparition n’est plus constatée.",
+              "description": "L’annonce d’origine d’un bien publié est absente de la liste lue par la collecte, deux passages de suite : elle a peut-être été retirée (bien loué ou vendu), ou déplacée. Si la liste d’un site dépasse le plafond de pages de sa collecte (5 par défaut), montez ce plafond dans l’onglet Collecte : il est borné à 20 pages, et au-delà aucune disparition n’est constatée sur ce site. Une annonce purgée, ou dont l’annonceur a dit STOP, n’est plus suivie : sa disparition n’est plus constatée.",
               "empty": "Aucune source disparue"
             }
           }

@@ -3,7 +3,9 @@
 namespace App\Services\Radar\Observatory;
 
 use App\Models\Enums\RadarCrawlStatus;
+use App\Models\Enums\RadarListingStage;
 use App\Models\Property;
+use App\Models\RadarAdvertiser;
 use App\Models\RadarCrawlRun;
 use App\Models\RadarListing;
 use App\Models\RadarListingSnapshot;
@@ -19,7 +21,9 @@ use Illuminate\Support\Facades\DB;
  * annonce retirée ou remontée en page 1 fait passer la première de la page 2 dans une page déjà lue), et le passage atteint
  * la fin sans l'avoir vue. Une présence remet le compte à zéro d'elle-même : seuls comptent les passages postérieurs à la
  * dernière. Un passage arrêté au plafond de pages, refusé ou échoué ne compte pas. Une annonce sans instantané (saisie à la
- * main) n'est jamais jugée.
+ * main) n'est jamais jugée, ni une annonce que la collecte ne suit plus (TCK-2392, `RadarCrawler::silenced()`) : purgée,
+ * `do_not_contact`, ou d'un annonceur qui a dit STOP — ne plus la voir ne dit rien d'elle. La purge d'une annonce jamais
+ * publiée détache en plus ses instantanés : elle n'en a plus.
  *
  * **Revenue** : un passage postérieur à la disparition l'a revue (`max(last_seen_at)` après `source_gone_at`) ; elle
  * redevient présente, et pourra de nouveau alerter.
@@ -52,6 +56,9 @@ final class RadarSourceWatch
             $ids = RadarListing::query()
                 ->where('source_site', $run->site->value)
                 ->whereNull('source_gone_at')
+                ->whereNotIn('stage', [RadarListingStage::Purged->value, RadarListingStage::DoNotContact->value])
+                ->where(fn ($q) => $q->whereNull('radar_advertiser_id')
+                    ->orWhereNotIn('radar_advertiser_id', RadarAdvertiser::query()->whereNotNull('do_not_contact_at')->select('id')))
                 ->whereRaw('('.$this->lastSeenSql().') < ?', [$run->started_at])
                 ->whereRaw('('.$this->completeRunsSinceSql().') >= ?', [$run->site->value, $confirm])
                 ->orderBy('id')

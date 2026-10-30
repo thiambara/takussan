@@ -47,8 +47,10 @@ toute la liste, ne l'ont pas revue.**
    lue —, et le passage atteint la fin sans l'avoir vue (relevé par la vérification adverse, reproduit sur
    le vrai passage de collecte). Une présence remet le compte à zéro : seuls comptent les passages
    postérieurs à la dernière. Un passage incomplet ne compte pas. Une annonce revue plus tard redevient
-   présente. **Une annonce purgée n'est plus jugée et n'alerte plus** : ses instantanés ne sont plus à elle,
-   et la collecte ne l'observe plus (TCK-2392), même doublure d'un bien publié.
+   présente. **Une annonce que la collecte ne suit plus n'est pas jugée et n'alerte pas** : purgée,
+   `do_not_contact`, ou d'un annonceur qui a dit STOP (TCK-2392, `RadarCrawler::silenced()`) — ne plus la
+   voir ne dit rien d'elle, même doublure d'un bien publié. La purge d'une annonce jamais publiée détache en
+   plus ses instantanés.
 4. **L'alerte passe par le journal, un journal de plateforme.** Une disparition rattachée à un bien
    (directement, ou par l'annonce dont elle est le doublon) écrit `radar_source_listing_gone`, événement
    alertable : les règles d'alerte existantes la livrent, rien de neuf n'envoie quoi que ce soit. **Son sujet

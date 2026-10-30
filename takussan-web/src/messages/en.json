@@ -9329,7 +9329,7 @@
             },
             "goneSources": {
               "title": "Gone sources of published properties",
-              "description": "The original listing of a published property has been absent from the list read by the collection, two runs in a row: it may have been removed (property rented or sold), or moved. If a site’s list exceeds its collection page cap (5 by default), raise that cap in the Collection tab: it is limited to 20 pages, and beyond that no disappearance is ever recorded on that site. A purged listing is no longer tracked: its disappearance is no longer recorded.",
+              "description": "The original listing of a published property has been absent from the list read by the collection, two runs in a row: it may have been removed (property rented or sold), or moved. If a site’s list exceeds its collection page cap (5 by default), raise that cap in the Collection tab: it is limited to 20 pages, and beyond that no disappearance is ever recorded on that site. A listing that was purged, or whose advertiser said STOP, is no longer tracked: its disappearance is no longer recorded.",
               "empty": "No gone source"
             }
           }
