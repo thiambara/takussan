@@ -3955,7 +3955,7 @@ l'approbateur d'un reversement a approuvé se garde par `fingerprint()` — HMAC
 numéro normalisé sous la clé de l'application, jamais un hachage nu — dans `payouts.metadata`
 (VERIF-594 M-4). Le paiement compare cette empreinte à celles de la destination sous toutes les clés reconnues
 (`fingerprints()`, `APP_PREVIOUS_KEYS` comprise) : un reversement approuvé avant une rotation d'`APP_KEY` reste payable
-vers la même destination (TCK-2430, [ADR-0084](adr/0084-les-empreintes-sous-app-key-se-lisent-sous-ses-anciennes-cles.md), proposé).
+vers la même destination tant que l'ancienne clé reste dans `APP_PREVIOUS_KEYS`, qu'elle ne doit pas quitter avant TCK-614 ([hébergement](infra/hebergement.md), « Rotation d'`APP_KEY` ») ; la clé retirée, le paiement est refusé (422 `payout.destination_changed_since_approval`) (TCK-2430, [ADR-0084](adr/0084-les-empreintes-sous-app-key-se-lisent-sous-ses-anciennes-cles.md), proposé).
 
 **Relations :** `user()` → belongsTo User ; `verifications()` → hasMany PayoutMethodVerification
 (§78). Inverse : `Payout.payoutMethod()` (withTrashed). Les colonnes `verified_at` et
@@ -4347,10 +4347,12 @@ toutes les lignes du même contact. Aucune réponse de l'API ne dit si un contac
 **Rotation d'`APP_KEY` (TCK-2430, [ADR-0084](adr/0084-les-empreintes-sous-app-key-se-lisent-sous-ses-anciennes-cles.md), proposé).**
 La recherche d'un contact (`scopeForContact()`), le rattachement et la suppression de compte lisent sous toutes les
 clés reconnues : la clé courante, puis chaque clé d'`APP_PREVIOUS_KEYS`, telle qu'écrite et sous sa forme base64
-canonique. **Une désinscription gagne toujours** : `eraseContact()` supprime sous l'empreinte stockée **et** sous
-toutes celles du contact déchiffré ; un numéro que la normalisation refuse, ou un contact qui ne se déchiffre plus
-(ancienne clé perdue), se désinscrit sous l'empreinte stockée seule. Dans ce second cas, la ligne `whatsapp_contacts`
-du numéro, qu'on ne retrouve plus sans lui, reste en base, sans plus aucune demande à servir.
+canonique. Ces lectures ne valent que tant que l'ancienne clé reste dans `APP_PREVIOUS_KEYS`, qu'elle ne doit pas quitter avant TCK-614 ([hébergement](infra/hebergement.md), « Rotation d'`APP_KEY` »). `eraseContact()` supprime sous l'empreinte stockée **et** sous
+toutes celles du contact déchiffré : une désinscription efface aussi les demandes du même contact écrites sous une
+autre clé reconnue. Un numéro que la normalisation refuse, ou un contact qui ne se déchiffre plus (ancienne clé
+retirée), se désinscrit sous l'empreinte stockée seule, sans erreur : les demandes de ce contact écrites sous une
+autre clé restent, et continuent d'être servies. Dans le second cas, la ligne `whatsapp_contacts` du numéro, qu'on ne
+retrouve plus sans lui, reste aussi en base.
 
 ---
 
@@ -4669,7 +4671,8 @@ compte supprimé : un numéro ne fait pas gagner deux espaces, et changer de num
 l'espace. Les deux unicités se tiennent par `insertOrIgnore`, jamais par une exception attrapée
 (piège n°1). Avant l'insertion, un octroi se cherche sous toutes les clés reconnues (`PhoneFingerprint::all()` :
 `APP_KEY`, puis `APP_PREVIOUS_KEYS`) : une rotation d'`APP_KEY` ne rouvre pas la bienvenue d'un numéro déjà crédité,
-celui d'un compte anonymisé compris (TCK-2430, [ADR-0084](adr/0084-les-empreintes-sous-app-key-se-lisent-sous-ses-anciennes-cles.md), proposé).
+celui d'un compte anonymisé compris, tant que l'ancienne clé reste dans `APP_PREVIOUS_KEYS`, qu'elle ne doit pas quitter avant TCK-614 ([hébergement](infra/hebergement.md), « Rotation d'`APP_KEY` »). La clé retirée, ce numéro reçoit une seconde bienvenue ; même après
+TCK-614, l'octroi d'un compte anonymisé ne se réécrit pas, faute de numéro (TCK-2430, [ADR-0084](adr/0084-les-empreintes-sous-app-key-se-lisent-sous-ses-anciennes-cles.md), proposé).
 Montant et validité sont des réglages lus à l'octroi (`credits.welcome_amount` 500,
 `credits.welcome_validity_days` 180).
 
@@ -5223,7 +5226,8 @@ du Radar (`config/radar_whatsapp.php`), sous les verrous de `markSent`, et écri
 `provider_message_id` et `provider_status`. Un refus franc de Meta n'écrit rien (502 `radar.whatsapp.send_failed`) ;
 un délai, un 5xx ou une écriture défaite après l'envoi marquent le message envoyé, `ambiguous`, pour ne jamais
 écrire deux fois. Les accusés du webhook (`RadarWhatsappReceipts`, TCK-2427) font avancer `provider_status` des seuls
-messages `whatsapp_cloud` envoyés, appariés par `provider_message_id` ; ils ne touchent ni `sent_at`, ni l'issue.
+messages `whatsapp_cloud` envoyés, appariés par `provider_message_id` ou, pour un envoi sans identifiant, par le jeton
+opaque (ci-dessous, TCK-2436) ; ils ne touchent ni `sent_at`, ni l'issue.
 
 **Jeton opaque des accusés (TCK-2436, [ADR-0081](adr/0081-le-radar-prospecte-par-l-api-whatsapp-sur-son-propre-numero.md), amendement du 2026-10-30).**
 Avant l'appel à Meta, `RadarWhatsappOutreach::assignCallbackToken()` écrit sur la ligne préparée, par une écriture
@@ -5253,7 +5257,7 @@ pendant l'appel attend le verrou de l'annonceur que tient `markSent`, puis relit
 | outcome | string(20) | oui | null | `consented`, `refused`, `stop`, `question`, `no_answer` (`RadarOutreachOutcome::isFinal()` : vrai pour les trois premiers) |
 | outcome_at | timestamp | oui | null | |
 | outcome_by_id | FK users | oui | null | Opérateur qui a tranché l'issue (`nullOnDelete`) ; indexée. Nul aussi pour un STOP reçu par l'API, appliqué sans auteur (TCK-2395) |
-| provider_message_id | string(120) | oui | null | TCK-2395 : identifiant du message chez Meta (`wamid`) ; unique partiel. Un accusé d'identifiant inconnu est ignoré (TCK-2427), sauf s'il porte le `provider_callback_token` d'un envoi `ambiguous` sans identifiant : l'identifiant de l'accusé est alors écrit ici (TCK-2436) |
+| provider_message_id | string(120) | oui | null | TCK-2395 : identifiant du message chez Meta (`wamid`) ; unique partiel. Un accusé d'identifiant inconnu est ignoré (TCK-2427), sauf s'il porte le `provider_callback_token` d'un envoi `whatsapp_cloud` envoyé sans identifiant, s'il est adressé au numéro de son annonceur et si son identifiant n'est porté par aucune autre ligne (voir ci-dessus) : cet identifiant est alors écrit ici (TCK-2436) |
 | provider_status | string(20) | oui | null | TCK-2395 : `accepted` (Meta a rendu un identifiant) ou `ambiguous` (délai, 5xx, ou écriture défaite après l'envoi : marqué envoyé pour ne jamais écrire deux fois) ; puis, par les accusés du webhook, `sent`, `delivered`, `read` ou `failed`, sans jamais reculer (`failed` ne suit ni `delivered` ni `read`) (TCK-2427). La fiche annonceur l'affiche à côté du canal : `accepted` et `sent` « Envoyé », `delivered` « Remis », `read` « Lu », `failed` « Non remis » ; rien pour `ambiguous` ni pour un message `whatsapp_manual` (TCK-2437) |
 | provider_callback_token | string(64) | oui | null | TCK-2436 : jeton aléatoire (40 caractères hexadécimaux), sans donnée personnelle, transmis à Meta en `biz_opaque_callback_data` à chaque envoi par l'API et commité avant l'appel ; apparie exactement les accusés d'un envoi `ambiguous` sans identifiant. Unique partiel ; jamais journalisé ni rendu par `RadarOutreachResource`. Inerte sur une ligne jamais envoyée ou envoyée à la main |
 | created_at / updated_at | timestamp | | auto | |
@@ -5340,7 +5344,7 @@ codé) et de nouveau au passage (`RadarStartUrls::forRun()`) ; `RadarCrawlSource
 | max_pages | smallint | | 5 | Pages de liste lues au plus par passage ; 1 à 20 (`radar.crawl.max_pages_limit`) |
 | operator_id | FK users | oui | null | Celui qui l'a allumée (`nullOnDelete`, `radar_crawl_sources_operator_fk`) ; sans lui, aucun passage planifié ne part ; index `radar_crawl_sources_operator_idx` |
 | enabled_at | timestamp | oui | null | Dernier allumage |
-| start_urls | jsonb | oui | null | TCK-2438 : les pages de liste d'où part un passage, dans l'ordre — `https`, hôte de `RadarSiteAdapter::startHosts()`, ni identifiants, ni port explicite, ni fragment ; au plus `radar.crawl.max_start_urls` (10) URL d'au plus `radar.crawl.start_url_max_length` (500) caractères ; écrites sous leur forme canonique (schéma et hôte en minuscules), sans doublon. Nulle, jamais une liste vide : `config('radar.crawl.sites.<site>.start_url')` |
+| start_urls | jsonb | oui | null | TCK-2438 : les pages de liste d'où part un passage, dans l'ordre — `https`, hôte de `RadarSiteAdapter::startHosts()`, ni identifiants, ni port explicite, ni fragment, ni espace, ni barre oblique inverse, ni caractère de contrôle ; au plus `radar.crawl.max_start_urls` (10) URL d'au plus `radar.crawl.start_url_max_length` (500) caractères, telles qu'écrites et une fois canoniques ; écrites sous leur forme canonique (celle de Guzzle : schéma et hôte en minuscules, hors ASCII encodé en pourcentage), sans doublon. La console n'écrit jamais une liste vide. Au passage, `RadarStartUrls::forRun()` rejuge chaque URL et lit celles qui passent, dans l'ordre et jusqu'au plafond (au-delà, les dernières sont ignorées) ; aucune qui passe : rien n'est lu (`radar.crawl.no_start_url`). Nulle, vide ou autre chose qu'une liste : `config('radar.crawl.sites.<site>.start_url')`, si elle passe les mêmes garde-fous |
 | created_at / updated_at | timestamp | | auto | |
 
 **Contraintes :** unique `radar_crawl_sources_site_unique (site)`.
@@ -5362,7 +5366,7 @@ relance jamais une annonce connue. Il n'observe ni ne compte une annonce purgée
 qui a dit STOP (`RadarSnapshots::silenced()`). Il lit chaque URL de départ de la source à la suite, avec sa pagination,
 dans un plafond de pages et un budget de temps communs (TCK-2438) : le plafond, le budget et le créneau du domaine
 déjà pris arrêtent le passage ; la fin d'une liste, une page sans carte, une lecture refusée ou une page suivante déjà
-lue par le passage (`radar.crawl.loop`) n'arrêtent que la liste. Une liste qui atteint une page lue par une liste
+lue par la même liste (`radar.crawl.loop`) n'arrêtent que la liste. Une liste qui atteint une page lue par une liste
 précédente s'arrête sur sa fin.
 Un passage actif depuis plus de `radar.crawl.stale_after_minutes` (60), comptées depuis son démarrage (`started_at`, à
 défaut sa mise en file), est clos `failed` / `radar.crawl.lost` ; la fin d'un passage ne réécrit qu'un passage encore
@@ -5383,8 +5387,8 @@ défaut sa mise en file), est clos `failed` / `radar.crawl.lost` ; la fin d'un p
 | listings_known | integer | | 0 | Cartes d'une annonce déjà connue |
 | snapshots_opened | integer | | 0 | Instantanés ouverts (annonce neuve, prix ou titre changé) |
 | reached_end | boolean | | false | Chaque liste du passage a été lue jusqu'à sa dernière page (arrêt `radar.crawl.end`, statut `finished`) — sans elle, une annonce non revue n'a pas forcément disparu (TCK-2393, TCK-2438) |
-| stop_reason | string(60) | oui | null | `radar.crawl.end`, `radar.crawl.max_pages`, `radar.crawl.no_cards`, `radar.crawl.domain_busy`, `radar.crawl.time_budget`, `radar.crawl.no_operator`, `radar.crawl.no_start_url` (TCK-2438), `radar.crawl.error`, `radar.crawl.lost`, `radar.crawl.loop`, ou un refus de lecture `radar.fetch.*`. Quand une liste s'arrête avant sa fin, l'arrêt de la première liste concernée (TCK-2438) |
-| start_urls | jsonb | oui | null | TCK-2438 : le périmètre du passage — l'ensemble trié, sans doublon, des URL de départ suivies, l'URL de la configuration résolue comprise (`RadarStartUrls::perimeter()`) ; nulle seulement pour un passage antérieur à la migration `2026_10_30_394380`, lu comme l'URL actuelle de la configuration du site, en forme canonique. La veille de l'observatoire (`RadarSourceWatch`) ne compte contre une annonce que les passages complets dont le périmètre contient (jsonb `@>`) celui de chaque passage actif à sa dernière présence (`started_at` ≤ présence ≤ `finished_at`) et celui du dernier passage commencé avant elle, même clos avant |
+| stop_reason | string(60) | oui | null | `radar.crawl.end`, `radar.crawl.max_pages`, `radar.crawl.no_cards`, `radar.crawl.domain_busy`, `radar.crawl.time_budget`, `radar.crawl.no_operator`, `radar.crawl.no_start_url` (TCK-2438), `radar.crawl.error`, `radar.crawl.lost`, `radar.crawl.loop`, ou un refus de lecture `radar.fetch.*`. Un arrêt du passage (`radar.crawl.max_pages`, `radar.crawl.time_budget`, `radar.crawl.domain_busy`) l'emporte, même si une liste précédente s'était arrêtée avant sa fin : cet arrêt-là n'est alors écrit nulle part. Sinon, quand une liste s'arrête avant sa fin, c'est l'arrêt de la première liste concernée (TCK-2438) |
+| start_urls | jsonb | oui | null | TCK-2438 : le périmètre du passage — l'ensemble trié, sans doublon, des URL de départ suivies, l'URL de la configuration résolue comprise (`RadarStartUrls::perimeter()`) ; nulle pour un passage antérieur à la migration `2026_10_30_394380`, et pour un passage clos avant d'avoir choisi ses listes (sans opérateur, perdu en file, tombé avant) ; une valeur nulle se lit comme l'URL actuelle de la configuration du site, en forme canonique. La veille de l'observatoire (`RadarSourceWatch`) ne compte contre une annonce que les passages complets dont le périmètre contient (jsonb `@>`) celui de chaque passage actif à sa dernière présence (`started_at` ≤ présence ≤ `finished_at`, ou pas encore fini) et celui du dernier passage commencé avant elle, même clos avant. Une annonce sortie d'un périmètre restreint n'est donc plus jugée tant qu'elle n'est pas revue, et compte encore comme une source en ligne de son bien (TCK-2438) |
 | created_at / updated_at | timestamp | | auto | `created_at` : la mise en file, d'où se compte la fréquence |
 
 **Contraintes :** index unique partiel `radar_crawl_runs_one_active_unique (site) WHERE status IN ('queued', 'running')`

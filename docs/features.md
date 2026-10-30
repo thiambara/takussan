@@ -927,8 +927,9 @@ catalogue tant que cet accord n'existe pas. Vision et lots : [plan du 2026-10-26
   l'historique : « Envoyé » tant qu'aucun accusé de remise n'est arrivé, « Remis », « Lu », ou
   « Non remis » en ton destructif. Sur la carte du suivi, un message non remis dit qu'il reste compté
   comme envoyé et que l'opérateur juge de la suite ; aucun geste n'est proposé. Un envoi sans
-  confirmation de Meta garde son seul libellé de canal, et un message envoyé à la main n'a pas d'état
-  de remise. Le code de l'échec n'est pas affiché (TCK-2437 ; son affichage : TCK-2444).
+  confirmation de Meta n'a que son libellé de canal tant qu'aucun accusé ne l'a fait avancer (voir
+  la règle suivante), et un message envoyé à la main n'a pas d'état de remise. Le code de l'échec
+  n'est pas affiché (TCK-2437 ; son affichage : TCK-2444).
 - **Un envoi par l'API resté sans confirmation de Meta est rattaché à ses accusés par un jeton
   opaque** (TCK-2436, [ADR-0081](adr/0081-le-radar-prospecte-par-l-api-whatsapp-sur-son-propre-numero.md),
   amendement du 2026-10-30). Chaque envoi par l'API porte un jeton aléatoire, sans donnée
@@ -994,14 +995,19 @@ catalogue tant que cet accord n'existe pas. Vision et lots : [plan du 2026-10-26
   `sn.coinafrique.com`), sans identifiants, port explicite (même `:443`), fragment, espace ni
   caractère de contrôle ; au plus `radar.crawl.max_start_urls` URL (10) d'au plus
   `radar.crawl.start_url_max_length` caractères (500), telles qu'écrites et une fois canoniques ;
-  sans doublon, jugé sur la forme canonique (schéma et hôte en minuscules), qui est celle
-  enregistrée. Ces garde-fous se jugent à l'enregistrement (422 codé, rien n'est enregistré, pas
-  même les autres réglages de la requête : `radar.crawl.start_urls_too_many`,
-  `radar.crawl.start_url_too_long`, `radar.crawl.start_url_invalid`, `radar.crawl.start_url_host`,
-  `radar.crawl.start_url_duplicate`) et de nouveau au passage : une URL écrite hors de la console
-  n'est jamais lue. Une source sans URL réglée part de l'URL de la configuration ; une source dont
-  aucune URL réglée ne passe ne lit rien (`radar.crawl.no_start_url`), sans repli sur la
-  configuration. Le plafond de pages et le budget de temps valent pour le passage entier : eux, comme
+  sans doublon, jugé sur la forme canonique, qui est celle enregistrée (celle de Guzzle : schéma et
+  hôte en minuscules, caractères hors ASCII encodés en pourcentage, d'où une longueur qui peut
+  croître). La barre oblique inverse est refusée aussi. Ces garde-fous se jugent à l'enregistrement
+  (422 codé, rien n'est enregistré, pas même les autres réglages de la requête :
+  `radar.crawl.start_urls_too_many`, `radar.crawl.start_url_too_long`,
+  `radar.crawl.start_url_invalid`, `radar.crawl.start_url_host`, `radar.crawl.start_url_duplicate`)
+  et de nouveau au passage (`RadarStartUrls::forRun()`), qui lit les URL enregistrées qui les
+  passent, dans l'ordre, sans doublon, et ignore les autres. Une URL écrite en base hors de la
+  console et conforme est donc lue ; au-delà de `radar.crawl.max_start_urls`, les dernières sont
+  ignorées sans refus. Une source dont la valeur est nulle, une liste vide ou n'est pas une liste
+  part de l'URL de la configuration, si elle passe les mêmes garde-fous. Une source qui règle une
+  liste dont aucune URL ne passe ne lit rien (`radar.crawl.no_start_url`) : elle ne retombe pas sur
+  la configuration. Le plafond de pages et le budget de temps valent pour le passage entier : eux, comme
   le créneau du domaine déjà pris, arrêtent le passage ; la fin d'une liste, une page sans carte, une
   lecture refusée ou une boucle n'arrêtent que la liste en cours, et la suivante est lue — mais le
   passage n'a alors pas « lu toute la liste ». Une liste qui rejoint une page lue par une liste
@@ -1038,13 +1044,18 @@ catalogue tant que cet accord n'existe pas. Vision et lots : [plan du 2026-10-26
   la ferme pas. Le porteur ne les allume qu'après l'avis juridique de TCK-2434, qui tranche le remède
   (grain plus gros, arrondi ou bruit). Une panne du compteur ne fait jamais tomber la purge (TCK-2431,
   [ADR-0083](adr/0083-l-observatoire-du-marche.md), amendement du 2026-10-30).
-- **Une annonce collectée n'a disparu qu'après deux passages complets d'affilée de son site** (qui
-  ont lu toute la liste) **sans l'avoir revue** (`radar.observe.confirm_runs`) : un seul ne suffit
-  pas, la liste glisse pendant la lecture. Revue plus tard, elle redevient présente. Un passage ne
-  compte contre une annonce que si ses URL de départ contiennent celles de chaque passage actif à sa
-  dernière présence, et celles du dernier passage commencé avant elle : élargir les URL de départ ne
-  coupe pas la détection ; les restreindre ne fait disparaître aucune annonce, qui n'est jugée de
-  nouveau qu'une fois revue (TCK-2438). Une annonce que
+- **Une annonce collectée n'a disparu qu'après deux passages complets de son site** (qui ont lu
+  chacune de leurs listes jusqu'au bout), **commencés après sa dernière présence, sans l'avoir
+  revue** (`radar.observe.confirm_runs`) : un seul ne suffit pas, la liste glisse pendant la lecture.
+  Revue plus tard, elle redevient présente. Un passage ne compte contre une annonce que si ses URL de
+  départ contiennent celles de chaque passage actif à sa dernière présence, et celles du dernier
+  passage commencé avant elle ; un passage complet qui ne les contient pas est sauté, sans
+  interrompre le compte. Élargir les URL de départ ne coupe pas la détection. Les restreindre ne
+  déclare aucune disparition, mais une annonce sortie du périmètre n'est plus jugée tant qu'elle n'est
+  pas revue, donc jamais si sa liste n'est plus lue : elle ne lève pas `radar_source_listing_gone`,
+  et elle compte encore comme une source en ligne de son bien, si bien que la question au titulaire
+  (règle suivante) peut ne pas partir quand sa dernière autre source disparaît (TCK-2438,
+  [ADR-0080](adr/0080-la-collecte-automatique-du-radar.md) amendé). Une annonce que
   la collecte ne suit plus (purgée, `do_not_contact`, annonceur STOP) n'est plus jugée. La disparition
   de la source d'un bien lève l'alerte `radar_source_listing_gone`, que les règles d'alerte de la
   console livrent : un journal de plateforme, dont le sujet est l'annonce collectée et le bien dans
