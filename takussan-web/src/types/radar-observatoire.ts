@@ -6,7 +6,7 @@ import type { RadarAdvertiserNature, RadarContract, RadarSourceSite } from '@/ty
  */
 
 /** `App\Services\Radar\Observatory\RadarObservatory::SECTIONS`. */
-export const RADAR_OBSERVATORY_SECTIONS = ['summary', 'price_per_m2', 'time_on_market', 'supply_gap', 'natures', 'gone_sources'] as const;
+export const RADAR_OBSERVATORY_SECTIONS = ['summary', 'price_per_m2', 'time_on_market', 'supply_gap', 'natures', 'gone_sources', 'nature_history'] as const;
 
 export type RadarObservatorySection = (typeof RADAR_OBSERVATORY_SECTIONS)[number];
 
@@ -62,6 +62,26 @@ export interface RadarObservatory {
   readonly supply_gap?: readonly RadarSupplyGapRow[];
   readonly natures?: Readonly<Record<RadarAdvertiserNature, number>>;
   readonly gone_sources?: readonly RadarGoneSource[];
+  readonly nature_history?: RadarNatureHistory;
+}
+
+/**
+ * TCK-2431 — la part par nature sur une période, depuis les compteurs anonymes figés chaque jour avant la purge. Les sommes
+ * sont des « annonceurs-jours » : sans identifiant, un annonceur présent dix jours compte dix fois.
+ */
+export interface RadarNatureHistory {
+  readonly days: number;
+  /** `YYYY-MM-DD`, jour de Dakar ; null sans aucun jour compté. */
+  readonly first_day: string | null;
+  readonly last_day: string | null;
+  readonly advertisers: Readonly<Record<RadarAdvertiserNature, number>>;
+  readonly listings: Readonly<Record<RadarAdvertiserNature, number>>;
+}
+
+/** La période de `nature_history` : `filter[since]` et `filter[until]`, jours inclus. */
+export interface RadarNatureHistoryFilters {
+  readonly since?: string;
+  readonly until?: string;
 }
 
 export interface RadarObservatoryResponse {

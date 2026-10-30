@@ -8677,6 +8677,17 @@
               "title": "Sources disparues de biens publiés",
               "description": "L’annonce d’origine d’un bien publié est absente de la liste lue par la collecte, {runs, plural, one {au dernier passage} other {# passages de suite}} : elle a peut-être été retirée (bien loué ou vendu), ou déplacée. Si la liste d’un site dépasse le plafond de pages de sa collecte (5 par défaut), montez ce plafond dans l’onglet Collecte : il est borné à 20 pages, et au-delà aucune disparition n’est constatée sur ce site. Une annonce purgée, ou dont l’annonceur a dit STOP, n’est plus suivie : sa disparition n’est plus constatée.",
               "empty": "Aucune source disparue"
+            },
+            "natureHistory": {
+              "title": "Part par nature dans la durée",
+              "description": "Annonceurs comptés chaque jour par nature présumée, avant la purge : la part survit à l’effacement des annonces, au-delà des 90 jours de rétention. Sans identifiant, un annonceur présent dix jours compte dix fois.",
+              "from": "Du",
+              "to": "Au",
+              "loadError": "La part par nature n’a pas pu être chargée.",
+              "empty": "Aucun jour compté sur cette période",
+              "emptyHint": "Le compte se fige chaque nuit, juste avant la purge.",
+              "span": "{days, plural, one {# jour compté} other {# jours comptés}}, du {from} au {to}",
+              "counts": "{advertisers, plural, one {# annonceur-jour} other {# annonceurs-jours}} · {listings, plural, one {# annonce-jour} other {# annonces-jours}}"
             }
           }
         },
