@@ -152,7 +152,10 @@ dans les paramètres »). Il prolonge le §2. Jusque-là, chaque site partait d'
    comprise. La veille de l'observatoire (ADR-0083 §3) ne compte un passage complet contre une annonce que si son
    périmètre **contient** celui de **chaque** passage du site actif à sa dernière présence (jsonb `@>`) : commencé avant,
    et pas fini avant. Les dates sont à la seconde. Un passage relancé dans la seconde de la dernière observation passait
-   pour celui qui l'avait vue (vérification adverse M1) ; il faut maintenant contenir aussi le périmètre du vrai.
+   pour celui qui l'avait vue (vérification adverse M1) ; il faut maintenant contenir aussi le périmètre du vrai. Le
+   dernier passage commencé avant la présence compte toujours, même clos avant elle : un passage clos `lost` pendant que
+   son worker écrit encore laisserait sinon la règle vraie sans aucun passage à contenir (N1). Le périmètre ancien
+   (colonne nulle) se lit dans sa forme canonique.
    - Pourquoi : restreindre les URL (« tout l'immobilier » → « appartements à louer ») déclarait disparue chaque annonce
      sortie du périmètre. Cela déclenchait une alerte et, pour un bien publié, la question à son titulaire (TCK-2432).
    - Élargir les URL ne coupe pas la détection. Restreindre suspend le jugement d'une annonce jusqu'à ce qu'elle soit

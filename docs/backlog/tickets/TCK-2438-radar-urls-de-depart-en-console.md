@@ -82,7 +82,10 @@ quelqu'un. ADR-0080 est amendé.
   EFFECTIF (l'URL de la configuration résolue comprise), trié et sans doublon. Un passage ne compte contre une annonce
   que si son périmètre CONTIENT celui de CHAQUE passage actif à sa dernière présence (jsonb `@>`) : à la seconde près,
   une relance immédiate passait pour celui qui l'avait vue (vérification adverse M1). Un passage antérieur à la colonne
-  (nulle) se lit comme l'URL actuelle de la configuration du site (`RadarStartUrls::legacyPerimeterJson()`).
+  (nulle) se lit comme l'URL actuelle de la configuration du site, en forme canonique
+  (`RadarStartUrls::legacyPerimeterJson()`). Le dernier passage commencé avant la présence compte toujours, même clos
+  avant elle (vérification adverse N1 : un passage clos `lost` par `failStale` pendant que son worker écrit encore
+  laissait la règle vraie par vacuité).
 - **Les arrêts** :
   - Le plafond de pages, le budget de temps et le créneau pris arrêtent le PASSAGE.
   - Une boucle, une page sans carte ou une lecture refusée n'arrêtent que la LISTE : la suivante est lue, mais
@@ -91,7 +94,9 @@ quelqu'un. ADR-0080 est amendé.
     dépend pas de l'ordre des URL (M2). Une vraie boucle reste `radar.crawl.loop`, visible dans la console.
   - Avec une seule liste, le comportement de TCK-2392 est inchangé : ses tests passent tels quels.
 - **Forme canonique** (M2) : celle de Guzzle, avec schéma et hôte en minuscules. Elle est enregistrée, lue et sert au
-  dédoublonnage. Un port explicite (`:443` compris) et un fragment sont refusés, lus sur la chaîne brute (M3).
+  dédoublonnage. Un port explicite (`:443` compris) et un fragment sont refusés, lus sur la chaîne brute (M3). La
+  longueur est bornée deux fois : sur la chaîne écrite, avant toute analyse, et sur la forme canonique, celle qu'on
+  enregistre (N2 : 200 « é » font 1 200 caractères encodés).
 - **Codes de refus** (422) : `radar.crawl.start_urls_too_many`, `start_url_too_long`, `start_url_invalid`,
   `start_url_host` (avec `params.hosts`), `start_url_duplicate`. Chacun porte `params.field` (`start_urls.N`).
   Arrêt de passage neuf : `radar.crawl.no_start_url`.
