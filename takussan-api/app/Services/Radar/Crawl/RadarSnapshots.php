@@ -2,6 +2,8 @@
 
 namespace App\Services\Radar\Crawl;
 
+use App\Models\Enums\RadarListingStage;
+use App\Models\RadarAdvertiser;
 use App\Models\RadarCrawlRun;
 use App\Models\RadarListing;
 use App\Models\RadarListingSnapshot;
@@ -39,7 +41,12 @@ final class RadarSnapshots
         return DB::transaction(function () use ($listing, $observed, $run, $now): bool {
             // Le verrou de l'annonce sérialise deux observations simultanées (deux passages ne coexistent pas sur un même
             // site, mais une annonce peut être rendue par une autre URL d'un même site) : jamais deux instantanés ouverts.
-            RadarListing::query()->whereKey($listing->id)->lockForUpdate()->first();
+            // Relue sous ce verrou : une purge (ou un STOP) validée entre la lecture de la carte et l'observation ne reçoit
+            // aucun instantané (ADR-0080 § 3).
+            $locked = RadarListing::query()->whereKey($listing->id)->lockForUpdate()->first(['id', 'stage', 'radar_advertiser_id']);
+            if ($locked === null || self::silenced($locked)) {
+                return false;
+            }
             $latest = RadarListingSnapshot::query()
                 ->where('radar_listing_id', $listing->id)
                 ->orderByDesc('first_seen_at')->orderByDesc('id')
@@ -68,6 +75,19 @@ final class RadarSnapshots
 
             return true;
         });
+    }
+
+    /** Purgée, `do_not_contact`, ou d'un annonceur qui a dit STOP : la collecte ne la suit plus (ADR-0080 § 3). */
+    public static function silenced(RadarListing $listing): bool
+    {
+        if (in_array($listing->stage, [RadarListingStage::Purged, RadarListingStage::DoNotContact], true)) {
+            return true;
+        }
+
+        return $listing->radar_advertiser_id !== null && RadarAdvertiser::query()
+            ->whereKey($listing->radar_advertiser_id)
+            ->whereNotNull('do_not_contact_at')
+            ->exists();
     }
 
     /**
