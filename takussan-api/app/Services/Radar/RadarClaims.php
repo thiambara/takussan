@@ -200,7 +200,11 @@ final class RadarClaims
                 $user = $viewer;
                 $response = null;
             } else {
-                $outcome = $this->login->authenticate($phone, $input['code'], ['device_name' => $input['device_name'] ?? null], $locale);
+                // La case des conditions de la page, version comprise (validée plus haut) : la connexion ne les représente pas (TCK-2404).
+                $outcome = $this->login->authenticate($phone, $input['code'], [
+                    'device_name' => $input['device_name'] ?? null,
+                    'terms_version' => $input['terms_version'],
+                ], $locale);
                 if ($outcome instanceof JsonResponse) {
                     return $outcome;
                 }

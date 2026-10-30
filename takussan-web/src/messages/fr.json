@@ -493,7 +493,11 @@
       "blocked": "Ce compte est suspendu. Contactez le support pour en savoir plus.",
       "tooMany": "Trop de demandes en peu de temps. Patientez un instant avant de réessayer.",
       "failed": "Une erreur est survenue. Réessayez dans un instant.",
-      "termsNotice": "En continuant, vous acceptez les <terms>conditions générales</terms> et la <privacy>politique de confidentialité</privacy>."
+      "termsNotice": "En continuant, vous acceptez les <terms>conditions générales</terms> et la <privacy>politique de confidentialité</privacy>.",
+      "termsTitle": "Acceptez les conditions d’utilisation",
+      "termsIntro": "Avant d’entrer dans votre espace, prenez connaissance des conditions d’utilisation de Takussan et acceptez-les.",
+      "termsAccept": "J’accepte les <terms>conditions d’utilisation</terms> de Takussan.",
+      "termsContinue": "Accepter et continuer"
     },
     "otpPreview": {
       "title": "Environnement de test",

@@ -522,7 +522,11 @@
       "blocked": "This account is suspended. Contact support to find out more.",
       "tooMany": "Too many requests in a short time. Please wait a moment before trying again.",
       "failed": "Something went wrong. Please try again in a moment.",
-      "termsNotice": "By continuing, you accept the <terms>terms of service</terms> and the <privacy>privacy policy</privacy>."
+      "termsNotice": "By continuing, you accept the <terms>terms of service</terms> and the <privacy>privacy policy</privacy>.",
+      "termsTitle": "Accept the terms of use",
+      "termsIntro": "Before entering your space, read the Takussan terms of use and accept them.",
+      "termsAccept": "I accept the Takussan <terms>terms of use</terms>.",
+      "termsContinue": "Accept and continue"
     },
     "otpPreview": {
       "title": "Test environment",
