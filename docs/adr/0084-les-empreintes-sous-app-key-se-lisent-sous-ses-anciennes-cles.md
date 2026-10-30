@@ -7,8 +7,8 @@
 
 ## Contexte
 
-Mesuré le 2026-10-30 sur `fix/empreintes-hors-radar-cle-dediee` (depuis `dev` `9f7bffea9`). Hors du Radar, sept
-sites calculent un `hash_hmac('sha256', …, config('app.key'))`. Laravel relit `APP_PREVIOUS_KEYS` pour déchiffrer
+Mesuré le 2026-10-30 sur `fix/empreintes-hors-radar-cle-dediee` (depuis `dev` `9f7bffea9`). Hors du Radar, les sites du
+tableau ci-dessous calculaient chacun un `hash_hmac('sha256', …, config('app.key'))`. Laravel relit `APP_PREVIOUS_KEYS` pour déchiffrer
 et pour vérifier une URL signée, jamais pour ces HMAC. Faire tourner `APP_KEY` rendait donc chaque empreinte en base
 méconnaissable.
 
@@ -37,7 +37,8 @@ Retenu / écarté / raison :
    produirait la même perte qu'une rotation (le numéro d'un compte anonymisé ne se recalcule pas), et demande le
    repli que voici de toute façon.
 2. **Une désinscription gagne toujours** : `eraseContact()` supprime sous l'empreinte stockée de la ligne ET sous
-   toutes les empreintes reconnues de son contact. Le rattachement (`SavedSearchController::claim()`) et la
+   toutes les empreintes reconnues de son contact. Un contact qui ne se déchiffre plus (ancienne clé perdue) n'empêche
+   pas la désinscription : elle aboutit sous l'empreinte stockée (vérification adverse I1). Le rattachement (`SavedSearchController::claim()`) et la
    suppression du compte (`AccountDeletionService`) cherchent de même.
 3. **Les plafonds comptent sous toutes les clés** (`mailboxHashes()`). Le limiteur horaire par boîte vit une heure
    dans le cache : il repart sous la clé courante, borné.
@@ -46,10 +47,16 @@ Retenu / écarté / raison :
    du Radar, qui annonce les crédits à venir, lit de même.
 5. **Le versement approuvé accepte l'empreinte approuvée sous une ancienne clé** (`PayoutMethod::fingerprints()`) :
    la même destination, rien de plus ; une destination changée reste refusée.
-6. **Rien pour les quatre autres** (plafond SMS de visite, empreinte de visiteur, empreinte du corps d'un webhook,
+6. **Rien pour les autres empreintes du tableau** (plafond SMS de visite, empreinte de visiteur, empreinte du corps d'un webhook,
    code SMS) : leur panne est bornée à une fenêtre ou sans effet de droit. Ils passent par `AppKeyHmac::of()`,
    l'unique point qui calcule une empreinte sous `APP_KEY` hors du Radar.
-7. **Pas de réécriture des empreintes anciennes** / une commande qui les réécrit sous la clé courante / tant que le
+7. **Une clé est lue telle qu'écrite ET sous sa forme base64 canonique** / la lire telle qu'écrite seulement, ou
+   refuser une clé mal recopiée / Laravel lit une clé `base64:` par ses octets : recopiée sans son `=` final, elle
+   déchiffre encore, et plus aucune empreinte écrite sous elle n'était reconnue, sans bruit (vérification adverse M3).
+   La tolérance ne coûte rien à l'exploitant ; refuser la clé couperait le déchiffrement que Laravel accepte.
+   L'écriture garde la chaîne telle qu'écrite. `RadarPhone` et `ClaimLinks` (ADR-0082) n'ont pas cette tolérance :
+   la consigne « à l'identique » vaut pour eux.
+8. **Pas de réécriture des empreintes anciennes** / une commande qui les réécrit sous la clé courante / tant que le
    ré-chiffrement d'ADR-0044 n'existe pas, l'ancienne clé ne quitte de toute façon pas `APP_PREVIOUS_KEYS` ; la
    réécriture va avec lui, dans TCK-614.
 
@@ -86,8 +93,11 @@ Retenu / écarté / raison :
   `RadarActivationReminders::welcomeCredits()`.
 - `PayoutMethod::fingerprints()` ; lecteur : `PayoutService::assertApprovedDestination()`.
 - `VisitNotifier`, `VisitorFingerprint`, `WebhookJournal::bodyDigest()`, `PhoneVerificationService` : `AppKeyHmac::of()`.
-- Garde : `tests/Unit/Architecture/AppKeyHmacPointUniqueTest` refuse un `config('app.key')` dans `app/` hors
-  d'`AppKeyHmac`, `RadarPhone` et `ClaimLinks` (ADR-0082).
-- Épreuves, chacune passée par une ablation : `SearchAlertAppKeyRotationTest`,
+- Garde : `tests/Unit/Architecture/AppKeyHmacPointUniqueTest` balaie `app/`, `config/`, `database/`, `routes/` et
+  `bootstrap/` ; elle refuse une lecture de la clé (`config('app.key')`, `env('APP_KEY')`, `config('app')`,
+  `Crypt::getKey()`, `app('encrypter')->getKey()`…) hors d'`AppKeyHmac`, `RadarPhone`, `ClaimLinks` (ADR-0082) et
+  `config/app.php`. **C'est un plancher** : une clé assemblée par concaténation, ou lue sur un chiffreur injecté, lui
+  échappe ; son docblock le dit.
+- Épreuves, chacune passée par une ablation : `SearchAlertAppKeyRotationTest`, `AppKeyHmacTest`,
   `WelcomeCreditOncePerPhoneTest::test_ac2_…`, `PayoutBypassTest::test_m4_une_rotation_…`,
   `RadarActivationReminderTest::test_un_numero_credite_avant_une_rotation_…`, `PhoneFingerprintTest::test_all_…`.

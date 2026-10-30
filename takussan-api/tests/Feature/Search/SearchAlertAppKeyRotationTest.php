@@ -26,6 +26,9 @@ class SearchAlertAppKeyRotationTest extends TestCase
 
     private const EMAIL = 'awa@exemple.sn';
 
+    /** Le jeton de désinscription du dernier abonné, tel que le lien de l'e-mail le porte. */
+    private string $jetonEnClair = '';
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -41,7 +44,7 @@ class SearchAlertAppKeyRotationTest extends TestCase
             'contact_hash' => AlertSubscriber::contactHash($channel, $contact),
             'locale' => 'fr',
             'confirmed_at' => $confirme ? now() : null,
-            'unsubscribe_token' => $jeton = AlertSubscriber::newToken(),
+            'unsubscribe_token' => $jeton = $this->jetonEnClair = AlertSubscriber::newToken(),
             'unsubscribe_token_hash' => AlertSubscriber::tokenHash($jeton),
             'consent_at' => now(),
             'consent_source' => 'public_search_alert',
@@ -140,5 +143,39 @@ class SearchAlertAppKeyRotationTest extends TestCase
         ])->assertStatus(202);
 
         $this->assertSame(5, AlertSubscriber::query()->count());
+    }
+
+    /**
+     * Vérification adverse I1 — l'ancienne clé PERDUE (absente d'`APP_PREVIOUS_KEYS`) : le contact ne se déchiffre plus.
+     * La désinscription aboutit quand même, sous l'empreinte stockée, comme avant TCK-2430 ; elle ne rend pas 500.
+     */
+    public function test_cle_perdue_la_desinscription_par_e_mail_aboutit_sous_l_empreinte_stockee(): void
+    {
+        $avant = $this->abonne();
+        $this->tournerAppKey(garderLAncienne: false);
+
+        $this->postJson('/api/public/search-alerts/unsubscribe', ['token' => $this->jetonEnClair])
+            ->assertOk()->assertJsonPath('data.status', 'unsubscribed');
+
+        $this->assertModelMissing($avant);
+    }
+
+    /** Vérification adverse M1 — le plafond de deux confirmations par 24 h compte aussi celles d'avant la rotation. */
+    public function test_le_plafond_de_confirmations_du_jour_compte_celles_d_avant_la_rotation(): void
+    {
+        Notification::fake();
+        foreach (range(1, 2) as $i) {
+            $this->abonne(confirme: false)->forceFill(['confirmation_sent_at' => now()])->save();
+        }
+        $this->tournerAppKey();
+
+        $this->postJson('/api/public/search-alerts', [
+            'criteria' => ['city' => 'Dakar'], 'name' => 'Troisième', 'frequency' => 'daily', 'channel' => 'email',
+            'email' => self::EMAIL, 'locale' => 'fr', 'consent' => true,
+        ])->assertStatus(202);
+
+        $this->assertSame(3, AlertSubscriber::query()->count(), 'la demande est écrite, sous les plafonds de demandes ouvertes');
+        Notification::assertNothingSent();
+        $this->assertNull(AlertSubscriber::query()->latest('id')->first()->confirmation_sent_at);
     }
 }

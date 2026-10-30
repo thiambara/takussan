@@ -260,7 +260,9 @@ en préproduction compris. Les clés vivent ici, les drivers là-bas, les valeur
 [ADR-0084](../adr/0084-les-empreintes-sous-app-key-se-lisent-sous-ses-anciennes-cles.md)) :
 
 - on ne la fait tourner qu'après une fuite ou le départ de quelqu'un qui l'a lue. La neuve (`php artisan key:generate --show`)
-  va dans `APP_KEY`, l'ancienne **en tête** d'`APP_PREVIOUS_KEYS` (séparées par des virgules), les plus anciennes derrière.
+  va dans `APP_KEY`, l'ancienne **en tête** d'`APP_PREVIOUS_KEYS` (séparées par des virgules, sans espace), les plus
+  anciennes derrière. **Chaque valeur se recopie à l'identique, `base64:` et `=` final compris** : les empreintes du Radar
+  (`RadarPhone`, `ClaimLinks`) se calculent sur la chaîne, et une clé tronquée qui déchiffre encore ne les retrouve plus.
   On redéploie, et rien d'autre ne se lance : les colonnes chiffrées se relisent sous l'ancienne clé, et les empreintes
   HMAC des alertes, du crédit de bienvenue et des versements approuvés y sont aussi reconnues ;
 - **une ancienne `APP_KEY` ne quitte jamais `APP_PREVIOUS_KEYS` tant que TCK-614 n'est pas livré** (ré-chiffrement et

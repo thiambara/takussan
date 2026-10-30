@@ -65,14 +65,17 @@ l'ancienne va **en tête** d'`APP_PREVIOUS_KEYS` et n'en sort pas avant TCK-614.
 
 ## Notes d'implémentation
 
-- **Re-mesure (2026-10-30, `dev` `9f7bffea9`)** : les sept sites du tableau sont exacts, sans autre HMAC sous `app.key`
+- **Re-mesure (2026-10-30, `dev` `9f7bffea9`)** : les sites du tableau sont exacts, sans autre HMAC sous `app.key`
   hors du Radar (`grep -rn "hash_hmac\|app\.key" app`). Deux précisions : `WebhookJournal::bodyDigest()` n'a **aucun
   lecteur** (la colonne `body_sha256` n'est qu'écrite) ; `VisitorFingerprint` dédoublonne aussi les signalements d'avis
   anonymes, pour la vie de l'avis (au pire, un signalement de plus après une rotation). Le ticket voisin TCK-614 (todo,
   2026-10-08) portait déjà la clé distincte et le ré-chiffrement : il reste ouvert pour cela.
 - **`App\Support\AppKeyHmac`** : `of()` écrit sous la clé courante, `all()` lit sous la courante puis
-  `APP_PREVIOUS_KEYS`. Les sept sites y passent, et `AppKeyHmacPointUniqueTest` (Architecture) refuse toute autre
-  lecture de `app.key` dans `app/`, hors `RadarPhone` et `ClaimLinks` (ADR-0082).
+  `APP_PREVIOUS_KEYS`. Tous les sites du tableau y passent, et `AppKeyHmacPointUniqueTest` (Architecture) refuse toute
+  autre lecture de la clé dans `app/`, `config/`, `database/`, `routes/` et `bootstrap/`, hors `RadarPhone`,
+  `ClaimLinks` (ADR-0082) et `config/app.php` ; plancher, pas preuve : la concaténation lui échappe. Une clé `base64:`
+  se lit telle qu'écrite et sous sa forme canonique (une ancienne recopiée sans son `=` reste reconnue). Un contact
+  indéchiffrable n'empêche pas la désinscription (sous l'empreinte stockée).
 - **Lectures tolérantes** : `eraseContact()` (empreinte stockée + toutes celles du contact déchiffré),
   `scopeForContact()`, `SavedSearchController::claim()`, `AccountDeletionService`, les deux plafonds de
   `RecordPublicSearchAlert`, `WelcomeCreditService::grant()` (recherche avant l'`insertOrIgnore`),
@@ -95,6 +98,9 @@ l'ancienne va **en tête** d'`APP_PREVIOUS_KEYS` et n'en sort pas avant TCK-614.
   réécriture va avec lui dans TCK-614. Pas de ticket neuf : TCK-614 la porte déjà.
 - **Garde Architecture du point unique** (retenu) plutôt que la seule documentation (écarté) : un HMAC écrit demain à la
   main sous `app.key` rouvrirait la panne sans bruit.
+- **Clé lue aussi sous sa forme base64 canonique** (retenu, vérification adverse M3) plutôt que refuser une ancienne clé
+  recopiée sans son `=` (écarté : Laravel la déchiffre, la refuser serait plus restrictif pour l'exploitant) ; l'écriture
+  garde la chaîne telle qu'écrite. `RadarPhone` et `ClaimLinks` ne sont pas touchés : le runbook dit « à l'identique ».
 - **ADR-0084 « Proposé »** (retenu) plutôt qu'un amendement d'ADR-0082 (écarté : ADR-0082 porte la clé du Radar, cette
   décision-ci n'ajoute aucune clé).
 

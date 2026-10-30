@@ -25,11 +25,32 @@ final class AppKeyHmac
      */
     public static function all(string $data): array
     {
-        $previous = array_filter((array) config('app.previous_keys', []), fn (mixed $key): bool => is_string($key) && $key !== '');
+        $keys = array_filter(
+            [(string) config('app.key'), ...(array) config('app.previous_keys', [])],
+            fn (mixed $key): bool => is_string($key) && $key !== '',
+        );
+        $hashes = [self::of($data)];
+        foreach ($keys as $key) {
+            foreach (self::spellings($key) as $spelling) {
+                $hashes[] = hash_hmac('sha256', $data, $spelling);
+            }
+        }
 
-        return array_values(array_unique([
-            self::of($data),
-            ...array_map(fn (string $key): string => hash_hmac('sha256', $data, $key), $previous),
-        ]));
+        return array_values(array_unique($hashes));
+    }
+
+    /**
+     * Vérification adverse M3 — Laravel lit une clé `base64:` par ses OCTETS : recopiée sans son `=` final, elle
+     * déchiffre encore. Un HMAC, lui, est calculé sur la CHAÎNE : sans cette tolérance, plus aucune empreinte ancienne
+     * n'était reconnue, sans bruit. La lecture essaie donc la clé telle qu'écrite ET sa forme base64 canonique.
+     * L'écriture (`of()`) garde la chaîne telle qu'écrite : les empreintes déjà posées sous elle ne changent pas.
+     *
+     * @return list<string>
+     */
+    private static function spellings(string $key): array
+    {
+        $bytes = str_starts_with($key, 'base64:') ? base64_decode(substr($key, 7), true) : false;
+
+        return $bytes === false ? [$key] : array_values(array_unique([$key, 'base64:'.base64_encode($bytes)]));
     }
 }

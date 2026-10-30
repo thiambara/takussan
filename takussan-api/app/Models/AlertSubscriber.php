@@ -6,6 +6,7 @@ use App\Models\Bases\AbstractModel;
 use App\Services\Notifications\Sms\PhoneNumber;
 use App\Support\AppKeyHmac;
 use App\Support\CaseInsensitive;
+use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Contracts\Translation\HasLocalePreference;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -189,8 +190,9 @@ class AlertSubscriber extends AbstractModel implements HasLocalePreference
         $hashes = [$this->contact_hash];
         try {
             $hashes = [...$hashes, ...self::contactHashes((string) $this->channel, (string) $this->contact)];
-        } catch (InvalidArgumentException) {
-            // Un numéro que `PhoneNumber::normalize()` refuse : la désinscription garde au moins l'empreinte stockée.
+        } catch (InvalidArgumentException|DecryptException) {
+            // Un numéro que `PhoneNumber::normalize()` refuse, ou un contact qui ne se déchiffre plus (`APP_KEY` tournée
+            // sans son ancienne dans `APP_PREVIOUS_KEYS`) : la désinscription aboutit, sous l'empreinte stockée au moins.
         }
 
         return self::query()->whereIn('contact_hash', array_values(array_unique($hashes)))->delete();
