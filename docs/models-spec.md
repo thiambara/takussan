@@ -556,7 +556,7 @@ d'écrire (piège PostgreSQL n°1 — une violation abandonne la transaction ent
 | is_verified | boolean | | false | Agence vérifiée par l'admin Takussan | ➕ |
 | verified_at | datetime | oui | null | Date de vérification | ➕ |
 | primary_admin_id | FK users | oui | null | Responsable principal de l'agence | ➕ |
-| properties_count | integer | | 0 | Compteur biens (cache — mettre à jour via Observer ou job) | ➕ |
+| properties_count | integer | | 0 | Compteur biens (cache) : `PropertyObserver` l'incrémente à la création d'un bien et le décrémente à sa suppression ; seule la reprise sous mandat du Radar reporte un changement d'espace, sur les deux espaces (TCK-2421) — tout autre changement d'`agency_id` d'un bien le laisse dériver. La ressource publique le rend tel quel ; la console de modération lit le compte réel (`live_properties_count`) | ➕ |
 | active_leases_count | integer | | 0 | Compteur baux actifs (cache) | ➕ |
 | average_rating | decimal(3,2) | oui | null | Note moyenne des avis **publiés** (`is_approved = true`) — cache | ➕ |
 | reviews_count | unsigned integer | | 0 | Nombre d'avis publiés — cache, recompté avec la moyenne (`2026_10_08_100400`, TCK-597, ADR-0043 §6) | ➕ |
@@ -5043,11 +5043,12 @@ settled_amount`.
 ### 108. RadarAdvertiser 🆕
 
 **Table :** `radar_advertisers` (migration `2026_10_27_200000`, TCK-2386 ; `2026_10_28_100000`, TCK-2388 ;
-`2026_10_30_100000`, TCK-2394)
+`2026_10_30_100000`, TCK-2394 ; `2026_10_30_242100`, TCK-2421)
 **Modèle :** `App\Models\RadarAdvertiser` (`AbstractModel`) — `nature` casté en `RadarAdvertiserNature`,
 `nature_signals` en `array`, `do_not_contact_at`, `claimed_at` et `claim_expires_at` en `datetime` ;
 `activation_reminded_at` et `mandate_at` en `datetime`, `activation_reminder_count` en `integer`,
-`activation_baseline` en `array` (TCK-2394) ;
+`activation_baseline` en `array` (TCK-2394) ; `mandate_taken_back_at` en `datetime` (TCK-2421) ; `underMandate()` :
+`mandate_at` posé et `mandate_taken_back_at` nul, seule définition de « sous mandat » (TCK-2421) ;
 `hasMany listings`, `outreaches`, `consents`, `belongsTo user`, `claimer` (colonne `claimed_by_id`).
 Tri `sort=listings_count` (TCK-2393, `App\Sorts\RadarAdvertiserListingsSort`) : le nombre d'annonces vivantes (ni
 `purged`, ni `duplicate_of_listing_id`), en sous-requête corrélée — le volume du classement de l'observatoire.
@@ -5075,8 +5076,25 @@ Les indices de l'IA (`nature_signals`) restent.
 
 **Relance d'activation et mandat (TCK-2394, [ADR-0079](adr/0079-la-publication-sous-mandat-takussan.md)).**
 Écrits par `forceFill` dans `RadarActivationReminders::markSent()` et `RadarPublisher::publishUnderMandate()`
-seuls. Un bien publié sous mandat porte `metadata.radar_mandate = true` et naît dans l'espace désigné par le
-réglage `radar.mandate_agency_id`, auteur son administrateur principal.
+seuls, et `mandate_taken_back_at` dans `RadarMandateTakeBack::takeBack()` (TCK-2421). Un bien publié sous mandat porte
+`metadata.radar_mandate = true` et naît dans l'espace désigné par le réglage `radar.mandate_agency_id`, auteur son
+administrateur principal.
+
+**Reprise des biens sous mandat (TCK-2421, [ADR-0079](adr/0079-la-publication-sous-mandat-takussan.md), amendement « la reprise »).**
+`RadarMandateTakeBack::takeBack()`, appelé par la réclamation sous le verrou de l'annonceur, après la vérification du
+code et avant le rattachement au compte : verrouille les biens vivants des annonces de l'annonceur dont
+`metadata.radar_mandate` est vrai (`properties()`), par identifiant croissant, rejuge `transferable()` (aucune ligne
+de `MANAGEMENT_TABLES` — `bookings`, `leases`, `service_provider_bills`, `property_boosts`, `maintenance_requests`,
+`inventories`, `property_calendar_feeds` —, aucun lot), relit l'espace cible sous verrou (statut `active`), puis
+réécrit chaque bien (espace, titulaire, `metadata.radar_mandate` à faux, journal du modèle coupé), déplace demandes,
+visites et empreintes, retire les collaborateurs, reporte `properties_count` sur les deux espaces, pose
+`mandate_taken_back_at` et journalise `radar_mandate_taken_back` (`property_ids`, `from_agency_ids`,
+`from_user_ids`, `removed_collaborator_ids`, `conversation_ids`). La réclamation met ensuite en file
+`App\Jobs\Radar\TransmitTakenBackConversations` (`afterCommit`, après `PublishClaimedRadarListings` ; `tries` 5,
+`backoff` 10/60/300/900 s ; `failed()` journalise `radar.take_back.conversations_not_transmitted`), qui appelle
+`PropertyConversationResolver::transmitForProperty()` sur chaque bien repris ; un bien qui lève n'arrête pas les
+suivants, et le rejeu est sans effet sur un fil déjà transmis. `properties()` ne filtre pas l'espace : un bien sous
+mandat est repris d'où qu'il soit.
 
 **Compte délié (TCK-2413).** `AdvertiserAccountRelease` (`POST /api/admin/radar/advertisers/{id}/release-account`,
 `super_admin`) remet `user_id` à null quand le compte lié est supprimé, sous le verrou de l'annonceur, et
@@ -5107,8 +5125,9 @@ de plus. Écrites par `forceFill` dans `AdvertiserClaim` seul : hors de `$fillab
 | activation_reminded_at | timestamp | oui | null | TCK-2394 : dernière relance d'activation marquée envoyée ; début de la période suivante |
 | activation_reminder_count | smallint | | 0 | TCK-2394 : relances d'activation envoyées |
 | activation_baseline | jsonb | oui | null | TCK-2394 : `{bien: views_count}` au dernier envoi — les vues de la période suivante la dépassent |
-| mandate_at | timestamp | oui | null | TCK-2394 (ADR-0079) : première publication sous mandat ; la première date reste |
+| mandate_at | timestamp | oui | null | TCK-2394 (ADR-0079) : première publication de la période de mandat ; reste comme trace après la reprise (TCK-2421) ; un nouveau mandat après une reprise date une période neuve |
 | mandate_by_id | FK users | oui | null | TCK-2394 : l'opérateur de la première publication sous mandat (`nullOnDelete`, `radar_advertisers_mandate_by_fk`, index `radar_advertisers_mandate_by_idx`) |
+| mandate_taken_back_at | timestamp | oui | null | TCK-2421 (ADR-0079, amendement « la reprise ») : l'annonceur a repris ses biens sous mandat dans son espace par le code de la réclamation ; clôt la période de mandat (sous mandat = `mandate_at` posé et cette colonne nulle). Remise à nul par un nouveau mandat |
 | created_at / updated_at | timestamp | | auto | |
 
 **Contraintes :** uniques `radar_advertisers_phone_unique (phone)` et `radar_advertisers_phone_hmac_unique (phone_hmac)`.

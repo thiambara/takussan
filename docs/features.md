@@ -825,13 +825,13 @@ catalogue tant que cet accord n'existe pas. Vision et lots : [plan du 2026-10-26
 | P1 | 🛡️ | Préparer le message d'accord pour une ou plusieurs annonces d'un annonceur (clauses fixes, salutation et résumé personnalisés par l'IA) et l'ouvrir dans WhatsApp ; relances après un délai sans réponse |
 | P1 | 🛡️ | Déposer la capture de la réponse : l'IA la transcrit, vérifie le numéro et les clauses et classe la réponse (accord, refus, STOP, question, ambigu) ; un opérateur confirme ; refus et STOP s'enregistrent aussi sans capture |
 | P1 | 🛡️ | « Publier pour lui » (`super_admin` seulement) : sur un accord confirmé, crée l'espace individuel de l'annonceur (compte sans mot de passe à son numéro) et y publie les annonces couvertes, après un écran de vérification (compte, biens, photos, doublons) ; une annonce relue sans titre se publie sous un titre construit de ses champs (type, chambres, contrat, quartier), que l'écran de vérification montre (TCK-2389) |
-| P1 | 👤🏢 | Réclamer ses annonces depuis le lien signé du message (`/claim/{jeton}`, 30 jours, mort après un STOP ou une révocation, refusé sous mandat jusqu'à la reprise, TCK-2421) : annonces en cartes à cocher et à corriger (titre, prix, description), prénom et nom de l'espace, acceptation des conditions avec leur version, code SMS envoyé au seul numéro de l'annonceur (affiché masqué), publication dans son espace individuel dès les photos prêtes ; un numéro déjà inscrit se connecte d'abord à son compte ; la même page active le compte créé par « publier pour lui » (TCK-2390) ; une annonce que la publication automatique ne peut pas mettre en ligne (photo, champ, refus) attend la vérification de l'équipe, et l'opérateur la reprend depuis la file « À reprendre », qui montre l'échéance de purge (TCK-2413) |
+| P1 | 👤🏢 | Réclamer ses annonces depuis le lien signé du message (`/claim/{jeton}`, 30 jours, mort après un STOP ou une révocation ; sous mandat, le même code reprend ses biens en ligne dans son espace, TCK-2421) : annonces en cartes à cocher et à corriger (titre, prix, description), prénom et nom de l'espace, acceptation des conditions avec leur version, code SMS envoyé au seul numéro de l'annonceur (affiché masqué), publication dans son espace individuel dès les photos prêtes ; un numéro déjà inscrit se connecte d'abord à son compte ; la même page active le compte créé par « publier pour lui » (TCK-2390) ; une annonce que la publication automatique ne peut pas mettre en ligne (photo, champ, refus) attend la vérification de l'équipe, et l'opérateur la reprend depuis la file « À reprendre », qui montre l'échéance de purge (TCK-2413) ; sous mandat, la page dit que Takussan diffuse ses annonces pour son compte et le code les fait reprendre dans l'espace de l'annonceur, sans republication, avec leurs vues et leurs demandes, dans la transaction de la réclamation ; un bien qui porte de la gestion (réservation, bail, facture de prestataire, mise en avant, maintenance, état des lieux, flux de calendrier) ou un lot renvoie au support (`radar.claim.mandate_support_required`), et un espace qui n'est pas actif (suspendu ou inactif) refuse la reprise (`radar.claim.space_suspended`), ses biens restant sous mandat, en ligne (TCK-2421, [ADR-0079](adr/0079-la-publication-sous-mandat-takussan.md), amendement « la reprise ») |
 | P1 | 🛡️ | Retrait de l'accord (STOP, ou révocation par la plateforme, `POST /api/admin/radar/advertisers/{id}/revoke`, `super_admin` seulement, motif obligatoire) : les biens publiés quittent la surface publique et l'index de recherche sur-le-champ, l'annonceur n'est plus jamais contacté (TCK-2391) |
 | P1 | 🛡️ | Purge des annonces jamais publiées à 90 jours ou dès un STOP, en conservant l'empreinte du numéro qui a refusé ; purge quotidienne (`radar:purge`, 04:15 Dakar), doublée d'un job lancé dès la révocation (TCK-2391) |
 | P2 | 🛡️ | Collecte automatique planifiée sur Expat-Dakar et CoinAfrique, **éteinte par défaut** : le `super_admin` allume chaque site, règle sa fréquence, ses pages et ses URL de départ (plusieurs par site, une page par ville ou par catégorie ; `https` sur un hôte que l'adaptateur du site déclare ; vides : l'URL de la configuration), lance un passage (`/super-admin/radar/collecte`) ; chaque passage lit chacune de ses listes dans un plafond de pages et un budget de temps communs (`robots.txt` respecté, un seul passage actif par site), saisit les annonces nouvelles et date leurs instantanés (prix, surface, quartier, présence) ; la même annonce vue sur deux sites peut être fusionnée d'office en une fiche à deux provenances, que l'opérateur peut séparer — fusion **éteinte par défaut** (`RADAR_MERGE_AUTO`) (TCK-2392, TCK-2438, [ADR-0080](adr/0080-la-collecte-automatique-du-radar.md)) |
 | P2 | 🛡️ | Annonceurs et observatoire du marché (`/super-admin/radar/observatory`) : classement des annonceurs par volume d'annonces vivantes (quartiers principaux, gammes de prix, sites, nature présumée, piste commerciale jusqu'à la demande de passage en agence) ; prix au m² par quartier, type et contrat ; temps de mise sur le marché ; quartiers où Takussan manque d'annonces ; part d'intermédiaires probables ; alerte quand l'annonce source d'un bien publié disparaît (TCK-2393, [ADR-0083](adr/0083-l-observatoire-du-marche.md)) ; part par nature sur une période, en annonceurs-jours, lue sur des compteurs anonymes quotidiens qui survivent à la purge — **éteints par défaut** (`RADAR_NATURE_COUNTS`), jusqu'à l'avis juridique de TCK-2434 (TCK-2431) |
 | P2 | 🛡️ | Relance d'activation d'un compte créé par « publier pour lui » et jamais activé : texte fixe versionné (`activation.v1`) avec les chiffres réels de la période — vues, demandes de contact et de visite, crédits offerts à l'activation —, ouvert dans WhatsApp puis marqué envoyé ; une relance par semaine au plus (`radar.activation.min_interval_days`) (TCK-2394) |
-| P2 | 🛡️ | Publication sous mandat Takussan (`super_admin`, drapeau `radar_mandate`, [ADR-0079](adr/0079-la-publication-sous-mandat-takussan.md), accepté sur le principe ; drapeau éteint jusqu'à l'avis de l'avocat, la livraison de TCK-2421 et celle de TCK-2422) : sur un accord confirmé, l'annonceur qui ne veut pas de compte voit ses annonces publiées dans l'espace des mandats (réglage `radar.mandate_agency_id`), son numéro en contact, sans compte créé ; second message `mandat.v1`, sans lien d'activation (TCK-2394) |
+| P2 | 🛡️ | Publication sous mandat Takussan (`super_admin`, drapeau `radar_mandate`, [ADR-0079](adr/0079-la-publication-sous-mandat-takussan.md), accepté sur le principe ; drapeau éteint jusqu'à l'avis de l'avocat et la livraison de TCK-2422 ; la reprise de TCK-2421 est livrée) : sur un accord confirmé, l'annonceur qui ne veut pas de compte voit ses annonces publiées dans l'espace des mandats (réglage `radar.mandate_agency_id`), son numéro en contact, sans compte créé ; second message `mandat.v2`, qui porte le lien par lequel l'annonceur reprend ses biens dans son espace, ou `mandat.v1`, sans lien, quand la connexion par téléphone est éteinte ou l'aperçu des codes actif (TCK-2394, TCK-2421) |
 | P3 | 🛡️ | Démarchage par l'API WhatsApp Cloud sur un numéro dédié au Radar, réception des réponses par webhook signé et preuve par identifiant de message (TCK-2395, [ADR-0081](adr/0081-le-radar-prospecte-par-l-api-whatsapp-sur-son-propre-numero.md)) ; depuis la fiche annonceur, envoi confirmé, canal de chaque message, réponse reçue lue en texte (TCK-2426) ; état de remise suivi par les accusés de WhatsApp, journalisé (TCK-2427) et affiché à côté du canal (TCK-2437) ; un envoi resté sans confirmation de Meta rattaché à ses accusés par un jeton opaque posé à l'envoi (TCK-2436) |
 
 **Règles de gestion.**
@@ -846,8 +846,9 @@ catalogue tant que cet accord n'existe pas. Vision et lots : [plan du 2026-10-26
   approuve pour le démarchage par l'API (TCK-2395).
 - **Le lien de réclamation est signé, propre à l'annonceur et sans stockage** : il expire
   (`radar.claim.link_ttl_days`, 30 jours) et ne sert plus après un STOP, un accord révoqué ou un
-  numéro purgé. `accord.v2`, `accord.v3`, `publie.v2` et `activation.v1` le portent. La page ne révèle ni le numéro complet, ni
-  rien du Radar (TCK-2390 ; `accord.v3` : TCK-2395 ; `activation.v1` : TCK-2394).
+  numéro purgé. `accord.v2`, `accord.v3`, `publie.v2`, `activation.v1` et, sous mandat, `mandat.v2`
+  le portent. La page ne révèle ni le numéro complet, ni rien du Radar (TCK-2390 ; `accord.v3` :
+  TCK-2395 ; `activation.v1` : TCK-2394 ; `mandat.v2` : TCK-2421).
 - **Réclamer, c'est donner un accord prouvé** : preuve `otp` rattachée au dernier message envoyé qui
   couvre les annonces retenues, acceptation des conditions avec leur version. Une annonce décochée
   est refusée (`radar.claim.declined`). Le code part au seul numéro de l'annonceur, sous les
@@ -856,7 +857,10 @@ catalogue tant que cet accord n'existe pas. Vision et lots : [plan du 2026-10-26
   dans son espace existant ; les biens qu'un compte du Radar **jamais activé** portait pour ce numéro
   y sont rattachés, avec leurs demandes, prospects et conversations, puis ce compte est supprimé ; un
   compte du Radar qui a servi renvoie au support (`radar.claim.support_required`). « Publier pour
-  lui » refuse de verser encore dans ce compte (décision 5a du porteur, 2026-10-29, TCK-2390).
+  lui » refuse de verser encore dans ce compte (décision 5a du porteur, 2026-10-29, TCK-2390). Ce
+  rattachement change le titulaire des biens sans journal du modèle : la réparation des titulaires
+  réattribués ([ADR-0059](adr/0059-changer-l-agent-responsable-et-transmettre-les-biens-a-la-passation.md) § 4, § 5) ne le lit pas
+  comme une réattribution à défaire (TCK-2439).
 - **Un compte rattaché à un annonceur, puis supprimé, se délie** (`super_admin`, motif facultatif,
   journalisé) : que le Radar l'ait créé ou que l'annonceur ait réclamé avec. L'annonceur réclame
   ensuite par un compte neuf, ou par celui qui a vérifié son numéro. Jamais après un STOP ou une
@@ -892,11 +896,37 @@ catalogue tant que cet accord n'existe pas. Vision et lots : [plan du 2026-10-26
   annonceur rattaché à un compte (`radar.mandate.account_exists`), « publier pour lui » refuse un
   annonceur sous mandat (`radar.publish.under_mandate`). Le mandat garde les gardes de « publier pour
   lui » sauf celles du compte ; il est refusé drapeau `radar_mandate` éteint (`radar.mandate.disabled`)
-  ou sans espace des mandats (`radar.mandate.space_missing`). **Sous mandat, la réclamation par le
-  lien est refusée** (409, `radar.claim.under_mandate`) : avant l'envoi du code SMS, puis sous le
-  verrou de l'annonceur à la confirmation, et la publication d'une réclamation aussi ; un lien encore
-  valide cesse donc de servir dès le mandat, jusqu'à la reprise des biens sous mandat (TCK-2421)
-  (TCK-2394, [ADR-0079](adr/0079-la-publication-sous-mandat-takussan.md)).
+  ou sans espace des mandats (`radar.mandate.space_missing`). Un annonceur est sous mandat quand
+  `mandate_at` est posé et `mandate_taken_back_at` nul (`RadarAdvertiser::underMandate()`, seule
+  définition) (TCK-2394, [ADR-0079](adr/0079-la-publication-sous-mandat-takussan.md)).
+- **Sous mandat, la réclamation par le lien reprend ses biens** (TCK-2421, ADR-0079, amendement
+  « la reprise ») : après la vérification du code envoyé à son numéro, sous le verrou de
+  l'annonceur et dans la même transaction, ses biens publiés sous mandat
+  (`metadata.radar_mandate` vrai) passent dans son espace, puis il est rattaché à son compte ; rien
+  ne passe à un compte qui n'a pas vérifié ce numéro, et un refus défait tout, compte compris. Une
+  confirmation sans annonce cochée suffit quand des biens sont à reprendre. Suivent le bien : ses
+  demandes et clics (espace et destinataire), ses visites (agent), ses empreintes de photos ; le lien
+  aux prospects de l'espace des mandats est retiré (`customer_id` nul), et ses collaborateurs sont
+  retirés. Aucun quota de l'espace n'est rejugé, et la reprise ne dépend pas du drapeau
+  `radar_mandate`. Les biens et l'espace se rejugent sous verrou : un bien qui porte de la gestion
+  (réservation, bail, facture de prestataire, mise en avant, maintenance, état des lieux, flux de
+  calendrier) ou un lot renvoie au support (409 `radar.claim.mandate_support_required`, état
+  `mandate_support` de la page) ; un espace cible qui n'est pas actif (suspendu ou inactif) refuse
+  (409 `radar.claim.space_suspended`), jugé aussi avant l'envoi du code et à la confirmation, et les
+  biens restent sous mandat, en ligne. Après le commit, un job rejouable mis en file après la
+  publication de la réclamation (`TransmitTakenBackConversations`) fait passer chaque fil direct de
+  prospect au contact principal actuel du bien, l'ancien répondant quittant le fil (TCK-888) ; un fil
+  de groupe ouvert sur le bien n'est pas transmis ; une transmission qui échoue ne défait ni la
+  réclamation ni sa publication, et son abandon est signalé
+  (`radar.take_back.conversations_not_transmitted`). `mandate_at` reste comme trace,
+  `mandate_taken_back_at` clôt la période et l'évènement `radar_mandate_taken_back` est journalisé.
+  Un mandat posé après la reprise, sur un annonceur délié de son compte, ouvre une période neuve ;
+  la publication d'une réclamation refuse alors (409 `radar.claim.under_mandate`).
+- **Les biens du Radar n'entrent pas dans l'espace d'un annonceur qui n'est pas actif** (suspendu
+  ou inactif), qui ne les rendrait pas au public : la reprise sous mandat
+  (`radar.claim.space_suspended`), la publication d'une réclamation et « publier pour lui », aperçu
+  compris (`radar.advertiser.account_unavailable`), le refusent ; sans espace, la réclamation et
+  « publier pour lui » en ouvrent un (TCK-2421).
 - **La nature de l'annonceur reste dans le Radar**, jamais dans les profils.
 - **Le numéro WhatsApp des notifications ne sert jamais à prospecter.**
 - **Le démarchage par l'API part d'un numéro WhatsApp dédié au Radar, configuré à part** : le code
