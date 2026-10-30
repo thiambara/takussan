@@ -9,6 +9,7 @@ use App\Services\Account\DeletionStepUpService;
 use App\Services\Notifications\Sms\OtpLateFailureMemory;
 use App\Services\Notifications\Sms\SmsResult;
 use App\Services\Notifications\Sms\SmsRouterDriver;
+use App\Support\AppKeyHmac;
 use App\Support\CanonicalPhone;
 use Illuminate\Contracts\Cache\Repository as CacheRepository;
 use Illuminate\Support\Facades\Log;
@@ -450,7 +451,7 @@ class PhoneVerificationService
 
     private function hash(string $code): string
     {
-        return hash_hmac('sha256', $code, (string) config('app.key'));
+        return AppKeyHmac::of($code);
     }
 
     private function userSubject(User $user): string
