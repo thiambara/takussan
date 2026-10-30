@@ -1,7 +1,7 @@
 ---
 id: TCK-2437
 title: "Radar : afficher dans la fiche annonceur l'état de remise d'un message WhatsApp (remis, lu, échec)"
-status: todo
+status: doing
 phase: P3
 family: front
 estimate: S
