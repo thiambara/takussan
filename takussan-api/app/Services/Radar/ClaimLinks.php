@@ -11,7 +11,8 @@ use Carbon\CarbonInterface;
 
 /**
  * TCK-2390 (ADR-0077 §3) — le lien de réclamation : propre à l'annonceur, signé, à durée limitée, et mort après un STOP
- * ou une révocation. Le message d'accord (`accord.v2`, `{lien_reclamation}`) et le second message (`publie.v2`) le portent.
+ * ou une révocation. Le message d'accord (`accord.v2`, `{lien_reclamation}`) et le second message (`publie.v2` ; sous
+ * mandat, `mandat.v2`, celui de la reprise, TCK-2421) le portent.
  *
  * Le jeton est `{annonceur}.{émis_à}.{signature}` : HMAC-SHA256 tronqué à 128 bits, clé dérivée de `app.key`, et
  * reconnue sous `APP_PREVIOUS_KEYS` comme les URL signées de Laravel. TCK-2414 : PAS sous la clé dédiée des refus

@@ -174,8 +174,8 @@ final class RadarActivationReminders
             // Un accord retiré ou un numéro purgé : le lien d'activation rendrait 410, et il n'y a personne à qui écrire.
             $blocking[] = self::REVOKED;
         }
-        if ($advertiser->mandate_at !== null) {
-            // ADR-0079 — sous mandat, ses biens ne sont pas dans ce compte (TCK-2421).
+        if ($advertiser->underMandate()) {
+            // ADR-0079 — sous mandat, ses biens ne sont pas dans un compte ; repris (TCK-2421), ils le sont.
             $blocking[] = self::UNDER_MANDATE;
         }
         if ($advertiser->phone !== null) {

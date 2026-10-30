@@ -5,6 +5,7 @@ namespace App\Services\Radar;
 use App\Exceptions\ApiError;
 use App\Jobs\Radar\PrepareRadarListingPhotos;
 use App\Jobs\Radar\PublishClaimedRadarListings;
+use App\Jobs\Radar\TransmitTakenBackConversations;
 use App\Models\Agency;
 use App\Models\Enums\AgencyStatus;
 use App\Models\Enums\RadarConsentProof;
@@ -48,6 +49,11 @@ use Illuminate\Support\Facades\DB;
  *  - `support` — un compte a vérifié ce numéro, mais le compte que le Radar avait créé pour lui a servi (connexion, mot de
  *    passe, e-mail, numéro vérifié, autre bien ou autre espace), ou est bloqué, supprimé, ou son espace suspendu : rien ne se
  *    réunit sans le support (décision 5a du porteur).
+ *  - `mandate_support` (TCK-2421) — sous mandat, un de ses biens porte de la gestion
+ *    ({@see RadarMandateTakeBack::transferable()}) : rien ne se reprend par la page, le support déplace les biens.
+ *
+ * **Sous mandat (TCK-2421, ADR-0079)**, le même code reprend ses biens en ligne dans son espace ({@see RadarMandateTakeBack}),
+ * dans la même transaction : la page le dit (`mandate`), et la confirmation n'exige alors aucune annonce à publier.
  *
  * **Rien de ce que la page lit ne vient du Radar interne** : ni le numéro (masqué), ni la nature, ni ses indices, ni un
  * verdict, ni la source de l'annonce. Seulement les valeurs de l'annonce, ses photos déjà en réserve, et les biens en ligne.
@@ -56,7 +62,8 @@ use Illuminate\Support\Facades\DB;
  * et l'espace. Un refus n'écrit rien d'autre que ce que le code lui-même compte (verrou du numéro). La publication part après
  * le commit ({@see PublishClaimedRadarListings}) : les photos d'une annonce-URL ne se lisent qu'une fois l'accord donné.
  *
- * Ordre des verrous : annonces → annonceur → message (celui de {@see RadarConsentWorkflow} et de {@see RadarPublisher}).
+ * Ordre des verrous : annonces → annonceur → message (celui de {@see RadarConsentWorkflow} et de {@see RadarPublisher}) ; les
+ * biens repris sous mandat, après l'annonceur.
  */
 final class RadarClaims
 {
@@ -71,13 +78,16 @@ final class RadarClaims
     /** Deux comptes pour un numéro, dont le compte du Radar a servi : le support tranche, la page ne réunit rien. */
     public const STATE_SUPPORT = 'support';
 
+    /** TCK-2421 — sous mandat, un bien qui porte de la gestion : la page ne reprend rien, le support déplace les biens. */
+    public const STATE_MANDATE_SUPPORT = 'mandate_support';
+
     /** Le motif d'une annonce que l'annonceur a décochée : il ne veut pas la publier. */
     public const DECLINED = 'radar.claim.declined';
 
     /**
-     * TCK-2394 (ADR-0079) — un annonceur publié sous mandat ne réclame pas par le lien : ses biens vivent dans l'espace des
-     * mandats, et la réclamation lui ouvrirait un compte à côté (l'état mêlé compte + mandat). La reprise (TCK-2421) lèvera ce
-     * refus. Jugé avant le SMS, puis sous le verrou de l'annonceur à la confirmation.
+     * TCK-2394 (ADR-0079) — rien ne se publie dans un compte pour un annonceur encore sous mandat
+     * ({@see RadarPublisher::publishClaimed()}). TCK-2421 : la réclamation ne le refuse plus, elle reprend ses biens
+     * ({@see RadarMandateTakeBack}) sous le verrou de l'annonceur, et la publication réclamée qui suit ne le voit plus sous mandat.
      */
     public const UNDER_MANDATE = 'radar.claim.under_mandate';
 
@@ -88,6 +98,7 @@ final class RadarClaims
         private readonly PublishReadiness $readiness,
         private readonly RadarPhotoReserve $reserve,
         private readonly RadarConsentCoverage $coverage,
+        private readonly RadarMandateTakeBack $takeBack,
     ) {}
 
     /** Les deux portes de la publication pour lui (TCK-2389) : le code ouvre un compte, la réclamation en dépend autant. */
@@ -133,6 +144,8 @@ final class RadarClaims
             'awaiting_review' => $awaiting->map(fn (RadarListing $listing) => $this->listingOf($listing))->values()->all(),
             'published' => $this->published($advertiser),
             'terms_version' => PublishReadiness::TERMS_VERSION,
+            // TCK-2421 — sous mandat : ses biens en ligne, que le code lui fera reprendre dans son espace ; `null` hors mandat.
+            'mandate' => $this->takeBack->summary($advertiser),
         ];
     }
 
@@ -145,11 +158,11 @@ final class RadarClaims
     public function sendCode(RadarAdvertiser $advertiser, ?User $viewer, ?string $locale): array
     {
         $phone = (string) $advertiser->phone;
-        // Sous mandat, aucun SMS ne part : la confirmation le refuserait (TCK-2394).
-        abort_code_if($advertiser->mandate_at !== null, 409, self::UNDER_MANDATE);
         $state = $this->state($advertiser);
         abort_code_if($state['state'] === self::STATE_UNAVAILABLE, 422, 'radar.claim.account_unavailable');
         abort_code_if($state['state'] === self::STATE_SUPPORT, 409, 'radar.claim.support_required');
+        abort_code_if($state['state'] === self::STATE_MANDATE_SUPPORT, 409, RadarMandateTakeBack::SUPPORT_REQUIRED);
+        $this->refuseSuspendedTakeBack($advertiser, $state);
         // Un numéro vérifié sur un compte : la connexion d'abord, le code ensuite — un SMS ne se dépense pas pour rien.
         abort_code_if($state['state'] === self::STATE_EXISTING && ! $viewer?->is($state['user']), 409, 'radar.claim.login_required');
         // Connecté à un autre compte, la confirmation refusera : le SMS est refusé avant de partir, avec le même code.
@@ -171,11 +184,11 @@ final class RadarClaims
     public function confirm(RadarAdvertiser $advertiser, array $input, ?User $viewer, ?string $locale): JsonResponse
     {
         $phone = (string) $advertiser->phone;
-        // Avant le code : un compte ne s'ouvre pas pour rien. La garde qui fait foi est sous verrou ({@see self::claim()}).
-        abort_code_if($advertiser->mandate_at !== null, 409, self::UNDER_MANDATE);
         $state = $this->state($advertiser);
         abort_code_if($state['state'] === self::STATE_UNAVAILABLE, 422, 'radar.claim.account_unavailable');
         abort_code_if($state['state'] === self::STATE_SUPPORT, 409, 'radar.claim.support_required');
+        abort_code_if($state['state'] === self::STATE_MANDATE_SUPPORT, 409, RadarMandateTakeBack::SUPPORT_REQUIRED);
+        $this->refuseSuspendedTakeBack($advertiser, $state);
         abort_code_if($input['terms_version'] !== PublishReadiness::TERMS_VERSION, 422, 'radar.claim.terms_outdated');
         // Le prénom et le nom de l'espace deviennent publics : aucun numéro, sous aucune forme que le masqueur reconnaît
         // (vérification adverse I-1). Un code, et les champs en cause, que la page affiche sous chacun (le front possède le texte).
@@ -191,7 +204,9 @@ final class RadarClaims
         $claimable = $this->claimable($advertiser)->pluck('id')->map(fn ($id) => (int) $id)->all();
         $foreign = array_values(array_diff($selection->keys()->all(), $claimable));
         abort_code_if($foreign !== [], 422, 'radar.claim.listing_unavailable', ['listing_ids' => $foreign]);
-        abort_code_if($selection->isEmpty() && $state['state'] !== self::STATE_ACTIVATION, 422, 'radar.claim.nothing_selected');
+        // TCK-2421 — sous mandat, reprendre ses biens en ligne suffit à confirmer.
+        $takesBack = $advertiser->underMandate() && $this->takeBack->properties($advertiser)->exists();
+        abort_code_if($selection->isEmpty() && $state['state'] !== self::STATE_ACTIVATION && ! $takesBack, 422, 'radar.claim.nothing_selected');
 
         if ($state['state'] === self::STATE_EXISTING) {
             // Le numéro est vérifié sur un compte : il ne s'ouvre pas par la page, mais par la connexion (mot de passe, 2FA).
@@ -244,7 +259,7 @@ final class RadarClaims
      * @param  Collection<int, array<string, mixed>>  $selection  les annonces retenues, par identifiant, et leurs corrections
      * @param  array<string, mixed>  $input
      * @param  string  $state  l'état lu avant le code ({@see self::state()})
-     * @return array{state: string, agency: array{id: int, name: string}, listing_ids: list<int>, declined_ids: list<int>, moved_property_ids: list<int>}
+     * @return array{state: string, agency: array{id: int, name: string}, listing_ids: list<int>, declined_ids: list<int>, moved_property_ids: list<int>, taken_back_property_ids: list<int>}
      */
     private function claim(RadarAdvertiser $advertiser, User $user, Collection $selection, array $input, string $state): array
     {
@@ -252,9 +267,6 @@ final class RadarClaims
         $listings = RadarListing::query()->whereIn('id', $listings)->orderBy('id')->lockForUpdate()->get();
         $locked = RadarAdvertiser::query()->whereKey($advertiser->getKey())->lockForUpdate()->firstOrFail();
         abort_code_if(ClaimLinks::revoked($locked), 410, 'radar.claim.revoked');
-        // TCK-2394 — relu sous verrou : une publication sous mandat a pu passer depuis la lecture. Le refus défait la transaction,
-        // compte ouvert par le code compris.
-        abort_code_if($locked->mandate_at !== null, 409, self::UNDER_MANDATE);
 
         // Relu sous verrou : une annonce retenue a pu être publiée, close ou réattribuée depuis la lecture.
         $gone = array_values(array_diff($selection->keys()->all(), $listings->pluck('id')->map(fn ($id) => (int) $id)->all()));
@@ -287,6 +299,9 @@ final class RadarClaims
             abort_code_unless($this->orphanAbsorbable($locked, $orphan), 409, 'radar.claim.support_required');
             $moved = $this->absorbOrphan($locked, $orphan, $user, $agency);
         }
+        // TCK-2421 — relu sous verrou (une publication sous mandat a pu passer depuis la lecture) : sous mandat, ses biens passent
+        // dans son espace avant qu'il ne soit rattaché à son compte. Jamais l'un sans l'autre : un refus défait tout, compte compris.
+        $takenBack = $locked->underMandate() ? $this->takeBack->takeBack($locked, $user, $agency) : [];
         if ($locked->user_id === null || (int) $locked->user_id !== $user->id) {
             $locked->forceFill(['user_id' => $user->id])->save();
         }
@@ -313,6 +328,10 @@ final class RadarClaims
         if ($retainedIds !== []) {
             PublishClaimedRadarListings::dispatch($locked->id, $user->id, $agency->id, $retainedIds)->afterCommit();
         }
+        // TCK-2421 — APRÈS la publication, et en file : une transmission qui lève ne défait ni ne retient la publication.
+        if ($takenBack !== []) {
+            TransmitTakenBackConversations::dispatch($takenBack)->afterCommit();
+        }
 
         activity('Radar')
             ->causedBy($user)
@@ -326,6 +345,7 @@ final class RadarClaims
                 'declined_ids' => $declined->pluck('id')->map(fn ($id) => (int) $id)->values()->all(),
                 'consent_ids' => $consentIds,
                 'moved_property_ids' => $moved,
+                'taken_back_property_ids' => $takenBack,
                 'previous_user_id' => $previous !== $user->id ? $previous : null,
                 'terms_version' => $user->terms_version,
             ], fn (mixed $value) => $value !== null && $value !== []))
@@ -338,6 +358,7 @@ final class RadarClaims
             'listing_ids' => $retainedIds,
             'declined_ids' => $declined->pluck('id')->map(fn ($id) => (int) $id)->values()->all(),
             'moved_property_ids' => $moved,
+            'taken_back_property_ids' => $takenBack,
         ];
     }
 
@@ -461,7 +482,9 @@ final class RadarClaims
             ->all();
 
         foreach (Property::query()->whereIn('id', $ids)->get() as $property) {
-            $property->forceFill(['agency_id' => $agency->id, 'user_id' => $user->id])->save();
+            // ADR-0059 § 4 (TCK-2439) : journal du modèle coupé — un `updated` portant `user_id` serait relu par
+            // `properties:repair-reassigned-owners` comme une réattribution. Le déplacement se journalise plus bas.
+            $property->disableLogging()->forceFill(['agency_id' => $agency->id, 'user_id' => $user->id])->save();
         }
 
         $leads = DB::table('property_contact_leads')->where(fn ($query) => $query->whereIn('property_id', $ids)->orWhereIn('agency_id', $spaces));
@@ -505,12 +528,31 @@ final class RadarClaims
     }
 
     /**
+     * TCK-2421 — sous mandat, le compte vérifié du numéro dont l'espace n'est pas actif : ses biens y quitteraient le public. Refusé
+     * avant le SMS (la reprise le rejuge sous verrou, {@see RadarMandateTakeBack::takeBack()}) ; ils restent sous mandat.
+     *
+     * @param  array{state: string, user: ?User}  $state
+     */
+    private function refuseSuspendedTakeBack(RadarAdvertiser $advertiser, array $state): void
+    {
+        abort_code_if(
+            $advertiser->underMandate() && $state['user'] !== null && $this->takeBack->spaceSuspended($state['user']),
+            409,
+            RadarMandateTakeBack::SPACE_SUSPENDED,
+        );
+    }
+
+    /**
      * L'état du compte que le code ouvrirait, et ce compte.
      *
      * @return array{state: string, user: ?User}
      */
     public function state(RadarAdvertiser $advertiser): array
     {
+        // TCK-2421 — sous mandat, un bien qui porte de la gestion ne se reprend pas par la page : le support.
+        if ($advertiser->underMandate() && ! $this->takeBack->transferable($advertiser)) {
+            return ['state' => self::STATE_MANDATE_SUPPORT, 'user' => null];
+        }
         ['user' => $user, 'verified' => $verified] = $this->login->accountFor((string) $advertiser->phone);
 
         if ($verified) {
