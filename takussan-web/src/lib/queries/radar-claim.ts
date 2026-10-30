@@ -48,6 +48,8 @@ export interface RadarClaim {
   readonly listings: readonly RadarClaimListing[];
   /** Déjà confirmées par l'annonceur, en attente de la publication : ni case ni bouton. */
   readonly publishing: readonly RadarClaimListing[];
+  /** TCK-2413 — confirmées, mais la publication les a laissées à l'équipe : elles attendent sa vérification. */
+  readonly awaiting_review: readonly RadarClaimListing[];
   readonly published: readonly { readonly title: string | null; readonly public_url: string }[];
   readonly terms_version: string;
 }
