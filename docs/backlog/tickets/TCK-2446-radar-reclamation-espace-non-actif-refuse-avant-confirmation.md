@@ -1,7 +1,7 @@
 ---
 id: TCK-2446
 title: "Radar : hors mandat, refuser la réclamation vers un espace non actif avant la confirmation, comme sous mandat"
-status: todo
+status: doing
 phase: P3
 family: full
 estimate: S
