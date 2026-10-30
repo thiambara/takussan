@@ -15,16 +15,19 @@ import { useMessageEchecAnnonceur } from './useMessageEchecAnnonceur';
 
 interface DelierCompteProps {
   readonly annonceurId: number;
+  /** L'annonceur a réclamé avec ce compte (`account.claimed`) ; sinon le Radar l'a créé pour lui. */
+  readonly parReclamation: boolean;
   /** La fiche se relit : le compte délié n'y figure plus. */
   readonly onDelie: () => Promise<unknown> | void;
 }
 
 /**
- * TCK-2413 (ADR-0077 §3, §11) — le compte que le Radar avait créé pour l'annonceur est supprimé : tant qu'il y reste lié,
+ * TCK-2413 (ADR-0077 §3, §11) — le compte rattaché à l'annonceur (créé par le Radar, ou celui de sa réclamation) est
+ * supprimé : tant qu'il y reste lié,
  * la réclamation renvoie au support. Le `super_admin` le délie, avec un motif facultatif (journalisé). Offert par la fiche
  * seulement quand l'API le dit (`account.releasable`) ; l'API rejuge (409) un STOP ou une révocation survenus depuis.
  */
-export function DelierCompte({ annonceurId, onDelie }: DelierCompteProps) {
+export function DelierCompte({ annonceurId, parReclamation, onDelie }: DelierCompteProps) {
   const t = useTranslations('superAdmin.pages.radar.advertiser.account');
   const messageEchec = useMessageEchecAnnonceur();
   const champMotif = useId();
@@ -53,7 +56,7 @@ export function DelierCompte({ annonceurId, onDelie }: DelierCompteProps) {
     >
       <div className="min-w-0 space-y-0.5">
         <p className="font-medium text-foreground">{t('heading')}</p>
-        <p className="text-muted-foreground text-pretty">{t('body')}</p>
+        <p className="text-muted-foreground text-pretty">{t(parReclamation ? 'bodyClaimed' : 'body')}</p>
       </div>
       <Button type="button" size="sm" variant="outline" onClick={() => { setMotif(''); setOuvert(true); }}>
         {t('cta')}

@@ -8626,7 +8626,16 @@
           "claimLeftPhotosPending": "Laissée par la publication automatique : les photos étaient encore en préparation",
           "claimLeftFailed": "Laissée par la publication automatique : la publication a échoué",
           "claimLeftAccountUnavailable": "Laissée par la publication automatique : le compte ou l’espace de l’annonceur n’est plus disponible",
-          "claimLeftQuota": "Laissée par la publication automatique : l’espace de l’annonceur a atteint son quota d’annonces"
+          "claimLeftQuota": "Laissée par la publication automatique : l’espace de l’annonceur a atteint son quota d’annonces",
+          "claimLeftStageConflict": "Laissée par la publication automatique : une annonce du lot a changé d’étape entre-temps",
+          "claimLeftNotCovered": "Laissée par la publication automatique : l’accord de l’annonceur ne la couvre plus",
+          "claimLeftAccountChanged": "Laissée par la publication automatique : l’annonceur a changé de compte depuis sa réclamation",
+          "claimLeftForeign": "Laissée par la publication automatique : l’annonce n’est plus rattachée à cet annonceur",
+          "claimLeftDoNotContact": "Laissée par la publication automatique : l’annonceur a demandé à ne plus être contacté",
+          "claimLeftActivationUnavailable": "Laissée par la publication automatique : l’envoi du code de connexion est indisponible",
+          "claimLeftOtpPreview": "Laissée par la publication automatique : la connexion par code est en mode d’essai",
+          "claimLeftTooManyPhotos": "Laissée par la publication automatique : trop de photos à copier en une fois",
+          "claimLeftRefused": "Laissée par la publication automatique : la publication a été refusée"
         },
         "empty": {
           "title": "Aucune annonce pour l’instant",
@@ -8916,7 +8925,8 @@
               "closed": "Close : plus rien à démarcher",
               "pending": "Un message envoyé attend sa réponse"
             },
-            "number": "n° {id}"
+            "number": "n° {id}",
+            "purgeOn": "S’efface le {date} si personne ne la publie"
           },
           "prepare": {
             "heading": "Nouveau message",
@@ -9136,7 +9146,8 @@
           },
           "account": {
             "heading": "Compte supprimé",
-            "body": "Le compte créé pour cet annonceur a été supprimé. Tant qu’il y reste lié, l’annonceur ne peut pas réclamer ses annonces depuis le lien du message.",
+            "body": "Le compte que le Radar a créé pour cet annonceur a été supprimé. Tant qu’il y reste lié, l’annonceur ne peut pas réclamer ses annonces depuis le lien du message.",
+            "bodyClaimed": "Le compte avec lequel l’annonceur a réclamé ses annonces a été supprimé. Tant qu’il y reste lié, l’annonceur ne peut plus réclamer ses annonces depuis le lien du message.",
             "cta": "Délier le compte",
             "dialogTitle": "Délier le compte supprimé ?",
             "dialogBody": "L’annonceur pourra de nouveau réclamer ses annonces : par un compte neuf, ou par celui qui a vérifié son numéro. Le compte supprimé le reste, et le geste est journalisé.",
@@ -9170,7 +9181,8 @@
             "nature": "Nature",
             "counts": "Annonces",
             "due": "Échéance de relance",
-            "claim": "Prise en charge"
+            "claim": "Prise en charge",
+            "purge": "Échéance de purge"
           },
           "tableCaption": "Les annonceurs de la file",
           "unnamed": "Annonceur sans nom",
@@ -9206,7 +9218,8 @@
             "reviewed": "À contacter",
             "contacted": "Contactées",
             "consented": "Accord"
-          }
+          },
+          "purgeHint": "Première annonce laissée, si personne ne la publie"
         },
         "advertisersLink": "Annonceurs",
         "followUpsDue": "{count, plural, =0 {Aucune relance due} one {# relance due} other {# relances dues}}",

@@ -670,7 +670,7 @@ describe('RadarAdvertiserCard — « Publier pour lui » (TCK-2389)', () => {
 });
 
 describe('RadarAdvertiserCard — le compte supprimé et l\'annonce laissée (TCK-2413)', () => {
-  const supprime = { user_id: 41, deleted: true, releasable: true } as const;
+  const supprime = { user_id: 41, deleted: true, releasable: true, claimed: false } as const;
 
   it('un compte supprimé se délie, motif compris, puis la fiche se relit et le dit', async () => {
     const { utilisateur } = await rendre(annonceur({ account: supprime }));
@@ -680,6 +680,7 @@ describe('RadarAdvertiserCard — le compte supprimé et l\'annonce laissée (TC
     });
 
     const bloc = screen.getByTestId('radar-annonceur-compte-supprime');
+    expect(bloc).toHaveTextContent('Le compte que le Radar a créé pour cet annonceur a été supprimé');
     await utilisateur.click(within(bloc).getByRole('button', { name: 'Délier le compte' }));
     await utilisateur.type(await screen.findByLabelText('Motif (facultatif)'), 'Compte supprimé à sa demande');
     await utilisateur.click(screen.getByTestId('radar-delier-confirmer'));
@@ -687,6 +688,14 @@ describe('RadarAdvertiserCard — le compte supprimé et l\'annonce laissée (TC
     expect(releaseRadarAdvertiserAccount).toHaveBeenCalledWith(7, 'Compte supprimé à sa demande');
     expect(await screen.findByTestId('radar-annonceur-compte-delie')).toHaveTextContent('Compte délié');
     await waitFor(() => expect(screen.queryByTestId('radar-annonceur-compte-supprime')).not.toBeInTheDocument());
+  });
+
+  it('le compte de la réclamation (celui du titulaire) ne se dit pas créé par le Radar (vérification adverse M4)', async () => {
+    await rendre(annonceur({ account: { ...supprime, claimed: true } }));
+
+    const bloc = screen.getByTestId('radar-annonceur-compte-supprime');
+    expect(bloc).toHaveTextContent('Le compte avec lequel l’annonceur a réclamé ses annonces a été supprimé');
+    expect(bloc).not.toHaveTextContent('créé pour cet annonceur');
   });
 
   it('un refus de l\'API (STOP survenu depuis) se dit dans le dialogue, par son code', async () => {
@@ -700,8 +709,8 @@ describe('RadarAdvertiserCard — le compte supprimé et l\'annonce laissée (TC
   });
 
   it.each([
-    ['un compte actif', { user_id: 41, deleted: false, releasable: false }],
-    ['un compte supprimé d\'un annonceur révoqué', { user_id: 41, deleted: true, releasable: false }],
+    ['un compte actif', { user_id: 41, deleted: false, releasable: false, claimed: false }],
+    ['un compte supprimé d\'un annonceur révoqué', { user_id: 41, deleted: true, releasable: false, claimed: false }],
     ['aucun compte', null],
   ])('%s : rien à délier', async (_nom, account) => {
     await rendre(annonceur({ account }));
@@ -727,11 +736,25 @@ describe('RadarAdvertiserCard — le compte supprimé et l\'annonce laissée (TC
       listings: [
         annonce(12, { stage: 'consented', covered_by_consent: true, stage_reason: 'radar.publish.no_photo' }),
         annonce(13, { stage: 'consented', covered_by_consent: true, stage_reason: 'radar.listing.stage_conflict' }),
+        annonce(14, { stage: 'consented', covered_by_consent: true, stage_reason: 'radar.code.inconnu' }),
       ],
     }));
 
     expect(screen.getByTestId('radar-annonce-laissee-12')).toHaveTextContent('aucune photo en réserve');
-    // Un refus plus rare s'affiche brut, jamais masqué.
-    expect(screen.getByTestId('radar-annonce-laissee-13')).toHaveTextContent('radar.listing.stage_conflict');
+    // Vérification adverse M5 : un refus de la publication se traduit ; un code qu'aucune ligne ne nomme prend le repli,
+    // jamais le code brut (qui reste au survol).
+    expect(screen.getByTestId('radar-annonce-laissee-13')).toHaveTextContent('une annonce du lot a changé d’étape entre-temps');
+    expect(screen.getByTestId('radar-annonce-laissee-13')).not.toHaveTextContent('radar.listing');
+    expect(screen.getByTestId('radar-annonce-laissee-14')).toHaveTextContent('la publication a été refusée');
+    expect(screen.getByTestId('radar-annonce-laissee-14')).toHaveAttribute('title', 'radar.code.inconnu');
+    // Vérification adverse M6 : l'échéance de purge de chaque annonce laissée.
+    expect(screen.getByTestId('radar-annonce-purge-12')).toHaveTextContent(/S’efface le .*2027 si personne ne la publie/);
+  });
+
+  it('une annonce sans motif ne dit ni raison ni échéance de purge', async () => {
+    await rendre(annonceur({ listings: [annonce(12, { stage: 'consented', covered_by_consent: true })] }));
+
+    expect(screen.queryByTestId('radar-annonce-laissee-12')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('radar-annonce-purge-12')).not.toBeInTheDocument();
   });
 });

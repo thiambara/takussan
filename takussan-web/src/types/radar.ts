@@ -462,14 +462,18 @@ export interface RadarAdvertiserListing {
   readonly created_at: string;
   /** TCK-2413 — un code (`radar.publish.no_photo`…) : pourquoi la publication de la réclamation l'a laissée à l'opérateur. */
   readonly stage_reason: string | null;
+  /** TCK-2413 — l'échéance de purge d'une annonce jamais publiée (ADR-0077 §9). */
+  readonly purge_at: string | null;
 }
 
-/** TCK-2413 — le compte que le Radar a créé pour l'annonceur ; supprimé, il bloque la réclamation tant qu'il n'est pas délié. */
+/** TCK-2413 — le compte rattaché à l'annonceur ; supprimé, il bloque la réclamation tant qu'il n'est pas délié. */
 export interface RadarAdvertiserAccount {
   readonly user_id: number;
   readonly deleted: boolean;
   /** Le geste « délier » est offert : compte supprimé, et aucun STOP ni révocation. */
   readonly releasable: boolean;
+  /** L'annonceur a réclamé avec ce compte ; sinon, c'est le compte que le Radar a créé pour lui. */
+  readonly claimed: boolean;
 }
 
 /** `POST /api/admin/radar/advertisers/{id}/release-account` (TCK-2413). */
@@ -554,6 +558,8 @@ export interface RadarAdvertiserRow {
     readonly consented?: number;
   };
   readonly follow_up?: RadarAdvertiserRowFollowUp | null;
+  /** TCK-2413 — l'échéance de purge de la première annonce que la publication a laissée ; `null` : aucune. */
+  readonly left_purge_at?: string | null;
 }
 
 /** Le corps d'une issue (`POST outreaches/{id}/outcome`) : le motif n'est exigé que pour confirmer un accord discordant. */

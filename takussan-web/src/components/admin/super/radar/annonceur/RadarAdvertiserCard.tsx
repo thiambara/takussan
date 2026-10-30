@@ -229,9 +229,9 @@ function FicheChargee({ annonceur }: { readonly annonceur: RadarAdvertiserDetail
         </section>
       ) : null}
 
-      {/* TCK-2413 — le compte que le Radar avait créé est supprimé : le `super_admin` le délie, la réclamation reprend. */}
+      {/* TCK-2413 — le compte rattaché est supprimé : le `super_admin` le délie, la réclamation reprend. */}
       {annonceur.account?.releasable && can('platform.radar.publish') ? (
-        <DelierCompte annonceurId={annonceur.id} onDelie={() => { setDelie(true); return relire(); }} />
+        <DelierCompte annonceurId={annonceur.id} parReclamation={annonceur.account.claimed} onDelie={() => { setDelie(true); return relire(); }} />
       ) : null}
       {delie ? (
         <p role="status" className="rounded-lg bg-muted px-4 py-3 text-sm text-foreground" data-testid="radar-annonceur-compte-delie">

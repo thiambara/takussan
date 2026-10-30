@@ -8626,7 +8626,16 @@
           "claimLeftPhotosPending": "Left by the automatic publication: the photos were still being prepared",
           "claimLeftFailed": "Left by the automatic publication: the publication failed",
           "claimLeftAccountUnavailable": "Left by the automatic publication: the advertiser’s account or space is no longer available",
-          "claimLeftQuota": "Left by the automatic publication: the advertiser’s space has reached its listing quota"
+          "claimLeftQuota": "Left by the automatic publication: the advertiser’s space has reached its listing quota",
+          "claimLeftStageConflict": "Left by the automatic publication: a listing in the batch changed stage in the meantime",
+          "claimLeftNotCovered": "Left by the automatic publication: the advertiser’s consent no longer covers it",
+          "claimLeftAccountChanged": "Left by the automatic publication: the advertiser changed accounts since claiming",
+          "claimLeftForeign": "Left by the automatic publication: the listing no longer belongs to this advertiser",
+          "claimLeftDoNotContact": "Left by the automatic publication: the advertiser asked not to be contacted again",
+          "claimLeftActivationUnavailable": "Left by the automatic publication: sending the login code is unavailable",
+          "claimLeftOtpPreview": "Left by the automatic publication: code login is in trial mode",
+          "claimLeftTooManyPhotos": "Left by the automatic publication: too many photos to copy at once",
+          "claimLeftRefused": "Left by the automatic publication: the publication was refused"
         },
         "empty": {
           "title": "No listing yet",
@@ -8916,7 +8925,8 @@
               "closed": "Closed: nothing left to contact",
               "pending": "A sent message is waiting for its answer"
             },
-            "number": "#{id}"
+            "number": "#{id}",
+            "purgeOn": "Erased on {date} unless someone publishes it"
           },
           "prepare": {
             "heading": "New message",
@@ -9136,7 +9146,8 @@
           },
           "account": {
             "heading": "Account deleted",
-            "body": "The account created for this advertiser has been deleted. While it stays linked, the advertiser cannot claim their listings from the message link.",
+            "body": "The account the Radar created for this advertiser has been deleted. While it stays linked, the advertiser cannot claim their listings from the message link.",
+            "bodyClaimed": "The account the advertiser used to claim their listings has been deleted. While it stays linked, the advertiser can no longer claim their listings from the message link.",
             "cta": "Unlink the account",
             "dialogTitle": "Unlink the deleted account?",
             "dialogBody": "The advertiser will be able to claim their listings again: with a new account, or with the one that verified their number. The deleted account stays deleted, and the action is logged.",
@@ -9170,7 +9181,8 @@
             "nature": "Nature",
             "counts": "Listings",
             "due": "Follow-up due",
-            "claim": "Ownership"
+            "claim": "Ownership",
+            "purge": "Purge deadline"
           },
           "tableCaption": "The advertisers in the queue",
           "unnamed": "Unnamed advertiser",
@@ -9206,7 +9218,8 @@
             "reviewed": "To contact",
             "contacted": "Contacted",
             "consented": "Consented"
-          }
+          },
+          "purgeHint": "First listing left, unless someone publishes it"
         },
         "advertisersLink": "Advertisers",
         "followUpsDue": "{count, plural, =0 {No follow-up due} one {# follow-up due} other {# follow-ups due}}",

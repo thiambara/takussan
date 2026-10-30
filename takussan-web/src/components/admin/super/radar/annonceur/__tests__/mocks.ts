@@ -47,6 +47,7 @@ export function annonce(id: number, partiel: Partial<RadarAdvertiserListing> = {
     covered_by_consent: false,
     created_at: '2026-10-27T10:00:00+00:00',
     stage_reason: null,
+    purge_at: '2027-01-25T10:00:00+00:00',
     ...partiel,
   };
 }
