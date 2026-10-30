@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\Admin\RadarActivationReminderController;
 use App\Http\Controllers\Api\Admin\RadarAdvertiserController;
 use App\Http\Controllers\Api\Admin\RadarDashboardController;
 use App\Http\Controllers\Api\Admin\RadarListingController;
@@ -74,4 +75,15 @@ Route::middleware(['auth:sanctum', 'super-admin', 'platform-can:'.PlatformAbilit
     ->prefix('admin/radar')
     ->group(function () {
         Route::post('advertisers/{advertiser}/revoke', [RadarRevocationController::class, 'revoke'])->name('admin.radar.advertisers.revoke');
+    });
+
+/*
+| TCK-2394 (ADR-0077, lot 4) — la relance d'activation d'un compte créé pour l'annonceur : `platform.radar.operate`, du
+| `support` au `super_admin` (relancer est du démarchage, ADR-0077 §11). L'envoi exige la prise en charge.
+*/
+Route::middleware(['auth:sanctum', 'super-admin', 'platform-can:'.PlatformAbility::RadarOperate->value])
+    ->prefix('admin/radar')
+    ->group(function () {
+        Route::get('advertisers/{advertiser}/activation-reminder', [RadarActivationReminderController::class, 'show'])->name('admin.radar.advertisers.activation-reminder');
+        Route::post('advertisers/{advertiser}/activation-reminder/sent', [RadarActivationReminderController::class, 'sent'])->name('admin.radar.advertisers.activation-reminder.sent');
     });

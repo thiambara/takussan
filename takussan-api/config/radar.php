@@ -132,4 +132,13 @@ return [
         'link_ttl_days' => 30,
     ],
 
+    // TCK-2394 (ADR-0077, lot 4) — la relance d'activation d'un compte créé pour l'annonceur
+    // (`App\Services\Radar\RadarActivationReminders`, et nulle part ailleurs). Elle cite les chiffres d'une période :
+    // depuis la dernière relance envoyée, sinon depuis la mise en ligne ; elle ne part qu'une fois cette période longue de
+    // `min_interval_days` jours — chaque relance couvre ainsi au moins une semaine. 0 : dès la mise en ligne (décision
+    // autonome, à revoir avec le porteur).
+    'activation' => [
+        'min_interval_days' => 7,
+    ],
+
 ];

@@ -745,6 +745,8 @@ return [
             'activation_unavailable' => 'Phone login is off in this environment: the account created for the advertiser could not be opened with an SMS code. Nothing is published until it is on.',
             'otp_preview_active' => "The SMS code preview is active in this environment: the activation code would come back in the response, and anyone who knows the advertiser's number could open their account. Nothing is published while it is.",
             'nothing_published' => 'No property is published for this advertiser: there is no message to compose.',
+            // TCK-2394 (ADR-0079)
+            'under_mandate' => 'This advertiser\'s properties are published under mandate: they are no longer published for them in an account.',
         ],
         // TCK-2390 — the advertiser's claim, public page: no Radar wording.
         'claim' => [
@@ -761,6 +763,19 @@ return [
             'account_changed' => 'This account changed in the meantime: reload the page.',
             'support_required' => 'This number is linked to two Takussan accounts: write to us and we will merge them.',
             'name_contains_phone' => 'The first name and the space name cannot contain a phone number.',
+        ],
+        // TCK-2394 (ADR-0077, lot 4) — activation reminder; (ADR-0079) publication under mandate.
+        'activation' => [
+            'already_active' => 'This advertiser\'s account is already activated: there is nothing left to remind them of.',
+            'revoked' => 'One of this advertiser\'s agreements has been withdrawn, or their number erased: no reminder is prepared for them.',
+            'nothing_published' => 'None of the properties published for this advertiser is online: the reminder would have nothing to say.',
+            'too_soon' => 'The last reminder, or the publication, is less than a period old: the next reminder can go from :available_at.',
+            'under_mandate' => 'This advertiser\'s properties are published under mandate: they have no account to activate.',
+        ],
+        'mandate' => [
+            'disabled' => 'Publication under mandate is switched off (ADR-0079 proposed): nothing is published under mandate.',
+            'space_missing' => 'No mandate space is designated, or it is suspended: designate one in the platform settings.',
+            'account_exists' => 'An account is already linked to this advertiser: publish for them in their space, not under mandate.',
         ],
     ],
     'pay_link' => [

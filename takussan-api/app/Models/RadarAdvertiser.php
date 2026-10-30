@@ -37,6 +37,12 @@ class RadarAdvertiser extends AbstractModel
         'do_not_contact_at' => 'datetime',
         'claimed_at' => 'datetime',
         'claim_expires_at' => 'datetime',
+        // TCK-2394 — la relance d'activation et le mandat (ADR-0079), écrits par `forceFill` (hors `$fillable`, hors
+        // `$queryFields`) : `RadarActivationReminders` et `RadarPublisher::publishUnderMandate()`.
+        'activation_reminded_at' => 'datetime',
+        'activation_reminder_count' => 'integer',
+        'activation_baseline' => 'array',
+        'mandate_at' => 'datetime',
     ];
 
     protected static array $queryFields = [
