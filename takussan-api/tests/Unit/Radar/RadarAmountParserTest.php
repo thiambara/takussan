@@ -147,7 +147,7 @@ class RadarAmountParserTest extends TestCase
 
     /**
      * TCK-2428 (contre-vérification C3 de TCK-2412) — la plage du masqueur s'arrête avant un dernier groupe isolé :
-     * ce reste, ou un horaire `H24/7`, n'est pas le prix. Un nombre nu de moins de 100 n'est jamais un prix en XOF.
+     * ce reste, ou un horaire `H24/7`, n'est pas un candidat. Un nombre nu de moins de 100 n'est jamais choisi.
      *
      * @return array<string, array{string}>
      */
@@ -174,7 +174,31 @@ class RadarAmountParserTest extends TestCase
         $this->assertSame(['amount' => 85_000_000, 'period' => null], RadarAmountParser::parse('85 millions'));
         $this->assertSame(['amount' => 50, 'period' => null], RadarAmountParser::parse('50 F'));
         $this->assertSame(['amount' => 100, 'period' => null], RadarAmountParser::parse('100'));
-        $this->assertSame(['amount' => 450_000, 'period' => null], RadarAmountParser::parse('Joignable 7j/7, 450 000'));
+    }
+
+    /**
+     * TCK-2428 (vérification I1, I2) — le petit nombre nu n'est jamais choisi, mais il reste un candidat : la fourchette,
+     * la caution et l'ambiguïté le voient, et l'humain tranche (`null`).
+     *
+     * @return array<string, array{string}>
+     */
+    public static function petitsNombresAmbigus(): array
+    {
+        return [
+            'seul' => ['Prix 85'],
+            'borne basse d\'une fourchette' => ['Prix 85 à 90 millions'],
+            'borne basse d\'une fourchette au tiret' => ['Prix 85-90 millions'],
+            'à côté d\'une caution' => ['Loyer 75, caution 150 000'],
+            'à côté d\'une référence' => ['Prix 85, réf 4521'],
+            'à côté d\'une année' => ['Prix 85, année 2023'],
+            'horaire sans numéro, à côté d\'un prix nu' => ['Joignable 7j/7, 450 000'],
+        ];
+    }
+
+    #[DataProvider('petitsNombresAmbigus')]
+    public function test_un_petit_nombre_nu_n_est_jamais_choisi_mais_reste_un_candidat(string $texte): void
+    {
+        $this->assertNull(RadarAmountParser::parse($texte));
     }
 
     public function test_l_indicatif_devant_un_numero_ne_laisse_pas_un_prix(): void
