@@ -44,6 +44,8 @@ final class RadarPhone
     /**
      * TCK-2412 (I1) — le `+` de l'étage d'une annonce (`R+1`, `R+10` : rez-de-chaussée plus un, plus dix) n'est pas
      * un indicatif : `Immeuble R+10 77 123 45 67` se lisait `+10` suivi de dix chiffres. Collé à un mot (`Tel+33 …`), si.
+     * Le masqueur l'exempte aussi depuis TCK-2428 (`PhoneMasker::NOT_A_FLOOR`), mais `FOREIGN_PREFIX` en dépend encore :
+     * sans lui, `Villa R+1 77 123 45 67` lit `+1` devant le numéro, qui devient étranger.
      */
     private const FLOOR_PLUS = '/(?<!\p{L})([Rr])\+(?=[0-9])/u';
 

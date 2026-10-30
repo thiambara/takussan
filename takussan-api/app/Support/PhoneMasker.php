@@ -117,6 +117,14 @@ final class PhoneMasker
     private const AFTER_CC = '\)?(?:'.self::WS.'?\(0\))?(?!'.self::SEP.'?[0-9]{0,3}(?:'.self::SEP.'[0-9]{3})*'.self::SEP.'000'.self::SEP.'000(?![0-9]))';
 
     /**
+     * TCK-2428 — le `+` de l'étage d'une annonce (`R+1`, `R+10` : rez-de-chaussée plus un, plus dix) n'est pas un
+     * indicatif : `Immeuble R+1 1 250 500 750 F` perdait son prix (`+1` et dix chiffres), `Immeuble R+10 77 123 45 67`
+     * se lisait `+10…`. Un `R` isolé, le `+`, un chiffre : la neutralisation de `RadarPhone::withoutFloorPlus()`.
+     * Collé à un mot (`Tel+33 …`, `Mr+33 …`) ou suivi d'une espace (`R+ 33 …`), le `+` reste un indicatif.
+     */
+    private const NOT_A_FLOOR = '(?!(?<=(?<!\p{L})r)\+[0-9])';
+
+    /**
      * Un numéro étranger (TCK-2410) : `+` (une espace tolérée derrière) ou `00`, un indicatif ITU, puis
      * les chiffres, séparés par au plus trois caractères (espace, point, tiret, barre oblique). Après
      * l'indicatif, trois parenthèses seulement : `(+33) 6 …`, le `(0)` de `+33 (0)6 …` (il compte pour
@@ -132,7 +140,7 @@ final class PhoneMasker
      * Pas d'exclusion « marque monétaire » ici, contrairement au numéro sénégalais : elle ferait reculer le
      * motif d'un groupe (`+33 6 12 34 56 78 F. Dupont` laisserait `78 F.`).
      */
-    private const FOREIGN = '(?:(?<![0-9+])(?<![0-9][.,])(?:\+(?!'.self::WS.'{1,2}[0-9]{1,3}(?:'.self::SEP.'[0-9]{3})*'.self::SEP.'000(?![0-9]))'.self::WS.'{0,2}|00'.self::SEP.'?)(?:'
+    private const FOREIGN = '(?:(?<![0-9+])(?<![0-9][.,])'.self::NOT_A_FLOOR.'(?:\+(?!'.self::WS.'{1,2}[0-9]{1,3}(?:'.self::SEP.'[0-9]{3})*'.self::SEP.'000(?![0-9]))'.self::WS.'{0,2}|00'.self::SEP.'?)(?:'
         .'33'.self::AFTER_CC.'(?:'.self::SEP.'{0,3}[0-9]){9}'
         .'|'.self::CC1.self::AFTER_CC.'(?:'.self::SEP.'?\([0-9]{3}\)(?:'.self::SEP.'{0,3}[0-9]){7}|(?:'.self::SEP.'{0,3}[0-9]){10})'
         .'|'.self::CC2.self::AFTER_CC.'(?:'.self::SEP.'{0,3}[0-9]){7,11}'
