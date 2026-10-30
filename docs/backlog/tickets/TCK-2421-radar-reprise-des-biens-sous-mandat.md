@@ -81,8 +81,10 @@ ticket en fait une seule règle, `RadarAdvertiser::underMandate()`.
 ### Décisions prises en autonomie, à revoir
 
 1. **Ce qui suit le bien** : ses demandes et ses clics (espace, destinataire), ses visites (agent), ses
-   conversations (transmises après le commit au nouveau contact principal, `transmitForProperty()`,
-   TCK-888 : l'ancien répondant, titulaire ou collaborateur, quitte le fil), ses empreintes de photos,
+   conversations (transmises au nouveau contact principal par le job rejouable
+   `TransmitTakenBackConversations`, mis en file après le commit et après la publication des annonces
+   cochées — TCK-888 : l'ancien répondant, titulaire ou collaborateur, quitte le fil ; une transmission
+   en échec se rejoue, puis se signale, sans défaire la reprise ni retenir la publication), ses empreintes de photos,
    et le compteur `properties_count` des deux espaces. Écarté : ne déplacer
    que le bien, ce qui perdrait les demandes (AC1).
 2. **Ce qui reste à l'espace des mandats** : ses prospects (le lien `customer_id` des demandes et des
@@ -102,8 +104,9 @@ ticket en fait une seule règle, `RadarAdvertiser::underMandate()`.
    seul lien du message d'accord, mort au bout de 30 jours.
 7. **Sous mandat, une confirmation sans annonce cochée est permise** quand il y a des biens à reprendre.
    Écarté : exiger une annonce à publier.
-8. **À revoir — un espace suspendu refuse la reprise** (vérification adverse I2), comme
-   `publishClaimed()` : 409 `radar.claim.space_suspended` à l'envoi du code, à la confirmation et sous
+8. **À revoir — un espace qui n'est pas actif (suspendu ou inactif) refuse la reprise** (vérification
+   adverse I2 et N2), comme `publishClaimed()`, qui refuse désormais aussi l'espace inactif : 409
+   `radar.claim.space_suspended` à l'envoi du code, à la confirmation et sous
    le verrou de la reprise ; les biens restent sous mandat, en ligne. Écarté : reprendre quand même, ce
    qui sortirait les biens du public (`Property::agencyIsPublic()`) sans que l'annonceur le voie.
    Autre voie à trancher par le porteur : reprendre et laisser les biens hors ligne jusqu'au
