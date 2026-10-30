@@ -25,6 +25,7 @@ use App\Services\Radar\ClaimLinks;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Testing\TestResponse;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Spatie\Activitylog\Models\Activity;
 use Tests\Support\FakeSmsRouter;
 use Tests\Support\FixturesDePublicationRadar;
@@ -436,12 +437,23 @@ class RadarPublishTest extends TestCase
         $this->assertSame(RadarListingStage::Consented, $b->fresh()->stage);
     }
 
-    public function test_un_espace_suspendu_ne_recoit_pas_les_biens_du_radar(): void
+    /** @return array<string, array{AgencyStatus}> */
+    public static function espacesNonActifs(): array
+    {
+        return [
+            'suspendu' => [AgencyStatus::Suspended],
+            // TCK-2421 : « non vérifié » par le super-admin, ou administrateur effacé — ses biens ne seraient pas publics.
+            'inactif' => [AgencyStatus::Inactive],
+        ];
+    }
+
+    #[DataProvider('espacesNonActifs')]
+    public function test_un_espace_suspendu_ne_recoit_pas_les_biens_du_radar(AgencyStatus $statut): void
     {
         $a = $this->annonceConsentie();
         $b = $this->annonceConsentie();
         $premier = $this->publier([$a->id])->assertCreated();
-        Agency::query()->findOrFail($premier->json('data.agency.id'))->forceFill(['status' => AgencyStatus::Suspended])->save();
+        Agency::query()->findOrFail($premier->json('data.agency.id'))->forceFill(['status' => $statut])->save();
         $avant = $this->compte();
 
         $this->getJson("/api/admin/radar/advertisers/{$this->annonceur->id}/publication-preview")->assertOk()

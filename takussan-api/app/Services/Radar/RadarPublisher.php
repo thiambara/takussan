@@ -70,8 +70,17 @@ final class RadarPublisher
     /** TCK-2394 (ADR-0079 § 4) — un annonceur sous mandat ne se publie plus « pour lui » : ses biens ne sont pas dans un compte. */
     public const UNDER_MANDATE = 'radar.publish.under_mandate';
 
-    /** TCK-2394 (ADR-0079 § 5) — le second message d'un annonceur sous mandat : en ligne, STOP, aucun lien d'activation. */
-    public const MANDATE_MESSAGE_VERSION = 'mandat.v1';
+    /**
+     * TCK-2421 (ADR-0079 § 5, amendement « la reprise ») — le second message d'un annonceur sous mandat : en ligne, STOP, et le
+     * lien de réclamation, par lequel il reprend ses biens dans son propre espace ({@see RadarMandateTakeBack}).
+     */
+    public const MANDATE_MESSAGE_VERSION = 'mandat.v2';
+
+    /**
+     * TCK-2394 — le même, SANS lien : quand la connexion par téléphone est éteinte ou l'aperçu des codes actif, le lien ne
+     * s'ouvrirait pas (`radar.claim.unavailable`), et le message ne promet que ce qui se tient.
+     */
+    public const MANDATE_MESSAGE_VERSION_WITHOUT_LINK = 'mandat.v1';
 
     public function __construct(
         private readonly AdvertiserClaim $claim,
@@ -122,7 +131,7 @@ final class RadarPublisher
         if ($listings->isEmpty()) {
             $blocking[] = 'radar.publish.nothing_covered';
         }
-        if ($advertiser->mandate_at !== null) {
+        if ($advertiser->underMandate()) {
             $blocking[] = self::UNDER_MANDATE;
         }
 
@@ -134,8 +143,11 @@ final class RadarPublisher
                 'display_name' => $advertiser->display_name,
                 'nature' => $advertiser->nature->value,
                 'do_not_contact_at' => $advertiser->do_not_contact_at?->toIso8601String(),
-                // TCK-2394 (ADR-0079) — publié sous mandat : le second message est `mandat.v1`, sans activation.
+                // TCK-2394 (ADR-0079) — publié sous mandat : le second message est `mandat.v2` (le lien de la reprise, TCK-2421), ou
+                // `mandat.v1` sans lien quand ce lien ne s'ouvrirait pas ; aucun ne promet d'activation.
                 'mandate_at' => $advertiser->mandate_at?->toIso8601String(),
+                // TCK-2421 — repris par l'annonceur dans son espace : la période de mandat est close, `mandate_at` en reste la trace.
+                'mandate_taken_back_at' => $advertiser->mandate_taken_back_at?->toIso8601String(),
             ],
             'account' => [
                 'exists' => $advertiser->user_id !== null,
@@ -192,7 +204,7 @@ final class RadarPublisher
     {
         return $this->publishLocked($advertiser, $listingIds, $by, function (RadarAdvertiser $locked) use ($by): void {
             $this->claim->assertHeld($locked, $by);
-            abort_code_if($locked->mandate_at !== null, 422, self::UNDER_MANDATE);
+            abort_code_if($locked->underMandate(), 422, self::UNDER_MANDATE);
         }, null);
     }
 
@@ -223,16 +235,19 @@ final class RadarPublisher
     {
         return $this->publishLocked($advertiser, $listingIds, $owner, function (RadarAdvertiser $locked) use ($owner, $agency, $listingIds): void {
             abort_code_unless($locked->user_id === $owner->id, 409, 'radar.claim.account_changed');
-            // TCK-2394 (ADR-0079) — sous mandat, rien ne se publie dans un compte : la reprise (TCK-2421) en décidera.
-            abort_code_if($locked->mandate_at !== null, 409, RadarClaims::UNDER_MANDATE);
+            // TCK-2394 (ADR-0079) — sous mandat, rien ne se publie dans un compte. La réclamation reprend ses biens d'abord
+            // (TCK-2421) : ce refus ne vise qu'un mandat posé depuis, sur un annonceur délié de son compte.
+            abort_code_if($locked->underMandate(), 409, RadarClaims::UNDER_MANDATE);
             // Décision 2a : jamais sans l'accord `otp` de l'annonceur, relu ICI, sous verrou, au moment de publier — un STOP ou
             // une révocation depuis la réclamation arrête tout, même si un autre accord (capture) couvre encore l'annonce.
             $ids = array_values(array_unique(array_map('intval', $listingIds)));
             $missing = array_values(array_diff($ids, $this->coverage->coveredByOtpAmong($ids, $owner)));
             abort_code_if($missing !== [], 422, 'radar.publish.not_covered', ['listing_ids' => $missing]);
             $space = Agency::query()->whereKey($agency->getKey())->first();
+            // TCK-2421 — un espace qui n'est pas actif (suspendu, ou inactif : non vérifié, administrateur effacé) ne rend pas ses
+            // biens au public (`Property::agencyIsPublic()`) : rien ne s'y publie.
             abort_code_if(
-                $space === null || $space->primary_admin_id !== $owner->id || $space->status === AgencyStatus::Suspended,
+                $space === null || $space->primary_admin_id !== $owner->id || $space->status !== AgencyStatus::Active,
                 422,
                 AdvertiserProvisioner::ACCOUNT_UNAVAILABLE,
             );
@@ -329,9 +344,10 @@ final class RadarPublisher
                     $listing->forceFill(['property_id' => $property->id, 'stage' => RadarListingStage::Published, 'stage_reason' => null])->save();
                     $properties[] = $property;
                 }
-                if ($mandate) {
-                    // La première publication sous mandat reste : une suivante ne la repousse pas.
-                    $locked->forceFill(['mandate_at' => $locked->mandate_at ?? now(), 'mandate_by_id' => $locked->mandate_by_id ?? $by->id])->save();
+                if ($mandate && ! $locked->underMandate()) {
+                    // La première publication d'une période de mandat la date : une suivante ne la repousse pas. Après une reprise
+                    // (TCK-2421) et un compte délié, un nouveau mandat ouvre une période neuve.
+                    $locked->forceFill(['mandate_at' => now(), 'mandate_by_id' => $by->id, 'mandate_taken_back_at' => null])->save();
                 }
 
                 activity('Admin')
@@ -371,8 +387,8 @@ final class RadarPublisher
 
     /**
      * Le second message, celui qui annonce les biens en ligne : un texte fixe versionné
-     * (`resources/radar/messages/publie.v2.<locale>.md`), jamais généré, et son lien `wa.me`. Il n'est pas enregistré : son
-     * lien de réclamation est émis à sa composition, et sert `radar.claim.link_ttl_days` jours.
+     * (`resources/radar/messages/publie.v2.<locale>.md` ; sous mandat, `mandat.v2` ou `mandat.v1`), jamais généré, et son
+     * lien `wa.me`. Il n'est pas enregistré : son lien de réclamation est émis à sa composition, et sert `radar.claim.link_ttl_days` jours.
      *
      * @return array{text: string, wa_me: string, version: string}
      */
@@ -381,8 +397,10 @@ final class RadarPublisher
         abort_code_unless(in_array($locale, ConsentMessageComposer::LOCALES, true), 422, 'radar.outreach.locale_unsupported');
         // Un STOP est définitif (ADR-0077 §8) : tant que le retrait de ses biens n'a pas purgé son numéro, aucun lien `wa.me` vers lui.
         abort_code_if($advertiser->do_not_contact_at !== null, 422, 'radar.advertiser.do_not_contact');
-        // TCK-2394 (ADR-0079 § 5) — sous mandat, sans compte : le message ne promet aucune activation.
-        $mandate = $advertiser->mandate_at !== null && $advertiser->user_id === null;
+        // TCK-2394 (ADR-0079 § 5) — sous mandat, sans compte : le message ne promet aucune activation. Il porte le lien de la
+        // reprise (TCK-2421) seulement quand ce lien s'ouvrirait.
+        $mandate = $advertiser->underMandate();
+        $withLink = ! $mandate || (self::activationAvailable() && ! self::otpPreviewActive());
         if (! $mandate) {
             // Le message promet l'activation par SMS : sans connexion par téléphone, la promesse ne se tient pas.
             abort_code_unless(self::activationAvailable(), 422, self::ACTIVATION_UNAVAILABLE);
@@ -401,7 +419,11 @@ final class RadarPublisher
             ->pluck('slug');
         abort_code_if($slugs->isEmpty() || $advertiser->phone === null, 422, 'radar.publish.nothing_published');
 
-        $version = $mandate ? self::MANDATE_MESSAGE_VERSION : self::MESSAGE_VERSION;
+        $version = match (true) {
+            ! $mandate => self::MESSAGE_VERSION,
+            $withLink => self::MANDATE_MESSAGE_VERSION,
+            default => self::MANDATE_MESSAGE_VERSION_WITHOUT_LINK,
+        };
         $template = rtrim((string) file_get_contents(resource_path('radar/messages/'.$version.".{$locale}.md")), "\n");
         $firstName = ConsentMessageComposer::part(self::nameOf($advertiser)[0], 60);
         // Une seule passe : un `{liens}` écrit dans un prénom reste du texte. Sans prénom, l'espace qui le précède s'en va.
@@ -410,7 +432,7 @@ final class RadarPublisher
             '{prenom}' => $firstName,
             '{liens}' => $slugs->map(fn (string $slug) => self::publicUrl($slug, $locale))->implode("\n"),
             // `mandat.v1` ne porte pas `{lien_reclamation}` : aucun lien n'est émis pour lui.
-            '{lien_reclamation}' => $mandate ? '' : $this->claimLinks->url($advertiser, now(), $locale),
+            '{lien_reclamation}' => $withLink ? $this->claimLinks->url($advertiser, now(), $locale) : '',
         ]);
 
         return ['text' => $text, 'wa_me' => RadarWaMe::url($advertiser->phone, $text), 'version' => $version];

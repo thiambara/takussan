@@ -6,6 +6,8 @@ use App\Models\Bases\AbstractModel;
 use App\Models\Enums\RadarAdvertiserNature;
 use App\Models\Enums\RadarListingStage;
 use App\Services\Radar\RadarFollowUps;
+use App\Services\Radar\RadarMandateTakeBack;
+use App\Services\Radar\RadarPublisher;
 use App\Sorts\RadarAdvertiserListingsSort;
 use App\Support\CaseInsensitive;
 use App\Support\Http\ParametreUnique;
@@ -48,6 +50,8 @@ class RadarAdvertiser extends AbstractModel
         'activation_reminder_count' => 'integer',
         'activation_baseline' => 'array',
         'mandate_at' => 'datetime',
+        // TCK-2421 — la reprise de ses biens par l'annonceur, qui clôt la période de mandat (`RadarMandateTakeBack`).
+        'mandate_taken_back_at' => 'datetime',
     ];
 
     protected static array $queryFields = [
@@ -103,6 +107,15 @@ class RadarAdvertiser extends AbstractModel
     protected static function customQuerySorts(): array
     {
         return [AllowedSort::custom('listings_count', new RadarAdvertiserListingsSort)];
+    }
+
+    /**
+     * TCK-2421 (ADR-0079) — sous mandat : publié sous mandat ({@see RadarPublisher::publishUnderMandate()})
+     * et pas encore repris ({@see RadarMandateTakeBack}). `mandate_at` seul n'est qu'une trace.
+     */
+    public function underMandate(): bool
+    {
+        return $this->mandate_at !== null && $this->mandate_taken_back_at === null;
     }
 
     public function listings(): HasMany

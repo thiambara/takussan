@@ -42,7 +42,14 @@ function annonce(over: Record<string, unknown> = {}) {
 }
 
 function reclamation(
-  over: { account?: Record<string, unknown>; listings?: unknown[]; publishing?: unknown[]; awaiting_review?: unknown[] } = {},
+  over: {
+    account?: Record<string, unknown>;
+    listings?: unknown[];
+    publishing?: unknown[];
+    awaiting_review?: unknown[];
+    published?: unknown[];
+    mandate?: { properties_count: number } | null;
+  } = {},
 ) {
   return {
     data: {
@@ -58,8 +65,9 @@ function reclamation(
       listings: over.listings ?? [annonce(), annonce({ id: 2, title: 'Studio aux Almadies', description: null, price: 150000 })],
       publishing: over.publishing ?? [],
       awaiting_review: over.awaiting_review ?? [],
-      published: [],
+      published: over.published ?? [],
       terms_version: '2026-10-29',
+      mandate: over.mandate ?? null,
     },
   };
 }
@@ -108,7 +116,7 @@ describe('<RadarClaimReception> (TCK-2390)', () => {
       reponse(200, reclamation()),
       reponse(202, { data: { retry_after: 60, phone_masked: '+221 •• ••• •• 67' }, otp_preview: '123456' }),
       reponse(200, {
-        claim: { state: 'new', agency: { id: 3, name: 'Chez Awa' }, listing_ids: [1], declined_ids: [2], moved_property_ids: [] },
+        claim: { state: 'new', agency: { id: 3, name: 'Chez Awa' }, listing_ids: [1], declined_ids: [2], moved_property_ids: [], taken_back_property_ids: [] },
         ...session,
         is_new_account: true,
       }),
@@ -321,6 +329,83 @@ describe('<RadarClaimReception> (TCK-2390)', () => {
     expect(bloc).toHaveTextContent('contact@takussan.com');
     expect(screen.queryByRole('button', { name: T.sendCode })).toBeNull();
     expect(screen.queryByRole('button', { name: T.logout })).toBeNull();
+  });
+
+  /** TCK-2421 (ADR-0079) — sous mandat, la page le dit et le code reprend ses biens dans son espace, sans annonce à cocher. */
+  it('sous mandat : la page le dit, et le code reprend ses biens dans son espace sans annonce à cocher', async () => {
+    const enLigne = [
+      { title: 'Villa à Ngor', public_url: 'https://takussan.test/fr/properties/villa-a-ngor' },
+      { title: 'Studio aux Almadies', public_url: 'https://takussan.test/fr/properties/studio-aux-almadies' },
+    ];
+    bouchonner(
+      reponse(200, reclamation({ listings: [], published: enLigne, mandate: { properties_count: 2 } })),
+      reponse(202, { data: { retry_after: 60, phone_masked: '+221 •• ••• •• 67' } }),
+      reponse(200, {
+        claim: { state: 'new', agency: { id: 3, name: 'Espace de Awa' }, listing_ids: [], declined_ids: [], moved_property_ids: [], taken_back_property_ids: [41, 42] },
+      }),
+    );
+    const user = userEvent.setup();
+    render(withIntl(<RadarClaimReception token={JETON} />));
+
+    expect(await screen.findByText(T.introMandate.replace('{phone}', '+221 •• ••• •• 67'))).toBeInTheDocument();
+    const bloc = screen.getByTestId('claim-mandate');
+    expect(within(bloc).getByRole('heading', { name: T.mandateTitle })).toBeInTheDocument();
+    expect(texte(bloc)).toContain('Takussan diffuse 2 annonces pour votre compte.');
+    expect(texte(bloc)).toContain('vous les reprenez dans votre propre espace');
+    // Rien à cocher, et pas de « aucune annonce » : il y a des biens à reprendre.
+    expect(screen.queryByTestId('claim-listing')).toBeNull();
+    expect(screen.queryByTestId('claim-empty')).toBeNull();
+
+    await user.click(screen.getByRole('checkbox', { name: /conditions d'utilisation/ }));
+    await user.click(screen.getByRole('button', { name: T.sendCode }));
+    await user.type(await screen.findByLabelText(T.codeLabel), '123456');
+    await user.click(screen.getByRole('button', { name: 'Reprendre mes annonces' }));
+
+    expect(JSON.parse(appels[2].body ?? 'null')).toMatchObject({ code: '123456', listings: [] });
+    const fait = await screen.findByTestId('claim-done');
+    expect(within(fait).getByTestId('claim-done-take-back')).toHaveTextContent(
+      'Vos 2 annonces sont maintenant dans votre espace « Espace de Awa », toujours en ligne.',
+    );
+    // Aucune annonce publiée par cette confirmation : la phrase « votre compte est prêt » ne s'ajoute pas.
+    expect(fait).not.toHaveTextContent('Votre compte est prêt');
+  });
+
+  it('sous mandat avec une annonce encore à publier : le bouton dit les deux gestes', async () => {
+    bouchonner(
+      reponse(200, reclamation({ listings: [annonce()], mandate: { properties_count: 1 } })),
+      reponse(202, { data: { retry_after: 60 } }),
+    );
+    const user = userEvent.setup();
+    render(withIntl(<RadarClaimReception token={JETON} />));
+
+    await user.click(await screen.findByRole('checkbox', { name: /conditions d'utilisation/ }));
+    await user.click(screen.getByRole('button', { name: T.sendCode }));
+    expect(await screen.findByRole('button', { name: 'Reprendre mes annonces et publier la nouvelle' })).toBeInTheDocument();
+  });
+
+  it('sous mandat, un bien qui ne se reprend pas ici : la page renvoie au support, sans formulaire ni code', async () => {
+    bouchonner(reponse(200, reclamation({ account: { state: 'mandate_support' }, listings: [], mandate: { properties_count: 1 } })));
+    render(withIntl(<RadarClaimReception token={JETON} />));
+
+    const bloc = await screen.findByTestId('claim-mandateSupport');
+    expect(bloc).toHaveTextContent(T.mandateSupportTitle);
+    expect(bloc).toHaveTextContent('contact@takussan.com');
+    expect(screen.queryByRole('button', { name: T.sendCode })).toBeNull();
+  });
+
+  it('sous mandat, son espace suspendu : le refus du code se dit, ses annonces restent diffusées', async () => {
+    auth.token = 'jeton-titulaire';
+    bouchonner(
+      reponse(200, reclamation({ account: { state: 'existing', viewer_is_owner: true, space: { name: 'Fatou Location' } }, listings: [], mandate: { properties_count: 2 } })),
+      reponse(409, { code: 'radar.claim.space_suspended', message: 'brut' }),
+    );
+    const user = userEvent.setup();
+    render(withIntl(<RadarClaimReception token={JETON} />));
+
+    await user.click(await screen.findByRole('checkbox', { name: /conditions d'utilisation/ }));
+    await user.click(screen.getByRole('button', { name: T.sendCode }));
+    expect(await screen.findByText(T.errors.spaceSuspended)).toBeInTheDocument();
+    expect(screen.queryByLabelText(T.codeLabel)).toBeNull();
   });
 
   it('compte préparé par le Radar sans annonce restante : le code active le compte seul', async () => {

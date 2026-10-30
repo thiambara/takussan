@@ -151,6 +151,57 @@ describe('RadarPublication — sous mandat (TCK-2394)', () => {
     await waitFor(() => expect(fetchRadarPublishedMessage).toHaveBeenCalledWith(7, 'fr'));
   });
 
+  /** TCK-2421 — sous mandat, connexion par téléphone allumée : `mandat.v2` porte le lien de la reprise, et l'aide le dit. */
+  it('sous mandat, le message qui porte le lien de la reprise (mandat.v2) le dit', async () => {
+    vi.mocked(fetchRadarPublishedMessage).mockResolvedValue({ data: messagePublie({ version: 'mandat.v2' }) });
+    await rendre(apercu({
+      advertiser: { ...apercu().advertiser, mandate_at: '2026-10-29T10:00:00+00:00' },
+      listings: [],
+      blocking: ['radar.publish.nothing_covered', 'radar.publish.under_mandate'],
+      published: publiee().properties,
+      mandate: mandat({ blocking: ['radar.publish.nothing_covered'] }),
+    }));
+
+    const section = screen.getByTestId('radar-publication-deja');
+    expect(await within(section).findByText(/reprend ses annonces dans son propre espace avec un code SMS/)).toBeInTheDocument();
+    expect(within(section).queryByText(/sans lien d’activation/)).not.toBeInTheDocument();
+  });
+
+  /** TCK-2421 — repris par l'annonceur : la période de mandat est close, l'écran le date et ne le traite plus sous mandat. */
+  it('repris par l\'annonceur : le panneau date la reprise, et le second message n\'est plus celui du mandat', async () => {
+    vi.mocked(fetchRadarPublishedMessage).mockResolvedValue({ data: messagePublie({ version: 'publie.v2' }) });
+    await rendre(apercu({
+      advertiser: { ...apercu().advertiser, mandate_at: '2026-10-29T10:00:00+00:00', mandate_taken_back_at: '2026-10-30T09:00:00+00:00' },
+      account: { exists: true, first_name: 'Moussa', last_name: 'Immo', phone: '+221771234567', space_name: 'x' },
+      listings: [],
+      blocking: ['radar.publish.nothing_covered'],
+      published: publiee().properties,
+      mandate: mandat({ blocking: ['radar.mandate.account_exists', 'radar.publish.nothing_covered'] }),
+    }));
+
+    expect(screen.getByTestId('radar-publication-mandat-depuis')).toHaveTextContent(/Repris par l’annonceur dans son propre espace le/);
+    expect(screen.getByTestId('radar-publication-mandat-depuis')).not.toHaveTextContent(/Déjà publié sous mandat/);
+    const section = screen.getByTestId('radar-publication-deja');
+    expect(await within(section).findByTestId('radar-publication-message-texte')).toBeInTheDocument();
+    expect(within(section).queryByText(/sans lien d’activation/)).not.toBeInTheDocument();
+  });
+
+  /** TCK-2421 — délié de son compte après la reprise : la période de mandat reste close (`mandate_taken_back_at`, pas le compte). */
+  it('repris puis délié de son compte : l\'écran ne le remet pas sous mandat', async () => {
+    vi.mocked(fetchRadarPublishedMessage).mockResolvedValue({ data: messagePublie({ version: 'publie.v2' }) });
+    await rendre(apercu({
+      advertiser: { ...apercu().advertiser, mandate_at: '2026-10-29T10:00:00+00:00', mandate_taken_back_at: '2026-10-30T09:00:00+00:00' },
+      listings: [],
+      blocking: ['radar.publish.nothing_covered'],
+      published: publiee().properties,
+      mandate: mandat({ blocking: ['radar.publish.nothing_covered'] }),
+    }));
+
+    const section = screen.getByTestId('radar-publication-deja');
+    expect(await within(section).findByTestId('radar-publication-message-texte')).toBeInTheDocument();
+    expect(within(section).queryByText(/sans lien d’activation/)).not.toBeInTheDocument();
+  });
+
   it('un refus de l\'API (drapeau éteint entre-temps) garde le dialogue ouvert et se nomme', async () => {
     vi.mocked(publishRadarAdvertiserUnderMandate).mockRejectedValue(new ApiError(422, { code: 'radar.mandate.disabled' }));
     const { utilisateur } = await rendre(apercu({ blocking: ['radar.advertiser.phone_registered'], mandate: mandat() }));

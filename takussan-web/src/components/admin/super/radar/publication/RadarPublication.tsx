@@ -112,8 +112,9 @@ function ApercuCharge({ id, apercu, claim }: ApercuChargeProps) {
   usePriseEnCharge({ claim, renouveler: () => renouvellement.mutate() });
   const mienne = claim?.mine === true;
   const stoppe = apercu.advertiser.do_not_contact_at !== null;
-  // TCK-2394 (ADR-0079) — publié sous mandat, sans compte : le second message ne promet aucune activation.
-  const sousMandat = apercu.advertiser.mandate_at !== null && !apercu.account.exists;
+  // TCK-2394 (ADR-0079) — publié sous mandat, sans compte : le second message ne promet aucune activation. TCK-2421 : repris
+  // par l'annonceur, il ne l'est plus (la même règle que `RadarAdvertiser::underMandate()`).
+  const sousMandat = apercu.advertiser.mandate_at !== null && apercu.advertiser.mandate_taken_back_at === null;
   // Ce que l'API refuse de composer en 422 pour l'environnement : le second message promet l'activation par SMS.
   const messageRefuse = !sousMandat && apercu.blocking.some((code) => CODES_SANS_SECOND_MESSAGE.has(code));
   /** Une prise expirée entre deux lectures : le refus se rattrape ici (on reprend, on rejoue) au lieu d'envoyer à la fiche. */
@@ -278,6 +279,7 @@ function ApercuCharge({ id, apercu, claim }: ApercuChargeProps) {
         <PublierSousMandat
           mandat={apercu.mandate}
           depuis={apercu.advertiser.mandate_at}
+          reprisLe={apercu.advertiser.mandate_taken_back_at}
           nbCochees={cochees.length}
           desactive={gestesFermes || tropDePhotos}
           onPublier={() => { setErreurPublication(null); setConfirmation('mandat'); }}

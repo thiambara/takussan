@@ -73,7 +73,10 @@ export function SecondMessage({ advertiserId, sousMandat = false }: { readonly a
   return (
     <section aria-label={t('message.heading')} className="space-y-3 rounded-xl border bg-card p-4" data-testid="radar-publication-message">
       <h2 className="font-display text-base font-semibold text-foreground">{t('message.heading')}</h2>
-      <p className="text-xs text-muted-foreground">{sousMandat ? t('message.hintMandate') : t('message.hint')}</p>
+      {/* TCK-2421 — `mandat.v2` porte le lien de la reprise ; `mandat.v1`, composé quand ce lien ne s'ouvrirait pas, n'en porte aucun. */}
+      <p className="text-xs text-muted-foreground">
+        {!sousMandat ? t('message.hint') : texte?.version === 'mandat.v2' ? t('message.hintMandateTakeBack') : t('message.hintMandate')}
+      </p>
 
       <fieldset className="flex flex-wrap items-center gap-3">
         <legend className="sr-only">{t('message.locale')}</legend>
