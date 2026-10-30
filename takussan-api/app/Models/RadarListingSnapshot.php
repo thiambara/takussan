@@ -11,6 +11,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * chaque colonne est dans la migration `2026_10_30_392100_create_radar_listing_snapshots_table`.
  *
  * `price` est en XOF ; `title_fingerprint` est une empreinte, jamais le texte (ADR-0077 §9).
+ *
+ * **Détaché à la purge** de son annonce (`RadarPurger`, ADR-0080) : `radar_listing_id`, `title_fingerprint` et
+ * `neighborhood_label` passent à null. Un instantané sans annonce est une observation de marché anonyme.
  */
 class RadarListingSnapshot extends AbstractModel
 {

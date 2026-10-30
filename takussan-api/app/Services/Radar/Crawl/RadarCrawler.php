@@ -3,6 +3,8 @@
 namespace App\Services\Radar\Crawl;
 
 use App\Models\Enums\RadarCrawlStatus;
+use App\Models\Enums\RadarListingStage;
+use App\Models\RadarAdvertiser;
 use App\Models\RadarCrawlRun;
 use App\Models\RadarListing;
 use App\Models\User;
@@ -26,7 +28,10 @@ use Illuminate\Support\Sleep;
  *  3. **chaque URL nouvelle devient une annonce** par la saisie du lot 1 (`RadarListingIntake::fromUrls()`, au nom de
  *     l'opérateur du passage, l'extraction en file `ai`) ; une URL déjà connue — même purgée, même en échec — ne crée rien
  *     et ne relance rien ;
- *  4. **chaque annonce vue est observée** (`RadarSnapshots`) : un prix changé ouvre un instantané.
+ *  4. **chaque annonce vue est observée** (`RadarSnapshots`) : un prix changé ouvre un instantané — SAUF une annonce
+ *     purgée ou `do_not_contact`, ou dont l'annonceur a dit STOP (`do_not_contact_at`) : elle n'est ni observée ni
+ *     comptée. La promesse de `privacy.ts` § 6 (« ne subsiste qu'une empreinte chiffrée de votre numéro ») vaut aussi
+ *     pour ce qu'un passage relirait après coup (ADR-0077 §9, ADR-0080).
  *
  * Les compteurs sont écrits après chaque page : un passage interrompu laisse ce qu'il a fait. Le passage s'arrête aussi
  * sur la fin de la liste (`reached_end`), le plafond de pages ou son budget de temps.
@@ -90,7 +95,7 @@ final class RadarCrawler
             foreach ($list->cards as $card) {
                 $run->cards_seen++;
                 $listing = $this->listingFor($card, $run, $operator);
-                if (isset($seen[$listing->id])) {
+                if ($listing === null || isset($seen[$listing->id])) {
                     continue;
                 }
                 $seen[$listing->id] = true;
@@ -127,12 +132,18 @@ final class RadarCrawler
         }
     }
 
-    /** L'annonce de cette carte : la fiche connue (rien n'est relancé), ou une fiche neuve saisie au nom de l'opérateur. */
-    private function listingFor(ListCard $card, RadarCrawlRun $run, User $operator): RadarListing
+    /**
+     * L'annonce de cette carte : la fiche connue (rien n'est relancé), ou une fiche neuve saisie au nom de l'opérateur ;
+     * null pour une fiche réduite au silence ({@see self::silenced()}), qui n'est ni observée ni comptée.
+     */
+    private function listingFor(ListCard $card, RadarCrawlRun $run, User $operator): ?RadarListing
     {
         $canonical = RadarListingIntake::canonicalUrl($card->url) ?? $card->url;
         $known = RadarListing::query()->where('content_fingerprint', RadarListingIntake::urlFingerprint($canonical))->first();
         if ($known !== null) {
+            if ($this->silenced($known)) {
+                return null;
+            }
             $run->listings_known++;
 
             return $known;
@@ -142,6 +153,19 @@ final class RadarCrawler
         $result['existing'] ? $run->listings_known++ : $run->listings_created++;
 
         return $result['listing'];
+    }
+
+    /** Purgée, `do_not_contact`, ou d'un annonceur qui a dit STOP : la collecte ne la suit plus. */
+    private function silenced(RadarListing $listing): bool
+    {
+        if (in_array($listing->stage, [RadarListingStage::Purged, RadarListingStage::DoNotContact], true)) {
+            return true;
+        }
+
+        return $listing->radar_advertiser_id !== null && RadarAdvertiser::query()
+            ->whereKey($listing->radar_advertiser_id)
+            ->whereNotNull('do_not_contact_at')
+            ->exists();
     }
 
     private function finish(RadarCrawlRun $run, string $reason): RadarCrawlRun
