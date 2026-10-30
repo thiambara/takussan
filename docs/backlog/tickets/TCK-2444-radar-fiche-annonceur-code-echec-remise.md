@@ -59,7 +59,8 @@ ne le rend pas, et aucune colonne de `radar_outreaches` ne le porte. TCK-2437 a 
 ## Notes d'implémentation
 
 - Colonne `radar_outreaches.provider_error_code` (entier, nullable), écrite par `RadarWhatsappReceipts` avec le statut
-  `failed` (null si Meta ne rend pas de code) ; tout autre statut écrit la remet à null. `RadarOutreachResource` ne la
+  `failed` (null si Meta ne rend pas de code, ou un code hors de l'entier de la colonne : le statut `failed` s'écrit
+  toujours) ; tout autre statut écrit la remet à null. `RadarOutreachResource` ne la
   rend qu'avec `provider_status = failed`. Le journal d'activité garde son code comme avant.
 - **Aucune transition ne fait quitter `failed`** : `RadarWhatsappReceipts::advances()` refuse tout statut après lui
   (test `test_rien_ne_fait_quitter_failed_et_le_code_reste`). La remise à null ne sert donc qu'à garantir qu'aucun code
@@ -74,8 +75,10 @@ ne le rend pas, et aucune colonne de `radar_outreaches` ne le porte. TCK-2437 a 
 - **Codes libellés** : retenu six codes dont la doc de Meta donne le sens et qui touchent la remise d'un gabarit
   (131026, 131049, 131050, 131056, 131048, 130472) ; écarté « les deux du minimum seulement » : plus d'information
   pour l'opérateur, aucun motif inventé. 131047 (fenêtre de 24 h) écarté : le Radar n'envoie que des gabarits ;
-  130429 (débit de la Cloud API atteint) écarté : c'est une limite de l'appel d'envoi, non documentée comme motif
-  d'un accusé `failed` ; il s'ajoute s'il apparaît au journal. Ajouter un code = une valeur de
+  130429 (débit de la Cloud API atteint) écarté : il dit le débit de l'appel d'envoi plutôt qu'un motif propre au
+  message (la doc ne dit pour aucun code s'il arrive par accusé ou à l'appel) ; il s'ajoute s'il apparaît au journal.
+  Le libellé de 131048 dit la limite, et le spam seulement comme cause possible, comme la doc. Ajouter un code = une
+  valeur de
   `CODES_D_ECHEC_LIBELLES` et une clé par dictionnaire.
 - **Où s'affiche le motif** : retenu le suivi ET l'historique (partout où « Non remis » s'affiche) ; écarté la carte du
   suivi seule, l'AC1 dit « près de Non remis ».

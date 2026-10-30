@@ -9059,7 +9059,7 @@
               "code131049": "Limité par Meta",
               "code131050": "Le destinataire a refusé les messages marketing",
               "code131056": "Trop de messages à ce destinataire en peu de temps",
-              "code131048": "Numéro d’envoi limité (messages signalés comme spam)",
+              "code131048": "Envois limités sur le numéro du Radar, peut-être après des signalements",
               "code130472": "Retenu par une expérience de Meta"
             }
           },

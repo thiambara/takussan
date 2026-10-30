@@ -9059,7 +9059,7 @@
               "code131049": "Limited by Meta",
               "code131050": "The recipient opted out of marketing messages",
               "code131056": "Too many messages to this recipient in a short time",
-              "code131048": "Sending number restricted (messages flagged as spam)",
+              "code131048": "Sending restricted on the Radar number, possibly after spam reports",
               "code130472": "Held back by a Meta experiment"
             }
           },
