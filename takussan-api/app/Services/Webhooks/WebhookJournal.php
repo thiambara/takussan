@@ -190,7 +190,7 @@ class WebhookJournal
             'error_code' => $status >= 400 ? $this->errorCode($status, $error) : null,
             'error_message' => $status >= 400 && $error !== null ? class_basename($error) : null,
             'processed_at' => now(),
-        ])->save();
+        ] + (in_array($this->log->provider, IntegrationWebhookLog::BODY_DROPPED_AT_CLOSE, true) ? ['body' => null] : []))->save();
         $this->pending = null;
 
         if ($outcome === IntegrationWebhookLog::STATUS_FAILED) {

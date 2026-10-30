@@ -125,8 +125,10 @@ class ConsentMessageComposerTest extends TestCase
 
         $this->assertSame($this->texte('fr', 'Bonjour,', 'votre bien'), implode('', array_column($segments, 'text')));
         $this->assertSame(['salutation', 'resume'], array_values(array_unique(array_filter(array_column($segments, 'kind'), fn ($k) => $k !== 'fixed'))));
-        $this->assertSame('Bonjour,', $segments[0]['text']);
-        $this->assertSame('salutation', $segments[0]['kind']);
+        // TCK-2395 — `accord.v3` s'ouvre sur « Takussan — » : Meta refuse un gabarit qui commence par une variable.
+        $this->assertSame(['kind' => 'fixed', 'text' => 'Takussan — '], $segments[0]);
+        $this->assertSame('Bonjour,', $segments[1]['text']);
+        $this->assertSame('salutation', $segments[1]['kind']);
         $this->assertStringContainsString('https://front.exemple.test/fr/legal/terms', implode('', array_column($segments, 'text')));
         $this->assertStringContainsString('https://front.exemple.test/en/legal/terms', $this->texte('en', 'Hello,', 'your flat'));
         $this->assertSame('https://front.exemple.test/en/legal/terms', $this->composeur()->conditionsUrl('en'));
@@ -142,7 +144,7 @@ class ConsentMessageComposerTest extends TestCase
 
     public function test_tck2390_la_v2_porte_la_ligne_de_reclamation_et_ne_se_compose_pas_sans_son_lien(): void
     {
-        $this->assertSame('accord.v2', ConsentMessageComposer::CLAUSES_VERSION);
+        $this->assertSame('accord.v3', ConsentMessageComposer::CLAUSES_VERSION);
         $this->assertStringContainsString('Vous préférez vérifier vous-même avant ? '.self::LIEN."\n", $this->texte('fr', 'Bonjour,', 'votre bien'));
         $this->assertStringContainsString('Prefer to check them yourself first? '.self::LIEN."\n", $this->texte('en', 'Hello,', 'your flat'));
         // Les quatre clauses numérotées restent : la vérification de la capture les cherche toutes.
@@ -150,12 +152,14 @@ class ConsentMessageComposerTest extends TestCase
 
         try {
             $this->composeur()->compose('fr', 'Bonjour,', 'votre bien');
-            $this->fail('Un message accord.v2 sans son lien de réclamation aurait dû être refusé.');
+            $this->fail('Un message accord.v3 sans son lien de réclamation aurait dû être refusé.');
         } catch (RuntimeException $e) {
             $this->assertSame('radar.claim_link_missing', $e->getMessage());
         }
 
-        // Un message déjà préparé en v1 se recompose en v1, sans lien : chaque message garde sa version.
+        // Un message déjà préparé en v2 se recompose en v2, sans l'ouverture de la v3 ; en v1, sans lien : chaque message
+        // garde sa version.
+        $this->assertStringStartsWith('Bonjour,', $this->composeur()->compose('fr', 'Bonjour,', 'votre bien', 'accord.v2', self::LIEN));
         $v1 = $this->composeur()->compose('fr', 'Bonjour,', 'votre bien', 'accord.v1');
         $this->assertStringNotContainsString('/claim/', $v1);
         $this->assertStringContainsString('nous aimerions les publier', $v1);

@@ -55,6 +55,8 @@ Route::middleware(['auth:sanctum', 'super-admin', 'platform-can:'.PlatformAbilit
         Route::post('outreaches/{outreach}/reply', [RadarOutreachController::class, 'reply'])->name('admin.radar.outreaches.reply');
         // L'issue : le seul geste qui confirme une réponse (accord), ou qui clôt l'échange (refus, STOP).
         Route::post('outreaches/{outreach}/outcome', [RadarOutreachController::class, 'outcome'])->name('admin.radar.outreaches.outcome');
+        // TCK-2395 (ADR-0077 §5) — envoyer le message préparé par l'API, depuis le numéro WhatsApp dédié au Radar.
+        Route::post('outreaches/{outreach}/send', [RadarOutreachController::class, 'send'])->name('admin.radar.outreaches.send');
     });
 
 /*

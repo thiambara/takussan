@@ -97,6 +97,8 @@ class PlatformRoutesDefaultDenyTest extends TestCase
         // TCK-2393 (ADR-0083) — l'observatoire du marché et le classement des annonceurs (`platform.radar.operate`).
         'admin.radar.observatory',
         'admin.radar.observatory.advertisers',
+        // TCK-2395 (ADR-0081) — l'envoi d'un message préparé par l'API WhatsApp du Radar (`platform.radar.operate`).
+        'admin.radar.outreaches.send',
     ];
 
     public function test_toute_route_de_la_console_passe_par_la_garde_plateforme(): void

@@ -28,6 +28,8 @@ const TON: Record<RadarVerdictClassification, StatusTone> = {
  * TCK-2388 — une réponse déposée, d'un coup d'œil : la pastille du classement de l'IA et sa confiance ; dessous, ce
  * qui la justifie — le numéro (concordant ou non, et qui l'a jugé), les clauses retrouvées « k sur N », la réponse
  * recopiée, la transcription repliable ; les captures en vignettes (URL signées) ; un échec ou une attente par son motif.
+ * TCK-2426 — une réponse reçue par l'API (`provider_message`) montre son texte d'emblée, sans galerie ; sans texte (vocal,
+ * image), elle dit qu'elle ne se lit pas ici.
  *
  * **Un verdict n'ouvre rien** : seule la confirmation de l'opérateur rend un accord valide, et cet écran le dit en
  * montrant qui l'a confirmé. La transcription affichée est la colonne de la réponse ; la copie que porte le verdict n'est pas lue.
@@ -47,10 +49,22 @@ export function ReponseVerdict({ reponse, message }: ReponseVerdictProps) {
 
   const enAttente = reponse.verification_status === 'pending';
   const echec = reponse.verification_status === 'failed';
+  // TCK-2426 — une réponse reçue par l'API (TCK-2395) : du texte, aucune capture ; elle se lit d'emblée, sans galerie.
+  const recue = reponse.proof === 'provider_message';
+
+  const libelleEchec = (): string => {
+    const raison = reponse.verification_reason;
+    // Un vocal ou une image reçus : rien n'était à vérifier, elle s'écoute ou se regarde dans WhatsApp, sur le numéro du Radar.
+    if (recue && raison === 'radar.verification.no_text') return t('reply.noText');
+    if (recue) return raison ? t('reply.failedReceived', { reason: motif(raison) }) : t('reply.failedReceivedNoReason');
+    return raison ? t('reply.failed', { reason: motif(raison) }) : t('reply.failedNoReason');
+  };
 
   return (
     <article className="space-y-3 rounded-xl border bg-card p-4" data-testid="radar-reponse" data-verification={reponse.verification_status}>
-      <p className="text-xs text-muted-foreground">{t('reply.depositedAt', { date: fmt.dateTime(reponse.created_at) })}</p>
+      <p className="text-xs text-muted-foreground">
+        {t(recue ? 'reply.receivedAt' : 'reply.depositedAt', { date: fmt.dateTime(reponse.created_at) })}
+      </p>
 
       {enAttente ? (
         <p role="status" className="text-sm text-foreground" data-testid="radar-reponse-en-cours">
@@ -59,9 +73,7 @@ export function ReponseVerdict({ reponse, message }: ReponseVerdictProps) {
       ) : null}
       {echec ? (
         <p role="alert" className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive" data-testid="radar-reponse-echec">
-          {reponse.verification_reason
-            ? t('reply.failed', { reason: motif(reponse.verification_reason) })
-            : t('reply.failedNoReason')}
+          {libelleEchec()}
         </p>
       ) : null}
 
@@ -97,7 +109,7 @@ export function ReponseVerdict({ reponse, message }: ReponseVerdictProps) {
           <div className="space-y-0.5">
             <p className="text-xs font-medium text-muted-foreground">{t('reply.verdict.replyText')}</p>
             {verdict.reply_text ? (
-              <q className="block rounded-md bg-muted px-3 py-2 text-sm text-foreground" data-testid="radar-verdict-reponse">{verdict.reply_text}</q>
+              <q className="block rounded-md bg-muted px-3 py-2 text-sm break-words text-foreground" data-testid="radar-verdict-reponse">{verdict.reply_text}</q>
             ) : (
               <p className="text-sm text-muted-foreground">{t('reply.verdict.noReplyText')}</p>
             )}
@@ -115,18 +127,29 @@ export function ReponseVerdict({ reponse, message }: ReponseVerdictProps) {
         </section>
       ) : null}
 
-      <details className="text-sm">
-        <summary className="cursor-pointer rounded-sm text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none">
-          {t('reply.verdict.transcript')}
-        </summary>
-        {reponse.transcript ? (
-          <pre className="mt-2 rounded-md bg-muted p-3 font-sans text-sm whitespace-pre-wrap text-foreground">{reponse.transcript}</pre>
-        ) : (
-          <p className="mt-2 text-muted-foreground">{t('reply.verdict.noTranscript')}</p>
-        )}
-      </details>
+      {recue ? (
+        <div className="space-y-0.5">
+          <p className="text-xs font-medium text-muted-foreground">{t('reply.receivedText')}</p>
+          {reponse.transcript ? (
+            <pre className="rounded-md bg-muted p-3 font-sans text-sm break-words whitespace-pre-wrap text-foreground" data-testid="radar-reponse-texte">{reponse.transcript}</pre>
+          ) : (
+            <p className="text-sm text-muted-foreground">{t('reply.verdict.noTranscript')}</p>
+          )}
+        </div>
+      ) : (
+        <details className="text-sm">
+          <summary className="cursor-pointer rounded-sm text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none">
+            {t('reply.verdict.transcript')}
+          </summary>
+          {reponse.transcript ? (
+            <pre className="mt-2 rounded-md bg-muted p-3 font-sans text-sm whitespace-pre-wrap text-foreground">{reponse.transcript}</pre>
+          ) : (
+            <p className="mt-2 text-muted-foreground">{t('reply.verdict.noTranscript')}</p>
+          )}
+        </details>
+      )}
 
-      {reponse.captures.length > 0 ? (
+      {recue ? null : reponse.captures.length > 0 ? (
         <div className="space-y-1">
           <p className="text-xs font-medium text-muted-foreground">{t('reply.captures')}</p>
           <ul className="flex flex-wrap gap-2">
