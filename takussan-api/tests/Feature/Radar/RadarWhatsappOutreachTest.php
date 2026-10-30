@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Radar;
 
+use App\Ai\Agents\RadarConsentMessage;
 use App\Models\Enums\PlatformProfileLevel;
 use App\Models\Enums\RadarConsentProof;
 use App\Models\Enums\RadarListingStage;
@@ -467,6 +468,55 @@ class RadarWhatsappOutreachTest extends TestCase
         // Une réponse confirmée n'attend plus rien : la garde ne la compte pas.
         $reponse->forceFill(['confirmed_at' => now(), 'confirmed_by_id' => $this->operateur->id])->save();
         $this->postJson("/api/admin/radar/outreaches/{$relance->id}/sent")->assertOk();
+    }
+
+    /**
+     * TCK-2426 (I-1), ADR-0081 — une opposition probable vaut pour l'annonceur, pas pour une annonce : un « Stop svp » non
+     * tranché sur l'annonce A arrête aussi un premier message sur l'annonce B — préparation, envoi par l'API, « J'ai envoyé ».
+     */
+    public function test_une_reponse_non_tranchee_sur_une_annonce_arrete_tout_envoi_vers_l_annonceur(): void
+    {
+        $this->configurerLeRadar();
+        $this->message->forceFill(['sent_at' => now(), 'sent_by_id' => $this->operateur->id, 'channel' => RadarOutreachChannel::WhatsappCloud, 'provider_message_id' => 'wamid.ENVOYE-1'])->save();
+        $this->annonce->forceFill(['stage' => RadarListingStage::Contacted])->save();
+        $autre = RadarListing::factory()->reviewed()->create(['radar_advertiser_id' => $this->annonceur->id]);
+        // Préparé sur l'annonce B avant que la réponse n'arrive.
+        $this->annonce = $autre;
+        $premier = $this->prepare();
+        RadarConsent::query()->create([
+            'radar_outreach_id' => $this->message->id, 'radar_advertiser_id' => $this->annonceur->id,
+            'proof' => RadarConsentProof::ProviderMessage, 'provider_message_id' => 'wamid.REPONSE-1',
+            'transcript' => 'Annonceur : Stop svp', 'verification_status' => RadarVerificationStatus::Pending,
+        ]);
+        RadarConsentMessage::fake();
+        Http::fake();
+
+        $this->postJson("/api/admin/radar/advertisers/{$this->annonceur->id}/outreaches", ['listing_ids' => [$autre->id], 'locale' => 'fr'])
+            ->assertStatus(409)->assertJsonPath('code', 'radar.outreach.reply_pending');
+        $this->envoyer($premier)->assertStatus(409)->assertJsonPath('code', 'radar.outreach.reply_pending');
+        $this->postJson("/api/admin/radar/outreaches/{$premier->id}/sent")->assertStatus(409)->assertJsonPath('code', 'radar.outreach.reply_pending');
+
+        RadarConsentMessage::assertNeverPrompted();
+        Http::assertNothingSent();
+        $this->assertNull($premier->fresh()->sent_at);
+        $this->assertSame(RadarListingStage::Reviewed, $autre->fresh()->stage);
+    }
+
+    /** Le canal manuel pur, sans réponse reçue par l'API — une capture déposée en attente comprise —, reste libre. */
+    public function test_sans_reponse_recue_par_l_api_le_canal_manuel_reste_libre(): void
+    {
+        $this->message->forceFill(['sent_at' => now(), 'sent_by_id' => $this->operateur->id])->save();
+        $this->annonce->forceFill(['stage' => RadarListingStage::Contacted])->save();
+        RadarConsent::query()->create([
+            'radar_outreach_id' => $this->message->id, 'radar_advertiser_id' => $this->annonceur->id,
+            'proof' => RadarConsentProof::Screenshot, 'transcript' => 'Annonceur : Stop svp',
+            'verification_status' => RadarVerificationStatus::Pending,
+        ]);
+        $this->annonce = RadarListing::factory()->reviewed()->create(['radar_advertiser_id' => $this->annonceur->id]);
+        $premier = $this->prepare();
+
+        $this->postJson("/api/admin/radar/outreaches/{$premier->id}/sent")->assertOk();
+        $this->assertSame(RadarListingStage::Contacted, $this->annonce->fresh()->stage);
     }
 
     /**
