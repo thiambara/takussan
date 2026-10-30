@@ -182,6 +182,13 @@ return [
         'auto' => (bool) env('RADAR_MERGE_AUTO', false),
     ],
 
+    // TCK-2393 (ADR-0083 §4) — la disparition d'une annonce source (`RadarSourceWatch`). Elle se conclut de ce nombre de
+    // passages complets (`reached_end`) d'affilée sans la revoir : un seul ne suffit pas, la liste glisse pendant la lecture.
+    // 1 rend le comportement d'un seul passage ; plus haut, la détection est plus lente et plus sûre.
+    'observe' => [
+        'confirm_runs' => 2,
+    ],
+
     // TCK-2406 (décision du porteur à prendre, avec l'avocat) — la matière collectée d'une annonce PUBLIÉE (texte brut, adresse
     // de la source, extraction, réserve, captures), puis le numéro en clair de son annonceur, s'effacent avec la preuve de
     // l'accord : `consent_retention_years` après le retrait du dernier bien. Éteint : la lettre d'ADR-0077 §9 et de `privacy.ts`

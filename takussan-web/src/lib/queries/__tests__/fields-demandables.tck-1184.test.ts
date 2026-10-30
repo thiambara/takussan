@@ -38,6 +38,7 @@ const HORS_BUILD_QUERY: Record<string, string> = {
   profiles: 'Me\\MeProfilesController::index : profils assemblés à la main, aucune table `profiles`',
   personal_access_tokens: 'Admin\\UserDetailController::sessions : liste écrite à la main, aucun modèle à `$queryFields`',
   moderation: 'Admin\\ModerationQueueController::index : file assemblée à la main, aucune table `moderation`',
+  radar_observatory: 'Admin\\RadarObservatoryController::market (TCK-2393) : les SECTIONS du marché, lues par RadarObservatoryRequest — aucune table `radar_observatory`',
 };
 
 /** Sites d'appel dont l'endpoint ignore `fields` alors que le modèle de la table l'ouvrirait. */

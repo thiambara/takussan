@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\Admin\RadarListingController;
 use App\Http\Controllers\Api\Admin\RadarListingMatchController;
 use App\Http\Controllers\Api\Admin\RadarListingPhotoController;
 use App\Http\Controllers\Api\Admin\RadarListingReviewController;
+use App\Http\Controllers\Api\Admin\RadarObservatoryController;
 use App\Http\Controllers\Api\Admin\RadarOutreachController;
 use App\Http\Controllers\Api\Admin\RadarPublicationController;
 use App\Http\Controllers\Api\Admin\RadarRevocationController;
@@ -97,6 +98,20 @@ Route::middleware(['auth:sanctum', 'super-admin', 'platform-can:'.PlatformAbilit
     ->group(function () {
         Route::patch('crawl/sources/{site}', [RadarCrawlController::class, 'update'])->name('admin.radar.crawl.sources.update');
         Route::post('crawl/sources/{site}/run', [RadarCrawlController::class, 'run'])->name('admin.radar.crawl.sources.run');
+    });
+
+/*
+|--------------------------------------------------------------------------
+| TCK-2393 (ADR-0083) — l'observatoire du marché et le classement des annonceurs
+|--------------------------------------------------------------------------
+| Lecture seule : `platform.radar.operate`, du `support` au `super_admin`, comme la liste de travail.
+*/
+
+Route::middleware(['auth:sanctum', 'super-admin', 'platform-can:'.PlatformAbility::RadarOperate->value])
+    ->prefix('admin/radar')
+    ->group(function () {
+        Route::get('observatory', [RadarObservatoryController::class, 'market'])->name('admin.radar.observatory');
+        Route::get('observatory/advertisers', [RadarObservatoryController::class, 'advertisers'])->name('admin.radar.observatory.advertisers');
     });
 
 /*

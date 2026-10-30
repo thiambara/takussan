@@ -5,6 +5,7 @@ namespace Tests\Support;
 use App\Http\Resources\Accounting\MatchCandidateResource;
 use App\Http\Resources\Api\Admin\AgencyProvisioningResource;
 use App\Http\Resources\Api\Admin\ModerationItemResource;
+use App\Http\Resources\Api\Admin\RadarAdvertiserRankingResource;
 use App\Http\Resources\Api\Admin\RadarListingResource;
 use App\Http\Resources\CustomerResource;
 use App\Http\Resources\DocumentVersionResource;
@@ -12,6 +13,7 @@ use App\Http\Resources\MediaResource;
 use App\Http\Resources\PayoutMethodResource;
 use App\Models\Agency;
 use App\Models\Document;
+use App\Models\RadarAdvertiser;
 use App\Models\RadarListing;
 use App\Models\RadarListingSnapshot;
 use App\Models\User;
@@ -397,6 +399,14 @@ final class ResourceSubjects
             MediaResource::class,
             DocumentVersionResource::class => [
                 'Media' => self::media(),
+            ],
+            // TCK-2393 — une ligne du classement : l'annonceur, plus les trois `withCount` que pose le contrôleur. Le
+            // détail (`withDetails()`) n'est fait que de comptes, de noms et de montants : aucune date.
+            RadarAdvertiserRankingResource::class => [
+                'RadarAdvertiser + withCount' => tap(
+                    RadarAdvertiser::factory()->create(['do_not_contact_at' => Carbon::parse(self::INSTANT, 'UTC')])->refresh(),
+                    self::hydraterLesDates(...),
+                )->setAttribute('listings_count', 3)->setAttribute('published_count', 1)->setAttribute('outreaches_count', 2),
             ],
             default => [],
         };
