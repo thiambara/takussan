@@ -1,6 +1,6 @@
 # ADR-0079 — Un annonceur d'accord qui ne veut pas de compte peut confier la diffusion de ses biens à Takussan, derrière un drapeau éteint
 
-- **Statut** : Accepté (principe) le 2026-10-30 par le porteur — `radar_mandate` reste éteint jusqu'à l'avis de l'avocat, la livraison de TCK-2421 et celle de TCK-2422 (article des CGU et mention publique)
+- **Statut** : Accepté (principe) le 2026-10-30 par le porteur — `radar_mandate` reste éteint jusqu'à l'avis de l'avocat et la livraison de TCK-2422 (article des CGU et mention publique) ; TCK-2421 livré le 2026-10-30
 - **Date** : 2026-10-30
 - **Tickets** : TCK-2394 (mise en œuvre, drapeau éteint) ; suites : TCK-2421 (reprise des biens par
   l'annonceur), TCK-2422 (article des CGU et mention publique, avec l'acceptation)
