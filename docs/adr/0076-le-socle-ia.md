@@ -4,6 +4,7 @@
 - **Date** : 2026-10-26
 - **Tickets** : TCK-2383, TCK-2384, TCK-2385 (lot 0 du [plan Radar et socle IA](../plans/2026-10-26-radar-et-socle-ia.md)) ; TCK-344 s'y rattache
 - **Premier usager** : [ADR-0077](0077-le-radar.md) (le Radar)
+- **Amendé par** : [ADR-0085](0085-un-modele-se-regle-dans-la-console-un-fournisseur-dans-le-deploiement.md) (2026-10-30, TCK-2448 à TCK-2450) — un modèle et son tarif se règlent dans la console, un fournisseur reste dans la configuration du déploiement (§ 2, § 3) ; la conséquence « ni commit ni déploiement » ne vaut que pour un modèle d'un fournisseur déjà déclaré.
 
 ## Contexte
 
