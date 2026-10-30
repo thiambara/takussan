@@ -776,11 +776,23 @@ en est le premier usager. Vision et lots : [plan du 2026-10-26](plans/2026-10-26
   pas un indicatif : `R+0` à `R+19` ou `RDC+0` à `RDC+19`, derrière un `R` ou un `RDC` isolé, avec au
   plus deux espaces de chaque côté du `+` (`R + 1`, `RDC+1`) ; le prix ou le numéro qui le suit reste
   lu (TCK-2428, TCK-2435). Un étage `1` ou `7` cesse d'en être un quand un numéro complet de cet
-  indicatif le suit : dix chiffres (zone entre parenthèses comprise) qu'aucune marque monétaire ne
-  suit (`F`, `FCFA`, `F CFA`, `CFA`, `XOF`, `franc` ou `francs` ; un `F.` suivi d'une lettre est une initiale, pas une
-  marque), ou, quelle que soit la marque, la forme nord-américaine `[2-9]XX [2-9]XX XXXX` derrière
-  `1` et dix chiffres commençant par 3 à 9 derrière `7` : `au RDC +1 514 555 0199` est masqué. Un
-  prix d'étage qui a l'une de ces formes est masqué, donc perdu (`R+1 2 345 678 900 F`) (TCK-2435).
+  indicatif le suit, `(0)` de trunk admis devant (`RDC +7 (0)495 123-45-67`) : dix chiffres (zone entre
+  parenthèses comprise) qu'aucune marque monétaire ne suit (`F`, `FCFA`, `F CFA`, `CFA`, `XOF`, `franc`
+  ou `francs` ; un `F.` suivi d'une lettre est une initiale, pas une marque), ou, quelle que soit la
+  marque, la forme nord-américaine `[2-9]XX [2-9]XX XXXX` derrière `1`, dix chiffres commençant par 3 à
+  9 derrière `7`, et une zone de trois chiffres quelconques entre parenthèses suivie de sept chiffres
+  derrière l'un comme l'autre (`RDC +7 (495) 123-45-67 F`, `RDC +1 (495) 123-45-67 F`) :
+  `au RDC +1 514 555 0199` est masqué (TCK-2435, TCK-2445). Derrière `7`, avec ou sans étage, une zone
+  de quatre ou cinq chiffres entre parenthèses commençant par 3 à 9, suivie de six ou cinq chiffres, est
+  un numéro aussi (`+7 (3452) 12-34-56`, `+7 (34922) 1-23-45`) ; une année entre parenthèses n'en est
+  pas une (`Immeuble R+7 (2024) 450 000 000 F` garde son prix) (TCK-2445). Un prix d'étage qui a l'une
+  de ces formes est masqué, donc perdu (`R+1 2 345 678 900 F`, `Villa R+1 (150) 2 500 000 F`,
+  `R+7 (8000) 650 000 F`, un code postal `Studio R+7 (32000) 45 000 F`) ; suivi d'une unité, le nombre
+  entre parenthèses reste intact (`Immeuble R+7 (3500 m²) 450 000 000 F`) (TCK-2435, TCK-2445). Limites
+  connues : derrière un étage et suivi d'une marque, un `+7` sans parenthèses dont le premier chiffre va
+  de 0 à 2 (`RDC +7 202 555 0123 F`) et un `+1` hors forme nord-américaine (`RDC +1 495 123-45-67 F`)
+  restent en clair, avec ou sans `(0)` de trunk ; une zone de quatre ou cinq chiffres n'est
+  lue que derrière `+7` (`+33 (3452) 12-34-56` reste en clair) (TCK-2445).
 - **Seul le jeu d'évaluation de l'extraction du Radar part de vraies annonces** : 20 annonces
   relevées le 2026-10-29 sur Expat-Dakar et CoinAfrique, anonymisées puis réécrites (titres
   reformulés, prix et surfaces décalés, adresses ramenées au quartier ; provenance dans
@@ -1019,8 +1031,16 @@ catalogue tant que cet accord n'existe pas. Vision et lots : [plan du 2026-10-26
   (TCK-2412). `RDC+1` et `R + 1` ne le sont pas non plus, sous la règle du masquage du socle IA
   ([§2.11](#211-socle-ia)) : un numéro sénégalais qui les suit reste le contact de l'annonce, et un
   numéro étranger complet écrit derrière (`RDC+33 6 12 34 56 78`, `R + 1 514 555 0199`) n'en
-  devient jamais un (TCK-2435). Limite connue : derrière un `R+` collé, un indicatif étranger
-  (`R+33 6 12 34 56 78`) peut encore donner un contact `+221 33…` (TCK-2441). Un nombre nu de moins de 100, sans monnaie, période ni multiplicateur, n'est jamais
+  devient jamais un (TCK-2435), pas plus qu'un `+7` ou un `+1` écrit avec sa zone entre parenthèses
+  (`Villa RDC +7 (495) 123-45-67 F` ne donne ni contact ni prix) (TCK-2445). L'étage espacé de son `+`
+  (`R+ 2`, `RDC + 2`, `R + 12`) n'est pas lu comme le début du prix qui le suit (`R+ 2 450 000 F` vaut
+  450 000), sauf quand ce qui suit commence par 0 (`R+ 15 000 000 F` vaut 15 000 000) ; comme l'étage
+  collé, il ne compte pas non plus comme un second nombre, et un nombre resté seul devient le prix
+  (`Villa R + 2 4 chambres 2435` rend 2435 ; `R+ 1 33 821 00 00 F` rend 33 821, un fixe suivi d'une
+  marque n'étant pas masqué) (TCK-2445). Limites connues : derrière un `R+` collé, un indicatif étranger
+  (`R+33 6 12 34 56 78`) peut encore donner un contact `+221 33…` (TCK-2441) ; `Villa R+1 (221) 77 012 34 56`
+  ne donne aucun contact, et `(221)` devant un contact se lit comme un prix de 221
+  (`Villa (221) 77 012 34 56`) (TCK-2447). Un nombre nu de moins de 100, sans monnaie, période ni multiplicateur, n'est jamais
   choisi comme prix (un compte, un horaire `H24/7`, le reste d'un numéro) (TCK-2428).
 - **La collecte ne part que d'un geste du porteur** : une source naît éteinte ; celui qui l'allume en
   devient l'opérateur, au nom duquel l'extraction est jugée et comptée sur le budget d'IA. Une
