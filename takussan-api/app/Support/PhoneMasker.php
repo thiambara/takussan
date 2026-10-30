@@ -19,8 +19,9 @@ namespace App\Support;
  *
  * **Les numéros étrangers** (TCK-2410, `MASK_PATTERN`) : `+` ou `00` et un indicatif ITU (`+33 6 12 34 56 78`,
  * `+225 07 12 34 56 78`, `+ 33 …`, `(0)`), ou la forme nationale `0X XX XX XX XX`. `PATTERN` reste le numéro
- * sénégalais seul : `RadarPhone` et `RadarAmountParser` le lisent, et un numéro étranger n'est pas un contact
- * du Radar. Un numéro réel ne s'écrit dans aucun document du dépôt : voir `scripts/check-ai-evals-pii.mjs`.
+ * sénégalais seul : `RadarPhone::canonical()` s'y fie, et un numéro étranger n'est pas un contact du Radar
+ * (TCK-2412 : `fromText()` et `RadarAmountParser` lisent `MASK_PATTERN`, puis écartent ou excluent).
+ * Un numéro réel ne s'écrit dans aucun document du dépôt : voir `scripts/check-ai-evals-pii.mjs`.
  *
  * `scripts/check-ai-evals-pii.mjs` reconnaît le même ensemble : `tests/fixtures/ai/donnees-personnelles.json`
  * éprouve les deux. Le jeton n'est pas un numéro plausible.
@@ -116,6 +117,17 @@ final class PhoneMasker
     private const AFTER_CC = '\)?(?:'.self::WS.'?\(0\))?(?!'.self::SEP.'?[0-9]{0,3}(?:'.self::SEP.'[0-9]{3})*'.self::SEP.'000'.self::SEP.'000(?![0-9]))';
 
     /**
+     * TCK-2428 — le `+` de l'étage d'une annonce (`R+1`, `R+10` : rez-de-chaussée plus un, plus dix) n'est pas un
+     * indicatif : `Immeuble R+1 1 250 500 750 F` perdait son prix (`+1` et dix chiffres), `Immeuble R+10 77 123 45 67`
+     * se lisait `+10…`. Un `R` isolé, le `+`, un étage de 0 à 19 que rien ne colle derrière : aucun indicatif à deux ou
+     * trois chiffres ne commence par 1, donc `R+44 7700 900123` reste un numéro. Collé à un mot (`Tel+33 …`, `Mr+33 …`),
+     * suivi d'une espace (`R+ 33 …`) ou d'un numéro collé (`R+33612345678`), le `+` reste un indicatif — plus étroit que
+     * `RadarPhone::withoutFloorPlus()`, qui n'a pas de numéro étranger à rendre. Limite assumée : `R+1 202 555 0123`
+     * et `R+7 912 345 67 89` (indicatif d'un chiffre derrière un `R`) s'écrivent comme un étage.
+     */
+    private const NOT_A_FLOOR = '(?!(?<=(?<!\p{L})r)\+(?:[0-9]|1[0-9])(?![0-9]))';
+
+    /**
      * Un numéro étranger (TCK-2410) : `+` (une espace tolérée derrière) ou `00`, un indicatif ITU, puis
      * les chiffres, séparés par au plus trois caractères (espace, point, tiret, barre oblique). Après
      * l'indicatif, trois parenthèses seulement : `(+33) 6 …`, le `(0)` de `+33 (0)6 …` (il compte pour
@@ -131,7 +143,7 @@ final class PhoneMasker
      * Pas d'exclusion « marque monétaire » ici, contrairement au numéro sénégalais : elle ferait reculer le
      * motif d'un groupe (`+33 6 12 34 56 78 F. Dupont` laisserait `78 F.`).
      */
-    private const FOREIGN = '(?:(?<![0-9+])(?<![0-9][.,])(?:\+(?!'.self::WS.'{1,2}[0-9]{1,3}(?:'.self::SEP.'[0-9]{3})*'.self::SEP.'000(?![0-9]))'.self::WS.'{0,2}|00'.self::SEP.'?)(?:'
+    private const FOREIGN = '(?:(?<![0-9+])(?<![0-9][.,])'.self::NOT_A_FLOOR.'(?:\+(?!'.self::WS.'{1,2}[0-9]{1,3}(?:'.self::SEP.'[0-9]{3})*'.self::SEP.'000(?![0-9]))'.self::WS.'{0,2}|00'.self::SEP.'?)(?:'
         .'33'.self::AFTER_CC.'(?:'.self::SEP.'{0,3}[0-9]){9}'
         .'|'.self::CC1.self::AFTER_CC.'(?:'.self::SEP.'?\([0-9]{3}\)(?:'.self::SEP.'{0,3}[0-9]){7}|(?:'.self::SEP.'{0,3}[0-9]){10})'
         .'|'.self::CC2.self::AFTER_CC.'(?:'.self::SEP.'{0,3}[0-9]){7,11}'
@@ -151,8 +163,8 @@ final class PhoneMasker
         .')(?![0-9])';
 
     /**
-     * Le numéro SÉNÉGALAIS, rien d'autre : `RadarPhone` et `RadarAmountParser` s'y fient (un numéro
-     * étranger n'est pas un contact du Radar). S'applique au texte normalisé (`normalizeDigits()`, sans
+     * Le numéro SÉNÉGALAIS, rien d'autre : `RadarPhone::canonical()` s'y fie (un numéro étranger n'est
+     * pas un contact du Radar). S'applique au texte normalisé (`normalizeDigits()`, sans
      * invisibles). Un séparateur facultatif entre les groupes 2-3-2-2, 2-2-2-3 ou 3-2-2-2 :
      * `750 000 000` (3-3-3) n'en est aucun.
      */

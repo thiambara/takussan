@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useLocale, useTranslations } from 'next-intl';
-import { CheckCircle2, Link2Off, Loader2, SearchX, Clock } from 'lucide-react';
+import { CheckCircle2, Link2Off, Loader2, SearchX, Clock, Hourglass } from 'lucide-react';
 
 import { CodeDePreproduction } from '@/components/auth/CodeDePreproduction';
 import { hrefConnexion } from '@/components/auth/lien-connexion';
@@ -389,6 +389,24 @@ export function RadarClaimReception({ token: jeton }: RadarClaimReceptionProps) 
         </section>
       ) : null}
 
+      {/* TCK-2413 — réclamées, mais laissées à l'équipe : la page ne promet plus « quelques minutes », ni ne dit pourquoi. */}
+      {claim.awaiting_review.length > 0 ? (
+        <section className="space-y-2" aria-labelledby="claim-awaiting-review" data-testid="claim-awaiting-review">
+          <h2 id="claim-awaiting-review" className="font-display text-base font-semibold text-foreground">
+            {t('awaitingReviewTitle')}
+          </h2>
+          <p className="bg-background text-sm text-muted-foreground text-pretty">{t('awaitingReviewHint')}</p>
+          <ul className="space-y-1 text-sm">
+            {claim.awaiting_review.map((l) => (
+              <li key={l.id} className="flex items-center gap-2 bg-background text-foreground">
+                <Hourglass className="size-4 shrink-0" aria-hidden="true" />
+                <span className="min-w-0 truncate">{l.title ?? t('untitled')}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
       {blocage ? (
         <div className="space-y-3 rounded-xl border border-border bg-muted p-4" data-testid={`claim-${blocage}`}>
           <h2 className="font-display text-base font-semibold text-foreground">{t(`${blocage}Title`)}</h2>
@@ -429,7 +447,7 @@ export function RadarClaimReception({ token: jeton }: RadarClaimReceptionProps) 
             ))}
           </ul>
         </section>
-      ) : account.state !== 'activation' && enCours.length === 0 ? (
+      ) : account.state !== 'activation' && enCours.length === 0 && claim.awaiting_review.length === 0 ? (
         <p className="rounded-xl border border-border bg-card p-4 text-sm text-muted-foreground" data-testid="claim-empty">
           {t('noListings')}
         </p>

@@ -40,6 +40,7 @@ import { ApercuMessage } from './ApercuMessage';
 import { raisonNonCochable } from './annonces';
 import { BandeauPriseEnCharge } from './BandeauPriseEnCharge';
 import { ConfirmerRemplacement } from './ConfirmerRemplacement';
+import { DelierCompte } from './DelierCompte';
 import { HistoriqueMessages } from './HistoriqueMessages';
 import { ListeAnnonces } from './ListeAnnonces';
 import { PanneauIdentite } from './PanneauIdentite';
@@ -77,6 +78,8 @@ function FicheChargee({ annonceur }: { readonly annonceur: RadarAdvertiserDetail
   const [retouches, setRetouches] = useState<Readonly<Record<number, number>>>({});
   /** `ai_error` de chaque préparation reçue pendant cette visite, par message : l'API ne le rend qu'à la préparation. */
   const [erreursIa, setErreursIa] = useState<Readonly<Record<number, string | null>>>({});
+  /** TCK-2413 — le compte supprimé vient d'être délié pendant cette visite. */
+  const [delie, setDelie] = useState(false);
 
   const relire = () => queryClient.invalidateQueries({ queryKey: radarKeys.all });
 
@@ -224,6 +227,16 @@ function FicheChargee({ annonceur }: { readonly annonceur: RadarAdvertiserDetail
             {t('publish.cta')}
           </Link>
         </section>
+      ) : null}
+
+      {/* TCK-2413 — le compte rattaché est supprimé : le `super_admin` le délie, la réclamation reprend. */}
+      {annonceur.account?.releasable && can('platform.radar.publish') ? (
+        <DelierCompte annonceurId={annonceur.id} parReclamation={annonceur.account.claimed} onDelie={() => { setDelie(true); return relire(); }} />
+      ) : null}
+      {delie ? (
+        <p role="status" className="rounded-lg bg-muted px-4 py-3 text-sm text-foreground" data-testid="radar-annonceur-compte-delie">
+          {t('account.done')}
+        </p>
       ) : null}
 
       {erreur ? (
