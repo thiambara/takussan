@@ -9397,7 +9397,7 @@
             },
             "natureHistory": {
               "title": "Share by type over time",
-              "description": "Advertisers counted each day by presumed type, before the purge: the share survives the deletion of listings, beyond the 90-day retention. With no identifier, an advertiser present for ten days counts ten times.",
+              "description": "Advertisers counted each day by presumed type, before the purge: the share survives the deletion of listings, beyond the 90-day retention. With no identifier, an advertiser counts once per day present.",
               "from": "From",
               "to": "To",
               "loadError": "The share by type could not be loaded.",
@@ -9406,7 +9406,7 @@
               "span": "{days, plural, one {# day counted} other {# days counted}}, from {from} to {to}",
               "counts": "{advertisers, plural, one {# advertiser-day} other {# advertiser-days}} · {listings, plural, one {# listing-day} other {# listing-days}}",
               "disabled": "Counting is not enabled",
-              "disabledHint": "It stays off until the legal opinion: the difference between two days could reveal the type of an advertiser who asked not to be contacted again.",
+              "disabledHint": "It stays off until the legal opinion: comparing consecutive days could reveal the type of an advertiser who asked not to be contacted again.",
               "disabledSince": "Counting is off: no more days are added.",
               "zeroAdvertisers": "Days counted, no advertiser"
             }

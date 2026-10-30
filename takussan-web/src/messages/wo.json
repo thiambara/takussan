@@ -8743,7 +8743,7 @@
             },
             "natureHistory": {
               "title": "Part par nature dans la durée",
-              "description": "Annonceurs comptés chaque jour par nature présumée, avant la purge : la part survit à l’effacement des annonces, au-delà des 90 jours de rétention. Sans identifiant, un annonceur présent dix jours compte dix fois.",
+              "description": "Annonceurs comptés chaque jour par nature présumée, avant la purge : la part survit à l’effacement des annonces, au-delà des 90 jours de rétention. Sans identifiant, un annonceur compte une fois par jour de présence.",
               "from": "Du",
               "to": "Au",
               "loadError": "La part par nature n’a pas pu être chargée.",
@@ -8752,7 +8752,7 @@
               "span": "{days, plural, one {# jour compté} other {# jours comptés}}, du {from} au {to}",
               "counts": "{advertisers, plural, one {# annonceur-jour} other {# annonceurs-jours}} · {listings, plural, one {# annonce-jour} other {# annonces-jours}}",
               "disabled": "Le comptage n’est pas activé",
-              "disabledHint": "Il reste éteint jusqu’à l’avis juridique : la différence entre deux jours pourrait révéler la nature d’un annonceur qui a demandé à ne plus être contacté.",
+              "disabledHint": "Il reste éteint jusqu’à l’avis juridique : comparer des jours consécutifs pourrait révéler la nature d’un annonceur qui a demandé à ne plus être contacté.",
               "disabledSince": "Le comptage est éteint : plus aucun jour ne s’ajoute.",
               "zeroAdvertisers": "Jours comptés, aucun annonceur"
             }
