@@ -1,7 +1,7 @@
 ---
 id: TCK-2438
 title: "Radar : les URL de départ de la collecte se règlent dans la console, plusieurs par site"
-status: doing
+status: done
 phase: P2
 family: full
 estimate: M
@@ -34,36 +34,36 @@ quelqu'un. ADR-0080 est amendé.
 
 ## Delta à produire
 
-- [ ] Une colonne `start_urls` (jsonb, nullable) sur `radar_crawl_sources`, sans modèle neuf. Migration avec un
+- [x] Une colonne `start_urls` (jsonb, nullable) sur `radar_crawl_sources`, sans modèle neuf. Migration avec un
       `down()` juste.
-- [ ] `PATCH /api/admin/radar/crawl/sources/{site}` accepte `start_urls` : une liste, vide ou nulle pour revenir à
+- [x] `PATCH /api/admin/radar/crawl/sources/{site}` accepte `start_urls` : une liste, vide ou nulle pour revenir à
       l'URL de la configuration. Même route et même capacité que les autres réglages (`platform.radar.publish`).
-- [ ] Garde-fous côté serveur, au réglage ET au passage :
+- [x] Garde-fous côté serveur, au réglage ET au passage :
   - `https` seulement ;
   - l'hôte appartient aux hôtes que déclare l'adaptateur du site ;
   - ni identifiants ni port ;
   - un nombre d'URL et une longueur bornés en configuration ;
   - pas de doublon.
-- [ ] `RadarCrawler` lit chaque URL de départ à la suite, avec sa pagination. Le budget de pages et de temps reste
+- [x] `RadarCrawler` lit chaque URL de départ à la suite, avec sa pagination. Le budget de pages et de temps reste
       celui du passage entier. Le passage ne part jamais d'une autre URL que celles-là, ou à défaut de celle de la
       configuration.
-- [ ] L'observatoire (TCK-2393) ne conclut à aucune disparition sur la foi d'un changement des URL de départ.
-- [ ] L'onglet Collecte (`/super-admin/radar/collecte`) montre les URL de départ de chaque site et permet à qui règle
+- [x] L'observatoire (TCK-2393) ne conclut à aucune disparition sur la foi d'un changement des URL de départ.
+- [x] L'onglet Collecte (`/super-admin/radar/collecte`) montre les URL de départ de chaque site et permet à qui règle
       la source de les modifier.
-- [ ] Amendement daté d'ADR-0080.
+- [x] Amendement daté d'ADR-0080.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Un `super_admin` enregistre plusieurs URL de départ pour un site. Un passage lit chacune, et la pagination
+- [x] AC1 — Un `super_admin` enregistre plusieurs URL de départ pour un site. Un passage lit chacune, et la pagination
       de chacune, dans la limite des pages du passage entier.
-- [ ] AC2 — Une liste vide ou nulle rend l'URL de la configuration au passage suivant.
-- [ ] AC3 — Le réglage est refusé (422) pour une URL `http`, d'un autre hôte, avec identifiants ou port, trop longue,
+- [x] AC2 — Une liste vide ou nulle rend l'URL de la configuration au passage suivant.
+- [x] AC3 — Le réglage est refusé (422) pour une URL `http`, d'un autre hôte, avec identifiants ou port, trop longue,
       en double, ou au-delà du nombre permis. Rien n'est enregistré.
-- [ ] AC4 — Une URL invalide écrite en base hors de la console n'est jamais lue par un passage.
-- [ ] AC5 — Le `support` lit les URL de départ, mais ne les modifie pas (403).
-- [ ] AC6 — Une annonce qui sort du périmètre des URL de départ n'est pas déclarée disparue. Un passage n'atteint la
+- [x] AC4 — Une URL invalide écrite en base hors de la console n'est jamais lue par un passage.
+- [x] AC5 — Le `support` lit les URL de départ, mais ne les modifie pas (403).
+- [x] AC6 — Une annonce qui sort du périmètre des URL de départ n'est pas déclarée disparue. Un passage n'atteint la
       fin (`reached_end`) que si chaque liste a été lue jusqu'au bout.
-- [ ] AC7 — L'écran affiche et enregistre les URL de départ, et montre le refus de l'API.
+- [x] AC7 — L'écran affiche et enregistre les URL de départ, et montre le refus de l'API.
 
 ## Hors périmètre
 
@@ -73,4 +73,40 @@ quelqu'un. ADR-0080 est amendé.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- **Garde-fous, un seul endroit** : `RadarStartUrls`. L'hôte se lit avec l'analyseur de Guzzle, le même que celui
+  d'`UrlFetcher`. Les hôtes permis sont déclarés par l'adaptateur (`startHosts()`), dans le code. `forRun()` rejuge au
+  passage ce que la requête a jugé à l'enregistrement.
+- **Une seconde colonne, `radar_crawl_runs.start_urls`, en plus de celle du brief.** La veille de TCK-2393 conclut à la
+  disparition d'une annonce après deux passages complets sans elle. Restreindre les URL aurait donc déclaré disparue chaque
+  annonce sortie du périmètre, avec une alerte et la question au titulaire (TCK-2432). Le passage note son périmètre,
+  et la veille ne compte que les passages du même périmètre que celui qui a vu l'annonce en dernier. Nulle vaut « l'URL de
+  la configuration » : les passages antérieurs gardent leur sens, sans reprise de données.
+- **Les arrêts** :
+  - Le plafond de pages, le budget de temps et le créneau pris arrêtent le PASSAGE.
+  - Une boucle, une page sans carte ou une lecture refusée n'arrêtent que la LISTE : la suivante est lue, mais
+    `reached_end` reste faux. L'arrêt du passage est alors celui de la première liste qui n'a pas atteint sa fin.
+  - Avec une seule liste, le comportement de TCK-2392 est inchangé : ses tests passent tels quels.
+- **Codes de refus** (422) : `radar.crawl.start_urls_too_many`, `start_url_too_long`, `start_url_invalid`,
+  `start_url_host` (avec `params.hosts`), `start_url_duplicate`. Chacun porte `params.field` (`start_urls.N`).
+  Arrêt de passage neuf : `radar.crawl.no_start_url`.
+
+### Décisions prises en autonomie, à revoir
+
+1. **Hôtes permis : une liste exacte par adaptateur**, `www.expat-dakar.com` + `expat-dakar.com`, et
+   `sn.coinafrique.com` seul. Écarté : tout sous-domaine du site. Raison : un sous-domaine inconnu
+   (`admin.`, un autre pays de CoinAfrique) n'est pas une page de liste du Radar ; on élargit la liste dans le code si
+   besoin.
+2. **Plafonds : 10 URL par site, 500 caractères chacune** (`radar.crawl.max_start_urls`, `start_url_max_length`, en
+   configuration sans variable d'environnement). Écarté : une URL par site. Raison : moins restrictif (une page par ville
+   ou par catégorie), alors que le budget de pages reste global.
+3. **Une source dont aucune URL réglée ne passe ne lit rien** (`radar.crawl.no_start_url`). Écarté : retomber sur
+   l'URL de la configuration. Raison : un repli silencieux lirait une page que le porteur a choisi de ne plus lire.
+4. **Une liste refusée laisse lire les suivantes.** Écarté : arrêter le passage à la première liste en échec. Raison :
+   une faute de frappe dans une URL ne doit pas éteindre les autres listes du site.
+5. **Seconde colonne `radar_crawl_runs.start_urls`, au-delà du brief** (« une seule colonne neuve sur
+   `radar_crawl_sources` », qui est respecté). Écarté : couper la détection de disparition pour les sources réglées.
+   Raison : cela retirait l'observatoire dès qu'on se sert du réglage. La session en a été avertie.
+6. **Changer de périmètre suspend le jugement d'une annonce jusqu'à ce qu'elle soit revue.** C'est vrai même quand on
+   élargit le périmètre : une annonce retirée au moment même du changement n'est plus jugée. Écarté : retenir le dernier
+   passage de chaque URL pour juger par liste (une colonne de plus par instantané). Raison : on rate au pire une alerte,
+   on n'en déclenche jamais une à tort.
