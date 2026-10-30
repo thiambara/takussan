@@ -768,8 +768,8 @@ en est le premier usager. Vision et lots : [plan du 2026-10-26](plans/2026-10-26
   (`wa.me/…`, `?phone=…`) : le socle le masque (`+221`, `00221`, `+33`, `+225`, `00…`, forme nationale
   `0X XX XX XX XX`), et la garde des jeux d'évaluation le signale (TCK-2400, TCK-2410). Le préfixe
   `+221 74`, qu'aucun opérateur n'attribue, est celui des numéros fictifs des jeux d'évaluation et
-  des tests dont le numéro ne doit pas être lu comme réel (13 fichiers de `tests/Feature/Radar`
-  emploient un numéro en `+221 74`, par exemple `+221 74 123 45 67`) : il n'est pas masqué. Un test qui a besoin d'un numéro lu comme réel (masqué, extrait, apparié) prend
+  des tests dont le numéro ne doit pas être lu comme réel (par exemple `+221 74 123 45 67`) : il
+  n'est pas masqué. Un test qui a besoin d'un numéro lu comme réel (masqué, extrait, apparié) prend
   un préfixe attribué, par défaut `+221 77` (le plus souvent `+221 77 123 45 67`) ; un autre préfixe
   attribué (`78`, `70`, `76`) sert pour un numéro distinct du premier, ou pour éprouver ce préfixe
   (`PhoneMaskerTest`, `RadarPhoneTest`) (décision du porteur du 2026-10-30). Le `+` d'un étage (`R+0` à `R+19`, derrière un `R` isolé) n'est pas un
