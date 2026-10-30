@@ -103,8 +103,8 @@ réelle d'intermédiaires** que le porteur estime à plus de 90 % : l'argument d
 ## Reste sur dev
 
 Rien côté code : chaque AC est prouvé par un test exécuté (`tests/Feature/Radar/Observatory/`, ablations faites).
-Le ticket reste `review` pour la seule règle n° 2 du backlog : sa dépendance TCK-2392 (collecte automatique) est
-encore `doing` sur sa branche. **TCK-2393 passe à `done` dès la fusion de TCK-2392** : la session qui fusionne
+Le ticket reste `review` pour la seule règle n° 2 du backlog : sa dépendance TCK-2392 (collecte automatique) n'est
+pas encore fusionnée sur `dev` (le statut vaut pour ce qui est sur `dev`). **TCK-2393 passe à `done` dès la fusion de TCK-2392** : la session qui fusionne
 la PR de TCK-2392 puis celle-ci le bascule, dans le même geste que TCK-2392.
 
 ## Notes d'implémentation
