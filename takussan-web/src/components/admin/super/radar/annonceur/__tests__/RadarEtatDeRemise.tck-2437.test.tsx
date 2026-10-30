@@ -1,7 +1,11 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import { fetchRadarAdvertiser } from '@/lib/queries/radar';
+import { fetchRadarAdvertiser, sendRadarOutreach } from '@/lib/queries/radar';
+import en from '@/messages/en.json';
+import fr from '@/messages/fr.json';
+import wo from '@/messages/wo.json';
 import { avecGestes } from '@/test/habilitations';
 import { withIntl } from '@/test/intl';
 import type { RadarAdvertiserDetail, RadarOutreach, RadarOutreachProviderStatus } from '@/types/radar';
@@ -12,12 +16,17 @@ import { annonceur, message, messageEnvoye } from './mocks';
 vi.mock('@/lib/queries/radar', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/queries/radar')>()),
   fetchRadarAdvertiser: vi.fn(),
+  sendRadarOutreach: vi.fn(),
 }));
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }));
 
+/** La fiche que l'« API » rend : un test la change pour que la relecture porte le nouvel état. */
+let serveur: RadarAdvertiserDetail;
+
 async function rendre(detail: RadarAdvertiserDetail) {
-  vi.mocked(fetchRadarAdvertiser).mockImplementation(async () => ({ data: detail }));
+  serveur = detail;
+  vi.mocked(fetchRadarAdvertiser).mockImplementation(async () => ({ data: serveur }));
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
   render(withIntl(
     <QueryClientProvider client={queryClient}>
@@ -113,5 +122,37 @@ describe('remiseDuMessage (TCK-2437)', () => {
     expect(remiseDuMessage(cloud(null))).toBeNull();
     expect(remiseDuMessage(cloud('deleted'))).toBeNull();
     expect(remiseDuMessage(message({ channel: 'whatsapp_manual', provider_status: 'read' }))).toBeNull();
+  });
+});
+
+describe('Le bandeau de l’envoi par l’API suit l’état du message relu (TCK-2437)', () => {
+  it('un envoi ambigu puis un accusé `failed` à la relecture : le bandeau « ne le renvoyez pas » tombe, la carte dit « Non remis »', async () => {
+    const envoye = messageEnvoye({ id: 5, channel: 'whatsapp_cloud', provider_status: 'ambiguous' });
+    vi.mocked(sendRadarOutreach).mockImplementation(async () => {
+      // L'envoi rend le message ambigu ; la relecture qui suit le rend non remis (accusé arrivé entre-temps).
+      serveur = { ...serveur, outreaches: [{ ...envoye, provider_status: 'failed' }] };
+      return { data: envoye };
+    });
+    await rendre(annonceur({ whatsapp_api_available: true, outreaches: [message()] }));
+    const utilisateur = userEvent.setup();
+
+    await utilisateur.click(screen.getByRole('button', { name: 'Envoyer par l’API WhatsApp' }));
+    await utilisateur.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Oui, l’envoyer' }));
+
+    await waitFor(() => expect(within(suivi()).getByTestId('radar-message-remise')).toHaveTextContent(/^Non remis$/));
+    expect(screen.queryByTestId('radar-annonceur-envoi-api')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Ne le renvoyez pas à la main/)).not.toBeInTheDocument();
+  });
+});
+
+describe('Les libellés de remise se distinguent dans chaque langue (TCK-2437, AC1, AC2)', () => {
+  it.each([['fr', fr], ['en', en], ['wo', wo]] as const)('%s : « non remis » ≠ « remis » ≠ « envoyé », et « lu » ≠ « envoyé »', (_langue, dictionnaire) => {
+    const libelles = dictionnaire.superAdmin.pages.radar.advertiser.history.delivery;
+
+    expect(libelles.failed).not.toBe(libelles.delivered);
+    expect(libelles.failed).not.toBe(libelles.sent);
+    expect(libelles.failed).not.toBe(libelles.read);
+    expect(libelles.delivered).not.toBe(libelles.sent);
+    expect(libelles.read).not.toBe(libelles.sent);
   });
 });

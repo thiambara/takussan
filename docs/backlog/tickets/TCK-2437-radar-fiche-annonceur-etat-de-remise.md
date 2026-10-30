@@ -79,6 +79,9 @@ message, l'échec se distingue nettement (ton destructif de la charte), sans ala
   compile pas, et une valeur que l'API rendrait sans que le front la connaisse n'affiche rien (jamais « Remis »).
 - Un `failed` sur un envoi d'abord `ambiguous` (avec identifiant, écriture défaite après l'envoi) se lit « API WhatsApp »
   + « Non remis » : l'accusé a remplacé `ambiguous` en base, l'écran lit ce qui y est.
+- Le bandeau de l'envoi par l'API (`RadarAdvertiserCard`) lit le message tel que la fiche le porte après relecture,
+  comme la pastille : un accusé `failed` arrivé depuis le fait tomber, au lieu de garder « Ne le renvoyez pas à la
+  main » à côté d'un « Non remis » (relevé par la vérification adverse).
 
 ### Décisions prises en autonomie, à revoir
 
