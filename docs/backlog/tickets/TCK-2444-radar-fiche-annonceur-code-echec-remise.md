@@ -1,7 +1,7 @@
 ---
 id: TCK-2444
 title: "Radar : dire dans la fiche annonceur pourquoi WhatsApp n'a pas remis un message (code de l'échec)"
-status: todo
+status: doing
 phase: P3
 family: full
 estimate: S
