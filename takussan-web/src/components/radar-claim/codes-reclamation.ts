@@ -25,7 +25,7 @@ export const ERREURS_RECLAMATION_RADAR: Readonly<Record<string, string>> = {
   'radar.claim.name_contains_phone': 'nameContainsPhone',
   // TCK-2421 — un bien sous mandat porte de la gestion : la reprise passe par le support.
   'radar.claim.mandate_support_required': 'mandateSupportRequired',
-  // TCK-2421 — son espace est suspendu : ses biens restent sous mandat, en ligne.
+  // TCK-2421 — son espace n'est pas actif (suspendu ou inactif) : ses biens restent sous mandat, en ligne.
   'radar.claim.space_suspended': 'spaceSuspended',
 };
 

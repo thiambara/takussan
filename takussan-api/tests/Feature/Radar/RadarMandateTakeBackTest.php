@@ -3,6 +3,8 @@
 namespace Tests\Feature\Radar;
 
 use App\Domain\Features\Flag;
+use App\Jobs\Radar\PublishClaimedRadarListings;
+use App\Jobs\Radar\TransmitTakenBackConversations;
 use App\Models\Agency;
 use App\Models\Booking;
 use App\Models\Conversation;
@@ -27,14 +29,19 @@ use App\Models\ServiceProviderBill;
 use App\Models\User;
 use App\Services\Admin\PlatformSettingService;
 use App\Services\Auth\PhoneLoginService;
+use App\Services\Messaging\PropertyConversationResolver;
 use App\Services\Property\PublishReadiness;
 use App\Services\Radar\ClaimLinks;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Testing\TestResponse;
 use Laravel\Sanctum\Sanctum;
+use Mockery;
 use PHPUnit\Framework\Attributes\DataProvider;
+use RuntimeException;
 use Spatie\Activitylog\Models\Activity;
 use Tests\Support\FakeSmsRouter;
 use Tests\Support\FixturesDePublicationRadar;
@@ -286,6 +293,67 @@ class RadarMandateTakeBackTest extends TestCase
         return $this;
     }
 
+    /**
+     * Vérification adverse N1 (banc Q2) — la transmission des fils lève : la reprise est faite, la réponse est 200 (le compte neuf
+     * garde sa session), la publication des annonces cochées est en file, et la transmission aussi, pour être rejouée.
+     */
+    public function test_une_transmission_qui_leve_ne_retient_ni_la_reponse_ni_la_publication(): void
+    {
+        Queue::fake([PublishClaimedRadarListings::class, TransmitTakenBackConversations::class]);
+        $this->instance(PropertyConversationResolver::class, Mockery::mock(PropertyConversationResolver::class, function ($double): void {
+            $double->shouldReceive('transmitForProperty')->andThrow(new RuntimeException('transmission en panne'));
+        }));
+        $nouvelle = $this->annonceConsentie();
+
+        $this->demanderLeCode()->assertStatus(202);
+        $this->confirmer([['id' => $nouvelle->id]])->assertOk()
+            ->assertJsonPath('claim.taken_back_property_ids', $this->biens)
+            ->assertJsonPath('is_new_account', true)
+            ->assertJsonStructure(['token']);
+
+        $compte = User::query()->where('phone', self::NUMERO_ANNONCEUR)->sole();
+        $sien = Agency::query()->where('primary_admin_id', $compte->id)->sole();
+        $this->assertSame(array_fill_keys($this->biens, [$sien->id, $compte->id]), $this->ouSontLesBiens());
+        Queue::assertPushed(PublishClaimedRadarListings::class, fn (PublishClaimedRadarListings $job) => $job->listingIds === [$nouvelle->id]);
+        Queue::assertPushed(TransmitTakenBackConversations::class, fn (TransmitTakenBackConversations $job) => $job->propertyIds === $this->biens);
+    }
+
+    /** N1 — le job lève pour être rejoué, sans laisser un bien en panne retenir les suivants ; son abandon se signale. */
+    public function test_la_transmission_se_rejoue_et_son_abandon_se_signale(): void
+    {
+        [$premier, $second] = $this->biens;
+        $visiteur = User::factory()->create();
+        $fil = Conversation::factory()->create(['property_id' => $second, 'created_by' => $visiteur->id, 'type' => 'direct']);
+        foreach ([$visiteur, $this->gerant] as $participant) {
+            DB::table('conversation_participants')->insert(['conversation_id' => $fil->id, 'user_id' => $participant->id, 'role' => 'member', 'joined_at' => now(), 'is_muted' => false]);
+        }
+        Queue::fake([TransmitTakenBackConversations::class]);
+        $this->demanderLeCode()->assertStatus(202);
+        $this->confirmer()->assertOk();
+        $compte = User::query()->where('phone', self::NUMERO_ANNONCEUR)->sole();
+        $actifs = fn () => DB::table('conversation_participants')->where('conversation_id', $fil->id)->whereNull('left_at')->orderBy('user_id')->pluck('user_id')->map(fn ($id) => (int) $id)->all();
+        $job = new TransmitTakenBackConversations($this->biens);
+        $this->assertSame(5, $job->tries);
+        $this->assertNotEmpty($job->backoff());
+
+        // Le premier bien lève : le second est transmis quand même, puis le job lève pour être rejoué.
+        $reel = app(PropertyConversationResolver::class);
+        $enPanne = Mockery::mock(PropertyConversationResolver::class);
+        $enPanne->shouldReceive('transmitForProperty')->with($premier)->andThrow(new RuntimeException('transmission en panne'));
+        $enPanne->shouldReceive('transmitForProperty')->with($second)->andReturnUsing(fn (int $id) => $reel->transmitForProperty($id));
+        $this->assertThrows(fn () => $job->handle($enPanne), RuntimeException::class);
+        $this->assertEqualsCanonicalizing([$visiteur->id, $compte->id], $actifs());
+
+        // Rejoué, il ne fait rien de plus sur un fil déjà transmis.
+        $job->handle($reel);
+        $job->handle($reel);
+        $this->assertEqualsCanonicalizing([$visiteur->id, $compte->id], $actifs());
+
+        Log::spy();
+        $job->failed(new RuntimeException('transmission en panne'));
+        Log::shouldHaveReceived('error')->with('radar.take_back.conversations_not_transmitted', ['property_ids' => $this->biens])->once();
+    }
+
     /** Vérification adverse m2 — `agencies.properties_count` suit les biens : le changement d'espace s'y reporte des deux côtés. */
     public function test_ac1_le_compteur_de_biens_des_deux_espaces_suit_la_reprise(): void
     {
@@ -439,14 +507,25 @@ class RadarMandateTakeBackTest extends TestCase
         $this->assertSame($this->sousMandat(), $this->ouSontLesBiens());
     }
 
+    /** @return array<string, array{AgencyStatus}> les statuts où l'espace ne rend pas ses biens au public (`agencyIsPublic()`) */
+    public static function espacesNonActifs(): array
+    {
+        return [
+            'suspendu' => [AgencyStatus::Suspended],
+            // N2 : « non vérifié » par le super-admin, ou administrateur effacé (`ErasedAgencyAdmin`).
+            'inactif' => [AgencyStatus::Inactive],
+        ];
+    }
+
     /**
-     * Vérification adverse I2 (décision de la session, à revoir) — le titulaire du numéro dont l'espace est suspendu : la reprise
-     * est refusée avant le SMS, comme `publishClaimed()` ; ses biens restent sous mandat, en ligne.
+     * Vérification adverse I2 et N2 (décision de la session, à revoir) — le titulaire du numéro dont l'espace n'est pas actif :
+     * la reprise est refusée avant le SMS, comme `publishClaimed()` ; ses biens restent sous mandat, en ligne.
      */
-    public function test_un_espace_suspendu_refuse_la_reprise_et_les_biens_restent_sous_mandat_en_ligne(): void
+    #[DataProvider('espacesNonActifs')]
+    public function test_un_espace_suspendu_refuse_la_reprise_et_les_biens_restent_sous_mandat_en_ligne(AgencyStatus $statut): void
     {
         $titulaire = User::factory()->create(['phone' => self::NUMERO_ANNONCEUR, 'phone_verified_at' => now()]);
-        Agency::factory()->create(['primary_admin_id' => $titulaire->id, 'kind' => 'individual', 'status' => AgencyStatus::Suspended]);
+        Agency::factory()->create(['primary_admin_id' => $titulaire->id, 'kind' => 'individual', 'status' => $statut]);
         Sanctum::actingAs($titulaire);
 
         $this->demanderLeCode()->assertStatus(409)->assertJsonPath('code', 'radar.claim.space_suspended');
@@ -458,18 +537,19 @@ class RadarMandateTakeBackTest extends TestCase
         $this->assertSame(2, Property::query()->whereIn('id', $this->biens)->public()->count());
     }
 
-    /** I2 rejugé sous le verrou : l'espace suspendu entre le code et la confirmation défait tout. */
-    public function test_un_espace_suspendu_pendant_la_confirmation_se_rejuge_sous_le_verrou(): void
+    /** I2 et N2 rejugés sous le verrou : l'espace qui cesse d'être actif entre le code et la confirmation défait tout. */
+    #[DataProvider('espacesNonActifs')]
+    public function test_un_espace_suspendu_pendant_la_confirmation_se_rejuge_sous_le_verrou(AgencyStatus $statut): void
     {
         $titulaire = User::factory()->create(['phone' => self::NUMERO_ANNONCEUR, 'phone_verified_at' => now()]);
         $sien = Agency::factory()->create(['primary_admin_id' => $titulaire->id, 'kind' => 'individual']);
         Sanctum::actingAs($titulaire);
         $this->demanderLeCode()->assertStatus(202);
         $fait = false;
-        DB::listen(function ($requete) use (&$fait, $sien): void {
+        DB::listen(function ($requete) use (&$fait, $sien, $statut): void {
             if (! $fait && str_contains($requete->sql, '"radar_advertisers"') && str_contains($requete->sql, 'for update')) {
                 $fait = true;
-                Agency::query()->whereKey($sien->id)->update(['status' => AgencyStatus::Suspended->value]);
+                Agency::query()->whereKey($sien->id)->update(['status' => $statut->value]);
             }
         });
 

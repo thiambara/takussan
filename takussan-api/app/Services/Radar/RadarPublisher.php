@@ -244,8 +244,10 @@ final class RadarPublisher
             $missing = array_values(array_diff($ids, $this->coverage->coveredByOtpAmong($ids, $owner)));
             abort_code_if($missing !== [], 422, 'radar.publish.not_covered', ['listing_ids' => $missing]);
             $space = Agency::query()->whereKey($agency->getKey())->first();
+            // TCK-2421 — un espace qui n'est pas actif (suspendu, ou inactif : non vérifié, administrateur effacé) ne rend pas ses
+            // biens au public (`Property::agencyIsPublic()`) : rien ne s'y publie.
             abort_code_if(
-                $space === null || $space->primary_admin_id !== $owner->id || $space->status === AgencyStatus::Suspended,
+                $space === null || $space->primary_admin_id !== $owner->id || $space->status !== AgencyStatus::Active,
                 422,
                 AdvertiserProvisioner::ACCOUNT_UNAVAILABLE,
             );

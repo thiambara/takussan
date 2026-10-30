@@ -12705,7 +12705,7 @@
       "spaceNameContainsPhone": "Le nom de votre espace ne peut pas contenir de numéro de téléphone.",
       "underMandate": "Vos annonces sont de nouveau diffusées par Takussan pour votre compte : rechargez la page pour les reprendre dans votre propre espace.",
       "mandateSupportRequired": "Vos annonces diffusées par Takussan ne peuvent pas être reprises depuis cette page : écrivez-nous, nous les déplacerons dans votre espace.",
-      "spaceSuspended": "Votre espace Takussan est suspendu : vos annonces restent diffusées par Takussan pour votre compte, et vous pourrez les reprendre une fois votre espace rétabli."
+      "spaceSuspended": "Votre espace Takussan n'est pas actif : vos annonces restent diffusées par Takussan pour votre compte, et vous pourrez les reprendre une fois votre espace rétabli."
     },
     "awaitingReviewTitle": "En attente de vérification",
     "awaitingReviewHint": "Notre équipe doit encore les vérifier avant de les mettre en ligne : elles ne sont pas encore visibles.",

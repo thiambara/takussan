@@ -12705,7 +12705,7 @@
       "spaceNameContainsPhone": "Your space name cannot contain a phone number.",
       "underMandate": "Your listings are published by Takussan on your behalf again: reload the page to take them back into your own space.",
       "mandateSupportRequired": "Your listings published by Takussan cannot be taken back from this page: write to us and we will move them into your space.",
-      "spaceSuspended": "Your Takussan space is suspended: your listings stay published by Takussan on your behalf, and you can take them back once your space is restored."
+      "spaceSuspended": "Your Takussan space is not active: your listings stay published by Takussan on your behalf, and you can take them back once your space is restored."
     },
     "awaitingReviewTitle": "Awaiting review",
     "awaitingReviewHint": "Our team still needs to check them before putting them online: they are not visible yet.",

@@ -5,6 +5,7 @@ namespace App\Services\Radar;
 use App\Exceptions\ApiError;
 use App\Jobs\Radar\PrepareRadarListingPhotos;
 use App\Jobs\Radar\PublishClaimedRadarListings;
+use App\Jobs\Radar\TransmitTakenBackConversations;
 use App\Models\Agency;
 use App\Models\Enums\AgencyStatus;
 use App\Models\Enums\RadarConsentProof;
@@ -327,6 +328,10 @@ final class RadarClaims
         if ($retainedIds !== []) {
             PublishClaimedRadarListings::dispatch($locked->id, $user->id, $agency->id, $retainedIds)->afterCommit();
         }
+        // TCK-2421 — APRÈS la publication, et en file : une transmission qui lève ne défait ni ne retient la publication.
+        if ($takenBack !== []) {
+            TransmitTakenBackConversations::dispatch($takenBack)->afterCommit();
+        }
 
         activity('Radar')
             ->causedBy($user)
@@ -523,7 +528,7 @@ final class RadarClaims
     }
 
     /**
-     * TCK-2421 — sous mandat, le compte vérifié du numéro dont l'espace est suspendu : ses biens y quitteraient le public. Refusé
+     * TCK-2421 — sous mandat, le compte vérifié du numéro dont l'espace n'est pas actif : ses biens y quitteraient le public. Refusé
      * avant le SMS (la reprise le rejuge sous verrou, {@see RadarMandateTakeBack::takeBack()}) ; ils restent sous mandat.
      *
      * @param  array{state: string, user: ?User}  $state

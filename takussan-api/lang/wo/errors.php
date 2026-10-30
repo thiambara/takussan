@@ -778,7 +778,7 @@ return [
             // TCK-2421 — un bien sous mandat porte de la gestion : la reprise passe par le support.
             'mandate_support_required' => 'Vos annonces diffusées par Takussan ne peuvent pas être reprises depuis cette page : écrivez-nous, nous les déplacerons dans votre espace.',
             // TCK-2421 — l'espace de l'annonceur est suspendu : ses biens restent sous mandat, en ligne.
-            'space_suspended' => 'Votre espace Takussan est suspendu : vos annonces restent diffusées par Takussan pour votre compte, et vous pourrez les reprendre une fois votre espace rétabli.',
+            'space_suspended' => 'Votre espace Takussan n\'est pas actif : vos annonces restent diffusées par Takussan pour votre compte, et vous pourrez les reprendre une fois votre espace rétabli.',
         ],
         // TCK-2392 — la collecte automatique et la fusion des doublons entre sites.
         'merge' => [
