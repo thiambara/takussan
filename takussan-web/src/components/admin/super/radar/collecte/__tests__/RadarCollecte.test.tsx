@@ -60,6 +60,7 @@ describe('RadarCollecte (TCK-2392)', () => {
     const allumee = screen.getByTestId('radar-collecte-source-coinafrique');
     expect(allumee).toHaveTextContent('Allumé');
     expect(allumee).toHaveTextContent('Au nom de Awa Fictive');
+    expect(screen.queryByTestId('radar-collecte-sans-operateur-coinafrique')).toBeNull();
 
     const ligne = await screen.findByTestId('radar-collecte-passage-41');
     expect(ligne).toHaveTextContent('Terminé');
@@ -88,6 +89,23 @@ describe('RadarCollecte (TCK-2392)', () => {
 
     const carte = screen.getByTestId('radar-collecte-source-coinafrique');
     expect(await within(carte).findByRole('alert')).toHaveTextContent('Un passage est déjà en cours sur ce site');
+  });
+
+  it('une source allumée dont l\'opérateur a disparu se signale, sans rien éteindre d\'office', async () => {
+    const orpheline: RadarCrawlSource = { ...ALLUMEE, operator: null };
+    vi.mocked(fetchRadarCrawlSources).mockResolvedValue({ data: [ETEINTE, orpheline] });
+    vi.mocked(fetchRadarCrawlRuns).mockResolvedValue({
+      data: [{ ...PASSAGE, stop_reason: 'radar.crawl.loop' }],
+      meta: { current_page: 1, last_page: 1, per_page: 20, total: 1, from: 1, to: 1 },
+    } as never);
+    rendre();
+
+    const avis = await screen.findByTestId('radar-collecte-sans-operateur-coinafrique');
+    expect(avis).toHaveTextContent('Allumée sans opérateur : aucun passage ne part.');
+    expect(screen.getByTestId('radar-collecte-source-coinafrique')).toHaveTextContent('Allumé');
+    expect(screen.queryByTestId('radar-collecte-sans-operateur-expat_dakar')).toBeNull();
+    expect(patchRadarCrawlSource).not.toHaveBeenCalled();
+    expect(await screen.findByTestId('radar-collecte-passage-41')).toHaveTextContent('La pagination renvoie vers une page déjà lue');
   });
 
   it('le support lit, sans aucun bouton de réglage', async () => {

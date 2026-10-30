@@ -48,6 +48,8 @@ class RadarAutoMergeTest extends TestCase
         parent::setUp();
 
         $this->freezeSecond();
+        // La fusion d'office est éteinte par défaut (ADR-0080) ; ces épreuves la jugent allumée.
+        config(['radar.merge.auto' => true]);
         $this->operator = $this->operateur(PlatformProfileLevel::SuperAdmin);
         $this->run = RadarCrawlRun::query()->create([
             'site' => RadarSourceSite::Coinafrique->value,
@@ -176,6 +178,56 @@ class RadarAutoMergeTest extends TestCase
         $match = $this->app->make(RadarMatcher::class)->matchesFor($vue)[0];
         $this->assertSame('high', $match['strength']);
         $this->assertEqualsCanonicalizing([RadarMatcher::SIGNAL_PHONE, RadarMatcher::SIGNAL_TEXT], array_column($match['signals'], 'signal'));
+    }
+
+    public function test_i1_deux_biens_differents_du_meme_annonceur_ne_fusionnent_pas(): void
+    {
+        // Banc I1 de la vérification adverse : même annonceur, même quartier, 3 chambres, 450 000 contre 480 000 (6 %),
+        // textes différents, aucune photo. Téléphone `medium` + lieu `low` : un rapprochement fort, sans rien du bien.
+        $annonceur = RadarAdvertiser::factory()->create();
+        $lieu = fn (int $prix, string $texte) => [
+            'neighborhood' => ['neighborhood_id' => $this->quartier->id], 'price' => ['value' => $prix], 'bedrooms' => ['value' => 3],
+            'description' => ['value' => $texte],
+        ];
+        $this->annonce(RadarSourceSite::ExpatDakar, $lieu(450000, 'Appartement fictif au deuxième étage, cuisine équipée, balcon côté rue, gardien.'), ['radar_advertiser_id' => $annonceur->id]);
+        $vue = $this->annonce(RadarSourceSite::Coinafrique, $lieu(480000, 'Rez-de-chaussée fictif avec cour privée, deux douches, parking pour deux voitures.'), $this->trouveeParLaCollecte(['radar_advertiser_id' => $annonceur->id]));
+
+        $this->assertSame('high', $this->app->make(RadarMatcher::class)->matchesFor($vue)[0]['strength']);
+        $this->assertSame(0, $this->merge()->sweep(now()));
+        $this->assertSame(RadarListingStage::Extracted, $vue->fresh()->stage);
+    }
+
+    public function test_le_lieu_meme_moyen_corrobore_par_le_seul_telephone_ne_fusionne_pas(): void
+    {
+        $annonceur = RadarAdvertiser::factory()->create();
+        $lieu = ['neighborhood' => ['neighborhood_id' => $this->quartier->id], 'price' => ['value' => 450000], 'bedrooms' => ['value' => 3]];
+        $this->annonce(RadarSourceSite::ExpatDakar, $lieu, ['radar_advertiser_id' => $annonceur->id]);
+        $vue = $this->annonce(RadarSourceSite::Coinafrique, $lieu, $this->trouveeParLaCollecte(['radar_advertiser_id' => $annonceur->id]));
+
+        $match = $this->app->make(RadarMatcher::class)->matchesFor($vue)[0];
+        $this->assertSame('high', $match['strength']);
+        $this->assertContains(['signal' => RadarMatcher::SIGNAL_PLACE, 'strength' => 'medium'], array_map(
+            fn (array $signal) => array_intersect_key($signal, ['signal' => 1, 'strength' => 1]),
+            $match['signals'],
+        ));
+        $this->assertSame(0, $this->merge()->sweep(now()));
+    }
+
+    public function test_le_lieu_faible_corrobore_par_le_texte_ne_fusionne_pas(): void
+    {
+        // 450 000 contre 480 000 : écart de 6 %, au-delà de l'écart « proche » (3 %) — le lieu n'est que `low`.
+        $fiche = ['neighborhood' => ['neighborhood_id' => $this->quartier->id], 'price' => ['value' => 450000], 'bedrooms' => ['value' => 3], 'description' => ['value' => self::DESCRIPTION]];
+        $this->annonce(RadarSourceSite::ExpatDakar, $fiche);
+        $vue = $this->annonce(RadarSourceSite::Coinafrique, ['price' => ['value' => 480000]] + $fiche, $this->trouveeParLaCollecte());
+
+        $this->assertSame(0, $this->merge()->sweep(now()));
+        $this->assertSame(RadarListingStage::Extracted, $vue->fresh()->stage);
+    }
+
+    public function test_la_fusion_d_office_est_eteinte_par_defaut(): void
+    {
+        $this->refreshApplication();
+        $this->assertFalse((bool) config('radar.merge.auto'), 'Rien n\'est fusionné sans que le porteur l\'allume (RADAR_MERGE_AUTO).');
     }
 
     public function test_deux_annonces_du_meme_site_restent_a_l_operateur(): void

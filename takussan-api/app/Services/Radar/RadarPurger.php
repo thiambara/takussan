@@ -11,6 +11,7 @@ use App\Models\Property;
 use App\Models\RadarAdvertiser;
 use App\Models\RadarConsent;
 use App\Models\RadarListing;
+use App\Models\RadarListingSnapshot;
 use App\Models\RadarOutreach;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
@@ -47,7 +48,7 @@ final class RadarPurger
     /** @var list<string> les compteurs rendus par {@see self::run()}, dans l'ordre */
     private const COUNTERS = [
         'listings', 'media', 'suggestions', 'outreaches', 'replies', 'proofs', 'advertisers_cleared', 'advertisers_deleted',
-        'retention_started', 'retention_reset', 'orphan_dirs',
+        'retention_started', 'retention_reset', 'orphan_dirs', 'snapshots_detached',
     ];
 
     public function __construct(private readonly RadarOrphanFiles $orphans) {}
@@ -107,12 +108,29 @@ final class RadarPurger
                     'stage_reason' => null,
                 ])->save();
                 $counts['suggestions'] += $this->eraseSuggestions('radar.extraction', $listing);
+                $counts['snapshots_detached'] += $this->detachSnapshots($listing);
 
                 // Le dernier geste : les fichiers partent avec leurs lignes.
                 $counts['media'] += $this->deleteMedia($listing);
                 $counts['listings']++;
             });
         }
+    }
+
+    /**
+     * TCK-2392 (ADR-0080) — les instantanés de la collecte quittent l'annonce : plus de lien vers elle (donc vers son
+     * annonceur), ni l'empreinte du titre, ni le lieu tel qu'il l'a écrit. Restent le prix, le quartier du référentiel,
+     * la ville, le type, les chambres, la surface, les dates et le passage (son site et son heure) : une observation de
+     * marché anonyme, que l'observatoire garde dans ses séries (« compteurs anonymes », ADR-0077 §9).
+     */
+    private function detachSnapshots(RadarListing $listing): int
+    {
+        return RadarListingSnapshot::query()->where('radar_listing_id', $listing->id)->update([
+            'radar_listing_id' => null,
+            'title_fingerprint' => null,
+            'neighborhood_label' => null,
+            'updated_at' => now(),
+        ]);
     }
 
     /**

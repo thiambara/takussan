@@ -29,6 +29,9 @@ class RadarCrawlRun extends AbstractModel
 
     public const STOP_NO_OPERATOR = 'radar.crawl.no_operator';
 
+    /** La pagination renvoie vers une page déjà lue par ce passage. */
+    public const STOP_LOOP = 'radar.crawl.loop';
+
     protected $fillable = [
         'site', 'trigger', 'status', 'operator_id', 'started_at', 'finished_at', 'pages_read', 'cards_seen',
         'listings_created', 'listings_known', 'snapshots_opened', 'reached_end', 'stop_reason',

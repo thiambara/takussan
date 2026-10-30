@@ -3,6 +3,8 @@
 namespace App\Services\Radar\Crawl;
 
 use App\Models\Enums\RadarCrawlStatus;
+use App\Models\Enums\RadarListingStage;
+use App\Models\RadarAdvertiser;
 use App\Models\RadarCrawlRun;
 use App\Models\RadarListing;
 use App\Models\User;
@@ -26,10 +28,15 @@ use Illuminate\Support\Sleep;
  *  3. **chaque URL nouvelle devient une annonce** par la saisie du lot 1 (`RadarListingIntake::fromUrls()`, au nom de
  *     l'opérateur du passage, l'extraction en file `ai`) ; une URL déjà connue — même purgée, même en échec — ne crée rien
  *     et ne relance rien ;
- *  4. **chaque annonce vue est observée** (`RadarSnapshots`) : un prix changé ouvre un instantané.
+ *  4. **chaque annonce vue est observée** (`RadarSnapshots`) : un prix changé ouvre un instantané — SAUF une annonce
+ *     purgée ou `do_not_contact`, ou dont l'annonceur a dit STOP (`do_not_contact_at`) : elle n'est ni observée ni
+ *     comptée. La promesse de `privacy.ts` § 6 (« ne subsiste qu'une empreinte chiffrée de votre numéro ») vaut aussi
+ *     pour ce qu'un passage relirait après coup (ADR-0077 §9, ADR-0080).
  *
  * Les compteurs sont écrits après chaque page : un passage interrompu laisse ce qu'il a fait. Le passage s'arrête aussi
- * sur la fin de la liste (`reached_end`), le plafond de pages ou son budget de temps.
+ * sur la fin de la liste (`reached_end`), le plafond de pages, son budget de temps, ou une pagination qui renvoie vers une
+ * page déjà lue (`radar.crawl.loop`). Un passage que le planificateur a clos entre-temps (`radar.crawl.lost`) le reste :
+ * la fin ne réécrit qu'un passage encore `running`.
  */
 final class RadarCrawler
 {
@@ -65,6 +72,8 @@ final class RadarCrawler
         $url = $adapter->startUrl();
         /** @var array<int, true> $seen les annonces déjà observées par ce passage */
         $seen = [];
+        /** @var array<string, true> $visited les pages déjà lues par ce passage, demandées ou atteintes par redirection */
+        $visited = [];
 
         while (true) {
             if ($run->pages_read >= $maxPages) {
@@ -73,11 +82,16 @@ final class RadarCrawler
             if (now()->greaterThanOrEqualTo($deadline)) {
                 return $this->finish($run, self::STOP_TIME_BUDGET);
             }
+            if (isset($visited[$url])) {
+                return $this->finish($run, RadarCrawlRun::STOP_LOOP);
+            }
 
             $page = $this->read($url);
             if (is_string($page)) {
                 return $this->finish($run, $page);
             }
+            $visited[$url] = true;
+            $visited[$page->url] = true;
 
             $list = $adapter->parse($page->body, $page->url);
             $run->pages_read++;
@@ -90,7 +104,7 @@ final class RadarCrawler
             foreach ($list->cards as $card) {
                 $run->cards_seen++;
                 $listing = $this->listingFor($card, $run, $operator);
-                if (isset($seen[$listing->id])) {
+                if ($listing === null || isset($seen[$listing->id])) {
                     continue;
                 }
                 $seen[$listing->id] = true;
@@ -102,6 +116,7 @@ final class RadarCrawler
 
             if ($list->nextUrl === null) {
                 $run->reached_end = true;
+                $run->save();
 
                 return $this->finish($run, RadarCrawlRun::STOP_END);
             }
@@ -127,12 +142,18 @@ final class RadarCrawler
         }
     }
 
-    /** L'annonce de cette carte : la fiche connue (rien n'est relancé), ou une fiche neuve saisie au nom de l'opérateur. */
-    private function listingFor(ListCard $card, RadarCrawlRun $run, User $operator): RadarListing
+    /**
+     * L'annonce de cette carte : la fiche connue (rien n'est relancé), ou une fiche neuve saisie au nom de l'opérateur ;
+     * null pour une fiche réduite au silence ({@see self::silenced()}), qui n'est ni observée ni comptée.
+     */
+    private function listingFor(ListCard $card, RadarCrawlRun $run, User $operator): ?RadarListing
     {
         $canonical = RadarListingIntake::canonicalUrl($card->url) ?? $card->url;
         $known = RadarListing::query()->where('content_fingerprint', RadarListingIntake::urlFingerprint($canonical))->first();
         if ($known !== null) {
+            if ($this->silenced($known)) {
+                return null;
+            }
             $run->listings_known++;
 
             return $known;
@@ -144,14 +165,28 @@ final class RadarCrawler
         return $result['listing'];
     }
 
+    /** Purgée, `do_not_contact`, ou d'un annonceur qui a dit STOP : la collecte ne la suit plus. */
+    private function silenced(RadarListing $listing): bool
+    {
+        if (in_array($listing->stage, [RadarListingStage::Purged, RadarListingStage::DoNotContact], true)) {
+            return true;
+        }
+
+        return $listing->radar_advertiser_id !== null && RadarAdvertiser::query()
+            ->whereKey($listing->radar_advertiser_id)
+            ->whereNotNull('do_not_contact_at')
+            ->exists();
+    }
+
     private function finish(RadarCrawlRun $run, string $reason): RadarCrawlRun
     {
-        $run->fill([
-            'status' => RadarCrawlStatus::Finished,
+        RadarCrawlRun::query()->whereKey($run->id)->where('status', RadarCrawlStatus::Running->value)->update([
+            'status' => RadarCrawlStatus::Finished->value,
             'finished_at' => now(),
             'stop_reason' => $reason,
-        ])->save();
+            'updated_at' => now(),
+        ]);
 
-        return $run;
+        return $run->refresh();
     }
 }

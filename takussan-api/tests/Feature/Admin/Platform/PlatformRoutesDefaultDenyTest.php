@@ -89,6 +89,11 @@ class PlatformRoutesDefaultDenyTest extends TestCase
         'admin.radar.listings.photos.fetch',
         'admin.radar.listings.photos.store',
         'admin.radar.listings.photos.destroy',
+        // TCK-2392 (ADR-0080) — la collecte : lire les sites et leurs passages, séparer une fusion automatique
+        // (`platform.radar.operate`). Les régler et lancer un passage reste au `super_admin` (`platform.radar.publish`).
+        'admin.radar.crawl.sources.index',
+        'admin.radar.crawl.runs.index',
+        'admin.radar.listings.unmerge',
         // TCK-2393 (ADR-0083) — l'observatoire du marché et le classement des annonceurs (`platform.radar.operate`).
         'admin.radar.observatory',
         'admin.radar.observatory.advertisers',

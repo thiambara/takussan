@@ -175,10 +175,11 @@ return [
         'close' => 0.8,
     ],
 
-    // TCK-2392 — la fusion automatique des doublons entre sites (`RadarAutoMerge`). Faux : les rapprochements restent
-    // montrés, rien n'est fusionné sans l'opérateur.
+    // TCK-2392 (ADR-0080) — la fusion automatique des doublons entre sites (`RadarAutoMerge`). ÉTEINTE par défaut : les
+    // rapprochements restent montrés, rien n'est fusionné sans l'opérateur, tant que le porteur ne l'a pas allumée après
+    // l'avoir mesurée sur de vraies annonces.
     'merge' => [
-        'auto' => true,
+        'auto' => (bool) env('RADAR_MERGE_AUTO', false),
     ],
 
     // TCK-2393 (ADR-0083 §4) — la disparition d'une annonce source (`RadarSourceWatch`). Elle se conclut de ce nombre de

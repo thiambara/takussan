@@ -22,7 +22,8 @@ use Illuminate\Support\Facades\DB;
  *   unique partiel `radar_crawl_runs_one_active_unique` — deux planificateurs simultanés, ou un clic pendant un passage
  *   planifié, n'en créent qu'un, sans exception dans la transaction (piège n° 1 du CLAUDE.md de l'API).
  * - **Un passage perdu** (actif depuis plus de `radar.crawl.stale_after_minutes` : worker tué, file arrêtée) est clos en
- *   `failed`, sans quoi il bloquerait son site pour toujours.
+ *   `failed`, sans quoi il bloquerait son site pour toujours. Le délai court depuis son DÉMARRAGE (`started_at`), à défaut
+ *   depuis sa mise en file : un passage resté longtemps en file engorgée n'est pas tué dès que le worker le prend.
  */
 final class RadarCrawlScheduler
 {
@@ -35,7 +36,7 @@ final class RadarCrawlScheduler
     {
         return RadarCrawlRun::query()
             ->whereIn('status', RadarCrawlStatus::activeValues())
-            ->where('created_at', '<=', $now->copy()->subMinutes((int) config('radar.crawl.stale_after_minutes', 60)))
+            ->whereRaw('coalesce(started_at, created_at) <= ?', [$now->copy()->subMinutes((int) config('radar.crawl.stale_after_minutes', 60))])
             ->update([
                 'status' => RadarCrawlStatus::Failed->value,
                 'finished_at' => $now,

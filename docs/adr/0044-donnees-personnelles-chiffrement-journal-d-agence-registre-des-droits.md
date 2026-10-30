@@ -6,6 +6,7 @@
 - **Amendement du 2026-10-25 ([TCK-2342](../backlog/tickets/TCK-2342-purge-du-journal-d-activite-par-famille.md), piste P19.04)** : le journal d'activité se conserve par famille de journaux — 12 mois par défaut, 5 ans pour onze journaux de preuve, 10 ans pour sept journaux de pièces comptables — et une purge maison, `audit:prune-activity-log`, planifiée chaque jour, le tient. Voir [§ Amendement du 2026-10-25](#amendement-du-2026-10-25--le-journal-dactivité-se-conserve-par-famille-tck-2342).
 - **Amendement du 2026-10-22 (piste P84.01)** : le NINEA d'une agence `standard` est une mention légale publique de personne morale, en clair dans `agencies.ninea` ; celui de la demande de passage reste chiffré et masqué le temps de la revue ; le journal le rend en clair pour le seul sujet `Agency`. Voir [§ Amendement du 2026-10-22](#amendement-du-2026-10-22--le-ninea-dune-personne-morale-est-une-mention-légale-publique).
 - **Amendement du 2026-10-18 ([TCK-883](../backlog/tickets/TCK-883-sauvegardes-consignes-et-retour-d-une-restauration.md))** : une donnée effacée survit dans les sauvegardes le temps de leur rétention ; après une restauration, les effacements postérieurs à la sauvegarde se rejouent depuis une liste tenue hors de la base ; `APP_KEY` est rangée hors du serveur et son empreinte est au relevé. Voir [§ Amendement du 2026-10-18](#amendement-du-2026-10-18--les-sauvegardes-gardent-ce-que-la-base-a-effacé-tck-883).
+- **Amendement du 2026-10-30 ([TCK-2407](../backlog/tickets/TCK-2407-sauvegarde-du-seau-prive-conserve-les-fichiers-purges.md))** : la copie de la liste des effacements (`effacements/`) n'est jamais tournée, alors que le reste du seau privé se garde en instantanés de 14 jours (ADR-0029 amendé) ; voir § B, « La copie de la liste n'est jamais tournée ».
 - **Précisé par [ADR-0070](0070-piece-et-revenu-du-locataire-et-de-la-caution-chiffres-masques-lus-sous-step-up.md) (2026-10-18)** : l'application de l'amendement A — périmètre, migrations, masques, lectures claires et leurs lecteurs, exports, contrat du front.
 - **Amendement du 2026-10-16 ([TCK-723](../backlog/tickets/TCK-723-adr-0044-etendu-et-erratum-adr-0055.md))** : la règle du §1 s'étend au numéro de pièce du locataire et de la caution (`customers.id_number`, `guarantors.id_number`) ; les jobs échoués sont purgés à **30 jours**. le revenu mensuel de la caution et du bailleur suit la même règle, et seul l'admin d'agence lit la valeur claire. Voir [§ Amendement du 2026-10-16](#amendement-du-2026-10-16--la-pièce-du-locataire-et-de-la-caution-et-la-purge-des-jobs-échoués-tck-723).
 
@@ -336,12 +337,20 @@ que l'identifiant du compte et l'instant — ni courriel, ni nom, ni téléphone
 (`App\Services\Account\ErasureLedger`).
 
 - **Pourquoi ce support** : le seau privé vit hors du serveur ; il est copié chaque nuit dans
-  `vps-sauvegardes/takussan-preview-private/` par `rclone copy`, qui ne supprime jamais
-  (`deploy/server/sauvegarde-seau-prive.sh`), et `vps-sauvegardes` porte un verrou de rétention de
-  7 jours ([ADR-0069](0069-deux-environnements-dokploy-configuration-hors-de-github.md)). Aucun
+  `vps-sauvegardes/takussan-preview-private/` (`deploy/server/sauvegarde-seau-prive.sh`), et
+  `vps-sauvegardes` porte un verrou de rétention de 7 jours ([ADR-0069](0069-deux-environnements-dokploy-configuration-hors-de-github.md)). Aucun
   jeton ni variable d'environnement de plus. L'export nocturne vers le seau des sauvegardes,
   envisagé d'abord, aurait demandé à l'application une écriture sur `vps-sauvegardes`, qu'elle n'a
   pas, et laissé jusqu'à 24 h d'effacements sans trace.
+- **La copie de la liste n'est jamais tournée** (amendement du 2026-10-30,
+  [TCK-2407](../backlog/tickets/TCK-2407-sauvegarde-du-seau-prive-conserve-les-fichiers-purges.md)).
+  Depuis [ADR-0029 amendé](0029-medias-sur-r2-servis-par-cloudflare-transformations.md), le seau
+  privé se copie en instantanés datés gardés 14 jours. Ils ne portent la liste que tant qu'elle vit
+  dans le seau. Le préfixe `effacements/` a donc, en plus, une copie qui ne supprime rien et ne
+  tourne pas : `vps-sauvegardes/takussan-preview-private/effacements/`, mise à jour à chaque passage
+  et exclue du retrait de l'ancienne copie. Si le préfixe disparaît du seau (VPS compromis, erreur
+  d'exploitation), la liste survit à la rotation. Elle ne porte que l'identifiant et l'instant : la
+  garder sans limite ne contredit pas la rétention de 14 jours des sauvegardes.
 - **Un objet par effacement** : un objet S3 ne s'allonge pas ; un journal unique serait un
   lire-réécrire concurrent.
 - **L'objet s'écrit avant l'effacement, et un échec l'annule** : le disque qui refuse fait sortir

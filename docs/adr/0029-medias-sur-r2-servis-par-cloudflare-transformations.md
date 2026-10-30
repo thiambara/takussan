@@ -5,6 +5,7 @@
 - **Tickets** : TCK-538, TCK-539, TCK-540, TCK-541
 - **Amendement du 2026-10-04 (TCK-585)** : les **photos de biens** ne passent plus par Transformations. Leurs conversions sont produites en WebP et servies telles quelles ; le §4 ne vaut plus que pour les autres images du seau public (avatars, logos, plans). Voir [§ Amendement du 2026-10-04](#amendement-du-2026-10-04--les-photos-de-biens-ne-passent-plus-par-transformations-tck-585).
 - **Amendement du 2026-10-23 (P180.02)** : la route signée `media.private.show` sert aussi une **conversion nommée** dans l'URL signée et propre à la collection (d'abord la `preview` des `room_photos` de l'état des lieux, puis les photos de maintenance), pour que les vignettes privées ne chargent plus l'original. Voir le § *Amendement du 2026-10-23 — la route signée sert aussi une conversion nommée*.
+- **Amendement du 2026-10-30 (TCK-2407)** : la copie nocturne du seau privé n'est plus une copie unique qui ne supprime jamais, mais un **instantané daté par jour**, marqué complet par `.complet`, dont les 14 plus récents sont gardés, jamais le dernier complet retiré. Un objet effacé du seau privé quitte la sauvegarde 14 jours au plus après son effacement, tant que les passages réussissent ; un objet vivant est dans chaque instantané complet ; la liste des effacements garde une copie jamais tournée. Voir le § *Amendement du 2026-10-30 — la copie du seau privé est un instantané par jour, gardé 14 jours*.
 - **Complète** : [ADR-0028](0028-auto-hebergement-conteneurise-sur-le-vps.md) §6-7 (le volume de médias et sa sauvegarde) ; **rend caduc** le choix de Bunny comme CDN par défaut de [`docs/infra/cdn.md`](../infra/cdn.md) (TCK-105), jamais activé (`CDN_ENABLED=false` partout).
 
 ## Contexte
@@ -300,3 +301,133 @@ mesuré au navigateur.
   - un test qui affirme que la conversion servie est bien celle demandée.
 
   Chaque garde se vérifie par ablation.
+
+## Amendement du 2026-10-30 — la copie du seau privé est un instantané par jour, gardé 14 jours (TCK-2407)
+
+Décision prise en autonomie la nuit du 2026-10-29 au 30, à revoir avec le porteur
+([TCK-2407](../backlog/tickets/TCK-2407-sauvegarde-du-seau-prive-conserve-les-fichiers-purges.md)).
+Elle remplace la copie incrémentale du point 8.
+
+### Pourquoi
+
+Le point 8 copiait le seau privé par `rclone copy`, « jamais `sync` » : un objet supprimé du seau
+restait dans la sauvegarde. C'était voulu contre une suppression par erreur, mais c'est **sans
+limite**. Tout ce que l'application efface exprès y survit donc :
+
+- les captures, photos et preuves que la purge du Radar efface à 90 jours, ou dès un STOP
+  (`RadarPurger`, `RadarOrphanFiles`, TCK-2391) ;
+- les pièces qu'un utilisateur fait supprimer (KYC, documents).
+
+La politique de confidentialité promet l'inverse (`takussan-web/src/content/legal/privacy.ts`, § 6) :
+« effacées dès que vous demandez à ne plus être contacté », puis « Sauvegardes : conservées au plus
+14 jours, puis écrasées ».
+
+### Options pesées
+
+- **(a) Une règle de cycle de vie R2 qui expire les objets de la copie après 14 jours.** Écartée,
+  car elle est fausse seule. Un objet vivant et inchangé n'est jamais recopié : il vieillirait dans la
+  copie puis en disparaîtrait, alors qu'il vit encore.
+- **(b) Un instantané complet par jour, et les 14 plus récents gardés.** Retenue.
+- **(c) `rclone sync` vers une copie courante, et les objets retirés déplacés dans un dossier daté
+  (`--backup-dir`).** Écartée. Elle est moins chère en opérations, mais le verrou de rétention de
+  7 jours sur `vps-sauvegardes` (ADR-0069 § 5) refuse d'effacer ou d'écraser un objet de moins de
+  7 jours. Un STOP le lendemain d'une capture ferait échouer la copie chaque nuit pendant une
+  semaine, avec une alerte Telegram par nuit. Lever le verrou rouvrirait le risque qu'il ferme : un
+  VPS compromis qui efface les sauvegardes.
+
+### Décision
+
+1. **Chaque passage copie le seau privé entier sous un préfixe daté** :
+   `vps-sauvegardes/<seau>/jours/AAAA-MM-JJ/` (date UTC du passage). La copie reste un
+   `rclone copy` de seau à seau, côté serveur. Elle n'efface et n'écrase rien dans un instantané
+   existant. Un second passage le même jour complète l'instantané du jour.
+2. **Un instantané n'est complet que s'il porte son marqueur.** Une copie réussie pose
+   `jours/AAAA-MM-JJ/.complet`, une fois par jour : sous le verrou, le réécrire serait refusé. Une
+   copie interrompue laisse un instantané **partiel**, sans marqueur : rclone 1.71 sort alors en
+   code 8 avec une cible incomplète (reproduit par la vérification adverse). On ne restaure jamais
+   depuis un instantané partiel. On restaure depuis le plus récent qui porte `.complet`.
+3. **La rotation retire les instantanés datés de `RETENTION_JOURS` jours ou plus** (14 par défaut),
+   **sauf le plus récent instantané complet**, et rien du tout s'il n'y en a aucun. Elle ne compte
+   que les jours complets : un jour partiel n'est jamais pris pour le dernier complet. Elle tourne
+   après chaque passage, même après une copie en échec. Une panne longue ne garde donc pas tout,
+   mais elle ne retire jamais la seule sauvegarde complète qui reste.
+4. **La rotation se fait dans le script, pas par une règle de cycle de vie R2.** Une règle
+   effacerait aussi quand les copies s'arrêtent. Si le VPS tombe, la sauvegarde du seau privé
+   disparaîtrait 14 jours plus tard, c'est-à-dire au moment où on en a besoin.
+5. **Seuls les préfixes en forme de date sont retirés.** Tout autre préfixe sous `jours/`, y compris
+   un instantané daté dans le futur, est laissé en place.
+6. **La liste des effacements a, en plus, une copie jamais tournée** : `vps-sauvegardes/<seau>/effacements/`,
+   par `rclone copy`, qui ne supprime rien. ADR-0044 § B avait choisi le seau privé parce que sa
+   copie gardait cette liste sans limite. Sans cette copie, un préfixe `effacements/` effacé du seau
+   (VPS compromis, erreur d'exploitation) quitterait la sauvegarde 14 jours plus tard. Une
+   restauration de base ne pourrait plus rejouer les effacements, et les comptes reviendraient en
+   clair. La liste ne porte que l'identifiant et l'instant : la garder sans limite ne heurte pas
+   `privacy.ts` § 6.
+7. **Le jeton ne change pas.** `takussan-preview-backup` lit le seau privé et écrit dans
+   `vps-sauvegardes`. Il efface déjà dans `vps-sauvegardes`, au-delà de 7 jours, et il n'efface
+   jamais dans le seau privé. Aucune règle de cycle de vie n'est posée.
+8. **L'ancienne copie plate** (`vps-sauvegardes/<seau>/<id>/…`, depuis le 2026-09-22) se retire une
+   fois, par `sauvegarde-seau-prive --retirer-copie-plate`. Cette commande refait d'abord un passage
+   complet, puis efface tout ce qui est hors de `jours/` et de `effacements/`. Elle refuse une
+   `CIBLE` à la racine d'un seau, qui emporterait les dumps et la configuration de Dokploy. Le
+   porteur la lance au moins 8 jours après le premier passage du nouveau script, une fois sorti du
+   verrou de 7 jours.
+9. **Une configuration fautive n'arrête pas les sauvegardes en silence.** Un secret absent ou un
+   `JOUR` mal formé est alerté sur Telegram. Un `RETENTION_JOURS` invalide est alerté, et le passage
+   se fait quand même avec 14. Au-delà de 14, un avertissement est écrit au journal.
+10. **Un seau source vidé est alerté.** Comme `fraicheur-sauvegardes.sh`, un instantané complet qui
+    porte moins de la moitié des objets du précédent complet envoie une alerte. La copie à vide
+    « réussit » et la rotation retirerait les bons instantanés en 14 jours : c'est le temps d'agir.
+11. **Le jour vient de l'horloge, qui doit être juste.** Un passage lancé au démarrage
+    (`Persistent=true`) avant la synchronisation, horloge en avance, retirerait toute la fenêtre de
+    restauration. L'unité attend donc `time-sync.target`, et `bootstrap.sh` § 8 active
+    `systemd-time-wait-sync`. C'est l'option la plus simple ; écartée, une garde dans le script contre
+    un instantané daté du futur, qui ne détecte le défaut qu'après le passage fautif.
+
+### Ce que ça garantit, et ce que ça coûte
+
+- **Un objet effacé du seau privé** quitte la sauvegarde **au plus 14 jours** après son effacement,
+  **tant que les passages réussissent**. Effacé entre le passage du jour J−1 et celui du jour J, son
+  dernier instantané est celui de J−1, retiré au passage du jour J+13. Après une série d'échecs, le
+  dernier instantané complet reste jusqu'au passage réussi suivant, et le timer
+  (`RandomizedDelaySec`, `Persistent`) ajoute quelques minutes. Un objet effacé **par erreur** se
+  restaure pendant 13 jours depuis un instantané complet d'avant l'effacement, contre « toujours »
+  auparavant.
+- **Un objet vivant** est dans chaque instantané complet, donc dans le plus récent, quel que soit son
+  âge. La restauration à blanc de TCK-541 lit le dernier instantané complet.
+- **La liste des effacements** est dans chaque instantané complet tant qu'elle vit dans le seau, et
+  dans sa copie jamais tournée pour toujours.
+- **Le verrou de 7 jours reste compatible.** Un instantané a 14 jours quand il est retiré.
+  `RETENTION_JOURS` sous 8 serait refusé par le verrou et alerté chaque nuit. Au-delà de 14, la
+  promesse de `privacy.ts` § 6 ne tiendrait plus.
+- **Le coût est multiplié par 14 en stockage**, et chaque passage fait un CopyObject (classe A)
+  par objet, soit environ 30 fois le nombre d'objets par mois. Relevé du 2026-09-22 : 3 444 objets,
+  201,4 Mo, soit environ 2,8 Go et 100 000 opérations par mois. Le million d'opérations de classe A
+  gratuit tombe vers **33 000 objets** (1 M / 30). Au-delà, 4,50 $ par million. Mais la gratuité de
+  R2 (10 Go, 1 M d'opérations de classe A par mois) est **par compte**. Elle est partagée avec les
+  dumps, les archives de Dokploy, l'archive du volume (902 Mo), `takussan-wal`, les deux seaux de
+  médias et les écritures de l'application. Que tout cela reste gratuit n'est donc pas établi : la
+  consommation du compte se relit au tableau de bord avant la production. Le repli est l'option (c),
+  au prix d'un verrou limité à un préfixe.
+
+### Application
+
+- `deploy/server/sauvegarde-seau-prive.sh` : instantané daté, marqueur `.complet`, rotation qui
+  garde le dernier complet, copie jamais tournée de `effacements/`, `RETENTION_JOURS`,
+  `--retirer-copie-plate` (racine de seau refusée), alerte Telegram sur tout échec, configuration
+  comprise.
+- `scripts/test-sauvegarde-seau-prive.sh`, joué par `repo-ci.yml`, fait tourner le vrai script sur un
+  R2 simulé en local, avec des dates simulées. Le talon reproduit la copie interrompue de rclone 1.71
+  et son NOTICE sur stderr. Il vérifie :
+  - l'objet effacé, absent au plus tard 14 jours après ;
+  - l'objet vivant, toujours là avec le même md5 ;
+  - la liste des effacements, gardée après sa disparition du seau ;
+  - l'instantané partiel, sans marqueur, et le dernier complet jamais retiré ;
+  - les alertes ;
+  - `--essai`.
+
+  Il vérifie aussi qu'un seau source vidé est alerté, et que sans aucun jour complet rien n'est
+  retiré. Onze ablations ôtent chacune une garde et attendent un rouge. L'attente de
+  `time-sync.target` (point 11) n'est pas testable ici : elle se relève sur le serveur.
+- Relevé et procédure dans [`docs/infra/hebergement.md`](../infra/hebergement.md), ligne « Copie du
+  seau privé des médias ».
