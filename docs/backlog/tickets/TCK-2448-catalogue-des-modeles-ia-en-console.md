@@ -1,0 +1,131 @@
+---
+id: TCK-2448
+title: "Socle IA : catalogue des modèles et de leurs tarifs en base, réglable dans la console (ADR-0085)"
+status: todo
+phase: P1
+family: full
+estimate: M
+wave: 80
+created: 2026-10-30
+updated: 2026-10-30
+depends_on: []
+blocks: [TCK-2450]
+spec_refs:
+  features:
+    - "docs/features.md#211-socle-ia"
+  models:
+    - "docs/models-spec.md#102-airoleassignment-"
+    - "docs/models-spec.md#103-aiusagesetting-"
+tags: [api, front, ai, console, adr-0085, adr-0076]
+---
+
+## Objectif utilisateur
+
+Le super-admin ajoute un modèle d'un fournisseur déjà déclaré, corrige son tarif ou le retire depuis la console IA,
+sans attendre un déploiement, puis l'affecte à un rôle après l'avoir évalué.
+
+## Contrat de données
+
+- **Aujourd'hui** (`dev` `20c2538a4`), un modèle n'est affectable que s'il est tarifé dans `config('ai.pricing')`.
+  Ce contrôle est fait par `ModelLink::isPriced()`, lu par `AiRoleController`, `AiUsageController`,
+  `AiEvaluationController` et `ai:eval --model`, et par `AiProviderCatalogue::describe()` (`models`) et
+  `cheapestModel()` (test de connexion). Le coût d'un appel est calculé par `AiCostCalculator::estimate()`.
+- **Nouvelle table** `ai_models`, nouveau modèle `App\Models\AiModel` :
+  - `provider` (clé du bloc `providers` de `config/ai.php`) ;
+  - `model` : identifiant exact du fournisseur, y compris `éditeur/modèle` (OpenRouter) et un suffixe `:…` ;
+  - `input`, `output`, `cache_read`, `cache_write` : décimaux, dollars US par million de tokens, ≥ 0, non nuls ;
+  - `active` (booléen) ;
+  - `updated_by_id`, nullable, `nullOnDelete` ;
+  - horodatages ;
+  - unique sur `(provider, model)`.
+- **Le catalogue est l'union** des lignes `ai_models` et des couples de `config('ai.pricing')`. Une ligne l'emporte
+  sur la configuration pour le même couple, y compris pour retirer un modèle de la configuration.
+- **Nouvelles routes** sous `routes/api/admin-ai.php` :
+  - lecture `platform.ai.view` : `GET admin/ai/models` ;
+  - écriture `platform.ai.manage` sous `ProtectedActions::STEP_UP` : `POST admin/ai/models`,
+    `PATCH admin/ai/models/{model}` (tarifs, actif), et `DELETE`, ou un retrait par `active`, au choix de
+    l'implémentation.
+- **La longueur des identifiants de modèle** passe de 80 à au moins 120 caractères :
+  - colonnes `ai_usage_settings.forced_model` et `ai_calls.model`, et toute colonne qui stocke un modèle ;
+  - règles `max:80` de `UpdateAiRoleRequest`, `UpdateAiUsageRequest` et `StoreAiEvaluationRequest`.
+
+## Direction UX / Artistique
+
+Console IA existante (`/super-admin/ai`) : une section « Modèles » sobre, sous les fournisseurs.
+
+- **Liste par fournisseur**, avec les quatre tarifs lisibles en dollars par million de tokens.
+- **Origine de chaque modèle** : réglé dans la console, ou venu de la configuration.
+- **Un modèle retiré reste visible**, atténué.
+- **Le formulaire d'ajout dit clairement** que l'identifiant doit être celui du fournisseur, et qu'un tarif nul
+  signifie « gratuit au token », pas « inconnu ».
+- **Un retrait refusé nomme** les rôles et les usages qui emploient encore le modèle.
+- Le choix d'un modèle dans `AiChainDialog`, dans le modèle forcé d'un usage et dans l'évaluation ne propose que les
+  modèles actifs du catalogue.
+
+## Contraintes strictes (métier)
+
+- **Seul un modèle actif du catalogue s'affecte** : maillon de chaîne, modèle forcé, évaluation, `ai:eval --model`.
+  Sinon, `ai.model_unpriced` est conservé, ou un code `ai.*` plus précis si l'implémentation en crée un.
+- **Retirer, ou passer inactif, un modèle employé** par une chaîne en base ou un modèle forcé est refusé, en
+  nommant ces emplois. Une chaîne de repli de la configuration qui l'emploie compte aussi : sinon le repli se
+  casserait.
+- **Un tarif absent est refusé, un tarif nul est accepté.**
+- Un `provider` absent du bloc `providers` est refusé.
+- Toute écriture est journalisée par `activity('Admin')`, comme `AiRoleController`, avec l'avant et l'après du tarif.
+- **Le coût de l'appel lit le catalogue** : `AiCostCalculator` prend le tarif de la ligne en base si elle existe.
+  Les `ai_calls` passés ne sont jamais recalculés.
+- **Aucun identifiant de modèle n'est écrit dans le code applicatif** (`scripts/check-ai-usages.mjs`) : les
+  fabriques et les tests en prennent un dans `config('ai.pricing')` ou en créent un fictif.
+- Pas de `lower()` sur l'identifiant : la comparaison est exacte (sensible à la casse).
+
+## Delta à produire
+
+- [ ] Migration `create_ai_models_table`, avec un `down()` juste.
+- [ ] Migration d'allongement des colonnes de modèle, avec un `down()` juste.
+- [ ] Modèle `App\Models\AiModel` et fabrique `AiModelFactory`.
+- [ ] Service `App\Services\Ai\AiModelCatalogue`, seule source de vérité de « tarifé et affectable », branché à la
+      place des lectures directes de `config('ai.pricing')` :
+  - [ ] `ModelLink::isPriced()` ;
+  - [ ] `AiProviderCatalogue::describe()` et `cheapestModel()` ;
+  - [ ] `AiCostCalculator`.
+- [ ] Contrôleur `App\Http\Controllers\Api\Admin\AiModelController` et FormRequests `StoreAiModelRequest` et
+      `UpdateAiModelRequest`.
+- [ ] Routes dans `routes/api/admin-ai.php`, inscrites dans `NamespaceAccessGuardTest`.
+- [ ] Console : section « Modèles », et sélecteurs branchés sur le catalogue.
+- [ ] Textes fr et en ; wo = fr (Wolof en pause).
+- [ ] Tests :
+  - [ ] `AiModelCatalogueTest` : union, priorité de la base, retrait d'un modèle de la configuration, tarif nul ;
+  - [ ] `AiModelControllerTest` : droits, second facteur, refus du retrait d'un modèle employé, journal ;
+  - [ ] assertions dans les tests existants de `AiRoleController`, `AiUsageController`, `AiEvaluationController`
+        et `AiEval` : un modèle ajouté en base devient affectable, un modèle retiré ne l'est plus ;
+  - [ ] Vitest de la section.
+- [ ] `docs/infra/hebergement.md` : rien à changer, aucune clé neuve.
+- [ ] Texte de spec proposé dans le rapport (features §2.11, models-spec : nouvelle table, et `forced_model` « tarifé
+      au catalogue »), pour la PR de spec commune.
+
+## Critères d'acceptation
+
+- [ ] **AC1** — Un modèle ajouté dans la console chez `anthropic`, absent de `config('ai.pricing')`, s'affecte à une
+      chaîne, se force sur un usage et s'évalue, sans changer la configuration.
+- [ ] **AC2** — Un modèle de la configuration retiré dans la console ne s'affecte plus (422), et reste affiché comme
+      retiré.
+- [ ] **AC3** — Retirer un modèle employé par une chaîne en base, par un modèle forcé ou par une chaîne de repli de la
+      configuration est refusé, et la réponse nomme ces emplois.
+- [ ] **AC4** — Un tarif corrigé dans la console change le coût des appels suivants. Le `cost_estimate` des
+      `ai_calls` antérieurs ne change pas.
+- [ ] **AC5** — Un tarif nul saisi est accepté, et l'appel coûte 0. Un tarif absent est refusé.
+- [ ] **AC6** — Sans `platform.ai.manage`, ou sans second facteur récent, toute écriture est refusée. Chaque écriture
+      acceptée laisse une ligne `activity('Admin')`.
+- [ ] **AC7** — Un identifiant de 120 caractères, avec `/` et `:`, s'enregistre, s'affecte et se journalise dans
+      `ai_calls` sans troncature.
+
+## Hors périmètre
+
+- Déclarer un fournisseur, poser sa clé ou son adresse : configuration du déploiement (ADR-0085), TCK-2450.
+- Lire les tarifs depuis l'API d'un fournisseur.
+- La neutralité de `SocleAgent` : TCK-2449.
+- Le rôle `embedding`.
+
+## Notes d'implémentation
+
+_(à remplir par implementing-specs)_
