@@ -100,10 +100,15 @@ code sur l'inférence du point 2, c'est le pari que B3 refuse, déplacé de l'ap
 
 ## Notes d'implémentation
 
-- **Le jeton** : `bin2hex(random_bytes(20))`, tiré par `RadarWhatsappOutreach` sous les verrous de « J'ai envoyé »,
-  transmis par le pilote, écrit sur `radar_outreaches.provider_callback_token` (index unique partiel) **avec** les
-  colonnes du canal — donc seulement pour un envoi accepté ou ambigu, reprise comprise. Jamais journalisé ni exposé ;
-  la liste blanche de `WebhookPayloadRedactor` ne le garde pas dans la vue expurgée.
+- **Le jeton** : `bin2hex(random_bytes(20))`, écrit par `RadarWhatsappOutreach` sur la ligne préparée
+  (`radar_outreaches.provider_callback_token`, index unique partiel) et **commité avant les verrous et l'appel**, puis
+  relu sous le verrou et transmis par le pilote ; un essai refusé laisse le jeton, inerte, que l'essai suivant reprend.
+  Jamais journalisé ni exposé ; la liste blanche de `WebhookPayloadRedactor` ne le garde pas dans la vue expurgée.
+- **Correctif de la vérification (I-1)** : écrit d'abord avec les colonnes du canal, après l'appel, le jeton n'était
+  sur aucune ligne quand `sent`/`delivered` arrivaient pendant l'appel (délai dépassé) : ces accusés étaient perdus.
+  Commité avant, il fait trouver l'annonceur, dont le verrou fait attendre l'accusé jusqu'à la fin de l'envoi.
+  `RadarWhatsappReceiptGuardTest::test_i1_*` le rejoue par une fibre (une connexion unique ne peut pas attendre un
+  verrou), et `RadarWhatsappOutreachTest::test_ac3_le_jeton_est_commite_*` garde l'écriture hors de la transaction.
 - **L'appariement** (`RadarWhatsappReceipts::ambiguousByToken()`) : l'identifiant d'abord, relu sous le verrou de
   l'annonceur ; puis le jeton, seulement pour un envoi de l'API, envoyé, sans identifiant, dont l'annonceur a pour
   numéro le `recipient_id` de l'accusé, et si l'identifiant de Meta n'est porté par aucune ligne.

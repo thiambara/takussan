@@ -118,15 +118,29 @@ le place dans la syntaxe commune de `statuses` (« *Only included if message sen
 sans restriction de statut mais sans l'étendre explicitement à `failed`. Constat complet dans TCK-2436.
 
 **Décision.** Chaque envoi par l'API porte un **jeton aléatoire** (`provider_callback_token`, 40 caractères
-hexadécimaux, unique), transmis en `biz_opaque_callback_data` et écrit sur la ligne **avec** les colonnes du canal
-(reprise de la § 3 comprise) : aucune donnée personnelle, jamais journalisé, jamais exposé par l'API, absent de la vue
+hexadécimaux, unique), transmis en `biz_opaque_callback_data`. Il est écrit sur la ligne préparée et **commité avant
+les verrous et l'appel**, par une écriture isolée, puis relu sous le verrou et repris tel quel par l'appel et la reprise
+de la § 3. Aucune donnée personnelle, jamais journalisé, jamais exposé par l'API, absent de la vue
 expurgée du journal des webhooks (liste blanche). Un accusé dont l'identifiant est inconnu **et** qui porte ce jeton
 rattache son envoi si, et seulement si, cet envoi est de l'API, envoyé, **sans identifiant**, et que le destinataire
 de l'accusé (`recipient_id`) est le numéro de son annonceur ; l'identifiant de Meta est alors écrit sur la ligne et le
 statut avance selon les règles de TCK-2427. Tout autre accusé reste ignoré, comme avant : sans jeton, jeton inconnu,
 envoi déjà identifié ou jamais parti, autre destinataire, annonceur purgé, identifiant déjà porté par une autre ligne.
 
-Ce n'est pas une déduction : le jeton désigne une ligne, et une seule. B3 tient.
+Ce n'est pas une déduction : le jeton désigne une ligne, et une seule. B3 tient : c'est le filtre `sent_at` qui
+protège, un jeton sur une ligne préparée n'apparie rien.
+
+**Pourquoi avant l'appel (vérification de TCK-2436, I-1).** Dans le cas qui justifie la règle, le délai dépassé, Meta
+remet souvent le message pendant que l'appel attend : `sent` puis `delivered` arrivent jusqu'à 10 s avant la fin de
+l'envoi. Un jeton écrit seulement avec les colonnes du canal n'est alors sur aucune ligne : l'accusé est ignoré, le
+webhook répond 200 et Meta ne rejoue pas. Commité avant l'appel, il fait trouver l'annonceur par la recherche hors
+verrou ; le verrou de l'annonceur, que « J'ai envoyé » tient pendant l'appel, fait attendre l'accusé jusqu'au commit de
+l'envoi (au plus le délai de l'appel) ; il relit alors un message envoyé et l'apparie. Ordre des verrous : l'annonceur,
+puis le message — un sous-ensemble de celui de l'envoi, sans interblocage. Un jeton resté sur une ligne refusée (502)
+ou envoyée à la main est inerte (l'appariement exige l'API et `sent_at`) et l'essai suivant le reprend.
+
+**Un annonceur qui a dit STOP sans être purgé garde son numéro** : l'accusé d'un envoi antérieur au STOP s'apparie
+encore. C'est voulu : un accusé est un fait de remise, jamais un contact ni une preuve d'accord.
 
 **Ce que la documentation ne garantit pas.** Un `failed` est apparié de même **s'il porte le jeton** ; sinon il reste
 ignoré et l'envoi `ambiguous` — aucune perte par rapport à TCK-2427. Le porteur mesure sur le compte Meta du Radar si
@@ -136,9 +150,9 @@ un accusé `failed` porte le champ ; si oui, rien ne change dans le code.
 
 - **Un jeton signé dérivé de l'identifiant de la ligne** (sans colonne) : il lie l'appariement à `APP_KEY`, dont la
   rotation rendrait muets les accusés en vol ; un jeton tiré au hasard et gardé ne dépend de rien.
-- **Écrire le jeton avant l'appel, hors de la transaction** : une écriture de plus, et la ligne d'un envoi refusé
-  garderait un jeton que Meta n'a jamais accepté ; écrit avec les colonnes du canal, il ne survit qu'à un envoi
-  accepté ou ambigu.
+- **Écrire le jeton avec les colonnes du canal, après l'appel** (premier état de TCK-2436) : il épargnait une
+  écriture et ne laissait aucun jeton sur une ligne refusée, mais perdait les accusés reçus pendant l'appel (I-1
+  ci-dessus) — précisément ceux d'un délai dépassé.
 - **Se fier au jeton seul, sans le destinataire** : un message étranger au Radar sur le même numéro, ou un jeton
   rejoué, n'a pas à pouvoir désigner un envoi d'accord.
 

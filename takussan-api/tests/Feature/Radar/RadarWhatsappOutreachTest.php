@@ -17,9 +17,11 @@ use App\Models\User;
 use App\Services\Radar\ConsentMessageComposer;
 use App\Services\Radar\Whatsapp\RadarWhatsappTemplate;
 use Carbon\Carbon;
+use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Testing\TestResponse;
@@ -598,5 +600,54 @@ class RadarWhatsappOutreachTest extends TestCase
         $frais = $this->message->fresh();
         $this->assertNotNull($frais->provider_callback_token);
         Http::assertSent(fn (Request $request): bool => $request['biz_opaque_callback_data'] === $frais->provider_callback_token);
+    }
+
+    /**
+     * AC3, I-1 (vérification de TCK-2436) — le jeton est écrit sur la ligne préparée par une écriture isolée, HORS de la
+     * transaction de l'envoi (niveau 1 : celui de `RefreshDatabase`, quand `markSent` ouvre le niveau 2), donc commité
+     * avant l'appel : un accusé reçu pendant l'appel le trouve. Le pilote reçoit celui de la ligne.
+     */
+    public function test_ac3_le_jeton_est_commite_sur_la_ligne_avant_l_appel_hors_de_la_transaction_de_l_envoi(): void
+    {
+        $this->configurerLeRadar();
+        $niveaux = [];
+        DB::listen(function (QueryExecuted $requete) use (&$niveaux): void {
+            if (str_starts_with($requete->sql, 'update') && str_contains($requete->sql, 'provider_callback_token')) {
+                $niveaux[] = DB::transactionLevel();
+            }
+        });
+        $pendantLAppel = null;
+        Http::fake(function (Request $request) use (&$pendantLAppel) {
+            $pendantLAppel = [$request['biz_opaque_callback_data'], $this->message->fresh()->provider_callback_token];
+
+            return Http::response(['messages' => [['id' => 'wamid.RADAR-1']]]);
+        });
+
+        $this->envoyer()->assertOk();
+
+        $this->assertSame([1], $niveaux);
+        $this->assertNotNull($pendantLAppel[0]);
+        $this->assertSame($pendantLAppel[0], $pendantLAppel[1]);
+        $this->assertSame($pendantLAppel[0], $this->message->fresh()->provider_callback_token);
+    }
+
+    /** AC3 — un refus franc laisse le jeton sur la ligne préparée, inerte ; l'essai suivant le reprend. */
+    public function test_ac3_l_essai_qui_suit_un_refus_franc_reprend_le_meme_jeton(): void
+    {
+        $this->configurerLeRadar();
+        Http::fake(['graph.exemple.test/*' => Http::sequence()
+            ->push(['error' => ['code' => 131030]], 400)
+            ->push(['messages' => [['id' => 'wamid.RADAR-2']]])]);
+
+        $this->envoyer()->assertStatus(502);
+        $jeton = $this->message->fresh()->provider_callback_token;
+        $this->assertNotNull($jeton);
+        $this->assertNull($this->message->fresh()->sent_at);
+
+        $this->envoyer()->assertOk();
+
+        $this->assertSame($jeton, $this->message->fresh()->provider_callback_token);
+        $envoyes = array_map(fn (array $paire): string => $paire[0]['biz_opaque_callback_data'], Http::recorded()->all());
+        $this->assertSame([$jeton, $jeton], $envoyes);
     }
 }
