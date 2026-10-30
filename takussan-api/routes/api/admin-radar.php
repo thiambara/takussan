@@ -87,3 +87,13 @@ Route::middleware(['auth:sanctum', 'super-admin', 'platform-can:'.PlatformAbilit
         Route::get('advertisers/{advertiser}/activation-reminder', [RadarActivationReminderController::class, 'show'])->name('admin.radar.advertisers.activation-reminder');
         Route::post('advertisers/{advertiser}/activation-reminder/sent', [RadarActivationReminderController::class, 'sent'])->name('admin.radar.advertisers.activation-reminder.sent');
     });
+
+/*
+| TCK-2394 (ADR-0079, proposé) — publier sous mandat : `platform.radar.publish`, `super_admin` seul, comme « publier pour lui ».
+| Refusé tant que le drapeau `radar_mandate` est éteint.
+*/
+Route::middleware(['auth:sanctum', 'super-admin', 'platform-can:'.PlatformAbility::RadarPublish->value])
+    ->prefix('admin/radar')
+    ->group(function () {
+        Route::post('advertisers/{advertiser}/publish-mandate', [RadarPublicationController::class, 'publishUnderMandate'])->middleware('idempotent')->name('admin.radar.advertisers.publish-mandate');
+    });

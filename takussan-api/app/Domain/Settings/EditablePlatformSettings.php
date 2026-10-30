@@ -26,6 +26,8 @@ use Illuminate\Validation\Rule;
  * l'emporte toujours. **Le défaut est la constante du service**, référencée : deux défauts qui
  * divergent feraient lire deux valeurs selon le chemin. Lecteurs : `OverdueReminderService`,
  * `RentReviewService`, `EarlyTerminationService`, `LeaseRenewalService`, `LateFeeCalculator`.
+ *
+ * TCK-2394 (ADR-0079) — catégorie `radar` : `radar.mandate_agency_id` → `App\Services\Radar\RadarMandate`.
  */
 class EditablePlatformSettings
 {
@@ -114,6 +116,12 @@ class EditablePlatformSettings
                 'category' => 'rentals', 'type' => 'decimal', 'nullable' => true,
                 'default' => null, 'public' => false,
                 'rules' => ['present', 'nullable', 'numeric', 'min:0', 'max:100'],
+            ],
+            // TCK-2394 (ADR-0079, proposé) — l'espace où le Radar publie sous mandat, par son identifiant ; 0 : aucun. Lu par
+            // `App\Services\Radar\RadarMandate`, et seulement drapeau `radar_mandate` allumé.
+            'radar.mandate_agency_id' => [
+                'category' => 'radar', 'type' => 'integer', 'default' => 0, 'public' => false,
+                'rules' => ['required', 'integer', 'min:0'],
             ],
         ];
     }
