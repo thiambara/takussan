@@ -42,8 +42,8 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 3. [🏢 Bailleur / Propriétaire (owner)](#bailleur-propriétaire-owner) — 86 fonctionnalités
 4. [🧑‍💼 Agent immobilier](#agent-immobilier) — 120 fonctionnalités
 5. [🔧 Prestataire de service (service provider)](#prestataire-de-service-service-provider) — 17 fonctionnalités
-6. [🛡️ Admin d'agence / Super-admin](#admin-dagence-super-admin) — 144 fonctionnalités
-7. [👥 Tous les utilisateurs authentifiés](#tous-les-utilisateurs-authentifiés) — 69 fonctionnalités
+6. [🛡️ Admin d'agence / Super-admin](#admin-dagence-super-admin) — 145 fonctionnalités
+7. [👥 Tous les utilisateurs authentifiés](#tous-les-utilisateurs-authentifiés) — 70 fonctionnalités
 
 ---
 
@@ -114,7 +114,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 
 | Prio | Domaine | Fonctionnalité |
 |------|---------|----------------|
-| P1 | §2.12 | Réclamer ses annonces depuis le lien du message : connexion par code SMS au numéro de l'annonceur, acceptation des conditions, correction, publication |
+| P1 | §2.12 | Réclamer ses annonces depuis le lien signé du message (`/claim/{jeton}`, 30 jours, mort après un STOP ou une révocation) : annonces en cartes à cocher et à corriger (titre, prix, description), prénom et nom de l'espace, acceptation des conditions avec leur version, code SMS envoyé au seul numéro de l'annonceur (affiché masqué), publication dans son espace individuel dès les photos prêtes ; un numéro déjà inscrit se connecte d'abord à son compte ; la même page active le compte créé par « publier pour lui » (TCK-2390) |
 
 ---
 
@@ -430,7 +430,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 
 | Prio | Domaine | Fonctionnalité |
 |------|---------|----------------|
-| P1 | §2.12 | Réclamer ses annonces depuis le lien du message : connexion par code SMS au numéro de l'annonceur, acceptation des conditions, correction, publication |
+| P1 | §2.12 | Réclamer ses annonces depuis le lien signé du message (`/claim/{jeton}`, 30 jours, mort après un STOP ou une révocation) : annonces en cartes à cocher et à corriger (titre, prix, description), prénom et nom de l'espace, acceptation des conditions avec leur version, code SMS envoyé au seul numéro de l'annonceur (affiché masqué), publication dans son espace individuel dès les photos prêtes ; un numéro déjà inscrit se connecte d'abord à son compte ; la même page active le compte créé par « publier pour lui » (TCK-2390) |
 
 ---
 
@@ -778,6 +778,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 |------|---------|----------------|
 | P1 | §2.1 | 2FA TOTP exigée en continu pour tout super-admin : la console refuse un compte sans 2FA active ; la 2FA d'un super-admin ne se désactive pas, elle se renouvelle ; une réinitialisation par le support impose le réenrôlement à la connexion suivante (TCK-589) |
 | P1 | §2.1 | 2FA exigée pour le personnel de l'agence sur les opérations d'argent, d'intégrations, de rôles et d'équipe ; réglage d'agence « 2FA obligatoire pour toute l'équipe » ; statut 2FA visible dans la liste de l'équipe (TCK-589) |
+| P1 | §2.1 | Bloquer le seul administrateur d'un espace individuel ne retire pas l'espace : ses biens restent en ligne, et le modérateur suspend l'espace s'il le faut ([§2.9](#29-administration--configuration)) (décision du porteur du 2026-10-29, TCK-2390) |
 | P1 | §2.1 | Données bancaires et d'identité des profils et des demandes de passage en agence (RIB, NINEA, n° de pièce, RIB professionnel, revenu déclaré), et pièce et revenu du locataire et de la caution, chiffrées au repos et masquées à l'affichage ; valeur complète réservée à l'admin de l'agence et au super-admin, sous second facteur récent, consultation journalisée (TCK-601, TCK-953 à TCK-956, [ADR-0070](adr/0070-piece-et-revenu-du-locataire-et-de-la-caution-chiffres-masques-lus-sous-step-up.md)) |
 | P2 | §2.1 | Déclenchement de l'export RGPD par un super-admin pour le compte d'un utilisateur (support / réquisition) |
 | P0 | §2.1 | Toute capacité est résolue dans le scope du profil actif — pour un couple *(utilisateur, agence)*, jamais globalement ([ADR-0003](adr/0003-capacites-enum-code-defined.md)) |
@@ -864,7 +865,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P1 | §2.9 | Registre des demandes de droits (accès, rectification, opposition, effacement, portabilité) : réception, échéance légale, statut, preuve de réponse, export (loi n° 2008-12) (TCK-601) |
 | P2 | §2.9 | Paramètres globaux de plateforme — seules des clés lues par l'application, écrites par une seule voie validée et journalisée (TCK-600) |
 | P2 | §2.9 | Gestion des intégrations tierces (API keys) — chaque intégration de paiement reçoit ses webhooks sur une URL propre, porteuse d'un jeton secret (empreinte en base, clair chiffré) ; l'admin la relit et la régénère d'un geste sous double authentification, journalisé sans le jeton ; la signature du fournisseur reste exigée, et un webhook ne rapproche que des paiements de l'agence de son intégration ; l'ancienne URL commune par fournisseur rend 410 (TCK-293, [ADR-0046](adr/0046-un-webhook-de-paiement-par-integration.md)) |
-| P2 | §2.9 | Healthcheck plateforme et supervision des jobs en arrière-plan (file de queue, échecs, rejouer) — par sondes actives et datées (courriel, SMS, moteur de recherche, âge de la file, battement des workers, stockage des médias), statut agrégé exposé à une sonde externe (TCK-600) |
+| P2 | §2.9 | Healthcheck plateforme et supervision des jobs en arrière-plan (file de queue, échecs, rejouer) — par sondes actives et datées (courriel, SMS, moteur de recherche, âge de la file, battement des workers, stockage des médias), statut agrégé exposé à une sonde externe (TCK-600) ; la sonde des workers surveille la file des appels IA (`ai`) comme les autres files (TCK-2402) |
 | P2 | §2.9 | Impersonation d'un utilisateur par un super-admin, pour voir ce qu'il voit : motif obligatoire, confirmation 2FA récente, lecture seule par défaut, durée courte et sortie explicite qui révoque l'accès, jamais un opérateur ni un compte bloqué ; aucun jeton exposé à la page (cookie httpOnly géré par le BFF) ; bannière persistante ; chaque acte journalisé au nom de l'opérateur ; l'utilisateur est informé après coup (TCK-600) |
 | P2 | §2.9 | Recherche globale de la console plateforme (e-mail, téléphone, référence, identifiant de transaction, NINEA), par la base, brouillons et biens privés compris (TCK-600) |
 | P2 | §2.9 | File de modération : prise en charge exclusive avec expiration, motifs types traduits, décision groupée, âge de l'élément (TCK-597) |
@@ -893,8 +894,8 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P1 | §2.12 | Préparer le message d'accord pour une ou plusieurs annonces d'un annonceur (clauses fixes, salutation et résumé personnalisés par l'IA) et l'ouvrir dans WhatsApp ; relances après un délai sans réponse |
 | P1 | §2.12 | Déposer la capture de la réponse : l'IA la transcrit, vérifie le numéro et les clauses et classe la réponse (accord, refus, STOP, question, ambigu) ; un opérateur confirme ; refus et STOP s'enregistrent aussi sans capture |
 | P1 | §2.12 | « Publier pour lui » (`super_admin` seulement) : sur un accord confirmé, crée l'espace individuel de l'annonceur (compte sans mot de passe à son numéro) et y publie les annonces couvertes, après un écran de vérification (compte, biens, photos, doublons) ; une annonce relue sans titre se publie sous un titre construit de ses champs (type, chambres, contrat, quartier), que l'écran de vérification montre (TCK-2389) |
-| P1 | §2.12 | Retrait de l'accord (STOP, révocation) : les biens publiés quittent la surface publique sur-le-champ, l'annonceur n'est plus jamais contacté |
-| P1 | §2.12 | Purge des annonces jamais publiées à 90 jours ou dès un STOP, en conservant l'empreinte du numéro qui a refusé |
+| P1 | §2.12 | Retrait de l'accord (STOP, ou révocation par la plateforme, `POST /api/admin/radar/advertisers/{id}/revoke`, `super_admin` seulement, motif obligatoire) : les biens publiés quittent la surface publique et l'index de recherche sur-le-champ, l'annonceur n'est plus jamais contacté (TCK-2391) |
+| P1 | §2.12 | Purge des annonces jamais publiées à 90 jours ou dès un STOP, en conservant l'empreinte du numéro qui a refusé ; purge quotidienne (`radar:purge`, 04:15 Dakar), doublée d'un job lancé dès la révocation (TCK-2391) |
 | P2 | §2.12 | Collecte automatique planifiée sur des sites d'annonces (Expat-Dakar, CoinAfrique), instantanés datés, fusion des doublons entre sources |
 | P2 | §2.12 | Annonceurs et observatoire du marché : regroupement par numéro, classement des annonceurs, prix au m² par quartier, temps de mise sur le marché, quartiers où Takussan manque d'annonces, alerte quand l'annonce source disparaît |
 | P2 | §2.12 | Relance d'activation des comptes créés pour un annonceur ; publication sous mandat Takussan |
@@ -922,7 +923,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P1 | §2.1 | Authentification à deux facteurs (TOTP + codes de récupération) |
 | P1 | §2.1 | Gestion des sessions actives |
 | P1 | §2.1 | Sessions bornées : jeton à durée absolue et expiration par inactivité ; session super-admin courte (`platform.session_max_minutes`) et confirmation 2FA récente (step-up) avant une action sensible de la console (TCK-589) |
-| P1 | §2.1 | Connexion et inscription par numéro de téléphone + code à usage unique reçu par SMS, sans mot de passe ; le compte est créé au premier code validé ; e-mail facultatif ; limiteurs et verrou par numéro — livrée entière, derrière un drapeau faux par défaut, allumée en production après un envoi réel mesuré ; décision par ADR (TCK-589) ; allumée en local et en préproduction sans fournisseur SMS, le code s'y affichant à l'écran (TCK-620, ADR-0060) |
+| P1 | §2.1 | Connexion et inscription par numéro de téléphone + code à usage unique reçu par SMS, sans mot de passe ; le compte est créé au premier code validé ; e-mail facultatif ; limiteurs et verrou par numéro — livrée entière, derrière un drapeau faux par défaut, allumée en production après un envoi réel mesuré ; décision par ADR (TCK-589) ; allumée en local et en préproduction sans fournisseur SMS, le code s'y affichant à l'écran (TCK-620, ADR-0060) ; le compte créé par le Radar pour un annonceur s'ouvre par ce code, et sa page de réclamation (`/claim/{jeton}`) partage les limiteurs et le verrou du numéro (TCK-2389, TCK-2390) |
 | P1 | §2.1 | Verrou de compte après échecs de connexion répétés (mot de passe ou code), levé seul au bout de 15 min ou par le support ; un compte bloqué ou supprimé n'ouvre aucune session, par aucun chemin (TCK-589) |
 | P1 | §2.1 | L'inscription ouvre la session aussitôt (TCK-589) |
 | P2 | §2.1 | Suppression de compte avec anonymisation (RGPD) |
@@ -951,6 +952,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P1 | §2.3 | Notifications push web et mobile |
 | P1 | §2.3 | Préférences par événement et par canal : chaque interrupteur commande exactement les messages de son événement ; une case qu'aucun envoi ne peut honorer (canal sans transport, canal mobile d'un événement qui ne part pas sur mobile) est verrouillée et dit pourquoi (TCK-588) |
 | P1 | §2.3 | Un compte bloqué ou supprimé ne reçoit plus que les avis de son compte (blocage, réactivation, fin d'impersonation, effacement, réinitialisation du mot de passe, export de ses données prêt), par aucun canal et par aucun chemin d'envoi : les avis du bail, les rappels et les alertes ne lui parviennent plus (TCK-1350, TCK-2363) |
+| P1 | §2.3 | Une notification urgente n'attend jamais un appel au modèle : les jobs qui appellent la passerelle IA hors d'une requête HTTP (extraction d'une annonce du Radar, vérification d'une réponse de consentement) passent par une file à eux (`ai`), lue par un processus à lui (`worker-ia`) (TCK-2402, [ADR-0078](adr/0078-une-connexion-de-file-pour-les-jobs-longs.md), amendement) |
 | P1 | §2.3 | Templates localisés via fichiers lang/ Laravel |
 | P2 | §2.3 | Notifications SMS (événements critiques) |
 | P2 | §2.3 | Digest quotidien / hebdomadaire |
@@ -1009,8 +1011,8 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 
 ## Provenance
 
-- Source : [`features.md`](./features.md) — **413** lignes de fonctionnalité lues,
-  réparties en **555** placements (une ligne multi-acteurs compte une fois par acteur).
+- Source : [`features.md`](./features.md) — **415** lignes de fonctionnalité lues,
+  réparties en **557** placements (une ligne multi-acteurs compte une fois par acteur).
 - Générateur : `docs/gen-features-by-actor.mjs`.
 - Fraîcheur vérifiée en CI par `node docs/gen-features-by-actor.mjs --check`, qui échoue si
   cette sortie ne correspond plus à sa source.
