@@ -480,8 +480,9 @@ Une agence porte un **`kind`** :
 | P1 | 🛡️🏢 | 2FA exigée pour le personnel de l'agence sur les opérations d'argent, d'intégrations, de rôles et d'équipe ; réglage d'agence « 2FA obligatoire pour toute l'équipe » ; statut 2FA visible dans la liste de l'équipe (TCK-589) |
 | P1 | Tous | Gestion des sessions actives |
 | P1 | Tous | Sessions bornées : jeton à durée absolue et expiration par inactivité ; session super-admin courte (`platform.session_max_minutes`) et confirmation 2FA récente (step-up) avant une action sensible de la console (TCK-589) |
-| P1 | Tous | Connexion et inscription par numéro de téléphone + code à usage unique reçu par SMS, sans mot de passe ; le compte est créé au premier code validé ; e-mail facultatif ; limiteurs et verrou par numéro — livrée entière, derrière un drapeau faux par défaut, allumée en production après un envoi réel mesuré ; décision par ADR (TCK-589) ; allumée en local et en préproduction sans fournisseur SMS, le code s'y affichant à l'écran (TCK-620, ADR-0060) |
+| P1 | Tous | Connexion et inscription par numéro de téléphone + code à usage unique reçu par SMS, sans mot de passe ; le compte est créé au premier code validé ; e-mail facultatif ; limiteurs et verrou par numéro — livrée entière, derrière un drapeau faux par défaut, allumée en production après un envoi réel mesuré ; décision par ADR (TCK-589) ; allumée en local et en préproduction sans fournisseur SMS, le code s'y affichant à l'écran (TCK-620, ADR-0060) ; le compte créé par le Radar pour un annonceur s'ouvre par ce code, et sa page de réclamation (`/claim/{jeton}`) partage les limiteurs et le verrou du numéro (TCK-2389, TCK-2390) |
 | P1 | Tous | Verrou de compte après échecs de connexion répétés (mot de passe ou code), levé seul au bout de 15 min ou par le support ; un compte bloqué ou supprimé n'ouvre aucune session, par aucun chemin (TCK-589) |
+| P1 | 🛡️ | Bloquer le seul administrateur d'un espace individuel ne retire pas l'espace : ses biens restent en ligne, et le modérateur suspend l'espace s'il le faut ([§2.9](#29-administration--configuration)) (décision du porteur du 2026-10-29, TCK-2390) |
 | P1 | Tous | L'inscription ouvre la session aussitôt (TCK-589) |
 | P1 | 👤 | L'inscription garde l'intention du visiteur (bien, dates, action) jusqu'au retour sur la fiche, quel que soit le chemin (connexion, inscription, téléphone, OAuth) (TCK-589) |
 | P1 | 🏠🛡️ | Données bancaires et d'identité des profils et des demandes de passage en agence (RIB, NINEA, n° de pièce, RIB professionnel, revenu déclaré), et pièce et revenu du locataire et de la caution, chiffrées au repos et masquées à l'affichage ; valeur complète réservée à l'admin de l'agence et au super-admin, sous second facteur récent, consultation journalisée (TCK-601, TCK-953 à TCK-956, [ADR-0070](adr/0070-piece-et-revenu-du-locataire-et-de-la-caution-chiffres-masques-lus-sous-step-up.md)) |
@@ -562,6 +563,7 @@ Cartographie complète des parcours d'entrée dans le système (référence : `d
 | P1 | 🏠🏢🧑‍💼 | WhatsApp (SMS en secours) activé par défaut, désactivable, pour l'échéance et le retard de loyer, le rappel de visite et le changement de statut d'une réservation, dès que le téléphone est vérifié (TCK-588) |
 | P1 | 🛡️🏢 | Les notifications de vérification KYC d'agence sont critiques : in-app et e-mail toujours, non désactivables (TCK-588) |
 | P1 | Tous | Un compte bloqué ou supprimé ne reçoit plus que les avis de son compte (blocage, réactivation, fin d'impersonation, effacement, réinitialisation du mot de passe, export de ses données prêt), par aucun canal et par aucun chemin d'envoi : les avis du bail, les rappels et les alertes ne lui parviennent plus (TCK-1350, TCK-2363) |
+| P1 | Tous | Une notification urgente n'attend jamais un appel au modèle : les jobs qui appellent la passerelle IA hors d'une requête HTTP (extraction d'une annonce du Radar, vérification d'une réponse de consentement) passent par une file à eux (`ai`), lue par un processus à lui (`worker-ia`) (TCK-2402, [ADR-0078](adr/0078-une-connexion-de-file-pour-les-jobs-longs.md), amendement) |
 | P1 | Tous | Templates localisés via fichiers lang/ Laravel |
 | P2 | Tous | Notifications SMS (événements critiques) |
 | P2 | 🛡️ | Annonces in-app cross-tenant (broadcast) ciblées par rôle / agence / segment, avec dismissal côté utilisateur — le bandeau s'affiche dans le flux de la page, sous la barre du haut (site public comme consoles), jamais sous une barre fixe (TCK-572) |
@@ -693,7 +695,7 @@ cookie, ADR-0026 §5), y compris depuis ses appels serveur.
 | P1 | 🛡️ | Registre des demandes de droits (accès, rectification, opposition, effacement, portabilité) : réception, échéance légale, statut, preuve de réponse, export (loi n° 2008-12) (TCK-601) |
 | P2 | 🛡️ | Paramètres globaux de plateforme — seules des clés lues par l'application, écrites par une seule voie validée et journalisée (TCK-600) |
 | P2 | 🛡️ | Gestion des intégrations tierces (API keys) — chaque intégration de paiement reçoit ses webhooks sur une URL propre, porteuse d'un jeton secret (empreinte en base, clair chiffré) ; l'admin la relit et la régénère d'un geste sous double authentification, journalisé sans le jeton ; la signature du fournisseur reste exigée, et un webhook ne rapproche que des paiements de l'agence de son intégration ; l'ancienne URL commune par fournisseur rend 410 (TCK-293, [ADR-0046](adr/0046-un-webhook-de-paiement-par-integration.md)) |
-| P2 | 🛡️ | Healthcheck plateforme et supervision des jobs en arrière-plan (file de queue, échecs, rejouer) — par sondes actives et datées (courriel, SMS, moteur de recherche, âge de la file, battement des workers, stockage des médias), statut agrégé exposé à une sonde externe (TCK-600) |
+| P2 | 🛡️ | Healthcheck plateforme et supervision des jobs en arrière-plan (file de queue, échecs, rejouer) — par sondes actives et datées (courriel, SMS, moteur de recherche, âge de la file, battement des workers, stockage des médias), statut agrégé exposé à une sonde externe (TCK-600) ; la sonde des workers surveille la file des appels IA (`ai`) comme les autres files (TCK-2402) |
 | P2 | 🛡️ | Impersonation d'un utilisateur par un super-admin, pour voir ce qu'il voit : motif obligatoire, confirmation 2FA récente, lecture seule par défaut, durée courte et sortie explicite qui révoque l'accès, jamais un opérateur ni un compte bloqué ; aucun jeton exposé à la page (cookie httpOnly géré par le BFF) ; bannière persistante ; chaque acte journalisé au nom de l'opérateur ; l'utilisateur est informé après coup (TCK-600) |
 | P2 | 🛡️ | Recherche globale de la console plateforme (e-mail, téléphone, référence, identifiant de transaction, NINEA), par la base, brouillons et biens privés compris (TCK-600) |
 | P2 | 🛡️ | File de modération : prise en charge exclusive avec expiration, motifs types traduits, décision groupée, âge de l'élément (TCK-597) |
@@ -760,6 +762,15 @@ en est le premier usager. Vision et lots : [plan du 2026-10-26](plans/2026-10-26
 - **L'IA propose, un humain décide** : une sortie qui modifierait une donnée est une suggestion
   acceptée, corrigée ou rejetée, et la correction est conservée.
 - **Une donnée sensible** (pièce d'identité, revenu) **ne part jamais vers un fournisseur.**
+- **Un numéro de téléphone, sénégalais ou étranger, ne part jamais en clair vers un fournisseur**
+  (usage `publique`) **et ne s'écrit en clair dans aucun jeu d'évaluation**, liens WhatsApp compris
+  (`wa.me/…`, `?phone=…`) : le socle le masque (`+221`, `00221`, `+33`, `+225`, `00…`, forme nationale
+  `0X XX XX XX XX`), et la garde des jeux d'évaluation le signale (TCK-2400, TCK-2410). Le préfixe
+  `+221 74`, qu'aucun opérateur n'attribue, est celui des numéros fictifs des jeux d'évaluation : il
+  n'est pas masqué.
+- **Tout job qui appelle le modèle hors d'une requête HTTP déclare la file des appels IA** (`ai`) ;
+  un appel plus long que le délai de reprise de la file par défaut (85 s au plus) prend la file des
+  jobs longs. Une règle de CI le vérifie (`scripts/check-queues.mjs`, TCK-2402).
 - **L'agence reste la frontière d'isolation** pour tout outil qu'un agent IA appelle.
 - **Un contenu externe est une donnée, jamais une consigne** : il arrive au modèle dans un bloc
   délimité, dont la balise n'est pas prévisible et qu'il ne peut pas refermer, et l'usage qui le lit
@@ -782,9 +793,9 @@ catalogue tant que cet accord n'existe pas. Vision et lots : [plan du 2026-10-26
 | P1 | 🛡️ | Préparer le message d'accord pour une ou plusieurs annonces d'un annonceur (clauses fixes, salutation et résumé personnalisés par l'IA) et l'ouvrir dans WhatsApp ; relances après un délai sans réponse |
 | P1 | 🛡️ | Déposer la capture de la réponse : l'IA la transcrit, vérifie le numéro et les clauses et classe la réponse (accord, refus, STOP, question, ambigu) ; un opérateur confirme ; refus et STOP s'enregistrent aussi sans capture |
 | P1 | 🛡️ | « Publier pour lui » (`super_admin` seulement) : sur un accord confirmé, crée l'espace individuel de l'annonceur (compte sans mot de passe à son numéro) et y publie les annonces couvertes, après un écran de vérification (compte, biens, photos, doublons) ; une annonce relue sans titre se publie sous un titre construit de ses champs (type, chambres, contrat, quartier), que l'écran de vérification montre (TCK-2389) |
-| P1 | 👤🏢 | Réclamer ses annonces depuis le lien du message : connexion par code SMS au numéro de l'annonceur, acceptation des conditions, correction, publication |
-| P1 | 🛡️ | Retrait de l'accord (STOP, révocation) : les biens publiés quittent la surface publique sur-le-champ, l'annonceur n'est plus jamais contacté |
-| P1 | 🛡️ | Purge des annonces jamais publiées à 90 jours ou dès un STOP, en conservant l'empreinte du numéro qui a refusé |
+| P1 | 👤🏢 | Réclamer ses annonces depuis le lien signé du message (`/claim/{jeton}`, 30 jours, mort après un STOP ou une révocation) : annonces en cartes à cocher et à corriger (titre, prix, description), prénom et nom de l'espace, acceptation des conditions avec leur version, code SMS envoyé au seul numéro de l'annonceur (affiché masqué), publication dans son espace individuel dès les photos prêtes ; un numéro déjà inscrit se connecte d'abord à son compte ; la même page active le compte créé par « publier pour lui » (TCK-2390) |
+| P1 | 🛡️ | Retrait de l'accord (STOP, ou révocation par la plateforme, `POST /api/admin/radar/advertisers/{id}/revoke`, `super_admin` seulement, motif obligatoire) : les biens publiés quittent la surface publique et l'index de recherche sur-le-champ, l'annonceur n'est plus jamais contacté (TCK-2391) |
+| P1 | 🛡️ | Purge des annonces jamais publiées à 90 jours ou dès un STOP, en conservant l'empreinte du numéro qui a refusé ; purge quotidienne (`radar:purge`, 04:15 Dakar), doublée d'un job lancé dès la révocation (TCK-2391) |
 | P2 | 🛡️ | Collecte automatique planifiée sur des sites d'annonces (Expat-Dakar, CoinAfrique), instantanés datés, fusion des doublons entre sources |
 | P2 | 🛡️ | Annonceurs et observatoire du marché : regroupement par numéro, classement des annonceurs, prix au m² par quartier, temps de mise sur le marché, quartiers où Takussan manque d'annonces, alerte quand l'annonce source disparaît |
 | P2 | 🛡️ | Relance d'activation des comptes créés pour un annonceur ; publication sous mandat Takussan |
@@ -796,14 +807,30 @@ catalogue tant que cet accord n'existe pas. Vision et lots : [plan du 2026-10-26
   seulement l'écran.
 - **Un accord couvre toutes les annonces que le message listait**, et se rattache à l'annonceur.
 - **Les clauses du message d'accord sont un texte fixe**, jamais une génération.
-- **Chaque message garde la version de ses clauses** (`accord.v1`…) : une version nouvelle ne réécrit
-  jamais un message déjà envoyé.
+- **Chaque message garde la version de ses clauses** (`accord.v1`, `accord.v2`…) : une version
+  nouvelle ne réécrit jamais un message déjà envoyé.
+- **Le lien de réclamation est signé, propre à l'annonceur et sans stockage** : il expire
+  (`radar.claim.link_ttl_days`, 30 jours) et ne sert plus après un STOP, un accord révoqué ou un
+  numéro purgé. `accord.v2` et `publie.v2` le portent. La page ne révèle ni le numéro complet, ni
+  rien du Radar (TCK-2390).
+- **Réclamer, c'est donner un accord prouvé** : preuve `otp` rattachée au dernier message envoyé qui
+  couvre les annonces retenues, acceptation des conditions avec leur version. Une annonce décochée
+  est refusée (`radar.claim.declined`). Le code part au seul numéro de l'annonceur, sous les
+  limiteurs de la connexion par téléphone (TCK-2390).
+- **Un numéro déjà vérifié sur un compte ne se réclame que connecté à ce compte** : les annonces vont
+  dans son espace existant ; les biens qu'un compte du Radar **jamais activé** portait pour ce numéro
+  y sont rattachés, avec leurs demandes, prospects et conversations, puis ce compte est supprimé ; un
+  compte du Radar qui a servi renvoie au support (`radar.claim.support_required`). « Publier pour
+  lui » refuse de verser encore dans ce compte (décision 5a du porteur, 2026-10-29, TCK-2390).
 - **Écrire sur un annonceur exige d'en tenir la prise en charge** (10 minutes, renouvelée tant que
   la fiche est ouverte) ; un second opérateur est refusé.
 - **Une réponse classée par l'IA n'est jamais un accord** tant qu'un opérateur ne l'a pas confirmée ;
   confirmer un accord contre un verdict discordant (numéro, clauses) ou absent exige un motif écrit.
 - **STOP est définitif** : l'annonceur passe « ne plus contacter », ses accords sont révoqués, ses
-  annonces fermées, et aucun message ne peut plus lui être préparé.
+  annonces fermées, ses biens publiés retirés du public, et aucun message ne peut plus lui être
+  préparé. La révocation par la plateforme fait exactement la même chose (`AdvertiserRevocation`) ;
+  elle ne demande pas la prise en charge de l'annonceur, et elle laisse son compte : le support le
+  supprime par la voie de [§2.1](#21-authentification--comptes), il ne le bloque pas (TCK-2391).
 - **Relances** : après un délai sans réponse (3 jours par défaut, en configuration), deux au plus ;
   ensuite l'outil propose de classer « sans réponse ».
 - **Le compte créé pour un annonceur est l'espace individuel de [§1.12](#112-agence--équipe)** : pas
@@ -812,6 +839,23 @@ catalogue tant que cet accord n'existe pas. Vision et lots : [plan du 2026-10-26
 - **La nature de l'annonceur reste dans le Radar**, jamais dans les profils.
 - **Le numéro WhatsApp des notifications ne sert jamais à prospecter.**
 - **Les photos ne sont conservées qu'à partir de l'accord confirmé** : avant, seule leur empreinte (dHash, calculée à la volée sur la photo source, qui n'est jamais écrite) est gardée pour les rapprochements (TCK-2387). L'accord confirmé, qui autorise la publication avec les photos, fait télécharger les photos source dans une réserve **privée** de l'annonce ; l'opérateur peut y en retirer ou y en déposer à la main. La publication verse cette réserve au bien, sans appel réseau ; une annonce sans aucune photo en réserve ne se publie pas (TCK-2389). La réserve d'une annonce jamais publiée est purgée avec elle (TCK-2391).
+- **Révocation et purge** (TCK-2391, [ADR-0077 §8, §9](adr/0077-le-radar.md)). Une purge quotidienne
+  (`radar:purge`, 04:15 Dakar), doublée d'un job lancé dès la révocation (`PurgeRadarAdvertiser`),
+  efface le texte brut, l'URL, l'extraction, la réserve de photos et les captures des annonces
+  jamais publiées, à 90 jours ou dès un STOP ; l'annonce passe « purgée », et une annonce publiée ne
+  l'est jamais. Les suggestions de l'IA qui portaient sur elle perdent leurs champs, pas leur ligne :
+  le taux d'acceptation ne bouge pas. Un message dont toutes les annonces sont purgées perd son
+  texte, sauf s'il porte une preuve conservée ; une réponse non confirmée, ses captures, sa transcription et son verdict — une
+  vérification encore en cours finit en échec, motif `radar.verification.purged`. Un annonceur sans
+  annonce restante perd son numéro, son nom et ses indices ; l'empreinte du numéro qui a refusé est
+  conservée.
+- **La preuve d'un accord confirmé est conservée tant qu'une annonce qu'il couvre est en ligne ou
+  attend sa publication, puis trois ans** (`radar.consent_retention_years`, politique de
+  confidentialité § 6). Les trois ans courent du dernier retrait, observé par la purge quotidienne ;
+  un bien qui revient en ligne les remet à zéro.
+- **Les journaux `radar_purged` (des comptes) et `radar_advertiser_revoked` (des identifiants et
+  le motif de l'opérateur) suivent la rétention par défaut du journal d'activité**, 12 mois
+  ([§2.6](#26-audit--traçabilité)), sans famille dédiée (décision du porteur du 2026-10-29).
 - **La lecture d'une URL refuse les adresses privées et de métadonnées**, respecte le `robots.txt`
   et limite sa fréquence par domaine. Airbnb est hors périmètre.
 - Droits : `support` saisit, relit, démarche et dépose les preuves ; seul `super_admin` publie pour
