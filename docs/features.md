@@ -777,11 +777,10 @@ en est le premier usager. Vision et lots : [plan du 2026-10-26](plans/2026-10-26
   plus deux espaces de chaque côté du `+` (`R + 1`, `RDC+1`) ; le prix ou le numéro qui le suit reste
   lu (TCK-2428, TCK-2435). Un étage `1` ou `7` cesse d'en être un quand un numéro complet de cet
   indicatif le suit : dix chiffres (zone entre parenthèses comprise) qu'aucune marque monétaire ne
-  suit (`F`, `FCFA`, `CFA`, `XOF`, `francs` ; un `F.` suivi d'une lettre est une initiale, pas une
+  suit (`F`, `FCFA`, `F CFA`, `CFA`, `XOF`, `franc` ou `francs` ; un `F.` suivi d'une lettre est une initiale, pas une
   marque), ou, quelle que soit la marque, la forme nord-américaine `[2-9]XX [2-9]XX XXXX` derrière
   `1` et dix chiffres commençant par 3 à 9 derrière `7` : `au RDC +1 514 555 0199` est masqué. Un
-  prix d'étage qui a l'une de ces formes est masqué, donc perdu (`R+1 2 345 678 900 F`) : jamais un
-  numéro ne part en clair (TCK-2435).
+  prix d'étage qui a l'une de ces formes est masqué, donc perdu (`R+1 2 345 678 900 F`) (TCK-2435).
 - **Seul le jeu d'évaluation de l'extraction du Radar part de vraies annonces** : 20 annonces
   relevées le 2026-10-29 sur Expat-Dakar et CoinAfrique, anonymisées puis réécrites (titres
   reformulés, prix et surfaces décalés, adresses ramenées au quartier ; provenance dans
