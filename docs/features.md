@@ -767,8 +767,9 @@ en est le premier usager. Vision et lots : [plan du 2026-10-26](plans/2026-10-26
   (usage `publique`) **et ne s'écrit en clair dans aucun jeu d'évaluation**, liens WhatsApp compris
   (`wa.me/…`, `?phone=…`) : le socle le masque (`+221`, `00221`, `+33`, `+225`, `00…`, forme nationale
   `0X XX XX XX XX`), et la garde des jeux d'évaluation le signale (TCK-2400, TCK-2410). Le préfixe
-  `+221 74`, qu'aucun opérateur n'attribue, est celui des numéros fictifs des jeux d'évaluation : il
-  n'est pas masqué. Un test qui a besoin d'un numéro lu comme réel (masqué, extrait, apparié) prend
+  `+221 74`, qu'aucun opérateur n'attribue, est celui des numéros fictifs des jeux d'évaluation et
+  des tests dont le numéro ne doit pas être lu comme réel (13 fichiers de `tests/Feature/Radar`
+  emploient un numéro en `+221 74`, par exemple `+221 74 123 45 67`) : il n'est pas masqué. Un test qui a besoin d'un numéro lu comme réel (masqué, extrait, apparié) prend
   un préfixe attribué, par défaut `+221 77` (le plus souvent `+221 77 123 45 67`) ; un autre préfixe
   attribué (`78`, `70`, `76`) sert pour un numéro distinct du premier, ou pour éprouver ce préfixe
   (`PhoneMaskerTest`, `RadarPhoneTest`) (décision du porteur du 2026-10-30). Le `+` d'un étage (`R+0` à `R+19`, derrière un `R` isolé) n'est pas un
@@ -821,7 +822,7 @@ catalogue tant que cet accord n'existe pas. Vision et lots : [plan du 2026-10-26
 | P1 | 🛡️ | Retrait de l'accord (STOP, ou révocation par la plateforme, `POST /api/admin/radar/advertisers/{id}/revoke`, `super_admin` seulement, motif obligatoire) : les biens publiés quittent la surface publique et l'index de recherche sur-le-champ, l'annonceur n'est plus jamais contacté (TCK-2391) |
 | P1 | 🛡️ | Purge des annonces jamais publiées à 90 jours ou dès un STOP, en conservant l'empreinte du numéro qui a refusé ; purge quotidienne (`radar:purge`, 04:15 Dakar), doublée d'un job lancé dès la révocation (TCK-2391) |
 | P2 | 🛡️ | Collecte automatique planifiée sur Expat-Dakar et CoinAfrique, **éteinte par défaut** : le `super_admin` allume chaque site, règle sa fréquence et ses pages, lance un passage (`/super-admin/radar/collecte`) ; chaque passage lit la liste (`robots.txt` respecté, un seul passage actif par site), saisit les annonces nouvelles et date leurs instantanés (prix, surface, quartier, présence) ; la même annonce vue sur deux sites peut être fusionnée d'office en une fiche à deux provenances, que l'opérateur peut séparer — fusion **éteinte par défaut** (`RADAR_MERGE_AUTO`) (TCK-2392, [ADR-0080](adr/0080-la-collecte-automatique-du-radar.md)) |
-| P2 | 🛡️ | Annonceurs et observatoire du marché (`/super-admin/radar/observatory`) : classement des annonceurs par volume d'annonces vivantes (quartiers principaux, gammes de prix, sites, nature présumée, piste commerciale jusqu'à la demande de passage en agence) ; prix au m² par quartier, type et contrat ; temps de mise sur le marché ; quartiers où Takussan manque d'annonces ; part d'intermédiaires probables ; alerte quand l'annonce source d'un bien publié disparaît (TCK-2393, [ADR-0083](adr/0083-l-observatoire-du-marche.md)) |
+| P2 | 🛡️ | Annonceurs et observatoire du marché (`/super-admin/radar/observatory`) : classement des annonceurs par volume d'annonces vivantes (quartiers principaux, gammes de prix, sites, nature présumée, piste commerciale jusqu'à la demande de passage en agence) ; prix au m² par quartier, type et contrat ; temps de mise sur le marché ; quartiers où Takussan manque d'annonces ; part d'intermédiaires probables ; alerte quand l'annonce source d'un bien publié disparaît (TCK-2393, [ADR-0083](adr/0083-l-observatoire-du-marche.md)) ; part par nature sur une période, en annonceurs-jours, lue sur des compteurs anonymes quotidiens qui survivent à la purge — **éteints par défaut** (`RADAR_NATURE_COUNTS`), jusqu'à l'avis juridique de TCK-2434 (TCK-2431) |
 | P2 | 🛡️ | Relance d'activation d'un compte créé par « publier pour lui » et jamais activé : texte fixe versionné (`activation.v1`) avec les chiffres réels de la période — vues, demandes de contact et de visite, crédits offerts à l'activation —, ouvert dans WhatsApp puis marqué envoyé ; une relance par semaine au plus (`radar.activation.min_interval_days`) (TCK-2394) |
 | P2 | 🛡️ | Publication sous mandat Takussan (`super_admin`, drapeau `radar_mandate`, [ADR-0079](adr/0079-la-publication-sous-mandat-takussan.md), accepté sur le principe ; drapeau éteint jusqu'à l'avis de l'avocat, la livraison de TCK-2421 et celle de TCK-2422) : sur un accord confirmé, l'annonceur qui ne veut pas de compte voit ses annonces publiées dans l'espace des mandats (réglage `radar.mandate_agency_id`), son numéro en contact, sans compte créé ; second message `mandat.v1`, sans lien d'activation (TCK-2394) |
 | P3 | 🛡️ | Démarchage par l'API WhatsApp Cloud sur un numéro dédié au Radar, réception des réponses par webhook signé et preuve par identifiant de message (TCK-2395, [ADR-0081](adr/0081-le-radar-prospecte-par-l-api-whatsapp-sur-son-propre-numero.md)) ; depuis la fiche annonceur, envoi confirmé, canal de chaque message, réponse reçue lue en texte (TCK-2426) ; état de remise suivi par les accusés de WhatsApp et journalisé, pas encore affiché (TCK-2427, TCK-2437) |
@@ -983,6 +984,15 @@ catalogue tant que cet accord n'existe pas. Vision et lots : [plan du 2026-10-26
   conservées : une annonce purgée n'y est plus, et la période couverte ne remonte pas au-delà de la
   rétention de 90 jours. La part d'intermédiaires ne porte que sur les annonceurs encore porteurs
   d'annonces non purgées (TCK-2393).
+- **La part par nature d'une période passée se lit sur des compteurs anonymes quotidiens**
+  (`radar_nature_counts`) : chaque jour, avant la purge, le nombre d'annonceurs par nature présumée et
+  de leurs annonces, sans identifiant, lieu, prix ni site ; jamais purgés. Sans identifiant, les
+  jours ne se dédoublonnent pas : la part se lit en annonceurs-jours. **Éteints par défaut**
+  (`radar.nature_counts.enabled`, `RADAR_NATURE_COUNTS=false`), et l'observatoire le dit : la
+  différence entre deux jours rend la nature présumée d'un annonceur qui a dit STOP, et un seuil k ne
+  la ferme pas. Le porteur ne les allume qu'après l'avis juridique de TCK-2434, qui tranche le remède
+  (grain plus gros, arrondi ou bruit). Une panne du compteur ne fait jamais tomber la purge (TCK-2431,
+  [ADR-0083](adr/0083-l-observatoire-du-marche.md), amendement du 2026-10-30).
 - **Une annonce collectée n'a disparu qu'après deux passages complets d'affilée de son site** (qui
   ont lu toute la liste) **sans l'avoir revue** (`radar.observe.confirm_runs`) : un seul ne suffit
   pas, la liste glisse pendant la lecture. Revue plus tard, elle redevient présente. Une annonce que

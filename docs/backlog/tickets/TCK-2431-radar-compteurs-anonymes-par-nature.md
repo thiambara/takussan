@@ -129,12 +129,8 @@ rien, et l'observatoire dit que le comptage n'est pas activé. Le porteur ne l'a
 ## Reste sur dev
 
 Plus aucune dépendance de fusion : TCK-2392 et TCK-2393 sont `done` sur `dev`, et la fusion de cette branche livre tout le
-code du ticket (AC1 prouvé par `RadarNatureCountsTest`). Restent, hors de ce code :
+code du ticket (AC1 prouvé par `RadarNatureCountsTest`). Reste, hors de ce code :
 
-- **La PR de spec commune** : la ligne P2 « Annonceurs et observatoire du marché » de `docs/features.md` § 2.12 (part par
-  nature sur une période, compteurs anonymes, éteints par défaut), la section `RadarNatureCount` (`radar_nature_counts`)
-  de `docs/models-spec.md`, et, dans le même commit, le retrait de la ligne `RadarNatureCount` d'`EXCLUS_JUSTIFIES`
-  (`scripts/check-models-spec.mjs`).
 - **L'allumage par le porteur** (`RADAR_NATURE_COUNTS=true`), seulement après l'avis juridique de
   [TCK-2434](TCK-2434-radar-compteurs-anonymes-de-marche.md) sur la menace de la différence entre deux jours et son
   remède (semaine, arrondi ou bruit).

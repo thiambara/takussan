@@ -357,7 +357,7 @@ Les tables `lemon_squeezy_*` viennent d'un paquet, voir [`lemonsqueezy/laravel`]
 #### Sorties d'argent — la reprise au bailleur 🆕 (TCK-2151, ADR-0039 amendement du 2026-10-24)
 107. [PayoutClawback](#107-payoutclawback-) 🆕
 
-#### Radar 🆕 (TCK-2386, TCK-2388, TCK-2392, ADR-0077, ADR-0080)
+#### Radar 🆕 (TCK-2386, TCK-2388, TCK-2392, TCK-2431, ADR-0077, ADR-0080, ADR-0083)
 108. [RadarAdvertiser](#108-radaradvertiser-) 🆕
 109. [RadarListing](#109-radarlisting-) 🆕
 110. [RadarOutreach](#110-radaroutreach-) 🆕
@@ -365,6 +365,7 @@ Les tables `lemon_squeezy_*` viennent d'un paquet, voir [`lemonsqueezy/laravel`]
 112. [RadarCrawlSource](#112-radarcrawlsource-) 🆕
 113. [RadarCrawlRun](#113-radarcrawlrun-) 🆕
 114. [RadarListingSnapshot](#114-radarlistingsnapshot-) 🆕
+115. [RadarNatureCount](#115-radarnaturecount-) 🆕
 
 ### Enums
 
@@ -5390,6 +5391,43 @@ compteurs anonymes agrégés (TCK-2434). Une annonce supprimée emporte ses inst
 | created_at / updated_at | timestamp | | auto | |
 
 **Contraintes :** index `radar_snapshots_listing_seen_idx (radar_listing_id, first_seen_at)`.
+
+### 115. RadarNatureCount 🆕
+
+**Table :** `radar_nature_counts` (migration `2026_10_30_431000`, TCK-2431)
+**Modèle :** `App\Models\RadarNatureCount` (`AbstractModel`, sans `created_at` ni `updated_at`) — `day` casté en
+`date`, `nature` en `RadarAdvertiserNature`, `advertisers` et `listings` en `integer`.
+**Description :** Le compteur anonyme quotidien des annonceurs du Radar par nature présumée
+([ADR-0083, amendement du 2026-10-30](adr/0083-l-observatoire-du-marche.md)). La purge remet la nature d'un annonceur
+sans annonce restante à `unknown` : sans ce compteur, la part d'intermédiaires ne porterait que sur les 90 derniers
+jours. `RadarNatureCounter::record()` écrit une ligne par nature (toutes, zéro compris) pour le jour de Dakar, sur la
+définition de la section vivante `natures` (`RadarNatureCounter::live()`, partagée avec `RadarObservatory`) :
+annonceurs porteurs d'au moins une annonce non purgée et non doublon, et ces annonces. Écrit **avant la purge** :
+`radar:count-natures` à 04:13 (Dakar), `radar:purge` à 04:15, et la purge planifiée le pose elle-même en premier si le
+passage a manqué, dans sa propre transaction — une panne du compteur est signalée (`report()`) et ne fait jamais tomber
+la purge. `insertOrIgnore` sur (jour, nature) : une écriture rejouée garde le premier compte. **Jamais purgée.**
+
+**Éteint par défaut** (`radar.nature_counts.enabled`, `RADAR_NATURE_COUNTS=false`) : ni la commande ni la purge
+n'écrivent rien, et l'observatoire le dit (`enabled`). Une ligne seule ne nomme personne, mais **la différence entre
+deux jours** rend la nature présumée d'un annonceur qui a dit STOP (`do_not_contact_at` donne le jour) ; un seuil k ne
+la ferme pas. L'allumage attend l'avis juridique de [TCK-2434](backlog/tickets/TCK-2434-radar-compteurs-anonymes-de-marche.md)
+et son remède (grain plus gros, arrondi ou bruit).
+
+**Lecture :** section `nature_history` de `GET /api/admin/radar/observatory` (`fields[radar_observatory]`), bornée par
+`filter[since]` et `filter[until]` (jours inclus ; `until` ne borne que cette section, une période à l'envers est
+refusée en 422). Par nature, la somme des annonceurs comptés chaque jour — des **annonceurs-jours** : sans identifiant,
+un annonceur présent dix jours compte dix fois — et celle des annonces, avec `days`, `first_day` et `last_day`.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| day | date | | | Le jour du compte (Africa/Dakar), jamais un instant plus fin |
+| nature | string(30) | | | `probable_owner`, `probable_intermediary`, `agency`, `unknown` (`RadarAdvertiserNature`) |
+| advertisers | integer (non signé) | | | Annonceurs de cette nature porteurs ce jour-là d'au moins une annonce non purgée et non doublon |
+| listings | integer (non signé) | | | Ces annonces |
+
+**Contraintes :** unique `radar_nature_counts_day_nature_unique (day, nature)`. Aucun identifiant d'annonceur ou
+d'annonce, aucun lieu, prix, site ni horodatation de ligne : une colonne de plus se décide avec TCK-2434.
 
 ---
 
