@@ -9187,6 +9187,130 @@
         },
         "advertisersLink": "Annonceurs",
         "followUpsDue": "{count, plural, =0 {Aucune relance due} one {# relance due} other {# relances dues}}",
+        "observatoryLink": "Observatoire",
+        "observatory": {
+          "metaTitle": "Observatoire du Radar",
+          "title": "Observatoire",
+          "subtitle": "Qui pèse sur le marché, ce que vaut le mètre carré, combien de temps un bien reste en ligne, et où Takussan manque d’annonces.",
+          "back": "Retour au Radar",
+          "forbidden": "Le Radar est réservé aux opérateurs support et super-admin.",
+          "tabsAria": "Vue de l’observatoire",
+          "tabs": {
+            "advertisers": "Annonceurs",
+            "market": "Marché"
+          },
+          "ranking": {
+            "columns": {
+              "rank": "Rang",
+              "name": "Annonceur",
+              "nature": "Nature",
+              "listings": "Annonces",
+              "neighborhoods": "Quartiers",
+              "prices": "Prix affichés",
+              "sites": "Sites",
+              "pipeline": "Piste commerciale"
+            },
+            "tableCaption": "Les annonceurs du Radar, par volume d’annonces",
+            "unnamed": "Annonceur sans nom",
+            "noPhone": "Numéro inconnu",
+            "unknownNeighborhood": "Quartier inconnu",
+            "moreNeighborhoods": "{count, plural, one {et # autre} other {et # autres}}",
+            "published": "{count, plural, one {# publiée} other {# publiées}}",
+            "unknownContract": "Contrat inconnu",
+            "range": "{min} à {max}",
+            "results": "{count, plural, =0 {Aucun annonceur} one {# annonceur} other {# annonceurs}}",
+            "proposeUpgrade": "À proposer : passage en agence",
+            "pipeline": {
+              "prospect": "À démarcher",
+              "contacted": "Contacté",
+              "account": "Compte créé",
+              "upgrade_pending": "Passage en agence demandé",
+              "agency": "Agence",
+              "do_not_contact": "Ne pas contacter"
+            },
+            "filters": {
+              "searchLabel": "Rechercher un annonceur",
+              "searchPlaceholder": "Nom ou numéro",
+              "natureAria": "Nature présumée",
+              "anyNature": "Toutes les natures",
+              "reset": "Réinitialiser"
+            },
+            "loadError": "Le classement n’a pas pu être chargé.",
+            "empty": {
+              "title": "Aucun annonceur classé",
+              "description": "Les annonceurs apparaissent ici dès qu’une de leurs annonces est relevée."
+            }
+          },
+          "market": {
+            "loadError": "Le marché n’a pas pu être chargé.",
+            "emptyHint": "Les chiffres se remplissent avec la collecte automatique.",
+            "unknownNeighborhood": "Quartier inconnu",
+            "unmatchedNeighborhood": "Quartier non rattaché",
+            "untitledProperty": "Bien sans titre",
+            "days": "{count, plural, one {# jour} other {# jours}}",
+            "range": "{min} à {max}",
+            "natureLine": "{nature} : {count}",
+            "stillPublic": "Encore en ligne",
+            "notPublic": "Hors ligne",
+            "filters": {
+              "since": "Vues depuis le",
+              "contractAria": "Contrat",
+              "anyContract": "Tous les contrats",
+              "typeAria": "Type de bien",
+              "anyType": "Tous les types",
+              "siteAria": "Site",
+              "anySite": "Tous les sites",
+              "reset": "Réinitialiser"
+            },
+            "stats": {
+              "listings": "Annonces suivies",
+              "listingsHint": "Une annonce vue sur plusieurs sites compte une fois",
+              "online": "En ligne",
+              "gone": "Disparues",
+              "inCatalog": "Déjà au catalogue",
+              "intermediaries": "Intermédiaires probables",
+              "intermediariesHint": "{count, plural, one {sur # annonceur} other {sur # annonceurs}}"
+            },
+            "columns": {
+              "neighborhood": "Quartier",
+              "radarOnline": "En ligne ailleurs",
+              "catalogPublic": "Sur Takussan",
+              "gap": "Manque",
+              "type": "Type",
+              "contract": "Contrat",
+              "listings": "Annonces",
+              "median": "Médiane au m²",
+              "spread": "Moitié centrale",
+              "gone": "Disparues",
+              "online": "En ligne",
+              "medianDays": "Durée médiane",
+              "property": "Bien",
+              "site": "Site source",
+              "goneAt": "Disparue le",
+              "propertyStatus": "Sur Takussan"
+            },
+            "gap": {
+              "title": "Quartiers où Takussan manque d’annonces",
+              "description": "Annonces en ligne ailleurs et pas encore sur Takussan, contre les biens publics du même quartier.",
+              "empty": "Aucun quartier à comparer"
+            },
+            "price": {
+              "title": "Prix au mètre carré",
+              "description": "Médiane du dernier prix affiché de chaque annonce, rapporté à sa surface. Le nombre d’annonces dit ce que vaut la médiane.",
+              "empty": "Aucune annonce avec prix et surface"
+            },
+            "time": {
+              "title": "Temps de mise sur le marché",
+              "description": "Durée entre la première et la dernière présence des annonces dont la disparition est constatée. Une annonce déjà en ligne avant la première collecte paraît plus récente qu’elle ne l’est.",
+              "empty": "Aucune disparition constatée"
+            },
+            "goneSources": {
+              "title": "Sources disparues de biens publiés",
+              "description": "L’annonce d’origine d’un bien publié n’est plus en ligne : le bien est peut-être loué ou vendu.",
+              "empty": "Aucune source disparue"
+            }
+          }
+        },
         "publication": {
           "metaTitle": "Publier pour l’annonceur",
           "title": "Publier pour {name}",
@@ -9377,7 +9501,8 @@
         "ops_failed_jobs_spike": "Rafale d’échecs de jobs",
         "ops_queue_stalled": "File de jobs à l’arrêt",
         "ops_health_degraded": "Santé de la plateforme dégradée",
-        "ops_critical_job_failed": "Échec d’un job d’argent ou de bail"
+        "ops_critical_job_failed": "Échec d’un job d’argent ou de bail",
+        "radar_source_listing_gone": "Annonce source d’un bien disparue"
       },
       "channels": {
         "email": "E-mail",

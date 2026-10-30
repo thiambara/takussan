@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
-import { Plus, UsersRound } from 'lucide-react';
+import { Plus, TrendingUp, UsersRound } from 'lucide-react';
 
 import { usePlatformAbilities } from '@/components/admin/super/PlatformAbilitiesProvider';
 import { PageHeader } from '@/components/console';
@@ -64,6 +64,11 @@ export function RadarConsole() {
                   <span className="sr-only">{t('followUpsDue', { count: relancesDues })}</span>
                 </span>
               ) : null}
+            </Link>
+            {/* TCK-2393 — l'observatoire : classement des annonceurs et marché. */}
+            <Link href="/super-admin/radar/observatory" className={buttonVariants({ variant: 'outline' })} data-testid="radar-lien-observatoire">
+              <TrendingUp className="size-4" aria-hidden="true" />
+              {t('observatoryLink')}
             </Link>
             <Button type="button" onClick={() => setSaisie(true)}>
               <Plus className="size-4" aria-hidden="true" />

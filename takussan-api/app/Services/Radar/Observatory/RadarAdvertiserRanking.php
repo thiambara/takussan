@@ -6,6 +6,7 @@ use App\Models\AgencyUpgradeRequest;
 use App\Models\Enums\AgencyUpgradeRequestStatus;
 use App\Models\Enums\RadarListingStage;
 use App\Models\RadarAdvertiser;
+use App\Models\RadarListing;
 use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
@@ -27,7 +28,7 @@ final class RadarAdvertiserRanking
     /** Les quartiers principaux rendus par annonceur. */
     public const TOP_NEIGHBORHOODS = 3;
 
-    /** @param  EloquentBuilder<\App\Models\RadarListing>|Builder  $query  les annonces qui font le volume */
+    /** @param  EloquentBuilder<RadarListing>|Builder  $query  les annonces qui font le volume */
     public static function liveListings(EloquentBuilder|Builder $query, string $alias = 'radar_listings'): EloquentBuilder|Builder
     {
         return $query->whereNull("{$alias}.duplicate_of_listing_id")

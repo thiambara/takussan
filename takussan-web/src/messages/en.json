@@ -9187,6 +9187,130 @@
         },
         "advertisersLink": "Advertisers",
         "followUpsDue": "{count, plural, =0 {No follow-up due} one {# follow-up due} other {# follow-ups due}}",
+        "observatoryLink": "Observatory",
+        "observatory": {
+          "metaTitle": "Radar observatory",
+          "title": "Observatory",
+          "subtitle": "Who weighs on the market, what a square metre is worth, how long a property stays online, and where Takussan lacks listings.",
+          "back": "Back to the Radar",
+          "forbidden": "The Radar is reserved for support and super-admin operators.",
+          "tabsAria": "Observatory view",
+          "tabs": {
+            "advertisers": "Advertisers",
+            "market": "Market"
+          },
+          "ranking": {
+            "columns": {
+              "rank": "Rank",
+              "name": "Advertiser",
+              "nature": "Nature",
+              "listings": "Listings",
+              "neighborhoods": "Neighbourhoods",
+              "prices": "Asking prices",
+              "sites": "Sites",
+              "pipeline": "Sales pipeline"
+            },
+            "tableCaption": "Radar advertisers, by number of listings",
+            "unnamed": "Unnamed advertiser",
+            "noPhone": "Unknown number",
+            "unknownNeighborhood": "Unknown neighbourhood",
+            "moreNeighborhoods": "{count, plural, one {and # other} other {and # others}}",
+            "published": "{count, plural, one {# published} other {# published}}",
+            "unknownContract": "Unknown contract",
+            "range": "{min} to {max}",
+            "results": "{count, plural, =0 {No advertiser} one {# advertiser} other {# advertisers}}",
+            "proposeUpgrade": "To offer: upgrade to agency",
+            "pipeline": {
+              "prospect": "To contact",
+              "contacted": "Contacted",
+              "account": "Account created",
+              "upgrade_pending": "Agency upgrade requested",
+              "agency": "Agency",
+              "do_not_contact": "Do not contact"
+            },
+            "filters": {
+              "searchLabel": "Search an advertiser",
+              "searchPlaceholder": "Name or number",
+              "natureAria": "Presumed nature",
+              "anyNature": "All natures",
+              "reset": "Reset"
+            },
+            "loadError": "The ranking could not be loaded.",
+            "empty": {
+              "title": "No ranked advertiser",
+              "description": "Advertisers appear here as soon as one of their listings is collected."
+            }
+          },
+          "market": {
+            "loadError": "The market could not be loaded.",
+            "emptyHint": "The figures fill up with automatic collection.",
+            "unknownNeighborhood": "Unknown neighbourhood",
+            "unmatchedNeighborhood": "Unmatched neighbourhood",
+            "untitledProperty": "Untitled property",
+            "days": "{count, plural, one {# day} other {# days}}",
+            "range": "{min} to {max}",
+            "natureLine": "{nature}: {count}",
+            "stillPublic": "Still online",
+            "notPublic": "Offline",
+            "filters": {
+              "since": "Seen since",
+              "contractAria": "Contract",
+              "anyContract": "All contracts",
+              "typeAria": "Property type",
+              "anyType": "All types",
+              "siteAria": "Site",
+              "anySite": "All sites",
+              "reset": "Reset"
+            },
+            "stats": {
+              "listings": "Tracked listings",
+              "listingsHint": "A listing seen on several sites counts once",
+              "online": "Online",
+              "gone": "Gone",
+              "inCatalog": "Already in the catalogue",
+              "intermediaries": "Probable intermediaries",
+              "intermediariesHint": "{count, plural, one {out of # advertiser} other {out of # advertisers}}"
+            },
+            "columns": {
+              "neighborhood": "Neighbourhood",
+              "radarOnline": "Online elsewhere",
+              "catalogPublic": "On Takussan",
+              "gap": "Gap",
+              "type": "Type",
+              "contract": "Contract",
+              "listings": "Listings",
+              "median": "Median per m²",
+              "spread": "Middle half",
+              "gone": "Gone",
+              "online": "Online",
+              "medianDays": "Median duration",
+              "property": "Property",
+              "site": "Source site",
+              "goneAt": "Gone on",
+              "propertyStatus": "On Takussan"
+            },
+            "gap": {
+              "title": "Neighbourhoods where Takussan lacks listings",
+              "description": "Listings online elsewhere and not yet on Takussan, against public properties in the same neighbourhood.",
+              "empty": "No neighbourhood to compare"
+            },
+            "price": {
+              "title": "Price per square metre",
+              "description": "Median of each listing’s latest asking price divided by its surface. The number of listings tells how much the median is worth.",
+              "empty": "No listing with price and surface"
+            },
+            "time": {
+              "title": "Time on market",
+              "description": "Time between the first and last sighting of listings whose disappearance was confirmed. A listing already online before the first collection looks newer than it is.",
+              "empty": "No confirmed disappearance"
+            },
+            "goneSources": {
+              "title": "Gone sources of published properties",
+              "description": "The original listing of a published property is no longer online: the property may be rented or sold.",
+              "empty": "No gone source"
+            }
+          }
+        },
         "publication": {
           "metaTitle": "Publish for the advertiser",
           "title": "Publish for {name}",
@@ -9377,7 +9501,8 @@
         "ops_failed_jobs_spike": "Spike of failed jobs",
         "ops_queue_stalled": "Job queue stalled",
         "ops_health_degraded": "Platform health degraded",
-        "ops_critical_job_failed": "Money or lease job failed"
+        "ops_critical_job_failed": "Money or lease job failed",
+        "radar_source_listing_gone": "Source listing of a property gone"
       },
       "channels": {
         "email": "Email",
