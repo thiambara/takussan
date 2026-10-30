@@ -46,6 +46,11 @@ Mesure sur une grille de 1 379 840 textes (`scratchpad/tck-2451/geni1.mjs`) : 10
   du champ de TCK-2451 (`0221`, `+10 00221`, `R+20 0221`) ;
 - avec `123 45 67 ch`, `45 67 ch`, `4 56 ch`, `1234 ch`, `3 / 78 123 45 67`, `\n3`, `3 ` en fin de texte, `3.5 ch` ou `3-ch`,
   3 790 textes par suite laissent deux chiffres ou plus du numéro en clair, autant que sur `dev` (les 1 170 précédents compris).
+- relevés par la contre-vérification de TCK-2451, identiques sur `dev` et sur la branche (masque et prix) :
+  - `Villa R+1 00221 77 012 34 56 3,5 pièces` → `Villa R[TELEPHONE] 34 56 3,5 pièces` : la virgule décimale française ;
+  - `Villa R+1 00221 77 012 34 56 3 /mois` → `Villa R[TELEPHONE] 34 56 3 /mois`, et 3 est rendu comme prix ;
+  - un nombre à 0 en tête (`… 34 56 0 frais`, `… 34 56 03 chambres`) → `34 56` en clair. C'est la conséquence voulue de la
+    décision 6 de TCK-2451 : `000 F` est la fin d'un montant, pas un compte.
 
 Cause : derrière l'étage `1` ou `7`, `NOT_SENEGAL_ZONE` n'exclut l'indicatif que si rien de chiffré ne prolonge le numéro
 (`NOTHING_GLUED`) ; `CODED_SENEGAL` s'arrête de même (`WHOLE_NUMBER_END`). Sinon, `CC1_REST` lit le `1` et dix chiffres
