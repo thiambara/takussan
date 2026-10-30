@@ -68,6 +68,18 @@ appels dans `PropertyController`, un dans `RadarClaims`, aucun dans la connexion
   `terms_version` (déjà validé) à `authenticate`, sans quoi l'activation par la page rendait
   `requires_terms` à son tour (ablation : `RadarClaimTest` AC4, deux rouges).
 - ADR-0033 §3 amendé d'un paragraphe (« Les conditions avant l'entrée »).
+- **Vérification adverse, corrigée** :
+  - **I1** — `requires_terms` ne coûte pas d'essai au limiteur `auth-phone-verify` (4 par numéro et
+    15 min) : l'essai pris avant la requête est rendu après, par `AppServiceProvider::refundPhoneVerify`
+    (clé calculée par `ThrottleRequestsByNetwork::namedLimiterKey`, celle du framework). Écarté :
+    `Limit::after()`, qui ne compte qu'après la requête et laisse passer une rafale entre la lecture et
+    l'écriture du seau ; et `PHONE_VERIFY_PER_WINDOW = 5`, qui casse l'invariant M1 (c) (2 × 5 ≥ 10).
+    Testé limiteur ALLUMÉ : le scénario de la vérification (code expiré pendant la lecture, faute de
+    frappe, puis entrée) et l'absence de contournement (présentations répétées puis 4 mauvais codes → 429).
+  - **I2** — l'étape « conditions » porte « Renvoyer le code » et « Changer de numéro » ; un 422 reçu
+    depuis elle ramène à l'étape du code, vidée, et la version acceptée accompagne le code suivant.
+  - **m2** — trace d'audit `radar_terms_accepted` (journal `Radar`, causer et sujet le compte,
+    `terms_version`, `via` = nom de la route : la connexion ou la réclamation), ni numéro ni IP.
 - Tests : `PhoneLoginRadarTermsTest` (8), `PhoneLoginRadarAccountTest` et `RadarPublishTest` AC3
   adaptés (le second repose maintenant le code avec la version, et prouve la garde de bout en bout
   sur un compte créé par « Publier pour lui ») ; front : `connexion-par-telephone.test.tsx` (2).
@@ -86,8 +98,13 @@ appels dans `PropertyController`, un dans `RadarClaims`, aucun dans la connexion
 - **Ordre conditions / 2FA** — retenu : les conditions d'abord. Écarté : après le TOTP. Raison : un
   TOTP saisi expire pendant la lecture.
 - **La connexion par mot de passe n'est pas gardée.** Un compte du Radar n'a pas de mot de passe
-  avant d'être activé par code, et l'activation par code date désormais l'acceptation. Reste un cas :
-  un compte activé avant ce ticket qui aurait ensuite choisi un mot de passe (préproduction seule,
-  l'API n'a jamais servi en production) ; il accepterait à sa première publication (`accept_terms`).
+  avant d'être activé par code, et l'activation par code date désormais l'acceptation.
+- **Comptes du Radar activés AVANT ce ticket (vérification adverse m1, rien de codé)** —
+  préproduction seule, l'API n'a jamais servi en production. Trois voies leur restent ouvertes
+  sans les conditions : le mot de passe s'ils en ont choisi un (`AuthController::login`), OAuth
+  s'ils ont ajouté une adresse (`OAuthSessionOpener::open`), et surtout **les jetons déjà émis**,
+  qui restent valides. Leur prochaine connexion par code les interroge ; leur première publication
+  les fait accepter (`accept_terms`). Si le porteur le veut : révoquer en préproduction les jetons
+  des comptes désignés par un `radar_advertisers` sans `terms_accepted_at`.
 - **Le `README` de `content/legal`** : la ligne 7 est retirée sans renuméroter (fichier partagé par
   plusieurs tickets cette nuit, la numérotation avait déjà un trou en 6).
