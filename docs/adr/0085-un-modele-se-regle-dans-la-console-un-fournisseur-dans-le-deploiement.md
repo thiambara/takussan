@@ -1,0 +1,133 @@
+# ADR-0085 — Un modèle s'ajoute et se tarife dans la console ; un fournisseur, sa clé et son adresse restent dans la configuration du déploiement
+
+- **Statut** : Accepté le 2026-10-30 par le porteur pour le principe (option b, « modèles libres, secrets fermés »). Les
+  modalités des points 2 à 5 sont des **décisions de la session, à revoir par le porteur**.
+- **Date** : 2026-10-30
+- **Tickets** : [TCK-2448](../backlog/tickets/TCK-2448-catalogue-des-modeles-ia-en-console.md) (catalogue des
+  modèles), [TCK-2449](../backlog/tickets/TCK-2449-socle-ia-neutre-vis-a-vis-du-fournisseur.md) (neutralité du
+  socle), [TCK-2450](../backlog/tickets/TCK-2450-fournisseurs-ia-openai-openrouter-compatibles.md) (OpenAI, OpenRouter,
+  points d'accès compatibles OpenAI)
+- **Amende** : [ADR-0076](0076-le-socle-ia.md) §2 et §3, et sa conséquence « changer de modèle ou de fournisseur ne
+  demande ni commit ni déploiement »
+
+## Contexte
+
+Mesuré sur `dev` `20c2538a4` le 2026-10-30 :
+
+- **Le socle ne joint qu'Anthropic.** Le bloc `providers` de `takussan-api/config/ai.php` n'a qu'une entrée, et la
+  console ne propose que les fournisseurs de ce bloc (`UpdateAiRoleRequest`, `UpdateAiUsageRequest`,
+  `StoreAiEvaluationRequest` : `Rule::in(array_keys(config('ai.providers')))`).
+- **Un modèle n'est affectable que s'il est tarifé dans `config('ai.pricing')`** (`ModelLink`,
+  `AiProviderCatalogue`). Ajouter un modèle, même chez Anthropic, ou corriger un tarif demande donc un commit et un
+  déploiement. La conséquence d'ADR-0076 « changer de modèle […] ne demande ni commit ni déploiement » n'est vraie
+  que pour un modèle déjà tarifé.
+- **Le socle porte des réglages propres à Anthropic.** `SocleAgent::providerOptions()` ne neutralise l'outil de
+  sortie forcé que pour le fournisseur nommé `anthropic`. Les limites de schéma vérifiées par les tests sont celles
+  d'Anthropic (`Tests\Support\Ai\AnthropicSchemas`).
+- **Le SDK sait déjà joindre les autres.** `laravel/ai` fournit les pilotes `openai`, `openrouter` et
+  `openai-compatible`, entre autres (`vendor/laravel/ai/config/ai.php`, `Laravel\Ai\Enums\Lab`).
+
+Le 2026-10-30, le porteur a demandé s'il pouvait passer à OpenAI, à OpenRouter ou à un modèle compatible OpenAI, et
+s'il valait mieux tout régler depuis le super-admin. Trois options lui ont été posées :
+
+- (a) ajouter ces fournisseurs en configuration ;
+- (b) rendre les modèles et leurs tarifs réglables dans la console, en laissant fournisseurs, clés et adresses dans le
+  déploiement ;
+- (c) tout mettre en console, clés et adresses comprises.
+
+Il a retenu (b).
+
+**Pourquoi pas tout en console (c) :**
+
+- **Une adresse de fournisseur modifiable dans la console** permettrait à une session super-admin usurpée de
+  détourner chaque appel, avec son contenu, vers un serveur « compatible OpenAI » de son choix.
+- **Une clé en base serait chiffrée sous `APP_KEY`**, dont la rotation reste à décider (ADR-0084 proposé, TCK-614).
+- **Un fournisseur est un sous-traitant de données personnelles.** Le déclarer est un acte juridique : la politique
+  de confidentialité le nomme avant le premier envoi. Un bouton ne remplace pas cet acte.
+
+## Décision
+
+**Deux niveaux.** Un **fournisseur** (qui reçoit les données, avec quelle clé, à quelle adresse) se décide dans la
+configuration du déploiement : un commit, un déploiement, la mention dans la politique de confidentialité. Un
+**modèle** de ce fournisseur, et son tarif, se décident dans la console.
+
+1. **Le catalogue des modèles est en base, avec repli sur la configuration.**
+   - Une ligne par couple *(fournisseur, modèle)*. Elle porte l'identifiant exact attendu par le fournisseur, y
+     compris la forme `éditeur/modèle` d'OpenRouter. Elle porte aussi les quatre tarifs en dollars US par million de
+     tokens (entrée, sortie, lecture en cache, écriture en cache), et un état actif ou retiré.
+   - Un couple tarifé par `config('ai.pricing')` reste au catalogue tant qu'aucune ligne ne le remplace. Une ligne
+     l'emporte sur la configuration pour le même couple : la console corrige un tarif ou retire un modèle sans
+     déploiement.
+   - **Un tarif nul est permis s'il est saisi explicitement**, pour un point d'accès payé autrement qu'au token. Un
+     tarif absent ne l'est pas : sans tarif, le budget ne se juge pas.
+   - **Seul un modèle actif du catalogue, d'un fournisseur sélectionnable** (point 4), s'affecte : maillon de chaîne,
+     modèle forcé d'un usage, évaluation.
+   - **Retirer un modèle encore affecté est refusé**, en nommant les rôles et les usages qui l'emploient.
+   - Ajouter, modifier ou retirer un modèle exige le geste `platform.ai.manage` et un second facteur récent
+     (`ProtectedActions::STEP_UP`), et se journalise, comme l'affectation des chaînes (ADR-0076 §2).
+   - Un changement de tarif ne réécrit aucun `ai_calls` : le coût est figé à l'appel.
+   - L'évaluation avant affectation (ADR-0076 §8) reste la garde d'un modèle neuf.
+   - La règle « aucun identifiant de modèle hors de `config/ai.php` » vise le code. Un identifiant saisi dans la
+     console est une donnée, pas du code.
+
+2. **Le socle ne suppose plus de fournisseur.**
+   - **Aucun appel ne force l'outil de sortie, chez aucun fournisseur.** Un agent non strict pose `tool_choice` à
+     `auto` dans la forme qu'attend le **pilote** (`driver`), pas le nom du fournisseur. Une instance `openrouter` qui
+     sert un modèle d'Anthropic rencontre le même refus de l'outil forcé.
+   - **Le mode strict se déclare par agent et par pilote.** Il n'est vrai que pour un pilote sur lequel un vrai appel
+     a attesté la taille de schéma concernée : l'amendement du 2026-10-30 d'ADR-0076 s'étend ainsi à chaque pilote.
+     Un pilote sans attestation est non strict : c'est un choix déclaré, jamais un repli à l'exécution.
+   - Les limites de schéma vérifiées par les tests sont celles que chaque pilote publie. Un pilote qui n'en publie
+     aucune est non strict.
+
+3. **Les nouveaux fournisseurs entrent par la configuration.**
+   - `openai` et `openrouter` sont déclarés dans `config/ai.php`. Leur clé et leur adresse viennent de
+     l'environnement (Dokploy, ADR-0069).
+   - **Un point d'accès compatible OpenAI se déclare par son nom**, une entrée par point d'accès, avec son
+     `legal_name` écrit en configuration. Le pilote `openai-compatible` n'est jamais une entrée générique dont
+     l'adresse suffirait à changer le destinataire.
+   - **Chaque entrée déclare les hôtes qu'elle accepte.** Si l'hôte de l'adresse lue de l'environnement n'est pas dans
+     cette liste, le fournisseur n'est pas sélectionnable, et la sonde de santé et le test de connexion le disent.
+     La configuration écrit la règle ; l'environnement ne fait que la remplir.
+   - **OpenRouter** pose sur chaque requête `provider.data_collection: "deny"`. D'après la documentation d'OpenRouter
+     (« Provider Routing », relevée le 2026-10-30), cette valeur n'achemine que vers des fournisseurs qui ne
+     collectent pas les données. Le réglage est en configuration et vaut `deny` par défaut.
+
+4. **Un fournisseur n'est sélectionnable que s'il est complet** : déclaré en configuration, nommé par la politique de
+   confidentialité (garde `scripts/check-ai-providers-privacy.mjs`, inchangée), avec une clé présente et une adresse
+   sur un hôte accepté. Un fournisseur déclaré sans clé est affiché, mais ne reçoit rien. **Poser sa clé dans Dokploy
+   est l'acte qui l'active**, et cet acte revient au porteur.
+
+5. **La politique de confidentialité nomme chaque fournisseur déclaré.** Pour OpenRouter, elle dit qu'il achemine
+   vers le fournisseur du modèle choisi. Ce texte est juridique : sa formulation est à relire par l'avocat, au même
+   titre que les mentions déjà marquées ⚠ dans `privacy.ts` § 4.3.
+
+## Conséquences
+
+- **Un modèle neuf, ou un tarif corrigé, chez un fournisseur déclaré : aucun déploiement.** L'évaluation proposée
+  avant d'affecter et le journal restent les gardes.
+- **Un fournisseur neuf demande un commit, un déploiement et une ligne de la politique de confidentialité.** C'est
+  voulu, et c'est rare.
+- **Les chaînes de repli de `config/ai.php` restent sur Anthropic.** Rien ne change pour l'existant tant qu'aucune
+  clé d'un autre fournisseur n'est posée.
+- **Risque accepté** : un tarif mal saisi fausse le budget de l'usage. La saisie est journalisée, et le coût de
+  chaque appel reste lisible dans le tableau de bord.
+- **Ce qui n'est pas fait** :
+  - une clé en base ou une adresse dans la console ;
+  - un plafond de classe de données par fournisseur ;
+  - le rôle `embedding`, qui attend toujours son premier fournisseur (TCK-2392, TCK-344).
+- **Coût** : cet ADR et trois tickets, [TCK-2448](../backlog/tickets/TCK-2448-catalogue-des-modeles-ia-en-console.md),
+  [TCK-2449](../backlog/tickets/TCK-2449-socle-ia-neutre-vis-a-vis-du-fournisseur.md) et
+  [TCK-2450](../backlog/tickets/TCK-2450-fournisseurs-ia-openai-openrouter-compatibles.md).
+
+## Application
+
+À écrire par TCK-2448 à TCK-2450. Ce qui empêchera la régression :
+
+- test « un modèle hors catalogue, retiré, ou d'un fournisseur non sélectionnable ne s'affecte pas » (chaîne, modèle
+  forcé, évaluation) ;
+- test « retirer un modèle affecté est refusé » ;
+- test « aucun agent ne force l'outil de sortie », pour chaque pilote déclaré ;
+- garde `check-ai-providers-privacy.mjs` étendue : chaque entrée de `providers` déclare ses hôtes acceptés ;
+- test « une adresse hors des hôtes déclarés rend le fournisseur non sélectionnable » ;
+- test « une requête OpenRouter porte `provider.data_collection` ».
