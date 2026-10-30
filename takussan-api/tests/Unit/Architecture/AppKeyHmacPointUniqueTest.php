@@ -16,13 +16,22 @@ use RecursiveIteratorIterator;
  * PHP (`token_get_all`), jamais les commentaires, et refuse :
  * - les chaînes `'app.key'`, `'app.previous_keys'`, `'APP_KEY'`, `'APP_PREVIOUS_KEYS'` (donc `config()`, `env()`,
  *   `Config::get()`, quels que soient les guillemets) ;
- * - `config('app')`, d'où l'on lirait `['key']` ;
- * - `Crypt::getKey()`, et `->getKey()` appelé juste après `app('encrypter')` ;
+ * - le tableau de configuration `app` : `config('app')`, `\config('app')`, `Config::get('app')`,
+ *   `config()->get('app')`, tout `('app')[…]`, et `['app']['key']` / `['app']['previous_keys']`
+ *   (`app('config')['app']['key']`) ;
+ * - `->getKey()` (ou `?->getKey()`) juste derrière `app('encrypter')`, `app(…Encrypter::class)`,
+ *   `app(…StringEncrypter::class)` ou `Crypt::getFacadeRoot()` ; `Crypt::getKey()` ;
  * - `getPreviousKeys` et `getAllKeys`, en tout lieu.
  *
- * **Hors d'atteinte, c'est un plancher** : une clé assemblée par concaténation (`config('app.'.$k)`, `config($p.'key')`),
- * et `->getKey()` sur un chiffreur reçu par injection (`Encrypter $e` puis `$e->getKey()`) — le nom est aussi celui de la
- * clé primaire d'Eloquent, partout dans le code. La relecture les attrape, pas cette garde.
+ * **Hors d'atteinte, c'est un plancher** :
+ * - une clé assemblée par concaténation (`config('app.'.$k)`, `config($p.'key')`, `['app'][$k]`) ;
+ * - `->getKey()` sur un chiffreur rangé dans une variable ou reçu par injection (`$e = app('encrypter'); $e->getKey()`,
+ *   `Encrypter $e`) — le nom est aussi celui de la clé primaire d'Eloquent, partout dans le code ;
+ * - le tableau `app` rangé dans une variable par un autre chemin que ceux ci-dessus (`$c = app('config')->all()`).
+ * La relecture les attrape, pas cette garde.
+ *
+ * **Faux positifs acceptés** : la chaîne `'APP_KEY'` dans une liste de noms (une garde d'environnement, par exemple),
+ * et une méthode `getAllKeys()` sans rapport. Le cas échéant, le fichier s'ajoute à `PERMIS`, avec sa raison.
  *
  * Elle se garde elle-même : un balayage qui ne trouve plus `AppKeyHmac` ni `config/app.php` rougit.
  */
@@ -81,6 +90,21 @@ class AppKeyHmacPointUniqueTest extends TestCase
             "\$k = app('encrypter')->getKey();",
             "\$k = app('encrypter')->getPreviousKeys();",
             '$k = $chiffreur->getAllKeys();',
+            // Vérification adverse M5.
+            "\$k = \\config('app')['key'];",
+            "\$c = \\config('app');",
+            "\$k = Config::get('app')['key'];",
+            "\$c = Config::get('app');",
+            "\$k = config()->get('app')['key'];",
+            "\$k = config()->offsetGet('app')['key'];",
+            "\$c = config()->get('app');",
+            "\$k = app('config')['app']['key'];",
+            "\$k = app('config')['app']['previous_keys'];",
+            "\$k = app('encrypter')?->getKey();",
+            '$k = app(Encrypter::class)->getKey();',
+            '$k = app(\\Illuminate\\Contracts\\Encryption\\Encrypter::class)->getKey();',
+            '$k = app(StringEncrypter::class)?->getKey();',
+            '$k = Crypt::getFacadeRoot()->getKey();',
         ];
 
         foreach ($temoins as $temoin) {
@@ -98,6 +122,9 @@ class AppKeyHmacPointUniqueTest extends TestCase
             '$id = $model->getKey();',
             "\$e = app('encrypter');\n\$v = \$e->decryptString(\$x);",
             "\$k = env('REVERB_APP_KEY');",
+            "\$v = \$tableau['app']['name'];",
+            '$id = app(User::class)->getKey();',
+            "\$p = Config::get('app.timezone');",
         ];
 
         foreach ($sains as $sain) {
@@ -115,16 +142,26 @@ class AppKeyHmacPointUniqueTest extends TestCase
         $chaine = fn (int $i): ?string => isset($jetons[$i]) && is_array($jetons[$i]) && $jetons[$i][0] === T_CONSTANT_ENCAPSED_STRING
             ? substr($jetons[$i][1], 1, -1) : null;
 
+        // Un nom, sans sa barre de tête ni sa casse : `\config` est `config`, `\Illuminate\…\Crypt` finit par `crypt`.
+        $nom = fn (int $i): string => strtolower(ltrim($texte($i), '\\'));
+        $fleche = fn (int $i): bool => in_array($texte($i), ['->', '?->'], true);
+
         foreach (array_keys($jetons) as $i) {
-            $mot = strtolower($texte($i));
+            $mot = $nom($i);
+            $appelDeApp = $chaine($i) === 'app' && $texte($i - 1) === '(' && $texte($i + 1) === ')';
             if (in_array($chaine($i), self::CHAINES_INTERDITES, true)
                 || in_array($mot, self::METHODES_INTERDITES, true)
-                // config('app')
-                || ($mot === 'config' && $texte($i + 1) === '(' && $chaine($i + 2) === 'app' && $texte($i + 3) === ')')
-                // Crypt::getKey(), \…\Crypt::getKey()
-                || ($mot === 'getkey' && $texte($i - 1) === '::' && preg_match('/(^|\\\\)crypt$/i', $texte($i - 2)) === 1)
-                // app('encrypter')->getKey()
-                || ($mot === 'getkey' && $texte($i - 1) === '->' && $texte($i - 2) === ')' && $chaine($i - 3) === 'encrypter')) {
+                // config('app'), \config('app') ; Config::get('app'), config()->get('app') ; tout ('app')[…]
+                || ($appelDeApp && ($nom($i - 2) === 'config' || ($nom($i - 2) === 'get' && in_array($texte($i - 3), ['::', '->', '?->'], true)) || $texte($i + 2) === '['))
+                // ['app']['key'], ['app']['previous_keys']
+                || ($chaine($i) === 'app' && $texte($i - 1) === '[' && $texte($i + 1) === ']' && $texte($i + 2) === '['
+                    && in_array($chaine($i + 3), ['key', 'previous_keys'], true))
+                // Crypt::getKey(), Crypt::getFacadeRoot()->getKey()
+                || ($mot === 'getkey' && $texte($i - 1) === '::' && preg_match('/(^|\\\\)crypt$/', $nom($i - 2)) === 1)
+                || ($mot === 'getkey' && $fleche($i - 1) && $texte($i - 2) === ')' && $texte($i - 3) === '(' && $nom($i - 4) === 'getfacaderoot')
+                // app('encrypter')->getKey(), app(…Encrypter::class)?->getKey()
+                || ($mot === 'getkey' && $fleche($i - 1) && $texte($i - 2) === ')' && ($chaine($i - 3) === 'encrypter'
+                    || ($nom($i - 3) === 'class' && $texte($i - 4) === '::' && preg_match('/(^|\\\\)(string)?encrypter$/', $nom($i - 5)) === 1)))) {
                 return true;
             }
         }

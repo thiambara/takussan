@@ -38,7 +38,11 @@ Retenu / écarté / raison :
    repli que voici de toute façon.
 2. **Une désinscription gagne toujours** : `eraseContact()` supprime sous l'empreinte stockée de la ligne ET sous
    toutes les empreintes reconnues de son contact. Un contact qui ne se déchiffre plus (ancienne clé perdue) n'empêche
-   pas la désinscription : elle aboutit sous l'empreinte stockée (vérification adverse I1). Le rattachement (`SavedSearchController::claim()`) et la
+   pas la désinscription : elle aboutit sous l'empreinte stockée (vérification adverse I1). Pour un abonné WhatsApp,
+   la ligne `whatsapp_contacts` qu'avait posée l'alerte ne se retrouve plus sans le numéro en clair : la
+   désinscription aboutit quand même (les demandes partent, plus rien n'est envoyé au titre de l'alerte), mais ce
+   consentement reste en base (vérification adverse I2). Ce cas n'arrive que si l'ancienne clé a été perdue, contre la
+   consigne ci-dessous. Le rattachement (`SavedSearchController::claim()`) et la
    suppression du compte (`AccountDeletionService`) cherchent de même.
 3. **Les plafonds comptent sous toutes les clés** (`mailboxHashes()`). Le limiteur horaire par boîte vit une heure
    dans le cache : il repart sous la clé courante, borné.
@@ -94,10 +98,14 @@ Retenu / écarté / raison :
 - `PayoutMethod::fingerprints()` ; lecteur : `PayoutService::assertApprovedDestination()`.
 - `VisitNotifier`, `VisitorFingerprint`, `WebhookJournal::bodyDigest()`, `PhoneVerificationService` : `AppKeyHmac::of()`.
 - Garde : `tests/Unit/Architecture/AppKeyHmacPointUniqueTest` balaie `app/`, `config/`, `database/`, `routes/` et
-  `bootstrap/` ; elle refuse une lecture de la clé (`config('app.key')`, `env('APP_KEY')`, `config('app')`,
-  `Crypt::getKey()`, `app('encrypter')->getKey()`…) hors d'`AppKeyHmac`, `RadarPhone`, `ClaimLinks` (ADR-0082) et
-  `config/app.php`. **C'est un plancher** : une clé assemblée par concaténation, ou lue sur un chiffreur injecté, lui
-  échappe ; son docblock le dit.
+  `bootstrap/` et refuse, hors d'`AppKeyHmac`, `RadarPhone`, `ClaimLinks` (ADR-0082) et `config/app.php` : les chaînes
+  `app.key`, `app.previous_keys`, `APP_KEY`, `APP_PREVIOUS_KEYS` ; le tableau `app` (`config('app')`, `\config('app')`,
+  `Config::get('app')`, `config()->get('app')`, `('app')[…]`, `['app']['key']`) ; `->getKey()` ou `?->getKey()` juste
+  derrière `app('encrypter')`, `app(…Encrypter::class)` ou `Crypt::getFacadeRoot()` ; `Crypt::getKey()` ;
+  `getPreviousKeys`, `getAllKeys`. **C'est un plancher**, et son docblock nomme ce qu'elle ne voit pas : la
+  concaténation (`config('app.'.$k)`, `['app'][$k]`), un chiffreur rangé dans une variable ou injecté puis
+  `->getKey()`, le tableau `app` obtenu par un autre chemin (`app('config')->all()`). Faux positifs acceptés :
+  `'APP_KEY'` dans une liste de noms, un `getAllKeys()` sans rapport (le fichier va alors dans `PERMIS`, avec sa raison).
 - Épreuves, chacune passée par une ablation : `SearchAlertAppKeyRotationTest`, `AppKeyHmacTest`,
   `WelcomeCreditOncePerPhoneTest::test_ac2_…`, `PayoutBypassTest::test_m4_une_rotation_…`,
   `RadarActivationReminderTest::test_un_numero_credite_avant_une_rotation_…`, `PhoneFingerprintTest::test_all_…`.

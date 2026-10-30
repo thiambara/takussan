@@ -184,7 +184,12 @@ class AlertSubscriber extends AbstractModel implements HasLocalePreference
     public function eraseContact(): int
     {
         if ($this->channel === self::CHANNEL_WHATSAPP) {
-            $this->retirerLeConsentementWhatsapp();
+            try {
+                $this->retirerLeConsentementWhatsapp();
+            } catch (DecryptException) {
+                // Vérification adverse I2 — le numéro ne se déchiffre plus (ancienne `APP_KEY` perdue) : sa ligne de
+                // `whatsapp_contacts` ne se retrouve plus. La désinscription aboutit quand même ; seul ce consentement reste.
+            }
         }
 
         $hashes = [$this->contact_hash];

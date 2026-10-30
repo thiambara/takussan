@@ -6,6 +6,7 @@ use App\Models\AccountDeletionRequest;
 use App\Models\AlertSubscriber;
 use App\Models\SavedSearch;
 use App\Models\User;
+use App\Models\WhatsappContact;
 use App\Services\Account\AccountDeletionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
@@ -158,6 +159,22 @@ class SearchAlertAppKeyRotationTest extends TestCase
             ->assertOk()->assertJsonPath('data.status', 'unsubscribed');
 
         $this->assertModelMissing($avant);
+    }
+
+    /** Vérification adverse I2 — le jumeau WhatsApp : la ligne `whatsapp_contacts` ne se retrouve plus, la désinscription aboutit. */
+    public function test_cle_perdue_la_desinscription_whatsapp_aboutit_sous_l_empreinte_stockee(): void
+    {
+        $avant = $this->abonne(AlertSubscriber::CHANNEL_WHATSAPP, '+221771234567');
+        $contact = WhatsappContact::query()->create([
+            'phone' => '+221771234567', 'opt_in_status' => WhatsappContact::OPT_IN_OPTED_IN, 'opt_in_source' => AlertSubscriber::WHATSAPP_CONSENT_SOURCE,
+        ]);
+        $this->tournerAppKey(garderLAncienne: false);
+
+        $this->postJson('/api/public/search-alerts/unsubscribe', ['token' => $this->jetonEnClair])
+            ->assertOk()->assertJsonPath('data.status', 'unsubscribed');
+
+        $this->assertModelMissing($avant);
+        $this->assertModelExists($contact);
     }
 
     /** Vérification adverse M1 — le plafond de deux confirmations par 24 h compte aussi celles d'avant la rotation. */

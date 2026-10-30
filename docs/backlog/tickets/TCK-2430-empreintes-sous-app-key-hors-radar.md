@@ -75,7 +75,8 @@ l'ancienne va **en tête** d'`APP_PREVIOUS_KEYS` et n'en sort pas avant TCK-614.
   autre lecture de la clé dans `app/`, `config/`, `database/`, `routes/` et `bootstrap/`, hors `RadarPhone`,
   `ClaimLinks` (ADR-0082) et `config/app.php` ; plancher, pas preuve : la concaténation lui échappe. Une clé `base64:`
   se lit telle qu'écrite et sous sa forme canonique (une ancienne recopiée sans son `=` reste reconnue). Un contact
-  indéchiffrable n'empêche pas la désinscription (sous l'empreinte stockée).
+  indéchiffrable n'empêche pas la désinscription (sous l'empreinte stockée), WhatsApp compris : la ligne
+  `whatsapp_contacts` qu'on ne retrouve plus sans le numéro reste alors en base (ADR-0084 §2).
 - **Lectures tolérantes** : `eraseContact()` (empreinte stockée + toutes celles du contact déchiffré),
   `scopeForContact()`, `SavedSearchController::claim()`, `AccountDeletionService`, les deux plafonds de
   `RecordPublicSearchAlert`, `WelcomeCreditService::grant()` (recherche avant l'`insertOrIgnore`),
