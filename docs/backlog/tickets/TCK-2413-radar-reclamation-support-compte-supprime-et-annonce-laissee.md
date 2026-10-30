@@ -1,7 +1,7 @@
 ---
 id: TCK-2413
 title: "Radar : le super-admin délie le compte supprimé qui bloquait la réclamation, et l'annonce que la publication laisse à l'opérateur le dit"
-status: doing
+status: done
 phase: P1
 family: full
 estimate: S
@@ -58,20 +58,20 @@ Deux suites de [TCK-2390](TCK-2390-radar-reclamation-par-l-annonceur.md) (§ « 
 
 ## Delta à produire
 
-- [ ] Service et route du geste, journalisé, avec sa garde de capacité.
-- [ ] Fiche : `account`, `stage_reason` des annonces ; front : le geste et son dialogue.
-- [ ] Job : chaque annonce qu'il laisse porte le code de la raison dans `stage_reason`, y compris
+- [x] Service et route du geste, journalisé, avec sa garde de capacité.
+- [x] Fiche : `account`, `stage_reason` des annonces ; front : le geste et son dialogue.
+- [x] Job : chaque annonce qu'il laisse porte le code de la raison dans `stage_reason`, y compris
       quand sa fenêtre expire.
-- [ ] File `left_to_operator` (API + onglet).
-- [ ] Page de réclamation : `awaiting_review`, et son texte.
+- [x] File `left_to_operator` (API + onglet).
+- [x] Page de réclamation : `awaiting_review`, et son texte.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Après le geste sur un annonceur dont le compte A est supprimé, la page de réclamation
+- [x] AC1 — Après le geste sur un annonceur dont le compte A est supprimé, la page de réclamation
       ne rend plus `support` (ni `unavailable`), et la réclamation aboutit ; le geste est journalisé.
-- [ ] AC2 — Le geste est refusé (409) sur un annonceur révoqué, après STOP, ou dont le compte n'est
+- [x] AC2 — Le geste est refusé (409) sur un annonceur révoqué, après STOP, ou dont le compte n'est
       pas supprimé ; sans `platform.radar.publish`, 403.
-- [ ] AC3 — Une annonce que le job laisse (sans photo, champ manquant, refus) sort de `publishing`
+- [x] AC3 — Une annonce que le job laisse (sans photo, champ manquant, refus) sort de `publishing`
       pour `awaiting_review` sur la page, et l'annonceur apparaît dans `left_to_operator`.
 
 ## Hors périmètre
@@ -81,4 +81,42 @@ Deux suites de [TCK-2390](TCK-2390-radar-reclamation-par-l-annonceur.md) (§ « 
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- **Re-mesure (2026-10-30)** : les deux défauts tenaient. Compte A supprimé : `RadarClaims::state()` rend
+  `support` quand un compte B a vérifié le numéro (`orphanAbsorbable()` refuse un compte qui ne
+  peut plus ouvrir de session), et `unavailable` sinon (`AdvertiserProvisioner::accountUnavailable()`) —
+  le ticket parent ne nommait que le premier. Une suppression **définitive** ne bloque rien
+  (`radar_advertisers.user_id` est `nullOnDelete`) : seule la suppression douce bloque. Annonce
+  laissée : le job ne laissait aucune trace (ni étape, ni motif), seulement un `Log::warning` pour un
+  refus ; `show()` la rangeait dans `publishing`.
+- **Le marqueur est `stage_reason` sur une annonce `consented`** : aucun autre chemin n'écrit de motif
+  sur une annonce `consented` (relevé : `grep -rn stage_reason app`), la publication par l'opérateur
+  le remet à `null` (`RadarPublisher::publishLocked`). Codes : `radar.publish.no_photo`,
+  `radar.publish.missing_field`, le code du refus de la publication, `radar.publish.photos_pending` ou
+  `radar.claim.publish_failed` à l'abandon (`failed()`), `radar.advertiser.account_unavailable` si le
+  compte ou l'espace a disparu. Posé par une mise à jour conditionnelle (`stage = consented`) : une
+  annonce publiée entre-temps n'en garde aucun (testé par un `DB::listen`).
+- **Rien n'est posé après un STOP ou une révocation** : l'annonce s'y ferme.
+- **Le geste laisse le compte supprimé tel quel**, ses biens compris : il ne rouvre ni ne réunit rien.
+- **Contrôle au navigateur non fait** : la machine était à une charge de 50 à 120 pendant la session ;
+  les trois écrans sont couverts par des tests de composants (avec ablation).
+
+### Décisions prises en autonomie, à revoir
+
+1. **Capacité du geste** : retenu `platform.radar.publish` (`super_admin` seul), comme la révocation ;
+   écarté `platform.radar.operate` (le `support`), parce que le compte délié est celui que « Publier
+   pour lui » a créé et que le brief demande un geste super-admin.
+2. **Prise en charge** : retenu « pas exigée », comme la révocation ; écarté « exigée » (règle du
+   démarchage) — le geste n'écrit aucun message, et n'attend pas qu'un autre opérateur libère la sienne.
+3. **Motif** : retenu facultatif (≤ 500 caractères), journalisé s'il est écrit ; écarté le motif
+   obligatoire de la révocation — moins restrictif, et l'historique garde qui et quand.
+4. **Portée** : retenu « compte supprimé seulement » ; écarté « supprimé ou bloqué, ou espace
+   suspendu » — un blocage est une décision du support que le geste ne doit pas défaire.
+5. **Annonceur révoqué** : retenu le refus (409 `radar.advertiser.do_not_contact`, code existant) ;
+   écarté « délier quand même, la réclamation refusant de toute façon » — la garantie se lit sur le
+   geste même.
+6. **La raison sur la page publique** : retenue une seule section « En attente de vérification »,
+   sans raison ; écarté un texte par raison (« ajoutez des photos ») — la page ne permet pas d'en
+   ajouter, et rien de l'état interne ne sort.
+7. **La file** : retenue une file étroite `left_to_operator` (motif posé par le job) ; écartée une
+   file « à publier » qui compterait aussi les accords par capture — ceux-là, l'opérateur vient de
+   les confirmer sur la fiche, où le bouton « Publier pour lui » l'attend.
