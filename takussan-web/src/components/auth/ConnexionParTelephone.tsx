@@ -15,6 +15,7 @@ import { useCurrentLocale } from '@/i18n/hooks';
 import { ApiError } from '@/lib/api';
 import {
   demanderCodeTelephone,
+  exigeConditions,
   exigeDoubleFacteur,
   verifierCodeTelephone,
 } from '@/lib/connexion-telephone';
@@ -28,6 +29,10 @@ import { formaterTelephone, numeroComposable } from '@/lib/phone';
  * ⚠ **Le texte ne dit jamais si un compte existe** : l'API répond pareil, l'écran aussi. « Si ce
  * numéro peut recevoir des SMS, un code vient d'y être envoyé » — et c'est la vérification du code
  * qui ouvre la session, ou crée le compte (`is_new_account`).
+ *
+ * TCK-2404 — le compte que le Radar a ouvert pour ce numéro se voit présenter les conditions
+ * (`requires_terms`, article 6.3 des CGU) avant d'entrer, et avant le second facteur : leur version
+ * acceptée accompagne ensuite le même code SMS.
  */
 interface ConnexionParTelephoneProps {
   readonly variante: 'login' | 'register';
@@ -37,7 +42,7 @@ interface ConnexionParTelephoneProps {
   readonly onEmail: () => void;
 }
 
-type Etape = 'numero' | 'code' | 'double-facteur';
+type Etape = 'numero' | 'code' | 'conditions' | 'double-facteur';
 
 const CLASSE_LIEN_SECONDAIRE =
   'min-h-11 rounded-lg px-2 text-sm font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring disabled:text-muted-foreground disabled:no-underline';
@@ -57,6 +62,10 @@ export function ConnexionParTelephone({ variante, onConnecte, onEmail }: Connexi
   const [apercu, setApercu] = useState<string | null>(null);
   const [envoi, setEnvoi] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
+  // TCK-2404 — la version que l'API présente, la case, et la version acceptée qui suit le code.
+  const [versionPresentee, setVersionPresentee] = useState<string | null>(null);
+  const [caseConditions, setCaseConditions] = useState(false);
+  const [versionAcceptee, setVersionAcceptee] = useState<string | null>(null);
 
   // Compte à rebours du renvoi : `retry_after` est la seule source, jamais une durée supposée.
   useEffect(() => {
@@ -106,7 +115,7 @@ export function ConnexionParTelephone({ variante, onConnecte, onEmail }: Connexi
     }
   }
 
-  async function verifier(avecSecondFacteur: boolean): Promise<void> {
+  async function verifier(avecSecondFacteur: boolean, conditions: string | null = versionAcceptee): Promise<void> {
     setEnvoi(true);
     setErreur(null);
     try {
@@ -114,6 +123,7 @@ export function ConnexionParTelephone({ variante, onConnecte, onEmail }: Connexi
         {
           phone: telephone,
           code,
+          ...(conditions ? { terms_version: conditions } : {}),
           ...(avecSecondFacteur
             ? codeDeSecours
               ? { recovery_code: secondFacteur }
@@ -122,6 +132,13 @@ export function ConnexionParTelephone({ variante, onConnecte, onEmail }: Connexi
         },
         locale,
       );
+      if (exigeConditions(reponse)) {
+        setVersionPresentee(reponse.terms_version);
+        setVersionAcceptee(null);
+        setCaseConditions(false);
+        setEtape('conditions');
+        return;
+      }
       if (exigeDoubleFacteur(reponse)) {
         if (avecSecondFacteur) setErreur(t2fa('invalidCode'));
         setEtape('double-facteur');
@@ -142,16 +159,18 @@ export function ConnexionParTelephone({ variante, onConnecte, onEmail }: Connexi
   return (
     <div>
       <h1 className="font-headline text-3xl md:text-4xl font-bold tracking-tight text-balance mb-2">
-        {etape === 'double-facteur' ? t2fa('title') : titre}
+        {etape === 'double-facteur' ? t2fa('title') : etape === 'conditions' ? t('termsTitle') : titre}
       </h1>
       <p className="text-muted-foreground text-sm leading-relaxed text-pretty mb-8">
-        {etape === 'double-facteur'
-          ? codeDeSecours
-            ? t2fa('recoveryIntro')
-            : t2fa('appIntro')
-          : etape === 'code'
-            ? t('codeSentTo', { phone: formaterTelephone(telephone) })
-            : sousTitre}
+        {etape === 'conditions'
+          ? t('termsIntro')
+          : etape === 'double-facteur'
+            ? codeDeSecours
+              ? t2fa('recoveryIntro')
+              : t2fa('appIntro')
+            : etape === 'code'
+              ? t('codeSentTo', { phone: formaterTelephone(telephone) })
+              : sousTitre}
       </p>
 
       {erreur ? <FormGlobalError>{erreur}</FormGlobalError> : null}
@@ -269,11 +288,62 @@ export function ConnexionParTelephone({ variante, onConnecte, onEmail }: Connexi
                 setEtape('numero');
                 setCode('');
                 setErreur(null);
+                setVersionAcceptee(null);
               }}
             >
               {t('changeNumber')}
             </button>
           </div>
+        </form>
+      ) : null}
+
+      {etape === 'conditions' ? (
+        <form
+          className="space-y-5"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!caseConditions || !versionPresentee) return;
+            setVersionAcceptee(versionPresentee);
+            void verifier(false, versionPresentee);
+          }}
+        >
+          <label className="flex cursor-pointer items-start gap-3 text-sm text-foreground">
+            <input
+              type="checkbox"
+              checked={caseConditions}
+              disabled={envoi}
+              onChange={(e) => setCaseConditions(e.target.checked)}
+              className="mt-0.5 size-5 shrink-0 cursor-pointer rounded border-input accent-primary"
+            />
+            <span className="text-pretty">
+              {t.rich('termsAccept', {
+                terms: (chunks) => (
+                  <LienLocalise
+                    href={ROUTES_LEGALES.terms}
+                    target="_blank"
+                    rel="noopener"
+                    className="font-medium text-primary underline-offset-4 hover:underline"
+                  >
+                    {chunks}
+                  </LienLocalise>
+                ),
+              })}
+            </span>
+          </label>
+          <Button
+            type="submit"
+            disabled={envoi || !caseConditions}
+            className="w-full rounded-full h-11 text-base font-semibold"
+          >
+            {envoi ? (
+              <>
+                <Loader2 className="size-4 animate-spin" />
+                {t('verifying')}
+              </>
+            ) : (
+              t('termsContinue')
+            )}
+          </Button>
         </form>
       ) : null}
 
