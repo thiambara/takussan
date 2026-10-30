@@ -6,6 +6,7 @@ use App\Models\Enums\PlatformProfileLevel;
 use App\Models\Enums\RadarListingStage;
 use App\Models\RadarAdvertiser;
 use App\Models\RadarListing;
+use App\Services\Radar\AdvertiserRevocation;
 use App\Services\Radar\RadarAdvertiserDirectory;
 use App\Services\Radar\RadarMatcher;
 use App\Support\RadarPhone;
@@ -136,5 +137,51 @@ class RadarPhoneKeyTest extends TestCase
         $ids = array_map(fn (array $m) => $m['kind'].':'.$m['id'], app(RadarMatcher::class)->matchesFor($listing->fresh()));
 
         $this->assertContains('listing:'.$autre->id, $ids);
+    }
+
+    public function test_un_refus_gagne_sur_une_ligne_non_refusee_sous_une_autre_ancienne_cle(): void
+    {
+        // Banc B4 de la vérification : deux lignes pour un même numéro, sous deux anciennes clés (erreur d'exploitation).
+        $nonRefus = RadarAdvertiser::factory()->create(['phone' => null, 'phone_hmac' => RadarPhone::hmac(self::NUMERO)]);
+        config(['radar.phone_hmac_key' => 'cle-une']);
+        $refus = $this->refus();
+        config(['radar.phone_hmac_key' => 'cle-deux', 'radar.phone_hmac_previous_keys' => ['cle-une']]);
+
+        $retrouve = $this->directory()->findOrCreate(self::NUMERO);
+
+        $this->assertSame($refus->id, $retrouve->id);
+        $this->assertNull($retrouve->fresh()->phone, 'le numéro ne revient jamais chez celui qui a refusé');
+        $this->assertNull($nonRefus->fresh()->phone, 'la ligne non refusée ne récupère pas le numéro');
+        $this->assertSame($refus->id, $this->directory()->refusedAmong([self::NUMERO])?->id);
+    }
+
+    public function test_un_refus_sous_une_ancienne_cle_gagne_sur_une_ligne_vivante_sous_la_cle_courante(): void
+    {
+        // Banc B3 : l'ancienne clé oubliée pendant une rotation a laissé naître B sous la clé courante, puis a été relistée.
+        config(['radar.phone_hmac_key' => 'cle-une']);
+        $refus = $this->refus();
+        config(['radar.phone_hmac_key' => 'cle-deux']);
+        $vivant = $this->directory()->findOrCreate(self::NUMERO);
+        $this->assertNotSame($refus->id, $vivant->id);
+        config(['radar.phone_hmac_previous_keys' => ['cle-une']]);
+
+        $this->assertSame($refus->id, $this->directory()->findOrCreate(self::NUMERO)->id);
+        // L'empreinte courante est déjà prise par la ligne vivante : celle du refus n'est pas réécrite (unicité).
+        $this->assertSame(RadarPhone::hmac(self::NUMERO), $vivant->fresh()->phone_hmac);
+        $this->assertNotSame(RadarPhone::hmac(self::NUMERO), $refus->fresh()->phone_hmac);
+    }
+
+    public function test_la_revocation_ne_reecrit_pas_une_empreinte_deja_prise_par_une_autre_ligne(): void
+    {
+        $enClair = RadarAdvertiser::factory()->create(['phone' => self::NUMERO]);
+        config(['radar.phone_hmac_key' => 'cle-dediee-radar']);
+        $purgee = RadarAdvertiser::factory()->create(['phone' => null, 'phone_hmac' => RadarPhone::hmac(self::NUMERO)]);
+        $avant = $enClair->phone_hmac;
+
+        app(AdvertiserRevocation::class)->apply($enClair, collect());
+
+        $this->assertNotNull($enClair->fresh()->do_not_contact_at);
+        $this->assertSame($avant, $enClair->fresh()->phone_hmac);
+        $this->assertSame(RadarPhone::hmac(self::NUMERO), $purgee->fresh()->phone_hmac);
     }
 }

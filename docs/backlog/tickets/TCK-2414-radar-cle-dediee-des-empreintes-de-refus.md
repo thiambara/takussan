@@ -73,16 +73,22 @@ un annonceur neuf, sans refus, et le Radar redémarche quelqu'un qui a dit STOP.
 1. **Préproduction** — onglet Environment du Compose `takussan-api-preview` : poser
    `RADAR_PHONE_HMAC_KEY` (`openssl rand -base64 48`), laisser `RADAR_PHONE_HMAC_PREVIOUS_KEYS` vide, redéployer,
    puis `php artisan radar:rehash-phones` dans le conteneur `api`. La sonde `radar_phone_key` de la page Santé
-   repasse `ok`. Les refus déjà écrits sous le repli restent reconnus tant qu'`APP_KEY` ne tourne pas (ou reste dans
-   `APP_PREVIOUS_KEYS`) ; pour les garder au-delà, ajouter `radar-phone|<valeur d'APP_KEY>` à
-   `RADAR_PHONE_HMAC_PREVIOUS_KEYS` — inutile si les refus de la préproduction sont des données d'essai.
+   repasse `ok`. Les refus déjà écrits sous le repli restent reconnus tant que l'`APP_KEY` qui les a écrits est la
+   courante ou figure dans `APP_PREVIOUS_KEYS` — ce qu'ADR-0044 exige déjà à toute rotation. **Ne pas recopier
+   `APP_KEY` dans `RADAR_PHONE_HMAC_PREVIOUS_KEYS`** : ce serait un second exemplaire du même secret. Une valeur dédiée
+   ne peut pas le remplacer pour ces refus : leur empreinte ne se recalcule pas sans le numéro, seule la clé qui l'a
+   écrite la retrouve.
 2. **Production** (phase F, TCK-517) — poser `RADAR_PHONE_HMAC_KEY` **avant le premier démarchage**, avec une valeur
    distincte de celle de la préproduction. Aucun refus n'existe encore : aucune ancienne clé à garder.
 3. **Garder la valeur** avec les autres secrets (`~/Sauvegardes/migration-secrets.env`) : perdue, elle rend les refus
    méconnaissables comme une rotation.
 4. **Rotation** (fuite seulement) : l'ancienne valeur passe dans `RADAR_PHONE_HMAC_PREVIOUS_KEYS` (virgules), la neuve
-   dans `RADAR_PHONE_HMAC_KEY`, puis `php artisan radar:rehash-phones`. Une ancienne clé ne se retire **jamais** tant que
-   la commande compte des `refusals_without_number`.
+   dans `RADAR_PHONE_HMAC_KEY`, puis `php artisan radar:rehash-phones`. **Une ancienne clé ne se retire jamais** : un refus
+   est définitif et ne dit pas sous quelle clé il a été écrit, donc `refusals_without_number` ne redescend pas à 0. Le
+   seul cas où une clé pourrait partir — la commande rend `refusals_without_number=0` et `without_number=0` — n'arrive
+   pas sur un parc qui a connu un refus.
+5. Le runbook est dans `docs/infra/hebergement.md` (« À poser par le porteur — TCK-2414 ») ; la production a sa case dans
+   TCK-517.
 
 ## Notes d'implémentation
 
@@ -125,4 +131,11 @@ Un annonceur retrouvé sous une ancienne clé est réécrit sous la courante —
   ancienne clé. Une empreinte déjà prise par une autre ligne est comptée en conflit, jamais écrasée.
 - **Empreintes hors Radar renvoyées à TCK-2430** (retenu) plutôt que traitées ici (écarté : hors du périmètre du brief,
   et chacune demande sa propre décision).
+- **Un refus gagne toujours** (retenu, vérification adverse M2) plutôt que la clé courante d'abord (écarté) : quand deux
+  lignes répondent pour un même numéro (ancienne clé oubliée puis relistée), `findOrCreate()` rend la ligne refusée ; une
+  empreinte n'est jamais réécrite sur une valeur déjà prise (lecture, révocation, commande), et la commande compte en
+  conflit une ligne qui masque un refus (M1).
+- **ADR-0082** (retenu) plutôt que le seul ticket (écarté) : ADR-0044 exige un ADR pour toute empreinte HMAC sous une clé
+  distincte d'`APP_KEY`, et la règle « jamais perdue, jamais retirée » est du rang des secrets. L'ADR est « Proposé » :
+  décision de la session, à revoir par le porteur.
 

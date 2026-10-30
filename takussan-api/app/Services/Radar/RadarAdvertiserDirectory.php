@@ -26,7 +26,7 @@ final class RadarAdvertiserDirectory
     public function findOrCreate(string $e164): RadarAdvertiser
     {
         $hmac = RadarPhone::hmac($e164);
-        $existing = RadarAdvertiser::query()->where('phone_hmac', $hmac)->first() ?? $this->underPreviousKey($e164);
+        $existing = $this->existing($e164, $hmac);
         if ($existing !== null) {
             return $this->restorePhone($existing, $e164);
         }
@@ -81,14 +81,27 @@ final class RadarAdvertiserDirectory
     }
 
     /**
-     * TCK-2414 — l'annonceur de ce numéro sous une ANCIENNE clé ({@see RadarPhone::hmacs()}) : un refus purgé écrit avant la
-     * pose ou la rotation de la clé. Retrouvé, son empreinte passe sous la clé courante — le numéro est là pour la calculer.
+     * TCK-2414 — l'annonceur déjà connu de ce numéro. Sous la seule clé courante, l'unicité de `phone_hmac` n'en laisse qu'un.
+     * Avec d'anciennes clés ({@see RadarPhone::hmacs()}), plusieurs lignes peuvent répondre (une ancienne clé oubliée pendant
+     * une rotation, puis relistée) : **un refus gagne toujours**, puis la clé courante, puis la plus ancienne ligne. Retrouvée
+     * sous une ancienne clé, la ligne passe sous la courante — le numéro est là pour la calculer —, sauf si une autre ligne la
+     * porte déjà (unicité : `radar:rehash-phones` le compte en conflit).
      */
-    private function underPreviousKey(string $e164): ?RadarAdvertiser
+    private function existing(string $e164, string $hmac): ?RadarAdvertiser
     {
-        $previous = array_slice(RadarPhone::hmacs($e164), 1);
-        $advertiser = $previous === [] ? null : RadarAdvertiser::query()->whereIn('phone_hmac', $previous)->orderBy('id')->first();
-        $advertiser?->forceFill(['phone_hmac' => RadarPhone::hmac($e164)])->save();
+        $hmacs = RadarPhone::hmacs($e164);
+        if (count($hmacs) === 1) {
+            return RadarAdvertiser::query()->where('phone_hmac', $hmac)->first();
+        }
+
+        $advertiser = RadarAdvertiser::query()->whereIn('phone_hmac', $hmacs)
+            ->orderByRaw('do_not_contact_at is null')
+            ->orderByRaw('phone_hmac = ? desc', [$hmac])
+            ->orderBy('id')
+            ->first();
+        if ($advertiser !== null && $advertiser->phone_hmac !== $hmac && ! RadarAdvertiser::query()->where('phone_hmac', $hmac)->exists()) {
+            $advertiser->forceFill(['phone_hmac' => $hmac])->save();
+        }
 
         return $advertiser;
     }

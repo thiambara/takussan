@@ -16,8 +16,8 @@ use Illuminate\Console\Command;
  * `RadarAdvertiserDirectory::findOrCreate()` réécrit une empreinte retrouvée sous une ancienne clé. Elle sert à ne laisser
  * aux anciennes clés que les empreintes qui en dépendent vraiment, et à le dire.
  *
- * Idempotente. Une empreinte déjà prise par une autre ligne (le même numéro, écrit deux fois sous deux clés avant
- * TCK-2414) n'est pas réécrite : elle est comptée en conflit, à fusionner à la main.
+ * Idempotente. Sont comptés en conflit, jamais réécrits, à fusionner à la main : une empreinte déjà prise par une autre
+ * ligne, et une ligne sans refus qui masque le refus d'une autre ligne du même numéro sous une autre clé.
  */
 class RadarRehashPhones extends Command
 {
@@ -32,11 +32,13 @@ class RadarRehashPhones extends Command
         }
 
         $counts = ['rewritten' => 0, 'current' => 0, 'conflicts' => 0];
-        RadarAdvertiser::query()->whereNotNull('phone')->select(['id', 'phone', 'phone_hmac'])
+        RadarAdvertiser::query()->whereNotNull('phone')->select(['id', 'phone', 'phone_hmac', 'do_not_contact_at'])
             ->chunkById(500, function ($advertisers) use (&$counts): void {
                 foreach ($advertisers as $advertiser) {
                     $hmac = RadarPhone::hmac((string) $advertiser->phone);
-                    if ($advertiser->phone_hmac === $hmac) {
+                    if ($this->shadowsRefusal($advertiser)) {
+                        $counts['conflicts']++;
+                    } elseif ($advertiser->phone_hmac === $hmac) {
                         $counts['current']++;
                     } elseif (RadarAdvertiser::query()->where('phone_hmac', $hmac)->whereKeyNot($advertiser->id)->exists()) {
                         $counts['conflicts']++;
@@ -55,9 +57,22 @@ class RadarRehashPhones extends Command
         $this->info('radar:rehash-phones'.($this->option('dry-run') ? ' (à blanc)' : '').' — '
             .collect($counts)->map(fn (int $n, string $name) => "{$name}={$n}")->implode(' ').'.');
         if ($counts['without_number'] > 0) {
-            $this->warn("{$counts['without_number']} empreinte(s) sans numéro ne se recalculent pas : garder chaque ancienne clé dans RADAR_PHONE_HMAC_PREVIOUS_KEYS (ou APP_PREVIOUS_KEYS pour le repli sur APP_KEY).");
+            $this->warn("{$counts['without_number']} empreinte(s) sans numéro ne se recalculent pas : une ancienne clé ne se retire jamais de RADAR_PHONE_HMAC_PREVIOUS_KEYS (ni d'APP_PREVIOUS_KEYS pour le repli sur APP_KEY).");
         }
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Une AUTRE ligne, refusée, porte une empreinte de ce numéro sous une autre clé : une ancienne clé oubliée pendant une
+     * rotation a laissé naître cette ligne sans refus. Les lectures font gagner le refus ; la fusion se fait à la main.
+     */
+    private function shadowsRefusal(RadarAdvertiser $advertiser): bool
+    {
+        return $advertiser->do_not_contact_at === null && RadarAdvertiser::query()
+            ->whereIn('phone_hmac', RadarPhone::hmacs((string) $advertiser->phone))
+            ->whereKeyNot($advertiser->id)
+            ->whereNotNull('do_not_contact_at')
+            ->exists();
     }
 }

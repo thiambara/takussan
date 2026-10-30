@@ -19,7 +19,7 @@ return [
     'phone_hmac_key' => env('RADAR_PHONE_HMAC_KEY'),
 
     // TCK-2414 — les clés précédentes, séparées par des virgules : une lecture y reconnaît encore un
-    // refus. Une ancienne clé ne se retire JAMAIS tant qu'un refus purgé a été écrit sous elle.
+    // refus. Une ancienne clé ne se retire JAMAIS : un refus purgé ne dit pas sous quelle clé il a été écrit (ADR-0082).
     'phone_hmac_previous_keys' => array_values(array_filter(array_map('trim', explode(',', (string) env('RADAR_PHONE_HMAC_PREVIOUS_KEYS', ''))))),
 
     // ADR-0077 §9 — la purge : le texte brut, les captures et le téléphone d'une annonce jamais

@@ -100,7 +100,9 @@ final class AdvertiserRevocation
         // La première date reste : un STOP rejoué ou une révocation après un STOP ne la repousse pas.
         $advertiser->do_not_contact_at ??= now();
         // L'empreinte retrouve le numéro même purgé (relue contre `RadarPhone::hmac()` : réécrite seulement si la clé a changé).
-        if ($advertiser->phone !== null && $advertiser->phone_hmac !== RadarPhone::hmac($advertiser->phone)) {
+        // TCK-2414 : jamais sur une empreinte qu'une autre ligne porte déjà (unicité, transaction abandonnée).
+        if ($advertiser->phone !== null && $advertiser->phone_hmac !== RadarPhone::hmac($advertiser->phone)
+            && ! RadarAdvertiser::query()->where('phone_hmac', RadarPhone::hmac($advertiser->phone))->exists()) {
             $advertiser->phone_hmac = RadarPhone::hmac($advertiser->phone);
         }
         $advertiser->save();

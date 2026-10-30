@@ -78,4 +78,19 @@ class RadarRehashPhonesTest extends TestCase
             ->expectsOutputToContain('RADAR_PHONE_HMAC_KEY')
             ->assertSuccessful();
     }
+
+    public function test_un_refus_masque_par_une_ligne_vivante_sous_la_cle_courante_est_compte_en_conflit(): void
+    {
+        // Banc B3 : refus purgé sous l'ancienne clé, ligne vivante du même numéro née sous la courante pendant l'oubli.
+        RadarAdvertiser::factory()->doNotContact()->create(['phone_hmac' => RadarPhone::hmac('+221771234567')]);
+        config(['radar.phone_hmac_key' => 'cle-deux']);
+        $vivant = RadarAdvertiser::factory()->create(['phone' => '+221771234567']);
+        config(['radar.phone_hmac_previous_keys' => ['cle-une']]);
+
+        $this->artisan('radar:rehash-phones')
+            ->expectsOutputToContain('rewritten=0 current=0 conflicts=1')
+            ->assertSuccessful();
+
+        $this->assertNull($vivant->fresh()->do_not_contact_at, 'la commande compte, elle ne fusionne pas');
+    }
 }
