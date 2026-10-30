@@ -1,13 +1,13 @@
 ---
 id: TCK-2406
 title: "Radar : les copies de publication sans ligne media, et la matière collectée d'une annonce publiée puis révoquée"
-status: todo
+status: doing
 phase: P1
 family: back
 estimate: S
 wave: 80
 created: 2026-10-29
-updated: 2026-10-29
+updated: 2026-10-30
 depends_on: [TCK-2391]
 blocks: []
 spec_refs:
