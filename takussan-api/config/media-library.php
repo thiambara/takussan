@@ -1,6 +1,8 @@
 <?php
 
+use App\Models\Property;
 use App\Services\Media\Cdn\CdnUrlGenerator;
+use App\Services\Radar\RadarCopyPathGenerator;
 use Spatie\ImageOptimizer\Optimizers\Avifenc;
 use Spatie\ImageOptimizer\Optimizers\Cwebp;
 use Spatie\ImageOptimizer\Optimizers\Gifsicle;
@@ -137,6 +139,8 @@ return [
         // Model::class => PathGenerator::class
         // or
         // 'model_morph_alias' => PathGenerator::class
+        // TCK-2406 — les copies de « Publier pour lui » sous un préfixe à elles, que la purge du Radar balaie.
+        Property::class => RadarCopyPathGenerator::class,
     ],
 
     /*
