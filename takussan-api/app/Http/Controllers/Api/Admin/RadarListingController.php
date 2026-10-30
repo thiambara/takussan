@@ -52,6 +52,6 @@ class RadarListingController extends Controller
 
     public function show(RadarListing $listing): JsonResponse
     {
-        return $this->json(['data' => (new RadarListingResource($listing->load(['advertiser', 'media'])))->withNeighborhoodLink()]);
+        return $this->json(['data' => (new RadarListingResource($listing->load(['advertiser', 'media'])))->withNeighborhoodLink()->withProvenances()]);
     }
 }

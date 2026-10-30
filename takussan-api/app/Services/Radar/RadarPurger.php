@@ -11,6 +11,7 @@ use App\Models\Property;
 use App\Models\RadarAdvertiser;
 use App\Models\RadarConsent;
 use App\Models\RadarListing;
+use App\Models\RadarListingSnapshot;
 use App\Models\RadarOutreach;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
@@ -26,7 +27,8 @@ use Illuminate\Support\Facades\DB;
  *    Restent l'étape (`purged`), le site d'origine, les dates, l'empreinte du contenu (la recoller rend la fiche `purged`),
  *    celles des photos et les rapprochements. Les suggestions de l'IA qui portent sur elle perdent leurs champs
  *    (`proposal`, `input_snapshot`, `final_value`, `correction_diff`), pas leur ligne : le taux d'acceptation lit
- *    `usage_key`, `decision` et `decided_at`.
+ *    `usage_key`, `decision` et `decided_at`. Ses instantanés de collecte (TCK-2392, ADR-0080) sont supprimés, quelle que soit la
+ *    raison de la purge ; la fiche oublie le passage qui l'a trouvée (`discovered_by_run_id`).
  * 2. **Un message** dont toutes les annonces sont purgées perd sa salutation, son résumé et son texte ; **une réponse non
  *    confirmée**, ses captures, sa transcription et son verdict. Une réponse CONFIRMÉE est la preuve de l'accord : elle reste
  *    avec le message qu'elle prouve (3).
@@ -54,6 +56,7 @@ final class RadarPurger
     private const COUNTERS = [
         'listings', 'media', 'suggestions', 'outreaches', 'replies', 'proofs', 'advertisers_cleared', 'advertisers_deleted',
         'retention_started', 'retention_reset', 'orphan_dirs', 'orphan_copies', 'published_listings',
+        'snapshots_deleted',
     ];
 
     public function __construct(private readonly RadarOrphanFiles $orphans) {}
@@ -115,13 +118,19 @@ final class RadarPurger
 
     /**
      * Texte brut, adresse de la source, extraction, réserve et captures ; l'étape devient `purged`. Le lien au bien (`property_id`)
-     * reste : il n'est pas une donnée collectée.
+     * reste : il n'est pas une donnée collectée. Les instantanés de la collecte sont supprimés (TCK-2392).
      *
      * @param  array<string, int>  $counts
      */
     private function eraseListing(RadarListing $listing, array &$counts): void
     {
+        // TCK-2392 (ADR-0080 § 4) — les instantanés de la collecte sont SUPPRIMÉS, quelle que soit la raison de la purge :
+        // détaché, un instantané se rejoignait encore à sa fiche (rang des `id`, dates). Avant les fichiers, dernier geste ;
+        // la fiche oublie le passage qui l'a trouvée.
+        $counts['snapshots_deleted'] += RadarListingSnapshot::query()->where('radar_listing_id', $listing->id)->delete();
+
         $listing->forceFill([
+            'discovered_by_run_id' => null,
             'raw_text' => null,
             'source_url' => null,
             'photo_urls' => [],

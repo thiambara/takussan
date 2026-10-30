@@ -13,6 +13,7 @@ use App\Models\RadarAdvertiser;
 use App\Models\RadarOutreach;
 use App\Services\Radar\RadarConsentWorkflow;
 use App\Services\Radar\RadarOutreachWorkflow;
+use App\Services\Radar\Whatsapp\RadarWhatsappOutreach;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -40,6 +41,15 @@ class RadarOutreachController extends Controller
     public function sent(Request $request, RadarOutreach $outreach, RadarOutreachWorkflow $workflow): JsonResponse
     {
         return $this->card($request, $workflow->markSent($outreach, $request->user()));
+    }
+
+    /**
+     * TCK-2395 (ADR-0077 §5) — « Envoyer par l'API » : le gabarit Meta part du numéro dédié au Radar, et le message passe
+     * envoyé comme par « J'ai envoyé ». 502 `radar.whatsapp.send_failed` sur un refus franc de Meta : rien n'est écrit.
+     */
+    public function send(Request $request, RadarOutreach $outreach, RadarWhatsappOutreach $whatsapp): JsonResponse
+    {
+        return $this->card($request, $whatsapp->send($outreach, $request->user()));
     }
 
     /** 201 : la réponse déposée, `pending` ; la vérification par l'IA part en file après le commit. */

@@ -8627,6 +8627,7 @@
           "discardNoLongerAvailable": "Plus disponible",
           "discardUnusableSource": "Source inexploitable",
           "discardOther": "Autre motif",
+          "mergeAuto": "Fusionnée automatiquement : le même bien vu sur un autre site",
           "claimLeftNoPhoto": "Laissée par la publication automatique : aucune photo en réserve",
           "claimLeftMissingField": "Laissée par la publication automatique : un champ requis manque",
           "claimLeftPhotosPending": "Laissée par la publication automatique : les photos étaient encore en préparation",
@@ -8802,7 +8803,8 @@
             "duplicateChain": "Cette annonce est déjà un doublon, ou pointe déjà vers celle-ci : choisissez l’annonce d’origine.",
             "reviewIncompleteFields": "Champs à compléter : {fields}.",
             "gestureFailed": "Le geste a échoué.",
-            "newMatches": "De nouveaux rapprochements sont apparus : vérifiez-les, puis validez de nouveau."
+            "newMatches": "De nouveaux rapprochements sont apparus : vérifiez-les, puis validez de nouveau.",
+            "mergeNotAutomatic": "Cette annonce n’a pas été fusionnée automatiquement : seule une fusion automatique se sépare ici."
           },
           "matches": {
             "heading": "Rapprochements",
@@ -8821,7 +8823,9 @@
               "neighborhood_price_bedrooms": "même quartier, prix et chambres",
               "photo_high": "photo identique",
               "photo_medium": "photo proche",
-              "photo_low": "photo proche"
+              "photo_low": "photo proche",
+              "text_close": "texte presque identique",
+              "text_low": "texte ressemblant"
             },
             "kinds": {
               "property": "Bien du catalogue",
@@ -8885,6 +8889,21 @@
             "doNotContact": "Ce numéro a demandé l’arrêt des contacts : l’annonce est fermée (ne pas contacter), les gestes sont désactivés.",
             "makeAdvertiserFor": "En faire l’annonceur : {phone}",
             "openAdvertiser": "Ouvrir la fiche de l’annonceur"
+          },
+          "provenances": {
+            "heading": "Provenances",
+            "intro": "Le même bien vu sur plusieurs sites : la fiche fait foi, les autres en sont les doublons.",
+            "root": "Fiche",
+            "duplicate": "Doublon",
+            "automatic": "Fusion automatique",
+            "crawled": "Trouvée par la collecte",
+            "seen": "Vue du {first} au {last}",
+            "lastPrice": "Dernier prix relevé : {price}",
+            "current": "Cette annonce",
+            "open": "Ouvrir l’annonce #{id}",
+            "source": "Voir la source",
+            "unmerge": "Séparer",
+            "unmergeHint": "L’annonce revient à relire, sans lien ; elle ne sera pas fusionnée de nouveau."
           }
         },
         "advertiser": {
@@ -9024,11 +9043,17 @@
             "notSent": "Ce message n’a pas été envoyé : aucune réponse ni issue ne s’y enregistre.",
             "outcomeFinal": "Ce message est clos : ni réponse ni issue ne s’y ajoute plus.",
             "superseded": "Ce message a été relancé : la réponse se dépose sur la dernière relance.",
-            "replyPending": "Une réponse de ce message attend encore sa vérification : attendez son verdict.",
+            "replyPending": "Une réponse de ce message attend encore sa vérification ou son issue : attendez son verdict, ou posez son issue.",
             "generationIncomplete": "L’IA n’a pas rédigé la salutation et le résumé : écrivez-les vous-même.",
             "replyRequired": "Aucune réponse n’est déposée sur ce message : déposez les captures de l’annonceur avant de confirmer l’accord.",
             "reasonRequired": "Le verdict de l’IA ne va pas dans le sens d’un accord : écrivez le motif de la confirmation.",
             "listingStageConflict": "Une des annonces de ce message a changé d’étape : la fiche a changé entre-temps, elle est relue.",
+            "whatsappNotConfigured": "Le numéro WhatsApp du Radar n’est pas configuré : envoyez ce message par WhatsApp, à la main.",
+            "whatsappSameNumber": "Le numéro ou le jeton configuré pour le Radar est celui des notifications : rien n’est envoyé.",
+            "whatsappTemplateMissing": "Aucun modèle Meta approuvé pour cette version des clauses ou cette langue : envoyez ce message à la main.",
+            "whatsappMessageMismatch": "Le modèle Meta ne redonnerait pas exactement le texte enregistré : préparez un nouveau message.",
+            "whatsappSummaryTooLong": "Le résumé est trop long pour un envoi par l’API : raccourcissez-le.",
+            "whatsappSendFailed": "Meta a refusé l’envoi : rien n’est enregistré, le message reste préparé.",
             "accountNotDeleted": "Le compte de cet annonceur n’est pas supprimé : seul un compte supprimé se délie."
           },
           "reply": {
@@ -9054,7 +9079,8 @@
               "noCapture": "aucune capture lisible",
               "noNumber": "l’annonceur n’a pas de numéro à comparer",
               "unexpected": "erreur imprévue",
-              "purged": "la réponse a été effacée (STOP ou retrait de l’annonceur)"
+              "purged": "la réponse a été effacée (STOP ou retrait de l’annonceur)",
+              "noText": "réponse sans texte (vocal, image)"
             },
             "verdict": {
               "heading": "Verdict de l’IA",
@@ -9354,6 +9380,74 @@
             "keyReused": "La sélection a changé depuis un premier envoi : relancez la publication.",
             "inProgress": "Une publication est déjà en cours pour cet annonceur : réessayez dans un instant."
           }
+        },
+        "crawlLink": "Collecte",
+        "crawl": {
+          "metaTitle": "Collecte — Radar",
+          "title": "Collecte automatique",
+          "subtitle": "Les sites lus d’office, et chacun de leurs passages.",
+          "back": "Retour au Radar",
+          "offNote": "La collecte est éteinte par défaut : aucun site n’est lu tant que le super-administrateur ne l’allume pas. Allumer un site vous en fait l’opérateur : les annonces trouvées sont extraites en votre nom, sur le budget d’IA.",
+          "readOnly": "Seul le super-administrateur allume un site, règle sa fréquence ou lance un passage.",
+          "sourcesHeading": "Sites",
+          "runsHeading": "Derniers passages",
+          "enabled": "Allumé",
+          "disabled": "Éteint",
+          "enable": "Allumer",
+          "disable": "Éteindre",
+          "operator": "Au nom de {name}",
+          "noOperator": "Aucun opérateur",
+          "frequency": "Fréquence (minutes)",
+          "frequencyHint": "Entre {min} et {max} minutes.",
+          "maxPages": "Pages au plus",
+          "maxPagesHint": "De 1 à {max} pages de la liste par passage.",
+          "save": "Enregistrer",
+          "saved": "Réglage enregistré.",
+          "runNow": "Lancer un passage",
+          "runQueued": "Passage mis en file.",
+          "loadError": "La collecte n’a pas pu être lue.",
+          "emptyRuns": "Aucun passage pour l’instant.",
+          "reachedEnd": "fin de liste atteinte",
+          "columns": {
+            "site": "Site",
+            "started": "Début",
+            "status": "État",
+            "pages": "Pages",
+            "cards": "Cartes",
+            "created": "Nouvelles",
+            "known": "Connues",
+            "snapshots": "Instantanés",
+            "stop": "Arrêt"
+          },
+          "tableCaption": "Les derniers passages de collecte, du plus récent au plus ancien.",
+          "status": {
+            "queued": "En file",
+            "running": "En cours",
+            "finished": "Terminé",
+            "failed": "Échoué"
+          },
+          "triggers": {
+            "schedule": "Planifié",
+            "manual": "Manuel"
+          },
+          "stops": {
+            "end": "Fin de la liste",
+            "maxPages": "Plafond de pages atteint",
+            "noCards": "Page sans annonce",
+            "domainBusy": "Site occupé : lecture remise",
+            "timeBudget": "Durée maximale atteinte",
+            "noOperator": "Aucun opérateur",
+            "error": "Erreur du passage",
+            "lost": "Passage perdu (file arrêtée)",
+            "loop": "La pagination renvoie vers une page déjà lue"
+          },
+          "errors": {
+            "active": "Un passage est déjà en cours sur ce site : attendez sa fin.",
+            "unknownSite": "Ce site n’est pas collecté.",
+            "generic": "Le réglage a échoué."
+          },
+          "summary": "Tous les {frequency} min · {pages} pages au plus",
+          "enabledWithoutOperator": "Allumée sans opérateur : aucun passage ne part. Éteignez-la puis rallumez-la pour en devenir l'opérateur."
         }
       }
     },

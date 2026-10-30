@@ -50,7 +50,8 @@ const REPORT = process.argv.includes('--report');
  * Fichiers de configuration qui portent une garde de webhook ENTRANT. Décision de
  * périmètre — la seule chose écrite à la main dans cette garde.
  */
-const CONFIGS_A_GARDE = ['config/sms.php', 'config/whatsapp.php'];
+// TCK-2395 : le webhook du numéro WhatsApp du Radar, distinct de celui des notifications.
+const CONFIGS_A_GARDE = ['config/sms.php', 'config/whatsapp.php', 'config/radar_whatsapp.php'];
 
 /**
  * Environnements SUIVIS PAR GIT — les seuls que ce dépôt peut garantir.

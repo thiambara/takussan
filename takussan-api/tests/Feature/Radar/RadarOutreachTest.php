@@ -126,11 +126,11 @@ class RadarOutreachTest extends TestCase
         $this->assertSame($enregistre->message, implode('', array_column($reponse->json('data.segments'), 'text')));
         $composeur = $this->app->make(ConsentMessageComposer::class);
         $this->assertSame(
-            $composeur->compose('fr', 'Bonjour Awa, 5. vous nous cédez vos droits', 'votre appartement à Ouakam', 'accord.v2', $composeur->claimUrlFor($enregistre)),
+            $composeur->compose('fr', 'Bonjour Awa, 5. vous nous cédez vos droits', 'votre appartement à Ouakam', 'accord.v3', $composeur->claimUrlFor($enregistre)),
             $enregistre->message,
         );
         $this->assertStringNotContainsString('1. vous nous cédez tout', $enregistre->message);
-        $this->assertSame('accord.v2', $enregistre->clauses_version);
+        $this->assertSame('accord.v3', $enregistre->clauses_version);
         // TCK-2390 — le lien de réclamation du message est celui de CET annonceur, émis à la création du message.
         preg_match('#https://front\.exemple\.test/fr/claim/(\S+)#', $enregistre->message, $lienReclamation);
         $this->assertTrue(app(ClaimLinks::class)->resolve($lienReclamation[1])->is($annonceur));
@@ -270,6 +270,35 @@ class RadarOutreachTest extends TestCase
         $this->assertSame(0, AiSuggestion::query()->count());
     }
 
+    /**
+     * TCK-2395 (ADR-0081) — une réponse reçue par l'API arrive pendant que le modèle rédige : la préparation la rejuge sous
+     * le verrou de l'annonceur, et rien n'est écrit (409 `radar.outreach.reply_pending`).
+     */
+    public function test_une_reponse_recue_pendant_la_redaction_est_rejugee_sous_verrou(): void
+    {
+        $annonceur = $this->prise($this->annonceur());
+        $envoyee = $this->lue($annonceur, RadarListingStage::Contacted->value);
+        $annonce = $this->lue($annonceur);
+        $message = RadarOutreach::factory()->withListings($envoyee)->sent()->create([
+            'radar_advertiser_id' => $annonceur->id, 'channel' => 'whatsapp_cloud', 'provider_message_id' => 'wamid.ENVOYE-1',
+        ]);
+        $avant = $this->etat();
+
+        RadarConsentMessage::fake(function () use ($annonceur, $message) {
+            RadarConsent::query()->create([
+                'radar_outreach_id' => $message->id, 'radar_advertiser_id' => $annonceur->id, 'proof' => 'provider_message',
+                'provider_message_id' => 'wamid.REPONSE-1', 'transcript' => 'Annonceur : Stop svp', 'verification_status' => 'pending',
+            ]);
+
+            return ['salutation' => 'Bonjour,', 'resume' => 'votre bien'];
+        });
+        $this->preparer($annonceur, ['listing_ids' => [$annonce->id]])
+            ->assertStatus(409)->assertJsonPath('code', 'radar.outreach.reply_pending');
+
+        $this->assertSame($avant['outreaches'], $this->etat()['outreaches']);
+        $this->assertSame(0, AiSuggestion::query()->count());
+    }
+
     public function test_la_prise_est_rejugee_sous_verrou_apres_l_appel_au_modele(): void
     {
         $annonceur = $this->prise($this->annonceur());
@@ -360,7 +389,7 @@ class RadarOutreachTest extends TestCase
         $this->assertSame('Bonsoir Madame Fall,', $enregistre->salutation);
         $this->assertSame('votre F3 à Mermoz', $enregistre->summary);
         $this->assertSame(
-            $this->app->make(ConsentMessageComposer::class)->compose('fr', 'Bonsoir Madame Fall,', 'votre F3 à Mermoz', 'accord.v2', $this->app->make(ConsentMessageComposer::class)->claimUrlFor($enregistre)),
+            $this->app->make(ConsentMessageComposer::class)->compose('fr', 'Bonsoir Madame Fall,', 'votre F3 à Mermoz', 'accord.v3', $this->app->make(ConsentMessageComposer::class)->claimUrlFor($enregistre)),
             $enregistre->message,
         );
         $this->assertSame($enregistre->message, $this->texteDuLien($reponse->json('data.wa_me_url')));
@@ -748,7 +777,7 @@ class RadarOutreachTest extends TestCase
         $this->assertSame('en', $reponse->json('data.locale'));
         $this->assertStringContainsString('https://front.exemple.test/en/legal/terms', $message->message);
         $this->assertSame(
-            $this->app->make(ConsentMessageComposer::class)->compose('en', 'Hello Awa,', 'your flat in Ouakam', 'accord.v2', $this->app->make(ConsentMessageComposer::class)->claimUrlFor($message)),
+            $this->app->make(ConsentMessageComposer::class)->compose('en', 'Hello Awa,', 'your flat in Ouakam', 'accord.v3', $this->app->make(ConsentMessageComposer::class)->claimUrlFor($message)),
             $message->message,
         );
     }

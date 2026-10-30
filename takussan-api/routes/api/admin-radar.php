@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\Admin\RadarAdvertiserAccountController;
 use App\Http\Controllers\Api\Admin\RadarAdvertiserController;
+use App\Http\Controllers\Api\Admin\RadarCrawlController;
 use App\Http\Controllers\Api\Admin\RadarDashboardController;
 use App\Http\Controllers\Api\Admin\RadarListingController;
 use App\Http\Controllers\Api\Admin\RadarListingMatchController;
@@ -53,6 +54,8 @@ Route::middleware(['auth:sanctum', 'super-admin', 'platform-can:'.PlatformAbilit
         Route::post('outreaches/{outreach}/reply', [RadarOutreachController::class, 'reply'])->name('admin.radar.outreaches.reply');
         // L'issue : le seul geste qui confirme une réponse (accord), ou qui clôt l'échange (refus, STOP).
         Route::post('outreaches/{outreach}/outcome', [RadarOutreachController::class, 'outcome'])->name('admin.radar.outreaches.outcome');
+        // TCK-2395 (ADR-0077 §5) — envoyer le message préparé par l'API, depuis le numéro WhatsApp dédié au Radar.
+        Route::post('outreaches/{outreach}/send', [RadarOutreachController::class, 'send'])->name('admin.radar.outreaches.send');
     });
 
 /*
@@ -75,6 +78,25 @@ Route::middleware(['auth:sanctum', 'super-admin', 'platform-can:'.PlatformAbilit
     ->prefix('admin/radar')
     ->group(function () {
         Route::post('advertisers/{advertiser}/revoke', [RadarRevocationController::class, 'revoke'])->name('admin.radar.advertisers.revoke');
+    });
+
+/*
+| TCK-2392 (ADR-0077 §10) — la collecte automatique. Lire les sites et leurs passages, séparer une fusion automatique :
+| `platform.radar.operate`. Allumer un site, régler sa fréquence, lancer un passage : `platform.radar.publish`, `super_admin`
+| seul — c'est engager le budget d'IA et la lecture d'un site tiers, un geste du porteur.
+*/
+Route::middleware(['auth:sanctum', 'super-admin', 'platform-can:'.PlatformAbility::RadarOperate->value])
+    ->prefix('admin/radar')
+    ->group(function () {
+        Route::get('crawl/sources', [RadarCrawlController::class, 'sources'])->name('admin.radar.crawl.sources.index');
+        Route::get('crawl/runs', [RadarCrawlController::class, 'runs'])->name('admin.radar.crawl.runs.index');
+        Route::post('listings/{listing}/unmerge', [RadarListingReviewController::class, 'unmerge'])->name('admin.radar.listings.unmerge');
+    });
+Route::middleware(['auth:sanctum', 'super-admin', 'platform-can:'.PlatformAbility::RadarPublish->value])
+    ->prefix('admin/radar')
+    ->group(function () {
+        Route::patch('crawl/sources/{site}', [RadarCrawlController::class, 'update'])->name('admin.radar.crawl.sources.update');
+        Route::post('crawl/sources/{site}/run', [RadarCrawlController::class, 'run'])->name('admin.radar.crawl.sources.run');
     });
 
 /*

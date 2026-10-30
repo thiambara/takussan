@@ -68,6 +68,8 @@ export const MOTIFS_RADAR: Record<string, string> = {
   'radar.discard.no_longer_available': 'discardNoLongerAvailable',
   'radar.discard.unusable_source': 'discardUnusableSource',
   'radar.discard.other': 'discardOther',
+  // Fusion automatique (TCK-2392) : `stage_reason` d'un doublon que la collecte a fusionné d'office.
+  'radar.merge.auto': 'mergeAuto',
   // Annonce réclamée que la publication automatique laisse à l'opérateur (TCK-2413, `PublishClaimedRadarListings`) : la
   // raison, ou le code du refus de la publication (`RadarPublisher::publishClaimed()`). Un code qu'aucune ligne ne nomme
   // s'affiche par le repli `claimLeftRefused` ({@link MOTIF_LAISSEE_REPLI}), jamais brut.
@@ -141,6 +143,8 @@ export const ERREURS_FICHE_RADAR: Record<string, string> = {
   'radar.duplicate.chain': 'duplicateChain',
   'radar.advertiser.phone_invalid': 'advertiserPhoneInvalid',
   'radar.advertiser.phone_unknown': 'advertiserPhoneUnknown',
+  // TCK-2392 — « Séparer » sur un doublon posé à la main.
+  'radar.merge.not_automatic': 'mergeNotAutomatic',
 };
 
 /**
@@ -171,6 +175,13 @@ export const ERREURS_ANNONCEUR_RADAR: Record<string, string> = {
   'radar.outreach.outcome_final': 'outcomeFinal',
   'radar.outreach.superseded': 'superseded',
   'radar.outreach.reply_pending': 'replyPending',
+  // L'envoi par l'API du numéro du Radar (TCK-2395) : le bouton viendra avec TCK-2426.
+  'radar.whatsapp.not_configured': 'whatsappNotConfigured',
+  'radar.whatsapp.same_number': 'whatsappSameNumber',
+  'radar.whatsapp.template_missing': 'whatsappTemplateMissing',
+  'radar.whatsapp.message_mismatch': 'whatsappMessageMismatch',
+  'radar.whatsapp.summary_too_long': 'whatsappSummaryTooLong',
+  'radar.whatsapp.send_failed': 'whatsappSendFailed',
   'radar.message.generation_incomplete': 'generationIncomplete',
   // Le dépôt de réponse et la confirmation : la fiche les reçoit (`DialogueIssue`, `SuiviMessage`).
   'radar.consent.reply_required': 'replyRequired',
@@ -194,6 +205,8 @@ export const MOTIFS_VERIFICATION_RADAR: Record<string, string> = {
   'radar.verification.no_number': 'noNumber',
   'radar.verification.unexpected': 'unexpected',
   'radar.verification.purged': 'purged',
+  // TCK-2395 — une réponse reçue par l'API sans texte (vocal, image) : rien à vérifier, l'opérateur tranche.
+  'radar.verification.no_text': 'noText',
 };
 
 /**
@@ -206,4 +219,26 @@ export const DISCORDANCES_RADAR: Record<string, string> = {
   identity_unverified: 'identityUnverified',
   clauses_missing: 'clausesMissing',
   not_consent: 'notConsent',
+};
+
+/** TCK-2392 — les refus de l'onglet Collecte. Libellés sous `superAdmin.pages.radar.crawl.errors`. */
+export const ERREURS_COLLECTE_RADAR: Record<string, string> = {
+  'radar.crawl.active': 'active',
+  'radar.crawl.unknown_site': 'unknownSite',
+};
+
+/**
+ * TCK-2392 — pourquoi un passage s'est arrêté (`stop_reason`, `RadarCrawlRun::STOP_*`, `RadarCrawler`, `RadarCrawlScheduler`).
+ * Libellés sous `superAdmin.pages.radar.crawl.stops`. Un refus de lecture (`radar.fetch.*`) se lit par {@link MOTIFS_RADAR}.
+ */
+export const ARRETS_COLLECTE_RADAR: Record<string, string> = {
+  'radar.crawl.end': 'end',
+  'radar.crawl.max_pages': 'maxPages',
+  'radar.crawl.no_cards': 'noCards',
+  'radar.crawl.domain_busy': 'domainBusy',
+  'radar.crawl.time_budget': 'timeBudget',
+  'radar.crawl.no_operator': 'noOperator',
+  'radar.crawl.error': 'error',
+  'radar.crawl.lost': 'lost',
+  'radar.crawl.loop': 'loop',
 };

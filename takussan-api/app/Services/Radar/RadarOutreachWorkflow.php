@@ -5,8 +5,10 @@ namespace App\Services\Radar;
 use App\Ai\Usages\RadarConsentMessageUsage;
 use App\Models\AiSuggestion;
 use App\Models\Enums\AiSuggestionDecision;
+use App\Models\Enums\RadarConsentProof;
 use App\Models\Enums\RadarListingStage;
 use App\Models\RadarAdvertiser;
+use App\Models\RadarConsent;
 use App\Models\RadarListing;
 use App\Models\RadarOutreach;
 use App\Models\User;
@@ -51,6 +53,7 @@ final class RadarOutreachWorkflow
     {
         // 1. Lectures libres, aucun verrou : on échoue avant de payer l'appel au modèle.
         $this->refuseIfDoNotContact($advertiser);
+        $this->refuseIfReplyPending($advertiser);
         $this->claim->check($advertiser, $by);
         $target = $followUpOfId === null ? null : RadarOutreach::query()->findOrFail($followUpOfId);
         if ($target !== null) {
@@ -70,6 +73,7 @@ final class RadarOutreachWorkflow
             $lockedAdvertiser = RadarAdvertiser::query()->whereKey($advertiser->getKey())->lockForUpdate()->firstOrFail();
             $this->claim->assertHeld($lockedAdvertiser, $by);
             $this->refuseIfDoNotContact($lockedAdvertiser);
+            $this->refuseIfReplyPending($lockedAdvertiser);
 
             // Le message relancé se verrouille et se juge AVANT le nettoyage : un brouillon ne se relance pas.
             $target = $followUpOfId === null ? null : RadarOutreach::query()->whereKey($followUpOfId)->lockForUpdate()->first();
@@ -161,12 +165,18 @@ final class RadarOutreachWorkflow
     /**
      * L'opérateur a envoyé le message : ses annonces passent `reviewed` → `contacted`, et la suggestion du modèle est
      * décidée UNE fois — acceptée telle quelle, ou éditée avec le différentiel exact (ADR-0076 §7).
+     *
+     * TCK-2395 — `$dispatch` est l'envoi par l'API du numéro du Radar (`RadarWhatsappOutreach`) : appelé SOUS les verrous,
+     * toutes les règles rejugées et avant toute écriture, il lève sur un refus franc de Meta (rien n'est écrit) et rend
+     * sinon les colonnes du canal (`channel`, `provider_message_id`, `provider_status`). Un appel HTTP borné, jamais le modèle.
+     *
+     * @param  (callable(RadarOutreach, RadarAdvertiser): array<string, mixed>)|null  $dispatch
      */
-    public function markSent(RadarOutreach $outreach, User $by): RadarOutreach
+    public function markSent(RadarOutreach $outreach, User $by, ?callable $dispatch = null): RadarOutreach
     {
         $ids = $outreach->listings()->pluck('radar_listings.id')->map(fn ($id) => (int) $id)->sort()->values()->all();
 
-        return DB::transaction(function () use ($outreach, $ids, $by): RadarOutreach {
+        return DB::transaction(function () use ($outreach, $ids, $by, $dispatch): RadarOutreach {
             $listings = $this->fetch($ids, lock: true);
             $advertiser = RadarAdvertiser::query()->whereKey($outreach->radar_advertiser_id)->lockForUpdate()->firstOrFail();
             $this->claim->assertHeld($advertiser, $by);
@@ -182,7 +192,10 @@ final class RadarOutreachWorkflow
                 abort_code(...$block);
             }
 
-            $locked->forceFill(['sent_at' => now(), 'sent_by_id' => $by->id])->save();
+            $this->refuseIfReplyPending($advertiser);
+
+            $channel = $dispatch === null ? [] : $dispatch($locked, $advertiser);
+            $locked->forceFill(['sent_at' => now(), 'sent_by_id' => $by->id] + $channel)->save();
             foreach ($listings->where('stage', RadarListingStage::Reviewed) as $listing) {
                 $listing->stage = RadarListingStage::Contacted;
                 $listing->save();
@@ -197,10 +210,29 @@ final class RadarOutreachWorkflow
                 'outreach_id' => $locked->id,
                 'listing_ids' => $ids,
                 'suggestion_decision' => $suggestion?->decision->value,
-            ]);
+            ] + ($channel === [] ? [] : ['channel' => $locked->channel->value, 'provider_status' => $locked->provider_status]));
 
             return $locked;
         });
+    }
+
+    /**
+     * TCK-2395 (I-1, I-5, ADR-0081) — tant qu'une réponse reçue par l'API (`provider_message`) de cet annonceur, sur
+     * n'importe lequel de ses messages, n'est pas tranchée (ni confirmée, ni son message pourvu d'une issue) — un « Stop
+     * svp », une question —, rien ne part vers lui : ni préparation, ni envoi par l'API, ni « J'ai envoyé ». Une
+     * opposition probable vaut pour l'annonceur, pas pour une annonce. Jugée sous le verrou de l'annonceur par les
+     * appelants qui écrivent (409 `radar.outreach.reply_pending`) ; le canal manuel pur, sans réponse reçue, reste libre.
+     */
+    private function refuseIfReplyPending(RadarAdvertiser $advertiser): void
+    {
+        $pending = RadarConsent::query()
+            ->where('radar_advertiser_id', $advertiser->id)
+            ->where('proof', RadarConsentProof::ProviderMessage->value)
+            ->whereNull('confirmed_at')
+            ->whereIn('radar_outreach_id', RadarOutreach::query()->where('radar_advertiser_id', $advertiser->id)->whereNull('outcome')->select('id'))
+            ->exists();
+
+        abort_code_if($pending, 409, 'radar.outreach.reply_pending');
     }
 
     /**

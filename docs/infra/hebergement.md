@@ -213,6 +213,16 @@ Absentes de l'export, donc aux défauts de `config/` : `SMS_*` et `WHATSAPP_*` *
 de webhook posés le 2026-10-18**, `FACEBOOK_*`, `APPLE_*`, `CDN_*`, `BUNNY_*`. Une fonctionnalité qui
 en dépend ne marche pas en préproduction tant qu'on ne les pose pas.
 
+**Le numéro WhatsApp du Radar** (TCK-2395, [ADR-0081](../adr/0081-le-radar-prospecte-par-l-api-whatsapp-sur-son-propre-numero.md)) :
+**aucune de ces clés n'est posée** au 2026-10-30, et rien ne le sera par le code. Le porteur les pose
+quand le numéro et l'application Meta du Radar existent : `RADAR_WHATSAPP_PHONE_NUMBER_ID`,
+`RADAR_WHATSAPP_ACCESS_TOKEN`, `RADAR_WHATSAPP_WEBHOOK_URL_TOKEN`, `RADAR_WHATSAPP_WEBHOOK_APP_SECRET`,
+`RADAR_WHATSAPP_WEBHOOK_VERIFY_TOKEN`, `RADAR_WHATSAPP_AUTO_STOP` (défaut `true`), puis **en dernier**
+`RADAR_WHATSAPP_DRIVER=cloud`. Absentes, le pilote est `log`, refusé hors `local`/`testing` : l'envoi
+par l'API rend 422 `radar.whatsapp.not_configured`, rien ne part, et le webhook du Radar rend 404. ⚠ Le
+jeton et l'identifiant de numéro ne doivent jamais être ceux de l'intégration `whatsapp_cloud` des
+notifications : le code les refuse (422 `radar.whatsapp.same_number`).
+
 **Courriels.** Le transport `resend` de Laravel exige `resend/resend-php`, que le dépôt n'a eu qu'à
 partir du 2026-09-14 : jusque-là, chaque notification par courriel mourait dans le worker (`Class
 "Resend" not found`, 35 échecs relevés sur la préproduction) — et l'ancien serveur, qui installait le

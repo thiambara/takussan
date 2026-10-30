@@ -50,7 +50,12 @@ const SPEC = join(ROOT, 'docs', 'models-spec.md');
  * dette invisible.*
  */
 const EXCLUS_JUSTIFIES = new Map([
-  // Vide, et c'est l'état sain : les 62 modèles de premier niveau sont couverts.
+  // TCK-2392 (nuit du 2026-10-30) : la règle de la nuit interdit aux agents d'écrire `docs/models-spec.md` ; le texte de
+  // ces trois sections est dans le rapport du ticket, et la PR de spec commune les écrit en RETIRANT ces trois lignes
+  // dans le même commit (sinon cette garde rougit : une exemption documentée est une exemption morte).
+  ['RadarCrawlSource', 'section à écrire par la PR de spec commune (TCK-2392)'],
+  ['RadarCrawlRun', 'section à écrire par la PR de spec commune (TCK-2392)'],
+  ['RadarListingSnapshot', 'section à écrire par la PR de spec commune (TCK-2392)'],
 ]);
 
 if (!existsSync(SPEC)) {
