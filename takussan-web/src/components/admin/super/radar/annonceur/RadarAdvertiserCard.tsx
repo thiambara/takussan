@@ -91,8 +91,8 @@ function FicheChargee({ annonceur, onEnvoiApi }: FicheChargeeProps) {
   const [erreursIa, setErreursIa] = useState<Readonly<Record<number, string | null>>>({});
   /** TCK-2413 — le compte supprimé vient d'être délié pendant cette visite. */
   const [delie, setDelie] = useState(false);
-  /** TCK-2426 — l'erreur affichée vient d'un envoi : un 409 `reply_pending` s'y dit dans les mots du brouillon, pas du dépôt. */
-  const [erreurDEnvoi, setErreurDEnvoi] = useState(false);
+  /** TCK-2426 — l'erreur affichée vient d'une préparation ou d'un envoi : un 409 `reply_pending` s'y dit à l'échelle de l'annonceur, pas du dépôt. */
+  const [erreurDeDemarchage, setErreurDeDemarchage] = useState(false);
   /** TCK-2426 — l'issue du dernier envoi par l'API de cette visite : le brouillon a quitté l'écran, la fiche le dit. */
   const [envoiApiFait, setEnvoiApiFait] = useState<RadarOutreachProviderStatus | null>(null);
 
@@ -101,12 +101,12 @@ function FicheChargee({ annonceur, onEnvoiApi }: FicheChargeeProps) {
   // Un refus 409/422 dit que la fiche n'est plus ce que l'écran croit (prise perdue, message déjà parti) : elle se relit.
   const surEchec = (e: unknown) => {
     setErreur(e);
-    setErreurDEnvoi(false);
+    setErreurDeDemarchage(false);
     if (e instanceof ApiError && (e.status === 409 || e.status === 422)) void relire();
   };
-  const surEchecEnvoi = (e: unknown) => {
+  const surEchecDemarchage = (e: unknown) => {
     surEchec(e);
-    setErreurDEnvoi(true);
+    setErreurDeDemarchage(true);
   };
 
   // TCK-2389 — les gestes de la prise sont ceux de l'écran « Publier pour lui » aussi : un seul code les porte.
@@ -118,7 +118,7 @@ function FicheChargee({ annonceur, onEnvoiApi }: FicheChargeeProps) {
       setSelection(new Set());
       return relire();
     },
-    onError: surEchec,
+    onError: surEchecDemarchage,
   });
   // Le dépôt rend la réponse, vérifiée en file : la fiche se relit, et se relira tant qu'elle est « en cours ».
   const reponse = useMutation<{ readonly data: RadarConsent }, ApiError, { id: number; fichiers: readonly File[] }>({
@@ -149,7 +149,7 @@ function FicheChargee({ annonceur, onEnvoiApi }: FicheChargeeProps) {
       queryClient.setQueryData<RadarAdvertiserResponse>(cle, (detail) => avecMessage(detail, reponse.data));
       return relire();
     },
-    onError: surEchecEnvoi,
+    onError: surEchecDemarchage,
   });
   // TCK-2426 — l'envoi par l'API : la réponse est le message envoyé, posé tel quel dans la fiche avant la relecture.
   const envoiApi = useMutation<RadarOutreachResponse, ApiError, number>({
@@ -160,7 +160,7 @@ function FicheChargee({ annonceur, onEnvoiApi }: FicheChargeeProps) {
       onEnvoiApi();
       return relire();
     },
-    onError: surEchecEnvoi,
+    onError: surEchecDemarchage,
   });
 
   const stoppe = annonceur.do_not_contact_at !== null;
@@ -189,6 +189,8 @@ function FicheChargee({ annonceur, onEnvoiApi }: FicheChargeeProps) {
   const enPreparation = annonceur.outreaches.filter((m) => m.status === 'prepared');
   const envoyes = annonceur.outreaches.filter((m) => m.status !== 'prepared');
   const ouverts = messagesEnAttente(annonceur.outreaches);
+  // TCK-2426 — une réponse reçue par l'API, non tranchée, sur n'importe quelle annonce : rien ne se prépare ni ne part.
+  const reponseNonTranchee = reponseRecueEnAttente(annonceur.outreaches);
 
   const deposer = async (id: number, fichiers: readonly File[]): Promise<boolean> => {
     setErreur(null);
@@ -273,7 +275,12 @@ function FicheChargee({ annonceur, onEnvoiApi }: FicheChargeeProps) {
 
       {erreur ? (
         <p role="alert" className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive" data-testid="radar-annonceur-erreur">
-          {erreurDEnvoi && codeDeLErreur(erreur) === 'radar.outreach.reply_pending' ? t('message.replyPending') : messageEchec(erreur)}
+          {erreurDeDemarchage && codeDeLErreur(erreur) === 'radar.outreach.reply_pending' ? t('message.replyPending') : messageEchec(erreur)}
+        </p>
+      ) : null}
+      {reponseNonTranchee ? (
+        <p role="status" className="rounded-lg border border-warning/60 bg-warning/5 px-4 py-3 text-sm text-foreground" data-testid="radar-annonceur-reponse-en-attente">
+          {t('message.replyPending')}
         </p>
       ) : null}
       {envoiApiFait !== null ? (
@@ -303,7 +310,7 @@ function FicheChargee({ annonceur, onEnvoiApi }: FicheChargeeProps) {
             locale={locale}
             onLocale={setLocale}
             onPreparer={() => preparer({ listing_ids: [...choisies].sort((a, b) => a - b), locale })}
-            desactive={gestesFermes}
+            desactive={gestesFermes || reponseNonTranchee}
             enCours={preparation.isPending}
           />
         </div>
@@ -321,7 +328,7 @@ function FicheChargee({ annonceur, onEnvoiApi }: FicheChargeeProps) {
           onRetoucher={(changes) => lancer(() => retouche.mutate({ id: message.id, changes }))}
           onEnvoye={() => lancer(() => envoi.mutate(message.id))}
           apiDisponible={annonceur.whatsapp_api_available}
-          reponseEnAttente={reponseRecueEnAttente(message, annonceur.outreaches)}
+          reponseEnAttente={reponseNonTranchee}
           enEnvoiApi={envoiApi.isPending}
           onEnvoyerApi={() => lancer(() => envoiApi.mutate(message.id))}
         />
@@ -337,6 +344,7 @@ function FicheChargee({ annonceur, onEnvoiApi }: FicheChargeeProps) {
             desactive={gestesFermes}
             depotEnCours={reponse.isPending}
             relanceEnCours={preparation.isPending}
+            relanceFermee={reponseNonTranchee}
             sansReponseEnCours={issue.isPending}
             onDeposer={(fichiers) => deposer(message.id, fichiers)}
             onIssue={(demande) => trancher(message.id, demande)}

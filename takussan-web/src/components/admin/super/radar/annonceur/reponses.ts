@@ -97,14 +97,14 @@ export function ecartsDeLErreur(erreur: unknown): string[] {
 }
 
 /**
- * TCK-2426 — comme `RadarOutreachWorkflow::hasUnresolvedReply()` : une réponse reçue par l'API (`provider_message`), non
- * confirmée, sur un message de la chaîne de ce brouillon (lui-même et les messages qu'il relance) resté sans issue. L'API
- * refuse alors l'envoi (409 `radar.outreach.reply_pending`), par l'API comme par « J'ai envoyé » : l'écran le dit avant,
- * et retire le lien `wa.me` — sinon le message partirait du téléphone sans que rien ne s'en souvienne.
+ * TCK-2426 — comme `RadarOutreachWorkflow::refuseIfReplyPending()` : une réponse reçue par l'API (`provider_message`), non
+ * confirmée, sur N'IMPORTE QUEL message de l'annonceur resté sans issue — toutes ses annonces, pas la seule chaîne d'un
+ * brouillon. L'API refuse alors tout démarchage vers lui (409 `radar.outreach.reply_pending`) : préparation, envoi par
+ * l'API, « J'ai envoyé ». L'écran le dit avant, et retire le lien `wa.me` — sinon le message partirait du téléphone sans
+ * que rien ne s'en souvienne. La fiche porte tous les messages de l'annonceur, avec toutes leurs réponses.
  */
-export function reponseRecueEnAttente(brouillon: RadarOutreach, messages: readonly RadarOutreach[]): boolean {
-  return chaineDe(brouillon, messages)
-    .some((m) => m.outcome === null && m.consents.some((c) => c.proof === 'provider_message' && c.confirmed_at === null));
+export function reponseRecueEnAttente(messages: readonly RadarOutreach[]): boolean {
+  return messages.some((m) => m.outcome === null && m.consents.some((c) => c.proof === 'provider_message' && c.confirmed_at === null));
 }
 
 /** Un message et ceux qu'il relance, en remontant `follow_up_of_id` (un cycle s'arrête, comme côté API). */

@@ -6,6 +6,7 @@ import { ApiError } from '@/lib/api';
 import {
   fetchRadarAdvertiser,
   markRadarOutreachSent,
+  prepareRadarOutreach,
   RADAR_REPLY_POLL_MS,
   RADAR_REPLY_WINDOW_MS,
   recordRadarOutcome,
@@ -78,6 +79,7 @@ beforeEach(() => {
   vi.mocked(fetchRadarAdvertiser).mockReset();
   vi.mocked(markRadarOutreachSent).mockReset();
   vi.mocked(sendRadarOutreach).mockReset();
+  vi.mocked(prepareRadarOutreach).mockReset();
   vi.mocked(recordRadarOutcome).mockReset();
 });
 
@@ -186,45 +188,48 @@ describe('Envoyer par l’API WhatsApp (TCK-2426)', () => {
   });
 });
 
-describe('Une réponse reçue non tranchée arrête la relance (TCK-2426, TCK-2395 I-5)', () => {
-  /** Le message 4, envoyé par l'API, a reçu une réponse que personne n'a tranchée ; le brouillon 5 le relance. */
-  const chaine = (partielReponse: Parameters<typeof reponse>[0] = {}) => [
-    message({ id: 5, follow_up_of_id: 4, follow_up_rank: 1 }),
-    messageEnvoye({ id: 4, channel: 'whatsapp_cloud', provider_status: 'accepted', consents: [reponseRecue({ id: 40, ...partielReponse })] }),
+describe('Une réponse reçue non tranchée arrête tout démarchage vers l’annonceur (TCK-2426, TCK-2395 I-1, I-5)', () => {
+  const PHRASE = /L’annonceur a répondu par WhatsApp, et sa réponse n’est pas tranchée/;
+
+  /** « Stop svp » reçu par l'API sur le message 4 (annonce 12) ; le brouillon 5 est un PREMIER message, sur l'annonce 14. */
+  const autreAnnonce = (partielReponse: Parameters<typeof reponse>[0] = {}, partielMessage: Partial<RadarOutreach> = {}) => [
+    message({ id: 5, listing_ids: [14], follow_up_of_id: null }),
+    messageEnvoye({
+      id: 4,
+      listing_ids: [12],
+      channel: 'whatsapp_cloud',
+      provider_status: 'accepted',
+      consents: [reponseRecue({ id: 40, transcript: 'Annonceur : Stop svp', verdict: verdict({ classification: 'stop', reply_text: 'Stop svp' }), ...partielReponse })],
+      ...partielMessage,
+    }),
   ];
 
-  it('le brouillon le dit, sans lien wa.me ni geste d’envoi : la relance attend l’issue de la réponse', async () => {
-    await rendre(annonceur({ whatsapp_api_available: true, outreaches: chaine() }));
+  it('« Stop svp » sur l’annonce A : le brouillon de l’annonce B n’offre ni lien wa.me, ni « J’ai envoyé », ni l’API, et la fiche dit pourquoi', async () => {
+    await rendre(annonceur({ whatsapp_api_available: true, outreaches: autreAnnonce() }));
 
+    expect(screen.getByTestId('radar-annonceur-reponse-en-attente')).toHaveTextContent(PHRASE);
     const apercu = screen.getByTestId('radar-annonceur-apercu');
-    expect(within(apercu).getByTestId('radar-message-reponse-en-attente')).toHaveTextContent(
-      /L’annonceur a répondu par WhatsApp à un message que ce brouillon relance/,
-    );
     expect(within(apercu).queryByRole('link', { name: /WhatsApp/ })).not.toBeInTheDocument();
     expect(within(apercu).queryByText(/Le lien s’ouvre dans un nouvel onglet/)).not.toBeInTheDocument();
     expect(within(apercu).getByRole('button', { name: 'J’ai envoyé le message' })).toBeDisabled();
     expect(within(apercu).getByRole('button', { name: BOUTON_API })).toBeDisabled();
   });
 
-  it('une réponse confirmée, ou une réponse déposée en capture, n’arrête rien', async () => {
-    await rendre(annonceur({ whatsapp_api_available: true, outreaches: chaine({ confirmed_at: '2026-10-30T09:00:00+00:00' }) }));
-    expect(screen.queryByTestId('radar-message-reponse-en-attente')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'J’ai envoyé le message' })).toBeEnabled();
-  });
-
-  it('un message relancé qui a déjà son issue n’arrête rien, même avec une réponse reçue non confirmée (comme `whereNull(outcome)`)', async () => {
-    await rendre(annonceur({
+  it('rien ne se prépare non plus : ni un nouveau message, ni la relance du message qui a reçu la réponse', async () => {
+    const utilisateur = await rendre(annonceur({
       whatsapp_api_available: true,
-      outreaches: [
-        message({ id: 5, follow_up_of_id: 4, follow_up_rank: 1 }),
-        messageEnvoye({ id: 4, outcome: 'question', channel: 'whatsapp_cloud', provider_status: 'accepted', consents: [reponseRecue({ id: 40 })] }),
-      ],
+      outreaches: autreAnnonce({}, { follow_up: { due_at: '2026-10-01T00:00:00+00:00', propose_no_answer: false } }),
     }));
-    expect(screen.queryByTestId('radar-message-reponse-en-attente')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'J’ai envoyé le message' })).toBeEnabled();
+
+    // Une annonce cochée : sans le blocage, « Préparer » s'ouvrirait.
+    await utilisateur.click(screen.getByRole('checkbox', { name: 'Choisir l’annonce n° 13 pour le message' }));
+    expect(screen.getByRole('button', { name: /^Préparer le message/ })).toBeDisabled();
+    expect(within(screen.getByTestId('radar-suivi-relance')).getByRole('button', { name: 'Préparer la relance' })).toBeDisabled();
+    // L'issue, elle, se pose : c'est ce qui lève le blocage.
+    expect(screen.getByRole('button', { name: 'Saisir l’issue' })).toBeEnabled();
   });
 
-  it('la règle remonte toute la chaîne : une réponse non tranchée sur le message relancé par le message relancé arrête aussi', async () => {
+  it('le brouillon d’une relance est arrêté de même par une réponse en haut de sa chaîne', async () => {
     await rendre(annonceur({
       whatsapp_api_available: true,
       outreaches: [
@@ -233,30 +238,43 @@ describe('Une réponse reçue non tranchée arrête la relance (TCK-2426, TCK-23
         messageEnvoye({ id: 4, channel: 'whatsapp_cloud', provider_status: 'accepted', consents: [reponseRecue({ id: 40 })] }),
       ],
     }));
-    expect(screen.getByTestId('radar-message-reponse-en-attente')).toBeInTheDocument();
+    expect(screen.getByTestId('radar-annonceur-reponse-en-attente')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'J’ai envoyé le message' })).toBeDisabled();
+  });
+
+  it('une réponse confirmée n’arrête rien', async () => {
+    await rendre(annonceur({ whatsapp_api_available: true, outreaches: autreAnnonce({ confirmed_at: '2026-10-30T09:00:00+00:00' }) }));
+    expect(screen.queryByTestId('radar-annonceur-reponse-en-attente')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'J’ai envoyé le message' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: BOUTON_API })).toBeEnabled();
+  });
+
+  it('un message qui a déjà son issue n’arrête rien, même avec une réponse reçue non confirmée (comme `whereNull(outcome)`)', async () => {
+    await rendre(annonceur({ whatsapp_api_available: true, outreaches: autreAnnonce({}, { outcome: 'question' }) }));
+    expect(screen.queryByTestId('radar-annonceur-reponse-en-attente')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'J’ai envoyé le message' })).toBeEnabled();
   });
 
   it('une capture déposée (canal manuel) n’arrête rien : seule une réponse reçue par l’API compte, comme côté API', async () => {
     await rendre(annonceur({
       outreaches: [
-        message({ id: 5, follow_up_of_id: 4, follow_up_rank: 1 }),
-        messageEnvoye({ id: 4, consents: [reponse({ id: 40 })] }),
+        message({ id: 5, listing_ids: [14] }),
+        messageEnvoye({ id: 4, listing_ids: [12], consents: [reponse({ id: 40 })] }),
       ],
     }));
-    expect(screen.queryByTestId('radar-message-reponse-en-attente')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('radar-annonceur-reponse-en-attente')).not.toBeInTheDocument();
   });
 
-  it('un 409 `reply_pending` sur « J’ai envoyé » le dit dans les mots du brouillon, pas dans ceux du dépôt', async () => {
+  it('un 409 `reply_pending` sur « J’ai envoyé » se dit à l’échelle de l’annonceur, pas dans les mots du dépôt', async () => {
     // La fiche lue ne montre pas encore la réponse (arrivée après la lecture) : seul le refus de l'API la révèle.
     vi.mocked(markRadarOutreachSent).mockRejectedValue(new ApiError(409, { code: 'radar.outreach.reply_pending' }));
-    const utilisateur = await rendre(annonceur({ outreaches: [message({ id: 5, follow_up_of_id: 4, follow_up_rank: 1 }), messageEnvoye({ id: 4 })] }));
+    const utilisateur = await rendre(annonceur({ outreaches: [message({ id: 5, listing_ids: [14] }), messageEnvoye({ id: 4, listing_ids: [12] })] }));
 
     await utilisateur.click(screen.getByRole('button', { name: 'J’ai envoyé le message' }));
     await utilisateur.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Oui, je l’ai envoyé' }));
 
     const erreur = await screen.findByTestId('radar-annonceur-erreur');
-    expect(erreur).toHaveTextContent(/L’annonceur a répondu par WhatsApp à un message que ce brouillon relance/);
+    expect(erreur).toHaveTextContent(PHRASE);
     expect(erreur).not.toHaveTextContent(/attendez son verdict/);
   });
 
@@ -264,13 +282,23 @@ describe('Une réponse reçue non tranchée arrête la relance (TCK-2426, TCK-23
     vi.mocked(sendRadarOutreach).mockRejectedValue(new ApiError(409, { code: 'radar.outreach.reply_pending' }));
     const utilisateur = await rendre(annonceur({
       whatsapp_api_available: true,
-      outreaches: [message({ id: 5, follow_up_of_id: 4, follow_up_rank: 1 }), messageEnvoye({ id: 4 })],
+      outreaches: [message({ id: 5, listing_ids: [14] }), messageEnvoye({ id: 4, listing_ids: [12] })],
     }));
 
     await utilisateur.click(screen.getByRole('button', { name: BOUTON_API }));
     await utilisateur.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Oui, l’envoyer' }));
 
-    expect(await screen.findByTestId('radar-annonceur-erreur')).toHaveTextContent(/à un message que ce brouillon relance/);
+    expect(await screen.findByTestId('radar-annonceur-erreur')).toHaveTextContent(PHRASE);
+  });
+
+  it('le même 409 sur une préparation (l’API la refuse désormais aussi) se dit de même', async () => {
+    vi.mocked(prepareRadarOutreach).mockRejectedValue(new ApiError(409, { code: 'radar.outreach.reply_pending' }));
+    const utilisateur = await rendre(annonceur({ outreaches: [] }));
+
+    await utilisateur.click(screen.getByRole('checkbox', { name: 'Choisir l’annonce n° 12 pour le message' }));
+    await utilisateur.click(screen.getByRole('button', { name: /^Préparer le message/ }));
+
+    expect(await screen.findByTestId('radar-annonceur-erreur')).toHaveTextContent(PHRASE);
   });
 });
 

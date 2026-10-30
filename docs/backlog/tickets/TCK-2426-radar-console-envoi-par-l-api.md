@@ -58,9 +58,12 @@ le lien `wa.me` et les captures.
 - **« Envoyer par l'API »** (`ApercuMessage`) : offert si `whatsapp_api_available`, ouvert aux mêmes conditions que le
   lien `wa.me` (`wa_me_url` non nul), après une confirmation. La réponse de `POST …/send` est posée dans la fiche avant
   la relecture : la carte passe dans le suivi sans attendre (AC1). Un envoi ambigu le dit en avertissement.
-- **Réponse reçue non tranchée** (TCK-2395, I-5) : `reponseRecueEnAttente()` rejoue `hasUnresolvedReply()` sur la
-  fiche lue ; le brouillon le dit, et ni le lien `wa.me`, ni « J'ai envoyé », ni l'envoi par l'API ne s'offrent. Un
-  409 `radar.outreach.reply_pending` venu d'un envoi se dit dans les mots du brouillon, pas dans ceux du dépôt.
+- **Réponse reçue non tranchée** (TCK-2395, I-1, I-5) : `reponseRecueEnAttente()` rejoue
+  `RadarOutreachWorkflow::refuseIfReplyPending()` sur la fiche lue, à l'échelle de l'annonceur (toutes ses annonces) :
+  la fiche le dit, et ni la préparation, ni la relance, ni le lien `wa.me`, ni « J'ai envoyé », ni l'envoi par l'API ne
+  s'offrent ; l'issue reste posable. Un 409 `radar.outreach.reply_pending` venu d'une préparation ou d'un envoi se dit à
+  l'échelle de l'annonceur, pas dans les mots du dépôt. L'API n'expose aucun indicateur sur la fiche : la règle est
+  recopiée.
 - **Canal** : `CanalMessage`, sur la carte du suivi (avec l'explication d'un envoi non confirmé) et dans l'historique.
 - **Réponse `provider_message`** : « Reçue par l'API WhatsApp le … », texte affiché d'emblée (`break-words` : un lien
   long débordait à 375 px), aucune galerie ; `radar.verification.no_text` dit que la réponse n'est pas lisible ici.
@@ -72,7 +75,7 @@ le lien `wa.me` et les captures.
 |---|---|---|---|
 | Confirmation avant l'envoi par l'API | un dialogue, comme « J'ai envoyé » | envoi au clic | le message part chez un vrai annonceur, sans retour possible |
 | Geste principal | « Envoyer par l'API » plein, « J'ai envoyé » en contour quand l'API est offerte | deux boutons pleins | un seul geste principal par zone ; rien n'est retiré |
-| Réponse reçue non tranchée | prédite par le front sur la fiche lue, gestes fermés, phrase dédiée | inscrire `reply_pending` dans `sendBlock()` côté API | aucun changement d'API (fichier partagé `RadarOutreachWorkflow`) ; l'API reste juge, son 409 est libellé ; réversible en une fonction |
+| Réponse reçue non tranchée | prédite par le front sur la fiche lue (règle de l'API recopiée, échelle de l'annonceur), gestes de démarchage fermés, une phrase sur la fiche | un indicateur rendu par l'API sur la fiche | l'API n'en expose pas ; elle reste juge, son 409 est libellé ; réversible en une fonction |
 | Lien `wa.me` pendant une réponse non tranchée | retiré | laissé | « J'ai envoyé » serait refusé : le message partirait sans trace (scénario I-5) |
 | Arrivée d'une réponse par le webhook | relecture de la fiche toutes les 30 s (`RADAR_REPLY_POLL_MS`) tant que la chaîne d'un message ouvert contient un envoi par l'API sans issue (une réponse se rattache à la relance, même envoyée à la main), dans une fenêtre de 15 min (`RADAR_REPLY_WINDOW_MS`) rouverte à l'arrivée, au retour sur l'onglet et à chaque envoi par l'API | aucune relecture (seulement au retour sur l'onglet), ou une relecture sans fin | rien d'autre ne signale la réponse ; jamais en arrière-plan (défaut de TanStack Query) ; deux constantes à changer |
 | Libellé du 409 `reply_pending` d'un envoi | clé `message.replyPending`, propre au brouillon | le libellé commun du dépôt | « une réponse de ce message » désigne le mauvais message pour une relance |

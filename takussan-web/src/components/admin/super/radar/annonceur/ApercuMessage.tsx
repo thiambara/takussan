@@ -30,7 +30,7 @@ interface ApercuMessageProps {
   readonly onEnvoye: () => void;
   /** TCK-2426 — `whatsapp_api_available` de la fiche : « Envoyer par l'API » n'existe que s'il est vrai. */
   readonly apiDisponible: boolean;
-  /** TCK-2426 — une réponse reçue par l'API sur la chaîne attend son issue : l'API refuserait tout envoi (`reply_pending`). */
+  /** TCK-2426 — une réponse reçue par l'API de l'annonceur attend son issue : l'API refuserait tout envoi (`reply_pending`) ; la fiche le dit. */
   readonly reponseEnAttente: boolean;
   readonly enEnvoiApi: boolean;
   readonly onEnvoyerApi: () => void;
@@ -51,8 +51,8 @@ const texteDe = (segments: readonly RadarMessageSegment[], kind: RadarMessageSeg
  *
  * TCK-2426 — « Envoyer par l'API » (offert si la fiche rend `whatsapp_api_available`) fait partir le message du numéro
  * du Radar, après confirmation. Il s'ouvre aux mêmes conditions que le lien `wa.me` (`wa_me_url` non nul : parties
- * écrites, numéro, ni STOP ni `send_blocked`). Tant qu'une réponse reçue par l'API sur la chaîne n'est pas tranchée,
- * aucun des trois gestes ne s'offre, et le brouillon dit pourquoi.
+ * écrites, numéro, ni STOP ni `send_blocked`). Tant qu'une réponse reçue par l'API de l'annonceur n'est pas tranchée,
+ * aucun des trois gestes ne s'offre ; la fiche dit pourquoi.
  */
 export function ApercuMessage({
   message,
@@ -153,12 +153,6 @@ export function ApercuMessage({
           </Button>
           {modifie ? <p className="text-xs text-muted-foreground">{t('unsaved')}</p> : null}
         </div>
-      ) : null}
-
-      {reponseEnAttente ? (
-        <p role="status" className="rounded-lg border border-warning/60 bg-warning/5 p-3 text-sm text-foreground" data-testid="radar-message-reponse-en-attente">
-          {t('replyPending')}
-        </p>
       ) : null}
 
       <div className="flex flex-wrap items-center gap-3 border-t pt-3">

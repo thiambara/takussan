@@ -8979,7 +8979,7 @@
             "apiConfirm": "Oui, l’envoyer",
             "apiSent": "Message envoyé par l’API WhatsApp : Meta l’a accepté.",
             "apiAmbiguous": "Meta n’a pas confirmé l’envoi : le message a pu partir. Il est compté comme envoyé pour ne jamais écrire deux fois à l’annonceur. Ne le renvoyez pas à la main.",
-            "replyPending": "L’annonceur a répondu par WhatsApp à un message que ce brouillon relance, et sa réponse n’est pas tranchée. Lisez-la plus bas, dans « Messages envoyés, en attente d’une issue », et posez son issue avant d’envoyer quoi que ce soit."
+            "replyPending": "L’annonceur a répondu par WhatsApp, et sa réponse n’est pas tranchée. Lisez-la plus bas, dans « Messages envoyés, en attente d’une issue », et posez son issue : d’ici là, rien ne se prépare ni ne part vers lui, quelle que soit l’annonce."
           },
           "history": {
             "heading": "Messages envoyés",

@@ -8979,7 +8979,7 @@
             "apiConfirm": "Yes, send it",
             "apiSent": "Message sent through the WhatsApp API: Meta accepted it.",
             "apiAmbiguous": "Meta did not confirm the send: the message may have gone out. It counts as sent so the advertiser is never written to twice. Do not send it again by hand.",
-            "replyPending": "The advertiser replied on WhatsApp to a message this draft follows up, and the reply has not been settled. Read it below, under “Messages sent, waiting for an outcome”, and record its outcome before sending anything."
+            "replyPending": "The advertiser replied on WhatsApp, and the reply has not been settled. Read it below, under “Messages sent, waiting for an outcome”, and record its outcome: until then, nothing can be prepared for or sent to them, whatever the listing."
           },
           "history": {
             "heading": "Sent messages",

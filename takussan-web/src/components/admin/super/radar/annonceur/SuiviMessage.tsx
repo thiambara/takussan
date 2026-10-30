@@ -18,6 +18,8 @@ interface SuiviMessageProps {
   readonly desactive: boolean;
   readonly depotEnCours: boolean;
   readonly relanceEnCours: boolean;
+  /** TCK-2426 — une réponse reçue par l'API de l'annonceur attend son issue : l'API refuserait la préparation de la relance. */
+  readonly relanceFermee: boolean;
   readonly sansReponseEnCours: boolean;
   readonly onDeposer: (fichiers: readonly File[]) => Promise<boolean>;
   readonly onIssue: (demande: RadarOutcomeRequest) => Promise<unknown>;
@@ -38,6 +40,7 @@ export function SuiviMessage({
   desactive,
   depotEnCours,
   relanceEnCours,
+  relanceFermee,
   sansReponseEnCours,
   onDeposer,
   onIssue,
@@ -111,7 +114,7 @@ export function SuiviMessage({
               </Button>
             </>
           ) : due ? (
-            <Button type="button" variant="outline" disabled={desactive || relanceEnCours} onClick={onRelancer}>
+            <Button type="button" variant="outline" disabled={desactive || relanceFermee || relanceEnCours} onClick={onRelancer}>
               {relanceEnCours ? t('followUp.preparing') : t('followUp.prepare')}
             </Button>
           ) : null}
