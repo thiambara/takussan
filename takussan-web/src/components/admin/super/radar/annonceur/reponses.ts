@@ -1,4 +1,11 @@
-import type { RadarConsent, RadarMessageLocale, RadarOutreach, RadarOutreachOutcome, RadarVerdictClassification } from '@/types/radar';
+import type {
+  RadarConsent,
+  RadarMessageLocale,
+  RadarOutreach,
+  RadarOutreachOutcome,
+  RadarOutreachProviderStatus,
+  RadarVerdictClassification,
+} from '@/types/radar';
 import { RADAR_MESSAGE_LOCALES } from '@/types/radar';
 
 /**
@@ -135,4 +142,26 @@ export function canalDuMessage(message: RadarOutreach): CanalDuMessage {
 export function attendUneReponseParLApi(messages: readonly RadarOutreach[]): boolean {
   return messagesEnAttente(messages)
     .some((ouvert) => chaineDe(ouvert, messages).some((m) => m.channel === 'whatsapp_cloud' && m.outcome === null));
+}
+
+/**
+ * TCK-2437 — l'état de remise d'un message envoyé par l'API, lu des accusés de Meta (TCK-2427) : envoyé (pas encore
+ * d'accusé de remise), remis, lu, ou non remis. `null` pour un message parti à la main, pour un envoi `ambiguous` (le
+ * canal dit déjà « envoi non confirmé ») et pour toute valeur que le front ne connaît pas : rien plutôt qu'une remise.
+ */
+export type RemiseDuMessage = 'sent' | 'delivered' | 'read' | 'failed';
+
+const REMISE_DU_STATUT: Record<RadarOutreachProviderStatus, RemiseDuMessage | null> = {
+  accepted: 'sent',
+  ambiguous: null,
+  sent: 'sent',
+  delivered: 'delivered',
+  read: 'read',
+  failed: 'failed',
+};
+
+export function remiseDuMessage(message: RadarOutreach): RemiseDuMessage | null {
+  const statut = message.provider_status;
+  if (message.channel !== 'whatsapp_cloud' || statut === null || !Object.hasOwn(REMISE_DU_STATUT, statut)) return null;
+  return REMISE_DU_STATUT[statut];
 }
