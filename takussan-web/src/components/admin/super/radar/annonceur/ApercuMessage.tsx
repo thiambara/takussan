@@ -216,6 +216,8 @@ export function ApercuMessage({
               disabled={enEnvoi}
               onClick={() => {
                 const geste = confirmation;
+                // Un clic rejoué pendant la fermeture du dialogue n'a plus de geste : il n'envoie rien, surtout pas « J'ai envoyé ».
+                if (geste === null) return;
                 setConfirmation(null);
                 if (geste === 'api') onEnvoyerApi();
                 else onEnvoye();

@@ -74,8 +74,9 @@ le lien `wa.me` et les captures.
 | Geste principal | « Envoyer par l'API » plein, « J'ai envoyé » en contour quand l'API est offerte | deux boutons pleins | un seul geste principal par zone ; rien n'est retiré |
 | Réponse reçue non tranchée | prédite par le front sur la fiche lue, gestes fermés, phrase dédiée | inscrire `reply_pending` dans `sendBlock()` côté API | aucun changement d'API (fichier partagé `RadarOutreachWorkflow`) ; l'API reste juge, son 409 est libellé ; réversible en une fonction |
 | Lien `wa.me` pendant une réponse non tranchée | retiré | laissé | « J'ai envoyé » serait refusé : le message partirait sans trace (scénario I-5) |
-| Arrivée d'une réponse par le webhook | relecture de la fiche toutes les 30 s (`RADAR_REPLY_POLL_MS`) tant qu'un message envoyé par l'API attend son issue | aucune relecture (seulement au retour sur l'onglet) | rien d'autre ne signale la réponse ; jamais en arrière-plan (défaut de TanStack Query) ; une constante à changer |
+| Arrivée d'une réponse par le webhook | relecture de la fiche toutes les 30 s (`RADAR_REPLY_POLL_MS`) tant que la chaîne d'un message ouvert contient un envoi par l'API sans issue (une réponse se rattache à la relance, même envoyée à la main), dans une fenêtre de 15 min (`RADAR_REPLY_WINDOW_MS`) rouverte à l'arrivée, au retour sur l'onglet et à chaque envoi par l'API | aucune relecture (seulement au retour sur l'onglet), ou une relecture sans fin | rien d'autre ne signale la réponse ; jamais en arrière-plan (défaut de TanStack Query) ; deux constantes à changer |
 | Libellé du 409 `reply_pending` d'un envoi | clé `message.replyPending`, propre au brouillon | le libellé commun du dépôt | « une réponse de ce message » désigne le mauvais message pour une relance |
+| Réponse sans texte (vocal, image) | « écoutez-la ou regardez-la dans WhatsApp, sur le numéro du Radar » | « sur le téléphone du Radar » | un numéro de l'API Cloud ne s'ouvre pas forcément dans un téléphone (hors coexistence) |
 | Échec de vérification d'une réponse reçue | « Lisez le texte reçu vous-même » (`failedReceived`) | « Lisez les captures » | il n'y a pas de captures |
 
 ## Reste sur dev

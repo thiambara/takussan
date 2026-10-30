@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { ArrowLeft } from 'lucide-react';
@@ -22,6 +22,7 @@ import {
   radarKeys,
   RADAR_POLL_MS,
   RADAR_REPLY_POLL_MS,
+  RADAR_REPLY_WINDOW_MS,
   recordRadarOutcome,
   retouchRadarOutreach,
   sendRadarOutreach,
@@ -65,7 +66,13 @@ function avecMessage(detail: RadarAdvertiserResponse | undefined, message: Radar
   return { data: { ...detail.data, outreaches: detail.data.outreaches.map((m) => (m.id === message.id ? message : m)) } };
 }
 
-function FicheChargee({ annonceur }: { readonly annonceur: RadarAdvertiserDetail }) {
+interface FicheChargeeProps {
+  readonly annonceur: RadarAdvertiserDetail;
+  /** TCK-2426 — un envoi par l'API rouvre la fenêtre de relecture : sa réponse peut arriver. */
+  readonly onEnvoiApi: () => void;
+}
+
+function FicheChargee({ annonceur, onEnvoiApi }: FicheChargeeProps) {
   const t = useTranslations('superAdmin.pages.radar.advertiser');
   const fmt = useFormatteurs();
   const queryClient = useQueryClient();
@@ -150,6 +157,7 @@ function FicheChargee({ annonceur }: { readonly annonceur: RadarAdvertiserDetail
     onSuccess: (reponse) => {
       queryClient.setQueryData<RadarAdvertiserResponse>(cle, (detail) => avecMessage(detail, reponse.data));
       setEnvoiApiFait(reponse.data.provider_status ?? 'accepted');
+      onEnvoiApi();
       return relire();
     },
     onError: surEchecEnvoi,
@@ -364,6 +372,24 @@ export function RadarAdvertiserCard({ id }: RadarAdvertiserCardProps) {
   const { can } = usePlatformAbilities();
   const messageErreur = useMessageErreurApi();
   const autorise = can('platform.radar.operate');
+  const queryClient = useQueryClient();
+  /**
+   * TCK-2426 — l'ouverture de la fenêtre de relecture à 30 s ({@link RADAR_REPLY_WINDOW_MS}) : l'arrivée sur la fiche, le
+   * retour sur l'onglet, un envoi par l'API. Lue par `refetchInterval`, hors du rendu. Onglet caché, rien ne se relit
+   * (`refetchIntervalInBackground` vaut `false`).
+   */
+  const debutFenetre = useRef<number | null>(null);
+  useEffect(() => {
+    debutFenetre.current = Date.now();
+    const auRetour = () => {
+      if (document.visibilityState !== 'visible') return;
+      debutFenetre.current = Date.now();
+      // La fenêtre a pu se fermer pendant l'absence : une lecture fraîche réévalue le rythme et le relance.
+      void queryClient.invalidateQueries({ queryKey: radarKeys.advertiser(id) });
+    };
+    document.addEventListener('visibilitychange', auRetour);
+    return () => document.removeEventListener('visibilitychange', auRetour);
+  }, [queryClient, id]);
 
   const fiche = useQuery<RadarAdvertiserResponse, ApiError>({
     queryKey: radarKeys.advertiser(id),
@@ -371,11 +397,13 @@ export function RadarAdvertiserCard({ id }: RadarAdvertiserCardProps) {
     enabled: autorise,
     staleTime: 10_000,
     // Une réponse se vérifie en file : la fiche se relit tant qu'une vérification tourne, puis s'arrête. TCK-2426 — et, plus
-    // lentement, tant qu'un message envoyé par l'API attend son issue : sa réponse arrive par le webhook, sans autre signal.
+    // lentement, tant qu'un envoi par l'API attend son issue : sa réponse arrive par le webhook, sans autre signal. Pas plus
+    // que la fenêtre ouverte à l'arrivée, au retour sur l'onglet ou au dernier envoi par l'API.
     refetchInterval: (requete) => {
       const messages = requete.state.data?.data.outreaches ?? [];
       if (messages.some((m) => verificationEnCours(m.consents))) return RADAR_POLL_MS;
-      return attendUneReponseParLApi(messages) ? RADAR_REPLY_POLL_MS : false;
+      const fenetreOuverte = debutFenetre.current === null || Date.now() - debutFenetre.current < RADAR_REPLY_WINDOW_MS;
+      return fenetreOuverte && attendUneReponseParLApi(messages) ? RADAR_REPLY_POLL_MS : false;
     },
   });
 
@@ -415,7 +443,7 @@ export function RadarAdvertiserCard({ id }: RadarAdvertiserCardProps) {
           retryLabel={tCommon('actions.retry')}
         />
       ) : annonceur ? (
-        <FicheChargee key={annonceur.id} annonceur={annonceur} />
+        <FicheChargee key={annonceur.id} annonceur={annonceur} onEnvoiApi={() => { debutFenetre.current = Date.now(); }} />
       ) : (
         <div className="grid gap-6 lg:grid-cols-2" aria-busy="true">
           <Skeleton className="h-64 w-full" />

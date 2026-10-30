@@ -9112,7 +9112,7 @@
             },
             "receivedAt": "Received through the WhatsApp API on {date}",
             "receivedText": "Text received",
-            "noText": "This reply has no text (voice note, image): it cannot be read here. Listen to it or view it on the Radar phone, then record its outcome.",
+            "noText": "This reply has no text (voice note, image): it cannot be read here. Listen to it or view it in WhatsApp, on the Radar number, then record its outcome.",
             "failedReceived": "Verification failed: {reason}. Read the received text yourself.",
             "failedReceivedNoReason": "Verification failed. Read the received text yourself."
           },

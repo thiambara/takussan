@@ -7,6 +7,7 @@ import {
   fetchRadarAdvertiser,
   markRadarOutreachSent,
   RADAR_REPLY_POLL_MS,
+  RADAR_REPLY_WINDOW_MS,
   recordRadarOutcome,
   sendRadarOutreach,
 } from '@/lib/queries/radar';
@@ -211,6 +212,31 @@ describe('Une réponse reçue non tranchée arrête la relance (TCK-2426, TCK-23
     expect(screen.getByRole('button', { name: 'J’ai envoyé le message' })).toBeEnabled();
   });
 
+  it('un message relancé qui a déjà son issue n’arrête rien, même avec une réponse reçue non confirmée (comme `whereNull(outcome)`)', async () => {
+    await rendre(annonceur({
+      whatsapp_api_available: true,
+      outreaches: [
+        message({ id: 5, follow_up_of_id: 4, follow_up_rank: 1 }),
+        messageEnvoye({ id: 4, outcome: 'question', channel: 'whatsapp_cloud', provider_status: 'accepted', consents: [reponseRecue({ id: 40 })] }),
+      ],
+    }));
+    expect(screen.queryByTestId('radar-message-reponse-en-attente')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'J’ai envoyé le message' })).toBeEnabled();
+  });
+
+  it('la règle remonte toute la chaîne : une réponse non tranchée sur le message relancé par le message relancé arrête aussi', async () => {
+    await rendre(annonceur({
+      whatsapp_api_available: true,
+      outreaches: [
+        message({ id: 6, follow_up_of_id: 5, follow_up_rank: 2 }),
+        messageEnvoye({ id: 5, follow_up_of_id: 4, follow_up_rank: 1 }),
+        messageEnvoye({ id: 4, channel: 'whatsapp_cloud', provider_status: 'accepted', consents: [reponseRecue({ id: 40 })] }),
+      ],
+    }));
+    expect(screen.getByTestId('radar-message-reponse-en-attente')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'J’ai envoyé le message' })).toBeDisabled();
+  });
+
   it('une capture déposée (canal manuel) n’arrête rien : seule une réponse reçue par l’API compte, comme côté API', async () => {
     await rendre(annonceur({
       outreaches: [
@@ -281,6 +307,9 @@ describe('Une réponse reçue par l’API se lit en texte (TCK-2426)', () => {
     const texte = within(carte).getByTestId('radar-reponse-texte');
     expect(texte).toHaveTextContent('Annonceur : Oui, je suis d’accord pour les quatre points.');
     expect(texte.closest('details')).toBeNull();
+    // Un lien long sans trait d'union se coupe, dans le texte reçu comme dans sa copie du verdict (375 px).
+    expect(texte).toHaveClass('break-words');
+    expect(within(carte).getByTestId('radar-verdict-reponse')).toHaveClass('break-words');
     expect(within(carte).queryByText('Transcription')).not.toBeInTheDocument();
     expect(within(carte).queryByText('Captures')).not.toBeInTheDocument();
     expect(within(carte).queryByRole('img')).not.toBeInTheDocument();
@@ -306,7 +335,10 @@ describe('Une réponse reçue par l’API se lit en texte (TCK-2426)', () => {
     const echec = screen.getByTestId('radar-reponse-echec');
     expect(echec).toHaveTextContent(/Cette réponse n’a pas de texte \(message vocal, image\) : elle n’est pas lisible ici/);
     expect(echec).not.toHaveTextContent(/captures/);
-    // L'issue se pose quand même : l'opérateur l'a lue sur le téléphone du Radar.
+    // Aucun « téléphone du Radar » : le numéro de l'API Cloud ne s'ouvre pas forcément dans un téléphone.
+    expect(echec).toHaveTextContent(/dans WhatsApp, sur le numéro du Radar/);
+    expect(echec).not.toHaveTextContent(/téléphone/);
+    // L'issue se pose quand même : l'opérateur l'a lue dans WhatsApp, sur le numéro du Radar.
     expect(screen.getByRole('button', { name: 'Saisir l’issue' })).toBeEnabled();
   });
 
@@ -330,7 +362,48 @@ describe('Une réponse reçue par l’API se lit en texte (TCK-2426)', () => {
     expect(await screen.findByTestId('radar-reponse-texte')).toHaveTextContent(/Oui, je suis d’accord/);
   });
 
-  it('un message envoyé à la main ne fait pas relire la fiche : rien ne peut arriver par le webhook', async () => {
+  it('une relance envoyée à la main d’un message parti par l’API fait relire la fiche : la réponse se rattache à la relance', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    await rendre(annonceur({
+      outreaches: [
+        messageEnvoye({ id: 6, follow_up_of_id: 5, follow_up_rank: 1 }),
+        messageEnvoye({ id: 5, channel: 'whatsapp_cloud', provider_status: 'accepted', follow_up: null }),
+      ],
+    }));
+    const lectures = vi.mocked(fetchRadarAdvertiser).mock.calls.length;
+
+    await act(async () => { await vi.advanceTimersByTimeAsync(RADAR_REPLY_POLL_MS + 100); });
+
+    await waitFor(() => expect(vi.mocked(fetchRadarAdvertiser).mock.calls.length).toBeGreaterThan(lectures));
+  });
+
+  it('la relecture s’arrête au bout de la fenêtre, et reprend au retour sur l’onglet', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    let visibilite: DocumentVisibilityState = 'visible';
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => visibilite });
+    try {
+      await rendre(annonceur({ outreaches: [messageEnvoye({ channel: 'whatsapp_cloud', provider_status: 'accepted' })] }));
+
+      await act(async () => { await vi.advanceTimersByTimeAsync(RADAR_REPLY_WINDOW_MS + RADAR_REPLY_POLL_MS); });
+      const auBoutDeLaFenetre = vi.mocked(fetchRadarAdvertiser).mock.calls.length;
+      expect(auBoutDeLaFenetre).toBeGreaterThan(RADAR_REPLY_WINDOW_MS / RADAR_REPLY_POLL_MS - 2);
+      await act(async () => { await vi.advanceTimersByTimeAsync(RADAR_REPLY_POLL_MS * 4); });
+      expect(vi.mocked(fetchRadarAdvertiser).mock.calls.length).toBe(auBoutDeLaFenetre);
+
+      // L'onglet se cache, puis revient : la fenêtre se rouvre, la fiche se relit et reprend son rythme.
+      visibilite = 'hidden';
+      act(() => { document.dispatchEvent(new Event('visibilitychange')); });
+      visibilite = 'visible';
+      act(() => { document.dispatchEvent(new Event('visibilitychange')); });
+      await act(async () => { await vi.advanceTimersByTimeAsync(RADAR_REPLY_POLL_MS * 2 + 100); });
+      expect(vi.mocked(fetchRadarAdvertiser).mock.calls.length).toBeGreaterThanOrEqual(auBoutDeLaFenetre + 3);
+    } finally {
+      // La propriété propre masquait celle de `Document.prototype` : la retirer rend celle de jsdom.
+      Reflect.deleteProperty(document, 'visibilityState');
+    }
+  });
+
+  it('un message envoyé à la main, sans envoi par l’API dans sa chaîne, ne fait pas relire la fiche', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     await rendre(annonceur({ outreaches: [messageEnvoye()] }));
     const lectures = vi.mocked(fetchRadarAdvertiser).mock.calls.length;

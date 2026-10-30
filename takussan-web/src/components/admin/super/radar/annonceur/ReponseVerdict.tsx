@@ -54,7 +54,7 @@ export function ReponseVerdict({ reponse, message }: ReponseVerdictProps) {
 
   const libelleEchec = (): string => {
     const raison = reponse.verification_reason;
-    // Un vocal ou une image reçus : rien n'était à vérifier, la réponse se lit sur le téléphone du Radar.
+    // Un vocal ou une image reçus : rien n'était à vérifier, elle s'écoute ou se regarde dans WhatsApp, sur le numéro du Radar.
     if (recue && raison === 'radar.verification.no_text') return t('reply.noText');
     if (recue) return raison ? t('reply.failedReceived', { reason: motif(raison) }) : t('reply.failedReceivedNoReason');
     return raison ? t('reply.failed', { reason: motif(raison) }) : t('reply.failedNoReason');
@@ -109,7 +109,7 @@ export function ReponseVerdict({ reponse, message }: ReponseVerdictProps) {
           <div className="space-y-0.5">
             <p className="text-xs font-medium text-muted-foreground">{t('reply.verdict.replyText')}</p>
             {verdict.reply_text ? (
-              <q className="block rounded-md bg-muted px-3 py-2 text-sm text-foreground" data-testid="radar-verdict-reponse">{verdict.reply_text}</q>
+              <q className="block rounded-md bg-muted px-3 py-2 text-sm break-words text-foreground" data-testid="radar-verdict-reponse">{verdict.reply_text}</q>
             ) : (
               <p className="text-sm text-muted-foreground">{t('reply.verdict.noReplyText')}</p>
             )}

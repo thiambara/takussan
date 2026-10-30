@@ -103,15 +103,20 @@ export function ecartsDeLErreur(erreur: unknown): string[] {
  * et retire le lien `wa.me` — sinon le message partirait du téléphone sans que rien ne s'en souvienne.
  */
 export function reponseRecueEnAttente(brouillon: RadarOutreach, messages: readonly RadarOutreach[]): boolean {
-  const vus = new Set<number>();
-  let courant: RadarOutreach | undefined = brouillon;
-  while (courant !== undefined && !vus.has(courant.id)) {
-    vus.add(courant.id);
-    if (courant.outcome === null && courant.consents.some((c) => c.proof === 'provider_message' && c.confirmed_at === null)) return true;
+  return chaineDe(brouillon, messages)
+    .some((m) => m.outcome === null && m.consents.some((c) => c.proof === 'provider_message' && c.confirmed_at === null));
+}
+
+/** Un message et ceux qu'il relance, en remontant `follow_up_of_id` (un cycle s'arrête, comme côté API). */
+function chaineDe(message: RadarOutreach, messages: readonly RadarOutreach[]): RadarOutreach[] {
+  const chaine: RadarOutreach[] = [];
+  let courant: RadarOutreach | undefined = message;
+  while (courant !== undefined && !chaine.includes(courant)) {
+    chaine.push(courant);
     const parent: number | null = courant.follow_up_of_id;
     courant = parent === null ? undefined : messages.find((m) => m.id === parent);
   }
-  return false;
+  return chaine;
 }
 
 /** TCK-2426 — par où un message envoyé est parti, tel que l'écran le nomme : à la main, par l'API, ou par l'API sans confirmation de Meta. */
@@ -122,7 +127,12 @@ export function canalDuMessage(message: RadarOutreach): CanalDuMessage {
   return message.provider_status === 'ambiguous' ? 'ambiguous' : 'cloud';
 }
 
-/** TCK-2426 — un message ouvert est parti par l'API : sa réponse peut arriver à tout moment par le webhook de Meta. */
+/**
+ * TCK-2426 — la chaîne d'un message ouvert contient un envoi par l'API sans issue : une réponse peut arriver à tout moment
+ * par le webhook de Meta. La chaîne, pas le seul message ouvert : une réponse au numéro du Radar se rattache au dernier
+ * message envoyé de la chaîne (`RadarWhatsappInbox::target()`), qui peut être une relance envoyée à la main.
+ */
 export function attendUneReponseParLApi(messages: readonly RadarOutreach[]): boolean {
-  return messagesEnAttente(messages).some((m) => m.channel === 'whatsapp_cloud');
+  return messagesEnAttente(messages)
+    .some((ouvert) => chaineDe(ouvert, messages).some((m) => m.channel === 'whatsapp_cloud' && m.outcome === null));
 }

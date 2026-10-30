@@ -9112,7 +9112,7 @@
             },
             "receivedAt": "Reçue par l’API WhatsApp le {date}",
             "receivedText": "Texte reçu",
-            "noText": "Cette réponse n’a pas de texte (message vocal, image) : elle n’est pas lisible ici. Écoutez-la ou regardez-la sur le téléphone du Radar, puis posez son issue.",
+            "noText": "Cette réponse n’a pas de texte (message vocal, image) : elle n’est pas lisible ici. Écoutez-la ou regardez-la dans WhatsApp, sur le numéro du Radar, puis posez son issue.",
             "failedReceived": "La vérification a échoué : {reason}. Lisez le texte reçu vous-même.",
             "failedReceivedNoReason": "La vérification a échoué. Lisez le texte reçu vous-même."
           },

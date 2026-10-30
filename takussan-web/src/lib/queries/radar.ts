@@ -61,6 +61,13 @@ export const RADAR_POLL_MS = 10_000;
 export const RADAR_REPLY_POLL_MS = 30_000;
 
 /**
+ * TCK-2426 — la relecture à {@link RADAR_REPLY_POLL_MS} ne dure pas plus que cette fenêtre, ouverte à l'arrivée sur la
+ * fiche, au retour sur l'onglet et à chaque envoi par l'API : une page oubliée ouverte ne relit pas la fiche pendant des
+ * jours.
+ */
+export const RADAR_REPLY_WINDOW_MS = 15 * 60_000;
+
+/**
  * Les colonnes d'une ligne de file demandées au sparse fieldset (`RadarAdvertiser::$queryFields`). La prise en charge
  * n'en est pas une : l'API lit ses colonnes d'elle-même et rend `claim` quand même.
  */
