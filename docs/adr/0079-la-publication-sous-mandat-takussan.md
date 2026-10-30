@@ -129,8 +129,8 @@ son annonceur ». C'est la « mention expresse contraire » de l'article 1.
   l'annonce.
 - **Les biens sous mandat comptent dans le quota de l'espace des mandats** : son offre doit le
   permettre, sinon `quota.listings_exceeded`.
-- **Un annonceur sous mandat qui veut ensuite un compte** n'a pas encore de voie propre (TCK-2421) :
-  le lien de réclamation lui répond « écrivez-nous » (`radar.claim.under_mandate`).
+- **Un annonceur sous mandat qui veut ensuite un compte** reprend ses biens dans son espace par le
+  lien de réclamation (TCK-2421, amendement « la reprise » ci-dessous).
 - **Takussan reçoit les demandes par formulaire** de ces biens et doit les transmettre à la main :
   une charge d'exploitation, que le volume rendra visible.
 
@@ -147,3 +147,44 @@ son annonceur ». C'est la « mention expresse contraire » de l'article 1.
 - Prérequis du porteur avant d'allumer : accepter cet ADR, faire **TCK-2421** (qui lève la fermeture
   de la réclamation) et **TCK-2422**, faire relire `mandat.v1` par l'avocat, créer l'espace des
   mandats avec un administrateur principal et le désigner dans la console.
+
+## Amendement du 2026-10-30 — la reprise des biens par l'annonceur (TCK-2421)
+
+Le porteur a accepté cet ADR sur le principe le 2026-10-30 (réponse A2) ; `radar_mandate` reste éteint
+jusqu'à l'avis de l'avocat et la livraison de TCK-2421. Cet amendement lève la fermeture du § 4
+(« la réclamation par le lien est fermée sous mandat ») et précise le § 5. Mesuré sur `dev`
+9f7bffea9.
+
+1. **Le code de la réclamation est la reprise.** L'annonceur sous mandat qui vérifie son numéro par
+   le lien de réclamation (ADR-0077 § 3, TCK-2390) reprend ses biens dans SON espace : celui que la
+   réclamation lui ouvre ou qu'il a déjà. Aucun autre chemin ne transfère : ni l'opérateur, ni un
+   compte qui n'a pas vérifié ce numéro (`RadarClaims::claim()`, seul appelant de
+   `RadarMandateTakeBack::takeBack()`). Le drapeau éteint après coup ne ferme pas la reprise : elle
+   est la sortie du mandat.
+2. **Une transaction, sous le verrou de l'annonceur**, celle de la réclamation : le compte, la preuve
+   `otp`, les annonces réclamées et les biens repris passent ensemble, ou rien. Le mandat se relit
+   sous ce verrou. Il n'existe donc jamais d'état mêlé mandat + compte : l'annonceur n'est rattaché à
+   son compte qu'une fois ses biens dans son espace.
+3. **Les mêmes biens** : ni republication, ni perte. Suivent le bien : l'espace et le titulaire
+   (journal du modèle coupé, ADR-0059 § 4), ses demandes et ses clics (l'espace, et lui pour
+   destinataire), ses visites, ses conversations (il prend la place du titulaire précédent), ses
+   empreintes de photos. Ses vues et son contact (son numéro) ne bougent pas. Restent dans l'espace
+   des mandats : ses prospects (le lien d'une demande ou d'une visite reprise vers un prospect de
+   l'espace des mandats est retiré) et ses collaborateurs (retirés du bien). Aucun quota n'est rejugé :
+   les biens existent déjà.
+4. **Un bien qui porte de la gestion renvoie au support** — réservation, bail, facture de
+   prestataire, mise en avant, demande de maintenance, état des lieux, ou un lot : la page dit
+   `mandate_support` et le code n'est pas envoyé (409 `radar.claim.mandate_support_required`).
+5. **`mandate_at` reste comme trace ; la reprise se date** (`radar_advertisers.mandate_taken_back_at`).
+   « Sous mandat », c'est `mandate_at` posé et `mandate_taken_back_at` nul
+   (`RadarAdvertiser::underMandate()`) : une colonne et non `user_id`, pour qu'un compte délié après
+   la reprise (`AdvertiserAccountRelease`) ne remette pas l'annonceur sous mandat. Un nouveau mandat
+   après une reprise ouvre une période neuve. Sur le bien, `metadata.radar_mandate` passe à faux.
+6. **Le second message suit l'état.** Sous mandat, il devient `mandat.v2` : le texte de `mandat.v1`
+   plus le lien de réclamation, par lequel l'annonceur reprend ses biens. Si ce lien ne s'ouvrirait pas
+   (connexion par téléphone éteinte, aperçu des codes actif), le message reste `mandat.v1`, sans lien.
+   Repris, l'annonceur reçoit le message des biens en ligne (`publie.v2`). ⚠ `mandat.v2` est à faire
+   relire par l'avocat avec `mandat.v1`.
+
+Aucun relais automatique des formulaires vers l'annonceur sous mandat (réponse B6 du porteur) : la
+reprise est la voie par laquelle il reçoit lui-même ses demandes.
