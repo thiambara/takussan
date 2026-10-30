@@ -782,7 +782,16 @@ en est le premier usager. Vision et lots : [plan du 2026-10-26](plans/2026-10-26
   marque, la forme nord-américaine `[2-9]XX [2-9]XX XXXX` derrière `1`, dix chiffres commençant par 3 à
   9 derrière `7`, et une zone de trois chiffres quelconques entre parenthèses suivie de sept chiffres
   derrière l'un comme l'autre (`RDC +7 (495) 123-45-67 F`, `RDC +1 (495) 123-45-67 F`) :
-  `au RDC +1 514 555 0199` est masqué (TCK-2435, TCK-2445). Derrière `7`, avec ou sans étage, une zone
+  `au RDC +1 514 555 0199` est masqué (TCK-2435, TCK-2445). Derrière l'étage `1` ou `7`, `(221)`
+  suivi d'un numéro sénégalais groupé 2-3-2-2, 2-2-2-3 ou 3-2-2-2, ou d'un seul tenant, et qu'aucune
+  marque monétaire ne suit, n'est pas une zone : `Villa R+1 (221) 77 012 34 56` reste un étage, et
+  seul le numéro est masqué (`Villa R+1 (221) [TELEPHONE]`) ; sans étage, `Contact +1 (221) 77 012 34
+  56` est lu comme un numéro `+1` (`Contact [TELEPHONE] 56`) (TCK-2447). Limites connues : derrière
+  l'étage `1` ou `7`, un autre groupement (`Villa R+1 (221) 77 01 234 56`), une marque
+  (`Villa R+1 (221) 77 012 34 56 F`), ou l'indicatif écrit `00221` ou `221` nu
+  (`Villa R+1 00221 77 012 34 56`, `Villa R+1 221 77 012 34 56`) se lisent encore comme un numéro
+  `+1` / `+7`, et en laissent la fin en clair (`Villa R[TELEPHONE] 34 56`) (TCK-2447 ; TCK-2451).
+  Derrière `7`, avec ou sans étage, une zone
   de quatre ou cinq chiffres entre parenthèses commençant par 3 à 9, suivie de six ou cinq chiffres, est
   un numéro aussi (`+7 (3452) 12-34-56`, `+7 (34922) 1-23-45`) ; une année entre parenthèses n'en est
   pas une (`Immeuble R+7 (2024) 450 000 000 F` garde son prix) (TCK-2445). Un prix d'étage qui a l'une
@@ -837,14 +846,14 @@ catalogue tant que cet accord n'existe pas. Vision et lots : [plan du 2026-10-26
 | P1 | 🛡️ | Préparer le message d'accord pour une ou plusieurs annonces d'un annonceur (clauses fixes, salutation et résumé personnalisés par l'IA) et l'ouvrir dans WhatsApp ; relances après un délai sans réponse |
 | P1 | 🛡️ | Déposer la capture de la réponse : l'IA la transcrit, vérifie le numéro et les clauses et classe la réponse (accord, refus, STOP, question, ambigu) ; un opérateur confirme ; refus et STOP s'enregistrent aussi sans capture |
 | P1 | 🛡️ | « Publier pour lui » (`super_admin` seulement) : sur un accord confirmé, crée l'espace individuel de l'annonceur (compte sans mot de passe à son numéro) et y publie les annonces couvertes, après un écran de vérification (compte, biens, photos, doublons) ; une annonce relue sans titre se publie sous un titre construit de ses champs (type, chambres, contrat, quartier), que l'écran de vérification montre (TCK-2389) |
-| P1 | 👤🏢 | Réclamer ses annonces depuis le lien signé du message (`/claim/{jeton}`, 30 jours, mort après un STOP ou une révocation ; sous mandat, le même code reprend ses biens en ligne dans son espace, TCK-2421) : annonces en cartes à cocher et à corriger (titre, prix, description), prénom et nom de l'espace, acceptation des conditions avec leur version, code SMS envoyé au seul numéro de l'annonceur (affiché masqué), publication dans son espace individuel dès les photos prêtes ; un numéro déjà inscrit se connecte d'abord à son compte ; la même page active le compte créé par « publier pour lui » (TCK-2390) ; une annonce que la publication automatique ne peut pas mettre en ligne (photo, champ, refus) attend la vérification de l'équipe, et l'opérateur la reprend depuis la file « À reprendre », qui montre l'échéance de purge (TCK-2413) ; sous mandat, la page dit que Takussan diffuse ses annonces pour son compte et le code les fait reprendre dans l'espace de l'annonceur, sans republication, avec leurs vues et leurs demandes, dans la transaction de la réclamation ; un bien qui porte de la gestion (réservation, bail, facture de prestataire, mise en avant, maintenance, état des lieux, flux de calendrier) ou un lot renvoie au support (`radar.claim.mandate_support_required`), et un espace qui n'est pas actif (suspendu ou inactif) refuse la reprise (`radar.claim.space_suspended`), ses biens restant sous mandat, en ligne (TCK-2421, [ADR-0079](adr/0079-la-publication-sous-mandat-takussan.md), amendement « la reprise ») |
+| P1 | 👤🏢 | Réclamer ses annonces depuis le lien signé du message (`/claim/{jeton}`, 30 jours, mort après un STOP ou une révocation ; sous mandat, le même code reprend ses biens en ligne dans son espace, TCK-2421) : annonces en cartes à cocher et à corriger (titre, prix, description), prénom et nom de l'espace, acceptation des conditions avec leur version, code SMS envoyé au seul numéro de l'annonceur (affiché masqué), publication dans son espace individuel dès les photos prêtes ; un numéro déjà inscrit se connecte d'abord à son compte ; la même page active le compte créé par « publier pour lui » (TCK-2390) ; une annonce que la publication automatique ne peut pas mettre en ligne (photo, champ, refus) attend la vérification de l'équipe, et l'opérateur la reprend depuis la file « À reprendre », qui montre l'échéance de purge (TCK-2413) ; sous mandat, la page dit que Takussan diffuse ses annonces pour son compte et le code les fait reprendre dans l'espace de l'annonceur, sans republication, avec leurs vues et leurs demandes, dans la transaction de la réclamation ; un bien qui porte de la gestion (réservation, bail, facture de prestataire, mise en avant, maintenance, état des lieux, flux de calendrier) ou un lot renvoie au support (`radar.claim.mandate_support_required`), et un espace qui n'est pas actif (suspendu ou inactif) refuse la reprise (`radar.claim.space_suspended`), ses biens restant sous mandat, en ligne (TCK-2421, [ADR-0079](adr/0079-la-publication-sous-mandat-takussan.md), amendement « la reprise ») ; hors mandat, un espace qui n'est pas actif refuse la réclamation avant l'envoi du code, et la page le dit d'avance (`radar.claim.space_unavailable`, TCK-2446) |
 | P1 | 🛡️ | Retrait de l'accord (STOP, ou révocation par la plateforme, `POST /api/admin/radar/advertisers/{id}/revoke`, `super_admin` seulement, motif obligatoire) : les biens publiés quittent la surface publique et l'index de recherche sur-le-champ, l'annonceur n'est plus jamais contacté (TCK-2391) |
 | P1 | 🛡️ | Purge des annonces jamais publiées à 90 jours ou dès un STOP, en conservant l'empreinte du numéro qui a refusé ; purge quotidienne (`radar:purge`, 04:15 Dakar), doublée d'un job lancé dès la révocation (TCK-2391) |
 | P2 | 🛡️ | Collecte automatique planifiée sur Expat-Dakar et CoinAfrique, **éteinte par défaut** : le `super_admin` allume chaque site, règle sa fréquence, ses pages et ses URL de départ (plusieurs par site, une page par ville ou par catégorie ; `https` sur un hôte que l'adaptateur du site déclare ; vides : l'URL de la configuration), lance un passage (`/super-admin/radar/collecte`) ; chaque passage lit chacune de ses listes dans un plafond de pages et un budget de temps communs (`robots.txt` respecté, un seul passage actif par site), saisit les annonces nouvelles et date leurs instantanés (prix, surface, quartier, présence) ; la même annonce vue sur deux sites peut être fusionnée d'office en une fiche à deux provenances, que l'opérateur peut séparer — fusion **éteinte par défaut** (`RADAR_MERGE_AUTO`) (TCK-2392, TCK-2438, [ADR-0080](adr/0080-la-collecte-automatique-du-radar.md)) |
 | P2 | 🛡️ | Annonceurs et observatoire du marché (`/super-admin/radar/observatory`) : classement des annonceurs par volume d'annonces vivantes (quartiers principaux, gammes de prix, sites, nature présumée, piste commerciale jusqu'à la demande de passage en agence) ; prix au m² par quartier, type et contrat ; temps de mise sur le marché ; quartiers où Takussan manque d'annonces ; part d'intermédiaires probables ; alerte quand l'annonce source d'un bien publié disparaît (TCK-2393, [ADR-0083](adr/0083-l-observatoire-du-marche.md)) ; part par nature sur une période, en annonceurs-jours, lue sur des compteurs anonymes quotidiens qui survivent à la purge — **éteints par défaut** (`RADAR_NATURE_COUNTS`), jusqu'à l'avis juridique de TCK-2434 (TCK-2431) |
 | P2 | 🛡️ | Relance d'activation d'un compte créé par « publier pour lui » et jamais activé : texte fixe versionné (`activation.v1`) avec les chiffres réels de la période — vues, demandes de contact et de visite, crédits offerts à l'activation —, ouvert dans WhatsApp puis marqué envoyé ; une relance par semaine au plus (`radar.activation.min_interval_days`) (TCK-2394) |
 | P2 | 🛡️ | Publication sous mandat Takussan (`super_admin`, drapeau `radar_mandate`, [ADR-0079](adr/0079-la-publication-sous-mandat-takussan.md), accepté sur le principe ; drapeau éteint jusqu'à l'avis de l'avocat et la livraison de TCK-2422 ; la reprise de TCK-2421 est livrée) : sur un accord confirmé, l'annonceur qui ne veut pas de compte voit ses annonces publiées dans l'espace des mandats (réglage `radar.mandate_agency_id`), son numéro en contact, sans compte créé ; second message `mandat.v2`, qui porte le lien par lequel l'annonceur reprend ses biens dans son espace, ou `mandat.v1`, sans lien, quand la connexion par téléphone est éteinte ou l'aperçu des codes actif (TCK-2394, TCK-2421) |
-| P3 | 🛡️ | Démarchage par l'API WhatsApp Cloud sur un numéro dédié au Radar, réception des réponses par webhook signé et preuve par identifiant de message (TCK-2395, [ADR-0081](adr/0081-le-radar-prospecte-par-l-api-whatsapp-sur-son-propre-numero.md)) ; depuis la fiche annonceur, envoi confirmé, canal de chaque message, réponse reçue lue en texte (TCK-2426) ; état de remise suivi par les accusés de WhatsApp, journalisé (TCK-2427) et affiché à côté du canal (TCK-2437) ; un envoi resté sans confirmation de Meta rattaché à ses accusés par un jeton opaque posé à l'envoi (TCK-2436) |
+| P3 | 🛡️ | Démarchage par l'API WhatsApp Cloud sur un numéro dédié au Radar, réception des réponses par webhook signé et preuve par identifiant de message (TCK-2395, [ADR-0081](adr/0081-le-radar-prospecte-par-l-api-whatsapp-sur-son-propre-numero.md)) ; depuis la fiche annonceur, envoi confirmé, canal de chaque message, réponse reçue lue en texte (TCK-2426) ; état de remise suivi par les accusés de WhatsApp, journalisé (TCK-2427) et affiché à côté du canal (TCK-2437), avec le motif d'un message non remis quand Meta en donne un code que la fiche libelle (TCK-2444) ; un envoi resté sans confirmation de Meta rattaché à ses accusés par un jeton opaque posé à l'envoi (TCK-2436) |
 
 **Règles de gestion.**
 
@@ -937,15 +946,23 @@ catalogue tant que cet accord n'existe pas. Vision et lots : [plan du 2026-10-26
   réclamée encore en file, d'avant ce mandat, refuse (409 `radar.claim.under_mandate`).
 - **Les biens du Radar n'entrent pas dans l'espace d'un annonceur qui n'est pas actif** (suspendu
   ou inactif), qui ne les rendrait pas au public : la reprise sous mandat
-  (`radar.claim.space_suspended`), la publication réclamée (le job `PublishClaimedRadarListings` qui
-  suit la réclamation) et « publier pour lui », aperçu compris (`radar.advertiser.account_unavailable`),
-  le refusent ; sans espace, la réclamation et « publier pour lui » en ouvrent un (TCK-2421). Sous
-  mandat, le refus vient avant l'envoi du code. **Hors mandat, il vient après la réclamation** :
-  ni l'envoi du code ni la confirmation ne jugent l'espace, la réclamation est commitée (accord
-  `otp`, compte rattaché) et la page la dit confirmée ; c'est le job de publication qui refuse
-  ensuite, et les annonces, restées `consented` avec ce code pour raison, reviennent à l'opérateur
-  dans la file « À reprendre » (TCK-2413). Refuser avant la confirmation hors mandat aussi :
-  TCK-2446.
+  (`radar.claim.space_suspended`), la réclamation hors mandat (`radar.claim.space_unavailable`), la
+  publication réclamée (le job `PublishClaimedRadarListings` qui suit la réclamation) et « publier
+  pour lui », aperçu compris (`radar.advertiser.account_unavailable`), le refusent ; sans espace, la
+  réclamation et « publier pour lui » en ouvrent un (TCK-2421). L'espace jugé est celui où iraient
+  les annonces : le premier dont le compte que le code ouvrirait est l'administrateur principal.
+  Sous mandat comme hors mandat, la réclamation refuse l'envoi du code (409), sans SMS, avant même
+  la connexion exigée d'un numéro déjà inscrit. Elle refuse encore à la confirmation, avant la
+  vérification du code, qui n'est pas consommé, puis le rejuge sous le verrou de l'annonceur : un
+  espace qui a cessé d'être actif pendant la confirmation ne reçoit ni accord `otp` ni compte
+  rattaché, la confirmation se défaisant entière (le code, vérifié, est alors consommé). Hors
+  mandat, la page le dit d'avance (« Votre espace n'est pas actif », sans formulaire de code, les
+  annonces affichées sans pouvoir être cochées ni corrigées), avec un texte qui ne parle pas de
+  mandat ; sous mandat, le refus se dit à l'envoi du code. Le compte préparé par « publier pour
+  lui » dont l'espace n'est pas actif est refusé comme indisponible
+  (`radar.claim.account_unavailable`). La garde du job reste : un espace qui cesse d'être actif
+  (suspendu ou inactif) entre la confirmation et la publication laisse les annonces `consented`,
+  avec ce code pour raison, à l'opérateur dans la file « À reprendre » (TCK-2413, TCK-2446).
 - **La nature de l'annonceur reste dans le Radar**, jamais dans les profils.
 - **Le numéro WhatsApp des notifications ne sert jamais à prospecter.**
 - **Le démarchage par l'API part d'un numéro WhatsApp dédié au Radar, configuré à part** : le code
@@ -968,16 +985,21 @@ catalogue tant que cet accord n'existe pas. Vision et lots : [plan du 2026-10-26
   lu, ou non remis. Il n'avance que dans cet ordre, quels que soient l'ordre et le nombre des accusés
   reçus, et un message remis ne devient jamais « non remis ». Un accusé n'est jamais une preuve
   d'accord : il ne change ni l'envoi, ni l'issue, ni les annonces. Un message non remis est
-  journalisé avec le code de WhatsApp (`radar_whatsapp_delivery_failed`), sans texte ni numéro ; il
-  reste envoyé, et l'opérateur juge de la suite. Un accusé d'identifiant inconnu est ignoré, jamais
+  journalisé avec le code de WhatsApp (`radar_whatsapp_delivery_failed`), sans texte ni numéro, et ce
+  code est tenu par le message (TCK-2444) ; il reste envoyé, et l'opérateur juge de la suite. Un accusé d'identifiant inconnu est ignoré, jamais
   rattaché par inférence (TCK-2427), sauf par le jeton opaque de l'envoi (voir la règle suivante).
   La fiche annonceur affiche cet état à côté du canal, sur la carte du suivi comme dans
   l'historique : « Envoyé » tant qu'aucun accusé de remise n'est arrivé, « Remis », « Lu », ou
   « Non remis » en ton destructif. Sur la carte du suivi, un message non remis dit qu'il reste compté
   comme envoyé et que l'opérateur juge de la suite ; aucun geste n'est proposé. Un envoi sans
   confirmation de Meta n'a que son libellé de canal tant qu'aucun accusé ne l'a fait avancer (voir
-  la règle suivante), et un message envoyé à la main n'a pas d'état de remise. Le code de l'échec
-  n'est pas affiché (TCK-2437 ; son affichage : TCK-2444).
+  la règle suivante), et un message envoyé à la main n'a pas d'état de remise (TCK-2437). Un message
+  non remis porte aussi, juste après « Non remis », le motif de l'un des codes de Meta que la fiche
+  libelle, liste fermée : destinataire injoignable sur WhatsApp (131026), limité par Meta (131049),
+  refus des messages marketing (131050), trop de messages à ce destinataire en peu de temps (131056),
+  envois limités sur le numéro du Radar, peut-être après des signalements (131048), retenu par une
+  expérience de Meta (130472). Tout autre code, ou pas de code, n'affiche que « Non remis » ; aucun
+  geste n'est proposé. L'API rend le code seul, jamais le texte de l'erreur (TCK-2444).
 - **Un envoi par l'API resté sans confirmation de Meta est rattaché à ses accusés par un jeton
   opaque** (TCK-2436, [ADR-0081](adr/0081-le-radar-prospecte-par-l-api-whatsapp-sur-son-propre-numero.md),
   amendement du 2026-10-30). Chaque envoi par l'API porte un jeton aléatoire, sans donnée
@@ -1039,10 +1061,30 @@ catalogue tant que cet accord n'existe pas. Vision et lots : [plan du 2026-10-26
   (`Villa R + 2 4 chambres 2435` rend 2435 ; `R+ 1 33 821 00 00 F` rend 33 821, un fixe suivi d'une
   marque n'étant pas masqué). Suivi d'une lettre ou d'une ponctuation, il reste un nombre et le prix
   est perdu (`Villa R+ 2 à vendre 2435` ne rend aucun prix, quand `Villa R+2 à vendre 2435` rend 2435) ;
-  au-delà de 19, il se lit encore comme le début du prix (`R+ 20 450 000 F` vaut 20 450 000) (TCK-2445). Limites connues : derrière un `R+` collé, un indicatif étranger
-  (`R+33 6 12 34 56 78`) peut encore donner un contact `+221 33…` (TCK-2441) ; `Villa R+1 (221) 77 012 34 56`
-  ne donne aucun contact, et `(221)` devant un contact se lit comme un prix de 221
-  (`Villa (221) 77 012 34 56`) (TCK-2447). Un nombre nu de moins de 100, sans monnaie, période ni multiplicateur, n'est jamais
+  au-delà de 19, il se lit encore comme le début du prix (`R+ 20 450 000 F` vaut 20 450 000) (TCK-2445).
+  Derrière un `R+` collé, un numéro étranger complet garde son indicatif : `Villa R+33 6 12 34 56 78`
+  ne donne aucun contact. En retour, un étage collé de 20 ou plus perd le numéro sénégalais qui le
+  suit dans deux cas : quand l'étage est lui-même un indicatif (`20`, `27`, `30` à `34`, `36`, `39`,
+  `40`…), ou quand il va de 100 à 199 (le `1` suivi de dix chiffres). Ainsi
+  `Immeuble R+20 77 123 45 67` et `Immeuble R+105 77 123 45 67` ne donnent aucun contact, mais
+  `Immeuble R+25 77 123 45 67` garde le sien. La perte vaut aussi quand le numéro porte un indicatif
+  `00221` ou `221` nu (`Immeuble R+20 00221 77 123 45 67`, `Immeuble R+30 221 77 123 45 67`), ou qu'un
+  tiret, court ou long, un point ou une barre l'en sépare (`Immeuble R+20 - 77 123 45 67`). Elle ne vaut ni avec
+  `+221` ou `(221)` (`Immeuble R+20 +221 77 123 45 67`, `Immeuble R+20 (221) 77 123 45 67`), ni
+  derrière une virgule, un deux-points, un point-virgule ou une parenthèse
+  (`Immeuble R+20, 77 123 45 67`). Le prix qui suit un étage qui est un indicatif est perdu quand il
+  a la forme d'un numéro de ce plan (`Immeuble R+30 2 500 000 F`) ; le masquage le lit déjà ainsi
+  (TCK-2441). Derrière l'étage `1` ou `7`, `(221)` suivi d'un numéro sénégalais groupé comme au
+  [§2.11](#211-socle-ia) n'est pas une zone : `Villa R+1 (221) 77 012 34 56` donne `+221770123456`. Le
+  `221` qui touche le numéro, nu ou entre parenthèses, au plus trois espaces, points, tirets `-` ou
+  barres `/` entre eux, n'est pas un prix : `Villa (221) 77 012 34 56` et `Villa 221 / 77 012 34 56`
+  ne rendent aucun prix (TCK-2447). Limites connues : `Villa ( 221 ) 77 012 34 56`, un tiret long
+  (`Villa (221) – 77 012 34 56`), un `:`, une `,` ou des crochets (`Villa [221] 77 012 34 56`)
+  laissent encore un prix de 221 (TCK-2447) ; derrière l'étage `1` ou `7`, un autre groupement
+  (`Villa R+1 (221) 77 01 234 56`) et l'indicatif `00221` ou `221` nu
+  (`Villa R+1 00221 77 012 34 56`) ne donnent aucun contact (TCK-2447 ; TCK-2451) ;
+  `Villa R+1 (221) 77 012 34 56 F`, un numéro suivi d'une marque, ne donne aucun contact et rend 56
+  comme prix (TCK-2447). Un nombre nu de moins de 100, sans monnaie, période ni multiplicateur, n'est jamais
   choisi comme prix (un compte, un horaire `H24/7`, le reste d'un numéro) (TCK-2428).
 - **La collecte ne part que d'un geste du porteur** : une source naît éteinte ; celui qui l'allume en
   devient l'opérateur, au nom duquel l'extraction est jugée et comptée sur le budget d'IA. Une
