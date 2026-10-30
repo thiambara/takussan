@@ -220,7 +220,7 @@ class RadarPurgePublishedTest extends TestCase
         $this->assertSame(0, $this->purger()['published_listings'], 'idempotente');
     }
 
-    public function test_tck_2392_la_matiere_d_une_annonce_publiee_part_avec_ses_instantanes_detaches(): void
+    public function test_tck_2392_la_matiere_d_une_annonce_publiee_part_avec_ses_instantanes(): void
     {
         $this->allumer();
         $annonceur = $this->annonceur();
@@ -237,12 +237,9 @@ class RadarPurgePublishedTest extends TestCase
         $comptes = $this->troisAnsApresLeRetrait($bien);
 
         $this->assertSame(1, $comptes['published_listings']);
-        $this->assertSame(1, $comptes['snapshots_detached'], 'Un accord, pas un refus : détaché, pas supprimé.');
+        $this->assertSame(1, $comptes['snapshots_deleted']);
         $this->assertNull($annonce->fresh()->discovered_by_run_id);
-        $detache = $instantane->fresh();
-        $this->assertNull($detache->radar_listing_id);
-        $this->assertNull($detache->crawl_run_id);
-        $this->assertNull($detache->title_fingerprint);
+        $this->assertNull($instantane->fresh());
     }
 
     public function test_une_annonce_dont_le_bien_a_ete_supprime_part_aussi(): void

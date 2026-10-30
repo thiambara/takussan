@@ -12,10 +12,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  *
  * `price` est en XOF ; `title_fingerprint` est une empreinte, jamais le texte (ADR-0077 §9).
  *
- * **À la purge de son annonce** (`RadarPurger`, ADR-0080) : SUPPRIMÉ si elle tombe pour un STOP, une révocation ou
- * `do_not_contact` ; sinon (échéance des 90 jours) DÉTACHÉ — `radar_listing_id`, `crawl_run_id`, `title_fingerprint` et
- * `neighborhood_label` à null, dates ramenées au jour. Un instantané sans annonce est une observation de marché
- * anonyme, sans passage ni instant qui la relie à la fiche purgée.
+ * **Supprimé à la purge de son annonce** (`RadarPurger`, ADR-0080 § 4), quelle qu'en soit la raison : un instantané
+ * détaché se rejoignait encore à sa fiche. Un historique de marché au-delà de la rétention passera par des compteurs
+ * anonymes agrégés (TCK-2434).
  */
 class RadarListingSnapshot extends AbstractModel
 {
