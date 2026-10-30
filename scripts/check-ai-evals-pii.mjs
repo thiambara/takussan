@@ -99,10 +99,11 @@ const RESTE_CC1 = String.raw`(?:${SEP}?\([0-9]{3}\)(?:${SEP}{0,3}[0-9]){7}|(?:${
   + String.raw`(?!${WS}*(?:(?:f${WS}?cfa|cfa|xof|francs?)(?!\p{L})|f(?!\p{L}|\.${WS}*\p{L})))`;
 // Derrière `1`, la forme nord-américaine `[2-9]XX [2-9]XX XXXX`, et derrière `7` dix chiffres commençant par 3 à 9
 // (mobiles `9XX`, `7XX`, fixes `495`, `812`…), sont des numéros quelle que soit la marque qui suit
-// (`au RDC +1 514 555 0199 F Diop`).
+// (`au RDC +1 514 555 0199 F Diop`). TCK-2445 : derrière `7` aussi, la zone entre parenthèses (`RDC +7 (495) 123-45-67 F`).
 const RESTE_NANP = String.raw`(?:${SEP}?\([2-9][0-9]{2}\)|${SEP}{0,3}[2-9](?:${SEP}{0,3}[0-9]){2})`
   + String.raw`${SEP}{0,3}[2-9](?:${SEP}{0,3}[0-9]){6}(?![0-9])`;
-const RESTE_CC7 = String.raw`${SEP}{0,3}[3-9](?:${SEP}{0,3}[0-9]){9}(?![0-9])`;
+const RESTE_CC7 = String.raw`(?:${SEP}?\([3-9][0-9]{2}\)|${SEP}{0,3}[3-9](?:${SEP}{0,3}[0-9]){2})`
+  + String.raw`(?:${SEP}{0,3}[0-9]){7}(?![0-9])`;
 const NUMERO_CC1 = `(?:1(?:${RESTE_CC1}|${RESTE_NANP})|7(?:${RESTE_CC1}|${RESTE_CC7}))`;
 const APRES_PLUS_ETAGE = String.raw`${WS}{0,2}(?:[02-689]|(?!${NUMERO_CC1})[17]|1[0-9])(?![0-9])`;
 const PAS_UN_ETAGE = String.raw`(?!${MOT_ETAGE}\+${APRES_PLUS_ETAGE})`;

@@ -165,6 +165,31 @@ class RadarAmountParserTest extends TestCase
         }
     }
 
+    public function test_un_numero_sept_a_zone_entre_parentheses_derriere_un_etage_n_est_pas_un_prix(): void
+    {
+        // TCK-2445 : sans la zone entre parenthèses dans `PhoneMasker::CC7_REST`, le `7` était lu comme un étage et un bout
+        // du numéro devenait le prix (`1234567`, `495`, `67`, `34567`).
+        foreach (['RDC +7 (495) 123-45-67 F', 'R + 7 (495) 123-45-67 F', 'R +7 (812) 123-45-67 XOF', 'RDC +7 (912) 345-67-89 F',
+            'RDC+7 (495)1234567 F', 'R+7 (495) 123-45-67 F', 'RDC +7 (495).123.45.67 F', 'RDC +7 (495)/123/45/67 F',
+            "RDC\u{00A0}+7\u{00A0}(495)\u{00A0}123\u{00A0}45\u{00A0}67\u{00A0}FCFA", 'RDC +7 (770) 12 34 567 F'] as $texte) {
+            $this->assertNull(RadarAmountParser::parse($texte), $texte);
+        }
+    }
+
+    public function test_un_etage_espace_de_son_plus_ne_se_colle_pas_au_prix(): void
+    {
+        // TCK-2445 (m11) : `R+ 2 450 000 F` rendait 2 450 000, le chiffre de l'étage lu comme le premier groupe du prix.
+        // La forme collée (`R+2 450 000 F`) rendait déjà 450 000. Défaut antérieur à TCK-2435.
+        foreach (['Villa R+ 2 450 000 F', 'Villa RDC + 2 450 000 F', 'Villa R + 2 450 000 F', 'Villa Rdc+ 2 450 000 F',
+            'Villa R+2 450 000 F', 'Villa R+ 12 450 000 F', 'Villa R  +  2 450 000 F'] as $texte) {
+            $this->assertSame(['amount' => 450_000, 'period' => null], RadarAmountParser::parse($texte), $texte);
+        }
+        // Sans étage derrière le `+`, ou un étage suivi d'un prix qui commence par 1, le prix est lu en entier.
+        $this->assertSame(['amount' => 450_000, 'period' => null], RadarAmountParser::parse('Villa R+ 450 000 F'));
+        $this->assertSame(['amount' => 1_250_500_750, 'period' => null], RadarAmountParser::parse('Immeuble R+ 1 1 250 500 750 F'));
+        $this->assertSame(['amount' => 2_450_000, 'period' => null], RadarAmountParser::parse('Villa T4 2 450 000 F'));
+    }
+
     /**
      * TCK-2428 (contre-vérification C3 de TCK-2412) — la plage du masqueur s'arrête avant un dernier groupe isolé :
      * ce reste, ou un horaire `H24/7`, n'est pas un candidat. Un nombre nu de moins de 100 n'est jamais choisi.

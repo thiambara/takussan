@@ -156,8 +156,12 @@ final class PhoneMasker
      * Derrière l'indicatif `7`, dix chiffres dont le premier est de 3 à 9 sont un numéro quelle que soit la marque qui suit :
      * les mobiles russes (`9XX`) et kazakhs (`7XX`), et les fixes (`495`, `812`, `343`…). Décision de la session : un prix
      * d'étage marqué de cette forme (`R+7 3 250 500 750 F`) est perdu plutôt qu'un fixe envoyé en clair.
+     *
+     * TCK-2445 — la zone entre parenthèses aussi (`RDC +7 (495) 123-45-67 F`), comme `NANP_REST` : sans elle, ce numéro
+     * partait en clair derrière `RDC` ou un `R` espacé, puisque `CC1_REST` refuse une marque derrière.
      */
-    private const CC7_REST = self::SEP.'{0,3}[3-9](?:'.self::SEP.'{0,3}[0-9]){9}(?![0-9])';
+    private const CC7_REST = '(?:'.self::SEP.'?\([3-9][0-9]{2}\)|'.self::SEP.'{0,3}[3-9](?:'.self::SEP.'{0,3}[0-9]){2})'
+        .'(?:'.self::SEP.'{0,3}[0-9]){7}(?![0-9])';
 
     /** L'indicatif `1` ou `7` et le numéro complet qui le suit : ce qui, derrière un `+` d'étage, n'est pas un étage. */
     public const CC1_NUMBER = '(?:1(?:'.self::CC1_REST.'|'.self::NANP_REST.')|7(?:'.self::CC1_REST.'|'.self::CC7_REST.'))';
