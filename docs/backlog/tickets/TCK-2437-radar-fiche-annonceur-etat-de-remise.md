@@ -81,6 +81,12 @@ message, l'échec se distingue nettement (ton destructif de la charte), sans ala
   en base, et l'écran lit ce qui y est. Il y arrive par l'identifiant de Meta (écriture défaite après l'envoi) et, avec
   TCK-2436 (appariement par jeton opaque, pas encore sur `dev`), aussi sur un envoi ambigu sans identifiant, dès que
   l'accusé porte le jeton. L'affichage reste juste dans les deux cas : la pastille suit l'état réel.
+  *Note du 2026-10-30, depuis TCK-2436 :* les deux chemins sont sur `dev`. Un `failed` qui porte le jeton fait passer à
+  `failed` un envoi ambigu **sans identifiant** ; l'appariement y écrit au passage `provider_message_id`, que l'écran ne
+  lit pas (`RadarOutreachResource` ne l'expose pas). Le canal reste `whatsapp_cloud` : `canalDuMessage()` rend « API
+  WhatsApp », `remiseDuMessage()` « Non remis », par le même chemin que le premier cas — déjà couvert par
+  `RadarEtatDeRemise.tck-2437.test.tsx` (« un envoi ambigu puis un accusé `failed` à la relecture »). Un `failed` sans
+  jeton laisse l'envoi `ambiguous` : aucune pastille, le canal dit « envoi non confirmé ».
 - Le bandeau de l'envoi par l'API (`RadarAdvertiserCard`) lit le message tel que la fiche le porte après relecture,
   comme la pastille : un accusé `failed` arrivé depuis le fait tomber, au lieu de garder « Ne le renvoyez pas à la
   main » à côté d'un « Non remis » (relevé par la vérification adverse).
