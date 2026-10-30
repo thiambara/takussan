@@ -187,8 +187,15 @@ final class PhoneMasker
      * L'indicatif `1` ou `7` et le numéro complet qui le suit : ce qui, derrière un `+` d'étage, n'est pas un étage. Le `(0)`
      * de trunk, que `FOREIGN` admet par `AFTER_CC`, aussi (TCK-2445 : `RDC +7 (0)495 123-45-67` partait en clair).
      */
-    public const CC1_NUMBER = '(?:1'.self::TRUNK_ZERO.'(?:'.self::CC1_REST.'|'.self::NANP_REST.'|'.self::ZONE_REST.')'
-        .'|7'.self::TRUNK_ZERO.'(?:'.self::CC1_REST.'|'.self::CC7_REST.'))';
+    public const CC1_NUMBER = '(?:1'.self::TRUNK_ZERO.self::NOT_SENEGAL_ZONE.'(?:'.self::CC1_REST.'|'.self::NANP_REST.'|'.self::ZONE_REST.')'
+        .'|7'.self::TRUNK_ZERO.self::NOT_SENEGAL_ZONE.'(?:'.self::CC1_REST.'|'.self::CC7_REST.'))';
+
+    /**
+     * TCK-2447 — derrière le `1` ou le `7` d'un étage, `(221)` suivi d'un numéro sénégalais (`PATTERN`) est l'indicatif du
+     * Sénégal entre parenthèses, pas une zone : `Villa R+1 (221) 77 012 34 56` se lisait `+1 (221) 77 012 34`, un numéro
+     * complet, et le contact se perdait. Hors d'un étage, `FOREIGN` le lit toujours (`Contact +1 (221) 77 012 34 56`).
+     */
+    private const NOT_SENEGAL_ZONE = '(?!'.self::SEP.'?\(221\)'.self::SEP.'{0,3}'.self::SENEGAL.self::END.')';
 
     /** Le `(0)` de trunk facultatif derrière l'indicatif, comme dans `AFTER_CC`. */
     private const TRUNK_ZERO = '(?:'.self::WS.'?\(0\))?';

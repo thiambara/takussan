@@ -280,6 +280,20 @@ class RadarPhoneTest extends TestCase
     }
 
     /**
+     * TCK-2447 — derrière l'étage `1` ou `7`, `(221)` suivi d'un numéro sénégalais est l'indicatif, pas une zone : le
+     * `+` reste celui de l'étage, et le contact n'est plus perdu.
+     */
+    public function test_l_indicatif_221_entre_parentheses_derriere_un_etage_garde_le_contact(): void
+    {
+        foreach (['Villa R+1 (221) 77 012 34 56', 'Villa R+7 (221) 77 012 34 56', 'Villa RDC +1 (221) 77 012 34 56',
+            'Villa R + 1 (221)77 012 34 56', 'Villa R+1 (221)-77-012-34-56', 'Villa (R+1) (221) 77 012 34 56'] as $texte) {
+            $this->assertSame(['+221770123456'], RadarPhone::fromText($texte), $texte);
+            $this->assertSame(['+221770123456'], RadarPhone::contactsFromText($texte), $texte);
+        }
+        $this->assertSame(['+221338210000'], RadarPhone::contactsFromText('Villa R+1 (221) 33 821 00 00'));
+    }
+
+    /**
      * Vérification adverse M2 — les limites connues du masqueur sont lues (le refus STOP s'y juge), mais ne désignent
      * pas d'office un contact : une unité derrière, un mot de prix ou de liste devant, des crochets.
      */
