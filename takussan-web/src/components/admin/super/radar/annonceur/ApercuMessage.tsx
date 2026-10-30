@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ExternalLink, Lock } from 'lucide-react';
+import { ExternalLink, Lock, Send } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 import { Button } from '@/components/ui/button';
@@ -24,9 +24,16 @@ interface ApercuMessageProps {
   /** Pas la prise en charge, STOP, ou geste en vol : le texte se lit, rien ne s'écrit ni ne s'envoie. */
   readonly desactive: boolean;
   readonly enRetouche: boolean;
+  /** Un envoi est en vol, à la main ou par l'API. */
   readonly enEnvoi: boolean;
   readonly onRetoucher: (changes: RadarOutreachChanges) => void;
   readonly onEnvoye: () => void;
+  /** TCK-2426 — `whatsapp_api_available` de la fiche : « Envoyer par l'API » n'existe que s'il est vrai. */
+  readonly apiDisponible: boolean;
+  /** TCK-2426 — une réponse reçue par l'API sur la chaîne attend son issue : l'API refuserait tout envoi (`reply_pending`). */
+  readonly reponseEnAttente: boolean;
+  readonly enEnvoiApi: boolean;
+  readonly onEnvoyerApi: () => void;
 }
 
 const texteDe = (segments: readonly RadarMessageSegment[], kind: RadarMessageSegment['kind']) =>
@@ -41,11 +48,29 @@ const texteDe = (segments: readonly RadarMessageSegment[], kind: RadarMessageSeg
  *
  * WhatsApp n'ouvre QUE le texte enregistré : tant qu'une retouche n'est pas enregistrée, le lien et « J'ai
  * envoyé » restent fermés — sinon l'opérateur enverrait un texte différent de celui qu'il voit.
+ *
+ * TCK-2426 — « Envoyer par l'API » (offert si la fiche rend `whatsapp_api_available`) fait partir le message du numéro
+ * du Radar, après confirmation. Il s'ouvre aux mêmes conditions que le lien `wa.me` (`wa_me_url` non nul : parties
+ * écrites, numéro, ni STOP ni `send_blocked`). Tant qu'une réponse reçue par l'API sur la chaîne n'est pas tranchée,
+ * aucun des trois gestes ne s'offre, et le brouillon dit pourquoi.
  */
-export function ApercuMessage({ message, erreurIa, desactive, enRetouche, enEnvoi, onRetoucher, onEnvoye }: ApercuMessageProps) {
+export function ApercuMessage({
+  message,
+  erreurIa,
+  desactive,
+  enRetouche,
+  enEnvoi,
+  onRetoucher,
+  onEnvoye,
+  apiDisponible,
+  reponseEnAttente,
+  enEnvoiApi,
+  onEnvoyerApi,
+}: ApercuMessageProps) {
   const t = useTranslations('superAdmin.pages.radar.advertiser.message');
   const motifIa = useMotifRadar();
-  const [confirmation, setConfirmation] = useState(false);
+  /** Le geste qui attend la confirmation : « J'ai envoyé » (à la main) ou l'envoi par l'API. */
+  const [confirmation, setConfirmation] = useState<'manuel' | 'api' | null>(null);
 
   const salutationApi = texteDe(message.segments, 'salutation');
   const resumeApi = texteDe(message.segments, 'resume');
@@ -130,8 +155,14 @@ export function ApercuMessage({ message, erreurIa, desactive, enRetouche, enEnvo
         </div>
       ) : null}
 
+      {reponseEnAttente ? (
+        <p role="status" className="rounded-lg border border-warning/60 bg-warning/5 p-3 text-sm text-foreground" data-testid="radar-message-reponse-en-attente">
+          {t('replyPending')}
+        </p>
+      ) : null}
+
       <div className="flex flex-wrap items-center gap-3 border-t pt-3">
-        {!desactive && !modifie && message.wa_me_url !== null ? (
+        {!desactive && !modifie && !reponseEnAttente && message.wa_me_url !== null ? (
           <a
             href={message.wa_me_url}
             target="_blank"
@@ -142,11 +173,24 @@ export function ApercuMessage({ message, erreurIa, desactive, enRetouche, enEnvo
             {t('whatsapp')}
           </a>
         ) : null}
+        {apiDisponible ? (
+          <Button
+            type="button"
+            size="sm"
+            disabled={desactive || modifie || reponseEnAttente || message.wa_me_url === null || enEnvoi}
+            onClick={() => setConfirmation('api')}
+          >
+            <Send className="size-3.5" aria-hidden="true" />
+            {enEnvoiApi ? t('apiSending') : t('apiSend')}
+          </Button>
+        ) : null}
         <Button
           type="button"
           size="sm"
-          disabled={desactive || modifie || !partiesEcrites || enEnvoi}
-          onClick={() => setConfirmation(true)}
+          // L'envoi par l'API est le geste principal quand il s'offre : « J'ai envoyé » passe en second.
+          variant={apiDisponible ? 'outline' : 'default'}
+          disabled={desactive || modifie || !partiesEcrites || reponseEnAttente || enEnvoi}
+          onClick={() => setConfirmation('manuel')}
         >
           {t('sent')}
         </Button>
@@ -155,27 +199,29 @@ export function ApercuMessage({ message, erreurIa, desactive, enRetouche, enEnvo
       {message.send_blocked !== null ? (
         <p className="text-xs text-destructive" data-testid="radar-message-bloque">{t('blocked', { reason: motifIa(message.send_blocked) })}</p>
       ) : null}
-      {message.wa_me_url !== null ? <p className="text-xs text-muted-foreground">{t('whatsappHint')}</p> : null}
+      {message.wa_me_url !== null && !reponseEnAttente ? <p className="text-xs text-muted-foreground">{t('whatsappHint')}</p> : null}
 
-      <Dialog open={confirmation} onOpenChange={(ouvert) => { if (!enEnvoi) setConfirmation(ouvert); }}>
+      <Dialog open={confirmation !== null} onOpenChange={(ouvert) => { if (!enEnvoi && !ouvert) setConfirmation(null); }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{t('sentTitle')}</DialogTitle>
-            <DialogDescription>{t('sentBody')}</DialogDescription>
+            <DialogTitle>{confirmation === 'api' ? t('apiTitle') : t('sentTitle')}</DialogTitle>
+            <DialogDescription>{confirmation === 'api' ? t('apiBody') : t('sentBody')}</DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button type="button" variant="outline" disabled={enEnvoi} onClick={() => setConfirmation(false)}>
+            <Button type="button" variant="outline" disabled={enEnvoi} onClick={() => setConfirmation(null)}>
               {t('cancel')}
             </Button>
             <Button
               type="button"
               disabled={enEnvoi}
               onClick={() => {
-                setConfirmation(false);
-                onEnvoye();
+                const geste = confirmation;
+                setConfirmation(null);
+                if (geste === 'api') onEnvoyerApi();
+                else onEnvoye();
               }}
             >
-              {enEnvoi ? t('sentSending') : t('sentConfirm')}
+              {confirmation === 'api' ? t('apiConfirm') : enEnvoi ? t('sentSending') : t('sentConfirm')}
             </Button>
           </DialogFooter>
         </DialogContent>

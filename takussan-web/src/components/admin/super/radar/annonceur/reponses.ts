@@ -95,3 +95,34 @@ export function ecartsDeLErreur(erreur: unknown): string[] {
   const ecarts = params?.discordances;
   return Array.isArray(ecarts) && ecarts.length > 0 && ecarts.every((e) => typeof e === 'string') ? [...ecarts] : ['no_verdict'];
 }
+
+/**
+ * TCK-2426 — comme `RadarOutreachWorkflow::hasUnresolvedReply()` : une réponse reçue par l'API (`provider_message`), non
+ * confirmée, sur un message de la chaîne de ce brouillon (lui-même et les messages qu'il relance) resté sans issue. L'API
+ * refuse alors l'envoi (409 `radar.outreach.reply_pending`), par l'API comme par « J'ai envoyé » : l'écran le dit avant,
+ * et retire le lien `wa.me` — sinon le message partirait du téléphone sans que rien ne s'en souvienne.
+ */
+export function reponseRecueEnAttente(brouillon: RadarOutreach, messages: readonly RadarOutreach[]): boolean {
+  const vus = new Set<number>();
+  let courant: RadarOutreach | undefined = brouillon;
+  while (courant !== undefined && !vus.has(courant.id)) {
+    vus.add(courant.id);
+    if (courant.outcome === null && courant.consents.some((c) => c.proof === 'provider_message' && c.confirmed_at === null)) return true;
+    const parent: number | null = courant.follow_up_of_id;
+    courant = parent === null ? undefined : messages.find((m) => m.id === parent);
+  }
+  return false;
+}
+
+/** TCK-2426 — par où un message envoyé est parti, tel que l'écran le nomme : à la main, par l'API, ou par l'API sans confirmation de Meta. */
+export type CanalDuMessage = 'manual' | 'cloud' | 'ambiguous';
+
+export function canalDuMessage(message: RadarOutreach): CanalDuMessage {
+  if (message.channel !== 'whatsapp_cloud') return 'manual';
+  return message.provider_status === 'ambiguous' ? 'ambiguous' : 'cloud';
+}
+
+/** TCK-2426 — un message ouvert est parti par l'API : sa réponse peut arriver à tout moment par le webhook de Meta. */
+export function attendUneReponseParLApi(messages: readonly RadarOutreach[]): boolean {
+  return messagesEnAttente(messages).some((m) => m.channel === 'whatsapp_cloud');
+}

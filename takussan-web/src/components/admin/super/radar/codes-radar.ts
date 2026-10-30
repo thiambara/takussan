@@ -171,7 +171,7 @@ export const ERREURS_ANNONCEUR_RADAR: Record<string, string> = {
   'radar.outreach.outcome_final': 'outcomeFinal',
   'radar.outreach.superseded': 'superseded',
   'radar.outreach.reply_pending': 'replyPending',
-  // L'envoi par l'API du numéro du Radar (TCK-2395) : le bouton viendra avec TCK-2426.
+  // L'envoi par l'API du numéro du Radar (TCK-2395) : « Envoyer par l'API » de la fiche (TCK-2426).
   'radar.whatsapp.not_configured': 'whatsappNotConfigured',
   'radar.whatsapp.same_number': 'whatsappSameNumber',
   'radar.whatsapp.template_missing': 'whatsappTemplateMissing',

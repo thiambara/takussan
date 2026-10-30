@@ -21,8 +21,10 @@ import {
   prepareRadarOutreach,
   radarKeys,
   RADAR_POLL_MS,
+  RADAR_REPLY_POLL_MS,
   recordRadarOutcome,
   retouchRadarOutreach,
+  sendRadarOutreach,
 } from '@/lib/queries/radar';
 import type {
   RadarAdvertiserDetail,
@@ -34,8 +36,10 @@ import type {
   RadarOutreachChanges,
   RadarOutreachResponse,
   RadarPrepareRequest,
+  RadarOutreachProviderStatus,
   RadarPreparedOutreachResponse,
 } from '@/types/radar';
+import { codeDeLErreur } from '../fiche/useMessageEchecFiche';
 import { ApercuMessage } from './ApercuMessage';
 import { raisonNonCochable } from './annonces';
 import { BandeauPriseEnCharge } from './BandeauPriseEnCharge';
@@ -45,7 +49,7 @@ import { HistoriqueMessages } from './HistoriqueMessages';
 import { ListeAnnonces } from './ListeAnnonces';
 import { PanneauIdentite } from './PanneauIdentite';
 import { PreparationMessage } from './PreparationMessage';
-import { langueDeRelance, messagesEnAttente, verificationEnCours } from './reponses';
+import { attendUneReponseParLApi, langueDeRelance, messagesEnAttente, reponseRecueEnAttente, verificationEnCours } from './reponses';
 import { SuiviMessage } from './SuiviMessage';
 import { useGestesDePrise } from './useGestesDePrise';
 import { useMessageEchecAnnonceur } from './useMessageEchecAnnonceur';
@@ -80,13 +84,22 @@ function FicheChargee({ annonceur }: { readonly annonceur: RadarAdvertiserDetail
   const [erreursIa, setErreursIa] = useState<Readonly<Record<number, string | null>>>({});
   /** TCK-2413 — le compte supprimé vient d'être délié pendant cette visite. */
   const [delie, setDelie] = useState(false);
+  /** TCK-2426 — l'erreur affichée vient d'un envoi : un 409 `reply_pending` s'y dit dans les mots du brouillon, pas du dépôt. */
+  const [erreurDEnvoi, setErreurDEnvoi] = useState(false);
+  /** TCK-2426 — l'issue du dernier envoi par l'API de cette visite : le brouillon a quitté l'écran, la fiche le dit. */
+  const [envoiApiFait, setEnvoiApiFait] = useState<RadarOutreachProviderStatus | null>(null);
 
   const relire = () => queryClient.invalidateQueries({ queryKey: radarKeys.all });
 
   // Un refus 409/422 dit que la fiche n'est plus ce que l'écran croit (prise perdue, message déjà parti) : elle se relit.
   const surEchec = (e: unknown) => {
     setErreur(e);
+    setErreurDEnvoi(false);
     if (e instanceof ApiError && (e.status === 409 || e.status === 422)) void relire();
+  };
+  const surEchecEnvoi = (e: unknown) => {
+    surEchec(e);
+    setErreurDEnvoi(true);
   };
 
   // TCK-2389 — les gestes de la prise sont ceux de l'écran « Publier pour lui » aussi : un seul code les porte.
@@ -129,7 +142,17 @@ function FicheChargee({ annonceur }: { readonly annonceur: RadarAdvertiserDetail
       queryClient.setQueryData<RadarAdvertiserResponse>(cle, (detail) => avecMessage(detail, reponse.data));
       return relire();
     },
-    onError: surEchec,
+    onError: surEchecEnvoi,
+  });
+  // TCK-2426 — l'envoi par l'API : la réponse est le message envoyé, posé tel quel dans la fiche avant la relecture.
+  const envoiApi = useMutation<RadarOutreachResponse, ApiError, number>({
+    mutationFn: (id) => sendRadarOutreach(id),
+    onSuccess: (reponse) => {
+      queryClient.setQueryData<RadarAdvertiserResponse>(cle, (detail) => avecMessage(detail, reponse.data));
+      setEnvoiApiFait(reponse.data.provider_status ?? 'accepted');
+      return relire();
+    },
+    onError: surEchecEnvoi,
   });
 
   const stoppe = annonceur.do_not_contact_at !== null;
@@ -137,12 +160,13 @@ function FicheChargee({ annonceur }: { readonly annonceur: RadarAdvertiserDetail
   const publiable = can('platform.radar.publish') && !stoppe && annonceur.listings.some((a) => a.covered_by_consent);
   const mienne = annonceur.claim?.mine === true;
   const enCours = prise.isPending || restitution.isPending || preparation.isPending || retouche.isPending || envoi.isPending
-    || reponse.isPending || issue.isPending;
+    || envoiApi.isPending || reponse.isPending || issue.isPending;
   // On ne prépare que sur une prise à soi, et jamais pour un annonceur qui a dit STOP.
   const gestesFermes = stoppe || !mienne || enCours;
 
   const lancer = (geste: () => void) => {
     setErreur(null);
+    setEnvoiApiFait(null);
     geste();
   };
 
@@ -241,7 +265,18 @@ function FicheChargee({ annonceur }: { readonly annonceur: RadarAdvertiserDetail
 
       {erreur ? (
         <p role="alert" className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive" data-testid="radar-annonceur-erreur">
-          {messageEchec(erreur)}
+          {erreurDEnvoi && codeDeLErreur(erreur) === 'radar.outreach.reply_pending' ? t('message.replyPending') : messageEchec(erreur)}
+        </p>
+      ) : null}
+      {envoiApiFait !== null ? (
+        <p
+          role="status"
+          className={envoiApiFait === 'ambiguous'
+            ? 'rounded-lg border border-warning/60 bg-warning/5 px-4 py-3 text-sm text-foreground'
+            : 'rounded-lg bg-muted px-4 py-3 text-sm text-foreground'}
+          data-testid="radar-annonceur-envoi-api"
+        >
+          {envoiApiFait === 'ambiguous' ? t('message.apiAmbiguous') : t('message.apiSent')}
         </p>
       ) : null}
 
@@ -274,9 +309,13 @@ function FicheChargee({ annonceur }: { readonly annonceur: RadarAdvertiserDetail
           erreurIa={erreursIa[message.id] ?? null}
           desactive={gestesFermes}
           enRetouche={retouche.isPending}
-          enEnvoi={envoi.isPending}
+          enEnvoi={envoi.isPending || envoiApi.isPending}
           onRetoucher={(changes) => lancer(() => retouche.mutate({ id: message.id, changes }))}
           onEnvoye={() => lancer(() => envoi.mutate(message.id))}
+          apiDisponible={annonceur.whatsapp_api_available}
+          reponseEnAttente={reponseRecueEnAttente(message, annonceur.outreaches)}
+          enEnvoiApi={envoiApi.isPending}
+          onEnvoyerApi={() => lancer(() => envoiApi.mutate(message.id))}
         />
       ))}
 
@@ -331,8 +370,13 @@ export function RadarAdvertiserCard({ id }: RadarAdvertiserCardProps) {
     queryFn: () => fetchRadarAdvertiser(id),
     enabled: autorise,
     staleTime: 10_000,
-    // Une réponse se vérifie en file : la fiche se relit tant qu'une vérification tourne, puis s'arrête.
-    refetchInterval: (requete) => (requete.state.data?.data.outreaches.some((m) => verificationEnCours(m.consents)) ? RADAR_POLL_MS : false),
+    // Une réponse se vérifie en file : la fiche se relit tant qu'une vérification tourne, puis s'arrête. TCK-2426 — et, plus
+    // lentement, tant qu'un message envoyé par l'API attend son issue : sa réponse arrive par le webhook, sans autre signal.
+    refetchInterval: (requete) => {
+      const messages = requete.state.data?.data.outreaches ?? [];
+      if (messages.some((m) => verificationEnCours(m.consents))) return RADAR_POLL_MS;
+      return attendUneReponseParLApi(messages) ? RADAR_REPLY_POLL_MS : false;
+    },
   });
 
   const retour = (
