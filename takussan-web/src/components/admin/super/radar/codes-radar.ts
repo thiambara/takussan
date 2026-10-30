@@ -68,6 +68,14 @@ export const MOTIFS_RADAR: Record<string, string> = {
   'radar.discard.no_longer_available': 'discardNoLongerAvailable',
   'radar.discard.unusable_source': 'discardUnusableSource',
   'radar.discard.other': 'discardOther',
+  // Annonce réclamée que la publication automatique laisse à l'opérateur (TCK-2413, `PublishClaimedRadarListings`) : la
+  // raison, ou le code du refus de la publication. Un refus plus rare (`radar.listing.stage_conflict`…) s'affiche brut.
+  'radar.publish.no_photo': 'claimLeftNoPhoto',
+  'radar.publish.missing_field': 'claimLeftMissingField',
+  'radar.publish.photos_pending': 'claimLeftPhotosPending',
+  'radar.claim.publish_failed': 'claimLeftFailed',
+  'radar.advertiser.account_unavailable': 'claimLeftAccountUnavailable',
+  'quota.listings_exceeded': 'claimLeftQuota',
 };
 
 /** Les motifs d'écart que choisit l'opérateur (`RadarDiscardReason`) : leur libellé est celui du `stage_reason` écrit. */
@@ -157,6 +165,8 @@ export const ERREURS_ANNONCEUR_RADAR: Record<string, string> = {
   'radar.consent.reason_required': 'reasonRequired',
   // Un 409 de la confirmation d'un accord ET de « J'ai envoyé » : une annonce du message a changé d'étape ailleurs.
   'radar.listing.stage_conflict': 'listingStageConflict',
+  // TCK-2413 — délier le compte supprimé : le compte rattaché ne l'est pas (un STOP rend `do_not_contact`, déjà nommé).
+  'radar.advertiser.account_not_deleted': 'accountNotDeleted',
 };
 
 /**

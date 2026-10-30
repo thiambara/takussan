@@ -7966,7 +7966,13 @@
           "discardOutOfScope": "Hors périmètre (location courte, hors Sénégal…)",
           "discardNoLongerAvailable": "Plus disponible",
           "discardUnusableSource": "Source inexploitable",
-          "discardOther": "Autre motif"
+          "discardOther": "Autre motif",
+          "claimLeftNoPhoto": "Laissée par la publication automatique : aucune photo en réserve",
+          "claimLeftMissingField": "Laissée par la publication automatique : un champ requis manque",
+          "claimLeftPhotosPending": "Laissée par la publication automatique : les photos étaient encore en préparation",
+          "claimLeftFailed": "Laissée par la publication automatique : la publication a échoué",
+          "claimLeftAccountUnavailable": "Laissée par la publication automatique : le compte ou l’espace de l’annonceur n’est plus disponible",
+          "claimLeftQuota": "Laissée par la publication automatique : l’espace de l’annonceur a atteint son quota d’annonces"
         },
         "empty": {
           "title": "Aucune annonce pour l’instant",
@@ -8352,7 +8358,8 @@
             "generationIncomplete": "L’IA n’a pas rédigé la salutation et le résumé : écrivez-les vous-même.",
             "replyRequired": "Aucune réponse n’est déposée sur ce message : déposez les captures de l’annonceur avant de confirmer l’accord.",
             "reasonRequired": "Le verdict de l’IA ne va pas dans le sens d’un accord : écrivez le motif de la confirmation.",
-            "listingStageConflict": "Une des annonces de ce message a changé d’étape : la fiche a changé entre-temps, elle est relue."
+            "listingStageConflict": "Une des annonces de ce message a changé d’étape : la fiche a changé entre-temps, elle est relue.",
+            "accountNotDeleted": "Le compte de cet annonceur n’est pas supprimé : seul un compte supprimé se délie."
           },
           "reply": {
             "heading": "Réponse de l’annonceur",
@@ -8472,6 +8479,17 @@
             "heading": "Publier pour lui",
             "hint": "Des annonces de cet annonceur sont couvertes par un accord valide : vous pouvez les publier à son nom.",
             "cta": "Publier pour lui"
+          },
+          "account": {
+            "heading": "Compte supprimé",
+            "body": "Le compte créé pour cet annonceur a été supprimé. Tant qu’il y reste lié, l’annonceur ne peut pas réclamer ses annonces depuis le lien du message.",
+            "cta": "Délier le compte",
+            "dialogTitle": "Délier le compte supprimé ?",
+            "dialogBody": "L’annonceur pourra de nouveau réclamer ses annonces : par un compte neuf, ou par celui qui a vérifié son numéro. Le compte supprimé le reste, et le geste est journalisé.",
+            "reasonLabel": "Motif (facultatif)",
+            "cancel": "Annuler",
+            "confirm": "Délier",
+            "done": "Compte délié : l’annonceur peut de nouveau réclamer ses annonces."
           }
         },
         "advertisers": {
@@ -8485,7 +8503,8 @@
           "tabs": {
             "to_contact": "À contacter",
             "awaiting": "En attente",
-            "follow_up": "À relancer"
+            "follow_up": "À relancer",
+            "left_to_operator": "À reprendre"
           },
           "search": {
             "label": "Rechercher un annonceur",
@@ -8522,6 +8541,10 @@
             "search": {
               "title": "Aucun annonceur trouvé",
               "description": "Essayez un autre nom, ou le numéro écrit comme vous l’avez."
+            },
+            "left_to_operator": {
+              "title": "Rien à reprendre",
+              "description": "Une annonce réclamée que la publication automatique n’a pas pu mettre en ligne apparaît ici."
             }
           },
           "countLine": "{label} : <n>{count}</n>",
@@ -12329,6 +12352,8 @@
       "nameContainsPhone": "Le prénom et le nom de l'espace ne peuvent pas contenir de numéro de téléphone.",
       "firstNameContainsPhone": "Votre prénom ne peut pas contenir de numéro de téléphone.",
       "spaceNameContainsPhone": "Le nom de votre espace ne peut pas contenir de numéro de téléphone."
-    }
+    },
+    "awaitingReviewTitle": "En attente de vérification",
+    "awaitingReviewHint": "Notre équipe doit encore les vérifier avant de les mettre en ligne : elles ne sont pas encore visibles."
   }
 }

@@ -7,6 +7,7 @@ import { StatusBadge } from '@/components/console';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { cn } from '@/lib/utils';
 import { RADAR_OUTREACH_MAX_LISTINGS, type RadarAdvertiserListing, type RadarOutreach } from '@/types/radar';
+import { MOTIFS_RADAR } from '../codes-radar';
 import { raisonNonCochable } from './annonces';
 
 interface ListeAnnoncesProps {
@@ -61,6 +62,12 @@ export function ListeAnnonces({ annonces, messages, selection, onBascule, desact
                     ].filter(Boolean).join(' · ')}
                   </p>
                   {raison !== null ? <p className="text-xs text-muted-foreground">{t(`why.${raison}`)}</p> : null}
+                  {/* TCK-2413 — réclamée, laissée par la publication automatique : la raison, pour la reprendre. */}
+                  {annonce.stage === 'consented' && annonce.stage_reason ? (
+                    <p className="text-xs font-medium text-foreground" data-testid={`radar-annonce-laissee-${annonce.id}`}>
+                      {MOTIFS_RADAR[annonce.stage_reason] ? tRadar(`reasons.${MOTIFS_RADAR[annonce.stage_reason]}`) : annonce.stage_reason}
+                    </p>
+                  ) : null}
                 </div>
                 <StatusBadge tone="neutral" label={tRadar(`stages.${annonce.stage}`)} />
                 <Link

@@ -329,6 +329,9 @@ export const RADAR_SUMMARY_MAX = 500;
 /** Le motif d'une issue (`RecordRadarOutreachOutcomeRequest` : `max:2000`). */
 export const RADAR_REASON_MAX = 2000;
 
+/** TCK-2413 — le motif facultatif de « délier le compte » (`ReleaseRadarAdvertiserAccountRequest`). */
+export const RADAR_ACCOUNT_RELEASE_REASON_MAX = 500;
+
 /** `StoreRadarOutreachRequest::MAX_LISTINGS` : les annonces qu'un seul message peut couvrir. */
 export const RADAR_OUTREACH_MAX_LISTINGS = 20;
 
@@ -457,6 +460,21 @@ export interface RadarAdvertiserListing {
   readonly bedrooms: number | null;
   readonly covered_by_consent: boolean;
   readonly created_at: string;
+  /** TCK-2413 — un code (`radar.publish.no_photo`…) : pourquoi la publication de la réclamation l'a laissée à l'opérateur. */
+  readonly stage_reason: string | null;
+}
+
+/** TCK-2413 — le compte que le Radar a créé pour l'annonceur ; supprimé, il bloque la réclamation tant qu'il n'est pas délié. */
+export interface RadarAdvertiserAccount {
+  readonly user_id: number;
+  readonly deleted: boolean;
+  /** Le geste « délier » est offert : compte supprimé, et aucun STOP ni révocation. */
+  readonly releasable: boolean;
+}
+
+/** `POST /api/admin/radar/advertisers/{id}/release-account` (TCK-2413). */
+export interface RadarAccountReleaseResponse {
+  readonly data: { readonly advertiser_id: number; readonly previous_user_id: number };
 }
 
 /** `GET /api/admin/radar/advertisers/{id}` : la fiche annonceur. */
@@ -471,6 +489,8 @@ export interface RadarAdvertiserDetail {
   readonly listings: readonly RadarAdvertiserListing[];
   /** Du plus récent au plus ancien. */
   readonly outreaches: readonly RadarOutreach[];
+  /** `null` : aucun compte rattaché. */
+  readonly account: RadarAdvertiserAccount | null;
 }
 
 export interface RadarAdvertiserResponse {
@@ -503,7 +523,7 @@ export interface RadarOutreachChanges {
 // ─── Les files d'annonceurs (TCK-2388) ───────────────────────────────────────────────────────
 
 /** `filter[queue]` de `GET /api/admin/radar/advertisers` : une file inconnue ne rend rien. */
-export const RADAR_ADVERTISER_QUEUES = ['to_contact', 'awaiting', 'follow_up'] as const;
+export const RADAR_ADVERTISER_QUEUES = ['to_contact', 'awaiting', 'follow_up', 'left_to_operator'] as const;
 
 export type RadarAdvertiserQueue = (typeof RADAR_ADVERTISER_QUEUES)[number];
 

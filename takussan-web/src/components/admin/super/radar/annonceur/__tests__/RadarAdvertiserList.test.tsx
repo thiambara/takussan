@@ -180,3 +180,25 @@ describe('Les files d’annonceurs (TCK-2388)', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 });
+
+describe('La file « À reprendre » (TCK-2413)', () => {
+  it('demande filter[queue]=left_to_operator et montre ses annonceurs', async () => {
+    parFile.left_to_operator = [ligne(31, { display_name: 'Awa Immobilier', counts: { reviewed: 0, contacted: 0, consented: 1 } })];
+    const utilisateur = rendre();
+    await screen.findByTestId('radar-annonceurs-vide');
+
+    await utilisateur.click(screen.getByRole('tab', { name: 'À reprendre' }));
+
+    expect(await screen.findByTestId('radar-annonceur-31')).toHaveTextContent('Awa Immobilier');
+    expect(urls().some((u) => u.searchParams.get('filter[queue]') === 'left_to_operator')).toBe(true);
+  });
+
+  it('vide, elle dit ce qui y arrive', async () => {
+    const utilisateur = rendre();
+    await screen.findByTestId('radar-annonceurs-vide');
+
+    await utilisateur.click(screen.getByRole('tab', { name: 'À reprendre' }));
+
+    expect(await screen.findByText('Rien à reprendre')).toBeInTheDocument();
+  });
+});
