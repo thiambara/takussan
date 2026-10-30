@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
-import { Plus, UsersRound } from 'lucide-react';
+import { Plus, Satellite, UsersRound } from 'lucide-react';
 
 import { usePlatformAbilities } from '@/components/admin/super/PlatformAbilitiesProvider';
 import { PageHeader } from '@/components/console';
@@ -64,6 +64,11 @@ export function RadarConsole() {
                   <span className="sr-only">{t('followUpsDue', { count: relancesDues })}</span>
                 </span>
               ) : null}
+            </Link>
+            {/* TCK-2392 — la collecte automatique : les sites lus d'office et leurs passages. */}
+            <Link href="/super-admin/radar/collecte" className={buttonVariants({ variant: 'outline' })} data-testid="radar-lien-collecte">
+              <Satellite className="size-4" aria-hidden="true" />
+              {t('crawlLink')}
             </Link>
             <Button type="button" onClick={() => setSaisie(true)}>
               <Plus className="size-4" aria-hidden="true" />
