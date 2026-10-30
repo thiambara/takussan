@@ -59,6 +59,20 @@ export const RADAR_LISTING_FIELDS = [
 export const RADAR_POLL_MS = 10_000;
 
 /**
+ * TCK-2426 — tant qu'un message envoyé par l'API attend son issue, la fiche annonceur se relit à ce rythme : la réponse
+ * arrive par le webhook de Meta, et rien d'autre ne la signale à l'écran. Plus lent que {@link RADAR_POLL_MS} : on attend
+ * un humain, pas une file.
+ */
+export const RADAR_REPLY_POLL_MS = 30_000;
+
+/**
+ * TCK-2426 — la relecture à {@link RADAR_REPLY_POLL_MS} ne dure pas plus que cette fenêtre, ouverte à l'arrivée sur la
+ * fiche, au retour sur l'onglet et à chaque envoi par l'API : une page oubliée ouverte ne relit pas la fiche pendant des
+ * jours.
+ */
+export const RADAR_REPLY_WINDOW_MS = 15 * 60_000;
+
+/**
  * Les colonnes d'une ligne de file demandées au sparse fieldset (`RadarAdvertiser::$queryFields`). La prise en charge
  * n'en est pas une : l'API lit ses colonnes d'elle-même et rend `claim` quand même.
  */
@@ -298,6 +312,20 @@ export async function retouchRadarOutreach(id: number, changes: RadarOutreachCha
 /** « J'ai envoyé le message » : le message passe `sent`, les annonces `contacted`. */
 export async function markRadarOutreachSent(id: number): Promise<RadarOutreachResponse> {
   const res = await fetch(cheminApi`/api/super-admin/radar/outreaches/${id}/sent`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { Accept: 'application/json' },
+  });
+  return jsonOrThrow<RadarOutreachResponse>(res);
+}
+
+/**
+ * TCK-2426 (TCK-2395) — « Envoyer par l'API » : le message part du numéro WhatsApp du Radar, et l'API le rend envoyé
+ * (`channel = whatsapp_cloud`, `provider_status`). Synchrone : la réponse arrive après celle de Meta. Un refus porte son
+ * code (`radar.whatsapp.*`, `radar.outreach.reply_pending`) ; 502 `radar.whatsapp.send_failed` : rien n'est écrit.
+ */
+export async function sendRadarOutreach(id: number): Promise<RadarOutreachResponse> {
+  const res = await fetch(cheminApi`/api/super-admin/radar/outreaches/${id}/send`, {
     method: 'POST',
     credentials: 'include',
     headers: { Accept: 'application/json' },

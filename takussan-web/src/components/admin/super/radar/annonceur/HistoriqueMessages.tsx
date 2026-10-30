@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl';
 import { StatusBadge } from '@/components/console';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import type { RadarOutreach } from '@/types/radar';
+import { CanalMessage } from './CanalMessage';
 import { ReponseVerdict } from './ReponseVerdict';
 import { reponsesRecentesDabord } from './reponses';
 
@@ -15,8 +16,8 @@ interface HistoriqueMessagesProps {
 }
 
 /**
- * TCK-2388 — les messages déjà envoyés à l'annonceur : date, auteur, langue, version des clauses, annonces
- * couvertes, statut et issue ; le texte exact, enregistré à l'envoi, se replie. Un message encore préparé
+ * TCK-2388 — les messages déjà envoyés à l'annonceur : date, auteur, langue, canal (TCK-2426), version des clauses,
+ * annonces couvertes, statut et issue ; le texte exact, enregistré à l'envoi, se replie. Un message encore préparé
  * n'est pas ici : il a son aperçu.
  */
 export function HistoriqueMessages({ messages }: HistoriqueMessagesProps) {
@@ -50,6 +51,8 @@ export function HistoriqueMessages({ messages }: HistoriqueMessagesProps) {
                 <dd className="text-foreground">{message.created_by?.name ?? t('unknownAuthor')}</dd>
                 <dt className="text-muted-foreground">{t('locale')}</dt>
                 <dd className="text-foreground uppercase">{message.locale}</dd>
+                <dt className="text-muted-foreground">{t('channel')}</dt>
+                <dd className="text-foreground"><CanalMessage message={message} /></dd>
                 <dt className="text-muted-foreground">{t('clauses')}</dt>
                 <dd className="text-foreground">{message.clauses_version}</dd>
                 <dt className="text-muted-foreground">{t('listings')}</dt>

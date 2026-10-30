@@ -8992,7 +8992,15 @@
             "cancel": "Cancel",
             "legacy": "This message was written with another template: its text is shown as it was saved.",
             "number": "#{id}",
-            "unsaved": "Save your edits: WhatsApp only opens the saved text."
+            "unsaved": "Save your edits: WhatsApp only opens the saved text.",
+            "apiSend": "Send through the WhatsApp API",
+            "apiSending": "Sending…",
+            "apiTitle": "Send through the WhatsApp API",
+            "apiBody": "The message leaves the Radar WhatsApp number right away, with the exact text above. The listings will move to “contacted” and the message can no longer be edited.",
+            "apiConfirm": "Yes, send it",
+            "apiSent": "Message sent through the WhatsApp API: Meta accepted it.",
+            "apiAmbiguous": "Meta did not confirm the send: the message may have gone out. It counts as sent so the advertiser is never written to twice. Do not send it again by hand.",
+            "replyPending": "The advertiser replied on WhatsApp, and the reply has not been settled. Read it below, under “Messages sent, waiting for an outcome”, and record its outcome: until then, nothing can be prepared for or sent to them, whatever the listing."
           },
           "history": {
             "heading": "Sent messages",
@@ -9021,7 +9029,14 @@
               "no_answer": "No answer"
             },
             "number": "#{id}",
-            "replies": "Replies deposited"
+            "replies": "Replies deposited",
+            "channel": "Channel",
+            "channels": {
+              "manual": "WhatsApp, by hand",
+              "cloud": "WhatsApp API",
+              "ambiguous": "WhatsApp API, send unconfirmed"
+            },
+            "ambiguousHint": "Meta did not confirm the send: the message may have gone out."
           },
           "errors": {
             "generic": "The action failed.",
@@ -9115,7 +9130,12 @@
               "confirmationReason": "Reason: {reason}",
               "revoked": "Consent revoked on {date}",
               "clausesIncomplete": "Clauses found: {found} — the verdict judges them incomplete"
-            }
+            },
+            "receivedAt": "Received through the WhatsApp API on {date}",
+            "receivedText": "Text received",
+            "noText": "This reply has no text (voice note, image): it cannot be read here. Listen to it or view it in WhatsApp, on the Radar number, then record its outcome.",
+            "failedReceived": "Verification failed: {reason}. Read the received text yourself.",
+            "failedReceivedNoReason": "Verification failed. Read the received text yourself."
           },
           "outcome": {
             "open": "Record the outcome",
