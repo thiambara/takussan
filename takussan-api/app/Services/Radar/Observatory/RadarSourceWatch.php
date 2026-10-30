@@ -34,10 +34,15 @@ use Illuminate\Support\Facades\DB;
  * l'agence d'un bien dont une annonce collectée n'est que le doublon lirait que la plateforme surveille ses annonces
  * ailleurs). L'événement est alertable (`AlertableEvents`) : les règles de la console le livrent. Une fois par disparition :
  * la transition se réclame par un `UPDATE … WHERE source_gone_at IS NULL`, et l'activité s'écrit dans la même transaction.
+ *
+ * **La question au titulaire** (TCK-2432) : quand la disparition emporte la dernière source en ligne d'un bien que le Radar a
+ * publié, {@see RadarAvailabilityCheck::ask()} demande à son titulaire s'il est toujours disponible, dans la même transaction.
  */
 final class RadarSourceWatch
 {
     public const EVENT = 'radar_source_listing_gone';
+
+    public function __construct(private readonly RadarAvailabilityCheck $checks) {}
 
     /**
      * @return array{gone: int, back: int, alerts: int}
@@ -49,7 +54,8 @@ final class RadarSourceWatch
         $counts['back'] = RadarListing::query()
             ->whereNotNull('source_gone_at')
             ->whereRaw('('.$this->lastSeenSql().') > radar_listings.source_gone_at')
-            ->update(['source_gone_at' => null, 'source_gone_run_id' => null]);
+            // TCK-2432 — la question au titulaire s'efface avec : une nouvelle disparition la reposera.
+            ->update(['source_gone_at' => null, 'source_gone_run_id' => null, ...RadarAvailabilityCheck::resetColumns()]);
 
         $confirm = self::confirmRuns();
         foreach ($this->decisiveRuns() as $run) {
@@ -132,6 +138,7 @@ final class RadarSourceWatch
         }
 
         $lastSeen = DB::table((new RadarListingSnapshot)->getTable())->where('radar_listing_id', $listing->id)->max('last_seen_at');
+        $othersOnline = $this->otherSourcesOnline($property->id, $listing->id);
 
         // Des identifiants, un site et des dates : ni numéro, ni nom, ni texte de l'annonce. Sujet : l'annonce (sans agence).
         activity('Radar')
@@ -145,9 +152,14 @@ final class RadarSourceWatch
                 'crawl_run_id' => $run->id,
                 'last_seen_at' => $lastSeen === null ? null : (string) $lastSeen,
                 'property_public' => Property::query()->public()->whereKey($property->id)->exists(),
-                'other_sources_online' => $this->otherSourcesOnline($property->id, $listing->id),
+                'other_sources_online' => $othersOnline,
             ])
             ->log('Annonce source disparue');
+
+        // TCK-2432 — la dernière source en ligne du bien s'en va : son titulaire est prié de dire s'il est toujours disponible.
+        if ($othersOnline === 0) {
+            $this->checks->ask($listing, $property);
+        }
 
         return 1;
     }

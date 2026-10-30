@@ -187,6 +187,9 @@ return [
     // 1 rend le comportement d'un seul passage ; plus haut, la détection est plus lente et plus sûre.
     'observe' => [
         'confirm_runs' => 2,
+        // TCK-2432 — le délai, en jours, laissé au titulaire d'un bien publié pour dire s'il est toujours disponible, après
+        // quoi l'équipe reçoit une PROPOSITION de retrait (`radar_withdrawal_proposed`). Jamais de retrait automatique.
+        'owner_answer_days' => 7,
     ],
 
     // TCK-2406 (décision du porteur à prendre, avec l'avocat) — la matière collectée d'une annonce PUBLIÉE (texte brut, adresse

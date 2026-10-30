@@ -54,6 +54,8 @@ class AlertableEvents
             'ops_critical_job_failed',
             // TCK-2393 (ADR-0083 §4) — l'annonce source d'un bien publié a disparu de son site (`RadarSourceWatch`).
             'radar_source_listing_gone',
+            // TCK-2432 — le titulaire n'a pas dit, dans le délai, si le bien est toujours disponible : retrait PROPOSÉ (`RadarAvailabilityCheck`).
+            'radar_withdrawal_proposed',
         ];
     }
 

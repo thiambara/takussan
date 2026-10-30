@@ -56,6 +56,11 @@ class RadarListing extends AbstractModel implements HasMedia
         // TCK-2393 — la disparition constatée de la source (`RadarSourceWatch`).
         'source_gone_at' => 'datetime',
         'source_gone_run_id' => 'integer',
+        // TCK-2432 — la question au titulaire du bien, et la proposition de retrait (`RadarAvailabilityCheck`).
+        'availability_asked_at' => 'datetime',
+        'availability_answered_at' => 'datetime',
+        'availability_answered_by_id' => 'integer',
+        'withdrawal_proposed_at' => 'datetime',
     ];
 
     protected static array $requestFilterable = ['stage', 'source_site', 'radar_advertiser_id'];
