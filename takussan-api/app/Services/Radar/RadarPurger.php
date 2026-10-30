@@ -13,6 +13,7 @@ use App\Models\RadarConsent;
 use App\Models\RadarListing;
 use App\Models\RadarListingSnapshot;
 use App\Models\RadarOutreach;
+use App\Services\Radar\Observatory\RadarNatureCounter;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -46,6 +47,9 @@ use Illuminate\Support\Facades\DB;
  * 5. **Les fichiers sans ligne** que la réserve ou une réponse a pu laisser sur le disque privé, et ceux qu'une publication
  *    coupée a laissés sous le préfixe des copies, sur les deux disques ({@see RadarOrphanFiles}, TCK-2406).
  *
+ * 0. **Le compteur anonyme du jour par nature** ({@see RadarNatureCounter}, TCK-2431) est figé avant tout effacement, sur
+ *    la purge planifiée seulement : la nature remise à `unknown` en (4) ne se relit plus.
+ *
  * **Idempotente** : chaque étape ne choisit que ce qui est encore dû, relu sous verrou. Ordre des verrous : annonces →
  * annonceur (celui de tout le Radar). Les fichiers partent avec leur ligne, en DERNIER geste de la transaction : une
  * transaction défaite les rend à la reprise suivante, jamais sans eux.
@@ -59,7 +63,7 @@ final class RadarPurger
         'snapshots_deleted',
     ];
 
-    public function __construct(private readonly RadarOrphanFiles $orphans) {}
+    public function __construct(private readonly RadarOrphanFiles $orphans, private readonly RadarNatureCounter $natureCounter) {}
 
     /**
      * @param  int|null  $advertiserId  null : toute la table (la commande planifiée) ; sinon un seul annonceur, sans la rétention
@@ -69,6 +73,12 @@ final class RadarPurger
     {
         $now ??= now();
         $counts = array_fill_keys(self::COUNTERS, 0);
+
+        // TCK-2431 — le compteur anonyme du jour, AVANT d'effacer : planifié à part (`radar:count-natures`), il est posé ici si
+        // ce passage a manqué. Idempotent : déjà écrit, il ne change rien.
+        if ($advertiserId === null) {
+            $this->natureCounter->record($now);
+        }
 
         $this->purgeListings($advertiserId, $now, $counts);
         if ($advertiserId === null) {

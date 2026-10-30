@@ -4,8 +4,8 @@ namespace App\Services\Radar\Observatory;
 
 use App\Http\Resources\Bases\BaseResource;
 use App\Models\Enums\RadarAdvertiserNature;
-use App\Models\Enums\RadarListingStage;
 use App\Models\Property;
+use App\Models\RadarNatureCount;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Carbon;
@@ -26,18 +26,20 @@ use Illuminate\Support\Facades\DB;
  * quartiers et le catalogue public. Jamais le texte brut, l'extraction, l'adresse de la source, le numéro ni le nom —
  * `RadarObservatoryTest` le vérifie sur le SQL émis.
  *
- * `natures` fait exception, et le dit : la nature présumée vit sur l'annonceur, que la purge vide (TCK-2431).
+ * `natures` fait exception, et le dit : la nature présumée vit sur l'annonceur, que la purge vide. `nature_history` lit les
+ * compteurs anonymes par nature (`radar_nature_counts`, TCK-2431), figés chaque jour avant la purge : la part par nature d'une
+ * période passée y survit. Seule section que `until` borne.
  */
 final class RadarObservatory
 {
-    public const SECTIONS = ['summary', 'price_per_m2', 'time_on_market', 'supply_gap', 'natures', 'gone_sources'];
+    public const SECTIONS = ['summary', 'price_per_m2', 'time_on_market', 'supply_gap', 'natures', 'gone_sources', 'nature_history'];
 
     /** Les sources disparues de biens rendues au plus, des plus récentes aux plus anciennes. */
     public const GONE_SOURCES_LIMIT = 50;
 
     /**
      * @param  list<string>  $sections
-     * @param  array{since?: CarbonInterface|null, contract?: string|null, property_type?: string|null, source_site?: string|null, neighborhood_id?: int|null}  $filters
+     * @param  array{since?: CarbonInterface|null, until?: CarbonInterface|null, contract?: string|null, property_type?: string|null, source_site?: string|null, neighborhood_id?: int|null}  $filters
      * @return array<string, mixed>
      */
     public function compute(array $sections, array $filters): array
@@ -51,6 +53,7 @@ final class RadarObservatory
                 'supply_gap' => $this->supplyGap($filters),
                 'natures' => $this->natures(),
                 'gone_sources' => $this->goneSources($filters),
+                'nature_history' => $this->natureHistory($filters),
             };
         }
 
@@ -226,27 +229,46 @@ final class RadarObservatory
 
     /**
      * Les annonceurs par nature présumée — la part d'intermédiaires (ADR-0077 §7) — parmi ceux qui portent au moins une
-     * annonce non purgée et qui n'est pas un doublon. Toutes les natures sont rendues, zéro compris.
+     * annonce non purgée et qui n'est pas un doublon. Toutes les natures sont rendues, zéro compris. Même définition que le
+     * compteur quotidien ({@see RadarNatureCounter::live()}).
      *
      * @return array<string, int>
      */
     private function natures(): array
     {
-        $counts = DB::table('radar_advertisers as a')
-            ->whereExists(fn (Builder $q) => $q->select(DB::raw(1))->from('radar_listings as l')
-                ->whereColumn('l.radar_advertiser_id', 'a.id')
-                ->whereNull('l.duplicate_of_listing_id')
-                ->where('l.stage', '!=', RadarListingStage::Purged->value))
-            ->groupBy('a.nature')
-            ->selectRaw('a.nature, count(*) as total')
-            ->pluck('total', 'nature');
+        return array_map(fn (array $count) => $count['advertisers'], RadarNatureCounter::live());
+    }
 
-        $out = [];
+    /**
+     * La part par nature sur une période, depuis les compteurs anonymes quotidiens (TCK-2431) : par nature, la somme des
+     * annonceurs comptés chaque jour (des « annonceurs-jours » : sans identifiant, un annonceur présent dix jours compte dix
+     * fois) et celle des annonces. `since` et `until` bornent les jours (inclus) ; `days` dit combien de jours ont été comptés.
+     *
+     * @param  array<string, mixed>  $filters
+     * @return array{days: int, first_day: string|null, last_day: string|null, advertisers: array<string, int>, listings: array<string, int>}
+     */
+    private function natureHistory(array $filters): array
+    {
+        $period = fn () => RadarNatureCount::query()->toBase()
+            ->when($filters['since'] ?? null, fn (Builder $q, CarbonInterface $since) => $q->where('day', '>=', $since->toDateString()))
+            ->when($filters['until'] ?? null, fn (Builder $q, CarbonInterface $until) => $q->where('day', '<=', $until->toDateString()));
+
+        $span = $period()->selectRaw('count(distinct day) as days, min(day) as first_day, max(day) as last_day')->first();
+        $sums = $period()->groupBy('nature')->selectRaw('nature, sum(advertisers) as advertisers, sum(listings) as listings')->get()->keyBy('nature');
+
+        $advertisers = $listings = [];
         foreach (RadarAdvertiserNature::cases() as $nature) {
-            $out[$nature->value] = (int) ($counts[$nature->value] ?? 0);
+            $advertisers[$nature->value] = (int) ($sums[$nature->value]->advertisers ?? 0);
+            $listings[$nature->value] = (int) ($sums[$nature->value]->listings ?? 0);
         }
 
-        return $out;
+        return [
+            'days' => (int) $span->days,
+            'first_day' => $span->first_day === null ? null : Carbon::parse($span->first_day)->toDateString(),
+            'last_day' => $span->last_day === null ? null : Carbon::parse($span->last_day)->toDateString(),
+            'advertisers' => $advertisers,
+            'listings' => $listings,
+        ];
     }
 
     /**

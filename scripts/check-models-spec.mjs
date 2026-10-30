@@ -56,6 +56,7 @@ const EXCLUS_JUSTIFIES = new Map([
   ['RadarCrawlSource', 'section à écrire par la PR de spec commune (TCK-2392)'],
   ['RadarCrawlRun', 'section à écrire par la PR de spec commune (TCK-2392)'],
   ['RadarListingSnapshot', 'section à écrire par la PR de spec commune (TCK-2392)'],
+  ['RadarNatureCount', 'section à écrire par la PR de spec commune (TCK-2431)'],
 ]);
 
 if (!existsSync(SPEC)) {
