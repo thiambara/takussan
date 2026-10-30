@@ -772,6 +772,14 @@ return [
             'support_required' => 'This number is linked to two Takussan accounts: write to us and we will merge them.',
             'name_contains_phone' => 'The first name and the space name cannot contain a phone number.',
         ],
+        // TCK-2392 — automatic collection and cross-site duplicate merging.
+        'merge' => [
+            'not_automatic' => 'This listing was not merged automatically: only an automatic merge can be split here.',
+        ],
+        'crawl' => [
+            'active' => 'A pass is already running on this site: wait for it to finish.',
+            'unknown_site' => 'This site is not collected: no adapter reads it.',
+        ],
     ],
     'pay_link' => [
         'not_found' => 'This payment link does not exist.',

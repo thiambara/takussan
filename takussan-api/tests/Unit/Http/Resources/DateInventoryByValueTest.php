@@ -63,8 +63,6 @@ class DateInventoryByValueTest extends TestCase
         'App\Http\Resources\Api\Admin\RadarAdvertiserResource::counts' => '`when()` sur des `withCount` aliasés (`reviewed_count`, '
             .'`contacted_count`, `consented_count`) que seul `RadarAdvertiserController::index` pose (TCK-2388) : trois '
             .'ENTIERS, jamais une date. Le sujet du parcours vient d\'une factory, pas de cette requête.',
-        'App\Http\Resources\Api\Admin\RadarListingResource::neighborhood_link' => '`when()` sur `withNeighborhoodLink()`, que seuls '
-            .'les contrôleurs de la fiche posent (TCK-2387) : `{id, name, city}` — un identifiant et deux noms, jamais une date.',
         'App\Http\Resources\ConversationResource::unread_count' => "`whenHas('unread_count')` — un compteur ENTIER "
             .'(`(int)`), jamais une date. Il vient du seul `withCount` de `ConversationController::index` '
             .'(TCK-579) ; le sujet vient d\'une factory, pas de cette requête.',
@@ -178,7 +176,7 @@ class DateInventoryByValueTest extends TestCase
                 foreach (['liste' => $requete, 'détail' => $detail] as $variante => $appelant) {
                     $this->activerLAppelant($appelant, $utilisateur);
 
-                    $instance = new $resource($sujet);
+                    $instance = ResourceSubjects::commeLeControleur(new $resource($sujet));
                     $declarees = (array) $instance->toArray($appelant);
                     $sortie = $instance->resolve($appelant);
 

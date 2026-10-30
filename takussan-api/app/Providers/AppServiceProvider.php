@@ -129,6 +129,8 @@ use App\Services\Pdf\DomPdfPageTotalDriver;
 use App\Services\Radar\ClaimLinks;
 use App\Services\Radar\DnsHostResolver;
 use App\Services\Radar\HostResolver;
+use App\Services\Radar\Similarity\RadarTextSimilarity;
+use App\Services\Radar\Similarity\TrigramTextSimilarity;
 use App\Services\Radar\Whatsapp\RadarCloudWhatsappDriver;
 use App\Services\Radar\Whatsapp\RadarLogWhatsappDriver;
 use App\Services\Radar\Whatsapp\RadarWhatsappDriver;
@@ -203,6 +205,11 @@ class AppServiceProvider extends ServiceProvider
         // TCK-2386 (ADR-0077 §10) — la résolution DNS du Radar, injectée : `UrlFetcher` contrôle
         // toutes les adresses d'un nom avant de s'y connecter, et les tests la doublent.
         $this->app->bind(HostResolver::class, DnsHostResolver::class);
+
+        // TCK-2392 — le quatrième signal de rapprochement du Radar : un pilote par `radar.similarity.driver`, `trigram` à défaut.
+        $this->app->bind(RadarTextSimilarity::class, fn ($app) => $app->make(
+            config('radar.similarity.drivers.'.config('radar.similarity.driver')) ?? TrigramTextSimilarity::class,
+        ));
 
         // TCK-594 (ADR-0039 §1) — décaisser, distinct d'encaisser. Un seul pilote : le manuel tracé.
         $this->app->bind(DisbursementDriverContract::class, ManualDisbursementDriver::class);

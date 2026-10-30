@@ -4,6 +4,7 @@
 - **Date** : 2026-10-26
 - **Tickets** : TCK-2386 à TCK-2391 (lot 1 du [plan Radar et socle IA](../plans/2026-10-26-radar-et-socle-ia.md)) ; lots 2 à 5 : TCK-2392 à TCK-2395
 - **Dépend de** : [ADR-0076](0076-le-socle-ia.md) (le socle IA)
+- **Amendé par** : [ADR-0080](0080-la-collecte-automatique-du-radar.md) (2026-10-30, TCK-2392) — la collecte automatique, la suppression des instantanés de collecte à la purge (§ 9), et une fusion d'office des doublons entre sites, étroite, réversible et éteinte par défaut (la conséquence « la décision reste humaine » le reste par défaut).
 
 ## Contexte
 
