@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Webhook;
 
 use App\Http\Controllers\Controller;
 use App\Services\Radar\Whatsapp\RadarWhatsappInbox;
+use App\Services\Radar\Whatsapp\RadarWhatsappReceipts;
 use App\Services\Webhooks\WebhookJournal;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -19,16 +20,17 @@ use Illuminate\Support\Facades\Log;
  * (`IntegrationWebhookLog::BODY_DROPPED_AT_CLOSE`) : une ligne du Radar ne se rejoue pas, Meta rejoue lui-même ce qu'il
  * n'a pas vu accepté (ADR-0081).
  *
- * Les accusés de livraison des messages du Radar arrivent aussi ici ; ils ne sont pas lus (TCK-2427). Meta reçoit 200
- * dès que les messages sont rangés : il rejoue sur toute autre réponse.
+ * Les accusés de livraison des messages du Radar arrivent aussi ici : `provider_status` les suit, sans jamais reculer
+ * ({@see RadarWhatsappReceipts}, TCK-2427). Meta reçoit 200 dès que les accusés et les messages sont rangés : il rejoue sur
+ * toute autre réponse.
  */
 class RadarWhatsappWebhookController extends Controller
 {
-    public function __invoke(Request $request, WebhookJournal $journal, RadarWhatsappInbox $inbox): JsonResponse
+    public function __invoke(Request $request, WebhookJournal $journal, RadarWhatsappInbox $inbox, RadarWhatsappReceipts $receipts): JsonResponse
     {
         $this->guardUrlToken($request);
 
-        return $this->process($request, $journal, $inbox);
+        return $this->process($request, $journal, $inbox, $receipts);
     }
 
     /** La vérification d'abonnement de Meta (`hub.challenge`), sous le jeton de vérification du Radar. */
@@ -46,13 +48,20 @@ class RadarWhatsappWebhookController extends Controller
     }
 
     /** La signature, puis le traitement. */
-    private function process(Request $request, WebhookJournal $journal, RadarWhatsappInbox $inbox): JsonResponse
+    private function process(Request $request, WebhookJournal $journal, RadarWhatsappInbox $inbox, RadarWhatsappReceipts $receipts): JsonResponse
     {
         $this->verifySignature($request);
         $journal->authenticated();
 
-        $received = $inbox->receive((array) $request->input('entry', []));
-        $journal->annotate(['external_id' => $received['first_id'], 'event_type' => 'messages', 'matched_count' => $received['recorded']]);
+        $entries = (array) $request->input('entry', []);
+        // Les accusés d'abord : un STOP de la même requête révoque l'annonceur, ce qui ne change rien à ce qui a été remis.
+        $statuses = $receipts->receive($entries);
+        $received = $inbox->receive($entries);
+        $journal->annotate([
+            'external_id' => $received['first_id'] ?? $statuses['first_id'],
+            'event_type' => $received['received'] > 0 || $statuses['received'] === 0 ? 'messages' : 'statuses',
+            'matched_count' => $received['recorded'] + $statuses['applied'],
+        ]);
 
         return new JsonResponse(['ok' => true]);
     }
