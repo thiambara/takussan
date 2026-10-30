@@ -111,6 +111,18 @@ espace individuel ordinaire.**
    Après le retrait du dernier bien qu'elle couvre, une preuve d'accord est conservée pendant la
    durée fixée par la politique de confidentialité, puis effacée.
 
+   **Amendement proposé (TCK-2406, 2026-10-30), non en vigueur.** La matière collectée d'une
+   annonce **publiée** (texte brut, adresse de la source, extraction, réserve de photos, captures),
+   puis le numéro en clair de son annonceur, s'effaceraient avec la dernière preuve qui la couvre :
+   trois ans après le retrait du dernier bien que couvre l'accord, si le sien n'est pas revenu en
+   ligne. Le code existe derrière
+   `radar.purge_published_material`, **éteint**. L'allumer revient au porteur, après relecture par
+   l'avocat, dans la PR qui modifie `privacy.ts` § 6 et fait avancer `VERSION_DOCUMENTS`.
+
+   Les copies que la publication écrit sur les biens se rangent sous un préfixe à elles
+   (`publications/{id du média}/`, TCK-2406) : la purge y balaie, sur les deux disques, les
+   dossiers qu'une requête coupée a laissés sans ligne `media`.
+
 10. **La collecte est polie et protégée.** La lecture d'une URL refuse les adresses privées, de
     boucle locale et de métadonnées (SSRF). Elle respecte le `robots.txt` et limite la fréquence par
     domaine. Airbnb est hors périmètre : sa protection anti-robot, ses conditions d'utilisation et

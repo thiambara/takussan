@@ -447,7 +447,11 @@
       "blocked": "Kont bii dañu ko taxawal. Jokkool ak ndimbal gi ngir xam lu ëpp.",
       "tooMany": "Laaj yi bari nañu ci diir bu gàtt. Muñal tuuti balaa ngay jéemaat.",
       "failed": "Am na njuumte. Jéemaatal ci kanam tuuti.",
-      "termsNotice": "Su nga wéyee, nangu nga <terms>sàrt yi</terms> ak <privacy>politig sutura gi</privacy>."
+      "termsNotice": "Su nga wéyee, nangu nga <terms>sàrt yi</terms> ak <privacy>politig sutura gi</privacy>.",
+      "termsTitle": "Acceptez les conditions d’utilisation",
+      "termsIntro": "Avant d’entrer dans votre espace, prenez connaissance des conditions d’utilisation de Takussan et acceptez-les.",
+      "termsAccept": "J’accepte les <terms>conditions d’utilisation</terms> de Takussan.",
+      "termsContinue": "Accepter et continuer"
     },
     "otpPreview": {
       "title": "Barabu test",

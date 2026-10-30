@@ -101,6 +101,25 @@ class ExtractionNormalizerTest extends TestCase
         $this->assertSame(['value' => 120, 'confidence' => 'high', 'evidence' => '120 m²', 'flags' => []], $out['surface_m2']);
     }
 
+    /**
+     * TCK-2411 — le schéma n'admet plus `evidence: null` : le modèle écrit `""`. C'est l'absence de passage,
+     * avec un texte source comme sans (captures, où la présence n'est pas contrôlée), et la forme stockée
+     * reste `null`.
+     */
+    public function test_ac3_un_passage_rendu_en_chaine_vide_est_l_absence_de_passage(): void
+    {
+        foreach (['texte' => self::SOURCE, 'captures' => null] as $cas => $source) {
+            $out = $this->normalizer->normalize(self::raw([
+                'bedrooms' => self::field(3, ''),
+                'furnished' => self::field(null, ''),
+            ]), $source);
+
+            $this->assertSame(['value' => 3, 'confidence' => 'low', 'evidence' => null, 'flags' => ['evidence_missing']], $out['bedrooms'], $cas);
+            // Sans valeur, rien à justifier : ni drapeau ni chaîne vide stockée.
+            $this->assertSame(['value' => null, 'confidence' => 'low', 'evidence' => null, 'flags' => []], $out['furnished'], $cas);
+        }
+    }
+
     public function test_un_passage_absent_du_texte_source_est_signale(): void
     {
         $out = $this->normalizer->normalize(self::raw([
