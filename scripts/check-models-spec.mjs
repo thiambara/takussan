@@ -50,7 +50,8 @@ const SPEC = join(ROOT, 'docs', 'models-spec.md');
  * dette invisible.*
  */
 const EXCLUS_JUSTIFIES = new Map([
-  // Vide, et c'est l'état sain : tous les modèles de premier niveau sont couverts.
+  // TCK-2431 : section à écrire par la PR de spec commune, qui retire cette ligne dans le même commit.
+  ['RadarNatureCount', 'section à écrire par la PR de spec commune (TCK-2431)'],
 ]);
 
 if (!existsSync(SPEC)) {
