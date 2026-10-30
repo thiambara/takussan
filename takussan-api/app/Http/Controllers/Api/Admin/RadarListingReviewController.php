@@ -7,9 +7,11 @@ use App\Http\Requests\Api\Admin\DiscardRadarListingRequest;
 use App\Http\Requests\Api\Admin\MarkRadarListingDuplicateRequest;
 use App\Http\Requests\Api\Admin\ReviewRadarListingRequest;
 use App\Http\Requests\Api\Admin\SetRadarListingAdvertiserRequest;
+use App\Http\Requests\Api\Admin\UnmergeRadarListingRequest;
 use App\Http\Requests\Api\Admin\UpdateRadarListingRequest;
 use App\Http\Resources\Api\Admin\RadarListingResource;
 use App\Models\RadarListing;
+use App\Services\Radar\RadarAutoMerge;
 use App\Services\Radar\RadarListingReview;
 use Illuminate\Http\JsonResponse;
 
@@ -46,9 +48,15 @@ class RadarListingReviewController extends Controller
         return $this->card($review->setAdvertiser($listing, $request->e164(), $request->user()));
     }
 
-    /** La fiche, avec le quartier rattaché lu une fois (la liste n'en a pas besoin). */
+    /** TCK-2392 (AC7) — séparer une fusion AUTOMATIQUE ; 409 `radar.merge.not_automatic` pour un doublon posé à la main. */
+    public function unmerge(UnmergeRadarListingRequest $request, RadarListing $listing, RadarAutoMerge $merge): JsonResponse
+    {
+        return $this->card($merge->unmerge($listing, $request->user()));
+    }
+
+    /** La fiche, avec le quartier rattaché et les provenances lus une fois (la liste n'en a pas besoin). */
     private function card(RadarListing $listing): JsonResponse
     {
-        return $this->json(['data' => (new RadarListingResource($listing->load(['advertiser', 'media'])))->withNeighborhoodLink()]);
+        return $this->json(['data' => (new RadarListingResource($listing->load(['advertiser', 'media'])))->withNeighborhoodLink()->withProvenances()]);
     }
 }

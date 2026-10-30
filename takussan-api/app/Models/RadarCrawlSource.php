@@ -24,6 +24,8 @@ class RadarCrawlSource extends AbstractModel
         'enabled_at' => 'datetime',
     ];
 
+    protected static array $requestLoadable = ['operator'];
+
     protected static array $queryFields = [
         'id', 'site', 'enabled', 'frequency_minutes', 'max_pages', 'operator_id', 'enabled_at', 'created_at', 'updated_at',
     ];

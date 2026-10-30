@@ -38,6 +38,6 @@ class RadarListingPhotoController extends Controller
 
     private function card(RadarListing $listing, int $status): JsonResponse
     {
-        return $this->json(['data' => (new RadarListingResource($listing->load(['advertiser', 'media'])))->withNeighborhoodLink()], $status);
+        return $this->json(['data' => (new RadarListingResource($listing->load(['advertiser', 'media'])))->withNeighborhoodLink()->withProvenances()], $status);
     }
 }
