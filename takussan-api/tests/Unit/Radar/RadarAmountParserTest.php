@@ -147,10 +147,19 @@ class RadarAmountParserTest extends TestCase
 
     public function test_un_etage_rdc_ou_espace_devant_un_prix_n_en_fait_pas_un_numero(): void
     {
-        // TCK-2435 : `RDC+1` et `R + 1` sont des étages comme `R+1`, le prix qui suit est lu.
+        // TCK-2435 : `RDC+1` et `R + 1` sont des étages comme `R+1`, le prix qui suit est lu. Ces cas gardent
+        // `PhoneMasker::NOT_A_FLOOR` ; `RadarPhone::FLOOR_PLUS` est gardé par le test suivant et par `RadarPhoneTest`.
         foreach (['Immeuble RDC+1 1 250 500 750 F', 'Immeuble R + 1 1 250 500 750 F', 'Immeuble R +1 1 250 500 750 F',
             'Immeuble R+ 1 1 250 500 750 F', 'Immeuble Rdc + 2 1 250 500 750 F'] as $texte) {
             $this->assertSame(['amount' => 1_250_500_750, 'period' => null], RadarAmountParser::parse($texte), $texte);
+        }
+    }
+
+    public function test_un_numero_un_ou_sept_complet_derriere_un_etage_n_est_pas_un_prix(): void
+    {
+        // TCK-2435 (vérification 2) : derrière `RDC +1`, `R+1`, `RDC+7`, un numéro complet de l'indicatif garde son `+`.
+        foreach (['RDC +1 5145550199', 'RDC+7 7701234567', 'Appartement au RDC +1 514 555 0199', 'R+1 5145550199'] as $texte) {
+            $this->assertNull(RadarAmountParser::parse($texte), $texte);
         }
     }
 

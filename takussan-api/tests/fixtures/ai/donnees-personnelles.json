@@ -204,7 +204,21 @@
     "étage TCK-2435 — un numéro collé derrière R + reste masqué": ["R + 447712345678", "R [TELEPHONE]"],
     "étage TCK-2435 — un numéro collé derrière R +1 reste masqué": ["R +12025550123", "R [TELEPHONE]"],
     "étage TCK-2435 — un R collé à une lettre, espacé, n'est pas un étage": ["XR + 1 1 250 500 750 F", "XR [TELEPHONE] F"],
-    "étage TCK-2435 — trois espaces entre R et le plus : plus un étage": ["R   + 1 1 250 500 750 F", "R   [TELEPHONE] F"]
+    "étage TCK-2435 — trois espaces entre R et le plus : plus un étage": ["R   + 1 1 250 500 750 F", "R   [TELEPHONE] F"],
+    "étage TCK-2435 vérification 1 — au RDC, puis un numéro +1 complet": ["Appartement au RDC +1 514 555 0199", "Appartement au RDC [TELEPHONE]"],
+    "étage TCK-2435 vérification 1 — RDC en fin de ligne, +1 à la ligne": ["Appartement au RDC\n+1 514 555 0199", "Appartement au RDC\n[TELEPHONE]"],
+    "étage TCK-2435 vérification 1 — RDC, CRLF, +1": ["Appartement au RDC\r\n+1 514 555 0199", "Appartement au RDC\r\n[TELEPHONE]"],
+    "étage TCK-2435 vérification 1 — RDC, ligne vide, +1": ["Appartement au RDC\n\n+1 514 555 0199", "Appartement au RDC\n\n[TELEPHONE]"],
+    "étage TCK-2435 vérification 1 — RDC, +1 et zone entre parenthèses": ["Appartement au RDC +1 (514) 555-0199", "Appartement au RDC [TELEPHONE]"],
+    "étage TCK-2435 vérification 1 — RDC, +1 à tirets": ["Studio RDC +1-514-555-0199", "Studio RDC [TELEPHONE]"],
+    "étage TCK-2435 vérification 1 — RDC, +1 à points": ["Tel RDC +1.514.555.0199", "Tel RDC [TELEPHONE]"],
+    "étage TCK-2435 vérification 1 — RDC, +7 complet": ["au RDC +7 701 234 56 78", "au RDC [TELEPHONE]"],
+    "étage TCK-2435 vérification 1 — RDC, deux espaces de chaque côté, +1": ["RDC  +  1 514 555 0199", "RDC  [TELEPHONE]"],
+    "étage TCK-2435 vérification 1 — R espacé, +1 complet": ["Contact R +1 202 555 0123", "Contact R [TELEPHONE]"],
+    "étage TCK-2435 vérification 1 — RDC +1 puis un numéro sénégalais": ["Appel au RDC +1 514 555 0199 ou +221 77 012 34 56", "Appel au RDC [TELEPHONE] ou [TELEPHONE]"],
+    "étage TCK-2435 vérification 1 — R+1 collé, numéro +1 complet (limite de TCK-2428 refermée)": ["R+1 202 555 0123", "R[TELEPHONE]"],
+    "étage TCK-2435 vérification 1 — R+7 collé, numéro +7 complet (limite de TCK-2428 refermée)": ["R+7 912 345 67 89", "R[TELEPHONE]"],
+    "étage TCK-2435 vérification 4 — un F. suivi d'un nom est une initiale, pas un prix": ["RDC +1 514 555 0199 F. Diop", "RDC [TELEPHONE] F. Diop"]
   },
   "courriels": {
     "simple": "awa@exemple.sn",
@@ -400,6 +414,9 @@
     "étage TCK-2435 — R+ 1 espacé après le plus": "Immeuble R+ 1 1 250 500 750 F",
     "étage TCK-2435 — RDC + 1 espacé devant un prix": "Immeuble RDC + 1 1 250 500 750 F",
     "étage TCK-2435 — deux espaces de chaque côté du plus": "Immeuble R  +  1 1 250 500 750 F",
-    "étage TCK-2435 — (RDC+1) entre parenthèses devant un prix": "Villa (RDC+1) 1 250 500 750 F"
+    "étage TCK-2435 — (RDC+1) entre parenthèses devant un prix": "Villa (RDC+1) 1 250 500 750 F",
+    "étage TCK-2435 — RDC +1 devant un prix de dix chiffres marqué F": "Immeuble RDC +1 2 500 500 750 F",
+    "étage TCK-2435 — R+1 devant un prix de dix chiffres marqué FCFA": "Immeuble R+1 1 250 500 750 FCFA",
+    "étage TCK-2435 — R+17 devant un prix : 17 est un étage, pas 1 suivi de dix chiffres": "Immeuble R+17 1 250 500 750 F"
   }
 }

@@ -233,6 +233,15 @@ class RadarPhoneTest extends TestCase
         foreach (['Villa RDC+33 6 12 34 56 78', 'Villa R + 33 6 12 34 56 78', 'Villa R +33 6 12 34 56 78', 'Villa RDC+33612345678'] as $texte) {
             $this->assertSame([], RadarPhone::fromText($texte), $texte);
         }
+
+        // Vérification 2 : un `+1` / `+7` suivi d'un numéro complet garde son `+`, la fin n'est pas un contact sénégalais.
+        foreach (['RDC +1 70 123 45 67 8', 'RDC +1 77 012 34 56 7', 'R+1 70 123 45 67 8'] as $texte) {
+            $this->assertSame([], RadarPhone::contactsFromText($texte), $texte);
+        }
+        // `R+17`, `RDC+17` : l'étage 17, pas `+1` suivi de dix chiffres.
+        foreach (['Immeuble R+17 77 012 34 56', 'Immeuble RDC+17 77 012 34 56'] as $texte) {
+            $this->assertSame(['+221770123456'], RadarPhone::contactsFromText($texte), $texte);
+        }
     }
 
     /**

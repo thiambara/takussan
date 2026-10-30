@@ -53,6 +53,13 @@ class PhoneMaskerTest extends TestCase
         $this->assertSame('Appelez le '.PhoneMasker::TOKEN.' ce soir', PhoneMasker::mask("Appelez le {$numero} ce soir"));
     }
 
+    /** TCK-2435 (vérification 4) — `F.` en fin de texte reste une marque monétaire ; suivi d'un nom, c'est une initiale. */
+    public function test_a_floor_price_ending_with_f_dot_is_kept_but_an_initial_is_not_a_currency(): void
+    {
+        $this->assertSame('Immeuble R+1 1 250 500 750 F.', PhoneMasker::mask('Immeuble R+1 1 250 500 750 F.'));
+        $this->assertSame('RDC [TELEPHONE] F. Diop', PhoneMasker::mask('RDC +1 514 555 0199 F. Diop'));
+    }
+
     public function test_invalid_utf8_is_scrubbed_then_masked_instead_of_returned_as_is(): void
     {
         $masque = PhoneMasker::mask("\xC3\x28 appelez le 77 123 45 67");

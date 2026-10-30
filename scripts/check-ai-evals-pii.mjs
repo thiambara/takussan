@@ -93,7 +93,12 @@ const CC3 = '(?:21[1-368]|22[02-9]|2[34][0-9]|25[0-8]|26[0-9]|29[01789]|35[0-9]|
 const MOT_ETAGE = String.raw`(?<=(?<!\p{L})r|(?<!\p{L})rdc`
   + String.raw`|(?<!\p{L})r${WS}|(?<!\p{L})rdc${WS}`
   + String.raw`|(?<!\p{L})r${WS}${WS}|(?<!\p{L})rdc${WS}${WS})`;
-const PAS_UN_ETAGE = String.raw`(?!${MOT_ETAGE}\+${WS}{0,2}(?:[0-9]|1[0-9])(?![0-9]))`;
+// Un étage `1` ou `7` n'en est plus un quand les dix chiffres d'un numéro complet de cet indicatif le suivent, sans
+// marque monétaire derrière (`F. Diop` : un `F` suivi d'un point et d'une lettre est une initiale) : `au RDC\n+1 514 555 0199`, `R+1 202 555 0123` sont des numéros.
+const RESTE_CC1 = String.raw`(?:${SEP}?\([0-9]{3}\)(?:${SEP}{0,3}[0-9]){7}|(?:${SEP}{0,3}[0-9]){10})(?![0-9])`
+  + String.raw`(?!${WS}*(?:(?:f${WS}?cfa|cfa|xof|francs?)(?!\p{L})|f(?!\p{L}|\.${WS}*\p{L})))`;
+const APRES_PLUS_ETAGE = String.raw`${WS}{0,2}(?:[02-689]|[17](?!${RESTE_CC1})|1[0-9])(?![0-9])`;
+const PAS_UN_ETAGE = String.raw`(?!${MOT_ETAGE}\+${APRES_PLUS_ETAGE})`;
 const CHIFFRES = (n) => `(?:${SEP}{0,3}[0-9]){${n}}`;
 const ETRANGER = String.raw`(?:(?<![0-9+])(?<![0-9][.,])${PAS_UN_ETAGE}(?:\+(?!${WS}{1,2}[0-9]{1,3}(?:${SEP}[0-9]{3})*${SEP}000(?![0-9]))${WS}{0,2}|00${SEP}?)(?:`
   + `33${APRES_CC}${CHIFFRES(9)}`
@@ -204,6 +209,11 @@ for (const [texte, attendu, masque] of CAS_EPREUVE) {
     console.error(`✗ épreuve : « ${texte} » devait rendre ${attendu}`);
     process.exit(1);
   }
+}
+// TCK-2435 : `F.` en fin de texte est la marque d'un prix derrière un étage ; suivi d'un nom, c'est une initiale.
+if (trouver('Immeuble R+1 1 250 500 750 F.') !== null || trouver('RDC +1 514 555 0199 F. Diop') === null) {
+  console.error('✗ épreuve : un étage suivi d\'un prix en « F. » ou d\'un numéro suivi d\'une initiale');
+  process.exit(1);
 }
 // Le JSON échappé : un numéro à espaces insécables et un courriel dont l'arobase est en `\u0040`.
 const ECHAPPE = '{"input":"77\\u00a0123\\u202f45 67","e":"a\\u0040b.sn"}';

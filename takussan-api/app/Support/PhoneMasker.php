@@ -122,19 +122,31 @@ final class PhoneMasker
      * se lisait `+10…`. Un `R` isolé, le `+`, un étage de 0 à 19 que rien ne colle derrière : aucun indicatif à deux ou
      * trois chiffres ne commence par 1, donc `R+44 7700 900123` reste un numéro. Collé à un mot (`Tel+33 …`, `Mr+33 …`),
      * suivi d'une espace (`R+ 33 …`) ou d'un numéro collé (`R+33612345678`), le `+` reste un indicatif — plus étroit que
-     * `RadarPhone::withoutFloorPlus()`, qui n'a pas de numéro étranger à rendre. Limite assumée : `R+1 202 555 0123`
-     * et `R+7 912 345 67 89` (indicatif d'un chiffre derrière un `R`) s'écrivent comme un étage.
+     * `RadarPhone::withoutFloorPlus()`, qui n'a pas de numéro étranger à rendre.
      *
      * TCK-2435 — l'étage s'écrit aussi `RDC+1` (rez-de-chaussée plus un) et `R + 1`, `R +1`, `R+ 1` : au plus deux espaces
      * de chaque côté du `+`, le même étage de 0 à 19. `R + 33 6 12 34 56 78`, `RDC+33612345678`, `RDC+44 7700 900123`
-     * restent des numéros ; la limite d'un indicatif d'un chiffre s'étend à ces écritures (`RDC+1 202 555 0123`).
-     * Le mot de l'étage est énuméré branche par branche : un lookbehind PCRE n'admet que des branches de longueur fixe.
+     * restent des numéros. Le mot de l'étage est énuméré branche par branche : un lookbehind PCRE n'admet que des
+     * branches de longueur fixe. Un étage `1` ou `7` n'en est plus un quand ce qui le suit forme un numéro complet de cet
+     * indicatif (`CC1_REST`) : `Appartement au RDC\n+1 514 555 0199`, `R+1 202 555 0123` sont masqués.
      */
     private const FLOOR_WORD = '(?<=(?<!\p{L})r|(?<!\p{L})rdc'
         .'|(?<!\p{L})r'.self::WS.'|(?<!\p{L})rdc'.self::WS
         .'|(?<!\p{L})r'.self::WS.self::WS.'|(?<!\p{L})rdc'.self::WS.self::WS.')';
 
-    private const NOT_A_FLOOR = '(?!'.self::FLOOR_WORD.'\+'.self::WS.'{0,2}(?:[0-9]|1[0-9])(?![0-9]))';
+    /**
+     * TCK-2435 (vérification adverse 1) — derrière l'indicatif `1` ou `7`, les dix chiffres d'un numéro complet de ce
+     * plan (la zone entre parenthèses comprise, comme dans `FOREIGN`), qu'aucune marque monétaire ne suit :
+     * `R+1 1 250 500 750 F` reste un étage suivi d'un prix. Un `F` suivi d'un point puis d'une lettre n'est pas une marque
+     * ici (`… 0199 F. Diop`, une initiale) ; `… 750 F.` en fin de texte en est une. Lu aussi par `RadarPhone::FLOOR_PLUS`.
+     */
+    public const CC1_REST = '(?:'.self::SEP.'?\([0-9]{3}\)(?:'.self::SEP.'{0,3}[0-9]){7}|(?:'.self::SEP.'{0,3}[0-9]){10})(?![0-9])'
+        .'(?!'.self::WS.'*(?:(?:f'.self::WS.'?cfa|cfa|xof|francs?)(?!\p{L})|f(?!\p{L}|\.'.self::WS.'*\p{L})))';
+
+    /** Ce qui suit le `+` d'un étage : un étage de 0 à 19, sauf `1` ou `7` suivi d'un numéro complet. */
+    public const FLOOR_AFTER_PLUS = self::WS.'{0,2}(?:[02-689]|[17](?!'.self::CC1_REST.')|1[0-9])(?![0-9])';
+
+    private const NOT_A_FLOOR = '(?!'.self::FLOOR_WORD.'\+'.self::FLOOR_AFTER_PLUS.')';
 
     /**
      * Un numéro étranger (TCK-2410) : `+` (une espace tolérée derrière) ou `00`, un indicatif ITU, puis

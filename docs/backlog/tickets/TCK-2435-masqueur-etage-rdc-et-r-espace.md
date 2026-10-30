@@ -71,15 +71,23 @@ suivre.
   étage de 0 à 19 que rien ne colle derrière. Le mot est énuméré en six branches (`FLOOR_WORD`, `MOT_ETAGE`), parce
   qu'un lookbehind PCRE n'admet que des branches de longueur fixe : `(?:r|rdc)\s{0,2}` serait refusé par un PCRE2
   antérieur à 10.43. La garde JS écrit les mêmes branches.
-- **Radar** : `RadarPhone::FLOOR_PLUS` gagne une seconde branche, de forme étroite (`RDC`, espaces, étage 0-19), et la
-  première (`R+` collé, large) reste telle quelle. Sans cette branche, `Villa RDC+1 77 123 45 67` et
-  `Villa R + 1 77 123 45 67` perdaient leur contact : `FOREIGN_PREFIX` lisait `+1` devant le numéro. Le masqueur, lui,
-  laissait déjà ces deux textes intacts, puisque `+1` suivi de neuf chiffres n'est pas un numéro nord-américain.
-- **Parité PHP/JS hors fixture** : 0 écart sur 217 155 lignes distinctes (les fichiers suivis qui portent un chiffre,
-  plus 34 cas d'étage écrits à la main). 28 lignes changent de rendu côté PHP entre avant et après : toutes sont des
-  écritures d'étage, plus `RDC+1 202 555 0123` et `R + 1 202 555 0123`, la limite assumée ci-dessous.
-- **Limite étendue** : comme `R+1 202 555 0123` depuis TCK-2428, un indicatif d'un chiffre (`+1`, `+7`) derrière
-  `RDC` ou derrière un `R` espacé s'écrit comme un étage et n'est plus masqué (`RDC+1 202 555 0123`).
+- **Borne des indicatifs `1` et `7`** (vérification adverse 1) : sans elle, l'écriture espacée laissait passer en clair
+  un vrai numéro qui suit « au RDC » en fin de ligne (`Appartement au RDC\n+1 514 555 0199`, `au RDC +7 701 234 56 78`).
+  Un étage `1` ou `7` cesse d'être un étage quand les chiffres qui suivent forment un numéro complet de cet indicatif,
+  soit les dix chiffres de `FOREIGN`, zone entre parenthèses comprise (`PhoneMasker::CC1_REST`, miroir `RESTE_CC1`),
+  sauf si une marque monétaire les suit. `R+1 1 250 500 750 F` reste donc un étage suivi d'un prix. Ici, un `F` suivi
+  d'un point puis d'une lettre (`… 0199 F. Diop`) est une initiale, pas une marque ; `… 750 F.` en fin de texte en est
+  une. La limite de TCK-2428 (`R+1 202 555 0123`, `R+7 912 345 67 89` en clair) se ferme du même coup : ces deux
+  textes sont masqués.
+- **Radar** : `RadarPhone::FLOOR_PLUS` gagne une seconde branche, de forme étroite (`RDC`, espaces, étage 0-19,
+  `PhoneMasker::FLOOR_AFTER_PLUS`, borne comprise). La première branche (`R+` collé, large) prend la borne : un `+1` ou
+  un `+7` suivi d'un numéro complet garde son `+`, et `RDC +1 5145550199` n'est plus lu comme un prix. Sans la seconde
+  branche, `Villa RDC+1 77 123 45 67` et `Villa R + 1 77 123 45 67` perdaient leur contact, parce que
+  `FOREIGN_PREFIX` lisait `+1` devant le numéro.
+- **Parité PHP/JS hors fixture** : 0 écart sur 217 598 lignes distinctes. Ce sont les fichiers suivis qui portent un
+  chiffre, plus les cas d'étage écrits à la main, dont les onze fuites de la vérification. Par rapport au masqueur de
+  `dev`, 23 lignes gagnent un texte non masqué : ce sont toutes des écritures d'étage suivies d'un prix. Aucune ligne
+  ne perd le masquage d'un numéro.
 - **Suite** : `R+33 6 12 34 56 78` est lu par le Radar comme un fixe sénégalais `+221 33…`, à cause de la première
   branche, large, de `FLOOR_PLUS`. Le défaut existait avant ce ticket, qui ne l'a pas créé → TCK-2441.
 
@@ -93,3 +101,6 @@ suivre.
 - **Le Radar suit avec la forme étroite.** Écarté : élargir à `RDC` la branche large de `R+`. Raison : la forme large
   fabrique un numéro sénégalais à partir d'un numéro étranger (TCK-2441). La forme étroite rend le contact des
   écritures d'étage sans créer ce défaut sur `RDC+33…`.
+- **La borne vaut pour `1` et `7` seulement, et un prix marqué la lève.** Écarté : retirer `+1` et `+7` des étages.
+  Raison : `R+1` est l'étage le plus écrit. Un numéro complet sans marque monétaire derrière se masque, et un prix de
+  dix chiffres non marqué derrière `R+1` est perdu : l'humain tranche.

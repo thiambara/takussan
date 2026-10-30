@@ -34,7 +34,8 @@ fixe sénégalais. Mesuré le 2026-10-30 sur la branche de TCK-2435 :
 
 Le masqueur n'est pas touché : depuis TCK-2428, `PhoneMasker::NOT_A_FLOOR` n'exempte qu'un étage de 0 à 19 que rien ne
 colle derrière, et `R+33 6 12 34 56 78` y reste masqué en entier. Les écritures ajoutées par TCK-2435 (`RDC+1`, `R + 1`)
-suivent déjà la forme étroite côté Radar. Seule la branche historique `R+` collé reste large.
+suivent déjà la forme étroite côté Radar. Seule la branche historique `R+` collé reste large (hors `+1` / `+7` suivi
+d'un numéro complet, borné par TCK-2435).
 
 ## Contrat de données
 
