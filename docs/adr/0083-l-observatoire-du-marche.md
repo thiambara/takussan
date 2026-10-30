@@ -13,7 +13,8 @@ Mesuré le 2026-10-30 sur `feat/radar-collecte-automatique` `c3c3d638b` :
   surface, chambres, quartier du référentiel, ville, empreinte du titre, et la plage de présence
   (`first_seen_at`, `last_seen_at`). Aucun numéro, aucun nom, aucun texte.
 - **La purge (TCK-2391) ne supprime aucune annonce** : elle vide son texte brut, son adresse, ses photos et
-  son extraction, et la passe à `purged`. Elle supprime ou vide l'annonceur (numéro, nom, nature).
+  son extraction, et la passe à `purged`. Elle supprime ou vide l'annonceur (numéro, nom, nature). Depuis
+  TCK-2392 (ADR-0080 §4), elle **supprime aussi les instantanés** de l'annonce, quelle qu'en soit la raison.
 - **Un passage de collecte peut s'arrêter avant la fin de la liste** (`max_pages`, page refusée, erreur) :
   `radar_crawl_runs.reached_end` dit s'il a lu la dernière page.
 - **Les alertes de la console** naissent d'une activité journalisée dont l'événement est déclaré alertable
@@ -27,20 +28,13 @@ toute la liste, ne l'ont pas revue.**
 
 1. **Aucune table d'agrégats.** Prix au m², temps de mise sur le marché et écart d'offre se calculent à la
    requête (`RadarObservatory`), depuis `radar_listing_snapshots`, les colonnes anonymes de `radar_listings`
-   (site, doublon, rattachement au catalogue, disparition) et le catalogue public. Ils survivent à la purge
-   parce qu'ils ne lisent rien de ce qu'elle efface — un test le prouve en recalculant après elle, et un
-   autre refuse toute requête de l'observatoire qui nommerait `raw_text`, `extracted`, `source_url`,
-   `phone`, `display_name` ou `similarity_text`.
+   (site, doublon, rattachement au catalogue, disparition) et le catalogue public. **Ils se calculent sur les
+   données conservées** : une purge retire ses lignes, et la période couverte est bornée par la rétention
+   (90 jours pour une annonce jamais publiée). Un historique au-delà passera par des compteurs anonymes
+   agrégés (TCK-2434). Un test refuse toute requête de l'observatoire qui nommerait `raw_text`, `extracted`,
+   `source_url`, `phone`, `display_name` ou `similarity_text`.
 2. **L'état courant d'une annonce est son dernier instantané.** Un doublon (`duplicate_of_listing_id`) ne
-   compte pas : la même maison vue sur trois sites est une annonce. **Une annonce purgée à échéance (90 jours)
-   reste au marché par une seule ligne détachée** : la purge (TCK-2392, ADR-0080) met `radar_listing_id` et
-   `crawl_run_id` à null et ramène les dates au jour ; elle ne garde que le dernier instantané, étendu à toute
-   la présence, et y recopie, sous la même règle, la disparition au jour (`detached_gone_at`), le catalogue
-   (`detached_in_catalog`, doublon d'un bien) et le site seul (`detached_source_site`). Le doublon d'une autre
-   annonce ne laisse aucune ligne : le marché ne le comptait pas, et détaché il ne pourrait plus l'exclure.
-   Elle n'est plus observée : en ligne à la purge, elle le reste ici, jusqu'à ce que `since` la fasse sortir.
-   **Une annonce purgée pour un STOP, une révocation ou `do_not_contact` quitte le marché** : la purge
-   supprime ses instantanés (décision de la session, B1-bis de TCK-2392).
+   compte pas : la même maison vue sur trois sites est une annonce.
 3. **La disparition se constate, elle ne se déduit pas d'une absence.** `radar:observe-sources` marque
    disparue (`radar_listings.source_gone_at`, `source_gone_run_id`) une annonce de son site lorsque
    `radar.observe.confirm_runs` (2 par défaut) passages `finished` dont `reached_end` est vrai ont commencé
@@ -51,8 +45,7 @@ toute la liste, ne l'ont pas revue.**
    postérieurs à la dernière. Un passage incomplet ne compte pas. Une annonce revue plus tard redevient
    présente. **Une annonce que la collecte ne suit plus n'est pas jugée et n'alerte pas** : purgée,
    `do_not_contact`, ou d'un annonceur qui a dit STOP (TCK-2392, `RadarCrawler::silenced()`) — ne plus la
-   voir ne dit rien d'elle, même doublure d'un bien publié. La purge d'une annonce jamais publiée détache en
-   plus ses instantanés.
+   voir ne dit rien d'elle, même doublure d'un bien publié. La purge supprime en plus ses instantanés.
 4. **L'alerte passe par le journal, un journal de plateforme.** Une disparition rattachée à un bien
    (directement, ou par l'annonce dont elle est le doublon) écrit `radar_source_listing_gone`, événement
    alertable : les règles d'alerte existantes la livrent, rien de neuf n'envoie quoi que ce soit. **Son sujet
@@ -72,6 +65,8 @@ toute la liste, ne l'ont pas revue.**
   passage semble plus récente qu'elle ne l'est. La médiane se lit avec son compte.
 - **La part d'intermédiaires ne se mesure que sur les annonceurs encore porteurs d'annonces** : la purge
   remet la nature à `unknown`. Figer des compteurs anonymes par nature est la suite TCK-2431.
+- **Le marché ne remonte pas au-delà de la rétention** : une annonce jamais publiée quitte les agrégats à sa
+  purge (90 jours, ou aussitôt pour un STOP). Les séries longues sont la suite TCK-2434.
 - **Une disparition se constate un passage complet plus tard** qu'avec un seul : au rythme par défaut
   (6 h), une demi-journée. `radar.observe.confirm_runs` à 1 rend l'ancien comportement.
 - **Une annonce saisie à la main n'a aucun instantané** : elle n'entre ni dans les agrégats ni dans la
@@ -81,5 +76,5 @@ toute la liste, ne l'ont pas revue.**
 
 - `App\Services\Radar\Observatory\RadarObservatory`, `RadarSourceWatch`, `RadarAdvertiserRanking` ;
   commande `radar:observe-sources` inscrite au planificateur (`routes/console.php`).
-- `tests/Feature/Radar/Observatory/` : survie à la purge et requêtes sans colonne personnelle (AC1),
+- `tests/Feature/Radar/Observatory/` : purge qui retire ses lignes et requêtes sans colonne personnelle (AC1),
   alerte (AC2), passage incomplet (AC3), réapparition (AC4).

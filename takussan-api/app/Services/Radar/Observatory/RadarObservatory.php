@@ -16,16 +16,15 @@ use Illuminate\Support\Facades\DB;
  *
  * **Le marché** est l'ensemble des annonces collectées qui ont au moins un instantané, doublons exclus
  * (`duplicate_of_listing_id` : la même maison vue sur trois sites est UNE annonce). L'état courant d'une annonce est son
- * dernier instantané ; sa présence va du premier `first_seen_at` au dernier `last_seen_at`. **Une annonce purgée** y reste
- * par l'unique instantané que la purge des 90 jours a détaché d'elle (TCK-2392) : son dernier état connu, sa présence,
- * sa disparition, son catalogue et son site recopiés (`detached_*`), toutes dates AU JOUR. Elle n'est plus observée : une
- * annonce encore en ligne à la purge le reste ici, jusqu'à ce que `since` la fasse sortir. Une annonce purgée pour un STOP,
- * une révocation ou `do_not_contact` n'y est plus : la purge supprime ses instantanés.
+ * dernier instantané ; sa présence va du premier `first_seen_at` au dernier `last_seen_at`.
  *
- * **Anonyme, donc survivant à la purge** : les sections du marché (`summary`, `price_per_m2`, `time_on_market`,
- * `supply_gap`, `gone_sources`) ne lisent que `radar_listing_snapshots`, les colonnes anonymes de `radar_listings` (site,
- * doublon, rattachement au catalogue, disparition), le référentiel des quartiers et le catalogue public. Jamais le texte
- * brut, l'extraction, l'adresse de la source, le numéro ni le nom — `RadarObservatoryTest` le vérifie sur le SQL émis.
+ * **Sur les données conservées** : toute purge supprime les instantanés de l'annonce (TCK-2392, ADR-0080 §4) ; une annonce
+ * purgée quitte donc le marché, et la période couverte est bornée par la rétention (90 jours pour une annonce jamais
+ * publiée). Un historique au-delà passera par des compteurs anonymes agrégés (TCK-2434). Les sections du marché
+ * (`summary`, `price_per_m2`, `time_on_market`, `supply_gap`, `gone_sources`) ne lisent que `radar_listing_snapshots`, les
+ * colonnes anonymes de `radar_listings` (site, doublon, rattachement au catalogue, disparition), le référentiel des
+ * quartiers et le catalogue public. Jamais le texte brut, l'extraction, l'adresse de la source, le numéro ni le nom —
+ * `RadarObservatoryTest` le vérifie sur le SQL émis.
  *
  * `natures` fait exception, et le dit : la nature présumée vit sur l'annonceur, que la purge vide (TCK-2431).
  */
@@ -69,17 +68,6 @@ final class RadarObservatory
      */
     private function market(array $filters): Builder
     {
-        return DB::query()->fromSub($this->attached()->unionAll($this->detached()), 'm')
-            ->when($filters['since'] ?? null, fn (Builder $q, CarbonInterface $since) => $q->where('m.last_seen', '>=', $since))
-            ->when($filters['contract'] ?? null, fn (Builder $q, string $v) => $q->where('m.contract', $v))
-            ->when($filters['property_type'] ?? null, fn (Builder $q, string $v) => $q->where('m.property_type', $v))
-            ->when($filters['source_site'] ?? null, fn (Builder $q, string $v) => $q->where('m.source_site', $v))
-            ->when($filters['neighborhood_id'] ?? null, fn (Builder $q, int $v) => $q->where('m.geo_neighborhood_id', $v));
-    }
-
-    /** Les annonces suivies : leur dernier instantané et leur présence. */
-    private function attached(): Builder
-    {
         $latest = DB::table('radar_listing_snapshots as s')
             ->selectRaw('distinct on (s.radar_listing_id) s.radar_listing_id, s.price, s.rent_period, s.contract, s.property_type, s.surface_m2, s.geo_neighborhood_id')
             ->orderBy('s.radar_listing_id')->orderByDesc('s.first_seen_at')->orderByDesc('s.id');
@@ -93,23 +81,18 @@ final class RadarObservatory
             ->whereNull('l.duplicate_of_listing_id')
             ->selectRaw('l.id as listing_id, l.source_site, l.source_gone_at as gone_at')
             ->selectRaw('(l.property_id is not null or l.duplicate_of_property_id is not null) as in_catalog')
-            ->addSelect(['c.price', 'c.rent_period', 'c.contract', 'c.property_type', 'c.surface_m2', 'c.geo_neighborhood_id', 'p.first_seen', 'p.last_seen']);
-    }
-
-    /** Les annonces purgées : une ligne détachée chacune, mêmes colonnes, dans le même ordre. */
-    private function detached(): Builder
-    {
-        return DB::table('radar_listing_snapshots as d')
-            ->whereNull('d.radar_listing_id')
-            ->selectRaw('null::bigint as listing_id, d.detached_source_site as source_site, d.detached_gone_at as gone_at, d.detached_in_catalog as in_catalog')
-            ->addSelect(['d.price', 'd.rent_period', 'd.contract', 'd.property_type', 'd.surface_m2', 'd.geo_neighborhood_id'])
-            ->selectRaw('d.first_seen_at as first_seen, d.last_seen_at as last_seen');
+            ->addSelect(['c.price', 'c.rent_period', 'c.contract', 'c.property_type', 'c.surface_m2', 'c.geo_neighborhood_id', 'p.first_seen', 'p.last_seen'])
+            ->when($filters['since'] ?? null, fn (Builder $q, CarbonInterface $since) => $q->where('p.last_seen', '>=', $since))
+            ->when($filters['contract'] ?? null, fn (Builder $q, string $v) => $q->where('c.contract', $v))
+            ->when($filters['property_type'] ?? null, fn (Builder $q, string $v) => $q->where('c.property_type', $v))
+            ->when($filters['source_site'] ?? null, fn (Builder $q, string $v) => $q->where('l.source_site', $v))
+            ->when($filters['neighborhood_id'] ?? null, fn (Builder $q, int $v) => $q->where('c.geo_neighborhood_id', $v));
     }
 
     /** @param  array<string, mixed>  $filters */
     private function fromMarket(array $filters): Builder
     {
-        return $this->market($filters);
+        return DB::query()->fromSub($this->market($filters), 'm');
     }
 
     /**
@@ -124,7 +107,7 @@ final class RadarObservatory
             ->selectRaw('count(*) filter (where m.gone_at is not null) as gone')
             ->selectRaw('count(*) filter (where m.in_catalog) as in_catalog')
             ->first();
-        $sites = $this->fromMarket($filters)->whereNotNull('m.source_site')->distinct()->orderBy('m.source_site')->pluck('m.source_site')->map(fn ($s) => (string) $s)->all();
+        $sites = $this->fromMarket($filters)->distinct()->orderBy('m.source_site')->pluck('m.source_site')->map(fn ($s) => (string) $s)->all();
 
         return [
             'listings' => (int) $row->listings,

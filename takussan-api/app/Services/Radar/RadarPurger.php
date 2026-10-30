@@ -27,9 +27,8 @@ use Illuminate\Support\Facades\DB;
  *    Restent l'étape (`purged`), le site d'origine, les dates, l'empreinte du contenu (la recoller rend la fiche `purged`),
  *    celles des photos et les rapprochements. Les suggestions de l'IA qui portent sur elle perdent leurs champs
  *    (`proposal`, `input_snapshot`, `final_value`, `correction_diff`), pas leur ligne : le taux d'acceptation lit
- *    `usage_key`, `decision` et `decided_at`. Ses instantanés de collecte (TCK-2392, ADR-0080) sont supprimés si elle tombe
- *    pour un STOP, une révocation ou `do_not_contact`, détachés et ramenés au jour sinon ; la fiche oublie le passage qui
- *    l'a trouvée (`discovered_by_run_id`).
+ *    `usage_key`, `decision` et `decided_at`. Ses instantanés de collecte (TCK-2392, ADR-0080) sont supprimés, quelle que soit la
+ *    raison de la purge ; la fiche oublie le passage qui l'a trouvée (`discovered_by_run_id`).
  * 2. **Un message** dont toutes les annonces sont purgées perd sa salutation, son résumé et son texte ; **une réponse non
  *    confirmée**, ses captures, sa transcription et son verdict. Une réponse CONFIRMÉE est la preuve de l'accord : elle reste
  *    avec le message qu'elle prouve (3).
@@ -57,7 +56,7 @@ final class RadarPurger
     private const COUNTERS = [
         'listings', 'media', 'suggestions', 'outreaches', 'replies', 'proofs', 'advertisers_cleared', 'advertisers_deleted',
         'retention_started', 'retention_reset', 'orphan_dirs', 'orphan_copies', 'published_listings',
-        'snapshots_detached', 'snapshots_deleted',
+        'snapshots_deleted',
     ];
 
     public function __construct(private readonly RadarOrphanFiles $orphans) {}
@@ -118,77 +117,17 @@ final class RadarPurger
     }
 
     /**
-     * TCK-2392 (ADR-0080) — tombée pour un STOP, une révocation ou `do_not_contact` : ses instantanés sont SUPPRIMÉS.
-     * La promesse est « une empreinte, et rien d'autre » : une observation détachée reste celle de cet annonceur pour
-     * qui sait quand il a dit STOP.
-     */
-    private function silencedByItsAdvertiser(RadarListing $listing): bool
-    {
-        return $listing->stage === RadarListingStage::DoNotContact || ($listing->radar_advertiser_id !== null
-            && RadarAdvertiser::query()->whereKey($listing->radar_advertiser_id)->whereNotNull('do_not_contact_at')->exists());
-    }
-
-    /**
-     * TCK-2392 (ADR-0080) — échue sans refus : les instantanés quittent l'annonce. Plus de lien vers elle (donc vers son
-     * annonceur), ni l'empreinte du titre, ni le lieu tel qu'il l'a écrit, ni le passage, et des dates au JOUR : le
-     * passage et la seconde de création, ou l'instant de la purge dans `updated_at`, rejoignaient la fiche purgée (banc
-     * B1-bis). Restent le prix, le quartier du référentiel, la ville, le type, les chambres, la surface, les observations
-     * et la plage de présence au jour : une observation de marché anonyme (« compteurs anonymes », ADR-0077 §9).
-     *
-     * TCK-2393 (ADR-0083 §2) — l'observatoire compte une ligne par annonce, au dernier état connu : la purge n'en garde
-     * donc qu'une, la dernière, étendue à toute la présence (sans lien, plusieurs lignes compteraient plusieurs annonces),
-     * et y recopie ce que le marché lisait sur l'annonce, sous la même règle : la disparition au jour, le catalogue, le
-     * site seul. Le doublon d'une autre annonce n'en garde aucune : le marché ne le comptait pas, et détaché il ne
-     * pourrait plus l'exclure.
-     */
-    private function detachSnapshots(RadarListing $listing): int
-    {
-        $snapshots = RadarListingSnapshot::query()->where('radar_listing_id', $listing->id);
-        if ($listing->duplicate_of_listing_id !== null) {
-            $snapshots->delete();
-
-            return 0;
-        }
-
-        $rows = (clone $snapshots)->orderByDesc('first_seen_at')->orderByDesc('id')->get(['id', 'first_seen_at', 'last_seen_at', 'observations']);
-        if ($rows->isEmpty()) {
-            return 0;
-        }
-        $kept = $rows->first();
-        (clone $snapshots)->whereKeyNot($kept->id)->delete();
-        $lastSeenDay = $rows->max('last_seen_at')->copy()->startOfDay();
-
-        return RadarListingSnapshot::query()->whereKey($kept->id)->toBase()->update([
-            'radar_listing_id' => null,
-            'crawl_run_id' => null,
-            'title_fingerprint' => null,
-            'neighborhood_label' => null,
-            'first_seen_at' => $rows->min('first_seen_at')->copy()->startOfDay(),
-            'last_seen_at' => $lastSeenDay,
-            'created_at' => DB::raw("date_trunc('day', created_at)"),
-            'updated_at' => $lastSeenDay,
-            'observations' => (int) $rows->sum('observations'),
-            'detached_gone_at' => $listing->source_gone_at?->copy()->startOfDay(),
-            'detached_in_catalog' => $listing->duplicate_of_property_id !== null,
-            'detached_source_site' => $listing->source_site?->value,
-        ]);
-    }
-
-    /**
      * Texte brut, adresse de la source, extraction, réserve et captures ; l'étape devient `purged`. Le lien au bien (`property_id`)
-     * reste : il n'est pas une donnée collectée. Les instantanés de la collecte sont supprimés ou détachés (TCK-2392).
+     * reste : il n'est pas une donnée collectée. Les instantanés de la collecte sont supprimés (TCK-2392).
      *
      * @param  array<string, int>  $counts
      */
     private function eraseListing(RadarListing $listing, array &$counts): void
     {
-        // TCK-2392 (ADR-0080) — les instantanés AVANT l'étape `purged` (qui efface `do_not_contact`), et avant les fichiers,
-        // dernier geste ; la fiche oublie le passage qui l'a trouvée.
-        if ($this->silencedByItsAdvertiser($listing)) {
-            $counts['snapshots_deleted'] += RadarListingSnapshot::query()->where('radar_listing_id', $listing->id)->delete();
-        } else {
-            $counts['snapshots_detached'] += $this->detachSnapshots($listing);
-        }
+        // TCK-2392 (ADR-0080 § 4) — les instantanés de la collecte sont SUPPRIMÉS, quelle que soit la raison de la purge :
+        // détaché, un instantané se rejoignait encore à sa fiche (rang des `id`, dates). Avant les fichiers, dernier geste ;
+        // la fiche oublie le passage qui l'a trouvée.
+        $counts['snapshots_deleted'] += RadarListingSnapshot::query()->where('radar_listing_id', $listing->id)->delete();
 
         $listing->forceFill([
             'discovered_by_run_id' => null,

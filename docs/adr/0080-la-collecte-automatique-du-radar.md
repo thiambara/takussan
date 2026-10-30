@@ -2,7 +2,7 @@
 
 - **Statut** : Accepté
 - **Date** : 2026-10-30
-- **Tickets** : [TCK-2392](../backlog/tickets/TCK-2392-radar-collecte-automatique.md) (lot 2 du [plan Radar et socle IA](../plans/2026-10-26-radar-et-socle-ia.md)) ; suites : [TCK-2423](../backlog/tickets/TCK-2423-radar-pilote-d-embeddings.md), [TCK-2424](../backlog/tickets/TCK-2424-radar-adaptateurs-supplementaires.md), [TCK-2425](../backlog/tickets/TCK-2425-radar-collecteur-navigateur.md)
+- **Tickets** : [TCK-2392](../backlog/tickets/TCK-2392-radar-collecte-automatique.md) (lot 2 du [plan Radar et socle IA](../plans/2026-10-26-radar-et-socle-ia.md)) ; suites : [TCK-2423](../backlog/tickets/TCK-2423-radar-pilote-d-embeddings.md), [TCK-2424](../backlog/tickets/TCK-2424-radar-adaptateurs-supplementaires.md), [TCK-2425](../backlog/tickets/TCK-2425-radar-collecteur-navigateur.md), [TCK-2434](../backlog/tickets/TCK-2434-radar-compteurs-anonymes-de-marche.md)
 - **Amende** : [ADR-0077](0077-le-radar.md) (§ 9 la purge, § 10 la collecte, et la conséquence « la décision reste humaine » sur les doublons)
 - **Dépend de** : [ADR-0076](0076-le-socle-ia.md) (le socle IA), [ADR-0078](0078-une-connexion-de-file-pour-les-jobs-longs.md) (la file longue)
 
@@ -32,7 +32,7 @@ Mesuré le 2026-10-30 sur `origin/feat/radar-revocation-purge` (dev + TCK-2391) 
 
 **La collecte part de l'API, par site, éteinte tant que le porteur ne l'allume pas, au nom de celui
 qui l'allume. Le texte rapproche par `pg_trgm`, derrière un pilote. La fusion d'office est étroite,
-réversible et éteinte par défaut. La purge détache les instantanés au lieu de les garder liés.**
+réversible et éteinte par défaut. La purge supprime les instantanés de l'annonce.**
 
 1. **La collecte part de l'API, pas d'un service à part.** Un adaptateur par site
    (`App\Services\Radar\Crawl\`) lit une page de liste par `UrlFetcher` — les mêmes contrôles qu'une
@@ -50,23 +50,19 @@ réversible et éteinte par défaut. La purge détache les instantanés au lieu 
 3. **La collecte ne relit pas ce que la purge a fait taire.** Une annonce purgée, `do_not_contact`,
    ou d'un annonceur qui a dit STOP n'est ni observée ni comptée par un passage (ADR-0077 § 9).
 
-4. **La purge supprime les instantanés d'un refus, et détache les autres** (décision du 2026-10-30,
-   après la contre-vérification B1-bis) :
-   - **STOP, révocation ou `do_not_contact`** : les instantanés de l'annonce sont **supprimés**. La
-     promesse de `privacy.ts` § 6 est « une empreinte, et rien d'autre » : une observation détachée
-     reste celle de cet annonceur pour qui sait quand il a dit STOP — la purge d'un annonceur traite
-     toutes ses annonces au même instant.
-   - **Échéance des 90 jours, sans refus** : ils sont **détachés**. `radar_listing_id`, `crawl_run_id`,
-     l'empreinte du titre et le lieu écrit passent à nul ; `first_seen_at`, `last_seen_at` et
-     `created_at` sont ramenés au jour, et `updated_at` prend le jour de `last_seen_at`, jamais
-     l'instant de la purge. La fiche purgée oublie `discovered_by_run_id`. Restent le prix, la période,
-     le contrat, le type, la surface, les chambres, le quartier du référentiel, la ville, les
-     observations et la plage de présence au jour : une **observation de marché anonyme**.
-   - Mesuré par la contre-vérification : sans ces deux mesures, deux jointures
-     (`updated_at` = instant de la purge ; passage + seconde de création) rendaient l'empreinte du
-     numéro de l'annonceur STOP. Écarté : tout supprimer, y compris à l'échéance (l'observatoire,
-     TCK-2393, perdrait des séries que rien ne rattache plus à une personne) ; garder le passage
-     (il dit le site, mais rejoint la fiche découverte). L'observation détachée ne dit plus son site.
+4. **La purge supprime les instantanés ; un historique de marché au-delà de la rétention passera par
+   des compteurs anonymes agrégés, [TCK-2434](../backlog/tickets/TCK-2434-radar-compteurs-anonymes-de-marche.md),
+   à valider juridiquement.** Quelle que soit la raison de la purge (STOP, révocation,
+   `do_not_contact` ou 90 jours), les instantanés de l'annonce sont supprimés, et la fiche purgée
+   oublie `discovered_by_run_id`. `radar_listing_snapshots.radar_listing_id` reste obligatoire, en
+   `ON DELETE CASCADE`.
+   - Pourquoi (décision du 2026-10-30, après trois vérifications adverses) : une ligne détachée se
+     rejoignait toujours à sa fiche purgée — d'abord par l'instant de la purge (`updated_at`) et par le
+     passage plus la seconde de création ; puis, ces deux voies fermées (passage vidé, dates au jour),
+     par le rang des `id` et par les dates de la fiche. **Détacher une ligne individuelle n'est jamais
+     anonyme.** La promesse de `privacy.ts` § 6 est « une empreinte, et rien d'autre ».
+   - Écarté : détacher à l'échéance (même avec passage vidé et dates au jour) ; détacher seulement
+     sans refus. L'observatoire (TCK-2393) ne lit que des annonces encore dans leur rétention.
 
 5. **Le texte rapproche par `pg_trgm`, derrière un pilote.** Quatrième signal de `RadarMatcher` :
    `radar.similarity.driver`, défaut `trigram`, sur `radar_listings.similarity_text` (description
@@ -99,12 +95,9 @@ réversible et éteinte par défaut. La purge détache les instantanés au lieu 
   peut se tromper sur deux lots du même immeuble à photos communes ; la séparation le répare.
 - **Une séparation ne rend pas les doublons qu'une fusion avait redirigés vers l'annonce séparée** :
   l'opérateur les reprend à la main.
-- **Les instantanés détachés survivent à la purge des 90 jours**, jamais à celle d'un refus. Ils ne
-  portent ni texte, ni numéro, ni URL, ni passage, ni instant plus fin que le jour ; la politique de
-  confidentialité n'a rien à en dire de plus que « des compteurs anonymes » (ADR-0077 § 9). Reste un
-  indice faible : l'ordre des `id`, que rien ne relie à une fiche purgée sans autre colonne.
-- **L'observatoire ne sait plus le site d'une observation détachée**, ni son heure : il lit les
-  séries détachées au jour, tous sites confondus.
+- **Aucun instantané ne survit à sa fiche** : la mémoire de marché s'arrête à la rétention des
+  annonces (90 jours au plus) tant que les compteurs anonymes agrégés de TCK-2434 n'existent pas.
+  Rien de ce qui reste après la purge ne se rejoint à une annonce, ni à un annonceur.
 - **Prérequis du porteur après déploiement** : lancer une fois `php artisan radar:backfill-similarity`
   (texte comparé des annonces antérieures), puis allumer les sources voulues.
 
@@ -113,11 +106,9 @@ réversible et éteinte par défaut. La purge détache les instantanés au lieu 
 - Collecte : `RadarCrawler`, `RadarCrawlScheduler`, `CrawlRadarSource` (`RunsOnLongQueue`),
   `radar:crawl` toutes les 15 minutes — `tests/Feature/Radar/RadarCrawlTest.php` (rien ne part sans
   geste, un passage par site, robots, boucle de pagination, passage perdu).
-- Silence, suppression et détachement : `RadarCrawler::silenced()`,
-  `RadarPurger::silencedByItsAdvertiser()`, `RadarPurger::detachSnapshots()` —
-  `tests/Feature/Radar/RadarSnapshotPrivacyTest.php` (les deux jointures de B1-bis rendent `[]`, pour un
-  STOP comme à l'échéance) ; le `down()` de la migration `392300` —
-  `tests/Feature/Radar/RadarSnapshotDetachMigrationTest.php`.
+- Silence et suppression : `RadarCrawler::silenced()`, `RadarPurger::eraseListing()` —
+  `tests/Feature/Radar/RadarSnapshotPrivacyTest.php` (supprimés pour un STOP comme à l'échéance,
+  intacts pour une annonce non due) et `RadarPurgePublishedTest` (matière d'une annonce publiée).
 - Texte : `TrigramTextSimilarity`, `RadarSimilarityText`, `radar:backfill-similarity` —
   `RadarMatcherTest`, `RadarBackfillSimilarityTest`.
 - Fusion : `RadarAutoMerge` (`designatesTheProperty()`) — `tests/Feature/Radar/RadarAutoMergeTest.php`

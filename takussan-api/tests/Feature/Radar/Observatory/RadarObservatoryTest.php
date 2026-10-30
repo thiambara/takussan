@@ -22,8 +22,8 @@ use Tests\Support\OperateursPlateforme;
 use Tests\TestCase;
 
 /**
- * TCK-2393 (ADR-0083 §1, §2) — AC1 et AC6 : l'observatoire du marché survit à la purge et ne lit aucune colonne
- * personnelle ; le prix au m² est la médiane du dernier instantané, doublons exclus ; l'écart d'offre compte les annonces en
+ * TCK-2393 (ADR-0083 §1, §2) — AC1 et AC6 : l'observatoire du marché se calcule sur les données conservées (une purge
+ * retire ses lignes) et ne lit aucune colonne personnelle ; le prix au m² est la médiane du dernier instantané, doublons exclus ; l'écart d'offre compte les annonces en
  * ligne hors catalogue contre les biens publics du quartier.
  */
 class RadarObservatoryTest extends TestCase
@@ -174,89 +174,46 @@ class RadarObservatoryTest extends TestCase
     }
 
     /**
-     * AC1 — les agrégats du marché calculés avant la purge des 90 jours sont identiques après : ils ne lisent rien de ce
-     * qu'elle efface. La purge DÉTACHE les instantanés (TCK-2392), dates au jour : le marché compte ces lignes sans annonce,
-     * une par annonce purgée (les présences du marché semé tombent toutes à la même heure : la troncature au jour ne
-     * change aucune durée).
+     * AC1 — les sections se calculent sur les données conservées ; une purge retire ses lignes. Toute purge supprime les
+     * instantanés de l'annonce (TCK-2392, ADR-0080 §4) : à l'échéance des 90 jours, les annonces jamais publiées quittent
+     * le marché, l'annonce publiée reste. L'historique au-delà de la rétention est TCK-2434.
      */
-    public function test_les_agregats_du_marche_survivent_a_la_purge(): void
+    public function test_une_purge_a_echeance_retire_ses_annonces_du_marche(): void
     {
         $this->semerLeMarche();
-        $avant = $this->observer(self::SECTIONS_ANONYMES);
+        $this->assertSame(4, $this->observer(['summary'])['summary']['listings']);
+        $purgees = RadarListing::query()->whereNull('property_id')->pluck('id');
 
-        // 90 jours passent : les annonces jamais publiées sont échues, et purgées.
         RadarListing::query()->whereNull('property_id')->update(['purge_at' => '2027-01-28 00:00:00']);
         $this->travelTo('2027-02-15 12:00:00');
         $comptes = app(RadarPurger::class)->run();
 
         $this->assertSame(4, $comptes['listings']);
-        $this->assertSame(0, RadarListing::query()->whereNotNull('raw_text')->where('stage', RadarListingStage::Purged->value)->count());
-        // Trois annonces purgées hors doublon, une ligne détachée chacune ; le doublon n'en laisse aucune.
-        $this->assertSame(3, RadarListingSnapshot::query()->whereNull('radar_listing_id')->count());
-        $this->assertSame(0, RadarListingSnapshot::query()->whereNull('radar_listing_id')->whereNotNull('crawl_run_id')->count());
-        $this->assertSame($avant, $this->observer(self::SECTIONS_ANONYMES));
+        $this->assertSame(0, RadarListingSnapshot::query()->whereIn('radar_listing_id', $purgees)->count());
+        $apres = $this->observer(self::SECTIONS_ANONYMES);
+        $this->assertSame(['listings' => 1, 'online' => 1, 'gone' => 0, 'in_catalog' => 1, 'sites' => ['expat_dakar']], $apres['summary']);
+        $this->assertSame([$this->mermoz->id], collect($apres['price_per_m2'])->pluck('neighborhood.id')->all());
+        $this->assertSame(0, collect($apres['time_on_market'])->sum('gone'));
+        $this->assertSame(0, collect($apres['supply_gap'])->sum('radar_online'));
     }
 
     /**
-     * Décision du porteur (TCK-2392, B1-bis) — une annonce purgée pour un STOP perd ses instantanés : elle quitte le marché.
-     * Seules restent les annonces de l'annonceur publiées (jamais purgées).
+     * Décision du porteur (TCK-2392) — une annonce purgée pour un STOP perd ses instantanés : elle quitte le marché sans
+     * attendre l'échéance. Seule reste l'annonce publiée de l'annonceur (jamais purgée).
      */
     public function test_une_purge_pour_stop_retire_ses_annonces_du_marche(): void
     {
         $this->semerLeMarche();
+        $purgees = RadarListing::query()->where('radar_advertiser_id', $this->annonceur->id)->whereNull('property_id')->pluck('id');
 
         $this->annonceur->forceFill(['do_not_contact_at' => now()])->save();
         $comptes = app(RadarPurger::class)->run();
 
         $this->assertSame(3, $comptes['listings']);
-        $this->assertSame(0, RadarListingSnapshot::query()->whereNull('radar_listing_id')->count());
+        $this->assertSame(0, RadarListingSnapshot::query()->whereIn('radar_listing_id', $purgees)->count());
         $this->assertNull($this->annonceur->refresh()->phone);
         // Restent l'annonce publiée (Mermoz) et le doublon d'un autre annonceur, que le marché ne compte pas.
         $this->assertSame(['listings' => 1, 'online' => 1, 'gone' => 0, 'in_catalog' => 1, 'sites' => ['expat_dakar']], $this->observer(['summary'])['summary']);
-    }
-
-    /**
-     * Une annonce purgée laisse au marché son dernier état connu, en une ligne : son dernier prix, toute sa présence, sa
-     * disparition si elle était constatée, et le catalogue si elle était le doublon d'un bien. Le doublon d'une autre
-     * annonce ne laisse rien : le marché ne le comptait pas.
-     */
-    public function test_une_annonce_purgee_laisse_une_ligne_au_dernier_etat_connu(): void
-    {
-        $run = $this->passage('2026-09-30 08:00:00', finDeListe: false)->id;
-        $quartier = ['geo_neighborhood_id' => $this->almadies->id, 'crawl_run_id' => $run, 'surface_m2' => 100];
-        $bien = $this->bienPublicA($this->mermoz);
-
-        $disparue = $this->annonceCollectee(['purge_at' => '2026-10-29 00:00:00']);
-        $this->instantane($disparue, '2026-10-10 08:00:00', '2026-10-14 08:00:00', $quartier + ['price' => 600000, 'observations' => 2]);
-        $this->instantane($disparue, '2026-10-14 08:00:00', '2026-10-18 08:00:00', $quartier + ['price' => 700000, 'observations' => 3]);
-        $disparue->forceFill(['source_gone_at' => '2026-10-19 08:00:00'])->save();
-        $auCatalogue = $this->annonceCollectee(['purge_at' => '2026-10-29 00:00:00', 'stage' => RadarListingStage::Duplicate, 'duplicate_of_property_id' => $bien->id]);
-        $this->instantane($auCatalogue, '2026-10-12 08:00:00', '2026-10-28 08:00:00', $quartier + ['price' => 800000]);
-        $doublon = $this->annonceCollectee(['purge_at' => '2026-10-29 00:00:00', 'stage' => RadarListingStage::Duplicate, 'duplicate_of_listing_id' => $disparue->id]);
-        $this->instantane($doublon, '2026-10-10 08:00:00', '2026-10-18 08:00:00', $quartier + ['price' => 2000000]);
-        $avant = $this->observer(self::SECTIONS_ANONYMES);
-
-        $comptes = app(RadarPurger::class)->run();
-
-        $this->assertSame(3, $comptes['listings']);
-        $this->assertSame(2, $comptes['snapshots_detached']);
-        $lignes = RadarListingSnapshot::query()->whereNull('radar_listing_id')->orderBy('first_seen_at')->get();
-        $this->assertCount(2, $lignes);
-        $this->assertEquals(700000, $lignes[0]->price);
-        // Au jour, sans passage : rien qui rejoigne la fiche purgée à la seconde.
-        $this->assertTrue($lignes[0]->first_seen_at->equalTo($this->instant('2026-10-10 00:00:00')));
-        $this->assertTrue($lignes[0]->last_seen_at->equalTo($this->instant('2026-10-18 00:00:00')));
-        $this->assertSame(5, $lignes[0]->observations);
-        $this->assertTrue($lignes[0]->detached_gone_at->equalTo($this->instant('2026-10-19 00:00:00')));
-        $this->assertFalse($lignes[0]->detached_in_catalog);
-        $this->assertSame('expat_dakar', $lignes[0]->detached_source_site);
-        $this->assertNull($lignes[0]->crawl_run_id);
-        $this->assertNull($lignes[1]->detached_gone_at);
-        $this->assertTrue($lignes[1]->detached_in_catalog);
-        $this->assertSame(0, RadarListingSnapshot::query()->whereNotNull('radar_listing_id')->count());
-
-        $this->assertSame($avant, $this->observer(self::SECTIONS_ANONYMES));
-        $this->assertSame(['listings' => 2, 'online' => 1, 'gone' => 1, 'in_catalog' => 1, 'sites' => ['expat_dakar']], $this->observer(['summary'])['summary']);
     }
 
     /** AC1 — aucune requête des sections du marché ne nomme une colonne personnelle. */
