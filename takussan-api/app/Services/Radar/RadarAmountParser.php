@@ -17,7 +17,9 @@ use App\Support\RadarPhone;
  *   - nombre (décimale `.` ou `,`, ou groupé par milliers) suivi d'un multiplicateur : « 1,5M »,
  *     « 1.5 million(s) », « 45 millions », « 350K », « 350 mille », « 1 000 K », « 2 milliards » ;
  *   - nombre groupé par milliers (espace, point, virgule) : « 450.000 », « 25 000 000 » ;
- *   - nombre nu : « 5000 ». Une décimale sans multiplicateur (« 1.5 ») n'est pas un montant.
+ *   - nombre nu : « 5000 ». Une décimale sans multiplicateur (« 1.5 ») n'est pas un montant. Un nombre nu
+ *     de moins de 100 (« 7 », « 89 ») n'est jamais choisi, et n'est même pas candidat s'il touche un numéro
+ *     ou suit un `/` (TCK-2428).
  *
  * **Les écartés.** Un nombre suivi d'une unité qui n'est pas une monnaie (« 300 m² », « 3 chambres »,
  * « 5 ans », « 2 mois » — une durée, pas une période : la période s'écrit « /mois », « par mois »),
@@ -47,6 +49,17 @@ final class RadarAmountParser
 {
     /** Au-delà, ce n'est plus un prix immobilier mais du bruit (et `int` déborderait vers 19). */
     private const MAX_DIGITS = 15;
+
+    /**
+     * TCK-2428 — en dessous, un nombre nu (sans monnaie, période ni multiplicateur) n'est jamais choisi : XOF n'a pas de
+     * sous-unité. Il reste un candidat (borne d'une fourchette, voisin d'une caution, ambiguïté : l'humain tranche), sauf
+     * s'il touche un numéro, dont il est le reste que le masqueur n'a pas pris (`+33 7 7 12 34 56 7`,
+     * `+44 (0)77 123 45 67 89 12` : contre-vérification C3 de TCK-2412), ou s'il suit un `/` (`H24/7`, `7j/7`).
+     */
+    private const MIN_UNMARKED = 100;
+
+    /** Ce qui sépare au plus un numéro et son reste. */
+    private const TOUCHING = '/^[\s.\-\/]{0,3}$/u';
 
     /** Puissance de dix de chaque multiplicateur. */
     private const MULTIPLIERS = [
@@ -114,7 +127,7 @@ final class RadarAmountParser
         }
 
         $chosen = match (true) {
-            count($plausible) === 1 => $plausible[0],
+            count($plausible) === 1 => $plausible[0]['small'] ? null : $plausible[0],
             default => array_values(array_filter($plausible, static fn (array $c): bool => $c['period'] !== null))[0]
                 ?? array_values(array_filter($plausible, static fn (array $c): bool => $c['marked']))[0]
                 ?? null,
@@ -126,7 +139,7 @@ final class RadarAmountParser
     /**
      * @param  array<int|string, array{0: ?string, 1: int}>  $m
      * @param  list<array{int, int}>  $phones
-     * @return array{amount: int, period: ?string, marked: bool, deposit: bool, start: int, end: int}|null
+     * @return array{amount: int, period: ?string, marked: bool, small: bool, deposit: bool, start: int, end: int}|null
      */
     private static function candidate(array $m, string $text, array $phones): ?array
     {
@@ -155,15 +168,34 @@ final class RadarAmountParser
         }
 
         $period = self::period($after);
+        $marked = $multiplied || $period !== null || preg_match('/^\s*'.self::CURRENCY.'/u', $after) === 1;
+        $small = ! $marked && $amount < self::MIN_UNMARKED;
+        if ($small && (preg_match('/\/\s?$/u', substr($text, max(0, $start - 2), min($start, 2))) === 1 || self::touchesPhone($start, $end, $text, $phones))) {
+            return null;
+        }
 
         return [
             'amount' => $amount,
             'period' => $period,
-            'marked' => $multiplied || $period !== null || preg_match('/^\s*'.self::CURRENCY.'/u', $after) === 1,
+            'marked' => $marked,
+            'small' => $small,
             'deposit' => preg_match(self::DEPOSIT_BEFORE, substr($text, max(0, $start - 60), min($start, 60))) === 1,
             'start' => $start,
             'end' => $end,
         ];
+    }
+
+    /** @param  list<array{int, int}>  $phones */
+    private static function touchesPhone(int $start, int $end, string $text, array $phones): bool
+    {
+        foreach ($phones as [$from, $to]) {
+            if (($start >= $to && preg_match(self::TOUCHING, substr($text, $to, $start - $to)) === 1)
+                || ($end <= $from && preg_match(self::TOUCHING, substr($text, $end, $from - $end)) === 1)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /** @return list<array{int, int}> les plages d'octets des numéros de téléphone du texte */
