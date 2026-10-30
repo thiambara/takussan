@@ -60,6 +60,7 @@ function reclamation(
         viewer_is_owner: false,
         viewer_is_other: false,
         space: null,
+        space_unavailable: false,
         ...over.account,
       },
       listings: over.listings ?? [annonce(), annonce({ id: 2, title: 'Studio aux Almadies', description: null, price: 150000 })],
@@ -405,6 +406,38 @@ describe('<RadarClaimReception> (TCK-2390)', () => {
     await user.click(await screen.findByRole('checkbox', { name: /conditions d'utilisation/ }));
     await user.click(screen.getByRole('button', { name: T.sendCode }));
     expect(await screen.findByText(T.errors.spaceSuspended)).toBeInTheDocument();
+    expect(screen.queryByLabelText(T.codeLabel)).toBeNull();
+  });
+
+  // TCK-2446 — hors mandat, l'espace du compte vérifié n'est pas actif : la publication n'y entrerait pas.
+  it.each([
+    ['connecté', { state: 'existing', viewer_is_owner: true, space: { name: 'Fatou Location' } }],
+    ['non connecté', { state: 'existing', viewer_is_owner: false }],
+  ])('hors mandat, son espace non actif (%s) : la page le dit d’avance, sans parler de mandat, ni formulaire ni code', async (_cas, compte) => {
+    bouchonner(reponse(200, reclamation({ account: { ...compte, space_unavailable: true } })));
+    render(withIntl(<RadarClaimReception token={JETON} />));
+
+    const bloc = await screen.findByTestId('claim-spaceUnavailable');
+    expect(bloc).toHaveTextContent(T.spaceUnavailableTitle);
+    expect(bloc).toHaveTextContent('contact@takussan.com');
+    expect(texte(bloc)).not.toMatch(/mandat|diffusées par Takussan/i);
+    expect(screen.queryByTestId('claim-existingLogin')).toBeNull();
+    expect(screen.queryByRole('button', { name: T.sendCode })).toBeNull();
+  });
+
+  it('hors mandat, son espace devenu non actif après la lecture : le refus du code se dit, sans parler de mandat', async () => {
+    auth.token = 'jeton-titulaire';
+    bouchonner(
+      reponse(200, reclamation({ account: { state: 'existing', viewer_is_owner: true, space: { name: 'Fatou Location' } } })),
+      reponse(409, { code: 'radar.claim.space_unavailable', message: 'brut' }),
+    );
+    const user = userEvent.setup();
+    render(withIntl(<RadarClaimReception token={JETON} />));
+
+    await user.click(await screen.findByRole('checkbox', { name: /conditions d'utilisation/ }));
+    await user.click(screen.getByRole('button', { name: T.sendCode }));
+    expect(await screen.findByText(T.errors.spaceUnavailable)).toBeInTheDocument();
+    expect(T.errors.spaceUnavailable).not.toMatch(/mandat/i);
     expect(screen.queryByLabelText(T.codeLabel)).toBeNull();
   });
 

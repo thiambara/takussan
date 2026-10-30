@@ -257,8 +257,9 @@ export function RadarClaimReception({ token: jeton }: RadarClaimReceptionProps) 
   const confirmable = retenues.length > 0 || account.state === 'activation' || reprise;
 
   // Les cas où la page ne peut pas confirmer : deux comptes pour ce numéro, que seul le support
-  // réunit (décision 5a) ; un compte que la page ne peut pas ouvrir ; un autre compte connecté ; le
-  // compte du numéro à ouvrir d'abord par la connexion.
+  // réunit (décision 5a) ; un compte que la page ne peut pas ouvrir ; hors mandat, un espace qui
+  // n'est pas actif (TCK-2446) ; un autre compte connecté ; le compte du numéro à ouvrir d'abord
+  // par la connexion. Dans l'ordre des refus de l'API à l'envoi du code.
   const blocage =
     account.state === 'support'
       ? 'support'
@@ -266,6 +267,8 @@ export function RadarClaimReception({ token: jeton }: RadarClaimReceptionProps) 
       ? 'mandateSupport'
       : account.state === 'unavailable'
       ? 'unavailableAccount'
+      : account.space_unavailable
+      ? 'spaceUnavailable'
       : account.viewer_is_other
         ? 'otherAccount'
         : account.state === 'existing' && !account.viewer_is_owner

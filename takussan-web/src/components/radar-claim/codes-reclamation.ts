@@ -27,6 +27,8 @@ export const ERREURS_RECLAMATION_RADAR: Readonly<Record<string, string>> = {
   'radar.claim.mandate_support_required': 'mandateSupportRequired',
   // TCK-2421 — son espace n'est pas actif (suspendu ou inactif) : ses biens restent sous mandat, en ligne.
   'radar.claim.space_suspended': 'spaceSuspended',
+  // TCK-2446 — hors mandat, son espace n'est pas actif : rien ne s'y publierait ; un texte sans mandat.
+  'radar.claim.space_unavailable': 'spaceUnavailable',
 };
 
 export const REFUS_DU_CODE: Readonly<Record<string, string>> = {

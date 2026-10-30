@@ -12722,7 +12722,8 @@
       "spaceNameContainsPhone": "Your space name cannot contain a phone number.",
       "underMandate": "Your listings are published by Takussan on your behalf again: reload the page to take them back into your own space.",
       "mandateSupportRequired": "Your listings published by Takussan cannot be taken back from this page: write to us and we will move them into your space.",
-      "spaceSuspended": "Your Takussan space is not active: your listings stay published by Takussan on your behalf, and you can take them back once your space is restored."
+      "spaceSuspended": "Your Takussan space is not active: your listings stay published by Takussan on your behalf, and you can take them back once your space is restored.",
+      "spaceUnavailable": "Your Takussan space is not active: your listings cannot be published there for now. Write to us to reactivate it."
     },
     "awaitingReviewTitle": "Awaiting review",
     "awaitingReviewHint": "Our team still needs to check them before putting them online: they are not visible yet.",
@@ -12732,6 +12733,8 @@
     "mandateSupportTitle": "Your listings cannot be taken back here",
     "mandateSupportBody": "Write to us at {email}: we will move your listings into your own space.",
     "confirmTakeBack": "{count, plural, =0 {Take back my listings} one {Take back my listings and publish the new one} other {Take back my listings and publish the # new ones}}",
-    "doneTakeBack": "{count, plural, one {Your listing is now in your space “{space}”, still online.} other {Your # listings are now in your space “{space}”, still online.}}"
+    "doneTakeBack": "{count, plural, one {Your listing is now in your space “{space}”, still online.} other {Your # listings are now in your space “{space}”, still online.}}",
+    "spaceUnavailableTitle": "Your space is not active",
+    "spaceUnavailableBody": "Your listings cannot be published there for now. Write to us at {email} to reactivate it."
   }
 }

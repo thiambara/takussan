@@ -12722,7 +12722,8 @@
       "spaceNameContainsPhone": "Le nom de votre espace ne peut pas contenir de numéro de téléphone.",
       "underMandate": "Vos annonces sont de nouveau diffusées par Takussan pour votre compte : rechargez la page pour les reprendre dans votre propre espace.",
       "mandateSupportRequired": "Vos annonces diffusées par Takussan ne peuvent pas être reprises depuis cette page : écrivez-nous, nous les déplacerons dans votre espace.",
-      "spaceSuspended": "Votre espace Takussan n'est pas actif : vos annonces restent diffusées par Takussan pour votre compte, et vous pourrez les reprendre une fois votre espace rétabli."
+      "spaceSuspended": "Votre espace Takussan n'est pas actif : vos annonces restent diffusées par Takussan pour votre compte, et vous pourrez les reprendre une fois votre espace rétabli.",
+      "spaceUnavailable": "Votre espace Takussan n'est pas actif : vos annonces ne peuvent pas y être publiées pour l'instant. Écrivez-nous pour le réactiver."
     },
     "awaitingReviewTitle": "En attente de vérification",
     "awaitingReviewHint": "Notre équipe doit encore les vérifier avant de les mettre en ligne : elles ne sont pas encore visibles.",
@@ -12732,6 +12733,8 @@
     "mandateSupportTitle": "Vos annonces ne peuvent pas être reprises ici",
     "mandateSupportBody": "Écrivez-nous à {email} : nous déplacerons vos annonces dans votre propre espace.",
     "confirmTakeBack": "{count, plural, =0 {Reprendre mes annonces} one {Reprendre mes annonces et publier la nouvelle} other {Reprendre mes annonces et publier les # nouvelles}}",
-    "doneTakeBack": "{count, plural, one {Votre annonce est maintenant dans votre espace « {space} », toujours en ligne.} other {Vos # annonces sont maintenant dans votre espace « {space} », toujours en ligne.}}"
+    "doneTakeBack": "{count, plural, one {Votre annonce est maintenant dans votre espace « {space} », toujours en ligne.} other {Vos # annonces sont maintenant dans votre espace « {space} », toujours en ligne.}}",
+    "spaceUnavailableTitle": "Votre espace n'est pas actif",
+    "spaceUnavailableBody": "Vos annonces ne peuvent pas y être publiées pour l'instant. Écrivez-nous à {email} pour le réactiver."
   }
 }
