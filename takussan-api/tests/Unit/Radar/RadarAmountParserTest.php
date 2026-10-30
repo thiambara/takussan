@@ -172,6 +172,9 @@ class RadarAmountParserTest extends TestCase
         $this->assertNull(RadarAmountParser::parse('Villa R+33 6 12 34 56 78 F'));
         // Un étage de 20 ou plus qui n'est pas un indicatif reste un étage devant son prix.
         $this->assertSame(['amount' => 450_000, 'period' => null], RadarAmountParser::parse('Immeuble R+25 450 000 F'));
+        // Limite assumée (décision 3) : derrière un étage qui est un indicatif, un prix qui a la forme d'un numéro de ce plan
+        // est perdu, comme le masquage le lit déjà (`Immeuble R[TELEPHONE] F`) ; 2 500 000 sur `dev`.
+        $this->assertNull(RadarAmountParser::parse('Immeuble R+30 2 500 000 F'));
     }
 
     public function test_l_indicatif_221_devant_un_numero_n_est_pas_un_prix(): void

@@ -68,7 +68,8 @@ Aucun endpoint, aucune migration. `App\Support\PhoneMasker` et son miroir `scrip
 
 - [x] AC1 — `Villa R+1 (221) 77 012 34 56` rend `["+221770123456"]` (`fromText` et `contactsFromText`), et aucun prix.
 - [x] AC2 — `Villa (221) 77 012 34 56` et `Villa R+2 (221) 77 012 34 56` ne rendent plus 221 comme prix.
-- [x] AC3 — Parité PHP/JS : 0 écart ; face à `dev`, aucune ligne démasquée.
+- [x] AC3 — Parité PHP/JS : 0 écart ; face à `dev`, aucun chiffre d'un numéro démasqué : seuls l'étage `1`/`7`, `(0)` et
+      `(221)` sortent en clair (`Villa R+1 (221) [TELEPHONE]`).
 - [x] AC4 — Ablation de chaque correctif : rouge.
 
 ## Notes d'implémentation
@@ -91,6 +92,8 @@ Aucun endpoint, aucune migration. `App\Support\PhoneMasker` et son miroir `scrip
   `R+1(221) 77 …` collé rendait encore 221.
 - **Limite antérieure, non touchée** : `Villa R+1 (221) 77 012 34 56 F` perd son contact et rend 56 comme prix, sur `dev`
   comme ici (le numéro suivi de `F` n'est pas un numéro pour `PATTERN`).
+- **Suite** : `Villa R+1 00221 77 012 34 56` laisse `34 56` en clair (`CC1_REST` lit `1` puis `0022177012`), et le
+  groupement 2-2-3-2 derrière `(221)` reste lu comme une zone : défauts antérieurs, → TCK-2451.
 
 ### Décisions prises en autonomie, à revoir
 
