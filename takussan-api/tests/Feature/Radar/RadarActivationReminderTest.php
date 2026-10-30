@@ -282,6 +282,17 @@ class RadarActivationReminderTest extends TestCase
         $this->assertRienEnvoye();
     }
 
+    /** ADR-0079 — un annonceur publié sous mandat ET rattaché depuis à un compte (reprise, TCK-2421) : ses biens n'y sont pas. */
+    public function test_ac1b_un_annonceur_sous_mandat_ne_se_relance_pas(): void
+    {
+        $this->travelTo(Carbon::parse(self::T0)->addDays(8));
+        $this->annonceur->forceFill(['mandate_at' => now()])->save();
+
+        $this->relance()->assertOk()->assertJsonPath('data.blocking', ['radar.activation.under_mandate'])->assertJsonPath('data.text', null);
+        $this->envoyer()->assertStatus(422)->assertJsonPath('code', 'radar.activation.under_mandate');
+        $this->assertRienEnvoye();
+    }
+
     public function test_ac1b_sans_bien_en_ligne_rien_ne_se_relance(): void
     {
         $this->travelTo(Carbon::parse(self::T0)->addDays(8));

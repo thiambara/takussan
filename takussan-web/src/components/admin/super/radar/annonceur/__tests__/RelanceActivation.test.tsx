@@ -3,7 +3,7 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '@/lib/api';
-import { fetchRadarActivationReminder, markRadarActivationReminderSent } from '@/lib/queries/radar';
+import { fetchRadarActivationReminder, markRadarActivationReminderSent, radarKeys } from '@/lib/queries/radar';
 import { withIntl } from '@/test/intl';
 import type { RadarActivationReminder } from '@/types/radar';
 import { RelanceActivation } from '../RelanceActivation';
@@ -23,7 +23,7 @@ function monter(apercu: RadarActivationReminder, { mienne = true, desactive = fa
       <RelanceActivation advertiserId={7} mienne={mienne} desactive={desactive} />
     </QueryClientProvider>,
   ));
-  return { ...rendu, utilisateur: userEvent.setup() };
+  return { ...rendu, queryClient, utilisateur: userEvent.setup() };
 }
 
 beforeEach(() => {
@@ -37,8 +37,10 @@ beforeEach(() => {
  */
 describe('RelanceActivation (TCK-2394)', () => {
   it('aucun compte créé par le Radar : le panneau ne prend pas de place', async () => {
-    const { container } = monter(SANS_RELANCE);
-    await waitFor(() => expect(fetchRadarActivationReminder).toHaveBeenCalledWith(7, 'fr'));
+    const { container, queryClient } = monter(SANS_RELANCE);
+    // L'aperçu est LU (pas seulement demandé) : le vide constaté ensuite est celui de la réponse, pas celui de l'attente.
+    await waitFor(() => expect(queryClient.getQueryState(radarKeys.activation(7, 'fr'))?.status).toBe('success'));
+    expect(fetchRadarActivationReminder).toHaveBeenCalledWith(7, 'fr');
     expect(container).toBeEmptyDOMElement();
   });
 
