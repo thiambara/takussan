@@ -62,7 +62,8 @@ Re-mesuré le 2026-10-30 sur `feat/radar-revocation-purge` (`dev` + TCK-2391) :
       `php artisan radar:whatsapp-template` imprime le corps à soumettre à Meta.
 - [x] **Le webhook du Radar** : `webhooks/whatsapp/radar/{token}` (POST, et GET de vérification
       d'abonnement), jeton d'URL, signature `X-Hub-Signature-256` sous le secret de l'application
-      du Radar, journal des webhooks avant traitement, rejouable.
+      du Radar, journal des webhooks avant traitement ; le corps de la ligne est vidé à la clôture et
+      elle ne se rejoue pas (ADR-0081).
 - [x] **La réponse reçue** : rattachée au message envoyé par l'API (par `context.id`, à défaut par
       le numéro), elle crée une réponse `provider_message` (identifiant du message reçu, texte en
       transcription), idempotente, puis met la vérification en file.
@@ -88,7 +89,8 @@ Re-mesuré le 2026-10-30 sur `feat/radar-revocation-purge` (`dev` + TCK-2391) :
 - [x] AC3 — **Webhook** : jeton faux → 404 ; secret vide, signature absente ou fausse → 403 ;
       chaque requête laisse sa ligne au journal (`whatsapp`, `whatsapp_cloud_radar`) ; le même
       identifiant reçu deux fois ne crée qu'une réponse ; un message adressé à un autre numéro que
-      celui du Radar n'est pas lu ; une ligne authentifiée se rejoue par le même chemin.
+      celui du Radar n'est pas lu ; le corps d'une ligne est vidé à la clôture, quelle que soit
+      l'issue, et elle ne se rejoue pas (vérification adverse, I-2 ; ADR-0081).
 - [x] AC4 — **Envoi** : le texte obtenu en substituant les paramètres envoyés dans le corps du
       gabarit est exactement `message` ; le message passe envoyé avec l'identifiant de Meta, ses
       annonces `contacted` ; un refus franc de Meta n'écrit rien (502 `radar.whatsapp.send_failed`) ;
@@ -98,7 +100,21 @@ Re-mesuré le 2026-10-30 sur `feat/radar-revocation-purge` (`dev` + TCK-2391) :
       `number_matches = true` et toutes les clauses (jugés par le code), et une réponse classée
       `consent` se confirme sans motif ; une réponse classée autrement exige un motif, comme une
       capture discordante.
-- [x] AC6 — **Le pilote par défaut n'envoie rien** sur le réseau.
+- [x] AC6 — **Le pilote par défaut n'envoie rien** sur le réseau, et il est refusé hors `local` et
+      `testing` (422 `radar.whatsapp.not_configured`) ; la fiche annonceur rend
+      `whatsapp_api_available` (I-3).
+- [x] AC7 — **Corrections de la vérification adverse** (tests, une ablation chacune) :
+      (a) un texte qui vaut exactement STOP révoque l'annonceur dès la réception
+      (`radar_whatsapp.auto_stop`, vrai par défaut) ; (b) une relance ne part pas par l'API tant
+      qu'une réponse reçue sur sa chaîne n'est pas tranchée (409 `radar.outreach.reply_pending`) ;
+      (c) `accord.v3` s'ouvre sur « Takussan — », clauses identiques à `accord.v2`, version
+      courante, et un résumé de plus de 120 caractères est refusé par l'API (422
+      `radar.whatsapp.summary_too_long`) pour que le corps hydraté reste sous 1024 caractères ;
+      (d) une intégration supprimée et un jeton égal à celui des notifications sont refusés
+      (`same_number`) ; (e) une écriture qui échoue après l'acceptation de Meta marque le message
+      envoyé et ambigu, journalisé avant ; (f) la garde d'architecture interdit aussi `Integration`
+      et `route('whatsapp', …)` ; (g) les codes neufs ont leur libellé au front ; (h) la route
+      d'envoi est inscrite à la matrice des routes plateforme.
 
 ## Hors périmètre
 
@@ -110,8 +126,9 @@ Re-mesuré le 2026-10-30 sur `feat/radar-revocation-purge` (`dev` + TCK-2391) :
 
 - Un **numéro WhatsApp Business dédié au Radar**, dans une application Meta à part de celle des
   notifications, et son jeton d'utilisateur système.
-- Le **gabarit `takussan_radar_accord_v2`** (fr, en) soumis et approuvé par Meta, avec le corps
-  exact que rend `php artisan radar:whatsapp-template fr` (et `en`).
+- Le **gabarit `takussan_radar_accord_v3`** (fr, en) soumis et approuvé par Meta, avec le corps
+  exact que rend `php artisan radar:whatsapp-template fr` (et `en`), **après relecture d'`accord.v3`
+  par l'avocat** (ouverture « Takussan — » ; clauses identiques à `accord.v2`).
 - Le webhook de l'application Meta du Radar abonné au champ `messages`, sur
   `https://<api>/api/webhooks/whatsapp/radar/<RADAR_WHATSAPP_WEBHOOK_URL_TOKEN>`.
 - Les variables `RADAR_WHATSAPP_*` posées sur Dokploy, `RADAR_WHATSAPP_DRIVER=cloud` en dernier.
@@ -133,10 +150,10 @@ Re-mesuré le 2026-10-30 sur `feat/radar-revocation-purge` (`dev` + TCK-2391) :
 - **Le prompt `v2`** de `radar.verification_accord` reprend `v1` mot pour mot et ajoute une section
   « réponse en texte » : le modèle ne classe que le texte, `RadarConsentVerdict::fromProviderMessage()`
   pose le numéro et les clauses par le code. Le jeu d'évaluation n'a pas de cas texte (TCK-2427).
-- **⚠ Meta refuse, d'après sa documentation, un corps de gabarit qui commence ou finit par une
-  variable.** `accord.v2` commence par `{salutation}` : si Meta refuse la soumission, il faudra une
-  version de clauses (`accord.v3`) qui s'ouvre sur un texte fixe, relue par l'avocat, et sa ligne dans
-  `config/radar_whatsapp.php` (`templates`). Le code suit la version enregistrée de chaque message.
+- **Meta refuse un corps de gabarit qui commence ou finit par une variable** : `accord.v2` commençait par
+  `{salutation}`. `accord.v3` s'ouvre sur « Takussan — » (vérification adverse, I-4) ; c'est la version
+  courante, la seule à avoir un gabarit. `accord.v2` reste lisible pour les messages préparés avant.
+- **Les décisions structurelles sont dans [ADR-0081](../../adr/0081-le-radar-prospecte-par-l-api-whatsapp-sur-son-propre-numero.md).**
 
 ### Décisions prises en autonomie, à revoir
 
@@ -144,16 +161,18 @@ Re-mesuré le 2026-10-30 sur `feat/radar-revocation-purge` (`dev` + TCK-2391) :
 |---|---|---|---|
 | Où vit le numéro du Radar | `config/radar_whatsapp.php`, variables `RADAR_WHATSAPP_*`, vides | une ligne `Integration` d'un nouveau fournisseur | Une config à part ne peut pas être confondue avec l'intégration des notifications ; le brief la demandait vide par défaut. |
 | Pilote par défaut | `log` (aucun réseau, identifiant fictif) | `cloud` | Rien ne part tant que le porteur n'a pas posé `cloud` ; même patron que les SMS. |
-| Numéro des notifications saisi pour le Radar | refusé (422 `radar.whatsapp.same_number`), intégration active ou non, de toute agence | laisser passer | La contrainte du ticket ; une erreur de saisie ne doit pas suffire. |
+| Numéro des notifications saisi pour le Radar | refusé (422 `radar.whatsapp.same_number`), intégration active ou non, supprimée comprise, de toute agence, identifiant **ou jeton** | laisser passer | La contrainte du ticket ; une erreur de saisie ne doit pas suffire. Un même jeton = la même application Meta (décision du porteur après vérification, m-1, m-2). |
+| Pilote `log` hors `local`/`testing` | refusé (422 `not_configured`) | « réussir » sans rien envoyer | Le message marqué envoyé ne pourrait plus partir (décision du porteur, I-3). |
 | Envoi synchrone ou en file | synchrone, sous verrou, 10 s au plus | un job après le commit | Pas d'état « en cours d'envoi » à rattraper ; l'opérateur voit tout de suite le refus de Meta. Un job reste possible pour l'envoi en lot. |
 | Échec ambigu | marqué envoyé, sans identifiant | laisser préparé (renvoi possible) | Écrire deux fois au même annonceur coûte plus cher (signalements) qu'une relance. |
 | Rattachement d'une réponse | `context.id`, sinon le dernier message envoyé par l'API à ce numéro, puis sa dernière relance envoyée | le dernier message, tous canaux | Un message `wa.me` est parti d'un autre téléphone : une réponse au numéro du Radar ne peut pas lui répondre. |
 | Plusieurs messages de l'annonceur | une réponse par message reçu, chacune vérifiée | une seule réponse en attente par message (règle du dépôt de captures) | Le « oui » qui suit un « bonjour » ne doit pas se perdre ; la confirmation lit la dernière réponse. |
 | Réponse sur un message clos | gardée | ignorée | Un STOP après un accord est une révocation : l'opérateur doit la voir. |
-| STOP reçu par l'API | classé par le modèle, posé par l'opérateur | appliqué d'office | « Confirmation humaine conservée » ; l'automatiser est réversible et se décide après la mesure. |
+| STOP reçu par l'API | un texte qui vaut exactement STOP révoque à la réception (`RADAR_WHATSAPP_AUTO_STOP`, vrai) ; tout autre texte reste à trancher et bloque la relance par l'API | classé par le modèle, posé par l'opérateur (première version) | La promesse « en répondant STOP » n'attend pas un écran (décision du porteur après vérification, I-1). |
+| Journal du webhook du Radar | corps vidé à la clôture, ligne non rejouable | corps chiffré 30 jours, rejouable (première version) | Il porte texte, numéro et nom de profil de tiers ; après un STOP seule l'empreinte doit rester (décision du porteur, I-2). |
 | Vocal, image | gardé comme réponse (`[audio]`), vérification en échec `radar.verification.no_text`, rien téléchargé | ignoré | L'opérateur sait qu'une réponse existe ; le téléchargement des médias est un autre sujet. |
 | Acteur de l'appel IA d'une réponse reçue | l'opérateur qui a envoyé le message | aucun (appel refusé) | La passerelle exige un acteur qui détient `platform.radar.operate`. |
 | Webhook : traitement | synchrone dans la requête | un job | Quelques écritures ; aucune donnée personnelle dans la table des jobs. |
 | `WhatsappContact` | inchangé | y noter le dernier message reçu | Il ancre la fenêtre de service du numéro des NOTIFICATIONS ; un message au numéro du Radar n'en ouvre aucune. |
 | Prompt | `v2` = `v1` + une section texte | un second usage | Le ticket nomme `radar.verification_accord` ; la partie captures reste mot pour mot. |
-| Noms des gabarits | dans `config/radar_whatsapp.php` (`takussan_radar_accord_v2`), pas en variable | une variable par gabarit | Ce ne sont pas des secrets ; une nouvelle version de clauses s'ajoute par une ligne relue. |
+| Noms des gabarits | dans `config/radar_whatsapp.php` (`takussan_radar_accord_v3`), pas en variable | une variable par gabarit | Ce ne sont pas des secrets ; une nouvelle version de clauses s'ajoute par une ligne relue. |

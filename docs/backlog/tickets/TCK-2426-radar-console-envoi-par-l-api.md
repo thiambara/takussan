@@ -31,13 +31,14 @@ le lien `wa.me` et les captures.
 
 ## Delta à produire
 
-- [ ] Un bouton « Envoyer par l'API » sur un brouillon prêt, à côté du lien `wa.me`, et ses refus
-      (`radar.whatsapp.*`) traduits.
+- [ ] Un bouton « Envoyer par l'API » sur un brouillon prêt, à côté du lien `wa.me`. Les libellés
+      des refus (`radar.whatsapp.*`, `radar.outreach.reply_pending`) existent déjà
+      (`codes-radar.ts`, TCK-2395) : l'écran les affiche.
 - [ ] Le canal d'un message envoyé (manuel, API, envoi ambigu) sur sa carte.
 - [ ] Une réponse `provider_message` montrée par sa transcription, sans galerie de captures ;
       `radar.verification.no_text` (vocal, image) dit que la réponse n'est pas lisible ici.
-- [ ] Savoir si le canal est disponible : à trancher (une clé de configuration exposée, ou le bouton
-      toujours là et le refus `radar.whatsapp.not_configured` affiché).
+- [ ] N'offrir le bouton que si la fiche annonceur rend `whatsapp_api_available = true` (TCK-2395 :
+      pilote `cloud` configuré, ou pilote `log` en `local`/`testing`).
 
 ## Critères d'acceptation
 
