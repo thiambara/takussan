@@ -1,13 +1,13 @@
 ---
 id: TCK-2407
 title: "La copie nocturne du seau privé garde pour toujours les fichiers que le Radar purge"
-status: todo
+status: doing
 phase: P1
 family: technique
 estimate: S
 wave: 80
 created: 2026-10-29
-updated: 2026-10-29
+updated: 2026-10-30
 depends_on: [TCK-2391]
 blocks: []
 spec_refs:
