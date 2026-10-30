@@ -437,7 +437,12 @@ Les jours complets se listent avec la commande de l'étape 5 ci-dessous, filtré
 **Passer la copie du seau privé en instantanés** (TCK-2407, ADR-0029 amendé le 2026-10-30, une fois
 par serveur). Rien à changer chez Cloudflare : ni règle de cycle de vie, ni jeton, ni verrou.
 
-1. `scp deploy/server/sauvegarde-seau-prive.sh root@178.18.247.62:/usr/local/sbin/sauvegarde-seau-prive`.
+1. `scp deploy/server/sauvegarde-seau-prive.sh root@178.18.247.62:/usr/local/sbin/sauvegarde-seau-prive`,
+   puis rejouer le seul § 8 de `bootstrap.sh`, dont l'unité attend désormais `time-sync.target` (une
+   horloge en avance au démarrage retirerait toute la fenêtre de restauration) :
+   `awk '/^# ── 8\./,/^# ── 9\./' deploy/server/bootstrap.sh | sed '$d' | ssh root@178.18.247.62 bash`.
+   Preuve : `systemctl show sauvegarde-seau-prive.service -p After` cite `time-sync.target`, et
+   `systemctl is-enabled systemd-time-wait-sync` rend `enabled`.
    `RETENTION_JOURS` est facultative dans `/etc/default/sauvegarde-seau-prive` : 14 par défaut, et
    à garder entre 8 (sous 8, le verrou de 7 jours refuse la rotation) et 14 (au-delà, `privacy.ts`
    § 6 ne tient plus, et le script l'écrit au journal). Une valeur invalide est alertée sur
@@ -451,7 +456,10 @@ par serveur). Rien à changer chez Cloudflare : ni règle de cycle de vie, ni je
 4. **AC2** : un objet de plus de 14 jours (par exemple `1082/f4e7dd7a….jpg` de la restauration à
    blanc du 2026-09-22) se relit dans le dernier instantané complet, avec le même md5 que dans le seau.
    **AC3** : `SOURCE=takussan-seau-inexistant sauvegarde-seau-prive` sort en 1 et envoie l'alerte
-   Telegram. Elle nomme l'étape (`copie vers …`).
+   Telegram. Elle nomme l'étape (`copie vers …`). Le journal de chaque passage porte aussi
+   « instantané <jour> : N objets ; précédent complet (<jour>) : M » ; un instantané qui tombe sous
+   la moitié du précédent envoie une alerte (seau source vidé) : les bons instantanés partent
+   14 jours plus tard, c'est le temps d'agir.
 5. **AC1** : il se mesure en temps réel, sans simulation sur R2 : un `JOUR` futur écrirait un
    instantané daté plus tard, que la rotation garderait. Poser un objet d'essai dans le seau privé,
    attendre le passage de la nuit, puis l'effacer du seau :

@@ -69,6 +69,7 @@ case $commande in
     source=$(chemin "${args[0]}"); cible=$(chemin "${args[1]}")
     [ -d "$source" ] || { echo "ERROR : directory not found"; exit 3; }
     n=$(find "$source" -type f | wc -l | tr -d ' ')
+    [ "${FAUX_R2_ECHEC:-}" = copie-effacements ] && [[ $cible == */effacements ]] && { echo "ERROR : échec simulé"; exit 1; }
     if [ "${FAUX_R2_ECHEC:-}" = copie-partielle ] && [[ $cible == */jours/* ]]; then
       premier=$(cd "$source" && find . -type f | sort | head -1)
       mkdir -p "$cible/$(dirname "$premier")"; cp "$source/$premier" "$cible/$premier"
@@ -81,6 +82,10 @@ case $commande in
     if [ -f "$cible" ]; then basename "$cible"; exit 0; fi
     [ -d "$cible" ] || { echo "ERROR : directory not found" >&2; exit 3; }
     for d in "$cible"/*/; do [ -d "$d" ] && echo "$(basename "$d")/"; done ;;
+  size)
+    cible=$(chemin "${args[0]}")
+    [ -d "$cible" ] || { echo "ERROR : directory not found" >&2; exit 3; }
+    echo "{\"count\":$(find "$cible" -type f | wc -l | tr -d ' '),\"bytes\":0,\"sizeless\":0}" ;;
   touch)
     cible=$(chemin "${args[0]}")
     [ "$essai" = 1 ] || { mkdir -p "$(dirname "$cible")"; : > "$cible"; } ;;
@@ -220,6 +225,42 @@ scenario_dernier_complet() {
     "$(present "$COPIE/jours/2026-10-01/1082/photo.jpg")"
 }
 
+# ── m1 : aucun jour complet → rien n'est retiré, même échu ──
+scenario_aucun_complet() {
+  fabrique
+  local jour
+  for jour in $(jours_d_octobre 1 5); do
+    mkdir -p "$COPIE/jours/$jour/1082"; echo partiel > "$COPIE/jours/$jour/1082/photo.jpg"
+  done
+  FAUX_R2_ECHEC=copie-partielle passer 2026-10-20
+  verifier "aucun jour complet : les jours échus sans marqueur restent tous" "present present" \
+    "$(dossier "$COPIE/jours/2026-10-01") $(dossier "$COPIE/jours/2026-10-05")"
+}
+
+# ── m2 : l'échec de la copie de la liste des effacements est alerté ──
+scenario_echec_liste() {
+  fabrique
+  FAUX_R2_ECHEC=copie-effacements passer 2026-10-01; local code=$?
+  verifier "copie de la liste en échec : code non nul, une alerte qui la nomme, l'instantané complet" "1 1 present" \
+    "$(non_nul "$code") $(grep -c 'liste des effacements' "$TELEGRAM" || true) $(present "$COPIE/jours/2026-10-01/.complet")"
+}
+
+# ── m4 : un instantané qui perd plus de la moitié des objets du précédent est alerté ──
+scenario_seau_vide() {
+  fabrique
+  passer 2026-10-01
+  rm -rf "${SOURCE_SEAU:?}"/*
+  passer 2026-10-02; local code=$?
+  verifier "seau source vidé : le passage sort en 0, une alerte qui le dit" "0 1" \
+    "$code $(grep -c 'moins de la moitié' "$TELEGRAM" || true)"
+  passer 2026-10-03
+  verifier "seau source vidé : une seule alerte par chute" 1 "$(alertes)"
+  fabrique; passer 2026-10-01
+  rm "$SOURCE_SEAU/radar/captures/annonce.png"
+  passer 2026-10-02
+  verifier "un objet de moins sur trois : pas d'alerte" 0 "$(alertes)"
+}
+
 # ── I3 et AC3 : une configuration fautive est alertée, et n'arrête pas la copie ──
 scenario_retention_invalide() {
   local valeur code
@@ -260,6 +301,9 @@ scenario_dernier_complet
 scenario_retention_invalide
 scenario_cible_racine
 scenario_stderr
+scenario_aucun_complet
+scenario_echec_liste
+scenario_seau_vide
 
 # ── AC3 : un échec est alerté sur Telegram ──
 fabrique; passer 2026-10-01
@@ -378,6 +422,9 @@ ablation "sans la garde du dernier complet" 's/\[ "\$nom" = "\$dernier_complet" 
 ablation "sans l'alerte d'une rétention invalide" 's/^  alerter "RETENTION_JOURS invalide/  : "RETENTION_JOURS invalide/' scenario_retention_invalide
 ablation "sans la garde de la racine du seau" 's/^if \[ "\$retirer_plate" = 1 \] && ! /if false \&\& ! /' scenario_cible_racine
 ablation "stderr mêlé à la liste" 's/--dirs-only "r2:\$CIBLE\/jours\/" 2>"\$erreurs"/--dirs-only "r2:$CIBLE\/jours\/" 2>\&1/' scenario_stderr
+ablation "sans la garde « aucun jour complet »" 's/^  if \[ -z "\$dernier_complet" \]; then/  if false; then/' scenario_aucun_complet
+ablation "échec de la copie de la liste non alerté" '/^\[ \$code_effacements -eq 0 \] || echouer/d' scenario_echec_liste
+ablation "sans l'alerte de chute du volume" 's/^    alerter "instantané \$JOUR : /    : "instantané $JOUR : /' scenario_seau_vide
 ablation "le retrait emporte la liste" 's/ --exclude "\/effacements\/\*\*"//' scenario_plate
 
 [ "$echecs" = 0 ] || { echo "✗ $echecs échec(s) sur $verifications vérifications"; exit 1; }

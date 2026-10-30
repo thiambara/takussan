@@ -375,6 +375,14 @@ La politique de confidentialité promet l'inverse (`takussan-web/src/content/leg
 9. **Une configuration fautive n'arrête pas les sauvegardes en silence.** Un secret absent ou un
    `JOUR` mal formé est alerté sur Telegram. Un `RETENTION_JOURS` invalide est alerté, et le passage
    se fait quand même avec 14. Au-delà de 14, un avertissement est écrit au journal.
+10. **Un seau source vidé est alerté.** Comme `fraicheur-sauvegardes.sh`, un instantané complet qui
+    porte moins de la moitié des objets du précédent complet envoie une alerte. La copie à vide
+    « réussit » et la rotation retirerait les bons instantanés en 14 jours : c'est le temps d'agir.
+11. **Le jour vient de l'horloge, qui doit être juste.** Un passage lancé au démarrage
+    (`Persistent=true`) avant la synchronisation, horloge en avance, retirerait toute la fenêtre de
+    restauration. L'unité attend donc `time-sync.target`, et `bootstrap.sh` § 8 active
+    `systemd-time-wait-sync`. C'est l'option la plus simple ; écartée, une garde dans le script contre
+    un instantané daté du futur, qui ne détecte le défaut qu'après le passage fautif.
 
 ### Ce que ça garantit, et ce que ça coûte
 
@@ -418,6 +426,8 @@ La politique de confidentialité promet l'inverse (`takussan-web/src/content/leg
   - les alertes ;
   - `--essai`.
 
-  Huit ablations ôtent chacune une garde et attendent un rouge.
+  Il vérifie aussi qu'un seau source vidé est alerté, et que sans aucun jour complet rien n'est
+  retiré. Onze ablations ôtent chacune une garde et attendent un rouge. L'attente de
+  `time-sync.target` (point 11) n'est pas testable ici : elle se relève sur le serveur.
 - Relevé et procédure dans [`docs/infra/hebergement.md`](../infra/hebergement.md), ligne « Copie du
   seau privé des médias ».

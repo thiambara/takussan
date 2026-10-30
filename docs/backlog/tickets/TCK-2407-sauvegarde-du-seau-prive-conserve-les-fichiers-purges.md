@@ -83,8 +83,9 @@ seau privé en instantanés ».
 Prérequis du porteur, sur l'infrastructure :
 
 1. **Redéploiement du script** : `scp deploy/server/sauvegarde-seau-prive.sh
-   root@178.18.247.62:/usr/local/sbin/sauvegarde-seau-prive`. Les unités systemd de `bootstrap.sh` § 8 ne
-   changent pas.
+   root@178.18.247.62:/usr/local/sbin/sauvegarde-seau-prive`, puis **rejouer le § 8 de `bootstrap.sh`** :
+   l'unité attend désormais `time-sync.target`, et `systemd-time-wait-sync` s'active (commande et preuve
+   dans le runbook).
 2. **Variable d'environnement** : aucune n'est requise. `RETENTION_JOURS` est facultative dans
    `/etc/default/sauvegarde-seau-prive` : 14 par défaut, à garder entre 8 et 14. Sous 8, le verrou de
    7 jours refuse la rotation. Au-delà de 14, `privacy.ts` § 6 ne tient plus.
@@ -131,7 +132,17 @@ Prérequis du porteur, sur l'infrastructure :
 - **L'ancienne copie plate n'est retirée qu'à la demande** (`--retirer-copie-plate`), après un passage complet.
   C'est un effacement irréversible : il revient au porteur.
 
+- **Un seau source vidé est alerté** : un instantané complet sous la moitié des objets du précédent complet
+  envoie une alerte, une fois par chute, sans arrêter le passage.
+
 ### Décisions prises en autonomie, à revoir
+
+- **Horloge.** Retenu : l'unité attend `time-sync.target`, et `systemd-time-wait-sync` est activé. Écarté :
+  un refus du script si un instantané futur existe. Raison : c'est le plus simple, et cela prévient le
+  passage fautif au lieu de le constater après coup. Ce n'est pas testable dans le harnais : à relever sur
+  le serveur.
+- **Seau vidé.** Retenu : une alerte, et l'instantané reste marqué complet. Écarté : refuser le marqueur.
+  Raison : refuser le marqueur bloquerait aussi une vraie grosse purge. L'alerte laisse 14 jours pour agir.
 
 - **Mécanisme.** Retenu : un instantané complet par jour, et 14 gardés. Écarté : (c) `sync` avec un
   `--backup-dir` daté. Raison : (c) heurte le verrou de 7 jours, et le lever rouvrirait le risque du VPS

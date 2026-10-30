@@ -24,6 +24,8 @@
 #   · La liste des effacements (`effacements/`, ADR-0044 § B) a EN PLUS une copie jamais tournée,
 #     `$CIBLE/effacements/` : identifiant et instant seulement, gardés sans limite, pour qu'une
 #     restauration de base rejoue les effacements même si le préfixe a disparu du seau privé.
+#   · Un instantané complet qui porte moins de la moitié des objets du précédent complet est alerté
+#     (seau source vidé) : la rotation retirerait les bons instantanés en 14 jours.
 #   · Sous le verrou de rétention de 7 jours de `vps-sauvegardes` (ADR-0069 § 5), RETENTION_JOURS < 8
 #     est refusé par R2 à la rotation, et alerté ; au-delà de 14, privacy.ts § 6 ne tient plus (averti).
 #
@@ -175,6 +177,41 @@ retirer_les_instantanes_echus() {
   done
 }
 
+# nombre_d_objets <jour> : le compte d'objets de l'instantané, marqueur compris.
+nombre_d_objets() {
+  local json code
+  json=$(rclone size --json "r2:$CIBLE/jours/$1" 2>"$erreurs"); code=$?
+  [ $code -eq 0 ] || { cat "$erreurs" >&2; return $code; }
+  sed -n 's/.*"count":\([0-9]*\).*/\1/p' <<<"$json"
+}
+
+# Comme fraicheur-sauvegardes.sh : un instantané complet qui porte moins de la moitié des objets du
+# précédent complet (seau source vidé, par erreur ou par un VPS compromis) est alerté. La copie
+# « réussit » à vide et la rotation retirerait les bons instantanés en 14 jours : l'alerte laisse ce
+# temps pour agir. Une alerte par chute : le lendemain, le précédent complet est déjà le petit.
+comparer_au_precedent() {
+  local liste code nom i dates=() precedent="" avant apres
+  liste=$(rclone lsf --dirs-only "r2:$CIBLE/jours/" 2>"$erreurs"); code=$?
+  [ $code -eq 0 ] || { cat "$erreurs" >&2; return $code; }
+  for nom in $liste; do
+    nom=${nom%/}
+    [[ $nom =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] || continue
+    [ "$(numero_du_jour "$nom")" -lt "$(numero_du_jour "$JOUR")" ] && dates+=("$nom")
+  done
+  for ((i = ${#dates[@]} - 1; i >= 0; i--)); do
+    est_complet "${dates[i]}"; code=$?
+    [ $code -eq 0 ] && { precedent=${dates[i]}; break; }
+    [ $code -eq 1 ] || return $code
+  done
+  [ -n "$precedent" ] || return 0
+  avant=$(nombre_d_objets "$precedent") || return $?
+  apres=$(nombre_d_objets "$JOUR") || return $?
+  echo "instantané $JOUR : $apres objets ; précédent complet ($precedent) : $avant"
+  if [ $((apres * 2)) -lt "$avant" ]; then
+    alerter "instantané $JOUR : $apres objets, moins de la moitié des $avant du $precedent — seau source vidé ? Les bons instantanés partent dans $RETENTION_JOURS jours"
+  fi
+}
+
 sortie=$(rclone copy "r2:$SOURCE" "r2:$CIBLE/jours/$JOUR" --stats 24h -v 2>&1)
 code_copie=$?
 # Le bilan seulement : une ligne par objet copié rendrait le journal illisible.
@@ -187,6 +224,9 @@ if [ $code_copie -eq 0 ]; then
     rclone touch "r2:$CIBLE/jours/$JOUR/.complet" || echouer "marqueur de copie complète de $JOUR" $?
   elif [ $code -ne 0 ]; then
     echouer "lecture du marqueur de $JOUR" $code
+  fi
+  if [ ${#essai[@]} -eq 0 ]; then
+    comparer_au_precedent || echouer "comparaison au précédent instantané" $?
   fi
 fi
 

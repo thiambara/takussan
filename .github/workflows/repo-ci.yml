@@ -419,8 +419,8 @@ jobs:
         # `deploy/server/sauvegarde-seau-prive.sh` sur un R2 simulé, jours simulés par `JOUR` :
         # l'objet effacé part au plus tard à J+13, l'objet vivant reste (même md5), la liste des
         # effacements garde une copie jamais tournée, une copie interrompue reste sans marqueur et
-        # le dernier instantané complet ne part jamais, tout échec alerte. Il finit par huit
-        # ablations, une par garde, qui doivent chacune rougir.
+        # le dernier instantané complet ne part jamais, un seau vidé et tout échec alertent. Il
+        # finit par une ablation par garde, qui doit chacune rougir.
         run: ./scripts/test-sauvegarde-seau-prive.sh
 
       - name: Le banc d'essai tourne sur le moteur de base de la production

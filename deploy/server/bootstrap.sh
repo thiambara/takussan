@@ -206,13 +206,16 @@ systemctl enable --now seuils.timer
 # sauvegarde-seau-prive.sh, copié là par le runbook — et /etc/default/sauvegarde-seau-prive (le
 # jeton `takussan-preview-backup`, mode 600). Tant que le script manque, le timer ne fait rien.
 # Depuis TCK-2407 (ADR-0029 amendé le 2026-10-30), chaque passage écrit un instantané daté et retire
-# ceux de RETENTION_JOURS jours ou plus (14) : seul le script change, les unités ci-dessous non.
+# ceux de RETENTION_JOURS jours ou plus (14). Le jour vient de l'horloge : un passage lancé au
+# démarrage (Persistent=true) avant la synchronisation NTP, horloge en avance, retirerait toute la
+# fenêtre de restauration et laisserait un instantané daté du futur. L'unité attend donc
+# time-sync.target, qui n'attend vraiment la synchronisation que si systemd-time-wait-sync est actif.
 cat > /etc/systemd/system/sauvegarde-seau-prive.service <<'UNIT'
 [Unit]
 Description=Copie du seau privé des médias vers vps-sauvegardes (TCK-541)
 ConditionPathExists=/usr/local/sbin/sauvegarde-seau-prive
-After=docker.service network-online.target
-Wants=network-online.target
+After=docker.service network-online.target time-sync.target
+Wants=network-online.target time-sync.target
 
 [Service]
 Type=oneshot
@@ -231,6 +234,8 @@ RandomizedDelaySec=5min
 WantedBy=timers.target
 UNIT
 systemctl daemon-reload
+systemctl enable systemd-time-wait-sync.service \
+  || echo "⚠ systemd-time-wait-sync absent (pas de systemd-timesyncd ?) : la copie du seau privé n'attend pas la synchronisation de l'horloge"
 systemctl enable --now sauvegarde-seau-prive.timer
 [ -x /usr/local/sbin/sauvegarde-seau-prive ] || echo "⚠ /usr/local/sbin/sauvegarde-seau-prive absent : copier deploy/server/sauvegarde-seau-prive.sh (runbook), le timer attend."
 
