@@ -111,7 +111,10 @@ const RESTE_CC7 = String.raw`(?:${RESTE_ZONE}|${ZONE_LONGUE_7}`
   + String.raw`|${SEP}{0,3}[3-9](?:${SEP}{0,3}[0-9]){9})(?![0-9])`;
 // Le `(0)` de trunk derrière l'indicatif, comme `APRES_CC` (`RDC +7 (0)495 123-45-67`).
 const ZERO_TRUNK = String.raw`(?:${WS}?\(0\))?`;
-const NUMERO_CC1 = `(?:1${ZERO_TRUNK}(?:${RESTE_CC1}|${RESTE_NANP}|${RESTE_ZONE})|7${ZERO_TRUNK}(?:${RESTE_CC1}|${RESTE_CC7}))`;
+// TCK-2447 : derrière le `1` ou le `7` d'un étage, `(221)` suivi d'un numéro sénégalais est l'indicatif du Sénégal, pas une
+// zone (`Villa R+1 (221) 77 012 34 56`). Hors d'un étage, `ETRANGER` le lit toujours.
+const PAS_ZONE_221 = String.raw`(?!${SEP}?\(221\)${SEP}{0,3}${SENEGAL}${FIN})`;
+const NUMERO_CC1 = `(?:1${ZERO_TRUNK}${PAS_ZONE_221}(?:${RESTE_CC1}|${RESTE_NANP}|${RESTE_ZONE})|7${ZERO_TRUNK}${PAS_ZONE_221}(?:${RESTE_CC1}|${RESTE_CC7}))`;
 const APRES_PLUS_ETAGE = String.raw`${WS}{0,2}(?:[02-689]|(?!${NUMERO_CC1})[17]|1[0-9])(?![0-9])`;
 const PAS_UN_ETAGE = String.raw`(?!${MOT_ETAGE}\+${APRES_PLUS_ETAGE})`;
 const CHIFFRES = (n) => `(?:${SEP}{0,3}[0-9]){${n}}`;

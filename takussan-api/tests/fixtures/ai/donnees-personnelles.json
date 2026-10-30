@@ -284,7 +284,13 @@
     "étage TCK-2445 vérification I1 — RDC, +7 kazakh à zone de quatre chiffres suivi de F": ["RDC +7 (7172) 12-34-56 F", "RDC [TELEPHONE] F"],
     "étage TCK-2445 limite assumée (M1) — un nombre de trois chiffres entre parenthèses derrière R+1, puis un prix : masqué": ["Villa R+1 (150) 2 500 000 F", "Villa R[TELEPHONE] F"],
     "étage TCK-2445 limite assumée (M3) — un nombre de quatre chiffres entre parenthèses derrière R+7, puis un prix : masqué": ["Villa R+7 (8000) 650 000 F", "Villa R[TELEPHONE] F"],
-    "étage TCK-2445 limite assumée (M3) — un code postal entre parenthèses derrière R+7, puis un prix : masqué": ["Studio R+7 (32000) 45 000 F", "Studio R[TELEPHONE] F"]
+    "étage TCK-2445 limite assumée (M3) — un code postal entre parenthèses derrière R+7, puis un prix : masqué": ["Studio R+7 (32000) 45 000 F", "Studio R[TELEPHONE] F"],
+    "étage TCK-2447 — R+1 collé, indicatif (221) entre parenthèses devant un numéro sénégalais : l'étage reste, le numéro est masqué": ["Villa R+1 (221) 77 012 34 56", "Villa R+1 (221) [TELEPHONE]"],
+    "étage TCK-2447 — R+7 collé, indicatif (221) devant un fixe sénégalais": ["Villa R+7 (221) 33 821 00 00", "Villa R+7 (221) [TELEPHONE]"],
+    "étage TCK-2447 — RDC +1 espacé, indicatif (221) collé au numéro": ["Villa RDC +1 (221)77 012 34 56", "Villa RDC +1 (221)[TELEPHONE]"],
+    "étage TCK-2447 — hors d'un étage, +1 (221) reste lu comme un numéro +1 complet": ["Contact +1 (221) 77 012 34 56", "Contact [TELEPHONE] 56"],
+    "étage TCK-2447 — R+1, (221) puis un numéro sénégalais suivi de F (un prix pour PATTERN) : la zone reste lue, rien en clair": ["Villa R+1 (221) 77 012 34 56 F", "Villa R[TELEPHONE] 56 F"],
+    "étage TCK-2447 — R+1, zone (221) suivie d'un numéro nord-américain : la zone reste lue": ["Villa R+1 (221) 555 0123", "Villa R[TELEPHONE]"]
   },
   "courriels": {
     "simple": "awa@exemple.sn",

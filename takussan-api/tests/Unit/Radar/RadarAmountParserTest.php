@@ -165,6 +165,29 @@ class RadarAmountParserTest extends TestCase
         }
     }
 
+    public function test_un_numero_etranger_colle_derriere_r_n_est_pas_un_prix(): void
+    {
+        // TCK-2441 : le `+` neutralisé faisait de `33612345678` un nombre nu, et laissait le dernier groupe devant `F`.
+        $this->assertNull(RadarAmountParser::parse('Villa R+33 612345678'));
+        $this->assertNull(RadarAmountParser::parse('Villa R+33 6 12 34 56 78 F'));
+        // Un étage de 20 ou plus qui n'est pas un indicatif reste un étage devant son prix.
+        $this->assertSame(['amount' => 450_000, 'period' => null], RadarAmountParser::parse('Immeuble R+25 450 000 F'));
+        // Limite assumée (décision 3) : derrière un étage qui est un indicatif, un prix qui a la forme d'un numéro de ce plan
+        // est perdu, comme le masquage le lit déjà (`Immeuble R[TELEPHONE] F`) ; 2 500 000 sur `dev`.
+        $this->assertNull(RadarAmountParser::parse('Immeuble R+30 2 500 000 F'));
+    }
+
+    public function test_l_indicatif_221_devant_un_numero_n_est_pas_un_prix(): void
+    {
+        // TCK-2447 : la plage d'un numéro sénégalais s'étend au `(221)` ou au `221` écrit devant, comme au `+` d'un indicatif.
+        foreach (['Villa R+1 (221) 77 012 34 56', 'Villa R+2 (221) 77 012 34 56', 'Villa (221) 77 012 34 56',
+            'Villa RDC +1 (221) 77 012 34 56', 'Villa 221 / 77 012 34 56', 'Villa (221)77 012 34 56', 'Villa R+1(221) 77 012 34 56'] as $texte) {
+            $this->assertNull(RadarAmountParser::parse($texte), $texte);
+        }
+        $this->assertSame(['amount' => 450_000, 'period' => 'monthly'], RadarAmountParser::parse('Villa R+1 (221) 33 821 00 00, 450 000 F/mois'));
+        $this->assertSame(['amount' => 450_000, 'period' => null], RadarAmountParser::parse('Villa (221) 77 012 34 56 loyer 450 000 F'));
+    }
+
     public function test_un_numero_sept_a_zone_entre_parentheses_derriere_un_etage_n_est_pas_un_prix(): void
     {
         // TCK-2445 : sans la zone entre parenthèses dans `PhoneMasker::CC7_REST`, le `7` était lu comme un étage et un bout

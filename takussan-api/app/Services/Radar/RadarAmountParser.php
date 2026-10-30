@@ -24,7 +24,8 @@ use App\Support\RadarPhone;
  * **Les écartés.** Un nombre suivi d'une unité qui n'est pas une monnaie (« 300 m² », « 3 chambres »,
  * « 5 ans », « 2 mois » — une durée, pas une période : la période s'écrit « /mois », « par mois »),
  * et un nombre qui fait partie d'un numéro de téléphone que le masquage voit, sénégalais, étranger ou
- * lien WhatsApp ({@see PhoneMasker::MASK_PATTERN}, TCK-2412 : `0033612345678` n'est pas un prix).
+ * lien WhatsApp ({@see PhoneMasker::MASK_PATTERN}, TCK-2412 : `0033612345678` n'est pas un prix), avec l'indicatif écrit
+ * devant (`+`, `00`, et `221` nu ou entre parenthèses depuis TCK-2447 : `(221) 77 012 34 56` n'a pas de prix de 221).
  *
  * **Le choix.**
  *   - Une fourchette (« 350 000 - 400 000 F », « de 350 000 à 400 000 F » : un nombre sans marque,
@@ -60,6 +61,9 @@ final class RadarAmountParser
 
     /** Ce qui sépare au plus un numéro et son reste. */
     private const TOUCHING = '/^[\s.\-\/]{0,3}$/u';
+
+    /** TCK-2447 — l'indicatif sénégalais nu ou entre parenthèses juste devant un numéro, au plus trois séparateurs entre eux. */
+    private const SENEGAL_CODE_BEFORE = '/(?:\(221\)|(?<![0-9])221)[\s.\-\/]{0,3}$/u';
 
     /** Puissance de dix de chaque multiplicateur. */
     private const MULTIPLIERS = [
@@ -217,7 +221,15 @@ final class RadarAmountParser
         }
 
         // L'indicatif écrit devant la plage en fait partie : `0033 7 7 1 2 …` ne laisse pas un « prix » de 33.
-        return array_map(static fn (array $f): array => [RadarPhone::prefixStart(substr($text, 0, $f[1])) ?? $f[1], $f[1] + strlen($f[0])], $found[0]);
+        // TCK-2447 : l'indicatif sénégalais écrit nu ou entre parenthèses aussi, `(221) 77 012 34 56` laissait un « prix » de 221.
+        return array_map(static fn (array $f): array => [self::spanStart(substr($text, 0, $f[1])) ?? $f[1], $f[1] + strlen($f[0])], $found[0]);
+    }
+
+    /** L'octet où commence l'indicatif écrit juste devant une plage : `+` / `00` (`RadarPhone::prefixStart()`), ou `221`. */
+    private static function spanStart(string $before): ?int
+    {
+        return RadarPhone::prefixStart($before)
+            ?? (preg_match(self::SENEGAL_CODE_BEFORE, $before, $code, PREG_OFFSET_CAPTURE) === 1 ? $code[0][1] : null);
     }
 
     private static function normalize(string $text): string

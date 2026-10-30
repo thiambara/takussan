@@ -187,8 +187,15 @@ final class PhoneMasker
      * L'indicatif `1` ou `7` et le numéro complet qui le suit : ce qui, derrière un `+` d'étage, n'est pas un étage. Le `(0)`
      * de trunk, que `FOREIGN` admet par `AFTER_CC`, aussi (TCK-2445 : `RDC +7 (0)495 123-45-67` partait en clair).
      */
-    public const CC1_NUMBER = '(?:1'.self::TRUNK_ZERO.'(?:'.self::CC1_REST.'|'.self::NANP_REST.'|'.self::ZONE_REST.')'
-        .'|7'.self::TRUNK_ZERO.'(?:'.self::CC1_REST.'|'.self::CC7_REST.'))';
+    public const CC1_NUMBER = '(?:1'.self::TRUNK_ZERO.self::NOT_SENEGAL_ZONE.'(?:'.self::CC1_REST.'|'.self::NANP_REST.'|'.self::ZONE_REST.')'
+        .'|7'.self::TRUNK_ZERO.self::NOT_SENEGAL_ZONE.'(?:'.self::CC1_REST.'|'.self::CC7_REST.'))';
+
+    /**
+     * TCK-2447 — derrière le `1` ou le `7` d'un étage, `(221)` suivi d'un numéro sénégalais (`PATTERN`) est l'indicatif du
+     * Sénégal entre parenthèses, pas une zone : `Villa R+1 (221) 77 012 34 56` se lisait `+1 (221) 77 012 34`, un numéro
+     * complet, et le contact se perdait. Hors d'un étage, `FOREIGN` le lit toujours (`Contact +1 (221) 77 012 34 56`).
+     */
+    private const NOT_SENEGAL_ZONE = '(?!'.self::SEP.'?\(221\)'.self::SEP.'{0,3}'.self::SENEGAL.self::END.')';
 
     /** Le `(0)` de trunk facultatif derrière l'indicatif, comme dans `AFTER_CC`. */
     private const TRUNK_ZERO = '(?:'.self::WS.'?\(0\))?';
@@ -214,14 +221,20 @@ final class PhoneMasker
      * Pas d'exclusion « marque monétaire » ici, contrairement au numéro sénégalais : elle ferait reculer le
      * motif d'un groupe (`+33 6 12 34 56 78 F. Dupont` laisserait `78 F.`).
      */
-    private const FOREIGN = '(?:(?<![0-9+])(?<![0-9][.,])'.self::NOT_A_FLOOR.'(?:\+(?!'.self::WS.'{1,2}[0-9]{1,3}(?:'.self::SEP.'[0-9]{3})*'.self::SEP.'000(?![0-9]))'.self::WS.'{0,2}|00'.self::SEP.'?)(?:'
+    private const FOREIGN = '(?:(?<![0-9+])(?<![0-9][.,])'.self::NOT_A_FLOOR.'(?:\+(?!'.self::WS.'{1,2}[0-9]{1,3}(?:'.self::SEP.'[0-9]{3})*'.self::SEP.'000(?![0-9]))'.self::WS.'{0,2}|00'.self::SEP.'?)'
+        .self::FOREIGN_NUMBER.'(?<!'.self::SEP.'[0-9])'
+        .'|(?<![0-9])0[1-9](?:[0-9]{8}|(?<sep>'.self::SEP.')[0-9]{2}(?:\k<sep>[0-9]{2}){3}))(?![0-9])';
+
+    /**
+     * TCK-2441 — ce que `FOREIGN` lit derrière le `+` ou le `00` : un indicatif ITU et le nombre de chiffres de son plan.
+     * Lu aussi par `RadarPhone::FLOOR_PLUS` : derrière `R+` collé, un numéro étranger complet garde son `+`.
+     */
+    public const FOREIGN_NUMBER = '(?:'
         .'33'.self::AFTER_CC.'(?:'.self::SEP.'{0,3}[0-9]){9}'
         .'|'.self::CC1.self::AFTER_CC.'(?:'.self::SEP.'?\([0-9]{3}\)(?:'.self::SEP.'{0,3}[0-9]){7}|(?:'.self::SEP.'{0,3}[0-9]){10})'
         .'|7'.self::AFTER_CC.self::CC7_LONG_ZONE
         .'|'.self::CC2.self::AFTER_CC.'(?:'.self::SEP.'{0,3}[0-9]){7,11}'
-        .'|'.self::CC3.self::AFTER_CC.'(?:'.self::SEP.'{0,3}[0-9]){6,10}'
-        .')(?<!'.self::SEP.'[0-9])'
-        .'|(?<![0-9])0[1-9](?:[0-9]{8}|(?<sep>'.self::SEP.')[0-9]{2}(?:\k<sep>[0-9]{2}){3}))(?![0-9])';
+        .'|'.self::CC3.self::AFTER_CC.'(?:'.self::SEP.'{0,3}[0-9]){6,10})';
 
     /**
      * Le lien WhatsApp canonique, qui écrit le numéro sans `+` : `wa.me/33612345678`,

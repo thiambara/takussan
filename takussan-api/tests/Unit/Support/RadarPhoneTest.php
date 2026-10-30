@@ -259,6 +259,41 @@ class RadarPhoneTest extends TestCase
     }
 
     /**
+     * TCK-2441 — derrière un `R` collé, un numéro étranger complet garde son `+` : `Villa R+33 6 12 34 56 78` se lisait
+     * `33 6 12 34 56`, un fixe sénégalais. Les étages de 0 à 19 gardent leur contact (tests ci-dessus).
+     */
+    public function test_un_numero_etranger_colle_derriere_r_n_est_pas_un_contact_senegalais(): void
+    {
+        foreach (['Villa R+33 6 12 34 56 78', 'villa r+33 7 12 34 56 78', 'Villa (R+33 6 12 34 56 78)', 'Villa R+44 77 123 45 67',
+            'Villa R+32 470 12 34 56', 'Villa R+33 6 12 34 56 78 3 chambres', 'Villa R+33 6 12 34 56 78 F'] as $texte) {
+            $this->assertSame([], RadarPhone::fromText($texte), $texte);
+            $this->assertSame([], RadarPhone::contactsFromText($texte), $texte);
+            $this->assertSame($texte, RadarPhone::withoutFloorPlus($texte), $texte);
+        }
+        // Chiffre à chiffre, comme sans `R` (B1) : jamais un contact d'office ; la lecture large le garde pour le refus STOP.
+        $this->assertSame([], RadarPhone::contactsFromText('Villa R+33 7 7 1 2 3 4 5 6 7'));
+
+        // Un étage de 20 ou plus qui n'est pas un indicatif garde son contact. Décision : `R+20` (l'Égypte) suivi d'un
+        // numéro est lu comme un numéro égyptien, et le contact est perdu plutôt qu'un faux inventé.
+        $this->assertSame(['+221771234567'], RadarPhone::contactsFromText('Immeuble R+25 77 123 45 67'));
+        $this->assertSame([], RadarPhone::contactsFromText('Immeuble R+20 77 123 45 67'));
+    }
+
+    /**
+     * TCK-2447 — derrière l'étage `1` ou `7`, `(221)` suivi d'un numéro sénégalais est l'indicatif, pas une zone : le
+     * `+` reste celui de l'étage, et le contact n'est plus perdu.
+     */
+    public function test_l_indicatif_221_entre_parentheses_derriere_un_etage_garde_le_contact(): void
+    {
+        foreach (['Villa R+1 (221) 77 012 34 56', 'Villa R+7 (221) 77 012 34 56', 'Villa RDC +1 (221) 77 012 34 56',
+            'Villa R + 1 (221)77 012 34 56', 'Villa R+1 (221)-77-012-34-56', 'Villa (R+1) (221) 77 012 34 56'] as $texte) {
+            $this->assertSame(['+221770123456'], RadarPhone::fromText($texte), $texte);
+            $this->assertSame(['+221770123456'], RadarPhone::contactsFromText($texte), $texte);
+        }
+        $this->assertSame(['+221338210000'], RadarPhone::contactsFromText('Villa R+1 (221) 33 821 00 00'));
+    }
+
+    /**
      * Vérification adverse M2 — les limites connues du masqueur sont lues (le refus STOP s'y juge), mais ne désignent
      * pas d'office un contact : une unité derrière, un mot de prix ou de liste devant, des crochets.
      */
