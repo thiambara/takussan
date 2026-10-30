@@ -136,6 +136,6 @@ Un annonceur retrouvé sous une ancienne clé est réécrit sous la courante —
   empreinte n'est jamais réécrite sur une valeur déjà prise (lecture, révocation, commande), et la commande compte en
   conflit une ligne qui masque un refus (M1).
 - **ADR-0082** (retenu) plutôt que le seul ticket (écarté) : ADR-0044 exige un ADR pour toute empreinte HMAC sous une clé
-  distincte d'`APP_KEY`, et la règle « jamais perdue, jamais retirée » est du rang des secrets. L'ADR est « Proposé » :
-  décision de la session, à revoir par le porteur.
+  distincte d'`APP_KEY`, et la règle « jamais perdue, jamais retirée » est du rang des secrets. L'ADR, d'abord « Proposé »
+  (décision de la session), a été accepté le 2026-10-30 par le porteur.
 

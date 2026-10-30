@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PlatformAbilities } from '@/lib/platform-abilities';
 import { avecGestes } from '@/test/habilitations';
 import { withIntl } from '@/test/intl';
-import type { RadarObservatory, RadarRankingRow } from '@/types/radar-observatoire';
+import type { RadarNatureHistory, RadarObservatory, RadarRankingRow } from '@/types/radar-observatoire';
 import { RadarObservatoire } from '../RadarObservatoire';
 
 /** TCK-2393 (AC7) — l'écran de l'observatoire : deux onglets, colonnes par `fields[]`, filtres envoyés à l'API. */
@@ -46,6 +46,17 @@ const MARCHE: RadarObservatory = {
   gone_sources: [{ listing_id: 5, source_site: 'coinafrique', gone_at: '2026-10-29T10:00:00+00:00', property: { id: 9, title: 'Villa fictive', public: true } }],
 };
 
+/** TCK-2431 — trois jours comptés avant la purge : 8 annonceurs-jours intermédiaires, 2 propriétaires. */
+let historique: RadarNatureHistory;
+const HISTORIQUE: RadarNatureHistory = {
+  enabled: true,
+  days: 3,
+  first_day: '2026-10-01',
+  last_day: '2026-10-03',
+  advertisers: { probable_owner: 2, probable_intermediary: 8, agency: 0, unknown: 0 },
+  listings: { probable_owner: 2, probable_intermediary: 9, agency: 0, unknown: 0 },
+};
+
 let classement: RadarRankingRow[];
 let fetchMock: ReturnType<typeof vi.fn>;
 const urls = () => fetchMock.mock.calls.map(([url]) => new URL(String(url), 'http://localhost'));
@@ -58,11 +69,14 @@ function rendre(gestes?: PlatformAbilities) {
 
 beforeEach(() => {
   classement = [];
+  historique = HISTORIQUE;
   fetchMock = vi.fn(async (url: string) => {
     const u = new URL(String(url), 'http://localhost');
     const corps = u.pathname.endsWith('/observatory/advertisers')
       ? { data: classement, meta: { total: classement.length, per_page: 25, current_page: 1, last_page: 1 } }
-      : { data: MARCHE, meta: { confirm_runs: 3 } };
+      : u.searchParams.get('fields[radar_observatory]') === 'nature_history'
+        ? { data: { nature_history: historique }, meta: { confirm_runs: 3 } }
+        : { data: MARCHE, meta: { confirm_runs: 3 } };
     return new Response(JSON.stringify(corps), { status: 200 });
   });
   vi.stubGlobal('fetch', fetchMock);
@@ -104,7 +118,7 @@ describe('L’observatoire du Radar (TCK-2393)', () => {
     await utilisateur.click(screen.getByRole('tab', { name: 'Marché' }));
 
     await screen.findByRole('heading', { name: 'Quartiers où Takussan manque d’annonces' });
-    const marche = urls().find((u) => u.pathname === '/api/super-admin/radar/observatory')!;
+    const marche = urls().find((u) => u.pathname === '/api/super-admin/radar/observatory' && u.searchParams.get('fields[radar_observatory]') !== 'nature_history')!;
     expect(marche.searchParams.get('fields[radar_observatory]')).toBe('summary,price_per_m2,time_on_market,supply_gap,natures,gone_sources');
     expect(screen.getByText('Villa fictive')).toBeInTheDocument();
     expect(screen.getByText('75 %')).toBeInTheDocument();
@@ -131,6 +145,48 @@ describe('L’observatoire du Radar (TCK-2393)', () => {
     await utilisateur.type(screen.getByLabelText('Vues depuis le'), '2026-10-01');
 
     await waitFor(() => expect(urls().some((u) => u.searchParams.get('filter[since]') === '2026-10-01')).toBe(true));
+  });
+
+  it('la part par nature dans la durée lit les compteurs figés (nature_history), sa période part à l’API', async () => {
+    const utilisateur = rendre();
+    await screen.findByTestId('radar-classement-vide');
+    await utilisateur.click(screen.getByRole('tab', { name: 'Marché' }));
+
+    const intermediaires = await screen.findByTestId('radar-part-nature-probable_intermediary');
+    expect(within(intermediaires).getByText('80 %')).toBeInTheDocument();
+    expect(within(intermediaires).getByText('8 annonceurs-jours · 9 annonces-jours')).toBeInTheDocument();
+    expect(within(screen.getByTestId('radar-part-nature-probable_owner')).getByText('20 %')).toBeInTheDocument();
+    expect(screen.getByText(/3 jours comptés, du/)).toBeInTheDocument();
+    const historique = () => urls().filter((u) => u.searchParams.get('fields[radar_observatory]') === 'nature_history');
+    expect(historique()).toHaveLength(1);
+    // Le filtre du marché ne porte pas la borne haute : elle n'appartient qu'à cette section.
+    expect(urls().every((u) => !u.searchParams.has('filter[until]'))).toBe(true);
+
+    await utilisateur.type(screen.getByLabelText('Du'), '2026-10-02');
+    await utilisateur.type(screen.getByLabelText('Au'), '2026-10-03');
+
+    await waitFor(() => expect(historique().some((u) => u.searchParams.get('filter[since]') === '2026-10-02' && u.searchParams.get('filter[until]') === '2026-10-03')).toBe(true));
+  });
+
+  it('dit que le comptage par nature est éteint (défaut), distinct d’une période sans jour compté', async () => {
+    historique = { ...HISTORIQUE, enabled: false, days: 0, first_day: null, last_day: null, advertisers: { probable_owner: 0, probable_intermediary: 0, agency: 0, unknown: 0 } };
+    const utilisateur = rendre();
+    await screen.findByTestId('radar-classement-vide');
+    await utilisateur.click(screen.getByRole('tab', { name: 'Marché' }));
+
+    expect(await screen.findByText('Le comptage n’est pas activé')).toBeInTheDocument();
+    expect(screen.queryByText('Aucun jour compté sur cette période')).not.toBeInTheDocument();
+  });
+
+  it('des jours comptés à zéro annonceur ne se disent pas « aucun jour compté »', async () => {
+    historique = { ...HISTORIQUE, advertisers: { probable_owner: 0, probable_intermediary: 0, agency: 0, unknown: 0 } };
+    const utilisateur = rendre();
+    await screen.findByTestId('radar-classement-vide');
+    await utilisateur.click(screen.getByRole('tab', { name: 'Marché' }));
+
+    expect(await screen.findByText('Jours comptés, aucun annonceur')).toBeInTheDocument();
+    expect(screen.getByText(/3 jours comptés, du/)).toBeInTheDocument();
+    expect(screen.queryByText('Aucun jour compté sur cette période')).not.toBeInTheDocument();
   });
 
   it('sans le geste du Radar, un refus et aucun appel', () => {

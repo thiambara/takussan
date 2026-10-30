@@ -17,6 +17,12 @@ spec_refs:
 tags: [api, radar, ia, pgvector, adr-0076]
 ---
 
+## Décision du porteur (2026-10-30)
+
+Rester sur `pg_trgm` (signal de texte livré par TCK-2392) : **aucun fournisseur d'embeddings tant que le volume ne le
+justifie pas**. Le ticket reste `todo`, sans travail engagé, jusqu'à ce que le porteur le rouvre sur une mesure de
+volume.
+
 ## Objectif utilisateur
 
 Deux annonces qui décrivent le même bien avec d'autres mots se rapprochent, et pas seulement celles
