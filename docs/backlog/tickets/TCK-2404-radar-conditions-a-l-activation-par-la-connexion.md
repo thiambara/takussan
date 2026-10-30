@@ -1,13 +1,13 @@
 ---
 id: TCK-2404
 title: "Radar : le compte créé par le Radar et activé par la connexion ordinaire se voit présenter les conditions"
-status: todo
+status: doing
 phase: P1
 family: full
 estimate: S
 wave: 80
 created: 2026-10-29
-updated: 2026-10-29
+updated: 2026-10-30
 depends_on: [TCK-2390]
 blocks: []
 spec_refs:
