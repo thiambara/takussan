@@ -13,6 +13,7 @@ use App\Models\RadarOutreach;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Testing\TestResponse;
 use Spatie\Activitylog\Models\Activity;
 use Tests\TestCase;
@@ -22,6 +23,10 @@ use Tests\TestCase;
  * `read`, `failed`), lus sur son webhook. `provider_status` les suit sans jamais reculer, dans quelque ordre et autant de
  * fois que Meta les livre ; un `failed` est journalisé avec son code Meta ; un accusé n'est jamais une preuve d'accord.
  * Aucun réseau : des corps de webhook écrits à la main.
+ *
+ * Numéro fictif en `+221 77 123 45 67`, le fictif conventionnel du dépôt, et non en `+221 74` : `PhoneMasker` refuse le
+ * préfixe 74, qu'aucun opérateur n'attribue. Le test de non-fuite des journaux éprouve ainsi un numéro que le masqueur
+ * du dépôt traite comme réel.
  */
 class RadarWhatsappReceiptTest extends TestCase
 {
@@ -62,7 +67,7 @@ class RadarWhatsappReceiptTest extends TestCase
         parent::tearDown();
     }
 
-    private function envoye(?string $wamid, string $statut, array $attributs = []): RadarOutreach
+    private function envoye(?string $wamid, ?string $statut, array $attributs = []): RadarOutreach
     {
         return RadarOutreach::factory()->withListings($this->annonce)->sent()->create($attributs + [
             'radar_advertiser_id' => $this->annonceur->id, 'clauses_version' => 'accord.v3', 'channel' => RadarOutreachChannel::WhatsappCloud,
@@ -71,9 +76,9 @@ class RadarWhatsappReceiptTest extends TestCase
     }
 
     /** Un accusé tel que Meta le rapporte ; `code` : l'erreur d'un `failed`. */
-    private function accuse(string $statut, string $id = 'wamid.ENVOYE-1', ?int $code = null, ?int $horodatage = null, string $vers = '221771234567'): array
+    private function accuse(string $statut, string $id = 'wamid.ENVOYE-1', ?int $code = null): array
     {
-        return ['id' => $id, 'status' => $statut, 'timestamp' => (string) ($horodatage ?? now()->getTimestamp()), 'recipient_id' => $vers]
+        return ['id' => $id, 'status' => $statut, 'timestamp' => (string) now()->getTimestamp(), 'recipient_id' => '221771234567']
             + ($code === null ? [] : ['errors' => [['code' => $code, 'title' => 'Message undeliverable', 'message' => 'Message undeliverable',
                 'error_data' => ['details' => 'Le destinataire +221771234567 est injoignable.']]]]);
     }
@@ -148,73 +153,28 @@ class RadarWhatsappReceiptTest extends TestCase
         $this->assertSame('ambiguous', Activity::query()->where('event', 'radar_whatsapp_delivery_failed')->sole()->properties['previous_status']);
     }
 
-    // --- Un envoi ambigu sans identifiant -----------------------------------------------------------
+    // --- Un identifiant inconnu ------------------------------------------------------------------
 
     /**
-     * Un envoi ambigu (délai, 5xx) n'a pas d'identifiant : un accusé d'un identifiant inconnu, au numéro de l'annonceur, ne
-     * peut venir que de lui — le seul envoi ambigu sans identifiant de cet annonceur prend l'identifiant et le statut.
+     * Un envoi ambigu sans identifiant (délai, 5xx) reste `ambiguous`, l'opérateur juge : un accusé d'identifiant inconnu,
+     * même adressé au numéro de l'annonceur, n'est jamais rattaché par inférence (vérification adverse, I-1 ; les scénarios
+     * de double envoi et de message étranger sont dans `RadarWhatsappReceiptGuardTest`). Il est compté et journalisé par
+     * son identifiant et son statut seuls.
      */
-    public function test_un_accuse_inconnu_au_numero_de_l_annonceur_se_rattache_a_son_seul_envoi_ambigu_sans_identifiant(): void
+    public function test_un_accuse_d_identifiant_inconnu_est_ignore_et_l_envoi_ambigu_reste_ambigu(): void
     {
-        $this->message->forceFill(['provider_status' => 'delivered'])->save();
+        Log::spy();
         $ambigu = $this->envoye(null, 'ambiguous');
 
-        $this->recevoir($this->corps([$this->accuse('failed', 'wamid.AMBIGU-1', 131026)]))->assertOk();
-
-        $ambigu->refresh();
-        $this->assertSame('failed', $ambigu->provider_status);
-        $this->assertSame('wamid.AMBIGU-1', $ambigu->provider_message_id);
-        $this->assertSame('delivered', $this->message->fresh()->provider_status);
-        $journal = Activity::query()->where('event', 'radar_whatsapp_delivery_failed')->sole();
-        $this->assertSame($ambigu->id, $journal->properties['outreach_id']);
-        $this->assertTrue($journal->properties['adopted']);
-
-        // L'identifiant adopté : l'accusé suivant s'apparie par lui, sans plus deviner.
-        $this->recevoir($this->corps([$this->accuse('failed', 'wamid.AMBIGU-1', 131026)]))->assertOk();
-        $this->assertSame(1, Activity::query()->where('event', 'radar_whatsapp_delivery_failed')->count());
-    }
-
-    public function test_un_delivered_inconnu_dit_qu_un_envoi_ambigu_est_parti(): void
-    {
-        $ambigu = $this->envoye(null, 'ambiguous');
-
-        $this->recevoir($this->corps([$this->accuse('delivered', 'wamid.AMBIGU-1')]))->assertOk();
-
-        $this->assertSame('delivered', $ambigu->fresh()->provider_status);
-        $this->assertSame('wamid.AMBIGU-1', $ambigu->fresh()->provider_message_id);
-    }
-
-    public function test_deux_envois_ambigus_sans_identifiant_ne_se_devinent_pas(): void
-    {
-        $premier = $this->envoye(null, 'ambiguous');
-        $second = $this->envoye(null, 'ambiguous');
-
-        $this->recevoir($this->corps([$this->accuse('failed', 'wamid.AMBIGU-1', 131026)]))->assertOk();
-
-        $this->assertSame(['ambiguous', 'ambiguous'], [$premier->fresh()->provider_status, $second->fresh()->provider_status]);
-        $this->assertNull($premier->fresh()->provider_message_id);
-        $this->assertSame(0, IntegrationWebhookLog::query()->sole()->matched_count);
-    }
-
-    public function test_un_accuse_bien_anterieur_a_l_envoi_ambigu_ne_s_y_rattache_pas(): void
-    {
-        $ambigu = $this->envoye(null, 'ambiguous');
-
-        $this->recevoir($this->corps([$this->accuse('failed', 'wamid.AMBIGU-1', 131026, now()->subMinutes(11)->getTimestamp())]))->assertOk();
+        $this->recevoir($this->corps([$this->accuse('failed', 'wamid.INCONNU-1', 131026), $this->accuse('delivered', 'wamid.INCONNU-2')]))->assertOk();
 
         $this->assertSame('ambiguous', $ambigu->fresh()->provider_status);
         $this->assertNull($ambigu->fresh()->provider_message_id);
-    }
-
-    public function test_un_accuse_inconnu_d_un_numero_inconnu_ne_touche_rien(): void
-    {
-        $ambigu = $this->envoye(null, 'ambiguous');
-
-        $this->recevoir($this->corps([$this->accuse('failed', 'wamid.AUTRE-1', 131026, vers: '221779999999')]))->assertOk();
-
-        $this->assertSame('ambiguous', $ambigu->fresh()->provider_status);
         $this->assertSame('accepted', $this->message->fresh()->provider_status);
         $this->assertSame(0, Activity::query()->count());
+        $this->assertSame(0, IntegrationWebhookLog::query()->sole()->matched_count);
+        Log::shouldHaveReceived('info')->withArgs(fn (string $ligne, array $contexte): bool => str_contains($ligne, 'identifiant inconnu')
+            && $contexte === ['provider_message_id' => 'wamid.INCONNU-1', 'status' => 'failed']);
     }
 
     // --- Ordre et doublons ------------------------------------------------------------------------
@@ -282,13 +242,12 @@ class RadarWhatsappReceiptTest extends TestCase
     /** Un message manuel (`wa.me`) part d'un autre téléphone : aucun accusé du numéro du Radar ne le vise. */
     public function test_un_message_manuel_n_est_jamais_vise(): void
     {
-        $manuel = $this->envoye(null, 'ambiguous', ['channel' => RadarOutreachChannel::WhatsappManual]);
-        $this->message->forceFill(['provider_status' => 'read'])->save();
+        $manuel = $this->envoye('wamid.MANUEL-1', null, ['channel' => RadarOutreachChannel::WhatsappManual]);
 
-        $this->recevoir($this->corps([$this->accuse('failed', 'wamid.INCONNU-1', 131026)]))->assertOk();
+        $this->recevoir($this->corps([$this->accuse('failed', 'wamid.MANUEL-1', 131026)]))->assertOk();
 
-        $this->assertNull($manuel->fresh()->provider_message_id);
-        $this->assertSame('ambiguous', $manuel->fresh()->provider_status);
+        $this->assertNull($manuel->fresh()->provider_status);
+        $this->assertSame(0, Activity::query()->count());
     }
 
     public function test_messages_et_accuses_d_une_meme_requete_sont_lus_tous_les_deux(): void

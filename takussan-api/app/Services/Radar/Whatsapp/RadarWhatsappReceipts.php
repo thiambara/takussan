@@ -5,7 +5,6 @@ namespace App\Services\Radar\Whatsapp;
 use App\Models\Enums\RadarOutreachChannel;
 use App\Models\RadarAdvertiser;
 use App\Models\RadarOutreach;
-use App\Services\Radar\RadarOutreachWorkflow;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -22,14 +21,14 @@ use Illuminate\Support\Facades\Log;
  * - **Un `failed` est journalisé** (`radar_whatsapp_delivery_failed`) avec le code de Meta, seule partie stable de
  *   l'erreur ; ni son texte (`title`, `message`, `error_data` peuvent citer le numéro), ni le numéro. Sur un envoi
  *   `ambiguous`, il dit que le message n'est pas parti ; le message reste envoyé (`sent_at`) : l'opérateur juge.
- * - **Un envoi ambigu n'a souvent pas d'identifiant** (délai, 5xx : Meta ne l'a pas rendu). Un accusé d'un identifiant
- *   inconnu, adressé au numéro d'un annonceur, ne peut venir que d'un message envoyé par l'API à ce numéro : il se
- *   rattache au SEUL envoi ambigu sans identifiant de cet annonceur, qui prend l'identifiant (les accusés suivants et
- *   les réponses s'apparient alors par lui), à condition que l'accusé ne précède pas l'envoi de plus de
- *   {@see self::ADOPTION_SLACK_SECONDS}. Deux candidats : rien n'est deviné.
+ * - **Un accusé d'identifiant inconnu est ignoré**, compté (`received`) et journalisé par son identifiant et son statut
+ *   seuls, **jamais rattaché par inférence**. Un envoi ambigu sans identifiant (délai, 5xx) reste `ambiguous` :
+ *   l'opérateur juge. Le rattacher « au seul envoi ambigu de ce numéro » rouvrait le double envoi de la reprise de
+ *   {@see RadarWhatsappOutreach} (l'accusé d'une relance pris par un ancien ambigu, puis l'index unique heurté), et
+ *   faisait d'un message étranger au Radar, sur le même numéro, la remise d'un message d'accord (vérification de TCK-2427,
+ *   I-1). Un appariement exact passerait par `biz_opaque_callback_data` (TCK-2436).
  * - **Les verrous suivent l'ordre du Radar** — l'annonceur, puis le message (un sous-ensemble de « annonces, annonceur,
- *   message ») : un accusé qui arrive pendant l'envoi attend que {@see RadarOutreachWorkflow::markSent()}
- *   ait écrit l'identifiant, au lieu de le manquer.
+ *   message ») : deux accusés du même message se sérialisent, et le second relit le statut écrit par le premier.
  */
 final class RadarWhatsappReceipts
 {
@@ -49,9 +48,6 @@ final class RadarWhatsappReceipts
         self::STATUS_DELIVERED => 2,
         self::STATUS_READ => 3,
     ];
-
-    /** L'avance qu'un accusé peut avoir sur l'envoi ambigu qu'il adopte : Meta date l'acceptation, le Radar sa fin d'attente. */
-    public const ADOPTION_SLACK_SECONDS = 600;
 
     public function __construct(private readonly RadarWhatsappNumber $number) {}
 
@@ -93,26 +89,24 @@ final class RadarWhatsappReceipts
         if ($id === '' || mb_strlen($id) > 120 || ! in_array($new, [self::STATUS_SENT, self::STATUS_DELIVERED, self::STATUS_READ, self::STATUS_FAILED], true)) {
             return false;
         }
-        $known = RadarOutreach::query()->where('provider_message_id', $id)->first();
-        $advertiserId = $known?->radar_advertiser_id ?? $this->recipient($status)?->id;
+        $advertiserId = RadarOutreach::query()->where('provider_message_id', $id)->value('radar_advertiser_id');
         if ($advertiserId === null) {
+            Log::info('[radar.whatsapp] accusé d\'un identifiant inconnu, ignoré', ['provider_message_id' => $id, 'status' => $new]);
+
             return false;
         }
-        $timestamp = is_numeric($status['timestamp'] ?? null) ? (int) $status['timestamp'] : null;
 
-        return DB::transaction(function () use ($id, $new, $advertiserId, $timestamp, $status): bool {
+        return DB::transaction(function () use ($id, $new, $advertiserId, $status): bool {
             if (RadarAdvertiser::query()->whereKey($advertiserId)->lockForUpdate()->first() === null) {
                 return false;
             }
-            $outreach = $this->cloud($advertiserId)->where('provider_message_id', $id)->lockForUpdate()->first();
-            $adopted = $outreach === null;
-            $outreach ??= $this->ambiguousWithoutId($advertiserId, $timestamp);
+            $outreach = $this->cloud((int) $advertiserId)->where('provider_message_id', $id)->lockForUpdate()->first();
             if ($outreach === null || ! self::advances($outreach->provider_status, $new)) {
                 return false;
             }
 
             $previous = $outreach->provider_status;
-            $outreach->forceFill(['provider_status' => $new] + ($adopted ? ['provider_message_id' => $id] : []))->save();
+            $outreach->forceFill(['provider_status' => $new])->save();
 
             if ($new === self::STATUS_FAILED) {
                 $code = self::errorCode($status);
@@ -125,7 +119,6 @@ final class RadarWhatsappReceipts
                         'channel' => RadarOutreachChannel::WhatsappCloud->value,
                         'previous_status' => $previous,
                         'provider_error_code' => $code,
-                        'adopted' => $adopted ?: null,
                     ], fn (mixed $value) => $value !== null))
                     ->event('radar_whatsapp_delivery_failed')
                     ->log('Message du Radar non remis par WhatsApp');
@@ -158,38 +151,6 @@ final class RadarWhatsappReceipts
             ->where('radar_advertiser_id', $advertiserId)
             ->where('channel', RadarOutreachChannel::WhatsappCloud->value)
             ->whereNotNull('sent_at');
-    }
-
-    /** Le seul envoi ambigu sans identifiant de l'annonceur, verrouillé, si l'accusé ne le précède pas ; null sinon. */
-    private function ambiguousWithoutId(int $advertiserId, ?int $timestamp): ?RadarOutreach
-    {
-        $candidates = $this->cloud($advertiserId)
-            ->whereNull('provider_message_id')
-            ->where('provider_status', RadarWhatsappOutreach::STATUS_AMBIGUOUS)
-            ->limit(2)
-            ->lockForUpdate()
-            ->get();
-        if ($candidates->count() !== 1) {
-            return null;
-        }
-        $outreach = $candidates->first();
-        if ($timestamp !== null && $timestamp < $outreach->sent_at->getTimestamp() - self::ADOPTION_SLACK_SECONDS) {
-            return null;
-        }
-
-        return $outreach;
-    }
-
-    /**
-     * L'annonceur auquel l'accusé est adressé : Meta écrit le numéro sans `+`, le Radar le garde en E.164.
-     *
-     * @param  array<string, mixed>  $status
-     */
-    private function recipient(array $status): ?RadarAdvertiser
-    {
-        $digits = preg_replace('/\D+/', '', (string) ($status['recipient_id'] ?? '')) ?? '';
-
-        return $digits === '' ? null : RadarAdvertiser::query()->where('phone', '+'.$digits)->first();
     }
 
     /**
