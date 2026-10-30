@@ -263,7 +263,17 @@
     "étage TCK-2445 — RDC, +7 à zone entre parenthèses et espaces fines insécables, suivi de FCFA": ["RDC\u202f+7\u202f(495)\u202f123\u202f45\u202f67\u202fFCFA", "RDC\u202f[TELEPHONE]\u202fFCFA"],
     "étage TCK-2445 — RDC, +7 à zone entre parenthèses suivi de francs": ["RDC +7 (495) 123 45 67 francs", "RDC [TELEPHONE] francs"],
     "étage TCK-2445 — R + 7 espacé, zone entre parenthèses suivi de F CFA": ["Contact R + 7 (343) 123 45 67 F CFA", "Contact R [TELEPHONE] F CFA"],
-    "étage TCK-2445 — au RDC, +7 kazakh à zone entre parenthèses suivi de F": ["au RDC +7 (727) 123-45-67 F", "au RDC [TELEPHONE] F"]
+    "étage TCK-2445 — au RDC, +7 kazakh à zone entre parenthèses suivi de F": ["au RDC +7 (727) 123-45-67 F", "au RDC [TELEPHONE] F"],
+    "étage TCK-2445 — RDC, +7 à zone (2XX) entre parenthèses suivi de F : aucun prix ne s'écrit entre parenthèses": ["RDC +7 (295) 123-45-67 F", "RDC [TELEPHONE] F"],
+    "étage TCK-2445 — RDC, +7 à zone (0XX) entre parenthèses suivi de F": ["RDC +7 (095) 123-45-67 F", "RDC [TELEPHONE] F"],
+    "étage TCK-2445 — R + 7 espacé, zone (1XX) entre parenthèses suivi de F": ["R + 7 (195) 123 45 67 F", "R [TELEPHONE] F"],
+    "étage TCK-2445 — RDC, +1 à zone entre parenthèses hors forme nord-américaine suivi de F": ["RDC +1 (495) 123-45-67 F", "RDC [TELEPHONE] F"],
+    "étage TCK-2445 — +7 à zone de quatre chiffres, sans étage": ["Contact +7 (3452) 12-34-56", "Contact [TELEPHONE]"],
+    "étage TCK-2445 — +7 collé à une zone de quatre chiffres, chiffres collés": ["Tel +7(3452)123456", "Tel [TELEPHONE]"],
+    "étage TCK-2445 — 00 7 à zone de quatre chiffres": ["Tel 007 (3452) 12 34 56", "Tel [TELEPHONE]"],
+    "étage TCK-2445 — RDC, +7 à zone de quatre chiffres suivi de F": ["RDC +7 (3452) 12-34-56 F", "RDC [TELEPHONE] F"],
+    "étage TCK-2445 — +7 à zone de cinq chiffres, sans étage": ["Contact +7 (34922) 1-23-45", "Contact [TELEPHONE]"],
+    "étage TCK-2445 — R + 7 espacé, zone de cinq chiffres suivi de F": ["R + 7 (34922) 1 23 45 F", "R [TELEPHONE] F"]
   },
   "courriels": {
     "simple": "awa@exemple.sn",

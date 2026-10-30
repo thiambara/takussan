@@ -171,7 +171,8 @@ class RadarAmountParserTest extends TestCase
         // du numéro devenait le prix (`1234567`, `495`, `67`, `34567`).
         foreach (['RDC +7 (495) 123-45-67 F', 'R + 7 (495) 123-45-67 F', 'R +7 (812) 123-45-67 XOF', 'RDC +7 (912) 345-67-89 F',
             'RDC+7 (495)1234567 F', 'R+7 (495) 123-45-67 F', 'RDC +7 (495).123.45.67 F', 'RDC +7 (495)/123/45/67 F',
-            "RDC\u{00A0}+7\u{00A0}(495)\u{00A0}123\u{00A0}45\u{00A0}67\u{00A0}FCFA", 'RDC +7 (770) 12 34 567 F'] as $texte) {
+            "RDC\u{00A0}+7\u{00A0}(495)\u{00A0}123\u{00A0}45\u{00A0}67\u{00A0}FCFA", 'RDC +7 (770) 12 34 567 F',
+            'RDC +7 (295).123.45.67 F', 'RDC +1 (495).123.45.67 F', 'RDC +7 (3452) 12 34 56 F', 'Contact +7 (34922) 1 23 45 F'] as $texte) {
             $this->assertNull(RadarAmountParser::parse($texte), $texte);
         }
     }

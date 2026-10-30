@@ -249,7 +249,7 @@ class RadarPhoneTest extends TestCase
     {
         foreach (['RDC +7 (495) 123-45-67 F', 'R + 7 (495) 123-45-67 F', 'R +7 (812) 123-45-67 XOF', 'RDC +7 (912) 345-67-89 F',
             'RDC+7 (495)1234567 F', 'RDC +7 (770) 123 45 67 F', 'RDC +7 (701) 234 56 78 F', 'R + 7 (770) 123-45-67 F',
-            'RDC+7 (770)1234567 F'] as $texte) {
+            'RDC+7 (770)1234567 F', 'RDC +7 (295) 770-12-34 F', 'Contact +7 (7701) 23-45-67', 'Contact +7 (77012) 3-45-67'] as $texte) {
             $this->assertSame([], RadarPhone::fromText($texte), $texte);
             $this->assertSame([], RadarPhone::contactsFromText($texte), $texte);
         }

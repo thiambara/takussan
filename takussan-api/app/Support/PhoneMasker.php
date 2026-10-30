@@ -157,14 +157,29 @@ final class PhoneMasker
      * les mobiles russes (`9XX`) et kazakhs (`7XX`), et les fixes (`495`, `812`, `343`…). Décision de la session : un prix
      * d'étage marqué de cette forme (`R+7 3 250 500 750 F`) est perdu plutôt qu'un fixe envoyé en clair.
      *
-     * TCK-2445 — la zone entre parenthèses aussi (`RDC +7 (495) 123-45-67 F`), comme `NANP_REST` : sans elle, ce numéro
-     * partait en clair derrière `RDC` ou un `R` espacé, puisque `CC1_REST` refuse une marque derrière.
+     * TCK-2445 — la zone entre parenthèses aussi (`RDC +7 (495) 123-45-67 F`, `ZONE_REST`), et la zone longue
+     * (`CC7_LONG_ZONE`).
      */
-    private const CC7_REST = '(?:'.self::SEP.'?\([3-9][0-9]{2}\)|'.self::SEP.'{0,3}[3-9](?:'.self::SEP.'{0,3}[0-9]){2})'
-        .'(?:'.self::SEP.'{0,3}[0-9]){7}(?![0-9])';
+    private const CC7_REST = '(?:'.self::ZONE_REST.'|'.self::CC7_LONG_ZONE
+        .'|'.self::SEP.'{0,3}[3-9](?:'.self::SEP.'{0,3}[0-9]){9})(?![0-9])';
+
+    /**
+     * TCK-2445 — derrière `1` ou `7`, une zone de trois chiffres entre parenthèses (quels qu'ils soient) et sept chiffres sont
+     * un numéro quelle que soit la marque qui suit : sans elle, `RDC +7 (495) 123-45-67 F` partait en clair derrière `RDC` ou
+     * un `R` espacé, puisque `CC1_REST` refuse une marque derrière. Aucun prix ne s'écrit entre parenthèses : la zone ne
+     * coûte aucun prix d'étage.
+     */
+    private const ZONE_REST = self::SEP.'?\([0-9]{3}\)(?:'.self::SEP.'{0,3}[0-9]){7}(?![0-9])';
+
+    /**
+     * TCK-2445 — derrière `7`, une zone de quatre ou cinq chiffres entre parenthèses, puis le reste des dix chiffres
+     * (`+7 (3452) 12-34-56`, `+7 (34922) 1-23-45`) : `FOREIGN` n'admettait que la zone de trois, et ce numéro partait en
+     * clair partout. Lu aussi par `CC7_REST` : derrière un étage, il garde son `+`.
+     */
+    private const CC7_LONG_ZONE = self::SEP.'?\((?:[0-9]{4}\)(?:'.self::SEP.'{0,3}[0-9]){6}|[0-9]{5}\)(?:'.self::SEP.'{0,3}[0-9]){5})';
 
     /** L'indicatif `1` ou `7` et le numéro complet qui le suit : ce qui, derrière un `+` d'étage, n'est pas un étage. */
-    public const CC1_NUMBER = '(?:1(?:'.self::CC1_REST.'|'.self::NANP_REST.')|7(?:'.self::CC1_REST.'|'.self::CC7_REST.'))';
+    public const CC1_NUMBER = '(?:1(?:'.self::CC1_REST.'|'.self::NANP_REST.'|'.self::ZONE_REST.')|7(?:'.self::CC1_REST.'|'.self::CC7_REST.'))';
 
     /** Ce qui suit le `+` d'un étage : un étage de 0 à 19, sauf `1` ou `7` suivi d'un numéro complet. */
     public const FLOOR_AFTER_PLUS = self::WS.'{0,2}(?:[02-689]|(?!'.self::CC1_NUMBER.')[17]|1[0-9])(?![0-9])';
@@ -175,7 +190,7 @@ final class PhoneMasker
      * Un numéro étranger (TCK-2410) : `+` (une espace tolérée derrière) ou `00`, un indicatif ITU, puis
      * les chiffres, séparés par au plus trois caractères (espace, point, tiret, barre oblique). Après
      * l'indicatif, trois parenthèses seulement : `(+33) 6 …`, le `(0)` de `+33 (0)6 …` (il compte pour
-     * un chiffre), et la zone de `+1 (202) 555 0123`. Ailleurs `(` coupe le numéro : `ADR-0064 (2026-10-14)`
+     * un chiffre), et la zone de `+1 (202) 555 0123` (de `+7 (3452) 12-34-56` aussi, TCK-2445). Ailleurs `(` coupe le numéro : `ADR-0064 (2026-10-14)`
      * n'est pas un `00` + indicatif 64. Il ne finit jamais sur un chiffre seul séparé du reste
      * (`… 56 78 3 chambres` : le `3` n'est pas au numéro) ; `+ 250 000 000`, `frais +225 000 000` sont
      * des sommes, pas des numéros (voir `AFTER_CC`).
@@ -190,6 +205,7 @@ final class PhoneMasker
     private const FOREIGN = '(?:(?<![0-9+])(?<![0-9][.,])'.self::NOT_A_FLOOR.'(?:\+(?!'.self::WS.'{1,2}[0-9]{1,3}(?:'.self::SEP.'[0-9]{3})*'.self::SEP.'000(?![0-9]))'.self::WS.'{0,2}|00'.self::SEP.'?)(?:'
         .'33'.self::AFTER_CC.'(?:'.self::SEP.'{0,3}[0-9]){9}'
         .'|'.self::CC1.self::AFTER_CC.'(?:'.self::SEP.'?\([0-9]{3}\)(?:'.self::SEP.'{0,3}[0-9]){7}|(?:'.self::SEP.'{0,3}[0-9]){10})'
+        .'|7'.self::AFTER_CC.self::CC7_LONG_ZONE
         .'|'.self::CC2.self::AFTER_CC.'(?:'.self::SEP.'{0,3}[0-9]){7,11}'
         .'|'.self::CC3.self::AFTER_CC.'(?:'.self::SEP.'{0,3}[0-9]){6,10}'
         .')(?<!'.self::SEP.'[0-9])'
