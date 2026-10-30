@@ -169,13 +169,14 @@ jusqu'à l'avis de l'avocat et la livraison de TCK-2421. Cet amendement lève la
    son compte qu'une fois ses biens dans son espace.
 3. **Les mêmes biens** : ni republication, ni perte. Suivent le bien : l'espace et le titulaire
    (journal du modèle coupé, ADR-0059 § 4), ses demandes et ses clics (l'espace, et lui pour
-   destinataire), ses visites, ses conversations (il prend la place du titulaire précédent), ses
-   empreintes de photos. Ses vues et son contact (son numéro) ne bougent pas. Restent dans l'espace
+   destinataire), ses visites, ses conversations (transmises après le commit à son nouveau contact
+   principal, lui : l'ancien répondant, titulaire ou collaborateur, quitte le fil — TCK-888,
+   ADR-0068 § 3), ses empreintes de photos, et le compteur `properties_count` des deux espaces. Ses vues et son contact (son numéro) ne bougent pas. Restent dans l'espace
    des mandats : ses prospects (le lien d'une demande ou d'une visite reprise vers un prospect de
    l'espace des mandats est retiré) et ses collaborateurs (retirés du bien). Aucun quota n'est rejugé :
    les biens existent déjà.
 4. **Un bien qui porte de la gestion renvoie au support** — réservation, bail, facture de
-   prestataire, mise en avant, demande de maintenance, état des lieux, ou un lot : la page dit
+   prestataire, mise en avant, demande de maintenance, état des lieux, flux de calendrier, ou un lot : la page dit
    `mandate_support` et le code n'est pas envoyé (409 `radar.claim.mandate_support_required`).
 5. **`mandate_at` reste comme trace ; la reprise se date** (`radar_advertisers.mandate_taken_back_at`).
    « Sous mandat », c'est `mandate_at` posé et `mandate_taken_back_at` nul
@@ -187,6 +188,11 @@ jusqu'à l'avis de l'avocat et la livraison de TCK-2421. Cet amendement lève la
    (connexion par téléphone éteinte, aperçu des codes actif), le message reste `mandat.v1`, sans lien.
    Repris, l'annonceur reçoit le message des biens en ligne (`publie.v2`). ⚠ `mandat.v2` est à faire
    relire par l'avocat avec `mandat.v1`.
+7. **Un espace suspendu refuse la reprise**, comme la publication d'une réclamation
+   (`RadarPublisher::publishClaimed()`) : ses biens y quitteraient le public. Refus 409
+   `radar.claim.space_suspended` à l'envoi du code, à la confirmation, et rejugé sous verrou dans la
+   reprise ; les biens restent sous mandat, en ligne, jusqu'au rétablissement de l'espace.
+   ⚠ Décision prise en autonomie (vérification adverse I2), à revoir par le porteur.
 
 Aucun relais automatique des formulaires vers l'annonceur sous mandat (réponse B6 du porteur) : la
 reprise est la voie par laquelle il reçoit lui-même ses demandes.

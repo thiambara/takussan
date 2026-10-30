@@ -81,13 +81,15 @@ ticket en fait une seule règle, `RadarAdvertiser::underMandate()`.
 ### Décisions prises en autonomie, à revoir
 
 1. **Ce qui suit le bien** : ses demandes et ses clics (espace, destinataire), ses visites (agent), ses
-   conversations (le titulaire précédent cède sa place), ses empreintes de photos. Écarté : ne déplacer
+   conversations (transmises après le commit au nouveau contact principal, `transmitForProperty()`,
+   TCK-888 : l'ancien répondant, titulaire ou collaborateur, quitte le fil), ses empreintes de photos,
+   et le compteur `properties_count` des deux espaces. Écarté : ne déplacer
    que le bien, ce qui perdrait les demandes (AC1).
 2. **Ce qui reste à l'espace des mandats** : ses prospects (le lien `customer_id` des demandes et des
    visites reprises est retiré) et ses collaborateurs (retirés du bien). Écarté : déplacer les prospects,
    qui sont partagés entre tous les biens de l'espace des mandats.
 3. **Un bien qui porte de la gestion renvoie au support** : réservation, bail, facture de prestataire,
-   mise en avant, maintenance, état des lieux, ou un lot. C'est l'état `mandate_support`, avec le code
+   mise en avant, maintenance, état des lieux, flux de calendrier, ou un lot. C'est l'état `mandate_support`, avec le code
    409 `radar.claim.mandate_support_required`. Écarté : les déplacer d'office (paiements et prospects
    d'un autre espace). Rien de cela ne naît d'une publication sous mandat.
 4. **Aucun quota rejugé à la reprise** : les biens existent et sont déjà en ligne. Écarté : refuser une
@@ -100,6 +102,17 @@ ticket en fait une seule règle, `RadarAdvertiser::underMandate()`.
    seul lien du message d'accord, mort au bout de 30 jours.
 7. **Sous mandat, une confirmation sans annonce cochée est permise** quand il y a des biens à reprendre.
    Écarté : exiger une annonce à publier.
+8. **À revoir — un espace suspendu refuse la reprise** (vérification adverse I2), comme
+   `publishClaimed()` : 409 `radar.claim.space_suspended` à l'envoi du code, à la confirmation et sous
+   le verrou de la reprise ; les biens restent sous mandat, en ligne. Écarté : reprendre quand même, ce
+   qui sortirait les biens du public (`Property::agencyIsPublic()`) sans que l'annonceur le voie.
+   Autre voie à trancher par le porteur : reprendre et laisser les biens hors ligne jusqu'au
+   rétablissement.
+
+### Suite
+
+- `absorbOrphan()` réécrivait `user_id` journal ouvert : TCK-2439, livré dans cette branche (commit
+  séparé).
 
 ### Prérequis du porteur (hors code)
 
