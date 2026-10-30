@@ -772,8 +772,16 @@ en est le premier usager. Vision et lots : [plan du 2026-10-26](plans/2026-10-26
   n'est pas masqué. Un test qui a besoin d'un numéro lu comme réel (masqué, extrait, apparié) prend
   un préfixe attribué, par défaut `+221 77` (le plus souvent `+221 77 123 45 67`) ; un autre préfixe
   attribué (`78`, `70`, `76`) sert pour un numéro distinct du premier, ou pour éprouver ce préfixe
-  (`PhoneMaskerTest`, `RadarPhoneTest`) (décision du porteur du 2026-10-30). Le `+` d'un étage (`R+0` à `R+19`, derrière un `R` isolé) n'est pas un
-  indicatif : le prix ou le numéro qui le suit reste lu (TCK-2428).
+  (`PhoneMaskerTest`, `RadarPhoneTest`) (décision du porteur du 2026-10-30). Le `+` d'un étage n'est
+  pas un indicatif : `R+0` à `R+19` ou `RDC+0` à `RDC+19`, derrière un `R` ou un `RDC` isolé, avec au
+  plus deux espaces de chaque côté du `+` (`R + 1`, `RDC+1`) ; le prix ou le numéro qui le suit reste
+  lu (TCK-2428, TCK-2435). Un étage `1` ou `7` cesse d'en être un quand un numéro complet de cet
+  indicatif le suit : dix chiffres (zone entre parenthèses comprise) qu'aucune marque monétaire ne
+  suit (`F`, `FCFA`, `CFA`, `XOF`, `francs` ; un `F.` suivi d'une lettre est une initiale, pas une
+  marque), ou, quelle que soit la marque, la forme nord-américaine `[2-9]XX [2-9]XX XXXX` derrière
+  `1` et dix chiffres commençant par 3 à 9 derrière `7` : `au RDC +1 514 555 0199` est masqué. Un
+  prix d'étage qui a l'une de ces formes est masqué, donc perdu (`R+1 2 345 678 900 F`) : jamais un
+  numéro ne part en clair (TCK-2435).
 - **Seul le jeu d'évaluation de l'extraction du Radar part de vraies annonces** : 20 annonces
   relevées le 2026-10-29 sur Expat-Dakar et CoinAfrique, anonymisées puis réécrites (titres
   reformulés, prix et surfaces décalés, adresses ramenées au quartier ; provenance dans
@@ -971,7 +979,11 @@ catalogue tant que cet accord n'existe pas. Vision et lots : [plan du 2026-10-26
   choisi d'office, sans humain (le modèle n'a rendu aucun numéro), écarte en plus une forme précédée
   d'un `+` / `00` nu, suivie d'une unité, ou précédée d'un mot de prix ou de liste. L'étage `R+1`
   n'est pas un indicatif, et aucun nombre qui fait partie d'un numéro n'est lu comme un prix
-  (TCK-2412). Un nombre nu de moins de 100, sans monnaie, période ni multiplicateur, n'est jamais
+  (TCK-2412). `RDC+1` et `R + 1` ne le sont pas non plus, sous la règle du masquage du socle IA
+  ([§2.11](#211-socle-ia)) : un numéro sénégalais qui les suit reste le contact de l'annonce, et un
+  numéro étranger complet écrit derrière (`RDC+33 6 12 34 56 78`, `R + 1 514 555 0199`) n'en
+  devient jamais un (TCK-2435). Limite connue : derrière un `R+` collé, un indicatif étranger
+  (`R+33 6 12 34 56 78`) peut encore donner un contact `+221 33…` (TCK-2441). Un nombre nu de moins de 100, sans monnaie, période ni multiplicateur, n'est jamais
   choisi comme prix (un compte, un horaire `H24/7`, le reste d'un numéro) (TCK-2428).
 - **La collecte ne part que d'un geste du porteur** : une source naît éteinte ; celui qui l'allume en
   devient l'opérateur, au nom duquel l'extraction est jugée et comptée sur le budget d'IA. Une
