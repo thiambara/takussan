@@ -136,9 +136,19 @@ la PR de TCK-2392 puis celle-ci le bascule, dans le même geste que TCK-2392.
   `extracted`, `source_url`, `phone`, `display_name`, `similarity_text`, `nature_signals`) couvre toutes les
   sections, `natures` comprise.
 - **Les instantanés détachés par la purge restent au marché** (AC1) : `RadarObservatory` réunit (`UNION ALL`) les
-  annonces suivies et une ligne par annonce purgée. Pour qu'une ligne vaille une annonce, la purge (`RadarPurger`,
-  méthode de TCK-2392 étendue ici) ne garde que le dernier instantané, étendu à toute la présence, supprime ceux d'un
-  doublon d'annonce, et recopie `detached_gone_at` et `detached_in_catalog` (migration `2026_10_30_393100`).
+  annonces suivies et une ligne par annonce purgée à échéance. Pour qu'une ligne vaille une annonce, la purge
+  (`RadarPurger::detachSnapshots`, méthode de TCK-2392 réconciliée ici : sa règle de confidentialité prime) ne garde que
+  le dernier instantané, étendu à toute la présence, supprime ceux d'un doublon d'annonce, et recopie
+  `detached_gone_at` (au jour), `detached_in_catalog` et `detached_source_site` (migration `2026_10_30_393100`) ; sans
+  passage, toutes dates au jour. Une purge pour STOP, révocation ou `do_not_contact` supprime les instantanés : ces
+  annonces quittent le marché (`test_une_purge_pour_stop_retire_ses_annonces_du_marche`).
+- **Risque de ré-identification d'une ligne détachée, réel, non traité** (à trancher par le porteur) : la fiche purgée
+  garde `source_site`, `created_at` (à la seconde), `source_gone_at` (à la seconde), `duplicate_of_property_id` et
+  `radar_advertiser_id`. Une ligne détachée porte le site, son premier jour de présence (≈ le jour de création de la
+  fiche), le jour de sa disparition et le catalogue : un jour où un site n'a qu'une annonce purgée, la jointure
+  site + jour de création + jour de disparition retrouve sa fiche, donc son annonceur — et même sans le site, prix,
+  quartier et surface rendent souvent une annonce unique. Pistes : tronquer ou vider ces colonnes de la fiche à la purge
+  (TCK-2392), ou ne détacher que lorsque plusieurs annonces du même site sont purgées le même jour.
 - **`fields[radar_observatory]`** n'est pas un sparse fieldset de table : il choisit les sections calculées. Le garde
   du front TCK-1184 le range parmi les `fields` sans `$queryFields` (`HORS_BUILD_QUERY`).
 - **Le classement ajoute toujours `id`, `user_id` et `do_not_contact_at` au sparse fieldset** : la piste commerciale
@@ -174,6 +184,6 @@ la PR de TCK-2392 puis celle-ci le bascule, dans le même geste que TCK-2392.
     `AuditAgencyResolver` pour le journal `Radar`, qui changerait une règle commune pour un seul écrivain.
 12. **Le classement rend `phone` et `display_name`** (ADR-0083 § 5, écran super-admin) : décision de la session,
     notée pour le porteur, qui peut demander un classement sans eux.
-13. **Une annonce purgée au marché** : une ligne détachée, au dernier état connu (prix, présence, disparition,
-    catalogue). Écarté : compter chaque instantané détaché, qui compterait plusieurs fois une annonce dont le prix a
+13. **Une annonce purgée au marché** : à échéance, une ligne détachée au dernier état connu (prix, présence,
+    disparition, catalogue, site), au jour ; pour un STOP, aucune (décision de la session). Écarté : compter chaque instantané détaché, qui compterait plusieurs fois une annonce dont le prix a
     changé et compterait les doublons ; écarté aussi : effacer les instantanés à la purge, qui viderait les séries.

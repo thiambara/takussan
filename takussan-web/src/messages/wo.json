@@ -8665,7 +8665,7 @@
             },
             "price": {
               "title": "Prix au mètre carré",
-              "description": "Médiane du dernier prix affiché de chaque annonce, rapporté à sa surface. Le nombre d’annonces dit ce que vaut la médiane. Une annonce purgée reste comptée, à son dernier état connu.",
+              "description": "Médiane du dernier prix affiché de chaque annonce, rapporté à sa surface. Le nombre d’annonces dit ce que vaut la médiane. Une annonce purgée à échéance reste comptée, à son dernier état connu ; celle d’un annonceur qui a dit STOP ne l’est plus.",
               "empty": "Aucune annonce avec prix et surface"
             },
             "time": {

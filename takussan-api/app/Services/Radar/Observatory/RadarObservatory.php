@@ -17,9 +17,10 @@ use Illuminate\Support\Facades\DB;
  * **Le marché** est l'ensemble des annonces collectées qui ont au moins un instantané, doublons exclus
  * (`duplicate_of_listing_id` : la même maison vue sur trois sites est UNE annonce). L'état courant d'une annonce est son
  * dernier instantané ; sa présence va du premier `first_seen_at` au dernier `last_seen_at`. **Une annonce purgée** y reste
- * par l'unique instantané que la purge a détaché d'elle (TCK-2392) : son dernier état connu, son site par le passage qui
- * l'a écrit, sa disparition et son catalogue recopiés (`detached_gone_at`, `detached_in_catalog`). Elle n'est plus
- * observée : une annonce encore en ligne à la purge le reste ici, jusqu'à ce que `since` la fasse sortir.
+ * par l'unique instantané que la purge des 90 jours a détaché d'elle (TCK-2392) : son dernier état connu, sa présence,
+ * sa disparition, son catalogue et son site recopiés (`detached_*`), toutes dates AU JOUR. Elle n'est plus observée : une
+ * annonce encore en ligne à la purge le reste ici, jusqu'à ce que `since` la fasse sortir. Une annonce purgée pour un STOP,
+ * une révocation ou `do_not_contact` n'y est plus : la purge supprime ses instantanés.
  *
  * **Anonyme, donc survivant à la purge** : les sections du marché (`summary`, `price_per_m2`, `time_on_market`,
  * `supply_gap`, `gone_sources`) ne lisent que `radar_listing_snapshots`, les colonnes anonymes de `radar_listings` (site,
@@ -99,9 +100,8 @@ final class RadarObservatory
     private function detached(): Builder
     {
         return DB::table('radar_listing_snapshots as d')
-            ->leftJoin('radar_crawl_runs as r', 'r.id', '=', 'd.crawl_run_id')
             ->whereNull('d.radar_listing_id')
-            ->selectRaw('null::bigint as listing_id, r.site as source_site, d.detached_gone_at as gone_at, d.detached_in_catalog as in_catalog')
+            ->selectRaw('null::bigint as listing_id, d.detached_source_site as source_site, d.detached_gone_at as gone_at, d.detached_in_catalog as in_catalog')
             ->addSelect(['d.price', 'd.rent_period', 'd.contract', 'd.property_type', 'd.surface_m2', 'd.geo_neighborhood_id'])
             ->selectRaw('d.first_seen_at as first_seen, d.last_seen_at as last_seen');
     }

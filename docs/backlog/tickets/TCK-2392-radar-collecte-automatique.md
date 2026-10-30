@@ -96,7 +96,8 @@ annonces. Le service de collecte séparé (Playwright) n'est envisagé que si la
       fusion n'est plus retentée ; une fusion posée à la main ne se sépare pas par cette route.
 - [x] AC8 — Le job du passage atterrit sur la file longue, et `scripts/check-queues.mjs` est vert.
 - [x] AC9 — Une annonce purgée, `do_not_contact`, ou d'un annonceur qui a dit STOP n'est ni observée ni
-      comptée par un passage ; la purge détache ses instantanés, qui ne gardent que l'observation de marché.
+      comptée par un passage. Purgée pour un refus, elle perd ses instantanés ; purgée à l'échéance, ils sont
+      détachés, sans passage, dates au jour, et aucune jointure ne les relie à la fiche ni à l'annonceur.
 - [x] AC10 — Sans `RADAR_MERGE_AUTO`, rien ne fusionne d'office ; allumée, deux biens du même annonceur
       dans le même quartier à prix voisin ne fusionnent pas.
 
@@ -134,6 +135,8 @@ Livré sur `feat/radar-collecte-automatique` : schéma (`c3c3d638b`), services d
   instantanés (`radar_listing_id` nullable, migration `392300`) ; fusion d'office éteinte par défaut et règle
   resserrée ; ADR-0080 ; boucle de pagination (`radar.crawl.loop`) ; passage perdu jugé depuis `started_at`, fin
   conditionnelle ; `radar:backfill-similarity` ; avis « allumée sans opérateur ».
+  Contre-vérification (B1-bis) : un STOP supprime les instantanés ; l'échéance les détache sans passage et au jour ;
+  les deux jointures du banc sont un test.
 - **Une séparation ne rend pas les doublons redirigés** : quand une fusion d'office a rattaché à l'annonce B des doublons
   qui pointaient vers A, séparer B ne les rend pas à A. L'opérateur les reprend à la main ; le cas demande deux fusions
   d'office successives sur la même grappe, rare tant que la fusion est éteinte.
@@ -166,10 +169,12 @@ Livré sur `feat/radar-collecte-automatique` : schéma (`c3c3d638b`), services d
    fusion allumée par défaut (le porteur l'allume après l'avoir mesurée sur de vraies annonces).
 7. **Seuils du texte** : `pg_trgm` ≥ 0,5 rapproche (`low`), ≥ 0,8 est « presque identique » (`medium`) ; le texte
    n'est jamais `high` seul. Mesuré : 300 paires de paragraphes Faker plafonnent à 0,38.
-8. **La purge détache les instantanés au lieu de les supprimer** (décision de la session, à confirmer par le porteur) :
-   `radar_listing_id`, `title_fingerprint` et le lieu écrit passent à nul ; prix, quartier du référentiel, chambres,
-   surface, dates et passage restent en observation de marché anonyme. Écarté : les supprimer (l'observatoire perdrait
-   des séries que plus rien ne rattache à une personne).
+8. **La purge supprime les instantanés d'un refus, et détache les autres** (décision de la session après la
+   contre-vérification B1-bis, à confirmer par le porteur, ADR-0080 § 4) : STOP, révocation ou `do_not_contact` →
+   supprimés ; échéance des 90 jours → `radar_listing_id`, `crawl_run_id`, `title_fingerprint` et le lieu écrit à nul,
+   dates au jour, `updated_at` sans l'instant de la purge, et la fiche purgée oublie `discovered_by_run_id`. Écarté :
+   détacher aussi pour un refus (deux jointures rendaient l'empreinte du numéro de l'annonceur STOP) ; tout supprimer
+   (l'observatoire perdrait des séries que plus rien ne rattache à une personne).
 9. **Une source allumée sans opérateur est signalée, pas éteinte d'office** : l'écran le dit et dit comment la
    reprendre. Écarté : l'éteindre automatiquement (un geste du porteur défait sans lui).
 

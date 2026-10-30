@@ -6,9 +6,10 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * TCK-2392 (ADR-0080, ADR-0077 §9) — la purge d'une annonce DÉTACHE ses instantanés : `radar_listing_id` passe nullable,
- * et `RadarPurger` le met à null (avec `title_fingerprint` et `neighborhood_label`). Ne reste qu'une observation de
- * marché anonyme — prix, quartier du référentiel, chambres, surface, dates — que l'observatoire (TCK-2393) peut lire.
+ * TCK-2392 (ADR-0080, ADR-0077 §9) — la purge d'une annonce échue sans refus DÉTACHE ses instantanés : `radar_listing_id`
+ * passe nullable, et `RadarPurger` le met à null (avec `crawl_run_id`, `title_fingerprint`, `neighborhood_label`, et les
+ * dates ramenées au jour). Ne reste qu'une observation de marché anonyme — prix, quartier du référentiel, chambres,
+ * surface, présence au jour — que l'observatoire (TCK-2393) peut lire. Pour un STOP, ils sont supprimés.
  *
  * La clé étrangère ne change pas (`cascadeOnDelete` vers `radar_listings`) : une ligne détachée n'a plus de parent à
  * suivre. `down()` rend la colonne obligatoire ; les instantanés détachés n'ont alors plus de place et sont SUPPRIMÉS

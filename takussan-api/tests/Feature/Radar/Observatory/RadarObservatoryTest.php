@@ -174,25 +174,45 @@ class RadarObservatoryTest extends TestCase
     }
 
     /**
-     * AC1 — les agrégats du marché calculés avant la purge sont identiques après : ils ne lisent rien de ce qu'elle efface.
-     * La purge DÉTACHE les instantanés (TCK-2392) : le marché compte ces lignes sans annonce, une par annonce purgée.
+     * AC1 — les agrégats du marché calculés avant la purge des 90 jours sont identiques après : ils ne lisent rien de ce
+     * qu'elle efface. La purge DÉTACHE les instantanés (TCK-2392), dates au jour : le marché compte ces lignes sans annonce,
+     * une par annonce purgée (les présences du marché semé tombent toutes à la même heure : la troncature au jour ne
+     * change aucune durée).
      */
     public function test_les_agregats_du_marche_survivent_a_la_purge(): void
     {
         $this->semerLeMarche();
         $avant = $this->observer(self::SECTIONS_ANONYMES);
 
-        // L'annonceur dit STOP, et 90 jours passent : ses annonces jamais publiées sont purgées, son numéro et son nom effacés.
-        $this->annonceur->forceFill(['do_not_contact_at' => now()])->save();
+        // 90 jours passent : les annonces jamais publiées sont échues, et purgées.
+        RadarListing::query()->whereNull('property_id')->update(['purge_at' => '2027-01-28 00:00:00']);
         $this->travelTo('2027-02-15 12:00:00');
         $comptes = app(RadarPurger::class)->run();
 
-        $this->assertGreaterThanOrEqual(3, $comptes['listings']);
+        $this->assertSame(4, $comptes['listings']);
         $this->assertSame(0, RadarListing::query()->whereNotNull('raw_text')->where('stage', RadarListingStage::Purged->value)->count());
-        $this->assertNull($this->annonceur->refresh()->phone);
         // Trois annonces purgées hors doublon, une ligne détachée chacune ; le doublon n'en laisse aucune.
         $this->assertSame(3, RadarListingSnapshot::query()->whereNull('radar_listing_id')->count());
+        $this->assertSame(0, RadarListingSnapshot::query()->whereNull('radar_listing_id')->whereNotNull('crawl_run_id')->count());
         $this->assertSame($avant, $this->observer(self::SECTIONS_ANONYMES));
+    }
+
+    /**
+     * Décision du porteur (TCK-2392, B1-bis) — une annonce purgée pour un STOP perd ses instantanés : elle quitte le marché.
+     * Seules restent les annonces de l'annonceur publiées (jamais purgées).
+     */
+    public function test_une_purge_pour_stop_retire_ses_annonces_du_marche(): void
+    {
+        $this->semerLeMarche();
+
+        $this->annonceur->forceFill(['do_not_contact_at' => now()])->save();
+        $comptes = app(RadarPurger::class)->run();
+
+        $this->assertSame(3, $comptes['listings']);
+        $this->assertSame(0, RadarListingSnapshot::query()->whereNull('radar_listing_id')->count());
+        $this->assertNull($this->annonceur->refresh()->phone);
+        // Restent l'annonce publiée (Mermoz) et le doublon d'un autre annonceur, que le marché ne compte pas.
+        $this->assertSame(['listings' => 1, 'online' => 1, 'gone' => 0, 'in_catalog' => 1, 'sites' => ['expat_dakar']], $this->observer(['summary'])['summary']);
     }
 
     /**
@@ -223,11 +243,14 @@ class RadarObservatoryTest extends TestCase
         $lignes = RadarListingSnapshot::query()->whereNull('radar_listing_id')->orderBy('first_seen_at')->get();
         $this->assertCount(2, $lignes);
         $this->assertEquals(700000, $lignes[0]->price);
-        $this->assertTrue($lignes[0]->first_seen_at->equalTo($this->instant('2026-10-10 08:00:00')));
-        $this->assertTrue($lignes[0]->last_seen_at->equalTo($this->instant('2026-10-18 08:00:00')));
+        // Au jour, sans passage : rien qui rejoigne la fiche purgée à la seconde.
+        $this->assertTrue($lignes[0]->first_seen_at->equalTo($this->instant('2026-10-10 00:00:00')));
+        $this->assertTrue($lignes[0]->last_seen_at->equalTo($this->instant('2026-10-18 00:00:00')));
         $this->assertSame(5, $lignes[0]->observations);
-        $this->assertTrue($lignes[0]->detached_gone_at->equalTo($this->instant('2026-10-19 08:00:00')));
+        $this->assertTrue($lignes[0]->detached_gone_at->equalTo($this->instant('2026-10-19 00:00:00')));
         $this->assertFalse($lignes[0]->detached_in_catalog);
+        $this->assertSame('expat_dakar', $lignes[0]->detached_source_site);
+        $this->assertNull($lignes[0]->crawl_run_id);
         $this->assertNull($lignes[1]->detached_gone_at);
         $this->assertTrue($lignes[1]->detached_in_catalog);
         $this->assertSame(0, RadarListingSnapshot::query()->whereNotNull('radar_listing_id')->count());

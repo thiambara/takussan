@@ -9319,7 +9319,7 @@
             },
             "price": {
               "title": "Price per square metre",
-              "description": "Median of each listing’s latest asking price divided by its surface. The number of listings tells how much the median is worth. A purged listing is still counted, at its last known state.",
+              "description": "Median of each listing’s latest asking price divided by its surface. The number of listings tells how much the median is worth. A listing purged at expiry is still counted, at its last known state; one whose advertiser said STOP no longer is.",
               "empty": "No listing with price and surface"
             },
             "time": {
