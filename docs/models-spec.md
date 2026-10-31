@@ -5247,7 +5247,8 @@ du Radar (`config/radar_whatsapp.php`), sous les verrous de `markSent`, et écri
 un délai, un 5xx ou une écriture défaite après l'envoi marquent le message envoyé, `ambiguous`, pour ne jamais
 écrire deux fois. Les accusés du webhook (`RadarWhatsappReceipts`, TCK-2427) font avancer `provider_status` des seuls
 messages `whatsapp_cloud` envoyés, appariés par `provider_message_id` ou, pour un envoi sans identifiant, par le jeton
-opaque (ci-dessous, TCK-2436) ; ils ne touchent ni `sent_at`, ni l'issue.
+opaque (ci-dessous, TCK-2436) ; ils ne touchent ni `sent_at`, ni l'issue ; un `failed` écrit aussi le code de Meta
+(`provider_error_code`, TCK-2444).
 
 **Jeton opaque des accusés (TCK-2436, [ADR-0081](adr/0081-le-radar-prospecte-par-l-api-whatsapp-sur-son-propre-numero.md), amendement du 2026-10-30).**
 Avant l'appel à Meta, `RadarWhatsappOutreach::assignCallbackToken()` écrit sur la ligne préparée, par une écriture
@@ -5280,6 +5281,7 @@ pendant l'appel attend le verrou de l'annonceur que tient `markSent`, puis relit
 | provider_message_id | string(120) | oui | null | TCK-2395 : identifiant du message chez Meta (`wamid`) ; unique partiel. Un accusé d'identifiant inconnu est ignoré (TCK-2427), sauf s'il porte le `provider_callback_token` d'un envoi `whatsapp_cloud` envoyé sans identifiant, s'il est adressé au numéro de son annonceur et si son identifiant n'est porté par aucune autre ligne (voir ci-dessus) : cet identifiant est alors écrit ici (TCK-2436) |
 | provider_status | string(20) | oui | null | TCK-2395 : `accepted` (Meta a rendu un identifiant) ou `ambiguous` (délai, 5xx, ou écriture défaite après l'envoi : marqué envoyé pour ne jamais écrire deux fois) ; puis, par les accusés du webhook, `sent`, `delivered`, `read` ou `failed`, sans jamais reculer (`failed` ne suit ni `delivered` ni `read`) (TCK-2427). La fiche annonceur l'affiche à côté du canal : `accepted` et `sent` « Envoyé », `delivered` « Remis », `read` « Lu », `failed` « Non remis » ; rien pour `ambiguous` ni pour un message `whatsapp_manual` (TCK-2437) |
 | provider_callback_token | string(64) | oui | null | TCK-2436 : jeton aléatoire (40 caractères hexadécimaux), sans donnée personnelle, transmis à Meta en `biz_opaque_callback_data` à chaque envoi par l'API et commité avant l'appel ; apparie exactement les accusés d'un envoi `ambiguous` sans identifiant. Unique partiel ; jamais journalisé ni rendu par `RadarOutreachResource`. Inerte sur une ligne jamais envoyée ou envoyée à la main |
+| provider_error_code | integer | oui | null | TCK-2444 : code de Meta de la première erreur (`errors[0].code`) d'un accusé `failed` (`131026`…), entier ou chaîne de chiffres ; null sans code ou hors de l'intervalle 0 à 2147483647 (le statut `failed` s'écrit quand même). Écrit par `RadarWhatsappReceipts` avec le statut `failed`, remis à null par tout autre statut qu'il écrit (aucun ne suit `failed` aujourd'hui). Jamais le texte de l'erreur (`title`, `message`, `error_data`). `RadarOutreachResource` ne le rend qu'avec `provider_status = failed` ; la fiche en dérive le motif. Les échecs reçus avant la colonne n'ont leur code qu'au journal d'activité |
 | created_at / updated_at | timestamp | | auto | |
 
 **`radar_outreach_listing`** (sans `id` ni horodatage) : clé primaire composite
