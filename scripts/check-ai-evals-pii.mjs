@@ -74,7 +74,7 @@ const NUMERO_ENTIER = `(?:${SENEGAL}${FIN}|${SENEGAL_LIBRE}${FIN})`;
 const PAR_GROUPES = `(?:${PREFIXE}${SEP}?(?:[0-9]{3}${SEP}?[0-9]{2}${SEP}?[0-9]{2}|[0-9]{2}${SEP}?[0-9]{2}${SEP}?[0-9]{3}|[0-9]{2}${SEP}?[0-9]{3}${SEP}?[0-9]{2})`
   + `|${PREFIXE}[0-9]${SEP}?(?:[0-9]{2}${SEP}?[0-9]{2}${SEP}?[0-9]{2}|[0-9]{3}${SEP}?[0-9]{3})`
   + `|${PREFIXE_ESPACE}(?:${SEP}[0-9]){7})(?![0-9])`;
-const PAS_COUPE = String.raw`(?:(?=${PAR_GROUPES}(?!${SEP}{0,2}\/))|(?!(?:${SEP}{0,3}[0-9]){2,8}${SEP}{1,3}(?:${SENEGAL}|${SENEGAL_LIBRE})(?![0-9])))`;
+const PAS_COUPE = String.raw`(?:(?=${PAR_GROUPES}(?!${SEP}{0,2}\/))(?!(?:${SEP}{0,3}[0-9]){1,8}${SEP}{0,2}\/)|(?!(?:${SEP}{0,3}[0-9]){2,8}${SEP}{1,3}(?:${SENEGAL}|${SENEGAL_LIBRE})(?![0-9])))`;
 const PAS_DE_MILLE = `(?:(?<=${SEP}0[0-9])|(?!${SEP}{1,3}000(?![0-9])))`;
 const MONTANT = `[1-9][0-9]{0,2}(?:${SEP}[0-9]{3})+(?!${SEP}?[0-9])`;
 // Avec `+221` ou `00221`, la suite : un numéro tronqué suivi d'un autre s'arrête devant lui (TCK-2454).
@@ -143,7 +143,7 @@ const CHIFFRES = (n) => `(?:${SEP}{0,3}[0-9]){${n}}`;
 const CORPS_A_INDICATIF = `(?:${PREFIXE_ESPACE}${CHIFFRES(7)}${FIN_NUMERO_ENTIER}|${PAS_COUPE}${PAR_GROUPES}${PAS_DE_MILLE}`
   + `|${PAS_COUPE}${PREFIXE_ESPACE}${CHIFFRES(7)}(?![0-9])(?!${SEP}{1,3}[0-9]{3}(?:${SEP}[0-9]{3})*(?!${SEP}?[0-9])))`;
 // TCK-2454 : `221` nu ou `(221)` et neuf chiffres qu'aucune lecture ne prend pour un numéro entier (`BARE_CODE_NINE`).
-const NEUF_DERRIERE_221 = String.raw`(?:\(221\)|(?<![0-9])221)${SEP}{0,3}(?!${NUMERO_ENTIER})${CORPS_A_INDICATIF}(?<!000)`;
+const NEUF_DERRIERE_221 = String.raw`(?:\(221\)|(?<![0-9])221)${SEP}{0,3}(?!${NUMERO_ENTIER})${PAS_COUPE}${CORPS_A_INDICATIF}(?<!000)`;
 // Derrière le `1` ou le `7` et devant le `(0)` de trunk, qu'elle lit : un seul exemplaire pour les deux indicatifs.
 // TCK-2454 : devant un numéro écrit par groupes, ce qui suit ne compte plus, sauf s'il se coupe sur un autre numéro ou un montant.
 const PAS_ZONE_221 = String.raw`(?!${ZERO_TRUNK}${SEP}{0,3}(?:\(221\)${SEP}{0,3}${PAS_COUPE}${SENEGAL}${FIN}`

@@ -256,10 +256,10 @@ final class PhoneMasker
      * et le second déborderait du masque : `77 012 34 / 78 123 45 67` se lirait `77 012 34 / 78`, et `123 45 67` sortirait en clair.
      * Il faut au moins deux chiffres de plus que le premier numéro : un numéro entier que rien ne suit n'est jamais coupé. Le second
      * compte même suivi d'une marque, qui en ferait un prix : `77 012 34/33 821 00 00 F` n'a pas de contact `+221770123433`.
-     * Neuf chiffres écrits par groupes (`SHAPED`) ne se coupent pas, sauf devant une barre : le numéro entier gagne. `77 012 34 78 123 45 67` est
+     * Neuf chiffres écrits par groupes (`SHAPED`) ne se coupent pas, sauf devant ou à travers une barre (`77 012 34/78 123 45 67`) : le numéro entier gagne. `77 012 34 78 123 45 67` est
      * illisible : un numéro entier suivi d'un reste plutôt qu'un tronqué suivi d'un autre, décision du 2026-10-31, un numéro complet étant le cas réel.
      */
-    private const NOT_CUT = '(?:(?='.self::CALL_SHAPED.'(?!'.self::SEP.'{0,2}\/))|(?!(?:'.self::SEP.'{0,3}[0-9]){2,8}'.self::SEP.'{1,3}(?:'.self::CALL_SENEGAL.'|'.self::CALL_LOOSE.')(?![0-9])))';
+    private const NOT_CUT = '(?:(?='.self::CALL_SHAPED.'(?!'.self::SEP.'{0,2}\/))(?!(?:'.self::SEP.'{0,3}[0-9]){1,8}'.self::SEP.'{0,2}\/)|(?!(?:'.self::SEP.'{0,3}[0-9]){2,8}'.self::SEP.'{1,3}(?:'.self::CALL_SENEGAL.'|'.self::CALL_LOOSE.')(?![0-9])))';
 
     /**
      * TCK-2454 — `221` nu ou `(221)`, puis neuf chiffres qu'aucune lecture ne prend pour un numéro entier : groupement que le masque
@@ -268,7 +268,7 @@ final class PhoneMasker
      * neuvième chiffre, sous les gardes de `CODED_BODY` (`221 77 012 3 / 450 000 F` garde son montant). L'indicatif change la lecture :
      * sans lui, `770123456 F` reste un prix. Pas un nombre qui finit par `000`, un montant derrière un autre nombre (`Lot (221) 300 000 000 F`).
      */
-    private const BARE_CODE_NINE = '(?:\(221\)|(?<![0-9])221)'.self::SEP.'{0,3}(?!'.self::CALL_WHOLE.')'.self::CALL_CODED_BODY.'(?<!000)';
+    private const BARE_CODE_NINE = '(?:\(221\)|(?<![0-9])221)'.self::SEP.'{0,3}(?!'.self::CALL_WHOLE.')'.self::CALL_NOT_CUT.self::CALL_CODED_BODY.'(?<!000)';
 
     /**
      * TCK-2454 — placé derrière les neuf chiffres : pas un groupe `000` juste derrière. `000 F` n'est le prix de personne, c'est la

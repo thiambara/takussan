@@ -427,7 +427,7 @@ class RadarPhoneTest extends TestCase
         $this->assertSame(['+221770123478'], RadarPhone::contactsFromText('Villa R+1 00221 77 012 34 78 123 45 67'));
         $this->assertSame(['+221770123478'], RadarPhone::contactsFromText('Villa R+1 (221) 77 012 34 78 123 45 67'));
         foreach (['Villa R+1 00221 77 012 34 / 78 123 45 67',
-            'Tel 00221 77 012 34 / 78 123 45 67', 'Tel +221 77 012 34 / 78 123 45 67', 'Villa R+2 00221 77 012 34 / 78 123 45 67'] as $texte) {
+            'Tel 00221 77 012 34 / 78 123 45 67', 'Tel +221 77 012 34 / 78 123 45 67', 'Villa R+2 00221 77 012 34 / 78 123 45 67', 'Villa R+1 00221 77 012 34/78 123 45 67', 'Villa R+1 (221) 77 012 34/78 123 45 67', 'Tel 221 77/78 123 45 67', 'Tel 22177/78 123 45 67'] as $texte) {
             $this->assertSame(['+221781234567'], RadarPhone::fromText($texte), $texte);
             $this->assertSame(['+221781234567'], RadarPhone::contactsFromText($texte), $texte);
         }
