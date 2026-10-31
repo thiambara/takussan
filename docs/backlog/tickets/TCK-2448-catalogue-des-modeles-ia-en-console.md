@@ -186,6 +186,10 @@ Console IA existante (`/super-admin/ai`) : une section « Modèles » sobre, sou
 - **Vérification adverse du même jour** : garde élargie, chaque endpoint éprouvé sur un montant minuscule, retour à la
   configuration, `whereNumber` sur la route. Une règle `bail` et une garde du fournisseur essayées pour le 500 du NUL ont été
   retirées : leurs ablations restaient vertes, `Unique` ne joue pas après l'échec d'une règle du même champ.
+- **Abaisser un plafond ne dépend jamais du forçage** : le front n'envoie `forced_*` que si le choix a changé, et l'API
+  (`UpdateAiUsageRequest::keepsTheForcing`) ne rejuge ni le tarif ni le fournisseur d'un couple égal à celui en base. Un modèle
+  retiré, sorti de `config/ai.php`, ou un fournisseur sorti, n'empêche donc pas de plafonner un usage dont le modèle reste appelé.
+- **`IdentifiantDeModele`** s'applique partout où un modèle s'écrit : PDO coupe le paramètre au NUL, `neuf\0junk` trouvait `neuf`.
 - **Vérifié au navigateur** (2026-10-31, base isolée) : ajout d'un modèle `fournisseur/essai-navigateur:v1` à
   0,00000000004 $, refus du retrait de `claude-sonnet-5-5` nommant les chaînes de repli, modèle retiré atténué, onglets
   Coûts et Usages, compteur Radar : `$0.00000000004 ≈ 0,000000024 F CFA`. Sans clé de fournisseur : aucun appel réel. À 375 px, dialogues du modèle et de l'usage à 343 px et celui de la chaîne à 375 px avec un identifiant de 255 caractères, page sans débordement ; retour à la configuration de `claude-opus-5-5` de 9 $ à 4 $ ; modèle retiré employé signalé.
@@ -198,7 +202,8 @@ Console IA existante (`/super-admin/ai`) : une section « Modèles » sobre, sou
    `DELETE admin/ai/models/{model}` efface la ligne qui remplace un modèle de la configuration, sous le même geste, second
    facteur et journal (`super_admin_ai_model_reverted`), et le tarif de configuration s'applique de nouveau. Le modèle reste
    au catalogue, donc le refus d'emploi ne s'y applique pas. Sans entrée de configuration : 409 `ai.model_not_in_config`,
-   le modèle se retire par `active`. La console offre « Revenir à la configuration ».
+   le modèle se retire par `active`. La console offre « Revenir à la configuration », sous une confirmation
+   qui dit qu'un modèle retiré en est rétabli.
 3. **Modèle de configuration corrigé ou retiré : un `POST` crée sa ligne** ; un doublon rend 422 sur `model`.
 4. **Refus de retrait en 409 `ai.model_in_use`**, avec `uses`. Une chaîne de repli de la configuration compte même
    quand le rôle a une chaîne en base : si la ligne disparaît, le repli joue.
@@ -219,12 +224,11 @@ Console IA existante (`/super-admin/ai`) : une section « Modèles » sobre, sou
 
 - Un retrait et une affectation simultanés peuvent se croiser : aucun verrou commun, et c'est voulu. Le coût reste compté et
   le budget s'applique. La console signale ce modèle (« Retiré, mais encore employé : … ») et ne l'atténue pas.
-- Tant qu'un usage garde un modèle forcé retiré, son dialogue renvoie le forçage : changer son plafond y rend 422
-  `ai.model_unpriced`, jusqu'à changer de modèle.
 - Le test de connexion prend le modèle actif le moins cher, même ajouté avec une faute de frappe : le test échoue alors sur un
   fournisseur sain.
 - Le compteur Radar affiche brièvement « ≈ — » et « sans plafond » au chargement.
 - Une variable `AI_DAILY_BUDGET_XOF` posée dans Dokploy n'a plus d'effet : Dokploy n'a pas été relu, c'est au porteur de le
   vérifier. Les rapports d'évaluation déjà en base portent `cost_xof` et s'affichent « — ».
-- `check-ai-money` ne voit ni `$spent >= $cap` en PHP, ni la somme d'une collection : son en-tête le dit, et
+- `check-ai-money` ne voit ni `$spent >= $cap` en PHP, ni la somme d'une collection, ni `sprintf('%.2f')`, ni `$usd + 0`, ni
+  une échelle `bcmath` figée, ni `::numeric(14,2)` : son en-tête le dit, et
   `AiTinyAmountsInEveryEndpointTest` tient chaque endpoint au dernier chiffre.

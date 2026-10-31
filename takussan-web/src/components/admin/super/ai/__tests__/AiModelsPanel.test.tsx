@@ -95,9 +95,32 @@ describe('modèles IA (TCK-2448)', () => {
     renderPanel();
 
     await userEvent.click(within(await ligne('modele-b')).getByRole('button', { name: 'Revenir au tarif de la configuration pour modele-b' }));
+    expect(deleteAdminAiModel).not.toHaveBeenCalled();
+    await userEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Revenir à la configuration' }));
 
     expect(deleteAdminAiModel).toHaveBeenCalledWith(9);
     expect(within(await ligne('modele-a')).queryByRole('button', { name: /Revenir/ })).not.toBeInTheDocument();
+  });
+
+  it('le retour d’un modèle retiré dit qu’il le rétablit, et s’annule sans rien écrire', async () => {
+    vi.mocked(fetchAdminAiModels).mockResolvedValue(reponse({ ...remplace, active: false }));
+    renderPanel();
+
+    await userEvent.click(within(await ligne('modele-b')).getByRole('button', { name: 'Revenir au tarif de la configuration pour modele-b' }));
+
+    const dialogue = await screen.findByRole('dialog');
+    expect(dialogue).toHaveTextContent('Ce modèle a été retiré : y revenir le rétablit');
+    await userEvent.click(within(dialogue).getByRole('button', { name: 'Annuler' }));
+    expect(deleteAdminAiModel).not.toHaveBeenCalled();
+  });
+
+  it('le retour d’un modèle actif ne parle pas de rétablir', async () => {
+    vi.mocked(fetchAdminAiModels).mockResolvedValue(reponse(remplace));
+    renderPanel();
+
+    await userEvent.click(within(await ligne('modele-b')).getByRole('button', { name: 'Revenir au tarif de la configuration pour modele-b' }));
+
+    expect(await screen.findByRole('dialog')).not.toHaveTextContent('le rétablit');
   });
 
   it('une ligne ajoutée ici ne propose aucun retour : elle n’a pas de configuration où revenir', async () => {

@@ -121,7 +121,8 @@ function UsageSettingsDialog({ row, taux, options, optionsError, pending, error,
   onSave: (payload: Parameters<typeof patchAdminAiUsage>[1]) => void;
 }) {
   const t = useTranslations('superAdmin.pages.ai.usages');
-  const [forced, setForced] = useState(row.forced ? `${row.forced.provider}/${row.forced.model}` : SANS_FORCAGE);
+  const forcageInitial = row.forced ? `${row.forced.provider}/${row.forced.model}` : SANS_FORCAGE;
+  const [forced, setForced] = useState(forcageInitial);
   // `daily_budget_usd` est le plafond EFFECTIF : le défaut du code quand rien n'est posé. Pré-remplir le
   // champ avec lui et le renvoyer à chaque enregistrement épinglerait le défaut en surcharge ; on ne
   // montre donc que la surcharge réelle, et on n'envoie le plafond que s'il a été touché.
@@ -175,8 +176,11 @@ function UsageSettingsDialog({ row, taux, options, optionsError, pending, error,
             onClick={() => {
               const [provider, ...model] = forced.split('/');
               onSave({
-                forced_provider: forced === SANS_FORCAGE ? null : provider,
-                forced_model: forced === SANS_FORCAGE ? null : model.join('/'),
+                // Seulement s'il a changé : un forçage retiré ou sorti de la configuration n'empêche pas d'abaisser le plafond.
+                ...(forced !== forcageInitial ? {
+                  forced_provider: forced === SANS_FORCAGE ? null : provider,
+                  forced_model: forced === SANS_FORCAGE ? null : model.join('/'),
+                } : {}),
                 ...(budgetTouched ? { daily_budget_usd: plafondLu } : {}),
               });
             }}

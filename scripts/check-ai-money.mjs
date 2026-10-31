@@ -25,8 +25,9 @@
  *
  * **Ce qu'elle ne prouve pas.** Qu'un `float` n'arrive pas sous un autre nom, ni par une variable
  * intermédiaire sur une autre ligne d'un fichier du groupe B. Elle ne voit ni `$spent >= $cap` en PHP, ni
- * la somme d'une collection (`$calls->sum(...)`), que rien ne distingue d'une somme SQL. C'est une garde de
- * régression franche : l'exactitude se prouve par `AiCostsInDollarsTest` et, endpoint par endpoint, par
+ * la somme d'une collection (`$calls->sum(...)`), que rien ne distingue d'une somme SQL, ni `sprintf('%.2f', …)`,
+ * ni `$usd + 0`, ni une échelle `bcmath` écrite en dur, ni un `::numeric(14,2)` dans une requête. Les tests les
+ * attrapent, chacune éprouvée par ablation. C'est une garde de régression franche : l'exactitude se prouve par `AiCostsInDollarsTest` et, endpoint par endpoint, par
  * `AiTinyAmountsInEveryEndpointTest`. Le reste de la plateforme reste en XOF : plans,
  * prix, SMS et paiements n'entrent pas ici.
  *

@@ -51,6 +51,29 @@ describe('usages IA (TCK-2385)', () => {
     expect('daily_budget_usd' in payload).toBe(false);
   });
 
+  it('abaisser le plafond d’un usage forcé n’envoie pas le forçage : le modèle peut être sorti du catalogue', async () => {
+    vi.mocked(fetchAdminAiUsages).mockResolvedValue({ data: [{ ...usage, forced: { provider: 'anthropic', model: 'modele-retire', max_tokens: null } }], meta: { usd_to_xof: '600' } });
+    renderPanel();
+    await ouvrirLesReglages();
+
+    await userEvent.type(await screen.findByLabelText('Plafond journalier (USD)'), '0.01');
+    await userEvent.click(screen.getByRole('button', { name: 'Enregistrer' }));
+
+    expect(vi.mocked(patchAdminAiUsage).mock.calls[0][1]).toEqual({ daily_budget_usd: '0.01' });
+  });
+
+  it('retirer le forçage l’envoie', async () => {
+    vi.mocked(fetchAdminAiUsages).mockResolvedValue({ data: [{ ...usage, forced: { provider: 'anthropic', model: 'modele-a', max_tokens: null } }], meta: { usd_to_xof: '600' } });
+    renderPanel();
+    await ouvrirLesReglages();
+
+    await userEvent.click(await screen.findByRole('combobox', { name: 'Modèle forcé' }));
+    await userEvent.click(await screen.findByRole('option', { name: 'Celui du rôle' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Enregistrer' }));
+
+    expect(vi.mocked(patchAdminAiUsage).mock.calls[0][1]).toEqual({ forced_provider: null, forced_model: null });
+  });
+
   it('un plafond saisi est envoyé', async () => {
     renderPanel();
     await ouvrirLesReglages();

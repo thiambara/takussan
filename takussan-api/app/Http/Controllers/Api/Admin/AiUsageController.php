@@ -58,7 +58,7 @@ class AiUsageController extends Controller
             $model = array_key_exists('forced_model', $data) ? $data['forced_model'] : $setting?->forced_model;
             [$data['forced_provider'], $data['forced_model']] = filled($provider) && filled($model) ? [$provider, $model] : [null, null];
         }
-        if (filled($data['forced_model'] ?? null)) {
+        if (filled($data['forced_model'] ?? null) && ! $request->keepsTheForcing()) {
             abort_code_unless((new ModelLink($data['forced_provider'], $data['forced_model']))->isPriced(), 422, 'ai.model_unpriced');
         }
 

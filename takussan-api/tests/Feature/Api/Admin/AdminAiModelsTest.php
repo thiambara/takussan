@@ -409,16 +409,21 @@ class AdminAiModelsTest extends TestCase
         $this->postJson('/api/admin/ai/models', ['provider' => ['anthropic'], 'model' => 'modele-x'] + self::TARIFS)->assertStatus(422)->assertJsonValidationErrors('provider');
     }
 
-    /** Les mêmes identifiants, là où un modèle s'affecte : refusés comme tout modèle hors catalogue. */
+    /**
+     * Les mêmes identifiants, là où un modèle s'affecte. PDO coupe le paramètre au NUL : `neuf\0junk` trouvait la ligne
+     * `neuf`, passait pour tarifé, et mourait en 500 à l'écriture. D'où un modèle qui existe, et pas seulement un absent.
+     */
     public function test_a_nul_byte_is_refused_where_a_model_is_assigned(): void
     {
         $this->avecUnJeuDeCas();
         $this->actingAsRole('super_admin');
-        $nul = "nul\0byte";
+        AiModel::factory()->create(['model' => 'neuf']);
 
-        $this->putJson('/api/admin/ai/roles/redaction', ['chain' => [['provider' => 'anthropic', 'model' => $nul]]])->assertStatus(422);
-        $this->patchJson('/api/admin/ai/usages/'.UsageDEssai::KEY, ['forced_provider' => 'anthropic', 'forced_model' => $nul])->assertStatus(422);
-        $this->postJson('/api/admin/ai/evaluations', ['role' => 'extraction', 'provider' => 'anthropic', 'model' => $nul])->assertStatus(422);
+        foreach (["neuf\0junk", "absent\0junk"] as $nul) {
+            $this->putJson('/api/admin/ai/roles/redaction', ['chain' => [['provider' => 'anthropic', 'model' => $nul]]])->assertStatus(422)->assertJsonValidationErrors('chain.0.model');
+            $this->patchJson('/api/admin/ai/usages/'.UsageDEssai::KEY, ['forced_provider' => 'anthropic', 'forced_model' => $nul])->assertStatus(422)->assertJsonValidationErrors('forced_model');
+            $this->postJson('/api/admin/ai/evaluations', ['role' => 'extraction', 'provider' => 'anthropic', 'model' => $nul])->assertStatus(422)->assertJsonValidationErrors('model');
+        }
     }
 
     public function test_a_route_identifier_that_is_not_a_number_is_refused(): void

@@ -110,4 +110,59 @@ class AdminAiUsagesTest extends TestCase
         $setting = AiUsageSetting::query()->sole();
         $this->assertSame([null, null], [$setting->forced_provider, $setting->forced_model]);
     }
+
+    /** @return array<string, mixed> */
+    private function plafondAbaisseSansToucherAuForcage(string $provider, string $model): array
+    {
+        $this->actingAsRole('super_admin');
+        AiUsageSetting::query()->create(['usage_key' => UsageDEssai::KEY, 'forced_provider' => $provider, 'forced_model' => $model, 'daily_budget_usd' => '50']);
+
+        return $this->patchJson('/api/admin/ai/usages/'.UsageDEssai::KEY, [
+            'forced_provider' => $provider, 'forced_model' => $model, 'daily_budget_usd' => '0.01',
+        ])->assertOk()->json('data');
+    }
+
+    private function assertForcageIntactEtPlafondAbaisse(array $usages, string $provider, string $model): void
+    {
+        $setting = AiUsageSetting::query()->sole();
+        $this->assertSame([$provider, $model, '0.01'], [$setting->forced_provider, $setting->forced_model, $setting->daily_budget_usd]);
+        $this->assertSame('0.01', collect($usages)->firstWhere('key', UsageDEssai::KEY)['daily_budget_usd']);
+    }
+
+    /** Le plafond est le frein de sécurité : le modèle reste appelé, il doit toujours pouvoir s'abaisser (TCK-2448). */
+    public function test_a_ceiling_can_be_lowered_when_the_forced_model_is_withdrawn(): void
+    {
+        AiModel::factory()->create(['model' => 'modele-retire', 'active' => false]);
+
+        $this->assertForcageIntactEtPlafondAbaisse($this->plafondAbaisseSansToucherAuForcage('anthropic', 'modele-retire'), 'anthropic', 'modele-retire');
+    }
+
+    public function test_a_ceiling_can_be_lowered_when_the_forced_model_left_the_configuration(): void
+    {
+        $this->assertForcageIntactEtPlafondAbaisse($this->plafondAbaisseSansToucherAuForcage('anthropic', 'modele-sorti'), 'anthropic', 'modele-sorti');
+    }
+
+    public function test_a_ceiling_can_be_lowered_when_the_forced_provider_left_the_configuration(): void
+    {
+        $this->assertForcageIntactEtPlafondAbaisse($this->plafondAbaisseSansToucherAuForcage('fournisseur-sorti', 'modele-a'), 'fournisseur-sorti', 'modele-a');
+    }
+
+    /** Le couple en base passe, parce qu'il ne change pas. Tout autre se juge. */
+    public function test_a_forcing_that_changes_is_still_judged(): void
+    {
+        $this->actingAsRole('super_admin');
+        AiModel::factory()->create(['model' => 'modele-retire', 'active' => false]);
+        AiUsageSetting::query()->create(['usage_key' => UsageDEssai::KEY, 'forced_provider' => 'anthropic', 'forced_model' => 'modele-a']);
+        $url = '/api/admin/ai/usages/'.UsageDEssai::KEY;
+
+        $this->patchJson($url, ['forced_provider' => 'anthropic', 'forced_model' => 'modele-retire'])->assertStatus(422)->assertJsonPath('code', 'ai.model_unpriced');
+        $this->patchJson($url, ['forced_provider' => 'fournisseur-sorti', 'forced_model' => 'modele-a'])->assertStatus(422)->assertJsonValidationErrors('forced_provider');
+
+        // Le couple comparé est le couple : même modèle, autre fournisseur, et l'inverse.
+        AiUsageSetting::query()->sole()->update(['forced_provider' => 'fournisseur-sorti']);
+        $this->patchJson($url, ['forced_provider' => 'fournisseur-sorti', 'forced_model' => 'modele-b'])->assertStatus(422)->assertJsonValidationErrors('forced_provider');
+
+        $setting = AiUsageSetting::query()->sole();
+        $this->assertSame(['fournisseur-sorti', 'modele-a'], [$setting->forced_provider, $setting->forced_model]);
+    }
 }

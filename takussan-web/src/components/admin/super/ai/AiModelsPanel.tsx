@@ -48,6 +48,7 @@ export function AiModelsPanel() {
   const garde = useGardeDoubleFacteur();
   const queryClient = useQueryClient();
   const [dialogue, setDialogue] = useState<{ entree: AiCatalogueModel | null } | null>(null);
+  const [retour, setRetour] = useState<AiCatalogueModel | null>(null);
   const models = useQuery<AdminAiModelsResponse, ApiError>({ queryKey: ['super-admin', 'ai', 'models'], queryFn: fetchAdminAiModels });
   const providers = useQuery({ queryKey: ['super-admin', 'ai', 'providers'], queryFn: fetchAdminAiProviders });
 
@@ -114,7 +115,7 @@ export function AiModelsPanel() {
       cell: (row) => (
         <div className="flex justify-end gap-2">
           {row.in_config && row.id !== null ? (
-            <Button size="sm" variant="ghost" disabled={etat.isPending} onClick={() => etat.mutate({ entree: row, revenir: true })} aria-label={t('revertModel', { model: row.model })}>{t('revert')}</Button>
+            <Button size="sm" variant="ghost" disabled={etat.isPending} onClick={() => setRetour(row)} aria-label={t('revertModel', { model: row.model })}>{t('revert')}</Button>
           ) : null}
           <Button size="sm" variant="ghost" onClick={() => { enregistrer.reset(); setDialogue({ entree: row }); }} aria-label={t('editModel', { model: row.model })}>{t('edit')}</Button>
           <Button size="sm" variant="outline" disabled={etat.isPending} onClick={() => etat.mutate({ entree: row, active: !row.active })} aria-label={t(row.active ? 'withdrawModel' : 'restoreModel', { model: row.model })}>
@@ -166,6 +167,19 @@ export function AiModelsPanel() {
           </div>
         );
       })}
+
+      {retour ? (
+        <Dialog open onOpenChange={(open) => { if (!open) setRetour(null); }}>
+          <DialogContent className="grid-cols-[minmax(0,1fr)]">
+            <DialogHeader><DialogTitle className="pr-6 break-all">{t('revertTitle', { model: retour.model })}</DialogTitle></DialogHeader>
+            <p className="text-sm">{t(retour.active ? 'revertConfirm' : 'revertConfirmWithdrawn')}</p>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setRetour(null)}>{t('cancel')}</Button>
+              <Button onClick={() => { etat.mutate({ entree: retour, revenir: true }); setRetour(null); }}>{t('revert')}</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      ) : null}
 
       {dialogue ? (
         <ModelDialog

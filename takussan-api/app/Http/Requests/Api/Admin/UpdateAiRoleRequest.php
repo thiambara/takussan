@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Api\Admin;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Rules\IdentifiantDeModele;
 use Illuminate\Validation\Rule;
 
 /** TCK-2385 — la chaîne ordonnée d'un rôle : un à cinq maillons, chacun d'un fournisseur déclaré. */
@@ -23,7 +24,7 @@ class UpdateAiRoleRequest extends BaseFormRequest
         return [
             'chain' => ['required', 'array', 'min:1', 'max:5'],
             'chain.*.provider' => ['required', 'string', Rule::in(array_keys(config('ai.providers')))],
-            'chain.*.model' => ['required', 'string', 'max:255'],
+            'chain.*.model' => ['required', 'string', 'max:255', new IdentifiantDeModele],
             'chain.*.max_tokens' => ['nullable', 'integer', 'min:1', 'max:128000'],
             'override_reason' => ['nullable', 'string', 'max:500'],
         ];
