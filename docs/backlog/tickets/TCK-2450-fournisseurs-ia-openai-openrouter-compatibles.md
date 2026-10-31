@@ -1,7 +1,7 @@
 ---
 id: TCK-2450
 title: "Socle IA : déclarer OpenAI, OpenRouter et les points d'accès compatibles OpenAI — clé et adresse dans l'environnement, hôtes acceptés en configuration (ADR-0085)"
-status: todo
+status: doing
 phase: P1
 family: full
 estimate: M
