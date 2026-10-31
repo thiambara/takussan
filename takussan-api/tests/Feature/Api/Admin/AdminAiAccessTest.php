@@ -24,7 +24,12 @@ class AdminAiAccessTest extends TestCase
         return collect(Route::getRoutes())
             ->filter(fn ($route) => str_starts_with($route->uri(), 'api/admin/ai'))
             ->flatMap(fn ($route) => collect($route->methods())->reject(fn ($m) => in_array($m, ['HEAD', 'OPTIONS'], true))
-                ->map(fn ($m) => [$m, '/'.preg_replace('/\{[a-zA-Z_]+\}/', 'extraction', $route->uri())]))
+                ->map(fn ($m) => [$m, '/'.preg_replace_callback(
+                    '/\{([a-zA-Z_]+)\}/',
+                    // Un paramètre contraint au numérique ne reçoit pas un rôle : la route répondrait 404 avant toute garde.
+                    fn ($parametre) => ($route->wheres[$parametre[1]] ?? null) === '[0-9]+' ? '1' : 'extraction',
+                    $route->uri(),
+                )]))
             ->values()->all();
     }
 
