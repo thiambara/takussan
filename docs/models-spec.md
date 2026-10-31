@@ -4851,7 +4851,7 @@ ligne, la chaîne vient de `config/ai.php`
 |---------|------|----------|--------|-------------|
 | id | bigint PK | | auto | |
 | role | string(20) | | | `extraction`, `redaction`, `raisonnement`, `vision`, `embedding` — **unique** |
-| chain | jsonb | | | Liste ordonnée de `{provider, model, max_tokens}` ; ordre de bascule. `max_tokens` n'a pas de sens sur le rôle `embedding`, qui n'accepte qu'un fournisseur d'embeddings (`ai.provider_role_mismatch`, TCK-2423) |
+| chain | jsonb | | | Liste ordonnée de `{provider, model, max_tokens}` ; ordre de bascule. `max_tokens` n'a pas de sens sur le rôle `embedding`, qui n'accepte qu'un fournisseur d'embeddings (`ai.provider_role_mismatch`, TCK-2423). Chaque maillon écrit nomme un fournisseur sélectionnable ; une ligne en base peut en nommer un devenu non sélectionnable, qui ne reçoit rien (TCK-2450) |
 | updated_by_id | FK users | oui | null | Dernier opérateur (`nullOnDelete`) |
 | created_at / updated_at | timestamp | | auto | |
 
@@ -4871,7 +4871,7 @@ catalogue `Flag` est fermé, et une clé hors catalogue y vaut faux.
 | id | bigint PK | | auto | |
 | usage_key | string(80) | | | Clé de l'usage (`AiUsageRegistry`) — **unique** |
 | enabled | boolean | | true | Faux : la passerelle refuse (`kill_switch`) |
-| forced_provider | string(40) | oui | null | Fournisseur imposé à la place de la chaîne du rôle |
+| forced_provider | string(40) | oui | null | Fournisseur imposé à la place de la chaîne du rôle ; sélectionnable quand il est posé ou changé. Un couple inchangé n'est pas rejugé, même devenu non sélectionnable, et la passerelle ne l'appelle pas (TCK-2450) |
 | forced_model | string(255) | oui | null | Modèle imposé ; actif et tarifé au catalogue (`AiModelCatalogue`) quand il est posé ou changé ; un couple inchangé n'est pas rejugé (TCK-2448) |
 | daily_budget_usd | numeric | oui | null | Plafond du jour en dollars, sans précision figée ; null : celui que l'usage déclare (TCK-2448, migration `2026_10_31_100020`, sans reconversion) |
 | updated_by_id | FK users | oui | null | `nullOnDelete` |
@@ -4905,13 +4905,13 @@ refus ([ADR-0076 §5](adr/0076-le-socle-ia.md)). Aucun contenu envoyé ni reçu 
 | prompt_version | unsignedSmallInteger | oui | null | Version du prompt chargé |
 | input_tokens / output_tokens | unsignedInteger | | 0 | Tokens comptés par le fournisseur |
 | cache_read_tokens / cache_write_tokens | unsignedInteger | | 0 | Sous-ensembles de l'entrée |
-| cost_estimate_usd | numeric | oui | null | Coût en dollars, sans précision figée ; null quand le modèle n'a pas de tarif (`warning = model_unpriced`). Pas recalculé après une correction de tarif (TCK-2448, migration `2026_10_31_100020`) |
+| cost_estimate_usd | numeric | oui | null | Coût en dollars, sans précision figée ; null quand le modèle n'a pas de tarif (`warning = model_unpriced`, ou `usage_missing` si la réponse n'a pas de jetons). Pas recalculé après une correction de tarif (TCK-2448, migration `2026_10_31_100020`) |
 | duration_ms | unsignedInteger | oui | null | Durée de l'appel |
-| outcome | string(20) | | | `success`, `cache_hit`, `failed_over`, `error`, `refused`. `failed_over` : maillon en échec basculable, **dernier compris**, ou réponse tronquée ou filtrée — payée (jetons et coût journalisés, donc comptés au budget), hors cache, et la passerelle passe au maillon suivant (TCK-2399). `error` : erreur qui interrompt la chaîne, ou rôle sans chaîne |
+| outcome | string(20) | | | `success`, `cache_hit`, `failed_over`, `error`, `refused`. `failed_over` : maillon en échec basculable, **dernier compris**, ou réponse tronquée ou filtrée — payée (jetons et coût journalisés, donc comptés au budget), hors cache, et la passerelle passe au maillon suivant (TCK-2399) ; aussi un maillon non sélectionnable, qui n'a rien reçu, et une redirection, non suivie (TCK-2450). `error` : erreur qui interrompt la chaîne, ou rôle sans chaîne |
 | stop_reason | string(20) | oui | null | Raison de fin de la réponse (`FinishReason` du SDK : `stop`, `length`, `content_filter`, `tool_calls`, `error`, `cancelled`, `unknown`, `continue`) ; nulle pour un refus, un cache ou une exception (TCK-2399, `2026_10_27_100050`) |
 | refusal_reason | string(30) | oui | null | `forbidden`, `kill_switch`, `budget`, `sensitive_data`, `data_class` |
-| error_code | string(80) | oui | null | Code `ai.*` de l'erreur, que le front traduit (`AiErrorCode::fromThrowable`, TCK-2399), jamais un nom de classe ni un message — le nom de la classe reste au journal Laravel. Valeurs : `ai.provider_timeout`, `ai.provider_rate_limited`, `ai.provider_credits`, `ai.provider_unavailable`, `ai.provider_auth`, `ai.request_rejected`, `ai.response_invalid`, `ai.unexpected` (un 408 vaut `ai.provider_timeout`, TCK-2449) ; le code propre d'`AiUnavailable` ou d'`AiRefused` (`ai.refused.<motif>`) ; et ceux de la passerelle : `ai.response_truncated` (`length`), `ai.response_filtered` (`content_filter`), `ai.role_unassigned` (ligne `error` sans maillon), `ai.provider_unreachable` (maillon d'embeddings non joignable : sans clé, sans déclaration ou hôte refusé, TCK-2423) |
-| warning | string(40) | oui | null | `model_unpriced` ; `provider_rejected` : maillon d'un autre pilote qu'Anthropic refusé puis basculé, compté au tableau de bord (`provider_rejections`) (TCK-2449) |
+| error_code | string(80) | oui | null | Code `ai.*` de l'erreur, que le front traduit (`AiErrorCode::fromThrowable`, TCK-2399), jamais un nom de classe ni un message — le nom de la classe reste au journal Laravel. Valeurs : `ai.provider_timeout`, `ai.provider_rate_limited`, `ai.provider_credits`, `ai.provider_unavailable`, `ai.provider_auth`, `ai.request_rejected`, `ai.response_invalid`, `ai.unexpected` (un 408 vaut `ai.provider_timeout`, TCK-2449) ; le code propre d'`AiUnavailable` ou d'`AiRefused` (`ai.refused.<motif>`) ; et ceux de la passerelle : `ai.response_truncated` (`length`), `ai.response_filtered` (`content_filter`), `ai.role_unassigned` (ligne `error` sans maillon), `ai.provider_unreachable` (maillon d'embeddings non joignable : sans clé, sans déclaration, hôte refusé ou hors `https`, TCK-2423 ; fournisseur sans déclaration dans une chaîne de texte, TCK-2450), `ai.provider_key_missing`, `ai.provider_host_not_allowed`, `ai.provider_unknown` (maillon non sélectionnable, à qui rien n'est parti, TCK-2450), `ai.provider_redirected` (réponse 3xx, non suivie, TCK-2450) |
+| warning | string(40) | oui | null | `model_unpriced` ; `provider_rejected` : maillon d'un autre pilote qu'Anthropic refusé puis basculé (TCK-2449), ou maillon de tout pilote qui a répondu par une redirection, dernier compris (TCK-2450) ; `usage_missing` : réponse sans décompte de jetons, sur tout pilote, qui l'emporte sur `model_unpriced` et vaut zéro au budget (TCK-2450). Le tableau de bord compte `provider_rejected` et `usage_missing` dans `provider_rejections` |
 | is_evaluation | boolean | | false | Appel de `ai:eval` : hors budget, hors tableau de bord |
 | agency_id | FK agencies | oui | null | Agence pour laquelle l'appel agit ; null pour un usage de plateforme (`nullOnDelete`) |
 | actor_id | FK users | oui | null | Appelant (`nullOnDelete`) ; null pour un usage d'embeddings joué par une tâche planifiée (TCK-2423) |
@@ -5509,7 +5509,7 @@ sans être listée ni affectable.
 | Colonne | Type | Nullable | Défaut | Description |
 |---------|------|----------|--------|-------------|
 | id | bigint PK | | auto | |
-| provider | string(40) | | | Clé du bloc `providers` de `config/ai.php` |
+| provider | string(40) | | | Clé du bloc `providers` de `config/ai.php`. Un ajout exige un fournisseur sélectionnable ; remplacer un modèle de la configuration, seulement un fournisseur déclaré, même sans clé (TCK-2450) |
 | model | string(255) | | | Identifiant exact du fournisseur, sensible à la casse, sans espace ni caractère invisible |
 | input / output / cache_read / cache_write | numeric | | | Dollars par million de tokens, ≥ 0 ; 0 veut dire « gratuit au token » |
 | active | boolean | | true | Faux : retiré, ne s'affecte plus, reste affiché, et son tarif compte toujours au coût |
@@ -5520,6 +5520,14 @@ sans être listée ni affectable.
 passe sous PostgreSQL : seule l'API le refuse, `MontantIa`). Une ligne ne s'efface que si la configuration déclare le couple
 (retour à la configuration, `DELETE /api/admin/ai/models/{id}`) ; sinon 409 `ai.model_not_in_config`, et le modèle se retire
 par `active`. Retirer un modèle employé rend 409 `ai.model_in_use`, avec ses emplois (`uses`).
+
+**Les fournisseurs ne sont pas en base.** Ils vivent dans le bloc `providers` de `config/ai.php` : `driver`, `key` (lue de
+l'environnement), `url` (lue de l'environnement ; vide ou absente, celle du fournisseur), `legal_name` et `allowed_hosts`, écrits
+en configuration et jamais lus de l'environnement. S'y ajoutent `store` sur `openai`, `provider` sur `openrouter` (`data_collection`
+à `deny`, `require_parameters` à `true`), et, sur `voyageai`, `serves`, `training_opt_out` et `embedding_options`.
+`AiProviderCatalogue` en tire ce que la console lit : `selectable`, et `reason` quand il ne l'est pas (`key_missing`,
+`training_opt_out_undeclared`, `host_not_allowed`). Un fournisseur retiré de ce bloc n'est plus appelé (`ai.provider_unknown`) (TCK-2450,
+[ADR-0085](adr/0085-un-modele-se-regle-dans-la-console-un-fournisseur-dans-le-deploiement.md) §3, §4).
 
 ### 117. Embedding 🆕
 

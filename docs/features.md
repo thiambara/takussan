@@ -696,7 +696,7 @@ cookie, ADR-0026 §5), y compris depuis ses appels serveur.
 | P1 | 🛡️ | Registre des demandes de droits (accès, rectification, opposition, effacement, portabilité) : réception, échéance légale, statut, preuve de réponse, export (loi n° 2008-12) (TCK-601) |
 | P2 | 🛡️ | Paramètres globaux de plateforme — seules des clés lues par l'application, écrites par une seule voie validée et journalisée (TCK-600) |
 | P2 | 🛡️ | Gestion des intégrations tierces (API keys) — chaque intégration de paiement reçoit ses webhooks sur une URL propre, porteuse d'un jeton secret (empreinte en base, clair chiffré) ; l'admin la relit et la régénère d'un geste sous double authentification, journalisé sans le jeton ; la signature du fournisseur reste exigée, et un webhook ne rapproche que des paiements de l'agence de son intégration ; l'ancienne URL commune par fournisseur rend 410 (TCK-293, [ADR-0046](adr/0046-un-webhook-de-paiement-par-integration.md)) |
-| P2 | 🛡️ | Healthcheck plateforme et supervision des jobs en arrière-plan (file de queue, échecs, rejouer) — par sondes actives et datées (courriel, SMS, moteur de recherche, âge de la file, battement des workers, stockage des médias), statut agrégé exposé à une sonde externe (TCK-600) ; la sonde des workers surveille la file des appels IA (`ai`) comme les autres files (TCK-2402) |
+| P2 | 🛡️ | Healthcheck plateforme et supervision des jobs en arrière-plan (file de queue, échecs, rejouer) — par sondes actives et datées (courriel, SMS, moteur de recherche, âge de la file, battement des workers, stockage des médias), statut agrégé exposé à une sonde externe (TCK-600) ; la sonde des workers surveille la file des appels IA (`ai`) comme les autres files (TCK-2402) ; la sonde `ai_providers` passe en dégradé quand une clé de fournisseur d'IA est posée sur une adresse refusée, sans nommer ni ce fournisseur, ni son hôte, ni son adresse (TCK-2450) |
 | P2 | 🛡️ | Impersonation d'un utilisateur par un super-admin, pour voir ce qu'il voit : motif obligatoire, confirmation 2FA récente, lecture seule par défaut, durée courte et sortie explicite qui révoque l'accès, jamais un opérateur ni un compte bloqué ; aucun jeton exposé à la page (cookie httpOnly géré par le BFF) ; bannière persistante ; chaque acte journalisé au nom de l'opérateur ; l'utilisateur est informé après coup (TCK-600) |
 | P2 | 🛡️ | Recherche globale de la console plateforme (e-mail, téléphone, référence, identifiant de transaction, NINEA), par la base, brouillons et biens privés compris (TCK-600) |
 | P2 | 🛡️ | File de modération : prise en charge exclusive avec expiration, motifs types traduits, décision groupée, âge de l'élément (TCK-597) |
@@ -749,12 +749,12 @@ en est le premier usager. Vision et lots : [plan du 2026-10-26](plans/2026-10-26
 
 | Prio | Acteurs | Fonctionnalité |
 |------|---------|----------------|
-| P1 | 🛡️ | Affecter à chaque rôle de modèle (`extraction`, `redaction`, `raisonnement`, `vision`, `embedding`) une chaîne ordonnée de modèles depuis la console super-admin, avec bascule automatique à la panne ; forcer un modèle pour un usage ; un fournisseur d'embeddings ne sert que le rôle `embedding`, et ce rôle ne sert que lui (TCK-2423) ; sous second facteur récent, journalisé |
-| P1 | 🛡️ | Évaluer un modèle candidat avant de l'affecter : score par champ et coût, comparés au modèle en place sur le jeu d'évaluation de chaque usage concerné ; un score sous le cliquet bloque l'affectation, sauf dérogation journalisée |
-| P1 | 🛡️ | Voir, par fournisseur, si sa clé est présente (jamais sa valeur) et tester la connexion (un fournisseur d'embeddings, en lui demandant un vecteur, TCK-2423) ; seuls les fournisseurs nommés par la politique de confidentialité sont sélectionnables |
-| P1 | 🛡️ | Ajouter un modèle d'un fournisseur déclaré, corriger ses quatre tarifs en dollars par million de tokens, le retirer depuis la console, ou ramener à la configuration un modèle qui y figure (le tarif de la configuration s'applique de nouveau, et un modèle retiré est rétabli), sous second facteur récent, journalisé. Seul un modèle actif du catalogue s'affecte ; retirer un modèle employé par une chaîne, un modèle forcé ou une chaîne de repli de la configuration est refusé, en nommant ces emplois. Un tarif nul veut dire « gratuit au token ». Un tarif corrigé vaut pour les appels suivants : le coût déjà journalisé ne se recalcule pas (TCK-2448, ADR-0085) |
+| P1 | 🛡️ | Affecter à chaque rôle de modèle (`extraction`, `redaction`, `raisonnement`, `vision`, `embedding`) une chaîne ordonnée de modèles depuis la console super-admin, avec bascule automatique à la panne ; forcer un modèle pour un usage ; un fournisseur d'embeddings ne sert que le rôle `embedding`, et ce rôle ne sert que lui (TCK-2423) ; seul un fournisseur sélectionnable s'affecte (TCK-2450) ; sous second facteur récent, journalisé |
+| P1 | 🛡️ | Évaluer un modèle candidat avant de l'affecter : score par champ et coût, comparés au modèle en place sur le jeu d'évaluation de chaque usage concerné ; un score sous le cliquet bloque l'affectation, sauf dérogation journalisée ; un candidat d'un fournisseur non sélectionnable est refusé, depuis la console comme par `ai:eval` (TCK-2450) |
+| P1 | 🛡️ | Voir, par fournisseur, s'il est prêt, sans clé, sans la déclaration du refus de l'entraînement ou sur une adresse non acceptée, dont l'hôte s'affiche alors (ni la clé ni l'adresse entière), et tester la connexion d'un fournisseur prêt (un fournisseur d'embeddings, en lui demandant un vecteur, TCK-2423) ; seuls sont sélectionnables les fournisseurs déclarés en configuration, avec une clé présente et une adresse acceptée, et, pour Voyage AI, la déclaration du refus de l'entraînement ; la politique de confidentialité nomme chaque fournisseur déclaré, ce qu'une garde de CI vérifie (TCK-2450, ADR-0085) |
+| P1 | 🛡️ | Ajouter un modèle d'un fournisseur sélectionnable (corriger ou retirer un modèle de la configuration reste permis chez un fournisseur déclaré sans clé, que la passerelle n'appelle pas pour autant, TCK-2450), corriger ses quatre tarifs en dollars par million de tokens, le retirer depuis la console, ou ramener à la configuration un modèle qui y figure (le tarif de la configuration s'applique de nouveau, et un modèle retiré est rétabli), sous second facteur récent, journalisé. Seul un modèle actif du catalogue s'affecte ; retirer un modèle employé par une chaîne, un modèle forcé ou une chaîne de repli de la configuration est refusé, en nommant ces emplois. Un tarif nul veut dire « gratuit au token ». Un tarif corrigé vaut pour les appels suivants : le coût déjà journalisé ne se recalcule pas (TCK-2448, ADR-0085) |
 | P1 | 🛡️ | Plafonds journaliers en dollars, avec leur équivalent approximatif en XOF : par usage, réglable depuis la console avec le coupe-circuit de l'usage ; global et par agence, fixés par la configuration du déploiement et non réglables depuis la console, qui affiche le global sans le modifier. Un appel d'évaluation n'y compte pas. Le taux d'affichage ne décide d'aucun blocage (TCK-2383, TCK-2448, ADR-0086) |
-| P1 | 🛡️ | Tableau de bord IA : coût en dollars avec son équivalent approximatif en XOF (un coût minuscule non nul ne se lit pas 0, TCK-2448) et latence par usage et par jour, erreurs, maillons refusés par un autre fournisseur qu'Anthropic (TCK-2449), taux d'acceptation des suggestions, dernier score d'évaluation |
+| P1 | 🛡️ | Tableau de bord IA : coût en dollars avec son équivalent approximatif en XOF (un coût minuscule non nul ne se lit pas 0, TCK-2448) et latence par usage et par jour, erreurs, défauts du fournisseur (maillons refusés par un autre fournisseur qu'Anthropic, TCK-2449 ; redirections, sur tout pilote, et réponses sans décompte de jetons, comptées à zéro et inconnues du budget, TCK-2450), taux d'acceptation des suggestions, dernier score d'évaluation |
 
 **Règles de gestion.**
 
@@ -766,16 +766,75 @@ en est le premier usager. Vision et lots : [plan du 2026-10-26](plans/2026-10-26
   fournisseurs reste fermée dans `config/ai.php`. Un modèle retiré peut rester employé (affectation
   concurrente, changement de configuration) : l'appel part et se compte, et la console le signale
   (TCK-2448, [ADR-0085](adr/0085-un-modele-se-regle-dans-la-console-un-fournisseur-dans-le-deploiement.md)).
+  Les chaînes de repli de la configuration restent sur Anthropic pour le texte, et aucun tarif d'OpenAI ni
+  d'OpenRouter n'y est écrit : leurs modèles s'ajoutent dans la console (TCK-2450).
 - **Le coût d'un appel, les plafonds et les tarifs sont en dollars, sans décimales figées** : des
   chaînes décimales, en `numeric` sans précision, calculées par `bcmath`, sommées et comparées en SQL
   ou par `bccomp`, jamais en `float` ni sous un cast `decimal:N` ; `scripts/check-ai-money.mjs` garde
   les formes qu'il connaît. Le XOF n'existe qu'à l'affichage, présenté comme approximatif
   (`AI_USD_TO_XOF`, 600 par défaut), et l'arrondi n'arrive qu'à l'écran (TCK-2448,
   [ADR-0086](adr/0086-les-couts-ia-se-comptent-en-dollars-et-sans-decimales-figees.md)).
-- **Les clés des fournisseurs restent dans l'environnement**, jamais en base ni dans la console.
+- **Les clés des fournisseurs restent dans l'environnement**, jamais en base ni dans la console, comme
+  leur adresse ; aucune route de lecture ne rend ni l'une ni l'autre, et seul l'hôte de l'adresse en sort,
+  sous `platform.ai.view`. Une adresse vide ou absente vaut celle du fournisseur (TCK-2450).
+- **Un fournisseur se déclare par une entrée nommée de `config/ai.php`** : `anthropic`, `openai`, `openrouter`
+  et `voyageai` aujourd'hui, chacune avec son pilote, son `legal_name` et ses `allowed_hosts`, écrits en
+  configuration. Un point d'accès compatible OpenAI est une entrée de plus, à son nom, sur le pilote
+  `openai-compatible`. Aucune n'est déclarée, et il n'y a pas d'entrée générique dont l'adresse suffirait à
+  changer le destinataire. Déployée, une entrée n'est active que lorsque sa clé est posée, geste du porteur
+  ([procédure](infra/hebergement.md#allumer-openai-ou-openrouter-tck-2450-adr-0085)) (TCK-2450,
+  [ADR-0085](adr/0085-un-modele-se-regle-dans-la-console-un-fournisseur-dans-le-deploiement.md) §3, §4).
+- **Un fournisseur n'est sélectionnable que complet** : déclaré, avec une clé, avec la déclaration du refus de
+  l'entraînement quand il la demande (`VOYAGE_TRAINING_OPT_OUT`), et une adresse acceptée. Une adresse est
+  acceptée si son hôte figure dans `allowed_hosts`, comparé exactement, sans joker, port compris (un port hors
+  du schéma s'y écrit), sans identifiants, et en `https` hors `local` et `testing`. Une entrée sans hôtes n'est
+  pas sélectionnable. La chaîne d'un rôle, le modèle forcé d'un usage, l'évaluation et l'ajout d'un modèle
+  refusent un autre fournisseur (`ai.provider_key_missing`, `ai.provider_host_not_allowed`,
+  `ai.provider_unreachable`, `ai.provider_unknown`), comme `ai:eval` et le test de connexion, qui demande aussi
+  un modèle tarifé (`ai.model_unpriced`). Le double interne d'une entrée, à sortie par outil, n'y est jamais
+  admis (TCK-2450).
+- **Un maillon non sélectionnable ne reçoit rien** : une chaîne ou un forçage en base peut le nommer encore (un
+  forçage inchangé n'empêche pas de régler le reste de l'usage). La passerelle écrit sa ligne (`failed_over`, avec le code
+  du refus) et passe au maillon suivant ; il ne prend pas sa part du délai des autres. S'il était le dernier,
+  l'usage rend `ai.providers_unavailable`, qui en porte la cause (TCK-2450).
+- **Tout maillon du pilote `openai` envoie `store: false`, sans réglage, et tout maillon du pilote `openrouter`
+  envoie `provider.data_collection` et `provider.require_parameters`**, quel que soit le nom de l'entrée : à
+  défaut d'autre valeur sur l'entrée, `deny` et `true`. Une valeur de `data_collection` autre que `deny` fait
+  rougir `scripts/check-ai-providers-privacy.mjs` : `privacy.ts` promet `deny`. `zdr`, `only`, `order` et `ignore`
+  passent depuis l'entrée, sans être imposés. Le pilote `openai-compatible` n'envoie ni l'un ni l'autre. Cela dit
+  ce qui est demandé au fournisseur, pas ce qu'il en fait (TCK-2450, [ADR-0085, amendement du 2026-10-31](adr/0085-un-modele-se-regle-dans-la-console-un-fournisseur-dans-le-deploiement.md)).
+- **Une redirection n'est suivie sur aucun pilote, Anthropic compris, ni pour un appel d'embeddings** : tout statut
+  de 300 à 399, avec ou sans `Location`, vers un autre hôte ou le même, fait lever `ai.provider_redirected`, et
+  ni le corps ni la clé ne repartent. Le corps et la clé sont déjà chez l'hôte accepté, qui a reçu le premier
+  envoi. La ligne porte `failed_over` et `warning: provider_rejected`, le tableau de bord la compte, et la
+  chaîne passe au maillon suivant ; sur le dernier, l'usage rend `ai.providers_unavailable`. Un middleware de réponse
+  est posé autour de l'appel puis rendu, et le reste de l'application suit encore ses redirections. Limites :
+  une requête construite avant cette portée et envoyée dedans suivrait la redirection, et une `Fiber` suspendue
+  dedans ferait refuser les 3xx du reste du processus ; rien dans `app/` n'en fait aujourd'hui (TCK-2450).
+- **Une réponse sans décompte de jetons se signale, et le budget n'en sait rien** : sur tout pilote, entrée et
+  sortie à zéro écrivent `warning: usage_missing`, y compris sans tarif, et le tableau de bord la compte. Elle
+  vaut zéro au budget (TCK-2450).
+- **Ce que la politique de confidentialité dit de ces fournisseurs** (`privacy.ts` § 4.3 et § 5) : elle nomme
+  Anthropic, OpenAI, OpenRouter et Voyage AI ; le nom ou le numéro que contient une annonce ou une preuve d'accord
+  parvient en clair aux trois premiers. Par OpenRouter, une demande peut être traitée dans plusieurs pays, selon
+  les conditions du fournisseur du modèle et non sur les instructions de Takussan, et ces pays ne sont pas
+  présentés comme assurant une protection suffisante. **Le § 5 dit que les formalités auprès de la CDP ne sont pas
+  accomplies** : il se réécrit quand elles le seront (TCK-2450).
+- **Limites des fournisseurs hors d'Anthropic.** Rien ne vérifie le contrat de sous-traitance ni la formalité
+  CDP avant la pose d'une clé : c'est l'ordre de la procédure. `deny` agit à l'acheminement, d'après ce que chaque
+  fournisseur déclare à OpenRouter, et aucun réglage imposé ne filtre par pays. Une bascule peut envoyer le
+  contenu vers un maillon d'une autre garantie, et rien ne le vérifie : qui compose une chaîne y met des
+  fournisseurs de même garantie. La documentation d'OpenRouter ne dit pas quel statut rend une absence de point
+  d'accès : elle ne bascule que si ce statut figure parmi ceux de la règle des refus, ci-dessous. La garde ne voit
+  ni un bloc `provider` étalé (`[...$x]`) ni un hôte qui n'est pas écrit en toutes lettres. **Tout cela décrit le
+  code, vérifié contre un faux client HTTP et la documentation des fournisseurs : aucun vrai appel à OpenAI,
+  à OpenRouter ou à Voyage AI ne l'a éprouvé** (TCK-2450).
 - **L'IA propose, un humain décide** : une sortie qui modifierait une donnée est une suggestion
   acceptée, corrigée ou rejetée, et la correction est conservée.
-- **Une donnée sensible** (pièce d'identité, revenu) **ne part jamais vers un fournisseur.**
+- **Une demande qui déclare une donnée sensible** (pièce d'identité, revenu) **est refusée sans aucune requête,
+  sur tout pilote.** Limite : le code juge la classe déclarée par l'appelant, il ne lit pas le contenu. Un usage de
+  classe `personnelle` n'est pas masqué : le nom ou le numéro qu'il porte part en clair vers son fournisseur, et
+  la politique de confidentialité le dit (§ 4.3) (TCK-2450).
 - **Un numéro de téléphone, sénégalais ou étranger, ne part jamais en clair vers un fournisseur**
   (usage `publique`) **et ne s'écrit en clair dans aucun jeu d'évaluation**, liens WhatsApp compris
   (`wa.me/…`, `?phone=…`) : le socle le masque (`+221`, `00221`, `+33`, `+225`, `00…`, forme nationale
@@ -869,12 +928,18 @@ en est le premier usager. Vision et lots : [plan du 2026-10-26](plans/2026-10-26
   `strict: false` sur `openai`, `openrouter` et `openai-compatible` ; une réponse sans sortie y est un échec
   du maillon (`ai.response_invalid`), et la chaîne bascule, là où, en mode strict sur `anthropic`, elle reste
   un succès à vide. C'est un choix déclaré, pas un repli à l'exécution : un refus du fournisseur n'est pas
-  rejoué autrement sur le même maillon (TCK-2411, TCK-2433, TCK-2449).
+  rejoué autrement sur le même maillon (TCK-2411, TCK-2433, TCK-2449). Un test tient la forme des schémas envoyés
+  sur ces trois pilotes (racine `object`, tout en `required`, `additionalProperties` faux) ; aucun vrai fournisseur
+  ne les a reçus (TCK-2450).
 - **Un refus du fournisseur ne bascule que hors d'Anthropic, et s'il reste un maillon** : sur un autre
   pilote qu'`anthropic`, un statut 400, 404, 408, 413, 422 ou 500, ou une erreur écrite dans le corps de la
   réponse, y compris en HTTP 200, fait passer au maillon suivant ; la ligne du journal le dit
   (`warning: provider_rejected`), et le tableau de bord les compte, sans alerte : un fournisseur cassé
-  s'efface derrière le secours. Sur `anthropic` et sur le dernier maillon, l'exception arrête l'appel. Une
+  s'efface derrière le secours. Sur `anthropic` et sur le dernier maillon, l'exception arrête l'appel ; une
+  redirection n'est pas un refus, et bascule aussi sur `anthropic`. Limite : le dernier maillon se juge sur la
+  chaîne, pas sur ce qui reste joignable : derrière un refus, un dernier maillon sans clé fait rendre
+  `ai.providers_unavailable`, pour cause `ai.provider_key_missing`, et seule la ligne du journal garde
+  `ai.request_rejected` (TCK-2450). Une
   clé refusée (401, 403) ne bascule pas ; limite : le SDK ne garde du corps que `type`, ou `code` sur
   OpenRouter, et un 401 sans `type` sur `openai` ou `openai-compatible` ne s'y lit pas et bascule. Un 408
   vaut `ai.provider_timeout` sur tout pilote. Hors d'Anthropic, tout cela décrit le code, vérifié contre un
@@ -884,8 +949,9 @@ en est le premier usager. Vision et lots : [plan du 2026-10-26](plans/2026-10-26
   acteur, pour une tâche planifiée. Le coupe-circuit, les plafonds, le masquage, le journal et la bascule
   restent ceux des autres usages. Il ne paie que son entrée, et le coût journalisé ignore les tokens offerts
   par le fournisseur : c'est une estimation haute. Son fournisseur n'est appelé que s'il a une clé, la
-  déclaration de refus de l'entraînement quand il la demande, et une adresse `https` sur un hôte que la
-  configuration accepte quand elle en déclare (TCK-2423, [ADR-0076, amendement du 2026-10-31](adr/0076-le-socle-ia.md)).
+  déclaration de refus de l'entraînement quand il la demande, et une adresse `https`, même en `local` et
+  `testing`, sur un hôte que la configuration accepte (TCK-2423, TCK-2450,
+  [ADR-0076, amendement du 2026-10-31](adr/0076-le-socle-ia.md)).
 - **Tout job qui appelle le modèle hors d'une requête HTTP déclare la file des appels IA** (`ai`) ;
   un appel plus long que le délai de reprise de la file par défaut (85 s au plus) prend la file des
   jobs longs. Une règle de CI le vérifie (`scripts/check-queues.mjs`, TCK-2402).
@@ -1240,8 +1306,9 @@ catalogue tant que cet accord n'existe pas. Vision et lots : [plan du 2026-10-26
 - **Ce qui part chez Voyage AI** : `similarity_text`, sans chiffres, et masqué par le socle. Un nom, une adresse
   électronique ou un numéro écrits en toutes lettres y restent, et partent ; la politique de confidentialité
   le dit (§ 4.3). `VOYAGE_TRAINING_OPT_OUT` déclare le refus de l'entraînement posé sur le compte Voyage,
-  et ne le prouve pas : aucune API ne permet de le lire. Une clé sans déclaration n'envoie rien, et
-  le journal le signale (`radar.embeddings.training_opt_out_undeclared`) (TCK-2423).
+  et ne le prouve pas : aucune API ne permet de le lire. Une clé sans déclaration n'envoie rien,
+  le journal le signale (`radar.embeddings.training_opt_out_undeclared`) (TCK-2423), et Voyage AI n'est alors pas
+  sélectionnable : la console le dit et refuse de l'affecter au rôle `embedding` (TCK-2450).
 - **Limites des vecteurs** : leurs seuils ne reposent sur aucune mesure, et rien n'a été éprouvé sur la
   vraie API, dont le contrat est lu sur la documentation ; deux annonces d'un même annonceur peuvent
   se ressembler assez pour faire monter un rapprochement. Sans extension `vector` disponible et permise, la
