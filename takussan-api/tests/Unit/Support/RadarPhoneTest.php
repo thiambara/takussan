@@ -297,6 +297,25 @@ class RadarPhoneTest extends TestCase
      * TCK-2451 — derrière l'étage `1` ou `7`, l'indicatif `00221` ou `221` nu, et `(221)` devant un numéro groupé 2-2-3-2, ne
      * sont pas la suite d'un numéro `+1` / `+7` : le `+` reste celui de l'étage, et le contact n'est plus perdu.
      */
+    public function test_neuf_chiffres_derriere_221_nu_ou_entre_parentheses_sont_le_contact(): void
+    {
+        // TCK-2454 : les groupements que le masque ne lisait pas, et le chiffre à chiffre suivi d'un petit nombre.
+        foreach (['Villa R+1 221 770 123 456', 'Villa R+1 (221) 770 123 456', 'Villa R+1 (221) 7 7 0 1 2 3 4 56',
+            'Villa R+1 221 77 012 34 56 F', 'Villa R+1 221 770123456 F', 'Villa R+1 221 77 01 23 456 F',
+            'Villa R+1 (221) 7 7 0 1 2 3 4 5 6 3 chambres', 'Villa R+1 (221) 7 7 0 1 2 3 4 5 6 2 salons',
+            'Villa 221 77 012 34 56 F'] as $texte) {
+            $this->assertSame(['+221770123456'], RadarPhone::contactsFromText($texte), $texte);
+        }
+
+        // Limite : `(221)` suivi d'une marque reste masqué sans contact.
+        foreach (['Villa R+1 (221) 770123456 F', 'Villa R+1 (221) 77 01 23 456 F'] as $texte) {
+            $this->assertSame([], RadarPhone::contactsFromText($texte), $texte);
+        }
+
+        // Un nombre qui finit par 000 derrière 221 n'est pas un contact.
+        $this->assertSame([], RadarPhone::contactsFromText('Lot 221 300 000 000 F'));
+    }
+
     public function test_l_indicatif_00221_ou_221_nu_derriere_un_etage_garde_le_contact(): void
     {
         foreach (['Villa R+1 00221 77 012 34 56', 'Villa R+7 00221 77 012 34 56', 'Villa RDC +1 00221 77 012 34 56',
@@ -313,7 +332,7 @@ class RadarPhoneTest extends TestCase
         // plus qui est un indicatif, restent lus comme un numéro étranger qui englobe le numéro sénégalais : contact perdu,
         // plutôt qu'inventé, et rien en clair (fixture partagé). TCK-2454 : neuf chiffres suivis de `000` sont un numéro tronqué
         // suivi d'un montant (`… 34 56 000 F`), et un numéro tronqué n'est pas un contact.
-        foreach (['Villa R+1 221 77 01 234 56', 'Villa R+1 221 77 012 34 56 F', 'Immeuble R+20 00221 77 123 45 67',
+        foreach (['Villa R+1 221 77 01 234 56', 'Immeuble R+20 00221 77 123 45 67',
             'Immeuble R+30 221 77 123 45 67', 'Villa R+1 00221 77 012 34 56 000 F', 'Villa R+1 00221 77 012 3 / 450 000 F'] as $texte) {
             $this->assertSame([], RadarPhone::contactsFromText($texte), $texte);
         }

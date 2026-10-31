@@ -221,6 +221,20 @@ class RadarAmountParserTest extends TestCase
         }
     }
 
+    public function test_neuf_chiffres_derriere_221_ne_sont_pas_un_prix(): void
+    {
+        // TCK-2454 : ils se lisaient 770 123 456, 23 456, ou 221 770 123 456.
+        foreach (['Villa R+1 221 770123456 F', 'Villa R+1 (221) 770123456 F', 'Villa R+1 221 77 01 23 456 F', 'Villa R+1 221 770 123 456',
+            'Villa R+1 (221) 7 7 0 1 2 3 4 5 6 3 chambres', 'Villa 221 77 012 34 56 F'] as $texte) {
+            $this->assertNull(RadarAmountParser::parse($texte), $texte);
+        }
+
+        // Sans indicatif, ou un nombre qui finit par 000 : un prix.
+        $this->assertSame(['amount' => 770_123_456, 'period' => null], RadarAmountParser::parse('Villa 770123456 F'));
+        $this->assertSame(['amount' => 300_000_000, 'period' => null], RadarAmountParser::parse('Lot (221) 300 000 000 F'));
+        $this->assertSame(['amount' => 450_000, 'period' => null], RadarAmountParser::parse('Villa R+1 221 77 012 3 / 450 000 F'));
+    }
+
     public function test_un_numero_sept_a_zone_entre_parentheses_derriere_un_etage_n_est_pas_un_prix(): void
     {
         // TCK-2445 : sans la zone entre parenthèses dans `PhoneMasker::CC7_REST`, le `7` était lu comme un étage et un bout

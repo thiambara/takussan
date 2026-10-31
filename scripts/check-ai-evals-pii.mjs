@@ -135,16 +135,22 @@ const ZERO_TRUNK = String.raw`(?:${WS}?\(0\))?`;
 const RIEN_COLLE = String.raw`(?:(?!${SEP}{0,3}[0-9])|(?=${SEP}{1,3}[1-9][0-9]{0,2}${WS}*\p{L}))`;
 const FIN_NUMERO_ENTIER = String.raw`(?![0-9])(?:${RIEN_COLLE}|(?=${SEP}{0,3}(?:${SENEGAL_AVEC_INDICATIF}`
   + String.raw`|${SENEGAL}${FIN}|${SENEGAL_LIBRE}${FIN})))`;
+const CHIFFRES = (n) => `(?:${SEP}{0,3}[0-9]){${n}}`;
+// TCK-2454 : écrit par groupes, le numéro s'arrête au neuvième chiffre, quoi qui le suive, sauf coupure.
+// Écrit autrement, aussi, sauf devant un groupe de trois chiffres, que son dernier groupe pourrait entamer (`77 012 3 12 500 F`).
+const CORPS_A_INDICATIF = `(?:${PREFIXE_ESPACE}${CHIFFRES(7)}${FIN_NUMERO_ENTIER}|${PAS_COUPE}${PAR_GROUPES}${PAS_DE_MILLE}`
+  + `|${PAS_COUPE}${PREFIXE_ESPACE}${CHIFFRES(7)}(?![0-9])(?!${SEP}{1,3}[0-9]{3}(?:${SEP}[0-9]{3})*(?!${SEP}?[0-9])))`;
+// TCK-2454 : `221` nu ou `(221)` et neuf chiffres qu'aucune lecture ne prend pour un numéro entier (`BARE_CODE_NINE`).
+const NEUF_DERRIERE_221 = String.raw`(?:\(221\)|(?<![0-9])221)${SEP}{0,3}(?!${NUMERO_ENTIER})${CORPS_A_INDICATIF}(?<!000)`;
 // Derrière le `1` ou le `7` et devant le `(0)` de trunk, qu'elle lit : un seul exemplaire pour les deux indicatifs.
 // TCK-2454 : devant un numéro écrit par groupes, ce qui suit ne compte plus, sauf s'il se coupe sur un autre numéro ou un montant.
 const PAS_ZONE_221 = String.raw`(?!${ZERO_TRUNK}${SEP}{0,3}(?:\(221\)${SEP}{0,3}(?!(?:${SEP}{0,3}[0-9]){2,8}${SEP}{1,3}${NUMERO_ENTIER})${SENEGAL}${FIN}`
   + String.raw`|\(221\)${SEP}{0,3}${SENEGAL_LIBRE}${FIN}${RIEN_COLLE}`
   + String.raw`|\(221\)${SEP}{0,3}${PAS_COUPE}(?=${PAR_GROUPES})${SENEGAL_LIBRE}${FIN}${PAS_DE_MILLE}`
-  + String.raw`|(?=(?:00)?221${SEP}?${PAS_COUPE})(?:(?=00)${SENEGAL}(?![0-9])|(?=221)${SENEGAL}${FIN})${PAS_DE_MILLE}))`;
+  + String.raw`|(?=(?:00)?221${SEP}?${PAS_COUPE})(?:(?=00)${SENEGAL}(?![0-9])|(?=221)${SENEGAL}${FIN})${PAS_DE_MILLE}|${NEUF_DERRIERE_221}))`;
 const NUMERO_CC1 = `[17]${PAS_ZONE_221}(?:(?<=1)${ZERO_TRUNK}(?:${RESTE_CC1}|${RESTE_NANP}|${RESTE_ZONE})|(?<=7)${ZERO_TRUNK}(?:${RESTE_CC1}|${RESTE_CC7}))`;
 const APRES_PLUS_ETAGE = String.raw`${WS}{0,2}(?:[02-689]|(?!${NUMERO_CC1})[17]|1[0-9])(?![0-9])`;
 const PAS_UN_ETAGE = String.raw`(?!${MOT_ETAGE}\+${APRES_PLUS_ETAGE})`;
-const CHIFFRES = (n) => `(?:${SEP}{0,3}[0-9]){${n}}`;
 const NUMERO_ETRANGER = `(?:`
   + `33${APRES_CC}${CHIFFRES(9)}`
   + String.raw`|${CC1}${APRES_CC}(?:${SEP}?\([0-9]{3}\)${CHIFFRES(7)}|${CHIFFRES(10)})`
@@ -157,10 +163,6 @@ const NUMERO_ETRANGER = `(?:`
 // `45 67` en clair.
 // TCK-2454 : tout nombre de un à trois chiffres devant, et `0221` aussi (`+10 00221 …`, `R+20 0221 …`).
 const TETE_A_INDICATIF = String.raw`(?:${CC1}${APRES_CC}${SEP}?\(221\)|[1-9][0-9]{0,2}${APRES_CC}${SEP}{0,3}(?:00?${WS}?)?221)`;
-// TCK-2454 : écrit par groupes, le numéro s'arrête au neuvième chiffre, quoi qui le suive, sauf coupure.
-// Écrit autrement, aussi, sauf devant un groupe de trois chiffres, que son dernier groupe pourrait entamer (`77 012 3 12 500 F`).
-const CORPS_A_INDICATIF = `(?:${PREFIXE_ESPACE}${CHIFFRES(7)}${FIN_NUMERO_ENTIER}|${PAS_COUPE}${PAR_GROUPES}${PAS_DE_MILLE}`
-  + `|${PAS_COUPE}${PREFIXE_ESPACE}${CHIFFRES(7)}(?![0-9])(?!${SEP}{1,3}[0-9]{3}(?:${SEP}[0-9]{3})*(?!${SEP}?[0-9])))`;
 const SENEGAL_A_INDICATIF = `${TETE_A_INDICATIF}${SEP}{0,3}${CORPS_A_INDICATIF}`;
 // TCK-2454 : un numéro tronqué derrière un indicatif étranger et `00221` (pas `221` nu : `+33 221 77 01 23` est français) va jusqu'à ce qui n'en est plus : un autre numéro, un montant, ou plus rien.
 const SENEGAL_COUPE = String.raw`(?=[1-9][0-9]{0,2}${APRES_CC}${SEP}{0,3}00?${WS}?221${SEP}{0,3}${PREFIXE_ESPACE})${NUMERO_ETRANGER}(?<!${SEP}[0-9])(?![0-9])`
@@ -174,7 +176,7 @@ const ETRANGER = String.raw`(?:(?<![0-9+])(?<![0-9][.,])${PAS_UN_ETAGE}(?:\+(?!$
 // Le lien WhatsApp canonique écrit le numéro sans `+` : `wa.me/…`, `…?phone=…`.
 const LIEN = String.raw`(?<=wa\.me/|[?&]phone=)(?:33[0-9]{9}|${CC1}[0-9]{10}|${CC2}[0-9]{7,11}|${CC3}[0-9]{6,10})(?![0-9])`;
 export const TELEPHONE = new RegExp(
-  `(?:${PREFIXE_DEVANT_INDICATIF}|${SENEGAL_AVEC_INDICATIF}|${SENEGAL}${FIN}|${SENEGAL_LIBRE}${FIN}|${SENEGAL_SEPARE}|${ETRANGER}|${LIEN})`,
+  `(?:${PREFIXE_DEVANT_INDICATIF}|${SENEGAL_AVEC_INDICATIF}|${SENEGAL}${FIN}|${SENEGAL_LIBRE}${FIN}|${SENEGAL_SEPARE}|${ETRANGER}|${NEUF_DERRIERE_221}|${LIEN})`,
   'iu',
 );
 export const COURRIEL = /[a-z0-9._%+-]+(?:\s*[@\uFF20]\s*|\s*[([{]\s*at\s*[)\]}]\s*|\s+at\s+)[a-z0-9-]+(?:\.[a-z0-9-]+)*\.[a-z]{2,}(?![a-z])/iu;

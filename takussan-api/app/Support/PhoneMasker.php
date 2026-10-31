@@ -216,12 +216,13 @@ final class PhoneMasker
      *
      * TCK-2454 — « sans chiffre derrière » ne vaut plus devant un numéro écrit par groupes (`SHAPED`) : neuf chiffres derrière
      * un indicatif sont un numéro entier, et ce qui les suit n'en est pas (`R+1 00221 77 012 34 56 12 500 F`, `… 78 90`). Sauf
-     * s'ils se coupent sur un autre numéro (`NOT_CUT`) ou sur un montant (`NO_THOUSANDS`).
+     * s'ils se coupent sur un autre numéro (`NOT_CUT`) ou sur un montant (`NO_THOUSANDS`). Et ce que `BARE_CODE_NINE` lira ensuite.
      */
     private const NOT_SENEGAL_ZONE = '(?!'.self::TRUNK_ZERO.self::SEP.'{0,3}(?:\(221\)'.self::SEP.'{0,3}(?!(?:'.self::SEP.'{0,3}[0-9]){2,8}'.self::SEP.'{1,3}'.self::CALL_WHOLE.')'.self::CALL_SENEGAL.self::CALL_END
         .'|\(221\)'.self::SEP.'{0,3}'.self::CALL_LOOSE.self::CALL_END.self::NOTHING_GLUED
         .'|\(221\)'.self::SEP.'{0,3}'.self::CALL_NOT_CUT.'(?='.self::CALL_SHAPED.')'.self::CALL_LOOSE.self::CALL_END.self::NO_THOUSANDS
-        .'|(?=(?:00)?221'.self::SEP.'?'.self::CALL_NOT_CUT.')(?:(?=00)'.self::CALL_SENEGAL.'(?![0-9])|(?=221)'.self::CALL_SENEGAL.self::CALL_END.')'.self::NO_THOUSANDS.'))';
+        .'|(?=(?:00)?221'.self::SEP.'?'.self::CALL_NOT_CUT.')(?:(?=00)'.self::CALL_SENEGAL.'(?![0-9])|(?=221)'.self::CALL_SENEGAL.self::CALL_END.')'.self::NO_THOUSANDS
+        .'|'.self::CALL_BARE_NINE.'))';
 
     /**
      * TCK-2454 — les neuf chiffres d'un numéro sénégalais écrit par groupes de deux ou trois (2-3-2-2, 2-2-2-3, 3-2-2-2, 2-2-3-2,
@@ -242,6 +243,15 @@ final class PhoneMasker
      * compte même suivi d'une marque, qui en ferait un prix : `77 012 34/33 821 00 00 F` n'a pas de contact `+221770123433`.
      */
     private const NOT_CUT = '(?!(?:'.self::SEP.'{0,3}[0-9]){2,8}'.self::SEP.'{1,3}(?:'.self::CALL_SENEGAL.'|'.self::CALL_LOOSE.')(?![0-9]))';
+
+    /**
+     * TCK-2454 — `221` nu ou `(221)`, puis neuf chiffres qu'aucune lecture ne prend pour un numéro entier : groupement que le masque
+     * ne lit pas (`(221) 7 7 0 1 2 3 4 56`, `221 770 123 456`), marque derrière (`221 770123456 F`), ou chiffre à chiffre suivi d'un
+     * petit nombre (`(221) 7 7 0 1 2 3 4 5 6 3 chambres`, qui se lisait `7 0 1 2 3 4 5 6 3`). Masqué avec son indicatif, jusqu'au
+     * neuvième chiffre, sous les gardes de `CODED_BODY` (`221 77 012 3 / 450 000 F` garde son montant). L'indicatif change la lecture :
+     * sans lui, `770123456 F` reste un prix. Pas un nombre qui finit par `000`, un montant derrière un autre nombre (`Lot (221) 300 000 000 F`).
+     */
+    private const BARE_CODE_NINE = '(?:\(221\)|(?<![0-9])221)'.self::SEP.'{0,3}(?!'.self::CALL_WHOLE.')'.self::CALL_CODED_BODY.'(?<!000)';
 
     /**
      * TCK-2454 — placé derrière les neuf chiffres : pas un groupe `000` juste derrière. `000 F` n'est le prix de personne, c'est la
@@ -388,6 +398,7 @@ final class PhoneMasker
         .'|'.self::CALL_LOOSE.self::CALL_END
         .'|'.self::SENEGAL_SEPARATED
         .'|'.self::FOREIGN
+        .'|'.self::CALL_BARE_NINE
         .'|'.self::LINK.')'.self::DEFINITIONS.'/iu';
 
     /**
@@ -401,7 +412,7 @@ final class PhoneMasker
      */
     public const DEFINITIONS = '(?(DEFINE)(?<pm_sn>'.self::SENEGAL.')(?<pm_sl>'.self::SENEGAL_LOOSE.')(?<pm_sc>'.self::SENEGAL_WITH_CODE.')'
         .'(?<pm_ac>'.self::AFTER_CC.')(?<pm_end>'.self::END.')(?<pm_fn>'.self::FOREIGN_NUMBER_BODY.')(?<pm_n1>'.self::CC1_NUMBER_BODY.')'
-        .'(?<pm_s>'.self::SEP.')(?<pm_ws>'.self::WHOLE_SENEGAL.')(?<pm_nc>'.self::NOT_CUT.')(?<pm_sh>'.self::SHAPED.')(?<pm_cb>'.self::CODED_BODY.'))';
+        .'(?<pm_s>'.self::SEP.')(?<pm_ws>'.self::WHOLE_SENEGAL.')(?<pm_nc>'.self::NOT_CUT.')(?<pm_sh>'.self::SHAPED.')(?<pm_cb>'.self::CODED_BODY.')(?<pm_bn>'.self::BARE_CODE_NINE.'))';
 
     private const CALL_SENEGAL = '(?&pm_sn)';
 
@@ -422,6 +433,8 @@ final class PhoneMasker
     private const CALL_SHAPED = '(?&pm_sh)';
 
     private const CALL_CODED_BODY = '(?&pm_cb)';
+
+    private const CALL_BARE_NINE = '(?&pm_bn)';
 
     public const TOKEN = '[TELEPHONE]';
 
