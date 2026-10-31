@@ -65,8 +65,8 @@ Aucune table ni route n'est créée.
 
 - [x] `SocleAgent` :
   - [x] `usesStrictSchema(string $driver)`, ou un équivalent déclaratif par pilote ;
-  - [x] `providerOptions()` ne laisse forcer l'outil de sortie sur aucun pilote. **Écart à la lettre** : `auto` n'est
-        posé que sur `anthropic`, seul pilote qui a un outil de sortie (voir les notes) ;
+  - [x] `providerOptions()` ne laisse forcer l'outil de sortie sur aucun pilote : `auto` n'est posé que sur `anthropic`,
+        seul pilote qui a un outil de sortie (ADR-0085, amendement du 2026-10-31) ;
   - [x] docblocks mis à jour.
 - [x] `RadarExtraction` et chaque agent concret : déclaration par pilote, non strict hors des pilotes attestés.
 - [x] `AiGateway` :
@@ -80,6 +80,7 @@ Aucune table ni route n'est créée.
   - [x] la déclaration stricte dépend du pilote, pas du nom de l'entrée ;
   - [x] `AnthropicSchemas` généralisé, ou doublé, pour mesurer un schéma tel que chaque pilote l'envoie ; les deux
         gardes de schéma vérifient chaque pilote attesté.
+- [x] Bascule hors d'Anthropic, écrite au journal et lisible dans la console (ADR-0085, amendement du 2026-10-31).
 - [x] Rapport : liste des pilotes attestés en strict et ce qui l'a attesté, et texte de spec proposé (features §2.11,
       la règle « Le schéma de sortie d'un usage tient sous les limites publiées du fournisseur »).
 
@@ -117,14 +118,29 @@ relevée le 2026-10-31. Le rapport de la branche cite les pages.
 - **Le défaut réel était AC4** : sur un pilote non attesté, un agent déclaré strict rendait une réponse vide en succès.
 - **Le double reste utile sur chaque pilote** : `openai-compatible` passe le nom de l'entrée aux options, et une entrée
   nommée `anthropic` recevrait sans lui le `tool_choice` d'Anthropic (ablation A11).
-- **Limite** : un 400 n'est jamais rejoué, mais il n'entre pas en bascule (`AiGateway` ne bascule que sur
-  `FailoverableException`). Le contrat de ce ticket dit l'inverse ; le comportement n'a pas été changé.
+- **La bascule suit l'amendement du 2026-10-31 d'ADR-0085** : hors d'Anthropic, un refus bascule s'il reste un maillon ;
+  sur `anthropic` et sur le dernier maillon, l'exception part telle quelle. La contrainte « un 400 […] la bascule de la
+  chaîne fait le reste » n'est donc vraie que hors d'Anthropic.
+- **Un 408 vaut `ai.provider_timeout` sur tout pilote** : c'est le seul changement d'issue sur Anthropic (le code du
+  journal et la reprise par les jobs). Aucun corps envoyé ne change.
+
+### Limites connues
+
+- **Sur Anthropic strict, une réponse sans sortie reste un succès à `[]`**, y compris comme secours après un autre pilote.
+  Inchangé, et figé par un test. Les lecteurs des jobs l'arrêtent ; `EvaluationRunner` ne compte pas le cas en échec, seuls
+  ses scores le pénalisent.
+- **Rien ne garde la forme des schémas hors d'Anthropic** : racine, `required`, `additionalProperties`. Mesurée à la main
+  sur les 3 agents, elle attend TCK-2450.
+- **Les gardes des agents lisent ce qu'ils déclarent.** Un agent qui ne forcerait un outil que sous une condition d'état
+  échapperait au test de ses options. Un agent hors du dossier et d'aucun usage n'est vu que par
+  `scripts/check-ai-usages.mjs` (C), qui ne lit que le motif `extends SocleAgent`.
+- **Aucune alerte sur `provider_rejected`** : le tableau de bord le compte, sans nommer le fournisseur. Le nom se lit dans
+  `ai_calls`.
 
 ### Décisions prises en autonomie, à revoir
 
-- **`auto` seulement sur `anthropic`.** Écarté : poser `tool_choice: auto` sur les trois autres pilotes, comme l'écrit
-  ADR-0085 §2. Il n'y a aucun outil à y choisir, et leur documentation ne dit pas qu'un `tool_choice` seul est accepté.
-- **Un 400 ne bascule toujours pas.** Écarté : le faire basculer ici, ce qui changerait le comportement sur Anthropic.
+- **`auto` seulement sur `anthropic`**, inscrit dans ADR-0085 (amendement du 2026-10-31). Écarté : le poser sur les trois
+  autres pilotes. Il n'y a aucun outil à y choisir, et leur documentation ne dit pas qu'un `tool_choice` seul est accepté.
 - **Les agents héritent de `anthropic` comme pilote strict, `RadarExtraction` déclare aucun pilote.** Écarté : une
   déclaration obligatoire par agent, plus de code pour le même résultat ; un test parcourt chaque agent et chaque pilote.
 

@@ -51,6 +51,22 @@ class AdminAiDashboardTest extends TestCase
         $this->assertEquals([1, 7.0], [$jours[now()->subDay()->toDateString()]['calls'], $jours[now()->subDay()->toDateString()]['cost_xof']]);
     }
 
+    /** TCK-2449 — un fournisseur cassé s'efface derrière le secours : la console compte ses refus, hors évaluations. */
+    public function test_provider_rejections_are_counted_apart_from_other_failovers(): void
+    {
+        $this->installerSocleDEssai();
+        $this->actingAsRole('super_admin');
+        $this->ligne('failed_over', null);
+        $this->ligne('failed_over', null, ['warning' => AiGateway::WARNING_PROVIDER_REJECTED]);
+        $this->ligne('failed_over', null, ['warning' => AiGateway::WARNING_PROVIDER_REJECTED, 'is_evaluation' => true]);
+
+        $jour = $this->getJson('/api/admin/ai/dashboard?'.http_build_query([
+            'from' => now()->toDateString(), 'to' => now()->toDateString(),
+        ]))->assertOk()->json('data.days.0');
+
+        $this->assertEquals([2, 1], [$jour['failovers'], $jour['provider_rejections']]);
+    }
+
     public function test_acceptance_follows_the_selected_period_on_both_ends(): void
     {
         $this->installerSocleDEssai();

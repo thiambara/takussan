@@ -7861,6 +7861,8 @@
           "latency": "Latence moyenne (ms)",
           "errors": "Erreurs",
           "refusals": "Refus",
+          "providerRejections": "Refus du fournisseur, bascule",
+          "providerRejectionsNotice": "{count, plural, one {# appel a basculé sur le maillon suivant parce que le fournisseur l’a refusé. Vérifiez ce fournisseur : le secours masque sa panne.} other {# appels ont basculé sur le maillon suivant parce que le fournisseur les a refusés. Vérifiez ce fournisseur : le secours masque sa panne.}}",
           "acceptanceCaption": "Taux d’acceptation des suggestions",
           "acceptance": "Acceptées telles quelles",
           "decided": "Décidées",

@@ -4,6 +4,7 @@ namespace App\Ai\Agents;
 
 use Laravel\Ai\Contracts\Agent;
 use Laravel\Ai\Contracts\HasProviderOptions;
+use Laravel\Ai\Contracts\HasStructuredOutput;
 use Laravel\Ai\Enums\Lab;
 use Laravel\Ai\Promptable;
 
@@ -94,7 +95,7 @@ abstract class SocleAgent implements Agent, HasProviderOptions
      * quels que soient les réglages de réflexion, comme la réflexion manuelle sur tout modèle (documentation
      * d'Anthropic, « Forcing tool use »). `auto`, accepté partout, rend le choix au modèle : le prompt et
      * l'outil seul proposé l'y mènent, et la passerelle tient une réponse sans sortie pour un échec
-     * (`ai.response_invalid`). Un agent strict n'ajoute rien : sa requête n'a pas d'outil.
+     * (`ai.response_invalid`). Un agent strict ou sans schéma n'ajoute rien : sa requête n'a pas d'outil.
      *
      * `openai`, `openrouter` et `openai-compatible` n'ont pas d'outil de sortie : laravel/ai y demande la
      * sortie par `text.format` ou `response_format`. Sans `tools` dans la requête, il n'y a rien à forcer, et
@@ -106,7 +107,7 @@ abstract class SocleAgent implements Agent, HasProviderOptions
     {
         $driver = $provider instanceof Lab ? $provider->value : $provider;
 
-        return $driver === Lab::Anthropic->value && ! $this->usesStrictSchema($driver)
+        return $driver === Lab::Anthropic->value && $this instanceof HasStructuredOutput && ! $this->usesStrictSchema($driver)
             ? ['tool_choice' => ['type' => 'auto']]
             : [];
     }

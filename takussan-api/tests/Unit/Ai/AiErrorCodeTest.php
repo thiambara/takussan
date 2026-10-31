@@ -38,6 +38,7 @@ class AiErrorCodeTest extends TestCase
             'délai dépassé' => [new ConnectionException('cURL error 28: Operation timed out after 300000 milliseconds'), 'ai.provider_timeout'],
             'hôte injoignable' => [new ConnectionException('cURL error 6: Could not resolve host'), 'ai.provider_unavailable'],
             'clé refusée 401' => [$http(401), 'ai.provider_auth'],
+            'délai du fournisseur 408' => [$http(408), 'ai.provider_timeout'],
             'clé refusée 403' => [$http(403), 'ai.provider_auth'],
             'débit 429' => [$http(429), 'ai.provider_rate_limited'],
             'panne 503' => [$http(503), 'ai.provider_unavailable'],

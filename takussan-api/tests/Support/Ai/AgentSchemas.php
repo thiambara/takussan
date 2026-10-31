@@ -2,6 +2,7 @@
 
 namespace Tests\Support\Ai;
 
+use App\Services\Ai\AiUsageRegistry;
 use Illuminate\JsonSchema\JsonSchemaTypeFactory;
 use Illuminate\Support\Arr;
 use Laravel\Ai\Contracts\HasStructuredOutput;
@@ -31,7 +32,12 @@ final class AgentSchemas
         'anthropic' => ['max_unions' => 16, 'max_optional' => 24, 'max_nodes' => 21],
     ];
 
-    /** @return list<class-string> les agents concrets à sortie structurée de `app/Ai/Agents/`, découverts sur le disque */
+    /**
+     * Découverts sur le disque, plus ceux que cite un usage du catalogue, où qu'ils soient. Un agent hors du
+     * dossier et d'aucun usage ne se voit pas ici : `scripts/check-ai-usages.mjs` (C) le refuse.
+     *
+     * @return list<class-string> les agents concrets à sortie structurée
+     */
     public static function structuredAgents(): array
     {
         $app = dirname(__DIR__, 3).'/app';
@@ -46,6 +52,13 @@ final class AgentSchemas
                 $agents[] = $class;
             }
         }
+        foreach (AiUsageRegistry::USAGES as $usage) {
+            $class = (new $usage)->agentClass();
+            if (is_subclass_of($class, HasStructuredOutput::class)) {
+                $agents[] = $class;
+            }
+        }
+        $agents = array_values(array_unique($agents));
         sort($agents);
 
         return $agents;

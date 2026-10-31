@@ -6,6 +6,7 @@ use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Api\Admin\AiDashboardRequest;
 use App\Models\AiCall;
 use App\Services\Ai\AiBudget;
+use App\Services\Ai\AiGateway;
 use App\Services\Ai\AiUsageRegistry;
 use App\Services\Ai\Evaluation\EvaluationRunner;
 use App\Services\Ai\SuggestionRecorder;
@@ -15,7 +16,8 @@ use Illuminate\Http\JsonResponse;
 /**
  * TCK-2385 (ADR-0076 §12) — ce qui tourne et ce que ça coûte : par usage et par jour, hors
  * évaluations. `calls` compte les appels servis (réponse ou cache) ; refus, bascules et erreurs ont
- * leur colonne.
+ * leur colonne. `provider_rejections` compte les maillons qu'un autre fournisseur qu'Anthropic a refusés, et
+ * que le secours a effacés (TCK-2449) : sans lui, ce fournisseur cassé ne se verrait plus.
  */
 class AiDashboardController extends Controller
 {
@@ -34,7 +36,8 @@ class AiDashboardController extends Controller
                 count(*) filter (where outcome = 'error') as errors,
                 count(*) filter (where outcome = 'refused') as refusals,
                 count(*) filter (where outcome = 'failed_over') as failovers,
-                count(*) filter (where outcome = 'cache_hit') as cache_hits")
+                count(*) filter (where outcome = 'cache_hit') as cache_hits,
+                count(*) filter (where warning = ?) as provider_rejections", [AiGateway::WARNING_PROVIDER_REJECTED])
             ->groupByRaw('usage_key, date(created_at)')
             ->orderByRaw('date(created_at), usage_key')
             ->get()
@@ -48,6 +51,7 @@ class AiDashboardController extends Controller
                 'refusals' => (int) $row->refusals,
                 'failovers' => (int) $row->failovers,
                 'cache_hits' => (int) $row->cache_hits,
+                'provider_rejections' => (int) $row->provider_rejections,
             ])->all();
 
         $baselines = [];

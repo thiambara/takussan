@@ -1114,6 +1114,7 @@ export type AiDashboardDay = {
   refusals: number;
   failovers: number;
   cache_hits: number;
+  provider_rejections: number;
 };
 export type AdminAiDashboardResponse = {
   data: {

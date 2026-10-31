@@ -1,7 +1,8 @@
 # ADR-0085 — Un modèle s'ajoute et se tarife dans la console ; un fournisseur, sa clé et son adresse restent dans la configuration du déploiement
 
 - **Statut** : Accepté le 2026-10-30 par le porteur pour le principe (option b, « modèles libres, secrets fermés »). Les
-  modalités des points 2 à 5 sont des **décisions de la session, à revoir par le porteur**.
+  modalités des points 2 à 5 sont des **décisions de la session, à revoir par le porteur**. Le point 2 est amendé le
+  2026-10-31 (fin de ce document), décision de la session, à revoir par le porteur.
 - **Date** : 2026-10-30
 - **Tickets** : [TCK-2448](../backlog/tickets/TCK-2448-catalogue-des-modeles-ia-en-console.md) (catalogue des
   modèles), [TCK-2449](../backlog/tickets/TCK-2449-socle-ia-neutre-vis-a-vis-du-fournisseur.md) (neutralité du
@@ -131,3 +132,43 @@ configuration du déploiement : un commit, un déploiement, la mention dans la p
 - garde `check-ai-providers-privacy.mjs` étendue : chaque entrée de `providers` déclare ses hôtes acceptés ;
 - test « une adresse hors des hôtes déclarés rend le fournisseur non sélectionnable » ;
 - test « une requête OpenRouter porte `provider.data_collection` ».
+
+## Amendement du 2026-10-31 — `auto` sur `anthropic` seul, et la bascule hors d'Anthropic (TCK-2449)
+
+Amende le point 2. **Décision de la session, à revoir par le porteur.** Aucun vrai appel à un autre fournisseur qu'Anthropic
+ne l'a éprouvée : elle repose sur le SDK `laravel/ai` et sur la documentation relevée le 2026-10-31.
+
+### Pourquoi
+
+- **Le point 2 suppose un outil que le SDK n'envoie pas.** Hors du pilote `anthropic`, `laravel/ai` demande la sortie par
+  `text.format` (OpenAI) ou `response_format` (OpenRouter, OpenAI-compatible), sans `tools`. Aucune page lue ne dit qu'un
+  `tool_choice` seul serait accepté.
+- **Un refus arrêtait la chaîne sur tout pilote**, alors qu'un secours valide restait disponible. Hors d'Anthropic, ce
+  qu'un point d'accès accepte peut changer sans commit (OpenRouter, « Structured outputs »), et OpenRouter documente
+  des pannes en HTTP 200 (« Errors and debugging »).
+
+### Décision
+
+- **Remplace, au point 2, « Un agent non strict pose `tool_choice` à `auto` dans la forme qu'attend le pilote » :** un
+  agent non strict à sortie structurée pose `tool_choice` à `auto` sur le pilote `anthropic`, le seul où le SDK passe la
+  sortie par un outil. Les pilotes `openai`, `openrouter` et `openai-compatible` la demandent par un format de réponse,
+  sans outil : il n'y a rien à poser. Le pilote décide, jamais le nom du fournisseur.
+- **Bascule hors d'Anthropic.** Sur un autre pilote qu'`anthropic`, **s'il reste un maillon**, la chaîne passe au suivant
+  sur un statut 400, 404, 408, 413, 422 ou 500, et sur une `AiException` de classe exacte (le SDK la lève sur un corps
+  qui porte `error`, y compris en HTTP 200). 401 et 403 ne basculent pas : une clé refusée doit se voir.
+- **Sur le dernier maillon, l'exception part telle quelle** : les jobs et le test de connexion en lisent la cause.
+- **Rien n'est rejoué autrement sur le même maillon** : ni sans mode strict, ni sans schéma.
+- **Sur `anthropic`, un refus arrête toujours la chaîne.** Il y est déterministe, et le maillon suivant le rendrait à
+  l'identique (TCK-2433).
+- **La bascule se voit.** La ligne de `ai_calls` porte `failed_over`, le code de l'erreur et `warning: provider_rejected`.
+  Le tableau de bord de la console compte ces lignes par jour et par usage, et affiche une phrase dès qu'il y en a.
+- **Un 408 vaut `ai.provider_timeout`, sur tout pilote**, Anthropic compris : un délai dépassé se reprend, et ne clôt plus
+  une extraction. C'est le seul changement d'issue sur Anthropic ; aucun corps envoyé ne change.
+
+### Conséquences
+
+- **Risque accepté** : un fournisseur cassé s'efface derrière le secours, et le trafic et le coût glissent vers lui. Seuls
+  le journal et le tableau de bord le disent : aucune alerte n'est émise.
+- Un contenu refusé part chez le fournisseur suivant, comme le fait déjà un 429. La chaîne est choisie par le super-admin,
+  parmi des fournisseurs que la politique de confidentialité nomme.
+- Aucune chaîne ne contient aujourd'hui de pilote non Anthropic : la règle n'a aucun effet tant qu'aucune clé n'est posée.

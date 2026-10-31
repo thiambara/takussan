@@ -48,6 +48,7 @@ final class AiErrorCode
     {
         return match (true) {
             $status === 401, $status === 403 => 'ai.provider_auth',
+            $status === 408 => 'ai.provider_timeout',
             $status === 429 => 'ai.provider_rate_limited',
             $status >= 500 => 'ai.provider_unavailable',
             default => 'ai.request_rejected',

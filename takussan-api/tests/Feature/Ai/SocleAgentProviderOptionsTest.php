@@ -6,6 +6,7 @@ use App\Ai\Agents\ConnectionTestAgent;
 use App\Ai\Agents\RadarConsentMessage;
 use App\Ai\Agents\RadarConsentVerification;
 use App\Ai\Agents\RadarExtraction;
+use App\Ai\Agents\SocleAgent;
 use App\Ai\Usages\ConnectionTestUsage;
 use App\Ai\Usages\RadarConsentMessageUsage;
 use App\Ai\Usages\RadarConsentVerificationUsage;
@@ -26,15 +27,20 @@ use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Http;
 use Laravel\Ai\Attributes\Strict;
 use Laravel\Ai\Contracts\HasTools;
+use Laravel\Ai\Enums\Lab;
+use Laravel\Ai\Exceptions\AiException;
+use Laravel\Ai\Responses\AgentResponse;
 use Laravel\Ai\ToolChoice;
 use PHPUnit\Framework\Attributes\DataProvider;
 use ReflectionClass;
+use RuntimeException;
 use Tests\Support\Ai\AgentDEssai;
 use Tests\Support\Ai\AgentNonStrictDEssai;
 use Tests\Support\Ai\AgentSchemas;
 use Tests\Support\Ai\SocleIaDEssai;
 use Tests\Support\Ai\UsageDEssai;
 use Tests\TestCase;
+use Throwable;
 
 /**
  * TCK-2449 (ADR-0085 §2) — aucun réglage du socle ne suppose Anthropic. Éprouvé au niveau du fil, sans
@@ -62,8 +68,8 @@ class SocleAgentProviderOptionsTest extends TestCase
     /** @var array<string, string> le texte que chaque hôte rend, à défaut un JSON */
     private array $textes = [];
 
-    /** @var array<string, mixed>|null quand il est posé, chaque hôte répond 400 avec ce corps */
-    private ?array $refus = null;
+    /** @var array<string, array{int, array<string, mixed>}> la réponse brute d'un hôte : statut et corps */
+    private array $brutes = [];
 
     protected function setUp(): void
     {
@@ -76,8 +82,8 @@ class SocleAgentProviderOptionsTest extends TestCase
             $hote = (string) parse_url($requete->url(), PHP_URL_HOST);
             $this->recues[$hote][] = $requete;
 
-            return $this->refus !== null
-                ? Http::response($this->refus, 400)
+            return isset($this->brutes[$hote])
+                ? Http::response($this->brutes[$hote][1], $this->brutes[$hote][0])
                 : Http::response($this->reponse($this->pilotes[$hote], $this->textes[$hote] ?? '{"a":1}'));
         });
     }
@@ -339,26 +345,201 @@ class SocleAgentProviderOptionsTest extends TestCase
         $this->assertSame(AiCallOutcome::Success, $resultat->call->outcome);
     }
 
-    /**
-     * Jamais de repli à l'exécution : un 400 n'est pas rejoué autrement sur le même maillon. Limite
-     * mesurée : il n'entre pas non plus en bascule, `AiGateway` ne bascule que sur `FailoverableException`.
-     */
-    #[DataProvider('pilotes')]
-    public function test_un_refus_du_fournisseur_n_est_jamais_rejoue_autrement(string $pilote): void
+    /** @return array<string, array{string, int}> */
+    public static function refusQuiBasculent(): array
     {
-        $this->declarer('refuse', $pilote);
-        $this->refus = ['error' => ['type' => 'invalid_request_error', 'message' => 'schéma refusé']];
-
-        try {
-            $this->jouer(RadarExtractionUsage::KEY, new ModelLink('refuse', 'modele-a', 1000));
-            $this->fail('un 400 ne doit pas réussir');
-        } catch (RequestException $e) {
-            $this->assertSame(400, $e->response->status());
+        $cas = [];
+        foreach (self::PILOTES_SANS_OUTIL_DE_SORTIE as $pilote) {
+            foreach ([400, 404, 408, 413, 422, 500] as $statut) {
+                $cas["{$pilote} {$statut}"] = [$pilote, $statut];
+            }
         }
 
-        $this->assertCount(1, $this->recues['refuse.test']);
+        return $cas;
+    }
+
+    /** Une chaîne à deux maillons, sur le rôle de l'usage : `entree` sur le pilote voulu, `secours` sur Anthropic. */
+    private function chaineAvecSecours(string $usage, string $pilote): void
+    {
+        $this->declarer('entree', $pilote);
+        $this->declarer('secours', 'anthropic');
+        config(['ai.roles.'.app(AiUsageRegistry::class)->get($usage)->role()->value => [
+            ['provider' => 'entree', 'model' => 'modele-a', 'max_tokens' => 1000],
+            ['provider' => 'secours', 'model' => 'modele-b', 'max_tokens' => 1000],
+        ]]);
+    }
+
+    private const REFUS = ['error' => ['type' => 'invalid_request_error', 'code' => 'x', 'message' => 'refusé']];
+
+    /** ADR-0085, amendement du 2026-10-31 — hors d'Anthropic, un refus bascule s'il reste un maillon, et le journal le dit. */
+    #[DataProvider('refusQuiBasculent')]
+    public function test_un_refus_bascule_hors_d_anthropic_et_s_ecrit_dans_le_journal(string $pilote, int $statut): void
+    {
+        $this->chaineAvecSecours(RadarExtractionUsage::KEY, $pilote);
+        $this->brutes['entree.test'] = [$statut, self::REFUS];
+
+        $resultat = $this->jouer(RadarExtractionUsage::KEY, null);
+
+        $this->assertSame(['a' => 1], $resultat->structured);
+        $this->assertCount(1, $this->recues['entree.test'], 'jamais rejoué autrement sur le même maillon');
+        $this->assertCount(1, $this->recues['secours.test']);
+        $code = match ($statut) {
+            408 => 'ai.provider_timeout',
+            500 => 'ai.provider_unavailable',
+            default => 'ai.request_rejected',
+        };
+        $this->assertSame(
+            [['entree', AiCallOutcome::FailedOver, $code], ['secours', AiCallOutcome::Success, null]],
+            AiCall::query()->orderBy('id')->get()->map(fn (AiCall $a) => [$a->provider, $a->outcome, $a->error_code])->all(),
+        );
+        $this->assertSame(AiGateway::WARNING_PROVIDER_REJECTED, AiCall::query()->where('provider', 'entree')->sole()->warning);
+    }
+
+    /** Sur le dernier maillon, l'exception part telle quelle : les jobs en lisent le code. */
+    #[DataProvider('refusQuiBasculent')]
+    public function test_sur_le_dernier_maillon_le_refus_part_tel_quel(string $pilote, int $statut): void
+    {
+        $this->declarer('entree', $pilote);
+        $this->brutes['entree.test'] = [$statut, self::REFUS];
+
+        try {
+            $this->jouer(RadarExtractionUsage::KEY, new ModelLink('entree', 'modele-a', 1000));
+            $this->fail('un refus ne doit pas réussir');
+        } catch (RequestException $e) {
+            $this->assertSame($statut, $e->response->status());
+        }
+
+        $this->assertCount(1, $this->recues['entree.test']);
         $appel = AiCall::query()->sole();
-        $this->assertSame(['refuse', AiCallOutcome::Error, 'ai.request_rejected'], [$appel->provider, $appel->outcome, $appel->error_code]);
+        $this->assertSame([AiCallOutcome::Error, null], [$appel->outcome, $appel->warning]);
+    }
+
+    /** Une clé refusée est une erreur de configuration : elle ne s'efface pas derrière le secours. */
+    #[DataProvider('pilotesSansOutilDeSortie')]
+    public function test_une_cle_refusee_ne_bascule_pas(string $pilote): void
+    {
+        foreach ([401, 403] as $statut) {
+            AiCall::query()->delete();
+            $this->recues = [];
+            $this->chaineAvecSecours(RadarExtractionUsage::KEY, $pilote);
+            $this->brutes['entree.test'] = [$statut, self::REFUS];
+
+            try {
+                $this->jouer(RadarExtractionUsage::KEY, null);
+                $this->fail('une clé refusée ne doit pas réussir');
+            } catch (RequestException $e) {
+                $this->assertSame($statut, $e->response->status());
+            }
+
+            $this->assertArrayNotHasKey('secours.test', $this->recues);
+            $this->assertSame(['ai.provider_auth'], AiCall::query()->pluck('error_code')->all());
+        }
+    }
+
+    /** Sur Anthropic, rien ne change : le refus arrête la chaîne, sans `warning`. */
+    public function test_sur_anthropic_un_refus_arrete_toujours_la_chaine(): void
+    {
+        foreach ([400, 404, 413, 422, 500] as $statut) {
+            AiCall::query()->delete();
+            $this->recues = [];
+            $this->chaineAvecSecours(RadarExtractionUsage::KEY, 'anthropic');
+            $this->brutes['entree.test'] = [$statut, self::REFUS];
+
+            try {
+                $this->jouer(RadarExtractionUsage::KEY, null);
+                $this->fail('un refus sur Anthropic ne doit pas réussir');
+            } catch (RequestException $e) {
+                $this->assertSame($statut, $e->response->status());
+            }
+
+            $this->assertArrayNotHasKey('secours.test', $this->recues, (string) $statut);
+            $appel = AiCall::query()->sole();
+            $this->assertSame([AiCallOutcome::Error, null], [$appel->outcome, $appel->warning], (string) $statut);
+        }
+    }
+
+    /** OpenRouter documente des pannes en HTTP 200 : le SDK lève une `AiException` nue, et la chaîne bascule. */
+    #[DataProvider('pilotesSansOutilDeSortie')]
+    public function test_une_panne_en_http_200_bascule(string $pilote): void
+    {
+        $this->chaineAvecSecours(RadarExtractionUsage::KEY, $pilote);
+        $this->brutes['entree.test'] = [200, ['error' => ['code' => 502, 'type' => 'en_amont', 'message' => 'en amont']]];
+
+        $resultat = $this->jouer(RadarExtractionUsage::KEY, null);
+
+        $this->assertSame(['a' => 1], $resultat->structured);
+        $this->assertSame(
+            [['entree', AiCallOutcome::FailedOver, 'ai.unexpected'], ['secours', AiCallOutcome::Success, null]],
+            AiCall::query()->orderBy('id')->get()->map(fn (AiCall $a) => [$a->provider, $a->outcome, $a->error_code])->all(),
+        );
+        $this->assertSame(AiGateway::WARNING_PROVIDER_REJECTED, AiCall::query()->where('provider', 'entree')->sole()->warning);
+    }
+
+    /** La classe exacte : une erreur de code ou une exception dérivée reste bruyante, quel que soit le pilote. */
+    public function test_seule_l_ai_exception_exacte_bascule(): void
+    {
+        foreach ([new RuntimeException('bogue'), new class('dérivée') extends AiException {}] as $erreur) {
+            AiCall::query()->delete();
+            $this->recues = [];
+            $this->chaineAvecSecours(RadarExtractionUsage::KEY, 'openrouter');
+            $this->app->bind(RadarExtraction::class, fn () => new class($erreur) extends SocleAgent
+            {
+                public function __construct(private Throwable $erreur) {}
+
+                public function prompt(mixed ...$arguments): AgentResponse
+                {
+                    throw $this->erreur;
+                }
+            });
+
+            try {
+                $this->jouer(RadarExtractionUsage::KEY, null);
+                $this->fail('cette erreur ne doit pas réussir');
+            } catch (Throwable $e) {
+                $this->assertSame($erreur, $e);
+            }
+
+            $this->assertSame([AiCallOutcome::Error], AiCall::query()->pluck('outcome')->all());
+        }
+    }
+
+    /** Le `false` du double l'emporte sur l'entrée : un agent non strict ne part jamais en grammaire. */
+    public function test_le_double_l_emporte_sur_le_reglage_de_l_entree(): void
+    {
+        $this->declarer('mon-claude', 'anthropic', ['use_native_structured_output' => true]);
+
+        $this->jouer(RadarExtractionUsage::KEY, new ModelLink('mon-claude', 'modele-a', 1000));
+
+        $corps = $this->corpsEnvoye('mon-claude');
+        $this->assertArrayNotHasKey('output_config', $corps);
+        $this->assertSame(['type' => 'auto'], $corps['tool_choice']);
+    }
+
+    /** Sans outil, `tool_choice` n'a rien à choisir : un agent sans schéma ne le pose sur aucun pilote. */
+    public function test_un_agent_sans_schema_ne_pose_jamais_tool_choice(): void
+    {
+        $agent = new class extends SocleAgent
+        {
+            protected function strictDrivers(): array
+            {
+                return [];
+            }
+        };
+
+        foreach (Lab::cases() as $lab) {
+            $this->assertSame([], $agent->providerOptions($lab), $lab->value);
+        }
+    }
+
+    /** ADR-0085 §2 — ce que chaque agent livré rend à chaque pilote du SDK ne force jamais un outil. */
+    public function test_aucun_agent_livre_ne_force_un_outil_par_ses_options(): void
+    {
+        foreach ([...AgentSchemas::structuredAgents(), ConnectionTestAgent::class] as $agent) {
+            foreach (Lab::cases() as $lab) {
+                $choix = (new $agent)->providerOptions($lab)['tool_choice'] ?? null;
+                $this->assertContains($choix, [null, ['type' => 'auto']], "{$agent} sur {$lab->value}");
+            }
+        }
     }
 
     /** AC5, et le double garde les réglages de l'entrée : adresse, clé, en-têtes, options, et le tarif du nom réel. */

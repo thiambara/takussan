@@ -25,5 +25,22 @@ describe('coûts IA (TCK-2385)', () => {
     expect(ligne).toHaveTextContent(/2026/);
     expect(screen.getByRole('table', { name: 'Taux d’acceptation des suggestions' })).toHaveTextContent('75 %');
     expect(screen.getByText(/12,50 XOF dépensés sur 5000 XOF/)).toBeInTheDocument();
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
+
+  it('dit qu’un fournisseur a refusé des appels que le secours a effacés (TCK-2449)', async () => {
+    const jour = { usage_key: 'essai.extraction', calls: 3, cost_xof: 1, avg_duration_ms: 100, errors: 0, refusals: 0, failovers: 2, cache_hits: 0 };
+    vi.mocked(fetchAdminAiDashboard).mockResolvedValue({ data: {
+      days: [{ ...jour, date: '2026-10-30', provider_rejections: 2 }, { ...jour, date: '2026-10-31', provider_rejections: 1 }],
+      acceptance: {},
+      baselines: {},
+      today: { spent_xof: 0, daily_budget_xof: null },
+    } });
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(withIntl(<QueryClientProvider client={queryClient}><AiDashboardPanel /></QueryClientProvider>));
+
+    expect(await screen.findByRole('status')).toHaveTextContent('3 appels ont basculé sur le maillon suivant');
+    const ligne = within(screen.getByRole('table', { name: 'Appels par jour et par usage' })).getByRole('row', { name: /2026-10-30/ });
+    expect(within(ligne).getAllByRole('cell').at(-1)).toHaveTextContent('2');
   });
 });

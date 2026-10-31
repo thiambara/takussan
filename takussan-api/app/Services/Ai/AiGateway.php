@@ -11,8 +11,11 @@ use App\Models\Enums\AiModelRole;
 use App\Models\Enums\AiRefusalReason;
 use App\Services\Ai\Exceptions\AiRefused;
 use App\Services\Ai\Exceptions\AiUnavailable;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
+use Laravel\Ai\Enums\Lab;
+use Laravel\Ai\Exceptions\AiException;
 use Laravel\Ai\Exceptions\FailoverableException;
 use Laravel\Ai\Responses\Data\FinishReason;
 use Laravel\Ai\Responses\StructuredAgentResponse;
@@ -32,6 +35,12 @@ final class AiGateway
 {
     /** Le suffixe du double, sortie par outil, d'un fournisseur ({@see self::providerFor()}). */
     public const TOOL_OUTPUT_SUFFIX = '-sortie-par-outil';
+
+    /** `ai_calls.warning` du maillon d'un autre pilote qu'Anthropic, refusé puis basculé ({@see self::rejectionFailsOver()}). */
+    public const WARNING_PROVIDER_REJECTED = 'provider_rejected';
+
+    /** Les refus qui ne disent rien du maillon suivant. 401 et 403 restent dehors : une clé refusée doit se voir. */
+    private const REJECTIONS_THAT_FAIL_OVER = [400, 404, 408, 413, 422, 500];
 
     public function __construct(
         private readonly AiUsageRegistry $registry,
@@ -85,7 +94,7 @@ final class AiGateway
 
         $instructions = $this->prompts->load($usage->key(), $usage->promptVersion());
         $last = null;
-        foreach ($chain as $link) {
+        foreach ($chain as $rank => $link) {
             $started = hrtime(true);
             $driver = $this->driverOf($link);
             try {
@@ -99,11 +108,17 @@ final class AiGateway
 
                 continue;
             } catch (Throwable $e) {
+                $failsOver = $rank < array_key_last($chain) && $this->rejectionFailsOver($e, $driver);
                 $this->journal($usage, $request, $this->linkColumns($link) + [
-                    'outcome' => AiCallOutcome::Error, 'error_code' => AiErrorCode::fromThrowable($e), 'duration_ms' => $this->elapsed($started),
+                    'outcome' => $failsOver ? AiCallOutcome::FailedOver : AiCallOutcome::Error, 'error_code' => AiErrorCode::fromThrowable($e), 'duration_ms' => $this->elapsed($started),
+                    'warning' => $failsOver ? self::WARNING_PROVIDER_REJECTED : null,
                 ]);
+                if (! $failsOver) {
+                    throw $e;
+                }
+                $last = $e;
 
-                throw $e;
+                continue;
             }
 
             $cost = $this->costs->estimate($link->provider, $link->model, $response->usage);
@@ -204,6 +219,23 @@ final class AiGateway
     private function roleFor(AiUsage $usage, AiRequest $request): AiModelRole
     {
         return $request->attachments !== [] && $usage instanceof AttachmentsUseVision ? AiModelRole::Vision : $usage->role();
+    }
+
+    /**
+     * TCK-2449 (ADR-0085, amendement du 2026-10-31) — hors d'Anthropic, ce qu'un point d'accès accepte peut changer
+     * sans commit : un refus ne condamne pas le maillon suivant, et une panne peut arriver en HTTP 200 (une
+     * `AiException` de classe exacte, écrite par le SDK sur un corps qui porte `error`). Sur Anthropic, le
+     * refus reste bruyant : il est déterministe, et le maillon suivant le rendrait à l'identique (TCK-2433).
+     */
+    private function rejectionFailsOver(Throwable $e, string $driver): bool
+    {
+        if ($driver === Lab::Anthropic->value) {
+            return false;
+        }
+
+        return $e instanceof RequestException
+            ? in_array($e->response->status(), self::REJECTIONS_THAT_FAIL_OVER, true)
+            : $e::class === AiException::class;
     }
 
     /** Le pilote du maillon. Une entrée absente de la configuration : son nom, comme le fait le SDK (`AiManager`). */
