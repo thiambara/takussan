@@ -3,6 +3,7 @@
 namespace Tests\Feature\Queue;
 
 use App\Jobs\Concerns\RunsOnAiQueue;
+use App\Jobs\Radar\EmbedRadarListings;
 use App\Jobs\Radar\ExtractRadarListing;
 use App\Jobs\Radar\VerifyRadarConsentReply;
 use App\Models\MaintenanceRequest;
@@ -29,6 +30,7 @@ class AiJobsQueueTest extends TestCase
     private static function aiJobs(): array
     {
         return [
+            EmbedRadarListings::class => fn () => new EmbedRadarListings([1]),
             ExtractRadarListing::class => fn () => new ExtractRadarListing(1),
             VerifyRadarConsentReply::class => fn () => new VerifyRadarConsentReply(1),
         ];

@@ -165,4 +165,13 @@ class AdminAiUsagesTest extends TestCase
         $setting = AiUsageSetting::query()->sole();
         $this->assertSame(['fournisseur-sorti', 'modele-a'], [$setting->forced_provider, $setting->forced_model]);
     }
+
+    public function test_un_usage_de_texte_ne_force_pas_un_fournisseur_dembeddings(): void
+    {
+        $this->actingAsRole('super_admin');
+        config(['ai.pricing.voyageai' => ['modele-v' => ['input' => '1', 'output' => '0', 'cache_read' => '0', 'cache_write' => '0']]]);
+
+        $this->patchJson('/api/admin/ai/usages/'.UsageDEssai::KEY, ['forced_provider' => 'voyageai', 'forced_model' => 'modele-v'])
+            ->assertStatus(422)->assertJsonPath('code', 'ai.provider_role_mismatch');
+    }
 }

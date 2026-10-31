@@ -24,6 +24,10 @@ use Illuminate\Support\Facades\DB;
  *  - plus ancienne (la fiche est la première vue), d'un AUTRE site (les doublons d'un même site restent à l'opérateur),
  *  - à une étape où elle fait foi : ni capturée, ni en échec, ni écartée, ni purgée, ni elle-même doublon.
  *
+ * **Jamais par un vecteur** (TCK-2423, ADR-0076, amendement du 2026-10-31) : ce service reçoit un `RadarMatcher` à `trigram`
+ * (`AppServiceProvider`). Deux lots voisins se décrivent de même sans être le même bien, et un signal vectoriel de plus ferait
+ * passer une photo moyenne à `high`. Un texte recopié, lui, corrobore comme avant.
+ *
  * **Ce qui est écrit** : l'annonce passe `duplicate` de la fiche (`duplicate_of_listing_id`), `stage_reason`
  * `radar.merge.auto`, `merged_at`, les rapprochements figés comme pour un « doublon de » manuel. Dans tous les cas
  * `merge_checked_at` : une fusion n'est jugée qu'une fois — séparée par l'opérateur ({@see self::unmerge()}), elle n'est

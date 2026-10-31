@@ -186,3 +186,42 @@ sa sortie structurée ») pouvait sembler l'interdire.
   humaine reste la garde finale.
 - **Repasser un agent en strict exige une attestation par un vrai appel**, sur la taille de schéma
   concernée.
+
+## Amendement du 2026-10-31 — le premier fournisseur d'embeddings et son repli (TCK-2423)
+
+Précise les points 3, 5 et 11. Décision du porteur : Voyage AI, avec repli sur `pg_trgm`.
+
+### Pourquoi
+
+Le point 11 conçoit la table `embeddings` sans dire ce qui se passe quand elle ne peut pas exister. Or la préproduction
+porte l'extension `vector` sans permettre à l'application de la créer (relevé dans `docs/infra/hebergement.md`) : une
+migration qui l'exige rougirait au déploiement. Et le point 5 décrit une passerelle qui joue un agent, alors qu'un
+embedding n'a ni agent, ni prompt, ni sortie à relire.
+
+### Décision
+
+- **Voyage AI entre dans la liste fermée (point 3)**, déclaré comme fournisseur d'embeddings seulement. La console refuse
+  de l'affecter à un rôle de texte, et de donner un fournisseur de texte au rôle `embedding`.
+- **`AiGateway::embed()` est le second point d'appel, dans le même ordre (point 5)** : autorité, coupe-circuit, budget,
+  données (refus, masquage), appel maillon par maillon, journal. Un usage d'embeddings (`EmbeddingUsage`) n'a ni agent
+  ni prompt, et tourne sans acteur : c'est une tâche planifiée, aucune personne ne la demande. Les plafonds, le
+  coupe-circuit, le masquage et le journal restent entiers.
+- **La table est facultative (point 11).** Sans extension disponible, ou si le rôle de la base se la voit refuser, la
+  migration réussit sans créer la table et le pilote se déclare indisponible. `php artisan ai:install-embeddings` la crée
+  plus tard, une fois l'extension posée par un superutilisateur. La colonne `vector` est sans dimension fixe (plusieurs
+  modèles peuvent cohabiter), sans index approché : le volume du Radar se balaie en exact. Le chatbot de TCK-344 décidera
+  de son index.
+- **Le repli est signal par signal, et le score dit sa méthode.** Un vecteur n'est comparé qu'à un vecteur du même
+  modèle et de la même dimension, calculé sur le texte actuel. Toute annonce sans vecteur à jour, d'un côté ou de l'autre,
+  est comparée par `pg_trgm`. Une similarité cosinus et un score de trigrammes ne sont pas sur la même échelle : chaque
+  signal porte sa méthode (`method`), et chaque méthode a ses propres seuils.
+- **Le calcul n'a jamais lieu pendant l'appariement.** Lire un rapprochement n'appelle aucun fournisseur. Un balayage
+  planifié met un lot en file `ai` ; une annonce dont le texte n'a pas changé (empreinte) n'est pas recalculée ; un échec
+  suspend les balayages pendant un délai, sans réessai du job.
+- **Un signal vectoriel ne contribue jamais à une fusion automatique.** Deux annonces voisines de même type se ressemblent par le
+  sens sans être le même bien, et aucune mesure réelle n'existe : `RadarAutoMerge` reçoit un `RadarMatcher` à `trigram`, et ne voit
+  donc aucun vecteur. Le changer demande un nouvel amendement.
+- **Une promesse publique ne dépend pas d'un geste que le code ne vérifie pas.** `privacy.ts` promet le refus de l'entraînement
+  avant tout envoi, et Voyage entraîne par défaut. `VOYAGE_TRAINING_OPT_OUT`, faux par défaut, est exigé en plus de la clé : sans lui,
+  rien ne part, test de connexion compris, et `pg_trgm` sert. Il déclare le geste au moment où il compte, sans le prouver.
+- **À réception d'un STOP, les envois suivants du texte de cet annonceur cessent**, à toutes les étapes, et son vecteur s'efface à la purge. Un envoi déjà en cours n'est pas annulé.

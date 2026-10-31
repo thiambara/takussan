@@ -14,6 +14,8 @@ use Illuminate\Database\Eloquent\Builder;
  */
 final class TrigramTextSimilarity implements RadarTextSimilarity
 {
+    public const METHOD = 'trigram';
+
     public function similar(Builder $candidates, string $text, int $limit): array
     {
         $threshold = (float) config('radar.similarity.threshold', 0.5);
@@ -28,7 +30,7 @@ final class TrigramTextSimilarity implements RadarTextSimilarity
             ->limit($limit)
             ->toBase()
             ->get()
-            ->map(fn ($row) => ['id' => (int) $row->id, 'score' => round((float) $row->score, 4)])
+            ->map(fn ($row) => ['id' => (int) $row->id, 'score' => round((float) $row->score, 4), 'method' => self::METHOD])
             ->all();
     }
 }

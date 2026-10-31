@@ -80,6 +80,8 @@ return [
         'model_not_in_config' => "Ce modèle n'a pas d'entrée dans la configuration : il se retire, il ne s'efface pas.",
         'model_unpriced' => "Ce modèle n'a pas de tarif : il ne peut pas être affecté.",
         'provider_key_missing' => "Aucune clé n'est configurée pour ce fournisseur.",
+        'provider_role_mismatch' => 'Ce fournisseur ne sert pas ce rôle : les embeddings et le texte ne se mélangent pas.',
+        'provider_unreachable' => "Rien n'est envoyé à ce fournisseur : refus de l'entraînement non déclaré, ou adresse non acceptée.",
         'provider_unknown' => 'Fournisseur IA inconnu.',
         'role_unknown' => 'Rôle IA inconnu.',
         'usage_unknown' => 'Usage IA inconnu.',

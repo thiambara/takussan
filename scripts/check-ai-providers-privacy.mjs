@@ -93,6 +93,26 @@ export function lireFournisseurs(php) {
   return entrees;
 }
 
+/**
+ * Rend `{ cle: [hôtes] }` : les `allowed_hosts` d'un fournisseur (TCK-2423, ADR-0085 §4). TCK-2450 les généralise à
+ * chaque entrée ; jusque-là, seul Voyage AI les exige.
+ */
+export function lireHotes(php) {
+  const hotes = {};
+  for (const cle of Object.keys(lireFournisseurs(php))) {
+    const debut = php.search(new RegExp(`'${cle}'\\s*=>\\s*\\[`));
+    let i = php.indexOf('[', debut);
+    const ouverture = i;
+    for (let profondeur = 0; i < php.length; i++) {
+      if (php[i] === '[') profondeur++;
+      if (php[i] === ']' && --profondeur === 0) break;
+    }
+    const liste = php.slice(ouverture, i).match(/'allowed_hosts'\s*=>\s*\[([^\]]*)\]/);
+    if (liste) hotes[cle] = [...liste[1].matchAll(/'([^']+)'/g)].map((h) => h[1]);
+  }
+  return hotes;
+}
+
 /** Rend la ligne de la puce, ou null. */
 export function lirePuce(texte, prefixe) {
   return texte.split('\n').find((ligne) => ligne.trim().startsWith(prefixe)) ?? null;
@@ -101,9 +121,11 @@ export function lirePuce(texte, prefixe) {
 export function verifier(php, privacy) {
   const erreurs = [];
   const fournisseurs = lireFournisseurs(php);
+  const hotes = lireHotes(php);
   if (Object.keys(fournisseurs).length === 0) erreurs.push('aucun fournisseur lu dans config/ai.php');
   for (const [cle, nom] of Object.entries(fournisseurs)) {
     if (!nom) { erreurs.push(`fournisseur « ${cle} » sans legal_name`); continue; }
+    if (cle === 'voyageai' && !hotes[cle]?.includes('api.voyageai.com')) erreurs.push('voyageai : allowed_hosts ne porte pas api.voyageai.com');
     for (const [langue, prefixe] of Object.entries(PUCES)) {
       const puce = lirePuce(privacy, prefixe);
       if (!puce) erreurs.push(`privacy.ts : puce ${langue} « ${prefixe} » absente`);
@@ -125,6 +147,18 @@ const CAS_EPREUVE = [
     php: "'providers' => [\n 'anthropic' => ['legal_name' => 'Anthropic', 'k' => ['x' => 1]],\n 'openai' => ['legal_name' => 'OpenAI'],\n],",
     privacy: '- **Intelligence artificielle** : Anthropic\n- **Artificial intelligence**: Anthropic',
     erreurs: 2,
+  },
+  {
+    nom: 'voyageai sans son hôte rougit',
+    php: "'providers' => [\n 'voyageai' => [\n 'legal_name' => 'Voyage AI',\n ],\n],\n'roles' => [],",
+    privacy: '- **Intelligence artificielle** : Voyage AI\n- **Artificial intelligence**: Voyage AI',
+    erreurs: 1,
+  },
+  {
+    nom: 'voyageai avec son hôte passe',
+    php: "'providers' => [\n 'voyageai' => [\n 'legal_name' => 'Voyage AI',\n 'allowed_hosts' => ['api.voyageai.com'],\n ],\n],\n'roles' => [],",
+    privacy: '- **Intelligence artificielle** : Voyage AI\n- **Artificial intelligence**: Voyage AI',
+    erreurs: 0,
   },
   {
     nom: 'un fournisseur sans legal_name rougit',

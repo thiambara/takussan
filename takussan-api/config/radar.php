@@ -2,6 +2,7 @@
 
 use App\Services\Radar\Crawl\CoinafriqueAdapter;
 use App\Services\Radar\Crawl\ExpatDakarAdapter;
+use App\Services\Radar\Similarity\EmbeddingTextSimilarity;
 use App\Services\Radar\Similarity\TrigramTextSimilarity;
 
 /*
@@ -175,16 +176,31 @@ return [
     ],
 
     // TCK-2392 — le quatrième signal de rapprochement, la similarité de texte (`RadarMatcher::SIGNAL_TEXT`). Un pilote
-    // remplaçable ; `trigram` (`pg_trgm`) ne demande aucun fournisseur. Un pilote d'embeddings viendra avec TCK-2423.
+    // remplaçable. `embeddings` (TCK-2423) retombe sur `trigram` sans clé, sans refus de l'entraînement déclaré ou sans table :
+    // sans les deux variables, rien ne change. `trigram` (`pg_trgm`) ne demande aucun fournisseur.
     // `threshold` ≥ 0,3 : le préfiltre `%` de `pg_trgm` (seuil par défaut 0,3) ne rend rien en dessous.
     'similarity' => [
-        'driver' => 'trigram',
+        'driver' => env('RADAR_SIMILARITY_DRIVER') ?: 'embeddings',
         'drivers' => [
             'trigram' => TrigramTextSimilarity::class,
+            'embeddings' => EmbeddingTextSimilarity::class,
         ],
         'threshold' => 0.5,
         // Au-delà, le signal est `medium` ; en deçà, `low`. Jamais `high` seul : un texte type se recopie d'une annonce à l'autre.
         'close' => 0.8,
+        // TCK-2423 — la similarité cosinus n'est pas sur l'échelle des trigrammes : deux textes immobiliers en français se
+        // ressemblent déjà par le sens. ⚠ AUCUNE MESURE RÉELLE : ces seuils sont un point de départ, à régler sur de vraies
+        // annonces. Une erreur ne fait que montrer ou cacher un rapprochement à l'opérateur, jamais `high` seul.
+        'embeddings' => [
+            'threshold' => 0.8,
+            'close' => 0.9,
+            // Doit être une sortie du modèle (`config/ai.php` ; relevé pour la série 4 de Voyage : 256, 512, 1024, 2048). La changer fait recalculer chaque annonce.
+            'dimension' => 1024,
+            // Annonces d'un balayage (`radar:embed-listings`, toutes les 15 min). 100 textes de 1 000 caractères au plus.
+            'batch' => 100,
+            // Après un refus ou une panne, plus aucun balayage pendant cette durée.
+            'cooldown_minutes' => 60,
+        ],
     ],
 
     // TCK-2392 (ADR-0080) — la fusion automatique des doublons entre sites (`RadarAutoMerge`). ÉTEINTE par défaut : les

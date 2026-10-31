@@ -7,6 +7,7 @@ use App\Ai\Usages\ConnectionTestUsage;
 use App\Models\AiCall;
 use App\Models\Enums\AiCallOutcome;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Laravel\Ai\Exceptions\RateLimitedException;
 use Tests\Support\Ai\SocleIaDEssai;
 use Tests\TestCase;
@@ -88,5 +89,40 @@ class AdminAiProvidersTest extends TestCase
 
         $this->assertStringNotContainsString(self::CLE, $response->getContent());
         $this->assertStringNotContainsString('boom', $response->getContent());
+    }
+
+    public function test_le_test_de_connexion_dun_fournisseur_dembeddings_demande_un_vecteur(): void
+    {
+        $this->actingAsRole('super_admin');
+        config([
+            'ai.providers.voyageai.key' => 'cle-de-test',
+            'ai.providers.voyageai.training_opt_out' => true,
+            'ai.pricing.voyageai' => ['modele-v' => ['input' => '1', 'output' => '0', 'cache_read' => '0', 'cache_write' => '0']],
+        ]);
+        Http::fake(['api.voyageai.com/*' => Http::response([
+            'data' => [['embedding' => array_fill(0, (int) config('radar.similarity.embeddings.dimension'), 0.5), 'index' => 0]],
+            'usage' => ['total_tokens' => 2],
+        ])]);
+
+        $this->postJson('/api/admin/ai/providers/voyageai/test')->assertOk()
+            ->assertJsonPath('data.ok', true)->assertJsonPath('data.model', 'modele-v');
+
+        Http::assertSent(fn ($requete) => $requete->url() === 'https://api.voyageai.com/v1/embeddings');
+        $this->assertSame(['voyageai', 'modele-v'], [AiCall::query()->sole()->provider, AiCall::query()->sole()->model]);
+    }
+
+    public function test_sans_la_declaration_le_test_de_connexion_nenvoie_rien(): void
+    {
+        $this->actingAsRole('super_admin');
+        config([
+            'ai.providers.voyageai.key' => 'cle-de-test',
+            'ai.providers.voyageai.training_opt_out' => false,
+            'ai.pricing.voyageai' => ['modele-v' => ['input' => '1', 'output' => '0', 'cache_read' => '0', 'cache_write' => '0']],
+        ]);
+        Http::fake();
+
+        $this->postJson('/api/admin/ai/providers/voyageai/test')->assertStatus(422)->assertJsonPath('code', 'ai.provider_unreachable');
+
+        Http::assertNothingSent();
     }
 }

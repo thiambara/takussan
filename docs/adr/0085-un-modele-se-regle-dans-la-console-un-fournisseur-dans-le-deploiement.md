@@ -116,7 +116,8 @@ configuration du déploiement : un commit, un déploiement, la mention dans la p
 - **Ce qui n'est pas fait** :
   - une clé en base ou une adresse dans la console ;
   - un plafond de classe de données par fournisseur ;
-  - le rôle `embedding`, qui attend toujours son premier fournisseur (TCK-2392, TCK-344).
+  - le rôle `embedding`, qui attendait son premier fournisseur : Voyage AI depuis TCK-2423 (ADR-0076, amendement du
+    2026-10-31). La console ne mélange pas les fournisseurs de texte et d'embeddings.
 - **Coût** : cet ADR et trois tickets, [TCK-2448](../backlog/tickets/TCK-2448-catalogue-des-modeles-ia-en-console.md),
   [TCK-2449](../backlog/tickets/TCK-2449-socle-ia-neutre-vis-a-vis-du-fournisseur.md) et
   [TCK-2450](../backlog/tickets/TCK-2450-fournisseurs-ia-openai-openrouter-compatibles.md).

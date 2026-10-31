@@ -3,6 +3,7 @@
 namespace Tests\Support\Ai;
 
 use App\Services\Ai\AiUsageRegistry;
+use App\Services\Ai\EmbeddingUsage;
 use Illuminate\JsonSchema\JsonSchemaTypeFactory;
 use Illuminate\Support\Arr;
 use Laravel\Ai\Contracts\HasStructuredOutput;
@@ -53,6 +54,10 @@ final class AgentSchemas
             }
         }
         foreach (AiUsageRegistry::USAGES as $usage) {
+            // Un usage d'embeddings n'a pas d'agent (TCK-2423).
+            if (is_subclass_of($usage, EmbeddingUsage::class)) {
+                continue;
+            }
             $class = (new $usage)->agentClass();
             if (is_subclass_of($class, HasStructuredOutput::class)) {
                 $agents[] = $class;

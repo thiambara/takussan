@@ -8884,6 +8884,8 @@
               "photo_high": "identical photo",
               "photo_medium": "similar photo",
               "photo_low": "similar photo",
+              "meaning_close": "same meaning",
+              "meaning_low": "related meaning",
               "text_close": "nearly identical text",
               "text_low": "similar text"
             },

@@ -88,4 +88,16 @@ class AdminAiRolesTest extends TestCase
         $this->deleteJson('/api/admin/ai/roles/extraction')->assertOk()->assertJsonPath('data.roles.0.source', 'config');
         $this->assertSame(0, AiRoleAssignment::query()->count());
     }
+
+    public function test_un_role_de_texte_refuse_un_fournisseur_dembeddings_et_linverse(): void
+    {
+        $this->actingAsRole('super_admin');
+        config(['ai.pricing.voyageai' => ['modele-v' => ['input' => '1', 'output' => '0', 'cache_read' => '0', 'cache_write' => '0']]]);
+
+        $this->putJson('/api/admin/ai/roles/extraction', ['chain' => [['provider' => 'voyageai', 'model' => 'modele-v']]])
+            ->assertStatus(422)->assertJsonPath('code', 'ai.provider_role_mismatch');
+        $this->putJson('/api/admin/ai/roles/embedding', ['chain' => [['provider' => 'anthropic', 'model' => 'modele-a']]])
+            ->assertStatus(422)->assertJsonPath('code', 'ai.provider_role_mismatch');
+        $this->putJson('/api/admin/ai/roles/embedding', ['chain' => [['provider' => 'voyageai', 'model' => 'modele-v']]])->assertOk();
+    }
 }

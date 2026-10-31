@@ -31,11 +31,16 @@ class AiProviderController extends Controller
     {
         abort_code_unless($this->providers->has($provider), 404, 'ai.provider_unknown');
         abort_code_unless($this->providers->keyPresent($provider), 422, 'ai.provider_key_missing');
+        abort_code_unless($this->providers->reachable($provider), 422, 'ai.provider_unreachable');
         $model = $this->providers->cheapestModel($provider);
         abort_code_unless($model !== null, 422, 'ai.model_unpriced');
 
         try {
-            $result = $gateway->run(new AiRequest(ConnectionTestUsage::KEY, 'OK ?', actor: $request->user(), link: new ModelLink($provider, $model, 16)));
+            // TCK-2423 — un fournisseur d'embeddings ne joue pas d'agent : le test de connexion lui demande un vecteur.
+            $test = new AiRequest(ConnectionTestUsage::KEY, 'OK ?', actor: $request->user(), link: new ModelLink($provider, $model, 16));
+            $result = $this->providers->servesEmbeddings($provider)
+                ? $gateway->embed($test, ['OK ?'], (int) config('radar.similarity.embeddings.dimension'))
+                : $gateway->run($test);
 
             return $this->json(['data' => ['ok' => true, 'model' => $model, 'duration_ms' => $result->call->duration_ms, 'error_code' => null]]);
         } catch (Throwable $e) {

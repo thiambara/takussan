@@ -36,6 +36,54 @@ final class AiProviderCatalogue
         return filled(config('ai.providers')[$provider]['key'] ?? null);
     }
 
+    /** TCK-2423 — un fournisseur d'embeddings ne joue pas un rôle de texte, et l'inverse non plus. */
+    public function servesEmbeddings(string $provider): bool
+    {
+        return (config('ai.providers')[$provider]['serves'] ?? null) === 'embeddings';
+    }
+
+    /** Sans requête : aucune clé d'embeddings, et l'appariement du Radar ne change pas d'une ligne. */
+    public function anyEmbeddingKeyPresent(): bool
+    {
+        foreach (array_keys(config('ai.providers')) as $provider) {
+            if ($this->servesEmbeddings($provider) && $this->keyPresent($provider)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Une clé ; le refus de l'entraînement déclaré, pour un fournisseur qui le demande ; une adresse https sur un hôte que la
+     * configuration accepte, quand elle en déclare (ADR-0085 §4). Sinon, rien ne lui est envoyé.
+     */
+    public function embeddingKeyWithoutDeclaration(): bool
+    {
+        foreach (array_keys(config('ai.providers')) as $provider) {
+            if ($this->servesEmbeddings($provider) && $this->keyPresent($provider)
+                && (config('ai.providers')[$provider]['training_opt_out'] ?? true) !== true) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public function reachable(string $provider): bool
+    {
+        $config = config('ai.providers')[$provider] ?? [];
+        if (! $this->keyPresent($provider) || ($config['training_opt_out'] ?? true) !== true) {
+            return false;
+        }
+        if (! isset($config['allowed_hosts'])) {
+            return true;
+        }
+        $url = (string) ($config['url'] ?? '');
+
+        return parse_url($url, PHP_URL_SCHEME) === 'https' && in_array(parse_url($url, PHP_URL_HOST), $config['allowed_hosts'], true);
+    }
+
     public function cheapestModel(string $provider): ?string
     {
         return $this->models->cheapestModel($provider);

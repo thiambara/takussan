@@ -129,6 +129,8 @@ use App\Services\Pdf\DomPdfPageTotalDriver;
 use App\Services\Radar\ClaimLinks;
 use App\Services\Radar\DnsHostResolver;
 use App\Services\Radar\HostResolver;
+use App\Services\Radar\RadarAutoMerge;
+use App\Services\Radar\RadarMatcher;
 use App\Services\Radar\Similarity\RadarTextSimilarity;
 use App\Services\Radar\Similarity\TrigramTextSimilarity;
 use App\Services\Radar\Whatsapp\RadarCloudWhatsappDriver;
@@ -210,6 +212,11 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(RadarTextSimilarity::class, fn ($app) => $app->make(
             config('radar.similarity.drivers.'.config('radar.similarity.driver')) ?? TrigramTextSimilarity::class,
         ));
+
+        // TCK-2423 (ADR-0076, amendement du 2026-10-31) — une fusion automatique ne voit jamais un signal vectoriel.
+        $this->app->when(RadarAutoMerge::class)->needs(RadarMatcher::class)->give(
+            fn ($app) => $app->make(RadarMatcher::class, ['similarity' => $app->make(TrigramTextSimilarity::class)]),
+        );
 
         // TCK-594 (ADR-0039 §1) — décaisser, distinct d'encaisser. Un seul pilote : le manuel tracé.
         $this->app->bind(DisbursementDriverContract::class, ManualDisbursementDriver::class);
