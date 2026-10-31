@@ -125,7 +125,7 @@ non acceptée) en texte, jamais la clé ni l'adresse complète. L'hôte seul peu
       `deny` par défaut.
 - [x] **AC5** — `check-ai-providers-privacy.mjs` rougit si une entrée n'a pas d'`allowed_hosts`, ou si un
       `legal_name` manque dans la puce fr ou en.
-- [ ] **AC6** — `check-env-parity.mjs` est vert, et la suite (CI, sur `.env.example`) est verte avec les clés vides.
+- [x] **AC6** — `check-env-parity.mjs` est vert, et la suite (CI, sur `.env.example`) est verte avec les clés vides.
 
 ## Hors périmètre
 
@@ -152,7 +152,7 @@ non acceptée) en texte, jamais la clé ni l'adresse complète. L'hôte seul peu
   Anthropic, et `privacy.ts` § 4.3 le dit. `Sensible` est refusé sans requête, sur chaque pilote.
 - **Coût.** Une réponse sans `usage` écrit `warning: usage_missing`, et le tableau de bord la compte dans
   `provider_rejections`, renommée « Défauts du fournisseur » à l'écran. **Le budget n'en est pas informé** : elle y vaut zéro.
-- **AC6 reste décoché** : sa moitié CI n'a pas tourné. La session le coche sur la CI verte.
+- **AC6 constaté le 2026-10-31** : la CI de la PR #1628 est verte sur `d91d81a04`, suite entière comprise (API CI, run 41245831983, job `lint-and-test`, lancé sur `.env.example` aux clés vides), et `check-env-parity.mjs` y passe (Repo CI, run 41245831985).
 
 - **Fusion avec TCK-2423.** Les redirections couvrent aussi `embed()`, et une réponse d'embeddings sans `usage` écrit aussi
   `usage_missing`. `privacy.ts` § 4.3 porte les deux textes ; la phrase ⚠ sur l'entraînement ne nomme plus qu'Anthropic, OpenAI et
