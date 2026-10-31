@@ -224,8 +224,9 @@ final class AiGateway
     /**
      * TCK-2449 (ADR-0085, amendement du 2026-10-31) — hors d'Anthropic, ce qu'un point d'accès accepte peut changer
      * sans commit : un refus ne condamne pas le maillon suivant, et une panne peut arriver en HTTP 200 (une
-     * `AiException` de classe exacte, écrite par le SDK sur un corps qui porte `error`). Sur Anthropic, le
-     * refus reste bruyant : il est déterministe, et le maillon suivant le rendrait à l'identique (TCK-2433).
+     * `AiException` de classe exacte, écrite par le SDK sur un corps qui porte `error`). Une clé refusée, dans le
+     * statut ou dans le corps, ne bascule pas : elle doit se voir. Sur Anthropic, rien ne change : un schéma refusé
+     * y reste bruyant (TCK-2433), et 500 et 408 y arrêtent aussi la chaîne, par choix de ne rien y changer.
      */
     private function rejectionFailsOver(Throwable $e, string $driver): bool
     {
@@ -235,7 +236,7 @@ final class AiGateway
 
         return $e instanceof RequestException
             ? in_array($e->response->status(), self::REJECTIONS_THAT_FAIL_OVER, true)
-            : $e::class === AiException::class;
+            : $e::class === AiException::class && AiErrorCode::fromThrowable($e) !== 'ai.provider_auth';
     }
 
     /** Le pilote du maillon. Une entrée absente de la configuration : son nom, comme le fait le SDK (`AiManager`). */

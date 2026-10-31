@@ -155,11 +155,14 @@ ne l'a éprouvée : elle repose sur le SDK `laravel/ai` et sur la documentation 
   sans outil : il n'y a rien à poser. Le pilote décide, jamais le nom du fournisseur.
 - **Bascule hors d'Anthropic.** Sur un autre pilote qu'`anthropic`, **s'il reste un maillon**, la chaîne passe au suivant
   sur un statut 400, 404, 408, 413, 422 ou 500, et sur une `AiException` de classe exacte (le SDK la lève sur un corps
-  qui porte `error`, y compris en HTTP 200). 401 et 403 ne basculent pas : une clé refusée doit se voir.
+  qui porte `error`, y compris en HTTP 200). 401 et 403 ne basculent pas, dans le statut comme dans le corps : une clé
+  refusée doit se voir. Limite : le SDK ne garde du corps que `type`, ou `code` sur OpenRouter seul. Un 401 sans `type`
+  sur `openai` ou `openai-compatible` ne se lit pas, et bascule.
 - **Sur le dernier maillon, l'exception part telle quelle** : les jobs et le test de connexion en lisent la cause.
 - **Rien n'est rejoué autrement sur le même maillon** : ni sans mode strict, ni sans schéma.
-- **Sur `anthropic`, un refus arrête toujours la chaîne.** Il y est déterministe, et le maillon suivant le rendrait à
-  l'identique (TCK-2433).
+- **Sur `anthropic`, un refus arrête toujours la chaîne, par choix de ne rien y changer.** Ce n'est pas une propriété de
+  tous ces refus : un schéma refusé (400) y est déterministe et doit rester bruyant (TCK-2433), mais un 500 ou un 408 ne
+  l'est pas, et ils arrêtent la chaîne quand même.
 - **La bascule se voit.** La ligne de `ai_calls` porte `failed_over`, le code de l'erreur et `warning: provider_rejected`.
   Le tableau de bord de la console compte ces lignes par jour et par usage, et affiche une phrase dès qu'il y en a.
 - **Un 408 vaut `ai.provider_timeout`, sur tout pilote**, Anthropic compris : un délai dépassé se reprend, et ne clôt plus
@@ -171,4 +174,7 @@ ne l'a éprouvée : elle repose sur le SDK `laravel/ai` et sur la documentation 
   le journal et le tableau de bord le disent : aucune alerte n'est émise.
 - Un contenu refusé part chez le fournisseur suivant, comme le fait déjà un 429. La chaîne est choisie par le super-admin,
   parmi des fournisseurs que la politique de confidentialité nomme.
+- **Une entrée choisie pour sa garantie sur les données renvoie désormais un refus au maillon suivant.** Son contenu part
+  alors chez un fournisseur qui n'offre peut-être pas cette garantie. Qui compose une chaîne doit donc y mettre des
+  fournisseurs de même garantie. Rien dans le code ne le vérifie.
 - Aucune chaîne ne contient aujourd'hui de pilote non Anthropic : la règle n'a aucun effet tant qu'aucune clé n'est posée.

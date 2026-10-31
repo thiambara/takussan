@@ -439,7 +439,7 @@ class SocleAgentProviderOptionsTest extends TestCase
     /** Sur Anthropic, rien ne change : le refus arrête la chaîne, sans `warning`. */
     public function test_sur_anthropic_un_refus_arrete_toujours_la_chaine(): void
     {
-        foreach ([400, 404, 413, 422, 500] as $statut) {
+        foreach ([400, 404, 408, 413, 422, 500] as $statut) {
             AiCall::query()->delete();
             $this->recues = [];
             $this->chaineAvecSecours(RadarExtractionUsage::KEY, 'anthropic');
@@ -473,6 +473,42 @@ class SocleAgentProviderOptionsTest extends TestCase
             AiCall::query()->orderBy('id')->get()->map(fn (AiCall $a) => [$a->provider, $a->outcome, $a->error_code])->all(),
         );
         $this->assertSame(AiGateway::WARNING_PROVIDER_REJECTED, AiCall::query()->where('provider', 'entree')->sole()->warning);
+    }
+
+    /** @return array<string, array{string, array<string, mixed>}> */
+    public static function clesRefuseesDansLeCorps(): array
+    {
+        return [
+            'openrouter, code 401' => ['openrouter', ['code' => 401, 'message' => 'clé refusée']],
+            'openrouter, code 403' => ['openrouter', ['code' => 403, 'message' => 'interdit']],
+            'openrouter, type' => ['openrouter', ['code' => 401, 'type' => 'authentication_error', 'message' => 'clé refusée']],
+            'openai, type' => ['openai', ['type' => 'invalid_api_key', 'message' => 'clé refusée']],
+            'compatible, type' => ['openai-compatible', ['type' => 'permission_denied', 'message' => 'interdit']],
+        ];
+    }
+
+    /**
+     * Même règle que les statuts 401 et 403. Limite : le SDK ne garde du corps que `type`, ou `code` sur OpenRouter
+     * seul. Un 401 sans `type` sur `openai` ou `openai-compatible` ne se lit donc pas : celui-là bascule.
+     *
+     * @param  array<string, mixed>  $erreur
+     */
+    #[DataProvider('clesRefuseesDansLeCorps')]
+    public function test_une_cle_refusee_dans_le_corps_ne_bascule_pas(string $pilote, array $erreur): void
+    {
+        $this->chaineAvecSecours(RadarExtractionUsage::KEY, $pilote);
+        $this->brutes['entree.test'] = [200, ['error' => $erreur]];
+
+        try {
+            $this->jouer(RadarExtractionUsage::KEY, null);
+            $this->fail('une clé refusée ne doit pas réussir');
+        } catch (AiException $e) {
+            $this->assertSame(AiException::class, $e::class);
+        }
+
+        $this->assertArrayNotHasKey('secours.test', $this->recues);
+        $appel = AiCall::query()->sole();
+        $this->assertSame([AiCallOutcome::Error, 'ai.provider_auth', null], [$appel->outcome, $appel->error_code, $appel->warning]);
     }
 
     /** La classe exacte : une erreur de code ou une exception dérivée reste bruyante, quel que soit le pilote. */

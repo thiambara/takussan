@@ -49,7 +49,8 @@ Aucune table ni route n'est créée.
 - **Le mode strict se déclare par agent et par pilote.** Il n'est vrai que pour un pilote où une taille de schéma a
   été attestée par un vrai appel ; aujourd'hui, `anthropic` seulement. Pour tout autre pilote, l'agent est non strict
   jusqu'à attestation. **Jamais de repli à l'exécution** : un 400 du mode strict reste un échec du maillon, et la
-  bascule de la chaîne fait le reste.
+  bascule de la chaîne fait le reste. *Vrai hors d'Anthropic seulement : voir les notes d'implémentation et
+  l'amendement du 2026-10-31 d'ADR-0085.*
 - **La sortie non stricte reste validée de la même façon** sur tous les pilotes : normaliseur de l'usage, et réponse
   sans sortie = `ai.response_invalid`.
 - **Le double de fournisseur de `providerFor()`** garde le nom réel dans le journal, le coût et la chaîne, quel que
@@ -134,6 +135,8 @@ relevée le 2026-10-31. Le rapport de la branche cite les pages.
 - **Les gardes des agents lisent ce qu'ils déclarent.** Un agent qui ne forcerait un outil que sous une condition d'état
   échapperait au test de ses options. Un agent hors du dossier et d'aucun usage n'est vu que par
   `scripts/check-ai-usages.mjs` (C), qui ne lit que le motif `extends SocleAgent`.
+- **Une clé refusée dans le corps d'un HTTP 200 ne bascule pas, si le SDK la laisse lire** : il ne garde que `type`, ou
+  `code` sur OpenRouter seul. Un 401 sans `type` sur `openai` ou `openai-compatible` bascule.
 - **Aucune alerte sur `provider_rejected`** : le tableau de bord le compte, sans nommer le fournisseur. Le nom se lit dans
   `ai_calls`.
 
