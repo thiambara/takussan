@@ -1,7 +1,7 @@
 ---
 id: TCK-2449
 title: "Socle IA : aucun réglage propre à Anthropic — outil de sortie jamais forcé et mode strict déclaré par pilote (ADR-0085)"
-status: doing
+status: done
 phase: P1
 family: back
 estimate: M
@@ -63,38 +63,38 @@ Aucune table ni route n'est créée.
 
 ## Delta à produire
 
-- [ ] `SocleAgent` :
-  - [ ] `usesStrictSchema(string $driver)`, ou un équivalent déclaratif par pilote ;
-  - [ ] `providerOptions()` pose `auto` pour tout pilote quand l'agent n'est pas strict pour ce pilote, dans la
-        forme de ce pilote ;
-  - [ ] docblocks mis à jour.
-- [ ] `RadarExtraction` et chaque agent concret : déclaration par pilote, non strict hors des pilotes attestés.
-- [ ] `AiGateway` :
-  - [ ] `providerFor()` et le contrôle de la ligne ~138 lisent la déclaration pour le pilote du maillon joué ;
-  - [ ] vérifier que `use_native_structured_output` est honoré par les pilotes OpenAI, OpenRouter et
+- [x] `SocleAgent` :
+  - [x] `usesStrictSchema(string $driver)`, ou un équivalent déclaratif par pilote ;
+  - [x] `providerOptions()` ne laisse forcer l'outil de sortie sur aucun pilote. **Écart à la lettre** : `auto` n'est
+        posé que sur `anthropic`, seul pilote qui a un outil de sortie (voir les notes) ;
+  - [x] docblocks mis à jour.
+- [x] `RadarExtraction` et chaque agent concret : déclaration par pilote, non strict hors des pilotes attestés.
+- [x] `AiGateway` :
+  - [x] `providerFor()` et le contrôle de la ligne ~138 lisent la déclaration pour le pilote du maillon joué ;
+  - [x] vérifier que `use_native_structured_output` est honoré par les pilotes OpenAI, OpenRouter et
         OpenAI-compatible du SDK, et sinon trouver l'équivalent.
-- [ ] Tests :
-  - [ ] `SocleAgentProviderOptionsTest` : pour chaque pilote déclarable (`anthropic`, `openai`, `openrouter`,
+- [x] Tests :
+  - [x] `SocleAgentProviderOptionsTest` : pour chaque pilote déclarable (`anthropic`, `openai`, `openrouter`,
         `openai-compatible`), aucune requête d'un agent non strict ne porte un `tool_choice` forcé, corps capturé
         par `Http::fake` ;
-  - [ ] la déclaration stricte dépend du pilote, pas du nom de l'entrée ;
-  - [ ] `AnthropicSchemas` généralisé, ou doublé, pour mesurer un schéma tel que chaque pilote l'envoie ; les deux
+  - [x] la déclaration stricte dépend du pilote, pas du nom de l'entrée ;
+  - [x] `AnthropicSchemas` généralisé, ou doublé, pour mesurer un schéma tel que chaque pilote l'envoie ; les deux
         gardes de schéma vérifient chaque pilote attesté.
-- [ ] Rapport : liste des pilotes attestés en strict et ce qui l'a attesté, et texte de spec proposé (features §2.11,
+- [x] Rapport : liste des pilotes attestés en strict et ce qui l'a attesté, et texte de spec proposé (features §2.11,
       la règle « Le schéma de sortie d'un usage tient sous les limites publiées du fournisseur »).
 
 ## Critères d'acceptation
 
-- [ ] **AC1** — Pour un agent non strict, la requête construite par chacun des pilotes `anthropic`, `openai`,
+- [x] **AC1** — Pour un agent non strict, la requête construite par chacun des pilotes `anthropic`, `openai`,
       `openrouter` et `openai-compatible` ne force pas l'outil de sortie. Le corps capturé le montre.
-- [ ] **AC2** — Une entrée de configuration au nom quelconque, sur le pilote `anthropic`, reçoit le même
+- [x] **AC2** — Une entrée de configuration au nom quelconque, sur le pilote `anthropic`, reçoit le même
       `tool_choice` que l'entrée `anthropic`. Ce critère est faux sur `dev` aujourd'hui, et doit rougir sans le
       correctif.
-- [ ] **AC3** — Un agent strict sur `anthropic` reste strict sur `anthropic`, sans outil dans la requête, et est non
+- [x] **AC3** — Un agent strict sur `anthropic` reste strict sur `anthropic`, sans outil dans la requête, et est non
       strict sur un pilote non attesté.
-- [ ] **AC4** — Sur un pilote non strict, une réponse sans sortie structurée est un échec du maillon
+- [x] **AC4** — Sur un pilote non strict, une réponse sans sortie structurée est un échec du maillon
       (`ai.response_invalid`), et la chaîne bascule.
-- [ ] **AC5** — `ai_calls.provider` porte le nom réel de l'entrée, jamais le double, pour chaque pilote.
+- [x] **AC5** — `ai_calls.provider` porte le nom réel de l'entrée, jamais le double, pour chaque pilote.
 
 ## Hors périmètre
 
@@ -106,4 +106,25 @@ Aucune table ni route n'est créée.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+Rien de ce ticket n'a joint un vrai fournisseur : tout est vérifié sur un faux client HTTP et sur la documentation
+relevée le 2026-10-31. Le rapport de la branche cite les pages.
+
+- **Le SDK n'a d'outil de sortie que sur `anthropic`.** `openai`, `openrouter` et `openai-compatible` demandent la
+  sortie par `text.format` ou `response_format`, sans `tools`. Ils ignorent `use_native_structured_output` ; leur
+  `strict` suit l'attribut `#[Strict]` du SDK, qu'aucun agent ne porte (un test le tient).
+- **AC2 était déjà vrai sur `dev`**, contrairement à ce que dit le contrat : mesuré sur `941e52fb0`, le SDK passe le
+  pilote à `providerOptions()`. Le test rougit par ablation (le nom à la place du pilote), pas sur `dev`.
+- **Le défaut réel était AC4** : sur un pilote non attesté, un agent déclaré strict rendait une réponse vide en succès.
+- **Le double reste utile sur chaque pilote** : `openai-compatible` passe le nom de l'entrée aux options, et une entrée
+  nommée `anthropic` recevrait sans lui le `tool_choice` d'Anthropic (ablation A11).
+- **Limite** : un 400 n'est jamais rejoué, mais il n'entre pas en bascule (`AiGateway` ne bascule que sur
+  `FailoverableException`). Le contrat de ce ticket dit l'inverse ; le comportement n'a pas été changé.
+
+### Décisions prises en autonomie, à revoir
+
+- **`auto` seulement sur `anthropic`.** Écarté : poser `tool_choice: auto` sur les trois autres pilotes, comme l'écrit
+  ADR-0085 §2. Il n'y a aucun outil à y choisir, et leur documentation ne dit pas qu'un `tool_choice` seul est accepté.
+- **Un 400 ne bascule toujours pas.** Écarté : le faire basculer ici, ce qui changerait le comportement sur Anthropic.
+- **Les agents héritent de `anthropic` comme pilote strict, `RadarExtraction` déclare aucun pilote.** Écarté : une
+  déclaration obligatoire par agent, plus de code pour le même résultat ; un test parcourt chaque agent et chaque pilote.
+
