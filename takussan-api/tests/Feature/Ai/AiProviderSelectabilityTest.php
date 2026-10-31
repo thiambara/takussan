@@ -143,7 +143,7 @@ class AiProviderSelectabilityTest extends TestCase
         $this->assertStringNotContainsString(self::CLE, $decrit);
     }
 
-    /** TCK-2423 + TCK-2450 — une clé sans la déclaration du refus de l'entraînement n'est pas sélectionnable, sur aucun point d'écriture. */
+    /** TCK-2423 + TCK-2450 — le catalogue : une clé sans la déclaration du refus de l'entraînement n'est pas sélectionnable. Le test de connexion est éprouvé par `AdminAiProvidersTest`. */
     public function test_voyage_sans_la_declaration_n_est_pas_selectionnable(): void
     {
         config(['ai.providers.voyageai.key' => 'k', 'ai.providers.voyageai.training_opt_out' => false]);
@@ -157,6 +157,16 @@ class AiProviderSelectabilityTest extends TestCase
 
         config(['ai.providers.voyageai.url' => 'https://api.voyageai.com:8443/v1']);
         $this->assertFalse($this->catalogue()->reachable('voyageai'), 'le port se compare aussi pour les embeddings');
+    }
+
+    /** La sonde juge l'adresse : l'absence de déclaration ne masque pas une clé posée sur un mauvais hôte. */
+    public function test_la_sonde_voit_un_mauvais_hote_meme_sans_la_declaration(): void
+    {
+        config(['ai.providers.voyageai.key' => 'k', 'ai.providers.voyageai.training_opt_out' => false]);
+        $this->assertFalse($this->catalogue()->anyKeyedWithRefusedAddress(), 'la bonne adresse, sans déclaration');
+
+        config(['ai.providers.voyageai.url' => 'https://ailleurs.example/v1']);
+        $this->assertTrue($this->catalogue()->anyKeyedWithRefusedAddress());
     }
 
     /** Le port se compare : celui du schéma ne change rien, un autre s'écrit dans la liste. */
@@ -203,7 +213,7 @@ class AiProviderSelectabilityTest extends TestCase
     /** Une clé vide de `.env.example` ne doit pas écraser l'adresse par défaut : `env($cle, $defaut)` y rendrait ''. */
     public function test_une_adresse_vide_dans_l_environnement_garde_celle_du_fournisseur(): void
     {
-        $noms = ['ANTHROPIC_URL', 'OPENAI_URL', 'OPENROUTER_URL'];
+        $noms = ['ANTHROPIC_URL', 'OPENAI_URL', 'OPENROUTER_URL', 'VOYAGE_URL'];
         foreach ($noms as $nom) {
             $_ENV[$nom] = $_SERVER[$nom] = '';
         }
@@ -218,6 +228,7 @@ class AiProviderSelectabilityTest extends TestCase
         $this->assertSame('https://api.anthropic.com/v1', $lu['providers']['anthropic']['url']);
         $this->assertSame('https://api.openai.com/v1', $lu['providers']['openai']['url']);
         $this->assertSame('https://openrouter.ai/api/v1', $lu['providers']['openrouter']['url']);
+        $this->assertSame('https://api.voyageai.com/v1', $lu['providers']['voyageai']['url']);
     }
 
     /** Le double de la passerelle reste dans la configuration jusqu'à la fin du processus. */

@@ -198,7 +198,8 @@ d'OpenRouter le 2026-10-31 : aucune clé n'existe, aucun vrai appel ne les a ép
 **Une redirection n'est pas suivie, sur aucun pilote, Anthropic compris, ni pour un appel d'embeddings (`embed()`, Voyage AI).** Ni le corps ni la clé ne partent vers
 l'adresse rendue : `AiGateway::withoutFollowingRedirects()` fait lever `ai.provider_redirected`, classé en panne de maillon,
 qui bascule s'il en reste un. Le contrôle d'hôte ne porte que sur l'adresse configurée : c'est ce refus qui le rend vrai
-jusqu'au bout. Une réponse 3xx sans `Location` n'est pas une redirection : elle arrive au SDK, et finit en erreur.
+jusqu'au bout. Un 3xx sans `Location`, que Guzzle ne suit pas, prend la même voie : sur son corps vide, le SDK lèverait une erreur
+qui arrêterait la chaîne.
 
 **Une réponse sans `usage`** écrit `warning: usage_missing`, et le tableau de bord la compte dans `provider_rejections`. Le
 budget n'en est pas informé : elle y vaut zéro.
@@ -206,5 +207,6 @@ budget n'en est pas informé : elle y vaut zéro.
 **Une clé Voyage sans la déclaration du refus de l'entraînement n'est pas sélectionnable** (`training_opt_out_undeclared`, code
 `ai.provider_unreachable`) : le catalogue a une seule réponse, et `reachable()` n'y ajoute que `https`, même en `local` et `testing`.
 
-**Limite connue.** Derrière un dernier maillon sans clé, la cause d'un 400 se perd : l'usage rend
-`ai.provider_key_missing` au lieu de `ai.request_rejected`. La ligne du journal garde la bonne cause.
+**Limite connue.** Derrière un dernier maillon sans clé, la cause d'un 400 se perd : l'exception est
+`ai.providers_unavailable`, avec pour cause `ai.provider_key_missing` au lieu de `ai.request_rejected`. La ligne du journal garde
+la bonne cause.

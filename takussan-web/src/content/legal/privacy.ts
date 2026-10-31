@@ -20,7 +20,7 @@ export const fr = `
 
 La présente politique explique quelles données personnelles ${EDITEUR.marque} traite, pourquoi, avec qui elles sont partagées, combien de temps elles sont conservées et comment exercer vos droits. Elle s’applique à la plateforme ${EDITEUR.site} et complète les conditions générales d’utilisation.
 
-Nous traitons vos données dans le respect de la **loi n° 2008-12 du 25 janvier 2008 sur la protection des données à caractère personnel** et de son décret d’application n° 2008-721 du 30 juin 2008, sous le contrôle de la **Commission de protection des données personnelles (CDP)** du Sénégal.
+La **loi n° 2008-12 du 25 janvier 2008 sur la protection des données à caractère personnel** et son décret d’application n° 2008-721 du 30 juin 2008 s’appliquent à ces traitements, sous le contrôle de la **Commission de protection des données personnelles (CDP)** du Sénégal. Le § 5 dit où en sont nos formalités auprès d’elle.
 
 # 1. Qui est responsable de vos données
 
@@ -119,7 +119,7 @@ Nous communiquons des données aux autorités judiciaires, administratives ou fi
 
 # 5. Transferts hors du Sénégal
 
-Certains de nos prestataires sont établis ou stockent des données hors du Sénégal, notamment dans l’Union européenne et aux États-Unis. Par OpenRouter, une demande d’intelligence artificielle peut aussi être traitée dans d’autres pays, selon le fournisseur du modèle : nous ne présentons pas ces pays comme assurant un niveau de protection suffisant. La loi n° 2008-12 n’admet le transfert vers un pays tiers que s’il assure un niveau de protection suffisant de la vie privée et des libertés, ou moyennant des garanties appropriées, notamment contractuelles, et le soumet à des formalités auprès de la CDP. À la date de cette politique, ces formalités ne sont pas accomplies : leur référence figurera au § 1.1 lorsqu’elles le seront.
+Certains de nos prestataires sont établis ou stockent des données hors du Sénégal, notamment dans l’Union européenne et aux États-Unis. Par OpenRouter, une demande d’intelligence artificielle peut aussi être traitée dans d’autres pays, selon le fournisseur du modèle : nous ne présentons pas ces pays comme assurant un niveau de protection suffisant. La loi n° 2008-12 n’admet le transfert vers un pays tiers que s’il assure un niveau de protection suffisant de la vie privée et des libertés (art. 49), dans les cas d’exception de son art. 50, ou avec l’autorisation de la CDP au vu de garanties suffisantes, notamment contractuelles (art. 51), et le soumet à des formalités auprès de la CDP. À la date de cette politique, ces formalités ne sont pas accomplies : leur référence figurera au § 1.1 lorsqu’elles le seront.
 
 # 6. Combien de temps nous les conservons
 
@@ -209,7 +209,7 @@ export const en = `
 
 This policy explains what personal data ${EDITEUR.marque} processes, why, with whom it is shared, how long it is kept and how to exercise your rights. It applies to the ${EDITEUR.site} platform and supplements the terms of use.
 
-We process your data in accordance with Senegal’s **Law No. 2008-12 of 25 January 2008 on the protection of personal data** and its implementing Decree No. 2008-721 of 30 June 2008, under the supervision of Senegal’s **Personal Data Protection Commission (CDP)**.
+Senegal’s **Law No. 2008-12 of 25 January 2008 on the protection of personal data** and its implementing Decree No. 2008-721 of 30 June 2008 apply to this processing, under the supervision of Senegal’s **Personal Data Protection Commission (CDP)**. Section 5 states where our formalities with it stand.
 
 # 1. Who is responsible for your data
 
@@ -303,7 +303,7 @@ We disclose data to judicial, administrative or tax authorities where the law re
 
 # 5. Transfers outside Senegal
 
-Some providers are established or store data outside Senegal, notably in the European Union and the United States. Through OpenRouter, an artificial intelligence request may also be processed in other countries, depending on the model provider: we do not present those countries as ensuring an adequate level of protection. Law No. 2008-12 only allows a transfer to a third country that ensures an adequate level of protection of privacy and freedoms, or subject to appropriate safeguards, including contractual ones, and makes it subject to formalities with the CDP. As of the date of this policy, these formalities have not been completed: their reference will appear in § 1.1 once they have been.
+Some providers are established or store data outside Senegal, notably in the European Union and the United States. Through OpenRouter, an artificial intelligence request may also be processed in other countries, depending on the model provider: we do not present those countries as ensuring an adequate level of protection. Law No. 2008-12 only allows a transfer to a third country that ensures an adequate level of protection of privacy and freedoms (Art. 49), in the exceptional cases of its Art. 50, or with the authorisation of the CDP in view of sufficient safeguards, including contractual ones (Art. 51), and makes it subject to formalities with the CDP. As of the date of this policy, these formalities have not been completed: their reference will appear in § 1.1 once they have been.
 
 # 6. How long we keep it
 

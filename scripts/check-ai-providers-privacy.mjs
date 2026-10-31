@@ -18,8 +18,11 @@
  * `legal_name` doit y figurer, dans les deux langues.
  *
  * **Ce qu'elle ne prouve pas.** Qu'un nom cité par la puce soit encore configuré (la puce peut en
- * dire trop), ni que le texte décrive bien le traitement. Elle ne voit pas une entrée `openai-compatible`
- * posée sur `openrouter.ai` ou `api.openai.com` : ce pilote n'envoie ni `data_collection` ni `store`.
+ * dire trop), ni que le texte décrive bien le traitement. Elle ne voit pas `'provider' => [...$x]`, dont un
+ * `allow` étalé passerait. Elle ne voit que les hôtes écrits en toutes lettres.
+ *
+ * **Le pilote suit l'hôte** (`HOTES_A_PILOTE`). `privacy.ts` promet `store` et `data_collection`, que seuls les
+ * pilotes `openai` et `openrouter` envoient : une entrée `openai-compatible` sur leurs hôtes retomberait sur `allow`.
  *
  * Ses propres tests (`CAS_EPREUVE`) tournent à chaque invocation : une garde dont la lecture
  * régresse sort en 1 sur elle-même.
@@ -129,6 +132,19 @@ export function lireHotes(php) {
   return hotes;
 }
 
+/** L'hôte, sous-domaines compris, et le pilote sans lequel la promesse de `privacy.ts` ne part pas. */
+const HOTES_A_PILOTE = { 'openrouter.ai': 'openrouter', 'api.openai.com': 'openai' };
+
+/** Rend les hôtes de cette entrée dont le pilote n'est pas celui que l'hôte exige. */
+export function hotesSansLeurPilote(corps) {
+  const liste = corps.match(/['"]allowed_hosts['"]\s*=>\s*\[([^\]]*)\]/);
+  if (!liste) return [];
+  const pilote = corps.match(/['"]driver['"]\s*=>\s*['"]([^'"]+)['"]/)?.[1] ?? null;
+  return [...liste[1].matchAll(/['"]([^'"]+)['"]/g)]
+    .map((h) => h[1].toLowerCase().split(':')[0])
+    .filter((hote) => Object.entries(HOTES_A_PILOTE).some(([h, requis]) => (hote === h || hote.endsWith(`.${h}`)) && pilote !== requis));
+}
+
 /** Rend la ligne de la puce, ou null. */
 export function lirePuce(texte, prefixe) {
   return texte.split('\n').find((ligne) => ligne.trim().startsWith(prefixe)) ?? null;
@@ -142,6 +158,7 @@ export function verifier(php, privacy) {
   for (const [cle, { nom, corps }] of Object.entries(fournisseurs)) {
     if (!declareSesHotes(corps)) erreurs.push(`fournisseur « ${cle} » sans allowed_hosts écrit en configuration`);
     if (contreditLaPromesse(corps)) erreurs.push(`fournisseur « ${cle} » : data_collection autre que deny, ou bloc provider illisible, alors que privacy.ts promet le contraire`);
+    for (const hote of hotesSansLeurPilote(corps)) erreurs.push(`fournisseur « ${cle} » : l'hôte ${hote} exige son pilote, sinon ni store ni data_collection ne partent`);
     if (!nom) { erreurs.push(`fournisseur « ${cle} » sans legal_name`); continue; }
     if (cle === 'voyageai' && !hotes[cle]?.includes('api.voyageai.com')) erreurs.push('voyageai : allowed_hosts ne porte pas api.voyageai.com');
     for (const [langue, prefixe] of Object.entries(PUCES)) {
@@ -262,6 +279,21 @@ const CAS_EPREUVE = [
     privacy: '- **Intelligence artificielle** : Anthropic, OpenRouter\n- **Artificial intelligence**: Anthropic, OpenRouter',
     erreurs: 0,
   },
+  ...[
+    ['openai-compatible sur openrouter.ai rougit', 'openai-compatible', 'openrouter.ai', 1],
+    ['openai-compatible sur api.openai.com rougit', 'openai-compatible', 'api.openai.com', 1],
+    ['un sous-domaine d’openrouter.ai sans son pilote rougit', 'openai-compatible', 'eu.openrouter.ai', 1],
+    ['un port ne fait pas perdre l’hôte', 'openai-compatible', 'OPENROUTER.ai:8443', 1],
+    ['le pilote openrouter sur eu.openrouter.ai passe', 'openrouter', 'eu.openrouter.ai', 0],
+    ['le pilote openai sur api.openai.com passe', 'openai', 'api.openai.com', 0],
+    ['un point d’accès sur son propre hôte passe', 'openai-compatible', 'api.mon-point.example', 0],
+    ['un suffixe qui ressemble ne compte pas', 'openai-compatible', 'pasopenrouter.ai', 0],
+  ].map(([nom, pilote, hote, erreurs]) => ({
+    nom,
+    php: `'providers' => [\n 'point' => ['driver' => '${pilote}', 'legal_name' => 'Point', 'allowed_hosts' => ['${hote}']],\n],`,
+    privacy: '- **Intelligence artificielle** : Point\n- **Artificial intelligence**: Point',
+    erreurs,
+  })),
   {
     nom: 'data_collection à deny passe',
     php: "'providers' => [\n 'openrouter' => ['legal_name' => 'OpenRouter', 'allowed_hosts' => ['r.test'], 'provider' => ['data_collection' => 'deny']],\n],",

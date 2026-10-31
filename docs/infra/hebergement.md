@@ -238,7 +238,8 @@ un geste du porteur, et aucune de `OPENAI_API_KEY` ni `OPENROUTER_API_KEY` n'est
 n'est pas dans `allowed_hosts` de `config/ai.php`, ou en `http` hors `local` et `testing`, rend le fournisseur non
 sélectionnable : la console l'affiche, la chaîne bascule, et la sonde `ai_providers` passe à `degraded`.
 
-⚠ **Avant de poser une clé** : la formalité auprès de la CDP, en tête du [runbook](#runbook).
+⚠ **Pas de clé OpenAI ni OpenRouter avant le contrat de sous-traitance et le geste CDP** :
+[les étapes, dans l'ordre](#allumer-openai-ou-openrouter-tck-2450-adr-0085).
 
 **Avant de poser `OPENROUTER_API_KEY`** : *Private Input & Output Logging* et l'usage des demandes pour améliorer le produit
 sont deux options du compte OpenRouter, éteintes par défaut. `privacy.ts` § 4.3 ne décrit pas le second : l'allumer demande de
@@ -694,6 +695,19 @@ noms à 89 jours ; `SEUIL_JOURS=365` rougit les cinq, un nom non servi et une or
 rougissent aussi. ⚠ Un nom ajouté à Dokploy s'ajoute à la liste du script ; GitHub éteint un
 workflow planifié après 60 jours sans activité sur le dépôt (un `workflow_dispatch` le rallume).
 
+### Allumer OpenAI ou OpenRouter (TCK-2450, ADR-0085)
+
+Il faut la clé pour que quelque chose parte, et **rien ne vérifie les deux premières étapes : l'ordre compte**. `privacy.ts` § 4.3 dit
+« sur nos instructions et sous obligation de confidentialité », ce qui suppose un contrat écrit.
+
+1. **Le contrat de sous-traitance** (loi n° 2008-12, art. 39) : accepter celui d'OpenAI ou d'OpenRouter sur le compte qui portera la
+   clé, et le garder au dossier. Chez OpenRouter, il ne couvre pas les fournisseurs de modèles, qui traitent selon leurs conditions :
+   `privacy.ts` § 4.3 le dit.
+2. **Informer la Commission de protection des données** du transfert, avant le premier envoi (art. 49), ou lui demander son
+   autorisation (art. 51) : [en tête du runbook](#runbook). `privacy.ts` § 5 se réécrit ensuite.
+3. **Poser la clé** dans Dokploy : `OPENAI_API_KEY` ou `OPENROUTER_API_KEY`. C'est elle qui active le fournisseur.
+4. **Dans la console** : ajouter le modèle et ses tarifs, l'évaluer, l'affecter.
+
 ### Déclarer un point d'accès compatible OpenAI
 
 Aucun n'est déclaré aujourd'hui. Un point d'accès est un sous-traitant : il se déclare par son nom, jamais par une
@@ -716,8 +730,9 @@ entrée générique dont l'adresse suffirait à changer le destinataire (ADR-008
    `.env.docker` (`scripts/check-env-parity.mjs`).
 2. **`takussan-web/src/content/legal/privacy.ts` § 4.3** : le `legal_name` et le pays dans la puce, en fr et en en, puis
    `VERSION_DOCUMENTS` dans `editeur.ts`. `scripts/check-ai-providers-privacy.mjs` rougit sans lui. ⚠ Ce pilote n'envoie
-   ni `store` ni `data_collection` : dire ce que ce prestataire conserve, d'après ses conditions.
-3. **La CDP** : la formalité en tête de ce runbook, avant le premier envoi.
+   ni `store` ni `data_collection` : dire ce que ce prestataire conserve, d'après ses conditions. Sur `openrouter.ai` ou
+   `api.openai.com`, la garde exige le pilote de l'hôte.
+3. **Le contrat et la CDP** : les étapes 1 et 2 d'[Allumer OpenAI ou OpenRouter](#allumer-openai-ou-openrouter-tck-2450-adr-0085), avant le premier envoi.
 4. **Déployer**, puis poser la clé dans Dokploy : c'est elle qui active le fournisseur.
 5. **Dans la console** : ajouter le modèle et ses tarifs, l'évaluer, l'affecter.
 

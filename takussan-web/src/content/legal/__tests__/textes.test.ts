@@ -165,6 +165,12 @@ describe('Radar — l’article 6.3 et les ajouts de la politique de confidentia
   /** TCK-2450 — la formalité auprès de la CDP est un geste du porteur : tant qu'il n'est pas fait, le texte ne le dit pas fait. */
   it('le § 5 ne dit plus que les formalités auprès de la CDP sont accomplies', () => {
     expect(privacy.fr).toContain('ces formalités ne sont pas accomplies');
+    expect(privacy.fr).toContain('dans les cas d’exception de son art. 50');
+    expect(privacy.en).toContain('in the exceptional cases of its Art. 50');
+    expect(privacy.fr).toContain('Le § 5 dit où en sont nos formalités');
+    expect(privacy.en).toContain('Section 5 states where our formalities');
+    expect(privacy.fr).not.toContain('dans le respect de la **loi');
+    expect(privacy.en).not.toContain('in accordance with Senegal’s **Law');
     expect(privacy.en).toContain('these formalities have not been completed');
     expect(privacy.fr).not.toContain('après avoir accompli les formalités');
     expect(privacy.en).not.toContain('after completing the required formalities');

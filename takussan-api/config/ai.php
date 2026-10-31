@@ -68,7 +68,7 @@ return [
             'driver' => 'voyageai',
             'key' => env('VOYAGE_API_KEY'),
             'training_opt_out' => env('VOYAGE_TRAINING_OPT_OUT', false) === true,
-            'url' => env('VOYAGE_URL', 'https://api.voyageai.com/v1'),
+            'url' => $adresse('VOYAGE_URL', 'https://api.voyageai.com/v1'),
             'legal_name' => 'Voyage AI',
             'serves' => 'embeddings',
             'allowed_hosts' => ['api.voyageai.com'],

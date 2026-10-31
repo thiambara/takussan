@@ -160,10 +160,11 @@ non acceptée) en texte, jamais la clé ni l'adresse complète. L'hôte seul peu
 
 ### Limites écrites
 
-- **La cause d'un 400 derrière un dernier maillon sans clé se perd** : l'usage rend `ai.provider_key_missing`, et la ligne du
-  journal garde `ai.request_rejected`.
-- **Une entrée `openai-compatible` posée sur `openrouter.ai` ou `api.openai.com` n'envoie ni `data_collection` ni `store`**, et
-  aucune garde ne le voit.
+- **La cause d'un 400 derrière un dernier maillon sans clé se perd** : l'exception est `ai.providers_unavailable`, avec pour
+  cause `ai.provider_key_missing`, et la ligne du journal garde `ai.request_rejected`.
+- **`check-ai-providers-privacy.mjs` ne voit pas `'provider' => [...$x]`**, et la table hôte → pilote ne voit que les hôtes écrits
+  en toutes lettres. La passerelle complète par `deny` si la clé manque : seul un `allow` étalé passerait.
+- **Rien ne vérifie le contrat de sous-traitance ni le geste CDP** avant la pose d'une clé : c'est l'ordre du runbook.
 
 ### Décisions prises en autonomie, à revoir
 

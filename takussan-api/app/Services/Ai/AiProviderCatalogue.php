@@ -103,11 +103,14 @@ final class AiProviderCatalogue
         };
     }
 
-    /** Clé posée, adresse refusée : ce que la sonde de santé signale, sans nommer ni le fournisseur ni son adresse. */
+    /**
+     * Clé posée, adresse refusée : ce que la sonde de santé signale, sans nommer ni le fournisseur ni son adresse. Jugé sur
+     * l'adresse, pas sur le motif : l'absence de déclaration d'un fournisseur d'embeddings masquerait ici un mauvais hôte.
+     */
     public function anyKeyedWithRefusedAddress(): bool
     {
         foreach (array_keys(self::declared()) as $key) {
-            if ($this->unselectableReason($key) === self::REASON_HOST_NOT_ALLOWED) {
+            if ($this->keyPresent($key) && ! $this->addressAccepted($key)) {
                 return true;
             }
         }

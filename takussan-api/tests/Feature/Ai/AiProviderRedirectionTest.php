@@ -10,7 +10,6 @@ use App\Services\Ai\AiGateway;
 use App\Services\Ai\AiRequest;
 use App\Services\Ai\AiUsageRegistry;
 use App\Services\Ai\Exceptions\AiUnavailable;
-use GuzzleHttp\Handler\MockHandler;
 use GuzzleHttp\HandlerStack;
 use GuzzleHttp\Promise\Create;
 use GuzzleHttp\Psr7\Response;
@@ -47,19 +46,28 @@ class AiProviderRedirectionTest extends TestCase
         ]);
     }
 
-    /** Le gestionnaire de fin tient lieu de réseau : chaque requête qu'il reçoit serait partie. */
-    private function brancher(int $statut, string $redirigeant, string $cible = self::AILLEURS): void
+    /**
+     * Le gestionnaire de fin tient lieu de réseau : chaque requête qu'il reçoit serait partie. Le middleware global, que
+     * l'option `handler` écarterait avec le reste de la pile du client, y est rebranché à l'envoi, comme le fait le client.
+     */
+    private function brancher(int $statut, string $redirigeant, ?string $cible = self::AILLEURS): void
     {
-        $stack = HandlerStack::create(new MockHandler);
-        $stack->setHandler(function (RequestInterface $requete, array $options) use ($statut, $redirigeant, $cible) {
+        $fin = function (RequestInterface $requete, array $options) use ($statut, $redirigeant, $cible) {
             $hote = $requete->getUri()->getHost();
             $this->envois[] = ['host' => $hote, 'body' => (string) $requete->getBody(), 'key' => $requete->getHeaderLine('Authorization').$requete->getHeaderLine('x-api-key')];
 
             return Create::promiseFor($hote === $redirigeant
-                ? new Response($statut, ['Location' => 'https://'.$cible.'/autre'.$requete->getUri()->getPath()])
+                ? new Response($statut, $cible === null ? [] : ['Location' => 'https://'.$cible.'/autre'.$requete->getUri()->getPath()])
                 : new Response(200, ['Content-Type' => 'application/json'], (string) json_encode($this->reponse((string) $requete->getUri()))));
-        });
-        Http::getFacadeRoot()->globalOptions(['handler' => $stack]);
+        };
+        Http::getFacadeRoot()->globalOptions(['handler' => function (RequestInterface $requete, array $options) use ($fin) {
+            $pile = HandlerStack::create($fin);
+            foreach ((fn () => $this->globalMiddleware)->call(Http::getFacadeRoot()) as $middleware) {
+                $pile->push($middleware);
+            }
+
+            return $pile($requete, $options);
+        }]);
     }
 
     /** @return array<string, mixed> */
@@ -141,6 +149,31 @@ class AiProviderRedirectionTest extends TestCase
         $this->assertSame(AiGateway::WARNING_PROVIDER_REJECTED, $lignes[0]->warning);
     }
 
+    /** Un 3xx sans `Location` : Guzzle ne le suit pas, et le SDK lèverait sur son corps vide une erreur qui arrêterait la chaîne. */
+    #[DataProvider('pilotesEtStatuts')]
+    public function test_un_3xx_sans_location_bascule_comme_une_redirection(string $pilote, int $statut): void
+    {
+        $entree = $this->declarer($pilote);
+        $this->chaine([$entree, 'secours']);
+        $this->brancher($statut, "{$entree}.test", null);
+
+        $this->jouer();
+
+        $this->assertSame(["{$entree}.test", 'secours.test'], array_column($this->envois, 'host'));
+        $lignes = AiCall::query()->orderBy('id')->get();
+        $this->assertSame([AiCallOutcome::FailedOver, 'ai.provider_redirected'], [$lignes[0]->outcome, $lignes[0]->error_code]);
+    }
+
+    public function test_un_3xx_sans_location_sur_un_embedding_bascule_de_meme(): void
+    {
+        $this->declarerVoyage();
+        config(['ai.providers.vecteurs-secours' => ['url' => 'https://vecteurs-secours.test/v1', 'allowed_hosts' => ['vecteurs-secours.test']] + config('ai.providers.voyageai')]);
+        config(['ai.roles.embedding' => [['provider' => 'voyageai', 'model' => 'modele-a', 'max_tokens' => 1], ['provider' => 'vecteurs-secours', 'model' => 'modele-a', 'max_tokens' => 1]]]);
+        $this->brancher(307, 'api.voyageai.com', null);
+
+        $this->assertSame('vecteurs-secours', app(AiGateway::class)->embed(new AiRequest(RadarEmbeddingUsage::KEY, 'CONTENU'), ['CONTENU'], 2)->link->provider);
+    }
+
     /** B1 couvre aussi `embed()` : aucun appel d'embeddings ne suit une redirection, et la chaîne bascule de même. */
     #[DataProvider('statuts')]
     public function test_un_embedding_ne_suit_aucune_redirection_et_la_chaine_bascule(int $statut): void
@@ -213,7 +246,7 @@ class AiProviderRedirectionTest extends TestCase
 
     public function test_les_options_du_client_http_sont_rendues_apres_l_appel(): void
     {
-        $lire = fn (): mixed => (fn () => $this->globalOptions)->call(Http::getFacadeRoot());
+        $lire = fn (): array => (fn () => [$this->globalOptions, $this->globalMiddleware])->call(Http::getFacadeRoot());
 
         $this->chaine(['secours']);
         $this->brancher(307, 'personne.test');
@@ -226,6 +259,7 @@ class AiProviderRedirectionTest extends TestCase
         $avant = $lire();
         $this->jouer();
         $this->assertSame($avant, $lire(), 'après une redirection');
-        $this->assertArrayNotHasKey('allow_redirects', $lire());
+        $this->assertArrayNotHasKey('allow_redirects', $lire()[0]);
+        $this->assertSame([], $lire()[1]);
     }
 }

@@ -23,6 +23,7 @@ use Laravel\Ai\Responses\Data\FinishReason;
 use Laravel\Ai\Responses\Data\TextUsage;
 use Laravel\Ai\Responses\Data\Usage;
 use Laravel\Ai\Responses\StructuredAgentResponse;
+use Psr\Http\Message\ResponseInterface;
 use Throwable;
 
 /**
@@ -196,9 +197,9 @@ final class AiGateway
     /**
      * TCK-2450 (ADR-0085 §3) — le contrôle d'hôte ne porte que sur l'adresse configurée : ni le corps ni la clé ne
      * suivent une redirection, quel que soit le pilote. Le SDK construit sa requête par la façade `Http`, sans
-     * option : seules les options globales l'atteignent, posées le temps de l'appel, puis rendues telles qu'elles
-     * étaient. Pas `allow_redirects => false` : le corps vide d'un 307 arriverait au SDK, et y lèverait une
-     * `TypeError` qui ne dit rien de la cause.
+     * option : seules les options et le middleware globaux l'atteignent, posés le temps de l'appel, puis rendus tels
+     * qu'ils étaient. Pas `allow_redirects => false` : le corps vide d'un 307 arriverait au SDK, et y lèverait une
+     * `TypeError` qui ne dit rien de la cause. Le middleware prend ce que Guzzle ne suit pas : un 3xx sans `Location`.
      *
      * @template T
      *
@@ -209,6 +210,7 @@ final class AiGateway
     {
         $factory = Http::getFacadeRoot();
         $previous = (fn () => $this->globalOptions)->call($factory);
+        $middleware = (fn () => $this->globalMiddleware)->call($factory);
         $factory->globalOptions(array_merge((array) value($previous), [
             'allow_redirects' => [
                 'max' => self::REDIRECTS_BEFORE_THE_CALLBACK,
@@ -217,11 +219,21 @@ final class AiGateway
                 },
             ],
         ]));
+        $factory->globalResponseMiddleware(static function (ResponseInterface $response): ResponseInterface {
+            if ($response->getStatusCode() >= 300 && $response->getStatusCode() < 400) {
+                throw new AiUnavailable('ai.provider_redirected');
+            }
+
+            return $response;
+        });
 
         try {
             return $call();
         } finally {
             $factory->globalOptions($previous);
+            (function () use ($middleware): void {
+                $this->globalMiddleware = $middleware;
+            })->call($factory);
         }
     }
 

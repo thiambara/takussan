@@ -7754,6 +7754,7 @@
           "providerKeyMissing": "Aucune clé n’est posée pour ce fournisseur.",
           "providerHostNotAllowed": "L’adresse de ce fournisseur n’est pas sur un hôte accepté.",
           "providerRedirected": "Ce fournisseur a répondu par une redirection : la demande n’a pas été renvoyée.",
+          "providerUnreachable": "Rien n’est envoyé à ce fournisseur : refus de l’entraînement non déclaré, ou adresse non acceptée.",
           "providerUnknown": "Ce fournisseur n’est plus déclaré."
         },
         "roles": {
