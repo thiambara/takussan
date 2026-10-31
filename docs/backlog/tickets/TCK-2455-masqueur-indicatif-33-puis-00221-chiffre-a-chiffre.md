@@ -1,13 +1,13 @@
 ---
 id: TCK-2455
 title: "Socle IA : `+33 00221 7 7 0 1 2 3 4 5 6` ne laisse plus sept chiffres du numéro en clair"
-status: todo
+status: doing
 phase: P2
 family: back
 estimate: S
 wave: 80
 created: 2026-10-30
-updated: 2026-10-30
+updated: 2026-10-31
 depends_on: [TCK-2451]
 blocks: []
 spec_refs:

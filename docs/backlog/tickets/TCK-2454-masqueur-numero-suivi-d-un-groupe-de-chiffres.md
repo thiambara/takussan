@@ -1,13 +1,13 @@
 ---
 id: TCK-2454
 title: "Socle IA : un numéro à indicatif derrière un étage, suivi d'un groupe de chiffres sans mot, ne laisse plus sa fin en clair"
-status: todo
+status: doing
 phase: P2
 family: back
 estimate: S
 wave: 80
 created: 2026-10-30
-updated: 2026-10-30
+updated: 2026-10-31
 depends_on: [TCK-2451]
 blocks: []
 spec_refs:
