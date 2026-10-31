@@ -90,6 +90,7 @@ Booléen, faux par défaut, exigé en plus de la clé. Sans lui, le pilote est i
 connexion de la console compris. **Motif : une promesse publique ne peut pas dépendre d'un geste que le code ne vérifie pas**, et
 ce qui part avant le refus reste soumis à la licence de Voyage, sans retour. Le repli du porteur reste `pg_trgm`. La variable déclare
 le geste, elle ne le prouve pas.
+Une clé posée sans elle, pilote `embeddings`, écrit un avertissement au journal, une fois par balayage.
 
 ### Décisions prises en autonomie, à revoir
 

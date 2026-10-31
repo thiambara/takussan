@@ -695,7 +695,8 @@ reste sur `pg_trgm`. **L'ordre compte : `privacy.ts` § 4.3 promet le refus de l
 4. **Poser `VOYAGE_API_KEY` et `VOYAGE_TRAINING_OPT_OUT=true`** dans Dokploy. La variable déclare le geste de l'étape 1, elle ne
    le prouve pas. `radar:embed-listings` (toutes les 15 min) met alors chaque lot en file `ai` ; les annonces passent une à une de
    `pg_trgm` aux vecteurs. Le coût et les pannes se lisent dans la console IA, usage `radar.embedding`. Pour revenir en arrière
-   sans retirer la clé : `RADAR_SIMILARITY_DRIVER=trigram`, ou `VOYAGE_TRAINING_OPT_OUT=false`.
+   sans retirer la clé : `RADAR_SIMILARITY_DRIVER=trigram`, ou `VOYAGE_TRAINING_OPT_OUT=false`. Une clé sans déclaration, pilote `embeddings`, écrit
+   `radar.embeddings.training_opt_out_undeclared` au journal à chaque balayage.
 
 ## Ce que Caddy reprend de l'ancien vhost nginx
 

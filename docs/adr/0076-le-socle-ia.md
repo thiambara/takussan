@@ -224,4 +224,4 @@ embedding n'a ni agent, ni prompt, ni sortie à relire.
 - **Une promesse publique ne dépend pas d'un geste que le code ne vérifie pas.** `privacy.ts` promet le refus de l'entraînement
   avant tout envoi, et Voyage entraîne par défaut. `VOYAGE_TRAINING_OPT_OUT`, faux par défaut, est exigé en plus de la clé : sans lui,
   rien ne part, test de connexion compris, et `pg_trgm` sert. Il déclare le geste au moment où il compte, sans le prouver.
-- **Un texte d'annonceur qui a dit STOP ne part pas**, à aucune étape, et son vecteur s'efface à la purge.
+- **À réception d'un STOP, les envois suivants du texte de cet annonceur cessent**, à toutes les étapes, et son vecteur s'efface à la purge. Un envoi déjà en cours n'est pas annulé.

@@ -20,14 +20,19 @@ use App\Services\Radar\Embeddings\RadarEmbeddingTarget;
 use App\Services\Radar\RadarMatcher;
 use App\Services\Radar\RadarPurger;
 use App\Services\Radar\Similarity\EmbeddingTextSimilarity;
+use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
+use Mockery;
 use PHPUnit\Framework\Attributes\DataProvider;
+use RuntimeException;
 use Tests\TestCase;
 
 /**
@@ -673,11 +678,65 @@ class RadarEmbeddingsTest extends TestCase
         $this->assertNotNull($publiee->fresh()->similarity_text);
     }
 
+    public function test_un_stockage_injoignable_nempeche_pas_deffacer_le_vecteur(): void
+    {
+        $this->fauxModele();
+        $annonce = $this->annonce(self::COPIE, ['purge_at' => now()->subDay()]);
+        $this->balayer();
+        $this->assertSame(1, Embedding::query()->count());
+
+        Storage::set((string) config('media-library.disk_name'), Mockery::mock(Filesystem::class, function ($disque): void {
+            $disque->shouldReceive('directories')->andThrow(new RuntimeException('stockage injoignable'));
+        }));
+
+        try {
+            app(RadarPurger::class)->run();
+            $this->fail('le passage aurait dû lever');
+        } catch (RuntimeException $e) {
+            $this->assertSame('stockage injoignable', $e->getMessage());
+        }
+
+        $this->assertSame(RadarListingStage::Purged, $annonce->fresh()->stage);
+        $this->assertSame(0, Embedding::query()->count());
+    }
+
     // ─── La déclaration du refus de l'entraînement, l'adresse ────────────────────────────
 
     public function test_la_declaration_est_fausse_par_defaut(): void
     {
         $this->assertFalse((require config_path('ai.php'))['providers']['voyageai']['training_opt_out']);
+    }
+
+    public function test_une_cle_sans_declaration_avertit_une_fois_par_balayage(): void
+    {
+        config(['ai.providers.voyageai.training_opt_out' => false]);
+        Log::spy();
+
+        $this->balayer();
+
+        Log::shouldHaveReceived('warning')->with('radar.embeddings.training_opt_out_undeclared')->once();
+    }
+
+    /** @return array<string, array{array<string, mixed>}> */
+    public static function balayagesSilencieux(): array
+    {
+        return [
+            'déclaration posée' => [[]],
+            'déclaration posée, hôte refusé' => [['ai.providers.voyageai.url' => 'https://ailleurs.example/v1']],
+            'sans clé' => [['ai.providers.voyageai.key' => null, 'ai.providers.voyageai.training_opt_out' => false]],
+            'pilote trigram' => [['radar.similarity.driver' => 'trigram', 'ai.providers.voyageai.training_opt_out' => false]],
+        ];
+    }
+
+    #[DataProvider('balayagesSilencieux')]
+    public function test_ce_balayage_navertit_pas(array $reglages): void
+    {
+        config($reglages);
+        Log::spy();
+
+        $this->balayer();
+
+        Log::shouldNotHaveReceived('warning', ['radar.embeddings.training_opt_out_undeclared']);
     }
 
     public function test_sans_la_declaration_rien_ne_part_et_trigram_sert(): void

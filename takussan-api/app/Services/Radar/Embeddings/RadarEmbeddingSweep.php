@@ -5,6 +5,7 @@ namespace App\Services\Radar\Embeddings;
 use App\Jobs\Radar\EmbedRadarListings;
 use App\Models\Enums\RadarListingStage;
 use App\Models\RadarListing;
+use App\Services\Ai\AiProviderCatalogue;
 use App\Services\Ai\ModelLink;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Cache;
@@ -34,7 +35,10 @@ final class RadarEmbeddingSweep
         RadarListingStage::Consented, RadarListingStage::Published,
     ];
 
-    public function __construct(private readonly RadarEmbeddingTarget $target) {}
+    public function __construct(
+        private readonly RadarEmbeddingTarget $target,
+        private readonly AiProviderCatalogue $providers,
+    ) {}
 
     /** @return Builder<RadarListing> */
     public function due(ModelLink $link): Builder
@@ -50,7 +54,12 @@ final class RadarEmbeddingSweep
     public function run(): int
     {
         $link = $this->target->current();
-        if ($link === null || $this->paused()) {
+        if ($link === null) {
+            $this->warnIfUndeclared();
+
+            return 0;
+        }
+        if ($this->paused()) {
             return 0;
         }
 
@@ -65,6 +74,14 @@ final class RadarEmbeddingSweep
         }
 
         return count($ids);
+    }
+
+    /** Une clé posée sans la déclaration ne produit sinon aucun signal : le Radar sert les trigrammes, et personne ne le voit. */
+    private function warnIfUndeclared(): void
+    {
+        if (config('radar.similarity.driver') === 'embeddings' && $this->providers->embeddingKeyWithoutDeclaration()) {
+            Log::warning('radar.embeddings.training_opt_out_undeclared');
+        }
     }
 
     public function pause(): void

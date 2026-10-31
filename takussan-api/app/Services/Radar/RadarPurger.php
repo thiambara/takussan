@@ -99,11 +99,14 @@ final class RadarPurger
             if (config('radar.purge_published_material') === true) {
                 $this->purgePublishedListings($counts);
             }
+        }
+        // Après les deux gestes qui purgent une annonce, jamais publiée puis publiée, et avant le disque : s'il ne répond pas, le
+        // passage s'arrête là, et le vecteur d'un texte effacé ne doit pas l'attendre.
+        $this->eraseUnwantedVectors($counts);
+        if ($advertiserId === null) {
             $counts['orphan_dirs'] += $this->orphans->sweep($now);
             $counts['orphan_copies'] += $this->orphans->sweepPublicationCopies($now);
         }
-        // Après les deux gestes qui purgent une annonce : jamais publiée, puis publiée.
-        $this->eraseUnwantedVectors($counts);
         $this->purgeUnconfirmedReplies($advertiserId, $counts);
         $this->purgeOutreaches($advertiserId, $counts);
         $this->clearAdvertisers($advertiserId, $counts);

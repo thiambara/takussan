@@ -58,6 +58,18 @@ final class AiProviderCatalogue
      * Une clé ; le refus de l'entraînement déclaré, pour un fournisseur qui le demande ; une adresse https sur un hôte que la
      * configuration accepte, quand elle en déclare (ADR-0085 §4). Sinon, rien ne lui est envoyé.
      */
+    public function embeddingKeyWithoutDeclaration(): bool
+    {
+        foreach (array_keys(config('ai.providers')) as $provider) {
+            if ($this->servesEmbeddings($provider) && $this->keyPresent($provider)
+                && (config('ai.providers')[$provider]['training_opt_out'] ?? true) !== true) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public function reachable(string $provider): bool
     {
         $config = config('ai.providers')[$provider] ?? [];
