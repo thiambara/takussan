@@ -166,6 +166,17 @@ class AdminAiUsagesTest extends TestCase
         $this->assertSame(['fournisseur-sorti', 'modele-a'], [$setting->forced_provider, $setting->forced_model]);
     }
 
+    /** TCK-2423 + TCK-2450 — une clé sans la déclaration du refus de l'entraînement ne se force pas : à ce fournisseur, rien ne part. */
+    public function test_voyage_sans_la_declaration_ne_se_force_pas(): void
+    {
+        $this->actingAsRole('super_admin');
+        config(['ai.providers.voyageai.key' => 'k', 'ai.providers.voyageai.training_opt_out' => false, 'ai.pricing.voyageai' => ['modele-v' => ['input' => '1', 'output' => '0', 'cache_read' => '0', 'cache_write' => '0']]]);
+
+        $this->patchJson('/api/admin/ai/usages/'.UsageDEssai::KEY, ['forced_provider' => 'voyageai', 'forced_model' => 'modele-v'])
+            ->assertStatus(422)->assertJsonValidationErrors(['forced_provider' => __('errors.ai.provider_unreachable')]);
+        $this->assertSame(0, AiUsageSetting::query()->whereNotNull('forced_provider')->count());
+    }
+
     public function test_un_usage_de_texte_ne_force_pas_un_fournisseur_dembeddings(): void
     {
         $this->actingAsRole('super_admin');

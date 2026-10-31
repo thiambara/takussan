@@ -50,9 +50,6 @@ final class AiGateway
     /** `ai_calls.warning` d'une réponse sans décompte de jetons : son coût vaut zéro, et le budget n'en sait rien (TCK-2450). */
     public const WARNING_USAGE_MISSING = 'usage_missing';
 
-    /** Assez haut pour que Guzzle arrive au rappel : c'est lui qui arrête, pas ce plafond. */
-    private const REDIRECTS_BEFORE_THE_CALLBACK = 5;
-
     /** Les refus qui ne disent rien du maillon suivant. 401 et 403 restent dehors : une clé refusée doit se voir. */
     private const REJECTIONS_THAT_FAIL_OVER = [400, 404, 408, 413, 422, 500];
 
@@ -197,9 +194,9 @@ final class AiGateway
     /**
      * TCK-2450 (ADR-0085 §3) — le contrôle d'hôte ne porte que sur l'adresse configurée : ni le corps ni la clé ne
      * suivent une redirection, quel que soit le pilote. Le SDK construit sa requête par la façade `Http`, sans
-     * option : seules les options et le middleware globaux l'atteignent, posés le temps de l'appel, puis rendus tels
-     * qu'ils étaient. Pas `allow_redirects => false` : le corps vide d'un 307 arriverait au SDK, et y lèverait une
-     * `TypeError` qui ne dit rien de la cause. Le middleware prend ce que Guzzle ne suit pas : un 3xx sans `Location`.
+     * option : seul un middleware global l'atteint, posé le temps de l'appel, puis rendu tel qu'il était. Il voit chaque
+     * réponse avant le suivi de Guzzle, donc tout 3xx, avec ou sans `Location`. Pas `allow_redirects => false` : le corps
+     * vide d'un 307 arriverait au SDK, et y lèverait une `TypeError` qui ne dit rien de la cause.
      *
      * @template T
      *
@@ -209,16 +206,7 @@ final class AiGateway
     private function withoutFollowingRedirects(callable $call): mixed
     {
         $factory = Http::getFacadeRoot();
-        $previous = (fn () => $this->globalOptions)->call($factory);
         $middleware = (fn () => $this->globalMiddleware)->call($factory);
-        $factory->globalOptions(array_merge((array) value($previous), [
-            'allow_redirects' => [
-                'max' => self::REDIRECTS_BEFORE_THE_CALLBACK,
-                'on_redirect' => static function (): never {
-                    throw new AiUnavailable('ai.provider_redirected');
-                },
-            ],
-        ]));
         $factory->globalResponseMiddleware(static function (ResponseInterface $response): ResponseInterface {
             if ($response->getStatusCode() >= 300 && $response->getStatusCode() < 400) {
                 throw new AiUnavailable('ai.provider_redirected');
@@ -230,7 +218,6 @@ final class AiGateway
         try {
             return $call();
         } finally {
-            $factory->globalOptions($previous);
             (function () use ($middleware): void {
                 $this->globalMiddleware = $middleware;
             })->call($factory);

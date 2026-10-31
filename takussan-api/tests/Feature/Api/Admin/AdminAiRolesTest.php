@@ -89,6 +89,20 @@ class AdminAiRolesTest extends TestCase
         $this->assertSame(0, AiRoleAssignment::query()->count());
     }
 
+    /** TCK-2423 + TCK-2450 — une clé sans la déclaration du refus de l'entraînement ne s'affecte pas : à ce fournisseur, rien ne part. */
+    public function test_voyage_sans_la_declaration_ne_s_affecte_pas(): void
+    {
+        $this->actingAsRole('super_admin');
+        config(['ai.providers.voyageai.key' => 'k', 'ai.providers.voyageai.training_opt_out' => false, 'ai.pricing.voyageai' => ['modele-v' => ['input' => '1', 'output' => '0', 'cache_read' => '0', 'cache_write' => '0']]]);
+
+        $this->putJson('/api/admin/ai/roles/embedding', ['chain' => [['provider' => 'voyageai', 'model' => 'modele-v']]])
+            ->assertStatus(422)->assertJsonValidationErrors(['chain.0.provider' => __('errors.ai.provider_unreachable')]);
+        $this->assertDatabaseMissing('ai_role_assignments', ['role' => 'embedding']);
+
+        config(['ai.providers.voyageai.training_opt_out' => true]);
+        $this->putJson('/api/admin/ai/roles/embedding', ['chain' => [['provider' => 'voyageai', 'model' => 'modele-v']]])->assertOk();
+    }
+
     public function test_un_role_de_texte_refuse_un_fournisseur_dembeddings_et_linverse(): void
     {
         $this->actingAsRole('super_admin');

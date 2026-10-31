@@ -10,21 +10,18 @@ use App\Services\Ai\AiGateway;
 use App\Services\Ai\AiRequest;
 use App\Services\Ai\AiUsageRegistry;
 use App\Services\Ai\Exceptions\AiUnavailable;
-use GuzzleHttp\HandlerStack;
-use GuzzleHttp\Promise\Create;
-use GuzzleHttp\Psr7\Response;
+use GuzzleHttp\Promise\PromiseInterface;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 use PHPUnit\Framework\Attributes\DataProvider;
-use Psr\Http\Message\RequestInterface;
 use Tests\Support\Ai\SocleIaDEssai;
 use Tests\Support\Ai\UsageDEssai;
 use Tests\TestCase;
 
 /**
- * TCK-2450 (ADR-0085 §3) — ni le corps ni la clé ne suivent une redirection. `Http::fake` répond avant le suivi des
- * redirections de Guzzle et ne prouverait rien : ici, la vraie pile de Guzzle tourne, sur un gestionnaire de fin
- * qui ne joint aucun réseau. Une option `handler` par requête remplace la pile entière du client HTTP.
+ * TCK-2450 (ADR-0085 §3) — ni le corps ni la clé ne suivent une redirection. Sans réseau : `Http::fake` répond tout en bas
+ * de la pile de Guzzle, sous son suivi des redirections. Sans le correctif, le faux fournisseur reçoit donc le second envoi.
  */
 class AiProviderRedirectionTest extends TestCase
 {
@@ -36,6 +33,12 @@ class AiProviderRedirectionTest extends TestCase
     /** @var list<array{host: string, body: string, key: string}> */
     private array $envois = [];
 
+    private int $statut = 307;
+
+    private string $redirigeant = '';
+
+    private ?string $cible = self::AILLEURS;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -44,30 +47,25 @@ class AiProviderRedirectionTest extends TestCase
             'ai.providers.secours' => ['driver' => 'openrouter', 'key' => 'k', 'url' => 'https://secours.test/v1', 'allowed_hosts' => ['secours.test']],
             'ai.pricing.secours' => ['modele-a' => ['input' => '1', 'output' => '1', 'cache_read' => '1', 'cache_write' => '1']],
         ]);
+        Http::preventStrayRequests();
+        Http::fake($this->repondre(...));
     }
 
-    /**
-     * Le gestionnaire de fin tient lieu de réseau : chaque requête qu'il reçoit serait partie. Le middleware global, que
-     * l'option `handler` écarterait avec le reste de la pile du client, y est rebranché à l'envoi, comme le fait le client.
-     */
     private function brancher(int $statut, string $redirigeant, ?string $cible = self::AILLEURS): void
     {
-        $fin = function (RequestInterface $requete, array $options) use ($statut, $redirigeant, $cible) {
-            $hote = $requete->getUri()->getHost();
-            $this->envois[] = ['host' => $hote, 'body' => (string) $requete->getBody(), 'key' => $requete->getHeaderLine('Authorization').$requete->getHeaderLine('x-api-key')];
+        $this->statut = $statut;
+        $this->redirigeant = $redirigeant;
+        $this->cible = $cible;
+    }
 
-            return Create::promiseFor($hote === $redirigeant
-                ? new Response($statut, $cible === null ? [] : ['Location' => 'https://'.$cible.'/autre'.$requete->getUri()->getPath()])
-                : new Response(200, ['Content-Type' => 'application/json'], (string) json_encode($this->reponse((string) $requete->getUri()))));
-        };
-        Http::getFacadeRoot()->globalOptions(['handler' => function (RequestInterface $requete, array $options) use ($fin) {
-            $pile = HandlerStack::create($fin);
-            foreach ((fn () => $this->globalMiddleware)->call(Http::getFacadeRoot()) as $middleware) {
-                $pile->push($middleware);
-            }
+    private function repondre(Request $requete): PromiseInterface
+    {
+        $hote = (string) parse_url($requete->url(), PHP_URL_HOST);
+        $this->envois[] = ['host' => $hote, 'body' => $requete->body(), 'key' => $requete->header('Authorization')[0] ?? $requete->header('x-api-key')[0] ?? ''];
 
-            return $pile($requete, $options);
-        }]);
+        return $hote === $this->redirigeant
+            ? Http::response('', $this->statut, $this->cible === null ? [] : ['Location' => 'https://'.$this->cible.'/autre'.parse_url($requete->url(), PHP_URL_PATH)])
+            : Http::response($this->reponse($requete->url()));
     }
 
     /** @return array<string, mixed> */
@@ -244,22 +242,31 @@ class AiProviderRedirectionTest extends TestCase
         $this->assertSame(['point-openai.test', 'secours.test'], array_column($this->envois, 'host'));
     }
 
-    public function test_les_options_du_client_http_sont_rendues_apres_l_appel(): void
+    public function test_le_middleware_du_client_http_est_rendu_apres_l_appel(): void
     {
-        $lire = fn (): array => (fn () => [$this->globalOptions, $this->globalMiddleware])->call(Http::getFacadeRoot());
+        $lire = fn (): array => (fn () => $this->globalMiddleware)->call(Http::getFacadeRoot());
 
         $this->chaine(['secours']);
         $this->brancher(307, 'personne.test');
-        $avant = $lire();
         $this->jouer();
-        $this->assertSame($avant, $lire(), 'après un succès');
+        $this->assertSame([], $lire(), 'après un succès');
 
         $this->chaine([$this->declarer('openai'), 'secours']);
         $this->brancher(307, 'point-openai.test');
-        $avant = $lire();
         $this->jouer();
-        $this->assertSame($avant, $lire(), 'après une redirection');
-        $this->assertArrayNotHasKey('allow_redirects', $lire()[0]);
-        $this->assertSame([], $lire()[1]);
+        $this->assertSame([], $lire(), 'après une redirection');
+    }
+
+    /** Hors de l'appel, le client HTTP de l'application suit ses redirections comme avant. */
+    public function test_le_reste_de_l_application_suit_encore_ses_redirections(): void
+    {
+        $this->chaine(['secours']);
+        $this->brancher(307, 'personne.test');
+        $this->jouer();
+
+        $this->brancher(307, 'site.test');
+        Http::post('https://site.test/v1', ['a' => 1]);
+
+        $this->assertSame(['site.test', self::AILLEURS], array_slice(array_column($this->envois, 'host'), -2));
     }
 }

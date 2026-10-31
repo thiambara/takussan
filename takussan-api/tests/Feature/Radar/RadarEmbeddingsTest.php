@@ -17,6 +17,7 @@ use App\Services\Ai\AiEmbeddingResult;
 use App\Services\Ai\AiGateway;
 use App\Services\Ai\AiRequest;
 use App\Services\Ai\AiUsageRegistry;
+use App\Services\Ai\Exceptions\AiUnavailable;
 use App\Services\Radar\Embeddings\RadarEmbeddingSweep;
 use App\Services\Radar\Embeddings\RadarEmbeddingTarget;
 use App\Services\Radar\RadarMatcher;
@@ -324,6 +325,23 @@ class RadarEmbeddingsTest extends TestCase
     }
 
     // ─── La bascule, la même que `run()` (TCK-2449) ──────────────────────────────────────
+
+    /** La passerelle juge elle-même : un appelant qui n'a pas regardé le catalogue n'envoie rien de plus. */
+    public function test_la_passerelle_n_envoie_rien_a_un_maillon_d_embeddings_refuse(): void
+    {
+        config(['ai.providers.voyageai.training_opt_out' => false]);
+        Http::fake();
+
+        try {
+            app(AiGateway::class)->embed(new AiRequest(RadarEmbeddingUsage::KEY, self::COPIE), [self::COPIE], 1024);
+            $this->fail('aucun maillon ne pouvait répondre');
+        } catch (AiUnavailable $e) {
+            $this->assertSame('ai.provider_unreachable', $e->getPrevious()?->getMessage());
+        }
+
+        Http::assertNothingSent();
+        $this->assertSame('ai.provider_unreachable', AiCall::query()->latest('id')->first()->error_code);
+    }
 
     /** TCK-2450 — sans décompte de jetons, l'appel coûte zéro : la ligne le dit, le budget n'en sait rien. */
     public function test_un_embedding_sans_decompte_de_jetons_porte_un_avertissement(): void

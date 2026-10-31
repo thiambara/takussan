@@ -158,6 +158,9 @@ non acceptée) en texte, jamais la clé ni l'adresse complète. L'hôte seul peu
   `usage_missing`. `privacy.ts` § 4.3 porte les deux textes ; la phrase ⚠ sur l'entraînement ne nomme plus qu'Anthropic, OpenAI et
   OpenRouter, Voyage AI ayant la sienne.
 
+- **Un seul mécanisme contre les redirections : un middleware de réponse**, posé autour de l'appel puis rendu. L'ablation d'`on_redirect`,
+  d'abord demandé sur le patron de `bounded()`, restait verte : le middleware s'exécute sous le suivi de Guzzle et voit déjà tout 3xx.
+
 ### Limites écrites
 
 - **La cause d'un 400 derrière un dernier maillon sans clé se perd** : l'exception est `ai.providers_unavailable`, avec pour
