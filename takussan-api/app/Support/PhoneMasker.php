@@ -56,9 +56,13 @@ final class PhoneMasker
      * Le numéro sénégalais PRÉCÉDÉ de son indicatif écrit `+221` ou `00221` : les neuf chiffres peuvent alors
      * se grouper comme on veut (`+221 771 234 567`, `+221 77 12 345 67`, `+221 7 7 1 2 3 4 5 6 7`), et une
      * lettre `F` derrière n'en fait pas un prix. Préfixes de l'ARTP seulement : `+221 74 …` reste le fictif.
+     *
+     * TCK-2454 — un numéro tronqué suivi d'un autre s'arrête devant le second : `00221 77 012 34 / 78 123 45 67`
+     * se lisait jusqu'au `78`, `123 45 67` partait en clair, et le Radar lisait `+221770123478`, un numéro que personne n'a écrit.
      */
     private const SENEGAL_WITH_CODE = '(?<![0-9])(?:\+'.self::WS.'{0,2}|00'.self::WS.'?)221'.self::CALL_AFTER_CC.self::SEP.'{0,3}'
-        .self::PREFIX_SPACED.'(?:'.self::SEP.'{0,3}[0-9]){7}(?![0-9])';
+        .'(?:'.self::PREFIX_SPACED.'(?:'.self::SEP.'{0,3}[0-9]){0,6}(?='.self::SEP.'{1,3}'.self::CALL_WHOLE.')'
+        .'|'.self::PREFIX_SPACED.'(?:'.self::SEP.'{0,3}[0-9]){7}(?![0-9]))';
 
     /**
      * Le numéro sénégalais SANS indicatif, à groupement libre, séparé par des espaces : le préfixe d'un seul tenant,
@@ -209,10 +213,46 @@ final class PhoneMasker
      * « Sans chiffre derrière » admet un petit nombre suivi d'un mot (`NOTHING_GLUED`) : `… 34 56 3 chambres`, une ligne suivante
      * `2 salons`. Placée derrière le `1` ou le `7` et devant le `(0)` de trunk (qu'elle lit) : un seul exemplaire pour les deux
      * indicatifs.
+     *
+     * TCK-2454 — « sans chiffre derrière » ne vaut plus devant un numéro écrit par groupes (`SHAPED`) : neuf chiffres derrière
+     * un indicatif sont un numéro entier, et ce qui les suit n'en est pas (`R+1 00221 77 012 34 56 12 500 F`, `… 78 90`). Sauf
+     * s'ils se coupent sur un autre numéro (`NOT_CUT`) ou sur un montant (`NO_THOUSANDS`).
      */
-    private const NOT_SENEGAL_ZONE = '(?!'.self::TRUNK_ZERO.self::SEP.'{0,3}(?:\(221\)'.self::SEP.'{0,3}'.self::CALL_SENEGAL.self::CALL_END
-        .'|(?:\(221\)'.self::SEP.'{0,3}'.self::CALL_LOOSE.self::CALL_END.'|(?=00)'.self::CALL_SENEGAL.'(?![0-9])|(?=221)'.self::CALL_SENEGAL.self::CALL_END.')'
-        .self::NOTHING_GLUED.'))';
+    private const NOT_SENEGAL_ZONE = '(?!'.self::TRUNK_ZERO.self::SEP.'{0,3}(?:\(221\)'.self::SEP.'{0,3}(?!(?:'.self::SEP.'{0,3}[0-9]){2,8}'.self::SEP.'{1,3}'.self::CALL_WHOLE.')'.self::CALL_SENEGAL.self::CALL_END
+        .'|\(221\)'.self::SEP.'{0,3}'.self::CALL_LOOSE.self::CALL_END.self::NOTHING_GLUED
+        .'|\(221\)'.self::SEP.'{0,3}'.self::CALL_NOT_CUT.'(?='.self::CALL_SHAPED.')'.self::CALL_LOOSE.self::CALL_END.self::NO_THOUSANDS
+        .'|(?=(?:00)?221'.self::SEP.'?'.self::CALL_NOT_CUT.')(?:(?=00)'.self::CALL_SENEGAL.'(?![0-9])|(?=221)'.self::CALL_SENEGAL.self::CALL_END.')'.self::NO_THOUSANDS.'))';
+
+    /**
+     * TCK-2454 — les neuf chiffres d'un numéro sénégalais écrit par groupes de deux ou trois (2-3-2-2, 2-2-2-3, 3-2-2-2, 2-2-3-2,
+     * 3-3-3, ou d'un seul tenant), ou un à un, sans indicatif : la coupure au neuvième chiffre tombe sur la coupure que l'auteur a
+     * écrite. `77 012 3 12 500 F` n'en est pas un : son neuvième chiffre tombe au milieu du montant.
+     */
+    private const SHAPED = '(?:'.self::PREFIX.self::CALL_SEP.'?(?:[0-9]{3}'.self::CALL_SEP.'?[0-9]{2}'.self::CALL_SEP.'?[0-9]{2}|[0-9]{2}'.self::CALL_SEP.'?[0-9]{2}'.self::CALL_SEP.'?[0-9]{3}|[0-9]{2}'.self::CALL_SEP.'?[0-9]{3}'.self::CALL_SEP.'?[0-9]{2})'
+        .'|'.self::PREFIX.'[0-9]'.self::CALL_SEP.'?(?:[0-9]{2}'.self::CALL_SEP.'?[0-9]{2}'.self::CALL_SEP.'?[0-9]{2}|[0-9]{3}'.self::CALL_SEP.'?[0-9]{3})'
+        .'|'.self::PREFIX_SPACED.'(?:'.self::CALL_SEP.'[0-9]){7})(?![0-9])';
+
+    /** TCK-2454 — un numéro sénégalais entier, tel que le masque le lit sans indicatif : ce qui commence un second numéro. */
+    private const WHOLE_SENEGAL = '(?:'.self::CALL_SENEGAL.self::CALL_END.'|'.self::CALL_LOOSE.self::CALL_END.')';
+
+    /**
+     * TCK-2454 — placé devant les neuf chiffres : aucun numéro entier ne commence avant le neuvième. Sinon le premier est tronqué
+     * et le second déborderait du masque : `77 012 34 / 78 123 45 67` se lirait `77 012 34 / 78`, et `123 45 67` sortirait en clair.
+     * Il faut au moins deux chiffres de plus que le premier numéro : un numéro entier que rien ne suit n'est jamais coupé. Le second
+     * compte même suivi d'une marque, qui en ferait un prix : `77 012 34/33 821 00 00 F` n'a pas de contact `+221770123433`.
+     */
+    private const NOT_CUT = '(?!(?:'.self::SEP.'{0,3}[0-9]){2,8}'.self::SEP.'{1,3}(?:'.self::CALL_SENEGAL.'|'.self::CALL_LOOSE.')(?![0-9]))';
+
+    /**
+     * TCK-2454 — placé derrière les neuf chiffres : pas un groupe `000` juste derrière. `000 F` n'est le prix de personne, c'est la
+     * fin d'un montant dont le neuvième chiffre fait partie : `77 012 3 / 450 000 F`, et `77 012 34 56 000 F` s'y lit de même
+     * (`CUT_CODED_SENEGAL`). Sauf si le dernier groupe commence par 0 : `33 821 00 00 000 F` n'a pas de montant. Limite : `77 012 34 56 500 F`
+     * se lit comme un numéro suivi de 500 F, pas 56 500 F.
+     */
+    private const NO_THOUSANDS = '(?:(?<='.self::SEP.'0[0-9])|(?!'.self::SEP.'{1,3}000(?![0-9])))';
+
+    /** TCK-2454 — un montant groupé par milliers, ce que le chiffre du numéro tronqué qui le précède ne doit pas entamer. D'autres chiffres derrière : ce n'en est pas un (`12 345 67`). */
+    private const AMOUNT = '[1-9][0-9]{0,2}(?:'.self::SEP.'[0-9]{3})+(?!'.self::SEP.'?[0-9])';
 
     /**
      * TCK-2451 — derrière un numéro, aucun chiffre à trois séparateurs près, sauf un nombre d'un à trois chiffres suivi d'un mot
@@ -255,7 +295,7 @@ final class PhoneMasker
      * motif d'un groupe (`+33 6 12 34 56 78 F. Dupont` laisserait `78 F.`).
      */
     private const FOREIGN = '(?:(?<![0-9+])(?<![0-9][.,])'.self::NOT_A_FLOOR.'(?:\+(?!'.self::WS.'{1,2}[0-9]{1,3}(?:'.self::SEP.'[0-9]{3})*'.self::SEP.'000(?![0-9]))'.self::WS.'{0,2}|00'.self::SEP.'?)'
-        .'(?:(?='.self::FOREIGN_NUMBER.'(?<!'.self::SEP.'[0-9])(?![0-9]))'.self::CODED_SENEGAL.'|'.self::FOREIGN_NUMBER.'(?<!'.self::SEP.'[0-9]))'
+        .'(?:(?='.self::FOREIGN_NUMBER.'(?<!'.self::SEP.'[0-9])(?![0-9]))'.self::CODED_SENEGAL.'|'.self::CUT_CODED_SENEGAL.'|'.self::FOREIGN_NUMBER.'(?<!'.self::SEP.'[0-9]))'
         .'|(?<![0-9])0[1-9](?:[0-9]{8}|(?<sep>'.self::SEP.')[0-9]{2}(?:\k<sep>[0-9]{2}){3}))(?![0-9])';
 
     /**
@@ -281,8 +321,42 @@ final class PhoneMasker
      * 3 4 5 6 7` et `Contact +1 (221) 770123456`, que `FOREIGN` ne lisait pas, gardent leur contact. Ce n'est pas un contact du
      * Radar (l'indicatif étranger reste devant), comme avant.
      */
-    private const CODED_SENEGAL = '(?:'.self::CC1.self::CALL_AFTER_CC.self::SEP.'?\(221\)|(?:'.self::CC1.'|'.self::CC2.'|'.self::CC3.')'
-        .self::CALL_AFTER_CC.self::SEP.'{0,3}(?:00'.self::WS.'?)?221)'.self::SEP.'{0,3}'.self::PREFIX_SPACED.'(?:'.self::SEP.'{0,3}[0-9]){7}'.self::WHOLE_NUMBER_END;
+    private const CODED_SENEGAL = self::CODED_HEAD.self::SEP.'{0,3}'.self::CALL_CODED_BODY;
+
+    /**
+     * L'indicatif étranger et l'indicatif sénégalais qui le suit. TCK-2454 : tout nombre de un à trois chiffres devant, et `0221`
+     * aussi (`+10 00221 …`, `R+105 221 …`, `R+20 0221 …`) : `FOREIGN_NUMBER` les lit déjà comme un numéro, `1` et dix chiffres.
+     */
+    private const CODED_HEAD = '(?:'.self::CC1.self::CALL_AFTER_CC.self::SEP.'?\(221\)|[1-9][0-9]{0,2}'
+        .self::CALL_AFTER_CC.self::SEP.'{0,3}(?:00?'.self::WS.'?)?221)';
+
+    /**
+     * Les neuf chiffres derrière ces deux indicatifs. TCK-2454 : écrits par groupes, ils s'arrêtent là quoi qui les suive, sauf s'ils
+     * se coupent sur un autre numéro ou sur un montant (`SHAPED`, `NOT_CUT`, `NO_THOUSANDS`) : `+1 00221 77 012 34 56 12 500 F`.
+     * Écrits autrement (`77 0 12 34 56`, `7 7 0 1 …`), aussi, sauf devant un groupe de trois chiffres, que leur dernier groupe
+     * pourrait entamer : `77 012 3 12 500 F` n'a pas de numéro entier, il a un montant de 12 500.
+     */
+    private const CODED_BODY = '(?:'.self::PREFIX_SPACED.'(?:'.self::SEP.'{0,3}[0-9]){7}'.self::WHOLE_NUMBER_END
+        .'|'.self::CALL_NOT_CUT.self::CALL_SHAPED.self::NO_THOUSANDS
+        .'|'.self::CALL_NOT_CUT.self::PREFIX_SPACED.'(?:'.self::SEP.'{0,3}[0-9]){7}(?![0-9])(?!'.self::SEP.'{1,3}[0-9]{3}(?:'.self::SEP.'[0-9]{3})*(?!'.self::SEP.'?[0-9])))';
+
+    /**
+     * TCK-2454 — un numéro tronqué derrière un indicatif étranger et `00221` (pas `221` nu : `+33 221 77 01 23` est un numéro français
+     * entier, et le `3` de `… 23 3 chambres` n'y est pas) : le numéro que `FOREIGN_NUMBER` lit, plus les chiffres qui restent
+     * jusqu'à ce qui n'en est plus, un autre numéro entier ou un montant, ou plus rien : `R+1 00221 77 012 34 / 78 123 45 67`
+     * laissait `34`, `R+1 00221 77 012 3 / 450 000 F` laissait `3`. Au plus trois chiffres : au-delà, ce qui suit n'est plus le reste de
+     * ce numéro (`R+1 221 77 012 34 56 000 F`, lu jusqu'au bout, perdrait son montant).
+     */
+    private const CUT_CODED_SENEGAL = '(?=[1-9][0-9]{0,2}'.self::CALL_AFTER_CC.self::SEP.'{0,3}00?'.self::WS.'?221'.self::SEP.'{0,3}'.self::PREFIX_SPACED.')'.self::FOREIGN_NUMBER.'(?<!'.self::SEP.'[0-9])(?![0-9])'
+        .'(?:'.self::SEP.'{0,3}[0-9]){1,3}(?![0-9])(?:(?!'.self::SEP.'{0,3}[0-9])|(?='.self::SEP.'{1,3}(?:'.self::CALL_WHOLE.'|'.self::AMOUNT.')))';
+
+    /**
+     * TCK-2455 — un indicatif étranger qui se lit aussi comme un préfixe sénégalais (`33`, `30`, `75`, `93`…), avec ou sans `+`, devant un
+     * numéro sénégalais écrit avec `00221` ou `221` nu : le masque y lisait un numéro sénégalais qui commence au préfixe
+     * (`33 00221 7 7`), et le reste partait en clair (`Tel +33 00221 7 7 0 1 2 3 4 5 6`, `Tel 30 00221 77 012 34 56`). Il l'englobe
+     * désormais en entier. Seulement là où ce numéro se lisait déjà : `33 221 77 012 34 56`, où seul `221 …` se lit, garde son contact.
+     */
+    private const PREFIX_BEFORE_CODE = '(?<![0-9+])(?:\+'.self::WS.'{0,2})?(?='.self::CALL_WHOLE.')'.self::PREFIX.self::SEP.'{0,3}(?:00?'.self::WS.'?)?221'.self::SEP.'{0,3}'.self::CALL_CODED_BODY;
 
     /**
      * Le lien WhatsApp canonique, qui écrit le numéro sans `+` : `wa.me/33612345678`,
@@ -308,7 +382,8 @@ final class PhoneMasker
      * plus son indicatif explicite et ses groupements libres), un numéro étranger, un lien WhatsApp
      * (TCK-2410). L'indicatif explicite passe en premier : `+221 77 …` est un seul numéro.
      */
-    public const MASK_PATTERN = '/(?:'.self::CALL_WITH_CODE
+    public const MASK_PATTERN = '/(?:'.self::PREFIX_BEFORE_CODE
+        .'|'.self::CALL_WITH_CODE
         .'|'.self::CALL_SENEGAL.self::CALL_END
         .'|'.self::CALL_LOOSE.self::CALL_END
         .'|'.self::SENEGAL_SEPARATED
@@ -325,7 +400,8 @@ final class PhoneMasker
      * Le smoke de l'image (`deploy/takussan/smoke-api.sh image`) éprouve la compilation sur la PCRE de production.
      */
     public const DEFINITIONS = '(?(DEFINE)(?<pm_sn>'.self::SENEGAL.')(?<pm_sl>'.self::SENEGAL_LOOSE.')(?<pm_sc>'.self::SENEGAL_WITH_CODE.')'
-        .'(?<pm_ac>'.self::AFTER_CC.')(?<pm_end>'.self::END.')(?<pm_fn>'.self::FOREIGN_NUMBER_BODY.')(?<pm_n1>'.self::CC1_NUMBER_BODY.'))';
+        .'(?<pm_ac>'.self::AFTER_CC.')(?<pm_end>'.self::END.')(?<pm_fn>'.self::FOREIGN_NUMBER_BODY.')(?<pm_n1>'.self::CC1_NUMBER_BODY.')'
+        .'(?<pm_s>'.self::SEP.')(?<pm_ws>'.self::WHOLE_SENEGAL.')(?<pm_nc>'.self::NOT_CUT.')(?<pm_sh>'.self::SHAPED.')(?<pm_cb>'.self::CODED_BODY.'))';
 
     private const CALL_SENEGAL = '(?&pm_sn)';
 
@@ -336,6 +412,16 @@ final class PhoneMasker
     private const CALL_AFTER_CC = '(?&pm_ac)';
 
     private const CALL_END = '(?&pm_end)';
+
+    private const CALL_SEP = '(?&pm_s)';
+
+    private const CALL_WHOLE = '(?&pm_ws)';
+
+    private const CALL_NOT_CUT = '(?&pm_nc)';
+
+    private const CALL_SHAPED = '(?&pm_sh)';
+
+    private const CALL_CODED_BODY = '(?&pm_cb)';
 
     public const TOKEN = '[TELEPHONE]';
 

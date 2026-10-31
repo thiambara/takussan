@@ -198,6 +198,29 @@ class RadarAmountParserTest extends TestCase
         $this->assertSame(['amount' => 450_000, 'period' => 'monthly'], RadarAmountParser::parse('Villa R+1 00221 77 012 34 56, 450 000 F/mois'));
     }
 
+    public function test_un_montant_derriere_un_numero_garde_ses_groupes(): void
+    {
+        // TCK-2454 : les candidats se lisent hors des numéros : `56 450 000` chevauchait le numéro et le prix se perdait.
+        foreach (['Tel 77 123 45 67 450 000 F', 'Villa R+1 00221 77 012 34 56 450 000 F', 'Tel +33 6 12 34 56 78 450 000 F',
+            'Villa R+1 00221 77 012 3 / 450 000 F', 'Villa R+1 00221 77 012 3 450 000 F', 'Tel +33 00221 7 7 0 1 2 3 4 5 6 450 000 F'] as $texte) {
+            $this->assertSame(['amount' => 450_000, 'period' => null], RadarAmountParser::parse($texte), $texte);
+        }
+        foreach (['Villa R+1 00221 77 012 34 56 12 500 F', 'Contact +1 00221 77 012 34 56 12 500 F', 'Immeuble R+20 00221 77 123 45 67 12 500 F',
+            'Villa R+1 221 77 012 34 56 12 500 F'] as $texte) {
+            $this->assertSame(['amount' => 12_500, 'period' => null], RadarAmountParser::parse($texte), $texte);
+        }
+
+        // Neuf chiffres puis `000` : un numéro tronqué et un montant.
+        $this->assertSame(['amount' => 56_000, 'period' => null], RadarAmountParser::parse('Villa R+1 00221 77 012 34 56 000 F'));
+        $this->assertSame(['amount' => 56_000, 'period' => null], RadarAmountParser::parse('Villa R+1 221 77 012 34 56 000 F'));
+
+        // Un reste du numéro ne devient pas un prix : plus de fragment, et `0221` est un indicatif.
+        foreach (['Villa R+1 00221 77 012 34 56 78 90', 'Villa R+1 00221 77 012 34 56 1234 m2', 'Villa R+20 0221 77 012 34 56 F',
+            'Villa R+1 0221 77 012 34 56', 'Villa R+0 0221 77 012 34 56', 'Tel 00221 77 012 34 / 33 821 00 00 F'] as $texte) {
+            $this->assertNull(RadarAmountParser::parse($texte), $texte);
+        }
+    }
+
     public function test_un_numero_sept_a_zone_entre_parentheses_derriere_un_etage_n_est_pas_un_prix(): void
     {
         // TCK-2445 : sans la zone entre parenthèses dans `PhoneMasker::CC7_REST`, le `7` était lu comme un étage et un bout

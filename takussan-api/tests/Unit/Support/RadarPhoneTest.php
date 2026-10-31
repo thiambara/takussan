@@ -311,16 +311,56 @@ class RadarPhoneTest extends TestCase
 
         // Décisions : un `221` nu devant un autre groupement, ou devant un numéro que suit une marque, et un étage de 20 ou
         // plus qui est un indicatif, restent lus comme un numéro étranger qui englobe le numéro sénégalais : contact perdu,
-        // plutôt qu'inventé, et rien en clair (fixture partagé). Un groupe de chiffres sans mot derrière le numéro (`… 56 78`),
-        // ou qui commence par 0 (`… 56 000 F`), le laisse lu comme sur dev : contact perdu, limite connue du masqueur.
+        // plutôt qu'inventé, et rien en clair (fixture partagé). TCK-2454 : neuf chiffres suivis de `000` sont un numéro tronqué
+        // suivi d'un montant (`… 34 56 000 F`), et un numéro tronqué n'est pas un contact.
         foreach (['Villa R+1 221 77 01 234 56', 'Villa R+1 221 77 012 34 56 F', 'Immeuble R+20 00221 77 123 45 67',
-            'Immeuble R+30 221 77 123 45 67', 'Villa R+1 00221 77 012 34 56 78', 'Villa R+1 00221 77 012 34 56 000 F'] as $texte) {
+            'Immeuble R+30 221 77 123 45 67', 'Villa R+1 00221 77 012 34 56 000 F', 'Villa R+1 00221 77 012 3 / 450 000 F'] as $texte) {
             $this->assertSame([], RadarPhone::contactsFromText($texte), $texte);
         }
 
         // Là où l'indicatif étranger ne lisait pas déjà un numéro, rien ne change : le contact reste.
         $this->assertSame(['+221770123456'], RadarPhone::contactsFromText('Contact +1 (221) 770123456'));
         $this->assertSame(['+221771234567'], RadarPhone::contactsFromText('Immeuble R+20 221 7 7 1 2 3 4 5 6 7'));
+    }
+
+    /**
+     * TCK-2454 — neuf chiffres écrits par groupes derrière un indicatif sont un numéro entier, quoi qui les suive : le contact n'est
+     * plus perdu derrière l'étage. Sauf s'ils se coupent sur un autre numéro : le premier est tronqué, et le contact est le second.
+     */
+    public function test_un_numero_a_indicatif_suivi_d_un_groupe_de_chiffres_garde_son_contact(): void
+    {
+        foreach (['Villa R+1 00221 77 012 34 56 78 90', 'Villa R+1 00221 77 012 34 56 12 500 F', 'Villa R+1 00221 77 012 34 56 1234 m2',
+            'Villa R+1 00221 77 012 34 56 450 000 F', 'Villa R+1 00221 77 012 34 56 3,5 pièces', 'Villa R+1 00221 77 012 34 56 3 /mois',
+            'Villa R+1 00221 77 012 34 56 0 frais', "Villa R+1 00221 77 012 34 56\n3", 'Villa R+7 00221 77 012 34 56 12 500 F',
+            'Villa RDC +1 00221 77 012 34 56 78 90', 'Villa R+1 221 77 012 34 56 78 90', 'Villa R+1 (221) 77 01 234 56 78 90'] as $texte) {
+            $this->assertSame(['+221770123456'], RadarPhone::fromText($texte), $texte);
+            $this->assertSame(['+221770123456'], RadarPhone::contactsFromText($texte), $texte);
+        }
+
+        // Les deux numéros entiers sont lus ; plus de numéro recollé (`+221770123478`) à cheval sur un numéro tronqué et le suivant.
+        $this->assertSame(['+221770123456', '+221781234567'], RadarPhone::contactsFromText('Villa R+1 00221 77 012 34 56 / 78 123 45 67'));
+        foreach (['Villa R+1 00221 77 012 34 / 78 123 45 67', 'Villa R+1 00221 77 012 34 78 123 45 67', 'Villa R+1 (221) 77 012 34 78 123 45 67',
+            'Tel 00221 77 012 34 / 78 123 45 67', 'Tel +221 77 012 34 / 78 123 45 67', 'Villa R+2 00221 77 012 34 / 78 123 45 67'] as $texte) {
+            $this->assertSame(['+221781234567'], RadarPhone::fromText($texte), $texte);
+            $this->assertSame(['+221781234567'], RadarPhone::contactsFromText($texte), $texte);
+        }
+    }
+
+    /**
+     * TCK-2455 — un indicatif étranger qui se lit aussi comme un préfixe sénégalais, devant `00221` ou `221` nu : le début du texte
+     * se lisait comme un numéro sénégalais (`33 00221 7 7`), que `fromText` rendait (`+221330022177`) et qu'un refus STOP aurait visé.
+     */
+    public function test_un_indicatif_qui_ressemble_a_un_prefixe_ne_fabrique_pas_de_numero(): void
+    {
+        foreach (['Tel +33 00221 7 7 0 1 2 3 4 5 6', 'Tel +33 221 7 7 0 1 2 3 4 5 6', 'Tel +30 00221 7 7 0 1 2 3 4 5 6', 'Tel +75 00221 7 7 0 1 2 3 4 5 6',
+            'Tel 33 00221 7 7 0 1 2 3 4 5 6', 'Tel 33 221 7 7 0 1 2 3 4 5 6', 'Tel 30 00221 77 012 34 56'] as $texte) {
+            $this->assertSame([], RadarPhone::fromText($texte), $texte);
+            $this->assertSame([], RadarPhone::contactsFromText($texte), $texte);
+        }
+
+        // Là où seul `221 …` se lit, le contact reste, et un numéro français n'en est pas un.
+        $this->assertSame(['+221770123456'], RadarPhone::contactsFromText('Tel 33 221 77 012 34 56'));
+        $this->assertSame([], RadarPhone::fromText('Tel +33 6 12 34 56 78 15 chambres'));
     }
 
     /**

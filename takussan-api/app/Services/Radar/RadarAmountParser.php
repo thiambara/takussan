@@ -62,8 +62,8 @@ final class RadarAmountParser
     /** Ce qui sépare au plus un numéro et son reste. */
     private const TOUCHING = '/^[\s.\-\/]{0,3}$/u';
 
-    /** TCK-2447 — l'indicatif sénégalais nu ou entre parenthèses juste devant un numéro, au plus trois séparateurs entre eux. */
-    private const SENEGAL_CODE_BEFORE = '/(?:\(221\)|(?<![0-9])221)[\s.\-\/]{0,3}$/u';
+    /** TCK-2447 — l'indicatif sénégalais nu (`221`, `0221`) ou entre parenthèses juste devant un numéro, au plus trois séparateurs entre eux. */
+    private const SENEGAL_CODE_BEFORE = '/(?:\(221\)|(?<![0-9])0?221)[\s.\-\/]{0,3}$/u';
 
     /** Puissance de dix de chaque multiplicateur. */
     private const MULTIPLIERS = [
@@ -113,11 +113,21 @@ final class RadarAmountParser
     public static function parse(string $text): ?array
     {
         $normalized = self::normalize($text);
-        if ($normalized === '' || preg_match_all(self::CANDIDATE, $normalized, $matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE | PREG_UNMATCHED_AS_NULL) < 1) {
+        if ($normalized === '') {
             return null;
         }
 
+        // TCK-2454 : les candidats se lisent hors des numéros. Sinon un montant collé derrière un numéro se lisait avec son dernier
+        // groupe (`77 012 34 56 450 000 F` : `56 450 000`), était écarté comme un morceau de numéro, et le prix se perdait.
         $phones = self::phoneSpans($normalized);
+        $outsidePhones = $normalized;
+        foreach ($phones as [$from, $to]) {
+            $outsidePhones = substr_replace($outsidePhones, str_repeat('#', $to - $from), $from, $to - $from);
+        }
+        if (preg_match_all(self::CANDIDATE, $outsidePhones, $matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE | PREG_UNMATCHED_AS_NULL) < 1) {
+            return null;
+        }
+
         $plausible = [];
         foreach ($matches as $m) {
             $candidate = self::candidate($m, $normalized, $phones);
@@ -184,6 +194,10 @@ final class RadarAmountParser
         $marked = $multiplied || $period !== null || preg_match('/^\s*'.self::CURRENCY.'/u', $after) === 1;
         $small = ! $marked && $amount < self::MIN_UNMARKED;
         if ($small && (preg_match('/\/\s?$/u', substr($text, max(0, $start - 2), min($start, 2))) === 1 || self::touchesPhone($start, $end, $text, $phones))) {
+            return null;
+        }
+        // TCK-2454 : un nombre sans marque collé derrière un numéro, et que d'autres chiffres suivent, est un reste de numéro (`… / 33 821 00 00 F`).
+        if (! $marked && $m['plain'][0] !== null && preg_match('/^\s*\d/u', $after) === 1 && self::touchesPhone($start, $end, $text, $phones)) {
             return null;
         }
 
