@@ -188,6 +188,16 @@ class RadarAmountParserTest extends TestCase
         $this->assertSame(['amount' => 450_000, 'period' => null], RadarAmountParser::parse('Villa (221) 77 012 34 56 loyer 450 000 F'));
     }
 
+    public function test_un_numero_a_indicatif_derriere_un_etage_n_est_pas_un_prix(): void
+    {
+        // TCK-2451 : derrière `R+1`, la fin du numéro restée hors du masque (`34 56`, `56`) devenait le prix devant `F`.
+        foreach (['Villa R+1 00221 77 012 34 56 F', 'Villa R+1 221 77 012 34 56 F', 'Villa R+1 (221) 77 012 34 56 F',
+            'Villa R+1 (221) 77 01 234 56', 'Villa R+1 00221 77 012 34 56'] as $texte) {
+            $this->assertNull(RadarAmountParser::parse($texte), $texte);
+        }
+        $this->assertSame(['amount' => 450_000, 'period' => 'monthly'], RadarAmountParser::parse('Villa R+1 00221 77 012 34 56, 450 000 F/mois'));
+    }
+
     public function test_un_numero_sept_a_zone_entre_parentheses_derriere_un_etage_n_est_pas_un_prix(): void
     {
         // TCK-2445 : sans la zone entre parenthèses dans `PhoneMasker::CC7_REST`, le `7` était lu comme un étage et un bout
