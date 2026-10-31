@@ -7,6 +7,7 @@ use App\Jobs\RecordQueueHeartbeat;
 use App\Models\Enums\PaymentProvider;
 use App\Models\Integration;
 use App\Models\Property;
+use App\Services\Ai\AiProviderCatalogue;
 use App\Services\Media\Cdn\CdnProviderContract;
 use App\Support\RadarPhone;
 use App\Support\TrustedProxyList;
@@ -73,7 +74,10 @@ class HealthcheckService
 
     private const RANK = ['ok' => 0, 'degraded' => 1, 'failed' => 2];
 
-    public function __construct(private readonly CdnProviderContract $cdn) {}
+    public function __construct(
+        private readonly CdnProviderContract $cdn,
+        private readonly AiProviderCatalogue $aiProviders,
+    ) {}
 
     /**
      * @return array<string,mixed>
@@ -158,6 +162,7 @@ class HealthcheckService
             'proxies' => $this->check(fn (): array => $this->proxies()),
             'lemon_squeezy_webhook' => $this->check(fn (): array => $this->lemonSqueezyWebhook()),
             'radar_phone_key' => $this->check(fn (): array => $this->radarPhoneKey()),
+            'ai_providers' => $this->check(fn (): array => $this->aiProviders()),
         ];
 
         $snapshot = [
@@ -500,6 +505,18 @@ class HealthcheckService
         }
 
         return ['status' => 'degraded', 'reason' => 'radar_phone_key_missing'];
+    }
+
+    /**
+     * TCK-2450 (ADR-0085 §3) — une clé posée sur une adresse hors de ses hôtes : le fournisseur ne reçoit rien, et
+     * ses maillons basculent sans autre signal. Une clé absente n'est pas un défaut : c'est l'état par défaut. Le motif
+     * seul : `platform.health.view` ne voit pas l'hôte, que la console des fournisseurs réserve à `platform.ai.view`.
+     *
+     * @return array<string,mixed>
+     */
+    private function aiProviders(): array
+    {
+        return $this->aiProviders->anyKeyedWithRefusedAddress() ? ['status' => 'degraded', 'reason' => 'ai_provider_host_not_allowed'] : [];
     }
 
     /**

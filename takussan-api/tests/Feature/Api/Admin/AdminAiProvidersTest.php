@@ -111,6 +111,23 @@ class AdminAiProvidersTest extends TestCase
         $this->assertSame(['voyageai', 'modele-v'], [AiCall::query()->sole()->provider, AiCall::query()->sole()->model]);
     }
 
+    /** La réponse dit le refus : un fournisseur d'embeddings sans `https` n'est pas « une panne » du test de connexion. */
+    public function test_une_adresse_dembeddings_sans_https_refuse_le_test_de_connexion(): void
+    {
+        $this->actingAsRole('super_admin');
+        config([
+            'ai.providers.voyageai.key' => 'cle-de-test',
+            'ai.providers.voyageai.training_opt_out' => true,
+            'ai.providers.voyageai.url' => 'http://api.voyageai.com/v1',
+            'ai.pricing.voyageai' => ['modele-v' => ['input' => '1', 'output' => '0', 'cache_read' => '0', 'cache_write' => '0']],
+        ]);
+        Http::fake();
+
+        $this->postJson('/api/admin/ai/providers/voyageai/test')->assertStatus(422)->assertJsonPath('code', 'ai.provider_unreachable');
+
+        Http::assertNothingSent();
+    }
+
     public function test_sans_la_declaration_le_test_de_connexion_nenvoie_rien(): void
     {
         $this->actingAsRole('super_admin');

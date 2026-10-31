@@ -27,7 +27,10 @@ const ERREURS_CONNUES: Record<string, string> = {
   'ai.refused.data_class': 'refused',
 };
 
-/** TCK-2385 (ADR-0076 §3) — une clé est présente ou non, et se teste. Aucun champ pour la saisir. */
+/**
+ * TCK-2385 (ADR-0076 §3), TCK-2450 (ADR-0085 §4) — un fournisseur est prêt, sans clé, ou sur une adresse non acceptée, et
+ * se teste s'il est prêt. Aucun champ pour la clé ni l'adresse ; l'hôte seul s'affiche, quand c'est lui le défaut.
+ */
 export function AiProvidersPanel() {
   const t = useTranslations('superAdmin.pages.ai.providers');
   const tShared = useTranslations('superAdmin.pages.shared');
@@ -65,7 +68,16 @@ export function AiProvidersPanel() {
 
   const columns: DataTableColumn<AiProvider>[] = [
     { id: 'name', header: t('name'), cell: (row) => <span className="font-medium">{row.legal_name}</span> },
-    { id: 'key', header: t('key'), cell: (row) => <StatusBadge label={row.key_present ? t('keyPresent') : t('keyMissing')} tone={row.key_present ? 'success' : 'attention'} /> },
+    {
+      id: 'status',
+      header: t('status'),
+      cell: (row) => (
+        <div className="space-y-1">
+          <StatusBadge label={row.selectable ? t('statusReady') : row.reason === 'host_not_allowed' ? t('statusHostNotAllowed') : row.reason === 'training_opt_out_undeclared' ? t('statusTrainingOptOutUndeclared') : t('statusKeyMissing')} tone={row.selectable ? 'success' : 'attention'} />
+          {row.reason === 'host_not_allowed' && row.host ? <p className="text-xs text-muted-foreground">{t('host', { host: row.host })}</p> : null}
+        </div>
+      ),
+    },
     { id: 'models', header: t('models'), cell: (row) => row.models.join(', ') },
     {
       id: 'test',
@@ -77,7 +89,7 @@ export function AiProvidersPanel() {
         const error = errors[row.key];
         return (
           <div className="flex flex-col items-end gap-1">
-            <Button size="sm" variant="outline" disabled={!row.key_present || test.isPending} onClick={() => test.mutate(row.key)}>{t('test')}</Button>
+            <Button size="sm" variant="outline" disabled={!row.selectable || test.isPending} onClick={() => test.mutate(row.key)}>{t('test')}</Button>
             {result ? (
               result.ok ? (
                 <span className="text-sm text-muted-foreground">{t('testOk', { model: result.model, duration: result.duration_ms ?? 0 })}</span>

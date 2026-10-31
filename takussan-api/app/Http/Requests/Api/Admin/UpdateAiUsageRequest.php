@@ -4,9 +4,9 @@ namespace App\Http\Requests\Api\Admin;
 
 use App\Http\Requests\BaseFormRequest;
 use App\Models\AiUsageSetting;
+use App\Rules\FournisseurSelectionnable;
 use App\Rules\IdentifiantDeModele;
 use App\Rules\MontantIa;
-use Illuminate\Validation\Rule;
 
 /** TCK-2385 — les réglages d'un usage ; seuls les champs présents changent. */
 class UpdateAiUsageRequest extends BaseFormRequest
@@ -20,8 +20,8 @@ class UpdateAiUsageRequest extends BaseFormRequest
     /** @return array<string, mixed> */
     public function rules(): array
     {
-        // Un fournisseur sorti de la configuration ne bloque pas un réglage qui ne le change pas.
-        $provider = $this->keepsTheForcing() ? [] : [Rule::in(array_keys(config('ai.providers')))];
+        // Un fournisseur sorti de la configuration, ou devenu non sélectionnable, ne bloque pas un réglage qui ne le change pas.
+        $provider = $this->keepsTheForcing() ? [] : [new FournisseurSelectionnable];
 
         return [
             'enabled' => ['sometimes', 'boolean'],

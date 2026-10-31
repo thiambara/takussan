@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\Enums\AiModelRole;
+use App\Services\Ai\AiProviderCatalogue;
 use App\Services\Ai\AiUsageRegistry;
 use App\Services\Ai\Evaluation\EvaluationRunner;
 use App\Services\Ai\ModelLink;
@@ -32,10 +33,10 @@ class AiEval extends Command
 
     protected $description = 'Joue les jeux d\'évaluation du socle IA et compare leur score à la référence';
 
-    public function handle(EvaluationRunner $runner, AiUsageRegistry $registry): int
+    public function handle(EvaluationRunner $runner, AiUsageRegistry $registry, AiProviderCatalogue $providers): int
     {
-        if (! collect(config('ai.providers'))->contains(fn (array $provider): bool => filled($provider['key'] ?? null))) {
-            $this->components->info('Aucun fournisseur n\'a de clé : rien à évaluer.');
+        if ($providers->selectableKeys() === []) {
+            $this->components->info('Aucun fournisseur sélectionnable (clé présente, adresse acceptée) : rien à évaluer.');
 
             return self::SUCCESS;
         }
@@ -70,6 +71,11 @@ class AiEval extends Command
             $candidate = ModelLink::parse((string) $this->option('model'));
             if ($candidate === null || ! $candidate->isPriced()) {
                 $this->components->error('Candidat inconnu ou sans tarif : '.$this->option('model'));
+
+                return self::INVALID;
+            }
+            if (! $providers->selectable($candidate->provider)) {
+                $this->components->error('Fournisseur non sélectionnable : '.$candidate->provider.' ('.$providers->refusalCode($candidate->provider).')');
 
                 return self::INVALID;
             }

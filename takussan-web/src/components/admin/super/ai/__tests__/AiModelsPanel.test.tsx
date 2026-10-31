@@ -33,7 +33,7 @@ const ligne = (modele: string) => screen.findByRole('row', { name: new RegExp(mo
 describe('modèles IA (TCK-2448)', () => {
   beforeEach(() => {
     vi.mocked(fetchAdminAiModels).mockReset().mockResolvedValue(reponse(configuration, ajoute, retire));
-    vi.mocked(fetchAdminAiProviders).mockReset().mockResolvedValue({ data: [{ key: 'anthropic', legal_name: 'Anthropic', key_present: true, models: ['modele-a'] }] });
+    vi.mocked(fetchAdminAiProviders).mockReset().mockResolvedValue({ data: [{ key: 'anthropic', legal_name: 'Anthropic', key_present: true, selectable: true, reason: null, host: 'api.anthropic.com', models: ['modele-a'] }] });
     vi.mocked(postAdminAiModel).mockReset().mockResolvedValue(reponse(configuration));
     vi.mocked(patchAdminAiModel).mockReset().mockResolvedValue(reponse(configuration));
     vi.mocked(deleteAdminAiModel).mockReset().mockResolvedValue(reponse(configuration));

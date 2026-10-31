@@ -22,7 +22,8 @@ la plateforme fait réellement**, relevé dans le code le même jour.
    dénomination, forme juridique et capital, RCCM, NINEA, siège, téléphone, directeur de la
    publication.
 2. **Déclarer les traitements à la CDP** et reporter le numéro du récépissé dans `privacy.ts` et
-   `notice.ts`.
+   `notice.ts`. **Puis réécrire `privacy.ts` § 5**, en fr et en en : il dit ces formalités non accomplies
+   (TCK-2450), et dater `VERSION_DOCUMENTS`.
 3. **Créer les trois boîtes** `contact@`, `privacy@` et `legal@takussan.com` — les textes les citent.
 4. **Faire relire par un avocat inscrit au barreau du Sénégal.** ⚠ Y compris les clauses du message
    d'accord du Radar (`takussan-api/resources/radar/clauses/accord.v3.*.md`) : leur formulation

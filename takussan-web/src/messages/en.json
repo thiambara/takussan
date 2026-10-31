@@ -7790,7 +7790,8 @@
         "scheduler": "Scheduler",
         "proxies": "Trusted proxies",
         "lemon_squeezy_webhook": "Lemon Squeezy webhook",
-        "radar_phone_key": "Radar refusal key"
+        "radar_phone_key": "Radar refusal key",
+        "ai_providers": "AI providers"
       },
       "hint": {
         "error": "Error: {message}",
@@ -7804,7 +7805,8 @@
           "not_meilisearch": "Search not on Meilisearch",
           "wildcard_trusts_nobody": "“*” trusts no proxy",
           "signing_secret_missing": "Signing secret missing from configuration",
-          "radar_phone_key_missing": "Dedicated key missing: refusal fingerprints depend on APP_KEY"
+          "radar_phone_key_missing": "Dedicated key missing: refusal fingerprints depend on APP_KEY",
+          "ai_provider_host_not_allowed": "Key set on an address that is not on an accepted host"
         }
       },
       "status": {
@@ -8402,7 +8404,12 @@
           "responseInvalid": "The model response cannot be used.",
           "responseTruncated": "The model response was cut off before the end.",
           "responseFiltered": "The model response was blocked by the provider’s filter.",
-          "unexpected": "Unexpected error: details are in the API log."
+          "unexpected": "Unexpected error: details are in the API log.",
+          "providerKeyMissing": "No key is set for this provider.",
+          "providerHostNotAllowed": "The address of this provider is not on an accepted host.",
+          "providerRedirected": "This provider answered with a redirect: the request was not sent again.",
+          "providerUnreachable": "Nothing is sent to this provider: training opt-out not declared, or address not accepted.",
+          "providerUnknown": "This provider is no longer declared."
         },
         "roles": {
           "caption": "Model roles and their failover order",
@@ -8487,9 +8494,12 @@
         "providers": {
           "caption": "Allowed providers",
           "name": "Provider",
-          "key": "Key",
-          "keyPresent": "Present",
-          "keyMissing": "Missing",
+          "status": "Status",
+          "statusReady": "Ready",
+          "statusKeyMissing": "Key missing",
+          "statusHostNotAllowed": "Address not accepted",
+          "statusTrainingOptOutUndeclared": "Training opt-out not declared",
+          "host": "Host: {host}",
           "models": "Active models",
           "test": "Test the connection",
           "testOk": "Connected to {model} in {duration} ms.",
@@ -8562,8 +8572,8 @@
           "latency": "Average latency (ms)",
           "errors": "Errors",
           "refusals": "Refusals",
-          "providerRejections": "Provider refusals, failed over",
-          "providerRejectionsNotice": "{count, plural, one {# call failed over to the next link because the provider refused it. Check this provider: the fallback hides its failure.} other {# calls failed over to the next link because the provider refused them. Check this provider: the fallback hides its failure.}}",
+          "providerRejections": "Provider defects",
+          "providerRejectionsNotice": "{count, plural, one {# call reports a provider defect: a refusal or a redirect that the next link hid, or a response without a token count, counted as zero and unknown to the budget. Check this provider.} other {# calls report a provider defect: a refusal or a redirect that the next link hid, or a response without a token count, counted as zero and unknown to the budget. Check this provider.}}",
           "acceptanceCaption": "Suggestion acceptance rate",
           "acceptance": "Accepted as is",
           "decided": "Decided",

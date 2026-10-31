@@ -1072,6 +1072,20 @@ class ExtractRadarListingTest extends TestCase
         $this->assertSame(65, $this->agentDeLAppel($this->annonce())->timeout());
     }
 
+    /** TCK-2450 — un maillon qui ne partira pas ne prend pas sa part du délai : la vision échouerait à tort en délai dépassé. */
+    public function test_a_refused_link_takes_no_share_of_the_call_budget(): void
+    {
+        config([
+            'ai.providers.sans-cle' => ['driver' => 'openai', 'key' => '', 'url' => 'https://sans-cle.test/v1', 'allowed_hosts' => ['sans-cle.test']],
+            'ai.roles.extraction' => [
+                ['provider' => 'sans-cle', 'model' => 'modele-a', 'max_tokens' => 10],
+                ['provider' => 'anthropic', 'model' => 'modele-a', 'max_tokens' => 1000],
+            ],
+        ]);
+
+        $this->assertSame(65, $this->agentDeLAppel($this->annonce())->timeout());
+    }
+
     public function test_a_stop_on_any_phone_of_the_output_marks_the_listing_do_not_contact(): void
     {
         $stop = RadarAdvertiser::factory()->doNotContact()->create(['phone_hmac' => RadarPhone::hmac('+221781112233')]);
