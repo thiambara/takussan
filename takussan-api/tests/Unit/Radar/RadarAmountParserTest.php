@@ -216,7 +216,7 @@ class RadarAmountParserTest extends TestCase
 
         // Un reste du numéro ne devient pas un prix : plus de fragment, et `0221` est un indicatif.
         foreach (['Villa R+1 00221 77 012 34 56 78 90', 'Villa R+1 00221 77 012 34 56 1234 m2', 'Villa R+20 0221 77 012 34 56 F',
-            'Villa R+1 0221 77 012 34 56', 'Villa R+0 0221 77 012 34 56', 'Tel 00221 77 012 34 / 33 821 00 00 F'] as $texte) {
+            'Villa R+1 0221 77 012 34 56', 'Villa R+0 0221 77 012 34 56', 'Tel 00221 77 012 34 / 33 821 00 00 F', '0221-77 012 34 56'] as $texte) {
             $this->assertNull(RadarAmountParser::parse($texte), $texte);
         }
     }
