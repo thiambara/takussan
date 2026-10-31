@@ -3,6 +3,7 @@
 namespace Tests\Support\Ai;
 
 use Illuminate\JsonSchema\JsonSchemaTypeFactory;
+use Illuminate\Support\Arr;
 use Laravel\Ai\Contracts\HasStructuredOutput;
 use Laravel\Ai\Gateway\Anthropic\AnthropicSchemaSanitizer;
 use Laravel\Ai\ObjectSchema;
@@ -11,13 +12,25 @@ use RecursiveIteratorIterator;
 use ReflectionClass;
 
 /**
- * TCK-2411, TCK-2433 — les schémas des agents tels que laravel/ai les envoie à Anthropic en sortie
- * structurée native (`AnthropicSchemaSanitizer::sanitize((new ObjectSchema(…))->toSchema())`,
- * `Gateway\Anthropic\Concerns\BuildsTextRequests::buildTextRequestBody()`), et leurs mesures. Lu par
- * les gardes `AgentSchemasStayUnderTheUnionLimitTest` et `StrictSchemasStayWithinTheAttestedSizeTest`.
+ * TCK-2411, TCK-2433, TCK-2449 — les schémas des agents tels que laravel/ai les envoie à chaque pilote
+ * dans son canal de sortie structurée native, et leurs mesures. `SocleAgentProviderOptionsTest` confronte
+ * {@see self::asSentBy()} au corps capturé. Lu par les gardes `AgentSchemasStayUnderTheUnionLimitTest` et
+ * `StrictSchemasStayWithinTheAttestedSizeTest`.
  */
-final class AnthropicSchemas
+final class AgentSchemas
 {
+    /**
+     * Les pilotes où un vrai appel a attesté le mode strict, avec les limites qu'on y vérifie. Anthropic :
+     * 16 unions et 24 optionnels publiés (« Structured outputs », relevé le 2026-10-31), 21 nœuds attestés
+     * (voir `StrictSchemasStayWithinTheAttestedSizeTest`). Un agent qui se déclare strict sur un pilote
+     * absent d'ici rougit cette garde.
+     *
+     * @var array<string, array{max_unions: int, max_optional: int, max_nodes: int}>
+     */
+    public const ATTESTED_DRIVERS = [
+        'anthropic' => ['max_unions' => 16, 'max_optional' => 24, 'max_nodes' => 21],
+    ];
+
     /** @return list<class-string> les agents concrets à sortie structurée de `app/Ai/Agents/`, découverts sur le disque */
     public static function structuredAgents(): array
     {
@@ -45,12 +58,21 @@ final class AnthropicSchemas
     }
 
     /**
+     * Anthropic : `Gateway\Anthropic\Concerns\BuildsTextRequests::buildTextRequestBody()`, passé au
+     * nettoyeur. OpenAI, OpenRouter et OpenAI-compatible : `buildSchemaFormat()` et `buildResponseFormat()`
+     * de leurs `BuildsTextRequests`, sans le `name` qu'ils déplacent à côté du schéma.
+     *
      * @param  class-string  $agent
      * @return array<string, mixed>
      */
-    public static function forAnthropic(string $agent): array
+    public static function asSentBy(string $agent, string $driver): array
     {
-        return AnthropicSchemaSanitizer::sanitize((new ObjectSchema(self::agent($agent)->schema(new JsonSchemaTypeFactory)))->toSchema());
+        $schema = (new ObjectSchema(self::agent($agent)->schema(new JsonSchemaTypeFactory)))->toSchema();
+
+        return match ($driver) {
+            'anthropic' => AnthropicSchemaSanitizer::sanitize($schema),
+            'openai', 'openrouter', 'openai-compatible' => Arr::except($schema, ['name']),
+        };
     }
 
     /**

@@ -55,34 +55,60 @@ abstract class SocleAgent implements Agent, HasProviderOptions
     }
 
     /**
-     * TCK-2433 — la sortie structurée passe-t-elle par le mode STRICT du fournisseur (Anthropic :
-     * `output_config.format`, une grammaire compilée qui contraint le décodage) ? Faux : la passerelle
-     * la demande par l'outil non strict `output_structured_data`, sans grammaire et jamais forcé
-     * ({@see self::providerOptions()}) — le modèle suit le schéma sans garantie, le code qui lit la
-     * sortie doit tout valider, et une réponse sans sortie est un échec du maillon. Anthropic refuse une
-     * grammaire trop grosse sans en publier le seuil (`StrictSchemasStayWithinTheAttestedSizeTest`).
+     * TCK-2449 (ADR-0085 §2) — les pilotes sur lesquels un vrai appel a attesté le mode strict de cet agent.
+     * `anthropic` seul aujourd'hui. Ajouter un pilote demande d'abord cette attestation, puis la ligne de ses
+     * limites dans `Tests\Support\Ai\AgentSchemas::ATTESTED_DRIVERS`.
+     *
+     * @return list<string>
      */
-    public function usesStrictSchema(): bool
+    protected function strictDrivers(): array
     {
-        return true;
+        return [Lab::Anthropic->value];
     }
 
     /**
-     * TCK-2433 — lu par `TextGenerationOptions` du SDK, et fusionné en dernier dans le corps de la requête.
-     * Sans mode strict, laravel/ai force l'outil de sortie (`tool_choice` `tool`), qu'Opus 5.5, Sonnet 5.5,
-     * Fable 5.1 et Mythos 5.1 refusent en HTTP 400 quels que soient les réglages de réflexion, comme la
-     * réflexion manuelle sur tout modèle (documentation d'Anthropic, « Forcing tool use »). `auto`, accepté
-     * partout, rend le choix au modèle : le prompt et l'outil seul proposé l'y mènent, et la passerelle
-     * tient une réponse sans sortie pour un échec (`ai.response_invalid`). Un agent strict n'ajoute rien :
-     * sa requête n'a pas d'outil.
+     * TCK-2433, TCK-2449 — sur ce PILOTE (jamais le nom d'une entrée), la sortie structurée passe-t-elle par
+     * le mode STRICT du fournisseur (Anthropic : `output_config.format`, une grammaire compilée qui contraint
+     * le décodage) ? Faux : le modèle suit le schéma sans garantie, le code qui lit la sortie doit tout
+     * valider, et une réponse sans sortie est un échec du maillon. C'est un choix déclaré, jamais un repli à
+     * l'exécution. Anthropic refuse une grammaire trop grosse sans en publier le seuil
+     * (`StrictSchemasStayWithinTheAttestedSizeTest`).
+     *
+     * ⚠ Déclarer ici un pilote de la famille OpenAI ne suffirait pas : `openai`, `openrouter` et
+     * `openai-compatible` n'envoient `strict: true` que sous l'attribut `#[Strict]` du SDK, qui vaut pour tous
+     * les pilotes de l'agent à la fois.
+     */
+    public function usesStrictSchema(string $driver): bool
+    {
+        return in_array($driver, $this->strictDrivers(), true);
+    }
+
+    /**
+     * TCK-2433, TCK-2449 — lu par `TextGenerationOptions` du SDK, et fusionné en dernier dans le corps de la
+     * requête. `$provider` vaut le pilote, sauf sur `openai-compatible`, où le SDK passe le nom de l'entrée.
+     * Une entrée de ce pilote nommée `anthropic` ne reçoit pourtant rien ici : non stricte, elle est jouée
+     * sous son double, dont le nom n'est dans aucune table.
+     *
+     * Seul le pilote `anthropic` a quelque chose à neutraliser. Sans mode strict, laravel/ai y force l'outil
+     * de sortie (`tool_choice` `tool`), qu'Opus 5.5, Sonnet 5.5, Fable 5.1 et Mythos 5.1 refusent en HTTP 400
+     * quels que soient les réglages de réflexion, comme la réflexion manuelle sur tout modèle (documentation
+     * d'Anthropic, « Forcing tool use »). `auto`, accepté partout, rend le choix au modèle : le prompt et
+     * l'outil seul proposé l'y mènent, et la passerelle tient une réponse sans sortie pour un échec
+     * (`ai.response_invalid`). Un agent strict n'ajoute rien : sa requête n'a pas d'outil.
+     *
+     * `openai`, `openrouter` et `openai-compatible` n'ont pas d'outil de sortie : laravel/ai y demande la
+     * sortie par `text.format` ou `response_format`. Sans `tools` dans la requête, il n'y a rien à forcer, et
+     * aucun `tool_choice` à poser : la documentation de ces fournisseurs ne dit pas qu'il serait accepté seul.
      *
      * @return array<string, mixed>
      */
     public function providerOptions(Lab|string $provider): array
     {
-        $anthropic = ($provider instanceof Lab ? $provider->value : $provider) === Lab::Anthropic->value;
+        $driver = $provider instanceof Lab ? $provider->value : $provider;
 
-        return $anthropic && ! $this->usesStrictSchema() ? ['tool_choice' => ['type' => 'auto']] : [];
+        return $driver === Lab::Anthropic->value && ! $this->usesStrictSchema($driver)
+            ? ['tool_choice' => ['type' => 'auto']]
+            : [];
     }
 
     /** Lu par `TextGenerationOptions` du SDK. */

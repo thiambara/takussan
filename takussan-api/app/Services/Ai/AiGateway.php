@@ -87,9 +87,10 @@ final class AiGateway
         $last = null;
         foreach ($chain as $link) {
             $started = hrtime(true);
+            $driver = $this->driverOf($link);
             try {
                 $agent = app($usage->agentClass())->configure($instructions, $link->maxTokens, count($chain));
-                $response = $agent->prompt($input, $request->attachments, provider: $this->providerFor($agent, $link), model: $link->model);
+                $response = $agent->prompt($input, $request->attachments, provider: $this->providerFor($agent, $link, $driver), model: $link->model);
             } catch (FailoverableException $e) {
                 $this->journal($usage, $request, $this->linkColumns($link) + [
                     'outcome' => AiCallOutcome::FailedOver, 'error_code' => AiErrorCode::fromThrowable($e), 'duration_ms' => $this->elapsed($started),
@@ -132,10 +133,10 @@ final class AiGateway
             }
 
             $structured = $response instanceof StructuredAgentResponse ? $response->toArray() : null;
-            // TCK-2433 — un agent non strict choisit librement d'appeler l'outil de sortie (`tool_choice`
-            // `auto`) : une réponse qui n'en rend rien (ni appel d'outil, ni JSON dans le texte) est
-            // inexploitable, payée, et le maillon a échoué.
-            if (! $agent->usesStrictSchema() && $response instanceof StructuredAgentResponse && $structured === []) {
+            // TCK-2433, TCK-2449 — sans mode strict sur ce pilote, rien ne contraint le modèle : une réponse
+            // qui ne rend pas de sortie (ni appel d'outil, ni JSON dans le texte) est inexploitable, payée, et
+            // le maillon a échoué.
+            if (! $agent->usesStrictSchema($driver) && $response instanceof StructuredAgentResponse && $structured === []) {
                 $this->journal($usage, $request, $spent + ['outcome' => AiCallOutcome::FailedOver, 'error_code' => 'ai.response_invalid']);
                 $last = new AiUnavailable('ai.response_invalid');
 
@@ -205,17 +206,25 @@ final class AiGateway
         return $request->attachments !== [] && $usage instanceof AttachmentsUseVision ? AiModelRole::Vision : $usage->role();
     }
 
+    /** Le pilote du maillon. Une entrée absente de la configuration : son nom, comme le fait le SDK (`AiManager`). */
+    private function driverOf(ModelLink $link): string
+    {
+        return config("ai.providers.{$link->provider}.driver", $link->provider);
+    }
+
     /**
-     * TCK-2433 — le fournisseur que laravel/ai doit jouer pour ce maillon. Un agent non strict
-     * ({@see SocleAgent::usesStrictSchema()}) reçoit un double du fournisseur configuré, à
-     * `use_native_structured_output` faux : laravel/ai y demande la sortie par un outil forcé non strict
-     * au lieu d'`output_config` (il ne le règle que par fournisseur). Le double n'existe qu'à l'exécution,
-     * hors de la liste fermée de `config/ai.php` ; le journal, le coût et la chaîne gardent le nom réel.
+     * TCK-2433, TCK-2449 — le fournisseur que laravel/ai doit jouer pour ce maillon. Un agent non strict sur
+     * ce pilote ({@see SocleAgent::usesStrictSchema()}) reçoit un double de l'entrée configurée, tous ses
+     * réglages gardés, à `use_native_structured_output` faux : sur `anthropic`, laravel/ai y demande la sortie
+     * par un outil au lieu d'`output_config` (il ne le règle que par fournisseur). Les pilotes `openai`,
+     * `openrouter` et `openai-compatible` ignorent ce réglage ; leur `strict` suit l'attribut `#[Strict]`,
+     * qu'aucun agent ne porte. Le double n'existe qu'à l'exécution, hors de la liste fermée de `config/ai.php` ;
+     * le journal, le coût et la chaîne gardent le nom réel.
      */
-    private function providerFor(SocleAgent $agent, ModelLink $link): string
+    private function providerFor(SocleAgent $agent, ModelLink $link, string $driver): string
     {
         $base = config("ai.providers.{$link->provider}");
-        if ($agent->usesStrictSchema() || ! is_array($base)) {
+        if ($agent->usesStrictSchema($driver) || ! is_array($base)) {
             return $link->provider;
         }
         $alias = $link->provider.self::TOOL_OUTPUT_SUFFIX;

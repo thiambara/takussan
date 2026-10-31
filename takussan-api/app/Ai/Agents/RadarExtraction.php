@@ -67,14 +67,15 @@ final class RadarExtraction extends SocleAgent implements HasStructuredOutput
     }
 
     /**
-     * TCK-2433 — pas de mode strict : Anthropic refuse la grammaire compilée de ce schéma (« The compiled
-     * grammar is too large », HTTP 400, sous la limite des 16 unions pourtant). La sortie part par l'outil
-     * forcé non strict ; `ExtractionNormalizer` valide déjà chaque valeur (type, enum, bornes, passage
-     * cité) et rabat à `low` ce qui ne passe pas. Remettre `true` exige une attestation par un vrai appel.
+     * TCK-2433, TCK-2449 — strict sur aucun pilote : Anthropic refuse la grammaire compilée de ce schéma
+     * (« The compiled grammar is too large », HTTP 400, sous la limite des 16 unions pourtant), et aucun autre
+     * n'est attesté. La sortie part sans grammaire ; `ExtractionNormalizer` valide déjà chaque valeur (type,
+     * enum, bornes, passage cité) et rabat à `low` ce qui ne passe pas. Ajouter un pilote exige une attestation
+     * par un vrai appel.
      */
-    public function usesStrictSchema(): bool
+    protected function strictDrivers(): array
     {
-        return false;
+        return [];
     }
 
     /** @return array<string, Type> */
