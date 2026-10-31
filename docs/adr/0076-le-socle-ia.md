@@ -218,6 +218,10 @@ embedding n'a ni agent, ni prompt, ni sortie à relire.
 - **Le calcul n'a jamais lieu pendant l'appariement.** Lire un rapprochement n'appelle aucun fournisseur. Un balayage
   planifié met un lot en file `ai` ; une annonce dont le texte n'a pas changé (empreinte) n'est pas recalculée ; un échec
   suspend les balayages pendant un délai, sans réessai du job.
-- **Un rapprochement par vecteurs ne corrobore pas une fusion automatique.** Deux annonces voisines de même type se
-  ressemblent par le sens sans être le même bien, et aucune mesure réelle n'existe : `radar.similarity.embeddings.corroborates_merge`
-  reste faux tant que le porteur n'a rien mesuré.
+- **Un signal vectoriel ne contribue jamais à une fusion automatique.** Deux annonces voisines de même type se ressemblent par le
+  sens sans être le même bien, et aucune mesure réelle n'existe : `RadarAutoMerge` reçoit un `RadarMatcher` à `trigram`, et ne voit
+  donc aucun vecteur. Le changer demande un nouvel amendement.
+- **Une promesse publique ne dépend pas d'un geste que le code ne vérifie pas.** `privacy.ts` promet le refus de l'entraînement
+  avant tout envoi, et Voyage entraîne par défaut. `VOYAGE_TRAINING_OPT_OUT`, faux par défaut, est exigé en plus de la clé : sans lui,
+  rien ne part, test de connexion compris, et `pg_trgm` sert. Il déclare le geste au moment où il compte, sans le prouver.
+- **Un texte d'annonceur qui a dit STOP ne part pas**, à aucune étape, et son vecteur s'efface à la purge.

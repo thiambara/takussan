@@ -102,6 +102,8 @@ final class RadarPurger
             $counts['orphan_dirs'] += $this->orphans->sweep($now);
             $counts['orphan_copies'] += $this->orphans->sweepPublicationCopies($now);
         }
+        // Après les deux gestes qui purgent une annonce : jamais publiée, puis publiée.
+        $this->eraseUnwantedVectors($counts);
         $this->purgeUnconfirmedReplies($advertiserId, $counts);
         $this->purgeOutreaches($advertiserId, $counts);
         $this->clearAdvertisers($advertiserId, $counts);
@@ -162,16 +164,30 @@ final class RadarPurger
             'stage_reason' => null,
         ])->save();
         $counts['suggestions'] += $this->eraseSuggestions('radar.extraction', $listing);
-        // TCK-2423 — le vecteur est calculé du texte qui vient d'être effacé : il part avec lui.
-        if ($this->embeddings->exists()) {
-            $counts['embeddings_deleted'] += Embedding::query()
-                ->where('embeddable_type', $listing->getMorphClass())
-                ->where('embeddable_id', $listing->id)
-                ->delete();
-        }
 
         // Le dernier geste : les fichiers partent avec leurs lignes.
         $counts['media'] += $this->deleteMedia($listing);
+    }
+
+    /**
+     * TCK-2423 — un vecteur d'annonce purgée (calculé du texte qui vient d'être effacé), ou d'un annonceur qui a dit STOP. Une annonce
+     * publiée garde son étape après un STOP, sans passer par {@see self::eraseListing()} ; elle retombe alors sur les trigrammes, et
+     * ne repart plus. Jugé sur l'état en base, le geste rattrape au passage suivant ce qu'une purge interrompue aurait laissé.
+     *
+     * @param  array<string, int>  $counts
+     */
+    private function eraseUnwantedVectors(array &$counts): void
+    {
+        if (! $this->embeddings->exists()) {
+            return;
+        }
+
+        $counts['embeddings_deleted'] += Embedding::query()
+            ->where('embeddable_type', (new RadarListing)->getMorphClass())
+            ->whereIn('embeddable_id', RadarListing::query()->select('id')->where(fn ($query) => $query
+                ->where('stage', RadarListingStage::Purged->value)
+                ->orWhereHas('advertiser', fn ($advertiser) => $advertiser->whereNotNull('do_not_contact_at'))))
+            ->delete();
     }
 
     /**

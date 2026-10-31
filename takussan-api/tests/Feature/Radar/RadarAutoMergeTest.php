@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Radar;
 
+use App\Models\Embedding;
 use App\Models\Enums\PlatformProfileLevel;
 use App\Models\Enums\RadarCrawlStatus;
 use App\Models\Enums\RadarCrawlTrigger;
@@ -322,5 +323,31 @@ class RadarAutoMergeTest extends TestCase
             ->assertStatus(409)
             ->assertJsonPath('code', 'radar.merge.not_automatic');
         $this->assertSame(RadarListingStage::Duplicate, $doublon->fresh()->stage);
+    }
+
+    public function test_un_signal_vectoriel_ne_fait_jamais_passer_une_fusion(): void
+    {
+        // TCK-2423 — une photo à distance moyenne ne fusionne pas seule ; le vecteur la ferait passer à `high`.
+        config(['ai.providers.voyageai.key' => 'cle-de-test', 'ai.providers.voyageai.training_opt_out' => true, 'radar.similarity.driver' => 'embeddings']);
+        $texte = 'Les mots de la première annonce fictive, assez longue pour être comparée par un vecteur, sans rapport avec sa voisine.';
+        $autre = 'Vocabulaire entièrement différent pour la seconde publication imaginaire, suffisamment étendue, décrivant pourtant pareil.';
+        $photo = fn (int $hash) => ['photo_urls' => ['https://cdn.test/p.jpg'], 'source_photo_hashes' => [self::photo($hash)]];
+        $fiche = $this->annonce(RadarSourceSite::ExpatDakar, ['description' => ['value' => $texte]], $photo(self::HASH));
+        $doublon = $this->annonce(RadarSourceSite::Coinafrique, ['description' => ['value' => $autre]], $this->trouveeParLaCollecte($photo(self::HASH ^ 0b11)));
+        $vecteur = '['.implode(',', [1.0, ...array_fill(0, 1023, 0.0)]).']';
+        foreach ([$fiche, $doublon] as $annonce) {
+            Embedding::query()->create([
+                'embeddable_type' => $annonce->getMorphClass(), 'embeddable_id' => $annonce->id, 'provider' => 'voyageai', 'model' => 'voyage-4',
+                'dimension' => 1024, 'vector' => $vecteur, 'content_hash' => Embedding::contentHash((string) $annonce->fresh()->similarity_text),
+            ]);
+        }
+
+        // L'opérateur voit bien le rapprochement, et sa force.
+        $vu = collect($this->app->make(RadarMatcher::class)->matchesFor($doublon->fresh()))->firstWhere('id', $fiche->id);
+        $this->assertSame('high', $vu['strength']);
+        $this->assertContains('embeddings', array_column($vu['signals'], 'method'));
+
+        $this->assertSame(0, $this->merge()->sweep(now()));
+        $this->assertNull($doublon->fresh()->duplicate_of_listing_id);
     }
 }

@@ -5,7 +5,6 @@ namespace App\Services\Radar;
 use App\Models\Enums\RadarListingStage;
 use App\Models\RadarListing;
 use App\Models\User;
-use App\Services\Radar\Similarity\EmbeddingTextSimilarity;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
 
@@ -24,6 +23,10 @@ use Illuminate\Support\Facades\DB;
  *    texte type désignent l'annonceur, et un annonceur porte plusieurs biens ;
  *  - plus ancienne (la fiche est la première vue), d'un AUTRE site (les doublons d'un même site restent à l'opérateur),
  *  - à une étape où elle fait foi : ni capturée, ni en échec, ni écartée, ni purgée, ni elle-même doublon.
+ *
+ * **Jamais par un vecteur** (TCK-2423, ADR-0076, amendement du 2026-10-31) : ce service reçoit un `RadarMatcher` à `trigram`
+ * (`AppServiceProvider`). Deux lots voisins se décrivent de même sans être le même bien, et un signal vectoriel de plus ferait
+ * passer une photo moyenne à `high`. Un texte recopié, lui, corrobore comme avant.
  *
  * **Ce qui est écrit** : l'annonce passe `duplicate` de la fiche (`duplicate_of_listing_id`), `stage_reason`
  * `radar.merge.auto`, `merged_at`, les rapprochements figés comme pour un « doublon de » manuel. Dans tous les cas
@@ -201,12 +204,7 @@ final class RadarAutoMerge
             return false;
         }
 
-        // TCK-2423 — deux lots voisins se décrivent de même sans être le même bien : un rapprochement par vecteurs ne corrobore
-        // pas, tant que `radar.similarity.embeddings.corroborates_merge` est faux (aucune mesure réelle).
-        $corroborating = array_filter($signals, fn (array $signal): bool => ! in_array($signal['signal'], [RadarMatcher::SIGNAL_PLACE, RadarMatcher::SIGNAL_PHONE], true)
-            && (($signal['method'] ?? null) !== EmbeddingTextSimilarity::METHOD || config('radar.similarity.embeddings.corroborates_merge') === true));
-
-        return $corroborating !== [];
+        return array_diff($names, [RadarMatcher::SIGNAL_PLACE, RadarMatcher::SIGNAL_PHONE]) !== [];
     }
 
     /**

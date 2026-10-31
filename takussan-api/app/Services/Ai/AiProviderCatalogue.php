@@ -54,15 +54,22 @@ final class AiProviderCatalogue
         return false;
     }
 
-    /** Une clé, et une adresse sur un hôte que la configuration accepte quand elle en déclare (ADR-0085 §4). */
+    /**
+     * Une clé ; le refus de l'entraînement déclaré, pour un fournisseur qui le demande ; une adresse https sur un hôte que la
+     * configuration accepte, quand elle en déclare (ADR-0085 §4). Sinon, rien ne lui est envoyé.
+     */
     public function reachable(string $provider): bool
     {
-        if (! $this->keyPresent($provider)) {
+        $config = config('ai.providers')[$provider] ?? [];
+        if (! $this->keyPresent($provider) || ($config['training_opt_out'] ?? true) !== true) {
             return false;
         }
-        $hosts = config('ai.providers')[$provider]['allowed_hosts'] ?? null;
+        if (! isset($config['allowed_hosts'])) {
+            return true;
+        }
+        $url = (string) ($config['url'] ?? '');
 
-        return $hosts === null || in_array(parse_url((string) (config('ai.providers')[$provider]['url'] ?? ''), PHP_URL_HOST), $hosts, true);
+        return parse_url($url, PHP_URL_SCHEME) === 'https' && in_array(parse_url($url, PHP_URL_HOST), $config['allowed_hosts'], true);
     }
 
     public function cheapestModel(string $provider): ?string

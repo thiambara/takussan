@@ -176,8 +176,8 @@ return [
     ],
 
     // TCK-2392 — le quatrième signal de rapprochement, la similarité de texte (`RadarMatcher::SIGNAL_TEXT`). Un pilote
-    // remplaçable. `embeddings` (TCK-2423) retombe sur `trigram` sans clé ni table : la clé `VOYAGE_API_KEY` suffit à l'allumer,
-    // et sans elle rien ne change. `trigram` (`pg_trgm`) ne demande aucun fournisseur.
+    // remplaçable. `embeddings` (TCK-2423) retombe sur `trigram` sans clé, sans refus de l'entraînement déclaré ou sans table :
+    // sans les deux variables, rien ne change. `trigram` (`pg_trgm`) ne demande aucun fournisseur.
     // `threshold` ≥ 0,3 : le préfiltre `%` de `pg_trgm` (seuil par défaut 0,3) ne rend rien en dessous.
     'similarity' => [
         'driver' => env('RADAR_SIMILARITY_DRIVER') ?: 'embeddings',
@@ -200,9 +200,6 @@ return [
             'batch' => 100,
             // Après un refus ou une panne, plus aucun balayage pendant cette durée.
             'cooldown_minutes' => 60,
-            // Un rapprochement par vecteurs corrobore-t-il une fusion automatique (`RadarAutoMerge`) ? Non tant que rien
-            // n'est mesuré : deux lots du même immeuble se décrivent de même sans être le même bien.
-            'corroborates_merge' => false,
         ],
     ],
 

@@ -16,6 +16,30 @@ beforeEach(() => {
 afterEach(() => vi.useRealTimers());
 
 describe('RadarMatchesPanel (TCK-2387)', () => {
+  it('TCK-2423 : le libellé du texte suit sa méthode, une reformulation n’est pas un texte identique', async () => {
+    const texte = (id: number, strength: 'medium' | 'low', method?: 'trigram' | 'embeddings'): RadarMatch => ({
+      ...ANNONCE,
+      id,
+      strength,
+      signals: [{ signal: 'text', strength, similarity: 0.9, method }],
+    });
+    vi.mocked(fetchRadarMatches).mockResolvedValue(reponseMatches([
+      texte(61, 'medium', 'embeddings'),
+      texte(62, 'low', 'embeddings'),
+      texte(63, 'medium', 'trigram'),
+      texte(64, 'low', 'trigram'),
+      texte(65, 'medium'),
+    ]));
+    await rendreFiche(fiche());
+
+    expect(within(await screen.findByTestId('radar-match-listing-61')).getByText('même sens')).toBeInTheDocument();
+    expect(within(screen.getByTestId('radar-match-listing-62')).getByText('sens voisin')).toBeInTheDocument();
+    expect(within(screen.getByTestId('radar-match-listing-63')).getByText('texte presque identique')).toBeInTheDocument();
+    expect(within(screen.getByTestId('radar-match-listing-64')).getByText('texte ressemblant')).toBeInTheDocument();
+    // Un rapprochement figé avant ce ticket n'a pas de méthode : c'était un trigramme.
+    expect(within(screen.getByTestId('radar-match-listing-65')).getByText('texte presque identique')).toBeInTheDocument();
+  });
+
   it('un rapprochement fort ouvre la fiche par une alerte, avec vignette, signaux en libellés et lien public', async () => {
     vi.mocked(fetchRadarMatches).mockResolvedValue(reponseMatches([BIEN_PUBLIC]));
     await rendreFiche(fiche());

@@ -11,12 +11,12 @@ use App\Models\Enums\AiCallOutcome;
 use App\Models\Enums\AiDataClass;
 use App\Models\Enums\AiRefusalReason;
 use App\Models\Enums\RadarListingStage;
+use App\Models\RadarAdvertiser;
 use App\Models\RadarListing;
 use App\Services\Ai\AiGateway;
 use App\Services\Ai\AiUsageRegistry;
 use App\Services\Radar\Embeddings\RadarEmbeddingSweep;
 use App\Services\Radar\Embeddings\RadarEmbeddingTarget;
-use App\Services\Radar\RadarAutoMerge;
 use App\Services\Radar\RadarMatcher;
 use App\Services\Radar\RadarPurger;
 use App\Services\Radar\Similarity\EmbeddingTextSimilarity;
@@ -27,7 +27,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Schema;
-use ReflectionMethod;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 /**
@@ -58,6 +58,7 @@ class RadarEmbeddingsTest extends TestCase
         Cache::flush();
         config([
             'ai.providers.voyageai.key' => 'cle-de-test',
+            'ai.providers.voyageai.training_opt_out' => true,
             'ai.budgets.daily_global_usd' => null,
             'radar.similarity.driver' => 'embeddings',
         ]);
@@ -314,22 +315,39 @@ class RadarEmbeddingsTest extends TestCase
         $this->assertSame('ai.provider_auth', AiCall::query()->sole()->error_code);
     }
 
-    public function test_une_sortie_inexploitable_est_payee_et_nentre_pas(): void
+    /** @return array<string, array{list<float>}> */
+    public static function sortiesInexploitables(): array
     {
-        foreach ([array_fill(0, 12, 0.5), array_fill(0, 1024, 0.0)] as $vecteur) {
-            AiCall::query()->delete();
-            Cache::flush();
-            Http::fake(['api.voyageai.com/*' => Http::response(['data' => [['embedding' => $vecteur, 'index' => 0]], 'usage' => ['total_tokens' => 1000]])]);
-            RadarListing::query()->delete();
-            $this->annonce(self::COPIE);
+        return [
+            'mauvaise dimension' => [array_fill(0, 12, 0.5)],
+            // Un cosinus avec un vecteur nul rend `NaN`, que PostgreSQL classe au-dessus de tout seuil.
+            'vecteur nul' => [array_fill(0, 1024, 0.0)],
+        ];
+    }
 
-            $this->balayer();
+    #[DataProvider('sortiesInexploitables')]
+    public function test_une_sortie_inexploitable_est_payee_et_nentre_pas(array $vecteur): void
+    {
+        Http::fake(['api.voyageai.com/*' => Http::response(['data' => [['embedding' => $vecteur, 'index' => 0]], 'usage' => ['total_tokens' => 1000]])]);
+        $this->annonce(self::COPIE);
 
-            $this->assertSame(0, Embedding::query()->count());
-            $appel = AiCall::query()->sole();
-            $this->assertSame('ai.response_invalid', $appel->error_code);
-            $this->assertSame(0, bccomp('0.00006', (string) $appel->cost_estimate_usd, 8));
-        }
+        $this->balayer();
+
+        $this->assertSame(0, Embedding::query()->count());
+        $appel = AiCall::query()->sole();
+        $this->assertSame('ai.response_invalid', $appel->error_code);
+        $this->assertSame(0, bccomp('0.00006', (string) $appel->cost_estimate_usd, 8));
+    }
+
+    public function test_une_annonce_ecartee_par_les_vecteurs_ne_revient_pas_par_les_trigrammes(): void
+    {
+        $this->fauxModele();
+        $source = $this->annonce(self::COPIE, cosinus: 1.0);
+        // Un texte recopié, que `pg_trgm` rapprocherait, mais dont le vecteur est loin : les vecteurs ont jugé.
+        $ecartee = $this->annonce(self::COPIE.' Fictif.', cosinus: 0.1);
+        $this->balayer();
+
+        $this->assertArrayNotHasKey($ecartee->id, $this->signaux($source));
     }
 
     // ─── AC3 : ce qui part ───────────────────────────────────────────────────────────────
@@ -511,7 +529,7 @@ class RadarEmbeddingsTest extends TestCase
         $this->balayer();
         RadarListing::query()->whereKey($annonce->id)->toBase()->update(['stage' => RadarListingStage::DoNotContact->value]);
 
-        (new EmbedRadarListings([$annonce->id]))->handle(app(AiGateway::class), app(RadarEmbeddingTarget::class), app(RadarEmbeddingSweep::class));
+        $this->jouerLeJob([$annonce->id]);
 
         Http::assertNothingSent();
     }
@@ -539,15 +557,190 @@ class RadarEmbeddingsTest extends TestCase
         $this->assertSame(1, app(RadarPurger::class)->run()['listings']);
     }
 
-    public function test_un_rapprochement_par_vecteurs_ne_corrobore_pas_une_fusion_automatique(): void
+    // ─── Le STOP ─────────────────────────────────────────────────────────────────────────
+
+    private function annonceur(bool $stop): RadarAdvertiser
     {
-        $lieu = ['signal' => RadarMatcher::SIGNAL_PLACE, 'strength' => 'medium'];
-        $juge = new ReflectionMethod(RadarAutoMerge::class, 'designatesTheProperty');
+        return RadarAdvertiser::factory()->create(['do_not_contact_at' => $stop ? now() : null]);
+    }
 
-        $this->assertTrue($juge->invoke(null, [$lieu, ['signal' => 'text', 'strength' => 'medium', 'method' => 'trigram']]));
-        $this->assertFalse($juge->invoke(null, [$lieu, ['signal' => 'text', 'strength' => 'medium', 'method' => 'embeddings']]));
+    public function test_le_texte_publie_dun_annonceur_en_stop_ne_part_pas(): void
+    {
+        $this->fauxModele();
+        $this->annonce(self::COPIE, ['stage' => RadarListingStage::Published, 'radar_advertiser_id' => $this->annonceur(true)->id]);
 
-        config(['radar.similarity.embeddings.corroborates_merge' => true]);
-        $this->assertTrue($juge->invoke(null, [$lieu, ['signal' => 'text', 'strength' => 'medium', 'method' => 'embeddings']]));
+        $this->balayer();
+
+        Http::assertNothingSent();
+    }
+
+    public function test_un_stop_pose_pendant_lattente_en_file_coupe_lenvoi(): void
+    {
+        $this->fauxModele();
+        $annonceur = $this->annonceur(false);
+        $annonce = $this->annonce(self::COPIE, ['radar_advertiser_id' => $annonceur->id]);
+        Queue::fake();
+        $this->balayer();
+        $annonceur->forceFill(['do_not_contact_at' => now()])->save();
+
+        $this->jouerLeJob([$annonce->id]);
+
+        Http::assertNothingSent();
+    }
+
+    /** @param  list<int>  $ids */
+    private function jouerLeJob(array $ids): void
+    {
+        (new EmbedRadarListings($ids))->handle(app(AiGateway::class), app(RadarEmbeddingTarget::class), app(RadarEmbeddingSweep::class));
+    }
+
+    // ─── La course avec la purge ─────────────────────────────────────────────────────────
+
+    /** @param  callable(): void  $pendantLappel */
+    private function fauxModelePendant(callable $pendantLappel): void
+    {
+        Http::fake(['api.voyageai.com/*' => function (Request $requete) use ($pendantLappel) {
+            $pendantLappel();
+
+            return Http::response([
+                'data' => array_map(fn (int $i) => ['embedding' => $this->vecteur(0.9), 'index' => $i], array_keys($requete['input'])),
+                'usage' => ['total_tokens' => 10],
+            ]);
+        }]);
+    }
+
+    public function test_une_annonce_purgee_pendant_lappel_necrit_aucun_vecteur(): void
+    {
+        $annonce = $this->annonce(self::COPIE);
+        $reste = $this->annonce(self::REFORMULATION);
+        $this->fauxModelePendant(fn () => RadarListing::query()->whereKey($annonce->id)->toBase()->update([
+            'stage' => RadarListingStage::Purged->value, 'similarity_text' => null,
+        ]));
+
+        $this->balayer();
+
+        $this->assertSame([$reste->id], Embedding::query()->pluck('embeddable_id')->all());
+    }
+
+    public function test_un_stop_ou_un_texte_reecrit_pendant_lappel_necrit_aucun_vecteur(): void
+    {
+        $annonceur = $this->annonceur(false);
+        $this->annonce(self::COPIE, ['radar_advertiser_id' => $annonceur->id]);
+        $reecrite = $this->annonce(self::REFORMULATION);
+        $this->fauxModelePendant(function () use ($annonceur, $reecrite): void {
+            $annonceur->forceFill(['do_not_contact_at' => now()])->save();
+            RadarListing::query()->whereKey($reecrite->id)->toBase()->update(['similarity_text' => mb_strtolower(self::SANS_RAPPORT)]);
+        });
+
+        $this->balayer();
+
+        $this->assertSame(0, Embedding::query()->count());
+    }
+
+    public function test_lecriture_du_vecteur_relit_lannonce_sous_verrou(): void
+    {
+        $this->fauxModele();
+        $this->annonce(self::COPIE);
+        DB::enableQueryLog();
+
+        $this->balayer();
+
+        $journal = array_column(DB::getQueryLog(), 'query');
+        $verrou = array_search(true, array_map(fn (string $sql) => str_contains($sql, 'radar_listings') && str_contains($sql, 'for update'), $journal), true);
+        $ecriture = array_search(true, array_map(fn (string $sql) => str_starts_with($sql, 'insert into "embeddings"'), $journal), true);
+        $this->assertNotFalse($verrou);
+        $this->assertNotFalse($ecriture);
+        $this->assertLessThan($ecriture, $verrou);
+    }
+
+    public function test_le_filet_de_la_purge_efface_un_vecteur_orphelin_ou_dun_stop(): void
+    {
+        $this->fauxModele();
+        $orpheline = $this->annonce(self::COPIE);
+        $annonceur = $this->annonceur(false);
+        $publiee = $this->annonce(self::REFORMULATION, ['stage' => RadarListingStage::Published, 'radar_advertiser_id' => $annonceur->id]);
+        $gardee = $this->annonce(self::SANS_RAPPORT);
+        $this->balayer();
+        $this->assertSame(3, Embedding::query()->count());
+
+        RadarListing::query()->whereKey($orpheline->id)->toBase()->update(['stage' => RadarListingStage::Purged->value, 'similarity_text' => null]);
+        $annonceur->forceFill(['do_not_contact_at' => now()])->save();
+
+        $comptes = app(RadarPurger::class)->run();
+
+        $this->assertSame(2, $comptes['embeddings_deleted']);
+        $this->assertSame([$gardee->id], Embedding::query()->pluck('embeddable_id')->all());
+        $this->assertNotNull($publiee->fresh()->similarity_text);
+    }
+
+    // ─── La déclaration du refus de l'entraînement, l'adresse ────────────────────────────
+
+    public function test_la_declaration_est_fausse_par_defaut(): void
+    {
+        $this->assertFalse((require config_path('ai.php'))['providers']['voyageai']['training_opt_out']);
+    }
+
+    public function test_sans_la_declaration_rien_ne_part_et_trigram_sert(): void
+    {
+        $this->fauxModele();
+        config(['ai.providers.voyageai.training_opt_out' => false]);
+        $autre = $this->annonce(self::COPIE);
+        $source = $this->annonce(self::COPIE);
+
+        $this->balayer();
+
+        Http::assertNothingSent();
+        $this->assertSame('trigram', $this->signaux($source)[$autre->id]['method']);
+    }
+
+    public function test_une_adresse_sans_https_ne_recoit_ni_texte_ni_cle(): void
+    {
+        $this->fauxModele();
+        config(['ai.providers.voyageai.url' => 'http://api.voyageai.com/v1']);
+        $this->annonce(self::COPIE);
+
+        $this->balayer();
+
+        Http::assertNothingSent();
+    }
+
+    // ─── AC7 : pas de reprise, pas de doublon ────────────────────────────────────────────
+
+    public function test_le_job_ne_se_reprend_pas(): void
+    {
+        $this->assertSame(1, (new EmbedRadarListings([1]))->tries);
+    }
+
+    public function test_deux_balayages_ne_mettent_quun_lot_en_file(): void
+    {
+        Queue::fake();
+        $this->annonce(self::COPIE);
+
+        $this->balayer();
+        $this->balayer();
+
+        Queue::assertPushedTimes(EmbedRadarListings::class, 1);
+    }
+
+    public function test_le_filtre_de_dimension_precede_toute_comparaison_quel_que_soit_le_plan(): void
+    {
+        $this->fauxModele();
+        $autre = $this->annonce(self::REFORMULATION, cosinus: 0.95);
+        $source = $this->annonce(self::COPIE, cosinus: 0.95);
+        $this->balayer();
+        $ancienne = $this->annonce(self::SANS_RAPPORT);
+        Embedding::query()->create([
+            'embeddable_type' => $ancienne->getMorphClass(), 'embeddable_id' => $ancienne->id, 'provider' => 'voyageai', 'model' => 'voyage-4',
+            'dimension' => 3, 'vector' => '[1,0,0]', 'content_hash' => Embedding::contentHash((string) $ancienne->fresh()->similarity_text),
+        ]);
+        // Sans index, et les égalités rendues chères, le planificateur compare les vecteurs d'abord : seul le sous-select l'en
+        // empêche. Annulé avec la transaction du test.
+        foreach (['enable_indexscan', 'enable_indexonlyscan', 'enable_bitmapscan'] as $reglage) {
+            DB::statement("SET LOCAL {$reglage} = off");
+        }
+        DB::statement('ALTER FUNCTION int4eq(int4, int4) COST 100000');
+        DB::statement('ALTER FUNCTION texteq(text, text) COST 100000');
+        DB::statement('ALTER FUNCTION bpchareq(bpchar, bpchar) COST 100000');
+        $this->assertArrayHasKey($autre->id, $this->signaux($source));
     }
 }

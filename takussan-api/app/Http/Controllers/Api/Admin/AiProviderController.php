@@ -31,6 +31,7 @@ class AiProviderController extends Controller
     {
         abort_code_unless($this->providers->has($provider), 404, 'ai.provider_unknown');
         abort_code_unless($this->providers->keyPresent($provider), 422, 'ai.provider_key_missing');
+        abort_code_unless($this->providers->reachable($provider), 422, 'ai.provider_unreachable');
         $model = $this->providers->cheapestModel($provider);
         abort_code_unless($model !== null, 422, 'ai.model_unpriced');
 

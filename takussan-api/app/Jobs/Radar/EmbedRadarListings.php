@@ -17,6 +17,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Throwable;
 
 /**
@@ -48,7 +49,7 @@ class EmbedRadarListings implements ShouldBeUnique, ShouldQueue
             return;
         }
 
-        // Relues : une annonce purgée, passée au STOP, ou déjà à jour depuis la mise en file, ne part pas.
+        // Relues : une annonce purgée, passée au STOP pendant l'attente en file, ou déjà à jour, ne part pas.
         /** @var Collection<int, RadarListing> $listings */
         $listings = $sweep->due($link)->whereKey($this->listingIds)->get(['id', 'similarity_text']);
         if ($listings->isEmpty()) {
@@ -73,25 +74,34 @@ class EmbedRadarListings implements ShouldBeUnique, ShouldQueue
             return;
         }
 
-        $now = Carbon::now();
-        $rows = [];
-        foreach ($listings->values() as $i => $listing) {
-            $rows[] = [
-                'embeddable_type' => $listing->getMorphClass(),
-                'embeddable_id' => $listing->id,
-                'provider' => $result->link->provider,
-                'model' => $result->link->model,
-                'dimension' => $target->dimension(),
-                'vector' => Embedding::literal($result->vectors[$i]),
-                'content_hash' => Embedding::contentHash($listing->similarity_text),
-                'created_at' => $now,
-                'updated_at' => $now,
-            ];
-        }
-        Embedding::query()->upsert(
-            $rows,
-            ['embeddable_type', 'embeddable_id', 'provider', 'model', 'dimension'],
-            ['vector', 'content_hash', 'updated_at'],
-        );
+        // Relues sous verrou, comme le purger : une annonce purgée, passée au STOP ou réécrite pendant l'appel n'écrit rien.
+        DB::transaction(function () use ($listings, $result, $link, $sweep, $target): void {
+            $still = $sweep->due($link)->whereKey($listings->pluck('id'))->orderBy('id')->lockForUpdate()->get(['id', 'similarity_text'])->keyBy('id');
+            $now = Carbon::now();
+            $rows = [];
+            foreach ($listings->values() as $i => $listing) {
+                if ($still->get($listing->id)?->similarity_text !== $listing->similarity_text) {
+                    continue;
+                }
+                $rows[] = [
+                    'embeddable_type' => $listing->getMorphClass(),
+                    'embeddable_id' => $listing->id,
+                    'provider' => $result->link->provider,
+                    'model' => $result->link->model,
+                    'dimension' => $target->dimension(),
+                    'vector' => Embedding::literal($result->vectors[$i]),
+                    'content_hash' => Embedding::contentHash($listing->similarity_text),
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ];
+            }
+            if ($rows !== []) {
+                Embedding::query()->upsert(
+                    $rows,
+                    ['embeddable_type', 'embeddable_id', 'provider', 'model', 'dimension'],
+                    ['vector', 'content_hash', 'updated_at'],
+                );
+            }
+        });
     }
 }

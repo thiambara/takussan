@@ -676,23 +676,26 @@ workflow planifié après 60 jours sans activité sur le dépôt (un `workflow_d
 
 ### Allumer les embeddings du Radar (TCK-2423, ADR-0076)
 
-Sans clé, rien ne part et le Radar reste sur `pg_trgm`. **L'ordre compte : `privacy.ts` § 4.3 promet le refus de
-l'entraînement dès que des textes partent.**
+Il faut la clé **et** la déclaration : sans l'une d'elles, rien ne part, test de connexion de la console compris, et le Radar
+reste sur `pg_trgm`. **L'ordre compte : `privacy.ts` § 4.3 promet le refus de l'entraînement avant tout envoi.**
 
-1. **Refuser l'entraînement chez Voyage AI**, avant de poser la clé : tableau de bord, Organization → Terms of Service,
-   curseur sur « Opted Out » (compte d'administrateur, moyen de paiement enregistré). Par défaut, Voyage peut entraîner ses
-   modèles sur les textes reçus ; une fois le refus posé, il les efface après traitement, sans effet sur ce qui a été envoyé
-   avant (conditions de Voyage, relues le 2026-10-31).
+1. **Refuser l'entraînement chez Voyage AI** : tableau de bord, Organization → Terms of Service, curseur sur « Opted Out »
+   (compte d'administrateur et moyen de paiement enregistré : une clé d'un compte gratuit ne peut pas être en règle). Par défaut,
+   Voyage peut entraîner ses modèles sur les textes reçus. Le refus efface les textes après traitement, mais ne vaut que pour ce
+   qui est envoyé ensuite. Au tableau de bord, il est sans retour : revenir dessus passe par legal@voyageai.com (conditions
+   relues le 2026-10-31, datées du 2026-10-29, et FAQ de Voyage).
 2. **Informer la Commission de protection des données** du transfert vers les États-Unis, avant le premier envoi
-   (loi n° 2008-12, art. 49), et garder les conditions de Voyage comme contrat de sous-traitance (art. 39).
+   (loi n° 2008-12, art. 49). Le contrat de sous-traitance (art. 39) est le DPA de Voyage, `voyageai.com/dpa`, incorporé à
+   ses conditions : le garder au dossier.
 3. **Poser l'extension** avec le superutilisateur, puis créer la table avec l'application :
    ```bash
    docker exec $(docker ps -q -f name=serveur-postgres-egr6ii) psql -U pgadmin -d takussan_preview -c "CREATE EXTENSION IF NOT EXISTS vector"
    php artisan ai:install-embeddings   # dans le conteneur de l'API ; sort en 1 si l'extension manque toujours
    ```
-4. **Poser `VOYAGE_API_KEY`** dans Dokploy. `radar:embed-listings` (toutes les 15 min) met alors chaque lot en file `ai` ;
-   les annonces passent une à une de `pg_trgm` aux vecteurs. Le coût et les pannes se lisent dans la console IA, usage
-   `radar.embedding`. Pour revenir en arrière sans retirer la clé : `RADAR_SIMILARITY_DRIVER=trigram`.
+4. **Poser `VOYAGE_API_KEY` et `VOYAGE_TRAINING_OPT_OUT=true`** dans Dokploy. La variable déclare le geste de l'étape 1, elle ne
+   le prouve pas. `radar:embed-listings` (toutes les 15 min) met alors chaque lot en file `ai` ; les annonces passent une à une de
+   `pg_trgm` aux vecteurs. Le coût et les pannes se lisent dans la console IA, usage `radar.embedding`. Pour revenir en arrière
+   sans retirer la clé : `RADAR_SIMILARITY_DRIVER=trigram`, ou `VOYAGE_TRAINING_OPT_OUT=false`.
 
 ## Ce que Caddy reprend de l'ancien vhost nginx
 

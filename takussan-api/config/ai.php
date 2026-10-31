@@ -27,12 +27,15 @@ return [
             'url' => env('ANTHROPIC_URL', 'https://api.anthropic.com/v1'),
             'legal_name' => 'Anthropic',
         ],
-        // TCK-2423 — seulement des embeddings (`serves`). Sans clé, rien ne part : le Radar reste sur `pg_trgm`.
+        // TCK-2423 — seulement des embeddings (`serves`). Sans clé, ou sans `training_opt_out`, rien ne part : le Radar reste sur
+        // `pg_trgm`. `training_opt_out` : la déclaration que l'entraînement est refusé chez Voyage, geste que `privacy.ts` § 4.3
+        // promet et que le code ne peut pas constater ; ce qui part avant reste soumis à sa licence, sans retour.
         // `input_type` : le texte d'une annonce est un document, jamais une question. `allowed_hosts` : une adresse
-        // ailleurs ne reçoit ni le texte ni la clé.
+        // ailleurs, ou sans https, ne reçoit ni le texte ni la clé.
         'voyageai' => [
             'driver' => 'voyageai',
             'key' => env('VOYAGE_API_KEY'),
+            'training_opt_out' => env('VOYAGE_TRAINING_OPT_OUT', false) === true,
             'url' => env('VOYAGE_URL', 'https://api.voyageai.com/v1'),
             'legal_name' => 'Voyage AI',
             'serves' => 'embeddings',
