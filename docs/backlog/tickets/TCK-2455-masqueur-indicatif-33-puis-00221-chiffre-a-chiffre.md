@@ -1,7 +1,7 @@
 ---
 id: TCK-2455
 title: "Socle IA : `+33 00221 7 7 0 1 2 3 4 5 6` ne laisse plus sept chiffres du numéro en clair"
-status: review
+status: done
 phase: P2
 family: back
 estimate: S
@@ -68,14 +68,12 @@ Aucun endpoint, aucune migration. `App\Support\PhoneMasker` et son miroir `scrip
 - [x] AC1 — `Tel +33 00221 7 7 0 1 2 3 4 5 6` et `Tel +33 221 7 7 0 1 2 3 4 5 6` ne laissent aucun chiffre de
       `7 7 0 1 2 3 4 5 6` en clair.
 - [x] AC2 — Parité PHP/JS : 0 écart. Face à `dev`, ce qui sort en clair est classé par script et nommé dans TCK-2454, sans être nul : `Tel +33 00221 77 01 78 123 45 67` laisse `45 67`, masqué sur `dev`, et ne donne aucun contact (limite).
-- [ ] AC3 — Le job CI `image` est vert.
+- [x] AC3 — Le job CI `image` est vert.
 - [x] AC4 — Ablation de chaque correctif : rouge.
 
-## Reste sur dev
+## Clôture
 
-- AC3 : le job CI `image` n'a pas tourné : `api-ci.yml` se déclenche sur une PR ou sur un push vers `dev`, et la PR n'est pas ouverte.
-  Mesuré à la place, en local : `smoke-api.sh masqueur`, que ce job lance, sort en 0 sur l'image de `7034bdf9e` (PCRE2 10.44).
-  À cocher au vu du job de la PR, puis passer le ticket à `done`.
+AC3 tenu le 2026-10-31 : le job CI `image` de la PR #1624 est vert sur `30d3c92d7`, étape `smoke-api.sh masqueur` comprise.
 
 ## Notes d'implémentation
 
