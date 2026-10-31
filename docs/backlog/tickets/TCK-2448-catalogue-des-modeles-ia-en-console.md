@@ -1,7 +1,7 @@
 ---
 id: TCK-2448
 title: "Socle IA : catalogue des modèles et de leurs tarifs en base, réglable dans la console (ADR-0085, ADR-0086)"
-status: todo
+status: doing
 phase: P1
 family: full
 estimate: L
