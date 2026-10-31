@@ -790,7 +790,9 @@ en est le premier usager. Vision et lots : [plan du 2026-10-26](plans/2026-10-26
   C'est aussi le cas des écritures suivantes, à condition qu'aucun chiffre ne prolonge le numéro à
   trois séparateurs près, un nombre d'un à trois chiffres sans 0 en tête suivi d'un mot ne comptant
   pas (`3 chambres`, `1er étage`, une ligne suivante `2 salons`) : `(221)` suivi d'un numéro à
-  groupement libre par espaces, sans marque derrière (`Villa R+1 (221) 77 01 234 56`) ; `221` nu
+  groupement libre par espaces, son préfixe d'un seul tenant ou ses neuf chiffres un à un, sans marque
+  derrière (`Villa R+1 (221) 77 01 234 56` ; mais `Villa R+1 (221) 7 70 12 34 56` donne
+  `Villa R[TELEPHONE]`) ; `221` nu
   suivi d'un numéro groupé comme ci-dessus, sans marque derrière (`Villa R+1 221 77 012 34 56` donne
   `Villa R+1 [TELEPHONE]`) ; `00221`, collé, suivi d'un tel numéro, marque ou non
   (`Villa R+1 00221 77 012 34 56 F` donne `Villa R+1 [TELEPHONE] F`) (TCK-2451). Ailleurs, un indicatif
@@ -802,10 +804,18 @@ en est le premier usager. Vision et lots : [plan du 2026-10-26](plans/2026-10-26
   `Contact +1 00221 77 012 34 56 3 chambres` donne `Contact [TELEPHONE] 3 chambres` ; le plan dépassé,
   `Contact +1 (221) 770123456` donne `Contact +1 (221) [TELEPHONE]` (TCK-2451). Limites connues :
   derrière `(221)` et un numéro de la première forme, un chiffre qui suit reste hors du masque
-  (`Villa R+1 (221) 77 012 34 56 7` donne `Villa R+1 (221) [TELEPHONE] 7`) (TCK-2447) ; suivi d'un
-  groupe de chiffres qui n'est pas un petit nombre suivi d'un mot, un numéro à indicatif laisse sa
-  fin en clair (`Villa R+1 00221 77 012 34 56 78 90` donne `Villa R[TELEPHONE] 34 56 78 90` ; de même
-  derrière `… 56` : `12 500 F`, `000 F`, `1234 m2`, `3,5 pièces`, `3 /mois`, `0 frais`), comme un
+  (`Villa R+1 (221) 77 012 34 56 7` donne `Villa R+1 (221) [TELEPHONE] 7`) (TCK-2447) ; chiffre à
+  chiffre, le petit nombre suivi d'un mot compte encore (`Villa R+1 (221) 7 7 0 1 2 3 4 5 6 3 chambres`
+  donne `Villa R+1 (221) 7 [TELEPHONE] chambres`, de même derrière `221` nu) ; suivi d'une marque, un
+  numéro dont le dernier groupe n'a pas deux chiffres ou l'avant-dernier un seul, d'un seul tenant ou
+  chiffre à chiffre compris, derrière `221` nu ou `(221)`, reste en clair, comme sans étage (`Villa R+1 221 770123456 F`,
+  `Villa R+1 (221) 770123456 F`, `Villa R+1 221 77 01 23 456 F` sortent inchangés) (à traiter :
+  TCK-2454) ; derrière l'étage `1` ou `7` ou un étage qui est un indicatif, `00221`, `221` nu ou
+  `(221)` devant un autre groupement libre, suivis d'un groupe de chiffres qui n'est pas un petit
+  nombre suivi d'un mot, laissent la fin du numéro en clair (`Villa R+1 00221 77 012 34 56 78 90`
+  donne `Villa R[TELEPHONE] 34 56 78 90` ; de même derrière `… 56` : `12 500 F`, `000 F`, `1234 m2`,
+  `3,5 pièces`, `3 /mois`, `0 frais`), alors qu'ailleurs seul le groupe reste en clair
+  (`Villa 00221 77 012 34 56 78 90` donne `Villa [TELEPHONE] 78 90`) ; de même un
   numéro tronqué suivi d'un autre (`Villa R+1 00221 77 012 34 / 78 123 45 67` donne
   `Villa R[TELEPHONE] 34 / [TELEPHONE]`) et l'écriture `0221` derrière un étage qui est un indicatif
   (`Immeuble R+20 0221 77 123 45 67` donne `Immeuble R[TELEPHONE] 67`) (à traiter : TCK-2454) ; écrit
@@ -1115,18 +1125,29 @@ catalogue tant que cet accord n'existe pas. Vision et lots : [plan du 2026-10-26
   ne rendent aucun prix (TCK-2447). Limites connues : `Villa ( 221 ) 77 012 34 56`, un tiret long
   (`Villa (221) – 77 012 34 56`), un `:`, une `,`, des crochets (`Villa [221] 77 012 34 56`) ou
   l'écriture `0221` (`Villa 0221 77 012 34 56`) laissent encore un prix de 221 (TCK-2447) ; derrière
-  l'étage `1` ou `7`, `221` nu suivi d'un autre groupement ou d'une marque
-  (`Villa R+1 221 77 01 234 56`, `Villa R+1 221 77 012 34 56 F`), `(221)` suivi d'une marque
-  (`Villa R+1 (221) 77 012 34 56 F`), `00 221` en deux morceaux (`Villa R+1 00 221 77 012 34 56`) et
-  `00221` suivi d'un autre groupement (`Villa R+1 00221 77 1 23 45 67`) ne donnent pas ce contact, le
-  masque les couvrant en entier sans qu'aucun soit lu comme un prix ; chiffre à chiffre,
+  l'étage `1` ou `7`, ne donnent pas ce contact, le numéro étant masqué, `221` nu suivi d'un autre
+  groupement (`Villa R+1 221 77 01 234 56`), `221` nu ou `(221)` suivi d'une marque quand le dernier
+  groupe du numéro a deux chiffres et l'avant-dernier au moins deux (`Villa R+1 221 77 012 34 56 F`, `Villa R+1 (221) 77 012 34 56 F`,
+  `Villa R+1 (221) 77 01 234 56 F`), `(221)` devant un préfixe coupé (`Villa R+1 (221) 7 70 12 34 56`),
+  `00 221` en deux morceaux devant un numéro groupé 2-3-2-2 ou 3-2-2-2
+  (`Villa R+1 00 221 77 012 34 56`) et `00221` devant certains groupements libres
+  (`Villa R+1 00221 77 1 23 45 67`) ; suivi d'une marque, un numéro dont le dernier groupe n'a pas
+  deux chiffres ou l'avant-dernier un seul, d'un seul tenant ou chiffre à chiffre compris, derrière
+  `221` nu ou `(221)`, sort inchangé, sans contact, et se lit comme un prix, comme sans étage : `Villa R+1 221 770123456 F` et
+  `Villa R+1 (221) 770123456 F` rendent 770 123 456, `Villa R+1 221 77 01 23 456 F` rend 23 456,
+  `Villa R+1 221 77 0123 456 F` rend 456 (à traiter : TCK-2454) ; chiffre à chiffre,
   `Villa R+1 00221 7 7 0 1 2 3 4 5 6` est masqué sans donner de contact, quand
-  `Villa R+1 221 7 7 0 1 2 3 4 5 6` donne le contact et laisse `221` en clair ; un numéro suivi d'un
-  autre numéro entier (`Villa R+1 00221 77 012 34 56 / 78 123 45 67`) est masqué en entier, mais seul
-  le second contact est lu (TCK-2451) ; un chiffre qui suit `(221)` et un numéro de la première forme
+  `Villa R+1 221 7 7 0 1 2 3 4 5 6` donne le contact et laisse `221` en clair ; suivi d'un petit nombre
+  et d'un mot (`Villa R+1 (221) 7 7 0 1 2 3 4 5 6 3 chambres`, de même derrière `221` nu), il ne donne
+  aucun contact et rend un prix de 221 ; derrière `00221`, `221` nu ou `(221)` devant un autre
+  groupement libre, un numéro suivi d'un autre numéro entier
+  (`Villa R+1 00221 77 012 34 56 / 78 123 45 67`) est masqué en entier, mais seul le second contact
+  est lu, quand `Villa R+1 (221) 77 012 34 56 / 78 123 45 67` donne les deux (TCK-2451) ; un chiffre qui suit `(221)` et un numéro de la première forme
   du §2.11 peut être lu comme un prix (`Villa R+1 (221) 77 012 34 56 78 F` garde son contact et rend
-  78) (TCK-2447) ; un numéro à indicatif suivi d'un groupe de chiffres qui n'est pas un petit nombre
-  suivi d'un mot ne donne pas de contact et laisse sa fin en clair ([§2.11](#211-socle-ia)), et ce qui
+  78) (TCK-2447) ; derrière l'étage `1` ou `7` ou un étage qui est un indicatif, `00221`, `221` nu ou
+  `(221)` devant un autre groupement libre, suivis d'un groupe de chiffres qui n'est pas un petit
+  nombre suivi d'un mot, ne donnent pas de contact et laissent la fin du numéro en clair
+  ([§2.11](#211-socle-ia)), quand `Villa 00221 77 012 34 56 78 90` garde le sien, et ce qui
   suit peut être lu comme un prix, parfois agrégé à la fin du numéro
   (`Villa R+1 00221 77 012 34 56 000 F` rend 56 000, `… 56 450 000 F` rend 56 450 000,
   `… 56 12 500 F` rend 12 500, `… 56 3 /mois` rend 3) (à traiter : TCK-2454). Un nombre nu de moins de 100, sans monnaie, période ni multiplicateur, n'est jamais
