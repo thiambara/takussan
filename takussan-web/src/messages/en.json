@@ -8562,6 +8562,8 @@
           "latency": "Average latency (ms)",
           "errors": "Errors",
           "refusals": "Refusals",
+          "providerRejections": "Provider refusals, failed over",
+          "providerRejectionsNotice": "{count, plural, one {# call failed over to the next link because the provider refused it. Check this provider: the fallback hides its failure.} other {# calls failed over to the next link because the provider refused them. Check this provider: the fallback hides its failure.}}",
           "acceptanceCaption": "Suggestion acceptance rate",
           "acceptance": "Accepted as is",
           "decided": "Decided",

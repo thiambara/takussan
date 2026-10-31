@@ -11,9 +11,12 @@ use App\Models\Enums\AiModelRole;
 use App\Models\Enums\AiRefusalReason;
 use App\Services\Ai\Exceptions\AiRefused;
 use App\Services\Ai\Exceptions\AiUnavailable;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Laravel\Ai\Embeddings;
+use Laravel\Ai\Enums\Lab;
+use Laravel\Ai\Exceptions\AiException;
 use Laravel\Ai\Exceptions\FailoverableException;
 use Laravel\Ai\Responses\Data\FinishReason;
 use Laravel\Ai\Responses\Data\TextUsage;
@@ -37,6 +40,12 @@ final class AiGateway
 
     /** Délai d'un appel d'embeddings : un lot tient sous le `$timeout` du job (`EmbedRadarListings`). */
     private const EMBEDDING_TIMEOUT_SECONDS = 30;
+
+    /** `ai_calls.warning` du maillon d'un autre pilote qu'Anthropic, refusé puis basculé ({@see self::rejectionFailsOver()}). */
+    public const WARNING_PROVIDER_REJECTED = 'provider_rejected';
+
+    /** Les refus qui ne disent rien du maillon suivant. 401 et 403 restent dehors : une clé refusée doit se voir. */
+    private const REJECTIONS_THAT_FAIL_OVER = [400, 404, 408, 413, 422, 500];
 
     public function __construct(
         private readonly AiUsageRegistry $registry,
@@ -80,11 +89,12 @@ final class AiGateway
 
         $instructions = $this->prompts->load($usage->key(), $usage->promptVersion());
         $last = null;
-        foreach ($chain as $link) {
+        foreach ($chain as $rank => $link) {
             $started = hrtime(true);
+            $driver = $this->driverOf($link);
             try {
                 $agent = app($usage->agentClass())->configure($instructions, $link->maxTokens, count($chain));
-                $response = $agent->prompt($input, $request->attachments, provider: $this->providerFor($agent, $link), model: $link->model);
+                $response = $agent->prompt($input, $request->attachments, provider: $this->providerFor($agent, $link, $driver), model: $link->model);
             } catch (FailoverableException $e) {
                 $this->journal($usage, $request, $this->linkColumns($link) + [
                     'outcome' => AiCallOutcome::FailedOver, 'error_code' => AiErrorCode::fromThrowable($e), 'duration_ms' => $this->elapsed($started),
@@ -93,11 +103,17 @@ final class AiGateway
 
                 continue;
             } catch (Throwable $e) {
+                $failsOver = $rank < array_key_last($chain) && $this->rejectionFailsOver($e, $driver);
                 $this->journal($usage, $request, $this->linkColumns($link) + [
-                    'outcome' => AiCallOutcome::Error, 'error_code' => AiErrorCode::fromThrowable($e), 'duration_ms' => $this->elapsed($started),
+                    'outcome' => $failsOver ? AiCallOutcome::FailedOver : AiCallOutcome::Error, 'error_code' => AiErrorCode::fromThrowable($e), 'duration_ms' => $this->elapsed($started),
+                    'warning' => $failsOver ? self::WARNING_PROVIDER_REJECTED : null,
                 ]);
+                if (! $failsOver) {
+                    throw $e;
+                }
+                $last = $e;
 
-                throw $e;
+                continue;
             }
 
             $cost = $this->costs->estimate($link->provider, $link->model, $response->usage);
@@ -127,10 +143,10 @@ final class AiGateway
             }
 
             $structured = $response instanceof StructuredAgentResponse ? $response->toArray() : null;
-            // TCK-2433 — un agent non strict choisit librement d'appeler l'outil de sortie (`tool_choice`
-            // `auto`) : une réponse qui n'en rend rien (ni appel d'outil, ni JSON dans le texte) est
-            // inexploitable, payée, et le maillon a échoué.
-            if (! $agent->usesStrictSchema() && $response instanceof StructuredAgentResponse && $structured === []) {
+            // TCK-2433, TCK-2449 — sans mode strict sur ce pilote, rien ne contraint le modèle : une réponse
+            // qui ne rend pas de sortie (ni appel d'outil, ni JSON dans le texte) est inexploitable, payée, et
+            // le maillon a échoué.
+            if (! $agent->usesStrictSchema($driver) && $response instanceof StructuredAgentResponse && $structured === []) {
                 $this->journal($usage, $request, $spent + ['outcome' => AiCallOutcome::FailedOver, 'error_code' => 'ai.response_invalid']);
                 $last = new AiUnavailable('ai.response_invalid');
 
@@ -152,7 +168,7 @@ final class AiGateway
 
     /**
      * TCK-2423 (ADR-0076, amendement du 2026-10-31) — des vecteurs, dans le même ordre que {@see self::run()} : autorité,
-     * coupe-circuit, budget, données (refus, masquage de chaque entrée), appel maillon par maillon, journal. Un
+     * coupe-circuit, budget, données (refus, masquage de chaque entrée), appel maillon par maillon avec la même bascule, journal. Un
      * {@see EmbeddingUsage} tourne sans acteur : une tâche planifiée, que personne ne demande. Pas de cache : c'est l'empreinte
      * du contenu, chez l'appelant, qui évite de payer deux fois.
      *
@@ -174,7 +190,7 @@ final class AiGateway
         }
 
         $last = null;
-        foreach ($chain as $link) {
+        foreach ($chain as $rank => $link) {
             if (! $this->providers->reachable($link->provider)) {
                 $this->journal($usage, $request, $this->linkColumns($link) + ['outcome' => AiCallOutcome::FailedOver, 'error_code' => 'ai.provider_unreachable']);
                 $last = new AiUnavailable('ai.provider_unreachable');
@@ -197,11 +213,17 @@ final class AiGateway
 
                 continue;
             } catch (Throwable $e) {
+                $failsOver = $rank < array_key_last($chain) && $this->rejectionFailsOver($e, $this->driverOf($link));
                 $this->journal($usage, $request, $this->linkColumns($link) + [
-                    'outcome' => AiCallOutcome::Error, 'error_code' => AiErrorCode::fromThrowable($e), 'duration_ms' => $this->elapsed($started),
+                    'outcome' => $failsOver ? AiCallOutcome::FailedOver : AiCallOutcome::Error, 'error_code' => AiErrorCode::fromThrowable($e), 'duration_ms' => $this->elapsed($started),
+                    'warning' => $failsOver ? self::WARNING_PROVIDER_REJECTED : null,
                 ]);
+                if (! $failsOver) {
+                    throw $e;
+                }
+                $last = $e;
 
-                throw $e;
+                continue;
             }
 
             // Un embedding ne paie que son entrée, au tarif `input` du catalogue.
@@ -316,16 +338,42 @@ final class AiGateway
     }
 
     /**
-     * TCK-2433 — le fournisseur que laravel/ai doit jouer pour ce maillon. Un agent non strict
-     * ({@see SocleAgent::usesStrictSchema()}) reçoit un double du fournisseur configuré, à
-     * `use_native_structured_output` faux : laravel/ai y demande la sortie par un outil forcé non strict
-     * au lieu d'`output_config` (il ne le règle que par fournisseur). Le double n'existe qu'à l'exécution,
-     * hors de la liste fermée de `config/ai.php` ; le journal, le coût et la chaîne gardent le nom réel.
+     * TCK-2449 (ADR-0085, amendement du 2026-10-31) — hors d'Anthropic, ce qu'un point d'accès accepte peut changer
+     * sans commit : un refus ne condamne pas le maillon suivant, et une panne peut arriver en HTTP 200 (une
+     * `AiException` de classe exacte, écrite par le SDK sur un corps qui porte `error`). Une clé refusée, dans le
+     * statut ou dans le corps, ne bascule pas : elle doit se voir. Sur Anthropic, rien ne change : un schéma refusé
+     * y reste bruyant (TCK-2433), et 500 et 408 y arrêtent aussi la chaîne, par choix de ne rien y changer.
      */
-    private function providerFor(SocleAgent $agent, ModelLink $link): string
+    private function rejectionFailsOver(Throwable $e, string $driver): bool
+    {
+        if ($driver === Lab::Anthropic->value) {
+            return false;
+        }
+
+        return $e instanceof RequestException
+            ? in_array($e->response->status(), self::REJECTIONS_THAT_FAIL_OVER, true)
+            : $e::class === AiException::class && AiErrorCode::fromThrowable($e) !== 'ai.provider_auth';
+    }
+
+    /** Le pilote du maillon. Une entrée absente de la configuration : son nom, comme le fait le SDK (`AiManager`). */
+    private function driverOf(ModelLink $link): string
+    {
+        return config("ai.providers.{$link->provider}.driver", $link->provider);
+    }
+
+    /**
+     * TCK-2433, TCK-2449 — le fournisseur que laravel/ai doit jouer pour ce maillon. Un agent non strict sur
+     * ce pilote ({@see SocleAgent::usesStrictSchema()}) reçoit un double de l'entrée configurée, tous ses
+     * réglages gardés, à `use_native_structured_output` faux : sur `anthropic`, laravel/ai y demande la sortie
+     * par un outil au lieu d'`output_config` (il ne le règle que par fournisseur). Les pilotes `openai`,
+     * `openrouter` et `openai-compatible` ignorent ce réglage ; leur `strict` suit l'attribut `#[Strict]`,
+     * qu'aucun agent ne porte. Le double n'existe qu'à l'exécution, hors de la liste fermée de `config/ai.php` ;
+     * le journal, le coût et la chaîne gardent le nom réel.
+     */
+    private function providerFor(SocleAgent $agent, ModelLink $link, string $driver): string
     {
         $base = config("ai.providers.{$link->provider}");
-        if ($agent->usesStrictSchema() || ! is_array($base)) {
+        if ($agent->usesStrictSchema($driver) || ! is_array($base)) {
             return $link->provider;
         }
         $alias = $link->provider.self::TOOL_OUTPUT_SUFFIX;

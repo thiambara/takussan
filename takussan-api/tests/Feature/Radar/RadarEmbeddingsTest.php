@@ -13,7 +13,9 @@ use App\Models\Enums\AiRefusalReason;
 use App\Models\Enums\RadarListingStage;
 use App\Models\RadarAdvertiser;
 use App\Models\RadarListing;
+use App\Services\Ai\AiEmbeddingResult;
 use App\Services\Ai\AiGateway;
+use App\Services\Ai\AiRequest;
 use App\Services\Ai\AiUsageRegistry;
 use App\Services\Radar\Embeddings\RadarEmbeddingSweep;
 use App\Services\Radar\Embeddings\RadarEmbeddingTarget;
@@ -23,6 +25,7 @@ use App\Services\Radar\Similarity\EmbeddingTextSimilarity;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
@@ -318,6 +321,50 @@ class RadarEmbeddingsTest extends TestCase
 
         Http::assertSentCount(1);
         $this->assertSame('ai.provider_auth', AiCall::query()->sole()->error_code);
+    }
+
+    // ─── La bascule, la même que `run()` (TCK-2449) ──────────────────────────────────────
+
+    /** Une chaîne de deux maillons, `voyageai` refusé au statut donné. */
+    private function embedAvecSecours(int $statut): AiEmbeddingResult
+    {
+        config([
+            'ai.providers.secours' => ['url' => 'https://secours.example/v1'] + config('ai.providers.voyageai'),
+            'ai.providers.secours.allowed_hosts' => ['secours.example'],
+            'ai.roles.embedding' => [
+                ['provider' => 'voyageai', 'model' => 'voyage-4', 'max_tokens' => 1],
+                ['provider' => 'secours', 'model' => 'voyage-4', 'max_tokens' => 1],
+            ],
+        ]);
+        Http::fake([
+            'api.voyageai.com/*' => Http::response(['detail' => 'refus'], $statut),
+            'secours.example/*' => Http::response(['data' => [['embedding' => $this->vecteur(0.5), 'index' => 0]], 'usage' => ['total_tokens' => 10]]),
+        ]);
+
+        return app(AiGateway::class)->embed(new AiRequest(RadarEmbeddingUsage::KEY, self::COPIE), [self::COPIE], 1024);
+    }
+
+    public function test_un_refus_bascule_sur_le_maillon_suivant_et_le_journal_le_dit(): void
+    {
+        $resultat = $this->embedAvecSecours(400);
+
+        $this->assertSame('secours', $resultat->link->provider);
+        $refus = AiCall::query()->where('provider', 'voyageai')->sole();
+        $this->assertSame([AiCallOutcome::FailedOver, 'ai.request_rejected', AiGateway::WARNING_PROVIDER_REJECTED], [$refus->outcome, $refus->error_code, $refus->warning]);
+        $this->assertSame(AiCallOutcome::Success, AiCall::query()->where('provider', 'secours')->sole()->outcome);
+    }
+
+    public function test_une_cle_refusee_ne_bascule_pas_sur_le_maillon_suivant(): void
+    {
+        try {
+            $this->embedAvecSecours(401);
+            $this->fail('une clé refusée doit se voir');
+        } catch (RequestException $e) {
+            $this->assertSame(401, $e->response->status());
+        }
+
+        $this->assertSame(AiCallOutcome::Error, AiCall::query()->sole()->outcome);
+        Http::assertNotSent(fn (Request $requete) => str_contains($requete->url(), 'secours.example'));
     }
 
     /** @return array<string, array{list<float>}> */

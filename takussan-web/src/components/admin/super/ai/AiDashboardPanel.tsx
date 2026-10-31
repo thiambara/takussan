@@ -48,8 +48,11 @@ export function AiDashboardPanel() {
     { id: 'latency', header: t('latency'), align: 'end', cell: (row) => <span className="tabular-nums">{row.avg_duration_ms ?? '—'}</span> },
     { id: 'errors', header: t('errors'), align: 'end', cell: (row) => <span className="tabular-nums">{row.errors}</span> },
     { id: 'refusals', header: t('refusals'), align: 'end', cell: (row) => <span className="tabular-nums">{row.refusals}</span> },
+    { id: 'providerRejections', header: t('providerRejections'), align: 'end', cell: (row) => <span className="tabular-nums">{row.provider_rejections}</span> },
   ];
   const data = query.data?.data;
+  // TCK-2449 — un fournisseur cassé s'efface derrière le secours : sans cette phrase, rien ne le dirait.
+  const refusFournisseur = (data?.days ?? []).reduce((total, row) => total + row.provider_rejections, 0);
   const acceptance = Object.entries(data?.acceptance ?? {});
   const baselines = Object.entries(data?.baselines ?? {});
   const colonnesAcceptation: DataTableColumn<[string, LigneAcceptation]>[] = [
@@ -85,6 +88,7 @@ export function AiDashboardPanel() {
               ? t('today', { spent: montant(data.today.spent_usd, taux), budget: montant(data.today.daily_budget_usd, taux) })
               : t('todayNoBudget', { spent: montant(data?.today.spent_usd ?? '0', taux) })}
           </p>
+          {refusFournisseur > 0 ? <p role="status" className="text-sm font-medium">{t('providerRejectionsNotice', { count: refusFournisseur })}</p> : null}
           {(data?.days ?? []).length === 0 ? (
             <EmptyState icon={<BarChart3 className="size-8" aria-hidden="true" />} title={t('emptyTitle')} description={t('emptyDescription')} />
           ) : (

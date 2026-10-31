@@ -7,6 +7,7 @@ use App\Services\Ai\Exceptions\AiUnavailable;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
 use JsonException;
+use Laravel\Ai\Exceptions\AiException;
 use Laravel\Ai\Exceptions\InsufficientCreditsException;
 use Laravel\Ai\Exceptions\ProviderConnectionException;
 use Laravel\Ai\Exceptions\ProviderOverloadedException;
@@ -34,8 +35,18 @@ final class AiErrorCode
             $e instanceof ConnectionException => self::connection($e),
             $e instanceof RequestException => self::status($e->response->status()),
             $e instanceof JsonException => 'ai.response_invalid',
+            $e::class === AiException::class && self::bodyRefusesTheKey($e) => 'ai.provider_auth',
             default => 'ai.unexpected',
         };
+    }
+
+    /**
+     * TCK-2449 — une erreur écrite dans le corps d'une réponse HTTP 200 : le SDK n'en garde que « [type ou code]
+     * message ». Un 401 ou un 403 y vaut le même statut HTTP. Le message est lu, jamais rendu.
+     */
+    private static function bodyRefusesTheKey(AiException $e): bool
+    {
+        return preg_match('/^[^\[]*\[(?:401|403|[^\]]*(?:auth|permission|forbidden|api_key)[^\]]*)\]/i', $e->getMessage()) === 1;
     }
 
     private static function connection(ConnectionException $e): string
@@ -48,6 +59,7 @@ final class AiErrorCode
     {
         return match (true) {
             $status === 401, $status === 403 => 'ai.provider_auth',
+            $status === 408 => 'ai.provider_timeout',
             $status === 429 => 'ai.provider_rate_limited',
             $status >= 500 => 'ai.provider_unavailable',
             default => 'ai.request_rejected',

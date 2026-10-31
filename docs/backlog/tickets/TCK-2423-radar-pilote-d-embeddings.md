@@ -73,7 +73,8 @@ la base cible, à vérifier en préproduction).
   commande a ensuite créé la table une fois l'extension posée.
 - **Le job relit deux fois** : `due()` avant d'envoyer (un STOP posé pendant l'attente coupe l'envoi), puis sous verrou avant
   d'écrire (une purge ou un STOP pendant l'appel n'écrit rien). Un STOP posé pendant l'appel n'arrête pas ce qui est déjà parti.
-- **`AiGateway::embed()`** partage `admit()` avec `run()` : même ordre, mêmes refus, un seul endroit.
+- **`AiGateway::embed()`** partage `admit()` avec `run()` : même ordre, mêmes refus, un seul endroit. Il suit aussi la bascule de
+  TCK-2449 (`rejectionFailsOver`) : un refus passe au maillon suivant, une clé refusée s'arrête. Le job, qui joue un seul maillon, n'en change pas.
 - **Aucun vrai appel** : le contrat (`/embeddings`, `input_type`, `output_dimension`, tarifs, refus de l'entraînement) est
   vérifié sur la documentation de Voyage du 2026-10-31, jamais éprouvé. Les seuils vectoriels ne reposent sur aucune mesure.
 

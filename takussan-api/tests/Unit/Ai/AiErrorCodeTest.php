@@ -9,6 +9,7 @@ use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\Client\Response as ClientResponse;
 use JsonException;
+use Laravel\Ai\Exceptions\AiException;
 use Laravel\Ai\Exceptions\InsufficientCreditsException;
 use Laravel\Ai\Exceptions\ProviderConnectionException;
 use Laravel\Ai\Exceptions\ProviderOverloadedException;
@@ -38,6 +39,9 @@ class AiErrorCodeTest extends TestCase
             'délai dépassé' => [new ConnectionException('cURL error 28: Operation timed out after 300000 milliseconds'), 'ai.provider_timeout'],
             'hôte injoignable' => [new ConnectionException('cURL error 6: Could not resolve host'), 'ai.provider_unavailable'],
             'clé refusée 401' => [$http(401), 'ai.provider_auth'],
+            'délai du fournisseur 408' => [$http(408), 'ai.provider_timeout'],
+            'clé refusée dans le corps' => [new AiException('OpenRouter Error: [401] Clé refusée.'), 'ai.provider_auth'],
+            'panne dans le corps' => [new AiException('OpenRouter Error: [502] 401 en amont [auth].'), 'ai.unexpected'],
             'clé refusée 403' => [$http(403), 'ai.provider_auth'],
             'débit 429' => [$http(429), 'ai.provider_rate_limited'],
             'panne 503' => [$http(503), 'ai.provider_unavailable'],

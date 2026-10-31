@@ -24,7 +24,10 @@ use App\Services\Radar\ConsentMessageComposer;
 use App\Services\Radar\RadarConsentWorkflow;
 use App\Services\Radar\RadarPurger;
 use Carbon\Carbon;
+use GuzzleHttp\Psr7\Response as Psr7Response;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\RequestException;
+use Illuminate\Http\Client\Response;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Bus;
@@ -642,6 +645,17 @@ class RadarConsentReplyTest extends TestCase
         $this->lancer($reponse)->assertReleased(60);
 
         Exceptions::assertNothingReported();
+    }
+
+    /** TCK-2449 — un délai dépassé par le fournisseur se reprend : il ne clôt pas la vérification. */
+    public function test_un_408_du_fournisseur_n_est_pas_definitif(): void
+    {
+        RadarConsentVerification::fake(fn () => throw new RequestException(new Response(new Psr7Response(408))));
+        $reponse = $this->reponseDeposee();
+
+        $this->lancer($reponse)->assertReleased(60);
+
+        $this->assertNotSame(RadarVerificationStatus::Failed, $reponse->fresh()->verification_status);
     }
 
     public function test_un_imprevu_apres_l_appel_paye_fait_echouer_la_reponse_sans_repayer(): void
