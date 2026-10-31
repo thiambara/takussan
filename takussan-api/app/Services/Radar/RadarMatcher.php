@@ -7,6 +7,7 @@ use App\Models\Property;
 use App\Models\RadarAdvertiser;
 use App\Models\RadarListing;
 use App\Services\Moderation\DuplicateListingDetector;
+use App\Services\Radar\Similarity\EmbeddingTextSimilarity;
 use App\Services\Radar\Similarity\RadarTextSimilarity;
 use App\Support\CanonicalPhone;
 use App\Support\PhotoFingerprint;
@@ -46,8 +47,9 @@ use Illuminate\Database\Eloquent\Builder;
  * distance ≤ 1, `medium` à 2 ou 3.
  *
  * **Même texte** (TCK-2392). Le texte replié de l'annonce (`similarity_text`, sans chiffres) comparé à celui des autres
- * annonces par le pilote de `radar.similarity.driver` ({@see RadarTextSimilarity} ; `trigram` par défaut, sans fournisseur).
- * `medium` au-delà de `radar.similarity.close`, `low` en deçà ; jamais `high` seul : un texte type se recopie d'une annonce à
+ * annonces par le pilote de `radar.similarity.driver` ({@see RadarTextSimilarity} ; `embeddings` retombe sur `trigram` sans clé
+ * ni vecteur, TCK-2423). Le signal dit sa `method` : `medium` au-delà de son seuil (`radar.similarity.close`, ou
+ * `radar.similarity.embeddings.close`), `low` en deçà ; jamais `high` seul : un texte type se recopie d'une annonce à
  * l'autre. Pas contre les biens : le catalogue n'a pas de texte replié.
  *
  * **Cibles exclues** : l'annonce elle-même, les annonces `purged`, les biens de test et supprimés. Les
@@ -88,7 +90,7 @@ final class RadarMatcher
 
     /**
      * @return list<array{kind: 'property'|'listing', id: int, strength: 'high'|'medium'|'low',
-     *                    signals: list<array{signal: string, strength: string, distance?: int, price_gap?: float, similarity?: float}>}>
+     *                    signals: list<array{signal: string, strength: string, distance?: int, price_gap?: float, similarity?: float, method?: string}>}>
      */
     public function matchesFor(RadarListing $listing): array
     {
@@ -143,9 +145,11 @@ final class RadarMatcher
 
         $text = $listing->similarity_text;
         if (is_string($text) && $text !== '') {
-            $close = (float) config('radar.similarity.close', 0.8);
-            foreach ($this->similarity->similar($this->otherListings($listing), $text, self::MAX_PER_SIGNAL) as ['id' => $id, 'score' => $score]) {
-                $add('listing', $id, ['signal' => self::SIGNAL_TEXT, 'strength' => $score >= $close ? 'medium' : 'low', 'similarity' => $score]);
+            foreach ($this->similarity->similar($this->otherListings($listing), $text, self::MAX_PER_SIGNAL) as ['id' => $id, 'score' => $score, 'method' => $method]) {
+                $close = $method === EmbeddingTextSimilarity::METHOD
+                    ? (float) config('radar.similarity.embeddings.close')
+                    : (float) config('radar.similarity.close', 0.8);
+                $add('listing', $id, ['signal' => self::SIGNAL_TEXT, 'strength' => $score >= $close ? 'medium' : 'low', 'similarity' => $score, 'method' => $method]);
             }
         }
 

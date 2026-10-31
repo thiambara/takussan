@@ -5,6 +5,7 @@ namespace App\Services\Radar;
 use App\Models\Enums\RadarListingStage;
 use App\Models\RadarListing;
 use App\Models\User;
+use App\Services\Radar\Similarity\EmbeddingTextSimilarity;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
 
@@ -200,7 +201,12 @@ final class RadarAutoMerge
             return false;
         }
 
-        return array_diff($names, [RadarMatcher::SIGNAL_PLACE, RadarMatcher::SIGNAL_PHONE]) !== [];
+        // TCK-2423 — deux lots voisins se décrivent de même sans être le même bien : un rapprochement par vecteurs ne corrobore
+        // pas, tant que `radar.similarity.embeddings.corroborates_merge` est faux (aucune mesure réelle).
+        $corroborating = array_filter($signals, fn (array $signal): bool => ! in_array($signal['signal'], [RadarMatcher::SIGNAL_PLACE, RadarMatcher::SIGNAL_PHONE], true)
+            && (($signal['method'] ?? null) !== EmbeddingTextSimilarity::METHOD || config('radar.similarity.embeddings.corroborates_merge') === true));
+
+        return $corroborating !== [];
     }
 
     /**

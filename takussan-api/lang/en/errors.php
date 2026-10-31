@@ -80,6 +80,7 @@ return [
         'model_not_in_config' => 'This model has no configuration entry: it can be withdrawn, not deleted.',
         'model_unpriced' => 'This model has no price: it cannot be assigned.',
         'provider_key_missing' => 'No key is configured for this provider.',
+        'provider_role_mismatch' => 'This provider does not serve this role: embeddings and text do not mix.',
         'provider_unknown' => 'Unknown AI provider.',
         'role_unknown' => 'Unknown AI role.',
         'usage_unknown' => 'Unknown AI usage.',

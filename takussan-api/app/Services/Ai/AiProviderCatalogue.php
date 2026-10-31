@@ -36,6 +36,35 @@ final class AiProviderCatalogue
         return filled(config('ai.providers')[$provider]['key'] ?? null);
     }
 
+    /** TCK-2423 — un fournisseur d'embeddings ne joue pas un rôle de texte, et l'inverse non plus. */
+    public function servesEmbeddings(string $provider): bool
+    {
+        return (config('ai.providers')[$provider]['serves'] ?? null) === 'embeddings';
+    }
+
+    /** Sans requête : aucune clé d'embeddings, et l'appariement du Radar ne change pas d'une ligne. */
+    public function anyEmbeddingKeyPresent(): bool
+    {
+        foreach (array_keys(config('ai.providers')) as $provider) {
+            if ($this->servesEmbeddings($provider) && $this->keyPresent($provider)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /** Une clé, et une adresse sur un hôte que la configuration accepte quand elle en déclare (ADR-0085 §4). */
+    public function reachable(string $provider): bool
+    {
+        if (! $this->keyPresent($provider)) {
+            return false;
+        }
+        $hosts = config('ai.providers')[$provider]['allowed_hosts'] ?? null;
+
+        return $hosts === null || in_array(parse_url((string) (config('ai.providers')[$provider]['url'] ?? ''), PHP_URL_HOST), $hosts, true);
+    }
+
     public function cheapestModel(string $provider): ?string
     {
         return $this->models->cheapestModel($provider);

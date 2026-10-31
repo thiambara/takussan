@@ -27,6 +27,18 @@ return [
             'url' => env('ANTHROPIC_URL', 'https://api.anthropic.com/v1'),
             'legal_name' => 'Anthropic',
         ],
+        // TCK-2423 — seulement des embeddings (`serves`). Sans clé, rien ne part : le Radar reste sur `pg_trgm`.
+        // `input_type` : le texte d'une annonce est un document, jamais une question. `allowed_hosts` : une adresse
+        // ailleurs ne reçoit ni le texte ni la clé.
+        'voyageai' => [
+            'driver' => 'voyageai',
+            'key' => env('VOYAGE_API_KEY'),
+            'url' => env('VOYAGE_URL', 'https://api.voyageai.com/v1'),
+            'legal_name' => 'Voyage AI',
+            'serves' => 'embeddings',
+            'allowed_hosts' => ['api.voyageai.com'],
+            'embedding_options' => ['input_type' => 'document'],
+        ],
     ],
 
     // Repli de chaque rôle quand `ai_role_assignments` n'a pas de ligne (ADR-0076 §2), dans
@@ -46,9 +58,10 @@ return [
         'vision' => [
             ['provider' => 'anthropic', 'model' => 'claude-sonnet-5-5', 'max_tokens' => 8000],
         ],
-        // Aucun fournisseur retenu ne sert d'embeddings : le premier usager (TCK-2392 ou TCK-344)
-        // en ajoute un, avec sa ligne de `privacy.ts`.
-        'embedding' => [],
+        // TCK-2423 — `max_tokens` n'a pas de sens ici : un maillon d'embeddings rend des nombres.
+        'embedding' => [
+            ['provider' => 'voyageai', 'model' => 'voyage-4'],
+        ],
     ],
 
     // Tarifs publiés, en dollars US par million de tokens, relevés le 2026-10-31. Des chaînes, jamais des
@@ -61,6 +74,13 @@ return [
             'claude-sonnet-5-5' => ['input' => '2.00', 'output' => '10.00', 'cache_read' => '0.10', 'cache_write' => '2.50'],
             // Tarif jusqu'à 100 000 tokens d'entrée (0,50 / 2,50 au-delà).
             'claude-haiku-5-5' => ['input' => '0.10', 'output' => '0.50', 'cache_read' => '0.01', 'cache_write' => '0.125'],
+        ],
+        // TCK-2423 — https://docs.voyageai.com/docs/pricing, relevé le 2026-10-31. Seule l'entrée se paie. Les 200 millions de
+        // tokens offerts ne sont pas comptés : le coût journalisé est une estimation haute tant qu'ils courent.
+        'voyageai' => [
+            'voyage-4-large' => ['input' => '0.12', 'output' => '0', 'cache_read' => '0', 'cache_write' => '0'],
+            'voyage-4' => ['input' => '0.06', 'output' => '0', 'cache_read' => '0', 'cache_write' => '0'],
+            'voyage-4-lite' => ['input' => '0.02', 'output' => '0', 'cache_read' => '0', 'cache_write' => '0'],
         ],
     ],
 

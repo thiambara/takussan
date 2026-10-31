@@ -261,6 +261,8 @@ export interface RadarMatchSignal {
   readonly price_gap?: number;
   /** TCK-2392 — texte : la similarité des deux descriptions, de 0 à 1. */
   readonly similarity?: number;
+  /** TCK-2423 — texte : la méthode du score. Un cosinus et des trigrammes ne sont pas sur la même échelle. */
+  readonly method?: 'trigram' | 'embeddings';
 }
 
 /** La cible d'un rapprochement vers un bien du catalogue (`RadarMatchPresenter::properties`). */

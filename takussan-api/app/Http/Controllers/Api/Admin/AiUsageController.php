@@ -7,8 +7,10 @@ use App\Http\Requests\Api\Admin\UpdateAiUsageRequest;
 use App\Models\AiUsageSetting;
 use App\Services\Ai\AiBudget;
 use App\Services\Ai\AiMoney;
+use App\Services\Ai\AiProviderCatalogue;
 use App\Services\Ai\AiUsage;
 use App\Services\Ai\AiUsageRegistry;
+use App\Services\Ai\EmbeddingUsage;
 use App\Services\Ai\ModelLink;
 use App\Services\Ai\ModelResolver;
 use Illuminate\Http\JsonResponse;
@@ -20,6 +22,7 @@ class AiUsageController extends Controller
         private readonly AiUsageRegistry $registry,
         private readonly ModelResolver $resolver,
         private readonly AiBudget $budget,
+        private readonly AiProviderCatalogue $providers,
     ) {}
 
     public function index(): JsonResponse
@@ -60,6 +63,7 @@ class AiUsageController extends Controller
         }
         if (filled($data['forced_model'] ?? null) && ! $request->keepsTheForcing()) {
             abort_code_unless((new ModelLink($data['forced_provider'], $data['forced_model']))->isPriced(), 422, 'ai.model_unpriced');
+            abort_code_unless($this->providers->servesEmbeddings($data['forced_provider']) === ($this->registry->get($usage) instanceof EmbeddingUsage), 422, 'ai.provider_role_mismatch');
         }
 
         $setting = AiUsageSetting::query()->firstOrNew(['usage_key' => $usage]);

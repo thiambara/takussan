@@ -4,6 +4,7 @@ namespace App\Services\Radar;
 
 use App\Jobs\Radar\VerifyRadarConsentReply;
 use App\Models\AiSuggestion;
+use App\Models\Embedding;
 use App\Models\Enums\RadarAdvertiserNature;
 use App\Models\Enums\RadarListingStage;
 use App\Models\Enums\RadarVerificationStatus;
@@ -13,6 +14,7 @@ use App\Models\RadarConsent;
 use App\Models\RadarListing;
 use App\Models\RadarListingSnapshot;
 use App\Models\RadarOutreach;
+use App\Services\Ai\EmbeddingsTable;
 use App\Services\Radar\Observatory\RadarNatureCounter;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
@@ -60,10 +62,14 @@ final class RadarPurger
     private const COUNTERS = [
         'listings', 'media', 'suggestions', 'outreaches', 'replies', 'proofs', 'advertisers_cleared', 'advertisers_deleted',
         'retention_started', 'retention_reset', 'orphan_dirs', 'orphan_copies', 'published_listings',
-        'snapshots_deleted',
+        'snapshots_deleted', 'embeddings_deleted',
     ];
 
-    public function __construct(private readonly RadarOrphanFiles $orphans, private readonly RadarNatureCounter $natureCounter) {}
+    public function __construct(
+        private readonly RadarOrphanFiles $orphans,
+        private readonly RadarNatureCounter $natureCounter,
+        private readonly EmbeddingsTable $embeddings,
+    ) {}
 
     /**
      * @param  int|null  $advertiserId  null : toute la table (la commande planifiée) ; sinon un seul annonceur, sans la rétention
@@ -134,7 +140,7 @@ final class RadarPurger
 
     /**
      * Texte brut, adresse de la source, extraction, réserve et captures ; l'étape devient `purged`. Le lien au bien (`property_id`)
-     * reste : il n'est pas une donnée collectée. Les instantanés de la collecte sont supprimés (TCK-2392).
+     * reste : il n'est pas une donnée collectée. Les instantanés de la collecte et le vecteur du texte sont supprimés (TCK-2392, TCK-2423).
      *
      * @param  array<string, int>  $counts
      */
@@ -156,6 +162,13 @@ final class RadarPurger
             'stage_reason' => null,
         ])->save();
         $counts['suggestions'] += $this->eraseSuggestions('radar.extraction', $listing);
+        // TCK-2423 — le vecteur est calculé du texte qui vient d'être effacé : il part avec lui.
+        if ($this->embeddings->exists()) {
+            $counts['embeddings_deleted'] += Embedding::query()
+                ->where('embeddable_type', $listing->getMorphClass())
+                ->where('embeddable_id', $listing->id)
+                ->delete();
+        }
 
         // Le dernier geste : les fichiers partent avec leurs lignes.
         $counts['media'] += $this->deleteMedia($listing);
