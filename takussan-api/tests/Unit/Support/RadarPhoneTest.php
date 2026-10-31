@@ -294,6 +294,36 @@ class RadarPhoneTest extends TestCase
     }
 
     /**
+     * TCK-2451 — derrière l'étage `1` ou `7`, l'indicatif `00221` ou `221` nu, et `(221)` devant un numéro groupé 2-2-3-2, ne
+     * sont pas la suite d'un numéro `+1` / `+7` : le `+` reste celui de l'étage, et le contact n'est plus perdu.
+     */
+    public function test_l_indicatif_00221_ou_221_nu_derriere_un_etage_garde_le_contact(): void
+    {
+        foreach (['Villa R+1 00221 77 012 34 56', 'Villa R+7 00221 77 012 34 56', 'Villa RDC +1 00221 77 012 34 56',
+            'Villa R+1  00221 77 012 34 56', 'Villa R+1 00221 77 012 34 56 F', 'Villa R+1 221 77 012 34 56',
+            'Villa R+7 221 77 012 34 56', 'Villa R+1 (221) 77 01 234 56', 'Villa R+7 (221) 77 01 234 56',
+            // Un petit nombre suivi d'un mot, ou une ligne suivante qui commence par un chiffre, n'est pas au numéro.
+            'Villa R+1 00221 77 012 34 56 3 chambres', "Villa R+1 00221 77 012 34 56\n2 salons",
+            'Villa R+7 221 77 012 34 56 3 chambres', 'Villa R+1 (221) 77 01 234 56 3 chambres'] as $texte) {
+            $this->assertSame(['+221770123456'], RadarPhone::fromText($texte), $texte);
+            $this->assertSame(['+221770123456'], RadarPhone::contactsFromText($texte), $texte);
+        }
+
+        // Décisions : un `221` nu devant un autre groupement, ou devant un numéro que suit une marque, et un étage de 20 ou
+        // plus qui est un indicatif, restent lus comme un numéro étranger qui englobe le numéro sénégalais : contact perdu,
+        // plutôt qu'inventé, et rien en clair (fixture partagé). Un groupe de chiffres sans mot derrière le numéro (`… 56 78`),
+        // ou qui commence par 0 (`… 56 000 F`), le laisse lu comme sur dev : contact perdu, limite connue du masqueur.
+        foreach (['Villa R+1 221 77 01 234 56', 'Villa R+1 221 77 012 34 56 F', 'Immeuble R+20 00221 77 123 45 67',
+            'Immeuble R+30 221 77 123 45 67', 'Villa R+1 00221 77 012 34 56 78', 'Villa R+1 00221 77 012 34 56 000 F'] as $texte) {
+            $this->assertSame([], RadarPhone::contactsFromText($texte), $texte);
+        }
+
+        // Là où l'indicatif étranger ne lisait pas déjà un numéro, rien ne change : le contact reste.
+        $this->assertSame(['+221770123456'], RadarPhone::contactsFromText('Contact +1 (221) 770123456'));
+        $this->assertSame(['+221771234567'], RadarPhone::contactsFromText('Immeuble R+20 221 7 7 1 2 3 4 5 6 7'));
+    }
+
+    /**
      * Vérification adverse M2 — les limites connues du masqueur sont lues (le refus STOP s'y juge), mais ne désignent
      * pas d'office un contact : une unité derrière, un mot de prix ou de liste devant, des crochets.
      */

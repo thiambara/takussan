@@ -113,18 +113,37 @@ const RESTE_CC7 = String.raw`(?:${RESTE_ZONE}|${ZONE_LONGUE_7}`
 const ZERO_TRUNK = String.raw`(?:${WS}?\(0\))?`;
 // TCK-2447 : derrière le `1` ou le `7` d'un étage, `(221)` suivi d'un numéro sénégalais est l'indicatif du Sénégal, pas une
 // zone (`Villa R+1 (221) 77 012 34 56`). Hors d'un étage, `ETRANGER` le lit toujours.
-const PAS_ZONE_221 = String.raw`(?!${SEP}?\(221\)${SEP}{0,3}${SENEGAL}${FIN})`;
-const NUMERO_CC1 = `(?:1${ZERO_TRUNK}${PAS_ZONE_221}(?:${RESTE_CC1}|${RESTE_NANP}|${RESTE_ZONE})|7${ZERO_TRUNK}${PAS_ZONE_221}(?:${RESTE_CC1}|${RESTE_CC7}))`;
+// TCK-2451 : de même `(221)` devant un numéro à groupement libre, et `00221` ou `221` nu devant un numéro de `SENEGAL`
+// (`R+1 00221 77 012 34 56`) : chaque branche lit ce que le masque lira ensuite en entier.
+// La fin d'un numéro lu derrière un indicatif étranger (`SENEGAL_A_INDICATIF`) : aucun chiffre ne le prolonge à trois
+// séparateurs près, sauf un autre numéro entier (`… 34 56 / 78 123 45 67`) ; `+1 00221 77 012 34 / 78 123 45 67` ne se lit plus
+// jusqu'au `78`. `PAS_ZONE_221` s'en tient à « aucun chiffre », comme `NOT_SENEGAL_ZONE`.
+// « Aucun chiffre » admet un nombre d'un à trois chiffres suivi d'un mot (`… 34 56 3 chambres`, `\n2 salons`), comme `ETRANGER`,
+// mais pas `000 F`, la fin d'un montant.
+const RIEN_COLLE = String.raw`(?:(?!${SEP}{0,3}[0-9])|(?=${SEP}{1,3}[1-9][0-9]{0,2}${WS}*\p{L}))`;
+const FIN_NUMERO_ENTIER = String.raw`(?![0-9])(?:${RIEN_COLLE}|(?=${SEP}{0,3}(?:${SENEGAL_AVEC_INDICATIF}`
+  + String.raw`|${SENEGAL}${FIN}|${SENEGAL_LIBRE}${FIN})))`;
+// Derrière le `1` ou le `7` et devant le `(0)` de trunk, qu'elle lit : un seul exemplaire pour les deux indicatifs.
+const PAS_ZONE_221 = String.raw`(?!${ZERO_TRUNK}${SEP}{0,3}(?:\(221\)${SEP}{0,3}${SENEGAL}${FIN}`
+  + String.raw`|(?:\(221\)${SEP}{0,3}${SENEGAL_LIBRE}${FIN}|(?=00)${SENEGAL}(?![0-9])|(?=221)${SENEGAL}${FIN})${RIEN_COLLE}))`;
+const NUMERO_CC1 = `[17]${PAS_ZONE_221}(?:(?<=1)${ZERO_TRUNK}(?:${RESTE_CC1}|${RESTE_NANP}|${RESTE_ZONE})|(?<=7)${ZERO_TRUNK}(?:${RESTE_CC1}|${RESTE_CC7}))`;
 const APRES_PLUS_ETAGE = String.raw`${WS}{0,2}(?:[02-689]|(?!${NUMERO_CC1})[17]|1[0-9])(?![0-9])`;
 const PAS_UN_ETAGE = String.raw`(?!${MOT_ETAGE}\+${APRES_PLUS_ETAGE})`;
 const CHIFFRES = (n) => `(?:${SEP}{0,3}[0-9]){${n}}`;
-const ETRANGER = String.raw`(?:(?<![0-9+])(?<![0-9][.,])${PAS_UN_ETAGE}(?:\+(?!${WS}{1,2}[0-9]{1,3}(?:${SEP}[0-9]{3})*${SEP}000(?![0-9]))${WS}{0,2}|00${SEP}?)(?:`
+const NUMERO_ETRANGER = `(?:`
   + `33${APRES_CC}${CHIFFRES(9)}`
   + String.raw`|${CC1}${APRES_CC}(?:${SEP}?\([0-9]{3}\)${CHIFFRES(7)}|${CHIFFRES(10)})`
   + `|7${APRES_CC}${ZONE_LONGUE_7}`
   + `|${CC2}${APRES_CC}${CHIFFRES('7,11')}`
   + `|${CC3}${APRES_CC}${CHIFFRES('6,10')}`
-  + `)(?<!${SEP}[0-9])`
+  + `)`;
+// TCK-2451 : là où `NUMERO_ETRANGER` lit un numéro, un indicatif suivi d'un numéro sénégalais écrit avec `00221`, `221` nu
+// (ou `(221)` derrière `1` / `7`) l'englobe en entier, à groupement libre : `Immeuble R+20 00221 77 123 45 67` ne laisse plus
+// `45 67` en clair.
+const SENEGAL_A_INDICATIF = String.raw`(?:${CC1}${APRES_CC}${SEP}?\(221\)|(?:${CC1}|${CC2}|${CC3})${APRES_CC}${SEP}{0,3}(?:00${WS}?)?221)`
+  + `${SEP}{0,3}${PREFIXE_ESPACE}${CHIFFRES(7)}${FIN_NUMERO_ENTIER}`;
+const ETRANGER = String.raw`(?:(?<![0-9+])(?<![0-9][.,])${PAS_UN_ETAGE}(?:\+(?!${WS}{1,2}[0-9]{1,3}(?:${SEP}[0-9]{3})*${SEP}000(?![0-9]))${WS}{0,2}|00${SEP}?)`
+  + `(?:(?=${NUMERO_ETRANGER}(?<!${SEP}[0-9])(?![0-9]))${SENEGAL_A_INDICATIF}|${NUMERO_ETRANGER}(?<!${SEP}[0-9]))`
   + String.raw`|(?<![0-9])0[1-9](?:[0-9]{8}|(?<sep>${SEP})[0-9]{2}(?:\k<sep>[0-9]{2}){3}))(?![0-9])`;
 // Le lien WhatsApp canonique écrit le numéro sans `+` : `wa.me/…`, `…?phone=…`.
 const LIEN = String.raw`(?<=wa\.me/|[?&]phone=)(?:33[0-9]{9}|${CC1}[0-9]{10}|${CC2}[0-9]{7,11}|${CC3}[0-9]{6,10})(?![0-9])`;
