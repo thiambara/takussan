@@ -229,6 +229,10 @@ class RadarAmountParserTest extends TestCase
             $this->assertNull(RadarAmountParser::parse($texte), $texte);
         }
 
+        // Un compte derrière le prix ne le fait pas prendre pour un reste de numéro.
+        $this->assertSame(['amount' => 450_000, 'period' => null], RadarAmountParser::parse('Tel 77 123 45 67 450000 3 chambres'));
+        $this->assertSame(['amount' => 450_000, 'period' => null], RadarAmountParser::parse('Tel 77 123 45 67 450000 2 mois'));
+
         // Sans indicatif, ou un nombre qui finit par 000 : un prix.
         $this->assertSame(['amount' => 770_123_456, 'period' => null], RadarAmountParser::parse('Villa 770123456 F'));
         $this->assertSame(['amount' => 300_000_000, 'period' => null], RadarAmountParser::parse('Lot (221) 300 000 000 F'));

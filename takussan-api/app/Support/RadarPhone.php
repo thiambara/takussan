@@ -75,7 +75,7 @@ final class RadarPhone
      * derrière un numéro ne sont pas des unités (contre-vérification C2).
      */
     private const NOT_A_CONTACT_AFTER = '/^[\s\x{00A0}\x{202F}]*(?:(?:%|min|mn|km|m²|m2|ml|cm|ha|ans?|mois|jours?'
-        .'|f\s?cfa|cfa|xof|francs?|chambres?|pi[eè]ces?)(?!\p{L})|[hmf](?=[\s\x{00A0}\x{202F}]|$))/iu';
+        .'|f\s?cfa|cfa|xof|francs?|chambres?|pi[eè]ces?)(?!\p{L})|[hmf](?=[\s\x{00A0}\x{202F}\/]|$))/iu';
 
     /** TCK-2412 — le mot qui, juste devant, fait du nombre un prix, une mesure ou une liste (`Lots 3 0 1 2 …`). */
     private const NOT_A_CONTACT_BEFORE = '/(?<!\p{L})(?:prix|loyer|montant|total|caution|avance|frais|charges?|surface|superficie'
@@ -141,12 +141,12 @@ final class RadarPhone
             if ($code !== null && ($code === '' ? $contactsOnly && ! str_starts_with($match, '221') : $code !== '221')) {
                 continue;
             }
-            if ($contactsOnly && preg_match('/^(?:\+|00|221)/', $match) !== 1
+            if ($contactsOnly && preg_match('/^(?:\+|00)/', $match) !== 1
                 && (preg_match(self::NOT_A_CONTACT_BEFORE, $before) === 1
                     || preg_match(self::NOT_A_CONTACT_AFTER, substr($normalized, $offset + strlen($match))) === 1)) {
                 continue;
             }
-            if ($contactsOnly && (self::gluedAcrossSlash($match) || self::prefixBeforeCode($match))) {
+            if ($contactsOnly && (self::gluedAcrossSlash($match) || self::prefixBeforeCode($match) || self::assembledBehindBareCode($match) || self::bareCodeInAList($match, $before))) {
                 continue;
             }
             $e164 = self::canonical($match);
@@ -159,14 +159,30 @@ final class RadarPhone
     }
 
     /**
-     * TCK-2454 — une barre oblique entre deux groupes écrits autrement : deux numéros que le masque englobe, pas un seul.
-     * `00221 77 012 34/78 1` n'est pas `+221770123478`, personne ne l'a écrit. `77/123/45/67` et `221/77 012 34 56` restent des numéros.
+     * TCK-2454 — dans le doute, masqué sans contact. Une barre oblique entre deux groupes écrits autrement, ou une seule barre :
+     * deux nombres que le masque englobe. `00221 77 012 34/78 1` n'est pas `+221770123478`, `221 770123/500 F` n'est pas
+     * `+221770123500`. `77/123/45/67` et `221/77 012 34 56` restent des numéros.
      */
     private static function gluedAcrossSlash(string $match): bool
     {
         $body = (string) preg_replace('/^[^0-9]*(?:00|0)?221[^0-9]{0,3}/', '', $match);
 
-        return str_contains($body, '/') && preg_match('~[0-9][^0-9/]+[0-9]~u', $body) === 1;
+        return str_contains($body, '/') && (substr_count($body, '/') < 2 || preg_match('~[0-9][^0-9/]+[0-9]~u', $body) === 1);
+    }
+
+    /**
+     * TCK-2454 — `PhoneMasker::BARE_CODE_NINE` masque neuf chiffres derrière `221` nu ou `(221)` quel que soit leur groupement. Écrits
+     * autrement que par groupes, ils peuvent être assemblés sur ce qui les suit : `221 77 012 3 500 F` n'est pas `+221770123500`.
+     */
+    private static function assembledBehindBareCode(string $match): bool
+    {
+        return preg_match('/^(?:\(221\)|221)[^0-9]{0,3}(.*)$/su', $match, $body) === 1 && preg_match(PhoneMasker::SHAPED_NUMBER, $body[1]) !== 1;
+    }
+
+    /** TCK-2454 — `Lots 219 220 221 330 331 332` : un `221` nu derrière un groupe de trois chiffres est un élément de liste, pas un indicatif. */
+    private static function bareCodeInAList(string $match, string $before): bool
+    {
+        return str_starts_with($match, '221') && preg_match('/(?<![0-9])[0-9]{3}[\s.\-\/]{1,3}$/u', $before) === 1;
     }
 
     /** TCK-2454 — `30 0022177 012 34 56 000 F`, tronqué devant un montant, se lit depuis l'indicatif : `+221300022177` n'est écrit nulle part. */

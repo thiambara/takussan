@@ -59,9 +59,11 @@ final class PhoneMasker
      *
      * TCK-2454 — un numéro tronqué suivi d'un autre s'arrête devant le second : `00221 77 012 34 / 78 123 45 67`
      * se lisait jusqu'au `78`, `123 45 67` partait en clair, et le Radar lisait `+221770123478`, un numéro que personne n'a écrit.
+     * Pas neuf chiffres écrits par groupes (`SHAPED`) : `+221 76 330 45 67 25 000 F` est un numéro entier et un prix, pas `76` puis `+221330456725`.
+     * Au moins cinq chiffres devant le second : `+221 30 31 32 33 5 3 500` n'est pas `30 31` puis `+221323353500`.
      */
     private const SENEGAL_WITH_CODE = '(?<![0-9])(?:\+'.self::WS.'{0,2}|00'.self::WS.'?)221'.self::CALL_AFTER_CC.self::SEP.'{0,3}'
-        .'(?:'.self::PREFIX_SPACED.'(?:'.self::SEP.'{0,3}[0-9]){0,6}(?='.self::SEP.'{1,3}'.self::CALL_WHOLE.')'
+        .'(?:(?!'.self::CALL_SHAPED.')'.self::PREFIX_SPACED.'(?:'.self::SEP.'{0,3}[0-9]){3,6}(?='.self::SEP.'{1,3}'.self::CALL_WHOLE.')'
         .'|'.self::PREFIX_SPACED.'(?:'.self::SEP.'{0,3}[0-9]){7}(?![0-9]))';
 
     /**
@@ -228,7 +230,7 @@ final class PhoneMasker
      * un indicatif sont un numéro entier, et ce qui les suit n'en est pas (`R+1 00221 77 012 34 56 12 500 F`, `… 78 90`). Sauf
      * s'ils se coupent sur un autre numéro (`NOT_CUT`) ou sur un montant (`NO_THOUSANDS`). Et ce que `BARE_CODE_NINE` lira ensuite.
      */
-    private const NOT_SENEGAL_ZONE = '(?!'.self::TRUNK_ZERO.self::SEP.'{0,3}(?:\(221\)'.self::SEP.'{0,3}(?!(?:'.self::SEP.'{0,3}[0-9]){2,8}'.self::SEP.'{1,3}'.self::CALL_WHOLE.')'.self::CALL_SENEGAL.self::CALL_END
+    private const NOT_SENEGAL_ZONE = '(?!'.self::TRUNK_ZERO.self::SEP.'{0,3}(?:\(221\)'.self::SEP.'{0,3}'.self::CALL_NOT_CUT.self::CALL_SENEGAL.self::CALL_END
         .'|\(221\)'.self::SEP.'{0,3}'.self::CALL_LOOSE.self::CALL_END.self::NOTHING_GLUED
         .'|\(221\)'.self::SEP.'{0,3}'.self::CALL_NOT_CUT.'(?='.self::CALL_SHAPED.')'.self::CALL_LOOSE.self::CALL_END.self::NO_THOUSANDS
         .'|(?=(?:00)?221'.self::SEP.'?'.self::CALL_NOT_CUT.')(?:(?=00)'.self::CALL_SENEGAL.'(?![0-9])|(?=221)'.self::CALL_SENEGAL.self::CALL_END.')'.self::NO_THOUSANDS
@@ -243,6 +245,9 @@ final class PhoneMasker
         .'|'.self::PREFIX.'[0-9]'.self::CALL_SEP.'?(?:[0-9]{2}'.self::CALL_SEP.'?[0-9]{2}'.self::CALL_SEP.'?[0-9]{2}|[0-9]{3}'.self::CALL_SEP.'?[0-9]{3})'
         .'|'.self::PREFIX_SPACED.'(?:'.self::CALL_SEP.'[0-9]){7})(?![0-9])';
 
+    /** `RadarPhone` : les neuf chiffres sont-ils écrits par groupes ? */
+    public const SHAPED_NUMBER = '/^'.self::SHAPED.'$'.self::DEFINITIONS.'/iu';
+
     /** TCK-2454 — un numéro sénégalais entier, tel que le masque le lit sans indicatif : ce qui commence un second numéro. */
     private const WHOLE_SENEGAL = '(?:'.self::CALL_SENEGAL.self::CALL_END.'|'.self::CALL_LOOSE.self::CALL_END.')';
 
@@ -251,8 +256,10 @@ final class PhoneMasker
      * et le second déborderait du masque : `77 012 34 / 78 123 45 67` se lirait `77 012 34 / 78`, et `123 45 67` sortirait en clair.
      * Il faut au moins deux chiffres de plus que le premier numéro : un numéro entier que rien ne suit n'est jamais coupé. Le second
      * compte même suivi d'une marque, qui en ferait un prix : `77 012 34/33 821 00 00 F` n'a pas de contact `+221770123433`.
+     * Neuf chiffres écrits par groupes (`SHAPED`) ne se coupent pas, sauf devant une barre : le numéro entier gagne. `77 012 34 78 123 45 67` est
+     * illisible : un numéro entier suivi d'un reste plutôt qu'un tronqué suivi d'un autre, décision du 2026-10-31, un numéro complet étant le cas réel.
      */
-    private const NOT_CUT = '(?!(?:'.self::SEP.'{0,3}[0-9]){2,8}'.self::SEP.'{1,3}(?:'.self::CALL_SENEGAL.'|'.self::CALL_LOOSE.')(?![0-9]))';
+    private const NOT_CUT = '(?:(?='.self::CALL_SHAPED.'(?!'.self::SEP.'{0,2}\/))|(?!(?:'.self::SEP.'{0,3}[0-9]){2,8}'.self::SEP.'{1,3}(?:'.self::CALL_SENEGAL.'|'.self::CALL_LOOSE.')(?![0-9])))';
 
     /**
      * TCK-2454 — `221` nu ou `(221)`, puis neuf chiffres qu'aucune lecture ne prend pour un numéro entier : groupement que le masque

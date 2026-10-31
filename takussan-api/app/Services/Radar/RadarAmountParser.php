@@ -65,6 +65,9 @@ final class RadarAmountParser
     /** TCK-2447 — l'indicatif sénégalais nu (`221`, `0221`) ou entre parenthèses juste devant un numéro, au plus trois séparateurs entre eux. */
     private const SENEGAL_CODE_BEFORE = '/(?:\(221\)|(?<![0-9])0?221)[\s.\-\/]{0,3}$/u';
 
+    /** TCK-2454 — d'autres chiffres derrière, sauf un compte (`450000 3 chambres`) : `33 821 00 00 F` reste un reste de numéro. */
+    private const DIGITS_THEN_NOT_A_COUNT = '/^\s*\d(?!\d{0,2}\s*(?!(?:f\s?cfa|cfa|xof|francs?|f)(?!\p{L}))\p{L})/iu';
+
     /** Puissance de dix de chaque multiplicateur. */
     private const MULTIPLIERS = [
         'milliard' => 9, 'milliards' => 9, 'md' => 9, 'mds' => 9, 'mrd' => 9, 'mrds' => 9,
@@ -197,7 +200,7 @@ final class RadarAmountParser
             return null;
         }
         // TCK-2454 : un nombre sans marque collé derrière un numéro, et que d'autres chiffres suivent, est un reste de numéro (`… / 33 821 00 00 F`).
-        if (! $marked && $m['plain'][0] !== null && preg_match('/^\s*\d/u', $after) === 1 && self::touchesPhone($start, $end, $text, $phones)) {
+        if (! $marked && $m['plain'][0] !== null && preg_match(self::DIGITS_THEN_NOT_A_COUNT, $after) === 1 && self::touchesPhone($start, $end, $text, $phones)) {
             return null;
         }
 

@@ -71,15 +71,15 @@ const SENEGAL_LIBRE = `(?<![0-9])`
 // neuvième (`77 012 34 / 78 123 45 67`) ; un numéro écrit par groupes de deux ou trois, sans chiffre isolé ; derrière, pas un groupe
 // `000`, la fin d'un montant (`77 012 3 / 450 000 F`) ; un montant groupé par milliers.
 const NUMERO_ENTIER = `(?:${SENEGAL}${FIN}|${SENEGAL_LIBRE}${FIN})`;
-const PAS_COUPE = String.raw`(?!(?:${SEP}{0,3}[0-9]){2,8}${SEP}{1,3}(?:${SENEGAL}|${SENEGAL_LIBRE})(?![0-9]))`;
 const PAR_GROUPES = `(?:${PREFIXE}${SEP}?(?:[0-9]{3}${SEP}?[0-9]{2}${SEP}?[0-9]{2}|[0-9]{2}${SEP}?[0-9]{2}${SEP}?[0-9]{3}|[0-9]{2}${SEP}?[0-9]{3}${SEP}?[0-9]{2})`
   + `|${PREFIXE}[0-9]${SEP}?(?:[0-9]{2}${SEP}?[0-9]{2}${SEP}?[0-9]{2}|[0-9]{3}${SEP}?[0-9]{3})`
   + `|${PREFIXE_ESPACE}(?:${SEP}[0-9]){7})(?![0-9])`;
+const PAS_COUPE = String.raw`(?:(?=${PAR_GROUPES}(?!${SEP}{0,2}\/))|(?!(?:${SEP}{0,3}[0-9]){2,8}${SEP}{1,3}(?:${SENEGAL}|${SENEGAL_LIBRE})(?![0-9])))`;
 const PAS_DE_MILLE = `(?:(?<=${SEP}0[0-9])|(?!${SEP}{1,3}000(?![0-9])))`;
 const MONTANT = `[1-9][0-9]{0,2}(?:${SEP}[0-9]{3})+(?!${SEP}?[0-9])`;
 // Avec `+221` ou `00221`, la suite : un numéro tronqué suivi d'un autre s'arrête devant lui (TCK-2454).
 const SENEGAL_AVEC_INDICATIF = String.raw`(?<![0-9])(?:\+${WS}{0,2}|00${WS}?)221${APRES_CC}${SEP}{0,3}`
-  + `(?:${PREFIXE_ESPACE}(?:${SEP}{0,3}[0-9]){0,6}(?=${SEP}{1,3}${NUMERO_ENTIER})|${PREFIXE_ESPACE}(?:${SEP}{0,3}[0-9]){7}(?![0-9]))`;
+  + `(?:(?!${PAR_GROUPES})${PREFIXE_ESPACE}(?:${SEP}{0,3}[0-9]){3,6}(?=${SEP}{1,3}${NUMERO_ENTIER})|${PREFIXE_ESPACE}(?:${SEP}{0,3}[0-9]){7}(?![0-9]))`;
 // TCK-2454 : chiffre à chiffre, un chiffre seul derrière : les neuf premiers, pas le décalage d'un chiffre (`SENEGAL_NOT_SHIFTED`).
 const SENEGAL_PAS_DECALE = String.raw`(?<![0-9+#])(?<![+#]${WS})(?<![+#]${WS}${WS})(?=[0-9]${WS}${SENEGAL_LIBRE}${FIN})(?:3${WS}[02369]|7${WS}[0-25-9]|9${WS}3)(?:${WS}[0-9]){7}(?=${WS}[0-9](?![0-9]))`;
 // Avec `_` ou `,` (`77_123_45_67`, `77,123,45,67`) ou le préfixe entre parenthèses (`(77)1234567`) : le même
@@ -146,7 +146,7 @@ const CORPS_A_INDICATIF = `(?:${PREFIXE_ESPACE}${CHIFFRES(7)}${FIN_NUMERO_ENTIER
 const NEUF_DERRIERE_221 = String.raw`(?:\(221\)|(?<![0-9])221)${SEP}{0,3}(?!${NUMERO_ENTIER})${CORPS_A_INDICATIF}(?<!000)`;
 // Derrière le `1` ou le `7` et devant le `(0)` de trunk, qu'elle lit : un seul exemplaire pour les deux indicatifs.
 // TCK-2454 : devant un numéro écrit par groupes, ce qui suit ne compte plus, sauf s'il se coupe sur un autre numéro ou un montant.
-const PAS_ZONE_221 = String.raw`(?!${ZERO_TRUNK}${SEP}{0,3}(?:\(221\)${SEP}{0,3}(?!(?:${SEP}{0,3}[0-9]){2,8}${SEP}{1,3}${NUMERO_ENTIER})${SENEGAL}${FIN}`
+const PAS_ZONE_221 = String.raw`(?!${ZERO_TRUNK}${SEP}{0,3}(?:\(221\)${SEP}{0,3}${PAS_COUPE}${SENEGAL}${FIN}`
   + String.raw`|\(221\)${SEP}{0,3}${SENEGAL_LIBRE}${FIN}${RIEN_COLLE}`
   + String.raw`|\(221\)${SEP}{0,3}${PAS_COUPE}(?=${PAR_GROUPES})${SENEGAL_LIBRE}${FIN}${PAS_DE_MILLE}`
   + String.raw`|(?=(?:00)?221${SEP}?${PAS_COUPE})(?:(?=00)${SENEGAL}(?![0-9])|(?=221)${SENEGAL}${FIN})${PAS_DE_MILLE}|${NEUF_DERRIERE_221}))`;
