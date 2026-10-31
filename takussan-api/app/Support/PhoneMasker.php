@@ -80,6 +80,16 @@ final class PhoneMasker
         .'|(?:3'.self::WS.'[02369]|7'.self::WS.'[0-25-9]|9'.self::WS.'3)(?:'.self::WS.'[0-9]){7}(?!'.self::WS.'[0-9](?![0-9])))';
 
     /**
+     * TCK-2454 — chiffre à chiffre, un chiffre seul derrière : `SENEGAL_LOOSE` refuse la forme stricte devant un chiffre isolé, et se
+     * rabattait sur le chiffre suivant : `7 7 0 1 2 3 4 5 6 2 salons` laissait `7` en clair, et le Radar lisait `+221701234562`, un numéro
+     * que personne n'a écrit. Là où ce décalage se lisait, et seulement là, les neuf premiers chiffres sont le numéro.
+     * Une liste que le décalage ne lit pas (`7 1 2 3 4 5 6 7 8 9`) reste une liste.
+     * Pas le chiffre d'un étage (`R+7 7 0 1 …`, dont le `+` devient `#` pour le Radar : `RadarPhone::withoutFloorPlus`). Limite : `7 70 12 34 56 2 salons` se lit encore `+221701234562`, un chiffre seul peut y être un compte (`7 77012345 6`).
+     */
+    private const SENEGAL_NOT_SHIFTED = '(?<![0-9+#])(?<![+#]'.self::WS.')(?<![+#]'.self::WS.self::WS.')(?=[0-9]'.self::WS.self::CALL_LOOSE.self::CALL_END.')'
+        .'(?:3'.self::WS.'[02369]|7'.self::WS.'[0-25-9]|9'.self::WS.'3)(?:'.self::WS.'[0-9]){7}(?='.self::WS.'[0-9](?![0-9]))';
+
+    /**
      * Le numéro sénégalais sans indicatif écrit avec un `_` ou une `,` (`77_123_45_67`, `77,123,45,67`), ou avec
      * le préfixe entre parenthèses (`(77)1234567`, `(77) 123 45 67`). Le séparateur est le même partout et le
      * groupement n'est jamais en milliers (3-2-2, 2-3-2, 2-2-3 derrière le préfixe) : `1,500,000`, `75,000,000`
@@ -396,6 +406,7 @@ final class PhoneMasker
         .'|'.self::CALL_WITH_CODE
         .'|'.self::CALL_SENEGAL.self::CALL_END
         .'|'.self::CALL_LOOSE.self::CALL_END
+        .'|'.self::SENEGAL_NOT_SHIFTED
         .'|'.self::SENEGAL_SEPARATED
         .'|'.self::FOREIGN
         .'|'.self::CALL_BARE_NINE

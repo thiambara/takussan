@@ -80,6 +80,8 @@ const MONTANT = `[1-9][0-9]{0,2}(?:${SEP}[0-9]{3})+(?!${SEP}?[0-9])`;
 // Avec `+221` ou `00221`, la suite : un numéro tronqué suivi d'un autre s'arrête devant lui (TCK-2454).
 const SENEGAL_AVEC_INDICATIF = String.raw`(?<![0-9])(?:\+${WS}{0,2}|00${WS}?)221${APRES_CC}${SEP}{0,3}`
   + `(?:${PREFIXE_ESPACE}(?:${SEP}{0,3}[0-9]){0,6}(?=${SEP}{1,3}${NUMERO_ENTIER})|${PREFIXE_ESPACE}(?:${SEP}{0,3}[0-9]){7}(?![0-9]))`;
+// TCK-2454 : chiffre à chiffre, un chiffre seul derrière : les neuf premiers, pas le décalage d'un chiffre (`SENEGAL_NOT_SHIFTED`).
+const SENEGAL_PAS_DECALE = String.raw`(?<![0-9+#])(?<![+#]${WS})(?<![+#]${WS}${WS})(?=[0-9]${WS}${SENEGAL_LIBRE}${FIN})(?:3${WS}[02369]|7${WS}[0-25-9]|9${WS}3)(?:${WS}[0-9]){7}(?=${WS}[0-9](?![0-9]))`;
 // Avec `_` ou `,` (`77_123_45_67`, `77,123,45,67`) ou le préfixe entre parenthèses (`(77)1234567`) : le même
 // séparateur partout, un groupement jamais en milliers (`75,000,000` n'en est pas un), rien derrière ni devant ;
 // la virgule ne lit pas le 2-2-2-3 (`30,59,80,102`, des numéros de lignes).
@@ -176,7 +178,7 @@ const ETRANGER = String.raw`(?:(?<![0-9+])(?<![0-9][.,])${PAS_UN_ETAGE}(?:\+(?!$
 // Le lien WhatsApp canonique écrit le numéro sans `+` : `wa.me/…`, `…?phone=…`.
 const LIEN = String.raw`(?<=wa\.me/|[?&]phone=)(?:33[0-9]{9}|${CC1}[0-9]{10}|${CC2}[0-9]{7,11}|${CC3}[0-9]{6,10})(?![0-9])`;
 export const TELEPHONE = new RegExp(
-  `(?:${PREFIXE_DEVANT_INDICATIF}|${SENEGAL_AVEC_INDICATIF}|${SENEGAL}${FIN}|${SENEGAL_LIBRE}${FIN}|${SENEGAL_SEPARE}|${ETRANGER}|${NEUF_DERRIERE_221}|${LIEN})`,
+  `(?:${PREFIXE_DEVANT_INDICATIF}|${SENEGAL_AVEC_INDICATIF}|${SENEGAL}${FIN}|${SENEGAL_LIBRE}${FIN}|${SENEGAL_PAS_DECALE}|${SENEGAL_SEPARE}|${ETRANGER}|${NEUF_DERRIERE_221}|${LIEN})`,
   'iu',
 );
 export const COURRIEL = /[a-z0-9._%+-]+(?:\s*[@\uFF20]\s*|\s*[([{]\s*at\s*[)\]}]\s*|\s+at\s+)[a-z0-9-]+(?:\.[a-z0-9-]+)*\.[a-z]{2,}(?![a-z])/iu;

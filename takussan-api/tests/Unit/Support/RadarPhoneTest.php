@@ -297,6 +297,41 @@ class RadarPhoneTest extends TestCase
      * TCK-2451 — derrière l'étage `1` ou `7`, l'indicatif `00221` ou `221` nu, et `(221)` devant un numéro groupé 2-2-3-2, ne
      * sont pas la suite d'un numéro `+1` / `+7` : le `+` reste celui de l'étage, et le contact n'est plus perdu.
      */
+    public function test_un_chiffre_seul_derriere_un_numero_chiffre_a_chiffre_n_entre_pas_dans_le_contact(): void
+    {
+        // TCK-2454 : le chiffre à chiffre se lisait décalé d'un chiffre (`+221701234562`), un numéro écrit nulle part.
+        foreach (['Villa 7 7 0 1 2 3 4 5 6 2 salons', 'Villa 7 7 0 1 2 3 4 5 6 1 salon', 'Villa 7 7 0 1 2 3 4 5 6 3 villas',
+            'Villa 7 7 0 1 2 3 4 5 6 2', 'Villa R+1 (221) 7 7 0 1 2 3 4 5 6 2 salons', 'Villa R+1 221 7 7 0 1 2 3 4 5 6 1 salon',
+            'Villa 221 7 7 0 1 2 3 4 5 6 3 villas', 'Villa (221) 7 7 0 1 2 3 4 5 6 2 salons'] as $texte) {
+            $this->assertSame(['+221770123456'], RadarPhone::contactsFromText($texte), $texte);
+        }
+
+        // Le chiffre de l'étage n'est pas le premier du numéro.
+        $this->assertSame(['+221770123456'], RadarPhone::contactsFromText('Villa R+7 7 7 0 1 2 3 4 5 6'));
+        // Derrière l'étage, ces neuf chiffres sont bien écrits à la suite.
+        $this->assertSame(['+221701234562'], RadarPhone::contactsFromText('Villa R+7 7 0 1 2 3 4 5 6 2 salons'));
+
+        // Une liste que le décalage ne lit pas reste une liste.
+        $this->assertSame([], RadarPhone::contactsFromText('7 1 2 3 4 5 6 7 8 9'));
+
+        // Limite : groupé derrière un chiffre seul, qui peut être un compte.
+        $this->assertSame(['+221701234562'], RadarPhone::contactsFromText('Villa 7 70 12 34 56 2 salons'));
+    }
+
+    public function test_une_barre_entre_deux_groupes_ecrits_autrement_ne_recolle_pas_un_contact(): void
+    {
+        // TCK-2454 : deux numéros englobés par le masque, pas un seul. `fromText` les lit encore, pour le refus STOP.
+        foreach (['Villa R+1 00221 77 012 34/78 1', 'Villa R+1 00221 77 012 34/78', 'Tel 00221 77 012 34 / 33 821 00 00 F',
+            'Tel 30/221 77 01 234 56 000 F', 'Tel 30 0022177 012 34 56 000 F'] as $texte) {
+            $this->assertSame([], RadarPhone::contactsFromText($texte), $texte);
+        }
+        $this->assertSame(['+221770123478'], RadarPhone::fromText('Villa R+1 00221 77 012 34/78 1'));
+
+        foreach (['Tel 77/012/34/56', 'Tel 00221 77/012/34/56', 'Tel 221/77 012 34 56', 'Tel +221/77 012 34 56'] as $texte) {
+            $this->assertSame(['+221770123456'], RadarPhone::contactsFromText($texte), $texte);
+        }
+    }
+
     public function test_neuf_chiffres_derriere_221_nu_ou_entre_parentheses_sont_le_contact(): void
     {
         // TCK-2454 : les groupements que le masque ne lisait pas, et le chiffre à chiffre suivi d'un petit nombre.

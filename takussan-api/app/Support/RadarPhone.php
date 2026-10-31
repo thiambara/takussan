@@ -146,6 +146,9 @@ final class RadarPhone
                     || preg_match(self::NOT_A_CONTACT_AFTER, substr($normalized, $offset + strlen($match))) === 1)) {
                 continue;
             }
+            if ($contactsOnly && (self::gluedAcrossSlash($match) || self::prefixBeforeCode($match))) {
+                continue;
+            }
             $e164 = self::canonical($match);
             if ($e164 !== null) {
                 $numbers[$e164] = true;
@@ -153,6 +156,23 @@ final class RadarPhone
         }
 
         return array_keys($numbers);
+    }
+
+    /**
+     * TCK-2454 — une barre oblique entre deux groupes écrits autrement : deux numéros que le masque englobe, pas un seul.
+     * `00221 77 012 34/78 1` n'est pas `+221770123478`, personne ne l'a écrit. `77/123/45/67` et `221/77 012 34 56` restent des numéros.
+     */
+    private static function gluedAcrossSlash(string $match): bool
+    {
+        $body = (string) preg_replace('/^[^0-9]*(?:00|0)?221[^0-9]{0,3}/', '', $match);
+
+        return str_contains($body, '/') && preg_match('~[0-9][^0-9/]+[0-9]~u', $body) === 1;
+    }
+
+    /** TCK-2454 — `30 0022177 012 34 56 000 F`, tronqué devant un montant, se lit depuis l'indicatif : `+221300022177` n'est écrit nulle part. */
+    private static function prefixBeforeCode(string $match): bool
+    {
+        return preg_match('/^[0-9]{2}[^0-9]+00221/', $match) === 1;
     }
 
     /** Un numéro isolé, écrit comme on veut → E.164 sénégalais, ou null s'il n'en est pas un. */
