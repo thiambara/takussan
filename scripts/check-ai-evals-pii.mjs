@@ -74,7 +74,7 @@ const NUMERO_ENTIER = `(?:${SENEGAL}${FIN}|${SENEGAL_LIBRE}${FIN})`;
 const PAR_GROUPES = `(?:${PREFIXE}${SEP}?(?:[0-9]{3}${SEP}?[0-9]{2}${SEP}?[0-9]{2}|[0-9]{2}${SEP}?[0-9]{2}${SEP}?[0-9]{3}|[0-9]{2}${SEP}?[0-9]{3}${SEP}?[0-9]{2})`
   + `|${PREFIXE}[0-9]${SEP}?(?:[0-9]{2}${SEP}?[0-9]{2}${SEP}?[0-9]{2}|[0-9]{3}${SEP}?[0-9]{3})`
   + `|${PREFIXE_ESPACE}(?:${SEP}[0-9]){7})(?![0-9])`;
-const PAS_COUPE = String.raw`(?:(?=${PAR_GROUPES}(?!${SEP}{0,2}\/))(?!(?:${SEP}{0,3}[0-9]){1,8}${SEP}{0,2}\/)|(?!(?:${SEP}{0,3}[0-9]){2,8}${SEP}{1,3}(?:${SENEGAL}|${SENEGAL_LIBRE})(?![0-9])))`;
+const PAS_COUPE = String.raw`(?:(?=${PAR_GROUPES})(?!(?:${SEP}{0,3}[0-9]){1,8}${SEP}{0,2}\/)|(?!(?:${SEP}{0,3}[0-9]){2,8}${SEP}{1,3}(?:${SENEGAL}|${SENEGAL_LIBRE})(?![0-9])))`;
 const PAS_DE_MILLE = `(?:(?<=${SEP}0[0-9])|(?!${SEP}{1,3}000(?![0-9])))`;
 const MONTANT = `[1-9][0-9]{0,2}(?:${SEP}[0-9]{3})+(?!${SEP}?[0-9])`;
 // Avec `+221` ou `00221`, la suite : un numéro tronqué suivi d'un autre s'arrête devant lui (TCK-2454).

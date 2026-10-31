@@ -259,7 +259,7 @@ final class PhoneMasker
      * Neuf chiffres écrits par groupes (`SHAPED`) ne se coupent pas, sauf devant ou à travers une barre (`77 012 34/78 123 45 67`) : le numéro entier gagne. `77 012 34 78 123 45 67` est
      * illisible : un numéro entier suivi d'un reste plutôt qu'un tronqué suivi d'un autre, décision du 2026-10-31, un numéro complet étant le cas réel.
      */
-    private const NOT_CUT = '(?:(?='.self::CALL_SHAPED.'(?!'.self::SEP.'{0,2}\/))(?!(?:'.self::SEP.'{0,3}[0-9]){1,8}'.self::SEP.'{0,2}\/)|(?!(?:'.self::SEP.'{0,3}[0-9]){2,8}'.self::SEP.'{1,3}(?:'.self::CALL_SENEGAL.'|'.self::CALL_LOOSE.')(?![0-9])))';
+    private const NOT_CUT = '(?:(?='.self::CALL_SHAPED.')(?!(?:'.self::SEP.'{0,3}[0-9]){1,8}'.self::SEP.'{0,2}\/)|(?!(?:'.self::SEP.'{0,3}[0-9]){2,8}'.self::SEP.'{1,3}(?:'.self::CALL_SENEGAL.'|'.self::CALL_LOOSE.')(?![0-9])))';
 
     /**
      * TCK-2454 — `221` nu ou `(221)`, puis neuf chiffres qu'aucune lecture ne prend pour un numéro entier : groupement que le masque

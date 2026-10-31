@@ -343,7 +343,7 @@ class RadarPhoneTest extends TestCase
         // Dans le doute, masqué sans contact : un groupement libre, une marque, ou un montant assemblé.
         foreach (['Villa R+1 (221) 7 7 0 1 2 3 4 56', 'Villa R+1 221 77 01 2345 6', 'Villa R+1 221 770123456 F', 'Villa R+1 (221) 770123456 F',
             'Villa R+1 221 77 012 34 56 F', 'Villa 221 77 012 3 500 F', 'Villa 221 77 012 - 78 12', 'Villa 221 77 012 3 - 500 F', 'Villa 221 770123/500 F',
-            'Villa 221 7701234 / 78 1', 'Villa 221 770123 500 F/mois', 'Prix 221 750 500 250 F', 'Lots 221 300 301 302', 'Lots 219 220 221 330 331 332', 'Lot 221 300 000 000 F'] as $texte) {
+            'Tel 00221 77012/3456', 'Villa 221 7701234 / 78 1', 'Villa 221 770123 500 F/mois', 'Prix 221 750 500 250 F', 'Lots 221 300 301 302', 'Lots 219 220 221 330 331 332', 'Lot 221 300 000 000 F'] as $texte) {
             $this->assertSame([], RadarPhone::contactsFromText($texte), $texte);
         }
 
