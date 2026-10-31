@@ -1526,6 +1526,12 @@ export async function patchAdminAiModel(id: number, payload: Partial<AiModelPric
   return jsonOrThrow<AdminAiModelsResponse>(res);
 }
 
+/** Efface la ligne qui remplace un modèle de la configuration : le tarif de la configuration s'applique de nouveau. */
+export async function deleteAdminAiModel(id: number): Promise<AdminAiModelsResponse> {
+  const res = await fetch(cheminApi`/api/super-admin/ai/models/${id}`, { method: 'DELETE', credentials: 'include' });
+  return jsonOrThrow<AdminAiModelsResponse>(res);
+}
+
 export async function fetchAdminAiProviders(): Promise<AdminAiProvidersResponse> {
   const res = await fetch('/api/super-admin/ai/providers', { credentials: 'include' });
   return jsonOrThrow<AdminAiProvidersResponse>(res);

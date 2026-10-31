@@ -12,6 +12,9 @@ use Illuminate\Validation\Rule;
  */
 class StoreAiModelRequest extends BaseFormRequest
 {
+    /** Ni espace, ni caractère de contrôle, ni caractère invisible : l'identifiant s'envoie tel quel au fournisseur. */
+    private const IDENTIFIANT = '/^[^\s\p{C}\p{Z}]+$/u';
+
     /** Même raison qu'`UpdateAiRoleRequest::authorize()`. */
     public function authorize(): bool
     {
@@ -23,7 +26,7 @@ class StoreAiModelRequest extends BaseFormRequest
     {
         return [
             'provider' => ['required', 'string', Rule::in(array_keys(config('ai.providers')))],
-            'model' => ['required', 'string', 'max:255', 'regex:/^\S+$/', Rule::unique('ai_models', 'model')->where('provider', $this->input('provider'))],
+            'model' => ['required', 'string', 'max:255', 'regex:'.self::IDENTIFIANT, Rule::unique('ai_models', 'model')->where('provider', $this->input('provider'))],
             'input' => ['required', new MontantIa],
             'output' => ['required', new MontantIa],
             'cache_read' => ['required', new MontantIa],

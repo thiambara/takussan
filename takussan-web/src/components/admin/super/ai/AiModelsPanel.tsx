@@ -18,7 +18,7 @@ import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import { ApiError } from '@/lib/api';
 import { avecGardeDoubleFacteur } from '@/lib/double-facteur';
 import { formaterTarifIa, lireSaisieMontantIa } from '@/lib/format/montant-ia';
-import { fetchAdminAiModels, fetchAdminAiProviders, patchAdminAiModel, postAdminAiModel } from '@/lib/queries/super-admin';
+import { deleteAdminAiModel, fetchAdminAiModels, fetchAdminAiProviders, patchAdminAiModel, postAdminAiModel } from '@/lib/queries/super-admin';
 import type { AdminAiModelsResponse, AiCatalogueModel, AiModelPrices, AiModelRole, AiModelUses } from '@/types/super-admin';
 
 const TARIFS = ['input', 'output', 'cache_read', 'cache_write'] as const;
@@ -58,7 +58,8 @@ export function AiModelsPanel() {
     void queryClient.invalidateQueries({ queryKey: ['super-admin', 'ai', 'roles'] });
   };
   const etat = useMutation({
-    mutationFn: ({ entree, active }: { entree: AiCatalogueModel; active: boolean }) => avecGardeDoubleFacteur(() => ecrire(entree, { active }), garde),
+    mutationFn: ({ entree, active, revenir }: { entree: AiCatalogueModel; active?: boolean; revenir?: boolean }) =>
+      avecGardeDoubleFacteur(() => (revenir && entree.id !== null ? deleteAdminAiModel(entree.id) : ecrire(entree, { active })), garde),
     onSuccess: apres,
   });
   const enregistrer = useMutation({
@@ -77,6 +78,8 @@ export function AiModelsPanel() {
 
   const emplois = emploisDe(etat.error);
   const noms = (liste: string[]) => liste.join(', ');
+  const nomsDesRoles = (roles: string[]) => roles.map((role) => tRoles(role as AiModelRole));
+  const nomsDesEmplois = (uses: AiModelUses) => noms([...new Set([...nomsDesRoles(uses.roles), ...uses.usages, ...nomsDesRoles(uses.fallback_roles)])]);
   const entrees = models.data?.data ?? [];
   const fournisseurs = providers.data?.data ?? [];
 
@@ -96,7 +99,12 @@ export function AiModelsPanel() {
     {
       id: 'state',
       header: t('state'),
-      cell: (row) => <StatusBadge label={row.active ? t('active') : t('withdrawn')} tone={row.active ? 'success' : 'neutral'} />,
+      cell: (row) => (
+        <div className="space-y-1">
+          <StatusBadge label={row.active ? t('active') : t('withdrawn')} tone={row.active ? 'success' : 'neutral'} />
+          {row.uses ? <p className="min-w-48 text-xs whitespace-normal text-destructive">{t('withdrawnInUse', { names: nomsDesEmplois(row.uses) })}</p> : null}
+        </div>
+      ),
     },
     {
       id: 'actions',
@@ -105,6 +113,9 @@ export function AiModelsPanel() {
       align: 'end',
       cell: (row) => (
         <div className="flex justify-end gap-2">
+          {row.in_config && row.id !== null ? (
+            <Button size="sm" variant="ghost" disabled={etat.isPending} onClick={() => etat.mutate({ entree: row, revenir: true })} aria-label={t('revertModel', { model: row.model })}>{t('revert')}</Button>
+          ) : null}
           <Button size="sm" variant="ghost" onClick={() => { enregistrer.reset(); setDialogue({ entree: row }); }} aria-label={t('editModel', { model: row.model })}>{t('edit')}</Button>
           <Button size="sm" variant="outline" disabled={etat.isPending} onClick={() => etat.mutate({ entree: row, active: !row.active })} aria-label={t(row.active ? 'withdrawModel' : 'restoreModel', { model: row.model })}>
             {row.active ? t('withdraw') : t('restore')}
@@ -149,7 +160,7 @@ export function AiModelsPanel() {
               columns={columns}
               rows={entrees.filter((entree) => entree.provider === provider)}
               rowKey={(row) => row.model}
-              rowProps={(row) => (row.active ? {} : { className: 'opacity-60', 'data-withdrawn': true })}
+              rowProps={(row) => (row.active ? {} : { className: row.uses ? undefined : 'opacity-60', 'data-withdrawn': true })}
               density="compact"
             />
           </div>
@@ -187,15 +198,15 @@ function ModelDialog({ entree, fournisseurs, pending, error, onClose, onSave }: 
 
   return (
     <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
-      <DialogContent>
-        <DialogHeader><DialogTitle>{entree ? t('editTitle', { model: entree.model }) : t('addTitle')}</DialogTitle></DialogHeader>
+      <DialogContent className="grid-cols-[minmax(0,1fr)]">
+        <DialogHeader><DialogTitle className="pr-6 break-all">{entree ? t('editTitle', { model: entree.model }) : t('addTitle')}</DialogTitle></DialogHeader>
         <div className="space-y-3">
           {entree ? null : (
             <>
               <div className="space-y-1">
                 <Label id="model-provider">{t('provider')}</Label>
                 <Select value={provider} onValueChange={(v) => v && setProvider(v)} items={fournisseurs}>
-                  <SelectTrigger className="h-10 w-full" aria-labelledby="model-provider"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="h-10 w-full min-w-0" aria-labelledby="model-provider"><SelectValue /></SelectTrigger>
                   <SelectContent>{fournisseurs.map((f) => <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>)}</SelectContent>
                 </Select>
               </div>

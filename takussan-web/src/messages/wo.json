@@ -7852,7 +7852,7 @@
         },
         "models": {
           "title": "Modèles",
-          "description": "Les modèles affectables de chaque fournisseur déclaré, et leurs tarifs en dollars par million de tokens. Une correction vaut pour les appels suivants, jamais pour les appels passés.",
+          "description": "Les modèles affectables de chaque fournisseur déclaré, et leurs tarifs en dollars par million de tokens. Une correction vaut pour les appels suivants, jamais pour les appels passés. Une ligne réglée ici masque le tarif de la configuration, jusqu’à ce qu’on y revienne.",
           "caption": "Modèles de {provider}",
           "model": "Modèle",
           "origin": "Origine",
@@ -7866,6 +7866,9 @@
           "editModel": "Corriger le tarif de {model}",
           "withdraw": "Retirer",
           "withdrawModel": "Retirer {model}",
+          "revert": "Revenir à la configuration",
+          "revertModel": "Revenir au tarif de la configuration pour {model}",
+          "withdrawnInUse": "Retiré, mais encore employé : {names}. Ses appels continuent et restent comptés ; ce qui l’emploie ne s’enregistre plus tant qu’il y figure.",
           "restore": "Rétablir",
           "restoreModel": "Rétablir {model}",
           "add": "Ajouter un modèle",

@@ -137,13 +137,13 @@ function UsageSettingsDialog({ row, taux, options, optionsError, pending, error,
 
   return (
     <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
-      <DialogContent>
-        <DialogHeader><DialogTitle>{row.key}</DialogTitle></DialogHeader>
+      <DialogContent className="grid-cols-[minmax(0,1fr)]">
+        <DialogHeader><DialogTitle className="pr-6 break-all">{row.key}</DialogTitle></DialogHeader>
         <div className="space-y-3">
           <div className="space-y-1">
             <Label id="forced-model">{t('forcedModel')}</Label>
             <Select value={forced} onValueChange={(v) => setForced(v ?? SANS_FORCAGE)} items={items}>
-              <SelectTrigger className="h-10 w-full" aria-labelledby="forced-model"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-10 w-full min-w-0" aria-labelledby="forced-model"><SelectValue /></SelectTrigger>
               <SelectContent>{items.map((o) => <SelectItem key={o.value || 'role'} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
             </Select>
             {optionsError ? <p className="text-sm text-destructive" role="alert">{optionsError}</p> : null}

@@ -225,6 +225,7 @@ final class ProtectedActions
         // TCK-2448 (ADR-0085 §1) — un tarif décide du budget, et un modèle ajouté reçoit des données.
         AiModelController::class.'@store',
         AiModelController::class.'@update',
+        AiModelController::class.'@destroy',
         SuperAdminInvitationController::class.'@store',
         SuperAdminInvitationController::class.'@resend',
         SuperAdminInvitationController::class.'@revoke',

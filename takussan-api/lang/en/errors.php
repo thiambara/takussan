@@ -77,6 +77,7 @@ return [
         ],
         'evaluation_below_baseline' => 'This model was evaluated below the baseline: give a reason to assign it anyway.',
         'model_in_use' => 'This model is still in use. Chains in the database: :roles. Forced models: :usages. Configuration fallback chains: :fallback_roles.',
+        'model_not_in_config' => 'This model has no configuration entry: it can be withdrawn, not deleted.',
         'model_unpriced' => 'This model has no price: it cannot be assigned.',
         'provider_key_missing' => 'No key is configured for this provider.',
         'provider_unknown' => 'Unknown AI provider.',

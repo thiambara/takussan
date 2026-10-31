@@ -6,6 +6,7 @@ use App\Models\AiCall;
 use App\Models\AiModel;
 use App\Models\AiRoleAssignment;
 use App\Models\AiUsageSetting;
+use App\Models\Enums\PlatformAbility;
 use App\Models\Enums\PlatformProfileLevel;
 use App\Models\User;
 use App\Services\Ai\AiGateway;
@@ -17,6 +18,7 @@ use App\Services\Ai\ModelResolver;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
 use Laravel\Ai\Responses\Data\Meta;
 use Laravel\Ai\Responses\Data\TextUsage;
@@ -65,6 +67,11 @@ class AdminAiModelsTest extends TestCase
         $this->app->instance(EvaluationRunner::class, new EvaluationRunner(
             app(AiGateway::class), app(AiUsageRegistry::class), app(ModelResolver::class), new FieldScorer, $this->racine, $this->racine.'/rapports',
         ));
+    }
+
+    private function ligne(string $model): AiModel
+    {
+        return AiModel::query()->where('model', $model)->sole();
     }
 
     /** @param array<string, mixed> $extra */
@@ -293,5 +300,181 @@ class AdminAiModelsTest extends TestCase
 
         $this->assertSame('600', $reponse->json('meta.usd_to_xof'));
         $this->assertSame('0.00000000004', collect($reponse->json('data'))->firstWhere('model', 'modele-infime')['input']);
+    }
+
+    /** Décision du porteur (vérification de TCK-2448) : le tarif d'une ligne ne fige pas la configuration à vie. */
+    public function test_a_line_replacing_a_configured_model_goes_back_to_the_configuration(): void
+    {
+        $operateur = $this->actingAsRole('super_admin');
+        AgentDEssai::fake(fn (string $p, $a, $provider, string $model) => new StructuredTextResponse(['titre' => 'Villa', 'prix' => 100], '{}', new TextUsage(1_000_000, 0), new Meta('anthropic', $model)));
+        $appel = fn () => app(AiGateway::class)->run(new AiRequest(UsageDEssai::KEY, Str::random(), actor: $operateur))->call;
+
+        $this->ajouter('modele-a', ['input' => '1']);
+        $ligne = AiModel::query()->where('model', 'modele-a')->sole();
+        $avant = $appel();
+        $this->assertSame('1', $avant->cost_estimate_usd);
+
+        // La configuration change à un déploiement : la ligne la masque, jusqu'au retour.
+        config(['ai.pricing.anthropic.modele-a.input' => '9']);
+        $this->assertSame('1', $appel()->cost_estimate_usd);
+
+        $entree = collect($this->deleteJson('/api/admin/ai/models/'.$ligne->id)->assertOk()->json('data'))->firstWhere('model', 'modele-a');
+
+        $this->assertSame(['config', null, '9', true], [$entree['origin'], $entree['id'], $entree['input'], $entree['active']]);
+        $this->assertSame(0, AiModel::query()->count());
+        $this->assertSame('9', $appel()->cost_estimate_usd);
+        $this->assertSame('1', $avant->fresh()->cost_estimate_usd);
+    }
+
+    public function test_going_back_restores_a_withdrawn_model_of_the_configuration(): void
+    {
+        $this->actingAsRole('super_admin');
+        $this->ajouter('modele-libre', ['active' => false]);
+        $this->assertNotContains('modele-libre', $this->getJson('/api/admin/ai/providers')->json('data.0.models'));
+
+        $this->deleteJson('/api/admin/ai/models/'.$this->ligne('modele-libre')->id)->assertOk();
+
+        $this->assertContains('modele-libre', $this->getJson('/api/admin/ai/providers')->json('data.0.models'));
+    }
+
+    /** Le modèle reste au catalogue, au tarif de la configuration : aucun emploi ne se casse, le refus ne s'applique pas. */
+    public function test_going_back_is_not_refused_for_a_model_in_use_since_it_stays_in_the_catalogue(): void
+    {
+        $this->actingAsRole('super_admin');
+        $this->ajouter('modele-libre');
+        AiRoleAssignment::query()->create(['role' => 'redaction', 'chain' => [['provider' => 'anthropic', 'model' => 'modele-libre', 'max_tokens' => null]]]);
+        AiUsageSetting::query()->create(['usage_key' => UsageDEssai::KEY, 'forced_provider' => 'anthropic', 'forced_model' => 'modele-libre']);
+
+        $this->deleteJson('/api/admin/ai/models/'.$this->ligne('modele-libre')->id)->assertOk();
+
+        $this->putJson('/api/admin/ai/roles/redaction', ['chain' => [['provider' => 'anthropic', 'model' => 'modele-libre']]])->assertOk();
+    }
+
+    /** Sans entrée de configuration, le modèle disparaîtrait : il se retire par `active`, jamais par effacement. */
+    public function test_a_model_without_configuration_entry_is_never_deleted(): void
+    {
+        $this->actingAsRole('super_admin');
+        $modele = AiModel::factory()->create(['model' => 'modele-neuf']);
+
+        $this->deleteJson('/api/admin/ai/models/'.$modele->id)->assertStatus(409)->assertJsonPath('code', 'ai.model_not_in_config');
+
+        $this->assertNotNull($modele->fresh());
+        $this->assertSame(0, Activity::query()->where('event', 'super_admin_ai_model_reverted')->count());
+    }
+
+    public function test_going_back_needs_the_gesture_and_a_recent_second_factor(): void
+    {
+        $ligne = AiModel::factory()->create(['model' => 'modele-a']);
+
+        $this->agirEnOperateur(PlatformProfileLevel::Support);
+        $this->deleteJson('/api/admin/ai/models/'.$ligne->id)->assertStatus(403)->assertJsonPath('code', 'platform.ability_missing');
+
+        $user = User::factory()->withTwoFactor()->create();
+        $this->materializeRoleProfile($user, 'super_admin');
+        $this->actingAs($user);
+        $this->deleteJson('/api/admin/ai/models/'.$ligne->id)->assertStatus(403)->assertJsonPath('code', 'two_factor_step_up_required');
+
+        $this->assertNotNull($ligne->fresh());
+    }
+
+    public function test_going_back_is_journaled_with_the_price_before_and_after(): void
+    {
+        $this->actingAsRole('super_admin');
+        $this->ajouter('modele-libre', ['input' => '7', 'active' => false]);
+
+        $this->deleteJson('/api/admin/ai/models/'.$this->ligne('modele-libre')->id)->assertOk();
+
+        $ligne = Activity::query()->where('event', 'super_admin_ai_model_reverted')->sole();
+        $this->assertSame('modele-libre', $ligne->properties['model']);
+        $this->assertSame(['7', false], [$ligne->properties['before']['input'], $ligne->properties['before']['active']]);
+        $this->assertSame(['1', true], [$ligne->properties['after']['input'], $ligne->properties['after']['active']]);
+    }
+
+    /** Un octet NUL mourait en 500 dans PostgreSQL ; un caractère invisible désignerait un modèle qui n'existe pas. */
+    public function test_an_identifier_with_a_nul_byte_or_an_invisible_character_is_refused(): void
+    {
+        $this->actingAsRole('super_admin');
+
+        foreach (["nul\0byte", "a\u{00A0}b", "a\u{200B}b", "a\tb", "a\u{FEFF}b"] as $identifiant) {
+            $this->postJson('/api/admin/ai/models', ['provider' => 'anthropic', 'model' => $identifiant] + self::TARIFS)->assertStatus(422)->assertJsonValidationErrors('model');
+        }
+        $this->assertSame(0, AiModel::query()->count());
+    }
+
+    public function test_a_nul_byte_in_a_provider_is_a_validation_error(): void
+    {
+        $this->actingAsRole('super_admin');
+
+        $this->postJson('/api/admin/ai/models', ['provider' => "anthro\0pic", 'model' => 'modele-x'] + self::TARIFS)->assertStatus(422)->assertJsonValidationErrors('provider');
+        $this->postJson('/api/admin/ai/models', ['provider' => ['anthropic'], 'model' => 'modele-x'] + self::TARIFS)->assertStatus(422)->assertJsonValidationErrors('provider');
+    }
+
+    /** Les mêmes identifiants, là où un modèle s'affecte : refusés comme tout modèle hors catalogue. */
+    public function test_a_nul_byte_is_refused_where_a_model_is_assigned(): void
+    {
+        $this->avecUnJeuDeCas();
+        $this->actingAsRole('super_admin');
+        $nul = "nul\0byte";
+
+        $this->putJson('/api/admin/ai/roles/redaction', ['chain' => [['provider' => 'anthropic', 'model' => $nul]]])->assertStatus(422);
+        $this->patchJson('/api/admin/ai/usages/'.UsageDEssai::KEY, ['forced_provider' => 'anthropic', 'forced_model' => $nul])->assertStatus(422);
+        $this->postJson('/api/admin/ai/evaluations', ['role' => 'extraction', 'provider' => 'anthropic', 'model' => $nul])->assertStatus(422);
+    }
+
+    public function test_a_route_identifier_that_is_not_a_number_is_refused(): void
+    {
+        $this->actingAsRole('super_admin');
+        $modele = AiModel::factory()->create(['model' => 'modele-a', 'input' => '1']);
+
+        $this->patchJson('/api/admin/ai/models/'.$modele->id.'abc', ['input' => '9'])->assertNotFound();
+        $this->deleteJson('/api/admin/ai/models/'.$modele->id.'abc')->assertNotFound();
+
+        $this->assertSame('1', $modele->fresh()->input);
+    }
+
+    public function test_a_price_is_bounded_at_200_characters(): void
+    {
+        $this->actingAsRole('super_admin');
+        $juste = '0.'.str_repeat('0', 197).'1';
+        $this->assertSame(200, strlen($juste));
+
+        $this->ajouter('modele-long', ['input' => $juste]);
+        $this->assertSame($juste, $this->ligne('modele-long')->input);
+
+        $this->postJson('/api/admin/ai/models', ['provider' => 'anthropic', 'model' => 'modele-trop-long'] + ['input' => '0.'.str_repeat('0', 198).'1'] + self::TARIFS)
+            ->assertStatus(422)->assertJsonValidationErrors('input');
+    }
+
+    /** Les deux gestes sont du seul `super_admin` : seule la route les distingue, aucune réponse ne le peut. */
+    public function test_reading_needs_view_and_writing_needs_manage(): void
+    {
+        $gardes = fn (string $nom): array => array_values(array_filter(
+            Route::getRoutes()->getByName($nom)->gatherMiddleware(),
+            fn ($garde): bool => is_string($garde) && str_starts_with($garde, 'platform-can:'),
+        ));
+
+        $this->assertSame(['platform-can:'.PlatformAbility::AiView->value], $gardes('admin.ai.models.index'));
+        foreach (['store', 'update', 'destroy'] as $ecriture) {
+            $this->assertSame(['platform-can:'.PlatformAbility::AiManage->value], $gardes('admin.ai.models.'.$ecriture));
+        }
+    }
+
+    /** Un retrait refusé ne suffit pas : une affectation concurrente, ou un déploiement, peut laisser un modèle retiré en chaîne. */
+    public function test_the_listing_names_what_still_employs_a_withdrawn_model(): void
+    {
+        $this->actingAsRole('super_admin');
+        AiModel::factory()->create(['model' => 'modele-employe', 'active' => false]);
+        AiModel::factory()->create(['model' => 'modele-oublie', 'active' => false]);
+        AiModel::factory()->create(['model' => 'modele-actif']);
+        AiRoleAssignment::query()->create(['role' => 'redaction', 'chain' => [
+            ['provider' => 'anthropic', 'model' => 'modele-employe', 'max_tokens' => null],
+            ['provider' => 'anthropic', 'model' => 'modele-actif', 'max_tokens' => null],
+        ]]);
+
+        $lignes = collect($this->getJson('/api/admin/ai/models')->assertOk()->json('data'))->keyBy('model');
+
+        $this->assertSame(['redaction'], $lignes['modele-employe']['uses']['roles']);
+        $this->assertNull($lignes['modele-oublie']['uses']);
+        $this->assertNull($lignes['modele-actif']['uses']);
     }
 }

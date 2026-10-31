@@ -1078,6 +1078,8 @@ export type AiCatalogueModel = AiModelPrices & {
   origin: 'console' | 'config';
   in_config: boolean;
   updated_at: string | null;
+  /** Un modèle retiré encore employé : ses emplois. Nul sinon. */
+  uses: AiModelUses | null;
 };
 export type AdminAiModelsResponse = { data: AiCatalogueModel[]; meta: { usd_to_xof: string } };
 /** Ce que nomme un retrait refusé, code `ai.model_in_use`. */

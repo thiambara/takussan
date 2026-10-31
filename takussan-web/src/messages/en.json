@@ -8506,7 +8506,7 @@
         },
         "models": {
           "title": "Models",
-          "description": "The assignable models of each declared provider, and their prices in dollars per million tokens. A correction applies to the next calls, never to past ones.",
+          "description": "The assignable models of each declared provider, and their prices in dollars per million tokens. A correction applies to the next calls, never to past ones. A line set here hides the configuration price until you go back to it.",
           "caption": "{provider} models",
           "model": "Model",
           "origin": "Origin",
@@ -8520,6 +8520,9 @@
           "editModel": "Correct the price of {model}",
           "withdraw": "Withdraw",
           "withdrawModel": "Withdraw {model}",
+          "revert": "Back to configuration",
+          "revertModel": "Go back to the configuration price for {model}",
+          "withdrawnInUse": "Withdrawn, but still in use: {names}. Its calls continue and are still counted; whatever uses it can no longer be saved while it remains there.",
           "restore": "Restore",
           "restoreModel": "Restore {model}",
           "add": "Add a model",

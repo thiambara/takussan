@@ -3,7 +3,7 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '@/lib/api';
-import { fetchAdminAiModels, fetchAdminAiProviders, patchAdminAiModel, postAdminAiModel } from '@/lib/queries/super-admin';
+import { deleteAdminAiModel, fetchAdminAiModels, fetchAdminAiProviders, patchAdminAiModel, postAdminAiModel } from '@/lib/queries/super-admin';
 import { withIntl } from '@/test/intl';
 import type { AiCatalogueModel } from '@/types/super-admin';
 import { AiModelsPanel } from '../AiModelsPanel';
@@ -13,12 +13,14 @@ vi.mock('@/lib/queries/super-admin', () => ({
   fetchAdminAiProviders: vi.fn(),
   postAdminAiModel: vi.fn(),
   patchAdminAiModel: vi.fn(),
+  deleteAdminAiModel: vi.fn(),
 }));
 
 const tarifs = { input: '2', output: '10', cache_read: '0.125', cache_write: '2.5' };
-const configuration: AiCatalogueModel = { id: null, provider: 'anthropic', model: 'modele-a', ...tarifs, active: true, origin: 'config', in_config: true, updated_at: null };
-const ajoute: AiCatalogueModel = { id: 7, provider: 'anthropic', model: 'modele-neuf', input: '0.00000000004', output: '0', cache_read: '0', cache_write: '0', active: true, origin: 'console', in_config: false, updated_at: '2026-10-31T10:00:00+00:00' };
+const configuration: AiCatalogueModel = { id: null, provider: 'anthropic', model: 'modele-a', ...tarifs, active: true, origin: 'config', in_config: true, updated_at: null, uses: null };
+const ajoute: AiCatalogueModel = { id: 7, provider: 'anthropic', model: 'modele-neuf', input: '0.00000000004', output: '0', cache_read: '0', cache_write: '0', active: true, origin: 'console', in_config: false, updated_at: '2026-10-31T10:00:00+00:00', uses: null };
 const retire: AiCatalogueModel = { ...ajoute, id: 8, model: 'modele-retire', active: false };
+const remplace: AiCatalogueModel = { ...configuration, id: 9, model: 'modele-b', input: '1', origin: 'console', updated_at: '2026-10-31T10:00:00+00:00' };
 const reponse = (...data: AiCatalogueModel[]) => ({ data, meta: { usd_to_xof: '600' } });
 
 function renderPanel() {
@@ -34,6 +36,7 @@ describe('modèles IA (TCK-2448)', () => {
     vi.mocked(fetchAdminAiProviders).mockReset().mockResolvedValue({ data: [{ key: 'anthropic', legal_name: 'Anthropic', key_present: true, models: ['modele-a'] }] });
     vi.mocked(postAdminAiModel).mockReset().mockResolvedValue(reponse(configuration));
     vi.mocked(patchAdminAiModel).mockReset().mockResolvedValue(reponse(configuration));
+    vi.mocked(deleteAdminAiModel).mockReset().mockResolvedValue(reponse(configuration));
   });
 
   it('liste par fournisseur, avec tous les chiffres des quatre tarifs et l’origine', async () => {
@@ -85,6 +88,46 @@ describe('modèles IA (TCK-2448)', () => {
     expect(alerte).toHaveTextContent('Chaînes réglées ici : Rédaction.');
     expect(alerte).toHaveTextContent('Modèle forcé de : radar.extraction.');
     expect(alerte).toHaveTextContent('Chaînes de repli de la configuration : Vision.');
+  });
+
+  it('une ligne qui remplace la configuration y revient, et seule celle-là', async () => {
+    vi.mocked(fetchAdminAiModels).mockResolvedValue(reponse(configuration, ajoute, remplace));
+    renderPanel();
+
+    await userEvent.click(within(await ligne('modele-b')).getByRole('button', { name: 'Revenir au tarif de la configuration pour modele-b' }));
+
+    expect(deleteAdminAiModel).toHaveBeenCalledWith(9);
+    expect(within(await ligne('modele-a')).queryByRole('button', { name: /Revenir/ })).not.toBeInTheDocument();
+  });
+
+  it('une ligne ajoutée ici ne propose aucun retour : elle n’a pas de configuration où revenir', async () => {
+    vi.mocked(fetchAdminAiModels).mockResolvedValue(reponse(ajoute));
+    renderPanel();
+
+    expect(within(await ligne('modele-neuf')).queryByRole('button', { name: /Revenir/ })).not.toBeInTheDocument();
+  });
+
+  it('un modèle retiré encore employé le dit, en nommant ses emplois, sans atténuer l’avertissement', async () => {
+    const employe: AiCatalogueModel = { ...retire, uses: { roles: ['redaction'], usages: ['radar.extraction'], fallback_roles: [] } };
+    vi.mocked(fetchAdminAiModels).mockResolvedValue(reponse(employe, ajoute));
+    renderPanel();
+
+    const modele = await ligne('modele-retire');
+    expect(modele).toHaveTextContent('Retiré, mais encore employé : Rédaction, radar.extraction.');
+    expect(modele).not.toHaveClass('opacity-60');
+    expect(await ligne('modele-neuf')).not.toHaveTextContent('encore employé');
+  });
+
+  it('le titre d’un identifiant long se coupe, et la colonne du dialogue ne s’élargit pas à son contenu', async () => {
+    const long = 'x'.repeat(255);
+    vi.mocked(fetchAdminAiModels).mockResolvedValue(reponse({ ...ajoute, model: long }));
+    renderPanel();
+
+    await userEvent.click(await screen.findByRole('button', { name: `Corriger le tarif de ${long}` }));
+
+    const dialogue = await screen.findByRole('dialog');
+    expect(dialogue).toHaveClass('grid-cols-[minmax(0,1fr)]');
+    expect(within(dialogue).getByRole('heading')).toHaveClass('pr-6', 'break-all');
   });
 
   it('le formulaire dit que l’identifiant est celui du fournisseur et qu’un tarif nul veut dire gratuit', async () => {

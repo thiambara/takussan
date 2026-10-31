@@ -34,7 +34,8 @@ Route::middleware(['auth:sanctum', 'super-admin'])->prefix('admin/ai')->group(fu
         Route::patch('usages/{usage}', [AiUsageController::class, 'update'])->name('admin.ai.usages.update');
         Route::post('providers/{provider}/test', [AiProviderController::class, 'test'])->name('admin.ai.providers.test');
         Route::post('models', [AiModelController::class, 'store'])->name('admin.ai.models.store');
-        Route::patch('models/{model}', [AiModelController::class, 'update'])->name('admin.ai.models.update');
+        Route::patch('models/{model}', [AiModelController::class, 'update'])->whereNumber('model')->name('admin.ai.models.update');
+        Route::delete('models/{model}', [AiModelController::class, 'destroy'])->whereNumber('model')->name('admin.ai.models.destroy');
         Route::post('evaluations', [AiEvaluationController::class, 'store'])->name('admin.ai.evaluations.store');
     });
 });
