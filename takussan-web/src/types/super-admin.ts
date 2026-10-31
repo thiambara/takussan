@@ -792,7 +792,7 @@ export type PlatformHealth = {
   /** TCK-2414 — `degraded` hors local tant que `RADAR_PHONE_HMAC_KEY` n'est pas posée. */
   radar_phone_key?: HealthcheckStatus;
   /** TCK-2450 — `degraded` quand une clé est posée sur une adresse hors des hôtes acceptés. */
-  ai_providers?: HealthcheckStatus & { providers?: { key: string; host: string | null }[] };
+  ai_providers?: HealthcheckStatus;
   status?: HealthLevel;
   generated_at: string;
 };

@@ -96,21 +96,16 @@ final class AiProviderCatalogue
         };
     }
 
-    /**
-     * Clé posée, adresse refusée : ce que la sonde de santé signale. Seul l'hôte sort.
-     *
-     * @return list<array{key: string, host: string|null}>
-     */
-    public function keyedWithRefusedAddress(): array
+    /** Clé posée, adresse refusée : ce que la sonde de santé signale, sans nommer ni le fournisseur ni son adresse. */
+    public function anyKeyedWithRefusedAddress(): bool
     {
-        $refused = [];
         foreach (array_keys(self::declared()) as $key) {
             if ($this->unselectableReason($key) === self::REASON_HOST_NOT_ALLOWED) {
-                $refused[] = ['key' => $key, 'host' => $this->hostOf($key)];
+                return true;
             }
         }
 
-        return $refused;
+        return false;
     }
 
     public function cheapestModel(string $provider): ?string
@@ -118,17 +113,24 @@ final class AiProviderCatalogue
         return $this->models->cheapestModel($provider);
     }
 
-    /** L'hôte de l'adresse, le seul détail qui en sorte. Une adresse illisible n'en a pas. */
+    /** L'hôte de l'adresse, le seul détail qui en sorte, avec son port s'il n'est pas celui du schéma. Une adresse illisible n'en a pas. */
     public function hostOf(string $provider): ?string
     {
         $parts = $this->addressParts($provider);
+        if (! isset($parts['host'])) {
+            return null;
+        }
+        $host = strtolower($parts['host']);
+        $port = $parts['port'] ?? null;
+        $default = ['https' => 443, 'http' => 80][strtolower((string) ($parts['scheme'] ?? ''))] ?? null;
 
-        return isset($parts['host']) ? strtolower($parts['host']) : null;
+        return $port === null || $port === $default ? $host : "{$host}:{$port}";
     }
 
     /**
-     * Comparaison exacte, sans joker. `https` seul hors `local` et `testing`. Une adresse à identifiants est refusée :
-     * `parse_url` et le client HTTP pourraient ne pas y lire le même hôte (une barre inverse devant `@`).
+     * Comparaison exacte, sans joker, port compris : un port qui n'est pas celui du schéma s'écrit dans `allowed_hosts`
+     * (`hote:8443`). `https` seul hors `local` et `testing`. Une adresse à identifiants est refusée : `parse_url` et le
+     * client HTTP pourraient ne pas y lire le même hôte (une barre inverse devant `@`).
      */
     private function addressAccepted(string $provider): bool
     {
@@ -142,7 +144,7 @@ final class AiProviderCatalogue
         }
         $allowed = array_map(strtolower(...), (array) (self::declared()[$provider]['allowed_hosts'] ?? []));
 
-        return in_array(strtolower($parts['host']), $allowed, true);
+        return in_array($this->hostOf($provider), $allowed, true);
     }
 
     /** @return array<string, int|string>|null */

@@ -125,7 +125,7 @@ non acceptée) en texte, jamais la clé ni l'adresse complète. L'hôte seul peu
       `deny` par défaut.
 - [x] **AC5** — `check-ai-providers-privacy.mjs` rougit si une entrée n'a pas d'`allowed_hosts`, ou si un
       `legal_name` manque dans la puce fr ou en.
-- [x] **AC6** — `check-env-parity.mjs` est vert, et la suite (CI, sur `.env.example`) est verte avec les clés vides.
+- [ ] **AC6** — `check-env-parity.mjs` est vert, et la suite (CI, sur `.env.example`) est verte avec les clés vides.
 
 ## Hors périmètre
 
@@ -140,7 +140,38 @@ non acceptée) en texte, jamais la clé ni l'adresse complète. L'hôte seul peu
 - `store` et `provider` partent par `SocleAgent::providerOptions()`, que la passerelle remplit depuis l'entrée du maillon :
   le SDK ne donne à l'agent que le pilote.
 
+### Décisions de la session, après la vérification adverse
+
+- **Redirections.** Ni le corps ni la clé ne suivent une redirection, sur tous les pilotes, Anthropic compris
+  (`ai.provider_redirected`, panne de maillon qui bascule). Le corps envoyé à Anthropic ne change pas.
+- **OpenRouter.** Aucun filtre de pays imposé. `privacy.ts` § 4.3 et § 5 disent plusieurs pays, leurs conditions, et aucune
+  protection présumée. `zdr`, `only`, `order` et `ignore` passent depuis l'entrée, sans être imposés.
+- **CDP.** `privacy.ts` § 5 dit que les formalités ne sont pas accomplies. Pas de garde de code : geste du porteur, écrit en
+  tête du runbook de `docs/infra/hebergement.md`.
+- **Masquage.** Pas de changement de code : les usages `Personnelle` partent en clair vers tout pilote, comme déjà vers
+  Anthropic, et `privacy.ts` § 4.3 le dit. `Sensible` est refusé sans requête, sur chaque pilote.
+- **Coût.** Une réponse sans `usage` écrit `warning: usage_missing`, et le tableau de bord la compte dans
+  `provider_rejections`, renommée « Défauts du fournisseur » à l'écran. **Le budget n'en est pas informé** : elle y vaut zéro.
+- **AC6 reste décoché** : sa moitié CI n'a pas tourné. La session le coche sur la CI verte.
+
+### Limites écrites
+
+- **La cause d'un 400 derrière un dernier maillon sans clé se perd** : l'usage rend `ai.provider_key_missing`, et la ligne du
+  journal garde `ai.request_rejected`.
+- **Une entrée `openai-compatible` posée sur `openrouter.ai` ou `api.openai.com` n'envoie ni `data_collection` ni `store`**, et
+  aucune garde ne le voit.
+
 ### Décisions prises en autonomie, à revoir
+
+- **Une redirection écrit aussi `warning: provider_rejected`, Anthropic compris**, pour se voir au tableau de bord. Écarté : la
+  seule colonne des bascules, où elle se confond avec une panne ordinaire.
+- **Une réponse sans `usage` sur un modèle sans tarif écrit `usage_missing`**, pas `model_unpriced` : le tarif absent reste dans
+  le journal applicatif (`ai.model_unpriced`), et le tableau de bord ne compte que le premier.
+- **La phrase « aucune donnée sensible » de `privacy.ts` devient « aucune demande que nous classons comme portant une donnée
+  sensible »** : le code refuse une classe déclarée, il ne lit pas le contenu.
+- **Le port se compare, et un port hors du schéma s'écrit dans `allowed_hosts`** (`hote:8443`). Le port du schéma, écrit ou non,
+  vaut l'hôte seul.
+- **La sonde `ai_providers` ne rend que son motif.** L'hôte reste lisible dans la console des fournisseurs, sous `platform.ai.view`.
 
 - **`provider.require_parameters` : `true`, réglable sur l'entrée.** Écarté : `false`, où un point d'accès qui ignore le
   format de sortie rendrait de la prose. La documentation ne dit pas ce que rend une absence de point d'accès.

@@ -8407,6 +8407,7 @@
           "unexpected": "Unexpected error: details are in the API log.",
           "providerKeyMissing": "No key is set for this provider.",
           "providerHostNotAllowed": "The address of this provider is not on an accepted host.",
+          "providerRedirected": "This provider answered with a redirect: the request was not sent again.",
           "providerUnknown": "This provider is no longer declared."
         },
         "roles": {
@@ -8569,8 +8570,8 @@
           "latency": "Average latency (ms)",
           "errors": "Errors",
           "refusals": "Refusals",
-          "providerRejections": "Provider refusals, failed over",
-          "providerRejectionsNotice": "{count, plural, one {# call failed over to the next link because the provider refused it. Check this provider: the fallback hides its failure.} other {# calls failed over to the next link because the provider refused them. Check this provider: the fallback hides its failure.}}",
+          "providerRejections": "Provider defects",
+          "providerRejectionsNotice": "{count, plural, one {# call reports a provider defect: a refusal or a redirect that the next link hid, or a response without a token count, counted as zero and unknown to the budget. Check this provider.} other {# calls report a provider defect: a refusal or a redirect that the next link hid, or a response without a token count, counted as zero and unknown to the budget. Check this provider.}}",
           "acceptanceCaption": "Suggestion acceptance rate",
           "acceptance": "Accepted as is",
           "decided": "Decided",

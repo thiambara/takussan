@@ -509,16 +509,14 @@ class HealthcheckService
 
     /**
      * TCK-2450 (ADR-0085 §3) — une clé posée sur une adresse hors de ses hôtes : le fournisseur ne reçoit rien, et
-     * ses maillons basculent sans autre signal. Une clé absente n'est pas un défaut : c'est l'état par défaut. L'hôte
-     * est le seul détail de l'adresse qui sorte.
+     * ses maillons basculent sans autre signal. Une clé absente n'est pas un défaut : c'est l'état par défaut. Le motif
+     * seul : `platform.health.view` ne voit pas l'hôte, que la console des fournisseurs réserve à `platform.ai.view`.
      *
      * @return array<string,mixed>
      */
     private function aiProviders(): array
     {
-        $refused = $this->aiProviders->keyedWithRefusedAddress();
-
-        return $refused === [] ? [] : ['status' => 'degraded', 'reason' => 'ai_provider_host_not_allowed', 'providers' => $refused];
+        return $this->aiProviders->anyKeyedWithRefusedAddress() ? ['status' => 'degraded', 'reason' => 'ai_provider_host_not_allowed'] : [];
     }
 
     /**

@@ -45,7 +45,7 @@ describe('coûts IA (TCK-2385)', () => {
     expect(screen.getByText(/Aujourd’hui : \$0\.00000000004 \(≈ 0,000000024\s*F\s*CFA\) dépensés, sans plafond global/)).toBeInTheDocument();
   });
 
-  it('dit qu’un fournisseur a refusé des appels que le secours a effacés (TCK-2449)', async () => {
+  it('dit qu’un fournisseur a des défauts que le secours ou un coût à zéro effacent (TCK-2449, TCK-2450)', async () => {
     const jour = { usage_key: 'essai.extraction', calls: 3, cost_usd: '1', avg_duration_ms: 100, errors: 0, refusals: 0, failovers: 2, cache_hits: 0 };
     vi.mocked(fetchAdminAiDashboard).mockResolvedValue({ data: {
       days: [{ ...jour, date: '2026-10-30', provider_rejections: 2 }, { ...jour, date: '2026-10-31', provider_rejections: 1 }],
@@ -57,7 +57,7 @@ describe('coûts IA (TCK-2385)', () => {
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(withIntl(<QueryClientProvider client={queryClient}><AiDashboardPanel /></QueryClientProvider>));
 
-    expect(await screen.findByRole('status')).toHaveTextContent('3 appels ont basculé sur le maillon suivant');
+    expect(await screen.findByRole('status')).toHaveTextContent('3 appels signalent un défaut du fournisseur');
     const ligne = within(screen.getByRole('table', { name: 'Appels par jour et par usage' })).getByRole('row', { name: /2026-10-30/ });
     expect(within(ligne).getAllByRole('cell').at(-1)).toHaveTextContent('2');
   });

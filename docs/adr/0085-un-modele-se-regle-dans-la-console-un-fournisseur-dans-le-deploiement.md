@@ -194,5 +194,13 @@ d'OpenRouter le 2026-10-31 : aucune clé n'existe, aucun vrai appel ne les a ép
 - **La garde `check-ai-providers-privacy.mjs` rougit sur un `data_collection` autre que `deny`** : `privacy.ts` promet
   `deny`, donc le texte change avec la configuration.
 
-**Limite connue.** Le client HTTP du SDK suit les redirections : un hôte accepté qui redirigerait une requête en mènerait le
-contenu ailleurs. Le contrôle ne porte que sur l'adresse configurée.
+**Une redirection n'est pas suivie, sur aucun pilote, Anthropic compris.** Ni le corps ni la clé ne partent vers
+l'adresse rendue : `AiGateway::withoutFollowingRedirects()` fait lever `ai.provider_redirected`, classé en panne de maillon,
+qui bascule s'il en reste un. Le contrôle d'hôte ne porte que sur l'adresse configurée : c'est ce refus qui le rend vrai
+jusqu'au bout. Une réponse 3xx sans `Location` n'est pas une redirection : elle arrive au SDK, et finit en erreur.
+
+**Une réponse sans `usage`** écrit `warning: usage_missing`, et le tableau de bord la compte dans `provider_rejections`. Le
+budget n'en est pas informé : elle y vaut zéro.
+
+**Limite connue.** Derrière un dernier maillon sans clé, la cause d'un 400 se perd : l'usage rend
+`ai.provider_key_missing` au lieu de `ai.request_rejected`. La ligne du journal garde la bonne cause.

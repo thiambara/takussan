@@ -8407,6 +8407,7 @@
           "unexpected": "Erreur inattendue : le détail est au journal de l’API.",
           "providerKeyMissing": "Aucune clé n’est posée pour ce fournisseur.",
           "providerHostNotAllowed": "L’adresse de ce fournisseur n’est pas sur un hôte accepté.",
+          "providerRedirected": "Ce fournisseur a répondu par une redirection : la demande n’a pas été renvoyée.",
           "providerUnknown": "Ce fournisseur n’est plus déclaré."
         },
         "roles": {
@@ -8569,8 +8570,8 @@
           "latency": "Latence moyenne (ms)",
           "errors": "Erreurs",
           "refusals": "Refus",
-          "providerRejections": "Refus du fournisseur, bascule",
-          "providerRejectionsNotice": "{count, plural, one {# appel a basculé sur le maillon suivant parce que le fournisseur l’a refusé. Vérifiez ce fournisseur : le secours masque sa panne.} other {# appels ont basculé sur le maillon suivant parce que le fournisseur les a refusés. Vérifiez ce fournisseur : le secours masque sa panne.}}",
+          "providerRejections": "Défauts du fournisseur",
+          "providerRejectionsNotice": "{count, plural, one {# appel signale un défaut du fournisseur : un refus ou une redirection que le maillon suivant a effacés, ou une réponse sans décompte de jetons, comptée à zéro et inconnue du budget. Vérifiez ce fournisseur.} other {# appels signalent un défaut du fournisseur : un refus ou une redirection que le maillon suivant a effacés, ou une réponse sans décompte de jetons, comptée à zéro et inconnue du budget. Vérifiez ce fournisseur.}}",
           "acceptanceCaption": "Taux d’acceptation des suggestions",
           "acceptance": "Acceptées telles quelles",
           "decided": "Décidées",

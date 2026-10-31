@@ -16,5 +16,6 @@ export const ERREURS_APPEL_IA: Record<string, string> = {
   'ai.unexpected': 'unexpected',
   'ai.provider_key_missing': 'providerKeyMissing',
   'ai.provider_host_not_allowed': 'providerHostNotAllowed',
+  'ai.provider_redirected': 'providerRedirected',
   'ai.provider_unknown': 'providerUnknown',
 };

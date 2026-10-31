@@ -81,6 +81,7 @@ return [
         'model_unpriced' => "Ce modèle n'a pas de tarif : il ne peut pas être affecté.",
         'provider_host_not_allowed' => "L'adresse de ce fournisseur n'est pas sur un hôte accepté.",
         'provider_key_missing' => "Aucune clé n'est configurée pour ce fournisseur.",
+        'provider_redirected' => "Ce fournisseur a répondu par une redirection : la demande n'a pas été renvoyée.",
         'provider_unknown' => 'Fournisseur IA inconnu.',
         'role_unknown' => 'Rôle IA inconnu.',
         'usage_unknown' => 'Usage IA inconnu.',

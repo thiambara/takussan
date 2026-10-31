@@ -115,6 +115,9 @@ class AiProviderSelectabilityTest extends TestCase
             'espace' => ['https://api.openai.com /v1'],
             'sans schéma' => ['api.openai.com/v1'],
             'autre schéma' => ['ftp://api.openai.com/v1'],
+            'autre port' => ['https://api.openai.com:8443/v1'],
+            'port zéro' => ['https://api.openai.com:0/v1'],
+            'port du schéma voisin' => ['https://api.openai.com:80/v1'],
         ];
     }
 
@@ -138,6 +141,22 @@ class AiProviderSelectabilityTest extends TestCase
         $this->assertStringNotContainsString('chemin-prive', $decrit);
         $this->assertStringNotContainsString('jeton', $decrit);
         $this->assertStringNotContainsString(self::CLE, $decrit);
+    }
+
+    /** Le port se compare : celui du schéma ne change rien, un autre s'écrit dans la liste. */
+    public function test_un_port_hors_du_schema_doit_etre_ecrit_dans_la_liste(): void
+    {
+        $this->openaiAvecCle('https://api.openai.com:443/v1');
+        $this->assertTrue($this->decrit('openai')['selectable'], 'le port de https');
+
+        $this->openaiAvecCle('https://api.openai.com:8443/v1');
+        $this->assertSame('api.openai.com:8443', $this->decrit('openai')['host']);
+
+        config(['ai.providers.openai.allowed_hosts' => ['api.openai.com:8443']]);
+        $this->assertTrue($this->decrit('openai')['selectable'], 'écrit dans la liste');
+
+        $this->openaiAvecCle('https://api.openai.com/v1');
+        $this->assertFalse($this->decrit('openai')['selectable'], 'la liste nomme ce port seul');
     }
 
     public function test_http_n_est_accepte_qu_en_local_et_en_test(): void
@@ -346,7 +365,7 @@ class AiProviderSelectabilityTest extends TestCase
         }
     }
 
-    /** AC2 — la sonde signale la clé posée sur une adresse refusée, et rien d'autre de l'adresse que son hôte. */
+    /** AC2 — la sonde signale la clé posée sur une adresse refusée, par son motif seul : `viewer` la lit, pas la console des fournisseurs. */
     public function test_la_sonde_de_sante_signale_une_adresse_non_acceptee(): void
     {
         Storage::fake('local');
@@ -362,7 +381,8 @@ class AiProviderSelectabilityTest extends TestCase
 
         $this->assertSame('degraded', $sonde['status']);
         $this->assertSame('ai_provider_host_not_allowed', $sonde['reason']);
-        $this->assertSame([['key' => 'openai', 'host' => 'proxy.example.test']], $sonde['providers']);
+        $this->assertArrayNotHasKey('providers', $sonde);
+        $this->assertStringNotContainsString('proxy.example.test', json_encode($sonde));
         $this->assertStringNotContainsString('chemin-prive', json_encode($sonde));
         $this->assertStringNotContainsString(self::CLE, json_encode($sonde));
     }

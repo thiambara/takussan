@@ -4,9 +4,11 @@ namespace Tests\Feature\Ai;
 
 use App\Ai\Usages\RadarExtractionUsage;
 use App\Models\Enums\AiDataClass;
+use App\Models\Enums\AiRefusalReason;
 use App\Services\Ai\AiGateway;
 use App\Services\Ai\AiRequest;
 use App\Services\Ai\AiUsageRegistry;
+use App\Services\Ai\Exceptions\AiRefused;
 use App\Services\Ai\ModelLink;
 use App\Services\Ai\PromptRepository;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -16,6 +18,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Support\Ai\AgentSchemas;
 use Tests\Support\Ai\SocleIaDEssai;
 use Tests\Support\Ai\UsageDEssai;
+use Tests\Support\Ai\UsagePersonnelleDEssai;
 use Tests\TestCase;
 
 /**
@@ -147,9 +150,9 @@ class AiProviderRoutingOptionsTest extends TestCase
         ];
     }
 
-    /** Le masquage ne dépend pas du fournisseur : aucun numéro en clair dans le corps, sur aucun pilote. */
+    /** Le masquage d'un usage public ne dépend pas du fournisseur. C'est tout ce qu'il couvre : voir le test suivant. */
     #[DataProvider('pilotes')]
-    public function test_aucun_numero_en_clair_ne_part(string $pilote, string $hote): void
+    public function test_un_usage_public_ne_laisse_partir_aucun_numero_en_clair(string $pilote, string $hote): void
     {
         $entree = substr($hote, 0, -5);
         $this->declarer($entree, $pilote);
@@ -159,6 +162,77 @@ class AiProviderRoutingOptionsTest extends TestCase
         $this->assertStringContainsString('pour visiter', $corps);
         $this->assertStringNotContainsString('012 34 56', $corps);
         $this->assertStringNotContainsString('770123456', $corps);
+    }
+
+    /** La limite que `privacy.ts` § 4.3 écrit : un usage à données personnelles n'est pas masqué, sur aucun pilote, Anthropic compris. */
+    #[DataProvider('pilotes')]
+    public function test_un_usage_a_donnees_personnelles_part_en_clair(string $pilote, string $hote): void
+    {
+        $entree = substr($hote, 0, -5);
+        $this->declarer($entree, $pilote);
+        $this->app->instance(AiUsageRegistry::class, new AiUsageRegistry([UsagePersonnelleDEssai::class]));
+
+        app(AiGateway::class)->run(new AiRequest(UsagePersonnelleDEssai::KEY, 'Appelez le +221 77 012 34 56.', [AiDataClass::Personnelle], link: new ModelLink($entree, 'modele-a', 100), evaluation: true));
+
+        $this->assertStringContainsString('+221 77 012 34 56', json_encode($this->corps[$hote][0], JSON_UNESCAPED_UNICODE));
+    }
+
+    /** `privacy.ts` § 4.3 — une demande classée sensible ne part chez aucun pilote : refusée avant tout envoi. */
+    #[DataProvider('pilotes')]
+    public function test_une_demande_sensible_est_refusee_sans_aucune_requete(string $pilote, string $hote): void
+    {
+        $entree = substr($hote, 0, -5);
+        $this->declarer($entree, $pilote);
+
+        try {
+            app(AiGateway::class)->run(new AiRequest(UsageDEssai::KEY, 'Une pièce d\'identité.', [AiDataClass::Sensible], link: new ModelLink($entree, 'modele-a', 100), evaluation: true));
+            $this->fail('la demande sensible devait être refusée');
+        } catch (AiRefused $e) {
+            $this->assertSame(AiRefusalReason::SensitiveData, $e->reason);
+        }
+        $this->assertSame([], $this->corps);
+    }
+
+    /** TCK-2450 — une réponse sans `usage` coûte zéro : la ligne le dit, le budget n'en sait rien. */
+    #[DataProvider('pilotes')]
+    public function test_une_reponse_sans_usage_porte_un_avertissement(string $pilote, string $hote): void
+    {
+        $entree = substr($hote, 0, -5);
+        $this->declarer($entree, $pilote);
+        (function () {
+            $this->stubCallbacks = collect();
+        })->call(Http::getFacadeRoot());
+        Http::fake(fn (Request $requete) => Http::response(str_ends_with($requete->url(), '/responses')
+            ? ['id' => 'r', 'model' => 'm', 'status' => 'completed', 'output' => [['type' => 'message', 'role' => 'assistant', 'content' => [['type' => 'output_text', 'text' => '{"a":1}']]]]]
+            : ['id' => 'c', 'model' => 'm', 'choices' => [['message' => ['role' => 'assistant', 'content' => '{"a":1}'], 'finish_reason' => 'stop']]]));
+        config(["ai.pricing.{$entree}" => ['modele-a' => ['input' => '1', 'output' => '1', 'cache_read' => '1', 'cache_write' => '1']]]);
+
+        $call = app(AiGateway::class)->run(new AiRequest(UsageDEssai::KEY, 'Une annonce.', [AiDataClass::Publique], link: new ModelLink($entree, 'modele-a', 100), evaluation: true))->call;
+
+        $this->assertSame(AiGateway::WARNING_USAGE_MISSING, $call->warning);
+    }
+
+    public function test_une_reponse_avec_ses_jetons_ne_porte_aucun_avertissement(): void
+    {
+        $this->declarer('compte', 'openrouter');
+        config(['ai.pricing.compte' => ['modele-a' => ['input' => '1', 'output' => '1', 'cache_read' => '1', 'cache_write' => '1']]]);
+
+        $call = app(AiGateway::class)->run(new AiRequest(UsageDEssai::KEY, 'Une annonce.', [AiDataClass::Publique], link: new ModelLink('compte', 'modele-a', 100), evaluation: true))->call;
+
+        $this->assertNull($call->warning);
+    }
+
+    /** TCK-2450 — aucun filtre de pays ni de fournisseur n'est imposé, mais les réglages facultatifs de l'entrée passent. */
+    public function test_les_reglages_facultatifs_d_openrouter_passent_sans_etre_imposes(): void
+    {
+        $this->declarer('choisi', 'openrouter', ['provider' => ['zdr' => true, 'only' => ['a'], 'order' => ['a', 'b'], 'ignore' => ['c']]]);
+        $this->declarer('libre', 'openrouter');
+
+        $this->assertSame(
+            ['zdr' => true, 'only' => ['a'], 'order' => ['a', 'b'], 'ignore' => ['c'], 'data_collection' => 'deny', 'require_parameters' => true],
+            $this->jouer('choisi', 'choisi.test')['provider'],
+        );
+        $this->assertSame(['data_collection' => 'deny', 'require_parameters' => true], $this->jouer('libre', 'libre.test')['provider']);
     }
 
     /**

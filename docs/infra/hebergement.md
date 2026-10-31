@@ -238,9 +238,12 @@ un geste du porteur, et aucune de `OPENAI_API_KEY` ni `OPENROUTER_API_KEY` n'est
 n'est pas dans `allowed_hosts` de `config/ai.php`, ou en `http` hors `local` et `testing`, rend le fournisseur non
 sélectionnable : la console l'affiche, la chaîne bascule, et la sonde `ai_providers` passe à `degraded`.
 
-⚠ **Avant de poser une clé** : `privacy.ts` § 5 dit que les formalités auprès de la CDP sont accomplies. La loi n° 2008-12
-demande d'informer la CDP avant un transfert vers un pays tiers qui assure une protection suffisante (art. 49) ; à défaut,
-d'obtenir son autorisation sur demande motivée (art. 51). Ce geste ne se voit pas depuis le code.
+⚠ **Avant de poser une clé** : la formalité auprès de la CDP, en tête du [runbook](#runbook).
+
+**Avant de poser `OPENROUTER_API_KEY`** : *Private Input & Output Logging* et l'usage des demandes pour améliorer le produit
+sont deux options du compte OpenRouter, éteintes par défaut. `privacy.ts` § 4.3 ne décrit pas le second : l'allumer demande de
+changer le texte d'abord, et le code ne le voit pas. L'entrée `openrouter` accepte aussi `zdr`, `only`, `order` et `ignore`
+dans son bloc `provider`, facultatifs, vérifiés sur la documentation : aucun n'est imposé, et aucun ne filtre par pays.
 
 **Courriels.** Le transport `resend` de Laravel exige `resend/resend-php`, que le dépôt n'a eu qu'à
 partir du 2026-09-14 : jusque-là, chaque notification par courriel mourait dans le worker (`Class
@@ -319,6 +322,12 @@ d'un mot de passe humain. Le mot de passe de `ci` vit dans le secret GitHub et d
 macOS du poste (`security find-generic-password -s takussan-preview-ci -w`), nulle part ailleurs.
 
 ## Runbook
+
+⚠ **Geste du porteur, à faire en premier : les formalités auprès de la CDP ne sont pas accomplies.** La loi n° 2008-12 demande
+d'informer la CDP avant un transfert vers un pays tiers qui assure une protection suffisante (art. 49) ; à défaut, d'obtenir
+son autorisation sur demande motivée (art. 51). `privacy.ts` § 5 dit qu'elles ne sont pas accomplies, et § 1.1 attend leur
+référence. Aucun code ne le garde, et poser une clé d'IA ne le demande pas. Le geste fait : la référence au § 1.1, le § 5
+réécrit, puis `VERSION_DOCUMENTS` dans `editeur.ts`.
 
 **Tester une image en local, avant de pousser** :
 
@@ -702,12 +711,13 @@ entrée générique dont l'adresse suffirait à changer le destinataire (ADR-008
    ],
    ```
 
-   Comparaison d'hôte exacte, sans joker. `MON_POINT_API_KEY` et `MON_POINT_URL` vont, vides, dans `.env.example` et
+   Comparaison d'hôte exacte, sans joker, port compris : un port qui n'est pas celui du schéma s'écrit dans la liste
+   (`'api.mon-point.example:8443'`). `MON_POINT_API_KEY` et `MON_POINT_URL` vont, vides, dans `.env.example` et
    `.env.docker` (`scripts/check-env-parity.mjs`).
 2. **`takussan-web/src/content/legal/privacy.ts` § 4.3** : le `legal_name` et le pays dans la puce, en fr et en en, puis
    `VERSION_DOCUMENTS` dans `editeur.ts`. `scripts/check-ai-providers-privacy.mjs` rougit sans lui. ⚠ Ce pilote n'envoie
    ni `store` ni `data_collection` : dire ce que ce prestataire conserve, d'après ses conditions.
-3. **La CDP** : même formalité que ci-dessus, avant le premier envoi.
+3. **La CDP** : la formalité en tête de ce runbook, avant le premier envoi.
 4. **Déployer**, puis poser la clé dans Dokploy : c'est elle qui active le fournisseur.
 5. **Dans la console** : ajouter le modèle et ses tarifs, l'évaluer, l'affecter.
 

@@ -10,14 +10,16 @@
  * **Ce qu'elle lit.** Le bloc `'providers' => [ … ]` de `takussan-api/config/ai.php` : chaque entrée
  * de premier niveau doit porter un `legal_name` et une liste `allowed_hosts` non vide, écrite en
  * configuration et jamais lue de l'environnement (TCK-2450, ADR-0085 §3). `privacy.ts` promet que
- * OpenRouter n'achemine que vers des fournisseurs qui ne collectent pas les données : une entrée dont
- * `data_collection` vaut autre chose que `deny` rougit, jusqu'à ce que le texte et cette garde changent.
+ * OpenRouter n'achemine que vers des fournisseurs qui déclarent ne pas collecter les données : une entrée
+ * dont `data_collection` vaut autre chose que `deny`, ou dont le bloc `provider` n'est pas écrit en toutes
+ * lettres, rougit, jusqu'à ce que le texte et cette garde changent.
  * Puis la puce « Intelligence artificielle » (fr) et
  * « Artificial intelligence » (en) du § 4.3 de `takussan-web/src/content/legal/privacy.ts` : chaque
  * `legal_name` doit y figurer, dans les deux langues.
  *
  * **Ce qu'elle ne prouve pas.** Qu'un nom cité par la puce soit encore configuré (la puce peut en
- * dire trop), ni que le texte décrive bien le traitement.
+ * dire trop), ni que le texte décrive bien le traitement. Elle ne voit pas une entrée `openai-compatible`
+ * posée sur `openrouter.ai` ou `api.openai.com` : ce pilote n'envoie ni `data_collection` ni `store`.
  *
  * Ses propres tests (`CAS_EPREUVE`) tournent à chaque invocation : une garde dont la lecture
  * régresse sort en 1 sur elle-même.
@@ -102,6 +104,11 @@ export function declareSesHotes(corps) {
   return /'allowed_hosts'\s*=>\s*\[\s*'[^']+'/.test(corps);
 }
 
+/** `data_collection` autre que `deny`, quels que soient les guillemets, ou un bloc `provider` qui ne se lit pas ici (`env()`). */
+export function contreditLaPromesse(corps) {
+  return /['"]data_collection['"]\s*=>\s*(?!\s|['"]deny['"])/.test(corps) || /['"]provider['"]\s*=>\s*(?!\s|\[)/.test(corps);
+}
+
 /** Rend la ligne de la puce, ou null. */
 export function lirePuce(texte, prefixe) {
   return texte.split('\n').find((ligne) => ligne.trim().startsWith(prefixe)) ?? null;
@@ -113,7 +120,7 @@ export function verifier(php, privacy) {
   if (Object.keys(fournisseurs).length === 0) erreurs.push('aucun fournisseur lu dans config/ai.php');
   for (const [cle, { nom, corps }] of Object.entries(fournisseurs)) {
     if (!declareSesHotes(corps)) erreurs.push(`fournisseur « ${cle} » sans allowed_hosts écrit en configuration`);
-    if (/'data_collection'\s*=>\s*(?!\s|'deny')/.test(corps)) erreurs.push(`fournisseur « ${cle} » : data_collection autre que deny, alors que privacy.ts promet le contraire`);
+    if (contreditLaPromesse(corps)) erreurs.push(`fournisseur « ${cle} » : data_collection autre que deny, ou bloc provider illisible, alors que privacy.ts promet le contraire`);
     if (!nom) { erreurs.push(`fournisseur « ${cle} » sans legal_name`); continue; }
     for (const [langue, prefixe] of Object.entries(PUCES)) {
       const puce = lirePuce(privacy, prefixe);
@@ -190,6 +197,30 @@ const CAS_EPREUVE = [
     php: "'providers' => [\n 'openrouter' => ['legal_name' => 'OpenRouter', 'allowed_hosts' => ['r.test'], 'provider' => ['data_collection' => 'allow']],\n],",
     privacy: '- **Intelligence artificielle** : Anthropic, OpenRouter\n- **Artificial intelligence**: Anthropic, OpenRouter',
     erreurs: 1,
+  },
+  {
+    nom: 'data_collection à allow entre guillemets doubles rougit',
+    php: "'providers' => [\n 'openrouter' => ['legal_name' => 'OpenRouter', 'allowed_hosts' => ['r.test'], 'provider' => [\"data_collection\" => 'allow']],\n],",
+    privacy: '- **Intelligence artificielle** : Anthropic, OpenRouter\n- **Artificial intelligence**: Anthropic, OpenRouter',
+    erreurs: 1,
+  },
+  {
+    nom: "data_collection lu de l'environnement rougit",
+    php: "'providers' => [\n 'openrouter' => ['legal_name' => 'OpenRouter', 'allowed_hosts' => ['r.test'], 'provider' => ['data_collection' => env('X', 'deny')]],\n],",
+    privacy: '- **Intelligence artificielle** : Anthropic, OpenRouter\n- **Artificial intelligence**: Anthropic, OpenRouter',
+    erreurs: 1,
+  },
+  {
+    nom: "un bloc provider lu de l'environnement rougit",
+    php: "'providers' => [\n 'openrouter' => ['legal_name' => 'OpenRouter', 'allowed_hosts' => ['r.test'], 'provider' => env('X')],\n],",
+    privacy: '- **Intelligence artificielle** : Anthropic, OpenRouter\n- **Artificial intelligence**: Anthropic, OpenRouter',
+    erreurs: 1,
+  },
+  {
+    nom: 'deny entre guillemets doubles passe',
+    php: "'providers' => [\n 'openrouter' => ['legal_name' => 'OpenRouter', 'allowed_hosts' => ['r.test'], 'provider' => [\"data_collection\" => \"deny\"]],\n],",
+    privacy: '- **Intelligence artificielle** : Anthropic, OpenRouter\n- **Artificial intelligence**: Anthropic, OpenRouter',
+    erreurs: 0,
   },
   {
     nom: 'data_collection à deny passe',

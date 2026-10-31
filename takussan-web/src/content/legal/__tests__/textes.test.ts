@@ -119,21 +119,43 @@ describe('Radar — l’article 6.3 et les ajouts de la politique de confidentia
     expect(terms.en).toContain('your listings are then removed from the platform without delay');
   });
 
-  it('la puce IA du § 4.3 garde la vérification par une personne et l’absence de donnée sensible', () => {
-    expect(privacy.fr).toContain('une rédaction ou un avis qu’une personne vérifie. Aucune donnée sensible (pièce d’identité, revenus) ne leur est transmise.');
-    expect(privacy.en).toContain('a draft or an assessment that a person reviews. No sensitive data (identity documents, income) is sent to them.');
+  it('la puce IA du § 4.3 garde la vérification par une personne, le refus des données sensibles, et dit ce qui part en clair', () => {
+    expect(privacy.fr).toContain('une rédaction ou un avis qu’une personne vérifie. Aucune demande que nous classons comme portant une donnée sensible (pièce d’identité, revenus) ne leur est transmise.');
+    expect(privacy.en).toContain('a draft or an assessment that a person reviews. No request that we classify as carrying sensitive data (identity documents, income) is sent to them.');
+    expect(privacy.fr).toContain('leur parvient en clair : nous ne les masquons pas');
+    expect(privacy.en).toContain('reaches them in clear: we do not mask them');
   });
 
   /** TCK-2450 (ADR-0085 §5) — ces phrases ne valent que tant que `AiProviderRoutingOptionsTest` (API) lit `store` et `data_collection` dans le corps envoyé. */
-  it('la puce IA nomme OpenAI et OpenRouter, dit l’acheminement et n’annonce plus de fournisseur à venir', () => {
-    expect(privacy.fr).toContain('OpenRouter (États-Unis), ce dernier acheminant chaque demande vers le fournisseur du modèle choisi');
-    expect(privacy.en).toContain('OpenRouter (United States), the latter routing each request to the provider of the chosen model');
+  it('la puce IA nomme OpenAI et OpenRouter, dit ce que chacun garde et n’annonce plus de fournisseur à venir', () => {
     expect(privacy.fr).toContain('Nous demandons à OpenAI de ne pas conserver ses réponses');
     expect(privacy.en).toContain('We ask OpenAI not to store its responses');
-    expect(privacy.fr).toContain('que vers des fournisseurs qui ne collectent pas ces données');
-    expect(privacy.en).toContain('only to providers that do not collect this data');
+    expect(privacy.fr).toContain('pour protéger ses services ou des tiers');
+    expect(privacy.en).toContain('to protect its services or third parties');
+    expect(privacy.fr).toContain('de n’utiliser que des fournisseurs qui déclarent ne pas collecter ces données');
+    expect(privacy.en).toContain('use only providers that declare they do not collect this data');
+    expect(privacy.fr).toContain('il conserve des métadonnées de chaque demande');
+    expect(privacy.en).toContain('it keeps metadata for each request');
     expect(privacy.fr).not.toContain('tout autre fournisseur retenu');
     expect(privacy.en).not.toContain('any other provider retained');
+  });
+
+  /** TCK-2450 — aucun filtre de pays n'est imposé : le texte ne présente ni le traitement comme fait sur nos instructions, ni ces pays comme protecteurs. */
+  it('par OpenRouter, le § 4.3 et le § 5 disent plusieurs pays, leurs conditions, et aucune protection présumée', () => {
+    expect(privacy.fr).toContain('sauf ce que la rubrique « Intelligence artificielle » dit des fournisseurs de modèles joints par OpenRouter');
+    expect(privacy.en).toContain('except for what the “Artificial intelligence” item says about the model providers reached through OpenRouter');
+    expect(privacy.fr).toContain('par des fournisseurs de plusieurs pays, selon leurs propres conditions et non sur nos instructions');
+    expect(privacy.en).toContain('by providers in several countries, under their own terms and not on our instructions');
+    expect(privacy.fr).toContain('nous ne présentons pas ces pays comme assurant un niveau de protection suffisant');
+    expect(privacy.en).toContain('we do not present those countries as ensuring an adequate level of protection');
+  });
+
+  /** TCK-2450 — la formalité auprès de la CDP est un geste du porteur : tant qu'il n'est pas fait, le texte ne le dit pas fait. */
+  it('le § 5 ne dit plus que les formalités auprès de la CDP sont accomplies', () => {
+    expect(privacy.fr).toContain('ces formalités ne sont pas accomplies');
+    expect(privacy.en).toContain('these formalities have not been completed');
+    expect(privacy.fr).not.toContain('après avoir accompli les formalités');
+    expect(privacy.en).not.toContain('after completing the required formalities');
   });
 
   it('la politique dit la collecte, la finalité, les deux durées et le STOP, dans les deux langues', () => {

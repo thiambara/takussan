@@ -99,7 +99,7 @@ Seuls les membres habilités de notre équipe accèdent à vos données, dans la
 
 ## 4.3 Nos prestataires
 
-Nous faisons appel à des prestataires qui traitent des données pour notre compte, sur nos instructions et sous obligation de confidentialité :
+Nous faisons appel à des prestataires. Ils traitent des données pour notre compte, sur nos instructions et sous obligation de confidentialité, sauf ce que la rubrique « Intelligence artificielle » dit des fournisseurs de modèles joints par OpenRouter :
 
 - **Hébergement et infrastructure** : ${HEBERGEURS.serveurs.nom} (Allemagne) — serveurs de l’application, de la base de données et des fichiers ; ${HEBERGEURS.reseau.nom} (États-Unis) — réseau de diffusion, protection contre les attaques et stockage des sauvegardes chiffrées.
 - **Courriel transactionnel** : Resend (États-Unis).
@@ -109,7 +109,7 @@ Nous faisons appel à des prestataires qui traitent des données pour notre comp
 - **Connexion par un tiers** : Google, Meta (Facebook) et Apple, uniquement si vous choisissez ce mode de connexion.
 - **Cartographie** : OpenStreetMap, dont les serveurs reçoivent votre adresse IP lorsque la carte s’affiche.
 - **Localisation approximative** : ipapi.co, qui reçoit votre adresse IP pour en déduire votre ville.
-- **Intelligence artificielle** : Anthropic (États-Unis), OpenAI (États-Unis) et OpenRouter (États-Unis), ce dernier acheminant chaque demande vers le fournisseur du modèle choisi, qui peut être établi dans un autre pays — analyse du texte et des images d’une annonce pour en extraire les caractéristiques, rédaction de messages, vérification d’une preuve d’accord, pour proposer une saisie, une rédaction ou un avis qu’une personne vérifie. Aucune donnée sensible (pièce d’identité, revenus) ne leur est transmise. Nous demandons à OpenAI de ne pas conserver ses réponses pour un usage ultérieur ; ses journaux de surveillance des abus peuvent être gardés jusqu’à 30 jours, sauf obligation légale. Nous demandons à OpenRouter de n’acheminer les demandes que vers des fournisseurs qui ne collectent pas ces données. ⚠ Ces prestataires n’utilisent pas les données transmises pour entraîner leurs modèles : à vérifier sur leurs conditions en vigueur.
+- **Intelligence artificielle** : Anthropic (États-Unis), OpenAI (États-Unis) et OpenRouter (États-Unis) — analyse du texte et des images d’une annonce pour en extraire les caractéristiques, rédaction de messages, vérification d’une preuve d’accord, pour proposer une saisie, une rédaction ou un avis qu’une personne vérifie. Aucune demande que nous classons comme portant une donnée sensible (pièce d’identité, revenus) ne leur est transmise. En revanche, le nom ou le numéro de téléphone que contient une annonce ou une preuve d’accord leur parvient en clair : nous ne les masquons pas pour ces traitements. Nous demandons à OpenAI de ne pas conserver ses réponses pour un usage ultérieur ; ses journaux de surveillance des abus peuvent contenir les demandes et les réponses, et sont gardés jusqu’à 30 jours, ou plus longtemps si la loi l’exige ou si c’est raisonnablement nécessaire pour protéger ses services ou des tiers ; une image signalée comme pédopornographique peut être gardée pour une revue humaine. OpenRouter achemine chaque demande vers un fournisseur du modèle choisi : selon le modèle, elle peut être traitée par des fournisseurs de plusieurs pays, selon leurs propres conditions et non sur nos instructions. Nous demandons à OpenRouter de n’utiliser que des fournisseurs qui déclarent ne pas collecter ces données. OpenRouter indique ne pas stocker le contenu des demandes, sauf option activée sur le compte ou contenu signalé comme pédopornographique ; il conserve des métadonnées de chaque demande (nombre de jetons, durée), et sa politique de confidentialité prévoit qu’il peut collecter les données personnelles qui lui sont transmises et les garder aussi longtemps que raisonnablement nécessaire. ⚠ Ces prestataires n’utilisent pas les données transmises pour entraîner leurs modèles : à vérifier sur leurs conditions en vigueur.
 
 ## 4.4 Les autorités
 
@@ -119,7 +119,7 @@ Nous communiquons des données aux autorités judiciaires, administratives ou fi
 
 # 5. Transferts hors du Sénégal
 
-Certains de nos prestataires sont établis ou stockent des données hors du Sénégal, notamment dans l’Union européenne et aux États-Unis. Conformément à la loi n° 2008-12, nous ne transférons des données vers un pays tiers que s’il assure un niveau de protection suffisant de la vie privée et des libertés, ou moyennant des garanties appropriées, notamment contractuelles, et après avoir accompli les formalités requises auprès de la CDP.
+Certains de nos prestataires sont établis ou stockent des données hors du Sénégal, notamment dans l’Union européenne et aux États-Unis. Par OpenRouter, une demande d’intelligence artificielle peut aussi être traitée dans d’autres pays, selon le fournisseur du modèle : nous ne présentons pas ces pays comme assurant un niveau de protection suffisant. La loi n° 2008-12 n’admet le transfert vers un pays tiers que s’il assure un niveau de protection suffisant de la vie privée et des libertés, ou moyennant des garanties appropriées, notamment contractuelles, et le soumet à des formalités auprès de la CDP. À la date de cette politique, ces formalités ne sont pas accomplies : leur référence figurera au § 1.1 lorsqu’elles le seront.
 
 # 6. Combien de temps nous les conservons
 
@@ -283,7 +283,7 @@ Only authorised team members access your data, as far as their tasks require (ve
 
 ## 4.3 Our service providers
 
-We use providers that process data on our behalf, on our instructions and under confidentiality obligations:
+We use providers. They process data on our behalf, on our instructions and under confidentiality obligations, except for what the “Artificial intelligence” item says about the model providers reached through OpenRouter:
 
 - **Hosting and infrastructure**: ${HEBERGEURS.serveurs.nom} (Germany) — application, database and file servers; ${HEBERGEURS.reseau.nom} (United States) — content delivery, attack protection and storage of encrypted backups.
 - **Transactional email**: Resend (United States).
@@ -293,7 +293,7 @@ We use providers that process data on our behalf, on our instructions and under 
 - **Third-party sign-in**: Google, Meta (Facebook) and Apple, only if you choose that sign-in method.
 - **Maps**: OpenStreetMap, whose servers receive your IP address when a map is displayed.
 - **Approximate location**: ipapi.co, which receives your IP address to infer your city.
-- **Artificial intelligence**: Anthropic (United States), OpenAI (United States) and OpenRouter (United States), the latter routing each request to the provider of the chosen model, which may be established in another country — analysis of the text and images of a listing to extract its characteristics, drafting of messages, checking of a proof of agreement, to suggest an entry, a draft or an assessment that a person reviews. No sensitive data (identity documents, income) is sent to them. We ask OpenAI not to store its responses for later use; its abuse-monitoring logs may be kept for up to 30 days, unless the law requires otherwise. We ask OpenRouter to route requests only to providers that do not collect this data. ⚠ These providers do not use the data sent to train their models: to be verified against their current terms.
+- **Artificial intelligence**: Anthropic (United States), OpenAI (United States) and OpenRouter (United States) — analysis of the text and images of a listing to extract its characteristics, drafting of messages, checking of a proof of agreement, to suggest an entry, a draft or an assessment that a person reviews. No request that we classify as carrying sensitive data (identity documents, income) is sent to them. However, a name or phone number contained in a listing or a proof of agreement reaches them in clear: we do not mask them for these processing operations. We ask OpenAI not to store its responses for later use; its abuse-monitoring logs may contain requests and responses, and are kept for up to 30 days, or longer where the law requires it or where reasonably necessary to protect its services or third parties; an image flagged as child sexual abuse material may be kept for human review. OpenRouter routes each request to a provider of the chosen model: depending on the model, it may be processed by providers in several countries, under their own terms and not on our instructions. We ask OpenRouter to use only providers that declare they do not collect this data. OpenRouter states that it does not store the content of requests, unless an option is enabled on the account or the content is flagged as child sexual abuse material; it keeps metadata for each request (token counts, latency), and its privacy policy provides that it may collect personal data sent to it and keep it for as long as is reasonably necessary. ⚠ These providers do not use the data sent to train their models: to be verified against their current terms.
 
 ## 4.4 Authorities
 
@@ -303,7 +303,7 @@ We disclose data to judicial, administrative or tax authorities where the law re
 
 # 5. Transfers outside Senegal
 
-Some providers are established or store data outside Senegal, notably in the European Union and the United States. In accordance with Law No. 2008-12, we only transfer data to a third country that ensures an adequate level of protection of privacy and freedoms, or subject to appropriate safeguards, including contractual ones, and after completing the required formalities with the CDP.
+Some providers are established or store data outside Senegal, notably in the European Union and the United States. Through OpenRouter, an artificial intelligence request may also be processed in other countries, depending on the model provider: we do not present those countries as ensuring an adequate level of protection. Law No. 2008-12 only allows a transfer to a third country that ensures an adequate level of protection of privacy and freedoms, or subject to appropriate safeguards, including contractual ones, and makes it subject to formalities with the CDP. As of the date of this policy, these formalities have not been completed: their reference will appear in § 1.1 once they have been.
 
 # 6. How long we keep it
 
