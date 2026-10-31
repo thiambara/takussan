@@ -7,7 +7,7 @@ family: full
 estimate: M
 wave: 80
 created: 2026-10-30
-updated: 2026-10-30
+updated: 2026-10-31
 depends_on: [TCK-2448, TCK-2449]
 blocks: []
 spec_refs:
@@ -67,6 +67,17 @@ non acceptée) en texte, jamais la clé ni l'adresse complète. L'hôte seul peu
 - **Parité des environnements** : les clés neuves vont dans `.env.example` et `.env.docker`, vides
   (`scripts/check-env-parity.mjs`). Une clé vide ne doit pas écraser un défaut de `config/` (la CI lit
   `.env.example`) : l'adresse par défaut reste celle du fournisseur.
+- **`store: false` sur l'entrée `openai`.** Par défaut, l'API Responses conserve les réponses au moins 30 jours (référence
+  Responses, relevée le 2026-10-31), et le SDK n'envoie `store: false` que si l'entrée le déclare. À poser avant la
+  première clé : le socle lui envoie des données personnelles. Le double de `providerFor()` garde ce réglage.
+- **`provider.data_collection` doit valoir pour une entrée renommée.** `SocleAgent::providerOptions()` reçoit le pilote,
+  jamais le nom de l'entrée : il ne peut pas lire seul le réglage d'une entrée `openrouter` nommée autrement. La passerelle
+  doit le lui donner, par exemple par `configure()`, depuis l'entrée du maillon joué. Relevé par TCK-2449, non prototypé.
+- **`provider.require_parameters` est à trancher et à écrire.** Sans lui, OpenRouter peut acheminer vers un point d'accès
+  qui ignore le format de sortie, et rendre de la prose (`ai.response_invalid`). Avec lui, l'absence de point d'accès rend
+  une erreur, que la bascule d'ADR-0085 (amendement du 2026-10-31) absorbe s'il reste un maillon.
+- **Le double ne doit pas apparaître comme un fournisseur.** Il reste dans `config('ai.providers')` jusqu'à la fin du
+  processus : `describe()` et les règles de validation doivent l'écarter (suffixe `AiGateway::TOOL_OUTPUT_SUFFIX`).
 - **Aucun test ne joint un vrai fournisseur** (`Http::fake`).
 - **Les chaînes de repli de `config('ai.roles')` restent sur Anthropic.** Aucun tarif OpenAI ou OpenRouter n'est
   écrit en configuration : les modèles s'ajoutent dans la console (TCK-2448).
@@ -90,7 +101,12 @@ non acceptée) en texte, jamais la clé ni l'adresse complète. L'hôte seul peu
 - [ ] Tests :
   - [ ] `AiProviderSelectabilityTest` : clé absente ; hôte hors liste ; hôte accepté ; `http` refusé hors `testing` ;
   - [ ] refus par chaque point d'écriture : chaîne, modèle forcé, évaluation, ajout de modèle ;
-  - [ ] corps de requête OpenRouter capturé portant `provider.data_collection: "deny"` ;
+  - [ ] corps de requête OpenRouter capturé portant `provider.data_collection: "deny"`, y compris sur une entrée
+        `openrouter` au nom quelconque ;
+  - [ ] corps de requête OpenAI capturé portant `store: false` ;
+  - [ ] le double absent de `describe()` et refusé par les règles de validation ;
+  - [ ] garde de forme des schémas tels qu'envoyés hors d'Anthropic : racine `object`, tout `required`,
+        `additionalProperties: false` (TCK-2449 l'a mesurée à la main, aucun test ne la tient) ;
   - [ ] passerelle qui refuse une chaîne en base nommant un fournisseur devenu non sélectionnable, et bascule au
         maillon suivant ;
   - [ ] Vitest de l'état du fournisseur ;

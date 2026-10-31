@@ -1141,6 +1141,8 @@ class ExtractRadarListingTest extends TestCase
     {
         return [
             'indisponible (503 brut)' => [fn () => throw new RequestException(new Response(new Psr7Response(503))), 'ai.provider_unavailable'],
+            // TCK-2449 — un délai dépassé se reprend : jamais `markFailed`.
+            'délai du fournisseur (408)' => [fn () => throw new RequestException(new Response(new Psr7Response(408))), 'ai.provider_timeout'],
             // Un imprévu qui n'est pas une erreur de programmation (lecture R2, base) : il passe.
             'imprévu passager' => [fn () => throw new \RuntimeException('Unable to read file'), 'ai.unexpected'],
         ];
