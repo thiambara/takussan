@@ -217,8 +217,8 @@ class AdminAiModelsTest extends TestCase
         $corps = ['provider' => 'anthropic', 'model' => 'modele-x'] + self::TARIFS;
 
         $this->agirEnOperateur(PlatformProfileLevel::Support);
-        $this->postJson('/api/admin/ai/models', $corps)->assertForbidden();
-        $this->patchJson('/api/admin/ai/models/'.$modele->id, ['input' => '9'])->assertForbidden();
+        $this->postJson('/api/admin/ai/models', $corps)->assertStatus(403)->assertJsonPath('code', 'platform.ability_missing');
+        $this->patchJson('/api/admin/ai/models/'.$modele->id, ['input' => '9'])->assertStatus(403)->assertJsonPath('code', 'platform.ability_missing');
 
         $user = User::factory()->withTwoFactor()->create();
         $this->materializeRoleProfile($user, 'super_admin');

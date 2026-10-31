@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Ai;
 
+use App\Models\Agency;
 use App\Models\AiCall;
 use App\Models\AiModel;
 use App\Models\AiUsageSetting;
@@ -61,6 +62,16 @@ class AiCostsInDollarsTest extends TestCase
         $this->assertSame('0.00000000000000028', $call->cost_estimate_usd);
     }
 
+    /** AC8 — un tarif plus long que ce qu'un `float` retient : chaque chiffre du coût est encore là. */
+    public function test_a_long_price_keeps_every_digit_of_the_cost(): void
+    {
+        AiModel::factory()->create(['model' => 'modele-long', 'input' => '0.123456789012345678901234567890', 'output' => '0', 'cache_read' => '0', 'cache_write' => '0']);
+        config(['ai.roles.extraction' => [['provider' => 'anthropic', 'model' => 'modele-long', 'max_tokens' => 100]]]);
+        AgentDEssai::fake(fn (string $p, $a, $provider, string $model) => new StructuredTextResponse(['titre' => 'Villa', 'prix' => 100], '{}', new TextUsage(1_000_003, 0), new Meta('anthropic', $model)));
+
+        $this->assertSame('0.12345715938271271593827127159370367', $this->appeler()->fresh()->cost_estimate_usd);
+    }
+
     /** AC8 — dix appels à 2,8e-16 $ atteignent un plafond de 2,8e-15 $ au dixième, ni avant ni après. */
     public function test_a_day_of_tiny_calls_reaches_the_expected_ceiling_exactly(): void
     {
@@ -114,28 +125,49 @@ class AiCostsInDollarsTest extends TestCase
     public function test_changing_the_rate_changes_only_what_is_displayed(): void
     {
         $this->modeleInfime(1_000_000);
-        $reglage = AiUsageSetting::query()->create(['usage_key' => UsageDEssai::KEY, 'daily_budget_usd' => '0.00000000008']);
-        $mesure = function (): array {
-            $call = $this->appeler();
+        AiUsageSetting::query()->create(['usage_key' => UsageDEssai::KEY, 'daily_budget_usd' => '0.00000000008']);
+        config(['ai.budgets.daily_global_usd' => '0.00000000012', 'ai.budgets.daily_per_agency_usd' => '0.00000000012']);
+        $agence = Agency::factory()->create();
+        AiCall::query()->create(['usage_key' => 'autre.usage', 'outcome' => 'success', 'cost_estimate_usd' => '0']);
+        $mesure = function () use ($agence): array {
             $reglage = AiUsageSetting::query()->sole();
 
             return [
-                $call->fresh()->cost_estimate_usd,
+                AiCall::query()->where('usage_key', UsageDEssai::KEY)->orderBy('id')->pluck('cost_estimate_usd')->all(),
                 $reglage->daily_budget_usd,
-                app(AiBudget::class)->exhausted(new UsageDEssai, $reglage, null),
+                app(AiBudget::class)->exhausted(new UsageDEssai, $reglage, $agence->id),
             ];
         };
 
-        $taux600 = $mesure();
-        $dashboard600 = $this->getJson('/api/admin/ai/usages')->json('meta.usd_to_xof');
-        config(['ai.usd_to_xof' => '1']);
-        $tauxUn = $mesure();
+        $this->appeler();
+        foreach (['600', '0.5', '1000000'] as $taux) {
+            config(['ai.usd_to_xof' => $taux]);
+            $this->assertSame([['0.00000000004'], '0.00000000008', false], $mesure(), "taux {$taux}");
+            $this->assertSame($taux, $this->getJson('/api/admin/ai/usages')->json('meta.usd_to_xof'));
+        }
 
-        $this->assertSame(['0.00000000004', '0.00000000008', false], $taux600);
-        $this->assertSame(['0.00000000004', '0.00000000008', true], $tauxUn);
-        $this->assertSame('600', $dashboard600);
-        $this->assertSame('1', $this->getJson('/api/admin/ai/usages')->json('meta.usd_to_xof'));
-        $this->assertSame(['0.00000000004', '0.00000000004'], AiCall::query()->orderBy('id')->pluck('cost_estimate_usd')->all());
+        $this->appeler();
+        foreach (['600', '0.5', '1000000'] as $taux) {
+            config(['ai.usd_to_xof' => $taux]);
+            $this->assertSame([['0.00000000004', '0.00000000004'], '0.00000000008', true], $mesure(), "taux {$taux}");
+        }
+    }
+
+    /** AC9 — le plafond global et celui de l'agence ne suivent pas le taux non plus. */
+    public function test_the_global_and_agency_ceilings_ignore_the_rate(): void
+    {
+        $agence = Agency::factory()->create();
+        AiCall::query()->create(['usage_key' => UsageDEssai::KEY, 'outcome' => 'success', 'cost_estimate_usd' => '1', 'agency_id' => $agence->id]);
+
+        foreach ([['ai.budgets.daily_global_usd', null], ['ai.budgets.daily_per_agency_usd', $agence->id]] as [$plafond, $agency]) {
+            config(['ai.budgets.daily_global_usd' => null, 'ai.budgets.daily_per_agency_usd' => null]);
+            foreach (['600', '0.5', '1000000'] as $taux) {
+                config(['ai.usd_to_xof' => $taux, $plafond => '1.5']);
+                $this->assertFalse(app(AiBudget::class)->exhausted(new UsageDEssai, null, $agency), "{$plafond} {$taux}");
+                config([$plafond => '1']);
+                $this->assertTrue(app(AiBudget::class)->exhausted(new UsageDEssai, null, $agency), "{$plafond} {$taux}");
+            }
+        }
     }
 
     /** AC9 — le tableau de bord rend le coût inchangé, et le taux à côté. */

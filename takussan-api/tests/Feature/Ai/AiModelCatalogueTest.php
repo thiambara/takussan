@@ -68,11 +68,12 @@ class AiModelCatalogueTest extends TestCase
 
     public function test_the_cheapest_model_is_judged_on_every_digit_and_never_a_withdrawn_one(): void
     {
-        AiModel::factory()->create(['model' => 'modele-c', 'input' => '0.00000000000000000002']);
-        AiModel::factory()->create(['model' => 'modele-d', 'input' => '0.00000000000000000001', 'active' => false]);
-        AiModel::factory()->create(['model' => 'modele-e', 'input' => '0.00000000000000000003']);
+        config(['ai.pricing.anthropic' => ['modele-a' => ['input' => '5', 'output' => '5', 'cache_read' => '0', 'cache_write' => '0']]]);
+        AiModel::factory()->create(['model' => 'modele-c', 'input' => '0.30000000000000000003']);
+        AiModel::factory()->create(['model' => 'modele-d', 'input' => '0.1', 'active' => false]);
+        AiModel::factory()->create(['model' => 'modele-e', 'input' => '0.30000000000000000001']);
 
-        $this->assertSame('modele-c', app(AiProviderCatalogue::class)->cheapestModel('anthropic'));
+        $this->assertSame('modele-e', app(AiProviderCatalogue::class)->cheapestModel('anthropic'));
     }
 
     public function test_the_identifier_is_compared_exactly(): void
