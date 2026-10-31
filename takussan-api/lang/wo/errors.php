@@ -76,6 +76,8 @@ return [
             'no_cases' => "Ce rôle n'a aucun jeu de cas à évaluer.",
         ],
         'evaluation_below_baseline' => "Ce modèle a été évalué sous la référence : indiquez un motif pour l'affecter quand même.",
+        'model_in_use' => 'Ce modèle est encore employé. Chaînes en base : :roles. Modèles forcés : :usages. Chaînes de repli de la configuration : :fallback_roles.',
+        'model_not_in_config' => "Ce modèle n'a pas d'entrée dans la configuration : il se retire, il ne s'efface pas.",
         'model_unpriced' => "Ce modèle n'a pas de tarif : il ne peut pas être affecté.",
         'provider_key_missing' => "Aucune clé n'est configurée pour ce fournisseur.",
         'provider_unknown' => 'Fournisseur IA inconnu.',

@@ -77,7 +77,7 @@ final class AiGateway
         if (is_array($hit)) {
             $call = $this->journal($usage, $request, [
                 'provider' => $hit['provider'], 'model' => $hit['model'],
-                'outcome' => AiCallOutcome::CacheHit, 'cost_estimate' => 0,
+                'outcome' => AiCallOutcome::CacheHit, 'cost_estimate_usd' => AiMoney::ZERO,
             ]);
 
             return new AiResult($hit['text'], $hit['structured'], $call, true);
@@ -113,7 +113,7 @@ final class AiGateway
                 'output_tokens' => $response->usage->outputTokens,
                 'cache_read_tokens' => $response->usage->cacheReadInputTokens ?? 0,
                 'cache_write_tokens' => $response->usage->cacheWriteInputTokens ?? 0,
-                'cost_estimate' => $cost,
+                'cost_estimate_usd' => $cost,
                 'warning' => $cost === null ? 'model_unpriced' : null,
                 'duration_ms' => $this->elapsed($started),
             ];

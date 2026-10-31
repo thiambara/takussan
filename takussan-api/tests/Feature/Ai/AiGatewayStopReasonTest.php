@@ -83,7 +83,7 @@ class AiGatewayStopReasonTest extends TestCase
 
         $tronquee = AiCall::query()->where('model', 'modele-a')->firstOrFail();
         $this->assertSame([1000, 200], [$tronquee->input_tokens, $tronquee->output_tokens]);
-        $this->assertGreaterThan(0, (float) $tronquee->cost_estimate);
+        $this->assertSame(1, bccomp($tronquee->cost_estimate_usd, '0', 20));
     }
 
     public function test_quand_chaque_maillon_tronque_la_passerelle_est_indisponible_avec_la_cause(): void

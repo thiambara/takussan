@@ -4,6 +4,7 @@ namespace Tests\Feature\Ai;
 
 use App\Ai\Usages\ConnectionTestUsage;
 use App\Models\AiCall;
+use App\Models\AiModel;
 use App\Models\Enums\AiModelRole;
 use App\Services\Ai\AiGateway;
 use App\Services\Ai\AiUsageRegistry;
@@ -11,6 +12,7 @@ use App\Services\Ai\Evaluation\EvaluationRunner;
 use App\Services\Ai\Evaluation\FieldScorer;
 use App\Services\Ai\ModelLink;
 use App\Services\Ai\ModelResolver;
+use Illuminate\Console\Command;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\File;
@@ -18,6 +20,9 @@ use Illuminate\Support\Str;
 use InvalidArgumentException;
 use Laravel\Ai\Exceptions\RateLimitedException;
 use Laravel\Ai\Files\LocalImage;
+use Laravel\Ai\Responses\Data\Meta;
+use Laravel\Ai\Responses\Data\TextUsage;
+use Laravel\Ai\Responses\StructuredTextResponse;
 use Tests\Support\Ai\AgentDEssai;
 use Tests\Support\Ai\SocleIaDEssai;
 use Tests\Support\Ai\UsageDEssai;
@@ -79,6 +84,18 @@ class AiEvalCommandTest extends TestCase
         $baseline = json_decode(File::get($this->racine.'/'.UsageDEssai::KEY.'/baseline.json'), true);
         $this->assertSame(0.5, $baseline['global']);
         $this->assertSame(['prix' => 0.0, 'titre' => 1.0], $baseline['fields']);
+    }
+
+    /** TCK-2448 — le candidat suit le catalogue : un modèle ajouté en base s'évalue, un modèle retiré non. */
+    public function test_a_candidate_follows_the_catalogue_and_its_cost_is_printed_in_dollars(): void
+    {
+        AgentDEssai::fake(fn (string $p, $a, $provider, string $model) => new StructuredTextResponse(['titre' => 'Villa', 'prix' => 100], '{}', new TextUsage(7, 0), new Meta('anthropic', $model)));
+        AiModel::factory()->create(['model' => 'modele-neuf', 'input' => '0.00000000004', 'output' => '0', 'cache_read' => '0', 'cache_write' => '0']);
+        AiModel::factory()->create(['model' => 'modele-retire', 'active' => false]);
+
+        $this->artisan('ai:eval', ['usage' => UsageDEssai::KEY, '--model' => 'anthropic/modele-neuf'])
+            ->expectsOutputToContain('0.00000000000000056 USD')->assertSuccessful();
+        $this->artisan('ai:eval', ['usage' => UsageDEssai::KEY, '--model' => 'anthropic/modele-retire'])->assertExitCode(Command::INVALID);
     }
 
     public function test_a_candidate_model_is_evaluated_instead_of_the_role_chain(): void
@@ -190,7 +207,7 @@ class AiEvalCommandTest extends TestCase
     {
         config([
             'ai.roles.vision' => [['provider' => 'anthropic', 'model' => 'modele-v', 'max_tokens' => 2000]],
-            'ai.pricing.anthropic.modele-v' => ['input' => 3.0, 'output' => 15.0, 'cache_read' => 0.3, 'cache_write' => 3.75],
+            'ai.pricing.anthropic.modele-v' => ['input' => '3.0', 'output' => '15.0', 'cache_read' => '0.3', 'cache_write' => '3.75'],
         ]);
         $this->app->instance(AiUsageRegistry::class, new AiUsageRegistry([UsageDEssai::class, UsageVisionDEssai::class, ConnectionTestUsage::class]));
         $dossier = $this->racine.'/'.UsageVisionDEssai::KEY;

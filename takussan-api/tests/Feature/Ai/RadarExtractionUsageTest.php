@@ -56,7 +56,7 @@ class RadarExtractionUsageTest extends TestCase
         $this->installerSocleDEssai();
         config([
             'ai.roles.vision' => [['provider' => 'anthropic', 'model' => 'modele-v', 'max_tokens' => 2000]],
-            'ai.pricing.anthropic.modele-v' => ['input' => 3.0, 'output' => 15.0, 'cache_read' => 0.3, 'cache_write' => 3.75],
+            'ai.pricing.anthropic.modele-v' => ['input' => '3.0', 'output' => '15.0', 'cache_read' => '0.3', 'cache_write' => '3.75'],
         ]);
         // Le catalogue et les prompts RÉELS : c'est l'usage livré qu'on éprouve.
         $this->app->instance(AiUsageRegistry::class, new AiUsageRegistry);
@@ -112,7 +112,7 @@ class RadarExtractionUsageTest extends TestCase
         $this->assertSame(3, $usage->promptVersion());
         $this->assertSame(AiDataClass::Personnelle, $usage->maxDataClass());
         $this->assertSame(PlatformAbility::RadarOperate, $usage->authority());
-        $this->assertSame(2000.0, $usage->dailyBudgetXof());
+        $this->assertSame('3.33', $usage->dailyBudgetUsd());
         $this->assertSame(0, $usage->cacheTtlSeconds());
         $this->assertTrue($usage->readsExternalContent());
     }

@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import type { ApiError } from '@/lib/api';
 import { cn } from '@/lib/utils';
+import { comparerMontantsIa, equivalentXofIa, formaterMontantIa } from '@/lib/format/montant-ia';
 import { useFormatteurs, VALEUR_ABSENTE } from '@/lib/format/useFormatteurs';
 import { fetchRadarDashboard, fetchRadarListings, RADAR_POLL_MS, radarKeys, type RadarListingFilters } from '@/lib/queries/radar';
 import type { PaginatedResponse } from '@/types/api';
@@ -106,7 +107,7 @@ export function RadarWorkList() {
 
   const compteurs = dashboard.data?.data;
   const ai = compteurs?.ai;
-  const plafondAtteint = ai?.daily_budget_xof != null && ai.spent_today_xof >= ai.daily_budget_xof;
+  const plafondAtteint = ai?.daily_budget_usd != null && comparerMontantsIa(ai.spent_today_usd, ai.daily_budget_usd) >= 0;
 
   const filtrer = (suivante: RadarListingStage | '') => {
     setStage(suivante);
@@ -283,10 +284,10 @@ export function RadarWorkList() {
           <div data-testid="radar-counter-ai">
           <StatCard
             label={t('counters.aiCost')}
-            value={fmt.montant(ai?.spent_today_xof ?? 0, 'XOF')}
-            hint={ai?.daily_budget_xof != null
-              ? t('counters.aiCostBudget', { budget: fmt.montant(ai.daily_budget_xof, 'XOF') })
-              : t('counters.aiCostNoBudget')}
+            value={formaterMontantIa(ai?.spent_today_usd ?? '0')}
+            hint={ai?.daily_budget_usd != null
+              ? t('counters.aiCostBudget', { equivalent: equivalentXofIa(ai.spent_today_usd, ai.usd_to_xof) ?? '—', budget: formaterMontantIa(ai.daily_budget_usd) })
+              : t('counters.aiCostNoBudget', { equivalent: equivalentXofIa(ai?.spent_today_usd ?? '0', ai?.usd_to_xof) ?? '—' })}
             loading={dashboard.isLoading}
             tone={plafondAtteint ? 'danger' : 'default'}
             icon={<Wallet className="size-4" aria-hidden="true" />}

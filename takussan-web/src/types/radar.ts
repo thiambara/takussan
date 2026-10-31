@@ -132,10 +132,11 @@ export interface RadarDashboard {
   /** TCK-2388 : messages envoyés qui attendent encore leur échéance de relance. */
   readonly outreaches_awaiting: number;
   readonly ai: {
-    readonly spent_today_xof: number;
-    readonly daily_budget_xof: number | null;
-    readonly global_spent_today_xof: number;
-    readonly global_daily_budget_xof: number | null;
+    readonly spent_today_usd: string;
+    readonly daily_budget_usd: string | null;
+    readonly global_spent_today_usd: string;
+    readonly global_daily_budget_usd: string | null;
+    readonly usd_to_xof: string;
   };
 }
 

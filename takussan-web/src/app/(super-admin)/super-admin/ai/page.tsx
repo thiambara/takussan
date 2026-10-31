@@ -4,6 +4,7 @@ import { useTranslations } from 'next-intl';
 import { PageHeader } from '@/components/console';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AiDashboardPanel } from '@/components/admin/super/ai/AiDashboardPanel';
+import { AiModelsPanel } from '@/components/admin/super/ai/AiModelsPanel';
 import { AiProvidersPanel } from '@/components/admin/super/ai/AiProvidersPanel';
 import { AiRolesPanel } from '@/components/admin/super/ai/AiRolesPanel';
 import { AiUsagesPanel } from '@/components/admin/super/ai/AiUsagesPanel';
@@ -24,7 +25,7 @@ export default function SuperAdminAiPage() {
         </TabsList>
         <TabsContent value="roles" className="pt-4"><AiRolesPanel /></TabsContent>
         <TabsContent value="usages" className="pt-4"><AiUsagesPanel /></TabsContent>
-        <TabsContent value="providers" className="pt-4"><AiProvidersPanel /></TabsContent>
+        <TabsContent value="providers" className="space-y-8 pt-4"><AiProvidersPanel /><AiModelsPanel /></TabsContent>
         <TabsContent value="dashboard" className="pt-4"><AiDashboardPanel /></TabsContent>
       </Tabs>
     </div>

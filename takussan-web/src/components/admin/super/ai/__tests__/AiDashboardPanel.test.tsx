@@ -13,7 +13,8 @@ describe('coûts IA (TCK-2385)', () => {
       days: [],
       acceptance: { 'essai.extraction': { decided: 4, accepted: 3, edited: 0, rejected: 1, rate: 0.75 } },
       baselines: { 'essai.extraction': { global: 0.9, fields: { titre: 1 }, model: 'anthropic/modele-a', prompt_version: 2, updated_at: '2026-10-20T03:00:00+00:00' } },
-      today: { spent_xof: 12.5, daily_budget_xof: 5000 },
+      today: { spent_usd: '12.5', daily_budget_usd: '8.33' },
+      usd_to_xof: '600',
     } });
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(withIntl(<QueryClientProvider client={queryClient}><AiDashboardPanel /></QueryClientProvider>));
@@ -24,6 +25,22 @@ describe('coûts IA (TCK-2385)', () => {
     expect(ligne).toHaveTextContent('anthropic/modele-a');
     expect(ligne).toHaveTextContent(/2026/);
     expect(screen.getByRole('table', { name: 'Taux d’acceptation des suggestions' })).toHaveTextContent('75 %');
-    expect(screen.getByText(/12,50 XOF dépensés sur 5000 XOF/)).toBeInTheDocument();
+    expect(screen.getByText(/\$12\.50 \(≈ 7\s500\s*F\s*CFA\) dépensés sur \$8\.33 \(≈ 4\s998\s*F\s*CFA\)/)).toBeInTheDocument();
+  });
+
+  it('AC10 — le coût se lit en dollars et son équivalent « ≈ » en XOF, et un coût minuscule ne se lit pas 0', async () => {
+    vi.mocked(fetchAdminAiDashboard).mockResolvedValue({ data: {
+      days: [{ date: '2026-10-31', usage_key: 'essai.extraction', calls: 1, cost_usd: '0.00000000004', avg_duration_ms: 100, errors: 0, refusals: 0, failovers: 0, cache_hits: 0 }],
+      acceptance: {},
+      baselines: {},
+      today: { spent_usd: '0.00000000004', daily_budget_usd: null },
+      usd_to_xof: '600',
+    } });
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(withIntl(<QueryClientProvider client={queryClient}><AiDashboardPanel /></QueryClientProvider>));
+
+    const ligne = await screen.findByRole('row', { name: /essai\.extraction/ });
+    expect(ligne).toHaveTextContent(/\$0\.00000000004 \(≈ 0,000000024\s*F\s*CFA\)/);
+    expect(screen.getByText(/Aujourd’hui : \$0\.00000000004 \(≈ 0,000000024\s*F\s*CFA\) dépensés, sans plafond global/)).toBeInTheDocument();
   });
 });

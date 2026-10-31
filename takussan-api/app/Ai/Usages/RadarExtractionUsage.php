@@ -57,9 +57,9 @@ final class RadarExtractionUsage implements AiUsage, AttachmentsUseVision
         return PlatformAbility::RadarOperate;
     }
 
-    public function dailyBudgetXof(): ?float
+    public function dailyBudgetUsd(): ?string
     {
-        return 2000.0;
+        return '3.33';
     }
 
     public function cacheTtlSeconds(): int

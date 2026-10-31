@@ -1204,6 +1204,12 @@ jobs:
         # garde relie chaque agent à un usage, chaque usage au registre, et cherche tout agent
         # défini hors de `app/Ai/Agents/`.
         run: node scripts/check-ai-usages.mjs --report
+      - name: Aucun float ne porte un coût, un tarif ou un plafond du socle IA
+        # TCK-2448 (ADR-0086) — un seul `(float)` ou un cast `decimal:N` réintroduit l'arrondi qui finit
+        # par lire 0 un modèle assez peu cher, et le budget ne compte plus rien. Lit `takussan-api/app`,
+        # `takussan-api/config/ai.php` et `takussan-web/src`, tous déjà couverts ci-dessus.
+        # ⚠ Elle voit un `float` écrit sur la ligne d'un montant, pas sous un autre nom.
+        run: node scripts/check-ai-money.mjs --report
       - name: Aucun numéro ni courriel dans les jeux d'évaluation de l'IA
         # TCK-2384 — les cas viennent de vraies annonces corrigées (`ai:export-eval-cases`).
         # L'export anonymise, mais un cas écrit à la main ferait entrer une donnée personnelle dans

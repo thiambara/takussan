@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useFormatter, useTranslations } from 'next-intl';
+import { useTranslations } from 'next-intl';
 import { useGardeDoubleFacteur } from '@/components/auth/garde-double-facteur-contexte';
 import { StatusBadge } from '@/components/console';
 import { DataTable, type DataTableColumn } from '@/components/console/DataTable';
@@ -16,8 +16,10 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import type { ApiError } from '@/lib/api';
 import { avecGardeDoubleFacteur } from '@/lib/double-facteur';
+import { equivalentXofIa, lireSaisieMontantIa } from '@/lib/format/montant-ia';
 import { fetchAdminAiProviders, fetchAdminAiUsages, patchAdminAiUsage } from '@/lib/queries/super-admin';
 import type { AdminAiUsagesResponse, AiUsageRow } from '@/types/super-admin';
+import { useMontantIa } from './useMontantIa';
 
 const SANS_FORCAGE = '';
 
@@ -25,7 +27,7 @@ export function AiUsagesPanel() {
   const t = useTranslations('superAdmin.pages.ai.usages');
   const tShared = useTranslations('superAdmin.pages.shared');
   const tCommon = useTranslations('common');
-  const format = useFormatter();
+  const montant = useMontantIa();
   const messageErreur = useMessageErreurApi();
   const garde = useGardeDoubleFacteur();
   const queryClient = useQueryClient();
@@ -47,6 +49,7 @@ export function AiUsagesPanel() {
     return <ErrorState message={`${tShared('loadError')} ${messageErreur(query.error)}`} onRetry={() => void query.refetch()} retryLabel={tCommon('actions.retry')} />;
   }
 
+  const taux = query.data?.meta.usd_to_xof;
   const options = (providers.data?.data ?? []).flatMap((p) => p.models.map((m) => ({ value: `${p.key}/${m}`, label: `${p.legal_name} · ${m}` })));
   const columns: DataTableColumn<AiUsageRow>[] = [
     { id: 'key', header: t('key'), cell: (row) => <code className="text-sm">{row.key}</code> },
@@ -64,7 +67,7 @@ export function AiUsagesPanel() {
       id: 'budget',
       header: t('budget'),
       align: 'end',
-      cell: (row) => <span className="tabular-nums">{`${format.number(row.spent_today_xof, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} / ${row.daily_budget_xof ?? t('noBudget')}`}</span>,
+      cell: (row) => <span className="tabular-nums">{`${montant(row.spent_today_usd, taux)} / ${row.daily_budget_usd === null ? t('noBudget') : montant(row.daily_budget_usd, taux)}`}</span>,
     },
     {
       id: 'state',
@@ -94,6 +97,7 @@ export function AiUsagesPanel() {
       {edited ? (
         <UsageSettingsDialog
           row={edited}
+          taux={taux}
           options={options}
           optionsError={providers.isError ? t('providersLoadError', { message: messageErreur(providers.error) }) : null}
           pending={patch.isPending}
@@ -106,8 +110,9 @@ export function AiUsagesPanel() {
   );
 }
 
-function UsageSettingsDialog({ row, options, optionsError, pending, error, onClose, onSave }: {
+function UsageSettingsDialog({ row, taux, options, optionsError, pending, error, onClose, onSave }: {
   row: AiUsageRow;
+  taux: string | undefined;
   options: { value: string; label: string }[];
   optionsError: string | null;
   pending: boolean;
@@ -116,24 +121,30 @@ function UsageSettingsDialog({ row, options, optionsError, pending, error, onClo
   onSave: (payload: Parameters<typeof patchAdminAiUsage>[1]) => void;
 }) {
   const t = useTranslations('superAdmin.pages.ai.usages');
-  const [forced, setForced] = useState(row.forced ? `${row.forced.provider}/${row.forced.model}` : SANS_FORCAGE);
-  // `daily_budget_xof` est le plafond EFFECTIF : le défaut du code quand rien n'est posé. Pré-remplir le
+  const forcageInitial = row.forced ? `${row.forced.provider}/${row.forced.model}` : SANS_FORCAGE;
+  const [forced, setForced] = useState(forcageInitial);
+  // `daily_budget_usd` est le plafond EFFECTIF : le défaut du code quand rien n'est posé. Pré-remplir le
   // champ avec lui et le renvoyer à chaque enregistrement épinglerait le défaut en surcharge ; on ne
   // montre donc que la surcharge réelle, et on n'envoie le plafond que s'il a été touché.
-  const surcharge = row.daily_budget_xof !== null && row.daily_budget_xof !== row.default_daily_budget_xof;
-  const [budget, setBudget] = useState(surcharge ? String(row.daily_budget_xof) : '');
+  const surcharge = row.daily_budget_usd !== null && row.daily_budget_usd !== row.default_daily_budget_usd;
+  const montant = useMontantIa();
+  const [budget, setBudget] = useState(surcharge ? (row.daily_budget_usd ?? '') : '');
   const [budgetTouched, setBudgetTouched] = useState(false);
+  // Une chaîne décimale et non un nombre (ADR-0086) : `null` ici refuse la saisie, `''` retire le plafond.
+  const plafondLu = budget.trim() === '' ? null : lireSaisieMontantIa(budget);
+  const saisieInvalide = budget.trim() !== '' && plafondLu === null;
+  const equivalent = equivalentXofIa(plafondLu, taux);
   const items = [{ value: SANS_FORCAGE, label: t('noForcedModel') }, ...options];
 
   return (
     <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
-      <DialogContent>
-        <DialogHeader><DialogTitle>{row.key}</DialogTitle></DialogHeader>
+      <DialogContent className="grid-cols-[minmax(0,1fr)]">
+        <DialogHeader><DialogTitle className="pr-6 break-all">{row.key}</DialogTitle></DialogHeader>
         <div className="space-y-3">
           <div className="space-y-1">
             <Label id="forced-model">{t('forcedModel')}</Label>
             <Select value={forced} onValueChange={(v) => setForced(v ?? SANS_FORCAGE)} items={items}>
-              <SelectTrigger className="h-10 w-full" aria-labelledby="forced-model"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-10 w-full min-w-0" aria-labelledby="forced-model"><SelectValue /></SelectTrigger>
               <SelectContent>{items.map((o) => <SelectItem key={o.value || 'role'} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
             </Select>
             {optionsError ? <p className="text-sm text-destructive" role="alert">{optionsError}</p> : null}
@@ -142,29 +153,35 @@ function UsageSettingsDialog({ row, options, optionsError, pending, error, onClo
             <Label htmlFor="daily-budget">{t('dailyBudget')}</Label>
             <Input
               id="daily-budget"
-              type="number"
-              min={0}
+              inputMode="decimal"
+              autoComplete="off"
               value={budget}
-              placeholder={row.default_daily_budget_xof === null ? undefined : String(row.default_daily_budget_xof)}
+              placeholder={row.default_daily_budget_usd ?? undefined}
+              aria-invalid={saisieInvalide}
               aria-describedby="daily-budget-hint"
               onChange={(e) => { setBudget(e.target.value); setBudgetTouched(true); }}
             />
             <p id="daily-budget-hint" className="text-xs text-muted-foreground">
-              {row.default_daily_budget_xof === null ? t('budgetNoDefaultHint') : t('budgetDefaultHint', { default: row.default_daily_budget_xof })}
+              {row.default_daily_budget_usd === null ? t('budgetNoDefaultHint') : t('budgetDefaultHint', { default: montant(row.default_daily_budget_usd, taux) })}
             </p>
+            {equivalent !== null ? <p className="text-xs text-muted-foreground">{t('budgetEquivalent', { xof: equivalent })}</p> : null}
+            {saisieInvalide ? <p className="text-sm text-destructive" role="alert">{t('budgetInvalid')}</p> : null}
           </div>
         </div>
         {error ? <p className="text-sm text-destructive" role="alert">{error}</p> : null}
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>{t('cancel')}</Button>
           <Button
-            disabled={pending}
+            disabled={pending || saisieInvalide}
             onClick={() => {
               const [provider, ...model] = forced.split('/');
               onSave({
-                forced_provider: forced === SANS_FORCAGE ? null : provider,
-                forced_model: forced === SANS_FORCAGE ? null : model.join('/'),
-                ...(budgetTouched ? { daily_budget_xof: budget === '' ? null : Number(budget) } : {}),
+                // Seulement s'il a changé : un forçage retiré ou sorti de la configuration n'empêche pas d'abaisser le plafond.
+                ...(forced !== forcageInitial ? {
+                  forced_provider: forced === SANS_FORCAGE ? null : provider,
+                  forced_model: forced === SANS_FORCAGE ? null : model.join('/'),
+                } : {}),
+                ...(budgetTouched ? { daily_budget_usd: plafondLu } : {}),
               });
             }}
           >

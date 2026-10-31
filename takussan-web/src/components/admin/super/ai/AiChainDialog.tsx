@@ -18,6 +18,7 @@ import { avecGardeDoubleFacteur } from '@/lib/double-facteur';
 import { fetchAdminAiEvaluation, postAdminAiEvaluation, putAdminAiRole } from '@/lib/queries/super-admin';
 import type { AiEvaluationStatus, AiModelLink, AiProvider, AiRoleRow } from '@/types/super-admin';
 import { ERREURS_APPEL_IA } from './codes-erreur-appel';
+import { useMontantIa } from './useMontantIa';
 
 type Props = {
   open: boolean;
@@ -55,6 +56,7 @@ export function AiChainDialog({ open, onOpenChange, row, providers }: Props) {
   const tRoles = useTranslations('superAdmin.pages.ai.roles');
   const format = useFormatter();
   const messageErreur = useMessageErreurApi();
+  const montant = useMontantIa();
   const garde = useGardeDoubleFacteur();
   const queryClient = useQueryClient();
   const [chain, setChain] = useState<AiModelLink[]>(row.chain);
@@ -141,7 +143,7 @@ export function AiChainDialog({ open, onOpenChange, row, providers }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-2xl grid-cols-[minmax(0,1fr)]">
         <DialogHeader>
           <DialogTitle>{t('title', { role: tRoles(`names.${row.role}`) })}</DialogTitle>
         </DialogHeader>
@@ -152,8 +154,8 @@ export function AiChainDialog({ open, onOpenChange, row, providers }: Props) {
             return (
               <li key={index} className="rounded-xl border border-border bg-card p-3">
                 <p className="mb-2 text-sm font-medium">{t('link', { position: index + 1 })}</p>
-                <div className="grid gap-2 sm:grid-cols-3">
-                  <div className="space-y-1">
+                <div className="grid grid-cols-[minmax(0,1fr)] gap-2 sm:grid-cols-3">
+                  <div className="min-w-0 space-y-1">
                     <Label id={`provider-${index}`}>{t('provider')}</Label>
                     <Select
                       value={link.provider}
@@ -164,10 +166,10 @@ export function AiChainDialog({ open, onOpenChange, row, providers }: Props) {
                       <SelectContent>{providers.map((p) => <SelectItem key={p.key} value={p.key}>{p.legal_name}</SelectItem>)}</SelectContent>
                     </Select>
                   </div>
-                  <div className="space-y-1">
+                  <div className="min-w-0 space-y-1">
                     <Label id={`model-${index}`}>{t('model')}</Label>
                     <Select value={link.model} onValueChange={(v) => v && update(index, { model: v })} items={models.map((m) => ({ value: m, label: m }))}>
-                      <SelectTrigger className="h-10 w-full" aria-labelledby={`model-${index}`}><SelectValue /></SelectTrigger>
+                      <SelectTrigger className="h-10 w-full min-w-0" aria-labelledby={`model-${index}`}><SelectValue /></SelectTrigger>
                       <SelectContent>{models.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent>
                     </Select>
                   </div>
@@ -255,7 +257,7 @@ export function AiChainDialog({ open, onOpenChange, row, providers }: Props) {
                     <tr className="text-muted-foreground">
                       <th scope="row" className="text-left font-normal">{t('evaluationCost')}</th>
                       <td className="text-right">—</td>
-                      <td className="text-right tabular-nums">{nombre(report.cost_xof)}</td>
+                      <td className="text-right tabular-nums">{montant(report.cost_usd, run?.usd_to_xof)}</td>
                     </tr>
                   </tbody>
                 </table>

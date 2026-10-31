@@ -40,7 +40,7 @@ class RadarExtractionEvalSetTest extends TestCase
         $this->installerSocleDEssai();
         config([
             'ai.roles.vision' => [['provider' => 'anthropic', 'model' => 'modele-v', 'max_tokens' => 2000]],
-            'ai.pricing.anthropic.modele-v' => ['input' => 3.0, 'output' => 15.0, 'cache_read' => 0.3, 'cache_write' => 3.75],
+            'ai.pricing.anthropic.modele-v' => ['input' => '3.0', 'output' => '15.0', 'cache_read' => '0.3', 'cache_write' => '3.75'],
         ]);
         // Le catalogue, les prompts et le jeu RÉELS : c'est ce qui est livré qu'on éprouve.
         $this->app->instance(AiUsageRegistry::class, new AiUsageRegistry);
