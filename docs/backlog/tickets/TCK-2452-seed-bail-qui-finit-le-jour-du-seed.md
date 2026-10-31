@@ -4,7 +4,7 @@ title: "Seed : un bail qui finit le jour du seed est encore actif"
 status: done
 phase: P3
 family: full
-estimate: XS
+estimate: S
 wave: 80
 created: 2026-10-31
 updated: 2026-10-31
