@@ -12,6 +12,8 @@
 
 $nombre = static fn (string $cle, float $defaut): float => is_numeric($valeur = env($cle)) ? (float) $valeur : $defaut;
 $montant = static fn (string $cle, string $defaut): string => preg_match('/^\d+(\.\d+)?$/', (string) env($cle)) === 1 ? (string) env($cle) : $defaut;
+// La CI lit `.env.example`, où ces clés sont vides : `env($cle, $defaut)` y rendrait une chaîne vide, pas le défaut.
+$adresse = static fn (string $cle, string $defaut): string => filled(env($cle)) ? (string) env($cle) : $defaut;
 
 return [
 
@@ -20,12 +22,42 @@ return [
     // ADR-0076 §3 — la liste FERMÉE des fournisseurs sélectionnables. `legal_name` est le nom que
     // `privacy.ts` § 4.3 doit citer (`scripts/check-ai-providers-privacy.mjs`). La clé vient de
     // l'environnement, jamais de la base ni de la console.
+    //
+    // ADR-0085 §3, TCK-2450 — `allowed_hosts` s'écrit ici, jamais dans l'environnement : une adresse dont
+    // l'hôte n'y figure pas rend le fournisseur non sélectionnable (`AiProviderCatalogue`). Un point d'accès
+    // compatible OpenAI est une entrée nommée de plus, sur le pilote `openai-compatible`, avec son `legal_name`
+    // et ses hôtes : jamais une entrée générique dont l'adresse suffirait à changer le destinataire
+    // (`docs/infra/hebergement.md`, « Déclarer un point d'accès compatible OpenAI »).
     'providers' => [
         'anthropic' => [
             'driver' => 'anthropic',
             'key' => env('ANTHROPIC_API_KEY'),
-            'url' => env('ANTHROPIC_URL', 'https://api.anthropic.com/v1'),
+            'url' => $adresse('ANTHROPIC_URL', 'https://api.anthropic.com/v1'),
             'legal_name' => 'Anthropic',
+            'allowed_hosts' => ['api.anthropic.com'],
+        ],
+        'openai' => [
+            'driver' => 'openai',
+            'key' => env('OPENAI_API_KEY'),
+            'url' => $adresse('OPENAI_URL', 'https://api.openai.com/v1'),
+            'legal_name' => 'OpenAI',
+            'allowed_hosts' => ['api.openai.com'],
+            // Sans lui, l'API Responses conserve les réponses 30 jours (documentation d'OpenAI, relevée le 2026-10-31).
+            // `privacy.ts` § 4.3 le promet. `AiGateway::routingOptions()` le pose aussi sur toute entrée de ce pilote.
+            'store' => false,
+        ],
+        'openrouter' => [
+            'driver' => 'openrouter',
+            'key' => env('OPENROUTER_API_KEY'),
+            'url' => $adresse('OPENROUTER_URL', 'https://openrouter.ai/api/v1'),
+            'legal_name' => 'OpenRouter',
+            'allowed_hosts' => ['openrouter.ai'],
+            // Posé sur chaque requête (`AiGateway::routingOptions()`), « Provider Routing » relevé le 2026-10-31.
+            // `data_collection` : `privacy.ts` § 4.3 promet `deny`, et `check-ai-providers-privacy.mjs` rougit si
+            // cette ligne change sans le texte. `require_parameters` : sans lui, un point d'accès qui ignore le
+            // format de sortie rendrait de la prose ; avec lui, une absence de point d'accès est une erreur, que la
+            // bascule absorbe s'il reste un maillon (ADR-0085, amendement du 2026-10-31).
+            'provider' => ['data_collection' => 'deny', 'require_parameters' => true],
         ],
         // TCK-2423 — seulement des embeddings (`serves`). Sans clé, ou sans `training_opt_out`, rien ne part : le Radar reste sur
         // `pg_trgm`. `training_opt_out` : la déclaration que l'entraînement est refusé chez Voyage, geste que `privacy.ts` § 4.3
@@ -36,7 +68,7 @@ return [
             'driver' => 'voyageai',
             'key' => env('VOYAGE_API_KEY'),
             'training_opt_out' => env('VOYAGE_TRAINING_OPT_OUT', false) === true,
-            'url' => env('VOYAGE_URL', 'https://api.voyageai.com/v1'),
+            'url' => $adresse('VOYAGE_URL', 'https://api.voyageai.com/v1'),
             'legal_name' => 'Voyage AI',
             'serves' => 'embeddings',
             'allowed_hosts' => ['api.voyageai.com'],

@@ -325,6 +325,16 @@ class RadarEmbeddingsTest extends TestCase
 
     // ─── La bascule, la même que `run()` (TCK-2449) ──────────────────────────────────────
 
+    /** TCK-2450 — sans décompte de jetons, l'appel coûte zéro : la ligne le dit, le budget n'en sait rien. */
+    public function test_un_embedding_sans_decompte_de_jetons_porte_un_avertissement(): void
+    {
+        Http::fake(['api.voyageai.com/*' => Http::response(['data' => [['embedding' => $this->vecteur(0.5), 'index' => 0]]])]);
+
+        $resultat = app(AiGateway::class)->embed(new AiRequest(RadarEmbeddingUsage::KEY, self::COPIE), [self::COPIE], 1024);
+
+        $this->assertSame(AiGateway::WARNING_USAGE_MISSING, $resultat->call->warning);
+    }
+
     /** Une chaîne de deux maillons, `voyageai` refusé au statut donné. */
     private function embedAvecSecours(int $statut): AiEmbeddingResult
     {

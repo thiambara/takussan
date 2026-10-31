@@ -92,7 +92,7 @@ class AdminAiRolesTest extends TestCase
     public function test_un_role_de_texte_refuse_un_fournisseur_dembeddings_et_linverse(): void
     {
         $this->actingAsRole('super_admin');
-        config(['ai.pricing.voyageai' => ['modele-v' => ['input' => '1', 'output' => '0', 'cache_read' => '0', 'cache_write' => '0']]]);
+        config(['ai.providers.voyageai.key' => 'k', 'ai.providers.voyageai.training_opt_out' => true, 'ai.pricing.voyageai' => ['modele-v' => ['input' => '1', 'output' => '0', 'cache_read' => '0', 'cache_write' => '0']]]);
 
         $this->putJson('/api/admin/ai/roles/extraction', ['chain' => [['provider' => 'voyageai', 'model' => 'modele-v']]])
             ->assertStatus(422)->assertJsonPath('code', 'ai.provider_role_mismatch');

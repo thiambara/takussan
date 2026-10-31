@@ -17,8 +17,8 @@ use Illuminate\Http\JsonResponse;
 /**
  * TCK-2385 (ADR-0076 §12) — ce qui tourne et ce que ça coûte : par usage et par jour, hors
  * évaluations. `calls` compte les appels servis (réponse ou cache) ; refus, bascules et erreurs ont
- * leur colonne. `provider_rejections` compte les maillons qu'un autre fournisseur qu'Anthropic a refusés, et
- * que le secours a effacés (TCK-2449) : sans lui, ce fournisseur cassé ne se verrait plus.
+ * leur colonne. `provider_rejections` compte les défauts d'un fournisseur que rien d'autre ne montre : les maillons
+ * refusés que le secours a effacés (TCK-2449), et les réponses sans décompte de jetons, comptées à zéro (TCK-2450).
  */
 class AiDashboardController extends Controller
 {
@@ -38,7 +38,7 @@ class AiDashboardController extends Controller
                 count(*) filter (where outcome = 'refused') as refusals,
                 count(*) filter (where outcome = 'failed_over') as failovers,
                 count(*) filter (where outcome = 'cache_hit') as cache_hits,
-                count(*) filter (where warning = ?) as provider_rejections", [AiGateway::WARNING_PROVIDER_REJECTED])
+                count(*) filter (where warning in (?, ?)) as provider_rejections", [AiGateway::WARNING_PROVIDER_REJECTED, AiGateway::WARNING_USAGE_MISSING])
             ->groupByRaw('usage_key, date(created_at)')
             ->orderByRaw('date(created_at), usage_key')
             ->get()

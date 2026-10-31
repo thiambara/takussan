@@ -66,6 +66,7 @@ export function AiChainDialog({ open, onOpenChange, row, providers }: Props) {
   // que cet écran n'a pas relancée ; le motif devient exigible sans qu'une nouvelle évaluation le dise.
   const [motifExige, setMotifExige] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const premierSelectionnable = providers.find((p) => p.selectable);
 
   const evaluation = useQuery({
     queryKey: ['super-admin', 'ai', 'evaluation', runId],
@@ -151,6 +152,8 @@ export function AiChainDialog({ open, onOpenChange, row, providers }: Props) {
         <ol className="space-y-3">
           {chain.map((link, index) => {
             const models = providers.find((p) => p.key === link.provider)?.models ?? [];
+            // TCK-2450 — le fournisseur déjà en chaîne reste lisible, même devenu non sélectionnable : l'API refusera de l'enregistrer.
+            const proposes = providers.filter((p) => p.selectable || p.key === link.provider);
             return (
               <li key={index} className="rounded-xl border border-border bg-card p-3">
                 <p className="mb-2 text-sm font-medium">{t('link', { position: index + 1 })}</p>
@@ -160,10 +163,10 @@ export function AiChainDialog({ open, onOpenChange, row, providers }: Props) {
                     <Select
                       value={link.provider}
                       onValueChange={(v) => v && update(index, { provider: v, model: providers.find((p) => p.key === v)?.models[0] ?? '' })}
-                      items={providers.map((p) => ({ value: p.key, label: p.legal_name }))}
+                      items={proposes.map((p) => ({ value: p.key, label: p.legal_name }))}
                     >
                       <SelectTrigger className="h-10 w-full" aria-labelledby={`provider-${index}`}><SelectValue /></SelectTrigger>
-                      <SelectContent>{providers.map((p) => <SelectItem key={p.key} value={p.key}>{p.legal_name}</SelectItem>)}</SelectContent>
+                      <SelectContent>{proposes.map((p) => <SelectItem key={p.key} value={p.key}>{p.legal_name}</SelectItem>)}</SelectContent>
                     </Select>
                   </div>
                   <div className="min-w-0 space-y-1">
@@ -204,8 +207,12 @@ export function AiChainDialog({ open, onOpenChange, row, providers }: Props) {
         <Button
           variant="outline"
           size="sm"
-          disabled={chain.length >= 5 || providers.length === 0}
-          onClick={() => { setError(null); setChain((c) => [...c, { provider: providers[0].key, model: providers[0].models[0] ?? '', max_tokens: null }]); }}
+          disabled={chain.length >= 5 || premierSelectionnable === undefined}
+          onClick={() => {
+            if (!premierSelectionnable) return;
+            setError(null);
+            setChain((c) => [...c, { provider: premierSelectionnable.key, model: premierSelectionnable.models[0] ?? '', max_tokens: null }]);
+          }}
         >
           <Plus className="size-4" aria-hidden="true" /> {t('add')}
         </Button>

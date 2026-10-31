@@ -2,6 +2,7 @@
 
 namespace App\Ai\Agents;
 
+use App\Services\Ai\AiGateway;
 use Laravel\Ai\Contracts\Agent;
 use Laravel\Ai\Contracts\HasProviderOptions;
 use Laravel\Ai\Contracts\HasStructuredOutput;
@@ -30,16 +31,26 @@ abstract class SocleAgent implements Agent, HasProviderOptions
 
     private int $chainLength = 1;
 
+    /** @var array<string, mixed> */
+    private array $routingOptions = [];
+
     /**
      * `$chainLength` : le nombre de maillons de la chaîne que la passerelle joue pour cet appel
      * (TCK-2386). Un agent dont le temps d'appel est borné par celui d'un job le partage entre eux
      * ({@see RadarExtraction::timeout()}) ; les autres l'ignorent.
+     *
+     * `$routingOptions` : ce que l'entrée du maillon joué impose au corps de la requête (TCK-2450). L'agent ne
+     * reçoit du SDK que le pilote, jamais le nom de l'entrée : c'est la passerelle qui les lit
+     * ({@see AiGateway::routingOptions()}).
+     *
+     * @param  array<string, mixed>  $routingOptions
      */
-    public function configure(string $instructions, ?int $maxTokens, int $chainLength = 1): static
+    public function configure(string $instructions, ?int $maxTokens, int $chainLength = 1, array $routingOptions = []): static
     {
         $this->instructions = $instructions;
         $this->maxTokens = $maxTokens;
         $this->chainLength = max(1, $chainLength);
+        $this->routingOptions = $routingOptions;
 
         return $this;
     }
@@ -107,9 +118,11 @@ abstract class SocleAgent implements Agent, HasProviderOptions
     {
         $driver = $provider instanceof Lab ? $provider->value : $provider;
 
-        return $driver === Lab::Anthropic->value && $this instanceof HasStructuredOutput && ! $this->usesStrictSchema($driver)
+        $toolChoice = $driver === Lab::Anthropic->value && $this instanceof HasStructuredOutput && ! $this->usesStrictSchema($driver)
             ? ['tool_choice' => ['type' => 'auto']]
             : [];
+
+        return [...$toolChoice, ...$this->routingOptions];
     }
 
     /** Lu par `TextGenerationOptions` du SDK. */

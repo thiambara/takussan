@@ -184,7 +184,7 @@ export function AiModelsPanel() {
       {dialogue ? (
         <ModelDialog
           entree={dialogue.entree}
-          fournisseurs={fournisseurs.map((f) => ({ value: f.key, label: f.legal_name }))}
+          fournisseurs={fournisseurs.filter((f) => f.selectable || f.key === dialogue.entree?.provider).map((f) => ({ value: f.key, label: f.legal_name }))}
           pending={enregistrer.isPending}
           error={enregistrer.isError ? messageErreur(enregistrer.error, t('updateFailed')) : null}
           onClose={() => setDialogue(null)}

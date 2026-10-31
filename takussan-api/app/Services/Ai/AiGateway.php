@@ -13,6 +13,7 @@ use App\Services\Ai\Exceptions\AiRefused;
 use App\Services\Ai\Exceptions\AiUnavailable;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Laravel\Ai\Embeddings;
 use Laravel\Ai\Enums\Lab;
@@ -20,7 +21,9 @@ use Laravel\Ai\Exceptions\AiException;
 use Laravel\Ai\Exceptions\FailoverableException;
 use Laravel\Ai\Responses\Data\FinishReason;
 use Laravel\Ai\Responses\Data\TextUsage;
+use Laravel\Ai\Responses\Data\Usage;
 use Laravel\Ai\Responses\StructuredAgentResponse;
+use Psr\Http\Message\ResponseInterface;
 use Throwable;
 
 /**
@@ -41,8 +44,14 @@ final class AiGateway
     /** Délai d'un appel d'embeddings : un lot tient sous le `$timeout` du job (`EmbedRadarListings`). */
     private const EMBEDDING_TIMEOUT_SECONDS = 30;
 
-    /** `ai_calls.warning` du maillon d'un autre pilote qu'Anthropic, refusé puis basculé ({@see self::rejectionFailsOver()}). */
+    /** `ai_calls.warning` du maillon refusé puis basculé ({@see self::rejectionFailsOver()}), ou qui a répondu par une redirection. */
     public const WARNING_PROVIDER_REJECTED = 'provider_rejected';
+
+    /** `ai_calls.warning` d'une réponse sans décompte de jetons : son coût vaut zéro, et le budget n'en sait rien (TCK-2450). */
+    public const WARNING_USAGE_MISSING = 'usage_missing';
+
+    /** Assez haut pour que Guzzle arrive au rappel : c'est lui qui arrête, pas ce plafond. */
+    private const REDIRECTS_BEFORE_THE_CALLBACK = 5;
 
     /** Les refus qui ne disent rien du maillon suivant. 401 et 403 restent dehors : une clé refusée doit se voir. */
     private const REJECTIONS_THAT_FAIL_OVER = [400, 404, 408, 413, 422, 500];
@@ -89,12 +98,31 @@ final class AiGateway
 
         $instructions = $this->prompts->load($usage->key(), $usage->promptVersion());
         $last = null;
+        // TCK-2450 — un maillon refusé ne part pas : il ne prend pas sa part du délai des autres.
+        $reachable = count(array_filter($chain, fn (ModelLink $link): bool => $this->providers->refusalCode($link->provider) === null));
         foreach ($chain as $rank => $link) {
+            // TCK-2450 (ADR-0085 §4) — une chaîne en base peut nommer un fournisseur devenu non sélectionnable : rien
+            // ne part chez lui, et la chaîne passe au maillon suivant. Sur le dernier, `providers_unavailable` en porte la cause.
+            $refusal = $this->providers->refusalCode($link->provider);
+            if ($refusal !== null) {
+                $this->journal($usage, $request, $this->linkColumns($link) + ['outcome' => AiCallOutcome::FailedOver, 'error_code' => $refusal]);
+                $last = new AiUnavailable($refusal);
+
+                continue;
+            }
             $started = hrtime(true);
             $driver = $this->driverOf($link);
             try {
-                $agent = app($usage->agentClass())->configure($instructions, $link->maxTokens, count($chain));
-                $response = $agent->prompt($input, $request->attachments, provider: $this->providerFor($agent, $link, $driver), model: $link->model);
+                $agent = app($usage->agentClass())->configure($instructions, $link->maxTokens, $reachable, $this->routingOptions($link, $driver));
+                $response = $this->withoutFollowingRedirects(fn () => $agent->prompt($input, $request->attachments, provider: $this->providerFor($agent, $link, $driver), model: $link->model));
+            } catch (AiUnavailable $e) {
+                $this->journal($usage, $request, $this->linkColumns($link) + [
+                    'outcome' => AiCallOutcome::FailedOver, 'error_code' => $e->getMessage(), 'duration_ms' => $this->elapsed($started),
+                    'warning' => self::WARNING_PROVIDER_REJECTED,
+                ]);
+                $last = $e;
+
+                continue;
             } catch (FailoverableException $e) {
                 $this->journal($usage, $request, $this->linkColumns($link) + [
                     'outcome' => AiCallOutcome::FailedOver, 'error_code' => AiErrorCode::fromThrowable($e), 'duration_ms' => $this->elapsed($started),
@@ -125,7 +153,7 @@ final class AiGateway
                 'cache_read_tokens' => $response->usage->cacheReadInputTokens ?? 0,
                 'cache_write_tokens' => $response->usage->cacheWriteInputTokens ?? 0,
                 'cost_estimate_usd' => $cost,
-                'warning' => $cost === null ? 'model_unpriced' : null,
+                'warning' => $this->spendWarning($response->usage, $cost),
                 'duration_ms' => $this->elapsed($started),
             ];
             // TCK-2399 — une réponse coupée ou filtrée est inexploitable : le maillon a échoué, mais il
@@ -167,6 +195,59 @@ final class AiGateway
     }
 
     /**
+     * TCK-2450 (ADR-0085 §3) — le contrôle d'hôte ne porte que sur l'adresse configurée : ni le corps ni la clé ne
+     * suivent une redirection, quel que soit le pilote. Le SDK construit sa requête par la façade `Http`, sans
+     * option : seules les options et le middleware globaux l'atteignent, posés le temps de l'appel, puis rendus tels
+     * qu'ils étaient. Pas `allow_redirects => false` : le corps vide d'un 307 arriverait au SDK, et y lèverait une
+     * `TypeError` qui ne dit rien de la cause. Le middleware prend ce que Guzzle ne suit pas : un 3xx sans `Location`.
+     *
+     * @template T
+     *
+     * @param  callable(): T  $call
+     * @return T
+     */
+    private function withoutFollowingRedirects(callable $call): mixed
+    {
+        $factory = Http::getFacadeRoot();
+        $previous = (fn () => $this->globalOptions)->call($factory);
+        $middleware = (fn () => $this->globalMiddleware)->call($factory);
+        $factory->globalOptions(array_merge((array) value($previous), [
+            'allow_redirects' => [
+                'max' => self::REDIRECTS_BEFORE_THE_CALLBACK,
+                'on_redirect' => static function (): never {
+                    throw new AiUnavailable('ai.provider_redirected');
+                },
+            ],
+        ]));
+        $factory->globalResponseMiddleware(static function (ResponseInterface $response): ResponseInterface {
+            if ($response->getStatusCode() >= 300 && $response->getStatusCode() < 400) {
+                throw new AiUnavailable('ai.provider_redirected');
+            }
+
+            return $response;
+        });
+
+        try {
+            return $call();
+        } finally {
+            $factory->globalOptions($previous);
+            (function () use ($middleware): void {
+                $this->globalMiddleware = $middleware;
+            })->call($factory);
+        }
+    }
+
+    /** Une réponse sans jetons coûte zéro : le dire d'abord, un tarif absent n'y changerait rien. */
+    private function spendWarning(Usage $usage, ?string $cost): ?string
+    {
+        return match (true) {
+            $usage->inputTokens === 0 && $usage->outputTokens === 0 => self::WARNING_USAGE_MISSING,
+            $cost === null => 'model_unpriced',
+            default => null,
+        };
+    }
+
+    /**
      * TCK-2423 (ADR-0076, amendement du 2026-10-31) — des vecteurs, dans le même ordre que {@see self::run()} : autorité,
      * coupe-circuit, budget, données (refus, masquage de chaque entrée), appel maillon par maillon avec la même bascule, journal. Un
      * {@see EmbeddingUsage} tourne sans acteur : une tâche planifiée, que personne ne demande. Pas de cache : c'est l'empreinte
@@ -200,11 +281,19 @@ final class AiGateway
 
             $started = hrtime(true);
             try {
-                $response = Embeddings::for($inputs)
+                $response = $this->withoutFollowingRedirects(fn () => Embeddings::for($inputs)
                     ->dimensions($dimensions)
                     ->timeout(self::EMBEDDING_TIMEOUT_SECONDS)
                     ->withProviderOptions(config("ai.providers.{$link->provider}.embedding_options", []))
-                    ->generate($link->provider, $link->model);
+                    ->generate($link->provider, $link->model));
+            } catch (AiUnavailable $e) {
+                $this->journal($usage, $request, $this->linkColumns($link) + [
+                    'outcome' => AiCallOutcome::FailedOver, 'error_code' => $e->getMessage(), 'duration_ms' => $this->elapsed($started),
+                    'warning' => self::WARNING_PROVIDER_REJECTED,
+                ]);
+                $last = $e;
+
+                continue;
             } catch (FailoverableException $e) {
                 $this->journal($usage, $request, $this->linkColumns($link) + [
                     'outcome' => AiCallOutcome::FailedOver, 'error_code' => AiErrorCode::fromThrowable($e), 'duration_ms' => $this->elapsed($started),
@@ -233,7 +322,7 @@ final class AiGateway
                 'input_tokens' => $tokens,
                 'output_tokens' => 0,
                 'cost_estimate_usd' => $cost,
-                'warning' => $cost === null ? 'model_unpriced' : null,
+                'warning' => $this->spendWarning($response->usage, $cost),
                 'duration_ms' => $this->elapsed($started),
             ];
             // Payée, mais inexploitable : autant de vecteurs que d'entrées, de la bonne dimension, jamais nuls (une
@@ -359,6 +448,22 @@ final class AiGateway
     private function driverOf(ModelLink $link): string
     {
         return config("ai.providers.{$link->provider}.driver", $link->provider);
+    }
+
+    /**
+     * TCK-2450 — ce que `privacy.ts` § 4.3 promet ne dépend pas du nom de l'entrée : le pilote décide, et une entrée
+     * renommée qui ne déclarerait rien reçoit les mêmes options. `store` n'a pas de réglage : OpenAI conserverait
+     * sinon les réponses 30 jours. Le bloc `provider` d'une entrée `openrouter` l'emporte sur ces défauts.
+     *
+     * @return array<string, mixed>
+     */
+    private function routingOptions(ModelLink $link, string $driver): array
+    {
+        return match ($driver) {
+            Lab::OpenAI->value => ['store' => false],
+            Lab::OpenRouter->value => ['provider' => (array) config("ai.providers.{$link->provider}.provider", []) + ['data_collection' => 'deny', 'require_parameters' => true]],
+            default => [],
+        };
     }
 
     /**

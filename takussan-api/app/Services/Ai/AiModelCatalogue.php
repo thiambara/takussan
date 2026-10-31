@@ -28,13 +28,13 @@ final class AiModelCatalogue
     /** Le tarif que la configuration déclare, chez un fournisseur déclaré : ce à quoi une ligne peut revenir. */
     public function configuredPriceOf(string $provider, string $model): ?array
     {
-        return array_key_exists($provider, config('ai.providers')) ? (config('ai.pricing')[$provider][$model] ?? null) : null;
+        return array_key_exists($provider, AiProviderCatalogue::declared()) ? (config('ai.pricing')[$provider][$model] ?? null) : null;
     }
 
     /** Actif au catalogue, chez un fournisseur déclaré. */
     public function isAssignable(string $provider, string $model): bool
     {
-        if (! array_key_exists($provider, config('ai.providers'))) {
+        if (! array_key_exists($provider, AiProviderCatalogue::declared())) {
             return false;
         }
         $row = $this->row($provider, $model);
@@ -52,7 +52,7 @@ final class AiModelCatalogue
     {
         $rows = AiModel::query()->orderBy('model')->get()->groupBy('provider');
         $entries = [];
-        foreach (array_keys(config('ai.providers')) as $provider) {
+        foreach (array_keys(AiProviderCatalogue::declared()) as $provider) {
             $configured = config('ai.pricing')[$provider] ?? [];
             $byModel = ($rows[$provider] ?? collect())->keyBy('model');
             foreach ($configured as $model => $price) {

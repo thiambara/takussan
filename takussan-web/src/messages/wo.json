@@ -7136,7 +7136,8 @@
         "scheduler": "Planificateur",
         "proxies": "Mandataires de confiance",
         "lemon_squeezy_webhook": "Webhook Lemon Squeezy",
-        "radar_phone_key": "Clé des refus du Radar"
+        "radar_phone_key": "Clé des refus du Radar",
+        "ai_providers": "Fournisseurs d’IA"
       },
       "hint": {
         "error": "Njuumte : {message}",
@@ -7150,7 +7151,8 @@
           "not_meilisearch": "Seet bi nekkul ci Meilisearch",
           "wildcard_trusts_nobody": "« * » ne fait confiance à aucun mandataire",
           "signing_secret_missing": "Secret de signature absent de la configuration",
-          "radar_phone_key_missing": "Clé dédiée absente : l’empreinte des refus dépend d’APP_KEY"
+          "radar_phone_key_missing": "Clé dédiée absente : l’empreinte des refus dépend d’APP_KEY",
+          "ai_provider_host_not_allowed": "Clé posée sur une adresse qui n’est pas sur un hôte accepté"
         }
       },
       "status": {
@@ -7748,7 +7750,12 @@
           "responseInvalid": "La réponse du modèle n’est pas exploitable.",
           "responseTruncated": "La réponse du modèle a été coupée avant la fin.",
           "responseFiltered": "La réponse du modèle a été bloquée par le filtre du fournisseur.",
-          "unexpected": "Erreur inattendue : le détail est au journal de l’API."
+          "unexpected": "Erreur inattendue : le détail est au journal de l’API.",
+          "providerKeyMissing": "Aucune clé n’est posée pour ce fournisseur.",
+          "providerHostNotAllowed": "L’adresse de ce fournisseur n’est pas sur un hôte accepté.",
+          "providerRedirected": "Ce fournisseur a répondu par une redirection : la demande n’a pas été renvoyée.",
+          "providerUnreachable": "Rien n’est envoyé à ce fournisseur : refus de l’entraînement non déclaré, ou adresse non acceptée.",
+          "providerUnknown": "Ce fournisseur n’est plus déclaré."
         },
         "roles": {
           "caption": "Rôles de modèle et leur ordre de bascule",
@@ -7833,9 +7840,12 @@
         "providers": {
           "caption": "Fournisseurs autorisés",
           "name": "Fournisseur",
-          "key": "Clé",
-          "keyPresent": "Présente",
-          "keyMissing": "Absente",
+          "status": "État",
+          "statusReady": "Prêt",
+          "statusKeyMissing": "Clé absente",
+          "statusHostNotAllowed": "Adresse non acceptée",
+          "statusTrainingOptOutUndeclared": "Refus de l’entraînement non déclaré",
+          "host": "Hôte : {host}",
           "models": "Modèles actifs",
           "test": "Tester la connexion",
           "testOk": "Connexion établie avec {model} en {duration} ms.",
@@ -7908,8 +7918,8 @@
           "latency": "Latence moyenne (ms)",
           "errors": "Erreurs",
           "refusals": "Refus",
-          "providerRejections": "Refus du fournisseur, bascule",
-          "providerRejectionsNotice": "{count, plural, one {# appel a basculé sur le maillon suivant parce que le fournisseur l’a refusé. Vérifiez ce fournisseur : le secours masque sa panne.} other {# appels ont basculé sur le maillon suivant parce que le fournisseur les a refusés. Vérifiez ce fournisseur : le secours masque sa panne.}}",
+          "providerRejections": "Défauts du fournisseur",
+          "providerRejectionsNotice": "{count, plural, one {# appel signale un défaut du fournisseur : un refus ou une redirection que le maillon suivant a effacés, ou une réponse sans décompte de jetons, comptée à zéro et inconnue du budget. Vérifiez ce fournisseur.} other {# appels signalent un défaut du fournisseur : un refus ou une redirection que le maillon suivant a effacés, ou une réponse sans décompte de jetons, comptée à zéro et inconnue du budget. Vérifiez ce fournisseur.}}",
           "acceptanceCaption": "Taux d’acceptation des suggestions",
           "acceptance": "Acceptées telles quelles",
           "decided": "Décidées",

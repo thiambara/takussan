@@ -179,3 +179,34 @@ ne l'a éprouvée : elle repose sur le SDK `laravel/ai` et sur la documentation 
   alors chez un fournisseur qui n'offre peut-être pas cette garantie. Qui compose une chaîne doit donc y mettre des
   fournisseurs de même garantie. Rien dans le code ne le vérifie.
 - Aucune chaîne ne contient aujourd'hui de pilote non Anthropic : la règle n'a aucun effet tant qu'aucune clé n'est posée.
+
+## Amendement du 2026-10-31 — ce que porte le corps d'une requête (TCK-2450)
+
+Précise le point 3. **Décisions de la session, à revoir par le porteur.** Vérifiées sur la documentation d'OpenAI et
+d'OpenRouter le 2026-10-31 : aucune clé n'existe, aucun vrai appel ne les a éprouvées.
+
+- **Le pilote décide, jamais le nom de l'entrée.** Tout maillon du pilote `openai` envoie `store: false`, sans réglage. Tout
+  maillon du pilote `openrouter` envoie `provider.data_collection`, `deny` si l'entrée ne dit rien. La passerelle les passe à
+  l'agent : le SDK ne donne à `providerOptions()` que le pilote.
+- **`provider.require_parameters` vaut `true`**, réglable sur l'entrée. Sans lui, un point d'accès qui ignore le format de
+  sortie rendrait de la prose. Avec lui, une absence de point d'accès est une erreur, que la bascule absorbe s'il reste un
+  maillon. La documentation ne dit pas quel statut elle rend : la bascule ne le couvre que s'il est dans sa liste.
+- **Une adresse à identifiants est refusée**, en plus de la comparaison d'hôte exacte.
+- **La garde `check-ai-providers-privacy.mjs` rougit sur un `data_collection` autre que `deny`** : `privacy.ts` promet
+  `deny`, donc le texte change avec la configuration.
+
+**Une redirection n'est pas suivie, sur aucun pilote, Anthropic compris, ni pour un appel d'embeddings (`embed()`, Voyage AI).** Ni le corps ni la clé ne partent vers
+l'adresse rendue : `AiGateway::withoutFollowingRedirects()` fait lever `ai.provider_redirected`, classé en panne de maillon,
+qui bascule s'il en reste un. Le contrôle d'hôte ne porte que sur l'adresse configurée : c'est ce refus qui le rend vrai
+jusqu'au bout. Un 3xx sans `Location`, que Guzzle ne suit pas, prend la même voie : sur son corps vide, le SDK lèverait une erreur
+qui arrêterait la chaîne.
+
+**Une réponse sans `usage`** écrit `warning: usage_missing`, et le tableau de bord la compte dans `provider_rejections`. Le
+budget n'en est pas informé : elle y vaut zéro.
+
+**Une clé Voyage sans la déclaration du refus de l'entraînement n'est pas sélectionnable** (`training_opt_out_undeclared`, code
+`ai.provider_unreachable`) : le catalogue a une seule réponse, et `reachable()` n'y ajoute que `https`, même en `local` et `testing`.
+
+**Limite connue.** Derrière un dernier maillon sans clé, la cause d'un 400 se perd : l'exception est
+`ai.providers_unavailable`, avec pour cause `ai.provider_key_missing` au lieu de `ai.request_rejected`. La ligne du journal garde
+la bonne cause.

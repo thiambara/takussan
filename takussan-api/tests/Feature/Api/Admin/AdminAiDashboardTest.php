@@ -67,6 +67,20 @@ class AdminAiDashboardTest extends TestCase
         $this->assertEquals([2, 1], [$jour['failovers'], $jour['provider_rejections']]);
     }
 
+    public function test_a_response_without_usage_counts_as_a_provider_defect(): void
+    {
+        $this->installerSocleDEssai();
+        $this->actingAsRole('super_admin');
+        $this->ligne('success', '0', ['warning' => AiGateway::WARNING_USAGE_MISSING]);
+        $this->ligne('success', '0', ['warning' => 'model_unpriced']);
+
+        $jour = $this->getJson('/api/admin/ai/dashboard?'.http_build_query([
+            'from' => now()->toDateString(), 'to' => now()->toDateString(),
+        ]))->assertOk()->json('data.days.0');
+
+        $this->assertEquals([2, 1], [$jour['calls'], $jour['provider_rejections']]);
+    }
+
     public function test_acceptance_follows_the_selected_period_on_both_ends(): void
     {
         $this->installerSocleDEssai();

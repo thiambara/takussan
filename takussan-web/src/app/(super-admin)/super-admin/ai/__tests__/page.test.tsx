@@ -22,7 +22,7 @@ vi.mock('@/lib/queries/super-admin', () => ({
   patchAdminAiModel: vi.fn(),
 }));
 
-const providers = [{ key: 'anthropic', legal_name: 'Anthropic', key_present: true, models: ['modele-a', 'modele-b'] }];
+const providers = [{ key: 'anthropic', legal_name: 'Anthropic', key_present: true, selectable: true, reason: null, host: 'api.anthropic.com', models: ['modele-a', 'modele-b'] }];
 
 function renderPage() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -58,7 +58,7 @@ describe('console IA (TCK-2385)', () => {
 
     await userEvent.click(await screen.findByRole('tab', { name: 'Fournisseurs' }));
 
-    expect(await screen.findByText('Présente')).toBeInTheDocument();
+    expect(await screen.findByText('Prêt')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Tester la connexion' })).toBeInTheDocument();
     expect(screen.queryByLabelText(/clé/i)).not.toBeInTheDocument();
   });
