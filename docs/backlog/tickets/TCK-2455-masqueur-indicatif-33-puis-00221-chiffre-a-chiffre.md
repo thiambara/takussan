@@ -38,10 +38,10 @@ branche `fix/masqueur-00221-derriere-etage` (`98f7f1b85`). Mesure faite sur les 
 | Témoin : `Tel +44 00221 7 7 0 1 2 3 4 5 6` | `Tel +44 [TELEPHONE]` | même | `[]` |
 | Témoin : `Tel 00221 7 7 0 1 2 3 4 5 6` | `Tel [TELEPHONE]` | même | `["+221770123456"]` |
 
-Cause supposée, à re-mesurer : la France (`+33`, neuf chiffres) a sa branche propre dans `FOREIGN`, qui passe d'abord. Elle
+Cause supposée, inexacte : la France (`+33`, neuf chiffres) a sa branche propre dans `FOREIGN`, qui passe d'abord. Elle
 lit `33 00221 7 7` (ou `33 221 7 7 0 1`) comme un numéro français et laisse le reste du numéro en clair. `CODED_SENEGAL`
-(TCK-2451), qui englobe un numéro sénégalais derrière un indicatif étranger, ne connaît que `CC1|CC2|CC3`, et `33` n'est dans
-aucun de ces jeux. Avec un corps groupé (`77 012 34 56`), la branche de TCK-2451 masque déjà le numéro en entier.
+(TCK-2451), qui englobe un numéro sénégalais derrière un indicatif étranger, ne connaît que `CC1|CC2|CC3`. *(Corrigé le 2026-10-31 : `33` est dans
+`CC2` ; cause re-mesurée, voir « Notes d'implémentation ».)* Avec un corps groupé (`77 012 34 56`), la branche de TCK-2451 masque déjà le numéro en entier.
 
 ## Contrat de données
 
@@ -74,7 +74,7 @@ Aucun endpoint, aucune migration. `App\Support\PhoneMasker` et son miroir `scrip
 ## Reste sur dev
 
 - AC3 : le job CI `image` n'a pas tourné : `api-ci.yml` se déclenche sur une PR ou sur un push vers `dev`, et la PR n'est pas ouverte.
-  Mesuré à la place, en local : `smoke-api.sh masqueur`, que ce job lance, sort en 0 sur l'image de `496f9dea4` (PCRE2 10.44).
+  Mesuré à la place, en local : `smoke-api.sh masqueur`, que ce job lance, sort en 0 sur l'image de `efa3392ea` (PCRE2 10.44).
   À cocher au vu du job de la PR, puis passer le ticket à `done`.
 
 ## Notes d'implémentation

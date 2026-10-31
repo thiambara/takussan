@@ -52,6 +52,20 @@ Mesure sur une grille de 1 379 840 textes (`scratchpad/tck-2451/geni1.mjs`) : 10
   - un nombre à 0 en tête (`… 34 56 0 frais`, `… 34 56 03 chambres`) → `34 56` en clair. C'est la conséquence voulue de la
     décision 6 de TCK-2451 : `000 F` est la fin d'un montant, pas un compte.
 
+Élargi le 2026-10-31 par la relecture de la spec (mesures identiques sur `dev` `90676e7f6`) :
+
+| Texte | Masque | Contact | Prix |
+|---|---|---|---|
+| `Immeuble R+20 0221 77 123 45 67` | `Immeuble R[TELEPHONE] 67` | `[]` | — |
+| `Villa R+1 221 770123456 F`, `Villa R+1 (221) 770123456 F` | inchangé | `[]` | 770 123 456 |
+| `Villa R+1 221 77 01 23 456 F` | inchangé | `[]` | 23 456 |
+| `Villa R+1 221 770 123 456` (98 groupements sur 256 sortent ainsi) | inchangé | `[]` | 221 770 123 456 |
+| `Villa R+1 (221) 7 7 0 1 2 3 4 56` (95 sur 127), `Villa R+1 (221) 770 123 456` | inchangé | `[]` | — |
+| `Villa R+1 (221) 7 7 0 1 2 3 4 5 6 3 chambres`, de même derrière `221` nu | `… 7 [TELEPHONE] chambres` | `[]` | 221 |
+| `Villa R+1 (221) 7 7 0 1 2 3 4 5 6 2 salons`, derrière `221` nu, sans étage ; `1 salon`, `3 villas` | `… 7 [TELEPHONE] salons` | **`+221701234562`, écrit nulle part** | 221 |
+
+Sans indicatif, `Villa 770123456 F` reste ambigu avec un vrai prix de 770 millions : il ne change pas.
+
 Cause : derrière l'étage `1` ou `7`, `NOT_SENEGAL_ZONE` n'exclut l'indicatif que si rien de chiffré ne prolonge le numéro
 (`NOTHING_GLUED`) ; `CODED_SENEGAL` s'arrête de même (`WHOLE_NUMBER_END`). Sinon, `CC1_REST` lit le `1` et dix chiffres
 (`+1 0022177012`) et le reste du numéro sort en clair. Admettre tout chiffre derrière ferait lire au masque sénégalais les
@@ -77,6 +91,7 @@ Aucun endpoint, aucune migration. `App\Support\PhoneMasker` et son miroir `scrip
 - [x] Mesurer, puis choisir : masquer aussi le groupe qui suit (le plus masquant), ou s'arrêter au neuvième chiffre en
       laissant l'étage, au cas par cas des suites du tableau.
 - [x] Fixture partagé et tests Radar : les textes du tableau, dont les limites épinglées par TCK-2451.
+- [x] Le relevé du 2026-10-31 : `0221`, `221` ou `(221)` devant tout groupement de neuf chiffres, marque comprise, et le faux contact.
 
 ## Critères d'acceptation
 
@@ -85,22 +100,27 @@ Aucun endpoint, aucune migration. `App\Support\PhoneMasker` et son miroir `scrip
 - [x] AC2 — Parité PHP/JS : 0 écart ; face à `dev`, aucun chiffre d'un numéro démasqué.
 - [x] AC3 — `deploy/takussan/smoke-api.sh image` vert sur l'image construite depuis la branche.
 - [x] AC4 — Ablation de chaque correctif : rouge.
+- [x] AC5 — `Immeuble R+20 0221 77 123 45 67` ne laisse aucun chiffre du numéro en clair.
+- [x] AC6 — Derrière `221` nu ou `(221)`, les 256 groupements de `770123456`, avec ou sans marque, sont masqués et ne donnent aucun prix ; `Villa 770123456 F` ne change pas. Limite mesurée : suivi de `450 000 F`, voir plus bas.
+- [x] AC7 — Un chiffre seul qui suit un numéro chiffre à chiffre n'entre jamais dans le contact : `Villa 7 7 0 1 2 3 4 5 6 2 salons` donne `+221770123456`.
 
 ## Notes d'implémentation
 
 Choix par suite : un numéro écrit par groupes (`SHAPED`) s'arrête au neuvième chiffre, sauf s'il se coupe sur un autre numéro
 (`NOT_CUT`) ou un groupe `000` (`NO_THOUSANDS`). Un numéro tronqué derrière `00221` va jusqu'à ce qui n'en est plus
 (`CUT_CODED_SENEGAL`). Derrière `221` nu ou `(221)`, neuf chiffres qu'aucune lecture ne prend pour un numéro entier sont masqués avec
-l'indicatif (`BARE_CODE_NINE`). `RadarAmountParser` lit les candidats hors des numéros.
+l'indicatif (`BARE_CODE_NINE`). Chiffre à chiffre suivi d'un chiffre seul, les neuf premiers sont le numéro (`SENEGAL_NOT_SHIFTED`).
+`RadarAmountParser` lit les candidats hors des numéros. `RadarPhone` refuse en contact une barre entre deux groupes écrits autrement et
+`30 00221 …` (`fromText` les lit encore).
 
-AC2, précision : **une seule classe de chiffres masqués sur `dev` sort en clair**, le chiffre qui suit neuf chiffres derrière `221` ou
-`(221)` (`… 5 6 3 chambres`, 505 à 12 078 passages selon la grille, tous classés par script, 0 autre). Sur `dev`, il était masqué comme
+AC2, précision : **une seule classe de chiffres masqués sur `dev` sort en clair**, le chiffre qui suit neuf chiffres, derrière `221`,
+`(221)` ou chiffre à chiffre (`… 5 6 3 chambres`, 505 à 18 450 passages selon la grille, tous classés par script, 0 autre). Sur `dev`, il était masqué comme
 fin d'un numéro mal lu, et le premier chiffre du vrai numéro restait en clair. Voir la décision 4.
 
-Grilles et corpus, face à `dev` `08ea557dc` extrait par `git archive`, 4,3 M de textes : parité 0 écart ; marge PCRE dans l'image
-(10.44) : `MASK_PATTERN` 5 copies de `SENEGAL_LOOSE`, `dev` 7. 47 entrées de 40 ko : 0 erreur PCRE, masque au pire 61,7 ms
-(`dev` 61,2). 61 ablations rouges (PHP et miroir JS), restauration prouvée par `cmp`. AC3 : `smoke-api.sh image` et `masqueur` verts
-sur l'image de `496f9dea4`. Rapport complet : `.superpowers/rapport-TCK-2454.md`.
+Grilles et corpus, face à `dev` `08ea557dc` extrait par `git archive`, 4,4 M de textes : parité 0 écart ; marge PCRE dans l'image
+(10.44) : `MASK_PATTERN` 4 copies de `SENEGAL_LOOSE`, `dev` 7. 52 entrées de 40 ko : 0 erreur PCRE, masque au pire 61,1 ms
+(`dev` 63,2). 73 ablations rouges (PHP et miroir JS), restauration prouvée par `cmp`. AC3 : `smoke-api.sh image` et `masqueur` verts
+sur l'image de `efa3392ea`. Rapport complet : `.superpowers/rapport-TCK-2454.md`.
 
 ### Limites connues (mesurées, identiques à `dev` sauf mention)
 
@@ -109,9 +129,14 @@ sur l'image de `496f9dea4`. Rapport complet : `.superpowers/rapport-TCK-2454.md`
 - Groupement libre devant un montant : `Villa R+20 00221 77 0 12 34 56 450 000 F` donne `Villa R[TELEPHONE] 56 450 000 F`.
 - `Villa R+1 00221 77 012 34 56 500 F` se lit numéro + 500 F, pas 56 500 F.
 - Ce qui suit le neuvième chiffre reste en clair : `Villa R+1 00221 77 012 34 56 78 90` donne `Villa R+1 [TELEPHONE] 78 90`.
-- **Faux contact neuf par rapport à `dev`** : `Villa R+1 00221 77 012 34/78 1` donne `+221770123478` (recollé, comme
-  `Tel 00221 77 012 34 / 33 821 00 00 F` sur `dev`), `Villa 221 77 012 3 500 F` donne `+221770123500` et perd son prix de 3 500.
-- Identiques à `dev` : `Villa R+1 00221 77 012 34/33 821 00 00 F`, `Tel 00221 77 012 34 / 33 821 00 00 F`,
+- **Faux contact restant** : `Villa 7 70 12 34 56 2 salons` donne `+221701234562`, comme `dev` : le `7` seul peut y être un compte
+  (`7 77012345 6`, qu'un correctif plus large recollait). 372 contacts sur 26 694 de la grille des 256 groupements.
+- **Faux contact neuf** : `Villa 221 77 012 3 500 F` donne `+221770123500` et perd son prix de 3 500. Comme `dev`, un tiret recolle
+  (`Villa R+1 00221 77 012 34-78`), comme `fromText`, et `Villa R+1+33 6 12 34 56 78` donne `+221336123456`.
+- Derrière `221` nu ou `(221)`, un groupement libre suivi de `450 000 F` reste en clair pour garder le montant (`Villa 221 7 70123456 450 000 F`,
+  131 groupements sur 256 ; 153 derrière `R+1`).
+- `Villa 770123456 F`, sans indicatif, reste un prix : ambigu avec un vrai prix de 770 millions.
+- Identiques à `dev` : `Villa R+1 00221 77 012 34/33 821 00 00 F`, `Tel 00221 77 012 34 / 33 821 00 00 F` (masque ; plus de contact),
   `Tel 00221 77 012 3 / 450 000 F`, `Tel 77 012 34 78 123 45 67`, `Tel 77 012 34 / 78 123 45 67` ; `Villa R+1 221 77 012 3 / 450 000 F`
   et `Villa R+1 221 7 7 0 1 2 3 4 56 000 F` restent en clair pour garder leur montant ; un nombre qui finit par `000` derrière `221`
   ou `(221)` (`Villa (221) 770 123 000`, `Villa 221 770123000 F`) ; `0221770123456` ; `Villa 7 7 0 1 2 3 4 56` et
@@ -125,7 +150,9 @@ sur l'image de `496f9dea4`. Rapport complet : `.superpowers/rapport-TCK-2454.md`
 4. **Étendu au-delà du ticket, parce que la spec fusionnée entre-temps (#1622) range ces écritures sous TCK-2454** : derrière
    `221` nu ou `(221)`, neuf chiffres sont masqués avec leur indicatif, quel que soit le groupement, marque comprise
    (`BARE_CODE_NINE`). Le `3` de `(221) 7 7 0 1 2 3 4 5 6 3 chambres`, masqué sur `dev` comme fin d'un numéro mal lu, sort donc en
-   clair : ce n'est pas un chiffre du numéro, et le premier `7` du numéro cesse d'y être. Coût : `Villa 221 77 012 3 500 F` perd son prix.
+   clair : ce n'est pas un chiffre du numéro, et le premier `7` du numéro cesse d'y être. Coût : `Villa 221 77 012 3 500 F` perd son prix. Même classe pour `SENEGAL_NOT_SHIFTED`, sans indicatif.
 5. Étendu aussi : `+221`/`00221` tronqué suivi d'un autre numéro, y compris hors étage ; `+30 +75 +93 …`, `33 00221` sans `+`, `+10`,
    `+105`, `0221`. Les faux contacts recollés (`+2213300221 77`…) disparaissent.
 6. `CUT_CODED_SENEGAL` limité à `00221` : `+33 221 77 01 23` reste un numéro français.
+7. Contact refusé quand une barre sépare deux groupes écrits autrement : `77 012 34/56` perd son contact, masqué. `fromText` le lit encore.
+8. `SENEGAL_NOT_SHIFTED` limité au strict chiffre à chiffre : la marge PCRE passe de 5 à 4 copies, `dev` 7.
