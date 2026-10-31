@@ -31,7 +31,7 @@ function renderDialog(onOpenChange: (open: boolean) => void = () => {}) {
         open
         onOpenChange={onOpenChange}
         row={{ role: 'extraction', source: 'config', updated_at: null, chain: [{ provider: 'anthropic', model: 'modele-a', max_tokens: 1000 }] }}
-        providers={[{ key: 'anthropic', legal_name: 'Anthropic', key_present: true, models: ['modele-a', 'modele-b'] }]}
+        providers={[{ key: 'anthropic', legal_name: 'Anthropic', key_present: true, selectable: true, reason: null, host: 'api.anthropic.com', models: ['modele-a', 'modele-b'] }]}
       />
     </QueryClientProvider>,
   ));

@@ -231,6 +231,17 @@ montant décimal écrit en chiffres : `12.5` est lu, `1e-3` retombe sur le défa
 et ne sert plus qu'à l'équivalent affiché. ⚠ L'environnement de Dokploy n'a pas été relu pour ce ticket :
 si `AI_DAILY_BUDGET_XOF` y est posée, elle n'a plus d'effet, et son plafond n'est pas repris.
 
+**Les fournisseurs d'IA** (TCK-2450, [ADR-0085](../adr/0085-un-modele-se-regle-dans-la-console-un-fournisseur-dans-le-deploiement.md)) :
+`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `OPENROUTER_API_KEY`, et les adresses `ANTHROPIC_URL`, `OPENAI_URL`,
+`OPENROUTER_URL`. Vide ou absente, une adresse vaut celle du fournisseur. **Poser une clé active le fournisseur** : c'est
+un geste du porteur, et aucune de `OPENAI_API_KEY` ni `OPENROUTER_API_KEY` n'est posée par le code. Une adresse dont l'hôte
+n'est pas dans `allowed_hosts` de `config/ai.php`, ou en `http` hors `local` et `testing`, rend le fournisseur non
+sélectionnable : la console l'affiche, la chaîne bascule, et la sonde `ai_providers` passe à `degraded`.
+
+⚠ **Avant de poser une clé** : `privacy.ts` § 5 dit que les formalités auprès de la CDP sont accomplies. La loi n° 2008-12
+demande d'informer la CDP avant un transfert vers un pays tiers qui assure une protection suffisante (art. 49) ; à défaut,
+d'obtenir son autorisation sur demande motivée (art. 51). Ce geste ne se voit pas depuis le code.
+
 **Courriels.** Le transport `resend` de Laravel exige `resend/resend-php`, que le dépôt n'a eu qu'à
 partir du 2026-09-14 : jusque-là, chaque notification par courriel mourait dans le worker (`Class
 "Resend" not found`, 35 échecs relevés sur la préproduction) — et l'ancien serveur, qui installait le
@@ -673,6 +684,32 @@ d'UptimeRobot, payante. À la main : `deploy/server/certificats.sh [nom…]`. Re
 noms à 89 jours ; `SEUIL_JOURS=365` rougit les cinq, un nom non servi et une origine muette
 rougissent aussi. ⚠ Un nom ajouté à Dokploy s'ajoute à la liste du script ; GitHub éteint un
 workflow planifié après 60 jours sans activité sur le dépôt (un `workflow_dispatch` le rallume).
+
+### Déclarer un point d'accès compatible OpenAI
+
+Aucun n'est déclaré aujourd'hui. Un point d'accès est un sous-traitant : il se déclare par son nom, jamais par une
+entrée générique dont l'adresse suffirait à changer le destinataire (ADR-0085 §3).
+
+1. **`takussan-api/config/ai.php`** : une entrée de plus dans `providers`, sur le pilote `openai-compatible`.
+
+   ```php
+   'mon-point' => [
+       'driver' => 'openai-compatible',
+       'key' => env('MON_POINT_API_KEY'),
+       'url' => $adresse('MON_POINT_URL', 'https://api.mon-point.example/v1'),
+       'legal_name' => 'Nom légal du prestataire',
+       'allowed_hosts' => ['api.mon-point.example'],
+   ],
+   ```
+
+   Comparaison d'hôte exacte, sans joker. `MON_POINT_API_KEY` et `MON_POINT_URL` vont, vides, dans `.env.example` et
+   `.env.docker` (`scripts/check-env-parity.mjs`).
+2. **`takussan-web/src/content/legal/privacy.ts` § 4.3** : le `legal_name` et le pays dans la puce, en fr et en en, puis
+   `VERSION_DOCUMENTS` dans `editeur.ts`. `scripts/check-ai-providers-privacy.mjs` rougit sans lui. ⚠ Ce pilote n'envoie
+   ni `store` ni `data_collection` : dire ce que ce prestataire conserve, d'après ses conditions.
+3. **La CDP** : même formalité que ci-dessus, avant le premier envoi.
+4. **Déployer**, puis poser la clé dans Dokploy : c'est elle qui active le fournisseur.
+5. **Dans la console** : ajouter le modèle et ses tarifs, l'évaluer, l'affecter.
 
 ## Ce que Caddy reprend de l'ancien vhost nginx
 

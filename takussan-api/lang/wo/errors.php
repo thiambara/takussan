@@ -79,6 +79,7 @@ return [
         'model_in_use' => 'Ce modèle est encore employé. Chaînes en base : :roles. Modèles forcés : :usages. Chaînes de repli de la configuration : :fallback_roles.',
         'model_not_in_config' => "Ce modèle n'a pas d'entrée dans la configuration : il se retire, il ne s'efface pas.",
         'model_unpriced' => "Ce modèle n'a pas de tarif : il ne peut pas être affecté.",
+        'provider_host_not_allowed' => "L'adresse de ce fournisseur n'est pas sur un hôte accepté.",
         'provider_key_missing' => "Aucune clé n'est configurée pour ce fournisseur.",
         'provider_unknown' => 'Fournisseur IA inconnu.',
         'role_unknown' => 'Rôle IA inconnu.',

@@ -14,4 +14,7 @@ export const ERREURS_APPEL_IA: Record<string, string> = {
   'ai.response_truncated': 'responseTruncated',
   'ai.response_filtered': 'responseFiltered',
   'ai.unexpected': 'unexpected',
+  'ai.provider_key_missing': 'providerKeyMissing',
+  'ai.provider_host_not_allowed': 'providerHostNotAllowed',
+  'ai.provider_unknown': 'providerUnknown',
 };

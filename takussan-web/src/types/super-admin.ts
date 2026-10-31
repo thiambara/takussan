@@ -753,7 +753,8 @@ export type HealthReason =
   | 'not_meilisearch'
   | 'wildcard_trusts_nobody'
   | 'signing_secret_missing'
-  | 'radar_phone_key_missing';
+  | 'radar_phone_key_missing'
+  | 'ai_provider_host_not_allowed';
 
 export type HealthcheckStatus = {
   status: HealthLevel;
@@ -790,6 +791,8 @@ export type PlatformHealth = {
   lemon_squeezy_webhook?: HealthcheckStatus;
   /** TCK-2414 — `degraded` hors local tant que `RADAR_PHONE_HMAC_KEY` n'est pas posée. */
   radar_phone_key?: HealthcheckStatus;
+  /** TCK-2450 — `degraded` quand une clé est posée sur une adresse hors des hôtes acceptés. */
+  ai_providers?: HealthcheckStatus & { providers?: { key: string; host: string | null }[] };
   status?: HealthLevel;
   generated_at: string;
 };
@@ -1051,7 +1054,16 @@ export type WebhookLogsResponse = {
 export type AiModelRole = 'extraction' | 'redaction' | 'raisonnement' | 'vision' | 'embedding';
 export type AiEvaluationStatus = 'queued' | 'running' | 'done' | 'failed';
 export type AiModelLink = { provider: string; model: string; max_tokens: number | null };
-export type AiProvider = { key: string; legal_name: string; key_present: boolean; models: string[] };
+/** TCK-2450 (ADR-0085 §4) — sélectionnable : déclaré, une clé, une adresse sur un hôte accepté. `host` : jamais l'adresse entière. */
+export type AiProvider = {
+  key: string;
+  legal_name: string;
+  key_present: boolean;
+  selectable: boolean;
+  reason: 'key_missing' | 'host_not_allowed' | null;
+  host: string | null;
+  models: string[];
+};
 export type AiRoleRow = { role: AiModelRole; source: 'database' | 'config'; chain: AiModelLink[]; updated_at: string | null };
 export type AdminAiRolesResponse = { data: { roles: AiRoleRow[]; providers: AiProvider[] } };
 export type AiUsageRow = {

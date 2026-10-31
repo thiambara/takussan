@@ -60,7 +60,7 @@ non acceptée) en texte, jamais la clé ni l'adresse complète. L'hôte seul peu
   joker. `https` est seul accepté hors `local` et `testing`.
 - **La politique de confidentialité nomme OpenAI et OpenRouter** dans la puce « Intelligence artificielle » de
   `privacy.ts` § 4.3, en fr et en en, et dit qu'OpenRouter achemine vers le fournisseur du modèle choisi. Le
-  marqueur ⚠ « à vérifier » existant est conservé : la formulation est à relire par l'avocat. La garde
+  marqueur ⚠ « à vérifier » existant est conservé. La garde
   `check-ai-providers-privacy.mjs` doit passer.
 - **`check-ai-providers-privacy.mjs` est étendue** : chaque entrée de `providers` déclare `allowed_hosts`, non vide.
   Ajouter un cas d'épreuve (`CAS_EPREUVE`).
@@ -136,4 +136,20 @@ non acceptée) en texte, jamais la clé ni l'adresse complète. L'hôte seul peu
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Vérifié sur la documentation le 2026-10-31, **jamais éprouvé** : aucune clé n'existe, aucun vrai appel n'a eu lieu.
+- `store` et `provider` partent par `SocleAgent::providerOptions()`, que la passerelle remplit depuis l'entrée du maillon :
+  le SDK ne donne à l'agent que le pilote.
+
+### Décisions prises en autonomie, à revoir
+
+- **`provider.require_parameters` : `true`, réglable sur l'entrée.** Écarté : `false`, où un point d'accès qui ignore le
+  format de sortie rendrait de la prose. La documentation ne dit pas ce que rend une absence de point d'accès.
+- **`store: false` forcé sur tout le pilote `openai`, sans réglage.** Écarté : suivre l'entrée, qui perdrait la promesse
+  sur un oubli. Lever ce choix demanderait de changer `privacy.ts`.
+- **Une entrée `openrouter` sans bloc `provider` vaut `deny`.** Écarté : ne rien envoyer, ce qui vaut `allow` chez OpenRouter.
+- **Corriger ou retirer un modèle de la configuration reste permis sans clé.** Écarté : le refus, qui empêcherait de
+  corriger un tarif avant la clé. Aucun modèle neuf n'entre ainsi, et la passerelle ne l'appelle pas.
+- **Un forçage en base devenu non sélectionnable peut être gardé**, comme le permet déjà `keepsTheForcing()` : il
+  n'empêche pas d'abaisser un plafond, et la passerelle ne l'appelle pas.
+- **La phrase ⚠ sur l'entraînement reste telle quelle**, comme le demande ce ticket.
+- **Nouvelle sonde `ai_providers`, `degraded`.** Écarté : `failed`, car les autres fournisseurs continuent de répondre.

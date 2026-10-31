@@ -30,7 +30,9 @@ class AiProviderController extends Controller
     public function test(Request $request, string $provider, AiGateway $gateway): JsonResponse
     {
         abort_code_unless($this->providers->has($provider), 404, 'ai.provider_unknown');
-        abort_code_unless($this->providers->keyPresent($provider), 422, 'ai.provider_key_missing');
+        // TCK-2450 — le test de connexion est un envoi comme un autre : aucun hôte hors liste, même pour « OK ? ».
+        $refusal = $this->providers->refusalCode($provider);
+        abort_code_if($refusal !== null, 422, (string) $refusal);
         $model = $this->providers->cheapestModel($provider);
         abort_code_unless($model !== null, 422, 'ai.model_unpriced');
 

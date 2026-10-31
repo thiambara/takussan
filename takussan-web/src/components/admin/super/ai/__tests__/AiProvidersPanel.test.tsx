@@ -15,8 +15,29 @@ function renderPanel() {
 
 describe('fournisseurs IA (TCK-2385)', () => {
   beforeEach(() => {
-    vi.mocked(fetchAdminAiProviders).mockReset().mockResolvedValue({ data: [{ key: 'anthropic', legal_name: 'Anthropic', key_present: true, models: ['modele-a'] }] });
+    vi.mocked(fetchAdminAiProviders).mockReset().mockResolvedValue({ data: [{ key: 'anthropic', legal_name: 'Anthropic', key_present: true, selectable: true, reason: null, host: 'api.anthropic.com', models: ['modele-a'] }] });
     vi.mocked(testAdminAiProvider).mockReset();
+  });
+
+  it('dit l’état de chaque fournisseur, l’hôte seul quand il fait défaut, et ne teste que celui qui est prêt (TCK-2450)', async () => {
+    vi.mocked(fetchAdminAiProviders).mockResolvedValue({
+      data: [
+        { key: 'anthropic', legal_name: 'Anthropic', key_present: true, selectable: true, reason: null, host: 'api.anthropic.com', models: ['modele-a'] },
+        { key: 'openai', legal_name: 'OpenAI', key_present: false, selectable: false, reason: 'key_missing', host: 'api.openai.com', models: [] },
+        { key: 'openrouter', legal_name: 'OpenRouter', key_present: true, selectable: false, reason: 'host_not_allowed', host: 'proxy.example.test', models: [] },
+      ],
+    });
+    renderPanel();
+
+    expect(await screen.findByText('Prêt')).toBeInTheDocument();
+    expect(screen.getByText('Clé absente')).toBeInTheDocument();
+    expect(screen.getByText('Adresse non acceptée')).toBeInTheDocument();
+    expect(screen.getByText('Hôte : proxy.example.test')).toBeInTheDocument();
+    expect(screen.queryByText(/api\.anthropic\.com/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/api\.openai\.com/)).not.toBeInTheDocument();
+
+    const boutons = screen.getAllByRole('button', { name: 'Tester la connexion' });
+    expect(boutons.map((b) => (b as HTMLButtonElement).disabled)).toEqual([false, true, true]);
   });
 
   it('un test réussi dit le modèle et la durée', async () => {

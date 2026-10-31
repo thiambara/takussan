@@ -124,6 +124,18 @@ describe('Radar — l’article 6.3 et les ajouts de la politique de confidentia
     expect(privacy.en).toContain('a draft or an assessment that a person reviews. No sensitive data (identity documents, income) is sent to them.');
   });
 
+  /** TCK-2450 (ADR-0085 §5) — ces phrases ne valent que tant que `AiProviderRoutingOptionsTest` (API) lit `store` et `data_collection` dans le corps envoyé. */
+  it('la puce IA nomme OpenAI et OpenRouter, dit l’acheminement et n’annonce plus de fournisseur à venir', () => {
+    expect(privacy.fr).toContain('OpenRouter (États-Unis), ce dernier acheminant chaque demande vers le fournisseur du modèle choisi');
+    expect(privacy.en).toContain('OpenRouter (United States), the latter routing each request to the provider of the chosen model');
+    expect(privacy.fr).toContain('Nous demandons à OpenAI de ne pas conserver ses réponses');
+    expect(privacy.en).toContain('We ask OpenAI not to store its responses');
+    expect(privacy.fr).toContain('que vers des fournisseurs qui ne collectent pas ces données');
+    expect(privacy.en).toContain('only to providers that do not collect this data');
+    expect(privacy.fr).not.toContain('tout autre fournisseur retenu');
+    expect(privacy.en).not.toContain('any other provider retained');
+  });
+
   it('la politique dit la collecte, la finalité, les deux durées et le STOP, dans les deux langues', () => {
     for (const fragment of [
       '(article 6.3 des Conditions)',

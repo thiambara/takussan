@@ -50,7 +50,7 @@ export function AiUsagesPanel() {
   }
 
   const taux = query.data?.meta.usd_to_xof;
-  const options = (providers.data?.data ?? []).flatMap((p) => p.models.map((m) => ({ value: `${p.key}/${m}`, label: `${p.legal_name} · ${m}` })));
+  const options = (providers.data?.data ?? []).filter((p) => p.selectable).flatMap((p) => p.models.map((m) => ({ value: `${p.key}/${m}`, label: `${p.legal_name} · ${m}` })));
   const columns: DataTableColumn<AiUsageRow>[] = [
     { id: 'key', header: t('key'), cell: (row) => <code className="text-sm">{row.key}</code> },
     {
@@ -134,7 +134,9 @@ function UsageSettingsDialog({ row, taux, options, optionsError, pending, error,
   const plafondLu = budget.trim() === '' ? null : lireSaisieMontantIa(budget);
   const saisieInvalide = budget.trim() !== '' && plafondLu === null;
   const equivalent = equivalentXofIa(plafondLu, taux);
-  const items = [{ value: SANS_FORCAGE, label: t('noForcedModel') }, ...options];
+  // TCK-2450 — un forçage devenu non sélectionnable reste lisible : l'API accepte qu'il soit gardé, sans le faire appeler.
+  const forcageAbsent = row.forced !== null && !options.some((o) => o.value === forcageInitial);
+  const items = [{ value: SANS_FORCAGE, label: t('noForcedModel') }, ...options, ...(forcageAbsent ? [{ value: forcageInitial, label: forcageInitial }] : [])];
 
   return (
     <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>

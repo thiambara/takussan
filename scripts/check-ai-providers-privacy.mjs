@@ -8,7 +8,11 @@
  * à un sous-traitant que `privacy.ts` ne déclare pas.
  *
  * **Ce qu'elle lit.** Le bloc `'providers' => [ … ]` de `takussan-api/config/ai.php` : chaque entrée
- * de premier niveau doit porter un `legal_name`. Puis la puce « Intelligence artificielle » (fr) et
+ * de premier niveau doit porter un `legal_name` et une liste `allowed_hosts` non vide, écrite en
+ * configuration et jamais lue de l'environnement (TCK-2450, ADR-0085 §3). `privacy.ts` promet que
+ * OpenRouter n'achemine que vers des fournisseurs qui ne collectent pas les données : une entrée dont
+ * `data_collection` vaut autre chose que `deny` rougit, jusqu'à ce que le texte et cette garde changent.
+ * Puis la puce « Intelligence artificielle » (fr) et
  * « Artificial intelligence » (en) du § 4.3 de `takussan-web/src/content/legal/privacy.ts` : chaque
  * `legal_name` doit y figurer, dans les deux langues.
  *
@@ -31,7 +35,7 @@ const CONFIG = join(ROOT, 'takussan-api', 'config', 'ai.php');
 const PRIVACY = join(ROOT, 'takussan-web', 'src', 'content', 'legal', 'privacy.ts');
 const PUCES = { fr: '- **Intelligence artificielle**', en: '- **Artificial intelligence**' };
 
-/** Rend `{ cle: legal_name|null }` pour chaque entrée de premier niveau du bloc `providers`. */
+/** Rend `{ cle: { nom, corps } }` pour chaque entrée de premier niveau du bloc `providers`, `nom` étant son `legal_name` ou null. */
 export function lireFournisseurs(php) {
   const debut = php.indexOf("'providers' => [");
   if (debut < 0) throw new Error("bloc 'providers' introuvable");
@@ -81,7 +85,7 @@ export function lireFournisseurs(php) {
       profondeur--;
       if (profondeur === 1 && courante) {
         const nom = corps.match(/'legal_name'\s*=>\s*'([^']+)'/);
-        entrees[courante] = nom ? nom[1] : null;
+        entrees[courante] = { nom: nom ? nom[1] : null, corps };
         courante = null;
       }
       if (profondeur === 0) break;
@@ -93,6 +97,11 @@ export function lireFournisseurs(php) {
   return entrees;
 }
 
+/** Une liste écrite en toutes lettres, avec au moins un hôte : ni vide, ni lue de `env()`. */
+export function declareSesHotes(corps) {
+  return /'allowed_hosts'\s*=>\s*\[\s*'[^']+'/.test(corps);
+}
+
 /** Rend la ligne de la puce, ou null. */
 export function lirePuce(texte, prefixe) {
   return texte.split('\n').find((ligne) => ligne.trim().startsWith(prefixe)) ?? null;
@@ -102,7 +111,9 @@ export function verifier(php, privacy) {
   const erreurs = [];
   const fournisseurs = lireFournisseurs(php);
   if (Object.keys(fournisseurs).length === 0) erreurs.push('aucun fournisseur lu dans config/ai.php');
-  for (const [cle, nom] of Object.entries(fournisseurs)) {
+  for (const [cle, { nom, corps }] of Object.entries(fournisseurs)) {
+    if (!declareSesHotes(corps)) erreurs.push(`fournisseur « ${cle} » sans allowed_hosts écrit en configuration`);
+    if (/'data_collection'\s*=>\s*(?!\s|'deny')/.test(corps)) erreurs.push(`fournisseur « ${cle} » : data_collection autre que deny, alors que privacy.ts promet le contraire`);
     if (!nom) { erreurs.push(`fournisseur « ${cle} » sans legal_name`); continue; }
     for (const [langue, prefixe] of Object.entries(PUCES)) {
       const puce = lirePuce(privacy, prefixe);
@@ -116,39 +127,81 @@ export function verifier(php, privacy) {
 const CAS_EPREUVE = [
   {
     nom: 'un fournisseur nommé passe',
-    php: "'providers' => [\n 'anthropic' => ['driver' => 'anthropic', 'legal_name' => 'Anthropic'],\n],",
+    php: "'providers' => [\n 'anthropic' => ['driver' => 'anthropic', 'legal_name' => 'Anthropic', 'allowed_hosts' => ['a.test']],\n],",
     privacy: '- **Intelligence artificielle** : Anthropic (États-Unis)\n- **Artificial intelligence**: Anthropic (United States)',
     erreurs: 0,
   },
   {
     nom: 'un fournisseur absent de la puce rougit',
-    php: "'providers' => [\n 'anthropic' => ['legal_name' => 'Anthropic', 'k' => ['x' => 1]],\n 'openai' => ['legal_name' => 'OpenAI'],\n],",
+    php: "'providers' => [\n 'anthropic' => ['legal_name' => 'Anthropic', 'k' => ['x' => 1], 'allowed_hosts' => ['a.test']],\n 'openai' => ['legal_name' => 'OpenAI', 'allowed_hosts' => ['o.test']],\n],",
     privacy: '- **Intelligence artificielle** : Anthropic\n- **Artificial intelligence**: Anthropic',
     erreurs: 2,
   },
   {
     nom: 'un fournisseur sans legal_name rougit',
-    php: "'providers' => [\n 'mistral' => ['driver' => 'mistral'],\n],",
+    php: "'providers' => [\n 'mistral' => ['driver' => 'mistral', 'allowed_hosts' => ['m.test']],\n],",
     privacy: '- **Intelligence artificielle** : Anthropic\n- **Artificial intelligence**: Anthropic',
     erreurs: 1,
   },
   {
     nom: "une apostrophe en commentaire ne fait pas taire le fournisseur suivant",
-    php: "'providers' => [\n 'anthropic' => ['legal_name' => 'Anthropic'],\n // l'ajout se fait ici\n 'openai' => ['legal_name' => 'OpenAI'],\n],",
+    php: "'providers' => [\n 'anthropic' => ['legal_name' => 'Anthropic', 'allowed_hosts' => ['a.test']],\n // l'ajout se fait ici\n 'openai' => ['legal_name' => 'OpenAI', 'allowed_hosts' => ['o.test']],\n],",
     privacy: '- **Intelligence artificielle** : Anthropic\n- **Artificial intelligence**: Anthropic',
     erreurs: 2,
   },
   {
     nom: 'un commentaire avant la première entrée, les deux nommés',
-    php: "'providers' => [\n # l'ordre compte\n 'anthropic' => ['legal_name' => 'Anthropic'],\n // d'autres, plus tard\n 'openai' => ['legal_name' => 'OpenAI'],\n],",
+    php: "'providers' => [\n # l'ordre compte\n 'anthropic' => ['legal_name' => 'Anthropic', 'allowed_hosts' => ['a.test']],\n // d'autres, plus tard\n 'openai' => ['legal_name' => 'OpenAI', 'allowed_hosts' => ['o.test']],\n],",
     privacy: '- **Intelligence artificielle** : Anthropic, OpenAI\n- **Artificial intelligence**: Anthropic, OpenAI',
     erreurs: 0,
   },
   {
     nom: "un commentaire en bloc avec apostrophe n'efface pas le fournisseur",
-    php: "'providers' => [\n /* l'x\n   d'y */\n 'openai' => ['legal_name' => 'OpenAI'],\n],",
+    php: "'providers' => [\n /* l'x\n   d'y */\n 'openai' => ['legal_name' => 'OpenAI', 'allowed_hosts' => ['o.test']],\n],",
     privacy: '- **Intelligence artificielle** : Anthropic\n- **Artificial intelligence**: Anthropic',
     erreurs: 2,
+  },
+  {
+    nom: "une entrée sans allowed_hosts rougit",
+    php: "'providers' => [\n 'anthropic' => ['legal_name' => 'Anthropic'],\n],",
+    privacy: '- **Intelligence artificielle** : Anthropic, OpenRouter\n- **Artificial intelligence**: Anthropic, OpenRouter',
+    erreurs: 1,
+  },
+  {
+    nom: 'une liste allowed_hosts vide rougit',
+    php: "'providers' => [\n 'anthropic' => ['legal_name' => 'Anthropic', 'allowed_hosts' => []],\n],",
+    privacy: '- **Intelligence artificielle** : Anthropic, OpenRouter\n- **Artificial intelligence**: Anthropic, OpenRouter',
+    erreurs: 1,
+  },
+  {
+    nom: "des hôtes lus de l'environnement rougissent",
+    php: "'providers' => [\n 'anthropic' => ['legal_name' => 'Anthropic', 'allowed_hosts' => explode(',', env('HOTES'))],\n],",
+    privacy: '- **Intelligence artificielle** : Anthropic, OpenRouter\n- **Artificial intelligence**: Anthropic, OpenRouter',
+    erreurs: 1,
+  },
+  {
+    nom: 'allowed_hosts dans un commentaire ne compte pas',
+    php: "'providers' => [\n 'anthropic' => [\n // 'allowed_hosts' => ['a.test'],\n 'legal_name' => 'Anthropic'],\n],",
+    privacy: '- **Intelligence artificielle** : Anthropic, OpenRouter\n- **Artificial intelligence**: Anthropic, OpenRouter',
+    erreurs: 1,
+  },
+  {
+    nom: 'data_collection à allow contredit la promesse et rougit',
+    php: "'providers' => [\n 'openrouter' => ['legal_name' => 'OpenRouter', 'allowed_hosts' => ['r.test'], 'provider' => ['data_collection' => 'allow']],\n],",
+    privacy: '- **Intelligence artificielle** : Anthropic, OpenRouter\n- **Artificial intelligence**: Anthropic, OpenRouter',
+    erreurs: 1,
+  },
+  {
+    nom: 'data_collection à deny passe',
+    php: "'providers' => [\n 'openrouter' => ['legal_name' => 'OpenRouter', 'allowed_hosts' => ['r.test'], 'provider' => ['data_collection' => 'deny']],\n],",
+    privacy: '- **Intelligence artificielle** : Anthropic, OpenRouter\n- **Artificial intelligence**: Anthropic, OpenRouter',
+    erreurs: 0,
+  },
+  {
+    nom: 'un legal_name absent de la puce anglaise seule rougit',
+    php: "'providers' => [\n 'openai' => ['legal_name' => 'OpenAI', 'allowed_hosts' => ['o.test']],\n],",
+    privacy: '- **Intelligence artificielle** : OpenAI\n- **Artificial intelligence**: Anthropic',
+    erreurs: 1,
   },
 ];
 
@@ -163,7 +216,7 @@ for (const cas of CAS_EPREUVE) {
 if (echec) process.exit(1);
 
 const { erreurs, fournisseurs } = verifier(readFileSync(CONFIG, 'utf8'), readFileSync(PRIVACY, 'utf8'));
-if (REPORT) for (const [cle, nom] of Object.entries(fournisseurs)) console.log(`  ${cle} → ${nom}`);
+if (REPORT) for (const [cle, { nom }] of Object.entries(fournisseurs)) console.log(`  ${cle} → ${nom}`);
 if (erreurs.length > 0) {
   for (const e of erreurs) console.error(`✗ ${e}`);
   process.exit(1);

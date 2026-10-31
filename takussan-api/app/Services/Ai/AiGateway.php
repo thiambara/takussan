@@ -50,6 +50,7 @@ final class AiGateway
         private readonly AiAuthority $authority,
         private readonly PromptRepository $prompts,
         private readonly AiCostCalculator $costs,
+        private readonly AiProviderCatalogue $providers,
     ) {}
 
     public function run(AiRequest $request): AiResult
@@ -95,10 +96,19 @@ final class AiGateway
         $instructions = $this->prompts->load($usage->key(), $usage->promptVersion());
         $last = null;
         foreach ($chain as $rank => $link) {
+            // TCK-2450 (ADR-0085 §4) — une chaîne en base peut nommer un fournisseur devenu non sélectionnable : rien
+            // ne part chez lui, et la chaîne passe au maillon suivant. Sur le dernier, `providers_unavailable` en porte la cause.
+            $refusal = $this->providers->refusalCode($link->provider);
+            if ($refusal !== null) {
+                $this->journal($usage, $request, $this->linkColumns($link) + ['outcome' => AiCallOutcome::FailedOver, 'error_code' => $refusal]);
+                $last = new AiUnavailable($refusal);
+
+                continue;
+            }
             $started = hrtime(true);
             $driver = $this->driverOf($link);
             try {
-                $agent = app($usage->agentClass())->configure($instructions, $link->maxTokens, count($chain));
+                $agent = app($usage->agentClass())->configure($instructions, $link->maxTokens, count($chain), $this->routingOptions($link, $driver));
                 $response = $agent->prompt($input, $request->attachments, provider: $this->providerFor($agent, $link, $driver), model: $link->model);
             } catch (FailoverableException $e) {
                 $this->journal($usage, $request, $this->linkColumns($link) + [
@@ -243,6 +253,22 @@ final class AiGateway
     private function driverOf(ModelLink $link): string
     {
         return config("ai.providers.{$link->provider}.driver", $link->provider);
+    }
+
+    /**
+     * TCK-2450 — ce que `privacy.ts` § 4.3 promet ne dépend pas du nom de l'entrée : le pilote décide, et une entrée
+     * renommée qui ne déclarerait rien reçoit les mêmes options. `store` n'a pas de réglage : OpenAI conserverait
+     * sinon les réponses 30 jours. Le bloc `provider` d'une entrée `openrouter` l'emporte sur ces défauts.
+     *
+     * @return array<string, mixed>
+     */
+    private function routingOptions(ModelLink $link, string $driver): array
+    {
+        return match ($driver) {
+            Lab::OpenAI->value => ['store' => false],
+            Lab::OpenRouter->value => ['provider' => (array) config("ai.providers.{$link->provider}.provider", []) + ['data_collection' => 'deny', 'require_parameters' => true]],
+            default => [],
+        };
     }
 
     /**
