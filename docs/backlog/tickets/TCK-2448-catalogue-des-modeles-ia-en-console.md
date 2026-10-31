@@ -179,8 +179,8 @@ Console IA existante (`/super-admin/ai`) : une section « Modèles » sobre, sou
   ce que `NamespaceAccessGuardTest` refuse.
 - **Le verrou d'évaluation passe par `sha1`** : `cache_locks.key` est à 255, et un identifiant de modèle peut l'être
   aussi.
-- **`AiModel` est exclu de `scripts/check-models-spec.mjs`** jusqu'à la PR de spec commune, qui écrit sa section et
-  retire l'exclusion. Texte proposé : rapport du lot.
+- **`AiModel` a été exclu de `scripts/check-models-spec.mjs`** jusqu'à la PR de spec commune du lot 5, qui a écrit sa
+  section et retiré l'exclusion.
 - Plafonds par défaut, XOF actuels divisés par 600 et arrondis : global 5000 → 8.33 ; `radar.extraction` 2000 → 3.33 ;
   vérification d'accord 1500 → 2.50 ; message d'accord 300 → 0.50 ; test de connexion 100 → 0.17.
 - **Vérification adverse du même jour** : garde élargie, chaque endpoint éprouvé sur un montant minuscule, retour à la

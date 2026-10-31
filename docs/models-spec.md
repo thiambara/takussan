@@ -367,6 +367,10 @@ Les tables `lemon_squeezy_*` viennent d'un paquet, voir [`lemonsqueezy/laravel`]
 114. [RadarListingSnapshot](#114-radarlistingsnapshot-) 🆕
 115. [RadarNatureCount](#115-radarnaturecount-) 🆕
 
+#### Socle IA — le catalogue des modèles et les vecteurs 🆕 (TCK-2448, TCK-2423, ADR-0085, ADR-0086, ADR-0076)
+116. [AiModel](#116-aimodel-) 🆕
+117. [Embedding](#117-embedding-) 🆕
+
 ### Enums
 
 - [Enums](#enums-1)
@@ -4847,7 +4851,7 @@ ligne, la chaîne vient de `config/ai.php`
 |---------|------|----------|--------|-------------|
 | id | bigint PK | | auto | |
 | role | string(20) | | | `extraction`, `redaction`, `raisonnement`, `vision`, `embedding` — **unique** |
-| chain | jsonb | | | Liste ordonnée de `{provider, model, max_tokens}` ; ordre de bascule |
+| chain | jsonb | | | Liste ordonnée de `{provider, model, max_tokens}` ; ordre de bascule. `max_tokens` n'a pas de sens sur le rôle `embedding`, qui n'accepte qu'un fournisseur d'embeddings (`ai.provider_role_mismatch`, TCK-2423) |
 | updated_by_id | FK users | oui | null | Dernier opérateur (`nullOnDelete`) |
 | created_at / updated_at | timestamp | | auto | |
 
@@ -4856,8 +4860,8 @@ ligne, la chaîne vient de `config/ai.php`
 ### 103. AiUsageSetting 🆕
 
 **Table :** `ai_usage_settings` (migration `2026_10_27_100010`, TCK-2383)
-**Modèle :** `App\Models\AiUsageSetting` (`AbstractModel`) — `enabled` en `boolean`, `daily_budget_xof`
-en `decimal:2` ; `forcedLink()` rend le maillon imposé quand fournisseur et modèle sont tous deux posés.
+**Modèle :** `App\Models\AiUsageSetting` (`AbstractModel`) — `enabled` en `boolean`, `daily_budget_usd`
+sans cast (chaîne décimale, ADR-0086) ; `forcedLink()` rend le maillon imposé quand fournisseur et modèle sont tous deux posés.
 **Description :** Réglages d'un usage du socle IA depuis la console : coupe-circuit, modèle forcé,
 plafond journalier ([ADR-0076 §4, §5](adr/0076-le-socle-ia.md)). Une table et non un drapeau : le
 catalogue `Flag` est fermé, et une clé hors catalogue y vaut faux.
@@ -4868,25 +4872,26 @@ catalogue `Flag` est fermé, et une clé hors catalogue y vaut faux.
 | usage_key | string(80) | | | Clé de l'usage (`AiUsageRegistry`) — **unique** |
 | enabled | boolean | | true | Faux : la passerelle refuse (`kill_switch`) |
 | forced_provider | string(40) | oui | null | Fournisseur imposé à la place de la chaîne du rôle |
-| forced_model | string(80) | oui | null | Modèle imposé ; tarifé (`config('ai.pricing')`) |
-| daily_budget_xof | decimal(14,2) | oui | null | Plafond du jour ; null : celui que l'usage déclare |
+| forced_model | string(255) | oui | null | Modèle imposé ; actif et tarifé au catalogue (`AiModelCatalogue`) quand il est posé ou changé ; un couple inchangé n'est pas rejugé (TCK-2448) |
+| daily_budget_usd | numeric | oui | null | Plafond du jour en dollars, sans précision figée ; null : celui que l'usage déclare (TCK-2448, migration `2026_10_31_100020`, sans reconversion) |
 | updated_by_id | FK users | oui | null | `nullOnDelete` |
 | created_at / updated_at | timestamp | | auto | |
 
 **Contraintes :** unique sur `usage_key`.
 
 **Les autres plafonds ne sont pas en base.** Le plafond **global journalier** et le plafond **par
-agence** vivent en configuration (`ai.budgets.daily_global_xof`, lu de `AI_DAILY_BUDGET_XOF`, 5 000
-XOF par défaut ; `ai.budgets.daily_per_agency_xof`, nul — aucun plafond — au 2026-10-27) et ne se
-règlent pas depuis la console, qui affiche le global sans le modifier. `AiBudget` les juge, avec le
-plafond de l'usage, sur la somme de `ai_calls.cost_estimate` du jour civil, hors `is_evaluation`.
+agence** vivent en configuration (`ai.budgets.daily_global_usd`, lu de `AI_DAILY_BUDGET_USD`, 8.33 $
+par défaut ; `ai.budgets.daily_per_agency_usd`, nul — aucun plafond) et ne se règlent pas depuis la
+console, qui affiche le global sans le modifier. `AiBudget` les juge, avec le plafond de l'usage, sur la
+somme SQL de `ai_calls.cost_estimate_usd` du jour civil, hors `is_evaluation`. `ai.usd_to_xof`
+(`AI_USD_TO_XOF`, 600 par défaut) ne sert qu'à l'équivalent affiché, et ne décide d'aucun blocage (ADR-0086).
 
 ### 104. AiCall 🆕
 
 **Table :** `ai_calls` (migration `2026_10_27_100020`, TCK-2383)
 **Modèle :** `App\Models\AiCall` (`AbstractModel`, `UPDATED_AT = null`) — écrit par `AiGateway` seul ;
 `role`, `outcome` et `refusal_reason` castés en enums (`AiModelRole`, `AiCallOutcome`,
-`AiRefusalReason`), `cost_estimate` en `decimal:2`, `is_evaluation` en `boolean` ; `stop_reason` reste
+`AiRefusalReason`), `cost_estimate_usd` sans cast (chaîne décimale, ADR-0086), `is_evaluation` en `boolean` ; `stop_reason` reste
 une chaîne, sans cast.
 **Description :** Journal de chaque passage par `AiGateway` : réussite, cache, bascule, erreur ou
 refus ([ADR-0076 §5](adr/0076-le-socle-ia.md)). Aucun contenu envoyé ni reçu n'y est conservé.
@@ -4896,20 +4901,20 @@ refus ([ADR-0076 §5](adr/0076-le-socle-ia.md)). Aucun contenu envoyé ni reçu 
 | id | bigint PK | | auto | |
 | usage_key | string(80) | | | Usage appelant |
 | role | string(20) | oui | null | Rôle de l'usage |
-| provider / model | string(40) / string(80) | oui | null | Maillon joué (null sur un refus) |
+| provider / model | string(40) / string(255) | oui | null | Maillon joué (null sur un refus) |
 | prompt_version | unsignedSmallInteger | oui | null | Version du prompt chargé |
 | input_tokens / output_tokens | unsignedInteger | | 0 | Tokens comptés par le fournisseur |
 | cache_read_tokens / cache_write_tokens | unsignedInteger | | 0 | Sous-ensembles de l'entrée |
-| cost_estimate | decimal(14,2) | oui | null | Coût en XOF ; null quand le modèle n'a pas de tarif (`warning = model_unpriced`) |
+| cost_estimate_usd | numeric | oui | null | Coût en dollars, sans précision figée ; null quand le modèle n'a pas de tarif (`warning = model_unpriced`). Pas recalculé après une correction de tarif (TCK-2448, migration `2026_10_31_100020`) |
 | duration_ms | unsignedInteger | oui | null | Durée de l'appel |
 | outcome | string(20) | | | `success`, `cache_hit`, `failed_over`, `error`, `refused`. `failed_over` : maillon en échec basculable, **dernier compris**, ou réponse tronquée ou filtrée — payée (jetons et coût journalisés, donc comptés au budget), hors cache, et la passerelle passe au maillon suivant (TCK-2399). `error` : erreur qui interrompt la chaîne, ou rôle sans chaîne |
 | stop_reason | string(20) | oui | null | Raison de fin de la réponse (`FinishReason` du SDK : `stop`, `length`, `content_filter`, `tool_calls`, `error`, `cancelled`, `unknown`, `continue`) ; nulle pour un refus, un cache ou une exception (TCK-2399, `2026_10_27_100050`) |
 | refusal_reason | string(30) | oui | null | `forbidden`, `kill_switch`, `budget`, `sensitive_data`, `data_class` |
-| error_code | string(80) | oui | null | Code `ai.*` de l'erreur, que le front traduit (`AiErrorCode::fromThrowable`, TCK-2399), jamais un nom de classe ni un message — le nom de la classe reste au journal Laravel. Valeurs : `ai.provider_timeout`, `ai.provider_rate_limited`, `ai.provider_credits`, `ai.provider_unavailable`, `ai.provider_auth`, `ai.request_rejected`, `ai.response_invalid`, `ai.unexpected` ; le code propre d'`AiUnavailable` ou d'`AiRefused` (`ai.refused.<motif>`) ; et ceux de la passerelle : `ai.response_truncated` (`length`), `ai.response_filtered` (`content_filter`), `ai.role_unassigned` (ligne `error` sans maillon) |
-| warning | string(40) | oui | null | `model_unpriced` |
+| error_code | string(80) | oui | null | Code `ai.*` de l'erreur, que le front traduit (`AiErrorCode::fromThrowable`, TCK-2399), jamais un nom de classe ni un message — le nom de la classe reste au journal Laravel. Valeurs : `ai.provider_timeout`, `ai.provider_rate_limited`, `ai.provider_credits`, `ai.provider_unavailable`, `ai.provider_auth`, `ai.request_rejected`, `ai.response_invalid`, `ai.unexpected` (un 408 vaut `ai.provider_timeout`, TCK-2449) ; le code propre d'`AiUnavailable` ou d'`AiRefused` (`ai.refused.<motif>`) ; et ceux de la passerelle : `ai.response_truncated` (`length`), `ai.response_filtered` (`content_filter`), `ai.role_unassigned` (ligne `error` sans maillon), `ai.provider_unreachable` (maillon d'embeddings non joignable : sans clé, sans déclaration ou hôte refusé, TCK-2423) |
+| warning | string(40) | oui | null | `model_unpriced` ; `provider_rejected` : maillon d'un autre pilote qu'Anthropic refusé puis basculé, compté au tableau de bord (`provider_rejections`) (TCK-2449) |
 | is_evaluation | boolean | | false | Appel de `ai:eval` : hors budget, hors tableau de bord |
 | agency_id | FK agencies | oui | null | Agence pour laquelle l'appel agit ; null pour un usage de plateforme (`nullOnDelete`) |
-| actor_id | FK users | oui | null | Appelant (`nullOnDelete`) |
+| actor_id | FK users | oui | null | Appelant (`nullOnDelete`) ; null pour un usage d'embeddings joué par une tâche planifiée (TCK-2423) |
 | subject_type / subject_id | nullableMorphs | oui | null | Objet concerné ; index `ai_calls_subject_idx` |
 | created_at | timestamp | oui | null | Pas d'`updated_at` : une ligne ne change pas |
 
@@ -5211,7 +5216,7 @@ remet les cinq colonnes à null, avec `source_gone_at`.
 | discovered_by_run_id | FK radar_crawl_runs | oui | null | TCK-2392 : le passage de collecte qui a trouvé l'annonce (`nullOnDelete`, `radar_listings_run_fk`) ; null pour une saisie d'opérateur, et vidée par la purge ; index `radar_listings_run_idx` |
 | merged_at | timestamp | oui | null | TCK-2392 : l'instant d'une fusion **automatique** (`stage = duplicate`, `stage_reason = radar.merge.auto`) ; null pour un doublon posé à la main. `POST /api/admin/radar/listings/{id}/unmerge` ne sépare que celles-là |
 | merge_checked_at | timestamp | oui | null | TCK-2392 : la fusion automatique a jugé l'annonce ; jamais rejugée, même séparée |
-| similarity_text | text | oui | null | TCK-2392 : le texte que compare le signal `text` — description extraite (≥ 60 caractères), sinon texte brut ; replié, **sans aucun chiffre**, 1 000 caractères au plus, null sous 60. Recalculé à chaque changement de `extracted` ou `raw_text` : la purge le vide ; `radar:backfill-similarity` le calcule pour les annonces antérieures. Index GIN `radar_listings_similarity_trgm` (`gin_trgm_ops`, extension `pg_trgm`, créée par la migration) |
+| similarity_text | text | oui | null | TCK-2392 : le texte que compare le signal `text` — description extraite (≥ 60 caractères), sinon texte brut ; replié, **sans aucun chiffre**, 1 000 caractères au plus, null sous 60. Recalculé à chaque changement de `extracted` ou `raw_text` : la purge le vide ; `radar:backfill-similarity` le calcule pour les annonces antérieures. Son empreinte désigne le vecteur à jour (`embeddings.content_hash`, TCK-2423). Index GIN `radar_listings_similarity_trgm` (`gin_trgm_ops`, extension `pg_trgm`, créée par la migration) |
 | source_gone_at | timestamp | oui | null | TCK-2393 : la fin du passage qui a confirmé la disparition de la source (ci-dessus) ; remise à null quand un passage postérieur la revoit ; anonyme ; index `radar_listings_source_gone_at_idx` |
 | source_gone_run_id | FK radar_crawl_runs | oui | null | TCK-2393 : ce passage (`nullOnDelete`, `radar_listings_gone_run_fk`) ; index `radar_listings_gone_run_idx` |
 | availability_asked_at | timestamp | oui | null | TCK-2432 : la question au titulaire est posée pour la disparition en cours ; index `radar_listings_avail_asked_at_idx` |
@@ -5489,6 +5494,55 @@ un annonceur présent dix jours compte dix fois — et celle des annonces, avec 
 
 **Contraintes :** unique `radar_nature_counts_day_nature_unique (day, nature)`. Aucun identifiant d'annonceur ou
 d'annonce, aucun lieu, prix, site ni horodatation de ligne : une colonne de plus se décide avec TCK-2434.
+
+### 116. AiModel 🆕
+
+**Table :** `ai_models` (migration `2026_10_31_100000`, TCK-2448)
+**Modèle :** `App\Models\AiModel` (`AbstractModel`) — tarifs sans cast (chaînes décimales,
+[ADR-0086](adr/0086-les-couts-ia-se-comptent-en-dollars-et-sans-decimales-figees.md)), `active` en `boolean`.
+**Description :** Les modèles d'un fournisseur déclaré et leurs tarifs, réglés depuis la console IA
+([ADR-0085 §1](adr/0085-un-modele-se-regle-dans-la-console-un-fournisseur-dans-le-deploiement.md)). Le catalogue
+(`AiModelCatalogue`) est l'union de ces lignes et de `config('ai.pricing')` ; une ligne l'emporte sur la configuration pour
+le même couple, y compris pour en retirer un modèle. La ligne d'un fournisseur absent de `config/ai.php` reste en base,
+sans être listée ni affectable.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| provider | string(40) | | | Clé du bloc `providers` de `config/ai.php` |
+| model | string(255) | | | Identifiant exact du fournisseur, sensible à la casse, sans espace ni caractère invisible |
+| input / output / cache_read / cache_write | numeric | | | Dollars par million de tokens, ≥ 0 ; 0 veut dire « gratuit au token » |
+| active | boolean | | true | Faux : retiré, ne s'affecte plus, reste affiché, et son tarif compte toujours au coût |
+| updated_by_id | FK users | oui | null | `nullOnDelete` |
+| created_at / updated_at | timestamp | | auto | |
+
+**Contraintes :** unique sur `(provider, model)` ; `CHECK ai_models_prices_non_negative`, tarifs non négatifs (`'NaN'` y
+passe sous PostgreSQL : seule l'API le refuse, `MontantIa`). Une ligne ne s'efface que si la configuration déclare le couple
+(retour à la configuration, `DELETE /api/admin/ai/models/{id}`) ; sinon 409 `ai.model_not_in_config`, et le modèle se retire
+par `active`. Retirer un modèle employé rend 409 `ai.model_in_use`, avec ses emplois (`uses`).
+
+### 117. Embedding 🆕
+
+**Table :** `embeddings` (migration `2026_10_31_242300`, TCK-2423), **facultative** : sans extension `vector` disponible et
+permise au rôle de la base, la migration réussit sans la créer (`EmbeddingsTable`), et `ai:install-embeddings` la crée une
+fois l'extension posée.
+**Modèle :** `App\Models\Embedding` (`Model`, `vector` masqué à la sérialisation) — `embeddable()` en `morphTo`.
+**Description :** Le vecteur d'un objet, jamais son texte
+([ADR-0076, amendement du 2026-10-31](adr/0076-le-socle-ia.md)). Aujourd'hui, le texte comparé d'une annonce du Radar. Effacé par la
+purge (`RadarPurger`) quand l'annonce est purgée ou que son annonceur a dit STOP.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| embeddable_type / embeddable_id | morphs | | | L'objet ; aujourd'hui `RadarListing` |
+| provider / model | string / string | | | Le maillon qui l'a calculé ; deux modèles ne se comparent pas |
+| dimension | unsignedInteger | | | Longueur du vecteur (`radar.similarity.embeddings.dimension`) |
+| vector | vector | | | Sans dimension fixe, sans index approché : comparaison exacte |
+| content_hash | char(64) | | | SHA-256 du texte source ; un vecteur d'un autre texte ne compte plus |
+| created_at / updated_at | timestamp | oui | null | |
+
+**Contraintes :** unique `embeddings_object_model_unique (embeddable_type, embeddable_id, provider, model, dimension)`.
+**Index :** `embeddings_hash_model_idx (content_hash, provider, model, dimension)`, et celui des `morphs`.
 
 ---
 
