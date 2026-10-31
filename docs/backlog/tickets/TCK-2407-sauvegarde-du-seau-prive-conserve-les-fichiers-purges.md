@@ -7,7 +7,7 @@ family: technique
 estimate: S
 wave: 80
 created: 2026-10-29
-updated: 2026-10-30
+updated: 2026-10-31
 depends_on: [TCK-2391]
 blocks: []
 spec_refs:
@@ -109,8 +109,8 @@ lot 2) : étapes 1 et 2, le premier passage et le second `--essai` de l'étape 4
 objet de plus de 15 jours dans le seau ce jour-là ; md5 identique dans la source et l'instantané). Objet témoin
 `essai-tck-2407/x.txt` posé le 2026-10-30. **Restent, datés :**
 
-- **après le passage de 02:30 du 2026-10-31** : effacer `essai-tck-2407/x.txt` du seau privé (commande de
-  l'étape 5 du runbook) ;
+- ~~après le passage de 02:30 du 2026-10-31 : effacer `essai-tck-2407/x.txt` du seau privé~~ **fait le 2026-10-31
+  au soir** : l'objet était copié dans l'instantané `2026-10-31` (5132 objets, 5131 la veille), et il a quitté le seau ;
 - **le 2026-11-14 ou après** (14 jours après l'effacement) : vérifier que l'objet témoin a quitté la liste
   récursive des instantanés — c'est la mesure d'AC1 ;
 - **le 2026-11-07 au plus tôt** (8 jours après le premier passage) : `sauvegarde-seau-prive
