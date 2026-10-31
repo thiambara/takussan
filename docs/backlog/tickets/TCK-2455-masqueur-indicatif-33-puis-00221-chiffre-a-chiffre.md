@@ -1,7 +1,7 @@
 ---
 id: TCK-2455
 title: "Socle IA : `+33 00221 7 7 0 1 2 3 4 5 6` ne laisse plus sept chiffres du numéro en clair"
-status: doing
+status: review
 phase: P2
 family: back
 estimate: S
@@ -59,14 +59,34 @@ Aucun endpoint, aucune migration. `App\Support\PhoneMasker` et son miroir `scrip
 
 ## Delta à produire
 
-- [ ] Re-mesurer, puis choisir : `+33` suivi de `00221` ou de `221` dans `CODED_SENEGAL`, ou une exclusion dans la branche
+- [x] Re-mesurer, puis choisir : `+33` suivi de `00221` ou de `221` dans `CODED_SENEGAL`, ou une exclusion dans la branche
       française.
-- [ ] Fixture partagé : les textes du tableau.
+- [x] Fixture partagé : les textes du tableau.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — `Tel +33 00221 7 7 0 1 2 3 4 5 6` et `Tel +33 221 7 7 0 1 2 3 4 5 6` ne laissent aucun chiffre de
+- [x] AC1 — `Tel +33 00221 7 7 0 1 2 3 4 5 6` et `Tel +33 221 7 7 0 1 2 3 4 5 6` ne laissent aucun chiffre de
       `7 7 0 1 2 3 4 5 6` en clair.
-- [ ] AC2 — Parité PHP/JS : 0 écart ; face à `dev`, aucun chiffre d'un numéro démasqué.
+- [x] AC2 — Parité PHP/JS : 0 écart ; face à `dev`, aucun chiffre d'un numéro démasqué.
 - [ ] AC3 — Le job CI `image` est vert.
-- [ ] AC4 — Ablation de chaque correctif : rouge.
+- [x] AC4 — Ablation de chaque correctif : rouge.
+
+## Reste sur dev
+
+- AC3 : le job CI `image` n'a pas tourné : `api-ci.yml` se déclenche sur une PR ou sur un push vers `dev`, et la PR n'est pas ouverte.
+  Mesuré à la place, en local : `smoke-api.sh masqueur`, que ce job lance, sort en 0 sur l'image de `496f9dea4` (PCRE2 10.44).
+  À cocher au vu du job de la PR, puis passer le ticket à `done`.
+
+## Notes d'implémentation
+
+**La cause supposée du ticket est fausse** : `33` est dans `CC2` (`3[0-469]`). La garde de `FOREIGN` échoue parce que le chiffre à
+chiffre finit sur un chiffre seul, puis `SENEGAL`/`SENEGAL_LOOSE` lit depuis le préfixe (`33 00221 7 7`). Même famille mesurée : `+30`,
+`+32`, `+93`, `+75`, `+77`, et `33`, `30`, `77` sans `+` (qui donnaient aussi un faux `+221330022177` à `fromText`).
+
+Correctif : `PREFIX_BEFORE_CODE` (`PhoneMasker`), `PREFIXE_DEVANT_INDICATIF` (miroir). `Tel +33 00221 7 7 0 1 2 3 4 5 6` donne
+`Tel [TELEPHONE]`, `Tel 33 221 77 012 34 56` garde `Tel 33 [TELEPHONE]` et son contact, un numéro français reste entier.
+
+## Décisions prises en autonomie, à revoir
+
+1. Corrigé pour toute la famille, pas seulement `+33` : les faux contacts recollés (`+2213300221 77`…) disparaissent. Un contact
+   perdu sur la grille est toujours l'un de ces faux, jamais un vrai numéro (classement par `gain.mjs`, grilles `g`, `g2441`, `gi1`).

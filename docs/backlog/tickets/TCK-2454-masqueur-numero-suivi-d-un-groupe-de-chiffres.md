@@ -1,7 +1,7 @@
 ---
 id: TCK-2454
 title: "Socle IA : un numéro à indicatif derrière un étage, suivi d'un groupe de chiffres sans mot, ne laisse plus sa fin en clair"
-status: doing
+status: done
 phase: P2
 family: back
 estimate: S
@@ -74,14 +74,58 @@ Aucun endpoint, aucune migration. `App\Support\PhoneMasker` et son miroir `scrip
 
 ## Delta à produire
 
-- [ ] Mesurer, puis choisir : masquer aussi le groupe qui suit (le plus masquant), ou s'arrêter au neuvième chiffre en
+- [x] Mesurer, puis choisir : masquer aussi le groupe qui suit (le plus masquant), ou s'arrêter au neuvième chiffre en
       laissant l'étage, au cas par cas des suites du tableau.
-- [ ] Fixture partagé et tests Radar : les textes du tableau, dont les limites épinglées par TCK-2451.
+- [x] Fixture partagé et tests Radar : les textes du tableau, dont les limites épinglées par TCK-2451.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — `Villa R+1 00221 77 012 34 56 12 500 F` et `Villa R+1 00221 77 012 34 56 78 90` ne laissent aucun chiffre de
+- [x] AC1 — `Villa R+1 00221 77 012 34 56 12 500 F` et `Villa R+1 00221 77 012 34 56 78 90` ne laissent aucun chiffre de
       `77 012 34 56` en clair.
-- [ ] AC2 — Parité PHP/JS : 0 écart ; face à `dev`, aucun chiffre d'un numéro démasqué.
-- [ ] AC3 — `deploy/takussan/smoke-api.sh image` vert sur l'image construite depuis la branche.
-- [ ] AC4 — Ablation de chaque correctif : rouge.
+- [x] AC2 — Parité PHP/JS : 0 écart ; face à `dev`, aucun chiffre d'un numéro démasqué.
+- [x] AC3 — `deploy/takussan/smoke-api.sh image` vert sur l'image construite depuis la branche.
+- [x] AC4 — Ablation de chaque correctif : rouge.
+
+## Notes d'implémentation
+
+Choix par suite : un numéro écrit par groupes (`SHAPED`) s'arrête au neuvième chiffre, sauf s'il se coupe sur un autre numéro
+(`NOT_CUT`) ou un groupe `000` (`NO_THOUSANDS`). Un numéro tronqué derrière `00221` va jusqu'à ce qui n'en est plus
+(`CUT_CODED_SENEGAL`). Derrière `221` nu ou `(221)`, neuf chiffres qu'aucune lecture ne prend pour un numéro entier sont masqués avec
+l'indicatif (`BARE_CODE_NINE`). `RadarAmountParser` lit les candidats hors des numéros.
+
+AC2, précision : **une seule classe de chiffres masqués sur `dev` sort en clair**, le chiffre qui suit neuf chiffres derrière `221` ou
+`(221)` (`… 5 6 3 chambres`, 505 à 12 078 passages selon la grille, tous classés par script, 0 autre). Sur `dev`, il était masqué comme
+fin d'un numéro mal lu, et le premier chiffre du vrai numéro restait en clair. Voir la décision 4.
+
+Grilles et corpus, face à `dev` `08ea557dc` extrait par `git archive`, 4,3 M de textes : parité 0 écart ; marge PCRE dans l'image
+(10.44) : `MASK_PATTERN` 5 copies de `SENEGAL_LOOSE`, `dev` 7. 47 entrées de 40 ko : 0 erreur PCRE, masque au pire 61,7 ms
+(`dev` 61,2). 61 ablations rouges (PHP et miroir JS), restauration prouvée par `cmp`. AC3 : `smoke-api.sh image` et `masqueur` verts
+sur l'image de `496f9dea4`. Rapport complet : `.superpowers/rapport-TCK-2454.md`.
+
+### Limites connues (mesurées, identiques à `dev` sauf mention)
+
+- `… 34 56 000 F` : neuf chiffres puis `000` sont un numéro tronqué et un montant. `Villa R+1 00221 77 012 34 56 000 F` donne
+  `Villa R[TELEPHONE] 56 000 F`, 56 000, pas de contact : **`56` reste en clair**, pour garder le montant.
+- Groupement libre devant un montant : `Villa R+20 00221 77 0 12 34 56 450 000 F` donne `Villa R[TELEPHONE] 56 450 000 F`.
+- `Villa R+1 00221 77 012 34 56 500 F` se lit numéro + 500 F, pas 56 500 F.
+- Ce qui suit le neuvième chiffre reste en clair : `Villa R+1 00221 77 012 34 56 78 90` donne `Villa R+1 [TELEPHONE] 78 90`.
+- **Faux contact neuf par rapport à `dev`** : `Villa R+1 00221 77 012 34/78 1` donne `+221770123478` (recollé, comme
+  `Tel 00221 77 012 34 / 33 821 00 00 F` sur `dev`), `Villa 221 77 012 3 500 F` donne `+221770123500` et perd son prix de 3 500.
+- Identiques à `dev` : `Villa R+1 00221 77 012 34/33 821 00 00 F`, `Tel 00221 77 012 34 / 33 821 00 00 F`,
+  `Tel 00221 77 012 3 / 450 000 F`, `Tel 77 012 34 78 123 45 67`, `Tel 77 012 34 / 78 123 45 67` ; `Villa R+1 221 77 012 3 / 450 000 F`
+  et `Villa R+1 221 7 7 0 1 2 3 4 56 000 F` restent en clair pour garder leur montant ; un nombre qui finit par `000` derrière `221`
+  ou `(221)` (`Villa (221) 770 123 000`, `Villa 221 770123000 F`) ; `0221770123456` ; `Villa 7 7 0 1 2 3 4 56` et
+  `Villa 7 7 0 1 2 3 4 5 6 3 chambres` sans indicatif ; `Villa R+1 (221) 77 012 34 56 7` (TCK-2447).
+
+## Décisions prises en autonomie, à revoir
+
+1. `000` derrière neuf chiffres est un montant : le numéro est tronqué et `56` reste en clair. Écarté : tout masquer et perdre le prix.
+2. Arrêt au neuvième chiffre : l'étage et le contact sont gardés, le groupe suivant reste en clair. Écarté : masquer aussi ce groupe.
+3. Les candidats de prix se lisent hors des numéros : `Tel 77 123 45 67 450 000 F` rend 450 000 (`dev` : rien), `… 500 F` rend 500.
+4. **Étendu au-delà du ticket, parce que la spec fusionnée entre-temps (#1622) range ces écritures sous TCK-2454** : derrière
+   `221` nu ou `(221)`, neuf chiffres sont masqués avec leur indicatif, quel que soit le groupement, marque comprise
+   (`BARE_CODE_NINE`). Le `3` de `(221) 7 7 0 1 2 3 4 5 6 3 chambres`, masqué sur `dev` comme fin d'un numéro mal lu, sort donc en
+   clair : ce n'est pas un chiffre du numéro, et le premier `7` du numéro cesse d'y être. Coût : `Villa 221 77 012 3 500 F` perd son prix.
+5. Étendu aussi : `+221`/`00221` tronqué suivi d'un autre numéro, y compris hors étage ; `+30 +75 +93 …`, `33 00221` sans `+`, `+10`,
+   `+105`, `0221`. Les faux contacts recollés (`+2213300221 77`…) disparaissent.
+6. `CUT_CODED_SENEGAL` limité à `00221` : `+33 221 77 01 23` reste un numéro français.
