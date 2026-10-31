@@ -74,7 +74,7 @@ Aucun endpoint, aucune migration. `App\Support\PhoneMasker` et son miroir `scrip
 ## Reste sur dev
 
 - AC3 : le job CI `image` n'a pas tourné : `api-ci.yml` se déclenche sur une PR ou sur un push vers `dev`, et la PR n'est pas ouverte.
-  Mesuré à la place, en local : `smoke-api.sh masqueur`, que ce job lance, sort en 0 sur l'image de `efa3392ea` (PCRE2 10.44).
+  Mesuré à la place, en local : `smoke-api.sh masqueur`, que ce job lance, sort en 0 sur l'image de `7034bdf9e` (PCRE2 10.44).
   À cocher au vu du job de la PR, puis passer le ticket à `done`.
 
 ## Notes d'implémentation

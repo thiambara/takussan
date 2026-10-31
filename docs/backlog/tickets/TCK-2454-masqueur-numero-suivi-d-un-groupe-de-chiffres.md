@@ -97,7 +97,9 @@ Aucun endpoint, aucune migration. `App\Support\PhoneMasker` et son miroir `scrip
 
 - [x] AC1 — `Villa R+1 00221 77 012 34 56 12 500 F` et `Villa R+1 00221 77 012 34 56 78 90` ne laissent aucun chiffre de
       `77 012 34 56` en clair.
-- [x] AC2 — Parité PHP/JS : 0 écart ; face à `dev`, aucun chiffre d'un numéro démasqué.
+- [x] AC2 — Parité PHP/JS : 0 écart ; face à `dev`, les chiffres masqués sur `dev` qui sortent en clair sont classés un à un par script (`dem.mjs`, voir les notes) : ils ne portent que sur le chiffre ou le groupe qui suit neuf chiffres, un montant, l'indicatif, ou le reste d'un numéro entier (décision 9). Le script ne couvre que les grilles nommées, et ne juge pas de l'intention d'une écriture.
+- [x] AC8 — Un numéro à indicatif suivi d'un prix ou d'un autre numéro reste entier et garde le prix (`Contact : +221 76 330 45 67`, à la ligne, `25 000 F par mois`).
+- [x] AC9 — Dans le doute, masqué sans contact : `221 77 012 3 500 F`, `221 77 012 - 78 12`, `221 770123/500 F`, `+221 30 31 32 33 5 3 500` (premier numéro seulement), `Prix 221 750 500 250 F`, `Lots 219 220 221 330 331 332` ne donnent aucun contact inventé.
 - [x] AC3 — `deploy/takussan/smoke-api.sh image` vert sur l'image construite depuis la branche.
 - [x] AC4 — Ablation de chaque correctif : rouge.
 - [x] AC5 — `Immeuble R+20 0221 77 123 45 67` ne laisse aucun chiffre du numéro en clair.
@@ -113,14 +115,13 @@ l'indicatif (`BARE_CODE_NINE`). Chiffre à chiffre suivi d'un chiffre seul, les 
 `RadarAmountParser` lit les candidats hors des numéros. `RadarPhone` refuse en contact une barre entre deux groupes écrits autrement et
 `30 00221 …` (`fromText` les lit encore).
 
-AC2, précision : **une seule classe de chiffres masqués sur `dev` sort en clair**, le chiffre qui suit neuf chiffres, derrière `221`,
-`(221)` ou chiffre à chiffre (`… 5 6 3 chambres`, 505 à 18 450 passages selon la grille, tous classés par script, 0 autre). Sur `dev`, il était masqué comme
-fin d'un numéro mal lu, et le premier chiffre du vrai numéro restait en clair. Voir la décision 4.
+AC2, précision, mesurée sur `7034bdf9e` face à `dev` `08ea557dc` extrait par `git archive`. Chaque suite de chiffres masquée sur `dev` et en clair ici est classée par `scratchpad/tck-2454/dem2.mjs`, sur 11 jeux, 5,4 M de textes : l'étage ou le `(0)` rendus, l'indicatif rendu, un chiffre ou un montant derrière un numéro, le reste derrière un numéro entier. **Reste hors de ces classes : 72 passages**, tous `Villa R+1 (221) 77 012 34/33 821 00 00 F`, où `33` sort en clair et `821 00 00` y était déjà sur `dev`. Le classement lit des positions, pas une intention : il ne dit pas qu'un groupe rendu n'était pas la fin d'un numéro, et ne couvre rien hors de ces jeux.
 
-Grilles et corpus, face à `dev` `08ea557dc` extrait par `git archive`, 4,4 M de textes : parité 0 écart ; marge PCRE dans l'image
-(10.44) : `MASK_PATTERN` 4 copies de `SENEGAL_LOOSE`, `dev` 7. 52 entrées de 40 ko : 0 erreur PCRE, masque au pire 61,1 ms
-(`dev` 63,2). 73 ablations rouges (PHP et miroir JS), restauration prouvée par `cmp`. AC3 : `smoke-api.sh image` et `masqueur` verts
-sur l'image de `efa3392ea`. Rapport complet : `.superpowers/rapport-TCK-2454.md`.
+**Le numéro entier gagne, et ce n'est pas tenu pour le second numéro** : `R+1 00221 77 012 34 78 123 45 67` laisse `123 45 67` en clair, là où `dev` le masquait (décision 9). Grilles : 2 016 passages de 7 chiffres sur `g2451b`, 105 sur la grille du vérificateur, plus 9 de `45 67` et 14 de `67`.
+
+Contacts face à `dev`, grille `g1` du vérificateur (451 980 textes) : **14 757 neufs** : 13 779 du numéro écrit (dont 4 992 derrière `Lot`, `Réf`, ou un `221 300 …`, à lire comme limite), 185 second numéro derrière une barre, **793 assemblés** (284 + 454 sur un nombre, 55 sur un second numéro). **10 894 perdus**, dont 3 060 vrais numéros derrière un mot de prix ou de liste (`Lot 221 77 012 34 56`, décision 10). Grille `g2` (945 000 textes, vrais numéros) : 0 contact réel perdu, 0 `fromText` perdu, 0 faux contact neuf, 0 chiffre du numéro rendu ; 9 232 prix perdus, tous lus par `dev` sur des fragments ou sur `221` (`… 3 chambres`).
+
+Parité 0 écart sur les 11 jeux. Marge PCRE dans l'image (10.44) : `MASK_PATTERN` 24 348 o, 4 copies de `SENEGAL_LOOSE`, `dev` 7. 52 entrées de 40 ko : 0 erreur PCRE, masque au pire 107,8 ms sous charge 6 à 10 sur 8 cœurs (`dev` 106,2 sous une autre charge : à ne pas soustraire). 89 ablations rouges (PHP et miroir JS), restauration prouvée par `cmp`. Une garde du miroir, `PAS_COUPE` devant `CORPS_A_INDICATIF`, n'a aucun effet mesuré côté JS (parité 0 écart sans elle sur `g1`) : gardée pour la lecture, son ablation PHP rougit. AC3 : `smoke-api.sh image` et `masqueur` sortent en 0 sur l'image de `7034bdf9e`. Rapport : `.superpowers/rapport-TCK-2454.md`.
 
 ### Limites connues (mesurées, identiques à `dev` sauf mention)
 
@@ -131,8 +132,11 @@ sur l'image de `efa3392ea`. Rapport complet : `.superpowers/rapport-TCK-2454.md`
 - Ce qui suit le neuvième chiffre reste en clair : `Villa R+1 00221 77 012 34 56 78 90` donne `Villa R+1 [TELEPHONE] 78 90`.
 - **Faux contact restant** : `Villa 7 70 12 34 56 2 salons` donne `+221701234562`, comme `dev` : le `7` seul peut y être un compte
   (`7 77012345 6`, qu'un correctif plus large recollait). 372 contacts sur 26 694 de la grille des 256 groupements.
-- **Faux contact neuf** : `Villa 221 77 012 3 500 F` donne `+221770123500` et perd son prix de 3 500. Comme `dev`, un tiret recolle
-  (`Villa R+1 00221 77 012 34-78`), comme `fromText`, et `Villa R+1+33 6 12 34 56 78` donne `+221336123456`.
+- **`77 012 34 78 123 45 67`, numéro entier + reste** : `123 45 67` en clair (décision 9). Un tiret recolle de même : `77 012 34-78 12 345 67`.
+- `77 012 34/56` ne donne pas de contact, mais `fromText` le garde (STOP et opérateur).
+- **Faux contacts neufs face à `dev`, indiscernables de `221 770 123 456`** : neuf chiffres écrits en 3-3-3 derrière `221` nu ou `(221)` donnent un contact même si c'est une référence (`Réf 221 300 123 456`) ou un nombre (`221 300 123 500`, `221 750 500 250`). Le mot de prix ou de liste devant, une marque derrière et une liste à trois chiffres devant l'écartent.
+- **Assemblé sur un nombre nu ou un mot** : `Villa 221 77 012 3 500` donne `+221770123500`, comme `dev` ; `221 77 012 34 78 123 45 67` et `22177 78 123 45 67` se lisent numéro entier + reste (décision 9).
+- Comme `dev`, un tiret recolle (`Villa R+1 00221 77 012 34-78`), comme `fromText`, et `Villa R+1+33 6 12 34 56 78` donne `+221336123456`.
 - Derrière `221` nu ou `(221)`, un groupement libre suivi de `450 000 F` reste en clair pour garder le montant (`Villa 221 7 70123456 450 000 F`,
   131 groupements sur 256 ; 153 derrière `R+1`).
 - `Villa 770123456 F`, sans indicatif, reste un prix : ambigu avec un vrai prix de 770 millions.
@@ -156,3 +160,6 @@ sur l'image de `efa3392ea`. Rapport complet : `.superpowers/rapport-TCK-2454.md`
 6. `CUT_CODED_SENEGAL` limité à `00221` : `+33 221 77 01 23` reste un numéro français.
 7. Contact refusé quand une barre sépare deux groupes écrits autrement : `77 012 34/56` perd son contact, masqué. `fromText` le lit encore.
 8. `SENEGAL_NOT_SHIFTED` limité au strict chiffre à chiffre : la marge PCRE passe de 5 à 4 copies, `dev` 7.
+9. **Tranché le 2026-10-31 par la session** : sans barre, le numéro entier gagne. `Villa R+1 00221 77 012 34 78 123 45 67` donne `+221770123478` et laisse `123 45 67` en clair, là où `dev` masquait le second numéro. Avec une barre (`77 012 34/78 123 45 67`, `77 012 34 / 78 123 45 67`), le second numéro est le contact et tout est masqué.
+10. **Règle de la session** : dans le doute, masqué sans contact. `Prix 221 77 012 34 56` et `Lot 221 77 012 34 56` perdent donc leur contact ; `221 770123456 F` et `221 77 012 34 56 F` n'en donnent plus, le masque restant.
+11. Un numéro tronqué n'est lu devant un autre que s'il a au moins cinq chiffres et n'est pas écrit par groupes : `+221 30 31 32 33 5 3 500` est un numéro entier et un prix.
