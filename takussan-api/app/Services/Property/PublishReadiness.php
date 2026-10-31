@@ -30,7 +30,7 @@ final class PublishReadiness
      * (`takussan-web/src/content/legal/editeur.ts`, « 29 octobre 2026 »). À changer ensemble —
      * `scripts/check-terms-version.mjs` le tient (Repo CI).
      */
-    public const TERMS_VERSION = '2026-10-29';
+    public const TERMS_VERSION = '2026-10-31';
 
     public const MISSING_FIRST_NAME = 'first_name';
 

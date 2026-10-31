@@ -178,3 +178,21 @@ ne l'a éprouvée : elle repose sur le SDK `laravel/ai` et sur la documentation 
   alors chez un fournisseur qui n'offre peut-être pas cette garantie. Qui compose une chaîne doit donc y mettre des
   fournisseurs de même garantie. Rien dans le code ne le vérifie.
 - Aucune chaîne ne contient aujourd'hui de pilote non Anthropic : la règle n'a aucun effet tant qu'aucune clé n'est posée.
+
+## Amendement du 2026-10-31 — ce que porte le corps d'une requête (TCK-2450)
+
+Précise le point 3. **Décisions de la session, à revoir par le porteur.** Vérifiées sur la documentation d'OpenAI et
+d'OpenRouter le 2026-10-31 : aucune clé n'existe, aucun vrai appel ne les a éprouvées.
+
+- **Le pilote décide, jamais le nom de l'entrée.** Tout maillon du pilote `openai` envoie `store: false`, sans réglage. Tout
+  maillon du pilote `openrouter` envoie `provider.data_collection`, `deny` si l'entrée ne dit rien. La passerelle les passe à
+  l'agent : le SDK ne donne à `providerOptions()` que le pilote.
+- **`provider.require_parameters` vaut `true`**, réglable sur l'entrée. Sans lui, un point d'accès qui ignore le format de
+  sortie rendrait de la prose. Avec lui, une absence de point d'accès est une erreur, que la bascule absorbe s'il reste un
+  maillon. La documentation ne dit pas quel statut elle rend : la bascule ne le couvre que s'il est dans sa liste.
+- **Une adresse à identifiants est refusée**, en plus de la comparaison d'hôte exacte.
+- **La garde `check-ai-providers-privacy.mjs` rougit sur un `data_collection` autre que `deny`** : `privacy.ts` promet
+  `deny`, donc le texte change avec la configuration.
+
+**Limite connue.** Le client HTTP du SDK suit les redirections : un hôte accepté qui redirigerait une requête en mènerait le
+contenu ailleurs. Le contrôle ne porte que sur l'adresse configurée.

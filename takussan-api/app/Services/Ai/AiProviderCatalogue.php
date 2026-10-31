@@ -127,8 +127,8 @@ final class AiProviderCatalogue
     }
 
     /**
-     * Comparaison exacte, sans joker. `https` seul hors `local` et `testing`. Une adresse à identifiants ou à
-     * caractère ambigu est refusée : `parse_url` et le client HTTP pourraient ne pas y lire le même hôte.
+     * Comparaison exacte, sans joker. `https` seul hors `local` et `testing`. Une adresse à identifiants est refusée :
+     * `parse_url` et le client HTTP pourraient ne pas y lire le même hôte (une barre inverse devant `@`).
      */
     private function addressAccepted(string $provider): bool
     {
@@ -149,7 +149,7 @@ final class AiProviderCatalogue
     private function addressParts(string $provider): ?array
     {
         $url = self::declared()[$provider]['url'] ?? null;
-        if (! is_string($url) || preg_match('/[\s\\\\\p{C}]/u', $url) === 1) {
+        if (! is_string($url)) {
             return null;
         }
         $parts = parse_url($url);

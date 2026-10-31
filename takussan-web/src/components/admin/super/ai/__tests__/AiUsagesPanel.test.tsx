@@ -36,6 +36,19 @@ describe('usages IA (TCK-2385)', () => {
     vi.mocked(patchAdminAiUsage).mockReset().mockResolvedValue({ data: [usage], meta: { usd_to_xof: '600' } });
   });
 
+  it('ne propose pas le modèle d’un fournisseur non sélectionnable, sauf le forçage en place (TCK-2450)', async () => {
+    vi.mocked(fetchAdminAiProviders).mockResolvedValue({ data: [...providers, { key: 'openai', legal_name: 'OpenAI', key_present: false, selectable: false, reason: 'key_missing', host: 'api.openai.com', models: ['modele-o'] }] });
+    vi.mocked(fetchAdminAiUsages).mockResolvedValue({ data: [{ ...usage, forced: { provider: 'openrouter', model: 'modele-r', max_tokens: null } }], meta: { usd_to_xof: '600' } });
+    renderPanel();
+    await ouvrirLesReglages();
+
+    await userEvent.click(await screen.findByRole('combobox', { name: 'Modèle forcé' }));
+
+    expect(await screen.findByRole('option', { name: 'Anthropic · modele-a' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'openrouter/modele-r' })).toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: 'OpenAI · modele-o' })).not.toBeInTheDocument();
+  });
+
   it('un changement de modèle seul n’épingle pas le plafond par défaut', async () => {
     renderPanel();
     await ouvrirLesReglages();

@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '@/lib/api';
 import { fetchAdminAiEvaluation, postAdminAiEvaluation, putAdminAiRole } from '@/lib/queries/super-admin';
 import { withIntl } from '@/test/intl';
-import type { AiEvaluationRun } from '@/types/super-admin';
+import type { AiEvaluationRun, AiProvider } from '@/types/super-admin';
 import { AiChainDialog } from '../AiChainDialog';
 
 vi.mock('@/lib/queries/super-admin', () => ({
@@ -23,7 +23,9 @@ const run: AiEvaluationRun = {
   } } },
 };
 
-function renderDialog(onOpenChange: (open: boolean) => void = () => {}) {
+const SANS_CLE = { key: 'openai', legal_name: 'OpenAI', key_present: false, selectable: false, reason: 'key_missing' as const, host: 'api.openai.com', models: ['modele-o'] };
+
+function renderDialog(onOpenChange: (open: boolean) => void = () => {}, providers: AiProvider[] = [{ key: 'anthropic', legal_name: 'Anthropic', key_present: true, selectable: true, reason: null, host: 'api.anthropic.com', models: ['modele-a', 'modele-b'] }]) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(withIntl(
     <QueryClientProvider client={queryClient}>
@@ -31,7 +33,7 @@ function renderDialog(onOpenChange: (open: boolean) => void = () => {}) {
         open
         onOpenChange={onOpenChange}
         row={{ role: 'extraction', source: 'config', updated_at: null, chain: [{ provider: 'anthropic', model: 'modele-a', max_tokens: 1000 }] }}
-        providers={[{ key: 'anthropic', legal_name: 'Anthropic', key_present: true, selectable: true, reason: null, host: 'api.anthropic.com', models: ['modele-a', 'modele-b'] }]}
+        providers={providers}
       />
     </QueryClientProvider>,
   ));
@@ -42,6 +44,21 @@ describe('chaîne d’un rôle (TCK-2385)', () => {
     vi.mocked(postAdminAiEvaluation).mockReset();
     vi.mocked(fetchAdminAiEvaluation).mockReset();
     vi.mocked(putAdminAiRole).mockReset();
+  });
+
+  it('sans fournisseur sélectionnable à ajouter, le maillon ne s’ajoute pas (TCK-2450)', () => {
+    renderDialog(() => {}, [SANS_CLE]);
+
+    expect(screen.getByRole('button', { name: 'Ajouter un maillon' })).toBeDisabled();
+  });
+
+  it('ne propose pas un fournisseur non sélectionnable (TCK-2450)', async () => {
+    renderDialog(() => {}, [{ key: 'anthropic', legal_name: 'Anthropic', key_present: true, selectable: true, reason: null, host: 'api.anthropic.com', models: ['modele-a'] }, SANS_CLE]);
+
+    await userEvent.click(screen.getAllByRole('combobox')[0]);
+
+    expect(await screen.findByRole('option', { name: 'Anthropic' })).toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: 'OpenAI' })).not.toBeInTheDocument();
   });
 
   it('compare en place et candidat, et exige un motif sous la référence', async () => {
