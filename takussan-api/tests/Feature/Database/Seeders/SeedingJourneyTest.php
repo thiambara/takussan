@@ -23,6 +23,7 @@ use Database\Seeders\Support\ReferentialIntegrityChecker;
 use Database\Seeders\Support\SeedingConfig;
 use Database\Seeders\YearOfActivitySeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use ReflectionClassConstant;
 use Tests\TestCase;
@@ -55,6 +56,23 @@ class SeedingJourneyTest extends TestCase
         'maintenance_sur_un_bien_non_bati',
         'maintenance_demandee_ni_par_le_locataire_ni_par_le_bailleur',
     ];
+
+    /**
+     * TCK-2452 — les baux commencent le 1er et finissent le dernier jour d'un mois : le dernier jour
+     * de chaque mois, un seed semait un bail `expired` ou `renewed` qui finissait le jour même, et
+     * le vérificateur refusait le jeu. Rouge sur toute suite lancée un 31 octobre.
+     */
+    public function test_un_bail_qui_finit_le_jour_du_seed_est_encore_actif(): void
+    {
+        $this->travelTo(Carbon::parse('2026-10-31 12:00:00'));
+
+        $this->semer();
+
+        $finissentAujourdhui = Lease::query()->whereDate('end_date', '2026-10-31')->pluck('status');
+        // Sans un tel bail, ce test passerait sans rien prouver.
+        $this->assertNotEmpty($finissentAujourdhui);
+        $this->assertEmpty($finissentAujourdhui->reject(fn (LeaseStatus $statut) => in_array($statut, [LeaseStatus::Active, LeaseStatus::Terminated], true)));
+    }
 
     public function test_le_jeu_seme_raconte_des_parcours_coherents(): void
     {
