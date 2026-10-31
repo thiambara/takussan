@@ -352,6 +352,20 @@ class RadarPhoneTest extends TestCase
         $this->assertSame(['+221770123500'], RadarPhone::contactsFromText('Villa 221 77 012 3 500'));
     }
 
+    public function test_derriere_221_nu_le_mot_et_l_unite_ne_refusent_le_contact_que_sur_une_forme_de_montant(): void
+    {
+        // TCK-2454 : la règle resserrée le 2026-10-31.
+        foreach (['Prix 221 750 500 250 F', 'Prix (221) 750 500 250', 'Lots 221 300 301 302', 'Villa 221 77 012 3 500 F', 'Villa 221 77 012 34 56 F', 'Villa 221 77 012 34 56 F/mois', 'Villa 221 77 012 34 56 FCFA'] as $texte) {
+            $this->assertSame([], RadarPhone::contactsFromText($texte), $texte);
+        }
+        foreach (['Contact 221 77 012 34 56 M Diop', 'Studio 150 221 77 012 34 56', 'Lot 221 77 012 34 56', 'Prix : 221 77 012 34 56'] as $texte) {
+            $this->assertSame(['+221770123456'], RadarPhone::contactsFromText($texte), $texte);
+        }
+        // Limites : le coût accepté de cette règle.
+        $this->assertSame(['+221303132333'], RadarPhone::contactsFromText('Lots 221 30 31 32 333'));
+        $this->assertSame(['+221302015100'], RadarPhone::contactsFromText('Charges 221 30 20 15 100'));
+    }
+
     /** @return array<string, array{string, string, list<string>, ?int}> */
     public static function numerosSuivisDUnPrix(): array
     {
