@@ -75,7 +75,13 @@ final class RadarPhone
      * derrière un numéro ne sont pas des unités (contre-vérification C2).
      */
     private const NOT_A_CONTACT_AFTER = '/^[\s\x{00A0}\x{202F}]*(?:(?:%|min|mn|km|m²|m2|ml|cm|ha|ans?|mois|jours?'
-        .'|f\s?cfa|cfa|xof|francs?|chambres?|pi[eè]ces?)(?!\p{L})|[hmf](?=[\s\x{00A0}\x{202F}]|$))/iu';
+        .'|f\s?cfa|cfa|xof|francs?|chambres?|pi[eè]ces?)(?!\p{L})|[hmf](?=[\s\x{00A0}\x{202F}\/]|$))/iu';
+
+    /** TCK-2454 — la seule unité de `NOT_A_CONTACT_AFTER` qui refuse un contact derrière `221` nu ou `(221)`, hors forme de montant. */
+    private const MONETARY_MARK_AFTER = '/^[\s\x{00A0}\x{202F}]*(?:(?:f\s?cfa|cfa|xof|francs?)(?!\p{L})|f(?=[\s\x{00A0}\x{202F}\/]|$))/iu';
+
+    /** TCK-2454 — `221` nu ou `(221)` et neuf chiffres en 3-3-3 ou collés : la forme d'un montant. */
+    private const BARE_CODE_AMOUNT_SHAPE = '/^(?:\(221\)|221)[^0-9]{0,3}[0-9]{3}[^0-9]{0,3}[0-9]{3}[^0-9]{0,3}[0-9]{3}$/u';
 
     /** TCK-2412 — le mot qui, juste devant, fait du nombre un prix, une mesure ou une liste (`Lots 3 0 1 2 …`). */
     private const NOT_A_CONTACT_BEFORE = '/(?<!\p{L})(?:prix|loyer|montant|total|caution|avance|frais|charges?|surface|superficie'
@@ -141,9 +147,10 @@ final class RadarPhone
             if ($code !== null && ($code === '' ? $contactsOnly && ! str_starts_with($match, '221') : $code !== '221')) {
                 continue;
             }
-            if ($contactsOnly && preg_match('/^(?:\+|00|221)/', $match) !== 1
-                && (preg_match(self::NOT_A_CONTACT_BEFORE, $before) === 1
-                    || preg_match(self::NOT_A_CONTACT_AFTER, substr($normalized, $offset + strlen($match))) === 1)) {
+            if ($contactsOnly && self::notAContactAround($match, $before, substr($normalized, $offset + strlen($match)))) {
+                continue;
+            }
+            if ($contactsOnly && (self::gluedAcrossSlash($match) || self::prefixBeforeCode($match) || self::assembledBehindBareCode($match) || self::bareCodeInAList($match, $before))) {
                 continue;
             }
             $e164 = self::canonical($match);
@@ -153,6 +160,57 @@ final class RadarPhone
         }
 
         return array_keys($numbers);
+    }
+
+    /**
+     * TCK-2454 — dans le doute, masqué sans contact. Une barre oblique entre deux groupes écrits autrement, ou une seule barre :
+     * deux nombres que le masque englobe. `00221 77 012 34/78 1` n'est pas `+221770123478`, `221 770123/500 F` n'est pas
+     * `+221770123500`. `77/123/45/67` et `221/77 012 34 56` restent des numéros.
+     */
+    private static function gluedAcrossSlash(string $match): bool
+    {
+        $body = (string) preg_replace('/^[^0-9]*(?:00|0)?221[^0-9]{0,3}/', '', $match);
+
+        return str_contains($body, '/') && (substr_count($body, '/') < 2 || preg_match('~[0-9][^0-9/]+[0-9]~u', $body) === 1);
+    }
+
+    /**
+     * TCK-2454 — `PhoneMasker::BARE_CODE_NINE` masque neuf chiffres derrière `221` nu ou `(221)` quel que soit leur groupement. Écrits
+     * autrement que par groupes, ils peuvent être assemblés sur ce qui les suit : `221 77 012 3 500 F` n'est pas `+221770123500`.
+     */
+    private static function assembledBehindBareCode(string $match): bool
+    {
+        return preg_match('/^(?:\(221\)|221)[^0-9]{0,3}(.*)$/su', $match, $body) === 1 && preg_match(PhoneMasker::SHAPED_NUMBER, $body[1]) !== 1;
+    }
+
+    /** TCK-2454 — `Lots 219 220 221 330 331 332` : un `221` nu derrière un groupe de trois chiffres, suivi d'une forme de montant, est un élément de liste. */
+    private static function bareCodeInAList(string $match, string $before): bool
+    {
+        return str_starts_with($match, '221') && preg_match(self::BARE_CODE_AMOUNT_SHAPE, $match) === 1
+            && preg_match('/(?<![0-9])[0-9]{3}[\s.\-\/]{1,3}$/u', $before) === 1;
+    }
+
+    /**
+     * TCK-2412 — le mot devant et l'unité derrière écartent une forme écrite sans indicatif (`NOT_A_CONTACT_BEFORE`, `NOT_A_CONTACT_AFTER`).
+     * TCK-2454 — derrière `221` nu ou `(221)`, ils ne jouent que sur une forme de montant, 3-3-3 ou neuf chiffres collés (`Prix 221 750 500 250`) ;
+     * sinon, seule une marque monétaire refuse le contact : `Lot 221 77 012 34 56`, `Contact 221 77 012 34 56 M Diop` en donnent un.
+     */
+    private static function notAContactAround(string $match, string $before, string $after): bool
+    {
+        if (preg_match('/^(?:\+|00)/', $match) === 1) {
+            return false;
+        }
+        if (preg_match('/^(?:\(221\)|221)/', $match) === 1 && preg_match(self::BARE_CODE_AMOUNT_SHAPE, $match) !== 1) {
+            return preg_match(self::MONETARY_MARK_AFTER, $after) === 1;
+        }
+
+        return preg_match(self::NOT_A_CONTACT_BEFORE, $before) === 1 || preg_match(self::NOT_A_CONTACT_AFTER, $after) === 1;
+    }
+
+    /** TCK-2454 — `30 0022177 012 34 56 000 F`, tronqué devant un montant, se lit depuis l'indicatif : `+221300022177` n'est écrit nulle part. */
+    private static function prefixBeforeCode(string $match): bool
+    {
+        return preg_match('/^[0-9]{2}[^0-9]+00221/', $match) === 1;
     }
 
     /** Un numéro isolé, écrit comme on veut → E.164 sénégalais, ou null s'il n'en est pas un. */
