@@ -47,9 +47,9 @@ final class ConnectionTestUsage implements AiUsage
         return PlatformAbility::AiManage;
     }
 
-    public function dailyBudgetXof(): ?float
+    public function dailyBudgetUsd(): ?string
     {
-        return 100.0;
+        return '0.17';
     }
 
     public function cacheTtlSeconds(): int

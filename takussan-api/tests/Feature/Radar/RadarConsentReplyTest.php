@@ -70,8 +70,8 @@ class RadarConsentReplyTest extends TestCase
         config([
             'ai.roles.vision' => [['provider' => 'anthropic', 'model' => 'modele-v', 'max_tokens' => 2000]],
             'ai.roles.raisonnement' => [['provider' => 'anthropic', 'model' => 'modele-r', 'max_tokens' => 2000]],
-            'ai.pricing.anthropic.modele-v' => ['input' => 3.0, 'output' => 15.0, 'cache_read' => 0.3, 'cache_write' => 3.75],
-            'ai.pricing.anthropic.modele-r' => ['input' => 3.0, 'output' => 15.0, 'cache_read' => 0.3, 'cache_write' => 3.75],
+            'ai.pricing.anthropic.modele-v' => ['input' => '3.0', 'output' => '15.0', 'cache_read' => '0.3', 'cache_write' => '3.75'],
+            'ai.pricing.anthropic.modele-r' => ['input' => '3.0', 'output' => '15.0', 'cache_read' => '0.3', 'cache_write' => '3.75'],
             'app.frontend_url' => 'https://front.exemple.test',
         ]);
         // Le catalogue et les prompts RÉELS : c'est l'usage livré que le job appelle.
@@ -575,11 +575,11 @@ class RadarConsentReplyTest extends TestCase
         RadarConsentVerification::fake();
         $reponse = $this->reponseDeposee();
 
-        config(['ai.budgets.daily_global_xof' => 0]);
+        config(['ai.budgets.daily_global_usd' => '0']);
         $this->lancer($reponse)->assertReleased(1800);
         $this->assertSame([RadarVerificationStatus::Pending, 'ai.budget'], [$reponse->fresh()->verification_status, $reponse->fresh()->verification_reason]);
 
-        config(['ai.budgets.daily_global_xof' => null]);
+        config(['ai.budgets.daily_global_usd' => null]);
         AiUsageSetting::query()->create(['usage_key' => 'radar.verification_accord', 'enabled' => false]);
         $this->lancer($reponse)->assertReleased(1800);
         $this->assertSame('ai.kill_switch', $reponse->fresh()->verification_reason);

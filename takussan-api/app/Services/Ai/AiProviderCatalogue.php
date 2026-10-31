@@ -4,10 +4,12 @@ namespace App\Services\Ai;
 
 /**
  * TCK-2385 (ADR-0076 §3) — ce que la console peut savoir d'un fournisseur : son nom légal, si une clé
- * est présente (un booléen, jamais la valeur) et ses modèles tarifés, les seuls affectables.
+ * est présente (un booléen, jamais la valeur) et ses modèles actifs au catalogue, les seuls affectables.
  */
 final class AiProviderCatalogue
 {
+    public function __construct(private readonly AiModelCatalogue $models) {}
+
     /** @return list<array{key: string, legal_name: string, key_present: bool, models: list<string>}> */
     public function describe(): array
     {
@@ -17,7 +19,7 @@ final class AiProviderCatalogue
                 'key' => $key,
                 'legal_name' => (string) ($provider['legal_name'] ?? $key),
                 'key_present' => filled($provider['key'] ?? null),
-                'models' => array_keys(config('ai.pricing')[$key] ?? []),
+                'models' => $this->models->assignableModels($key),
             ];
         }
 
@@ -36,9 +38,6 @@ final class AiProviderCatalogue
 
     public function cheapestModel(string $provider): ?string
     {
-        $prices = config('ai.pricing')[$provider] ?? [];
-        uasort($prices, fn (array $a, array $b): int => $a['input'] <=> $b['input']);
-
-        return array_key_first($prices);
+        return $this->models->cheapestModel($provider);
     }
 }

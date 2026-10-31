@@ -6,6 +6,7 @@ use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Api\Admin\UpdateAiUsageRequest;
 use App\Models\AiUsageSetting;
 use App\Services\Ai\AiBudget;
+use App\Services\Ai\AiMoney;
 use App\Services\Ai\AiUsage;
 use App\Services\Ai\AiUsageRegistry;
 use App\Services\Ai\ModelLink;
@@ -25,7 +26,7 @@ class AiUsageController extends Controller
     {
         $settings = AiUsageSetting::query()->get()->keyBy('usage_key');
 
-        return $this->json(['data' => array_values(array_map(function (AiUsage $usage) use ($settings): array {
+        return $this->json(['meta' => ['usd_to_xof' => (string) config('ai.usd_to_xof')], 'data' => array_values(array_map(function (AiUsage $usage) use ($settings): array {
             $setting = $settings[$usage->key()] ?? null;
 
             return [
@@ -36,9 +37,9 @@ class AiUsageController extends Controller
                 'authority' => $usage->authority()->value,
                 'enabled' => $setting?->enabled ?? true,
                 'forced' => $setting?->forcedLink(null)?->toArray(),
-                'daily_budget_xof' => $setting?->daily_budget_xof !== null ? (float) $setting->daily_budget_xof : $usage->dailyBudgetXof(),
-                'default_daily_budget_xof' => $usage->dailyBudgetXof(),
-                'spent_today_xof' => $this->budget->spentToday($usage->key()),
+                'daily_budget_usd' => $this->amount($setting?->daily_budget_usd ?? $usage->dailyBudgetUsd()),
+                'default_daily_budget_usd' => $this->amount($usage->dailyBudgetUsd()),
+                'spent_today_usd' => $this->budget->spentToday($usage->key()),
                 'chain' => array_map(fn (ModelLink $link): array => $link->toArray(), $this->resolver->chainFor($usage, $setting)),
             ];
         }, $this->registry->all()))]);
@@ -62,7 +63,7 @@ class AiUsageController extends Controller
         }
 
         $setting = AiUsageSetting::query()->firstOrNew(['usage_key' => $usage]);
-        $before = ['enabled' => $setting->enabled ?? true, 'forced_provider' => $setting->forced_provider, 'forced_model' => $setting->forced_model, 'daily_budget_xof' => $setting->daily_budget_xof];
+        $before = ['enabled' => $setting->enabled ?? true, 'forced_provider' => $setting->forced_provider, 'forced_model' => $setting->forced_model, 'daily_budget_usd' => $setting->daily_budget_usd];
         $setting->fill([...$data, 'enabled' => $data['enabled'] ?? $setting->enabled ?? true, 'updated_by_id' => $request->user()->id])->save();
 
         activity('Admin')
@@ -71,11 +72,16 @@ class AiUsageController extends Controller
             ->withProperties([
                 'usage' => $usage,
                 'before' => $before,
-                'after' => ['enabled' => $setting->enabled, 'forced_provider' => $setting->forced_provider, 'forced_model' => $setting->forced_model, 'daily_budget_xof' => $setting->daily_budget_xof],
+                'after' => ['enabled' => $setting->enabled, 'forced_provider' => $setting->forced_provider, 'forced_model' => $setting->forced_model, 'daily_budget_usd' => $setting->daily_budget_usd],
             ])
             ->event('super_admin_ai_usage_updated')
             ->log('Réglages d\'un usage IA modifiés');
 
         return $this->index();
+    }
+
+    private function amount(?string $usd): ?string
+    {
+        return $usd === null ? null : AiMoney::canonical($usd);
     }
 }

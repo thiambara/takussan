@@ -96,10 +96,10 @@ class AiEval extends Command
             $verdict = $runner->verdict($report, $baseline);
 
             $this->line(sprintf(
-                '%s — %s : %.4f (référence %s), %d cas, %d échec(s), %.2f XOF%s',
+                '%s — %s : %.4f (référence %s), %d cas, %d échec(s), %s USD%s',
                 $key, implode(', ', $report['models']), $report['global'],
                 $this->reference($runner->referenceGlobal($report, $baseline)),
-                $report['cases'], $report['failures'], $report['cost_xof'],
+                $report['cases'], $report['failures'], $report['cost_usd'],
                 $verdict !== null ? ' — '.$verdict : '',
             ));
             foreach ($report['fields'] as $field => $score) {

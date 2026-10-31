@@ -31,9 +31,9 @@ final readonly class ModelLink
         return ['provider' => $this->provider, 'model' => $this->model, 'max_tokens' => $this->maxTokens];
     }
 
-    /** Un modèle sans tarif ne s'affecte pas : son coût ne se budgéterait pas. */
+    /** Seul un modèle actif du catalogue s'affecte : sans tarif, son coût ne se budgéterait pas. */
     public function isPriced(): bool
     {
-        return isset(config('ai.pricing')[$this->provider][$this->model]);
+        return app(AiModelCatalogue::class)->isAssignable($this->provider, $this->model);
     }
 }

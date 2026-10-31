@@ -45,7 +45,7 @@ final class UsageContenuExterneDEssai implements AiUsage
         return PlatformAbility::ConsoleAccess;
     }
 
-    public function dailyBudgetXof(): ?float
+    public function dailyBudgetUsd(): ?string
     {
         return null;
     }

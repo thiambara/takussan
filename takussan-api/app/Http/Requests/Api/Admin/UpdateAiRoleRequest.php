@@ -23,7 +23,7 @@ class UpdateAiRoleRequest extends BaseFormRequest
         return [
             'chain' => ['required', 'array', 'min:1', 'max:5'],
             'chain.*.provider' => ['required', 'string', Rule::in(array_keys(config('ai.providers')))],
-            'chain.*.model' => ['required', 'string', 'max:80'],
+            'chain.*.model' => ['required', 'string', 'max:255'],
             'chain.*.max_tokens' => ['nullable', 'integer', 'min:1', 'max:128000'],
             'override_reason' => ['nullable', 'string', 'max:500'],
         ];

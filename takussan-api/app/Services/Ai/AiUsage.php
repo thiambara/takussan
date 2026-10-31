@@ -31,8 +31,8 @@ interface AiUsage
     /** Ce que l'appelant doit détenir : une capacité d'agence ou un geste plateforme. */
     public function authority(): Capability|PlatformAbility;
 
-    /** Plafond journalier par défaut, en XOF ; `ai_usage_settings` le remplace. `null` : aucun. */
-    public function dailyBudgetXof(): ?float;
+    /** Plafond journalier par défaut, en dollars, en chaîne décimale (ADR-0086) ; `ai_usage_settings` le remplace. `null` : aucun. */
+    public function dailyBudgetUsd(): ?string;
 
     /** Durée du cache par empreinte, en secondes ; 0 le désactive. */
     public function cacheTtlSeconds(): int;

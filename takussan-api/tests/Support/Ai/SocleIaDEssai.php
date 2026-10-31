@@ -22,12 +22,12 @@ trait SocleIaDEssai
                 ['provider' => 'anthropic', 'model' => 'modele-b', 'max_tokens' => 1000],
             ],
             'ai.pricing' => ['anthropic' => [
-                'modele-a' => ['input' => 2.0, 'output' => 10.0, 'cache_read' => 0.2, 'cache_write' => 2.5],
-                'modele-b' => ['input' => 1.0, 'output' => 5.0, 'cache_read' => 0.1, 'cache_write' => 1.25],
+                'modele-a' => ['input' => '2.0', 'output' => '10.0', 'cache_read' => '0.2', 'cache_write' => '2.5'],
+                'modele-b' => ['input' => '1.0', 'output' => '5.0', 'cache_read' => '0.1', 'cache_write' => '1.25'],
             ]],
             'ai.usd_to_xof' => 600.0,
-            'ai.budgets.daily_global_xof' => null,
-            'ai.budgets.daily_per_agency_xof' => null,
+            'ai.budgets.daily_global_usd' => null,
+            'ai.budgets.daily_per_agency_usd' => null,
         ]);
 
         $this->app->instance(AiUsageRegistry::class, new AiUsageRegistry([UsageDEssai::class, ConnectionTestUsage::class]));

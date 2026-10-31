@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\Admin\AiDashboardController;
 use App\Http\Controllers\Api\Admin\AiEvaluationController;
+use App\Http\Controllers\Api\Admin\AiModelController;
 use App\Http\Controllers\Api\Admin\AiProviderController;
 use App\Http\Controllers\Api\Admin\AiRoleController;
 use App\Http\Controllers\Api\Admin\AiUsageController;
@@ -22,6 +23,7 @@ Route::middleware(['auth:sanctum', 'super-admin'])->prefix('admin/ai')->group(fu
         Route::get('roles', [AiRoleController::class, 'index'])->name('admin.ai.roles.index');
         Route::get('usages', [AiUsageController::class, 'index'])->name('admin.ai.usages.index');
         Route::get('providers', [AiProviderController::class, 'index'])->name('admin.ai.providers.index');
+        Route::get('models', [AiModelController::class, 'index'])->name('admin.ai.models.index');
         Route::get('evaluations/{evaluation}', [AiEvaluationController::class, 'show'])->name('admin.ai.evaluations.show');
         Route::get('dashboard', AiDashboardController::class)->name('admin.ai.dashboard');
     });
@@ -31,6 +33,8 @@ Route::middleware(['auth:sanctum', 'super-admin'])->prefix('admin/ai')->group(fu
         Route::delete('roles/{role}', [AiRoleController::class, 'destroy'])->name('admin.ai.roles.destroy');
         Route::patch('usages/{usage}', [AiUsageController::class, 'update'])->name('admin.ai.usages.update');
         Route::post('providers/{provider}/test', [AiProviderController::class, 'test'])->name('admin.ai.providers.test');
+        Route::post('models', [AiModelController::class, 'store'])->name('admin.ai.models.store');
+        Route::patch('models/{model}', [AiModelController::class, 'update'])->name('admin.ai.models.update');
         Route::post('evaluations', [AiEvaluationController::class, 'store'])->name('admin.ai.evaluations.store');
     });
 });

@@ -76,7 +76,7 @@ class AiGatewayTest extends TestCase
         $call = AiCall::query()->sole();
         $this->assertSame(AiCallOutcome::Success, $call->outcome);
         $this->assertSame(['anthropic', 'modele-a', 1], [$call->provider, $call->model, $call->prompt_version]);
-        $this->assertSame('1200.00', $call->cost_estimate);
+        $this->assertSame('2', $call->cost_estimate_usd);
         $this->assertSame($this->operateur->id, $call->actor_id);
     }
 
@@ -124,8 +124,8 @@ class AiGatewayTest extends TestCase
     public function test_an_exhausted_budget_refuses_without_calling_the_provider(): void
     {
         AgentDEssai::fake();
-        config(['ai.budgets.daily_global_xof' => 10]);
-        AiCall::query()->create(['usage_key' => UsageDEssai::KEY, 'outcome' => 'success', 'cost_estimate' => 10]);
+        config(['ai.budgets.daily_global_usd' => '10']);
+        AiCall::query()->create(['usage_key' => UsageDEssai::KEY, 'outcome' => 'success', 'cost_estimate_usd' => '10']);
 
         $this->assertSame(AiRefusalReason::Budget, $this->refus($this->requete())->reason);
         AgentDEssai::assertNeverPrompted();
@@ -135,7 +135,7 @@ class AiGatewayTest extends TestCase
     public function test_the_kill_switch_refuses_without_calling_and_comes_before_the_budget(): void
     {
         AgentDEssai::fake();
-        config(['ai.budgets.daily_global_xof' => 0]);
+        config(['ai.budgets.daily_global_usd' => '0']);
         AiUsageSetting::query()->create(['usage_key' => UsageDEssai::KEY, 'enabled' => false]);
 
         $this->assertSame(AiRefusalReason::KillSwitch, $this->refus($this->requete())->reason);
@@ -145,7 +145,7 @@ class AiGatewayTest extends TestCase
     public function test_the_budget_comes_before_the_data_check(): void
     {
         AgentDEssai::fake();
-        config(['ai.budgets.daily_global_xof' => 0]);
+        config(['ai.budgets.daily_global_usd' => '0']);
 
         $this->assertSame(AiRefusalReason::Budget, $this->refus($this->requete(classes: [AiDataClass::Sensible]))->reason);
     }
@@ -190,7 +190,7 @@ class AiGatewayTest extends TestCase
     public function test_an_evaluation_skips_budget_and_cache_and_is_flagged(): void
     {
         AgentDEssai::fake([['titre' => 'Villa', 'prix' => 100], ['titre' => 'Villa', 'prix' => 100]]);
-        config(['ai.budgets.daily_global_xof' => 0]);
+        config(['ai.budgets.daily_global_usd' => '0']);
 
         app(AiGateway::class)->run($this->requete(evaluation: true));
         app(AiGateway::class)->run($this->requete(evaluation: true));

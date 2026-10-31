@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Api\Admin;
 
+use App\Models\AiModel;
 use App\Models\AiRoleAssignment;
 use App\Services\Ai\AiGateway;
 use App\Services\Ai\AiRequest;
@@ -55,6 +56,17 @@ class AdminAiRolesTest extends TestCase
         $journal = Activity::query()->where('event', 'super_admin_ai_role_updated')->sole();
         $this->assertSame('modele-a', $journal->properties['before'][0]['model']);
         $this->assertSame('modele-b', $journal->properties['after'][0]['model']);
+    }
+
+    /** TCK-2448 — l'affectation suit le catalogue : un modèle ajouté en base s'affecte, un modèle retiré non. */
+    public function test_a_chain_follows_the_catalogue(): void
+    {
+        $this->actingAsRole('super_admin');
+        AiModel::factory()->create(['model' => 'modele-neuf']);
+        AiModel::factory()->create(['model' => 'modele-retire', 'active' => false]);
+
+        $this->putJson('/api/admin/ai/roles/extraction', ['chain' => [['provider' => 'anthropic', 'model' => 'modele-neuf']]])->assertOk();
+        $this->putJson('/api/admin/ai/roles/extraction', ['chain' => [['provider' => 'anthropic', 'model' => 'modele-retire']]])->assertStatus(422)->assertJsonPath('code', 'ai.model_unpriced');
     }
 
     public function test_an_unknown_provider_an_unpriced_model_and_an_empty_chain_are_refused(): void

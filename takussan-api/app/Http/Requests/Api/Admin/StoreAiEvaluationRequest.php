@@ -21,7 +21,7 @@ class StoreAiEvaluationRequest extends BaseFormRequest
         return [
             'role' => ['required', Rule::enum(AiModelRole::class)],
             'provider' => ['required', 'string', Rule::in(array_keys(config('ai.providers')))],
-            'model' => ['required', 'string', 'max:80'],
+            'model' => ['required', 'string', 'max:255'],
             'max_tokens' => ['nullable', 'integer', 'min:1', 'max:128000'],
         ];
     }

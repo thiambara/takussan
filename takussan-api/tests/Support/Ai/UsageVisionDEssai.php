@@ -44,7 +44,7 @@ final class UsageVisionDEssai implements AiUsage, AttachmentsUseVision
         return PlatformAbility::ConsoleAccess;
     }
 
-    public function dailyBudgetXof(): ?float
+    public function dailyBudgetUsd(): ?string
     {
         return null;
     }

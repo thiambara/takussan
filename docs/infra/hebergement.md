@@ -224,6 +224,13 @@ par l'API rend 422 `radar.whatsapp.not_configured`, rien ne part, et le webhook 
 jeton et l'identifiant de numéro ne doivent jamais être ceux de l'intégration `whatsapp_cloud` des
 notifications : le code les refuse (422 `radar.whatsapp.same_number`).
 
+**Le plafond du socle IA** (TCK-2448, [ADR-0086](../adr/0086-les-couts-ia-se-comptent-en-dollars-et-sans-decimales-figees.md)) :
+`AI_DAILY_BUDGET_USD` remplace `AI_DAILY_BUDGET_XOF`, et le code ne lit plus cette dernière. La clé est en
+dollars ; vide ou absente, le plafond global vaut 8,33 $ (`config/ai.php`). Sa forme est celle d'un
+montant décimal écrit en chiffres : `12.5` est lu, `1e-3` retombe sur le défaut. `AI_USD_TO_XOF` reste,
+et ne sert plus qu'à l'équivalent affiché. ⚠ L'environnement de Dokploy n'a pas été relu pour ce ticket :
+si `AI_DAILY_BUDGET_XOF` y est posée, elle n'a plus d'effet, et son plafond n'est pas repris.
+
 **Courriels.** Le transport `resend` de Laravel exige `resend/resend-php`, que le dépôt n'a eu qu'à
 partir du 2026-09-14 : jusque-là, chaque notification par courriel mourait dans le worker (`Class
 "Resend" not found`, 35 échecs relevés sur la préproduction) — et l'ancien serveur, qui installait le

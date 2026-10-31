@@ -16,7 +16,7 @@ use Tests\Support\Ai\SocleIaDEssai;
 use Tests\Support\Ai\UsageDEssai;
 use Tests\TestCase;
 
-/** TCK-2383 — trois plafonds journaliers en XOF : global, par usage, par agence. */
+/** TCK-2383 — trois plafonds journaliers en dollars : global, par usage, par agence. */
 class AiBudgetTest extends TestCase
 {
     use RefreshDatabase;
@@ -28,42 +28,42 @@ class AiBudgetTest extends TestCase
         $this->installerSocleDEssai();
     }
 
-    private function depense(float $cout, array $colonnes = []): void
+    private function depense(string $cout, array $colonnes = []): void
     {
-        AiCall::query()->create($colonnes + ['usage_key' => UsageDEssai::KEY, 'outcome' => 'success', 'cost_estimate' => $cout]);
+        AiCall::query()->create($colonnes + ['usage_key' => UsageDEssai::KEY, 'outcome' => 'success', 'cost_estimate_usd' => $cout]);
     }
 
     public function test_the_global_ceiling_counts_today_only_and_ignores_evaluations(): void
     {
-        config(['ai.budgets.daily_global_xof' => 100]);
-        $this->depense(60);
-        $this->depense(500, ['is_evaluation' => true]);
-        $hier = AiCall::query()->create(['usage_key' => UsageDEssai::KEY, 'outcome' => 'success', 'cost_estimate' => 500]);
+        config(['ai.budgets.daily_global_usd' => '100']);
+        $this->depense('60');
+        $this->depense('500', ['is_evaluation' => true]);
+        $hier = AiCall::query()->create(['usage_key' => UsageDEssai::KEY, 'outcome' => 'success', 'cost_estimate_usd' => '500']);
         $hier->forceFill(['created_at' => now()->subDay()])->save();
 
         $this->assertFalse(app(AiBudget::class)->exhausted(new UsageDEssai, null, null));
 
-        $this->depense(40);
+        $this->depense('40');
         $this->assertTrue(app(AiBudget::class)->exhausted(new UsageDEssai, null, null));
     }
 
     public function test_the_usage_ceiling_of_the_console_replaces_the_declared_one(): void
     {
-        $this->depense(30);
-        $setting = AiUsageSetting::query()->create(['usage_key' => UsageDEssai::KEY, 'enabled' => true, 'daily_budget_xof' => 30]);
+        $this->depense('30');
+        $setting = AiUsageSetting::query()->create(['usage_key' => UsageDEssai::KEY, 'enabled' => true, 'daily_budget_usd' => '30']);
 
         $this->assertTrue(app(AiBudget::class)->exhausted(new UsageDEssai, $setting, null));
     }
 
     public function test_the_agency_ceiling_only_counts_that_agency(): void
     {
-        config(['ai.budgets.daily_per_agency_xof' => 50]);
+        config(['ai.budgets.daily_per_agency_usd' => '50']);
         [$a, $b] = Agency::factory()->count(2)->create();
-        $this->depense(50, ['agency_id' => $a->id]);
+        $this->depense('50', ['agency_id' => $a->id]);
 
         $this->assertTrue(app(AiBudget::class)->exhausted(new UsageDEssai, null, $a->id));
         $this->assertFalse(app(AiBudget::class)->exhausted(new UsageDEssai, null, $b->id));
-        $this->assertSame(50.0, app(AiBudget::class)->spentToday(UsageDEssai::KEY));
+        $this->assertSame('50', app(AiBudget::class)->spentToday(UsageDEssai::KEY));
     }
 
     public function test_without_a_console_ceiling_the_declared_one_applies_to_that_usage_only(): void
@@ -100,9 +100,9 @@ class AiBudgetTest extends TestCase
                 return (new UsageDEssai)->authority();
             }
 
-            public function dailyBudgetXof(): ?float
+            public function dailyBudgetUsd(): ?string
             {
-                return 20.0;
+                return '20';
             }
 
             public function cacheTtlSeconds(): int
@@ -116,10 +116,10 @@ class AiBudgetTest extends TestCase
             }
         };
 
-        $this->depense(20, ['usage_key' => 'autre.usage']);
+        $this->depense('20', ['usage_key' => 'autre.usage']);
         $this->assertFalse(app(AiBudget::class)->exhausted($usage, null, null));
 
-        $this->depense(20);
+        $this->depense('20');
         $this->assertTrue(app(AiBudget::class)->exhausted($usage, null, null));
     }
 }

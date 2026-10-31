@@ -5,6 +5,7 @@ namespace Tests\Feature\Api\Admin;
 use App\Ai\Usages\ConnectionTestUsage;
 use App\Jobs\Ai\RunAiEvaluation;
 use App\Models\AiEvaluationRun;
+use App\Models\AiModel;
 use App\Models\Enums\AiEvaluationStatus;
 use App\Services\Ai\AiGateway;
 use App\Services\Ai\AiUsageRegistry;
@@ -19,6 +20,9 @@ use Illuminate\Support\Facades\Exceptions;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 use Laravel\Ai\Exceptions\ProviderOverloadedException;
+use Laravel\Ai\Responses\Data\Meta;
+use Laravel\Ai\Responses\Data\TextUsage;
+use Laravel\Ai\Responses\StructuredTextResponse;
 use RuntimeException;
 use Spatie\Activitylog\Models\Activity;
 use Tests\Support\Ai\AgentDEssai;
@@ -76,6 +80,30 @@ class AdminAiEvaluationsTest extends TestCase
         $this->assertEquals(0, $usage['fields']['prix']);
         $this->assertEquals(0.9, $usage['baseline']['global']);
         $this->assertSame('ai.eval.below_baseline', $usage['verdict']);
+    }
+
+    /** TCK-2448 — l'évaluation suit le catalogue : un modèle ajouté en base s'évalue, un modèle retiré non. */
+    public function test_a_candidate_follows_the_catalogue(): void
+    {
+        $this->actingAsRole('super_admin');
+        AiModel::factory()->create(['model' => 'modele-neuf']);
+        AiModel::factory()->create(['model' => 'modele-retire', 'active' => false]);
+
+        $this->postJson('/api/admin/ai/evaluations', ['role' => 'extraction', 'provider' => 'anthropic', 'model' => 'modele-neuf'])->assertStatus(202);
+        $this->postJson('/api/admin/ai/evaluations', ['role' => 'extraction', 'provider' => 'anthropic', 'model' => 'modele-retire'])->assertStatus(422)->assertJsonPath('code', 'ai.model_unpriced');
+    }
+
+    /** ADR-0086 — le coût d'une évaluation est une chaîne en dollars, et le taux vient avec. */
+    public function test_the_cost_of_an_evaluation_is_a_decimal_string_in_dollars(): void
+    {
+        $this->actingAsRole('super_admin');
+        AgentDEssai::fake(fn (string $p, $a, $provider, string $model) => new StructuredTextResponse(['titre' => 'Villa', 'prix' => 100], '{}', new TextUsage(7, 0), new Meta('anthropic', $model)));
+        AiModel::factory()->create(['model' => 'modele-infime', 'input' => '0.00000000004', 'output' => '0', 'cache_read' => '0', 'cache_write' => '0']);
+
+        $id = $this->postJson('/api/admin/ai/evaluations', ['role' => 'extraction', 'provider' => 'anthropic', 'model' => 'modele-infime'])->assertStatus(202)->json('data.id');
+
+        $reponse = $this->getJson('/api/admin/ai/evaluations/'.$id)->assertOk()->assertJsonPath('data.usd_to_xof', '600');
+        $this->assertSame('0.00000000000000028', $reponse->json('data.report.usages')[UsageDEssai::KEY]['cost_usd']);
     }
 
     public function test_assigning_a_model_under_the_ratchet_needs_a_reason_which_is_journaled(): void
@@ -361,7 +389,7 @@ class AdminAiEvaluationsTest extends TestCase
     public function test_a_held_creation_lock_answers_already_running_without_creating_a_run(): void
     {
         $this->actingAsRole('super_admin');
-        $verrou = Cache::lock('ai-eval:extraction:anthropic:modele-b', 10);
+        $verrou = Cache::lock('ai-eval:'.sha1('extraction:anthropic:modele-b'), 10);
         $this->assertTrue($verrou->get());
 
         $this->postJson('/api/admin/ai/evaluations', ['role' => 'extraction', 'provider' => 'anthropic', 'model' => 'modele-b'])
@@ -377,7 +405,7 @@ class AdminAiEvaluationsTest extends TestCase
         $this->actingAsRole('super_admin');
         $this->evaluer();
 
-        $verrou = Cache::lock('ai-eval:extraction:anthropic:modele-b', 10);
+        $verrou = Cache::lock('ai-eval:'.sha1('extraction:anthropic:modele-b'), 10);
         $this->assertTrue($verrou->get());
         $verrou->release();
     }
