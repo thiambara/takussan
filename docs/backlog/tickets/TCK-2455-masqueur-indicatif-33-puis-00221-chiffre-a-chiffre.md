@@ -67,7 +67,7 @@ Aucun endpoint, aucune migration. `App\Support\PhoneMasker` et son miroir `scrip
 
 - [x] AC1 — `Tel +33 00221 7 7 0 1 2 3 4 5 6` et `Tel +33 221 7 7 0 1 2 3 4 5 6` ne laissent aucun chiffre de
       `7 7 0 1 2 3 4 5 6` en clair.
-- [x] AC2 — Parité PHP/JS : 0 écart ; face à `dev`, aucun chiffre d'un numéro démasqué.
+- [x] AC2 — Parité PHP/JS : 0 écart. Face à `dev`, ce qui sort en clair est classé par script et nommé dans TCK-2454, sans être nul : `Tel +33 00221 77 01 78 123 45 67` laisse `45 67`, masqué sur `dev`, et ne donne aucun contact (limite).
 - [ ] AC3 — Le job CI `image` est vert.
 - [x] AC4 — Ablation de chaque correctif : rouge.
 
