@@ -117,7 +117,7 @@ class AiProviderRedirectionTest extends TestCase
     {
         $cas = [];
         foreach (['anthropic', 'openai', 'openrouter', 'openai-compatible'] as $pilote) {
-            foreach ([301, 302, 303, 307, 308] as $statut) {
+            foreach ([300, 301, 302, 303, 307, 308, 399] as $statut) {
                 $cas["{$pilote} {$statut}"] = [$pilote, $statut];
             }
         }
@@ -128,7 +128,7 @@ class AiProviderRedirectionTest extends TestCase
     /** @return array<string, array{int}> */
     public static function statuts(): array
     {
-        return ['301' => [301], '302' => [302], '303' => [303], '307' => [307], '308' => [308]];
+        return ['300' => [300], '301' => [301], '302' => [302], '303' => [303], '307' => [307], '308' => [308], '399' => [399]];
     }
 
     #[DataProvider('pilotesEtStatuts')]
