@@ -42,7 +42,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 3. [🏢 Bailleur / Propriétaire (owner)](#bailleur-propriétaire-owner) — 87 fonctionnalités
 4. [🧑‍💼 Agent immobilier](#agent-immobilier) — 120 fonctionnalités
 5. [🔧 Prestataire de service (service provider)](#prestataire-de-service-service-provider) — 17 fonctionnalités
-6. [🛡️ Admin d'agence / Super-admin](#admin-dagence-super-admin) — 146 fonctionnalités
+6. [🛡️ Admin d'agence / Super-admin](#admin-dagence-super-admin) — 147 fonctionnalités
 7. [👥 Tous les utilisateurs authentifiés](#tous-les-utilisateurs-authentifiés) — 70 fonctionnalités
 
 ---
@@ -878,11 +878,12 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 
 | Prio | Domaine | Fonctionnalité |
 |------|---------|----------------|
-| P1 | §2.11 | Affecter à chaque rôle de modèle (`extraction`, `redaction`, `raisonnement`, `vision`, `embedding`) une chaîne ordonnée de modèles depuis la console super-admin, avec bascule automatique à la panne ; forcer un modèle pour un usage ; sous second facteur récent, journalisé |
+| P1 | §2.11 | Affecter à chaque rôle de modèle (`extraction`, `redaction`, `raisonnement`, `vision`, `embedding`) une chaîne ordonnée de modèles depuis la console super-admin, avec bascule automatique à la panne ; forcer un modèle pour un usage ; un fournisseur d'embeddings ne sert que le rôle `embedding`, et ce rôle ne sert que lui (TCK-2423) ; sous second facteur récent, journalisé |
 | P1 | §2.11 | Évaluer un modèle candidat avant de l'affecter : score par champ et coût, comparés au modèle en place sur le jeu d'évaluation de chaque usage concerné ; un score sous le cliquet bloque l'affectation, sauf dérogation journalisée |
-| P1 | §2.11 | Voir, par fournisseur, si sa clé est présente (jamais sa valeur) et tester la connexion ; seuls les fournisseurs nommés par la politique de confidentialité sont sélectionnables |
-| P1 | §2.11 | Plafonds journaliers en XOF : par usage, réglable depuis la console avec le coupe-circuit de l'usage ; global et par agence, fixés par la configuration du déploiement et non réglables depuis la console, qui affiche le global sans le modifier. Un appel d'évaluation n'y compte pas (TCK-2383) |
-| P1 | §2.11 | Tableau de bord IA : coût et latence par usage et par jour, erreurs, taux d'acceptation des suggestions, dernier score d'évaluation |
+| P1 | §2.11 | Voir, par fournisseur, si sa clé est présente (jamais sa valeur) et tester la connexion (un fournisseur d'embeddings, en lui demandant un vecteur, TCK-2423) ; seuls les fournisseurs nommés par la politique de confidentialité sont sélectionnables |
+| P1 | §2.11 | Ajouter un modèle d'un fournisseur déclaré, corriger ses quatre tarifs en dollars par million de tokens, le retirer depuis la console, ou ramener à la configuration un modèle qui y figure (le tarif de la configuration s'applique de nouveau, et un modèle retiré est rétabli), sous second facteur récent, journalisé. Seul un modèle actif du catalogue s'affecte ; retirer un modèle employé par une chaîne, un modèle forcé ou une chaîne de repli de la configuration est refusé, en nommant ces emplois. Un tarif nul veut dire « gratuit au token ». Un tarif corrigé vaut pour les appels suivants : le coût déjà journalisé ne se recalcule pas (TCK-2448, ADR-0085) |
+| P1 | §2.11 | Plafonds journaliers en dollars, avec leur équivalent approximatif en XOF : par usage, réglable depuis la console avec le coupe-circuit de l'usage ; global et par agence, fixés par la configuration du déploiement et non réglables depuis la console, qui affiche le global sans le modifier. Un appel d'évaluation n'y compte pas. Le taux d'affichage ne décide d'aucun blocage (TCK-2383, TCK-2448, ADR-0086) |
+| P1 | §2.11 | Tableau de bord IA : coût en dollars avec son équivalent approximatif en XOF (un coût minuscule non nul ne se lit pas 0, TCK-2448) et latence par usage et par jour, erreurs, maillons refusés par un autre fournisseur qu'Anthropic (TCK-2449), taux d'acceptation des suggestions, dernier score d'évaluation |
 
 ### §2.12 Radar — acquisition d'annonces
 
@@ -1013,8 +1014,8 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 
 ## Provenance
 
-- Source : [`features.md`](./features.md) — **417** lignes de fonctionnalité lues,
-  réparties en **559** placements (une ligne multi-acteurs compte une fois par acteur).
+- Source : [`features.md`](./features.md) — **418** lignes de fonctionnalité lues,
+  réparties en **560** placements (une ligne multi-acteurs compte une fois par acteur).
 - Générateur : `docs/gen-features-by-actor.mjs`.
 - Fraîcheur vérifiée en CI par `node docs/gen-features-by-actor.mjs --check`, qui échoue si
   cette sortie ne correspond plus à sa source.

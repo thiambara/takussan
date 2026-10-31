@@ -749,16 +749,29 @@ en est le premier usager. Vision et lots : [plan du 2026-10-26](plans/2026-10-26
 
 | Prio | Acteurs | Fonctionnalité |
 |------|---------|----------------|
-| P1 | 🛡️ | Affecter à chaque rôle de modèle (`extraction`, `redaction`, `raisonnement`, `vision`, `embedding`) une chaîne ordonnée de modèles depuis la console super-admin, avec bascule automatique à la panne ; forcer un modèle pour un usage ; sous second facteur récent, journalisé |
+| P1 | 🛡️ | Affecter à chaque rôle de modèle (`extraction`, `redaction`, `raisonnement`, `vision`, `embedding`) une chaîne ordonnée de modèles depuis la console super-admin, avec bascule automatique à la panne ; forcer un modèle pour un usage ; un fournisseur d'embeddings ne sert que le rôle `embedding`, et ce rôle ne sert que lui (TCK-2423) ; sous second facteur récent, journalisé |
 | P1 | 🛡️ | Évaluer un modèle candidat avant de l'affecter : score par champ et coût, comparés au modèle en place sur le jeu d'évaluation de chaque usage concerné ; un score sous le cliquet bloque l'affectation, sauf dérogation journalisée |
-| P1 | 🛡️ | Voir, par fournisseur, si sa clé est présente (jamais sa valeur) et tester la connexion ; seuls les fournisseurs nommés par la politique de confidentialité sont sélectionnables |
-| P1 | 🛡️ | Plafonds journaliers en XOF : par usage, réglable depuis la console avec le coupe-circuit de l'usage ; global et par agence, fixés par la configuration du déploiement et non réglables depuis la console, qui affiche le global sans le modifier. Un appel d'évaluation n'y compte pas (TCK-2383) |
-| P1 | 🛡️ | Tableau de bord IA : coût et latence par usage et par jour, erreurs, taux d'acceptation des suggestions, dernier score d'évaluation |
+| P1 | 🛡️ | Voir, par fournisseur, si sa clé est présente (jamais sa valeur) et tester la connexion (un fournisseur d'embeddings, en lui demandant un vecteur, TCK-2423) ; seuls les fournisseurs nommés par la politique de confidentialité sont sélectionnables |
+| P1 | 🛡️ | Ajouter un modèle d'un fournisseur déclaré, corriger ses quatre tarifs en dollars par million de tokens, le retirer depuis la console, ou ramener à la configuration un modèle qui y figure (le tarif de la configuration s'applique de nouveau, et un modèle retiré est rétabli), sous second facteur récent, journalisé. Seul un modèle actif du catalogue s'affecte ; retirer un modèle employé par une chaîne, un modèle forcé ou une chaîne de repli de la configuration est refusé, en nommant ces emplois. Un tarif nul veut dire « gratuit au token ». Un tarif corrigé vaut pour les appels suivants : le coût déjà journalisé ne se recalcule pas (TCK-2448, ADR-0085) |
+| P1 | 🛡️ | Plafonds journaliers en dollars, avec leur équivalent approximatif en XOF : par usage, réglable depuis la console avec le coupe-circuit de l'usage ; global et par agence, fixés par la configuration du déploiement et non réglables depuis la console, qui affiche le global sans le modifier. Un appel d'évaluation n'y compte pas. Le taux d'affichage ne décide d'aucun blocage (TCK-2383, TCK-2448, ADR-0086) |
+| P1 | 🛡️ | Tableau de bord IA : coût en dollars avec son équivalent approximatif en XOF (un coût minuscule non nul ne se lit pas 0, TCK-2448) et latence par usage et par jour, erreurs, maillons refusés par un autre fournisseur qu'Anthropic (TCK-2449), taux d'acceptation des suggestions, dernier score d'évaluation |
 
 **Règles de gestion.**
 
 - **Aucun nom de modèle dans le code applicatif** : le code demande un rôle, l'affectation vit en
   base avec un repli sur la configuration.
+- **Un modèle se règle dans la console, un fournisseur dans le déploiement** : le catalogue
+  (`AiModelCatalogue`) est l'union de la table `ai_models` et de `config('ai.pricing')`, et une ligne
+  l'emporte sur la configuration pour le même couple, y compris pour en retirer un modèle. La liste des
+  fournisseurs reste fermée dans `config/ai.php`. Un modèle retiré peut rester employé (affectation
+  concurrente, changement de configuration) : l'appel part et se compte, et la console le signale
+  (TCK-2448, [ADR-0085](adr/0085-un-modele-se-regle-dans-la-console-un-fournisseur-dans-le-deploiement.md)).
+- **Le coût d'un appel, les plafonds et les tarifs sont en dollars, sans décimales figées** : des
+  chaînes décimales, en `numeric` sans précision, calculées par `bcmath`, sommées et comparées en SQL
+  ou par `bccomp`, jamais en `float` ni sous un cast `decimal:N` ; `scripts/check-ai-money.mjs` garde
+  les formes qu'il connaît. Le XOF n'existe qu'à l'affichage, présenté comme approximatif
+  (`AI_USD_TO_XOF`, 600 par défaut), et l'arrondi n'arrive qu'à l'écran (TCK-2448,
+  [ADR-0086](adr/0086-les-couts-ia-se-comptent-en-dollars-et-sans-decimales-figees.md)).
 - **Les clés des fournisseurs restent dans l'environnement**, jamais en base ni dans la console.
 - **L'IA propose, un humain décide** : une sortie qui modifierait une donnée est une suggestion
   acceptée, corrigée ou rejetée, et la correction est conservée.
@@ -794,26 +807,38 @@ en est le premier usager. Vision et lots : [plan du 2026-10-26](plans/2026-10-26
   `Villa R+1 00221 77 012 34 56 3 chambres` donne `Villa R+1 [TELEPHONE] 3 chambres` (TCK-2451).
   Ailleurs, un indicatif étranger suivi de `00221`, de `221` nu, ou de `(221)` derrière `1` ou `7`,
   peut englober le numéro sénégalais qui suit. Par exemple : `Contact +1 (221) 77 012 34 56` donne
-  `Contact [TELEPHONE]`, `Villa R+1 (221) 77 012 34 56 F` donne `Villa R[TELEPHONE] F`,
-  `Villa R+1 221 77 01 234 56` donne `Villa R[TELEPHONE]`, `Immeuble R+20 00221 77 123 45 67` donne
+  `Contact [TELEPHONE]`, `Villa R+1 221 77 01 234 56` donne `Villa R[TELEPHONE]`, `Immeuble R+20 00221 77 123 45 67` donne
   `Immeuble R[TELEPHONE]`, `Contact +1 00221 77 012 34 56 3 chambres` donne
   `Contact [TELEPHONE] 3 chambres` ; mais `Contact +1 (221) 770123456` donne
-  `Contact +1 (221) [TELEPHONE]` (TCK-2451). Limites connues, en exemples non exhaustifs. Un chiffre
-  derrière `(221)` et un numéro peut rester hors du masque : `Villa R+1 (221) 77 012 34 56 7` donne
-  `Villa R+1 (221) [TELEPHONE] 7` (TCK-2447). Derrière `221` nu ou `(221)`, certains groupements
-  sortent inchangés, avec ou sans marque (à traiter : TCK-2454), par exemple
-  `Villa R+1 221 770 123 456`, `Villa R+1 (221) 7 7 0 1 2 3 4 56`, `Villa R+1 221 770123456 F`,
-  `Villa R+1 (221) 770123456 F`, `Villa R+1 221 77 01 23 456 F`. Derrière un étage, certains numéros à
-  indicatif laissent des chiffres en clair (à traiter : TCK-2454), par exemple
-  `Villa R+1 00221 77 012 34 56 78 90` donne `Villa R[TELEPHONE] 34 56 78 90`, de même derrière `… 56` :
-  `12 500 F`, `000 F`, `1234 m2`, `3,5 pièces`, `3 /mois`, `0 frais` ;
-  `Villa R+1 00221 77 012 34 / 78 123 45 67` donne `Villa R[TELEPHONE] 34 / [TELEPHONE]` ;
-  `Immeuble R+20 0221 77 123 45 67` donne `Immeuble R[TELEPHONE] 67` ;
-  `Villa R+1 (221) 7 7 0 1 2 3 4 5 6 3 chambres` donne `Villa R+1 (221) 7 [TELEPHONE] chambres`. Sans
-  étage, le groupe qui suit reste en clair : `Villa 00221 77 012 34 56 78 90` donne
-  `Villa [TELEPHONE] 78 90`. Derrière `+33`, un numéro écrit chiffre à chiffre laisse sa fin en clair
-  (à traiter : TCK-2455), par exemple `Tel +33 00221 7 7 0 1 2 3 4 5 6` donne
-  `Tel +[TELEPHONE] 0 1 2 3 4 5 6`, `Tel +33 221 7 7 0 1 2 3 4 5 6` donne `Tel +[TELEPHONE] 2 3 4 5 6`.
+  `Contact +1 (221) [TELEPHONE]` (TCK-2451). Derrière `221` nu ou `(221)`, neuf chiffres sont masqués
+  quel que soit leur groupement dans les écritures éprouvées, même suivis d'une marque ; l'indicatif part
+  avec eux ou reste, selon l'écriture : `Villa R+1 221 770 123 456` donne `Villa R+1 [TELEPHONE]`,
+  `Villa R+1 (221) 770123456 F` et `Villa R+1 (221) 77 012 34 56 F` donnent `Villa R+1 [TELEPHONE] F`,
+  `Villa R+1 (221) 7 7 0 1 2 3 4 5 6 3 chambres` donne `Villa R+1 [TELEPHONE] 3 chambres`, mais
+  `Villa (221) 7 7 0 1 2 3 4 5 6` donne `Villa (221) [TELEPHONE]`. Un montant reste entier : un groupement
+  3-3-3 en `000` (`Lot (221) 300 000 000 F`), ou coupé par une barre devant un montant
+  (`Villa R+1 221 77 012 3 / 450 000 F`) (TCK-2454). Un numéro à indicatif écrit par groupes s'arrête au
+  neuvième chiffre, et ce qui le suit reste en clair : `Villa R+1 00221 77 012 34 56 78 90` donne
+  `Villa R+1 [TELEPHONE] 78 90`, de même derrière `… 56` : `12 500 F`, `1234 m2`, `3,5 pièces`,
+  `3 /mois`, `0 frais`. Un numéro tronqué s'arrête devant le suivant :
+  `Villa R+1 00221 77 012 34 / 78 123 45 67` donne `Villa R[TELEPHONE] / [TELEPHONE]`, et
+  `Immeuble R+20 0221 77 123 45 67` donne `Immeuble R[TELEPHONE]` (TCK-2454). Un indicatif étranger qui
+  se lit aussi comme un préfixe sénégalais (`33`, `30`, `75`, `93`…), avec ou sans `+`, peut englober le
+  numéro sénégalais qui suit, écrit derrière `00221` ou `221` nu : `Tel +33 00221 7 7 0 1 2 3 4 5 6` donne
+  `Tel [TELEPHONE]`, `Tel 30 221 7 7 0 1 2 3 4 5 6` donne `Tel [TELEPHONE]`, mais
+  `Tel 33 221 77 012 34 56` donne `Tel 33 [TELEPHONE]` (TCK-2455). Limites connues, en
+  exemples non exhaustifs. Un numéro écrit en toutes lettres n'est pas masqué : le masque ne lit que des
+  chiffres. Un chiffre derrière `(221)` et un numéro peut rester hors du masque :
+  `Villa R+1 (221) 77 012 34 56 7` donne `Villa R+1 (221) [TELEPHONE] 7` (TCK-2447). Le groupe qui suit un
+  numéro entier reste en clair, et il peut être le début d'un second numéro :
+  `Villa 00221 77 012 34 56 78 90` donne `Villa [TELEPHONE] 78 90`,
+  `Villa R+1 00221 77 012 34 78 123 45 67` donne `Villa R+1 [TELEPHONE] 123 45 67`,
+  `Tel +33 00221 77 01 78 123 45 67` donne `Tel [TELEPHONE] 45 67`. `000` derrière neuf chiffres est lu comme
+  la fin d'un montant, et le dernier groupe du numéro reste en clair :
+  `Villa R+1 00221 77 012 34 56 000 F` donne `Villa R[TELEPHONE] 56 000 F`,
+  `Villa R+20 00221 77 0 12 34 56 450 000 F` donne `Villa R[TELEPHONE] 56 450 000 F`. D'un seul tenant ou en
+  3-3-3, un nombre en `000` derrière `221` ou `(221)` reste en clair, même s'il est un numéro
+  (`Villa (221) 770 123 000`, `Villa 221 770123000 F`) (TCK-2454).
   Derrière `7`, avec ou sans étage, une zone
   de quatre ou cinq chiffres entre parenthèses commençant par 3 à 9, suivie de six ou cinq chiffres, est
   un numéro aussi (`+7 (3452) 12-34-56`, `+7 (34922) 1-23-45`) ; une année entre parenthèses n'en est
@@ -834,13 +859,33 @@ en est le premier usager. Vision et lots : [plan du 2026-10-26](plans/2026-10-26
   une vraie conversation, et 14 réponses texte inventées (`text-cases.php`) ; il mesure la lecture de formes
   connues et ne dit rien de la distribution réelle des réponses. Il note le classement, la
   concordance du numéro, le numéro transcrit et les clauses lisibles (TCK-2388, TCK-2427).
-- **Le schéma de sortie d'un usage tient sous les limites publiées du fournisseur** (16 paramètres à
-  union, 24 optionnels) ; un test le vérifie pour chaque agent. Une sortie stricte (grammaire du
-  fournisseur) ne dépasse pas la taille de schéma qu'un vrai appel a attestée. Un usage dont le
-  schéma la dépasse (aujourd'hui l'extraction du Radar) le déclare dans son agent
-  (`SocleAgent::usesStrictSchema()` faux) et passe par l'outil de sortie non strict, dont le
-  normaliseur et la relecture humaine valident la forme : c'est un choix par agent, pas un repli à
-  l'exécution (TCK-2411, TCK-2433).
+- **Le schéma de sortie d'un usage tient sous les limites publiées de chaque pilote attesté**
+  (`anthropic` aujourd'hui : 16 paramètres à union, 24 optionnels) ; un test le vérifie pour chaque agent.
+  Le mode strict se déclare par agent et par pilote (`SocleAgent::strictDrivers()`), jamais d'après le nom
+  d'une entrée de configuration, et il n'est vrai que sur un pilote où un vrai appel a attesté la taille de
+  schéma ; un test refuse tout autre pilote. Une sortie stricte ne dépasse pas cette taille. Un usage dont
+  le schéma la dépasse (aujourd'hui l'extraction du Radar) ne déclare aucun pilote. Hors du mode strict, la
+  sortie passe par l'outil de sortie non forcé sur `anthropic`, et par `text.format` ou `response_format` à
+  `strict: false` sur `openai`, `openrouter` et `openai-compatible` ; une réponse sans sortie y est un échec
+  du maillon (`ai.response_invalid`), et la chaîne bascule, là où, en mode strict sur `anthropic`, elle reste
+  un succès à vide. C'est un choix déclaré, pas un repli à l'exécution : un refus du fournisseur n'est pas
+  rejoué autrement sur le même maillon (TCK-2411, TCK-2433, TCK-2449).
+- **Un refus du fournisseur ne bascule que hors d'Anthropic, et s'il reste un maillon** : sur un autre
+  pilote qu'`anthropic`, un statut 400, 404, 408, 413, 422 ou 500, ou une erreur écrite dans le corps de la
+  réponse, y compris en HTTP 200, fait passer au maillon suivant ; la ligne du journal le dit
+  (`warning: provider_rejected`), et le tableau de bord les compte, sans alerte : un fournisseur cassé
+  s'efface derrière le secours. Sur `anthropic` et sur le dernier maillon, l'exception arrête l'appel. Une
+  clé refusée (401, 403) ne bascule pas ; limite : le SDK ne garde du corps que `type`, ou `code` sur
+  OpenRouter, et un 401 sans `type` sur `openai` ou `openai-compatible` ne s'y lit pas et bascule. Un 408
+  vaut `ai.provider_timeout` sur tout pilote. Hors d'Anthropic, tout cela décrit le code, vérifié contre un
+  faux client HTTP et la documentation des fournisseurs : aucun vrai appel ne l'a éprouvé (TCK-2449,
+  [ADR-0085, amendement du 2026-10-31](adr/0085-un-modele-se-regle-dans-la-console-un-fournisseur-dans-le-deploiement.md)).
+- **Un usage d'embeddings se joue par `AiGateway::embed()`** : ni agent ni prompt, et il peut tourner sans
+  acteur, pour une tâche planifiée. Le coupe-circuit, les plafonds, le masquage, le journal et la bascule
+  restent ceux des autres usages. Il ne paie que son entrée, et le coût journalisé ignore les tokens offerts
+  par le fournisseur : c'est une estimation haute. Son fournisseur n'est appelé que s'il a une clé, la
+  déclaration de refus de l'entraînement quand il la demande, et une adresse `https` sur un hôte que la
+  configuration accepte quand elle en déclare (TCK-2423, [ADR-0076, amendement du 2026-10-31](adr/0076-le-socle-ia.md)).
 - **Tout job qui appelle le modèle hors d'une requête HTTP déclare la file des appels IA** (`ai`) ;
   un appel plus long que le délai de reprise de la file par défaut (85 s au plus) prend la file des
   jobs longs. Une règle de CI le vérifie (`scripts/check-queues.mjs`, TCK-2402).
@@ -848,9 +893,9 @@ en est le premier usager. Vision et lots : [plan du 2026-10-26](plans/2026-10-26
 - **Un contenu externe est une donnée, jamais une consigne** : il arrive au modèle dans un bloc
   délimité, dont la balise n'est pas prévisible et qu'il ne peut pas refermer, et l'usage qui le lit
   n'a aucun outil, pas même de lecture, et ne rend qu'une sortie structurée (TCK-2398) — stricte
-  (grammaire du fournisseur) par défaut, ou par l'outil de sortie non strict du SDK pour un agent qui
-  le déclare ; ce canal n'est pas un outil : rien ne s'y exécute
-  (TCK-2433).
+  (grammaire du fournisseur) sur les pilotes qu'un agent déclare, sinon non stricte : par l'outil de
+  sortie du SDK sur `anthropic`, par le format de réponse ailleurs ; ce canal n'est pas un outil : rien
+  ne s'y exécute (TCK-2433, TCK-2449).
 - La suite de tests n'appelle jamais un vrai modèle ; les évaluations se lancent à part.
 
 ### 2.12 Radar — acquisition d'annonces
@@ -1112,29 +1157,35 @@ catalogue tant que cet accord n'existe pas. Vision et lots : [plan du 2026-10-26
   `221` qui touche le numéro, nu ou entre parenthèses, au plus trois espaces, points, tirets `-` ou
   barres `/` entre eux, n'est pas un prix : `Villa (221) 77 012 34 56` et `Villa 221 / 77 012 34 56`
   ne rendent aucun prix (TCK-2447). Limites connues : `Villa ( 221 ) 77 012 34 56`, un tiret long
-  (`Villa (221) – 77 012 34 56`), un `:`, une `,`, des crochets (`Villa [221] 77 012 34 56`) ou
-  l'écriture `0221` (`Villa 0221 77 012 34 56`) laissent encore un prix de 221 (TCK-2447). Derrière
-  l'étage `1` ou `7`, certaines écritures ne donnent pas le contact, en exemples non exhaustifs :
-  `Villa R+1 221 77 01 234 56`, `Villa R+1 221 77 012 34 56 F`, `Villa R+1 (221) 77 012 34 56 F`,
-  `Villa R+1 (221) 7 70 12 34 56`, `Villa R+1 00 221 77 012 34 56` et
-  `Villa R+1 00221 77 1 23 45 67` sont masqués sans contact, de même
+  (`Villa (221) – 77 012 34 56`), un `:`, une `,` ou des crochets (`Villa [221] 77 012 34 56`) laissent
+  encore un prix de 221 (TCK-2447) ; l'écriture `0221` (`Villa 0221 77 012 34 56`) n'en laisse plus
+  (TCK-2454). Derrière l'étage `1` ou `7`, certaines écritures ne donnent pas le contact, en exemples non
+  exhaustifs : `Villa R+1 221 77 01 234 56`, `Villa R+1 (221) 7 70 12 34 56`,
+  `Villa R+1 00 221 77 012 34 56` et `Villa R+1 00221 77 1 23 45 67` sont masqués sans contact, de même
   `Villa R+1 00221 7 7 0 1 2 3 4 5 6`, quand `Villa R+1 221 7 7 0 1 2 3 4 5 6` donne le contact et
-  laisse `221` en clair ; `Villa R+1 00221 77 012 34 56 / 78 123 45 67` ne donne que le second
-  contact, quand `Villa R+1 (221) 77 012 34 56 / 78 123 45 67` donne les deux (TCK-2451). Derrière
-  `221` nu ou `(221)`, certains groupements sortent inchangés et peuvent se lire comme un prix (à
-  traiter : TCK-2454), par exemple `Villa R+1 221 770123456 F` et `Villa R+1 (221) 770123456 F`
-  rendent 770 123 456, `Villa R+1 221 77 01 23 456 F` rend 23 456, `Villa R+1 221 770 123 456` rend
-  221 770 123 456, et `Villa R+1 221 77-01-23-456 F` ne rend aucun prix. Un chiffre qui suit peut
-  être lu comme un prix : `Villa R+1 (221) 77 012 34 56 78 F` garde son contact et rend 78 (TCK-2447).
-  Écrit chiffre à chiffre et suivi d'un petit nombre et d'un mot, un numéro peut donner un **faux
-  contact**, écrit nulle part (à traiter : TCK-2454) :
-  `Villa R+1 (221) 7 7 0 1 2 3 4 5 6 2 salons` donne `+221701234562` et un prix de 221, quand
-  `Villa R+1 (221) 7 7 0 1 2 3 4 5 6 3 chambres` ne donne pas de contact et rend 221. Suivi d'un
-  groupe de chiffres, un numéro à indicatif derrière un étage peut perdre son contact, et ce qui suit
-  se lire comme un prix, parfois agrégé à la fin du numéro (à traiter : TCK-2454), par exemple
-  `Villa R+1 00221 77 012 34 56 78 90` ne donne pas de contact, quand
-  `Villa 00221 77 012 34 56 78 90` le donne ; `Villa R+1 00221 77 012 34 56 000 F` rend 56 000,
-  `… 56 450 000 F` rend 56 450 000, `… 56 12 500 F` rend 12 500, `… 56 3 /mois` rend 3. Un nombre nu de moins de 100, sans monnaie, période ni multiplicateur, n'est jamais
+  laisse `221` en clair (TCK-2451). Une barre sépare deux numéros et donne les deux :
+  `Villa R+1 00221 77 012 34 56 / 78 123 45 67`, `Villa R+1 (221) 77 012 34 56 / 78 123 45 67` ; sans
+  barre, le numéro entier gagne : `Villa R+1 00221 77 012 34 78 123 45 67` donne `+221770123478` et laisse
+  `123 45 67` en clair (TCK-2454). Neuf chiffres derrière `221` nu ou `(221)`, sans marque derrière, peuvent
+  donner le contact : `Lot 221 77 012 34 56`, `Villa R+1 (221) 770 123 456`,
+  `Villa R+1 (221) 7 7 0 1 2 3 4 5 6 3 chambres`. D'autres sont masqués sans contact, en exemples non
+  exhaustifs : suivis d'une marque (`Villa R+1 221 77 012 34 56 F`, `Villa R+1 (221) 77 012 34 56 F`,
+  `Villa R+1 (221) 770123456 F`), en 3-3-3 derrière un mot de prix ou de liste
+  (`Lots 221 300 301 302`), ou dans certains groupements chiffre à chiffre
+  (`Villa R+1 (221) 7 7 0 1 2 3 4 56`, `Villa 221 7 70 1 2 3 4 5 6`) ; `Villa 221 77 012 3 500 F` perd en
+  plus son prix (TCK-2454). Ils ne sont pas un prix ; un chiffre qui suit peut l'être :
+  `Villa R+1 (221) 77 012 34 56 78 F` garde son contact et rend 78 (TCK-2447). Écrit par groupes et suivi
+  d'un groupe de chiffres, en exemples non exhaustifs, un numéro à indicatif garde son contact, et ce qui
+  suit se lit seul : `Contact : +221 76 330 45 67` à la ligne, `25 000 F par mois` rend 25 000,
+  `Villa R+1 00221 77 012 34 56 450 000 F` rend 450 000, `… 56 12 500 F` rend 12 500, `… 56 3 /mois`
+  rend 3, et `Tel 77 123 45 67 450 000 F`, sans indicatif, rend 450 000 ; sauf `000`, lu comme la fin d'un
+  montant : `Villa R+1 00221 77 012 34 56 000 F` rend 56 000, sans contact (TCK-2454). Limites connues, en
+  exemples non exhaustifs : `Villa R+20 00221 77 0 12 34 56 450 000 F` rend 56 450 000, sans contact ; donnent
+  un **faux contact**, écrit nulle part ou qui n'est pas un numéro, `Réf 221 300 123 456`,
+  `Villa 221 300 123 500`, `Villa 221 77 012 3 500`, `Lots 221 30 31 32 333`,
+  `Villa 7 70 12 34 56 2 salons` (`+221701234562`), `Villa R+1 00221 77 012 34-78` (`+221770123478`) et
+  `Tel +221 75 81 0 17 78 78 123 45 67` (`+221787812345`). `Tel 00221 77 012 34/56` reste lu sans
+  devenir le contact (TCK-2454). Un nombre nu de moins de 100, sans monnaie, période ni multiplicateur, n'est jamais
   choisi comme prix (un compte, un horaire `H24/7`, le reste d'un numéro) (TCK-2428).
 - **La collecte ne part que d'un geste du porteur** : une source naît éteinte ; celui qui l'allume en
   devient l'opérateur, au nom duquel l'extraction est jugée et comptée sur le budget d'IA. Une
@@ -1173,8 +1224,29 @@ catalogue tant que cet accord n'existe pas. Vision et lots : [plan du 2026-10-26
   historique de marché au-delà de la rétention passera par des compteurs anonymes agrégés (TCK-2434,
   à valider juridiquement) (TCK-2392, ADR-0080).
 - **Quatrième signal de rapprochement, le texte** : similarité des descriptions par trigrammes
-  (`pg_trgm`), sans aucun chiffre ; il ne rend jamais un rapprochement fort à lui seul. Un pilote
-  d'embeddings le remplacera (TCK-2423).
+  (`pg_trgm`), sans aucun chiffre ; il ne rend jamais un rapprochement fort à lui seul. Avec une clé
+  Voyage AI, `VOYAGE_TRAINING_OPT_OUT=true` et la table `embeddings`, deux annonces qui ont chacune un
+  vecteur à jour se comparent par similarité cosinus, avec leurs propres seuils
+  (`radar.similarity.embeddings`) ; tout autre cas passe par `pg_trgm`, et le signal dit sa méthode
+  (`method`). Une panne du fournisseur n'empêche aucun appariement : aucun appel ne part de l'appariement
+  (TCK-2423).
+- **Les vecteurs se calculent en file `ai`, jamais à l'appariement** : `radar:embed-listings`, toutes les
+  15 minutes, met en file un lot d'annonces extraites et sans vecteur à jour, à une étape où le refus STOP a
+  été jugé ; une seule tentative, puis une pause des balayages après un refus ou une panne. L'usage est
+  `radar.embedding`. Seul le premier maillon du rôle `embedding` compte : deux modèles ne se comparent pas. À
+  réception d'un STOP, les envois suivants du texte de l'annonceur cessent, et son vecteur s'efface à la
+  purge suivante, comme celui d'une annonce purgée ; d'ici là il peut servir à un rapprochement, et un envoi
+  déjà en cours n'est pas annulé. La fusion automatique juge par `pg_trgm`, sans aucun vecteur (TCK-2423).
+- **Ce qui part chez Voyage AI** : `similarity_text`, sans chiffres, et masqué par le socle. Un nom, une adresse
+  électronique ou un numéro écrits en toutes lettres y restent, et partent ; la politique de confidentialité
+  le dit (§ 4.3). `VOYAGE_TRAINING_OPT_OUT` déclare le refus de l'entraînement posé sur le compte Voyage,
+  et ne le prouve pas : aucune API ne permet de le lire. Une clé sans déclaration n'envoie rien, et
+  le journal le signale (`radar.embeddings.training_opt_out_undeclared`) (TCK-2423).
+- **Limites des vecteurs** : leurs seuils ne reposent sur aucune mesure, et rien n'a été éprouvé sur la
+  vraie API, dont le contrat est lu sur la documentation ; deux annonces d'un même annonceur peuvent
+  se ressembler assez pour faire monter un rapprochement. Sans extension `vector` disponible et permise, la
+  table n'existe pas, et le Radar reste sur `pg_trgm` (`ai:install-embeddings`, une fois l'extension posée)
+  (TCK-2423).
 - **Les agrégats de marché de l'observatoire ne lisent que des données anonymes** (prix au m²,
   temps de mise sur le marché, écart d'offre, sources disparues : instantanés, site, rattachement au
   catalogue, disparition) ; une annonce vue sur plusieurs sites compte une fois
