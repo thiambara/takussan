@@ -8497,6 +8497,7 @@
           "statusReady": "Prêt",
           "statusKeyMissing": "Clé absente",
           "statusHostNotAllowed": "Adresse non acceptée",
+          "statusTrainingOptOutUndeclared": "Refus de l’entraînement non déclaré",
           "host": "Hôte : {host}",
           "models": "Modèles actifs",
           "test": "Tester la connexion",
@@ -8892,6 +8893,8 @@
               "photo_high": "photo identique",
               "photo_medium": "photo proche",
               "photo_low": "photo proche",
+              "meaning_close": "même sens",
+              "meaning_low": "sens voisin",
               "text_close": "texte presque identique",
               "text_low": "texte ressemblant"
             },

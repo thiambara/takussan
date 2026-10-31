@@ -7,7 +7,7 @@
  *   B. tout usage de `app/Ai/Usages/` est listé dans `AiUsageRegistry::USAGES` ;
  *   C. aucune classe hors de `app/Ai/Agents/` n'emploie `Laravel\Ai\Promptable`, n'implémente
  *      `Laravel\Ai\Contracts\Agent` ni n'étend `SocleAgent` : un agent hors du dossier échapperait à A ;
- *   D. aucun identifiant de modèle (`claude-…`, `gpt-…`, `gemini-…`, `mistral-…`, `llama-…` portant
+ *   D. aucun identifiant de modèle (`claude-…`, `gpt-…`, `gemini-…`, `mistral-…`, `llama-…`, `voyage-…` portant
  *      un chiffre) hors de `takussan-api/config/ai.php` : ni dans `app/`, `routes/`, `database/`,
  *      `resources/ai/` de l'API, ni dans `takussan-web/src/` hors tests.
  *
@@ -38,7 +38,7 @@ const RACINES_MODELES = [
   join(ROOT, 'takussan-web', 'src'),
 ];
 
-export const MOTIF_MODELE = /\b(?:claude|gpt|gemini|mistral|llama)-[a-z0-9.-]*\d[a-z0-9.-]*/i;
+export const MOTIF_MODELE = /\b(?:claude|gpt|gemini|mistral|llama|voyage)-[a-z0-9.-]*\d[a-z0-9.-]*/i;
 export const MOTIF_AGENT = /use\s+Laravel\\Ai\\Promptable\s*;|implements\s+[^{]*\bAgent\b/;
 
 function fichiers(dossier, filtre) {
@@ -71,6 +71,7 @@ export function estTest(chemin) {
 const CAS_EPREUVE = [
   { motif: MOTIF_MODELE, texte: "'model' => 'claude-sonnet-5-5'", attendu: true },
   { motif: MOTIF_MODELE, texte: "$x = 'gpt-4o-mini';", attendu: true },
+  { motif: MOTIF_MODELE, texte: "'model' => 'voyage-4-lite'", attendu: true },
   { motif: MOTIF_MODELE, texte: '// voir claude-api pour le SDK', attendu: false },
   { motif: MOTIF_MODELE, texte: "'modele-a'", attendu: false },
   { motif: MOTIF_AGENT, texte: 'use Laravel\\Ai\\Promptable;', attendu: true },

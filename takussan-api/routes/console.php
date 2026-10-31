@@ -246,3 +246,7 @@ Schedule::command('boosts:tick')->everyFiveMinutes()->withoutOverlapping(5);
 // `CrawlRadarSource`), fusion des doublons entre sites. Rien ne part tant qu'aucune source n'est allumée par le porteur.
 // Idempotente : un seul passage actif par site (index unique partiel), une fusion jugée une fois (`merge_checked_at`).
 Schedule::command('radar:crawl')->everyFifteenMinutes()->withoutOverlapping(15);
+
+// TCK-2423 (ADR-0076, amendement du 2026-10-31) — le prochain lot d'annonces sans vecteur à jour, en file `ai`. Sans clé ni table,
+// rien ne part. Idempotente : une annonce à jour (empreinte du texte) n'est jamais reprise, et un échec suspend les balayages.
+Schedule::command('radar:embed-listings')->everyFifteenMinutes()->withoutOverlapping(15);

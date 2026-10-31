@@ -82,6 +82,8 @@ return [
         'provider_host_not_allowed' => "L'adresse de ce fournisseur n'est pas sur un hôte accepté.",
         'provider_key_missing' => "Aucune clé n'est configurée pour ce fournisseur.",
         'provider_redirected' => "Ce fournisseur a répondu par une redirection : la demande n'a pas été renvoyée.",
+        'provider_role_mismatch' => 'Ce fournisseur ne sert pas ce rôle : les embeddings et le texte ne se mélangent pas.',
+        'provider_unreachable' => "Rien n'est envoyé à ce fournisseur : refus de l'entraînement non déclaré, ou adresse non acceptée.",
         'provider_unknown' => 'Fournisseur IA inconnu.',
         'role_unknown' => 'Rôle IA inconnu.',
         'usage_unknown' => 'Usage IA inconnu.',

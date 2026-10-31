@@ -116,7 +116,8 @@ configuration du déploiement : un commit, un déploiement, la mention dans la p
 - **Ce qui n'est pas fait** :
   - une clé en base ou une adresse dans la console ;
   - un plafond de classe de données par fournisseur ;
-  - le rôle `embedding`, qui attend toujours son premier fournisseur (TCK-2392, TCK-344).
+  - le rôle `embedding`, qui attendait son premier fournisseur : Voyage AI depuis TCK-2423 (ADR-0076, amendement du
+    2026-10-31). La console ne mélange pas les fournisseurs de texte et d'embeddings.
 - **Coût** : cet ADR et trois tickets, [TCK-2448](../backlog/tickets/TCK-2448-catalogue-des-modeles-ia-en-console.md),
   [TCK-2449](../backlog/tickets/TCK-2449-socle-ia-neutre-vis-a-vis-du-fournisseur.md) et
   [TCK-2450](../backlog/tickets/TCK-2450-fournisseurs-ia-openai-openrouter-compatibles.md).
@@ -194,13 +195,16 @@ d'OpenRouter le 2026-10-31 : aucune clé n'existe, aucun vrai appel ne les a ép
 - **La garde `check-ai-providers-privacy.mjs` rougit sur un `data_collection` autre que `deny`** : `privacy.ts` promet
   `deny`, donc le texte change avec la configuration.
 
-**Une redirection n'est pas suivie, sur aucun pilote, Anthropic compris.** Ni le corps ni la clé ne partent vers
+**Une redirection n'est pas suivie, sur aucun pilote, Anthropic compris, ni pour un appel d'embeddings (`embed()`, Voyage AI).** Ni le corps ni la clé ne partent vers
 l'adresse rendue : `AiGateway::withoutFollowingRedirects()` fait lever `ai.provider_redirected`, classé en panne de maillon,
 qui bascule s'il en reste un. Le contrôle d'hôte ne porte que sur l'adresse configurée : c'est ce refus qui le rend vrai
 jusqu'au bout. Une réponse 3xx sans `Location` n'est pas une redirection : elle arrive au SDK, et finit en erreur.
 
 **Une réponse sans `usage`** écrit `warning: usage_missing`, et le tableau de bord la compte dans `provider_rejections`. Le
 budget n'en est pas informé : elle y vaut zéro.
+
+**Une clé Voyage sans la déclaration du refus de l'entraînement n'est pas sélectionnable** (`training_opt_out_undeclared`, code
+`ai.provider_unreachable`) : le catalogue a une seule réponse, et `reachable()` n'y ajoute que `https`, même en `local` et `testing`.
 
 **Limite connue.** Derrière un dernier maillon sans clé, la cause d'un 400 se perd : l'usage rend
 `ai.provider_key_missing` au lieu de `ai.request_rejected`. La ligne du journal garde la bonne cause.

@@ -2,11 +2,13 @@
 
 namespace Tests\Feature\Ai;
 
+use App\Ai\Usages\RadarEmbeddingUsage;
 use App\Models\AiCall;
 use App\Models\Enums\AiCallOutcome;
 use App\Models\Enums\AiDataClass;
 use App\Services\Ai\AiGateway;
 use App\Services\Ai\AiRequest;
+use App\Services\Ai\AiUsageRegistry;
 use App\Services\Ai\Exceptions\AiUnavailable;
 use GuzzleHttp\Handler\MockHandler;
 use GuzzleHttp\HandlerStack;
@@ -66,6 +68,7 @@ class AiProviderRedirectionTest extends TestCase
         return match (true) {
             str_ends_with($url, '/responses') => ['id' => 'r', 'model' => 'm', 'status' => 'completed', 'output' => [['type' => 'message', 'role' => 'assistant', 'content' => [['type' => 'output_text', 'text' => '{"a":1}']]]], 'usage' => ['input_tokens' => 1, 'output_tokens' => 1]],
             str_ends_with($url, '/messages') => ['id' => 'm', 'type' => 'message', 'role' => 'assistant', 'model' => 'm', 'stop_reason' => 'end_turn', 'content' => [['type' => 'text', 'text' => '{"a":1}']], 'usage' => ['input_tokens' => 1, 'output_tokens' => 1]],
+            str_ends_with($url, '/embeddings') => ['data' => [['embedding' => [0.5, 0.5], 'index' => 0]], 'usage' => ['total_tokens' => 2]],
             default => ['id' => 'c', 'model' => 'm', 'choices' => [['message' => ['role' => 'assistant', 'content' => '{"a":1}'], 'finish_reason' => 'stop']], 'usage' => ['prompt_tokens' => 1, 'completion_tokens' => 1]],
         };
     }
@@ -79,6 +82,17 @@ class AiProviderRedirectionTest extends TestCase
         ]);
 
         return $entree;
+    }
+
+    private function declarerVoyage(): void
+    {
+        $this->app->instance(AiUsageRegistry::class, new AiUsageRegistry([RadarEmbeddingUsage::class]));
+        config([
+            'ai.providers.voyageai.key' => 'cle-du-point',
+            'ai.providers.voyageai.training_opt_out' => true,
+            'ai.pricing.voyageai' => ['modele-a' => ['input' => '1', 'output' => '0', 'cache_read' => '0', 'cache_write' => '0']],
+            'ai.pricing.vecteurs-secours' => ['modele-a' => ['input' => '1', 'output' => '0', 'cache_read' => '0', 'cache_write' => '0']],
+        ]);
     }
 
     /** @param list<string> $entrees */
@@ -105,6 +119,12 @@ class AiProviderRedirectionTest extends TestCase
         return $cas;
     }
 
+    /** @return array<string, array{int}> */
+    public static function statuts(): array
+    {
+        return ['301' => [301], '302' => [302], '303' => [303], '307' => [307], '308' => [308]];
+    }
+
     #[DataProvider('pilotesEtStatuts')]
     public function test_rien_ne_suit_une_redirection_et_la_chaine_bascule(string $pilote, int $statut): void
     {
@@ -119,6 +139,38 @@ class AiProviderRedirectionTest extends TestCase
         $this->assertSame([AiCallOutcome::FailedOver, AiCallOutcome::Success], [$lignes[0]->outcome, $lignes[1]->outcome]);
         $this->assertSame('ai.provider_redirected', $lignes[0]->error_code);
         $this->assertSame(AiGateway::WARNING_PROVIDER_REJECTED, $lignes[0]->warning);
+    }
+
+    /** B1 couvre aussi `embed()` : aucun appel d'embeddings ne suit une redirection, et la chaîne bascule de même. */
+    #[DataProvider('statuts')]
+    public function test_un_embedding_ne_suit_aucune_redirection_et_la_chaine_bascule(int $statut): void
+    {
+        $this->declarerVoyage();
+        config(['ai.providers.vecteurs-secours' => ['url' => 'https://vecteurs-secours.test/v1', 'allowed_hosts' => ['vecteurs-secours.test']] + config('ai.providers.voyageai')]);
+        config(['ai.roles.embedding' => [['provider' => 'voyageai', 'model' => 'modele-a', 'max_tokens' => 1], ['provider' => 'vecteurs-secours', 'model' => 'modele-a', 'max_tokens' => 1]]]);
+        $this->brancher($statut, 'api.voyageai.com');
+
+        $resultat = app(AiGateway::class)->embed(new AiRequest(RadarEmbeddingUsage::KEY, 'CONTENU'), ['CONTENU-DE-LA-DEMANDE'], 2);
+
+        $this->assertSame(['api.voyageai.com', 'vecteurs-secours.test'], array_column($this->envois, 'host'), 'un seul envoi au maillon redirigeant, aucun ailleurs');
+        $this->assertSame('vecteurs-secours', $resultat->link->provider);
+        $ligne = AiCall::query()->orderBy('id')->first();
+        $this->assertSame([AiCallOutcome::FailedOver, 'ai.provider_redirected', AiGateway::WARNING_PROVIDER_REJECTED], [$ligne->outcome, $ligne->error_code, $ligne->warning]);
+    }
+
+    public function test_un_dernier_maillon_d_embeddings_redirigeant_rend_l_usage_indisponible(): void
+    {
+        $this->declarerVoyage();
+        config(['ai.roles.embedding' => [['provider' => 'voyageai', 'model' => 'modele-a', 'max_tokens' => 1]]]);
+        $this->brancher(307, 'api.voyageai.com');
+
+        try {
+            app(AiGateway::class)->embed(new AiRequest(RadarEmbeddingUsage::KEY, 'CONTENU'), ['CONTENU-DE-LA-DEMANDE'], 2);
+            $this->fail('aucun maillon n\'a répondu');
+        } catch (AiUnavailable $e) {
+            $this->assertSame('ai.provider_redirected', $e->getPrevious()?->getMessage());
+        }
+        $this->assertSame(['api.voyageai.com'], array_column($this->envois, 'host'));
     }
 
     /** Le premier envoi, lui, est bien parti avec son corps et sa clé : c'est le second qui manque. */

@@ -154,6 +154,10 @@ non acceptée) en texte, jamais la clé ni l'adresse complète. L'hôte seul peu
   `provider_rejections`, renommée « Défauts du fournisseur » à l'écran. **Le budget n'en est pas informé** : elle y vaut zéro.
 - **AC6 reste décoché** : sa moitié CI n'a pas tourné. La session le coche sur la CI verte.
 
+- **Fusion avec TCK-2423.** Les redirections couvrent aussi `embed()`, et une réponse d'embeddings sans `usage` écrit aussi
+  `usage_missing`. `privacy.ts` § 4.3 porte les deux textes ; la phrase ⚠ sur l'entraînement ne nomme plus qu'Anthropic, OpenAI et
+  OpenRouter, Voyage AI ayant la sienne.
+
 ### Limites écrites
 
 - **La cause d'un 400 derrière un dernier maillon sans clé se perd** : l'usage rend `ai.provider_key_missing`, et la ligne du
@@ -163,6 +167,10 @@ non acceptée) en texte, jamais la clé ni l'adresse complète. L'hôte seul peu
 
 ### Décisions prises en autonomie, à revoir
 
+- **`selectable` et `reachable` n'ont plus qu'une réponse.** Une clé Voyage sans `training_opt_out` n'est plus sélectionnable, et
+  ne s'affecte plus dans la console (`training_opt_out_undeclared`). Écarté : deux vérités, où la console disait « prêt » pour un
+  fournisseur à qui rien ne part. **Conséquence : affecter Voyage à la chaîne `embedding` exige désormais la clé et la déclaration**,
+  ce que TCK-2423 ne demandait pas.
 - **Une redirection écrit aussi `warning: provider_rejected`, Anthropic compris**, pour se voir au tableau de bord. Écarté : la
   seule colonne des bascules, où elle se confond avec une panne ordinaire.
 - **Une réponse sans `usage` sur un modèle sans tarif écrit `usage_missing`**, pas `model_unpriced` : le tarif absent reste dans

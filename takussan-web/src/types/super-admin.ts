@@ -1060,7 +1060,7 @@ export type AiProvider = {
   legal_name: string;
   key_present: boolean;
   selectable: boolean;
-  reason: 'key_missing' | 'host_not_allowed' | null;
+  reason: 'key_missing' | 'host_not_allowed' | 'training_opt_out_undeclared' | null;
   host: string | null;
   models: string[];
 };

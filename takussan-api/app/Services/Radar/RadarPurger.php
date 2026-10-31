@@ -4,6 +4,7 @@ namespace App\Services\Radar;
 
 use App\Jobs\Radar\VerifyRadarConsentReply;
 use App\Models\AiSuggestion;
+use App\Models\Embedding;
 use App\Models\Enums\RadarAdvertiserNature;
 use App\Models\Enums\RadarListingStage;
 use App\Models\Enums\RadarVerificationStatus;
@@ -13,6 +14,7 @@ use App\Models\RadarConsent;
 use App\Models\RadarListing;
 use App\Models\RadarListingSnapshot;
 use App\Models\RadarOutreach;
+use App\Services\Ai\EmbeddingsTable;
 use App\Services\Radar\Observatory\RadarNatureCounter;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
@@ -60,10 +62,14 @@ final class RadarPurger
     private const COUNTERS = [
         'listings', 'media', 'suggestions', 'outreaches', 'replies', 'proofs', 'advertisers_cleared', 'advertisers_deleted',
         'retention_started', 'retention_reset', 'orphan_dirs', 'orphan_copies', 'published_listings',
-        'snapshots_deleted',
+        'snapshots_deleted', 'embeddings_deleted',
     ];
 
-    public function __construct(private readonly RadarOrphanFiles $orphans, private readonly RadarNatureCounter $natureCounter) {}
+    public function __construct(
+        private readonly RadarOrphanFiles $orphans,
+        private readonly RadarNatureCounter $natureCounter,
+        private readonly EmbeddingsTable $embeddings,
+    ) {}
 
     /**
      * @param  int|null  $advertiserId  null : toute la table (la commande planifiée) ; sinon un seul annonceur, sans la rétention
@@ -93,6 +99,11 @@ final class RadarPurger
             if (config('radar.purge_published_material') === true) {
                 $this->purgePublishedListings($counts);
             }
+        }
+        // Après les deux gestes qui purgent une annonce, jamais publiée puis publiée, et avant le disque : s'il ne répond pas, le
+        // passage s'arrête là, et le vecteur d'un texte effacé ne doit pas l'attendre.
+        $this->eraseUnwantedVectors($counts);
+        if ($advertiserId === null) {
             $counts['orphan_dirs'] += $this->orphans->sweep($now);
             $counts['orphan_copies'] += $this->orphans->sweepPublicationCopies($now);
         }
@@ -134,7 +145,7 @@ final class RadarPurger
 
     /**
      * Texte brut, adresse de la source, extraction, réserve et captures ; l'étape devient `purged`. Le lien au bien (`property_id`)
-     * reste : il n'est pas une donnée collectée. Les instantanés de la collecte sont supprimés (TCK-2392).
+     * reste : il n'est pas une donnée collectée. Les instantanés de la collecte et le vecteur du texte sont supprimés (TCK-2392, TCK-2423).
      *
      * @param  array<string, int>  $counts
      */
@@ -159,6 +170,27 @@ final class RadarPurger
 
         // Le dernier geste : les fichiers partent avec leurs lignes.
         $counts['media'] += $this->deleteMedia($listing);
+    }
+
+    /**
+     * TCK-2423 — un vecteur d'annonce purgée (calculé du texte qui vient d'être effacé), ou d'un annonceur qui a dit STOP. Une annonce
+     * publiée garde son étape après un STOP, sans passer par {@see self::eraseListing()} ; elle retombe alors sur les trigrammes, et
+     * ne repart plus. Jugé sur l'état en base, le geste rattrape au passage suivant ce qu'une purge interrompue aurait laissé.
+     *
+     * @param  array<string, int>  $counts
+     */
+    private function eraseUnwantedVectors(array &$counts): void
+    {
+        if (! $this->embeddings->exists()) {
+            return;
+        }
+
+        $counts['embeddings_deleted'] += Embedding::query()
+            ->where('embeddable_type', (new RadarListing)->getMorphClass())
+            ->whereIn('embeddable_id', RadarListing::query()->select('id')->where(fn ($query) => $query
+                ->where('stage', RadarListingStage::Purged->value)
+                ->orWhereHas('advertiser', fn ($advertiser) => $advertiser->whereNotNull('do_not_contact_at'))))
+            ->delete();
     }
 
     /**

@@ -82,6 +82,8 @@ return [
         'provider_host_not_allowed' => 'The address of this provider is not on an accepted host.',
         'provider_key_missing' => 'No key is configured for this provider.',
         'provider_redirected' => 'This provider answered with a redirect: the request was not sent again.',
+        'provider_role_mismatch' => 'This provider does not serve this role: embeddings and text do not mix.',
+        'provider_unreachable' => 'Nothing is sent to this provider: training opt-out not declared, or address not accepted.',
         'provider_unknown' => 'Unknown AI provider.',
         'role_unknown' => 'Unknown AI role.',
         'usage_unknown' => 'Unknown AI usage.',

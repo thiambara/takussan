@@ -140,6 +140,18 @@ describe('Radar — l’article 6.3 et les ajouts de la politique de confidentia
     expect(privacy.en).not.toContain('any other provider retained');
   });
 
+  /** TCK-2450 + TCK-2423 — la puce porte les deux textes, et aucune phrase de l'un ne vaut pour Voyage AI, qui entraîne par défaut. */
+  it('la puce IA garde Voyage AI et limite aux trois autres la phrase sur l’entraînement', () => {
+    expect(privacy.fr).toContain('Voyage AI Innovations, Inc. (États-Unis)');
+    expect(privacy.en).toContain('Voyage AI Innovations, Inc. (United States)');
+    expect(privacy.fr).toContain('⚠ Anthropic, OpenAI et OpenRouter n’utilisent pas les données transmises');
+    expect(privacy.en).toContain('⚠ Anthropic, OpenAI and OpenRouter do not use the data sent');
+    expect(privacy.fr).not.toContain('Ces prestataires n’utilisent pas');
+    expect(privacy.en).not.toContain('These providers do not use');
+    expect(privacy.fr.indexOf('⚠ Anthropic, OpenAI et OpenRouter')).toBeLessThan(privacy.fr.indexOf('Voyage AI Innovations'));
+    expect(privacy.en.indexOf('⚠ Anthropic, OpenAI and OpenRouter')).toBeLessThan(privacy.en.indexOf('Voyage AI Innovations'));
+  });
+
   /** TCK-2450 — aucun filtre de pays n'est imposé : le texte ne présente ni le traitement comme fait sur nos instructions, ni ces pays comme protecteurs. */
   it('par OpenRouter, le § 4.3 et le § 5 disent plusieurs pays, leurs conditions, et aucune protection présumée', () => {
     expect(privacy.fr).toContain('sauf ce que la rubrique « Intelligence artificielle » dit des fournisseurs de modèles joints par OpenRouter');

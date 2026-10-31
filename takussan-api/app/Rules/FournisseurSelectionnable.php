@@ -19,6 +19,7 @@ class FournisseurSelectionnable implements ValidationRule
             null => null,
             'ai.provider_key_missing' => $fail('errors.ai.provider_key_missing')->translate(),
             'ai.provider_host_not_allowed' => $fail('errors.ai.provider_host_not_allowed')->translate(),
+            'ai.provider_unreachable' => $fail('errors.ai.provider_unreachable')->translate(),
             default => $fail('errors.ai.provider_unknown')->translate(),
         };
     }

@@ -73,7 +73,7 @@ export function AiProvidersPanel() {
       header: t('status'),
       cell: (row) => (
         <div className="space-y-1">
-          <StatusBadge label={row.selectable ? t('statusReady') : row.reason === 'host_not_allowed' ? t('statusHostNotAllowed') : t('statusKeyMissing')} tone={row.selectable ? 'success' : 'attention'} />
+          <StatusBadge label={row.selectable ? t('statusReady') : row.reason === 'host_not_allowed' ? t('statusHostNotAllowed') : row.reason === 'training_opt_out_undeclared' ? t('statusTrainingOptOutUndeclared') : t('statusKeyMissing')} tone={row.selectable ? 'success' : 'attention'} />
           {row.reason === 'host_not_allowed' && row.host ? <p className="text-xs text-muted-foreground">{t('host', { host: row.host })}</p> : null}
         </div>
       ),

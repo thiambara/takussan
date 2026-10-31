@@ -15,10 +15,12 @@ use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Laravel\Ai\Embeddings;
 use Laravel\Ai\Enums\Lab;
 use Laravel\Ai\Exceptions\AiException;
 use Laravel\Ai\Exceptions\FailoverableException;
 use Laravel\Ai\Responses\Data\FinishReason;
+use Laravel\Ai\Responses\Data\TextUsage;
 use Laravel\Ai\Responses\Data\Usage;
 use Laravel\Ai\Responses\StructuredAgentResponse;
 use Throwable;
@@ -37,6 +39,9 @@ final class AiGateway
 {
     /** Le suffixe du double, sortie par outil, d'un fournisseur ({@see self::providerFor()}). */
     public const TOOL_OUTPUT_SUFFIX = '-sortie-par-outil';
+
+    /** Délai d'un appel d'embeddings : un lot tient sous le `$timeout` du job (`EmbedRadarListings`). */
+    private const EMBEDDING_TIMEOUT_SECONDS = 30;
 
     /** `ai_calls.warning` du maillon refusé puis basculé ({@see self::rejectionFailsOver()}), ou qui a répondu par une redirection. */
     public const WARNING_PROVIDER_REJECTED = 'provider_rejected';
@@ -66,18 +71,7 @@ final class AiGateway
         $usage = $this->registry->get($request->usageKey);
         $setting = AiUsageSetting::query()->where('usage_key', $usage->key())->first();
 
-        if (! $request->evaluation && ! $this->authority->allows($request->actor, $usage->authority(), $request->agencyId)) {
-            throw $this->refuse($usage, $request, AiRefusalReason::Forbidden);
-        }
-        if ($setting !== null && ! $setting->enabled) {
-            throw $this->refuse($usage, $request, AiRefusalReason::KillSwitch);
-        }
-        if (! $request->evaluation && $this->budget->exhausted($usage, $setting, $request->agencyId)) {
-            throw $this->refuse($usage, $request, AiRefusalReason::Budget);
-        }
-        if (($reason = $this->dataGuard->refusalFor($usage, $request->dataClasses)) !== null) {
-            throw $this->refuse($usage, $request, $reason);
-        }
+        $this->admit($usage, $setting, $request);
         $input = $this->dataGuard->prepare($usage, $request->input);
 
         $chain = $request->link !== null ? [$request->link] : $this->resolver->chainFor($usage, $setting, $this->roleFor($usage, $request));
@@ -239,6 +233,135 @@ final class AiGateway
             $cost === null => 'model_unpriced',
             default => null,
         };
+    }
+
+    /**
+     * TCK-2423 (ADR-0076, amendement du 2026-10-31) — des vecteurs, dans le même ordre que {@see self::run()} : autorité,
+     * coupe-circuit, budget, données (refus, masquage de chaque entrée), appel maillon par maillon avec la même bascule, journal. Un
+     * {@see EmbeddingUsage} tourne sans acteur : une tâche planifiée, que personne ne demande. Pas de cache : c'est l'empreinte
+     * du contenu, chez l'appelant, qui évite de payer deux fois.
+     *
+     * @param  list<string>  $inputs
+     */
+    public function embed(AiRequest $request, array $inputs, int $dimensions): AiEmbeddingResult
+    {
+        $usage = $this->registry->get($request->usageKey);
+        $setting = AiUsageSetting::query()->where('usage_key', $usage->key())->first();
+
+        $this->admit($usage, $setting, $request);
+        $inputs = array_map(fn (string $input): string => $this->dataGuard->prepare($usage, $input), $inputs);
+
+        $chain = $request->link !== null ? [$request->link] : $this->resolver->chainFor($usage, $setting, $usage->role());
+        if ($chain === []) {
+            $this->journal($usage, $request, ['outcome' => AiCallOutcome::Error, 'error_code' => 'ai.role_unassigned']);
+
+            throw new AiUnavailable('ai.role_unassigned');
+        }
+
+        $last = null;
+        foreach ($chain as $rank => $link) {
+            if (! $this->providers->reachable($link->provider)) {
+                $this->journal($usage, $request, $this->linkColumns($link) + ['outcome' => AiCallOutcome::FailedOver, 'error_code' => 'ai.provider_unreachable']);
+                $last = new AiUnavailable('ai.provider_unreachable');
+
+                continue;
+            }
+
+            $started = hrtime(true);
+            try {
+                $response = $this->withoutFollowingRedirects(fn () => Embeddings::for($inputs)
+                    ->dimensions($dimensions)
+                    ->timeout(self::EMBEDDING_TIMEOUT_SECONDS)
+                    ->withProviderOptions(config("ai.providers.{$link->provider}.embedding_options", []))
+                    ->generate($link->provider, $link->model));
+            } catch (AiUnavailable $e) {
+                $this->journal($usage, $request, $this->linkColumns($link) + [
+                    'outcome' => AiCallOutcome::FailedOver, 'error_code' => $e->getMessage(), 'duration_ms' => $this->elapsed($started),
+                    'warning' => self::WARNING_PROVIDER_REJECTED,
+                ]);
+                $last = $e;
+
+                continue;
+            } catch (FailoverableException $e) {
+                $this->journal($usage, $request, $this->linkColumns($link) + [
+                    'outcome' => AiCallOutcome::FailedOver, 'error_code' => AiErrorCode::fromThrowable($e), 'duration_ms' => $this->elapsed($started),
+                ]);
+                $last = $e;
+
+                continue;
+            } catch (Throwable $e) {
+                $failsOver = $rank < array_key_last($chain) && $this->rejectionFailsOver($e, $this->driverOf($link));
+                $this->journal($usage, $request, $this->linkColumns($link) + [
+                    'outcome' => $failsOver ? AiCallOutcome::FailedOver : AiCallOutcome::Error, 'error_code' => AiErrorCode::fromThrowable($e), 'duration_ms' => $this->elapsed($started),
+                    'warning' => $failsOver ? self::WARNING_PROVIDER_REJECTED : null,
+                ]);
+                if (! $failsOver) {
+                    throw $e;
+                }
+                $last = $e;
+
+                continue;
+            }
+
+            // Un embedding ne paie que son entrée, au tarif `input` du catalogue.
+            $tokens = $response->usage->totalTokens();
+            $cost = $this->costs->estimate($link->provider, $link->model, new TextUsage(inputTokens: $tokens));
+            $spent = $this->linkColumns($link) + [
+                'input_tokens' => $tokens,
+                'output_tokens' => 0,
+                'cost_estimate_usd' => $cost,
+                'warning' => $this->spendWarning($response->usage, $cost),
+                'duration_ms' => $this->elapsed($started),
+            ];
+            // Payée, mais inexploitable : autant de vecteurs que d'entrées, de la bonne dimension, jamais nuls (une
+            // similarité cosinus avec un vecteur nul rend `NaN`, que PostgreSQL classe au-dessus de tout seuil).
+            if (! $this->usableVectors($response->embeddings, count($inputs), $dimensions)) {
+                $this->journal($usage, $request, $spent + ['outcome' => AiCallOutcome::FailedOver, 'error_code' => 'ai.response_invalid']);
+                $last = new AiUnavailable('ai.response_invalid');
+
+                continue;
+            }
+
+            return new AiEmbeddingResult(array_values($response->embeddings), $link, $this->journal($usage, $request, $spent + ['outcome' => AiCallOutcome::Success]));
+        }
+
+        throw new AiUnavailable('ai.providers_unavailable', $last);
+    }
+
+    /** @param  array<int, array<float>>  $vectors */
+    private function usableVectors(array $vectors, int $count, int $dimensions): bool
+    {
+        if (count($vectors) !== $count) {
+            return false;
+        }
+        foreach ($vectors as $vector) {
+            if (count($vector) !== $dimensions || array_filter($vector, fn ($value): bool => (float) $value !== 0.0) === []) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * L'autorité, le coupe-circuit, le budget et le refus de données, dans cet ordre (ADR-0076 §5). Une évaluation ne juge ni
+     * l'autorité ni le budget ; un usage d'embeddings sans acteur ne juge pas l'autorité.
+     */
+    private function admit(AiUsage $usage, ?AiUsageSetting $setting, AiRequest $request): void
+    {
+        $unattended = $usage instanceof EmbeddingUsage && $request->actor === null;
+        if (! $request->evaluation && ! $unattended && ! $this->authority->allows($request->actor, $usage->authority(), $request->agencyId)) {
+            throw $this->refuse($usage, $request, AiRefusalReason::Forbidden);
+        }
+        if ($setting !== null && ! $setting->enabled) {
+            throw $this->refuse($usage, $request, AiRefusalReason::KillSwitch);
+        }
+        if (! $request->evaluation && $this->budget->exhausted($usage, $setting, $request->agencyId)) {
+            throw $this->refuse($usage, $request, AiRefusalReason::Budget);
+        }
+        if (($reason = $this->dataGuard->refusalFor($usage, $request->dataClasses)) !== null) {
+            throw $this->refuse($usage, $request, $reason);
+        }
     }
 
     /** Un cache indisponible est un cache vide : il ne doit jamais coûter une réponse déjà payée. */

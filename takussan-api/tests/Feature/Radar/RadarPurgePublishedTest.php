@@ -3,6 +3,7 @@
 namespace Tests\Feature\Radar;
 
 use App\Models\AiSuggestion;
+use App\Models\Embedding;
 use App\Models\Enums\AiSuggestionDecision;
 use App\Models\Enums\PlatformProfileLevel;
 use App\Models\Enums\PropertyStatus;
@@ -259,6 +260,30 @@ class RadarPurgePublishedTest extends TestCase
 
         $this->assertSame(1, $this->purger()['published_listings']);
         $this->assertSame(RadarListingStage::Purged, $annonce->fresh()->stage);
+    }
+
+    public function test_tck_2423_le_vecteur_part_le_jour_ou_la_matiere_part(): void
+    {
+        $this->allumer();
+        $annonceur = $this->annonceur();
+        $bien = $this->bien();
+        $annonce = $this->annoncePubliee($annonceur, $bien);
+        $this->accord($annonceur, $annonce);
+        Embedding::query()->forceCreate([
+            'embeddable_type' => $annonce->getMorphClass(),
+            'embeddable_id' => $annonce->id,
+            'provider' => 'voyageai',
+            'model' => 'voyage-4',
+            'dimension' => 3,
+            'vector' => '[1,0,0]',
+            'content_hash' => str_repeat('0', 64),
+        ]);
+
+        $comptes = $this->troisAnsApresLeRetrait($bien);
+
+        $this->assertSame(1, $comptes['published_listings']);
+        $this->assertSame(1, $comptes['embeddings_deleted']);
+        $this->assertSame(0, Embedding::query()->count());
     }
 
     public function test_un_bien_revenu_en_ligne_apres_la_preuve_garde_la_matiere_de_son_annonce(): void

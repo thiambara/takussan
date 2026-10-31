@@ -143,6 +143,22 @@ class AiProviderSelectabilityTest extends TestCase
         $this->assertStringNotContainsString(self::CLE, $decrit);
     }
 
+    /** TCK-2423 + TCK-2450 — une clé sans la déclaration du refus de l'entraînement n'est pas sélectionnable, sur aucun point d'écriture. */
+    public function test_voyage_sans_la_declaration_n_est_pas_selectionnable(): void
+    {
+        config(['ai.providers.voyageai.key' => 'k', 'ai.providers.voyageai.training_opt_out' => false]);
+        $this->assertSame('training_opt_out_undeclared', $this->decrit('voyageai')['reason']);
+        $this->assertSame('ai.provider_unreachable', $this->catalogue()->refusalCode('voyageai'));
+        $this->assertFalse($this->catalogue()->reachable('voyageai'));
+
+        config(['ai.providers.voyageai.training_opt_out' => true]);
+        $this->assertTrue($this->catalogue()->selectable('voyageai'));
+        $this->assertTrue($this->catalogue()->reachable('voyageai'));
+
+        config(['ai.providers.voyageai.url' => 'https://api.voyageai.com:8443/v1']);
+        $this->assertFalse($this->catalogue()->reachable('voyageai'), 'le port se compare aussi pour les embeddings');
+    }
+
     /** Le port se compare : celui du schéma ne change rien, un autre s'écrit dans la liste. */
     public function test_un_port_hors_du_schema_doit_etre_ecrit_dans_la_liste(): void
     {
