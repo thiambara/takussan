@@ -7,6 +7,7 @@ use App\Http\Requests\Api\Admin\AiDashboardRequest;
 use App\Models\AiCall;
 use App\Services\Ai\AiBudget;
 use App\Services\Ai\AiGateway;
+use App\Services\Ai\AiMoney;
 use App\Services\Ai\AiUsageRegistry;
 use App\Services\Ai\Evaluation\EvaluationRunner;
 use App\Services\Ai\SuggestionRecorder;
@@ -31,7 +32,7 @@ class AiDashboardController extends Controller
             ->whereBetween('created_at', [$from, $to])
             ->selectRaw("usage_key, date(created_at) as day,
                 count(*) filter (where outcome in ('success', 'cache_hit')) as calls,
-                coalesce(sum(cost_estimate), 0) as cost,
+                coalesce(sum(cost_estimate_usd), 0) as cost,
                 avg(duration_ms) filter (where outcome = 'success') as avg_ms,
                 count(*) filter (where outcome = 'error') as errors,
                 count(*) filter (where outcome = 'refused') as refusals,
@@ -45,7 +46,7 @@ class AiDashboardController extends Controller
                 'date' => (string) $row->day,
                 'usage_key' => $row->usage_key,
                 'calls' => (int) $row->calls,
-                'cost_xof' => round((float) $row->cost, 2),
+                'cost_usd' => AiMoney::canonical((string) $row->cost),
                 'avg_duration_ms' => $row->avg_ms !== null ? (int) round((float) $row->avg_ms) : null,
                 'errors' => (int) $row->errors,
                 'refusals' => (int) $row->refusals,
@@ -70,11 +71,14 @@ class AiDashboardController extends Controller
             }
         }
 
+        $global = config('ai.budgets.daily_global_usd');
+
         return $this->json(['data' => [
             'days' => $days,
             'acceptance' => $suggestions->acceptanceRates($from, $to),
             'baselines' => $baselines,
-            'today' => ['spent_xof' => $budget->spentToday(), 'daily_budget_xof' => config('ai.budgets.daily_global_xof')],
+            'today' => ['spent_usd' => $budget->spentToday(), 'daily_budget_usd' => $global === null ? null : AiMoney::canonical((string) $global)],
+            'usd_to_xof' => (string) config('ai.usd_to_xof'),
         ]]);
     }
 }

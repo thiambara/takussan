@@ -606,19 +606,19 @@ class RadarListingStoreTest extends TestCase
     public function test_the_dashboard_counts_stages_pending_extraction_and_today_s_ai_cost_against_the_caps(): void
     {
         $this->support();
-        config(['ai.budgets.daily_global_xof' => 5000.0]);
+        config(['ai.budgets.daily_global_usd' => '5000.0']);
         RadarListing::factory()->count(2)->create(['stage' => RadarListingStage::Extracted]);
         RadarListing::factory()->create(['stage' => RadarListingStage::Captured]);
         RadarListing::factory()->create(['stage' => RadarListingStage::Captured, 'stage_reason' => 'ai.budget']);
         RadarListing::factory()->create(['stage' => RadarListingStage::ExtractionFailed, 'stage_reason' => 'radar.fetch.robots']);
         RadarListing::factory()->create(['stage' => RadarListingStage::Discarded, 'stage_reason' => 'radar.discard.other']);
 
-        $appel = fn (string $usage, float $cout, array $extra = []) => AiCall::query()->create($extra + ['usage_key' => $usage, 'outcome' => 'success', 'cost_estimate' => $cout]);
-        $appel('radar.extraction', 12.5);
-        $appel('radar.extraction', 7.5);
-        $appel('radar.extraction', 100, ['is_evaluation' => true]);
-        $appel('autre.usage', 3);
-        $appel('radar.extraction', 50)->forceFill(['created_at' => now()->subDay()])->save();
+        $appel = fn (string $usage, string $cout, array $extra = []) => AiCall::query()->create($extra + ['usage_key' => $usage, 'outcome' => 'success', 'cost_estimate_usd' => $cout]);
+        $appel('radar.extraction', '12.5');
+        $appel('radar.extraction', '7.5');
+        $appel('radar.extraction', '100', ['is_evaluation' => true]);
+        $appel('autre.usage', '3');
+        $appel('radar.extraction', '50')->forceFill(['created_at' => now()->subDay()])->save();
 
         $data = $this->getJson('/api/admin/radar/dashboard')->assertOk()->json('data');
 
@@ -632,13 +632,13 @@ class RadarListingStoreTest extends TestCase
         // TCK-2388 : aucun message envoyé, donc rien à relancer ni en attente (le détail : RadarFollowUpsTest).
         $this->assertSame(0, $data['follow_ups_due']);
         $this->assertSame(0, $data['outreaches_awaiting']);
-        $this->assertEquals(20.0, $data['ai']['spent_today_xof']);
-        $this->assertEquals(2000.0, $data['ai']['daily_budget_xof']);
-        $this->assertEquals(23.0, $data['ai']['global_spent_today_xof']);
-        $this->assertEquals(5000.0, $data['ai']['global_daily_budget_xof']);
+        $this->assertSame('20', $data['ai']['spent_today_usd']);
+        $this->assertSame('3.33', $data['ai']['daily_budget_usd']);
+        $this->assertSame('23', $data['ai']['global_spent_today_usd']);
+        $this->assertSame('5000', $data['ai']['global_daily_budget_usd']);
 
-        AiUsageSetting::query()->create(['usage_key' => 'radar.extraction', 'daily_budget_xof' => 1500]);
-        $this->getJson('/api/admin/radar/dashboard')->assertOk()->assertJsonPath('data.ai.daily_budget_xof', 1500);
+        AiUsageSetting::query()->create(['usage_key' => 'radar.extraction', 'daily_budget_usd' => '1500']);
+        $this->getJson('/api/admin/radar/dashboard')->assertOk()->assertJsonPath('data.ai.daily_budget_usd', '1500');
     }
 
     // --- Outils ---------------------------------------------------------------------------------

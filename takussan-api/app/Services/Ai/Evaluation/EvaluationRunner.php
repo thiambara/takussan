@@ -4,6 +4,7 @@ namespace App\Services\Ai\Evaluation;
 
 use App\Models\Enums\AiModelRole;
 use App\Services\Ai\AiGateway;
+use App\Services\Ai\AiMoney;
 use App\Services\Ai\AiRequest;
 use App\Services\Ai\AiUsage;
 use App\Services\Ai\AiUsageRegistry;
@@ -120,14 +121,14 @@ final class EvaluationRunner
             ? json_decode((string) file_get_contents($this->dir($usageKey).'/fields.json'), true, flags: JSON_THROW_ON_ERROR)
             : [];
         $scored = [];
-        $cost = 0.0;
+        $cost = AiMoney::ZERO;
         foreach ($cases as $i => $case) {
             [$caseRole, $link, $attachments] = $plans[$i];
             $actual = null;
             try {
                 $result = $this->gateway->run(new AiRequest($usageKey, (string) $case['input'], attachments: $attachments, link: $link, evaluation: true));
                 $actual = $result->structured;
-                $cost += (float) ($result->call->cost_estimate ?? 0);
+                $cost = AiMoney::add($cost, $result->call->cost_estimate_usd ?? AiMoney::ZERO);
             } catch (AiUnavailable|AiRefused) {
             }
             // Un cas sans réponse ne vaut jamais 1.0, même sur un champ attendu nul ou vide.
@@ -157,7 +158,7 @@ final class EvaluationRunner
             'failures' => $whole['failures'],
             'fields' => $whole['fields'],
             'global' => $whole['global'],
-            'cost_xof' => round($cost, 2),
+            'cost_usd' => $cost,
             'ran_at' => now()->toIso8601String(),
             'roles' => $sections,
         ];

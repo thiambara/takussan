@@ -1,0 +1,60 @@
+<?php
+
+namespace Tests\Support\Ai;
+
+use App\Models\Enums\AiDataClass;
+use App\Models\Enums\AiModelRole;
+use App\Models\Enums\Capability;
+use App\Models\Enums\PlatformAbility;
+use App\Services\Ai\AiUsage;
+
+/** Un usage d'essai au plafond déclaré minuscule : ce plafond se lit au dernier chiffre. */
+final class UsagePlafonneeDEssai implements AiUsage
+{
+    public const KEY = 'essai.plafonnee';
+
+    public function key(): string
+    {
+        return self::KEY;
+    }
+
+    public function role(): AiModelRole
+    {
+        return AiModelRole::Extraction;
+    }
+
+    public function agentClass(): string
+    {
+        return AgentDEssai::class;
+    }
+
+    public function promptVersion(): int
+    {
+        return 1;
+    }
+
+    public function maxDataClass(): AiDataClass
+    {
+        return AiDataClass::Publique;
+    }
+
+    public function authority(): Capability|PlatformAbility
+    {
+        return PlatformAbility::ConsoleAccess;
+    }
+
+    public function dailyBudgetUsd(): ?string
+    {
+        return '0.00000000003';
+    }
+
+    public function cacheTtlSeconds(): int
+    {
+        return 3600;
+    }
+
+    public function readsExternalContent(): bool
+    {
+        return false;
+    }
+}

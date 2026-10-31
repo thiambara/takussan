@@ -82,7 +82,7 @@ class ExtractRadarListingTest extends TestCase
         $this->installerSocleDEssai();
         config([
             'ai.roles.vision' => [['provider' => 'anthropic', 'model' => 'modele-v', 'max_tokens' => 2000]],
-            'ai.pricing.anthropic.modele-v' => ['input' => 3.0, 'output' => 15.0, 'cache_read' => 0.3, 'cache_write' => 3.75],
+            'ai.pricing.anthropic.modele-v' => ['input' => '3.0', 'output' => '15.0', 'cache_read' => '0.3', 'cache_write' => '3.75'],
         ]);
         // Le catalogue et les prompts RÉELS : c'est l'usage livré que le job appelle.
         $this->app->instance(AiUsageRegistry::class, new AiUsageRegistry);
@@ -263,7 +263,7 @@ class ExtractRadarListingTest extends TestCase
         $echec = $this->annonce(['source_kind' => RadarSourceKind::Captures, 'raw_text' => null]);
         $this->lancer($echec);
         // Plafond atteint : attente.
-        config(['ai.budgets.daily_global_xof' => 0]);
+        config(['ai.budgets.daily_global_usd' => '0']);
         $attente = $this->annonce(['raw_text' => 'Une autre annonce sans numéro, villa à vendre']);
         $this->lancer($attente);
 
@@ -873,7 +873,7 @@ class ExtractRadarListingTest extends TestCase
     public function test_an_exhausted_budget_leaves_the_listing_pending_and_retries_later(): void
     {
         RadarExtraction::fake();
-        config(['ai.budgets.daily_global_xof' => 0]);
+        config(['ai.budgets.daily_global_usd' => '0']);
         $listing = $this->annonce();
 
         $this->lancer($listing)->assertReleased(1800);

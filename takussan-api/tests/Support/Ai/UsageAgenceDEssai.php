@@ -43,7 +43,7 @@ final class UsageAgenceDEssai implements AiUsage
         return Capability::PropertiesCreate;
     }
 
-    public function dailyBudgetXof(): ?float
+    public function dailyBudgetUsd(): ?string
     {
         return null;
     }

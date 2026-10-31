@@ -24,7 +24,7 @@ const DASHBOARD: RadarDashboard = {
   pending_extraction: 1,
   follow_ups_due: 0,
   outreaches_awaiting: 0,
-  ai: { spent_today_xof: 20, daily_budget_xof: 2000, global_spent_today_xof: 23, global_daily_budget_xof: 5000 },
+  ai: { spent_today_usd: '0.5', daily_budget_usd: '3.33', global_spent_today_usd: '1', global_daily_budget_usd: '8.33', usd_to_xof: '600' },
 };
 
 function ligne(partiel: Partial<RadarListingRow> & Pick<RadarListingRow, 'id'>): RadarListingRow {
@@ -99,8 +99,8 @@ describe('/super-admin/radar (TCK-2386)', () => {
     expect(screen.getByRole('button', { name: /Publiées\s*2/ })).toBeInTheDocument();
     const cout = screen.getByTestId('radar-counter-ai');
     expect(cout.textContent).toMatch(/Coût IA du jour/);
-    expect(cout.textContent).toMatch(/20\s*F\s*CFA/);
-    expect(cout.textContent).toMatch(/sur un plafond de 2\s000\s*F\s*CFA/);
+    expect(cout.textContent).toContain('$0.50');
+    expect(cout.textContent).toMatch(/≈ 300\s*F\s*CFA, sur un plafond de \$3\.33/);
   });
 
   it('un compteur à filtre exact pose le filtre d’étape', async () => {

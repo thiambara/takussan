@@ -55,9 +55,9 @@ final class RadarConsentVerificationUsage implements AiUsage, AttachmentsUseVisi
         return PlatformAbility::RadarOperate;
     }
 
-    public function dailyBudgetXof(): ?float
+    public function dailyBudgetUsd(): ?string
     {
-        return 1500.0;
+        return '2.50';
     }
 
     public function cacheTtlSeconds(): int

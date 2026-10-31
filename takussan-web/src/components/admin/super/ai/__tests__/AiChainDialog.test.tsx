@@ -16,9 +16,9 @@ vi.mock('@/lib/queries/super-admin', () => ({
 
 const run: AiEvaluationRun = {
   id: 7, role: 'extraction', candidate: { provider: 'anthropic', model: 'modele-a', max_tokens: 1000 },
-  status: 'done', below_baseline: true, error_code: null, created_at: null, finished_at: null,
+  status: 'done', below_baseline: true, error_code: null, created_at: null, finished_at: null, usd_to_xof: '600',
   report: { usages: { 'essai.extraction': {
-    usage: 'essai.extraction', model: 'anthropic/modele-a', cases: 1, failures: 0, global: 0.5, cost_xof: 1.25,
+    usage: 'essai.extraction', model: 'anthropic/modele-a', cases: 1, failures: 0, global: 0.5, cost_usd: '0.00000000004',
     fields: { prix: 0, titre: 1 }, baseline: { global: 0.9, fields: { prix: 1, titre: 1 } }, below_baseline: true,
   } } },
 };
@@ -137,8 +137,8 @@ describe('chaîne d’un rôle (TCK-2385)', () => {
     const global = (await screen.findByRole('row', { name: /^Global/ })).querySelectorAll('td');
     expect(global[0]).toHaveTextContent('0,90');
     expect(global[1]).toHaveTextContent('0,50');
-    const cout = screen.getByRole('row', { name: /^Coût de l’évaluation \(XOF\)/ }).querySelectorAll('td');
-    expect(cout[1]).toHaveTextContent('1,25');
+    const cout = screen.getByRole('row', { name: /^Coût de l’évaluation/ }).querySelectorAll('td');
+    expect(cout[1]).toHaveTextContent(/^\$0\.00000000004 \(≈ 0,000000024\s*F\s*CFA\)$/);
     expect(screen.getByText(/Candidat évalué : anthropic · modele-a/)).toBeInTheDocument();
   });
 

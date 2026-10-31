@@ -593,7 +593,7 @@ class SocleAgentProviderOptionsTest extends TestCase
 
             $this->assertSame('mon-entree', $resultat->call->provider, $usage);
             $this->assertNull($resultat->call->warning, "{$usage} : le coût se lit sous le nom réel");
-            $this->assertGreaterThan(0, (float) $resultat->call->cost_estimate, $usage);
+            $this->assertGreaterThan(0, (float) $resultat->call->cost_estimate_usd, $usage);
             $this->assertSame(['mon-entree'], AiCall::query()->pluck('provider')->all(), $usage);
             $this->assertCount(1, $this->recues['mon-entree.test'], "{$usage} : l'adresse de l'entrée");
             $requete = $this->recues['mon-entree.test'][0];

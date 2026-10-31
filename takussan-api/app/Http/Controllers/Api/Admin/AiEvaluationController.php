@@ -33,7 +33,7 @@ class AiEvaluationController extends Controller
         // lisent tous deux « rien en cours » puis créent chacun une évaluation. `get()` et non `block()` :
         // un verrou déjà tenu signifie qu'une demande identique est en train de créer son évaluation, donc
         // « déjà en cours » (409) est exact, et on n'immobilise pas un worker HTTP à attendre.
-        $verrou = Cache::lock('ai-eval:'.$role->value.':'.$link->provider.':'.$link->model, 10);
+        $verrou = Cache::lock('ai-eval:'.sha1($role->value.':'.$link->provider.':'.$link->model), 10);
         abort_code_unless($verrou->get(), 409, 'ai.eval.already_running');
         try {
             // Une évaluation orpheline (worker mort) est déclarée perdue au passage : elle ne bloque pas.
@@ -82,6 +82,7 @@ class AiEvaluationController extends Controller
             'error_code' => $run->error_code,
             'created_at' => $this->instant($run->created_at),
             'finished_at' => $this->instant($run->finished_at),
+            'usd_to_xof' => (string) config('ai.usd_to_xof'),
         ];
     }
 }

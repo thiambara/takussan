@@ -11,6 +11,7 @@
 */
 
 $nombre = static fn (string $cle, float $defaut): float => is_numeric($valeur = env($cle)) ? (float) $valeur : $defaut;
+$montant = static fn (string $cle, string $defaut): string => preg_match('/^\d+(\.\d+)?$/', (string) env($cle)) === 1 ? (string) env($cle) : $defaut;
 
 return [
 
@@ -50,37 +51,37 @@ return [
         'embedding' => [],
     ],
 
-    // Tarifs publiés, en dollars US par million de tokens, relevés le 2026-10-27. Un modèle absent
-    // d'ici ne s'affecte pas depuis la console : son coût ne se budgéterait pas. `cache_write` est
-    // l'écriture de 5 minutes (1,25 × l'entrée).
+    // Tarifs publiés, en dollars US par million de tokens, relevés le 2026-10-31. Des chaînes, jamais des
+    // nombres (ADR-0086) : un `float` arrondirait le coût qui en découle. Une ligne d'`ai_models`
+    // l'emporte sur ces valeurs (ADR-0085 §1) ; un modèle absent des deux ne s'affecte pas depuis la
+    // console, son coût ne se budgéterait pas. `cache_write` est l'écriture de 5 minutes (1,25 × l'entrée).
     'pricing' => [
         'anthropic' => [
-            'claude-opus-5-5' => ['input' => 4.00, 'output' => 20.00, 'cache_read' => 0.20, 'cache_write' => 5.00],
-            'claude-sonnet-5-5' => ['input' => 2.00, 'output' => 10.00, 'cache_read' => 0.20, 'cache_write' => 2.50],
-            // Tarif jusqu'à 100 000 tokens d'entrée (0,50 / 2,50 au-delà). Lecture en cache : la règle
-            // générale (0,1 × l'entrée), non publiée pour ce modèle à la date du relevé.
-            'claude-haiku-5-5' => ['input' => 0.10, 'output' => 0.50, 'cache_read' => 0.01, 'cache_write' => 0.125],
+            'claude-opus-5-5' => ['input' => '4.00', 'output' => '20.00', 'cache_read' => '0.20', 'cache_write' => '5.00'],
+            'claude-sonnet-5-5' => ['input' => '2.00', 'output' => '10.00', 'cache_read' => '0.10', 'cache_write' => '2.50'],
+            // Tarif jusqu'à 100 000 tokens d'entrée (0,50 / 2,50 au-delà).
+            'claude-haiku-5-5' => ['input' => '0.10', 'output' => '0.50', 'cache_read' => '0.01', 'cache_write' => '0.125'],
         ],
     ],
 
-    // Conversion figée sur chaque ligne de `ai_calls` au moment de l'appel. `is_numeric` : la CI lit
-    // `.env.example`, où la clé est vide, et une chaîne vide ne doit pas donner un taux nul.
-    'usd_to_xof' => $nombre('AI_USD_TO_XOF', 600.0),
+    // Le taux n'existe que pour l'équivalent affiché (« ≈ ») : il ne décide d'aucun coût, d'aucun plafond
+    // ni d'aucun blocage (ADR-0086). Même garde que ci-dessous pour une clé vide.
+    'usd_to_xof' => $montant('AI_USD_TO_XOF', '600'),
 
     // Délai d'un appel au modèle, en secondes. Le SDK en pose 60 : trop court pour une extraction
     // longue ou un raisonnement (`SocleAgent::timeout()`, plafonné à `SocleAgent::MAX_TIMEOUT_SECONDS`).
-    // Même garde numérique que ci-dessus.
+    // `is_numeric` : la CI lit `.env.example`, où la clé est vide, et une chaîne vide ne doit pas donner 0.
     // ⚠ Il ne vaut que là où rien ne coupe avant lui : une requête web meurt à 60 s
     // (`docker/php.ini`, `max_execution_time`, horloge murale sous ZTS), et un job à son `$timeout`
     // (avec `retry_after` à 90 s sur la file `database`). Un appel qui peut dépasser 60 s part donc
     // en job, sous un `$timeout` et un `retry_after` qui le couvrent — jamais dans une requête.
     'timeout_seconds' => (int) $nombre('AI_TIMEOUT_SECONDS', 300.0),
 
-    // En XOF, par jour civil. `null` : pas de plafond à ce niveau. Le plafond d'un usage se règle
-    // dans la console (`ai_usage_settings`), à défaut celui que l'usage déclare.
+    // En dollars, en chaîne décimale (ADR-0086), par jour civil. `null` : pas de plafond à ce niveau. Le
+    // plafond d'un usage se règle dans la console (`ai_usage_settings`), à défaut celui que l'usage déclare.
     'budgets' => [
-        'daily_global_xof' => $nombre('AI_DAILY_BUDGET_XOF', 5000.0),
-        'daily_per_agency_xof' => null,
+        'daily_global_usd' => $montant('AI_DAILY_BUDGET_USD', '8.33'),
+        'daily_per_agency_usd' => null,
     ],
 
 ];

@@ -8,6 +8,7 @@ use App\Models\AiUsageSetting;
 use App\Models\Enums\RadarListingStage;
 use App\Models\RadarListing;
 use App\Services\Ai\AiBudget;
+use App\Services\Ai\AiMoney;
 use App\Services\Ai\AiUsageRegistry;
 use App\Services\Radar\RadarFollowUps;
 use Illuminate\Http\JsonResponse;
@@ -34,8 +35,8 @@ class RadarDashboardController extends Controller
         }
 
         $setting = AiUsageSetting::query()->where('usage_key', RadarExtractionUsage::KEY)->first();
-        $cap = $setting?->daily_budget_xof ?? $registry->get(RadarExtractionUsage::KEY)->dailyBudgetXof();
-        $global = config('ai.budgets.daily_global_xof');
+        $cap = $setting?->daily_budget_usd ?? $registry->get(RadarExtractionUsage::KEY)->dailyBudgetUsd();
+        $global = config('ai.budgets.daily_global_usd');
 
         return $this->json(['data' => [
             'stages' => $stages,
@@ -47,10 +48,11 @@ class RadarDashboardController extends Controller
             'follow_ups_due' => $followUps->due()->distinct()->count('radar_outreaches.radar_advertiser_id'),
             'outreaches_awaiting' => $followUps->awaiting()->count(),
             'ai' => [
-                'spent_today_xof' => round($budget->spentTodayForPrefix('radar.'), 2),
-                'daily_budget_xof' => $cap === null ? null : (float) $cap,
-                'global_spent_today_xof' => round($budget->spentToday(), 2),
-                'global_daily_budget_xof' => $global === null ? null : (float) $global,
+                'spent_today_usd' => $budget->spentTodayForPrefix('radar.'),
+                'daily_budget_usd' => $cap === null ? null : AiMoney::canonical((string) $cap),
+                'global_spent_today_usd' => $budget->spentToday(),
+                'global_daily_budget_usd' => $global === null ? null : AiMoney::canonical((string) $global),
+                'usd_to_xof' => (string) config('ai.usd_to_xof'),
             ],
         ]]);
     }

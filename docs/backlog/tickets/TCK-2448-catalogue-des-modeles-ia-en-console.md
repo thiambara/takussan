@@ -1,7 +1,7 @@
 ---
 id: TCK-2448
 title: "Socle IA : catalogue des modèles et de leurs tarifs en base, réglable dans la console (ADR-0085, ADR-0086)"
-status: todo
+status: done
 phase: P1
 family: full
 estimate: L
@@ -101,55 +101,55 @@ Console IA existante (`/super-admin/ai`) : une section « Modèles » sobre, sou
 
 ## Delta à produire
 
-- [ ] Migration `create_ai_models_table`, avec un `down()` juste.
-- [ ] Migration d'allongement des colonnes de modèle, avec un `down()` juste.
-- [ ] Migration des coûts et plafonds en `numeric` sans précision, avec un `down()` juste.
-- [ ] `AiCostCalculator`, `AiBudget`, `AiGateway`, `EvaluationRunner`, `AiDashboardController`, `AiUsageController`,
+- [x] Migration `create_ai_models_table`, avec un `down()` juste.
+- [x] Migration d'allongement des colonnes de modèle, avec un `down()` juste.
+- [x] Migration des coûts et plafonds en `numeric` sans précision, avec un `down()` juste.
+- [x] `AiCostCalculator`, `AiBudget`, `AiGateway`, `EvaluationRunner`, `AiDashboardController`, `AiUsageController`,
       `RadarDashboardController` et leurs requêtes en dollars, sans `float`.
-- [ ] Une garde qui rougit sur un `(float)` ou un cast `decimal:N` de ces montants.
-- [ ] Front : types, panneaux IA et Radar, formulaire du plafond.
-- [ ] `.env.example`, `.env.docker`, `docs/infra/hebergement.md` pour `AI_DAILY_BUDGET_USD`.
-- [ ] Modèle `App\Models\AiModel` et fabrique `AiModelFactory`.
-- [ ] Service `App\Services\Ai\AiModelCatalogue`, seule source de vérité de « tarifé et affectable », branché à la
+- [x] Une garde qui rougit sur un `(float)` ou un cast `decimal:N` de ces montants.
+- [x] Front : types, panneaux IA et Radar, formulaire du plafond.
+- [x] `.env.example`, `.env.docker`, `docs/infra/hebergement.md` pour `AI_DAILY_BUDGET_USD`.
+- [x] Modèle `App\Models\AiModel` et fabrique `AiModelFactory`.
+- [x] Service `App\Services\Ai\AiModelCatalogue`, seule source de vérité de « tarifé et affectable », branché à la
       place des lectures directes de `config('ai.pricing')` :
-  - [ ] `ModelLink::isPriced()` ;
-  - [ ] `AiProviderCatalogue::describe()` et `cheapestModel()` ;
-  - [ ] `AiCostCalculator`.
-- [ ] Contrôleur `App\Http\Controllers\Api\Admin\AiModelController` et FormRequests `StoreAiModelRequest` et
+  - [x] `ModelLink::isPriced()` ;
+  - [x] `AiProviderCatalogue::describe()` et `cheapestModel()` ;
+  - [x] `AiCostCalculator`.
+- [x] Contrôleur `App\Http\Controllers\Api\Admin\AiModelController` et FormRequests `StoreAiModelRequest` et
       `UpdateAiModelRequest`.
-- [ ] Routes dans `routes/api/admin-ai.php`, inscrites dans `NamespaceAccessGuardTest`.
-- [ ] Console : section « Modèles », et sélecteurs branchés sur le catalogue.
-- [ ] Textes fr et en ; wo = fr (Wolof en pause).
-- [ ] Tests :
-  - [ ] `AiModelCatalogueTest` : union, priorité de la base, retrait d'un modèle de la configuration, tarif nul ;
-  - [ ] `AiModelControllerTest` : droits, second facteur, refus du retrait d'un modèle employé, journal ;
-  - [ ] assertions dans les tests existants de `AiRoleController`, `AiUsageController`, `AiEvaluationController`
+- [x] Routes dans `routes/api/admin-ai.php`, inscrites dans `NamespaceAccessGuardTest`.
+- [x] Console : section « Modèles », et sélecteurs branchés sur le catalogue.
+- [x] Textes fr et en ; wo = fr (Wolof en pause).
+- [x] Tests :
+  - [x] `AiModelCatalogueTest` : union, priorité de la base, retrait d'un modèle de la configuration, tarif nul ;
+  - [x] `AiModelControllerTest` : droits, second facteur, refus du retrait d'un modèle employé, journal ;
+  - [x] assertions dans les tests existants de `AiRoleController`, `AiUsageController`, `AiEvaluationController`
         et `AiEval` : un modèle ajouté en base devient affectable, un modèle retiré ne l'est plus ;
-  - [ ] Vitest de la section.
-- [ ] Texte de spec proposé dans le rapport (features §2.11, models-spec : nouvelle table, et `forced_model` « tarifé
+  - [x] Vitest de la section.
+- [x] Texte de spec proposé dans le rapport (features §2.11, models-spec : nouvelle table, et `forced_model` « tarifé
       au catalogue »), pour la PR de spec commune.
 
 ## Critères d'acceptation
 
-- [ ] **AC1** — Un modèle ajouté dans la console chez `anthropic`, absent de `config('ai.pricing')`, s'affecte à une
+- [x] **AC1** — Un modèle ajouté dans la console chez `anthropic`, absent de `config('ai.pricing')`, s'affecte à une
       chaîne, se force sur un usage et s'évalue, sans changer la configuration.
-- [ ] **AC2** — Un modèle de la configuration retiré dans la console ne s'affecte plus (422), et reste affiché comme
+- [x] **AC2** — Un modèle de la configuration retiré dans la console ne s'affecte plus (422), et reste affiché comme
       retiré.
-- [ ] **AC3** — Retirer un modèle employé par une chaîne en base, par un modèle forcé ou par une chaîne de repli de la
+- [x] **AC3** — Retirer un modèle employé par une chaîne en base, par un modèle forcé ou par une chaîne de repli de la
       configuration est refusé, et la réponse nomme ces emplois.
-- [ ] **AC4** — Un tarif corrigé dans la console change le coût des appels suivants. Le `cost_estimate` des
+- [x] **AC4** — Un tarif corrigé dans la console change le coût des appels suivants. Le `cost_estimate` des
       `ai_calls` antérieurs ne change pas.
-- [ ] **AC5** — Un tarif nul saisi est accepté, et l'appel coûte 0. Un tarif absent est refusé.
-- [ ] **AC6** — Sans `platform.ai.manage`, ou sans second facteur récent, toute écriture est refusée. Chaque écriture
+- [x] **AC5** — Un tarif nul saisi est accepté, et l'appel coûte 0. Un tarif absent est refusé.
+- [x] **AC6** — Sans `platform.ai.manage`, ou sans second facteur récent, toute écriture est refusée. Chaque écriture
       acceptée laisse une ligne `activity('Admin')`.
-- [ ] **AC7** — Un identifiant de 120 caractères, avec `/` et `:`, s'enregistre, s'affecte et se journalise dans
+- [x] **AC7** — Un identifiant de 120 caractères, avec `/` et `:`, s'enregistre, s'affecte et se journalise dans
       `ai_calls` sans troncature.
-- [ ] **AC8** — Un appel à un modèle tarifé 0,00000000004 $ par million de tokens enregistre un coût non nul, exact au
+- [x] **AC8** — Un appel à un modèle tarifé 0,00000000004 $ par million de tokens enregistre un coût non nul, exact au
       dernier chiffre, et la somme d'une journée de ces appels atteint le plafond attendu sans erreur d'arrondi. Sans le
       `numeric` ou avec un `float`, le test rougit.
-- [ ] **AC9** — Changer `AI_USD_TO_XOF` ne change ni un coût enregistré, ni un plafond, ni un blocage : seul l'affichage
+- [x] **AC9** — Changer `AI_USD_TO_XOF` ne change ni un coût enregistré, ni un plafond, ni un blocage : seul l'affichage
       bouge.
-- [ ] **AC10** — La console affiche le coût en dollars et son équivalent « ≈ » en XOF. Un coût de 0,00000000004 $ ne
+- [x] **AC10** — La console affiche le coût en dollars et son équivalent « ≈ » en XOF. Un coût de 0,00000000004 $ ne
       s'y lit pas 0.
 
 ## Hors périmètre
@@ -164,4 +164,71 @@ Console IA existante (`/super-admin/ai`) : une section « Modèles » sobre, sou
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- **Le catalogue, seule source de « affectable » et du tarif** : `AiModelCatalogue`. `priceOf` lit aussi un modèle
+  retiré, car un appel déjà en route se compte toujours ; `isAssignable` exige actif **et** fournisseur
+  déclaré.
+- **`AiMoney`** porte les quatre opérations d'argent sans `float` : l'échelle se déduit des opérandes, jamais d'une
+  constante, pour qu'aucun chiffre ne tombe. `MontantIa` refuse un nombre JSON, entier compris : un nombre a déjà
+  traversé un `float` chez l'appelant.
+- **Le front ne calcule pas par `Number`** : `lib/format/montant-ia.ts` compare et multiplie sur des chaînes (BigInt
+  sans littéral `n`, cible ES2017), et n'arrondit qu'à l'affichage. `Intl.NumberFormat.format(string)` garde
+  l'exactitude.
+- **`scripts/check-ai-money.mjs`** est la garde demandée : son jeu d'épreuve contient les motifs qu'elle doit
+  attraper, et elle a rougi sur un `(float)` dans `AiBudget` et un cast `decimal:2` dans `AiCall` introduits à la main.
+- **Le paramètre `{model}` n'est pas lié** (`string`, puis `findOrFail((int))`) : la liaison rendait 404 avant le droit,
+  ce que `NamespaceAccessGuardTest` refuse.
+- **Le verrou d'évaluation passe par `sha1`** : `cache_locks.key` est à 255, et un identifiant de modèle peut l'être
+  aussi.
+- **`AiModel` est exclu de `scripts/check-models-spec.mjs`** jusqu'à la PR de spec commune, qui écrit sa section et
+  retire l'exclusion. Texte proposé : rapport du lot.
+- Plafonds par défaut, XOF actuels divisés par 600 et arrondis : global 5000 → 8.33 ; `radar.extraction` 2000 → 3.33 ;
+  vérification d'accord 1500 → 2.50 ; message d'accord 300 → 0.50 ; test de connexion 100 → 0.17.
+- **Vérification adverse du même jour** : garde élargie, chaque endpoint éprouvé sur un montant minuscule, retour à la
+  configuration, `whereNumber` sur la route. Une règle `bail` et une garde du fournisseur essayées pour le 500 du NUL ont été
+  retirées : leurs ablations restaient vertes, `Unique` ne joue pas après l'échec d'une règle du même champ.
+- **Abaisser un plafond ne dépend jamais du forçage** : le front n'envoie `forced_*` que si le choix a changé, et l'API
+  (`UpdateAiUsageRequest::keepsTheForcing`) ne rejuge ni le tarif ni le fournisseur d'un couple égal à celui en base. Un modèle
+  retiré, sorti de `config/ai.php`, ou un fournisseur sorti, n'empêche donc pas de plafonner un usage dont le modèle reste appelé.
+- **`IdentifiantDeModele`** s'applique partout où un modèle s'écrit : PDO coupe le paramètre au NUL, `neuf\0junk` trouvait `neuf`.
+- **Vérifié au navigateur** (2026-10-31, base isolée) : ajout d'un modèle `fournisseur/essai-navigateur:v1` à
+  0,00000000004 $, refus du retrait de `claude-sonnet-5-5` nommant les chaînes de repli, modèle retiré atténué, onglets
+  Coûts et Usages, compteur Radar : `$0.00000000004 ≈ 0,000000024 F CFA`. Sans clé de fournisseur : aucun appel réel. À 375 px, dialogues du modèle et de l'usage à 343 px et celui de la chaîne à 375 px avec un identifiant de 255 caractères, page sans débordement ; retour à la configuration de `claude-opus-5-5` de 9 $ à 4 $ ; modèle retiré employé signalé.
+
+## Décisions prises en autonomie, à revoir
+
+1. **Identifiant de modèle à 255 caractères** (le ticket : au moins 120), colonnes et requêtes. Le `down()` efface un
+   modèle forcé trop long, et tronque le journal à 80.
+2. **Retour à la configuration** (décision du porteur après vérification, qui remplace « retrait par `active` seulement ») :
+   `DELETE admin/ai/models/{model}` efface la ligne qui remplace un modèle de la configuration, sous le même geste, second
+   facteur et journal (`super_admin_ai_model_reverted`), et le tarif de configuration s'applique de nouveau. Le modèle reste
+   au catalogue, donc le refus d'emploi ne s'y applique pas. Sans entrée de configuration : 409 `ai.model_not_in_config`,
+   le modèle se retire par `active`. La console offre « Revenir à la configuration », sous une confirmation
+   qui dit qu'un modèle retiré en est rétabli.
+3. **Modèle de configuration corrigé ou retiré : un `POST` crée sa ligne** ; un doublon rend 422 sur `model`.
+4. **Refus de retrait en 409 `ai.model_in_use`**, avec `uses`. Une chaîne de repli de la configuration compte même
+   quand le rôle a une chaîne en base : si la ligne disparaît, le repli joue.
+5. **Montants d'API : chaînes seules**, nombre JSON refusé ; longueur bornée à 200 ; l'ancien maximum de plafond
+   (100 000 000) n'est pas conservé.
+6. **Identifiant sans espace, sans caractère de contrôle ni invisible** (`/^[^\s\p{C}\p{Z}]+$/u`). Un octet NUL rendait 500.
+7. **`isAssignable` exige un fournisseur déclaré** ; une ligne d'un fournisseur retiré de la configuration n'est pas
+   listée, et reste en base.
+8. **Un tarif de modèle retiré compte toujours au coût.**
+9. **`down()` monétaire** : rétablit des colonnes `numeric(14,2)` vides, sans reconversion (le ticket dit qu'il n'y a
+   aucune donnée à reprendre).
+10. **Affichage** : dollar au format `$1.00` dans toutes les langues, XOF en `F CFA` ; 3 chiffres significatifs sous
+    0,01 $ et sous 1 XOF ; tarifs exacts jusqu'à 100 décimales, limite d'`Intl`.
+11. **Haiku `cache_read` à 0,01** : le commentaire « non publié » est retiré comme le ticket le demande ; le relevé
+    officiel n'a pas été refait ici.
+
+**Limites connues.**
+
+- Un retrait et une affectation simultanés peuvent se croiser : aucun verrou commun, et c'est voulu. Le coût reste compté et
+  le budget s'applique. La console signale ce modèle (« Retiré, mais encore employé : … ») et ne l'atténue pas.
+- Le test de connexion prend le modèle actif le moins cher, même ajouté avec une faute de frappe : le test échoue alors sur un
+  fournisseur sain.
+- Le compteur Radar affiche brièvement « ≈ — » et « sans plafond » au chargement.
+- Une variable `AI_DAILY_BUDGET_XOF` posée dans Dokploy n'a plus d'effet : Dokploy n'a pas été relu, c'est au porteur de le
+  vérifier. Les rapports d'évaluation déjà en base portent `cost_xof` et s'affichent « — ».
+- `check-ai-money` ne voit ni `$spent >= $cap` en PHP, ni la somme d'une collection, ni `sprintf('%.2f')`, ni `$usd + 0`, ni
+  une échelle `bcmath` figée, ni `::numeric(14,2)` : son en-tête le dit, et
+  `AiTinyAmountsInEveryEndpointTest` tient chaque endpoint au dernier chiffre.

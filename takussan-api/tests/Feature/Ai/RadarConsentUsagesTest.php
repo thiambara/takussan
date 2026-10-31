@@ -34,7 +34,7 @@ class RadarConsentUsagesTest extends TestCase
         $this->assertSame(RadarConsentMessage::class, $usage->agentClass());
         $this->assertSame(AiDataClass::Personnelle, $usage->maxDataClass());
         $this->assertSame(PlatformAbility::RadarOperate, $usage->authority());
-        $this->assertSame(300.0, $usage->dailyBudgetXof());
+        $this->assertSame('0.50', $usage->dailyBudgetUsd());
         $this->assertSame(0, $usage->cacheTtlSeconds());
         $this->assertTrue($usage->readsExternalContent());
         $this->assertSame(1, $usage->promptVersion());

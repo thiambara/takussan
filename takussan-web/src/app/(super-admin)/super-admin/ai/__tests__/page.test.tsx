@@ -10,13 +10,16 @@ vi.mock('@/lib/queries/super-admin', () => ({
   fetchAdminAiRoles: vi.fn(),
   putAdminAiRole: vi.fn(),
   deleteAdminAiRole: vi.fn(),
-  fetchAdminAiUsages: vi.fn().mockResolvedValue({ data: [] }),
+  fetchAdminAiUsages: vi.fn().mockResolvedValue({ data: [], meta: { usd_to_xof: '600' } }),
   patchAdminAiUsage: vi.fn(),
   fetchAdminAiProviders: vi.fn(),
   testAdminAiProvider: vi.fn(),
   postAdminAiEvaluation: vi.fn(),
   fetchAdminAiEvaluation: vi.fn(),
-  fetchAdminAiDashboard: vi.fn().mockResolvedValue({ data: { days: [], acceptance: {}, baselines: {}, today: { spent_xof: 0, daily_budget_xof: 5000 } } }),
+  fetchAdminAiDashboard: vi.fn().mockResolvedValue({ data: { days: [], acceptance: {}, baselines: {}, today: { spent_usd: '0', daily_budget_usd: '8.33' }, usd_to_xof: '600' } }),
+  fetchAdminAiModels: vi.fn().mockResolvedValue({ data: [], meta: { usd_to_xof: '600' } }),
+  postAdminAiModel: vi.fn(),
+  patchAdminAiModel: vi.fn(),
 }));
 
 const providers = [{ key: 'anthropic', legal_name: 'Anthropic', key_present: true, models: ['modele-a', 'modele-b'] }];

@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\Admin\AdminBoostController;
 use App\Http\Controllers\Api\Admin\AdminBoostProductController;
 use App\Http\Controllers\Api\Admin\AdminCreditWalletController;
 use App\Http\Controllers\Api\Admin\AiEvaluationController;
+use App\Http\Controllers\Api\Admin\AiModelController;
 use App\Http\Controllers\Api\Admin\AiProviderController;
 use App\Http\Controllers\Api\Admin\AiRoleController;
 use App\Http\Controllers\Api\Admin\AiUsageController;
@@ -221,6 +222,10 @@ final class ProtectedActions
         AiUsageController::class.'@update',
         AiProviderController::class.'@test',
         AiEvaluationController::class.'@store',
+        // TCK-2448 (ADR-0085 §1) — un tarif décide du budget, et un modèle ajouté reçoit des données.
+        AiModelController::class.'@store',
+        AiModelController::class.'@update',
+        AiModelController::class.'@destroy',
         SuperAdminInvitationController::class.'@store',
         SuperAdminInvitationController::class.'@resend',
         SuperAdminInvitationController::class.'@revoke',

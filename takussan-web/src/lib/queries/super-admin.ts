@@ -64,11 +64,13 @@ import type {
   SharedLegalIdentifiers,
   AdminAiDashboardResponse,
   AdminAiEvaluationResponse,
+  AdminAiModelsResponse,
   AdminAiProvidersResponse,
   AdminAiRolesResponse,
   AdminAiUsagesResponse,
   AiModelLink,
   AiModelRole,
+  AiModelPrices,
   AiProviderTestResponse,
 } from '@/types/super-admin';
 import { cheminApi, requete } from '@/lib/chemin-api';
@@ -1488,7 +1490,7 @@ export async function fetchAdminAiUsages(): Promise<AdminAiUsagesResponse> {
 
 export async function patchAdminAiUsage(
   key: string,
-  payload: { enabled?: boolean; forced_provider?: string | null; forced_model?: string | null; daily_budget_xof?: number | null },
+  payload: { enabled?: boolean; forced_provider?: string | null; forced_model?: string | null; daily_budget_usd?: string | null },
 ): Promise<AdminAiUsagesResponse> {
   const res = await fetch(cheminApi`/api/super-admin/ai/usages/${key}`, {
     method: 'PATCH',
@@ -1497,6 +1499,37 @@ export async function patchAdminAiUsage(
     body: JSON.stringify(payload),
   });
   return jsonOrThrow<AdminAiUsagesResponse>(res);
+}
+
+export async function fetchAdminAiModels(): Promise<AdminAiModelsResponse> {
+  const res = await fetch('/api/super-admin/ai/models', { credentials: 'include' });
+  return jsonOrThrow<AdminAiModelsResponse>(res);
+}
+
+export async function postAdminAiModel(payload: AiModelPrices & { provider: string; model: string; active?: boolean }): Promise<AdminAiModelsResponse> {
+  const res = await fetch('/api/super-admin/ai/models', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  return jsonOrThrow<AdminAiModelsResponse>(res);
+}
+
+export async function patchAdminAiModel(id: number, payload: Partial<AiModelPrices> & { active?: boolean }): Promise<AdminAiModelsResponse> {
+  const res = await fetch(cheminApi`/api/super-admin/ai/models/${id}`, {
+    method: 'PATCH',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  return jsonOrThrow<AdminAiModelsResponse>(res);
+}
+
+/** Efface la ligne qui remplace un modèle de la configuration : le tarif de la configuration s'applique de nouveau. */
+export async function deleteAdminAiModel(id: number): Promise<AdminAiModelsResponse> {
+  const res = await fetch(cheminApi`/api/super-admin/ai/models/${id}`, { method: 'DELETE', credentials: 'include' });
+  return jsonOrThrow<AdminAiModelsResponse>(res);
 }
 
 export async function fetchAdminAiProviders(): Promise<AdminAiProvidersResponse> {

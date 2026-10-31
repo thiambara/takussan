@@ -52,9 +52,9 @@ final class RadarConsentMessageUsage implements AiUsage
         return PlatformAbility::RadarOperate;
     }
 
-    public function dailyBudgetXof(): ?float
+    public function dailyBudgetUsd(): ?string
     {
-        return 300.0;
+        return '0.50';
     }
 
     public function cacheTtlSeconds(): int
