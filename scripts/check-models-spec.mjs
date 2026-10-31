@@ -51,8 +51,6 @@ const SPEC = join(ROOT, 'docs', 'models-spec.md');
  */
 const EXCLUS_JUSTIFIES = new Map([
   // Vide, et c'est l'état sain : tous les modèles de premier niveau sont couverts.
-  ['AiModel', 'section à écrire par la PR de spec commune (TCK-2448)'],
-  ['Embedding', 'section à écrire par la PR de spec commune (TCK-2423)'],
 ]);
 
 if (!existsSync(SPEC)) {
