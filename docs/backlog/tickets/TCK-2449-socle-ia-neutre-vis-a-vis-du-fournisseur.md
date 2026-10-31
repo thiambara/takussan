@@ -1,13 +1,13 @@
 ---
 id: TCK-2449
 title: "Socle IA : aucun réglage propre à Anthropic — outil de sortie jamais forcé et mode strict déclaré par pilote (ADR-0085)"
-status: todo
+status: doing
 phase: P1
 family: back
 estimate: M
 wave: 80
 created: 2026-10-30
-updated: 2026-10-30
+updated: 2026-10-31
 depends_on: []
 blocks: [TCK-2450]
 spec_refs:
