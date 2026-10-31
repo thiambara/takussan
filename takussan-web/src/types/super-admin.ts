@@ -1062,12 +1062,26 @@ export type AiUsageRow = {
   authority: string;
   enabled: boolean;
   forced: AiModelLink | null;
-  daily_budget_xof: number | null;
-  default_daily_budget_xof: number | null;
-  spent_today_xof: number;
+  /** ADR-0086 — des chaînes décimales en dollars, sans nombre de décimales figé : jamais de `Number`. */
+  daily_budget_usd: string | null;
+  default_daily_budget_usd: string | null;
+  spent_today_usd: string;
   chain: AiModelLink[];
 };
-export type AdminAiUsagesResponse = { data: AiUsageRow[] };
+export type AdminAiUsagesResponse = { data: AiUsageRow[]; meta: { usd_to_xof: string } };
+export type AiModelPrices = { input: string; output: string; cache_read: string; cache_write: string };
+export type AiCatalogueModel = AiModelPrices & {
+  id: number | null;
+  provider: string;
+  model: string;
+  active: boolean;
+  origin: 'console' | 'config';
+  in_config: boolean;
+  updated_at: string | null;
+};
+export type AdminAiModelsResponse = { data: AiCatalogueModel[]; meta: { usd_to_xof: string } };
+/** Ce que nomme un retrait refusé, code `ai.model_in_use`. */
+export type AiModelUses = { roles: string[]; usages: string[]; fallback_roles: string[] };
 export type AdminAiProvidersResponse = { data: AiProvider[] };
 export type AiProviderTestResponse = { data: { ok: boolean; model: string; duration_ms: number | null; error_code: string | null } };
 /** Le verdict du cliquet pour un usage : `null` quand l'évaluation passe (`EvaluationRunner::verdict`). */
@@ -1086,7 +1100,7 @@ export type AiEvalReport = {
   failures: number;
   fields: Record<string, number>;
   global: number;
-  cost_xof: number;
+  cost_usd: string;
   baseline: { global: number; fields: Record<string, number>; model?: string } | null;
   below_baseline: boolean;
   verdict?: AiEvalVerdict | null;
@@ -1102,13 +1116,14 @@ export type AiEvaluationRun = {
   error_code: string | null;
   created_at: string | null;
   finished_at: string | null;
+  usd_to_xof: string;
 };
 export type AdminAiEvaluationResponse = { data: AiEvaluationRun };
 export type AiDashboardDay = {
   date: string;
   usage_key: string;
   calls: number;
-  cost_xof: number;
+  cost_usd: string;
   avg_duration_ms: number | null;
   errors: number;
   refusals: number;
@@ -1121,6 +1136,7 @@ export type AdminAiDashboardResponse = {
     acceptance: Record<string, { decided: number; accepted: number; edited: number; rejected: number; rate: number | null }>;
     /** `EvaluationRunner::writeBaseline` : la dernière référence d'évaluation de chaque usage qui en a une. */
     baselines: Record<string, AiEvalBaseline>;
-    today: { spent_xof: number; daily_budget_xof: number | null };
+    today: { spent_usd: string; daily_budget_usd: string | null };
+    usd_to_xof: string;
   };
 };

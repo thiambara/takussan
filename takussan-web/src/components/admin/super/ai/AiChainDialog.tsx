@@ -18,6 +18,7 @@ import { avecGardeDoubleFacteur } from '@/lib/double-facteur';
 import { fetchAdminAiEvaluation, postAdminAiEvaluation, putAdminAiRole } from '@/lib/queries/super-admin';
 import type { AiEvaluationStatus, AiModelLink, AiProvider, AiRoleRow } from '@/types/super-admin';
 import { ERREURS_APPEL_IA } from './codes-erreur-appel';
+import { useMontantIa } from './useMontantIa';
 
 type Props = {
   open: boolean;
@@ -55,6 +56,7 @@ export function AiChainDialog({ open, onOpenChange, row, providers }: Props) {
   const tRoles = useTranslations('superAdmin.pages.ai.roles');
   const format = useFormatter();
   const messageErreur = useMessageErreurApi();
+  const montant = useMontantIa();
   const garde = useGardeDoubleFacteur();
   const queryClient = useQueryClient();
   const [chain, setChain] = useState<AiModelLink[]>(row.chain);
@@ -255,7 +257,7 @@ export function AiChainDialog({ open, onOpenChange, row, providers }: Props) {
                     <tr className="text-muted-foreground">
                       <th scope="row" className="text-left font-normal">{t('evaluationCost')}</th>
                       <td className="text-right">—</td>
-                      <td className="text-right tabular-nums">{nombre(report.cost_xof)}</td>
+                      <td className="text-right tabular-nums">{montant(report.cost_usd, run?.usd_to_xof)}</td>
                     </tr>
                   </tbody>
                 </table>

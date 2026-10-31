@@ -8455,7 +8455,7 @@
           "save": "Apply",
           "cancel": "Cancel",
           "global": "Global",
-          "evaluationCost": "Evaluation cost (XOF)",
+          "evaluationCost": "Evaluation cost",
           "noBaseline": "No baseline recorded.",
           "evaluatedCandidate": "Evaluated candidate: {model}"
         },
@@ -8474,13 +8474,15 @@
           "settings": "Settings",
           "forcedModel": "Forced model",
           "noForcedModel": "The role’s",
-          "dailyBudget": "Daily ceiling (XOF)",
+          "dailyBudget": "Daily ceiling (USD)",
           "save": "Save",
           "cancel": "Cancel",
           "updateFailed": "The setting was not saved.",
-          "budgetDefaultHint": "Default: {default} XOF — leave empty to follow the default.",
+          "budgetDefaultHint": "Default: {default} — leave empty to follow the default.",
           "budgetNoDefaultHint": "No default ceiling — leave empty to set none.",
-          "providersLoadError": "The available models could not be loaded: {message}"
+          "providersLoadError": "The available models could not be loaded: {message}",
+          "budgetEquivalent": "≈ {xof}",
+          "budgetInvalid": "Enter an amount in dollars, in digits: 0.50 for example."
         },
         "providers": {
           "caption": "Allowed providers",
@@ -8488,7 +8490,7 @@
           "key": "Key",
           "keyPresent": "Present",
           "keyMissing": "Missing",
-          "models": "Priced models",
+          "models": "Active models",
           "test": "Test the connection",
           "testOk": "Connected to {model} in {duration} ms.",
           "testFailed": "The connection failed.",
@@ -8502,16 +8504,55 @@
           },
           "testErrorCode": "Code: {code}"
         },
+        "models": {
+          "title": "Models",
+          "description": "The assignable models of each declared provider, and their prices in dollars per million tokens. A correction applies to the next calls, never to past ones.",
+          "caption": "{provider} models",
+          "model": "Model",
+          "origin": "Origin",
+          "originConsole": "Set here",
+          "originConfig": "Configuration",
+          "state": "State",
+          "active": "Active",
+          "withdrawn": "Withdrawn",
+          "actions": "Actions",
+          "edit": "Correct",
+          "editModel": "Correct the price of {model}",
+          "withdraw": "Withdraw",
+          "withdrawModel": "Withdraw {model}",
+          "restore": "Restore",
+          "restoreModel": "Restore {model}",
+          "add": "Add a model",
+          "addTitle": "Add a model",
+          "editTitle": "Prices of {model}",
+          "provider": "Provider",
+          "identifier": "Model identifier",
+          "identifierHint": "The provider’s exact identifier, character for character: the model is called under this name. Evaluate it before assigning it.",
+          "prices": {
+            "input": "Input ($/M tokens)",
+            "output": "Output ($/M tokens)",
+            "cache_read": "Cache read ($/M tokens)",
+            "cache_write": "Cache write ($/M tokens)"
+          },
+          "pricesHint": "All four prices are required. A price of 0 means “free per token”, not “unknown”: calls to this model will cost the budget 0.",
+          "save": "Save",
+          "cancel": "Cancel",
+          "updateFailed": "The model was not saved.",
+          "inUse": "This model is still in use: it cannot be withdrawn.",
+          "inUseRoles": "Chains set here: {names}.",
+          "inUseUsages": "Forced model of: {names}.",
+          "inUseFallback": "Configuration fallback chains: {names}."
+        },
         "dashboard": {
           "from": "From",
           "to": "To",
-          "today": "Today: {spent} XOF spent out of {budget} XOF",
-          "todayNoBudget": "Today: {spent} XOF spent, no global ceiling",
+          "today": "Today: {spent} spent out of {budget}",
+          "todayNoBudget": "Today: {spent} spent, no global ceiling",
           "caption": "Calls per day and usage",
           "date": "Day",
           "usage": "Usage",
           "calls": "Calls served",
-          "cost": "Cost (XOF)",
+          "cost": "Cost",
           "latency": "Average latency (ms)",
           "errors": "Errors",
           "refusals": "Refusals",
@@ -8524,7 +8565,8 @@
           "baselineGlobal": "Global score",
           "baselineModel": "Evaluated model",
           "baselineDate": "Measured on"
-        }
+        },
+        "amount": "{usd} (≈ {xof})"
       },
       "radar": {
         "metaTitle": "Radar",
@@ -8539,8 +8581,8 @@
           "toContact": "To contact",
           "published": "Published",
           "aiCost": "AI cost today",
-          "aiCostBudget": "out of a {budget} cap",
-          "aiCostNoBudget": "no cap"
+          "aiCostBudget": "≈ {equivalent}, out of a {budget} cap",
+          "aiCostNoBudget": "≈ {equivalent}, no cap"
         },
         "filters": {
           "stageAria": "Filter by stage",
