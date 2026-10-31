@@ -87,7 +87,7 @@ certification de Debian) pour les deux images de l'API, rien pour le front. Aucu
 | Compte et 2FA | un seul compte (le porteur, créé le 2026-09-14), **`two_factor_enabled = t`** ; l'interface est derrière Cloudflare et le port 3000 est fermé (ci-dessous) | 2026-09-14 | `docker exec $(docker ps -q -f name=dokploy-postgres) psql -U dokploy -d dokploy -tAc 'select two_factor_enabled, created_at::date from "user"'` |
 | Version de Traefik | `traefik:v3.6.7` — un conteneur hors Swarm, `dokploy-traefik` | 2026-09-14 | `docker ps --filter name=dokploy-traefik --format '{{.Image}}'` |
 | Hôte interne PostgreSQL | `serveur-postgres-egr6ii` — PostgreSQL 17.11, limite 1 Gio. Image **`ghcr.io/thiambara/takussan-postgres:sha-60c0a5f1ef780108b0d12c769c2fc0e34713f665`** depuis le 2026-10-18 (TCK-930 : `pgvector/pgvector:pg17` épinglée, plus WAL-G 3.0.9 et les autorités de certification) ; `pgvector/pgvector:pg17` jusque-là | 2026-09-14, 2026-10-18 | `docker service ls` (Dokploy suffixe le nom donné) ; `docker service inspect serveur-postgres-egr6ii -f '{{.Spec.TaskTemplate.ContainerSpec.Image}}'` |
-| Extensions PostgreSQL de la préproduction | **`pg_trgm` 1.6 disponible**, extension *trusted* (relevé `trusted = t`) : la migration `2026_10_30_392200` (TCK-2392, signal de texte du Radar) devrait la créer en propriétaire de la base `takussan_preview`, sans superutilisateur — ⚠ elle n'a jamais tourné en préproduction (dernier déploiement `c9dcc3335`, 2026-10-26) : à vérifier au premier déploiement. **`vector` 0.8.7 disponible**, mais sa création exige un superutilisateur (`pgadmin`) : une migration de l'application qui la crée échouerait (à trancher avec TCK-2423, la table `embeddings` d'ADR-0076 § 11) | 2026-10-30 | `docker exec $(docker ps -q -f name=serveur-postgres-egr6ii) psql -U pgadmin -d takussan_preview -tAc "select name, version, trusted from pg_available_extension_versions where name in ('pg_trgm','vector')"` |
+| Extensions PostgreSQL de la préproduction | **`pg_trgm` 1.6 disponible**, extension *trusted* (relevé `trusted = t`) : la migration `2026_10_30_392200` (TCK-2392, signal de texte du Radar) devrait la créer en propriétaire de la base `takussan_preview`, sans superutilisateur — ⚠ elle n'a jamais tourné en préproduction (dernier déploiement `c9dcc3335`, 2026-10-26) : à vérifier au premier déploiement. **`vector` 0.8.7 disponible**, mais sa création exige un superutilisateur (`pgadmin`) : la migration de TCK-2423 réussit alors sans créer la table `embeddings`, et le Radar reste sur `pg_trgm` (runbook, « Allumer les embeddings du Radar » ; non rejoué depuis TCK-2423 : relevé d'avant le code) | 2026-10-30 | `docker exec $(docker ps -q -f name=serveur-postgres-egr6ii) psql -U pgadmin -d takussan_preview -tAc "select name, version, trusted from pg_available_extension_versions where name in ('pg_trgm','vector')"` |
 | Archivage continu (WAL-G) | seau `takussan-wal`, préfixe `serveur-postgres`, verrou de 7 jours ; jeton propre au seau (`AccessDenied` sur `vps-sauvegardes` et sur la liste des seaux). 11 segments archivés, 0 échec ; première sauvegarde de base en 7 s ; restauration à un instant choisi depuis R2 seul, promue en 19 s, comptes identiques, `backup:verify-encryption` en 0 (1 avec `--cle-fausse`) ; timers `wal-g-base` (dimanche 03:30) et `wal-g-veille` (`*:0/15`) actifs | 2026-10-18 | `wal-g-takussan etat` ; épreuve de TCK-930, AC4 |
 | Meilisearch, Redis | `meilisearch:7700` (v1.16) — Compose `donnees` du projet *Serveur*, sans port publié. **Redis : un par environnement depuis le 2026-10-18** (TCK-880, ADR-0069 § 4). Préproduction : service `redis` de la pile `takussan-api-preview-4iza80` (`redis:8-alpine`, 128 Mo, `volatile-lru`), sur le seul réseau `interne` de la pile ; 1,60 Mo au lendemain de la bascule. Mesuré après le déploiement de `b2804272` : une clé `Cache::put` de l'API se lit dans ce Redis et **pas** dans l'ancien `redis-takussan` ; depuis `dokploy-network`, ni `redis` ni `takussan-api-preview-4iza80-redis-1` ne répondent ; `api`, `worker`, `worker-long`, `worker-ia`, `worker-media` et `scheduler` lisent `REDIS_HOST=redis`. `redis-takussan` a quitté le Compose `donnees` le 2026-10-18 (TCK-880, AC4). Il n'y tourne plus que Meilisearch, et son onglet ne porte plus que `MEILI_MASTER_KEY`. Le volume `serveur-donnees-qomjjz_redis-takussan` (30 Mo, aucun conteneur) a été supprimé le 2026-10-18 au soir, avec l'accord du porteur ; `docker volume ls` n'en compte plus aucun | 2026-10-18 | `docker ps --format '{{.Names}} {{.Image}}'` ; `docker exec takussan-api-preview-4iza80-redis-1 redis-cli info memory` |
 | Bases de préproduction | `takussan_preview` (`LOCALE C`, `CONNECT` révoqué à `PUBLIC`) | 2026-09-14 | plan, tâche A4, étapes 9 et 10 |
@@ -673,6 +673,26 @@ d'UptimeRobot, payante. À la main : `deploy/server/certificats.sh [nom…]`. Re
 noms à 89 jours ; `SEUIL_JOURS=365` rougit les cinq, un nom non servi et une origine muette
 rougissent aussi. ⚠ Un nom ajouté à Dokploy s'ajoute à la liste du script ; GitHub éteint un
 workflow planifié après 60 jours sans activité sur le dépôt (un `workflow_dispatch` le rallume).
+
+### Allumer les embeddings du Radar (TCK-2423, ADR-0076)
+
+Sans clé, rien ne part et le Radar reste sur `pg_trgm`. **L'ordre compte : `privacy.ts` § 4.3 promet le refus de
+l'entraînement dès que des textes partent.**
+
+1. **Refuser l'entraînement chez Voyage AI**, avant de poser la clé : tableau de bord, Organization → Terms of Service,
+   curseur sur « Opted Out » (compte d'administrateur, moyen de paiement enregistré). Par défaut, Voyage peut entraîner ses
+   modèles sur les textes reçus ; une fois le refus posé, il les efface après traitement, sans effet sur ce qui a été envoyé
+   avant (conditions de Voyage, relues le 2026-10-31).
+2. **Informer la Commission de protection des données** du transfert vers les États-Unis, avant le premier envoi
+   (loi n° 2008-12, art. 49), et garder les conditions de Voyage comme contrat de sous-traitance (art. 39).
+3. **Poser l'extension** avec le superutilisateur, puis créer la table avec l'application :
+   ```bash
+   docker exec $(docker ps -q -f name=serveur-postgres-egr6ii) psql -U pgadmin -d takussan_preview -c "CREATE EXTENSION IF NOT EXISTS vector"
+   php artisan ai:install-embeddings   # dans le conteneur de l'API ; sort en 1 si l'extension manque toujours
+   ```
+4. **Poser `VOYAGE_API_KEY`** dans Dokploy. `radar:embed-listings` (toutes les 15 min) met alors chaque lot en file `ai` ;
+   les annonces passent une à une de `pg_trgm` aux vecteurs. Le coût et les pannes se lisent dans la console IA, usage
+   `radar.embedding`. Pour revenir en arrière sans retirer la clé : `RADAR_SIMILARITY_DRIVER=trigram`.
 
 ## Ce que Caddy reprend de l'ancien vhost nginx
 

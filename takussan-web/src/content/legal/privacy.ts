@@ -109,7 +109,7 @@ Nous faisons appel à des prestataires qui traitent des données pour notre comp
 - **Connexion par un tiers** : Google, Meta (Facebook) et Apple, uniquement si vous choisissez ce mode de connexion.
 - **Cartographie** : OpenStreetMap, dont les serveurs reçoivent votre adresse IP lorsque la carte s’affiche.
 - **Localisation approximative** : ipapi.co, qui reçoit votre adresse IP pour en déduire votre ville.
-- **Intelligence artificielle** : Anthropic (États-Unis) ⚠ [et tout autre fournisseur retenu] — analyse du texte et des images d’une annonce pour en extraire les caractéristiques, rédaction de messages, vérification d’une preuve d’accord, pour proposer une saisie, une rédaction ou un avis qu’une personne vérifie. Aucune donnée sensible (pièce d’identité, revenus) ne leur est transmise. ⚠ Ces prestataires n’utilisent pas les données transmises pour entraîner leurs modèles : à vérifier sur leurs conditions en vigueur.
+- **Intelligence artificielle** : Anthropic (États-Unis) ⚠ [et tout autre fournisseur retenu] — analyse du texte et des images d’une annonce pour en extraire les caractéristiques, rédaction de messages, vérification d’une preuve d’accord, pour proposer une saisie, une rédaction ou un avis qu’une personne vérifie. Aucune donnée sensible (pièce d’identité, revenus) ne leur est transmise. ⚠ Anthropic n’utilise pas les données transmises pour entraîner ses modèles : à vérifier sur ses conditions en vigueur. Voyage AI Innovations, Inc. (États-Unis) — calcul d’une représentation numérique du texte d’une annonce relevée ailleurs, pour signaler à une personne les annonces qui décrivent peut-être le même bien. Ce texte lui parvient sans chiffres ni numéro de téléphone, mais il peut contenir un nom que l’annonceur y a écrit ; aucune pièce d’identité ni aucun revenu ne lui est transmis. Notre compte chez Voyage AI est réglé pour que ces textes ne servent pas à entraîner ses modèles et soient effacés dès leur traitement.
 
 ## 4.4 Les autorités
 
@@ -136,7 +136,7 @@ Certains de nos prestataires sont établis ou stockent des données hors du Sén
 - **Journaux d’accès des serveurs** : quelques jours, par rotation automatique.
 - **Archive d’export de vos données** : 7 jours, puis suppression automatique.
 - **Brouillons d’annonce non publiés** : 90 jours sans modification.
-- **Annonces relevées ailleurs et jamais publiées** : 90 jours à compter du relevé, et effacées dès que vous demandez à ne plus être contacté. Ne subsiste alors qu’une empreinte chiffrée de votre numéro, qui sert seulement à ne jamais vous recontacter.
+- **Annonces relevées ailleurs et jamais publiées** : 90 jours à compter du relevé, et effacées dès que vous demandez à ne plus être contacté. Ne subsiste alors qu’une empreinte chiffrée de votre numéro, qui sert seulement à ne jamais vous recontacter. La représentation numérique de leur texte s’efface avec elles.
 - **Preuve de votre accord à la publication** : tant que les annonces concernées sont en ligne, puis ⚠ 3 ans.
 - **Sauvegardes** : conservées au plus 14 jours, puis écrasées.
 - **Consentements** : le temps du consentement, puis 5 ans pour pouvoir en justifier.
@@ -293,7 +293,7 @@ We use providers that process data on our behalf, on our instructions and under 
 - **Third-party sign-in**: Google, Meta (Facebook) and Apple, only if you choose that sign-in method.
 - **Maps**: OpenStreetMap, whose servers receive your IP address when a map is displayed.
 - **Approximate location**: ipapi.co, which receives your IP address to infer your city.
-- **Artificial intelligence**: Anthropic (United States) ⚠ [and any other provider retained] — analysis of the text and images of a listing to extract its characteristics, drafting of messages, checking of a proof of agreement, to suggest an entry, a draft or an assessment that a person reviews. No sensitive data (identity documents, income) is sent to them. ⚠ These providers do not use the data sent to train their models: to be verified against their current terms.
+- **Artificial intelligence**: Anthropic (United States) ⚠ [and any other provider retained] — analysis of the text and images of a listing to extract its characteristics, drafting of messages, checking of a proof of agreement, to suggest an entry, a draft or an assessment that a person reviews. No sensitive data (identity documents, income) is sent to them. ⚠ Anthropic does not use the data sent to train its models: to be verified against its current terms. Voyage AI Innovations, Inc. (United States) — computing a numerical representation of the text of a listing collected elsewhere, to point out to a person the listings that may describe the same property. This text reaches it without digits or phone numbers, but it may contain a name the advertiser wrote in it; no identity document or income is sent to it. Our Voyage AI account is set so that these texts are not used to train its models and are deleted as soon as they are processed.
 
 ## 4.4 Authorities
 
@@ -320,7 +320,7 @@ Some providers are established or store data outside Senegal, notably in the Eur
 - **Server access logs**: a few days, by automatic rotation.
 - **Data export archive**: 7 days, then automatically deleted.
 - **Unpublished listing drafts**: 90 days without changes.
-- **Listings collected elsewhere and never published**: 90 days from collection, and erased as soon as you ask not to be contacted. All that remains is an encrypted fingerprint of your number, used only to never contact you again.
+- **Listings collected elsewhere and never published**: 90 days from collection, and erased as soon as you ask not to be contacted. All that remains is an encrypted fingerprint of your number, used only to never contact you again. The numerical representation of their text is deleted with them.
 - **Proof of your agreement to publication**: for as long as the listings concerned are online, then ⚠ 3 years.
 - **Backups**: kept for at most 14 days, then overwritten.
 - **Consents**: for as long as the consent applies, then 5 years so that it can be evidenced.

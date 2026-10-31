@@ -1,7 +1,7 @@
 ---
 id: TCK-2423
 title: "Radar : le pilote d'embeddings Voyage AI et la table embeddings d'ADR-0076 § 11, avec repli sur pg_trgm"
-status: doing
+status: done
 phase: P3
 family: back
 estimate: M
@@ -42,25 +42,25 @@ la base cible, à vérifier en préproduction).
 
 ## Delta à produire
 
-- [ ] Un fournisseur d'embeddings ajouté au rôle `embedding`, avec sa ligne de `privacy.ts`
+- [x] Un fournisseur d'embeddings ajouté au rôle `embedding`, avec sa ligne de `privacy.ts`
       (`takussan-web/src/content/legal/README.md`).
-- [ ] Migration : extension `vector` et table `embeddings` (objet polymorphe, modèle, dimension,
+- [x] Migration : extension `vector` et table `embeddings` (objet polymorphe, modèle, dimension,
       vecteur, empreinte du contenu), avec leur `down()`.
-- [ ] Un pilote `embeddings` de `radar.similarity.driver`, calculé en file `ai`, et le repli `trigram`
+- [x] Un pilote `embeddings` de `radar.similarity.driver`, calculé en file `ai`, et le repli `trigram`
       tant qu'un vecteur manque.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Deux annonces reformulées se rapprochent par le signal `text` sous le pilote
+- [x] AC1 — Deux annonces reformulées se rapprochent par le signal `text` sous le pilote
       `embeddings`, avec un faux modèle ; aucun test n'appelle un vrai fournisseur.
-- [ ] AC2 — Sans vecteur calculé, le signal retombe sur `trigram`.
-- [ ] AC3 — Ce qui part chez Voyage passe par le masquage de la passerelle, prouvé sur le corps de la requête.
-- [ ] AC4 — Chaque appel se journalise (`ai_calls`, coût en dollars) et compte dans les plafonds et le coupe-circuit.
-- [ ] AC5 — Le repli s'applique par cas : pilote non configuré, clé absente, vecteur manquant d'un côté ou de l'autre,
+- [x] AC2 — Sans vecteur calculé, le signal retombe sur `trigram`.
+- [x] AC3 — Ce qui part chez Voyage passe par le masquage de la passerelle, prouvé sur le corps de la requête.
+- [x] AC4 — Chaque appel se journalise (`ai_calls`, coût en dollars) et compte dans les plafonds et le coupe-circuit.
+- [x] AC5 — Le repli s'applique par cas : pilote non configuré, clé absente, vecteur manquant d'un côté ou de l'autre,
       table absente, API en panne. Le calcul se fait en file `ai`, jamais pendant l'appariement.
-- [ ] AC6 — L'extension `vector` indisponible ou refusée ne fait jamais rougir la migration, et le refus de droit
+- [x] AC6 — L'extension `vector` indisponible ou refusée ne fait jamais rougir la migration, et le refus de droit
       n'abandonne pas la transaction en cours ; `down()` juste.
-- [ ] AC7 — Une annonce inchangée ne se recalcule pas, et une panne ne produit pas de boucle de réessais.
+- [x] AC7 — Une annonce inchangée ne se recalcule pas, et une panne ne produit pas de boucle de réessais.
 
 ## Hors périmètre
 
@@ -68,4 +68,32 @@ la base cible, à vérifier en préproduction).
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- **La table reste facultative** : `App\Services\Ai\EmbeddingsTable`, partagée par la migration et `ai:install-embeddings`.
+  La migration a réussi sans droit sur une base jetable (`vector` non de confiance, rôle non superutilisateur), la
+  commande a ensuite créé la table une fois l'extension posée.
+- **`AiGateway::embed()`** partage `admit()` avec `run()` : même ordre, mêmes refus, un seul endroit.
+- **Aucun vrai appel** : le contrat (`/embeddings`, `input_type`, `output_dimension`, tarifs, refus de l'entraînement) est
+  vérifié sur la documentation de Voyage du 2026-10-31, jamais éprouvé. Les seuils vectoriels ne reposent sur aucune mesure.
+
+### Prérequis du porteur
+
+Dans l'ordre, runbook de `docs/infra/hebergement.md`, « Allumer les embeddings du Radar » : refuser l'entraînement chez Voyage
+**avant** de poser la clé (la politique de confidentialité le promet), informer la CDP du transfert (loi 2008-12, art. 49),
+poser l'extension en superutilisateur, `ai:install-embeddings`, puis `VOYAGE_API_KEY`.
+
+### Décisions prises en autonomie, à revoir
+
+- Défaut du pilote : `embeddings`, qui retombe sur `trigram` sans clé ni table : la clé suffit à l'allumer. Écarté : `trigram`
+  par défaut, qui demandait une seconde variable.
+- Modèle : `voyage-4`, 1024 dimensions (0,06 $ le million). Écarté : `voyage-4-large`, le double du prix pour un texte de
+  1 000 caractères. Les deux autres sont au catalogue et se règlent dans la console, ce qui recalcule tout.
+- Seuils vectoriels : 0,8 et 0,9. Écarté : les seuils des trigrammes, qui n'ont pas la même échelle. Aucune mesure réelle.
+- Calcul par balayage planifié (toutes les 15 min, 100 annonces). Écarté : un observateur sur l'annonce, qui ajoutait une
+  écriture à chaque sauvegarde et ne couvrait ni le rattrapage ni la pose tardive de la clé.
+- Un rapprochement par vecteurs ne corrobore pas une fusion automatique (`corroborates_merge`, faux). Écarté : le traiter comme
+  un trigramme, sans mesure.
+- Étapes envoyées : extraite, relue, contactée, accord, publiée. Écarté : `refused`, moins de données sorties.
+- Le test de connexion et la console distinguent les fournisseurs d'embeddings (`serves`), code `ai.provider_role_mismatch`.
+- `VERSION_DOCUMENTS` et `TERMS_VERSION` avancent au 31 octobre, comme le demande `legal/README.md` : un annonceur par
+  téléphone réaccepte donc les conditions, alors que les CGU n'ont pas changé.
+- Pas d'index approché : le volume du Radar se balaie en exact. Le chatbot de TCK-344 décidera du sien.
