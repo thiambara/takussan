@@ -13,6 +13,7 @@ import { useGardeDoubleFacteur } from '@/components/auth/garde-double-facteur-co
 import { useApiForm } from '@/hooks/useApiForm';
 import { useCan } from '@/hooks/useCan';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
   Dialog,
   DialogContent,
@@ -138,11 +139,11 @@ export function InviteAgentDialog({
               <label htmlFor="invite-agent-first-name" className="text-xs font-semibold text-foreground">
                 {t('firstName')}
               </label>
-              <input
+              <Input
                 id="invite-agent-first-name"
                 type="text"
                 autoComplete="given-name"
-                className="mt-1 h-9 w-full rounded-lg border border-input bg-background px-3 text-base md:text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring aria-invalid:border-destructive aria-invalid:ring-destructive/20"
+                className="mt-1"
                 aria-invalid={errors.first_name ? true : undefined}
                 aria-describedby={errors.first_name ? 'invite-agent-first-name-error' : undefined}
                 {...register('first_name')}
@@ -157,11 +158,11 @@ export function InviteAgentDialog({
               <label htmlFor="invite-agent-last-name" className="text-xs font-semibold text-foreground">
                 {t('lastName')}
               </label>
-              <input
+              <Input
                 id="invite-agent-last-name"
                 type="text"
                 autoComplete="family-name"
-                className="mt-1 h-9 w-full rounded-lg border border-input bg-background px-3 text-base md:text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring aria-invalid:border-destructive aria-invalid:ring-destructive/20"
+                className="mt-1"
                 aria-invalid={errors.last_name ? true : undefined}
                 aria-describedby={errors.last_name ? 'invite-agent-last-name-error' : undefined}
                 {...register('last_name')}
@@ -178,12 +179,12 @@ export function InviteAgentDialog({
             <label htmlFor="invite-agent-email" className="text-xs font-semibold text-foreground">
               {t('email')}
             </label>
-            <input
+            <Input
               id="invite-agent-email"
               type="email"
               autoComplete="email"
               placeholder={t('emailPlaceholder')}
-              className="mt-1 h-9 w-full rounded-lg border border-input bg-background px-3 text-base md:text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring aria-invalid:border-destructive aria-invalid:ring-destructive/20"
+              className="mt-1"
                 aria-invalid={errors.email ? true : undefined}
                 aria-describedby={errors.email ? 'invite-agent-email-error' : undefined}
               {...register('email')}
@@ -199,11 +200,11 @@ export function InviteAgentDialog({
             <label htmlFor="invite-agent-phone" className="text-xs font-semibold text-foreground">
               {t('phone')}
             </label>
-            <input
+            <Input
               id="invite-agent-phone"
               type="tel"
               autoComplete="tel"
-              className="mt-1 h-9 w-full rounded-lg border border-input bg-background px-3 text-base md:text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring aria-invalid:border-destructive aria-invalid:ring-destructive/20"
+              className="mt-1"
                 aria-invalid={errors.phone ? true : undefined}
                 aria-describedby={errors.phone ? 'invite-agent-phone-error' : undefined}
               {...register('phone')}

@@ -56,7 +56,8 @@ describe('TCK-552 — une seule rangée d’outils sous lg : Filtres, tri, bascu
   it('Filtres, tri et bascule ont 44 px de haut sous lg (h-11)', () => {
     monte({ basculeDeVue: <button type="button">bascule</button> });
     expect(classes(screen.getByRole('button', { name: /filtres/i }))).toContain('h-11');
-    expect(classes(screen.getByRole('combobox', { name: /trier/i }))).toContain('h-11');
+    // TCK-2460 — le tri tient ses 44 px de la portée de densité, plus d'une hauteur écrite à la main.
+    expect(screen.getByRole('combobox', { name: /trier/i }).closest('[data-field-density="comfortable"]')).not.toBeNull();
   });
 
   // « par page » (AC4) a quitté cette rangée avec TCK-635 : il est gardé à côté de la pagination,

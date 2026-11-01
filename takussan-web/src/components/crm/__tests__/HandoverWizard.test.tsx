@@ -63,8 +63,10 @@ describe('HandoverWizard', () => {
 
     expect(await screen.findByText('Tâches ouvertes')).toBeInTheDocument();
     // Le partant ne se reprend pas lui-même.
+    await userEvent.click(await screen.findByRole('combobox', { name: 'Repreneur' }));
+    await screen.findByRole('option', { name: 'Awa Diop' });
     expect(screen.queryByRole('option', { name: 'Moussa Fall' })).toBeNull();
-    await userEvent.selectOptions(await screen.findByLabelText('Repreneur'), '8');
+    await userEvent.click(screen.getByRole('option', { name: 'Awa Diop' }));
     await userEvent.click(screen.getByRole('button', { name: 'Relire' }));
 
     expect(screen.getByTestId('handover-review')).toHaveTextContent('Awa Diop reprendra ce que Moussa Fall porte');
@@ -113,7 +115,8 @@ describe('HandoverWizard', () => {
     expect(portefeuille).toHaveTextContent('Biens dont il est l’agent responsable2');
     expect(portefeuille).toHaveTextContent('Biens saisis à son nom1');
     expect(portefeuille).not.toHaveTextContent('pas encore transmissible');
-    await userEvent.selectOptions(await screen.findByLabelText('Repreneur'), '8');
+    await userEvent.click(await screen.findByRole('combobox', { name: 'Repreneur' }));
+    await userEvent.click(await screen.findByRole('option', { name: 'Awa Diop' }));
     expect(screen.queryByRole('checkbox')).toBeNull();
     await userEvent.click(screen.getByRole('button', { name: 'Relire' }));
 
@@ -159,7 +162,8 @@ describe('HandoverWizard', () => {
     });
     rendu({ id: 7, first_name: '', last_name: '', email: 'moussa@example.test' });
 
-    await userEvent.selectOptions(await screen.findByLabelText('Repreneur'), '8');
+    await userEvent.click(await screen.findByRole('combobox', { name: 'Repreneur' }));
+    await userEvent.click(await screen.findByRole('option', { name: 'Awa Diop' }));
     await userEvent.click(screen.getByRole('button', { name: 'Relire' }));
 
     expect(screen.getByTestId('handover-review')).toHaveTextContent(

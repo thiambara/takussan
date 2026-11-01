@@ -7,6 +7,7 @@ import { Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import { useImportBankStatement } from '@/lib/queries/reconciliation';
 import type { BankStatementSourceFormat } from '@/types/reconciliation';
@@ -18,9 +19,6 @@ import type { BankStatementSourceFormat } from '@/types/reconciliation';
 function formatDeduit(nom: string): BankStatementSourceFormat {
   return nom.toLowerCase().endsWith('.ofx') ? 'ofx' : 'csv';
 }
-
-const CLASSE_SELECT =
-  'h-9 w-full rounded-md border border-border bg-transparent px-3 text-sm text-foreground';
 
 export function ImportStatementForm({ agencyId }: { readonly agencyId: number }) {
   const t = useTranslations('admin.reconciliation.import');
@@ -51,6 +49,11 @@ export function ImportStatementForm({ agencyId }: { readonly agencyId: number })
     }
   }
 
+  const optionsFormat = [
+    { value: 'csv', label: t('formats.csv') },
+    { value: 'ofx', label: t('formats.ofx') },
+  ];
+
   return (
     <form onSubmit={soumettre} className="space-y-3" aria-label={t('title')}>
       <div className="grid gap-3 sm:grid-cols-[2fr_1fr_2fr]">
@@ -70,15 +73,24 @@ export function ImportStatementForm({ agencyId }: { readonly agencyId: number })
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="releve-format">{t('format')}</Label>
-          <select
-            id="releve-format"
-            className={CLASSE_SELECT}
+          <Select
             value={format}
-            onChange={(e) => setFormat(e.target.value as BankStatementSourceFormat)}
+            onValueChange={(next) => {
+              if (next !== null) setFormat(next as BankStatementSourceFormat);
+            }}
+            items={optionsFormat}
           >
-            <option value="csv">{t('formats.csv')}</option>
-            <option value="ofx">{t('formats.ofx')}</option>
-          </select>
+            <SelectTrigger id="releve-format" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {optionsFormat.map((o) => (
+                <SelectItem key={o.value} value={o.value}>
+                  {o.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="releve-banque">{t('bankName')}</Label>

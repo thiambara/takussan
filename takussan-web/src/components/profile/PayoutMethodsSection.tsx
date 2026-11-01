@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import {
@@ -17,9 +18,6 @@ import {
 import type { PayoutMethodKind } from '@/types/invoice';
 
 const KINDS: readonly PayoutMethodKind[] = ['wave', 'orange_money', 'free_money', 'bank_transfer'];
-
-const SELECT_CLASS =
-  'h-8 w-full rounded-lg border border-input bg-background px-2.5 text-sm text-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring';
 
 /**
  * TCK-594 (ADR-0039 §6) — où le bailleur ou le prestataire veut être payé.
@@ -71,6 +69,8 @@ export function PayoutMethodsSection() {
       setHolder('');
     }
   };
+
+  const optionsKind = KINDS.map((value) => ({ value, label: tKind(value) }));
 
   return (
     <section aria-labelledby="payout-methods-title" className="space-y-4 rounded-2xl bg-card p-6">
@@ -129,18 +129,24 @@ export function PayoutMethodsSection() {
       <div className="grid gap-3 lg:grid-cols-[180px_1fr_1fr_auto] lg:items-end">
         <div className="space-y-1">
           <Label htmlFor="payout-method-kind">{t('kind')}</Label>
-          <select
-            id="payout-method-kind"
-            className={SELECT_CLASS}
+          <Select
             value={kind}
-            onChange={(e) => setKind(e.target.value as PayoutMethodKind)}
+            onValueChange={(next) => {
+              if (next !== null) setKind(next as PayoutMethodKind);
+            }}
+            items={optionsKind}
           >
-            {KINDS.map((value) => (
-              <option key={value} value={value}>
-                {tKind(value)}
-              </option>
-            ))}
-          </select>
+            <SelectTrigger id="payout-method-kind" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {optionsKind.map((o) => (
+                <SelectItem key={o.value} value={o.value}>
+                  {o.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <div className="space-y-1">
           <Label htmlFor="payout-method-identifier">

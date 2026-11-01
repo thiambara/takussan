@@ -127,7 +127,7 @@ export function ChampsPosition({
             placeholder={t('pastePlaceholder')}
             autoComplete="off"
             aria-describedby={retour ? 'champ-collage-retour' : undefined}
-            className="h-11 min-h-11"
+            className="min-h-11"
           />
           <Button
             type="button"
@@ -174,7 +174,7 @@ export function ChampsPosition({
                   onBlur={field.onBlur}
                   aria-invalid={fieldState.error ? true : undefined}
                   aria-describedby={fieldState.error ? `champ-${nom}-error` : undefined}
-                  className="h-11 min-h-11"
+                  className="min-h-11"
                 />
                 <FormError id={`champ-${nom}-error`}>{fieldState.error?.message}</FormError>
               </div>

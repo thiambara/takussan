@@ -72,7 +72,8 @@ describe('TCK-2093 — le fil d’activité se relit après les gestes de la fic
   it('étape changée depuis la fiche', async () => {
     const { activiteInvalidee } = monter(<CustomerStageControl customerId={CLIENT} name="Awa Diop" stage="prospect" />);
     expect(activiteInvalidee()).toBe(false);
-    await userEvent.selectOptions(screen.getByLabelText('Étape de Awa Diop'), 'qualified');
+    await userEvent.click(screen.getByRole('combobox', { name: 'Étape de Awa Diop' }));
+    await userEvent.click(await screen.findByRole('option', { name: 'Qualifié' }));
     await waitFor(() => expect(activiteInvalidee()).toBe(true));
   });
 

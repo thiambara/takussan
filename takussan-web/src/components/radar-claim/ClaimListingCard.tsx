@@ -139,7 +139,7 @@ export function ClaimListingCard({ listing, brouillon, onChange, disabled = fals
               maxLength={200}
               disabled={disabled}
               onChange={(e) => onChange({ ...brouillon, title: e.target.value })}
-              className="h-11"
+             
             />
           </div>
           <div className="space-y-1.5">
@@ -152,7 +152,7 @@ export function ClaimListingCard({ listing, brouillon, onChange, disabled = fals
               inputMode="numeric"
               disabled={disabled}
               onChange={(e) => onChange({ ...brouillon, price: e.target.value.replace(/\D/g, '').slice(0, 12) })}
-              className="h-11 tabular-nums"
+              className="tabular-nums"
             />
           </div>
           <div className="space-y-1.5">

@@ -6,6 +6,7 @@ import { Loader2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAgencyRoles, useAssignAgencyRole } from '@/lib/queries/agency-roles';
 import type { AgencyRole, AgencyRoleAssignment } from '@/types/agency-role';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
@@ -35,10 +36,10 @@ interface MemberAgencyRoleSelectProps {
  * sélecteur retombe sur sa valeur d'origine — laisser la nouvelle valeur
  * affichée après un refus ferait croire à un enregistrement.
  *
- * ## Un `<select>` natif, comme dans `CreateRoleDialog`
+ * ## La primitive `Select`, comme dans `CreateRoleDialog`
  *
- * Cohérent avec l'autre écran de ce lot, et sans portail à traverser depuis
- * l'intérieur d'un `Sheet`.
+ * La charte interdit le sélecteur natif visible ; le menu de `Select` se
+ * monte dans un portail, ce qui fonctionne depuis l'intérieur d'un `Sheet`.
  */
 export function MemberAgencyRoleSelect({ agencyId, assignment }: MemberAgencyRoleSelectProps) {
   const t = useTranslations('admin.roles');
@@ -80,6 +81,8 @@ export function MemberAgencyRoleSelect({ agencyId, assignment }: MemberAgencyRol
     return t.has(key) ? t(key) : assignment.profile_type;
   };
 
+  const optionsSelect = options.map((role) => ({ value: String(role.id), label: nomDuRole(role) }));
+
   const selectId = `member-agency-role-${assignment.profile_type}-${assignment.profile_id}`;
 
   return (
@@ -88,19 +91,25 @@ export function MemberAgencyRoleSelect({ agencyId, assignment }: MemberAgencyRol
       {rolesQuery.isLoading ? (
         <p className="text-xs text-muted-foreground">{t('assign.loading')}</p>
       ) : (
-        <select
-          id={selectId}
-          value={selected}
+        <Select
+          value={String(selected)}
           disabled={assign.isPending}
-          onChange={(e) => setSelected(Number(e.target.value))}
-          className="h-9 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm disabled:cursor-not-allowed disabled:opacity-50"
+          onValueChange={(next) => {
+            if (next !== null) setSelected(Number(next));
+          }}
+          items={optionsSelect}
         >
-          {options.map((role) => (
-            <option key={role.id} value={role.id}>
-              {nomDuRole(role)}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger id={selectId} className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {optionsSelect.map((o) => (
+              <SelectItem key={o.value} value={o.value}>
+                {o.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       )}
 
       {assign.error ? (

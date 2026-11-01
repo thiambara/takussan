@@ -9,6 +9,7 @@ import { useTranslations } from 'next-intl';
 import { accepterInvitationAction } from '@/app/actions/invitations';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { fieldDensityScope } from '@/components/ui/field-density';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/context/AuthContext';
 import { useCurrentLocale } from '@/i18n/hooks';
@@ -120,12 +121,12 @@ export function AccepterInvitation({
       <div className="flex flex-col gap-2">
         <Label htmlFor="invitation-prenom">{t('firstName')}</Label>
         <Input id="invitation-prenom" autoComplete="given-name" maxLength={100} value={prenom}
-          onChange={(e) => setPrenom(e.target.value)} disabled={enCours} className="h-11" />
+          onChange={(e) => setPrenom(e.target.value)} disabled={enCours} />
       </div>
       <div className="flex flex-col gap-2">
         <Label htmlFor="invitation-nom">{t('lastName')}</Label>
         <Input id="invitation-nom" autoComplete="family-name" maxLength={100} value={nom}
-          onChange={(e) => setNom(e.target.value)} disabled={enCours} className="h-11" />
+          onChange={(e) => setNom(e.target.value)} disabled={enCours} />
       </div>
     </div>
   );
@@ -134,6 +135,7 @@ export function AccepterInvitation({
     // Un prénom effacé n'empêche pas d'accepter : le compte reste alors sans nom, comme avant.
     return (
       <form
+        {...fieldDensityScope()}
         onSubmit={(event) => {
           event.preventDefault();
           accepter({ first_name: prenom.trim(), last_name: nom.trim() });
@@ -163,13 +165,13 @@ export function AccepterInvitation({
   }
 
   return (
-    <form onSubmit={envoyer} noValidate className="flex flex-col gap-5">
+    <form {...fieldDensityScope()} onSubmit={envoyer} noValidate className="flex flex-col gap-5">
       {champsDuNom}
       <div className="flex flex-col gap-2">
         <Label htmlFor="invitation-mot-de-passe">{t('password')}</Label>
         <Input id="invitation-mot-de-passe" type="password" autoComplete="new-password" maxLength={72}
           value={motDePasse} onChange={(e) => setMotDePasse(e.target.value)} disabled={enCours}
-          aria-describedby="invitation-mot-de-passe-aide" className="h-11" />
+          aria-describedby="invitation-mot-de-passe-aide" />
         <p id="invitation-mot-de-passe-aide" className="text-xs text-muted-foreground">{t('passwordHint')}</p>
       </div>
       {alerte}

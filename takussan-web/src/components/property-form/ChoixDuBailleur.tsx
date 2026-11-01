@@ -6,6 +6,7 @@ import { useLocale, useTranslations } from 'next-intl';
 
 import { InviteOwnerSheet } from '@/components/owners/InviteOwnerSheet';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/context/AuthContext';
 import { apiRequest, buildQueryString, type ApiError } from '@/lib/api';
 import { cheminApi, requete } from '@/lib/chemin-api';
@@ -25,8 +26,8 @@ export type BailleurDuChoix = Pick<OwnerProfileSummary, 'id' | 'user_id' | 'meta
 /** TCK-1000 — le bailleur invité depuis le choix : son profil `draft` et le nom saisi. */
 export type BailleurInvite = { readonly profileId: number; readonly nom: string };
 
-const SELECT_CLASS =
-  'h-9 w-full rounded-md border border-border bg-transparent px-3 text-sm text-foreground';
+/** Valeur repère de « l'agence » (aucun bailleur) : une valeur vide n'est pas une option du Select. */
+const AGENCE = '__agence__';
 
 /** Le compte désigné d'abord (nom, sinon e-mail), l'invitation en repli, `#<id>` en dernier. */
 export function nomDuBailleur(bailleur: BailleurDuChoix): string {
@@ -95,6 +96,10 @@ export function ChoixDuBailleur({
   const options = (bailleurs.data?.data ?? []).filter((b) => b.user_id !== null);
   const [feuilleOuverte, setFeuilleOuverte] = useState(false);
   const invitationOfferte = peutInviter && onInvite !== undefined;
+  const optionsBailleur = [
+    { value: AGENCE, label: t('agency') },
+    ...options.map((b) => ({ value: String(b.user_id), label: nomDuBailleur(b) })),
+  ];
 
   return (
     <div className="space-y-2" data-testid="choix-du-bailleur">
@@ -102,22 +107,26 @@ export function ChoixDuBailleur({
         {t('label')}
       </label>
       <p className="text-xs text-muted-foreground">{t('hint')}</p>
-      <select
-        id={id}
-        className={SELECT_CLASS}
-        value={valeur === null ? '' : String(valeur)}
-        onChange={(e) => {
+      <Select
+        value={valeur === null ? AGENCE : String(valeur)}
+        onValueChange={(next) => {
+          if (next === null) return;
           if (invite !== null) onInvite?.(null);
-          onChange(e.target.value === '' ? null : Number(e.target.value));
+          onChange(next === AGENCE ? null : Number(next));
         }}
+        items={optionsBailleur}
       >
-        <option value="">{t('agency')}</option>
-        {options.map((b) => (
-          <option key={b.id} value={String(b.user_id)}>
-            {nomDuBailleur(b)}
-          </option>
-        ))}
-      </select>
+        <SelectTrigger id={id} className="w-full">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {optionsBailleur.map((o) => (
+            <SelectItem key={o.value} value={o.value}>
+              {o.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
       {bailleurs.isLoading ? <p className="text-xs text-muted-foreground">{t('loading')}</p> : null}
       {!bailleurs.isLoading && options.length === 0 ? (
         <p className="text-xs text-muted-foreground">{t('empty')}</p>
