@@ -24,6 +24,8 @@ Route::middleware(['auth:sanctum', 'super-admin'])->prefix('admin/ai')->group(fu
         Route::get('usages', [AiUsageController::class, 'index'])->name('admin.ai.usages.index');
         Route::get('providers', [AiProviderController::class, 'index'])->name('admin.ai.providers.index');
         Route::get('models', [AiModelController::class, 'index'])->name('admin.ai.models.index');
+        // TCK-2459 — littérale AVANT la paramétrée.
+        Route::get('evaluations/suite', [AiEvaluationController::class, 'latestSuite'])->name('admin.ai.evaluations.suite.latest');
         Route::get('evaluations/{evaluation}', [AiEvaluationController::class, 'show'])->name('admin.ai.evaluations.show');
         Route::get('dashboard', AiDashboardController::class)->name('admin.ai.dashboard');
     });
@@ -37,5 +39,6 @@ Route::middleware(['auth:sanctum', 'super-admin'])->prefix('admin/ai')->group(fu
         Route::patch('models/{model}', [AiModelController::class, 'update'])->whereNumber('model')->name('admin.ai.models.update');
         Route::delete('models/{model}', [AiModelController::class, 'destroy'])->whereNumber('model')->name('admin.ai.models.destroy');
         Route::post('evaluations', [AiEvaluationController::class, 'store'])->name('admin.ai.evaluations.store');
+        Route::post('evaluations/suite', [AiEvaluationController::class, 'storeSuite'])->name('admin.ai.evaluations.suite.store');
     });
 });

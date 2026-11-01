@@ -1121,11 +1121,14 @@ export type AiEvalReport = {
 };
 export type AiEvaluationRun = {
   id: number;
-  role: AiModelRole;
-  candidate: AiModelLink;
+  /** TCK-2459 — `null` : l'évaluation complète, tous les usages sur leur chaîne en place. */
+  role: AiModelRole | null;
+  candidate: AiModelLink | null;
   status: AiEvaluationStatus;
   below_baseline: boolean | null;
   report: { usages: Record<string, AiEvalReport> } | null;
+  /** TCK-2459 — la somme des usages, calculée par l'API : un montant IA reste une chaîne (ADR-0086). */
+  total_cost_usd: string | null;
   /** Un code pointé : `ai.eval.job_lost`, `ai.eval.job_failed`, ou un échec d'appel `ai.*` (`AiErrorCode`, TCK-2399). */
   error_code: string | null;
   created_at: string | null;
@@ -1133,6 +1136,7 @@ export type AiEvaluationRun = {
   usd_to_xof: string;
 };
 export type AdminAiEvaluationResponse = { data: AiEvaluationRun };
+export type AdminAiEvaluationSuiteResponse = { data: AiEvaluationRun | null };
 export type AiDashboardDay = {
   date: string;
   usage_key: string;

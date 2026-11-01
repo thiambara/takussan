@@ -5,7 +5,11 @@ import { fetchAdminAiDashboard } from '@/lib/queries/super-admin';
 import { withIntl } from '@/test/intl';
 import { AiDashboardPanel } from '../AiDashboardPanel';
 
-vi.mock('@/lib/queries/super-admin', () => ({ fetchAdminAiDashboard: vi.fn() }));
+vi.mock('@/lib/queries/super-admin', () => ({
+  fetchAdminAiDashboard: vi.fn(),
+  fetchAdminAiEvaluationSuite: vi.fn().mockResolvedValue({ data: null }),
+  postAdminAiEvaluationSuite: vi.fn(),
+}));
 
 describe('coûts IA (TCK-2385)', () => {
   it('montre le dernier score d’évaluation de chaque usage, et le taux d’acceptation', async () => {

@@ -16,7 +16,7 @@ vi.mock('@/lib/queries/super-admin', () => ({
 
 const run: AiEvaluationRun = {
   id: 7, role: 'extraction', candidate: { provider: 'anthropic', model: 'modele-a', max_tokens: 1000 },
-  status: 'done', below_baseline: true, error_code: null, created_at: null, finished_at: null, usd_to_xof: '600',
+  status: 'done', below_baseline: true, total_cost_usd: null, error_code: null, created_at: null, finished_at: null, usd_to_xof: '600',
   report: { usages: { 'essai.extraction': {
     usage: 'essai.extraction', model: 'anthropic/modele-a', cases: 1, failures: 0, global: 0.5, cost_usd: '0.00000000004',
     fields: { prix: 0, titre: 1 }, baseline: { global: 0.9, fields: { prix: 1, titre: 1 } }, below_baseline: true,

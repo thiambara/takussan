@@ -14,6 +14,7 @@ use Throwable;
 
 /**
  * TCK-2385 — joue l'évaluation d'un candidat sur chaque usage de son rôle qui a un jeu de cas.
+ * TCK-2459 — sans rôle ni candidat, tous les usages qui ont un jeu de cas, sur leur chaîne en place.
  * Idempotent : une évaluation qui n'est plus `queued` n'est pas rejouée (un second passage du même
  * job ne rappelle pas les modèles). Un échec se lit dans `error_code` (un code `ai.*`, `AiErrorCode`) ; une reprise de la file n'est jamais rejouée.
  *
@@ -67,24 +68,7 @@ class RunAiEvaluation implements ShouldQueue
         $run->refresh();
 
         try {
-            $link = ModelLink::fromArray($run->candidate);
-            $reports = [];
-            $below = false;
-            // TCK-2386 — les usages dont un cas se joue sur ce rôle (les captures d'un usage
-            // `AttachmentsUseVision` en `vision`), et de chacun les seuls cas de ce rôle.
-            foreach ($runner->usagesForRole($run->role) as $key) {
-                $report = $runner->run($key, $link, $run->role);
-                $baseline = $runner->baseline($key);
-                // La console compare « en place / candidat » sur le même rôle : la section de ce rôle,
-                // `null` quand ce rôle n'a pas encore de référence.
-                $report['baseline'] = $baseline['roles'][$run->role->value] ?? null;
-                // Le verdict, pas la seule comparaison : un candidat dont des appels ont échoué (panne) ou
-                // dont les champs ne sont plus ceux de la référence ne passe jamais le cliquet.
-                $report['verdict'] = $runner->verdict($report, $baseline);
-                $report['below_baseline'] = $report['verdict'] !== null;
-                $below = $below || $report['below_baseline'];
-                $reports[$key] = $report;
-            }
+            [$reports, $below] = $run->isSuite() ? $this->suite($runner) : $this->candidat($runner, $run);
             $this->leave($run, [
                 'status' => AiEvaluationStatus::Done, 'report' => ['usages' => $reports],
                 'below_baseline' => $below, 'finished_at' => now(),
@@ -95,6 +79,54 @@ class RunAiEvaluation implements ShouldQueue
                 'status' => AiEvaluationStatus::Failed, 'error_code' => AiErrorCode::fromThrowable($e), 'finished_at' => now(),
             ], [AiEvaluationStatus::Running]);
         }
+    }
+
+    /** @return array{0: array<string, array<string, mixed>>, 1: bool} */
+    private function candidat(EvaluationRunner $runner, AiEvaluationRun $run): array
+    {
+        $link = ModelLink::fromArray($run->candidate);
+        $reports = [];
+        $below = false;
+        // TCK-2386 — les usages dont un cas se joue sur ce rôle (les captures d'un usage
+        // `AttachmentsUseVision` en `vision`), et de chacun les seuls cas de ce rôle.
+        foreach ($runner->usagesForRole($run->role) as $key) {
+            $report = $runner->run($key, $link, $run->role);
+            $baseline = $runner->baseline($key);
+            // La console compare « en place / candidat » sur le même rôle : la section de ce rôle,
+            // `null` quand ce rôle n'a pas encore de référence.
+            $report['baseline'] = $baseline['roles'][$run->role->value] ?? null;
+            // Le verdict, pas la seule comparaison : un candidat dont des appels ont échoué (panne) ou
+            // dont les champs ne sont plus ceux de la référence ne passe jamais le cliquet.
+            $report['verdict'] = $runner->verdict($report, $baseline);
+            $report['below_baseline'] = $report['verdict'] !== null;
+            $below = $below || $report['below_baseline'];
+            $reports[$key] = $report;
+        }
+
+        return [$reports, $below];
+    }
+
+    /**
+     * TCK-2459 — ce que joue `ai:eval --all` : chaque usage qui a un jeu de cas, sur sa chaîne en place,
+     * comparé à sa référence entière. Rien n'écrit la référence : seul `--update-baseline` le fait.
+     *
+     * @return array{0: array<string, array<string, mixed>>, 1: bool}
+     */
+    private function suite(EvaluationRunner $runner): array
+    {
+        $reports = [];
+        $below = false;
+        foreach ($runner->evaluableUsages() as $key) {
+            $report = $runner->run($key);
+            $baseline = $runner->baseline($key);
+            $report['baseline'] = $baseline;
+            $report['verdict'] = $runner->verdict($report, $baseline);
+            $report['below_baseline'] = $report['verdict'] !== null;
+            $below = $below || $report['below_baseline'];
+            $reports[$key] = $report;
+        }
+
+        return [$reports, $below];
     }
 
     /**

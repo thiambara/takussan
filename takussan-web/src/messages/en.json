@@ -8584,7 +8584,39 @@
           "baselineModel": "Evaluated model",
           "baselineDate": "Measured on"
         },
-        "amount": "{usd} (≈ {xof})"
+        "amount": "{usd} (≈ {xof})",
+        "suite": {
+          "title": "Full evaluation",
+          "description": "Replays every case set against the real models and compares each score with its baseline. It no longer runs at night: start it after changing a model or a prompt. It never rewrites a baseline.",
+          "run": "Run the evaluation",
+          "running": "Evaluation running…",
+          "never": "No full evaluation has been run yet.",
+          "startedAt": "Started on {date}",
+          "total": "Cost: {cost}",
+          "failed": "The evaluation did not finish: run it again, or check the worker logs.",
+          "caption": "Result per usage",
+          "verdictOk": "Holds the baseline",
+          "verdictBelow": "Below the baseline",
+          "confirmTitle": "Run the full evaluation?",
+          "confirmWithCost": "It calls real models. The last run cost {cost}.",
+          "confirmNoCost": "It calls real models. Expect about $1 per run.",
+          "confirm": "Run",
+          "status": {
+            "queued": "Queued",
+            "running": "Running",
+            "done": "Finished",
+            "failed": "Failed"
+          },
+          "columns": {
+            "usage": "Usage",
+            "score": "Score",
+            "baseline": "Baseline",
+            "cases": "Cases",
+            "failures": "Failures",
+            "cost": "Cost",
+            "verdict": "Verdict"
+          }
+        }
       },
       "radar": {
         "metaTitle": "Radar",

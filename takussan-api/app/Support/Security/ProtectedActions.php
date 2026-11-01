@@ -222,6 +222,8 @@ final class ProtectedActions
         AiUsageController::class.'@update',
         AiProviderController::class.'@test',
         AiEvaluationController::class.'@store',
+        // TCK-2459 — une évaluation complète appelle de vrais modèles, à la charge du compte.
+        AiEvaluationController::class.'@storeSuite',
         // TCK-2448 (ADR-0085 §1) — un tarif décide du budget, et un modèle ajouté reçoit des données.
         AiModelController::class.'@store',
         AiModelController::class.'@update',

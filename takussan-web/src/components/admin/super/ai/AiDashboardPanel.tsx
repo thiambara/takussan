@@ -13,6 +13,7 @@ import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import type { ApiError } from '@/lib/api';
 import { fetchAdminAiDashboard } from '@/lib/queries/super-admin';
 import type { AdminAiDashboardResponse, AiDashboardDay, AiEvalBaseline } from '@/types/super-admin';
+import { AiEvaluationSuitePanel } from './AiEvaluationSuitePanel';
 import { useMontantIa } from './useMontantIa';
 
 type LigneAcceptation = AdminAiDashboardResponse['data']['acceptance'][string];
@@ -73,6 +74,7 @@ export function AiDashboardPanel() {
 
   return (
     <div className="space-y-4">
+      <AiEvaluationSuitePanel />
       <div className="flex flex-wrap items-end gap-3">
         <div className="space-y-1"><Label htmlFor="ai-from">{t('from')}</Label><Input id="ai-from" type="date" value={from} max={to} onChange={(e) => setFrom(e.target.value)} /></div>
         <div className="space-y-1"><Label htmlFor="ai-to">{t('to')}</Label><Input id="ai-to" type="date" value={to} min={from} onChange={(e) => setTo(e.target.value)} /></div>
