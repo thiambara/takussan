@@ -10,7 +10,7 @@
   },
   "environnements": {
     "preview": {
-      "fichier": "Dokploy → Compose takussan-api-preview → Environment (compose.one → env, 71 clés)",
+      "fichier": "Dokploy → Compose takussan-api-preview → Environment (compose.one → env, 200 clés, relevé du 2026-11-01)",
       "hors_depot": true,
       "deploye": {
         "etat": "mesure",
@@ -23,71 +23,78 @@
         "DB_CONNECTION": {
           "valeur": "pgsql",
           "etat": "mesure",
-          "date": "2026-09-14",
+          "date": "2026-11-01",
           "commande": "compose.one → env (Dokploy)",
           "note": "ADR-0020 ; la base `takussan_preview` est le service Database PostgreSQL 17 de Dokploy (hebergement.md)."
         },
         "CACHE_STORE": {
           "valeur": "redis",
           "etat": "mesure",
-          "date": "2026-09-14",
+          "date": "2026-11-01",
           "commande": "compose.one → env (Dokploy)",
           "note": "Redis = service `redis` de la pile d'API (deploy/takussan/compose.api.yml), sur le seul réseau `interne` de la pile, depuis le 2026-10-18 (TCK-880) ; jusque-là, `redis-takussan` de deploy/server/compose.data.yml, partagé sur dokploy-network."
         },
         "SESSION_DRIVER": {
           "valeur": "redis",
           "etat": "mesure",
-          "date": "2026-09-14",
+          "date": "2026-11-01",
           "commande": "compose.one → env (Dokploy)"
         },
         "QUEUE_CONNECTION": {
           "valeur": "database",
           "etat": "mesure",
-          "date": "2026-09-14",
+          "date": "2026-11-01",
           "commande": "compose.one → env (Dokploy)",
           "note": "Files consommées par `worker` et `worker-media` du Compose (scripts/check-queues.mjs)."
         },
         "MAIL_MAILER": {
           "valeur": "log",
           "etat": "mesure",
-          "date": "2026-09-14",
+          "date": "2026-11-01",
           "commande": "compose.one → env (Dokploy)",
           "note": "Préproduction : rien ne part, relevé et voulu (hebergement.md, § courriel). L'ancien serveur avait `resend` ici — c'est ce qui rendait ce fichier faux."
         },
         "SESSION_SECURE_COOKIE": {
           "valeur": "true",
           "etat": "mesure",
-          "date": "2026-09-14",
+          "date": "2026-11-01",
           "commande": "compose.one → env (Dokploy)",
           "note": "Présente et vraie depuis la migration — le manque relevé le 2026-08-16 est fermé."
         },
         "SCOUT_QUEUE": {
           "valeur": "true",
           "etat": "mesure",
-          "date": "2026-10-22",
+          "date": "2026-11-01",
           "commande": "compose.one → env (Dokploy)",
           "note": "L'indexation part en file (QUEUE_CONNECTION=database) : une panne de Meilisearch ne fait pas échouer la requête (P123.03, hebergement.md). `.env.docker` pose `false`."
         },
         "SCOUT_AFTER_COMMIT": {
           "valeur": "true",
           "etat": "mesure",
-          "date": "2026-10-22",
+          "date": "2026-11-01",
           "commande": "compose.one → env (Dokploy)",
           "note": "L'écriture dans l'index attend le commit (P123.03). `phpunit.xml` pose `false`."
         },
         "LOG_CHANNEL": {
           "valeur": "stderr",
           "etat": "mesure",
-          "date": "2026-10-25",
+          "date": "2026-11-01",
           "commande": "python3 -I deploy/takussan/relever-cles-dokploy.py JbPrtvdkuq0aLTDrOx2Ss LOG_CHANNEL LOG_LEVEL",
           "note": "P14.08 (2026-10-25) : les journaux partent sur la sortie du conteneur, que Docker garde jusqu'au remplacement du conteneur ; un déploiement les efface. Aucun collecteur de journaux, par décision : les erreurs sont gardées par P14.07 (JSON sur stdout). Relevé par `deploy/takussan/relever-cles-dokploy.py`, qui n'imprime que les clés demandées et refuse un nom de secret."
         },
         "LOG_LEVEL": {
           "valeur": "info",
           "etat": "mesure",
-          "date": "2026-10-25",
+          "date": "2026-11-01",
           "commande": "python3 -I deploy/takussan/relever-cles-dokploy.py JbPrtvdkuq0aLTDrOx2Ss LOG_CHANNEL LOG_LEVEL",
           "note": "P14.08 (2026-10-25). `LOG_STACK=single` est aussi déclarée, sans effet tant que `LOG_CHANNEL` n'est pas `stack`."
+        },
+        "BROADCAST_CONNECTION": {
+          "valeur": "null",
+          "etat": "mesure",
+          "date": "2026-11-01",
+          "commande": "compose.one → env (Dokploy)",
+          "note": "TCK-2456 : `log` écrivait le titre et le corps de chaque notification dans les journaux."
         }
       }
     },
