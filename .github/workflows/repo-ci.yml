@@ -330,6 +330,13 @@ jobs:
         # sans que personne ne pense à cette garde (TCK-296).
         run: node scripts/check-webhook-env-keys.mjs --report
 
+      - name: Les gabarits de production couvrent ce que le code lit, sans valeur de secret
+        # TCK-2456. Une clé oubliée de Dokploy garde le défaut de `config/`, sans erreur. Chaque clé lue
+        # est dans `.env.example`, chaque clé de `.env.example` dans un gabarit ou dans la liste des
+        # résidus, avec son motif. Elle lit `takussan-api/config`, `app`, `docker` et `.env.*`,
+        # `takussan-web/src` et `deploy/takussan` : tous sont couverts ci-dessus.
+        run: node scripts/check-env-production.mjs --report
+
       - name: shellcheck et hadolint, à version épinglée
         # Les exécuteurs Ubuntu embarquent un shellcheck dont la version bouge avec l'image : une
         # trouvaille qui apparaît un matin sans qu'un fichier ait changé n'apprend rien. Les deux
