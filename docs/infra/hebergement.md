@@ -158,61 +158,99 @@ qui ne filtre pas sur `takussan-api-preview` tombe sur son `compose.api.yml`, sa
 
 ### Les variables d'environnement, par service — les CLÉS, jamais les valeurs
 
-La table de référence est celle du plan, tâche D1. Toute clé ajoutée dans Dokploy s'ajoute ici.
+**Les clés de la production et leurs valeurs non secrètes vivent dans les gabarits, et nulle part ailleurs**
+(TCK-2456) : [`deploy/takussan/env.api.production.example`](../../deploy/takussan/env.api.production.example) pour le
+Compose, [`deploy/takussan/env.web.production.example`](../../deploy/takussan/env.web.production.example) pour
+l'Application du front. Mêmes sections que `takussan-api/.env.example`, `.env.docker` et `takussan-web/.env.example`.
+`scripts/check-env-production.mjs` exige que chaque clé lue par le code soit au gabarit, ou dans sa liste de résidus avec
+son motif, et aucun secret dans un gabarit. Une clé neuve s'ajoute donc là, pas ici.
 
-**`takussan-api-preview`** (Compose, onglet *Environment* ; relevé le 2026-09-14, 71 clés, aucune
-vide) :
+**Passer d'un gabarit à un environnement :**
 
-- fixées par le plan : `IMAGE_TAG`, `APP_KEY` (neuve), `APP_DEBUG`, `APP_URL`, `FRONTEND_URL`,
-  `SANCTUM_STATEFUL_DOMAINS`, `TRUSTED_PROXIES`, `DB_CONNECTION`, `DB_HOST`, `DB_PORT`,
-  `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`, `SESSION_DRIVER`, `CACHE_STORE`, `QUEUE_CONNECTION`,
-  `REDIS_CLIENT`, `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD`, `REDIS_DB`, `REDIS_CACHE_DB`,
-  `SCOUT_DRIVER`, `SCOUT_PREFIX` (`preview_`, relevé le 2026-10-19 dans Dokploy et dans le
-  conteneur `api`, TCK-995), `MEILISEARCH_HOST`, `MEILISEARCH_KEY` (la clé `preview_*`, jamais
-  la maîtresse), `LOG_CHANNEL`, `LOG_LEVEL`, `FILESYSTEM_DISK`, `LARAVEL_PDF_DRIVER` ;
-- relevées dans le `.env` de l'ancienne préproduction (export A1) : `APP_NAME`, `APP_ENV`,
-  `APP_LOCALE`, `APP_FALLBACK_LOCALE`, `APP_FAKER_LOCALE`, `APP_MAINTENANCE_DRIVER`,
-  `BCRYPT_ROUNDS`, `SESSION_LIFETIME`, `SESSION_ENCRYPT`, `SESSION_SECURE_COOKIE`, `SESSION_PATH`,
-  `SESSION_DOMAIN`, `SESSION_COOKIE`, `BROADCAST_CONNECTION`, `LOG_STACK`, `SCOUT_QUEUE`,
-  `SCOUT_AFTER_COMMIT`, `MAIL_MAILER`, `MAIL_FROM_ADDRESS`, `MAIL_FROM_NAME`,
-  `MAIL_CONTACT_ADDRESS`, `RESEND_API_KEY`, `VITE_APP_NAME`, `GOOGLE_CLIENT_ID`,
-  `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`, `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, et
-  les `SEED_*` — **treize** au relevé du 2026-10-20, et non douze (dont `SEED_DOWNLOAD_MEDIA=true` :
-  le seed télécharge des médias) ;
-- ajoutées le 2026-09-22 par TCK-541 (ADR-0029), **80 clés** au total : `MEDIA_PUBLIC_DISK`
-  (`r2-media`), `MEDIA_PRIVATE_DISK` (`r2-private`), `MEDIA_QUEUE`, `R2_ACCESS_KEY_ID`,
-  `R2_SECRET_ACCESS_KEY` (le jeton `takussan-preview-app`, *Object Read & Write* limité aux deux
-  seaux de préproduction ; refusé sur `vps-sauvegardes`, mesuré), `R2_ENDPOINT`, `R2_MEDIA_BUCKET`,
-  `R2_MEDIA_URL` (`https://media-preview.takussan.com`), `R2_PRIVATE_BUCKET`.
-- ajoutées le 2026-10-10 par TCK-620 (ADR-0060), **82 clés** au total : `PHONE_LOGIN_ENABLED`
-  (`true` : connexion et inscription par téléphone) et `OTP_PREVIEW_ENABLED` (`true` : le code SMS
-  revient dans la réponse, `otp_preview`, et le front l'affiche — sans effet hors `APP_ENV`
-  `local`/`staging`). ⚠ **À éteindre avant que la préproduction reçoive des données réelles** :
-  qui joint l'API y entre dans tout compte dont il connaît le numéro vérifié.
-- ajoutées le 2026-10-18 : les cinq jetons des webhooks entrants, chacun neuf pour la préproduction
-  et relu dans le conteneur (TCK-943, TCK-720) : `SMS_ORANGE_WEBHOOK_URL_TOKEN`,
-  `SMS_MTARGET_WEBHOOK_URL_TOKEN`, `SMS_LAM_WEBHOOK_URL_TOKEN`, `WHATSAPP_WEBHOOK_URL_TOKEN`,
-  `WHATSAPP_WEBHOOK_VERIFY_TOKEN` ; et `API_ALIAS` (`takussan-api-preview`, l'alias de la pile sur
-  `dokploy-network`, ADR-0069 § 4, TCK-880). Retirées par TCK-880 : `REDIS_HOST` et `REDIS_PORT`
-  (le Redis est celui de la pile, et Compose les pose).
-- **relevé du 2026-10-20 : 86 clés** (`compose.one` → `env`, noms seuls, par un script qui n'imprime
-  aucune valeur secrète). Valeurs non secrètes relues le même jour, dont F3 a besoin : `APP_ENV` =
-  `staging` (ADR-0060 a raison, le docblock d'`AddRobotsTagOutsideProduction` se trompait et est
+1. Recopier le gabarit hors du dépôt (`~/Sauvegardes/`, mode `600`). Remplir ses vides. ⚠ **Sur un environnement qui tourne,
+   chaque secret se reprend, aucun ne se régénère** : une `APP_KEY` neuve rend les colonnes chiffrées illisibles, une
+   `RADAR_PHONE_HMAC_KEY` neuve fait oublier les refus du Radar, et `/up` reste à 200 dans les deux cas. Seule une création, comme
+   celle de la production en F3, génère des secrets neufs. `node scripts/check-env-production.mjs --report` nomme les vides, par
+   classe. Une clé `# intégration` reste vide tant que son compte n'existe pas.
+2. Pour la préproduction, poser ces valeurs :
+   - API : `IMAGE_TAG=preview`, `API_ALIAS=takussan-api-preview`, `APP_NAME="Takussan Preview"`, `APP_ENV=staging`,
+     `APP_URL=https://preview.api.takussan.com`, `FRONTEND_URL=https://preview.takussan.com`,
+     `SANCTUM_STATEFUL_DOMAINS=preview.takussan.com`, `DB_DATABASE` et `DB_USERNAME` à `takussan_preview`,
+     `SESSION_COOKIE=takussan_session_preview`, `SCOUT_PREFIX=preview_`, `MAIL_MAILER=log`,
+     `R2_MEDIA_BUCKET=takussan-preview-media`, `R2_PRIVATE_BUCKET=takussan-preview-private`,
+     `R2_MEDIA_URL=https://media-preview.takussan.com`, `OTP_PREVIEW_ENABLED=true`, `SEED_DOWNLOAD_MEDIA=true`, et les trois
+     `*_REDIRECT_URI` sur `https://preview.takussan.com` ;
+   - `CACHE_PREFIX=takussan-preview-cache-` et `REDIS_PREFIX=takussan-preview-database-`, à poser telles quelles : le défaut dérive
+     d'`APP_NAME`, et ce sont déjà ces valeurs-là. Mesuré dans le conteneur : `--contre-courant` ne change ni `cache.prefix` ni le
+     préfixe Redis, donc ni les sessions ni le cache ne tombent. Toute autre valeur les fait tomber une fois ;
+   - `PUBLIC_CACHE_REVALIDATE_URL=http://takussan-web-preview-j7msd1:3000/api/revalidation/fiche`, l'alias interne du front : l'URL
+     publique bute sur l'authentification basique de Traefik (`401` avant Next), et chaque changement de fiche finirait en
+     `failed_jobs`. Valeur prévue au 2026-11-01, l'appel signé reste à mesurer sur le serveur. La production garde son URL publique ;
+   - front : `API_URL`, `SITE_URL`, `MEDIA_URL`, ceux des lignes ci-dessus, et `API_INTERNAL_URL=http://takussan-api-preview:8080`.
+3. Comparer **avant de poser**, dans le conteneur `api` de l'environnement. Le script n'imprime que des chemins de configuration et
+   des noms de clés, jamais une valeur. Le fichier passe par un tube et non par `docker cp` : celui-ci le crée en `root:root`, le
+   conteneur tourne en `www-data`, ne peut ni le lire ni l'effacer, et le fichier de secrets reste en place (mesuré le 2026-11-01).
+
+   ```bash
+   docker exec -i <conteneur> sh -c 'umask 077; cat > /tmp/comparer-config-env.php' < deploy/takussan/comparer-config-env.php
+   docker exec -i <conteneur> sh -c 'umask 077; cat > /tmp/env-candidat' < <fichier>
+   docker exec -w /app <conteneur> php /tmp/comparer-config-env.php /tmp/env-candidat --contre-courant; echo "code : $?"
+   docker exec <conteneur> rm -f /tmp/env-candidat /tmp/comparer-config-env.php
+   ```
+
+   `--contre-courant` nomme les chemins de configuration qui changent, les clés dont la valeur diffère du courant (dont celles que
+   `config()` ne voit pas : `TRUSTED_PROXIES`, `RESEND_BASE_URL`, `SEED_*`), les clés neuves et les clés posées que le fichier ne déclare
+   pas. **Code `3` : le fichier viderait une clé posée** ; elle est nommée, et il ne faut pas poser ce fichier. Sans cette option, il
+   compare le fichier aux défauts de `config/`, et attrape une ligne vide qui en écraserait un.
+4. Coller dans l'onglet *Environment*, puis déployer. Les commentaires y sont facultatifs : `grep -Ev '^(#|$)' <fichier>` les
+   retire. ⚠ **Ne pas doubler un `$`** : Dokploy l'échappe déjà en écrivant le `.env`, et seule la forme `${X}` reste interpolée.
+   **Mettre entre guillemets toute valeur qui porte un `#`** : sans guillemets, la valeur s'arrête en silence au premier `#`.
+   Lu dans la source de Dokploy v0.30.8 et rejoué en simulation, mesure sur le serveur à venir.
+
+⚠ **Une ligne vide n'est pas une ligne absente** : `env('X', 'd')` rend `''`, et le défaut ne s'applique pas. Le gabarit écrit donc
+le défaut de `config/` de chaque clé qui en a un, sauf les secrets et les intégrations.
+
+**Le relevé de `takussan-api-preview`** (Compose, `compose.one` → `env`, noms et valeurs non secrètes seulement) :
+
+- 2026-09-22 (TCK-541, ADR-0029) : `R2_ACCESS_KEY_ID` et `R2_SECRET_ACCESS_KEY` portent le jeton `takussan-preview-app`,
+  *Object Read & Write* limité aux deux seaux de préproduction ; refusé sur `vps-sauvegardes`, mesuré.
+- 2026-10-10 (TCK-620, ADR-0060) : `PHONE_LOGIN_ENABLED` et `OTP_PREVIEW_ENABLED` à `true`. ⚠ **À éteindre avant que la
+  préproduction reçoive des données réelles** : qui joint l'API y entre dans tout compte dont il connaît le numéro vérifié.
+- 2026-10-18 : les cinq jetons des webhooks entrants, chacun neuf et relu dans le conteneur (TCK-943, TCK-720) ; `API_ALIAS`
+  (ADR-0069 § 4, TCK-880). `REDIS_HOST` et `REDIS_PORT` retirées (TCK-880) : Compose les pose.
+- 2026-10-19 (TCK-995) : `SCOUT_PREFIX` = `preview_`, relevé dans Dokploy et dans le conteneur `api`. `MEILISEARCH_KEY` est la clé
+  `preview_*`, jamais la maîtresse.
+- 2026-10-20 : `APP_ENV` = `staging` (ADR-0060 a raison, le docblock d'`AddRobotsTagOutsideProduction` se trompait et est
   corrigé), `APP_URL` = `https://preview.api.takussan.com`, `SESSION_DOMAIN` = `.takussan.com`,
   `SESSION_COOKIE` = `takussan_session_preview`, `GOOGLE_REDIRECT_URI` =
   `https://preview.takussan.com/auth/oauth/google/callback`, `PHONE_LOGIN_ENABLED` et
-  `OTP_PREVIEW_ENABLED` = `true`, `MAIL_MAILER` = `log`. Ni `CACHE_PREFIX` (TCK-720) ni aucune
+  `OTP_PREVIEW_ENABLED` = `true`, `MAIL_MAILER` = `log`, `SEED_DOWNLOAD_MEDIA` = `true`. Ni `CACHE_PREFIX` (TCK-720) ni aucune
   `SMS_*_WEBHOOK_IPS` ne sont posées : en `staging`, une liste vide ne filtre pas (P71.04).
-- **relevé du 2026-10-22, recherche** (`compose.one` → `env`, dans Dokploy) : `SCOUT_DRIVER` =
-  `meilisearch`, `SCOUT_QUEUE` = `true`, `SCOUT_AFTER_COMMIT` = `true`, `QUEUE_CONNECTION` =
-  `database`. Conséquence : l'indexation part en file, après le commit, et ce n'est plus la requête
+- 2026-10-22, recherche : `SCOUT_DRIVER` = `meilisearch`, `SCOUT_QUEUE` = `true`, `SCOUT_AFTER_COMMIT` = `true`,
+  `QUEUE_CONNECTION` = `database`. Conséquence : l'indexation part en file, après le commit, et ce n'est plus la requête
   qui appelle Meilisearch ; une panne du moteur n'y fait donc pas échouer une requête (P123.03). Le
   développement (`.env.docker` : `SCOUT_QUEUE=false`) et la suite (`phpunit.xml` : `false`/`false`)
   jouent d'autres régimes.
+- 2026-09-14, puis non relu : `SMS_*` et `WHATSAPP_*` hors des cinq jetons, `FACEBOOK_*`, `APPLE_*`, `CDN_*`, `BUNNY_*` absentes de
+  l'export, donc aux défauts de `config/`. Une fonctionnalité qui en dépend ne marche pas en préproduction tant qu'on ne les pose pas.
 
-Absentes de l'export, donc aux défauts de `config/` : `SMS_*` et `WHATSAPP_*` **hors des cinq jetons
-de webhook posés le 2026-10-18**, `FACEBOOK_*`, `APPLE_*`, `CDN_*`, `BUNNY_*`. Une fonctionnalité qui
-en dépend ne marche pas en préproduction tant qu'on ne les pose pas.
+**Les clés posées en préproduction, noms seuls** : le gabarit dit ce qui peut exister, cette liste ce qui existe, et donc ce qu'il ne
+faut pas perdre en remplaçant l'onglet. Cumul des relevés du 2026-09-14 au 2026-10-30, à recouper par `--contre-courant` :
+
+- application et réseau : `IMAGE_TAG`, `API_ALIAS`, `APP_NAME`, `APP_ENV`, `APP_KEY`, `APP_DEBUG`, `APP_URL`, `APP_LOCALE`, `APP_FALLBACK_LOCALE`,
+  `APP_FAKER_LOCALE`, `APP_MAINTENANCE_DRIVER`, `BCRYPT_ROUNDS`, `FRONTEND_URL`, `SANCTUM_STATEFUL_DOMAINS`, `TRUSTED_PROXIES` ;
+- base, sessions, cache, files : `DB_CONNECTION`, `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`, `SESSION_DRIVER`,
+  `SESSION_LIFETIME`, `SESSION_ENCRYPT`, `SESSION_SECURE_COOKIE`, `SESSION_PATH`, `SESSION_DOMAIN`, `SESSION_COOKIE`, `CACHE_STORE`,
+  `QUEUE_CONNECTION`, `BROADCAST_CONNECTION`, `FILESYSTEM_DISK`, `REDIS_CLIENT`, `REDIS_PASSWORD`, `REDIS_DB`, `REDIS_CACHE_DB` ;
+- journaux, recherche, courriel, PDF : `LOG_CHANNEL`, `LOG_LEVEL`, `LOG_STACK`, `SCOUT_DRIVER`, `SCOUT_PREFIX`, `SCOUT_QUEUE`, `SCOUT_AFTER_COMMIT`,
+  `MEILISEARCH_HOST`, `MEILISEARCH_KEY`, `MAIL_MAILER`, `MAIL_FROM_ADDRESS`, `MAIL_FROM_NAME`, `RESEND_API_KEY`, `LARAVEL_PDF_DRIVER` ;
+- médias et comptes : `MEDIA_PUBLIC_DISK`, `MEDIA_PRIVATE_DISK`, `MEDIA_QUEUE`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_ENDPOINT`, `R2_MEDIA_BUCKET`,
+  `R2_MEDIA_URL`, `R2_PRIVATE_BUCKET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`, `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` ;
+- connexion, webhooks, Radar : `PHONE_LOGIN_ENABLED`, `OTP_PREVIEW_ENABLED`, `SMS_ORANGE_WEBHOOK_URL_TOKEN`, `SMS_MTARGET_WEBHOOK_URL_TOKEN`,
+  `SMS_LAM_WEBHOOK_URL_TOKEN`, `WHATSAPP_WEBHOOK_URL_TOKEN`, `WHATSAPP_WEBHOOK_VERIFY_TOKEN`, `RADAR_PHONE_HMAC_KEY` ;
+- `SEED_*`, treize au relevé du 2026-10-20.
+
+`MAIL_CONTACT_ADDRESS` et `VITE_APP_NAME` y sont aussi au relevé, et n'ont pas à y rester : aucun code ne les lit.
 
 **Le numéro WhatsApp du Radar** (TCK-2395, [ADR-0081](../adr/0081-le-radar-prospecte-par-l-api-whatsapp-sur-son-propre-numero.md)) :
 **aucune de ces clés n'est posée** au 2026-10-30, et rien ne le sera par le code. Le porteur les pose
@@ -263,7 +301,7 @@ même `composer.lock`, n'en envoyait pas davantage. Décision du porteur, le mê
 `docs/infra/prod-drivers.json` porte les **drivers** (`CACHE_STORE`, `SESSION_DRIVER`,
 `QUEUE_CONNECTION`, `MAIL_MAILER`, …) tels que Dokploy les déclare, **régénéré depuis ce relevé le
 2026-09-14** (TCK-527) — il décrivait jusque-là les `.env` de l'ancien serveur, `MAIL_MAILER=resend`
-en préproduction compris. Les clés vivent ici, les drivers là-bas, les valeurs secrètes nulle part.
+en préproduction compris. Les clés vivent dans les gabarits, les drivers là-bas, les valeurs secrètes nulle part.
 
 **À poser par le porteur — TCK-2414, [ADR-0082](../adr/0082-l-empreinte-des-refus-du-radar-a-sa-propre-cle.md)** (posée dans Dokploy pour la préproduction le 2026-10-30, pas encore déployée — relevé ci-dessus) :
 
@@ -298,7 +336,8 @@ en préproduction compris. Les clés vivent ici, les drivers là-bas, les valeur
 **À poser par le porteur — TCK-598, ADR-0052** (ni Dokploy ni Vercel ne les portaient au 2026-10-08 ; re-mesuré le 2026-10-18 : seule `API_INTERNAL_URL` est posée, sur `takussan-web-preview`) :
 
 - `takussan-api-preview` : `PUBLIC_CACHE_REVALIDATE_URL`
-  (`https://preview.takussan.com/api/revalidation/fiche`) et `PUBLIC_CACHE_REVALIDATE_SECRET`. Vides,
+  (l'alias interne du front, voir « Passer d'un gabarit à un environnement » : l'URL publique bute sur l'authentification
+  basique) et `PUBLIC_CACHE_REVALIDATE_SECRET`. Vides,
   aucune révocation ne part : une fiche dépubliée reste servie jusqu'à 300 s ;
 - `takussan-web-preview` (variables d'**exécution**, lues par le serveur Next, jamais inlinées) :
   `PUBLIC_CACHE_REVALIDATE_SECRET` (le même que l'API ; vide, le handler refuse tout en 401),
@@ -727,7 +766,7 @@ entrée générique dont l'adresse suffirait à changer le destinataire (ADR-008
 
    Comparaison d'hôte exacte, sans joker, port compris : un port qui n'est pas celui du schéma s'écrit dans la liste
    (`'api.mon-point.example:8443'`). `MON_POINT_API_KEY` et `MON_POINT_URL` vont, vides, dans `.env.example` et
-   `.env.docker` (`scripts/check-env-parity.mjs`).
+   `.env.docker` (`scripts/check-env-parity.mjs`), et dans le gabarit de production (`scripts/check-env-production.mjs`).
 2. **`takussan-web/src/content/legal/privacy.ts` § 4.3** : le `legal_name` et le pays dans la puce, en fr et en en, puis
    `VERSION_DOCUMENTS` dans `editeur.ts`. `scripts/check-ai-providers-privacy.mjs` rougit sans lui. ⚠ Ce pilote n'envoie
    ni `store` ni `data_collection` : dire ce que ce prestataire conserve, d'après ses conditions. Sur `openrouter.ai` ou
