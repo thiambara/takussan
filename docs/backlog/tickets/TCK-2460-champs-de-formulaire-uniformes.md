@@ -42,8 +42,8 @@ La racine en est la primitive : `h-8`, soit 29 px mesurés à 90 % de corps, tro
 - [x] Les primitives portent `h-10` ; `field-density.test.tsx` fixe la valeur et l'ordre des règles compilées.
 - [x] Hors de `components/ui/`, aucun `<Input>`, `<SelectTrigger>` ou `<Textarea>` n'écrit sa hauteur.
 - [x] Hors de `components/ui/`, aucun `<select>`, `<textarea>` ni `<input>` de saisie natif.
-- [x] `scripts/check-champs-uniformes.mjs` casse sur chacune de ces formes, vérifié par ablation, et `repo-ci` la rejoue
-      (elle est ramassée par `scripts/check-*.mjs`).
+- [x] `scripts/check-champs-uniformes.mjs` casse sur chacune de ces formes, vérifié par ablation, et `repo-ci` la joue
+      (étape nommée : le workflow ne ramasse pas `scripts/check-*.mjs` tout seul).
 - [x] `docs/design-guidelines.md` écrit la règle.
 - [x] Mesuré au navigateur, à 1440 et 390 px : champs et listes du Radar à 36 px à 90 % de corps, aucun défilement du document.
 
