@@ -77,6 +77,8 @@ export const MOTIFS_RADAR: Record<string, string> = {
   'radar.publish.missing_field': 'claimLeftMissingField',
   'radar.publish.photos_pending': 'claimLeftPhotosPending',
   'radar.claim.publish_failed': 'claimLeftFailed',
+  // TCK-2461 — l'annonceur a refusé ou contesté depuis sa page de réclamation : s'affichait brut dans la liste.
+  'radar.claim.declined': 'claimDeclined',
   'radar.advertiser.account_unavailable': 'claimLeftAccountUnavailable',
   'quota.listings_exceeded': 'claimLeftQuota',
   'radar.listing.stage_conflict': 'claimLeftStageConflict',

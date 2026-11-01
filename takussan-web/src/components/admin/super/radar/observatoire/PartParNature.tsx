@@ -65,7 +65,7 @@ export function PartParNature() {
           <Input
             id="radar-part-nature-du"
             type="date"
-            className="h-10"
+           
             value={periode.since ?? ''}
             onChange={(e) => setPeriode((p) => ({ ...p, since: e.target.value || undefined }))}
           />
@@ -75,7 +75,7 @@ export function PartParNature() {
           <Input
             id="radar-part-nature-au"
             type="date"
-            className="h-10"
+           
             value={periode.until ?? ''}
             min={periode.since}
             onChange={(e) => setPeriode((p) => ({ ...p, until: e.target.value || undefined }))}
