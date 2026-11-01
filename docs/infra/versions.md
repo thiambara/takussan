@@ -89,7 +89,7 @@ sudo -u postgres psql -Atc \
 > `current_setting('lc_collate')` n'existe pas en PostgreSQL 17 et rend
 > *« unrecognized configuration parameter »*. L'erreur a été payée en écrivant ADR-0020.
 >
-> **Et cette commande n'a encore jamais rendu de résultat** : aucune production PostgreSQL
+> **Et cette commande n'a encore jamais rendu de résultat** : aucune base de production PostgreSQL
 > n'existe (D-04). Elle décrit la mesure à prendre dans TCK-288, pas une mesure prise. La
 > commande MySQL qu'elle remplace, elle, avait été exécutée — le 2026-08-13, sur un moteur que
 > le dépôt n'exécute plus depuis ADR-0020.

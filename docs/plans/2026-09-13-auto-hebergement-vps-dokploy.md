@@ -716,8 +716,11 @@ prouve que le mot de passe est **exigé**, pas seulement accepté.
 ```bash
 docker run --rm --network dokploy-network curlimages/curl -fsS -X POST http://meilisearch:7700/keys \
   -H "Authorization: Bearer $MEILI_MASTER_KEY" -H 'Content-Type: application/json' \
-  -d '{"description":"takussan preview","actions":["*"],"indexes":["preview_*"],"expiresAt":null}' | jq -r .key
+  -d '{"description":"takussan preview","actions":["search","documents.add","documents.get","documents.delete","indexes.create","indexes.get","indexes.update","indexes.delete","tasks.get","settings.get","settings.update","stats.get","version"],"indexes":["preview_*"],"expiresAt":null}' | jq -r .key
 ```
+
+*Corrigée le 2026-11-01 (audit du serveur, M1) : avec `"actions":["*"]`, la clé pouvait lire `GET /keys`, donc la `Default Admin API Key`
+et ces deux `403` ne le voyaient pas. Liste éprouvée le même jour sur la préproduction.*
 
 Ranger la clé rendue. Puis **prouver la restriction** :
 
@@ -728,9 +731,11 @@ docker run --rm --network dokploy-network curlimages/curl -sS -o /dev/null -w '%
 docker run --rm --network dokploy-network curlimages/curl -sS -o /dev/null -w '%{http_code}\n' \
   -X POST http://meilisearch:7700/indexes -H "Authorization: Bearer $CLE_PREVIEW" \
   -H 'Content-Type: application/json' -d '{"uid":"preview_sonde"}'
+docker run --rm --network dokploy-network curlimages/curl -sS -o /dev/null -w '%{http_code}\n' \
+  http://meilisearch:7700/keys -H "Authorization: Bearer $CLE_PREVIEW"
 ```
 
-Expected : `403` pour `prod_sonde`, `202` pour `preview_sonde`. Supprimer ensuite l'index sonde :
+Expected : `403` pour `prod_sonde`, `202` pour `preview_sonde`, `403` pour `/keys`. Supprimer ensuite l'index sonde :
 `curl -X DELETE …/indexes/preview_sonde` avec la clé maîtresse. La clé `prod_*` se crée en F1.
 
 - [ ] **Étape 7 : le service PostgreSQL**
@@ -4025,9 +4030,10 @@ preuve que la préproduction ne peut pas écrire en production —, puis `takuss
 
 - [ ] **Étape 4 : la clé Meilisearch de production**
 
-Même commande qu'A4, étape 6, avec `"description":"takussan prod","indexes":["prod_*"]`. Puis la
-preuve inverse : la clé de production reçoit `403` sur `preview_sonde`, `202` sur `prod_sonde`
-(supprimé ensuite avec la clé maîtresse).
+Même commande qu'A4, étape 6, donc les mêmes actions nommées et jamais `*`, avec
+`"description":"takussan prod","indexes":["prod_*"]`. Puis la preuve inverse : la clé de production
+reçoit `403` sur `preview_sonde`, `403` sur `/keys`, `202` sur `prod_sonde` (supprimé ensuite avec
+la clé maîtresse).
 
 - [ ] **Étape 5 : sauvegardes de production**
 
@@ -4049,8 +4055,11 @@ d'exécution (`MEDIA_URL`, F3 étape 1) et non plus une valeur de build.* Mêmes
 - seau privé `takussan-prod-private`, sans accès public ni domaine ;
 - jeton `takussan-prod-app`, *Object Read & Write* limité à ces deux seaux. Preuve inverse : refusé
   sur `takussan-preview-media` et sur `vps-sauvegardes` ;
-- la copie nocturne du seau privé (`sauvegarde-seau-prive`, `bootstrap.sh` § 8) gagne
-  `takussan-prod-private`, vers `vps-sauvegardes/takussan-prod-private/`.
+- la copie nocturne de `takussan-prod-private`, vers `vps-sauvegardes/takussan-prod-private/` : **le
+  mécanisme n'existe pas encore** (audit du 2026-11-01, P10). `sauvegarde-seau-prive.sh` n'a qu'un
+  couple `SOURCE`/`CIBLE` et `bootstrap.sh` § 8 qu'une unité. Cette étape exige
+  [TCK-2458](../backlog/tickets/TCK-2458-copie-du-seau-prive-de-production.md), qui livre la seconde
+  unité et son timer, puis les active une fois le seau créé.
 
 Expected : un objet sonde déposé dans `takussan-prod-media` est servi `200` par
 `https://media.takussan.com/<clé>`, puis supprimé ; la même clé déposée dans `takussan-prod-private`
@@ -4066,6 +4075,20 @@ la bascule (P09.01), et la décision ne vivait que dans le fichier de pistes.*
   ne dépend d'aucun déploiement.
 - Relever, **dans le ticket F**, avec la date : pages indexées, erreurs de couverture, sitemaps
   connus. C'est le point de comparaison de F5, étape 1.
+
+- [ ] **Étape 8 : la bordure et l'observabilité de la base, avant l'ouverture**
+
+*Ajoutée le 2026-11-01 (audit du serveur, P11 et P14).*
+
+- **TLS minimum à 1.2 sur la zone `takussan.com`** : `min_tls_version` vaut 1.0 au 2026-11-01.
+- **Le rapporteur d'erreurs** : aucun au 2026-11-01. Son ADR (GlitchTip auto-hébergé ou Sentry) s'écrit avant la phase F
+  (`hebergement.md`, ligne « Journal des erreurs »).
+- `api.insecure: false` n'est plus à faire : posé le 2026-11-01. Il se relit après chaque mise à jour de Dokploy, à la main
+  (`hebergement.md`, ligne « API de Traefik »).
+- **Décision à prendre : charger `pg_stat_statements`, ou non.** Au 2026-11-01, `shared_preload_libraries` est vide et l'extension
+  disponible. Le charger exige un redémarrage de la base, donc de tous les environnements : la décision se prend **avant**
+  l'ouverture. Au même relevé, `log_min_duration_statement` vaut `-1`, `statement_timeout` et
+  `idle_in_transaction_session_timeout` valent `0` : la même décision dit s'ils restent ainsi.
 
 ### Tâche F2 : le code de la production Takussan
 
@@ -4217,6 +4240,25 @@ gh secret list -R thiambara/takussan | grep '^PRODUCTION_'
 ```
 
 Expected : trois variables, un secret.
+
+- [ ] **Étape 2 bis : le courriel sortant**
+
+*Ajoutée le 2026-11-01 (audit du serveur, P5) : `MAIL_MAILER=resend` était prévu sans que le domaine le permette. Numérotée ainsi
+pour ne pas décaler les renvois vers les étapes suivantes.* Au 2026-11-01, la zone ne porte ni `resend._domainkey`, ni `send.` en
+MX et SPF, ni `_dmarc` ; son seul DKIM, `cf2024-1`, sert le routage entrant.
+
+1. Vérifier le domaine `takussan.com` dans Resend, puis poser chez Cloudflare les enregistrements que sa console donne.
+2. Poser un DMARC : TXT `_dmarc.takussan.com`, `p=none` au minimum.
+3. Envoyer un courriel réel depuis le conteneur `api` de production, avec `RESEND_API_KEY` posée, vers une boîte du porteur.
+
+```bash
+dig +short TXT resend._domainkey.takussan.com
+dig +short MX send.takussan.com; dig +short TXT send.takussan.com
+dig +short TXT _dmarc.takussan.com
+```
+
+Expected : les quatre réponses non vides, domaine « Verified » dans Resend, et le courriel reçu avec `dkim=pass` et `dmarc=pass`
+dans ses en-têtes. Un envoi de Resend qui répond `200` ne prouve pas la remise.
 
 - [ ] **Étape 3 : les noms, puis la fusion vers `master`**
 
