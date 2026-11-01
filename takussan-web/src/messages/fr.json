@@ -8584,7 +8584,39 @@
           "baselineModel": "Modèle évalué",
           "baselineDate": "Mesuré le"
         },
-        "amount": "{usd} (≈ {xof})"
+        "amount": "{usd} (≈ {xof})",
+        "suite": {
+          "title": "Évaluation complète",
+          "description": "Rejoue tous les jeux de cas contre les vrais modèles et compare chaque score à sa référence. Elle ne tourne plus la nuit : lancez-la après un changement de modèle ou de consigne. Elle ne réécrit aucune référence.",
+          "run": "Lancer l'évaluation",
+          "running": "Évaluation en cours…",
+          "never": "Aucune évaluation complète lancée pour l'instant.",
+          "startedAt": "Lancée le {date}",
+          "total": "Coût : {cost}",
+          "failed": "L'évaluation n'a pas abouti : relancez-la, ou consultez les journaux du worker.",
+          "caption": "Résultat par usage",
+          "verdictOk": "Tient la référence",
+          "verdictBelow": "Sous la référence",
+          "confirmTitle": "Lancer l'évaluation complète ?",
+          "confirmWithCost": "Elle appelle de vrais modèles. Le dernier passage a coûté {cost}.",
+          "confirmNoCost": "Elle appelle de vrais modèles. Comptez environ 1 $ par passage.",
+          "confirm": "Lancer",
+          "status": {
+            "queued": "En file",
+            "running": "En cours",
+            "done": "Terminée",
+            "failed": "Échouée"
+          },
+          "columns": {
+            "usage": "Usage",
+            "score": "Score",
+            "baseline": "Référence",
+            "cases": "Cas",
+            "failures": "Échecs",
+            "cost": "Coût",
+            "verdict": "Verdict"
+          }
+        }
       },
       "radar": {
         "metaTitle": "Radar",

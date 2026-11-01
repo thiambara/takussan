@@ -121,6 +121,9 @@ return [
 
     // Le taux n'existe que pour l'équivalent affiché (« ≈ ») : il ne décide d'aucun coût, d'aucun plafond
     // ni d'aucun blocage (ADR-0086). Même garde que ci-dessous pour une clé vide.
+    // TCK-2459 — l'évaluation de nuit coûte de vrais appels : elle ne tourne que si on la demande.
+    'eval_nightly' => filter_var(env('AI_EVAL_NIGHTLY', false), FILTER_VALIDATE_BOOL),
+
     'usd_to_xof' => $montant('AI_USD_TO_XOF', '600'),
 
     // Délai d'un appel au modèle, en secondes. Le SDK en pose 60 : trop court pour une extraction

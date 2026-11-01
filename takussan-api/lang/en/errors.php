@@ -74,6 +74,8 @@ return [
             'job_failed' => 'The evaluation failed: the worker interrupted it before it finished.',
             'job_lost' => 'The evaluation was lost: its worker stopped before writing a result.',
             'no_cases' => 'This role has no evaluation case set.',
+            'no_provider' => 'No AI provider is selectable: set a key first.',
+            'suite_already_running' => 'A full evaluation is already running.',
         ],
         'evaluation_below_baseline' => 'This model was evaluated below the baseline: give a reason to assign it anyway.',
         'model_in_use' => 'This model is still in use. Chains in the database: :roles. Forced models: :usages. Configuration fallback chains: :fallback_roles.',
