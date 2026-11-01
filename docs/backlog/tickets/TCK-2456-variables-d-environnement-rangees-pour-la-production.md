@@ -36,3 +36,5 @@ rangées de la même façon. Ce ticket ne touche ni à Dokploy ni au serveur : i
 - [x] Les paires clé=valeur actives de `.env.example` et `.env.docker` sont celles d'avant, comparées par `Dotenv::parse`.
 - [x] `php comparer-config-env.php <gabarit>` ne fait différer que les valeurs voulues, et n'imprime aucune valeur.
 - [x] Une clé retirée, un secret posé ou `APP_DEBUG=true` dans un gabarit fait rougir la garde (ablation).
+- [x] `BROADCAST_CONNECTION` vaut `null` au gabarit : le contenu des notifications ne part pas dans les journaux.
+- [x] `--contre-courant` nomme les clés qui diffèrent, et sort en 3 sur une clé posée que le fichier viderait.

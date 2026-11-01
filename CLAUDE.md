@@ -214,7 +214,8 @@ voit pas : une clé absente des DEUX fichiers (TCK-296).
 > ⚠️ **Les drivers réellement déclarés par les environnements déployés vivent dans
 > [`docs/infra/prod-drivers.json`](docs/infra/prod-drivers.json), et NULLE PART AILLEURS**
 > ([J-05](docs/journal-des-corrections.md#j-05)) — régénéré depuis Dokploy depuis le 2026-09-14 (TCK-527) ; les *clés* de
-> chaque environnement sont dans `docs/infra/hebergement.md`.
+> chaque environnement sont dans les gabarits `deploy/takussan/env.*.production.example` (TCK-2456), celles posées en
+> préproduction dans `docs/infra/hebergement.md`.
 
 `./dev.sh` sonde ce que le `.env` déclare et nomme ce qui ne répond pas : sans lui, un service
 déclaré et absent ne produit aucune erreur lisible — l'API démarre, et c'est la première requête

@@ -17,12 +17,15 @@
  *      ferme « une clé absente des deux est en parité parfaite » ;
  *   4. un résidu est encore lu ou déclaré quelque part, et n'est pas dans le gabarit ;
  *   5. aucune valeur de gabarit ne ressemble à un secret, et une clé de secret y est vide ;
- *   6. `APP_DEBUG` et `OTP_PREVIEW_ENABLED` valent `false`, `APP_ENV` `production` ;
- *      `REDIS_HOST` et `REDIS_PORT` en sont absentes (écrites par `compose.api.yml`) ;
- *   7. mêmes sections, même ordre, chaque clé sous la même section dans tous les fichiers.
+ *   6. `APP_DEBUG` et `OTP_PREVIEW_ENABLED` valent `false`, `APP_ENV` `production`, `BROADCAST_CONNECTION`
+ *      `null` ; `REDIS_HOST` et `REDIS_PORT` en sont absentes (écrites par `compose.api.yml`) ;
+ *   7. mêmes sections, même ordre, chaque clé sous la même section dans tous les fichiers ;
+ *   8. dans un gabarit, une seule occurrence d'une clé, sous la forme `CLE=valeur`, aucune clé commentée,
+ *      et une ligne vide seulement pour un secret ou une clé de `VIDES_PERMISES`.
  *
- * Elle ne prouve PAS qu'une ligne vide n'écrase pas un défaut de `config/` : il faut PHP, et c'est
- * `deploy/takussan/comparer-config-env.php`. Ni que Dokploy porte ce que dit le gabarit : c'est
+ * `VIDES_PERMISES` est une liste écrite à la main : seul `deploy/takussan/comparer-config-env.php`, qui demande
+ * PHP, prouve qu'une ligne vide n'écrase pas un défaut de `config/`. Elle ne voit pas `$_ENV[…]`, `Env::get(…)`,
+ * `process.env["X"]`, une déstructuration, ni `takussan-web/docker/demarrer.mjs` : aucun n'existe au 2026-11-01. Ni que Dokploy porte ce que dit le gabarit : c'est
  * hors dépôt. Les clés que seul le `vendor/` lit (configuration de base du cadriciel, `laravel/ai`,
  * `spatie/laravel-pdf`) lui échappent aussi : la CI de ce job ne les lit pas ; elles sont à leur
  * défaut, et le rapport de TCK-2456 les nomme par famille.
@@ -47,7 +50,7 @@ const REPORT = process.argv.includes('--report');
  */
 const RESIDUS = [
   {
-    motif: 'pilote de diffusion non utilisé : BROADCAST_CONNECTION=log, aucun canal temps réel',
+    motif: "pilote de diffusion non utilisé : `NewNotification` part à chaque notification, BROADCAST_CONNECTION=null la fait taire, et aucun canal temps réel ne l'écoute",
     cles: [
       'ABLY_KEY', 'PUSHER_APP_CLUSTER', 'PUSHER_APP_ID', 'PUSHER_APP_KEY', 'PUSHER_APP_SECRET', 'PUSHER_HOST',
       'PUSHER_PORT', 'PUSHER_SCHEME', 'REVERB_APP_ID', 'REVERB_APP_KEY', 'REVERB_APP_SECRET', 'REVERB_HOST',
@@ -130,11 +133,28 @@ const RESIDUS_FRONT = ['NODE_ENV', 'BUILD_SHA'];
 const INTERDITES_API = ['REDIS_HOST', 'REDIS_PORT'];
 
 /** Les valeurs dont dépend la sécurité de la production. */
-const VALEURS_IMPOSEES_API = { APP_ENV: 'production', APP_DEBUG: 'false', OTP_PREVIEW_ENABLED: 'false' };
+const VALEURS_IMPOSEES_API = {
+  APP_ENV: 'production',
+  APP_DEBUG: 'false',
+  OTP_PREVIEW_ENABLED: 'false',
+  // `log` écrit le titre et le corps de chaque notification dans les journaux (TCK-2456).
+  BROADCAST_CONNECTION: 'null',
+};
+
+/**
+ * Les clés sans forme de secret qui peuvent rester vides dans un gabarit : un vide y vaut le défaut, ou
+ * attend un compte. Toute autre ligne vide écrase un défaut de `config/` (`env('X', 'd')` rend '').
+ */
+const VIDES_PERMISES = [
+  'SANCTUM_TOKEN_PREFIX', 'R2_ENDPOINT', 'MEDIA_PREFIX', 'ANTHROPIC_URL', 'OPENAI_URL', 'OPENROUTER_URL', 'VOYAGE_URL',
+  'RADAR_SIMILARITY_DRIVER', 'RADAR_WHATSAPP_PHONE_NUMBER_ID', 'SMS_ORANGE_WEBHOOK_IPS', 'SMS_MTARGET_WEBHOOK_IPS',
+  'SMS_LAM_WEBHOOK_IPS', 'LEMON_SQUEEZY_STORE', 'GOOGLE_CLIENT_ID', 'FACEBOOK_CLIENT_ID', 'APPLE_CLIENT_ID', 'APPLE_TEAM_ID',
+  'APPLE_PRIVATE_KEY_PATH', 'CDN_BASE_URL', 'CDN_PULL_ZONE', 'BUNNY_STORAGE_ZONE',
+];
 
 const CLE_DE_SECRET = /(?:^|_)(?:KEY|KEYS|KEY_ID|SECRET|PASSWORD|TOKEN|ACCOUNT_ID)$/;
 const FORME_DE_SECRET = /^(?:base64:|sk-|re_|rk_|ghp_|xox[a-z]-|AKIA|EAA)/;
-const JETON_LONG = /(?:^|[^A-Za-z0-9+_=-])[A-Za-z0-9+_-]{32,}={0,2}(?:$|[^A-Za-z0-9+_=-])/;
+const JETON_LONG = /(?:^|[^A-Za-z0-9+_-])[A-Za-z0-9+_-]{32,}={0,2}(?:$|[^A-Za-z0-9+_=-])/;
 
 /** @returns {string|null} pourquoi cette ligne de gabarit porte un secret */
 export function secretDansLaLigne(cle, valeur) {
@@ -142,10 +162,21 @@ export function secretDansLaLigne(cle, valeur) {
   if (CLE_DE_SECRET.test(cle)) return 'une clé de secret reste vide dans un gabarit';
   if (FORME_DE_SECRET.test(valeur)) return 'la valeur a la forme d\'un secret';
   if (/^[a-z]+:\/\/[^/@\s]+:[^/@\s]+@/i.test(valeur)) return "l'URL porte des identifiants";
-  const sansUrl = /^https?:\/\//i.test(valeur) ? '' : valeur;
-  if (JETON_LONG.test(sansUrl)) return 'la valeur a la longueur d\'un jeton';
+  if (JETON_LONG.test(valeur)) return 'la valeur a la longueur d\'un jeton';
   return null;
 }
+
+/** @returns {boolean} cette ligne vide écraserait un défaut de `config/` */
+export function videInterdit(cle, valeur) {
+  return valeur === '' && !CLE_DE_SECRET.test(cle) && !VIDES_PERMISES.includes(cle);
+}
+
+/** Les lignes qui déclarent une clé, quelle que soit leur forme : Compose et phpdotenv les lisent toutes. */
+const LIGNE_DE_CLE = /^\s*(?:export\s+)?([A-Z][A-Z0-9_]*)\s*=(.*)$/;
+/** La seule forme admise dans un gabarit. */
+const FORME_CANONIQUE = /^[A-Z][A-Z0-9_]*=/;
+/** Une clé commentée n'a rien à faire dans ce qu'on recopie : un secret s'y cacherait de cette garde. */
+const CLE_COMMENTEE = /^\s*#\s*[A-Z][A-Z0-9_]*\s*=/;
 
 /** Les lignes `CLE=valeur` actives d'un gabarit, avec leur section. */
 function lireGabarit(contenu) {
@@ -160,8 +191,17 @@ function lireGabarit(contenu) {
     }
     const c = ligne.match(/^# (requise|intégration|réglage)$/);
     if (c) classe = c[1];
-    const m = ligne.match(/^([A-Z][A-Z0-9_]*)=(.*)$/);
-    if (m) lignes.push({ cle: m[1], valeur: m[2].trim().replace(/^(["'])(.*)\1$/, '$2'), section, classe, n: i + 1 });
+    const m = ligne.match(LIGNE_DE_CLE);
+    if (m) {
+      lignes.push({
+        cle: m[1],
+        valeur: m[2].trim().replace(/^(["'])(.*)\1$/, '$2'),
+        section,
+        classe,
+        n: i + 1,
+        canonique: FORME_CANONIQUE.test(ligne),
+      });
+    }
   });
   return lignes;
 }
@@ -242,6 +282,17 @@ const CAS_EPREUVE_SECRETS = [
   ['TRUSTED_PROXIES', '10.0.1.0/24,2400:cb00::/32,173.245.48.0/20', false],
   ['SMS_ORANGE_SEND_URL', 'https://api.orange.com/smsmessaging/v1/outbound/{senderAddress}/requests', false],
   ['SANCTUM_STATEFUL_DOMAINS', 'www.takussan.com', false],
+  ['PUBLIC_CACHE_REVALIDATE_URL', `https://www.takussan.com/x?token=${'a'.repeat(40)}`, true],
+  ['PUBLIC_CACHE_REVALIDATE_URL', `https://www.takussan.com/${'a'.repeat(40)}/fiche`, true],
+  ['PUBLIC_CACHE_REVALIDATE_URL', 'https://www.takussan.com/api/revalidation/fiche', false],
+];
+const CAS_EPREUVE_VIDES = [
+  ['LOG_CHANNEL', '', true],
+  ['DB_CONNECTION', '', true],
+  ['APP_LOCALE', '', true],
+  ['APP_KEY', '', false],
+  ['RADAR_SIMILARITY_DRIVER', '', false],
+  ['LOG_CHANNEL', 'stderr', false],
 ];
 const egaux = (a, b) => JSON.stringify([...a].sort()) === JSON.stringify([...b].sort());
 const echecs = [
@@ -251,6 +302,9 @@ const echecs = [
   ...CAS_EPREUVE_SECRETS.filter(([c, v, attendu]) => (secretDansLaLigne(c, v) !== null) !== attendu).map(
     ([c, v]) => `secret : ${c}=${v}`,
   ),
+  ...CAS_EPREUVE_VIDES.filter(([c, v, attendu]) => videInterdit(c, v) !== attendu).map(([c]) => `vide : ${c}`),
+  ...(LIGNE_DE_CLE.test('export APP_DEBUG=true') && LIGNE_DE_CLE.test(' APP_DEBUG = true') ? [] : ['LIGNE_DE_CLE']),
+  ...(CLE_COMMENTEE.test('# APP_KEY=base64:abc') && !CLE_COMMENTEE.test('# Une phrase, sans clé.') ? [] : ['CLE_COMMENTEE']),
   ...(egaux(lecturesShell('# $COMMENTE\na=${A_B:-x} $C_D {$E_F:d}'), ['A_B', 'C_D', 'E_F']) ? [] : ['lecturesShell']),
   ...(egaux(lecturesFront('process.env.A_B; env.C_D; process.env.NODE_ENV'), ['A_B', 'C_D', 'NODE_ENV']) ? [] : ['lecturesFront']),
 ];
@@ -377,7 +431,9 @@ for (const [cle, fichier] of luParFront) {
 // ── Doublons et secrets, sur les deux gabarits ─────────────────────────────────────────────────
 for (const [chemin, lignes] of [[CHEMIN_GAB_API, gabApi], [CHEMIN_GAB_WEB, gabWeb]]) {
   const vues = new Set();
-  for (const { cle, valeur, classe, n } of lignes) {
+  for (const { cle, valeur, classe, n, canonique } of lignes) {
+    if (!canonique) erreurs.push(`${nom(chemin)}:${n} : ${cle} — la forme admise est CLE=valeur, sans espace ni export.`);
+    if (videInterdit(cle, valeur)) erreurs.push(`${nom(chemin)}:${n} : ${cle} — une ligne vide écraserait son défaut : écris sa valeur, ou ajoute-la à VIDES_PERMISES avec raison.`);
     if (!classe) erreurs.push(`${nom(chemin)}:${n} : ${cle} n'est sous aucune classe (# requise, # intégration, # réglage).`);
     if (vues.has(cle)) erreurs.push(`${nom(chemin)}:${n} : ${cle} déclarée deux fois.`);
     vues.add(cle);
@@ -385,6 +441,17 @@ for (const [chemin, lignes] of [[CHEMIN_GAB_API, gabApi], [CHEMIN_GAB_WEB, gabWe
     // Le nom seul : un message de garde finit dans un journal de CI.
     if (motif) erreurs.push(`${nom(chemin)}:${n} : ${cle} — ${motif}.`);
   }
+}
+
+for (const chemin of [CHEMIN_GAB_API, CHEMIN_GAB_WEB]) {
+  readFileSync(chemin, 'utf8').split('\n').forEach((ligne, i) => {
+    // Le numéro seul : la ligne peut porter un secret, et ce message finit dans un journal de CI.
+    if (CLE_COMMENTEE.test(ligne)) erreurs.push(`${nom(chemin)}:${i + 1} : une clé commentée n'a rien à faire dans un gabarit.`);
+  });
+}
+const clesDesGabarits = new Set([...clesGabApi, ...clesGabWeb]);
+for (const cle of VIDES_PERMISES) {
+  if (!clesDesGabarits.has(cle)) erreurs.push(`${cle} : dans VIDES_PERMISES, absente des gabarits : à retirer de la liste.`);
 }
 
 // ── Sections : mêmes titres, même ordre, chaque clé sous le même ──────────────────────────────

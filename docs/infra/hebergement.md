@@ -167,27 +167,45 @@ son motif, et aucun secret dans un gabarit. Une clé neuve s'ajoute donc là, pa
 
 **Passer d'un gabarit à un environnement :**
 
-1. Recopier le gabarit hors du dépôt (`~/Sauvegardes/`, mode `600`). Remplir ses vides : les secrets neufs comme le dit
-   la tâche F3 du plan, les autres depuis le compte du fournisseur. `node scripts/check-env-production.mjs --report` nomme les
-   vides, par classe. Une clé `# intégration` reste vide tant que son compte n'existe pas.
-2. Pour la préproduction, changer ces valeurs : `IMAGE_TAG`, `API_ALIAS`, `APP_ENV` (`staging`), `APP_URL`, `FRONTEND_URL`,
-   `SANCTUM_STATEFUL_DOMAINS`, `PUBLIC_CACHE_REVALIDATE_URL`, `DB_DATABASE`, `DB_USERNAME`, `SESSION_COOKIE`,
-   `CACHE_PREFIX`, `SCOUT_PREFIX`, `MAIL_MAILER` (`log`), `R2_MEDIA_BUCKET`, `R2_PRIVATE_BUCKET`, `R2_MEDIA_URL`,
-   `OTP_PREVIEW_ENABLED`, les trois `*_REDIRECT_URI`, `SEED_DOWNLOAD_MEDIA` ; et, côté front, `API_URL`, `SITE_URL`,
-   `MEDIA_URL`, `API_INTERNAL_URL`.
-3. Comparer **avant de poser**, dans le conteneur `api` de l'environnement (le script n'imprime que des chemins de configuration
-   et des noms de clés, jamais une valeur) :
+1. Recopier le gabarit hors du dépôt (`~/Sauvegardes/`, mode `600`). Remplir ses vides. ⚠ **Sur un environnement qui tourne,
+   chaque secret se reprend, aucun ne se régénère** : une `APP_KEY` neuve rend les colonnes chiffrées illisibles, une
+   `RADAR_PHONE_HMAC_KEY` neuve fait oublier les refus du Radar, et `/up` reste à 200 dans les deux cas. Seule une création, comme
+   celle de la production en F3, génère des secrets neufs. `node scripts/check-env-production.mjs --report` nomme les vides, par
+   classe. Une clé `# intégration` reste vide tant que son compte n'existe pas.
+2. Pour la préproduction, poser ces valeurs :
+   - API : `IMAGE_TAG=preview`, `API_ALIAS=takussan-api-preview`, `APP_NAME="Takussan Preview"`, `APP_ENV=staging`,
+     `APP_URL=https://preview.api.takussan.com`, `FRONTEND_URL=https://preview.takussan.com`,
+     `SANCTUM_STATEFUL_DOMAINS=preview.takussan.com`, `DB_DATABASE` et `DB_USERNAME` à `takussan_preview`,
+     `SESSION_COOKIE=takussan_session_preview`, `SCOUT_PREFIX=preview_`, `MAIL_MAILER=log`,
+     `R2_MEDIA_BUCKET=takussan-preview-media`, `R2_PRIVATE_BUCKET=takussan-preview-private`,
+     `R2_MEDIA_URL=https://media-preview.takussan.com`, `OTP_PREVIEW_ENABLED=true`, `SEED_DOWNLOAD_MEDIA=true`, et les trois
+     `*_REDIRECT_URI` sur `https://preview.takussan.com` ;
+   - `CACHE_PREFIX=takussan-preview-cache-` et `REDIS_PREFIX=takussan-preview-database-`, à poser telles quelles : le défaut dérive
+     d'`APP_NAME`, et ce sont déjà ces valeurs-là. Mesuré dans le conteneur : `--contre-courant` ne change ni `cache.prefix` ni le
+     préfixe Redis, donc ni les sessions ni le cache ne tombent. Toute autre valeur les fait tomber une fois ;
+   - `PUBLIC_CACHE_REVALIDATE_URL=http://takussan-web-preview-j7msd1:3000/api/revalidation/fiche`, l'alias interne du front : l'URL
+     publique bute sur l'authentification basique de Traefik (`401` avant Next), et chaque changement de fiche finirait en
+     `failed_jobs`. Valeur prévue au 2026-11-01, l'appel signé reste à mesurer sur le serveur. La production garde son URL publique ;
+   - front : `API_URL`, `SITE_URL`, `MEDIA_URL`, ceux des lignes ci-dessus, et `API_INTERNAL_URL=http://takussan-api-preview:8080`.
+3. Comparer **avant de poser**, dans le conteneur `api` de l'environnement. Le script n'imprime que des chemins de configuration et
+   des noms de clés, jamais une valeur. Le fichier passe par un tube et non par `docker cp` : celui-ci le crée en `root:root`, le
+   conteneur tourne en `www-data`, ne peut ni le lire ni l'effacer, et le fichier de secrets reste en place (mesuré le 2026-11-01).
 
    ```bash
-   docker cp deploy/takussan/comparer-config-env.php <conteneur>:/tmp/ && docker cp <fichier> <conteneur>:/tmp/env-candidat
-   docker exec -w /app <conteneur> php /tmp/comparer-config-env.php /tmp/env-candidat --contre-courant
-   docker exec <conteneur> rm /tmp/env-candidat /tmp/comparer-config-env.php
+   docker exec -i <conteneur> sh -c 'umask 077; cat > /tmp/comparer-config-env.php' < deploy/takussan/comparer-config-env.php
+   docker exec -i <conteneur> sh -c 'umask 077; cat > /tmp/env-candidat' < <fichier>
+   docker exec -w /app <conteneur> php /tmp/comparer-config-env.php /tmp/env-candidat --contre-courant; echo "code : $?"
+   docker exec <conteneur> rm -f /tmp/env-candidat /tmp/comparer-config-env.php
    ```
 
-   `--contre-courant` dit ce que le fichier changerait au conteneur qui tourne, et nomme les clés posées qu'il ne déclare pas.
-   Sans cette option, il compare le fichier aux défauts de `config/`, et attrape une ligne vide qui en écraserait un.
+   `--contre-courant` nomme les chemins de configuration qui changent, les clés dont la valeur diffère du courant (dont celles que
+   `config()` ne voit pas : `TRUSTED_PROXIES`, `RESEND_BASE_URL`, `SEED_*`), les clés neuves et les clés posées que le fichier ne déclare
+   pas. **Code `3` : le fichier viderait une clé posée** ; elle est nommée, et il ne faut pas poser ce fichier. Sans cette option, il
+   compare le fichier aux défauts de `config/`, et attrape une ligne vide qui en écraserait un.
 4. Coller dans l'onglet *Environment*, puis déployer. Les commentaires y sont facultatifs : `grep -Ev '^(#|$)' <fichier>` les
-   retire. ⚠ Toute valeur est interpolée par Compose : un `$` dans un secret se double.
+   retire. ⚠ **Ne pas doubler un `$`** : Dokploy l'échappe déjà en écrivant le `.env`, et seule la forme `${X}` reste interpolée.
+   **Mettre entre guillemets toute valeur qui porte un `#`** : sans guillemets, la valeur s'arrête en silence au premier `#`.
+   Lu dans la source de Dokploy v0.30.8 et rejoué en simulation, mesure sur le serveur à venir.
 
 ⚠ **Une ligne vide n'est pas une ligne absente** : `env('X', 'd')` rend `''`, et le défaut ne s'applique pas. Le gabarit écrit donc
 le défaut de `config/` de chaque clé qui en a un, sauf les secrets et les intégrations.
@@ -215,6 +233,24 @@ le défaut de `config/` de chaque clé qui en a un, sauf les secrets et les int�
   jouent d'autres régimes.
 - 2026-09-14, puis non relu : `SMS_*` et `WHATSAPP_*` hors des cinq jetons, `FACEBOOK_*`, `APPLE_*`, `CDN_*`, `BUNNY_*` absentes de
   l'export, donc aux défauts de `config/`. Une fonctionnalité qui en dépend ne marche pas en préproduction tant qu'on ne les pose pas.
+
+**Les clés posées en préproduction, noms seuls** : le gabarit dit ce qui peut exister, cette liste ce qui existe, et donc ce qu'il ne
+faut pas perdre en remplaçant l'onglet. Cumul des relevés du 2026-09-14 au 2026-10-30, à recouper par `--contre-courant` :
+
+- application et réseau : `IMAGE_TAG`, `API_ALIAS`, `APP_NAME`, `APP_ENV`, `APP_KEY`, `APP_DEBUG`, `APP_URL`, `APP_LOCALE`, `APP_FALLBACK_LOCALE`,
+  `APP_FAKER_LOCALE`, `APP_MAINTENANCE_DRIVER`, `BCRYPT_ROUNDS`, `FRONTEND_URL`, `SANCTUM_STATEFUL_DOMAINS`, `TRUSTED_PROXIES` ;
+- base, sessions, cache, files : `DB_CONNECTION`, `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`, `SESSION_DRIVER`,
+  `SESSION_LIFETIME`, `SESSION_ENCRYPT`, `SESSION_SECURE_COOKIE`, `SESSION_PATH`, `SESSION_DOMAIN`, `SESSION_COOKIE`, `CACHE_STORE`,
+  `QUEUE_CONNECTION`, `BROADCAST_CONNECTION`, `FILESYSTEM_DISK`, `REDIS_CLIENT`, `REDIS_PASSWORD`, `REDIS_DB`, `REDIS_CACHE_DB` ;
+- journaux, recherche, courriel, PDF : `LOG_CHANNEL`, `LOG_LEVEL`, `LOG_STACK`, `SCOUT_DRIVER`, `SCOUT_PREFIX`, `SCOUT_QUEUE`, `SCOUT_AFTER_COMMIT`,
+  `MEILISEARCH_HOST`, `MEILISEARCH_KEY`, `MAIL_MAILER`, `MAIL_FROM_ADDRESS`, `MAIL_FROM_NAME`, `RESEND_API_KEY`, `LARAVEL_PDF_DRIVER` ;
+- médias et comptes : `MEDIA_PUBLIC_DISK`, `MEDIA_PRIVATE_DISK`, `MEDIA_QUEUE`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_ENDPOINT`, `R2_MEDIA_BUCKET`,
+  `R2_MEDIA_URL`, `R2_PRIVATE_BUCKET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`, `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` ;
+- connexion, webhooks, Radar : `PHONE_LOGIN_ENABLED`, `OTP_PREVIEW_ENABLED`, `SMS_ORANGE_WEBHOOK_URL_TOKEN`, `SMS_MTARGET_WEBHOOK_URL_TOKEN`,
+  `SMS_LAM_WEBHOOK_URL_TOKEN`, `WHATSAPP_WEBHOOK_URL_TOKEN`, `WHATSAPP_WEBHOOK_VERIFY_TOKEN`, `RADAR_PHONE_HMAC_KEY` ;
+- `SEED_*`, treize au relevé du 2026-10-20.
+
+`MAIL_CONTACT_ADDRESS` et `VITE_APP_NAME` y sont aussi au relevé, et n'ont pas à y rester : aucun code ne les lit.
 
 **Le numéro WhatsApp du Radar** (TCK-2395, [ADR-0081](../adr/0081-le-radar-prospecte-par-l-api-whatsapp-sur-son-propre-numero.md)) :
 **aucune de ces clés n'est posée** au 2026-10-30, et rien ne le sera par le code. Le porteur les pose
@@ -300,7 +336,8 @@ en préproduction compris. Les clés vivent dans les gabarits, les drivers là-b
 **À poser par le porteur — TCK-598, ADR-0052** (ni Dokploy ni Vercel ne les portaient au 2026-10-08 ; re-mesuré le 2026-10-18 : seule `API_INTERNAL_URL` est posée, sur `takussan-web-preview`) :
 
 - `takussan-api-preview` : `PUBLIC_CACHE_REVALIDATE_URL`
-  (`https://preview.takussan.com/api/revalidation/fiche`) et `PUBLIC_CACHE_REVALIDATE_SECRET`. Vides,
+  (l'alias interne du front, voir « Passer d'un gabarit à un environnement » : l'URL publique bute sur l'authentification
+  basique) et `PUBLIC_CACHE_REVALIDATE_SECRET`. Vides,
   aucune révocation ne part : une fiche dépubliée reste servie jusqu'à 300 s ;
 - `takussan-web-preview` (variables d'**exécution**, lues par le serveur Next, jamais inlinées) :
   `PUBLIC_CACHE_REVALIDATE_SECRET` (le même que l'API ; vide, le handler refuse tout en 401),

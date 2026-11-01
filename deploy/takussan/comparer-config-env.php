@@ -17,8 +17,12 @@ use Illuminate\Foundation\Bootstrap\RegisterProviders;
  *   · par défaut, les clés du fichier sont retirées du premier et posées dans le second : il répond à
  *     « cette ligne vide a-t-elle écrasé un défaut de config/ ? » ;
  *   · `--contre-courant` garde l'environnement tel quel d'un côté, et le recouvre du fichier de l'autre : il
- *     répond à « que changerait ce fichier au conteneur qui tourne ? », et nomme les clés posées que le fichier
- *     ne déclare pas.
+ *     répond à « que changerait ce fichier au conteneur qui tourne ? ». Il compare aussi les clés elles-mêmes, par
+ *     empreinte : `TRUSTED_PROXIES`, `RESEND_BASE_URL` ou `SEED_*` se lisent hors de `config()`, et aucun chemin ne
+ *     les montre.
+ *
+ * Sort en 0, en 2 sur une erreur, et en 3 quand `--contre-courant` trouve une clé posée que le fichier viderait :
+ * une `APP_KEY` vidée laisse `/up` à 200, l'application cassée. Rien de ce qu'on perd ainsi ne se voit au déploiement.
  *
  * ⚠ Il n'imprime QUE des chemins de configuration et des noms de clés, jamais une valeur : un tableau en liste
  * compte pour un seul chemin, l'erreur d'un enfant se réduit à sa classe, et sa sortie d'erreur est jetée. Les
@@ -33,8 +37,17 @@ if (($argv[1] ?? null) === '--enfant') {
 $fichier = $argv[1] ?? null;
 $contreCourant = in_array('--contre-courant', $argv, true);
 
-if ($fichier === null || str_starts_with($fichier, '--') || ! is_file($fichier) || ! is_readable($fichier)) {
+if ($fichier === null || str_starts_with($fichier, '--')) {
     fwrite(STDERR, "usage : php comparer-config-env.php <fichier-env> [--contre-courant]\n");
+    exit(2);
+}
+if (! is_file($fichier)) {
+    fwrite(STDERR, "fichier introuvable : {$fichier}\n");
+    exit(2);
+}
+if (! is_readable($fichier)) {
+    // Le cas de `docker cp` : le fichier arrive en root:root, et le conteneur tourne en www-data.
+    fwrite(STDERR, "fichier illisible par cet utilisateur (droits ou propriétaire) : {$fichier}\n");
     exit(2);
 }
 if (! is_file(getcwd().'/vendor/autoload.php') || ! is_file(getcwd().'/bootstrap/app.php')) {
@@ -44,8 +57,9 @@ if (! is_file(getcwd().'/vendor/autoload.php') || ! is_file(getcwd().'/bootstrap
 
 require getcwd().'/vendor/autoload.php';
 
+$contenu = (string) file_get_contents($fichier);
 try {
-    $clesDuFichier = Dotenv\Dotenv::parse((string) file_get_contents($fichier));
+    $clesDuFichier = Dotenv\Dotenv::parse($contenu);
 } catch (Throwable $e) {
     // Le message de phpdotenv cite la ligne fautive : il peut porter une valeur.
     fwrite(STDERR, 'fichier illisible par phpdotenv ('.$e::class.")\n");
@@ -53,6 +67,13 @@ try {
 }
 if ($clesDuFichier === []) {
     fwrite(STDERR, "le fichier ne déclare aucune clé : rien à comparer.\n");
+    exit(2);
+}
+// phpdotenv avale sans erreur la suite d'un guillemet non fermé : la ligne disparaît, et avec elle sa clé.
+preg_match_all('/^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=/m', $contenu, $lignes);
+$avalees = array_values(array_unique(array_diff($lignes[1], array_keys($clesDuFichier))));
+if ($avalees !== []) {
+    fwrite(STDERR, 'lignes non lues, guillemet non fermé au-dessus ou sur elles : '.implode(', ', $avalees)."\n");
     exit(2);
 }
 
@@ -86,13 +107,38 @@ imprimer('Chemins qui passent de null à une chaîne vide (ou l\'inverse)', $vid
 
 if ($contreCourant) {
     // Ce que l'image et le système posent, et que l'onglet Environment ne porte jamais.
-    $systeme = '/^(PATH|HOME|HOSTNAME|PWD|OLDPWD|SHLVL|TERM|USER|LOGNAME|SHELL|LANG|LC_\w+|_|BUILD_SHA|REDIS_HOST|REDIS_PORT|PHP\w*|GPG_KEYS|CADDY\w*|FRANKENPHP\w*|SERVER_NAME|XDG_\w+|GODEBUG|APP_CONFIG_CACHE|COMPOSER\w*)$/';
+    $systeme = '/^(PATH|HOME|HOSTNAME|PWD|OLDPWD|SHLVL|TERM|USER|LOGNAME|SHELL|LANG|LC_\w+|_|BUILD_SHA|REDIS_HOST|REDIS_PORT|PHP\w*|GPG_KEYS|CADDY\w*|FRANKENPHP\w*|SERVER_NAME|XDG_\w+|GODEBUG|APP_CONFIG_CACHE|COMPOSER\w*|COMPOSE_PROJECT_NAME|DOCKER_CONFIG)$/';
     $perdues = array_values(array_filter(
         array_keys(array_diff_key($courant, $clesDuFichier)),
         static fn ($cle): bool => is_string($cle) && preg_match($systeme, $cle) !== 1,
     ));
     sort($perdues);
     imprimer('Clés posées dans l\'environnement, absentes du fichier', $perdues);
+
+    $differentes = [];
+    $neuves = [];
+    $videes = [];
+    foreach ($clesDuFichier as $cle => $valeur) {
+        $posee = $courant[$cle] ?? null;
+        if ($posee === null) {
+            if ($valeur !== '') {
+                $neuves[] = $cle;
+            }
+        } elseif ($posee !== '' && $valeur === '') {
+            $videes[] = $cle;
+        } elseif (! hash_equals(hash('sha256', $posee), hash('sha256', $valeur))) {
+            $differentes[] = $cle;
+        }
+    }
+    sort($differentes);
+    sort($neuves);
+    sort($videes);
+    imprimer('Clés dont la valeur diffère du courant', $differentes);
+    imprimer('Clés du fichier, non vides, absentes du courant', $neuves);
+    imprimer('Posées dans le courant, vides dans le fichier', $videes);
+    if ($videes !== []) {
+        exit(3);
+    }
 }
 
 /** @param array<string, string> $env @return array<string, string> chemin => empreinte */
