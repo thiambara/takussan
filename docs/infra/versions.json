@@ -6,8 +6,8 @@
     "Un environnement sans déclaration porte `valeur: null` ET une `absence` qui dit pourquoi. Nuller sans expliquer désarme la garde en silence — c'est exactement le défaut prouvé par mutation sur `check-db-engine.mjs`."
   ],
   "_mesure_prod": {
-    "acces": "Serveur Contabo, Ubuntu 24.04, accès SSH `deploy@`. Aucune de ces commandes n'écrit quoi que ce soit.",
-    "toutes_en_une": "ssh deploy@<serveur> 'psql --version; /usr/bin/meilisearch --version; redis-server --version; php -v | head -1; node --version; cat /etc/takussan/php-version'",
+    "acces": "Serveur Contabo, Ubuntu 24.04, accès SSH `root@178.18.247.62` : le compte `deploy` n'existe plus. Aucune de ces commandes n'écrit quoi que ce soit.",
+    "toutes_en_une": "ssh root@178.18.247.62 \"docker service inspect dokploy --format '{{.Spec.TaskTemplate.ContainerSpec.Image}}'; docker exec serveur-donnees-qomjjz-meilisearch-1 meilisearch --version; docker exec \\$(docker ps -q -f name=serveur-postgres-egr6ii) psql -U pgadmin -d postgres -tAc 'show server_version'\" ; les autres services se relèvent dans leur conteneur de production, qui n'existe pas encore",
     "apres_mesure": "Reporter la valeur dans ce fichier, passer `etat` à `mesure`, renseigner `date` et `source`, puis relancer `node scripts/check-infra-versions.mjs --report`."
   },
   "services": {
@@ -26,10 +26,12 @@
         "valeur": "getmeili/meilisearch:v1.16"
       },
       "prod": {
-        "etat": "non_mesure",
-        "valeur": null,
-        "commande": "docker exec <conteneur meilisearch de deploy/server/compose.data.yml> meilisearch --version",
-        "pourquoi": "Depuis ADR-0028 (2026-09-13), Meilisearch est un conteneur épinglé dans `deploy/server/compose.data.yml`. Une image déclarée n'est pas une image servie : la valeur se relève DANS le conteneur en marche, et se date — plan d'ADR-0028, tâche F5. Avant, le dépôt ne portait qu'un guide d'installation (`apt install meilisearch`, sans version) que personne n'avait rejoué : un guide décrit ce qu'on VOUDRAIT installer, c'est le raisonnement de D-43."
+        "etat": "mesure",
+        "valeur": "1.16.0",
+        "date": "2026-11-01",
+        "source": "Audit du serveur du 2026-11-01 (M5) — relevé sur 178.18.247.62, conteneur `serveur-donnees-qomjjz-meilisearch-1`, instance que les environnements partagent",
+        "commande": "ssh root@178.18.247.62 \"docker exec serveur-donnees-qomjjz-meilisearch-1 meilisearch --version\"",
+        "pourquoi": "Depuis ADR-0028 (2026-09-13), Meilisearch est un conteneur épinglé dans `deploy/server/compose.data.yml`. Une image déclarée n'est pas une image servie : la valeur se relève DANS le conteneur en marche, et se date. Avant, le dépôt ne portait qu'un guide d'installation (`apt install meilisearch`, sans version) que personne n'avait rejoué : un guide décrit ce qu'on VOUDRAIT installer, c'est le raisonnement de D-43."
       }
     },
     "redis": {
@@ -148,7 +150,7 @@
       },
       "prod": {
         "etat": "non_mesure",
-        "pourquoi": "aucune BASE de production PostgreSQL n'existe — c'est ce que mesure cette entrée. Le 2026-08-24, la machine portait PostgreSQL 17.11 (PGDG) pour la préproduction, sans rôle ni base `takussan_prod` ; depuis ADR-0028 (2026-09-13), le serveur est réinstallé et chaque base est un service Database de Dokploy. La production n'existe qu'à partir de la phase F du plan d'ADR-0028 : la commande se lance alors DANS le conteneur du service de production (tâche F5), et pas avant.",
+        "pourquoi": "aucune BASE de production PostgreSQL n'existe — c'est ce que mesure cette entrée. Le 2026-08-24, la machine portait PostgreSQL 17.11 (PGDG) pour la préproduction, sans rôle ni base `takussan_prod` ; depuis ADR-0028 (2026-09-13), le serveur est réinstallé et chaque base est un service Database de Dokploy. La production n'existe qu'à partir de la phase F du plan d'ADR-0028 : la commande se lance alors DANS le conteneur du service de production (tâche F5), et pas avant. Relevé du 2026-11-01 : l'instance partagée `serveur-postgres-egr6ii` est en 17.11 (`show server_version`) ; ce n'est pas une mesure de la production, seule `takussan_preview` y existe.",
         "valeur": null,
         "commande": "docker exec <conteneur du service Database de production> psql -U <rôle> -d <base> -tAc \"SELECT current_setting('server_version'), datcollate, pg_encoding_to_char(encoding) FROM pg_database WHERE datname = current_database();\"",
         "date": null,
@@ -207,11 +209,11 @@
       },
       "prod": {
         "etat": "mesure",
-        "valeur": "v0.30.8",
-        "date": "2026-10-08",
-        "source": "Mise à jour par l'interface (Settings → Update) le 2026-10-08, après lecture des notes de v0.30.7 et du diff de v0.30.8 (retrait du widget HubSpot) ; relevé sur 178.18.247.62 (`dokploy/dokploy:v0.30.8@sha256:e8789a3f…`). Posée d'abord par TCK-526 en v0.30.6. Traefik v3.6.7 à côté, non redémarré, conteneur `dokploy-traefik` hors Swarm",
+        "valeur": "v0.30.10",
+        "date": "2026-11-01",
+        "source": "Audit du serveur du 2026-11-01 (M5) — mise à jour dans la soirée du 2026-10-31, relevé sur 178.18.247.62 (`dokploy/dokploy:v0.30.10@sha256:417cb052…`). Avant : v0.30.8 le 2026-10-08, après lecture des notes de v0.30.7 et du diff de v0.30.8 (retrait du widget HubSpot). Posée d'abord par TCK-526 en v0.30.6. Traefik v3.6.7 à côté, non redémarré, conteneur `dokploy-traefik` hors Swarm",
         "commande": "ssh root@178.18.247.62 \"docker service inspect dokploy --format '{{.Spec.TaskTemplate.ContainerSpec.Image}}'\"",
-        "pourquoi": "Le runbook « Reconstruire le serveur » (étape 6) pose `DOKPLOY_VERSION=v0.30.8` devant `install.sh` (R6) ; monter de version est le geste « Mettre Dokploy à jour », relevé ici ensuite."
+        "pourquoi": "Le runbook « Reconstruire le serveur » (étape 6) pose `DOKPLOY_VERSION=v0.30.10` devant `install.sh` (R6) ; monter de version est le geste « Mettre Dokploy à jour », relevé ici ensuite."
       }
     }
   }

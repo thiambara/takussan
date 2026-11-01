@@ -164,7 +164,8 @@ services:
   scheduler:
     <<: [*api, *apres-release]
     command: php artisan schedule:work
-    mem_limit: 192m
+    # 192m : memory.events `max` 17 en 1 h 10 le 2026-11-01, autour de `memory_limit` 256M (le défaut que TCK-951 a corrigé sur les workers).
+    mem_limit: 384m
 
   # Jamais démarré par `up` : `docker compose --profile seed run --rm seed`.
   seed:
