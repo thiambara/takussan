@@ -1,7 +1,7 @@
 ---
 id: TCK-2459
 title: "L'évaluation complète du socle IA ne tourne plus la nuit, et se lance à la main depuis la console"
-status: doing
+status: done
 phase: P0
 family: technique
 estimate: S
@@ -43,8 +43,13 @@ Le porteur décide quand une évaluation complète appelle de vrais modèles, et
 - [x] Deux lancements ne se doublent pas.
 - [x] Le coût du dernier passage se lit avant de confirmer.
 - [x] Un opérateur sans `platform.ai.manage` ne peut pas lancer, côté API comme côté écran.
-- [ ] Vérifié sur la préproduction après promotion : l'entrée planifiée est coupée.
+- [x] Vérifié sur la préproduction après promotion : l'entrée planifiée est coupée.
 
-## Reste sur dev
+## Relevé sur la préproduction, 2026-11-01
 
-- Après promotion sur `preview` : constater que `schedule:list` n'a plus l'entrée `ai:eval --all`.
+Sur `db29e3628`, dans le planificateur : `ai.eval_nightly` vaut `false` et le filtre de l'entrée `ai:eval --all` rend `false`.
+`schedule:list` continue d'afficher l'entrée : elle est coupée par sa condition, pas retirée.
+
+Le job `RunAiEvaluation` lancé depuis le serveur, sans passer par le bouton, a fini en 4 min 34 pour 1,10 $, sans échec :
+`radar.extraction` à 0,9521, sous sa référence, et `radar.verification_accord` à 0,9917. Le bouton et sa confirmation par
+second facteur ne sont couverts que par les tests.
