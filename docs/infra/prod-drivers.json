@@ -6,7 +6,7 @@
     "commande": "source ~/Sauvegardes/migration-secrets.env ; curl -sS -A curl/8 -H \"x-api-key: $DOKPLOY_API_KEY\" 'https://deploy.takussan.com/api/compose.one?composeId=<id>' | jq -r .env | grep -E '^(DB_CONNECTION|CACHE_STORE|SESSION_DRIVER|QUEUE_CONNECTION|MAIL_MAILER|SESSION_SECURE_COOKIE|SESSION_SAME_SITE|LOG_CHANNEL|LOG_LEVEL)='",
     "identifiants": "Takussan préproduction : composeId `JbPrtvdkuq0aLTDrOx2Ss` (`project.all`). La production n'existe pas encore (plan, F3).",
     "pourquoi_pas_en_ci": "L'environnement vit dans Dokploy, derrière une clé d'API : la CI ne le lit pas. `check-prod-drivers.mjs` signale les deux environnements comme hors dépôt et ne compare que la checklist §5.7 de docs/configuration.md au catalogue.",
-    "apres_mesure": "Reporter les valeurs, dater, relancer `node scripts/check-prod-drivers.mjs --report`. Les CLÉS (sans valeur) de chaque environnement sont relevées dans docs/infra/hebergement.md, § « Les variables d'environnement, par service »."
+    "apres_mesure": "Reporter les valeurs, dater, relancer `node scripts/check-prod-drivers.mjs --report`. Les CLÉS de chaque environnement sont dans les gabarits `deploy/takussan/env.*.production.example` (TCK-2456) ; le relevé daté de la préproduction dans docs/infra/hebergement.md, § « Les variables d'environnement, par service »."
   },
   "environnements": {
     "preview": {

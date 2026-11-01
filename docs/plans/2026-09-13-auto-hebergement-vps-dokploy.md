@@ -4141,6 +4141,10 @@ réétiqueter un `sha-` précédent en `production` et redéployer (ADR-0069 § 
 Créés **à partir de cette table**, jamais par `environment.duplicate`, qui recopierait les secrets
 de la préproduction (ADR-0069 § 1).
 
+Le point de départ de chaque onglet est son gabarit, qui écrit ces valeurs, et toutes les autres clés
+(TCK-2456) : `deploy/takussan/env.api.production.example`, `deploy/takussan/env.web.production.example`.
+Le geste est décrit dans `docs/infra/hebergement.md`, § « Les variables d'environnement, par service ».
+
 - Le Compose `donnees` (projet *Serveur*) passe à la branche `master`, puis *Deploy*. Il ne porte
   plus que Meilisearch : rien ne redémarre côté données.
 - Compose `takussan-api-production` : `deploy/takussan/compose.api.yml`, branche **`master`**,
@@ -4155,7 +4159,7 @@ de la préproduction (ADR-0069 § 1).
 | `REDIS_PASSWORD` | neuf (`openssl rand -hex 32`) : le Redis est celui de la pile, sur son seul réseau `interne` (TCK-880) ; ni `REDIS_HOST` ni `REDIS_DB` à poser |
 | `APP_KEY` | neuve (`echo "base64:$(openssl rand -base64 32)"`, comme en D1 : sans le préfixe `base64:`, Laravel refuse la clé, `Unsupported cipher or incorrect key length`, mesuré le 2026-10-20, P71.01) — jamais celle de la préproduction. **Rangée hors du serveur avant le premier déploiement** (gestionnaire de mots de passe du porteur), et son empreinte (`printf %s "$APP_KEY" \| sha256sum \| cut -c1-12`) portée au relevé de `hebergement.md` : sans elle, une restauration perd toutes les colonnes chiffrées (ADR-0044, amendement du 2026-10-18, P42.02) |
 | `APP_ENV` | `production` — la préproduction est en `staging` (relevé du 2026-10-20). `production` ferme l'aperçu des codes SMS (`OtpPreview`) et fait filtrer les accusés par IP (`RestrictIpMiddleware`) (P71.02) |
-| `OTP_PREVIEW_ENABLED` | **absente** (jamais `true`) : en préproduction, elle vaut `true` et le code SMS revient dans la réponse. L'API refuse de démarrer si elle vaut `true` avec l'`APP_URL` de production (P71.02) |
+| `OTP_PREVIEW_ENABLED` | `false` (jamais `true`) : en préproduction, elle vaut `true` et le code SMS revient dans la réponse. L'API refuse de démarrer si elle vaut `true` avec l'`APP_URL` de production (P71.02) |
 | `PHONE_LOGIN_ENABLED` | `true`, comme la préproduction (relevé du 2026-10-20) |
 | `APP_URL` / `FRONTEND_URL` / `SANCTUM_STATEFUL_DOMAINS` | `https://api.takussan.com` / `https://www.takussan.com` / `www.takussan.com`. `APP_URL` est la racine de **toutes** les URL que l'API rend, signées comprises (ADR-0052 § 5, amendé le 2026-10-20) : une valeur fausse casse chaque lien |
 | `DB_CONNECTION` | `pgsql` — les drivers de cette table et des cinq lignes suivantes sont ceux de `docs/infra/prod-drivers.json`, et `check-prod-drivers.mjs` vérifie l'accord (P71.03) |
