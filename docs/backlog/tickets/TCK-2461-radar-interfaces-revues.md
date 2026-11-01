@@ -3,7 +3,7 @@ id: TCK-2461
 title: "Les écrans du Radar revus : navigation, bandeau, liste, fiche, annonceur, collecte"
 status: doing
 phase: P1
-family: radar
+family: front
 estimate: M
 wave: 64
 created: 2026-11-01
