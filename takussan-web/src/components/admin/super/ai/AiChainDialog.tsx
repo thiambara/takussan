@@ -77,7 +77,7 @@ export function AiChainDialog({ open, onOpenChange, row, providers }: Props) {
   // Une évaluation qui n'est plus celle du premier maillon (le maillon a changé pendant qu'elle
   // tournait, ou sa réponse est arrivée après coup) ne dit rien du candidat affiché : on l'ignore.
   const brute = evaluation.data?.data;
-  const run = brute && brute.candidate.provider === chain[0]?.provider && brute.candidate.model === chain[0]?.model ? brute : undefined;
+  const run = brute && brute.candidate?.provider === chain[0]?.provider && brute.candidate?.model === chain[0]?.model ? brute : undefined;
   const enCours = run !== undefined && ['queued', 'running'].includes(run.status);
   const nombre = (valeur: number) => format.number(valeur, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const reports = run?.status === 'done' && run.report ? Object.values(run.report.usages) : [];
@@ -165,14 +165,14 @@ export function AiChainDialog({ open, onOpenChange, row, providers }: Props) {
                       onValueChange={(v) => v && update(index, { provider: v, model: providers.find((p) => p.key === v)?.models[0] ?? '' })}
                       items={proposes.map((p) => ({ value: p.key, label: p.legal_name }))}
                     >
-                      <SelectTrigger className="h-10 w-full" aria-labelledby={`provider-${index}`}><SelectValue /></SelectTrigger>
+                      <SelectTrigger className="w-full" aria-labelledby={`provider-${index}`}><SelectValue /></SelectTrigger>
                       <SelectContent>{proposes.map((p) => <SelectItem key={p.key} value={p.key}>{p.legal_name}</SelectItem>)}</SelectContent>
                     </Select>
                   </div>
                   <div className="min-w-0 space-y-1">
                     <Label id={`model-${index}`}>{t('model')}</Label>
                     <Select value={link.model} onValueChange={(v) => v && update(index, { model: v })} items={models.map((m) => ({ value: m, label: m }))}>
-                      <SelectTrigger className="h-10 w-full min-w-0" aria-labelledby={`model-${index}`}><SelectValue /></SelectTrigger>
+                      <SelectTrigger className="w-full min-w-0" aria-labelledby={`model-${index}`}><SelectValue /></SelectTrigger>
                       <SelectContent>{models.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent>
                     </Select>
                   </div>
@@ -223,7 +223,7 @@ export function AiChainDialog({ open, onOpenChange, row, providers }: Props) {
             <Button size="sm" variant="outline" disabled={evaluate.isPending || enCours || chain.length === 0} onClick={() => evaluate.mutate()}>{t('evaluate')}</Button>
           </div>
           {run ? <StatusBadge label={tAi(`evaluationStatus.${run.status}`)} tone={TON_PAR_STATUT[run.status]} /> : null}
-          {run ? <p className="text-xs text-muted-foreground">{t('evaluatedCandidate', { model: `${run.candidate.provider} · ${run.candidate.model}` })}</p> : null}
+          {run ? <p className="text-xs text-muted-foreground">{t('evaluatedCandidate', { model: `${run.candidate?.provider} · ${run.candidate?.model}` })}</p> : null}
           {enCours ? <p className="text-sm text-muted-foreground" role="status">{t('evaluating')}</p> : null}
           {evaluation.isError ? <p className="text-sm text-destructive" role="alert">{messageErreur(evaluation.error)}</p> : null}
           {run?.status === 'failed' ? (

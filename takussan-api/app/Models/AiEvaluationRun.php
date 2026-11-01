@@ -7,8 +7,12 @@ use App\Models\Bases\AbstractModel;
 use App\Models\Enums\AiEvaluationStatus;
 use App\Models\Enums\AiModelRole;
 use App\Services\Ai\ModelLink;
+use Illuminate\Database\Eloquent\Builder;
 
-/** TCK-2385 — une évaluation de candidat lancée depuis la console, et son verdict. */
+/**
+ * TCK-2385 — une évaluation de candidat lancée depuis la console, et son verdict.
+ * TCK-2459 — sans rôle ni candidat : l'évaluation COMPLÈTE, tous les usages sur leur chaîne en place.
+ */
 class AiEvaluationRun extends AbstractModel
 {
     /** Une évaluation `running` plus vieille que le délai du job (+ marge) n'a plus de worker : il est mort. */
@@ -28,6 +32,17 @@ class AiEvaluationRun extends AbstractModel
         'started_at' => 'datetime',
         'finished_at' => 'datetime',
     ];
+
+    public function isSuite(): bool
+    {
+        return $this->role === null;
+    }
+
+    /** @param  Builder<self>  $query */
+    public function scopeSuites(Builder $query): void
+    {
+        $query->whereNull('role');
+    }
 
     /** La dernière évaluation TERMINÉE de ce maillon pour ce rôle. */
     public static function latestFor(AiModelRole $role, ModelLink $link): ?self

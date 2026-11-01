@@ -12,6 +12,7 @@ import { FormGlobalError } from '@/components/forms/FormError';
 import { LienLocalise } from '@/components/shared/LienLocalise';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { fieldDensityScope } from '@/components/ui/field-density';
 import { EDITEUR } from '@/content/legal/editeur';
 import { useAuth } from '@/context/AuthContext';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
@@ -370,7 +371,7 @@ export function RadarClaimReception({ token: jeton }: RadarClaimReceptionProps) 
   const espaceRefuse = nomsRefuses.includes('space_name');
 
   return (
-    <div className="space-y-8" data-testid="claim-ready">
+    <div {...fieldDensityScope()} className="space-y-8" data-testid="claim-ready">
       <div className="space-y-2">
         <p className="font-display text-lg font-semibold text-foreground">
           {nom ? t('greeting', { name: nom }) : t('greetingAnonymous')}
@@ -519,7 +520,7 @@ export function RadarClaimReception({ token: jeton }: RadarClaimReceptionProps) 
                     setPrenom(e.target.value);
                     setNomsRefuses((c) => c.filter((x) => x !== 'first_name'));
                   }}
-                  className="h-11"
+                 
                 />
                 {prenomRefuse ? (
                   <p id="claim-first-name-error" role="alert" className="bg-background text-xs font-medium text-destructive">
@@ -542,7 +543,7 @@ export function RadarClaimReception({ token: jeton }: RadarClaimReceptionProps) 
                     setNomEspace(e.target.value);
                     setNomsRefuses((c) => c.filter((x) => x !== 'space_name'));
                   }}
-                  className="h-11"
+                 
                 />
                 {espaceRefuse ? (
                   <p id="claim-space-name-error" role="alert" className="bg-background text-xs font-medium text-destructive">
@@ -604,7 +605,7 @@ export function RadarClaimReception({ token: jeton }: RadarClaimReceptionProps) 
                   pattern="\d{6}"
                   maxLength={6}
                   placeholder="123456"
-                  className="h-11 tabular-nums tracking-widest"
+                  className="tabular-nums tracking-widest"
                   required
                   ref={champCode}
                 />

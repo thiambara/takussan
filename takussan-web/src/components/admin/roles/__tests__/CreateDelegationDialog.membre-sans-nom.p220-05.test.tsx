@@ -2,7 +2,8 @@
  * P220.05 (TCK-2140) — le sélecteur du bénéficiaire d'une délégation nomme chaque membre par
  * `nomAffichable()`. Avant, un membre sans nom donnait une option vide.
  */
-import { render, screen, within } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
 import { withIntl } from '@/test/intl';
@@ -28,11 +29,12 @@ vi.mock('@/lib/queries/role-delegations', () => ({
 }));
 
 describe('CreateDelegationDialog — membre sans nom (P220.05)', () => {
-  it('propose chaque membre sous un libellé non vide', () => {
+  it('propose chaque membre sous un libellé non vide', async () => {
+    const user = userEvent.setup();
     render(withIntl(<CreateDelegationDialog agencyId={7} open onOpenChange={vi.fn()} />));
 
-    const select = screen.getByLabelText('Bénéficiaire');
-    const libelles = within(select).getAllByRole('option').slice(1).map((o) => o.textContent);
+    await user.click(screen.getByRole('combobox', { name: 'Bénéficiaire' }));
+    const libelles = (await screen.findAllByRole('option')).slice(1).map((o) => o.textContent);
     expect(libelles).toEqual(['moussa@x.sn', '+221 77 000 06 22', '#23', 'Awa Diop']);
   });
 });

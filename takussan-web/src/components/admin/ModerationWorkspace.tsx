@@ -129,7 +129,7 @@ export function ModerationWorkspace({ platform = false }: ModerationWorkspacePro
           }
           items={statusOptions}
         >
-          <SelectTrigger className="h-9" aria-label={t('statusAria')}>
+          <SelectTrigger aria-label={t('statusAria')}>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -145,7 +145,7 @@ export function ModerationWorkspace({ platform = false }: ModerationWorkspacePro
           }
           items={subjectTypeOptions}
         >
-          <SelectTrigger className="h-9" aria-label={t('subjectAria')}>
+          <SelectTrigger aria-label={t('subjectAria')}>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>

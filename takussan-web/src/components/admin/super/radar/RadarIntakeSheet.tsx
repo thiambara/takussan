@@ -149,7 +149,7 @@ export function RadarIntakeSheet({ open, onOpenChange }: RadarIntakeSheetProps) 
     <div className="space-y-1.5">
       <Label id="radar-intake-site-label">{t('intake.sourceSiteLabel')}</Label>
       <Select value={site} onValueChange={(next) => { if (next) setSite(next as RadarSourceSite); }} items={siteOptions}>
-        <SelectTrigger className="h-10 w-full" aria-labelledby="radar-intake-site-label">
+        <SelectTrigger className="w-full" aria-labelledby="radar-intake-site-label">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -233,7 +233,7 @@ export function RadarIntakeSheet({ open, onOpenChange }: RadarIntakeSheetProps) 
                     type="file"
                     multiple
                     accept={CAPTURES_ACCEPT}
-                    className="h-10 py-1.5"
+                    className="py-1.5"
                     aria-describedby="radar-intake-captures-hint"
                     onChange={(e) => {
                       setCaptures(Array.from(e.target.files ?? []));

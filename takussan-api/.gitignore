@@ -36,3 +36,4 @@ Thumbs.db
 # une MESURE, datée de l'exécution qui l'a produite : commité, il devient une affirmation
 # périmée sur l'état du dépôt. Il se publie en artefact de build (cf. `api-ci.yml`), pas ici.
 /storage/coverage/
+/storage/ai-evals

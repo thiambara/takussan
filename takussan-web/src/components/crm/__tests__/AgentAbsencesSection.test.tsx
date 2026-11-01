@@ -59,13 +59,13 @@ describe('AgentAbsencesSection', () => {
 
     expect(await screen.findByText('Aucune absence en cours.')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Déclarer une absence' }));
-    expect(screen.queryByLabelText('Qui est absent')).toBeNull();
+    expect(screen.queryByRole('combobox', { name: 'Qui est absent' })).toBeNull();
 
-    const remplacant = screen.getByLabelText('Remplacé par');
+    await userEvent.click(await screen.findByRole('combobox', { name: 'Remplacé par' }));
     await screen.findByRole('option', { name: 'Awa Diop' });
     // On ne se remplace pas soi-même.
     expect(screen.queryByRole('option', { name: 'Moussa Fall' })).toBeNull();
-    await userEvent.selectOptions(remplacant, '8');
+    await userEvent.click(screen.getByRole('option', { name: 'Awa Diop' }));
     await userEvent.type(screen.getByLabelText("Jusqu'au"), '2026-10-20');
     await userEvent.click(screen.getByRole('button', { name: 'Déclarer' }));
 
@@ -84,7 +84,7 @@ describe('AgentAbsencesSection', () => {
 
     expect(await screen.findByText(/Awa Diop est remplacé par Moussa Fall/)).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Déclarer une absence' }));
-    expect(screen.getByLabelText('Qui est absent')).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Qui est absent' })).toBeInTheDocument();
   });
 
   it('un 403 tait la zone (profil hors personnel)', async () => {

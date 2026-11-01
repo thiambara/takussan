@@ -37,7 +37,8 @@ describe('<PlanifierUneVisite> — fiche sans nom (P220.03)', () => {
     await user.click(screen.getByRole('button', { name: 'Planifier une visite' }));
     await screen.findByRole('dialog');
 
-    expect(screen.getByRole('option', { name: '#45' })).toHaveValue('45');
-    expect(screen.getByRole('option', { name: 'Awa' })).toHaveValue('46');
+    await user.click(screen.getByRole('combobox', { name: 'Client' }));
+    expect(await screen.findByRole('option', { name: '#45' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Awa' })).toBeInTheDocument();
   });
 });

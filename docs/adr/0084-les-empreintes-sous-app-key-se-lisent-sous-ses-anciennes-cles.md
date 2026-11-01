@@ -1,6 +1,6 @@
 # ADR-0084 — Hors du Radar, une empreinte HMAC sous `APP_KEY` s'écrit sous la clé courante et se lit aussi sous chaque clé d'`APP_PREVIOUS_KEYS`
 
-- **Statut** : Proposé — **décision de la session, prise en autonomie le 2026-10-30, à revoir par le porteur**
+- **Statut** : Accepté — décision de la session du 2026-10-30, validée par le porteur le 2026-11-01
 - **Date** : 2026-10-30
 - **Tickets** : [TCK-2430](../backlog/tickets/TCK-2430-empreintes-sous-app-key-hors-radar.md) ; la clé d'empreinte distincte et le ré-chiffrement restent à [TCK-614](../backlog/tickets/TCK-614-rotation-d-app-key-et-cle-d-empreinte-distincte.md)
 - **Dépend de** : [ADR-0044](0044-donnees-personnelles-chiffrement-journal-d-agence-registre-des-droits.md) §1 (rotation d'`APP_KEY`, clé distincte pour une empreinte), [ADR-0082](0082-l-empreinte-des-refus-du-radar-a-sa-propre-cle.md) (le patron : écrire sous la clé courante, lire sous toutes)

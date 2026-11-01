@@ -187,7 +187,7 @@ export function FormulaireFiche({ detail, corrections, surPassage, gestes, erreu
       {/* Hors du `fieldset` : rattacher un annonceur reste permis sur une fiche relue, que le fieldset désactive. */}
       <RadarDroppedPhones detail={detail} corrections={corrections} />
 
-      <div className="sticky bottom-0 -mx-1 flex flex-wrap items-center gap-3 border-t bg-card px-1 py-3" data-testid="radar-fiche-actions">
+      <div className="sticky bottom-0 z-10 -mx-1 flex flex-wrap items-center gap-3 border-t bg-card px-1 py-3 lg:pr-40" data-testid="radar-fiche-actions">
         {editable ? (
           <>
             <Button type="submit" disabled={corrections.nombre === 0 || corrections.enCours}>

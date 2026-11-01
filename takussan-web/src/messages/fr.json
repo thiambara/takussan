@@ -8584,7 +8584,39 @@
           "baselineModel": "Modèle évalué",
           "baselineDate": "Mesuré le"
         },
-        "amount": "{usd} (≈ {xof})"
+        "amount": "{usd} (≈ {xof})",
+        "suite": {
+          "title": "Évaluation complète",
+          "description": "Rejoue tous les jeux de cas contre les vrais modèles et compare chaque score à sa référence. Elle ne tourne plus la nuit : lancez-la après un changement de modèle ou de consigne. Elle ne réécrit aucune référence.",
+          "run": "Lancer l'évaluation",
+          "running": "Évaluation en cours…",
+          "never": "Aucune évaluation complète lancée pour l'instant.",
+          "startedAt": "Lancée le {date}",
+          "total": "Coût : {cost}",
+          "failed": "L'évaluation n'a pas abouti : relancez-la, ou consultez les journaux du worker.",
+          "caption": "Résultat par usage",
+          "verdictOk": "Tient la référence",
+          "verdictBelow": "Sous la référence",
+          "confirmTitle": "Lancer l'évaluation complète ?",
+          "confirmWithCost": "Elle appelle de vrais modèles. Le dernier passage a coûté {cost}.",
+          "confirmNoCost": "Elle appelle de vrais modèles. Comptez environ 1 $ par passage.",
+          "confirm": "Lancer",
+          "status": {
+            "queued": "En file",
+            "running": "En cours",
+            "done": "Terminée",
+            "failed": "Échouée"
+          },
+          "columns": {
+            "usage": "Usage",
+            "score": "Score",
+            "baseline": "Référence",
+            "cases": "Cas",
+            "failures": "Échecs",
+            "cost": "Coût",
+            "verdict": "Verdict"
+          }
+        }
       },
       "radar": {
         "metaTitle": "Radar",
@@ -8600,7 +8632,8 @@
           "published": "Publiées",
           "aiCost": "Coût IA du jour",
           "aiCostBudget": "≈ {equivalent}, sur un plafond de {budget}",
-          "aiCostNoBudget": "≈ {equivalent}, sans plafond"
+          "aiCostNoBudget": "≈ {equivalent}, sans plafond",
+          "aria": "Où en sont les annonces"
         },
         "filters": {
           "stageAria": "Filtrer par étape",
@@ -8712,7 +8745,8 @@
           "claimLeftOtpPreview": "Laissée par la publication automatique : la connexion par code est en mode d’essai",
           "claimLeftTooManyPhotos": "Laissée par la publication automatique : trop de photos à copier en une fois",
           "claimLeftRefused": "Laissée par la publication automatique : la publication a été refusée",
-          "claimLeftUnderMandate": "Laissée par la publication automatique : l’annonceur est publié sous mandat Takussan"
+          "claimLeftUnderMandate": "Laissée par la publication automatique : l’annonceur est publié sous mandat Takussan",
+          "claimDeclined": "L'annonceur a refusé depuis sa page de réclamation"
         },
         "empty": {
           "title": "Aucune annonce pour l’instant",
@@ -8981,7 +9015,7 @@
         "advertiser": {
           "metaTitle": "Annonceur du Radar",
           "title": "Annonceur n° {id}",
-          "back": "Retour au Radar",
+          "back": "Retour aux annonceurs",
           "forbidden": "Le Radar est réservé aux opérateurs support et super-admin.",
           "loadError": "L’annonceur n’a pas pu être chargé.",
           "unnamed": "Annonceur sans nom",
@@ -9758,6 +9792,13 @@
           "startUrlsHint": "Les pages de liste lues par chaque passage, dans l’ordre, sur {hosts} ; {max} au plus. Vide : {fallback}.",
           "startUrlsDefault": "Page de départ : {url} (configuration)",
           "startUrlsSummary": "Pages de départ :"
+        },
+        "nav": {
+          "aria": "Espaces du Radar",
+          "listings": "Annonces",
+          "advertisers": "Annonceurs",
+          "crawl": "Collecte",
+          "observatory": "Observatoire"
         }
       }
     },

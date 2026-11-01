@@ -307,7 +307,7 @@ export function AuditTrail() {
             onValueChange={(next) => filtrer({ event: next === ANY ? null : (next ?? null) })}
             items={eventOptions}
           >
-            <SelectTrigger className="h-10" aria-label={t('filters.actionAria')}>
+            <SelectTrigger aria-label={t('filters.actionAria')}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -325,7 +325,7 @@ export function AuditTrail() {
             onValueChange={(next) => filtrer({ subject: next === ANY ? null : (next ?? null) })}
             items={subjectTypeOptions}
           >
-            <SelectTrigger className="h-10" aria-label={t('filters.subjectAria')}>
+            <SelectTrigger aria-label={t('filters.subjectAria')}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -345,7 +345,7 @@ export function AuditTrail() {
             onValueChange={(next) => filtrer({ member: !next || next === ANY ? null : next })}
             items={memberOptions}
           >
-            <SelectTrigger className="h-10" aria-label={t('filters.memberAria')}>
+            <SelectTrigger aria-label={t('filters.memberAria')}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

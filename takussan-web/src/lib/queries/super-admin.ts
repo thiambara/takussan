@@ -64,6 +64,7 @@ import type {
   SharedLegalIdentifiers,
   AdminAiDashboardResponse,
   AdminAiEvaluationResponse,
+  AdminAiEvaluationSuiteResponse,
   AdminAiModelsResponse,
   AdminAiProvidersResponse,
   AdminAiRolesResponse,
@@ -1549,6 +1550,18 @@ export async function postAdminAiEvaluation(payload: { role: AiModelRole; provid
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
+  return jsonOrThrow<AdminAiEvaluationResponse>(res);
+}
+
+/** TCK-2459 — la dernière évaluation complète, `null` s'il n'y en a jamais eu. */
+export async function fetchAdminAiEvaluationSuite(): Promise<AdminAiEvaluationSuiteResponse> {
+  const res = await fetch('/api/super-admin/ai/evaluations/suite', { credentials: 'include' });
+  return jsonOrThrow<AdminAiEvaluationSuiteResponse>(res);
+}
+
+/** TCK-2459 — lance l'évaluation complète : de vrais appels, à la charge du compte. */
+export async function postAdminAiEvaluationSuite(): Promise<AdminAiEvaluationResponse> {
+  const res = await fetch('/api/super-admin/ai/evaluations/suite', { method: 'POST', credentials: 'include' });
   return jsonOrThrow<AdminAiEvaluationResponse>(res);
 }
 

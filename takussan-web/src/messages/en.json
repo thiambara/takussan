@@ -8584,7 +8584,39 @@
           "baselineModel": "Evaluated model",
           "baselineDate": "Measured on"
         },
-        "amount": "{usd} (≈ {xof})"
+        "amount": "{usd} (≈ {xof})",
+        "suite": {
+          "title": "Full evaluation",
+          "description": "Replays every case set against the real models and compares each score with its baseline. It no longer runs at night: start it after changing a model or a prompt. It never rewrites a baseline.",
+          "run": "Run the evaluation",
+          "running": "Evaluation running…",
+          "never": "No full evaluation has been run yet.",
+          "startedAt": "Started on {date}",
+          "total": "Cost: {cost}",
+          "failed": "The evaluation did not finish: run it again, or check the worker logs.",
+          "caption": "Result per usage",
+          "verdictOk": "Holds the baseline",
+          "verdictBelow": "Below the baseline",
+          "confirmTitle": "Run the full evaluation?",
+          "confirmWithCost": "It calls real models. The last run cost {cost}.",
+          "confirmNoCost": "It calls real models. Expect about $1 per run.",
+          "confirm": "Run",
+          "status": {
+            "queued": "Queued",
+            "running": "Running",
+            "done": "Finished",
+            "failed": "Failed"
+          },
+          "columns": {
+            "usage": "Usage",
+            "score": "Score",
+            "baseline": "Baseline",
+            "cases": "Cases",
+            "failures": "Failures",
+            "cost": "Cost",
+            "verdict": "Verdict"
+          }
+        }
       },
       "radar": {
         "metaTitle": "Radar",
@@ -8600,7 +8632,8 @@
           "published": "Published",
           "aiCost": "AI cost today",
           "aiCostBudget": "≈ {equivalent}, out of a {budget} cap",
-          "aiCostNoBudget": "≈ {equivalent}, no cap"
+          "aiCostNoBudget": "≈ {equivalent}, no cap",
+          "aria": "Where listings stand"
         },
         "filters": {
           "stageAria": "Filter by stage",
@@ -8712,7 +8745,8 @@
           "claimLeftOtpPreview": "Left by the automatic publication: code login is in trial mode",
           "claimLeftTooManyPhotos": "Left by the automatic publication: too many photos to copy at once",
           "claimLeftRefused": "Left by the automatic publication: the publication was refused",
-          "claimLeftUnderMandate": "Left by the automatic publication: the advertiser is published under Takussan mandate"
+          "claimLeftUnderMandate": "Left by the automatic publication: the advertiser is published under Takussan mandate",
+          "claimDeclined": "The advertiser declined from their claim page"
         },
         "empty": {
           "title": "No listing yet",
@@ -8981,7 +9015,7 @@
         "advertiser": {
           "metaTitle": "Radar advertiser",
           "title": "Advertiser #{id}",
-          "back": "Back to Radar",
+          "back": "Back to advertisers",
           "forbidden": "Radar is restricted to support and super-admin operators.",
           "loadError": "The advertiser could not be loaded.",
           "unnamed": "Unnamed advertiser",
@@ -9758,6 +9792,13 @@
           "startUrlsHint": "The list pages each run reads, in order, on {hosts}; {max} at most. Empty: {fallback}.",
           "startUrlsDefault": "Start page: {url} (configuration)",
           "startUrlsSummary": "Start pages:"
+        },
+        "nav": {
+          "aria": "Radar sections",
+          "listings": "Listings",
+          "advertisers": "Advertisers",
+          "crawl": "Collection",
+          "observatory": "Observatory"
         }
       }
     },

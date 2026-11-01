@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/context/AuthContext';
 import { ApiError } from '@/lib/api';
@@ -66,6 +67,9 @@ function messagesDeRefus(erreur: unknown): readonly string[] {
   return prose ? [prose] : [];
 }
 
+/** Valeur repère de « aucun bénéficiaire choisi » : une valeur vide n'est pas une option du Select. */
+const AUCUN_MEMBRE = '__none__';
+
 interface CreateDelegationDialogProps {
   readonly agencyId: number;
   readonly open: boolean;
@@ -94,10 +98,10 @@ interface CreateDelegationDialogProps {
  * Tout le reste — rôle non délégable, durée excessive, administrateur
  * principal — arrive en 422 et s'affiche mot pour mot.
  *
- * ## `<select>` natif, comme `CreateRoleDialog`
+ * ## La primitive `Select`, comme `CreateRoleDialog`
  *
- * Cohérence avec l'autre dialogue de cet écran, et un contrôle pilotable au
- * clavier comme par un test sans traverser de portail.
+ * La charte interdit le sélecteur natif visible. « Aucun bénéficiaire » est
+ * la valeur repère `AUCUN_MEMBRE` : une valeur vide n'est pas une option.
  */
 export function CreateDelegationDialog({
   agencyId,
@@ -173,6 +177,12 @@ export function CreateDelegationDialog({
     }
   };
 
+  const optionsMembre = [
+    { value: AUCUN_MEMBRE, label: t('create.member_placeholder') },
+    ...candidats.map((membre) => ({ value: String(membre.id), label: nomAffichable(membre) })),
+  ];
+  const optionsRole = DELEGABLE_ROLES.map((valeur) => ({ value: valeur, label: t(`roles.${valeur}`) }));
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
@@ -184,20 +194,26 @@ export function CreateDelegationDialog({
         <div className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="delegation-user">{t('create.member_label')}</Label>
-            <select
-              id="delegation-user"
-              className="h-9 w-full rounded-md border border-border bg-transparent px-3 text-sm text-foreground"
-              value={userId}
+            <Select
+              value={userId === '' ? AUCUN_MEMBRE : userId}
               disabled={candidatsQuery.isLoading}
-              onChange={(e) => setUserId(e.target.value)}
+              onValueChange={(next) => {
+                if (next === null) return;
+                setUserId(next === AUCUN_MEMBRE ? '' : next);
+              }}
+              items={optionsMembre}
             >
-              <option value="">{t('create.member_placeholder')}</option>
-              {candidats.map((membre) => (
-                <option key={membre.id} value={String(membre.id)}>
-                  {nomAffichable(membre)}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger id="delegation-user" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {optionsMembre.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>
+                    {o.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             {!candidatsQuery.isLoading && candidats.length === 0 ? (
               <p className="text-sm text-muted-foreground">{t('create.no_member')}</p>
             ) : null}
@@ -205,18 +221,24 @@ export function CreateDelegationDialog({
 
           <div className="space-y-2">
             <Label htmlFor="delegation-role">{t('create.role_label')}</Label>
-            <select
-              id="delegation-role"
-              className="h-9 w-full rounded-md border border-border bg-transparent px-3 text-sm text-foreground"
+            <Select
               value={role}
-              onChange={(e) => setRole(e.target.value as DelegableRole)}
+              onValueChange={(next) => {
+                if (next !== null) setRole(next as DelegableRole);
+              }}
+              items={optionsRole}
             >
-              {DELEGABLE_ROLES.map((valeur) => (
-                <option key={valeur} value={valeur}>
-                  {t(`roles.${valeur}`)}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger id="delegation-role" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {optionsRole.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>
+                    {o.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">

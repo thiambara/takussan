@@ -6,6 +6,10 @@
  * Garde de SOURCE, limitée aux fichiers que cite la piste (`InviteMemberDialog.tsx` est parti avec
  * le rattachement direct, TCK-2365) : jsdom ne rend aucune taille de
  * police. Un `<input>` ou `<textarea>` dont la classe porte `text-sm` doit aussi porter `text-base`.
+ *
+ * Un fichier sans AUCUN champ fait main n'est pas hors de la garde : il doit alors passer par la
+ * primitive `Input` / `Textarea`, qui porte déjà `text-base md:text-sm`. (`RoomEditor` et
+ * `InviteAgentDialog` y sont passés avec la règle « jamais d'`<input>` stylé à la main ».)
  */
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -35,7 +39,10 @@ describe('champs faits main : 16 px sous md (TCK-757)', () => {
     it(fichier, () => {
       const source = readFileSync(resolve(process.cwd(), fichier), 'utf8');
       const trouves = champs(source);
-      expect(trouves.length).toBeGreaterThan(0);
+      if (trouves.length === 0) {
+        expect(source).toMatch(/from '@\/components\/ui\/(input|textarea)'/);
+        return;
+      }
       const fautifs = trouves
         .filter(({ classes }) => /(^|\s)text-sm(\s|$)/.test(classes) && !/(^|\s)text-base(\s|$)/.test(classes))
         .map(({ ligne }) => `${fichier}:${ligne}`);

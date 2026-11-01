@@ -113,10 +113,9 @@ describe('/super-admin/radar (TCK-2386)', () => {
 
     await vi.waitFor(() => expect(fetchRadarListings).toHaveBeenLastCalledWith({ stage: 'extraction_failed', page: 1, perPage: 25 }));
     expect(screen.getByRole('button', { name: /Échouées\s*5/ })).toHaveAttribute('aria-pressed', 'true');
-    // Le survol se voit : la carte opaque (`bg-card`) le porte, pas le bouton qu'elle recouvre.
-    const carte = echouees.firstElementChild as HTMLElement;
-    expect(echouees).toHaveClass('group');
-    expect(carte).toHaveClass('group-hover:bg-muted/40');
+    // Le survol se voit : le bouton porte lui-même son fond, aucune carte opaque ne le recouvre plus (TCK-2461).
+    expect(echouees).toHaveClass('hover:bg-muted/50');
+    expect(echouees.firstElementChild).not.toHaveClass('bg-card');
     // « En attente » n'a pas de filtre exact (`captured` mêle attente et extraction en cours) : pas un bouton.
     expect(screen.queryByRole('button', { name: /En attente/ })).not.toBeInTheDocument();
   });

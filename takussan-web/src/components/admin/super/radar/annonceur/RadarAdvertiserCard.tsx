@@ -288,7 +288,6 @@ function FicheChargee({ annonceur, onEnvoiApi }: FicheChargeeProps) {
       ) : null}
 
       {/* TCK-2394 — la relance d'activation : le panneau ne se montre que si le Radar a créé un compte pour l'annonceur. */}
-      <RelanceActivation advertiserId={annonceur.id} mienne={mienne} desactive={stoppe || enCours} />
 
       {erreur ? (
         <p role="alert" className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive" data-testid="radar-annonceur-erreur">
@@ -373,6 +372,8 @@ function FicheChargee({ annonceur, onEnvoiApi }: FicheChargeeProps) {
 
       <HistoriqueMessages messages={envoyes} />
 
+      <RelanceActivation advertiserId={annonceur.id} mienne={mienne} desactive={stoppe || enCours} />
+
       <ConfirmerRemplacement
         open={remplacement !== null}
         onAnnuler={() => setRemplacement(null)}
@@ -434,7 +435,7 @@ export function RadarAdvertiserCard({ id }: RadarAdvertiserCardProps) {
 
   const retour = (
     <Link
-      href="/super-admin/radar"
+      href="/super-admin/radar/advertisers"
       className="inline-flex items-center gap-1.5 rounded-sm text-sm text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
     >
       <ArrowLeft className="size-4" aria-hidden="true" />

@@ -63,18 +63,23 @@ function mockHooks(error: ApiError | null = null) {
   } as unknown as ReturnType<typeof useAssignAgencyRole>);
 }
 
+async function choisir(user: ReturnType<typeof userEvent.setup>, libelle: string) {
+  await user.click(screen.getByRole('combobox', { name: 'Rôle du profil agent' }));
+  await user.click(await screen.findByRole('option', { name: libelle }));
+}
+
 describe('<MemberAgencyRoleSelect>', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockHooks();
   });
 
-  it('ne propose que les rôles du même base_profile_type', () => {
+  it('ne propose que les rôles du même base_profile_type', async () => {
+    const user = userEvent.setup();
     render(withIntl(<MemberAgencyRoleSelect agencyId={1} assignment={ASSIGNMENT} />));
 
-    const options = Array.from(
-      screen.getByLabelText('Rôle du profil agent').querySelectorAll('option'),
-    ).map((o) => o.textContent);
+    await user.click(screen.getByRole('combobox', { name: 'Rôle du profil agent' }));
+    const options = (await screen.findAllByRole('option')).map((o) => o.textContent);
 
     // `AgencyRoleService::assign` rend 422 sur un type différent : proposer
     // « Administrateur » serait offrir un geste dont on connaît l'échec.
@@ -86,7 +91,7 @@ describe('<MemberAgencyRoleSelect>', () => {
     const user = userEvent.setup();
     render(withIntl(<MemberAgencyRoleSelect agencyId={1} assignment={ASSIGNMENT} />));
 
-    await user.selectOptions(screen.getByLabelText('Rôle du profil agent'), '2');
+    await choisir(user, 'Agent senior');
     await user.click(screen.getByRole('button', { name: 'Attribuer' }));
 
     // Un id nu ne désigne pas un profil polymorphe : l'id 42 existe dans les
@@ -105,10 +110,10 @@ describe('<MemberAgencyRoleSelect>', () => {
 
     expect(screen.queryByRole('button', { name: 'Attribuer' })).toBeNull();
 
-    await user.selectOptions(screen.getByLabelText('Rôle du profil agent'), '2');
+    await choisir(user, 'Agent senior');
     expect(screen.getByRole('button', { name: 'Attribuer' })).toBeInTheDocument();
 
-    await user.selectOptions(screen.getByLabelText('Rôle du profil agent'), '1');
+    await choisir(user, 'Agent immobilier');
     expect(screen.queryByRole('button', { name: 'Attribuer' })).toBeNull();
   });
 
@@ -119,12 +124,14 @@ describe('<MemberAgencyRoleSelect>', () => {
 
     render(withIntl(<MemberAgencyRoleSelect agencyId={1} assignment={ASSIGNMENT} />));
 
-    await user.selectOptions(screen.getByLabelText('Rôle du profil agent'), '2');
+    await choisir(user, 'Agent senior');
     await user.click(screen.getByRole('button', { name: 'Attribuer' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(message);
     // Laisser la nouvelle valeur affichée après un refus ferait croire à un
     // enregistrement.
-    expect(screen.getByLabelText('Rôle du profil agent')).toHaveValue('1');
+    expect(screen.getByRole('combobox', { name: 'Rôle du profil agent' })).toHaveTextContent(
+      'Agent immobilier',
+    );
   });
 });

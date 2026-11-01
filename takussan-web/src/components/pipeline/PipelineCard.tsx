@@ -6,6 +6,7 @@ import { Calendar, ListTodo } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 
 import { ContactGestures } from '@/components/crm/ContactGestures';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { Locale } from '@/i18n/config';
 import { formatDate } from '@/lib/format';
 import { nomAffichable, nomCompletDe } from '@/lib/identite';
@@ -59,6 +60,7 @@ export function PipelineCard({
   // P220.03 (TCK-2281) — la fiche se nomme par `nomAffichable` (numéro, sinon `#<id>`). Son
   // auteur, chargé sans contact, garde sa ligne cachée quand il n'a pas de nom, comme avant.
   const nom = nomAffichable(customer);
+  const optionsEtape = PIPELINE_STAGES.map((stage) => ({ value: stage, label: tStage(stage) }));
   const addedByName = customer.added_by?.full_name || nomCompletDe(customer.added_by);
 
   return (
@@ -127,16 +129,24 @@ export function PipelineCard({
         // `pointerdown` arrêté : sinon le capteur de pointeur de la carte le prend pour un début de
         // glisser, et le sélecteur ne s'ouvre pas.
         <div className="mt-2 flex flex-wrap items-center gap-2" onPointerDown={stop} onClick={stop} onKeyDown={stop}>
-          <select
+          <Select
             value={customer.pipeline_stage}
-            onChange={(e) => onStageChange(customer, e.target.value as CustomerPipelineStage)}
-            aria-label={tCrm('stageSelect', { name: nom })}
-            className="min-h-11 flex-1 rounded-md border border-input bg-background px-2 text-sm"
+            onValueChange={(next) => {
+              if (next !== null) onStageChange(customer, next as CustomerPipelineStage);
+            }}
+            items={optionsEtape}
           >
-            {PIPELINE_STAGES.map((stage) => (
-              <option key={stage} value={stage}>{tStage(stage)}</option>
-            ))}
-          </select>
+            <SelectTrigger className="flex-1" aria-label={tCrm('stageSelect', { name: nom })}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {optionsEtape.map((o) => (
+                <SelectItem key={o.value} value={o.value}>
+                  {o.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <ContactGestures
             compact
             phone={customer.phone}

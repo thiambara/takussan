@@ -14,6 +14,7 @@ import {
   type ModerationProperty,
 } from '@/lib/queries/property-moderation';
 import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
 
 import { formatDate, formatNumber } from '@/lib/format';
 import type { Locale } from '@/i18n/config';
@@ -139,12 +140,11 @@ export function PropertyModerationDetail({
           <p className="mb-3 text-sm font-medium text-destructive">
             {t('rejectReasonLabel')}
           </p>
-          <textarea
+          <Textarea
             value={rejectionReason}
             onChange={(e) => setRejectionReason(e.target.value)}
             rows={4}
             maxLength={1000}
-            className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
             placeholder={t('rejectReasonPlaceholder')}
           />
           <p className="mt-1 text-right text-xs text-muted-foreground">

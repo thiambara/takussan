@@ -103,7 +103,7 @@ socle choisit le modèle, contrôle le budget et les données, journalise l'appe
    rendent un score par champ et un coût. Un score enregistré par usage sert de cliquet : un
    changement de prompt ou de modèle qui le fait baisser est refusé. Dans la console, **affecter
    un nouveau modèle à un rôle propose d'abord de l'évaluer** (score et coût comparés au modèle
-   en place) avant d'appliquer. Elles se lancent la nuit et à la demande, jamais à chaque PR :
+   en place) avant d'appliquer. Elles se lancent à la demande, et la nuit seulement si `AI_EVAL_NIGHTLY=true` (amendement du 2026-11-01, TCK-2459 : décision du porteur, 1,10 $ par nuit pour une préproduction sans utilisateur), jamais à chaque PR :
    elles coûtent de l'argent.
 
 9. **L'agence reste la frontière d'isolation, y compris pour l'IA.** Les outils qu'un agent peut

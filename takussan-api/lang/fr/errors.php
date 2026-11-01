@@ -74,6 +74,8 @@ return [
             'job_failed' => "L'évaluation a échoué : le worker l'a interrompue avant la fin.",
             'job_lost' => "L'évaluation a été perdue : son worker s'est arrêté avant d'écrire un résultat.",
             'no_cases' => "Ce rôle n'a aucun jeu de cas à évaluer.",
+            'no_provider' => "Aucun fournisseur d'IA n'est sélectionnable : posez d'abord une clé.",
+            'suite_already_running' => 'Une évaluation complète est déjà en cours.',
         ],
         'evaluation_below_baseline' => "Ce modèle a été évalué sous la référence : indiquez un motif pour l'affecter quand même.",
         'model_in_use' => 'Ce modèle est encore employé. Chaînes en base : :roles. Modèles forcés : :usages. Chaînes de repli de la configuration : :fallback_roles.',

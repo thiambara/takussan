@@ -8,9 +8,11 @@ use App\Jobs\Ai\RunAiEvaluation;
 use App\Models\AiEvaluationRun;
 use App\Models\Enums\AiEvaluationStatus;
 use App\Models\Enums\AiModelRole;
+use App\Services\Ai\AiProviderCatalogue;
 use App\Services\Ai\Evaluation\EvaluationRunner;
 use App\Services\Ai\ModelLink;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 
 /** TCK-2385 (ADR-0076 §8) — évaluer un candidat avant de l'affecter : « en place / candidat ». */
@@ -18,6 +20,7 @@ class AiEvaluationController extends Controller
 {
     public function __construct(
         private readonly EvaluationRunner $runner,
+        private readonly AiProviderCatalogue $providers,
     ) {}
 
     public function store(StoreAiEvaluationRequest $request): JsonResponse
@@ -69,16 +72,71 @@ class AiEvaluationController extends Controller
         return $this->json(['data' => $this->present(AiEvaluationRun::query()->findOrFail((int) $evaluation)->markLostIfStale())]);
     }
 
+    /** TCK-2459 — la dernière évaluation complète lancée, `null` s'il n'y en a jamais eu. */
+    public function latestSuite(): JsonResponse
+    {
+        $run = AiEvaluationRun::query()->suites()->latest('id')->first();
+
+        return $this->json(['data' => $run === null ? null : $this->present($run->markLostIfStale())]);
+    }
+
+    /**
+     * TCK-2459 — lance à la main ce que `ai:eval --all` jouait chaque nuit. Elle appelle de vrais modèles :
+     * deux lancements se doubleraient en coût, d'où le même verrou que pour un candidat.
+     */
+    public function storeSuite(Request $request): JsonResponse
+    {
+        abort_code_if($this->providers->selectableKeys() === [], 422, 'ai.eval.no_provider');
+        abort_code_if($this->runner->evaluableUsages() === [], 422, 'ai.eval.no_cases');
+
+        $verrou = Cache::lock('ai-eval:suite', 10);
+        abort_code_unless($verrou->get(), 409, 'ai.eval.suite_already_running');
+        try {
+            $enCours = AiEvaluationRun::query()->suites()
+                ->whereIn('status', [AiEvaluationStatus::Queued->value, AiEvaluationStatus::Running->value])
+                ->get()
+                ->contains(fn (AiEvaluationRun $run): bool => in_array($run->markLostIfStale()->status, [AiEvaluationStatus::Queued, AiEvaluationStatus::Running], true));
+            abort_code_if($enCours, 409, 'ai.eval.suite_already_running');
+
+            $run = AiEvaluationRun::query()->create(['status' => AiEvaluationStatus::Queued, 'requested_by_id' => $request->user()->id]);
+        } finally {
+            $verrou->release();
+        }
+        activity('Admin')
+            ->causedBy($request->user())
+            ->performedOn($run)
+            ->event('super_admin_ai_evaluation_suite_requested')
+            ->log('Évaluation complète du socle IA demandée');
+        RunAiEvaluation::dispatch($run->id);
+
+        return $this->json(['data' => $this->present($run->fresh())], 202);
+    }
+
+    /** TCK-2459 — la somme se fait ici : un montant IA reste une chaîne décimale jusqu'à l'affichage (ADR-0086). */
+    private function totalCost(AiEvaluationRun $run): ?string
+    {
+        if ($run->report === null) {
+            return null;
+        }
+
+        return array_reduce(
+            $run->report['usages'] ?? [],
+            fn (string $total, array $usage): string => bcadd($total, (string) ($usage['cost_usd'] ?? '0'), 8),
+            '0',
+        );
+    }
+
     /** @return array<string, mixed> */
     private function present(AiEvaluationRun $run): array
     {
         return [
             'id' => $run->id,
-            'role' => $run->role->value,
+            'role' => $run->role?->value,
             'candidate' => $run->candidate,
             'status' => $run->status->value,
             'below_baseline' => $run->below_baseline,
             'report' => $run->report,
+            'total_cost_usd' => $this->totalCost($run),
             'error_code' => $run->error_code,
             'created_at' => $this->instant($run->created_at),
             'finished_at' => $this->instant($run->finished_at),

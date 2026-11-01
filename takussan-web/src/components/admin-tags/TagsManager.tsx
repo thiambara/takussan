@@ -219,7 +219,7 @@ export function TagsManager({ initialTags }: TagsManagerProps) {
               placeholder={t('searchPlaceholder')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="h-9 pl-8"
+              className="pl-8"
             />
           </div>
           <Button type="button" onClick={() => setCreateOpen(true)}>

@@ -126,7 +126,7 @@ export function DebouncedSearchInput({
         // cliquer « réinitialiser » ferait repartir la recherche après la remise à zéro.
         onBlur={() => commit.flush()}
         placeholder={placeholder}
-        className="h-10 pl-9 pr-9"
+        className="pl-9 pr-9"
       />
       {enAttente ? (
         <span

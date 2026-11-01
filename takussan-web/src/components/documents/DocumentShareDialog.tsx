@@ -254,7 +254,7 @@ export function DocumentShareDialog({
                     <Input
                       readOnly
                       value={url}
-                      className="h-8 min-w-0 flex-1 font-mono text-[11px]"
+                      className="min-w-0 flex-1 font-mono text-[11px]"
                       aria-label={t('url_aria')}
                     />
                     <Button

@@ -14,6 +14,7 @@ import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import type { ApiError } from '@/lib/api';
 import { fetchRadarListing, fetchRadarMatches, RADAR_POLL_MS, radarKeys } from '@/lib/queries/radar';
 import type { RadarListingDetail, RadarListingDetailResponse, RadarMatch, RadarMatchesResponse } from '@/types/radar';
+import { STAGE_TONE } from '../RadarWorkList';
 import { BarreDesGestes } from './BarreDesGestes';
 import { DialogueDoublon, DialogueEcart } from './DialoguesFiche';
 import { FormulaireFiche } from './FormulaireFiche';
@@ -86,13 +87,16 @@ function FicheChargee({ detail }: { readonly detail: RadarListingDetail }) {
       />
       <div className="space-y-6">
         <PanneauProvenances detail={detail} />
-        <RadarMatchesPanel
-          matches={rapprochements.data?.data}
-          chargement={rapprochements.isLoading}
-          erreur={rapprochements.isError}
-          onDoublon={(match) => ouvrirDoublon(match)}
-          desactive={!gestes.peutFermer || gestes.enCours}
-        />
+        {/* TCK-2461 — seize rapprochements repoussaient le formulaire et ses gestes hors de portée : ils défilent chez eux. */}
+        <div className="lg:max-h-[28rem] lg:overflow-y-auto">
+          <RadarMatchesPanel
+            matches={rapprochements.data?.data}
+            chargement={rapprochements.isLoading}
+            erreur={rapprochements.isError}
+            onDoublon={(match) => ouvrirDoublon(match)}
+            desactive={!gestes.peutFermer || gestes.enCours}
+          />
+        </div>
         <FormulaireFiche
           detail={detail}
           corrections={corrections}
@@ -181,7 +185,7 @@ export function RadarListingFiche({ id }: RadarListingFicheProps) {
       {retour}
       <PageHeader
         title={detail?.extracted?.title?.value || t('title', { id })}
-        description={detail ? <StatusBadge tone="neutral" label={tRadar(`stages.${detail.stage}`)} /> : undefined}
+        description={detail ? <StatusBadge tone={STAGE_TONE[detail.stage]} label={tRadar(`stages.${detail.stage}`)} /> : undefined}
       />
       {fiche.isError ? (
         <ErrorState

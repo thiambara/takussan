@@ -36,7 +36,10 @@ const page = (lignes: RadarAdvertiserRow[]) => ({
 let parFile: Record<string, RadarAdvertiserRow[]>;
 let fetchMock: ReturnType<typeof vi.fn>;
 
-const urls = () => fetchMock.mock.calls.map(([url]) => new URL(String(url), 'http://localhost'));
+/** Le tableau de bord du Radar est lu par la navigation (pastille des relances) : il ne compte pas ici. */
+const urls = () => fetchMock.mock.calls
+  .map(([url]) => new URL(String(url), 'http://localhost'))
+  .filter((u) => !u.pathname.endsWith('/radar/dashboard'));
 
 function rendre(gestes?: PlatformAbilities, locale?: 'fr' | 'en') {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });

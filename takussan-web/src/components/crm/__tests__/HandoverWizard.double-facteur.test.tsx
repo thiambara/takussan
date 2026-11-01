@@ -62,7 +62,8 @@ describe('HandoverWizard — second facteur', () => {
     const onDone = rendu(garde);
 
     await screen.findByText('Tâches ouvertes');
-    await userEvent.selectOptions(await screen.findByLabelText('Repreneur'), '8');
+    await userEvent.click(await screen.findByRole('combobox', { name: 'Repreneur' }));
+    await userEvent.click(await screen.findByRole('option', { name: 'Awa Diop' }));
     await userEvent.click(screen.getByRole('button', { name: 'Relire' }));
     await userEvent.click(screen.getByRole('button', { name: 'Transmettre et retirer' }));
 

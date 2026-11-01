@@ -25,6 +25,11 @@ vi.mock('@/lib/queries/pipeline', async (original) => ({
   patchCustomerPipelineStage: (...a: unknown[]) => patchCustomerPipelineStage(...a),
 }));
 
+async function choisirEtape(libelle: string) {
+  await userEvent.click(screen.getByRole('combobox', { name: 'Étape de Awa Diop' }));
+  await userEvent.click(await screen.findByRole('option', { name: libelle }));
+}
+
 function rendu() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
   render(withIntl(
@@ -35,7 +40,7 @@ function rendu() {
 }
 
 async function saisirLeMotif(motif: string) {
-  await userEvent.selectOptions(screen.getByLabelText('Étape de Awa Diop'), 'lost');
+  await choisirEtape('Perdu');
   await userEvent.type(await screen.findByTestId('reason-input'), motif);
   await userEvent.click(screen.getByTestId('reason-submit'));
 }
@@ -48,7 +53,7 @@ describe('CustomerStageControl — motif refusé (P244.01)', () => {
 
   it('le champ du motif porte la borne de l’API', async () => {
     rendu();
-    await userEvent.selectOptions(screen.getByLabelText('Étape de Awa Diop'), 'lost');
+    await choisirEtape('Perdu');
     expect(await screen.findByTestId('reason-input')).toHaveAttribute('maxlength', '5000');
   });
 
