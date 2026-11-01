@@ -21,6 +21,11 @@ vi.mock('@/lib/queries/pipeline', async (original) => ({
   patchCustomerPipelineStage: (...a: unknown[]) => patchCustomerPipelineStage(...a),
 }));
 
+async function choisirEtape(libelle: string) {
+  await userEvent.click(screen.getByRole('combobox', { name: 'Étape de Awa Diop' }));
+  await userEvent.click(await screen.findByRole('option', { name: libelle }));
+}
+
 function rendu() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(withIntl(
@@ -39,14 +44,14 @@ describe('CustomerStageControl', () => {
 
   it('une étape ordinaire part tout de suite, puis la fiche se relit', async () => {
     rendu();
-    await userEvent.selectOptions(screen.getByLabelText('Étape de Awa Diop'), 'qualified');
+    await choisirEtape('Qualifié');
     await waitFor(() => expect(patchCustomerPipelineStage).toHaveBeenCalledWith('jeton', 9, 'qualified', undefined));
     await waitFor(() => expect(refresh).toHaveBeenCalled());
   });
 
   it('« perdu » demande le motif, et l’envoie', async () => {
     rendu();
-    await userEvent.selectOptions(screen.getByLabelText('Étape de Awa Diop'), 'lost');
+    await choisirEtape('Perdu');
     expect(patchCustomerPipelineStage).not.toHaveBeenCalled();
     await userEvent.type(await screen.findByTestId('reason-input'), 'Budget');
     await userEvent.click(screen.getByTestId('reason-submit'));

@@ -1,10 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
-import { ArrowLeft, Play, Radar, TriangleAlert } from 'lucide-react';
+import { Play, Radar, TriangleAlert } from 'lucide-react';
 
 import { usePlatformAbilities } from '@/components/admin/super/PlatformAbilitiesProvider';
 import { DataState, PageHeader, StatusBadge, type StatusTone } from '@/components/console';
@@ -39,6 +38,7 @@ import {
   type RadarCrawlSourcesResponse,
   type RadarCrawlStatus,
 } from '@/types/radar';
+import { RadarNav } from '../RadarNav';
 import { codeDeLErreur } from '../fiche/useMessageEchecFiche';
 import { ARRETS_COLLECTE_RADAR, ERREURS_COLLECTE_RADAR, MOTIFS_RADAR } from '../codes-radar';
 
@@ -124,13 +124,42 @@ function CarteSource({ source, regle }: { readonly source: RadarCrawlSource; rea
   const idUrls = `radar-collecte-urls-${source.site}`;
 
   return (
-    <li className="space-y-3 rounded-lg border bg-card p-4" data-testid={`radar-collecte-source-${source.site}`}>
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        <span className="font-medium text-foreground">{tRadar(`sites.${source.site}`)}</span>
-        <StatusBadge tone={source.enabled ? 'success' : 'neutral'} label={source.enabled ? t('enabled') : t('disabled')} />
-        <span className="text-xs text-muted-foreground">
-          {source.operator ? t('operator', { name: source.operator.name }) : t('noOperator')}
-        </span>
+    <li className="space-y-4 rounded-xl bg-card p-4 ring-1 ring-border" data-testid={`radar-collecte-source-${source.site}`}>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0 space-y-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="font-semibold text-foreground">{tRadar(`sites.${source.site}`)}</h3>
+            <StatusBadge tone={source.enabled ? 'success' : 'neutral'} label={source.enabled ? t('enabled') : t('disabled')} />
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {source.operator ? t('operator', { name: source.operator.name }) : t('noOperator')}
+          </p>
+        </div>
+        {regle ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={occupe}
+              onClick={() => lancer.mutate()}
+              data-testid={`radar-collecte-lancer-${source.site}`}
+            >
+              <Play className="size-4" aria-hidden="true" />
+              {t('runNow')}
+            </Button>
+            <Button
+              type="button"
+              variant={source.enabled ? 'outline' : 'default'}
+              size="sm"
+              disabled={occupe}
+              onClick={() => regler.mutate({ enabled: !source.enabled })}
+              data-testid={`radar-collecte-bascule-${source.site}`}
+            >
+              {source.enabled ? t('disable') : t('enable')}
+            </Button>
+          </div>
+        ) : null}
       </div>
 
       {source.enabled && !source.operator ? (
@@ -206,8 +235,8 @@ function CarteSource({ source, regle }: { readonly source: RadarCrawlSource; rea
               })}
             </p>
           </div>
-          <div className="sm:col-span-2">
-            <Button type="submit" variant="outline" disabled={occupe}>{t('save')}</Button>
+          <div className="flex justify-end sm:col-span-2">
+            <Button type="submit" variant="outline" size="sm" disabled={occupe}>{t('save')}</Button>
           </div>
         </form>
       ) : (
@@ -229,30 +258,6 @@ function CarteSource({ source, regle }: { readonly source: RadarCrawlSource; rea
           ) : null}
         </div>
       )}
-
-      {regle ? (
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            type="button"
-            variant={source.enabled ? 'outline' : 'default'}
-            disabled={occupe}
-            onClick={() => regler.mutate({ enabled: !source.enabled })}
-            data-testid={`radar-collecte-bascule-${source.site}`}
-          >
-            {source.enabled ? t('disable') : t('enable')}
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            disabled={occupe}
-            onClick={() => lancer.mutate()}
-            data-testid={`radar-collecte-lancer-${source.site}`}
-          >
-            <Play className="size-4" aria-hidden="true" />
-            {t('runNow')}
-          </Button>
-        </div>
-      ) : null}
 
       {erreur ? (
         <p role="alert" className="text-sm text-destructive">{messageEchec(erreur)}</p>
@@ -294,20 +299,9 @@ export function RadarCollecte() {
     refetchInterval: (query) => (query.state.data?.data.some(enCours) ? RADAR_POLL_MS : false),
   });
 
-  const retour = (
-    <Link
-      href="/super-admin/radar"
-      className="inline-flex items-center gap-1.5 rounded-sm text-sm text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-    >
-      <ArrowLeft className="size-4" aria-hidden="true" />
-      {t('back')}
-    </Link>
-  );
-
   if (!lit) {
     return (
       <div className="space-y-6">
-        {retour}
         <PageHeader title={t('title')} description={t('subtitle')} />
         <ErrorState message={tRadar('forbidden')} />
       </div>
@@ -359,9 +353,8 @@ export function RadarCollecte() {
 
   return (
     <div className="space-y-6">
-      {retour}
-      <PageHeader title={t('title')} description={t('subtitle')} />
-      <p className="max-w-3xl text-sm text-muted-foreground">{regle ? t('offNote') : t('readOnly')}</p>
+      <RadarNav />
+      <PageHeader title={t('title')} description={regle ? t('offNote') : t('readOnly')} />
 
       <section aria-labelledby="radar-collecte-sites" className="space-y-3">
         <h2 id="radar-collecte-sites" className="text-base font-semibold text-foreground">{t('sourcesHeading')}</h2>

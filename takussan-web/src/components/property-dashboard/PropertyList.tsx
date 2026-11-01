@@ -731,7 +731,7 @@ function BulkActionBar({
             >
               <SelectTrigger
                 aria-label={t('bulkReassignPlaceholder')}
-                className="h-9 border-card/30 bg-card/10 text-primary-foreground"
+                className="border-card/30 bg-card/10 text-primary-foreground"
               >
                 <SelectValue placeholder={t('bulkReassignPlaceholder')} />
               </SelectTrigger>

@@ -147,7 +147,7 @@ export function RelanceActivation({ advertiserId, mienne, desactive }: RelanceAc
       ) : null}
 
       {apercu.blocking.length > 0 ? (
-        <div className="space-y-1 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive" data-testid="radar-activation-blocage">
+        <div className="space-y-1 rounded-lg bg-muted px-3 py-2 text-sm text-foreground" data-testid="radar-activation-blocage">
           <p className="font-medium">{t('blocking')}</p>
           <ul className="list-inside list-disc">
             {apercu.blocking.map((code) => <li key={code}>{libelle(code)}</li>)}

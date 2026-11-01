@@ -165,14 +165,14 @@ export function AiChainDialog({ open, onOpenChange, row, providers }: Props) {
                       onValueChange={(v) => v && update(index, { provider: v, model: providers.find((p) => p.key === v)?.models[0] ?? '' })}
                       items={proposes.map((p) => ({ value: p.key, label: p.legal_name }))}
                     >
-                      <SelectTrigger className="h-10 w-full" aria-labelledby={`provider-${index}`}><SelectValue /></SelectTrigger>
+                      <SelectTrigger className="w-full" aria-labelledby={`provider-${index}`}><SelectValue /></SelectTrigger>
                       <SelectContent>{proposes.map((p) => <SelectItem key={p.key} value={p.key}>{p.legal_name}</SelectItem>)}</SelectContent>
                     </Select>
                   </div>
                   <div className="min-w-0 space-y-1">
                     <Label id={`model-${index}`}>{t('model')}</Label>
                     <Select value={link.model} onValueChange={(v) => v && update(index, { model: v })} items={models.map((m) => ({ value: m, label: m }))}>
-                      <SelectTrigger className="h-10 w-full min-w-0" aria-labelledby={`model-${index}`}><SelectValue /></SelectTrigger>
+                      <SelectTrigger className="w-full min-w-0" aria-labelledby={`model-${index}`}><SelectValue /></SelectTrigger>
                       <SelectContent>{models.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent>
                     </Select>
                   </div>

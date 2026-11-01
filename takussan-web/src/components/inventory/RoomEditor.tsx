@@ -12,6 +12,7 @@ import {
   FormTextarea,
 } from '@/components/forms';
 import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
 import type { InventoryCreateInput } from '@/lib/schemas/inventory';
 import {
   INVENTORY_CONDITIONS,
@@ -134,10 +135,9 @@ function RoomCard({
         >
           {t('notes')}
         </label>
-        <textarea
+        <Textarea
           id={`room-${roomIndex}-notes`}
           {...register(`rooms.${roomIndex}.notes` as const)}
-          className="min-h-16 w-full rounded-md border border-input bg-transparent px-3 py-2 text-base md:text-sm"
           rows={2}
         />
       </div>

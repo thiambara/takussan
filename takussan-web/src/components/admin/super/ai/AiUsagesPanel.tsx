@@ -146,7 +146,7 @@ function UsageSettingsDialog({ row, taux, options, optionsError, pending, error,
           <div className="space-y-1">
             <Label id="forced-model">{t('forcedModel')}</Label>
             <Select value={forced} onValueChange={(v) => setForced(v ?? SANS_FORCAGE)} items={items}>
-              <SelectTrigger className="h-10 w-full min-w-0" aria-labelledby="forced-model"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="w-full min-w-0" aria-labelledby="forced-model"><SelectValue /></SelectTrigger>
               <SelectContent>{items.map((o) => <SelectItem key={o.value || 'role'} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
             </Select>
             {optionsError ? <p className="text-sm text-destructive" role="alert">{optionsError}</p> : null}

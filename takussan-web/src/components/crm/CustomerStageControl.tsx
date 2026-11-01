@@ -7,6 +7,7 @@ import { useTranslations } from 'next-intl';
 
 import { ReasonDialog } from '@/components/pipeline/ReasonDialog';
 import { PIPELINE_STAGES, TERMINAL_STAGES } from '@/components/pipeline/constants';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/context/AuthContext';
 import { ApiError } from '@/lib/api';
 import { AGENT_CRM_QUERY_KEY } from '@/lib/queries/agent-crm';
@@ -20,7 +21,7 @@ interface CustomerStageControlProps {
 }
 
 /**
- * TCK-591 §2 — changer l'étape DEPUIS LA FICHE, sans glisser : le même `<select>` que la carte du
+ * TCK-591 §2 — changer l'étape DEPUIS LA FICHE, sans glisser : le même `Select` que la carte du
  * pipeline, le même `ReasonDialog` pour une étape terminale (le motif part au serveur, qui en fait
  * une note épinglée). La fiche se relit ensuite côté serveur (`router.refresh()`).
  */
@@ -54,19 +55,29 @@ export function CustomerStageControl({ customerId, name, stage }: CustomerStageC
     mutation.mutate({ to });
   };
 
+  const optionsEtape = PIPELINE_STAGES.map((s) => ({ value: s, label: t(`stage.${s}`) }));
+
   return (
     <div className="flex flex-wrap items-center gap-2" data-testid="customer-stage-control">
-      <select
+      <Select
         value={stage}
         disabled={mutation.isPending}
-        onChange={(e) => change(e.target.value as CustomerPipelineStage)}
-        aria-label={tCrm('stageSelect', { name })}
-        className="min-h-11 rounded-md border border-input bg-background px-2 text-sm"
+        onValueChange={(next) => {
+          if (next !== null) change(next as CustomerPipelineStage);
+        }}
+        items={optionsEtape}
       >
-        {PIPELINE_STAGES.map((s) => (
-          <option key={s} value={s}>{t(`stage.${s}`)}</option>
-        ))}
-      </select>
+        <SelectTrigger aria-label={tCrm('stageSelect', { name })}>
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {optionsEtape.map((o) => (
+            <SelectItem key={o.value} value={o.value}>
+              {o.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
       {/* P244.01 (TCK-2361) — dialogue ouvert, le refus se dit dans le dialogue, à côté du motif. */}
       {mutation.error && pending === null ? (
         <p role="alert" className="text-sm text-destructive">{erreur}</p>

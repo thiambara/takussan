@@ -82,7 +82,7 @@ export function InventoryList({ canCreate = false }: InventoryListProps) {
             }}
             items={[{ value: '__all__', label: t('allTypes') }, ...INVENTORY_TYPES.map((value) => ({ value, label: tTypes(value) }))]}
           >
-            <SelectTrigger id="inventory-filter-type" className="h-9 w-full">
+            <SelectTrigger id="inventory-filter-type" className="w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -104,7 +104,7 @@ export function InventoryList({ canCreate = false }: InventoryListProps) {
             }}
             items={[{ value: '__all__', label: t('allStatuses') }, ...INVENTORY_STATUSES.map((value) => ({ value, label: tStatus(value) }))]}
           >
-            <SelectTrigger id="inventory-filter-status" className="h-9 w-full">
+            <SelectTrigger id="inventory-filter-status" className="w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

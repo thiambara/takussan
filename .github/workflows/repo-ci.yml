@@ -1217,6 +1217,11 @@ jobs:
         # `takussan-api/config/ai.php` et `takussan-web/src`, tous déjà couverts ci-dessus.
         # ⚠ Elle voit un `float` écrit sur la ligne d'un montant, pas sous un autre nom.
         run: node scripts/check-ai-money.mjs --report
+      - name: Une seule hauteur de champ, aucun contrôle natif de saisie
+        # TCK-2460 — une hauteur écrite chez l'appelant gagne contre la primitive par twMerge, sans que
+        # le typage ni le lint ne le voient. Lit `takussan-web/src`, déjà couvert ci-dessus.
+        # ⚠ Elle lit le texte source : un `className` calculé par une variable lui échappe.
+        run: node scripts/check-champs-uniformes.mjs
       - name: Aucun numéro ni courriel dans les jeux d'évaluation de l'IA
         # TCK-2384 — les cas viennent de vraies annonces corrigées (`ai:export-eval-cases`).
         # L'export anonymise, mais un cas écrit à la main ferait entrer une donnée personnelle dans

@@ -46,11 +46,11 @@ export function FilterBar({
 }: FilterBarProps) {
   return (
     <section
-      className={cn('rounded-xl bg-card p-4 ring-1 ring-border', className)}
+      className={cn('flex flex-col gap-3 rounded-xl bg-card p-3 ring-1 ring-border lg:flex-row lg:items-center lg:justify-between', className)}
       data-testid={dataTestId}
     >
       {/* `lg` et non `md` : dans la coque, `md` ne laisse que 464 px au contenu (TCK-505). */}
-      <div className={cn('grid gap-2 lg:grid-cols-3 xl:grid-cols-4', controlsClassName)}>
+      <div className={cn('grid min-w-0 flex-1 gap-2 lg:grid-cols-3 xl:grid-cols-4', controlsClassName)}>
         {children}
       </div>
       {/*
@@ -59,8 +59,8 @@ export function FilterBar({
         de vérité l'aurait fait disparaître là.
       */}
       {resultCount != null || (onReset && resetLabel) ? (
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-          <p className="text-xs text-muted-foreground">{resultCount}</p>
+        <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 lg:justify-end">
+          <p className="text-xs text-muted-foreground tabular-nums">{resultCount}</p>
           {onReset && resetLabel ? (
             <Button type="button" variant="ghost" size="sm" onClick={onReset} disabled={resetDisabled}>
               {resetLabel}

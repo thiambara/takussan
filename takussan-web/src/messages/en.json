@@ -8632,7 +8632,8 @@
           "published": "Published",
           "aiCost": "AI cost today",
           "aiCostBudget": "≈ {equivalent}, out of a {budget} cap",
-          "aiCostNoBudget": "≈ {equivalent}, no cap"
+          "aiCostNoBudget": "≈ {equivalent}, no cap",
+          "aria": "Where listings stand"
         },
         "filters": {
           "stageAria": "Filter by stage",
@@ -8744,7 +8745,8 @@
           "claimLeftOtpPreview": "Left by the automatic publication: code login is in trial mode",
           "claimLeftTooManyPhotos": "Left by the automatic publication: too many photos to copy at once",
           "claimLeftRefused": "Left by the automatic publication: the publication was refused",
-          "claimLeftUnderMandate": "Left by the automatic publication: the advertiser is published under Takussan mandate"
+          "claimLeftUnderMandate": "Left by the automatic publication: the advertiser is published under Takussan mandate",
+          "claimDeclined": "The advertiser declined from their claim page"
         },
         "empty": {
           "title": "No listing yet",
@@ -9013,7 +9015,7 @@
         "advertiser": {
           "metaTitle": "Radar advertiser",
           "title": "Advertiser #{id}",
-          "back": "Back to Radar",
+          "back": "Back to advertisers",
           "forbidden": "Radar is restricted to support and super-admin operators.",
           "loadError": "The advertiser could not be loaded.",
           "unnamed": "Unnamed advertiser",
@@ -9790,6 +9792,13 @@
           "startUrlsHint": "The list pages each run reads, in order, on {hosts}; {max} at most. Empty: {fallback}.",
           "startUrlsDefault": "Start page: {url} (configuration)",
           "startUrlsSummary": "Start pages:"
+        },
+        "nav": {
+          "aria": "Radar sections",
+          "listings": "Listings",
+          "advertisers": "Advertisers",
+          "crawl": "Collection",
+          "observatory": "Observatory"
         }
       }
     },

@@ -68,8 +68,9 @@ function renderKanban() {
 
 async function passerEnPerduAvecMotif(motif: string) {
   const user = userEvent.setup();
-  const [select] = await screen.findAllByLabelText('Étape de Awa Diop');
-  await user.selectOptions(select, 'lost');
+  const [select] = await screen.findAllByRole('combobox', { name: 'Étape de Awa Diop' });
+  await user.click(select);
+  await user.click(await screen.findByRole('option', { name: 'Perdu' }));
   await user.type(await screen.findByTestId('reason-input'), motif);
   await user.click(screen.getByTestId('reason-submit'));
 }

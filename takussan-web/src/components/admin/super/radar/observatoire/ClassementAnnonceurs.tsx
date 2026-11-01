@@ -182,7 +182,7 @@ export function ClassementAnnonceurs() {
           onValueChange={(v) => { setNature(estNature(v) ? v : ''); setPage(1); }}
           items={natureOptions}
         >
-          <SelectTrigger className="h-10 w-full" aria-label={t('filters.natureAria')}>
+          <SelectTrigger className="w-full" aria-label={t('filters.natureAria')}>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>

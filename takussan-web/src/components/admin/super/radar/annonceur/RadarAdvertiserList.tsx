@@ -4,9 +4,10 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
-import { ArrowLeft, UsersRound } from 'lucide-react';
+import { UsersRound } from 'lucide-react';
 
 import { usePlatformAbilities } from '@/components/admin/super/PlatformAbilitiesProvider';
+import { RadarNav } from '../RadarNav';
 import { PageHeader, StatusBadge } from '@/components/console';
 import { DataState } from '@/components/console/DataState';
 import { DataTable, type DataTableColumn } from '@/components/console/DataTable';
@@ -184,25 +185,21 @@ export function RadarAdvertiserList() {
 
   return (
     <div className="space-y-6">
-      <Link
-        href="/super-admin/radar"
-        className="inline-flex items-center gap-1.5 rounded-sm text-sm text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-      >
-        <ArrowLeft className="size-4" aria-hidden="true" />
-        {t('back')}
-      </Link>
+      <RadarNav />
       <PageHeader title={t('title')} description={t('subtitle')} />
       <Tabs value={file} onValueChange={(valeur) => { if (estFile(valeur)) setFile(valeur); }}>
-        <TabsList aria-label={t('tabsAria')}>
-          {RADAR_ADVERTISER_QUEUES.map((q) => <TabsTrigger key={q} value={q}>{t(`tabs.${q}`)}</TabsTrigger>)}
-        </TabsList>
-        <div className="max-w-md">
-          <DebouncedSearchInput
-            value={recherche}
-            onCommit={setRecherche}
-            placeholder={t('search.placeholder')}
-            aria-label={t('search.label')}
-          />
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <TabsList aria-label={t('tabsAria')}>
+            {RADAR_ADVERTISER_QUEUES.map((q) => <TabsTrigger key={q} value={q}>{t(`tabs.${q}`)}</TabsTrigger>)}
+          </TabsList>
+          <div className="w-full lg:max-w-xs">
+            <DebouncedSearchInput
+              value={recherche}
+              onCommit={setRecherche}
+              placeholder={t('search.placeholder')}
+              aria-label={t('search.label')}
+            />
+          </div>
         </div>
         {RADAR_ADVERTISER_QUEUES.map((q) => (
           <TabsContent key={q} value={q} className="space-y-4">

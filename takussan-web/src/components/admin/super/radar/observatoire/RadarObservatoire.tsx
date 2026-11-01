@@ -1,14 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
 import { useTranslations } from 'next-intl';
-import { ArrowLeft } from 'lucide-react';
 
 import { usePlatformAbilities } from '@/components/admin/super/PlatformAbilitiesProvider';
 import { PageHeader } from '@/components/console';
 import { ErrorState } from '@/components/feedback';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { RadarNav } from '../RadarNav';
 import { ClassementAnnonceurs } from './ClassementAnnonceurs';
 import { MarcheRadar } from './MarcheRadar';
 
@@ -37,13 +36,7 @@ export function RadarObservatoire() {
 
   return (
     <div className="space-y-6">
-      <Link
-        href="/super-admin/radar"
-        className="inline-flex items-center gap-1.5 rounded-sm text-sm text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-      >
-        <ArrowLeft className="size-4" aria-hidden="true" />
-        {t('back')}
-      </Link>
+      <RadarNav />
       <PageHeader title={t('title')} description={t('subtitle')} />
       <Tabs value={onglet} onValueChange={(v) => { if (estOnglet(v)) setOnglet(v); }}>
         <TabsList aria-label={t('tabsAria')}>

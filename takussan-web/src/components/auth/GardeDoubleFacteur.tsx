@@ -142,7 +142,7 @@ export function PreuveRecente({ onValide, onAnnuler }: PreuveRecenteProps) {
           maxLength={6}
           required
           autoFocus
-          className="h-11 text-center font-mono text-lg tracking-[0.4em]"
+          className="text-center font-mono text-lg tracking-[0.4em]"
         />
       </label>
       {erreur ? (

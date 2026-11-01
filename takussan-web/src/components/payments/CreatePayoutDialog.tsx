@@ -13,6 +13,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/context/AuthContext';
 import { useApiQuery } from '@/hooks/useApiQuery';
@@ -35,8 +36,8 @@ interface CreatePayoutDialogProps {
 
 type PlatformFeeLine = PayoutPreparation['lines']['lease_payments'][number] | PayoutPreparation['lines']['booking_payments'][number];
 
-const SELECT_CLASS =
-  'h-9 w-full rounded-md border border-border bg-transparent px-3 text-sm text-foreground';
+/** Valeur repère de « aucune » : une valeur vide n'est pas une option du Select. */
+const AUCUN = '__none__';
 
 function ownerName(owner: OwnerProfileSummary): string {
   // TCK-2136 (P220.06) — le nom du compte, puis celui de l'invitation : `''` (compte créé par
@@ -138,6 +139,27 @@ export function CreatePayoutDialog({ open, onOpenChange, onCreated }: CreatePayo
   const defaultVerified = prep?.payout_methods.find((m) => m.is_default && m.verified);
   const payoutMethodId = payoutMethodChoice ?? (defaultVerified ? String(defaultVerified.id) : '');
   const selectedMethod = prep?.payout_methods.find((m) => String(m.id) === payoutMethodId);
+  const optionsBailleur = [
+    { value: AUCUN, label: t('landlordPlaceholder') },
+    ...(owners.data?.data ?? [])
+      .filter((o) => o.user_id !== null)
+      .map((o) => ({ value: String(o.user_id), label: ownerName(o) })),
+  ];
+  const optionsDestination = [
+    { value: AUCUN, label: t('destinationNone') },
+    ...(prep?.payout_methods ?? []).map((m) => ({
+      value: String(m.id),
+      label: t('destinationOption', {
+        kind: tKind(m.kind),
+        masked: m.masked_identifier ?? '',
+        state: m.verified ? t('verified') : t('unverified'),
+      }),
+    })),
+  ];
+  const optionsMoyen = [
+    { value: AUCUN, label: tMethod('none') },
+    ...PAYMENT_METHOD_VALUES.map((value) => ({ value, label: tMethod(value) })),
+  ];
   const verifyDestination = async (id: number) => {
     setError(null);
     try {
@@ -203,25 +225,27 @@ export function CreatePayoutDialog({ open, onOpenChange, onCreated }: CreatePayo
           <div className="grid gap-4 lg:grid-cols-3">
             <div className="space-y-2">
               <Label htmlFor="payout-landlord">{t('landlord')}</Label>
-              <select
-                id="payout-landlord"
-                className={SELECT_CLASS}
-                value={landlordId}
+              <Select
+                value={landlordId === '' ? AUCUN : landlordId}
                 disabled={owners.isLoading}
-                onChange={(e) => {
-                  setLandlordId(e.target.value);
+                onValueChange={(next) => {
+                  if (next === null) return;
+                  setLandlordId(next === AUCUN ? '' : next);
                   setPayoutMethodId(null);
                 }}
+                items={optionsBailleur}
               >
-                <option value="">{t('landlordPlaceholder')}</option>
-                {(owners.data?.data ?? [])
-                  .filter((o) => o.user_id !== null)
-                  .map((o) => (
-                    <option key={o.id} value={String(o.user_id)}>
-                      {ownerName(o)}
-                    </option>
+                <SelectTrigger id="payout-landlord" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {optionsBailleur.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>
+                      {o.label}
+                    </SelectItem>
                   ))}
-              </select>
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="payout-period-start">{t('periodStart')}</Label>
@@ -389,23 +413,24 @@ export function CreatePayoutDialog({ open, onOpenChange, onCreated }: CreatePayo
               <div className="grid gap-4 lg:grid-cols-3">
                 <div className="space-y-2">
                   <Label htmlFor="payout-destination">{t('destination')}</Label>
-                  <select
-                    id="payout-destination"
-                    className={SELECT_CLASS}
-                    value={payoutMethodId}
-                    onChange={(e) => setPayoutMethodId(e.target.value)}
+                  <Select
+                    value={payoutMethodId === '' ? AUCUN : payoutMethodId}
+                    onValueChange={(next) => {
+                      if (next !== null) setPayoutMethodId(next === AUCUN ? '' : next);
+                    }}
+                    items={optionsDestination}
                   >
-                    <option value="">{t('destinationNone')}</option>
-                    {prep.payout_methods.map((m) => (
-                      <option key={m.id} value={String(m.id)}>
-                        {t('destinationOption', {
-                          kind: tKind(m.kind),
-                          masked: m.masked_identifier ?? '',
-                          state: m.verified ? t('verified') : t('unverified'),
-                        })}
-                      </option>
-                    ))}
-                  </select>
+                    <SelectTrigger id="payout-destination" className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {optionsDestination.map((o) => (
+                        <SelectItem key={o.value} value={o.value}>
+                          {o.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   {selectedMethod && !selectedMethod.verified ? (
                     <div className="space-y-1">
                       <p className="text-xs text-muted-foreground">{t('unverifiedHint')}</p>
@@ -423,19 +448,24 @@ export function CreatePayoutDialog({ open, onOpenChange, onCreated }: CreatePayo
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="payout-method">{t('method')}</Label>
-                  <select
-                    id="payout-method"
-                    className={SELECT_CLASS}
-                    value={paymentMethod}
-                    onChange={(e) => setPaymentMethod(e.target.value)}
+                  <Select
+                    value={paymentMethod === '' ? AUCUN : paymentMethod}
+                    onValueChange={(next) => {
+                      if (next !== null) setPaymentMethod(next === AUCUN ? '' : next);
+                    }}
+                    items={optionsMoyen}
                   >
-                    <option value="">{tMethod('none')}</option>
-                    {PAYMENT_METHOD_VALUES.map((value) => (
-                      <option key={value} value={value}>
-                        {tMethod(value)}
-                      </option>
-                    ))}
-                  </select>
+                    <SelectTrigger id="payout-method" className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {optionsMoyen.map((o) => (
+                        <SelectItem key={o.value} value={o.value}>
+                          {o.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="payout-scheduled">{t('scheduledAt')}</Label>

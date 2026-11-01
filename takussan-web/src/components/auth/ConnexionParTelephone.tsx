@@ -285,7 +285,7 @@ export function ConnexionParTelephone({ variante, onConnecte, onEmail }: Connexi
               pattern="\d{6}"
               maxLength={6}
               placeholder="123456"
-              className="h-11 tabular-nums tracking-widest"
+              className="tabular-nums tracking-widest"
               required
               autoFocus
             />
@@ -385,7 +385,7 @@ export function ConnexionParTelephone({ variante, onConnecte, onEmail }: Connexi
               inputMode={codeDeSecours ? 'text' : 'numeric'}
               autoComplete="one-time-code"
               placeholder={codeDeSecours ? t2fa('recoveryPlaceholder') : t2fa('codePlaceholder')}
-              className="h-11 tabular-nums tracking-widest"
+              className="tabular-nums tracking-widest"
               required
               autoFocus
             />

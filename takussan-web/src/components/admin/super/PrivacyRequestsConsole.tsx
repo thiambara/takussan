@@ -306,7 +306,7 @@ export function PrivacyRequestsConsole() {
           }}
           items={statusOptions}
         >
-          <SelectTrigger className="h-10 w-full" aria-label={t('filters.statusAria')}>
+          <SelectTrigger className="w-full" aria-label={t('filters.statusAria')}>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -321,7 +321,7 @@ export function PrivacyRequestsConsole() {
           }}
           items={typeOptions}
         >
-          <SelectTrigger className="h-10 w-full" aria-label={t('filters.typeAria')}>
+          <SelectTrigger className="w-full" aria-label={t('filters.typeAria')}>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -437,7 +437,7 @@ function UpdatePrivacyRequestForm({
         <div className="grid gap-1">
           <span id="pr-status-label" className="text-sm font-medium">{t('fields.status')}</span>
           <Select value={status} onValueChange={(v) => v && setStatus(v as PrivacyRequestStatus)} items={statusOptions}>
-            <SelectTrigger className="h-10 w-full" aria-labelledby="pr-status-label">
+            <SelectTrigger className="w-full" aria-labelledby="pr-status-label">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

@@ -220,7 +220,7 @@ function ModelDialog({ entree, fournisseurs, pending, error, onClose, onSave }: 
               <div className="space-y-1">
                 <Label id="model-provider">{t('provider')}</Label>
                 <Select value={provider} onValueChange={(v) => v && setProvider(v)} items={fournisseurs}>
-                  <SelectTrigger className="h-10 w-full min-w-0" aria-labelledby="model-provider"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="w-full min-w-0" aria-labelledby="model-provider"><SelectValue /></SelectTrigger>
                   <SelectContent>{fournisseurs.map((f) => <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>)}</SelectContent>
                 </Select>
               </div>

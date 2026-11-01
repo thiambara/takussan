@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useCreateAgencyRole } from '@/lib/queries/agency-roles';
 import { ASSIGNABLE_BASE_TYPES } from '@/types/agency-role';
@@ -22,6 +23,9 @@ import type { AgencyRole, AgencyRoleBaseType } from '@/types/agency-role';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
 import { useNomDuRole } from './nomDuRole';
+
+/** Valeur repère de « ne cloner aucun rôle » : une valeur vide n'est pas une option du Select. */
+const AUCUNE_SOURCE = '__none__';
 
 interface CreateRoleDialogProps {
   readonly agencyId: number;
@@ -37,13 +41,13 @@ interface CreateRoleDialogProps {
 /**
  * TCK-279 (AC3 / AC11) — création d'un rôle, éventuellement par clonage.
  *
- * ## `<select>` natif, et pas la primitive `Select`
+ * ## La primitive `Select`, et la dépendance entre les deux listes
  *
  * Le choix du type de profil pilote la liste des sources de clonage : l'API
- * refuse un `clone_from` d'un autre `base_profile_type`. Un contrôle natif
- * porte cette dépendance sans le portail ni la machine à états de base-ui,
- * et reste pilotable au clavier comme par un test. Le reste de l'écran
- * emploie la primitive là où elle est autonome.
+ * refuse un `clone_from` d'un autre `base_profile_type`. Changer le type
+ * remet donc la source à « aucune ». La charte interdit le sélecteur natif
+ * visible : les deux listes passent par `Select`. « Aucune source » est une
+ * valeur repère (`AUCUNE_SOURCE`), car une valeur vide n'est pas une option.
  *
  * ## `service_provider` n'est pas proposé
  *
@@ -125,6 +129,12 @@ export function CreateRoleDialog({
     return t.has(key) ? t(key) : type;
   };
 
+  const optionsType = ASSIGNABLE_BASE_TYPES.map((type) => ({ value: type, label: typeLabel(type) }));
+  const optionsSource = [
+    { value: AUCUNE_SOURCE, label: t('create.clone_from_none') },
+    ...clonableSources.map((r) => ({ value: String(r.id), label: nomDuRole(r) })),
+  ];
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
@@ -146,39 +156,50 @@ export function CreateRoleDialog({
 
           <div className="space-y-2">
             <Label htmlFor="create-role-base-type">{t('create.base_type_label')}</Label>
-            <select
-              id="create-role-base-type"
+            <Select
               value={baseType}
               disabled={cloneFrom !== null}
-              onChange={(e) => {
-                setBaseType(e.target.value as AgencyRoleBaseType);
+              onValueChange={(next) => {
+                if (next === null) return;
+                setBaseType(next as AgencyRoleBaseType);
                 setCloneId(null);
               }}
-              className="h-9 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm disabled:cursor-not-allowed disabled:opacity-50"
+              items={optionsType}
             >
-              {ASSIGNABLE_BASE_TYPES.map((type) => (
-                <option key={type} value={type}>
-                  {typeLabel(type)}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger id="create-role-base-type" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {optionsType.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>
+                    {o.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="create-role-clone-from">{t('create.clone_from_label')}</Label>
-            <select
-              id="create-role-clone-from"
-              value={cloneId ?? ''}
-              onChange={(e) => setCloneId(e.target.value === '' ? null : Number(e.target.value))}
-              className="h-9 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm"
+            <Select
+              value={cloneId === null ? AUCUNE_SOURCE : String(cloneId)}
+              onValueChange={(next) => {
+                if (next === null) return;
+                setCloneId(next === AUCUNE_SOURCE ? null : Number(next));
+              }}
+              items={optionsSource}
             >
-              <option value="">{t('create.clone_from_none')}</option>
-              {clonableSources.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {nomDuRole(r)}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger id="create-role-clone-from" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {optionsSource.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>
+                    {o.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-2">

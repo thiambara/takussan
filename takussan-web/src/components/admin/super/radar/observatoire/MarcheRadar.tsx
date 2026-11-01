@@ -164,7 +164,7 @@ export function MarcheRadar() {
           <Input
             id="radar-observatoire-depuis"
             type="date"
-            className="h-10"
+           
             value={filtres.since ?? ''}
             onChange={(e) => filtrer({ since: e.target.value || undefined })}
           />
@@ -176,7 +176,7 @@ export function MarcheRadar() {
         ] as const).map(([cle, aria, options, valeur, changer]) => (
           <div key={cle} className="flex items-end">
             <Select value={valeur ?? ANY} onValueChange={(v) => changer(String(v ?? ANY))} items={[...options]}>
-              <SelectTrigger className="h-10 w-full" aria-label={aria}>
+              <SelectTrigger className="w-full" aria-label={aria}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

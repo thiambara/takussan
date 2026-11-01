@@ -99,7 +99,7 @@ export function CreatePrivacyRequestForm({ onDone }: { readonly onDone: () => vo
           <div className="grid gap-1">
             <span id="pr-type-label" className="text-sm font-medium">{t('fields.type')}</span>
             <Select value={type} onValueChange={(v) => v && setType(v as PrivacyRequestType)} items={typeOptions}>
-              <SelectTrigger className="h-10 w-full" aria-labelledby="pr-type-label">
+              <SelectTrigger className="w-full" aria-labelledby="pr-type-label">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -111,7 +111,7 @@ export function CreatePrivacyRequestForm({ onDone }: { readonly onDone: () => vo
           <div className="grid gap-1">
             <span id="pr-channel-label" className="text-sm font-medium">{t('fields.channel')}</span>
             <Select value={channel} onValueChange={(v) => v && setChannel(v as PrivacyRequestChannel)} items={channelOptions}>
-              <SelectTrigger className="h-10 w-full" aria-labelledby="pr-channel-label">
+              <SelectTrigger className="w-full" aria-labelledby="pr-channel-label">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
