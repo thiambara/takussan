@@ -44,3 +44,7 @@ Le porteur décide quand une évaluation complète appelle de vrais modèles, et
 - [x] Le coût du dernier passage se lit avant de confirmer.
 - [x] Un opérateur sans `platform.ai.manage` ne peut pas lancer, côté API comme côté écran.
 - [ ] Vérifié sur la préproduction après promotion : l'entrée planifiée est coupée.
+
+## Reste sur dev
+
+- Après promotion sur `preview` : constater que `schedule:list` n'a plus l'entrée `ai:eval --all`.
